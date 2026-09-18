@@ -634,19 +634,23 @@ if ($method === 'PUT' && isset($segments[0]) && $segments[0] === 'tproject-roles
         out(['status' => 'error', 'message' => 'Invalid assignments']);
     }
 
-    // Legacy parity (usersAssign.php:560-562): an empty assignment map is a
-    // no-op ("this can happen when filtering via Javascript" / every row left
-    // at "-- no role --"). Short-circuit before any manager call so no delete
-    // query is built for an empty user list and no misleading audit event is
-    // written for a no-op.
+    // Legacy parity (usersAssign.php:82-84 + 560-562): an empty assignment map is
+    // a no-op ("this can happen when filtering via Javascript" / every row left
+    // at "-- no role --"). Legacy EXACTLY shows the localized notice
+    // $TLS_no_users_selected = "No users selected - nothing done" in this case
+    // (usersAssign.tpl:132-134 through inc_update.tpl:26-35). Short-circuit
+    // before any manager call so no delete query is built for an empty user
+    // list and no misleading audit event is written - but carry the
+    // feedback_key so the modern screen can render the same localized notice
+    // (issue #931).
     if (count($assignments) === 0) {
-        out(['status' => 'ok']);
+        out(['status' => 'ok', 'feedback_key' => 'no_users_selected']);
     }
 
     // Legacy parity: usersAssign.tpl:244-247 - a global admin's project role is
     // locked on this screen (issue #927); strip admin ids (and canonicalize keys).
     if (stripGlobalAdminAssignments($db, $assignments) === 0) {
-        out(['status' => 'ok']);
+        out(['status' => 'ok', 'feedback_key' => 'no_users_selected']);
     }
 
     $tprojectMgr = new testproject($db);
@@ -661,7 +665,11 @@ if ($method === 'PUT' && isset($segments[0]) && $segments[0] === 'tproject-roles
         }
     }
     logAuditEvent("Test project roles updated for project #{$tproject_id}", "UPDATE", $tproject_id, "testprojects");
-    out(['status' => 'ok']);
+    // Legacy parity: usersAssign.php:87-89 - after a successful doUpdate() the
+    // legacy page shows user_feedback = test_project_user_roles_updated ("User
+    // Roles updated"). The feedback_key mirrors that legacy lang key so the
+    // modern screen resolves and shows the localized success banner (issue #931).
+    out(['status' => 'ok', 'feedback_key' => 'assign_roles_updated']);
 }
 
 // Route: GET /roles/meta/tplan-roles?tproject_id=X&tplan_id=Y - get test plan role assignments

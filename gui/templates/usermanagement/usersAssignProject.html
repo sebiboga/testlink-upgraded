@@ -36,6 +36,14 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid #ccc; border-top-color: #4ECDC4; border-radius: 50%; animation: spin .6s linear infinite; margin-right: 6px; vertical-align: middle; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .changed-badge { background: #ffc107; color: #333; padding: 2px 6px; border-radius: 3px; font-size: 11px; font-weight: 700; margin-left: 6px; }
+/* Dashio toast pattern (rolesView.html:49-51, usersView.html:230-237): fixed
+   bottom-right banner replacing the legacy inc_update.tpl user_feedback box
+   (gui/templates/dashio/usermanagement/inc_update.tpl:26-35) that usersAssign
+   showed after a successful update / empty selection (issue #931). */
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.toast.ok { background: #4ECDC4; }
+.toast.warn { background: #f0ad4e; color: #333; }
+.toast.err { background: #e6605e; }
 </style>
 </head>
 <body>
@@ -81,6 +89,8 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 <div class="footer" id="footerText"></div>
 <div class="footer"><span data-i18n="footers.usersAssignProject">TestLink 2.0.1 - Assign Test Project Roles</span></div>
 
+<div class="toast" id="toast"></div>
+
 <script src="/gui/templates/i18n/i18n.js"></script>
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
@@ -107,6 +117,28 @@ function esc(s) {
   return String(s == null ? '' : s)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+// Dashio toast pattern (see rolesView.html:178, usersView.html:233): fixed
+// bottom-right banner replacing the legacy inc_update.tpl user_feedback box
+// that usersAssign.php:82-89 fed with no_users_selected /
+// test_project_user_roles_updated after an update attempt (issue #931).
+function toast(msg, cls) {
+  cls = cls || 'ok';
+  var $t = $('#toast').removeClass('ok warn err').addClass(cls).text(msg).fadeIn(120);
+  clearTimeout($t.data('t'));
+  $t.data('t', setTimeout(function () { $t.fadeOut(200); }, 4000));
+}
+
+// Map the BFF feedback_key (assign_roles_updated mirrors the legacy
+// test_project_user_roles_updated lang key, no_users_selected mirrors $TLS_no_users_selected)
+// to the client-side TLi18n key (issue #931).
+function assignFeedback(feedbackKey) {
+  var map = {
+    assign_roles_updated: 'assign.rolesUpdated',
+    no_users_selected: 'assign.noUsersSelected'
+  };
+  return TLi18n.t(map[feedbackKey] || 'assign.rolesUpdated');
 }
 
 $(function() {
@@ -395,11 +427,38 @@ function saveAssignments() {
     if (u.isAdmin) return;
     assignments[u.id] = roleChoices[u.id];
   });
+  var payload = { tproject_id: parseInt(currentProject), assignments: assignments };
   $.ajax({
     url: API + '/tproject-roles', type: 'PUT',
     contentType: 'application/json',
-    data: JSON.stringify({ tproject_id: parseInt(currentProject), assignments: assignments }),
-    success: function() { loadUsers(currentProject); }
+    data: JSON.stringify(payload),
+    success: function(r) {
+      // Legacy parity: usersAssign.php:82-89 + inc_update.tpl:26-35. A
+      // successful update renders the localized "User Roles updated" box; an
+      // empty assignment map renders the "No users selected - nothing done"
+      // notice instead. The BFF carries which case happened as feedback_key
+      // (issue #931). An empty map is a warning, not a success.
+      var fk = r && r.feedback_key;
+      toast(assignFeedback(fk), fk === 'no_users_selected' ? 'warn' : 'ok');
+      loadUsers(currentProject);
+    },
+    error: function(xhr) {
+      // Legacy parity: usersAssign.php:80-91 - on any failure the legacy page
+      // simply reloads with current values and no positive feedback; the modern
+      // rewrite surfaces a localized error banner instead of a silent uncaught
+      // ajax failure (issue #931).
+      var msg = TLi18n.t('assign.updateFailed');
+      var code = '';
+      try {
+        var j = JSON.parse(xhr.responseText);
+        if (j && j.code) code = j.code;
+        if (j && j.messageKey) msg = TLi18n.t(j.messageKey);
+        else if (j && j.message && j.message !== 'no_permissions_for_action') msg = j.message;
+      } catch(e) {}
+      if (code === 'demo_mode') msg = TLi18n.t('role.demoUpdateDisabled');
+      else if (xhr.status === 403) msg = TLi18n.t('common.forbidden');
+      toast(msg, 'err');
+    }
   });
 }
 </script>
