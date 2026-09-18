@@ -16394,3 +16394,36 @@ the exec dashboard. Known side finding: the exec *workframe* (`execSetResults.ph
 `$_REQUEST[tplan_id]` instead of `$_REQUEST[setting_testplan]`; this is a SEPARATE
 long-standing upstream defect (filed as **#1538**) and not part of the setSessionProject fix
 (Refs #1537).
+
+## Regression — Issue #1534: reqReorder.html loads broken local font-awesome CSS path (404) — icons missing
+
+**Feature:** the modern Reorder Requirements screen
+(`gui/templates/requirements/reqReorder.html`, Refs #1488) links Font Awesome via a local Dashio
+path that is not shipped (`/gui/templates/dashio/lib/font-awesome/css/all.min.css` — only FA4
+`font-awesome.min.css` exists there), yielding HTTP 404 and empty/tofu FA glyphs. Fix (already
+landed on default branch @ `398d68115`): switch the `<link>` to the CDN URL used by the other 148
+modern screens (`https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css`).
+
+**Approach:** reproduce the 404 pre-fix (`curl` of the local path), then verify post-fix page in
+headless Chrome: CDN css/webfont [200], no request to the local path, glyphs compute
+`font-family: "Font Awesome 6 Free"`, and a full reorder save round-trip (move → Save → re-init).
+
+**Precondition:** fixtures from `php tmp/fixtures_1534.php` (project `RE1534`/prefix `RS34`,
+spec `RS-REORD` id=2, requirements RRQ-001/002/003); login admin/admin on
+http://localhost:8082; open `gui/templates/requirements/reqReorder.html?req_spec_id=2&tproject_id=1`.
+
+**Repro steps (pre-fix):** page loads but Network panel shows 404 for
+`/gui/templates/dashio/lib/font-awesome/css/all.min.css`; all `class="fa …"` glyphs render empty.
+
+| # | Step | Expected | Actual |
+|---|------|----------|--------|
+| 1 | `curl -o /dev/null -w "%{http_code}" /gui/templates/dashio/lib/font-awesome/css/all.min.css` | 404 (file not shipped — confirms bug premise) | PASS — 404; local FA dir only has FA4 `font-awesome.min.css` |
+| 2 | Open reqReorder page; Network panel | CDN `all.min.css` [200]; **no** request to dashio-local path | PASS — CDN css [200], webfont fa-solid-900.woff2 [200]; local path not requested |
+| 3 | Grep fleet for leftover local FA refs | no other modern file references `dashio/lib/font-awesome` | PASS — 0 matches across `gui/templates/` |
+| 4 | JS probe: count `.fa` elements + computed font-family | ≥1 element, `Font Awesome 6 Free`, visible | PASS — 14 icons, `"Font Awesome 6 Free"`, inline-block |
+| 5 | Reorder: click Down on RRQ-001 row, then Save | list swaps to RRQ-002, RRQ-001, RRQ-003; green "Requirements reordered successfully." | PASS — green msg observed |
+| 6 | Persistence: `GET /api/reqreorder/index.php?action=init&req_spec_id=2&tproject_id=1` | returns `["RRQ-002","RRQ-001","RRQ-003"]` | PASS — init re-query returns the new order |
+| 7 | Browser console + `events` table | no new console errors; no Error/Warning rows (log_level ≥ 32) | PASS — 0 console msgs; events only INFO 16 audit rows (login + fixture) |
+
+**Result: 7/7 PASS** — the FA 404 is gone, icons render, and the reorder feature itself still
+works end-to-end after the CDN switch (Refs #1534).

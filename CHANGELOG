@@ -601,6 +601,14 @@ NEW FEATURES
 
 KEY BUGFIX / COMPATIBILITY EFFORTS (selection)
 ----------------------------------------------
+- Reorder Requirements screen (`gui/templates/requirements/reqReorder.html`)
+  linked Font Awesome from the Dashio-local copy
+  (`/gui/templates/dashio/lib/font-awesome/css/all.min.css`), a FA 6 file that
+  is never shipped (only FA 4 `font-awesome.min.css` exists in Dashio) → HTTP
+  404 on every load and empty/tofu FA glyphs. Switched the `<link>` to the CDN
+  URL (`https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css`)
+  used by the other 148 modern screens; icon rendering + full reorder
+  save/persist regression verified (Refs #1534).
 - `linkto.php` inner-frame deep links (`item=reqspec|testcase|testsuite`) returned
   HTTP 500 on every hit: the inner-frame branch still called
   `testproject::setSessionProject()`, a method removed from
