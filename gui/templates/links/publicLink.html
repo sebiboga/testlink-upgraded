@@ -67,6 +67,7 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 <script>
 'use strict';
 var API = '/api/publiclink/index.php';
+var redirectTimer = null;
 
 $(function () {
   TLi18n.load(function () {
@@ -100,6 +101,7 @@ function resolve() {
     return;
   }
 
+  if (redirectTimer) { clearTimeout(redirectTimer); redirectTimer = null; }
   $('#againLink').attr('href', location.pathname + location.search);
   showMsg('info', TLi18n.t('plnk.loading'));
   $('#resultCard').hide();
@@ -119,7 +121,7 @@ function resolve() {
       $('#linkInput').val(location.origin + href);
       $('#resultCard').show();
       // the legacy lnl.php gateway redirected instantly; keep that behaviour
-      setTimeout(function () { window.location.replace(href); }, 450);
+      redirectTimer = setTimeout(function () { window.location.replace(href); }, 450);
     },
     error: function (xhr) {
       $('#resultCard').hide();
@@ -130,11 +132,13 @@ function resolve() {
 
 function showErrByCode(r) {
   var msg = TLi18n.t('plnk.errDefault');
+  var matched = true;
   switch (r && r.code) {
     case 'bad_apikey': msg = TLi18n.t('plnk.errBadApikey'); break;
     case 'bad_type':   msg = TLi18n.t('plnk.errBadType'); break;
     case 'bad_id':     msg = TLi18n.t('plnk.errBadId'); break;
     case 'not_found':  msg = TLi18n.t('plnk.errNotFound'); break;
+    case 'forbidden_key':
     case 'invalid_link': msg = TLi18n.t('plnk.errInvalid'); break;
     case 'unknown_type': msg = TLi18n.t('plnk.errUnknown'); break;
     case 'no_target':  msg = TLi18n.t('plnk.errNoTarget'); break;
@@ -143,12 +147,16 @@ function showErrByCode(r) {
     case 'http404':    msg = TLi18n.t('plnk.errNotFound'); break;
     case 'http405':    msg = TLi18n.t('plnk.errMethod'); break;
     case 'http500':    msg = TLi18n.t('plnk.errServer'); break;
+    default: matched = false;
   }
-  if (r && r.message && r.code && r.code.indexOf('http') !== 0) { msg = r.message; }
+  // server JSON never overrides a mapped (localized) code; only an unmapped
+  // error falls back to the raw API message
+  if (!matched && r && r.message) { msg = r.message; }
   showErr(msg);
 }
 
 function showErr(text) {
+  if (redirectTimer) { clearTimeout(redirectTimer); redirectTimer = null; }
   showMsg('err', text);
   $('#resultCard').hide();
 }

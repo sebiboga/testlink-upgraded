@@ -100,10 +100,14 @@ $opt = array('setPaths' => true, 'clearSession' => true);
 $light = 'red';
 
 if ($akl === $userAPIkeyLen) {
-    // remote access for the owning user
-    setUpEnvForRemoteAccess($db, $apikey, null, $opt);
-    $users = tlUser::getByAPIKey($db, $apikey);
-    $light = (is_array($users) && count($users) == 1) ? 'green' : 'red';
+    // remote access for the owning user. Probe only (mirrors the
+    // api/reportsprint inline pattern): setUpEnvForRemoteAccess() internally
+    // does count($user) on tlUser::getByAPIKey() which returns null on a
+    // no-match -> PHP 8 count(null) TypeError (a fake 32-char key would 500).
+    // The probe authorizes the link; each target BFF re-validates the key in
+    // its own context, so no session mutation is needed here.
+    $apiUsers = tlUser::getByAPIKey($db, $apikey);
+    $light = (is_array($apiUsers) && count($apiUsers) === 1) ? 'green' : 'red';
 } else {
     // object key; for exec, swap to the owning plan's api_key (legacy parity)
     if ($type === 'exec') {
@@ -123,7 +127,16 @@ if ($akl === $userAPIkeyLen) {
             publicLinkOut(['status' => 'error', 'code' => 'not_found',
                            'message' => 'Test plan API key not found'], 404);
         }
-        $apikey = strval($prs[0]['api_key']);
+        $planKey = strval($prs[0]['api_key']);
+        // Fail-closed: a genuine share link always carries the owning plan
+        // key here (all emitters produce it), so require the presented
+        // anonymous key to match before swapping (a foreign key with a known
+        // execution id must not open the print).
+        if ($apikey !== $planKey) {
+            publicLinkOut(['status' => 'error', 'code' => 'forbidden_key',
+                           'message' => 'API key does not match execution test plan'], 403);
+        }
+        $apikey = $planKey;
     }
 
     $kerberos = new stdClass();
@@ -170,8 +183,11 @@ switch ($type) {
         break;
 
     case 'testspec':
-        $target = ($cfg !== null ? (is_array($cfg) ? $cfg['url'] : '') : '')
-            . "?apikey=" . rawurlencode($apikey) .
+        if ($cfg === null || !isset($cfg['url']) || $cfg['url'] === '') {
+            publicLinkOut(['status' => 'error', 'code' => 'no_target',
+                           'message' => 'No target for this link type'], 400);
+        }
+        $target = $cfg['url'] . "?apikey=" . rawurlencode($apikey) .
             "&type={$type}&level=testproject&id={$id}" .
             "&tproject_id={$id}" .
             "&header=y&summary=y&toc=y&body=y&cfields=y&author=y" .

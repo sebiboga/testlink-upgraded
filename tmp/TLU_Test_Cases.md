@@ -16637,3 +16637,50 @@ Screenshots: `docs/screenshots/issue-1540-fixplans-initial.png`,
 `docs/screenshots/issue-1540-fixplans-empty-state.png`,
 `docs/screenshots/issue-1540-fixplans-confirm-modal.png`,
 `docs/screenshots/issue-1540-fixplans-ro-locale.png`. Fixture: manual mysql (see RESUME in issue #1540).
+
+## Suite 1541 — Public share-link gateway (`lnl.php` + publicLink resolver + apikey targets) (Refs #1541)
+
+**Feature:** modernization of the anonymous public share-link gateway. `lnl.php` is now a thin
+302 dispatcher → `gui/templates/links/publicLink.html` (Dashio resolver screen) backed by
+`api/publiclink/index.php` `GET ?action=resolve&type=&id=&apikey=`; the resolved targets are the
+modern BFF screens carrying the bound key: `exec` → `execPrint.html?id=&apikey=<plankey>`,
+`file` → `/api/attachments/index.php?action=download&id=&apikey=<projkey>`,
+`metricsdashboard` → `metricsDashboard.html?tproject_id=&apikey=<projkey>`. Anonymous logic
+reused from the legacy gateway (32-char user key / 64-char object key, `exec` swaps to the owning
+plan's `api_key`, `getEntityByAPIKey` binds attachments/metrics to the owning project). i18n
+`plnk.*` (22 keys) + `footers.publicLink` in all 10 bundles.
+
+**Precondition:** fresh `tmp/fixtures_1541.php` run (tproject **PSL** id 1 api_key
+`ea5389a53ddbd90e30d0e7f128f0d5bc5856fa88cac06e3599ab43dd4da37ec1`; tplan **Plan PSL** id 2
+api_key `4ba8917fab57a464018f4526bd4cc58a6b1618a862f92189b260cf3dadd3059c`; exec #1 passed /
+#2 failed; attachment #1 `hello-share.txt`; admin script_key `7f8a1b2c3d4e5f60718293a4b5c6d7e8`).
+
+| # | Step | Expected | Actual |
+|---|------|----------|--------|
+| 1 | `lnl.php?type=exec&id=1&apikey=<plankey>` (anon browser) | 302 → `publicLink.html?...` → auto-redirect (450ms) → `execPrint.html?id=1&apikey=<plankey>` | PASS — full anonymous Execution Print renders ("Execution Print — #1", PSL One, Passed, Build PSL, tester, steps, notes, attachments, Direct Link footer) |
+| 2 | Anonymous exec print attachment link | `hello-share.txt` href rewritten to `/api/attachments/index.php?action=download&id=1&apikey=<plankey>`; click → file content | PASS — link rewritten in BFF body_html (verified via decoded JSON); clicking downloads/serves "This file is attached to PSL execution…" |
+| 3 | `lnl.php?type=file&id=1&apikey=<plankey>` | 302 → resolver → target `/api/attachments/download&id=1&apikey=<plankey>`; file bytes served | PASS — page shows the attachment file content |
+| 4 | `lnl.php?type=metricsdashboard&apikey=<projkey>` | resolver binds owning project id 1 → `metricsDashboard.html?tproject_id=1&apikey=<projkey>` renders | PASS — anonymous dashboard shows PSL data (executed 2/2, Passed 50% [1/2], Failed 50% [1/2], Plan PSL row, DataTables) |
+| 5 | Bad anonymous key: `lnl.php?type=metricsdashboard&apikey=111…(64×1)` | error status `invalid_link` → localized error card, NO auto-redirect, **Resolve again** link present | PASS — error card renders in place ("Link is not valid…" / localized code path) |
+| 6 | Authenticated dashboard `Public link` button | emits `http://localhost:8082/lnl.php?type=metricsdashboard&apikey=<projkey>` | PASS — admin session shows the modern gateway URL in directLinkBox |
+| 7 | Resolver BFF — happy path `action=resolve&type=exec&id=1&apikey=<plankey>` | `{"status":"ok","type":"exec","id":1,"apikey_length":64,"format":0,"target":"gui/templates/execute/execPrint.html?id=1&apikey=…","href":"…"}` | PASS — curl 200 |
+| 8 | Resolver BFF — wrong 64-char key on exec link (e.g. project key) | 403 `forbidden_key` "API key does not match execution test plan" — the resolver now fails-closed BEFORE swapping (code-review fix; legacy swapped anyway) | PASS — curl 403 JSON |
+| 9 | Resolver BFF — unknown exec id 999 with valid plan key | 404 Execution not found | PASS — curl 404 JSON |
+| 10 | Resolver/target — fake 32-char anon key | error status `invalid_link`, NO 500 (was `count(null)` TypeError inside `setUpEnvForRemoteAccess` + `[0]`-index E_WARNING before the probe-only fix) | PASS — curl `invalid_link`; php_server.log clean |
+| 11 | Resolver BFF — users: exec print + file download with user script_key (32-char) | 200 for print and download (user-key path) | PASS — curl 200 both |
+| 12 | `lnl.php` Location header hygiene | 302, no CR/LF injection possible, query preserved | PASS — Location `http://localhost:8082/gui/templates/links/publicLink.html?type=exec&id=1&apikey=…` |
+| 13 | i18n gate | `plnk.*` + `footers.publicLink` present in **all 10** bundles; bundles `python3 -m json.tool` valid; every key referenced by the HTML exists in en | PASS — 10/10 valid; 22 `plnk.*` + footer per bundle; no missing references |
+| 14 | Event Viewer / `events` table | no new Error/Warning (log_level ≥ 2) from the gateway + targets | PASS — 8 pre-fix PHP-error rows (undefined `$id`, `[0]` offsets, count(null)) removed after root-cause fixes; only audit-16 login/CRUD rows remain |
+| 15 | Code review fixes (rule 16) | resolver: 32-char probe-only user-key auth (no session mutation, no count(null)); exec fail-closed on anonymous key; `testspec` with no `reports_list` url → clean `no_target`; JS: error-code→localized-key mapping (server message only as unmapped fallback), redirect timer cleared on re-resolve/error | PASS — curl + node --check clean; **review touchup regression caught:** a `window.stop()` added to the redirect callback silently cancelled `location.replace` (resolver card showed but stuck) — removed, all three share flows re-verified navigating in a fresh tab |
+| 16 | Final E2E re-run (post-review) | `lnl.php` exec/file/metrics links each navigate to their modern target in an anonymous context; bad-key metric link shows the LOCALIZED error card | PASS — exec→execPrint (hasPrint+attachment), file→attachment bytes, metrics→dashboard with PSL; error card shows `plnk.errInvalid` ("This link is not valid for anonymous access.") not the raw server string |
+
+**Result: 16/16 PASS** — the whole anonymous public share-link family (execution print, direct
+file download, Metrics Dashboard) now lands on modern Dashio screens, fail-closed on forged keys,
+localized error card instead of legacy fatal surfaces; ES/exec/plan key-bound targets verified
+against a re-runnable fixture. 4 pre-fix bugs fixed (executionprint `$id` ordering, `count(null)`
+TypeError, `[0]`-index user lookup, resolver `setUpEnvForRemoteAccess` count(null)) +
+anonymous attachment-link rewrite to the apikey download BFF + code-review hardening (exec
+fail-closed, i18n error mapping, timer hygiene). Screenshots:
+`docs/screenshots/issue-1541-execprint-anon.png`,
+`docs/screenshots/issue-1541-metrics-anon.png`,
+`docs/screenshots/issue-1541-gateway-error-card.png` (also mirrored to wiki `images/`).

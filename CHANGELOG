@@ -20,19 +20,20 @@ screen reaches full parity.
 MAJOR AREAS
 -----------
 
+- [UI MODERNIZATION] - #1541: the public share-link gateway lnl.php (anonymous share links for execution prints / file downloads / Metrics Dashboard) is now a thin 302 dispatcher onto a modern Dashio resolver screen gui/templates/links/publicLink.html + BFF api/publiclink/index.php (GET ?action=resolve). Same key model as the legacy gateway (32-char user key or 64-char anonymous object key; exec swaps to the owning test-plan api_key, file/metricsdashboard bind to the owning project's key — fail-closed 403 on forged keys). Resolves onto the modern targets with the apikey threaded through: execPrint.html (anonymous execution print, inline attachment links rewritten from legacy attachmentdownload.php to the /api/attachments download with the same key), /api/attachments download (real file bytes), metricsDashboard.html bound to the owning project (not the session). Report-document families still resolve to the legacy reports_list.php URLs (parity). $actions->publicLink wiring; i18n plnk.* (22 keys) + footers.publicLink in all 10 bundles. Hardens api/executionprint, api/attachments, api/metrics (is_array/reset guards around tlUser::getByAPIKey, $id parsed before the apikey bind). Suite 1541 16/16 PASS, Event Viewer clean.
 - [KEY BUGFIX] - #1540: the legacy admin "Fix Test Plans" repair utility (lib/project/fix_tplans.php) was fatally broken on the upgraded schema (it called the never-defined getTestPlansWithoutProject()) and is now a modern Dashio screen gui/templates/projects/fixTPlans.html + BFF api/fixplans/index.php (GET init / POST reassign / POST fix_build). Reassigns orphan test plans (testproject_id=0 or dangling nodes_hierarchy names) and repairs orphan builds to chosen projects, gated by mgt_modify_product with 401/400/403/404/405/500 JSON + CSRF guard. Link switch $actions->fixTPlans in lib/functions/common.php. i18n fixp.* (31 keys) in all 10 bundles. Verified 12/12 in browser (incl. guest-403, anon-401, EN<->RO, confirm modal, Event Viewer clean).
 - [KEY BUGFIX] - #1536: legacy deep-link controllers reqSpecView.php + archiveData.php no longer emit E_WARNING-on-view. Both are now clean 302 redirect stubs to their modern twins (gui/templates/requirements/reqSpecView.html, gui/templates/testcases/tcEdit.html), preserving req_spec_id/tcase_id/tproject_id/tplan_id deep-links. The redirect target is root-relative (/gui/templates/...) so a deep link resolves to the modern screen (HTTP 200), not to a relative-path 404. 7x E_WARNING class removed from legacy dashio deep-link views. (Refs #1536)
 - [UI MODERNIZATION] - New Dashio UI - Bootstrap-based admin template (teal/dark/red
   palette) replacing the legacy Smarty layout. All screens rewritten as standalone
   HTML + JS + CSS pages under gui/templates/<area>/<screen>.html using DataTables,
   Bootstrap modals and Chart.js. No Smarty for modernized screens.
-- [BFF API LAYER] - 63 plain-PHP REST BFF endpoints (api/<area>/index.php) with
+- [BFF API LAYER] - 64 plain-PHP REST BFF endpoints (api/<area>/index.php) with
   session-based authentication, CSRF same-origin guard and JSON I/O. No framework.
 - [PHP 8.x COMPATIBILITY] - All PHP 8.x warnings resolved (43+ unique warning
   classes fixed, from E_WARNING/E_NOTICE to PHP 8.4 deprecations). Full PHP 8.4
   compatibility (Symfony translation implicit-nullable fix, #481). MariaDB 11.4
   tested. MySQL 5.7+ / MariaDB 11.4+.
-- [MODERNIZED SCREENS] - 114 standalone HTML screens (87+ feature-parity checked,
+- [MODERNIZED SCREENS] - 115 standalone HTML screens (87+ feature-parity checked,
   see docs/SCREEN-COMPARE-STATUS.md). All ASIDE menu sections covered: System,
   Product, Requirements, Test Spec, Plans, Execution, Reports, Auth, Documentation.
 - [I18N] - Client-side TLi18n module (gui/templates/i18n/i18n.js) with 10 locale
@@ -46,8 +47,8 @@ MAJOR AREAS
 - [CI FACTORY] - 5 autonomous GitHub Actions workflows: fix-bug.yml (every 2h),
   implement-task-oldest.yml + implement-task-newest.yml (every 2h), merge-prs.yml
   (hourly), modernize.yml (manual, one screen per run).
-- [TESTING] - 184 numbered regression test-case suites in tmp/TLU_Test_Cases.md
-  (13.4k lines, 3658 PASS results), executed and recorded per run. Event Viewer
+- [TESTING] - 185 numbered regression test-case suites in tmp/TLU_Test_Cases.md
+  (13.4k lines, 3672 PASS results), executed and recorded per run. Event Viewer
   clean after each run.
 - [WIKI / DOCS] - Full GitHub Wiki (361 pages) + docs/ mirror, per-screen
   modernization docs, 168 bugfix write-ups, MODERNIZATION-STATUS.md and
