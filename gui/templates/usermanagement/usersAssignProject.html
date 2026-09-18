@@ -82,6 +82,12 @@ var currentProject = null;
 var originalData = {};
 var roles = [];
 var NO_RIGHTS_ROLE_ID = 3;
+// Legacy parity: usersAssign.php:TL_ROLES_ADMIN == 8. The legacy template
+// (usersAssign.tpl:259-271) never offers the "admin" role as an assignable
+// option for a test project unless it is the user's current effective
+// (non-inherited) assignment - that is why the modern project-role dropdown
+// excludes it the same way (issue #928).
+var ADMIN_ROLE_ID = 8;
 
 function esc(s) {
   return String(s == null ? '' : s)
@@ -176,7 +182,14 @@ function loadUsers(pid) {
       var opts = '<option value="0"' + (inherited ? ' selected' : '') + '>' + noRoleLbl + '</option>';
       $.each(roles, function(j, role) {
         var sel = (!inherited && u.effectiveRoleID == role.id) ? ' selected' : '';
-        opts += '<option value="' + esc(role.id) + '"' + sel + '>' + esc(role.name) + '</option>';
+        // Legacy parity: usersAssign.tpl:259-271 ($removeRole). The admin role
+      // (TL_ROLES_ADMIN, id 8) is deliberately NOT offered as an assignable
+      // option for a project - UNLESS it is that user's current effective
+      // (non-inherited) role, in which case it is rendered and pre-selected
+      // (issue #928). Inherited admin continues to render as the
+      // "<inherited> <role>" value-0 option above.
+      if (role.id == ADMIN_ROLE_ID && !(!inherited && u.effectiveRoleID == role.id)) return;
+      opts += '<option value="' + esc(role.id) + '"' + sel + '>' + esc(role.name) + '</option>';
       });
       var rowClass = (u.effectiveRoleID == NO_RIGHTS_ROLE_ID) ? ' class="not_authorized_user"' : '';
       var disabled = u.isAdmin ? ' disabled' : '';

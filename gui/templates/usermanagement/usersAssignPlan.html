@@ -79,6 +79,12 @@ var API = '/api/roles/index.php';
 var currentProject = null;
 var currentPlan = null;
 var roles = [];
+// Legacy parity: usersAssign.php:TL_ROLES_ADMIN == 8. assignUsers.tpl:259-271
+// ($removeRole) never offers the "admin" role as an assignable option for a
+// test plan - UNLESS it is the user's current (explicit, non-inherited) plan
+// assignment, in which case it is rendered and pre-selected (issue #928).
+// Inherited admin keeps rendering as the "<inherited> <role>" value-0 option.
+var ADMIN_ROLE_ID = 8;
 
 function esc(s) {
   return String(s == null ? '' : s)
@@ -152,6 +158,12 @@ function loadUsers(pid, planId) {
     $.each(r.items, function(i, u) {
       var opts = '<option value="0">' + TLi18n.t('assign.noOverride') + '</option>';
       $.each(roles, function(j, role) {
+        // Legacy parity: usersAssign.tpl:259-271 ($removeRole) - the admin role
+        // (TL_ROLES_ADMIN, id 8) is NOT offered as an assignable option for a
+        // test plan, UNLESS it is that row's current explicit plan assignment
+        // (issue #928). Inherited admin keeps rendering as the "<inherited>
+        // <role>" value-0 option above.
+        if (role.id == ADMIN_ROLE_ID && u.roleID != role.id) return;
         var sel = u.roleID == role.id ? ' selected' : '';
         opts += '<option value="' + esc(role.id) + '"' + sel + '>' + esc(role.name) + '</option>';
       });
