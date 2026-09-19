@@ -17109,3 +17109,34 @@ right 5), all password `admin`.
 
 **Result: 6/6 PASS.** Screenshots: `docs/screenshots/issue-937-admin-plans.png`,
 `docs/screenshots/issue-937-assign-disabled.png`, `docs/screenshots/issue-937-assign-disabled-ro.png`.
+
+## Suite 1544 (tcAssignedToUser) — Issue #1544: Test Cases Assigned to User popup (modern screen re-record + verify)
+
+**Precondition:** app http://localhost:8082 (PHP built-in server), DB `testlink` freshly imported, login admin/admin. Fixture `php tmp/fixtures_1544.php` → project 27 `TA2U` (prefix TA2), plan 28 `Plan TA2U`, **BUILD-OPEN** (4) + **BUILD-CLOSED** (5), platforms **Win11** (4) + **MacOS** (5), TCs: **TA2-1 Open Admin Case** (id 30 / tcv 31, importance 3 → priority 6) assigned to admin on open build Win11, **TA2-2 Open Tester Case** (33/34, importance 2 → priority 4) tester1 @ open build Win11 (deadline +5d), **TA2-3 Closed Tester Case** (36/37, importance 1 → priority 2) tester1 @ closed build, **TA2-4 Mac Tester Case** (39/40, importance 2) tester1 @ open build MacOS. Users: admin(1), tester1(3, role 7), norights(4, role 3). One prior execution for TA2-1 (passed by admin). Screen pops up from `resultsByTesterPerBuild.html` (`assignmentUrl`) as an 800x600 popup; BFF `api/tcassigned/index.php` (`GET ?action=init`, `POST ?action=quick_exec`).
+
+| ID | Test case | Repro | Expected | Result |
+|----|-----------|-------|----------|--------|
+| 1544.t1 | ledger recording gap | `grep 'tcAssignedToUser' docs/MODERNIZATION-STATUS.md` before this run | no DONE row / no Summary extras mention / no CHANGELOG line (the gap this run records) | PASS |
+| 1544.t2 | BFF init — admin session default user | browser (admin session) `GET /api/tcassigned/index.php?action=init&tproject_id=27&tplan_id=28&build_id=0&user_id=0` | HTTP 200; `hasData=true`; exactly 1 row TA2-1 (admin); `priority=6`, `priority_level=high`; `status=p` (prior execution); `can_exec=true`; platform Win11 | PASS |
+| 1544.t3 | BFF init — tester user view (admin session, assigned_to_me) | `user_id=3` same request | 2 rows (TA2-2 + TA2-4), both `status=n not_run`, `can_exec=false` (admin is not the assigned tester), platforms Win11+MacOS | PASS |
+| 1544.t4 | priority parity vs legacy `priority_to_level` | compare rows: TA2-1 prio 6, TA2-2 prio 4, TA2-3 prio 2 | legacy thresholds high=6/low=3 → 6=high, 4=medium, 2=low. BUG FOUND+FIXED: BFF was mapping `>=HIGH(3)`/`>=MEDIUM(2)` → 4 showed high, 2 showed medium. After fix (`priority_to_level()`): 4=medium ✓, 2=low ✓ | PASS |
+| 1544.t5 | closed-build not in default list | `build_id=0&user_id=3` | only BUILD-OPEN rows (TA2-2, TA2-4); TA2-3 (closed build) absent | PASS |
+| 1544.t6 | build-scoped deep link (open build) | `build_id=4&user_id=3` | rows = TA2-2 + TA2-4 only; build name BUILD-OPEN | PASS |
+| 1544.t7 | build-scoped deep link (closed build) | `build_id=5&user_id=3` | row = TA2-3 only on BUILD-CLOSED; `priority_level=low`; status not_run | PASS |
+| 1544.t8 | empty state | `user_id=999` | `hasData=false`; screen renders empty box "No assigned test cases found" | PASS |
+| 1544.t9 | screen render (admin popup) | open `tcAssignedToUser.html?tproject_id=27&tplan_id=28&build_id=0&user_id=1` | header `Test Cases Assigned to User`; tproject `TA2U`; user `admin`; section `Plan TA2U`; columns Build/Test Suite/Test Case/Platform/Priority/Status/Due Since; TA2-1 row with tcView link, exec-history icon, 3 quick icons (Passed/Failed/Blocked) + Execute link, Win11/High/PASSED/0d; footer generated-on | PASS |
+| 1544.t10 | quick-exec via UI (P/F/B icon) | admin session, click Quick mark as Failed icon on TA2-1, accept confirm | toast "Test result saved successfully"; status cell updates to FAILED; `INSERT` verified in `executions` (tester_id=1, tcversion 31, platform 4, build 4) | PASS |
+| 1544.t11 | quick-exec as assigned tester | tester1 session (role 7, exec right), click Failed on TA2-4 | toast OK; `executions` gains row tester_id=3, tcversion 40, platform 5, build 4 | PASS |
+| 1544.t12 | assigned_to_me peek restriction | admin session, `user_id=3` | rows have NO quick icons nor Execute link (only tcView + history) — admin is not the assigned tester | PASS |
+| 1544.t13 | quick-exec icon availability for own rows | tester1 session, `user_id=3` | both own rows show quick + Execute icons | PASS |
+| 1544.t14 | BFF rejects invalid result status | POST `result=x` | HTTP 400 `Invalid result status` | PASS |
+| 1544.t15 | BFF rejects missing params | POST `{tplan_id:28}` only | HTTP 400 `Missing parameters` | PASS |
+| 1544.t16 | BFF rejects fabricated tcversion | POST tcversion 99999 | HTTP 403 `Execution restricted to assigned tester` (assigned_to_me mode) | PASS |
+| 1544.t17 | BFF HTTP status codes reach the client (out() mask bug) | hit 400/401/403 branches as above, client `xhr.status` | BUG FOUND+FIXED: `out($data,200)` default reset the prior `http_response_code(*)` to 200, masking all error statuses → client 401/403 handling never fired. After fix: 400/403 propagate. Verified status ∈ {400,403,401,200} per branch | PASS |
+| 1544.t18 | rights: no-rights role 3 gets 403 | login `norights`/`norights` (role 3), same init + quick_exec | init → HTTP 403 `No permission`; quick_exec → HTTP 403 `No permission` | PASS |
+| 1544.t19 | anon session redirects to login | open `tcAssignedToUser.html?...` in isolated context with no session | fetch returns 401; `xhr.status===401` branch sets redirect → login.php | PASS |
+| 1544.t20 | entry point from Results by Tester per Build | `resultsByTesterPerBuild.html?tproject_id=27&tplan_id=28`, click `tester1` link | popup opens `tcAssignedToUser.html?user_id=3&build_id=4&tplan_id=28&tproject_id=27` scoped to tester1 + open build; header shows tester1 | PASS |
+| 1544.t21 | i18n completeness + bundle validity | all 10 bundles | `ta2u.*` 29 keys + `common.*` + `footers.tcAssignedToUser` present in en/ro/de/es/fr/it/ja/pt/ru/zh; `python3 -m json.tool` valid | PASS |
+| 1544.t22 | console + Event Viewer clean | Chrome console + `events` table after all flows | no JS errors; no new `log_level IN (1,2)` rows; only AUDIT login/project events | PASS |
+
+**Result: 22/22 PASS.** Two real BFF bugs found and fixed: (1) priority level parity — BFF used `>=HIGH(3)/>=MEDIUM(2)` while legacy `priority_to_level()` uses urgencyImportance thresholds (high=6/low=3), so priority weights 4 and 2 rendered `high`/`medium` instead of `medium`/`low`; fixed by delegating to `priority_to_level()` (commit 5e4f9fb36). (2) `out($data,200)` overwrote the `http_response_code(400/401/403)` set by preceding validation/guard branches — every error returned HTTP 200 and the client's `xhr.status===401/403` handling never fired; `out()` now only sets a code when explicitly passed (commit 60b9f2e62). Screenshots: `docs/screenshots/issue-1544-screen-admin.png`, `issue-1544-screen-tester.png`, `issue-1544-screen-empty.png`, `issue-1544-screen-closedbuild.png`, `issue-1544-screen-tester1-session.png`.
