@@ -16684,3 +16684,41 @@ fail-closed, i18n error mapping, timer hygiene). Screenshots:
 `docs/screenshots/issue-1541-execprint-anon.png`,
 `docs/screenshots/issue-1541-metrics-anon.png`,
 `docs/screenshots/issue-1541-gateway-error-card.png` (also mirrored to wiki `images/`).
+
+## Suite 935 — Access-rights check on Assign Test Plan Roles BFF read routes (Task — Issue #935)
+
+**Feature:** the GET `meta/tplan-roles` / `meta/tproject-roles` read routes of
+`api/roles/index.php` now enforce the legacy `usersAssign.php` `checkRights()` union
+(role_management OR testplan_user_role_assignment [tproject ctx, tplan fallback] OR
+global user_role_assignment OR testproject_user_role_assignment on the target project)
+and deny with HTTP 403 `no_permissions_for_action` + `audit_security_user_right_missing`
+AUTH event. The two modern screens surface that denial as the legacy "Not Enough Rights
+To Access The Feature" box (plan screen previously showed a frozen empty grid).
+
+**Precondition:** run `php tmp/fixtures_935.php` (test project **ASSIGN** id 1, active
+test plan **RPlan** id 2, user **guest1** global role `guest` / password `admin`), then
+create a permissive-path user: global role `leader` (id 9) e.g. `leader935` password
+`admin`. Users: admin (role_management), guest1 (no assign rights), leader935 (assign
+rights, no role_management).
+
+| # | Step | Expected | Actual |
+|---|------|----------|--------|
+| 1 | Log in as guest1; GET `/api/roles/index.php/meta/tplan-roles?tproject_id=1&tplan_id=2` | **403** `no_permissions_for_action` (right testplan_user_role_assignment), no user dump | PASS — 403, 96 B JSON |
+| 2 | Guest1 GET `/meta/tplan-roles?tproject_id=0&tplan_id=0` | **403** | PASS — 403 |
+| 3 | Guest1 GET `/meta/tproject-roles?tproject_id=1` | **403** (right user_role_assignment) | PASS — 403 |
+| 4 | Guest1 opens `usersAssignPlan.html` | localized deny box visible ("You do not have enough rights to access this feature."), tabs/toolbar/table hidden, no frozen empty grid | PASS — `#denyBox` visible, chrome hidden (screenshot issue-935-plan-denied-guest-after.png) |
+| 5 | Guest1 opens `usersAssignProject.html` | same localized deny box (NOT the "roles disabled" notice) | PASS — `#denyBox` visible, `#disabledMsg` hidden |
+| 6 | `events` table after guest1 fetches | rows `audit_security_user_right_missing` (AUTH, log_level 16) for each denial | PASS — ids 3,4,5 |
+| 7 | Log in as leader935; same three GETs | **200** full data (permissive `checkRights` union preserved — assign rights suffice, role_management not required) | PASS — 200, 3 items each |
+| 8 | Log in as admin; both screens | full grid renders (ASSIGN/RPlan, rows admin+guest1), deny box hidden; Save disabled until a change | PASS — 2 user rows both screens, `#denyBox` hidden |
+| 9 | i18n gate | `assign.noRights` present in **all 10** bundles; bundles `python3 -m json.tool` valid; referenced key exists in en | PASS — 10/10 bundles, key inserted + validated |
+| 10 | Event Viewer / `events` | no new Error/Warning (log_level ≥ 32) from the run; browser console no JS exceptions; php_server.log clean | PASS — only audit-16 rows; console only expected 403 resource log; no PHP warnings |
+| 11 | Code review (rule 16) | shared `assign.noRights` message generic (rendered on BOTH plan and project screens); inline JS `node --check` clean | PASS — generic wording mirrors `$TLS_not_enough_rights`; JS syntax OK |
+
+**Result: 11/11 PASS** — read-route rights check fully enforced and surfaced:
+server-side 403 + audit events (verified guest/leader/admin matrix, Event Viewer clean)
+and the legacy "Not Enough Rights" screen reproduced on both Assign Roles modern screens
+(plan screen no longer a frozen empty grid). Screenshots:
+`docs/screenshots/issue-935-frozen-guest-before.png`,
+`docs/screenshots/issue-935-plan-denied-guest-after.png`,
+`docs/screenshots/issue-935-project-denied-guest-after.png`.

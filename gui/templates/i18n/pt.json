@@ -36,6 +36,7 @@
   "assign.inheritedRoleHint": "Esta função é herdada da função global do usuário.",
   "assign.inheritedRoleOption": "<herdada> {role}",
   "assign.noOverride": "-- sem substituição --",
+  "assign.noRights": "Você não tem direitos suficientes para acessar este recurso.",
   "assign.noRole": "-- sem função --",
   "assign.noUsers": "Nenhum utilizador neste projeto.",
   "assign.noUsersSelected": "Sem utilizadores selecionados - não se fez nada",

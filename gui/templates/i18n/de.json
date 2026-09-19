@@ -36,6 +36,7 @@
   "assign.inheritedRoleHint": "Diese Rolle wird von der globalen Rolle des Benutzers geerbt.",
   "assign.inheritedRoleOption": "<geerbt> {role}",
   "assign.noOverride": "-- keine Überschreibung --",
+  "assign.noRights": "Sie haben nicht genügend Rechte, um auf diese Funktion zuzugreifen.",
   "assign.noRole": "-- keine Rolle --",
   "assign.noUsers": "Keine Benutzer in diesem Projekt.",
   "assign.noUsersSelected": "Keine Benutzer ausgewählt - nichts getan",

@@ -97,6 +97,15 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
     <i class="fa fa-lock" style="font-size:32px;color:#e74c3c;margin-bottom:12px;display:block;"></i>
     <span data-i18n="assign.rolesDisabled">Your role configuration do not allow you Assign Roles for Test Projects</span>
   </div>
+  <!-- Legacy parity: usersAssign.php:23 testlinkInitPage($db,false,false,"checkRights")
+       denies the whole screen with the localized $TLS_not_enough_rights. The BFF
+       read routes mirror that gate server-side (403 no_permissions_for_action,
+       issue #935); surface it distinctly from the "no assignable projects"
+       case (showDisabled above), same pattern as rolesView.html:281. -->
+  <div id="denyBox" style="display:none;padding:40px;text-align:center;background:#fff;margin:24px 0;border-radius:8px;font-size:14px;">
+    <i class="fa fa-lock" style="font-size:32px;color:#e74c3c;margin-bottom:12px;display:block;"></i>
+    <span data-i18n="assign.noRights">You do not have enough rights to access this feature.</span>
+  </div>
 </div>
 
 <div class="footer" id="footerText"></div>
@@ -204,7 +213,7 @@ function loadProjects(selectedId) {
       loadUsers(pid);
     })
     .fail(function(xhr) {
-      if (xhr.status === 403) { showDisabled(); }
+      if (xhr.status === 403) { showNoAccess(); }
       else { $('#emptyMsg').show(); }
     });
   $('#projectSelect').on('change', function() {
@@ -240,6 +249,24 @@ function showDisabled() {
   $('#footerText').empty();
 }
 
+// Legacy parity: usersAssign.php:23 checkRights() denial -> localized
+// $TLS_not_enough_rights screen. The BFF read routes 403 with
+// no_permissions_for_action (issue #935); surface that as a distinct deny box
+// instead of the "no assignable projects" notice and instead of a frozen grid.
+function showNoAccess() {
+  $('#demoBanner').hide();
+  $('#tabsBar').hide();
+  $('.toolbar').hide();
+  $('#projectSelect').empty().prop('disabled', true);
+  $('#assignTable').hide();
+  $('#emptyMsg').hide();
+  $('#disabledMsg').hide();
+  $('#demoNote').hide();
+  $('#denyBox').show();
+  $('#saveBtn').prop('disabled', true);
+  $('#footerText').empty();
+}
+
 function loadUsers(pid) {
   currentProject = pid;
   $('#saveBtn').prop('disabled', true);
@@ -271,8 +298,9 @@ function loadUsers(pid) {
   }).fail(function(xhr) {
     // Guard against a stale project's data being saved under the new pid: on
     // failure (403/500/network) keep the previous view coherent and never let
-    // Save run against a half-loaded state (issue #930).
-    if (xhr.status === 403) { showDisabled(); }
+    // Save run against a half-loaded state (issue #930). A 403 means the
+    // caller lost/never had the assign right -> localized deny box (issue #935).
+    if (xhr.status === 403) { showNoAccess(); }
     else {
       $('#assignBody').empty();
       $('#emptyMsg').show();

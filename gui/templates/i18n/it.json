@@ -36,6 +36,7 @@
   "assign.inheritedRoleHint": "Questo ruolo è ereditato dal ruolo globale dell'utente.",
   "assign.inheritedRoleOption": "<ereditato> {role}",
   "assign.noOverride": "-- nessuna sovrascrittura --",
+  "assign.noRights": "Non hai abbastanza diritti per accedere a questa funzione.",
   "assign.noRole": "-- nessun ruolo --",
   "assign.noUsers": "Nessun utente in questo progetto.",
   "assign.noUsersSelected": "Nessun utente selezionato - nessuna operazione eseguita",

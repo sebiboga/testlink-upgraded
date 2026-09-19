@@ -36,6 +36,7 @@
   "assign.inheritedRoleHint": "此角色继承自用户的全局角色。",
   "assign.inheritedRoleOption": "<继承> {role}",
   "assign.noOverride": "-- 无覆盖 --",
+  "assign.noRights": "您没有足够的权限访问此功能。",
   "assign.noRole": "-- 无角色 --",
   "assign.noUsers": "此项目中没有用户。",
   "assign.noUsersSelected": "未选择用户，未执行任何操作",

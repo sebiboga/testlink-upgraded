@@ -36,6 +36,7 @@
   "assign.inheritedRoleHint": "This role is inherited from the user's global role.",
   "assign.inheritedRoleOption": "<inherited> {role}",
   "assign.noOverride": "-- no override --",
+  "assign.noRights": "You do not have enough rights to access this feature.",
   "assign.noRole": "-- no role --",
   "assign.noUsers": "No users in this project.",
   "assign.noUsersSelected": "No users selected - nothing done",

@@ -36,6 +36,7 @@
   "assign.inheritedRoleHint": "Эта роль унаследована из глобальной роли пользователя.",
   "assign.inheritedRoleOption": "<унаследована> {role}",
   "assign.noOverride": "-- без переопределения --",
+  "assign.noRights": "У вас недостаточно прав для доступа к этой функции.",
   "assign.noRole": "-- без роли --",
   "assign.noUsers": "Нет пользователей в этом проекте.",
   "assign.noUsersSelected": "Пользователи не выбраны - ничего не сделано",

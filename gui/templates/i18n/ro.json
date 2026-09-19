@@ -36,6 +36,7 @@
   "assign.inheritedRoleHint": "Acest rol este mostenit din rolul global al utilizatorului.",
   "assign.inheritedRoleOption": "<mostenit> {role}",
   "assign.noOverride": "-- fara suprascriere --",
+  "assign.noRights": "Nu aveți suficiente drepturi pentru a accesa această funcție.",
   "assign.noRole": "-- fara rol --",
   "assign.noUsers": "Niciun utilizator in acest proiect.",
   "assign.noUsersSelected": "Niciun utilizator selectat - nu s-a făcut nimic",

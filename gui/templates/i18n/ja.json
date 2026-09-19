@@ -36,6 +36,7 @@
   "assign.inheritedRoleHint": "このロールはユーザーのグローバルロールから継承されています。",
   "assign.inheritedRoleOption": "<継承> {role}",
   "assign.noOverride": "-- 上書きなし --",
+  "assign.noRights": "この機能にアクセスするための十分な権限がありません。",
   "assign.noRole": "-- ロールなし --",
   "assign.noUsers": "このプロジェクトにユーザーがいません。",
   "assign.noUsersSelected": "ユーザーが選択されていません。何も実行されませんでした",

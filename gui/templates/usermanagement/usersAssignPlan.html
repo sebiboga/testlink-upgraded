@@ -92,6 +92,16 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
     <i class="fa fa-folder-open" style="font-size:32px;color:#ccc;margin-bottom:12px;display:block;"></i>
     Select a test project and test plan above to manage role assignments.
   </div>
+  <!-- Legacy parity: usersAssign.php:23 testlinkInitPage($db,false,false,"checkRights")
+       denies the whole screen with the localized $TLS_not_enough_rights
+       ("Not Enough Rights To Access The Feature", strings.txt:4100). The BFF
+       mirrors that gate server-side (403 no_permissions_for_action on the
+       meta read routes, issue #935); surfacing it here keeps the denied user
+       from staring at a silently frozen empty screen (rolesView.html:281 pattern). -->
+  <div id="denyBox" style="display:none;padding:40px;text-align:center;background:#fff;margin:24px 0;border-radius:8px;font-size:14px;">
+    <i class="fa fa-lock" style="font-size:32px;color:#e74c3c;margin-bottom:12px;display:block;"></i>
+    <span data-i18n="assign.noRights">You do not have enough rights to access this feature.</span>
+  </div>
 </div>
 
 <div class="footer" id="footerText"></div>
@@ -134,6 +144,21 @@ function applyDemoMode() {
   if (demoMode) { $('#saveBtn').prop('disabled', true); }
 }
 
+// Legacy parity: usersAssign.php:23 testlinkInitPage(...) denies the whole
+// screen with checkRights(); the BFF read routes now 403 with
+// no_permissions_for_action (issue #935). Hide the management chrome and show
+// the localized "not enough rights" notice instead of a frozen empty screen
+// (rolesView.html:281 showNoAccess pattern).
+function showNoAccess() {
+  $('#demoBanner').hide();
+  $('#tabsBar').hide();
+  $('.toolbar').hide();
+  $('.assign-table').hide();
+  $('#emptyMsg').hide();
+  $('#footerText').hide();
+  $('#denyBox').show();
+}
+
 TLi18n.load(function() {
   TLi18n.apply();
   TLi18n.initLocaleSwitcher('#localeSwitcher');
@@ -166,6 +191,8 @@ function loadProjects(selectedId) {
     demoMode = !!(r.demoMode);
     applyDemoMode();
     if (selectedId) { sel.val(selectedId); loadPlans(selectedId); }
+  }).fail(function(xhr) {
+    if (xhr && xhr.status === 403) { showNoAccess(); }
   });
   $('#projectSelect').on('change', function() {
     var pid = $(this).val();
@@ -186,6 +213,8 @@ function loadPlans(pid) {
     });
     sel.prop('disabled', false);
     $('#assignBody').empty(); $('#emptyMsg').show(); $('#saveBtn').prop('disabled', true);
+  }).fail(function(xhr) {
+    if (xhr && xhr.status === 403) { showNoAccess(); }
   });
   $('#planSelect').off('change').on('change', function() {
     var planId = $(this).val();
@@ -232,6 +261,8 @@ function loadUsers(pid, planId) {
     $('#assignBody').html(html);
     $('#emptyMsg').hide();
     $('#footerText').text(TLi18n.t('user.usersCount', {n: r.items.length}));
+  }).fail(function(xhr) {
+    if (xhr && xhr.status === 403) { showNoAccess(); }
   });
 }
 

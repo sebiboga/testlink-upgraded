@@ -456,6 +456,19 @@ NEW FEATURES
   (previously blocked by the role_management-only gate) and the project combo hides
   projects whose effective role cannot assign roles. i18n `assign.rolesDisabled` in all
   10 bundles.
+- Assign Test Plan/Project Roles — read-route access-rights check completed (Refs #935):
+  the GET `meta/tplan-roles` / `meta/tproject-roles` gate from #924 finally surfaces the
+  legacy "Not Enough Rights To Access The Feature" screen (`$TLS_not_enough_rights`) on
+  both modern screens: `usersAssignPlan.html` gained `.fail(403 -> showNoAccess)`
+  handlers on `loadProjects/loadPlans/loadUsers` + a `#denyBox` (a denied user used to
+  stare at a silently frozen empty grid), and `usersAssignProject.html` re-routes 403 to
+  a distinct `showNoAccess()` split from the "no assignable projects" `#disabledMsg`.
+  Verified live: guest (global role `guest`) -> 403 `no_permissions_for_action` on all
+  read routes + `audit_security_user_right_missing` AUTH event + localized deny box on
+  both screens; leader (`testplan_user_role_assignment` + `user_role_assignment`, no
+  `role_management`) and admin still read HTTP 200 full data (legacy `checkRights`
+  union preserved). i18n `assign.noRights` in all 10 bundles. Suite "Task — Issue #935"
+  all PASS.
 - Assign Test Project Roles / Plan — server-side update rights check on PUT (Refs #925):
   `PUT /api/roles/tproject-roles` and `PUT /api/roles/tplan-roles` now enforce legacy
   `checkRightsForUpdate()` (`api/roles/index.php:84-94` `userCanUpdateAssignments`,
