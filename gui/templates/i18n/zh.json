@@ -295,6 +295,7 @@
   "common.confirm": "确认",
   "common.delete": "删除",
   "common.edit": "编辑",
+  "common.emptyLogMessage": "日志信息为空",
   "common.entries": "条",
   "common.error": "错误",
   "common.errorLoading": "加载数据出错",

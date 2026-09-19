@@ -295,6 +295,7 @@
   "common.confirm": "Bestätigen",
   "common.delete": "Löschen",
   "common.edit": "Bearbeiten",
+  "common.emptyLogMessage": "Änderungsprotokoll ist leer",
   "common.entries": "Eintraege",
   "common.error": "Fehler",
   "common.errorLoading": "Fehler beim Laden der Daten",

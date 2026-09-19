@@ -859,6 +859,14 @@ if ($method === 'GET' && $action === 'spec_revision_compare') {
 
     // ---- history list (revision rows, DESC like legacy) ----
     if ($leftId <= 0 && $rightId <= 0) {
+        // Refs #1357 - expose the legacy truncation length so the modern screen
+        // can render the cell truncated to req_spec_cfg->log_message_len and offer
+        // a hover tooltip with the FULL log (legacy reqSpecCompareRevisions.php:262-271
+        // truncates the cell server-side; tip4log + getreqspeclog.php fetch the rest).
+        $specCfg = config_get('req_spec_cfg');
+        $logMessageLen = (is_object($specCfg) && isset($specCfg->log_message_len))
+            ? intval($specCfg->log_message_len) : 0;
+
         $history = $reqSpecMgr->get_history($specId, [
             'output' => 'array', 'decode_user' => true, 'order_by_dir' => 'DESC',
         ]);
@@ -874,13 +882,14 @@ if ($method === 'GET' && $action === 'spec_revision_compare') {
             ];
         }
         out([
-            'status'      => 'ok',
-            'tproject_id' => $ownerTid,
-            'tproject_name' => testproject::getName($db, $ownerTid),
-            'spec_id'     => $specId,
-            'spec_doc_id' => (string)$specRow[0]['doc_id'],
-            'context'     => $defContext,
-            'revisions'   => $items,
+            'status'         => 'ok',
+            'tproject_id'    => $ownerTid,
+            'tproject_name'  => testproject::getName($db, $ownerTid),
+            'spec_id'        => $specId,
+            'spec_doc_id'    => (string)$specRow[0]['doc_id'],
+            'context'        => $defContext,
+            'log_message_len'=> $logMessageLen,
+            'revisions'      => $items,
         ]);
     }
 

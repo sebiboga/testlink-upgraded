@@ -295,6 +295,7 @@
   "common.confirm": "Confirma",
   "common.delete": "Sterge",
   "common.edit": "Editeaza",
+  "common.emptyLogMessage": "Mesajul de log este gol",
   "common.entries": "inregistrari",
   "common.error": "Eroare",
   "common.errorLoading": "Eroare la incarcarea datelor",

@@ -16722,3 +16722,41 @@ and the legacy "Not Enough Rights" screen reproduced on both Assign Roles modern
 `docs/screenshots/issue-935-frozen-guest-before.png`,
 `docs/screenshots/issue-935-plan-denied-guest-after.png`,
 `docs/screenshots/issue-935-project-denied-guest-after.png`.
+## Suite 1357 — Task Issue #1357: log-message hover tooltip in `reqSpecCompare.html`
+
+- **Priority:** medium · **Type:** task/gap (legacy tip4log port)
+- **Scope:** gap vs legacy `reqSpecCompareRevisions.tpl:32-48` (`tip4log` Ext.ToolTip on
+  `tooltip-<item_id>` + `lib/ajax/getreqspeclog.php` full-log fetch + `empty_log_message`
+  placeholder). The modern screen rendered the full log inline with a `'-'` fallback and
+  NO hover tooltip. This task ports the whole legacy affordance: BFF now returns
+  `log_message_len` (`req_spec_cfg->log_message_len`, 200 — legacy
+  `reqSpecCompareRevisions.php:262-271` truncation), the cell shows the truncated log +
+  `...` exactly like legacy, a mouse-tracked tooltip (width 500 / dismissDelay 0 /
+  trackMouse, legacy-affordance) shows the FULL untruncated log with `<p>`→newline
+  normalization (mirror of `getreqspeclog.php`), and empty logs render the translated
+  `common.emptyLogMessage` placeholder instead of `'-'`.
+- **Precondition:** `tmp/fixtures_1357.php` run (tproject **RSCMP1357** id 1, spec
+  **RS-CMP** id 2; revisions id 3=r1 'Requirement Specification Created', 5=r2 'Fixed
+  typo in scope', 7=r3 LONG 419-char log, 9=r4 EMPTY log). Verified in-browser against
+  the freshly-imported DB (admin/admin).
+
+| # | Test case | Steps | Expected | Actual |
+|---|---|---|---|---|
+| TC-1357.1 | long log truncated in cell | open `reqSpecCompare.html?spec_id=2&tproject_id=1` | Rev 3 Log message cell shows first 200 chars + `...` (NOT the full 419) | PASS (browser) — "Reworked the scope paragraph ordering … Reviewers aske…" |
+| TC-1357.2 | hover tooltip = full log | hover the Rev 3 Log message cell | `#logTooltip` visible; text = FULL 419-char log (ends "remains as-is until the QA pass.") | PASS (browser) — display block, textLength 419 |
+| TC-1357.3 | empty log placeholder | check Rev 4 (empty) Log message cell | shows translated `common.emptyLogMessage` ("Log message is empty"), NOT `'-'` | PASS (browser) |
+| TC-1357.4 | empty-log hover tooltip | hover the Rev 4 Log message cell | tooltip shows the same placeholder text | PASS (browser) |
+| TC-1357.5 | tooltip survives DataTables rebuild | click Refresh, hover Rev 3 again | tooltip still shows full 419-char log after tbody rebuild | PASS (browser) |
+| TC-1357.6 | BFF exposes log_message_len | `fetch '/api/reqspec/index.php?action=spec_revision_compare&spec_id=2&tproject_id=1'` | `log_message_len` = 200 in the list response; `log_message` stays FULL per row | PASS (browser fetch) |
+| TC-1357.7 | compare/diff regression | click "Compare selected revisions" (left=r3,right=r4) | Diff panel "Diff between r3 ↔ r4", attribute table + scope "No changes" | PASS (browser) |
+| TC-1357.8 | i18n gate | `common.emptyLogMessage` present in all 10 bundles, all JSON valid | 10/10 present + valid, English "Log message is empty" | PASS (python3 json.tool + dict check) |
+| TC-1357.9 | no console errors / a11y | throughout the above | 0 console errors; only pre-existing a11y "form field id" issue (count 1) | PASS (browser console) |
+| TC-1357.10 | Event Viewer clean | `SELECT … FROM events WHERE log_level IN ('error','warning')` | no new Error/Warning rows from the BFF read path | PASS (mysql) |
+
+- **Result:** **10/10 PASS** (TC-1357.1–1357.10). The legacy `tip4log` log-message
+  hover-tooltip affordance is fully ported: legacy truncation length exposed by the
+  BFF, cell truncated to `log_message_len` + `...`, full log on hover with the
+  `getreqspeclog.php` normalization, and the translated empty-log placeholder replacing
+  the `'-'` fallback. Compare/diff regression passes; no new Event-Viewer/console noise.
+  Screenshots: `docs/screenshots/issue-1357-tooltip.png` (tooltip over the 419-char log),
+  also mirrored to wiki `images/issue-1357-tooltip.png`.

@@ -44,6 +44,7 @@ Viewer** (`reqSpecView.html`) and **Spec Revision Viewer**
 | Revision ordering (gap #1362) | newest-first (DESC by revision number) | same — DataTable disabled default client-side ascending sort; the Revision cell carries an integer `data-order` sort key and the DataTable is initialised with `order: [[0,"desc"]]`, so rows render newest-first AND sort numerically for 10+ revisions ("Revision 10" > "Revision 2") |
 | Cancel/Back (gap #1359) | **two** Cancel buttons (`cancel_top` tpl line 209 + `cancel_bottom` line 258, both `btn_cancel` → `history.back()`) so the user can leave the compare page without the browser Back | same — a `btn-ghost` Cancel button (`.fa-arrow-left` + `common.cancel`) in the toolbar and a second one in the bottom footer; both call `goBack()` = `history.back()`, with a same-origin fallback to `reqSpecView.html?id=<spec>&tproject_id=<tid>` when the page was opened directly (`history.length <= 1`) |
 | Revision-popup link (gap #1358) | the **Last change** cell is clickable (blue `rgb(0,85,153)`, hand cursor) and opens the spec-revision viewer popup for that row (`reqSpecCompareRevisions.tpl:234` → `openReqSpecRevisionWindow(item_id)` → `lib/requirements/reqSpecViewRevision.php` sized from `ReqPopupWidth`/`ReqPopupHeight` cookies, window name `ReqSpecRevisionView`) | same — the timestamp cell is a clickable link (`cursor:pointer;color:rgb(0,85,153)` + tooltip `rsvc.openRevision`) calling `openReqSpecRevision(item_id)`, which opens the modern `reqSpecViewRevision.html?revision_id=<id>` viewer popup, cookie-sized (defaults 800x600), window name `ReqSpecRevisionView` |
+| Log-message hover tooltip (gap #1357) | every revision's Log message cell (`id="tooltip-<item_id>"`, tpl:231-233) opens an Ext.ToolTip (`tip4log`, tpl:32-48 — width 500, dismissDelay 0, trackMouse) that **autoLoads the FULL untruncated log** from `lib/ajax/getreqspeclog.php?item_id=`; the cell itself shows the log truncated to `req_spec_cfg->log_message_len` (200, controller `reqSpecCompareRevisions.php:262-271`); an empty log makes `getreqspeclog.php` return the `empty_log_message` placeholder | same — the BFF list response returns `log_message_len` (from `req_spec_cfg`), the cell renders the log truncated to that length + `...` exactly like legacy, and a mouse-tracked `#logTooltip` div (legacy-affordance: width 500 / dismissDelay 0 / trackMouse, event-delegated on `#revTable` so it survives DataTables rebuilds) shows the FULL untruncated log with the `getreqspeclog.php` `<p>`→newline normalization; empty logs render the translated `common.emptyLogMessage` placeholder instead of the old `'-'` fallback |
 
 ## 2. REST API Reference
 
@@ -51,7 +52,7 @@ All routes are session-authenticated and JSON; CSRF Origin header required.
 
 | Method | Route | Query | Returns |
 |---|---|---|---|
-| GET | `?action=spec_revision_compare` | `spec_id`, `tproject_id` | `{status, tproject_id, tproject_name, spec_id, spec_doc_id, context, revisions:[{item_id, revision, log_message, timestamp, last_editor}]}` |
+| GET | `?action=spec_revision_compare` | `spec_id`, `tproject_id` | `{status, tproject_id, tproject_name, spec_id, spec_doc_id, context, log_message_len, revisions:[{item_id, revision, log_message, timestamp, last_editor}]}` |
 | GET | `?action=spec_revision_compare` | `spec_id`, `tproject_id`, `left`, `right`, `method=html|text`, `context`, `context_show_all` | `{status, left, right, method, attributes:[{label,lvalue,rvalue,changed}], scope:{type,left,right,count,diff}, custom_fields:[{label,lvalue,rvalue,changed}]}` |
 
 ### Error conditions
@@ -100,6 +101,16 @@ All routes are session-authenticated and JSON; CSRF Origin header required.
   ref the BFF already returns per row, so **no BFF change** was needed; the
   no-revision-change guard in `get_history()` (r1 falls back to `author_id`/
   `creation_ts`) still produces correct per-row ids.
+- **Log-message hover tooltip (gap #1357):** legacy cells were truncated
+  server-side to `req_spec_cfg->log_message_len` (200) with `...` and the full
+  message was loaded on hover through `lib/ajax/getreqspeclog.php` (nl2br, strips
+  surrounding `<p>`, falls back to `empty_log_message`). The modern screen keeps
+  the FULL `log_message` in the BFF payload (no extra fetch round-trip) and
+  mirrors the rest 1:1: the BFF list response now exposes `log_message_len`
+  (`config_get('req_spec_cfg')->log_message_len`), the cell truncates to it with
+  `...`, a mouse-tracked `#logTooltip` (Ext.ToolTip affordance: width 500,
+  dismissDelay 0, trackMouse) shows the full log normalizing `<p>` → newline, and
+  blank logs render the translated `common.emptyLogMessage` placeholder.
 
 ## 4. i18n Keys
 
@@ -113,7 +124,9 @@ All labels are client-side via `TLi18n`; keys under the `rsvc.` namespace
 `rsvc.attribute`, `rsvc.scope`, `rsvc.noChanges`, `rsvc.changes`,
 `rsvc.customFields`, `rsvc.customField`, `rsvc.openRevision`). The link labels use
 `rsv.compareRevisions` / `rsvr.compareRevisions`. Present in all 10 bundles
-(`en ro de es fr it ja pt ru zh`).
+(`en ro de es fr it ja pt ru zh`). The log-tooltip placeholder adds the shared
+`common.emptyLogMessage` key ("Log message is empty", legacy `empty_log_message`)
+in all 10 bundles.
 
 ## 5. Security
 
@@ -153,3 +166,12 @@ all 10 locale bundles, Event Viewer + console + PHP log clean. Screenshots:
 `screenshots/issue-1358-rsvc-timestamp-cell-link.png`,
 `screenshots/issue-1358-rsvc-revision-popup.png`. Fixture:
 `tmp/fixtures_1358.php`.
+
+See also **Suite 1357 — Log-message hover tooltip** (10/10 PASS): the Log message
+cell truncates to `req_spec_cfg->log_message_len` (200) + `...` like legacy,
+hovering shows the FULL untruncated log in a mouse-tracked tooltip (survives
+DataTables refresh), empty logs render the translated `common.emptyLogMessage`
+placeholder instead of `'-'`, the BFF list response exposes `log_message_len`,
+compare/diff regression passes, i18n gate 10/10 bundles, Event Viewer + console
+clean. Screenshot: `screenshots/issue-1357-tooltip.png`. Fixture:
+`tmp/fixtures_1357.php`.

@@ -295,6 +295,7 @@
   "common.confirm": "確認",
   "common.delete": "削除",
   "common.edit": "編集",
+  "common.emptyLogMessage": "ログメッセージは空です",
   "common.entries": "件",
   "common.error": "エラー",
   "common.errorLoading": "データの読み込みエラー",

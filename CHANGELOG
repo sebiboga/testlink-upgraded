@@ -148,6 +148,11 @@ Requirements:
   clickable link (legacy `openReqSpecRevisionWindow` parity) opening the modern
   revision viewer `reqSpecViewRevision.html?revision_id=<id>` in a
   cookie-sized popup (ReqPopupWidth/ReqPopupHeight, defaults 800x600).
+  #1357: the Log message cell regains the legacy tip4log hover-tooltip
+  affordance — the BFF list response now exposes req_spec_cfg->log_message_len,
+  the cell truncates to it + '...' like legacy, a mouse-tracked tooltip shows the
+  FULL untruncated log (getreqspeclog.php <p>→newline normalization), and blank
+  logs render the translated common.emptyLogMessage placeholder instead of '-'.
 - Requirement Revision Viewer (reqRevisionView.html) - BFF api/reqrevision
   (#1435, closes dashio 500 #1427).
 - Create Test Cases from Requirements (reqCreateTestCases.html) - BFF

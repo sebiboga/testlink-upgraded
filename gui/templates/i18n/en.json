@@ -295,6 +295,7 @@
   "common.confirm": "Confirm",
   "common.delete": "Delete",
   "common.edit": "Edit",
+  "common.emptyLogMessage": "Log message is empty",
   "common.entries": "entries",
   "common.error": "Error",
   "common.errorLoading": "Error loading data",

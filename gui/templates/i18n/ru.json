@@ -295,6 +295,7 @@
   "common.confirm": "Подтвердить",
   "common.delete": "Удалить",
   "common.edit": "Изменить",
+  "common.emptyLogMessage": "Сообщение лога пусто",
   "common.entries": "записей",
   "common.error": "Ошибка",
   "common.errorLoading": "Ошибка загрузки данных",
