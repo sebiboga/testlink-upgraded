@@ -48,6 +48,12 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; }
 .att-row .info { flex: 1; }
 .att-row .info .fn { font-weight: 700; color: #22242a; }
 .att-row .info .meta { color: #999; font-size: 11px; }
+.att-del { background: #e74c3c; color: #fff; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 600; }
+.att-del:hover { background: #c0392b; }
+.att-upload { border-top: 1px dashed #e5e5e5; margin-top: 12px; padding-top: 12px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.att-upload input[type=file] { font-size: 12px; flex: 1; min-width: 180px; }
+.att-upload input[type=text] { flex: 1; min-width: 180px; padding: 6px 9px; border: 1px solid #ccc; border-radius: 4px; font-family: inherit; font-size: 13px; }
+.att-max { color: #999; font-size: 11px; width: 100%; }
 .req-link { color: #3498db; }
 .req-link:hover { text-decoration: underline; }
 </style>
@@ -108,6 +114,7 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; }
     <div class="card-body">
       <div id="noAtt" class="empty-state" style="display:none;" data-i18n="rsv.noAttachments"></div>
       <div id="attList"></div>
+      <div id="attUpload" style="display:none;"></div>
     </div>
   </div>
 
@@ -140,6 +147,7 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; }
 <script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
 <script>
 var API = '/api/reqspec/index.php';
+var ATT_API = '/api/attachments/index.php';
 var SPEC_ID = 0;
 var TPROJECT_ID = 0;
 var SPEC = null;
@@ -255,22 +263,115 @@ function renderCF(r) {
 
 function renderAttachments(r) {
   var atts = r.attachments || [];
-  if (!atts.length) {
+  var canManage = !!(r.rights && r.rights.manage);
+  // Legacy reqSpecView.tpl:167-175 always renders attachments.inc.tpl with
+  // attach_downloadOnly=false for req_mgmt users, so a manager must be able to
+  // upload even when no attachment exists yet (Refs #1352).
+  if (!atts.length && !canManage) {
     $('#attCard').hide();
     return;
   }
   $('#attCard').show();
+  if (atts.length) { $('#noAtt').hide(); } else { $('#noAtt').show(); }
   var out = '';
   $.each(atts, function(i, a) {
     var size = fmtSize(a.file_size);
     out += '<div class="att-row"><div class="icon"><i class="fa fa-file-pdf-o"></i></div>' +
       '<div class="info"><div class="fn">' + escapeHtml(a.title || a.file_name) + '</div>' +
-      '<div class="meta">' + escapeHtml(a.file_name) + ' · ' + size + ' · ' + fmtTs(a.date_added) + '</div></div>' +
-      '<a class="btn-teal" style="text-decoration:none;font-size:12px;padding:5px 12px;" ' +
-      'href="/' + a.download_url + '" target="_blank"><i class="fa fa-download"></i> ' +
+      '<div class="meta">' + escapeHtml(a.file_name) + ' · ' + size + ' · ' + fmtTs(a.date_added) + '</div></div>';
+    if (canManage) {
+      // legacy attachments.inc.tpl:104-110 shows the delete action only when
+      // !$attach_downloadOnly (i.e. req_mgmt) -> delete_confirmation + jsCallDeleteFile
+      out += '<button type="button" class="att-del" title="' + TLi18n.t('rsv.attDelete') +
+        '" onclick="deleteAttachment(' + a.id + ')"><i class="fa fa-trash"></i> ' +
+        TLi18n.t('rsv.attDelete') + '</button>';
+    }
+    out += '<a class="btn-teal" style="text-decoration:none;font-size:12px;padding:5px 12px;margin-left:8px;" ' +
+      'href="' + escapeHtml(a.download_url) + '" target="_blank"><i class="fa fa-download"></i> ' +
       TLi18n.t('rsv.download') + '</a></div>';
   });
   $('#attList').html(out);
+  renderAttachmentUpload(canManage, r.attachments_max_size);
+}
+
+// Manager-only upload control (legacy attachments.inc.tpl:121-177 multipart form
+// POSTing to reqSpecEdit.php fileUpload with uploadedFile + fileTitle; a failure
+// surfaced as the file_upload_ko bootbox alert, reqSpecView.tpl:79-91).
+function renderAttachmentUpload(canManage, maxSize) {
+  if (!canManage) { $('#attUpload').hide().empty(); return; }
+  var html = '<div class="att-upload">' +
+    '<input type="file" id="attFile" name="uploadedFile">' +
+    '<input type="text" id="attTitle" maxlength="250" data-i18n-placeholder="rsv.attTitle" ' +
+      'placeholder="' + TLi18n.t('rsv.attTitle') + '">' +
+    '<button type="button" class="btn-teal" id="attUploadBtn" onclick="uploadAttachment()">' +
+      '<i class="fa fa-upload"></i> ' + TLi18n.t('rsv.attUpload') + '</button>' +
+    '<div class="att-max">' + TLi18n.t('rsv.attMaxSize') + ': ' +
+      escapeHtml(fmtSize(maxSize || 0)) + '</div>' +
+    '</div>';
+  $('#attUpload').html(html).show();
+}
+
+// Mirrors legacy reqSpecEdit.php doAction=fileUpload + attachmentupload.php:
+// multipart POST of uploadedFile + title to the req_specs attachment sink.
+function uploadAttachment() {
+  var fileInput = $('#attFile')[0];
+  if (!fileInput || !fileInput.files || !fileInput.files.length) {
+    showFlash(TLi18n.t('rsv.attNoFile'), true);
+    return;
+  }
+  var title = $.trim($('#attTitle').val() || '') || fileInput.files[0].name;
+  var fd = new FormData();
+  fd.append('action', 'upload');
+  fd.append('table', 'req_specs');
+  fd.append('id', SPEC_ID);
+  fd.append('title', title);
+  fd.append('uploadedFile[]', fileInput.files[0]);
+  $('#attUploadBtn').prop('disabled', true);
+  $.ajax({
+    url: ATT_API, method: 'POST', data: fd,
+    processData: false, contentType: false, dataType: 'json'
+  }).done(function(r) {
+    $('#attUploadBtn').prop('disabled', false);
+    if (r.status !== 'ok' || !r.uploaded || (r.errors && r.errors.length)) {
+      var msg = (r.errors && r.errors.length) ? r.errors.join('; ')
+                                               : (r.message || '');
+      showFlash(TLi18n.t('rsv.attUploadFail') + (msg ? ' ' + msg : ''), true);
+      return;
+    }
+    showFlash(TLi18n.t('rsv.attUploadOk'));
+    $('#attFile').val('');
+    $('#attTitle').val('');
+    loadView();
+  }).fail(function(xhr) {
+    $('#attUploadBtn').prop('disabled', false);
+    var msg = TLi18n.t('rsv.attUploadFail');
+    try { var b = JSON.parse(xhr.responseText); msg = b.message || msg; } catch(e) {}
+    showFlash(msg, true);
+  });
+}
+
+// Mirrors legacy jsCallDeleteFile (reqSpecViewJS.inc.tpl:72-80): confirm, then
+// delete the attachment bound to this spec and re-render.
+function deleteAttachment(id) {
+  if (!window.confirm(TLi18n.t('rsv.attDelConfirm'))) return;
+  var fd = new FormData();
+  fd.append('action', 'delete');
+  fd.append('table', 'req_specs');
+  fd.append('id', SPEC_ID);
+  fd.append('file_id', id);
+  $.ajax({
+    url: ATT_API, method: 'POST', data: fd,
+    processData: false, contentType: false, dataType: 'json'
+  }).done(function(r) {
+    if (r.status !== 'ok') {
+      showFlash(r.message || TLi18n.t('rsv.attDeleteFail'), true);
+      return;
+    }
+    showFlash(TLi18n.t('rsv.attDeleteOk'));
+    loadView();
+  }).fail(function() {
+    showFlash(TLi18n.t('rsv.attDeleteFail'), true);
+  });
 }
 
 function renderRequirements(r) {
@@ -374,9 +475,16 @@ function newRevision() {
   });
 }
 
-function showFlash(msg) {
-  $('#feedbackBanner').text(msg).css('display', 'block');
-  setTimeout(function() { $('#feedbackBanner').css('display', 'none'); }, 4000);
+function showFlash(msg, isError) {
+  var $b = $('#feedbackBanner').text(msg);
+  if (isError) {
+    $b.css({ 'background': '#fdecea', 'border-color': '#f5c6cb',
+             'color': '#b94a48', 'display': 'block' });
+  } else {
+    $b.css({ 'background': '', 'border-color': '', 'color': '', 'display': 'block' });
+  }
+  clearTimeout($b.data('tm'));
+  $b.data('tm', setTimeout(function() { $('#feedbackBanner').css('display', 'none'); }, 5000));
 }
 
 function openReq(reqId) {

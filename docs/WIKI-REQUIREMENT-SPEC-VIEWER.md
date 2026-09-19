@@ -29,7 +29,7 @@ viewer popup).
 | Overview | identifier chip (`doc_id`) + spec title, current **revision** badge, **type** badge, declared total requirements, requirements in spec, revisions count, created by / on, last modified by / on |
 | Scope | full scope note (from the current revision, `white-space: pre-wrap`) |
 | Custom fields | design-time fields linked to **requirement_spec**, values of the **current revision** (date/datetime fields localized by the BFF) |
-| Attachments | file list with title, file name, size, date and a **Download** link (`lib/attachments/attachmentdownload.php`) |
+| Attachments | file list with title, file name, size, date and a **Download** link (`lib/attachments/attachmentdownload.php`); managers (`mgt_modify_req`) additionally get an **upload form** (file + optional title) and a per-attachment **Delete** action |
 | Requirements | DataTable with identifier, title (opens the modern `reqView.html?id=` popup), version, type and status — type/status labels localized server-side |
 
 The popup title shows the project name, the toolbar info line shows
@@ -49,6 +49,21 @@ The popup title shows the project name, the toolbar info line shows
   author, then reloads the view (revision badge `r+1`, revisions count +1).
   Custom field values are copied to the new revision (`copy_cfields`, legacy
   behavior).
+* **Attachment upload (manager)** — mirrors legacy
+  `reqSpecEdit.php?doAction=fileUpload` / `attachments.inc.tpl`: a multipart form
+  (file + attachment title) posts to `api/attachments/index.php?action=upload`
+  with `table=req_specs` and the spec id. The title defaults to the file name
+  when left empty. Errors (size/type limits, e.g.
+  `TL_REPOSITORY_MAXFILESIZE` = 1 MB) surface as a red toast, legacy
+  `file_upload_ko` alert parity.
+* **Attachment delete (manager)** — mirrors legacy `jsCallDeleteFile` +
+  `delAttachmentURL`: a `window.confirm` dialog, then
+  `api/attachments/index.php?action=delete` (ownership-hardened: the file must
+  belong to this spec), then the view reloads.
+
+Both attachment controls stay hidden for view-only users (the BFF reports
+`rights.manage=false`), exactly like legacy `$attach_downloadOnly=true`; the
+download link stays available to everyone.
 
 ## Deleting / not-found & permissions
 

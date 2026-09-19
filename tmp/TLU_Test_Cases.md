@@ -16838,3 +16838,44 @@ req spec **RS-DL2** (id 12), requirement **DLREQ-101** (id 14), suite **DL2 Suit
 **Result: 13/13 PASS** — deep-link gateway completed for all item types; legacy `reqSpecView.php`/`archiveData.php`/`reqSpecListTree.php`/`listTestCases.php` inner-frame deep links retired (Refs #1542). Behavioral supersession vs suite 1532: Test 7 (testcase 400) and Test 14 (reqspec not redirected) no longer hold — non-req items are now resolved by the modern resolver.
 
 ---
+
+## Task — Issue #1352: attachments upload/delete UI (manager) in reqSpecView.html (2026-09-19)
+
+**Precondition:** `php tmp/fixtures_1352.php` (tproject `RSV1352` id=1 prefix RVR + spec `RSV-ATT` id=2 + reqs SRQ-001/002); admin login; `api/attachments/index.php` reachable with `table=req_specs`.
+
+**Test 1 — manager sees upload + empty state**
+1. Open `gui/templates/requirements/reqSpecView.html?id=2&tproject_id=1` as admin (`rights.manage=true`).
+- **Expected:** Attachments card visible; "No attachments"; file input + attachment-title input + Upload file button; hint "Max. upload file size: 1.0 MB".
+- **Actual:** PASS — all present (UI snapshot).
+
+**Test 2 — upload**
+1. Choose `att1352.txt`, title "Spec document", click Upload file.
+- **Expected:** `POST /api/attachments/index.php?action=upload` (table=req_specs, id=2, uploadedFile[]); success flash; row `Spec document / att1352.txt · 71 B`.
+- **Actual:** PASS — flash "Attachment uploaded successfully."; row rendered; DB `attachments` row (fk_table=req_specs, fk_id=2); audit event `audit_attachment_created` (level 16 INFO).
+
+**Test 3 — download link**
+1. Inspect and fetch the Download link.
+- **Expected:** `href="/api/attachments/index.php?action=download&id=1"` returning the file (legacy `attachmentdownload.php`).
+- **Actual:** PASS — 200, `Content-Type: text/plain`, `Content-Disposition: inline; filename="att1352.txt"`, 71 bytes. (Fixed a pre-existing double-slash `//api/...` href bug in the same line.)
+
+**Test 4 — delete cancel then confirm**
+1. Click Delete -> dismiss confirm.
+- **Expected:** row remains (1 row).
+- **Actual:** PASS — 1 row, no request.
+2. Click Delete -> accept confirm.
+- **Expected:** `POST action=delete` (table=req_specs, id=2, file_id=1); flash "Attachment deleted."; row gone, "No attachments" shown; audit `audit_attachment_deleted`.
+- **Actual:** PASS — 0 rows, empty state shown, DB row removed, audit event level 16 INFO.
+
+**Test 5 — view-only user (no mgt_modify_req)**
+1. Create role 100 (mgt_view_req only) + user `viewer1352`; login in an isolated context; open the viewer.
+- **Expected:** with 0 attachments the Attachments card is hidden; with 1 attachment the card shows the download link but NO delete button and NO upload form (`rights.manage` null).
+- **Actual:** PASS — `spec_view` returns `rights.manage=null`; snapshot shows no card with 0 attachments; after an admin upload, viewer sees 1 row + download link, 0 delete buttons, upload form hidden.
+
+**Test 6 — Event Viewer clean**
+1. `SELECT log_level,COUNT(*) FROM events GROUP BY log_level`.
+- **Expected:** no Error/Warning rows introduced.
+- **Actual:** PASS — all 6 rows level 16 (INFO): project created, login ok, attachment created/deleted.
+
+**Result: 6/6 PASS** — legacy `attachments.inc.tpl` manager CRUD ported into reqSpecView.html and verified for admin + view-only paths (Refs #1352).
+
+---

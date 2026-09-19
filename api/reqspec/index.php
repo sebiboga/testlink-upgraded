@@ -653,6 +653,10 @@ if ($method === 'GET' && $action === 'spec_view') {
         ],
         'cfields'      => $cfields,
         'attachments'  => $attachments,
+        // legacy attachments.inc.tpl:163 shows the upload limit hint
+        // ($gui->import_limit = TL_REPOSITORY_MAXFILESIZE); the viewer needs it
+        // for the manager-only upload control (Refs #1352)
+        'attachments_max_size' => intval(TL_REPOSITORY_MAXFILESIZE),
         'requirements' => $requirements,
         'reqTypes'     => $reqTypesMap,
         'reqStatuses'  => $reqStatusesMap,

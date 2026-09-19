@@ -154,6 +154,15 @@ Requirements:
   the cell truncates to it + '...' like legacy, a mouse-tracked tooltip shows the
   FULL untruncated log (getreqspeclog.php <p>→newline normalization), and blank
   logs render the translated common.emptyLogMessage placeholder instead of '-'.
+- Req Spec Viewer attachments CRUD (reqSpecView.html, #1352): the Attachments
+  card is no longer read-only for managers — with `mgt_modify_req` it renders the
+  legacy upload form (file + optional title, multipart to
+  api/attachments/index.php?action=upload with table=req_specs) and a
+  per-attachment Delete action (confirm + action=delete, ownership-hardened);
+  view-only users keep the download link only. spec_view exposes
+  attachments_max_size (TL_REPOSITORY_MAXFILESIZE) for the size hint; errors
+  surface as red toasts (legacy file_upload_ko parity); also fixed a pre-existing
+  `//api/...` download href. rsv.att* keys in all 10 bundles. Suite 1352 6/6 PASS.
 - Requirement Revision Viewer (reqRevisionView.html) - BFF api/reqrevision
   (#1435, closes dashio 500 #1427).
 - Create Test Cases from Requirements (reqCreateTestCases.html) - BFF
