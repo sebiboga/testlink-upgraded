@@ -193,7 +193,7 @@ function loadBranches(cb) {
     var hint = (tracker.branches || []).map(function(b) { return b; }).join(', ');
     $('#branchHint').text(hint ? (TLi18n.t('tscs.availableBranches') + ' ' + hint) : '');
     $('#metaLine').html(
-      '<span><b>' + TLi18n.t('tscs.codeTracker') + ':</b> ' + TLi18n.t('tscs.badge') + ' <span class="badge-tracker">' + esc(tracker.name) + ' (' + esc(tracker.verboseType) + ')</span></span>' +
+      '<span><b>' + TLi18n.t('tscs.codeTracker') + ':</b> <span class="badge-tracker">' + esc(tracker.name) + ' (' + esc(tracker.verboseType) + ')</span></span>' +
       '<span><b>' + TLi18n.t('tscs.testCaseVersion') + ':</b> ' + TCVERSION_ID + '</span>'
     );
     $('#footerInfo').text(TLi18n.t('tscs.count', {n: scripts.length}));
@@ -325,7 +325,7 @@ function saveLink() {
     tproject_id: TPROJECT_ID,
     tcversion_id: TCVERSION_ID,
     project_key: tracker.owner || '',
-    repository_name: tracker.repository,
+    repository_name: tracker.repo || '',
     code_path: $('#inpCodePath').val().trim(),
     branch_name: $('#inpBranch').val().trim() || '',
     commit_id: $('#inpCommit').val() || ''
