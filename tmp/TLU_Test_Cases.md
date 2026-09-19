@@ -16760,3 +16760,81 @@ and the legacy "Not Enough Rights" screen reproduced on both Assign Roles modern
   the `'-'` fallback. Compare/diff regression passes; no new Event-Viewer/console noise.
   Screenshots: `docs/screenshots/issue-1357-tooltip.png` (tooltip over the 419-char log),
   also mirrored to wiki `images/issue-1357-tooltip.png`.
+## Suite 1542 — Deep-Link Resolver for Test Case / Test Suite / Req Spec (linkto.php non-req items) (Refs #1542, supersedes suite 1532 Tests 7 & 14)
+
+**Precondition:** TestLink 2.0.1 @ http://localhost:8082, fresh DB. Users: `admin/admin`
+(full rights), `dlguest/guestpw` (role 5 `guest`: has `mgt_view_tc`, NO `mgt_view_req`).
+Fixture: `php tmp/fixtures_1542.php` — project **DL1542** (prefix `DLS4`, id 11),
+req spec **RS-DL2** (id 12), requirement **DLREQ-101** (id 14), suite **DL2 Suite**
+(id 16, empty), suite **DL2 Cases** (id 17) with test case **DeepLink Case**
+(internal id 18, external **DLS4-1**, version 1).
+
+**Test 1 — linkto.php outer-frame redirects ALL item types (admin)**
+1. `curl` (admin cookie): `GET /linkto.php?tprojectPrefix=DLS4&item=testcase&id=DLS4-1`, `?item=reqspec&id=RS-DL2`, `?item=testsuite&id=16`, `?item=req&id=DLREQ-101`, and the short form `?testcase=DLS4-1`.
+- **Expected:** 302 → `gui/templates/links/directLink.html?tprojectPrefix=DLS4&item=<type>&id=<id>` for ALL four types (legacy shell no longer rendered for any deep link).
+- **Actual:** PASS — all 302 to the resolver; short form normalizes to `item=testcase&id=DLS4-1`.
+
+**Test 2 — linkto.php inner-frame (`load`) redirects**
+1. `GET /linkto.php?load&tprojectPrefix=DLS4&item=testcase&id=DLS4-1&anchor=steps`.
+- **Expected:** 302 → resolver carrying `&anchor=steps`; no legacy frmInner shell, no `setSessionProject` fatal (the #1533 path).
+- **Actual:** PASS — 302 to resolver with anchor preserved.
+
+**Test 3 — BFF resolve item=testcase**
+1. `GET /api/directlink/index.php?action=resolve&tprojectPrefix=DLS4&item=testcase&id=DLS4-1` (admin).
+- **Expected:** 200 `{status:ok, item:testcase, tcase_id:18, external_id:DLS4-1, title:DeepLink Case, version:1, href:/gui/templates/testcases/tcView.html?tcase_id=18&tproject_id=11}`.
+- **Actual:** PASS — exact payload; browser card shows project DL1542 (DLS4), item type **Test case**, id DLS4-1, title, version 1; Open viewer → modern tcView renders DeepLink Case / DLS4-1.
+
+**Test 4 — BFF resolve item=reqspec**
+1. `GET …&item=reqspec&id=RS-DL2`.
+- **Expected:** 200 `{item:reqspec, spec_id:12, spec_doc_id:RS-DL2, title:Deep-Link Spec 2, revision:1, href:reqSpecView.html?id=12&tproject_id=11}`.
+- **Actual:** PASS — card "Requirement spec", id RS-DL2, title, revision row shown; Open viewer → reqSpecView #12 lists DLREQ-101.
+
+**Test 5 — BFF resolve item=testsuite**
+1. `GET …&item=testsuite&id=16`.
+- **Expected:** 200 `{item:testsuite, suite_id:16, title:DL2 Suite, href:suiteView.html?id=16&tproject_id=11}`.
+- **Actual:** PASS — card "Test suite", id 16, title; no version/revision rows; Open viewer → modern suiteView #16.
+- Also verifies the suiteView **Direct link** button round-trip: its URL is `linkto.php?tprojectPrefix=DLS4&item=testsuite&id=16`, which now resolves back to suiteView.
+
+**Test 6 — BFF resolve item=req (regression)**
+1. `GET …&item=req&id=DLREQ-101`, plus `&version=9`.
+- **Expected:** 200 with req_id 14 / REQ-101 card (Requirement, version 1, revision 1); `&version=9` → 404 `Requirement DLREQ-101 version 9 not found`.
+- **Actual:** PASS — regression intact.
+
+**Test 7 — tproject_id numeric alias (testcase)**
+1. `GET …&tproject_id=11&item=testcase&id=DLS4-1`.
+- **Expected:** 200 resolving to tcase_id 18 in project 11.
+- **Actual:** PASS — 200.
+
+**Test 8 — 403 right gate split by item (guest `dlguest`)**
+1. Guest curl: `&item=testcase&id=DLS4-1` and `&item=testsuite&id=16` → 200 (`mgt_view_tc`); `&item=req&id=DLREQ-101` and `&item=reqspec&id=RS-DL2` → 403 `No permission to view req…`.
+- **Expected:** exactly the legacy checkTestProject mapping (testcase/testsuite → `mgt_view_tc`, req/reqspec → `mgt_view_req`) enforced on the OWNING project.
+- **Actual:** PASS — 200/200/403/403 as expected; guest 403 renders the error card in the browser.
+
+**Test 9 — 401 anonymous**
+1. `GET /gui/templates/links/directLink.html?tprojectPrefix=DLS4&item=testcase&id=DLS4-1` without cookies (isolated browser context).
+- **Expected:** curl 401 `Not authenticated`; browser lands on `login.php` (legacy parity: user must be logged in first).
+- **Actual:** PASS — both.
+
+**Test 10 — 400/404 guards**
+1. Missing `id` → 400; `item=bogus` → 400 `Unsupported item type`; unknown prefix → 404; unknown testcase `DLS4-99` → 404; unknown spec → 404; unknown suite id 9999 → 404; suite node of another project (id 3) → 404 (ownership check).
+- **Expected:** JSON error + matching HTTP status; browser shows the localized error card + Resolve again.
+- **Actual:** PASS — all statuses/messages as expected (curl + browser error card).
+
+**Test 11 — Copy / Resolve again / no console errors**
+1. On a resolved card click Copy, then Resolve again; inspect DevTools console.
+- **Expected:** "Link copied to clipboard" toast; Resolve again reloads the same resolver URL; zero console errors of any kind on resolver + viewers.
+- **Actual:** PASS — toast shown, reload works, console clean.
+
+**Test 12 — Locale switch (en→ro)**
+1. Set locale selector to Română on a resolved card.
+- **Expected:** URL gains `&locale=ro`; labels "Tip element", "Cerință"/"Caz de test"/"Set de testare"/"Specificație de cerințe", "Titlu", footer "TestLink 2.0.1 - Link direct".
+- **Actual:** PASS — Romanian label set present (dl.item*/typeLbl keys added to all 10 bundles).
+
+**Test 13 — Event Viewer clean**
+1. `SELECT COUNT(*) FROM events` before/after the full battery (fixed BFF).
+- **Expected:** count unchanged after the final code version (dev-time error rows 8-19 predate the fixes; the fixes shipped in 04b483068/de48a7ff1 produced none).
+- **Actual:** PASS — total stable at 21, no new rows.
+
+**Result: 13/13 PASS** — deep-link gateway completed for all item types; legacy `reqSpecView.php`/`archiveData.php`/`reqSpecListTree.php`/`listTestCases.php` inner-frame deep links retired (Refs #1542). Behavioral supersession vs suite 1532: Test 7 (testcase 400) and Test 14 (reqspec not redirected) no longer hold — non-req items are now resolved by the modern resolver.
+
+---

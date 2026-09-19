@@ -130,3 +130,48 @@ not-found, no-permission), locale switch (en→ro), anonymous bounce to login,
 cleanliness. See GitHub issue
 [#1533](https://github.com/sebiboga/testlink-upgraded/issues/1533) for the
 pre-existing inner-frame `setSessionProject` fatal found while testing.
+---
+
+## 7. 2.0.1 update — all item types resolved by the resolver (Refs #1542)
+
+GitHub issue [#1542](https://github.com/sebiboga/testlink-upgraded/issues/1542)
+completed the gateway: the deep-link items **test case**, **test suite** and
+**requirement spec** (still routed into the legacy inner-frame shell —
+`reqSpecListTree.php` / `listTestCases.php` / `reqSpecView.php` /
+`archiveData.php`) now also resolve through the same modern resolver page and
+BFF instead of the legacy frames.
+
+**URL:** `gui/templates/links/directLink.html?tprojectPrefix=<prefix>&item=req|reqspec|testcase|testsuite&id=<id>`
+**BFF API:** `api/directlink/index.php` (`GET ?action=resolve`, item dispatch below)
+
+| Item | id format | Resolution (legacy parity) | Viewer target |
+|---|---|---|---|
+| `req` | doc id (`DLREQ-101`) | `requirement_mgr::getByDocID` | `reqView.html?id=<req_id>&tproject_id=` |
+| `reqspec` | spec doc id (`RS-DL2`) | `requirement_spec_mgr::getByDocID` | `reqSpecView.html?id=<spec_id>&tproject_id=` |
+| `testcase` | full external id (`DLS4-1`) | `testcase::getInternalID(external, glue, tproject_id)` | `tcView.html?tcase_id=<tcase_id>&tproject_id=` |
+| `testsuite` | numeric node id | node must be a `testsuite` node owned by the project | `suiteView.html?id=<suite_id>&tproject_id=` |
+
+Rights gates mirror legacy `linkto.php checkTestProject()`: `req`/`reqspec`
+→ `mgt_view_req`, `testcase`/`testsuite` → `mgt_view_tc`, checked against the
+**owning** project (403 otherwise). The short link form `?testcase=DLS4-1` is
+normalized by `linkto.php init_args()` and resolves identically.
+
+The resolver card is now generic: an **Item type** chip (localized),
+type-specific identifier, title, and version/revision rows shown only when the
+resolved item carries them (requirement/pinned versions only).
+
+`linkto.php` outer frame and inner (`load`) frame both 302 every supported item
+type onto the resolver (anchor preserved); the legacy inner-frame
+`setSessionProject` workaround for non-req items was removed with the legacy
+shell. `$actions->directLink` remains the common.php wiring.
+
+**Screenshots (`docs/screenshots/issue-1542-*.png`):** testcase card + tcView
+viewer, reqSpecView viewer, suiteView viewer, not-found error card.
+
+**Testing:** Suite 1542 in `tmp/TLU_Test_Cases.md` (13/13 PASS) — all item
+types + errors (browser + curl), anonymous 401 bounce, guest 403 split
+(`dlguest` role 5: `mgt_view_tc` yes / `mgt_view_req` no), `tproject_id`
+alias, copy/resolve-again, locale switch, Event Viewer clean. Fixture
+`tmp/fixtures_1542.php` (project DL1542/DLS4, spec RS-DL2, req DLREQ-101,
+suites 16/17, testcase DLS4-1 id 18, guest user). Commits `46b205338` →
+`04b483068` → `de48a7ff1`.
