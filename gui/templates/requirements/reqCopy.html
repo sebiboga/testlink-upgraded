@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title data-i18n="rco.title">Copy Requirements</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; color: #0d3f3c; opacity: 1; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 7px; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-teal:disabled { opacity: .45; cursor: not-allowed; }
+.btn-ghost { background: transparent; color: #ccc; border: 1px solid #555; padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; gap: 7px; text-decoration: none; }
+.btn-ghost:hover { border-color: #4ECDC4; color: #4ECDC4; text-decoration: none; }
+.sep { flex: 1; }
+.card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px 0; overflow: hidden; }
+.card-title { background: #f7f7f7; padding: 10px 18px; font-size: 13px; font-weight: 700; color: #22242a; border-bottom: 1px solid #e5e5e5; display: flex; align-items: center; gap: 8px; }
+.card-body { padding: 16px 18px; font-size: 13px; color: #444; }
+.id-chip { background: #22242a; color: #4ECDC4; padding: 3px 10px; border-radius: 3px; font-weight: 700; font-size: 13px; }
+table.dataTable thead th { background: #22242a; color: #fff; font-size: 13px; padding: 9px 14px; }
+table.dataTable tbody td { padding: 9px 14px; font-size: 13px; }
+.dataTables_wrapper .dataTables_paginate .paginate_button.current { background: #4ECDC4 !important; color: #fff !important; border: none !important; }
+.check-all { width: 16px; height: 16px; cursor: pointer; }
+.check-req { width: 16px; height: 16px; cursor: pointer; }
+.actions { display: flex; gap: 10px; flex-wrap: wrap; padding: 14px 18px; border-top: 1px solid #eee; }
+.msg { display: none; margin: 12px 24px 0; padding: 10px 16px; border-radius: 5px; font-size: 13px; }
+.msg.ok { display: block; background: #e8f8f2; border: 1px solid #b8e6d3; color: #1d7a4f; }
+.msg.err { display: block; background: #fdecea; border: 1px solid #f5c6cb; color: #b94a48; }
+.msg ul { margin: 4px 0 0 18px; padding: 0; }
+.empty-state { padding: 30px; text-align: center; color: #888; font-size: 14px; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+.opt-line { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 10px 0; }
+.opt-line label { font-weight: 600; color: #22242a; }
+.opt-line select { min-width: 380px; padding: 7px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; background: #fff; }
+.opt-line input[type=checkbox] { width: 16px; height: 16px; }
+.req-link { color: #3498db; cursor: pointer; }
+.req-link:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<div class="header"><i class="fa fa-copy"></i> <span data-i18n="rco.title">Copy Requirements</span>
+  <span class="sub" data-i18n="rco.headerSub">copy requirements of a specification into another specification</span>
+  <span id="specLine" class="id-chip" style="margin-left:14px;background:#1c7a94;color:#fff;"></span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="toolbar">
+  <button class="btn-teal" onclick="loadData()"><i class="fa fa-refresh"></i> <span data-i18n="common.refresh">Refresh</span></button>
+  <a class="btn-ghost" id="backLink" href="#" target="_blank"><i class="fa fa-arrow-left"></i> <span data-i18n="rco.back">Back to spec viewer</span></a>
+  <span class="ctx" id="infoLine"></span>
+</div>
+
+<div class="msg" id="msg"></div>
+
+<div class="card" id="targetCard">
+  <div class="card-title"><i class="fa fa-bullseye"></i> <span data-i18n="rco.targetTitle">Destination</span></div>
+  <div class="card-body">
+    <div class="opt-line">
+      <label for="containerSel" data-i18n="rco.chooseTarget">Choose a target specification:</label>
+      <select id="containerSel"></select>
+    </div>
+    <div class="opt-line">
+      <input type="checkbox" id="copyCas" checked>
+      <label for="copyCas" data-i18n="rco.copyCas">Copy Test Case Assignments</label>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-title"><i class="fa fa-list"></i> <span data-i18n="rco.reqsTitle">Requirements to copy</span></div>
+  <div class="card-body" style="padding:6px 18px;">
+    <div id="emptyState" class="empty-state" style="display:none;" data-i18n="rco.noReqs">This specification has no requirements to copy.</div>
+    <table id="copyTable" class="display" style="width:100%;display:none;">
+      <thead>
+        <tr>
+          <th style="width:36px;"><input type="checkbox" id="checkAll" class="check-all" title=""></th>
+          <th data-i18n="rsv.docId">Identifier</th>
+          <th data-i18n="rsv.reqTitle">Requirement</th>
+          <th data-i18n="rsv.reqVersion">Version</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+  <div class="actions" id="actionsBar" style="display:none;">
+    <button class="btn-teal" id="copyBtn"><i class="fa fa-copy"></i> <span data-i18n="rco.copy">Copy</span></button>
+  </div>
+</div>
+
+<div class="footer" id="footerText"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap.min.js"></script>
+<script>
+var API = '/api/reqspec/index.php';
+var SPEC_ID = 0;
+var TPROJECT_ID = 0;
+var allItems = [];
+var containers = {};
+var copyTable = null;
+
+$(function () {
+  var p = new URLSearchParams(window.location.search);
+  SPEC_ID = parseInt(p.get('id') || p.get('req_spec_id') || 0, 10);
+  TPROJECT_ID = parseInt(p.get('tproject_id') || 0, 10);
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    $('#checkAll').off('change').on('change', onCheckAll);
+    $('#copyBtn').off('click').on('click', doCopy);
+    if (!SPEC_ID) {
+      showMsg(true, TLi18n.t('rco.errNoSpec'));
+      return;
+    }
+    loadData();
+  });
+});
+
+function showMsg(ok, text) {
+  var m = $('#msg');
+  m.removeClass('ok err').addClass(ok ? 'ok' : 'err').html(text);
+  clearTimeout(m.data('tm'));
+  m.data('tm', setTimeout(function () { m.removeClass('ok err').css('display', 'none'); }, 6000));
+}
+
+function esc(s) {
+  return $('<div>').text(s == null ? '' : String(s)).html();
+}
+
+function selectedIds() {
+  var out = [];
+  $('.check-req:checked').each(function () { out.push(parseInt($(this).val(), 10)); });
+  return out;
+}
+
+function syncCheckAll() {
+  var total = $('.check-req').length;
+  var sel = $('.check-req:checked').length;
+  $('#checkAll').prop('checked', total > 0 && sel === total);
+  $('#checkAll').prop('indeterminate', sel > 0 && sel < total);
+  $('#copyBtn').prop('disabled', !sel);
+}
+
+function onCheckAll() {
+  $('.check-req').prop('checked', $('#checkAll').is(':checked'));
+  syncCheckAll();
+}
+
+function loadData() {
+  var url = API + '?action=copy_options&id=' + SPEC_ID;
+  if (TPROJECT_ID > 0) { url += '&tproject_id=' + TPROJECT_ID; }
+  $.getJSON(url, function (r) {
+    if (r.status !== 'ok') { showMsg(false, r.message || TLi18n.t('rco.errLoad')); return; }
+    TPROJECT_ID = r.tproject_id || TPROJECT_ID;
+    allItems = r.items || [];
+    containers = r.containers || {};
+    $('#specLine').text(r.spec.doc_id + ' — ' + r.spec.title);
+    $('#backLink').attr('href', '/gui/templates/requirements/reqSpecView.html?id=' + SPEC_ID +
+      '&tproject_id=' + TPROJECT_ID);
+    $('#infoLine').html('#' + SPEC_ID + ' · <b>' + esc(r.spec.doc_id) + '</b>');
+    $('#footerText').text('TestLink 2.0.1 - ' + TLi18n.t('rco.title') + ' | ' +
+      TLi18n.t('common.generatedOn') + ' ' + new Date().toLocaleString());
+    buildContainers();
+    renderTable(allItems);
+    $('#copyBtn').prop('disabled', true);
+    $('#actionsBar').css('display', allItems.length ? 'flex' : 'none');
+  }).fail(function (xhr) {
+    var msg = TLi18n.t('rco.errLoad');
+    try { msg = JSON.parse(xhr.responseText).message || msg; } catch (e) {}
+    showMsg(false, msg);
+  });
+}
+
+function buildContainers() {
+  var $sel = $('#containerSel').empty();
+  var opted = null;
+  $.each(containers, function (id, label) {
+    var o = $('<option value="' + id + '"></option>').text(label);
+    $sel.append(o);
+    if (!opted && parseInt(id, 10) !== SPEC_ID) { opted = parseInt(id, 10); }
+  });
+  if (!opted) { opted = parseInt(Object.keys(containers)[0] || '0', 10); }
+  if (opted && containers[String(opted)]) { $sel.val(String(opted)); }
+  if (!$sel.val() && $sel.find('option').length) { $sel.prop('selectedIndex', 0); }
+}
+
+function renderTable(items) {
+  if (copyTable) { copyTable.destroy(); copyTable = null; }
+  $('#copyTable tbody').empty();
+  if (!items.length) {
+    $('#copyTable').hide();
+    $('#emptyState').css('display', 'block');
+    return;
+  }
+  $('#emptyState').hide();
+  $('#copyTable').show();
+  var rows = items.map(function (q) {
+    return [
+      '<input type="checkbox" class="check-req" value="' + q.id + '">',
+      '<span class="id-chip" style="font-size:11px;">' + esc(q.req_doc_id) + '</span>',
+      '<a class="req-link" href="javascript:void(0)" onclick="openReq(' + q.id + ')">' + esc(q.title) + '</a>',
+      esc(String(q.version))
+    ];
+  });
+  copyTable = $('#copyTable').DataTable({
+    data: rows,
+    pageLength: 10,
+    lengthMenu: [[10, 25, -1], [10, 25, 'All']],
+    language: { search: '', searchPlaceholder: TLi18n.t('common.search') },
+    columnDefs: [{ targets: 0, orderable: false, className: 'check-col' }],
+    bInfo: false,
+    initComplete: function () {
+      $('.check-req').off('change').on('change', syncCheckAll);
+      $('#checkAll').prop('checked', false);
+      syncCheckAll();
+    }
+  });
+}
+
+function openReq(reqId) {
+  var w = Math.floor(window.innerWidth * 0.85), h = Math.floor(window.innerHeight * 0.85);
+  window.open('/gui/templates/requirements/reqView.html?id=' + reqId + '&tproject_id=' + TPROJECT_ID,
+    'req_view_' + reqId, 'width=' + w + ',height=' + h + ',resizable=yes,scrollbars=yes');
+}
+
+function doCopy() {
+  var ids = selectedIds();
+  if (!ids.length) { showMsg(false, TLi18n.t('rco.errSelect')); return; }
+  var containerId = parseInt($('#containerSel').val() || '0', 10);
+  if (!containerId) { showMsg(false, TLi18n.t('rco.errNoTarget')); return; }
+  if (containerId === SPEC_ID) { showMsg(false, TLi18n.t('rco.errSelfTarget')); return; }
+  var targetLabel = $('#containerSel option:selected').text() || String(containerId);
+  if (!window.confirm(TLi18n.t('rco.confirm', { n: ids.length, target: targetLabel }))) { return; }
+  $('#copyBtn').prop('disabled', true);
+  $.ajax({
+    url: API + '?action=copy_reqs',
+    method: 'POST',
+    contentType: 'application/json',
+    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+    data: JSON.stringify({
+      tproject_id: TPROJECT_ID,
+      req_spec_id: SPEC_ID,
+      container_id: containerId,
+      itemSet: ids,
+      copy_testcase_assignment: $('#copyCas').is(':checked')
+    }),
+    success: function (r) {
+      if (r.status !== 'ok') { showMsg(false, r.message || TLi18n.t('rco.errCopy')); loadData(); return; }
+      var html = '';
+      if (r.messages && r.messages.length) {
+        html += '<div><b>' + TLi18n.t('rco.copiedTitle') + '</b></div><ul>';
+        r.messages.forEach(function (m) { html += '<li>' + esc(m) + '</li>'; });
+        html += '</ul>';
+      }
+      if (r.errors && r.errors.length) {
+        html += '<div><b>' + TLi18n.t('rco.errorsTitle') + '</b></div><ul>';
+        r.errors.forEach(function (m) { html += '<li>' + esc(m) + '</li>'; });
+        html += '</ul>';
+      }
+      showMsg(!(r.errors && r.errors.length), html || TLi18n.t('rco.copyDone'));
+      loadData();
+    },
+    error: function (xhr) {
+      var msg = TLi18n.t('rco.errCopy');
+      try { msg = JSON.parse(xhr.responseText).message || msg; } catch (e) {}
+      showMsg(false, msg);
+      loadData();
+    }
+  });
+}
+</script>
+</body>
+</html>

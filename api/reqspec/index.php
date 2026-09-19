@@ -182,6 +182,80 @@ function reqSpecSubtreeIds(&$db, $specId) {
     return $specIds;
 }
 
+/**
+ * requirements (latest version each) of a spec, direct + child-spec subtree,
+ * same query shape the reqs route / spec_view use (mirror of the legacy
+ * requirement_spec_mgr::get_requirements(range='all') walk). Refs #1348
+ */
+function listSpecRequirements(&$db, $specId) {
+    $sql = "SELECT r.id, r.srs_id, r.req_doc_id, nh.name AS title, nh.node_order," .
+           " v.scope, v.status, v.type, v.version, v.active, v.is_open," .
+           " v.expected_coverage" .
+           " FROM requirements r" .
+           " JOIN nodes_hierarchy nh ON nh.id = r.id" .
+           " JOIN nodes_hierarchy vh ON vh.parent_id = r.id" .
+           " JOIN req_versions v ON v.id = vh.id" .
+           "     AND v.version = (SELECT MAX(v2.version) FROM req_versions v2" .
+           "                      JOIN nodes_hierarchy h2 ON h2.id = v2.id" .
+           "                      WHERE h2.parent_id = r.id)" .
+           " WHERE r.srs_id = " . intval($specId) .
+           " ORDER BY nh.node_order ASC, r.id ASC";
+    $rows = $db->get_recordset($sql);
+    $out = [];
+    foreach (($rows ? $rows : []) as $r) {
+        $out[] = [
+            'id'          => intval($r['id']),
+            'req_doc_id'  => (string)$r['req_doc_id'],
+            'title'       => (string)$r['title'],
+            'scope'       => (string)$r['scope'],
+            'status'      => (string)$r['status'],
+            'type'        => (string)$r['type'],
+            'version'     => intval($r['version']),
+            'active'      => intval($r['active']),
+            'is_open'     => intval($r['is_open']),
+            'expected_coverage' => intval($r['expected_coverage']),
+        ];
+    }
+    return $out;
+}
+
+// Refs #1348 — /bulk monitoring + copy requirements shared refresh payload.
+// Mirrors reqSpecCommands::bulkReqMon(): the spec's requirements with the
+// current user's monitor flag (getMonitoredByUser scoped to the spec) plus the
+// enable_start_btn / enable_stop_btn toggles driving the start/stop submit
+// buttons in the legacy reqBulkMon.tpl.
+function bulkMonPayload(&$reqSpecMgr, &$reqMgr, &$db, $specId, $userId, $ownerTid) {
+    $spec = @$reqSpecMgr->get_by_id(intval($specId)) ?: null;
+    $items = listSpecRequirements($db, intval($specId));
+    $monSet = null;
+    try {
+        $monSet = $reqMgr->getMonitoredByUser(intval($userId), intval($ownerTid),
+                                              ['reqSpecID' => intval($specId)]);
+    } catch (Exception $e) {
+        $monSet = null;
+    }
+    $enableStart = false;
+    $enableStop = false;
+    foreach ($items as &$it) {
+        $on = ($monSet !== null && isset($monSet[$it['id']]));
+        $it['monitor'] = $on;
+        if ($on) { $enableStop = true; } else { $enableStart = true; }
+    }
+    unset($it);
+    return [
+        'tproject_id'      => intval($ownerTid),
+        'tproject_name'    => testproject::getName($db, $ownerTid),
+        'spec' => [
+            'id'     => $spec ? intval($spec['id']) : 0,
+            'doc_id' => $spec ? (string)$spec['doc_id'] : '',
+            'title'  => $spec ? (string)$spec['title'] : '',
+        ],
+        'items'            => $items,
+        'enable_start_btn' => $enableStart,
+        'enable_stop_btn'  => $enableStop,
+    ];
+}
+
 if ($action === '' ) {
     http_response_code(400);
     out(['status' => 'error', 'message' => 'Missing action']);
@@ -1085,6 +1159,172 @@ if ($method === 'GET' && $action === 'spec_revision_compare') {
         'scope'    => $diffData,
         'custom_fields' => $cfRows,
     ]);
+}
+
+// ------------------------------------------------- copy requirements (Refs #1348) ---
+// Legacy: lib/requirements/reqSpecEdit.php?doAction=copyRequirements&req_spec_id=<id>
+// -> reqSpecCommands::copyRequirements() renders reqCopy.tpl: choose a target
+// req spec in the project (containers = get_subtree + createHierarchyMap dotted
+// by doc_id) + the source spec's requirements (itemSet checkboxes) + the
+// copy_testcase_assignments checkbox. doCopyRequirements() then runs
+// requirement_mgr::copy_to() per selected requirement with a COPY audit event.
+if ($method === 'GET' && $action === 'copy_options') {
+    $specId = intval($_REQUEST['id'] ?? 0);
+    if ($specId <= 0) { badRequest('Invalid req spec id'); }
+
+    $rows = $db->get_recordset(
+        'SELECT testproject_id FROM ' . $reqSpecMgr->object_table . ' WHERE id = ' . intval($specId));
+    if (!$rows) {
+        http_response_code(404);
+        out(['status' => 'error', 'message' => 'Requirement specification not found']);
+    }
+    $ownerTid = intval($rows[0]['testproject_id']);
+    if (!$user->hasRight($db, 'mgt_view_req', $ownerTid)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission']);
+    }
+    needManageRight($ownerTid);
+
+    $spec = $reqSpecMgr->get_by_id($specId);
+    if (!$spec) {
+        http_response_code(404);
+        out(['status' => 'error', 'message' => 'Requirement specification not found']);
+    }
+
+    // destination specs: the project req-spec subtree (legacy non-recursive
+    // get_subtree with order_cfg type rspec + output rspec), dotted by doc_id.
+    $excludeNodeTypes = ['testplan' => 'exclude_me', 'testsuite' => 'exclude_me',
+                         'testcase' => 'exclude_me', 'requirement' => 'exclude_me',
+                         'requirement_spec_revision' => 'exclude_me'];
+    $filters = ['exclude_node_types' => $excludeNodeTypes];
+    $getOpts = ['order_cfg' => ['type' => 'rspec'], 'output' => 'rspec', 'get_items' => true];
+    $subtree = $reqMgr->tree_mgr->get_subtree($ownerTid, $filters, $getOpts);
+    $containers = [];
+    if (count($subtree)) {
+        $containers = $reqMgr->tree_mgr->createHierarchyMap(
+            $subtree, 'dotted', ['field' => 'doc_id', 'format' => '%s:']);
+    }
+
+    out([
+        'status'        => 'ok',
+        'tproject_id'   => $ownerTid,
+        'tproject_name' => testproject::getName($db, $ownerTid),
+        'spec' => [
+            'id'     => intval($spec['id']),
+            'doc_id' => (string)$spec['doc_id'],
+            'title'  => (string)$spec['title'],
+        ],
+        'items'      => listSpecRequirements($db, $specId),
+        'containers' => $containers,
+    ]);
+}
+
+if ($method === 'POST' && $action === 'copy_reqs') {
+    $tproject_id = needTprojectId();
+    needManageRight($tproject_id);
+
+    $specId = intval($BODY['req_spec_id'] ?? 0);
+    if ($specId <= 0) { badRequest('Invalid req spec id'); }
+    needOwnedSpec($specId, $tproject_id);
+
+    $containerId = intval($BODY['container_id'] ?? 0);
+    if ($containerId <= 0) { badRequest('Invalid target specification id'); }
+    $tgtRows = $db->get_recordset(
+        'SELECT testproject_id FROM req_specs WHERE id = ' . intval($containerId) . ' LIMIT 1');
+    if (!$tgtRows || intval($tgtRows[0]['testproject_id']) !== intval($tproject_id)) {
+        badRequest('Target specification does not belong to this test project');
+    }
+
+    $itemSet = array_unique(array_filter(array_map('intval', (array)($BODY['itemSet'] ?? []))));
+    if (!count($itemSet)) { badRequest(lang_get('select_at_least_one_req')); }
+
+    $copyOptions = ['copy_also' => ['testcase_assignment' => !empty($BODY['copy_testcase_assignment'])]];
+    $messages = [];
+    $errors = [];
+    foreach ($itemSet as $itemId) {
+        $ret = $reqMgr->copy_to($itemId, $containerId, $userId, $tproject_id, $copyOptions);
+        if ($ret['status_ok']) {
+            $newReq = $reqMgr->get_by_id(intval($ret['id']), requirement_mgr::LATEST_VERSION);
+            $srcReq = $reqMgr->get_by_id($itemId, requirement_mgr::LATEST_VERSION);
+            $logMsg = (string)$ret['msg'];
+            if (is_array($newReq) && count($newReq) && is_array($srcReq) && count($srcReq)) {
+                // TLS() returns a tlMetaString -> cast to localize via __toString()
+                $logMsg = (string)TLS('audit_requirement_copy',
+                                     $newReq[0]['req_doc_id'], $srcReq[0]['req_doc_id']);
+            }
+            logAuditEvent($logMsg, 'COPY', intval($ret['id']), 'requirements');
+            $messages[] = $logMsg;
+        } else {
+            $errors[] = (string)$ret['msg'];
+        }
+    }
+
+    out([
+        'status'        => 'ok',
+        'tproject_id'   => $tproject_id,
+        'tproject_name' => testproject::getName($db, $tproject_id),
+        'messages'      => $messages,
+        'errors'        => $errors,
+        'copied'        => count($messages),
+        'items'         => listSpecRequirements($db, $specId),
+    ]);
+}
+
+// ------------------------------------------------- bulk monitoring (Refs #1348) ---
+// Legacy: lib/requirements/reqSpecEdit.php?doAction=bulkReqMon&req_spec_id=<id>
+// -> reqSpecCommands::bulkReqMon() renders reqBulkMon.tpl (per-req monitor flag
+// + Start/Stop/Toggle submit buttons); doBulkReqMon() toggles monitorOn/monitorOff
+// for the selected requirements of the current user and re-renders.
+if ($method === 'GET' && $action === 'bulk_mon_options') {
+    $specId = intval($_REQUEST['id'] ?? 0);
+    if ($specId <= 0) { badRequest('Invalid req spec id'); }
+    $rows = $db->get_recordset(
+        'SELECT testproject_id FROM ' . $reqSpecMgr->object_table . ' WHERE id = ' . intval($specId));
+    if (!$rows) {
+        http_response_code(404);
+        out(['status' => 'error', 'message' => 'Requirement specification not found']);
+    }
+    $ownerTid = intval($rows[0]['testproject_id']);
+    if (!$user->hasRight($db, 'mgt_view_req', $ownerTid)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission']);
+    }
+    needManageRight($ownerTid);
+    out(array_merge(['status' => 'ok'],
+                    bulkMonPayload($reqSpecMgr, $reqMgr, $db, $specId, $userId, $ownerTid)));
+}
+
+if ($method === 'POST' && $action === 'bulk_mon_toggle') {
+    $tproject_id = needTprojectId();
+    needManageRight($tproject_id);
+
+    $specId = intval($BODY['req_spec_id'] ?? 0);
+    if ($specId <= 0) { badRequest('Invalid req spec id'); }
+    needOwnedSpec($specId, $tproject_id);
+
+    $op = (string)($BODY['op'] ?? '');
+    if (!in_array($op, ['toogleMon', 'startMon', 'stopMon'], true)) {
+        badRequest('Invalid operation');
+    }
+    $itemSet = array_unique(array_filter(array_map('intval', (array)($BODY['itemSet'] ?? []))));
+    if (!count($itemSet)) { badRequest(lang_get('select_at_least_one_req')); }
+
+    if ($op === 'toogleMon') {
+        $monSet = $reqMgr->getMonitoredByUser($userId, $tproject_id, ['reqSpecID' => $specId]);
+        foreach ($itemSet as $reqId) {
+            $isOn = ($monSet !== null && isset($monSet[$reqId]));
+            if ($isOn) { $reqMgr->monitorOff($reqId, $userId, $tproject_id); }
+            else       { $reqMgr->monitorOn($reqId, $userId, $tproject_id); }
+        }
+    } else {
+        $call = ($op === 'startMon') ? 'monitorOn' : 'monitorOff';
+        foreach ($itemSet as $reqId) {
+            $reqMgr->$call($reqId, $userId, $tproject_id);
+        }
+    }
+
+    out(array_merge(['status' => 'ok'],
+                    bulkMonPayload($reqSpecMgr, $reqMgr, $db, $specId, $userId, $tproject_id)));
 }
 
 http_response_code(404);

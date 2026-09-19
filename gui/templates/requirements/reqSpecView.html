@@ -88,7 +88,18 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; }
   <button class="btn-teal" onclick="loadView()"><i class="fa fa-refresh"></i> <span data-i18n="common.refresh">Refresh</span></button>
   <a class="btn-ghost" id="mgmtLink" href="#" target="_blank"><i class="fa fa-sitemap"></i> <span data-i18n="rsv.openInMgmt">Open in Spec Management</span></a>
   <a class="btn-ghost" id="compareLink" href="#" target="_blank"><i class="fa fa-code-compare"></i> <span data-i18n="rsv.compareRevisions">Compare revisions</span></a>
-  <a class="btn-ghost" id="createTcLink" href="#" target="_blank"><i class="fa fa-clipboard-check"></i> <span data-i18n="rctc.toolbarLink">Create Test Cases</span></a>
+  <!-- Refs #1348 - legacy reqSpecViewButtons.inc.tpl:125-138 req_operations fieldset:
+       the three requirement-operation actions show only when req_mgmt AND the spec has
+       requirements (requirements_count > 0). Create-Test-Cases / Copy-Requirements /
+       Bulk-Monitoring are the modern equivalents of req_select_create_tc / btn_copy_requirements
+       / btn_bulk_mon -> reqEdit.php doAction=createTestCases / reqSpecEdit.php doAction=
+       copyRequirements / reqSpecEdit.php doAction=bulkReqMon. -->
+  <span class="ops-group" id="reqOpsGroup" style="display:none;align-items:center;gap:10px;border-left:1px solid #3a3d45;padding-left:10px;">
+    <span class="ctx"><b data-i18n="rsv.reqOperations">Requirement Operations</b></span>
+    <a class="btn-ghost" id="createTcLink" href="#" target="_blank"><i class="fa fa-clipboard-check"></i> <span data-i18n="rctc.toolbarLink">Create Test Cases</span></a>
+    <a class="btn-ghost" id="copyReqsLink" href="#" target="_blank"><i class="fa fa-copy"></i> <span data-i18n="rsv.copyReqs">Copy Requirements</span></a>
+    <a class="btn-ghost" id="bulkMonLink" href="#" target="_blank"><i class="fa fa-bell-o"></i> <span data-i18n="rsv.bulkMon">Bulk Monitoring</span></a>
+  </span>
   <a class="btn-ghost" id="reorderLink" href="#" target="_blank"><i class="fa fa-list-ol"></i> <span data-i18n="reqro.toolbarLink">Reorder requirements</span></a>
   <a class="btn-ghost" id="createFromIssuesLink" href="#" style="display:none;"><i class="fa fa-bug-slash"></i> <span data-i18n="reqfi.title">Create Requirements from Issues</span></a>
   <a class="btn-ghost" href="#" onclick="return goExportReqs('items')"><i class="fa fa-download"></i> <span data-i18n="reqexp.export">Export</span></a>
@@ -467,10 +478,22 @@ function showHideActions(r) {
     SPEC_ID + '&tproject_id=' + TPROJECT_ID);
   $('#createTcLink').attr('href', '/gui/templates/requirements/reqCreateTestCases.html?spec_id=' +
     SPEC_ID + '&tproject_id=' + TPROJECT_ID);
+  // Refs #1348 - legacy reqSpecViewButtons.inc.tpl:118-124: Copy-Requirements
+  // and Bulk-Monitoring URLs (reqSpecView.tpl:59-70) map onto the modern
+  // reqCopy.html / reqBulkMon.html screens.
+  $('#copyReqsLink').attr('href', '/gui/templates/requirements/reqCopy.html?id=' +
+    SPEC_ID + '&tproject_id=' + TPROJECT_ID);
+  $('#bulkMonLink').attr('href', '/gui/templates/requirements/reqBulkMon.html?id=' +
+    SPEC_ID + '&tproject_id=' + TPROJECT_ID);
   $('#reorderLink').attr('href', '/gui/templates/requirements/reqReorder.html?req_spec_id=' +
     SPEC_ID + '&tproject_id=' + TPROJECT_ID);
   $('#createFromIssuesLink').attr('href', '/gui/templates/requirements/reqFromIssues.html?req_spec_id=' +
     SPEC_ID + '&tproject_id=' + TPROJECT_ID);
+  // Refs #1348 - Requirement Operations group (Create TC / Copy / Bulk Mon):
+  // exactly the legacy gate `req_mgmt == yes && requirements_count > 0`.
+  var reqOpsOn = !!(r.rights && r.rights.manage) &&
+                 !!(r.spec && r.spec.requirements_count > 0);
+  $('#reqOpsGroup').css('display', reqOpsOn ? 'inline-flex' : 'none');
   // Refs #1350 - print view (reqdoc flow) = testplan_metrics gate (rights.can_print);
   // legacy printed unconditionally but the underlying printDocument gate 403s viewers.
   if (r.rights && r.rights.can_print) {
