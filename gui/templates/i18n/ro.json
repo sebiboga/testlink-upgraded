@@ -4385,5 +4385,12 @@
   "tscs.required": "Repository și Cale Cod sunt obligatorii",
   "tscs.noModifyRight": "Nu aveți dreptul mgt_modify_tc pentru acest proiect de test",
   "footers.tcScripts": "TestLink 2.0.1 - Scripturi de Test",
-  "tcview.testScripts": "Scripturi de Test"
+  "tcview.testScripts": "Scripturi de Test",
+  "rsv.print": "Vizualizare de printare",
+  "rsv.directLink": "Link direct",
+  "rsv.help": "Ajutor",
+  "rsv.helpTooltip": "Deschide documentația vizualizatorului de specificații de cerințe",
+  "rsv.copyLink": "Copiază",
+  "rsv.specificLink": "Link permanent către această specificație:",
+  "rsv.directLinkCopied": "Link direct copiat în clipboard"
 }

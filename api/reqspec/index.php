@@ -680,6 +680,11 @@ if ($method === 'GET' && $action === 'spec_view') {
         'reqStatuses'  => $reqStatusesMap,
         'rights' => [
             'manage' => $user->hasRight($db, 'mgt_modify_req', $ownerTid),
+            // Refs #1350 - the print view routes to the reqdoc/printDocument
+            // flow whose gate is `testplan_metrics` (api/reqdoc/index.php:191,
+            // mirror of legacy printDocument.php). Expose it so the toolbar only
+            // shows the print button when the document can actually be generated.
+            'can_print' => $user->hasRightOnProj($db, 'testplan_metrics', $ownerTid),
         ],
     ]);
 }

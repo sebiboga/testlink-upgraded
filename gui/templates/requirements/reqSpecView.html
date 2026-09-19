@@ -68,6 +68,16 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; }
 .att-max { color: #999; font-size: 11px; width: 100%; }
 .req-link { color: #3498db; }
 .req-link:hover { text-decoration: underline; }
+/* Refs #1350 - direct-link bar + copy toast, same Dashio pattern as the reqView
+   port (issue #1305, reqView.html:44-52) mirroring legacy reqSpecView.tpl:103-105
+   hidden .direct_link div toggled by the fa-link icon in the h1. */
+.direct-link-bar { background: #1c1e24; color: #ccc; border-bottom: 1px solid #333; padding: 10px 24px; font-size: 12px; display: none; gap: 12px; align-items: center; flex-wrap: wrap; }
+.direct-link-bar a { color: #4ECDC4; word-break: break-all; }
+.direct-link-bar .btn-copy { background: transparent; color: #4ECDC4; border: 1px solid #2d8e88; padding: 3px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; display: inline-flex; align-items: center; gap: 6px; }
+.direct-link-bar .btn-copy:hover { background: #2d8e88; color: #fff; }
+.direct-link-bar .ctx { color: #999; }
+.toast-bar { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.toast-bar.ok { background: #2d8e88; }
 </style>
 </head>
 <body>
@@ -83,10 +93,26 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; }
   <a class="btn-ghost" id="createFromIssuesLink" href="#" style="display:none;"><i class="fa fa-bug-slash"></i> <span data-i18n="reqfi.title">Create Requirements from Issues</span></a>
   <a class="btn-ghost" href="#" onclick="return goExportReqs('items')"><i class="fa fa-download"></i> <span data-i18n="reqexp.export">Export</span></a>
   <a class="btn-ghost" href="#" onclick="return goExportReqs('branch')"><i class="fa fa-sitemap"></i> <span data-i18n="reqexp.exportBranch">Export branch</span></a>
+  <!-- Refs #1350 - legacy reqSpecViewButtons.inc.tpl:88-93 (printerFriendly ->
+       openPrintPreview -> lib/requirements/reqSpecPrint.php single-spec print),
+       reqSpecView.tpl:93-94+103-105 (toggle_direct_link / .direct_link) and
+       reqSpecView.tpl:98 (inc_help hlp_requirementsCoverage). The print route
+       reuses the modern reqdoc flow (printDocument.html) exactly as the issue
+       suggests, mirroring the reqSpecViewRevision print pattern. -->
+  <button class="btn-ghost" id="printBtn" style="display:none;" onclick="openPrint()"><i class="fa fa-print"></i> <span data-i18n="rsv.print">Print view</span></button>
+  <button class="btn-ghost" id="directLinkBtn" style="display:none;" onclick="toggleDirectLink()"><i class="fa fa-link"></i> <span data-i18n="rsv.directLink">Direct link</span></button>
+  <a class="btn-ghost" id="helpBtn" href="https://github.com/sebiboga/testlink-upgraded/wiki/Requirement-Specification-Viewer" target="_blank" rel="noopener" data-i18n-title="rsv.helpTooltip"><i class="fa fa-circle-question"></i> <span data-i18n="rsv.help">Help</span></a>
   <span style="flex:1"></span>
   <button id="revBtn" class="btn-dark" style="display:none;"><i class="fa fa-files-o"></i> <span data-i18n="rsv.newRevision">New Revision</span></button>
   <button id="freezeBtn" class="btn-danger" style="display:none;"><i class="fa fa-snowflake-o"></i> <span data-i18n="rsv.freeze">Freeze all Requirements</span></button>
   <span class="ctx" id="infoLine"></span>
+</div>
+
+<div id="directLinkBox" class="direct-link-bar">
+  <i class="fa fa-link"></i>
+  <span class="ctx"><span data-i18n="rsv.specificLink">Permanent link to this spec:</span></span>
+  <a href="#" id="dlCurrent" target="_blank" rel="noopener"></a>
+  <button class="btn-copy" id="dlCopy" onclick="copyDirectLink()"><i class="fa fa-copy"></i> <span data-i18n="rsv.copyLink">Copy</span></button>
 </div>
 
 <div id="deletedBanner" class="deleted-banner" style="display:none;" data-i18n="rsv.notFound"></div>
@@ -153,6 +179,7 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; }
 <div class="footer" id="footerText"></div>
 
 <div id="logTooltip"></div>
+<div class="toast-bar" id="toastBar"></div>
 
 <script src="/gui/templates/i18n/i18n.js"></script>
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
@@ -167,6 +194,7 @@ var TPROJECT_ID = 0;
 var SPEC = null;
 var META = null;
 var REQ_TOKEN = 0;
+var DIRECT_LINK = '';
 var reqTable = null;
 
 $(function() {
@@ -220,6 +248,11 @@ function loadView() {
     SPEC = r.spec;
     TPROJECT_ID = r.tproject_id || TPROJECT_ID;
     if (!META && r.reqTypes) { META = { reqTypes: r.reqTypes, reqStatuses: r.reqStatuses }; }
+    // Refs #1350 - the BFF spec_view payload already carries the permanent
+    // linkto deep link (api/reqspec/index.php:658); render it via the toolbar
+    // toggle (legacy reqSpecView.tpl:93-94 + :103-105).
+    DIRECT_LINK = r.spec.direct_link || '';
+    $('#directLinkBtn').show();
     $('#projName').text(' - ' + (r.tproject_name || ('#' + r.tproject_id)));
     renderOverview(r);
     renderCF(r);
@@ -438,6 +471,13 @@ function showHideActions(r) {
     SPEC_ID + '&tproject_id=' + TPROJECT_ID);
   $('#createFromIssuesLink').attr('href', '/gui/templates/requirements/reqFromIssues.html?req_spec_id=' +
     SPEC_ID + '&tproject_id=' + TPROJECT_ID);
+  // Refs #1350 - print view (reqdoc flow) = testplan_metrics gate (rights.can_print);
+  // legacy printed unconditionally but the underlying printDocument gate 403s viewers.
+  if (r.rights && r.rights.can_print) {
+    $('#printBtn').show();
+  } else {
+    $('#printBtn').hide();
+  }
   if (r.rights && r.rights.manage) {
     $('#freezeBtn').show();
     $('#revBtn').show();
@@ -542,6 +582,52 @@ function showFlash(msg, isError) {
   }
   clearTimeout($b.data('tm'));
   $b.data('tm', setTimeout(function() { $('#feedbackBanner').css('display', 'none'); }, 5000));
+}
+
+// Refs #1350 - Print view (legacy printerFriendly -> openPrintPreview ->
+// lib/requirements/reqSpecPrint.php single-spec print). Reuses the modern
+// reqdoc/printDocument flow with level=reqspec&id=<spec> exactly as suggested
+// by the issue, mirroring reqSpecViewRevision (reqSpecViewRevision.html:181).
+function openPrint() {
+  var q = 'type=reqspec&level=reqspec&id=' + encodeURIComponent(SPEC_ID);
+  if (TPROJECT_ID > 0) q += '&tproject_id=' + encodeURIComponent(TPROJECT_ID);
+  var w = Math.floor(window.innerWidth * 0.9), h = Math.floor(window.innerHeight * 0.9);
+  window.open('/gui/templates/requirements/printDocument.html?' + q, 'reqdoc_print_' + SPEC_ID,
+    'width=' + w + ',height=' + h + ',resizable=yes,scrollbars=yes,toolbar=yes');
+}
+
+function showToast(msg, ok) {
+  var $t = $('#toastBar').text(msg).attr('class', 'toast-bar' + (ok ? ' ok' : '')).show();
+  clearTimeout($t.data('tm'));
+  $t.data('tm', setTimeout(function() { $t.hide(); }, 3500));
+}
+
+function toggleDirectLink() {
+  var $box = $('#directLinkBox');
+  if ($box.is(':visible')) { $box.hide(); return; }
+  updateDirectLinks();
+  $box.show();
+}
+
+function updateDirectLinks() {
+  $('#dlCurrent').attr('href', DIRECT_LINK).text(DIRECT_LINK);
+}
+
+function copyDirectLink() {
+  var done = function() { showToast(TLi18n.t('rsv.directLinkCopied'), true); };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(DIRECT_LINK).then(done).catch(function() { legacyCopy(done); });
+  } else {
+    legacyCopy(done);
+  }
+}
+
+function legacyCopy(done) {
+  var ta = $('<textarea>').val(DIRECT_LINK).css({ position: 'fixed', opacity: 0 }).appendTo('body');
+  ta.select();
+  try { document.execCommand('copy'); } catch (e) {}
+  ta.remove();
+  done();
 }
 
 function openReq(reqId) {

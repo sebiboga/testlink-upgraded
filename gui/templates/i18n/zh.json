@@ -4361,5 +4361,12 @@
   "tscs.required": "Repository and Code Path are required",
   "tscs.noModifyRight": "You do not have mgt_modify_tc rights for this test project",
   "footers.tcScripts": "TestLink 2.0.1 - Test Scripts",
-  "tcview.testScripts": "Test Scripts"
+  "tcview.testScripts": "Test Scripts",
+  "rsv.print": "打印视图",
+  "rsv.directLink": "直接链接",
+  "rsv.help": "帮助",
+  "rsv.helpTooltip": "打开需求规格查看器文档",
+  "rsv.copyLink": "复制",
+  "rsv.specificLink": "此规格的永久链接:",
+  "rsv.directLinkCopied": "直接链接已复制到剪贴板"
 }

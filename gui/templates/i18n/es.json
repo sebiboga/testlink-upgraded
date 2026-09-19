@@ -4375,5 +4375,12 @@
   "tscs.required": "Repository and Code Path are required",
   "tscs.noModifyRight": "You do not have mgt_modify_tc rights for this test project",
   "footers.tcScripts": "TestLink 2.0.1 - Test Scripts",
-  "tcview.testScripts": "Test Scripts"
+  "tcview.testScripts": "Test Scripts",
+  "rsv.print": "Vista de impresión",
+  "rsv.directLink": "Enlace directo",
+  "rsv.help": "Ayuda",
+  "rsv.helpTooltip": "Abrir la documentación del visor de especificaciones de requisitos",
+  "rsv.copyLink": "Copiar",
+  "rsv.specificLink": "Enlace permanente a esta especificación:",
+  "rsv.directLinkCopied": "Enlace directo copiado al portapapeles"
 }

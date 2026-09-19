@@ -4381,5 +4381,12 @@
   "tscs.required": "Repository and Code Path are required",
   "tscs.noModifyRight": "You do not have mgt_modify_tc rights for this test project",
   "footers.tcScripts": "TestLink 2.0.1 - Test Scripts",
-  "tcview.testScripts": "Test Scripts"
+  "tcview.testScripts": "Test Scripts",
+  "rsv.print": "印刷ビュー",
+  "rsv.directLink": "直接リンク",
+  "rsv.help": "ヘルプ",
+  "rsv.helpTooltip": "要件仕様ビューアのドキュメントを開く",
+  "rsv.copyLink": "コピー",
+  "rsv.specificLink": "この仕様への固定リンク:",
+  "rsv.directLinkCopied": "直接リンクがクリップボードにコピーされました"
 }
