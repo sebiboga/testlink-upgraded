@@ -386,7 +386,7 @@ if ($method === 'GET' && $action === 'list') {
             ];
         }
     }
-    out(['status' => 'ok', 'scripts' => $scripts, 'can_modify' => $canModify, 'tproject_id' => $tproject_id]);
+    out(['status' => 'ok', 'scripts' => $scripts, 'can_modify' => $canModify ? 'yes' : 'no', 'tproject_id' => $tproject_id]);
 }
 
 if ($method === 'GET' && $action === 'commits') {
