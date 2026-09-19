@@ -608,6 +608,22 @@ if ($method === 'GET' && $action === 'spec_view') {
         "SELECT COUNT(*) AS n FROM req_specs_revisions WHERE parent_id = " . intval($specId),
         'n'));
 
+    // Refs #1351 - revision log history tooltip. Legacy reqSpecViewJS.inc.tpl:12-38
+    // tip4log() builds an Ext.ToolTip autoLoading lib/ajax/getreqspeclog.php?item_id=
+    // <req_specs_revisions.id> on hover of the revision row; the payload carries the
+    // FULL untruncated log_message of the shown (latest) revision so the modern screen
+    // can render the identical mouse-tracked tooltip without an extra round-trip.
+    $logMessage = (string)$db->fetchFirstRowSingleColumn(
+        'SELECT log_message FROM req_specs_revisions WHERE id = ' . intval($spec['revision_id']),
+        'log_message');
+
+    // Refs #1351 - also expose req_spec_cfg->log_message_len, the same sink
+    // spec_revision_compare returns for the sibling reqSpecCompare tooltip
+    // (api/reqspec/index.php:870-872); kept here so the two screens share one
+    // payload shape and the viewer could truncate a log cell later.
+    $logMessageLen = (is_object($specCfg) && isset($specCfg->log_message_len))
+        ? intval($specCfg->log_message_len) : 0;
+
     // localized type/status maps for the viewer (deep links may arrive without
     // a tproject_id, so the view payload carries its own domain labels)
     $reqTypesMap = [];
@@ -647,6 +663,8 @@ if ($method === 'GET' && $action === 'spec_view') {
                 implode(',', reqSpecSubtreeIds($db, $spec['id'])) . ')',
                 'n')),
             'revisions_count'    => $revCount,
+            'log_message'        => $logMessage,
+            'log_message_len'    => $logMessageLen,
             'external_req_management' =>
                 (isset($reqCfg->external_req_management)
                  && $reqCfg->external_req_management == ENABLED) ? true : false,

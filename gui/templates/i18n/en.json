@@ -2719,6 +2719,7 @@
   "rsv.requirementsTitle": "Requirements",
   "rsv.revCount": "Revisions",
   "rsv.revision": "Revision",
+  "rsv.revisionLog": "Revision log message",
   "rsv.scope": "Scope",
   "rsv.status": "Status",
   "rsv.title": "Requirement Specification Viewer",

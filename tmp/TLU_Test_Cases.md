@@ -17005,3 +17005,58 @@ branch `sebiboga`, apibase `https://api.github.com/`, token from env).
 
 **Result: 16/16 PASS.** Screenshots: `docs/screenshots/tcScripts-view.png`,
 `docs/screenshots/tcScripts-modal.png`.
+
+## Suite 1544 — Task Issue #1351: revision log history tooltip in `reqSpecView.html`
+
+Feature: hovering the Revision row of the spec viewer shows a mouse-tracked tooltip
+with the FULL untruncated `log_message` of the current revision (legacy `tip4log` +
+`lib/ajax/getreqspeclog.php`). BFF `spec_view` now returns `spec.log_message` +
+`spec.log_message_len`. Fixture: `php tmp/fixtures_1351.php` → project `RV51`/RSV1351,
+spec `SRS-RSV-1351`, rev1 = "first revision of the spec", rev2 = "second revision of
+the spec\nExtra detail on a second line." (spec id printed by the fixture).
+
+**Test 1 — BFF payload carries the revision log**
+1. Run `php tmp/fixtures_1351.php`; note `reqspec=<SPEC>`.
+2. `GET /api/reqspec/index.php?action=spec_view&id=<SPEC>&tproject_id=<TID>` (admin session).
+- **Expected:** `spec.log_message` = "second revision of the spec\nExtra detail on a
+  second line." (latest revision), `spec.log_message_len` = 200, `spec.revision_id` =
+  latest, `revisions_count` = 2.
+- **Actual:** PASS — payload verified live (spec 15/tproject 14 run; earlier spec 8/tproject 7).
+
+**Test 2 — Hover shows the full log tooltip**
+1. Open `reqSpecView.html?id=<SPEC>&tproject_id=<TID>` (logged in).
+2. Hover the revision badge / log icon in the Overview.
+- **Expected:** `#logTooltip` visible, text = the complete "second revision of the spec /
+  Extra detail on a second line." (no truncation), max-width 500px, dark Dashio style,
+  follows the mouse.
+- **Actual:** PASS — `display:block`, full text, tracked position.
+
+**Test 3 — Mouse-leave hides the tooltip**
+1. Move pointer off the revision row.
+- **Expected:** tooltip hides.
+- **Actual:** PASS — `display:none` on real pointer move.
+
+**Test 4 — Empty log message placeholder**
+1. `POST create_revision` with `log_message:""` → reload screen, hover.
+- **Expected:** tooltip shows "Log message is empty" (`common.emptyLogMessage`).
+- **Actual:** PASS — "Log message is empty" rendered (verified then fixture re-run reset rev2 log).
+
+**Test 5 — i18n key + non-English locale**
+1. Reload with `?locale=ro`.
+- **Expected:** icon title "Mesaj jurnal revizuire", badge "Revizuire 2"; all 10 bundles
+  valid JSON.
+- **Actual:** PASS — RO applied; `python3 -m json.tool` valid on all bundles.
+
+**Test 6 — No new errors/warnings (Event Viewer)**
+1. Query `events` after the run.
+- **Expected:** no log_level ≥ 32 rows from the tooltip feature; only INFO audit rows.
+- **Actual:** PASS — all events level 16 (create/delete/login audits).
+
+**Test 7 — Legacy endpoint + sibling screen regression**
+1. `GET lib/ajax/getreqspeclog.php?item_id=<latest>` and open `reqSpecCompare.html?spec_id=<SPEC>`.
+- **Expected:** legacy endpoint still returns nl2br log; compare screen renders revision
+  rows and its own log tooltip works.
+- **Actual:** PASS — both confirmed.
+
+**Result: 7/7 PASS.** Screenshots: `docs/screenshots/issue-1351-reqspecview-normal.png`,
+`docs/screenshots/issue-1351-reqspecview-tooltip.png`, `docs/screenshots/issue-1351-reqspecview-tooltip-ro.png`.

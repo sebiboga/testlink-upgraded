@@ -37,6 +37,18 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 .badge-type { background: #e67e22; color: #fff; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 700; }
 .badge-status { background: #8e44ad; color: #fff; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 700; }
 .badge-rev { background: #3498db; color: #fff; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 700; }
+/* Refs #1351 - revision log history tooltip mirroring the legacy Ext.ToolTip
+   tip4log affordance (reqSpecViewJS.inc.tpl:12-38 + lib/ajax/getreqspeclog.php):
+   hover of the revision row fires a tooltip with the FULL log message. Same
+   Dashio pattern as reqSpecCompare.html (Refs #1357). */
+.rev-log-tip { cursor: help; display: inline-flex; align-items: center; gap: 6px; }
+.rev-log-tip .log-ico { color: #888; font-size: 13px; }
+.rev-log-tip .log-ico:hover { color: #3498db; }
+#logTooltip { display: none; position: fixed; z-index: 9999; max-width: 500px;
+  background: #22242a; color: #fff; border: 1px solid #4ECDC4; border-radius: 6px;
+  padding: 8px 12px; font-size: 12px; line-height: 1.55;
+  box-shadow: 0 3px 10px rgba(0,0,0,.35); pointer-events: none;
+  white-space: pre-wrap; word-break: break-word; }
 table.dataTable thead th { background: #22242a; color: #fff; font-size: 13px; padding: 9px 14px; }
 table.dataTable tbody td { padding: 9px 14px; font-size: 13px; }
 .dataTables_wrapper .dataTables_paginate .paginate_button.current { background: #4ECDC4 !important; color: #fff !important; border: none !important; }
@@ -81,7 +93,7 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; }
 <div id="feedbackBanner" class="info-banner"></div>
 
 <div id="content">
-  <div class="card">
+  <div class="card" id="ovCard">
     <div class="card-title"><i class="fa fa-info-circle"></i> <span data-i18n="rsv.overview">Overview</span></div>
     <div class="card-body">
       <div class="kv">
@@ -140,6 +152,8 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; }
 
 <div class="footer" id="footerText"></div>
 
+<div id="logTooltip"></div>
+
 <script src="/gui/templates/i18n/i18n.js"></script>
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
@@ -162,6 +176,7 @@ $(function() {
   TLi18n.load(function() {
     TLi18n.apply();
     TLi18n.initLocaleSwitcher('#localeSwitcher');
+    bindRevLogTooltip();
     if (!SPEC_ID) {
       $('#deletedBanner').css('display', 'block').attr('data-i18n', 'rsv.noId');
       TLi18n.apply();
@@ -229,10 +244,16 @@ function showError(msg) {
 
 function renderOverview(r) {
   var s = r.spec;
+  $('#logTooltip').hide();
   $('#vDocId').html('<span class="id-chip">' + escapeHtml(s.doc_id) + '</span> <b>' +
     escapeHtml(s.title) + '</b>');
-  $('#vRevision').html('<span class="badge-rev">' + TLi18n.t('rsv.revision') + ' ' +
-    escapeHtml(String(s.revision)) + '</span>');
+  $('#vRevision').html(
+    '<span class="rev-log-tip">' +
+      '<span class="badge-rev">' + TLi18n.t('rsv.revision') + ' ' +
+        escapeHtml(String(s.revision)) + '</span>' +
+      '<i class="fa fa-commenting-o log-ico" aria-hidden="true" title="' +
+        TLi18n.t('rsv.revisionLog') + '"></i>' +
+    '</span>');
   $('#vType').html('<span class="badge-type">' + escapeHtml(s.type_label || s.type) + '</span>');
   $('#vTotalReq').text(s.total_req != null ? String(s.total_req) : '-');
   $('#vReqCount').text(String(s.requirements_count || 0));
@@ -473,6 +494,42 @@ function newRevision() {
       alert(msg);
     }
   });
+}
+
+// Refs #1351 - revision log history tooltip. Legacy tip4log() (reqSpecViewJS.inc.tpl:12-38)
+// autoLoads lib/ajax/getreqspeclog.php?item_id=<revision_id> into an Ext.ToolTip on
+// hover of the revision row (dismissDelay 0, trackMouse true). Here the FULL log is
+// already in the spec_view payload (SPEC.log_message), so the tooltip is a lightweight
+// mouse-tracked div. Event delegation survives the re-render on every loadView().
+function normalizeLogTip(msg) {
+  msg = String(msg || '');
+  // mirror lib/ajax/getreqspeclog.php: strip wrapping <p> and turn </p> into a line break
+  msg = msg.replace(/<p>/gi, '').replace(/<\/p>/gi, '\n');
+  msg = $.trim(msg);
+  if (msg === '') { msg = TLi18n.t('common.emptyLogMessage'); }
+  return msg;
+}
+
+function bindRevLogTooltip() {
+  $('#ovCard')
+    .off('.logtip')
+    .on('mouseenter.logtip', '.rev-log-tip', function(e) {
+      $('#logTooltip').text(normalizeLogTip(SPEC ? SPEC.log_message : ''))
+        .css({ left: e.clientX + 14, top: e.clientY + 16 })
+        .show();
+    })
+    .on('mousemove.logtip', '.rev-log-tip', function(e) {
+      $('#logTooltip').css({ left: e.clientX + 14, top: e.clientY + 16 });
+    })
+    .on('mouseleave.logtip', '.rev-log-tip', function() {
+      $('#logTooltip').hide();
+    })
+    // safety net: if the overview is re-rendered while the pointer sits on the
+    // revision row, the per-node mouseleave never fires — hide the tip whenever
+    // the pointer leaves the Overview card entirely (renderOverview also hides it).
+    .on('mouseleave.logtip', function() {
+      $('#logTooltip').hide();
+    });
 }
 
 function showFlash(msg, isError) {
