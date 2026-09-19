@@ -17305,3 +17305,48 @@ RS-WALK id 2, RS-OTHER id 4, sample export `/tmp/mantis_import_1503.xml` with is
 
 **Result: 6/6 PASS.** Screenshots: `docs/screenshots/issue-1349-reqspecview-toolbar.png`,
 `docs/screenshots/issue-1349-reqfi-screen-loaded.png`, `docs/screenshots/issue-1349-reqfi-result-frozen.png`.
+
+## Regression — Issue #1545: duplicate value-0 options in Plan Role Override selects (usersAssignPlan)
+
+**Feature under test:** the modern "Assign Test Plan Roles" screen (`gui/templates/usermanagement/usersAssignPlan.html`)
+per-user `Plan Role Override` <select>, fed by BFF `GET /api/roles/meta/tplan-roles`.
+
+**Precondition:** `php tmp/fixtures_938.php` run (tproject `PLANROLES938`, tplan `PLAN938-R1`,
+users u938designer/role 4, u938senior/role 6, u938tester/role 7, u938leader/role 9; explicit plan
+overrides senior→6, tester→7). Login admin/admin.
+
+### Test 1 — Pre-fix symptom is gone: exactly ONE value-0 option per row
+1. Open `gui/templates/usermanagement/usersAssignPlan.html`; select project `PLANROLES938`, plan `PLAN938-R1`.
+2. For each `#assignBody tr[data-uid]` select, list options with `value === "0"`.
+- **Expected (post-fix):** exactly one value-0 option (`-- no override --`) per row, on all 5 rows; no `<inherited>` id-0 option anywhere.
+- **Pre-fix actual:** every row had TWO value-0 options (`-- no override --` + `<inherited>`), and rows without an explicit override auto-selected `<inherited>`.
+- **Post-fix actual:** PASS — `value0opts` = `["-- no override --"]` on all 5 rows; no `<inherited>` in any select.
+
+### Test 2 — Rows without an override default to the value-0 option
+1. With plan `PLAN938-R1` loaded, inspect admin / u938designer / u938leader row selects.
+- **Expected:** selected option = `-- no override --` (value 0).
+- **Actual:** PASS — all three default to `-- no override --`; admin row select remains disabled with the locked hint, not selected.
+
+### Test 3 — Rows with an explicit override keep their role selected
+1. Inspect u938senior (override 6) and u938tester (override 7) row selects.
+- **Expected:** select value = `senior tester` / `tester`; the value-0 option is still present but not selected.
+- **Actual:** PASS — senior tester and tester selected respectively, single value-0 option present.
+
+### Test 4 — Bulk "Set roles to X / Do" still works and keeps a single value-0 option
+1. Bulk `Set roles to` = `test designer` → `Do` → `Save Changes`.
+- **Expected:** all 4 non-admin rows become `test designer`; DB `user_testplan_roles` for the 4 users = role 4; after reload each row still has exactly one value-0 option.
+- **Actual:** PASS — 4 rows updated to `test designer`, changed badges shown, save succeeded; DB shows role_id 4 for u938designer/u938senior/u938tester/u938leader; one value-0 option on reload.
+
+### Test 5 — Revert to "-- no override --" removes the role assignment
+1. Bulk `Set roles to` = `-- no override --` → `Do` → `Save Changes`.
+- **Expected:** all rows default back to `-- no override --`; `user_testplan_roles` for the plan has 0 rows; single value-0 option per row.
+- **Actual:** PASS — all rows revert, `SELECT COUNT(*) FROM user_testplan_roles WHERE testplan_id=<plan>` = 0, one value-0 option per row.
+
+### Test 6 — BFF payload carries no id-0 pseudo-role + Event Viewer clean
+1. `curl -b <session> "http://localhost:8082/api/roles/meta/tplan-roles?tproject_id=<pid>&tplan_id=<tplan>"`.
+2. `SELECT id,log_level FROM events ORDER BY id DESC LIMIT 5;` + browser console.
+- **Expected:** `roles` contains 9 entries, none with `id===0`; events only INFO(16) `Test plan roles updated` + `audit_*` rows (no log_level>=32); console has no errors.
+- **Actual:** PASS — 9 roles, 0 id-0; events INFO-only; console clean (a11y "no label" notices only, pre-existing).
+
+**Result: 6/6 PASS.** Screenshots: `docs/screenshots/issue-1545-before.png` (pre-fix duplicate),
+`docs/screenshots/issue-1545-after.png` (post-fix single option).
