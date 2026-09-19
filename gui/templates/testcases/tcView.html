@@ -102,6 +102,7 @@ table.steps tbody tr:nth-child(even) { background: #fafafa; }
     <button class="btn-dark" id="btnExport" onclick="openTcExport()"><i class="fa fa-file-export"></i> <span data-i18n="tcview.export">Export</span></button>
     <button class="btn-dark" id="btnCompare" style="display:none;" onclick="openTcCompare()"><i class="fa fa-code-compare"></i> <span data-i18n="tcview.compareVersions">Compare Versions</span></button>
     <button class="btn-dark" onclick="openTcPrint()"><i class="fa fa-print"></i> <span data-i18n="tcview.print">Print</span></button>
+    <button class="btn-dark" onclick="openTestScripts()"><i class="fa fa-code"></i> <span data-i18n="tcview.testScripts">Test Scripts</span></button>
     <button class="btn-dark" id="btnAssignReqs" style="display:none;" onclick="openAssignReqs()"><i class="fa fa-bookmark"></i> <span data-i18n="tcview.assignRequirements">Assign Requirements</span></button>
   </div>
 </div>
@@ -535,6 +536,12 @@ function openTcPrint() {
     + '&testcase_id=' + data.tcase.id
     + '&tcversion_id=' + currentVersion.tcversion_id;
   window.open(url, '_blank', 'width=980,height=760,resizable=yes,scrollbars=yes');
+}
+
+function openTestScripts() {
+  var url = '/gui/templates/testcases/tcScripts.html?tproject_id=' + data.tproject.id
+    + '&tcversion_id=' + (currentVersion ? currentVersion.tcversion_id : 0);
+  window.open(url, '_blank', 'width=1100,height=760,resizable=yes,scrollbars=yes');
 }
 
 /* ============ Assign Requirements Modal ============ */

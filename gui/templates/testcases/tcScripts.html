@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Test Scripts</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header .sub { font-size: 13px; font-weight: 400; opacity: .85; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-teal:disabled { background: #8fcfc9; cursor: not-allowed; }
+.btn-ghost { background: transparent; color: #ccc; border: 1px solid #555; padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 13px; text-decoration: none; display: inline-flex; align-items: center; gap: 7px; }
+.btn-ghost:hover { border-color: #4ECDC4; color: #4ECDC4; }
+.btn-red { background: #e6605e; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 18px 24px; padding: 18px 20px; }
+.card h5 { margin: 0 0 12px; font-size: 14px; color: #22242a; font-weight: 700; }
+table.dataTable thead th { background: #22242a; color: #fff; font-size: 13px; padding: 9px 12px; }
+table.dataTable tbody td { padding: 9px 12px; font-size: 13px; }
+.dataTables_wrapper .dataTables_paginate .paginate_button.current { background: #4ECDC4 !important; color: #fff !important; border: none !important; }
+.action-btn { cursor: pointer; color: #e6605e; font-size: 14px; }
+.action-btn:hover { color: #d04e4c; }
+a.sc { color: #2f7d79; text-decoration: none; font-weight: 600; }
+a.sc:hover { text-decoration: underline; }
+.infoBanner { background: #eef7f6; border: 1px solid #cdebe8; color: #1c6e69; border-radius: 6px; padding: 12px 16px; font-size: 13px; margin: 18px 24px 0; }
+.errBanner { background: #fdecea; border: 1px solid #f5c6cb; color: #b94a48; border-radius: 6px; padding: 12px 16px; font-size: 13px; margin: 18px 24px 0; display: none; }
+.modal-content { border-radius: 8px; }
+.modal-header { background: #22242a; color: #fff; border-radius: 8px 8px 0 0; }
+.modal-header .close { color: #fff; opacity: .8; }
+.ftree { border: 1px solid #e3e3e3; border-radius: 6px; max-height: 260px; overflow: auto; margin-top: 6px; font-size: 13px; }
+.ftree .frow { padding: 5px 10px; border-bottom: 1px solid #f0f0f0; cursor: pointer; }
+.ftree .frow:hover { background: #eef7f6; }
+.ftree .frow .fa-folder { color: #d9a441; margin-right: 6px; }
+.ftree .frow .fa-file-code { color: #2f7d79; margin-right: 6px; }
+.ftree .frow.selected { background: #cdebe8; }
+.ftree .frow .chev { float: right; color: #aaa; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
+.form-control { font-size: 13px; }
+.meta { display: flex; flex-wrap: wrap; gap: 8px 22px; font-size: 13px; color: #444; }
+.meta b { color: #22242a; }
+.badge-tracker { background: #4ECDC4; color: #fff; padding: 2px 9px; border-radius: 10px; font-size: 11px; font-weight: 700; }
+</style>
+</head>
+<body>
+
+<div class="header"><i class="fa fa-code" style="margin-right:8px;"></i><span data-i18n="tscs.title">Test Scripts</span>
+  <span class="sub" data-i18n="tscs.titleSub">Code Tracker script links for a test case version</span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="toolbar">
+  <button class="btn-teal" id="btnLink" onclick="openLinkModal()" style="display:none;"><i class="fa fa-plus"></i> <span data-i18n="tscs.linkScript">Link Script</span></button>
+  <button class="btn-ghost" onclick="loadAll()"><i class="fa fa-refresh"></i> <span data-i18n="common.refresh">Refresh</span></button>
+  <a class="btn-ghost" id="btnBack" href="#"><i class="fa fa-arrow-left"></i> <span data-i18n="tscs.backToTc">Back to Test Case</span></a>
+  <span style="flex:1"></span>
+  <span id="footerInfo" style="color:#aaa;font-size:12px;"></span>
+</div>
+
+<div id="errBox" class="errBanner"></div>
+<div id="noTracker" class="infoBanner" style="display:none;"></div>
+
+<div class="card" id="metaCard" style="display:none;">
+  <div class="meta" id="metaLine"></div>
+</div>
+
+<div class="card">
+  <h5><i class="fa fa-link" style="color:#4ECDC4;margin-right:6px;"></i><span data-i18n="tscs.linkedScripts">Linked Scripts</span></h5>
+  <table id="scriptsTable" class="display" style="width:100%">
+    <thead>
+      <tr>
+        <th data-i18n="tscs.codePath">Code Path</th>
+        <th data-i18n="tscs.projectKey">Project</th>
+        <th data-i18n="tscs.repository">Repository</th>
+        <th data-i18n="tscs.branch">Branch</th>
+        <th data-i18n="tscs.commit">Commit</th>
+        <th style="width:80px" data-i18n="common.actions">Actions</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<div class="footer" id="footerText"></div>
+<div class="footer"><span data-i18n="footers.tcScripts">TestLink 2.0.1 - Test Scripts</span></div>
+
+<!-- Link script modal -->
+<div class="modal fade" id="linkModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="linkModalTitle" data-i18n="tscs.linkScriptTitle">Link Script</h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="row" style="display:flex;gap:14px;flex-wrap:wrap;">
+          <div style="flex:1;min-width:230px;">
+            <div class="form-group" style="margin-bottom:10px;">
+              <label style="font-size:12px;font-weight:600;" data-i18n="tscs.repository">Repository *</label>
+              <input type="text" id="inpRepository" class="form-control" maxlength="255" readonly>
+            </div>
+            <div class="form-group" style="margin-bottom:10px;">
+              <label style="font-size:12px;font-weight:600;" data-i18n="tscs.branch">Branch</label>
+              <input type="text" id="inpBranch" class="form-control" maxlength="128" placeholder="main">
+              <div style="font-size:11px;color:#888;" id="branchHint"></div>
+            </div>
+            <div class="form-group" style="margin-bottom:10px;">
+              <label style="font-size:12px;font-weight:600;" data-i18n="tscs.commit">Commit</label>
+              <select id="inpCommit" class="form-control"><option value="" data-i18n="tscs.noCommit">(none)</option></select>
+            </div>
+          </div>
+          <div style="flex:1.4;min-width:300px;">
+            <div class="form-group" style="margin-bottom:10px;">
+              <label style="font-size:12px;font-weight:600;" data-i18n="tscs.codePath">Code Path *</label>
+              <input type="text" id="inpCodePath" class="form-control" maxlength="1000" placeholder="src/module/file.php" style="font-family:monospace;">
+              <div style="font-size:11px;color:#888;margin-top:3px;" data-i18n="tscs.codePathHint">Pick from the file browser below, or paste a full repo URL (branch/commit reference is extracted automatically).</div>
+            </div>
+          </div>
+        </div>
+
+        <label style="font-size:12px;font-weight:600;" data-i18n="tscs.fileBrowser">File Browser</label>
+        <div class="ftree" id="fileTree">
+          <div class="frow" style="cursor:default;color:#888;" data-i18n="tscs.loadingBrowser">Select branch to load repository contents...</div>
+        </div>
+        <div style="font-size:11px;color:#888;margin-top:4px;text-align:right;" id="treePath"></div>
+        <div id="linkError" style="color:#e6605e;font-size:12px;margin-top:8px;display:none;"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal" style="font-size:13px;" data-i18n="common.cancel">Cancel</button>
+        <button type="button" class="btn-teal" id="btnSaveLink" onclick="saveLink()" style="font-size:13px;" data-i18n="common.save">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Delete confirm modal -->
+<div class="modal fade" id="delModal" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" data-i18n="tscs.deleteTitle">Delete Script Link</h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body" id="delBody" style="font-size:13px;"></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal" style="font-size:13px;" data-i18n="common.cancel">Cancel</button>
+        <button type="button" class="btn-red" id="btnDel" onclick="confirmDelete()" style="font-size:13px;" data-i18n="tscs.delete">Delete</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/tcscripts/index.php';
+var table = null;
+var QS = new URLSearchParams(window.location.search);
+var TCVERSION_ID = parseInt(QS.get('tcversion_id') || '0', 10);
+var TPROJECT_ID = parseInt(QS.get('tproject_id') || '0', 10);
+var tracker = null;
+var scripts = [];
+var canModify = false;
+var treePath = '/';
+var selectedFile = null;
+
+function setErr(msg) { if (msg) { $('#errBox').text(msg).show(); } else { $('#errBox').hide(); } }
+
+function loadBranches(cb) {
+  $.getJSON(API + '?action=tracker&tcversion_id=' + TCVERSION_ID + '&tproject_id=' + TPROJECT_ID, function(r) {
+    tracker = r.tracker;
+    if (!tracker) {
+      $('#noTracker').text(r.message || TLi18n.t('tscs.noTracker')).show();
+      $('#metaCard').hide();
+      $('#btnLink').hide();
+      return;
+    }
+    $('#noTracker').hide();
+    $('#metaCard').show();
+    $('#btnLink').show();
+    $('#btnBack').attr('href', '/gui/templates/testcases/tcView.html?tproject_id=' + TPROJECT_ID + '&tcversion_id=' + TCVERSION_ID);
+    $('#inpRepository').val(tracker.repository);
+    $('#inpBranch').val(tracker.defaultBranch || tracker.branch || '');
+    var hint = (tracker.branches || []).map(function(b) { return b; }).join(', ');
+    $('#branchHint').text(hint ? (TLi18n.t('tscs.availableBranches') + ' ' + hint) : '');
+    $('#metaLine').html(
+      '<span><b>' + TLi18n.t('tscs.codeTracker') + ':</b> ' + TLi18n.t('tscs.badge') + ' <span class="badge-tracker">' + esc(tracker.name) + ' (' + esc(tracker.verboseType) + ')</span></span>' +
+      '<span><b>' + TLi18n.t('tscs.testCaseVersion') + ':</b> ' + TCVERSION_ID + '</span>'
+    );
+    $('#footerInfo').text(TLi18n.t('tscs.count', {n: scripts.length}));
+    $('#linkError').hide();
+    if (cb) cb();
+  }).fail(function(xhr) {
+    var m = TLi18n.t('tscs.loadError');
+    try { m = JSON.parse(xhr.responseText).message; } catch(e) {}
+    setErr(m);
+  });
+}
+
+function loadScripts() {
+  $.getJSON(API + '?action=list&tcversion_id=' + TCVERSION_ID + '&tproject_id=' + TPROJECT_ID, function(r) {
+    scripts = r.scripts || [];
+    canModify = !!r.can_modify;
+    $('#btnLink').toggle(canModify && !!tracker);
+    renderTable();
+  });
+}
+
+function renderTable() {
+  if (table) { table.destroy(); $('#scriptsTable tbody').empty(); }
+  var rows = [];
+  $.each(scripts, function(i, s) {
+    if (!s || !s.script_id) return;
+    var link = '<a class="sc" href="' + esc(s.view_url || '#') + '" target="_blank"><i class="fa fa-external-link" style="font-size:11px;margin-right:4px;"></i>' + esc(s.link_label || s.code_path) + '</a>';
+    var del = canModify ? '<i class="fa fa-trash action-btn" title="' + TLi18n.t('tscs.delete') + '" style="cursor:pointer;" onclick="openDelete(\'' + escJs(s.script_id) + '\', \'' + escJs(s.link_label || s.code_path) + '\')"></i>' : '';
+    rows.push([link, esc(s.project_key || ''), esc(s.repository_name || ''), esc(s.branch_name || ''), esc(s.commit_id || '') || '-', del]);
+  });
+  table = $('#scriptsTable').DataTable({
+    data: rows,
+    order: [[0, 'asc']],
+    pageLength: 25,
+    language: { emptyTable: tableEmptyMsg() },
+    columns: [null, null, null, null, null, { orderable: false, searchable: false }]
+  });
+}
+
+function tableEmptyMsg() {
+  try { return TLi18n.t('tscs.empty'); } catch(e) { return 'No linked scripts'; }
+}
+
+function esc(s) {
+  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+function escJs(s) {
+  return String(s == null ? '' : s).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+}
+
+function loadAll() { setErr(''); loadBranches(loadScripts); }
+
+function openLinkModal() {
+  selectedFile = null;
+  $('#inpCodePath').val('');
+  $('#inpCommit').val('');
+  $('#linkError').hide();
+  treePath = '/';
+  $('#fileTree').html('<div class="frow" style="cursor:default;color:#888;">' + TLi18n.t('tscs.loadingBrowser') + '</div>');
+  var branch = $('#inpBranch').val().trim();
+  if (branch) { loadTree('/'); }
+  $('#linkModal').modal('show');
+}
+
+function loadTree(path) {
+  var branch = $('#inpBranch').val().trim();
+  if (!branch) { $('#fileTree').html('<div class="frow" style="cursor:default;color:#888;">' + TLi18n.t('tscs.selectBranchFirst') + '</div>'); return; }
+  selectedFile = null;
+  $('#fileTree').html('<div class="frow" style="cursor:default;color:#888;">' + TLi18n.t('tscs.loadingBrowser') + '...</div>');
+  treePath = path || '/';
+  $.getJSON(API + '?action=files&tcversion_id=' + TCVERSION_ID + '&tproject_id=' + TPROJECT_ID +
+            '&branch=' + encodeURIComponent(branch) + '&path=' + encodeURIComponent(path || ''), function(r) {
+    $('#treePath').text(r.path);
+    var html = '';
+    if (path && path !== '/') html += '<div class="frow" onclick="loadTree(parentOf(\'' + escJs(path) + '\'))"><i class="fa fa-arrow-up"></i> ..</div>';
+    $.each(r.items, function(i, it) {
+      if (it.type === 'dir') {
+        html += '<div class="frow" onclick="loadTree(\'' + escJs(it.path) + '\')"><i class="fa fa-folder"></i>' + esc(it.name) + '<span class="chev"><i class="fa fa-chevron-right"></i></span></div>';
+      } else {
+        html += '<div class="frow tfile" data-path="' + esc(it.path) + '" onclick="selectFile(this, \'' + escJs(it.path) + '\')"><i class="fa fa-file-code"></i>' + esc(it.name) + '</div>';
+      }
+    });
+    if (!r.items.length) html += '<div class="frow" style="cursor:default;color:#888;">' + TLi18n.t('tscs.folderEmpty') + '</div>';
+    $('#fileTree').html(html);
+    $('#treePath').text('/' + ($('#fileTree').html() ? treePath : treePath));
+    $('#treePath').text(treePath);
+  }).fail(function(xhr) {
+    var m = TLi18n.t('tscs.loadError');
+    try { m = JSON.parse(xhr.responseText).message; } catch(e) {}
+    $('#fileTree').html('<div class="frow" style="cursor:default;color:#e6605e;">' + esc(m) + '</div>');
+  });
+}
+
+function parentOf(p) {
+  p = String(p || '').replace(/\/+$/, '');
+  var i = p.lastIndexOf('/');
+  return i <= 0 ? '/' : p.substring(0, i);
+}
+
+function selectFile(el, path) {
+  $('#fileTree .tfile').removeClass('selected');
+  $(el).addClass('selected');
+  $('#inpCodePath').val(path);
+  selectedFile = path;
+}
+
+function loadCommitsForBranch() {
+  var branch = $('#inpBranch').val().trim();
+  var sel = $('#inpCommit');
+  if (!branch) { sel.html('<option value="">(none)</option>'); return; }
+  $.getJSON(API + '?action=commits&tcversion_id=' + TCVERSION_ID + '&tproject_id=' + TPROJECT_ID + '&branch=' + encodeURIComponent(branch), function(r) {
+    var html = '<option value="">' + TLi18n.t('tscs.noCommit') + '</option>';
+    $.each(r.items || [], function(i, c) {
+      var sha = c.sha || '';
+      var label = sha.substring(0, 7) + ' - ' + esc(c.message);
+      html += '<option value="' + esc(sha) + '">' + esc(label.substring(0, 60)) + '</option>';
+    });
+    sel.html(html);
+  }).fail(function() { sel.html('<option value="">' + TLi18n.t('tscs.noCommit') + '</option>'); });
+}
+
+$('#inpBranch').on('change blur keyup', function() {
+  var v = $(this).val().trim();
+  if (v) { loadTree('/'); loadCommitsForBranch(); }
+});
+
+function saveLink() {
+  var payload = {
+    tproject_id: TPROJECT_ID,
+    tcversion_id: TCVERSION_ID,
+    project_key: tracker.owner || '',
+    repository_name: tracker.repository,
+    code_path: $('#inpCodePath').val().trim(),
+    branch_name: $('#inpBranch').val().trim() || '',
+    commit_id: $('#inpCommit').val() || ''
+  };
+  if (!payload.project_key) { payload.project_key = tracker.owner || (tracker.repository || '').split('/')[0] || ''; }
+
+  // When the code_path is a pasted full URL, legacy parity still requires the
+  // committed values (fs browser/fetch) derived from repo; the BFF strips the
+  // view base + ?at= reference automatically.
+  $('#linkError').hide();
+  if (!payload.project_key || !payload.repository_name || !payload.code_path) {
+    $('#linkError').text(TLi18n.t('tscs.required')).show();
+    return;
+  }
+  if (!canModify) { $('#linkError').text(TLi18n.t('tscs.noModifyRight')).show(); return; }
+  $('#btnSaveLink').prop('disabled', true);
+  $.ajax({
+    url: API + '?action=link', type: 'POST',
+    contentType: 'application/json', data: JSON.stringify(payload),
+    success: function(r) {
+      $('#btnSaveLink').prop('disabled', false);
+      $('#linkModal').modal('hide');
+      if (r.message) alert(r.message);
+      loadScripts();
+    },
+    error: function(xhr) {
+      $('#btnSaveLink').prop('disabled', false);
+      var m = TLi18n.t('tscs.saveError');
+      try { m = JSON.parse(xhr.responseText).message; } catch(e) {}
+      $('#linkError').text(m).show();
+    }
+  });
+}
+
+var pendingDelete = null;
+function openDelete(scriptId, label) {
+  pendingDelete = scriptId;
+  $('#delBody').html('<b>' + TLi18n.t('tscs.deleteQuestion') + '</b><br><span style="font-family:monospace;font-size:12px;">' + esc(label) + '</span>');
+  $('#delModal').modal('show');
+}
+function confirmDelete() {
+  if (!pendingDelete) return;
+  $('#btnDel').prop('disabled', true);
+  $.ajax({
+    url: API + '?action=unlink', type: 'POST',
+    contentType: 'application/json', data: JSON.stringify({
+      tproject_id: TPROJECT_ID, tcversion_id: TCVERSION_ID, script_id: pendingDelete
+    }),
+    success: function(r) {
+      $('#btnDel').prop('disabled', false);
+      $('#delModal').modal('hide');
+      if (r.message) alert(r.message);
+      loadScripts();
+    },
+    error: function(xhr) {
+      $('#btnDel').prop('disabled', false);
+      var m = TLi18n.t('tscs.deleteError');
+      try { m = JSON.parse(xhr.responseText).message; } catch(e) {}
+      alert(m);
+    }
+  });
+}
+
+$(function() {
+  TLi18n.load(function() {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    loadAll();
+  });
+});
+</script>
+</body>
+</html>
