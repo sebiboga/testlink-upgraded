@@ -17182,3 +17182,71 @@ project, `RS-PRINT` (id 2) spec titled "Print/Direct-Link Spec" containing `REQ-
 - **Actual:** PASS — all 10 bundles valid; `rsv.print` present in all 10.
 
 **Result: 6/6 PASS.**
+
+## Suite 938 — Task — Issue #938: "Set roles to <role> / Do" bulk assignment in Assign Test Plan Roles (gap vs legacy)
+
+**Feature under test:** the modern "Assign Test Plan Roles" screen
+(`gui/templates/usermanagement/usersAssignPlan.html`) exposes the legacy bulk
+`Set roles to:` selector + `Do` button that `set_combo_group()`
+(`gui/templates/dashio/usermanagement/usersAssign.tpl:25-42`, rendered
+`usersAssign.tpl:190-206`) provides: one click applies the chosen role to every
+**enabled** per-user "Plan Role Override" select before the single Save/Update.
+The UI was landed by commit `291c69d01` (Refs #929); this suite records the
+plan-screen verification that closes issue #938.
+
+**State at close:** the implementation is already merged on the default branch
+and was re-verified end-to-end in this run on a freshly imported DB.
+
+**Fixture:** `tmp/fixtures_938.php` — project `PLANROLES938` (id 1) + test plan
+`PLAN938-R1` (id 2, active) + 4 non-admin users `u938designer` (global role 4),
+`u938senior` (6), `u938tester` (7), `u938leader` (9) and explicit plan overrides
+`u938senior=6`, `u938tester=7`. `admin` (global admin, role 8) is the locked row.
+Run: `php tmp/fixtures_938.php`.
+
+### Test 1 — Bulk selector renders without admin or id-0 inherited pseudo-role
+1. Fixture: `php tmp/fixtures_938.php`.
+2. Login `admin/admin`; open `gui/templates/usermanagement/usersAssignPlan.html?tproject_id=1&tplan_id=2`.
+3. Inspect `#bulkRoleSelect` options.
+- **Expected:** options = value 0 "no override" + roles 1,2,3,4,5,6,7,9 — **no** `admin`
+  (id 8, legacy `$removeRole` usersAssign.tpl:259-271, issue #928) and **no** id-0
+  `<inherited>` pseudo-role (duplicate value-0 guard).
+- **Actual:** PASS — options rendered `-- no override --, <reserved system role 1/2>,
+  <no rights>, test designer, guest, senior tester, tester, leader`; admin + inherited absent.
+
+### Test 2 — "Do" applies the chosen role to every enabled row, skipping disabled admin
+1. With the grid loaded, choose `senior tester` (value 6) in `#bulkRoleSelect`, click `#bulkDoBtn`.
+- **Expected:** every enabled row select becomes `6`; the global-admin `admin` row (disabled select)
+  is untouched (`0`); changed rows get `changed` class + "Modified" badge; Save button enabled.
+- **Actual:** PASS — rows `u938designer/u938leader/u938tester` → 6 (badge), `u938senior` → 6 (already 6,
+  no badge), `admin` stays 0; `#saveBtn` enabled.
+
+### Test 3 — Save persists the bulk-assigned roles (legacy `doUpdate()` parity)
+1. Continue from Test 2: click `Save Changes`.
+2. Check `SELECT role_id FROM user_testplan_roles WHERE testplan_id=2`.
+- **Expected:** users `u938designer/u938leader/u938senior/u938tester` = role 6; `admin` has **no** row.
+- **Actual:** PASS — DB rows (2,6),(3,6),(4,6),(5,6); admin absent (stripGlobalAdminAssignments + disabled select).
+
+### Test 4 — Value-0 = revert to inherited (delete + no re-add)
+1. Choose `-- no override --` (value 0) in `#bulkRoleSelect`, click Do, click Save.
+2. Check `user_testplan_roles` for testplan 2.
+- **Expected:** all role rows for plan 2 deleted (`COUNT(*)` = 0); effective/inherited role applies.
+- **Actual:** PASS — table empty for plan 2.
+
+### Test 5 — Admin role never offered in bulk; per-row selects keep one value-0 for enabled rows
+1. Inspect `#bulkRoleSelect` option list and an **enabled** row's select.
+- **Expected:** no `admin` option anywhere; enabled-row select has exactly one value-0 option
+  (legacy parity). (NOTE: a per-row duplicate value-0 `<inherited>` defect was found and filed:
+  see bug #1545.)
+- **Actual:** PASS for #938 scope — `applyBulkRole()` (`usersAssignPlan.html:333-345`) skips
+  disabled/global-admin rows and sets all enabled selects; duplicate-0 row-select issue tracked
+  separately in #1545.
+
+### Test 6 — i18n and Event Viewer
+1. `for f in gui/templates/i18n/*.json; do python3 -m json.tool $f >/dev/null; done`
+2. Grep `assign.setRolesTo` + `assign.do` in all 10 bundles.
+3. `mysql ... -e "SELECT id,log_level,description FROM events WHERE log_level>=32"`
+- **Expected:** all bundles valid JSON, both keys present in all 10; no Error/Warning (>=32) event rows.
+- **Actual:** PASS — 10/10 bundles valid, keys present; events only INFO(16) `Test plan roles updated` +
+  `audit_users_roles_added_testplan` audits, zero rows ≥ 32.
+
+**Result: 6/6 PASS.** Screenshot: `docs/screenshots/issue-938-bulk-set-roles-plan.png`.

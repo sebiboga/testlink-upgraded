@@ -21,6 +21,19 @@ MAJOR AREAS
 -----------
 
 - [FEATURE GAP] - #937: the modern Assign Test Plan Roles screen (gui/templates/usermanagement/usersAssignPlan.html) now filters the Test Plan dropdown by the caller's assign rights, porting legacy getTestPlanEffectiveRoles() (lib/usermanagement/usersAssign.php:344-378): api/roles/index.php gained getAssignablePlans() and the GET /meta/tplan-roles route exposes only active plans the user may assign roles for (global right testplan_user_role_assignment = all accessible plans, else per-plan hasRight check) plus totalPlans (raw active count). The screen shows a disabled select + a warning note (assign.noUsablePlans when the project has no active plans, else assign.rolesForPlansDisabled) — same UX as the legacy options_disabled branch (usersAssign.php:123-127); u937assign-style assigners see no plans at all (was: every active plan), administrators and right-5 leaders keep the full list. i18n assign.rolesForPlansDisabled + assign.noUsablePlans in all 10 bundles. Suite 937 6/6 PASS, Event Viewer clean. (Refs #937)
+- [FEATURE GAP CLOSED] - #938: the modern Assign Test Plan Roles screen
+  (gui/templates/usermanagement/usersAssignPlan.html) bulk "Set roles to <role>"
+  selector + Do button (landed with #929, commit 291c69d01) is verified end-to-end
+  and the gap issue closed: bin/applyBulkRole() (usersAssignPlan.html:333-345)
+  replicates legacy set_combo_group() (usersAssign.tpl:20-43) — one click applies
+  the chosen role to every ENABLED row select (disabled global-admin rows skipped,
+  issue #927), the admin role (id 8) is excluded from the bulk catalog (issue
+  #928, buildBulkSelect() :317-327 skips role.id <= 0 pseudo-role too), value-0
+  = revert to inherited, one Save persists via PUT /roles/tplan-roles
+  (api/roles/index.php:813-858 delete + re-add). i18n assign.setRolesTo +
+  assign.do present in all 10 bundles. Suite 938 6/6 PASS, Event Viewer clean;
+  test discovered the plan-screen duplicate value-0 row-select label — filed as
+  bug #1545. (Refs #938)
 - [GAP CLOSED] - #1350: the modern Requirement Specification Viewer toolbar
   (gui/templates/requirements/reqSpecView.html) restores the three legacy
   reqSpecView toolbar actions (reqSpecViewButtons.inc.tpl:88-93 +
