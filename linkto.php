@@ -78,15 +78,18 @@ if (!isset($_GET['load']))
     if($args->tprojectPrefix != '') {
       $hasRight = checkTestProject($db,$user,$args);
       if( $hasRight ) {
-        // Refs #1532: requirement deep links are resolved by the modern
-        // resolver screen (gui/templates/links/directLink.html + BFF
-        // api/directlink) instead of the legacy reqView.php shell.
-        if( $args->item == 'req' ) {
+        // Refs #1532/#1542: requirement AND test-case/test-suite/req-spec deep
+        // links are all resolved by the modern resolver screen
+        // (gui/templates/links/directLink.html + BFF api/directlink) instead of
+        // the legacy shell (reqView.php / reqSpecView.php / archiveData.php /
+        // reqSpecListTree.php / listTestCases.php).
+        if( in_array($args->item, array('req','reqspec','testcase','testsuite'), true) ) {
           $resolver = $_SESSION['basehref'] .
             'gui/templates/links/directLink.html?tprojectPrefix=' .
-            urlencode($args->tprojectPrefix) . '&item=req&id=' .
+            urlencode($args->tprojectPrefix) . '&item=' . urlencode($args->item) . '&id=' .
             urlencode($args->id) .
-            (!is_null($args->version) ? '&version=' . urlencode($args->version) : '');
+            (!is_null($args->version) ? '&version=' . urlencode($args->version) : '') .
+            (!is_null($args->anchor) ? '&anchor=' . urlencode($args->anchor) : '');
           header('Location: ' . $resolver);
           exit();
         }
@@ -152,33 +155,25 @@ else
     $tproject_data = $tproject->get_by_prefix($args->tprojectPrefix);
     if(($op['status_ok'] = !is_null($tproject_data))) 
     {
-      // Refs #1532: requirement deep links are resolved by the modern resolver
-      // screen (gui/templates/links/directLink.html + api/directlink). This also
-      // sidesteps the pre-existing testproject::setSessionProject() fatal (the
-      // method no longer exists on the upgraded schema) that broke EVERY
-      // inner-frame deep link before reaching anything else.
-      if( $args->item == 'req' ) {
+      // Refs #1532/#1542: as above, every supported deep-link item is resolved
+      // by the modern resolver screen (gui/templates/links/directLink.html +
+      // api/directlink) which 403-gates rights itself, so the legacy inner
+      // frame (reqSpecView/archiveData + reqSpecListTree/listTestCases) is no
+      // longer rendered for deep links. This also sidesteps the pre-existing
+      // testproject::setSessionProject() fatal (the method no longer exists on
+      // the upgraded schema) that broke EVERY inner-frame deep link before
+      // reaching anything else.
+      if( in_array($args->item, array('req','reqspec','testcase','testsuite'), true) ) {
         $resolver = $_SESSION['basehref'] .
           'gui/templates/links/directLink.html?tprojectPrefix=' .
-          urlencode($args->tprojectPrefix) . '&item=req&id=' .
+          urlencode($args->tprojectPrefix) . '&item=' . urlencode($args->item) . '&id=' .
           urlencode($args->id) .
-          (!is_null($args->version) ? '&version=' . urlencode($args->version) : '');
+          (!is_null($args->version) ? '&version=' . urlencode($args->version) : '') .
+          (!is_null($args->anchor) ? '&anchor=' . urlencode($args->anchor) : '');
         header('Location: ' . $resolver);
         exit();
       }
 
-      // Refs #1533: testproject::setSessionProject() was removed during the
-      // 2.0.1 refactor (commit 94c9adf5c) and called with an undefined method
-      // fatal. Restore its exact semantics (session project/name/color/prefix
-      // + option flags) from the already-fetched $tproject_data row so the
-      // legacy inner-frame screens (reqSpecView/archiveData) still work.
-      $_SESSION['testprojectID'] = intval($tproject_data['id']);
-      $_SESSION['testprojectName'] = $tproject_data['name'];
-      $_SESSION['testprojectColor'] = $tproject_data['color'];
-      $_SESSION['testprojectPrefix'] = $tproject_data['prefix'];
-      $_SESSION['testprojectOptReqs'] = isset($tproject_data['option_reqs']) ? $tproject_data['option_reqs'] : null;
-      $_SESSION['testprojectOptPriority'] = isset($tproject_data['option_priority']) ? $tproject_data['option_priority'] : null;
-      $_SESSION['testprojectOptAutomation'] = isset($tproject_data['option_automation']) ? $tproject_data['option_automation'] : null;
       $op['status_ok'] = isset($itemCode[$args->item]);
       $op['msg'] = sprintf(lang_get('invalid_item'),$args->item);
     }

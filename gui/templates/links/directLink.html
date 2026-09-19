@@ -52,10 +52,11 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
   <div class="card-title"><i class="fa fa-bullseye"></i> <span data-i18n="dl.resolved">Resolved item</span></div>
   <div class="card-body">
     <div class="row"><span class="k" data-i18n="dl.project">Test project</span><span class="v"><span class="chip" id="rProject"></span></span></div>
-    <div class="row"><span class="k" data-i18n="dl.reqId">Requirement</span><span class="v"><span class="chip" id="rReqId"></span></span></div>
+    <div class="row"><span class="k" data-i18n="dl.typeLbl">Item type</span><span class="v"><span class="chip grey" id="rItem"></span></span></div>
+    <div class="row"><span class="k" id="rIdLbl">Identifier</span><span class="v"><span class="chip" id="rId"></span></span></div>
     <div class="row"><span class="k" data-i18n="dl.titleLbl">Title</span><span class="v" id="rTitle"></span></div>
-    <div class="row"><span class="k" data-i18n="dl.version">Version</span><span class="v" id="rVersion"></span></div>
-    <div class="row"><span class="k" data-i18n="dl.revision">Revision</span><span class="v" id="rRevision"></span></div>
+    <div class="row" id="rVersionRow" style="display:none;"><span class="k" data-i18n="dl.version">Version</span><span class="v" id="rVersion"></span></div>
+    <div class="row" id="rRevisionRow" style="display:none;"><span class="k" data-i18n="dl.revision">Revision</span><span class="v" id="rRevision"></span></div>
     <div class="dlink-row">
       <a class="btn-teal" id="openBtn" href="#" target="_blank"><i class="fa fa-external-link-alt"></i> <span data-i18n="dl.open">Open viewer</span></a>
       <input type="text" id="linkInput" readonly value="">
@@ -120,10 +121,15 @@ function resolve() {
       if (!r || r.status !== 'ok') { showErr((r && r.message) || TLi18n.t('dl.errLoad')); return; }
       document.title = TLi18n.t('dl.title');
       $('#rProject').text(r.tproject_name + ' (' + r.tproject_prefix + ')');
-      $('#rReqId').text(r.req_doc_id);
+      var itemLabel = TLi18n.t('dl.item' + (r.item ? r.item.charAt(0).toUpperCase() + r.item.slice(1) : 'Req'));
+      $('#rItem').text(itemLabel);
+      $('#rIdLbl').text(itemLabel);
+      $('#rId').text(r.req_doc_id || r.spec_doc_id || r.external_id || r.tcase_id || r.suite_id || '\u2014');
       $('#rTitle').text(r.title || '\u2014');
       $('#rVersion').text(r.version);
       $('#rRevision').text(r.revision);
+      $('#rVersionRow').toggle((r.version || 0) > 0);
+      $('#rRevisionRow').toggle((r.revision || 0) > 0);
       var href = r.href + (anchor ? '#' + encodeURIComponent(anchor) : '');
       $('#openBtn').attr('href', href);
       $('#linkInput').val(location.origin + href);
