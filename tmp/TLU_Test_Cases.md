@@ -17350,3 +17350,25 @@ overrides senior→6, tester→7). Login admin/admin.
 
 **Result: 6/6 PASS.** Screenshots: `docs/screenshots/issue-1545-before.png` (pre-fix duplicate),
 `docs/screenshots/issue-1545-after.png` (post-fix single option).
+
+---
+## Suite 1544C (close-out re-verify): Test Cases Assigned to User (tcAssignedToUser) — recorded-DONE modern screen, stale-open tracker close-out
+Fixtures: existing tmp/fixtures_1544.php (TA2U project). Browser: admin session, Dashboard → Results by Tester per Build → assignmentUrl popup tcAssignedToUser.html.
+1. Open tcAssignedToUser popup from resultsByTesterPerBuild for assigned tester — rows render, last-execution status badges per build/platform. PASS
+2. Quick Pass/Fail/Blocked inline icons — execution INSERT succeeds, status updates. PASS
+3. Quick-exec with build/platform/tcversion mismatch triple — BFF guard, fail-closed. PASS
+4. Build-scoped deep link with closed build — all-status override, rows render. PASS
+5. role-3 no-rights user opens popup — 403 JSON, client shows permission card. PASS
+6. Anonymous session → popup — redirect to login, no 500. PASS
+7. Wrong-ish user_id — BFF init 400/404 fail-closed. PASS
+8. HTTP status contract — invalid input yields 400 (not masked 200), anon triggers 401. PASS
+9. Event Viewer — no new Error/Warning beyond pre-existing AUDIT login rows. PASS
+
+## Suite 1541C (close-out re-verify): Public Share-Link Gateway (publicLink/lnl.php) — recorded-DONE modern screen, stale-open tracker close-out
+Fixtures: existing tmp/fixtures_1541.php (PSL project + api keys + attachment). 
+1. Resolve exec link with owning test-plan api_key — modern execPrint screen renders, no 500. PASS
+2. Resolve file link with owning project's key — api/attachments download returns real bytes. PASS
+3. Forged/mismatched 64-char key — fail-closed 403 before any data (no 500). PASS
+4. MetricsDashboard bound to owning project, not session. PASS
+5. Anonymous → 302 dispatcher gateway error card on failure (no PHP fatal). PASS
+6. Event Viewer clean beyond pre-existing rows. PASS
