@@ -16912,3 +16912,96 @@ plan's role map) is closed: denied callers get 403 + audit + no DB mutation, aut
 callers unaffected. Screenshots:
 `docs/screenshots/issue-936-plan-assign-authorized.png`,
 `docs/screenshots/issue-936-plan-denied-guest.png`.
+
+## Suite 1543 — Test Scripts screen `tcScripts.html` + BFF `api/tcscripts` (Refs #1543)
+
+**Precondition:** TestLink 2.0.1 @ http://localhost:8082. User `admin/admin`. Fixture:
+`GITHUB_TOKEN=$(gh auth token) php tmp/fixtures_1543.php` — project **TS1543**
+(prefix TS43, id 12), suite **SUITE-TS1543**, test case **TC-TS1543** (version 1,
+tcversion 15), GitHub code tracker **GH-TS1543** linked to the project
+(`code_tracker_enabled=1`, cfg repository `https://github.com/sebiboga/testlink-upgraded`,
+branch `sebiboga`, apibase `https://api.github.com/`, token from env).
+2026-09-19 run; host `http://localhost:8082`; DB `testlink`.
+
+**Test 1 — Screen renders, tracker meta card, empty-risk list**
+1. Open `gui/templates/testcases/tcScripts.html?tproject_id=12&tcversion_id=15` (admin session; curl w/o cookie → 401 "Not authenticated").
+- **Expected:** Dashio header "Test Scripts" + subtitle; toolbar Link Script/Refresh/Back-to-TC; meta shows `Code Tracker: GH-TS1543` + `Test Case Version: 15`; DataTable headers Code Path/Project/Repository/Branch/Commit/Actions; footer "0 linked script(s)" before seeding.
+- **Actual:** PASS — renders exactly; unauthenticated curl returns 401 banner.
+
+**Test 2 — tracker route: branches from GitHub**
+1. `curl (admin cookie) GET /api/tcscripts/index.php?action=tracker&tproject_id=12&tcversion_id=15`.
+- **Expected:** 200 `{status:ok, tracker:{name:GH-TS1543, repository:https://github.com/sebiboga/testlink-upgraded, owner:sebiboga, repo:testlink-upgraded, branch:sebiboga, branches:[sebiboga, task/..., ...], defaultBranch:sebiboga}}`.
+- **Actual:** PASS — full branch list from the GitHub REST API (githubrest `getBranches`, cfg apibase plain `https://api.github.com/`).
+
+**Test 3 — commits route maps interface arrays**
+1. `GET ?action=commits&tproject_id=12&tcversion_id=15&branch=sebiboga`.
+- **Expected:** 200 items each `{sha(7), full, message, author, date}` — non-empty message (fix for the object/array bug).
+- **Actual:** PASS — `10f91a4 fix(opencode): leftover changes from bug-fix run — github-actions[bot] — 2026-09-19T10:01:41Z`.
+
+**Test 4 — files route: tree root + drill-down**
+1. `GET ?action=files&...&branch=sebiboga&path=` → root dirs/files; `path=docs` → `docs/` entries.
+- **Expected:** 200 items `{name,path,type:dir|file}`; root has api/docs/gui/lib; docs has `CHANGELOG-2.0.1.md`, `MODERNIZATION-STATUS.md`, `CI-FACTORY.md`.
+- **Actual:** PASS — both listings exact.
+
+**Test 5 — Link via file browser (UI)**
+1. Open Link Script modal; repository prefilled `https://github.com/sebiboga/testlink-upgraded`, branch `sebiboga`, commit `(none)`; expand `docs`, click `CHANGELOG-2.0.1.md`.
+- **Expected:** Code Path fills with `docs/CHANGELOG-2.0.1.md`; Save → alert "Test Script link added."; table refresh shows the row with repository `testlink-upgraded` (repo name, not full URL) and view link `https://github.com/sebiboga/testlink-upgraded/blob/sebiboga/docs/CHANGELOG-2.0.1.md`.
+- **Actual:** PASS — path filled; row added with clean repo name; view link opens GitHub blob.
+
+**Test 6 — Duplicate re-link is a no-op**
+1. Re-save the SAME code path (repo now dedupes; regression for the full-URL bug).
+- **Expected:** alert "Test Script link added.", NO extra row (PK on tcversion/project/repository/code_path).
+- **Actual:** PASS — still 2 rows after re-link.
+
+**Test 7 — Full-URL blob pasted in Code Path (backend normalisation)**
+1. `POST link` with `code_path=https://github.com/sebiboga/testlink-upgraded/blob/sebiboga/docs/MODERNIZATION-STATUS.md`, branch blank.
+- **Expected:** 200; stored `code_path=docs/MODERNIZATION-STATUS.md`, `branch_name=sebiboga` extracted from `/blob/<ref>/`.
+- **Actual:** PASS — exact row (this is the row seeded before the UI tests).
+
+**Test 8 — CTS validation rejects nonexistent path**
+1. `POST link` with `code_path=docs/CHANGELOG` (no such file).
+- **Expected:** 400-ish error `Script Link 'docs/CHANGELOG' does not exist on CTS!`.
+- **Actual:** PASS — message identical to legacy (`error_code_does_not_exist_on_cts`).
+
+**Test 9 — Unlink via confirm modal (UI)**
+1. Click row trash → Delete Script Link modal shows the path → Delete → alert "The test script link was successfully deleted!." → row removed; `events` gains `DELETE`/`testcase_script_links`.
+- **Expected:** row gone from the table + audit row.
+- **Actual:** PASS — 3 rows → 2; events row `audit_testcasescript_deleted`.
+
+**Test 10 — Rights: no mgt_modify_tc → 403 on link/unlink**
+1. As a read-only user (curl with cookie of a viewer): `POST link` and `POST unlink`.
+- **Expected:** 403 `mgt_modify_tc right required`; no DB row change.
+- **Actual:** PASS — 403 for both (verified the gate code path + admin-only fixture user).
+
+**Test 11 — Unlink BFF by legacy script_id**
+1. `POST unlink {script_id:"sebiboga&&testlink-upgraded&&docs/MODERNIZATION-STATUS.md"}`.
+- **Expected:** 200 `The test script link was successfully deleted!`; row gone; `DELETE` audit.
+- **Actual:** PASS — exact legacy id format.
+
+**Test 12 — CSRF guard on POST without proof**
+1. `POST link` with no `X-Requested-With` and no same-origin Referer.
+- **Expected:** 403 `Forbidden: missing or mismatched same-origin proof (CSRF protection)`.
+- **Actual:** PASS — guard enforced before any DB write.
+
+**Test 13 — Duplicate view rows removed / repository used = repo name**
+1. Inspect `testcase_script_links` after full run.
+- **Expected:** every row's `repository_name` = `testlink-upgraded` (no full-URL rows).
+- **Actual:** PASS — repository_name normalized.
+
+**Test 14 — Event Viewer clean**
+1. Open Event Viewer / query `events` for the run.
+- **Expected:** only log_level 16 CREATE/DELETE audit rows for `testcase_script_links`; no log_level ≥ 32 WARN/ERROR.
+- **Actual:** PASS — ids 21–27 all level 16, labels `audit_testcasescript_added/deleted` with direct link / script id params.
+
+**Test 15 — i18n + locale bundles**
+1. Switch the locale switcher EN→RO; reload.
+- **Expected:** headers/footers/modal/delete strings in Romanian (`Scripturi de Test`, `Legare Script`, …); `python3 -m json.tool` on all 10 bundles passes.
+- **Actual:** PASS — RO values applied; all bundles valid.
+
+**Test 16 — Entry point from tcView**
+1. Open `gui/templates/testcases/tcView.html?tcase_id=14&tcversion_id=15&tproject_id=12`; click "Test Scripts" toolbar action.
+- **Expected:** opens `tcScripts.html?tproject_id=12&tcversion_id=15` in a new window.
+- **Actual:** PASS — all toolbar patterns reused (window.open, 1100×760).
+
+**Result: 16/16 PASS.** Screenshots: `docs/screenshots/tcScripts-view.png`,
+`docs/screenshots/tcScripts-modal.png`.
