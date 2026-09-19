@@ -17250,3 +17250,58 @@ Run: `php tmp/fixtures_938.php`.
   `audit_users_roles_added_testplan` audits, zero rows ≥ 32.
 
 **Result: 6/6 PASS.** Screenshot: `docs/screenshots/issue-938-bulk-set-roles-plan.png`.
+
+## Suite 1349 — Task Issue #1349: "Create Req from Issue XML" action in reqSpecView (gap vs legacy)
+
+Verify the reqSpecView entry point to the modern Create-Requirements-from-Issues
+(Mantis XML) flow — the legacy "Create From Issues (XML)" button
+(reqSpecViewButtons.inc.tpl:119-123) → `reqCreateFromIssueMantisXML.php?scope=branch`.
+The modern equivalent (toolbar link shown on `r.rights.manage` → reqFromIssues.html +
+api/reqfromissues) was built under Refs #1503; this suite re-verifies the FULL chain
+for the #1349 closure, on a freshly-imported DB.
+
+**Precondition:** `php tmp/fixtures_1503.php` run (tproject WALK1503 id 1, specs
+RS-WALK id 2, RS-OTHER id 4, sample export `/tmp/mantis_import_1503.xml` with issues
+201 + 202); user admin (role 8 = all rights).
+
+### Test 1 — reqSpecView toolbar shows "Create Requirements from Issues" for a req_mgmt user
+1. Log in admin/admin; open `gui/templates/requirements/reqSpecView.html?id=2&tproject_id=1`.
+- **Expected:** toolbar link `#createFromIssuesLink` visible (label `reqfi.title`), href =
+  `reqFromIssues.html?req_spec_id=2&tproject_id=1`.
+- **Actual:** PASS — link rendered (uid 10_30), correct href.
+
+### Test 2 — Import screen loads with project/spec context + grants
+1. Click the link; inspect context lines + work area.
+- **Expected:** header `WALK1503 / Walk Issue Import Spec`; toolbar `Test project: WALK1503 | Requirement spec: ...`; dropzone, size hint (10240 KB), mapping note; Import button initially disabled; no errBox.
+- **Actual:** PASS — all context rendered, button disabled until file selection.
+
+### Test 3 — Pristine 2-issue import creates requirements with legacy mapping
+1. Upload `/tmp/mantis_import_1503.xml` in the dropzone; click "Import issues".
+2. Verify result table + DB: `SELECT ... FROM requirements, req_versions, nodes_hierarchy`.
+- **Expected:** 2 result rows "Created - Requirement - Doc ID:Mantis Task ID:201/202";
+  DB reqs 201/202 under spec 2, node names `Issue/Task:201 - <summary>`, req_versions
+  scope = `Description<p><desc><p>Steps to reproduce<p><steps><p>Additional information<p><add>`,
+  status/type empty, expected_coverage=1; viewer "REQUIREMENTS IN SPEC: 2".
+- **Actual:** PASS — UI rows Created x2; DB: requirements id 6/8 (Mantis Task ID:201/202),
+  nodes id 6/8 named `Issue/Task:201 - Requirement import drops leading spaces` /
+  `Issue/Task:202 - Export report crashes on empty project`; req_versions 7/9 scope match.
+
+### Test 4 — Same-spec re-import = FROZEN duplicate skip (createFromMap parity)
+1. Re-upload the same file; import again.
+- **Expected:** 2 rows "Skipped - Requirement - Doc ID:Mantis Task ID:<id> - is FROZEN",
+  amber/warn styling; DB `COUNT(*) FROM requirements` stays 2.
+- **Actual:** PASS — both rows Skipped/FROZEN (class warn), 2 requirements remain.
+
+### Test 5 — i18n coverage + bundle validity
+1. `for f in gui/templates/i18n/*.json; do python3 -m json.tool $f >/dev/null; done`
+2. Grep `reqfi.*` and `footers.reqFromIssues` in all 10 bundles.
+- **Expected:** all bundles valid JSON, 24 `reqfi.*` keys + footer key in each of 10 locales.
+- **Actual:** PASS — 24/24 reqfi keys + 1 footer key in all 10 bundles.
+
+### Test 6 — Event Viewer + console
+1. Check `SELECT id,log_level FROM events` and browser console.
+- **Expected:** no new Error/Warning (log_level>=32) rows from the import flow; no console errors.
+- **Actual:** PASS — events only id 1/2 at INFO(16) (testproject_created, login); console clean.
+
+**Result: 6/6 PASS.** Screenshots: `docs/screenshots/issue-1349-reqspecview-toolbar.png`,
+`docs/screenshots/issue-1349-reqfi-screen-loaded.png`, `docs/screenshots/issue-1349-reqfi-result-frozen.png`.

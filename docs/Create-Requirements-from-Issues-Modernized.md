@@ -182,3 +182,33 @@ Screenshots: `docs/screenshot-reqfi-screen.png` (loaded screen with spec
 context) + `docs/screenshot-reqfi-import-result.png` (2-issue import result
 table with Created rows). Wiki page `Create-Requirements-from-Issues-Modernized.md`
 updated with the regression section.
+---
+
+## Appendix — gap #1349 entry-point verification (2026-09-19)
+
+Issue **#1349** ("Implement Create Req from Issue XML action in reqSpecView")
+was the gap report behind this whole screen: the modern Requirement
+Specification Viewer had dropped the legacy "Create From Issues (XML)" button
+of the Requirement Operations fieldset. The entry point shipped with the
+screen (toolbar link `#createFromIssuesLink`, reqSpecView.html:93):
+- shown only when the BFF `spec_view` payload reports `rights.manage`
+  (`mgt_modify_req` on the owning project — api/reqspec/index.php:681-682,
+  mirror of the legacy `mgt_view_req && mgt_modify_req` gate);
+- href wired at reqSpecView.html:472-473 to
+  `reqFromIssues.html?req_spec_id=<id>&tproject_id=<tid>`.
+
+This run re-verified the full chain on a freshly imported DB (fixture
+`tmp/fixtures_1503.php`, admin/admin): toolbar button rendered on
+`reqSpecView.html?id=2`, import screen loaded with WALK1503 / RS-WALK context,
+pristine 2-issue import created requirements under the spec with exact legacy
+mapping (docid `Mantis Task ID:201/202`, titles `Issue/Task:201 - ...`,
+description joined via `<p>`, status/type empty, expected_coverage=1), same-spec
+re-import was skipped as FROZEN (createFromMap parity, warn rows), Event Viewer
+stayed clean (0 rows log_level>=32), browser console clean. Suite **1349** 6/6
+PASS appended to `tmp/TLU_Test_Cases.md`.
+
+Screenshots: `docs/screenshots/issue-1349-reqspecview-toolbar.png` (viewer
+toolbar with the Create Requirements from Issues action),
+`docs/screenshots/issue-1349-reqfi-screen-loaded.png` (import screen with
+context), `docs/screenshots/issue-1349-reqfi-result-frozen.png` (FROZEN
+re-import skip result).
