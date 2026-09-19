@@ -53,8 +53,8 @@ if (is_null($user)) {
     exit;
 }
 
-function out($data, $code = 200) {
-    http_response_code($code);
+function out($data, $code = 0) {
+    if ($code > 0) { http_response_code($code); }
     echo json_encode($data);
     exit;
 }
