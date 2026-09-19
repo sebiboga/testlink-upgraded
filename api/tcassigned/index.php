@@ -233,10 +233,10 @@ if ($action === 'init') {
                     }
                     if ($priorityEnabled) {
                         $prio = intval($tcase['priority']);
-                        $level = ($prio >= HIGH) ? 'high'
-                            : (($prio >= MEDIUM) ? 'medium' : 'low');
+                        $level = priority_to_level($prio);
                         $row['priority'] = $prio;
-                        $row['priority_level'] = $level;
+                        $row['priority_level'] = ($level >= HIGH) ? 'high'
+                            : (($level >= MEDIUM) ? 'medium' : 'low');
                     }
                     $rowsOut[] = $row;
                 }
