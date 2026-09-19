@@ -27,7 +27,8 @@
  *         on the owning project
  *     400 missing/malformed params or unsupported item
  *     404 unknown test project prefix / item id / version
- *     405 non-GET verb
+ *     405 non-GET verb (reached only when the same-origin guard accepts the
+ *         request; non-GET without its CSRF-proof header is 403'd first)
  *     500 legacy-layer throw
  *
  * Item resolution mirrors legacy linkto.php process_* parity:
@@ -50,6 +51,9 @@ header('Content-Type: application/json; charset=utf-8');
 
 $db = new database(DB_TYPE);
 doDBConnect($db);
+
+$tables = tlObjectWithDB::getDBTables(
+    array('node_types', 'nodes_hierarchy', 'tcversions'));
 
 $userId = $_SESSION['userID'] ?? null;
 if (!$userId || $userId <= 0) {
@@ -309,17 +313,23 @@ switch ($item) {
                 'message' => sprintf('Test case %s not found', $docId),
             ]);
         }
-        // Card enrichment: latest tcversion row (name + external id + version).
+        // Card enrichment: the tc NAME lives on the testcase node
+        // (nodes_hierarchy.id = tcaseId); version + external id live on the
+        // newest tcversion node (the child of the testcase node).
+        $tcaseNode = $db->get_recordset(
+            "SELECT name FROM {$tables['nodes_hierarchy']} " .
+            "WHERE id = " . intval($tcaseId) . " LIMIT 1");
         $tcv = $db->get_recordset(
-            "SELECT TCV.name, TCV.tc_external_id, TCV.version " .
+            "SELECT TCV.tc_external_id, TCV.version " .
             "FROM {$tables['tcversions']} TCV " .
             "JOIN {$tables['nodes_hierarchy']} NH ON TCV.id = NH.id " .
             "WHERE NH.parent_id = " . intval($tcaseId) .
             " ORDER BY TCV.version DESC LIMIT 1");
         $tcv = is_null($tcv) ? null : current($tcv);
+        $tcaseNode = is_null($tcaseNode) ? null : current($tcaseNode);
         $base['tcase_id'] = intval($tcaseId);
         $base['external_id'] = $docId;
-        $base['title'] = is_array($tcv) ? (string)($tcv['name'] ?? '') : '';
+        $base['title'] = is_array($tcaseNode) ? (string)($tcaseNode['name'] ?? '') : '';
         $base['version'] = is_array($tcv) ? intval($tcv['version'] ?? 0) : 0;
         $base['href'] = '/gui/templates/testcases/tcView.html?tcase_id=' .
             intval($tcaseId) . '&tproject_id=' . $tprojectId;
