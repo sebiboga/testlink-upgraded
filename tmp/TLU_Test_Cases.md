@@ -16879,3 +16879,36 @@ req spec **RS-DL2** (id 12), requirement **DLREQ-101** (id 14), suite **DL2 Suit
 **Result: 6/6 PASS** — legacy `attachments.inc.tpl` manager CRUD ported into reqSpecView.html and verified for admin + view-only paths (Refs #1352).
 
 ---
+
+## Suite 936 — Update rights check (`checkRightsForUpdate`) on Assign Test Plan Roles PUT (Task — Issue #936)
+
+**Feature:** `PUT /api/roles/index.php/tplan-roles` now enforces the legacy
+`usersAssign.php:246-266` `checkRightsForUpdate()` — for the `testplan` feature the
+caller must hold `testplan_user_role_assignment` on `(testproject_id, tplan_id)` (gate
+`api/roles/index.php:213-220` → `userCanUpdateAssignments()` `:85-94`), otherwise HTTP
+403 `no_permissions_for_action` + `audit_security_user_right_missing` AUTH event and no
+DB mutation. Authorized callers (holder of the right, admin) are unaffected.
+
+**Precondition:** run `php tmp/fixtures_936.php` (public project **ASSIGN**, active
+plan **RPlan**, user `guest1` global role `guest` / password `admin`), which also
+creates `planner1` global role `leader` (id 9) and subjects `tester1`/`leader1`.
+Verified twice: first on project 1/plan 2, then re-run on the recreated fixture
+(project 3/plan 4) — same results. `user_testplan_roles` before each deny test:
+`(subject-tester, plan, tester)`.
+
+| # | Step | Expected | Actual |
+|---|------|----------|--------|
+| 1 | Log in as **guest1**; PUT `/api/roles/tplan-roles` `{"tplan_id":<plan>,"assignments":{"3":9,"4":5}}` | **403** `no_permissions_for_action` (right `testplan_user_role_assignment`), no DB change | PASS — 403; `user_testplan_roles` unchanged (plan 2: row `(3,2,7)`; plan 4: `(3,4,7)`) |
+| 2 | guest1 opens `usersAssignPlan.html` | localized deny box "You do not have enough rights to access this feature." | PASS — `#denyBox` visible (screenshot issue-936-plan-denied-guest.png) |
+| 3 | `events` after guest1 PUT | row `audit_security_user_right_missing` (AUTH, log_level 16, right testplan_user_role_assignment) | PASS — ids 6,17,18,25 |
+| 4 | Log in as **planner1** (global leader = `testplan_user_role_assignment`, no role_management); same PUT | **200** `{"status":"ok"}`; subject rows rewritten + `UPDATE` event | PASS — 200; DB mutated (plan 4: `(3,4,9)`/`(4,4,5)`); UPDATE event id 30 |
+| 5 | planner1 UI: open plan screen, change tester1 to `tester`, Save | save persists, `UPDATE` event | PASS — row persisted (plan 2: `(3,2,7)`); UPDATE event id 14 |
+| 6 | Log in as **admin**; PUT empty assignments `{"tplan_id":<plan>,"assignments":{}}` | **200** no-op (empty map short-circuit) | PASS — 200 |
+| 7 | Event Viewer / `events` | no new Error/Warning (log_level ≥ 32) from the run; console clean | PASS — only log_level 16 audit rows; console clean |
+| 8 | Code review (rule 16) | gate matches legacy exactly incl. `(tproject_id,tplan_id)` scope; `php -l` clean | PASS — parity confirmed; syntax clean (`php -l` ok) |
+
+**Result: 8/8 PASS** — the privilege escalation from #936 (any user could rewrite any
+plan's role map) is closed: denied callers get 403 + audit + no DB mutation, authorized
+callers unaffected. Screenshots:
+`docs/screenshots/issue-936-plan-assign-authorized.png`,
+`docs/screenshots/issue-936-plan-denied-guest.png`.

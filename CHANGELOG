@@ -493,6 +493,13 @@ NEW FEATURES
   written, closing the privilege escalation where any authenticated user could rewrite any
   project's role map. tplan route equally gated; empty-map no-op and authorized flows
   (admin, global `user_role_assignment` holders) unaffected. Suite "Task — Issue #925" 11/11 PASS.
+- Assign Test Plan Roles — update rights check on PUT verified end-to-end (Refs #936):
+  the `tplan-roles` gate from #925 fully closes the issue-report escalation (guest with
+  zero rights answered **403** `no_permissions_for_action`/`testplan_user_role_assignment`
+  + `audit_security_user_right_missing` AUTH event, no `user_testplan_roles` mutation;
+  a `leader` holding `testplan_user_role_assignment` and admin still **200** and persist),
+  mirroring legacy `checkRightsForUpdate()` `(testproject_id, tplan_id)` scope. Suite "Task
+  — Issue #936" 8/8 PASS.
 - Assign Test Project Roles — effective/inherited role display (Refs #926): BFF
   `getTprojectEffectiveRoleMap()` (`api/roles/index.php:142-183`) ports legacy
   `get_tproject_effective_role()` and `GET /roles/meta/tproject-roles` now returns
