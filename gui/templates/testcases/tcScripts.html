@@ -209,7 +209,7 @@ function loadBranches(cb) {
 function loadScripts() {
   $.getJSON(API + '?action=list&tcversion_id=' + TCVERSION_ID + '&tproject_id=' + TPROJECT_ID, function(r) {
     scripts = r.scripts || [];
-    canModify = !!r.can_modify;
+    canModify = r.can_modify === 'yes';
     $('#btnLink').toggle(canModify && !!tracker);
     renderTable();
   });
@@ -241,7 +241,7 @@ function esc(s) {
   return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 function escJs(s) {
-  return String(s == null ? '' : s).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+  return String(s == null ? '' : s).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '\\"').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 function loadAll() { setErr(''); loadBranches(loadScripts); }
@@ -269,16 +269,16 @@ function loadTree(path) {
     $('#treePath').text(r.path);
     var html = '';
     if (path && path !== '/') html += '<div class="frow" onclick="loadTree(parentOf(\'' + escJs(path) + '\'))"><i class="fa fa-arrow-up"></i> ..</div>';
-    $.each(r.items, function(i, it) {
+    var items = r.items || [];
+    $.each(items, function(i, it) {
       if (it.type === 'dir') {
         html += '<div class="frow" onclick="loadTree(\'' + escJs(it.path) + '\')"><i class="fa fa-folder"></i>' + esc(it.name) + '<span class="chev"><i class="fa fa-chevron-right"></i></span></div>';
       } else {
         html += '<div class="frow tfile" data-path="' + esc(it.path) + '" onclick="selectFile(this, \'' + escJs(it.path) + '\')"><i class="fa fa-file-code"></i>' + esc(it.name) + '</div>';
       }
     });
-    if (!r.items.length) html += '<div class="frow" style="cursor:default;color:#888;">' + TLi18n.t('tscs.folderEmpty') + '</div>';
+    if (!items.length) html += '<div class="frow" style="cursor:default;color:#888;">' + TLi18n.t('tscs.folderEmpty') + '</div>';
     $('#fileTree').html(html);
-    $('#treePath').text('/' + ($('#fileTree').html() ? treePath : treePath));
     $('#treePath').text(treePath);
   }).fail(function(xhr) {
     var m = TLi18n.t('tscs.loadError');

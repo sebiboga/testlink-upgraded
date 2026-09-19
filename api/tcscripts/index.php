@@ -302,13 +302,20 @@ if ($method === 'GET' && $action === 'tracker') {
 
     $branches = [];
     $defaultBranch = $cfg['branch'];
-    if (!is_null($cts) && method_exists($cts, 'getBranches')) {
-        $envBranches = $cts->getBranches();
-        if (is_array($envBranches)) {
-            $branches = array_values($envBranches);
-            if ($defaultBranch === '' && count($branches) > 0) {
-                $defaultBranch = $branches[0];
+    // Only the GitHub REST interface exposes a zero-argument getBranches().
+    // Stash-style interfaces need (projectKey, repoName) — never call them
+    // here (they would raise ArgumentCountError on PHP 8).
+    if ($cts instanceof githubrestCodeTrackerInterface) {
+        try {
+            $envBranches = $cts->getBranches();
+            if (is_array($envBranches)) {
+                $branches = array_values($envBranches);
+                if ($defaultBranch === '' && count($branches) > 0) {
+                    $defaultBranch = $branches[0];
+                }
             }
+        } catch (Throwable $e) {
+            $branches = [];
         }
     }
     out([
@@ -398,12 +405,21 @@ if ($method === 'GET' && $action === 'commits') {
     $branch = isset($_GET['branch']) ? trim($_GET['branch']) : '';
 
     list($tracker, $cts, $err) = linkedTracker($db, $tproject_id);
-    if (!is_null($err)) { out(['status' => 'error', 'message' => $err]); }
+    if (!is_null($err)) { http_response_code(409); out(['status' => 'error', 'message' => $err]); }
     if (is_null($cts) || !method_exists($cts, 'getCommits')) {
         http_response_code(502);
         out(['status' => 'error', 'message' => 'Code tracker interface does not support commit listing']);
     }
-    $commits = $cts->getCommits($branch !== '' ? $branch : null);
+    // Stash-style interfaces need (projectKey, repoName) — only the GitHub
+    // REST interface exposes the 1-arg getCommits($branch) we need.
+    if (!($cts instanceof githubrestCodeTrackerInterface)) {
+        out(['status' => 'ok', 'items' => []]);
+    }
+    try {
+        $commits = $cts->getCommits($branch !== '' ? $branch : null);
+    } catch (Throwable $e) {
+        $commits = false;
+    }
     if ($commits === false) {
         http_response_code(502);
         out(['status' => 'error', 'message' => 'Unable to fetch commits (check repository and token)']);
@@ -432,7 +448,7 @@ if ($method === 'GET' && $action === 'files') {
     $path = isset($_GET['path']) ? trim($_GET['path']) : '';
 
     list($tracker, $cts, $err) = linkedTracker($db, $tproject_id);
-    if (!is_null($err)) { out(['status' => 'error', 'message' => $err]); }
+    if (!is_null($err)) { http_response_code(409); out(['status' => 'error', 'message' => $err]); }
     $row = $GLOBALS['ctmgr']->getByID($tracker['codetracker_id']);
     $cfg = parseTrackerCfg($row['cfg'] ?? '');
     $items = [];
@@ -483,7 +499,7 @@ if ($method === 'POST' && $action === 'link') {
     }
 
     list($tracker, $cts, $err) = linkedTracker($db, $tproject_id);
-    if (!is_null($err)) { out(['status' => 'error', 'message' => $err]); }
+    if (!is_null($err)) { http_response_code(409); out(['status' => 'error', 'message' => $err]); }
     $row = $GLOBALS['ctmgr']->getByID($tracker['codetracker_id']);
     $cfg = parseTrackerCfg($row['cfg'] ?? '');
 
@@ -532,10 +548,11 @@ if ($method === 'POST' && $action === 'link') {
     } elseif (!is_null($cts) && method_exists($cts, 'getRepoContent')) {
         $cont = $cts->getRepoContent($project_key, $repository_name, $code_path,
                                      is_null($branch_name) ? $cfg['branch'] : $branch_name, $commit_id);
-        $valid = !(property_exists($cont, 'errors') || ($cont === false) || (is_array($cont) && isset($cont['errors'])));
+        $valid = !is_null($cont) && !(property_exists($cont, 'errors') || ($cont === false) || (is_array($cont) && isset($cont['errors'])));
     }
     if (!$valid) {
         $msg = sprintf(lang_get('error_code_does_not_exist_on_cts'), $code_path);
+        http_response_code(400);
         out(['status' => 'error', 'message' => $msg]);
     }
 
