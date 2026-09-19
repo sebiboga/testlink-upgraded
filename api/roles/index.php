@@ -753,6 +753,16 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'meta' && isset
     $roles = tlRole::getAll($db, null, null, null, tlRole::TLOBJ_O_GET_DETAIL_MINIMUM);
     $roleOpts = [];
     foreach ($roles as $r) {
+        // Skip the TL_ROLES_INHERITED (id 0) pseudo-role that tlRole::getAll()
+        // injects: "inherited"/"no override" is expressed per user through the
+        // value-0 option the frontend already renders, never as a real
+        // selectable role (issue #926, same fix as tproject-roles).
+        // Legacy parity: usersAssign.tpl:262-272 renders only ONE value-0
+        // option - the tplan-roles payload previously carried the id-0
+        // pseudo-role unfiltered, so usersAssignPlan.html rendered a second
+        // value-0 "<inherited>" option next to "-- no override --" (issue
+        // #1545). Filtering here restores the legacy single-option behaviour.
+        if (intval($r->dbID) == TL_ROLES_INHERITED) continue;
         $roleOpts[] = ['id' => intval($r->dbID), 'name' => $r->getDisplayName()];
     }
 
