@@ -121,7 +121,8 @@ function resolve() {
       if (!r || r.status !== 'ok') { showErr((r && r.message) || TLi18n.t('dl.errLoad')); return; }
       document.title = TLi18n.t('dl.title');
       $('#rProject').text(r.tproject_name + ' (' + r.tproject_prefix + ')');
-      var itemLabel = TLi18n.t('dl.item' + (r.item ? r.item.charAt(0).toUpperCase() + r.item.slice(1) : 'Req'));
+      var itemKeyMap = { req: 'Req', reqspec: 'ReqSpec', testcase: 'TestCase', testsuite: 'TestSuite' };
+      var itemLabel = TLi18n.t('dl.item' + (itemKeyMap[r.item] || 'Req'));
       $('#rItem').text(itemLabel);
       $('#rIdLbl').text(itemLabel);
       $('#rId').text(r.req_doc_id || r.spec_doc_id || r.external_id || r.tcase_id || r.suite_id || '\u2014');
