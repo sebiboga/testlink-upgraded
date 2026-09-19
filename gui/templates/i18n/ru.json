@@ -27,6 +27,7 @@
   "alx.thTestSuite": "Test Suite",
   "app.version": "2.0.1 [TEST]",
   "assign.adminRoleLocked": "Роль администратора заблокирована и не может быть изменена.",
+  "assign.all": "Все",
   "assign.assignedRole": "Назначенная роль",
   "assign.demoDisabled": "We are sorry. This feature is disabled for Demo.",
   "assign.do": "Выполнить",

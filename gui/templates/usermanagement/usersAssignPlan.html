@@ -7,6 +7,10 @@
 <title>Assign Test Plan Roles</title>
 <link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<!-- Legacy parity: usersAssign.tpl:111-120 (+DataTables.inc.tpl) wraps the
+     assign table in a DataTable. Same 1.13.7 bootstrap build as the other
+     modernized screens (cfieldsAssignView.html:9,166-167). -->
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap.min.css">
 <style>
 * { box-sizing: border-box; }
 body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
@@ -120,6 +124,8 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 <script src="/gui/templates/i18n/i18n.js"></script>
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap.min.js"></script>
 <script>
 var API = '/api/roles/index.php';
 var currentProject = null;
@@ -134,6 +140,13 @@ var ADMIN_ROLE_ID = 8;
 // Legacy parity: usersAssign.tpl:286-292 (shared template) - read-only
 // assignment form in demoMode; Save button replaced by warn_demo note.
 var demoMode = false;
+// Data model for the assign grid (single source of truth, issue #939).
+// DataTables paging keeps only the current page in the DOM, so bulk "Do" and
+// Save must not read/write the visible rows only; every operation goes through
+// this model and rows are rebuilt (or cells re-synced) from it on every draw.
+var users = [];      // {id, login, name, inheritedRoleName, isAdmin, origRoleID, roleVal}
+var userById = {};   // id -> user entry
+var assignDt = null; // DataTables instance on #assignTable
 
 function esc(s) {
   return String(s == null ? '' : s)
@@ -255,6 +268,117 @@ function loadPlans(pid) {
   });
 }
 
+// Legacy parity: usersAssign.tpl:259-271 - one value-0 "-- no override --"
+// option then one option per assignable role; the admin role (TL_ROLES_ADMIN,
+// id 8) is only offered when it is the row's current explicit plan assignment
+// (issue #928). chosenVal drives the selected option from the data model so a
+// row re-rendered by DataTables keeps the user's chosen override.
+function rolesOptions(u, chosenVal) {
+  var opts = '<option value="0">' + TLi18n.t('assign.noOverride') + '</option>';
+  $.each(roles, function(j, role) {
+    if (role.id == ADMIN_ROLE_ID && u.origRoleID != role.id) return;
+    var sel = role.id == chosenVal ? ' selected' : '';
+    opts += '<option value="' + esc(role.id) + '"' + sel + '>' + esc(role.name) + '</option>';
+  });
+  return opts;
+}
+
+// row override <select> HTML reconstructed from the model (issue #939) - used
+// for the initial render AND to re-sync the DataTables cell data on change so
+// paging/search re-draws keep the chosen override on every page.
+function buildSelectHtml(u) {
+  var disabled = u.isAdmin ? ' disabled' : '';
+  return '<select' + disabled + ' data-role="' + esc(u.origRoleID) +
+    '" onchange="onRoleChange(this,' + esc(u.id) + ',' + esc(u.origRoleID) + ')">' +
+    rolesOptions(u, u.roleVal) + '</select>';
+}
+
+// Legacy parity: usersAssign.tpl:111-120 + DataTables.inc.tpl + config.inc.php
+// :664-666 - the users grid is a DataTable: search box labelled by the
+// localized "User" string, sorting on the user columns, entries selector
+// 20/40/60/All, stateSave. In the legacy 2-column layout the roles-select
+// column (1) was non-searchable; in the modern 5-column layout only the Login
+// + Name columns (the legacy "User" column split in two) stay searchable.
+// Render the assign grid. Optional keep = {search,len,order,page} restores the
+// caller's DataTables view state after a re-init (used by applyBulkRole) so an
+// in-screen re-render behaves like the legacy pure-DOM set_combo_group() which
+// never disturbed the user's page/search. loadUsers does NOT pass keep: each
+// project/plan load starts a clean grid (issue #939).
+function renderUsersTable(keep) {
+  if (assignDt) { assignDt.destroy(); assignDt = null; }
+  var $b = $('#assignBody').empty();
+  if (!users.length) {
+    $b.append('<tr><td colspan="5" style="text-align:center;color:#888;padding:30px;">' +
+      TLi18n.t('assign.noUsers') + '</td></tr>');
+    $('#footerText').text(TLi18n.t('user.usersCount', {n: 0}));
+    return;
+  }
+  $.each(users, function(i, u) {
+    var hint = u.isAdmin ? ' <i class="fa fa-info-circle inherited-col" title="' + esc(TLi18n.t('assign.adminRoleLocked')) + '"></i>' : '';
+    $b.append(
+      '<tr data-uid="' + esc(u.id) + '">' +
+      '<td>' + (i + 1) + '</td>' +
+      '<td>' + esc(u.login) + '</td>' +
+      '<td>' + esc(u.name) + '</td>' +
+      '<td class="inherited-col">' + esc(u.inheritedRoleName) + '</td>' +
+      '<td>' + buildSelectHtml(u) + hint + '</td>' +
+      '</tr>');
+  });
+  assignDt = $('#assignTable').DataTable({
+    // Legacy parity: DataTables.inc.tpl "language": { "search": "User" }.
+    language: {
+      search: TLi18n.t('assign.searchUsers'),
+      lengthMenu: TLi18n.t('common.showEntries') + ' _MENU_ ' + TLi18n.t('common.entries'),
+      info: TLi18n.t('common.pageInfo'),
+      paginate: { previous: TLi18n.t('common.prev'), next: TLi18n.t('common.next') },
+      emptyTable: TLi18n.t('assign.noUsers'),
+      zeroRecords: TLi18n.t('assign.noUsers')
+    },
+    // Legacy parity: config.inc.php:666 - [20, 40, 60, -1], [20, 40, 60, "All"].
+    lengthMenu: [[20, 40, 60, -1], [20, 40, 60, TLi18n.t('assign.all')]],
+    pageLength: 20,
+    // Legacy parity: DataTables.inc.tpl sets stateSave:true on the legacy grid; the
+    // modern same-page plan switcher deliberately does NOT auto-restore saved
+    // state (like the sibling project screen, issue #930) - a plan switch would
+    // otherwise leak the previous plan's page/search into the new grid. View
+    // state is preserved explicitly across in-screen re-renders (see keep).
+    columnDefs: [
+      // # column: never searchable, never sortable (row number follows data).
+      { searchable: false, orderable: false, targets: 0 },
+      // Inherited Role: legacy had no such searchable column.
+      { searchable: false, targets: 3 },
+      // Plan Role Override <select>: the legacy roles-select column (legacy
+      // usersAssign.tpl:114 "searchable":false, "targets":1) - not searchable.
+      { searchable: false, orderable: false, targets: 4 }
+    ],
+    // Same default as the sibling project screen (usersAssignProject.html:406
+    // order [[1,'asc']]): Login asc. Deterministic and equals the BFF order.
+    order: [[1, 'asc']],
+    // Re-apply the "modified" highlight when DataTables re-draws a row after
+    // paging/search/sort - the DOM classes are lost on re-render (issue #939).
+    createdRow: function(row) {
+      var u = userById[parseInt($(row).attr('data-uid'), 10)];
+      if (u && !u.isAdmin && (u.roleVal != u.origRoleID)) {
+        $(row).addClass('changed');
+        $(row).find('td:eq(1)').append('<span class="changed-badge">' + TLi18n.t('common.modified') + '</span>');
+      }
+    }
+  });
+  // Restore the caller's view after an in-screen re-render (bulk Do). Same
+  // pattern as the sibling project screen (usersAssignProject.html aggregated
+  // renderAssignTable): the fresh wrapper ships an empty search box while the
+  // filter is re-applied internally - repopulate the visible input too.
+  if (keep) {
+    assignDt.search(keep.search || '').page.len(keep.len || 20);
+    assignDt.order(keep.order || [[1, 'asc']]);
+    assignDt.page(keep.page || 0).draw(false);
+    if (keep.search) {
+      $(assignDt.table().container()).find('input[type=search]').val(keep.search);
+    }
+  }
+  $('#footerText').text(TLi18n.t('user.usersCount', {n: users.length}));
+}
+
 function loadUsers(pid, planId) {
   currentProject = pid; currentPlan = planId;
   $('#saveBtn').prop('disabled', true);
@@ -263,51 +387,57 @@ function loadUsers(pid, planId) {
     buildBulkSelect();
     demoMode = !!(r.demoMode);
     applyDemoMode();
-    var html = '';
+    users = [];
+    userById = {};
     $.each(r.items, function(i, u) {
-      var opts = '<option value="0">' + TLi18n.t('assign.noOverride') + '</option>';
-      $.each(roles, function(j, role) {
-        // Legacy parity: usersAssign.tpl:259-271 ($removeRole) - the admin role
-        // (TL_ROLES_ADMIN, id 8) is NOT offered as an assignable option for a
-        // test plan, UNLESS it is that row's current explicit plan assignment
-        // (issue #928). Inherited admin keeps rendering as the "<inherited>
-        // <role>" value-0 option above.
-        if (role.id == ADMIN_ROLE_ID && u.roleID != role.id) return;
-        var sel = u.roleID == role.id ? ' selected' : '';
-        opts += '<option value="' + esc(role.id) + '"' + sel + '>' + esc(role.name) + '</option>';
-      });
-      // Legacy parity: usersAssign.tpl:244-247 + :275-277 (shared by testplan
-      // contexts) - global-admin rows render a disabled select plus the
-      // "Global Admin can not be changed" hint (issue #927).
-      var disabled = u.isAdmin ? ' disabled' : '';
-      var hint = u.isAdmin ? ' <i class="fa fa-info-circle inherited-col" title="' + esc(TLi18n.t('assign.adminRoleLocked')) + '"></i>' : '';
-      html += '<tr data-uid="' + esc(u.id) + '">' +
-        '<td>' + (i + 1) + '</td>' +
-        '<td>' + esc(u.login) + '</td>' +
-        '<td>' + esc(u.name) + '</td>' +
-        '<td class="inherited-col">' + esc(u.inheritedRoleName) + '</td>' +
-        '<td><select' + disabled + ' data-role="' + esc(u.roleID) + '" onchange="onRoleChange(this,' + esc(u.id) + ',' + esc(u.roleID) + ')">' + opts + '</select>' + hint + '</td>' +
-      '</tr>';
+      var entry = {
+        id: u.id,
+        login: u.login,
+        name: u.name,
+        inheritedRoleName: u.inheritedRoleName,
+        isAdmin: !!u.isAdmin,
+        origRoleID: u.roleID,
+        roleVal: u.roleID
+      };
+      users.push(entry);
+      userById[entry.id] = entry;
     });
-    if (!r.items.length) html = '<tr><td colspan="5" style="text-align:center;color:#888;padding:30px;">' + TLi18n.t('assign.noUsers') + '</td></tr>';
-    $('#assignBody').html(html);
+    renderUsersTable();
     $('#emptyMsg').hide();
-    $('#footerText').text(TLi18n.t('user.usersCount', {n: r.items.length}));
   }).fail(function(xhr) {
     if (xhr && xhr.status === 403) { showNoAccess(); }
   });
 }
 
+function isDirty() {
+  for (var i = 0; i < users.length; i++) {
+    if (users[i].isAdmin) continue;
+    if (users[i].roleVal !== users[i].origRoleID) return true;
+  }
+  return false;
+}
+
 function onRoleChange(sel, uid, origRoleId) {
-  var changed = parseInt(sel.value) !== origRoleId;
+  var u = userById[uid];
+  if (!u) return;
+  u.roleVal = parseInt(sel.value, 10);
+  var changed = u.roleVal !== u.origRoleID;
   var tr = $(sel).closest('tr');
   tr.toggleClass('changed', changed);
-  var badge = tr.find('.changed-badge');
-  if (changed && !badge.length) {
+  tr.find('.changed-badge').remove();
+  if (changed) {
     tr.find('td:eq(1)').append('<span class="changed-badge">' + TLi18n.t('common.modified') + '</span>');
-  } else if (!changed) { badge.remove(); }
+  }
+  // Re-sync the DataTables cell data (without a redraw) so the choice survives
+  // paging/search re-draws of off-page rows; the model is the source of truth.
+  // NOTE: never read back the live td.innerHTML - browsers do not serialize
+  // the current <option selected> state into innerHTML, so re-rendered selects
+  // would fall back to the first option. Rebuild the select HTML from the model.
+  if (assignDt) {
+    assignDt.cell(tr, 4).data(buildSelectHtml(u), false);
+  }
   if (demoMode) { $('#saveBtn').prop('disabled', true); return; }
-  $('#saveBtn').prop('disabled', !$('.changed').length);
+  $('#saveBtn').prop('disabled', !isDirty());
 }
 
 // Legacy parity: usersAssign.tpl:192-198 + :20-43 set_combo_group() - same bulk
@@ -327,21 +457,35 @@ function buildBulkSelect() {
 }
 
 // Legacy parity: usersAssign.tpl:202-204 set_combo_group(usersRoleTable,
-// userRole_, value) - applies the chosen role to every visible (non-disabled)
-// row's select. Disabled global-admin rows are skipped (issue #927); rows
-// re-run through onRoleChange() so highlight/badge/Save state stay in sync.
+// userRole_, value) - applies the chosen role to every (non-disabled) row's
+// select. Disabled global-admin rows are skipped (issue #927). The model now
+// drives the assignment so every row - including rows not on the visible
+// DataTables page and rows hidden by the search filter - gets the role;
+// renderUsersTable() rebuilds the grid from it (issue #939).
 function applyBulkRole() {
-  var roleVal = $('#bulkRoleSelect').val();
-  $('#assignBody tr').each(function() {
-    var sel = $(this).find('select');
-    // Skip the empty-state placeholder row (no <select>) and disabled
-    // global-admin rows (legacy !input_element.disabled).
-    if (!sel.length || sel.prop('disabled')) return;
-    var uid = $(this).data('uid');
-    var origRoleId = parseInt(sel.attr('data-role'));
-    sel.val(roleVal);
-    onRoleChange(sel[0], uid, origRoleId);
+  var roleVal = parseInt($('#bulkRoleSelect').val(), 10);
+  // Preserve the user's DataTables view across the re-render (search/page/
+  // entries/sort) exactly like legacy set_combo_group(), which mutated the DOM
+  // in place and never reset the grid.
+  var keep = null;
+  if (assignDt) {
+    keep = {
+      search: assignDt.search(),
+      len: assignDt.page.len(),
+      order: assignDt.order(),
+      page: assignDt.page()
+    };
+  }
+  $.each(users, function(i, u) {
+    if (u.isAdmin) return;
+    u.roleVal = roleVal;
   });
+  renderUsersTable(keep);
+  // renderUsersTable() does not touch the Save button (loadUsers pre-disables
+  // it); mirror the legacy per-row onRoleChange save-state update here.
+  // demoMode keeps the button disabled (usersAssign.tpl:144-147, issue #932).
+  if (demoMode) { $('#saveBtn').prop('disabled', true); return; }
+  $('#saveBtn').prop('disabled', !isDirty());
 }
 
 function saveAssignments() {
@@ -354,14 +498,11 @@ function saveAssignments() {
     return;
   }
   var assignments = {};
-  $('#assignBody tr').each(function() {
-    var sel = $(this).find('select');
+  $.each(users, function(i, u) {
     // Legacy parity: usersAssign.tpl:244-247 - global-admin rows render a
     // disabled select the browser never submits (issue #927). Skip them.
-    if (sel.prop('disabled')) return;
-    var uid = $(this).data('uid');
-    var roleVal = parseInt(sel.val());
-    if (uid) assignments[uid] = roleVal;
+    if (u.isAdmin) return;
+    assignments[u.id] = u.roleVal;
   });
   $.ajax({
     url: API + '/tplan-roles', type: 'PUT',

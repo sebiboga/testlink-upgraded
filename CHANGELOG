@@ -34,6 +34,28 @@ MAJOR AREAS
   assign.do present in all 10 bundles. Suite 938 6/6 PASS, Event Viewer clean;
   test discovered the plan-screen duplicate value-0 row-select label — filed as
   bug #1545. (Refs #938)
+- [FEATURE GAP CLOSED] - #939: the modern Assign Test Plan Roles screen
+  (gui/templates/usermanagement/usersAssignPlan.html) now wraps the assign grid
+  in a DataTable (1.13.7 bootstrap build, same as cfieldsAssignView.html:9,
+  166-167), porting legacy usersAssign.tpl:111-120 DataTables.inc.tpl config +
+  config.inc.php:664-666: search box labelled by the localized "User" string
+  (assign.searchUsers), column sorting on Login/Name (legacy "User" col),
+  entries selector 20/40/60/All (assign.all, new key in all 10 bundles),
+  plan-scoped view-state preservation (no cross-plan leakage; bulk "Do"
+  captures search/page/sort before the re-render, each plan loads a clean grid),
+  and the roles-select column NOT searchable (legacy
+  "searchable":false, "targets":1). Because DataTables pages keep only the
+  visible page in the DOM, the screen gained a JS data model (users[]/userById
+  + assignDt) as single source of truth: buildSelectHtml() rebuilds each
+  override <select> deterministically from the model (browsers don't serialize
+  the current <option selected> into innerHTML), onRoleChange re-syncs the
+  cell via assignDt.cell(tr,4).data(buildSelectHtml(u),false) so edits survive
+  paging, createdRow re-applies the "modified" badge after re-draws, and
+  applyBulkRole()/saveAssignments() operate on ALL rows (admin rows excluded,
+  issue #927) not just the visible page. BFF untouched. i18n assign.all in all
+  10 bundles (common.showEntries/entries/pageInfo/prev/next reused). Fixture
+  tmp/fixtures_939.php (tproject + two plans + 25 users) exercises paging and
+  cross-plan isolation. Suite 939 8/8 PASS, Event Viewer clean. (Refs #939)
 - [GAP CLOSED] - #1350: the modern Requirement Specification Viewer toolbar
   (gui/templates/requirements/reqSpecView.html) restores the three legacy
   reqSpecView toolbar actions (reqSpecViewButtons.inc.tpl:88-93 +

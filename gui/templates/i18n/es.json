@@ -27,6 +27,7 @@
   "alx.thTestSuite": "Test Suite",
   "app.version": "2.0.1 [TEST]",
   "assign.adminRoleLocked": "La función de administrador está bloqueada y no se puede cambiar.",
+  "assign.all": "Todos",
   "assign.assignedRole": "Rol asignado",
   "assign.demoDisabled": "Lo sentimos. Esta funcionalidad está deshabilitada en la Demo.",
   "assign.do": "Asignar",

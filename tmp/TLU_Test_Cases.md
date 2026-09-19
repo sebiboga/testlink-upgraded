@@ -17351,24 +17351,105 @@ overrides senior→6, tester→7). Login admin/admin.
 **Result: 6/6 PASS.** Screenshots: `docs/screenshots/issue-1545-before.png` (pre-fix duplicate),
 `docs/screenshots/issue-1545-after.png` (post-fix single option).
 
----
-## Suite 1544C (close-out re-verify): Test Cases Assigned to User (tcAssignedToUser) — recorded-DONE modern screen, stale-open tracker close-out
-Fixtures: existing tmp/fixtures_1544.php (TA2U project). Browser: admin session, Dashboard → Results by Tester per Build → assignmentUrl popup tcAssignedToUser.html.
-1. Open tcAssignedToUser popup from resultsByTesterPerBuild for assigned tester — rows render, last-execution status badges per build/platform. PASS
-2. Quick Pass/Fail/Blocked inline icons — execution INSERT succeeds, status updates. PASS
-3. Quick-exec with build/platform/tcversion mismatch triple — BFF guard, fail-closed. PASS
-4. Build-scoped deep link with closed build — all-status override, rows render. PASS
-5. role-3 no-rights user opens popup — 403 JSON, client shows permission card. PASS
-6. Anonymous session → popup — redirect to login, no 500. PASS
-7. Wrong-ish user_id — BFF init 400/404 fail-closed. PASS
-8. HTTP status contract — invalid input yields 400 (not masked 200), anon triggers 401. PASS
-9. Event Viewer — no new Error/Warning beyond pre-existing AUDIT login rows. PASS
+## Suite 939 — Task — Issue #939: "Implement user search + pagination (DataTables) in Assign Test Plan Roles (gap vs legacy)"
 
-## Suite 1541C (close-out re-verify): Public Share-Link Gateway (publicLink/lnl.php) — recorded-DONE modern screen, stale-open tracker close-out
-Fixtures: existing tmp/fixtures_1541.php (PSL project + api keys + attachment). 
-1. Resolve exec link with owning test-plan api_key — modern execPrint screen renders, no 500. PASS
-2. Resolve file link with owning project's key — api/attachments download returns real bytes. PASS
-3. Forged/mismatched 64-char key — fail-closed 403 before any data (no 500). PASS
-4. MetricsDashboard bound to owning project, not session. PASS
-5. Anonymous → 302 dispatcher gateway error card on failure (no PHP fatal). PASS
-6. Event Viewer clean beyond pre-existing rows. PASS
+**Feature under test:** the modern "Assign Test Plan Roles" screen
+(`gui/templates/usermanagement/usersAssignPlan.html`) wraps the assign grid in a
+DataTable exactly like legacy `usersAssign.tpl:111-120`
+(`DataTables.inc.tpl` when `$tlCfg->gui->usersAssign->pagination->enabled`,
+`config.inc.php:664-666`, length `[20,40,60,-1]/[20,40,60,"All"]`): localized
+**User** search box, column sorting on the user columns, **entries selector**
+20/40/60/All, and the roles-select column NOT searchable (legacy
+`"columnDefs":[{"searchable":false,"targets":1}]`); legacy `stateSave`
+(`DataTables.inc.tpl`) is replaced in 2.0.1 by explicit view-state
+preservation across in-plan re-renders plus a clean grid per project/plan load
+(cross-plan isolation, Test 8). Because DataTables paging
+removes off-page rows from the DOM, a JS data model (`users[]`/`userById` +
+`assignDt`) is the single source of truth: `buildSelectHtml()` rebuilds each
+override `<select>` deterministically from the model, `onRoleChange` re-syncs
+the cell (`assignDt.cell(tr,4).data(buildSelectHtml(u),false)`), `createdRow`
+re-applies the "Modified" badge after re-draws, and `applyBulkRole()` /
+`saveAssignments()` operate on ALL rows (admin excluded, issue #927), not only
+the visible page.
+
+**Fixture:** `php tmp/fixtures_939.php` — project `PLANROLES939` + active
+public plan `PLAN939-R1` + second active plan `PLAN939-R2` (cross-plan state
+isolation) + 25 non-admin users `u93901..u93925` (global roles 4/6/7/9 cycled)
++ explicit overrides on `PLAN939-R1` for `u93901=7`, `u93904=7`, `u93911=6`,
+`u93921=9`. `admin` (role 8) is the locked row. 26 active users ⇒ 2 pages at
+page size 20.
+
+### Test 1 — DataTable present with legacy chrome (search label "User", entries selector 20/40/60/All, pagination)
+1. Fixture: `php tmp/fixtures_939.php`.
+2. Login admin/admin; open `gui/templates/usermanagement/usersAssignPlan.html?tproject_id=4`; pick plan `PLAN939-R1`.
+3. Inspect the `.dataTables_wrapper` around `#assignTable`.
+- **Expected:** `.dataTables_filter` label text = localized "User" (`assign.searchUsers`);
+  `.dataTables_length select` options = 20/40/60/All (All = `assign.all`); pagination controls
+  Previous/1/2/Next; page 1 shows 20 rows; footer `user.usersCount` = "26 users".
+- **Actual:** PASS — label "User"; length options [20,40,60,All]; info "Showing 1 to 20 of 26 entries";
+  paginate Present; 20 rows page 1; footer "26 users".
+
+### Test 2 — Search filters by Login/Name only (roles-select column NOT searchable, legacy targets:1)
+1. Type `u93901` in the search box.
+2. Type `test designer` (a role displayed inside the selects) in the search box.
+3. Type `u9391` in the search box.
+- **Expected:** `u93901` → 1 row; `test designer` → 0 rows (search never matches the override selects,
+  legacy `searchable:false targets:1`); `u9391` → the 10 rows u93910..u93919.
+- **Actual:** PASS — 1 / 0 / 10 rows respectively; info line "filtered from 26 total".
+
+### Test 3 — Column sorting + entries selector + page 2
+1. Click the Login column header 3 times.
+2. Set the entries selector to All, then back to 20; click page "2".
+- **Expected:** sort asc (admin,u93901...), then desc (u93925...), then reset order on 3rd click;
+  All → 26 rows in one page; page 2 → 6 rows u93920..u93925, info "Showing 21 to 26 of 26 entries".
+- **Actual:** PASS — asc/desc/original confirmed; All=26; page 2 = 6 rows starting u93920.
+
+### Test 4 — Oversized page fits exact page boundaries
+1. Set entries selector to 20; navigate page 1 ↔ page 2.
+- **Expected:** stable 20-row page 1, 6-row page 2, no row shown twice or dropped.
+- **Actual:** PASS — counts stable across multiple round-trips.
+
+### Test 5 — Select edits persist across paging (cell re-sync) + bulk "Do"/Save on all rows + admin locked
+1. On page 1 change `u93902` (orig 0) to `4 test designer`; go to page 2, change `u93920` (orig 0) to `7 tester`;
+   return to page 1.
+2. Bulk: `Set roles to: tester` → Do → Save Changes.
+3. Check `SELECT user_id,role_id FROM user_testplan_roles WHERE testplan_id=5`.
+- **Expected:** after returning to page 1, `u93902` still shows `4` with `changed` class + "Modified" badge and
+  Save enabled; after bulk→Do→Save all 25 non-admin rows = role 7 in DB (verified by navigating pages too);
+  admin row stays disabled `0` with no DB row and no badge.
+- **Actual:** PASS — persisted value 4 + badge after paging; bulk Do applied on page 1 AND page 2 rows;
+  DB = 25 rows role 7 (later 9 after a second bulk/save), admin absent.
+
+### Test 6 — Search filter + bulk Do acts on ALL rows (model), not just filtered
+1. Type search `u9392` (6 rows); bulk `Set roles to: leader (9)` → Do → Save; check DB for testplan 5.
+- **Expected:** bulk applies to all 25 non-admin users (model-driven; the modern screen has always
+  applied bulk to every row), Save enabled; DB = 25 rows role 9.
+- **Actual:** PASS — DB 25 rows role 9. (Pre-fix run exposed the Save-button regression: a disabled
+  `#saveBtn` silently swallowed the click after multi-bulk flows; fixed in `applyBulkRole`.)
+
+### Test 7 — i18n (assign.all + reused common.*) in all 10 bundles, empty vs no-users states, Event Viewer
+1. `for f in gui/templates/i18n/*.json; do python3 -m json.tool $f >/dev/null; done`; grep `assign.all` in all 10.
+2. Open screen with `?locale=ro`; select project+plan; read `.dataTables_filter label` and length label.
+3. `UPDATE users SET active=0;` reload, pick plan; then `UPDATE users SET active=1;`.
+4. `mysql ... -e "SELECT id,log_level,description FROM events WHERE log_level>=32"`.
+- **Expected:** all bundles valid JSON with `assign.all`; Romanian labels "Utilizator" /
+  "Afiseaza ... Toate inregistrari" / "Se afiseaza 1 pana la 20 din 26 inregistrari";
+  zero active users → single "No users in this project." placeholder row, no `.dataTables_wrapper`,
+  footer "0 users"; no Error/Warning event rows.
+- **Actual:** PASS — keys in 10/10 bundles; `?locale=ro` shows Utilizator/Toate/Se afiseaza...; empty
+  state placeholder + footer confirmed; events only INFO/AUDIT (no log_level>=32).
+
+### Test 8 — Cross-plan isolation: switching plans never leaks the previous plan's search/page
+1. On `PLAN939-R1` set search `u9391` (10 rows) and move to a non-default page/entries.
+2. Switch the plan selector to `PLAN939-R2`; read the search box + info line + footer.
+3. Switch back to `PLAN939-R1`.
+- **Expected:** because the modern same-page switcher does NOT auto-restore
+  `stateSave` (legacy `DataTables.inc.tpl` full-navigation behavior), `PLAN939-R2`
+  loads a clean grid — empty search box, 26 rows, "26 users" footer; switching back
+  to `PLAN939-R1` is also clean. An in-plan bulk "Do" (Test 6) keeps the current
+  search/page instead (view preserved by `applyBulkRole` capture/re-apply).
+- **Actual:** PASS — R2 search "", 26 rows, footer "26 users"; back on R1 search "",
+  26 rows. Bulk-Do view preservation verified in Test 6.
+
+**Result: 8/8 PASS.** Screenshots: `docs/screenshots/issue-939-usersAssignPlan-datatables.png`,
+`docs/screenshots/issue-939-usersAssignPlan-search.png`.

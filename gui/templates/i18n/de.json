@@ -27,6 +27,7 @@
   "alx.thTestSuite": "Test Suite",
   "app.version": "2.0.1 [TEST]",
   "assign.adminRoleLocked": "Die Administratorrolle ist gesperrt und kann nicht geändert werden.",
+  "assign.all": "Alle",
   "assign.assignedRole": "Zugewiesene Rolle",
   "assign.demoDisabled": "Entschuldigung. Dieses Feature ist im Demo-Modus deaktiviert.",
   "assign.do": "Ausführen",

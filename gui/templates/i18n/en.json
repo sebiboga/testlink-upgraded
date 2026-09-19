@@ -27,6 +27,7 @@
   "alx.thTestSuite": "Test Suite",
   "app.version": "2.0.1 [TEST]",
   "assign.adminRoleLocked": "Administrator role is locked and cannot be changed.",
+  "assign.all": "All",
   "assign.assignedRole": "Assigned Role",
   "assign.demoDisabled": "We are sorry. This feature is disabled for Demo.",
   "assign.do": "Do",
