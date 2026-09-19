@@ -243,6 +243,28 @@ function ghContents($cfg, $path, $branch)
 }
 
 /**
+ * True when the given path exists on the GitHub CTS (directory listing =
+ * array of entries, single file = one contents object). Mirrors the legacy
+ * "does not exist on CTS" validation.
+ */
+function ghPathExists($cfg, $path, $branch)
+{
+    if ($cfg['owner'] === '' || $cfg['repo'] === '') {
+        return false;
+    }
+    $api = rtrim($cfg['apibase'], '/');
+    $ref = $branch !== '' ? $branch : $cfg['branch'];
+    $url = $api . '/repos/' . rawurlencode($cfg['owner']) . '/' . rawurlencode($cfg['repo'])
+         . '/contents/' . ltrim((string)$path, '/');
+    $url .= ($ref !== '') ? ('?ref=' . rawurlencode($ref)) : '';
+    $data = ghGet($url, $cfg['token']);
+    if (is_array($data)) {
+        return count($data) > 0;
+    }
+    return is_object($data) && isset($data->name);
+}
+
+/**
  * Resolve the tcversion's owning test project. Legacy screens passed
  * tproject_id explicitly; tcversion_id alone maps through the tree.
  */
@@ -388,9 +410,13 @@ if ($method === 'GET' && $action === 'commits') {
     }
     $items = [];
     foreach ($commits as $c) {
+        $c = (array)$c;
         $items[] = [
-            'sha' => isset($c->sha) ? $c->sha : (isset($c['sha']) ? $c['sha'] : ''),
-            'message' => isset($c->commit->message) ? trim($c->commit->message) : '',
+            'sha' => $c['sha'] ?? '',
+            'full' => $c['full'] ?? '',
+            'message' => $c['message'] ?? '',
+            'author' => $c['author'] ?? '',
+            'date' => $c['date'] ?? '',
         ];
     }
     out(['status' => 'ok', 'items' => $items]);
@@ -461,12 +487,31 @@ if ($method === 'POST' && $action === 'link') {
     $row = $GLOBALS['ctmgr']->getByID($tracker['codetracker_id']);
     $cfg = parseTrackerCfg($row['cfg'] ?? '');
 
-    // Normalise code_path: strip view base + branch/commit reference (legacy parity).
+    // Normalise code_path: strip view base + owner/repo/blob|tree ref + any
+    // branch/commit reference (legacy parity + full GitHub-view URL support).
     $viewBase = $cfg['viewbase'];
     if ($code_path !== '' && strpos($code_path, $viewBase) === 0) {
         $code_path = substr($code_path, strlen($viewBase));
     }
     $code_path = ltrim($code_path, '/');
+    if ($cfg['owner'] !== '' && $cfg['repo'] !== ''
+        && preg_match('#^' . preg_quote($cfg['owner'], '#') . '/' . preg_quote($cfg['repo'], '#') . '/(blob|tree)/#', $code_path)) {
+        $seg = explode('/', $code_path);
+        $refPtr = isset($seg[3]) ? urldecode($seg[3]) : '';
+        $code_path = implode('/', array_slice($seg, 4));
+        if ($refPtr !== '' && is_null($branch_name) && is_null($commit_id)) {
+            if (strpos($refPtr, 'refs/') === 0) {
+                $branch_name = (strpos($refPtr, 'refs/heads/') === 0) ? substr($refPtr, 11) : $refPtr;
+                if (strpos($refPtr, 'refs/tags/') === 0) {
+                    $branch_name = substr($refPtr, 10);
+                }
+            } elseif (preg_match('/^[0-9a-f]{7,40}$/', $refPtr)) {
+                $commit_id = $refPtr;
+            } else {
+                $branch_name = $refPtr;
+            }
+        }
+    }
     $refPos = strpos($code_path, '?at=');
     if ($refPos !== false) {
         $refStr = substr($code_path, $refPos);
@@ -483,7 +528,7 @@ if ($method === 'POST' && $action === 'link') {
     $valid = false;
     if ($cfg['owner'] !== '' && $cfg['repo'] !== '') {
         $branch = $branch_name ?: $cfg['branch'];
-        $valid = !is_null(ghContents($cfg, $code_path, $branch));
+        $valid = ghPathExists($cfg, $code_path, $branch);
     } elseif (!is_null($cts) && method_exists($cts, 'getRepoContent')) {
         $cont = $cts->getRepoContent($project_key, $repository_name, $code_path,
                                      is_null($branch_name) ? $cfg['branch'] : $branch_name, $commit_id);
