@@ -42,6 +42,8 @@
   "assign.noUsersSelected": "Sem utilizadores selecionados - não se fez nada",
   "assign.planRoleOverride": "Substituição de função do plano",
   "assign.rolesDisabled": "A configuração do seu papel não permite atribuir funções para projetos de teste",
+  "assign.noUsablePlans": "Não há planos de teste utilizáveis para este projeto de teste",
+  "assign.rolesForPlansDisabled": "A configuração do seu papel não permite atribuir funções para planos de teste",
   "assign.rolesUpdated": "Perfis de Utilizador atualizados",
   "assign.saveChanges": "Guardar alterações",
   "assign.searchUsers": "Utilizador",

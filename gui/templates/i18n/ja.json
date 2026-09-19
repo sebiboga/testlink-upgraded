@@ -42,6 +42,8 @@
   "assign.noUsersSelected": "ユーザーが選択されていません。何も実行されませんでした",
   "assign.planRoleOverride": "計画ロールの上書き",
   "assign.rolesDisabled": "あなたのロール設定ではテストプロジェクトのロールを割り当てることはできません",
+  "assign.noUsablePlans": "このテストプロジェクトに利用できるテスト計画はありません",
+  "assign.rolesForPlansDisabled": "あなたのロール設定ではテスト計画のロールを割り当てることはできません",
   "assign.rolesUpdated": "ユーザーの役割を更新しました",
   "assign.saveChanges": "変更を保存",
   "assign.searchUsers": "ユーザー",

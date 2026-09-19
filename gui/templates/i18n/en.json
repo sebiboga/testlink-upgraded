@@ -42,6 +42,8 @@
   "assign.noUsersSelected": "No users selected - nothing done",
   "assign.planRoleOverride": "Plan Role Override",
   "assign.rolesDisabled": "Your role configuration do not allow you Assign Roles for Test Projects",
+  "assign.noUsablePlans": "There are no usable test plans on this test project",
+  "assign.rolesForPlansDisabled": "Your role configuration do not allow you Assign Roles for Test Plans",
   "assign.rolesUpdated": "User Roles updated",
   "assign.saveChanges": "Save Changes",
   "assign.searchUsers": "User",

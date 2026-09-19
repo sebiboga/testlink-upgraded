@@ -92,6 +92,16 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
     <i class="fa fa-folder-open" style="font-size:32px;color:#ccc;margin-bottom:12px;display:block;"></i>
     Select a test project and test plan above to manage role assignments.
   </div>
+  <!-- Legacy parity: usersAssign.php:109-111 + :123-127 - the plan combo lists
+       ONLY plans the caller can assign roles on (getTestPlanEffectiveRoles);
+       when none remain the page shows no_test_plans_available (no active plans)
+       or testplan_roles_assign_disabled (plans exist, caller cannot assign roles
+       on any of them) instead of the assign form (issue #937). Mirrors the
+       usersAssignProject.html:96-99 disabledMsg pattern (issue #924). -->
+  <div id="disabledMsg" style="display:none;padding:40px;text-align:center;color:#c0392b;font-size:14px;">
+    <i class="fa fa-lock" style="font-size:32px;color:#e74c3c;margin-bottom:12px;display:block;"></i>
+    <span id="disabledMsgTxt" data-i18n="assign.rolesForPlansDisabled">Your role configuration do not allow you Assign Roles for Test Plans</span>
+  </div>
   <!-- Legacy parity: usersAssign.php:23 testlinkInitPage($db,false,false,"checkRights")
        denies the whole screen with the localized $TLS_not_enough_rights
        ("Not Enough Rights To Access The Feature", strings.txt:4100). The BFF
@@ -155,6 +165,7 @@ function showNoAccess() {
   $('.toolbar').hide();
   $('.assign-table').hide();
   $('#emptyMsg').hide();
+  $('#disabledMsg').hide();
   $('#footerText').hide();
   $('#denyBox').show();
 }
@@ -200,18 +211,39 @@ function loadProjects(selectedId) {
     if (pid) { loadPlans(pid); } else {
       $('#planSelect').html('<option value="">' + TLi18n.t('assign.selectPlan') + '</option>').prop('disabled', true);
       $('#assignBody').empty(); $('#emptyMsg').show(); $('#saveBtn').prop('disabled', true);
+      $('#disabledMsg').hide(); $('#assignTable').show();
     }
   });
+}
+
+// Legacy parity: usersAssign.php:109-111 + :123-127. The plan combo only lists
+// plans the caller can assign roles on. With NO active plan at all the legacy
+// page shows no_test_plans_available; with active plans but none assignable it
+// shows testplan_roles_assign_disabled. Both replace the assign form with the
+// localized notice (usersAssignProject.html:242-250 pattern, issue #937).
+function showPlanDisabled(totalPlans) {
+  $('#planSelect').empty().prop('disabled', true);
+  $('#assignBody').empty();
+  $('#assignTable').hide();
+  $('#emptyMsg').hide();
+  $('#disabledMsgTxt').text(TLi18n.t((totalPlans > 0) ? 'assign.rolesForPlansDisabled' : 'assign.noUsablePlans'));
+  $('#disabledMsg').show();
+  $('#demoNote').hide();
+  $('#footerText').empty();
+  $('#saveBtn').prop('disabled', true);
 }
 
 function loadPlans(pid) {
   $.getJSON(API + '/meta/tplan-roles?tproject_id=' + pid + '&tplan_id=0', function(r) {
     var sel = $('#planSelect');
     sel.html('<option value="">' + TLi18n.t('assign.selectPlan') + '</option>');
+    if (!r.plans || !r.plans.length) { showPlanDisabled(r.totalPlans || 0); return; }
     $.each(r.plans, function(i, p) {
       sel.append('<option value="' + esc(p.id) + '">' + esc(p.name) + '</option>');
     });
     sel.prop('disabled', false);
+    $('#assignTable').show();
+    $('#disabledMsg').hide();
     $('#assignBody').empty(); $('#emptyMsg').show(); $('#saveBtn').prop('disabled', true);
   }).fail(function(xhr) {
     if (xhr && xhr.status === 403) { showNoAccess(); }

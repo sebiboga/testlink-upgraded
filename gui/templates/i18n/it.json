@@ -42,6 +42,8 @@
   "assign.noUsersSelected": "Nessun utente selezionato - nessuna operazione eseguita",
   "assign.planRoleOverride": "Sovrascrittura ruolo del piano",
   "assign.rolesDisabled": "La configurazione del tuo ruolo non ti consente di assegnare ruoli per i progetti di test",
+  "assign.noUsablePlans": "Non ci sono piani di test utilizzabili per questo progetto di test",
+  "assign.rolesForPlansDisabled": "La configurazione del tuo ruolo non ti consente di assegnare ruoli per i piani di test",
   "assign.rolesUpdated": "Ruoli utente aggiornati",
   "assign.saveChanges": "Salva modifiche",
   "assign.searchUsers": "Utente",

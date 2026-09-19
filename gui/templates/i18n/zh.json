@@ -42,6 +42,8 @@
   "assign.noUsersSelected": "未选择用户，未执行任何操作",
   "assign.planRoleOverride": "计划角色覆盖",
   "assign.rolesDisabled": "您的角色配置不允许您为测试项目分配角色",
+  "assign.noUsablePlans": "此测试项目无可用测试计划",
+  "assign.rolesForPlansDisabled": "您的角色配置不允许您为测试计划分配角色",
   "assign.rolesUpdated": "用户角色更新成功",
   "assign.saveChanges": "保存更改",
   "assign.searchUsers": "用户",

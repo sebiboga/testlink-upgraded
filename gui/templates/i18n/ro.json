@@ -42,6 +42,8 @@
   "assign.noUsersSelected": "Niciun utilizator selectat - nu s-a făcut nimic",
   "assign.planRoleOverride": "Suprascriere Rol Plan",
   "assign.rolesDisabled": "Configuratia rolului dumneavoastra nu va permite sa atribuiti roluri pentru proiectele de test",
+  "assign.noUsablePlans": "Nu exista planuri de test utilizabile pentru acest proiect de test",
+  "assign.rolesForPlansDisabled": "Configuratia rolului dumneavoastra nu va permite sa atribuiti roluri pentru planurile de test",
   "assign.rolesUpdated": "Rolurile utilizatorilor au fost actualizate",
   "assign.saveChanges": "Salveaza Modificarile",
   "assign.searchUsers": "Utilizator",

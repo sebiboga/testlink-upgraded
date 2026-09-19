@@ -42,6 +42,8 @@
   "assign.noUsersSelected": "Пользователи не выбраны - ничего не сделано",
   "assign.planRoleOverride": "Переопределение роли плана",
   "assign.rolesDisabled": "Конфигурация вашей роли не позволяет назначать роли для тестовых проектов",
+  "assign.noUsablePlans": "Нет доступных тестовых планов для этого тестового проекта",
+  "assign.rolesForPlansDisabled": "Конфигурация вашей роли не позволяет назначать роли для тестовых планов",
   "assign.rolesUpdated": "Роли пользователей обновлены",
   "assign.saveChanges": "Сохранить изменения",
   "assign.searchUsers": "Пользователь",

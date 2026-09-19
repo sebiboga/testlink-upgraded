@@ -129,6 +129,56 @@ function getAssignableProjects(&$db, $userId) {
     return $opts;
 }
 
+// Legacy parity: lib/usermanagement/usersAssign.php:344-378
+// getTestPlanEffectiveRoles(). The Test Plan combo lists ONLY plans the caller
+// can actually manage: active plans (plan_status=1) intersected with the plans
+// the caller can access (getAccessibleTestPlans), then - when the caller holds
+// mgt_users -> all remaining plans, otherwise only plans where
+// hasRight(testplan_user_role_assignment, null, plan_id) == yes. A non-admin
+// without the right on a plan sees that plan excluded; with no assignable plan
+// at all the combo is empty and the legacy page shows testplan_roles_assign_disabled
+// (usersAssign.php:123-127). Issues #937.
+function getAssignablePlans(&$db, &$user, $tprojectID) {
+    $tprojectMgr = new testproject($db);
+    $activeTestplans = $tprojectMgr->get_all_testplans($tprojectID, ['plan_status' => 1]);
+    if (is_null($activeTestplans)) {
+        return [];
+    }
+
+    // Materialize the caller's project/plan roles so hasRight() can evaluate the
+    // testplan_user_role_assignment question with plan-level context (mirror of
+    // userCanAssignRoles()'s read before isRight, usersAssign.php:344-378 also
+    // reads the roles of the session user before building the combo).
+    $user->readTestProjectRoles($db, $tprojectID);
+    $user->readTestPlanRoles($db);
+
+    $myAccessibleSet = $user->getAccessibleTestPlans($db, $tprojectID, null, ['output' => 'map']);
+    $key2remove = array_diff(array_keys($activeTestplans), array_keys((array)$myAccessibleSet));
+    if (!is_null($key2remove)) {
+        foreach ($key2remove as $target) {
+            unset($activeTestplans[$target]);
+        }
+    }
+
+    if ($user->hasRight($db, 'mgt_users') === 'yes') {
+        $features = $activeTestplans;
+    } else {
+        $features = [];
+        $key2loop = array_keys($activeTestplans);
+        foreach ($key2loop as $idx) {
+            if ($user->hasRight($db, 'testplan_user_role_assignment', null, $activeTestplans[$idx]['id']) === 'yes') {
+                $features[$idx] = $activeTestplans[$idx];
+            }
+        }
+    }
+
+    $opts = [];
+    foreach ($features as $tp) {
+        $opts[] = ['id' => intval($tp['id']), 'name' => $tp['name']];
+    }
+    return $opts;
+}
+
 // Legacy parity: lib/functions/roles.inc.php:298-343 get_tproject_effective_role().
 // Resolves each user's EFFECTIVE role on a test project plus the inheritance
 // nature of that role, using the 3-layer model (user -> test project).
@@ -688,13 +738,17 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'meta' && isset
 
     $tprojectMgr = new testproject($db);
 
-    $activeTestplans = $tprojectMgr->get_all_testplans($tproject_id, ['plan_status' => 1]);
-    $planOpts = [];
-    if ($activeTestplans) {
-        foreach ($activeTestplans as $tp) {
-            $planOpts[] = ['id' => intval($tp['id']), 'name' => $tp['name']];
-        }
+    // Legacy parity (usersAssign.php:344-378): planOpts carries ONLY the plans
+    // the caller can actually assign roles on (active ∩ accessible ∩ assign
+    // right). totalPlans is the raw active-plan count so the UI can mirror the
+    // legacy no_test_plans_available vs testplan_roles_assign_disabled split
+    // (usersAssign.php:109-111 + :123-127, issue #937).
+    $totalPlans = 0;
+    $rawPlans = $tprojectMgr->get_all_testplans($tproject_id, ['plan_status' => 1]);
+    if (!is_null($rawPlans)) {
+        $totalPlans = count($rawPlans);
     }
+    $planOpts = getAssignablePlans($db, $currentUser, $tproject_id);
 
     $roles = tlRole::getAll($db, null, null, null, tlRole::TLOBJ_O_GET_DETAIL_MINIMUM);
     $roleOpts = [];
@@ -751,6 +805,7 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'meta' && isset
     // replaces the Save button with the warn_demo note in demo mode for test
     // plan contexts too; expose the demo state for the same UI gating (issue #932).
     out(['status' => 'ok', 'items' => $items, 'roles' => $roleOpts, 'plans' => $planOpts, 'projects' => $projectOpts,
+         'totalPlans' => $totalPlans,
          'demoMode' => (bool)config_get('demoMode')]);
 }
 

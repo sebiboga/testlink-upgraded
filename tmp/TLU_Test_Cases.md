@@ -17060,3 +17060,52 @@ the spec\nExtra detail on a second line." (spec id printed by the fixture).
 
 **Result: 7/7 PASS.** Screenshots: `docs/screenshots/issue-1351-reqspecview-normal.png`,
 `docs/screenshots/issue-1351-reqspecview-tooltip.png`, `docs/screenshots/issue-1351-reqspecview-tooltip-ro.png`.
+
+---
+
+## Suite 937 — Task — Issue #937: Filter Test Plan dropdown by assign rights in Assign Test Plan Roles (gap vs legacy)
+
+**Feature:** the modern `usersAssignPlan.html` plan dropdown must only list active test plans the
+logged-in user holds `testplan_user_role_assignment` for (legacy `getTestPlanEffectiveRoles()`); when
+none are assignable the dropdown is disabled and a warning note is shown.
+
+**Fixture (run `tmp/fixtures_937.php` once):** project `A937`(id 10, public, active) with `AlphaPlan`(11)
++ `BetaPlan`(12); users `u937assign`(global role `assignonly`, right 15 only), `u937tproj`
+(tproject `tprojassign` role on project 10, right 15 scope tproject), `u937leader`(built-in role 9,
+right 5), all password `admin`.
+
+### Test 1 — BFF: administrator sees all active plans
+1. Login `admin`/`admin`; `GET /api/roles/index.php/meta/tplan-roles?tproject_id=10&tplan_id=0`.
+- **Expected:** HTTP 200; `plans` = `["AlphaPlan","BetaPlan"]`; `totalPlans`=2.
+- **Actual:** PASS — exact match.
+
+### Test 2 — BFF: assign-only user (no right 5) sees NO plans
+1. Login `u937assign`/`admin`; same request.
+- **Expected:** HTTP 200; `plans`=`[]` while `totalPlans`=2 (dropdown disabled, not empty-project flush).
+- **Actual:** PASS — `[]` / totalPlans 2.
+
+### Test 3 — BFF: leader (right 5) still sees all plans
+1. Login `u937leader`/`admin`; same request.
+- **Expected:** HTTP 200; `plans` = both plans.
+- **Actual:** PASS — exact match.
+
+### Test 4 — Screen: assign-only user gets disabled dropdown + warning
+1. Browser: login `u937assign`, open `usersAssignPlan.html`, select project `A937`.
+- **Expected:** `#planSelect` disabled with 0 options; `#disabledMsg` visible, text
+  "Your role configuration do not allow you Assign Roles for Test Plans" (`assign.rolesForPlansDisabled`);
+  save button disabled; grid hidden.
+- **Actual:** PASS — evaluated DOM state matches; screenshot `docs/screenshots/issue-937-assign-disabled.png`.
+
+### Test 5 — Screen: leader path untouched
+1. Browser: login `u937leader`, select project `A937`.
+- **Expected:** plan select enabled with AlphaPlan+BetaPlan, no warning.
+- **Actual:** PASS.
+
+### Test 6 — i18n RO rendering + Event Viewer
+1. Reload `usersAssignPlan.html?locale=ro` as `u937assign`, select `A937`.
+- **Expected:** warning "Configuratia rolului dumneavoastra nu va permite sa atribuiti roluri pentru
+  planurile de test"; 10/10 JSON bundles valid; no `events` rows ≥ level 32.
+- **Actual:** PASS — RO text rendered; `python3 -m json.tool` valid; events table only INFO(16) audits.
+
+**Result: 6/6 PASS.** Screenshots: `docs/screenshots/issue-937-admin-plans.png`,
+`docs/screenshots/issue-937-assign-disabled.png`, `docs/screenshots/issue-937-assign-disabled-ro.png`.
