@@ -1,16 +1,18 @@
 <?php
 /**
- * TestLink Open Source Project - http://testlink.sourceforge.net/ 
- *
- * Filename $RCSfile: show_help.php,v $
+ * TestLink Open Source Project - http://testlink.sourceforge.net/
  *
  * @version $Revision: 1.6 $
- * @modified $Date: 2009/05/09 17:59:19 $  $Author: schlundus $
  *
  * manage launch of help pages.
  *
- * rev:
- *     20071102 - franciscom - BUGID 1033
+ * 2010.1.shim - Refs #1552: legacy standalone Help popup was replaced by the
+ * modern gui/templates/help/showHelp.html screen + api/help/index.php BFF.
+ * This file is kept as a redirect shim so any stale link still works:
+ * the old implementation was broken dead code anyway (it referenced the
+ * undefined constant TL_HELP_RPATH and rendered gui/help/<locale>/*.html
+ * files that were deleted when their content was migrated into the locale
+ * $TLS_htmltext bundles).
 **/
 require('../../config.inc.php');
 require_once("common.php");
@@ -19,13 +21,10 @@ testlinkInitPage($db);
 
 $args = init_args();
 
-$smarty = new TLSmarty();
-//@TODO security hole, directory traversal possible
-$td = TL_ABS_PATH . TL_HELP_RPATH . $args->locale;
-$smarty->template_dir = $td;
-
-$smarty->clear_compiled_tpl($args->help . ".html"); 
-$smarty->display($args->help . ".html");
+$url = $_SESSION['basehref'] . 'gui/templates/help/showHelp.html';
+$url .= '?help=' . urlencode($args->help) . '&locale=' . urlencode($args->locale);
+header('Location: ' . $url);
+exit;
 
 function init_args()
 {

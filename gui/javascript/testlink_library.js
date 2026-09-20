@@ -969,8 +969,11 @@ function open_help_window(help_page,locale)
     var windowCfg='';
     windowCfg="left=350,top=50,screenX=350,screenY=50,fullscreen=no,resizable=yes," + 
                "toolbar=no,status=no,menubar=no,scrollbars=yes,directories=no," + 
-               "location=no,width=400,height=650";
-    window.open(fRoot+"lib/general/show_help.php?help="+help_page+"&locale="+locale,"_blank",windowCfg);
+               "location=no,width=780,height=650";
+    var helpPath="gui/templates/help/showHelp.html";
+    var sep = helpPath.indexOf('?') === -1 ? '?' : '&';
+    window.open(fRoot+helpPath+sep+"help="+encodeURIComponent(help_page)+
+                "&locale="+encodeURIComponent(locale),"_blank",windowCfg);
 }
 
 
