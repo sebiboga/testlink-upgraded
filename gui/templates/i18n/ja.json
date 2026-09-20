@@ -4429,5 +4429,11 @@
   "rbm.started": "モニタリングを開始しました",
   "rbm.stopped": "モニタリングを停止しました",
   "rbm.on": "オン",
-  "rbm.off": "オフ"
+  "rbm.off": "オフ",
+  "navb.testProject": "テストプロジェクト",
+  "navb.testPlan": "テスト計画",
+  "navb.logout": "ログアウト",
+  "navb.reloadMain": "メインビューを再読み込み",
+  "navb.toggleNav": "ナビゲーション切替",
+  "footers.navBar": "上部ナビゲーションバーのモダナイゼーション"
 }

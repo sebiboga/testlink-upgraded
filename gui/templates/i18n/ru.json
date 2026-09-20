@@ -4429,5 +4429,11 @@
   "rbm.started": "Мониторинг запущен",
   "rbm.stopped": "Мониторинг остановлен",
   "rbm.on": "Вкл",
-  "rbm.off": "Выкл"
+  "rbm.off": "Выкл",
+  "navb.testProject": "Тестовый проект",
+  "navb.testPlan": "Тестовый план",
+  "navb.logout": "Выйти",
+  "navb.reloadMain": "Перезагрузить основной вид",
+  "navb.toggleNav": "Переключить навигацию",
+  "footers.navBar": "Модернизация верхней панели навигации"
 }

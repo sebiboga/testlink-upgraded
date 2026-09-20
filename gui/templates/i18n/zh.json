@@ -4409,5 +4409,11 @@
   "rbm.started": "已开始监控",
   "rbm.stopped": "已停止监控",
   "rbm.on": "开",
-  "rbm.off": "关"
+  "rbm.off": "关",
+  "navb.testProject": "测试项目",
+  "navb.testPlan": "测试计划",
+  "navb.logout": "退出登录",
+  "navb.reloadMain": "重新加载主视图",
+  "navb.toggleNav": "切换导航",
+  "footers.navBar": "顶部导航栏现代化"
 }

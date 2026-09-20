@@ -10,6 +10,21 @@
 **/
 require_once('../../config.inc.php');
 require_once("common.php");
+
+// Modernized titlebar (Refs #1547): the running frameset already points the
+// titleframe at gui/templates/navbar/navBar.html, but any deep link or stale
+// reference that still hits this legacy controller gets the same modern HTML
+// (session-guarded so an anonymous request keeps the legacy behavior, which
+// redirects to the login screen).
+$modernNavBar = dirname(__DIR__, 2) . '/gui/templates/navbar/navBar.html';
+if (is_file($modernNavBar)) {
+    doSessionStart();
+    if (isset($_SESSION['userID']) && $_SESSION['userID'] > 0) {
+        readfile($modernNavBar);
+        return;
+    }
+}
+
 testlinkInitPage($db,('initProject' == 'initProject'));
 
 $args = init_args($db);

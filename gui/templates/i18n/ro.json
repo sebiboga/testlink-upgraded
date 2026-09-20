@@ -4433,5 +4433,11 @@
   "rbm.started": "Monitorizare pornită",
   "rbm.stopped": "Monitorizare oprită",
   "rbm.on": "Activat",
-  "rbm.off": "Dezactivat"
+  "rbm.off": "Dezactivat",
+  "navb.testProject": "Proiect de testare",
+  "navb.testPlan": "Plan de testare",
+  "navb.logout": "Deconectare",
+  "navb.reloadMain": "Reîncarcă vizualizarea principală",
+  "navb.toggleNav": "Comută navigarea",
+  "footers.navBar": "Modernizarea barei de navigare superioare"
 }

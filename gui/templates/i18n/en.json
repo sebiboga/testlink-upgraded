@@ -4439,5 +4439,11 @@
   "rbm.started": "Monitoring started",
   "rbm.stopped": "Monitoring stopped",
   "rbm.on": "On",
-  "rbm.off": "Off"
+  "rbm.off": "Off",
+  "navb.testProject": "Test Project",
+  "navb.testPlan": "Test Plan",
+  "navb.logout": "Logout",
+  "navb.reloadMain": "Reload Main View",
+  "navb.toggleNav": "Toggle Navigation",
+  "footers.navBar": "Top Navigation Bar Modernization"
 }

@@ -183,11 +183,13 @@ function initEnv() {
   $gui->asideRailed = menuRailIsOn();
   $gui->navbar_height = config_get('navbar_height');
 
+  // Modernized titlebar (Refs #1547): plain HTML screen backed by the
+  // api/navbar BFF, in place of the legacy lib/general/navBar.php frame.
   $sso = ($args->ssodisable ? '&ssodisable' : '');
-  $gui->titleframe = "lib/general/navBar.php?" . 
-                     "tproject_id={$args->tproject_id}&" .
-                     "tplan_id={$args->tplan_id}&" .
-                     "updateMainPage=1" . $sso;
+  $gui->titleframe = "gui/templates/navbar/navBar.html?locale=" .
+                     urlencode(isset($_SESSION['locale']) ? $_SESSION['locale'] : '') .
+                     "&tproject_id={$args->tproject_id}&" .
+                     "tplan_id={$args->tplan_id}" . $sso;
   $gui->logout = 'logout.php?viewer=' . $sso;
 
   return array($args,$gui);

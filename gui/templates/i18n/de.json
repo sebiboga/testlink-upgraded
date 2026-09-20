@@ -4423,5 +4423,11 @@
   "rbm.started": "Überwachung gestartet",
   "rbm.stopped": "Überwachung beendet",
   "rbm.on": "An",
-  "rbm.off": "Aus"
+  "rbm.off": "Aus",
+  "navb.testProject": "Testprojekt",
+  "navb.testPlan": "Testplan",
+  "navb.logout": "Abmelden",
+  "navb.reloadMain": "Hauptansicht neu laden",
+  "navb.toggleNav": "Navigation umschalten",
+  "footers.navBar": "Modernisierung der oberen Navigationsleiste"
 }

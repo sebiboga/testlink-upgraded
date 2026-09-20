@@ -4423,5 +4423,11 @@
   "rbm.started": "Suivi démarré",
   "rbm.stopped": "Suivi arrêté",
   "rbm.on": "Activé",
-  "rbm.off": "Désactivé"
+  "rbm.off": "Désactivé",
+  "navb.testProject": "Projet de test",
+  "navb.testPlan": "Plan de test",
+  "navb.logout": "Se déconnecter",
+  "navb.reloadMain": "Recharger la vue principale",
+  "navb.toggleNav": "Basculer la navigation",
+  "footers.navBar": "Modernisation de la barre de navigation supérieure"
 }

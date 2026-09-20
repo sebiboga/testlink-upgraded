@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TestLink</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="/gui/templates/dashio/css/style.css">
+<link rel="stylesheet" href="/gui/templates/dashio/css/style-responsive.css">
+<style>
+  html, body { background: #DEDEAD !important; height: 100%; margin: 0; overflow: hidden; }
+
+  .comboTestPlan { background: #f0ad4e; border-color: #dba044 !important; }
+
+  #localeSwitcher { font-size: 12px; color: #fff; margin-left: 10px; }
+  #localeSwitcher select {
+    background: #2f323a; color: #fff; border: 1px solid #555;
+    border-radius: 4px; padding: 3px 6px; font-size: 12px;
+  }
+
+  .loading-hint { color: #aaa; font-size: 12px; padding: 0 12px; }
+
+  .nav-proj { max-width: 220px; }
+  .nav-proj select, .nav-proj input { font-size: 105%; }
+  .nav-plan select { font-size: 80%; }
+</style>
+</head>
+<body>
+
+<header class="header black-bg">
+  <div class="sidebar-toggle-box">
+    <div class="fa fa-bars tooltips" data-placement="right" data-original-title="" id="navToggle"></div>
+  </div>
+
+  <a class="logo" id="logoLink" href="/index.php?tproject_id=0&tplan_id=0"
+     target="_top" title="Reload Main View">
+    <img class="tlMark" src="/gui/themes/default/images/tl-logo-transparent-25.png" alt="TestLink"></a>
+
+  <div class="top-menu">
+    <ul class="nav pull-right top-menu">
+
+      <li class="combo nav-proj" id="projectComboLi" style="display:none;">
+        <form style="display:inline" name="projectForm" id="projectForm"
+              target="_top" action="/index.php?action=projectChange" method="post">
+          <label id="lblProject">Test Project</label>
+          <select name="testproject" id="projectSelect" style="position:relative; top:-1px;"
+                  onchange="switchTestProject(this);"></select>
+          <input type="hidden" name="tproject_id" id="tproj" value="" />
+          <input type="hidden" name="returnFeature" id="returnFeature" value="" />
+        </form>
+      </li>
+
+      <li class="combo comboTestPlan nav-plan" id="planComboLi" style="display:none;">
+        <form style="display:inline" name="planForm" id="planForm"
+              target="_top" action="/index.php?action=planChange" method="post">
+          <label id="lblPlan">Test Plan</label>
+          <input type="hidden" name="tproject_id" id="planTprojectId" value="0" />
+          <select name="tplan_id" id="planSelect" onchange="this.form.submit();"></select>
+        </form>
+      </li>
+
+      <li>&nbsp;</li>
+      <span id="localeSwitcher"></span>
+
+      <li class="tlWhoami" id="whoamiLi" style="display:none;">
+        <a id="whoamiLink" target="mainframe" href="#"
+           title="-">
+          <span class="tlWhoamiName" id="whoamiName"></span><br>
+          <span class="tlWhoamiRole" id="whoamiRole"></span>
+        </a>
+      </li>
+
+      <li><a class="logout" id="logoutLink" target="top" href="/logout.php?viewer=">Logout</a></li>
+    </ul>
+  </div>
+</header>
+
+<div id="pluginArea" style="display:none;"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/navbar/index.php';
+var tprojectId = 0;
+var tplanId = 0;
+
+/*
+ * switchTestProject() parity (legacy navBar.tpl): switching test project
+ * reloads the whole frameset, so tell index.php which work area the main
+ * frame is showing to be able to come back to it. The feature alone is
+ * sent: item ids belong to the project being left behind.
+ */
+function switchTestProject(combo) {
+  var feature = '';
+  try {
+    var mainFrame = window.top.frames['mainframe'];
+    if (mainFrame) {
+      var found = mainFrame.location.search.match(/[?&]feature=(\w+)/);
+      if (found) {
+        feature = found[1];
+      }
+    }
+  } catch (accessDenied) {
+    feature = '';
+  }
+
+  document.getElementById('returnFeature').value = feature;
+  document.getElementById('tproj').value = combo.value;
+  combo.form.submit();
+}
+
+function render(data) {
+  tprojectId = parseInt(data.tproject_id || '0', 10);
+  tplanId = parseInt(data.tplan_id || '0', 10);
+
+  $('#logoLink').attr('href',
+    '/index.php?tproject_id=' + tprojectId + '&tplan_id=' + tplanId);
+  $('#logoLink').attr('title', TLi18n.t('navb.reloadMain'));
+  $('#navToggle').attr('data-original-title', TLi18n.t('navb.toggleNav'));
+
+  $('#lblProject').text(TLi18n.t('navb.testProject'));
+  $('#lblPlan').text(TLi18n.t('navb.testPlan'));
+  $('#logoutLink').text(TLi18n.t('navb.logout'))
+    .attr('href', data.logout_url || 'logout.php?viewer=');
+
+  var hasProjects = data.projects && Object.keys(data.projects).length > 0;
+
+  if (hasProjects && !data.new_installation) {
+    var pSel = document.getElementById('projectSelect');
+    pSel.innerHTML = '';
+    Object.keys(data.projects).forEach(function (id) {
+      var opt = document.createElement('option');
+      opt.value = id;
+      opt.text = data.projects[id];
+      if (parseInt(id, 10) === tprojectId) { opt.selected = true; }
+      pSel.appendChild(opt);
+    });
+    $('#tproj').val(String(tprojectId));
+    $('#projectComboLi').show();
+
+    var plans = data.testplans || [];
+    if (plans.length > 0) {
+      var plSel = document.getElementById('planSelect');
+      plSel.innerHTML = '';
+      var selectedFound = false;
+      plans.forEach(function (row) {
+        var opt = document.createElement('option');
+        opt.value = row.id;
+        opt.text = row.name;
+        if (parseInt(row.id, 10) === tplanId) { opt.selected = true; selectedFound = true; }
+        if (!selectedFound && row.selected) { opt.selected = true; }
+        plSel.appendChild(opt);
+      });
+      $('#planTprojectId').val(String(tprojectId));
+      $('#planComboLi').show();
+    }
+  }
+
+  var whoami = data.whoami || {};
+  var wName = whoami.name || '';
+  if (wName) {
+    $('#whoamiName').text(wName);
+    $('#whoamiRole').text(whoami.role || '');
+    $('#whoamiLink').attr('href', data.user_info_url || '#')
+      .attr('title', wName + ' - ' + (whoami.role || ''));
+    $('#whoamiLi').show();
+  }
+
+  var pluginHtml = '';
+  if (data.plugins && data.plugins.EVENT_TITLE_BAR) {
+    pluginHtml = data.plugins.EVENT_TITLE_BAR;
+  }
+  if (pluginHtml) {
+    $('#pluginArea').html(pluginHtml).show();
+  }
+}
+
+$(function () {
+  // Index.php builds the titleframe URL with the committed project/plan and
+  // ssodisable; forward them so the BFF stays correct even when this frame is
+  // deep-linked (titleframe params parity).
+  var frameParams = new URLSearchParams(window.location.search);
+  var apiUrl = API + '?action=init';
+  var fp = frameParams.get('tproject_id');
+  if (fp) { apiUrl += '&tproject_id=' + encodeURIComponent(fp); }
+  fp = frameParams.get('tplan_id');
+  if (fp) { apiUrl += '&tplan_id=' + encodeURIComponent(fp); }
+
+  TLi18n.load(function () {
+    TLi18n.apply();
+    $.getJSON(apiUrl + '&_=' + Date.now())
+      .done(function (r) {
+        if (r.status === 'ok') {
+          render(r);
+        } else {
+          $('#logoutLink').text(r.message || TLi18n.t('common.error'));
+        }
+      })
+      .fail(function (xhr) {
+        $('#logoutLink').text(TLi18n.t('common.error'));
+      });
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+  });
+});
+</script>
+</body>
+</html>
