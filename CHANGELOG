@@ -84,6 +84,20 @@ MAJOR AREAS
   stay untouched, Save stays disabled; normal bulk roles still apply everywhere).
   BFF and i18n untouched (the admin option label comes from the BFF role list).
   Suite 941 in tmp/TLU_Test_Cases.md all PASS, Event Viewer clean. (Refs #941)
+- [FEATURE GAP CLOSED] - #942: the modern Assign Test Plan Roles screen
+  (gui/templates/usermanagement/usersAssignPlan.html) saved role overrides with NO
+  feedback (silent reload) whereas legacy usersAssign.php:82-91 renders a localized
+  banner after every submit (test_plan_user_roles_updated "User Roles updated" on
+  success, no_users_selected "No users selected - nothing done" for an empty map).
+  api/roles/index.php PUT /roles/tplan-roles now returns feedback_key
+  ('no_users_selected' for empty / admin-stripped-empty maps,
+  'test_plan_user_roles_updated' on success) mirroring the tproject-roles route
+  (issue #931); usersAssignPlan.html gained assignFeedback() + a success toast
+  (ok vs warn class) before reloading. The no_test_plans_available /
+  testplan_roles_assign_disabled empty-plan states were already surfaced by #937
+  (showPlanDisabled renders assign.noUsablePlans / assign.rolesForPlansDisabled,
+  re-verified). i18n keys assign.rolesUpdated / assign.noUsersSelected already in
+  all 10 bundles. Suite 942 6/6 PASS, Event Viewer clean. (Refs #942)
 - [GAP CLOSED] - #1350: the modern Requirement Specification Viewer toolbar
   (gui/templates/requirements/reqSpecView.html) restores the three legacy
   reqSpecView toolbar actions (reqSpecViewButtons.inc.tpl:88-93 +

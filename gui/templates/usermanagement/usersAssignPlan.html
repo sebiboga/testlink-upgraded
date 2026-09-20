@@ -519,6 +519,20 @@ function applyBulkRole() {
   $('#saveBtn').prop('disabled', !isDirty());
 }
 
+// Legacy parity: usersAssign.php:87-89 - a successful testplan doUpdate()
+// shows user_feedback = test_plan_user_roles_updated, an empty assignment map
+// shows no_users_selected (usersAssign.php:82-84 via inc_update.tpl:26-35).
+// Map the BFF feedback_key (test_plan_user_roles_updated mirrors the legacy
+// lang key, no_users_selected mirrors $TLS_no_users_selected) to the client
+// side TLi18n key (issue #942, same usersAssignProject.html:161-167 pattern).
+function assignFeedback(feedbackKey) {
+  var map = {
+    test_plan_user_roles_updated: 'assign.rolesUpdated',
+    no_users_selected: 'assign.noUsersSelected'
+  };
+  return TLi18n.t(map[feedbackKey] || 'assign.rolesUpdated');
+}
+
 function saveAssignments() {
   // Legacy parity: usersAssign.tpl:144-147 (shared template) - the legacy
   // form's onsubmit alerts the localized warn_demo message and returns false
@@ -539,7 +553,17 @@ function saveAssignments() {
     url: API + '/tplan-roles', type: 'PUT',
     contentType: 'application/json',
     data: JSON.stringify({ tplan_id: parseInt(currentPlan), assignments: assignments }),
-    success: function() { loadUsers(currentProject, currentPlan); },
+    success: function(r) {
+      // Legacy parity: usersAssign.php:82-91 + inc_update.tpl:26-35. A
+      // successful update renders the localized "User Roles updated" banner;
+      // an empty assignment map renders the "No users selected - nothing
+      // done" notice instead. The BFF carries which case happened as
+      // feedback_key (issue #942, usersAssignProject.html:508-517 pattern).
+      // An empty map is a warning, not a success.
+      var fk = r && r.feedback_key;
+      showDemoToast(assignFeedback(fk), fk === 'no_users_selected' ? 'warn' : 'ok');
+      loadUsers(currentProject, currentPlan);
+    },
     error: function(xhr) {
       // Surface the demo_mode / permission rejection as a toast instead of a
       // silent fail (usersAssignProject.html:445-461 pattern, issue #931).

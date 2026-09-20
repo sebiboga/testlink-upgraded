@@ -17784,3 +17784,44 @@ requirements; admin session (rights.manage=`yes`). Created: project id 1
 - **Actual:** PASS — only 2 events (INFO login + project create), no errors.
 
 **Result: 5/5 PASS.** Screenshot: `docs/screenshots/issue-1347-reqSpecView-create-req.png`.
+
+---
+
+## Suite 942 — Task: localized update/empty feedback in Assign Test Plan Roles (Refs #942)
+
+**Screen:** `gui/templates/usermanagement/usersAssignPlan.html` · **BFF:** `api/roles/index.php` PUT `/roles/tplan-roles`
+**Precondition:** app at http://localhost:8082, admin/admin; fixtures: project 1 "QA Demo Project", plan 2 "Release 1 Plan", user 2 "tester" (role_id 7).
+
+### Test 1 — Success: role override saved shows localized "User Roles updated" toast
+1. Open Assign Test Plan Roles, select project 1 + plan 2 (grid: admin locked, tester row editable).
+2. Change tester's "Plan Role Override" to `tester` (row highlights + modified badge, Save enables).
+3. Click **Save Changes**.
+- **Expected:** a toast `User Roles updated` (class `toast ok`) appears; grid reloads with the override persisted (`user_testplan_roles` row (2,2,7)); Save disabled again.
+- **Actual:** PASS — toast `"User Roles updated"` `toast ok`; DB row `(2,2,7)`; saved role select value 7; Save disabled.
+
+### Test 2 — Empty assignment map returns feedback_key no_users_selected (warn)
+1. In-page `PUT /api/roles/index.php/tplan-roles` with `{"tplan_id":2,"assignments":{}}`.
+- **Expected:** HTTP 200 body `{"status":"ok","feedback_key":"no_users_selected"}`.
+- **Actual:** PASS — exactly `{"status":"ok","feedback_key":"no_users_selected"}`.
+
+### Test 3 — Front-end renders the warn + ok toasts from `assignFeedback()`
+1. In screen frame call `showDemoToast(assignFeedback('no_users_selected'),'warn')` and `showDemoToast(assignFeedback('test_plan_user_roles_updated'),'ok')`.
+- **Expected:** toasts `"No users selected - nothing done"` (class `toast warn`) and `"User Roles updated"` (class `toast ok`) – legacy strings verbatim.
+- **Actual:** PASS — both toasts rendered with correct classes.
+
+### Test 4 — No-plans project shows localized no_test_plans_available equivalent
+1. Add project 3 "Empty Project" (no plans), reload screen and select it.
+- **Expected:** plan combo disabled, assign table hidden, disabledMsg shows `"There are no usable test plans on this test project"` (legacy `no_test_plans_available` strings.txt:2151).
+- **Actual:** PASS — planSelect disabled, `#assignTable` hidden, `#disabledMsg` text matches.
+
+### Test 5 — Regression: project with plans still loads the assign grid
+1. Select project 1 again, plan 2.
+- **Expected:** plan combo enabled, 2 user rows, disabledMsg hidden.
+- **Actual:** PASS — plan enabled, 2 rows, disabledMsg display none.
+
+### Test 6 — Event Viewer clean
+1. After the suite check `events` for Error/Warning rows.
+- **Expected:** no ERROR/WARNING entries from this session.
+- **Actual:** PASS — only INFO audit rows (login + `Test plan roles updated for plan #2`).
+
+**Result: 6/6 PASS.** Screenshots: `docs/screenshots/issue-942-roles-updated-toast.png`, `docs/screenshots/issue-942-empty-selection-warn-toast.png`.

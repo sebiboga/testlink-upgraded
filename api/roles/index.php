@@ -839,17 +839,22 @@ if ($method === 'PUT' && isset($segments[0]) && $segments[0] === 'tplan-roles') 
         out(['status' => 'error', 'message' => 'Invalid assignments']);
     }
 
-    // Legacy parity (usersAssign.php:560-562): an empty assignment map is a
-    // no-op. Short-circuit before any manager call so no delete query is built
-    // for an empty user list and no misleading audit event is written.
+    // Legacy parity (usersAssign.php:82-84 + 560-562): an empty assignment map
+    // is a no-op ("this can happen when filtering via Javascript"). Legacy
+    // EXACTLY shows the localized notice $TLS_no_users_selected = "No users
+    // selected - nothing done" (usersAssign.tpl:132-134 through inc_update.tpl
+    // :26-35) in this case. Short-circuit before any manager call so no delete
+    // query is built for an empty user list and no misleading audit event is
+    // written - but carry the feedback_key so the modern screen renders the
+    // same localized notice (issue #942, mirrors tproject-roles issue #931).
     if (count($assignments) === 0) {
-        out(['status' => 'ok']);
+        out(['status' => 'ok', 'feedback_key' => 'no_users_selected']);
     }
 
     // Legacy parity: usersAssign.tpl:244-247 (shared by testplan contexts) - a
     // global admin's plan-role override is locked (issue #927); strip admin ids.
     if (stripGlobalAdminAssignments($db, $assignments) === 0) {
-        out(['status' => 'ok']);
+        out(['status' => 'ok', 'feedback_key' => 'no_users_selected']);
     }
 
     $tplanMgr = new testplan($db);
@@ -864,7 +869,12 @@ if ($method === 'PUT' && isset($segments[0]) && $segments[0] === 'tplan-roles') 
         }
     }
     logAuditEvent("Test plan roles updated for plan #{$tplan_id}", "UPDATE", $tplan_id, "testplans");
-    out(['status' => 'ok']);
+    // Legacy parity: usersAssign.php:87-89 - after a successful doUpdate() the
+    // legacy testplan page shows user_feedback = test_plan_user_roles_updated
+    // ("User Roles updated"). The feedback_key mirrors that legacy lang key so
+    // the modern screen resolves and shows the localized success banner
+    // (issue #942, mirrors tproject-roles issue #931).
+    out(['status' => 'ok', 'feedback_key' => 'test_plan_user_roles_updated']);
 }
 
 http_response_code(404);
