@@ -152,6 +152,61 @@ mirroring the legacy `req_operations` fieldset `create_req` button
   the viewer automatically only because `create_req` was a same-window `location`
   redirect through `reqEdit.php`.)
 
+## Spec lifecycle toolbar (Refs #1345)
+
+Legacy `reqSpecViewButtons.inc.tpl:38-52` renders a **Requirement Specification
+Operations** fieldset with **New Req Spec** (`btn_new_req_spec`), **Edit**
+(`btn_edit`) and **Delete** (`btn_delete`) — all gated on `grants->req_mgmt ==
+yes`, with **New Req Spec** additionally gated on
+`$tlCfg->req_cfg->child_requirements_mgmt != DISABLED`
+(config.inc.php:1661). The modern viewer now renders the same three actions as
+a `#specOpsGroup` (label + ghost buttons) in the toolbar:
+
+| Button | Modern behaviour | Legacy source |
+|---|---|---|
+| **+ New Req Spec** | opens an inline Bootstrap modal (`#specModal`, `openSpecChildCreate()`) pre-bound to the current spec as **parent** — doc id, title, type (sourced from the option list, current spec type preselected), declared total requirements, scope — and `POST`es `action=create_spec` **with `parent_id=<spec_id>`** to BFF `api/reqspec/index.php`; on success the toast "Requirement specification saved." shows and the viewer reloads onto the new child spec | `reqSpecEdit.php?doAction=createChild&parentID=<spec_id>` |
+| **Edit** | opens the same modal prefilled from the current spec (`openSpecEdit()` — doc id, title, type, total_req, scope of the latest revision) and `POST`s `action=update_spec` | `reqSpecEdit.php?doAction=edit` |
+| **Delete** | `confirmDeleteSpec()` → `#delModal` confirm dialog (spec title + "will be deleted together with ALL its requirements, revisions and coverage") → `POST action=delete_spec`; on success the toast "Requirement specification deleted." shows and the screen falls to the 404 state (the spec is gone, refresh resolves the parent tree) | `reqSpecEdit.php?doAction=doDelete&req_spec_id=` |
+
+### BFF (`api/reqspec/index.php`)
+
+* `create_spec` now accepts an optional **`parent_id`** (validated with
+  `needOwnedSpec`) and passes `parentId` (child semantics) —
+  `requirement_spec_mgr::create($tproject_id,$parentId,...)` creates the node
+  under the parent spec's tree node (deep link #1345); without `parent_id` the
+  behaviour is unchanged (root-level spec under the test project).
+* `options` exposes **`childRequirementsManagement`** (`boolishConfig`,
+  default ENABLED) so the client can apply the legacy New Req Spec gate.
+* `spec_view` now returns **`spec.child_requirements_mgmt`** (same flag) and a
+  top-level **`specTypes`** map (id → label) when `?full=1&id=` is used, so the
+  modal's type dropdown renders even on deep links that never hit `options`.
+
+When `child_requirements_mgmt = DISABLED` the group shrinks to Edit + Delete
+only — verified live by flipping config.inc.php:1661.
+
+> **Parity note (not a regression):** the legacy engine itself never persists
+> the "expected total requirements" number on **create** —
+> `requirement_spec_mgr::create_revision()`
+> (lib/functions/requirement_spec_mgr.class.php) omits `total_req` from its
+> INSERT (column defaults 0) and plain `update_revision()` (no new revision)
+> only touches `scope`/modifier. The modern `create_spec`/`update_spec` reuse
+> the same engine calls, so `total_req` behaviour is bit-for-bit legacy parity
+> (and matches the sibling `reqSpecMgmt.html` screen).
+
+### Rights + testing
+
+The whole group is hidden for viewers without `mgt_modify_req` (BFF `spec_view`
+`rights.manage` — same gate as Freeze / New Revision / attachment upload). The
+BFF write routes enforce `needManageRight` server-side. Verified E2E on a fresh
+DB (fixture `tmp/fixtures_1345.php`, project RSV1345 with root spec
+SRS-PARENT-001): child spec created via the modal appears under the parent (DB
+node parent check), edit persists title/scope/doc-id on the latest revision and
+the node, delete removes the subtree incl. revision nodes, deep link
+`reqSpecView.html?id=<child>` resolves the project, disabled-config gate hides
+only New Req Spec, Event Viewer clean. Screenshots:
+`docs/screenshots/issue-1345-toolbar.png`,
+`docs/screenshots/issue-1345-delete-modal.png`.
+
 ## Deleting / not-found & permissions
 
 * Nonexistent spec (`get_by_id()` fatals on missing ids, Refs #569) is probed

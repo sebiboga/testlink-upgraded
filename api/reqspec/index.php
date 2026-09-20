@@ -15,7 +15,7 @@
  * Endpoints (JSON in/out):
  *   GET  ?action=options&tproject_id=N     -> domains, defaults, rights, project name
  *   GET  ?action=specs&tproject_id=N       -> list of requirement specs (latest revision)
- *   POST ?action=create_spec               {tproject_id,doc_id,title,type,total_req,scope}
+ *   POST ?action=create_spec               {tproject_id,doc_id,title,type,total_req,scope,parent_id?}
  *   POST ?action=update_spec&id=N          {tproject_id,doc_id,title,type,total_req,scope}
  *   POST ?action=delete_spec&id=N&tproject_id=N
  *   GET  ?action=reqs&spec_id=N&tproject_id=N -> requirements of a spec (latest version)
@@ -311,6 +311,10 @@ if ($method === 'GET' && $action === 'options') {
         // Refs #1516: legacy expected-coverage gates (reqEdit.tpl:345)
         'expectedCoverageManagement' => boolishConfig($cfg, 'expected_coverage_management', false),
         'expectedCoverageByType' => $expectedCoverageByType,
+        // Refs #1345 - legacy reqSpecViewButtons.inc.tpl:38 gate: the "New Req
+        // Spec" viewer action is only offered when child specs are enabled
+        // (config.inc.php:1661, req_cfg->child_requirements_mgmt == ENABLED).
+        'childRequirementsManagement' => boolishConfig($cfg, 'child_requirements_mgmt', true),
     ]);
 }
 
@@ -368,6 +372,15 @@ if ($method === 'POST' && $action === 'create_spec') {
     $scope  = (string)($BODY['scope'] ?? '');
     $type   = (string)($BODY['type'] ?? TL_REQ_SPEC_TYPE_SECTION);
     $countReq = intval($BODY['total_req'] ?? 0);
+    // Refs #1345 - child spec semantics (legacy reqSpecEdit.php doAction=
+    // createChild&parentID=<spec_id> -> reqSpecCommands::doCreate): when the
+    // caller passes parent_id the new spec node hangs UNDER that req spec in
+    // nodes_hierarchy. Parent spec must belong to the test project in context.
+    // parent_id <= 0 keeps the historical root-level attach-to-tproject create.
+    $parentId = intval($BODY['parent_id'] ?? 0);
+    if ($parentId > 0) {
+        needOwnedSpec($parentId, $tproject_id);
+    }
 
     if ($docId === '') { badRequest('Document ID cannot be empty'); }
     if ($title === '') { badRequest(lang_get('warning_empty_req_title')); }
@@ -375,8 +388,8 @@ if ($method === 'POST' && $action === 'create_spec') {
     // Specs attach directly to the test project node (same as legacy
     // reqSpecCommands root-level create). Parent 0 leaves the node orphaned:
     // get_all_requirement_ids() and every tree walk never find it. Refs #569
-    $op = $reqSpecMgr->create($tproject_id, $tproject_id, $docId, $title, $scope,
-                              $countReq, $userId, $type);
+    $op = $reqSpecMgr->create($tproject_id, $parentId > 0 ? $parentId : $tproject_id,
+                              $docId, $title, $scope, $countReq, $userId, $type);
     if (!$op['status_ok']) {
         badRequest($op['msg']);
     }
@@ -728,6 +741,15 @@ if ($method === 'GET' && $action === 'spec_view') {
     foreach ($reqCfg->status_labels as $code => $labelKey) {
         $reqStatusesMap[(string)$code] = lang_get($labelKey);
     }
+    // Refs #1345 - spec TYPE labels, needed by the viewer's create-child/edit
+    // modal type dropdown (options carries them for the management screen, but
+    // deep links may reach spec_view without a prior options round-trip).
+    $specTypesMap = [];
+    if (is_object($specCfg) && !empty($specCfg->type_labels)) {
+        foreach ($specCfg->type_labels as $code => $labelKey) {
+            $specTypesMap[(string)$code] = lang_get($labelKey);
+        }
+    }
 
     out([
         'status'  => 'ok',
@@ -762,6 +784,10 @@ if ($method === 'GET' && $action === 'spec_view') {
             'external_req_management' =>
                 (isset($reqCfg->external_req_management)
                  && $reqCfg->external_req_management == ENABLED) ? true : false,
+            // Refs #1345 - req_cfg->child_requirements_mgmt parity (default
+            // ENABLED, config.inc.php:1661); legacy hides the "New Req Spec"
+            // viewer button when child-spec management is disabled.
+            'child_requirements_mgmt' => boolishConfig($reqCfg, 'child_requirements_mgmt', true),
         ],
         // Refs #1346 - linked requirement-management system (null when the
         // project has none enabled); drives the "Import via API (name)" label.
@@ -775,6 +801,7 @@ if ($method === 'GET' && $action === 'spec_view') {
         'requirements' => $requirements,
         'reqTypes'     => $reqTypesMap,
         'reqStatuses'  => $reqStatusesMap,
+        'specTypes'    => $specTypesMap,
         'rights' => [
             'manage' => $user->hasRight($db, 'mgt_modify_req', $ownerTid),
             // Refs #1350 - the print view routes to the reqdoc/printDocument

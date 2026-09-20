@@ -17939,3 +17939,61 @@ suite, TC `Case With Notes` + `Case Empty Notes`, exec_with_notes=4, exec_empty=
 - **Actual:** PASS — 403/403 for norights1551, 200/200 for admin.
 
 **Result: 11/11 PASS.**
+
+## Suite 1545 — Task Issue #1345: spec lifecycle toolbar in reqSpecView (New Req Spec / Edit / Delete) (Refs #1345)
+
+**Precondition:** fresh DB seeded by `tmp/fixtures_1345.php` → test project
+**RSV1345** (id 1) with root spec **SRS-PARENT-001** (id 2). Logged in as admin.
+URLs: `http://localhost:8082/gui/templates/requirements/reqSpecView.html?id=2&tproject_id=1`.
+BFF: `api/reqspec/index.php`.
+
+### Test 1 — Toolbar group visible for manager
+1. Open `reqSpecView.html?id=2&tproject_id=1`.
+- **Expected:** "Requirement Specification Operations" group with **+ New Req Spec**, **Edit**, **Delete** buttons visible (rights.manage gate).
+- **Actual:** PASS — all three buttons visible (screenshot `issue-1345-toolbar.png`).
+
+### Test 2 — Create child spec via the modal
+1. Click **+ New Req Spec** → modal opens, heading "New child Requirement Specification", type default = current spec type (2).
+2. Fill doc_id `SRS-CHILD-UI-001`, title "Child spec via UI", keep type, scope "Scope of the UI-created child spec.", click **Save**.
+- **Expected:** toast "Requirement specification saved.", viewer reloads onto the new child (id 6) under parent spec id 2; `nodes_hierarchy` row parent_id=2.
+- **Actual:** PASS — child spec 6 created under parent 2 (DB-confirmed), overview shows SRS-CHILD-UI-001 as its doc id.
+
+### Test 3 — Edit child spec via the modal
+1. Open `reqSpecView.html?id=6` (deep link, no `tproject_id`).
+2. Click **Edit** → modal prefilled (title "Child spec via UI").
+3. Set title "Child spec via UI (edited)", click **Save**.
+- **Expected:** toast "Requirement specification saved.", overview title becomes edited title, LAST MODIFIED BY = current user.
+- **Actual:** PASS — overview/direct link show "Child spec via UI (edited)"; DB `nodes_hierarchy.name` updated.
+
+### Test 4 — Delete child spec (confirm + subtree removal)
+1. On the child, click **Delete** → confirm dialog with spec title + "will be deleted together with ALL its requirements, revisions and coverage".
+2. Click **Delete**.
+- **Expected:** toast "Requirement specification deleted.", screen falls to "Failed to load requirement specification: Requirement specification not found" 404 state; req_specs / req_specs_revisions / nodes_hierarchy rows for the child gone.
+- **Actual:** PASS — deep delete confirmed (all child rows removed; root spec 2 intact).
+
+### Test 5 — Deep link resolves project (no tproject_id)
+1. Open `reqSpecView.html?id=2` (no `tproject_id`).
+- **Expected:** screen loads, popup title shows project name, toolbar visible.
+- **Actual:** PASS — project resolved by the BFF; toolbar shows the three buttons.
+
+### Test 6 — child_requirements_mgmt gate (New Req Spec hidden when disabled)
+1. Flip `config.inc.php:1661` to `$tlCfg->req_cfg->child_requirements_mgmt = DISABLED;`, reload `reqSpecView.html?id=2&tproject_id=1`, revert after.
+- **Expected:** group shown with only **Edit** + **Delete**; "+ New Req Spec" hidden.
+- **Actual:** PASS — newSpecBtn display none, edit/delete visible (config reverted).
+
+### Test 7 — BFF create_spec parent_id validation
+1. Via API `POST?action=create_spec` with bogus `parent_id` (e.g. 999999).
+- **Expected:** owned-spec validation fails with a localized error, no spec created.
+- **Actual:** PASS — `needOwnedSpec` rejects the foreign/missing parent (no DB row).
+
+### Test 8 — Event Viewer clean
+1. Query `events` after the suite.
+- **Expected:** no rows with `log_level >= 32` (ERROR/WARNING); only AUDIT info rows from login/fixture.
+- **Actual:** PASS — only 2 info rows (login + testproject created), no errors.
+
+### Test 9 — Browser console clean
+1. Check console during all the above interactions.
+- **Expected:** no JS errors/warnings.
+- **Actual:** PASS — console clean.
+
+**Result: 9/9 PASS.**

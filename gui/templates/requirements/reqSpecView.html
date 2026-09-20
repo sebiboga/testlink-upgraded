@@ -96,6 +96,18 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; }
        called with spec_id only (REQ_ID<=0), so this button deep-links straight
        into create mode. -->
   <button class="btn-teal" id="createReqBtn" style="display:none;" onclick="openCreateReq()"><i class="fa fa-plus"></i> <span data-i18n="rsv.createReq">Create Requirement</span></button>
+  <!-- Refs #1345 - legacy reqSpecViewButtons.inc.tpl:31-52 req_spec_operations
+       fieldset: the three spec-lifecycle actions show for req_mgmt users; the
+       New-Child action additionally requires req_cfg->child_requirements_mgmt
+       == ENABLED (config.inc.php:1661). Edit reuses the BFF update_spec, Delete
+       maps doDelete (delete_deep), New Req Spec maps doAction=createChild with
+       parentID=<spec_id> via create_spec parent_id. -->
+  <span class="ops-group" id="specOpsGroup" style="display:none;align-items:center;gap:10px;border-left:1px solid #3a3d45;padding-left:10px;">
+    <span class="ctx"><b data-i18n="rsv.specOperations">Specification Operations</b></span>
+    <button class="btn-ghost" id="newSpecBtn" style="display:none;" onclick="openSpecChildCreate()"><i class="fa fa-plus"></i> <span data-i18n="rsv.newReqSpec">New Req Spec</span></button>
+    <button class="btn-ghost" id="editSpecBtn" style="display:none;" onclick="openSpecEdit()"><i class="fa fa-pencil"></i> <span data-i18n="rsv.editSpec">Edit</span></button>
+    <button class="btn-ghost" id="deleteSpecBtn" style="display:none;" onclick="confirmDeleteSpec()"><i class="fa fa-trash"></i> <span data-i18n="rsv.deleteSpec">Delete</span></button>
+  </span>
   <!-- Refs #1348 - legacy reqSpecViewButtons.inc.tpl:125-138 req_operations fieldset:
        the three requirement-operation actions show only when req_mgmt AND the spec has
        requirements (requirements_count > 0). Create-Test-Cases / Copy-Requirements /
@@ -207,6 +219,63 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; }
 
 <div class="footer" id="footerText"></div>
 
+<!-- Refs #1345 - spec lifecycle modal (create-child / edit) + delete confirm,
+     same Dashio modal pattern as reqSpecMgmt.html (specModal/delModal). -->
+<div class="modal fade" id="specModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="specModalTitle"></h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="editSpecId">
+        <div class="form-group">
+          <label for="specDocId" data-i18n="rs.docIdLabel">Document ID *</label>
+          <input type="text" id="specDocId" class="form-control" maxlength="64" style="font-size:13px;">
+        </div>
+        <div class="form-group">
+          <label for="specTitle" data-i18n="rs.titleLabel">Title *</label>
+          <input type="text" id="specTitle" class="form-control" maxlength="100" style="font-size:13px;">
+        </div>
+        <div class="form-group">
+          <label for="specType" data-i18n="rs.specTypeLabel">Specification Type</label>
+          <select id="specType" class="form-control" style="font-size:13px;"></select>
+        </div>
+        <div class="form-group">
+          <label for="specCountReq" data-i18n="rs.countReqLabel">Expected number of requirements</label>
+          <input type="number" id="specCountReq" class="form-control" min="0" value="0" style="font-size:13px;">
+        </div>
+        <div class="form-group">
+          <label for="specScope" data-i18n="rs.scopeLabel">Scope</label>
+          <textarea id="specScope" class="form-control" rows="5" style="font-size:13px;"></textarea>
+        </div>
+        <div id="specModalError" style="color:#e6605e;font-size:12px;margin-top:8px;display:none;"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal" style="font-size:13px;" data-i18n="common.cancel">Cancel</button>
+        <button type="button" class="btn-teal" onclick="saveSpecModal()" style="font-size:13px;" data-i18n="common.save">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="delModal" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" data-i18n="rsv.deleteSpec">Delete</h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body" style="font-size:13px;" id="delMsg"></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal" style="font-size:13px;" data-i18n="common.cancel">Cancel</button>
+        <button type="button" class="btn-teal" onclick="doDeleteSpec()" style="font-size:13px;background:#e74c3c;" data-i18n="common.delete">Delete</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="logTooltip"></div>
 <div class="toast-bar" id="toastBar"></div>
 
@@ -276,7 +345,16 @@ function loadView() {
     $('#content').show();
     SPEC = r.spec;
     TPROJECT_ID = r.tproject_id || TPROJECT_ID;
-    if (!META && r.reqTypes) { META = { reqTypes: r.reqTypes, reqStatuses: r.reqStatuses }; }
+    // Refs #1345 - spec_types labels: options normally supplies them, but deep
+    // links that reached spec_view without an options round-trip still need
+    // them for the create-child/edit modal type dropdown.
+    if (!META) {
+      META = { reqTypes: r.reqTypes, reqStatuses: r.reqStatuses, specTypes: r.specTypes };
+    } else {
+      if (!META.specTypes && r.specTypes) { META.specTypes = r.specTypes; }
+      if (!META.reqTypes && r.reqTypes) { META.reqTypes = r.reqTypes; }
+      if (!META.reqStatuses && r.reqStatuses) { META.reqStatuses = r.reqStatuses; }
+    }
     // Refs #1350 - the BFF spec_view payload already carries the permanent
     // linkto deep link (api/reqspec/index.php:658); render it via the toolbar
     // toggle (legacy reqSpecView.tpl:93-94 + :103-105).
@@ -546,6 +624,18 @@ function showHideActions(r) {
     // both import entry points only appear for requirement managers.
     $('#importItemsLink').show();
     $('#importBranchLink').show();
+    // Refs #1345 - spec lifecycle toolbar (legacy reqSpecViewButtons.inc.tpl:
+    // 31-52, req_spec_operations fieldset gated on req_mgmt). Edit and Delete
+    // always for managers; New Req Spec additionally requires
+    // req_cfg->child_requirements_mgmt == ENABLED (default enabled).
+    $('#specOpsGroup').css('display', 'inline-flex');
+    $('#editSpecBtn').show();
+    $('#deleteSpecBtn').show();
+    if (r.spec && r.spec.child_requirements_mgmt) {
+      $('#newSpecBtn').show();
+    } else {
+      $('#newSpecBtn').hide();
+    }
     hb($('#freezeBtn'), freezeSpec);
     hb($('#revBtn'), newRevision);
   } else {
@@ -555,6 +645,10 @@ function showHideActions(r) {
     $('#createReqBtn').hide();
     $('#importItemsLink').hide();
     $('#importBranchLink').hide();
+    $('#specOpsGroup').css('display', 'none');
+    $('#newSpecBtn').hide();
+    $('#editSpecBtn').hide();
+    $('#deleteSpecBtn').hide();
   }
 }
 
@@ -711,6 +805,118 @@ function openCreateReq() {
   window.open('/gui/templates/requirements/reqEdit.html?spec_id=' + SPEC_ID +
     '&tproject_id=' + TPROJECT_ID, 'req_edit_' + SPEC_ID,
     'width=' + w + ',height=' + h + ',resizable=yes,scrollbars=yes');
+}
+
+// Refs #1345 - spec lifecycle: New Req Spec (create child) / Edit / Delete.
+// Mirrors legacy reqSpecEdit.php doAction=createChild (parentID=<spec_id>) via
+// the BFF create_spec parent_id, doAction=edit via update_spec, and
+// doAction=doDelete (delete_deep) via delete_spec. Modal pattern copied from
+// the sibling reqSpecMgmt.html (specModal + delModal Dashio flow).
+function fillSpecTypeSelect(selected) {
+  var $sel = $('#specType');
+  $sel.empty();
+  var types = (META && META.specTypes) ? META.specTypes : {};
+  var keys = Object.keys(types);
+  if (!keys.length) { keys = ['1', '2']; }
+  $.each(keys, function(i, code) {
+    $sel.append($('<option>').val(code).text(types[code] || code));
+  });
+  if (selected != null && types[String(selected)]) {
+    $sel.val(String(selected));
+  }
+}
+
+function openSpecChildCreate() {
+  $('#editSpecId').val('');
+  $('#specDocId').val('');
+  $('#specTitle').val('');
+  $('#specCountReq').val(0);
+  $('#specScope').val('');
+  fillSpecTypeSelect(SPEC ? SPEC.type : '');
+  $('#specModalError').hide();
+  $('#specModalTitle').text(TLi18n.t('rsv.newChildSpec'));
+  $('#specModal').modal('show');
+}
+
+function openSpecEdit() {
+  if (!SPEC) { return; }
+  $('#editSpecId').val(SPEC.id);
+  $('#specDocId').val(SPEC.doc_id);
+  $('#specTitle').val(SPEC.title);
+  $('#specCountReq').val(SPEC.total_req);
+  $('#specScope').val(SPEC.scope);
+  fillSpecTypeSelect(SPEC.type);
+  $('#specModalError').hide();
+  $('#specModalTitle').text(TLi18n.t('rsv.editSpecHeading'));
+  $('#specModal').modal('show');
+}
+
+function saveSpecModal() {
+  if (!SPEC) { return; }
+  var id = $.trim($('#editSpecId').val());
+  var docId = $.trim($('#specDocId').val());
+  var title = $.trim($('#specTitle').val());
+  if (docId === '') { $('#specModalError').text(TLi18n.t('rs.msg.docIdRequired')).show(); return; }
+  if (title === '') { $('#specModalError').text(TLi18n.t('rs.msg.titleRequired')).show(); return; }
+  var body = {
+    tproject_id: TPROJECT_ID,
+    doc_id: docId,
+    title: title,
+    type: $('#specType').val(),
+    total_req: parseInt($('#specCountReq').val() || '0', 10),
+    scope: $('#specScope').val()
+  };
+  var req;
+  if (id) {
+    req = $.ajax({ url: API + '?action=update_spec&id=' + encodeURIComponent(id),
+                   method: 'POST', contentType: 'application/json', data: JSON.stringify(body) });
+  } else {
+    // Refs #1345 - child spec: parent = the spec currently viewed.
+    body.parent_id = SPEC_ID;
+    req = $.ajax({ url: API + '?action=create_spec',
+                   method: 'POST', contentType: 'application/json', data: JSON.stringify(body) });
+  }
+  req.done(function (r) {
+    if (r.status !== 'ok') {
+      $('#specModalError').text(r.message || TLi18n.t('common.error')).show();
+      return;
+    }
+    $('#specModal').modal('hide');
+    showFlash(TLi18n.t('rsv.specSaved'));
+    loadView();
+  }).fail(function (xhr) {
+    var msg = TLi18n.t('common.error');
+    try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
+    $('#specModalError').text(msg).show();
+  });
+}
+
+function confirmDeleteSpec() {
+  if (!SPEC) { return; }
+  $('#delMsg').html('<b>' + escapeHtml(SPEC.title) + '</b><br>' + escapeHtml(TLi18n.t('rsv.deleteSpecConfirm')));
+  $('#delModal').modal('show');
+}
+
+function doDeleteSpec() {
+  if (!SPEC) { return; }
+  $.ajax({
+    url: API + '?action=delete_spec&id=' + SPEC_ID + '&tproject_id=' + TPROJECT_ID,
+    method: 'POST', contentType: 'application/json',
+    headers: { 'X-Requested-With': 'XMLHttpRequest' }, data: '{}'
+  }).done(function (r) {
+    $('#delModal').modal('hide');
+    if (r.status !== 'ok') {
+      showFlash(r.message || TLi18n.t('rsv.loadError'), true);
+      return;
+    }
+    showFlash(TLi18n.t('rsv.specDeleted'));
+    loadView();
+  }).fail(function (xhr) {
+    $('#delModal').modal('hide');
+    var msg = TLi18n.t('rsv.loadError');
+    try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
+    showFlash(msg, true);
+  });
 }
 
 function goExportReqs(scope) {
