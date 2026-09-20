@@ -4417,7 +4417,7 @@
   "rbm.toggle": "Basculer le suivi",
   "rbm.start": "Démarrer le suivi",
   "rbm.stop": "Arrêter le suivi",
-  "rbm.errNoSpec": "No specification id given.",
+  "rbm.errNoSpec": "Aucun identifiant de spécification fourni.",
   "rbm.errLoad": "Échec du chargement des données de suivi en masse.",
   "rbm.errSelect": "Please select at least one Requirement",
   "rbm.errToggle": "Échec de la mise à jour du suivi.",
@@ -4431,5 +4431,6 @@
   "navb.logout": "Se déconnecter",
   "navb.reloadMain": "Recharger la vue principale",
   "navb.toggleNav": "Basculer la navigation",
-  "footers.navBar": "Modernisation de la barre de navigation supérieure"
+  "footers.navBar": "Modernisation de la barre de navigation supérieure",
+  "rbm.reqTitle": "Titre"
 }

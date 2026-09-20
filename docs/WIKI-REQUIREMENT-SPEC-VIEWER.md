@@ -65,6 +65,66 @@ Both attachment controls stay hidden for view-only users (the BFF reports
 `rights.manage=false`), exactly like legacy `$attach_downloadOnly=true`; the
 download link stays available to everyone.
 
+## Requirement Operations (Refs #1348)
+
+Legacy `reqSpecViewButtons.inc.tpl:125-138` renders a `req_operations` fieldset
+**only when** `grants->req_mgmt == yes`, and inside it three action links
+**only when** the spec has requirements. The modern viewer keeps the exact gate:
+a **Requirement Operations** group (`#reqOpsGroup`,
+`gui/templates/requirements/reqSpecView.html:97-102`) appears in the toolbar
+iff the BFF `spec_view` payload reports `rights.manage == true`
+(`mgt_modify_req` on the owning project) **and**
+`spec.requirements_count > 0` (`reqSpecView.html:492-496`). It hosts three
+actions:
+
+| Action | Modern screen | Legacy source |
+|---|---|---|
+| **Create Test Cases** | `reqCreateTestCases.html?spec_id=&tproject_id=` (already-modernized screen) | `reqSpecEdit.php?doAction=createTestCases` (`reqSpecView.tpl:41-43`) |
+| **Copy Requirements** | `reqCopy.html?id=<spec>&tproject_id=` | `reqSpecEdit.php?doAction=copyRequirements` (`reqSpecView.tpl:59-61`) |
+| **Bulk Monitoring** | `reqBulkMon.html?id=<spec>&tproject_id=` | `reqSpecEdit.php?doAction=bulkReqMon` (`reqSpecView.tpl:69-70`) |
+
+### Copy Requirements screen (`reqCopy.html`)
+
+Port of legacy `reqSpecCommands::copyRequirements()` → `reqCopy.tpl`. On load
+the BFF `GET api/reqspec/index.php?action=copy_options&id=<spec>` returns the
+spec's requirements (latest version each, `listSpecRequirements()`), the
+project's req-spec **destination containers** (the tree subtree with
+`get_subtree` + `createHierarchyMap('dotted', doc_id)` — testplans/testsuites/
+testcases/requirements/revisions excluded, legacy parity) and project context.
+The screen offers:
+* a **choose target specification** select (dotted doc_id labels, e.g.
+  `.SRS-RSV-002:Destination Specification RSV8`),
+* a **Copy Test Case Assignments** checkbox (`copy_testcase_assignments`, on by
+  default),
+* a DataTable of the source requirements with per-row checkboxes (+ select-all),
+* **Copy** → confirm dialog → `POST action=copy_reqs`
+  (`req_spec_id`, `container_id`, `itemSet[]`, `copy_testcase_assignment`) →
+  the BFF runs `requirement_mgr::copy_to()` per selected requirement with
+  `copy_also.testcase_assignment` and logs an `audit_requirement_copy` **COPY**
+  audit event per copy (`api/reqspec/index.php:1222-1271`). Success shows the
+  localized "Copied requirements" summaries (id/errors lists mirror
+  `doCopyRequirements()` message arrays); the table refreshes afterwards.
+  Copied requirements get the ` (1)` doc-id suffix (legacy copy_to behavior).
+
+### Bulk Monitoring screen (`reqBulkMon.html`)
+
+Port of legacy `reqSpecCommands::bulkReqMon()` → `reqBulkMon.tpl`. On load the
+BFF `GET action=bulk_mon_options&id=<spec>` returns the spec's requirements
+with the current user's per-requirement monitor flag (`req_monitor` rows,
+`getMonitoredByUser(user, tproject, ['reqSpecID'=>spec])` scoped to the spec)
+plus `enable_start_btn` / `enable_stop_btn` parity flags. The screen renders a
+DataTable with per-requirement **On/Off** monitor state and three submit
+buttons — **Toggle Monitoring**, **Start Monitoring**, **Stop Monitoring** —
+each posting `POST action=bulk_mon_toggle` (`op` = `toogleMon`/`startMon`/
+`stopMon` + `itemSet[]`), mirroring `doBulkReqMon()`:
+`toggle = getMonitoredByUser` flip (`monitorOff` when already On,
+`monitorOn` otherwise), otherwise a straight `monitorOn`/`monitorOff` per
+selected requirement (`api/reqspec/index.php:1278-1328`). The table re-renders
+with the new flags and a localized "Monitoring toggled (N)" message.
+
+Both copy/monitor BFF routes enforce the legacy rights: `mgt_view_req` to reach
+the payload, `mgt_modify_req` (`needManageRight`) to write.
+
 ## Deleting / not-found & permissions
 
 * Nonexistent spec (`get_by_id()` fatals on missing ids, Refs #569) is probed

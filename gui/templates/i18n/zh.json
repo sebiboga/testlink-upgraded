@@ -4403,7 +4403,7 @@
   "rbm.toggle": "切换监控",
   "rbm.start": "开始监控",
   "rbm.stop": "停止监控",
-  "rbm.errNoSpec": "No specification id given.",
+  "rbm.errNoSpec": "未提供规格ID。",
   "rbm.errLoad": "加载批量监控数据失败。",
   "rbm.errSelect": "Please select at least one Requirement",
   "rbm.errToggle": "更新监控失败。",
@@ -4417,5 +4417,6 @@
   "navb.logout": "退出登录",
   "navb.reloadMain": "重新加载主视图",
   "navb.toggleNav": "切换导航",
-  "footers.navBar": "顶部导航栏现代化"
+  "footers.navBar": "顶部导航栏现代化",
+  "rbm.reqTitle": "标题"
 }

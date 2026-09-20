@@ -4423,7 +4423,7 @@
   "rbm.toggle": "Переключить мониторинг",
   "rbm.start": "Запустить мониторинг",
   "rbm.stop": "Остановить мониторинг",
-  "rbm.errNoSpec": "No specification id given.",
+  "rbm.errNoSpec": "Не указан идентификатор спецификации.",
   "rbm.errLoad": "Не удалось загрузить данные массового мониторинга.",
   "rbm.errSelect": "Please select at least one Requirement",
   "rbm.errToggle": "Не удалось обновить мониторинг.",
@@ -4437,5 +4437,6 @@
   "navb.logout": "Выйти",
   "navb.reloadMain": "Перезагрузить основной вид",
   "navb.toggleNav": "Переключить навигацию",
-  "footers.navBar": "Модернизация верхней панели навигации"
+  "footers.navBar": "Модернизация верхней панели навигации",
+  "rbm.reqTitle": "Название"
 }

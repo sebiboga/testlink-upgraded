@@ -4427,7 +4427,7 @@
   "rbm.toggle": "Comută monitorizarea",
   "rbm.start": "Pornește monitorizarea",
   "rbm.stop": "Oprește monitorizarea",
-  "rbm.errNoSpec": "No specification id given.",
+  "rbm.errNoSpec": "Nu a fost dat un id de specificație.",
   "rbm.errLoad": "Încărcarea datelor de monitorizare în masă a eșuat.",
   "rbm.errSelect": "Please select at least one Requirement",
   "rbm.errToggle": "Actualizarea monitorizării a eșuat.",
@@ -4441,5 +4441,6 @@
   "navb.logout": "Deconectare",
   "navb.reloadMain": "Reîncarcă vizualizarea principală",
   "navb.toggleNav": "Comută navigarea",
-  "footers.navBar": "Modernizarea barei de navigare superioare"
+  "footers.navBar": "Modernizarea barei de navigare superioare",
+  "rbm.reqTitle": "Titlu"
 }

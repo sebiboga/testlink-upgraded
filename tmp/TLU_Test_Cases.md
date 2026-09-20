@@ -17618,3 +17618,75 @@ page size 20.
   (relative href + base tag); accordion chevrons render, no `nav-expand.png`
   404 anywhere in the frameset's network log.
 [ x ] PASS  |  [ ] FAIL
+
+## Suite 1348 — Task — Issue #1348: Requirement Operations group (Create Test Cases / Copy Requirements / Bulk Monitoring) in `reqSpecView` (gap vs legacy)
+
+**Feature under test:** the modern Requirement Specification Viewer toolbar restores the legacy
+`req_operations` fieldset (reqSpecViewButtons.inc.tpl:125-138) — **Create Test Cases**,
+**Copy Requirements** (`reqCopy.html` + BFF `copy_options`/`copy_reqs`) and **Bulk Monitoring**
+(`reqBulkMon.html` + BFF `bulk_mon_options`/`bulk_mon_toggle`) — gated exactly like legacy:
+visible iff `mgt_modify_req` AND the spec has `requirements_count > 0`.
+
+**Fixture (run `tmp/fixtures_1348.php` once):** project `RSV8` (id 2, prefix RS8) with source spec
+SRS-RSV-001 (id 3, 3 requirements REQ-001..REQ-003, REQ-002 monitored by admin) and destination spec
+SRS-RSV-002 (id 5). Tester user `tester2` (role 7, no req-management rights, password `tester2`).
+
+### Test 1 — Ops group visible for manager on non-empty spec (legacy `req_mgmt==yes && count>0`)
+1. Login `admin`/`admin`; open `reqSpecView.html?id=3&tproject_id=2`.
+- **Expected:** toolbar shows `Requirement Operations` group with Create Test Cases + Copy Requirements + Bulk Monitoring links to `reqCreateTestCases.html?spec_id=3`, `reqCopy.html?id=3`, `reqBulkMon.html?id=3`.
+- **Actual:** PASS — all three links rendered and correctly href'd (browser snapshot).
+
+### Test 2 — Ops group hidden for 0-requirement specs
+1. Create empty spec SRS-RSV-003 (id 19, `reqSpecMgr->create(...total_req=0)`); open `reqSpecView.html?id=19&tproject_id=2` as admin.
+- **Expected:** `#reqOpsGroup` computed style = `none`; no ops links present.
+- **Actual:** PASS — `getComputedStyle(#reqOpsGroup).display == "none"`, `#vReqCount == "0"`.
+
+### Test 3 — Permission gate: role without any req rights
+1. Login `tester2`/`tester2` (role 7 tester, no `mgt_view_req`); open `reqSpecView.html?id=3&tproject_id=2`.
+- **Expected:** "Failed to load requirement specification: No permission"; no ops group, no New Revision/Freeze buttons (legacy checkRights parity).
+- **Actual:** PASS — error banner, ops group and manage buttons absent.
+
+### Test 4 — Copy Requirements: load, target tree, select-all, copy
+1. As admin open `reqCopy.html?id=3&tproject_id=2`.
+- **Expected:** header "Copy Requirements" + spec chip `SRS-RSV-001 — Source Specification RSV8`; destination select lists dotted containers incl. `.SRS-RSV-002:Destination Specification RSV8`; Copy Test Case Assignments checked; requirements table shows REQ-001/002/003; Copy disabled until selection; confirm dialog `Copy 3 selected requirement(s) to ".SRS-RSV-002:..."?`.
+- **Actual:** PASS — all observed; confirmed dialog, 3 requirements copied.
+
+### Test 5 — Copy Requirements: persisted result + audit
+1. After Test 4, check DB + destination viewer.
+- **Expected:** `requirements` has REQ-001 (1)/REQ-002 (1)/REQ-003 (1) under srs_id=5 (parent nodes under spec 5); `events` has 3 `COPY` rows (`audit_requirement_copy`); destination `reqSpecView.html?id=5` lists the 3 copied requirements and shows its own ops group.
+- **Actual:** PASS — DB rows verified (ids 13/15/17), event rows present, destination viewer shows REQ-001 (1)..REQ-003 (1).
+
+### Test 6 — Bulk Monitoring: initial flags from req_monitor
+1. As admin open `reqBulkMon.html?id=3&tproject_id=2`.
+- **Expected:** table shows REQ-002 "On" and REQ-001/REQ-003 "Off"; Toggle/Start/Stop disabled until a selection.
+- **Actual:** PASS — flags match the seeded `req_monitor` row; buttons disabled with no selection.
+
+### Test 7 — Toggle Monitoring
+1. Select REQ-002 only; click Toggle Monitoring.
+- **Expected:** success message "Monitoring toggled (1)"; REQ-002 flips to Off; `req_monitor` row for REQ-002 deleted.
+- **Actual:** PASS — message shown, REQ-002 Off, DB row gone (0 rows after stop step below also verified).
+
+### Test 8 — Start Monitoring
+1. Select REQ-001 only; click Start Monitoring.
+- **Expected:** REQ-001 flips to On; `req_monitor` gains row (req_id=7, user 1, tproject 2).
+- **Actual:** PASS — UI "On" + DB row (7,1,2).
+
+### Test 9 — Stop Monitoring
+1. Select all three requirements; click Stop Monitoring.
+- **Expected:** all rows Off; `req_monitor` empty for tproject 2.
+- **Actual:** PASS — DB count 0 for testproject_id=2.
+
+### Test 10 — Error/empty/security + repeat-message bug (#1549) + header label (#1550)
+1. Open `reqCopy.html?id=99999&tproject_id=2` → "Requirement specification not found"; open `reqBulkMon.html` without id → localized error message.
+- **Expected:** clean 404/400 JSON paths, no JS exceptions; browser console (copy + bulk screens) has no error/warn lines; `events` table has NO ERROR/WARNING (>=32) rows after the whole suite.
+- **Actual:** PASS — 404/400 handled with localized messages, console clean, events only INFO/audit rows (COPY audits), no ERROR/WARNING.
+
+### Test 11 — Bug #1549 regression: repeat messages stay visible
+1. Load `reqCopy.html?id=99999` (404 message visible), wait > 6 s for the auto-hide, click **Refresh** (second failure).
+2. Also verify the bulk-mon title column header says "Title".
+- **Expected:** after Refresh the message must re-appear (inline `display:none` must not persist); bulk table header `["","Identifier","Title","Monitoring"]`.
+- **Actual:** PASS — bug #1549 found (first hide left inline `display:none`, repeat messages invisible), fixed in `showMsg()` of both screens, re-verified: display block → none (6 s) → block again on the second failure; header fixed via new `rbm.reqTitle` key (10 bundles, legacy `$TLS_title` translations).
+
+**Result: 11/11 PASS.** Screenshots: `docs/screenshots/issue-1348-rsv-ops-toolbar.png`,
+`docs/screenshots/issue-1348-reqcopy-screen.png`, `docs/screenshots/issue-1348-reqcopy-after.png`,
+`docs/screenshots/issue-1348-bulkmon.png`.

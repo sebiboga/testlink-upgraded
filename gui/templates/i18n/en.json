@@ -4447,5 +4447,6 @@
   "navb.logout": "Logout",
   "navb.reloadMain": "Reload Main View",
   "navb.toggleNav": "Toggle Navigation",
-  "footers.navBar": "Top Navigation Bar Modernization"
+  "footers.navBar": "Top Navigation Bar Modernization",
+  "rbm.reqTitle": "Title"
 }

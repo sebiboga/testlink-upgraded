@@ -4417,7 +4417,7 @@
   "rbm.toggle": "Alternar supervisión",
   "rbm.start": "Iniciar supervisión",
   "rbm.stop": "Detener supervisión",
-  "rbm.errNoSpec": "No specification id given.",
+  "rbm.errNoSpec": "No se indicó el id de la especificación.",
   "rbm.errLoad": "No se pudieron cargar los datos de supervisión masiva.",
   "rbm.errSelect": "Please select at least one Requirement",
   "rbm.errToggle": "No se pudo actualizar la supervisión.",
@@ -4431,5 +4431,6 @@
   "navb.logout": "Cerrar sesión",
   "navb.reloadMain": "Recargar vista principal",
   "navb.toggleNav": "Alternar navegación",
-  "footers.navBar": "Modernización de la barra de navegación superior"
+  "footers.navBar": "Modernización de la barra de navegación superior",
+  "rbm.reqTitle": "Título"
 }

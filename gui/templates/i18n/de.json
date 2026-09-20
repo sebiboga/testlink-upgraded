@@ -4417,7 +4417,7 @@
   "rbm.toggle": "Überwachung umschalten",
   "rbm.start": "Überwachung starten",
   "rbm.stop": "Überwachung beenden",
-  "rbm.errNoSpec": "No specification id given.",
+  "rbm.errNoSpec": "Keine Spezifikations-ID angegeben.",
   "rbm.errLoad": "Laden der Sammel-Überwachungsdaten fehlgeschlagen.",
   "rbm.errSelect": "Please select at least one Requirement",
   "rbm.errToggle": "Aktualisieren der Überwachung fehlgeschlagen.",
@@ -4431,5 +4431,6 @@
   "navb.logout": "Abmelden",
   "navb.reloadMain": "Hauptansicht neu laden",
   "navb.toggleNav": "Navigation umschalten",
-  "footers.navBar": "Modernisierung der oberen Navigationsleiste"
+  "footers.navBar": "Modernisierung der oberen Navigationsleiste",
+  "rbm.reqTitle": "Titel"
 }

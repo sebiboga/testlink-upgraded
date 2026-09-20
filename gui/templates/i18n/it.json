@@ -4417,7 +4417,7 @@
   "rbm.toggle": "Attiva/disattiva monitoraggio",
   "rbm.start": "Avvia monitoraggio",
   "rbm.stop": "Arresta monitoraggio",
-  "rbm.errNoSpec": "No specification id given.",
+  "rbm.errNoSpec": "Nessun id di specifica fornito.",
   "rbm.errLoad": "Caricamento dati di monitoraggio di massa non riuscito.",
   "rbm.errSelect": "Please select at least one Requirement",
   "rbm.errToggle": "Aggiornamento monitoraggio non riuscito.",
@@ -4431,5 +4431,6 @@
   "navb.logout": "Esci",
   "navb.reloadMain": "Ricarica vista principale",
   "navb.toggleNav": "Attiva/disattiva navigazione",
-  "footers.navBar": "Modernizzazione della barra di navigazione superiore"
+  "footers.navBar": "Modernizzazione della barra di navigazione superiore",
+  "rbm.reqTitle": "Titolo"
 }

@@ -4423,7 +4423,7 @@
   "rbm.toggle": "Alternar monitoramento",
   "rbm.start": "Iniciar monitoramento",
   "rbm.stop": "Interromper monitoramento",
-  "rbm.errNoSpec": "No specification id given.",
+  "rbm.errNoSpec": "Nenhum id de especificação informado.",
   "rbm.errLoad": "Falha ao carregar os dados de monitoramento em massa.",
   "rbm.errSelect": "Please select at least one Requirement",
   "rbm.errToggle": "Falha ao atualizar o monitoramento.",
@@ -4437,5 +4437,6 @@
   "navb.logout": "Sair",
   "navb.reloadMain": "Recarregar vista principal",
   "navb.toggleNav": "Alternar navegação",
-  "footers.navBar": "Modernização da barra de navegação superior"
+  "footers.navBar": "Modernização da barra de navegação superior",
+  "rbm.reqTitle": "Título"
 }

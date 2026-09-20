@@ -131,8 +131,11 @@ $(function () {
 function showMsg(ok, text) {
   var m = $('#msg');
   m.removeClass('ok err').addClass(ok ? 'ok' : 'err').html(text);
+  // override any residual inline display:none left by a previous auto-hide
+  // (Refs #1549) — otherwise repeat messages stay invisible.
+  m.css('display', 'block');
   clearTimeout(m.data('tm'));
-  m.data('tm', setTimeout(function () { m.removeClass('ok err').css('display', 'none'); }, 6000));
+  m.data('tm', setTimeout(function () { m.removeClass('ok err'); m.css('display', 'none'); }, 6000));
 }
 
 function esc(s) {

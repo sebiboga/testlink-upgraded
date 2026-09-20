@@ -4423,7 +4423,7 @@
   "rbm.toggle": "モニタリングを切り替え",
   "rbm.start": "モニタリングを開始",
   "rbm.stop": "モニタリングを停止",
-  "rbm.errNoSpec": "No specification id given.",
+  "rbm.errNoSpec": "仕様IDが指定されていません。",
   "rbm.errLoad": "一括モニタリングデータの読み込みに失敗しました。",
   "rbm.errSelect": "Please select at least one Requirement",
   "rbm.errToggle": "モニタリングの更新に失敗しました。",
@@ -4437,5 +4437,6 @@
   "navb.logout": "ログアウト",
   "navb.reloadMain": "メインビューを再読み込み",
   "navb.toggleNav": "ナビゲーション切替",
-  "footers.navBar": "上部ナビゲーションバーのモダナイゼーション"
+  "footers.navBar": "上部ナビゲーションバーのモダナイゼーション",
+  "rbm.reqTitle": "タイトル"
 }

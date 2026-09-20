@@ -70,7 +70,7 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; }
         <tr>
           <th style="width:36px;"><input type="checkbox" id="checkAll" class="check-all" title=""></th>
           <th data-i18n="rsv.docId">Identifier</th>
-          <th data-i18n="rbm.title">Title</th>
+          <th data-i18n="rbm.reqTitle">Title</th>
           <th data-i18n="rbm.monitoring">Monitoring</th>
         </tr>
       </thead>
@@ -119,8 +119,11 @@ $(function () {
 function showMsg(ok, text) {
   var m = $('#msg');
   m.removeClass('ok err').addClass(ok ? 'ok' : 'err').text(text);
+  // override any residual inline display:none left by a previous auto-hide
+  // (Refs #1549) — otherwise repeat messages stay invisible.
+  m.css('display', 'block');
   clearTimeout(m.data('tm'));
-  m.data('tm', setTimeout(function () { m.removeClass('ok err').css('display', 'none'); }, 6000));
+  m.data('tm', setTimeout(function () { m.removeClass('ok err'); m.css('display', 'none'); }, 6000));
 }
 
 function esc(s) {
