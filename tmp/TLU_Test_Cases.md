@@ -17825,3 +17825,50 @@ requirements; admin session (rights.manage=`yes`). Created: project id 1
 - **Actual:** PASS — only INFO audit rows (login + `Test plan roles updated for plan #2`).
 
 **Result: 6/6 PASS.** Screenshots: `docs/screenshots/issue-942-roles-updated-toast.png`, `docs/screenshots/issue-942-empty-selection-warn-toast.png`.
+
+## Suite 1346 — Task — Issue #1346: Import Reqs / Import Req Spec buttons (branch + items scope) in `reqSpecView` (gap vs legacy)
+
+**Screen:** `gui/templates/requirements/reqSpecView.html` · **BFF:** `api/reqspec/index.php` (spec_view) + `api/reqimport/index.php` (options/import)
+**Precondition:** app at http://localhost:8082, admin/admin; fixtures "Test Project Alpha" (tproject_id 500, no reqmgr, spec SPEC-001 id 501) and "Reqmgr Beta" (tproject_id 600, JIRA linked id 700, spec BSPEC-001 id 601); sample files `docs/file_examples/requirements/req-test1.xml` + `reqspec-starttrek-example1.xml`.
+
+### Test 1 — No-reqmgr project shows both Import buttons with plain labels
+1. Open `reqSpecView.html?id=501&tproject_id=500` (Alpha).
+- **Expected:** toolbar shows `Import Reqs` (`reqImport.html?req_spec_id=501&tproject_id=500`) and `Import Req Spec` (`reqImport.html?scope=branch&req_spec_id=501&tproject_id=500`); BFF `req_mgr_system` = null.
+- **Actual:** PASS — both links/labels present; hrefs match; BFF payload `req_mgr_system` absent/null; buttons rendered `display:flex` (computed style), aligned like sibling buttons.
+
+### Test 2 — Reqmgr project rewrites branch label to "Import via API (name)"
+1. Open `reqSpecView.html?id=601&tproject_id=600` (Beta).
+- **Expected:** `Import Reqs` + `Import via API (JIRA)`; BFF `req_mgr_system` `{id:700,name:"JIRA",type:"contour (Interface: soap)"}`.
+- **Actual:** PASS — JS measured `importBranchLabel === "Import via API (JIRA)"`, items label "Import Reqs", both buttons visible.
+
+### Test 3 — Items-scope deep link: spec preselected, full type list, no branch note
+1. Open `reqImport.html?req_spec_id=601&tproject_id=600` (via "Import Reqs" click in Test 2).
+- **Expected:** target spec preselected to BSPEC-001 (601), types CSV / CSV (Doors) / XML / DocBook, `#branchNote` hidden.
+- **Actual:** PASS — `specSelect.value="601"`, typeOptions `[CSV, CSV (Doors), XML, DocBook]`, branchNote `display:none`.
+
+### Test 4 — Branch-scope deep link: spec preselected, XML-only types, branch note shown
+1. Open `reqImport.html?scope=branch&req_spec_id=601&tproject_id=600` (via "Import via API (JIRA)" click in Test 2).
+- **Expected:** target spec preselected 601, types XML only, `#branchNote` + `#targetGroup` visible with `reqimp.branchHint` text.
+- **Actual:** PASS — typeOptions `[XML]`, branchNote text matches "import a specification tree as a child branch of the selected specification (XML only)".
+
+### Test 5 — Branch import end-to-end (spec tree -> child of selected spec)
+1. On `reqImport.html?scope=branch&req_spec_id=501&tproject_id=500` upload `reqspec-starttrek-example1.xml`, type XML, click Upload and Import.
+- **Expected:** result table lists all 12 nodes "Created"; DB: RS-STREK-001 (605) and RS-STREK-002 (615) have parent_id 501.
+- **Actual:** PASS — result shows 12 "Created" rows; SQL: `Intrepid-Class Production Vehicle` (605) and `Nove Waverider` (615) under parent 501, children under each.
+
+### Test 6 — Items import end-to-end (requirements XML into spec)
+1. On `reqImport.html?req_spec_id=601&tproject_id=600` upload `req-test1.xml`, type XML, click Upload and Import.
+- **Expected:** child spec REQ-SPEC-L1-001 + RQ-001..003 created under 601; viewer "Requirements in Spec" increments.
+- **Actual:** PASS — result shows 4 "Created" rows (spec + 3 reqs); viewer refresh shows "REQUIREMENTS IN SPEC 4".
+
+### Test 7 — Permission gate: buttons hidden for non-manager
+1. In-page `showHideActions({rights:{manage:null}})` then restore `{rights:{manage:'yes'}}`.
+- **Expected:** both Import links hidden when `manage` falsy, shown when truthy (same gate as Create Requirement).
+- **Actual:** PASS — hides/shows per the `r.rights.manage` gate in viewer `showHideActions()`.
+
+### Test 8 — Event Viewer clean
+1. After the suite check `events` for Error/Warning rows.
+- **Expected:** no ERROR/WARNING entries from this session.
+- **Actual:** PASS — only 1 INFO `audit_login_succeeded` event; no import errors logged.
+
+**Result: 8/8 PASS.** Screenshots: `docs/screenshots/issue-1346-alpha-viewer-buttons.png`, `docs/screenshots/issue-1346-beta-viewer-jira-label.png`.
