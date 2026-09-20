@@ -17600,6 +17600,9 @@ page size 20.
 ### Result
 - Step 1 PASS — 12 sections/109 links verified live (DOM + BFF JSON).
 - Step 2 PASS — System expand-only; dcjq arrows present.
+- Step 2b PASS — overflow-label measure loop (asideFrame.tpl parity) flags the
+  5 longest labels (widest 41px, e.g. "Create Test Cases from Issues") with
+  `--menu-label-shift` + `.menu-label-overflow` for the slide-on-hover.
 - Step 3 PASS — Event viewer navigation + `li.active` + `tl-sub-selected`
   + localStorage href.
 - Step 4 PASS — rail set/reload-persist/click-unrail (cookie 0/1) verified.
