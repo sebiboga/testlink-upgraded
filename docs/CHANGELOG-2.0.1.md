@@ -66,3 +66,4 @@ checks the CHANGELOG before each commit.
   `tmp/TLU_Test_Cases.md`.
 - No functional code touched — documentation-only task. Event Viewer unaffected
   (no runtime code changed).
+- 2026-09-20 — screen **1546** recorded: Requirement Spec Revision Print `reqSpecPrintRevision` — Refs #1546 (re-record close-out after #1487 guts: BFF + HTML + i18n parity fully re-verified error-free end-to-end on fixture RSV1354; suite 1546 appended).

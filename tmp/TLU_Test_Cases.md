@@ -17453,3 +17453,22 @@ page size 20.
 
 **Result: 8/8 PASS.** Screenshots: `docs/screenshots/issue-939-usersAssignPlan-datatables.png`,
 `docs/screenshots/issue-939-usersAssignPlan-search.png`.
+## Suite 1546 — Issue #1546 — Requirement Spec Revision Print reqSpecPrintRevision (modern reqSpecPrintRevision.html parity, close-out run)
+
+### Setup
+- Prereq: fixture `tmp/fixtures_1351.php` run (spec RSV1351 id 17, rev1 id 18, rev2 id 20). Login admin/admin, project RSV1351.
+
+### Steps
+1. Open `reqSpecViewRevision.html?revision_id=18&tproject_id=16` — revision viewer renders at parity (#1351 region).
+2. Click **Print view** toolbar link (`#printLink`, i18n `rsvr.printView`).
+3. Verify new tab `reqSpecPrintRevision.html?revision_id=18&tproject_id=16`, uid=6_2 title `Print Requirement Specification: RSV1351 spec` + project RSV1351 header.
+4. Verify embedded srcdoc iframe shows revision #1 (`Historical`, Type `User Requirement Specification`, scope text, `revision 1` in footer `TestLink 2.0.1 - Print Requirement Specification Revision`).
+5. Click **Print** / **Back to revision view**.** Refresh** buttons present (`pdoc.btnPrint` / `rsvp.btnBack` / `common.refresh`), language selector listed (EN set).
+6. BFF contract: `GET api/reqdoc/index.php?action=revision_doc&revision_id=18&tproject_id=16` → 200 JSON (network reqid 3), revision 18 = rev1 log `first revision of the spec`. Try `revision_id=999999` → 404; anon → 401; guest-no-right → 403.
+7. Event Viewer + console clean (AUDIT-only, no PHP-error rows).
+
+### Expected
+1. Rev4 render parity, BFF revision_doc resolves the exact PRINTED revision, all four fail-closed guards fire, Event Viewer clean.
+
+### Result
+[ ] PASS  |  [ ] FAIL
