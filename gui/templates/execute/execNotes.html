@@ -109,7 +109,7 @@ textarea#notesArea {
         </div>
       </div>
       <div id="notesForm" style="display:none">
-        <textarea id="notesArea" data-i18n-ph="execnotes.notesPlaceholder" placeholder="Add execution notes..."></textarea>
+        <textarea id="notesArea" data-i18n-placeholder="execnotes.notesPlaceholder" placeholder="Add execution notes..."></textarea>
         <div class="toolbar">
           <button id="btnCancel" class="btn-outline"><span data-i18n="common.cancel">Cancel</span></button>
           <button id="btnSave" class="btn-teal"><i class="fa fa-save"></i> <span data-i18n="common.save">Save</span></button>
@@ -145,17 +145,17 @@ function loadNotes() {
   $.getJSON('/api/execnotes/' + EXEC_ID, function (r) {
     if (r.status !== 'ok') { $('#loading').hide(); toast(r.message || 'Error', 'err'); return; }
     var x = r.execution;
-    $('#mbTestCase').text(esc(x.testcase_name || ('#' + x.tcversion_id)));
-    $('#mbTestPlan').text(esc(x.testplan_name || ''));
-    $('#mbBuild').text(esc(x.build_name || ''));
-    $('#mbPlatform').text(esc(x.platform_name || '-'));
+    $('#mbTestCase').text(x.testcase_name || ('#' + x.tcversion_id));
+    $('#mbTestPlan').text(x.testplan_name || '');
+    $('#mbBuild').text(x.build_name || '');
+    $('#mbPlatform').text(x.platform_name || '-');
     var statusLabel = '-';
     if (x.status_char) {
       var smap = { p: 'execprint.statusPassed', f: 'execprint.statusFailed', b: 'execprint.statusBlocked' };
-      statusLabel = smap[x.status_char] ? TLi18n.t(smap[x.status_char]) : esc(x.status_char);
+      statusLabel = smap[x.status_char] ? TLi18n.t(smap[x.status_char]) : x.status_char;
     }
     $('#mbStatus').text(statusLabel);
-    $('#mbTs').text(esc(x.execution_ts || ''));
+    $('#mbTs').text(x.execution_ts || '');
     var notes = x.notes || '';
     $('#notesBox').html(notes ? esc(notes) : TLi18n.t('execnotes.noNotes'));
     $('#notesBox').toggleClass('empty', !notes);

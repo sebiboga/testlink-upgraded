@@ -33,6 +33,13 @@ if (!$userId || $userId <= 0) {
     exit;
 }
 
+$user = tlUser::getByID($db, $userId);
+if (is_null($user)) {
+    http_response_code(401);
+    echo json_encode(['status' => 'error', 'message' => 'User not found']);
+    exit;
+}
+
 $path = $_SERVER['PATH_INFO'] ?? parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $path = preg_replace('#^/api/execnotes(/index\.php)?#', '', $path);
 $path = '/' . trim($path, '/');
@@ -52,16 +59,46 @@ function execNotFound() {
     out(['status' => 'error', 'message' => 'Execution not found']);
 }
 
-// GET /api/execnotes/{exec_id}
-if ($method === 'GET' && count($segments) === 1 && ctype_digit($segments[0])) {
-    $execId = intval($segments[0]);
+// Resolve an execution to its owning test plan + test project and check the
+// legacy rights (parity with execNotes.php, which was opened from the
+// rights-gated execSetResults flow; api/execute resolves the same grants):
+//   view -> exec_edit_notes OR exec_ro_access OR testplan_execute
+//   edit -> exec_edit_notes (the dedicated legacy right)
+$execTplanTables = tlObjectWithDB::getDBTables(array('executions', 'testplans'));
+
+function resolveExecCtx($execId, $tables) {
+    global $db;
     $rs = get_execution($db, $execId);
     if (!$rs || count($rs) === 0) {
         execNotFound();
     }
+    $tplanId = intval($rs[0]['testplan_id']);
+    $tpRs = $db->get_recordset(
+        "SELECT testproject_id FROM {$tables['testplans']} WHERE id=" . intval($tplanId));
+    if (!$tpRs || count($tpRs) === 0) {
+        execNotFound();
+    }
+    return array('row' => $rs[0], 'testplan_id' => $tplanId,
+                 'testproject_id' => intval($tpRs[0]['testproject_id']));
+}
+
+function denyForbidden() {
+    http_response_code(403);
+    out(['status' => 'error', 'message' => 'You do not have rights on this execution']);
+}
+
+function getExecNotes($execId) {
+    global $user, $db, $execTplanTables;
+    $ctx = resolveExecCtx($execId, $execTplanTables);
+    $viewGrant = $user->hasRight($db, 'exec_edit_notes', $ctx['testproject_id'], $ctx['testplan_id'])
+        || $user->hasRight($db, 'exec_ro_access', $ctx['testproject_id'], $ctx['testplan_id'])
+        || $user->hasRight($db, 'testplan_execute', $ctx['testproject_id'], $ctx['testplan_id']);
+    if (!$viewGrant) {
+        denyForbidden();
+    }
     $audit = get_execution($db, $execId, ['output' => 'audit']);
     $auditRow = ($audit && count($audit) > 0) ? $audit[0] : [];
-    $row = $rs[0];
+    $row = $ctx['row'];
 
     out([
         'status' => 'ok',
@@ -82,12 +119,11 @@ if ($method === 'GET' && count($segments) === 1 && ctype_digit($segments[0])) {
     ]);
 }
 
-// PUT /api/execnotes/{exec_id}
-if ($method === 'PUT' && count($segments) === 1 && ctype_digit($segments[0])) {
-    $execId = intval($segments[0]);
-    $rs = get_execution($db, $execId);
-    if (!$rs || count($rs) === 0) {
-        execNotFound();
+function putExecNotes($execId) {
+    global $user, $db, $execTplanTables;
+    $ctx = resolveExecCtx($execId, $execTplanTables);
+    if (!$user->hasRight($db, 'exec_edit_notes', $ctx['testproject_id'], $ctx['testplan_id'])) {
+        denyForbidden();
     }
 
     $body = getBody();
@@ -100,6 +136,16 @@ if ($method === 'PUT' && count($segments) === 1 && ctype_digit($segments[0])) {
     $db->exec_query($sql);
 
     out(['status' => 'ok', 'message' => 'Notes saved', 'id' => $execId, 'notes' => $notes]);
+}
+
+// GET /api/execnotes/{exec_id}
+if ($method === 'GET' && count($segments) === 1 && ctype_digit($segments[0])) {
+    getExecNotes(intval($segments[0]));
+}
+
+// PUT /api/execnotes/{exec_id}
+if ($method === 'PUT' && count($segments) === 1 && ctype_digit($segments[0])) {
+    putExecNotes(intval($segments[0]));
 }
 
 http_response_code(400);

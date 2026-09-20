@@ -32,6 +32,10 @@ was the last `lib/execute/*` controller pair with no dedicated modern screen
   - `PUT /{exec_id}` — persists `notes` mirroring the legacy `doUpdate()`
     (`UPDATE executions SET notes`), with `prepare_string`.
   - JSON contract 401 (anon) / 403 (CSRF) / 404 (unknown exec) / 400.
+  - **Server-side rights (IDOR guard, code-review #1551):** each route resolves
+    the execution's `testplan_id` → `testproject_id` and enforces legacy rights
+    via `tlUser::hasRight` — view = `exec_edit_notes` OR `exec_ro_access` OR
+    `testplan_execute`; edit = `exec_edit_notes`. Denied → 403.
 - **i18n:** `execnotes.*` (15 keys) in all 10 locale bundles.
 - **Link switch:** `$actions->execNotesView` in `lib/functions/common.php`
   (execute area, after `execExport`, `tplan_id > 0`).
@@ -41,8 +45,9 @@ was the last `lib/execute/*` controller pair with no dedicated modern screen
 - Browser (admin session): view with existing notes, Edit → modify → Save
   (toast "Notes saved." + reload), empty-notes state, missing id →
   access-denied card. Console clean (0 error/warn).
-- BFF curl contract: 401 anon GET/PUT, 403 PUT without same-origin proof,
-  404 unknown exec, 200 + persistence round-trip.
+- BFF curl contract: 401 anon GET/PUT, 403 CSRF without same-origin proof,
+  403 rights (role-3 user on GET and PUT), 404 unknown exec, 200 + persistence
+  round-trip.
 - Event Viewer clean after the run (AUDIT only, 0 ERROR/WARNING).
 
 ## Test cases
