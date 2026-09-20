@@ -4395,6 +4395,7 @@
   "rsv.reqOperations": "要件オペレーション",
   "rsv.copyReqs": "要件をコピー",
   "rsv.bulkMon": "一括モニタリング",
+  "rsv.createReq": "新規要件作成",
   "rco.title": "要件をコピー",
   "rco.headerSub": "仕様の要件を別の仕様へコピーします",
   "rco.back": "仕様ビューアに戻る",

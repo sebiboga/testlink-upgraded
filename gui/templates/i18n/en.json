@@ -4405,6 +4405,7 @@
   "rsv.reqOperations": "Requirement Operations",
   "rsv.copyReqs": "Copy Requirements",
   "rsv.bulkMon": "Bulk Monitoring",
+  "rsv.createReq": "Create Requirement",
   "rco.title": "Copy Requirements",
   "rco.headerSub": "copy requirements of a specification into another specification",
   "rco.back": "Back to spec viewer",

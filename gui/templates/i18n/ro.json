@@ -4399,6 +4399,7 @@
   "rsv.reqOperations": "Operațiuni asupra cerințelor",
   "rsv.copyReqs": "Copiază cerințele",
   "rsv.bulkMon": "Monitorizare în masă",
+  "rsv.createReq": "Creare cerință",
   "rco.title": "Copiază cerințele",
   "rco.headerSub": "copiază cerințele unei specificații în altă specificație",
   "rco.back": "Înapoi la vizualizatorul de specificații",

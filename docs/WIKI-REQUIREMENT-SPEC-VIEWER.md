@@ -125,6 +125,33 @@ with the new flags and a localized "Monitoring toggled (N)" message.
 Both copy/monitor BFF routes enforce the legacy rights: `mgt_view_req` to reach
 the payload, `mgt_modify_req` (`needManageRight`) to write.
 
+## Create Requirement from the viewer (Refs #1347)
+
+The viewer is no longer a read-only dead end for managers: the toolbar now
+leads with **+ Create Requirement** (`reqSpecView.html` `#createReqBtn`),
+mirroring the legacy `req_operations` fieldset `create_req` button
+(`gui/templates/dashio/requirements/include/reqSpecViewButtons.inc.tpl:104-107` +
+`reqSpecView.tpl:25` `req_edit_url = reqEdit.php?doAction=create&req_spec_id=`).
+
+* Gated **only** on `req_mgmt` (BFF `spec_view` `rights.manage`) — a manager sees
+  it even when the spec contains 0 requirements, exactly like legacy; viewers
+  without the right never see it (`display:none` default + `showHideActions()`).
+  It sits outside the `reqOpsGroup`, whose Create Test Cases / Copy / Bulk
+  Monitoring links keep their own `requirements_count > 0` gate (Refs #1348).
+* Clicking opens `gui/templates/requirements/reqEdit.html?spec_id=<id>&tproject_id=<tid>`
+  in a new popup — the modern Requirement Editor enters **create mode** whenever no `id`
+  is given (the form URL branches to `spec_id` when `REQ_ID <= 0`, `reqEdit.html:233`;
+  `MODE` defaults to `create`, `reqEdit.html:142`), pre-bound to the current spec
+  (title, doc-id scheme, types, scope scaffold). This is the exact analogue of the
+  legacy `reqEdit.php?doAction=create&req_spec_id=<id>` URL; the modern screen reads
+  `spec_id` (reqEdit.html:579) instead of `req_spec_id`, and `doAction` is ignored.
+* After saving, click **Refresh** in the viewer — the Requirements table then
+  re-renders with the new requirement (confirmed in E2E: `QAM-REQ-001` created
+  from the button flow appears in the spec's table) and the Requirement
+  Operations group activates once `requirements_count > 0`. (Legacy returned to
+  the viewer automatically only because `create_req` was a same-window `location`
+  redirect through `reqEdit.php`.)
+
 ## Deleting / not-found & permissions
 
 * Nonexistent spec (`get_by_id()` fatals on missing ids, Refs #569) is probed

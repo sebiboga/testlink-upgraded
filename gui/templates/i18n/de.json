@@ -4389,6 +4389,7 @@
   "rsv.reqOperations": "Anforderungsoperationen",
   "rsv.copyReqs": "Anforderungen kopieren",
   "rsv.bulkMon": "Sammelüberwachung",
+  "rsv.createReq": "Neue Anforderung erstellen",
   "rco.title": "Anforderungen kopieren",
   "rco.headerSub": "Anforderungen einer Spezifikation in eine andere Spezifikation kopieren",
   "rco.back": "Zurück zur Spezifikationsansicht",

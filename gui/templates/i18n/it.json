@@ -4389,6 +4389,7 @@
   "rsv.reqOperations": "Operazioni sui requisiti",
   "rsv.copyReqs": "Copia requisiti",
   "rsv.bulkMon": "Monitoraggio di massa",
+  "rsv.createReq": "Crea nuovo Requisito",
   "rco.title": "Copia requisiti",
   "rco.headerSub": "copiare i requisiti di una specifica in un'altra specifica",
   "rco.back": "Torna al visualizzatore di specifica",

@@ -17733,3 +17733,54 @@ SRS-RSV-002 (id 5). Tester user `tester2` (role 7, no req-management rights, pas
 **Result: 11/11 PASS.** Screenshots: `docs/screenshots/issue-1348-rsv-ops-toolbar.png`,
 `docs/screenshots/issue-1348-reqcopy-screen.png`, `docs/screenshots/issue-1348-reqcopy-after.png`,
 `docs/screenshots/issue-1348-bulkmon.png`.
+
+## Suite 1347 — Task — Issue #1347: Create Requirement action in `reqSpecView` (gap vs legacy)
+
+Legacy ref: `gui/templates/dashio/requirements/include/reqSpecViewButtons.inc.tpl:104-107`
+(`create_req` button, gate `req_mgmt == yes`) + `reqSpecView.tpl:25`
+(`req_edit_url = reqEdit.php?doAction=create&req_spec_id=`). Feature: from the
+spec viewer a manager can open the create-requirement editor pre-bound to the
+current spec.
+
+**Precondition:** project with requirements enabled + a req spec with 0
+requirements; admin session (rights.manage=`yes`). Created: project id 1
+("QA Modernization"), spec id 2 ("QAM-SRS-001", 0 reqs).
+
+### Test 1 — Manager sees **+ Create Requirement** in the toolbar (also on an EMPTY spec)
+1. Open `gui/templates/requirements/reqSpecView.html?id=2&tproject_id=1` as admin.
+- **Expected:** toolbar shows the teal **+ Create Requirement** button although
+  the spec has 0 requirements — legacy gates `btn_req_create` on `req_mgmt` only,
+  not on `requirements_count`.
+- **Actual:** PASS — button rendered (uid snapshot "button + Create Requirement").
+
+### Test 2 — Button opens the create-mode Requirement Editor pre-bound to this spec
+1. Click **+ Create Requirement**.
+- **Expected:** a popup opens at `gui/templates/requirements/reqEdit.html?spec_id=2&tproject_id=1`
+  (legacy analog `reqEdit.php?doAction=create&req_spec_id=2`), in **create mode**
+  (`REQ_ID<=0`): "Specification: System Requirements" line, empty document id /
+  title / scope fields, status Valid, type Feature, Save+Cancel.
+- **Actual:** PASS — editor loaded pre-bound to "System Requirements".
+
+### Test 3 — End-to-end: create a requirement and see it in the viewer
+1. In the editor fill document id `QAM-REQ-001`, title `New Requirement One`,
+   scope note; click **Save**.
+- **Expected:** "Requirement saved" + Create New Version button enabled (edit mode);
+  after reloading the viewer the Requirements table shows the new row
+  (QAM-REQ-001, v1, Feature, Valid) and the Requirement Operations group
+  (Create Test Cases / Copy / Bulk Mon) now appears (count>0 gate).
+- **Actual:** PASS — saved; viewer table row "QAM-REQ-001 New Requirement One 1
+  Feature Valid"; `Requirement Operations` group visible.
+
+### Test 4 — Non-manager (viewer) must NOT see the button
+1. Runtime gate check in page context: re-render with
+   `showHideActions({rights:{manage:null}})`, then restore manager payload.
+- **Expected:** button hidden for `manage=null` (default HTML `display:none`),
+  visible again for `manage='yes'`.
+- **Actual:** PASS — measured `{initialManagerVisible:true, viewerVisible:false, managerRestored:true}`.
+
+### Test 5 — Event Viewer clean
+1. After the whole suite, check the `events` table for Error/Warning rows.
+- **Expected:** no ERROR/WARNING log_level entries from this session.
+- **Actual:** PASS — only 2 events (INFO login + project create), no errors.
+
+**Result: 5/5 PASS.** Screenshot: `docs/screenshots/issue-1347-reqSpecView-create-req.png`.

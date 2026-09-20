@@ -88,6 +88,14 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; }
   <button class="btn-teal" onclick="loadView()"><i class="fa fa-refresh"></i> <span data-i18n="common.refresh">Refresh</span></button>
   <a class="btn-ghost" id="mgmtLink" href="#" target="_blank"><i class="fa fa-sitemap"></i> <span data-i18n="rsv.openInMgmt">Open in Spec Management</span></a>
   <a class="btn-ghost" id="compareLink" href="#" target="_blank"><i class="fa fa-code-compare"></i> <span data-i18n="rsv.compareRevisions">Compare revisions</span></a>
+  <!-- Refs #1347 - legacy reqSpecViewButtons.inc.tpl:104-107: the req_operations
+       fieldset leads with a Create button (btn_req_create, gated ONLY on
+       req_mgmt, requirements_count irrelevant) opening reqEdit.php?doAction=
+       create&req_spec_id=<id>&tproject_id=... -> the create-requirement editor
+       pre-bound to this spec. Modern reqEdit.html (api/reqedit) creates when
+       called with spec_id only (REQ_ID<=0), so this button deep-links straight
+       into create mode. -->
+  <button class="btn-teal" id="createReqBtn" style="display:none;" onclick="openCreateReq()"><i class="fa fa-plus"></i> <span data-i18n="rsv.createReq">Create Requirement</span></button>
   <!-- Refs #1348 - legacy reqSpecViewButtons.inc.tpl:125-138 req_operations fieldset:
        the three requirement-operation actions show only when req_mgmt AND the spec has
        requirements (requirements_count > 0). Create-Test-Cases / Copy-Requirements /
@@ -505,12 +513,16 @@ function showHideActions(r) {
     $('#freezeBtn').show();
     $('#revBtn').show();
     $('#createFromIssuesLink').show();
+    // Refs #1347 - legacy req_mgmt gate for btn_req_create: manager can always
+    // create a new requirement bound to this spec, even with 0 requirements.
+    $('#createReqBtn').show();
     hb($('#freezeBtn'), freezeSpec);
     hb($('#revBtn'), newRevision);
   } else {
     $('#freezeBtn').hide();
     $('#revBtn').hide();
     $('#createFromIssuesLink').hide();
+    $('#createReqBtn').hide();
   }
 }
 
@@ -657,6 +669,16 @@ function openReq(reqId) {
   var w = Math.floor(window.innerWidth * 0.85), h = Math.floor(window.innerHeight * 0.85);
   window.open('/gui/templates/requirements/reqView.html?id=' + reqId + '&tproject_id=' + TPROJECT_ID,
     'req_view_' + reqId, 'width=' + w + ',height=' + h + ',resizable=yes,scrollbars=yes');
+}
+
+// Refs #1347 - legacy req_edit_url = reqEdit.php?doAction=create&req_spec_id=<id>
+// (reqSpecView.tpl:25). Modern reqEdit.html enters create mode from spec_id alone
+// (REQ_ID<=0, reqEdit.html:585), pre-bound to this spec's doc id scheme + types.
+function openCreateReq() {
+  var w = Math.floor(window.innerWidth * 0.85), h = Math.floor(window.innerHeight * 0.85);
+  window.open('/gui/templates/requirements/reqEdit.html?spec_id=' + SPEC_ID +
+    '&tproject_id=' + TPROJECT_ID, 'req_edit_' + SPEC_ID,
+    'width=' + w + ',height=' + h + ',resizable=yes,scrollbars=yes');
 }
 
 function goExportReqs(scope) {

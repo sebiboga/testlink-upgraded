@@ -4375,6 +4375,7 @@
   "rsv.reqOperations": "需求操作",
   "rsv.copyReqs": "复制需求",
   "rsv.bulkMon": "批量监控",
+  "rsv.createReq": "创建新需求",
   "rco.title": "复制需求",
   "rco.headerSub": "将一个规范的需求复制到另一个规范",
   "rco.back": "返回规范查看器",

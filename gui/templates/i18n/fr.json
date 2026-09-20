@@ -4389,6 +4389,7 @@
   "rsv.reqOperations": "Opérations sur les exigences",
   "rsv.copyReqs": "Copier les exigences",
   "rsv.bulkMon": "Suivi en masse",
+  "rsv.createReq": "Créer une nouvelle exigence",
   "rco.title": "Copier les exigences",
   "rco.headerSub": "copier les exigences d'une spécification vers une autre spécification",
   "rco.back": "Retour au visualiseur de spécification",
