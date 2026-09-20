@@ -26,6 +26,8 @@
   "alx.thTestCase": "Test Case",
   "alx.thTestSuite": "Test Suite",
   "app.version": "2.0.1 [TEST]",
+  "aside.loading": "Загрузка меню навигации…",
+  "aside.retry": "Повторить",
   "assign.adminRoleLocked": "Роль администратора заблокирована и не может быть изменена.",
   "assign.all": "Все",
   "assign.assignedRole": "Назначенная роль",

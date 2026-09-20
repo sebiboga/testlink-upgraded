@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TestLink Navigation</title>
+<!--
+  ASIDE navigation frame (modernized, Refs #1548).
+
+  Port of lib/general/asideMenu.php + gui/templates/dashio/asideFrame.tpl +
+  aside.tpl — the last legacy lib/**.php screen still served in the running
+  frameset. The menu is now a standalone Dashio HTML page backed by the
+  api/aside BFF (GET ?action=init), which rebuilds the exact aside.tpl menu
+  tree server side (gates, hrefs, reports sub-menu, plugins, labels).
+
+  Behaviour parity kept:
+    - markup keeps the aside.tpl classes the frameset depends on:
+      ul.sidebar-menu#nav-accordion / li.sub-menu / ul.sub /
+      a[target="mainframe"] (syncAsideActiveLink in main.tpl), li.active.
+    - window.tlSetRail / window.tlIsRailed globals (the title bar burger and
+      the legacy common-scripts.js handler call them cross-frame).
+    - rail cookie (menuRailCookieName) + body.rail class, #sidebar scrollbar,
+      dcjqaccordion autoClose/saveState, localStorage tlAsideSelected
+      highlight, long-label ellipsis titles.
+-->
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="/gui/templates/dashio/css/style.css">
+<link rel="stylesheet" href="/gui/templates/dashio/css/style-responsive.css">
+<link rel="stylesheet" href="/gui/themes/dashio/css/testlink.css">
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    overflow-x: hidden;
+    background: #2f323a;
+  }
+  aside {
+    display: block;
+    height: 100%;
+  }
+  #sidebar {
+    position: static;
+    width: 100%;
+    height: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: #546678 transparent;
+  }
+  #sidebar::-webkit-scrollbar { width: 6px; }
+  #sidebar::-webkit-scrollbar-track { background: transparent; }
+  #sidebar::-webkit-scrollbar-thumb { background: #546678; border-radius: 3px; }
+
+  #sidebar ul.sidebar-menu ul.sub li a.tl-sub-selected {
+    color: #4ECDC4;
+    background: rgba(78, 205, 196, .12);
+  }
+
+  body.rail .sidebar-menu > li > a > span,
+  body.rail .sidebar-menu > li > a .arrow { display: none; }
+  body.rail .sidebar-menu ul.sub { display: none !important; }
+  body.rail .sidebar-menu > li > a { text-align: center; padding: 12px 0; }
+  body.rail .sidebar-menu > li > a i { margin: 0; font-size: 18px; }
+
+  #asideState {
+    color: #9aa4b0;
+    font-size: 12px;
+    padding: 14px;
+    line-height: 1.5;
+  }
+  #asideState .flash {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: flex-start;
+  }
+  #asideState .retry {
+    background: #4ECDC4;
+    color: #1e2227;
+    border: 0;
+    border-radius: 4px;
+    padding: 5px 14px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+
+<aside>
+  <div id="sidebar" class="nav-collapse">
+    <ul class="sidebar-menu" id="nav-accordion"></ul>
+    <div id="asideState"></div>
+  </div>
+</aside>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="/third_party/jquery/jquery-3.7.1.min.js"></script>
+<script src="/gui/templates/dashio/lib/jquery.dcjqaccordion.2.7.js"></script>
+<script>
+var API = '/api/aside/index.php';
+var RAIL_COOKIE = '';
+
+/* Pre-open the rail from the cookie so a railed frame never flashes the
+   full menu while the BFF round-trips. Cookie name comes from the BFF
+   (config_get('cookie')->prefix '_menuRail'); guess from the cookie jar. */
+(function () {
+  var parts = document.cookie.split(';');
+  for (var i = 0; i < parts.length; i++) {
+    var kv = parts[i].trim().split('=');
+    if (/menuRail$/.test(kv[0])) { RAIL_COOKIE = kv[0]; }
+  }
+  if (RAIL_COOKIE && document.cookie.indexOf(RAIL_COOKIE + '=') !== -1 &&
+      document.cookie.indexOf(RAIL_COOKIE + '=1') !== -1) {
+    document.body.className = 'rail';
+  }
+})();
+
+/* Called cross-frame by the title bar (and the legacy common-scripts.js
+   handler): window.parent.frames['asidebar'].tlSetRail(...) */
+function tlIsRailed() {
+  return document.body.className.indexOf('rail') !== -1;
+}
+
+function tlSetRail(on) {
+  document.body.className = on ? 'rail' : '';
+  var frameEl = window.parent.document.getElementById('asidebar');
+  if (frameEl) {
+    frameEl.className = on ? 'navigationAside railed' : 'navigationAside';
+  }
+  if (RAIL_COOKIE) {
+    document.cookie = RAIL_COOKIE + '=' + (on ? '1' : '0') +
+                      ';path=/;max-age=' + (60 * 60 * 24 * 30);
+  }
+}
+window.tlIsRailed = tlIsRailed;
+window.tlSetRail = tlSetRail;
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function render(data) {
+  if (!data || !data.sections) {
+    showState(TLi18n.t('common.error'));
+    return;
+  }
+  RAIL_COOKIE = data.rail_cookie || RAIL_COOKIE;
+  if (data.railed) { document.body.className = 'rail'; }
+
+  var ul = document.getElementById('nav-accordion');
+  ul.innerHTML = '';
+
+  var leaf = function (item, cls, exactIconClass) {
+    var li = document.createElement('li');
+    if (cls) { li.className = cls; }
+    var a = document.createElement('a');
+    a.href = item.href || '#';
+    a.target = 'mainframe';
+    if (item.id) { a.id = item.id; }
+    var i = document.createElement('i');
+    i.className = item.icon || 'fa fa-circle';
+    a.appendChild(i);
+    var span = document.createElement('span');
+    span.textContent = item.label || '';
+    a.appendChild(span);
+    li.appendChild(a);
+    return li;
+  };
+
+  var subLeaf = function (item) {
+    var li = document.createElement('li');
+    var a = document.createElement('a');
+    a.href = item.href || '#';
+    a.target = 'mainframe';
+    a.title = item.label || '';
+    if (item.id) { a.id = item.id; }
+    if (item.icon) {
+      var ii = document.createElement('i');
+      ii.className = item.icon;
+      a.appendChild(ii);
+      a.appendChild(document.createTextNode(' ' + (item.label || '')));
+    } else {
+      a.appendChild(document.createTextNode(item.label || ''));
+    }
+    li.appendChild(a);
+    return li;
+  };
+
+  data.sections.forEach(function (sec) {
+    if (sec.single) {
+      ul.appendChild(leaf(sec.items[0], sec.key === 'dashboard' ? 'mt' : null));
+      return;
+    }
+    var li = document.createElement('li');
+    li.className = 'sub-menu';
+    var a = document.createElement('a');
+    a.href = 'javascript:;';
+    a.id = sec.key;
+    var i = document.createElement('i');
+    i.className = sec.icon || 'fa fa-bars';
+    a.appendChild(i);
+    var span = document.createElement('span');
+    span.textContent = sec.label || '';
+    a.appendChild(span);
+    li.appendChild(a);
+    var ulSub = document.createElement('ul');
+    ulSub.className = 'sub';
+    sec.items.forEach(function (item) {
+      /* Plugins may hand back HTML labels (legacy renders them raw); every
+         server-derived label is plain text inserted via textContent. */
+      var pi = document.createElement('li');
+      var pa = document.createElement('a');
+      pa.href = item.href || '#';
+      pa.target = 'mainframe';
+      pa.title = item.label || '';
+      if (item.id) { pa.id = item.id; }
+      if (item.html) {
+        pa.innerHTML = item.html;
+      } else {
+        if (item.icon) {
+          var pii = document.createElement('i');
+          pii.className = item.icon;
+          pa.appendChild(pii);
+          pa.appendChild(document.createTextNode(' ' + (item.label || '')));
+        } else {
+          pa.appendChild(document.createTextNode(item.label || ''));
+        }
+      }
+      pi.appendChild(pa);
+      ulSub.appendChild(pi);
+    });
+    li.appendChild(ulSub);
+    ul.appendChild(li);
+  });
+
+  hideState();
+
+  /* Ellipsis labels: expose the full text natively (keyboard / no-JS) and
+     let dashio's testlink.css .menu-label rules slide long labels on hover. */
+  $('#sidebar ul.sidebar-menu ul.sub li a').each(function () {
+    var t = this.textContent.trim();
+    if (!this.title) { this.title = t; }
+    $(this).html('<span class="menu-label">' + esc(t) + '</span>');
+  });
+
+  $('#nav-accordion').dcAccordion({
+    eventType: 'click',
+    autoClose: true,
+    saveState: true,
+    disableLink: true,
+    speed: 'slow',
+    showCount: false,
+    autoExpand: true,
+    classExpand: 'dcjq-current-parent'
+  });
+
+  /* While railed the submenus are hidden; a click on a section header
+     un-rails instead of doing nothing (asideFrame.tpl parity). */
+  $('#sidebar ul.sidebar-menu > li.sub-menu > a').on('click', function (ev) {
+    if (tlIsRailed()) {
+      ev.preventDefault();
+      ev.stopImmediatePropagation();
+      tlSetRail(false);
+    } else {
+      var li = this.parentNode;
+      setTimeout(function () {
+        var sub = li.querySelector('ul.sub');
+        if (!sub || sub.style.display === 'none') { return; }
+        var sb = document.getElementById('sidebar');
+        if (!sb || sb.scrollHeight <= sb.clientHeight) { return; }
+        var top = li.getBoundingClientRect().top -
+                  sb.getBoundingClientRect().top + sb.scrollTop;
+        sb.scrollTo({ top: Math.max(0, top - 6), behavior: 'smooth' });
+      }, 650);
+    }
+  });
+
+  /* Remember which sub-menu entry was last opened (asideFrame.tpl parity):
+     the menu survives navigation in its own frame. */
+  var selKey = 'tlAsideSelected';
+  function mark($a) {
+    $('#sidebar ul.sidebar-menu ul.sub li a').removeClass('tl-sub-selected');
+    if ($a && $a.length) {
+      $a.addClass('tl-sub-selected');
+      try { localStorage.setItem(selKey, $a.attr('href')); } catch (e) {}
+    }
+  }
+  $('#sidebar ul.sidebar-menu ul.sub li a').on('click', function () {
+    mark($(this));
+  });
+  try {
+    var prev = localStorage.getItem(selKey);
+    if (prev) {
+      mark($('#sidebar ul.sidebar-menu ul.sub li a[href="' + prev + '"]'));
+    }
+  } catch (e) {}
+}
+
+function showState(msg) {
+  var s = document.getElementById('asideState');
+  s.innerHTML = '<div class="flash"><span class="msg">' + esc(msg) + '</span>' +
+                '<button class="retry" data-i18n="aside.retry">' +
+                esc(TLi18n.t('aside.retry')) + '</button></div>';
+  s.querySelector('.retry').addEventListener('click', function () { load(); });
+}
+function hideState() {
+  document.getElementById('asideState').innerHTML = '';
+}
+
+function load() {
+  var state = document.getElementById('asideState');
+  state.textContent = TLi18n.t('aside.loading');
+  $.getJSON(API + '?action=init&_=' + Date.now())
+    .done(function (r) {
+      if (r && r.status === 'ok') { render(r); }
+      else { showState((r && r.message) || TLi18n.t('common.error')); }
+    })
+    .fail(function (xhr, status, err) {
+      var msg = (xhr && xhr.responseJSON && xhr.responseJSON.message) ||
+                err || status || TLi18n.t('common.error');
+      showState(msg);
+    });
+}
+
+TLi18n.load(function () {
+  TLi18n.apply();
+  load();
+});
+</script>
+</body>
+</html>

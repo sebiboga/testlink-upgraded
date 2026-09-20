@@ -179,7 +179,14 @@ function initEnv() {
   $gui = new stdClass();
   $gui->title = lang_get('main_page_title');
   $gui->mainframe = htmlspecialchars($args->reqURI, ENT_QUOTES, 'UTF-8');
-  $gui->asideframe = 'lib/general/asideMenu.php';
+  // Modernized aside (Refs #1548): standalone Dashio screen backed by the
+  // api/aside BFF, in place of the legacy lib/general/asideMenu.php frame
+  // (kept as a shim for deep links). The locale follows the session like
+  // the titlebar screen.
+  $gui->asideframe = "gui/templates/aside/aside.html?locale=" .
+                     urlencode(isset($_SESSION['locale']) ? $_SESSION['locale'] : '') .
+                     "&tproject_id={$args->tproject_id}&" .
+                     "tplan_id={$args->tplan_id}";
   $gui->asideRailed = menuRailIsOn();
   $gui->navbar_height = config_get('navbar_height');
 

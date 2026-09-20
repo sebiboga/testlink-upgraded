@@ -26,6 +26,8 @@
   "alx.thTestCase": "Test Case",
   "alx.thTestSuite": "Test Suite",
   "app.version": "2.0.1 [TEST]",
+  "aside.loading": "正在加载导航菜单…",
+  "aside.retry": "重试",
   "assign.adminRoleLocked": "管理员角色已锁定，无法更改。",
   "assign.all": "全部",
   "assign.assignedRole": "已分配角色",

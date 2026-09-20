@@ -14,6 +14,23 @@
 **/
 require_once('../../config.inc.php');
 require_once("common.php");
+
+// Modernized aside (Refs #1548): the running frameset already points the
+// asidebar frame at gui/templates/aside/aside.html, but any deep link or
+// stale reference that still hits this legacy controller gets the same
+// modern HTML (session-guarded so an anonymous request keeps the legacy
+// behavior, which redirects to the login screen). Params are forwarded the
+// same way index.php builds the asideframe URL.
+$modernAside = dirname(__DIR__, 2) . '/gui/templates/aside/aside.html';
+if (is_file($modernAside)) {
+    doSessionStart();
+    if (isset($_SESSION['userID']) && $_SESSION['userID'] > 0) {
+        header('Content-Type: text/html; charset=UTF-8');
+        readfile($modernAside);
+        return;
+    }
+}
+
 testlinkInitPage($db,('initProject' == 'initProject'));
 
 // The menu needs showMenu, activeMenu, uri, logo, whoami, access and

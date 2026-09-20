@@ -26,6 +26,8 @@
   "alx.thTestCase": "Test Case",
   "alx.thTestSuite": "Test Suite",
   "app.version": "2.0.1 [TEST]",
+  "aside.loading": "Caricamento del menu di navigazione…",
+  "aside.retry": "Riprova",
   "assign.adminRoleLocked": "Il ruolo di amministratore è bloccato e non può essere modificato.",
   "assign.all": "Tutti",
   "assign.assignedRole": "Ruolo assegnato",

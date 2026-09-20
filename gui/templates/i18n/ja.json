@@ -26,6 +26,8 @@
   "alx.thTestCase": "Test Case",
   "alx.thTestSuite": "Test Suite",
   "app.version": "2.0.1 [TEST]",
+  "aside.loading": "ナビゲーションメニューを読み込み中…",
+  "aside.retry": "再試行",
   "assign.adminRoleLocked": "管理者ロールはロックされており、変更できません。",
   "assign.all": "すべて",
   "assign.assignedRole": "割り当てられたロール",
