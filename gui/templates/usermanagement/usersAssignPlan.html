@@ -148,6 +148,25 @@ var users = [];      // {id, login, name, inheritedRoleName, isAdmin, origRoleID
 var userById = {};   // id -> user entry
 var assignDt = null; // DataTables instance on #assignTable
 
+// Legacy parity: DataTables 1.9.x (bundled with the legacy grid) reset the
+// sort back to the table's default order on the THIRD click of the same column
+// (bSortReset=true; usersAssign.tpl + DataTables.inc.tpl never overrode it).
+// DataTables 1.13.7 drops an empty '' entry from orderSequence and toggles
+// asc<->desc forever, so the third-click reset is re-implemented on top of the
+// native toggle (attached once; #assignTable ths survive destroy/re-init).
+var dtClickCol = -1, dtClickN = 0;
+$('#assignTable').on('click', 'thead th', function() {
+  if (!assignDt) return;
+  var col = $(this).index();
+  if (col !== dtClickCol) { dtClickCol = col; dtClickN = 1; }
+  else { dtClickN++; }
+  if (dtClickN >= 3) {
+    dtClickCol = -1;
+    // The configured default (order [[1,'asc']], i.e. the legacy "original").
+    assignDt.order([1, 'asc']).draw();
+  }
+});
+
 function esc(s) {
   return String(s == null ? '' : s)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
