@@ -17472,3 +17472,37 @@ page size 20.
 
 ### Result
 [ ] PASS  |  [ ] FAIL
+## Suite 1547 — Issue #1547 — Top navigation bar (titlebar) navBar modernization (Refs #1547)
+
+### Setup
+- Fixtures this run: test project "Modern Walk" MWK id=1 (+ test plan "Walk Plan" id=2) and
+  project "Second Walk" SWK id=3 (+ test plan "Second Plan" id=4). Login admin/admin; app root http://localhost:8082.
+
+### Steps
+1. Open `index.php?tproject_id=1&tplan_id=2`. `iframe#titlebar` src = `.../gui/templates/navbar/navBar.html?locale=*&tproject_id=1&tplan_id=2`.
+   Titlebar renders: Logo (`/index.php?tproject_id=1&tplan_id=2`), project combo `["1:MWK:Modern Walk","3:SWK:Second Walk"]` with `1` selected,
+   plan combo `["2:Walk Plan"]` with `2` selected, whoami `Testlink Administrator` / `admin`, Logout `/logout.php?viewer=`, locale switcher.
+2. BFF contract admin: `GET api/navbar/?action=init` → 200 JSON `status=ok`, `tproject_id=1`, `tplan_id=2`, projects map, testplans, whoami, grants; anonymous `curl` → 401; `POST` → 405; `?action=foo` → 400.
+3. Legacy deep link: `GET lib/general/navBar.php?tproject_id=1&tplan_id=1` while authenticated → 200, serves modern HTML (`<header class="header black-bg">`, `api/navbar`, `i18n.js`); anonymous request → legacy redirect to login.
+4. Project switch: set project combo to `3`, hidden `tproj=3`, `returnFeature=reqSpecMgmt`, submit → top URL `index.php?action=projectChange`, mainframe = `reqSpecMgmt.html?feature=reqSpecMgmt&tproject_id=3&tplan_id=0`, project combo selects `3`, plan combo repopulates `["4:Second Plan"]` selected.
+   Switch back to `1` → plan combo `["2:Walk Plan"]`, plan `2`.
+5. Plan change: change plan select → top URL `index.php?action=planChange`, titlebar keeps project and shows selected plan.
+6. whoami: click → mainframe navigates to `gui/templates/usermanagement/userInfo.html?tproject_id=<proj>&tplan_id=<plan>` (verified via iframe content URL).
+7. Logout: click Logout → session killed, top lands on `login.php?note=logout&viewer=`; re-login admin/admin.
+8. Locale switcher: switch to `de` → titlebar reloads `?locale=de`, labels `Testprojekt`/`Testplan`/`Abmelden`; switch back `en` → `Test Project`/`Test Plan`/`Logout`. Console: no error/warn.
+9. Event Viewer: no new ERROR/WARNING rows (only AUDIT-level login/logout/creation events).
+
+### Expected
+1. Titleframe fully modernized (no `lib/general/navBar.php` in the frameset), all navBar functionality preserved with exact legacy parity and absolute-URL fixes, Event Viewer/console clean.
+
+### Result
+- Step 1 PASS — recorded live (Dom/markup assertions in headless Chrome).
+- Step 2 PASS — 200/401/405/400 verified.
+- Step 3 PASS — shim serves modern HTML; anon falls back to login.
+- Step 4 PASS — switch + feature round-trip + combo repopulation verified both directions.
+- Step 5 PASS — planChange reload keeps context.
+- Step 6 PASS — mainframe lands on userInfo.html.
+- Step 7 PASS — logout + clean re-login.
+- Step 8 PASS — de/en labels verified.
+- Step 9 PASS — events AUDIT-only.
+[ ] PASS  |  [ ] FAIL
