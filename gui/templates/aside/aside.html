@@ -277,6 +277,26 @@ function render(data) {
     classExpand: 'dcjq-current-parent'
   });
 
+  /* Long labels that overflow get the asideFrame.tpl slide-on-hover: measure
+     while holding each closed ul.sub briefly visible (synchronous, never
+     painted) and set --menu-label-shift so :hover/:focus slides it readable. */
+  $('#sidebar ul.sidebar-menu ul.sub').each(function () {
+    var $sub = $(this);
+    var wasHidden = $sub.css('display') === 'none';
+    if (wasHidden) { $sub.css('display', 'block'); }
+
+    $sub.find('> li > a').each(function () {
+      var $label = $(this).children('.menu-label');
+      var overflow = $label[0].scrollWidth - this.clientWidth;
+      if (overflow > 0) {
+        $label[0].style.setProperty('--menu-label-shift', (-overflow - 4) + 'px');
+        $label.addClass('menu-label-overflow');
+      }
+    });
+
+    if (wasHidden) { $sub.css('display', ''); }
+  });
+
   /* While railed the submenus are hidden; a click on a section header
      un-rails instead of doing nothing (asideFrame.tpl parity). */
   $('#sidebar ul.sidebar-menu > li.sub-menu > a').on('click', function (ev) {
