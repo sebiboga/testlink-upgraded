@@ -141,7 +141,7 @@ MAJOR AREAS
   classes fixed, from E_WARNING/E_NOTICE to PHP 8.4 deprecations). Full PHP 8.4
   compatibility (Symfony translation implicit-nullable fix, #481). MariaDB 11.4
   tested. MySQL 5.7+ / MariaDB 11.4+.
-- [MODERNIZED SCREENS] - 116 standalone HTML screens (88+ feature-parity checked,
+- [MODERNIZED SCREENS] - 117 standalone HTML screens (88+ feature-parity checked,
   see docs/SCREEN-COMPARE-STATUS.md). All ASIDE menu sections covered: System,
   Product, Requirements, Test Spec, Plans, Execution, Reports, Auth, Documentation.
 - [I18N] - Client-side TLi18n module (gui/templates/i18n/i18n.js) with 10 locale
@@ -155,7 +155,7 @@ MAJOR AREAS
 - [CI FACTORY] - 5 autonomous GitHub Actions workflows: fix-bug.yml (every 2h),
   implement-task-oldest.yml + implement-task-newest.yml (every 2h), merge-prs.yml
   (hourly), modernize.yml (manual, one screen per run).
-- [TESTING] - 185 numbered regression test-case suites in tmp/TLU_Test_Cases.md
+- [TESTING] - 186 numbered regression test-case suites in tmp/TLU_Test_Cases.md
   (13.4k lines, 3672 PASS results), executed and recorded per run. Event Viewer
   clean after each run.
 - [WIKI / DOCS] - Full GitHub Wiki (361 pages) + docs/ mirror, per-screen
@@ -529,6 +529,17 @@ Execution:
 - Execution History (execHistory.html) - BFF api/execute.
 - TC Exec Assignment (tcExecAssignment.html) - BFF api/execassignment.
 - Remove all tester assignments (tcUnassignAll.html) - BFF api/tcunassignall (#1434).
+- Execution Notes popup (execNotes.html) - BFF api/execnotes (#1551): standalone
+  view/edit of the free-form execution notes, modernizing the legacy two-screen
+  pair lib/execute/execNotes.php (edit) + lib/execute/getExecNotes.php (readonly).
+  GET /{exec_id} resolves the execution + build/platform/testplan/testcase/project
+  context via get_execution() (raw + audit), PUT /{exec_id} persists notes with
+  the legacy doUpdate() semantics. $actions->execNotesView link switch in
+  common.php; execnotes.* i18n (15 keys) in all 10 bundles. Session auth +
+  bffSameOriginGuard (401 anon, 403 CSRF, 404 unknown exec) — the LAST remaining
+  lib/execute/* screen pair with no dedicated modern screen (TODO section of
+  MODERNIZATION-STATUS.md is now empty: this close-out pick came from the
+  "smallest coherent legacy standalone screen" rule).
 - TC Assignments (tcAssignments.html) - BFF api/tcassignments.
 - Edit Execution popup (editExecution.html).
 - Export Test Case Set (execExport.html) - BFF api/executeexport.
