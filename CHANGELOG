@@ -56,6 +56,20 @@ MAJOR AREAS
   10 bundles (common.showEntries/entries/pageInfo/prev/next reused). Fixture
   tmp/fixtures_939.php (tproject + two plans + 25 users) exercises paging and
   cross-plan isolation. Suite 939 8/8 PASS, Event Viewer clean. (Refs #939)
+- [FEATURE GAP CLOSED] - #940: the modern Assign Test Plan Roles screen
+  (gui/templates/usermanagement/usersAssignPlan.html) makes the Plan Role Override
+  select read-only for global-admins with a localized lock hint — legacy
+  usersAssign.tpl:244-247 + :275-277 disabled the select and rendered a hint for
+  users whose GLOBAL role is TL_ROLES_ADMIN (users.role_id = 8). The gap was closed
+  end-to-end under #927 (commit b92ce7f31): GET /roles/meta/tplan-roles emits
+  'isAdmin' per user (api/roles/index.php:808), buildSelectHtml() renders the
+  disabled select + assign.adminRoleLocked hint icon, isDirty()/applyBulkRole()/
+  saveAssignments() skip isAdmin rows, and PUT /roles/tplan-roles strips admin ids
+  server-side (stripGlobalAdminAssignments) so a crafted API write can never alter
+  or erase an admin's plan role. Verified live: admin row select disabled with hint,
+  crafted PUT {"1":6,"2":7} -> only (2,2,7) written, UI save/bulk never touch admin.
+  i18n assign.adminRoleLocked in all 11 bundles. Suite 940 5/5 PASS, Event Viewer
+  clean. (Refs #940)
 - [GAP CLOSED] - #1350: the modern Requirement Specification Viewer toolbar
   (gui/templates/requirements/reqSpecView.html) restores the three legacy
   reqSpecView toolbar actions (reqSpecViewButtons.inc.tpl:88-93 +

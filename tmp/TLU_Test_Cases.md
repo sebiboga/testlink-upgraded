@@ -17506,3 +17506,37 @@ page size 20.
 - Step 8 PASS — de/en labels verified.
 - Step 9 PASS — events AUDIT-only.
 [ ] PASS  |  [ ] FAIL
+## Suite 940 — Task — Issue #940: Global-admin user role select read-only + hint in Assign Test Plan Roles (gap vs legacy)
+
+### Setup
+- Fixtures: project id=1 "Demo Project" (prefix DEMO), plan id=2 "Demo Plan" (active),
+  users admin (id=1, `role_id=8` = TL_ROLES_ADMIN global admin), jdoe (id=2, `role_id=7`).
+- Login admin/admin; app root http://localhost:8082.
+
+### Steps
+1. Open `usersAssignPlan.html?tproject_id=1&tplan_id=2`, select Demo Plan. BFF
+   `GET /api/roles/index.php/meta/tplan-roles?tproject_id=1&tplan_id=2` → 200 items carry
+   `isAdmin` per user (admin true, jdoe false). DOM: admin row Plan Role Override select
+   `disabled=true` + info-hint icon with localized tooltip
+   ("Administrator role is locked and cannot be changed."); jdoe row select enabled.
+2. Server-side strip: crafted PUT `{"tplan_id":2,"assignments":{"1":6,"2":7}}`
+   (admin→senior tester) → 200; `user_testplan_roles` must contain ONLY `(2,2,7)`.
+3. UI save: change jdoe select → "senior tester" (6), Save Changes → grid reloads,
+   DB `(2,2,6)`, admin row back at "-- no override --" (value 0), still disabled, no
+   override written for user 1.
+4. Bulk "Set roles to: tester" (7) + Do → admin row value stays 0 (skipped, disabled),
+   jdoe row → 7, Save re-enabled (dirty).
+5. Console: no error/warn lines. `events` table: no new ERROR/WARNING rows.
+
+### Expected
+1. Global-TL_ROLES_ADMIN users get a disabled Plan Role Override select with a localized
+   "locked" hint; Save / bulk / crafted API writes can never alter or erase an admin's
+   plan role; DB and Event Viewer clean.
+
+### Result
+- Step 1 PASS — verified live (BFF JSON + DOM disabled select + hint tooltip).
+- Step 2 PASS — PUT 200; `user_testplan_roles` = only `(2,2,7)`; admin stripped.
+- Step 3 PASS — UI save wrote `(2,2,6)` only; admin locked at value 0 after reload.
+- Step 4 PASS — bulk Do skipped admin, jdoe → 7.
+- Step 5 PASS — console + events clean.
+[ x ] PASS  |  [ ] FAIL
