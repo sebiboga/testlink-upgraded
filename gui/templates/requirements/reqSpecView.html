@@ -110,6 +110,16 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; }
   </span>
   <a class="btn-ghost" id="reorderLink" href="#" target="_blank"><i class="fa fa-list-ol"></i> <span data-i18n="reqro.toolbarLink">Reorder requirements</span></a>
   <a class="btn-ghost" id="createFromIssuesLink" href="#" style="display:none;"><i class="fa fa-bug-slash"></i> <span data-i18n="reqfi.title">Create Requirements from Issues</span></a>
+  <!-- Refs #1346 - legacy reqSpecViewButtons.inc.tpl:54-57 + :109-112: two Import
+       entry points gated on req_mgmt. "Import Reqs" = items scope
+       (reqImport.php?req_spec_id= -> reqImport.html?req_spec_id=), "Import Req
+       Spec" = branch scope (reqImport.php?scope=branch&req_spec_id= ->
+       reqImport.html?scope=branch&req_spec_id=), importing a spec XML tree INTO
+       this spec as a child branch. When a requirement-management system is linked
+       to the test project the legacy viewer renames the branch button to
+       "Import via API (<name>)" (reqSpecView.php importViaAPI + reqMgrSystemEnabled). -->
+  <a class="btn-ghost" id="importItemsLink" href="#" target="_blank" style="display:none;"><i class="fa fa-upload"></i> <span data-i18n="rsv.importReqs">Import Reqs</span></a>
+  <a class="btn-ghost" id="importBranchLink" href="#" target="_blank" style="display:none;"><i class="fa fa-code-branch"></i> <span id="importBranchLabel" data-i18n="rsv.importReqSpec">Import Req Spec</span></a>
   <a class="btn-ghost" href="#" onclick="return goExportReqs('items')"><i class="fa fa-download"></i> <span data-i18n="reqexp.export">Export</span></a>
   <a class="btn-ghost" href="#" onclick="return goExportReqs('branch')"><i class="fa fa-sitemap"></i> <span data-i18n="reqexp.exportBranch">Export branch</span></a>
   <!-- Refs #1350 - legacy reqSpecViewButtons.inc.tpl:88-93 (printerFriendly ->
@@ -497,6 +507,22 @@ function showHideActions(r) {
     SPEC_ID + '&tproject_id=' + TPROJECT_ID);
   $('#createFromIssuesLink').attr('href', '/gui/templates/requirements/reqFromIssues.html?req_spec_id=' +
     SPEC_ID + '&tproject_id=' + TPROJECT_ID);
+  // Refs #1346 - deep links into the modern import screen (reqImport.html), the
+  // modern twin of legacy lib/requirements/reqImport.php. items scope passes the
+  // spec id so the form preselects the target; branch scope passes scope=branch
+  // so the form offers the spec-tree (XML) import types.
+  $('#importItemsLink').attr('href', '/gui/templates/requirements/reqImport.html?req_spec_id=' +
+    SPEC_ID + '&tproject_id=' + TPROJECT_ID);
+  $('#importBranchLink').attr('href', '/gui/templates/requirements/reqImport.html?scope=branch&req_spec_id=' +
+    SPEC_ID + '&tproject_id=' + TPROJECT_ID);
+  // Refs #1346 - legacy label switch: btn_import_req_spec becomes
+  // "Import via API (<name>)" when a requirement-management system is linked
+  // (getReqMgrSystem() -> reqMgrSystemEnabled), otherwise the plain label.
+  if (r.req_mgr_system && r.req_mgr_system.name) {
+    $('#importBranchLabel').text(TLi18n.t('rsv.importViaApi', { system: r.req_mgr_system.name }));
+  } else {
+    $('#importBranchLabel').text(TLi18n.t('rsv.importReqSpec'));
+  }
   // Refs #1348 - Requirement Operations group (Create TC / Copy / Bulk Mon):
   // exactly the legacy gate `req_mgmt == yes && requirements_count > 0`.
   var reqOpsOn = !!(r.rights && r.rights.manage) &&
@@ -516,6 +542,10 @@ function showHideActions(r) {
     // Refs #1347 - legacy req_mgmt gate for btn_req_create: manager can always
     // create a new requirement bound to this spec, even with 0 requirements.
     $('#createReqBtn').show();
+    // Refs #1346 - legacy req_mgmt gate for btn_import_req_spec + btn_import_reqs:
+    // both import entry points only appear for requirement managers.
+    $('#importItemsLink').show();
+    $('#importBranchLink').show();
     hb($('#freezeBtn'), freezeSpec);
     hb($('#revBtn'), newRevision);
   } else {
@@ -523,6 +553,8 @@ function showHideActions(r) {
     $('#revBtn').hide();
     $('#createFromIssuesLink').hide();
     $('#createReqBtn').hide();
+    $('#importItemsLink').hide();
+    $('#importBranchLink').hide();
   }
 }
 

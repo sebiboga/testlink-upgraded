@@ -72,10 +72,11 @@ table.res tr:hover td { background: #f4fbfa; }
   <div class="card-body">
     <form id="importForm">
       <input type="hidden" id="tprojectId">
-      <div class="form-group">
+      <div class="form-group" id="targetGroup">
         <label for="specSelect" data-i18n="reqimp.targetSpec">Target Requirement Specification</label>
         <select id="specSelect" class="form-control"></select>
-        <div class="hint" data-i18n="reqimp.targetHint">choose a specification to import requirements into it, or leave it on "whole project" to import a specification tree (XML only)</div>
+        <div class="hint" id="branchNote" style="display:none;" data-i18n="reqimp.branchHint">import a specification tree as a child branch of the selected specification (XML only)</div>
+        <div class="hint" id="targetHint" data-i18n="reqimp.targetHint">choose a specification to import requirements into it, or leave it on "whole project" to import a specification tree (XML only)</div>
       </div>
       <div class="form-group">
         <label for="importType" data-i18n="reqimp.fileType">File Type</label>
@@ -144,16 +145,26 @@ table.res tr:hover td { background: #f4fbfa; }
 var API = '/api/reqimport/index.php';
 var tprojectId = 0;
 var opts = null;
+// Refs #1346 - scope=branch mirrors legacy reqImport.php?scope=branch&req_spec_id=
+// (the "Import Req Spec" button of the spec viewer): the form is pre-bound to the
+// given spec and offers the spec-tree (XML) import types, importing a spec tree
+// INTO that spec as a child branch.
+var scope = '';
 
 $(function () {
   var p = new URLSearchParams(window.location.search);
   tprojectId = parseInt(p.get('tproject_id') || '0', 10);
+  scope = p.get('scope') || '';
   if (p.get('req_spec_id')) {
     $('#specSelect').attr('data-preselect', p.get('req_spec_id'));
   }
   TLi18n.load(function () {
     TLi18n.apply();
     TLi18n.initLocaleSwitcher('#localeSwitcher');
+    if (scope === 'branch') {
+      $('#targetGroup').show();
+      $('#branchNote').show();
+    }
     load();
   });
 });
@@ -216,7 +227,9 @@ function renderTargets() {
 }
 
 function renderTypes() {
-  var isTree = ($('#specSelect').val() === '0');
+  // Refs #1346 - branch scope (spec viewer "Import Req Spec") always offers the
+  // spec-tree import types regardless of the selected target spec.
+  var isTree = (scope === 'branch') || ($('#specSelect').val() === '0');
   var types = isTree ? (opts.spec_import_types || []) : (opts.req_import_types || []);
   var $t = $('#importType');
   var current = $t.val();

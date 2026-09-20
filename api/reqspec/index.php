@@ -678,6 +678,26 @@ if ($method === 'GET' && $action === 'spec_view') {
         ];
     }
 
+    // Refs #1346 - the legacy Import (branch) button text switches to
+    // "Import via API (<name>)" when the test project has a requirement
+    // management system linked (legacy reqSpecView::initialize_gui via
+    // reqSpecCommands::getReqMgrSystem() -> tlReqMgrSystem::getLinkedTo(),
+    // gated on testprojects.reqmgr_integration_enabled). Expose the linked
+    // system name/type so the modern viewer can render the same label.
+    $reqMgrSystem = null;
+    $tprojInfo = $tprojectMgr->get_by_id($ownerTid);
+    if (!empty($tprojInfo['reqmgr_integration_enabled'])) {
+        $sysMgr = new tlReqMgrSystem($db);
+        $linked = @$sysMgr->getLinkedTo($ownerTid);
+        if (!empty($linked)) {
+            $reqMgrSystem = [
+                'id'   => intval($linked['reqmgrsystem_id']),
+                'name' => (string)$linked['reqmgrsystem_name'],
+                'type' => (string)(isset($linked['verboseType']) ? $linked['verboseType'] : $linked['type']),
+            ];
+        }
+    }
+
     $revCount = intval($db->fetchFirstRowSingleColumn(
         "SELECT COUNT(*) AS n FROM req_specs_revisions WHERE parent_id = " . intval($specId),
         'n'));
@@ -743,6 +763,9 @@ if ($method === 'GET' && $action === 'spec_view') {
                 (isset($reqCfg->external_req_management)
                  && $reqCfg->external_req_management == ENABLED) ? true : false,
         ],
+        // Refs #1346 - linked requirement-management system (null when the
+        // project has none enabled); drives the "Import via API (name)" label.
+        'req_mgr_system' => $reqMgrSystem,
         'cfields'      => $cfields,
         'attachments'  => $attachments,
         // legacy attachments.inc.tpl:163 shows the upload limit hint
