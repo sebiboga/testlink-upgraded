@@ -4437,5 +4437,20 @@
   "navb.reloadMain": "Ricarica vista principale",
   "navb.toggleNav": "Attiva/disattiva navigazione",
   "footers.navBar": "Modernizzazione della barra di navigazione superiore",
-  "rbm.reqTitle": "Titolo"
+  "rbm.reqTitle": "Titolo",
+  "execnotes.title": "Note di esecuzione",
+  "execnotes.testCase": "Caso di test",
+  "execnotes.testPlan": "Piano di test",
+  "execnotes.build": "Build",
+  "execnotes.platform": "Piattaforma",
+  "execnotes.status": "Stato",
+  "execnotes.executedOn": "Eseguito il",
+  "execnotes.notesHeading": "Note di esecuzione",
+  "execnotes.notesPlaceholder": "Aggiungi note di esecuzione...",
+  "execnotes.noNotes": "Nessuna nota di esecuzione registrata.",
+  "execnotes.loadFailed": "Impossibile caricare le note di esecuzione.",
+  "execnotes.saveFailed": "Impossibile salvare le note di esecuzione.",
+  "execnotes.saved": "Note salvate.",
+  "execnotes.accessDenied": "Accesso negato",
+  "execnotes.accessDeniedMsg": "È richiesto un id di esecuzione per visualizzare questa schermata."
 }

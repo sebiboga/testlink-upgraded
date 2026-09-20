@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Execution Notes</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+
+.header {
+  background: #4ECDC4; color: #fff; padding: 14px 24px;
+  font-size: 20px; font-weight: 700; letter-spacing: 1px;
+}
+.header span { font-size: 13px; font-weight: 400; opacity: .8; margin-left: 12px; }
+
+.wrap { padding: 22px 24px; max-width: 980px; margin: 0 auto; }
+
+.meta {
+  background: #fff; border-radius: 8px; padding: 16px 20px; margin-bottom: 18px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.08);
+}
+.meta .row { display: flex; flex-wrap: wrap; gap: 8px 28px; }
+.meta .field { font-size: 13px; color: #555; }
+.meta .field b { color: #22242a; margin-right: 5px; }
+
+.card {
+  background: #fff; border-radius: 8px; padding: 20px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.08);
+}
+.card h3 { margin: 0 0 14px; font-size: 15px; color: #22242a; }
+
+.notes-box {
+  background: #f7f7f7; border: 1px solid #e2e2e2; border-radius: 6px;
+  padding: 14px 16px; font-size: 14px; color: #333; min-height: 90px;
+  line-height: 1.6; white-space: pre-wrap; word-break: break-word;
+}
+.notes-box.empty { color: #999; font-style: italic; }
+
+textarea#notesArea {
+  width: 100%; min-height: 140px; border: 1px solid #d0d0d0; border-radius: 6px;
+  padding: 12px 14px; font-size: 14px; font-family: inherit;
+}
+
+.toolbar { margin-top: 16px; text-align: right; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 8px 20px;
+  border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-outline { background: #fff; color: #555; border: 1px solid #ccc; padding: 8px 20px;
+  border-radius: 4px; cursor: pointer; font-size: 13px; }
+.btn-outline:hover { background: #f0f0f0; }
+
+.toast {
+  position: fixed; top: 16px; right: 16px; background: #2c3e50; color: #fff;
+  padding: 12px 18px; border-radius: 6px; font-size: 13px; opacity: 0;
+  transition: opacity .25s; z-index: 999; pointer-events: none;
+}
+.toast.show { opacity: 1; }
+.toast.ok { background: #4ECDC4; }
+.toast.err { background: #e6605e; }
+
+.access-denied {
+  background: #fff; border: 1px solid #f0d0d0; border-left: 4px solid #e6605e;
+  border-radius: 8px; margin: 24px; padding: 28px 32px; text-align: center;
+}
+.access-denied i { font-size: 34px; color: #e6605e; margin-bottom: 10px; }
+.access-denied h3 { margin: 0 0 8px; font-size: 18px; color: #22242a; }
+.access-denied p { margin: 0; font-size: 14px; color: #777; }
+
+.loading { text-align: center; padding: 60px 0; color: #888; font-size: 14px; }
+</style>
+</head>
+<body>
+<div class="header">
+  <i class="fa fa-sticky-note"></i>
+  <span data-i18n="execnotes.title">Execution Notes</span>
+</div>
+
+<div class="wrap">
+  <div id="loading" class="loading"><i class="fa fa-spinner fa-spin"></i> <span data-i18n="common.loading">Loading...</span></div>
+
+  <div id="denied" class="access-denied" style="display:none">
+    <i class="fa fa-lock"></i>
+    <h3 data-i18n="execnotes.accessDenied">Access denied</h3>
+    <p data-i18n="execnotes.accessDeniedMsg">An execution id is required to view this screen.</p>
+  </div>
+
+  <div id="content" style="display:none">
+    <div class="meta">
+      <div class="row">
+        <span class="field"><b data-i18n="execnotes.testCase">Test case</b><span id="mbTestCase">-</span></span>
+        <span class="field"><b data-i18n="execnotes.testPlan">Test plan</b><span id="mbTestPlan">-</span></span>
+        <span class="field"><b data-i18n="execnotes.build">Build</b><span id="mbBuild">-</span></span>
+        <span class="field"><b data-i18n="execnotes.platform">Platform</b><span id="mbPlatform">-</span></span>
+        <span class="field"><b data-i18n="execnotes.status">Status</b><span id="mbStatus">-</span></span>
+        <span class="field"><b data-i18n="execnotes.executedOn">Executed on</b><span id="mbTs">-</span></span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3><i class="fa fa-edit"></i> <span data-i18n="execnotes.notesHeading">Execution notes</span></h3>
+      <div id="notesView">
+        <div id="notesBox" class="notes-box"></div>
+        <div class="toolbar">
+          <button id="btnEdit" class="btn-teal"><i class="fa fa-edit"></i> <span data-i18n="common.edit">Edit</span></button>
+        </div>
+      </div>
+      <div id="notesForm" style="display:none">
+        <textarea id="notesArea" data-i18n-ph="execnotes.notesPlaceholder" placeholder="Add execution notes..."></textarea>
+        <div class="toolbar">
+          <button id="btnCancel" class="btn-outline"><span data-i18n="common.cancel">Cancel</span></button>
+          <button id="btnSave" class="btn-teal"><i class="fa fa-save"></i> <span data-i18n="common.save">Save</span></button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+<div id="footerText" style="display:none"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script>
+var EXEC_ID = 0;
+
+function esc(s) {
+  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function toast(msg, kind) {
+  var t = $('#toast');
+  t.removeClass('ok err').addClass('show ' + (kind || 'ok')).text(msg);
+  clearTimeout(t.data('to'));
+  t.data('to', setTimeout(function () { t.removeClass('show'); }, 2600));
+}
+
+function loadNotes() {
+  $('#content').hide();
+  $('#loading').show();
+  $.getJSON('/api/execnotes/' + EXEC_ID, function (r) {
+    if (r.status !== 'ok') { $('#loading').hide(); toast(r.message || 'Error', 'err'); return; }
+    var x = r.execution;
+    $('#mbTestCase').text(esc(x.testcase_name || ('#' + x.tcversion_id)));
+    $('#mbTestPlan').text(esc(x.testplan_name || ''));
+    $('#mbBuild').text(esc(x.build_name || ''));
+    $('#mbPlatform').text(esc(x.platform_name || '-'));
+    $('#mbStatus').text(esc(x.status_ss || ''));
+    $('#mbTs').text(esc(x.execution_ts || ''));
+    var notes = x.notes || '';
+    $('#notesBox').html(notes ? esc(notes) : TLi18n.t('execnotes.noNotes'));
+    $('#notesBox').toggleClass('empty', !notes);
+    $('#notesArea').val(notes);
+    $('#loading').hide();
+    $('#content').show();
+  }).fail(function () {
+    $('#loading').hide();
+    toast(TLi18n.t('execnotes.loadFailed'), 'err');
+  });
+}
+
+function saveNotes() {
+  var notes = $('#notesArea').val();
+  $('#btnSave').prop('disabled', true);
+  $.ajax({
+    url: '/api/execnotes/' + EXEC_ID,
+    method: 'PUT',
+    contentType: 'application/json',
+    data: JSON.stringify({ notes: notes })
+  }).done(function (r) {
+    if (r.status === 'ok') {
+      toast(TLi18n.t('execnotes.saved'));
+      switchMode(false);
+      loadNotes();
+    } else {
+      toast(r.message || 'Error', 'err');
+    }
+  }).fail(function (xhr) {
+    var msg = (xhr.responseJSON && xhr.responseJSON.message) || TLi18n.t('execnotes.saveFailed');
+    toast(msg, 'err');
+  }).always(function () {
+    $('#btnSave').prop('disabled', false);
+  });
+}
+
+function switchMode(edit) {
+  $('#notesView').toggle(!edit);
+  $('#notesForm').toggle(edit);
+  if (edit) { $('#notesArea').trigger('focus'); }
+}
+
+$(function () {
+  var p = new URLSearchParams(window.location.search);
+  EXEC_ID = parseInt(p.get('exec_id') || 0, 10);
+
+  TLi18n.load(function () {
+    TLi18n.apply();
+    if (!EXEC_ID) {
+      $('#loading').hide();
+      $('#denied').show();
+      return;
+    }
+    $('#btnEdit').on('click', function () { switchMode(true); });
+    $('#btnCancel').on('click', function () { switchMode(false); });
+    $('#btnSave').on('click', saveNotes);
+    loadNotes();
+  });
+});
+</script>
+</body>
+</html>

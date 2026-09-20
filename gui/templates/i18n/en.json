@@ -4453,5 +4453,20 @@
   "navb.reloadMain": "Reload Main View",
   "navb.toggleNav": "Toggle Navigation",
   "footers.navBar": "Top Navigation Bar Modernization",
-  "rbm.reqTitle": "Title"
+  "rbm.reqTitle": "Title",
+  "execnotes.title": "Execution Notes",
+  "execnotes.testCase": "Test case",
+  "execnotes.testPlan": "Test plan",
+  "execnotes.build": "Build",
+  "execnotes.platform": "Platform",
+  "execnotes.status": "Status",
+  "execnotes.executedOn": "Executed on",
+  "execnotes.notesHeading": "Execution notes",
+  "execnotes.notesPlaceholder": "Add execution notes...",
+  "execnotes.noNotes": "No execution notes recorded.",
+  "execnotes.loadFailed": "Failed to load the execution notes.",
+  "execnotes.saveFailed": "Failed to save the execution notes.",
+  "execnotes.saved": "Notes saved.",
+  "execnotes.accessDenied": "Access denied",
+  "execnotes.accessDeniedMsg": "An execution id is required to view this screen."
 }
