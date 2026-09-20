@@ -4,6 +4,7 @@
 <link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<base href="/">
 <title>TestLink Navigation</title>
 <!--
   ASIDE navigation frame (modernized, Refs #1548).
@@ -64,6 +65,22 @@
   body.rail .sidebar-menu ul.sub { display: none !important; }
   body.rail .sidebar-menu > li > a { text-align: center; padding: 12px 0; }
   body.rail .sidebar-menu > li > a i { margin: 0; font-size: 18px; }
+
+  /* The dcjq accordion's expand arrow asset (dashio img/nav-expand.png) is
+     not shipped with the repo, so the legacy frame 404'd on it. Draw the
+     chevron with FontAwesome instead (already loaded per the dashio palette). */
+  #sidebar .dcjq-icon {
+    background: none !important;
+    width: 16px;
+    border-radius: 0;
+  }
+  #sidebar .dcjq-icon::before {
+    font-family: 'Font Awesome 6 Free';
+    font-weight: 900;
+    font-size: 10px;
+    content: "\f078";
+  }
+  #sidebar .active .dcjq-icon::before { content: "\f077"; }
 
   #asideState {
     color: #9aa4b0;

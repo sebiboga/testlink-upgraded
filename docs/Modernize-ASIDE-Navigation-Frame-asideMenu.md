@@ -111,6 +111,15 @@ flagged with `"single": true` and the client renders them as top-level `<li>`
   `main.tpl`): `#sidebar`, `ul.sidebar-menu#nav-accordion`, `li.sub-menu`,
   `ul.sub`, `a[target="mainframe"]`, `li.active`,
   `window.tlSetRail/tlIsRailed`, `li a.tl-sub-selected`.
+- **Base href**: the legacy `asideFrame.tpl` set `<base href="{$basehref}">`,
+  so relative hrefs in `aside.tpl` (`gui/templates/projectsView.html`,
+  `projects/severityConfig.html`, `documentation/documentation.html`) resolved
+  against the app root. The modern page keeps an equivalent `<base href="/">` —
+  without it those links resolved against `/gui/templates/aside/`.
+- **Accordion arrow asset**: `dashio/img/nav-expand.png` (used by the dcjq
+  accordion) is not shipped with the repo, so the legacy frame 404'd on it. The
+  modern screen draws the chevron with FontAwesome (`#sidebar .dcjq-icon`
+  background override) — no 404, same arrow indicator.
 - **Shim**: `lib/general/asideMenu.php` calls `doSessionStart()`; an
   authenticated request streams the modern HTML (`readfile`), an anonymous one
   falls through to the legacy controller which redirects to the login screen.

@@ -17579,6 +17579,12 @@ page size 20.
    the server locale (lang_get) and `aside.loading/aside.retry` come from the
    bundle. Console: no error/warn lines. `events` table: no new ERROR/WARNING
    rows after the final screen pass.
+8. Base href parity: the legible relative hrefs (`projectsView.html`,
+   `projects/severityConfig.html`, `documentation/documentation.html`) resolve
+   against the app root via `<base href="/">` (legacy asideFrame.tpl used
+   `basehref`): clicking Documentation loads
+   `gui/templates/documentation/documentation.html` in the mainframe; the dcjq
+   `dcjq-icon` chevron is FontAwesome-drawn (no `nav-expand.png` 404).
 
 ### Expected
 1. BFF + DOM parity with legacy asideMenu (section list, icons, grants/hrefs).
@@ -17605,4 +17611,7 @@ page size 20.
 - Step 6 PASS — shim authed + anonymous redirect + anon 401 error state.
 - Step 7 PASS — console clean, events table has NO rows after the final pass
   (3 earlier E_WARNING rows are from fixed dev-cycle BFF bugs, not the screen).
+- Step 8 PASS — Documentation opens the modern docs screen in the mainframe
+  (relative href + base tag); accordion chevrons render, no `nav-expand.png`
+  404 anywhere in the frameset's network log.
 [ x ] PASS  |  [ ] FAIL
