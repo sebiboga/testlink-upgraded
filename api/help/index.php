@@ -78,9 +78,17 @@ function helpLocaleDir($short) {
     return isset($map[$short]) ? $map[$short] : null;
 }
 
+function helpIsValidLocaleDir($locale) {
+    return is_string($locale) && preg_match('/^[a-z]{2}_[A-Z]{2}$/', $locale) === 1;
+}
+
 $locale = isset($_SESSION['locale']) ? (string)$_SESSION['locale'] : '';
 if ($locale === '' && isset($tlCfg) && !empty($tlCfg->default_language)) {
     $locale = $tlCfg->default_language;
+}
+if (!helpIsValidLocaleDir($locale)
+    || !is_file(dirname(__FILE__) . '/../../locale/' . $locale . '/texts.php')) {
+    $locale = '';
 }
 
 if (isset($_GET['locale'])) {
@@ -94,8 +102,9 @@ if (isset($_GET['locale'])) {
 }
 
 $strings = helpLoadLocale($locale);
-if (is_null($strings)) {
+if (is_null($strings) && $locale !== 'en_GB') {
     $strings = helpLoadLocale('en_GB');
+    $locale = 'en_GB';
 }
 if (is_null($strings)) {
     http_response_code(500);
