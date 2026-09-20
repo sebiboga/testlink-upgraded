@@ -2131,6 +2131,11 @@ function getActions(&$gui,$baseURL) {
     // #1024. Opens as a standalone Dashio page fed by api/executeexport.
     $actions->execExport =
       "/gui/templates/execute/execExport.html?{$ctx}";
+    // Execution Notes popup (modernized execNotes.php / getExecNotes.php,
+    // Refs #1551). Standalone Dashio page fed by api/execnotes; deep-link
+    // with exec_id=<execution id> to view/edit the free-form notes.
+    $actions->execNotesView =
+      "/gui/templates/execute/execNotes.html?{$ctx}";
   }
 
   $gui->uri = $actions;
