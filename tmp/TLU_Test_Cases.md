@@ -17540,3 +17540,69 @@ page size 20.
 - Step 4 PASS — bulk Do skipped admin, jdoe → 7.
 - Step 5 PASS — console + events clean.
 [ x ] PASS  |  [ ] FAIL
+
+## Suite 1548 — Modernize — Issue #1548: ASIDE navigation frame asideMenu (lib/general/asideMenu.php)
+
+### Setup
+- TestLink at http://localhost:8082, login admin/admin. Project NWALK (id=32),
+  plan id=33, DB re-imported + fixtures (tc1/tc2, build, req spec, milestone).
+- The frameset index.php renders the asidebar frame from
+  `gui/templates/aside/aside.html`; legacy `lib/general/asideMenu.php` is a shim.
+- App root http://localhost:8082.
+
+### Steps
+1. Full reload `index.php?tproject_id=32&tplan_id=33`. BFF
+   `GET /api/aside/?action=init&tproject_id=32&tplan_id=33` → 200 JSON:
+   sections dashboard/search/system/projects/testStrategy/requirements_design/
+   tests_design/plans/execution/reports/plugins/documentation. DOM: 12 top-level
+   `<li>` (10 `.sub-menu` + Dashboard + Documentation), every leaf `a` has
+   `target="mainframe"` and modern `gui/templates/**/**.html` hrefs.
+2. Accordion: click "System" section → only it expands (autoClose); header shows
+   `dcjq-icon` arrow; open section scrolls into view when the rail overflows.
+3. Navigate: click "Event viewer" → mainframe loads
+   `gui/templates/eventviewer/eventviewer.html?...`; parent
+   `syncAsideActiveLink` marks `li.active`; the leaf also gets
+   `tl-sub-selected` and `localStorage.tlAsideSelected` holds the href.
+4. Rail: `asidebar.tlSetRail(true)` → body.rail + parent frame class
+   `navigationAside railed` + cookie `TESTLINK1920_menuRail=1`; full reload
+   keeps the rail (server `menuRailIsOn` + client cookie). Click on any section
+   header while railed → un-rails (cookie=0). `tlSetRail(false)` restores.
+5. Parity spot-checks vs legacy aside.tpl gates: Dashboard entry shown with no
+   project selected (`tproject_id=0` BFF call); Reports sub-menu lists the
+   modern report map entries (testPlanReport `type=testplan/testreport/...`,
+   generalMetrics, resultsByTSuite, baselineL1L2, ...); Plugins section only
+   shows `plugin_management` (Installed Plugins) when no event links fire.
+6. Deep-link/shim: authed `lib/general/asideMenu.php` serves the modern screen
+   (12 sections); anonymous fetch redirects to login.php; anonymous
+   `gui/templates/aside/aside.html` shows "Not authenticated" + Retry button.
+7. i18n: switch locale (ro_RO) via navbar switcher → reload; menu labels follow
+   the server locale (lang_get) and `aside.loading/aside.retry` come from the
+   bundle. Console: no error/warn lines. `events` table: no new ERROR/WARNING
+   rows after the final screen pass.
+
+### Expected
+1. BFF + DOM parity with legacy asideMenu (section list, icons, grants/hrefs).
+2. Accordion self-contained; one section open at a time; scroll-to-top.
+3. Leaf navigation drives the mainframe and highlights both `li.active` and
+   `tl-sub-selected`.
+4. Rail toggle is cross-frame (titlebar burger contract `tlSetRail/tlIsRailed`),
+   persistent across reloads, and un-railable by clicking any header.
+5. Reports/plugins/keyword/plans gating identical to aside.tpl.
+6. Legacy controller and anonymous paths behave as before.
+7. Locales + error strings translated; no new Event Viewer entries.
+
+### Result
+- Step 1 PASS — 12 sections/109 links verified live (DOM + BFF JSON).
+- Step 2 PASS — System expand-only; dcjq arrows present.
+- Step 3 PASS — Event viewer navigation + `li.active` + `tl-sub-selected`
+  + localStorage href.
+- Step 4 PASS — rail set/reload-persist/click-unrail (cookie 0/1) verified.
+- Step 5 PASS — initUserEnv self-corrects tproject_id=0 to the first
+  accessible project (legacy parity, verified: no-param call returns the full
+  12-section tree), so the "no project" gate never materializes; Reports map
+  (24 entries incl. testPlanReport types, generalMetrics, resultsByTSuite,
+  baselineL1L2) and plugins gating verified in the full-tree dump.
+- Step 6 PASS — shim authed + anonymous redirect + anon 401 error state.
+- Step 7 PASS — console clean, events table has NO rows after the final pass
+  (3 earlier E_WARNING rows are from fixed dev-cycle BFF bugs, not the screen).
+[ x ] PASS  |  [ ] FAIL
