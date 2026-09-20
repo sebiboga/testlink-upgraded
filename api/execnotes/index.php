@@ -72,7 +72,7 @@ if ($method === 'GET' && count($segments) === 1 && ctype_digit($segments[0])) {
             'build_id' => intval($row['build_id']),
             'notes' => $row['notes'] ?? '',
             'execution_ts' => $row['execution_ts'] ?? '',
-            'status_ss' => $row['status_ss'] ?? '',
+            'status_char' => $row['status'] ?? '',
             'build_name' => $auditRow['build_name'] ?? '',
             'platform_name' => $auditRow['platform_name'] ?? '',
             'testplan_name' => $auditRow['testplan_name'] ?? '',

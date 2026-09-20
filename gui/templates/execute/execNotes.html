@@ -149,7 +149,12 @@ function loadNotes() {
     $('#mbTestPlan').text(esc(x.testplan_name || ''));
     $('#mbBuild').text(esc(x.build_name || ''));
     $('#mbPlatform').text(esc(x.platform_name || '-'));
-    $('#mbStatus').text(esc(x.status_ss || ''));
+    var statusLabel = '-';
+    if (x.status_char) {
+      var smap = { p: 'execprint.statusPassed', f: 'execprint.statusFailed', b: 'execprint.statusBlocked' };
+      statusLabel = smap[x.status_char] ? TLi18n.t(smap[x.status_char]) : esc(x.status_char);
+    }
+    $('#mbStatus').text(statusLabel);
     $('#mbTs').text(esc(x.execution_ts || ''));
     var notes = x.notes || '';
     $('#notesBox').html(notes ? esc(notes) : TLi18n.t('execnotes.noNotes'));
