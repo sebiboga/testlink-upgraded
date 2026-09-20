@@ -541,6 +541,25 @@ Execution:
   lib/execute/* screen pair with no dedicated modern screen (TODO section of
   MODERNIZATION-STATUS.md is now empty: this close-out pick came from the
   "smallest coherent legacy standalone screen" rule).
+- Help popup (showHelp.html) - BFF api/help (#1552): standalone localized help-viewer
+  popup replacing the last standalone lib/general/* popup lib/general/show_help.php.
+  Legacy parity (18 help topics): the modern screen renders a topic-index sidebar
+  (16 keys from the locale $TLS_htmltext/$TLS_htmltext_title texts.php bundles, the
+  same source staticPage #1501 serves) + content card, per-locale via TLi18n
+  (locale hint honoured only against a shipped texts.php, silent en_GB fallback for
+  bundles without one — e.g. ro_RO) and the legacy "ask administrator to update
+  localization file" notFound body for unknown keys (notFound=true, HTTP 200, legacy
+  parity). The legacy screen was BROKEN dead code on the upgraded branch (undefined
+  TL_HELP_RPATH constant + gui/help files deleted by 3e6994b71); modernizing it
+  restored the functionality — kept as a session-guarded 302 shim. Link switch
+  open_help_window() in gui/javascript/testlink_library.js re-pointed at the modern
+  screen (encodeURIComponent), popup widened 400->780px for the new layout. BFF hardens
+  locale path injection (^[a-z]{2}_[A-Z]{2}$ + is_file before include) + BOM-safe
+  texts include (ob_start/ob_end_clean) — staticPage has the identical latent flaw,
+  flagged. i18n hlp.* (7 keys) + footers.showHelp + common.close in all 10 bundles.
+  Suite 1552 8/8 PASS (direct key, unknown key notFound, locale switcher EN/FR incl.
+  BOM bundle, topic click, refresh, legacy shim 302, anonymous 401), Event Viewer
+  clean. (Refs #1552)
 - TC Assignments (tcAssignments.html) - BFF api/tcassignments.
 - Edit Execution popup (editExecution.html).
 - Export Test Case Set (execExport.html) - BFF api/executeexport.

@@ -17997,3 +17997,81 @@ BFF: `api/reqspec/index.php`.
 - **Actual:** PASS — console clean.
 
 **Result: 9/9 PASS.**
+## Suite 1552 — Screen — Help popup (showHelp.html + api/help)
+
+Fixture: default DB (help topics come from the `locale/*/texts.php`
+`$TLS_htmltext` bundles served by the modern BFF). Logged in as admin.
+URL: `http://localhost:8082/gui/templates/help/showHelp.html`.
+BFF: `api/help/index.php`.
+
+### Test 1 — BFF index (authenticated)
+1. `curl -b <session> /api/help/index.php?action=index&locale=en`.
+- **Expected:** 200, `status:ok`, `locale:en_GB`, 16 help topic items with
+  title + hasContent (assignReqs, editTc, searchTc, searchReq, searchReqSpec,
+  printTc, reqSpecMgmt, printReqSpec, keywordsAssign, executeTest, showMetrics,
+  planAddTC, assignExec, updateTcInPlan, setTestPriority, error).
+- **Actual:** PASS — 16 items returned, all hasContent:true.
+
+### Test 2 — BFF anonymous → 401
+1. `curl /api/help/index.php?action=index` (no session).
+- **Expected:** 401 JSON `{"status":"error","message":"Not authenticated"}`.
+- **Actual:** PASS.
+
+### Test 3 — BFF show known key
+1. `curl -b <session> "/api/help/index.php?action=show&help=assignReqs&locale=en"`.
+- **Expected:** 200, `status:ok`, `notFound:false`, title "Assign Requirements
+  to Test Case", content_html holds the legacy help HTML fragment.
+- **Actual:** PASS — full help body returned.
+
+### Test 4 — BFF show unknown key → notFound parity
+1. `curl -b <session> "/api/help/index.php?action=show&help=nope&locale=en"`.
+- **Expected:** 200 (legacy parity), `notFound:true`, body = "Please, ask
+  administrator to update localization file (<testlink_root>/locale/en_GB/
+  texts.php) - missing key: nope".
+- **Actual:** PASS — exact legacy message with escaped locale.
+
+### Test 5 — BFF invalid method / key validation
+1. `curl -b <session> "/api/help/index.php?action=delete"`.
+2. `curl -b <session> "/api/help/index.php?action=show&help=..%2F.."`.
+- **Expected:** 405 "Method not allowed" for delete; 400 "Invalid or missing
+  help key parameter" for the traversal key. No files included.
+- **Actual:** PASS — 405 / 400, no access to filesystem (locale include path
+  hard-validated ^[a-z]{2}_[A-Z]{2}$ + is_file).
+
+### Test 6 — Screen renders topic sidebar + content (direct key)
+1. Open `showHelp.html?help=editTc` as admin.
+- **Expected:** header "TestLink Help", topic sidebar lists all 16 topics
+  (active = Test Specification), content card shows the test-specification
+  legacy help body, footer "TestLink 2.0.1 - TestLink Help | editTc | en_GB".
+- **Actual:** PASS — sidebar populated even though the page was opened directly
+  with a key (index load is unconditional); active highlight on editTc; content
+  rendered from `$TLS_htmltext['editTc']`.
+
+### Test 7 — Topic click navigation
+1. Click "Test Case Execution" in the sidebar.
+- **Expected:** content swaps to the executeTest help body, active highlight
+  moves, footer updates.
+- **Actual:** PASS — body + footer `| executeTest | en_GB`.
+
+### Test 8 — Locale switcher (incl. BOM bundle)
+1. Click **Français** in the locale switcher.
+- **Expected:** page reloads with `&locale=fr`, UI labels in French ("Aide
+  TestLink"), content served from `fr_FR/texts.php` (which starts with a UTF-8
+  BOM — response must stay valid JSON, no leading BOM pollution).
+- **Actual:** PASS — French UI + French help body; BOM absorbed by the BFF
+  `ob_start/ob_end_clean` include guard; footer `| editTc | fr_FR`.
+
+### Test 9 — Legacy shim 302
+1. Open `lib/general/show_help.php?help=assignReqs` (authenticated).
+- **Expected:** 302 redirect onto `gui/templates/help/showHelp.html?help=
+  assignReqs&locale=`; the modern screen loads (locale falls back to session
+  locale en_GB).
+- **Actual:** PASS — modern page rendered with assignReqs content.
+
+### Test 10 — Event Viewer + console clean
+1. Query `events` + browser console after the suite.
+- **Expected:** no `log_level >= 32` rows beyond AUDIT login; console no
+  JS/PHP errors.
+- **Actual:** PASS — only 2 GUI-LOGIN info rows; console clean.
+
+**Result: 10/10 PASS.**
