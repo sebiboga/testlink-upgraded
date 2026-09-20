@@ -89,15 +89,11 @@ $(function () {
   TLi18n.load(function () {
     TLi18n.apply();
     TLi18n.initLocaleSwitcher('#localeSwitcher');
-    if (CUR_KEY) {
-      loadTopic(CUR_KEY);
-    } else {
-      loadIndex();
-    }
+    loadIndex();
   });
 
   $('#refreshBtn').on('click', function () {
-    CUR_KEY ? loadTopic(CUR_KEY) : loadIndex();
+    loadIndex();
   });
   $('#closeBtn').on('click', function () {
     window.close();
@@ -135,10 +131,14 @@ function renderIndex(items) {
       .appendTo($list);
   });
   $('#cardTitle').text(items[0].title || items[0].key);
-  $('#cardBody').html('<p style="color:#888;font-size:13px">' +
-    esc(TLi18n.t('hlp.chooseTopic')) + '</p>');
   $('#layout').css('display', 'flex');
   updateFooter(TLi18n.t('hlp.topics'));
+  if (CUR_KEY) {
+    loadTopic(CUR_KEY);
+  } else {
+    $('#cardBody').html('<p style="color:#888;font-size:13px">' +
+      esc(TLi18n.t('hlp.chooseTopic')) + '</p>');
+  }
 }
 
 function loadTopic(key) {

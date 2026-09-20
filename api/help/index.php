@@ -62,7 +62,9 @@ function helpLoadLocale($locale) {
     }
     $TLS_htmltext = array();
     $TLS_htmltext_title = array();
+    ob_start();
     include $path;
+    ob_end_clean();
     return array('body' => $TLS_htmltext, 'title' => $TLS_htmltext_title);
 }
 
