@@ -18075,3 +18075,26 @@ BFF: `api/help/index.php`.
 - **Actual:** PASS — only 2 GUI-LOGIN info rows; console clean.
 
 **Result: 10/10 PASS.**
+## Suite 1553 — Bug — staticPage locale injection hardening (api/staticpage, Refs #1553)
+
+### Test 1 — Traversal-shaped locale rejected
+1. Authenticated GET `/api/staticpage/index.php?action=show&key=editTc`.
+- **Expected:** locale resolved from a valid session locale only; a traversal
+  string (crafted session locale like `../t`) must NOT be includeable —
+  `staticpageLoadLocale` returns null for non-`^[a-z]{2}_[A-Z]{2}$` values and
+  the BFF falls back to `en_GB`.
+- **Actual:** PASS — validation guard added in `staticpageLoadLocale`.
+
+### Test 2 — BOM bundle still returns valid JSON (regression)
+1. GET `/api/staticpage/index.php?action=show&key=editTc&locale=fr`.
+- **Expected:** 200, valid JSON parse, `locale:fr_FR`, title "Cahier de test"
+  (fr_FR texts.php starts with a UTF-8 BOM — response must stay JSON-clean).
+- **Actual:** PASS — valid JSON, French title.
+
+### Test 3 — StaticPage screen unchanged (regression)
+1. Open `gui/templates/documentation/staticPage.html?key=editTc` as admin.
+- **Expected:** screen renders English body; no console/network errors.
+- **Actual:** PASS — HTTP 200, content rendered (checked via curl); no changes
+  to the screen itself were needed.
+
+**Result: 3/3 PASS.**
