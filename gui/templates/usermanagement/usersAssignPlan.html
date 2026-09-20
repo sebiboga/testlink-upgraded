@@ -462,7 +462,12 @@ function onRoleChange(sel, uid, origRoleId) {
 // Legacy parity: usersAssign.tpl:192-198 + :20-43 set_combo_group() - same bulk
 // selector as the project screen. Value 0 here means "no override" (the plan
 // row select's 0 option, usersAssignPlan.html), mirroring the legacy id-0
-// pseudo-role option; the admin role itself is excluded (issue #928).
+// pseudo-role option. The bulk combobox keeps the FULL role list - including the
+// admin role (id 8) - because the legacy template iterates $gui->optRights
+// unfiltered (usersAssign.php:587 optRights = tlRole::getAll(); usersAssign.tpl
+// :189-206); only the per-user row selects strip admin via $removeRole (issue
+// #941). The id-0 "<inherited>" pseudo-role stays out here: the value-0
+// "no override" option above is the revert-to-inherited choice.
 function buildBulkSelect() {
   var sel = $('#bulkRoleSelect');
   sel.empty();
@@ -470,7 +475,7 @@ function buildBulkSelect() {
   $.each(roles, function(j, role) {
     // Skip the id-0 "<inherited>" pseudo-role (tlRole::getAll injects it); the
     // value-0 "no override" option above is the revert-to-inherited choice.
-    if (role.id <= 0 || role.id == ADMIN_ROLE_ID) return;
+    if (role.id <= 0) return;
     sel.append('<option value="' + esc(role.id) + '">' + esc(role.name) + '</option>');
   });
 }
@@ -497,6 +502,13 @@ function applyBulkRole() {
   }
   $.each(users, function(i, u) {
     if (u.isAdmin) return;
+    // Legacy parity: usersAssign.tpl:189-206 + set_combo_group() assigns each
+    // row select's value directly; a browser leaves a select unchanged when the
+    // value maps to NO option in it. The bulk list keeps the admin role (id 8)
+    // as in legacy, so selecting "admin" only affects rows whose select can
+    // actually host that option - i.e. rows whose current explicit plan role IS
+    // admin (like u941adminpl) - every other row stays untouched (issue #941).
+    if (roleVal == ADMIN_ROLE_ID && u.origRoleID != roleVal) return;
     u.roleVal = roleVal;
   });
   renderUsersTable(keep);

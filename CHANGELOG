@@ -70,6 +70,20 @@ MAJOR AREAS
   crafted PUT {"1":6,"2":7} -> only (2,2,7) written, UI save/bulk never touch admin.
   i18n assign.adminRoleLocked in all 11 bundles. Suite 940 5/5 PASS, Event Viewer
   clean. (Refs #940)
+- [FEATURE GAP CLOSED] - #941: the modern Assign Test Plan Roles screen
+  (gui/templates/usermanagement/usersAssignPlan.html) no longer offers the admin
+  role (TL_ROLES_ADMIN, id 8) in any per-user Plan Role Override select unless it is
+  that row's current explicit plan assignment (the per-user half was already shipped
+  under #928: rolesOptions() drops admin when u.origRoleID != 8) AND now keeps the
+  admin role in the bulk "Set roles to" combobox like the legacy full $gui->optRights
+  (usersAssign.tpl:189-206 + lib/usermanagement/usersAssign.php:587 optRights =
+  tlRole::getAll). buildBulkSelect() stopped dropping role.id == ADMIN_ROLE_ID;
+  applyBulkRole() gained a legacy set_combo_group() parity guard — a browser leaves a
+  <select> unchanged when the assigned value maps to no option in it, so bulk
+  "admin" only touches rows whose current explicit plan role IS admin (all others
+  stay untouched, Save stays disabled; normal bulk roles still apply everywhere).
+  BFF and i18n untouched (the admin option label comes from the BFF role list).
+  Suite 941 in tmp/TLU_Test_Cases.md all PASS, Event Viewer clean. (Refs #941)
 - [GAP CLOSED] - #1350: the modern Requirement Specification Viewer toolbar
   (gui/templates/requirements/reqSpecView.html) restores the three legacy
   reqSpecView toolbar actions (reqSpecViewButtons.inc.tpl:88-93 +

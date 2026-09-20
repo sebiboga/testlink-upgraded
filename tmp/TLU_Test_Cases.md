@@ -17541,6 +17541,49 @@ page size 20.
 - Step 5 PASS — console + events clean.
 [ x ] PASS  |  [ ] FAIL
 
+## Suite 941 — Task — Issue #941: admin role NOT offered in per-user Plan Role Override selects; bulk "Set roles to" keeps the admin role (gap vs legacy)
+
+### Setup
+- Fixture `tmp/fixtures_941.php` (this run): project "PLANROLES941" (id 3, active/public), plan "PLAN941-R1" (id 4, active), users admin (id 1, `role_id=8`), u941designer (7, g4), u941senior (8, g6, plan override 6), u941tester (9, g7, plan override 7), u941leader (10, g9), u941adminpl (11, g7, **plan override 8 = admin**). Project roles set for rows 7-11 so Inherited Role is populated.
+- Login admin/admin; app root http://localhost:8082.
+
+### Steps
+1. Open `usersAssignPlan.html` (no params), select Test Project PLANROLES941 + Test Plan PLAN941-R1.
+   BFF `GET /api/roles/index.php/meta/tplan-roles?tproject_id=3&tplan_id=4` → 200, roleOpts
+   includes `{id:8,name:"admin"}`, per-user `roleID` = explicit plan role
+   (adminpl=8, senior=6, tester=7, designer/leader/admin=0), `isAdmin` true only for user 1.
+2. Per-user combos: for EVERY row except `u941adminpl` the Plan Role Override select must
+   NOT contain the option value 8 ("admin"); the `u941adminpl` row must contain 8 AND have
+   it pre-selected (current explicit assignment); the global-admin row select is disabled.
+3. Bulk "Set roles to" combobox must contain the "admin" option (id 8) — legacy
+   `usersAssign.tpl:189-206` full `optRights` parity.
+4. Select "admin" in the bulk box + click Do → NO row's assignment may change
+   (legacy `set_combo_group` browser-no-option parity); Save Changes stays disabled.
+5. Select "tester" (7) in the bulk box + Do → every non-admin row becomes 7
+   (normal bulk still applies everywhere); Save enabled.
+6. UI row change on a clean model: u941designer → "leader" (9) + Save Changes →
+   grid reloads, DB `user_testplan_roles` for plan 4 holds (11,4,8) adminpl, (8,4,6),
+   (9,4,7), (7,4,9).
+7. Console: no error/warn lines. `events` table: no new ERROR/WARNING rows.
+
+### Expected
+1. The admin role is absent from every per-user Plan Role Override select except the row
+   whose current explicit plan role IS admin (rendered + pre-selected); the bulk
+   "Set roles to" list keeps the admin role as in legacy; bulk-"admin" is a no-op for
+   rows that cannot host the option; normal bulk + Save keep working; Event Viewer clean.
+
+### Result
+- Step 1 PASS — verified live (`roleOpts` id 8 present; per-user `roleID` values as documented).
+- Step 2 PASS — DOM option lists `[0,1,2,3,4,5,6,7,9]` (no 8) for admin/designer/leader/senior/tester
+  rows; `[0,1,2,3,4,5,6,7,8,9]` with 8 selected for `u941adminpl`; admin row select disabled.
+- Step 3 PASS — bulk options `[0,1,2,3,4,5,6,7,8,9]` include "admin".
+- Step 4 PASS — after bulk-admin Do the model is identical (`u941adminpl` stays 8, everyone else
+  unchanged); Save disabled (not dirty).
+- Step 5 PASS — all non-admin rows → 7, Save enabled.
+- Step 6 PASS — after UI save `user_testplan_roles` plan 4 = (7,4,9), (8,4,6), (9,4,7), (11,4,8); grid reloaded.
+- Step 7 PASS — console clean; `events` has only INFO/audit rows (login + role-update audits), no ERROR/WARNING.
+[ x ] PASS  |  [ ] FAIL
+
 ## Suite 1548 — Modernize — Issue #1548: ASIDE navigation frame asideMenu (lib/general/asideMenu.php)
 
 ### Setup
