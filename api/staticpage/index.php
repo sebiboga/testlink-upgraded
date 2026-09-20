@@ -72,13 +72,18 @@ if (isset($_GET['refreshTree'])) {
  * Returns null when the locale bundle file is missing.
  */
 function staticpageLoadLocale($locale) {
+    if (!is_string($locale) || preg_match('/^[a-z]{2}_[A-Z]{2}$/', $locale) !== 1) {
+        return null;
+    }
     $path = dirname(__FILE__) . '/../../locale/' . $locale . '/texts.php';
     if (!is_file($path)) {
         return null;
     }
     $TLS_htmltext = array();
     $TLS_htmltext_title = array();
+    ob_start();
     include $path;
+    ob_end_clean();
     return array('body' => $TLS_htmltext, 'title' => $TLS_htmltext_title);
 }
 
@@ -117,8 +122,9 @@ if (isset($_GET['locale'])) {
 }
 
 $strings = staticpageLoadLocale($locale);
-if (is_null($strings)) {
+if (is_null($strings) && $locale !== 'en_GB') {
     $strings = staticpageLoadLocale('en_GB');
+    $locale = 'en_GB';
 }
 
 if (is_null($strings)) {
