@@ -17825,6 +17825,7 @@ requirements; admin session (rights.manage=`yes`). Created: project id 1
 - **Actual:** PASS — only INFO audit rows (login + `Test plan roles updated for plan #2`).
 
 **Result: 6/6 PASS.** Screenshots: `docs/screenshots/issue-942-roles-updated-toast.png`, `docs/screenshots/issue-942-empty-selection-warn-toast.png`.
+**Re-verified 2026-09-20 (run 2):** fixtures re-created from scratch (nodes_hierarchy needed too), all 6 cases re-executed PASS, screenshots re-captured, Event Viewer tail shows only INFO audit rows.
 
 ## Suite 1346 — Task — Issue #1346: Import Reqs / Import Req Spec buttons (branch + items scope) in `reqSpecView` (gap vs legacy)
 
