@@ -17872,3 +17872,69 @@ requirements; admin session (rights.manage=`yes`). Created: project id 1
 - **Actual:** PASS — only 1 INFO `audit_login_succeeded` event; no import errors logged.
 
 **Result: 8/8 PASS.** Screenshots: `docs/screenshots/issue-1346-alpha-viewer-buttons.png`, `docs/screenshots/issue-1346-beta-viewer-jira-label.png`.
+
+## Suite 1551 — Screen — Execution Notes (execNotes.html + api/execnotes)
+
+Fixture: `tmp/fixtures_1551.php` (project EXN, plan 38, build v1.0, platform Win11,
+suite, TC `Case With Notes` + `Case Empty Notes`, exec_with_notes=4, exec_empty=5).
+
+### Test 1 — BFF GET existing notes (authenticated)
+1. `curl -b <session> /api/execnotes/4`.
+- **Expected:** 200, `status:ok`, notes text + audit names (Case With Notes / Plan EXN / v1.0 / Win11 / EXN).
+- **Actual:** PASS — full payload returned.
+
+### Test 2 — BFF GET anonymous → 401
+1. `curl /api/execnotes/4` (no session).
+- **Expected:** 401 JSON.
+- **Actual:** PASS — `{"status":"error","message":"Not authenticated"}`.
+
+### Test 3 — BFF PUT without same-origin proof → 403
+1. Authenticated PUT `/api/execnotes/4` without `X-Requested-With`/Origin.
+- **Expected:** 403 CSRF JSON.
+- **Actual:** PASS — 403.
+
+### Test 4 — BFF GET unknown execution → 404
+1. `curl -b <session> /api/execnotes/99999`.
+- **Expected:** 404 JSON.
+- **Actual:** PASS — `{"status":"error","message":"Execution not found"}`.
+
+### Test 5 — BFF PUT persists notes (round-trip)
+1. Authenticated PUT with `X-Requested-With` `{"notes":"Updated by API test 1551"}`.
+2. GET again.
+- **Expected:** 200 + saved notes echoed; GET shows the persisted text.
+- **Actual:** PASS — persisted.
+
+### Test 6 — Screen renders meta + existing notes
+1. Open `execNotes.html?exec_id=4` as admin.
+- **Expected:** title "Execution Notes"; meta Case With Notes / Plan EXN / v1.0 / Win11 / Passed / ts; notes box shows the saved note.
+- **Actual:** PASS — all fields rendered, status "Passed".
+
+### Test 7 — Edit → Save flow
+1. Click Edit, clear/type text, click Save.
+- **Expected:** toast "Notes saved.", view mode restored, notes box updated.
+- **Actual:** PASS — UI saved + re-rendered.
+
+### Test 8 — Empty-notes state
+1. Open `execNotes.html?exec_id=5` as admin.
+- **Expected:** "No execution notes recorded." empty style; meta shows Case Empty Notes / Failed.
+- **Actual:** PASS.
+
+### Test 9 — Missing exec_id → access denied
+1. Open `execNotes.html` (no query string).
+- **Expected:** localized access-denied card, no request fired.
+- **Actual:** PASS.
+
+### Test 10 — Event Viewer + console clean
+1. Check `events` + browser console after the suite.
+- **Expected:** 0 ERROR/WARNING beyond AUDIT login rows; console no errors.
+- **Actual:** PASS.
+
+### Test 11 — Rights gating (IDOR fix, code review)
+1. Login (API) as a role-3 no-rights user `norights1551`.
+2. GET `/api/execnotes/4`; PUT `/api/execnotes/4`.
+3. Repeat GET/PUT as admin.
+- **Expected:** 403 "You do not have rights on this execution" for both as
+  norights1551; 200 for admin (has `exec_edit_notes`).
+- **Actual:** PASS — 403/403 for norights1551, 200/200 for admin.
+
+**Result: 11/11 PASS.**
