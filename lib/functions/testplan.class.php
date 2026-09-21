@@ -5873,8 +5873,19 @@ class testplan extends tlObjectWithAttachments
     // Get test case prefix
     $debugMsg = 'Class:' . __CLASS__ . ' - Method: ' . __FUNCTION__;
     $io = $this->tree_manager->get_node_hierarchy_info($id);
-      
-    list($prefix,$garbage) = $this->tcase_mgr->getPrefix(null,$io['parent_id']);
+
+    // A node id that does not exist (stale/deep-link request) makes
+    // get_node_hierarchy_info() return null; without a reset guard the
+    // $io['parent_id'] dereference raises a PHP 8 E_WARNING that lands in
+    // the events table (api/mainpage dashboard passes stale tplan ids).
+    // Bailing out with a null prefix yields the same empty-prefix concat the
+    // code emits for a project with no prefix, and the SQL stays valid.
+    // Refs #1558
+    $prefix = null;
+    if( !is_null($io) && isset($io['parent_id']) )
+    {
+      list($prefix,$garbage) = $this->tcase_mgr->getPrefix(null,$io['parent_id']);
+    }
     $prefix .= $this->tcaseCfg->glue_character;
     $concat = $this->db->db->concat("'{$prefix}'",'TCV.tc_external_id');
 
