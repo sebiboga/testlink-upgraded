@@ -18407,7 +18407,6 @@ user `noev` (role `guest` id=5, no `mgt_view_events`, password `admin`) was seed
 **Result: 9/9 PASS.** (Refs #1556. Found + filed bug #1557.)
 
 ---
-
 ## Regression — Issue #1557: PHP 8 E_WARNING in isIssueTrackerEnabled() for non-existent test project id
 
 Bug: `lib/functions/testproject.class.php:3487` `return $ret[0]['issue_tracker_enabled'];` — `get_recordset()`
@@ -18435,3 +18434,63 @@ Branch `fix/issue-1557` commit `98d4d1f0b`. Fresh DB 2026-09-21, no `testproject
 1. After tests 1-2 inspect `events` table and open `eventviewer.html`.
 - **Expected:** zero Error/Warning rows introduced by the fix or the repro; Event Viewer shows only pre-existing audit entries (login), no `E_WARNING ... Line 3487` anywhere.
 - **Actual:** PASS — `events` count 0 after full matrix; no `3487` warning rows present; browser console clean on the ASIDE init.
+## Task — Issue #1335: Nothing missing — tcPrint fully matches legacy (parity re-verification) (Suite ID: 1574)
+
+Context: #1335 is the feature-analyzer bookkeeping issue claiming full parity of the modern
+`testcases/tcPrint.html` (+ BFF `api/testcasesprint/index.php` action=`tc_print`) vs legacy
+`lib/testcases/tcPrint.php`. DB freshly imported (empty of business data) on this run, so a
+re-runnable fixture was created first (`tmp/fixtures_1335.php`, run from repo root):
+project TP1335 id=25 (prefix TP35, req/platforms/cf enabled), Suite Alpha id=26, TC
+"TC Login Test" id=27 / tcversion id=28 (2 steps, importance High=3, est. duration 5.0),
+keyword `smoke` id=5, platform `Linux` id=4, CF `Severity=High` (list, design value on
+tcversion). No-rights user `noprint` (id=2, global role `<no rights>`=3, no project roles,
+password = admin hash). The two `ERROR Duplicate entry 'Severity'` events (ids 11/16) came
+from the fixture's own first re-run before CF cleanup was added — not from the product flow.
+
+### TC-1574.1 — BFF tc_print happy path: full SINGLE_TESTCASE document (PASS)
+1. (admin session) `fetch('/api/testcasesprint/index.php?action=tc_print&testcase_id=27&tcversion_id=28&tproject_id=25')`.
+- **Expected:** HTTP 200, JSON `status:"ok"`, `tcase_id:27`, `tproject_id:25`, `tproject_name:"TP1335"`, `tcname:"TC Login Test"`, `title:"Print Test Case: TC Login Test"`, non-empty `body_html` with all sections.
+- **Actual:** 200; body contains prefix `TP35-1`, `[Version : 1]`, Author `Testlink Administrator`, summary, preconditions, steps 1+2 (actions+results), Execution type Manual, est. 5.00, Importance High, `Severity: High`, Requirements None, Keywords `smoke`, Platforms `Linux`. PASS.
+
+### TC-1574.2 — Deep link without tproject_id resolves the owning project from the tree path (PASS)
+1. (admin) `fetch('...action=tc_print&testcase_id=27&tcversion_id=28')` (no project param).
+- **Expected:** HTTP 200, `tproject_id` derived via `tree->get_path()` root parent_id = 25.
+- **Actual:** 200, `tproject_id:25`, document identical. PASS.
+
+### TC-1574.3 — Error paths: 400 missing id, 404 unknown test case (PASS)
+1. `action=tc_print&tproject_id=25` (no testcase_id).
+2. `action=tc_print&testcase_id=9999&tproject_id=25`.
+- **Expected:** 400 `Missing testcase_id`; 404 `Test Case does not exist` (legacy `testcase_does_not_exists` localized).
+- **Actual:** 400 and 404 with those JSON messages. PASS.
+
+### TC-1574.4 — No mgt_view_tc right → 403 on screen (PASS)
+1. Isolated context login `noprint`/admin (role `<no rights>`); open `tcPrint.html?testcase_id=27&tcversion_id=28&tproject_id=25`.
+- **Expected:** BFF 403 `No permission`; screen error banner `You do not have permission to print this test case.`, document hidden, Print disabled, project `-`.
+- **Actual:** all observed. PASS.
+
+### TC-1574.5 — Full screen render via srcdoc iframe (PASS)
+1. (admin) open `tcPrint.html?testcase_id=27&tcversion_id=28&tproject_id=25`.
+- **Expected:** title/doc-title `Print Test Case: TC Login Test`, project `TP1335`, iframe visible (display:block) with the full document, Print button enabled once loaded.
+- **Actual:** iframe display block, printDisabled=false, body text contains every section incl. CF. PASS.
+
+### TC-1574.6 — Print / Back / Refresh controls (PASS)
+1. (TC-1574.5 page) stub iframe `print()`; read `#btnBack` href; check refresh button presence.
+- **Expected:** print invoked; back href `/gui/templates/testcases/tcView.html?tcase_id=27&tproject_id=25`; Refresh regenerates the document.
+- **Actual:** printInvoked=true, backHref matches, refresh button present. PASS.
+
+### TC-1574.7 — Locale switch (Română) translates the whole UI (PASS)
+1. (admin) open `tcPrint.html?...&locale=ro`.
+- **Expected:** `lang="ro"`, header `Printează Caz de Test`, sub `în proiectul de test`, `Printează`/`Înapoi`, generating `Se generează documentul...`, footer `TestLink 2.0.1 - Printează Caz de Test`.
+- **Actual:** all matched. PASS.
+
+### TC-1574.8 — Modern tcView.html Print button opens the modern screen (PASS)
+1. (admin) open `tcView.html?tcase_id=27&tproject_id=25`; click toolbar `Print` (uid 5_32).
+- **Expected:** new tab `tcPrint.html?tproject_id=25&testcase_id=27&tcversion_id=28`, document renders.
+- **Actual:** page 3 opened with exactly those params, doc renders. PASS.
+
+### TC-1574.9 — i18n coverage + Event hygiene (PASS)
+1. Validate all 10 locale bundles (de/es/en/fr/it/ja/pt/ro/ru/zh) contain the 12 `tcprint.*` keys; inspect `events` after all tests.
+- **Expected:** all keys present+valid JSON; no new Error/Warning rows from the tc_print flow (the only ERROR rows are the fixture's own duplicate-CF artifacts).
+- **Actual:** all 10 bundles complete earlier this run; events show only audit INFO + the 2 fixture-dup errors. PASS.
+
+**Result: 9/9 PASS.** (Refs #1335. No product code changes were necessary — the analyzer's parity claim holds; this suite is the standalone verification + documentation deliverable.)

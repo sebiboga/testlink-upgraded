@@ -9,6 +9,16 @@ This was the last legacy member of the test-case toolbar family — tcEdit, tcAs
 tcExport and tcCompareVersions were already modernized. With this screen the whole
 test-design test-case toolset runs on the modern stack.
 
+> **Parity sign-off (#1335, task bookkeeping issue — "Nothing missing"):** re-verified on a
+> fresh DB (2026-09-21) with fixture `tmp/fixtures_1335.php` + suite **1574 · 9/9 PASS** in
+> `tmp/TLU_Test_Cases.md`. BFF happy path (full SINGLE_TESTCASE doc: prefix/external id,
+> `[Version : n]`, author, summary, preconditions, steps, execution type, est. duration,
+> importance, custom-field values, requirements, keywords, platforms), deep-link owner
+> resolution without `tproject_id`, 400/404/403 error paths (localized banners on screen),
+> Print/Back/Refresh, `?locale=ro` switch, modern `tcView.html` Print-button entry point and
+> Event hygiene all confirmed. No product code changes were needed. Screenshot:
+> `docs/screenshots/issue-1335-tcprint-normal.png`.
+
 ## How it works
 
 - **Navigation:** the Print button on the modern test-case viewer
@@ -46,15 +56,18 @@ test-design test-case toolset runs on the modern stack.
 
 ## Test coverage
 
-Regression suite **1010 · 14/14 PASS** in `tmp/TLU_Test_Cases.md`:
-BFF happy path (document JSON), full render (prefix/id, version, author, summary,
-preconditions, 4 steps, exec type, duration, importance, requirements/keywords/platforms),
-Print button enables + invokes iframe print, Back href, Refresh, Romanian locale switch,
-404 unknown test case, 400 missing id, 403 no-rights user, deep link without project
-(tree-path owner resolution), modern viewer Print-button switch, legacy viewer
-printer-friendly switch, i18n bundle completeness, Event Viewer clean.
+- Regression suite **1010 · 14/14 PASS** in `tmp/TLU_Test_Cases.md`:
+  BFF happy path (document JSON), full render (prefix/id, version, author, summary,
+  preconditions, 4 steps, exec type, duration, importance, requirements/keywords/platforms),
+  Print button enables + invokes iframe print, Back href, Refresh, Romanian locale switch,
+  404 unknown test case, 400 missing id, 403 no-rights user, deep link without project
+  (tree-path owner resolution), modern viewer Print-button switch, legacy viewer
+  printer-friendly switch, i18n bundle completeness, Event Viewer clean.
+- Parity re-verification suite **1574 · 9/9 PASS** (Refs #1335): see the sign-off note above.
 
 ## Related
 
 - Fixing: login as a user without project context logs `getTestCasePrefix()` empty-id SQL
   error + PHP warnings — filed as GitHub issue **#1011** (pre-existing).
+- Bookkeeping: #1335 (analyzer "nothing missing") → closed after this re-verification;
+  legacy cleanup tracked in #1336 (Delete legacy tcPrint).
