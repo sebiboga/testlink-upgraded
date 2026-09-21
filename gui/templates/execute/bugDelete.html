@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bug Delete</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+
+.header {
+  background: #4ECDC4; color: #fff; padding: 14px 24px;
+  font-size: 20px; font-weight: 700; letter-spacing: 1px;
+}
+.header span.sub { font-size: 13px; font-weight: 400; opacity: .85; margin-left: 12px; }
+
+.toolbar {
+  background: #22242a; padding: 10px 24px; display: flex; gap: 10px; align-items: center;
+}
+.toolbar .tbtn {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: #33363f; color: #fff; border: none; border-radius: 4px;
+  padding: 7px 12px; font-size: 12px; cursor: pointer; text-decoration: none;
+}
+.toolbar .tbtn:hover { background: #454955; color: #fff; text-decoration: none; }
+.toolbar .tbtn i { color: #4ECDC4; }
+
+.card {
+  background: #fff; border-radius: 8px; margin: 20px 24px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.08); overflow: hidden;
+}
+.card-head {
+  padding: 14px 24px; border-bottom: 1px solid #eee; display: flex;
+  align-items: center; gap: 10px; flex-wrap: wrap;
+}
+.card-head h3 { margin: 0; font-size: 16px; color: #22242a; }
+.card-body { padding: 6px 24px 18px; }
+
+table.bdinfo { width: 100%; border-collapse: collapse; }
+table.bdinfo th {
+  color: #555; font-weight: 600; width: 200px; font-size: 12px;
+  text-align: left; padding: 8px 12px 8px 0; vertical-align: top;
+}
+table.bdinfo td { color: #333; font-size: 13px; padding: 8px 0; word-break: break-word; }
+
+.bug-list { list-style: none; margin: 0; padding: 0; }
+.bug-list li {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 10px 4px; border-bottom: 1px solid #f0f0f0; font-size: 13px;
+}
+.bug-list li:last-child { border-bottom: none; }
+.bug-list .bug-tag {
+  background: #fdeeee; border: 1px solid #f3c6c4; color: #c0504e;
+  border-radius: 12px; padding: 2px 10px; font-weight: 700; font-size: 12px;
+}
+.bug-list .bug-step { color: #888; font-size: 12px; }
+.bug-list .del-btn {
+  background: #e6605e; color: #fff; border: none; border-radius: 4px;
+  padding: 6px 12px; font-size: 12px; cursor: pointer;
+}
+.bug-list .del-btn:hover { background: #c0392b; }
+.bug-list .del-btn:disabled { background: #ccc; cursor: default; }
+
+.ctx-chip {
+  display: inline-block; background: #eef5ef; color: #3c8a4e;
+  border: 1px solid #c6e3cd; border-radius: 12px; padding: 2px 10px;
+  font-size: 11.5px; font-weight: 600; margin: 2px 4px 2px 0;
+}
+.status-badge { font-weight: 700; }
+.status-p { color: #3c8a4e; } .status-f { color: #c0504e; } .status-b { color: #c0504e; }
+
+.success-box {
+  background: #eef8f0; border: 1px solid #c6e3cd; border-left: 4px solid #4CAF50;
+  color: #2c5e2e; border-radius: 6px; padding: 14px 18px; margin: 20px 24px;
+  font-size: 14px; display: flex; align-items: center; gap: 10px;
+}
+.success-box i { color: #4CAF50; font-size: 18px; }
+
+.state-box {
+  background: #fff; border-radius: 8px; margin: 20px 24px; padding: 28px 32px;
+  text-align: center;
+}
+.state-box i { font-size: 34px; margin-bottom: 10px; display: block; }
+.state-box h3 { margin: 0 0 8px; font-size: 18px; color: #22242a; }
+.state-box p { margin: 0; font-size: 14px; color: #777; }
+.state-denied { border: 1px solid #f0d0d0; border-left: 4px solid #e6605e; }
+.state-denied i { color: #e6605e; }
+.state-error { border: 1px solid #f0d0d0; border-left: 4px solid #e6605e; }
+.state-error i { color: #e6605e; }
+.state-notfound { border: 1px solid #f3e6c8; border-left: 4px solid #f0ad4e; }
+.state-notfound i { color: #f0ad4e; }
+
+.footer {
+  padding: 12px 24px; color: #888; font-size: 12px;
+  border-top: 1px solid #ddd; background: #fff;
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span data-i18n="bugdel.title">Bug Delete</span>
+  <span class="sub" data-i18n="bugdel.subtitle">unlink a bug from an execution</span>
+  <div id="localeSwitcher" style="float:right;"></div>
+</div>
+
+<div class="toolbar">
+  <button type="button" class="tbtn" id="btnClose"><i class="fa fa-times"></i> <span data-i18n="common.close">Close</span></button>
+</div>
+
+<div class="card" id="contextCard" style="display:none;">
+  <div class="card-head"><h3 id="ctxTitle"></h3></div>
+  <div class="card-body">
+    <table class="bdinfo">
+      <tbody id="ctxBody"></tbody>
+    </table>
+    <div id="ctxChips"></div>
+  </div>
+</div>
+
+<div class="success-box" id="successBox" style="display:none;">
+  <i class="fa fa-check-circle"></i> <span id="successMsg"></span>
+</div>
+
+<div class="card" id="bugsCard" style="display:none;">
+  <div class="card-head"><h3 data-i18n="bugdel.linkedBugs">Bugs linked to this execution</h3></div>
+  <div class="card-body">
+    <ul class="bug-list" id="bugsList"></ul>
+    <p class="text-muted" id="noBugsMsg" style="display:none; font-size:13px;" data-i18n="bugdel.noBugs">No bugs are linked to this execution.</p>
+  </div>
+</div>
+
+<div class="state-box state-denied" id="accessDenied" style="display:none;">
+  <i class="fa fa-lock"></i>
+  <h3 data-i18n="bugdel.accessDeniedTitle">Access Denied</h3>
+  <p data-i18n="bugdel.accessDeniedMsg">You do not have permission to delete bugs on this execution.</p>
+</div>
+
+<div class="state-box state-notfound" id="notFound" style="display:none;">
+  <i class="fa fa-search-minus"></i>
+  <h3 data-i18n="bugdel.notFoundTitle">Execution not found</h3>
+  <p data-i18n="bugdel.notFoundMsg">The execution does not exist or was deleted.</p>
+</div>
+
+<div class="state-box state-error" id="loadError" style="display:none;">
+  <i class="fa fa-exclamation-triangle"></i>
+  <h3 data-i18n="common.error">Error</h3>
+  <p id="loadErrorMsg"></p>
+</div>
+
+<div class="footer"><span data-i18n="footers.bugDelete">TestLink 2.0.1 - Bug Delete</span></div>
+
+<!-- Unlink confirm modal -->
+<div class="modal fade" id="confirmModal" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fa fa-bug" style="color:#e6605e;margin-right:6px;"></i>
+          <span data-i18n="bugdel.title">Bug Delete</span></h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p data-i18n="bugdel.confirm">Unlink this bug from the execution?</p>
+        <p><span class="bug-tag" id="confirmBugTag"></span> <span class="bug-step" id="confirmBugStep"></span></p>
+        <p id="confirmError" style="color:#c0504e; display:none;" class="small mb-0"></p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal"><span data-i18n="common.cancel">Cancel</span></button>
+        <button type="button" class="btn btn-danger" id="confirmDeleteBtn"><span data-i18n="bugdel.deleteBtn">Delete</span></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+function esc(s) {
+  return s == null ? '' : String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+var API = '/api/bugdelete/index.php';
+var qs = new URLSearchParams(window.location.search);
+var execId = qs.get('exec_id') || '';
+var bugId = qs.get('bug_id') || '';
+var tcstepId = qs.get('tcstep_id') || '';
+var pendingDelete = null;
+
+function statusInfo(ch) {
+  var c = String(ch || '').toLowerCase();
+  if (c === 'p') return { char: ch, key: 'execprint.statusPassed' };
+  if (c === 'f') return { char: ch, key: 'execprint.statusFailed' };
+  if (c === 'b') return { char: ch, key: 'execprint.statusBlocked' };
+  return { char: ch || '', key: null };
+}
+
+function showState(sel) {
+  $('#contextCard').hide();
+  $('#successBox').hide();
+  $('#bugsCard').hide();
+  $('#accessDenied').hide();
+  $('#notFound').hide();
+  $('#loadError').hide();
+  $(sel).show();
+}
+
+function renderContext(ctx) {
+  $('#ctxTitle').text(TLi18n.t('bugdel.execution') + ' #' + ctx.exec_id + ' — ' + ctx.testcase_name);
+  var st = statusInfo(ctx.status_char);
+  var html = '';
+  html += row('bugdel.testcase', ctx.testcase_name);
+  html += row('bugdel.testplan', ctx.testplan_name);
+  html += row('bugdel.project', ctx.testproject_name);
+  html += row('bugdel.build', ctx.build_name);
+  html += row('bugdel.platform', ctx.platform_name || '&ndash;');
+  html += row('bugdel.status',
+    '<span class="status-badge status-' + String(ctx.status_char || '?').toLowerCase() + '">' +
+    esc(TLi18n.t(st.key || 'execprint.statusUnknown')) + '</span>');
+  html += row('bugdel.executedOn', ctx.execution_ts || '&ndash;');
+  $('#ctxBody').html(html);
+  $('#contextCard').show();
+}
+
+function row(labelKey, value) {
+  return '<tr><th>' + esc(TLi18n.t(labelKey)) + '</th><td>' + value + '</td></tr>';
+}
+
+function renderBugs(bugs) {
+  var $list = $('#bugsList');
+  $list.empty();
+  if (!bugs || bugs.length === 0) {
+    $('#noBugsMsg').show();
+    $('#bugsCard').show();
+    return;
+  }
+  $('#noBugsMsg').hide();
+  bugs.forEach(function (b) {
+    var step = b.tcstep_id
+      ? ' <span class="bug-step">' + esc(TLi18n.t('bugdel.step')) + ' #' + b.step_number + '</span>'
+      : '';
+    var $li = $('<li>');
+    var $left = $('<div style="display:flex;align-items:center;gap:8px;">');
+    var tag = b.link_to_bts
+      ? '<a class="bug-tag" href="' + esc(b.link_to_bts) + '" target="_blank" rel="noopener">' + esc(b.id) + '</a>'
+      : '<span class="bug-tag">' + esc(b.id) + '</span>';
+    $left.append(tag);
+    $left.append(step);
+    $li.append($left);
+    var $btn = $('<button type="button" class="del-btn">' + esc(TLi18n.t('bugdel.deleteBtn')) + '</button>');
+    $btn.on('click', function () { openConfirm(b, $btn); });
+    $li.append($btn);
+    $list.append($li);
+  });
+  $('#bugsCard').show();
+}
+
+function openConfirm(b, $btn) {
+  pendingDelete = { bug_id: b.id, tcstep_id: b.tcstep_id || 0, btn: $btn };
+  $('#confirmBugTag').text(b.id);
+  $('#confirmBugStep').text(b.tcstep_id
+    ? TLi18n.t('bugdel.step') + ' #' + (b.step_number || b.tcstep_id)
+    : '');
+  $('#confirmError').hide();
+  $('#confirmModal').modal('show');
+}
+
+function performDelete() {
+  if (!pendingDelete) { return; }
+  var d = pendingDelete;
+  $('#confirmError').hide();
+  var $btn = $('#confirmDeleteBtn').prop('disabled', true);
+  $.ajax({
+    url: API + '?action=delete',
+    method: 'POST',
+    dataType: 'json',
+    contentType: 'application/json; charset=utf-8',
+    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+    data: JSON.stringify({
+      exec_id: parseInt(execId, 10),
+      tcstep_id: d.tcstep_id,
+      bug_id: d.bug_id
+    })
+  })
+  .done(function (res) {
+    $('#confirmModal').modal('hide');
+    if (!res || res.status !== 'ok') {
+      showState('#loadError');
+      $('#loadErrorMsg').text((res && res.message) || TLi18n.t('bugdel.loadError'));
+      return;
+    }
+    showSuccess(res.message || TLi18n.t('bugdel.success'));
+    renderBugs(res.bugs || []);
+  })
+  .fail(function (xhr) {
+    $btn.prop('disabled', false);
+    var code = xhr.status;
+    if (code === 401) { window.location.href = '/login.php'; return; }
+    if (code === 403) { $('#confirmModal').modal('hide'); showState('#accessDenied'); return; }
+    if (code === 404) { $('#confirmModal').modal('hide'); showState('#notFound'); return; }
+    var msg = null;
+    try { msg = JSON.parse(xhr.responseText).message; } catch (e) {}
+    $('#confirmError').text(msg || TLi18n.t('common.errorLoading')).show();
+  });
+}
+
+function showSuccess(msg) {
+  $('#successMsg').text(msg || TLi18n.t('bugdel.success'));
+  $('#successBox').show();
+}
+
+function load() {
+  var url = API + '?action=init&exec_id=' + encodeURIComponent(execId);
+  if (bugId) { url += '&bug_id=' + encodeURIComponent(bugId); }
+  if (tcstepId) { url += '&tcstep_id=' + encodeURIComponent(tcstepId); }
+  $.ajax({ url: url, dataType: 'json', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+    .done(function (d) {
+      if (!d || d.status !== 'ok') {
+        showState('#loadError');
+        $('#loadErrorMsg').text((d && d.message) || TLi18n.t('bugdel.loadError'));
+        return;
+      }
+      renderContext(d.context);
+      if (d.action === 'auto_delete') {
+        showSuccess(d.message || TLi18n.t('bugdel.success'));
+      }
+      renderBugs(d.bugs || []);
+    })
+    .fail(function (xhr) {
+      var code = xhr.status;
+      if (code === 403) { showState('#accessDenied'); }
+      else if (code === 404) { showState('#notFound'); }
+      else if (code === 401) { window.location.href = '/login.php'; }
+      else {
+        showState('#loadError');
+        var msg = null;
+        try { msg = JSON.parse(xhr.responseText).message; } catch (e) {}
+        $('#loadErrorMsg').text(msg || TLi18n.t('bugdel.loadError'));
+      }
+    });
+}
+
+$(function () {
+  $('#btnClose').on('click', function () { window.close(); });
+  $('#confirmDeleteBtn').on('click', performDelete);
+
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    if (!execId || !/^\d+$/.test(String(execId)) || parseInt(execId, 10) <= 0) {
+      showState('#loadError');
+      $('#loadErrorMsg').text(TLi18n.t('bugdel.missingId'));
+      return;
+    }
+    load();
+  });
+});
+</script>
+</body>
+</html>

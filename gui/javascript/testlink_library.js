@@ -790,12 +790,14 @@ function deleteBug(btn,text,combinedBugID)
   tcStepID = target.substr(0,idx)
 
   // TICKET 4814: bug deletion may fails if bugID string contains special characters ('#', '&' , ...)
-  // bugID string may contain special characters : 
+  // bugID string may contain special characters :
   // must escape it to get correct bugID value in bugDelete.php
   bugID = escape(target.substr(idx+1));
-  
-  window.open(fRoot+"lib/execute/bugDelete.php?exec_id="+executionID+"&tcstep_id="+tcStepID+"&bug_id="+bugID,
-                "DeleteBug","width=510,height=150,resizable=yes,dependent=yes");
+
+  // Refs #1559: the legacy lib/execute/bugDelete.php popup is modernized;
+  // bugDelete.php is kept only as a session-guarded 302 shim.
+  window.open(fRoot+"gui/templates/execute/bugDelete.html?exec_id="+executionID+"&tcstep_id="+tcStepID+"&bug_id="+bugID,
+                "DeleteBug","width=620,height=560,resizable=yes,dependent=yes");
 }
 
 /**
