@@ -18494,3 +18494,45 @@ from the fixture's own first re-run before CF cleanup was added — not from the
 - **Actual:** all 10 bundles complete earlier this run; events show only audit INFO + the 2 fixture-dup errors. PASS.
 
 **Result: 9/9 PASS.** (Refs #1335. No product code changes were necessary — the analyzer's parity claim holds; this suite is the standalone verification + documentation deliverable.)
+
+## Regression — Issue #1558: PHP 8 E_WARNING in helperConcatTCasePrefix() for non-existent test plan id
+
+Bug: `lib/functions/testplan.class.php:5877` `list($prefix,$garbage) = $this->tcase_mgr->getPrefix(null,$io['parent_id']);`
+— `get_node_hierarchy_info()` (`lib/functions/tree.class.php:220`) returns **null** for a node id with no rows, so
+`$io['parent_id']` raised `E_WARNING: Trying to access array offset on null`, appended to `events` (log_level 2)
+on every dashboard page load (`api/mainpage GET /` and `/bugsTested`, both via `getBugsTestedData()` →
+`getAllExecutionsWithBugs()` → `getLinkedTCVersionsSQL()` → `helperConcatTCasePrefix()`). Fix:
+`$prefix = null; if( !is_null($io) && isset($io['parent_id']) ) { list($prefix,$garbage) = getPrefix(null,$io['parent_id']); }`
+— a missing node now yields the same empty-prefix concat as a prefix-less project, no warning.
+Branch `fix/issue-1558-helperconcat-null-guard` commit `0f6d0550c`. Fresh DB 2026-09-21, `nodes_hierarchy`=0,
+`testplans`=0, `testprojects`=0 initially; admin/admin session (cookie `/tmp/cj.txt`). Regression per FIX-ISSUE.md §5.
+
+### Test 1 — Dashboard GET / with non-existent tplan id: no E_WARNING event (pre-fix repro of 2-event page load)
+1. `DELETE FROM events;` then `SELECT COUNT(*) FROM events` → 0.
+2. `curl -b <cookie> 'http://localhost:8082/api/mainpage/index.php?tproject_id=1&tplan_id=2'` (HTTP 200).
+3. `curl -b <cookie> 'http://localhost:8082/api/mainpage/index.php/bugsTested?tproject_id=1&tplan_id=2'` (HTTP 200).
+4. `SELECT id, log_level, description FROM events ORDER BY id;`
+- **Pre-fix expected (symptom):** 2 E_WARNING rows (`Trying to access array offset on null ... testplan.class.php Line 5877`) — observed pre-fix as events ids 7,8 (isolated) / 3,4 (page-load pair).
+- **Post-fix expected:** HTTP 200 on each call, `events` stays **0**.
+- **Actual:** PASS — both calls HTTP:200; `SELECT COUNT(*) FROM events` = 0, zero E_WARNING rows.
+
+### Test 2 — Full browser page load with stale tplan_id=2: zero events, dashboard still renders
+1. Log in admin/admin (headless Chrome); `DELETE FROM events;`.
+2. Navigate `index.php?tproject_id=1&tplan_id=2` (loads navbar + aside + Dashboard main frame with GET /, /bugsTested, /assigned, /notifications/count).
+3. Inspect `events`; check Dashboard main frame renders.
+- **Expected:** HTTP 200 frameset, Dashboard shows its empty state (project/plan `-`, "No records found"), `events` count **0**.
+- **Actual:** PASS — dashboard rendered normally, `events` = 0 rows after reload (pre-fix this load produced 2 E_WARNING rows).
+
+### Test 3 — Valid plan path untouched (prefix still resolved)
+1. Seed fixture: `nodes_hierarchy` id 1 (testproject, name Proj1) + id 2 (testplan, parent 1); `testprojects` id 1 prefix 'PROJ'; `testplans` id 2 (testproject_id 1).
+2. CLI harness (`php -r` over testplan): `helperConcatTCasePrefix(2)` and `helperConcatTCasePrefix(999)`; `curl '.../api/mainpage/index.php?tproject_id=1&tplan_id=2'` + `/bugsTested`.
+3. `DELETE FROM testplans; DELETE FROM testprojects; DELETE FROM nodes_hierarchy WHERE id IN (1,2);` after the run.
+- **Expected:** valid id → `CONCAT('PROJ-',TCV.tc_external_id)` (prefix preserved, no warning, `error_reporting(E_ALL)`); stale id 999 → `CONCAT('-',TCV.tc_external_id)` with no PHP E_WARNING; endpoints HTTP 200 with 0 events.
+- **Actual:** PASS — valid `CONCAT('PROJ-',TCV.tc_external_id)`, stale `CONCAT('-',TCV.tc_external_id)` silent, endpoints HTTP 200, events 0.
+
+### Test 4 — Event hygiene / Event Viewer clean
+1. After tests 1-3 (and fixture cleanup) inspect `events` table.
+- **Expected:** only the pre-existing audit/login INFO rows, **no** `E_WARNING ... testplan.class.php Line 5877`, no new Error/Warning introduced by the fix.
+- **Actual:** PASS — `events` = 0 Error/Warning rows after the full matrix; `php -l lib/functions/testplan.class.php` → `No syntax errors detected`.
+
+**Result: 4/4 PASS.** (Refs #1558. Fix mirrors the #1011 `getPrefix()` guard and the #1557 `isIssueTrackerEnabled()` guard in the same E_WARNING family.)
