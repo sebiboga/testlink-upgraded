@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Event Info</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+
+.header {
+  background: #4ECDC4; color: #fff; padding: 14px 24px;
+  font-size: 20px; font-weight: 700; letter-spacing: 1px;
+}
+.header span.sub { font-size: 13px; font-weight: 400; opacity: .85; margin-left: 12px; }
+
+.toolbar {
+  background: #22242a; padding: 10px 24px; display: flex; gap: 10px; align-items: center;
+}
+.toolbar .tbtn {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: #33363f; color: #fff; border: none; border-radius: 4px;
+  padding: 7px 12px; font-size: 12px; cursor: pointer; text-decoration: none;
+}
+.toolbar .tbtn:hover { background: #454955; color: #fff; text-decoration: none; }
+.toolbar .tbtn i { color: #4ECDC4; }
+
+.card {
+  background: #fff; border-radius: 8px; margin: 20px 24px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.08); overflow: hidden;
+}
+.card-head {
+  padding: 14px 24px; border-bottom: 1px solid #eee; display: flex;
+  align-items: center; gap: 10px; flex-wrap: wrap;
+}
+.card-head h3 { margin: 0; font-size: 16px; color: #22242a; }
+.card-body { padding: 6px 24px 18px; }
+
+table.evinfo { width: 100%; border-collapse: collapse; }
+table.evinfo th {
+  color: #555; font-weight: 600; width: 200px; font-size: 12px;
+  text-align: left; padding: 8px 12px 8px 0; vertical-align: top;
+}
+table.evinfo td { color: #333; font-size: 13px; padding: 8px 0; word-break: break-word; }
+table.evinfo tr.section th {
+  color: #2b6f69; text-transform: uppercase; letter-spacing: .5px;
+  font-size: 11px; padding-top: 16px; border-bottom: 1px solid #e6f2f0;
+}
+
+.level-badge {
+  display: inline-block; padding: 2px 8px; border-radius: 3px;
+  font-size: 11px; font-weight: 700; color: #fff; text-transform: uppercase;
+}
+.level-AUDIT { background: #4ECDC4; }
+.level-ERROR { background: #e6605e; }
+.level-WARNING { background: #f0ad4e; color: #333; }
+.level-INFO { background: #3498db; }
+.level-DEBUG { background: #8f8f8f; }
+.level-L18N { background: #9b59b6; }
+
+.state-box {
+  background: #fff; border-radius: 8px; margin: 20px 24px; padding: 28px 32px;
+  text-align: center;
+}
+.state-box i { font-size: 34px; margin-bottom: 10px; display: block; }
+.state-box h3 { margin: 0 0 8px; font-size: 18px; color: #22242a; }
+.state-box p { margin: 0; font-size: 14px; color: #777; }
+.state-denied { border: 1px solid #f0d0d0; border-left: 4px solid #e6605e; }
+.state-denied i { color: #e6605e; }
+.state-error { border: 1px solid #f0d0d0; border-left: 4px solid #e6605e; }
+.state-error i { color: #e6605e; }
+.state-notfound { border: 1px solid #f3e6c8; border-left: 4px solid #f0ad4e; }
+.state-notfound i { color: #f0ad4e; }
+
+.footer {
+  padding: 12px 24px; color: #888; font-size: 12px;
+  border-top: 1px solid #ddd; background: #fff;
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span data-i18n="evinfo.title">Event Info</span>
+  <span class="sub" data-i18n="evinfo.subtitle">full log record</span>
+  <div id="localeSwitcher" style="float:right;"></div>
+</div>
+
+<div class="toolbar">
+  <button type="button" class="tbtn" id="btnClose"><i class="fa fa-times"></i> <span data-i18n="common.close">Close</span></button>
+  <a class="tbtn" id="btnViewer" href="#"><i class="fa fa-list-alt"></i> <span data-i18n="evinfo.openViewer">Open Event Viewer</span></a>
+</div>
+
+<div class="card" id="infoCard" style="display:none;">
+  <div class="card-head">
+    <h3 id="infoTitle"></h3>
+    <span id="levelBadge" class="level-badge"></span>
+  </div>
+  <div class="card-body">
+    <table class="evinfo">
+      <tbody id="infoBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="state-box state-denied" id="accessDenied" style="display:none;">
+  <i class="fa fa-lock"></i>
+  <h3 data-i18n="ev.accessDeniedTitle">Access Denied</h3>
+  <p data-i18n="ev.accessDeniedMsg">You do not have permission to view the event log.</p>
+</div>
+
+<div class="state-box state-notfound" id="notFound" style="display:none;">
+  <i class="fa fa-search-minus"></i>
+  <h3 data-i18n="evinfo.notFoundTitle">Event not found</h3>
+  <p data-i18n="evinfo.notFoundMsg">The requested event does not exist or was deleted.</p>
+</div>
+
+<div class="state-box state-error" id="loadError" style="display:none;">
+  <i class="fa fa-exclamation-triangle"></i>
+  <h3 data-i18n="common.error">Error</h3>
+  <p id="loadErrorMsg"></p>
+</div>
+
+<div class="footer"><span data-i18n="footers.eventInfo">TestLink 2.0.1 - Event Info</span></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script>
+function esc(s) {
+  return s == null ? '' : String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+var API = '/api/eventinfo/index.php';
+var qs = new URLSearchParams(window.location.search);
+var eventId = qs.get('id') || qs.get('event_id') || '';
+var tproject_id = qs.get('tproject_id') || '';
+var tplan_id = qs.get('tplan_id') || '';
+var objectId = qs.get('objectId') || qs.get('object_id') || '';
+var objectType = qs.get('objectType') || qs.get('object_type') || '';
+
+function viewerUrl() {
+  var p = [];
+  if (tproject_id) { p.push('tproject_id=' + encodeURIComponent(tproject_id)); }
+  if (tplan_id) { p.push('tplan_id=' + encodeURIComponent(tplan_id)); }
+  if (objectId) { p.push('objectId=' + encodeURIComponent(objectId)); }
+  if (objectType) { p.push('objectType=' + encodeURIComponent(objectType)); }
+  return '/gui/templates/eventviewer/eventviewer.html' + (p.length ? '?' + p.join('&') : '');
+}
+
+$(function() {
+  $('#btnViewer').attr('href', viewerUrl());
+  $('#btnClose').on('click', function() { window.close(); });
+
+  TLi18n.load(function() {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    if (!eventId || !/^\d+$/.test(String(eventId))) {
+      showState('#loadError');
+      $('#loadErrorMsg').text(TLi18n.t('evinfo.missingId'));
+      return;
+    }
+    loadEvent();
+  });
+});
+
+function showState(sel) {
+  $('#infoCard').hide();
+  $('#accessDenied').hide();
+  $('#notFound').hide();
+  $('#loadError').hide();
+  $(sel).show();
+}
+
+function loadEvent() {
+  $.ajax({ url: API + '?action=show&id=' + encodeURIComponent(eventId), dataType: 'json' })
+    .done(function(d) {
+      if (!d || d.status !== 'ok' || !d.item) {
+        showState('#loadError');
+        $('#loadErrorMsg').text((d && d.message) || TLi18n.t('common.errorLoading'));
+        return;
+      }
+      render(d.item);
+    })
+    .fail(function(xhr) {
+      var code = xhr.status;
+      if (code === 403) { showState('#accessDenied'); }
+      else if (code === 404) { showState('#notFound'); }
+      else if (code === 401) {
+        // Session expired: the BFF answered 401, send the user to login.
+        window.location.href = '/login.php';
+      } else {
+        showState('#loadError');
+        var msg = null;
+        try { msg = JSON.parse(xhr.responseText).message; } catch (e) {}
+        $('#loadErrorMsg').text(msg || TLi18n.t('common.errorLoading'));
+      }
+    });
+}
+
+function row(labelKey, value) {
+  return '<tr><th>' + esc(TLi18n.t(labelKey)) + '</th><td>' + esc(value) + '</td></tr>';
+}
+
+function sectionRow(labelKey) {
+  return '<tr class="section"><th colspan="2">' + esc(TLi18n.t(labelKey)) + '</th></tr>';
+}
+
+function render(e) {
+  $('#infoTitle').text(TLi18n.t('evinfo.eventHash', { id: e.id }));
+  var badge = $('#levelBadge');
+  badge.text(e.logLevel || '')
+       .attr('class', 'level-badge level-' + String(e.logLevel || '').replace(/[^A-Za-z0-9]/g, ''));
+
+  var html = '';
+  html += row('ev.level', e.logLevel);
+  html += row('ev.timestamp', e.timestampFormatted);
+  html += row('ev.source', e.source);
+  html += row('ev.description', e.description);
+
+  // Legacy eventinfo.tpl parity: "Session information" only when the event
+  // belongs to a transaction (i.e. a real user session produced it).
+  if (e.transactionID) {
+    html += sectionRow('ev.sessionInfo');
+    html += row('ev.user', e.userDisplayName || e.userName || e.userID);
+    html += row('ev.sessionId', e.sessionID);
+    html += row('ev.transaction', '#' + e.transactionID);
+  }
+
+  // "Activity" only when the event carries an object reference.
+  if (e.objectID) {
+    html += sectionRow('ev.activity');
+    html += row('ev.activityCode', e.activityCode);
+    html += row('ev.objectId', e.objectID);
+    html += row('ev.objectType', e.objectType);
+  }
+
+  $('#infoBody').html(html);
+  showState('#infoCard');
+}
+</script>
+</body>
+</html>
