@@ -575,6 +575,18 @@ Execution:
   Suite 1552 8/8 PASS (direct key, unknown key notFound, locale switcher EN/FR incl.
   BOM bundle, topic click, refresh, legacy shim 302, anonymous 401), Event Viewer
   clean. (Refs #1552)
+- Dashboard fallback controller (mainPage.php -> mainPage.html shim) (#1555): the
+  legacy lib/general/mainPage.php no longer renders the Smarty dashboard at stale
+  deep links (the modern gui/templates/mainpage/mainPage.html + api/mainpage BFF
+  has been the landing since #780). It is now a session-guarded 302 redirect shim:
+  anonymous -> login (legacy contract kept), zero-test-projects admin -> modern
+  projectEdit.html (Refs #967 bootstrap parity, the stale lib/project/projectEdit.php
+  pointer removed), otherwise -> mainPage.html?tproject_id=&tplan_id= forwarding the
+  legacy ?testplan deep-link param. ~600 lines of dead dashboard helpers deleted;
+  getUserDocumentation() relocated to lib/functions/common.php (initUserEnv() still
+  calls it for every page rendering the menu). Browser-verified: login frameset, deep
+  link, anon redirect, zero-project bootstrap (fresh DB) all land on modern screens.
+  Event Viewer clean, console clean. (Refs #1555)
 - TC Assignments (tcAssignments.html) - BFF api/tcassignments.
 - Edit Execution popup (editExecution.html).
 - Export Test Case Set (execExport.html) - BFF api/executeexport.
