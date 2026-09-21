@@ -18405,3 +18405,33 @@ user `noev` (role `guest` id=5, no `mgt_view_events`, password `admin`) was seed
 - **Actual:** PASS — only pre-existing WARNING rows from already-filed bug #1557 (unknown project id); no ERROR rows; popup console clean; `php -l` clean (`api/eventinfo/index.php`, `lib/events/eventinfo.php`, `lib/functions/common.php`).
 
 **Result: 9/9 PASS.** (Refs #1556. Found + filed bug #1557.)
+
+---
+
+## Regression — Issue #1557: PHP 8 E_WARNING in isIssueTrackerEnabled() for non-existent test project id
+
+Bug: `lib/functions/testproject.class.php:3487` `return $ret[0]['issue_tracker_enabled'];` — `get_recordset()`
+(`lib/functions/database.class.php:785`) returns `null` for a project id with no rows, so the offset access threw
+`E_WARNING: Trying to access array offset on null`, appended to `events` on every ASIDE init for a stale/nonexistent
+`tproject_id`. Fix: guard `!is_array($ret) || !isset($ret[0]['issue_tracker_enabled'])` → fail-closed `return 0`.
+Branch `fix/issue-1557` commit `98d4d1f0b`. Fresh DB 2026-09-21, no `testprojects` rows initially; admin/admin session
+(cookie `/tmp/cookies.txt`). Regression test case per FIX-ISSUE.md §5.
+
+### Test 1 — ASIDE init with non-existent project id: no E_WARNING event (pre-fix repro)
+1. `DELETE FROM events;` then `SELECT COUNT(*) FROM events` → 0.
+2. `curl -b <login-cookie> 'http://localhost:8082/api/aside/index.php?action=init&tproject_id=1&tplan_id=2'` (3 times).
+3. `SELECT count(*) FROM events`.
+- **Pre-fix expected (symptom):** one E_WARNING row per call (`Trying to access array offset on null ... testproject.class.php Line 3487`) — observed pre-fix as events ids 2,3.
+- **Post-fix expected:** HTTP 200 on each call, `events` count stays **0**.
+- **Actual:** PASS — call1/call2/call3 all HTTP:200; `events_after_3_calls = 0`, no rows.
+
+### Test 2 — Valid project id still returns the report menu without warnings
+1. `INSERT INTO testprojects (id,prefix,notes,color,active,is_public,issue_tracker_enabled,...) VALUES (100,'R2PRJ',...)` with `issue_tracker_enabled=1`.
+2. `curl '.../api/aside/index.php?action=init&tproject_id=100&tplan_id=2'`.
+- **Expected:** HTTP 200, full JSON menu payload, `events` count unchanged (0), no E_WARNING.
+- **Actual:** PASS — HTTP 200, valid ASIDE JSON (sections incl. dashboard/system), `events_after = 0`; `php -l` clean on `testproject.class.php`, `asideMenu.php`, `resultsNavigator.php`, `api/aside/index.php`.
+
+### Test 3 — Event hygiene / Event Viewer clean
+1. After tests 1-2 inspect `events` table and open `eventviewer.html`.
+- **Expected:** zero Error/Warning rows introduced by the fix or the repro; Event Viewer shows only pre-existing audit entries (login), no `E_WARNING ... Line 3487` anywhere.
+- **Actual:** PASS — `events` count 0 after full matrix; no `3487` warning rows present; browser console clean on the ASIDE init.
