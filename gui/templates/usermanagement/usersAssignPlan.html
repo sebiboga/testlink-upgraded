@@ -207,7 +207,8 @@ TLi18n.load(function() {
   TLi18n.initLocaleSwitcher('#localeSwitcher');
   var params = new URLSearchParams(window.location.search);
   var tp = params.get('tproject_id');
-  var ctx = 'tproject_id=' + encodeURIComponent(tp || '0') + '&tplan_id=' + encodeURIComponent(params.get('tplan_id') || '0');
+  var tpid = params.get('tplan_id');
+  var ctx = 'tproject_id=' + encodeURIComponent(tp || '0') + '&tplan_id=' + encodeURIComponent(tpid || '0');
   var tabs = [
     { label: TLi18n.t('tab.userManagement'), url: 'usersView.html?' + ctx },
     { label: TLi18n.t('tab.roleManagement'), url: 'rolesView.html?' + ctx },
@@ -219,10 +220,10 @@ TLi18n.load(function() {
     html += '<a href="' + t.url + '"' + (t.active ? ' class="active"' : '') + '>' + t.label + '</a>';
   });
   $('#tabsBar').html(html);
-  loadProjects(tp);
+  loadProjects(tp, tpid);
 });
 
-function loadProjects(selectedId) {
+function loadProjects(selectedId, selectedPlanId) {
   $.getJSON(API + '/meta/tplan-roles?tproject_id=0&tplan_id=0', function(r) {
     var sel = $('#projectSelect');
     sel.append('<option value="">' + TLi18n.t('assign.selectProject') + '</option>');
@@ -233,7 +234,7 @@ function loadProjects(selectedId) {
     buildBulkSelect();
     demoMode = !!(r.demoMode);
     applyDemoMode();
-    if (selectedId) { sel.val(selectedId); loadPlans(selectedId); }
+    if (selectedId) { sel.val(selectedId); loadPlans(selectedId, selectedPlanId); }
   }).fail(function(xhr) {
     if (xhr && xhr.status === 403) { showNoAccess(); }
   });
@@ -265,7 +266,13 @@ function showPlanDisabled(totalPlans) {
   $('#saveBtn').prop('disabled', true);
 }
 
-function loadPlans(pid) {
+// Legacy parity: usersAssign.php:109-111 (plans filtered to assignable set) +
+// :380-397 (the screen NEVER opens with an empty plan combo: the requested
+// featureID wins when present, otherwise the session plan, otherwise the FIRST
+// assignable plan - current($features)). The plan select is auto-selected here
+// and loadUsers() fired automatically (issue #945); only when there are no
+// assignable plans at all does the page stay on the empty/disabled state.
+function loadPlans(pid, selectedPlanId) {
   $.getJSON(API + '/meta/tplan-roles?tproject_id=' + pid + '&tplan_id=0', function(r) {
     var sel = $('#planSelect');
     sel.html('<option value="">' + TLi18n.t('assign.selectPlan') + '</option>');
@@ -277,6 +284,23 @@ function loadPlans(pid) {
     $('#assignTable').show();
     $('#disabledMsg').hide();
     $('#assignBody').empty(); $('#emptyMsg').show(); $('#saveBtn').prop('disabled', true);
+    // Legacy parity (usersAssign.php:380-397): pick the plan to auto-load.
+    // 1. the URL featureID (tplan_id) when it is one of the assignable plans;
+    // 2. otherwise fall back to the FIRST assignable plan (current($features)).
+    var planToLoad = null;
+    var req = selectedPlanId ? parseInt(selectedPlanId, 10) : 0;
+    if (req > 0) {
+      $.each(r.plans, function(i, p) {
+        if (planToLoad === null && parseInt(p.id, 10) === req) { planToLoad = req; }
+      });
+    }
+    if (planToLoad === null && r.plans.length) {
+      planToLoad = parseInt(r.plans[0].id, 10);
+    }
+    if (planToLoad !== null) {
+      sel.val(String(planToLoad));
+      loadUsers(pid, planToLoad);
+    }
   }).fail(function(xhr) {
     if (xhr && xhr.status === 403) { showNoAccess(); }
   });

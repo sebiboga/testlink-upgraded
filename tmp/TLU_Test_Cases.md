@@ -18536,3 +18536,33 @@ Branch `fix/issue-1558-helperconcat-null-guard` commit `0f6d0550c`. Fresh DB 202
 - **Actual:** PASS — `events` = 0 Error/Warning rows after the full matrix; `php -l lib/functions/testplan.class.php` → `No syntax errors detected`.
 
 **Result: 4/4 PASS.** (Refs #1558. Fix mirrors the #1011 `getPrefix()` guard and the #1557 `isIssueTrackerEnabled()` guard in the same E_WARNING family.)
+
+## Suite 945 — Task — Issue #945: honour tplan_id URL param to auto-load the selected plan in Assign Test Plan Roles (gap vs legacy) (Refs #945)
+
+**Background:** legacy `lib/usermanagement/usersAssign.php:380-397` (`getTestPlanEffectiveRoles`) never opens the assign screen with an empty plan combo: the URL `featureID` (= `tplan_id`) wins when present, otherwise it falls back to the session plan then the FIRST assignable plan (`current($features)`), and the role table renders immediately. The modern `usersAssignPlan.html` only honoured `tproject_id`, ignoring `tplan_id`, so redirects carrying both (lib/functions/common.php:1889, api/plans/index.php:113) landed on the "-- select plan --" empty state and the user had to manually re-pick the plan.
+
+**Precondition:** run `php tmp/fixtures_941.php` → tproject id 1 (PLANROLES941) + active public plan id 2 (PLAN941-R1) + users u941*; log in as admin/admin (role 8 ⇒ userCanAssignRoles passes the role_management gate). The BFF is `api/roles/index.php` (GET /meta/tplan-roles).
+
+### Test 1 — URL tplan_id auto-selects the plan and renders the role grid immediately
+1. Clear `events`; open `http://localhost:8082/gui/templates/usermanagement/usersAssignPlan.html?tproject_id=1&tplan_id=2`.
+2. Inspect the Test Plan combo and the assign table.
+- **Expected:** combo value = `2` (PLAN941-R1) with NO manual interaction; 6 role rows rendered (admin + u941designer/senior/tester/leader/adminpl); `#emptyMsg` hidden; BFF meta `GET /api/roles/meta/tplan-roles?tproject_id=1&tplan_id=0` returns the plan list.
+- **Actual:** `planSel: "2"` (PLAN941-R1), 6 rows, `emptyMsgHidden: "none"` — PASS.
+
+### Test 2 — No tplan_id → falls back to the FIRST assignable plan (legacy `current($features)`)
+1. Open `usersAssignPlan.html?tproject_id=1` (no `tplan_id`).
+- **Expected:** combo still auto-selected to the first assignable plan (2 / PLAN941-R1) and grid rendered — the page never sits on "-- select plan --" as long as assignable plans exist.
+- **Actual:** `planSel: "2"`, 6 rows — PASS.
+
+### Test 3 — Out-of-range tplan_id → first-plan fallback; project clearing/change still behaves
+1. Open `usersAssignPlan.html?tproject_id=1&tplan_id=999` (plan not in assignable set).
+2. Clear the project combo (dispatch `change` on `#projectSelect`), then re-select project 1.
+- **Expected:** 999 not found in plans ⇒ first-plan fallback (2 / PLAN941-R1) rendered; clearing the project disables the plan combo again (`-- select plan --`, disabled); re-selecting project 1 auto-loads first plan.
+- **Actual:** `planSel "2"` + 6 rows on tplan_id=999; after clear `#planSelect.disabled === true`; after re-select `planSel "2"` + 6 rows — PASS.
+
+### Test 4 — Event hygiene
+1. After tests 1-3 inspect the `events` table (`SELECT id, log_level, description FROM events`) and the browser console.
+- **Expected:** only the pre-existing audit/login INFO rows; NO new Error/Warning rows and no console errors from the auto-load path.
+- **Actual:** PASS — no new Error/Warning rows; console clean (no 401/403 from the screen, no JS exceptions in the console list).
+
+**Result: 4/4 PASS.** (Refs #945. Pure client-side change in usersAssignPlan.html — `tplan_id` threaded `TLi18n.load → loadProjects → loadPlans`, auto-select + `loadUsers()` + first-plan fallback. No BFF change, no i18n keys added.)

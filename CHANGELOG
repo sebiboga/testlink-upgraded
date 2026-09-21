@@ -30,6 +30,23 @@ screen reaches full parity.
   audit_users_self_signup AUDIT event, zero WARNING. (Refs #1337, sibling bug
   #1342 fixed by 70b7ff633)
 
+- [FEATURE GAP] - #945: the modern Assign Test Plan Roles screen
+  (gui/templates/usermanagement/usersAssignPlan.html) now honours the
+  `tplan_id` URL param the way legacy honoured `featureID`
+  (lib/usermanagement/usersAssign.php:380-397): the plan combo is auto-
+  selected to the requested plan and loadUsers() fires immediately, so
+  redirects carrying tproject_id + tplan_id (lib/functions/common.php:1889,
+  api/plans/index.php:113) land on a fully rendered role table instead of an
+  empty "-- select plan --". When no valid tplan_id is present the screen
+  falls back to the FIRST assignable plan exactly like legacy
+  current($features) — the page never opens with an empty plan combo
+  (unless no assignable plan exists at all, which keeps the existing
+  no_test_plans_available / roles-assign-disabled disabled state). Pure
+  client-side change (tplan_id threaded loadProjects -> loadPlans), no BFF
+  change, no i18n. Browser-verified (auto-load 6 rows / first-plan fallback /
+  out-of-range id fallback / project-change reload), suite 945 3/3 PASS.
+  (Refs #945)
+
 MAJOR AREAS
 -----------
 
