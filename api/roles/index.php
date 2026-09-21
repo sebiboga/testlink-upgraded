@@ -232,6 +232,82 @@ function getTprojectEffectiveRoleMap(&$db, &$users, $tproject_id, $isPublic) {
     return $effective;
 }
 
+// Legacy parity: lib/functions/roles.inc.php:373-437 get_tplan_effective_role()
+// + get_tproject_effective_role() (:298-343). Resolves each user's EFFECTIVE
+// role on a test plan through the full 3-layer model:
+//   layer 1 - explicit plan role (user_testplan_roles)  -> effective, NOT inherited
+//   else 2 - private plan + non-admin global role        -> <no rights>, NOT inherited
+//   else 3 - inherited: testplan_role_inheritance_mode
+//            'testproject' (default) -> project effective role (its own 3-layer:
+//              project assignment -> global role on public project -> <no rights>
+//              on private project)
+//            'global'               -> the user's global role
+// and derives the "<inherited> X" label source ($ikx) exactly like usersAssign.tpl
+// :225-232: is_inherited ? effective_role_id : uplayer_role_id (the global role).
+// Returns a map keyed by user id with:
+//   effective_role_id - the role that applies on the plan
+//   is_inherited      - 1 when it comes from inheritance, 0 when explicit / no rights
+//   inherited_role_id / inherited_role_name - the role whose name decorates the
+//                        "<inherited> X" select option (legacy $ikx)
+//   effective_role_name - display name of the effective role (for the Inherited
+//                        Role column / select emphasis)
+function getTplanEffectiveRoleMap(&$db, &$users, $tproject_id, $tplan_id, $planIsPublic, $projIsPublic) {
+    $roleNames = [];
+    $roleNameOf = function ($rid) use (&$roleNames, $db) {
+        $rid = intval($rid);
+        if (!array_key_exists($rid, $roleNames)) {
+            $roleNames[$rid] = '-';
+            if ($rid > 0) {
+                $irole = tlRole::getByID($db, $rid, tlRole::TLOBJ_O_GET_DETAIL_MINIMUM);
+                $roleNames[$rid] = $irole ? $irole->getDisplayName() : '-';
+            }
+        }
+        return $roleNames[$rid];
+    };
+
+    $inhMode = config_get('testplan_role_inheritance_mode');
+    $effective = [];
+    foreach ($users as $u) {
+        $u->readTestProjectRoles($db, $tproject_id);
+        $u->readTestPlanRoles($db, $tplan_id);
+        $globalRoleID = intval($u->globalRoleID);
+
+        // Project effective role (3-layer project model, get_tproject_effective_role).
+        $projEffectiveRoleID = $globalRoleID;
+        if (($globalRoleID != TL_ROLES_ADMIN) && !$projIsPublic) {
+            $projEffectiveRoleID = TL_ROLES_NO_RIGHTS;
+        }
+        if (isset($u->tprojectRoles[$tproject_id])) {
+            $projEffectiveRoleID = intval($u->tprojectRoles[$tproject_id]->dbID);
+        }
+
+        // Plan effective role (3-layer plan model, get_tplan_effective_role).
+        $isInherited = 0;
+        if (isset($u->tplanRoles[$tplan_id])) {
+            $effectiveRoleID = intval($u->tplanRoles[$tplan_id]->dbID);
+        } elseif (($globalRoleID != TL_ROLES_ADMIN) && !$planIsPublic) {
+            $effectiveRoleID = TL_ROLES_NO_RIGHTS;
+        } else {
+            $isInherited = 1;
+            $effectiveRoleID = ($inhMode === 'global') ? $globalRoleID : $projEffectiveRoleID;
+        }
+
+        // Legacy $ikx (usersAssign.tpl:226-232): label source for the
+        // "<inherited> X" option - effective role when inherited, global (uplayer)
+        // role otherwise.
+        $inheritedRoleID = $isInherited ? $effectiveRoleID : $globalRoleID;
+
+        $effective[$u->dbID] = [
+            'effective_role_id' => $effectiveRoleID,
+            'is_inherited' => $isInherited,
+            'inherited_role_id' => $inheritedRoleID,
+            'inherited_role_name' => $roleNameOf($inheritedRoleID),
+            'effective_role_name' => $roleNameOf($effectiveRoleID),
+        ];
+    }
+    return $effective;
+}
+
 // ---------------------------------------------------------------------------
 // Route-aware rights enforcement (issues #897 + #924).
 // Role catalog routes keep the role_management gate; the role-assignment
@@ -778,31 +854,42 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'meta' && isset
 
     $items = [];
     if ($tplan_id) {
+        // Legacy parity: usersAssign.php:404-405 get_tplan_effective_role() needs
+        // both the project's and the plan's is_public to resolve the 3-layer
+        // model (public project / private plan no-rights paths).
+        $tplanMgr = new testplan($db);
+        $projIsPublic = 1;
+        $tprojectInfo = $tprojectMgr->get_by_id($tproject_id);
+        if ($tprojectInfo && isset($tprojectInfo['is_public'])) {
+            $projIsPublic = intval($tprojectInfo['is_public']);
+        }
+        $planIsPublic = 1;
+        $tplanInfo = $tplanMgr->get_by_id($tplan_id);
+        if ($tplanInfo && isset($tplanInfo['is_public'])) {
+            $planIsPublic = intval($tplanInfo['is_public']);
+        }
+
         $users = tlUser::getAll($db, "WHERE active=1", null, null, tlUser::TLOBJ_O_GET_DETAIL_MINIMUM);
         if ($users) {
+            $effectiveMap = getTplanEffectiveRoleMap($db, $users, $tproject_id, $tplan_id, $planIsPublic, $projIsPublic);
             foreach ($users as $u) {
-                $u->readTestProjectRoles($db, $tproject_id);
-                $u->readTestPlanRoles($db, $tplan_id);
                 $assignedRoleId = 0;
-                $inheritedRoleId = 0;
                 if (isset($u->tplanRoles[$tplan_id])) {
                     $assignedRoleId = intval($u->tplanRoles[$tplan_id]->dbID);
                 }
-                if (isset($u->tprojectRoles[$tproject_id])) {
-                    $inheritedRoleId = intval($u->tprojectRoles[$tproject_id]->dbID);
-                }
-                $inheritedRoleName = 'No';
-                if ($inheritedRoleId > 0 && $inheritedRoleId != TL_ROLES_INHERITED) {
-                    $inheritedRole = tlRole::getByID($db, $inheritedRoleId, tlRole::TLOBJ_O_GET_DETAIL_MINIMUM);
-                    $inheritedRoleName = $inheritedRole ? $inheritedRole->getDisplayName() : '-';
-                }
+                $eff = $effectiveMap[$u->dbID];
                 $items[] = [
                     'id' => intval($u->dbID),
                     'login' => $u->login,
                     'name' => $u->getDisplayName(),
                     'roleID' => $assignedRoleId,
-                    'inheritedRoleID' => $inheritedRoleId,
-                    'inheritedRoleName' => $inheritedRoleName,
+                    // Legacy parity: get_tplan_effective_role() effective role +
+                    // inheritance nature (issue #944).
+                    'effectiveRoleID' => $eff['effective_role_id'],
+                    'isInherited' => $eff['is_inherited'],
+                    'effectiveRoleName' => $eff['effective_role_name'],
+                    'inheritedRoleID' => $eff['inherited_role_id'],
+                    'inheritedRoleName' => $eff['inherited_role_name'],
                     // Legacy parity: usersAssign.tpl:244-247 (same template used
                     // for test plan contexts) locks global-admin selects (issue #927).
                     'isAdmin' => intval($u->globalRoleID) == TL_ROLES_ADMIN,

@@ -292,8 +292,15 @@ function loadPlans(pid) {
 // id 8) is only offered when it is the row's current explicit plan assignment
 // (issue #928). chosenVal drives the selected option from the data model so a
 // row re-rendered by DataTables keeps the user's chosen override.
+// Legacy parity: usersAssign.tpl:264-269 - for a row whose effective role is
+// INHERITED the value-0 option renders "<inherited> <role>" with the real
+// inherited role name (legacy $inherited_role_name via $ikx), the same pattern
+// usersAssignProject.html:326-331 uses for project contexts (issue #944).
 function rolesOptions(u, chosenVal) {
-  var opts = '<option value="0">' + TLi18n.t('assign.noOverride') + '</option>';
+  var noRoleLbl = u.isInherited
+    ? esc(TLi18n.t('assign.inheritedRoleOption', {role: u.inheritedRoleName}))
+    : esc(TLi18n.t('assign.noOverride'));
+  var opts = '<option value="0"' + (chosenVal === 0 ? ' selected' : '') + '>' + noRoleLbl + '</option>';
   $.each(roles, function(j, role) {
     if (role.id == ADMIN_ROLE_ID && u.origRoleID != role.id) return;
     var sel = role.id == chosenVal ? ' selected' : '';
@@ -413,8 +420,15 @@ function loadUsers(pid, planId) {
         id: u.id,
         login: u.login,
         name: u.name,
+        // Legacy parity: lib/functions/roles.inc.php:373-437
+        // get_tplan_effective_role() - effective plan role + inheritance nature
+        // (issue #944). isInherited == 1 means the effective role is INHERITED
+        // (via project or the global-role fallback), so the value-0 option is
+        // the row's effective state and labels "<inherited> <role>".
         inheritedRoleName: u.inheritedRoleName,
         isAdmin: !!u.isAdmin,
+        isInherited: !!u.isInherited,
+        effectiveRoleID: u.effectiveRoleID,
         origRoleID: u.roleID,
         roleVal: u.roleID
       };

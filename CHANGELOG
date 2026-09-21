@@ -111,6 +111,22 @@ MAJOR AREAS
   (showPlanDisabled renders assign.noUsablePlans / assign.rolesForPlansDisabled,
   re-verified). i18n keys assign.rolesUpdated / assign.noUsersSelected already in
   all 10 bundles. Suite 942 6/6 PASS, Event Viewer clean. (Refs #942)
+- [FEATURE GAP CLOSED] - #944: the modern Assign Test Plan Roles screen
+  (gui/templates/usermanagement/usersAssignPlan.html / api/roles/index.php GET
+  /roles/meta/tplan-roles) computed the "Inherited Role" column and the inherited
+  fallback ONLY from the project role — a user with no project role but a global
+  role on a public plan showed "No" whereas legacy get_tplan_effective_role()
+  (lib/functions/roles.inc.php:373-437) falls back to the global role
+  ("<inherited> guest"). api/roles/index.php gained getTplanEffectiveRoleMap()
+  implementing the full 3-layer plan model (explicit plan role -> private-plan
+  <no rights> -> inheritance per testplan_role_inheritance_mode from the project
+  effective role else the global role) and exposes effectiveRoleID / isInherited /
+  effectiveRoleName per user (legacy $ikx label source kept for the "<inherited> X"
+  option); usersAssignPlan.html labels the value-0 select option "<inherited>
+  <role>" when the effective role is inherited (assign.inheritedRoleOption,
+  same pattern as usersAssignProject.html), so the global-role fallback is now
+  visible in both the column and the default select value. Suite 944 6/6 PASS,
+  Event Viewer clean. (Refs #944)
 - [GAP CLOSED] - #1350: the modern Requirement Specification Viewer toolbar
   (gui/templates/requirements/reqSpecView.html) restores the three legacy
   reqSpecView toolbar actions (reqSpecViewButtons.inc.tpl:88-93 +
