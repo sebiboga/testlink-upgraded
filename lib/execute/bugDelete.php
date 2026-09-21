@@ -1,81 +1,37 @@
 <?php
 /**
- * TestLink Open Source Project - http://testlink.sourceforge.net/ 
- * This script is distributed under the GNU General Public License 2 or later. 
+ * TestLink Open Source Project - http://testlink.sourceforge.net/
+ * This script is distributed under the GNU General Public License 2 or later.
  *
  * @filesource  bugDelete.php
- * @internal revisions
- * @since 1.9.16
  *
+ * 2010.1.shim - Refs #1559: the legacy Smarty Bug Delete popup was replaced
+ * by the modern Dashio screen gui/templates/execute/bugDelete.html + the
+ * api/bugdelete BFF. This controller is kept as a session-guarded redirect
+ * shim so old deep links (and the legacy testlink_library.js deleteBug()
+ * callers still running on un-modernized parents) resolve: anonymous users
+ * are sent to the login screen (legacy testlinkInitPage behaviour) and
+ * authenticated users land on the modern popup with the exec/bug/step ids
+ * forwarded. The rights gate lives in the BFF (testplan_execute).
 **/
-require_once('../../config.inc.php');
+require_once("../../config.inc.php");
 require_once('../functions/common.php');
-require_once('exec.inc.php');
 
-testlinkInitPage($db,false,false,"checkRights");
+// Anonymous -> login (same contract as the legacy testlinkInitPage call).
+testlinkInitPage($db, FALSE, false, null, true);
 
-$templateCfg = templateConfiguration();
-$args = init_args();
-$msg = "";
-if ($args->exec_id && $args->bug_id != "")
-{
-  if (write_execution_bug($db,$args->exec_id,$args->bug_id,$args->tcstep_id,true))
-  {
-    // get audit info
-    $ainfo = get_execution($db,$args->exec_id,array('output' => 'audit'));
-    $ainfo = $ainfo[0];
+// Legacy input contract: ?exec_id=<id>[&tcstep_id=<id>][&bug_id=<id>]
+$tprojectID = isset($_SESSION['testprojectID']) ? intval($_SESSION['testprojectID']) : 0;
+$tplanID = isset($_SESSION['testplanID']) ? intval($_SESSION['testplanID']) : 0;
 
-    $msg = lang_get('bugdeleting_was_ok');
-    if( $ainfo['platform_name'] == '' )
-    {
-      $auditMsg = TLS('audit_executionbug_deleted_no_platform',$args->bug_id,
-                      $ainfo['exec_id'],$ainfo['testcase_name'],
-                      $ainfo['testproject_name'],$ainfo['testplan_name'],
-                      $ainfo['build_name']);
-    } 
-    else
-    {
-      $auditMsg = TLS('audit_executionbug_deleted',$args->bug_id,$ainfo['exec_id'],
-                      $ainfo['testcase_name'],$ainfo['testproject_name'],
-                      $ainfo['testplan_name'],$ainfo['platform_name'],
-                      $ainfo['build_name']);
-    } 
-    logAuditEvent($auditMsg,"DELETE",$args->exec_id,"executions");
-  }
+$url = $_SESSION['basehref'] . 'gui/templates/execute/bugDelete.html';
+$url .= '?exec_id=' . intval($_REQUEST['exec_id'] ?? 0);
+if (isset($_REQUEST['tcstep_id'])) {
+    $url .= '&tcstep_id=' . intval($_REQUEST['tcstep_id']);
 }
-
-$smarty = new TLSmarty();
-$smarty->assign('msg',$msg);
-$smarty->display($templateCfg->template_dir . $templateCfg->default_template);
-
-/**
- * 
- * @return object returns the arguments of the page
- */
-function init_args()
-{
-  $args = new stdClass();
-  $iParams = array("exec_id" => array("GET",tlInputParameter::INT_N),
-                 "tcstep_id"  => array("GET",tlInputParameter::INT_N),
-           "bug_id" => array("GET",tlInputParameter::STRING_N,0,config_get('field_size')->bug_id));
-  
-  $pParams = I_PARAMS($iParams,$args);
-  $args->tproject_id = isset($_REQUEST['tproject_id']) ? $_REQUEST['tproject_id'] : $_SESSION['testprojectID'];
-
-  return $args;
+if (isset($_REQUEST['bug_id']) && $_REQUEST['bug_id'] != '') {
+    $url .= '&bug_id=' . rawurlencode($_REQUEST['bug_id']);
 }
-
-
-/**
- * Checks the user rights for viewing the page
- * 
- * @param $db resource the database connection handle
- * @param $user tlUser the object of the current user
- *
- * @return boolean return true if the page can be viewed, false if not
- */
-function checkRights(&$db,&$user)
-{
-  $hasRights = $user->hasRightOnProj($db,"testplan_execute");
-  return $hasRights;
-}
+$url .= '&tproject_id=' . $tprojectID . '&tplan_id=' . $tplanID;
+header('Location: ' . $url);
+exit;
