@@ -3484,7 +3484,8 @@ function isIssueTrackerEnabled($id)
          "WHERE id =" . intval($id);   
        
   $ret = $this->db->get_recordset($sql);
-  if (empty($ret) || !isset($ret[0]['issue_tracker_enabled'])) {
+  if( !is_array($ret) || !isset($ret[0]['issue_tracker_enabled']) )
+  {
     return 0;
   }
   return $ret[0]['issue_tracker_enabled'];
