@@ -62,6 +62,22 @@ screen reaches full parity.
   change, no i18n. Browser-verified (auto-load 6 rows / first-plan fallback /
   out-of-range id fallback / project-change reload), suite 945 3/3 PASS.
   (Refs #945)
+- [FEATURE GAP] - #946: the Assign Test Plan Roles screen
+  (gui/templates/usermanagement/usersAssignPlan.html) now paints each user's
+  Login+Name cells with the colour configured for that user's GLOBAL role
+  when $tlCfg->gui->usersAssignGlobalRoleColoring is ENABLED (config.inc.php:720,
+  default DISABLED), porting legacy usersAssign.php:593-598 +
+  usersAssign.tpl:239-241: api/roles/index.php gained
+  globalRoleColourContext()/userGlobalRoleColour() — on the ENABLED flag it
+  exposes tlRole::getRoleColourCfg() (keys = roles.description, $g_role_colour
+  default map cfg/const.inc.php:536) and adds per-item globalRoleName +
+  roleColour plus a top-level roleColouring bool to BOTH the tplan-roles and
+  tproject-roles meta routes; both assign grids (usersAssignPlan.html +
+  usersAssignProject.html, the legacy usersAssign.tpl is shared) apply the
+  background to the login/name cells, re-applied on DataTables re-draws via
+  createdRow. Legacy-identical handling of invalid CSS entries ('acqua' for
+  leader — injected verbatim, ignored by browsers). No i18n (no new strings).
+  Suite 946 7/7 PASS, Event Viewer clean. (Refs #946)
 
 MAJOR AREAS
 -----------

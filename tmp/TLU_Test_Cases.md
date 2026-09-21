@@ -18666,3 +18666,52 @@ Fixture: `php tmp/fixtures_1559.php` (project B1559, TC "BUG Login Check" + 2 st
 - **Actual:** 10/10 pass json.tool; events only show login + fixture + executionbug audit rows (log_level 16), no 20/30/40/50 rows. PASS.
 
 **Result: 10/10 PASS.** (Refs #1559. Changes: `gui/templates/execute/bugDelete.html` screen, `api/bugdelete/index.php` BFF, `lib/execute/bugDelete.php` 302 shim, `gui/javascript/testlink_library.js` deleteBug() switch, i18n keys in all 10 bundles; screenshots `docs/screenshots/issue-1559-*.png`.)
+
+## Suite 946 — Task — Issue #946: usersAssignGlobalRoleColoring — row colour coding in Assign Test Plan Roles (gap vs legacy) (Refs #946)
+
+> Feature: when `$tlCfg->gui->usersAssignGlobalRoleColoring = ENABLED` (config.inc.php:720,
+> default DISABLED = standard behavior), the BFF exposes each user's GLOBAL role name and
+> configured colour (`tlRole::getRoleColourCfg()`, keys = raw `roles.description`, cfg `role_colour`
+> map from cfg/const.inc.php:536) and both assign grids paint the login+name cells with that
+> colour. Fixtures: `tmp/fixtures_946.php` (PLANROLES946 + active plan PLAN946-R1; users
+> u946tester=role7 wheat, u946senior=role6 #FFA, u946designer=role4 cyan, u946guest=role5 pink,
+> u946leader=role9 acqua (invalid CSS, ignored by browsers exactly like legacy), u946norights=role3
+> '<no rights>' grey (RAW key — getDisplayName() would rewrite it and miss the map), admin=white).
+> Note: verify with the flag flipped to ENABLED locally; the repo default stays DISABLED.
+
+### Test 1 — BFF payload exposes globalRoleName + roleColour when ENABLED
+1. Flip config.inc.php:720 to `= ENABLED;`. 2. `curl 'http://localhost:8082/api/roles/index.php/meta/tplan-roles?tproject_id=<fixture>&tplan_id=<fixture-plan>' -b <session>`.
+- **Expected:** `roleColouring:true`; each item carries `globalRoleName` (= RAW role description) and `roleColour` mapped per `$g_role_colour` (tester→wheat, senior tester→#FFA, test designer→cyan, guest→pink, leader→acqua, `<no rights>`→grey, admin→white).
+- **Actual:** curl shows exactly those values for all 7 users, plus `roleColouring:true`. PASS.
+
+### Test 2 — BFF stays colourless when the flag is DISABLED (config gating)
+1. Flip config.inc.php:720 back to `= DISABLED;` (repo default). 2. Same curl.
+- **Expected:** `roleColouring:false`, every `roleColour` empty string, `globalRoleName` still present. No payload change elsewhere.
+- **Actual:** `roleColouring:false`, all `roleColour` = ''. PASS.
+
+### Test 3 — Plan grid paints login/name cells by global role colour (raw description key)
+1. Flag ENABLED. 2. Open `usersAssignPlan.html?tproject_id=<fixture>&tplan_id=<fixture-plan>` as admin.
+- **Expected:** computed backgrounds: admin `white`, u946designer `cyan`, u946guest `pink`, u946leader plain (acqua invalid, browser ignores – legacy-identical), u946norights `grey` (proves RAW-key lookup; getDisplayName() would give `<no_rights>` → no colour), u946senior `#FFA`, u946tester `wheat`; both Login and Name cells tinted.
+- **Actual:** computed rgb values match for all 7 rows; leader cell plain. Screenshot `docs/screenshots/issue-946-assignplan-role-colors.png`. PASS.
+
+### Test 4 — Colours survive DataTables re-draws (search + sort)
+1. `dt.search('u946').draw()`. 2. `dt.order([1,'desc']).draw()`.
+- **Expected:** every re-drawn row keeps its background (createdRow re-applies from the model).
+- **Actual:** search re-draw + sort re-draw both keep cyan/pink/grey/#FFA/wheat per row. PASS.
+
+### Test 5 — Project grid (shared legacy template) colours too
+1. Open `usersAssignProject.html?tproject_id=<fixture>`.
+- **Expected:** same per-global-role tint on the login/name cells (usersAssign.tpl:239-241 governs project contexts as well).
+- **Actual:** identical colours across the 7 rows. Screenshot `docs/screenshots/issue-946-assignproject-role-colors.png`. PASS.
+
+### Test 6 — coloured cell + modified badge coexist
+1. On the plan grid search `u946tester`, change its override select to `leader`.
+- **Expected:** login/name keep `wheat`, the row gains `changed` class + `.changed-badge`, Save enables.
+- **Actual:** bg stays `wheat`, badge present, row `odd changed`. Screenshot `docs/screenshots/issue-946-assignplan-role-colors-modified.png`. PASS.
+
+### Test 7 — Event Viewer hygiene + console clean
+1. Inspect `events` after the suite; check browser console.
+- **Expected:** no new Error/Warning (log_level 20/30/40/50) rows from the coloured grid; console has only the pre-existing DataTables a11y issues.
+- **Actual:** events show only login/fixture audit INFO (16) rows; console clean of JS errors. PASS.
+
+**Result: 7/7 PASS.** (Refs #946. Changes: `api/roles/index.php` globalRoleColourContext()/userGlobalRoleColour() + per-item `globalRoleName`/`roleColour` (RAW role description key) in both `meta/tplan-roles` and `meta/tproject-roles`; `gui/templates/usermanagement/usersAssignPlan.html` + `usersAssignProject.html` paint login/name cells (inline style + createdRow re-apply); no i18n keys needed — no new user-facing strings; fixture `tmp/fixtures_946.php`; screenshots `docs/screenshots/issue-946-*.png`.)

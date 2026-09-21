@@ -365,11 +365,16 @@ function renderUsersTable(keep) {
   }
   $.each(users, function(i, u) {
     var hint = u.isAdmin ? ' <i class="fa fa-info-circle inherited-col" title="' + esc(TLi18n.t('assign.adminRoleLocked')) + '"></i>' : '';
+    // Legacy parity: usersAssign.tpl:239-241 - paint the login+name cells with
+    // the user's GLOBAL role colour when one is configured (issue #946). The
+    // legacy cell fused login+name; the modern grid splits them, so both cells
+    // share the same background to reproduce the tinted user-block look.
+    var rowStyle = (u.roleColour && u.roleColour !== '') ? ' style="background-color:' + esc(u.roleColour) + ';"' : '';
     $b.append(
       '<tr data-uid="' + esc(u.id) + '">' +
       '<td>' + (i + 1) + '</td>' +
-      '<td>' + esc(u.login) + '</td>' +
-      '<td>' + esc(u.name) + '</td>' +
+      '<td' + rowStyle + '>' + esc(u.login) + '</td>' +
+      '<td' + rowStyle + '>' + esc(u.name) + '</td>' +
       '<td class="inherited-col">' + esc(u.inheritedRoleName) + '</td>' +
       '<td>' + buildSelectHtml(u) + hint + '</td>' +
       '</tr>');
@@ -408,7 +413,14 @@ function renderUsersTable(keep) {
     // paging/search/sort - the DOM classes are lost on re-render (issue #939).
     createdRow: function(row) {
       var u = userById[parseInt($(row).attr('data-uid'), 10)];
-      if (u && !u.isAdmin && (u.roleVal != u.origRoleID)) {
+      if (!u) return;
+      // Re-apply the global-role colour when DataTables re-draws a row after
+      // paging/search/sort - the inline styles are lost on re-render, same
+      // mechanism as the "modified" badge below (issue #946).
+      if (u.roleColour && u.roleColour !== '') {
+        $(row).find('td:eq(1),td:eq(2)').css('background-color', u.roleColour);
+      }
+      if (!u.isAdmin && (u.roleVal != u.origRoleID)) {
         $(row).addClass('changed');
         $(row).find('td:eq(1)').append('<span class="changed-badge">' + TLi18n.t('common.modified') + '</span>');
       }
@@ -454,7 +466,13 @@ function loadUsers(pid, planId) {
         isInherited: !!u.isInherited,
         effectiveRoleID: u.effectiveRoleID,
         origRoleID: u.roleID,
-        roleVal: u.roleID
+        roleVal: u.roleID,
+        // Legacy parity: usersAssign.tpl:239-241 - the background colour of the
+        // user's login/name block, keyed by the user's GLOBAL role when
+        // usersAssignGlobalRoleColoring is ENABLED (usersAssign.php:593-598,
+        // issue #946). Empty '' = no colour configured -> plain cell.
+        globalRoleName: u.globalRoleName || '',
+        roleColour: u.roleColour || ''
       };
       users.push(entry);
       userById[entry.id] = entry;

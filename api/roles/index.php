@@ -308,6 +308,44 @@ function getTplanEffectiveRoleMap(&$db, &$users, $tproject_id, $tplan_id, $planI
     return $effective;
 }
 
+// Legacy parity: lib/usermanagement/usersAssign.php:593-598 - when
+// $tlCfg->gui->usersAssignGlobalRoleColoring == ENABLED the shared
+// usersAssign.tpl:239-241 paints each user's login/name cell with the
+// background colour configured for that user's GLOBAL role
+// (tlRole::getRoleColourCfg(), keys = roles.description == tlRole::$name, i.e.
+// the string $user->globalRole->name in the legacy template). Returns
+// ['enabled' => bool, 'map' => colourPerRoleDescription] so the role-assignment
+// routes can expose per-user globalRoleName + roleColour (issue #946).
+function globalRoleColourContext(&$db) {
+    $guiCfg = config_get('gui');
+    $enabled = ($guiCfg && (($guiCfg->usersAssignGlobalRoleColoring ?? DISABLED) == ENABLED));
+    if (!$enabled) {
+        return ['enabled' => false, 'map' => []];
+    }
+    return ['enabled' => true, 'map' => tlRole::getRoleColourCfg($db)];
+}
+
+// Resolve a user's GLOBAL role description + configured colour (may be '')
+// from the context built by globalRoleColourContext(). Mirrors the legacy
+// usersAssign.tpl:239-241 lookup $gui->role_colour[$user->globalRole->name]:
+// the colour map is keyed by the RAW roles.description string (tlRole::$name) -
+// NOT getDisplayName(), which rewrites '<no rights>' into the localized
+// '<no_rights>' and would never match the '$g_role_colour' raw keys.
+function userGlobalRoleColour(&$db, &$u, $colourCtx) {
+    $grName = '';
+    if ($u->globalRole) {
+        $grName = (string)$u->globalRole->name;
+    } elseif ($u->globalRoleID > 0) {
+        $gr = tlRole::getByID($db, $u->globalRoleID, tlRole::TLOBJ_O_GET_DETAIL_MINIMUM);
+        if ($gr) { $grName = $gr->name; }
+    }
+    $grColour = '';
+    if ($colourCtx['enabled'] && $grName !== '') {
+        $grColour = (string)($colourCtx['map'][$grName] ?? '');
+    }
+    return ['globalRoleName' => $grName, 'roleColour' => $grColour];
+}
+
 // ---------------------------------------------------------------------------
 // Route-aware rights enforcement (issues #897 + #924).
 // Role catalog routes keep the role_management gate; the role-assignment
@@ -707,6 +745,11 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'meta' && isset
 
     $items = [];
     $isPublic = 1;
+    // Legacy parity: usersAssign.tpl:239-241 - global-role colour context for the
+    // user's login/name cell when usersAssignGlobalRoleColoring is ENABLED
+    // (usersAssign.php:593-598, issue #946). The legacy shared template also
+    // governs test-project contexts, so project rows carry it as well.
+    $colourCtx = globalRoleColourContext($db);
     if ($tproject_id) {
         $tprojectMgr = new testproject($db);
         $tprojectInfo = $tprojectMgr->get_by_id($tproject_id);
@@ -723,6 +766,7 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'meta' && isset
                     $assignedRoleId = intval($u->tprojectRoles[$tproject_id]->dbID);
                 }
                 $eff = $effectiveMap[$u->dbID];
+                $colour = userGlobalRoleColour($db, $u, $colourCtx);
                 $items[] = [
                     'id' => intval($u->dbID),
                     'login' => $u->login,
@@ -733,6 +777,8 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'meta' && isset
                     'inheritedRoleID' => $eff['inherited_role_id'],
                     'inheritedRoleName' => $eff['inherited_role_name'],
                     'isAdmin' => intval($u->globalRoleID) == TL_ROLES_ADMIN,
+                    'globalRoleName' => $colour['globalRoleName'],
+                    'roleColour' => $colour['roleColour'],
                 ];
             }
         }
@@ -744,6 +790,7 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'meta' && isset
     // (issue #932); mirror of the demoMode block fed by GET /roles (line 364).
     out(['status' => 'ok', 'items' => $items, 'roles' => $roleOpts, 'projects' => $projectOpts, 'isPublic' => $isPublic,
          'demoMode' => (bool)config_get('demoMode'),
+         'roleColouring' => $colourCtx['enabled'],
          'pagination' => getUsersAssignPaginationConfig()]);
 }
 
@@ -853,6 +900,7 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'meta' && isset
     }
 
     $items = [];
+    $colourCtx = globalRoleColourContext($db);
     if ($tplan_id) {
         // Legacy parity: usersAssign.php:404-405 get_tplan_effective_role() needs
         // both the project's and the plan's is_public to resolve the 3-layer
@@ -871,6 +919,10 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'meta' && isset
 
         $users = tlUser::getAll($db, "WHERE active=1", null, null, tlUser::TLOBJ_O_GET_DETAIL_MINIMUM);
         if ($users) {
+            // Legacy parity: usersAssign.tpl:239-241 - global-role colour for the
+            // user's login/name cell when usersAssignGlobalRoleColoring is ENABLED
+            // (usersAssign.php:593-598, issue #946). $u->globalRole->name is the
+            // RAW roles.description used as the role_colour map key.
             $effectiveMap = getTplanEffectiveRoleMap($db, $users, $tproject_id, $tplan_id, $planIsPublic, $projIsPublic);
             foreach ($users as $u) {
                 $assignedRoleId = 0;
@@ -878,6 +930,7 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'meta' && isset
                     $assignedRoleId = intval($u->tplanRoles[$tplan_id]->dbID);
                 }
                 $eff = $effectiveMap[$u->dbID];
+                $colour = userGlobalRoleColour($db, $u, $colourCtx);
                 $items[] = [
                     'id' => intval($u->dbID),
                     'login' => $u->login,
@@ -893,6 +946,10 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'meta' && isset
                     // Legacy parity: usersAssign.tpl:244-247 (same template used
                     // for test plan contexts) locks global-admin selects (issue #927).
                     'isAdmin' => intval($u->globalRoleID) == TL_ROLES_ADMIN,
+                    // Legacy parity: usersAssign.tpl:239-241 - global-role colour
+                    // exposed for the row's login/name cell (issue #946).
+                    'globalRoleName' => $colour['globalRoleName'],
+                    'roleColour' => $colour['roleColour'],
                 ];
             }
         }
@@ -903,7 +960,8 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'meta' && isset
     // plan contexts too; expose the demo state for the same UI gating (issue #932).
     out(['status' => 'ok', 'items' => $items, 'roles' => $roleOpts, 'plans' => $planOpts, 'projects' => $projectOpts,
          'totalPlans' => $totalPlans,
-         'demoMode' => (bool)config_get('demoMode')]);
+         'demoMode' => (bool)config_get('demoMode'),
+         'roleColouring' => $colourCtx['enabled']]);
 }
 
 // Route: PUT /roles/tplan-roles - update test plan role assignments

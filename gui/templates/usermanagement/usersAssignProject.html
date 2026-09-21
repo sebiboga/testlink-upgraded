@@ -352,10 +352,15 @@ function buildBodyHtml() {
       hint = ' <span class="inherited-lbl" title="' + esc(TLi18n.t('assign.inheritedRoleHint')) + '">' + esc(TLi18n.t('assign.inheritedRole')) + '</span>';
     }
     var badge = changedMap[u.id] ? ' <span class="changed-badge">' + esc(TLi18n.t('common.modified')) + '</span>' : '';
+    // Legacy parity: usersAssign.tpl:239-241 - the shared usersAssign.tpl also
+    // colours test-project contexts by GLOBAL role colour when
+    // usersAssignGlobalRoleColoring is ENABLED (usersAssign.php:593-598, issue
+    // #946). Legacy fused login+name in one cell; here both cells share the tint.
+    var rowStyle = (u.roleColour && u.roleColour !== '') ? ' style="background-color:' + esc(u.roleColour) + ';"' : '';
     html += '<tr data-uid="' + esc(u.id) + '"' + (rowClass ? ' class="' + rowClass + '"' : '') + '>' +
       '<td>' + (i + 1) + '</td>' +
-      '<td>' + esc(u.login) + badge + '</td>' +
-      '<td>' + esc(u.name) + '</td>' +
+      '<td' + rowStyle + '>' + esc(u.login) + badge + '</td>' +
+      '<td' + rowStyle + '>' + esc(u.name) + '</td>' +
       '<td><select' + disabled + ' data-role="' + esc(u.roleID) + '" onchange="onRoleChange(this,' + esc(u.id) + ',' + esc(u.roleID) + ')">' + opts + '</select>' + hint + '</td>' +
     '</tr>';
   });
