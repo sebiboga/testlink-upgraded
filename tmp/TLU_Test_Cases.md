@@ -18309,3 +18309,40 @@ BFF: `POST /api/auth/reset` in `api/auth/index.php:313-341`.
 - **Actual:** PASS — `events` empty (0 rows), no PHP warnings, console clean.
 
 **Result: 7/7 PASS.** (Nothing-missing verdict re-confirmed on a fresh DB 2026-09-21; no code change required. Refs #1343. Cleanup tracked as #1344.)
+
+## Suite 944 — Task — Issue #944: effective/inherited role display incl. global-role fallback in Assign Test Plan Roles (gap vs legacy)
+
+**Screen:** `gui/templates/usermanagement/usersAssignPlan.html` · **BFF:** `api/roles/index.php` GET `/roles/meta/tplan-roles`
+**Precondition:** app at http://localhost:8082, admin/admin; fixtures via `php tmp/fixtures_944.php` (project id P "PLANROLES944", public plan PUB, private plan PRIV; u944guest global guest, u944tester global tester, u944designer global test designer + project test designer, u944lead global leader + explicit plan leader on PUB). `testplan_role_inheritance_mode=testproject` (config default).
+
+### Test 1 — BFF exposes effective role + inheritance nature per user (3-layer model)
+1. `GET /api/roles/index.php/meta/tplan-roles?tproject_id=<P>&tplan_id=<PUB>` (admin session).
+- **Expected:** every item carries `effectiveRoleID`, `isInherited`, `effectiveRoleName`, `inheritedRoleID`, `inheritedRoleName`; public-plan global-fallback rows resolve `named` roles, never "No".
+- **Actual:** PASS — u944guest `{effectiveRoleID:5, isInherited:1, inheritedRoleName:"guest"}`, u944tester `{7,1,"tester"}`, u944designer `{4,1,"test designer"}`, u944lead `{9,0,"leader"}`.
+
+### Test 2 — Global-role fallback visible in Inherited Role column (the gap)
+1. Open Assign Test Plan Roles, select project P, plan PUB.
+- **Expected:** u944guest column shows `guest` and u944tester shows `tester` (legacy `<inherited> guest` / `<inherited> tester`); previously both showed `No`.
+- **Actual:** PASS — column reads guest / tester.
+
+### Test 3 — Override select's value-0 option labels "<inherited> <role>" when inherited
+1. On plan PUB check each non-overridden row's first select option.
+- **Expected:** inherited rows show `<inherited> <inheritedRoleName>` selected (value 0); explicitly-overridden row (u944lead) keeps `-- no override --` as its 0-option and shows `leader` selected.
+- **Actual:** PASS — admin `<inherited> admin`, u944designer `<inherited> test designer`, u944guest `<inherited> guest`, u944tester `<inherited> tester`; u944lead selVal=leader, 0-option `-- no override --`.
+
+### Test 4 — Private plan routes through the no-rights branch without dirty-state regression
+1. Select plan PRIV.
+- **Expected:** BFF `effectiveRoleID=3 (<no rights>)`, `isInherited=0` for non-admins; DOM value-0 options stay `-- no override --`, Save Changes stays disabled (no spurious modified rows).
+- **Actual:** PASS — BFF plan PRIV non-admins effectiveRoleID 3 / isInherited 0; DOM opt0 `-- no override --`, row classes unchanged, Save disabled.
+
+### Test 5 — Save round-trip still works after label/model change
+1. On plan PUB change u944guest to `tester`, click Save Changes.
+- **Expected:** toast "User Roles updated"; DB row `(uid6,PUB,7)` inserted; grid reload shows tester selected (isInherited=0 now, 0-option back to `-- no override --`).
+- **Actual:** PASS — DB `user_testplan_roles` = (6,PUB,7) + (9,PUB,9); reload selVal=7.
+
+### Test 6 — Event Viewer clean
+1. After the suite check `events` for Error/Warning rows.
+- **Expected:** no ERROR/WARNING entries from this session.
+- **Actual:** PASS — only AUDIT-level (16) rows (project create/delete, `Test plan roles updated for plan #PUB`).
+
+**Result: 6/6 PASS.** Commit `a0ba29973` (branch task/issue-944). i18n: no new keys (`assign.inheritedRoleOption` present in all 10 bundles). Screenshot: `docs/screenshots/issue-944-inherited-role-global-fallback.png`.
