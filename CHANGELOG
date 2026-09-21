@@ -603,6 +603,13 @@ Execution:
   calls it for every page rendering the menu). Browser-verified: login frameset, deep
   link, anon redirect, zero-project bootstrap (fresh DB) all land on modern screens.
   Event Viewer clean, console clean. (Refs #1555)
+- Event Info popup (eventinfo.html) - BFF api/eventinfo (#1556): standalone viewer
+  of a single log record, opened from the Event Viewer row detail ("Open in window")
+  and from legacy ?id= deep links; full record + conditional Session information /
+  Activity sections, access-denied / not-found / error states; right mgt_view_events
+  (401/403/400/404/405 JSON); legacy lib/events/eventinfo.php kept as a
+  session-guarded 302 redirect shim. Suite 1556 9/9 PASS; Event Viewer clean;
+  found + filed bug #1557. (Refs #1556)
 - TC Assignments (tcAssignments.html) - BFF api/tcassignments.
 - Edit Execution popup (editExecution.html).
 - Export Test Case Set (execExport.html) - BFF api/executeexport.
