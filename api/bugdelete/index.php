@@ -223,7 +223,8 @@ function unlinkExecBug($execId, $bugId, $tcstepId) {
     return lang_get('bugdeleting_was_ok');
 }
 
-$action = isset($_REQUEST['action']) ? strtolower(trim($_REQUEST['action'])) : '';
+$action = isset($_REQUEST['action']) && is_scalar($_REQUEST['action'])
+        ? strtolower(trim((string) $_REQUEST['action'])) : '';
 $method = $_SERVER['REQUEST_METHOD'];
 
 // GET ?action=init
@@ -239,7 +240,8 @@ if ($action === 'init') {
         bugDenyForbidden();
     }
 
-    $bugId = trim(strval($_REQUEST['bug_id'] ?? ''));
+    $bugId = isset($_REQUEST['bug_id']) && is_scalar($_REQUEST['bug_id'])
+        ? trim((string) $_REQUEST['bug_id']) : '';
     $tcstepId = intval($_REQUEST['tcstep_id'] ?? 0);
 
     // Legacy parity: the old parent (testlink_library.js deleteBug) always
@@ -284,27 +286,28 @@ if ($action === 'delete') {
                           $ctx['testproject_id'], $ctx['testplan_id'])) {
         bugDenyForbidden();
     }
-    $bugId = trim(strval($payload['bug_id'] ?? ''));
+    $bugId = isset($payload['bug_id']) && is_scalar($payload['bug_id'])
+        ? trim((string) $payload['bug_id']) : '';
     if ($bugId === '') {
         http_response_code(400);
         out(['status' => 'error', 'message' => 'Missing bug id']);
     }
     $tcstepId = intval($payload['tcstep_id'] ?? 0);
 
-    $msg = unlinkExecBug($execId, $bugId, $tcstepId);
-    // check the bug was actually linked to this execution before calling it
-    // deleted — a 404 beats silently reporting success for a no-op.
+    // 404 when the bug is not actually linked to this execution — reporting
+    // success for a no-op delete (e.g. a second concurrent submission) must
+    // never happen.
     $tables = tlObjectWithDB::getDBTables('execution_bugs');
     $chk = $db->get_recordset(
         "SELECT execution_id FROM {$tables['execution_bugs']} " .
         "WHERE execution_id={$execId} AND tcstep_id={$tcstepId} " .
         "AND bug_id='" . $db->prepare_string($bugId) . "'");
-    if (!is_null($chk) && count($chk) > 0) {
-        // still there => write_execution_bug hit the wrong row shape; treat
-        // as failure so we never report success for a non-delete.
-        http_response_code(500);
-        out(['status' => 'error', 'message' => 'Bug unlink failed']);
+    if (is_null($chk) || count($chk) === 0) {
+        http_response_code(404);
+        out(['status' => 'error', 'message' => 'Bug not linked to this execution']);
     }
+
+    $msg = unlinkExecBug($execId, $bugId, $tcstepId);
     $bugs = listExecBugs($execId, $ctx['testproject_id']);
     out([
         'status' => 'ok',

@@ -215,15 +215,15 @@ function renderContext(ctx) {
   $('#ctxTitle').text(TLi18n.t('bugdel.execution') + ' #' + ctx.exec_id + ' — ' + ctx.testcase_name);
   var st = statusInfo(ctx.status_char);
   var html = '';
-  html += row('bugdel.testcase', ctx.testcase_name);
-  html += row('bugdel.testplan', ctx.testplan_name);
-  html += row('bugdel.project', ctx.testproject_name);
-  html += row('bugdel.build', ctx.build_name);
-  html += row('bugdel.platform', ctx.platform_name || '&ndash;');
+  html += row('bugdel.testcase', esc(ctx.testcase_name));
+  html += row('bugdel.testplan', esc(ctx.testplan_name));
+  html += row('bugdel.project', esc(ctx.testproject_name));
+  html += row('bugdel.build', esc(ctx.build_name));
+  html += row('bugdel.platform', esc(ctx.platform_name) || '&ndash;');
   html += row('bugdel.status',
     '<span class="status-badge status-' + String(ctx.status_char || '?').toLowerCase() + '">' +
     esc(TLi18n.t(st.key || 'execprint.statusUnknown')) + '</span>');
-  html += row('bugdel.executedOn', ctx.execution_ts || '&ndash;');
+  html += row('bugdel.executedOn', esc(ctx.execution_ts) || '&ndash;');
   $('#ctxBody').html(html);
   $('#contextCard').show();
 }
@@ -289,6 +289,7 @@ function performDelete() {
     })
   })
   .done(function (res) {
+    $btn.prop('disabled', false);
     $('#confirmModal').modal('hide');
     if (!res || res.status !== 'ok') {
       showState('#loadError');

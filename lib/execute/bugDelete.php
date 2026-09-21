@@ -29,8 +29,9 @@ $url .= '?exec_id=' . intval($_REQUEST['exec_id'] ?? 0);
 if (isset($_REQUEST['tcstep_id'])) {
     $url .= '&tcstep_id=' . intval($_REQUEST['tcstep_id']);
 }
-if (isset($_REQUEST['bug_id']) && $_REQUEST['bug_id'] != '') {
-    $url .= '&bug_id=' . rawurlencode($_REQUEST['bug_id']);
+if (isset($_REQUEST['bug_id']) && is_scalar($_REQUEST['bug_id'])
+    && $_REQUEST['bug_id'] != '') {
+    $url .= '&bug_id=' . rawurlencode((string) $_REQUEST['bug_id']);
 }
 $url .= '&tproject_id=' . $tprojectID . '&tplan_id=' . $tplanID;
 header('Location: ' . $url);
