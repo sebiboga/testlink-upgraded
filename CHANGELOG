@@ -621,7 +621,9 @@ Auth & Documentation:
 - Login/Logout (auth/login.html) - BFF api/auth. OAuth buttons,
   self-sign-up + lost-password links, schema-block check (#775/#1047-#1051).
 - First Login / Self Sign-Up (firstLogin.html), Lost Password (lostPassword.html)
-  (#1337-#1339).
+  (#1337-#1339). Lost Password parity re-confirmed "nothing missing" on a fresh
+  DB (Suite 1343, 7/7 PASS) — entry path fix #1338 live, enumeration-safe reset,
+  no password mutation without SMTP, events table clean (Refs #1343).
 
 Test Strategy:
 - General Overview + chapter pages (strategy/testStrategy.html, scope.html,

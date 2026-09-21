@@ -18257,3 +18257,55 @@ Fixture: `php tmp/fixtures_1555.php` (project DASH/DSH id=1, testplan "Plan DASH
 - **Actual:** PASS — events only AUDIT/INFO, `php -l` clean on `lib/general/mainPage.php` + `lib/functions/common.php`, console clean.
 
 **Result: 5/5 PASS.** (Refs #1555.)
+
+---
+
+## Task — Issue #1343: Nothing missing — lostPassword.html full parity re-verification
+
+Re-verification suite of the "Nothing missing" verdict (analysis 2026-09-10) on a
+freshly imported DB (2026-09-21, PHP built-in server http://localhost:8082).
+Fixtures seeded directly via SQL: resetuser (id 2, email reset@example.test,
+auth_method=DB), reselext (id 3, email ext@example.test, auth_method=LDAP); admin
+(id 1) exists with no email. Modern screen: `gui/templates/auth/lostPassword.html`;
+BFF: `POST /api/auth/reset` in `api/auth/index.php:313-341`.
+
+### Test 1 — Entry path from the standard /login.php (Refs #1338 fix)
+1. Open `http://localhost:8082/index.php` (redirects to /login.php), wait for form.
+2. Inspect `#tl_lost_password` href.
+- **Expected:** absolute `http://localhost:8082/gui/templates/auth/lostPassword.html` (no 404).
+- **Actual:** PASS — href absolute, clicking loads the modern screen (200).
+
+### Test 2 — Default render + i18n
+1. Navigate to `http://localhost:8082/gui/templates/auth/lostPassword.html`.
+2. Screenshot; verify heading, hint, User ID input (required/autofocus/maxlength=30), Send button, Back-to-login, version + GitHub footer.
+- **Expected:** Dashio layout with teal header, all labels localized (`auth.*` + `footers.lostPassword` keys present in all 10 bundles).
+- **Actual:** PASS — layout + 10-bundle key check OK (`docs/screenshots/issue-1343-lostpw-default.png`).
+
+### Test 3 — Empty submit blocked client-side
+1. Leave login empty, click Send.
+- **Expected:** native HTML5 required bubble, zero network POST to /api/auth/reset.
+- **Actual:** PASS — `validity.valueMissing=true`, no POST (performance entries empty).
+
+### Test 4 — Unknown login → generic success + redirect (enumeration-safe)
+1. Enter `zzz_nosuch_999`, click Send.
+- **Expected:** generic success note, then `login.html?note=lost` with "Password recovery completed."
+- **Actual:** PASS — redirect observed + note shown (`docs/screenshots/issue-1343-lostpw-unknown-success-redirect.png`).
+
+### Test 5 — Existing users, identical generic body, no password change
+1. curl same-origin POST (`Origin: http://localhost:8082`) to /api/auth/reset with `login=zzz_nosuch_999`, `admin`, `reselext`, `resetuser`.
+2. `SELECT login,password FROM users` before/after.
+- **Expected:** byte-identical `{"status":"ok","success":true}` for all four; no hash changed (SMTP unconfigured ⇒ resetPassword < OK ⇒ nothing written).
+- **Actual:** PASS — 4× identical body; admin hash `$2y$10$Vakjx...` + `_dummy_pwd` unchanged.
+
+### Test 6 — CSRF guard + overlong login
+1. POST without Origin header → expect 403.
+2. POST with a 40-char login (same-origin) → expect generic success (0..30 legacy cap ⇒ treated as absent).
+- **Expected:** 403 / `{"status":"ok","success":true}`.
+- **Actual:** PASS — 403, then generic success.
+
+### Test 7 — Event hygiene
+1. `SELECT id,log_level,description FROM events` after all tests; browser console.
+- **Expected:** zero Error/Warning rows (log_level ≥ 32); console only the benign 401 `api/userinfo` (no session); PHP server log clean.
+- **Actual:** PASS — `events` empty (0 rows), no PHP warnings, console clean.
+
+**Result: 7/7 PASS.** (Nothing-missing verdict re-confirmed on a fresh DB 2026-09-21; no code change required. Refs #1343. Cleanup tracked as #1344.)

@@ -91,6 +91,20 @@ Viewer cleanliness (zero new Error/Warning `events` rows).
 
 Screenshots are on the GitHub Wiki page (`Lost-Password-Modernized.md`).
 
+## Re-verification 2026-09-21 (task #1343 — "Nothing missing" confirmed)
+
+Full parity re-check on a freshly imported DB (PHP built-in server
+http://localhost:8082, users admin / resetuser DB+email / reselext LDAP). Result:
+**7/7 PASS, zero gaps** — the entry path fix (#1338, absolute href, merged
+b895957f5) works from the standard `/login.php` entry; empty submit is blocked
+natively (no POST); unknown + existing + external + no-email users all receive the
+byte-identical `{"status":"ok","success":true}` (enumeration-safe); no password
+hash changes when SMTP is unconfigured; CSRF guard returns 403 without `Origin`;
+the 0..30 login cap is mirrored server-side; i18n keys live in all 10 bundles; the
+`events` table stays clean (0 Error/Warning rows). Evidence: `Suite 1343` in
+`tmp/TLU_Test_Cases.md` + `docs/screenshots/issue-1343-lostpw-default.png` and
+`issue-1343-lostpw-unknown-success-redirect.png`. Cleanup task #1344 is unblocked.
+
 ---
 
-_TestLink 2.0.1 · Lost Password screen · Refs #783_
+_TestLink 2.0.1 · Lost Password screen · Refs #783 · parity re-verified Refs #1343_
