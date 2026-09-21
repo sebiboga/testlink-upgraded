@@ -18608,3 +18608,61 @@ Branch `fix/issue-1558-helperconcat-null-guard` commit `0f6d0550c`. Fresh DB 202
 - **Actual:** 10/10 bundles pass json.tool + contain both keys; events table = 2 INFO audit rows only. PASS.
 
 **Result: 6/6 PASS.** (Refs #1326. Backend was already byte-identical to legacy (`api/testcasesexport/index.php:320-322` + `lib/functions/testsuite.class.php:1262` `excludeTC`); changes: `gui/templates/testcases/tcExport.html` skeleton row + `updateSkelGate()` + `doExport()` `exportSkel` param, plus i18n keys in all 10 bundles.)
+## Test Suite 1559 — Bug Delete popup (bugDelete.html / api/bugdelete) — Refs #1559
+
+Fixture: `php tmp/fixtures_1559.php` (project B1559, TC "BUG Login Check" + 2 steps, builds execution_with_bugs → BUG-101 exec-level, execution_step_bug → BUG-202 step-level, execution_empty). IDs per run; the run used exec 10/11/12. No-rights user: `php tmp/mkuser_norights.php` (role 3, no role_rights).
+
+### Test 1 — BFF init GET (regression list)
+1. `curl "http://localhost:8082/api/bugdelete/index.php?action=init&exec_id=10"` with admin session (X-Requested-With).
+- **Expected:** 200 JSON `{status:ok,item:{...}}` with context (testcase/testplan/testproject/build, status_char, execution_ts) + `bugs:[{bug_id:"BUG-101",...}]`.
+- **Actual:** 200, context card + BUG-101 row. PASS.
+
+### Test 2 — Legacy on-load auto-delete parity
+1. `curl -H X-Requested-With "http://localhost:8082/api/bugdelete/index.php?action=init&exec_id=10&bug_id=BUG-101"`.
+- **Expected:** 200, execution_bugs row removed on the way in (legacy bugDelete.php deleted on load), no bug in returned list.
+- **Actual:** 200, empty `bugs` array. PASS. (The legacy behavior is preserved: the opener passes `bug_id` only when the user clicked "Delete" from execTest.)
+
+### Test 3 — POST delete → audit event
+1. Create a link (re-run fixture), then `POST action=delete {exec_id,tcstep_id,bug_id}` with X-Requested-With.
+2. Check `events` table for `audit_executionbug_deleted[_no_platform]`.
+- **Expected:** 200 `{status:ok}`; execution_bugs row gone; event id +=1, log_level 16, label present.
+- **Actual:** 200; row gone; event 65 `audit_executionbug_deleted_no_platform` logged. PASS.
+
+### Test 4 — AuthZ: 401 anonymous, 403 no-rights
+1. No session cookie → init.
+2. Login `norights`/`norights` (role 3, no group over the project) → init on exec 10.
+- **Expected:** 401 `Not authenticated` for (1); 403 with a rights message for (2).
+- **Actual:** 401 and 403 `You do not have rights to delete bugs on this execution`. PASS. (Direct screen nav as norights shows the same blocked state box.)
+
+### Test 5 — Parameter validation (400/404/405/403-CSRF)
+1. POST delete without `bug_id` → 400. 2. `exec_id=` invalid (`abc`) → 400. 3. `exec_id=99999` → 404. 4. GET with method-mismatch (POST init) → 405. 5. Request without `X-Requested-With`/origin proof → 403.
+- **Expected:** JSON `{status:"error",...}` with 400/404/405/403 codes as above.
+- **Actual:** all correct. PASS.
+
+### Test 6 — Screen rendering: list view + step-level context
+1. Open `gui/templates/execute/bugDelete.html?exec_id=<step-bug>` (exec 11).
+- **Expected:** context card `Execution #11 — BUG Login Check` with testcase/testplan/testproject/build/status/executed-on; bugs table shows `BUG-202` + `Step #1`; Delete button per row; locale switcher; Close button; Dashio shell.
+- **Actual:** all rendered. PASS.
+
+### Test 7 — Delete modal → POST → success + empty state
+1. Click **Delete** on BUG-101 (exec 10).
+- **Expected:** Bootstrap confirm modal (backdrop + "Unlink this bug from the execution?", Cancel/Delete, close X). Click **Delete** → POST + success box "The bug was successfully deleted!" and list re-renders empty with "No bugs are linked to this execution."
+- **Actual:** modal shown, POST, success box, empty state. PASS.
+
+### Test 8 — 404 and missing-id error states
+1. Open `...?exec_id=99999`. 2. Open `...` with no exec_id.
+- **Expected:** (1) "Execution not found" state box; (2) "Missing or invalid execution id." error box. Close button still present, no crash.
+- **Actual:** both boxes rendered. PASS.
+
+### Test 9 — Locale switch (client-side TLi18n)
+1. In the list view select **Română** from the switcher.
+- **Expected:** navigation + page reloads with `?locale=ro`; title/subtitle/section headings/buttons/footer all Romanian (`Ștergere Bug`, `dezleagă un bug de la o execuție`, `Buguri legate de această execuție`, `Șterge`).
+- **Actual:** all ro strings applied. PASS.
+
+### Test 10 — i18n bundle coverage + Event Viewer hygiene
+1. Validate `bugdel.*` (24 keys) + `footers.bugDelete` in ALL 10 bundles; `python3 -m json.tool` each.
+2. Inspect `events` after the suite.
+- **Expected:** 10/10 bundles valid JSON and complete key sets; no new Error/Warning rows beyond the expected audit INFO rows created by the tests.
+- **Actual:** 10/10 pass json.tool; events only show login + fixture + executionbug audit rows (log_level 16), no 20/30/40/50 rows. PASS.
+
+**Result: 10/10 PASS.** (Refs #1559. Changes: `gui/templates/execute/bugDelete.html` screen, `api/bugdelete/index.php` BFF, `lib/execute/bugDelete.php` 302 shim, `gui/javascript/testlink_library.js` deleteBug() switch, i18n keys in all 10 bundles; screenshots `docs/screenshots/issue-1559-*.png`.)

@@ -638,6 +638,18 @@ Execution:
   calls it for every page rendering the menu). Browser-verified: login frameset, deep
   link, anon redirect, zero-project bootstrap (fresh DB) all land on modern screens.
   Event Viewer clean, console clean. (Refs #1555)
+- Bug Delete popup (bugDelete.html) - BFF api/bugdelete (#1559): standalone
+  unlink screen for lib/execute/bugDelete.php (the op never had a modern twin —
+  execTest/execSetResults inline the bug-link/unlink forms). Context card
+  (execution/test case/test plan/project/build/platform/status/executed-on) + bugs
+  DataTable with per-row confirm-modal Delete; GET ?action=init auto-deletes when a
+  bug_id is passed (exact legacy on-load parity); POST ?action=delete writes the
+  audit_executionbug_deleted[_no_platform] events; testplan_execute on the owning
+  project (401/403/400/404/405 JSON, CSRF guard); legacy lib/execute/bugDelete.php
+  kept as a session-guarded 302 shim; deleteBug() in testlink_library.js switches
+  to the modern screen. Fixed schema-parity bug: execution_bugs has no id column
+  (composite PK), post-delete re-check now SELECTs execution_id (was SQL error 1054
+  → 500). Suite 1559 10/10 PASS; Event Viewer clean. (Refs #1559)
 - Event Info popup (eventinfo.html) - BFF api/eventinfo (#1556): standalone viewer
   of a single log record, opened from the Event Viewer row detail ("Open in window")
   and from legacy ?id= deep links; full record + conditional Session information /
