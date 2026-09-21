@@ -1575,6 +1575,38 @@ function menuRailIsOn() {
 
 
 /**
+ * Get User Documentation
+ * based on contribution by Eugenia Drosdezki
+ *
+ * Moved here from lib/general/mainPage.php (Refs #1555): the legacy dashboard
+ * controller no longer defines it, but initUserEnv() still needs it to feed
+ * $gui->docs on every page that renders the menu.
+ */
+function getUserDocumentation()
+{
+  $target_dir = '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . 'docs';
+  $documents = null;
+
+  if ($handle = opendir($target_dir))
+  {
+    while (false !== ($file = readdir($handle)))
+    {
+      clearstatcache();
+      if (($file != ".") && ($file != ".."))
+      {
+        if (is_file($target_dir . DIRECTORY_SEPARATOR . $file))
+        {
+          $documents[] = $file;
+        }
+      }
+    }
+    closedir($handle);
+  }
+  return $documents;
+}
+
+
+/**
  *
  * $opt: skip map each element can be a map
  *         tplanForInit 
