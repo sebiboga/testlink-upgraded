@@ -18098,3 +18098,51 @@ BFF: `api/help/index.php`.
   to the screen itself were needed.
 
 **Result: 3/3 PASS.**
+
+## Suite 1337 — Task — Self-signup external-password-mgmt parity (api/auth signup, Refs #1337)
+
+### Test 1 — signup BFF emits zero spurious WARNING events
+1. GET `http://localhost:8082/api/auth/config` → confirm `selfSignup:true`.
+2. `POST /api/auth/signup` with Origin header and a unique login/password.
+- **Expected:** HTTP 200 `{"status":"ok","success":true}`; `events` table gains
+  ONLY one `audit_users_self_signup` row (log_level=16 AUDIT).
+- **Actual:** PASS — user `verify1789950860` created; events id 1 = audit only;
+  zero rows with log_level=2.
+
+### Test 2 — no undefined-config key lookup remains
+1. `grep -rn "config_get('external_password_mgmt'" api/ lib/ gui/`.
+- **Expected:** zero hits; `api/auth/index.php:272` uses
+  `tlUser::isPasswordMgtExternal()`.
+- **Actual:** PASS — no config_get call site; line 272 = `(bool) tlUser::isPasswordMgtExternal();`.
+
+### Test 3 — legacy firstLogin parity A/B
+1. `POST /firstLogin.php` (legacy) with a unique login → user created,
+   redirect note `login.php?note=first`, one `audit_users_self_signup` AUDIT,
+   zero WARNING.
+2. Compare vs modern signup (same audit, zero WARNING).
+- **Expected:** identical Auth semantics (audit event present, no WARNING).
+- **Actual:** PASS — legacy user `legacy1789950871` created, events ids 2-3 audit only.
+
+### Test 4 — browser UI signup flow
+1. Open `http://localhost:8082/gui/templates/auth/firstLogin.html`.
+2. Fill login/first/last/email/password/password2, click "Sign up".
+- **Expected:** redirect to `login.html?note=first` with "First login detected.
+  Welcome!"; new DB user present; no console errors.
+- **Actual:** PASS — user `browuser1` created, redirect confirmed, events clean.
+
+### Test 5 — external flag source-of-truth agreement
+1. PHP probe: `tlUser::isPasswordMgtExternal()` under DB auth → false; under
+   LDAP config → true.
+- **Expected:** page (`loginPageConfig.externalPasswordMgmt`) and BFF
+  (`signup` route) both derive from the same auth domain config (legacy
+  `firstLogin.php:75` source), so page/BFF never disagree on password-field
+  expectations in reachable configs (DB/LDAP/sso_only).
+- **Actual:** PASS — probe returned false(DB) / true(LDAP); sub-agent code
+  review verdict OK, no dead code.
+
+### Test 6 — Event Viewer clean after the whole suite
+1. `SELECT id, log_level, source, description FROM events` after all signups.
+- **Expected:** only AUDIT rows (log_level=16); no `log_level=2` WARNING.
+- **Actual:** PASS — 4 events total, all AUDIT, zero WARNING.
+
+**Result: 6/6 PASS.**

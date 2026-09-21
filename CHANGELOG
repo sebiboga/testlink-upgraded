@@ -17,6 +17,19 @@ Every screen of the application was ported one-by-one in a screen-compare
 kept for backward compatibility and is progressively retired as each modern
 screen reaches full parity.
 
+- [FEATURE GAP] - #1337: the self-sign-up BFF route (POST /api/auth/signup in
+  api/auth/index.php:269-272) now derives the external-password-management flag
+  from the REAL auth config via tlUser::isPasswordMgtExternal() instead of the
+  undefined config_get('external_password_mgmt', false) — which logged a
+  WARNING event ('config option not available: external_password_mgmt') on
+  every signup POST and made the $externalPwd branch dead code (BFF always
+  required a local password even when the page hid the password fields).
+  Parity with legacy firstLogin.php:75 (same tlUser source); page flag
+  (loginPageConfig) and BFF flag now agree across DB/LDAP/sso_only. No i18n
+  needed (server-side only). Browser + DB verified: signup produces only the
+  audit_users_self_signup AUDIT event, zero WARNING. (Refs #1337, sibling bug
+  #1342 fixed by 70b7ff633)
+
 MAJOR AREAS
 -----------
 
