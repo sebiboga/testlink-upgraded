@@ -18224,3 +18224,36 @@ BFF: `api/help/index.php`.
 - **Actual:** PASS — all rows log_level=16, zero Error/Warning; PHP server log shows no PHP warnings (only expected 403 for the demo PUT).
 
 **Result: 6/6 PASS.** (Feature already shipped via commit 661329532 Refs #932; this suite re-verifies the tplan-context gating described by #943. Refs #943.)
+
+---
+
+## Screen — Legacy Dashboard fallback (lib/general/mainPage.php redirect shim) — #1555
+
+Fixture: `php tmp/fixtures_1555.php` (project DASH/DSH id=1, testplan "Plan DASH" id=2, testsuite id=3, testcases 4/7, build id=1, one seeded execution).
+
+### Test 1 — Login frameset lands on the modern dashboard
+1. Log in as admin (admin/admin), wait for the frameset.
+- **Expected:** mainframe URL = `gui/templates/mainpage/mainPage.html`, no legacy `lib/general/mainPage.php` anywhere in the frame URLs; Dashboard header + Test Project "DASH" / Test Plan "Plan DASH" context; tcGrowth widget renders (2 test cases this month).
+- **Actual:** PASS — iframe `mainPage.html?tproject_id=0&tplan_id=0` resolves context DASH/Plan DASH via session, tcGrowth total=2.
+
+### Test 2 — Deep link mainPage.php redirects to modern dashboard
+1. In the logged-in session, fetch top-level `http://localhost:8082/lib/general/mainPage.php?testplan=2` (new tab).
+- **Expected:** HTTP 302 → `gui/templates/mainpage/mainPage.html?tproject_id=1&tplan_id=2`; page title "Dashboard"; widget header present.
+- **Actual:** PASS — window title "Dashboard", rendered tcGrowth + context; `?testplan=2` forwarded as `tplan_id=2`.
+
+### Test 3 — Anonymous mainPage.php keeps the login contract
+1. Fresh incognito/curl without session: `GET http://localhost:8082/lib/general/mainPage.php`.
+- **Expected:** legacy-style login redirect (`login.php?note=expired&destination=...`), HTTP 200 with `top.location.href='../../login.php...'` JS, no legacy dashboard HTML, no error.
+- **Actual:** PASS — `top.location.href='../../login.php?note=expired&destination=%2Flib%2Fgeneral%2FmainPage.php'`.
+
+### Test 4 — Zero-test-projects bootstrap → modern projectEdit.html
+1. With an empty DB (no `testprojects`) and admin session: `GET /lib/general/mainPage.php`.
+- **Expected:** 302 → `gui/templates/projects/projectEdit.html` (modern create screen), NOT the legacy projectEdit.php.
+- **Actual:** PASS (observed on the fresh empty import earlier this run: landed on Project Create/Edit with the Dashio layout). After `fixtures_1555.php` (project exists) the same URL resolves to the dashboard — bootstrap only fires when the system has zero test projects.
+
+### Test 5 — Event Hygiene
+1. After all tests: `SELECT id,log_level FROM events ORDER BY id DESC` (last 30 min) + PHP server log tail.
+- **Expected:** no log_level ≥ 32 Error/Warning rows; no PHP warnings/fatals (php -l clean on both changed files); browser console clean.
+- **Actual:** PASS — events only AUDIT/INFO, `php -l` clean on `lib/general/mainPage.php` + `lib/functions/common.php`, console clean.
+
+**Result: 5/5 PASS.** (Refs #1555.)
