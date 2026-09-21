@@ -18566,3 +18566,45 @@ Branch `fix/issue-1558-helperconcat-null-guard` commit `0f6d0550c`. Fresh DB 202
 - **Actual:** PASS — no new Error/Warning rows; console clean (no 401/403 from the screen, no JS exceptions in the console list).
 
 **Result: 4/4 PASS.** (Refs #945. Pure client-side change in usersAssignPlan.html — `tplan_id` threaded `TLi18n.load → loadProjects → loadPlans`, auto-select + `loadUsers()` + first-plan fallback. No BFF change, no i18n keys added.)
+
+## Suite 1326 — Task — Issue #1326: tcExport.html skeleton "Structure only (skeleton)" export option (gap vs legacy) (Refs #1326)
+
+**Background:** legacy `lib/testcases/tcExport.php:145` reads the `exportSkel` request flag; for every NON single-testcase export (`:107`) it sets `$opt['skeleton'] = 1` before calling `exportTestSuiteDataToXML()`, producing a structure-only XML (`<testsuite id name><node_order/><details/>` tree, NO `<testcase>` elements), exposed in the legacy UI as a second submit button `exportSkel` ("Export skeleton"). The modern BFF `api/testcasesexport/index.php:320-322` already honours `exportSkel` (byte-identical output), but `gui/templates/testcases/tcExport.html` had no skeleton affordance and `doExport()` never sent the flag. This task adds the option (checkbox "Export skeleton" + hint) gated to suite/project modes and to the XML type.
+
+**Precondition:** run `php tmp/fixtures_1326.php` → tproject id 1 (TP1326), suite `<suite> Alpha` id 2, nested `Suite Bravo` id 3, test cases id 4 and 8; log in as admin/admin (headless Chrome session); BFF = `api/testcasesexport/`.
+
+### Test 1 — Skeleton option is shown for suite/project modes (testsuite, suite_tc, project)
+1. Open `gui/templates/testcases/tcExport.html?tproject_id=1&containerID=2&useRecursion=1` (mode `testsuite`).
+2. Check `#skelRow` visibility and `#exportSkel` checkbox presence; repeat for `?tproject_id=1&containerID=2` (mode `suite_tc`) and `?tproject_id=1&useRecursion=1` (mode `project`).
+- **Expected:** in all three modes the skeleton row is rendered (display != none) with an enabled `#exportSkel` checkbox and the hint `Exports only the suite/project tree, without test cases`.
+- **Actual:** testsuite/suite_tc/project → `skelRowVisible=true`, checkbox present; rendered label "Export skeleton" + hint shown. PASS.
+
+### Test 2 — Skeleton option is hidden for single-testcase mode
+1. Open `gui/templates/testcases/tcExport.html?tproject_id=1&testcase_id=4&tcversion_id=5` (mode `testcase`).
+- **Expected:** `#skelRow` is `display:none` — the skeleton option is not offered (legacy: `exportSkel` is a no-op for one-TC exports).
+- **Actual:** mode `testcase`, `skelRowVisible=false`. PASS.
+
+### Test 3 — Skeleton is gated to the XML export type (MD hides + auto-unchecks)
+1. In suite deep mode (`containerID=2&useRecursion=1`), switch the format select to `MD`.
+2. Force-check `#exportSkel`, then switch back to `XML`.
+- **Expected:** MD selection hides the row AND unchecks the box; returning to XML restores the visible row.
+- **Actual:** XML→`visible=true,checked=false`; MD→`visible=false,checked=false`; back to XML→`visible=true,checked=true` (after re-check). PASS.
+
+### Test 4 — Real Export button with skeleton checked → byte-parity structure-only XML
+1. In suite deep mode, check `#exportSkel`, intercept `window.fetch`, click the real **Export** button.
+2. Inspect the POST body and captured response.
+- **Expected:** POST body carries `exportSkel=1`; HTTP 200, response len **322 bytes**, NO `<testcase` element, head `<?xml version="1.0"...` `<testsuite id="2" name="Suite Alpha" ...>` — identical to legacy `tcExport.php?...&exportSkel=1` (322 bytes, no testcases).
+- **Actual:** `exportSkel=1`, len 322, no `<testcase`, matches legacy byte-for-byte; loading overlay hides. PASS.
+
+### Test 5 — Regular Export (unchecked) regression → full XML still produced
+1. Uncheck `#exportSkel`, click **Export** again.
+- **Expected:** POST body `exportSkel=0`; 200, len **2291 bytes** (full export with suite + test cases).
+- **Actual:** `exportSkel=0`, len 2291, `<testcase` present. PASS.
+
+### Test 6 — i18n coverage + Event Viewer hygiene
+1. Validate `tcx.exportSkel` and `tcx.exportSkelHint` exist (with correct values) in ALL 10 bundles (de/en/es/fr/it/ja/pt/ro/ru/zh); `python3 -m json.tool` each.
+2. Inspect `events` after tests 1-5.
+- **Expected:** all bundles valid JSON, keys present, no hardcoded new UI strings on the screen; `events` contains only the audit INFO rows (login + fixture), NO new Error/Warning rows.
+- **Actual:** 10/10 bundles pass json.tool + contain both keys; events table = 2 INFO audit rows only. PASS.
+
+**Result: 6/6 PASS.** (Refs #1326. Backend was already byte-identical to legacy (`api/testcasesexport/index.php:320-322` + `lib/functions/testsuite.class.php:1262` `excludeTC`); changes: `gui/templates/testcases/tcExport.html` skeleton row + `updateSkelGate()` + `doExport()` `exportSkel` param, plus i18n keys in all 10 bundles.)

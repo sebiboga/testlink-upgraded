@@ -111,6 +111,13 @@ select, input[type=text] { padding: 6px 10px; border: 1px solid #ccc; border-rad
         <td class="lbl"><span data-i18n="tcx.exportAttachments">Attachments</span></td>
         <td><label><input type="checkbox" id="exportAttachments"> <span data-i18n="tcx.exportAttachments">Attachments</span></label></td>
       </tr>
+      <tr id="skelRow" style="display:none">
+        <td class="lbl"><span data-i18n="tcx.exportSkel">Export skeleton</span></td>
+        <td>
+          <label><input type="checkbox" id="exportSkel"> <span data-i18n="tcx.exportSkel">Export skeleton</span></label>
+          <div class="hint" data-i18n="tcx.exportSkelHint">Exports only the suite/project tree, without test cases</div>
+        </td>
+      </tr>
     </table>
 
     <div class="actions-bar">
@@ -165,6 +172,7 @@ $(function () {
   });
 
   $('#exportTestCaseExternalID').on('change', mirrorPrefix);
+  $('#exportType').on('change', updateSkelGate);
   $('#btnExport').on('click', doExport);
   $('#btnCancel').on('click', function () {
     if (window.history.length > 1) window.history.back(); else window.close();
@@ -178,6 +186,16 @@ function mirrorPrefix() {
   var on = $('#exportTestCaseExternalID').is(':checked');
   $('#addPrefix').prop('disabled', !on);
   if (!on) $('#addPrefix').prop('checked', false);
+}
+
+// Legacy parity (lib/testcases/tcExport.php:145, :123): the skeleton export
+// flag only has an effect for NON single-test-case exports (suite/project
+// modes) and only on the XML path, so the skeleton option is shown and
+// enabled solely for those combinations.
+function updateSkelGate() {
+  var on = ctx.info && ctx.info.mode !== 'testcase' && ($('#exportType').val() || 'XML') === 'XML';
+  $('#skelRow').toggle(!!on);
+  if (!on) $('#exportSkel').prop('checked', false);
 }
 
 function loadInfo() {
@@ -251,6 +269,7 @@ function renderContext() {
   if (first !== '') $sel.val(first);
 
   mirrorPrefix();
+  updateSkelGate();
 
   // Legacy parity (lib/testcases/tcExport.php): export is a read-only
   // operation available to any authenticated session. We surface the design
@@ -282,6 +301,7 @@ function doExport() {
   params.set('exportCFields', $('#exportCFields').is(':checked') ? 1 : 0);
   params.set('exportKeywords', $('#exportKeywords').is(':checked') ? 1 : 0);
   params.set('exportAttachments', $('#exportAttachments').is(':checked') ? 1 : 0);
+  params.set('exportSkel', $('#exportSkel').is(':checked') ? 1 : 0);
 
   $('#loadingOverlay').show().find('span').text(TLi18n.t('tcx.generating'));
   $('#btnExport').prop('disabled', true);

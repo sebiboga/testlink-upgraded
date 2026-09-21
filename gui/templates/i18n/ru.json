@@ -3536,6 +3536,8 @@
   "tcx.exportKeywords": "Ключевые слова",
   "tcx.exportPreconditions": "Предусловия",
   "tcx.exportReqs": "Требования",
+  "tcx.exportSkel": "Экспорт скелета",
+  "tcx.exportSkelHint": "Экспортирует только структуру проекта/набора тестов, без тест-кейсов",
   "tcx.exportSteps": "Шаги",
   "tcx.exportSummary": "Сводка",
   "tcx.exportWithPrefix": "С префиксом проекта",

@@ -17,6 +17,22 @@ Every screen of the application was ported one-by-one in a screen-compare
 kept for backward compatibility and is progressively retired as each modern
 screen reaches full parity.
 
+- [FEATURE GAP] - #1326: the modern Test Case Export screen
+  (gui/templates/testcases/tcExport.html) regains the legacy **skeleton export**
+  (lib/testcases/tcExport.php:145 `exportSkel` -> structure-only XML via
+  testsuite.class.php `excludeTC` = NO `<testcase>` elements), which the Dashio
+  theme had dropped (its tl-classic `exportSkel` submit button never made it
+  into the modern form; the BFF already produced byte-identical output at
+  api/testcasesexport/index.php:320-322). Added a "Export skeleton" checkbox
+  (`#exportSkel`) with hint, shown ONLY for the suite/project modes (test-suite
+  deep, suite children, whole project) and hidden for the single-testcase mode,
+  gated to the XML export type (selecting Markdown hides + unchecks it);
+  doExport() now appends `exportSkel=1` to the POST body. i18n keys
+  `tcx.exportSkel` + `tcx.exportSkelHint` in all 10 bundles. Verified end-to-end
+  on the TP1326 fixture: skeleton = 322-byte XML byte-identical to legacy,
+  full export = 2291-byte XML unchanged; Event Viewer clean; suite 1326 6/6
+  PASS. (Refs #1326)
+
 - [FEATURE GAP] - #1337: the self-sign-up BFF route (POST /api/auth/signup in
   api/auth/index.php:269-272) now derives the external-password-management flag
   from the REAL auth config via tlUser::isPasswordMgtExternal() instead of the

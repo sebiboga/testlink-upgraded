@@ -3536,6 +3536,8 @@
   "tcx.exportKeywords": "关键字",
   "tcx.exportPreconditions": "前置条件",
   "tcx.exportReqs": "需求",
+  "tcx.exportSkel": "导出骨架",
+  "tcx.exportSkelHint": "仅导出项目/测试套件结构，不包含测试用例",
   "tcx.exportSteps": "步骤",
   "tcx.exportSummary": "摘要",
   "tcx.exportWithPrefix": "带项目前缀",

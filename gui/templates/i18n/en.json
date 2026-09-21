@@ -3542,6 +3542,8 @@
   "tcx.exportKeywords": "Keywords",
   "tcx.exportPreconditions": "Preconditions",
   "tcx.exportReqs": "Requirements",
+  "tcx.exportSkel": "Export skeleton",
+  "tcx.exportSkelHint": "Exports only the suite/project tree, without test cases",
   "tcx.exportSteps": "Steps",
   "tcx.exportSummary": "Summary",
   "tcx.exportWithPrefix": "With project prefix",

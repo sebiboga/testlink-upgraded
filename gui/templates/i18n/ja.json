@@ -3536,6 +3536,8 @@
   "tcx.exportKeywords": "キーワード",
   "tcx.exportPreconditions": "前提条件",
   "tcx.exportReqs": "要件",
+  "tcx.exportSkel": "スケルトンを書き出し",
+  "tcx.exportSkelHint": "プロジェクト/スイートのツリー構造のみ（テストケースなし）を書き出します",
   "tcx.exportSteps": "手順",
   "tcx.exportSummary": "概要",
   "tcx.exportWithPrefix": "プロジェクトプレフィックス付き",

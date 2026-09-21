@@ -38,7 +38,7 @@ same logic as the legacy `initializeGui()` and `init_args()`.
 | **Heading** | Export title + breadcrumb context (test project name) |
 | **File name** | Text input, pre-filled with the default filename; editable |
 | **Format** | Type select, populated dynamically from the BFF `types` map — **XML** and **Markdown**. The default filename extension follows the selection (`.xml` / `.md`) |
-| **Options** | Checkboxes: external ID, with project prefix, summary, preconditions, steps, requirements, custom fields, keywords, attachments |
+| **Options** | Checkboxes: external ID, with project prefix, summary, preconditions, steps, requirements, custom fields, keywords, attachments — plus **Export skeleton** (structure only) for suite/project modes |
 | **Action** | **Export** (downloads the selected format) and **Cancel** |
 
 **Prefix mirroring:** unchecking *Include external ID* disables and unchecks
@@ -100,6 +100,37 @@ its ExternalID and never creates duplicates.
 | Not authenticated | HTTP 401 `{"status":"error","message":"Not authenticated"}` |
 | Nothing generated (0 bytes) | HTTP 400 "Nothing to export for the given selection" |
 
+## Skeleton export — "Export skeleton" option (#1326)
+
+Legacy `lib/testcases/tcExport.php:145` reads the `exportSkel` request flag and,
+for every export that is NOT a single test case (`:107`-`:109`), sets
+`$opt['skeleton'] = 1` before calling `exportTestSuiteDataToXML()`. The exporter
+(`lib/functions/testsuite.class.php:1262`) honours that with `$topt['excludeTC']`,
+producing a **structure-only** XML: the `<testsuite id name><node_order/><details/>`
+tree with NO `<testcase>` elements. In the legacy tl-classic template the flag was
+exposed as a second submit button `exportSkel` ("Export skeleton",
+`gui/templates/tl-classic/testcases/tcExport.tpl:130`), which the Dashio theme
+dropped while the controller feature stayed live — so the modern `tcExport.html`
+could not reach it (gap, issue #1326).
+
+The BFF already implemented the flag (`api/testcasesexport/index.php:320-322`) with
+byte-identical output to legacy; the gap was purely the missing UI affordance plus
+`doExport()` never sending the parameter. Implemented:
+
+- A **"Export skeleton"** checkbox (`#exportSkel`, labels/hint via
+  `tcx.exportSkel` / `tcx.exportSkelHint`) in the options list.
+- Visibility is gated to the suite/project export modes (test-suite deep, suite
+  children, whole project) and hidden for the single-testcase mode — exactly the
+  legacy contract (`exportSkel` is a no-op for `oneTestCaseExport`).
+- The option is additionally gated to the **XML** export type: selecting Markdown
+  hides and unchecks it (legacy recursion export was XML-only).
+- `doExport()` appends `exportSkel=1` to the POST body when checked.
+
+Verified end-to-end on the `TP1326` fixture (`tmp/fixtures_1326.php`): with the
+checkbox on, the real Export button POSTs `exportSkel=1` and streams the
+322-byte structure-only XML (byte-identical to legacy); with it off the full
+2291-byte XML with test cases is produced as before.
+
 ## Suite-level export launchers (#1325)
 
 Legacy 1.9.20 reached the suite export from `containerView.tpl` (test project
@@ -153,7 +184,7 @@ CSRF guard (`_guard.php`).
 ## i18n
 
 All labels, titles, placeholders and messages use client-side `TLi18n` keys under
-the `tcx.*` namespace (32 keys) present in all 10 locale bundles
+the `tcx.*` namespace (34 keys) present in all 10 locale bundles
 (`gui/templates/i18n/{en,ro,de,es,fr,it,ja,pt,ru,zh}.json`). Bundle consistency is
 enforced by `tools/lint_i18n.py`.
 
@@ -191,10 +222,9 @@ Parity run `testcases/tcExport.html` vs legacy `lib/testcases/tcExport.php`
 - **Open gaps:** suite-level export has no modern launcher — legacy
   `containerView.tpl` targeted `tcExport.php?containerID=<suite>`; modern reaches
   only the testcase mode (tcView toolbar) and the project-deep mode
-  (projectInfoView *Export all test suites*). See #1325. Skeleton export has no
-  modern UI button (tl-classic `tcExport.tpl:130` has an `exportSkel` submit
-  button, the Dashio form had none; the BFF `export` already honors the
-  `exportSkel` param and produces byte-identical output to legacy). See #1326.
+  (projectInfoView *Export all test suites*). See #1325. The **skeleton export**
+  gap is now **closed** — the modern screen gained the *Export skeleton* option
+  (see above, [#1326](https://github.com/sebiboga/testlink-upgraded/issues/1326)).
 - Cleanup: #1324 (delete legacy `tcExport.php` + tcExport.tpl templates once the
   reachability gap is resolved).
 

@@ -3536,6 +3536,8 @@
   "tcx.exportKeywords": "Cuvinte cheie",
   "tcx.exportPreconditions": "Precondiții",
   "tcx.exportReqs": "Cerințe",
+  "tcx.exportSkel": "Exportă schelet",
+  "tcx.exportSkelHint": "Exportă doar structura proiectului/suitei, fără cazuri de test",
   "tcx.exportSteps": "Pași",
   "tcx.exportSummary": "Rezumat",
   "tcx.exportWithPrefix": "Cu prefix de proiect",

@@ -3530,6 +3530,8 @@
   "tcx.exportKeywords": "Schlüsselwörter",
   "tcx.exportPreconditions": "Vorbedingungen",
   "tcx.exportReqs": "Anforderungen",
+  "tcx.exportSkel": "Skelett exportieren",
+  "tcx.exportSkelHint": "Exportiert nur die Projekt-/Suite-Struktur, ohne Testfälle",
   "tcx.exportSteps": "Schritte",
   "tcx.exportSummary": "Zusammenfassung",
   "tcx.exportWithPrefix": "Mit Projektpräfix",
