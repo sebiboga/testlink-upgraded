@@ -18146,3 +18146,44 @@ BFF: `api/help/index.php`.
 - **Actual:** PASS — 4 events total, all AUDIT, zero WARNING.
 
 **Result: 6/6 PASS.**
+
+## Regression — Issue #1554: auth/login.html success fallback redirects to /gui/templates/auth/index.php (404) instead of root index
+
+**Feature under test:** modern login screen `gui/templates/auth/login.html` (Dashio) + BFF `POST /api/auth/login` (api/auth/index.php).
+**Precondition:** fresh DB import, admin/admin active. Use an unauthenticated incognito context.
+
+### Test 1 — Pre-fix symptom gone: no-destination login lands on root app
+1. Open `http://localhost:8082/gui/templates/auth/login.html` in incognito (no `destination` param).
+2. Enter admin/admin, click SIGN IN.
+- **Expected (post-fix):** browser navigates to `http://localhost:8082/index.php?caller=login`, which renders the app shell (navbar/aside/mainframe; title "TestLink based on Dashio Bootstrap Admin Template").
+- **Pre-fix actual:** navigated to `http://localhost:8082/gui/templates/auth/index.php?caller=login` → "404 Not Found" (console `Failed to load resource ... 404 (Not Found)` x2; network `GET /gui/templates/auth/index.php?caller=login [404]`).
+- **Post-fix actual:** PASS — landed on `/index.php?caller=login`, full shell rendered, session shows "Testlink Administrator - admin".
+
+### Test 2 — Valid root-relative destination is still followed
+1. Open `http://localhost:8082/gui/templates/auth/login.html?destination=/gui/templates/mainpage/mainPage.html`.
+2. Login admin/admin.
+- **Expected:** follows `/gui/templates/mainpage/mainPage.html` (destination branch, not the fallback).
+- **Actual:** PASS — landed on `http://localhost:8082/gui/templates/mainpage/mainPage.html`.
+
+### Test 3 — Hostile destination still sanitized to safe fallback
+1. Open `http://localhost:8082/gui/templates/auth/login.html?destination=javascript%3Aalert(1)`.
+2. Login admin/admin.
+- **Expected:** no `javascript:` execution; BFF `safeDestination()` returns '' and the client regex rejects it → fallback `/index.php?caller=login`.
+- **Actual:** PASS — landed on `http://localhost:8082/index.php?caller=login`, no dialog fired.
+
+### Test 4 — Wrong password: error box, no redirect
+1. Open login.html, enter admin / wrongpass.
+- **Expected:** "Invalid login or password." error box shown; URL unchanged (login.html); no navigation.
+- **Actual:** PASS — error shown, stayed on login.html.
+
+### Test 5 — Legacy /login.php readfile entry point unaffected
+1. Open `http://localhost:8082/login.php` (serves the same login.html via readfile, login.php:383), login admin/admin.
+- **Expected:** lands on `/index.php?caller=login` (root-absolute fallback works from the `/` base context too).
+- **Actual:** PASS — landed on `http://localhost:8082/index.php?caller=login`.
+
+### Test 6 — Event hygiene
+1. `SELECT id, activity, log_level, description FROM events` after the whole suite.
+- **Expected:** only AUDIT rows (log_level=16 — audit_login_succeeded, and one audit_login_failed for the wrong-password test); no log_level=2 WARNING / error rows.
+- **Actual:** PASS — events rows all log_level=16, zero WARNING/error.
+
+**Result: 6/6 PASS.**
