@@ -749,6 +749,7 @@
   "evinfo.notFoundMsg": "Evenimentul solicitat nu există sau a fost șters.",
   "evinfo.notFoundTitle": "Evenimentul nu a fost găsit",
   "evinfo.openViewer": "Deschide vizualizatorul de evenimente",
+  "evinfo.openWindow": "Deschide într-o fereastră",
   "evinfo.subtitle": "Înregistrare completă în jurnal",
   "evinfo.title": "Informații eveniment",
   "exe.actions": "Acțiuni",

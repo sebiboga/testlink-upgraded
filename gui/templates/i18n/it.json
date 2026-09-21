@@ -749,6 +749,7 @@
   "evinfo.notFoundMsg": "L'evento richiesto non esiste o è stato eliminato.",
   "evinfo.notFoundTitle": "Evento non trovato",
   "evinfo.openViewer": "Apri visualizzatore eventi",
+  "evinfo.openWindow": "Apri in una finestra",
   "evinfo.subtitle": "Voce di registro completa",
   "evinfo.title": "Info evento",
   "exe.actions": "Azioni",

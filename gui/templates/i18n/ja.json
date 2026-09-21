@@ -749,6 +749,7 @@
   "evinfo.notFoundMsg": "要求されたイベントは存在しないか、削除されています。",
   "evinfo.notFoundTitle": "イベントが見つかりません",
   "evinfo.openViewer": "イベントビューアーを開く",
+  "evinfo.openWindow": "ウィンドウで開く",
   "evinfo.subtitle": "ログの全記録",
   "evinfo.title": "イベント情報",
   "exe.actions": "操作",

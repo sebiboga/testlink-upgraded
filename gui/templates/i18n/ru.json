@@ -749,6 +749,7 @@
   "evinfo.notFoundMsg": "Запрошенное событие не существует или было удалено.",
   "evinfo.notFoundTitle": "Событие не найдено",
   "evinfo.openViewer": "Открыть просмотр событий",
+  "evinfo.openWindow": "Открыть в окне",
   "evinfo.subtitle": "Полная запись журнала",
   "evinfo.title": "Информация о событии",
   "exe.actions": "Действия",

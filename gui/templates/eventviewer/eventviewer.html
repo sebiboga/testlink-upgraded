@@ -476,6 +476,10 @@ function toggleRow(tr) {
         html += '<tr><th>' + TLi18n.t('ev.objectId') + '</th><td>' + esc(e.objectID) + '</td></tr>';
         html += '<tr><th>' + TLi18n.t('ev.objectType') + '</th><td>' + esc(e.objectType) + '</td></tr>';
       }
+      // Modernized lib/events/eventinfo.php popup - Refs #1556: the full record
+      // can also be opened in its own window (deep-linkable, printable).
+      html += '<tr><th></th><td><a href="#" class="open-evinfo" data-id="' + esc(e.id) + '">' +
+              '<i class="fa fa-external-link"></i> ' + TLi18n.t('evinfo.openWindow') + '</a></td></tr>';
       html += '</table></div>';
       row.child(html, 'detail-row').show();
       tr.addClass('shown');
@@ -486,6 +490,22 @@ function toggleRow(tr) {
 $('#eventsTable tbody').on('click', 'span.details-control, td.desc-expand', function() {
   var tr = $(this).closest('tr');
   toggleRow(tr);
+});
+
+// "Open in window" link inside the expanded row detail - Refs #1556. Uses the
+// modernized eventinfo popup and forwards the current object/project context.
+function openEventInfo(id) {
+  var p = ['id=' + encodeURIComponent(id)];
+  if (tproject_id) { p.push('tproject_id=' + encodeURIComponent(tproject_id)); }
+  if (tplan_id) { p.push('tplan_id=' + encodeURIComponent(tplan_id)); }
+  if (objectId) { p.push('objectId=' + encodeURIComponent(objectId)); }
+  if (objectType) { p.push('objectType=' + encodeURIComponent(objectType)); }
+  window.open('/gui/templates/eventviewer/eventinfo.html?' + p.join('&'), '_blank');
+}
+
+$(document).on('click', 'a.open-evinfo', function(ev) {
+  ev.preventDefault();
+  openEventInfo($(this).data('id'));
 });
 
 function renderPie(items) {

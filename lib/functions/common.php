@@ -1878,6 +1878,10 @@ function getActions(&$gui,$baseURL) {
   $actions = new stdClass();
 
   $actions->events = "/gui/templates/eventviewer/eventviewer.html?{$ctx}";
+  // Standalone Event Info popup (modernized lib/events/eventinfo.php) - Refs
+  // #1556. Opened in a new window from the Event Viewer row detail; the BFF
+  // enforces mgt_view_events and the legacy controller redirects here.
+  $actions->eventInfo = "/gui/templates/eventviewer/eventinfo.html?{$ctx}";
   $actions->rolesView = "/gui/templates/usermanagement/rolesView.html?{$ctx}";
 
   $actions->usersAssign = "/gui/templates/usermanagement/usersAssignProject.html?{$ctx}";

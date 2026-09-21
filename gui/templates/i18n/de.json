@@ -749,6 +749,7 @@
   "evinfo.notFoundMsg": "Das angeforderte Ereignis existiert nicht oder wurde gelöscht.",
   "evinfo.notFoundTitle": "Ereignis nicht gefunden",
   "evinfo.openViewer": "Ereignisanzeige öffnen",
+  "evinfo.openWindow": "In neuem Fenster öffnen",
   "evinfo.subtitle": "Vollständiger Protokolleintrag",
   "evinfo.title": "Ereignisinfo",
   "exe.actions": "Aktionen",

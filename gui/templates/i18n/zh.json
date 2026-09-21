@@ -749,6 +749,7 @@
   "evinfo.notFoundMsg": "请求的事件不存在或已被删除。",
   "evinfo.notFoundTitle": "未找到事件",
   "evinfo.openViewer": "打开事件查看器",
+  "evinfo.openWindow": "在新窗口中打开",
   "evinfo.subtitle": "完整日志记录",
   "evinfo.title": "事件信息",
   "exe.actions": "操作",

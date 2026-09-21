@@ -1,66 +1,32 @@
 <?php
 /**
- * TestLink Open Source Project - http://testlink.sourceforge.net/ 
- * This script is distributed under the GNU General Public License 2 or later. 
+ * TestLink Open Source Project - http://testlink.sourceforge.net/
+ * This script is distributed under the GNU General Public License 2 or later.
  *
- * Filename $RCSfile: eventinfo.php,v $
+ * @filesource	eventinfo.php
  *
- * @version $Revision: 1.12 $
- * @modified $Date: 2010/05/18 05:07:52 $ by $Author: amkhullar $
+ * 2010.1.shim - Refs #1556: the legacy Smarty Event Info popup was replaced by
+ * the modern Dashio screen gui/templates/eventviewer/eventinfo.html + the
+ * api/eventinfo BFF. This controller is kept as a session-guarded redirect
+ * shim so old deep links (and the legacy eventviewer.tpl ExtJS autoLoad panel)
+ * still resolve: anonymous users are sent to the login screen (legacy
+ * testlinkInitPage behaviour) and authenticated users land on the modern
+ * popup with the event id forwarded.
 **/
 require_once("../../config.inc.php");
 require_once("common.php");
-testlinkInitPage($db,false,false,"checkRights");
-$templateCfg = templateConfiguration();
 
-$user = null;
-$event = null;
+// Anonymous -> login (same contract as the legacy testlinkInitPage call).
+testlinkInitPage($db, TRUE);
 
-$args = init_args();
-if ($args->id)
-{
-  $event = new tlEvent($args->id);
-  if ($event->readFromDB($db,tlEvent::TLOBJ_O_GET_DETAIL_TRANSACTION) >= tl::OK)
-  {
-    $user = new tlUser($event->userID);
-    if ($user->readFromDB($db) < tl::OK)
-    {
-      $user = null;
-    }
-  }
-  else
-  {
-    $event = null;
-  }
-}
+// Legacy input contract: ?id=<event id> (also accepted as a POST field by the
+// old ExtJS panel autoLoad).
+$id = isset($_REQUEST['id']) ? intval($_REQUEST['id']) : 0;
 
-$smarty = new TLSmarty();
-$smarty->assign("event",$event);
-$smarty->assign("user",$user);
-$smarty->display($templateCfg->template_dir . $templateCfg->default_template);
+$tprojectID = isset($_SESSION['testprojectID']) ? intval($_SESSION['testprojectID']) : 0;
+$tplanID = isset($_SESSION['testplanID']) ? intval($_SESSION['testplanID']) : 0;
 
-/**
- * 
- * @return object returns the arguments of the page
- */
-function init_args()
-{
-  $iParams = array("id" => array(tlInputParameter::INT_N));
-  $args = new stdClass();
-  P_PARAMS($iParams,$args);
-
-  return $args;
-}
-
-/**
- * Checks the user rights for viewing the page
- * 
- * @param $db resource the database connection handle
- * @param $user tlUser the object of the current user
- *
- * @return boolean return true if the page can be viewed, false if not
- */
-function checkRights(&$db,&$user)
-{
-  return ($user->hasRight($db,"mgt_view_events")) ? true : false;
-}
+$url = $_SESSION['basehref'] . 'gui/templates/eventviewer/eventinfo.html';
+$url .= '?id=' . $id . '&tproject_id=' . $tprojectID . '&tplan_id=' . $tplanID;
+header('Location: ' . $url);
+exit;

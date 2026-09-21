@@ -749,6 +749,7 @@
   "evinfo.notFoundMsg": "L'événement demandé n'existe pas ou a été supprimé.",
   "evinfo.notFoundTitle": "Événement introuvable",
   "evinfo.openViewer": "Ouvrir le visualiseur d'événements",
+  "evinfo.openWindow": "Ouvrir dans une fenêtre",
   "evinfo.subtitle": "Enregistrement complet du journal",
   "evinfo.title": "Info événement",
   "exe.actions": "Actions",
