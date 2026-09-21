@@ -296,7 +296,7 @@ if ($action === 'delete') {
     // deleted — a 404 beats silently reporting success for a no-op.
     $tables = tlObjectWithDB::getDBTables('execution_bugs');
     $chk = $db->get_recordset(
-        "SELECT id FROM {$tables['execution_bugs']} " .
+        "SELECT execution_id FROM {$tables['execution_bugs']} " .
         "WHERE execution_id={$execId} AND tcstep_id={$tcstepId} " .
         "AND bug_id='" . $db->prepare_string($bugId) . "'");
     if (!is_null($chk) && count($chk) > 0) {
