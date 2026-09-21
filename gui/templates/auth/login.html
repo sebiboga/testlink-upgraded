@@ -225,7 +225,7 @@ $(function () {
         if (dest && /^\/[^\/]/.test(dest) && !/[:\x00-\x1f\x7f\\@]/.test(dest)) {
           window.location.href = dest;
         } else {
-          window.location.href = 'index.php?caller=login';
+          window.location.href = '/index.php?caller=login';
         }
       } else {
         var reason = res.reason || '';
