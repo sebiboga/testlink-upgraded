@@ -722,6 +722,14 @@ NEW FEATURES
   replace the Save button with the localized warn_demo note while demoMode is on
   (client-side save guard mirrors the legacy onsubmit alert). i18n
   `assign.demoDisabled` in all 10 bundles. Suite 932 — 12/12 PASS.
+- Assign Test Plan Roles — demoMode read-only gating verified & gap issue closed
+  (Refs #943): the tplan-context demo gate described by #943 was already shipped
+  with the shared usersAssign.tpl parity above (commit `661329532` Refs #932);
+  this run re-verified it end-to-end on usersAssignPlan.html + `PUT
+  /roles/tplan-roles` (demoMode ON → banner + warn_demo note replacing Save,
+  PUT → HTTP 403 `demo_mode`; OFF → save roundtrip OK, `user_testplan_roles`
+  written), confirmed no new Event-Viewer Error/Warning, and documented the
+  closure (docs/wiki/TLU suite). Suite 943 — 6/6 PASS.
 - User Management Export (`gui/templates/usermanagement/usersExport.html`, BFF
   `api/usersexport/index.php`): Markdown (MD) user export added next to the
   legacy XML dump (Refs #922) — `exportTypes` now exposes `XML` and `MD`, the

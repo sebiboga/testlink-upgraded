@@ -18187,3 +18187,40 @@ BFF: `api/help/index.php`.
 - **Actual:** PASS — events rows all log_level=16, zero WARNING/error.
 
 **Result: 6/6 PASS.**
+
+## Task — Issue #943: demoMode read-only gating in Assign Test Plan Roles (gap vs legacy)
+
+**Feature under test:** `gui/templates/usermanagement/usersAssignPlan.html` + BFF `api/roles/index.php` — the Assign Test Plan Roles screen must be read-only when `$tlCfg->demoMode` is ON (Save button replaced by the localized `warn_demo` note, PUT tplan-roles → 403 demo_mode), and fully writable when OFF (legacy usersAssign.tpl:111-112 + :248-249 parity).
+**Precondition:** dataset recreated with `php tmp/fixtures_941.php` (tproject=1 PLANROLES941, tplan=2 PLAN941-R1, users u941designer(2)/senior(3)/tester(4)/leader(5)/adminpl(6)); admin/admin logged in; demoMode OFF (config.inc.php:2060).
+
+### Test 1 — demoMode OFF: normal state, no banner/note
+1. Open `http://localhost:8082/gui/templates/usermanagement/usersAssignPlan.html?tproject_id=1&tplan_id=2`, select PLAN941-R1.
+- **Expected:** no demo banner; Save Changes button visible (disabled until a change); selects editable (non-admin rows).
+- **Actual:** PASS — `saveVisible:true`, banner/note hidden, grid renders 6 users, Save enabled only after a change.
+
+### Test 2 — demoMode ON: banner shown, Save replaced by warn_demo note
+1. Flip config.inc.php:2060 to `$tlCfg->demoMode = ON;`, reload the screen, select PLAN941-R1.
+- **Expected:** `#demoBanner` + `#demoNote` both render "We are sorry. This feature is disabled for Demo."; Save Changes button absent; grid + bulk Do + row selects stay usable (legacy usersAssign.tpl:286-292).
+- **Actual:** PASS — `{demoMode:true, saveVisible:false, demoNoteVisible:true, bannerVisible:true}`.
+
+### Test 3 — demoMode ON: BFF read route exposes demoMode, PUT rejected 403
+1. DemoMode ON. Browser fetch `GET /api/roles/index.php/meta/tplan-roles?tproject_id=1&tplan_id=2`, then `PUT /api/roles/index.php/tplan-roles` with `{tplan_id:2, assignments:{3:7}}`.
+- **Expected:** GET 200 with `demoMode:true`; PUT HTTP 403 `{code:"demo_mode", messageKey:"assign.demoDisabled", message:"We are sorry. This feature is disabled for Demo."}`; no DB role change.
+- **Actual:** PASS — GET 200 `demoMode:true`; PUT 403 with the exact demo_mode payload; access log `[403]: PUT .../tplan-roles` (demo ON) vs `[200]` (demo OFF).
+
+### Test 4 — demoMode ON: client save guard shows demo toast, no PUT
+1. DemoMode ON. Invoke `saveAssignments()` from the console.
+- **Expected:** a demo-mode toast ("We are sorry. This feature is disabled for Demo.") appears, no network PUT is issued.
+- **Actual:** PASS — toast appended, `demoMode` true, no PUT fired.
+
+### Test 5 — demoMode OFF regression: save roundtrip persists
+1. Restore config.inc.php:2060 to OFF, reload, select PLAN941-R1, change u941designer's Plan Role Override to leader, click Save Changes.
+- **Expected:** "User Roles updated" toast; DB `user_testplan_roles` row (user 2, plan 2, role 9); banner/note hidden.
+- **Actual:** PASS — toast shown, row written `user_testplan_roles(2,2,9)` (verified via mysql, then reverted).
+
+### Test 6 — Event hygiene
+1. After the whole suite: `SELECT id, log_level FROM events ORDER BY id DESC`.
+- **Expected:** only AUDIT rows (`log_level=16` — login/project-created/role-assign); no log_level ≥ 32 Error/Warning rows.
+- **Actual:** PASS — all rows log_level=16, zero Error/Warning; PHP server log shows no PHP warnings (only expected 403 for the demo PUT).
+
+**Result: 6/6 PASS.** (Feature already shipped via commit 661329532 Refs #932; this suite re-verifies the tplan-context gating described by #943. Refs #943.)
