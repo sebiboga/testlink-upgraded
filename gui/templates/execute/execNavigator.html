@@ -239,6 +239,7 @@ function queryString() {
   var q = [ 'action=init' ];
   q.push('tplan_id=' + CTX.tplanId);
   if (CTX.tprojectId) q.push('tproject_id=' + CTX.tprojectId);
+  if ($('#setting_testplan').val()) q.push('setting_testplan=' + $('#setting_testplan').val());
   if ($('#setting_build').val()) q.push('setting_build=' + $('#setting_build').val());
   if ($('#setting_platform').val()) q.push('setting_platform=' + $('#setting_platform').val());
   if ($('#setting_exec_tree_counters_logic').val()) q.push('setting_exec_tree_counters_logic=' + $('#setting_exec_tree_counters_logic').val());
@@ -377,14 +378,14 @@ function buildBranch(nodes, $ul, depth) {
     var $li = $('<li></li>');
     var $row = $('<div class="tnode"></div>');
     if (!leaf && nt !== 'testcase') {
-      $row.append('<span class="ttoggle"><i class="fa fa-plus-square"></i></span>');
+      $row.append('<span class="ttoggle"><i class="fa fa-minus-square"></i></span>');
     } else {
       $row.append('<span class="ttoggle">&nbsp;</span>');
     }
     $row.append('<span class="fico">' + nodeIcon(nt) + '</span>');
 
     if (leaf && nt === 'testcase') {
-      var ext = n.external_id ? ('[' + esc(n.external_id) + ']') : '';
+      var ext = n.version ? ('[' + esc(n.version) + ']') : '';
       var $a = $('<a class="tlink" href="#" title="' + esc(TLi18n.t('exnav.execute')) + '"></a>');
       $a.append('<span class="tname">' + txt + '</span>');
       if (ext) $a.append('<span class="tlevel">' + ext + '</span>');

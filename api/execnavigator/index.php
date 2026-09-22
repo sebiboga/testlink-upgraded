@@ -220,7 +220,6 @@ if ($action === 'init') {
     if (isset($_GET['debug']) && intval($_GET['debug']) === 1) {
         $GLOBALS['__dbg'] = array(
             'do_filtering' => $control->do_filtering ?? null,
-            'active' => (array) $control->get_active_filters(),
             'args_result' => (array) ($control->args->filter_result_result ?? null),
             'args_method' => $control->args->filter_result_method ?? null,
             'post_result' => (array) ($_POST['filter_result_result'] ?? null),
