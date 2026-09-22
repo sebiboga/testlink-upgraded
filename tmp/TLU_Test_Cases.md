@@ -18846,3 +18846,41 @@ Fixture: `php tmp/fixtures_1559.php` (project B1559, TC "BUG Login Check" + 2 st
 - **Actual:** events id 1..10 all log_level 16. PASS.
 
 **Result: 8/8 PASS.** (Refs #953. Screen `gui/templates/cfields/cfieldsView.html` + BFF `api/cfields/index.php` POST /; i18n `cf.assignToCurrentProject` + `cf.msg.createdAndAssigned` + `cf.msg.saved` in all 10 bundles; screenshots `docs/screenshots/issue-953-{cfield-create-assign-modal,cfield-create-assigned-toast}.png`; docs `docs/Task-Issue-953-Cfields-Create-And-Assign.md` + wiki mirror.)
+
+## Suite 1563 — Bug — cfieldsAssignView Location dropdown LOCALIZE: placeholders + level-32 warnings (en_GB/en_US missing after_title/after_preconditions)
+
+**Screen/files:** `gui/templates/cfields/cfieldsAssignView.html` + `api/cfields/index.php` GET /assignment; fix = `$TLS_after_title`/`$TLS_after_preconditions` added to 16 locale bundles. **Refs #1563.**
+
+**Precondition:** fresh DB + `php tmp/fixtures_1563.php` → tproject `Demo Project` (id 1) + testcase custom field `assigned_cf` (id 1, location 5) linked. Logged in admin/admin.
+
+### Test 1 — pre-fix repro: API returned LOCALIZE placeholders + fired 2 level-32 events
+1. Old bundle state (before this fix): `GET /api/cfields/index.php/assignment?tproject_id=1&locale=en`.
+- **Expected:** codes 5/7 labels `LOCALIZE: after_title` / `LOCALIZE: after_preconditions`; `events` gains level=32 rows for both keys.
+- **Actual:** captured `[(1,'standard'),(2,'Before steps'),(3,'Before Summary'),(4,'Before Preconditions'),(5,'LOCALIZE: after_title'),(6,'After Summary'),(7,'LOCALIZE: after_preconditions'),(8,'Hide…')]`; events rows 4/5 (`log_level=32`). PASS.
+
+### Test 2 — post-fix: en_GB resolves both keys, zero new level-32 events
+1. After bundle fix, fresh session: `GET /api/cfields/index.php/assignment?tproject_id=1&locale=en`.
+- **Expected:** codes 5/7 → `After Title` / `After Preconditions`; no new LOCALIZATION event referencing either key.
+- **Actual:** `(5,'After Title'),(7,'After Preconditions')`; events table gained 0 rows for `after_title`/`after_preconditions` (baseline id 6 → no new rows). PASS.
+
+### Test 3 — post-fix: non-en locale (de) resolves the two keys as real translations
+1. Same request with `locale=de`.
+- **Expected:** codes 5/7 → localised labels, no `LOCALIZE:`.
+- **Actual:** `(5,'Nach dem Titel'),(7,'Nach den Vorbedingungen')`; no event for the two fixed keys. PASS.
+
+### Test 4 — browser end-to-end English: dropdown shows real labels
+1. Open `gui/templates/cfields/cfieldsAssignView.html?tproject_id=1&tplan_id=0` (locale combobox English), inspect Location select of `assigned_cf`.
+- **Expected:** option selected "After Title"; option list contains "After Preconditions" (no `LOCALIZE:` option in the 8 options).
+- **Actual:** snapshot shows select value `After Title` selected, `After Preconditions` present among the 8 options, no `LOCALIZE:` string. PASS.
+
+### Test 5 — browser end-to-end German: dropdown localises both options
+1. Switch locale combobox to German (reloads with `&locale=de`).
+- **Expected:** selected value `Nach dem Titel`; `Nach den Vorbedingungen` present.
+- **Actual:** snapshot shows `Nach dem Titel` selected and `Nach den Vorbedingungen` option present. PASS.
+
+### Test 6 — syntax/i18n hygiene
+1. `php -l` on each of the 16 edited `locale/*/strings.txt`; `grep -c` = 2 matching lines per bundle; browser console clean; `events` shows no new Error/Warning beyond the known pre-existing de_DE en_GB-fallback gap on 4 unrelated location keys.
+- **Expected:** 16/16 `php -l` OK, 16×2 = 32/32 key occurrences, no console errors.
+- **Actual:** 16/16 `php -l` PASS; `grep -c 'TLS_after_title\|TLS_after_preconditions'` = 2 per bundle; console has only pre-existing a11y hints (msgid 8/9), no JS exceptions. PASS.
+
+**Result: 6/6 PASS.** (Refs #1563. The pre-existing de_DE fallback warnings for `before_summary`/`before_preconditions`/`after_summary`/`hide_because_is_used_as_variable` — graceful en_GB fallback, no LOCALIZE — are out of scope and tracked separately.)
