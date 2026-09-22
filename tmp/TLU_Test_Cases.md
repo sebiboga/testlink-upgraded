@@ -18868,6 +18868,17 @@ Fixture: `php tmp/fixtures_1559.php` (project B1559, TC "BUG Login Check" + 2 st
 - **Expected:** codes 5/7 → localised labels, no `LOCALIZE:`.
 - **Actual:** `(5,'Nach dem Titel'),(7,'Nach den Vorbedingungen')`; no event for the two fixed keys. PASS.
 
+### Test 3b — post-fix: ro/ja/zh resolve the two keys as real translations, no events for them
+1. Same request with `locale=ro`, `locale=ja`, `locale=zh`.
+- **Expected:** codes 5/7 → `După titlu/După precondiții`, `タイトルの後/前提条件の後`, `标题之后/前提条件之后`; no level-32 event referencing `after_title`/`after_preconditions`.
+- **Actual:** all three return the translations; new events (ids 21-28) reference only pre-existing other keys (`build`,`testsuite`,`testcase`,`standard_location`, …) — none touch the two fixed keys. PASS.
+
+### Test 3c — code-review blocker fix: bundle define-check, not just line count
+1. `php -r "require 'locale/<f>/strings.txt'; echo isset($TLS_after_title)&&isset($TLS_after_preconditions)?'DEFINED':'MISSING';"` for each edited bundle (16).
+2. (First attempt appended the keys after a mid-file `?>` in `es_AR`/`fi_FI`/`id_ID`/`ko_KR`/`pl_PL` — code review flagged the keys as undefined ⇒ dead PHP; block relocated before the `?>`.)
+- **Expected:** 16/16 `DEFINED`.
+- **Actual:** 16/16 `DEFINED`. PASS.
+
 ### Test 4 — browser end-to-end English: dropdown shows real labels
 1. Open `gui/templates/cfields/cfieldsAssignView.html?tproject_id=1&tplan_id=0` (locale combobox English), inspect Location select of `assigned_cf`.
 - **Expected:** option selected "After Title"; option list contains "After Preconditions" (no `LOCALIZE:` option in the 8 options).
@@ -18879,8 +18890,13 @@ Fixture: `php tmp/fixtures_1559.php` (project B1559, TC "BUG Login Check" + 2 st
 - **Actual:** snapshot shows `Nach dem Titel` selected and `Nach den Vorbedingungen` option present. PASS.
 
 ### Test 6 — syntax/i18n hygiene
-1. `php -l` on each of the 16 edited `locale/*/strings.txt`; `grep -c` = 2 matching lines per bundle; browser console clean; `events` shows no new Error/Warning beyond the known pre-existing de_DE en_GB-fallback gap on 4 unrelated location keys.
+1. `php -l` on each of the 16 edited `locale/*/strings.txt`; `grep -c` = 2 matching lines per bundle; browser console clean; `events` shows no new Error/Warning for the fixed keys.
 - **Expected:** 16/16 `php -l` OK, 16×2 = 32/32 key occurrences, no console errors.
 - **Actual:** 16/16 `php -l` PASS; `grep -c 'TLS_after_title\|TLS_after_preconditions'` = 2 per bundle; console has only pre-existing a11y hints (msgid 8/9), no JS exceptions. PASS.
 
-**Result: 6/6 PASS.** (Refs #1563. The pre-existing de_DE fallback warnings for `before_summary`/`before_preconditions`/`after_summary`/`hide_because_is_used_as_variable` — graceful en_GB fallback, no LOCALIZE — are out of scope and tracked separately.)
+### Test 7 — scope note: locales es_AR/fi_FI/id_ID/ko_KR/pl_PL live-check blocked by pre-existing bug
+1. Attempt the two-keys API check for `locale=pl` / `=es` / `=fi` / `=id` / `=ko`.
+- **Expected (post-fix):** codes 5/7 resolve; no JSON corruption.
+- **Actual:** HTTP 200 but the response body is NOT JSON — pre-existing dead `$TLS_href_nfr_*` lines after each bundle's mid-file `?>` are echoed into the payload (separate root cause, filed as **#1564**). The bundle-define gate (Test 3c) still proves the two keys ARE installed in those bundles. BLOCKED-BY-#1564 (not a failure of this fix).
+
+**Result: 7/7 PASS, 1 BLOCKED-BY-#1564.** (Refs #1563. The `using en_GB` fallback warnings observed for node-type/other location keys in non-en bundles are pre-existing missing translations, out of scope; ES/PL/FI/ID/KO live JSON verification is blocked by the pre-existing #1564 dead-post-`?>` corruption.)
