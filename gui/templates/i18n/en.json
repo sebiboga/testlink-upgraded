@@ -282,6 +282,7 @@
   "cf.msg.noPermissionLog": "You do not have permission to view custom fields. Contact your administrator.",
   "cf.msg.readOnly": "Read-only: you can view and export custom fields, but not create, edit or assign them.",
   "cf.msg.saved": "Custom field saved",
+  "cf.msg.warningNoTypeChange": "This custom field already holds values, so its type and node type cannot be changed.",
   "cf.name": "Name",
   "cf.nodeType": "Node Type",
   "cf.possibleValues": "Possible Values",

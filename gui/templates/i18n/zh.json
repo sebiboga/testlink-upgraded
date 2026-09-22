@@ -282,6 +282,7 @@
   "cf.msg.noPermissionLog": "您没有查看自定义字段的权限。请联系管理员。",
   "cf.msg.readOnly": "只读：您可以查看和导出自定义字段，但不能创建、编辑或分配它们。",
   "cf.msg.saved": "自定义字段已保存",
+  "cf.msg.warningNoTypeChange": "此自定义字段已有值，因此无法更改其类型和节点类型。",
   "cf.name": "名称",
   "cf.nodeType": "节点类型",
   "cf.possibleValues": "可能的值",

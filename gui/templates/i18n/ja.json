@@ -282,6 +282,7 @@
   "cf.msg.noPermissionLog": "カスタムフィールドを表示する権限がありません。管理者に連絡してください。",
   "cf.msg.readOnly": "読み取り専用: カスタムフィールドの表示とエクスポートはできますが、作成・編集・割り当てはできません。",
   "cf.msg.saved": "カスタムフィールドを保存しました",
+  "cf.msg.warningNoTypeChange": "このカスタムフィールドには値が既にあるため、タイプとノードタイプを変更できません。",
   "cf.name": "名前",
   "cf.nodeType": "ノードタイプ",
   "cf.possibleValues": "可能な値",

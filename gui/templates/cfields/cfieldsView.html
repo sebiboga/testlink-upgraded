@@ -95,11 +95,16 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
           <div class="form-group" style="margin-bottom:12px;flex:1;">
             <label style="font-size:12px;font-weight:600;" data-i18n="cf.type">Type *</label>
             <select id="editType" class="form-control" style="font-size:13px;"></select>
+            <p id="editTypeText" style="display:none;font-size:13px;font-weight:600;padding-top:7px;margin:0;"></p>
           </div>
           <div class="form-group" style="margin-bottom:12px;flex:1;">
             <label style="font-size:12px;font-weight:600;" data-i18n="cf.nodeType">Node Type *</label>
             <select id="editNodeType" class="form-control" style="font-size:13px;"></select>
+            <p id="editNodeTypeText" style="display:none;font-size:13px;font-weight:600;padding-top:7px;margin:0;"></p>
           </div>
+        </div>
+        <div class="form-group" style="margin-bottom:12px;display:none;" id="typeLockWarning">
+          <div style="background:#fff3cd;color:#856404;border:1px solid #ffeaa7;border-radius:4px;padding:8px 10px;font-size:12px;"><i class="fa fa-lock"></i> <span data-i18n="cf.msg.warningNoTypeChange">This custom field already holds values so its type and node type cannot be changed.</span></div>
         </div>
         <div class="form-group" style="margin-bottom:12px;">
           <label style="font-size:12px;font-weight:600;" data-i18n="cf.possibleValues">Possible Values</label>
@@ -246,6 +251,7 @@ function showCreateModal() {
   $('#editCfId').val('');
   $('#editLabel').val('');
   $('#editName').val('').prop('readonly', false);
+  setTypeEditable(true);
   $('#editType').val($('#editType option:first').val());
   $('#editNodeType').val($('#editNodeType option:first').val());
   $('#editPossibleValues').val('');
@@ -256,6 +262,17 @@ function showCreateModal() {
   $('#editAssignProject').prop('checked', false);
   $('#modalError').hide();
   $('#cfModal').modal('show');
+}
+
+// New fields and value-less fields may have their type + node type edited.
+// A field that already holds values (is_used) must keep them locked, exactly
+// like the legacy edit screen (cfieldsEdit.tpl:105-141 warning_no_type_change).
+function setTypeEditable(editable) {
+  $('#editType').toggle(editable);
+  $('#editTypeText').toggle(!editable);
+  $('#editNodeType').toggle(editable);
+  $('#editNodeTypeText').toggle(!editable);
+  $('#typeLockWarning').toggle(!editable);
 }
 
 function editCf(id) {
@@ -272,6 +289,11 @@ function editCf(id) {
       if (parseInt(id) === cf.node_type_id) nodeName = name;
     });
     if (nodeName) $('#editNodeType').val(nodeName);
+    if (cf.is_used) {
+      $('#editTypeText').text(typeMap[cf.type] || cf.type);
+      $('#editNodeTypeText').text(nodeName || cf.node_type_id);
+    }
+    setTypeEditable(!cf.is_used);
     $('#editPossibleValues').val(cf.possible_values);
     $('#editEnableDesign').prop('checked', cf.enable_on_design === 1);
     $('#editEnableExecution').prop('checked', cf.enable_on_execution === 1);
@@ -326,7 +348,10 @@ function saveCf() {
     error: function(xhr) {
       saving = false;
       var msg = TLi18n.t('cf.msg.errorSave');
-      try { msg = JSON.parse(xhr.responseText).message; } catch(e) {}
+      try {
+        var resp = JSON.parse(xhr.responseText);
+        msg = resp.code === 'warning_no_type_change' ? TLi18n.t('cf.msg.warningNoTypeChange') : resp.message;
+      } catch(e) {}
       $('#modalError').text(msg).show();
     }
   });

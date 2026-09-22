@@ -64,7 +64,27 @@ function deny() {
 
 $cfield_mgr = new cfield_mgr($db);
 
-function cfToJSON($cf) {
+// Legacy cfield_mgr::is_used (lib/functions/cfield_mgr.class.php:1486) reports a
+// custom field as "used" the moment any value row exists in one of the four value
+// tables. Editing such a field must NOT allow changing its type or node type
+// (warning_no_type_change semantics). The set is resolved once per request so
+// list endpoints pay one UNION query instead of one is_used() per row.
+function usedFieldIds() {
+    static $set = null;
+    global $cfield_mgr;
+    if ($set !== null) { return $set; }
+    $t = tlObject::getDBTables(['cfield_design_values', 'cfield_build_design_values',
+                                'cfield_testplan_design_values', 'cfield_execution_values']);
+    $sql = "SELECT DISTINCT field_id FROM {$t['cfield_design_values']} " .
+           "UNION SELECT DISTINCT field_id FROM {$t['cfield_build_design_values']} " .
+           "UNION SELECT DISTINCT field_id FROM {$t['cfield_testplan_design_values']} " .
+           "UNION SELECT DISTINCT field_id FROM {$t['cfield_execution_values']}";
+    $ids = array_map('intval', (array) $cfield_mgr->db->fetchColumnsIntoArray($sql, 'field_id'));
+    $set = array_flip($ids);
+    return $set;
+}
+
+function cfToJSON($cf, $isUsed = 0) {
     return [
         'id' => intval($cf['id']),
         'name' => $cf['name'],
@@ -81,6 +101,8 @@ function cfToJSON($cf) {
         'node_description' => $cf['node_description'] ?? '',
         'active' => isset($cf['active']) ? intval($cf['active']) : 1,
         'default_value' => $cf['default_value'] ?? '',
+        // 1 when the field already holds values -> type/node_type are locked.
+        'is_used' => intval($isUsed) ? 1 : 0,
     ];
 }
 
@@ -109,8 +131,9 @@ if ($method === 'GET' && empty($segments)) {
     $map = $cfield_mgr->get_all();
     $items = [];
     if ($map) {
+        $used = usedFieldIds();
         foreach ($map as $id => $cf) {
-            $items[] = cfToJSON($cf);
+            $items[] = cfToJSON($cf, isset($used[$id]) ? 1 : 0);
         }
     }
     out(['status' => 'ok', 'items' => $items, 'total' => count($items), 'can_manage' => $canManage ? 1 : 0]);
@@ -124,7 +147,7 @@ if ($method === 'GET' && isset($segments[0]) && is_numeric($segments[0])) {
         http_response_code(404);
         out(['status' => 'error', 'message' => 'Custom field not found']);
     }
-    out(['status' => 'ok', 'item' => cfToJSON($map[$id])]);
+    out(['status' => 'ok', 'item' => cfToJSON($map[$id], isset(usedFieldIds()[$id]) ? 1 : 0)]);
 }
 
 // Route: POST / - create custom field
@@ -198,7 +221,7 @@ if ($method === 'POST' && empty($segments)) {
         logAuditEvent("Custom field '$name' created", "CREATE", $result['id'], "custom_fields");
         $newMap = $cfield_mgr->get_by_id($result['id']);
         $created = isset($newMap[$result['id']]) ? $newMap[$result['id']] : $cf;
-        $row = ['status' => 'ok', 'item' => cfToJSON($created)];
+        $row = ['status' => 'ok', 'item' => cfToJSON($created, 0)];
         if ($assignToProject) {
             $cfield_mgr->link_to_testproject($tprojectId, [$result['id']]);
             $row['assigned'] = 1;
@@ -237,13 +260,40 @@ if ($method === 'PUT' && isset($segments[0]) && is_numeric($segments[0])) {
 
     $nodeTypeMap = $cfield_mgr->get_allowed_nodes();
     $nodeTypeName = $body['node_type'] ?? 'testcase';
-    $nodeTypeId = $nodeTypeMap[$nodeTypeName] ?? $existing['node_type_id'];
+
+    // A custom field that already holds values keeps its type and node type
+    // locked (legacy warning_no_type_change semantics, lib/functions/
+    // cfield_mgr.class.php:1486). The UI renders them read-only for used fields;
+    // this guard is the authoritative backstop that rejects any genuine attempt
+    // to re-type a used field while still allowing the unchanged values through.
+    $isUsed = isset(usedFieldIds()[$id]) ? 1 : 0;
+    if ($isUsed) {
+        $reqType = intval($body['type'] ?? $existing['type']);
+        $reqNodeId = null;
+        $reqNodeType = $body['node_type'] ?? null;
+        // get_allowed_nodes() returns DB strings ('3'), so normalise to int
+        // before the strict comparison against the stored int node_type_id.
+        if ($reqNodeType !== null && isset($nodeTypeMap[$reqNodeType])) {
+            $reqNodeId = intval($nodeTypeMap[$reqNodeType]);
+        }
+        if ($reqType !== intval($existing['type']) ||
+            ($reqNodeId !== null && $reqNodeId !== intval($existing['node_type_id']))) {
+            http_response_code(400);
+            out(['status' => 'error', 'code' => 'warning_no_type_change',
+                 'message' => lang_get('warning_no_type_change', assignLocale())]);
+        }
+        $type = intval($existing['type']);
+        $nodeTypeId = intval($existing['node_type_id']);
+    } else {
+        $type = intval($body['type'] ?? $existing['type']);
+        $nodeTypeId = $nodeTypeMap[$nodeTypeName] ?? $existing['node_type_id'];
+    }
 
     $cf = [
         'id' => $id,
         'name' => $name,
         'label' => $label,
-        'type' => intval($body['type'] ?? $existing['type']),
+        'type' => $type,
         'possible_values' => $body['possible_values'] ?? $existing['possible_values'],
         'show_on_design' => intval($body['show_on_design'] ?? $existing['show_on_design']),
         'enable_on_design' => intval($body['enable_on_design'] ?? $existing['enable_on_design']),
@@ -258,7 +308,7 @@ if ($method === 'PUT' && isset($segments[0]) && is_numeric($segments[0])) {
     if ($result) {
         logAuditEvent("Custom field '$name' updated", "SAVE", $id, "custom_fields");
         $map = $cfield_mgr->get_by_id($id);
-        out(['status' => 'ok', 'item' => cfToJSON($map[$id])]);
+        out(['status' => 'ok', 'item' => cfToJSON($map[$id], isset(usedFieldIds()[$id]) ? 1 : 0)]);
     } else {
         http_response_code(400);
         out(['status' => 'error', 'message' => 'Error updating custom field']);
@@ -357,8 +407,9 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'assignment') {
 
     $linkedRaw = $cfield_mgr->get_linked_to_testproject($tprojectId);
     $linked = [];
+    $used = usedFieldIds();
     foreach ((array) $linkedRaw as $cf) {
-        $row = cfToJSON($cf);
+        $row = cfToJSON($cf, isset($used[$cf['id']]) ? 1 : 0);
         $row['display_order'] = intval($cf['display_order'] ?? 0);
         $row['location'] = intval($cf['location'] ?? 0);
         $row['required'] = intval($cf['required'] ?? 0);
@@ -373,7 +424,7 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'assignment') {
     $exclude = empty($linkedRaw) ? null : array_keys($linkedRaw);
     $available = [];
     foreach ((array) $cfield_mgr->get_all($exclude) as $cf) {
-        $row = cfToJSON($cf);
+        $row = cfToJSON($cf, isset($used[$cf['id']]) ? 1 : 0);
         $row['typeLabel'] = $types[$row['type']] ?? '';
         $row['nodeLabel'] = $nodes[$row['node_type_id']] ?? '';
         $available[] = $row;

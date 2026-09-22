@@ -282,6 +282,7 @@
   "cf.msg.noPermissionLog": "No tiene permiso para ver los campos personalizados. Contacte con su administrador.",
   "cf.msg.readOnly": "Solo lectura: puede ver y exportar campos personalizados, pero no crearlos, editarlos ni asignarlos.",
   "cf.msg.saved": "Campo personalizado guardado",
+  "cf.msg.warningNoTypeChange": "Este campo personalizado ya tiene valores, por lo que su tipo y tipo de nodo no se pueden cambiar.",
   "cf.name": "Nombre",
   "cf.nodeType": "Tipo de nodo",
   "cf.possibleValues": "Valores posibles",

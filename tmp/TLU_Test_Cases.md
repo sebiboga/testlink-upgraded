@@ -18900,3 +18900,58 @@ Fixture: `php tmp/fixtures_1559.php` (project B1559, TC "BUG Login Check" + 2 st
 - **Actual:** HTTP 200 but the response body is NOT JSON — pre-existing dead `$TLS_href_nfr_*` lines after each bundle's mid-file `?>` are echoed into the payload (separate root cause, filed as **#1564**). The bundle-define gate (Test 3c) still proves the two keys ARE installed in those bundles. BLOCKED-BY-#1564 (not a failure of this fix).
 
 **Result: 7/7 PASS, 1 BLOCKED-BY-#1564.** (Refs #1563. The `using en_GB` fallback warnings observed for node-type/other location keys in non-en bundles are pre-existing missing translations, out of scope; ES/PL/FI/ID/KO live JSON verification is blocked by the pre-existing #1564 dead-post-`?>` corruption.)
+
+## Suite 954 — Task — Forbid type/node-type change of custom fields already holding values in cfieldsView (gap vs legacy)
+
+Precondition: fixture `php tmp/fixtures_954.php` run — custom field **Tier** (id depends, is_used=1 via a row in `cfield_design_values`) and control **TierEmpty** (is_used=0), both testcase node type, linked to tproject 1; admin/admin session.
+
+### Test 1 — legacy parity: modern modal locks Type + Node Type for a used field (cfieldsView)
+1. Open `gui/templates/cfields/cfieldsView.html?tproject_id=1&tplan_id=0`, click the edit pencil on the **Tier** row.
+2. Inspect `#editType`/`#editNodeType` display and `#editTypeText`/`#editNodeTypeText` text.
+- **Expected:** selects `display:none`; static texts `string` / `testcase` `display:block`; `#typeLockWarning` visible with the localized `cf.msg.warningNoTypeChange` text (legacy `cfieldsEdit.tpl:105-141` shows "Available for: Test Case" + "Type: string" as plain text).
+- **Actual:** typeSelect `none`, typeText `string` (block), nodeSelect `none`, nodeText `testcase` (block), warning `block`. PASS.
+
+### Test 2 — control: value-less field stays editable (cfieldsView)
+1. Open the edit modal for **TierEmpty**.
+- **Expected:** both selects `display:block` (editable), no warning.
+- **Actual:** typeSelect `block`, value `0`, nodeSelect `block`, value `testcase`, warning `none`. PASS.
+
+### Test 3 — normal save on a used field still works and cannot re-type it
+1. In the **Tier** modal change the Label, click Save.
+- **Expected:** toast "Custom field saved"; label persisted; type + node_type_id unchanged; no modal error.
+- **Actual:** label→`Tier UI-SAVED`, type `0`, is_used `1`, toast shown, modal error hidden. PASS. (Label reset to `Tier` afterwards.)
+
+### Test 4 — BFF backstop: PUT re-type of a used field returns the legacy warning
+1. Raw same-origin fetch `PUT /api/cfields/index.php/3` with `{type:4, node_type:'testcase'}`.
+2. Raw fetch with `{type:0, node_type:'build'}`.
+- **Expected:** both HTTP 400, body `{code:'warning_no_type_change', message: <legacy EN text>}`; stored type/node unchanged.
+- **Actual:** 400 + `code:"warning_no_type_change"` for both; field left unchanged. PASS.
+
+### Test 5 — BFF exposes is_used in all read payloads
+1. `GET /api/cfields/index.php` and `GET /api/cfields/index.php/{id}` and `GET /api/cfields/index.php/assignment?tproject_id=1`.
+- **Expected:** every item carries `is_used` (Tier=1, TierEmpty=0) in list, detail and assignment lists.
+- **Actual:** list/detail `is_used:1` for Tier, `0` for TierEmpty; assignment rows expose it too. PASS.
+
+### Test 6 — assign screen: used field locked in BOTH tables
+1. Assigned table: click **Tier** name → modal shows static Type `string`, Node Type `testcase`, warning visible.
+2. Temporarily `POST /assignment/unlink` Tier, reload → click **Tier** name in the *Available* table → same lock. Re-link Tier.
+- **Expected:** identical read-only lock + warning in both tables.
+- **Actual:** Assigned table locked; after unlink the Available-table link also shows `typeSelect:none`/`warning:block`; re-link restored 2 linked fields. PASS.
+
+### Test 7 — value-less field re-type still allowed (no scope regression)
+1. Raw `PUT /api/cfields/index.php/4` `{type:3,...}` then restore `{type:0,...}` (TierEmpty, unused).
+- **Expected:** both 200; type toggles 0→3→0.
+- **Actual:** 200 both, typeNow `3`, restored 200. PASS.
+
+### Test 8 — i18n: key present in all 10 bundles + German UI
+1. `python3 -m json.tool` on each `gui/templates/i18n/*.json`; grep key presence.
+2. Open `cfieldsView.html?...&locale=de`, edit **Tier**.
+- **Expected:** all 10 bundles valid JSON and contain `cf.msg.warningNoTypeChange`; German modal warning text localised.
+- **Actual:** 10/10 bundles valid + key present (`de.json` value verified); German modal shows `Dieses benutzerdefinierte Feld enthält bereits Werte; Typ und Knotentyp können nicht geändert werden.` PASS.
+
+### Test 9 — Event Viewer hygiene
+1. `SELECT log_level, COUNT(*) FROM events GROUP BY log_level` after all tests.
+- **Expected:** no new Error/Warning rows (all log_level=16 INFO; no entries >16).
+- **Actual:** 18 events, all `log_level 16`; zero events >16. PASS.
+
+**Result: 9/9 PASS.** (Refs #954)

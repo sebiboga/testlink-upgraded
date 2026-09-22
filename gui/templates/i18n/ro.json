@@ -282,6 +282,7 @@
   "cf.msg.noPermissionLog": "Nu ai permisiunea să vizualizezi câmpurile personalizate. Contactează administratorul.",
   "cf.msg.readOnly": "Doar citire: poți vizualiza și exporta câmpurile personalizate, dar nu le poți crea, edita sau aloca.",
   "cf.msg.saved": "Camp personalizat salvat",
+  "cf.msg.warningNoTypeChange": "Acest câmp personalizat are deja valori, deci tipul și tipul de nod nu pot fi modificate.",
   "cf.name": "Nume",
   "cf.nodeType": "Tip Nod",
   "cf.possibleValues": "Valori Posibile",

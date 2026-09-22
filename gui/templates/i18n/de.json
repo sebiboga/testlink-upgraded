@@ -282,6 +282,7 @@
   "cf.msg.noPermissionLog": "Sie besitzen keine Berechtigung, benutzerdefinierte Felder anzuzeigen. Kontaktieren Sie Ihren Administrator.",
   "cf.msg.readOnly": "Nur lesen: Sie können benutzerdefinierte Felder anzeigen und exportieren, aber nicht erstellen, bearbeiten oder zuweisen.",
   "cf.msg.saved": "Benutzerdefiniertes Feld gespeichert",
+  "cf.msg.warningNoTypeChange": "Dieses benutzerdefinierte Feld enthält bereits Werte; Typ und Knotentyp können nicht geändert werden.",
   "cf.name": "Name",
   "cf.nodeType": "Knotentyp",
   "cf.possibleValues": "Mögliche Werte",

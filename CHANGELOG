@@ -50,6 +50,27 @@ screen reaches full parity.
   user (denial screen), admin regression (full UI + create). Suite 950 8/8
   PASS, Event Viewer clean. (Refs #950)
 
+- [FEATURE GAP] - #954: custom fields that already hold values (is_used) can
+  no longer be re-typed in the modern Custom Fields screen
+  (gui/templates/cfields/cfieldsView.html) or the Assign Custom Fields screen
+  (gui/templates/cfields/cfieldsAssignView.html), parity with the legacy
+  warning_no_type_change semantics (gui/templates/dashio/cfields/
+  cfieldsEdit.tpl:105-141 + lib/functions/cfield_mgr.class.php:1486 is_used:
+  a field is "used" once any row exists in cfield_design_values /
+  cfield_build_design_values / cfield_testplan_design_values /
+  cfield_execution_values). api/cfields/index.php now exposes `is_used` on
+  every payload (GET /, GET /{id}, POST result, PUT result, GET /assignment
+  linked + available) via a new one-query `usedFieldIds()` helper, and the
+  PUT /{id} route rejects (HTTP 400, `{code:'warning_no_type_change'}` +
+  legacy localized message) any submitted type/node_type change for a used
+  field while still saving the other attributes (equal values pass). Both
+  modals render Type + Node Type as read-only static text with a warning
+  banner for used fields (`setTypeEditable()`), and map the BFF
+  warning_no_type_change code onto the localized bundle text. i18n key
+  `cf.msg.warningNoTypeChange` in all 10 bundles. Browser-verified on both
+  screens + used/unused controls + assign table edit links + German locale;
+  suite 954 9/9 PASS, Event Viewer clean. (Refs #954)
+
 - [FEATURE GAP] - #953: the modern Custom Fields screen
   (gui/templates/cfields/cfieldsView.html) gains the legacy create-time
   "Add and assign (to current test project)" capability
