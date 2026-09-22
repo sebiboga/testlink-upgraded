@@ -1,0 +1,263 @@
+<?php
+/**
+ * api/execnavigator — Execution Navigator BFF (Refs #1562)
+ *
+ * Modernizes the last standalone legacy lib/execute screen with no modern
+ * twin: the execution tree navigator `lib/execute/execNavigator.php` (+ legacy
+ * dashio `execNavigator.tpl`, ExtJS left-pane tree + filter panel).
+ *
+ * Legacy parity — the navigator runs the EXACT same tree pipeline as 1.9.20:
+ *   - tlTestCaseFilterControl(db, 'execution_mode') (the same class used by
+ *     execNavigator.php) reads the active filters/settings from the request +
+ *     session (form-token session data, stored build/platform settings) and
+ *     builds the execution test-plan tree via execTree() (execTreeMenu.inc.php)
+ *     with exec-status counters / colouring / status-code filters.
+ *   - checkAccessToExec() rights probe ported 1:1: testplan_execute OR
+ *     exec_ro_access on the OWNING project (admin shortcut), matching
+ *     execNavigator.php initializeGui()/checkAccessToExec().
+ *   - loadExecDashboard flag semantics preserved (session form-token cache +
+ *     request override), so the modern navigator can deep-link to the
+ *     Execution Dashboard just like the legacy left frame did (EXDS).
+ *
+ * The tree children JSON is produced by the legacy renderExecTreeNode(), i.e.
+ * node fields id / name / text (HTML with exec-status colouring) / leaf /
+ * tcversion_id / external_id / version / testlink_node_type / counters. The
+ * modern screen renders it recursively and maps legacy "javascript:" hrefs to
+ * the modern execTest.html screen (ST -> execute test case, EXDS/SP -> open
+ * execTest/dashboard). Nothing of the legacy pipeline is dropped.
+ *
+ * Routes:
+ *   GET ?action=init[&tplan_id=N][&tproject_id=M][&setting_build=N]
+ *       [&setting_platform=N][&setting_exec_tree_counters_logic=N]
+ *       [&loadExecDashboard=0|1][&form_token=...][&filter_*...]
+ *       -> context + select-options (testplans/builds/platforms) + rights +
+ *          tree JSON.
+ *       401 anon / 400 no plan context / 403 no rights (nor CSRF guard) /
+ *       404 unknown plan / 405 non-GET / error 500 guarded.
+ *
+ * Session-based auth, JSON I/O, no Smarty.
+ */
+require_once(__DIR__ . '/../../config.inc.php');
+require_once('common.php');
+require_once('users.inc.php');
+
+require_once(__DIR__ . '/../../lib/functions/tlTestCaseFilterControl.class.php');
+require_once(__DIR__ . '/../../lib/functions/treeMenu.inc.php');
+
+doSessionStart();
+
+require_once(__DIR__ . '/../_guard.php');
+bffSameOriginGuard();
+
+header('Content-Type: application/json');
+
+$db = new database(DB_TYPE);
+doDBConnect($db);
+
+$userId = $_SESSION['userID'] ?? null;
+if (!$userId || $userId <= 0) {
+    http_response_code(401);
+    echo json_encode(['status' => 'error', 'message' => 'Not authenticated']);
+    exit;
+}
+
+$user = tlUser::getByID($db, $userId);
+if (is_null($user)) {
+    http_response_code(401);
+    echo json_encode(['status' => 'error', 'message' => 'User not found']);
+    exit;
+}
+
+function out($data) {
+    echo json_encode($data);
+    exit;
+}
+
+function execNavigatorBadParam($msg) {
+    http_response_code(400);
+    out(['status' => 'error', 'message' => $msg]);
+}
+
+// Port of the legacy execNavigator.php checkAccessToExec() — the executive
+// rights probe on the owning project (admin shortcut parity).
+function execNavigatorGrants(&$db, &$user, $tprojectId, $tplanId) {
+    $k2a = array('testplan_execute', 'exec_ro_access');
+    $grants = array();
+    foreach ($k2a as $r2c) {
+        $grants[$r2c] = false;
+        if ($user->hasRight($db, $r2c, $tprojectId, $tplanId, true)
+            || $user->globalRoleID == TL_ROLES_ADMIN) {
+            $grants[$r2c] = true;
+        }
+    }
+    return $grants;
+}
+
+$action = isset($_GET['action']) && is_scalar($_GET['action'])
+        ? strtolower(trim((string) $_GET['action'])) : '';
+$method = $_SERVER['REQUEST_METHOD'];
+
+if ($action === 'init') {
+    if ($method !== 'GET') {
+        http_response_code(405);
+        out(['status' => 'error', 'message' => 'GET required']);
+    }
+
+    // ---- resolve the execution context (tplan + owning project) -----------
+    $tplanId = intval($_REQUEST['tplan_id'] ?? $_SESSION['testplanID'] ?? 0);
+    if ($tplanId <= 0) {
+        execNavigatorBadParam('No test plan in context');
+    }
+
+    $tables = tlObjectWithDB::getDBTables(array('testplans', 'testprojects'));
+    $planRs = $db->get_recordset(
+        "SELECT tp.testproject_id FROM {$tables['testplans']} tp WHERE tp.id=" . $tplanId);
+    if (!$planRs || count($planRs) === 0) {
+        http_response_code(404);
+        out(['status' => 'error', 'message' => 'Test plan not found']);
+    }
+    $tprojectId = intval($planRs[0]['testproject_id']);
+    $reqTproject = intval($_REQUEST['tproject_id'] ?? 0);
+    if ($reqTproject > 0 && $reqTproject !== $tprojectId) {
+        http_response_code(400);
+        out(['status' => 'error',
+             'message' => 'tproject_id does not match the requested test plan']);
+    }
+
+    // Let the legacy filter control resolve the session-bound context the same
+    // way the frmWorkArea -> execNavigator.php flow established it. Keep the
+    // previous session values so a foreign/privilege probe cannot hijack the
+    // user's context.
+    $sessTP = isset($_SESSION['testplanID']) ? intval($_SESSION['testplanID']) : 0;
+    $sessTPr = isset($_SESSION['testprojectID']) ? intval($_SESSION['testprojectID']) : 0;
+    $setTPr = ($tprojectId > 0) ? $tprojectId : $_REQUEST['tproject_id'] ?? $sessTPr;
+    $_SESSION['testplanID'] = $tplanId;
+    if ($setTPr > 0) {
+        $_SESSION['testprojectID'] = $setTPr;
+    }
+
+    // ---- rights (legacy checkAccessToExec) -------------------------------
+    $grants = execNavigatorGrants($db, $user, $tprojectId, $tplanId);
+    if (!$grants['testplan_execute'] && !$grants['exec_ro_access']) {
+        http_response_code(403);
+        out(['status' => 'error',
+             'message' => 'You do not have rights to execute tests on this plan']);
+    }
+
+    // ---- build the execution tree with the legacy pipeline ----------------
+    $gui = new stdClass();
+    try {
+        $control = new tlTestCaseFilterControl($db, 'execution_mode');
+        $control->formAction = '';
+
+        // Legacy initializeGui() parity.
+        $gui->loadExecDashboard = true;
+        if (isset($_SESSION['loadExecDashboard'][$control->form_token])
+            || $control->args->loadExecDashboard == 0) {
+            $gui->loadExecDashboard = false;
+            unset($_SESSION['loadExecDashboard'][$control->form_token]);
+        }
+        $gui->tproject_id = intval($control->args->testproject_id);
+        $gui->menuUrl = 'gui/templates/execute/execTest.html';
+        $gui->args = $control->get_argument_string();
+
+        $dummy = config_get('results');
+        $gui->not_run = $dummy['status_code']['not_run'];
+        $dummy = config_get('execution_filter_methods');
+        $gui->lastest_exec_method = $dummy['status_code']['latest_execution'];
+        $gui->pageTitle = lang_get('href_execute_test');
+
+        $gui->features = array('export' => false, 'import' => false);
+        $gui->execAccess = false;
+        if ($grants['testplan_execute']) {
+            $gui->features['export'] = true;
+            $gui->features['import'] = true;
+            $gui->execAccess = true;
+        }
+        if ($grants['exec_ro_access']) {
+            $gui->execAccess = true;
+        }
+        $control->draw_export_testplan_button = $gui->features['export'];
+        $control->draw_import_xml_results_button = $gui->features['import'];
+
+        $control->build_tree_menu($gui);
+    } catch (Throwable $e) {
+        http_response_code(500);
+        out(['status' => 'error', 'message' => 'Tree build failed: ' . $e->getMessage()]);
+    }
+
+    // ---- compose the tree payload (legacy ajaxTree contract) --------------
+    $root = $gui->ajaxTree->root_node;
+    $children = [];
+    if (!empty($gui->ajaxTree->children)
+        && is_string($gui->ajaxTree->children)
+        && $gui->ajaxTree->children !== '[]') {
+        $dec = json_decode($gui->ajaxTree->children, true);
+        if (is_array($dec)) {
+            $children = $dec;
+        }
+    }
+
+    // settings select options mirror the filter panel (execution_mode).
+    $s = function ($key) use ($control) {
+        $cfg = $control->settings[$key] ?? null;
+        return is_null($cfg) ? $cfg : array(
+            'items' => isset($cfg['items']) && is_array($cfg['items'])
+                       ? array_map('strval', $cfg['items']) : null,
+            'selected' => intval($cfg['selected'] ?? -1),
+            'label' => strval($cfg['label'] ?? ''),
+        );
+    };
+
+    // testplan selector: map id -> name (settings item map).
+    $tpOptions = $s('setting_testplan');
+    $buildOptions = $s('setting_build');
+    $platformOptions = $s('setting_platform');
+
+    out(array(
+        'status' => 'ok',
+        'action' => 'init',
+        'context' => array(
+            'testproject_id' => $tprojectId,
+            'testproject_name' => strval($control->args->testproject_name ?? ''),
+            'testplan_id' => intval($control->args->testplan_id ?? $tplanId),
+            'testplan_name' => strval($control->args->testplan_name ?? ''),
+            'setting_build' => intval($control->args->setting_build ?? 0),
+            'setting_platform' => isset($control->args->setting_platform)
+                                  ? intval($control->args->setting_platform) : null,
+            'not_run' => intval($gui->not_run ?? 0),
+            'latest_exec_method' => intval($gui->lastest_exec_method ?? 0),
+            'load_exec_dashboard' => boolVal($gui->loadExecDashboard),
+        ),
+        'controls' => array(
+            'testplans' => $tpOptions,
+            'builds' => $buildOptions,
+            'platforms' => $platformOptions,
+        ),
+        'rights' => array(
+            'exec_access' => boolVal($gui->execAccess),
+            'export' => boolVal($gui->features['export']),
+            'import' => boolVal($gui->features['import']),
+            'testplan_execute' => boolVal($grants['testplan_execute']),
+            'exec_ro_access' => boolVal($grants['exec_ro_access']),
+        ),
+        'tree' => array(
+            'root' => array(
+                'id' => intval($root->id ?? 0),
+                'name' => strval($root->name ?? ''),
+                'text' => strval($root->text ?? $root->name ?? ''),
+                'href' => strval($root->href ?? ''),
+                'leaf' => boolVal($root->leaf ?? false),
+                'position' => isset($root->position) ? intval($root->position) : 0,
+            ),
+            'children' => $children,
+            'cookie_prefix' => strval($gui->ajaxTree->cookiePrefix ?? ''),
+            'loader' => strval($gui->ajaxTree->loader ?? ''),
+        ),
+        'menu_url' => strval($gui->menuUrl),
+        'args' => strval($control->get_argument_string()),
+    ));
+}
+
+http_response_code(400);
+out(['status' => 'error', 'message' => 'Unknown or missing action']);
