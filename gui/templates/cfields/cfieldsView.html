@@ -44,9 +44,9 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
 <div class="header"><span data-i18n="header.customFields">Custom Fields</span> <span data-i18n="header.customFieldsSub" style="font-size:13px;font-weight:400;opacity:.8;margin-left:12px;">manage custom fields for test cases, requirements, and plans</span><span id="localeSwitcher" style="float:right;"></span></div>
 
 <div class="toolbar">
-  <button class="btn-teal" onclick="showCreateModal()"><i class="fa fa-plus"></i> <span data-i18n="cf.createCustomField">Create Custom Field</span></button>
+  <button id="btnCreate" class="btn-teal" onclick="showCreateModal()"><i class="fa fa-plus"></i> <span data-i18n="cf.createCustomField">Create Custom Field</span></button>
   <button class="btn-ghost" onclick="location='/gui/templates/cfields/cfieldsExchange.html#export'"><i class="fa fa-download"></i> <span data-i18n="cfx.btnExport">Export</span></button>
-  <button class="btn-ghost" onclick="location='/gui/templates/cfields/cfieldsExchange.html#import'"><i class="fa fa-upload"></i> <span data-i18n="cfx.btnUpload">Upload File</span></button>
+  <button id="btnUpload" class="btn-ghost" onclick="location='/gui/templates/cfields/cfieldsExchange.html#import'"><i class="fa fa-upload"></i> <span data-i18n="cfx.btnUpload">Upload File</span></button>
   <span style="flex:1"></span>
   <span id="footerInfo" style="color:#aaa;font-size:12px;"></span>
 </div>
@@ -131,6 +131,13 @@ var table = null;
 var typeMap = {};
 var nodeMap = {};
 var allItems = [];
+var editEnabled = true;
+
+function escAttr(v) {
+  return String(v == null ? '' : v)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
 
 $(function() {
   var p = new URLSearchParams(window.location.search);
@@ -151,6 +158,8 @@ function loadMeta() {
       typeMap[t.id] = t.name;
       sel.append('<option value="' + t.id + '">' + t.name + '</option>');
     });
+  }).fail(function(xhr) {
+    showDenied(xhr);
   });
   $.getJSON(API + '/meta/nodes', function(r) {
     var sel = $('#editNodeType');
@@ -159,14 +168,30 @@ function loadMeta() {
       nodeMap[n.id] = n.name;
       sel.append('<option value="' + n.name + '">' + n.name + '</option>');
     });
+  }).fail(function(xhr) {
+    showDenied(xhr);
   });
+}
+
+function showDenied(xhr) {
+  if (xhr.status === 403) {
+    $('.toolbar, .table-wrap').hide();
+    $('#footerText').text(TLi18n.t('cf.msg.noPermissionLog')).css('color', '#e6605e').css('fontWeight', '600');
+  }
 }
 
 function loadCfields() {
   $.getJSON(API, function(r) {
     allItems = r.items;
+    if (r.can_manage === 0) {
+      $('#btnCreate, #btnUpload').hide();
+      editEnabled = false;
+      $('#footerInfo').text(TLi18n.t('cf.msg.readOnly'));
+    }
     renderTable(allItems);
     $('#footerText').text(TLi18n.t('cf.fieldsCount', {n: allItems.length}) + ' | ' + TLi18n.t('common.generatedOn') + ' ' + new Date().toLocaleString());
+  }).fail(function(xhr) {
+    showDenied(xhr);
   });
 }
 
@@ -179,14 +204,18 @@ function renderTable(items) {
     if (cf.enable_on_design) available.push(TLi18n.t('cf.design'));
     if (cf.enable_on_execution) available.push(TLi18n.t('cf.execution'));
     if (cf.enable_on_testplan_design) available.push(TLi18n.t('cf.testplanDesign'));
+    var actions = '';
+    if (editEnabled) {
+      actions = '<i class="fa fa-edit action-btn" title="Edit" onclick="editCf(' + cf.id + ')"></i>' +
+                '<i class="fa fa-trash action-btn danger" title="Delete" data-delete-id="' + cf.id + '" data-delete-name="' + escAttr(cf.name) + '"></i>';
+    }
     rows.push([
-      cf.label,
-      cf.name,
-      typeMap[cf.type] || cf.type,
+      escAttr(cf.label),
+      escAttr(cf.name),
+      escAttr(typeMap[cf.type] || cf.type),
       activeHtml,
       available.join(', ') || '-',
-      '<i class="fa fa-edit action-btn" title="Edit" onclick="editCf(' + cf.id + ')"></i>' +
-      '<i class="fa fa-trash action-btn danger" title="Delete" onclick="deleteCf(' + cf.id + ', \'' + cf.name.replace(/'/g, "\\'") + '\')"></i>'
+      actions
     ]);
   });
   table = $('#cfTable').DataTable({
@@ -201,6 +230,7 @@ function renderTable(items) {
 }
 
 function showCreateModal() {
+  if (!editEnabled) return;
   $('#modalTitle').text(TLi18n.t('cf.createCustomField'));
   $('#editCfId').val('');
   $('#editLabel').val('');
@@ -216,6 +246,7 @@ function showCreateModal() {
 }
 
 function editCf(id) {
+  if (!editEnabled) return;
   $.getJSON(API + '/' + id, function(r) {
     var cf = r.item;
     $('#modalTitle').text(TLi18n.t('cf.editCustomField') + ': ' + cf.name);
@@ -238,6 +269,7 @@ function editCf(id) {
 }
 
 function saveCf() {
+  if (!editEnabled) return;
   var id = $('#editCfId').val();
   var data = {
     label: $('#editLabel').val().trim(),
@@ -270,6 +302,7 @@ function saveCf() {
 }
 
 function deleteCf(id, name) {
+  if (!editEnabled) return;
   if (!confirm(TLi18n.t('cf.msg.confirmDelete') + ' "' + name + '"?')) return;
   $.ajax({
     url: API + '/' + id, type: 'DELETE',
@@ -281,6 +314,10 @@ function deleteCf(id, name) {
     }
   });
 }
+
+$(document).on('click', '.action-btn.danger[data-delete-id]', function() {
+  deleteCf($(this).data('delete-id'), $(this).data('delete-name'));
+});
 </script>
 </body>
 </html>

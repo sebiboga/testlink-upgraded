@@ -277,6 +277,8 @@
  "cf.msg.confirmDelete": "Möchten Sie das benutzerdefinierte Feld wirklich löschen",
  "cf.msg.errorDelete": "Fehler beim Löschen des benutzerdefinierten Felds",
  "cf.msg.errorSave": "Fehler beim Speichern des benutzerdefinierten Felds",
+ "cf.msg.noPermissionLog": "Sie besitzen keine Berechtigung, benutzerdefinierte Felder anzuzeigen. Kontaktieren Sie Ihren Administrator.",
+ "cf.msg.readOnly": "Nur lesen: Sie können benutzerdefinierte Felder anzeigen und exportieren, aber nicht erstellen, bearbeiten oder zuweisen.",
  "cf.name": "Name",
  "cf.nodeType": "Knotentyp",
  "cf.possibleValues": "Mögliche Werte",

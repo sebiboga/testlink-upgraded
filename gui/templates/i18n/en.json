@@ -277,6 +277,8 @@
  "cf.msg.confirmDelete": "Are you sure you want to delete custom field",
  "cf.msg.errorDelete": "Error deleting custom field",
  "cf.msg.errorSave": "Error saving custom field",
+ "cf.msg.noPermissionLog": "You do not have permission to view custom fields. Contact your administrator.",
+ "cf.msg.readOnly": "Read-only: you can view and export custom fields, but not create, edit or assign them.",
  "cf.name": "Name",
  "cf.nodeType": "Node Type",
  "cf.possibleValues": "Possible Values",

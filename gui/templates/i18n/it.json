@@ -277,6 +277,8 @@
  "cf.msg.confirmDelete": "Sei sicuro di voler eliminare il campo personalizzato",
  "cf.msg.errorDelete": "Errore nell'eliminazione del campo personalizzato",
  "cf.msg.errorSave": "Errore nel salvataggio del campo personalizzato",
+ "cf.msg.noPermissionLog": "Non hai il permesso di visualizzare i campi personalizzati. Contatta l'amministratore.",
+ "cf.msg.readOnly": "Sola lettura: puoi visualizzare ed esportare i campi personalizzati, ma non crearli, modificarli o assegnarli.",
  "cf.name": "Nome",
  "cf.nodeType": "Tipo di nodo",
  "cf.possibleValues": "Valori possibili",

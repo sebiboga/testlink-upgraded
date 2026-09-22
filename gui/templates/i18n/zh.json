@@ -277,6 +277,8 @@
  "cf.msg.confirmDelete": "确定要删除自定义字段",
  "cf.msg.errorDelete": "删除自定义字段时出错",
  "cf.msg.errorSave": "保存自定义字段时出错",
+ "cf.msg.noPermissionLog": "您没有查看自定义字段的权限。请联系管理员。",
+ "cf.msg.readOnly": "只读：您可以查看和导出自定义字段，但不能创建、编辑或分配它们。",
  "cf.name": "名称",
  "cf.nodeType": "节点类型",
  "cf.possibleValues": "可能的值",

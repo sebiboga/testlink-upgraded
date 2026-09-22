@@ -34,7 +34,15 @@ if (is_null($user)) {
     exit;
 }
 
-if (!$user->hasRight($db, 'cfield_management')) {
+// Legacy lib/cfields/cfieldsView.php:30 lets any user holding EITHER
+// cfield_view OR cfield_management browse the custom-field list (Refs #950).
+// Read routes are therefore gated on $canView. Write routes (POST/PUT/DELETE)
+// and the assignment endpoints stay on $canManage, mirroring
+// lib/cfields/cfieldsEdit.php:494 and lib/cfields/cfieldsTProjectAssign.php:150.
+$canView = $user->hasRight($db, 'cfield_view') || $user->hasRight($db, 'cfield_management');
+$canManage = $user->hasRight($db, 'cfield_management');
+
+if (!$canView) {
     http_response_code(403);
     echo json_encode(['status' => 'error', 'message' => 'No permission']);
     exit;
@@ -49,6 +57,10 @@ $segments = array_values(array_filter(explode('/', $path)));
 function out($data) { echo json_encode($data); exit; }
 function getParam($key, $default = null) { return $_GET[$key] ?? $default; }
 function getBody() { return json_decode(file_get_contents('php://input'), true) ?? []; }
+function deny() {
+    http_response_code(403);
+    out(['status' => 'error', 'message' => 'No permission']);
+}
 
 $cfield_mgr = new cfield_mgr($db);
 
@@ -101,7 +113,7 @@ if ($method === 'GET' && empty($segments)) {
             $items[] = cfToJSON($cf);
         }
     }
-    out(['status' => 'ok', 'items' => $items, 'total' => count($items)]);
+    out(['status' => 'ok', 'items' => $items, 'total' => count($items), 'can_manage' => $canManage ? 1 : 0]);
 }
 
 // Route: GET /{id} - get single custom field
@@ -117,6 +129,7 @@ if ($method === 'GET' && isset($segments[0]) && is_numeric($segments[0])) {
 
 // Route: POST / - create custom field
 if ($method === 'POST' && empty($segments)) {
+    if (!$canManage) { deny(); }
     $body = getBody();
     $name = trim($body['name'] ?? '');
     $label = trim($body['label'] ?? '');
@@ -163,6 +176,7 @@ if ($method === 'POST' && empty($segments)) {
 
 // Route: PUT /{id} - update custom field
 if ($method === 'PUT' && isset($segments[0]) && is_numeric($segments[0])) {
+    if (!$canManage) { deny(); }
     $id = intval($segments[0]);
     $map = $cfield_mgr->get_by_id($id);
     if (!$map || !isset($map[$id])) {
@@ -216,6 +230,7 @@ if ($method === 'PUT' && isset($segments[0]) && is_numeric($segments[0])) {
 
 // Route: DELETE /{id} - delete custom field
 if ($method === 'DELETE' && isset($segments[0]) && is_numeric($segments[0])) {
+    if (!$canManage) { deny(); }
     $id = intval($segments[0]);
     $map = $cfield_mgr->get_by_id($id);
     if (!$map || !isset($map[$id])) {
@@ -272,6 +287,7 @@ function assignTprojectId() {
 
 // GET /assignment?tproject_id=N - linked + available fields for one project
 if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'assignment') {
+    if (!$canManage) { deny(); }
     $tprojectId = assignTprojectId();
     if ($tprojectId <= 0) {
         http_response_code(400);
@@ -338,6 +354,7 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'assignment') {
 // POST /assignment/link - attach fields to the project
 if ($method === 'POST' && isset($segments[0]) && $segments[0] === 'assignment'
     && isset($segments[1]) && $segments[1] === 'link') {
+    if (!$canManage) { deny(); }
     $tprojectId = assignTprojectId();
     $body = getBody();
     $ids = array_values(array_filter(array_map('intval', (array) ($body['ids'] ?? []))));
@@ -355,6 +372,7 @@ if ($method === 'POST' && isset($segments[0]) && $segments[0] === 'assignment'
 // POST /assignment/unlink - detach fields from the project
 if ($method === 'POST' && isset($segments[0]) && $segments[0] === 'assignment'
     && isset($segments[1]) && $segments[1] === 'unlink') {
+    if (!$canManage) { deny(); }
     $tprojectId = assignTprojectId();
     $body = getBody();
     $ids = array_values(array_filter(array_map('intval', (array) ($body['ids'] ?? []))));
@@ -371,6 +389,7 @@ if ($method === 'POST' && isset($segments[0]) && $segments[0] === 'assignment'
 
 // PUT /assignment - save order, location and the three boolean attributes
 if ($method === 'PUT' && isset($segments[0]) && $segments[0] === 'assignment') {
+    if (!$canManage) { deny(); }
     $tprojectId = assignTprojectId();
     if ($tprojectId <= 0) {
         http_response_code(400);

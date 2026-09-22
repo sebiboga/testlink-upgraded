@@ -17,6 +17,25 @@ Every screen of the application was ported one-by-one in a screen-compare
 kept for backward compatibility and is progressively retired as each modern
 screen reaches full parity.
 
+- [FEATURE GAP] - #950: the modern Custom Fields screen
+  (gui/templates/cfields/cfieldsView.html) now honours the legacy
+  `cfield_management OR cfield_view` browse gate
+  (lib/cfields/cfieldsView.php:30): api/cfields/index.php splits the blanket
+  `cfield_management` check into `$canView = hasRight(cfield_view) ||
+  cfield_management` (READ routes: GET / list, GET /{id}, GET /meta/types,
+  GET /meta/nodes) and `$canManage = cfield_management` (WRITE routes
+  POST/PUT/DELETE + all /assignment endpoints, parity with
+  cfieldsEdit.php:494 / cfieldsTprojectAssign.php:150); the GET / list payload
+  adds `can_manage` so the page renders read-only state. The page gains
+  `.fail()` handlers (403 -> localized `cf.msg.noPermissionLog` denial instead
+  of the silent empty table) and, on can_manage=0, hides Create/Upload buttons
+  + row Edit/Delete icons and shows the `cf.msg.readOnly` hint while keeping
+  Export (cfield_view gate per cfieldsExport.php:111). i18n keys
+  `cf.msg.noPermissionLog` + `cf.msg.readOnly` in all 10 bundles. Browser-
+  verified: cviewer (read 200 / write+assign 403 / Export-only UI), no-right
+  user (denial screen), admin regression (full UI + create). Suite 950 8/8
+  PASS, Event Viewer clean. (Refs #950)
+
 - [FEATURE GAP] - #1326: the modern Test Case Export screen
   (gui/templates/testcases/tcExport.html) regains the legacy **skeleton export**
   (lib/testcases/tcExport.php:145 `exportSkel` -> structure-only XML via

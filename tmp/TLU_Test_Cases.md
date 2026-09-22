@@ -18735,3 +18735,51 @@ Fixture: `php tmp/fixtures_1559.php` (project B1559, TC "BUG Login Check" + 2 st
 5. Repeat "Add" for a 2nd planplatform row → confirm grid re-inits without "DataTables warning: cannot reinitialise DataTable" in console and no duplicate/stale rows (destroy+reinit).
 **Expected:** full DataTables (sort/search/pagination/length-menu) — parity with legacy DataTables.inc.tpl on `#item_view`.
 **Actual:** **PENDING in-browser** — the CI DB is a fresh import with no seeded project/testplan/platform rows, so #planRows stays empty and `renderPlans()` bails to the no-plans path (by design). Verified statically: seed the fixtures (testproject+testplan+platforms+tcversions) required by `api/tcassign2tplan/index.php` and re-run this suite.
+
+## Suite 950 — Task — Issue #950: cfield_view read right in cfieldsView (gap vs legacy) (Refs #950)
+
+Fixture (this run, fresh DB): role `cf_viewer` (role_id 10) holding ONLY right id 17 (`cfield_view`), user `cviewer`/`tester` global role 10; user `cfnouser`/`tester` global role 3 (`<no rights>`); custom fields `priority_cf`, `env_cf` inserted.
+
+### Test 1 — View-only user: BFF read routes return 200, list renders
+1. Login `cviewer` → open `gui/templates/cfields/cfieldsView.html`.
+2. Inspect network: `GET /api/cfields/index.php`, `/meta/types`, `/meta/nodes`.
+- **Expected:** all three 200; table shows `env_cf` + `priority_cf` rows.
+- **Actual:** 200/200/200, 2 rows shown. PASS.
+
+### Test 2 — View-only user: write routes still denied server-side
+1. From the cviewer session: `fetch` POST create, PUT /1, DELETE /3, GET `/assignment?tproject_id=1`.
+- **Expected:** 403 `No permission` on all four.
+- **Actual:** create 403, put 403, delete 403, assignment 403. PASS.
+
+### Test 3 — View-only user: read-only UI (no Create/Upload/Edit/Delete, Export stays)
+1. As `cviewer`, look at the toolbar + row actions + footer info.
+- **Expected:** Create + Upload hidden; Export present; no per-row Edit/Delete icons; footer info `Read-only: you can view and export custom fields, but not create, edit or assign them.`
+- **Actual:** all present, action column empty, hint shown. PASS.
+
+### Test 4 — No-rights user: localized denial instead of silent empty table
+1. Login `cfnouser` → open the same screen.
+- **Expected:** toolbar+table hidden; only `You do not have permission to view custom fields. Contact your administrator.` rendered; BFF 403.
+- **Actual:** denial message rendered, no table, 403. PASS.
+
+### Test 5 — Admin regression: full UI + write path works
+1. Login `admin` → open the screen.
+- **Expected:** Create/Export/Upload visible; Edit+Delete icons per row; Create modal → Save → new row appears.
+- **Actual:** all buttons + icons present; created `test_field` (POST 200), list reload showed 3 rows; fixture cleaned up after. PASS.
+
+### Test 6 — i18n coverage + syntax gates
+1. Validate `cf.msg.noPermissionLog` + `cf.msg.readOnly` in ALL 10 bundles with `python3 -m json.tool`.
+2. `php -l api/cfields/index.php`; `node --check` on `cfieldsView.html` inline JS.
+- **Expected:** 10/10 valid bundles with both keys; PHP + JS syntax clean.
+- **Actual:** all valid; syntax gates pass. PASS.
+
+### Test 7 — Event Viewer hygiene
+1. Inspect `events` after the suite.
+- **Expected:** only log_level 16 audit INFO rows (login, custom field created); no Error/Warning rows.
+- **Actual:** events all log_level 16 INFO; no 20/30/40/50 rows. PASS.
+
+### Test 8 — Stored-XSS hardening on field name/label cells + delete action
+1. Insert custom field id 99 with hostile name `"> <img src=x onerror=alert(73)> 'x` (BFF accepts it). 2. Reload the screen (cache bypass). 3. Click the row trash icon → the native confirm shows the hostile name as inert text; confirm.
+- **Expected:** no `alert(73)` on load (name/label cells escaped via `escAttr()` before DataTables `html()` rendering, and the delete icon uses `data-delete-*` + a delegated handler); DELETE 200 removes the row and the `custom_fields` row.
+- **Actual:** no alert after reload; name cell rendered as literal text; confirm shows literal name; DB `SELECT COUNT(*) ... WHERE id=99` = 0 after confirm. PASS.
+
+**Result: 8/8 PASS.** (Refs #950. Changes: `api/cfields/index.php` read vs write permission split + `can_manage` in GET / payload; `gui/templates/cfields/cfieldsView.html` `.fail` handlers + read-only rendering + stored-XSS hardening of the name/label/actions cells (escAttr + data-* delegated delete; bug #1561); i18n `cf.msg.noPermissionLog`/`cf.msg.readOnly` in all 10 bundles; screenshots `docs/screenshots/issue-950-*.png`.)
