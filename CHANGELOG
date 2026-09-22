@@ -736,6 +736,19 @@ Execution:
   Tested against a bundled session-backed Mantis-tracker double
   (lib/issuetrackerintegration/mantisrestInterface.class.php, type 24) because no
   live BTS is available in the demo environment.
+- Execution Navigator (execNavigator.html) - BFF api/execnavigator (#1562):
+  modernizes the last standalone legacy screen lib/execute/execNavigator.php
+  (kept as a session-guarded 302 shim, legacy deep links still resolve). Legacy
+  tree pipeline with exec-status counters + [n] version brackets, result + TC-ID
+  filters (Reset restores), leaf -> execTest.html, root -> execDashboard.html,
+  Export/Import -> execExport.html / resultsImport.html; checkAccessToExec()
+  rights parity (testplan_execute OR exec_ro_access) + session auth +
+  bffSameOriginGuard: 401 anon, 403 no-rights/CSRF, 404 unknown plan, 400 bad
+  action/mismatch, 405 method; debug=1 diagnostic context. Link switch
+  execNavigatorView (common.php, tplan>0 execute area). exnav.* i18n keys (31) +
+  footers.execNavigatorView in all 10 bundles — close-out pass translated the
+  exnav.* values that had shipped as untranslated English copies in every
+  non-EN bundle and added the missing footer key.
 - Execution Notes popup (execNotes.html) - BFF api/execnotes (#1551): standalone
 - Help popup (showHelp.html) - BFF api/help (#1552): standalone localized help-viewer
   popup replacing the last standalone lib/general/* popup lib/general/show_help.php.
