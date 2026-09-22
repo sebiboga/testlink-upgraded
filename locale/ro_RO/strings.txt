@@ -167,3 +167,7 @@ $TLS_the_format_tc_xml_import = "";
 $TLS_simplexml_load_file_wrapper_error = "Va rugam sa transmiteti acest text administratorului TestLink<br> - Incarcarea XML a esuat<br>";
 $TLS_req_title_length_exceeded = 'Lungimea titlului cerinței depășită';
 $TLS_req_docid_length_exceeded = 'Lungimea ID-ului documentului cerinței depășită';
+
+// ----- issue #1563: after_title / after_preconditions location labels missing from this bundle -----
+$TLS_after_title = 'După titlu';
+$TLS_after_preconditions = 'După precondiții';

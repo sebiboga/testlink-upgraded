@@ -3219,3 +3219,7 @@ $TLS_simplexml_load_file_wrapper_error = "Por favor, proporcione este texto a su
 ?>
 $TLS_req_title_length_exceeded = 'Título de requisito demasiado largo';
 $TLS_req_docid_length_exceeded = 'Identificador de documento de requisito demasiado largo';
+
+// ----- issue #1563: after_title / after_preconditions location labels missing from this bundle -----
+$TLS_after_title = 'Después del título';
+$TLS_after_preconditions = 'Después de las precondiciones';

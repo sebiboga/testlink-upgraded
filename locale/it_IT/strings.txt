@@ -2420,4 +2420,8 @@ $TLS_error_self_signup_disabled = 'L\'autoregistrazione di nuovi utenti è disab
 $TLS_simplexml_load_file_wrapper_error = "Si prega di fornire questo testo all'amministratore di TestLink<br> - Caricamento XML non riuscito<br>";
 $TLS_req_title_length_exceeded = 'Lunghezza titolo requisito superata';
 $TLS_req_docid_length_exceeded = 'Lunghezza ID documento requisito superata';
+
+// ----- issue #1563: after_title / after_preconditions location labels missing from this bundle -----
+$TLS_after_title = 'Dopo il titolo';
+$TLS_after_preconditions = 'Dopo le precondizioni';
 ?>

@@ -2891,3 +2891,7 @@ $TLS_href_nfr_maintainability = "NFR: Maintainability"; // "NFR: Maintainability
 $TLS_href_nfr_requirements = "Persyaratan non-fungsional"; // "Non-Functional Requirements" (Refs #1462)
 $TLS_req_title_length_exceeded = 'Panjang judul persyaratan melebihi batas';
 $TLS_req_docid_length_exceeded = 'Panjang ID dokumen persyaratan melebihi batas';
+
+// ----- issue #1563: after_title / after_preconditions location labels missing from this bundle -----
+$TLS_after_title = 'Setelah judul';
+$TLS_after_preconditions = 'Setelah prasyarat';

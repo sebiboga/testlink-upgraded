@@ -4071,3 +4071,7 @@ $TLS_error_self_signup_disabled = 'Zelfregistratie van nieuwe gebruikers is uitg
 
 // Added for TestLink 2.0.1 - issue #836: simplexml_load_file_wrapper_error missing from most locale bundles
 $TLS_simplexml_load_file_wrapper_error = "Geef deze tekst door aan uw TestLink-beheerder<br> - Laden van XML mislukt<br>";
+
+// ----- issue #1563: after_title / after_preconditions location labels missing from this bundle -----
+$TLS_after_title = 'Na de titel';
+$TLS_after_preconditions = 'Na de voorwaarden';

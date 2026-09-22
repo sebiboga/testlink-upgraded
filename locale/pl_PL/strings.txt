@@ -3845,3 +3845,7 @@ $TLS_href_nfr_compatibility = "NFR: Compatibility"; // "NFR: Compatibility" (Ref
 $TLS_href_nfr_reliability = "NFR: Reliability"; // "NFR: Reliability" (Refs #1470)
 $TLS_href_nfr_maintainability = "NFR: Maintainability"; // "NFR: Maintainability" (Refs #1470)
 $TLS_href_nfr_requirements = "Wymagania niefunkcjonalne"; // "Non-Functional Requirements" (Refs #1462)
+
+// ----- issue #1563: after_title / after_preconditions location labels missing from this bundle -----
+$TLS_after_title = 'Po tytule';
+$TLS_after_preconditions = 'Po warunkach wstępnych';
