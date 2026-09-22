@@ -19174,3 +19174,38 @@ Save dead until a full page reload.
 - **Actual:** badge `Final`; events empty of errors/warnings; console clean. PASS.
 
 **Result: 7/7 PASS.** (Refs #1316)
+
+## Suite 1577 — Regression — Bug #1566: tcAssign2Tplan grid re-renders stale rows after Add (Refs #1566)
+
+**Screen:** `gui/templates/testcases/tcAssign2Tplan.html` + `api/tcassign2tplan/index.php` (frontend-only bug).
+**Fixture:** `php tmp/fixtures_1319.php` → A2PDemo (tproject=1), Plan A (tplan=2) — note: on a fresh run the ids are stable, but when re-running after other suites the DB must be re-imported; ids reported here from the recorded run. Admin session, en_GB.
+
+### Precondition (recorded from the failing run)
+- Repro of the bug before the fix: on A2P-1 (tcase=4 / tcversion=5, unlinked, can_do=true), tick Plan A, click +Add → okBox "Added to 1 test plan(s)" but the re-rendered row showed `<input ... cb_2_1 ...>` ENABLED/unchecked with no "(already linked)" note, while `ctx.info.plans[0].platforms[0].already_linked` = true. Only a manual reload produced the correct `checked disabled` + note. (Pre-fix commit ~6d40dd3f0.)
+
+### Test 1 — after Add the re-rendered single-plan row is `checked disabled` + note (primary symptom)
+1. Unlink A2P-1 if needed (`DELETE FROM testplan_tcversions WHERE tcversion_id=<A2P-1 tcv>`); reload `tcAssign2Tplan.html?tproject_id=1&tcase_id=<A2P-1>&tcversion_id=<A2P-1 tcv>`.
+2. Confirm checkbox enabled/unchecked, Add + Cancel visible.
+3. Tick the Plan A checkbox, click **+ Add**; wait ~1.2s for the reload round-trip.
+4. Inspect `#planRows input[type=checkbox]` outerHTML and row innerText; check okBox and `#actionsBar` display; read `ctx.info`.
+- **Expected:** checkbox `checked="" disabled=""`; row text ends with `(already linked)`; okBox `Added to 1 test plan(s)`; Add hidden (`display:none`); `ctx.info.plans[0].platforms[0].already_linked` = true.
+- **Actual (post-fix):** `<input type="checkbox" id="cb_2_1" data-tplan="2" data-platform="1" checked="" disabled="">`; row `1 Plan A Win10 (already linked)`; okBox `Added to 1 test plan(s)`; actionsBar `none`; info `[true]`. PASS.
+
+### Test 2 — fresh-load parity for the can_do=false path (A2P-2 v2)
+1. Open `tcAssign2Tplan.html?tproject_id=1&tcase_id=<A2P-2>&tcversion_id=<A2P-2 v2>` (a version not linked; other version is).
+- **Expected:** checkbox `checked disabled`, `(already linked)` note, Add hidden, Cancel visible.
+- **Actual:** `<input ... checked="" disabled="">`, row `1 Plan A Win10 (already linked)`, actionsBar `none`, cancelBar `flex`, info `[{al:true, v:"1"}]`. PASS.
+
+### Test 3 — multi-plan re-render after Add (regression for destroy-then-rebuild)
+1. Add a second active plan (Plan B, id 12, Win10 platform via `testplan_platforms (12,1)`) to the project; unlink A2P-1.
+2. Open the A2P-1 screen → 2 addable rows (Plan A, Plan B).
+3. Tick BOTH checkboxes, click **+ Add**.
+- **Expected:** okBox `Added to 2 test plan(s)`; both re-rendered rows `checked disabled` + `(already linked)`; Add hidden.
+- **Actual:** both rows `checked="" disabled=""` + `(already linked)`; okBox `Added to 2 test plan(s)`; actionsBar `none`; `ctx.info` both plans `linked:true, already_linked:[true]`. PASS.
+
+### Test 4 — no new Event/console errors
+1. Query `events` table (fresh re-import baseline) and browser console after all above.
+- **Expected:** only audit entries (`audit_tc_added_to_testplan`, LOGIN, CREATE) at log_level 16; no Error/Warning; no DataTable JS exceptions.
+- **Actual:** events rows 1-7 all audit at level 16; console had only a pre-existing a11y "form field element should have an id" info (2 count); no JS errors. PASS.
+
+**Result: 4/4 PASS.** (Refs #1566)
