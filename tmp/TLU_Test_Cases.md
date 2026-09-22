@@ -18799,3 +18799,50 @@ Fixture: `php tmp/fixtures_1559.php` (project B1559, TC "BUG Login Check" + 2 st
 - **Actual:** events after fixes contain only `audit_executionbug_added` CREATE rows. PASS.
 
 **Result: 12/12 PASS.** (Refs #1560. Screen `gui/templates/execute/bugAdd.html` + `api/bugadd/index.php`; tracker double `lib/issuetrackerintegration/mantisrestInterface.class.php`; legacy shim `lib/execute/bugAdd.php`; additive `$ret['bug_id']` in exec.inc.php addIssue(); i18n `buga.*` (36 keys) + `footers.bugAdd` in all 10 JSON bundles; screenshots `tmp/shots/bugadd_{link,create,note}_mode.png`; docs `docs/Bug-Add-Link.md`.)
+
+## Task — Issue #953: Add-and-assign-to-current-project when creating a custom field in cfieldsView
+
+### Test 1 — BFF create without assign_to_project leaves cfield_testprojects empty
+1. Log in admin/admin; fixture: test project "Demo Project" (id 1) created.
+2. Create custom field "Plain CF"/`plain_cf` via the Create modal, do NOT check "Add and assign (to current test project)".
+- **Expected:** POST /api/cfields/ → 200; `custom_fields` gains the row; `cfield_testprojects` has NO row for it; a second CF must be created to prove the link row belongs to the check (see Test 2).
+- **Actual:** `SELECT cf.name,tc.field_id,tc.testproject_id FROM custom_fields cf LEFT JOIN cfield_testprojects tc ON tc.field_id=cf.id` → `plain_cf` with NULL/NULL. PASS.
+
+### Test 2 — BFF create WITH assign_to_project writes the cfield_testprojects row
+1. Open Create modal again, fill "Assigned CF"/`assigned_cf`, check "Add and assign (to current test project)", Save.
+- **Expected:** POST 200 with `assigned:1` + `tproject_id:1`; `cfield_testprojects` gains (field_id=2, testproject_id=1, display_order 1); events show CREATE + ASSIGN rows.
+- **Actual:** row (2,1,1) present; events #3/#4 CREATE, #6 "Custom field 'assigned_cf' assigned to test project 1" (log_level 16). PASS.
+
+### Test 3 — create modal shows the assign checkbox (create mode only)
+1. Click "+ Create Custom Field".
+- **Expected:** checkbox labeled "Add and assign (to current test project)" visible below Enable On.
+- **Actual:** checkbox `#editAssignProject` present in modal (snapshot showed it). PASS.
+
+### Test 4 — edit modal hides the assign checkbox (legacy parity)
+1. Open Edit on `assigned_cf` (edit icon).
+- **Expected:** modal contains NO assign-to-project checkbox (legacy shows the second button only on create).
+- **Actual:** edit modal (Edit Custom Field: assigned_cf) shows Label..Enable On then Cancel/Save only. PASS.
+
+### Test 5 — save edit shows "Custom field saved" toast and persists
+1. Edit `toast_cf`, change its label, Save.
+- **Expected:** PUT persists the label; toast `cf.msg.saved` visible; still no assign payload sent on edit.
+- **Actual:** label persisted ("Toast CF v2"), toast "Custom field saved" visible, events #10 "Custom field 'toast_cf' updated" (log_level 16). PASS.
+
+### Test 6 — assign requested with no / bogus test project -> surfaced 400, nothing created
+1. Open cfieldsView with `tproject_id=0`; create modal, check assign, Save.
+2. Open cfieldsView with `tproject_id=999999`; create modal, check assign, Save.
+- **Expected:** (1) BFF returns 400 "No test project selected" BEFORE creating; (2) BFF returns 400 "Test project not found" BEFORE creating; both messages shown in `#modalError`, modal stays open, `custom_fields` unchanged.
+- **Actual:** modal shows "No test project selected" for (1) and "Test project not found" for (2); `custom_fields` unchanged; no new event. PASS.
+
+### Test 7 — assigned create shows "…created and assigned" toast + cfieldsAssignView regression
+1. With `tproject_id=1`, create `toast_cf` with assign checked → toast "Custom field created and assigned to current test project".
+2. Open Assign screen (`cfieldsAssignView.html?tproject_id=1`).
+- **Expected:** toast after save; Assign screen lists the assigned_* fields under "Assigned(3)" and the unassigned `plain_cf` under "Available".
+- **Actual:** toast text/visibility captured via JS; Assign screen shows Assigned(3) [assigned_cf, shot_cf, toast_cf] and Available(1) [plain_cf]. PASS.
+
+### Test 8 — Event Viewer hygiene + console clean
+1. After the suite, inspect `events`; no log_level 20/30/40/50 rows.
+- **Expected:** only log_level 16 audit INFO (CREATE/ASSIGN/UPDATE) rows. Browser console: no JS exceptions; `node --check` on inline script clean; all 10 bundles `python3 -m json.tool` valid.
+- **Actual:** events id 1..10 all log_level 16. PASS.
+
+**Result: 8/8 PASS.** (Refs #953. Screen `gui/templates/cfields/cfieldsView.html` + BFF `api/cfields/index.php` POST /; i18n `cf.assignToCurrentProject` + `cf.msg.createdAndAssigned` + `cf.msg.saved` in all 10 bundles; screenshots `docs/screenshots/issue-953-{cfield-create-assign-modal,cfield-create-assigned-toast}.png`; docs `docs/Task-Issue-953-Cfields-Create-And-Assign.md` + wiki mirror.)
