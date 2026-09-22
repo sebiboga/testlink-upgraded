@@ -156,7 +156,7 @@ function loadMeta() {
     sel.empty();
     $.each(r.items, function(i, t) {
       typeMap[t.id] = t.name;
-      sel.append('<option value="' + t.id + '">' + t.name + '</option>');
+      sel.append('<option value="' + t.id + '">' + escAttr(t.name) + '</option>');
     });
   }).fail(function(xhr) {
     showDenied(xhr);
@@ -166,7 +166,7 @@ function loadMeta() {
     sel.empty();
     $.each(r.items, function(i, n) {
       nodeMap[n.id] = n.name;
-      sel.append('<option value="' + n.name + '">' + n.name + '</option>');
+      sel.append('<option value="' + escAttr(n.name) + '">' + escAttr(n.name) + '</option>');
     });
   }).fail(function(xhr) {
     showDenied(xhr);
