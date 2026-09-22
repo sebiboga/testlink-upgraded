@@ -358,6 +358,7 @@ function saveCf() {
 
   if (!data.label || !data.name) {
     $('#modalError').text(TLi18n.t('cf.validation.required')).show();
+    saving = false;
     return;
   }
 
