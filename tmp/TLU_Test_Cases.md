@@ -18783,3 +18783,38 @@ Fixture (this run, fresh DB): role `cf_viewer` (role_id 10) holding ONLY right i
 - **Actual:** no alert after reload; name cell rendered as literal text; confirm shows literal name; DB `SELECT COUNT(*) ... WHERE id=99` = 0 after confirm. PASS.
 
 **Result: 8/8 PASS.** (Refs #950. Changes: `api/cfields/index.php` read vs write permission split + `can_manage` in GET / payload; `gui/templates/cfields/cfieldsView.html` `.fail` handlers + read-only rendering + stored-XSS hardening of the name/label/actions cells (escAttr + data-* delegated delete; bug #1561); i18n `cf.msg.noPermissionLog`/`cf.msg.readOnly` in all 10 bundles; screenshots `docs/screenshots/issue-950-*.png`.)
+
+## Regression — Issue #1561: cfieldsView stored-XSS hardening (name/label + delete action)
+
+**Precond:** DB fresh (last custom_fields row ids 2/3 deleted during verification); admin/admin session; BFF accepts hostile markup (matches legacy, render-time-only escaping strategy).
+
+### Test 1 — Hostile field name/label render as inert text in DataTables cells
+1. `POST /api/cfields/index.php` with `name = "> <img src=x onerror=alert(73)>`, `label = evil <b>bold</b>`.
+2. Open `gui/templates/cfields/cfieldsView.html` as admin; wait for table render.
+3. Measure with DevTools: `td.cell[1].innerHTML` and `td.cell[1].querySelector('img')`; watch for a native `alert` dialog.
+- **Expected:** no `alert(73)`; name cell innerHTML is the HTML-escaped literal (`"&gt; &lt;img src=x onerror=alert(73)&gt;`), label cell `evil &lt;b&gt;bold&lt;/b&gt;`, and `querySelector('img')` returns `null`.
+- **Actual:** confirmed — escaped literals, `has_img:false`, no dialog fired. PASS.
+
+### Test 2 — Delete action not injectable (delegated data-* handler)
+1. Inspect the row Actions cell HTML and click the trash icon.
+- **Expected:** Actions cell = `data-delete-id` + `data-delete-name` (escaped) and NO inline `onclick` carrying the raw name; confirm() shows the raw name as plain text; DELETE returns `{"status":"ok"}` and the `custom_fields` row is gone.
+- **Actual:** measured Actions HTML contains `data-delete-name="&quot;&gt; ..."`, confirm showed raw text, row deleted from table + DB. PASS.
+
+### Test 3 — Type/Node select options escaped and still populate (post-fix regression)
+1. Click "Create Custom Field" (modal uses `loadMeta()`).
+2. Read `#editType` / `#editNodeType` option lists.
+- **Expected:** options unchanged (string/numeric/float/... / build/testsuite/testplan/testcase/...); the two `<option>` builders escape `t.name`/`n.name` via `escAttr()` (previously raw).
+- **Actual:** full option lists present and identical. PASS.
+
+### Test 4 — Edit modal + create flow unaffected
+1. Click the row edit icon of the hostile field → read `#modalTitle` (`.text()`) and `#editName`/`#editLabel` (`.val()`).
+2. Cancel; create a normal field via the modal and Save.
+- **Expected:** title = `Edit Custom Field: "> <img src=x onerror=alert(73)>` as inert text; inputs carry raw values; new field row appears.
+- **Actual:** title/inputs verified, `verified_cf` created (POST 200) and listed, fixture deleted after. PASS.
+
+### Test 5 — Event Viewer hygiene + cleanup
+1. Inspect `events` rows fired during the suite.
+- **Expected:** only log_level 16 (NOTICE) audit rows (LOGIN/CREATE/DELETE); no Error/Warning rows; fixtures removed.
+- **Actual:** 8 rows all log_level 16, zero Error/Warning; `custom_fields` empty at end. PASS.
+
+**Result: 5/5 PASS.** (Fix branch `fix/issue-1561`. Changes: `gui/templates/cfields/cfieldsView.html` line 159 `escAttr(t.name)` and line 169 `escAttr(n.name)` in the meta `<option>` builders; primary cells/actions hardening was already landed via `b7aaee02e` (Refs #950).)
