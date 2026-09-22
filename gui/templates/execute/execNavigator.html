@@ -4,7 +4,7 @@
 <link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Execution Navigator</title>
+<title data-i18n="exnav.docTitle">Execution Navigator</title>
 <link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <style>
@@ -174,8 +174,8 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
           <b data-i18n="exnav.keywords">Keywords</b>
           <select id="filter_keywords" multiple size="3"></select>
           <div style="margin-top:6px">
-            <label class="checkbox-inline"><input type="radio" name="filter_keywords_filter_type" value="Or"> <span>Or</span></label>
-            <label class="checkbox-inline"><input type="radio" name="filter_keywords_filter_type" value="And"> <span>And</span></label>
+            <label class="checkbox-inline"><input type="radio" name="filter_keywords_filter_type" value="Or"> <span data-i18n="exnav.kwOr">Or</span></label>
+            <label class="checkbox-inline"><input type="radio" name="filter_keywords_filter_type" value="And"> <span data-i18n="exnav.kwAnd">And</span></label>
           </div>
         </div>
         <div class="field" id="priorityRow">
@@ -198,9 +198,9 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
       <div class="card" id="treeCol">
         <h3><i class="fa fa-sitemap"></i> <span data-i18n="exnav.treeTitle">Test plan tree</span></h3>
         <div class="toolbar" style="margin-top:-4px; margin-bottom:12px" id="exportBar">
-          <button id="btnExportTree" class="btn-outline btn-sm" title="export"><i class="fa fa-file-export"></i> <span data-i18n="exnav.exportPlanTree">Export test plan (tree)</span></button>
-          <button id="btnExportResults" class="btn-outline btn-sm" title="export for results"><i class="fa fa-file-export"></i> <span data-i18n="exnav.exportPlanResults">Export for results import</span></button>
-          <button id="btnImportResults" class="btn-outline btn-sm" title="import xml results"><i class="fa fa-file-import"></i> <span data-i18n="exnav.importResults">Import XML results</span></button>
+          <button id="btnExportTree" class="btn-outline btn-sm" data-i18n-title="exnav.exportTreeTitle" title="export"><i class="fa fa-file-export"></i> <span data-i18n="exnav.exportPlanTree">Export test plan (tree)</span></button>
+          <button id="btnExportResults" class="btn-outline btn-sm" data-i18n-title="exnav.exportResultsTitle" title="export for results"><i class="fa fa-file-export"></i> <span data-i18n="exnav.exportPlanResults">Export for results import</span></button>
+          <button id="btnImportResults" class="btn-outline btn-sm" data-i18n-title="exnav.importResultsTitle" title="import xml results"><i class="fa fa-file-import"></i> <span data-i18n="exnav.importResults">Import XML results</span></button>
         </div>
         <div id="treeRoot" class="tree"></div>
       </div>
@@ -265,9 +265,14 @@ function setSelect($sel, cfg) {
   $sel.empty();
   if (!cfg || !cfg.items) { $sel.append('<option value="">-</option>'); return; }
   var items = cfg.items;
-  var selKey = cfg.selected;
+  var selKeys = [];
+  if (cfg.selected != null && typeof cfg.selected === 'object') {
+    for (var i = 0; i < cfg.selected.length; i++) selKeys.push(String(cfg.selected[i]));
+  } else if (cfg.selected != null) {
+    selKeys.push(String(cfg.selected));
+  }
   $.each(items, function (k, v) {
-    var selected = String(k) === String(selKey);
+    var selected = selKeys.indexOf(String(k)) !== -1;
     $sel.append('<option value="' + esc(k) + '"' + (selected ? ' selected' : '') + '>' + esc(v) + '</option>');
   });
 }
@@ -299,7 +304,6 @@ function applyCtx(j) {
     setSelect($('#filter_result_method'), fr.method);
     setSelect($('#filter_result_build'), fr.build);
     $('#resRow').show();
-    $('<option>').text();
     toggleResultBuildRow(fr);
     $('#filter_result_method').unbind('change').bind('change', function () {
       var v = String($(this).val());

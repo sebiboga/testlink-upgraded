@@ -4586,5 +4586,11 @@
   "exnav.execute": "Exécuter ce cas de test",
   "exnav.loadFailed": "Échec du chargement du navigateur d'exécution.",
   "exnav.blockNotRunLatest": "Le résultat \"Non exécuté\" ne peut pas être combiné avec la méthode \"dernière exécution\".",
-  "footers.execNavigatorView": "TestLink 2.0.1 - Navigateur d'exécution"
+  "footers.execNavigatorView": "TestLink 2.0.1 - Navigateur d'exécution",
+  "exnav.docTitle": "Navigateur d'exécution",
+  "exnav.kwOr": "Ou",
+  "exnav.kwAnd": "Et",
+  "exnav.exportTreeTitle": "Exporter le rapport d'exécution (format arborescence du plan de test)",
+  "exnav.exportResultsTitle": "Exporter le rapport d'exécution pour l'import des résultats (4+ builds)",
+  "exnav.importResultsTitle": "Importer des résultats XML depuis un outil externe"
 }

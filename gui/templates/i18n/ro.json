@@ -4596,5 +4596,11 @@
   "exnav.execute": "Execută acest caz de test",
   "exnav.loadFailed": "Încărcarea navigatorului de execuție a eșuat.",
   "exnav.blockNotRunLatest": "Rezultatul „Nu este rulat” nu poate fi combinat cu metoda „ultima execuție”.",
-  "footers.execNavigatorView": "TestLink 2.0.1 - Navigator de execuție"
+  "footers.execNavigatorView": "TestLink 2.0.1 - Navigator de execuție",
+  "exnav.docTitle": "Navigator de execuție",
+  "exnav.kwOr": "Sau",
+  "exnav.kwAnd": "Și",
+  "exnav.exportTreeTitle": "Exportă raportul de execuție (format arbore al planului de test)",
+  "exnav.exportResultsTitle": "Exportă raportul de execuție pentru import de rezultate (4+ build-uri)",
+  "exnav.importResultsTitle": "Importă rezultate XML dintr-un instrument extern"
 }

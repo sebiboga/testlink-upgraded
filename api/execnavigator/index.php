@@ -50,7 +50,8 @@ doSessionStart();
 require_once(__DIR__ . '/../_guard.php');
 bffSameOriginGuard();
 
-header('Content-Type: application/json');
+header('Content-Type: application/json; charset=utf-8');
+header('X-Content-Type-Options: nosniff');
 
 $db = new database(DB_TYPE);
 doDBConnect($db);
@@ -148,19 +149,15 @@ if ($action === 'init') {
     }
     $sessTP = isset($_SESSION['testplanID']) ? intval($_SESSION['testplanID']) : 0;
     $sessTPr = isset($_SESSION['testprojectID']) ? intval($_SESSION['testprojectID']) : 0;
-    $setTPr = ($tprojectId > 0) ? $tprojectId : $_REQUEST['tproject_id'] ?? $sessTPr;
-    $_SESSION['testplanID'] = $tplanId;
-    if ($setTPr > 0) {
-        $_SESSION['testprojectID'] = $setTPr;
-    }
 
-    // ---- rights (legacy checkAccessToExec) -------------------------------
-    $grants = execNavigatorGrants($db, $user, $tprojectId, $tplanId);
-    if (!$grants['testplan_execute'] && !$grants['exec_ro_access']) {
-        http_response_code(403);
-        out(['status' => 'error',
-             'message' => 'You do not have rights to execute tests on this plan']);
-    }
+    // Seed the session with the REQUESTED (validated) plan before constructing
+    // the filter control: init_setting_testplan() reads $_SESSION['testplanID']
+    // to resolve the effective plan and the settings/testplans for the panel.
+    // This mirrors the legacy initProject()/session flow that ran before
+    // execNavigator.php. The previous session values are restored if the
+    // rights probe below fails, so a probe cannot hijack the user's context.
+    $_SESSION['testplanID'] = $tplanId;
+    $_SESSION['testprojectID'] = ($tprojectId > 0) ? $tprojectId : $sessTPr;
 
     // ---- build the execution tree with the legacy pipeline ----------------
     $gui = new stdClass();
@@ -175,29 +172,76 @@ if ($action === 'init') {
             $gui->loadExecDashboard = false;
             unset($_SESSION['loadExecDashboard'][$control->form_token]);
         }
-        $gui->tproject_id = intval($control->args->testproject_id);
-        $gui->menuUrl = 'gui/templates/execute/execTest.html';
-        $gui->args = $control->get_argument_string();
 
         $dummy = config_get('results');
         $gui->not_run = $dummy['status_code']['not_run'];
         $dummy = config_get('execution_filter_methods');
         $gui->lastest_exec_method = $dummy['status_code']['latest_execution'];
         $gui->pageTitle = lang_get('href_execute_test');
+    } catch (Throwable $e) {
+        http_response_code(500);
+        out(['status' => 'error', 'message' => 'Tree build failed: ' . $e->getMessage()]);
+    }
 
-        $gui->features = array('export' => false, 'import' => false);
-        $gui->execAccess = false;
-        if ($grants['testplan_execute']) {
-            $gui->features['export'] = true;
-            $gui->features['import'] = true;
-            $gui->execAccess = true;
-        }
-        if ($grants['exec_ro_access']) {
-            $gui->execAccess = true;
-        }
-        $control->draw_export_testplan_button = $gui->features['export'];
-        $control->draw_import_xml_results_button = $gui->features['import'];
+    // ---- effective execution context (legacy init_setting_testplan parity) --
+    // The modern navigator keeps tplan_id of the previously selected plan in the
+    // URL and carries a plan switch via setting_testplan (GET). The legacy
+    // execNavigator.php let tlTestCaseFilterControl::init_setting_testplan()
+    // resolve the effective plan from the session/setting_testplan before
+    // checkAccessToExec(); otherwise the grants check would run against the old
+    // plan while the tree gets built for the new one.
+    $effTplanId = intval($control->args->testplan_id ?? 0);
+    $effTprojectId = intval($control->args->testproject_id ?? 0);
+    if ($effTprojectId <= 0) {
+        $effTprojectId = $tprojectId;
+    }
 
+    $mismatched = false;
+    if ($reqTproject > 0 && $effTprojectId > 0 && $reqTproject !== $effTprojectId) {
+        $mismatched = true;
+    }
+    if ($mismatched) {
+        http_response_code(400);
+        out(['status' => 'error',
+             'message' => 'tproject_id does not match the effective test plan context']);
+    }
+
+    // ---- rights (legacy checkAccessToExec) on the EFFECTIVE plan -----------
+    $grants = execNavigatorGrants($db, $user, $effTprojectId, $effTplanId);
+    if (!$grants['testplan_execute'] && !$grants['exec_ro_access']) {
+        // Restore the user's previous execution context (probe safety).
+        $_SESSION['testplanID'] = $sessTP;
+        if ($sessTPr > 0) {
+            $_SESSION['testprojectID'] = $sessTPr;
+        }
+        http_response_code(403);
+        out(['status' => 'error',
+             'message' => 'You do not have rights to execute tests on this plan']);
+    }
+
+    // Persist ONLY after the rights probe passed (legacy initProject/
+    // setSessionTestPlan wrote the session at this point too, never earlier).
+    $_SESSION['testplanID'] = $effTplanId;
+    $_SESSION['testprojectID'] = $effTprojectId;
+
+    $gui->tproject_id = $effTprojectId;
+    $gui->menuUrl = 'gui/templates/execute/execTest.html';
+    $gui->args = $control->get_argument_string();
+
+    $gui->features = array('export' => false, 'import' => false);
+    $gui->execAccess = false;
+    if ($grants['testplan_execute']) {
+        $gui->features['export'] = true;
+        $gui->features['import'] = true;
+        $gui->execAccess = true;
+    }
+    if ($grants['exec_ro_access']) {
+        $gui->execAccess = true;
+    }
+    $control->draw_export_testplan_button = $gui->features['export'];
+    $control->draw_import_xml_results_button = $gui->features['import'];
+
+    try {
         $control->build_tree_menu($gui);
     } catch (Throwable $e) {
         http_response_code(500);
@@ -205,7 +249,7 @@ if ($action === 'init') {
     }
 
     // ---- compose the tree payload (legacy ajaxTree contract) --------------
-    $root = $gui->ajaxTree->root_node;
+    $root = empty($gui->ajaxTree->root_node) ? new stdClass() : $gui->ajaxTree->root_node;
     $children = [];
     if (!empty($gui->ajaxTree->children)
         && is_string($gui->ajaxTree->children)
@@ -289,9 +333,9 @@ if ($action === 'init') {
         'action' => 'init',
         'debug' => $GLOBALS['__dbg'] ?? null,
         'context' => array(
-            'testproject_id' => $tprojectId,
+            'testproject_id' => $effTprojectId,
             'testproject_name' => strval($control->args->testproject_name ?? ''),
-            'testplan_id' => intval($control->args->testplan_id ?? $tplanId),
+            'testplan_id' => intval($control->args->testplan_id ?? $effTplanId),
             'testplan_name' => strval($control->args->testplan_name ?? ''),
             'setting_build' => intval($control->args->setting_build ?? 0),
             'setting_platform' => isset($control->args->setting_platform)

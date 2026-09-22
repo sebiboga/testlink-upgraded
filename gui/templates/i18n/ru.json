@@ -4592,5 +4592,11 @@
   "exnav.execute": "Выполнить этот тест-кейс",
   "exnav.loadFailed": "Не удалось загрузить навигатор выполнения.",
   "exnav.blockNotRunLatest": "Результат «Не выполнен» нельзя сочетать с методом «последнее выполнение».",
-  "footers.execNavigatorView": "TestLink 2.0.1 - Навигатор выполнения"
+  "footers.execNavigatorView": "TestLink 2.0.1 - Навигатор выполнения",
+  "exnav.docTitle": "Навигатор выполнения",
+  "exnav.kwOr": "Или",
+  "exnav.kwAnd": "И",
+  "exnav.exportTreeTitle": "Экспорт отчёта о выполнении (формат дерева тестового плана)",
+  "exnav.exportResultsTitle": "Экспорт отчёта о выполнении для импорта результатов (4+ сборки)",
+  "exnav.importResultsTitle": "Импорт результатов XML из внешнего инструмента"
 }

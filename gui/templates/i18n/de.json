@@ -4586,5 +4586,11 @@
   "exnav.execute": "Diesen Testfall ausführen",
   "exnav.loadFailed": "Der Ausführungs-Navigator konnte nicht geladen werden.",
   "exnav.blockNotRunLatest": "\"Nicht ausgeführt\" kann nicht mit der Methode \"Letzte Ausführung\" kombiniert werden.",
-  "footers.execNavigatorView": "TestLink 2.0.1 - Ausführungs-Navigator"
+  "footers.execNavigatorView": "TestLink 2.0.1 - Ausführungs-Navigator",
+  "exnav.docTitle": "Ausführungs-Navigator",
+  "exnav.kwOr": "Oder",
+  "exnav.kwAnd": "Und",
+  "exnav.exportTreeTitle": "Ausführungsbericht exportieren (Testplan-Baumformat)",
+  "exnav.exportResultsTitle": "Ausführungsbericht für Ergebnisimport exportieren (4+ Builds)",
+  "exnav.importResultsTitle": "XML-Ergebnisse aus einem externen Tool importieren"
 }

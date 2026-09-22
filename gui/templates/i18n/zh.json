@@ -4572,5 +4572,11 @@
   "exnav.execute": "执行此测试用例",
   "exnav.loadFailed": "无法加载执行导航器。",
   "exnav.blockNotRunLatest": "“未运行”结果不能与“最新执行”方法组合。",
-  "footers.execNavigatorView": "TestLink 2.0.1 - 执行导航器"
+  "footers.execNavigatorView": "TestLink 2.0.1 - 执行导航器",
+  "exnav.docTitle": "执行导航器",
+  "exnav.kwOr": "或",
+  "exnav.kwAnd": "与",
+  "exnav.exportTreeTitle": "导出执行报告（测试计划树格式）",
+  "exnav.exportResultsTitle": "导出执行报告以导入结果（4+ 构建）",
+  "exnav.importResultsTitle": "从外部工具导入 XML 结果"
 }

@@ -4592,5 +4592,11 @@
   "exnav.execute": "このテストケースを実行",
   "exnav.loadFailed": "実行ナビゲーターの読み込みに失敗しました。",
   "exnav.blockNotRunLatest": "「未実行」結果は「最新実行」メソッドと組み合わせることはできません。",
-  "footers.execNavigatorView": "TestLink 2.0.1 - 実行ナビゲーター"
+  "footers.execNavigatorView": "TestLink 2.0.1 - 実行ナビゲーター",
+  "exnav.docTitle": "実行ナビゲーター",
+  "exnav.kwOr": "または",
+  "exnav.kwAnd": "かつ",
+  "exnav.exportTreeTitle": "実行レポートのエクスポート（テスト計画ツリー形式）",
+  "exnav.exportResultsTitle": "結果インポート用の実行レポートをエクスポート（4+ ビルド）",
+  "exnav.importResultsTitle": "外部ツールからXML結果をインポート"
 }
