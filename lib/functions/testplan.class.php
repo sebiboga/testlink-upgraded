@@ -6274,7 +6274,6 @@ class testplan extends tlObjectWithAttachments
                      $my['join']['cf'] .
                      $my['join']['tsuites'] .
                      $my['join']['aliens'] .
-                     $my['join']['bugs'] .
 
                      " LEFT OUTER JOIN {$this->tables['platforms']} PLAT ON PLAT.id = TPTCV.platform_id " .
                      
