@@ -19005,3 +19005,29 @@ Fixture: `php tmp/fixtures_1559.php` (project B1559, TC "BUG Login Check" + 2 st
 - **Actual:** discovered exactly that shared legacy duplicate-alias SQL bug via this BFF fuzz → filed as #1567 (bug label, full repro). Navigator itself returns requested 400/404 status gracefully.
 
 **Result: 12/12 PASS** for the modern screen. (Refs #1562. See `docs/Modernize-ExecNavigator-...` wiki mirror for deep-dive; #1567 documents the one legacy SQL defect surfaced during this suite, out of scope of the modern screen's parity.)
+
+---
+
+## Suite 1567 — Regression — Bug #1567: SQL 1066 "Not unique table/alias 'EB'" in exec tree when a combined bug+platform filter matches nothing
+
+**Precondition**
+- Fresh DB + fixture: `php tmp/fixtures_1562.php` → `tproject_id=1`, `testplan_id=2`, `build_open=1`, `platform_id=1`, TCs linked, one seeded execution (build 1 / platform 1). Login `admin/admin`. A standalone repro helper: `php -r 'require config.inc.php; … getLinkedForExecTree(...)'` generating the tree SQL is the low-level harness (no browser needed).
+
+**Repro steps (pre-fix, expected to fail with 1066)**
+1. `php -r` generate `getLinkedForExecTree(2, array('build_id'=>1,'platform_id'=>999,'bug_id'=>'X-1'), array())` → pipe to `mysql -h 127.0.0.1 -utestlink -ptestlink testlink`.
+   Pre-fix result: `ERROR 1066 (42000) Not unique table/alias: 'EB'` (the SQL emits `JOIN execution_bugs EB` twice inside the single exec branch — testplan.class.php:6277 + :6293).
+2. BFF end-to-end: `GET /api/execnavigator/index.php?action=init&tplan_id=2&tproject_id=1&filter_bugs=X-1&setting_platform=999&setting_testplan=2` (admin session).
+   Pre-fix result: legacy **DB Access Error** page + two `DATABASE` rows in `events` (`log_level=1`, `1066 - Not unique table/alias: 'EB'`), i.e. the tree pipeline blows up instead of returning JSON.
+
+**Expected post-fix behavior**
+1. The generated exec-tree SQL contains exactly ONE `JOIN execution_bugs EB …` (the annotated post-`E` one) and executes without error: unmatched filter → clean 0 rows; matching filter → returns the executed TC row(s) with `exec_status`.
+2. BFF returns HTTP 200 `{"status":"ok", …}` with an empty tree for an unmatched bug/platform (no DB Access Error page, no `1066` DATABASE events).
+3. Baseline (no bug filter) tree unchanged (same children/counters on platform 1/build 1).
+4. `events` table shows **no new** Error/Warning rows produced by the fixed flows.
+
+**Actual result observed (post-fix): PASS**
+- SQL unmatched (`X-1`): 1× EB join, `mysql` exit 0, 0 rows.
+- SQL matching (`BUG-123` seeded, platform 1): 1× EB join, returns `tcase_id=4 … exec_status=p`.
+- BFF unmatched: 200 `status:ok`, tree 0 children. BFF matching: 200 `status:ok`, tree 1 child. Baseline: 200 `status:ok`, tree 1 child.
+- Event Viewer: event table max id unchanged after post-fix runs (no new advisories).
+- (Refs #1567)
