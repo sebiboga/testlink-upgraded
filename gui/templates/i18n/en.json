@@ -4598,5 +4598,6 @@
   "exnav.emptyTree": "No test cases match the current filter.",
   "exnav.execute": "Execute this test case",
   "exnav.loadFailed": "Failed to load the execution navigator.",
-  "exnav.blockNotRunLatest": "The \"Not Run\" result cannot be combined with the \"latest execution\" filter method."
+  "exnav.blockNotRunLatest": "The \"Not Run\" result cannot be combined with the \"latest execution\" filter method.",
+  "footers.execNavigatorView": "TestLink 2.0.1 - Execution Navigator"
 }

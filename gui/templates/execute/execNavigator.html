@@ -95,6 +95,8 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 .access-denied h3 { margin: 0 0 8px; font-size: 18px; color: #22242a; }
 .access-denied p { margin: 0; font-size: 14px; color: #777; }
 .loading { text-align: center; padding: 60px 0; color: #888; font-size: 14px; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd;
+  background: #fff; margin-top: 16px; }
 </style>
 </head>
 <body>
@@ -208,7 +210,7 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 </div>
 
 <div id="toast" class="toast"></div>
-<div id="footerText" style="display:none"></div>
+<div class="footer" id="footline" style="display:none"><span data-i18n="footers.execNavigatorView">TestLink 2.0.1 - Execution Navigator</span></div>
 
 <script src="/gui/templates/i18n/i18n.js"></script>
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
@@ -446,7 +448,7 @@ function loadTree() {
     applyCtx(j);
     renderTree(j);
     $('#content').show();
-    // legacy navigator auto-loads the dashboard once (EXDS on Ext.onReady)
+    $('#footline').show();
     var p = new URLSearchParams(window.location.search);
     if (p.get('loadExecDashboard') && j.context.load_exec_dashboard) {
       openDashboard(CTX.tprojectId);
