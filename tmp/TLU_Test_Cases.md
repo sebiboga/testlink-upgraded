@@ -18955,3 +18955,62 @@ Precondition: fixture `php tmp/fixtures_954.php` run — custom field **Tier** (
 - **Actual:** 18 events, all `log_level 16`; zero events >16. PASS.
 
 **Result: 9/9 PASS.** (Refs #954)
+
+## Suite 1575 — Task — Issue #1319: tcAssign2Tplan Cancel button always visible (gap vs legacy) (Refs #1319)
+
+Feature: on the modern `gui/templates/testcases/tcAssign2Tplan.html`, the Cancel
+button must stay visible whenever test plans exist, exactly like legacy
+`dashio/testcases/tcAssign2Tplan.tpl:86` (which renders the Cancel button
+OUTSIDE the `{if $gui->can_do}` block). Only the Add button is gated on
+`can_do`. Also regression-verifies the BFF grid can_do computation.
+
+**Precondition:** run `php tmp/fixtures_1319.php` from the repo root (re-runnable).
+Produces A2PDemo (tproject), Plan A (tplan), Win10 (platform), A2P-1 v1 (unlinked
+→ can_do=true), A2P-2 v1+v2 with v1 linked to Plan A (viewing v2 → can_do=false).
+Login admin/admin on http://localhost:8082.
+
+### Test 1 — BFF: can_do=false grid for the linked-to-different-version tcversion
+1. `curl -b <session> "http://localhost:8082/api/tcassign2tplan/?action=init&tcase_id=<A2P-2>&tcversion_id=<v2>&tproject_id=<pid>"`
+- **Expected:** `status=ok`, `can_do=false`, plans[0].platforms[0].already_linked=true,
+  draw_checkbox=false.
+- **Actual:** exactly that (measured: can_do=false, already_linked=true, draw_checkbox=false). PASS.
+
+### Test 2 — BFF: can_do=true grid for the unlinked tcversion
+1. Same request for `<A2P-1>/<v1>`.
+- **Expected:** `can_do=true`, draw_checkbox=true, already_linked=false.
+- **Actual:** can_do=true, draw_checkbox=true, already_linked=false. PASS.
+
+### Test 3 — browser can_do=false: Cancel visible, Add hidden (no dead-end)
+1. Open `gui/templates/testcases/tcAssign2Tplan.html?tcase_id=<A2P-2>&tcversion_id=<v2>&tproject_id=<pid>`.
+2. Inspect grid + buttons.
+- **Expected:** rows read-only (`checked disabled` + "(already linked)" note);
+  Add button absent; **Cancel button visible**; `#actionsBar` display none,
+  `#cancelBar` display flex (measured via getComputedStyle).
+- **Actual:** Cancel visible (snapshot uid=button "Cancel"); `actionsBar=none`,
+  `cancelBar=flex`; checkbox `checked="" disabled=""`. PASS.
+- Compare legacy: `gui/templates/dashio/testcases/tcAssign2Tplan.tpl:86` Cancel is
+  unconditional when `$gui->tplans` is set.
+
+### Test 4 — browser can_do=true: Add + Cancel both visible
+1. Open the screen for `<A2P-1>/<v1>`.
+- **Expected:** addable checkbox; "+ Add" and "Cancel" both visible.
+- **Actual:** "+ Add" and "Cancel" both present. PASS.
+
+### Test 5 — Add-flow regression: assign still works and Cancel survives the re-render
+1. On the A2P-1 view tick the Plan A checkbox, click **+ Add**.
+- **Expected:** okBox 'Added to 1 test plan(s)'; after re-render `can_do=false`
+  with Add hidden and Cancel visible.
+- **Actual:** okBox shown; re-rendered grid has Add hidden, Cancel visible,
+  `ctx.info.can_do=false`, `already_linked=true`. PASS.
+- NOTE: a separate stale-row render bug (checkbox not disabled until reload)
+  was observed here and filed as GitHub **#1566** (label `bug`) — NOT part of
+  this issue's scope; full-page reload renders the row correctly.
+
+### Test 6 — Event Viewer hygiene
+1. After the tests, query `events` table / Event Viewer screen.
+- **Expected:** no new Error/Warning entries; only INFO audit rows.
+- **Actual:** 11 events, all log_level=16 (INFO audit: CREATE/ASSIGN/LOGIN),
+  zero Error/Warning. PASS.
+
+**Result: 6/6 PASS.** (Refs #1319; screenshots in docs/screenshots/issue-1319-can-do-false-cancel-visible.png, issue-1319-can-do-true-add-and-cancel.png, issue-1319-post-add-can-do-false-cancel-only.png.)
+

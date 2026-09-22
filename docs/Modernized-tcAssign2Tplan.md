@@ -60,3 +60,43 @@ i18n keys `ta2p.execHistory` + `ta2p.design` added to all 10 locale bundles.
 - Test suite recorded in `tmp/TLU_Test_Cases.md` (Task — Issue #1320, 6/6 PASS).
 
 ![tcAssign2Tplan navigation icons](screenshots/issue-1320-toolbar-icons.png)
+
+---
+
+# tcAssign2Tplan — Cancel always visible on locked views (Issue #1319)
+
+Legacy `dashio/testcases/tcAssign2Tplan.tpl` renders the Cancel button OUTSIDE
+the `{if $gui->can_do}` conditional (tpl line 86), so the user can always
+navigate away — even when every plan/platform row is read-only because the
+shown tcversion is already linked to a different version (`can_do=false`).
+
+## Was
+Modern `gui/templates/testcases/tcAssign2Tplan.html` kept both **Add** and
+**Cancel** inside the single `#actionsBar` div, and `renderPlans()` hid that div
+whenever `ctx.info.can_do` was false — trapping the user on a screen with no
+action row (only browser back / tab close), while the legacy UI always offered
+**Cancel**.
+
+## Now
+- `tcAssign2Tplan.html:83-85` — Cancel moved into its own `#cancelBar`
+  actions-bar div, separate from `#actionsBar` (Add).
+- `renderPlans()` shows `#cancelBar` unconditionally whenever test plans exist
+  and gates ONLY `#actionsBar` on `ctx.info.can_do` (`:226-230`).
+- Fatal-error and no-plans paths hide `#cancelBar` (`:180-185`, `:194-202`)
+  exactly like legacy (no plans → `no_test_plans` text, no form → no buttons).
+- BFF `api/tcassign2tplan/index.php` `buildGrid()` unchanged — `can_do` already
+  computed exactly as legacy (OR of drawable checkboxes).
+
+## Verification
+- Browser can_do=false (A2P-2 v2, Plan A linked on v1): read-only `checked
+  disabled` row, Add hidden, **Cancel visible** (`#cancelBar` flex, `#actionsBar`
+  none).
+- Browser can_do=true (A2P-1 unlinked): addable row, Add + Cancel both visible.
+- Add-flow regression passes; after assigning, view reloads to can_do=false with
+  Add hidden and Cancel still available.
+- Event Viewer: no new Error/Warning entries (only INFO audit rows).
+- Test suite recorded in `tmp/TLU_Test_Cases.md` (Task — Issue #1319, 6/6 PASS).
+
+![tcAssign2Tplan can_do=false — Cancel visible, Add hidden](screenshots/issue-1319-can-do-false-cancel-visible.png)
+![tcAssign2Tplan can_do=true — Add + Cancel visible](screenshots/issue-1319-can-do-true-add-and-cancel.png)
+![tcAssign2Tplan post-add can_do=false — Cancel only](screenshots/issue-1319-post-add-can-do-false-cancel-only.png)

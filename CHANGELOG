@@ -17,6 +17,19 @@ Every screen of the application was ported one-by-one in a screen-compare
 kept for backward compatibility and is progressively retired as each modern
 screen reaches full parity.
 
+- [FEATURE GAP] - #1319: the modern Assign Test Case to Test Plan screen
+  (gui/templates/testcases/tcAssign2Tplan.html) always keeps the **Cancel**
+  button visible whenever test plans exist, even on locked views where
+  `can_do=false` (all plan/platform rows read-only): Cancel moved out of
+  `#actionsBar` into its own `#cancelBar` div (`:83-85`), `renderPlans()` shows
+  `#cancelBar` unconditionally and gates ONLY `#actionsBar` (Add) on
+  `ctx.info.can_do` (`:226-230`), hiding it on fatal/no-plans paths (`:180-185`,
+  `:194-202`) — parity with legacy `dashio/testcases/tcAssign2Tplan.tpl:86`
+  where Cancel sits outside `{if $gui->can_do}`. Browser-verified on the A2P
+  fixture (A2P-2 v2 = can_do=false shows read-only row + Cancel + no Add;
+  A2P-1 = can_do=true shows Add + Cancel; Add-flow regression passes), Event
+  Viewer clean; suite 1575 6/6 PASS. (Refs #1319)
+
 - [FEATURE GAP] - #1320: the modern Assign Test Case to Test Plan screen
   (gui/templates/testcases/tcAssign2Tplan.html) regains the legacy toolbar
   quick-navigation icons (gui/templates/dashio/testcases/tcAssign2Tplan.tpl:47-51
