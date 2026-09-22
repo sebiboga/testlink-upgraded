@@ -18901,116 +18901,41 @@ Fixture: `php tmp/fixtures_1559.php` (project B1559, TC "BUG Login Check" + 2 st
 
 **Result: 7/7 PASS, 1 BLOCKED-BY-#1564.** (Refs #1563. The `using en_GB` fallback warnings observed for node-type/other location keys in non-en bundles are pre-existing missing translations, out of scope; ES/PL/FI/ID/KO live JSON verification is blocked by the pre-existing #1564 dead-post-`?>` corruption.)
 
-## Suite 954 — Task — Forbid type/node-type change of custom fields already holding values in cfieldsView (gap vs legacy)
+## Suite 1564 — Bug — locale/{es_AR,fi_FI,id_ID,ko_KR,pl_PL}: dead $TLS_* lines after closing ?>-tag corrupt JSON in every API/BFF response for those locales
 
-Precondition: fixture `php tmp/fixtures_954.php` run — custom field **Tier** (id depends, is_used=1 via a row in `cfield_design_values`) and control **TierEmpty** (is_used=0), both testcase node type, linked to tproject 1; admin/admin session.
+**Screen/files:** all BFF endpoints serving those 5 locales; fix = removed the single mid-file stray `?>` from `locale/es_AR/strings.txt:3222`, `locale/fi_FI/strings.txt:2148`, `locale/id_ID/strings.txt:2886`, `locale/ko_KR/strings.txt:2442`, `locale/pl_PL/strings.txt:3842`. **Refs #1564.**
 
-### Test 1 — legacy parity: modern modal locks Type + Node Type for a used field (cfieldsView)
-1. Open `gui/templates/cfields/cfieldsView.html?tproject_id=1&tplan_id=0`, click the edit pencil on the **Tier** row.
-2. Inspect `#editType`/`#editNodeType` display and `#editTypeText`/`#editNodeTypeText` text.
-- **Expected:** selects `display:none`; static texts `string` / `testcase` `display:block`; `#typeLockWarning` visible with the localized `cf.msg.warningNoTypeChange` text (legacy `cfieldsEdit.tpl:105-141` shows "Available for: Test Case" + "Type: string" as plain text).
-- **Actual:** typeSelect `none`, typeText `string` (block), nodeSelect `none`, nodeText `testcase` (block), warning `block`. PASS.
+**Precondition:** fresh DB, login admin/admin (`POST /api/auth/login` + `X-Requested-With: XMLHttpRequest` header for bffSameOriginGuard), tproject id 1 recreated in DB (`nodes_hierarchy` + `testprojects`).
 
-### Test 2 — control: value-less field stays editable (cfieldsView)
-1. Open the edit modal for **TierEmpty**.
-- **Expected:** both selects `display:block` (editable), no warning.
-- **Actual:** typeSelect `block`, value `0`, nodeSelect `block`, value `testcase`, warning `none`. PASS.
+### Test 1 — pre-fix repro: API response corrupt for all 5 locales (recorded on branch head BEFORE the fix)
+1. `curl -s -b <cookie> -H 'X-Requested-With: XMLHttpRequest' "http://localhost:8082/api/cfields/index.php/assignment?tproject_id=1&locale=pl"` (also `es`,`fi`,`id`,`ko`), parse with `json.load`.
+- **Expected (buggy):** HTTP 200 with body starting literal `$TLS_href_nfr_performance = ...` / `$TLS_req_title_length_exceeded = ...`, `json.load` → `JSONDecodeError: Expecting value: line 1 column 1 (char 0)`; `locale=en` control valid.
+- **Actual:** confirmed for pl/es/fi/id/ko (leading `$TLS_*` text, JSONDecodeError char 0); `locale=en` valid. Direct `php -r require` also emitted the dead lines; `isset($TLS_href_nfr_performance)`=`false` for pl/fi/id/ko and `isset($TLS_req_title_length_exceeded)`=`false` for all 5. PASS (repro captured).
 
-### Test 3 — normal save on a used field still works and cannot re-type it
-1. In the **Tier** modal change the Label, click Save.
-- **Expected:** toast "Custom field saved"; label persisted; type + node_type_id unchanged; no modal error.
-- **Actual:** label→`Tier UI-SAVED`, type `0`, is_used `1`, toast shown, modal error hidden. PASS. (Label reset to `Tier` afterwards.)
+### Test 2 — post-fix: bundle structure clean, syntax valid
+1. `grep -c '?>' <bundle>` and `php -l <bundle>` for each of the 5 edited bundles; confirm line 1 is `<?php`.
+- **Expected:** `0` stray `?>` in each; "No syntax errors detected" ×5; `<?php` on line 1.
+- **Actual:** grep=0 for all 5; php -l PASS ×5. PASS.
 
-### Test 4 — BFF backstop: PUT re-type of a used field returns the legacy warning
-1. Raw same-origin fetch `PUT /api/cfields/index.php/3` with `{type:4, node_type:'testcase'}`.
-2. Raw fetch with `{type:0, node_type:'build'}`.
-- **Expected:** both HTTP 400, body `{code:'warning_no_type_change', message: <legacy EN text>}`; stored type/node unchanged.
-- **Actual:** 400 + `code:"warning_no_type_change"` for both; field left unchanged. PASS.
+### Test 3 — post-fix: previously-dead keys now defined, zero stray output on require
+1. `php -r 'require $argv[1]; var_export(isset($TLS_href_nfr_performance)); var_export(isset($TLS_href_nfr_requirements)); var_export(isset($TLS_req_title_length_exceeded)); var_export(isset($TLS_req_docid_length_exceeded));'` for each of the 5 bundles.
+- **Expected:** exactly `truetruetruetrue` printed per bundle, no other stdout.
+- **Actual:** all 5 → `truetruetruetrue`, zero stray echo. PASS.
 
-### Test 5 — BFF exposes is_used in all read payloads
-1. `GET /api/cfields/index.php` and `GET /api/cfields/index.php/{id}` and `GET /api/cfields/index.php/assignment?tproject_id=1`.
-- **Expected:** every item carries `is_used` (Tier=1, TierEmpty=0) in list, detail and assignment lists.
-- **Actual:** list/detail `is_used:1` for Tier, `0` for TierEmpty; assignment rows expose it too. PASS.
+### Test 4 — post-fix: API JSON valid for every previously-corrupt locale
+1. `GET /api/cfields/index.php/assignment?tproject_id=1&locale={pl,es,fi,id,ko,en}` → `json.load`.
+- **Expected:** for each of the 6 locales the body parses as JSON; `status=ok`; `en` unchanged.
+- **Actual:** pl/es/fi/id/ko/en all parse, `status=ok` (pre-fix pl/es/fi/id/ko all failed). PASS.
 
-### Test 6 — assign screen: used field locked in BOTH tables
-1. Assigned table: click **Tier** name → modal shows static Type `string`, Node Type `testcase`, warning visible.
-2. Temporarily `POST /assignment/unlink` Tier, reload → click **Tier** name in the *Available* table → same lock. Re-link Tier.
-- **Expected:** identical read-only lock + warning in both tables.
-- **Actual:** Assigned table locked; after unlink the Available-table link also shows `typeSelect:none`/`warning:block`; re-link restored 2 linked fields. PASS.
+### Test 5 — post-fix: localized labels really resolve (no LOCALIZE:/missing fallback for the fixed keys)
+1. Inspect `locations` array of the `locale=pl` assignment response for codes 5/7.
+- **Expected:** `(5,'Po tytule'),(7,'Po warunkach wstępnych')` — the #1563 translations are live, no `LOCALIZE:`.
+- **Actual:** got `Po tytule` / `Po warunkach wstępnych`. PASS.
 
-### Test 7 — value-less field re-type still allowed (no scope regression)
-1. Raw `PUT /api/cfields/index.php/4` `{type:3,...}` then restore `{type:0,...}` (TierEmpty, unused).
-- **Expected:** both 200; type toggles 0→3→0.
-- **Actual:** 200 both, typeNow `3`, restored 200. PASS.
+### Test 6 — second endpoint + events hygiene
+1. `GET /api/aside/index.php?locale=pl&format=json` → `json.load`.
+2. `select * from events order by id desc;` after all requests.
+- **Expected:** aside JSON valid; no Error-level (`log_level` ≥ 16) event caused by this fix. (Pre-existing level-32 LOCALIZATION fallbacks for keys genuinely absent from pl_PL/fi_FI — `before_summary`, `standard_location`, etc. — are unrelated and out of scope.)
+- **Actual:** aside → valid JSON; events show only the LOGIN + pre-existing LOCALIZATION warnings, no Error rows attributable to the fix. PASS.
 
-### Test 8 — i18n: key present in all 10 bundles + German UI
-1. `python3 -m json.tool` on each `gui/templates/i18n/*.json`; grep key presence.
-2. Open `cfieldsView.html?...&locale=de`, edit **Tier**.
-- **Expected:** all 10 bundles valid JSON and contain `cf.msg.warningNoTypeChange`; German modal warning text localised.
-- **Actual:** 10/10 bundles valid + key present (`de.json` value verified); German modal shows `Dieses benutzerdefinierte Feld enthält bereits Werte; Typ und Knotentyp können nicht geändert werden.` PASS.
-
-### Test 9 — Event Viewer hygiene
-1. `SELECT log_level, COUNT(*) FROM events GROUP BY log_level` after all tests.
-- **Expected:** no new Error/Warning rows (all log_level=16 INFO; no entries >16).
-- **Actual:** 18 events, all `log_level 16`; zero events >16. PASS.
-
-**Result: 9/9 PASS.** (Refs #954)
-
-## Suite 1575 — Task — Issue #1319: tcAssign2Tplan Cancel button always visible (gap vs legacy) (Refs #1319)
-
-Feature: on the modern `gui/templates/testcases/tcAssign2Tplan.html`, the Cancel
-button must stay visible whenever test plans exist, exactly like legacy
-`dashio/testcases/tcAssign2Tplan.tpl:86` (which renders the Cancel button
-OUTSIDE the `{if $gui->can_do}` block). Only the Add button is gated on
-`can_do`. Also regression-verifies the BFF grid can_do computation.
-
-**Precondition:** run `php tmp/fixtures_1319.php` from the repo root (re-runnable).
-Produces A2PDemo (tproject), Plan A (tplan), Win10 (platform), A2P-1 v1 (unlinked
-→ can_do=true), A2P-2 v1+v2 with v1 linked to Plan A (viewing v2 → can_do=false).
-Login admin/admin on http://localhost:8082.
-
-### Test 1 — BFF: can_do=false grid for the linked-to-different-version tcversion
-1. `curl -b <session> "http://localhost:8082/api/tcassign2tplan/?action=init&tcase_id=<A2P-2>&tcversion_id=<v2>&tproject_id=<pid>"`
-- **Expected:** `status=ok`, `can_do=false`, plans[0].platforms[0].already_linked=true,
-  draw_checkbox=false.
-- **Actual:** exactly that (measured: can_do=false, already_linked=true, draw_checkbox=false). PASS.
-
-### Test 2 — BFF: can_do=true grid for the unlinked tcversion
-1. Same request for `<A2P-1>/<v1>`.
-- **Expected:** `can_do=true`, draw_checkbox=true, already_linked=false.
-- **Actual:** can_do=true, draw_checkbox=true, already_linked=false. PASS.
-
-### Test 3 — browser can_do=false: Cancel visible, Add hidden (no dead-end)
-1. Open `gui/templates/testcases/tcAssign2Tplan.html?tcase_id=<A2P-2>&tcversion_id=<v2>&tproject_id=<pid>`.
-2. Inspect grid + buttons.
-- **Expected:** rows read-only (`checked disabled` + "(already linked)" note);
-  Add button absent; **Cancel button visible**; `#actionsBar` display none,
-  `#cancelBar` display flex (measured via getComputedStyle).
-- **Actual:** Cancel visible (snapshot uid=button "Cancel"); `actionsBar=none`,
-  `cancelBar=flex`; checkbox `checked="" disabled=""`. PASS.
-- Compare legacy: `gui/templates/dashio/testcases/tcAssign2Tplan.tpl:86` Cancel is
-  unconditional when `$gui->tplans` is set.
-
-### Test 4 — browser can_do=true: Add + Cancel both visible
-1. Open the screen for `<A2P-1>/<v1>`.
-- **Expected:** addable checkbox; "+ Add" and "Cancel" both visible.
-- **Actual:** "+ Add" and "Cancel" both present. PASS.
-
-### Test 5 — Add-flow regression: assign still works and Cancel survives the re-render
-1. On the A2P-1 view tick the Plan A checkbox, click **+ Add**.
-- **Expected:** okBox 'Added to 1 test plan(s)'; after re-render `can_do=false`
-  with Add hidden and Cancel visible.
-- **Actual:** okBox shown; re-rendered grid has Add hidden, Cancel visible,
-  `ctx.info.can_do=false`, `already_linked=true`. PASS.
-- NOTE: a separate stale-row render bug (checkbox not disabled until reload)
-  was observed here and filed as GitHub **#1566** (label `bug`) — NOT part of
-  this issue's scope; full-page reload renders the row correctly.
-
-### Test 6 — Event Viewer hygiene
-1. After the tests, query `events` table / Event Viewer screen.
-- **Expected:** no new Error/Warning entries; only INFO audit rows.
-- **Actual:** 11 events, all log_level=16 (INFO audit: CREATE/ASSIGN/LOGIN),
-  zero Error/Warning. PASS.
-
-**Result: 6/6 PASS.** (Refs #1319; screenshots in docs/screenshots/issue-1319-can-do-false-cancel-visible.png, issue-1319-can-do-true-add-and-cancel.png, issue-1319-post-add-can-do-false-cancel-only.png.)
-
+**Result: 6/6 PASS.** (Refs #1564. The fixes to #1563 remain live: Test 5 proves `after_title`/`after_preconditions` render as real pl translations in the previously-corrupt locale. Remaining `?>` tags in `de_DE:3720`, `es_ES:3856`, `it_IT:2427`, `ru_RU:2824` are legitimate end-of-file terminators — confirmed not stray by code review.)
