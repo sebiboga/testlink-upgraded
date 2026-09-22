@@ -136,6 +136,26 @@ $tcaseMgr = new testcase($db);
 $tprojectMgr = new testproject($db);
 $tcaseCfg = config_get('testcase_cfg');
 
+/**
+ * Localized Test Case status label map code => text, sourced from the SAME
+ * legacy configuration the 1.9.20 editor used (cfg/const.inc.php testCaseStatus
+ * + locale/…/strings.txt testCaseStatus_*), keyed by the numeric code exactly
+ * like legacy tcEdit.php:431-433 (getConfigAndLabels('testCaseStatus','code')).
+ * Aligns the modern dropdown with the legacy domain
+ * (1 Draft,2 Ready for review,3 Review in progress,4 Rework,5 Obsolete,
+ *  6 Future,7 Final) — Refs #1316.
+ */
+function tceStatusLabels() {
+    $dummy = getConfigAndLabels('testCaseStatus', 'code');
+    $lbl = $dummy['lbl'];
+    ksort($lbl);
+    $labels = [];
+    foreach ($lbl as $code => $text) {
+        $labels[intval($code)] = strval($text);
+    }
+    return $labels;
+}
+
 function getParentChain($dbHandler, $nodesTable, $nodeId) {
     $chain = [];
     $cur = intval($nodeId);
@@ -364,6 +384,10 @@ function buildEditPayload(&$db, &$tcaseMgr, &$tprojectMgr, &$user, $tcaseId, $tc
         'has_been_executed' => $executed,
         'exec_types' => $execTypes,
         'importances' => $importances,
+        // Refs #1316: code => legacy-localized label map (config-sourced),
+        // used by the editor to render the Status dropdown in the legacy
+        // testCaseStatus domain (Rework=4 .. Final=7).
+        'statusLabels' => tceStatusLabels(),
         'all_keywords' => $projectKeywords,
         'labels' => [
             'title_edit_tc' => lang_get('title_edit_tc'),

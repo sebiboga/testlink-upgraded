@@ -284,13 +284,19 @@ function renderEditor() {
   fillSelect('#tc_importance', ctx.info.importances, tc.importance, 'tcedit.imp');
   fillSelect('#tc_exec_type', ctx.info.exec_types, tc.execution_type, 'tcedit.exec');
 
-  // status select: domain codes 1..7
+  // status select: legacy testCaseStatus domain, code => label map served by
+  // the BFF (cfg/const.inc.php + locale testCaseStatus_*, see Refs #1316).
+  var statusLabels = ctx.info.statusLabels || null;
+  if (!statusLabels) {
+    // defensive fallback: the legacy 1.9.20 domain (Rework=4, .. Final=7)
+    statusLabels = {1: 'Draft', 2: 'Ready for review', 3: 'Review in progress',
+                    4: 'Rework', 5: 'Obsolete', 6: 'Future', 7: 'Final'};
+  }
   var statusVal = tc.status;
   $('#tc_status').empty();
-  for (var i = 1; i <= 7; i++) {
-    var lbl = 'tcedit.status' + i;
-    $('#tc_status').append('<option value="' + i + '">' + TLi18n.t(lbl) + '</option>');
-  }
+  Object.keys(statusLabels).sort(function (a, b) { return a - b; }).forEach(function (code) {
+    $('#tc_status').append('<option value="' + code + '">' + esc(statusLabels[code]) + '</option>');
+  });
   $('#tc_status').val(String(statusVal));
 
   // keywords
