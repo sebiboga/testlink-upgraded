@@ -18858,3 +18858,66 @@ Fixture (this run, fresh DB): role `cf_viewer` (role_id 10) holding ONLY right i
 - **Actual:** all rows level 16; no higher-level entries. PASS.
 
 **Result: 6/6 PASS.** (Refs #1320. Changes: `gui/templates/testcases/tcAssign2Tplan.html` toolbar nav icons + `openHistory()`/`openDesign()`; i18n keys `ta2p.design`/`ta2p.execHistory` in all 10 bundles; fixture `tmp/fixtures_1320.php`; screenshot `docs/screenshots/issue-1320-toolbar-icons.png`.)
+## Modernize — Issue #1560: Bug Add/Link popup (bugAdd.html, BFF api/bugadd)
+**Precond (fixture `tmp/fixtures_1560.php`, run just after a fresh DB import):** project "BugAdd Demo" (prefix BAD1560), issuetracker "TLU Mantis Double" (type 24, session-backed double in lib/issuetrackerintegration/mantisrestInterface.class.php, demo band 15600000..15609999), testplan "BugAdd Plan", build "BugAdd Build 1", suite+tc "BugAdd Login Check" (2 steps), executions 3 (notes, status p) & 4 (status f), `testplan_tcversions` row, and the `norights` role-3 user (`php tmp/mkuser_norights.php`). Admin session via `curl -c /tmp/ck.txt http://localhost:8082/login.php -d tl_login=admin&tl_password=admin`; norights session in ck2.
+### Test 1 — BFF init (link): context + tracker + metadata shape
+1. `curl -b /tmp/ck.txt -H "X-Requested-With: XMLHttpRequest" '…/api/bugadd/index.php?action=init&exec_id=3&user_action=link'`.
+- **Expected:** `status:ok`, `issue_tracker.enabled:true`, `issue_metadata.issueTypes` = `{items:{…},isMultiSelect:…}` (wrapper shape), context holds tc/plan/project/build/status/executed-on; `tplan_api_key` NOT present in payload.
+- **Actual:** all true; metadata wrapper present; no api-key leak. PASS.
+
+### Test 2 — BFF authz matrix
+1. anon init → 401; 2. norights init → 403; 3. `exec_id=999999` → 404 Execution not found; 4. `exec_id=abc` → 400; 5. `POST ?action=init`/`GET ?action=link` → 405; 6. `action=bogus` → 400; 7. POST without X-Requested-With/Origin → 403 CSRF.
+- **Expected:** those statuses, JSON `status:error`.
+- **Actual:** 1→401, 2→403, 3→404, 4→400, 5→405, 6→400, 7→403. PASS.
+
+### Test 3 — link existing bug + note with %%tags%% (no TL link flags)
+1. `POST ?action=link` with `{exec_id:3,tcstep_id:0,bug_id:'15600004',bug_notes:'%%EXECID%% on %%BUILD%%'}` (no addLinkToTL).
+- **Expected:** `status:ok, note_added:true, note_message:""`; `execution_bugs` row (3,15600004,0); generateIssueText substitutes tags even without TL flags; only the TL-link block is option-gated.
+- **Actual:** ok, row present, audit CREATE event `audit_executionbug_added`. PASS.
+
+### Test 4 — link non-existent / wrong syntax
+1. bug_id `999999` → 400 "bug 999999 does not exist on the bug tracker"; 2. bug_id `abc` → 400 wrong format.
+- **Expected:** JSON 400 both.
+- **Actual:** both 400 with expected messages. PASS.
+
+### Test 5 — create issue returns the created id (in demo band)
+1. `POST ?action=create` `{exec_id:3,tcstep_id:21,bug_summary,issueType:'1',…}`.
+- **Expected:** `status:ok` with non-empty `bug_id` (1560…), id in band 15600000..15609999, `execution_bugs` row, audit CREATE event. (Fixed by additive `$ret['bug_id']` in exec.inc.php addIssue.)
+- **Actual:** `bug_id:"156001004"` (band), row (3,156001004,21), event logged. PASS.
+
+### Test 6 — add_note
+1. `POST ?action=add_note` `{exec_id:3,bug_id:'15601001',bug_notes}`.
+- **Expected:** ok (band ids accepted by the double), no note_message error.
+- **Actual:** `{"status":"ok","action":"add_note","bug_id":"15601001",…}`. PASS.
+
+### Test 7 — browser: popup renders context card + tracker link + tabs
+1. Open `bugAdd.html?exec_id=3&tcstep_id=0&user_action=link` while logged in.
+- **Expected:** context card (Execution #3, TC/plan/project/build/status/executed-on), "Create bug on tracker (TLU Mantis Double)" link, three tabs + notes hint with tag legend, locale switcher.
+- **Actual:** all render; no console errors. PASS.
+
+### Test 8 — browser: link flow (success + error boxes)
+1. Fill bug id 15600004 + tagged notes, Save → green "Bug 15600004 was linked to the execution." 2. Fill 999999 → red error "bug 999999 does not exist on the bug tracker".
+- **Expected:** success box (1) and error box (2). NOTE: form is `novalidate` (JS does the required checks) otherwise the hidden required `#bugSummary` blocks submit with "invalid form control is not focusable".
+- **Actual:** both boxes shown; form submits cleanly (novalidate fix verified). PASS.
+
+### Test 9 — browser: create flow + metadata selects
+1. Switch to Create issue tab → selects populated (Issue type Bug/Task/Improvement, Priority Low/Normal/High, component/version). 2. Fill summary+notes, check add-Link-to-TL, save → success + `execution_bugs` row (3,156001001,0).
+- **Expected:** real options (metaList unwraps `{items,isMultiSelect}`), no empty selects, no TypeError on create render.
+- **Actual:** options rendered from the unwrap; create persisted row; console clean. PASS.
+
+### Test 10 — browser: add-note mode (URL-driven readonly + prefill)
+1. Open `bugAdd.html?exec_id=3&user_action=add_note&bug_id=15600004`.
+- **Expected:** bugId prefilled with 15600004 and readonly; notes hint + checkboxes hidden; save → "Note added to bug 15600004."
+- **Actual:** prefill+readonly confirmed; success message after save. PASS.
+
+### Test 11 — browser: locale switch (ro_RO) + not-found state
+1. Reopen with `&locale=ro` → tabs become "Leagă bug / Creează problemă / Adaugă notă". 2. Open `exec_id=999999` → "Execution not found / the execution does not exist or was deleted."
+- **Expected:** Romanian labels; not-found box.
+- **Actual:** add_note form title "Adaugă notă", link tab "Leagă bug"; not-found box text matches. PASS.
+
+### Test 12 — Event Viewer hygiene
+1. After the whole suite, inspect `events` for new log_level 20/30/40/50 rows; run legacy Event Viewer screen too.
+- **Expected:** only INFO audit rows; zero E_WARNING/LOCALIZATION/PHP errors. Fixed in-run: missing `tplan_api_key` warning (bugAddArgs now resolves it server-side) and `tc_name`/`tc_external_id` LOCALIZATION warnings (keys added to locale/en_GB/strings.txt).
+- **Actual:** events after fixes contain only `audit_executionbug_added` CREATE rows. PASS.
+
+**Result: 12/12 PASS.** (Refs #1560. Screen `gui/templates/execute/bugAdd.html` + `api/bugadd/index.php`; tracker double `lib/issuetrackerintegration/mantisrestInterface.class.php`; legacy shim `lib/execute/bugAdd.php`; additive `$ret['bug_id']` in exec.inc.php addIssue(); i18n `buga.*` (36 keys) + `footers.bugAdd` in all 10 JSON bundles; screenshots `tmp/shots/bugadd_{link,create,note}_mode.png`; docs `docs/Bug-Add-Link.md`.)
