@@ -19090,3 +19090,45 @@ Fixture: `php tmp/fixtures_1559.php` (project B1559, TC "BUG Login Check" + 2 st
 - **Actual:** `events` shows only log_level 16; no console errors. PASS.
 
 **Result: 9/9 PASS.** (Refs #955)
+
+## Suite 1565 — Regression — Bug #1565: cfieldsView saveCf() leaves saving=true locked when client-side validation fails (Refs #1565)
+
+**Precondition:** admin/admin on `http://localhost:8082`, fresh DB, no custom fields.
+Open `gui/templates/cfields/cfieldsView.html?tproject_id=1&tplan_id=0`.
+
+**Pre-fix repro:** open Create modal → leave Label (and Name) empty → Save → "Label and
+Name are required." shows and `saving` remains `true` (measured via page scope eval);
+filling the fields and clicking Save again fires NO request (network panel unchanged) —
+Save dead until a full page reload.
+
+### Test 1 — validation failure releases the saving lock
+1. Click `+ Create Custom Field`, leave Label+Name empty, click Save.
+- **Expected:** `#modalError` "Label and Name are required." visible AND page-scope `saving === false`.
+- **Actual:** `{"saving":false,"modalErrorVisible":true,"modalErrorText":"Label and Name are required."}`. PASS.
+
+### Test 2 — retry after validation failure sends the POST
+1. After Test 1, fill Label=`Repro CF`, Name=`repro_cf`, click Save.
+- **Expected:** network panel shows `POST /api/cfields/index.php [200]` + refresh GET; modal closes; row appears in table.
+- **Actual:** reqid 120 `POST [200]`, reqid 121 GET `[200]`; `modalOpen:false`, `rowCount:1` («Repro CF / repro_cf / string / Yes / - / Design»). PASS.
+
+### Test 3 — validate → cancel → reopen stays unlocked
+1. Open Create modal, empty Save, cancel, reopen Create modal.
+- **Expected:** `saving === false`, modal open, Save still works.
+- **Actual:** `{"saving":false,"modalOpen":true}` after reopen. PASS.
+
+### Test 4 — edit path (client-side validation release does not break PUT)
+1. Click edit icon of an existing custom field, change Label, Save.
+- **Expected:** `GET /api/cfields/index.php/{id}` then `PUT .../{id} [200]` + refresh; modal closes; updated label rendered.
+- **Actual:** reqid 122 GET `[200]`, reqid 123 PUT `[200]`, reqid 124 GET `[200]`; modal closed. PASS.
+
+### Test 5 — server-error path still resets the lock
+1. Open Create modal, fill Label=`Dup`, Name=`repro_cf` (duplicate), Save.
+- **Expected:** `POST [400]` «Custom field name already exists» in `#modalError`, `saving === false`, modal stays open for retry.
+- **Actual:** reqid 125 `POST [400]`; `{"saving":false,"modalOpen":true,"errorText":"Custom field name already exists"}`. PASS.
+
+### Test 6 — no new Event Viewer / console errors
+1. After all flows, check `events` table and browser console.
+- **Expected:** no new Error/Warning entries from this workflow; no JS console errors.
+- **Actual:** console logged no errors; see Event Viewer check in the issue closure. PASS.
+
+**Result: 6/6 PASS.** (Refs #1565)
