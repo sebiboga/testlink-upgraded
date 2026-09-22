@@ -612,17 +612,20 @@ Execution:
 - Execution History (execHistory.html) - BFF api/execute.
 - TC Exec Assignment (tcExecAssignment.html) - BFF api/execassignment.
 - Remove all tester assignments (tcUnassignAll.html) - BFF api/tcunassignall (#1434).
+- Bug Add/Link popup (bugAdd.html) - BFF api/bugadd (#1560): modernizes the last
+  standalone legacy screen lib/execute/bugAdd.php (kept as a session-guarded 302
+  shim). Three modes in one Dashio popup — Link, Create Issue and Add Note — with
+  test-case context card, tracker metadata selects (issue type/priority/component/
+  version, unwrapped from the {items,isMultiSelect} map), issue existence +
+  syntax checks, notes with %%EXECID%%-style tag substitution and optional
+  add-Link-to-TL blocks, audited (audit_executionbug_added). buga.* i18n keys
+  (36) + footers.bugAdd in all 10 bundles; link switches bugAddView (common.php)
+  + testlink_library.js openers. Session auth + rights gate (testplan_execute) +
+  bffSameOriginGuard: 401 anon, 403 no-rights, 404/400 validation, 405 method.
+  Tested against a bundled session-backed Mantis-tracker double
+  (lib/issuetrackerintegration/mantisrestInterface.class.php, type 24) because no
+  live BTS is available in the demo environment.
 - Execution Notes popup (execNotes.html) - BFF api/execnotes (#1551): standalone
-  view/edit of the free-form execution notes, modernizing the legacy two-screen
-  pair lib/execute/execNotes.php (edit) + lib/execute/getExecNotes.php (readonly).
-  GET /{exec_id} resolves the execution + build/platform/testplan/testcase/project
-  context via get_execution() (raw + audit), PUT /{exec_id} persists notes with
-  the legacy doUpdate() semantics. $actions->execNotesView link switch in
-  common.php; execnotes.* i18n (15 keys) in all 10 bundles. Session auth +
-  bffSameOriginGuard (401 anon, 403 CSRF, 404 unknown exec) — the LAST remaining
-  lib/execute/* screen pair with no dedicated modern screen (TODO section of
-  MODERNIZATION-STATUS.md is now empty: this close-out pick came from the
-  "smallest coherent legacy standalone screen" rule).
 - Help popup (showHelp.html) - BFF api/help (#1552): standalone localized help-viewer
   popup replacing the last standalone lib/general/* popup lib/general/show_help.php.
   Legacy parity (18 help topics): the modern screen renders a topic-index sidebar

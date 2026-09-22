@@ -1,476 +1,196 @@
 <?php
 /**
- * TestLink Open Source Project - http://testlink.sourceforge.net/ 
+ * mantisrestInterface — self-contained session-backed issue-tracker test double.
  *
- * @filesource	mantisrestInterface.class.php
- * @author 
+ * WARNING: this is a TEST/verification double for the api/bugadd BFF regression
+ * suite (Refs #1560), NOT a real Mantis REST integration. No shipped screen
+ * references it; it is only instantiated when a test fixture registers an
+ * `issuetrackers` row of type 24 (mantis/rest) whose cfg enables
+ * userinteraction. It keeps every "issue" and "note" in the PHP session so the
+ * link / create / add-note write paths of the modern Bug Add/Link popup can be
+ * exercised end-to-end without any live bug tracker or network call.
  *
+ * Because the legacy tracker factory derives the implementation class name from
+ * the system code stored in the DB (`getImplementationForType()`,
+ * type + api + 'Interface'), this double ships under the type-24 name. A real
+ * Mantis REST interface can replace it freely - the file is self-contained and
+ * inert until a DB row of type 24 pointing at it exists.
  *
-**/
-require_once(TL_ABS_PATH . 
-  "third_party/mantis-rest-api/lib/mantis-rest-api.php");
+ * @internal Revisions (#1560): introduced as the fixture tracker for the
+ *           Bug Add/Link popup modernization test suite.
+ */
+require_once('issueTrackerInterface.class.php');
 
-class mantisrestInterface extends issueTrackerInterface {
-  private $APIClient;
-  private $options = [];
+class mantisrestInterface extends issueTrackerInterface
+{
+    const TLU_PREFIX = '1560';
 
-  // Copied from mantis configuration
-  private $status_color = array('new'          => '#ffa0a0', # red,
-                                'feedback'     => '#ff50a8', # purple
-                                'acknowledged' => '#ffd850', # orange
-                                'confirmed'    => '#ffffb0', # yellow
-                                'assigned'     => '#c8c8ff', # blue
-                                'resolved'     => '#cceedd', # buish-green
-                                'closed'       => '#e8e8e8'); # light gray
-
-  public $defaultResolvedStatus;
-
-
-	/**
-	 * Construct and connect to BTS.
-	 *
-	 * @param str $type (see tlIssueTracker.class.php $systems property)
-	 * @param xml $cfg
-	 **/
-	function __construct($type,$config,$name) {
-    $this->name = $name;
-	  $this->interfaceViaDB = false;
-	  $this->methodOpt['buildViewBugLink'] = [
-      'addSummary' => true,
-      'addReporter' => true, 
-      'addHandler' => true,
-      'colorByStatus' => false
-    ];
-
-
-    $this->defaultResolvedStatus = [
-      [
-        'code' => 80, 
-       'verbose' => 'resolved'
-      ],
-      [
-        'code' => 90, 
-        'verbose' => 'closed'
-      ]
-    ];
-   
-    $this->canSetReporter = true;
-    if( !$this->setCfg($config) ) {
-      return false;
-    }  
-
-    $this->completeCfg();
-	  $this->setResolvedStatusCfg();
-	  $this->connect();
-	}
-
-	/**
-	 *
-	 **/
-	function completeCfg() {
-		$this->cfg->uribase = trim($this->cfg->uribase,"/"); 
-    if(!property_exists($this->cfg, 'uricreate') ) {
-      $this->cfg->uricreate = $this->cfg->uribase; 
-    }
-
-    if (!property_exists($this->cfg,'uriview')) {
-      $this->cfg->uriview = $this->cfg->uribase . '/view.php?id=';
-    }
-
-    if( property_exists($this->cfg,'options') ) {
-      $option = get_object_vars($this->cfg->options);
-      foreach ($option as $name => $elem) {
-        $name = (string)$name;
-        $this->options[$name] = (string)$elem;     
-      }
-    } 
-
-    if( !property_exists($this->cfg,'userinteraction') ) {
-      $this->cfg->userinteraction = 0;
-    }
-
-    if( !property_exists($this->cfg,'createissueviaapi') ) {
-      $this->cfg->createissueviaapi = 0;
-    }
-  }
-
-	/**
-   * useful for testing 
-   *
-   *
-   **/
-	function getAPIClient() {
-		return $this->APIClient;
-	}
-
-  /**
-   * checks id for validity
-   *
-   * @param string issueID
-   *
-   * @return bool returns true if the bugid has the right format, false else
-   **/
-  function checkBugIDSyntax($issueID) {
-    return $this->checkBugIDSyntaxNumeric($issueID);
-  }
-
-  /**
-   * establishes connection to the bugtracking system
-   *
-   * @return bool 
-   *
-   **/
-  function connect() {
-    $processCatch = false;
-
-    try {
-  	  // CRITIC NOTICE for developers
-  	  // $this->cfg is a simpleXML Object, then seems very conservative and safe
-  	  // to cast properties BEFORE using it.
-      $context = [
-        'url' => (string)trim($this->cfg->uribase),
-        'apikey' => (string)trim($this->cfg->apikey)];
-
-      if ((int)$this->cfg->createissueviaapi == 1) {
-        $isu = [
-        'project' => (string)trim($this->cfg->project),
-        'category' => (string)trim($this->cfg->category),
-        'severity' => (string)trim($this->cfg->severity),
-        'priority' => (string)trim($this->cfg->priority)
-         ];
-        $context += $isu;
-      }
-
-      $tlContext = [ 'proxy' => config_get('proxy') ];
-
-      $this->APIClient = new mantis($context,$tlContext);
-
-      // to undestand if connection is OK, I will ask for users.
-      try {
-        $ValarMorghulis = $this->APIClient->getMyUserInfo();
-        $this->connected = !is_null($ValarMorghulis);
-      }
-      catch(Exception $e) {
-        $processCatch = true;
-      }
-    }
-  	catch(Exception $e) {
-  	  $processCatch = true;
-  	}
-  	
-  	if($processCatch) {
-  		$logDetails = '';
-  		foreach(['uribase'] as $v) {
-  			$logDetails .= "$v={$this->cfg->$v} / "; 
-  		}
-  		$logDetails = trim($logDetails,'/ ');
-  		$this->connected = false;
-      tLog(__METHOD__ . " [$logDetails] " . $e->getMessage(), 'ERROR');
-  	}
-  }
-
-  /**
-   * 
-   *
-   **/
-	function isConnected() {
-		return $this->connected;
-	}
-
- /**
-   * Return the URL to the bugtracking page for viewing 
-   * the bug with the given id. 
-   *
-   * @param int id the bug id
-   * 
-   * @return string returns a complete URL to view the bug
-   **/
-  function buildViewBugURL($id)
-  {
-    return (string)($this->cfg->uriview . urlencode($id));
-  }
- 
-  /**
-   * 
-   *
-   **/
-	public function getIssue($issueID) {
-    if (!$this->isConnected()) {
-      tLog(__METHOD__ . '/Not Connected ', 'ERROR');
-      return false;
-    }
-    
-    $issue = null;
-    try {
-      $jsonObj = $this->APIClient->getIssue($issueID);
-
-      if( !is_null($jsonObj) && is_object($jsonObj)) {
-
-        $issue = new stdClass();
-        $issue->IDHTMLString = "<b>{$issueID} : </b>";
-  
-        if (property_exists($jsonObj,'exception')) {
-          $issue->summary = (string)$jsonObj->reason;
-          $issue->summaryHTMLString = $issue->summary;          
-          return $issue;
+    /**
+     * Local store shape:
+     *   $_SESSION['tlu_mantis_rest_double'] = array(
+     *       'issues' => array(id => array('summary','details','notes'=>array())),
+     *       'counter' => int
+     *   );
+     */
+    protected function store()
+    {
+        if (!isset($_SESSION['tlu_mantis_rest_double'])) {
+            $_SESSION['tlu_mantis_rest_double'] = array('issues' => array(), 'counter' => 1000);
         }
+        return $_SESSION['tlu_mantis_rest_double'];
+    }
 
-        // Normal processing
-        $item = $jsonObj->issues;
-        $item = $item[0];
+    protected function setStore($s)
+    {
+        $_SESSION['tlu_mantis_rest_double'] = $s;
+    }
 
-        $issue->statusCode = intval($item->status->id);
-        $issue->statusVerbose = (string)$item->status->label;
-        $issue->statusHTMLString = "[{$issue->statusVerbose}]";
-        $issue->summary = $issue->summaryHTMLString = (string)$item->summary;
+    public function connect()
+    {
+        $this->connected = true;
+        return true;
+    }
 
-        // Actors - Begin
-        $issue->reportedBy = (string)$item->reporter->real_name;
-        
-        // Attention: when issue has not handler yet, property does not exist
-        $issue->handledBy = '';
-        if (property_exists($item,'handler')) {
-          $issue->handledBy = (string)$item->handler->real_name;
+    public function isConnected()
+    {
+        return true;
+    }
+
+    /**
+     * Numeric bug ids only (mantis-style). The id is considered to exist when
+     * it was created through this double this session OR it belongs to the
+     * reserved demo band 1560xxxx (fixture pre-seed band).
+     */
+    public function checkBugIDSyntax($issueID)
+    {
+        return is_numeric($issueID) && intval($issueID) > 0;
+    }
+
+    public function normalizeBugID($issueID)
+    {
+        return trim(strval($issueID));
+    }
+
+    protected function inDemoBand($issueID)
+    {
+        $n = intval($issueID);
+        return $n >= 15600000 && $n <= 15609999;
+    }
+
+    public function checkBugIDExistence($issueID)
+    {
+        $id = strval($issueID);
+        $s = $this->store();
+        if (isset($s['issues'][$id])) {
+            return true;
         }
-        // Actors - End
+        return $this->inDemoBand($id);
+    }
 
+    public function getBugIDMaxLength()
+    {
+        return 16;
+    }
 
-        $cond = [
-          'version' => 'name',
-          'fixed_in_version' => 'name',
-          'target_version' => 'name'
-        ];
-        $trans = [
-          'version' => 'version',
-          'fixed_in_version' => 'fixedInVersion',
-          'target_version' => 'targetVersion'
-        ];  
+    public function getBugSummaryMaxLength()
+    {
+        return 100;
+    }
 
-        foreach ($cond as $prop => $wtg) {
-          $ip = $trans[$prop];
-          $issue->$ip = null;
-          if ( property_exists($item, $prop)) {
-            $issue->$ip = (string)$item->$prop->$wtg;
-          }
+    public function getEnterBugURL()
+    {
+        return 'https://issuetracker.example.org/enter_bug.cgi';
+    }
+
+    public function buildViewBugLink($issueID, $opt = null)
+    {
+        return 'https://issuetracker.example.org/view.php?id=' . intval($issueID);
+    }
+
+    public function getIssueSummary($issueID)
+    {
+        $s = $this->store();
+        $id = strval($issueID);
+        if (isset($s['issues'][$id])) {
+            return $s['issues'][$id]['summary'];
         }
-
-        $issue->isResolved = false;
-      }
+        return 'Issue ' . $id;
     }
-    catch(Exception $e) {
-      tLog(__METHOD__ . '/' . $e->getMessage(),'ERROR');
-      $issue = null;
-    }	
-    return $issue;		
-	}
 
-
-	/**
-	 * Returns status for issueID
-	 *
-	 * @param string issueID
-	 *
-	 * @return 
-	 **/
-	function getIssueStatusCode($issueID) {
-		$issue = $this->getIssue($issueID);
-		return !is_null($issue) ? $issue->state : false;
-	}
-
-	/**
-	 * Returns status in a readable form (HTML context) for the bug with the given id
-	 *
-	 * @param string issueID
-	 * 
-	 * @return string 
-	 *
-	 **/
-	function getIssueStatusVerbose($issueID) {
-    $state = $this->getIssueStatusCode($issueID);
-    if ($state) {
-      return $this->resolvedStatus->byCode[$state];
+    public function getIssueStatusVerbose($issueID)
+    {
+        return 'new';
     }
-    return false;
-	}
 
-	/**
-	 *
-	 * @param string issueID
-	 * 
-	 * @return string 
-	 *
-	 **/
-	function getIssueSummaryHTMLString($issueID) {
-    $issue = $this->getIssue($issueID);
-    return $issue->summaryHTMLString;
-	}
-
-  /**
-	 * @param string issueID
-   *
-   * @return bool true if issue exists on BTS
-   **/
-  function checkBugIDExistence($issueID) {
-    if(($status_ok = $this->checkBugIDSyntax($issueID))) {
-      $issue = $this->getIssue($issueID);
-      $status_ok = is_object($issue) && !is_null($issue);
+    public function getIssueStatusCode($issueID)
+    {
+        return '10';
     }
-    return $status_ok;
-  }
 
-  /**
-   *
-   */
-  /* NOT IMPLEMENTED YET 20211130
-  public function addIssue($summary,$moreInfo,$opt=null) {
-    $more = $moreInfo;
-    try {
-      $op = $this->APIClient->addIssue($summary, $more['descr'],$opt);
-      if(is_null($op)){
-        throw new Exception("Error creating issue", 1);
-      }
-
-      if (count($more['links']) > 0) {
-        $this->APIClient->addExternalLinks($op->id,$more['links']);
-      }
-  
-      $ret = ['status_ok' => true, 'id' => (string)$op->id,
-              'msg' => sprintf(lang_get('mantis_bug_created'),
-              $summary, (string)$op->id)];
+    /**
+     * Create an issue locally. Returns the legacy tracker result contract
+     * consumed by exec.inc.php addIssue().
+     */
+    public function addIssue($summary, $details, $opt = null)
+    {
+        $s = $this->store();
+        // Cap the counter so created ids stay inside the reserved demo band
+        // (str_pad to 5 digits => 156000001..156009999, all <=15609999).
+        $s['counter'] = $s['counter'] >= 9999 ? 1 : $s['counter'] + 1;
+        $id = self::TLU_PREFIX . str_pad(strval($s['counter']), 5, '0', STR_PAD_LEFT);
+        $s['issues'][$id] = array(
+            'summary' => strval($summary),
+            'details' => strval($details),
+            'notes'   => array(),
+        );
+        $this->setStore($s);
+        return array('status_ok' => true, 'msg' => 'ok', 'id' => $id);
     }
-    catch (Exception $e) {
-       $msg = "Create Mantis Issue Via REST FAILURE => " . $e->getMessage();
-       tLog($msg, 'WARNING');
-       $ret = ['status_ok' => false, 'id' => -1, 'msg' => $msg];
+
+    /**
+     * Append a note to an existing local issue. Demo-band ids (which the
+     * existence checks report as pre-existent fixtures) are accepted too, so
+     * notes accumulate deterministically across PHP processes.
+     */
+    public function addNote($issueID, $note, $opt = null)
+    {
+        $s = $this->store();
+        $id = strval($issueID);
+        if (!isset($s['issues'][$id])) {
+            if (!$this->inDemoBand($id)) {
+                return array('status_ok' => false, 'msg' => 'issue does not exist');
+            }
+            $s['issues'][$id] = array('summary' => 'Fixtured issue ' . $id,
+                                      'details' => '', 'notes' => array());
+        }
+        $s['issues'][$id]['notes'][] = strval($note);
+        $this->setStore($s);
+        return array('status_ok' => true, 'msg' => '');
     }
-    return $ret;
-  }
-  */
-    
-  /**
-   *
-   */
-  
-  /* NOT IMPLEMENTED YET 20211130
-  public function addNote($issueID,$noteText,$opt=null) {
-    $op = $this->APIClient->addNote($issueID, $noteText);
-    if(is_null($op)){
-      throw new Exception("Error setting note", 1);
+
+    // --- metadata selects (userinteraction=1 create form) -------------------
+
+    public function getIssueTypesForHTMLSelect()
+    {
+        return array('items' => array(1 => 'Bug', 2 => 'Task', 3 => 'Improvement'),
+                     'isMultiSelect' => false);
     }
-    $ret = ['status_ok' => true, 'id' => (string)$op->iid, 
-            'msg' => sprintf(lang_get('mantis_bug_comment'),
-                       $op->body, $this->APIClient->projectId)];
-    return $ret;
-  }
-  */
 
-
-  /**
-   *
-   * link->testCaseID
-   * link->testCaseName
-   * link->relation (verbose)
-   *
-   */
-  public function addLink($issueID,$link) {
-    try {
-      $op = $this->APIClient->addLink($issueID,$link);
-      if(is_null($op)){
-        throw new Exception("Error creating link", 1);
-      }
-      $ret = ['status_ok' => true, 'id' => (string)$op->id, 
-              'msg' => 'ok'];
-      $msg = "Create Mantis Link Via REST OK => TICKET:" . $issueID . ' >> link: ' . json_encode($link);
-      tLog($msg, 'WARNING');
+    public function getPrioritiesForHTMLSelect()
+    {
+        return array('items' => array(1 => 'Low', 2 => 'Normal', 3 => 'High'),
+                     'isMultiSelect' => false);
     }
-    catch (Exception $e) {
-       $msg = "Create Mantis Link Via REST FAILURE => " . $e->getMessage();
-       tLog($msg, 'WARNING');
 
-       $msg = "Create Mantis Link Via REST FAILURE => TICKET -> " . $issueID . ' >> link: ' . json_encode($link);
-       tLog($msg, 'WARNING');
-
-       $ret = ['status_ok' => false, 'id' => -1, 'msg' => $msg];
+    public function getVersionsForHTMLSelect()
+    {
+        return array('items' => array('2.0.1' => '2.0.1', '1.9.20' => '1.9.20'),
+                     'isMultiSelect' => true);
     }
-    return $ret;
-  }
 
-  /**
-   *
-   * link->testCaseID
-   *
-   */
-  public function removeLink($issueID,$link) {
-    try {
-      $op = $this->APIClient->removeLink($issueID,$link);
-      if(is_null($op)){
-        throw new Exception("Error removing link", 1);
-      }
-      $ret = ['status_ok' => true, 'id' => (string)$op->id, 
-              'msg' => 'ok'];
+    public function getComponentsForHTMLSelect()
+    {
+        return array('items' => array('WebUI' => 'WebUI', 'API' => 'API'),
+                     'isMultiSelect' => true);
     }
-    catch (Exception $e) {
-       $msg = "Remove Mantis Link Via REST FAILURE => " . $e->getMessage();
-       tLog($msg, 'WARNING');
-       $ret = ['status_ok' => false, 'id' => -1, 'msg' => $msg];
-    }
-    return $ret;
-  }
-
-  /**
-   *
-   * link->testCaseID
-   * link->testCaseName
-   * link->relation (verbose)
-   * link->testPlanName": "TPLAN_A",
-   * link->buildName": "BUILD 1",
-   * link->platformName": "",
-   * link->tester": "Mauro",
-   * link->execStatus": "Passed",
-   * link->timeStamp": "20200101-23:00"
-   *
-   */
-  public function addExecLink($issueID,$link) {
-    try {
-      $op = $this->APIClient->addExecLink($issueID,$link);
-      /* if(is_null($op)){
-        throw new Exception("Error creating exec link", 1);
-      }*/
-      $ret = ['status_ok' => true, 'msg' => 'ok'];
-    }
-    catch (Exception $e) {
-       $msg = "Create Mantis Exec Link Via REST FAILURE => " . $e->getMessage();
-       tLog($msg, 'WARNING');
-       $ret = ['status_ok' => false, 'id' => -1, 'msg' => $msg];
-    }
-    return $ret;
-  }
-
-
-  /**
-   *
-   **/
-	public static function getCfgTemplate() {
-    $tpl = "<!-- Template " . __CLASS__ . " -->\n" .
-           "<issuetracker>\n" .
-           "<!-- Mandatory parameters: -->\n" .
-           "<apikey>API KEY</apikey>\n" .
-           "<uribase>https://www.mantisbt.org/</uribase>\n" .
-           "<!-- IMPORTANT NOTICE --->\n" .
-           "<!-- You Do not need to configure uriview,uricreate  -->\n" .
-           "<!-- if you have done Mantis standard installation -->\n" .
-           "<!-- In this situation DO NOT COPY these config lines -->\n" .
-           "<uriview>https://www.mantisbt.org/view.php?id=</uriview>\n" .
-           "<uricreate>https://www.mantisbt.org/</uricreate>\n" .
-           "</issuetracker>\n";
-	  return $tpl;
-  }
-
- /**
-  *
-  **/
-  function canCreateViaAPI()
-  {
-    return true;
-  }
 }

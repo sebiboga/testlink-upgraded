@@ -204,7 +204,6 @@ function bugAddContext($execId, $tplanId, $tprojectId, $tcstepId, $userAction) {
         'testproject_name' => strval($a['testproject_name'] ?? ''),
         'execution_notes' => strval($row['notes'] ?? ''),
         'default_bug_notes' => $defaultNotes,
-        'tplan_api_key' => $tplanApiKey,
         'add_link_to_tl_checked' => intval($execCfg->exec_mode->addLinkToTLChecked ?? 0) === 1,
         'add_link_to_tl_print_view_checked' => intval($execCfg->exec_mode->addLinkToTLPrintViewChecked ?? 0) === 1,
     ];
@@ -404,13 +403,14 @@ if (in_array($action, array('link', 'create', 'add_note'), true)) {
         $noteMsg = '';
         if ($itsCfg->tlCanAddIssueNote && ($hasNotes || $addLinkToTL || $addLinkToTLPrintView)) {
             try {
-                if ($addLinkToTL || $addLinkToTLPrintView) {
-                    $args->direct_link = bugAddDirectLink($execId);
-                    $aop = array('addLinkToTL' => $addLinkToTL,
-                                 'addLinkToTLPrintView' => $addLinkToTLPrintView);
-                    $dummy = generateIssueText($db, $args, $its, $aop);
-                    $args->bug_notes = $dummy->description;
-                }
+                // Always run generateIssueText for the note text: it substitutes
+                // the %%EXECID%%/%%TESTER%%/... tags promised by the UI hint,
+                // and only appends the TL-link block when the options say so.
+                $args->direct_link = bugAddDirectLink($execId);
+                $aop = array('addLinkToTL' => $addLinkToTL,
+                             'addLinkToTLPrintView' => $addLinkToTLPrintView);
+                $dummy = generateIssueText($db, $args, $its, $aop);
+                $args->bug_notes = $dummy->description;
                 $opt = new stdClass();
                 $opt->reporter = $user->login;
                 $opt->reporter_email = trim($user->emailAddress);

@@ -745,6 +745,11 @@ function addIssue($dbHandler,$argsObj,$itsObj,$opt=null) {
   if( ($ret['status_ok'] = $rs['status_ok']) ) {                   
     if (write_execution_bug($dbHandler,$argsObj->exec_id, $rs['id'],$argsObj->tcstep_id)){
       logAuditEvent(TLS("audit_executionbug_added",$rs['id']),"CREATE",$argsObj->exec_id,"executions");
+      // 2026-09-22 (Refs #1560): expose the created issue id to callers — the
+      // modern Bug Add/Link popup API needed it for its success box; previously
+      // only the legacy $gui->addIssueOp feedback consumed this return value and
+      // only via msg/status_ok, so this extra key is purely additive.
+      $ret['bug_id'] = strval($rs['id'] ?? '');
     }
   }
 

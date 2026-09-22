@@ -7,7 +7,8 @@ $db = new database(DB_TYPE);
 doDBConnect($db);
 $hash = password_hash('norights', PASSWORD_DEFAULT);
 $db->exec_query("INSERT INTO users (login,password,role_id,email,first,last,locale,default_testproject_id,active,cookie_string,auth_method) " .
-    "VALUES ('norights','" . $hash . "',3,'n@n.no','No','Rights','en_GB',0,1,'ck_norights_1559','TestLink') " .
-    "ON DUPLICATE KEY UPDATE password=VALUES(password), role_id=3, active=1");
+    "VALUES ('norights','" . $hash . "',3,'n@n.no','No','Rights','en_GB',0,1,'ck_norights_1559','DB') " .
+    "ON DUPLICATE KEY UPDATE password=VALUES(password), role_id=3, active=1, " .
+    "auth_method=VALUES(auth_method)");
 $rs = $db->get_recordset("SELECT id,login,role_id,active FROM users WHERE login='norights'");
 echo 'user norights: ' . json_encode($rs) . "\n";

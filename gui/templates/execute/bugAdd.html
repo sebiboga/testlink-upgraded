@@ -299,11 +299,44 @@ function fillSelect($sel, options, selected) {
   });
 }
 
+function metaList(items) {
+  if (!items) { return null; }
+  var out = [];
+  try {
+    if (Array.isArray(items)) {
+      items.forEach(function (o) {
+        if (o && typeof o === 'object' && o.value != null) {
+          out.push({ value: o.value, label: (o.label != null) ? o.label : o.value });
+        } else if (o && typeof o === 'object' && o.id != null) {
+          out.push({ value: o.id, label: (o.name != null) ? o.name : o.id });
+        } else {
+          out.push({ value: o, label: o });
+        }
+      });
+    } else if (typeof items === 'object') {
+      // legacy executor shape: {$key => $value} map from objectAttrToIDName(),
+      // plus the modern BFF wrapper {items: {id:name,...}, isMultiSelect:bool}
+      // that several trackers emit for the same metadata payload
+      if (items.items != null &&
+          Object.keys(items).every(function (k) { return k === 'items' || k === 'isMultiSelect'; })) {
+        return metaList(items.items);
+      }
+      Object.keys(items).forEach(function (k) {
+        out.push({ value: k, label: items[k] });
+      });
+    }
+  } catch (e) {}
+  return out.length ? out : null;
+}
+
 function normalizeMetadata() {
   var md = (RES && RES.issue_metadata) || {};
-  var types = md.issueTypes || [], prios = md.priorities || [],
-      comps = md.components || [], vers = md.versions || [];
-  return { types: types, prios: prios, comps: comps, vers: vers };
+  return {
+    types: md.issueTypes != null ? metaList(md.issueTypes) : null,
+    prios: md.priorities != null ? metaList(md.priorities) : null,
+    comps: md.components != null ? metaList(md.components) : null,
+    vers: md.versions != null ? metaList(md.versions) : null
+  };
 }
 
 function switchMode(m) {
@@ -324,6 +357,7 @@ function switchMode(m) {
     $('#formTitle').text(TLi18n.t('buga.tabLink'));
     $('#linkFields').show();
     $('#notesHint').text(TLi18n.t('buga.notesHint'));
+    $('#bugId').prop('readonly', false);
     if (cfg && cfg.create_issue_url) {
       $('#createTrackerLink').html('<i class="fa fa-external-link-square-alt"></i> ' +
         esc(TLi18n.t('buga.createTrackerLink')) + ' (' + esc(cfg.verbose_id) + ')')
@@ -332,6 +366,7 @@ function switchMode(m) {
   } else if (m === 'create') {
     $('#formTitle').text(TLi18n.t('buga.tabCreate'));
     $('#createFields').show();
+    $('#bugId').prop('readonly', false);
     if (!cfg || !cfg.tl_can_create_issue) {
       $('#saveBtn').prop('disabled', true);
       $('#metaFields').hide();
@@ -340,10 +375,10 @@ function switchMode(m) {
       var md = normalizeMetadata();
       if (RES.edit_issue_attr && RES.edit_issue_attr !== 0) {
         $('#metaFields').show();
-        fillSelect($('#issueType'), md.types.length ? md.types : null, null);
-        fillSelect($('#issuePriority'), md.prios.length ? md.prios : null, null);
-        fillSelect($('#artifactComponent'), md.comps.length ? md.comps : null, []);
-        fillSelect($('#artifactVersion'), md.vers.length ? md.vers : null, []);
+        fillSelect($('#issueType'), (md.types && md.types.length) ? md.types : null, null);
+        fillSelect($('#issuePriority'), (md.prios && md.prios.length) ? md.prios : null, null);
+        fillSelect($('#artifactComponent'), (md.comps && md.comps.length) ? md.comps : null, []);
+        fillSelect($('#artifactVersion'), (md.vers && md.vers.length) ? md.vers : null, []);
       } else {
         $('#metaFields').hide();
       }
@@ -354,7 +389,7 @@ function switchMode(m) {
     $('#linkFields').show();
     $('#checkFields').hide();
     $('#notesHint').hide();
-    $('#bugId').prop('readonly', true);
+    $('#bugId').prop('readonly', true).val(bugIdParam);
   }
 }
 
@@ -362,7 +397,7 @@ function applyCfg() {
   var cfg = RES.issue_tracker;
   var ctx = RES.context;
   var noteDefault = ctx.default_bug_notes || '';
-  if (mode === 'link') { $('#bugId').val(bugIdParam); }
+  if (mode === 'link' || mode === 'note') { $('#bugId').val(bugIdParam); }
   $('#bugId').attr('maxlength', (cfg && cfg.bug_id_max_length) ? cfg.bug_id_max_length : '');
   $('#bugSummary').attr('maxlength', (cfg && cfg.bug_summary_max_length) ? cfg.bug_summary_max_length : 100);
   $('#bugNotes').val(noteDefault);
