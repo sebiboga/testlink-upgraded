@@ -17,6 +17,21 @@ Every screen of the application was ported one-by-one in a screen-compare
 kept for backward compatibility and is progressively retired as each modern
 screen reaches full parity.
 
+- [FEATURE GAP] - #1316: the modern Test Case Editor (tcEdit.html) Status
+  dropdown now matches the legacy testCaseStatus domain. Previously the modern
+  screen built options 1..7 from hardcoded i18n keys `tcedit.statusN` whose
+  labels shifted every stored integer >=4 to a different meaning
+  (4 "Reviewed" vs legacy Rework, 7 "Future" vs legacy Final — saving text
+  "Future" actually stored a Final). The edit BFF
+  (api/testcasesedit/?action=edit) now serves `statusLabels` built with
+  getConfigAndLabels('testCaseStatus','code') (same config+strings+helper as
+  legacy tcEdit.php and the already-aligned tcBulkOp/suiteView), the dropdown
+  renders from that map (Draft / Ready for review / Review in progress /
+  Rework / Obsolete / Future / Final), and the obsolete `tcedit.status1..7`
+  keys were removed from all 10 locale bundles. Browser-verified on fixture
+  TCST1316 (status 4→Rework, 7→Final, save round-trip), Event Viewer clean;
+  suite 1576 7/7 PASS. (Refs #1316)
+
 - [FEATURE GAP] - #1319: the modern Assign Test Case to Test Plan screen
   (gui/templates/testcases/tcAssign2Tplan.html) always keeps the **Cancel**
   button visible whenever test plans exist, even on locked views where

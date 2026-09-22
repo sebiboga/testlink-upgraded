@@ -46,6 +46,30 @@ Because the modern editor uses plain inputs/textareas (no CKEditor), the legacy
 `editorChanged()`/`IsDirty()` detection is replaced by the delegated event
 tracking described above.
 
+## Status dropdown — legacy testCaseStatus domain (gap vs legacy)
+
+Issue [#1316](https://github.com/sebiboga/testlink-upgraded/issues/1316) — the
+initial modernization built the Status select (`tcEdit.html`) from hardcoded
+i18n keys `tcedit.statusN`, whose labels diverged from the legacy domain: 4
+"Reviewed" (legacy **Rework**), 5 "Rework" (legacy **Obsolete**), 6 "Obsolete"
+(legacy **Future**), 7 "Future" (legacy **Final**). Every stored
+`tcversions.status >= 4` was displayed with the wrong meaning, and saving e.g.
+"Future" silently converted a Future into a Final.
+
+Fix (config-sourced, same helper as the already-aligned tcBulkOp/suiteView):
+
+- `api/testcasesedit/index.php` adds `statusLabels` to the `edit` payload —
+  `getConfigAndLabels('testCaseStatus','code')` (legacy `cfg/const.inc.php`
+  `testCaseStatus` + locale `testCaseStatus_*` strings), keyed by numeric code.
+- `tcEdit.html` builds the dropdown from `statusLabels` (codes sorted
+  ascending) with a defensive fallback map; the hardcoded `1..7` loop and the
+  `tcedit.statusN` i18n lookup are gone.
+- The obsolete `tcedit.status1..7` keys were removed from all 10 locale
+  bundles; the labels are now a single server-side source of truth.
+
+Legacy domain served: 1 Draft, 2 Ready for review, 3 Review in progress,
+4 Rework, 5 Obsolete, 6 Future, 7 Final.
+
 ## Behavioral parity with the legacy controller
 
 The BFF mirrors `lib/testcases/tcEdit.php` + `testcaseCommands`:

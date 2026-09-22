@@ -19132,3 +19132,45 @@ Save dead until a full page reload.
 - **Actual:** console logged no errors; see Event Viewer check in the issue closure. PASS.
 
 **Result: 6/6 PASS.** (Refs #1565)
+## Suite 1576 — Task — Issue #1316: tcEdit status dropdown aligned to legacy testCaseStatus domain (Refs #1316)
+
+**Screen:** gui/templates/testcases/tcEdit.html + api/testcasesedit (Status select).
+**Fixture:** `php tmp/fixtures_1316.php` → tproject `TC Edit Status Demo` (TCST1316, id=1), suite id=2, 7 TCs with tcversions.status = 1..7 (status4 tcase=12/tcv=13, status7 tcase=21/tcv=22). Admin session, en_GB.
+
+### Test 1 — BFF edit payload now serves statusLabels in the legacy domain
+1. `GET /api/testcasesedit/?action=edit&tcase_id=21&tproject_id=1&tcversion_id=22` (browser fetch, same session).
+- **Expected:** `statusLabels` = `{1:Draft,2:Ready for review,3:Review in progress,4:Rework,5:Obsolete,6:Future,7:Final}` (config-sourced), `tcase.status=7`.
+- **Actual:** exact map above returned. PASS.
+
+### Test 2 — stored status=4 renders "Rework" (was "Reviewed")
+1. Open `tcEdit.html?tcase_id=12&tproject_id=1&tcversion_id=13`; read Status select.
+- **Expected:** selected value=4, option text 4 = "Rework".
+- **Actual:** `selected:"4"`, options `1=Draft 2=Ready for review 3=Review in progress 4=Rework 5=Obsolete 6=Future 7=Final`. PASS.
+
+### Test 3 — stored status=7 renders "Final" (was "Future")
+1. Open `tcEdit.html?tcase_id=21&tproject_id=1&tcversion_id=22`; read Status select.
+- **Expected:** selected 7 = "Final"; full option list in legacy order.
+- **Actual:** selected `7`, option 7 = "Final". PASS (screenshot docs/screenshots/issue-1316-tcedit-status-rework.png for the status=4 case).
+
+### Test 4 — dropdown option values preserve the stored integer (No re-labeling on save)
+1. Open status=5 editor (`tcase_id=15/tcversion_id=16`), pick "Future" (value 6), Save.
+- **Expected:** POST update sends status 6; `tcversions.status=6` in DB; toast "Test case saved."; reload shows Future.
+- **Actual:** DB `status` = 6; toast shown; reload selected=6 text=Future. (Restored to 5 after.) PASS.
+
+### Test 5 — no stale i18n labels on the page (keys removed, no dead lookups)
+1. Open tcEdit on any fixture TC; check `document.querySelector` for any rendered label containing "Reviewed".
+- **Expected:** no "Reviewed" anywhere in the Status dropdown.
+- **Actual:** labels all legacy-domain ("Rework" at 4). PASS.
+
+### Test 6 — all locale bundles valid + keys removed
+1. `python3 -m json.tool` on every `gui/templates/i18n/*.json`; grep for `tcedit.status<1..7>`.
+- **Expected:** all 10 bundles parse; no `tcedit.status1..7` remain.
+- **Actual:** 10/10 valid, 0 keys remain. PASS.
+
+### Test 7 — regression on tcView + no new Event/console errors
+1. Open `tcView.html?tcase_id=21&tproject_id=1`; inspect status badge.
+2. Query `events` table for Error/Warning rows and browser console on all above pages.
+- **Expected:** tcView shows "Final" badge (tcview.status* untouched); `events` has no new Error/Warning; console clean.
+- **Actual:** badge `Final`; events empty of errors/warnings; console clean. PASS.
+
+**Result: 7/7 PASS.** (Refs #1316)
