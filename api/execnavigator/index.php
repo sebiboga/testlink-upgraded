@@ -40,6 +40,7 @@
 require_once(__DIR__ . '/../../config.inc.php');
 require_once('common.php');
 require_once('users.inc.php');
+require_once('exec.inc.php');
 
 require_once(__DIR__ . '/../../lib/functions/tlTestCaseFilterControl.class.php');
 require_once(__DIR__ . '/../../lib/functions/treeMenu.inc.php');
@@ -225,7 +226,7 @@ if ($action === 'init') {
             'setting_build' => intval($control->args->setting_build ?? 0),
             'setting_platform' => isset($control->args->setting_platform)
                                   ? intval($control->args->setting_platform) : null,
-            'not_run' => intval($gui->not_run ?? 0),
+            'not_run' => strval($gui->not_run ?? ''),
             'latest_exec_method' => intval($gui->lastest_exec_method ?? 0),
             'load_exec_dashboard' => boolVal($gui->loadExecDashboard),
         ),

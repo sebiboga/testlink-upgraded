@@ -110,25 +110,35 @@ list($idTcNotRun, $idTcvNotRun) = $makeTcase('ENAV1562 Logout Check', 'verify st
     'Click logout');
 echo "tcase_notrun=$idTcNotRun tcversion=$idTcvNotRun\n";
 
-// ---- link to plan + seed an execution on the OPEN build (platform 0) ----
+// ---- link to plan + seed an execution on the OPEN build ----
+// TCs are linked on BOTH platform 0 (unscoped) and platform 2 (Win11) so the
+// execution tree renders under any platform setting.
 $tables = tlObjectWithDB::getDBTables(array('testplans', 'builds', 'nodes_hierarchy',
     'tcversions', 'tcsteps', 'executions', 'testprojects'));
 $tables['testplan_tcversions'] = DB_TABLE_PREFIX . 'testplan_tcversions';
 foreach (array(array($idTcvPassed, 1), array($idTcvNotRun, 2)) as $i => $pair) {
-    $db->exec_query("DELETE FROM {$tables['testplan_tcversions']} " .
-        "WHERE testplan_id=$idPlan AND tcversion_id={$pair[0]} AND platform_id=0");
-    $db->exec_query("INSERT INTO {$tables['testplan_tcversions']} " .
-        "(testplan_id, platform_id, tcversion_id, author_id, node_order, urgency) " .
-        "VALUES ($idPlan, 0, {$pair[0]}, $userId, {$pair[1]}, 2)");
+    foreach (array(0, $linkedPlatform) as $platId) {
+        $db->exec_query("DELETE FROM {$tables['testplan_tcversions']} " .
+            "WHERE testplan_id=$idPlan AND tcversion_id={$pair[0]} AND platform_id=$platId");
+        $db->exec_query("INSERT INTO {$tables['testplan_tcversions']} " .
+            "(testplan_id, platform_id, tcversion_id, author_id, node_order, urgency) " .
+            "VALUES ($idPlan, $platId, {$pair[0]}, $userId, {$pair[1]}, 2)");
+    }
 }
 
 $now = date('Y-m-d H:i:s');
 $db->exec_query("INSERT INTO {$tables['executions']} " .
     "(build_id, tester_id, execution_ts, status, testplan_id, tcversion_id, " .
     " tcversion_number, platform_id, execution_type, execution_duration, notes) " .
-    "VALUES ($idBuildOpen, $userId, '$now', 'p', $idPlan, $idTcvPassed, 1, 0, 1, NULL, NULL)");
+    "VALUES ($idBuildOpen, $userId, '$now', 'p', $idPlan, $idTcvPassed, 1, $linkedPlatform, 1, NULL, NULL)");
 $eid = intval($db->insert_id());
 echo "execution_passed=$eid\n";
+$db->exec_query("INSERT INTO {$tables['executions']} " .
+    "(build_id, tester_id, execution_ts, status, testplan_id, tcversion_id, " .
+    " tcversion_number, platform_id, execution_type, execution_duration, notes) " .
+    "VALUES ($idBuildOpen, $userId, '$now', 'p', $idPlan, $idTcvPassed, 1, 0, 1, NULL, NULL)");
+$eid2 = intval($db->insert_id());
+echo "execution_passed_base=$eid2\n";
 
 // ---- role-3 no-rights user (403 path) ----
 require_once('tmp/mkuser_norights.php');
