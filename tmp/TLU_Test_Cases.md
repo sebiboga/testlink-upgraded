@@ -19006,6 +19006,12 @@ Fixture: `php tmp/fixtures_1559.php` (project B1559, TC "BUG Login Check" + 2 st
 
 **Result: 12/12 PASS** for the modern screen. (Refs #1562. See `docs/Modernize-ExecNavigator-...` wiki mirror for deep-dive; #1567 documents the one legacy SQL defect surfaced during this suite, out of scope of the modern screen's parity.)
 
+### Test 13 — code-review fixes: effective-plan rights, multi-select restore, i18n titles (addendum, run 2026-09-22)
+1. **Rights on the EFFECTIVE plan** — BFF restructure: grants now evaluated after `tlTestCaseFilterControl` resolves the effective plan (`setting_testplan` may switch it), against the effective plan/project. Re-verified: admin normal init 200 (`context.testplan_id=2`, `testproject_id=1`), plan-switch `setting_testplan=2` keeps tplan 2, norights → 403 (session context restored, no hijack), anon → 401, unknown plan → 404, tproject↔tplan mismatch → 400, unknown action → 400, POST → 403 CSRF, `debug=1` → 200.
+2. **Multi-select filter restore** — `setSelect()` now matches array `selected` against each option; select **Passed** + Apply → `#filter_result_result` keeps `["p"]` after reload; Reset → `["a"]` (Any) with both TCs back (4 tree nodes).
+3. **i18n titles/labels** — new keys `exnav.docTitle/kwOr/kwAnd/exportTreeTitle/exportResultsTitle/importResultsTitle` in all 10 bundles (JSON-validated). RO locale verified in browser: title "Navigator de execuție", radios "Sau"/"Și", export/import tooltips translated, footer shown; console clean. Title is switchable (browser tab title updates via `data-i18n`).
+- **Result:** addendum PASS — previous 12/12 still hold; review CHANGES REQUESTED items all resolved.
+
 ---
 
 ## Suite 1567 — Regression — Bug #1567: SQL 1066 "Not unique table/alias 'EB'" in exec tree when a combined bug+platform filter matches nothing
