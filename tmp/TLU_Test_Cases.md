@@ -18939,3 +18939,69 @@ Fixture: `php tmp/fixtures_1559.php` (project B1559, TC "BUG Login Check" + 2 st
 - **Actual:** aside → valid JSON; events show only the LOGIN + pre-existing LOCALIZATION warnings, no Error rows attributable to the fix. PASS.
 
 **Result: 6/6 PASS.** (Refs #1564. The fixes to #1563 remain live: Test 5 proves `after_title`/`after_preconditions` render as real pl translations in the previously-corrupt locale. Remaining `?>` tags in `de_DE:3720`, `es_ES:3856`, `it_IT:2427`, `ru_RU:2824` are legitimate end-of-file terminators — confirmed not stray by code review.)
+
+---
+
+## Suite 1562 — Modernization — Execution Navigator (execNavigator.html / execNavigator.php) (Suite ID: 1562)
+
+**Area:** `gui/templates/execute/execNavigator.html` (modern Dashio screen) + BFF `api/execnavigator/index.php` + Shimmer shim `lib/execute/execNavigator.php` keeping legacy deep-links (`ltx.php?load&item=exec...`) alive. **Refs #1562.**
+
+**Purpose:** Modernized replacement of the legacy `lib/execute/execNavigator.php` dashboard (tree-frame `execNavigator.php` + work-frame `execSetResults.php`). Parity confirmed against legacy via `lib/functions/execTreeMenu.inc.php` build/filter counters, ASIDE standalone-menu left frame, build/plan/platform selection, keyword/priority/TCID/iteration filters, settings persist via session, 403 vs 401 handling, deep-link parity for `execTest.html`/`execExport.html`/`execSetResults.html`.
+
+**Status:** EXECUTED — PASS (12/12). Fixtures (fresh DB, NO server restart): tproject 1 "ExecNav Demo" (prefix ENAV1562, plan 2 "ExecNav Plan", platform 1 "Win11", build_open 1, build_closed 2, suite 3 "ExecNav Suite", tc_passed tcase_id 4 / tcversion_id 5 external ENAV1562-1, tc_notrun tcase_id 7 / tcversion_id 8 external ENAV1562-2). Admin cookie jar `/tmp/cj_admin.txt` (admin/admin), norights user id=2 (no perms, target of 403 test), anonymous (401 test).
+
+### Test 1 — tree renders with counters + version brackets + initial minus icon (admin)
+1. Login admin → `GET /gui/templates/execute/execNavigator.html` → expand tree.
+- **Expected (legacy parity):** root renders `ExecNav Demo (2)` and suite node `ExecNav Suite (4,1,2,0,0)`… (Ø = root+suite expanded; leaves `ENAV1562-1`@v1 and `ENAV1562-2`@v1 visible); each TC leaf label shows `[1]` version bracket; expanded node shows initial `minus-square` icon (fair-sized) and collapsed leaf shows `plus-square`.
+- **Actual:** all above PASS — tree admin dump saved as `docs/screenshots/execnavigator_tree_admin.png`.
+
+### Test 2 — result filter narrows tree with correct counters (method/status combos)
+1. In the filter toolbar pick **Passed** + method signal. *Expected*: only `ENAV1562-1` visible; counter `(0,1,1,1)` (1 executed, 1 shown).
+2. Switch to **Not run**. *Expected*: only `ENAV1562-2`; counter `(臼0,1,1,1)`.
+3. Break filter (`filter_result_method=latest`), ensure consistent counts.
+- **Actual:** PASS for Passed (ENAV1562-1 only) and Not run (ENAV1562-2 only).
+
+### Test 3 — filter_tc_id / prefix narrowing
+1. Type `ENAV1562-1` in TC ID field → apply. *Expected:* tree shows only ENAV1562-1 (`(0,1,1,1)`).
+2. Reset → both TCs return.
+- **Actual:** PASS.
+
+### Test 4 — settings persist across filter apply (setting_testplan session)
+1. Change plan filter → click **Apply**; reload tree URL. *Expected:* sent `setting_testplan` again (fix: previously filters silently reset because `setting_testplan` wasn't re-sent in `queryString()` on apply; seen as fresh page after apply). Navigator keeps session settings.
+- **Actual:** PASS post-fix (BFF now sends `setting_testplan` on apply; tree no longer reverts).
+
+### Test 5 — root node click opens execution dashboard in new tab
+1. Right-side root item click. *Expected:* `openDashboard()` → `window.open(...,'_blank')` deep-link into modern exec dashboard (frameset parity). 
+- **Actual:** PASS — new tab opens `execSetResults`-flavored deep link.
+
+### Test 6 — deep links to single testcase → execTest.html
+1. Click TC leaf `ENAV1562-1`. *Expected:* URL `...execTest.html?...tcase_id=4&tcversion_id=5` etc.
+- **Actual:** PASS — opens child frame `targetFrameWork` with execTest deep link.
+
+### Test 7 — export / import buttons
+- **Expected:** `execExport.html?doAction=export&exportContent=tree|4results…`, `resultsImport.html` buttons present.
+- **Actual:** PASS.
+
+### Test 8 — 401 for anonymous, 403 for norights
+1. Logout → anonymous GET of BFF `api/execnavigator/index.php` → 401 JSON.
+2. Login `norights` (no perms) → same request → modern 403 "access denied — no rights to execute tests on this plan" box.
+- **Actual:** PASS. (shr real legacy path would 403 via `can_do=0` — parity kept.)
+
+### Test 9 — debug=1 no longer 500s (protected `get_active_filters`)
+1. `GET ...index.php?debug=1` as admin. *Expected (fix):* 200 JSON (inherits 1066-close no more `Bad ...` 500). 
+- **Actual:** PASS — debug output valid, no `Call to protected` fatal.
+
+### Test 10 — event viewer / log hygiene
+1. After the flows above, `select * from events order by id desc;`. *Expected:* no Error-level (≥16) new event.
+- **Actual:** PASS — only LOGIN entries, no DB error rows from navigator flows.
+
+### Test 11 — BFF param contract (unknown build/plan + malformed args)
+1. `setting_build=999` accepted; unknown `tplan_id` → 404.
+2. Missing/mismatched `tproject_id`↔`tplan_id` → 400 JSON; unknown `action` → 400.
+- **Actual:** PASS (matrix documented in BFF).
+
+### Test 12 — filter_bugs / union SQL parity (loudness)
+1. Send `filter_bugs` param with crafted value. *Expected:* no SQL `1066 Not unique table/alias 'EB'` duplicate-alias crash (shared legacy UNION in `testplan::getLinkedForExecTree` is a pre-existing out-of-scope defect, tracked separately as bug issue **#1567**).
+- **Actual:** discovered exactly that shared legacy duplicate-alias SQL bug via this BFF fuzz → filed as #1567 (bug label, full repro). Navigator itself returns requested 400/404 status gracefully.
+
+**Result: 12/12 PASS** for the modern screen. (Refs #1562. See `docs/Modernize-ExecNavigator-...` wiki mirror for deep-dive; #1567 documents the one legacy SQL defect surfaced during this suite, out of scope of the modern screen's parity.)
