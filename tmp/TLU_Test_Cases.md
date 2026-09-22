@@ -18724,3 +18724,14 @@ Fixture: `php tmp/fixtures_1559.php` (project B1559, TC "BUG Login Check" + 2 st
 5. `node --check` on the extracted inline JS and validate every touched i18n bundle with `python3 -m json.tool`.
 - **Expected:** full DataTables feature set (sort/search/pagination/length menu) restored, parity with legacy `DataTables.inc.tpl` (`#item_view`, length menu `[25,50,75,-1]`); no console "cannot reinitialise DataTable" errors; no missing i18n keys.
 - **Actual:** code landed (step 1-2 PASS via static verification; step 3-4 BROWSER-PENDING — DB has no seeded test-project/test-plan/case grid, so `renderPlans` early-returns on the empty path; needs a seed fixture + browser round-trip). Syntax gate passed; i18n `common.search/showEntries/entries` present in all 10 bundles (en/de/es/fr/it/ja/pt/ro/ru/zh).
+
+---
+### Task — Issue #1321: restore DataTables sort/search/pagination/length-menu on tcAssign2Tplan
+**Precond:** modern `gui/templates/testcases/tcAssign2Tplan.html` open with a test case that already has ≥3 plans linked (grid `#planTable` + `#planRows` populated).
+1. Load the screen → confirm a search box, column-sort arrows, a "Show 25/50/75/All entries" length menu, pagination controls and the pager info line render at the top/bottom of `#planTable`.
+2. Type a query into the search box → confirm rows filter live (searching).
+3. Click the Test Plan column header twice → confirm column sorts asc then desc (order).
+4. Change length menu to "All" → confirm all rows show; back to 25 → pagination reappears.
+5. Repeat "Add" for a 2nd planplatform row → confirm grid re-inits without "DataTables warning: cannot reinitialise DataTable" in console and no duplicate/stale rows (destroy+reinit).
+**Expected:** full DataTables (sort/search/pagination/length-menu) — parity with legacy DataTables.inc.tpl on `#item_view`.
+**Actual:** **PENDING in-browser** — the CI DB is a fresh import with no seeded project/testplan/platform rows, so #planRows stays empty and `renderPlans()` bails to the no-plans path (by design). Verified statically: seed the fixtures (testproject+testplan+platforms+tcversions) required by `api/tcassign2tplan/index.php` and re-run this suite.
