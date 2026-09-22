@@ -658,22 +658,24 @@ function open_script_add_window(tproject_id,tplan_id,tcversion_id,user_action)
  */
 function open_bug_add_window(tproject_id,tplan_id,tcversion_id,exec_id,tcstep_id,user_action)
 {
-  l2l = "lib/execute/bugAdd.php?user_action=" + user_action + 
-        "&tcversion_id="+tcversion_id +"&tproject_id=" + tproject_id + 
+  // Refs #1560: the legacy lib/execute/bugAdd.php popup is modernized;
+  // bugAdd.php is kept only as a session-guarded 302 shim.
+  l2l = "gui/templates/execute/bugAdd.html?user_action=" + user_action +
+        "&tcversion_id="+tcversion_id +"&tproject_id=" + tproject_id +
         "&tplan_id=" + tplan_id + "&exec_id="+exec_id + "&tcstep_id="+tcstep_id;
 
-  switch(user_action)  
+  switch(user_action)
   {
     case 'create':
-      wh = "width=700,height=400";
+      wh = "width=760,height=640";
     break;
 
     default:
-      wh = "width=510,height=400";
+      wh = "width=700,height=600";
     break;
-  }            
-  
-  window.open(fRoot+l2l,"bug_add",wh+",resizable=yes,dependent=yes");
+  }
+
+  window.open(fRoot+l2l,"bug_add",wh+",resizable=yes");
 }
 
 /**
@@ -681,10 +683,11 @@ function open_bug_add_window(tproject_id,tplan_id,tcversion_id,exec_id,tcstep_id
  */
 function open_bug_note_add_window(bug_id,tproject_id,tcversion_id,exec_id,user_action)
 {
-  link2launch = "lib/execute/bugAdd.php?user_action=" + user_action + "&tcversion_id="+tcversion_id +
+  // Refs #1560: modernized to the Bug Add / Link Dashio popup.
+  link2launch = "gui/templates/execute/bugAdd.html?user_action=" + user_action + "&tcversion_id="+tcversion_id +
                 "&tproject_id=" + tproject_id + "&exec_id="+exec_id + "&bug_id=" + bug_id;
-                
-  window.open(fRoot+link2launch,"bug_add_note","width=510,height=270,resizable=yes,dependent=yes");
+
+  window.open(fRoot+link2launch,"bug_add_note","width=700,height=600,resizable=yes");
 }
 
 

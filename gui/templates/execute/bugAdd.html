@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bug Add / Link</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+
+.header {
+  background: #4ECDC4; color: #fff; padding: 14px 24px;
+  font-size: 20px; font-weight: 700; letter-spacing: 1px;
+}
+.header span.sub { font-size: 13px; font-weight: 400; opacity: .85; margin-left: 12px; }
+
+.toolbar {
+  background: #22242a; padding: 10px 24px; display: flex; gap: 10px; align-items: center;
+}
+.toolbar .tbtn {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: #33363f; color: #fff; border: none; border-radius: 4px;
+  padding: 7px 12px; font-size: 12px; cursor: pointer; text-decoration: none;
+}
+.toolbar .tbtn:hover { background: #454955; color: #fff; text-decoration: none; }
+.toolbar .tbtn i { color: #4ECDC4; }
+
+.mode-tabs { display: flex; gap: 4px; margin: 0 0 0 auto; }
+.mode-tab {
+  background: transparent; color: #9aa0ab; border: 1px solid #454955;
+  border-radius: 4px; padding: 6px 10px; font-size: 11.5px; cursor: pointer;
+}
+.mode-tab.active { background: #4ECDC4; border-color: #4ECDC4; color: #fff; font-weight: 700; }
+
+.card {
+  background: #fff; border-radius: 8px; margin: 20px 24px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.08); overflow: hidden;
+}
+.card-head { padding: 14px 24px; border-bottom: 1px solid #eee; }
+.card-head h3 { margin: 0; font-size: 16px; color: #22242a; }
+.card-body { padding: 18px 24px; }
+
+table.bdinfo { width: 100%; border-collapse: collapse; }
+table.bdinfo th {
+  color: #555; font-weight: 600; width: 200px; font-size: 12px;
+  text-align: left; padding: 8px 12px 8px 0; vertical-align: top;
+}
+table.bdinfo td { color: #333; font-size: 13px; padding: 8px 0; word-break: break-word; }
+
+.status-badge { font-weight: 700; }
+.status-p { color: #3c8a4e; } .status-f { color: #c0504e; } .status-b { color: #c0504e; }
+
+.bts-link {
+  font-size: 12.5px; margin-bottom: 14px; display: inline-block;
+  color: #3c8a4e; font-weight: 600;
+}
+.bts-link:hover { color: #2c66b2; }
+
+.f-label { display: block; font-size: 12px; color: #555; font-weight: 600; margin-bottom: 4px; }
+.f-label .req { color: #c0504e; }
+.f-input, .f-area, .f-select {
+  width: 100%; border: 1px solid #ccc; border-radius: 4px;
+  padding: 8px 10px; font-size: 13px; color: #333; background: #fff;
+  margin-bottom: 14px;
+}
+.f-input:focus, .f-area:focus, .f-select:focus { outline: none; border-color: #4ECDC4; box-shadow: 0 0 0 2px rgba(78,205,196,.2); }
+.f-input[readonly] { background: #f4f4f4; color: #777; }
+.f-area { min-height: 90px; resize: vertical; }
+.hint { font-size: 11px; color: #999; margin: -10px 0 14px; }
+.check-row { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 8px; font-size: 13px; }
+.check-row input { margin-top: 2px; }
+
+.form-actions { display: flex; gap: 10px; margin-top: 6px; }
+.btn-teal {
+  background: #4ECDC4; border: none; color: #fff; border-radius: 4px;
+  padding: 9px 18px; font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.btn-teal:hover { background: #3bbcb3; }
+.btn-teal:disabled { background: #b5dcd9; cursor: default; }
+.btn-gray {
+  background: #eee; color: #555; border: none; border-radius: 4px;
+  padding: 9px 18px; font-size: 13px; cursor: pointer;
+}
+.btn-gray:hover { background: #ddd; }
+
+.success-box {
+  background: #eef8f0; border: 1px solid #c6e3cd; border-left: 4px solid #4CAF50;
+  color: #2c5e2e; border-radius: 6px; padding: 14px 18px; margin: 20px 24px;
+  font-size: 14px; display: flex; align-items: center; gap: 10px;
+}
+.success-box i { color: #4CAF50; font-size: 18px; }
+
+.warn-box {
+  background: #fdf7ea; border: 1px solid #f3e6c8; border-left: 4px solid #f0ad4e;
+  color: #8a6d3b; border-radius: 6px; padding: 12px 16px; margin: 20px 24px;
+  font-size: 13px;
+}
+
+.state-box {
+  background: #fff; border-radius: 8px; margin: 20px 24px; padding: 28px 32px;
+  text-align: center;
+}
+.state-box i { font-size: 34px; margin-bottom: 10px; display: block; }
+.state-box h3 { margin: 0 0 8px; font-size: 18px; color: #22242a; }
+.state-box p { margin: 0; font-size: 14px; color: #777; }
+.state-denied { border: 1px solid #f0d0d0; border-left: 4px solid #e6605e; }
+.state-denied i { color: #e6605e; }
+.state-error { border: 1px solid #f0d0d0; border-left: 4px solid #e6605e; }
+.state-error i { color: #e6605e; }
+.state-notfound { border: 1px solid #f3e6c8; border-left: 4px solid #f0ad4e; }
+.state-notfound i { color: #f0ad4e; }
+
+.footer {
+  padding: 12px 24px; color: #888; font-size: 12px;
+  border-top: 1px solid #ddd; background: #fff;
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span data-i18n="buga.title">Bug Add / Link</span>
+  <span class="sub" data-i18n="buga.subtitle">link or create a bug for an execution</span>
+  <div id="localeSwitcher" style="float:right;"></div>
+</div>
+
+<div class="toolbar">
+  <button type="button" class="tbtn" id="btnClose"><i class="fa fa-times"></i> <span data-i18n="common.close">Close</span></button>
+  <div class="mode-tabs" id="modeTabs" style="display:none;">
+    <button type="button" class="mode-tab" data-mode="link" data-i18n="buga.tabLink">Link</button>
+    <button type="button" class="mode-tab" data-mode="create" data-i18n="buga.tabCreate">Create</button>
+    <button type="button" class="mode-tab" data-mode="add_note" data-i18n="buga.tabNote">Note</button>
+  </div>
+</div>
+
+<div class="success-box" id="successBox" style="display:none;">
+  <i class="fa fa-check-circle"></i> <span id="successMsg"></span>
+</div>
+
+<div class="warn-box" id="noteWarn" style="display:none;">
+  <i class="fa fa-exclamation-triangle"></i> <span id="noteWarnMsg"></span>
+</div>
+
+<div class="card" id="contextCard" style="display:none;">
+  <div class="card-head"><h3 id="ctxTitle"></h3></div>
+  <div class="card-body">
+    <table class="bdinfo">
+      <tbody id="ctxBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card" id="formCard" style="display:none;">
+  <div class="card-head"><h3 id="formTitle"></h3></div>
+  <div class="card-body">
+    <form id="bugForm" autocomplete="off">
+      <input type="hidden" id="execId">
+      <input type="hidden" id="tcstepId">
+      <input type="hidden" id="tprojectId">
+      <input type="hidden" id="tplanId">
+
+      <a class="bts-link" id="createTrackerLink" href="#" target="_blank" rel="noopener" style="display:none;"></a>
+
+      <div id="linkFields">
+        <label class="f-label" for="bugId"><span data-i18n="buga.bugId">Bug / issue ID</span> <span class="req">*</span></label>
+        <input type="text" class="f-input" id="bugId" required maxlength="0">
+      </div>
+
+      <div id="createFields" style="display:none;">
+        <label class="f-label" for="bugSummary"><span data-i18n="buga.bugSummary">Issue summary</span> <span class="req">*</span></label>
+        <input type="text" class="f-input" id="bugSummary" required maxlength="0">
+
+        <div id="metaFields">
+          <label class="f-label" for="issueType"><span data-i18n="buga.issueType">Issue type</span></label>
+          <select class="f-select" id="issueType"></select>
+
+          <label class="f-label" for="issuePriority"><span data-i18n="buga.issuePriority">Priority</span></label>
+          <select class="f-select" id="issuePriority"></select>
+
+          <label class="f-label" for="artifactComponent"><span data-i18n="buga.artifactComponent">Component</span></label>
+          <select class="f-select" id="artifactComponent" multiple></select>
+
+          <label class="f-label" for="artifactVersion"><span data-i18n="buga.artifactVersion">Version</span></label>
+          <select class="f-select" id="artifactVersion" multiple></select>
+        </div>
+      </div>
+
+      <div id="noteFields">
+        <label class="f-label" for="bugNotes"><span data-i18n="buga.notes">Notes</span></label>
+        <textarea class="f-area" id="bugNotes"></textarea>
+        <p class="hint" id="notesHint" data-i18n="buga.notesHint">Issue notes will be added to the bug tracker. Use %%EXECID%% tags to insert execution data.</p>
+      </div>
+
+      <div id="checkFields">
+        <label class="check-row"><input type="checkbox" id="addLinkToTL"> <span data-i18n="buga.addLinkToTL">Add link in tracker to this execution</span></label>
+        <label class="check-row"><input type="checkbox" id="addLinkToTLPrintView"> <span data-i18n="buga.addLinkToTLPrintView">Add link in tracker to the execution print view</span></label>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="btn-teal" id="saveBtn"><i class="fa fa-save" style="margin-right:6px;"></i> <span data-i18n="buga.save">Save</span></button>
+        <button type="button" class="btn-gray" id="inplaceClose"><span data-i18n="common.close">Close</span></button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="state-box state-denied" id="accessDenied" style="display:none;">
+  <i class="fa fa-lock"></i>
+  <h3 data-i18n="buga.accessDeniedTitle">Access Denied</h3>
+  <p data-i18n="buga.accessDeniedMsg">You do not have permission to manage bugs on this execution.</p>
+</div>
+
+<div class="state-box state-notfound" id="notFound" style="display:none;">
+  <i class="fa fa-search-minus"></i>
+  <h3 data-i18n="buga.notFoundTitle">Execution not found</h3>
+  <p data-i18n="buga.notFoundMsg">The execution does not exist or was deleted.</p>
+</div>
+
+<div class="state-box state-error" id="loadError" style="display:none;">
+  <i class="fa fa-exclamation-triangle"></i>
+  <h3 data-i18n="common.error">Error</h3>
+  <p id="loadErrorMsg"></p>
+</div>
+
+<div class="footer"><span data-i18n="footers.bugAdd">TestLink 2.0.1 - Bug Add / Link</span></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+function esc(s) {
+  return s == null ? '' : String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+var API = '/api/bugadd/index.php';
+var qs = new URLSearchParams(window.location.search);
+var execId = qs.get('exec_id') || '';
+var tcstepId = qs.get('tcstep_id') || '';
+var bugIdParam = qs.get('bug_id') || '';
+var userAction = qs.get('user_action') || 'link';
+var mode = userAction === 'add_note' ? 'add_note' : (userAction === 'create' || userAction === 'doCreate' ? 'create' : 'link');
+
+var RES = null;      // last init payload
+var tick = null;
+
+function statusInfo(ch) {
+  var c = String(ch || '').toLowerCase();
+  if (c === 'p') return { char: ch, key: 'execprint.statusPassed' };
+  if (c === 'f') return { char: ch, key: 'execprint.statusFailed' };
+  if (c === 'b') return { char: ch, key: 'execprint.statusBlocked' };
+  return { char: ch || '', key: null };
+}
+
+function showState(sel) {
+  $('#contextCard').hide();
+  $('#formCard').hide();
+  $('#successBox').hide();
+  $('#noteWarn').hide();
+  $('#accessDenied').hide();
+  $('#notFound').hide();
+  $('#loadError').hide();
+  $(sel).show();
+}
+
+function row(labelKey, value) {
+  return '<tr><th>' + esc(TLi18n.t(labelKey)) + '</th><td>' + value + '</td></tr>';
+}
+
+function renderContext(ctx) {
+  $('#ctxTitle').text(TLi18n.t('buga.execution') + ' #' + ctx.exec_id + ' — ' + ctx.testcase_name);
+  var st = statusInfo(ctx.status_char);
+  var html = '';
+  html += row('buga.testcase', esc(ctx.testcase_name));
+  html += row('buga.testplan', esc(ctx.testplan_name));
+  html += row('buga.project', esc(ctx.testproject_name));
+  html += row('buga.build', esc(ctx.build_name));
+  html += row('buga.platform', esc(ctx.platform_name) || '&ndash;');
+  html += row('buga.status',
+    '<span class="status-badge status-' + String(ctx.status_char || '?').toLowerCase() + '">' +
+    esc(TLi18n.t(st.key || 'execprint.statusUnknown')) + '</span>');
+  html += row('buga.executedOn', esc(ctx.execution_ts) || '&ndash;');
+  $('#ctxBody').html(html);
+  $('#contextCard').show();
+}
+
+function fillSelect($sel, options, selected) {
+  $sel.empty();
+  if (!options) { $sel.append('<option value="">&mdash;</option>'); return; }
+  options.forEach(function (o) {
+    var v = (o && o.value != null) ? o.value : o;
+    var l = (o && o.label != null) ? o.label : v;
+    var $o = $('<option>').attr('value', esc(v)).text(l);
+    if (String(selected) === String(v)) { $o.attr('selected', 'selected'); }
+    $sel.append($o);
+  });
+}
+
+function normalizeMetadata() {
+  var md = (RES && RES.issue_metadata) || {};
+  var types = md.issueTypes || [], prios = md.priorities || [],
+      comps = md.components || [], vers = md.versions || [];
+  return { types: types, prios: prios, comps: comps, vers: vers };
+}
+
+function switchMode(m) {
+  mode = m;
+  $('#modeTabs .mode-tab').removeClass('active');
+  $('#modeTabs .mode-tab[data-mode="' + m + '"]').addClass('active');
+
+  var ctx = RES.context;
+  var cfg = RES.issue_tracker;
+
+  $('#createTrackerLink').hide();
+  $('#linkFields').hide();
+  $('#createFields').hide();
+  $('#checkFields').show();
+  $('#notesHint').show();
+
+  if (m === 'link') {
+    $('#formTitle').text(TLi18n.t('buga.tabLink'));
+    $('#linkFields').show();
+    $('#notesHint').text(TLi18n.t('buga.notesHint'));
+    if (cfg && cfg.create_issue_url) {
+      $('#createTrackerLink').html('<i class="fa fa-external-link-square-alt"></i> ' +
+        esc(TLi18n.t('buga.createTrackerLink')) + ' (' + esc(cfg.verbose_id) + ')')
+        .attr('href', cfg.create_issue_url).show();
+    }
+  } else if (m === 'create') {
+    $('#formTitle').text(TLi18n.t('buga.tabCreate'));
+    $('#createFields').show();
+    if (!cfg || !cfg.tl_can_create_issue) {
+      $('#saveBtn').prop('disabled', true);
+      $('#metaFields').hide();
+    } else {
+      $('#saveBtn').prop('disabled', false);
+      var md = normalizeMetadata();
+      if (RES.edit_issue_attr && RES.edit_issue_attr !== 0) {
+        $('#metaFields').show();
+        fillSelect($('#issueType'), md.types.length ? md.types : null, null);
+        fillSelect($('#issuePriority'), md.prios.length ? md.prios : null, null);
+        fillSelect($('#artifactComponent'), md.comps.length ? md.comps : null, []);
+        fillSelect($('#artifactVersion'), md.vers.length ? md.vers : null, []);
+      } else {
+        $('#metaFields').hide();
+      }
+      $('#notesHint').text(TLi18n.t('buga.notesHint'));
+    }
+  } else {
+    $('#formTitle').text(TLi18n.t('buga.tabNote'));
+    $('#linkFields').show();
+    $('#checkFields').hide();
+    $('#notesHint').hide();
+    $('#bugId').prop('readonly', true);
+  }
+}
+
+function applyCfg() {
+  var cfg = RES.issue_tracker;
+  var ctx = RES.context;
+  var noteDefault = ctx.default_bug_notes || '';
+  if (mode === 'link') { $('#bugId').val(bugIdParam); }
+  $('#bugId').attr('maxlength', (cfg && cfg.bug_id_max_length) ? cfg.bug_id_max_length : '');
+  $('#bugSummary').attr('maxlength', (cfg && cfg.bug_summary_max_length) ? cfg.bug_summary_max_length : 100);
+  $('#bugNotes').val(noteDefault);
+  $('#addLinkToTL').prop('checked', !!ctx.add_link_to_tl_checked);
+  $('#addLinkToTLPrintView').prop('checked', !!ctx.add_link_to_tl_print_view_checked);
+  $('#execId').val(ctx.exec_id);
+  $('#tcstepId').val(tcstepId);
+  $('#tprojectId').val(ctx.testproject_id);
+  $('#tplanId').val(ctx.testplan_id);
+}
+
+function showSuccess(msg) {
+  $('#successMsg').text(msg);
+  $('#successBox').show();
+}
+
+function showNoteWarn(msg) {
+  $('#noteWarnMsg').text(msg);
+  $('#noteWarn').show();
+}
+
+function hideTransients() {
+  $('#successBox').hide();
+  $('#noteWarn').hide();
+}
+
+function submitForm() {
+  var ctx = RES.context;
+  var payload = {
+    exec_id: ctx.exec_id,
+    tcstep_id: parseInt(tcstepId, 10) || 0,
+    bug_notes: $('#bugNotes').val() || '',
+    addLinkToTL: $('#addLinkToTL').is(':checked'),
+    addLinkToTLPrintView: $('#addLinkToTLPrintView').is(':checked')
+  };
+
+  if (mode === 'link') {
+    var bid = ($('#bugId').val() || '').trim();
+    if (!bid) { $('#bugId').focus(); return; }
+    payload.bug_id = bid;
+  } else if (mode === 'create') {
+    var summary = ($('#bugSummary').val() || '').trim();
+    if (!summary) { $('#bugSummary').focus(); return; }
+    payload.bug_summary = summary;
+    var md = normalizeMetadata();
+    if (RES.edit_issue_attr && RES.edit_issue_attr !== 0) {
+      payload.issueType = $('#issueType').val();
+      payload.issuePriority = $('#issuePriority').val();
+      payload.artifactComponent = $('#artifactComponent').val() || [];
+      payload.artifactVersion = $('#artifactVersion').val() || [];
+    } else {
+      payload.issueType = RES.issue_type;
+      payload.issuePriority = RES.issue_priority;
+      payload.artifactComponent = RES.artifact_component;
+      payload.artifactVersion = RES.artifact_version;
+    }
+  } else {
+    var nid = ($('#bugId').val() || '').trim();
+    if (!nid) { $('#bugId').focus(); return; }
+    payload.bug_id = nid;
+    payload.tcstep_id = 0;
+  }
+
+  var $btn = $('#saveBtn').prop('disabled', true);
+  hideTransients();
+  $.ajax({
+    url: API + '?action=' + mode,
+    method: 'POST',
+    dataType: 'json',
+    contentType: 'application/json; charset=utf-8',
+    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+    data: JSON.stringify(payload)
+  })
+  .done(function (res) {
+    $btn.prop('disabled', false);
+    if (!res || res.status !== 'ok') {
+      showState('#loadError');
+      $('#loadErrorMsg').text((res && res.message) || TLi18n.t('buga.saveError'));
+      return;
+    }
+    if (mode === 'link') {
+      showSuccess(TLi18n.t('buga.bugAdded', { id: res.bug_id }));
+    } else if (mode === 'create') {
+      showSuccess(TLi18n.t('buga.bugCreated', { id: res.bug_id }));
+    } else {
+      showSuccess(TLi18n.t('buga.noteAdded', { id: res.bug_id }));
+    }
+    if (res.note_message) { showNoteWarn(TLi18n.t('buga.noteFail') + ': ' + esc(res.note_message)); }
+  })
+  .fail(function (xhr) {
+    $btn.prop('disabled', false);
+    var code = xhr.status;
+    if (code === 401) { window.location.href = '/login.php'; return; }
+    if (code === 403) { showState('#accessDenied'); return; }
+    if (code === 404) { showState('#notFound'); return; }
+    var msg = null;
+    try { msg = JSON.parse(xhr.responseText).message; } catch (e) {}
+    $('#loadErrorMsg').text(msg || TLi18n.t('buga.saveError'));
+    showState('#loadError');
+  });
+}
+
+function load() {
+  var url = API + '?action=init&exec_id=' + encodeURIComponent(execId) +
+    '&user_action=' + encodeURIComponent(userAction);
+  if (tcstepId) { url += '&tcstep_id=' + encodeURIComponent(tcstepId); }
+  $.ajax({ url: url, dataType: 'json', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+    .done(function (d) {
+      if (!d || d.status !== 'ok') {
+        showState('#loadError');
+        $('#loadErrorMsg').text((d && d.message) || TLi18n.t('buga.loadError'));
+        return;
+      }
+      RES = d;
+      renderContext(d.context);
+      $('#modeTabs').show();
+      applyCfg();
+      switchMode(mode);
+      $('#formCard').show();
+    })
+    .fail(function (xhr) {
+      var code = xhr.status;
+      if (code === 403) { showState('#accessDenied'); }
+      else if (code === 404) { showState('#notFound'); }
+      else if (code === 401) { window.location.href = '/login.php'; }
+      else {
+        showState('#loadError');
+        var msg = null;
+        try { msg = JSON.parse(xhr.responseText).message; } catch (e) {}
+        $('#loadErrorMsg').text(msg || TLi18n.t('buga.loadError'));
+      }
+    });
+}
+
+$(function () {
+  function closeWin() { if (window.opener) { window.close(); } else { window.location.href = '/index.php'; } }
+  $('#btnClose').on('click', closeWin);
+  $('#inplaceClose').on('click', closeWin);
+  $('#modeTabs').on('click', '.mode-tab', function () {
+    if (!RES) return;
+    hideTransients();
+    switchMode($(this).data('mode'));
+  });
+  $('#bugForm').on('submit', function (e) { e.preventDefault(); submitForm(); });
+  $('#createTrackerLink').on('click', function () { window.open($(this).attr('href'), '_blank'); return false; });
+
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    if (!execId || !/^\d+$/.test(String(execId)) || parseInt(execId, 10) <= 0) {
+      showState('#loadError');
+      $('#loadErrorMsg').text(TLi18n.t('buga.missingId'));
+      return;
+    }
+    load();
+  });
+});
+</script>
+</body>
+</html>

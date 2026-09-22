@@ -2172,6 +2172,11 @@ function getActions(&$gui,$baseURL) {
     // with exec_id=<execution id> to view/edit the free-form notes.
     $actions->execNotesView =
       "/gui/templates/execute/execNotes.html?{$ctx}";
+    // Bug Add / Link popup (modernized lib/execute/bugAdd.php, Refs #1560).
+    // Standalone Dashio page fed by api/bugadd; the JS openers
+    // (open_bug_add_window / open_bug_note_add_window) append the runtime
+    // exec_id / tcstep_id / bug_id / user_action parameters.
+    $actions->bugAddView = "/gui/templates/execute/bugAdd.html";
   }
 
   $gui->uri = $actions;
