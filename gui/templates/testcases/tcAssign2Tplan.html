@@ -16,6 +16,8 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 .toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
 .toolbar .ctx { color: #aaa; font-size: 12px; }
 .toolbar .ctx b { color: #fff; }
+.toolbar .nav-ic { color: #4ECDC4; margin-left: 12px; text-decoration: none; font-size: 14px; }
+.toolbar .nav-ic:hover { color: #7fe0d9; }
 .btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 8px 20px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
 .btn-teal:hover { background: #3dbdb5; }
 .btn-teal:disabled { background: #9adbd7; cursor: not-allowed; }
@@ -46,7 +48,12 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 </div>
 
 <div class="toolbar">
-  <span class="ctx"><span data-i18n="ta2p.testCase">Test Case</span>: <b id="ctxCase">-</b></span>
+  <span class="ctx"><span data-i18n="ta2p.testCase">Test Case</span>: <b id="ctxCase">-</b>
+    <a href="#" class="nav-ic" id="linkHistory" style="display:none;" data-i18n-title="ta2p.execHistory"
+       onclick="openHistory(); return false;"><i class="fa fa-clock"></i></a>
+    <a href="#" class="nav-ic" id="linkDesign" style="display:none;" data-i18n-title="ta2p.design"
+       onclick="openDesign(); return false;"><i class="fa fa-pencil"></i></a>
+  </span>
   <span style="flex:1"></span>
   <span id="localeSwitcher"></span>
 </div>
@@ -130,6 +137,19 @@ $(function () {
   });
 });
 
+// Legacy navigation icons (tcAssign2Tplan.tpl openExecHistoryWindow / openTCaseWindow):
+// quick links to the Execution History and the Test Case Viewer for this test case.
+function openHistory() {
+  var pid = ctx.tprojectId > 0 ? '&tproject_id=' + ctx.tprojectId : '';
+  window.open('/gui/templates/execute/execHistory.html?tcase_id=' + ctx.testcaseId + pid,
+              'execHistory_' + ctx.testcaseId, 'width=800,height=600,resizable=yes,scrollbars=yes');
+}
+function openDesign() {
+  var pid = ctx.tprojectId > 0 ? '&tproject_id=' + ctx.tprojectId : '';
+  window.open('/gui/templates/testcases/tcView.html?tcase_id=' + ctx.testcaseId + pid,
+              'tcView_' + ctx.testcaseId, 'width=900,height=700,resizable=yes,scrollbars=yes');
+}
+
 function loadInfo() {
   if (!ctx.testcaseId || !ctx.tcversionId) {
     showFatal(TLi18n.t('ta2p.errNoContext'));
@@ -165,6 +185,7 @@ function renderPlans() {
   document.title = TLi18n.t('ta2p.title') + ' - ' + ctx.info.tcase.name;
   $('#ctxCase').text(ctx.info.tcase.name + ' (#' + ctx.info.tcase.id + ' v' + ctx.info.tcase.version + ')');
   $('#ctxTarget').text(ctx.info.tcase.identity || '');
+  $('#linkHistory, #linkDesign').show();
 
   var plans = ctx.info.plans || [];
   if (!plans.length) {

@@ -18818,3 +18818,43 @@ Fixture (this run, fresh DB): role `cf_viewer` (role_id 10) holding ONLY right i
 - **Actual:** 8 rows all log_level 16, zero Error/Warning; `custom_fields` empty at end. PASS.
 
 **Result: 5/5 PASS.** (Fix branch `fix/issue-1561`. Changes: `gui/templates/cfields/cfieldsView.html` line 159 `escAttr(t.name)` and line 169 `escAttr(n.name)` in the meta `<option>` builders; primary cells/actions hardening was already landed via `b7aaee02e` (Refs #950).)
+
+---
+
+## Task — Issue #1320: tcAssign2Tplan — execution-history & design navigation icons in toolbar
+
+**Target:** `gui/templates/testcases/tcAssign2Tplan.html` — legacy `gui/templates/dashio/testcases/tcAssign2Tplan.tpl:47-51` (`openExecHistoryWindow` / `openTCaseWindow` icons).
+
+**Precondition:** fixture `tmp/fixtures_1320.php` run (A2P project id=7, tplan id=8, tcase id=10, tcversion id=11, platforms Win10/Linux linked to the plan). Login admin/admin.
+
+### Test 1 — Icons render next to the test-case identity
+1. Open `http://localhost:8082/gui/templates/testcases/tcAssign2Tplan.html?tcase_id=10&tcversion_id=11&tproject_id=7`.
+- **Expected:** toolbar shows `Test Case: Nav Icon Case (#10 v1)` plus a clock icon (title "Execution history") and a pencil icon (title "Test Spec Design"); plan grid shows the 2 platform rows.
+- **Actual:** both icons + tooltips rendered, grid shows Win10/Linux rows. PASS.
+
+### Test 2 — History icon opens the Execution History screen for the same test case
+1. Click the clock icon.
+- **Expected:** popup `execHistory.html?tcase_id=10&tproject_id=7` titled "A2P-1 - Execution History".
+- **Actual:** new tab opened exactly at that URL with that title. PASS.
+
+### Test 3 — Design icon opens the Test Case Viewer for the same test case
+1. Close the history tab; click the pencil icon.
+- **Expected:** popup `tcView.html?tcase_id=10&tproject_id=7` titled "Nav Icon Case - Test Case Viewer", viewer read-only.
+- **Actual:** new tab opened exactly at that URL; viewer shown. PASS.
+
+### Test 4 — Tooltips are localized
+1. Reload with `?locale=ro` (and inspect `#linkHistory.title` / `#linkDesign.title` via DOM).
+- **Expected:** "Istoricul execuțiilor" / "Proiectarea cazului de test"; all 10 bundles carry `ta2p.execHistory` + `ta2p.design` and validate with `python3 -m json.tool`.
+- **Actual:** ro tooltips rendered; 10/10 bundles valid (git diff = +2 lines each). PASS.
+
+### Test 5 — Add flow regression (link a platform row)
+1. After Test 1, check the "Win10" row checkbox → click `+ Add`.
+- **Expected:** success box "Added to 1 test plan(s)"; row becomes checked + read-only "already linked"; icons remain visible.
+- **Actual:** success box shown, row readonly, icons still present. PASS.
+
+### Test 6 — Event Viewer hygiene
+1. Inspect `events` after the suite.
+- **Expected:** only log_level 16 audit INFO rows (login, project created, tc added to testplan); no Error/Warning rows.
+- **Actual:** all rows level 16; no higher-level entries. PASS.
+
+**Result: 6/6 PASS.** (Refs #1320. Changes: `gui/templates/testcases/tcAssign2Tplan.html` toolbar nav icons + `openHistory()`/`openDesign()`; i18n keys `ta2p.design`/`ta2p.execHistory` in all 10 bundles; fixture `tmp/fixtures_1320.php`; screenshot `docs/screenshots/issue-1320-toolbar-icons.png`.)

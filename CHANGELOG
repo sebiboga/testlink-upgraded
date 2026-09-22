@@ -17,6 +17,20 @@ Every screen of the application was ported one-by-one in a screen-compare
 kept for backward compatibility and is progressively retired as each modern
 screen reaches full parity.
 
+- [FEATURE GAP] - #1320: the modern Assign Test Case to Test Plan screen
+  (gui/templates/testcases/tcAssign2Tplan.html) regains the legacy toolbar
+  quick-navigation icons (gui/templates/dashio/testcases/tcAssign2Tplan.tpl:47-51
+  `openExecHistoryWindow` / `openTCaseWindow`): a clock icon (title
+  `ta2p.execHistory`) opens the Execution History for the test case
+  (execHistory.html?tcase_id=..&tproject_id=..) and a pencil icon (title
+  `ta2p.design`) opens the read-only Test Case Viewer (tcView.html),
+  both via window.open popups using the established Dashio convention
+  (tcAssignments.html:362-368). i18n keys `ta2p.execHistory` + `ta2p.design`
+  added to all 10 bundles. Browser-verified on the A2P fixture: both icons
+  open the correct target screens with the right tcase/project context,
+  tooltips localize (`?locale=ro`), Add-flow regression passes, Event Viewer
+  clean; suite 1320 6/6 PASS. (Refs #1320)
+
 - [FEATURE GAP] - #950: the modern Custom Fields screen
   (gui/templates/cfields/cfieldsView.html) now honours the legacy
   `cfield_management OR cfield_view` browse gate
