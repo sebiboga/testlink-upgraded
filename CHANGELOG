@@ -50,6 +50,26 @@ screen reaches full parity.
   user (denial screen), admin regression (full UI + create). Suite 950 8/8
   PASS, Event Viewer clean. (Refs #950)
 
+- [FEATURE GAP] - #953: the modern Custom Fields screen
+  (gui/templates/cfields/cfieldsView.html) gains the legacy create-time
+  "Add and assign (to current test project)" capability
+  (gui/templates/dashio/cfields/cfieldsEdit.tpl:206-209 second submit button ->
+  lib/cfields/cfieldsEdit.php:325-328 `do_add_and_assign` calling
+  `link_to_testproject(tproject_id,[newId])` after create): api/cfields/index.php
+  POST / now accepts `assign_to_project` + optional `tproject_id` (body ->
+  URL param -> `$_SESSION['testprojectID']` via assignTprojectId()) and, when
+  the create succeeds, links the new field with the same
+  `link_to_testproject()` call, returning `assigned:1` + `tproject_id` (400
+  "No test project selected" / "Test project not found" BEFORE creating when no
+  valid project resolves). The create modal gets a create-only checkbox
+  "Add and assign (to current test project)" (hidden in edit mode, legacy
+  parity) and success toasts. i18n `cf.assignToCurrentProject` +
+  `cf.msg.createdAndAssigned` + `cf.msg.saved` in all 10 bundles. Browser-
+  verified: create w/o assign leaves cfield_testprojects empty, create w/
+  assign writes the row + toast, edit modal hides the checkbox, no-project
+  400 surfaced in-modal, cfieldsAssignView regression shows the linked fields.
+  Suite 953 8/8 PASS, Event Viewer clean. (Refs #953)
+
 - [FEATURE GAP] - #1326: the modern Test Case Export screen
   (gui/templates/testcases/tcExport.html) regains the legacy **skeleton export**
   (lib/testcases/tcExport.php:145 `exportSkel` -> structure-only XML via

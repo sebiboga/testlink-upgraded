@@ -37,6 +37,9 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
 .footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
 .cf-checkbox-group { display: flex; gap: 16px; flex-wrap: wrap; }
 .cf-checkbox-group label { font-size: 13px; font-weight: 400; display: flex; align-items: center; gap: 4px; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.toast.ok { background: #4ECDC4; }
+.toast.err { background: #e6605e; }
 </style>
 </head>
 <body>
@@ -110,15 +113,22 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
             <label><input type="checkbox" id="editEnableTestplanDesign"> <span data-i18n="cf.testplanDesign">Test Plan Design</span></label>
           </div>
         </div>
+        <div class="form-group" style="margin-bottom:12px;" id="assignProjectGroup">
+          <div class="cf-checkbox-group">
+            <label><input type="checkbox" id="editAssignProject"> <span data-i18n="cf.assignToCurrentProject">Add and assign (to current test project)</span></label>
+          </div>
+        </div>
         <div id="modalError" style="color:#e6605e;font-size:12px;margin-top:8px;display:none;"></div>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-dismiss="modal" style="font-size:13px;" data-i18n="common.cancel">Cancel</button>
-        <button type="button" class="btn-teal" onclick="saveCf()" style="font-size:13px;" data-i18n="common.save">Save</button>
+        <button type="button" class="btn-teal" id="btnSave" onclick="saveCf()" style="font-size:13px;" data-i18n="common.save">Save</button>
       </div>
     </div>
   </div>
 </div>
+
+<div class="toast" id="toast"></div>
 
 <script src="/gui/templates/i18n/i18n.js"></script>
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
@@ -132,6 +142,7 @@ var typeMap = {};
 var nodeMap = {};
 var allItems = [];
 var editEnabled = true;
+var saving = false;
 
 function escAttr(v) {
   return String(v == null ? '' : v)
@@ -241,6 +252,8 @@ function showCreateModal() {
   $('#editEnableDesign').prop('checked', true);
   $('#editEnableExecution').prop('checked', false);
   $('#editEnableTestplanDesign').prop('checked', false);
+  $('#assignProjectGroup').show();
+  $('#editAssignProject').prop('checked', false);
   $('#modalError').hide();
   $('#cfModal').modal('show');
 }
@@ -263,6 +276,7 @@ function editCf(id) {
     $('#editEnableDesign').prop('checked', cf.enable_on_design === 1);
     $('#editEnableExecution').prop('checked', cf.enable_on_execution === 1);
     $('#editEnableTestplanDesign').prop('checked', cf.enable_on_testplan_design === 1);
+    $('#assignProjectGroup').hide();
     $('#modalError').hide();
     $('#cfModal').modal('show');
   });
@@ -270,6 +284,8 @@ function editCf(id) {
 
 function saveCf() {
   if (!editEnabled) return;
+  if (saving) return;
+  saving = true;
   var id = $('#editCfId').val();
   var data = {
     label: $('#editLabel').val().trim(),
@@ -289,16 +305,38 @@ function saveCf() {
 
   var url = id ? API + '/' + id : API;
   var type = id ? 'PUT' : 'POST';
+  if (!id) {
+    data.assign_to_project = $('#editAssignProject').is(':checked') ? 1 : 0;
+    var ctx = new URLSearchParams(window.location.search);
+    data.tproject_id = parseInt(ctx.get('tproject_id') || '0', 10);
+  }
   $.ajax({
     url: url, type: type,
     contentType: 'application/json', data: JSON.stringify(data),
-    success: function() { $('#cfModal').modal('hide'); loadCfields(); },
+    success: function(r) {
+      saving = false;
+      $('#cfModal').modal('hide');
+      if (id) {
+        toast(TLi18n.t('cf.msg.saved'));
+      } else if (r.assigned) {
+        toast(TLi18n.t('cf.msg.createdAndAssigned'));
+      }
+      loadCfields();
+    },
     error: function(xhr) {
+      saving = false;
       var msg = TLi18n.t('cf.msg.errorSave');
       try { msg = JSON.parse(xhr.responseText).message; } catch(e) {}
       $('#modalError').text(msg).show();
     }
   });
+}
+
+function toast(msg, isError) {
+  var $t = $('#toast').text(msg)
+    .toggleClass('err', !!isError).toggleClass('ok', !isError).fadeIn(120);
+  clearTimeout($t.data('t'));
+  $t.data('t', setTimeout(function () { $t.fadeOut(200); }, 2600));
 }
 
 function deleteCf(id, name) {

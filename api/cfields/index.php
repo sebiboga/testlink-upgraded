@@ -139,6 +139,36 @@ if ($method === 'POST' && empty($segments)) {
         out(['status' => 'error', 'message' => 'Name and label are required']);
     }
 
+    // Legacy create form has a second submit button "Add and assign (to current
+    // test project)" (gui/templates/dashio/cfields/cfieldsEdit.tpl:206-209,
+    // lib/cfields/cfieldsEdit.php:325-328) which links the freshly created
+    // custom field to the active test project right away. Mirror that here:
+    // when assign_to_project is set, resolve the project (body -> URL -> active
+    // session project) and link the new field to it after the create succeeds.
+    $assignToProject = !empty($body['assign_to_project']);
+    $tprojectId = 0;
+    if ($assignToProject) {
+        $tprojectId = intval($body['tproject_id'] ?? 0);
+        if ($tprojectId <= 0) {
+            $tprojectId = assignTprojectId();
+        }
+        if ($tprojectId <= 0) {
+            http_response_code(400);
+            out(['status' => 'error', 'message' => 'No test project selected']);
+        }
+        // Validates the resolved project before creating anything (parity with
+        // the GET /assignment existence check below).
+        $tprojectInfo = $cfield_mgr->tree_manager->get_node_hierarchy_info(
+            $tprojectId,
+            null,
+            ['nodeType' => 'testproject']
+        );
+        if (is_null($tprojectInfo)) {
+            http_response_code(400);
+            out(['status' => 'error', 'message' => 'Test project not found']);
+        }
+    }
+
     $existing = $cfield_mgr->get_by_name($name);
     if ($existing) {
         http_response_code(400);
@@ -166,8 +196,15 @@ if ($method === 'POST' && empty($segments)) {
     $result = $cfield_mgr->create($cf);
     if ($result['status_ok']) {
         logAuditEvent("Custom field '$name' created", "CREATE", $result['id'], "custom_fields");
-        $map = $cfield_mgr->get_by_id($result['id']);
-        out(['status' => 'ok', 'item' => cfToJSON($map[$result['id']])]);
+        $newMap = $cfield_mgr->get_by_id($result['id']);
+        $created = isset($newMap[$result['id']]) ? $newMap[$result['id']] : $cf;
+        $row = ['status' => 'ok', 'item' => cfToJSON($created)];
+        if ($assignToProject) {
+            $cfield_mgr->link_to_testproject($tprojectId, [$result['id']]);
+            $row['assigned'] = 1;
+            $row['tproject_id'] = $tprojectId;
+        }
+        out($row);
     } else {
         http_response_code(400);
         out(['status' => 'error', 'message' => 'Error creating custom field']);
