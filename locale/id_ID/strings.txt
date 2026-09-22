@@ -2883,7 +2883,6 @@ $TLS_simplexml_load_file_wrapper_error = "Harap berikan teks ini ke Administrato
 // ----- issue #1563: after_title / after_preconditions location labels missing from this bundle -----
 $TLS_after_title = 'Setelah judul';
 $TLS_after_preconditions = 'Setelah prasyarat';
-?>
 $TLS_href_nfr_performance = "NFR: Performance"; // "NFR: Performance" (Refs #1470)
 $TLS_href_nfr_security = "NFR: Security"; // "NFR: Security" (Refs #1470)
 $TLS_href_nfr_usability = "NFR: Usability"; // "NFR: Usability" (Refs #1470)

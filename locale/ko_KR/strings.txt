@@ -2439,7 +2439,6 @@ $TLS_simplexml_load_file_wrapper_error = "이 텍스트를 TestLink 관리자에
 // ----- issue #1563: after_title / after_preconditions location labels missing from this bundle -----
 $TLS_after_title = '제목 뒤';
 $TLS_after_preconditions = '전제 조건 뒤';
-?>
 $TLS_href_nfr_performance = "NFR: Performance"; // "NFR: Performance" (Refs #1470)
 $TLS_href_nfr_security = "NFR: Security"; // "NFR: Security" (Refs #1470)
 $TLS_href_nfr_usability = "NFR: Usability"; // "NFR: Usability" (Refs #1470)
