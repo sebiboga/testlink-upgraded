@@ -3799,6 +3799,8 @@ $TLS_issue_tplan = "Test Plan: %s";
 $TLS_issue_build = " Build: %s";
 $TLS_issue_platform = " Platform: %s";
 $TLS_issue_exec_result = " Execution Status: %s";
+$TLS_tc_name = "Test Case Name: %s";
+$TLS_tc_external_id = "Test Case: %s";
 $TLS_issue_generated_description = "Execution ID: %s \n Tester: %s \n Test Plan: %s \n";
 
 $TLS_issue_subject_projectname = "Test Project";

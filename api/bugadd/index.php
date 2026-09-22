@@ -180,15 +180,6 @@ function bugAddContext($execId, $tplanId, $tprojectId, $tcstepId, $userAction) {
         $defaultNotes = trim(strval($row['notes'] ?? ''));
     }
 
-    // tplan api key (needed by generateIssueText for %%EXECPLINK%%).
-    $tables = tlObjectWithDB::getDBTables(array('testplans'));
-    $tprs = $db->get_recordset(
-        "SELECT api_key FROM {$tables['testplans']} WHERE id=" . intval($tplanId));
-    $tplanApiKey = '';
-    if ($tprs && count($tprs) > 0) {
-        $tplanApiKey = strval($tprs[0]['api_key'] ?? '');
-    }
-
     return [
         'exec_id' => intval($row['id']),
         'tcversion_id' => intval($row['tcversion_id']),
@@ -211,14 +202,21 @@ function bugAddContext($execId, $tplanId, $tprojectId, $tcstepId, $userAction) {
 
 // Build the $args helper object in the exact legacy shape consumed by
 // exec.inc.php generateIssueText() / addIssue().
-function bugAddArgs($ctx, $tplanId, $tprojectId, $tplanApiKey) {
+function bugAddArgs($ctx, $tplanId, $tprojectId) {
     global $db, $user;
     $args = new stdClass();
     $args->exec_id = $ctx['exec_id'];
     $args->tcversion_id = $ctx['tcversion_id'];
     $args->tplan_id = $tplanId;
     $args->tproject_id = $tprojectId;
-    $args->tplan_apikey = $tplanApiKey;
+    // Resolve the testplan api key server-side (generateIssueText uses it for
+    // %%EXECPLINK%%; it is never part of the client-facing init payload).
+    $tbk = array('testplans');
+    $tbl = tlObjectWithDB::getDBTables($tbk);
+    $tprs = $db->get_recordset(
+        "SELECT api_key FROM {$tbl['testplans']} WHERE id=" . intval($tplanId));
+    $args->tplan_apikey = ($tprs && count($tprs) > 0)
+        ? strval($tprs[0]['api_key'] ?? '') : '';
     $args->basehref = $_SESSION['basehref'] ?? '';
     $args->user = $user;
     return $args;
@@ -359,7 +357,7 @@ if (in_array($action, array('link', 'create', 'add_note'), true)) {
     list($its, $itsCfg) = bugAddIssueTracker($tprojectId);
     $info = bugAddContext($execId, $tplanId, $tprojectId,
                           intval($payload['tcstep_id'] ?? 0), $action);
-    $args = bugAddArgs($info, $tplanId, $tprojectId, $info['tplan_api_key']);
+    $args = bugAddArgs($info, $tplanId, $tprojectId);
 
     // --- link a bug ---------------------------------------------------------
     if ($action === 'link') {
