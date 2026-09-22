@@ -79,6 +79,8 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 
     <div class="actions-bar" id="actionsBar" style="display:none;">
       <button class="btn-teal" id="btnAdd"><i class="fa fa-plus"></i> <span data-i18n="ta2p.btnAdd">Add</span></button>
+    </div>
+    <div class="actions-bar" id="cancelBar" style="display:none;">
       <button class="btn-dark" id="btnCancel"><span data-i18n="ta2p.cancel">Cancel</span></button>
     </div>
   </div>
@@ -178,6 +180,7 @@ function showFatal(msg) {
   $('#warnBox').html('<i class="fa fa-lock"></i> ' + esc(msg)).show();
   $('#planTable').hide();
   $('#actionsBar').hide();
+  $('#cancelBar').hide();
   $('#noPlans').hide();
 }
 
@@ -194,6 +197,7 @@ function renderPlans() {
     }
     $('#planTable').hide();
     $('#actionsBar').hide();
+    $('#cancelBar').hide();
     $('#noPlans').css('display', '');
     return;
   }
@@ -219,6 +223,10 @@ function renderPlans() {
   $('#planRows').html(rows);
   $('#planTable').css('display', '');
   $('#noPlans').hide();
+  // Cancel is ALWAYS shown when test plans exist, even if reads are locked
+  // (can_do = 0) — legacy renders the Cancel button OUTSIDE {if $gui->can_do}.
+  // Only the Add button is gated on can_do. See #1319.
+  $('#cancelBar').css('display', '');
   $('#actionsBar').css('display', ctx.info.can_do ? '' : 'none');
 
   if ($.fn.DataTable.isDataTable('#planTable')) {
