@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Execution Navigator</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+
+.header {
+  background: #4ECDC4; color: #fff; padding: 14px 24px;
+  font-size: 20px; font-weight: 700; letter-spacing: 1px;
+}
+.header span { font-size: 13px; font-weight: 400; opacity: .8; margin-left: 12px; }
+
+.wrap { padding: 22px 24px; max-width: 1400px; margin: 0 auto; display: flex; gap: 20px; flex-wrap: wrap; }
+
+.card {
+  background: #fff; border-radius: 8px; padding: 18px 20px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.08);
+}
+.card h3 { margin: 0 0 14px; font-size: 15px; color: #22242a; }
+
+#filtersCol { width: 320px; min-width: 320px; }
+#treeCol { flex: 1 1 640px; min-width: 520px; }
+
+.row2 { display: flex; flex-wrap: wrap; gap: 4px 18px; align-items: center; }
+.field { font-size: 12.5px; color: #555; margin-bottom: 12px; }
+.field b { color: #22242a; margin-right: 6px; font-size: 12.5px; font-weight: 600; }
+.field select, .field input[type=text] {
+  border: 1px solid #d2d2d2; border-radius: 4px; padding: 5px 8px;
+  font-size: 12.5px; min-width: 180px; background: #fff; color: #333;
+}
+.field input[type=text] { width: 180px; }
+.field label { font-weight: 400; }
+.checkbox-inline { display: inline-flex; align-items: center; gap: 5px; margin-right: 12px; font-size: 12.5px; color: #555; }
+.checkbox-inline input { margin: 0; }
+
+.hr { border: 0; border-top: 1px solid #eee; margin: 12px 0; }
+
+.toolbar { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 16px;
+  border-radius: 4px; cursor: pointer; font-size: 12.5px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-outline { background: #fff; color: #555; border: 1px solid #ccc; padding: 7px 16px;
+  border-radius: 4px; cursor: pointer; font-size: 12.5px; }
+.btn-outline:hover { background: #f0f0f0; }
+.btn-sm { padding: 4px 10px; font-size: 12px; }
+.btn-teal:disabled { opacity: .5; cursor: default; }
+
+.meta { display: flex; flex-wrap: wrap; gap: 8px 26px; margin-bottom: 14px; }
+.meta .field { margin-bottom: 0; }
+.meta .field b { margin-right: 5px; }
+
+/* tree ---------------------------------------------------------------- */
+.tree { font-size: 13.5px; color: #333; }
+.tree ul { list-style: none; margin: 0; padding-left: 22px; }
+.tree li { padding: 3px 0; position: relative; }
+.tree li::before { content: ''; position: absolute; left: -14px; top: -3px;
+  bottom: 50%; width: 12px; border-left: 1px dotted #ccc; border-bottom: 1px dotted #ccc; }
+.tree li:last-child::before { border-bottom: 0; }
+.tree .tnode { display: flex; align-items: center; gap: 8px; padding: 3px 8px;
+  border-radius: 4px; cursor: default; }
+.tree .troot { cursor: pointer; font-weight: 600; }
+.tree .troot:hover { background: #eaf7f6; }
+.tree .ttoggle { cursor: pointer; color: #4ECDC4; width: 16px; text-align: center; }
+.tree .tlink { cursor: pointer; text-decoration: none; color: inherit; display: inline-flex; gap: 7px; align-items: center; }
+.tree .tlink:hover { background: #fff3cd;  }
+.tree .fico { color: #888; width: 16px; text-align: center; }
+.tree .tlevel { color: #999; font-size: 11px; font-weight: 400; }
+.tree li .light_passed, .light_passed { color: #2e7d32; }
+.tree li .light_failed, .light_failed { color: #c62828; }
+.tree li .light_blocked, .light_blocked { color: #444; }
+.tree li .light_not_run, .light_not_run { color: #777; }
+.tree b { color: #22242a; }
+.tree .counts { color: #999; font-size: 11.5px; font-weight: 400; }
+
+.empty-tree { color: #999; font-style: italic; padding: 14px 0; }
+.info-lines { margin-top: 14px; font-size: 12px; color: #888; line-height: 1.7; }
+
+/* status --------------------------------------------------------------- */
+.toast { position: fixed; top: 16px; right: 16px; background: #2c3e50; color: #fff;
+  padding: 12px 18px; border-radius: 6px; font-size: 13px; opacity: 0;
+  transition: opacity .25s; z-index: 999; pointer-events: none; max-width: 420px; }
+.toast.show { opacity: 1; }
+.toast.ok { background: #4ECDC4; }
+.toast.err { background: #e6605e; }
+.access-denied { background: #fff; border: 1px solid #f0d0d0; border-left: 4px solid #e6605e;
+  border-radius: 8px; margin: 24px; padding: 28px 32px; text-align: center; max-width: 720px; }
+.access-denied i { font-size: 34px; color: #e6605e; margin-bottom: 10px; }
+.access-denied h3 { margin: 0 0 8px; font-size: 18px; color: #22242a; }
+.access-denied p { margin: 0; font-size: 14px; color: #777; }
+.loading { text-align: center; padding: 60px 0; color: #888; font-size: 14px; }
+</style>
+</head>
+<body>
+<div class="header">
+  <i class="fa fa-sitemap"></i>
+  <span data-i18n="exnav.title">Execution Navigator</span>
+</div>
+
+<div id="wrap" class="wrap">
+  <div id="loading" class="loading"><i class="fa fa-spinner fa-spin"></i> <span data-i18n="common.loading">Loading...</span></div>
+
+  <div id="denied" class="access-denied" style="display:none">
+    <i class="fa fa-lock"></i>
+    <h3 data-i18n="exnav.accessDenied">Access denied</h3>
+    <p id="deniedMsg" data-i18n="exnav.accessDeniedMsg">You do not have rights to execute tests on this plan.</p>
+  </div>
+
+  <div id="content" style="display:none">
+
+    <div class="meta">
+      <span class="field"><b data-i18n="exnav.testProject">Test Project</b><span id="mbTproject">-</span></span>
+      <span class="field"><b data-i18n="exnav.testPlan">Test Plan</b><span id="mbTplan">-</span></span>
+      <span class="field"><b data-i18n="exnav.countersLogic">Counters logic</b><span id="mbCounters">-</span></span>
+      <span class="field"><b data-i18n="exnav.latestExecMethod">Latest exec method</b><span id="mbMethod">-</span></span>
+    </div>
+
+    <div style="display:flex; gap:20px; flex-wrap:wrap;">
+
+      <div class="card" id="filtersCol">
+        <h3><i class="fa fa-filter"></i> <span data-i18n="exnav.filtersHeading">Filters</span></h3>
+
+        <div class="field">
+          <b data-i18n="exnav.testPlan">Test Plan</b>
+          <select id="setting_testplan"></select>
+        </div>
+        <div class="field" id="platformRow">
+          <b data-i18n="exnav.platform">Platform</b>
+          <span id="platformSelectWrap"><select id="setting_platform"></select></span>
+        </div>
+        <div class="field">
+          <b data-i18n="exnav.build">Build</b>
+          <select id="setting_build"></select>
+        </div>
+        <div class="field" id="countersRow">
+          <b data-i18n="exnav.countersLogic">Counters logic</b>
+          <select id="setting_exec_tree_counters_logic"></select>
+        </div>
+        <div class="field">
+          <label class="checkbox-inline"><input type="checkbox" id="setting_refresh_tree_on_action" checked>
+            <span data-i18n="exnav.refreshTree">Refresh tree on action</span></label>
+        </div>
+
+        <hr class="hr">
+
+        <div class="field" id="resRow">
+          <b data-i18n="exnav.filterResult">Result</b>
+          <select id="filter_result_result" multiple size="5"></select>
+        </div>
+        <div class="field">
+          <b data-i18n="exnav.resultMethod">Filter on</b>
+          <select id="filter_result_method"></select>
+        </div>
+        <div class="field" id="resultBuildRow" style="display:none">
+          <b data-i18n="exnav.resultBuild">Build</b>
+          <select id="filter_result_build"></select>
+        </div>
+
+        <hr class="hr">
+
+        <div class="field">
+          <b data-i18n="exnav.tcId">Test case ID</b>
+          <input type="text" id="filter_tc_id" data-i18n-placeholder="exnav.tcIdPlaceholder" placeholder="">
+        </div>
+        <div class="field" id="kwRow">
+          <b data-i18n="exnav.keywords">Keywords</b>
+          <select id="filter_keywords" multiple size="3"></select>
+          <div style="margin-top:6px">
+            <label class="checkbox-inline"><input type="radio" name="filter_keywords_filter_type" value="Or"> <span>Or</span></label>
+            <label class="checkbox-inline"><input type="radio" name="filter_keywords_filter_type" value="And"> <span>And</span></label>
+          </div>
+        </div>
+        <div class="field" id="priorityRow">
+          <b data-i18n="exnav.priority">Priority</b>
+          <select id="filter_priority"></select>
+        </div>
+        <div class="field" id="execTypeRow">
+          <b data-i18n="exnav.executionType">Execution type</b>
+          <select id="filter_execution_type"></select>
+        </div>
+
+        <hr class="hr">
+
+        <div class="toolbar">
+          <button id="btnApply" class="btn-teal"><i class="fa fa-sync"></i> <span data-i18n="exnav.apply">Apply filter</span></button>
+          <button id="btnReset" class="btn-outline"><span data-i18n="exnav.reset">Reset</span></button>
+        </div>
+      </div>
+
+      <div class="card" id="treeCol">
+        <h3><i class="fa fa-sitemap"></i> <span data-i18n="exnav.treeTitle">Test plan tree</span></h3>
+        <div class="toolbar" style="margin-top:-4px; margin-bottom:12px" id="exportBar">
+          <button id="btnExportTree" class="btn-outline btn-sm" title="export"><i class="fa fa-file-export"></i> <span data-i18n="exnav.exportPlanTree">Export test plan (tree)</span></button>
+          <button id="btnExportResults" class="btn-outline btn-sm" title="export for results"><i class="fa fa-file-export"></i> <span data-i18n="exnav.exportPlanResults">Export for results import</span></button>
+          <button id="btnImportResults" class="btn-outline btn-sm" title="import xml results"><i class="fa fa-file-import"></i> <span data-i18n="exnav.importResults">Import XML results</span></button>
+        </div>
+        <div id="treeRoot" class="tree"></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+<div id="footerText" style="display:none"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script>
+var STORE = {};
+var CTX = { tprojectId: 0, tplanId: 0, builtPos: 0 };
+var NOT_RUN_CODE = 'n';
+var LATEST_METHOD = 1;
+var SPECIFIC_BUILD_METHOD = 4;
+
+function esc(s) {
+  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function toast(msg, kind) {
+  var t = $('#toast');
+  t.removeClass('ok err').addClass('show ' + (kind || 'ok')).text(msg);
+  clearTimeout(t.data('to'));
+  t.data('to', setTimeout(function () { t.removeClass('show'); }, 3200));
+}
+
+function apiBase() {
+  return '/api/execnavigator/index.php?action=init';
+}
+
+function queryString() {
+  var q = [ 'action=init' ];
+  q.push('tplan_id=' + CTX.tplanId);
+  if (CTX.tprojectId) q.push('tproject_id=' + CTX.tprojectId);
+  if ($('#setting_build').val()) q.push('setting_build=' + $('#setting_build').val());
+  if ($('#setting_platform').val()) q.push('setting_platform=' + $('#setting_platform').val());
+  if ($('#setting_exec_tree_counters_logic').val()) q.push('setting_exec_tree_counters_logic=' + $('#setting_exec_tree_counters_logic').val());
+  q.push('setting_refresh_tree_on_action=' + ($('#setting_refresh_tree_on_action').is(':checked') ? 1 : 0));
+  var tc = $('#filter_tc_id').val();
+  if (tc) q.push('filter_tc_id=' + encodeURIComponent(tc));
+  var rs = $('#filter_result_result').val() || [];
+  for (var i = 0; i < rs.length; i++) q.push('filter_result_result[]=' + encodeURIComponent(rs[i]));
+  if ($('#filter_result_method').val()) q.push('filter_result_method=' + $('#filter_result_method').val());
+  if ($('#filter_result_build').val()) q.push('filter_result_build=' + $('#filter_result_build').val());
+  var kws = $('#filter_keywords').val() || [];
+  for (var i = 0; i < kws.length; i++) q.push('filter_keywords[]=' + encodeURIComponent(kws[i]));
+  var kt = $('input[name=filter_keywords_filter_type]:checked').val();
+  if (kt) q.push('filter_keywords_filter_type=' + encodeURIComponent(kt));
+  if ($('#filter_priority').val()) q.push('filter_priority=' + $('#filter_priority').val());
+  if ($('#filter_execution_type').val()) q.push('filter_execution_type=' + $('#filter_execution_type').val());
+  return q.join('&');
+}
+
+function setSelect($sel, cfg) {
+  $sel.empty();
+  if (!cfg || !cfg.items) { $sel.append('<option value="">-</option>'); return; }
+  var items = cfg.items;
+  var selKey = cfg.selected;
+  $.each(items, function (k, v) {
+    var selected = String(k) === String(selKey);
+    $sel.append('<option value="' + esc(k) + '"' + (selected ? ' selected' : '') + '>' + esc(v) + '</option>');
+  });
+}
+
+function applyCtx(j) {
+  var c = j.context, sels = j.settings || {};
+  $('#mbTproject').text(c.testproject_name || c.testproject_id);
+  $('#mbTplan').text(c.testplan_name || c.testplan_id);
+  var counterLabel = '';
+  if (sels.exec_tree_counters_logic && sels.exec_tree_counters_logic.items) {
+    counterLabel = sels.exec_tree_counters_logic.items[sels.exec_tree_counters_logic.selected] || '';
+  }
+  $('#mbCounters').text(counterLabel || '-');
+  $('#mbMethod').text(c.latest_exec_method || '-');
+  NOT_RUN_CODE = c.not_run || 'n';
+  LATEST_METHOD = c.latest_exec_method || 1;
+
+  setSelect($('#setting_testplan'), j.controls.testplans);
+  setSelect($('#setting_platform'), j.controls.platforms);
+  setSelect($('#setting_build'), j.controls.builds);
+  setSelect($('#setting_exec_tree_counters_logic'), sels.exec_tree_counters_logic);
+  $('#setting_refresh_tree_on_action').prop('checked', sels.refresh_tree_on_action);
+  $('#platformRow').toggle(!!j.controls.platforms && !!j.controls.platforms.items && Object.keys(j.controls.platforms.items).length > 0);
+
+  // result filter (multi-select)
+  var fr = j.filters.filter_result;
+  if (fr) {
+    setSelect($('#filter_result_result'), fr.result);
+    setSelect($('#filter_result_method'), fr.method);
+    setSelect($('#filter_result_build'), fr.build);
+    $('#resRow').show();
+    $('<option>').text();
+    toggleResultBuildRow(fr);
+    $('#filter_result_method').unbind('change').bind('change', function () {
+      var v = String($(this).val());
+      $('#resultBuildRow').toggle(v === String(SPECIFIC_BUILD_METHOD));
+    });
+  } else {
+    $('#resRow').hide();
+    $('#resultBuildRow').hide();
+  }
+
+  // other filters
+  var ftc = j.filters.filter_tc_id;
+  $('#filter_tc_id').val(ftc && ftc.selected ? ftc.selected : '');
+  var fkw = j.filters.filter_keywords;
+  if (fkw && fkw.items && Object.keys(fkw.items).length > 0) {
+    setSelect($('#filter_keywords'), fkw);
+    var kft = fkw.filter_keywords_filter_type;
+    var ktVal = kft && kft.selected ? kft.selected : 'Or';
+    $('input[name=filter_keywords_filter_type][value="' + esc(ktVal) + '"]').prop('checked', true);
+    $('#kwRow').show();
+  } else { $('#kwRow').hide(); }
+  var fpr = j.filters.filter_priority;
+  if (fpr && fpr.items && Object.keys(fpr.items).length > 0) { setSelect($('#filter_priority'), fpr); $('#priorityRow').show(); }
+  else { $('#priorityRow').hide(); }
+  var fet = j.filters.filter_execution_type;
+  if (fet && fet.items && Object.keys(fet.items).length > 0) { setSelect($('#filter_execution_type'), fet); $('#execTypeRow').show(); }
+  else { $('#execTypeRow').hide(); }
+
+  // rights-driven export bar
+  var rights = j.rights || {};
+  $('#exportBar').toggle(!!(rights.export || rights.import));
+  $('#btnExportTree').toggle(!!rights.export);
+  $('#btnExportResults').toggle(!!rights.export);
+  $('#btnImportResults').toggle(!!rights.import);
+
+  CTX.tprojectId = parseInt(c.testproject_id, 10);
+  CTX.tplanId = parseInt(c.testplan_id, 10);
+}
+
+function toggleResultBuildRow(fr) {
+  if (!fr) return;
+  $('#resultBuildRow').toggle(String(fr.method.selected) === String(SPECIFIC_BUILD_METHOD));
+}
+
+function renderTree(j) {
+  var root = j.tree.root || {};
+  var $tb = $('#treeRoot').empty();
+  var htmlRoot = '<div class="tnode troot" title="' + esc(TLi18n.t('exnav.dashboard')) + '">'
+    + '<span class="fico"><i class="fa fa-cubes"></i></span><span class="tname">'
+    + (root.text || root.name || '') + '</span></div>';
+  // root/children text carries legacy exec-status HTML (light_* spans) from
+  // renderExecTreeNode - inject as-is (same as the legacy ExtJS tree did).
+  $tb.html(htmlRoot);
+  var kids = j.tree.children || [];
+  if (!kids.length) { $tb.append('<div class="empty-tree">' + esc(TLi18n.t('exnav.emptyTree')) + '</div>'); }
+  buildBranch(kids, $tb, 0);
+  window.__ROOT_ID = root.id;
+  $tb.find('.troot').on('click', function () {
+    openDashboard(root.id);
+  });
+}
+
+function nodeIcon(nt) {
+  if (nt === 'testcase') return '<i class="fa fa-file-alt"></i>';
+  if (nt === 'testsuite') return '<i class="fa fa-folder-open"></i>';
+  return '<i class="fa fa-folder"></i>';
+}
+
+function buildBranch(nodes, $ul, depth) {
+  var $l = $('<ul></ul>');
+  $ul.append($l);
+  $.each(nodes, function (i, n) {
+    var nt = n.testlink_node_type || 'node';
+    var leaf = !!n.leaf;
+    var kids = (n.children && n.children.length) ? n.children : [];
+    var txt = (n.text || n.name || '');
+
+    var $li = $('<li></li>');
+    var $row = $('<div class="tnode"></div>');
+    if (!leaf && nt !== 'testcase') {
+      $row.append('<span class="ttoggle"><i class="fa fa-plus-square"></i></span>');
+    } else {
+      $row.append('<span class="ttoggle">&nbsp;</span>');
+    }
+    $row.append('<span class="fico">' + nodeIcon(nt) + '</span>');
+
+    if (leaf && nt === 'testcase') {
+      var ext = n.external_id ? ('[' + esc(n.external_id) + ']') : '';
+      var $a = $('<a class="tlink" href="#" title="' + esc(TLi18n.t('exnav.execute')) + '"></a>');
+      $a.append('<span class="tname">' + txt + '</span>');
+      if (ext) $a.append('<span class="tlevel">' + ext + '</span>');
+      $row.append($a);
+      $li.data('tcid', n.id);
+      $li.data('tcvid', n.tcversion_id || 0);
+      $li.on('click', 'a', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        openTestCase($li.data('tcid'), $li.data('tcvid'));
+      });
+    } else {
+      $row.append('<span class="tname">' + txt + '</span>');
+    }
+
+    $li.append($row);
+    if (!leaf && kids.length) {
+      var $sub = $('<div class="tchildren"></div>');
+      $li.append($sub);
+      buildBranch(kids, $sub, depth + 1);
+      $row.find('.ttoggle').on('click', function () {
+        var $lc = $(this);
+        var $subc = $sub;
+        if ($subc.is(':visible')) {
+          $subc.hide();
+          $lc.html('<i class="fa fa-plus-square"></i>');
+        } else {
+          $subc.show();
+          $lc.html('<i class="fa fa-minus-square"></i>');
+        }
+      });
+    }
+    $l.append($li);
+  });
+}
+
+function openTestCase(tcaseId, tcversionId) {
+  var url = '/gui/templates/execute/execTest.html?tplan_id=' + CTX.tplanId
+          + '&tproject_id=' + CTX.tprojectId
+          + '&tcase_id=' + tcaseId + '&tcversion_id=' + tcversionId;
+  window.open(url, '_blank');
+}
+
+function openDashboard(tprojectId) {
+  var url = '/gui/templates/execute/execDashboard.html?tproject_id=' + tprojectId
+          + '&tplan_id=' + CTX.tplanId;
+  window.open(url, '_blank');
+}
+
+function loadTree() {
+  $('#content').hide();
+  $('#denied').hide();
+  $('#loading').show();
+  $.getJSON(apiBase() + '&' + queryString().split('&').slice(1).join('&'), function (j) {
+    $('#loading').hide();
+    if (j.status !== 'ok') { toast(j.message || TLi18n.t('exnav.loadFailed'), 'err'); return; }
+    STORE = j;
+    applyCtx(j);
+    renderTree(j);
+    $('#content').show();
+    // legacy navigator auto-loads the dashboard once (EXDS on Ext.onReady)
+    var p = new URLSearchParams(window.location.search);
+    if (p.get('loadExecDashboard') && j.context.load_exec_dashboard) {
+      openDashboard(CTX.tprojectId);
+    }
+  }).fail(function (xhr) {
+    $('#loading').hide();
+    var msg = (xhr.responseJSON && xhr.responseJSON.message) || TLi18n.t('exnav.loadFailed');
+    if (xhr.status === 403) {
+      $('#deniedMsg').text(msg);
+      $('#denied').show();
+    } else {
+      toast(msg, 'err');
+    }
+  });
+}
+
+function validateForm() {
+  var method = $('#filter_result_method').val();
+  if (String(method) === String(LATEST_METHOD)) {
+    var sel = $('#filter_result_result').val() || [];
+    for (var i = 0; i < sel.length; i++) {
+      if (String(sel[i]) === String(NOT_RUN_CODE)) {
+        alert(TLi18n.t('exnav.blockNotRunLatest'));
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+$(function () {
+  var p = new URLSearchParams(window.location.search);
+  CTX.tplanId = parseInt(p.get('tplan_id') || '0', 10);
+  CTX.tprojectId = parseInt(p.get('tproject_id') || '0', 10);
+
+  TLi18n.load(function () {
+    TLi18n.apply();
+    $('#btnApply').on('click', function () {
+      if (!validateForm()) return;
+      loadTree();
+    });
+    $('#btnReset').on('click', function () {
+      $('#setting_build').val('');
+      $('#setting_platform').val('');
+      $('#filter_result_result').val(null);
+      $('#filter_result_method').val('');
+      $('#filter_result_build').val('');
+      $('#filter_tc_id').val('');
+      $('#filter_keywords').val(null);
+      $('#filter_priority').val('');
+      $('#filter_execution_type').val('');
+      loadTree();
+    });
+    $('#btnExportTree').on('click', function () { openExport('tree'); });
+    $('#btnExportResults').on('click', function () { openExport('4results'); });
+    $('#btnImportResults').on('click', function () { openImport(); });
+    loadTree();
+  });
+});
+
+function openExport(mode) {
+  var url = '/gui/templates/execute/execExport.html?tproject_id=' + CTX.tprojectId
+          + '&tplan_id=' + CTX.tplanId
+          + '&platform_id=' + ($('#setting_platform').val() || 0)
+          + '&build_id=' + ($('#setting_build').val() || 0)
+          + '&exportContent=' + mode;
+  window.open(url, '_blank');
+}
+
+function openImport() {
+  var url = '/gui/templates/results/resultsImport.html?tproject_id=' + CTX.tprojectId
+          + '&tplan_id=' + CTX.tplanId
+          + '&build_id=' + ($('#setting_build').val() || 0)
+          + '&platform_id=' + ($('#setting_platform').val() || 0);
+  window.open(url, '_blank');
+}
+</script>
+</body>
+</html>

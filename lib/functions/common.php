@@ -2152,9 +2152,15 @@ function getActions(&$gui,$baseURL) {
   // rights server-side on every route: testplan_execute for writing results,
   // exec_ro_access for the read-only variant, aside visibility stays gated by
   // menuGrants in aside.tpl.
+  // Execution Navigator (modernized execNavigator.php, Refs #1562): the
+  // standalone execution tree/filter screen fed by api/execnavigator. The
+  // legacy lib/execute/execNavigator.php is kept as a session-guarded 302
+  // shim, so both paths converge on the modern HTML screen.
   if ($tplan_id > 0) {
     $actions->executeTest =
       "/gui/templates/execute/execTest.html?{$ctx}";
+    $actions->execNavigatorView =
+      "/gui/templates/execute/execNavigator.html?{$ctx}";
     // Execution Dashboard (modernized execDashboard.php landing pane, Refs
     // #1496, #1511). Standalone Dashio page fed by api/execdashboard; resolves
     // the current execution context (tplan/build/platform) with the same legacy

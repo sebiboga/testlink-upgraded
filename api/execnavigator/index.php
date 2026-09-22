@@ -129,6 +129,23 @@ if ($action === 'init') {
     // way the frmWorkArea -> execNavigator.php flow established it. Keep the
     // previous session values so a foreign/privilege probe cannot hijack the
     // user's context.
+    // The legacy filter/result definitions read the filter_* params from POST
+    // only (tlInputParameter "POST" sources); the modern navigator talks GET,
+    // so mirror the relevant names into $_POST when they are absent there.
+    $postMirrorKeys = array(
+        'filter_tc_id', 'filter_testcase_name', 'filter_toplevel_testsuite',
+        'filter_keywords', 'filter_workflow_status', 'filter_importance',
+        'filter_priority', 'filter_execution_type', 'filter_assigned_user',
+        'filter_custom_fields', 'filter_bugs', 'filter_platforms',
+        'filter_result', 'filter_result_result', 'filter_result_method',
+        'filter_result_build', 'filter_keywords_filter_type',
+        'caller', 'reset_filters', 'feature',
+    );
+    foreach ($postMirrorKeys as $pk) {
+        if (isset($_GET[$pk]) && !isset($_POST[$pk])) {
+            $_POST[$pk] = $_GET[$pk];
+        }
+    }
     $sessTP = isset($_SESSION['testplanID']) ? intval($_SESSION['testplanID']) : 0;
     $sessTPr = isset($_SESSION['testprojectID']) ? intval($_SESSION['testprojectID']) : 0;
     $setTPr = ($tprojectId > 0) ? $tprojectId : $_REQUEST['tproject_id'] ?? $sessTPr;
@@ -199,7 +216,16 @@ if ($action === 'init') {
         }
     }
 
-    // settings select options mirror the filter panel (execution_mode).
+    // graph-style settings select options mirror the filter panel (execution_mode).
+    if (isset($_GET['debug']) && intval($_GET['debug']) === 1) {
+        $GLOBALS['__dbg'] = array(
+            'do_filtering' => $control->do_filtering ?? null,
+            'active' => (array) $control->get_active_filters(),
+            'args_result' => (array) ($control->args->filter_result_result ?? null),
+            'args_method' => $control->args->filter_result_method ?? null,
+            'post_result' => (array) ($_POST['filter_result_result'] ?? null),
+        );
+    }
     $s = function ($key) use ($control) {
         $cfg = $control->settings[$key] ?? null;
         return is_null($cfg) ? $cfg : array(
@@ -215,9 +241,54 @@ if ($action === 'init') {
     $buildOptions = $s('setting_build');
     $platformOptions = $s('setting_platform');
 
+    // ---- legacy filter panel options (execution_mode) ----------------------
+    $fo = function ($c) {
+        if (is_null($c)) {
+            return null;
+        }
+        $str = function ($v) {
+            if (is_array($v)) {
+                return array_map('strval', $v);
+            }
+            return is_null($v) ? null : strval($v);
+        };
+        return array(
+            'items' => isset($c['items']) && is_array($c['items'])
+                       ? array_map('strval', $c['items']) : null,
+            'selected' => $str($c['selected'] ?? null),
+            'size' => intval($c['size'] ?? 1),
+            'label' => strval($c['label'] ?? ''),
+        );
+    };
+    $filtersOut = array();
+    foreach (array('filter_tc_id', 'filter_testcase_name',
+                   'filter_keywords', 'filter_priority',
+                   'filter_execution_type') as $fk) {
+        $filtersOut[$fk] = $fo($control->filters[$fk] ?? null);
+    }
+    $fkw = $control->filters['filter_keywords'] ?? null;
+    if (is_array($fkw) && isset($fkw['filter_keywords_filter_type'])) {
+        $filtersOut['filter_keywords']['filter_keywords_filter_type'] =
+            $fo($fkw['filter_keywords_filter_type']);
+    }
+    $fr = $control->filters['filter_result'] ?? null;
+    if (is_array($fr)) {
+        $filtersOut['filter_result'] = array(
+            'result' => $fo($fr['filter_result_result'] ?? null),
+            'method' => $fo($fr['filter_result_method'] ?? null),
+            'build' => $fo($fr['filter_result_build'] ?? null),
+            'js_selection' => intval($fr['filter_result_method']['js_selection'] ?? 0),
+        );
+    }
+    $countersLogic = $s('setting_exec_tree_counters_logic');
+    $refreshTree = boolVal(!empty($control->args->setting_refresh_tree_on_action)
+                    || !empty($control->args->setting_build)
+                    || !empty($control->args->setting_platform));
+
     out(array(
         'status' => 'ok',
         'action' => 'init',
+        'debug' => $GLOBALS['__dbg'] ?? null,
         'context' => array(
             'testproject_id' => $tprojectId,
             'testproject_name' => strval($control->args->testproject_name ?? ''),
@@ -235,6 +306,11 @@ if ($action === 'init') {
             'builds' => $buildOptions,
             'platforms' => $platformOptions,
         ),
+        'settings' => array(
+            'exec_tree_counters_logic' => $countersLogic,
+            'refresh_tree_on_action' => $refreshTree,
+        ),
+        'filters' => $filtersOut,
         'rights' => array(
             'exec_access' => boolVal($gui->execAccess),
             'export' => boolVal($gui->features['export']),

@@ -3,145 +3,44 @@
  * TestLink Open Source Project - http://testlink.sourceforge.net/
  * This script is distributed under the GNU General Public License 2 or later.
  *
- * Test navigator for Test Plan for following features
- *
- * - Test case execution
- *
  * @filesource  execNavigator.php
- * @package     TestLink
- * @copyright   2007-2017, TestLink community
- * @link        http://www.testlink.org
  *
- *
- **/
+ * 2010.1.shim - Refs #1562: the legacy Smarty/ExtJS Execution Navigator was
+ * replaced by the modern Dashio screen gui/templates/execute/execNavigator.html
+ * + the api/execnavigator BFF (which reuses the exact legacy execution tree
+ * pipeline tlTestCaseFilterControl + execTree()). This controller is kept as a
+ * session-guarded redirect shim so old deep links (frmWorkArea executeTest
+ * launcher, execDashboard.php right-frame flows still running on
+ * un-modernized parents) resolve: anonymous users are sent to the login screen
+ * (legacy testlinkInitPage behaviour) and authenticated users land on the
+ * modern navigator with the plan/project/build/platform ids + any
+ * loadExecDashboard intent forwarded. The rights gate lives in the BFF
+ * (testplan_execute OR exec_ro_access, admin shortcut parity).
+**/
+require_once("../../config.inc.php");
+require_once('../functions/common.php');
+require_once('../functions/users.inc.php');
 
-require_once('../../config.inc.php');
-require_once('common.php');
-require_once("users.inc.php");
-require_once('treeMenu.inc.php');
-require_once('exec.inc.php');
+// Anonymous -> login (same contract as the legacy testlinkInitPage call).
+testlinkInitPage($db, FALSE, false, null, true);
 
-testlinkInitPage($db);
-
-$templateCfg = templateConfiguration();
-
-$chronos[] = $tstart = microtime(true);
-$control = new tlTestCaseFilterControl($db, 'execution_mode');
-$control->formAction = '';
-
-$gui = initializeGui($db,$control);
-
-
-$control->build_tree_menu($gui);
-
-
-$smarty = new TLSmarty();
-if( $gui->execAccess ) {
-  $smarty->assign('gui',$gui);
-  $smarty->assign('control', $control);
-  $smarty->assign('menuUrl',$gui->menuUrl);
-  $smarty->assign('args', $gui->args);
-  $tpl = $templateCfg->template_dir . $templateCfg->default_template;
+if (!isset($_SESSION['testplanID']) || intval($_SESSION['testplanID']) <= 0) {
+    $tplanID = isset($_REQUEST['setting_testplan']) ? intval($_REQUEST['setting_testplan']) : 0;
 } else {
-  $tpl = 'noaccesstofeature.tpl';
+    $tplanID = intval($_SESSION['testplanID']);
 }
+$tprojectID = isset($_SESSION['testprojectID']) ? intval($_SESSION['testprojectID']) : 0;
 
-$smarty->display($tpl);
-
-
-/**
- * 
- *
- */
-function initializeGui(&$dbH,&$control) {
-  $gui = new stdClass();
-  
-  // This logic is managed from execSetResults.php
-  $gui->loadExecDashboard = true;
-  if( isset($_SESSION['loadExecDashboard'][$control->form_token]) || 
-      $control->args->loadExecDashboard == 0 
-    ) {
-    $gui->loadExecDashboard = false;  
-    unset($_SESSION['loadExecDashboard'][$control->form_token]);      
-  }  
-
-  // Needed by the template to emit EXDS(tproject_id,tplan_id).
-  // Without it the call is rendered as EXDS(,NN) => JS syntax error that
-  // aborts the whole inline script, leaving the execution tree unbuilt.
-  $gui->tproject_id = intval($control->args->testproject_id);
-
-  $gui->menuUrl = 'lib/execute/execSetResults.php';
-  $gui->args = $control->get_argument_string();
-  if($control->args->loadExecDashboard == false) {
-    $gui->src_workframe = '';
-  } else {
-    $gui->src_workframe = $control->args->basehref . $gui->menuUrl .
-                          "?edit=testproject&id={$control->args->testproject_id}" . 
-                          $gui->args;
-  } 
-  
-  $control->draw_export_testplan_button = true;
-  $control->draw_import_xml_results_button = true;
-  
-  
-  $dummy = config_get('results');
-  $gui->not_run = $dummy['status_code']['not_run'];
-  
-  $dummy = config_get('execution_filter_methods');
-  $gui->lastest_exec_method = $dummy['status_code']['latest_execution'];
-  $gui->pageTitle = lang_get('href_execute_test');
-
-  $grants = checkAccessToExec($dbH,$control);
-
-  // feature to enable/disable
-  $gui->features = array('export' => false,'import' => false);
-  $gui->execAccess = false;
-  if($grants['testplan_execute']) {
-    $gui->features['export'] = true;
-    $gui->features['import'] = true;
-    $gui->execAccess = true;
-  }  
-
-  if($grants['exec_ro_access']) {
-    $gui->execAccess = true;
-  }  
-
-
-  $control->draw_export_testplan_button = $gui->features['export'];
-  $control->draw_import_xml_results_button = $gui->features['import'];
-
-  return $gui;
+$url = $_SESSION['basehref'] . 'gui/templates/execute/execNavigator.html';
+$url .= '?tplan_id=' . $tplanID . '&tproject_id=' . $tprojectID;
+if (isset($_REQUEST['setting_build'])) {
+    $url .= '&setting_build=' . intval($_REQUEST['setting_build']);
 }
-
-
-/**
- *
- */
-function checkAccessToExec(&$dbH,&$ct) {
-  $tplan_id = intval($ct->args->testplan_id);
-  $sch = tlObject::getDBTables(array('testplans'));
-  $sql = "SELECT testproject_id FROM {$sch['testplans']} " .
-         "WHERE id=" . $tplan_id;
-  $rs = $dbH->get_recordset($sql);
-  if(is_null($rs))
-  {
-    throw new Exception("Can not find Test Project For Test Plan - ABORT", 1);
-    
-  }  
-  $rs = current($rs);
-  $tproject_id = $rs['testproject_id'];
-
-  $user = $_SESSION['currentUser'];
-  $grants = null;
-  $k2a = array('testplan_execute','exec_ro_access');
-  foreach($k2a as $r2c)
-  {
-    $grants[$r2c] = false;
-    if( $user->hasRight($dbH,$r2c,$tproject_id,$tplan_id,true) || $user->globalRoleID == TL_ROLES_ADMIN )
-    {
-      $grants[$r2c] = true;
-    }    
-  }  
-
-  return $grants;
-} 
+if (isset($_REQUEST['setting_platform'])) {
+    $url .= '&setting_platform=' . intval($_REQUEST['setting_platform']);
+}
+if (isset($_REQUEST['loadExecDashboard'])) {
+    $url .= '&loadExecDashboard=' . intval($_REQUEST['loadExecDashboard']);
+}
+header('Location: ' . $url);
+exit;
