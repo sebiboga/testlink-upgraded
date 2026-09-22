@@ -19031,3 +19031,56 @@ Fixture: `php tmp/fixtures_1559.php` (project B1559, TC "BUG Login Check" + 2 st
 - BFF unmatched: 200 `status:ok`, tree 0 children. BFF matching: 200 `status:ok`, tree 1 child. Baseline: 200 `status:ok`, tree 1 child.
 - Event Viewer: event table max id unchanged after post-fix runs (no new advisories).
 - (Refs #1567)
+
+## Task — Issue #955: Display-on-execution (show_on_execution) exposed in cfieldsView table + create/edit modals (both screens)
+
+**Precondition**
+- Fresh DB; fixture: test project `Issue955 Demo` (id 1) created via `POST /api/projects/`; fields `tier` (enable_on_design=1, enable_on_execution=1, show_on_execution=1) and `env` (enable_on_design=1, enable_on_execution=0, show_on_execution=1) created via the cfieldsView create modal. Login `admin/admin`.
+
+### Test 1 — cfieldsView table renders the Display-on-execution icon column
+1. Open `cfieldsView.html?tproject_id=1`.
+- **Expected:** a "Display on execution" column sits between Active and Available On; `tier` (show_on_execution=1) shows the `fa fa-desktop` icon, `env` likewise; fields with show_on_execution=0 show `-`.
+- **Actual:** column header present; tier row shows desktop icon, "Available On" = "Design, Execution"; `-` for a show_on_execution=0 field after toggling (Test 5). PASS.
+
+### Test 2 — Enable-on-Execution implies Show-on-Execution on create (legacy initShowOnExec parity)
+1. Create modal, node type `testcase`, tick "Enable On → Execution".
+- **Expected:** the "Display on test execution" group is HIDDEN and the checkbox force-CHECKED; saving stores show_on_execution=1, enable_on_execution=1.
+- **Actual:** group display:none, checkbox checked (JS-measured); DB `tier` = (show=1, enable=1). PASS.
+
+### Test 3 — independent toggle on create (the gap): show-on checked while enable-on execution OFF
+1. Create modal, node type `testcase`, keep "Enable On → Execution" OFF, check "Display on test execution" explicitly, save.
+- **Expected:** group VISIBLE and editable; stored show_on_execution=1 with enable_on_execution=0.
+- **Actual:** `env` stored (show=1, enable=0) — previously POST hard-coded 0. PASS.
+
+### Test 4 — requirement node types hide the toggle (legacy show_on_cfg parity)
+1. Create modal, set node type to `requirement_spec`/`requirement`.
+- **Expected:** "Display on test execution" group hidden and the checkbox force-cleared (stale checked state scrubbed, legacy request2cf default 0).
+- **Actual:** group hidden, checkbox false after switching node type back to testcase (JS-measured). PASS.
+
+### Test 5 — assign screen edit modal toggles show_on_execution and PUT persists it
+1. Open `cfieldsAssignView.html?tproject_id=1`; click the `env` name link in Available.
+2. Uncheck "Display on test execution", Save.
+- **Expected:** PUT /api/cfields/{id} honours the flag; DB `env` becomes show_on_execution=0 (enable_on_execution stays 0); re-enabling restores 1.
+- **Actual:** DB `env` → 0 after save, → 1 after re-enable (verified via SQL + BFF). PASS.
+
+### Test 6 — BFF force rule: enable_on_execution=1 beats explicit show_on_execution=0
+1. `POST /api/cfields` `{enable_on_execution:1, show_on_execution:0, node_type:'testcase'}` via fetch.
+- **Expected:** response item show_on_execution=1 (legacy request2cf rule).
+- **Actual:** 1. PASS.
+
+### Test 7 — BFF independent rule: enable_on_execution=0 + show_on_execution=1 stores 1
+1. `POST /api/cfields` `{enable_on_execution:0, show_on_execution:1, node_type:'testcase'}` via fetch.
+- **Expected:** stored show_on_execution=1.
+- **Actual:** 1. PASS (edge fields cleaned up after).
+
+### Test 8 — BFF scrubs execution flags for requirement node types
+1. `POST /api/cfields` `{node_type:'requirement', enable_on_execution:1, show_on_execution:1}` via fetch.
+- **Expected:** response shows enable_on_execution=0 AND show_on_execution=0 (legacy missing-keys default).
+- **Actual:** both 0. PASS.
+
+### Test 9 — no new Event Viewer / console errors
+1. After all flows, query `events` and the browser console.
+- **Expected:** events rows only `log_level=16` (audit INFO: create/update), 0 Error/Warning; browser console clean.
+- **Actual:** `events` shows only log_level 16; no console errors. PASS.
+
+**Result: 9/9 PASS.** (Refs #955)

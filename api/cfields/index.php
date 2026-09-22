@@ -202,6 +202,21 @@ if ($method === 'POST' && empty($segments)) {
     $nodeTypeName = $body['node_type'] ?? 'testcase';
     $nodeTypeId = $nodeTypeMap[$nodeTypeName] ?? $nodeTypeMap['testcase'];
 
+    // Legacy enable_on_execution == 1 implies show_on_execution == 1
+    // (lib/cfields/cfieldsEdit.php:198-227 request2cf), so the flag is forced
+    // on whenever the field is enabled on execution, exactly like the legacy
+    // initShowOnExec() combo did (cfieldsEditJS.tpl:251-269).
+    $enableOnExecution = $body['enable_on_execution'] ?? 0 ? 1 : 0;
+    $showOnExecution = intval($body['show_on_execution'] ?? 0);
+
+    // Requirement node types never carry execution display (legacy
+    // show_on_cfg / enable_on_cfg, cfield_mgr.class.php:157-186), so scrub
+    // both flags the way request2cf's missing-keys default did.
+    if (in_array($nodeTypeName, ['requirement_spec', 'requirement'])) {
+        $enableOnExecution = 0;
+        $showOnExecution = 0;
+    }
+
     $cf = [
         'name' => $name,
         'label' => $label,
@@ -209,8 +224,8 @@ if ($method === 'POST' && empty($segments)) {
         'possible_values' => $body['possible_values'] ?? '',
         'show_on_design' => 1,
         'enable_on_design' => $body['enable_on_design'] ?? 1,
-        'show_on_execution' => 0,
-        'enable_on_execution' => $body['enable_on_execution'] ?? 0,
+        'show_on_execution' => $enableOnExecution ? 1 : $showOnExecution,
+        'enable_on_execution' => $enableOnExecution,
         'show_on_testplan_design' => 0,
         'enable_on_testplan_design' => $body['enable_on_testplan_design'] ?? 0,
         'node_type_id' => $nodeTypeId,
@@ -289,6 +304,18 @@ if ($method === 'PUT' && isset($segments[0]) && is_numeric($segments[0])) {
         $nodeTypeId = $nodeTypeMap[$nodeTypeName] ?? $existing['node_type_id'];
     }
 
+    // Legacy rule (request2cf + initShowOnExec): enable_on_execution forces
+    // show_on_execution=1. Enforce it server-side on update as well.
+    $enableOnExecution = intval($body['enable_on_execution'] ?? $existing['enable_on_execution']) ? 1 : 0;
+    $showOnExecution = intval($body['show_on_execution'] ?? $existing['show_on_execution']);
+
+    // Requirement node types never carry execution display; scrub both flags
+    // (parity with legacy missing-keys defaults in request2cf).
+    if (in_array($nodeTypeId, [$nodeTypeMap['requirement_spec'], $nodeTypeMap['requirement']])) {
+        $enableOnExecution = 0;
+        $showOnExecution = 0;
+    }
+
     $cf = [
         'id' => $id,
         'name' => $name,
@@ -297,8 +324,8 @@ if ($method === 'PUT' && isset($segments[0]) && is_numeric($segments[0])) {
         'possible_values' => $body['possible_values'] ?? $existing['possible_values'],
         'show_on_design' => intval($body['show_on_design'] ?? $existing['show_on_design']),
         'enable_on_design' => intval($body['enable_on_design'] ?? $existing['enable_on_design']),
-        'show_on_execution' => intval($body['show_on_execution'] ?? $existing['show_on_execution']),
-        'enable_on_execution' => intval($body['enable_on_execution'] ?? $existing['enable_on_execution']),
+        'show_on_execution' => $enableOnExecution ? 1 : $showOnExecution,
+        'enable_on_execution' => $enableOnExecution,
         'show_on_testplan_design' => intval($body['show_on_testplan_design'] ?? $existing['show_on_testplan_design']),
         'enable_on_testplan_design' => intval($body['enable_on_testplan_design'] ?? $existing['enable_on_testplan_design']),
         'node_type_id' => $nodeTypeId,

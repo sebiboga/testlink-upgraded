@@ -84,6 +84,27 @@ screen reaches full parity.
   screens + used/unused controls + assign table edit links + German locale;
   suite 954 9/9 PASS, Event Viewer clean. (Refs #954)
 
+- [FEATURE GAP] - #955: the modern Custom Fields screens regain the legacy
+  **Display-on-execution** (show_on_execution) capability
+  (gui/templates/dashio/cfields/cfieldsView.tpl:49,62 display-on-exec icon
+  column + cfieldsEdit.tpl:171-178 "Display on test execution" combo +
+  cfieldsEditJS.tpl:251-269 initShowOnExec). api/cfields/index.php POST and
+  PUT /{id} now accept `show_on_execution` from the body instead of the old
+  create-path hard-coded 0, enforce the legacy rule enable_on_execution ⇒
+  show_on_execution=1 (lib/cfields/cfieldsEdit.php:198-227 request2cf), and
+  scrub both flags to 0 for requirement_spec/requirement node types (legacy
+  show_on_cfg, cfield_mgr.class.php:167-186). cfieldsView.html gains a
+  dedicated "Display on execution" column rendering the legacy `fa fa-desktop`
+  icon (tlsmarty.inc.php:546) when show_on_execution is set; both edit modals
+  (cfieldsView + cfieldsAssignView) get a "Display on test execution" checkbox
+  (`applyShowOnExecVis()`: hidden+forced-on while Enable-On-Execution checked —
+  initShowOnExec parity; hidden+cleared for requirement nodes; freely editable
+  otherwise — the independent toggle). i18n `cf.displayOnExec` + `cf.showOnExec`
+  + `cf.showOnExecHint` in all 10 bundles. Browser-verified: tier shows the
+  icon, env toggled independently (show_on_execution=1/enable_on_execution=0),
+  requirement node hides+clears, assign modal PUT persists the flag; suite 955
+  9/9 PASS, Event Viewer clean. (Refs #955)
+
 - [FEATURE GAP] - #953: the modern Custom Fields screen
   (gui/templates/cfields/cfieldsView.html) gains the legacy create-time
   "Add and assign (to current test project)" capability

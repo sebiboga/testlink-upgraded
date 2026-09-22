@@ -156,6 +156,10 @@ table.dataTable tbody tr.selected-row td { background: #eefaf9; }
             <label><input type="checkbox" id="editEnableTestplanDesign"> <span data-i18n="cf.testplanDesign">Test Plan Design</span></label>
           </div>
         </div>
+        <div class="form-group" style="margin-bottom:12px;display:none;" id="showOnExecGroup">
+          <label style="font-size:12px;font-weight:600;"><input type="checkbox" id="editShowOnExecution" style="margin-right:6px;vertical-align:middle;"> <span data-i18n="cf.showOnExec">Display on test execution</span></label>
+          <p style="font-size:11px;color:#888;margin:3px 0 0 0;" data-i18n="cf.showOnExecHint">Show this field on test execution forms. Automatically enabled when the field is enabled on execution.</p>
+        </div>
         <div id="modalError" style="color:#e6605e;font-size:12px;margin-top:8px;display:none;"></div>
       </div>
       <div class="modal-footer">
@@ -195,7 +199,29 @@ $(function () {
   $('#editEnableExecution').on('change', function () {
     if (this.checked) { $('#editEnableDesign').prop('checked', true); }
   });
+  $('#editEnableExecution, #editNodeType').on('change', applyShowOnExecVis);
 });
+
+// Node types that never carry execution display (legacy show_on_cfg
+// cfield_mgr.class.php:168-173): build/testsuite/testplan/testcase yes,
+// requirement_spec/requirement no.
+var NO_EXEC_DISPLAY_NODES = ['requirement_spec', 'requirement'];
+
+// Mirrors the legacy initShowOnExec() logic (cfieldsEditJS.tpl:251-269) and
+// the edit-mode rule (cfieldsEdit.php:93-96): when the field is enabled on
+// execution (or can never be shown on execution) the "Display on test
+// execution" control is hidden, and enable_on_execution forces the flag on.
+function applyShowOnExecVis() {
+  var nt = $('#editNodeType').val() || '';
+  var notApplicable = NO_EXEC_DISPLAY_NODES.indexOf(nt) !== -1;
+  var forcedByEnable = $('#editEnableExecution').is(':checked');
+  $('#showOnExecGroup').toggle(!notApplicable && !forcedByEnable);
+  if (forcedByEnable || notApplicable) {
+    // requirement nodes and execution-enabled fields can never store a
+    // show_on_execution=0/1 mismatch (legacy defaulted both to 0 for reqs).
+    $('#editShowOnExecution').prop('checked', forcedByEnable);
+  }
+}
 
 function loadMeta() {
   $.getJSON(API + '/meta/types', function (r) {
@@ -238,7 +264,9 @@ function editCf(id) {
     $('#editEnableDesign').prop('checked', cf.enable_on_design === 1);
     $('#editEnableExecution').prop('checked', cf.enable_on_execution === 1);
     $('#editEnableTestplanDesign').prop('checked', cf.enable_on_testplan_design === 1);
+    $('#editShowOnExecution').prop('checked', cf.show_on_execution === 1);
     $('#modalError').hide();
+    applyShowOnExecVis();
     $('#cfModal').modal('show');
   }).fail(function () {
     toast(TLi18n.t('cfa.msg.errorLoad'), true);
@@ -265,7 +293,8 @@ function saveCf() {
     possible_values: $('#editPossibleValues').val().trim(),
     enable_on_design: $('#editEnableDesign').is(':checked') ? 1 : 0,
     enable_on_execution: $('#editEnableExecution').is(':checked') ? 1 : 0,
-    enable_on_testplan_design: $('#editEnableTestplanDesign').is(':checked') ? 1 : 0
+    enable_on_testplan_design: $('#editEnableTestplanDesign').is(':checked') ? 1 : 0,
+    show_on_execution: $('#editShowOnExecution').is(':checked') ? 1 : 0
   };
 
   if (!data.label || !data.name) {
