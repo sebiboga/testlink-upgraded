@@ -202,6 +202,13 @@ function renderPlans() {
     return;
   }
 
+  // Destroy any ACTIVE DataTable BEFORE mutating #planRows: destroy() restores
+  // the table's original cached tbody, so rewriting rows afterwards would leave
+  // the re-render stale. See #1566.
+  if ($.fn.DataTable.isDataTable('#planTable')) {
+    $('#planTable').DataTable().destroy();
+  }
+
   var rows = '';
   plans.forEach(function (plan) {
     plan.platforms.forEach(function (p) {
@@ -229,9 +236,6 @@ function renderPlans() {
   $('#cancelBar').css('display', '');
   $('#actionsBar').css('display', ctx.info.can_do ? '' : 'none');
 
-  if ($.fn.DataTable.isDataTable('#planTable')) {
-    $('#planTable').DataTable().destroy();
-  }
   $('#planTable').DataTable({
     pageLength: 25,
     lengthChange: true,
