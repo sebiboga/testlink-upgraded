@@ -280,6 +280,7 @@
   "cf.msg.createdAndAssigned": "Custom field created and assigned to current test project",
   "cf.msg.errorDelete": "Error deleting custom field",
   "cf.msg.errorSave": "Error saving custom field",
+  "cf.msg.nameExists": "Custom field name already exists. Please choose a new one",
   "cf.msg.noPermissionLog": "You do not have permission to view custom fields. Contact your administrator.",
   "cf.msg.readOnly": "Read-only: you can view and export custom fields, but not create, edit or assign them.",
   "cf.msg.saved": "Custom field saved",

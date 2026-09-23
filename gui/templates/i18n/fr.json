@@ -280,6 +280,7 @@
   "cf.msg.createdAndAssigned": "Champ personnalisé créé et affecté au projet de test actuel",
   "cf.msg.errorDelete": "Erreur lors de la suppression du champ personnalisé",
   "cf.msg.errorSave": "Erreur lors de l'enregistrement du champ personnalisé",
+  "cf.msg.nameExists": "Nom du champ personnalisé existant déjà. Veuillez définir un autre nom.",
   "cf.msg.noPermissionLog": "Vous n'avez pas la permission de consulter les champs personnalisés. Contactez votre administrateur.",
   "cf.msg.readOnly": "Lecture seule : vous pouvez consulter et exporter les champs personnalisés, mais pas les créer, les modifier ni les affecter.",
   "cf.msg.saved": "Champ personnalisé enregistré",

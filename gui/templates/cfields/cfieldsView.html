@@ -315,7 +315,10 @@ function editCf(id) {
     $('#modalTitle').text(TLi18n.t('cf.editCustomField') + ': ' + cf.name);
     $('#editCfId').val(cf.id);
     $('#editLabel').val(cf.label);
-    $('#editName').val(cf.name).prop('readonly', true);
+    // Legacy cfieldsEdit.tpl:83-89 keeps cf_name a plain editable text box in
+    // edit mode; the BFF PUT re-checks uniqueness (Refs #956), so renames are
+    // allowed and colliding names are rejected on save.
+    $('#editName').val(cf.name).prop('readonly', false);
     $('#editType').val(cf.type);
     var nodeName = '';
     $.each(nodeMap, function(id, name) {
@@ -387,7 +390,9 @@ function saveCf() {
       var msg = TLi18n.t('cf.msg.errorSave');
       try {
         var resp = JSON.parse(xhr.responseText);
-        msg = resp.code === 'warning_no_type_change' ? TLi18n.t('cf.msg.warningNoTypeChange') : resp.message;
+        msg = resp.code === 'cf_name_exists' ? TLi18n.t('cf.msg.nameExists')
+          : resp.code === 'warning_no_type_change' ? TLi18n.t('cf.msg.warningNoTypeChange')
+          : resp.message;
       } catch(e) {}
       $('#modalError').text(msg).show();
     }

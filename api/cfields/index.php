@@ -268,8 +268,13 @@ if ($method === 'PUT' && isset($segments[0]) && is_numeric($segments[0])) {
     if ($name !== $existing['name']) {
         $dup = $cfield_mgr->get_by_name($name);
         if ($dup) {
+            // Legacy doUpdate (lib/cfields/cfieldsEdit.php:367-381) uses
+            // name_is_unique() and surfaces lang_get('cf_name_exists') when a
+            // rename would collide; mirror that with an explicit code so the
+            // modern screens can render the localized message (Refs #956).
             http_response_code(400);
-            out(['status' => 'error', 'message' => 'Custom field name already exists']);
+            out(['status' => 'error', 'code' => 'cf_name_exists',
+                 'message' => lang_get('cf_name_exists', assignLocale())]);
         }
     }
 

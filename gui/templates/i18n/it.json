@@ -280,6 +280,7 @@
   "cf.msg.createdAndAssigned": "Campo personalizzato creato e assegnato al progetto di test corrente",
   "cf.msg.errorDelete": "Errore nell'eliminazione del campo personalizzato",
   "cf.msg.errorSave": "Errore nel salvataggio del campo personalizzato",
+  "cf.msg.nameExists": "Il nome del campo personalizzato è già esistente. Sceglierne un'altro",
   "cf.msg.noPermissionLog": "Non hai il permesso di visualizzare i campi personalizzati. Contatta l'amministratore.",
   "cf.msg.readOnly": "Sola lettura: puoi visualizzare ed esportare i campi personalizzati, ma non crearli, modificarli o assegnarli.",
   "cf.msg.saved": "Campo personalizzato salvato",

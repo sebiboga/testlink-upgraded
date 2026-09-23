@@ -280,6 +280,7 @@
   "cf.msg.createdAndAssigned": "Camp personalizat creat și alocat proiectului de testare curent",
   "cf.msg.errorDelete": "Eroare la stergerea campului personalizat",
   "cf.msg.errorSave": "Eroare la salvarea campului personalizat",
+  "cf.msg.nameExists": "Numele campului personalizat există deja. Alegeți alt nume, vă rugăm.",
   "cf.msg.noPermissionLog": "Nu ai permisiunea să vizualizezi câmpurile personalizate. Contactează administratorul.",
   "cf.msg.readOnly": "Doar citire: poți vizualiza și exporta câmpurile personalizate, dar nu le poți crea, edita sau aloca.",
   "cf.msg.saved": "Camp personalizat salvat",

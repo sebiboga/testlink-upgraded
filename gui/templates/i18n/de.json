@@ -280,6 +280,7 @@
   "cf.msg.createdAndAssigned": "Benutzerdefiniertes Feld erstellt und dem aktuellen Testprojekt zugewiesen",
   "cf.msg.errorDelete": "Fehler beim Löschen des benutzerdefinierten Felds",
   "cf.msg.errorSave": "Fehler beim Speichern des benutzerdefinierten Felds",
+  "cf.msg.nameExists": "Feldname bereits vorhanden. Bitte verwenden Sie einen anderen Namen.",
   "cf.msg.noPermissionLog": "Sie besitzen keine Berechtigung, benutzerdefinierte Felder anzuzeigen. Kontaktieren Sie Ihren Administrator.",
   "cf.msg.readOnly": "Nur lesen: Sie können benutzerdefinierte Felder anzeigen und exportieren, aber nicht erstellen, bearbeiten oder zuweisen.",
   "cf.msg.saved": "Benutzerdefiniertes Feld gespeichert",
