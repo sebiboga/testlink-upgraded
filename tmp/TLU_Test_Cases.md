@@ -19383,3 +19383,48 @@ Precondition: fixture `tmp/fixtures_1314.php` run (project SMgrDemo automationEn
 - **Actual:** UI-path testing produced only level-16 info events; E/W rows present in the events table (max ids 13-24) trace to the CLI verification harness (deliberate bad-param `testcase::get_steps`/`update` calls from tmp/bff1314.php exploratory scripts), NOT the modern screen. PASS.
 
 **Result: 8/8 PASS. (Refs #1314)**
+
+## Suite 1313 — Task — Issue #1313: tcEdit.html 'Assign requirements' link restored (gap vs legacy) (Refs #1313)
+
+**Precondition:** Fixture in DB: testproject `TCEDDemo` (id 1, prefix TCED, `requirementsEnabled`=1 in the options blob), req spec `TCED-SPEC1` (id 2) containing requirement `TCED-REQ1` (id 3, v1 = req_version id 4), test case `tcA` (id 5, v2 = tcversion id 6), admin user linked to project 1 with role 8 (admin, has right 28 `req_tcase_link_management`). Login admin/admin on http://localhost:8082.
+
+### Test 1 — BFF edit payload exposes the requirement context
+- **Steps:** open `http://localhost:8082/gui/templates/testcases/tcEdit.html?tproject_id=1&tcase_id=5&tcversion_id=6` and fetch `/api/testcasesedit/index.php?action=edit&tcase_id=5&tproject_id=1&tcversion_id=6`.
+- **Expected:** response contains `requirements_enabled:1` and `grants.req_tcase_link_management` truthy.
+- **Actual:** `{"status":"ok","requirements_enabled":1,"grants":{"mgt_modify_tc":"yes","req_tcase_link_management":"yes"}}`. PASS.
+
+### Test 2 — Toolbar button visible when option + right hold
+- **Steps:** open the editor; inspect `#btnAssignReqs`.
+- **Expected:** "Assign Requirements" button rendered in the toolbar (legacy tcEditViewer.tpl:88-93 parity).
+- **Actual:** button visible (label from bundle `tcedit.assignRequirements`). PASS.
+
+### Test 3 — Button hidden when project requirementsEnabled is off
+- **Steps:** `UPDATE testprojects SET options = REPLACE(options,'s:19:"requirementsEnabled";b:1;','s:19:"requirementsEnabled";b:0;') WHERE id=1;` then reload the editor; restore afterwards.
+- **Expected:** button hidden (`offsetParent === null`).
+- **Actual:** button hidden; restored after flipping the option back to b:1. PASS.
+
+### Test 4 — Modal lists Free/Assigned per req spec
+- **Steps:** click Assign Requirements; verify spec dropdown + lists.
+- **Expected:** spec dropdown shows `[TCED-SPEC1] - TCED-SPEC1`; Free = `TCED-REQ1 - Req A (v. 1)` (1); Assigned = (0), "No requirements assigned yet."
+- **Actual:** all as expected. PASS.
+
+### Test 5 — Assign requirement persists a req_coverage link
+- **Steps:** select TCED-REQ1 in Free and click Assign.
+- **Expected:** toast "1 requirement(s) assigned."; row moves to Assigned; SQL row in `req_coverage` (req_id 3, req_version_id 4, testcase_id 5, tcversion_id 6, link_status 1, author 1); INFO audit event `audit_reqv_assigned_tcv`.
+- **Actual:** all confirmed (DB + events table). PASS.
+
+### Test 6 — Unassign removes the link
+- **Steps:** select the assigned option and click Unassign.
+- **Expected:** toast "1 link(s) removed."; `req_coverage` row deleted; INFO audit event `audit_reqv_assignment_removed_tcv`.
+- **Actual:** COUNT(*) 0 after unassign; events INFO only. PASS.
+
+### Test 7 — Edit/save flow regression
+- **Steps:** modify `#tc_summary`, click Save.
+- **Expected:** "Test case saved." okbox, summary persisted in tcversions.
+- **Actual:** summary `tcA v2 summary [regression]` persisted. PASS.
+
+### Test 8 — Event Viewer / console clean
+- **Expected:** no new Error/Warning rows from this feature's paths; browser console has no JS errors.
+- **Actual:** only log_level-16 info audit rows in `events`; console only pre-existing Lighthouse "no label" issues (same as tcView.html). PASS.
+
+**Result: 8/8 PASS. (Refs #1313)**

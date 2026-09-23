@@ -3481,6 +3481,7 @@
  "tcedit.addStep": "Adaugă pas",
  "tcedit.badDuration": "Durata estimată trebuie să fie un număr.",
  "tcedit.btnNewVersion": "Crează versiune nouă",
+ "tcedit.assignRequirements": "Atribuire cerin\u021be",
  "tcedit.btnSave": "Salvează",
  "tcedit.cancel": "Anulează",
  "tcedit.confirmNewVersion": "Creați o versiune nouă a acestui caz de test?",

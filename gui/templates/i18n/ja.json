@@ -3481,6 +3481,7 @@
  "tcedit.addStep": "Add Step",
  "tcedit.badDuration": "Estimated duration must be a number.",
  "tcedit.btnNewVersion": "Create New Version",
+ "tcedit.assignRequirements": "\u8981\u4ef6\u3092\u5272\u308a\u5f53\u3066",
  "tcedit.btnSave": "Save",
  "tcedit.cancel": "Cancel",
  "tcedit.confirmNewVersion": "Create a new version of this test case?",

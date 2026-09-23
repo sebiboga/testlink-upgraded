@@ -113,6 +113,28 @@ screen reaches full parity.
   TCST1316 (status 4→Rework, 7→Final, save round-trip), Event Viewer clean;
   suite 1576 7/7 PASS. (Refs #1316)
 
+- [FEATURE GAP] - #1313: the modern Test Case Editor (tcEdit.html) regains the
+  legacy **Assign Requirements** affordance (tcEditViewer.tpl:88-93, gated on
+  `$gui->opt_requirements` + grant `req_tcase_link_management`). The editor had
+  dropped every requirement surface: api/testcasesedit/?action=edit payloads
+  carried neither requirement flag, and no UI existed to link requirements to
+  the edited test case. api/testcasesedit/index.php buildEditPayload() now
+  exposes `requirements_enabled` (project option, mirror tcEdit.php:406-412 /
+  api/testcases.php tprojectOpt) and `grants.req_tcase_link_management` (right
+  28, mirror tcEdit.php:654-662); gui/templates/testcases/tcEdit.html adds a
+  toolbar **Assign Requirements** button shown only when both hold, plus the
+  assign-reqs modal + `arq*` JS reused verbatim from the modernized
+  tcView.html/testSpec.html against the shared /api/requirements router
+  (assign-reqspecs / assign-reqs GET+POST / unassign-reqs, which enforce right
+  28 themselves) — so assign/unassign/spec-switching parity is complete with
+  zero duplicated business logic. i18n `tcedit.assignRequirements` added to all
+  10 bundles. Browser-verified on fixture TCEDDemo (TCED-REQ1 v1 <-> tcA v2):
+  button visible with requirementsEnabled=1 + right (hidden when the option is
+  flipped to 0), modal lists Free/Assigned, assign wrote the req_coverage row
+  (req 3 v4 -> tc 5 v6, author admin), unassign deleted it, save flow
+  regression green, Event Viewer only INFO audit rows, suite 1313 6/6 PASS.
+  (Refs #1313)
+
 - [FEATURE GAP] - #1319: the modern Assign Test Case to Test Plan screen
   (gui/templates/testcases/tcAssign2Tplan.html) always keeps the **Cancel**
   button visible whenever test plans exist, even on locked views where

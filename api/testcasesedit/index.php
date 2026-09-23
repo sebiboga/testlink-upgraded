@@ -341,6 +341,11 @@ function buildEditPayload(&$db, &$tcaseMgr, &$tprojectMgr, &$user, $tcaseId, $tc
     $userRight = $user->hasRight($db, 'mgt_modify_tc', $tprojId);
     $editExecutedRight = $user->hasRight($db, 'testproject_edit_executed_testcases', $tprojId);
 
+    // Refs #1313: 'Assign requirements' link (legacy tcEditViewer.tpl:88-93)
+    // gated on project option requirementsEnabled + req_tcase_link_management
+    // right. Same reading as api/testcases/index.php (tprojectOpt pattern).
+    $reqLinkRight = $user->hasRight($db, 'req_tcase_link_management', $tprojId);
+
     // Refs #1314: per-row execution-type select is only rendered (like the
     // legacy steps editor gating on tprojOpt->automationEnabled,
     // tcStepEdit.tpl:216-221) when the project has automation enabled.
@@ -348,6 +353,14 @@ function buildEditPayload(&$db, &$tcaseMgr, &$tprojectMgr, &$user, $tcaseId, $tc
     $automationEnabled = 0;
     if (is_array($projRow) && isset($projRow['opt'])) {
         $automationEnabled = intval($projRow['opt']->automationEnabled ?? 0) > 0 ? 1 : 0;
+    }
+
+    // Refs #1313: project requirement coverage enabled (cluster
+    // testcases.tpl:88-93 legacy flag $gui->opt_requirements,
+    // tcEdit.php:406-412).
+    $requirementsEnabled = 0;
+    if (is_array($projRow) && isset($projRow['opt'])) {
+        $requirementsEnabled = intval($projRow['opt']->requirementsEnabled ?? 0) > 0 ? 1 : 0;
     }
 
     // per-version platform assignment (gap #915) - computed here AFTER
@@ -390,10 +403,12 @@ function buildEditPayload(&$db, &$tcaseMgr, &$tprojectMgr, &$user, $tcaseId, $tc
         'grants' => [
             'mgt_modify_tc' => $userRight,
             'testproject_edit_executed_testcases' => $editExecutedRight,
+            'req_tcase_link_management' => $reqLinkRight,
             'can_edit_executed' => (intval($tcaseCfg->canEditExecuted ?? 0) > 0) ? true : false,
         ],
         'has_been_executed' => $executed,
         'automation_enabled' => $automationEnabled,
+        'requirements_enabled' => $requirementsEnabled,
         'exec_types' => $execTypes,
         'importances' => $importances,
         // Refs #1316: code => legacy-localized label map (config-sourced),

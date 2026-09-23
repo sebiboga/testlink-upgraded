@@ -3475,6 +3475,7 @@
  "tcedit.addStep": "Add Step",
  "tcedit.badDuration": "Estimated duration must be a number.",
  "tcedit.btnNewVersion": "Create New Version",
+ "tcedit.assignRequirements": "Anforderungen zuweisen",
  "tcedit.btnSave": "Save",
  "tcedit.cancel": "Cancel",
  "tcedit.confirmNewVersion": "Create a new version of this test case?",
