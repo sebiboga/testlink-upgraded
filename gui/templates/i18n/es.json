@@ -4586,5 +4586,19 @@
   "exnav.kwAnd": "Y",
   "exnav.exportTreeTitle": "Exportar informe de ejecución (formato árbol del plan de prueba)",
   "exnav.exportResultsTitle": "Exportar informe de ejecución para importar resultados (4+ builds)",
-  "exnav.importResultsTitle": "Importar resultados XML desde una herramienta externa"
+  "exnav.importResultsTitle": "Importar resultados XML desde una herramienta externa",
+  "rsnav.title": "Métricas e Informes",
+  "rsnav.subtitle": "Informes disponibles",
+  "rsnav.reportTypes": "Tipo de informe",
+  "rsnav.testPlan": "Plan de prueba",
+  "rsnav.openReport": "Abrir informe",
+  "rsnav.directLink": "Enlace directo",
+  "rsnav.empty": "No hay informes disponibles para este plan de prueba.",
+  "rsnav.loadFailed": "Fallo al cargar el navegador de informes.",
+  "rsnav.planSelector": "Cambiar plan de prueba",
+  "rsnav.noRights": "No tiene los derechos necesarios para ver métricas e informes.",
+  "rsnav.anon": "Sesión caducada. Vuelva a iniciar sesión.",
+  "rsnav.warnNoTc": "Este plan de prueba no tiene casos de prueba.",
+  "rsnav.warnNoBuild": "Este plan de prueba no tiene builds.",
+  "footers.resultsNavigator": "TestLink 2.0.1 - Métricas e Informes"
 }

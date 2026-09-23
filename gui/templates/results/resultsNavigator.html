@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title data-i18n="rsnav.title">Metrics & Reports</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; color: #0d3f3c; opacity: 1; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.toolbar label { color: #aaa; font-size: 12px; }
+.toolbar select { background: #2e3038; color: #fff; border: 1px solid #444; border-radius: 4px; padding: 6px 10px; font-size: 12px; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 7px; }
+.btn-teal:hover { background: #3dbdb5; }
+.warnbox { margin: 12px 24px 0; background: #fdecea; border: 1px solid #f5c6cb; color: #b94a48; border-radius: 6px; padding: 10px 14px; font-size: 13px; display: none; }
+.section { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px 0; overflow: hidden; }
+.section-head { padding: 13px 20px; border-bottom: 1px solid #eee; font-size: 15px; font-weight: 700; color: #22242a; display: flex; align-items: center; gap: 9px; }
+.section-head i { color: #4ECDC4; }
+.section-body { padding: 6px 20px 14px; overflow-x: auto; }
+table.reports { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.reports th { background: #22242a; color: #fff; padding: 8px 12px; text-align: left; font-size: 12px; }
+table.reports td { padding: 9px 12px; border-bottom: 1px solid #eee; }
+table.reports tr:hover td { background: #f4fbfa; }
+table.reports td .fmt { color: #888; font-size: 11px; }
+.rep-link { color: #1f6f6b; font-weight: 600; text-decoration: none; }
+.rep-link:hover { text-decoration: underline; }
+.dl { font-size: 11px; color: #2d8e88; word-break: break-all; }
+.dl i { margin-right: 4px; }
+.empty { background: #fff; border-radius: 8px; padding: 30px; text-align: center; color: #888; font-size: 14px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px; }
+.empty i { font-size: 34px; color: #4ECDC4; display: block; margin-bottom: 10px; }
+.panel-403, .panel-401 { background: #fff; border-radius: 8px; padding: 30px; text-align: center; color: #b94a48; font-size: 14px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px; }
+.panel-401 { color: #888; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.toast.err { background: #e6605e; }
+.spin { text-align: center; color: #888; font-size: 13px; padding: 40px 24px; }
+.spin i { font-size: 22px; color: #4ECDC4; animation: spin 1s linear infinite; display: inline-block; margin-bottom: 8px; }
+@keyframes spin { from { transform: rotate(0deg);} to { transform: rotate(360deg);} }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <i class="fa fa-chart-pie" style="margin-right:8px;"></i><span data-i18n="rsnav.title">Metrics & Reports</span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="toolbar">
+  <label data-i18n="rsnav.testPlan">Test plan</label>
+  <select id="tplanSel"></select>
+  <label data-i18n="rsnav.reportTypes">Report type</label>
+  <select id="formatSel"></select>
+  <button class="btn-teal" id="btnRefresh"><i class="fa fa-refresh"></i>  <span data-i18n="common.refresh">Refresh</span></button>
+</div>
+
+<div class="warnbox" id="warnbox"></div>
+<div id="content">
+  <div class="spin" id="spinBox"><i class="fa fa-circle-o-notch"></i><br><span data-i18n="common.loading">Loading&hellip;</span></div>
+</div>
+
+<div class="footer"><span data-i18n="footers.resultsNavigator">TestLink 2.0.1 - Metrics & Reports</span></div>
+
+<div class="toast" id="toast"></div>
+
+<script src="/gui/templates/dashio/lib/jquery/jquery.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script>
+var API = '/api/resultsnav/index.php';
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+function toast(msg, err) { var t = $('#toast'); t.text(msg).attr('class', 'toast' + (err ? ' err' : '')).fadeIn(200).delay(2600).fadeOut(300); }
+function params() {
+  var q = new URLSearchParams(window.location.search);
+  return { tproject_id: q.get('tproject_id') || '', tplan_id: q.get('tplan_id') || '' };
+}
+
+function render(r) {
+  $('#warnbox').hide();
+  if (!r || r.status !== 'ok') { toast(r && r.message || TLi18n.t('rsnav.loadFailed'), true); return; }
+  var ctx = r.context;
+  var sel = $('#tplanSel');
+  var prev = String(ctx.tplan_id);
+  sel.empty();
+  $.each(ctx.tplans || {}, function (id, name) {
+    sel.append($('<option>').val(id).text(name));
+  });
+  if (sel.find('option[value="' + prev + '"]').length) { sel.val(prev); }
+  var fs = $('#formatSel');
+  prev = String(ctx.format);
+  fs.empty();
+  $.each(ctx.reportTypes || {}, function (id, name) { fs.append($('<option>').val(id).text(name)); });
+  if (fs.find('option[value="' + prev + '"]').length) { fs.val(prev); }
+
+  if (ctx.warning) { $('#warnbox').html('<i class="fa fa-exclamation-triangle"></i> ' + esc(ctx.warning)).show(); }
+
+  var h = '<div class="section"><div class="section-head"><i class="fa fa-list"></i> ' + esc(TLi18n.t('rsnav.subtitle')) + '</div><div class="section-body">';
+  if (!r.reports || !r.reports.length) {
+    h += '</div></div><div class="empty"><i class="fa fa-inbox"></i>' + esc(TLi18n.t('rsnav.empty')) + '</div>';
+  } else {
+    h += '<table class="reports"><thead><tr><th>' + esc(TLi18n.t('common.name')) + '</th><th>' + esc(TLi18n.t('rsnav.directLink')) + '</th></tr></thead><tbody>';
+    $.each(r.reports, function (i, it) {
+      h += '<tr><td><a class="rep-link" href="' + esc(it.href) + '" target="_blank"><i class="fa fa-external-link"></i> ' + esc(it.name) + '</a><div class="fmt">' + esc(it.format) + '</div></td>';
+      h += '<td class="dl">' + (it.directLink && it.directLink.indexOf('http') === 0
+        ? '<a href="' + esc(it.directLink) + '" target="_blank"><i class="fa fa-link"></i>' + esc(it.directLink) + '</a>'
+        : esc(it.directLink ? it.directLink : '-')) + '</td></tr>';
+    });
+    h += '</tbody></table>';
+  }
+  h += '</div></div>';
+  $('#content').html(h);
+}
+
+function load() {
+  $('#content').html('<div class="spin" id="spinBox"><i class="fa fa-circle-o-notch"></i><br><span data-i18n="common.loading">Loading&hellip;</span></div>');
+  var q = new URLSearchParams(window.location.search);
+  var tproject_id = q.get('tproject_id') || '';
+  var tplan_id = q.get('tplan_id') || ($('#tplanSel').val() || '');
+  $.ajax({ url: API, data: { action: 'init', tproject_id: tproject_id, tplan_id: tplan_id, format: $('#formatSel').val() || '' },
+    success: function (r) { render(r); },
+    error: function (xhr) {
+      $('#content').html('<div class="panel-401"><i class="fa fa-user-lock"></i><br>' + esc(TLi18n.t('rsnav.anon')) + '</div>');
+      if (xhr.status === 403) { $('#content').html('<div class="panel-403"><i class="fa fa-ban"></i><br>' + esc(TLi18n.t('rsnav.noRights')) + '</div>'); }
+    } });
+}
+
+$(function () {
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    load();
+  });
+  $('#btnRefresh').on('click', load);
+  $('#formatSel').on('change', load);
+  $('#tplanSel').on('change', function () {
+    var id = $(this).val();
+    if (!id) { return; }
+    var q = new URLSearchParams(window.location.search);
+    q.set('tplan_id', id);
+    history.replaceState(null, '', window.location.pathname + '?' + q.toString());
+    load();
+  });
+});
+</script>
+</body>
+</html>

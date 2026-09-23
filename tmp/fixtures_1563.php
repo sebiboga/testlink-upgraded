@@ -1,10 +1,6 @@
 <?php
-// Fixture for #1563 browser/curl testing: cfieldsAssignView Location dropdown
-// (gui/templates/cfields/cfieldsAssignView.html + api/cfields/index.php GET
-// /assignment). Creates tproject `Demo Project` (prefix DMP1563, testcase
-// custom fields enabled) + testcase custom field `assigned_cf` linked to it
-// (location 5 = after_title) so the assignment screen renders the Location
-// dropdown with all 8 location codes.
+// Fixture for #1563: Metrics & Reports navigator screen (resultsNavigator).
+// Creates tproject `RSNAV` (prefix `RSN`) + test plan + one test case + a build.
 // Run from repo root: php tmp/fixtures_1563.php
 require_once('config.inc.php');
 require_once('common.php');
@@ -13,76 +9,84 @@ $db = new database(DB_TYPE);
 doDBConnect($db);
 
 $tprojMgr = new testproject($db);
+$planMgr = new testplan($db);
+$suiteMgr = new testsuite($db);
 $userId = 1; // admin
 
-foreach ((array)$tprojMgr->get_by_name('Demo Project') as $row) {
+foreach ((array)$tprojMgr->get_by_name('RSNAV') as $row) {
     $oid = intval(is_array($row) ? ($row['id'] ?? 0) : $row);
     if ($oid > 0) {
         echo "deleting old project $oid\n";
-        $tprojMgr->delete($oid);
+        $tprojMgr->delete($oid, 1);
     }
 }
 
-// remove a leftover custom field from a previous run of this fixture
-$old = $db->fetchRowsIntoMap("SELECT id FROM custom_fields WHERE name='assigned_cf'", 'id');
-foreach (array_keys((array)$old) as $fid) {
-    $fid = intval($fid);
-    $db->exec_query("DELETE FROM cfield_node_types WHERE field_id=$fid");
-    $db->exec_query("DELETE FROM cfield_testprojects WHERE field_id=$fid");
-    $db->exec_query("DELETE FROM custom_fields WHERE id=$fid");
-    echo "deleted old custom field $fid\n";
-}
-
 $item = new stdClass();
-$item->name = 'Demo Project';
-$item->prefix = 'DMP1563';
-$item->notes = 'fixture for issue 1563 (cfieldsAssignView Location LOCALIZE labels)';
+$item->name = 'RSNAV';
+$item->prefix = 'RSN';
+$item->notes = 'fixture for issue 1563 (metrics & reports navigator)';
 $item->color = '';
 $item->active = 1;
 $item->is_public = 1;
 $opts = new stdClass();
-$opts->requirementsEnabled = 0;
+$opts->requirementsEnabled = 1;
 $opts->testPriorityEnabled = 0;
 $opts->automationEnabled = 0;
 $opts->inventoryEnabled = 0;
 $opts->platformsEnabled = 0;
 $opts->testcasecfEnabled = 1;
-$opts->requirementcfEnabled = 0;
+$opts->requirementcfEnabled = 1;
 $item->options = $opts;
 $r = $tprojMgr->create($item);
 $idP = intval($r);
-if ($idP <= 0) {
-    die("tproject create failed\n");
-}
-echo "tproject=$idP (prefix DMP1563)\n";
+echo "tproject=$idP\n";
 $tprojMgr->setActive($idP);
 
-$cfMgr = new cfield_mgr($db);
-$cf = array(
-    'name' => 'assigned_cf',
-    'label' => 'Assigned CF (issue 1563)',
-    'type' => 0, // string
-    'possible_values' => '',
-    'show_on_design' => 1,
-    'enable_on_design' => 1,
-    'show_on_testplan_design' => 0,
-    'enable_on_testplan_design' => 0,
-    'show_on_execution' => 0,
-    'enable_on_execution' => 0, // location support requires 0
-    'node_type_id' => 3, // testcase
-);
-$ret = $cfMgr->create($cf);
-if (!$ret['status_ok']) {
-    die("custom field create failed\n");
+$args = new stdClass();
+$args->name = 'RSNAV Plan';
+$args->notes = 'plan for issue 1563';
+$args->active = 1;
+$args->is_open = 1;
+$args->option_automation = 0;
+$args->option_priority = 0;
+$op = $planMgr->create($args->name, $args->notes, $idP, 1);
+if (!$op || intval($op) <= 0) { die("plan create failed\n"); }
+$idT = intval($op);
+echo "tplan=$idT\n";
+$planMgr->setActive($idT);
+
+foreach ((array)$suiteMgr->get_by_name('RSNAV Suite') as $row) {
+    $oid = intval(is_array($row) ? ($row['id'] ?? 0) : $row);
+    if ($oid > 0) { $suiteMgr->delete($oid, 1); }
 }
-$fieldId = intval($ret['id']);
-echo "custom_field=$fieldId\n";
+$suiteId = $suiteMgr->create($idP, 'RSNAV Suite', 'suite for issue 1563');
+$suiteId = is_array($suiteId) && isset($suiteId['id']) ? intval($suiteId['id']) : intval($suiteId);
+echo "suite=$suiteId\n";
+echo "building tc with parent $suiteId\n";
 
-$cfMgr->link_to_testproject($idP, array($fieldId));
-// location 5 = after_title (the dropdown entry the issue calls out)
-$db->exec_query("UPDATE cfield_testprojects SET location=5, display_order=1, active=1" .
-    " WHERE testproject_id=$idP AND field_id=$fieldId");
+$tc = new testcase($db);
+$op = $tc->create($suiteId,
+                  'RSNAV TC', 'summary for issue 1563', '', '',
+                  $userId, '');
+$idTC = intval(is_array($op) && isset($op['id']) ? $op['id'] : $op);
+if ($idTC <= 0) { die("tc create failed\n"); }
+echo "tc=$idTC\n";
 
-echo "DONE\n";
-echo "tproject_id=$idP\n";
-echo "custom_field_id=$fieldId\n";
+$buildMgr = new build($db);
+$buildMgr->create($idT, 'RSNAV Build 1', 'build for issue 1563', 1, 1, '', $idP);
+echo "build created\n";
+
+// link the newest tcversion to the plan so reports produce the full list
+$tables = tlObjectWithDB::getDBTables(array('nodes_hierarchy', 'testplan_tcversions'));
+$tcv = $db->fetchOneValue(
+    " SELECT id FROM {$tables['nodes_hierarchy']} " .
+    " WHERE parent_id = " . intval($idTC) . " AND node_type_id = 4 ORDER BY id LIMIT 1");
+if ($tcv) {
+    $db->exec_query(
+        " INSERT INTO {$tables['testplan_tcversions']} " .
+        " (testplan_id, author_id, creation_ts, tcversion_id, platform_id) " .
+        " VALUES (" . intval($idT) . ", {$userId}, " . $db->db_now() . ", " . intval($tcv) . ", 0)");
+    echo "linked tcversion $tcv to plan $idT\n";
+}
+
+echo "fixture ready: project $idP, plan $idT, tc $idTC\n";

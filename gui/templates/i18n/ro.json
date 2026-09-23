@@ -4596,5 +4596,19 @@
   "exnav.kwAnd": "Și",
   "exnav.exportTreeTitle": "Exportă raportul de execuție (format arbore al planului de test)",
   "exnav.exportResultsTitle": "Exportă raportul de execuție pentru import de rezultate (4+ build-uri)",
-  "exnav.importResultsTitle": "Importă rezultate XML dintr-un instrument extern"
+  "exnav.importResultsTitle": "Importă rezultate XML dintr-un instrument extern",
+  "rsnav.title": "Metrică și Rapoarte",
+  "rsnav.subtitle": "Rapoarte disponibile",
+  "rsnav.reportTypes": "Tip raport",
+  "rsnav.testPlan": "Plan de testare",
+  "rsnav.openReport": "Deschide raportul",
+  "rsnav.directLink": "Link direct",
+  "rsnav.empty": "Niciun raport disponibil pentru acest plan de testare.",
+  "rsnav.loadFailed": "Încărcarea navigatorului de rapoarte a eșuat.",
+  "rsnav.planSelector": "Schimbă planul de testare",
+  "rsnav.noRights": "Nu aveți drepturile necesare pentru a vizualiza metrică și rapoarte.",
+  "rsnav.anon": "Sesiune expirată. Vă rugăm să vă autentificați din nou.",
+  "rsnav.warnNoTc": "Acest plan de testare nu are cazuri de test.",
+  "rsnav.warnNoBuild": "Acest plan de testare nu are release-uri.",
+  "footers.resultsNavigator": "TestLink 2.0.1 - Metrică și Rapoarte"
 }

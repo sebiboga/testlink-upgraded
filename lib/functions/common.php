@@ -1980,6 +1980,9 @@ function getActions(&$gui,$baseURL) {
   $actions->metrics_dashboard =
     "/gui/templates/results/metricsDashboard.html?{$ctx}";
 
+  // Refs #1563: Metrics & Reports launcher hub (legacy lib/results/resultsNavigator.php)
+  $actions->resultsNav = "/gui/templates/results/resultsNavigator.html?{$ctx}";
+
 
   $pp = $bb . '/plan';
   // Test Plan Management modernized screen (Dashio standalone page) - Refs #576

@@ -4592,5 +4592,19 @@
   "exnav.kwAnd": "И",
   "exnav.exportTreeTitle": "Экспорт отчёта о выполнении (формат дерева тестового плана)",
   "exnav.exportResultsTitle": "Экспорт отчёта о выполнении для импорта результатов (4+ сборки)",
-  "exnav.importResultsTitle": "Импорт результатов XML из внешнего инструмента"
+  "exnav.importResultsTitle": "Импорт результатов XML из внешнего инструмента",
+  "rsnav.title": "Metrics & Reports",
+  "rsnav.subtitle": "Available reports",
+  "rsnav.reportTypes": "Report type",
+  "rsnav.testPlan": "Test plan",
+  "rsnav.openReport": "Open report",
+  "rsnav.directLink": "Direct link",
+  "rsnav.empty": "No reports available for this test plan.",
+  "rsnav.loadFailed": "Failed to load the reports navigator.",
+  "rsnav.planSelector": "Switch test plan",
+  "rsnav.noRights": "You do not have the required rights to view metrics and reports.",
+  "rsnav.anon": "Session expired. Please log in again.",
+  "rsnav.warnNoTc": "This test plan has no test cases.",
+  "rsnav.warnNoBuild": "This test plan has no builds.",
+  "footers.resultsNavigator": "TestLink 2.0.1 - Metrics & Reports"
 }

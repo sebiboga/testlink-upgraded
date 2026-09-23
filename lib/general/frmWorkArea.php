@@ -57,7 +57,7 @@ $aa_tfp = array(
      'test_urgency' => 'lib/plan/planTCNavigator.php?feature=test_urgency',
      'tc_exec_assignment' => 'lib/plan/planTCNavigator.php?feature=tc_exec_assignment',
      'executeTest' => array('lib/execute/execNavigator.php?setting_testplan=', 'lib/execute/execDashboard.php?id='),
-     'showMetrics' => 'lib/results/resultsNavigator.php',
+     'showMetrics' => 'gui/templates/results/resultsNavigator.html',
      'reqSpecMgmt' => array('lib/requirements/reqSpecListTree.php',
                             'lib/project/project_req_spec_mgmt.php?id=')
 );

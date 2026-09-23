@@ -4586,5 +4586,19 @@
   "exnav.kwAnd": "Und",
   "exnav.exportTreeTitle": "Ausführungsbericht exportieren (Testplan-Baumformat)",
   "exnav.exportResultsTitle": "Ausführungsbericht für Ergebnisimport exportieren (4+ Builds)",
-  "exnav.importResultsTitle": "XML-Ergebnisse aus einem externen Tool importieren"
+  "exnav.importResultsTitle": "XML-Ergebnisse aus einem externen Tool importieren",
+  "rsnav.title": "Metriken & Berichte",
+  "rsnav.subtitle": "Verfügbare Berichte",
+  "rsnav.reportTypes": "Berichtstyp",
+  "rsnav.testPlan": "Testplan",
+  "rsnav.openReport": "Bericht öffnen",
+  "rsnav.directLink": "Direktlink",
+  "rsnav.empty": "Keine Berichte für diesen Testplan verfügbar.",
+  "rsnav.loadFailed": "Fehler beim Laden des Berichtsnavigators.",
+  "rsnav.planSelector": "Testplan wechseln",
+  "rsnav.noRights": "Sie haben nicht die erforderlichen Rechte, um Metriken und Berichte zu sehen.",
+  "rsnav.anon": "Sitzung abgelaufen. Bitte melden Sie sich erneut an.",
+  "rsnav.warnNoTc": "Dieser Testplan hat keine Testfälle.",
+  "rsnav.warnNoBuild": "Dieser Testplan hat keine Builds.",
+  "footers.resultsNavigator": "TestLink 2.0.1 - Metriken & Berichte"
 }
