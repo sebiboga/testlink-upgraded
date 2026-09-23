@@ -88,13 +88,21 @@ function trackerToJSON($item, $mgr) {
         'typeDescr' => $typeDescr,
         'cfg' => $item['cfg'] ?? '',
         'implementation' => $item['implementation'] ?? '',
+        // Legacy lib/issuetrackers/issueTrackerView.php:23 requested
+        // checkEnv=>true so getAll() runs the per-tracker $impl::checkEnv()
+        // (tlIssueTracker.class.php:610-616) and fills env_check_ok/msg,
+        // rendered by issueTrackerView.tpl:77 in the "Environment" column.
+        'env_check_ok' => (bool)($item['env_check_ok'] ?? true),
+        'env_check_msg' => (string)($item['env_check_msg'] ?? ''),
     ];
 }
 
 $mgr = new tlIssueTracker($db);
 
 if ($method === 'GET' && ($path === '/' || $path === '' || $path === '/index.php')) {
-    $all = $mgr->getAll(['output' => 'add_link_count']);
+    // checkEnv parity with legacy issueTrackerView.php:23 — per-tracker
+    // environment check (env_check_ok/env_check_msg) is computed server-side.
+    $all = $mgr->getAll(['output' => 'add_link_count', 'checkEnv' => true]);
     $items = [];
     if ($all) {
         foreach ($all as $item) {

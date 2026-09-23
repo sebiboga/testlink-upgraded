@@ -25,6 +25,8 @@ table.dataTable thead th { background: #22242a; color: #fff; font-size: 13px; pa
 table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
 .badge-active { background: #4ECDC4; color: #fff; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 700; }
 .badge-inactive { background: #e6605e; color: #fff; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 700; }
+.badge-env-ok { background: #3a9c5c; color: #fff; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 700; cursor: default; }
+.badge-env-ko { background: #e6605e; color: #fff; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 700; cursor: default; }
 .action-btn { cursor: pointer; color: #4ECDC4; margin-right: 8px; font-size: 14px; }
 .action-btn:hover { color: #2d8e88; }
 .action-btn.danger { color: #e6605e; }
@@ -54,6 +56,7 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
         <th data-i18n="it.name">Name</th>
         <th data-i18n="it.type">Type</th>
         <th data-i18n="it.serverUrl">Server URL</th>
+        <th data-i18n="it.environment">Environment</th>
         <th data-i18n="it.active">Active</th>
         <th id="thActions" style="width:100px" data-i18n="common.actions">Actions</th>
       </tr>
@@ -193,10 +196,24 @@ function renderTable(items) {
   if (table) { table.destroy(); $('#trackersTable tbody').empty(); }
   var rows = [];
   $.each(items, function(i, t) {
+    // Legacy issueTrackerView.tpl rendered every tracker's URL from its cfg;
+    // tracker templates use different keys — bugzilla/fogbugz/jira/mantis etc.
+    // write <uribase>, the GitHub-OAuth flow and the redmine/gitlab templates
+    // write <url>. Match BOTH so the cell is never blank (issue #961).
     var cfgUrl = '';
     if (t.cfg) {
-      var m = t.cfg.match(/<uribase>(.*?)<\/uribase>/);
+      var m = t.cfg.match(/<uribase>(.*?)<\/uribase>/) || t.cfg.match(/<url>(.*?)<\/url>/);
       if (m) cfgUrl = m[1];
+    }
+    // Legacy Environment column (issueTrackerView.tpl:16,77) renders the
+    // per-tracker $impl::checkEnv() result: OK (green) or the failure msg
+    // (red), whatever the implementation returned server-side (env_check_msg).
+    var envOk = t.env_check_ok !== false;
+    var envHtml = '<span class="' + (envOk ? 'badge-env-ok' : 'badge-env-ko') + '" title="';
+    if (envOk) {
+      envHtml += (t.env_check_msg ? t.env_check_msg : TLi18n.t('it.envOk')) + '">' + TLi18n.t('it.envOk') + '</span>';
+    } else {
+      envHtml += TLi18n.t('it.envKo') + '">' + (t.env_check_msg ? t.env_check_msg : TLi18n.t('it.envKo')) + '</span>';
     }
     var actions = '';
     if (canManage) {
@@ -207,11 +224,12 @@ function renderTable(items) {
       t.name,
       t.typeDescr || t.typeLabel,
       cfgUrl,
+      envHtml,
       '<span class="badge-active">Active</span>',
       actions
     ]);
   });
-  var cols = [null, null, null, null, { orderable: false, searchable: false }];
+  var cols = [null, null, null, null, null, { orderable: false, searchable: false }];
   if (!canManage) {
     $('#thActions').hide();
     $.each(rows, function(i, r) { r.pop(); });
