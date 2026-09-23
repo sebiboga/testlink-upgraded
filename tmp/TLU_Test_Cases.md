@@ -19451,3 +19451,42 @@ per test; screen `http://localhost:8082/gui/templates/issuetracker/issuetrackerV
 - **Actual:** canManage true; tracker id 2 `admin-demo-tracker` created (200) and deleted (200); UI unchanged. PASS.
 
 **Result: 4/4 PASS. (Refs #960)**
+
+## Suite 1570 — Screen — Print Document Options popup (printDocOptions.html + api/printoptions)
+
+### Goal
+Verify the modernized Print Document Options popup: BFF contract (401/403/405/400 + context resolution), correct option groups per doc type (doc + testspec/reqspec + exec), format visibility, builds for testreport_onbuild, legacy shim redirect, and the screen's open actions target the modern print renderers. (Refs #1570)
+
+### Preconditions
+- Fixtures: php tmp/fixtures_1570.php (creates project PDO/prefix PDO, requirements enabled, req spec PRS-PDO w/ RQ-PDO-1, plan PDO Plan active, suite w/ 2 linked TCs, builds PDO Build 1 open + PDO Build 2 closed, norights user)
+- App at http://localhost:8082, login admin/admin; norights/norights (role 3)
+- Popup URL: gui/templates/results/printDocOptions.html?type=testspec&tproject_id=<tp>&tplan_id=<tl>
+
+### Test cases (7)
+1. Anonymous BFF -> 401. `curl -H "X-Requested-With: XMLHttpRequest" http://localhost:8082/api/printoptions/index.php?action=init&type=testspec` -> {"status":"error","message":"Not authenticated"}.
+2. Non-GET -> 405. `-X POST ...?action=init&type=testspec` (admin cookie + XHR) -> {"status":"error","message":"Method not allowed"}.
+3. Rights -> 403. norights (role 3) on testspec -> {"status":"error","message":"Missing rights: testplan_metrics"}; on reqspec -> "Missing rights: mgt_view_req".
+4. Validation -> 400. type=unknown -> "Invalid document type"; reqspec on a requirements-disabled project -> "Requirements are not enabled for this test project"; tplan-type with tplan_id=0 -> "No active test plan in context".
+5. Init by type (admin) -> 200. testspec: doc+testSpec groups, show_format=true, 2 formats, builds []. reqspec: doc+reqSpec (14), show_format=true, requirements_enabled=true. testplan: doc+testSpec, show_format=false, builds []. testreport: doc+testSpec+exec(7: execResultsByCFOnExecCombination,notes,step_exec_notes,passfail,step_exec_status,build_cfields,metrics), show_format=false. testreport_onbuild: same + builds has 2 rows. All: context.tproject_name=PDO, tplan_id=25, needs_plan per type.
+6. Screen render (browser, admin): testspec load -> 5 doc type options, format row visible, Document group (toc, headerNumbering) + Test specification (summary checked, header/body/author/keyword/cfields/requirement unchecked), locale switcher, toggle-all works, Print opens printTestDoc.html?type=testspec&level=testproject&id/&tproject_id=24&format=...&(prefs pairs), config link opens printTestSpec.html?tproject_id=24. Switching to testreport_onbuild shows Build row with the 2 builds and with_user_assignment; Print -> reportPrint.html?type=testreport_onbuild&...&build_id=<bid>&opts=...; format hidden for plan/report types.
+7. Legacy shim: lib/results/printDocOptions.php?type=testreport&tplan_id=25 -> 302 gui/templates/results/printDocOptions.html?type=testreport&tplan_id=25; ?activity=addTC&tplan_id=25 -> 302 gui/templates/plans/planAddTCView.html?tplan_id=25.
+
+### Results
+- [x] All cases PASS
+- [x] Event Viewer: 0 new ERROR/WARNING attributable to this screen
+- [x] Console: 0 errors
+
+### Test run (23 Sep 2026, admin/admin)
+Ran on fresh DB import (project PDO id 24, plan PDO Plan id 25). Case 7 addTC redirect originally produced a malformed
+`planAddTCView.html&tplan_id=25` URL (missing `?`) and the shim forwarded anonymous users straight through
+(session-guard regression) -> both fixed in `ae73de468`; verified authed 302 to `planAddTCView.html?tplan_id=25` + anon 200 login. 
+Extra browser findings fixed during the run: stray `on=n` in opts (collectPrefs caught the with_user_assignment checkbox,
+now scoped to `.opt-group input[type=checkbox]`, `ec0873be1`); format select rendered raw keys
+`format_html`/`format_pseudo_msword` because renderFormats did `TLi18n.t(f.key)` with non-namespaced legacy labels ->
+added `pdo.format_*` keys to all 10 bundles + `TLi18n.t('pdo.' + f.key)` (`2714790a3`); verified formats now show
+`HTML` / `Pseudo MS Word`. Print renderers verified end-to-end: testspec -> printTestDoc.html (summary applied, body
+excluded), reqspec -> printDocument.html (req spec scope + req scope shown), testreport_onbuild -> reportPrint.html with
+build context. PENDING: wiki screenshots (MCP capture tool timed out twice in this run).
+
+### Notes
+Option set parity vs printDocOptions.class.php; exec group only for testreport/testreport_onbuild; formats = reports_formats (FORMAT_HTML=0, FORMAT_MSWORD=4) shown only for testspec/reqspec; per-type right enforced by BFF.
