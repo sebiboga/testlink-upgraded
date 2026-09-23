@@ -19490,3 +19490,39 @@ build context. PENDING: wiki screenshots (MCP capture tool timed out twice in th
 
 ### Notes
 Option set parity vs printDocOptions.class.php; exec group only for testreport/testreport_onbuild; formats = reports_formats (FORMAT_HTML=0, FORMAT_MSWORD=4) shown only for testspec/reqspec; per-type right enforced by BFF.
+
+## Suite 961 — Task — Issue #961: per-tracker Environment column (checkEnv) in issuetrackerView (Refs #961)
+
+**Precondition:** fresh DB import; SQL fixtures in `issuetrackers` table — id 1 bugzilla-demo (type 1, cfg `<uribase>`), id 2 redmine-demo (type 15, cfg `<url>`), id 3 github-demo (type 25, cfg `<url>`), id 4 gitlab-demo (type 22, cfg `<url>`); users: admin/admin (issuetracker_management) and itview/itview (role with ONLY right 32 `issuetracker_view`). Screen `http://localhost:8082/gui/templates/issuetracker/issuetrackerView.html`.
+
+### Test 1 — BFF GET / exposes per-tracker env data (checkEnv parity)
+- **Steps:** admin login; in-page `fetch('/api/issuetracker/index.php')`.
+- **Expected:** every `items[]` entry carries `env_check_ok` (bool) + `env_check_msg` (string) — legacy `getAll(['checkEnv'=>true])` parity (`issueTrackerView.php:23`, `tlIssueTracker.class.php:610-616`).
+- **Actual:** all 4 items `{"env_check_ok":true,"env_check_msg":"OK"}`. PASS.
+
+### Test 2 — Server URL column filled for <uribase> AND <url> cfg
+- **Steps:** admin reloads the screen; inspect Server URL cells.
+- **Expected:** bugzilla-demo shows `https://bugzilla.example.org/`; redmine/github/gitlab-demo show their `<url>` values (previously blank).
+- **Actual:** redmine `https://redmine.example.org`, github `https://api.github.com`, gitlab `https://gitlab.example.org` all rendered. PASS.
+
+### Test 3 — Environment column renders green OK badge
+- **Steps:** admin reloads; inspect Environment column.
+- **Expected:** legacy `th_issuetracker_env` column present between Type and Active; each row shows green OK badge (SOAP loaded on this host → all checkEnv OK).
+- **Actual:** headers `Name/Type/Server URL/Environment/Active/Actions`; 4 rows with `OK` (badge-env-ok, bg rgb(58,156,92), white text). PASS.
+
+### Test 4 — KO state renders red badge with the impl message
+- **Steps:** in-page `renderTable([{env_check_ok:false, env_check_msg:'You need to enable SOAP extension', ...}])`; read cell HTML after `loadTrackers` has populated.
+- **Expected:** red `<span class="badge-env-ko" title="Environment check failed">You need to enable SOAP extension</span>` (bg rgb(230,96,94), white text).
+- **Actual:** exactly that markup/CSS. PASS. (Server-side KO only occurs when `extension_loaded('soap')` is false — jira/mantis/gforge `checkEnv`; verified render path here.)
+
+### Test 5 — View-only user regression (issuetracker_view only)
+- **Steps:** logout, login itview/itview, open the screen; read headers + write-UI visibility.
+- **Expected:** Environment column still visible (legacy rendered it to all viewers); Create/GitHub buttons + Actions column hidden; BFF `canManage:false`, env fields still present.
+- **Actual:** headers include Environment; row `bugzilla-demo … OK … Active` with plain text (no icons); `#btnCreate`/`#btnGithub`/`#thActions` offsetParent null. PASS.
+
+### Test 6 — Event Viewer / console clean
+- **Steps:** after all flows above, query `events` for log_level IN (1,2) and read browser console.
+- **Expected:** no new Error/Warning rows; console clean (only pre-existing a11y "no label" issue).
+- **Actual:** 0 rows at log_level 1,2 (only LOGIN/LOGIN_FAILED audit rows, the failures being deliberate bad-auth fixture attempts); console clean. PASS.
+
+**Result: 6/6 PASS. (Refs #961)**

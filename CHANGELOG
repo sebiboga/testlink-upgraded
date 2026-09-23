@@ -52,6 +52,26 @@ screen reaches full parity.
   table UI, admin → unchanged full UI (create/delete 200); Event Viewer clean
   (AUDIT-only). Suite 960 4/4 PASS. (Refs #960)
 
+- [FEATURE GAP] - #961: the modern Issue Trackers screen regains the legacy
+  per-tracker **Environment column** (`checkEnv`) and renders the Server URL for
+  every cfg key. Legacy `issueTrackerView.php:23` called
+  `getAll(array('output'=>'add_link_count','checkEnv'=>true))` so
+  `tlIssueTracker.class.php:610-616` ran `$impl::checkEnv()` per tracker and
+  `issueTrackerView.tpl:16,77` showed the result in the "Environment" column;
+  the modern BFF called `getAll(['output'=>'add_link_count'])` WITHOUT `checkEnv`
+  (no env data in JSON) and `issuetrackerView.html` regex-matched ONLY
+  `<uribase>` for its Server URL cell — measured: redmine/gitlab/github trackers
+  (cfg written with `<url>`, incl. the GitHub-OAuth flow) rendered an EMPTY URL
+  cell and no environment state ever surfaced. The BFF now passes
+  `checkEnv=>true` and emits `env_check_ok`/`env_check_msg` per item;
+  `issuetrackerView.html` gained an Environment column (green OK badge / red
+  badge with the impl message, e.g. "You need to enable SOAP extension") and the
+  URL matcher accepts `<uribase>` or `<url>`. i18n keys `it.environment`,
+  `it.envOk`, `it.envKo` added to all 10 locale bundles. Browser-verified:
+  admin → all 4 fixture URLs rendered + OK badges, KO render path (red badge),
+  view-only user → Environment column visible with write UI hidden (#960
+  intact); Event Viewer clean (INFO-only). Suite 961 6/6 PASS. (Refs #961)
+
 - [FEATURE GAP] - #956: the modern Custom Fields screens regain the legacy
   ability to **rename a custom field (name)** in edit mode. Legacy edit kept
   cf_name a plain editable text box (gui/templates/dashio/cfields/

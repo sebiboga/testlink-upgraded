@@ -194,26 +194,35 @@ function loadTrackers() {
 
 function renderTable(items) {
   if (table) { table.destroy(); $('#trackersTable tbody').empty(); }
+  // Legacy issueTrackerView.tpl escaped every displayed value (|escape). Cells
+  // here go through innerHTML, so HTML-escape cfg-derived and DB-derived text
+  // (cfg URL, env msg, name, type) before pushing into the DataTables rows.
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
   var rows = [];
   $.each(items, function(i, t) {
-    // Legacy issueTrackerView.tpl rendered every tracker's URL from its cfg;
-    // tracker templates use different keys — bugzilla/fogbugz/jira/mantis etc.
-    // write <uribase>, the GitHub-OAuth flow and the redmine/gitlab templates
-    // write <url>. Match BOTH so the cell is never blank (issue #961).
+    // Tracker cfg templates use different keys for the server URL: most write
+    // <uribase> (bugzilla/jira/mantis/fogbugz/gitlab/trac/kaiten/trello/...),
+    // while the GitHub template and the GitHub-OAuth flow write <url>. Match
+    // BOTH so the cell is never blank (issue #961).
     var cfgUrl = '';
     if (t.cfg) {
       var m = t.cfg.match(/<uribase>(.*?)<\/uribase>/) || t.cfg.match(/<url>(.*?)<\/url>/);
-      if (m) cfgUrl = m[1];
+      if (m) cfgUrl = esc(m[1]);
     }
     // Legacy Environment column (issueTrackerView.tpl:16,77) renders the
     // per-tracker $impl::checkEnv() result: OK (green) or the failure msg
     // (red), whatever the implementation returned server-side (env_check_msg).
     var envOk = t.env_check_ok !== false;
+    var envMsg = t.env_check_msg ? esc(t.env_check_msg) : '';
     var envHtml = '<span class="' + (envOk ? 'badge-env-ok' : 'badge-env-ko') + '" title="';
     if (envOk) {
-      envHtml += (t.env_check_msg ? t.env_check_msg : TLi18n.t('it.envOk')) + '">' + TLi18n.t('it.envOk') + '</span>';
+      envHtml += (envMsg ? envMsg : TLi18n.t('it.envOk')) + '">' + TLi18n.t('it.envOk') + '</span>';
     } else {
-      envHtml += TLi18n.t('it.envKo') + '">' + (t.env_check_msg ? t.env_check_msg : TLi18n.t('it.envKo')) + '</span>';
+      envHtml += TLi18n.t('it.envKo') + '">' + (envMsg ? envMsg : TLi18n.t('it.envKo')) + '</span>';
     }
     var actions = '';
     if (canManage) {
@@ -221,8 +230,8 @@ function renderTable(items) {
                  '<i class="fa fa-trash action-btn danger" title="' + TLi18n.t('common.delete') + '" onclick="deleteTracker(' + t.id + ', \'' + (t.name || '').replace(/'/g, "\\'") + '\')"></i>';
     }
     rows.push([
-      t.name,
-      t.typeDescr || t.typeLabel,
+      esc(t.name),
+      esc(t.typeDescr || t.typeLabel),
       cfgUrl,
       envHtml,
       '<span class="badge-active">Active</span>',
