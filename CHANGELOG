@@ -36,6 +36,29 @@ screen reaches full parity.
   create-collision also localized; suite 956 5/5 PASS, Event Viewer clean.
   (Refs #956)
 
+- [FEATURE GAP] - #1315: the modern Test Case Editor's **Create New Version**
+  now clones the version being EDITEd and freezes it, matching the legacy
+  controller (lib/testcases/tcEdit.php createNewVersion():838-852). Previously
+  api/testcasesedit/?action=create_version ignored the POSTed `tcversion_id`
+  (used it only for permission/context) and called
+  create_new_version($tcaseId,$userId) — testcase::create_new_version()
+  (testcase.class.php:2445-2448) then fell back to the LAST version as clone
+  source, so editing v1 and creating a version produced a v3 copied from the
+  latest v2 (keywords included) and the source version was never frozen (no
+  setIsOpen call). The BFF now passes the edited `$tcverId` as the
+  `$source_version_id` argument (falling back to the latest active version when
+  absent — the legacy do_create_new_version_from_latest path) and, after a
+  successful creation, applies the legacy freeze switch:
+  setIsOpen($tcaseId,$sourceTCVID,!$tcCfg->freezeTCVersionOnNewTCVersion)
+  (default TRUE, config.inc.php:1352) so the edited source closes (is_open=0)
+  while the new draft version stays open; behaviour remains runtime-configurable
+  exactly like legacy (FALSE keeps the source open). No front-end or i18n change
+  needed (tcEdit.html doNewVersion() already POSTs tcversion_id). Browser-verified
+  on fixture TCEDDemo (v1 no-keywords + v2 'smoke'): new version cloned from v1
+  (summary V1 SUMMARY, no smoke keyword), v1 frozen; freeze=FALSE keeps v1 open;
+  no-tcversion_id fallback clones latest + freezes it; suite 1315 6/6 PASS,
+  Event Viewer clean. (Refs #1315)
+
 - [FEATURE GAP] - #1316: the modern Test Case Editor (tcEdit.html) Status
   dropdown now matches the legacy testCaseStatus domain. Previously the modern
   screen built options 1..7 from hardcoded i18n keys `tcedit.statusN` whose
