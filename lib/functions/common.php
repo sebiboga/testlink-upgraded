@@ -1980,7 +1980,7 @@ function getActions(&$gui,$baseURL) {
   $actions->metrics_dashboard =
     "/gui/templates/results/metricsDashboard.html?{$ctx}";
 
-  // Refs #1563: Metrics & Reports launcher hub (legacy lib/results/resultsNavigator.php)
+  // Refs #1568: Metrics & Reports launcher hub (legacy lib/results/resultsNavigator.php)
   $actions->resultsNav = "/gui/templates/results/resultsNavigator.html?{$ctx}";
 
 
