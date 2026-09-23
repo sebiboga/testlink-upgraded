@@ -173,7 +173,6 @@ function boot(){
 
 function refreshActions(){
   if(!INIT || !INIT.actions) return;
-  var tplanId = $('#tplanSel').val();
   var $c = $('#actionCards').empty();
   var defs = [
     ['actAddRemove','actAddRemoveSub','fas fa-list-check','addremove'],
@@ -183,7 +182,7 @@ function refreshActions(){
   ];
   defs.forEach(function(d){
     var a = INIT.actions[d[3]];
-    var href = a ? a.url + '?' + a.params + '&testplan_id=' + tplanId : '#';
+    var href = a ? a.url + '?' + a.params : '#';
     $c.append(
       '<div class="card-act'+(a?'':' locked')+'">'+
         '<div class="ic"><i class="'+d[2]+'"></i></div>'+
