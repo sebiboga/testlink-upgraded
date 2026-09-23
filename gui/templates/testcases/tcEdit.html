@@ -36,6 +36,13 @@ textarea.form-control { resize: vertical; }
 .step-editors { flex: 1; display: flex; gap: 12px; }
 .step-editors > div { flex: 1; }
 .step-del { flex-shrink: 0; margin-top: 26px; }
+.step-tools { display: flex; gap: 8px; }
+.step-execctl .form-control { font-size: 12px; padding: 6px 8px; }
+.step-ctrls { flex-shrink: 0; display: flex; flex-direction: column; align-items: center; gap: 5px; margin-top: 22px; }
+.step-ctrls .btn-danger-line { padding: 4px 8px; font-size: 11px; margin-top: 0; }
+.step-mv { display: flex; gap: 4px; }
+.btn-mini { background: #3a3d46; color: #eee; border: none; border-radius: 3px; padding: 4px 7px; font-size: 11px; line-height: 1.2; cursor: pointer; }
+.btn-mini:hover { background: #4a4e59; }
 .attr-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin: 4px 0 6px; }
 .attr-item label { font-size: 12px; color: #666; font-weight: 600; display: block; margin-bottom: 4px; }
 .attr-item select, .attr-item input { width: 100%; }
@@ -102,7 +109,10 @@ textarea.form-control { resize: vertical; }
 
     <div class="field-label" style="display:flex;justify-content:space-between;align-items:center;">
       <span><span data-i18n="tcedit.steps">Steps</span></span>
-      <button class="btn-dark" id="btnAddStep" type="button"><i class="fa fa-plus"></i> <span data-i18n="tcedit.addStep">Add Step</span></button>
+      <div class="step-tools">
+        <button class="btn-dark" id="btnResequence" type="button"><i class="fa fa-sort-numeric-down"></i> <span data-i18n="tcedit.resequenceSteps">Resequence Steps</span></button>
+        <button class="btn-dark" id="btnAddStep" type="button"><i class="fa fa-plus"></i> <span data-i18n="tcedit.addStep">Add Step</span></button>
+      </div>
     </div>
     <div id="stepsContainer"></div>
 
@@ -227,6 +237,11 @@ $(function () {
     if (window.history.length > 1) window.history.back(); else window.close();
   });
   $('#btnAddStep').on('click', function () { addStepRow(); markModified(); });
+  $('#btnResequence').on('click', function () {
+    renumberSteps();
+    toast(TLi18n.t('tcedit.stepsResequenced'));
+    markModified();
+  });
   $('#btnNewVersion').on('click', doNewVersion);
 
   // Track edits on every form control inside the editor card.
@@ -397,11 +412,63 @@ function collectPlatforms() {
   return ids;
 }
 
-function addStepRow(step, number) {
+// Refs #1314: per-row execution-type select (legacy tcStepEdit.tpl exec_type
+// select, gated on automationEnabled). Labels reuse the tcedit.exec* keys.
+function execTypeOptions(selected) {
+  var html = '';
+  (ctx.info.exec_types || []).forEach(function (it) {
+    var sel = String(it.id) === String(selected) ? ' selected' : '';
+    html += '<option value="' + it.id + '"' + sel + '>' + esc(TLi18n.t('tcedit.exec' + it.id)) + '</option>';
+  });
+  return html;
+}
+
+// Insert a blank step right below refRow (legacy doInsertStep parity: blank
+// step, renumbering collapses on the next full save). The new row inherits the
+// TC-level execution type like legacy doCreateStep did.
+function insertStepRow(refRow) {
+  var row = addStepRow(null, null, { insertAfter: refRow });
+  renumberSteps();
+  markModified();
+  row.find('.step-actions').focus();
+  return row;
+}
+
+// Copy refRow contents to a new step below it (legacy doCopyStep parity).
+function copyStepRow(refRow) {
+  var src = {
+    actions: refRow.find('.step-actions').val(),
+    expected_results: refRow.find('.step-expected').val(),
+    execution_type: parseInt(refRow.find('.step-exect').val(), 10) || 1
+  };
+  var row = addStepRow(src, null, { insertAfter: refRow });
+  renumberSteps();
+  markModified();
+  return row;
+}
+
+// Move a step row up/down (inline reorder; legacy used step_set inputs posted
+// to doReorderSteps - here the row order is the source of truth and the full
+// set is renumbered/saved).
+function moveStepRow(refRow, dir) {
+  var $all = $('#stepsContainer .step-row');
+  var idx = $all.index(refRow);
+  var target = dir > 0 ? $all.eq(idx + 1) : $all.eq(idx - 1);
+  if (!target.length) { return; }
+  if (dir > 0) { target.after(refRow); } else { refRow.before(target); }
+  renumberSteps();
+  markModified();
+}
+
+function addStepRow(step, number, opts) {
   var n = number || ($('#stepsContainer .step-row').length + 1);
   var actions = step ? (step.actions || '') : '';
   var expected = step ? (step.expected_results || '') : '';
-  var exect = step ? step.execution_type : (ctx.info ? ctx.info.tcase.execution_type : 1);
+  var exect = step && step.execution_type != null ? step.execution_type : null;
+  if (exect == null) {
+    exect = (ctx.info && ctx.info.tcase && ctx.info.tcase.execution_type) || 1;
+  }
+  var showExecCtl = ctx.info && !!ctx.info.automation_enabled;
 
   var row = $(
     '<div class="step-row" data-number="' + n + '">' +
@@ -415,13 +482,36 @@ function addStepRow(step, number) {
           '<label class="readonly-note" data-i18n="tcedit.stepExpected">Expected Results</label>' +
           '<textarea class="form-control step-expected" rows="2">' + esc(expected) + '</textarea>' +
         '</div>' +
+        (showExecCtl
+          ? '<div class="step-execctl">' +
+              '<label class="readonly-note" data-i18n="tcedit.execType">Execution Type</label>' +
+              '<select class="form-control step-exect">' + execTypeOptions(exect) + '</select>' +
+            '</div>'
+          : '') +
       '</div>' +
-      '<div class="step-del"><button type="button" class="btn-danger-line"><i class="fa fa-times"></i></button></div>' +
+      '<div class="step-ctrls">' +
+        '<button type="button" class="btn-mini step-ins" title="' + esc(TLi18n.t('tcedit.stepInsert')) + '"><i class="fa fa-plus"></i></button>' +
+        '<button type="button" class="btn-mini step-cp" title="' + esc(TLi18n.t('tcedit.stepCopy')) + '"><i class="fa fa-copy"></i></button>' +
+        '<div class="step-mv">' +
+          '<button type="button" class="btn-mini step-up" title="' + esc(TLi18n.t('tcedit.stepMoveUp')) + '"><i class="fa fa-arrow-up"></i></button>' +
+          '<button type="button" class="btn-mini step-dn" title="' + esc(TLi18n.t('tcedit.stepMoveDown')) + '"><i class="fa fa-arrow-down"></i></button>' +
+        '</div>' +
+        '<button type="button" class="btn-danger-line step-del"><i class="fa fa-times"></i></button>' +
+      '</div>' +
     '</div>'
   );
-  $('#stepsContainer').append(row);
-  row.find('.step-del button').on('click', function () { row.remove(); renumberSteps(); });
+  if (opts && opts.insertAfter && opts.insertAfter.length) {
+    opts.insertAfter.after(row);
+  } else {
+    $('#stepsContainer').append(row);
+  }
+  row.find('.step-del').on('click', function () { row.remove(); renumberSteps(); });
+  row.find('.step-ins').on('click', function () { insertStepRow(row); });
+  row.find('.step-cp').on('click', function () { copyStepRow(row); });
+  row.find('.step-up').on('click', function () { moveStepRow(row, -1); });
+  row.find('.step-dn').on('click', function () { moveStepRow(row, 1); });
   TLi18n.apply(row);
+  return row;
 }
 
 function renumberSteps() {
@@ -434,11 +524,13 @@ function renumberSteps() {
 function collectSteps() {
   var steps = [];
   $('#stepsContainer .step-row').each(function (i) {
+    var ex = $(this).find('.step-exect').val();
+    if (ex == null) { ex = $('#tc_exec_type').val(); }
     steps.push({
       step_number: i + 1,
       actions: $(this).find('.step-actions').val(),
       expected_results: $(this).find('.step-expected').val(),
-      execution_type: parseInt($('#tc_exec_type').val(), 10)
+      execution_type: parseInt(ex, 10)
     });
   });
   return steps;
@@ -467,6 +559,24 @@ function doSave() {
     return;
   }
 
+  // Refs #1314: legacy warning_step_number_already_exists parity. The rows are
+  // auto-numbered 1..N so a duplicate can only appear via a corrupted DOM,
+  // but keep the legacy client-side gate (validateForm, tcStepEdit.tpl:43-70).
+  var steps = collectSteps();
+  var stepIds = {};
+  for (var sIdx = 0; sIdx < steps.length; sIdx++) {
+    var num = steps[sIdx].step_number;
+    if (!num || isNaN(num) || num < 1) {
+      showWarn(TLi18n.t('tcedit.warningStepNumber'));
+      return;
+    }
+    if (stepIds[num]) {
+      showWarn(TLi18n.t('tcedit.warningStepDup').replace('%s', num));
+      return;
+    }
+    stepIds[num] = true;
+  }
+
   var payload = {
     action: 'update',
     tcase_id: ctx.testcaseId,
@@ -479,7 +589,7 @@ function doSave() {
     status: parseInt($('#tc_status').val(), 10),
     exec_type: parseInt($('#tc_exec_type').val(), 10),
     estimated_execution_duration: dur,
-    steps: collectSteps(),
+    steps: steps,
     keywords: collectKeywords(),
     platforms: collectPlatforms()
   };

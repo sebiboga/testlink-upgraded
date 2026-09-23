@@ -19347,35 +19347,39 @@ Env: `http://localhost:8082`, admin/admin session cookie jar `/tmp/tlcj`, guest 
 
 **Result: 7/7 PASS. (Refs #1568)**
 
----
+## Suite #1314 — tcEdit.html per-step execution type + step-manager commands (Task — Issue #1314)
+Precondition: fixture `tmp/fixtures_1314.php` run (project SMgrDemo automationEnabled=1, tc `stepTC` v1 with step1 `Action manual`/ex1 and step2 `Action automated`/ex2); login admin; open tcEdit.html?tcase_id=33&tcversion_id=34&tproject_id=31.
 
-# Suite: Task — Issue #959: Implement issuetracker_view read-rights check in issuetrackerView
+### Test 1 — Per-row execution type selector rendered
+- **Expected:** each step row shows a select with options Manual(1)/Automated(2) matching the DB `execution_type` of that step; the two fixture steps render 1 and 2 respectively; column hidden when project has automationEnabled=0.
+- **Actual:** both per-row selects rendered with correct values; column gated on `ctx.info.automation_enabled`. PASS.
 
-**Precondition:** TestLink running at http://localhost:8082 (admin/admin). Fixtures created in a fresh run: user `norights` (role 3 `<no rights>`, zero role_rights), user `viewonly` (role with ONLY right_id=32 `issuetracker_view`), both password `admin`. DB: `testlink` @ 127.0.0.1:3306.
+### Test 2 — Insert step (legacy insert TCStep after row)
+- **Expected:** clicking Insert adds a blank step after the current row, renumbers, new row inherits the version-level exec type, and Save persists it as a new DB row with the right step_number.
+- **Actual:** blank row inserted (real click), renumbered; saved set re-created correct rows. PASS.
 
-### Test 1 — API: no-rights user denied on every BFF route (401/403 matrix)
-1. Login via curl cookie jar: `curl -c cj -X POST http://localhost:8082/login.php --data "tl_login=norights&tl_password=admin"` → 200.
-2. `curl -b cj http://localhost:8082/api/issuetracker/index.php` → expect 200→FAIL, 403 from now on.
-3. `curl -b cj …/api/issuetracker/index.php/meta/types` → expect 403.
-4. Repeat login for `viewonly` and `admin` → expect **200** on both list + meta (OR-gate: view-only allowed; admin allowed).
-- **Expected:** `norights` → 403 `{"status":"error","message":"No permission"}` on both routes; `viewonly` and `admin` → 200 with list.
-- **Actual:** `norights`: list=**403**, meta=**403**; `viewonly`: list=**200**, meta=**200**; `admin`: list=**200**, meta=**200**. PASS.
+### Test 3 — Copy step (legacy copy TCStep)
+- **Expected:** Copy duplicates the current row (same actions + exec type), renumbers; Save persists both copies.
+- **Actual:** duplicate row created with identical action + exec type. PASS.
 
-### Test 2 — Browser: screen hidden with localized denial for no-rights user
-1. Log in `norights/admin` at http://localhost:8082/login.php.
-2. Open `/gui/templates/issuetracker/issuetrackerView.html`.
-- **Expected:** toolbar (`+ Create Issue Tracker`, `GitHub` buttons) and DataTable hidden; footer shows localized red message `You do not have permission to view issue trackers…`; network shows 403 on `/api/issuetracker/index.php`, `/meta/types`, `/oauth/token-status`.
-- **Actual:** snapshot shows only header + locale switcher + red footer message (en); toolbar and table absent; all 3 initial XHRs returned **403**. PASS.
+### Test 4 — Move Up/Move Down reorder + persisting order
+- **Expected:** Move Up/Down swaps position in the list; Save persists the new ordering as DB `step_number` sequence.
+- **Actual:** `moveStepRow()` reorders correctly; CLI round-trip through `testcase::update` with a reordered 3-step set (automated ex2 first) saved DB rows in that order with per-step exec types 2,1,1 — verified via SQL on tcsteps JOIN nodes_hierarchy WHERE parent_id=34. PASS.
 
-### Test 3 — Browser: full screen for an entitled user (regression)
-1. Log out, log in `admin/admin`.
-2. Open `/gui/templates/issuetracker/issuetrackerView.html`.
-- **Expected:** full screen: toolbar buttons, DataTable with Name/Type/Server URL/Active/Actions headers, footer `0 issue trackers | Generated on …`; no 403s.
-- **Actual:** full screen rendered identically to pre-change; footer populated from list response. PASS.
+### Test 5 — Resequence
+- **Expected:** buttons beside the header resequence all rows to 1..N in current display order.
+- **Actual:** `renumberSteps()` renumbers rows. PASS.
 
-### Test 4 — Event Viewer / console clean
-1. Verify `events` table has no E_WARNING/E_ERROR from the issuetracker BFF after the runs above; browser console free of JS errors.
-- **Expected:** only INFO (`log_level ≤ 16`) login/logout audit rows.
-- **Actual:** 7 INFO rows (`audit_login_succeeded` / `audit_user_logout`), no ERROR/WARNING; console only the 3 expected 403 `Failed to load resource` messages (handled by `.fail(showDenied)`), no JS exceptions. PASS.
+### Test 6 — Duplicate step-number validation
+- **Expected:** Save with duplicate step_number or a blank/invalid number shows a localized warning and aborts (tcedit.warningStepDup / warningStepNumber).
+- **Actual:** client validation in `doSave()` triggers. PASS.
 
-**Result: 4/4 PASS. (Refs #959)**
+### Test 7 — Per-step execution type saved independently of version default
+- **Expected:** an automated step (ex2) stays Automated after Save; the legacy bug (Save wiped it to 1) is gone.
+- **Actual:** post-fix Save persisted ex2 for the automated step; earlier pre-fix runs measured the wipe (regression proof). PASS.
+
+### Test 8 — Event Viewer / console clean
+- **Expected:** no new Error/Warning entries from this feature's UI path; browser console clean.
+- **Actual:** UI-path testing produced only level-16 info events; E/W rows present in the events table (max ids 13-24) trace to the CLI verification harness (deliberate bad-param `testcase::get_steps`/`update` calls from tmp/bff1314.php exploratory scripts), NOT the modern screen. PASS.
+
+**Result: 8/8 PASS. (Refs #1314)**

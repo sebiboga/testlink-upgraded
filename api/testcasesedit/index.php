@@ -94,6 +94,8 @@ function tceProjectPlatforms($dbHandler, $tprojectId) {
                 'name' => strval($r['name']),
                 'enable_on_design' => intval($r['enable_on_design']),
             ];
+
+    $userName = '';
         }
     }
     return $map;
@@ -339,6 +341,15 @@ function buildEditPayload(&$db, &$tcaseMgr, &$tprojectMgr, &$user, $tcaseId, $tc
     $userRight = $user->hasRight($db, 'mgt_modify_tc', $tprojId);
     $editExecutedRight = $user->hasRight($db, 'testproject_edit_executed_testcases', $tprojId);
 
+    // Refs #1314: per-row execution-type select is only rendered (like the
+    // legacy steps editor gating on tprojOpt->automationEnabled,
+    // tcStepEdit.tpl:216-221) when the project has automation enabled.
+    $projRow = $tprojectMgr->get_by_id($tprojId);
+    $automationEnabled = 0;
+    if (is_array($projRow) && isset($projRow['opt'])) {
+        $automationEnabled = intval($projRow['opt']->automationEnabled ?? 0) > 0 ? 1 : 0;
+    }
+
     // per-version platform assignment (gap #915) - computed here AFTER
     // $executed / $userRight / $editExecutedRight are resolved below so the
     // edit gating matches the executed/frozen checks of the legacy viewer.
@@ -382,6 +393,7 @@ function buildEditPayload(&$db, &$tcaseMgr, &$tprojectMgr, &$user, $tcaseId, $tc
             'can_edit_executed' => (intval($tcaseCfg->canEditExecuted ?? 0) > 0) ? true : false,
         ],
         'has_been_executed' => $executed,
+        'automation_enabled' => $automationEnabled,
         'exec_types' => $execTypes,
         'importances' => $importances,
         // Refs #1316: code => legacy-localized label map (config-sourced),

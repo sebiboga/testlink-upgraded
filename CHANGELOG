@@ -75,6 +75,29 @@ screen reaches full parity.
   no-tcversion_id fallback clones latest + freezes it; suite 1315 6/6 PASS,
   Event Viewer clean. (Refs #1315)
 
+- [FEATURE GAP] - #1314: the modern Test Case Editor's step area regains the
+  legacy **per-step execution type** and the **step-manager commands**
+  (insert / copy / move up / move down / resequence / delete) plus the
+  duplicate step-number guard. Legacy per-step editor
+  (lib/testcases/testcaseCommands.class.php + gui/templates/dashio/testcases/
+  tcStepEdit.tpl) rendered a per-step `Select exec type` only when the project
+  option `automationEnabled` is ON and a toolbar with insert/copy/reorder/
+  resequence/delete; the modern editor had collapsed everything onto a single
+  version-level exec type. api/testcasesedit/index.php now exposes
+  `automation_enabled` in the edit payload (index.php:422-425) and persists
+  per-step `execution_type` through testcase::update/update_tcversion_steps/
+  create_step (validating against {1 Manual, 2 Automated}; 3/4 normalized to
+  Manual exactly like legacy). gui/templates/testcases/tcEdit.html adds a
+  per-row `.step-exect` select gated on the project flag, per-row
+  Insert/Copy/MoveUp/MoveDown/Delete toolbar and a Resequence button;
+  collectSteps() reads per-row types and doSave() rejects duplicate/blank
+  step numbers with the legacy localized message. 8 new tcedit.* keys added
+  to all 10 locale bundles. Browser-verified (fixture SMgrDemo, stepTC;
+  automated step keeps exec_type 2 after Save, pre-fix runs measured the
+  2->1 wipe) plus a deterministic testcase::update round-trip persisting a
+  reordered set as step1 automated/2, step2 manual/1, step3 inserted/1;
+  suite 1314 8/8 PASS, Event Viewer clean on the UI path. (Refs #1314)
+
 - [FEATURE GAP] - #1316: the modern Test Case Editor (tcEdit.html) Status
   dropdown now matches the legacy testCaseStatus domain. Previously the modern
   screen built options 1..7 from hardcoded i18n keys `tcedit.statusN` whose
