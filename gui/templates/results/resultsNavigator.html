@@ -102,7 +102,7 @@ function render(r) {
   if (!r.reports || !r.reports.length) {
     h += '</div></div><div class="empty"><i class="fa fa-inbox"></i>' + esc(TLi18n.t('rsnav.empty')) + '</div>';
   } else {
-    h += '<table class="reports"><thead><tr><th>' + esc(TLi18n.t('common.name')) + '</th><th>' + esc(TLi18n.t('rsnav.directLink')) + '</th></tr></thead><tbody>';
+    h += '<table class="reports"><thead><tr><th>' + esc(TLi18n.t('rsnav.colName')) + '</th><th>' + esc(TLi18n.t('rsnav.directLink')) + '</th></tr></thead><tbody>';
     $.each(r.reports, function (i, it) {
       h += '<tr><td><a class="rep-link" href="' + esc(it.href) + '" target="_blank"><i class="fa fa-external-link"></i> ' + esc(it.name) + '</a><div class="fmt">' + esc(it.format) + '</div></td>';
       h += '<td class="dl">' + (it.directLink && it.directLink.indexOf('http') === 0

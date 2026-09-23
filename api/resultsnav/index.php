@@ -156,7 +156,7 @@ $bff = function ($action) use ($db, $user) {
             'list_tc_blocked' => 'gui/templates/results/resultsByStatus.html',
             'list_tc_not_run' => 'gui/templates/results/resultsByStatus.html',
             'never_run' => 'gui/templates/results/neverRun.html',
-            'tcases_without_tester' => 'gui/templates/results/freeTestCases.html',
+            'tcases_without_tester' => 'gui/templates/results/casesWithoutTester.html',
             'charts_basic' => 'gui/templates/results/charts.html',
             'results_requirements' => 'gui/templates/results/resultsRequirements.html',
             'uncovered_testcases' => 'gui/templates/results/uncoveredTestCases.html',
@@ -165,6 +165,7 @@ $bff = function ($action) use ($db, $user) {
             'tcases_with_cf' => 'gui/templates/results/tcasesWithCF.html',
             'tplan_with_cf' => 'gui/templates/results/tplanWithCF.html',
             'free_tcases' => 'gui/templates/results/freeTestCases.html',
+            'report_exec_timeline' => 'gui/templates/results/execTimelineStats.html',
         );
 
         $reportList = config_get('reports_list');
@@ -188,16 +189,21 @@ $bff = function ($action) use ($db, $user) {
                 $n++;
                 continue;
             }
+            $href = $items[$n]['href'];
+            if (isset($legacy2modern[$key]) && strpos($href, 'lib/') === 0) {
+                $href = '/' . $legacy2modern[$key] . '?' . $ctx;
+            } elseif (isset($legacy2modern[$key]) && strpos($href, 'gui/templates') === 0) {
+                // cfg already points at a modern screen (e.g. resultsMoreBuilds);
+                // root it and attach the shared context query
+                $href = '/' . $legacy2modern[$key] . '?' . $ctx;
+            }
             $entry = array(
                 'key' => $key,
                 'name' => $items[$n]['name'],
                 'format' => isset($rptItem['format']) ? $rptItem['format'] : '',
-                'href' => $items[$n]['href'],
+                'href' => $href,
                 'directLink' => isset($items[$n]['directLink']) ? $items[$n]['directLink'] : '',
             );
-            if (isset($legacy2modern[$key]) && strpos($entry['href'], 'lib/') === 0) {
-                $entry['href'] = '/' . $legacy2modern[$key] . '?' . $ctx;
-            }
             $list[] = $entry;
             $n++;
         }

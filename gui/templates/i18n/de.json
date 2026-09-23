@@ -4600,5 +4600,6 @@
   "rsnav.anon": "Sitzung abgelaufen. Bitte melden Sie sich erneut an.",
   "rsnav.warnNoTc": "Dieser Testplan hat keine Testfälle.",
   "rsnav.warnNoBuild": "Dieser Testplan hat keine Builds.",
-  "footers.resultsNavigator": "TestLink 2.0.1 - Metriken & Berichte"
+  "footers.resultsNavigator": "TestLink 2.0.1 - Metriken & Berichte",
+  "rsnav.colName": "Bericht"
 }

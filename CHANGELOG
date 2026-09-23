@@ -795,6 +795,20 @@ Execution:
   Tested against a bundled session-backed Mantis-tracker double
   (lib/issuetrackerintegration/mantisrestInterface.class.php, type 24) because no
   live BTS is available in the demo environment.
+- Metrics & Reports hub (resultsNavigator.html) - BFF api/resultsnav (#1568):
+  modernizes the last standalone legacy lib/results/* screen
+  lib/results/resultsNavigator.php: lists every report available for a test
+  plan (title + modern screen URL via legacy2modern mapping of all 25
+  cfg/reports.cfg.php report keys + format-gated via reports_formats + direct
+  link with apikey), keeps the legacy no-test-cases / no-builds warnings and
+  the format + test plan selectors. testplan_metrics right gates every route
+  (admin yes, role-less user NULL -> 403), 401 anon, 400 no active plan, 404
+  unknown plan, 405 non-GET, 500 guarded with error message. Link switch
+  $actions->resultsNav (common.php, after metrics_dashboard) + frmWorkArea
+  showMetrics deep link -> modern screen. rsnav.* i18n keys (12) +
+  footers.resultsNavigator in all 10 bundles. Verified live on fixture
+  tmp/fixtures_1568.php (project 27 / plan 28 / build + linked tcversion):
+  24 report rows, warning cleared once a TC is linked; 6 status-code paths.
 - Execution Navigator (execNavigator.html) - BFF api/execnavigator (#1562):
   modernizes the last standalone legacy screen lib/execute/execNavigator.php
   (kept as a session-guarded 302 shim, legacy deep links still resolve). Legacy

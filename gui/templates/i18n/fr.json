@@ -4600,5 +4600,6 @@
   "rsnav.anon": "Session expirée. Veuillez vous reconnecter.",
   "rsnav.warnNoTc": "Ce plan de test n'a pas de cas de test.",
   "rsnav.warnNoBuild": "Ce plan de test n'a pas de builds.",
-  "footers.resultsNavigator": "TestLink 2.0.1 - Métriques & Rapports"
+  "footers.resultsNavigator": "TestLink 2.0.1 - Métriques & Rapports",
+  "rsnav.colName": "Rapport"
 }

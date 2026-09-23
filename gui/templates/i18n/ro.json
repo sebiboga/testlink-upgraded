@@ -4610,5 +4610,6 @@
   "rsnav.anon": "Sesiune expirată. Vă rugăm să vă autentificați din nou.",
   "rsnav.warnNoTc": "Acest plan de testare nu are cazuri de test.",
   "rsnav.warnNoBuild": "Acest plan de testare nu are release-uri.",
-  "footers.resultsNavigator": "TestLink 2.0.1 - Metrică și Rapoarte"
+  "footers.resultsNavigator": "TestLink 2.0.1 - Metrică și Rapoarte",
+  "rsnav.colName": "Raport"
 }

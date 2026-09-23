@@ -4600,5 +4600,6 @@
   "rsnav.anon": "Sesión caducada. Vuelva a iniciar sesión.",
   "rsnav.warnNoTc": "Este plan de prueba no tiene casos de prueba.",
   "rsnav.warnNoBuild": "Este plan de prueba no tiene builds.",
-  "footers.resultsNavigator": "TestLink 2.0.1 - Métricas e Informes"
+  "footers.resultsNavigator": "TestLink 2.0.1 - Métricas e Informes",
+  "rsnav.colName": "Informe"
 }
