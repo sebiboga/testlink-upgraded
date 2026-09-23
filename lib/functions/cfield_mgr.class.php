@@ -1924,16 +1924,25 @@ function name_is_unique($id,$name)
           $dummy = explode('_',$key);
           $last_idx = count($dummy)-1;
 
-          $the_value = null;  // without this #0008347 :(
+          // date/datetime fields arrive as one hash key per part
+          // (custom_field_<type>_<id>_input, _hour, _minute, _second).
+          // Merge every part into a single per-field map instead of letting
+          // the last suffix overwrite the previous ones (issue #1571).
           if( isset($this->html_date_input_suffix[$dummy[$last_idx]]) ) {
-            $the_value[$dummy[$last_idx]] = $value;
+            $field_id = $dummy[$cfid_pos];
+            if( is_array($cfield[$field_id]['cf_value'] ?? null) ) {
+              $cfield[$field_id]['cf_value'][$dummy[$last_idx]] = $value;
+            }
+            else {
+              $cfield[$field_id] = array("type_id"  => $dummy[$cftype_pos],
+                                         "cf_value" => array($dummy[$last_idx] => $value));
+            }
           }
           else {
-            $the_value = $value;
-          }  
-
-          $cfield[$dummy[$cfid_pos]]=array("type_id"  => $dummy[$cftype_pos],
-                                           "cf_value" => $the_value);
+            $the_value = $value;  // without this #0008347 :(
+            $cfield[$dummy[$cfid_pos]]=array("type_id"  => $dummy[$cftype_pos],
+                                             "cf_value" => $the_value);
+          }
         }
       }
     } //if( !is_null($hash) )
@@ -1964,7 +1973,8 @@ function name_is_unique($id,$name)
               $pvalue = split_localized_date($value['input'], $date_format);
               if($pvalue != null) {
       					$cfield[$field_id]['cf_value'] = 
-                  mktime(0,0,0,$pvalue['month'],$pvalue['day'],$pvalue['year']);
+                  mktime(0,0,0,(int)$pvalue['month'],(int)$pvalue['day'],
+                         (int)$pvalue['year']);
       				} 
       			}
           break;
@@ -1977,13 +1987,14 @@ function name_is_unique($id,$name)
               $cfield[$field_id]['cf_value']='';
             	$pvalue = split_localized_date($value['input'], $date_format);
             	if($pvalue != null) {
-            		if($value['hour'] == -1 || $value['minute'] == -1 || 
-                   $value['second'] == -1) {
+            		if(intval($value['hour']) == -1 || intval($value['minute']) == -1 || 
+                   intval($value['second']) == -1) {
             			$value['hour'] = $value['minute'] = $value['second'] = 0;
             		}
             		$cfield[$field_id]['cf_value'] = 
-                  mktime($value['hour'], $value['minute'], $value['second'],
-            	           $pvalue['month'], $pvalue['day'], $pvalue['year']);
+                  mktime(intval($value['hour']), intval($value['minute']),
+                         intval($value['second']), (int)$pvalue['month'],
+                         (int)$pvalue['day'], (int)$pvalue['year']);
             	} 
             }
           break;         
