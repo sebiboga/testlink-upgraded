@@ -11,14 +11,21 @@
  *    gui/templates/results/printDocOptions.html backed by the BFF
  *    api/printoptions  (Session-based auth, JSON I/O).
  *
- *  Keep only as a compatibility launcher: redirects to the modern screen,
- *  forwarding type / tplan_id / format. The 'activity=addTC' navigator mode
- *  (used by legacy planAddTC.php) is covered by the modern planAddTCView.html.
+ *  Keep only as a compatibility launcher: session-guarded redirect to the
+ *  modern screen, forwarding type / tplan_id / format. Anonymous users are
+ *  sent to the login screen (legacy testlinkInitPage behaviour). The
+ *  'activity=addTC' navigator mode (used by legacy planAddTC.php) is covered
+ *  by the modern planAddTCView.html.
  */
+require_once("../../config.inc.php");
+require_once('../functions/common.php');
+
+// Anonymous -> login (same contract as the legacy testlinkInitPage call).
+testlinkInitPage($db, FALSE, false, null, true);
+
 $docType = 'testspec';
 $tplan = '';
 $format = '';
-$queryExtra = '';
 foreach (array_keys($_GET) as $k) {
     $v = $_GET[$k];
     if ($k === 'type') {
@@ -30,13 +37,23 @@ foreach (array_keys($_GET) as $k) {
     }
 }
 if (isset($_GET['activity']) && $_GET['activity'] !== '') {
-    header('Location: /gui/templates/plans/planAddTCView.html' . $tplan, true, 302);
+    $url = '/gui/templates/plans/planAddTCView.html';
+    if ($tplan !== '') {
+        $url .= '?' . substr($tplan, 1);
+    }
+    header('Location: ' . $url, true, 302);
     exit;
 }
 if (!in_array($docType, array('testspec', 'reqspec', 'testplan',
         'testreport', 'testreport_onbuild'), true)) {
     $docType = 'testspec';
 }
-header('Location: /gui/templates/results/printDocOptions.html?type=' .
-    $docType . $tplan . $format, true, 302);
+$query = 'type=' . $docType;
+if ($tplan !== '') {
+    $query .= '&' . substr($tplan, 1);
+}
+if ($format !== '') {
+    $query .= '&' . substr($format, 1);
+}
+header('Location: /gui/templates/results/printDocOptions.html?' . $query, true, 302);
 exit;
