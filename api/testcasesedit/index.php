@@ -574,11 +574,17 @@ switch ($action) {
         if (!$user->hasRight($db, 'mgt_modify_tc', $tprojId)) {
             out(['status' => 'error', 'message' => 'No permission'], 403);
         }
-        $ret = $tcaseMgr->create_new_version($tcaseId, intval($user->dbID ?? $userId));
+        $ret = $tcaseMgr->create_new_version($tcaseId, intval($user->dbID ?? $userId), $tcverId);
         $newTcv = is_array($ret) ? intval($ret['id'] ?? 0) : intval($ret);
         if ($newTcv <= 0) {
             out(['status' => 'error', 'message' => 'Version creation failed'], 500);
         }
+        // Legacy createNewVersion() freeze: when testcase_cfg.freezeTCVersionOnNewTCVersion
+        // is on (default TRUE, config.inc.php:1352) the source version (the one being
+        // edited) is closed so it can no longer be modified.
+        $tcCfg = config_get('testcase_cfg');
+        $freezeSrc = intval($tcCfg->freezeTCVersionOnNewTCVersion ?? 0) > 0;
+        $tcaseMgr->setIsOpen($tcaseId, $tcverId, $freezeSrc ? 0 : 1);
         out(['status' => 'ok', 'tcversion_id' => $newTcv, 'tcase_id' => $tcaseId,
              'message' => 'New version created']);
         break;
