@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title data-i18n="pdo.title">Print Document Options</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: #f4f6f8; font-family: 'Ruda', sans-serif; }
+.header { background: #22242a; color: #fff; padding: 14px 24px; }
+.header span.title { font-size: 17px; font-weight: 700; letter-spacing: .5px; }
+.header span.title i { color: #4ECDC4; margin-right: 8px; }
+.header span.sub { font-size: 13px; font-weight: 400; opacity: .85; margin-left: 12px; }
+.tbtn { background: #2e3038; color: #fff; border: none; padding: 7px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; float: right; }
+.tbtn:hover { background: #3d4049; }
+.wrap { max-width: 980px; margin: 22px auto; padding: 0 16px; }
+.card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin-bottom: 18px; }
+.card-head { padding: 14px 24px; border-bottom: 1px solid #eee; }
+.card-head h3 { margin: 0; font-size: 16px; color: #22242a; }
+.card-head h3 i { color: #4ECDC4; margin-right: 6px; }
+.card-body { padding: 20px 24px; }
+.warn-box { background: #fff3cd; border: 1px solid #ffc107; color: #856404; padding: 10px 16px; border-radius: 5px; margin-bottom: 16px; font-size: 13px; display: none; }
+.warn-box.err { background: #fdecea; border-color: #e6605e; color: #a0302e; }
+.f-label { font-size: 13px; font-weight: 700; color: #3a3f48; margin-bottom: 4px; display: block; }
+.form-control, .form-select { border-radius: 4px; border: 1px solid #d3d8de; font-size: 13px; padding: 7px 10px; width: 100%; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 8px 20px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-gray { background: #6c757d; color: #fff; border: none; padding: 8px 20px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-gray:hover { background: #5a6268; }
+.row2 { display: flex; gap: 18px; flex-wrap: wrap; }
+.col2 { flex: 1 1 300px; }
+.opt-group { margin: 8px 0 14px; }
+.opt-group > h4 { font-size: 13px; font-weight: 700; color: #2d8e88; text-transform: uppercase; letter-spacing: .4px; margin: 0 0 8px; border-bottom: 1px solid #eff1f4; padding-bottom: 6px; }
+.opt-item { padding: 5px 0; }
+.opt-item input[type=checkbox] { accent-color: #4ECDC4; width: 15px; height: 15px; margin-right: 8px; cursor: pointer; }
+.opt-item label { font-size: 13px; color: #44484f; cursor: pointer; }
+.link-list a { color: #2d8e88; font-weight: 600; font-size: 13px; display: inline-block; margin: 3px 0; }
+.link-list a i { margin-right: 6px; }
+.actions { margin-top: 18px; display: flex; gap: 10px; flex-wrap: wrap; }
+.guide { margin-top: 16px; font-size: 13px; color: #7a8089; font-style: italic; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.toast.err { background: #e6605e; }
+.empty-state { text-align: center; padding: 30px 10px; color: #7a8089; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 22px; }
+</style>
+</head>
+<body>
+<div class="header">
+  <span class="title"><i class="fa fa-print"></i><span data-i18n="pdo.title">Print Document Options</span></span>
+  <span class="sub" data-i18n="pdo.subtitle">format and print preferences for generated documents</span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="wrap">
+  <div class="card">
+    <div class="card-head">
+      <h3 id="mainTitle"></h3>
+    </div>
+    <div class="card-body">
+      <div class="warn-box" id="warnBox"></div>
+      <div class="empty-state" id="emptyState" style="display:none;"></div>
+
+      <div id="formArea">
+        <div class="row2">
+          <div class="col2" style="max-width:320px;">
+            <label class="f-label" for="docType"><span data-i18n="pdo.docType">Document type</span></label>
+            <select class="form-select" id="docType"></select>
+          </div>
+          <div class="col2" id="formatRow" style="max-width:320px;">
+            <label class="f-label" for="formatSel"><span data-i18n="pdo.showAs">Show as</span></label>
+            <select class="form-select" id="formatSel"></select>
+          </div>
+          <div class="col2" id="buildRow" style="max-width:320px;">
+            <label class="f-label" for="buildSel"><span data-i18n="pdo.build">Build</span></label>
+            <select class="form-select" id="buildSel"></select>
+          </div>
+        </div>
+
+        <div style="margin-top:18px;">
+          <div class="opt-item">
+            <label class="check-row" style="font-weight:600;">
+              <input type="checkbox" id="withUserAssignment">
+              <span data-i18n="pdo.onlyWithUser">Only test cases with user assignment</span>
+            </label>
+          </div>
+          <button type="button" class="btn-gray" id="toggleAll" style="margin-bottom:14px;">
+            <i class="fa fa-check-square-o" style="margin-right:6px;"></i><span data-i18n="pdo.checkUncheckAll">Check / un-check all options</span>
+          </button>
+          <div class="opt-group" id="groupHeader" data-group="doc">
+            <h4 data-i18n="pdo.groupDoc">Document</h4>
+            <div class="optset" data-role="optset-doc"></div>
+          </div>
+          <div class="opt-group" id="groupReqSpec" data-group="reqSpec">
+            <h4 data-i18n="pdo.groupReqSpec">Requirement specification</h4>
+            <div class="optset" data-role="optset-reqSpec"></div>
+          </div>
+          <div class="opt-group" id="groupTestSpec" data-group="testSpec">
+            <h4 data-i18n="pdo.groupTestSpec">Test specification</h4>
+            <div class="optset" data-role="optset-testSpec"></div>
+          </div>
+          <div class="opt-group" id="groupExec" data-group="exec">
+            <h4 data-i18n="pdo.groupExec">Execution</h4>
+            <div class="optset" data-role="optset-exec"></div>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button type="button" class="btn-teal" id="printBtn"><i class="fa fa-print" style="margin-right:6px;"></i><span data-i18n="pdo.print">Print document</span></button>
+          <button type="button" class="btn-gray" id="openConfigBtn"><i class="fa fa-sitemap" style="margin-right:6px;"></i><span data-i18n="pdo.openConfig">Open print configuration screen</span></button>
+        </div>
+        <p class="guide" data-i18n="pdo.guide">Select the document type and the options to be included, then press Print document. The report opens in a new tab with the selected preferences applied.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="footer"><span data-i18n="footers.printDocOptions">TestLink 2.0.1 - Print Document Options</span></div>
+<div class="toast" id="toast"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/printoptions/index.php';
+var cur = null;
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function toast(msg, isErr) {
+  var $t = $('#toast').text(msg).toggleClass('err', !!isErr).show();
+  clearTimeout($t.data('tm'));
+  $t.data('tm', setTimeout(function () { $t.hide(); }, 4000));
+}
+
+function warn(msg, isErr) {
+  var $w = $('#warnBox');
+  if (msg) {
+    $w.toggleClass('err', !!isErr).html('<i class="fa fa-exclamation-triangle" style="margin-right:6px;"></i> ' + msg).show();
+  } else {
+    $w.hide();
+  }
+}
+
+function groupHdr(group) {
+  var map = { doc: 'pdo.groupDoc', testSpec: 'pdo.groupTestSpec',
+              reqSpec: 'pdo.groupReqSpec', exec: 'pdo.groupExec' };
+  return TLi18n.t(map[group] || 'pdo.groupDoc');
+}
+
+function renderOptions() {
+  var $sets = { doc: $('[data-role="optset-doc"]'), testSpec: $('[data-role="optset-testSpec"]'),
+                reqSpec: $('[data-role="optset-reqSpec"]'), exec: $('[data-role="optset-exec"]') };
+  Object.keys($sets).forEach(function (g) { $sets[g].empty(); });
+  $('#groupTestSpec').hide(); $('#groupReqSpec').hide(); $('#groupExec').hide();
+
+  (cur.options || []).forEach(function (o) {
+    var box = $sets[o.group];
+    if (!box.length) { return; }
+    var id = 'pdo_cb_' + o.value;
+    var $cb = $('<input>', { type: 'checkbox', id: id, value: o.value });
+    if (o.checked) { $cb.prop('checked', true); }
+    var $lb = $('<label>', { for: id, text: TLi18n.t('pdo.opt_' + o.value) });
+    $('<div>', { 'class': 'opt-item' }).append($cb).append($lb).appendTo(box);
+  });
+  if (cur.options.some(function (o) { return o.group === 'testSpec'; })) { $('#groupTestSpec').show(); }
+  if (cur.options.some(function (o) { return o.group === 'reqSpec'; })) { $('#groupReqSpec').show(); }
+  if (cur.options.some(function (o) { return o.group === 'exec'; })) { $('#groupExec').show(); }
+}
+
+function renderFormats() {
+  var $sel = $('#formatSel').empty();
+  (cur.formats || []).forEach(function (f) {
+    $sel.append($('<option>', { value: f.id, text: TLi18n.t(f.key) }));
+  });
+  $sel.val(String(cur.format));
+}
+
+function renderBuilds() {
+  var $sel = $('#buildSel').empty();
+  var builds = cur.builds || [];
+  if (!builds.length) { $('#buildRow').hide(); return; }
+  builds.forEach(function (b) {
+    $sel.append($('<option>', { value: b.id, text: b.name }));
+  });
+  $('#buildRow').show();
+}
+
+function collectPrefs() {
+  var parts = [];
+  $('.opt-item input[type=checkbox]').each(function () {
+    parts.push(this.value + '=' + (this.checked ? 'y' : 'n'));
+  });
+  return parts.join('&');
+}
+
+// mirrors modern tree screens: testspec -> printTestDoc.html, reqspec ->
+// printDocument.html, plan docs -> reportPrint.html
+function targetUrl() {
+  var t = cur.doc_type;
+  var tp = cur.context.tproject_id;
+  var fm = parseInt($('#formatSel').val() || '0', 10);
+  if (t === 'testspec') {
+    return '/gui/templates/testcases/printTestDoc.html?type=testspec&level=testproject&id=' + tp +
+           '&tproject_id=' + tp + '&format=' + fm + '&' + collectPrefs();
+  }
+  if (t === 'reqspec') {
+    return '/gui/templates/requirements/printDocument.html?type=reqspec&level=testproject&id=' + tp +
+           '&tproject_id=' + tp + '&format=' + fm + '&' + collectPrefs();
+  }
+  var base = '/gui/templates/results/reportPrint.html?type=' + t + '&level=testproject&id=' + tp +
+             '&tproject_id=' + tp + '&tplan_id=' + cur.context.tplan_id +
+             '&format=' + fm;
+  var withUA = $('#withUserAssignment').is(':checked') ? '&with_user_assignment=1' : '';
+  if (t === 'testreport_onbuild') {
+    var bid = $('#buildSel').val();
+    if (bid) { base += '&build_id=' + bid; }
+    base += withUA;
+  }
+  return base + '&opts=' + encodeURIComponent(collectPrefs());
+}
+
+// mirror of the target object: the modern interactive print screens
+function configUrl() {
+  var t = cur.doc_type;
+  var tp = cur.context.tproject_id;
+  var tl = cur.context.tplan_id;
+  if (t === 'testspec') {
+    return '/gui/templates/testcases/printTestSpec.html?tproject_id=' + tp;
+  }
+  if (t === 'reqspec') {
+    return '/gui/templates/requirements/printReqSpec.html?tproject_id=' + tp;
+  }
+  return '/gui/templates/results/testPlanReport.html?type=' + t + '&tproject_id=' + tp + '&tplan_id=' + tl;
+}
+
+function loadInit() {
+  var q = new URLSearchParams(window.location.search);
+  var type = q.get('type') || 'testplan';
+  var tp = q.get('tproject_id') || '0';
+  var tl = q.get('tplan_id') || '0';
+  $.getJSON(API, { action: 'init', type: type, tproject_id: tp, tplan_id: tl }, function (r) {
+    if (r.status !== 'ok') {
+      warn(r.message || TLi18n.t('pdo.errLoad'), true);
+      $('#formArea').hide();
+      toast(r.message || TLi18n.t('pdo.errLoad'), true);
+      return;
+    }
+    cur = r;
+    var $sel = $('#docType').empty();
+    (r.doc_types || []).forEach(function (d) {
+      $sel.append($('<option>', { value: d.key, text: d.label }));
+    });
+    $sel.val(r.doc_type);
+
+    $('#mainTitle').html('<i class="fa fa-file-alt"></i> ' + esc(r.main_title));
+    renderFormats();
+    renderOptions();
+    renderBuilds();
+    if (!r.show_format) { $('#formatRow').hide(); } else { $('#formatRow').show(); }
+
+    if (r.context.needs_plan && r.context.tplan_id <= 0) {
+      warn(TLi18n.t('pdo.noPlan'), true);
+    }
+    if ($('#withUserAssignment').is(':checked')) { $('#withUserAssignment').prop('checked', false); }
+  }).fail(function (xhr) {
+    var msg = TLi18n.t('pdo.errLoad');
+    try { var j = JSON.parse(xhr.responseText); if (j && j.message) { msg = j.message; } } catch (e) {}
+    warn(msg, true);
+    $('#formArea').hide();
+    toast(msg, true);
+  });
+}
+
+$(function () {
+  $('#btnClose').on('click', function () { window.close(); });
+  $('#docType').on('change', function () {
+    var t = $(this).val();
+    $('#mainTitle').html('<i class="fa fa-file-alt"></i> ' + esc((cur.doc_types || []).filter(function (d) { return d.key === t; })[0].label + ' - ' + TLi18n.t('pdo.title')));
+    loadInitWithType(t);
+  });
+  $('#toggleAll').on('click', function () {
+    var $cbs = $('.opt-item input[type=checkbox]');
+    var turnOn = $cbs.filter(':checked').length < $cbs.length;
+    $cbs.prop('checked', turnOn);
+  });
+  $('#printBtn').on('click', function () {
+    if (!cur) { return; }
+    window.open(targetUrl(), '_blank');
+  });
+  $('#openConfigBtn').on('click', function () {
+    if (!cur) { return; }
+    window.open(configUrl(), '_blank');
+  });
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    loadInit();
+  });
+});
+
+function loadInitWithType(type) {
+  var q = new URLSearchParams(window.location.search);
+  $.getJSON(API, { action: 'init', type: type,
+                   tproject_id: q.get('tproject_id') || '0',
+                   tplan_id: q.get('tplan_id') || '0' }, function (r) {
+    if (r.status !== 'ok') { toast(r.message || TLi18n.t('pdo.errLoad'), true); return; }
+    cur = r;
+    $('#docType').val(r.doc_type);
+    renderFormats();
+    renderOptions();
+    renderBuilds();
+    if (!r.show_format) { $('#formatRow').hide(); } else { $('#formatRow').show(); }
+    if (r.context.needs_plan && r.context.tplan_id <= 0) { warn(TLi18n.t('pdo.noPlan'), true); } else { warn(''); }
+  }).fail(function () { toast(TLi18n.t('pdo.errLoad'), true); });
+}
+</script>
+</body>
+</html>

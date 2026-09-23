@@ -2091,6 +2091,15 @@ function getActions(&$gui,$baseURL) {
   // Refs #982. Legacy right (testplan_metrics) is enforced by the BFF on every
   // route; aside visibility is gated by aside.tpl via menuGrants.
   $actions->printTestSpec = "/gui/templates/testcases/printTestSpec.html?{$ctx}";
+  // Print Document Options popup modernized screen (Dashio standalone page) -
+  // Refs #1570. Replaces lib/results/printDocOptions.php (format + print
+  // preferences chooser). The BFF (api/printoptions) enforces the per-type
+  // legacy right (testplan_metrics / mgt_view_req) on every route; the popup
+  // forwards the clicked preferences as a tree_getPrintPreferences-style query
+  // string to the modern document renderers (printTestDoc/printDocument/
+  // reportPrint).
+  $actions->printDocOptions =
+    "/gui/templates/results/printDocOptions.html?type=testspec&{$ctx}";
   // Single Test Case Print modernized screen (Dashio standalone page) - Refs
   // #1010. Replaces lib/testcases/tcPrint.php for the printer-friendly view;
   // the BFF enforces mgt_view_tc on the owning project on every route.
