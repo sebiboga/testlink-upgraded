@@ -80,7 +80,7 @@ html, body { margin: 0; padding: 0; background: #f4f6f8; font-family: 'Ruda', sa
         </div>
 
         <div style="margin-top:18px;">
-          <div class="opt-item">
+          <div class="opt-item" id="withUserRow">
             <label class="check-row" style="font-weight:600;">
               <input type="checkbox" id="withUserAssignment">
               <span data-i18n="pdo.onlyWithUser">Only test cases with user assignment</span>
@@ -192,6 +192,12 @@ function renderBuilds() {
   $('#buildRow').show();
 }
 
+function renderWithUserAssignment() {
+  var show = cur.doc_type === 'testreport_onbuild';
+  $('#withUserRow').toggle(show);
+  if (!show) { $('#withUserAssignment').prop('checked', false); }
+}
+
 function collectPrefs() {
   var parts = [];
   $('.opt-group input[type=checkbox]').each(function () {
@@ -263,12 +269,12 @@ function loadInit() {
     renderFormats();
     renderOptions();
     renderBuilds();
+    renderWithUserAssignment();
     if (!r.show_format) { $('#formatRow').hide(); } else { $('#formatRow').show(); }
 
     if (r.context.needs_plan && r.context.tplan_id <= 0) {
       warn(TLi18n.t('pdo.noPlan'), true);
     }
-    if ($('#withUserAssignment').is(':checked')) { $('#withUserAssignment').prop('checked', false); }
   }).fail(function (xhr) {
     var msg = TLi18n.t('pdo.errLoad');
     try { var j = JSON.parse(xhr.responseText); if (j && j.message) { msg = j.message; } } catch (e) {}
@@ -316,6 +322,7 @@ function loadInitWithType(type) {
     renderFormats();
     renderOptions();
     renderBuilds();
+    renderWithUserAssignment();
     if (!r.show_format) { $('#formatRow').hide(); } else { $('#formatRow').show(); }
     if (r.context.needs_plan && r.context.tplan_id <= 0) { warn(TLi18n.t('pdo.noPlan'), true); } else { warn(''); }
   }).fail(function () { toast(TLi18n.t('pdo.errLoad'), true); });

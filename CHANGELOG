@@ -896,24 +896,27 @@ Execution:
   cfg/reports.cfg.php document types (testspec / reqspec / testplan /
   testreport / testreport_onbuild), a "Show as" format select (HTML / Pseudo
   MS Word, only for types with show_format), a context build select + only-with-
-  user-assignment checkbox for testreport_onbuild, and per-type option groups
-  DOCUMENT (toc/headerNumbering) + TEST SPECIFICATION (7 opts incl. custom
-  fields) + REQUIREMENT SPECIFICATION (14 reqSpec.* opts) + EXECUTION (7 exec.*
-  opts) with full parity vs printDocOptions.class.php, plus a check/uncheck-all
-  toggle. Print opens the modern renderers (printTestDoc.html / printDocument.html
-  / reportPrint.html with build_id) with the chosen opts; Open print configuration
-  opens printTestSpec.html / printReqSpec.html. Rights: testplan_metrics
-  (report types resolved on the owning project) + mgt_view_req for reqspec;
+  user-assignment checkbox (both testreport_onbuild only, legacy buildInfoSet
+  parity), and per-type option groups DOCUMENT (toc/headerNumbering) +
+  TEST SPECIFICATION (7 opts incl. custom fields) + REQUIREMENT SPECIFICATION
+  (14 reqSpec.* opts) + EXECUTION (7 exec.* opts) with full parity vs
+  printDocOptions.class.php, plus a check/uncheck-all toggle. Print opens the
+  modern renderers (printTestDoc.html / printDocument.html / reportPrint.html
+  with build_id) with the chosen opts; Open print configuration opens
+  printTestSpec.html / printReqSpec.html. Rights: $right = (type==='reqspec')
+  ? mgt_view_req : testplan_metrics (parity of the legacy target printers);
   session auth + bffSameOriginGuard: 401 anon, 403 no-rights, 400 bad type /
-  req-disabled / no active plan, 405 method. pdo.* i18n keys + footers.printDocOptions
-  in all 10 bundles. Legacy controller kept as a session-guarded 302 shim
-  (anon -> login, like bugDelete/eventinfo); activity=addTC -> planAddTCView.html.
+  req-disabled / no active plan, 405 method. pdo.* i18n keys +
+  footers.printDocOptions in all 10 bundles. Legacy controller kept as a
+  session-guarded 302 shim (anon -> login, basehref-prefixed, like
+  bugDelete/eventinfo); activity=addTC -> planAddTCView.html?tplan_id=N.
   Verified live on fixture tmp/fixtures_1570.php (project 24 / plan 25 / req
   33 / builds x2): 5 doc types 200 + grouped opts, 401/403/405/400 paths, EN+RO
   renders, print renderers end-to-end. Bugs fixed while testing: stray on=n in
   opts (prefs collector matched the with_user_assignment checkbox), malformed
   addTC shim URL (missing '?'), format select rendered raw legacy keys
-  (namespaced pdo.format_* keys added to all bundles).
+  (namespaced pdo.format_* keys added to all bundles), with_user_assignment
+  rendered outside testreport_onbuild (gated).
 - Execution Navigator (execNavigator.html) - BFF api/execnavigator (#1562):
   modernizes the last standalone legacy screen lib/execute/execNavigator.php
   (kept as a session-guarded 302 shim, legacy deep links still resolve). Legacy

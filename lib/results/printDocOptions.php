@@ -23,11 +23,16 @@ require_once('../functions/common.php');
 // Anonymous -> login (same contract as the legacy testlinkInitPage call).
 testlinkInitPage($db, FALSE, false, null, true);
 
+$base = isset($_SESSION['basehref']) ? $_SESSION['basehref'] : '/';
+
 $docType = 'testspec';
 $tplan = '';
 $format = '';
 foreach (array_keys($_GET) as $k) {
     $v = $_GET[$k];
+    if (!is_scalar($v)) {
+        continue;
+    }
     if ($k === 'type') {
         $docType = preg_replace('/[^a-z_]/', '', $v);
     } elseif ($k === 'tplan_id') {
@@ -37,7 +42,7 @@ foreach (array_keys($_GET) as $k) {
     }
 }
 if (isset($_GET['activity']) && $_GET['activity'] !== '') {
-    $url = '/gui/templates/plans/planAddTCView.html';
+    $url = $base . 'gui/templates/plans/planAddTCView.html';
     if ($tplan !== '') {
         $url .= '?' . substr($tplan, 1);
     }
@@ -55,5 +60,5 @@ if ($tplan !== '') {
 if ($format !== '') {
     $query .= '&' . substr($format, 1);
 }
-header('Location: /gui/templates/results/printDocOptions.html?' . $query, true, 302);
+header('Location: ' . $base . 'gui/templates/results/printDocOptions.html?' . $query, true, 302);
 exit;

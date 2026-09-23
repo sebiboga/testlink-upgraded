@@ -32,6 +32,13 @@ optional build and the per-type option groups before the report is generated.
   CF on execution combination, notes, step execution notes, pass/fail, step
   execution status, build custom fields, test metrics.
 
+### Fields tied to the type
+
+- **Build** select: rendered only for testreport_onbuild (builds array non-empty).
+- **Only test cases with user assignment**: rendered only for testreport_onbuild
+  (legacy `buildInfoSet` parity); honored by `targetUrl()` only for that type.
+- **Format (Show as)** select: rendered only when `show_format` (testspec / reqspec).
+
 ### Print targets (modern renderers, opts forwarded as `?…` pairs)
 
 | Type | Renderer |
@@ -50,13 +57,15 @@ optional build and the per-type option groups before the report is generated.
 - **Endpoint:** `api/printoptions/index.php` — `GET ?action=init&type=<doc_type>
   [&tproject_id=N][&tplan_id=M]`, session-based auth + `bffSameOriginGuard`
   (X-Requested-With + same-Origin), JSON I/O.
-- **Rights:** `testplan_metrics` (testspec / reqspec / testplan) or
-  `testplan_metrics` resolved on the **owning project** for the report types;
-  `mgt_view_req` additionally for reqspec.
-- **Response:** `groups[]` (id, name, options[] with id/name/checked), `formats[]`
+- **Rights:** `$right = ($type === 'reqspec') ? 'mgt_view_req' : 'testplan_metrics';`
+  (parity of the legacy target printers: testcasesprint/reports gate on
+  `testplan_metrics`, requirement print on `mgt_view_req`).
+- **Response:** `doc_types[]` (key/label of the 5 DOC_* types), flat `options[]`
+  (value/checked pairs, grouped client-side by their `group`), `formats[]`
   (id/key, from `$tlCfg->reports_formats`: FORMAT_HTML=0, FORMAT_MSWORD=4),
-  `show_format`, `builds[]` (id/name/active, via `getBuildsForTestPlan`), and
-  `context` (tproject name, tplan id, requirements-enabled flag, needs_plan).
+  `show_format`, `builds[]` (id/name from `$tplanMgr->get_builds()`, only for
+  testreport_onbuild), and `context` (tproject name, tplan id,
+  requirements-enabled flag, needs_plan).
 - **Error contract:** 401 anon / 403 no-rights / 405 non-GET / 400 unknown doc
   type / 400 requirements disabled / 400 no active test plan / 500 guarded.
 
@@ -88,6 +97,9 @@ ja: 'MS Word 形式') + `footers.printDocOptions` in **all 10 locale bundles**
    because `renderFormats()` called `TLi18n.t(f.key)` on the legacy server-side
    labels; added namespaced `pdo.format_*` keys to all 10 bundles + prefixed the
    lookup (`2714790a3`).
+4. **with_user_assignment rendered unconditionally** while `targetUrl()` only
+   honored it for testreport_onbuild — now gated by `renderWithUserAssignment()`
+   (legacy `buildInfoSet` parity) (<code-review commit</code>).
 
 ## Verification
 
