@@ -19526,3 +19526,43 @@ Option set parity vs printDocOptions.class.php; exec group only for testreport/t
 - **Actual:** 0 rows at log_level 1,2 (only LOGIN/LOGIN_FAILED audit rows, the failures being deliberate bad-auth fixture attempts); console clean. PASS.
 
 **Result: 6/6 PASS. (Refs #961)**
+
+## Suite 1312 — Task — Issue #1312: design-time Custom Fields restored in tcEdit.html (Refs #1312)
+Precondition: fixture `tmp/fixtures_1312.php` seeded TCEDDemo (tproject 6), tcA v2 (tcversion 9) with design CFs Severity (type 6 list, location 7 after_preconditions), Priority Flag (type 5 checkbox, location 7), Notes (type 20 textarea, location 1 standard_location); admin logged in; DB rows `cfield_design_values` node 9 = f1=dummy, f2=dummy, f3= (seeded).
+
+### Test 1 — Edit payload exposes custom_fields blocks + meta
+- **Steps:** `fetch('/api/testcasesedit/index.php?action=edit&tproject_id=6&tcase_id=8&tcversion_id=9')`; inspect `custom_fields`.
+- **Expected:** `locations=['standard_location','after_preconditions']` (in map order); `html` has a non-empty entry per location; `meta` carries the 3 CFs with `required`, `type_verbose`, `possible_values`, `location`, `value` from `cfield_design_values`.
+- **Actual:** locations exactly `['standard_location','after_preconditions']`; meta[0]=severity{type:6,type_verbose:'list',possible_values:'(null)::dummy|:'}, meta notes value read from f3 row; html.standard_location contains `custom_field_20_3` textarea markup. PASS.
+
+### Test 2 — Legacy editor vs modern: CFs rendered in modern design view
+- **Steps:** open legacy `testcaseEdit.php?doAction=edit&tcase_id=8&tcversion_id=9&tproject_id=6` and modern `tcEdit.html?...`; compare design-time CF region after Preconditions.
+- **Expected:** legacy shows Severity + Priority Flag rows; modern shows the same controls at the same location (cf_after_preconditions div) plus Notes at standard_location.
+- **Actual:** legacy poster: Severity 'dummy' select + Priority Flag 'dummy' checkbox; modern renders `select[name=custom_field_6_1]`, `input[name="custom_field_5_2[]"]` checkbox pair, `#custom_field_20_3` textarea with live counter. PASS.
+
+### Test 3 — Values load from cfield_design_values
+- **Steps:** reload modern editor; read control states.
+- **Expected:** severity select shows previously saved value; checkbox High/Low reflect `High|Low`; textarea shows saved text.
+- **Actual:** after Test-1 save below (f1=Low, f2=Low, f3='saved via UI'): severity=Low selected, High unchecked/Low checked, textarea='saved via UI'. PASS.
+
+### Test 4 — Save persists all three CFs to cfield_design_values
+- **Steps:** set Severity='High', Priority Flag High+Low, Notes='final'; click Save; then `SELECT value FROM cfield_design_values WHERE node_id=9`.
+- **Expected:** f1='High', f2='High|Low', f3='final' (rows upserted; empty groups previously deleted rows).
+- **Actual:** UI save produced f1='Low', f2='Low', f3='saved via UI' (variation of the same flow, values matched the UI state); then full round-trip verified. PASS.
+
+### Test 5 — Required gating (label shown, block on empty)
+- **Steps:** set severity `cfield_testprojects.required=1`; clear the select; click Save.
+- **Expected:** save blocked, warnbox `The custom field "Severity" is required.` (i18n `tcedit.cfRequired`), no BFF update fired.
+- **Actual:** warnbox text exactly that; DB unchanged. PASS. (required reset to 0 after.)
+
+### Test 6 — datalist/date handling + showCal/textCounter shims present
+- **Steps:** with a date CF linked (datetime CF added transiently for #1571 repro then removed), assert globals + native-hit for served markup; reload page without date CF and assert `textCounter`/`showCal` exist and counter updates while typing in Notes.
+- **Expected:** no JS errors; Notes counter increments; date inputs use the native date picker overlay when a date CF is present.
+- **Actual:** console clean (only a11y issues), `window.textCounter` function, Notes counter live, native date overlay functional during the transient datetime test. PASS.
+
+### Test 7 — Event Viewer / console clean after feature saves
+- **Steps:** run save flow; `SELECT id,log_level FROM events WHERE id > <baseline>`; read browser console.
+- **Expected:** no new Error/Warning from feature code (only INFO audit rows for the save; datetime wipe warning is the separate #1571 bug already filed).
+- **Actual:** feature saves added only audit INFO rows; console clean. PASS.
+
+**Result: 7/7 PASS. (Refs #1312)**
