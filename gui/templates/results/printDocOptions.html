@@ -194,7 +194,7 @@ function renderBuilds() {
 
 function collectPrefs() {
   var parts = [];
-  $('.opt-item input[type=checkbox]').each(function () {
+  $('.opt-group input[type=checkbox]').each(function () {
     parts.push(this.value + '=' + (this.checked ? 'y' : 'n'));
   });
   return parts.join('&');
@@ -286,7 +286,7 @@ $(function () {
     loadInitWithType(t);
   });
   $('#toggleAll').on('click', function () {
-    var $cbs = $('.opt-item input[type=checkbox]');
+    var $cbs = $('.opt-group input[type=checkbox]');
     var turnOn = $cbs.filter(':checked').length < $cbs.length;
     $cbs.prop('checked', turnOn);
   });
