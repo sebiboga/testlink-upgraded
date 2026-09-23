@@ -378,13 +378,18 @@ if ($method === 'GET' && count($segments) === 1 &&
         }
 
         // per-requirement: linked TC versions + covered in this plan
-        $allReqIds = array_keys($reqBySpec);
+        $allReqIds = [];
+        foreach ($reqBySpec as $rsid => $reqs) {
+            foreach ($reqs as $rid => $rq) {
+                $allReqIds[intval($rid)] = intval($rid);
+            }
+        }
         $covMap = [];
         if (count($allReqIds) > 0) {
             $ridList = implode(',', $allReqIds);
             $sql = "SELECT RC.req_id, " .
                 " COUNT(DISTINCT RC.tcversion_id) AS lnk_qty, " .
-                " SUM(CASE WHEN TPV.TCversion_id IS NOT NULL THEN 1 ELSE 0 END) AS cov_qty " .
+                " SUM(CASE WHEN TPV.tcversion_id IS NOT NULL THEN 1 ELSE 0 END) AS cov_qty " .
                 " FROM {$rc} RC " .
                 " LEFT JOIN (SELECT DISTINCT tcversion_id FROM {$tpv} " .
                 "            WHERE testplan_id = {$tplanId}) TPV " .
@@ -421,7 +426,7 @@ if ($method === 'GET' && count($segments) === 1 &&
                     $specCovered += 1;
                 }
             }
-            $out[$sid] = [
+            $out[] = [
                 'id' => $sid,
                 'name' => $s['name'],
                 'parent_id' => $s['parent_id'],
