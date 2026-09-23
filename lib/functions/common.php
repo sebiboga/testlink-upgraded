@@ -1968,6 +1968,16 @@ function getActions(&$gui,$baseURL) {
     $actions->planAddTC = null;
   }
 
+  // Test Plan Navigator hub (modernized lib/plan/planTCNavigator.php +
+  // lib/plan/planAddTCNavigator.php) - Refs #1572. Legacy frameset features
+  // planAddTC/planRemoveTC/planUpdateTC/show_ve/test_urgency/tc_exec_assignment
+  // now land here; the hub forwards to the modern plan action screens.
+  if ($tplan_id > 0) {
+    $actions->planNav = "/gui/templates/plans/planNav.html?{$ctx}";
+  } else {
+    $actions->planNav = "/gui/templates/plans/planNav.html?testproject_id={$tproject_id}";
+  }
+
   $actions->fullTextSearch = "/gui/templates/search/searchAdvancedView.html?{$ctx}";
 
   // MD/XML Test Case Import modernized screen

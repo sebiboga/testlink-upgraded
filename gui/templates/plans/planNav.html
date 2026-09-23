@@ -118,6 +118,8 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 var API = '/api/plannav/index.php';
 var tprojectId = parseInt(new URLSearchParams(location.search).get('testproject_id')
                  || new URLSearchParams(location.search).get('tproject_id') || '0', 10);
+var tplanParam = parseInt(new URLSearchParams(location.search).get('testplan_id')
+                 || new URLSearchParams(location.search).get('tplan_id') || '0', 10);
 var INIT = null;
 var TREE = [];
 var selId = 0;
@@ -138,7 +140,7 @@ $(function(){
 });
 
 function boot(){
-  var q = '/init?tproject_id=' + tprojectId;
+  var q = '/init?tproject_id=' + tprojectId + (tplanParam>0 ? '&tplan_id='+tplanParam : '');
   $.getJSON(API + q)
     .done(function(r){
       if(r.status!=='ok'){ toast(TLi18n.t('common.error'), true); return; }
@@ -163,7 +165,7 @@ function boot(){
       loadTree();
     })
     .fail(function(xhr){
-      if(xhr.status===403){ toast(TLi18n.t('common.noPermission'), true); }
+      if(xhr.status===403){ toast(TLi18n.t('pnav.noAccess'), true); }
       else if(xhr.status===401){ location.href = '/login.php'; }
       else { toast(TLi18n.t('common.error'), true); }
     });
