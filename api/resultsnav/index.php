@@ -115,6 +115,14 @@ $bff = function ($action) use ($db, $user) {
             $tplans = $rows;
         }
 
+        // req/bts gating flags (legacy resultsNavigator.php computes them
+        // unconditionally, safe to hoist out of the status_ok branch)
+        $tprojMgr = new testproject($db);
+        $tprojOpts = $tprojMgr->getOptions($tproject_id);
+        $optReqs = (!empty($tprojOpts) && isset($tprojOpts->requirementsEnabled))
+            ? $tprojOpts->requirementsEnabled : false;
+        $btsEnabled = $tprojMgr->isIssueTrackerEnabled($tproject_id);
+
         if ($do_report['status_ok']) {
             $tplan_mgr = new testplan($db);
             $dmy = $tplan_mgr->get_by_id($tplan_id);
@@ -125,12 +133,6 @@ $bff = function ($action) use ($db, $user) {
             $context->imgSet = array(
                 'link_to_report' => '<i class="fa fa-link" aria-hidden="true"></i>',
             );
-
-            $tprojMgr = new testproject($db);
-            $tprojOpts = $tprojMgr->getOptions($tproject_id);
-            $optReqs = (!empty($tprojOpts) && isset($tprojOpts->requirementsEnabled))
-                ? $tprojOpts->requirementsEnabled : false;
-            $btsEnabled = $tprojMgr->isIssueTrackerEnabled($tproject_id);
 
             $items = $reports_mgr->get_list_reports($context, $btsEnabled, $optReqs,
                                                     $reports_formats[$format]);
