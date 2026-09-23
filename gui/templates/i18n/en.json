@@ -1269,6 +1269,7 @@
   "it.msg.deleted": "Issue tracker deleted",
   "it.msg.errorDelete": "Error deleting issue tracker",
   "it.msg.errorSave": "Error saving issue tracker",
+  "it.msg.noPermission": "You do not have permission to view issue trackers. Contact your administrator.",
   "it.msg.updated": "Issue tracker updated",
   "it.name": "Name",
   "it.nevernotify": "Never Notify",

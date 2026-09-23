@@ -1269,6 +1269,7 @@
   "it.msg.deleted": "Issue-Tracker gelöscht",
   "it.msg.errorDelete": "Fehler beim Löschen des Issue-Trackers",
   "it.msg.errorSave": "Fehler beim Speichern des Issue-Trackers",
+  "it.msg.noPermission": "Sie haben keine Berechtigung, Issue-Tracker anzusehen. Kontaktieren Sie Ihren Administrator.",
   "it.msg.updated": "Issue-Tracker aktualisiert",
   "it.name": "Name",
   "it.nevernotify": "Nie Benachrichtigen",

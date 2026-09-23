@@ -1269,6 +1269,7 @@
   "it.msg.deleted": "Suiveur d'anomalies supprimé",
   "it.msg.errorDelete": "Erreur lors de la suppression du suiveur d'anomalies",
   "it.msg.errorSave": "Erreur lors de l'enregistrement du suiveur d'anomalies",
+  "it.msg.noPermission": "Vous n'avez pas la permission de consulter les suiveurs d'anomalies. Contactez votre administrateur.",
   "it.msg.updated": "Suiveur d'anomalies mis à jour",
   "it.name": "Nom",
   "it.nevernotify": "Ne jamais notifier",

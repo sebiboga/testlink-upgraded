@@ -17,6 +17,22 @@ Every screen of the application was ported one-by-one in a screen-compare
 kept for backward compatibility and is progressively retired as each modern
 screen reaches full parity.
 
+- [FEATURE GAP] - #959: the modern Issue Trackers screen enforces the legacy
+  `issuetracker_view` read right. Legacy `lib/issuetrackers/issueTrackerView.php:61-66`
+  gated the WHOLE page on `checkRights()` = hasRight('issuetracker_view') ||
+  hasRight('issuetracker_management') (page redirected home + audit event when
+  missing); the modern `api/issuetracker/index.php` only checked `$_SESSION['userID']`
+  and served EVERY route (list, meta, CRUD, GitHub `/oauth/*`) to any authenticated
+  user — measured: user `norights` got HTTP 200 + full list, and the screen rendered
+  its full toolbar + table for that forbidden account. The BFF now builds
+  `tlUser::getByID()` and returns HTTP 403 `No permission` on every route when
+  neither right is held (view-only users remain allowed — write gating is tracked
+  separately in #960); `issuetrackerView.html` gained a `showDenied()` handler
+  (mirrors cfieldsView) that hides the toolbar + table and paints the localized
+  `it.msg.noPermission` footer message (added to all 10 locale bundles).
+  Browser-verified: norights → 403 + denied panel, viewonly → 200, admin → 200
+  full screen; Event Viewer clean (INFO-only). Suite 959 4/4 PASS. (Refs #959)
+
 - [FEATURE GAP] - #956: the modern Custom Fields screens regain the legacy
   ability to **rename a custom field (name)** in edit mode. Legacy edit kept
   cf_name a plain editable text box (gui/templates/dashio/cfields/

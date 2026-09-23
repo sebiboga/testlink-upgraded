@@ -1269,6 +1269,7 @@
   "it.msg.deleted": "課題トラッカーを削除しました",
   "it.msg.errorDelete": "課題トラッカーの削除エラー",
   "it.msg.errorSave": "課題トラッカーの保存エラー",
+  "it.msg.noPermission": "課題トラッカーを表示する権限がありません。管理者に連絡してください。",
   "it.msg.updated": "課題トラッカーを更新しました",
   "it.name": "名前",
   "it.nevernotify": "通知しない",

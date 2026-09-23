@@ -19346,3 +19346,36 @@ Env: `http://localhost:8082`, admin/admin session cookie jar `/tmp/tlcj`, guest 
 - **Actual:** E_WARNINGs (`Undefined variable $btsEnabled/$optReqs`, api/resultsnav L180-181) logged during testing were root-caused (req/bts gate flags were computed only inside the `status_ok` branch but referenced by the gating loop unconditionally) and fixed by hoisting `$optReqs`/`$btsEnabled` computation before the branch (legacy computes them unconditionally). After the fix, both the status_ok=1 path (24 rows) and the warning path emit 0 E_WARNINGs (events max id unchanged). PASS.
 
 **Result: 7/7 PASS. (Refs #1568)**
+
+---
+
+# Suite: Task — Issue #959: Implement issuetracker_view read-rights check in issuetrackerView
+
+**Precondition:** TestLink running at http://localhost:8082 (admin/admin). Fixtures created in a fresh run: user `norights` (role 3 `<no rights>`, zero role_rights), user `viewonly` (role with ONLY right_id=32 `issuetracker_view`), both password `admin`. DB: `testlink` @ 127.0.0.1:3306.
+
+### Test 1 — API: no-rights user denied on every BFF route (401/403 matrix)
+1. Login via curl cookie jar: `curl -c cj -X POST http://localhost:8082/login.php --data "tl_login=norights&tl_password=admin"` → 200.
+2. `curl -b cj http://localhost:8082/api/issuetracker/index.php` → expect 200→FAIL, 403 from now on.
+3. `curl -b cj …/api/issuetracker/index.php/meta/types` → expect 403.
+4. Repeat login for `viewonly` and `admin` → expect **200** on both list + meta (OR-gate: view-only allowed; admin allowed).
+- **Expected:** `norights` → 403 `{"status":"error","message":"No permission"}` on both routes; `viewonly` and `admin` → 200 with list.
+- **Actual:** `norights`: list=**403**, meta=**403**; `viewonly`: list=**200**, meta=**200**; `admin`: list=**200**, meta=**200**. PASS.
+
+### Test 2 — Browser: screen hidden with localized denial for no-rights user
+1. Log in `norights/admin` at http://localhost:8082/login.php.
+2. Open `/gui/templates/issuetracker/issuetrackerView.html`.
+- **Expected:** toolbar (`+ Create Issue Tracker`, `GitHub` buttons) and DataTable hidden; footer shows localized red message `You do not have permission to view issue trackers…`; network shows 403 on `/api/issuetracker/index.php`, `/meta/types`, `/oauth/token-status`.
+- **Actual:** snapshot shows only header + locale switcher + red footer message (en); toolbar and table absent; all 3 initial XHRs returned **403**. PASS.
+
+### Test 3 — Browser: full screen for an entitled user (regression)
+1. Log out, log in `admin/admin`.
+2. Open `/gui/templates/issuetracker/issuetrackerView.html`.
+- **Expected:** full screen: toolbar buttons, DataTable with Name/Type/Server URL/Active/Actions headers, footer `0 issue trackers | Generated on …`; no 403s.
+- **Actual:** full screen rendered identically to pre-change; footer populated from list response. PASS.
+
+### Test 4 — Event Viewer / console clean
+1. Verify `events` table has no E_WARNING/E_ERROR from the issuetracker BFF after the runs above; browser console free of JS errors.
+- **Expected:** only INFO (`log_level ≤ 16`) login/logout audit rows.
+- **Actual:** 7 INFO rows (`audit_login_succeeded` / `audit_user_logout`), no ERROR/WARNING; console only the 3 expected 403 `Failed to load resource` messages (handled by `.fail(showDenied)`), no JS exceptions. PASS.
+
+**Result: 4/4 PASS. (Refs #959)**

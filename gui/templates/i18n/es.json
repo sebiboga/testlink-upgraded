@@ -1269,6 +1269,7 @@
   "it.msg.deleted": "Rastreador de incidencias eliminado",
   "it.msg.errorDelete": "Error al eliminar el rastreador de incidencias",
   "it.msg.errorSave": "Error al guardar el rastreador de incidencias",
+  "it.msg.noPermission": "No tiene permiso para ver los rastreadores de incidencias. Contacte con su administrador.",
   "it.msg.updated": "Rastreador de incidencias actualizado",
   "it.name": "Nombre",
   "it.nevernotify": "Nunca notificar",

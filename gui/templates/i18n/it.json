@@ -1269,6 +1269,7 @@
   "it.msg.deleted": "Tracker di problemi eliminato",
   "it.msg.errorDelete": "Errore nell'eliminazione del tracker di problemi",
   "it.msg.errorSave": "Errore nel salvataggio del tracker di problemi",
+  "it.msg.noPermission": "Non hai il permesso di visualizzare i tracker di problemi. Contatta l'amministratore.",
   "it.msg.updated": "Tracker di problemi aggiornato",
   "it.name": "Nome",
   "it.nevernotify": "Mai notificare",

@@ -1269,6 +1269,7 @@
   "it.msg.deleted": "Urmatorul probleme sters",
   "it.msg.errorDelete": "Eroare la stergerea urmatorului probleme",
   "it.msg.errorSave": "Eroare la salvarea urmatorului probleme",
+  "it.msg.noPermission": "Nu aveți permisiunea să vizualizați urmăritoarele de probleme. Contactați administratorul.",
   "it.msg.updated": "Urmatorul probleme actualizat",
   "it.name": "Nume",
   "it.nevernotify": "Niciodata Notificare",

@@ -156,7 +156,20 @@ function loadMeta() {
     $.each(enabled, function(i, t) {
       sel.append('<option value="' + t.code + '">' + t.label + '</option>');
     });
+  }).fail(function(xhr) {
+    showDenied(xhr);
   });
+}
+
+// A 403 from the issuetracker BFF means the logged-in user holds neither
+// issuetracker_view nor issuetracker_management (legacy checkRights). The
+// screen must not render anything actionable: hide the toolbar (create /
+// GitHub buttons) and the table, and surface a localized denial message.
+function showDenied(xhr) {
+  if (xhr.status === 403) {
+    $('.toolbar, .table-wrap').hide();
+    $('#footerText').text(TLi18n.t('it.msg.noPermission')).css('color', '#e6605e').css('fontWeight', '600');
+  }
 }
 
 function loadTrackers() {
@@ -164,6 +177,8 @@ function loadTrackers() {
     allItems = r.items;
     renderTable(allItems);
     $('#footerText').text(TLi18n.t('it.trackersCount', {n: r.total}) + ' | ' + TLi18n.t('common.generatedOn') + ' ' + new Date().toLocaleString());
+  }).fail(function(xhr) {
+    showDenied(xhr);
   });
 }
 

@@ -1269,6 +1269,7 @@
   "it.msg.deleted": "Rastreador de problemas eliminado",
   "it.msg.errorDelete": "Erro ao eliminar o rastreador de problemas",
   "it.msg.errorSave": "Erro ao guardar o rastreador de problemas",
+  "it.msg.noPermission": "Você não tem permissão para visualizar rastreadores de problemas. Entre em contato com o administrador.",
   "it.msg.updated": "Rastreador de problemas atualizado",
   "it.name": "Nome",
   "it.nevernotify": "Nunca notificar",
