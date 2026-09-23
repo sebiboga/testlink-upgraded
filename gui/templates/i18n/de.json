@@ -4664,5 +4664,7 @@
   "pdo.opt_displayVersion": "Anforderungsversion",
   "footers.printDocOptions": "TestLink 2.0.1 - Druckoptionen für Dokumente",
   "pdo.format_html": "HTML",
-  "pdo.format_pseudo_msword": "Pseudo MS Word"
+  "pdo.format_pseudo_msword": "Pseudo MS Word",
+  "tcedit.cfRequired": "Das benutzerdefinierte Feld \"{field}\" ist erforderlich.",
+  "tcedit.cfInvalid": "Der eingegebene Wert für das benutzerdefinierte Feld \"{field}\" ist ungültig."
 }

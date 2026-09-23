@@ -134,6 +134,60 @@ function tcePlatformFreeList($project, $assignedIds) {
     return $free;
 }
 
+/**
+ * Design-time Custom Fields (issue #1312 — gap vs legacy lib/testcases/tcEdit.php
+ * edit()/tcEditViewer.inc.tpl).
+ *
+ * Returns, per test case VERSION being edited:
+ *  - 'html': locationKey => READY-TO-RENDER legacy input HTML produced by
+ *    testcase::html_table_of_custom_field_inputs() (scope 'design', link_id =
+ *    tcversion id). One block per value of buildCFLocationMap() that has at
+ *    least one linked CF (the same 7 locations the legacy editor rendered:
+ *    after_title, before_summary, after_summary, before_preconditions,
+ *    after_preconditions, before_steps_results, standard_location). The DOM
+ *    input names follow the legacy 'custom_field_<type>_<id>' contract so the
+ *    front-end can collect them exactly like the legacy form submission.
+ *  -  'meta': structured CF metadata (id, label, type, possible_values,
+ *    required, location, current value) used by the front-end for
+ *    required/format validation (mirrors execSetResults.html
+ *    validateExecCustomFields, Refs #791).
+ */
+function tceDesignCustomFields(&$tcaseMgr, $tcaseId, $tcverId, $tprojId) {
+    $html = [];
+    $cfPlaces = $tcaseMgr->buildCFLocationMap();
+    foreach ($cfPlaces as $locationKey => $locationFilter) {
+        // Legacy edit() (testcaseCommands.class.php:412-415) passed
+        // tproject_id=null on the last-but-one arg and the filter last; we pass
+        // the known project to skip the node-hierarchy lookup.
+        $h = $tcaseMgr->html_table_of_custom_field_inputs(
+                $tcaseId, null, 'design', '', $tcverId, null, $tprojId, $locationFilter);
+        if (trim((string)$h) !== '') {
+            $html[$locationKey] = $h;
+        }
+    }
+
+    $meta = [];
+    $map = $tcaseMgr->get_linked_cfields_at_design($tcaseId, $tcverId, null, null, $tprojId);
+    if (!is_null($map)) {
+        $types = $tcaseMgr->cfield_mgr->custom_field_types;
+        foreach ($map as $fid => $row) {
+            $meta[] = [
+                'id' => intval($fid),
+                'name' => strval($row['name'] ?? ''),
+                'label' => strval($row['label'] ?? ''),
+                'type' => intval($row['type'] ?? 0),
+                'type_verbose' => strval($types[intval($row['type'] ?? 0)] ?? 'string'),
+                'possible_values' => strval($row['possible_values'] ?? ''),
+                'required' => intval($row['required'] ?? 0) === 1,
+                'location' => intval($row['location'] ?? 1),
+                'value' => strval($row['value'] ?? ''),
+            ];
+        }
+    }
+
+    return ['html' => $html, 'meta' => $meta];
+}
+
 $tcaseMgr = new testcase($db);
 $tprojectMgr = new testproject($db);
 $tcaseCfg = config_get('testcase_cfg');
@@ -377,6 +431,9 @@ function buildEditPayload(&$db, &$tcaseMgr, &$tprojectMgr, &$user, $tcaseId, $tc
             || intval($tcaseCfg->canEditExecuted ?? 0) > 0);
     $platformsFree = tcePlatformFreeList($platformsProject, $platformsAssigned);
 
+    // design-time custom fields (issue #1312)
+    $customFields = tceDesignCustomFields($tcaseMgr, $tcaseId, $tcverId, $tprojId);
+
     return [
         'tcase' => [
             'id' => $tcaseId,
@@ -398,6 +455,13 @@ function buildEditPayload(&$db, &$tcaseMgr, &$tprojectMgr, &$user, $tcaseId, $tc
             'platformsFree' => $platformsFree,
             'platformsProject' => $platformsProject,
             'platformsEditable' => $platformsEditable,
+        ],
+        // design-time custom fields (issue #1312): ready-to-render legacy
+        // input HTML per location + metadata for client-side validation.
+        'custom_fields' => [
+            'locations' => array_keys($customFields['html']),
+            'html' => $customFields['html'],
+            'meta' => $customFields['meta'],
         ],
         'tproject_id' => $tprojId,
         'grants' => [
@@ -431,6 +495,7 @@ function buildEditPayload(&$db, &$tcaseMgr, &$tprojectMgr, &$user, $tcaseId, $tc
             'execution_type' => lang_get('execution_type'),
             'estimated_execution_duration' => lang_get('estimated_execution_duration'),
             'tc_keywords' => lang_get('tc_keywords'),
+            'custom_fields' => lang_get('custom_fields'),
             'warning_editing_executed_tc' => lang_get('warning_editing_executed_tc'),
             'warning_empty_tc_title' => lang_get('warning_empty_tc_title'),
             'footer' => 'TestLink 2.0.1 - Test Case Editor',
@@ -580,6 +645,25 @@ switch ($action) {
             }
             if (count($toRemove)) {
                 $tcaseMgr->deletePlatforms($tcaseId, $tcverId, $toRemove);
+            }
+        }
+
+        // design-time custom fields (issue #1312): persist submitted CF values
+        // exactly like legacy testcaseCommands::show() does after update()
+        // (testcaseCommands.class.php:1228-1235): rebuild the map of design CFs
+        // linked to the project and let design_values_to_db (through
+        // _build_cfield) write/update/delete cfield_design_values rows.
+        //
+        // NOTE: the map is filtered to the 7 renderable legacy locations
+        // (1..7; buildCFLocationMap skips 8 = hide_because_is_used_as_variable)
+        // so that values of hidden/variable CFs, which the editor never sends,
+        // are NOT wiped to '' by _build_cfield's seed-and-overwrite logic.
+        if (array_key_exists('custom_fields', $body) && is_array($body['custom_fields'])) {
+            $cfCtx = ['tproject_id' => $tprojId, 'enabled' => 1, 'node_type' => 'testcase'];
+            $cfMap = $tcaseMgr->cfield_mgr->getLinkedCfieldsAtDesign($cfCtx, ['location' => [1, 2, 3, 4, 5, 6, 7]]);
+            if (!is_null($cfMap) && count($cfMap) > 0) {
+                $tcaseMgr->cfield_mgr->design_values_to_db(
+                    $body['custom_fields'], $tcverId, $cfMap);
             }
         }
 

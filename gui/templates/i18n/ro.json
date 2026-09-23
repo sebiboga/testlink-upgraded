@@ -4674,5 +4674,7 @@
   "pdo.opt_displayVersion": "Versiunea cerinței",
   "footers.printDocOptions": "TestLink 2.0.1 - Opțiuni de imprimare a documentului",
   "pdo.format_html": "HTML",
-  "pdo.format_pseudo_msword": "Pseudo MS Word"
+  "pdo.format_pseudo_msword": "Pseudo MS Word",
+  "tcedit.cfRequired": "Câmpul personalizat \"{field}\" este obligatoriu.",
+  "tcedit.cfInvalid": "Valoarea introdusă pentru câmpul personalizat \"{field}\" este invalidă."
 }

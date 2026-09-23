@@ -4650,5 +4650,7 @@
   "pdo.opt_displayVersion": "需求版本",
   "footers.printDocOptions": "TestLink 2.0.1 - 文档打印选项",
   "pdo.format_html": "HTML",
-  "pdo.format_pseudo_msword": "Pseudo MS Word"
+  "pdo.format_pseudo_msword": "Pseudo MS Word",
+  "tcedit.cfRequired": "自定义字段“{field}”为必填项。",
+  "tcedit.cfInvalid": "为自定义字段“{field}”输入的值无效。"
 }

@@ -4680,5 +4680,7 @@
   "pdo.opt_displayVersion": "Requirement version",
   "footers.printDocOptions": "TestLink 2.0.1 - Print Document Options",
   "pdo.format_html": "HTML",
-  "pdo.format_pseudo_msword": "Pseudo MS Word"
+  "pdo.format_pseudo_msword": "Pseudo MS Word",
+  "tcedit.cfRequired": "The custom field \"{field}\" is required.",
+  "tcedit.cfInvalid": "The value entered for custom field \"{field}\" is invalid."
 }

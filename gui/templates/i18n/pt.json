@@ -4670,5 +4670,7 @@
   "pdo.opt_displayVersion": "Versão do requisito",
   "footers.printDocOptions": "TestLink 2.0.1 - Opções de impressão do documento",
   "pdo.format_html": "HTML",
-  "pdo.format_pseudo_msword": "Pseudo MS Word"
+  "pdo.format_pseudo_msword": "Pseudo MS Word",
+  "tcedit.cfRequired": "O campo personalizado \"{field}\" é obrigatório.",
+  "tcedit.cfInvalid": "O valor inserido para o campo personalizado \"{field}\" é inválido."
 }

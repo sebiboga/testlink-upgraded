@@ -4670,5 +4670,7 @@
   "pdo.opt_displayVersion": "Версия требования",
   "footers.printDocOptions": "TestLink 2.0.1 - Параметры печати документа",
   "pdo.format_html": "HTML",
-  "pdo.format_pseudo_msword": "Pseudo MS Word"
+  "pdo.format_pseudo_msword": "Pseudo MS Word",
+  "tcedit.cfRequired": "Пользовательское поле \"{field}\" обязательно для заполнения.",
+  "tcedit.cfInvalid": "Введённое значение для пользовательского поля \"{field}\" недействительно."
 }

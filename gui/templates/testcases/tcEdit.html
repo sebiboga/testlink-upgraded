@@ -71,6 +71,16 @@ textarea.form-control { resize: vertical; }
 .count-pill-req { color: #888; font-weight: 400; font-size: 11px; }
 .form-control2 { border: 1px solid #ccc; border-radius: 5px; padding: 6px 10px; font-size: 13px; }
 .none-text { color: #999; font-style: italic; font-size: 13px; }
+.design-cf-block { margin: 14px 0 4px; }
+.design-cf-block table { border-collapse: collapse; }
+.design-cf-block table td { padding: 4px 12px 4px 0; vertical-align: middle; }
+.design-cf-block .labelHolder { font-size: 13px; color: #555; font-weight: 600; white-space: nowrap; }
+.design-cf-block select, .design-cf-block input, .design-cf-block textarea { border: 1px solid #ccc; border-radius: 4px; font-size: 13px; padding: 4px 6px; }
+.design-cf-block input[type=checkbox], .design-cf-block input[type=radio] { width: auto; }
+.design-cf-block select { min-width: 140px; }
+.cf-datebox { position: relative; z-index: 5; background: #fff; border: 1px solid #ddd; border-radius: 6px; padding: 8px; box-shadow: 0 3px 10px rgba(0,0,0,.15); display: inline-block; margin-top: 4px; }
+.cf-datebox-actions { margin-top: 6px; }
+.cf-datebox-actions button { margin-right: 4px; }
 </style>
 </head>
 <body>
@@ -99,6 +109,9 @@ textarea.form-control { resize: vertical; }
     <div class="field-label"><span data-i18n="tcedit.tcTitle">Test Case Title</span> <span class="req">*</span></div>
     <input type="text" class="form-control" id="tc_name" maxlength="400">
 
+    <!-- Refs #1312: design-time custom fields, 'after_title' location -->
+    <div class="design-cf-block" id="cf_after_title"></div>
+
     <div class="attr-grid">
       <div class="attr-item">
         <label data-i18n="tcedit.importance">Importance</label>
@@ -118,11 +131,26 @@ textarea.form-control { resize: vertical; }
       </div>
     </div>
 
+    <!-- Refs #1312: design-time custom fields, 'before_summary' location -->
+    <div class="design-cf-block" id="cf_before_summary"></div>
+
     <div class="field-label"><span data-i18n="tcedit.summary">Summary</span></div>
     <textarea class="form-control" id="tc_summary" rows="3"></textarea>
 
+    <!-- Refs #1312: design-time custom fields, 'after_summary' location -->
+    <div class="design-cf-block" id="cf_after_summary"></div>
+
+    <!-- Refs #1312: design-time custom fields, 'before_preconditions' location -->
+    <div class="design-cf-block" id="cf_before_preconditions"></div>
+
     <div class="field-label"><span data-i18n="tcedit.preconditions">Preconditions</span></div>
     <textarea class="form-control" id="tc_preconditions" rows="3"></textarea>
+
+    <!-- Refs #1312: design-time custom fields, 'after_preconditions' location -->
+    <div class="design-cf-block" id="cf_after_preconditions"></div>
+
+    <!-- Refs #1312: design-time custom fields, 'before_steps_results' location -->
+    <div class="design-cf-block" id="cf_before_steps_results"></div>
 
     <div class="field-label" style="display:flex;justify-content:space-between;align-items:center;">
       <span><span data-i18n="tcedit.steps">Steps</span></span>
@@ -132,6 +160,9 @@ textarea.form-control { resize: vertical; }
       </div>
     </div>
     <div id="stepsContainer"></div>
+
+    <!-- Refs #1312: design-time custom fields, 'standard_location' -->
+    <div class="design-cf-block" id="cf_standard_location"></div>
 
     <div class="field-label"><span data-i18n="tcedit.keywords">Keywords</span></div>
     <div id="kwContainer" class="kw-pills"><span class="readonly-note" data-i18n="tcedit.noKeywords">No keywords defined for this project</span></div>
@@ -300,8 +331,10 @@ $(function () {
   $('#btnNewVersion').on('click', doNewVersion);
   $('#btnAssignReqs').on('click', openAssignReqs);
 
-  // Track edits on every form control inside the editor card.
-  $('#formCard').on('input change', '.form-control, input[type=text], select, textarea', markModified);
+  // Track edits on every form control inside the editor card. Extend the
+  // selector so design-time custom-field inputs (legacy 'custom_field_*'
+  // markup, Refs #1312) also mark the form as modified.
+  $('#formCard').on('input change', '.form-control, input[type=text], input[type=email], input[type=number], input[type=date], input[type=checkbox], input[type=radio], select, textarea', markModified);
   $('#formCard').on('click', '.kw-pill, .step-del button', markModified);
 });
 
@@ -383,6 +416,8 @@ function renderEditor() {
   renderKeywords();
   // platforms (gap #915: per-version platform assignment)
   renderPlatforms();
+  // design-time custom fields (Refs #1312)
+  renderCustomFields();
 
   // steps
   $('#stepsContainer').empty();
@@ -404,6 +439,220 @@ function fillSelect(sel, items, value, i18nPrefix) {
     $sel.append('<option value="' + it.id + '">' + TLi18n.t(i18nPrefix + it.id) + '</option>');
   });
   $sel.val(String(value));
+}
+
+// Refs #1312: design-time Custom Fields — the BFF serves, per legacy
+// location (after_title, before_summary, after_summary,
+// before_preconditions, after_preconditions, before_steps_results,
+// standard_location), the SAME input HTML the legacy editor rendered
+// (testcase::html_table_of_custom_field_inputs, scope 'design'). We inject
+// it into the matching block of the modern editor. Empty locations are
+// hidden; the block markup keeps the legacy 'custom_field_<type>_<id>'
+// input-name contract so save-time collection can replay them verbatim.
+var CF_LOCATIONS = ['after_title', 'before_summary', 'after_summary',
+                    'before_preconditions', 'after_preconditions',
+                    'before_steps_results', 'standard_location'];
+
+// Legacy text-area CF inputs (html_table_inputs, cfield_mgr.class.php:739-743)
+// call this inline on key press to live-update the "characters left" counter;
+// the legacy function lived in gui/javascript/validate.js. We inject the same
+// behaviour into the modern editor so the served legacy markup works verbatim.
+window.textCounter = function (field, counterField, maxLimit) {
+  if (field.value.length > maxLimit) {
+    field.value = field.value.substring(0, maxLimit);
+  } else {
+    counterField.innerHTML = maxLimit - field.value.length;
+  }
+};
+
+// Legacy date/datetime CF markup renders a READONLY text input whose inline
+// onclick calls showCal(<divId>, <inputId>, <strftimeFormat>) — that widget
+// lived in testlink_library.js (Ext/Calendar). This minimal shim opens a
+// small overlay with a native <input type=date> and writes the chosen date
+// back into the '_input' text box using the same strftime format, so the
+// legacy markup works verbatim in the Dashio editor. Date-only format
+// tokens (Y y m n d j) are filled from the picker; time tokens (H h I i M s)
+// stay at 00:00:00 because datetime CFs carry their time in the separate
+// '_hour'/_minute'/_second' selects rendered next to the input.
+window.showCal = function (divId, inputId, format) {
+  var inp = document.getElementById(inputId);
+  var wrap = document.getElementById(divId);
+  if (!inp || !wrap) return;
+  if (wrap.querySelector('[data-cfdate]')) { return; } // already open
+  var box = document.createElement('div');
+  box.className = 'cf-datebox';
+  box.innerHTML =
+    '<input type="date" data-cfdate>' +
+    '<div class="cf-datebox-actions">' +
+    '<button type="button" data-cfdate-ok class="btn-teal btn-sm">OK</button> ' +
+    '<button type="button" data-cfdate-x class="btn-dark btn-sm">X</button>' +
+    '</div>';
+  wrap.appendChild(box);
+  var native = box.querySelector('[data-cfdate]');
+  var m = cfStrtokToDate(inp.value, format);
+  if (m) { native.value = m.getFullYear() + '-' + pad2(m.getMonth() + 1) + '-' + pad2(m.getDate()); }
+  native.focus();
+  box.querySelector('[data-cfdate-ok]').addEventListener('click', function () {
+    var v = native.value;
+    if (v) {
+      var d = new Date(v + 'T00:00:00');
+      inp.value = cfFormatStrtok(d, format);
+    }
+    box.remove();
+  });
+  box.querySelector('[data-cfdate-x]').addEventListener('click', function () { box.remove(); });
+  native.addEventListener('click', function (e) { e.stopPropagation(); });
+};
+function pad2(n) { return (n < 10 ? '0' : '') + n; }
+function cfFormatStrtok(d, format) {
+  return format.replace(/[YymndjHhIiMs]/g, function (t) {
+    switch (t) {
+      case 'Y': return String(d.getFullYear());
+      case 'y': return pad2(d.getFullYear() % 100);
+      case 'm': return pad2(d.getMonth() + 1);
+      case 'n': return String(d.getMonth() + 1);
+      case 'd': return pad2(d.getDate());
+      case 'j': return String(d.getDate());
+      case 'H': return '00';
+      case 'h': return '12';
+      case 'I': return '12';
+      case 'i': return '00';
+      case 'M': return '00';
+      case 's': return '00';
+      default: return t;
+    }
+  });
+}
+// Parse a displayed locale date string back into a Date using the strftime
+// token order (Y/y/m/n/d/j). Non-matching chars act as separators.
+function cfStrtokToDate(value, format) {
+  var order = [];
+  var toks = format.replace(/[Yymndj]/g, function (t) { order.push(t); return '%'; })
+    .replace(/[HhIiMs]/g, '');
+  if (!order.length) return null;
+  var parts = value.split(/[^0-9]+/).filter(Boolean);
+  var y = null, mo = null, dd = null;
+  for (var i = 0; i < order.length && i < parts.length; i++) {
+    var n = parseInt(parts[i], 10);
+    if (order[i] === 'Y') { y = n; }
+    else if (order[i] === 'y') { y = n < 100 ? 2000 + n : n; }
+    else if (order[i] === 'm' || order[i] === 'n') { mo = n; }
+    else if (order[i] === 'd' || order[i] === 'j') { dd = n; }
+  }
+  if (y == null || mo == null || dd == null) return null;
+  return new Date(y, mo - 1, dd);
+}
+
+function renderCustomFields() {
+  var cf = ctx.info.custom_fields || {};
+  var html = cf.html || {};
+  CF_LOCATIONS.forEach(function (loc) {
+    var $block = $('#cf_' + loc);
+    if (!$block.length) return;
+    if (html[loc]) {
+      // The injected legacy markup may reference 'this.form.<name>' (text-area
+      // counter), so wrap the block in a neutral form like the legacy editor's
+      // <form method=POST>; it never submits (buttons are type=button here).
+      // novalidate: legacy markup adds a real 'required' attr for required CFs
+      // — we gate required rules ourselves, we must not let native constraint
+      // validation fire on Enter inside the block.
+      $block.html('<form onsubmit="return false" novalidate>' + html[loc] + '</form>').show();
+    } else {
+      $block.empty().hide();
+    }
+  });
+  if (cf.meta && cf.meta.length) {
+    ctx.cfMeta = {};
+    cf.meta.forEach(function (m) { ctx.cfMeta[m.id + ''] = m; });
+  } else {
+    ctx.cfMeta = {};
+  }
+}
+
+// Collect design-time CF values into the legacy 'custom_field_*' hash format
+// the BFF writes back (design_values_to_db/_build_cfield). Checkbox and
+// multiselection list groups send the checked/selected values as arrays
+// (legacy 'name[]' behaviour); date/datetime keep their '_input'/'_hour'
+// suffixes; empty groups are sent as '' so stored rows get cleared on save.
+function collectCustomFields() {
+  var out = {};
+  $('.design-cf-block input, .design-cf-block select, .design-cf-block textarea').each(function () {
+    var name = $(this).attr('name') || '';
+    if (name.indexOf('custom_field_') !== 0) return;
+    var $el = $(this);
+    if ($el.attr('type') === 'checkbox' || ($el.is('select') && $el.attr('multiple'))) {
+      var base = name.replace(/\[\]$/, '');
+      if (out[base] === undefined) {
+        var vals = $el.is('select')
+          ? ($el.val() || [])
+          : ($(this).closest('td').find('input[type=checkbox]').filter(':checked').map(function () {
+              return $(this).val();
+            }).get());
+        out[base] = vals;
+      }
+      return;
+    }
+    if ($el.attr('type') === 'radio') {
+      var b2 = name.replace(/\[\]$/, '');
+      if (out[b2] === undefined) {
+        var checked = $(this).closest('td').find('input[type=radio]:checked').val();
+        out[b2] = checked != null ? checked : '';
+      }
+      return;
+    }
+    out[name] = ($el.val() == null ? '' : String($el.val()));
+  });
+  return out;
+}
+
+// Client-side required/format validation of design-time CF inputs (same
+// contract as execSetResults.html validateExecCustomFields, Refs #791; the
+// legacy editor emitted a 'required' class/attr for required CFs but never
+// blocked the server). Returns {ok, message}.
+function validateCustomFields() {
+  var cfMeta = ctx.cfMeta || {};
+  var emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  var bad = null;
+  var cbGroups = {};
+  $('.design-cf-block input, .design-cf-block select, .design-cf-block textarea').each(function () {
+    var $el = $(this);
+    var name = $el.attr('name') || '';
+    if (name.indexOf('custom_field_') !== 0) return;
+    var plain = name.replace(/\[\]$/, '');
+    var parts = plain.split('_');
+    var cfType = parseInt(parts[2], 10);
+    var cf = cfMeta[String(parts[3])];
+    var label = cf ? (cf.label || name) : name;
+    if ($el.attr('type') === 'checkbox') {
+      var baseName = plain;
+      if (!cbGroups[baseName]) {
+        cbGroups[baseName] = { required: !!(cf && cf.required), label: label, anyChecked: false };
+      }
+      if ($el.is(':checked')) { cbGroups[baseName].anyChecked = true; }
+      return;
+    }
+    var val = $el.is('select')
+      ? (($el.attr('multiple') ? ($el.val() || []) : [$el.val() || '']).join('|'))
+      : ($el.val() == null ? '' : String($el.val()));
+    var isEmpty = (val === '' || val == null);
+    if (cf && cf.required && isEmpty) { bad = { label: label, type: 'req' }; return; }
+    if (isEmpty) return;
+    if (cfType === 1 && /[^\d]/.test(val)) { bad = { label: label, type: 'numeric' }; return; }
+    if (cfType === 2 && (isNaN(Number(val)) || /^\s+$/.test(val))) { bad = { label: label, type: 'float' }; return; }
+    if (cfType === 4 && !emailRe.test(val)) { bad = { label: label, type: 'email' }; return; }
+  });
+  if (!bad) {
+    $.each(cbGroups, function (k, g) {
+      if (g.required && !g.anyChecked) { bad = { label: g.label, type: 'req' }; return false; }
+    });
+  }
+  if (bad) {
+    if (bad.type === 'req') {
+      return { ok: false, message: TLi18n.t('tcedit.cfRequired', { field: bad.label }) };
+    }
+    return { ok: false, message: TLi18n.t('tcedit.cfInvalid', { field: bad.label }) };
+  }
+  return { ok: true };
 }
 
 function renderKeywords() {
@@ -642,6 +891,14 @@ function doSave() {
     stepIds[num] = true;
   }
 
+  // Refs #1312: design-time custom fields — required/format gate before save
+  // (client-side; legacy relied on the 'required' class/attr only).
+  var cfCheck = validateCustomFields();
+  if (!cfCheck.ok) {
+    showWarn(cfCheck.message);
+    return;
+  }
+
   var payload = {
     action: 'update',
     tcase_id: ctx.testcaseId,
@@ -656,7 +913,8 @@ function doSave() {
     estimated_execution_duration: dur,
     steps: steps,
     keywords: collectKeywords(),
-    platforms: collectPlatforms()
+    platforms: collectPlatforms(),
+    custom_fields: collectCustomFields()
   };
 
   loadOverlay(true);
