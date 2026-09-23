@@ -114,3 +114,16 @@ tproject-mismatch 400, unauthenticated 401, no-rights 403, screen rendering +
 preselection, compare flow via UI, locale switch, `reqView.html` link-switch,
 i18n key/JSON validation in all 10 bundles, and Event Viewer cleanliness
 (events table left empty by fixture + screen).
+### Toolbar — Cancel/Back (Refs #1310)
+
+The modern toolbar carries a leading **`← Cancel`** ([`#backBtn`], `btn-ghost`
++ `fa-arrow-left`, label `common.cancel`) placed before the Refresh and Compare
+buttons. It restores the legacy `cancel_top` / `cancel_bottom` affordances of
+`reqCompareVersions.tpl:199-201,257-259` (`btn_cancel →
+javascript:history.back()`). `goBack()` in `reqCompare.html` calls
+`window.history.back()` when the browser has usable history
+(`window.history.length > 1`); on a fresh tab it falls back same-origin to the
+modern Requirement Viewer (`reqView.html?id=<requirement_id>&tproject_id=
+<tproject_id>`, ids preserved from the compare URL) instead of leaving the user
+on a dead `about:blank` — mirroring the accepted `reqSpecCompare.html` toolbar
+pattern (Refs #1359).

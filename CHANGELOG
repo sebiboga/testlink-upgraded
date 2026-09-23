@@ -5326,3 +5326,13 @@ Changes:
 
 * Updated the main page UI.. Moved the product and
       project tables and added user metrics to the middle section
+
+## 2.0.1 (in-progress)
+### Feature parity — Requirement Version Compare toolbar (Refs #1310, #1017)
+- reqCompare.html: restored the legacy `cancel_top`/`cancel_bottom`
+  Cancel/Back toolbar button (`btn_cancel → history.back()` from
+  reqCompareVersions.tpl:199-201,257-259) as a leading `← Cancel` ghost button
+  (#backBtn, label `common.cancel`, present in all 10 locale bundles). goBack()
+  uses history.back() when history exists, else falls back same-origin to
+  reqView.html?id=..&tproject_id=.. (mirrors reqSpecCompare.html toolbar, Refs
+  #1307), so the screen no longer dead-ends on a fresh tab.

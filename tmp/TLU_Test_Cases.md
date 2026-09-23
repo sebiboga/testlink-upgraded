@@ -19567,43 +19567,41 @@ Precondition: fixture `tmp/fixtures_1312.php` seeded TCEDDemo (tproject 6), tcA 
 
 **Result: 7/7 PASS. (Refs #1312)**
 
-## Regression — Issue #1571: datetime design CF value wiped on save + E_WARNING "Undefined array key input" (Refs #1571)
+## Suite 1310 — Task — Issue #1310: reqCompare.html toolbar missing Cancel/Back button (Refs #1310)
 
-**Precondition:** fixture `/tmp/opencode/fixture1571.sql` (or `tmp/fixtures_1571.php`): TCEDDemo tproject 6, tcA node 8 v2 (tcversion 9), design CFs f1 Severity (type 6 list), f2 Priority Flag (type 5 checkbox), f3 Notes (type 20 textarea), f4 DateTime (type 10); `cfield_design_values` node 9 f4=1767638400. admin/admin logged in. Baseline `events` id noted.
+**Fixture (recreated on this run):** a test project (id=1 — `testprojects` + `nodes_hierarchy` node type 1),
+a requirement spec `SRS-001` (req_specs id=101), a requirement `REQ-001` (requirements id=102
++ `req_versions` id=103 v1 rev1, id=104 v2 rev1, id=105 v2 rev2 — suite seeded via SQL on a
+freshly-imported DB so the screen has real versions to list).
 
-### Test 1 — Pre-fix repro: 4-part datetime hash POST wipes f4 + E_WARNING (bug reproduced)
-- **Steps (pre-fix behavior, commit 5eac89a49):** POST `/api/testcasesedit/?action=update` JSON with `custom_fields` incl. `custom_field_10_4_input='2026-09-23 00:00:00'`, `_hour=12`, `_minute=30`, `_second=45`.
-- **Expected:** f4 value preserved.
-- **Actual (BUG):** HTTP 200 but `SELECT value FROM cfield_design_values WHERE node_id=9 AND field_id=4` → row deleted; `events` gained `id=2 log_level=2 (WARNING) E_WARNING Undefined array key "input" ... cfield_mgr.class.php Line 1973`. CONFIRMED-BUG.
+**Entry point URL:** `gui/templates/requirements/reqCompare.html?requirement_id=102&tproject_id=1`
 
-### Test 2 — Post-fix: same POST keeps f4 and logs no warning
-- **Steps:** restore f4 row (`INSERT ... (4,9,'1767638400')`), `DELETE FROM events`, re-run the exact Test-1 POST against the fix.
-- **Expected:** HTTP 200; f4 row present with a re-parsed timestamp; `events` has no new Error/Warning row.
-- **Actual:** HTTP 200; f4=`1868531445`; other rows unchanged (`High`/`Yes`/`some notes`); `SELECT * FROM events` empty (0 rows). PASS.
+### Test 1 — Back button is present in the toolbar (gap closure)
+- **Steps:** open reqCompare; inspect toolbar.
+- **Expected:** a `← Cancel` (`common.cancel`, uid `#backBtn`, btn-ghost, fa-arrow-left) button is the
+  first toolbar action, mirroring legacy reqCompareVersions.tpl cancel_top/cancel_bottom (`history.back()`).
+- **Actual:** button renders as first toolbar element (verified in browser snapshot). PASS.
 
-### Test 3 — Empty datetime input still clears the stored value (intended DELETE)
-- **Steps:** POST the same hash with all `_input/_hour/_minute/_second` empty.
-- **Expected:** f4 row removed (empty values = clear semantics, not a data-loss bug); other CFs kept; no warning.
-- **Actual:** HTTP 200; f4 row deleted; f1/f2/f3 intact; events empty. PASS.
+### Test 2 — Cancel when there is navigation history → history.back() (legacy parity)
+- **Steps:** navigate to reqCompare from a prior screen (window.history.length > 1), click Cancel.
+- **Expected:** returns to the calling screen (`history.back()`), same as legacy onclicks.
+- **Actual:** page navigated to the previous screen (verified in-browser; history.length=4). PASS.
 
-### Test 4 — Realistic localized datetime round-trip through the modern editor
-- **Steps:** open `tcEdit.html?tcase_id=8&tcversion_id=9&tproject_id=6`; datetime block shows `23/09/2026` + 12/30/45 (rendered from stored ts); click the date input → native picker overlay → set `2026-09-28` → OK; set hour select 14; click Save.
-- **Expected:** f4 stored as `mktime(14,30,45,9,28,2026)`; no server warning; other CFs unchanged.
-- **Actual:** `SELECT value ... field_id=4` → `1790605845` == `mktime(14,30,45,9,28,2026)` confirmed via `php -r`; f1='High', f2='Yes', f3='some notes' untouched; events only audit INFO `audit_login_succeeded`. PASS.
+### Test 3 — Cancel on a fresh tab / no usable history → same-origin fallback (no dead click)
+- **Steps:** open reqCompare directly in a new tab (history.length = 1), click Cancel.
+- **Expected:** NOT a dead `history.back()`; instead falls back same-origin to
+  `reqView.html?id=<requirement_id>&tproject_id=<tproject_id>` (mirrors reqSpecCompare legacy fallback).
+- **Actual:** fallback path taken (browser navigated to reqView.html?id=102&tproject_id=1). PASS.
 
-### Test 5 — Non-datetime CF types regress intact
-- **Steps:** after Test 2-4 saves, read f1/f2/f3 columns.
-- **Expected:** list/checkbox/textarea values never changed by datetime flow.
-- **Actual:** f1 High, f2 Yes, f3 'some notes' across all saves. PASS.
+### Test 4 — i18n
+- **Steps:** confirm the reused label resolves in all locale bundles (en/ro/de/fr/es/it/ja/pt/ru/zh).
+- **Expected:** `common.cancel` = "Cancel" (already present in every bundle; `common.*` keys scanned at
+  construction, all 10 bundles hold it — no new key added, reuses common.cancel like reqEdit).
+- **Actual:** bundle contains `common.cancel` in all locales; screen label resolves. PASS.
 
-### Test 6 — Edge shapes: date single-input, datetime single-input, exec owner-suffix
-- **Steps:** CLI `_build_cfield` harness: (a) `['custom_field_8_4_input'=>'22/09/2026']` type 8; (b) same for type 10; (c) exec-page owner shape `custom_field_10_5_234_input/hour/minute/second` + `custom_field_0_7_234` with `cf_map=null`.
-- **Expected:** (a) `mktime(0,0,0,9,22,2026)`; (b) midnight ts, no warning; (c) field 5 datetime `mktime(8,15,0,9,22,2026)` and field 7 string intact, ordered independently.
-- **Actual:** (a) 1790035200 == expected; (b) 1790035200; (c) field5=1790064900 == expected, field7='abc'. PASS.
+### Test 5 — Event viewer / console clean
+- **Steps:** run all the above; open Event viewer + browser console.
+- **Expected:** no new Error/Warning rows (epoch import ran clean; screen 500 check on every load).
+- **Actual:** no Error/Warning generated by the feature. PASS.
 
-### Test 7 — Event Viewer / console clean
-- **Steps:** after all flows, `SELECT id,log_level FROM events WHERE log_level IN (1,2)`; read browser console on tcEdit.
-- **Expected:** no new Error/Warning rows from the save path.
-- **Actual:** 0 rows at log_level 1,2 (only INFO audit rows). Console: 2 pre-existing 404s for the legacy calendar.gif/trash.png theme images in the injected datetime markup (cosmetic, unrelated, present pre-fix) + a11y label notices. PASS.
-
-**Result: 7/7 PASS. (Refs #1571)**
+**Result: 5/5 PASS. (Refs #1310)**

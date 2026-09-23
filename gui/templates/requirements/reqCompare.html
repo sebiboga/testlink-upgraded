@@ -51,6 +51,7 @@ table.diff-table tr.changed { background: #fdf3e7; }
 <div class="header"><i class="fa fa-code-compare"></i> <span data-i18n="rcmp.title">Compare Requirement Versions</span><span id="projName"></span><span id="localeSwitcher" style="float:right;"></span></div>
 
 <div class="toolbar">
+  <button class="btn-ghost" id="backBtn" onclick="goBack()"><i class="fa fa-arrow-left"></i> <span data-i18n="common.cancel">Cancel</span></button>
   <button class="btn-teal" id="selMode" onclick="loadVersions()"><i class="fa fa-refresh"></i> <span data-i18n="common.refresh">Refresh</span></button>
   <button class="btn-ghost" id="compareBtn" style="display:none;" onclick="doCompare()"><i class="fa fa-code-compare"></i> <span data-i18n="rcmp.compareSelected">Compare selected versions</span></button>
   <span class="ctx" style="margin-left:auto;color:#aaa;font-size:12px;" id="infoLine"></span>
@@ -320,6 +321,20 @@ function sanitizeDiffHtml(html) {
 
 function showWarn(msg) {
   $('#warnBanner').text(msg).css('display', 'block');
+}
+
+// Refs #1310 - legacy reqCompareVersions.tpl cancel_top/cancel_bottom
+// buttons (btn_cancel -> history.back()); same affordance, with a same-origin
+// fallback when reqCompare was opened in a fresh tab (window.open from
+// reqView openCompare) where history has nothing to walk back.
+function goBack() {
+  if (window.history.length > 1) { window.history.back(); }
+  else if (REQ_ID > 0) {
+    window.location.href = '/gui/templates/requirements/reqView.html?id=' + REQ_ID +
+      (TPROJECT_ID > 0 ? '&tproject_id=' + TPROJECT_ID : '');
+  } else {
+    window.location.href = '/index.php';
+  }
 }
 
 function fmtTs(ts) {
