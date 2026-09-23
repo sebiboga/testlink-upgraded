@@ -177,7 +177,7 @@ function renderOptions() {
 function renderFormats() {
   var $sel = $('#formatSel').empty();
   (cur.formats || []).forEach(function (f) {
-    $sel.append($('<option>', { value: f.id, text: TLi18n.t(f.key) }));
+    $sel.append($('<option>', { value: f.id, text: TLi18n.t('pdo.' + f.key) }));
   });
   $sel.val(String(cur.format));
 }
