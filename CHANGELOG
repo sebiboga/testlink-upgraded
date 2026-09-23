@@ -17,6 +17,25 @@ Every screen of the application was ported one-by-one in a screen-compare
 kept for backward compatibility and is progressively retired as each modern
 screen reaches full parity.
 
+- [FEATURE GAP] - #956: the modern Custom Fields screens regain the legacy
+  ability to **rename a custom field (name)** in edit mode. Legacy edit kept
+  cf_name a plain editable text box (gui/templates/dashio/cfields/
+  cfieldsEdit.tpl:83-89) and re-checked uniqueness before saving
+  (lib/cfields/cfieldsEdit.php:367-381 name_is_unique, rejecting collisions
+  with lang_get('cf_name_exists')); the modern edit modals had forced the Name
+  input read-only (`$('#editName').prop('readonly', true)` in
+  gui/templates/cfields/cfieldsView.html:318 and cfieldsAssignView.html:251),
+  even though the BFF PUT already supported a changed name + the uniqueness
+  guard. api/cfields/index.php PUT and POST duplicate-name 400s now return
+  `code: 'cf_name_exists'` + the legacy localized message via
+  lang_get('cf_name_exists', assignLocale()) instead of raw English; both edit
+  modals make the Name editable again and map the code onto the new localized
+  `cf.msg.nameExists` key (added to all 10 bundles). Browser-verified: rename
+  persists (Deployment->DeploymentPrime, Tier->TierY via the Assign name
+  links), collision renames rejected on both screens in en and ro locale,
+  create-collision also localized; suite 956 5/5 PASS, Event Viewer clean.
+  (Refs #956)
+
 - [FEATURE GAP] - #1316: the modern Test Case Editor (tcEdit.html) Status
   dropdown now matches the legacy testCaseStatus domain. Previously the modern
   screen built options 1..7 from hardcoded i18n keys `tcedit.statusN` whose

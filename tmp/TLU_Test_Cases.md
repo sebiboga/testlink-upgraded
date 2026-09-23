@@ -19209,3 +19209,41 @@ Save dead until a full page reload.
 - **Actual:** events rows 1-7 all audit at level 16; console had only a pre-existing a11y "form field element should have an id" info (2 count); no JS errors. PASS.
 
 **Result: 4/4 PASS.** (Refs #1566)
+
+## Suite 956 — Task/Feature: Allow renaming a custom field (name) in the modern cfields edit modals (Refs #956)
+
+**Screen:** `gui/templates/cfields/cfieldsView.html` + `gui/templates/cfields/cfieldsAssignView.html` + `api/cfields/index.php`.
+**Fixture:** fresh DB re-import; created custom fields `Deployment`/`Deployment Env` (id=1) and `Tier`/`Tier label` (id=2) via the modern create modal; test project "Renaming Proj" (id=1) via `POST /api/projects/`; both fields linked via `POST /api/cfields/assignment/link?tproject_id=1`. Admin session, en_GB (ro used in Test 3).
+
+### Test 1 — cfieldsView edit modal: Name editable and a rename persists
+1. Open `http://localhost:8082/gui/templates/cfields/cfieldsView.html`.
+2. Click Edit on "Deployment"; read `#editName.readOnly` and `value`.
+3. Set `#editName` = "DeploymentPrime"; click Save.
+4. Check the list and `SELECT name FROM custom_fields`.
+- **Expected:** `readOnly === false`; after Save the field shows/DBs `DeploymentPrime` with the original label `Deployment Env`.
+- **Actual:** `readOnly:false`; list + DB `DeploymentPrime` / `Deployment Env`. PASS.
+
+### Test 2 — cfieldsView edit modal: renaming onto an existing name is rejected (localized, en)
+1. Edit "Tier"; set `#editName` = "DeploymentPrime"; click Save.
+- **Expected:** modal stays open, `#modalError` shows "Custom field name already exists. Please choose a new one"; DB unchanged ("Tier").
+- **Actual:** `errorVisible:true`, text "Custom field name already exists. Please choose a new one"; DB name still "Tier". PASS.
+
+### Test 3 — cfieldsView edit modal: rejection localizes (ro)
+1. Switch locale to Română (locale switcher → reload `?locale=ro`).
+2. Edit "Tier"; set name = "DeploymentPrime"; Save.
+- **Expected:** `#modalError` shows "Numele campului personalizat există deja. Alegeți alt nume, vă rugăm."; header localized ("Campuri Personalizate").
+- **Actual:** exact Romanian string shown; header localized. PASS.
+
+### Test 4 — cfieldsView create modal: colliding new name is rejected (localized)
+1. Create Custom Field; Label="Collide", Name="DeploymentPrime"; Save.
+- **Expected:** modal stays open with the localized "Custom field name already exists..." message; no row created in DB.
+- **Actual:** same localized message; `custom_fields` has no "Collide". PASS.
+
+### Test 5 — Assign screen edit modal: rename and collision
+1. Open `cfieldsAssignView.html?tproject_id=1` (both fields linked).
+2. Click the "Tier" name link (Assigned table) → `#editName.readOnly` must be false.
+3. Rename to "TierY", click the modal Save (`.modal-footer .btn-teal`); then open it again and rename to "DeploymentPrime".
+- **Expected:** first save closes the modal, toast "Changes saved", list + DB show "TierY"; second rename is rejected with the localized message and the modal stays open.
+- **Actual:** `readOnly:false`; "TierY" in list + DB; collision shows the localized rejection, modal stays open. PASS.
+
+**Result: 5/5 PASS.** Event Viewer / `events` clean (only audit rows at log_level=16). (Refs #956)
