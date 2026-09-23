@@ -90,9 +90,11 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
           <textarea id="editCfg" class="form-control" rows="6" style="font-size:13px;font-family:monospace;" placeholder="<issuetracker>&#10;  &lt;uribase&gt;...&lt;/uribase&gt;&#10;  &lt;apikey&gt;...&lt;/apikey&gt;&#10;&lt;/issuetracker&gt;"></textarea>
         </div>
         <div id="modalError" style="color:#e6605e;font-size:12px;margin-top:8px;display:none;"></div>
+        <div id="connAlert" style="display:none;margin-top:8px;font-size:13px;padding:8px 12px;border-radius:4px;"></div>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-dismiss="modal" style="font-size:13px;" data-i18n="common.cancel">Cancel</button>
+        <button type="button" id="btnCheckConn" onclick="checkConnectionModal()" style="font-size:13px;background:#fff;color:#4ECDC4;border:1px solid #4ECDC4;padding:7px 14px;border-radius:4px;cursor:pointer;font-weight:600;" data-i18n="it.checkConnection">Check Connection</button>
         <button type="button" class="btn-teal" onclick="saveTracker()" style="font-size:13px;" data-i18n="common.save">Save</button>
       </div>
     </div>
@@ -226,11 +228,18 @@ function renderTable(items) {
     }
     var actions = '';
     if (canManage) {
+      // Legacy list wrench (issueTrackerView.tpl:55-58) opens the connection
+      // check for the STORED config; the heartbeat/skull result (bts_check_ok /
+      // bts_check_ko) is rendered next to the name. Mirror it: a per-row wrench
+      // that runs checkConnection(id) and paints the status icon into #conn-<id>.
+      var nameCell = '<i class="fa fa-wrench action-btn" title="' + TLi18n.t('it.checkConnection') +
+                     '" onclick="checkConnection(' + t.id + ')"></i>' +
+                     '<span id="conn-' + t.id + '"></span> ';
       actions += '<i class="fa fa-edit action-btn" title="' + TLi18n.t('common.edit') + '" onclick="editTracker(' + t.id + ')"></i>' +
                  '<i class="fa fa-trash action-btn danger" title="' + TLi18n.t('common.delete') + '" onclick="deleteTracker(' + t.id + ', \'' + (t.name || '').replace(/'/g, "\\'") + '\')"></i>';
     }
     rows.push([
-      esc(t.name),
+      (canManage ? nameCell : '') + esc(t.name),
       esc(t.typeDescr || t.typeLabel),
       cfgUrl,
       envHtml,
@@ -262,6 +271,7 @@ function showCreateModal() {
   $('#editType').val($('#editType option:first').val());
   $('#editCfg').val('');
   $('#modalError').hide();
+  $('#connAlert').hide().removeClass('alert alert-success alert-danger');
   $('#trackerModal').modal('show');
 }
 
@@ -275,6 +285,7 @@ function editTracker(id) {
     $('#editType').val(t.type);
     $('#editCfg').val(t.cfg || '');
     $('#modalError').hide();
+    $('#connAlert').hide().removeClass('alert alert-success alert-danger');
     $('#trackerModal').modal('show');
   });
 }
@@ -317,6 +328,59 @@ function deleteTracker(id, name) {
       var msg = TLi18n.t('it.msg.errorDelete');
       try { msg = JSON.parse(xhr.responseText).message; } catch(e) {}
       alert(msg);
+    }
+  });
+}
+
+/* ---- Connection checks (legacy checkConnection / isConnected) ---- */
+
+// Row-level check: runs the STORED tracker config through the BFF
+// (mirrors issueTrackerView.php?id=N) and paints heartbeat (ok) / skull (ko).
+function checkConnection(id) {
+  var holder = $('#conn-' + id);
+  holder.html('<i class="fa fa-spinner fa-spin" style="color:#888;margin-right:4px;"></i>');
+  $.getJSON(API + '/' + id + '/check-connection', function(r) {
+    var icon = r.connected
+      ? '<i class="fas fa-heartbeat" style="color:#3a9c5c;margin-right:4px;" title="' + TLi18n.t('it.connOk') + '"></i>'
+      : '<i class="fas fa-skull-crossbones" style="color:#e6605e;margin-right:4px;" title="' + TLi18n.t('it.connKo') + '"></i>';
+    holder.html(icon);
+  }).fail(function() {
+    holder.html('<i class="fas fa-skull-crossbones" style="color:#e6605e;margin-right:4px;" title="' + TLi18n.t('it.connCheckFailed') + '"></i>');
+  });
+}
+
+// Modal-level check: runs the CURRENT (unsaved) form fields through the BFF
+// (mirrors the legacy "Check Connection" button, doAction=checkConnection) and
+// shows the localized success/danger alert inside the modal.
+function checkConnectionModal() {
+  var alertEl = $('#connAlert');
+  alertEl.hide().removeClass('alert alert-success alert-danger');
+  var name = $('#editName').val().trim();
+  if (!name) {
+    alertEl.text(TLi18n.t('it.validation.required')).addClass('alert alert-danger').show();
+    return;
+  }
+  var btn = $('#btnCheckConn');
+  btn.prop('disabled', true);
+  $.ajax({
+    url: API + '/test-connection',
+    type: 'POST',
+    contentType: 'application/json',
+    data: JSON.stringify({name: name, type: parseInt($('#editType').val()), cfg: $('#editCfg').val()}),
+    success: function(r) {
+      btn.prop('disabled', false);
+      if (r.connected) {
+        alertEl.text(TLi18n.t('it.connOk')).addClass('alert alert-success');
+      } else {
+        alertEl.text(TLi18n.t('it.connKo')).addClass('alert alert-danger');
+      }
+      alertEl.show();
+    },
+    error: function(xhr) {
+      btn.prop('disabled', false);
+      var msg = TLi18n.t('it.connCheckFailed');
+      try { msg = JSON.parse(xhr.responseText).message; } catch(e) {}
+      alertEl.text(msg).addClass('alert alert-danger').show();
     }
   });
 }

@@ -127,6 +127,85 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'meta' && isset
     out(['status' => 'ok', 'items' => $items]);
 }
 
+// Legacy list wrench icon (issueTrackerView.tpl:55-58 -> issueTrackerView.php?id=N
+// -> tlIssueTracker::checkConnection() at tlIssueTracker.class.php:723-735) runs
+// the STORED config through the implementation's isConnected() and renders an
+// fa-heartbeat (ok) / fa-skull-crossbones (ko) status icon. GET /{id}/check-connection
+// mirrors it; like the legacy wrench it is gated on issuetracker_management ($gui->canManage).
+if ($method === 'GET' && isset($segments[0]) && is_numeric($segments[0]) &&
+    isset($segments[1]) && $segments[1] === 'check-connection' && empty($segments[2])) {
+    if (!$canManage) { $writeDenied(); }
+    $id = intval($segments[0]);
+    $item = $mgr->getByID($id);
+    if (!$item) {
+        http_response_code(404);
+        out(['status' => 'error', 'message' => 'Issue tracker not found']);
+    }
+    $impl = $item['implementation'];
+    if (!class_exists($impl)) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Issue tracker implementation not found for type']);
+    }
+    try {
+        // NOTE: instantiate the interface directly instead of calling
+        // tlIssueTracker::checkConnection() (tlIssueTracker.class.php:723-735):
+        // that method caches the interface object into $_SESSION['its'], and on
+        // PHP8 the curl handle it contains cannot be serialized when the session
+        // is written at request end, crashing the request with a fatal error.
+        $iface = new $impl($item['type'], $item['cfg'], $item['name']);
+        $connected = (bool)$iface->isConnected();
+        out(['status' => 'ok', 'connected' => $connected,
+             'message' => $connected ? 'Connection OK' : 'Connection failed (check type and configuration)']);
+    } catch (\Throwable $e) {
+        tLog(__METHOD__ . ' ' . $e->getMessage(), 'ERROR');
+        http_response_code(502);
+        out(['status' => 'error', 'connected' => false, 'message' => 'Connection check failed']);
+    }
+}
+
+// Legacy edit form "Check Connection" button (issueTrackerEdit.tpl:226-229 ->
+// issueTrackerCommands::checkConnection at issueTrackerCommands.class.php:253-281)
+// instantiates the implementation class from the CURRENT form fields (name/type/cfg)
+// and calls isConnected(), showing an alert-success (issueTracker_connection_ok) or
+// alert-danger (issueTracker_connection_ko). This route mirrors it so the modal can
+// verify UNSAVED configuration before saving. POST-only on purpose: the config may
+// contain an apikey (never ride a query string) AND a GET endpoint would be a
+// blind-SSRF probe — an attacker's page visited by a canManage user could force
+// outbound connects to arbitrary endpoints. bffSameOriginGuard() (api/_guard.php)
+// requires X-Requested-With/Origin proof, which jQuery $.ajax sends.
+if ($method === 'POST' && ($segments[0] ?? '') === 'test-connection' && empty($segments[1])) {
+    if (!$canManage) { $writeDenied(); }
+    $body = getBody();
+    $name = trim($body['name'] ?? '');
+    $type = intval($body['type'] ?? 0);
+    $cfg = (string)($body['cfg'] ?? '');
+    if ($name === '') {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Name is required']);
+    }
+    // guard: getImplementationForType() reads $this->systems[$type] blindly, so
+    // an out-of-map integer would raise PHP8 "array offset" warnings per request
+    if (!isset($mgr->systems[$type])) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Unknown issue tracker type']);
+    }
+    $impl = $mgr->getImplementationForType($type);
+    if (!class_exists($impl)) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Issue tracker implementation not found for type']);
+    }
+    try {
+        $iface = new $impl($type, $cfg, $name);
+        $connected = (bool)$iface->isConnected();
+        out(['status' => 'ok', 'connected' => $connected,
+             'message' => $connected ? 'Connection OK' : 'Connection failed (check type and configuration)']);
+    } catch (\Throwable $e) {
+        tLog(__METHOD__ . ' ' . $e->getMessage(), 'ERROR');
+        http_response_code(502);
+        out(['status' => 'error', 'connected' => false, 'message' => 'Connection check failed']);
+    }
+}
+
 if ($method === 'GET' && isset($segments[0]) && is_numeric($segments[0])) {
     $item = $mgr->getByID(intval($segments[0]));
     if (!$item) { http_response_code(404); out(['status' => 'error', 'message' => 'Issue tracker not found']); }
