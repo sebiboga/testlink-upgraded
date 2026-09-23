@@ -194,8 +194,12 @@ if ($method === 'POST' && empty($segments)) {
 
     $existing = $cfield_mgr->get_by_name($name);
     if ($existing) {
+        // Legacy doCreate (lib/cfields/cfieldsEdit.php:311-334) also surfaces
+        // lang_get('cf_name_exists') on a colliding name; send the same code
+        // so the modern create modal localizes it (Refs #956).
         http_response_code(400);
-        out(['status' => 'error', 'message' => 'Custom field name already exists']);
+        out(['status' => 'error', 'code' => 'cf_name_exists',
+             'message' => lang_get('cf_name_exists', assignLocale())]);
     }
 
     $nodeTypeMap = $cfield_mgr->get_allowed_nodes();
