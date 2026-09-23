@@ -2,7 +2,7 @@
 /**
  * api/resultsnav — Metrics & Reports Navigator BFF
  *
- * Modernizes lib/results/resultsNavigator.php (Refs #1563): the Test Results
+ * Modernizes lib/results/resultsNavigator.php (Refs #1568): the Test Results
  * and Metrics launcher hub. Lists every report available for a test plan
  * (title + modern screen URL + direct-link + format gate), surfaces the two
  * legacy sanity warnings (plan with no test cases / no builds) and returns the
@@ -169,11 +169,20 @@ $bff = function ($action) use ($db, $user) {
 
         $reportList = config_get('reports_list');
         $ctx = "tplan_id={$tplan_id}&tproject_id={$tproject_id}";
+        $formatKey = $reports_formats[$format];
         $list = array();
         $n = 0;
         foreach ($reportList as $key => &$rptItem) {
-            if ($n >= count($items)) {
-                break;
+            // replicate get_list_reports()'s enabled + format gating so that
+            // key <-> item pairing stays aligned when req/bts reports are skipped
+            $isEnabled = ($rptItem['enabled'] == 'all')
+                || (($rptItem['enabled'] == 'req') && $optReqs)
+                || (($rptItem['enabled'] == 'bts') && $btsEnabled);
+            if (!$isEnabled) {
+                continue;
+            }
+            if (strpos(',' . $rptItem['format'], $formatKey) <= 0) {
+                continue;
             }
             if (!isset($items[$n])) {
                 $n++;
