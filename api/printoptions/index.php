@@ -115,10 +115,9 @@ if ($type === DOC_REQ_SPEC && !$requirementsEnabled) {
 
 $projName = '';
 if ($tproject_id > 0) {
-    $projRow = $db->fetchOneRow(
-        "SELECT name FROM {$tprojMgr->getTableName()} WHERE id = " . intval($tproject_id));
-    if (is_array($projRow)) {
-        $projName = $projRow['name'];
+    $proj = $tprojMgr->get_by_id($tproject_id);
+    if (is_array($proj) && isset($proj['name'])) {
+        $projName = $proj['name'];
     }
 }
 if ($tproject_id <= 0 || $projName === '') {
