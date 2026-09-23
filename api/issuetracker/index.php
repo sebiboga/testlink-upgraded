@@ -46,6 +46,21 @@ if (!$canView) {
     exit;
 }
 
+// Legacy lib/issuetrackers/issueTrackerEdit.php gates create/edit/delete behind
+// `issuetracker_management` (checkRights: hasRight(issuetracker_management)) and
+// issueTrackerView.tpl renders the Create/Edit/Delete/wrench UI only when
+// `$gui->canManage` is true. Mirror BOTH sides here: read routes stay open to
+// issuetracker_view, everyone of the WRITE routes below (POST create, PUT update,
+// DELETE, POST /oauth/create) requires the management right. The audit event is
+// trailed into the Event Viewer BEFORE the denial, so the trace is not lost.
+$canManage = (bool)$user->hasRight($db, 'issuetracker_management');
+$writeDenied = function () use ($user, $userId) {
+    logAuditEvent(TLS('audit_security_user_right_missing', $user->login, basename($_SERVER['PHP_SELF']), 'manage'),
+                  'EDIT', $userId, 'issuetrackers');
+    http_response_code(403);
+    out(['status' => 'error', 'message' => 'No permission']);
+};
+
 $path = $_SERVER['PATH_INFO'] ?? parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $path = preg_replace('#^/api/issuetracker(/index\.php)?#', '', $path);
 $path = '/' . trim($path, '/');
@@ -86,7 +101,7 @@ if ($method === 'GET' && ($path === '/' || $path === '' || $path === '/index.php
             $items[] = trackerToJSON($item, $mgr);
         }
     }
-    out(['status' => 'ok', 'items' => $items, 'total' => count($items)]);
+    out(['status' => 'ok', 'canManage' => (bool)$canManage, 'items' => $items, 'total' => count($items)]);
 }
 
 if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'meta' && isset($segments[1]) && $segments[1] === 'types') {
@@ -111,6 +126,7 @@ if ($method === 'GET' && isset($segments[0]) && is_numeric($segments[0])) {
 }
 
 if ($method === 'POST' && empty($segments)) {
+    if (!$canManage) { $writeDenied(); }
     $body = getBody();
     $name = trim($body['name'] ?? '');
     $type = intval($body['type'] ?? 0);
@@ -137,6 +153,7 @@ if ($method === 'POST' && empty($segments)) {
 }
 
 if ($method === 'PUT' && isset($segments[0]) && is_numeric($segments[0])) {
+    if (!$canManage) { $writeDenied(); }
     $id = intval($segments[0]);
     $existing = $mgr->getByID($id);
     if (!$existing) { http_response_code(404); out(['status' => 'error', 'message' => 'Issue tracker not found']); }
@@ -159,6 +176,7 @@ if ($method === 'PUT' && isset($segments[0]) && is_numeric($segments[0])) {
 }
 
 if ($method === 'DELETE' && isset($segments[0]) && is_numeric($segments[0])) {
+    if (!$canManage) { $writeDenied(); }
     $id = intval($segments[0]);
     $existing = $mgr->getByID($id);
     if (!$existing) { http_response_code(404); out(['status' => 'error', 'message' => 'Issue tracker not found']); }
@@ -412,6 +430,7 @@ if ($method === 'GET' && ($segments[0] ?? '') === 'oauth' && ($segments[1] ?? ''
 
 // POST /oauth/create -> build GitHub tracker from picked repo, link to project
 if ($method === 'POST' && ($segments[0] ?? '') === 'oauth' && ($segments[1] ?? '') === 'create') {
+    if (!$canManage) { $writeDenied(); }
     if (!gh_has_token()) {
         http_response_code(401);
         out(['status' => 'error', 'message' => 'Not connected to GitHub']);

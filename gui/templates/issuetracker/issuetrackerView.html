@@ -41,8 +41,8 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
 <div class="header"><span data-i18n="header.issueTrackers">Issue Trackers</span> <span data-i18n="header.issueTrackersSub" style="font-size:13px;font-weight:400;opacity:.8;margin-left:12px;">manage issue tracker integrations</span><span id="localeSwitcher" style="float:right;"></span></div>
 
 <div class="toolbar">
-  <button class="btn-teal" onclick="showCreateModal()"><i class="fa fa-plus"></i> <span data-i18n="it.createTracker">Create Issue Tracker</span></button>
-  <button class="btn-teal" onclick="githubOAuthStart()" style="display:inline-flex;align-items:center;gap:6px;"><i class="fa-brands fa-github"></i> <span data-i18n="it.github">GitHub</span></button>
+  <button class="btn-teal" id="btnCreate" onclick="showCreateModal()"><i class="fa fa-plus"></i> <span data-i18n="it.createTracker">Create Issue Tracker</span></button>
+  <button class="btn-teal" id="btnGithub" onclick="githubOAuthStart()" style="display:inline-flex;align-items:center;gap:6px;"><i class="fa-brands fa-github"></i> <span data-i18n="it.github">GitHub</span></button>
   <span style="flex:1"></span>
   <span id="footerInfo" style="color:#aaa;font-size:12px;"></span>
 </div>
@@ -55,7 +55,7 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
         <th data-i18n="it.type">Type</th>
         <th data-i18n="it.serverUrl">Server URL</th>
         <th data-i18n="it.active">Active</th>
-        <th style="width:100px" data-i18n="common.actions">Actions</th>
+        <th id="thActions" style="width:100px" data-i18n="common.actions">Actions</th>
       </tr>
     </thead>
     <tbody></tbody>
@@ -127,6 +127,7 @@ var API = '/api/issuetracker/index.php';
 var table = null;
 var typeMap = {};
 var allItems = [];
+var canManage = false;
 
 $(function() {
   var p = new URLSearchParams(window.location.search);
@@ -136,7 +137,6 @@ $(function() {
     TLi18n.initLocaleSwitcher('#localeSwitcher');
     loadMeta();
     loadTrackers();
-    checkOAuthConnected();
   });
 });
 
@@ -175,8 +175,15 @@ function showDenied(xhr) {
 function loadTrackers() {
   $.getJSON(API, function(r) {
     allItems = r.items;
+    // Legacy issueTrackerView.tpl gated the Create button, GitHub OAuth entry
+    // and every edit/delete icon on `issuetracker_management` ($gui->canManage).
+    // Mirror it: canManage comes from the BFF GET / payload.
+    canManage = !!r.canManage;
+    $('#btnCreate').toggle(canManage);
+    $('#btnGithub').toggle(canManage);
     renderTable(allItems);
     $('#footerText').text(TLi18n.t('it.trackersCount', {n: r.total}) + ' | ' + TLi18n.t('common.generatedOn') + ' ' + new Date().toLocaleString());
+    checkOAuthConnected();
   }).fail(function(xhr) {
     showDenied(xhr);
   });
@@ -191,27 +198,37 @@ function renderTable(items) {
       var m = t.cfg.match(/<uribase>(.*?)<\/uribase>/);
       if (m) cfgUrl = m[1];
     }
+    var actions = '';
+    if (canManage) {
+      actions += '<i class="fa fa-edit action-btn" title="' + TLi18n.t('common.edit') + '" onclick="editTracker(' + t.id + ')"></i>' +
+                 '<i class="fa fa-trash action-btn danger" title="' + TLi18n.t('common.delete') + '" onclick="deleteTracker(' + t.id + ', \'' + (t.name || '').replace(/'/g, "\\'") + '\')"></i>';
+    }
     rows.push([
       t.name,
       t.typeDescr || t.typeLabel,
       cfgUrl,
       '<span class="badge-active">Active</span>',
-      '<i class="fa fa-edit action-btn" title="Edit" onclick="editTracker(' + t.id + ')"></i>' +
-      '<i class="fa fa-trash action-btn danger" title="Delete" onclick="deleteTracker(' + t.id + ', \'' + (t.name || '').replace(/'/g, "\\'") + '\')"></i>'
+      actions
     ]);
   });
+  var cols = [null, null, null, null, { orderable: false, searchable: false }];
+  if (!canManage) {
+    $('#thActions').hide();
+    $.each(rows, function(i, r) { r.pop(); });
+    cols.pop();
+  } else {
+    $('#thActions').show();
+  }
   table = $('#trackersTable').DataTable({
     data: rows,
     order: [[0, 'asc']],
     pageLength: 25,
-    columns: [
-      null, null, null, null,
-      { orderable: false, searchable: false }
-    ]
+    columns: cols
   });
 }
 
 function showCreateModal() {
+  if (!canManage) return;
   $('#modalTitle').text(TLi18n.t('it.createTracker'));
   $('#editTrackerId').val('');
   $('#editName').val('');
@@ -222,6 +239,7 @@ function showCreateModal() {
 }
 
 function editTracker(id) {
+  if (!canManage) return;
   $.getJSON(API + '/' + id, function(r) {
     var t = r.item;
     $('#modalTitle').text(TLi18n.t('it.editTracker') + ': ' + t.name);
@@ -235,6 +253,7 @@ function editTracker(id) {
 }
 
 function saveTracker() {
+  if (!canManage) return;
   var id = $('#editTrackerId').val();
   var data = {
     name: $('#editName').val().trim(),
@@ -262,6 +281,7 @@ function saveTracker() {
 }
 
 function deleteTracker(id, name) {
+  if (!canManage) return;
   if (!confirm(TLi18n.t('it.msg.confirmDelete') + ' "' + name + '"?')) return;
   $.ajax({
     url: API + '/' + id, type: 'DELETE',
@@ -277,6 +297,7 @@ function deleteTracker(id, name) {
 /* ---- GitHub OAuth flow ---- */
 
 function githubOAuthStart() {
+  if (!canManage) return;
   var ret = window.location.href.split('#')[0];
   $.getJSON(API + '/oauth/start?return=' + encodeURIComponent(ret), function(r) {
     if (r.status === 'ok' && r.url) {
@@ -348,6 +369,7 @@ function showRepoPicker() {
 }
 
 function createGithubTracker(repo) {
+  if (!canManage) return;
   var r = repo || $('#repoSelect').val();
   if (!r) {
     $('#repoError').text(TLi18n.t('it.validation.required')).show();
@@ -374,6 +396,11 @@ function createGithubTracker(repo) {
 function checkOAuthConnected() {
   $.getJSON(API + '/oauth/token-status', function(r) {
     if (r.status !== 'ok') return;
+    if (!canManage) {
+      // View-only users hold no issuetracker_management: never auto-start the
+      // GitHub OAuth flow nor open the repo picker for them.
+      return;
+    }
     if (r.connected && r.expired) {
       githubOAuthStart();
       return;

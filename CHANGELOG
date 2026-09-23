@@ -33,6 +33,25 @@ screen reaches full parity.
   Browser-verified: norights → 403 + denied panel, viewonly → 200, admin → 200
   full screen; Event Viewer clean (INFO-only). Suite 959 4/4 PASS. (Refs #959)
 
+- [FEATURE GAP] - #960: the modern Issue Trackers screen enforces the legacy
+  `issuetracker_management` **write** gate on create/edit/delete. Legacy
+  `issueTrackerView.tpl` renders the Create button (`:95-100`), the delete
+  column + icon (`:45,78-84`), the wrench/connection icons and the name link
+  (`:54-73`) only for `$gui->canManage` (`issueTrackerView.php:24`), and the
+  write controller `issueTrackerEdit.php` requires the management right; after
+  the #959 read gate the modern BFF had NO write check — measured: view-only
+  user `itview` (right `issuetracker_view` only, no management) saw the full
+  admin UI and created + deleted a tracker via `POST /` / `DELETE /{id}` (both
+  200). The BFF now computes `$canManage = (bool)hasRight('issuetracker_management')`
+  and returns HTTP 403 `No permission` (+ `audit_security_user_right_missing`
+  EVENT, activity EDIT, object `issuetrackers`) on `POST /`, `PUT /{id}`,
+  `DELETE /{id}` and `POST /oauth/create`, and `GET /` exposes `canManage`;
+  `issuetrackerView.html` hides the Create/GitHub buttons, drops the Actions
+  column and renders plain-text names for non-managers (same pattern as
+  reqMgrSystemView). Browser-verified: itview → 403 on all 4 write routes + bare
+  table UI, admin → unchanged full UI (create/delete 200); Event Viewer clean
+  (AUDIT-only). Suite 960 4/4 PASS. (Refs #960)
+
 - [FEATURE GAP] - #956: the modern Custom Fields screens regain the legacy
   ability to **rename a custom field (name)** in edit mode. Legacy edit kept
   cf_name a plain editable text box (gui/templates/dashio/cfields/

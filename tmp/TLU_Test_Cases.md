@@ -19428,3 +19428,26 @@ Precondition: fixture `tmp/fixtures_1314.php` run (project SMgrDemo automationEn
 - **Actual:** only log_level-16 info audit rows in `events`; console only pre-existing Lighthouse "no label" issues (same as tcView.html). PASS.
 
 **Result: 8/8 PASS. (Refs #1313)**
+
+## Suite #960 — issuetracker_management write gating (Task — Issue #960)
+Precondition: fresh DB; users created via SQL — `itview` (role with ONLY the
+`issuetracker_view` right) and `norights` (role with zero rights); login flows
+per test; screen `http://localhost:8082/gui/templates/issuetracker/issuetrackerView.html`.
+
+### Test 1 — View-only user no longer sees write UI
+- **Expected:** as `itview`, the screen shows a bare table: no `+ Create Issue Tracker`, no `GitHub` button, no `Actions` column; an existing tracker row renders as plain text (no Edit/Delete icons) — exactly the legacy `canManage` behavior.
+- **Actual:** snapshot after fix shows only Name/Type/Server URL/Active headers, row `admin-demo-tracker` rendered as plain text, no Action icons, no Create/GitHub. PASS.
+
+### Test 2 — API write routes 403 for view-only user
+- **Expected:** as `itview`, `POST /`, `PUT /{id}`, `DELETE /{id}`, `POST /oauth/create` all return HTTP 403 `{"status":"error","message":"No permission"}`.
+- **Actual:** measured via page `fetch`: POST 403, PUT 403, DELETE 403, OAUTH_CREATE 403. PASS.
+
+### Test 3 — Denial is trailed into the Event Viewer
+- **Expected:** each denied write creates an AUDIT event (`activity=EDIT`, `object_type=issuetrackers`, `audit_security_user_right_missing`, params itview/manage).
+- **Actual:** `events` ids 6-9 (POST, PUT, DELETE, oauth/create) inserted with log_level=16 (AUDIT); no ERROR(1)/WARNING(2) rows at all. PASS.
+
+### Test 4 — Manager (admin) regression: full UI + writes still work
+- **Expected:** as `admin`, `GET /` returns `canManage:true`, toolbar shows Create + GitHub, Actions column present, `POST /` create → 200, `DELETE /{id}` → 200.
+- **Actual:** canManage true; tracker id 2 `admin-demo-tracker` created (200) and deleted (200); UI unchanged. PASS.
+
+**Result: 4/4 PASS. (Refs #960)**
