@@ -103,6 +103,11 @@ select, input[type=text] {
 .modal-content { border-radius: 8px; }
 .modal-header { background: #22242a; color: #fff; }
 .modal-header .close { color: #fff; opacity: .8; }
+.locale-switch { float: right; margin-top: 4px; }
+.footer {
+  padding: 12px 24px; color: #888; font-size: 12px;
+  border-top: 1px solid #ddd; background: #fff;
+}
 </style>
 </head>
 <body>
@@ -110,6 +115,7 @@ select, input[type=text] {
   <i class="fa fa-code"></i>
   <span data-i18n="sced.title">Test Script</span>
   <span class="sub" id="hdrSub"></span>
+  <span id="localeSwitcher" class="locale-switch"></span>
 </div>
 
 <div class="wrap">
@@ -201,6 +207,7 @@ select, input[type=text] {
 </div>
 
 <div id="toast" class="toast"></div>
+<div class="footer"><span data-i18n="footers.scriptEdit">TestLink 2.0.1 · Script Edit</span></div>
 
 <script src="/gui/templates/i18n/i18n.js"></script>
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
@@ -442,6 +449,7 @@ $(function () {
 
   TLi18n.load(function () {
     TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
     if (!tcversion_id) {
       $('#loading').hide();
       $('#denied').show();
@@ -524,7 +532,12 @@ $(function () {
       }
     }).fail(function (xhr) {
       $('#loading').hide();
-      if (xhr.status === 403) { $('#denied').show(); return; }
+      if (xhr.status === 403) {
+        $('#denied h3').text(TLi18n.t('sced.accessDenied'));
+        $('#denied p').text(TLi18n.t('sced.noModifyRight'));
+        $('#denied').show();
+        return;
+      }
       var msg = (xhr.responseJSON && xhr.responseJSON.message) || TLi18n.t('sced.loadError');
       setErr(msg);
       $('#content').show();
