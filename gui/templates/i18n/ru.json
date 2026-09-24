@@ -1312,6 +1312,7 @@
     "it.jirarest": "JIRA (REST)",
     "it.loading": "Loading...",
     "it.mantis": "Mantis",
+    "it.msg.cannotDeleteLinked": "Невозможно удалить – связан с тестовыми проектами",
     "it.msg.confirmDelete": "Вы действительно хотите удалить трекер задач",
     "it.msg.created": "Трекер задач создан",
     "it.msg.deleted": "Трекер задач удалён",

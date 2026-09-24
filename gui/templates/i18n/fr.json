@@ -1312,6 +1312,7 @@
     "it.jirarest": "JIRA (REST)",
     "it.loading": "Loading...",
     "it.mantis": "Mantis",
+    "it.msg.cannotDeleteLinked": "Suppression impossible – toujours lié à des projets de test",
     "it.msg.confirmDelete": "Êtes-vous sûr de vouloir supprimer le suiveur d'anomalies",
     "it.msg.created": "Suiveur d'anomalies créé",
     "it.msg.deleted": "Suiveur d'anomalies supprimé",

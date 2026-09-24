@@ -1312,6 +1312,7 @@
     "it.jirarest": "JIRA (REST)",
     "it.loading": "Loading...",
     "it.mantis": "Mantis",
+    "it.msg.cannotDeleteLinked": "Cannot delete - still linked to test projects",
     "it.msg.confirmDelete": "Are you sure you want to delete issue tracker",
     "it.msg.created": "Issue tracker created",
     "it.msg.deleted": "Issue tracker deleted",

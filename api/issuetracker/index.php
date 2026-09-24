@@ -80,6 +80,11 @@ function trackerToJSON($item, $mgr) {
         $spec = $mgr->systems[$item['type']];
         $typeLabel = $spec['type'];
     }
+    // Legacy lib/issuetrackers/issueTrackerView.php:23 requested output =>
+    // add_link_count so getAll() fills link_count (tlIssueTracker.class.php:
+    // 591-624); issueTrackerView.tpl:78-83 then renders the delete icon ONLY
+    // when link_count == 0. The modern BFF recomputes link_count below; the
+    // UI hides the delete action for linked trackers (issue #963).
     return [
         'id' => intval($item['id']),
         'name' => $item['name'],
@@ -94,6 +99,8 @@ function trackerToJSON($item, $mgr) {
         // rendered by issueTrackerView.tpl:77 in the "Environment" column.
         'env_check_ok' => (bool)($item['env_check_ok'] ?? true),
         'env_check_msg' => (string)($item['env_check_msg'] ?? ''),
+        'link_count' => intval($item['link_count'] ?? 0),
+        'links' => (array)($item['links'] ?? []),
     ];
 }
 
@@ -103,6 +110,21 @@ if ($method === 'GET' && ($path === '/' || $path === '' || $path === '/index.php
     // checkEnv parity with legacy issueTrackerView.php:23 — per-tracker
     // environment check (env_check_ok/env_check_msg) is computed server-side.
     $all = $mgr->getAll(['output' => 'add_link_count', 'checkEnv' => true]);
+
+    // Attach the linking test project names (legacy issueTrackerView.tpl:78-83
+    // gating on link_count; the names feed the UI tooltip when delete is
+    // hidden — matching tlIssueTracker::delete() message which lists them).
+    $links = $mgr->getLinkSet();
+    if ($links) {
+        foreach ($links as $link) {
+            $tid = intval($link['issuetracker_id']);
+            if (!isset($all[$tid])) {
+                continue;
+            }
+            $all[$tid]['links'][] = $link['testproject_name'];
+        }
+    }
+
     $items = [];
     if ($all) {
         foreach ($all as $item) {

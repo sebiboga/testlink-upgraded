@@ -1312,6 +1312,7 @@
     "it.jirarest": "JIRA (REST)",
     "it.loading": "Loading...",
     "it.mantis": "Mantis",
+    "it.msg.cannotDeleteLinked": "削除できません – テストプロジェクトにリンクされています",
     "it.msg.confirmDelete": "課題トラッカーを削除してもよろしいですか",
     "it.msg.created": "課題トラッカーを作成しました",
     "it.msg.deleted": "課題トラッカーを削除しました",

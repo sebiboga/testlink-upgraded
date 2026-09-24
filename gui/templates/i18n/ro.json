@@ -1312,6 +1312,7 @@
     "it.jirarest": "JIRA (REST)",
     "it.loading": "Loading...",
     "it.mantis": "Mantis",
+    "it.msg.cannotDeleteLinked": "Nu se poate șterge – încă legat de proiecte de test",
     "it.msg.confirmDelete": "Sunteti sigur ca doriti sa stergeti urmatorul probleme",
     "it.msg.created": "Urmatorul probleme creat",
     "it.msg.deleted": "Urmatorul probleme sters",

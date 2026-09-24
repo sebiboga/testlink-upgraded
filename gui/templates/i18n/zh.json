@@ -1312,6 +1312,7 @@
     "it.jirarest": "JIRA (REST)",
     "it.loading": "Loading...",
     "it.mantis": "Mantis",
+    "it.msg.cannotDeleteLinked": "无法删除 – 仍与测试项目关联",
     "it.msg.confirmDelete": "确定要删除问题跟踪器吗",
     "it.msg.created": "问题跟踪器已创建",
     "it.msg.deleted": "问题跟踪器已删除",

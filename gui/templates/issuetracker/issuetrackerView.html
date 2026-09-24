@@ -31,6 +31,7 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
 .action-btn:hover { color: #2d8e88; }
 .action-btn.danger { color: #e6605e; }
 .action-btn.danger:hover { color: #d04e4c; }
+.action-btn.disabled { color: #ccc; cursor: not-allowed; }
 .dataTables_wrapper .dataTables_paginate .paginate_button.current { background: #4ECDC4 !important; color: #fff !important; border: none !important; }
 .modal-content { border-radius: 8px; }
 .modal-header { background: #22242a; color: #fff; border-radius: 8px 8px 0 0; }
@@ -235,8 +236,19 @@ function renderTable(items) {
       var nameCell = '<i class="fa fa-wrench action-btn" title="' + TLi18n.t('it.checkConnection') +
                      '" onclick="checkConnection(' + t.id + ')"></i>' +
                      '<span id="conn-' + t.id + '"></span> ';
-      actions += '<i class="fa fa-edit action-btn" title="' + TLi18n.t('common.edit') + '" onclick="editTracker(' + t.id + ')"></i>' +
-                 '<i class="fa fa-trash action-btn danger" title="' + TLi18n.t('common.delete') + '" onclick="deleteTracker(' + t.id + ', \'' + (t.name || '').replace(/'/g, "\\'") + '\')"></i>';
+      actions += '<i class="fa fa-edit action-btn" title="' + TLi18n.t('common.edit') + '" onclick="editTracker(' + t.id + ')"></i>';
+      // Legacy issueTrackerView.tpl:78-83 renders the delete icon ONLY when
+      // $item_def.link_count == 0: trackers linked to a test project cannot be
+      // deleted (tlIssueTracker::delete() guard). Mirror it — a dead disabled
+      // trash icon with the linking test project names as tooltip (the same
+      // data the BFF computed via getLinkSet(), issue #963).
+      if (t.link_count > 0) {
+        var linksList = (t.links && t.links.length) ? t.links.join(', ') : '';
+        actions += '<i class="fa fa-trash action-btn danger disabled" title="' +
+                   TLi18n.t('it.msg.cannotDeleteLinked') + (linksList ? ': ' + esc(linksList) : '') + '"></i>';
+      } else {
+        actions += '<i class="fa fa-trash action-btn danger" title="' + TLi18n.t('common.delete') + '" onclick="deleteTracker(' + t.id + ', \'' + (t.name || '').replace(/'/g, "\\'") + '\')"></i>';
+      }
     }
     rows.push([
       (canManage ? nameCell : '') + esc(t.name),

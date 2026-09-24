@@ -1312,6 +1312,7 @@
     "it.jirarest": "JIRA (REST)",
     "it.loading": "Loading...",
     "it.mantis": "Mantis",
+    "it.msg.cannotDeleteLinked": "No se puede eliminar: todavía está vinculado a proyectos de prueba",
     "it.msg.confirmDelete": "¿Está seguro de que desea eliminar el rastreador de incidencias",
     "it.msg.created": "Rastreador de incidencias creado",
     "it.msg.deleted": "Rastreador de incidencias eliminado",

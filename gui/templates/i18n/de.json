@@ -1312,6 +1312,7 @@
     "it.jirarest": "JIRA (REST)",
     "it.loading": "Loading...",
     "it.mantis": "Mantis",
+    "it.msg.cannotDeleteLinked": "Löschen nicht möglich – noch mit Testprojekten verknüpft",
     "it.msg.confirmDelete": "Möchten Sie den Issue-Tracker wirklich löschen",
     "it.msg.created": "Issue-Tracker erstellt",
     "it.msg.deleted": "Issue-Tracker gelöscht",

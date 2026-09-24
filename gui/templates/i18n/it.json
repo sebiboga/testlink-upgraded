@@ -1312,6 +1312,7 @@
     "it.jirarest": "JIRA (REST)",
     "it.loading": "Loading...",
     "it.mantis": "Mantis",
+    "it.msg.cannotDeleteLinked": "Impossibile eliminare – ancora collegato a progetti di test",
     "it.msg.confirmDelete": "Sei sicuro di voler eliminare il tracker di problemi",
     "it.msg.created": "Tracker di problemi creato",
     "it.msg.deleted": "Tracker di problemi eliminato",

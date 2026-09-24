@@ -5393,6 +5393,31 @@ Changes:
       project tables and added user metrics to the middle section
 
 ## 2.0.1 (in-progress)
+### Feature parity — Issue Tracker list delete gating by link count (Refs #963)
+- issuetrackerView.html: restore the legacy link-count delete gating.
+  Legacy issueTrackerView.tpl:78-83 renders the per-row delete icon ONLY when
+  canManage && $item_def.link_count == 0; linked trackers show NO delete icon at
+  all (link_count filled by tlIssueTracker::getAll() output=add_link_count at
+  tlIssueTracker.class.php:591-623; the model double-guards delivery in
+  tlIssueTracker::delete() at tlIssueTracker.class.php:291-335 with
+  "Failure - id %s is linked to: testproject '%s' with id %s"). The modern BFF
+  (api/issuetracker/index.php) requested getAll(add_link_count) on the list route
+  but trackerToJSON() DROPPED link_count, so the modern screen rendered an active
+  trash button on EVERY row (including linked trackers) that ALWAYS failed with a
+  400 + the model's linked-message (measured: Bugzilla 963 linked to TC963-prj
+  → DELETE → HTTP 400; Free 963 unlinked → DELETE → record removed). The BFF now
+  exposes link_count (int) + links[] (linked test-project names via getLinkSet())
+  per tracker; issuetrackerView.html renders a greyed `cursor:not-allowed`
+  disabled trash (no onclick) with a localized tooltip naming the linking test
+  projects for link_count>0 rows, keeping the active delete confirm only for
+  unlinked trackers. New i18n key it.msg.cannotDeleteLinked in all 10 locale
+  bundles. Suite 963 6/6 PASS; Event Viewer clean. (Refs #963)
+
+### Additional modern screens (not shipped in legacy's lib/ set) — #954 (Screens)
+- Added the modern Test Plan → Requirement Specs Assign screen
+  (gui/templates/testplan/testPlanAssignReqSpec.html) as a full standalone
+  screen (was only partially surfaced via the cfields modal context). Refs #954.
+
 ### Feature parity — Requirement Version Compare toolbar (Refs #1310, #1017)
 - reqCompare.html: restored the legacy `cancel_top`/`cancel_bottom`
   Cancel/Back toolbar button (`btn_cancel → history.back()` from

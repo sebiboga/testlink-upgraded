@@ -19754,86 +19754,55 @@ compare screen lists 2 rows (v2 = newest, v1), each with a clickable Last change
   `api/reqrevision/index.php?action=revision&item_id=5` — no PHP notices. PASS.
 
 **Result: 6/6 PASS. (Refs #1309)**
+## Suite 963 — Task — Issue #963: link-count delete gating for linked trackers in issuetrackerView (delete icon gated by link_count / add_link_count parity) (Refs #963)
 
-## Suite 1572 — Screen — Test Plan Navigator (planNav.html + api/plannav) (Refs #1572)
+**Fixture (recreated on this run):** on the freshly imported DB — test project
+`TC963-prj` linked to `Bugzilla 963` (issuetrackers id=1, link_count=1) and
+unlinked `Free 963` (id=3, link_count=0); admin + a freshly created view-only
+user `itsview` (right `issuetracker_view` only, no management).
 
-**Modernized twin of** `lib/plan/planTCNavigator.php` + `lib/plan/planAddTCNavigator.php`
-(the Test Plan Navigator frames). The old controllers are now session-guarded 302 shims
-redirecting to `gui/templates/plans/planNav.html`; the hub reads
-`api/plannav` (`/init`, `/suites`, `/reqs`).
+### Test 1 — linked tracker: delete action is gated off (no confirm, record kept)
+- **Steps:** `GET /gui/templates/issuetracker/issuetrackerView.html` as admin; point
+  at row **Bugzilla 963** (link_count=1) → actions cell.
+- **Expected:** delete (trash) icon is rendered GREYED `danger disabled` with a
+  tooltip naming linked test projects (legacy issueTrackerView.tpl:78-83 renders
+  NO delete icon at all when link_count==0 is false); NO onclick; clicking triggers
+  NO confirm dialog; record stays.
+- **Actual:** icon class `fa fa-trash action-btn danger disabled`, no onclick,
+  `getComputedStyle` color #ccc + `cursor:not-allowed`; `.click()` → no confirm;
+  DB `issuetrackers` still contains id=1. PASS.
 
-**Fixture (this run):** `php tmp/fixtures_1572.php` — project `NAV1572`/prefix `NA7`
-(tproject=53 this run), Suite A (a child Suite A1), TC A1/A2/A1x/B1/B2 with revisions,
-test plan `Plan NAV1572` (72, linked A1/B1/B2) + second plan `Plan NAV Alt` (73, nothing
-linked), req spec with `req1`/`req2`, `req_coverage`: req1→A1, req2→B1.
-No-rights user: `tmp/mkuser_norights.php` (`norights`/`norights`, role lead).
+### Test 2 — unlinked tracker: delete action active (confirm → delete commits)
+- **Steps:** row **Free 963** (link_count=0) → trash icon.
+- **Expected:** active `danger` with onclick → confirm → accept → DELETE row removed.
+- **Actual:** icon `onclick="deleteTracker(3,'Free 963')"`; confirm → accept → row
+  removed (DataTable 1 row; SELECT `issuetrackers` shows id=3 gone). PASS.
 
-**Entry point URL:** `http://localhost:8082/gui/templates/plans/planNav.html?testproject_id=<id>&testplan_id=<id>` (admin/admin)
+### Test 3 — confirm-dismiss keeps record (regression on legacy confirm)
+- **Steps:** same as Test 2, but DISMISS the confirm.
+- **Expected:** nothing deleted; record intact.
+- **Actual:** dismiss → no DELETE call; SELECT still shows id=3. PASS. (3/3)
 
-### Test 1 — Legacy deep links / frmWorkArea features now land on the modern hub
-- **Steps:** as admin, request `lib/plan/planTCNavigator.php?testproject_id=53&testplan_id=72`
-  and `lib/plan/planAddTCNavigator.php?testproject_id=53&testplan_id=72` with fetch(redirect follow).
-- **Expected:** both end at `gui/templates/plans/planNav.html?testproject_id=53&testplan_id=72`
-  (302 shims), no legacy frames left.
-- **Actual:** `status 200, url ...planNav.html?testproject_id=53&testplan_id=72` for both. Anonymous
-  call renders legacy `testlinkInitPage` JS re-direct to `login.php?note=expired` (parity with
-  old controller). PASS.
+### Test 4 — view-only user (no management): actions toolbar/column hidden, list renders
+- **Steps:** login `itsview` → open the screen.
+- **Expected:** whole actions toolset hidden (no trash/edit anywhere); table still
+  lists trackers (matches legacy canManage gating of the entire toolset).
+- **Actual:** no action icons in any row; toolbar create-github/check buttons
+  hidden; `Showing 1 to 2 of 2 entries` still renders. PASS.
 
-### Test 2 — /init BFF: context, rights, plans, builds, action deep links
-- **Steps:** `GET /api/plannav/init?tproject_id=53&tplan_id=72`; `init?tproject_id=53` (no plan);
-  `init` with no params → 400; `init?tproject_id=53&tplan_id=999999` → 404.
-- **Expected:** first two return 200 with `tplan_id=72`, `plans`=[72,73], `rights{canPlan,canAssign,
-  canUrgency,canUpdateTC,canViewEvents}=true`, 5 `actions` each `{url,params:"testproject_id=53&testplan_id=72"}`
-  (addremove→planAddTCView.html, updateTC→planUpdateTC.html, urgency→testUrgency.html,
-  assignment→tcExecAssignment.html, eventviewer→eventviewer.html), `builds={}`; missing params → 400 `tproject_id is required`;
-  bad plan → 404 `Test plan not found`; unknown route `/bogus` → 404 `Not found`.
-- **Actual:** all as expected; anon `curl` → 401 `{"status":"error","message":"Not authenticated"}`. PASS.
+### Test 5 — BFF payload parity: link_count + links exposed (API)
+- **Steps:** `GET /api/issuetracker/index.php` as admin → items.
+- **Expected:** every item carries `link_count` (int) and `links` ([] of linked
+  test-project names); linked tracker link_count=1; unlinked =0. (legacy
+  `getAll(output=add_link_count)` parity)
+- **Actual:** id=1 `link_count:1, links:["TC963-prj"]`; id=3 `link_count:0,
+  links:[]`. PASS.
 
-### Test 3 — Suite tree (group-by Test suites) with deep totals/linked counts
-- **Steps:** open hub with tplan=72; inspect `#navTree`.
-- **Expected:** rows Suite A `1/3`, Suite B `2/2`, Suite A1 `0/1` (deep linked/total).
-- **Actual:** exactly that; header shows tree count 3. Selecting Suite B renders detail panel
-  (Linked 2 / Total 2). PASS.
+### Test 6 — i18n round-trip + Event Viewer clean
+- **Steps:** `?locale=ro`; inspect row tooltip; then open Event Viewer.
+- **Expected:** localized tooltip "Nu se poate șterge – încă legat de proiecte de
+  test"; no new Error/Warning in `events` after the whole suite.
+- **Actual:** ro tooltip localized; events table clean (INFO-only + created row).
+  PASS. (6/6)
 
-### Test 4 — Requirement-coverage tree (group-by Requirement coverage)
-- **Steps:** switch group-by to `req_coverage` (plan 72).
-- **Expected:** spec node `Navigator Spec 2/2` (covered/total reqs); leaves `First requirement ✓ 1`,
-  `Second requirement ✓ 1` (✓ = covered in this plan, 1 = linked tcversions).
-- **Actual:** exactly that; clicking a requirement shows detail (Linked test cases 1 / Covered Yes);
-  clicking the spec shows Requirements 2 / Covered 2 / Total 2. PASS.
-
-### Test 5 — Plan switch refreshes tree AND action links (regression fix, this run)
-- **Steps:** change `#tplanSel` to `Plan NAV Alt` (73), then back to 72.
-- **Expected:** on 73 the suite tree shows all `0/N` (nothing linked) and every `#actionCards a`
-  carries `testplan_id=73`; coverage on 73 shows `0/2` with NO `✓`. On 72 everything restores to
-  Test 3/4 values and links carry `testplan_id=72`. All 5 plan-action links follow the selected plan.
-- **Actual:** verified via scripted plan switch — links went `...testplan_id=73` for all four
-  actions, tree 0/3,0/2,0/1; coverage `0/2`, leaves `First requirement 1` / `Second requirement 1`
-  (no ✓). Back on 72: `2/2` with `✓ 1` rows and `testplan_id=72` links. PASS.
-  (Before the fix, action links kept the original plan id — real defect found by testing.)
-
-### Test 6 — Permission path: no-rights user degrades gracefully
-- **Steps:** in a fresh isolated incognito profile log in as `norights`/`norights` and open the hub.
-- **Expected:** BFF `/init` → 403; screen shows empty project/plan, hints `pnav.noAccess` toast,
-  no JS crash.
-- **Actual:** page shows project "-", plan combo empty, toast "No access to this test plan...",
-  console has only the expected 403 resource log + pre-existing shared a11y hint. PASS.
-
-### Test 7 — i18n: full localization incl. Romanian + all bundles valid
-- **Steps:** open hub, switch header locale to Română (`&locale=ro`).
-- **Expected:** title/footer "Navigator Plan de Testare", all labels translated
-  ("Plan de test", "Grupează după", "Acoperire cerințe", "Reîmprospătează", action cards);
-  every `pnav.*` key present in all 10 bundles; `python3 -m json.tool` clean; 5th action card
-  (`pnav.actEventView` keys) localized too.
-- **Actual:** RO render fully localized (aria labels: "Suites de test", "Acoperire cerințe",
-  detail panel "Selectați o suita sau o cerință...", action card "Vizualizare Evenimente"); all 10
-  bundles JSON-valid. PASS.
-
-### Test 8 — Event viewer / console / server log clean
-- **Steps:** run Tests 1-7; inspect `events` table, browser console, `tmp/php_server.log`.
-- **Expected:** no new Error/Warning rows; console free of new JS errors.
-- **Actual:** `events` table INFO/audit-only (project create + logins + tc-link audit, log_level 16);
-  no log_level>=32 rows; consoles show only the expected 403 fetch and the pre-existing shared
-  locale-switcher a11y hint; server log has no PHP notices. PASS.
-
-**Result: 8/8 PASS. (Refs #1572)**
+**Result: 6/6 PASS. (Refs #963)**
