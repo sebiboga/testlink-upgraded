@@ -1953,6 +1953,9 @@
     "pnav.actAddRemoveSub": "将测试用例版本关联或取消关联到该计划",
     "pnav.actAssignment": "TC 执行分配",
     "pnav.actAssignmentSub": "将测试用例和执行任务分配给测试人员",
+    "pnav.actEventView": "\u4e8b\u4ef6\u67e5\u770b\u5668",
+    "pnav.actEventViewSub": "\u663e\u793a\u6b64\u6d4b\u8bd5\u8ba1\u5212\u7684\u4e8b\u4ef6\u5386\u53f2\u8bb0\u5f55",
+
     "pnav.actUpdateTC": "更新已关联的 TC 版本",
     "pnav.actUpdateTCSub": "批量切换已关联用例到其它版本",
     "pnav.actUrgency": "测试紧迫度",

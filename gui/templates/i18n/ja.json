@@ -1953,6 +1953,9 @@
     "pnav.actAddRemoveSub": "テストケースバージョンをこの計画にリンク/リンク解除",
     "pnav.actAssignment": "TC実行割り当て",
     "pnav.actAssignmentSub": "テストケースと実行タスクをテスターへ割り当て",
+    "pnav.actEventView": "\u30a4\u30d9\u30f3\u30c8\u30d3\u30e5\u30fc\u30a2",
+    "pnav.actEventViewSub": "\u3053\u306e\u30c6\u30b9\u30c8\u8a08\u753b\u306e\u76e3\u67fb\u8a3c\u8de1\u3068\u30a4\u30d9\u30f3\u30c8\u5c65\u6b74\u3092\u8868\u793a\u3057\u307e\u3059",
+
     "pnav.actUpdateTC": "リンクされたTCバージョンの更新",
     "pnav.actUpdateTCSub": "リンクされたテストケースを一括で別バージョンへ変更",
     "pnav.actUrgency": "テスト緊急度",

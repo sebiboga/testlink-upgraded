@@ -133,7 +133,7 @@ $(function(){
     TLi18n.initLocaleSwitcher('#localeSwitcher');
     boot();
   });
-  $('#btnReload').on('click', boot);
+  $('#btnReload').on('click', function(){ selId = 0; boot(); });
   $('#tplanSel').on('change', function(){ selId = 0; boot(parseInt(this.value, 10)); });
   $('#groupBySel').on('change', function(){ selId = 0; loadTree(); });
   $('#navTree').on('click','li[data-id]',function(){ selectNode(parseInt(this.getAttribute('data-id'),10)); });
@@ -179,11 +179,12 @@ function refreshActions(){
     ['actAddRemove','actAddRemoveSub','fas fa-list-check','addremove'],
     ['actUpdateTC','actUpdateTCSub','fas fa-arrows-rotate','updateTC'],
     ['actUrgency','actUrgencySub','fas fa-gauge-high','urgency'],
-    ['actAssignment','actAssignmentSub','fas fa-user-check','assignment']
+    ['actAssignment','actAssignmentSub','fas fa-user-check','assignment'],
+    ['actEventView','actEventViewSub','fas fa-clock-rotate-left','eventviewer']
   ];
   defs.forEach(function(d){
     var a = INIT.actions[d[3]];
-    var href = a ? a.url + '?' + a.params : '#';
+    var href = a ? a.url + '?' + esc(a.params) : '#';
     $c.append(
       '<div class="card-act'+(a?'':' locked')+'">'+
         '<div class="ic"><i class="'+d[2]+'"></i></div>'+

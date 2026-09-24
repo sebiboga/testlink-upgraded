@@ -1953,6 +1953,9 @@
     "pnav.actAddRemoveSub": "Testfallversionen mit dem Testplan verknüpfen oder lösen",
     "pnav.actAssignment": "Testfall-Ausführungszuweisung",
     "pnav.actAssignmentSub": "Testfälle und Ausführungsaufgaben Testern zuweisen",
+    "pnav.actEventView": "Ereignisanzeige",
+    "pnav.actEventViewSub": "Audit-Trail und Ereignisverlauf dieses Testplans anzeigen",
+
     "pnav.actUpdateTC": "Verknüpfte TC-Versionen aktualisieren",
     "pnav.actUpdateTCSub": "Verknüpfte Testfälle gebündelt auf andere Versionen umstellen",
     "pnav.actUrgency": "Test-Dringlichkeit",

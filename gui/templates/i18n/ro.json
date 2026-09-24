@@ -1953,6 +1953,9 @@
     "pnav.actAddRemoveSub": "leagă sau deconectează versiunile de cazuri de acest plan",
     "pnav.actAssignment": "Atribuire execuție TC",
     "pnav.actAssignmentSub": "atribuie cazuri și sarcini de execuție testerilor",
+    "pnav.actEventView": "Vizualizare Evenimente",
+    "pnav.actEventViewSub": "afi\u0219eaz\u0103 istoricul evenimentelor acestui plan de test",
+
     "pnav.actUpdateTC": "Actualizează versiunile TC legate",
     "pnav.actUpdateTCSub": "comută în masă cazurile legate către altă versiune",
     "pnav.actUrgency": "Urgență test",

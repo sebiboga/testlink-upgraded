@@ -19783,9 +19783,9 @@ No-rights user: `tmp/mkuser_norights.php` (`norights`/`norights`, role lead).
 - **Steps:** `GET /api/plannav/init?tproject_id=53&tplan_id=72`; `init?tproject_id=53` (no plan);
   `init` with no params → 400; `init?tproject_id=53&tplan_id=999999` → 404.
 - **Expected:** first two return 200 with `tplan_id=72`, `plans`=[72,73], `rights{canPlan,canAssign,
-  canUrgency,canUpdateTC}=true`, 4 `actions` each `{url,params:"testproject_id=53&testplan_id=72"}`
+  canUrgency,canUpdateTC,canViewEvents}=true`, 5 `actions` each `{url,params:"testproject_id=53&testplan_id=72"}`
   (addremove→planAddTCView.html, updateTC→planUpdateTC.html, urgency→testUrgency.html,
-  assignment→tcExecAssignment.html), `builds={}`; missing params → 400 `tproject_id is required`;
+  assignment→tcExecAssignment.html, eventviewer→eventviewer.html), `builds={}`; missing params → 400 `tproject_id is required`;
   bad plan → 404 `Test plan not found`; unknown route `/bogus` → 404 `Not found`.
 - **Actual:** all as expected; anon `curl` → 401 `{"status":"error","message":"Not authenticated"}`. PASS.
 
@@ -19806,7 +19806,7 @@ No-rights user: `tmp/mkuser_norights.php` (`norights`/`norights`, role lead).
 - **Steps:** change `#tplanSel` to `Plan NAV Alt` (73), then back to 72.
 - **Expected:** on 73 the suite tree shows all `0/N` (nothing linked) and every `#actionCards a`
   carries `testplan_id=73`; coverage on 73 shows `0/2` with NO `✓`. On 72 everything restores to
-  Test 3/4 values and links carry `testplan_id=72`.
+  Test 3/4 values and links carry `testplan_id=72`. All 5 plan-action links follow the selected plan.
 - **Actual:** verified via scripted plan switch — links went `...testplan_id=73` for all four
   actions, tree 0/3,0/2,0/1; coverage `0/2`, leaves `First requirement 1` / `Second requirement 1`
   (no ✓). Back on 72: `2/2` with `✓ 1` rows and `testplan_id=72` links. PASS.
@@ -19823,9 +19823,11 @@ No-rights user: `tmp/mkuser_norights.php` (`norights`/`norights`, role lead).
 - **Steps:** open hub, switch header locale to Română (`&locale=ro`).
 - **Expected:** title/footer "Navigator Plan de Testare", all labels translated
   ("Plan de test", "Grupează după", "Acoperire cerințe", "Reîmprospătează", action cards);
-  every `pnav.*` key present in all 10 bundles; `python3 -m json.tool` clean.
+  every `pnav.*` key present in all 10 bundles; `python3 -m json.tool` clean; 5th action card
+  (`pnav.actEventView` keys) localized too.
 - **Actual:** RO render fully localized (aria labels: "Suites de test", "Acoperire cerințe",
-  detail panel "Selectați o suita sau o cerință..."); all 10 bundles JSON-valid. PASS.
+  detail panel "Selectați o suita sau o cerință...", action card "Vizualizare Evenimente"); all 10
+  bundles JSON-valid. PASS.
 
 ### Test 8 — Event viewer / console / server log clean
 - **Steps:** run Tests 1-7; inspect `events` table, browser console, `tmp/php_server.log`.

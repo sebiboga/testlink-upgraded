@@ -1953,6 +1953,9 @@
     "pnav.actAddRemoveSub": "collega o scollega versioni di casi a questo piano",
     "pnav.actAssignment": "Assegnazione esecuzione TC",
     "pnav.actAssignmentSub": "assegna casi e attività di esecuzione ai tester",
+    "pnav.actEventView": "Visualizzatore eventi",
+    "pnav.actEventViewSub": "mostra la cronologia eventi di questo piano di test",
+
     "pnav.actUpdateTC": "Aggiorna versioni TC collegate",
     "pnav.actUpdateTCSub": "passa in blocco i casi collegati a un'altra versione",
     "pnav.actUrgency": "Urgenza dei test",

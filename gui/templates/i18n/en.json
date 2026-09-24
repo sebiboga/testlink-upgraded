@@ -1953,6 +1953,9 @@
     "pnav.actAddRemoveSub": "link or unlink test case versions to this test plan",
     "pnav.actAssignment": "TC execution assignment",
     "pnav.actAssignmentSub": "assign test cases and execution tasks to testers",
+    "pnav.actEventView": "Event Viewer",
+    "pnav.actEventViewSub": "show the audit trail and event history of this test plan",
+
     "pnav.actUpdateTC": "Update linked TC versions",
     "pnav.actUpdateTCSub": "switch linked test cases to another version in bulk",
     "pnav.actUrgency": "Test urgency",

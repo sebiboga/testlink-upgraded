@@ -37,7 +37,8 @@ doSessionStart();
 require_once(__DIR__ . '/../_guard.php');
 bffSameOriginGuard();
 
-header('Content-Type: application/json');
+header('Content-Type: application/json; charset=utf-8');
+header('X-Content-Type-Options: nosniff');
 
 $db = new database(DB_TYPE);
 doDBConnect($db);
@@ -116,6 +117,8 @@ function navContext($user, $db, $tprojectMgr, $tplanMgr, $tprojectId, $tplanId) 
         $tprojectId, $tplanId);
     $canAssign = (bool)$user->hasRight($db, 'exec_assign_testcases',
         $tprojectId, $tplanId);
+    $canViewEvents = (bool)$user->hasRight($db, 'mgt_view_events',
+        $tprojectId, $tplanId);
     return [
         'tplan_id' => $tplanId,
         'plans' => $plans,
@@ -124,6 +127,7 @@ function navContext($user, $db, $tprojectMgr, $tplanMgr, $tprojectId, $tplanId) 
             'canAssign' => $canAssign,
             'canUrgency' => $canPlan,
             'canUpdateTC' => $canPlan,
+            'canViewEvents' => $canViewEvents,
         ],
     ];
 }
@@ -168,6 +172,8 @@ if ($method === 'GET' && count($segments) === 1 &&
             ['url' => $base . 'plans/testUrgency.html', 'params' => $q] : null,
         'assignment' => $rights['canAssign'] ?
             ['url' => $base . 'execute/tcExecAssignment.html', 'params' => $q] : null,
+        'eventviewer' => $rights['canViewEvents'] ?
+            ['url' => $base . 'eventviewer/eventviewer.html', 'params' => $q] : null,
     ];
 
     $tproject = $tprojectMgr->get_by_id($tprojectId);
@@ -204,10 +210,11 @@ if ($method === 'GET' && count($segments) === 1 &&
     $TLT = tlObject::getDBTables();
     $nh = $TLT['nodes_hierarchy'];
     $nt = nodeTypes($db);
-    $rootId = intval(getParam('container_id', $tprojectId));
-    if ($rootId <= 0) {
-        $rootId = $tprojectId;
-    }
+    // The hub shows the whole project suite subtree at once (flat deep tree), so
+    // the tree is always anchored at the owning test project. container_id is a
+    // legacy-drill param only; ignoring it also closes a cross-project IDOR
+    // (an arbitrary nodes_hierarchy.id must never seed the CTE root).
+    $rootId = $tprojectId;
 
     $sql = "WITH RECURSIVE subtree AS ( " .
         " SELECT NH.id AS node_id FROM {$nh} NH WHERE NH.id = {$rootId} " .
@@ -389,7 +396,8 @@ if ($method === 'GET' && count($segments) === 1 &&
             $ridList = implode(',', $allReqIds);
             $sql = "SELECT RC.req_id, " .
                 " COUNT(DISTINCT RC.tcversion_id) AS lnk_qty, " .
-                " SUM(CASE WHEN TPV.tcversion_id IS NOT NULL THEN 1 ELSE 0 END) AS cov_qty " .
+                " COUNT(DISTINCT CASE WHEN TPV.tcversion_id IS NOT NULL " .
+                "   THEN RC.tcversion_id END) AS cov_qty " .
                 " FROM {$rc} RC " .
                 " LEFT JOIN (SELECT DISTINCT tcversion_id FROM {$tpv} " .
                 "            WHERE testplan_id = {$tplanId}) TPV " .
