@@ -19806,3 +19806,45 @@ user `itsview` (right `issuetracker_view` only, no management).
   PASS. (6/6)
 
 **Result: 6/6 PASS. (Refs #963)**
+## Suite 1573 — Task — Issue #1573: planNav BFF hardening batch (DB-error JSON, 405s, keyword-filter parity, session default plan, O(N) deep aggregate, race tokens) (Refs #1573)
+
+**Fixture (recreated on this run):** on the freshly imported DB — project `NAV1572`
+(id 1) with plans `Plan NAV1572` (id 20, linked TCs A1/B1/B2 only) and
+`Plan NAV Alt` (id 21, zero linked TCs); suites A(2)/A1(4)/B(3); keyword
+`kw-a` (keyword_id=1) on TCs A1+A2; reqspec `Navigator Spec` with
+`First/Second requirement` (TC A1 + B1 cover them) — all from
+`tmp/fixtures_1572.php` + follow-up SQL. Browser: admin login, direct load
+`http://localhost:8082/gui/templates/plans/planNav.html?testproject_id=1&testplan_id=20`.
+Curled with session cookie carrying `testplanID=20, testprojectID=1`.
+
+### Test 1 — DB-error contract: any route failure returns JSON 500 not HTML (issue item 1)
+- **Steps:** as admin, `RENAME TABLE testplans TO _tp1573tmp`; `GET /api/plannav/index.php/suites?tproject_id=1&tplan_id=20`; then restore `RENAME TABLE _tp1573tmp TO testplans`.
+- **Expected:** `HTTP 500` with JSON body `{"status":"error","message":"Internal error"}`; route exits before the HTML controller — no HTML echoed.
+- **Actual:** HTTP 500 + exactly that JSON body; restored table (`plans` count = 2 again). PASS. (1/6)
+
+### Test 2 — 405 on known non-GET routes, 404 on unknowns (issue item 2)
+- **Steps:** `curl -X POST|PUT|DELETE /api/plannav/index.php/init`, `-X POST /suites`, `-X PUT /reqs`; and `GET /api/plannav/index.php/bogus`.
+- **Expected:** 405 + JSON `{"status":"error","message":"Method not allowed"}` for known routes with wrong method; 404 + JSON for unknown route.
+- **Actual:** POST /init→405, PUT /suites→405, DELETE /reqs→405 (all JSON), GET /bogus→404 JSON. PASS. (2/6)
+
+### Test 3 — keyword_id filter parity: deep totals AND deep linked counts both respect the kw filter (issue item 3)
+- **Steps:** auth-token session (kw-a) → `GET /api/plannav/index.php/suites?tproject_id=1&tplan_id=20&keyword_id=1`.
+- **Expected:** Suite A `total=0` (A1/A2 kw, no kw on B…) wait — kw is on A1+A2; Suite B must show `total=0 linked=0 deep_total=0 deep_linked=0` (its TCs B1/B2 have NO kw-a). Overall kw-listed TCs are A1(+A2): total 2 linked 1.
+- **Actual:** Suite B = `total:0, linked:0, deep_total:0, deep_linked:0` (pre-fix it was `total=0` but `deep_linked=2`); Suite A deep_total=2 deep_linked=1. Consistent. PASS. (3/6)
+
+### Test 4 — default plan selection honors the session testplanID on param-less load (issue item 5)
+- **Steps:** browser reload `?testproject_id=1` (no tplan) after last used plan 20.
+- **Expected:** tplan select = `Plan NAV1572` (id 20), tree loads for 20.
+- **Actual:** select shows value 20 and suite tree for 20 loaded (also reproduced via curl session). PASS. (4/6)
+
+### Test 5 — deep aggregation: 4000-suite chain no longer O(N²) (issue item 6)
+- **Steps:** insert a 4000-node chain (ids 28..4027) under suite A; time `GET /suites` (deep aggregation ON) twice; then delete the chain.
+- **Expected:** single post-order pass — substantially sub-second; measured vs pre-fix ~0.367 s.
+- **Actual:** ~0.028-0.029 s (≈13x faster); chain deleted afterwards. PASS. (5/6)
+
+### Test 6 — plan-switch/tree race guarded; Event Viewer clean (issue item 4 + rules 12/22)
+- **Steps:** rapid-fire plan switch 20→21→20 and group-by suites↔reqcov; then read `events` table.
+- **Expected:** final tree always matches the final selection (stale tree dropped via initSeq/treeSeq); no new Error/Warning rows in `events`; no console errors during the burst.
+- **Actual:** every burst settled on the correct final tree (verified after 3 rapid switch rounds at value 20); Network green [200] for init+suites; console only the pre-existing a11y hint (no JS errors); `events` shows no ERROR/WARNING source rows (2 DATABASE ERROR rows from the Test 1 fault-injection were cleaned up). PASS. (6/6)
+
+**Result: 6/6 PASS. (Refs #1573)**
