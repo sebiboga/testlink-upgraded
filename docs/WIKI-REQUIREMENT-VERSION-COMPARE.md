@@ -127,3 +127,24 @@ modern Requirement Viewer (`reqView.html?id=<requirement_id>&tproject_id=
 <tproject_id>`, ids preserved from the compare URL) instead of leaving the user
 on a dead `about:blank` — mirroring the accepted `reqSpecCompare.html` toolbar
 pattern (Refs #1359).
+
+### Version revision popup — Last change cell link (Refs #1309)
+
+The **Last change** column cell is now a CLICKABLE link (legacy parity:
+`reqCompareVersions.tpl:228-230` `<td ... onclick="openReqRevisionWindow(
+item_id)">`) styled exactly like the legacy link (`cursor:pointer;
+color:rgb(0,85,153)`) with a hover tooltip `rcmp.openRevision`. Clicking it
+calls `openReqRevision(item_id)`, the modern mirror of
+`openReqRevisionWindow()` (`testlink_library.js:1618`) which opens
+`gui/templates/requirements/reqRevisionView.html?showReqSpecTitle=1&item_id=<id>`
+in a popup named `Requirement Revision` (same as legacy) sized from the
+`ReqPopupWidth` / `ReqPopupHeight` cookies (defaults 800x600) via the shared
+`getCookie()` helper — the same pattern already used by `reqSpecCompare.html`
+(`openReqSpecRevision`, Refs #1358). `item_id` is the row's real node id
+(resolution: revision_id when the row is a revision, else version_id) as
+returned by the BFF `versions` action, and the already-modernized revision
+viewer BFF (`api/reqrevision`) resolves both node kinds.
+
+Source: `gui/templates/requirements/reqCompare.html` (row cell in `verRow()`,
+helpers `openReqRevision()` + `getCookie()`). i18n: `rcmp.openRevision`
+("Open revision in new window", localized in all 10 locales).

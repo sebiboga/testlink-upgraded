@@ -2314,6 +2314,7 @@
     "rcmp.noChanges": "No changes",
     "rcmp.noReq": "No requirement selected",
     "rcmp.noVersions": "No versions or revisions found for this requirement",
+    "rcmp.openRevision": "Open revision in new window",
     "rcmp.revision": "Revision",
     "rcmp.right": "Right",
     "rcmp.sameSelected": "The two selected versions are the same",

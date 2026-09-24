@@ -2314,6 +2314,7 @@
     "rcmp.noChanges": "无更改",
     "rcmp.noReq": "未选择需求",
     "rcmp.noVersions": "未找到此需求的版本或修订",
+    "rcmp.openRevision": "在新窗口中打开修订版",
     "rcmp.revision": "修订",
     "rcmp.right": "右",
     "rcmp.sameSelected": "所选的两个版本相同",

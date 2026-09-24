@@ -2314,6 +2314,7 @@
     "rcmp.noChanges": "Fără modificări",
     "rcmp.noReq": "Nicio cerință selectată",
     "rcmp.noVersions": "Nicio versiune sau revizie găsită pentru această cerință",
+    "rcmp.openRevision": "Deschide revizia în fereastră nouă",
     "rcmp.revision": "Revizie",
     "rcmp.right": "Dreapta",
     "rcmp.sameSelected": "Cele două versiuni selectate sunt identice",

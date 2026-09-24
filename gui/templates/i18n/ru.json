@@ -2314,6 +2314,7 @@
     "rcmp.noChanges": "Нет изменений",
     "rcmp.noReq": "Требование не выбрано",
     "rcmp.noVersions": "Версии или ревизии для этого требования не найдены",
+    "rcmp.openRevision": "Открыть ревизию в новом окне",
     "rcmp.revision": "Ревизия",
     "rcmp.right": "Справа",
     "rcmp.sameSelected": "Выбранные версии совпадают",

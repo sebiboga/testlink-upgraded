@@ -2314,6 +2314,7 @@
     "rcmp.noChanges": "変更なし",
     "rcmp.noReq": "要件が選択されていません",
     "rcmp.noVersions": "この要件のバージョンまたはリビジョンが見つかりません",
+    "rcmp.openRevision": "新しいウィンドウでリビジョンを開く",
     "rcmp.revision": "リビジョン",
     "rcmp.right": "右",
     "rcmp.sameSelected": "選択した2つのバージョンは同一です",

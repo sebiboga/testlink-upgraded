@@ -19700,3 +19700,57 @@ app at `http://localhost:8082`, modern screen `gui/templates/issuetracker/issuet
 - **Actual:** Event Viewer INFO-only; console only pre-existing a11y nits. PASS.
 
 **Result: 6/6 PASS. (Refs #962)**
+
+## Suite 1309 — Task — Issue #1309: reqCompare.html revision-popup link on "Last change" timestamp cell (Refs #1309)
+
+**Fixture (this run):** `php tmp/fixtures_1309.php` — project `RC1309` (testprojects id=1, prefix RC09),
+req spec `SRS-1309` (id=2), ONE requirement `REQ-100` (requirements id=4) with TWO versions
+(req_versions id=5 v1, id=6 v2) carrying distinct scope/log_message and modification_ts, so the
+compare screen lists 2 rows (v2 = newest, v1), each with a clickable Last change cell.
+
+**Entry point URL:** `http://localhost:8082/gui/templates/requirements/reqCompare.html?id=4&tproject_id=1` (admin/admin)
+
+### Test 1 — Last change cell is a link, not inert text (gap closure)
+- **Steps:** open reqCompare; inspect the both rows' Last change cells (`#verTable tbody tr td:last-child`).
+- **Expected:** cell styled as a link (`cursor:pointer`, `color:rgb(0,85,153)` = legacy blue), hover
+  tooltip `rcmp.openRevision`, `onclick="openReqRevision(<item_id>)"` with the row's real item_id
+  (5 for v1, 6 for v2) — mirroring legacy reqCompareVersions.tpl:228-230.
+- **Actual:** computed `cursor=pointer`, `color=rgb(0, 85, 153)`, `title="Open revision in new window"`,
+  onclicks `openReqRevision(5)` / `openReqRevision(6)`. PASS.
+
+### Test 2 — Clicking the cell opens the requirement revision viewer popup for THAT item_id
+- **Steps:** click v2's Last change cell.
+- **Expected:** `window.open(reqRevisionView.html?showReqSpecTitle=1&item_id=6, "Requirement Revision", ...)` →
+  popup title "Requirement Revision" showing v2 (info line "Showing v2r1").
+- **Actual:** popup page opened with URL `...reqRevisionView.html?showReqSpecTitle=1&item_id=6`,
+  info line "Showing v2r1". PASS.
+
+### Test 3 — Same for a version row AND a fresh named window (same legacy window name)
+- **Steps:** close popup; click v1's cell (item_id=5).
+- **Expected:** popup `item_id=5` renders v1 ("Showing v1r1", doc id REQ-100).
+- **Actual:** popup `...item_id=5` → info line "Showing v1r1", doc id "REQ-100 RC1309 requirement". PASS.
+
+### Test 4 — ReqPopupWidth/ReqPopupHeight size-cookie behavior (legacy parity)
+- **Steps:** set `ReqPopupWidth=900; ReqPopupHeight=700`, reload, click the cell; verify `openReqRevision`
+  builds windowCfg from the cookies via `getCookie()`.
+- **Expected:** windowCfg uses the cookies (defaults 800x600 when unset), window name "Requirement Revision".
+- **Actual:** `getCookie('ReqPopupWidth')='900'`, `getCookie('ReqPopupHeight')='700'` read correctly and
+  passed to windowCfg. NOTE: the actual rendered popup size cannot be observed in this environment —
+  headless Chrome clamps every `window.open` to 800x600 (probe: `window.open('about:blank','t','width=1200,height=800')`
+  → outer 800x600), so the cookie-config is verified at the config-build level only. PASS (config-level).
+
+### Test 5 — i18n: tooltip localized in ALL locales (incl. Romanian)
+- **Steps:** switch locale to Română via the header switcher; hover a Last change cell.
+- **Expected:** tooltip/text = `rcmp.openRevision` per-locale; en "Open revision in new window",
+  ro "Deschide revizia în fereastră nouă"; key present in all 10 bundles; JSON valid.
+- **Actual:** ro screen fully localized (header "Ultima modificare"); cell tooltip
+  "Deschide revizia în fereastră nouă"; `python3 -m json.tool` passes on all 10 bundles. PASS.
+
+### Test 6 — Event viewer / console / server log clean
+- **Steps:** run Tests 1-5; inspect `events` table, browser console, `tmp/php_server.log`.
+- **Expected:** no new Error/Warning rows; console free of new errors; all requests [200].
+- **Actual:** events table INFO-only (login + tproject create, log_level 16); console has only a
+  pre-existing a11y hint (search field no name/id); server log shows [200] for
+  `api/reqrevision/index.php?action=revision&item_id=5` — no PHP notices. PASS.
+
+**Result: 6/6 PASS. (Refs #1309)**

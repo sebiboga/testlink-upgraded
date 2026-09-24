@@ -195,7 +195,13 @@ function verRow(it, isRight, isLeft) {
       '<label class="radio-inline" title="' + TLi18n.t('rcmp.right') + '"><input type="radio" name="right_item_id" value="' + it.item_id + '"' + (isRight ? ' checked' : '') + '></label>' +
     '</td>' +
     '<td>' + escapeHtml(it.log_message || '-') + '</td>' +
-    '<td style="white-space:nowrap;">' + fmtTs(it.timestamp) + ' · ' + escapeHtml(it.last_editor || '-') + '</td>' +
+    // Refs #1309 - legacy reqCompareVersions.tpl:228-230 renders the Last change
+    // cell as a link (onclick openReqRevisionWindow(item_id)); restore the
+    // clickable cell opening the modern revision viewer (reqRevisionView.html),
+    // honoring the ReqPopupWidth/ReqPopupHeight size-cookie popup behavior.
+    '<td style="white-space:nowrap;cursor:pointer;color:rgb(0,85,153);" title="' +
+      TLi18n.t('rcmp.openRevision') + '" onclick="openReqRevision(' + it.item_id + ')">' +
+      fmtTs(it.timestamp) + ' · ' + escapeHtml(it.last_editor || '-') + '</td>' +
     '</tr>';
 }
 
@@ -342,6 +348,34 @@ function fmtTs(ts) {
   var d = new Date(String(ts).replace(' ', 'T'));
   if (isNaN(d.getTime())) return String(ts);
   return d.toLocaleString();
+}
+
+// Refs #1309 - mirror of legacy openReqRevisionWindow(item_id) in
+// gui/javascript/testlink_library.js:1618 opens reqRevisionView.html for the
+// requirement version/revision id in a popup sized from the
+// ReqPopupWidth/ReqPopupHeight cookies (defaults 800x600), window name
+// "Requirement Revision" (same as legacy), honoring item_id being a
+// requirement_version or requirement_revision node.
+function openReqRevision(itemId) {
+  var url = '/gui/templates/requirements/reqRevisionView.html?showReqSpecTitle=1&item_id=' + itemId;
+  var width = getCookie('ReqPopupWidth') || '800';
+  var height = getCookie('ReqPopupHeight') || '600';
+  var windowCfg = 'width=' + width + ',height=' + height +
+    ',resizable=yes,scrollbars=yes,dependent=yes';
+  window.open(url, 'Requirement Revision', windowCfg);
+}
+
+function getCookie(name) {
+  var cookie = document.cookie;
+  var posName = cookie.indexOf('; ' + name + '=');
+  if (posName === -1) {
+    if (cookie.indexOf(name + '=') === 0) { posName = 0; }
+    else { return null; }
+  }
+  var valueStart = cookie.indexOf('=', posName) + 1;
+  var valueEnd = cookie.indexOf(';', posName + 1);
+  if (valueEnd === -1) { valueEnd = cookie.length; }
+  return cookie.substring(valueStart, valueEnd);
 }
 
 function escapeHtml(s) {
