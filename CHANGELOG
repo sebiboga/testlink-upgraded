@@ -1074,8 +1074,13 @@ Execution:
   parity (400) and audit audit_testcasescript_added / audit_testcasescript_deleted;
   rights mgt_modify_tc on the owning project (init returns can_modify), session
   auth + bffSameOriginGuard: 401 anon, 403 no-rights (dedicated localized denied
-  card "You do not have permission to modify test cases."), 400 missing/unknown
-  tcversion, 405 method, 502 tracker unreachable. sced.* i18n keys (34) +
+  card "You do not have permission to modify test cases."), 400 missing tcversion /
+  404 unknown tcversion, 405 method, 502 tracker unreachable. Post-review #1574:
+  per-segment rawurlencode of GitHub paths, meta/files gated on mgt_modify_tc,
+  save+delete authority = owning project of tcversion_id (cross-project writes
+  closed, idempotent delete of an unknown link = 200), delete-link XSS fix
+  (data-sid + delegation), 401 -> login redirect, X-Requested-With on POSTs.
+  sced.* i18n keys (34) +
   footers.scriptEdit in all 10 bundles (RO full translation). Verified live on
   fixture tmp/fixtures_1574.php (project SED1574 with code_tracker_enabled=1 +
   public GitHub tracker on the repo itself): init edit/create, save (added
