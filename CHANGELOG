@@ -1032,6 +1032,32 @@ Execution:
   addTC shim URL (missing '?'), format select rendered raw legacy keys
   (namespaced pdo.format_* keys added to all bundles), with_user_assignment
   rendered outside testreport_onbuild (gated).
+- Execution Script Edit popup (scriptEdit.html) - BFF api/scriptedit (#1574):
+  modernizes the legacy popup lightbox lib/testcases/scriptAdd.php +
+  scriptDelete.php (kept as session-guarded 302 shims -> scriptEdit.html with
+  user_action/tcversion_id/tproject_id/script_id preserved; testlink_library.js
+  open_script_add_window + deleteScript now open the modern popup). Single
+  Dashio popup for create/edit/delete of a code-tracker script link on a test
+  case version: teal header, context meta card (Test case/Version/Test project/
+  Test plan/Code tracker), VCS form (Project/Repository/Branch/Commit-id +
+  repository file-browser against the GitHub contents API with Stash fallback,
+  click-a-file fills the Script path), "Create code on the code tracker" action,
+  Linked scripts list with per-row View (GitHub blob link) + localized delete
+  confirm modal (deep link user_action=delete&script_id=<project&&repo&&path>
+  auto-opens it), locale switcher + footer. BFF routes GET init/meta/files +
+  POST save/delete: save is dedupe-first with legacy error_code_does_not_exist_on_CTS
+  parity (400) and audit audit_testcasescript_added / audit_testcasescript_deleted;
+  rights mgt_modify_tc on the owning project (init returns can_modify), session
+  auth + bffSameOriginGuard: 401 anon, 403 no-rights (dedicated localized denied
+  card "You do not have permission to modify test cases."), 400 missing/unknown
+  tcversion, 405 method, 502 tracker unreachable. sced.* i18n keys (34) +
+  footers.scriptEdit in all 10 bundles (RO full translation). Verified live on
+  fixture tmp/fixtures_1574.php (project SED1574 with code_tracker_enabled=1 +
+  public GitHub tracker on the repo itself): init edit/create, save (added
+  LICENSE) + dedupe, 400 non-existent path, row delete + deep-link delete +
+  Cancel-keeps-row, file-browser drill-down, EN<->RO switch, 401/403/405 paths,
+  legacy shim 302s, Event Viewer clean (audit-only). Suite 1574 15/15 PASS in
+  tmp/TLU_Test_Cases.md; wiki page + docs mirror + 4 screenshots.
 - Test Plan Navigator (planNav.html) - BFF api/plannav (#1572): modernizes
   the legacy Test Plan Navigator frames lib/plan/planTCNavigator.php +
   lib/plan/planAddTCNavigator.php (both converted to session-guarded 302 shims
