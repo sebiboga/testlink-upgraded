@@ -2033,47 +2033,32 @@ function getActions(&$gui,$baseURL) {
   // E_WARNING "Undefined property: stdClass::$setTestUrgency" on every page.
   $actions->setTestUrgency = null;
 
-  $launcher = $_SESSION['basehref'] .
-    "lib/general/frmWorkArea.php?feature=";
+  // Refs #1575: the legacy work-area launcher (lib/general/frmWorkArea.php)
+  // is gone - every feature below resolves to its modernized Dashio screen
+  // directly, exactly like the remaining $actions overrides further down.
+  // The old $gui->workArea object + copy-back loop built canonical URLs via
+  // 'lib/general/frmWorkArea.php?feature='; all entries are now self-contained
+  // modern /gui/templates HTML links (see the overrides below). The $actions
+  // map is consumed by the aside BFF (api/aside) and by legacy tl-classic
+  // templates only.
+  $actions->executeTest = null;
+  $actions->planUpdateTC = null;
+  $actions->showNewestTCV = null;
+  $actions->assignTCVExecution = null;
+  $actions->showMetrics = null;
 
-  $gui->workArea = new stdClass();
-  // testSpec is switched to the modernized HTML screen above (workArea entry
-  // removed so the frmWorkArea launcher no longer overwrites the link)
-  $gui->workArea->keywordsAssign = "keywordsAssign&{$ctx}";
-  
-  $gui->workArea->executeTest = null;
-  // setTestUrgency switched to the modernized HTML screen below (no workArea
-  // entry: the launcher copy-back below must not overwrite the link)
-  $gui->workArea->planUpdateTC = null;
-  $gui->workArea->showNewestTCV = null;
-  $gui->workArea->assignTCVExecution = null;
-  $gui->workArea->showMetrics = null;
-  
   if ($tplan_id >0) {
-    // planAddTC switched to the modernized HTML screen above (no workArea
-    // entry here: the launcher copy-back below must not overwrite the link)
-    $gui->workArea->assignTCVExecution = "tc_exec_assignment&{$ctx}";
-    $gui->workArea->showMetrics = "showMetrics&{$ctx}";
     // Set Test Urgency modernized screen (Dashio standalone page) - Refs #605
     // Menu visibility is gated by aside.tpl via menuGrants
     // (testplan_set_urgent_testcases); the BFF enforces the legacy controller
     // right (testplan_planning) server-side on every route.
     $actions->setTestUrgency =
       "/gui/templates/plans/testUrgency.html?{$ctx}";
-  }
-
-  $gui->workArea->reqSpecMgmt = "reqSpecMgmt&{$ctx}";
-  $gui->workArea->printReqSpec = "printReqSpec&{$ctx}";
-  $gui->workArea->printTestSpec = "printTestSpec&{$ctx}";
-  $gui->workArea->searchReq = "searchReq&{$ctx}";
-  $gui->workArea->searchReqSpec = "searchReqSpec&{$ctx}";
-
-  $wprop = get_object_vars($gui->workArea);
-  foreach ($wprop as $wp => $wv) {
-    if (null != $gui->workArea->$wp) {
-      $gui->workArea->$wp = $launcher . $gui->workArea->$wp;
-    }
-    $actions->$wp = $gui->workArea->$wp;
+    // Metrics & Reports (legacy workArea feature 'showMetrics') - Refs #1575
+    // Now points straight at the modernized results launcher (Refs #1568),
+    // replacing the legacy frmWorkArea.php?feature=showMetrics frameset route.
+    $actions->showMetrics =
+      "/gui/templates/results/resultsNavigator.html?{$ctx}";
   }
 
   // Modernized screens (Dashio standalone pages)

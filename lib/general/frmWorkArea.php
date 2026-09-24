@@ -5,247 +5,67 @@
  *
  * @filesource  frmWorkArea.php
  * @author      Martin Havlat
- * 
  *
+ * 2010.2.shim - Refs #1575: the legacy work-area frameset (left tree + right
+ * content pane rendered by frmInner.tpl) was replaced by the modernized
+ * Dashio standalone screens. Every legacy feature=? deep link is forwarded
+ * here by the dead tl-classic templates ($gui->launcher) and by stale bookmarks;
+ * this controller preserves the session guard, validates the feature argument
+ * and redirects (302) to the equivalent modern /gui/templates HTML screen
+ * carrying the tproject_id / tplan_id context, exactly like the mainPage.php
+ * shim (Refs #1555).
 **/
 require_once('../../config.inc.php');
 require_once("common.php");
-testlinkInitPage($db);
+
+testlinkInitPage($db,TRUE);
 
 $args = init_args();
 
-// Important Notes for Developers
-//
-// if key found in this map, at User Interface level, screen will be divided 
-// vertically in two frames.
-// Normally on left will exists a tree menu. 
-// On right frame an html named $key.html will be launched.
-// Example:
-// if key = printTc, an html page printTc.html must exists on help directory
-//
-// (aa_tfp -> Associative Array TreeFramePath)
-// key  : feature
-// value: page to lauch
-//
-$req_cfg = config_get('req_cfg');
-
-// more info here
-// array(0) => left pane
-// array(1) => right pane
-$aa_tfp = array( 
-     'editTc' => array('lib/testcases/listTestCases.php?feature=edit_tc',
-                       // Refs #923: the project "home" pane is now the
-                       // modernized Test Project Information viewer instead
-                       // of the legacy archiveData.php?edit=testproject&id=
-                       'gui/templates/projects/projectInfoView.html?tproject_id='),
-
-     'assignReqs' => 'lib/testcases/listTestCases.php?feature=assignReqs',
-     'searchTc' => 'lib/testcases/tcSearchForm.php',
-
-     'searchReq' => 'lib/requirements/reqSearchForm.php',
-     'searchReqSpec' => 'lib/requirements/reqSpecSearchForm.php',
-   
-     'printTestSpec' => 'gui/templates/testcases/printTestSpec.html',
-     'printReqSpec' => 'lib/results/printDocOptions.php?type=reqspec',
-     'keywordsAssign' => 'lib/testcases/listTestCases.php?feature=keywordsAssign',
-     'planAddTC'    => '/gui/templates/plans/planNav.html',
-     'planRemoveTC' => '/gui/templates/plans/planNav.html',
-     'planUpdateTC'    => '/gui/templates/plans/planNav.html',
-     'show_ve' => '/gui/templates/plans/planNav.html',  
-     'newest_tcversions' => '../../lib/plan/newest_tcversions.php',
-     'test_urgency' => '/gui/templates/plans/planNav.html',
-     'tc_exec_assignment' => '/gui/templates/plans/planNav.html',
-     'executeTest' => array('lib/execute/execNavigator.php?setting_testplan=', 'lib/execute/execDashboard.php?id='),
-     'showMetrics' => 'gui/templates/results/resultsNavigator.html',
-     'reqSpecMgmt' => array('lib/requirements/reqSpecListTree.php',
-                            'lib/project/project_req_spec_mgmt.php?id=')
+// feature => modern standalone screen (without tproject/tplan context)
+$feature_map = array(
+  'editTc'            => 'gui/templates/testcases/testSpec.html',
+  'assignReqs'        => 'gui/templates/requirements/assignReqs.html',
+  'searchTc'          => 'gui/templates/search/searchView.html',
+  'searchReq'         => 'gui/templates/requirements/searchReq.html',
+  'searchReqSpec'     => 'gui/templates/requirements/searchReqSpec.html',
+  'printTestSpec'     => 'gui/templates/testcases/printTestSpec.html',
+  'printReqSpec'      => 'gui/templates/requirements/printReqSpec.html',
+  'keywordsAssign'    => 'gui/templates/keywords/keywordsAssign.html',
+  'planAddTC'         => 'gui/templates/plans/planAddTCView.html',
+  'planRemoveTC'      => 'gui/templates/plans/planAddTCView.html',
+  'planUpdateTC'      => 'gui/templates/plans/planUpdateTC.html',
+  'show_ve'           => 'gui/templates/plans/planNav.html',
+  'newest_tcversions' => 'gui/templates/plans/showNewestTcVersions.html',
+  'test_urgency'      => 'gui/templates/plans/testUrgency.html',
+  'tc_exec_assignment'=> 'gui/templates/execute/tcExecAssignment.html',
+  'executeTest'       => 'gui/templates/execute/execTest.html',
+  'showMetrics'       => 'gui/templates/results/resultsNavigator.html',
+  'reqSpecMgmt'       => 'gui/templates/requirements/reqSpecMgmt.html'
 );
 
-// Refs #982: Print Test Specification renders a full standalone Dashio page
-$full_screen = array('newest_tcversions' => 1, 'printTestSpec' => 1);
-
-//cleanup session var
-$_SESSION['currentSrsId'] = null;
-
-/** feature to display */
 $showFeature = $args->feature;
-if (isset($aa_tfp[$showFeature]) === FALSE) {
+if (isset($feature_map[$showFeature]) === FALSE) {
   // argument is wrong
   tLog("Wrong page argument feature = ".$showFeature, 'ERROR');
   exit();
 }
 
-// features that need to run the validate build function
-if (in_array($showFeature,array('executeTest','showMetrics','tc_exec_assignment'))) {
-  // Check if for test project selected at least a test plan exist
-  if( isset($_SESSION['testplanID']) || !is_null($args->tplan_id))
-  {
-    // Filter on build attributes: ACTIVE,OPEN
-    switch($showFeature) {
-      case 'executeTest':
-        $hasToBe['active'] = true;
-        $hasToBe['open'] = true;
-        $featureHint = lang_get('href_execute_test');
-      break;
+$url = $_SESSION['basehref'] . $feature_map[$showFeature];
+$url .= (strpos($feature_map[$showFeature], "?") === false) ? "?" : "&";
+$tproject_id = isset($_SESSION['testprojectID']) ? intval($_SESSION['testprojectID']) : 0;
+$tplan_id = isset($_SESSION['testplanID']) ? intval($_SESSION['testplanID']) : 0;
+$url .= "tproject_id={$tproject_id}&tplan_id={$tplan_id}";
 
-      case 'tc_exec_assignment':
-        $txcfg = config_get('tree_filter_cfg');
-        $cfg = $txcfg->testcases->plan_mode;
-        $hasToBe['active'] = $cfg->setting_build_inactive_out ? true : null;
-        $hasToBe['open'] = $cfg->setting_build_close_out ? true : null;        
-        $featureHint = lang_get('href_tc_exec_assignment');
-      break;
-
-      default:
-        $hasToBe['active'] = null;
-        $hasToBe['open'] = null; 
-        $featureHint = lang_get('href_rep_and_metrics');
-      break;  
-    }
-
-
-    $tplanIDCard = new stdClass();
-    $tplanIDCard->id = intval($_SESSION['testplanID']);
-    $tplanIDCard->name = $_SESSION['testplanName'];
-    $tplanMgr = new testplan($db);
-
-    if(!is_null($args->tplan_id)) {
-      $tplanIDCard->id = intval($args->tplan_id);
-      $dummy = $tplanMgr->tree_manager->get_node_hierarchy_info($tplanIDCard->id);
-      $tplanIDCard->name = $dummy['name'];
-    } 
-
-    $ctx = new stdClass();
-    $ctx->tplanIDCard = $tplanIDCard;
-    $ctx->featureTitle = $featureHint;
-
-    validateBuildAvailability($db,$tplanMgr,$ctx,$hasToBe);
-  }
-  else
-  {
-    redirect('../plan/planView.php');
-    exit();
-  }   
+if ($args->tproject_id > 0) {
+  $url = preg_replace('/tproject_id=\d+/', "tproject_id={$args->tproject_id}", $url);
+}
+if ($args->tplan_id > 0) {
+  $url = preg_replace('/tplan_id=\d+/', "tplan_id={$args->tplan_id}", $url);
 }
 
-/// 1. get path from global var
-/// 2. the URL made easier after setting some rules for help/instruction files
-///    naming convention.
-/// </enhancement>
-$smarty = new TLSmarty();
-
-// try to add context in order to avoid using global coupling via $_SESSION
-// this will be useful to open different test projects on different browser TAB
-if( is_array($aa_tfp[$showFeature]) ) {
-  $leftPane = $aa_tfp[$showFeature][0];
-  $rightPane = $aa_tfp[$showFeature][1];
-  
-  if($rightPane[strlen($rightPane)-1] == '=') {
-    $rightPane .= intval($_SESSION['testprojectID']);
-  }  
-  
-  if($showFeature == 'executeTest') {
-    $leftPane .= $args->tplan_id;
-  }
-  // new dBug($leftPane);
-
-} else {
-  $leftPane = $aa_tfp[$showFeature];
-  $rightPane = 'gui/templates/documentation/staticPage.html?key=' . $showFeature;
-} 
-
-if( intval($args->tproject_id) > 0 || intval($args->tplan_id) > 0)
-{  
-  $leftPane .= (strpos($leftPane,"?") === false) ? "?" : "&";
-  $leftPane .= "tproject_id={$args->tproject_id}&tplan_id={$args->tplan_id}";
-
-  if($showFeature == 'editTc') {
-    // Refs #923: the projectInfoView right pane already carries tproject_id
-    // (appended above), so only add the test plan id to avoid a duplicate key.
-    $rightPane .= (strpos($rightPane,"?") === false) ? "?" : "&";
-    $rightPane .= "tplan_id={$args->tplan_id}";
-  }
-  else {
-    // for execDashboard is OK, need to understand if will be ok for other features
-    // or is going to create issues.
-    $rightPane .= (strpos($rightPane,"?") === false) ? "?" : "&";
-    $rightPane .= "tproject_id={$args->tproject_id}&tplan_id={$args->tplan_id}";
-  }
-}
-
-if(isset($full_screen[$showFeature])) {
-  redirect($leftPane);
-} else {
-  $smarty->assign('treewidth', TL_FRMWORKAREA_LEFT_FRAME_WIDTH);
-  $smarty->assign('treeframe', $leftPane);
-  $smarty->assign('workframe', $rightPane);
-  $smarty->display('frmInner.tpl');
-}
-
-
-/** 
- *  validate that some build exists (for Test Plan related features).
- *  If no valid build is found give feedback to user and exit.
- *
- *  check if user can create builds, then put a link on the message page
- *  to create link feature
- *
- *
- * 
- *
- **/
-function validateBuildAvailability(&$db,&$tplanMgr,$context,$attrFilter)
-{
-  $tpID = $context->tplanIDCard->id;
-  $tpName = $context->tplanIDCard->name;
-  
-  if (!$tplanMgr->getNumberOfBuilds($tpID, $attrFilter['active'], $attrFilter['open']))
-  {            
-    $msx = [];
-    if($attrFilter['active'])
-    {
-      $msx[] = lang_get('active');
-    }  
-    
-    if($attrFilter['open'])
-    {
-      $msx[] = lang_get('open');
-    }  
-    
-    $mzx = '';
-    if(count($msx) > 0)
-    {
-      $mzx = "(" . implode(' & ',$msx) . ")";
-    }  
-
-
-    $message = "<p>" . $context->featureTitle .
-               "<p>" . sprintf(lang_get('no_good_build'),$mzx) .
-               "<b> " . htmlspecialchars($tpName) . "</b>";
-    
-    $link_to_op = '';
-    $hint_text = '';
-    if(has_rights($db,"testplan_create_build") == 'yes')
-    { 
-      // final url will be composed adding to $basehref 
-      // (one TL variable available on smarty templates) to $link_to_op
-      $link_to_op = "lib/plan/buildEdit.php?do_action=create&tplan_id=$tpID";
-      $hint_text = lang_get('create_a_build');
-    }  
-    else
-    {
-      $message .= '</p><p>' . lang_get('no_build_warning_part2') . '</p>';
-    }
-      
-    // show info and exit
-    $smarty = new TLSmarty;
-    $smarty->assign('content', $message);
-    $smarty->assign('link_to_op', $link_to_op);
-    $smarty->assign('hint_text', $hint_text);
-    $smarty->display('workAreaSimple.tpl');
-    exit();
-  }
-}
+header('Location: ' . $url);
+exit();
 
 /**
  *
