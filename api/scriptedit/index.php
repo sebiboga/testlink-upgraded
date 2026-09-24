@@ -225,8 +225,9 @@ function ghContents($cfg, $path, $branch)
     }
     $api = rtrim($cfg['apibase'], '/');
     $ref = $branch !== '' ? $branch : $cfg['branch'];
+    $enc = implode('/', array_map('rawurlencode', explode('/', trim((string)$path, '/'))));
     $url = $api . '/repos/' . rawurlencode($cfg['owner']) . '/' . rawurlencode($cfg['repo'])
-         . '/contents/' . ltrim((string)$path, '/');
+         . '/contents/' . $enc;
     $url .= ($ref !== '') ? ('?ref=' . rawurlencode($ref)) : '';
     $data = ghGet($url, $cfg['token']);
     if (!is_array($data)) {
@@ -256,8 +257,9 @@ function ghPathExists($cfg, $path, $branch)
     }
     $api = rtrim($cfg['apibase'], '/');
     $ref = $branch !== '' ? $branch : $cfg['branch'];
+    $enc = implode('/', array_map('rawurlencode', explode('/', trim((string)$path, '/'))));
     $url = $api . '/repos/' . rawurlencode($cfg['owner']) . '/' . rawurlencode($cfg['repo'])
-         . '/contents/' . ltrim((string)$path, '/');
+         . '/contents/' . $enc;
     $url .= ($ref !== '') ? ('?ref=' . rawurlencode($ref)) : '';
     $data = ghGet($url, $cfg['token']);
     if (is_array($data)) {
@@ -421,11 +423,6 @@ function buildMetadata($db, $tproject_id, $cts, $cfg, $select)
 if ($method === 'GET' && $action === 'init') {
     $tcversion_id = intval($_GET['tcversion_id'] ?? 0);
     if ($tcversion_id <= 0) { badRequest('tcversion_id is required'); }
-    $tproject_id = resolveProjectId();
-    if (is_null($tproject_id)) { $tproject_id = tprojectForTcversion($db, $tcversion_id); }
-    if (is_null($tproject_id)) { badRequest('Unable to resolve test project'); }
-    $tplan_id = intval($_GET['tplan_id'] ?? 0);
-    $user_action = isset($_GET['user_action']) && trim($_GET['user_action']) !== '' ? trim($_GET['user_action']) : 'link';
 
     // tcversion context (tcversion nodes are node_type_id = 4; display name
     // lives on the owning test-case node, node_type_id = 3)
@@ -439,6 +436,14 @@ if ($method === 'GET' && $action === 'init') {
         out(['status' => 'error', 'message' => 'Test case version not found']);
     }
     $tv = $rs[0];
+
+    // The tcversion's own project is the page context (and the rights target):
+    // session context must not hijack the popup onto a different project.
+    $owning = tprojectForTcversion($db, $tcversion_id);
+    $tproject_id = is_null($owning) ? resolveProjectId() : $owning;
+    if (is_null($tproject_id)) { badRequest('Unable to resolve test project'); }
+    $tplan_id = intval($_GET['tplan_id'] ?? 0);
+    $user_action = isset($_GET['user_action']) && trim($_GET['user_action']) !== '' ? trim($_GET['user_action']) : 'link';
 
     // project + plan names
     $tprojectName = '';
@@ -544,15 +549,19 @@ if ($method === 'GET' && $action === 'init') {
 if ($method === 'GET' && $action === 'meta') {
     $tproject_id = resolveProjectId();
     if (is_null($tproject_id)) { badRequest('Unable to resolve test project'); }
+    if (!$user->hasRight($db, 'mgt_modify_tc', $tproject_id)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'mgt_modify_tc right required']);
+    }
     list($tracker, $cts, $err) = linkedTracker($db, $tproject_id);
     if (!is_null($err)) { http_response_code(409); out(['status' => 'error', 'message' => $err]); }
     $row = $GLOBALS['ctmgr']->getByID($tracker['codetracker_id']);
     $cfg = parseTrackerCfg($row['cfg'] ?? '');
     $metadata = buildMetadata($db, $tproject_id, $cts, $cfg, [
-        'project_key' => isset($_GET['project_key']) && trim($_GET['project_key']) !== '' ? urldecode(trim($_GET['project_key'])) : '',
-        'repository_name' => isset($_GET['repository_name']) && trim($_GET['repository_name']) !== '' ? urldecode(trim($_GET['repository_name'])) : '',
-        'branch_name' => isset($_GET['branch_name']) && trim($_GET['branch_name']) !== '' ? urldecode(trim($_GET['branch_name'])) : '',
-        'commit_id' => isset($_GET['commit_id']) && trim($_GET['commit_id']) !== '' ? urldecode(trim($_GET['commit_id'])) : '',
+        'project_key' => isset($_GET['project_key']) ? trim($_GET['project_key']) : '',
+        'repository_name' => isset($_GET['repository_name']) ? trim($_GET['repository_name']) : '',
+        'branch_name' => isset($_GET['branch_name']) ? trim($_GET['branch_name']) : '',
+        'commit_id' => isset($_GET['commit_id']) ? trim($_GET['commit_id']) : '',
     ]);
     out(['status' => 'ok', 'metadata' => $metadata]);
 }
@@ -560,10 +569,14 @@ if ($method === 'GET' && $action === 'meta') {
 if ($method === 'GET' && $action === 'files') {
     $tproject_id = resolveProjectId();
     if (is_null($tproject_id)) { badRequest('Unable to resolve test project'); }
+    if (!$user->hasRight($db, 'mgt_modify_tc', $tproject_id)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'mgt_modify_tc right required']);
+    }
     $path = isset($_GET['path']) ? trim($_GET['path']) : '';
     $branch = isset($_GET['branch']) ? trim($_GET['branch']) : '';
-    $project_key = isset($_GET['project_key']) ? urldecode(trim($_GET['project_key'])) : '';
-    $repository_name = isset($_GET['repository_name']) ? urldecode(trim($_GET['repository_name'])) : '';
+    $project_key = isset($_GET['project_key']) ? trim($_GET['project_key']) : '';
+    $repository_name = isset($_GET['repository_name']) ? trim($_GET['repository_name']) : '';
 
     list($tracker, $cts, $err) = linkedTracker($db, $tproject_id);
     if (!is_null($err)) { http_response_code(409); out(['status' => 'error', 'message' => $err]); }
@@ -598,7 +611,11 @@ if ($method === 'GET' && $action === 'files') {
 }
 
 if ($method === 'POST' && $action === 'save') {
-    $tproject_id = intval($BODY['tproject_id'] ?? 0);
+    if (isset($BODY['tproject_id']) && intval($BODY['tproject_id']) > 0) {
+        $tproject_id = intval($BODY['tproject_id']);
+    } else {
+        $tproject_id = 0;
+    }
     $tcversion_id = intval($BODY['tcversion_id'] ?? 0);
     $project_key = isset($BODY['project_key']) ? trim((string)$BODY['project_key']) : '';
     $repository_name = isset($BODY['repository_name']) ? trim((string)$BODY['repository_name']) : '';
@@ -606,10 +623,24 @@ if ($method === 'POST' && $action === 'save') {
     $branch_name = isset($BODY['branch_name']) && $BODY['branch_name'] !== '' ? trim((string)$BODY['branch_name']) : null;
     $commit_id = isset($BODY['commit_id']) && $BODY['commit_id'] !== '' ? trim((string)$BODY['commit_id']) : null;
 
-    if ($tproject_id <= 0 || $tcversion_id <= 0) { badRequest('tproject_id and tcversion_id are required'); }
+    if ($tcversion_id <= 0) { badRequest('tcversion_id is required'); }
     if ($project_key === '' || $repository_name === '' || $code_path === '') {
         badRequest('project_key, repository_name and code_path are required');
     }
+
+    // The tcversion's own project is the authority for both the rights check
+    // and the write: a caller-supplied tproject_id must match it (cross-project
+    // write guard — the legacy popup always operated on the current project).
+    $owning = tprojectForTcversion($db, $tcversion_id);
+    if (is_null($owning)) {
+        http_response_code(404);
+        out(['status' => 'error', 'message' => 'Test case version not found']);
+    }
+    if ($tproject_id > 0 && $tproject_id !== $owning) {
+        badRequest('tproject_id does not match the test case version');
+    }
+    $tproject_id = $owning;
+
     if (!$user->hasRight($db, 'mgt_modify_tc', $tproject_id)) {
         http_response_code(403);
         out(['status' => 'error', 'message' => 'mgt_modify_tc right required']);
@@ -769,9 +800,17 @@ if ($method === 'POST' && $action === 'delete') {
     $tcversion_id = intval($BODY['tcversion_id'] ?? 0);
     $script_id = isset($BODY['script_id']) ? trim((string)$BODY['script_id']) : '';
     if ($tcversion_id <= 0 || $script_id === '') { badRequest('tcversion_id and script_id are required'); }
-    if ($tproject_id <= 0) { $tproject_id = resolveProjectId(); }
-    if ($tproject_id <= 0) { $tproject_id = tprojectForTcversion($db, $tcversion_id); }
-    if ($tproject_id <= 0) { badRequest('Unable to resolve test project'); }
+
+    // The tcversion's own project is the authority for the rights check.
+    $owning = tprojectForTcversion($db, $tcversion_id);
+    if (is_null($owning)) {
+        http_response_code(404);
+        out(['status' => 'error', 'message' => 'Test case version not found']);
+    }
+    if ($tproject_id > 0 && $tproject_id !== $owning) {
+        badRequest('tproject_id does not match the test case version');
+    }
+    $tproject_id = $owning;
 
     if (!$user->hasRight($db, 'mgt_modify_tc', $tproject_id)) {
         http_response_code(403);
