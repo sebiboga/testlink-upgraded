@@ -77,6 +77,38 @@ Port of the legacy `reqViewVersionsViewer.tpl` "New Revision" button
   and no locale key exists (a `TLS()` call would raise a Not-localized Event
   Viewer warning); the revision journal lives in `req_revisions`.
 
+## Freeze / Unfreeze version (Refs #1302)
+
+Port of the legacy `reqViewVersionsViewer.tpl` "Freeze this version" /
+"Unfreeze this version" buttons (`doAction=doFreezeVersion|doUnfreezeVersion`)
+into the modern toolbar:
+
+- **Grants** mirror the legacy exactly: a SINGLE grant `unfreeze_req` (right
+  `mgt_unfreeze_req`) gates **both** directions — the schema has no separate
+  `freeze_req` right. The `/view` BFF grant block now exposes `unfreeze_req`
+  alongside the others. Button visibility additionally requires `req_mgmt`,
+  because legacy renders the whole buttons form only inside
+  `{if $args_grants->req_mgmt == "yes"}` (tpl:49,86-98).
+- **State gating**: Freeze renders only for **open** versions, Unfreeze only
+  for **frozen** ones (legacy `reqView.php` `is_open` check).
+- **Confirm dialog** carries the version/docId/title, matching the legacy
+  `warning_freeze_requirement` / `warning_unfreeze_requirement` fill:
+  "You are going to freeze version {v} - {docId}: {title}. Are you sure?".
+- **Server-side write** `POST /api/requirements/index.php/versions/{id}/freeze`
+  and `/versions/{id}/unfreeze`: both 403 unless the caller has `mgt_modify_req`
+  AND `mgt_unfreeze_req` on the version's OWNING project (legacy reqEdit.php:315
+  page gate + tpl grant), 404 on unknown version id. They mirror
+  `reqCommands::doFreezeVersion` / `doUnfreezeVersion` →
+  `requirement_mgr::updateOpen($versionId, false|true)` (writes
+  `req_versions.is_open`: 0 = frozen, 1 = open). Idempotent per legacy: no 409
+  state pre-check.
+- **Audit events** (legacy parity): `logAuditEvent(..., 'FREEZE'|'UNFREEZE',
+  $versionId, 'req_version')` with the literal legacy wording
+  " Version {v} of Req 'DOCID:{docId}' - {title} was frozen/unfrozen.".
+- **Feedback**: teal toast `reqv.frozenOk` / `reqv.unfrozenOk` and the view
+  reloads — Frozen badge Yes, version selector shows `vN rM *`, and the New
+  Revision button disappears for frozen versions.
+
 ## Access & permission
 
 * Deep links switched from `lib/requirements/reqView.php` to
@@ -104,7 +136,9 @@ Port of the legacy `reqViewVersionsViewer.tpl` "New Revision" button
 `reqv.directLinkCopied` and the `reqprint.*` block) added to **all** locale
 bundles: en, de, es, fr, it, ja, pt, ro, ru, zh. The New Revision port adds
 3 more keys to every bundle: `reqv.newRevision`, `reqv.newRevisionPrompt`,
-`reqv.revisionCreated`.
+`reqv.revisionCreated`. The Freeze/Unfreeze port adds 6 more keys to every
+bundle: `reqv.freeze`, `reqv.unfreeze`, `reqv.freezeConfirm`,
+`reqv.unfreezeConfirm`, `reqv.frozenOk`, `reqv.unfrozenOk`.
 
 ## BFF
 
@@ -129,6 +163,14 @@ Creates a new revision of the requirement version `{id}` (Refs #1303). Checks
 (HTTP 409), 404s on missing versions. Returns
 `{status:'ok', req_id, version_id, revision, log_message}`.
 
+`POST /api/requirements/index.php/versions/{id}/freeze` and
+`/versions/{id}/unfreeze` (Refs #1302)
+
+Freeze/unfreeze the requirement version `{id}`. Checks `mgt_modify_req` AND
+`mgt_unfreeze_req` on the owning project (HTTP 403), 404s on missing versions.
+Returns `{status:'ok', req_id, version_id, is_open, frozen}` and fires a
+`FREEZE`/`UNFREEZE` audit event on the `req_version` object.
+
 ## Bugs found while testing
 
 * #765 — legacy `requirement_mgr::getTestProjectID()` +
@@ -142,8 +184,12 @@ Suite 764 in `tmp/TLU_Test_Cases.md` — 17/17 PASS (BFF routes, version switch,
 monitor on/off + DB rows, deleted banner, 403 permission path, relations grid,
 deep-link regression). Suite 1305 — Print / Direct link / Help (see below).
 Suite 1303 — New Revision button/frozen/403/404/Event-Viewer — 7/7 PASS.
+Suite 1302 — Freeze button gating / freeze+unfreeze roundtrip / confirm
+dialog / 403 no-rights / 400-404 / i18n+Event-Viewer — 6/6 PASS.
 
 ![reqView toolbar with Direct link box](screenshots/issue-1305-reqview-directlink-toolbar.png)
 ![Print screen](screenshots/issue-1305-reqprint-screen.png)
 ![Requirement Viewer opened from the Set Results popup](screenshots/issue-1477-reqview-popup-from-setresults.png)
 ![Requirement Viewer after creating a revision (v1r2)](screenshots/issue-1303-reqview-new-revision-v1r2.png)
+![Requirement Viewer with the Freeze button (open version)](screenshots/issue-1302-reqview-freeze-open.png)
+![Requirement Viewer after freeze — Unfreeze button on frozen version](screenshots/issue-1302-reqview-unfreeze-frozen.png)
