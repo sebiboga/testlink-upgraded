@@ -113,14 +113,18 @@ foreach ((array)$reqCfg->status_labels as $code => $langKey) {
     $statusLabels[$code] = lang_get($langKey);
 }
 
+// Refs #1308 - legacy tip4log() (gui/.../reqCompareVersions.tpl:32-48) hovers the
+// FULL untruncated log via lib/ajax/getreqlog.php; the cell itself is truncated to
+// req_cfg->log_message_len (legacy reqCompareVersions.php:280-289). Mirror the
+// modernized sibling reqSpecCompare (api/reqspec:1014-1042): keep log_message RAW
+// and expose log_message_len so the client truncates the cell and can tooltip the full text.
+$logMessageLen = (is_object($reqCfg) && isset($reqCfg->log_message_len))
+    ? intval($reqCfg->log_message_len) : 0;
+
 $history = $reqMgr->get_history($reqId, ['output' => 'array', 'decode_user' => true, 'order_by_dir' => 'DESC']);
 $items   = [];
 foreach ((array)$history as $row) {
     $log = (string)$row['log_message'];
-    $log = preg_replace('!\s+!', ' ', trim($log));
-    if ($reqCfg->log_message_len > 0 && strlen($log) > $reqCfg->log_message_len) {
-        $log = substr($log, 0, $reqCfg->log_message_len) . '...';
-    }
     $items[] = [
         'item_id'           => intval($row['item_id']),
         'version_id'        => intval($row['version_id']),
@@ -159,6 +163,7 @@ if ($action === 'versions') {
         'req_doc_id'  => $ctx['req_doc_id'],
         'req_type'    => $reqType,
         'context'     => isset($diffCfg->context) ? intval($diffCfg->context) : 5,
+        'log_message_len' => $logMessageLen,
         'items'       => $items,
     ]);
 }

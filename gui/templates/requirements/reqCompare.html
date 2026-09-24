@@ -44,6 +44,15 @@ table.diff-table tr.changed { background: #fdf3e7; }
 .footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
 .dataTables_wrapper .dataTables_filter input { border: 1px solid #ccc; border-radius: 4px; padding: 4px 8px; }
 .table>tbody>tr>td { padding: 8px 12px; }
+/* Refs #1308 - log-message hover tooltip mirroring the legacy Ext.ToolTip affordance
+   (reqCompareVersions.tpl tip4log: width 500, dismissDelay 0, trackMouse true) and
+   the already-modernized sibling reqSpecCompare.html. */
+td.log-cell { max-width: 340px; cursor: help; }
+#logTooltip { display: none; position: fixed; z-index: 9999; max-width: 500px;
+  background: #22242a; color: #fff; border: 1px solid #4ECDC4; border-radius: 6px;
+  padding: 8px 12px; font-size: 12px; line-height: 1.55;
+  box-shadow: 0 3px 10px rgba(0,0,0,.35); pointer-events: none;
+  white-space: pre-wrap; word-break: break-word; }
 </style>
 </head>
 <body>
@@ -102,6 +111,8 @@ table.diff-table tr.changed { background: #fdf3e7; }
 
 <div class="footer" id="footerText"></div>
 
+<div id="logTooltip"></div>
+
 <script src="/gui/templates/i18n/i18n.js"></script>
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
@@ -113,6 +124,8 @@ var TPROJECT_ID = 0;
 var REQ_DOC = '';
 var verTable = null;
 var curMethod = 'html';
+var LOG_LEN = 0;   // Refs #1308 - req_cfg->log_message_len, from the BFF response
+var fullLogs = {}; // Refs #1308 - item_id -> FULL untruncated log (tooltip payload)
 
 $(function() {
   var p = new URLSearchParams(window.location.search);
@@ -150,12 +163,15 @@ function loadVersions() {
     if (r.status !== 'ok') { showWarn(r.message || TLi18n.t('rcmp.loadError')); return; }
     TPROJECT_ID = r.tproject_id || TPROJECT_ID;
     REQ_DOC = r.req_doc_id || '';
+    LOG_LEN = parseInt(r.log_message_len, 10);
+    if (isNaN(LOG_LEN)) LOG_LEN = 0;
     $('#projName').text(' - ' + (r.tproject_name || ('#' + r.tproject_id)) + ' [' + REQ_DOC + ']');
     var defCtx = r.context || 5;
     $('#context').val(defCtx);
     $('#footerText').text('TestLink 2.0.1 - ' + TLi18n.t('rcmp.title') +
       ' | ' + TLi18n.t('common.generatedOn') + ' ' + new Date().toLocaleString());
     renderVersions(r.items || []);
+    bindLogTooltips();
   }).fail(function(xhr) {
     var msg = TLi18n.t('rcmp.loadError');
     try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
@@ -165,6 +181,8 @@ function loadVersions() {
 
 function renderVersions(items) {
   var rows = '';
+  fullLogs = {};
+  $('#logTooltip').hide();
   // pre-select two most recent (API returns DESC): right = newest, left = previous
   if (items.length >= 2) {
     rows += verRow(items[0], true, false);
@@ -176,6 +194,18 @@ function renderVersions(items) {
     rows = '<tr><td colspan="5" class="empty-state">' + TLi18n.t('rcmp.noVersions') + '</td></tr>';
   }
   $('#verTable tbody').html(rows);
+  // Refs #1308 (code review): keep the FULL log searchable even though
+  // the cell text is truncated — set DataTables data-search from the per-item map
+  // (jQuery.attr escapes it properly, so quotes/special chars in logs are safe) and
+  // the empty placeholder still matches an empty-string search value.
+  // Mirrors reqSpecCompare.html (Refs #1357, commit d70e500c6).
+  $('#verTable tbody tr').each(function() {
+    var $cell = $(this).find('td.log-cell');
+    var id = $cell.data('item-id');
+    if (id && fullLogs[id] !== undefined) {
+      $cell.attr('data-search', fullLogs[id]);
+    }
+  });
   if (verTable) { verTable.destroy(); verTable = null; }
   if (items.length > 0) {
     verTable = $('#verTable').DataTable({
@@ -185,8 +215,54 @@ function renderVersions(items) {
   TLi18n.apply();
 }
 
+// Refs #1308 - legacy tip4log() per-row Ext.ToolTip (reqCompareVersions.tpl:32-48,
+// lib/ajax/getreqlog.php:23-43): hover shows the FULL untruncated log. Here the
+// full text is already in the BFF payload, so the tooltip is a lightweight
+// mouse-tracked div (dismissDelay 0 / trackMouse true like Ext). Event delegation
+// survives the DataTables tbody rebuild on every loadVersions().
+function normalizeLogTip(msg) {
+  msg = String(msg || '');
+  // mirror lib/ajax/getreqlog.php: strip wrapping <p> and turn </p> into a line break
+  msg = msg.replace(/<p>/gi, '').replace(/<\/p>/gi, '\n');
+  msg = $.trim(msg);
+  if (msg === '') { msg = TLi18n.t('common.emptyLogMessage'); }
+  return msg;
+}
+
+function bindLogTooltips() {
+  $('#verTable')
+    .off('.logtip')
+    .on('mouseenter.logtip', '.log-cell', function(e) {
+      var msg = fullLogs[$(this).data('item-id')] || '';
+      $('#logTooltip').text(normalizeLogTip(msg))
+        .css({ left: e.clientX + 14, top: e.clientY + 16 })
+        .show();
+    })
+    .on('mousemove.logtip', '.log-cell', function(e) {
+      $('#logTooltip').css({ left: e.clientX + 14, top: e.clientY + 16 });
+    })
+    .on('mouseleave.logtip', '.log-cell', function() {
+      $('#logTooltip').hide();
+    })
+    // safety net: if the tbody is rebuilt while the pointer sits on a cell, the
+    // per-cell mouseleave never fires — hide the tip whenever the pointer leaves
+    // the table body entirely (renderVersions also hides it explicitly).
+    .on('mouseleave.logtip', 'tbody', function() {
+      $('#logTooltip').hide();
+    });
+}
+
 function verRow(it, isRight, isLeft) {
   var revTag = it.revision_id > 0 ? TLi18n.t('rcmp.revision') + ' ' + escapeHtml(it.revision) : '-';
+  // Refs #1308 - legacy reqCompareVersions.php:280-289: the cell shows the log
+  // truncated to req_cfg->log_message_len with '...'; the full, untruncated text
+  // is kept for the hover tooltip (legacy tip4log + lib/ajax/getreqlog.php) and
+  // the empty log renders the legacy empty_log_message placeholder instead of '-'.
+  var logMsg = it.log_message || '';
+  fullLogs[it.item_id] = logMsg;
+  var logShort = (LOG_LEN > 0 && Array.from(logMsg).length > LOG_LEN)
+    ? Array.from(logMsg).slice(0, LOG_LEN).join('') + '...' : logMsg;
+  var logDisp = logMsg === '' ? TLi18n.t('common.emptyLogMessage') : logShort;
   return '<tr>' +
     '<td><span class="badge-rev">' + TLi18n.t('rcmp.version') + ' ' + escapeHtml(it.version) + '</span></td>' +
     '<td>' + revTag + '</td>' +
@@ -194,7 +270,7 @@ function verRow(it, isRight, isLeft) {
       '<label class="radio-inline" title="' + TLi18n.t('rcmp.left') + '"><input type="radio" name="left_item_id" value="' + it.item_id + '"' + (isLeft ? ' checked' : '') + '></label> ' +
       '<label class="radio-inline" title="' + TLi18n.t('rcmp.right') + '"><input type="radio" name="right_item_id" value="' + it.item_id + '"' + (isRight ? ' checked' : '') + '></label>' +
     '</td>' +
-    '<td>' + escapeHtml(it.log_message || '-') + '</td>' +
+    '<td class="log-cell" data-item-id="' + it.item_id + '">' + escapeHtml(logDisp) + '</td>' +
     // Refs #1309 - legacy reqCompareVersions.tpl:228-230 renders the Last change
     // cell as a link (onclick openReqRevisionWindow(item_id)); restore the
     // clickable cell opening the modern revision viewer (reqRevisionView.html),

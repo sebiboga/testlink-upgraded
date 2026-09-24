@@ -19902,3 +19902,79 @@ type 1) linked to BOTH projects via `testproject_issuetracker` (1,1)+(2,1), and
   a11y notice, no JS errors. PASS. (6/6)
 
 **Result: 6/6 PASS. (Refs #964)**
+
+---
+
+## Task — Issue #1308: reqCompare log-message hover tooltip (gap vs legacy)
+
+**Precondition (fixture):** testproject id=1 (Fixture Project) + req_spec id=2
+(PR-001) + requirement id=3 (REQ-001) with req_versions id=4 (v1, 309-char log),
+id=5 (v2, **empty** log) and req_revisions id=6 (r1, 323-char log);
+`req_cfg->log_message_len` = 200; logged in as admin with `mgt_view_req`.
+Entry: `http://localhost:8082/gui/templates/requirements/reqCompare.html?requirement_id=3`
+
+### Test 1 — BFF serves full log + log_message_len (API)
+- **Steps:** `GET /api/reqcompare/index.php?action=versions&requirement_id=3`.
+- **Expected:** payload has `log_message_len:200`; every item's `log_message` is the
+  raw/untruncated text (`VERSION ONE LOG…` 309 chars, `REVISION ONE LOG…` 323 chars,
+  empty string for v2).
+- **Actual:** `log_message_len:200`; item lengths 309 / 0 / 323, none suffixed with
+  `...`. PASS.
+
+### Test 2 — cell truncation to log_message_len with ellipsis
+- **Steps:** load the screen; read Log message cells of rows id=4 and id=6.
+- **Expected:** cells show first 200 chars + `...` (203 chars total, ends with `...`).
+- **Actual:** both cells 203 chars ending `...`. PASS.
+
+### Test 3 — empty log cell shows fallback label (was `-`)
+- **Steps:** read Log message cell of v2 row (id=5).
+- **Expected:** `Log message is empty` (i18n `common.emptyLogMessage`, legacy
+  `$TLS_empty_log_message`), not `-`.
+- **Actual:** cell text `Log message is empty`. PASS.
+
+### Test 4 — hover long version-log cell → tooltip with FULL 309-char text
+- **Steps:** `mouseover` on cell `[data-item-id="4"]`; read `#logTooltip`.
+- **Expected:** tooltip `display:block`, text = exact full 309-char v1 log
+  (untruncated, incl. the tail phrase "end to end without any cut").
+- **Actual:** `display:block`, `textContent.length=309`, full-text match TRUE. PASS.
+
+### Test 5 — hover long revision-log cell → tooltip with FULL 323-char text
+- **Steps:** `mouseover` on cell `[data-item-id="6"]`.
+- **Expected:** tooltip contains the tail "tooltip rendering across the whole message."
+  (beyond the 200-char truncation point).
+- **Actual:** `textContent.length=323`, tail phrase present. PASS.
+
+### Test 6 — hover empty-log cell → tooltip shows empty placeholder
+- **Steps:** `mouseover` on cell `[data-item-id="5"]`.
+- **Expected:** `Log message is empty`.
+- **Actual:** `Log message is empty`. PASS.
+
+### Test 7 — tooltip dismisses on mouseleave
+- **Steps:** `mouseout` from the hovered log cell; read `#logTooltip` display.
+- **Expected:** `display:none`.
+- **Actual:** `display:none`. PASS.
+
+### Test 8 — DataTables search finds text beyond the truncation point (data-search)
+- **Steps:** `$('#verTable').DataTable().search('tooltip rendering across').draw()`.
+- **Expected:** exactly 1 row visible (the revision row whose 323-char log contains
+  that phrase after position 200); 3 rows after clearing the search.
+- **Actual:** 1 visible row; after `search('')` → 3 rows. PASS.
+
+### Test 9 — compare regression (compare action unaffected)
+- **Steps:** `GET ?action=compare&requirement_id=3&left=6&right=5&method=html`.
+- **Expected:** `status:ok`, attributes diff (3 rows), scope diff present.
+- **Actual:** `200 ok`, 3 attribute rows, scope diff returned. PASS.
+
+### Test 10 — i18n round-trip (RO)
+- **Steps:** `?locale=ro`; read v2 Log message cell + hover tooltip.
+- **Expected:** "Mesajul de log este gol" both in cell and tooltip (ro.json
+  `common.emptyLogMessage`).
+- **Actual:** cell `Mesajul de log este gol`; tooltip `Mesajul de log este gol`. PASS.
+
+### Test 11 — Event Viewer clean + console clean
+- **Steps:** read `events` table + browser console after all interactions.
+- **Expected:** no new Error/Warning entries (only the LOGIN audit row); no JS errors.
+- **Actual:** `events` holds only `LOGIN` audit (log_level 16); console has only the
+  pre-existing a11y issue notice. PASS. (11/11)
+
+**Result: 11/11 PASS. (Refs #1308)**

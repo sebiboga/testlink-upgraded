@@ -148,3 +148,40 @@ viewer BFF (`api/reqrevision`) resolves both node kinds.
 Source: `gui/templates/requirements/reqCompare.html` (row cell in `verRow()`,
 helpers `openReqRevision()` + `getCookie()`). i18n: `rcmp.openRevision`
 ("Open revision in new window", localized in all 10 locales).
+
+### Log-message hover tooltip (Refs #1308)
+
+The **Log message** cell in the version/revision list now offers the legacy
+`tip4log()` hover affordance (`reqCompareVersions.tpl:32-48` +
+`lib/ajax/getreqlog.php`): hovering a cell shows a mouse-tracked tooltip with the
+**FULL untruncated log message**, while the cell itself shows the text truncated
+to `req_cfg->log_message_len` (config.inc.php:1618 = 200) + `...` (legacy
+`reqCompareVersions.php:280-289`).
+
+- **BFF** (`api/reqcompare/index.php`, `versions` action): `log_message` is kept
+  RAW (no server-side truncation/whitespace-collapse anymore) and the payload now
+  carries `log_message_len` — mirrors the already-modernized sibling
+  `api/reqspec` `spec_revision_compare` (Refs #1357).
+- **Client** (`reqCompare.html`): reuses the sibling `reqSpecCompare.html` tooltip
+  pattern — `td.log-cell[data-item-id]` (cursor:help, max-width 340px), a fixed
+  `#logTooltip` div (dark, teal border, max-width 500px, `white-space:pre-wrap`),
+  `LOG_LEN` + `fullLogs` (item_id → full text) captured from the BFF payload, and
+  `bindLogTooltips()` delegating `mouseenter/mousemove/mouseleave` on `#verTable`
+  (namespaced, survives the DataTables tbody rebuild; `tbody` mouseleave + explicit
+  hide on re-render are the safety net for pointer-on-rebuild).
+- `normalizeLogTip()` mirrors `lib/ajax/getreqlog.php` exactly: strips `<p>`,
+  turns `</p>` into a line break, trims, and falls back to the legacy
+  `empty_log_message` label (`common.emptyLogMessage` i18n key, present in all 10
+  bundles) — so an **empty log** shows "Log message is empty" instead of the old
+  `-`, both in the cell and in the tooltip.
+- **Search parity:** the same `data-search` full-log indexing used by the sibling
+  (Refs #1357 code review, commit `d70e500c6`) keeps the full untruncated log
+  findable via the DataTables search box even when the visible cell is truncated.
+- Truncation is code-point-aware (`Array.from`/`slice`), so multi-byte text and
+  emoji at the 200-char boundary are never split mid-surrogate.
+- Tooltip content is rendered with `.text()` (no HTML injection); the cell keeps
+  `escapeHtml()`.
+
+Screenshots: `docs/screenshots/issue-1308-reqcompare-log-tip-before.png`
+(gap: cells truncated, no hover affordance), `issue-1308-reqcompare-log-tip-after.png`
+(hover shows full log), `issue-1308-reqcompare-empty-log-tip.png` (empty-log state).

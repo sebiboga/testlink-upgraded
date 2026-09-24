@@ -17,6 +17,24 @@ Every screen of the application was ported one-by-one in a screen-compare
 kept for backward compatibility and is progressively retired as each modern
 screen reaches full parity.
 
+- [FEATURE GAP] - #1308: the modern Requirement Version Compare screen
+  (gui/templates/requirements/reqCompare.html) restores the legacy **log-message
+  hover tooltip**: every Log message cell opens a mouse-tracked tooltip showing
+  the FULL untruncated log (legacy tip4log, reqCompareVersions.tpl:32-48 +
+  lib/ajax/getreqlog.php), while the cell keeps the text truncated to
+  req_cfg->log_message_len (200) + '...' (legacy reqCompareVersions.php:280-289).
+  The modern screen had dropped the affordance: api/reqcompare truncated
+  log_message server-side (measured: payload had no full text, cell had no
+  title/hover). api/reqcompare/index.php now keeps log_message RAW and exposes
+  `log_message_len` (mirror of the accepted reqSpecCompare Refs #1357 pattern);
+  reqCompare.html adds `td.log-cell[data-item-id]` + a fixed `#logTooltip` div,
+  `normalizeLogTip()` (replicates getreqlog.php `<p>`/`</p>` handling and the
+  `empty_log_message` fallback), and delegated `bindLogTooltips()` (survives
+  DataTables tbody rebuilds). Empty logs now render `common.emptyLogMessage`
+  instead of `-` (all 10 bundles already had the key). DataTables search uses
+  `data-search` so the full log stays findable beyond the truncation point.
+  Suite 1308 11/11 PASS, Event Viewer clean. (Refs #1308)
+
 - [TASK] - #1573: Test Plan Navigator BFF hardening batch (code-review leftovers
   of #1572). api/plannav/index.php rewritten: (1) every route wrapped in
   try/catch so a DB failure returns a `500 {"status":"error",...}` JSON contract
