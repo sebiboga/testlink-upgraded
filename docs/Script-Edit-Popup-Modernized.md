@@ -45,11 +45,11 @@ action → `405`.
 
 | Method & path | Purpose | Failure modes |
 |---|---|---|
-| `GET ?action=init&tcversion_id=&tproject_id=&user_action=` | everything the popup needs in one call: `context` (tproject/plan/tcversion names + external id + version), `can_modify` (from `mgt_modify_tc`), linked `code_tracker`, `metadata` (projects/repos/branches/commits for the branch) and the current `scripts` list | 400 missing/invalid tcversion; 403 `mgt_modify_tc right required`; tracker-less project → `code_tracker:null` + `tracker_message` (screen shows the "no tracker" banner) |
+| `GET ?action=init&tcversion_id=&tproject_id=&user_action=` | everything the popup needs in one call: `context` (tproject/plan/tcversion names + external id + version), `can_modify` (from `mgt_modify_tc`), linked `code_tracker`, `metadata` (projects/repos/branches/commits for the branch) and the current `scripts` list | 400 missing tcversion; 404 unknown tcversion; 403 `mgt_modify_tc right required`; tracker-less project → `code_tracker:null` + `tracker_message` (screen shows the "no tracker" banner) |
 | `GET ?action=meta&tcversion_id=&tproject_id=` | repo branches + commits for a branch (githubrest mapped to `{sha,full,message,author,date}`) | 400 missing id; 502 Github unreachable |
 | `GET ?action=files&tcversion_id=&tproject_id=&branch=&path=` | directory listing for the file browser (GitHub contents API; Stash fallback) | 400 missing id; 502 fetch failure (renders an in-tree error row) |
 | `POST ?action=save` `{tproject_id,tcversion_id,project_key,repository_name,code_path,branch_name,commit_id}` | create script link; duplicate triple is a no-op that returns ok; audit `audit_testcasescript_added` | 400 missing fields, 403 no `mgt_modify_tc`, 400 `Script Link '<path>' does not exist on CTS!` |
-| `POST ?action=delete` `{tproject_id,tcversion_id,script_id}` | delete by legacy composite id `project&&repo&&code_path`; audit `audit_testcasescript_deleted` | 400 malformed id, 403 no `mgt_modify_tc`, 404 unknown link |
+| `POST ?action=delete` `{tproject_id,tcversion_id,script_id}` | delete by legacy composite id `project&&repo&&code_path`; audit `audit_testcasescript_deleted` | 400 malformed id, 403 no `mgt_modify_tc`; unknown link is an idempotent delete (200 ok, legacy scriptDelete parity) |
 
 `GET init` `200` payload (abridged):
 ```json
