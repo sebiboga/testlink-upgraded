@@ -437,6 +437,8 @@ $(function () {
   var tcversion_id = parseInt(p.get('tcversion_id') || 0, 10);
   var tproject_id = parseInt(p.get('tproject_id') || 0, 10);
   var tplan_id = parseInt(p.get('tplan_id') || 0, 10);
+  var user_action = p.get('user_action') || '';
+  var script_id = p.get('script_id') || '';
 
   TLi18n.load(function () {
     TLi18n.apply();
@@ -517,6 +519,9 @@ $(function () {
       $('#loading').hide();
       $('#content').show();
       loadFiles('', $('#filebox'));
+      if (user_action === 'delete' && script_id) {
+        setTimeout(function () { openDelete(script_id); }, 300);
+      }
     }).fail(function (xhr) {
       $('#loading').hide();
       if (xhr.status === 403) { $('#denied').show(); return; }

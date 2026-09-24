@@ -635,22 +635,24 @@ function tree_getCheckBox(id)
  */
 function open_script_add_window(tproject_id,tplan_id,tcversion_id,user_action)
 {
-  l2l = "lib/testcases/scriptAdd.php?user_action=" + user_action + 
+  // Refs #1574: the legacy lib/testcases/scriptAdd.php popup is modernized;
+  // scriptAdd.php is kept only as a session-guarded 302 shim.
+  l2l = "gui/templates/testcases/scriptEdit.html?user_action=" + user_action + 
         "&tcversion_id="+tcversion_id +"&tproject_id=" + tproject_id + 
         "&tplan_id=" + tplan_id;
 
   switch(user_action)  
   {
     case 'create':
-      wh = "width=700,height=580";
+      wh = "width=760,height=660";
     break;
 
     default:
-      wh = "width=610,height=650";
+      wh = "width=760,height=640";
     break;
   }            
  
-  window.open(fRoot+l2l,"script_add",wh+",resizable=yes,dependent=yes");
+  window.open(fRoot+l2l,"script_edit",wh+",resizable=yes,dependent=yes");
 }
 
 /**
@@ -835,8 +837,12 @@ function deleteScript(btn,text,combinedScriptID)
   tcversionID = combinedScriptID.substr(idx1+1,idx2)
   scriptID = escape(combinedScriptID.substr(idx2+1));
  
-  window.open(fRoot+"lib/testcases/scriptDelete.php?tproject_id="+tprojectID+"&tcversion_id="+tcversionID+"&script_id="+scriptID,
-                "DeleteScript","width=510,height=150,resizable=yes,dependent=yes");
+  // Refs #1574: the legacy lib/testcases/scriptDelete.php popup is
+  // modernized; scriptDelete.php is kept only as a session-guarded 302
+  // shim. The modern screen pre-selects script_id for immediate delete
+  // confirmation.
+  window.open(fRoot+"gui/templates/testcases/scriptEdit.html?user_action=delete&tproject_id="+tprojectID+"&tcversion_id="+tcversionID+"&script_id="+scriptID,
+                "script_delete","width=760,height=640,resizable=yes,dependent=yes");
 }
 
 // seems is not used => do more checks and remove

@@ -2205,6 +2205,11 @@ function getActions(&$gui,$baseURL) {
     // (open_bug_add_window / open_bug_note_add_window) append the runtime
     // exec_id / tcstep_id / bug_id / user_action parameters.
     $actions->bugAddView = "/gui/templates/execute/bugAdd.html";
+    // Test Script edit popup (modernized scriptAdd.php / scriptDelete.php,
+    // Refs #1574). Standalone Dashio page fed by api/scriptedit; the JS
+    // openers (open_script_add_window / deleteScript) append the runtime
+    // tproject_id / tplan_id / tcversion_id / user_action parameters.
+    $actions->scriptEditView = "/gui/templates/testcases/scriptEdit.html";
   }
 
   $gui->uri = $actions;
