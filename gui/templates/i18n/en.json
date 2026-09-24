@@ -4758,5 +4758,10 @@
   "usergrid.roleId": "Role ID",
   "usergrid.showAllColumns": "Show all Columns",
   "usergrid.userId": "User ID",
-  "version": "Version"
+  "version": "Version",
+  "it.showHideConfigExample": "Show/Hide Config Example",
+  "it.cfgExample": "Configuration example",
+  "it.msg.invalidType": "Issue Tracker type {type} is unknown",
+  "it.msg.interfaceMissing": "Issue Tracker interface {iface} is not implemented/available",
+  "it.msg.errorTemplate": "Failed to load configuration example"
 }

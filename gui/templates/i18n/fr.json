@@ -4742,5 +4742,10 @@
   "usergrid.roleId": "ID de Rôle",
   "usergrid.showAllColumns": "Afficher toutes les colonnes",
   "usergrid.userId": "ID d'utilisateur",
-  "version": "Version"
+  "version": "Version",
+  "it.showHideConfigExample": "Afficher/masquer l'exemple de configuration",
+  "it.cfgExample": "Exemple de Configuration",
+  "it.msg.invalidType": "Le type du gestionnaire d'anomalies {type} est inconnu",
+  "it.msg.interfaceMissing": "L'interface du gestionnaire d'anomalies {iface} n'est pas implémentée/disponible",
+  "it.msg.errorTemplate": "Échec du chargement de l'exemple de configuration"
 }

@@ -4748,5 +4748,10 @@
   "usergrid.roleId": "ID роли",
   "usergrid.showAllColumns": "Показать все столбцы",
   "usergrid.userId": "ID пользователя",
-  "version": "Версия"
+  "version": "Версия",
+  "it.showHideConfigExample": "Показать/скрыть пример конфигурации",
+  "it.cfgExample": "Пример конфигурации",
+  "it.msg.invalidType": "Тип системы отслеживания {type} неизвестен",
+  "it.msg.interfaceMissing": "Интерфейс {iface} системы отслеживания не реализован/недоступен",
+  "it.msg.errorTemplate": "Не удалось загрузить пример конфигурации"
 }

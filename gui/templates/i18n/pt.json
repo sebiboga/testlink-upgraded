@@ -4748,5 +4748,10 @@
   "usergrid.roleId": "ID de Função",
   "usergrid.showAllColumns": "Mostrar todas as colunas",
   "usergrid.userId": "ID de Utilizador",
-  "version": "Versão"
+  "version": "Versão",
+  "it.showHideConfigExample": "Mostrar/Esconder configuração do modelo",
+  "it.cfgExample": "Exemplo de Configuração",
+  "it.msg.invalidType": "O tipo {type} do Gestor de falhas é desconhecido",
+  "it.msg.interfaceMissing": "A interface para o Gestor de Falhas {iface} não está implementado/disponível",
+  "it.msg.errorTemplate": "Falha ao carregar o exemplo de configuração"
 }

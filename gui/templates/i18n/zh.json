@@ -4728,5 +4728,10 @@
   "usergrid.roleId": "角色 ID",
   "usergrid.showAllColumns": "显示所有列",
   "usergrid.userId": "用户 ID",
-  "version": "版本"
+  "version": "版本",
+  "it.showHideConfigExample": "显示/隐藏配置示例",
+  "it.cfgExample": "连接配置样例",
+  "it.msg.invalidType": "问题跟踪类型 {type} 未定义。",
+  "it.msg.interfaceMissing": "问题跟踪系统的接口 {iface} 不可用。",
+  "it.msg.errorTemplate": "加载配置示例失败"
 }

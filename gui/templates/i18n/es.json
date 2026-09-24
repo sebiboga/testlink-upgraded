@@ -4742,5 +4742,10 @@
   "usergrid.roleId": "ID de Rol",
   "usergrid.showAllColumns": "Mostrar todas las columnas",
   "usergrid.userId": "ID de Usuario",
-  "version": "Versión"
+  "version": "Versión",
+  "it.showHideConfigExample": "Mostrar/ocultar ejemplo de configuración",
+  "it.cfgExample": "Ejemplo de configuración",
+  "it.msg.invalidType": "El tipo de Gestor de Defectos {type} es desconocido",
+  "it.msg.interfaceMissing": "La interfaz del Gestor de Defectos {iface} no está implementada/disponible",
+  "it.msg.errorTemplate": "Error al cargar el ejemplo de configuración"
 }

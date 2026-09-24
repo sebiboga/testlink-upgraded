@@ -4752,5 +4752,10 @@
   "usergrid.roleId": "ID Rol",
   "usergrid.showAllColumns": "Afișează toate coloanele",
   "usergrid.userId": "ID Utilizator",
-  "version": "Versiune"
+  "version": "Versiune",
+  "it.showHideConfigExample": "Arată/Ascunde exemplu de configurare",
+  "it.cfgExample": "Exemplu de configurare",
+  "it.msg.invalidType": "Tipul {type} al urmăritorului de probleme este necunoscut",
+  "it.msg.interfaceMissing": "Interfața {iface} a urmăritorului de probleme nu este implementată/disponibilă",
+  "it.msg.errorTemplate": "Încărcarea exemplului de configurare a eșuat"
 }

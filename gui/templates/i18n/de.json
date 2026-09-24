@@ -4742,5 +4742,10 @@
   "usergrid.roleId": "Rollen-ID",
   "usergrid.showAllColumns": "Alle Spalten anzeigen",
   "usergrid.userId": "Benutzer-ID",
-  "version": "Version"
+  "version": "Version",
+  "it.showHideConfigExample": "Konfigurations-Beispiel anzeigen/verbergen",
+  "it.cfgExample": "Konfigurations-Beispiel",
+  "it.msg.invalidType": "Issue Tracker type {type} ist unbekannt",
+  "it.msg.interfaceMissing": "Issue Tracker Schnittstelle {iface} ist nicht verfügbar/implementiert",
+  "it.msg.errorTemplate": "Konfigurations-Beispiel konnte nicht geladen werden"
 }

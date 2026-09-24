@@ -90,6 +90,31 @@ screen reaches full parity.
   that PHP8 cannot serialize (measured crash). Browser-verified ok (DB-backed
   tracker → local MariaDB) and ko (unreachable endpoint) on both entry points;
   Event Viewer clean. Suite 962 4/4 PASS. (Refs #962)
+- [FEATURE GAP] - #965: the modern Issue Trackers edit modal regains the legacy
+  per-type **configuration template loader** (`getCfgTemplate`). Legacy
+  `displayCfgExample` (`issueTrackerEdit.tpl:24-65`) put an eye icon next to the
+  Configuration field whose AJAX (`lib/ajax/getissuetrackercfgtemplate.php?type=N`)
+  INJECTED the enabled interface's `$iname::getCfgTemplate()` as `<pre><xmp>` —
+  or the localized `issuetracker_interface_not_implemented` /
+  `issuetracker_invalid_type` messages when the interface class file is missing
+  or the type is unknown/disabled (legacy maps types through `getTypes()`, which
+  returns ENABLED types only). The modern screen only showed a static placeholder.
+  The BFF (`api/issuetracker/index.php`) now mirrors the legacy ajax as
+  `GET /cfg-template?type=N` (enabled-type gating via `getTypes()`; probes
+  `stream_resolve_include_path` BEFORE any include so a missing interface never
+  makes the autoloader emit the E_WARNING that `class_exists()` logs into the
+  events table — measured 2 E_WARNING rows during the interface_missing test,
+  legacy avoids this by design); `issuetrackerView.html` gained an eye helper
+  (`#btnCfgExample`), a hidden `#cfgExampleOuter`/`#cfgExample` block and JS
+  `loadCfgTemplate()`/`toggleCfgTemplate()` (raw template drawn via textContent
+  = xmp parity, no innerHTML), and the example auto-refreshes when the Type
+  select changes (requested in #965) and collapses on modal hide/reset. New i18n
+  keys in all 10 bundles (`it.showHideConfigExample`, `it.cfgExample`,
+  `it.msg.invalidType`, `it.msg.interfaceMissing`, `it.msg.errorTemplate`, the
+  JSON BFF returns structured error codes the client localizes via TLi18n).
+  Browser-verified ok/interface_missing/invalid_type paths + RO round-trip
+  (`?locale=ro`); Event Viewer clean. Screenshots `docs/screenshots/issue-965-*`.
+  (Refs #965)
 - [FEATURE GAP] - #959: the modern Issue Trackers screen enforces the legacy
   `issuetracker_view` read right. Legacy `lib/issuetrackers/issueTrackerView.php:61-66`
   gated the WHOLE page on `checkRights()` = hasRight('issuetracker_view') ||

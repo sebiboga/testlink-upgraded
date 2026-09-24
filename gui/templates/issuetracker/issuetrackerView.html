@@ -92,7 +92,12 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
         </div>
         <div class="form-group" style="margin-bottom:12px;">
           <label style="font-size:12px;font-weight:600;" data-i18n="it.cfg">Configuration (XML)</label>
+          <a href="javascript:void(0)" id="btnCfgExample" onclick="toggleCfgTemplate()" style="margin-left:6px;color:#4ECDC4;" title="" data-i18n-title="it.showHideConfigExample"><i class="fas fa-eye"></i></a>
           <textarea id="editCfg" class="form-control" rows="6" style="font-size:13px;font-family:monospace;" placeholder="<issuetracker>&#10;  &lt;uribase&gt;...&lt;/uribase&gt;&#10;  &lt;apikey&gt;...&lt;/apikey&gt;&#10;&lt;/issuetracker&gt;"></textarea>
+        </div>
+        <div id="cfgExampleOuter" style="display:none;margin-bottom:12px;">
+          <label style="font-size:12px;font-weight:600;" data-i18n="it.cfgExample">Configuration example</label>
+          <pre id="cfgExample" style="font-size:12px;font-family:monospace;background:#f6f6f6;padding:8px 12px;border-radius:4px;white-space:pre-wrap;word-break:break-all;margin:0;max-height:220px;overflow:auto;"></pre>
         </div>
         <div id="modalError" style="color:#e6605e;font-size:12px;margin-top:8px;display:none;"></div>
         <div id="connAlert" style="display:none;margin-top:8px;font-size:13px;padding:8px 12px;border-radius:4px;"></div>
@@ -166,6 +171,13 @@ $(function() {
   // always starts from the collapsed state (legacy displayUsedBy parity).
   $('#trackerModal').on('hidden.bs.modal', function() {
     $('#usedByOuter').hide();
+    $('#cfgExampleOuter').hide();
+  });
+  // Legacy reloaded the example only on eye-click; the issue's suggested fix
+  // asks for the template to follow the Type select — refresh a SHOWN example
+  // whenever the user changes the interface, so the cfg keys always match it.
+  $('#editType').on('change', function() {
+    if ($('#cfgExampleOuter').is(':visible')) loadCfgTemplate();
   });
 });
 
@@ -303,6 +315,7 @@ function showCreateModal() {
   // null on create) -> toggleUsedBy() renders the 'not used/linked' state.
   usedByProjects = [];
   $('#usedByOuter').hide();
+  $('#cfgExampleOuter').hide();
   $('#trackerModal').modal('show');
 }
 
@@ -322,6 +335,7 @@ function editTracker(id) {
     // toggleUsedBy() can render 'used on test project' / 'not used/linked'.
     usedByProjects = (t.links && t.links.length) ? t.links : [];
     $('#usedByOuter').hide();
+    $('#cfgExampleOuter').hide();
     $('#trackerModal').modal('show');
   });
 }
@@ -443,6 +457,44 @@ function checkConnectionModal() {
       alertEl.text(msg).addClass('alert alert-danger').show();
     }
   });
+}
+
+/* ---- Per-type cfg template example (legacy displayCfgExample) ---- */
+
+// Legacy displayCfgExample (issueTrackerEdit.tpl:24-65): the eye icon next to
+// the Configuration field AJAX-loads lib/ajax/getissuetrackercfgtemplate.php?type=N
+// and injects the selected interface's getCfgTemplate() as <pre><xmp> (or the
+// localized invalid-type / interface-not-implemented messages) into #cfg_example.
+// Modern mirror over the BFF /cfg-template route; the template is drawn via
+// textContent so raw XML is displayed verbatim (xmp parity).
+function loadCfgTemplate(done) {
+  var type = parseInt($('#editType').val());
+  var pre = $('#cfgExample');
+  pre.text(TLi18n.t('it.loading'));
+  $.getJSON(API + '/cfg-template?type=' + type, function(r) {
+    if (r.status === 'ok') {
+      pre.text(r.template);
+    } else if (r.code === 'interface_missing') {
+      pre.text(TLi18n.t('it.msg.interfaceMissing', {iface: r.iface}));
+    } else {
+      pre.text(TLi18n.t('it.msg.invalidType', {type: r.type}));
+    }
+    if (done) done();
+  }).fail(function() {
+    pre.text(TLi18n.t('it.msg.errorTemplate'));
+    if (done) done();
+  });
+}
+
+// Port of displayCfgExample's hide/show toggle: clicking the eye hides a
+// rendered example, otherwise loads the template for the current Type.
+function toggleCfgTemplate() {
+  var outer = $('#cfgExampleOuter');
+  if (outer.is(':visible')) {
+    outer.hide();
+    return;
+  }
+  loadCfgTemplate(function() { outer.show(); });
 }
 
 /* ---- GitHub OAuth flow ---- */

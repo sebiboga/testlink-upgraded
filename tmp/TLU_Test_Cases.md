@@ -20095,3 +20095,99 @@ branch sebiboga; real GitHub Contents API, no token), testplan 2, suite 3, `SED1
 - **Actual:** PASS — events hold only 16/AUDIT rows (ids 4,5,7,8 = script add/delete events); console clean; `php -l` clean.
 
 **Result: 15/15 PASS.** (Refs #1574)
+
+## Suite 965 — Task — Issue #965: Per-type configuration template loader (getCfgTemplate) in issuetrackerView (Refs #965)
+
+**Fixture (recreated on this run):** freshly imported DB — enabled interfaces
+include github (type 25, file `githubrestInterface.class.php`), redmine
+(15, `redminerestInterface.class.php`), trello (26, `trellorestInterface.class.php`);
+tracker `Redmine Tracker` (id 1, type 15) created via the UI during testing.
+Browser: admin login,
+`http://localhost:8082/gui/templates/issuetracker/issuetrackerView.html?tproject_id=1&tplan_id=0`.
+
+### Test 1 — eye icon on the Configuration label toggles the template block (create modal, gap fix)
+- **Steps:** `Create Issue Tracker` → click the eye icon (`fa-eye` next to the
+  Configuration label).
+- **Expected:** hidden `#cfgExampleOuter` toggles open with the GitHub REST
+  `getCfgTemplate()` block inside `#cfgExample`; tooltip "Show/Hide Config Example".
+- **Actual:** block shown with `<!-- Template githubrestInterface -->` +
+  `<issuetracker>` XML; eye tooltip "Show/Hide Config Example". PASS.
+
+### Test 2 — per-type template auto-refreshes when the Type select changes (requested in #965)
+- **Steps:** with the example SHOWN, switch the Type select from GitHub (25) to
+  Redmine (15).
+- **Expected:** `#cfgExample` content reloads to the redmine template without a
+  re-click.
+- **Actual:** `<!-- Template redminerestInterface -->` rendered; template head
+  `<issuetracker>` after reload. PASS.
+
+### Test 3 — second click collapses; modal close resets the block
+- **Steps:** click the eye again, then open and close the modal.
+- **Expected:** first click → `display:none`; `hidden.bs.modal` + `showCreateModal()`
+  collapse the block so a fresh modal starts hidden.
+- **Actual:** `#cfgExampleOuter` hidden on second click and after modal
+  close/reopen. PASS.
+
+### Test 4 — edit modal: eye loads the stored type's template
+- **Steps:** open **Redmine Tracker** (type 15) in edit → click the eye.
+- **Expected:** redmine `getCfgTemplate()` shown next to the loaded cfg textarea.
+- **Actual:** `<!-- Template redminerestInterface -->` block rendered. PASS.
+
+### Test 5 — invalid/disabled type renders the localized invalid-type message (API + UI)
+- **Steps:** `GET /api/issuetracker/index.php/cfg-template?type=999` and `?type=10`
+  (disabled mantis xmlrpc); UI: eye in a create modal with an empty Type.
+- **Expected:** API → `200 {"status":"error","code":"invalid_type","type":N}`
+  (getTypes() enabled-only parity); UI renders "Issue Tracker type 0 is unknown"
+  (client-side i18n `it.msg.invalidType`).
+- **Actual:** API type=999 and type=10 → `invalid_type`; UI text "Issue Tracker
+  type 0 is unknown" after converting empty→0. PASS.
+
+### Test 6 — missing interface class renders interface-missing, WITHOUT E_WARNING events (API + hygiene)
+- **Steps:** `mv lib/issuetrackerintegration/trellorestInterface.class.php /tmp/tt.bak`;
+  `GET /api/issuetracker/index.php/cfg-template?type=26`; restore the file;
+  re-GET type=26.
+- **Expected:** file-missing → `200 {"status":"error","code":"interface_missing","iface":"trellorestInterface"}`
+  (legacy `stream_resolve_include_path` probe — no require_once, NO E_WARNING in
+  the `events` table); restored → `200 {"status":"ok","template":"<!-- Template
+  trellorestInterface -->..."}`.
+- **Actual:** interface_missing while moved (200, no E_WARNING rows);
+  restored → ok + trello template. The earlier `class_exists`-based version logged
+  2 E_WARNING rows (measured, deleted); final probe stream_resolve path keeps the
+  events table clean (only the LOGIN audit row). PASS.
+
+### Test 7 — raw template markup cannot execute (textContent parity with legacy <xmp>)
+- **Steps:** open the eye in the edit modal of an existing tracker; inspect the
+  `#cfgExample` DOM after the template renders; code path traced in
+  `issuetrackerView.html` `loadCfgTemplate()`.
+- **Expected:** the template (which contains raw XML tags like `<uribase>`,
+  `<apikey>`) is drawn with `pre.text(...)` (textContent), so `#cfgExample`
+  holds a SINGLE text node with ZERO child elements — any markup-looking string
+  (e.g. a `<script>` inside a template) stays inert, exactly like the legacy
+  `<pre><xmp>` injection; never innerHTML.
+- **Actual:** `#cfgExample.childElementCount === 0 && childNodeCount === 1` (one
+  text node) with `<!-- Template githubrestInterface --> <issuetracker>...`
+  raw XML visible verbatim as text. `loadCfgTemplate()` confirmed to use only
+  `pre.text(...)` (no innerHTML on any value). PASS.
+
+### Test 8 — i18n round-trip (RO) for all new keys
+- **Steps:** `?locale=ro`; open the create modal + eye.
+- **Expected:** modal title "Creaza Urmator Probleme"; eye tooltip "Arată/Ascunde
+  exemplu de configurare"; example label "Exemplu de configurare"; "Configurare
+  (XML)" label; template loads normally.
+- **Actual:** all RO strings rendered as expected; template loads under RO. PASS.
+
+### Test 9 — screen regression: list, create, edit, check-connection, meta/types
+- **Steps:** load the list (1 tracker row); create modal opens; edit Redmine
+  Tracker; `POST /1/check-connection`; `GET /meta/types`.
+- **Expected:** list renders; create/edit open; check-connection → `200
+  {"status":"ok","connected":false,...}`; meta/types intact.
+- **Actual:** list 1 row; create/edit fine; check-connection 200; meta/types 26.
+  PASS.
+
+### Test 10 — Event Viewer clean + console clean
+- **Steps:** read the `events` table + browser console after all interactions.
+- **Expected:** no new Error/Warning entries (only the LOGIN audit row); no JS errors.
+- **Actual:** `events` holds only the LOGIN audit row (log_level 16); console has
+  only the pre-existing a11y issue notice. PASS.
+
+**Result: 10/10 PASS. (Refs #965)**

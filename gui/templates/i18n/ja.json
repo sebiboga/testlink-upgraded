@@ -4748,5 +4748,10 @@
   "usergrid.roleId": "ロールID",
   "usergrid.showAllColumns": "全ての列を表示",
   "usergrid.userId": "ユーザーID",
-  "version": "バージョン"
+  "version": "バージョン",
+  "it.showHideConfigExample": "構成例を表示/非表示",
+  "it.cfgExample": "構成例",
+  "it.msg.invalidType": "課題追跡タイプ {type} は未定義です",
+  "it.msg.interfaceMissing": "課題追跡インターフェース {iface} が実装されていない/利用できない",
+  "it.msg.errorTemplate": "構成例の読み込みに失敗しました"
 }

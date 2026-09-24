@@ -4742,5 +4742,10 @@
   "usergrid.roleId": "ID Ruolo",
   "usergrid.showAllColumns": "Mostra tutte le colonne",
   "usergrid.userId": "ID Utente",
-  "version": "Versione"
+  "version": "Versione",
+  "it.showHideConfigExample": "Mostra/nascondi esempio di configurazione",
+  "it.cfgExample": "Esempio di configurazione",
+  "it.msg.invalidType": "Il tipo {type} del gestore di problemi è sconosciuto",
+  "it.msg.interfaceMissing": "L'interfaccia {iface} del gestore di problemi non è implementata/disponibile",
+  "it.msg.errorTemplate": "Caricamento dell'esempio di configurazione non riuscito"
 }

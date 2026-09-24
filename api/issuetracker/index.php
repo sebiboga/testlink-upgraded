@@ -149,6 +149,40 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'meta' && isset
     out(['status' => 'ok', 'items' => $items]);
 }
 
+// Legacy lib/ajax/getissuetrackercfgtemplate.php: the eye icon next to the
+// Configuration field in issueTrackerEdit.tpl:24-65 (displayCfgExample) loads
+// the per-type $iname::getCfgTemplate() template via ?type=N, falling back to
+// the localized issuetracker_interface_not_implemented (missing interface
+// class) / issuetracker_invalid_type (unknown type) messages. Modern BFF
+// mirror: GET /cfg-template?type=N returns the raw template for an ENABLED
+// type (getTypes() parity — disabled types are "invalid" like legacy), or a
+// structured error code the client localizes via TLi18n (the JSON BFF has no
+// lang_get). i18n keys: it.msg.invalidType / it.msg.interfaceMissing.
+if ($method === 'GET' && ($segments[0] ?? '') === 'cfg-template' && empty($segments[1])) {
+    $type = intval($_GET['type'] ?? 0);
+    // getTypes() = ENABLED types only (tlIssueTracker.class.php:150-160);
+    // isset() on it reproduces the legacy "unknown type" branch for disabled
+    // and out-of-map ids alike.
+    $itt = $mgr->getTypes();
+    if (isset($itt[$type])) {
+        $iname = $mgr->getImplementationForType($type);
+        // Legacy probes stream_resolve_include_path() BEFORE any include, so a
+        // missing interface never makes the autoloader emit the E_WARNING that
+        // class_exists() would log into the events table (measured during the
+        // issue #965 interface_missing test: 2 E_WARNING rows were written).
+        // require_once() then loads the file through the same include_path
+        // stream_resolve just validated.
+        if (stream_resolve_include_path($iname . '.class.php') !== false) {
+            if (!class_exists($iname, false)) {
+                require_once($iname . '.class.php');
+            }
+            out(['status' => 'ok', 'type' => $type, 'template' => $iname::getCfgTemplate()]);
+        }
+        out(['status' => 'error', 'code' => 'interface_missing', 'iface' => $iname]);
+    }
+    out(['status' => 'error', 'code' => 'invalid_type', 'type' => $type]);
+}
+
 // Legacy list wrench icon (issueTrackerView.tpl:55-58 -> issueTrackerView.php?id=N
 // -> tlIssueTracker::checkConnection() at tlIssueTracker.class.php:723-735) runs
 // the STORED config through the implementation's isConnected() and renders an
