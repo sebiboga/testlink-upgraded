@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Test Script</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+
+.header {
+  background: #4ECDC4; color: #fff; padding: 14px 24px;
+  font-size: 20px; font-weight: 700; letter-spacing: 1px;
+}
+.header .sub { font-size: 13px; font-weight: 400; opacity: .85; margin-left: 12px; }
+
+.wrap { padding: 22px 24px; max-width: 980px; margin: 0 auto; }
+
+.meta {
+  background: #fff; border-radius: 8px; padding: 16px 20px; margin-bottom: 18px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.08);
+}
+.meta .row { display: flex; flex-wrap: wrap; gap: 8px 28px; }
+.meta .field { font-size: 13px; color: #555; }
+.meta .field b { color: #22242a; margin-right: 5px; }
+
+.card {
+  background: #fff; border-radius: 8px; padding: 20px; margin-bottom: 18px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.08);
+}
+.card h3 { margin: 0 0 14px; font-size: 15px; color: #22242a; }
+
+label { font-size: 13px; color: #555; font-weight: 600; margin: 12px 0 4px; display: block; }
+select, input[type=text] {
+  width: 100%; border: 1px solid #d0d0d0; border-radius: 6px; padding: 7px 10px;
+  font-size: 13px; background: #fff;
+}
+
+.warnbar {
+  background: #fff7e6; border: 1px solid #f2d3a7; color: #8a6d1f; border-radius: 6px;
+  padding: 10px 14px; font-size: 13px; margin-bottom: 14px;
+}
+.errbanner {
+  background: #fdecea; border: 1px solid #f5c6cb; color: #b94a48;
+  border-radius: 6px; padding: 10px 14px; font-size: 13px; margin-bottom: 14px; display: none;
+}
+
+.toolbar { margin-top: 16px; text-align: right; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 8px 20px;
+  border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-danger { background: #e6605e; color: #fff; border: none; padding: 8px 20px;
+  border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-outline { background: #fff; color: #555; border: 1px solid #ccc; padding: 8px 20px;
+  border-radius: 4px; cursor: pointer; font-size: 13px; }
+.btn-outline:hover { background: #f0f0f0; }
+.btn-sm { padding: 4px 12px; font-size: 12px; }
+
+.external-link { font-size: 13px; font-weight: normal; margin-left: 8px; }
+
+.filebox {
+  background: #fafafa; border: 1px solid #e2e2e2; border-radius: 6px;
+  margin-top: 8px; max-height: 260px; overflow: auto;
+}
+.frow { display: flex; align-items: center; gap: 8px; padding: 5px 12px;
+  font-size: 13px; cursor: pointer; color: #333; border-bottom: 1px solid #f2f2f2; }
+.frow:hover { background: #eef7f6; }
+.frow i { width: 16px; text-align: center; color: #888; }
+.frow.dir i.folder { color: #e8b453; }
+.frow.active { background: #d8f0ee; font-weight: 600; }
+.frow .crumbs { color: #999; font-size: 11px; margin-left: 8px; }
+
+.scriptrow { display: flex; align-items: center; gap: 12px; padding: 10px 12px;
+  border-bottom: 1px solid #f0f0f0; font-size: 13px; }
+.scriptrow .path { font-weight: 600; color: #22242a; }
+.scriptrow .branch { color: #888; font-size: 12px; margin-left: 8px; }
+.scriptrow .actions { margin-left: auto; white-space: nowrap; }
+.scriptrow .actions a { color: #4ECDC4; margin-right: 6px; font-size: 12px; text-decoration: none; }
+.empty { color: #999; font-style: italic; padding: 12px; text-align: center; font-size: 13px; }
+
+.access-denied {
+  background: #fff; border: 1px solid #f0d0d0; border-left: 4px solid #e6605e;
+  border-radius: 8px; margin: 24px; padding: 28px 32px; text-align: center;
+}
+.access-denied i { font-size: 34px; color: #e6605e; margin-bottom: 10px; }
+.access-denied h3 { margin: 0 0 8px; font-size: 18px; color: #22242a; }
+.access-denied p { margin: 0; font-size: 14px; color: #777; }
+
+.loading { text-align: center; padding: 60px 0; color: #888; font-size: 14px; }
+
+.toast {
+  position: fixed; top: 16px; right: 16px; background: #2c3e50; color: #fff;
+  padding: 12px 18px; border-radius: 6px; font-size: 13px; opacity: 0;
+  transition: opacity .25s; z-index: 999; pointer-events: none;
+}
+.toast.show { opacity: 1; }
+.toast.ok { background: #4ECDC4; }
+.toast.err { background: #e6605e; }
+
+.modal-content { border-radius: 8px; }
+.modal-header { background: #22242a; color: #fff; }
+.modal-header .close { color: #fff; opacity: .8; }
+</style>
+</head>
+<body>
+<div class="header">
+  <i class="fa fa-code"></i>
+  <span data-i18n="sced.title">Test Script</span>
+  <span class="sub" id="hdrSub"></span>
+</div>
+
+<div class="wrap">
+  <div id="loading" class="loading"><i class="fa fa-spinner fa-spin"></i> <span data-i18n="common.loading">Loading...</span></div>
+
+  <div id="denied" class="access-denied" style="display:none">
+    <i class="fa fa-lock"></i>
+    <h3 data-i18n="sced.accessDenied">Access denied</h3>
+    <p data-i18n="sced.accessDeniedMsg">A test case version is required to open this screen.</p>
+  </div>
+
+  <div id="content" style="display:none">
+    <div id="errBanner" class="errbanner"></div>
+
+    <div class="meta">
+      <div class="row">
+        <span class="field"><b data-i18n="sced.testCase">Test case</b><span id="mbTestCase">-</span></span>
+        <span class="field"><b data-i18n="sced.version">Version</b><span id="mbVersion">-</span></span>
+        <span class="field"><b data-i18n="sced.project">Test project</b><span id="mbProject">-</span></span>
+        <span class="field"><b data-i18n="sced.plan">Test plan</b><span id="mbPlan">-</span></span>
+        <span class="field"><b data-i18n="sced.codeTracker">Code tracker</b><span id="mbTracker">-</span></span>
+      </div>
+    </div>
+
+    <div id="noTrackerWarn" class="warnbar" style="display:none"></div>
+
+    <div id="addCard" class="card">
+      <h3><i class="fa fa-plus-circle"></i> <span data-i18n="sced.addScript">Add script link</span></h3>
+
+      <p id="ctsLink" style="font-size:13px;margin:0 0 4px;">
+        <a data-i18n="sced.createOnCts" id="createCodeLink" target="_blank" href="#" style="font-weight:normal">Create code on the code tracker</a>
+      </p>
+
+      <div style="display:flex; gap:16px; flex-wrap:wrap;">
+        <div style="flex:1; min-width:220px;">
+          <label data-i18n="sced.projectKey">Project</label>
+          <select id="projectKey"></select>
+        </div>
+        <div style="flex:1; min-width:220px;">
+          <label data-i18n="sced.repository">Repository</label>
+          <select id="repoName"></select>
+        </div>
+        <div style="flex:1; min-width:220px;">
+          <label data-i18n="sced.branchName">Branch</label>
+          <select id="branchName"></select>
+        </div>
+      </div>
+
+      <label data-i18n="sced.commitId">Commit id</label>
+      <div style="display:flex; gap:8px;">
+        <input type="text" id="commitId" style="flex:1;">
+        <select id="commitPicker" style="max-width:180px;" title=""></select>
+      </div>
+
+      <label data-i18n="sced.scriptPath">Script path (code path)</label>
+      <input type="text" id="codePath" placeholder="README.md">
+
+      <label data-i18n="sced.fileBrowser">Repository browser</label>
+      <div class="filebox" id="filebox"></div>
+
+      <div class="toolbar">
+        <button type="button" class="btn-outline" id="btnClose"><i class="fa fa-times"></i> <span data-i18n="common.close">Close</span></button>
+        <button type="button" class="btn-teal" id="btnSave"><i class="fa fa-save"></i> <span data-i18n="common.save">Save</span></button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3><i class="fa fa-link"></i> <span data-i18n="sced.linkedScripts">Linked scripts</span></h3>
+      <div id="scriptsList"></div>
+    </div>
+  </div>
+</div>
+
+<!-- delete confirm modal -->
+<div class="modal fade" id="delModal" tabindex="-1" role="dialog">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+        <h5 class="modal-title" data-i18n="sced.deleteTitle">Delete script link</h5>
+      </div>
+      <div class="modal-body" style="font-size:13px;color:#555;" data-i18n="sced.deleteMsg">Unlink this script from the test case version?</div>
+      <div class="modal-footer">
+        <button type="button" class="btn-outline" data-dismiss="modal" data-i18n="common.cancel">Cancel</button>
+        <button type="button" class="btn-danger" id="btnConfirmDelete" data-i18n="common.delete">Delete</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/scriptedit/index.php';
+var CTX = null;      // init context
+var META = null;     // select metadata
+var CK = null;       // code tracker info
+var treePath = '';   // current directory in the file browser
+
+function esc(s) {
+  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function toast(msg, kind) {
+  var t = $('#toast');
+  t.removeClass('ok err').addClass('show ' + (kind || 'ok')).text(msg);
+  clearTimeout(t.data('to'));
+  t.data('to', setTimeout(function () { t.removeClass('show'); }, 2600));
+}
+
+function setErr(msg) {
+  if (msg) { $('#errBanner').text(msg).show(); } else { $('#errBanner').hide(); }
+}
+
+function fillSelect($sel, map, selected) {
+  $sel.empty();
+  if (map) {
+    var keys = Object.keys(map);
+    if (keys.length === 0) { $sel.append('<option value="">-</option>'); return; }
+    keys.forEach(function (k) {
+      var o = $('<option/>').attr('value', k).text(map[k] || k);
+      if (selected !== undefined && String(k) === String(selected)) { o.attr('selected', 'selected'); }
+      $sel.append(o);
+    });
+  } else {
+    $sel.append('<option value="">-</option>');
+  }
+}
+
+function refreshSelects() {
+  if (!META) { return; }
+  fillSelect($('#projectKey'), META.projects, META.project_key);
+  fillSelect($('#repoName'), META.repos, META.repository_name);
+  fillSelect($('#branchName'), META.branches, META.branch_name);
+  var commits = META.commits || {};
+  var cKeys = Object.keys(commits);
+  $('#commitPicker').empty().append('<option value=""></option>');
+  cKeys.forEach(function (k) { $('#commitPicker').append('<option value="' + esc(k) + '">' + esc(commits[k]) + '</option>'); });
+  $('#commitId').val(META.commit_id || '');
+}
+
+function loadMeta(params, cb) {
+  var q = [];
+  Object.keys(params || {}).forEach(function (k) { q.push(k + '=' + encodeURIComponent(params[k])); });
+  $.getJSON(API + (q.length ? '?action=meta&' + q.join('&') : '?action=meta'), function (r) {
+    if (r.status !== 'ok') { toast(r.message || 'Error', 'err'); if (cb) cb(false); return; }
+    META = r.metadata;
+    refreshSelects();
+    if (cb) cb(true);
+  }).fail(function (xhr) {
+    var msg = (xhr.responseJSON && xhr.responseJSON.message) || TLi18n.t('sced.loadError');
+    toast(msg, 'err');
+    if (cb) cb(false);
+  });
+}
+
+function currentSelection() {
+  return {
+    project_key: $('#projectKey').val() || '',
+    repository_name: $('#repoName').val() || '',
+    branch_name: $('#branchName').val() || '',
+    commit_id: $('#commitId').val() || ''
+  };
+}
+
+function loadFiles(path, into) {
+  var sel = currentSelection();
+  if (!sel.repository_name) { into.html('<div class="empty">' + esc(TLi18n.t('sced.selectRepoFirst')) + '</div>'); return; }
+  into.html('<div class="empty"><i class="fa fa-spinner fa-spin"></i> ' + esc(TLi18n.t('sced.loadingBrowser')) + '</div>');
+  var q = 'action=files&path=' + encodeURIComponent(path || '') +
+          '&project_key=' + encodeURIComponent(sel.project_key) +
+          '&repository_name=' + encodeURIComponent(sel.repository_name) +
+          (sel.branch_name ? '&branch=' + encodeURIComponent(sel.branch_name) : '');
+  $.getJSON(API + '?' + q, function (r) {
+    if (r.status !== 'ok') { into.html('<div class="empty">' + esc(r.message || '') + '</div>'); return; }
+    treePath = String(r.path || '/').replace(/\/+$/, '');
+    var items = r.items || [];
+    if (items.length === 0) { into.html('<div class="empty">' + esc(TLi18n.t('sced.folderEmpty')) + '</div>'); return; }
+    var h = '';
+    items.forEach(function (it) {
+      if (it.type === 'dir') {
+        h += '<div class="frow dir" data-path="' + esc(it.path) + '" onclick="openDir(this)">' +
+             '<i class="fa fa-folder folder"></i><span>' + esc(it.name) + '</span>' +
+             '<span class="crumbs">' + esc(it.path) + '</span></div>';
+      } else {
+        h += '<div class="frow file" data-path="' + esc(it.path) + '" onclick="pickFile(this)">' +
+             '<i class="fa fa-file"></i><span>' + esc(it.name) + '</span>' +
+             '<span class="crumbs">' + esc(it.path) + '</span></div>';
+      }
+    });
+    into.html(h);
+  }).fail(function (xhr) {
+    var msg = (xhr.responseJSON && xhr.responseJSON.message) || TLi18n.t('sced.loadError');
+    into.html('<div class="empty">' + esc(msg) + '</div>');
+  });
+}
+
+function openDir(el) {
+  loadFiles($(el).data('path'), $('#filebox'));
+}
+
+function pickFile(el) {
+  $('#filebox .frow').removeClass('active');
+  $(el).addClass('active');
+  $('#codePath').val($(el).data('path'));
+}
+
+function refreshScripts() {
+  var s = CTX && CTX.scripts ? CTX.scripts : [];
+  if (s.length === 0) {
+    $('#scriptsList').html('<div class="empty">' + esc(TLi18n.t('sced.noScripts')) + '</div>');
+    return;
+  }
+  var h = '';
+  s.forEach(function (x) {
+    var view = x.view_url ? '<a href="' + esc(x.view_url) + '" target="_blank"><i class="fa fa-external-link"></i> ' +
+               esc(TLi18n.t('sced.view')) + '</a>' : '';
+    h += '<div class="scriptrow">' +
+         '<i class="fa fa-code"></i><span class="path">' + esc(x.link_label) + '</span>' +
+         '<span class="branch">' + esc(x.repository_name + (x.branch_name ? ' @ ' + x.branch_name : '')) + '</span>' +
+         '<span class="actions">' + view +
+         '<a href="#" onclick="openDelete(\'' + esc(x.script_id) + '\');return false;" title="' + esc(TLi18n.t('sced.delete')) + '">' +
+         '<i class="fa fa-trash" style="color:#e6605e;"></i></a></span></div>';
+  });
+  $('#scriptsList').html(h);
+}
+
+var pendingDelete = null;
+function openDelete(scriptId) {
+  pendingDelete = scriptId;
+  $('#delModal').modal('show');
+}
+
+function confirmDelete() {
+  if (!pendingDelete) { return; }
+  $('#btnConfirmDelete').prop('disabled', true);
+  var payload = {
+    tproject_id: CTX ? CTX.tproject_id : 0,
+    tcversion_id: CTX ? CTX.tcversion_id : 0,
+    script_id: pendingDelete
+  };
+  $.ajax({
+    url: API + '?action=delete',
+    method: 'POST',
+    contentType: 'application/json',
+    data: JSON.stringify(payload)
+  }).done(function (r) {
+    $('#delModal').modal('hide');
+    if (r.status === 'ok') { toast(r.message || TLi18n.t('sced.deleted')); reload(); }
+    else { toast(r.message || TLi18n.t('sced.deleteError'), 'err'); }
+  }).fail(function (xhr) {
+    $('#delModal').modal('hide');
+    var msg = (xhr.responseJSON && xhr.responseJSON.message) || TLi18n.t('sced.deleteError');
+    toast(msg, 'err');
+  }).always(function () {
+    $('#btnConfirmDelete').prop('disabled', false);
+  });
+}
+
+function saveScript() {
+  if (!CTX) { return; }
+  var payload = currentSelection();
+  payload.tproject_id = CTX.tproject_id;
+  payload.tcversion_id = CTX.tcversion_id;
+  payload.code_path = $('#codePath').val() || '';
+  if (!payload.project_key || !payload.repository_name || !payload.code_path) {
+    toast(TLi18n.t('sced.required'), 'err');
+    return;
+  }
+  $('#btnSave').prop('disabled', true);
+  $.ajax({
+    url: API + '?action=save',
+    method: 'POST',
+    contentType: 'application/json',
+    data: JSON.stringify(payload)
+  }).done(function (r) {
+    if (r.status === 'ok') {
+      toast(r.message || TLi18n.t('sced.saved'));
+      reload();
+    } else {
+      toast(r.message || TLi18n.t('sced.saveError'), 'err');
+    }
+  }).fail(function (xhr) {
+    var msg = (xhr.responseJSON && xhr.responseJSON.message) || TLi18n.t('sced.saveError');
+    toast(msg, 'err');
+  }).always(function () {
+    $('#btnSave').prop('disabled', false);
+  });
+}
+
+function reload() {
+  $.getJSON(API + '?action=init&tcversion_id=' + CTX.tcversion_id +
+            '&tproject_id=' + CTX.tproject_id +
+            (CTX.tplan_id ? '&tplan_id=' + CTX.tplan_id : ''), function (r) {
+    if (r.status !== 'ok') { toast(r.message || 'Error', 'err'); return; }
+    CTX = r.context;
+    CK = r.code_tracker;
+    META = r.metadata;
+    CTX.scripts = r.scripts || [];
+    refreshSelects();
+    refreshScripts();
+    if (META && META.projects && META.repository_name === '') {
+      var rk = Object.keys(META.repos || {});
+      if (rk.length === 1) { $('#repoName').val(rk[0]); $('#repoName').trigger('change'); }
+    }
+    var fp = $('#codePath').val();
+    if (fp) {
+      var dir = fp.indexOf('/') >= 0 ? fp.substring(0, fp.lastIndexOf('/')) : '';
+      loadFiles(dir, $('#filebox'));
+    } else {
+      loadFiles('', $('#filebox'));
+    }
+  }).fail(function (xhr) {
+    var msg = (xhr.responseJSON && xhr.responseJSON.message) || TLi18n.t('sced.loadError');
+    toast(msg, 'err');
+  });
+}
+
+$(function () {
+  var p = new URLSearchParams(window.location.search);
+  var tcversion_id = parseInt(p.get('tcversion_id') || 0, 10);
+  var tproject_id = parseInt(p.get('tproject_id') || 0, 10);
+  var tplan_id = parseInt(p.get('tplan_id') || 0, 10);
+
+  TLi18n.load(function () {
+    TLi18n.apply();
+    if (!tcversion_id) {
+      $('#loading').hide();
+      $('#denied').show();
+      return;
+    }
+
+    $('#btnSave').on('click', saveScript);
+    $('#btnConfirmDelete').on('click', confirmDelete);
+    $('#btnClose').on('click', function () { window.close(); });
+
+    $('#projectKey').on('change', function () {
+      $('#repoName').empty().append('<option value="">-</option>');
+      $('#branchName').empty().append('<option value="">-</option>');
+      $('#commitPicker').empty().append('<option value=""></option>');
+      loadMeta({ project_key: $('#projectKey').val() });
+    });
+    $('#repoName').on('change', function () {
+      $('#branchName').empty().append('<option value="">-</option>');
+      $('#commitPicker').empty().append('<option value=""></option>');
+      if ($(this).val()) {
+        loadMeta({ project_key: $('#projectKey').val(), repository_name: $(this).val() });
+      }
+    });
+    $('#branchName').on('change', function () {
+      $('#commitPicker').empty().append('<option value=""></option>');
+      loadMeta({ project_key: $('#projectKey').val(), repository_name: $('#repoName').val(), branch_name: $(this).val() });
+    });
+    $('#commitPicker').on('change', function () {
+      if ($(this).val()) { $('#commitId').val($(this).val()); }
+    });
+
+    var q = 'action=init&tcversion_id=' + tcversion_id +
+            (tproject_id ? '&tproject_id=' + tproject_id : '') +
+            (tplan_id ? '&tplan_id=' + tplan_id : '');
+    $.getJSON(API + '?' + q, function (r) {
+      if (r.status !== 'ok') {
+        $('#loading').hide();
+        if (r.not_found || $('.access-denied').length) { $('#denied').show(); }
+        toast(r.message || TLi18n.t('sced.loadError'), 'err');
+        return;
+      }
+      CTX = r.context;
+      CK = r.code_tracker;
+      META = r.metadata;
+      CTX.scripts = r.scripts || [];
+
+      $('#hdrSub').text(CTX.tc_external_id ? (CTX.tc_external_id + ' — ' + CTX.tcversionName) : CTX.tcversionName);
+      $('#mbTestCase').text(CTX.tc_external_id ? (CTX.tc_external_id + ' ' + CTX.tcversionName) : (CTX.tcversionName || ('#' + CTX.tcversion_id)));
+      $('#mbVersion').text(CTX.version || '');
+      $('#mbProject').text(CTX.tprojectName || ('#' + CTX.tproject_id));
+      $('#mbPlan').text(CTX.tplanName || (CTX.tplan_id ? ('#' + CTX.tplan_id) : '-'));
+
+      if (CK) {
+        $('#mbTracker').text(CK.verboseType ? (CK.name + ' (' + CK.verboseType + ')') : CK.name);
+        $('#createCodeLink').attr('href', CK.createCodeURL || '#').text(
+          TLi18n.t('sced.createOnCts') + (CK.name ? ' (' + CK.name + ')' : ''));
+        $('#ctsLink').show();
+      } else {
+        $('#mbTracker').text('-');
+        $('#ctsLink').hide();
+      }
+
+      if (!CK || r.tracker_message) {
+        $('#noTrackerWarn').text(r.tracker_message || TLi18n.t('sced.noTracker')).show();
+        $('#addCard').addClass('disabled');
+      }
+
+      if (!r.can_modify || r.can_modify !== 'yes') {
+        $('#addCard').hide();
+        setErr(TLi18n.t('sced.noModifyRight'));
+      }
+
+      refreshSelects();
+      refreshScripts();
+      $('#loading').hide();
+      $('#content').show();
+      loadFiles('', $('#filebox'));
+    }).fail(function (xhr) {
+      $('#loading').hide();
+      if (xhr.status === 403) { $('#denied').show(); return; }
+      var msg = (xhr.responseJSON && xhr.responseJSON.message) || TLi18n.t('sced.loadError');
+      setErr(msg);
+      $('#content').show();
+      $('#addCard').hide();
+      toast(msg, 'err');
+    });
+  });
+});
+</script>
+</body>
+</html>
