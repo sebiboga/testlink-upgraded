@@ -661,6 +661,24 @@ System:
 - Issue Tracker Management (issuetracker/issuetrackerView.html) - BFF
   api/issuetracker. GitHub OAuth tracker (#771/#813).
 - Code Tracker Management (codetracker/codetrackerView.html) - BFF api/codetracker.
+- [FEATURE GAP] - #969: the modern Code Tracker Management screen enforces the
+  legacy `codetracker_view` read right. Legacy
+  `lib/codetrackers/codeTrackerView.php:68-70` gated the whole page on
+  `checkRights()` = hasRight('codetracker_view') || hasRight('codetracker_management')
+  and logged `audit_security_user_right_missing`; the modern BFF
+  `api/codetracker/index.php` only checked `$_SESSION['userID']` and served EVERY
+  route (list, `/{id}`, `/meta/types`, CRUD POST/PUT/DELETE, `test_github`,
+  `/oauth/*`) to ANY authenticated user — measured: user `ctguest` (role 3
+  `<no rights>`) got HTTP 200 + full list + full CRUD. The BFF now builds
+  `tlUser::getByID()` and returns HTTP 403 `No permission` on every route when
+  neither `codetracker_view` nor `codetracker_management` is held (view-only
+  users stay allowed; write gating tracked separately in #970); 401 when no valid
+  session. `codetrackerView.html` gained a `showDenied()` handler (mirrors
+  issuetrackerView) that hides the toolbar + table and paints the localized
+  `ct.msg.noPermission` footer denial (added to all 10 locale bundles).
+  Browser-verified: ctguest → 403 denied panel, ctviewonly → 200, admin → 200
+  full screen; Event Viewer shows only INFO `audit_security_user_right_missing`
+  events. Suite 969 5/5 PASS. (Refs #969)
 - Plugin Management (plugins/pluginView.html) - BFF api/plugins.
 - Install / Upgrade check (install/installView.html) - BFF api/install.
   Schema state, security notes, GD check (#797, #1282-#1287).
