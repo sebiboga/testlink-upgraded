@@ -12,7 +12,7 @@ legacy popup `lib/requirements/reqView.php`, backed by a new JSON BFF action
 
 | Section | Content |
 |---|---|
-| Toolbar | version selector (`vN rM`, closed versions tagged `*`), refresh, monitoring toggle, **Print**, **Direct link** (toggle), **Help** |
+| Toolbar | version selector (`vN rM`, closed versions tagged `*`), refresh, **New Revision**, monitoring toggle, **Print**, **Direct link** (toggle), **Help** |
 | Print | opens the new print screen `printReq.html` in a resizable popup |
 | Direct link | shows the requirement permalink (`linkto.php?tprojectPrefix=<T>&item=req&id=<docID>`) plus a version-specific link and a **Copy** button (clipboard API with `execCommand` fallback; teal toast on success) |
 | Help | links to the GitHub wiki Requirement-Viewer page |
@@ -49,6 +49,34 @@ an empty version selector; the permission-denied path shows
   legacy `reqView.php` formula) and re-renders the version-specific link when
   the version selector changes.
 
+## New Revision (Refs #1303)
+
+Port of the legacy `reqViewVersionsViewer.tpl` "New Revision" button
+(`doAction=doCreateRevision`) into the modern toolbar:
+
+- **Button visibility** mirrors the legacy gates exactly
+  (`reqViewVersionsViewer.tpl:49,62,106-111`): shown only when the caller has
+  the `mgt_modify_req` grant (`req_mgmt`) on the requirement's own test project
+  AND the displayed version is **open** (`is_open = 1`, i.e. not frozen).
+- **Log prompt**: clicking opens `window.prompt` with
+  `reqv.newRevisionPrompt` ("Revision log message:") — the modern equivalent of
+  the legacy `ask4log()` callback. Cancel is a clean no-op; the prompt may be
+  submitted empty (legacy parity).
+- **Server-side write** `POST /api/requirements/index.php/versions/{id}/revision`
+  with `{log_message}`: re-checks `mgt_modify_req` on the owning project
+  (HTTP 403), rejects frozen versions (HTTP 409), 404s on unknown version ids.
+  It mirrors `reqCommands::doCreateRevision` → `requirement_mgr::create_new_revision`:
+  snapshots the version row into `req_revisions` (scope/status/type + custom
+  fields via `copy_cfields`), keeps the OLD `log_message` in the snapshot
+  (legacy `copy_version_as_revision` SELECT), then bumps `req_versions.revision`
+  (+1), stamps `creation_ts`/`author_id` and stores the NEW log message.
+- **Feedback**: teal toast `reqv.revisionCreated` and the whole view reloads —
+  the version selector now reads `vN rM+1` and the history/compare features
+  show the new snapshot.
+- No audit event is emitted on purpose: legacy `doCreateRevision` emits none
+  and no locale key exists (a `TLS()` call would raise a Not-localized Event
+  Viewer warning); the revision journal lives in `req_revisions`.
+
 ## Access & permission
 
 * Deep links switched from `lib/requirements/reqView.php` to
@@ -74,7 +102,9 @@ an empty version selector; the permission-denied path shows
 29 new keys (`reqv.*`) plus 18 more (`reqv.print`, `reqv.directLink`,
 `reqv.help`, `reqv.helpTooltip`, `reqv.copyLink`, `reqv.specificLink`,
 `reqv.directLinkCopied` and the `reqprint.*` block) added to **all** locale
-bundles: en, de, es, fr, it, ja, pt, ro, ru, zh.
+bundles: en, de, es, fr, it, ja, pt, ro, ru, zh. The New Revision port adds
+3 more keys to every bundle: `reqv.newRevision`, `reqv.newRevisionPrompt`,
+`reqv.revisionCreated`.
 
 ## BFF
 
@@ -92,6 +122,13 @@ Renders the single requirement via the legacy `reqPrint.php` into
 `{status, req_id, req_version_id, req_revision, tproject_id, tproject_name,
 reqname, title, body_html}`. Checks `mgt_view_req` (HTTP 403 on missing right).
 
+`POST /api/requirements/index.php/versions/{id}/revision` with body `{"log_message":"..."}`
+
+Creates a new revision of the requirement version `{id}` (Refs #1303). Checks
+`mgt_modify_req` on the owning project (HTTP 403), rejects frozen versions
+(HTTP 409), 404s on missing versions. Returns
+`{status:'ok', req_id, version_id, revision, log_message}`.
+
 ## Bugs found while testing
 
 * #765 — legacy `requirement_mgr::getTestProjectID()` +
@@ -104,7 +141,9 @@ reqname, title, body_html}`. Checks `mgt_view_req` (HTTP 403 on missing right).
 Suite 764 in `tmp/TLU_Test_Cases.md` — 17/17 PASS (BFF routes, version switch,
 monitor on/off + DB rows, deleted banner, 403 permission path, relations grid,
 deep-link regression). Suite 1305 — Print / Direct link / Help (see below).
+Suite 1303 — New Revision button/frozen/403/404/Event-Viewer — 7/7 PASS.
 
 ![reqView toolbar with Direct link box](screenshots/issue-1305-reqview-directlink-toolbar.png)
 ![Print screen](screenshots/issue-1305-reqprint-screen.png)
 ![Requirement Viewer opened from the Set Results popup](screenshots/issue-1477-reqview-popup-from-setresults.png)
+![Requirement Viewer after creating a revision (v1r2)](screenshots/issue-1303-reqview-new-revision-v1r2.png)

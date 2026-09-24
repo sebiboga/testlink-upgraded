@@ -62,6 +62,7 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; }
     <select id="versionSelect" class="form-control" style="width:auto;display:inline-block;background:#333;color:#fff;border:1px solid #555;height:32px;font-size:13px;"></select>
   </label>
   <button class="btn-teal" onclick="loadView()"><i class="fa fa-refresh"></i> <span data-i18n="common.refresh">Refresh</span></button>
+  <button id="revBtn" class="btn-teal" style="display:none;"><i class="fa fa-files-o"></i> <span data-i18n="reqv.newRevision">New Revision</span></button>
   <button id="monitorBtn" class="btn-ghost" style="display:none;"></button>
   <button id="cmpBtn" class="btn-ghost" style="display:none;" onclick="openCompare()"><i class="fa fa-code-compare"></i> <span data-i18n="reqv.compareVersions">Compare versions</span></button>
   <button class="btn-ghost" onclick="openPrint()"><i class="fa fa-print"></i> <span data-i18n="reqv.print">Print</span></button>
@@ -380,7 +381,39 @@ function renderOverview(r) {
   } else {
     mBtn.hide();
   }
+  // New Revision button (legacy reqViewVersionsViewer.tpl:106-111): gated on
+  // req_mgmt grant AND version not frozen; prompts for the revision log
+  // message (legacy ask4log) before POSTing to /versions/{id}/revision.
+  var revBtn = $('#revBtn');
+  if (r.grant && r.grant.req_mgmt && !c.frozen) {
+    revBtn.show();
+    revBtn.off('click').on('click', function() { newRevision(); });
+  } else {
+    revBtn.hide();
+  }
   $('#infoLine').text(TLi18n.t('reqv.displaying') + ' v' + c.version + 'r' + c.revision);
+}
+
+function newRevision() {
+  var logMsg = window.prompt(TLi18n.t('reqv.newRevisionPrompt'), '');
+  if (logMsg === null) return;
+  $.ajax({
+    url: API + '/versions/' + VERSION_ID + '/revision',
+    method: 'POST',
+    contentType: 'application/json',
+    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+    data: JSON.stringify({ log_message: logMsg }),
+    success: function(r) {
+      if (r.status !== 'ok') { alert(r.message || TLi18n.t('reqv.loadError')); return; }
+      showToast(TLi18n.t('reqv.revisionCreated'), true);
+      loadView();
+    },
+    error: function(xhr) {
+      var msg = TLi18n.t('reqv.loadError');
+      try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
+      alert(msg);
+    }
+  });
 }
 
 function toggleMonitor() {

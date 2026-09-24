@@ -20190,4 +20190,60 @@ Browser: admin login,
 - **Actual:** `events` holds only the LOGIN audit row (log_level 16); console has
   only the pre-existing a11y issue notice. PASS.
 
+## Suite 1303 — Task — Issue #1303: reqView.html New Revision button restored (gap vs legacy) (Refs #1303)
+**Precondition:** fixture `tmp/fixtures_1303.php` ran → tproject `REV1303` (prefix
+RV03), spec `SRS-1303`, requirement `R-1303-1` (req=10, version=11, v1r1, is_open=1);
+admin/admin logged in; crafted browser build:
+`http://localhost:8082/gui/templates/requirements/reqView.html?id=10&version_id=11&tproject_id=1`.
+
+### Test 1 — New Revision button visible on an open (non-frozen) version owned by a manager
+- **Steps:** open the crafted URL as admin.
+- **Expected:** toolbar shows a `New Revision` button (i18n `reqv.newRevision`).
+- **Actual:** button visible between Refresh and Start monitoring. PASS.
+
+### Test 2 — clicking prompts for the revision log message (legacy ask4log parity)
+- **Steps:** click `New Revision`; inspect the dialog; accept with
+  `browser revision test 1303`.
+- **Expected:** `window.prompt("Revision log message:")` appears (i18n
+  `reqv.newRevisionPrompt`); OK proceeds, Cancel is a no-op.
+- **Actual:** prompt `Revision log message:` opened; OK accepted. In the cancel
+  branch the version stayed v1r2 with 1 snapshot (no change). PASS.
+
+### Test 3 — revision is persisted: snapshot + version bump (BFF `POST /versions/{id}/revision`)
+- **Steps:** accept the prompt (Test 2); then `mysql` check `req_revisions` and
+  `req_versions`.
+- **Expected:** `req_revisions` gains a row snapshotting the version
+  (name/doc_id correct, log NULL = legacy keeps old version log), and
+  `req_versions.revision` increments by 1, `log_message` stores the prompt text.
+- **Actual:** version went v1r1→v1r2; `req_revisions` row 13
+  `name='Requirement for New Revision'`, `req_doc_id='R-1303-1'`, `log_message=NULL`;
+  `req_versions.revision=2`, `log_message=' browser revision test 1303'`. Toast
+  `New revision created.` + view reloaded to v1r2. PASS.
+
+### Test 4 — button hidden when the version is frozen (legacy `not frozen` gate)
+- **Steps:** `UPDATE req_versions SET is_open=0 WHERE id=11;` reload the screen;
+  BFF frozen guard with curl; restore is_open=1.
+- **Expected:** toolbar has NO New Revision button (FROZEN=Yes, selector `v1r2 *`);
+  endpoint `POST /versions/11/revision` → HTTP 409
+  `Frozen versions cannot get new revisions`.
+- **Actual:** button absent on reload; curl → 409; restored. PASS.
+
+### Test 5 — 403 rights gate (no mgt_modify_req)
+- **Steps:** `php tmp/mkuser_norights.php`; login `norights`/`norights` via curl;
+  `POST /versions/11/revision`; `GET /view?id=10`.
+- **Expected:** both → HTTP 403 `No permission`.
+- **Actual:** 403 on both. PASS.
+
+### Test 6 — 404 for a nonexistent version and 400 for an invalid id
+- **Steps:** `POST /versions/999/revision`.
+- **Expected:** HTTP 404 `Requirement version not found`.
+- **Actual:** 404. PASS.
+
+### Test 7 — success reload + Event Viewer / console hygiene
+- **Steps:** after Test 3 flow, read `events` table + browser console.
+- **Expected:** no new Error/Warning rows; no console errors.
+- **Actual:** `events` 0 ERROR / 0 WARNING; console empty. PASS.
+
+**Result: 7/7 PASS. (Refs #1303)**
+
 **Result: 10/10 PASS. (Refs #965)**

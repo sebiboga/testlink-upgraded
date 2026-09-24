@@ -5483,6 +5483,22 @@ Changes:
       project tables and added user metrics to the middle section
 
 ## 2.0.1 (in-progress)
+### Feature parity — Requirement Viewer New Revision button (Refs #1303)
+- reqView.html + api/requirements/index.php: restore the legacy New Revision
+  button (reqViewVersionsViewer.tpl:106-111, doAction=doCreateRevision) dropped
+  during modernization. New BFF route POST /versions/{id}/revision mirrors
+  reqCommands::doCreateRevision -> requirement_mgr::create_new_revision:
+  snapshots the version row into req_revisions (name/doc_id/scope/status/type/
+  custom fields; legacy keeps the OLD log_message in the snapshot), bumps
+  req_versions.revision (+1) and stamps author/creation_ts with the prompt's
+  log message. Enforces mgt_modify_req on the OWNING project (403) + not-frozen
+  (409) + unknown version (404). Button shown iff r.grant.req_mgmt && !c.frozen
+  (exact legacy gate); window.prompt log (reqv.newRevisionPrompt) with clean
+  cancel; teal toast reqv.revisionCreated + view reload shows vN rM+1. No audit
+  event on purpose (legacy emits none; no locale key exists). New i18n keys
+  reqv.newRevision / reqv.newRevisionPrompt / reqv.revisionCreated in all 10
+  locale bundles. Suite 1303 7/7 PASS; Event Viewer clean.
+
 ### Feature parity — Issue Tracker edit modal shows 'used on test project' (Refs #964)
 - issuetrackerView.html + api/issuetracker/index.php: restore the legacy
   displayUsedBy block in the tracker edit modal. Legacy issueTrackerEdit.tpl:73-119

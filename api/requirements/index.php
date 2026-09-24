@@ -728,6 +728,80 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'view') {
 }
 
 // ---------------------------------------------------------------------------
+// POST /versions/{versionId}/revision - create a NEW REVISION of the current
+// version (legacy reqViewVersionsViewer.tpl New Revision button -> reqEdit.php
+// doAction=doCreateRevision -> reqCommands::doCreateRevision (reqCommands.
+// class.php:781) -> requirement_mgr::create_new_revision (requirement_mgr.
+// class.php:2955)).
+//   - Gated on mgt_modify_req on the OWNING test project (legacy req_mgmt
+//     grant, reqViewVersionsViewer.tpl:49) AND version is_open == 1 (the
+//     button is hidden for frozen versions, tpl:62/106-111).
+//   - Body: { log_message: string } (the ask4log() prompt).
+//   - Snapshots the version row into req_revisions (custom fields included),
+//     bumps req_versions.revision and stamps author/creation_ts.
+// ---------------------------------------------------------------------------
+if ($method === 'POST' && isset($segments[0]) && $segments[0] === 'versions'
+    && isset($segments[1]) && isset($segments[2]) && $segments[2] === 'revision') {
+
+    $versionId = intval($segments[1]);
+    if ($versionId <= 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid version id']);
+    }
+
+    // a version knows its own requirement + project: req_versions (id) ->
+    // nodes_hierarchy (parent = requirement id) -> requirements + req_specs.
+    $verRow = $db->get_recordset(
+        " SELECT REQV.id AS version_id, REQV.is_open, REQV.revision, " .
+        "        NHR.id AS req_id, " .
+        "        REQ.req_doc_id, RS.testproject_id " .
+        " FROM req_versions REQV " .
+        " JOIN nodes_hierarchy NH ON NH.id = REQV.id " .
+        " JOIN nodes_hierarchy NHR ON NHR.id = NH.parent_id " .
+        " JOIN requirements REQ ON REQ.id = NHR.id " .
+        " JOIN req_specs RS ON RS.id = REQ.srs_id " .
+        " WHERE REQV.id = " . intval($versionId));
+    if (empty($verRow)) {
+        http_response_code(404);
+        out(['status' => 'error', 'message' => 'Requirement version not found']);
+    }
+    $tpid = intval($verRow[0]['testproject_id']);
+    if (!$user->hasRight($db, 'mgt_modify_req', $tpid)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission']);
+    }
+    if (intval($verRow[0]['is_open']) !== 1) {
+        http_response_code(409);
+        out(['status' => 'error', 'message' => 'Frozen versions cannot get new revisions']);
+    }
+
+    $body = getBody();
+    $logMessage = trim((string)($body['log_message'] ?? ''));
+
+    // legacy doCreateRevision: $req = reqMgr->get_by_id(req_id, version_id)[0]
+    $req = $reqMgr->get_by_id(intval($verRow[0]['req_id']), $versionId);
+    $reqRow = isset($req[0]) && is_array($req[0]) ? $req[0] : [];
+    $ret = $reqMgr->create_new_revision($versionId, $userId, $tpid, $reqRow, $logMessage);
+    if (!isset($ret['id']) || intval($ret['id']) <= 0) {
+        http_response_code(500);
+        out(['status' => 'error', 'message' => 'Revision creation failed']);
+    }
+
+    // NOTE: legacy doCreateRevision() does NOT emit an audit event (no locale
+    // key exists); keeping parity - the revision journal lives in req_revisions
+    // (log_message/author/stamp) which the viewer history surfaces.
+
+    out([
+        'status' => 'ok',
+        'req_id' => intval($verRow[0]['req_id']),
+        'version_id' => $versionId,
+        // version revision counter after the snapshot (legacy bumps to current_rev+1)
+        'revision' => intval($verRow[0]['revision']) + 1,
+        'log_message' => $logMessage,
+    ]);
+}
+
+// ---------------------------------------------------------------------------
 // GET ?action=req_print  (single Requirement print document, legacy reqPrint.php)
 // Refs #1305. Port of lib/requirements/reqPrint.php: renders ONE requirement
 // version/revision through the battle-tested renderReqForPrinting() pipeline
