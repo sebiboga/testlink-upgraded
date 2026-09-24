@@ -8,8 +8,9 @@ showed a navigable tree of the plan's test cases (or its requirement coverage)
 together with the plan-action buttons that loaded the workframe controllers. The
 modern hub reproduces all of that: plan picker, group-by (Test suites /
 Requirement coverage), suite tree with deep linked/total quantities, requirement
-coverage tree, build selector, and the four planning-action deep links,
-forwarding `testproject_id`/`tplan_id` exactly like the legacy workframe did.
+coverage tree, build selector, and the five planning-action deep links (incl. an
+**Event Viewer** action, legacy `show_ve` parity), forwarding
+`testproject_id`/`tplan_id` exactly like the legacy workframe did.
 
 ## Deliverables
 
@@ -18,7 +19,7 @@ forwarding `testproject_id`/`tplan_id` exactly like the legacy workframe did.
   (`Test Project: <name>`, `Test Plan` select incl. inactive plans, `Group by`
   select, `Refresh` button), a **Plan actions** panel with four cards
   (Add/Remove Test Cases, Update linked TC versions, Test urgency, TC execution
-  assignment), the navigator tree panel and the **Item details** panel.
+  assignment, Event Viewer), the navigator tree panel and the **Item details** panel.
 - **Test suites mode:** one row per suite (deep `linked/total` badge), built from
   `/suites` — includes only suites that carry decorated test cases anywhere in
   their subtree (upstream containers stay closed, so the top level lists real
@@ -50,12 +51,15 @@ forwarding `testproject_id`/`tplan_id` exactly like the legacy workframe did.
     `plans[]` (`id/name/active`, `getAccessibleTestPlans(active=null)` so
     inactive plans stay selectable), `builds{}` + `default_build_id`, `rights`
     (`canPlan`, `canUpdateTC`, `canUrgency` → `testplan_planning`;
-    `canAssign` → `exec_assign_testcases`), and `actions[]` — the four deep
-    links with `params=testproject_id=<tproject>&testplan_id=<tplan>`,
+    `canAssign` → `exec_assign_testcases`; `canViewEvents` → `mgt_view_events`),
+    and `actions[]` — the five deep links with
+    `params=testproject_id=<tproject>&testplan_id=<tplan>`,
     nulled (locked card) when the right is missing.
-  - `GET /suites?tproject_id=&tplan_id=[&container_id=][&keyword_id=]` —
+  - `GET /suites?tproject_id=&tplan_id=` —
     the suite subtree WITH RECURSIVE (testsuite-typed descendants of the
-    project), per-suite direct totals + plan-linked distinct tcversions,
+    project; anchored at the project root — the legacy `container_id` drill
+    param is ignored, which also closes a cross-project IDOR), per-suite
+    direct totals + plan-linked distinct tcversions,
     aggregated bottom-up into `deep_total_qty` / `deep_linked_qty`.
   - `GET /reqs?tproject_id=&tplan_id=` — `req_specs` of the project, their
     `requirements`, and per requirement `linked_qty` (distinct linked
@@ -93,6 +97,14 @@ bundles** (validated with `python3 -m json.tool`). No hardcoded strings.
    the first plan's `testplan_id`, so the buttons would have acted on the wrong
    plan. The change handler now re-boots the hub with the selected plan id
    (`boot(parseInt(...))`), which refreshes `INIT` and therefore the actions too.
+2. **Code-review fixes (this run):** `/suites` accepted an arbitrary
+   `container_id` as the CTE root → cross-project suite-tree disclosure (now
+   anchored at the owning project); `/reqs` `covered_qty` could double count a
+   tcversion linked under two `req_coverage` req-versions (`COUNT(DISTINCT CASE…)`
+   applied); response charset/nosniff headers added; the legacy `show_ve`
+   (plan Event Viewer) navigator action is now a fifth hub action card
+   (`eventviewer.html?tproject_id=&tplan_id=`, gated on `mgt_view_events`);
+   action hrefs HTML-escape `&`; Refresh resets the selection.
 
 ## Verification
 
