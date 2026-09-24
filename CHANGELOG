@@ -1088,6 +1088,29 @@ Execution:
   Cancel-keeps-row, file-browser drill-down, EN<->RO switch, 401/403/405 paths,
   legacy shim 302s, Event Viewer clean (audit-only). Suite 1574 15/15 PASS in
   tmp/TLU_Test_Cases.md; wiki page + docs mirror + 4 screenshots.
+- Work Area Launcher (frmWorkArea.php) -> 302 redirect shim (#1575): the legacy
+  work-area frameset dispatcher lib/general/frmWorkArea.php was the LAST 'lib/'
+  entry point left in lib/functions/common.php routing. It is now a
+  session-guarded redirect shim: every legacy '?feature=' deep link maps to its
+  equivalent modernized standalone screen (18 feature->HTML map entries incl.
+  testSpec, assignReqs, searchView, planNav, planUpdateTC, tcExecAssignment,
+  execTest, showNewestTcVersions, testUrgency, resultsNavigator, reqSpecMgmt,
+  keywordsAssign, printTestSpec, printReqSpec, searchReq, searchReqSpec,
+  planAddTCView), forwarding tproject_id/tplan_id from the session with request
+  overrides; invalid features log tLog('ERROR') + exit (legacy parity); anon
+  deep links fall back to login?note=expired. In lib/functions/common.php the
+  $launcher + $gui->workArea object + copy-back loop were removed; showMetrics
+  now points directly at /gui/templates/results/resultsNavigator.html (Refs
+  #1568) and setTestUrgency at plans/testUrgency.html when a plan is active;
+  every later $actions->* modern override verified intact; $gui->launcher kept
+  (dead tl-classic templates still build ?feature= URLs -> now the shim);
+  $gui->uri = $actions unchanged. Code-review fixes: planUpdateTC ->
+  plans/planUpdateTC.html (canonical, matches aside BFF), isset() guards on the
+  session testprojectID/testplanID reads (PHP8 parity). Browser-verified on
+  fixture tmp/fixtures_1575.php (project 13/plan 14/build 3/suite 15/tc 16+19):
+  all 18 features 302 to the correct modern screen, anon -> login, invalid -> on
+  source, aside/Reports menu + dashboard render OK, Event Viewer clean. Suite
+  1575 in tmp/TLU_Test_Cases.md; wiki page + docs mirror.
 - Test Plan Navigator (planNav.html) - BFF api/plannav (#1572): modernizes
   the legacy Test Plan Navigator frames lib/plan/planTCNavigator.php +
   lib/plan/planAddTCNavigator.php (both converted to session-guarded 302 shims
