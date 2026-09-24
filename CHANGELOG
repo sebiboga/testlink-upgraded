@@ -998,6 +998,32 @@ Execution:
   addTC shim URL (missing '?'), format select rendered raw legacy keys
   (namespaced pdo.format_* keys added to all bundles), with_user_assignment
   rendered outside testreport_onbuild (gated).
+- Test Plan Navigator (planNav.html) - BFF api/plannav (#1572): modernizes
+  the legacy Test Plan Navigator frames lib/plan/planTCNavigator.php +
+  lib/plan/planAddTCNavigator.php (both converted to session-guarded 302 shims
+  -> planNav.html?testproject_id=&tplan_id=; the modern hub is reached from the
+  plan screens' workframe buttons exactly like the legacy frames). Dashio hub
+  with a plan selector (incl. inactive plans, getAccessibleTestPlans active=null),
+  group-by between Test suites (deep total/linked qty per suite) and Requirement
+  coverage (per-spec covered/total, per-req linked_tcversions + covered-in-plan),
+  a build selector (active+open, only when exec_assign_testcases) and the 4
+  plan-action deep links (Add/Remove TC, Update linked TC versions, Test urgency,
+  TC execution assignment) each gated on its own right (planning / assignment).
+  BFF routes /init /suites /reqs: session auth + bffSameOriginGuard; no page-level
+  legacy right (any authenticated user with >=1 accessible plan may open the hub);
+  401 anon, 403 no-rights, 404 bad tplan, 400 missing params; error paths write no
+  events. Link switch $actions->planNav added in lib/functions/common.php
+  (usersAssign -> planNav); frmWorkArea forwarding pinned to the modern hub.
+  pnav.* i18n keys (30) + pv.testProject/paddtc helpers + footers.planNav in all
+  10 bundles. Verified live on fixture tmp/fixtures_1572.php (project NAV1572,
+  suites A/A1/B, tcversions, plan linked A1/B1/B2 + a second unlinked plan,
+  req spec + 2 reqs + req_coverage): deep suite counts (A 1/3, A1 0/1, B 2/2),
+  coverage (spec 2/2, both reqs "+1"), plan switch now refreshes BOTH the tree and
+  the action links (real defect found+fixed this run: links kept the original
+  plan id), empty/unlinked plan degrade, no-rights 403 path, legacy-shim 302s,
+  400/404/401/403 BFF contract, EN+RO renders. Suite 1572 8/8 PASS in
+  tmp/TLU_Test_Cases.md; Event Viewer clean (audit-only); wiki + docs mirror +
+  4 screenshots.
 - Execution Navigator (execNavigator.html) - BFF api/execnavigator (#1562):
   modernizes the last standalone legacy screen lib/execute/execNavigator.php
   (kept as a session-guarded 302 shim, legacy deep links still resolve). Legacy

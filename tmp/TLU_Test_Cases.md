@@ -19754,3 +19754,84 @@ compare screen lists 2 rows (v2 = newest, v1), each with a clickable Last change
   `api/reqrevision/index.php?action=revision&item_id=5` — no PHP notices. PASS.
 
 **Result: 6/6 PASS. (Refs #1309)**
+
+## Suite 1572 — Screen — Test Plan Navigator (planNav.html + api/plannav) (Refs #1572)
+
+**Modernized twin of** `lib/plan/planTCNavigator.php` + `lib/plan/planAddTCNavigator.php`
+(the Test Plan Navigator frames). The old controllers are now session-guarded 302 shims
+redirecting to `gui/templates/plans/planNav.html`; the hub reads
+`api/plannav` (`/init`, `/suites`, `/reqs`).
+
+**Fixture (this run):** `php tmp/fixtures_1572.php` — project `NAV1572`/prefix `NA7`
+(tproject=53 this run), Suite A (a child Suite A1), TC A1/A2/A1x/B1/B2 with revisions,
+test plan `Plan NAV1572` (72, linked A1/B1/B2) + second plan `Plan NAV Alt` (73, nothing
+linked), req spec with `req1`/`req2`, `req_coverage`: req1→A1, req2→B1.
+No-rights user: `tmp/mkuser_norights.php` (`norights`/`norights`, role lead).
+
+**Entry point URL:** `http://localhost:8082/gui/templates/plans/planNav.html?testproject_id=<id>&testplan_id=<id>` (admin/admin)
+
+### Test 1 — Legacy deep links / frmWorkArea features now land on the modern hub
+- **Steps:** as admin, request `lib/plan/planTCNavigator.php?testproject_id=53&testplan_id=72`
+  and `lib/plan/planAddTCNavigator.php?testproject_id=53&testplan_id=72` with fetch(redirect follow).
+- **Expected:** both end at `gui/templates/plans/planNav.html?testproject_id=53&testplan_id=72`
+  (302 shims), no legacy frames left.
+- **Actual:** `status 200, url ...planNav.html?testproject_id=53&testplan_id=72` for both. Anonymous
+  call renders legacy `testlinkInitPage` JS re-direct to `login.php?note=expired` (parity with
+  old controller). PASS.
+
+### Test 2 — /init BFF: context, rights, plans, builds, action deep links
+- **Steps:** `GET /api/plannav/init?tproject_id=53&tplan_id=72`; `init?tproject_id=53` (no plan);
+  `init` with no params → 400; `init?tproject_id=53&tplan_id=999999` → 404.
+- **Expected:** first two return 200 with `tplan_id=72`, `plans`=[72,73], `rights{canPlan,canAssign,
+  canUrgency,canUpdateTC}=true`, 4 `actions` each `{url,params:"testproject_id=53&testplan_id=72"}`
+  (addremove→planAddTCView.html, updateTC→planUpdateTC.html, urgency→testUrgency.html,
+  assignment→tcExecAssignment.html), `builds={}`; missing params → 400 `tproject_id is required`;
+  bad plan → 404 `Test plan not found`; unknown route `/bogus` → 404 `Not found`.
+- **Actual:** all as expected; anon `curl` → 401 `{"status":"error","message":"Not authenticated"}`. PASS.
+
+### Test 3 — Suite tree (group-by Test suites) with deep totals/linked counts
+- **Steps:** open hub with tplan=72; inspect `#navTree`.
+- **Expected:** rows Suite A `1/3`, Suite B `2/2`, Suite A1 `0/1` (deep linked/total).
+- **Actual:** exactly that; header shows tree count 3. Selecting Suite B renders detail panel
+  (Linked 2 / Total 2). PASS.
+
+### Test 4 — Requirement-coverage tree (group-by Requirement coverage)
+- **Steps:** switch group-by to `req_coverage` (plan 72).
+- **Expected:** spec node `Navigator Spec 2/2` (covered/total reqs); leaves `First requirement ✓ 1`,
+  `Second requirement ✓ 1` (✓ = covered in this plan, 1 = linked tcversions).
+- **Actual:** exactly that; clicking a requirement shows detail (Linked test cases 1 / Covered Yes);
+  clicking the spec shows Requirements 2 / Covered 2 / Total 2. PASS.
+
+### Test 5 — Plan switch refreshes tree AND action links (regression fix, this run)
+- **Steps:** change `#tplanSel` to `Plan NAV Alt` (73), then back to 72.
+- **Expected:** on 73 the suite tree shows all `0/N` (nothing linked) and every `#actionCards a`
+  carries `testplan_id=73`; coverage on 73 shows `0/2` with NO `✓`. On 72 everything restores to
+  Test 3/4 values and links carry `testplan_id=72`.
+- **Actual:** verified via scripted plan switch — links went `...testplan_id=73` for all four
+  actions, tree 0/3,0/2,0/1; coverage `0/2`, leaves `First requirement 1` / `Second requirement 1`
+  (no ✓). Back on 72: `2/2` with `✓ 1` rows and `testplan_id=72` links. PASS.
+  (Before the fix, action links kept the original plan id — real defect found by testing.)
+
+### Test 6 — Permission path: no-rights user degrades gracefully
+- **Steps:** in a fresh isolated incognito profile log in as `norights`/`norights` and open the hub.
+- **Expected:** BFF `/init` → 403; screen shows empty project/plan, hints `pnav.noAccess` toast,
+  no JS crash.
+- **Actual:** page shows project "-", plan combo empty, toast "No access to this test plan...",
+  console has only the expected 403 resource log + pre-existing shared a11y hint. PASS.
+
+### Test 7 — i18n: full localization incl. Romanian + all bundles valid
+- **Steps:** open hub, switch header locale to Română (`&locale=ro`).
+- **Expected:** title/footer "Navigator Plan de Testare", all labels translated
+  ("Plan de test", "Grupează după", "Acoperire cerințe", "Reîmprospătează", action cards);
+  every `pnav.*` key present in all 10 bundles; `python3 -m json.tool` clean.
+- **Actual:** RO render fully localized (aria labels: "Suites de test", "Acoperire cerințe",
+  detail panel "Selectați o suita sau o cerință..."); all 10 bundles JSON-valid. PASS.
+
+### Test 8 — Event viewer / console / server log clean
+- **Steps:** run Tests 1-7; inspect `events` table, browser console, `tmp/php_server.log`.
+- **Expected:** no new Error/Warning rows; console free of new JS errors.
+- **Actual:** `events` table INFO/audit-only (project create + logins + tc-link audit, log_level 16);
+  no log_level>=32 rows; consoles show only the expected 403 fetch and the pre-existing shared
+  locale-switcher a11y hint; server log has no PHP notices. PASS.
+
+**Result: 8/8 PASS. (Refs #1572)**
