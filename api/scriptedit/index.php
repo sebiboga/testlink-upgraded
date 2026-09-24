@@ -275,7 +275,7 @@ function tprojectForTcversion($db, $tcversion_id)
            " FROM nodes_hierarchy NH " .
            " JOIN nodes_hierarchy NH2 ON NH2.id = NH.parent_id " .
            " JOIN nodes_hierarchy NH3 ON NH3.id = NH2.parent_id " .
-           " WHERE NH.id = " . intval($tcversion_id) . " AND NH.node_type_id = 3";
+           " WHERE NH.id = " . intval($tcversion_id) . " AND NH.node_type_id = 4";
     $rs = $db->get_recordset($sql);
     if (is_null($rs) || !isset($rs[0]['tproject_id'])) {
         return null;
@@ -427,10 +427,12 @@ if ($method === 'GET' && $action === 'init') {
     $tplan_id = intval($_GET['tplan_id'] ?? 0);
     $user_action = isset($_GET['user_action']) && trim($_GET['user_action']) !== '' ? trim($_GET['user_action']) : 'link';
 
-    // tcversion context
-    $sql = " SELECT TV.id, TV.version, TV.tc_external_id, NH.name AS tc_name " .
+    // tcversion context (tcversion nodes are node_type_id = 4; display name
+    // lives on the owning test-case node, node_type_id = 3)
+    $sql = " SELECT TV.id, TV.version, TV.tc_external_id, TCN.name AS tc_name " .
            " FROM tcversions TV JOIN nodes_hierarchy NH ON NH.id = TV.id " .
-           " WHERE TV.id = " . intval($tcversion_id) . " AND NH.node_type_id = 3";
+           " JOIN nodes_hierarchy TCN ON TCN.id = NH.parent_id " .
+           " WHERE TV.id = " . intval($tcversion_id) . " AND NH.node_type_id = 4";
     $rs = $db->get_recordset($sql);
     if (is_null($rs) || !isset($rs[0]['id'])) {
         http_response_code(404);
