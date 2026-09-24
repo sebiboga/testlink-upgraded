@@ -229,8 +229,32 @@ if ($method === 'POST' && ($segments[0] ?? '') === 'test-connection' && empty($s
 }
 
 if ($method === 'GET' && isset($segments[0]) && is_numeric($segments[0])) {
-    $item = $mgr->getByID(intval($segments[0]));
+    $id = intval($segments[0]);
+    $item = $mgr->getByID($id);
     if (!$item) { http_response_code(404); out(['status' => 'error', 'message' => 'Issue tracker not found']); }
+    // Port of legacy issueTrackerEdit.php initializeGui (lines 140-153): the edit
+    // form surfaces every test project linked to the tracker ('used on test
+    // project' / 'not used/linked', issue #964). getLinks() returns a map of
+    // testproject_id => testproject_name (tlIssueTracker.class.php:516-543);
+    // consume the names the same way the list route does for its delete tooltip.
+    // Legacy initializeGui first purges DEAD links (rows pointing at a test
+    // project node that no longer exists — issueTrackerEdit.php:141-146 =
+    // getLinks(id,getDeadLinks) + unlink(id,tpid); a plain getLinks() would
+    // LEFT JOIN a NULL name into the used-by list and inflate link_count).
+    $dead = $mgr->getLinks($id, array('getDeadLinks' => true));
+    if ($dead) {
+        foreach ($dead as $tpid => $dummy) {
+            $mgr->unlink($id, intval($tpid));
+        }
+    }
+    $item['links'] = [];
+    $links = $mgr->getLinks($id);
+    if ($links) {
+        foreach ($links as $link) {
+            $item['links'][] = $link['testproject_name'];
+        }
+    }
+    $item['link_count'] = count($item['links']);
     out(['status' => 'ok', 'item' => trackerToJSON($item, $mgr)]);
 }
 

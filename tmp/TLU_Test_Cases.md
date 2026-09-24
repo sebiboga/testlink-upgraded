@@ -19848,3 +19848,57 @@ Curled with session cookie carrying `testplanID=20, testprojectID=1`.
 - **Actual:** every burst settled on the correct final tree (verified after 3 rapid switch rounds at value 20); Network green [200] for init+suites; console only the pre-existing a11y hint (no JS errors); `events` shows no ERROR/WARNING source rows (2 DATABASE ERROR rows from the Test 1 fault-injection were cleaned up). PASS. (6/6)
 
 **Result: 6/6 PASS. (Refs #1573)**
+## Suite 964 — Task — Issue #964: 'Used on Test Project' display in issuetrackerView edit modal (Refs #964)
+
+**Fixture (recreated on this run):** freshly imported DB — `Project Alpha` (id 1),
+`Project Beta` (id 2) test-project nodes; issuetrackers `Bugzilla Tracker` (id 1,
+type 1) linked to BOTH projects via `testproject_issuetracker` (1,1)+(2,1), and
+`GitLab CI` (id 2, type 22) linked to NOTHING. Browser: admin login, screen
+`http://localhost:8082/gui/templates/issuetracker/issuetrackerView.html?tproject_id=1&tplan_id=0`.
+
+### Test 1 — edit modal on a linked tracker shows the used-by list (gap fix)
+- **Steps:** open edit on **Bugzilla Tracker** → click the info icon (`fa-info-circle`
+  next to Name) → read `#usedByEnvelope`.
+- **Expected:** block toggles open showing "Used on Test Project" heading,
+  then "Project Alpha" and "Project Beta" (legacy `displayUsedBy` + `getLinks`).
+- **Actual:** `Used on Test Project\nProject Alpha\nProject Beta`; info-icon
+  tooltip "Show/Hide (Linked to Projects)". PASS.
+
+### Test 2 — edit modal on an unlinked tracker shows the not-used state
+- **Steps:** open edit on **GitLab CI** → click the info icon.
+- **Expected:** italics "Issue Tracker Not Used (Linked)" (legacy
+  `issuetracker_not_used_linked`), no project lines.
+- **Actual:** `<b><i>Issue Tracker Not Used (Linked)</i></b>` (innerText:
+  "Issue Tracker Not Used (Linked)"). PASS.
+
+### Test 3 — toggle collapses the usedBy block; modal close resets it
+- **Steps:** with Test 1 open → click the icon again, then reopen the modal.
+- **Expected:** first click collapses (`display:none`); reopening the modal starts
+  collapsed; open state only after clicking again.
+- **Actual:** second click → `display:none`; `hidden.bs.modal` collapses block;
+  reopen shows no usedBy until icon clicked. PASS.
+
+### Test 4 — create modal renders the not-used state (legacy create parity)
+- **Steps:** `Create Issue Tracker` → click the info icon.
+- **Expected:** "Issue Tracker Not Used (Linked)" (legacy `$gui->testProjectSet` is
+  null on create).
+- **Actual:** `<b><i>Issue Tracker Not Used (Linked)</i></b>`. PASS.
+
+### Test 5 — BFF GET /{id} parity: link_count + links surface (API)
+- **Steps:** `GET /api/issuetracker/index.php/1` and `/2` as admin.
+- **Expected:** item 1 carries `link_count:2, links:["Project Alpha","Project
+  Beta"]`; item 2 `link_count:0, links:[]` (mirrors `getLinks(id)` from legacy
+  `initializeGui`).
+- **Actual:** id=1 `link_count:2, links:["Project Alpha","Project Beta"]`; id=2
+  `link_count:0, links:[]`. PASS.
+
+### Test 6 — i18n round-trip (RO) + Event Viewer clean
+- **Steps:** `?locale=ro`; open edit/toggle on tracker 1 and 2; then read `events`.
+- **Expected:** RO tooltip "Arată/Ascunde (Legat de proiecte)"; linked envelope
+  "Folosit în proiectul de test\nProject Alpha\nProject Beta"; unlinked
+  "Urmăritor de probleme neutilizat (nelegat)"; no new Error/Warning in `events`.
+- **Actual:** all RO strings rendered as expected; `events` table holds only the
+  LOGIN audit row (no ERROR/WARNING); browser console has only the pre-existing
+  a11y notice, no JS errors. PASS. (6/6)
+
+**Result: 6/6 PASS. (Refs #964)**

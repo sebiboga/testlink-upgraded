@@ -5409,6 +5409,24 @@ Changes:
       project tables and added user metrics to the middle section
 
 ## 2.0.1 (in-progress)
+### Feature parity — Issue Tracker edit modal shows 'used on test project' (Refs #964)
+- issuetrackerView.html + api/issuetracker/index.php: restore the legacy
+  displayUsedBy block in the tracker edit modal. Legacy issueTrackerEdit.tpl:73-119
+  renders an info icon next to the Name field that toggles a "Used on Test
+  Project" list of every test project linked to the tracker (or the italic
+  "Issue Tracker Not Used (Linked)" state), fed by $gui->testProjectSet =
+  getLinks(id) (issueTrackerEdit.php:140-153). The modern single-item BFF route
+  (GET /{id}) never attached the linked projects (trackerToJSON defaults
+  link_count=0, links=[]), so the modal showed nothing. The BFF now calls
+  $mgr->getLinks($id) and exposes links[project names] + link_count on GET /{id};
+  issuetrackerView.html gained a localized fa-info-circle (tooltip
+  it.showHideLinkedToProjects) + toggleUsedBy() rendering
+  it.usedOnTestproject + one line per project (HTML-escaped) or italic
+  it.notUsedLinked (create/unlinked parity: usedByProjects=[]); hidden.bs.modal
+  collapses the block. New i18n keys it.usedOnTestproject, it.notUsedLinked,
+  it.showHideLinkedToProjects in all 10 locale bundles. Suite 964 6/6 PASS;
+  Event Viewer clean. (Refs #964)
+
 ### Feature parity — Issue Tracker list delete gating by link count (Refs #963)
 - issuetrackerView.html: restore the legacy link-count delete gating.
   Legacy issueTrackerView.tpl:78-83 renders the per-row delete icon ONLY when

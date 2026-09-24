@@ -80,7 +80,11 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
         <input type="hidden" id="editTrackerId">
         <div class="form-group" style="margin-bottom:12px;">
           <label style="font-size:12px;font-weight:600;" data-i18n="it.name">Name *</label>
+          <a href="javascript:void(0)" id="btnUsedBy" onclick="toggleUsedBy()" style="margin-left:6px;color:#4ECDC4;" title="" data-i18n-title="it.showHideLinkedToProjects"><i class="fas fa-info-circle"></i></a>
           <input type="text" id="editName" class="form-control" maxlength="100" style="font-size:13px;">
+        </div>
+        <div class="form-group" id="usedByOuter" style="display:none;margin-bottom:12px;">
+          <div id="usedByEnvelope" style="font-size:12px;padding:8px 12px;background:#f6f6f6;border-radius:4px;"></div>
         </div>
         <div class="form-group" style="margin-bottom:12px;">
           <label style="font-size:12px;font-weight:600;" data-i18n="it.type">Type *</label>
@@ -134,6 +138,20 @@ var table = null;
 var typeMap = {};
 var allItems = [];
 var canManage = false;
+// Linked test projects for the currently open modal (issue #964). Populated by
+// editTracker(), reset to [] by showCreateModal() (mirrors the legacy
+// $gui->testProjectSet being null on create -> 'not used/linked' state).
+var usedByProjects = [];
+
+// Legacy issueTrackerView.tpl escaped every displayed value (|escape). Cells
+// here go through innerHTML, so HTML-escape cfg-derived and DB-derived text
+// (cfg URL, env msg, name, type) before pushing into the DataTables rows, and
+// project names before injecting them into the usedBy block.
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
 
 $(function() {
   var p = new URLSearchParams(window.location.search);
@@ -143,6 +161,11 @@ $(function() {
     TLi18n.initLocaleSwitcher('#localeSwitcher');
     loadMeta();
     loadTrackers();
+  });
+  // Collapse the usedBy block whenever the modal is dismissed, so reopening
+  // always starts from the collapsed state (legacy displayUsedBy parity).
+  $('#trackerModal').on('hidden.bs.modal', function() {
+    $('#usedByOuter').hide();
   });
 });
 
@@ -197,14 +220,6 @@ function loadTrackers() {
 
 function renderTable(items) {
   if (table) { table.destroy(); $('#trackersTable tbody').empty(); }
-  // Legacy issueTrackerView.tpl escaped every displayed value (|escape). Cells
-  // here go through innerHTML, so HTML-escape cfg-derived and DB-derived text
-  // (cfg URL, env msg, name, type) before pushing into the DataTables rows.
-  function esc(s) {
-    return String(s == null ? '' : s)
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-  }
   var rows = [];
   $.each(items, function(i, t) {
     // Tracker cfg templates use different keys for the server URL: most write
@@ -284,6 +299,10 @@ function showCreateModal() {
   $('#editCfg').val('');
   $('#modalError').hide();
   $('#connAlert').hide().removeClass('alert alert-success alert-danger');
+  // Create form has no linked projects yet (legacy: $gui->testProjectSet is
+  // null on create) -> toggleUsedBy() renders the 'not used/linked' state.
+  usedByProjects = [];
+  $('#usedByOuter').hide();
   $('#trackerModal').modal('show');
 }
 
@@ -298,8 +317,37 @@ function editTracker(id) {
     $('#editCfg').val(t.cfg || '');
     $('#modalError').hide();
     $('#connAlert').hide().removeClass('alert alert-success alert-danger');
+    // Port of the legacy edit form usedBy block (issue #964): BFF GET /{id}
+    // now returns the linked test project names (getLinks). Keep them so
+    // toggleUsedBy() can render 'used on test project' / 'not used/linked'.
+    usedByProjects = (t.links && t.links.length) ? t.links : [];
+    $('#usedByOuter').hide();
     $('#trackerModal').modal('show');
   });
+}
+
+// Legacy displayUsedBy() (issueTrackerEdit.tpl:73-119): toggles the
+// 'Used on Test Project' list next to the Name field; renders the italics
+// 'not used/linked' state when the tracker is not linked to any project.
+function toggleUsedBy() {
+  if (!canManage) return;
+  var outer = $('#usedByOuter');
+  var envelope = $('#usedByEnvelope');
+  if (outer.is(':visible')) {
+    outer.hide();
+    return;
+  }
+  var html = '';
+  if (usedByProjects && usedByProjects.length) {
+    html += '<b>' + TLi18n.t('it.usedOnTestproject') + '</b>';
+    $.each(usedByProjects, function(i, name) {
+      html += '<br>' + esc(name);
+    });
+  } else {
+    html += '<b><i>' + TLi18n.t('it.notUsedLinked') + '</i></b>';
+  }
+  envelope.html(html);
+  outer.show();
 }
 
 function saveTracker() {
