@@ -2103,9 +2103,8 @@ function getActions(&$gui,$baseURL) {
   $actions->searchReqSpec = "/gui/templates/requirements/searchReqSpec.html?{$ctx}";
 
   // Update Linked Test Case Versions modernized screen (Dashio standalone
-  // page) - Refs #619. Assigned after the workArea launcher copy-back above so
-  // the (now removed) planUpdateTC launcher entry cannot overwrite it; menu
-  // visibility is gated by aside.tpl via menuGrants
+  // page) - Refs #619. The legacy planUpdateTC launcher entry is gone (Refs
+  // #1575); menu visibility is gated by aside.tpl via menuGrants
   // (testplan_update_linked_testcase_versions), the BFF enforces the legacy
   // controller right (testplan_planning) server-side on every route.
   if ($tplan_id > 0) {
@@ -2114,8 +2113,8 @@ function getActions(&$gui,$baseURL) {
   }
 
   // Assign Test Case Execution modernized screen (Dashio standalone page)
-  // - Refs #655. Assigned after the workArea launcher copy-back above so the
-  // assignTCVExecution launcher entry cannot overwrite the link; the BFF
+  // - Refs #655. The legacy assignTCVExecution launcher entry is gone (Refs
+  // #1575); the BFF
   // enforces the legacy controller right (exec_assign_testcases) on every
   // route, aside visibility stays gated by menuGrants in aside.tpl
   // (exec_assign_testcases).
@@ -2144,8 +2143,8 @@ function getActions(&$gui,$baseURL) {
     "/gui/templates/requirements/reqRevisionView.html?{$ctx}";
 
   // Show Newest Test Case Versions modernized screen (Dashio standalone
-  // page) - Refs #643. Assigned after the workArea launcher copy-back above
-  // (launcher entry removed) so the copy-back cannot overwrite the link.
+  // page) - Refs #643. The legacy showNewestTCV launcher entry is gone (Refs
+  // #1575).
   // Read-only report; the BFF enforces the legacy controller right
   // (testplan_planning) server-side on every route.
   if ($tplan_id > 0) {
