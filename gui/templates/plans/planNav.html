@@ -134,12 +134,13 @@ $(function(){
     boot();
   });
   $('#btnReload').on('click', boot);
-  $('#tplanSel').on('change', function(){ selId = 0; loadTree(); refreshActions(); });
+  $('#tplanSel').on('change', function(){ selId = 0; boot(parseInt(this.value, 10)); });
   $('#groupBySel').on('change', function(){ selId = 0; loadTree(); });
   $('#navTree').on('click','li[data-id]',function(){ selectNode(parseInt(this.getAttribute('data-id'),10)); });
 });
 
-function boot(){
+function boot(chosenTplan){
+  if(chosenTplan){ tplanParam = chosenTplan; }
   var q = '/init?tproject_id=' + tprojectId + (tplanParam>0 ? '&tplan_id='+tplanParam : '');
   $.getJSON(API + q)
     .done(function(r){
