@@ -123,6 +123,7 @@ var tplanParam = parseInt(new URLSearchParams(location.search).get('testplan_id'
 var INIT = null;
 var TREE = [];
 var selId = 0;
+var initSeq = 0, treeSeq = 0;
 
 function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
 function toast(m,isErr){var $t=$('#toast').text(m).toggleClass('err',!!isErr).show();clearTimeout($t.data('tm'));$t.data('tm',setTimeout(function(){$t.hide();},3500));}
@@ -141,9 +142,12 @@ $(function(){
 
 function boot(chosenTplan){
   if(chosenTplan){ tplanParam = chosenTplan; }
+  var myInit = ++initSeq;
+  treeSeq++; // a plan switch invalidates any in-flight tree from the old context
   var q = '/init?tproject_id=' + tprojectId + (tplanParam>0 ? '&tplan_id='+tplanParam : '');
   $.getJSON(API + q)
     .done(function(r){
+      if(myInit !== initSeq){ return; } // stale /init — a newer plan switch won
       if(r.status!=='ok'){ toast(TLi18n.t('common.error'), true); return; }
       INIT = r;
       tprojectId = r.tproject_id;
@@ -166,6 +170,8 @@ function boot(chosenTplan){
       loadTree();
     })
     .fail(function(xhr){
+      if(myInit !== initSeq){ return; }
+      if(INIT){ $('#tplanSel').val(INIT.tplan_id); } // restore the last good plan
       if(xhr.status===403){ toast(TLi18n.t('pnav.noAccess'), true); }
       else if(xhr.status===401){ location.href = '/login.php'; }
       else { toast(TLi18n.t('common.error'), true); }
@@ -199,15 +205,18 @@ function refreshActions(){
 function loadTree(){
   var tplanId = $('#tplanSel').val();
   if(!tplanId){ $('#navTree').hide().empty(); $('#treeEmpty').show(); return; }
+  var myTree = ++treeSeq;
   var g = $('#groupBySel').val();
   var url = API + '/' + (g==='req_coverage' ? 'reqs' : 'suites') +
             '?tproject_id=' + tprojectId + '&tplan_id=' + tplanId;
   $.getJSON(url)
     .done(function(r){
+      if(myTree !== treeSeq){ return; } // stale /suites|/reqs — newer request won
       TREE = r.items || [];
       renderTree();
     })
     .fail(function(xhr){
+      if(myTree !== treeSeq){ return; }
       if(xhr.status===401){ location.href='/login.php'; return; }
       toast(TLi18n.t('common.error'), true);
     });

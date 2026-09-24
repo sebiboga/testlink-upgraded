@@ -27,6 +27,13 @@
  *   planUpdateTC   -> testplan_planning                       (legacy planUpdateTC.php)
  *   test_urgency   -> testplan_planning                       (legacy planUrgency.php)
  *   tc_exec_assignment -> exec_assign_testcases               (legacy tc_exec_assignment.php)
+ *
+ * Hardening (Refs #1573): all routes are wrapped in try/catch -> 500 JSON
+ * (the legacy db layer throws on XHR query failures, database.class.php), known
+ * routes answer 405 JSON for non-GET verbs, the keyword_id filter is applied to
+ * BOTH direct totals and deep linked counts, the default plan honors the
+ * session plan (legacy navigation-frame parity), and the /suites deep
+ * aggregate runs in a single bottom-up pass (O(N), not O(N x depth)).
  */
 
 require_once(__DIR__ . '/../../config.inc.php');
@@ -40,8 +47,22 @@ bffSameOriginGuard();
 header('Content-Type: application/json; charset=utf-8');
 header('X-Content-Type-Options: nosniff');
 
+try {
+
+// The connect/auth phase faults too (DB down, session roll, bad user row):
+// it must produce the same JSON contract as any route, never raw HTML/echo.
 $db = new database(DB_TYPE);
+ob_start();
 doDBConnect($db);
+if (ob_get_length() !== false && ob_get_length() > 0) {
+    // doDBConnect() echoes the raw DBMS message on failure (common.php) —
+    // swallow it here and answer 500 JSON instead.
+    ob_end_clean();
+    http_response_code(500);
+    echo json_encode(['status' => 'error', 'message' => 'Internal error']);
+    exit;
+}
+ob_end_clean();
 
 $userId = $_SESSION['userID'] ?? null;
 if (!$userId || $userId <= 0) {
@@ -62,6 +83,16 @@ $path = preg_replace('#^/api/plannav(/index\.php)?#', '', $path);
 $path = '/' . trim($path, '/');
 $method = $_SERVER['REQUEST_METHOD'];
 $segments = array_values(array_filter(explode('/', $path)));
+
+// Known routes are strict GET endpoints; any other verb is a 405 before
+// dispatch. Placed after the helper definitions: try-block functions are
+// defined lazily, so out() must exist before this guard can call it.
+if ($method !== 'GET' && count($segments) === 1 &&
+    in_array($segments[0], ['init', 'suites', 'reqs'], true)) {
+    http_response_code(405);
+    echo json_encode(['status' => 'error', 'message' => 'Method not allowed']);
+    exit;
+}
 
 function out($data) { echo json_encode($data); exit; }
 function getParam($key, $default = null) { return $_GET[$key] ?? $default; }
@@ -105,7 +136,22 @@ function navContext($user, $db, $tprojectMgr, $tplanMgr, $tprojectId, $tplanId) 
         out(['status' => 'error', 'message' => 'No permission']);
     }
     if ($tplanId <= 0) {
-        $tplanId = intval($plans[0]['id']);
+        // Legacy navigation-frame parity: honor the session's current plan
+        // (doGetTestPlanID semantics) when the request carries no plan id;
+        // fall back to the first accessible plan.
+        $tplanId = intval($_SESSION['testplanID'] ?? 0);
+        $inPlans = false;
+        if ($tplanId > 0) {
+            foreach ($plans as $p) {
+                if ($p['id'] === $tplanId) {
+                    $inPlans = true;
+                    break;
+                }
+            }
+        }
+        if (!$inPlans) {
+            $tplanId = intval($plans[0]['id']);
+        }
     } else {
         $own = $tplanMgr->get_by_id($tplanId);
         if (!$own || intval($own['testproject_id']) != $tprojectId) {
@@ -151,6 +197,12 @@ if ($method === 'GET' && count($segments) === 1 &&
         $tprojectId, intval(getParam('tplan_id', 0)));
     $tplanId = $ctx['tplan_id'];
     $rights = $ctx['rights'];
+
+    // Persist the validated plan context (legacy navigation frame wrote the
+    // session at this point too), so the next param-less load of the hub keeps
+    // the last selected plan.
+    $_SESSION['testprojectID'] = $tprojectId;
+    $_SESSION['testplanID'] = $tplanId;
 
     $builds = $tplanMgr->get_builds_for_html_options($tplanId,
         testplan::GET_ACTIVE_BUILD, testplan::GET_OPEN_BUILD);
@@ -258,7 +310,7 @@ if ($method === 'GET' && count($segments) === 1 &&
             " ON TK.testcase_id = NHTC.id " .
             " AND TK.keyword_id IN ({$kwList}) " : "";
 
-        // direct totals
+        // direct totals (keyword-filtered)
         $sql = "SELECT NHTC.parent_id AS tsuite_id, COUNT(*) AS qty " .
             " FROM {$nh} NHTC {$kwJoin} " .
             " WHERE NHTC.node_type_id = {$nt['testcase']} " .
@@ -270,12 +322,14 @@ if ($method === 'GET' && count($segments) === 1 &&
             }
         }
 
-        // deep linked distinct testcases
+        // deep linked distinct testcases (SAME keyword filter as the direct
+        // totals, so deep linked quantities can never exceed deep totals)
         $tpv = $TLT['testplan_tcversions'];
         $sql = "SELECT COUNT(DISTINCT NHTC.id) AS qty, NHTC.parent_id AS tsuite_id " .
             " FROM {$tpv} TPTCV " .
             " JOIN {$nh} NHTCV ON NHTCV.id = TPTCV.tcversion_id " .
             " JOIN {$nh} NHTC ON NHTC.id = NHTCV.parent_id " .
+            " {$kwJoin} " .
             " WHERE TPTCV.testplan_id = {$tplanId} " .
             " AND NHTC.node_type_id = {$nt['testcase']} " .
             " AND NHTC.parent_id IN ({$idList}) GROUP BY NHTC.parent_id";
@@ -286,27 +340,45 @@ if ($method === 'GET' && count($segments) === 1 &&
             }
         }
 
-        // aggregate deep sums bottom-up
-        $out = [];
+        // aggregate deep sums in ONE bottom-up pass (children before parents):
+        // each suite's subtree is folded into its ancestors exactly once, so the
+        // whole forest costs O(N + edges) instead of the legacy per-suite
+        // re-walk (O(N x depth) on deep chains).
+        $deep = [];
         foreach ($suites as $sid => $s) {
-            $stack = [$sid];
-            $seen = [];
-            $tot = 0;
-            $lnk = 0;
+            $deep[$sid] = ['total' => $s['total_qty'], 'linked' => $s['linked_qty']];
+        }
+        $tops = [];
+        foreach ($suites as $sid => $s) {
+            if (!isset($suites[$s['parent_id']])) {
+                $tops[] = $sid; // parent is not part of the suite forest
+            }
+        }
+        $order = [];
+        foreach ($tops as $top) {
+            $stack = [$top];
             while ($stack) {
-                $cur = array_pop($stack);
-                if (isset($seen[$cur])) {
-                    continue;
-                }
-                $seen[$cur] = true;
-                $tot += $suites[$cur]['total_qty'];
-                $lnk += $suites[$cur]['linked_qty'];
-                foreach ($childrenMap[$cur] ?? [] as $ch) {
-                    $stack[] = $ch;
+                $n = array_pop($stack);
+                if ($n > 0) {
+                    $stack[] = -$n;
+                    foreach ($childrenMap[$n] ?? [] as $ch) {
+                        $stack[] = $ch;
+                    }
+                } else {
+                    $order[] = -$n;
                 }
             }
-            $suites[$sid]['deep_total_qty'] = $tot;
-            $suites[$sid]['deep_linked_qty'] = $lnk;
+        }
+        $out = [];
+        foreach ($order as $nid) {
+            foreach ($childrenMap[$nid] ?? [] as $ch) {
+                $deep[$nid]['total'] += $deep[$ch]['total'];
+                $deep[$nid]['linked'] += $deep[$ch]['linked'];
+            }
+        }
+        foreach ($suites as $sid => $s) {
+            $suites[$sid]['deep_total_qty'] = $deep[$sid]['total'];
+            $suites[$sid]['deep_linked_qty'] = $deep[$sid]['linked'];
             $out[] = $suites[$sid];
         }
     } else {
@@ -449,5 +521,20 @@ if ($method === 'GET' && count($segments) === 1 &&
     }
 }
 
+// Known routes only accept GET (handled up front); anything else is a 404.
 http_response_code(404);
 out(['status' => 'error', 'message' => 'Not found']);
+
+} catch (Throwable $e) {
+    // DB errors surface as exceptions for XHR clients (database.class.php) and
+    // carry their own ERROR event row; any other Throwable is logged here so it
+    // shows in the Event Viewer, then the JSON contract is kept (Refs #1573).
+    try {
+        tLog('plannav BFF: ' . get_class($e) . ' - ' . $e->getMessage(),
+            'ERROR', 'plannav');
+    } catch (Throwable $ignored) {
+        // DB may be unreachable — nothing to attach the log row to.
+    }
+    http_response_code(500);
+    out(['status' => 'error', 'message' => 'Internal error']);
+}

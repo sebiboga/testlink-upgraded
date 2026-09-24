@@ -17,6 +17,22 @@ Every screen of the application was ported one-by-one in a screen-compare
 kept for backward compatibility and is progressively retired as each modern
 screen reaches full parity.
 
+- [TASK] - #1573: Test Plan Navigator BFF hardening batch (code-review leftovers
+  of #1572). api/plannav/index.php rewritten: (1) every route wrapped in
+  try/catch so a DB failure returns a `500 {"status":"error",...}` JSON contract
+  instead of leaking the legacy HTML error page; (2) known routes (/init,
+  /suites, /reqs) under POST/PUT/DELETE return `405` JSON before the 404
+  fallback; (3) the `keyword_id` filter is now also applied to the deep
+  linked-count aggregation (a filtered suite reports `total=0 linked=0
+  deep_total=0 deep_linked=0` instead of `total=0 deep_linked=2`); (5) /init
+  honors `$_SESSION['testplanID']` as default plan on param-less loads and
+  persists the requested plan back to the session (bare `?testproject_id=1`
+  re-opens the last-used plan); (6) the deep tree aggregate is now a single
+  bottom-up post-order pass — 4000-suite chain /suites dropped from ~0.367 s to
+  ~0.028 s. gui/templates/plans/planNav.html: (4) request-token guards
+  (`initSeq`/`treeSeq`) drop stale init/tree responses so a slow response for an
+  old plan/keyword/group-by can never overwrite the current tree. Suite 1573
+  6/6 PASS, Event Viewer clean. (Refs #1573)
 - [FEATURE GAP] - #1309: the modern Requirement Version Compare screen
   (gui/templates/requirements/reqCompare.html) restores the CLICKABLE **Last
   change** cell that opens the requirement revision viewer popup for that

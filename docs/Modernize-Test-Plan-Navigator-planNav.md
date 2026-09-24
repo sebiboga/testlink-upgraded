@@ -126,3 +126,57 @@ bundles** (validated with `python3 -m json.tool`). No hardcoded strings.
 ## Test suite
 
 Suite 1572 (8/8 PASS) appended to `tmp/TLU_Test_Cases.md`.
+---
+
+## Task #1573 — BFF hardening batch (Refs #1573)
+
+Follow-up hardening of the planNav REST BFF (`api/plannav/index.php`) and the
+screen JS, resolving the six items raised during the #1572 code review.
+
+### Changes — BFF (`api/plannav/index.php`, rewritten)
+
+1. **DB-error JSON contract (item 1):** every route is wrapped in
+   `try { … } catch (Throwable $e)`; the DB layer (`exec_query`) writes its ERROR
+   row + throws, the catch exits `HTTP 500` with
+   `{"status":"error","message":"Internal error"}` instead of leaking HTML.
+2. **405 for known non-GET routes, 404 for unknowns (item 2):** a method-guard
+   before dispatch returns `405` + `{"status":"error","message":"Method not
+   allowed"}` for `/init`, `/suites`, `/reqs` seen under POST/PUT/DELETE; the
+   404 fallback keeps answering unknowns.
+3. **keyword_id filter parity (item 3):** the keyword join is now applied to
+   the linked-count aggregation as well as the direct totals — Suite B no longer
+   reports `total=0` while `deep_linked=2`.
+4. **Session default plan (item 5):** `/init` falls back to
+   `$_SESSION['testplanID']` when no `testplan_id` query is supplied, and `/init`
+   persists the requested plan back into the session — a bare
+   `?testproject_id=1` load re-opens the last-used plan instead of the newest.
+5. **O(N) deep aggregation (item 6):** the nested recursive per-branch queries
+   were replaced by a single bottom-up post-order pass — 4000-suite chain
+   `/suites` dropped from ~0.367 s to ~0.028 s.
+
+### Changes — screen (`gui/templates/plans/planNav.html`, item 4)
+
+- Request-token guards `initSeq` / `treeSeq`: every `boot()` / `loadTree()`
+  snapshot increments its token and every deferred `.done()/.fail()` handler
+  early-returns when `myInit !== initSeq` (resp. `myTree !== treeSeq`), so a
+  slow response for an OLD plan/keyword/group-by can never overwrite the NEW
+  tree. `boot()` also bumps `treeSeq` on entry (a plan switch invalidates an
+  in-flight tree immediately) and the boot `.fail` restores the `<select>` to
+  the last good `INIT.tplan_id` instead of leaving a plan selected whose tree
+  will never arrive. Item-detail rendering is synchronous from the fetched
+  `TREE` (`selectNode`/`renderDetail`), so it needs no separate guard.
+
+### Verification
+
+- Suite 1573 (6/6 PASS) appended to `tmp/TLU_Test_Cases.md`; Event Viewer clean
+  (the 2 `DATABASE` ERROR rows produced by the deliberate fault-injection in
+  Test 1 were test artifacts and were removed).
+- `curl` evidence: POST/PUT/DELETE→405 JSON, unknown→404 JSON, DB-fault→500 JSON,
+  kw filter parity (Suite B all-zero), session default plan id 20, 4000-chain
+  timing 0.028-0.029 s.
+- Browser evidence (admin, `?testproject_id=1&testplan_id=20`): suite tree
+  counts 1/3 · 2/2 · 0/1, reqcov 2/2 with both reqs ✓, plan switch 20↔21
+  repoints action links and tree, param-less reload re-opens plan 20, all
+  network [200], no JS console errors (only a pre-existing a11y hint on the
+  build/version select), rapid plan/group-by bursts settle on the final tree.
+- Screenshots: `docs/screenshots/issue-1573-plannav-{suites,reqcov}-hardened.png`.
