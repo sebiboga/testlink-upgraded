@@ -695,6 +695,10 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'view') {
             'req_mgmt' => $user->hasRight($db, 'mgt_modify_req', $resolvedTid),
             'monitor_req' => $user->hasRight($db, 'monitor_requirement', $resolvedTid),
             'req_tcase_link_management' => $user->hasRight($db, 'req_tcase_link_management', $resolvedTid),
+            // legacy reqView getGrants(): 'unfreeze_req' => 'mgt_unfreeze_req'
+            // (reqView.php:250) - the sole right gating BOTH Freeze and Unfreeze
+            // version buttons (reqViewVersionsViewer.tpl:86-98).
+            'unfreeze_req' => $user->hasRight($db, 'mgt_unfreeze_req', $resolvedTid),
         ],
         'meta' => $meta,
         'spec_path' => $specPath,
@@ -798,6 +802,83 @@ if ($method === 'POST' && isset($segments[0]) && $segments[0] === 'versions'
         // version revision counter after the snapshot (legacy bumps to current_rev+1)
         'revision' => intval($verRow[0]['revision']) + 1,
         'log_message' => $logMessage,
+    ]);
+}
+
+// ---------------------------------------------------------------------------
+// POST /versions/{versionId}/freeze  |  POST /versions/{versionId}/unfreeze
+// toggle the open/frozen state of a requirement version (legacy reqViewVersions
+// Viewer.tpl:86-98 Freeze this version / Unfreeze this version buttons ->
+// reqEdit.php doAction=doFreezeVersion|doUnfreezeVersion -> reqCommands.class
+// .php:861 doFreezeVersion() / :411 doUnfreezeVersion() -> requirement_mgr::
+// updateOpen() writes req_versions.is_open).
+//   - BOTH buttons are gated on the SAME legacy grant 'unfreeze_req' (right
+//     mgt_unfreeze_req, reqView.php:250) on the OWNING test project - there is
+//     NO separate 'freeze_req' right in TestLink (see INVESTIGATION comment).
+//   - freeze  -> is_open = 0  (audit event FREEZE,  'audit_req_version_frozen')
+//   - unfreeze-> is_open = 1  (audit event UNFREEZE,'audit_req_version_unfrozen')
+//   - Legacy doFreezeVersion/doUnfreezeVersion do NOT gate on the current open
+//     state (updateOpen is idempotent); parity kept - no 409 pre-check. The
+//     toolbar buttons themselves only render for the matching state.
+// ---------------------------------------------------------------------------
+if ($method === 'POST' && isset($segments[0]) && $segments[0] === 'versions'
+    && isset($segments[1]) && isset($segments[2])
+    && in_array($segments[2], ['freeze', 'unfreeze'], true)) {
+
+    $freeze = ($segments[2] === 'freeze');
+    $versionId = intval($segments[1]);
+    if ($versionId <= 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid version id']);
+    }
+
+    // resolve owning test project via req_versions -> nodes_hierarchy ->
+    // requirements -> req_specs (same pattern as the /revision route above)
+    $verRow = $db->get_recordset(
+        " SELECT REQV.id AS version_id, REQV.is_open, REQV.version, REQV.revision, " .
+        "        NHR.id AS req_id, NHR.name AS title, " .
+        "        REQ.req_doc_id, RS.testproject_id " .
+        " FROM req_versions REQV " .
+        " JOIN nodes_hierarchy NH ON NH.id = REQV.id " .
+        " JOIN nodes_hierarchy NHR ON NHR.id = NH.parent_id " .
+        " JOIN requirements REQ ON REQ.id = NHR.id " .
+        " JOIN req_specs RS ON RS.id = REQ.srs_id " .
+        " WHERE REQV.id = " . intval($versionId));
+    if (empty($verRow)) {
+        http_response_code(404);
+        out(['status' => 'error', 'message' => 'Requirement version not found']);
+    }
+    $tpid = intval($verRow[0]['testproject_id']);
+    // legacy grant: BOTH freeze and unfreeze require mgt_unfreeze_req
+    // (reqView.php:250); legacy reqEdit.php:315 also gates the whole action
+    // page on mgt_modify_req - mirrored here so the API refuses exactly what
+    // the legacy page did.
+    if (!$user->hasRight($db, 'mgt_modify_req', $tpid)
+        || !$user->hasRight($db, 'mgt_unfreeze_req', $tpid)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission']);
+    }
+
+    $reqMgr->updateOpen($versionId, $freeze ? false : true);
+    $isOpen = $freeze ? 0 : 1;
+
+    // audit event - legacy TLS('audit_req_version_frozen'/'_unfrozen') text
+    $reqTitle = $verRow[0]['title'] ?? '';
+    $reqDocId = $verRow[0]['req_doc_id'] ?? '';
+    $reqVersion = intval($verRow[0]['version'] ?? 0);
+    logAuditEvent(
+        "Version {$reqVersion} of Req 'DOCID:{$reqDocId}' - {$reqTitle} was " .
+        ($freeze ? 'frozen' : 'unfrozen') . ".",
+        $freeze ? 'FREEZE' : 'UNFREEZE',
+        $versionId,
+        'req_version');
+
+    out([
+        'status' => 'ok',
+        'req_id' => intval($verRow[0]['req_id']),
+        'version_id' => $versionId,
+        'is_open' => $isOpen,
+        'frozen' => $freeze,
     ]);
 }
 

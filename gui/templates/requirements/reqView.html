@@ -63,6 +63,8 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; }
   </label>
   <button class="btn-teal" onclick="loadView()"><i class="fa fa-refresh"></i> <span data-i18n="common.refresh">Refresh</span></button>
   <button id="revBtn" class="btn-teal" style="display:none;"><i class="fa fa-files-o"></i> <span data-i18n="reqv.newRevision">New Revision</span></button>
+  <button id="freezeBtn" class="btn-ghost" style="display:none;"><i class="fa fa-snowflake"></i> <span data-i18n="reqv.freeze">Freeze this version</span></button>
+  <button id="unfreezeBtn" class="btn-ghost" style="display:none;"><i class="fa fa-sun"></i> <span data-i18n="reqv.unfreeze">Unfreeze this version</span></button>
   <button id="monitorBtn" class="btn-ghost" style="display:none;"></button>
   <button id="cmpBtn" class="btn-ghost" style="display:none;" onclick="openCompare()"><i class="fa fa-code-compare"></i> <span data-i18n="reqv.compareVersions">Compare versions</span></button>
   <button class="btn-ghost" onclick="openPrint()"><i class="fa fa-print"></i> <span data-i18n="reqv.print">Print</span></button>
@@ -391,6 +393,19 @@ function renderOverview(r) {
   } else {
     revBtn.hide();
   }
+  // Freeze/Unfreeze version buttons (legacy reqViewVersionsViewer.tpl:86-98):
+  // BOTH are gated on the 'unfreeze_req' grant (right mgt_unfreeze_req) - the
+  // single legacy grant for freeze AND unfreeze (reqView.php:250) - AND on the
+  // 'req_mgmt' grant, because legacy renders the whole buttons form only inside
+  // {if $args_grants->req_mgmt == "yes"} (tpl:49). Freeze renders only for OPEN
+  // versions, Unfreeze only for FROZEN ones.
+  var canToggleFreeze = !!(r.grant && r.grant.req_mgmt && r.grant.unfreeze_req);
+  $('#freezeBtn').toggle(canToggleFreeze && !c.frozen);
+  $('#unfreezeBtn').toggle(canToggleFreeze && c.frozen);
+  if (canToggleFreeze) {
+    $('#freezeBtn').off('click').on('click', function() { toggleFreeze(false); });
+    $('#unfreezeBtn').off('click').on('click', function() { toggleFreeze(true); });
+  }
   $('#infoLine').text(TLi18n.t('reqv.displaying') + ' v' + c.version + 'r' + c.revision);
 }
 
@@ -406,6 +421,34 @@ function newRevision() {
     success: function(r) {
       if (r.status !== 'ok') { alert(r.message || TLi18n.t('reqv.loadError')); return; }
       showToast(TLi18n.t('reqv.revisionCreated'), true);
+      loadView();
+    },
+    error: function(xhr) {
+      var msg = TLi18n.t('reqv.loadError');
+      try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
+      alert(msg);
+    }
+  });
+}
+
+function toggleFreeze(unfreeze) {
+  // legacy freeze_req_version/unfreeze_req_version (reqViewVersions.tpl:82-104)
+  // confirmed the action via the freeze/unfreeze warning dialog, then posted
+  // doAction=doFreezeVersion|doUnfreezeVersion&req_version_id=N.
+  var action = unfreeze ? 'unfreeze' : 'freeze';
+  var warn = TLi18n.t(unfreeze ? 'reqv.unfreezeConfirm' : 'reqv.freezeConfirm', {
+    v: CUR_VERSION_NUM, docId: CUR_DOC_ID, title: $('#vDocId b').text() || ''
+  });
+  if (!window.confirm(warn)) return;
+  $.ajax({
+    url: API + '/versions/' + VERSION_ID + '/' + action,
+    method: 'POST',
+    contentType: 'application/json',
+    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+    data: JSON.stringify({}),
+    success: function(r) {
+      if (r.status !== 'ok') { alert(r.message || TLi18n.t('reqv.loadError')); return; }
+      showToast(TLi18n.t(unfreeze ? 'reqv.unfrozenOk' : 'reqv.frozenOk'), true);
       loadView();
     },
     error: function(xhr) {

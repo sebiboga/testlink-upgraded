@@ -5499,6 +5499,28 @@ Changes:
   reqv.newRevision / reqv.newRevisionPrompt / reqv.revisionCreated in all 10
   locale bundles. Suite 1303 7/7 PASS; Event Viewer clean.
 
+### Feature parity — Requirement Viewer Freeze/Unfreeze version buttons (Refs #1302)
+- reqView.html + api/requirements/index.php: restore the legacy Freeze this
+  version / Unfreeze this version buttons (reqViewVersionsViewer.tpl:86-98,
+  doAction=doFreezeVersion|doUnfreezeVersion -> reqCommands::doFreezeVersion/
+  doUnfreezeVersion -> requirement_mgr::updateOpen writes req_versions.is_open).
+  The /view grant block now exposes unfreeze_req (right mgt_unfreeze_req) -
+  the SINGLE legacy grant gating BOTH directions (there is no separate
+  freeze_req right) - and two new BFF routes, POST /versions/{id}/freeze and
+  POST /versions/{id}/unfreeze, mirror the /revision route: owning project
+  from the version row, 403 unless mgt_modify_req AND mgt_unfreeze_req
+  (legacy reqEdit.php:315 page gate + tpl grant), updateOpen(false|true),
+  audit events FREEZE/UNFREEZE on req_version (legacy audit_req_version_frozen/
+  _unfrozen wording), JSON {status,req_id,version_id,is_open,frozen}. Buttons
+  shown iff grant.req_mgmt && grant.unfreeze_req, Freeze only when !frozen /
+  Unfreeze only when frozen (exact legacy state+grant gate); window.confirm
+  with the legacy warning_freeze_requirement wording incl. v/docId/title;
+  teal toast reqv.frozenOk/reqv.unfrozenOk + view reload. Fixture verified
+  with admin (freeze+unfreeze) and no-rights role 100 user (403, hidden
+  buttons). New i18n keys reqv.freeze / reqv.unfreeze / reqv.freezeConfirm /
+  reqv.unfreezeConfirm / reqv.frozenOk / reqv.unfrozenOk in all 10 locale
+  bundles. Suite 1302 N/N PASS; Event Viewer clean.
+
 ### Feature parity — Issue Tracker edit modal shows 'used on test project' (Refs #964)
 - issuetrackerView.html + api/issuetracker/index.php: restore the legacy
   displayUsedBy block in the tracker edit modal. Legacy issueTrackerEdit.tpl:73-119
