@@ -20247,3 +20247,39 @@ admin/admin logged in; crafted browser build:
 **Result: 7/7 PASS. (Refs #1303)**
 
 **Result: 10/10 PASS. (Refs #965)**
+
+---
+
+## Task — Issue #1302: Requirement Viewer Freeze/Unfreeze version buttons
+
+Fixture: `php tmp/fixtures_1302.php` (FZ1302 tproject=1, REQ-100 open version_id=5, REQ-101 frozen version_id=7). Admin session http://localhost:8082, admin/admin.
+
+### Test 1 — Freeze button renders on an OPEN version and is hidden on a FROZEN one
+- **Steps:** open `reqView.html?id=4&tproject_id=1` (REQ-100 v1, open), then `id=6` (REQ-101 v1, frozen); check toolbar `#freezeBtn` / `#unfreezeBtn`; check `GET /view` grant.
+- **Expected:** open → Freeze shown, Unfreeze hidden; frozen → Freeze hidden, Unfreeze shown; `grant.unfreeze_req="yes"` for admin.
+- **Actual:** open: freezeBtn flex / unfreezeBtn none; frozen REQ-101: freezeBtn none / unfreezeBtn flex; grant yes. PASS.
+
+### Test 2 — Freeze roundtrip (UI + API + DB + audit)
+- **Steps:** on REQ-100 click Freeze → confirm dialog → accept; reload; then `POST /versions/5/unfreeze` via UI; read `req_versions.is_open` and `events` rows.
+- **Expected:** after freeze: toast "Requirement version has been frozen.", FROZEN=Yes, selector `v1r1 *`, Unfreeze shown, New Revision hidden, is_open=0, events FREEZE on req_version id=5 text "Version 1 of Req 'DOCID:REQ-100' - FZ1302 open requirement was frozen."; after unfreeze: toast "…unfrozen.", FROZEN=No, Freeze back, New Revision back, is_open=1, events UNFREEZE.
+- **Actual:** all observed exactly; is_open flipped 1→0→1. PASS.
+
+### Test 3 — Confirm-dialog wording carries version/docId/title
+- **Steps:** click Freeze on REQ-100; capture the dialog text.
+- **Expected:** matches legacy warning_freeze_requirement fill: "You are going to freeze version 1 - REQ-100: FZ1302 open requirement. Are you sure?".
+- **Actual:** identical (dismissed, no state change). PASS.
+
+### Test 4 — 403 + hidden buttons for a user without mgt_unfreeze_req
+- **Steps:** create role 100 = role 4 clone minus right 30; user `nofz`/`nofz`; login nofz (isolated context); `GET /view?id=4&version_id=5`; `POST /versions/5/freeze`; check toolbar.
+- **Expected:** grant.unfreeze_req=null; both buttons hidden; POST → HTTP 403 `No permission`; DB is_open unchanged.
+- **Actual:** grant null, buttons none, 403, is_open=1 unchanged. PASS.
+
+### Test 5 — 400/404 route hygiene
+- **Steps:** `POST /versions/abc/freeze` and `POST /versions/999/freeze` as admin.
+- **Expected:** 400 `Invalid version id` / 404 `Requirement version not found`.
+- **Actual:** 400 and 404 (route hygiene inherited from /revision shape). PASS.
+
+### Test 6 — i18n + Event Viewer hygiene
+- **Steps:** switch locale to Română and verify Freeze/Unfreeze labels and toasts render (reqv.freeze/reqv.unfreeze/reqv.frozenOk/reqv.unfrozenOk); read `events` table + browser console after all tests.
+- **Expected:** localized strings render; no new Error/Warning rows; no console errors.
+- **Actual:** locale=ro reload → Freeze "Îngheață această versiune", Unfreeze "Dezgheață această versiune", FROZEN "Da"; events all log_level=16; console clean. PASS.
