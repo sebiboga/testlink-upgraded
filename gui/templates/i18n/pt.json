@@ -3154,6 +3154,7 @@
   "sced.createOnCts": "Criar código no rastreador",
   "sced.delete": "Excluir",
   "sced.deleteError": "Não foi possível excluir o link do script",
+  "sced.deleted": "Test script link deleted",
   "sced.deleteMsg": "Desvincular este script da versão do caso de teste?",
   "sced.deleteTitle": "Excluir link de script",
   "sced.fileBrowser": "Explorador de repositórios",

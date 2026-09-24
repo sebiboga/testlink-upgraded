@@ -3148,6 +3148,7 @@
   "sced.createOnCts": "Code im Code-Tracker erstellen",
   "sced.delete": "Löschen",
   "sced.deleteError": "Skriptverknüpfung konnte nicht gelöscht werden",
+  "sced.deleted": "Test script link deleted",
   "sced.deleteMsg": "Dieses Skript von der Testfallversion trennen?",
   "sced.deleteTitle": "Skriptverknüpfung löschen",
   "sced.fileBrowser": "Repository-Durchsucher",

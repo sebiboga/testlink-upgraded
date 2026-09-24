@@ -3154,6 +3154,7 @@
   "sced.createOnCts": "在跟踪器上创建代码",
   "sced.delete": "删除",
   "sced.deleteError": "无法删除脚本链接",
+  "sced.deleted": "Test script link deleted",
   "sced.deleteMsg": "是否将此脚本从测试用例版本中取消链接？",
   "sced.deleteTitle": "删除脚本链接",
   "sced.fileBrowser": "仓库浏览器",

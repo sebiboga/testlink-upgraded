@@ -3154,6 +3154,7 @@
   "sced.createOnCts": "トラッカーにコードを作成",
   "sced.delete": "削除",
   "sced.deleteError": "スクリプトリンクを削除できませんでした",
+  "sced.deleted": "Test script link deleted",
   "sced.deleteMsg": "このスクリプトをテストケースバージョンから外しますか?",
   "sced.deleteTitle": "スクリプトリンク削除",
   "sced.fileBrowser": "リポジトリブラウザー",

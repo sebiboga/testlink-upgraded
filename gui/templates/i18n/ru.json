@@ -3154,6 +3154,7 @@
   "sced.createOnCts": "Создать код в трекере",
   "sced.delete": "Удалить",
   "sced.deleteError": "Не удалось удалить связь скрипта",
+  "sced.deleted": "Test script link deleted",
   "sced.deleteMsg": "Отвязать этот скрипт от версии тест-кейса?",
   "sced.deleteTitle": "Удалить связь скрипта",
   "sced.fileBrowser": "Обзор репозитория",

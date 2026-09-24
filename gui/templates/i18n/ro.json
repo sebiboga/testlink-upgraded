@@ -3154,6 +3154,7 @@
   "sced.createOnCts": "Creează cod pe tracker",
   "sced.delete": "Sterge",
   "sced.deleteError": "Legătura scriptului nu a putut fi ștearsă",
+  "sced.deleted": "Legătura de script a fost ștearsă",
   "sced.deleteMsg": "Deconectezi acest script de versiunea cazului de test?",
   "sced.deleteTitle": "Sterge legătura script",
   "sced.fileBrowser": "Explorator de repository",

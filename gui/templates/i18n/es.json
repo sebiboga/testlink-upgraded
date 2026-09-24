@@ -3148,6 +3148,7 @@
   "sced.createOnCts": "Crear código en el tracker",
   "sced.delete": "Eliminar",
   "sced.deleteError": "No se pudo eliminar el enlace del script",
+  "sced.deleted": "Test script link deleted",
   "sced.deleteMsg": "¿Desvincular este script de la versión del caso de prueba?",
   "sced.deleteTitle": "Eliminar enlace de script",
   "sced.fileBrowser": "Explorador de repositorio",

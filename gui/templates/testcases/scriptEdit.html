@@ -264,6 +264,7 @@ function refreshSelects() {
 
 function loadMeta(params, cb) {
   var q = [];
+  if (CTX && CTX.tproject_id) { q.push('tproject_id=' + encodeURIComponent(CTX.tproject_id)); }
   Object.keys(params || {}).forEach(function (k) { q.push(k + '=' + encodeURIComponent(params[k])); });
   $.getJSON(API + (q.length ? '?action=meta&' + q.join('&') : '?action=meta'), function (r) {
     if (r.status !== 'ok') { toast(r.message || 'Error', 'err'); if (cb) cb(false); return; }
@@ -271,6 +272,7 @@ function loadMeta(params, cb) {
     refreshSelects();
     if (cb) cb(true);
   }).fail(function (xhr) {
+    if (authRedirect(xhr)) { return; }
     var msg = (xhr.responseJSON && xhr.responseJSON.message) || TLi18n.t('sced.loadError');
     toast(msg, 'err');
     if (cb) cb(false);
@@ -291,6 +293,7 @@ function loadFiles(path, into) {
   if (!sel.repository_name) { into.html('<div class="empty">' + esc(TLi18n.t('sced.selectRepoFirst')) + '</div>'); return; }
   into.html('<div class="empty"><i class="fa fa-spinner fa-spin"></i> ' + esc(TLi18n.t('sced.loadingBrowser')) + '</div>');
   var q = 'action=files&path=' + encodeURIComponent(path || '') +
+          (CTX && CTX.tproject_id ? '&tproject_id=' + encodeURIComponent(CTX.tproject_id) : '') +
           '&project_key=' + encodeURIComponent(sel.project_key) +
           '&repository_name=' + encodeURIComponent(sel.repository_name) +
           (sel.branch_name ? '&branch=' + encodeURIComponent(sel.branch_name) : '');
@@ -313,6 +316,7 @@ function loadFiles(path, into) {
     });
     into.html(h);
   }).fail(function (xhr) {
+    if (authRedirect(xhr)) { return; }
     var msg = (xhr.responseJSON && xhr.responseJSON.message) || TLi18n.t('sced.loadError');
     into.html('<div class="empty">' + esc(msg) + '</div>');
   });
@@ -342,7 +346,7 @@ function refreshScripts() {
          '<i class="fa fa-code"></i><span class="path">' + esc(x.link_label) + '</span>' +
          '<span class="branch">' + esc(x.repository_name + (x.branch_name ? ' @ ' + x.branch_name : '')) + '</span>' +
          '<span class="actions">' + view +
-         '<a href="#" onclick="openDelete(\'' + esc(x.script_id) + '\');return false;" title="' + esc(TLi18n.t('sced.delete')) + '">' +
+         '<a href="#" class="del" data-sid="' + esc(x.script_id) + '" title="' + esc(TLi18n.t('sced.delete')) + '">' +
          '<i class="fa fa-trash" style="color:#e6605e;"></i></a></span></div>';
   });
   $('#scriptsList').html(h);
@@ -352,6 +356,14 @@ var pendingDelete = null;
 function openDelete(scriptId) {
   pendingDelete = scriptId;
   $('#delModal').modal('show');
+}
+
+function authRedirect(xhr) {
+  if (xhr && xhr.status === 401) {
+    window.location.href = '/login.php';
+    return true;
+  }
+  return false;
 }
 
 function confirmDelete() {
@@ -365,6 +377,7 @@ function confirmDelete() {
   $.ajax({
     url: API + '?action=delete',
     method: 'POST',
+    headers: { 'X-Requested-With': 'XMLHttpRequest' },
     contentType: 'application/json',
     data: JSON.stringify(payload)
   }).done(function (r) {
@@ -373,6 +386,7 @@ function confirmDelete() {
     else { toast(r.message || TLi18n.t('sced.deleteError'), 'err'); }
   }).fail(function (xhr) {
     $('#delModal').modal('hide');
+    if (authRedirect(xhr)) { return; }
     var msg = (xhr.responseJSON && xhr.responseJSON.message) || TLi18n.t('sced.deleteError');
     toast(msg, 'err');
   }).always(function () {
@@ -394,6 +408,7 @@ function saveScript() {
   $.ajax({
     url: API + '?action=save',
     method: 'POST',
+    headers: { 'X-Requested-With': 'XMLHttpRequest' },
     contentType: 'application/json',
     data: JSON.stringify(payload)
   }).done(function (r) {
@@ -404,6 +419,7 @@ function saveScript() {
       toast(r.message || TLi18n.t('sced.saveError'), 'err');
     }
   }).fail(function (xhr) {
+    if (authRedirect(xhr)) { return; }
     var msg = (xhr.responseJSON && xhr.responseJSON.message) || TLi18n.t('sced.saveError');
     toast(msg, 'err');
   }).always(function () {
@@ -434,6 +450,7 @@ function reload() {
       loadFiles('', $('#filebox'));
     }
   }).fail(function (xhr) {
+    if (authRedirect(xhr)) { return; }
     var msg = (xhr.responseJSON && xhr.responseJSON.message) || TLi18n.t('sced.loadError');
     toast(msg, 'err');
   });
@@ -459,6 +476,10 @@ $(function () {
     $('#btnSave').on('click', saveScript);
     $('#btnConfirmDelete').on('click', confirmDelete);
     $('#btnClose').on('click', function () { window.close(); });
+    $('#scriptsList').on('click', '.del', function (e) {
+      e.preventDefault();
+      openDelete($(this).data('sid'));
+    });
 
     $('#projectKey').on('change', function () {
       $('#repoName').empty().append('<option value="">-</option>');
@@ -532,6 +553,7 @@ $(function () {
       }
     }).fail(function (xhr) {
       $('#loading').hide();
+      if (authRedirect(xhr)) { return; }
       if (xhr.status === 403) {
         $('#denied h3').text(TLi18n.t('sced.accessDenied'));
         $('#denied p').text(TLi18n.t('sced.noModifyRight'));

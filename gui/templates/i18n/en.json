@@ -3160,6 +3160,7 @@
   "sced.createOnCts": "Create code on the code tracker",
   "sced.delete": "Delete",
   "sced.deleteError": "Could not delete the script link",
+  "sced.deleted": "Test script link deleted",
   "sced.deleteMsg": "Unlink this script from the test case version?",
   "sced.deleteTitle": "Delete script link",
   "sced.fileBrowser": "Repository browser",
