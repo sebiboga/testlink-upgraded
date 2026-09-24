@@ -19978,3 +19978,120 @@ Entry: `http://localhost:8082/gui/templates/requirements/reqCompare.html?require
   pre-existing a11y issue notice. PASS. (11/11)
 
 **Result: 11/11 PASS. (Refs #1308)**
+
+---
+## Screen — Execution Script Edit popup (lib/testcases/scriptAdd.php + scriptDelete.php → gui/templates/testcases/scriptEdit.html + api/scriptedit) — #1574
+
+Modern screen: `gui/templates/testcases/scriptEdit.html` (Dashio popup: teal header, context meta card, VCS form
+Project/Repository/Branch/Commit-id/Commit-picker/Script path + repository file-browser tree, Linked scripts list,
+localized delete confirm modal, locale switcher, footer); BFF: `api/scriptedit/index.php`
+(`GET ?action=init`, `GET ?action=meta`, `GET ?action=files`, `POST ?action=save`, `POST ?action=delete`; session auth +
+`bffSameOriginGuard`, rights `mgt_modify_tc` on the owning project); legacy controllers kept as session-guarded sign-in
+shims (anon → login, auth → 302 modern popup with ids). Fixture `tmp/fixtures_1574.php` (fresh DB): tproject 1
+`ScriptEdit Demo` / prefix SED1574 with `code_tracker_enabled=1`, GH code tracker (public repo sebiboga/testlink-upgraded,
+branch sebiboga; real GitHub Contents API, no token), testplan 2, suite 3, `SED1574 Scripted TC` tcversion 5
+(pre-seeded script link `sebiboga&&testlink-upgraded&&README.md`), `SED1574 Empty TC` tcversion 8 (no links), user
+`norights` (role 3, id 2).
+
+### Test 1 — BFF init (edit mode) returns context + existing script link
+1. Admin session `GET /api/scriptedit/index.php?action=init&tcversion_id=5&tproject_id=1&user_action=edit`.
+- **Expected:** `status:ok`; context tcversionName `SED1574 Scripted TC`, tc_external_id 1, version 1; `can_modify=yes`;
+  code_tracker repository `sebiboga/testlink-upgraded`; `scripts` = 1 row (script_id `sebiboga&&testlink-upgraded&&README.md`,
+  view_url github blob).
+- **Actual:** PASS — all fields present; 1 script row.
+
+### Test 2 — BFF init (create mode) on empty tcversion returns no links
+1. `GET /api/scriptedit/index.php?action=init&tcversion_id=8&tproject_id=1&user_action=create`.
+- **Expected:** `status:ok`; context `SED1574 Empty TC`; `scripts:[]`; tracker_message null.
+- **Actual:** PASS — empty links array.
+
+### Test 3 — Screen render in create mode (browser)
+1. Log in admin; open `scriptEdit.html?user_action=create&tcversion_id=8&tproject_id=1&tplan_id=2`.
+- **Expected:** header "Test Script"; sub `2 — SED1574 Empty TC`; meta card (Test case/Version/Test project/Test plan/
+  Code tracker); "Add script link" card with Project/Repository/Branch/Commit id/Script path; repository file-browser
+  lists repo root (dirs .devcontainer/.github/... + files .ci/CHANGELOG/...); "Linked scripts" heading; Save/Close; footer
+  "TestLink 2.0.1 · Script Edit"; no console errors.
+- **Actual:** PASS (`docs/screenshots/issue-1574-scriptedit-create.png`).
+
+### Test 4 — Save script link via the UI (create path)
+1. Fill Script path = `LICENSE`; click Save.
+- **Expected:** success toast "Test Script link added"; a new `LICENSE` row appears under Linked scripts with branch
+  `testlink-upgraded @ sebiboga` and a github blob View link; DB row (tcversion 8, code_path LICENSE).
+- **Actual:** PASS — toast, row, and `testcase_script_links` row confirmed in DB (only README.md + LICENSE rows exist).
+
+### Test 5 — Duplicate save is deduped, not duplicated (legacy write_testcase_script parity)
+1. `POST action=save` with the same triple (tcversion 8, README.md) previously used by curl; then the UI save of LICENSE again.
+- **Expected:** `status:ok` returned (legacy `write_testcase_script` returns true when the row already exists) but NO
+  second `testcase_script_links` row for that (tcversion, path).
+- **Actual:** PASS — DB has exactly one row per (tcversion_id, code_path); no duplicates.
+
+### Test 6 — Save with non-existent CTS path → 400 with legacy message
+1. `POST action=save` body `code_path=NOPE-does-not-exist.md`.
+- **Expected:** HTTP 400 `{"status":"error","message":"Script Link 'NOPE-does-not-exist.md' does not exist on CTS!"}`
+  (`error_code_does_not_exist_on_cts`).
+- **Actual:** PASS — HTTP 400 + exact message.
+
+### Test 7 — Row delete: confirm modal → delete → row removed + toast
+1. On the Linked scripts panel click the trash icon of the README.md row.
+- **Expected:** Bootstrap confirm modal "Delete script link / Unlink this script from the test case version?"; click
+  Delete → toast "The test script link was successfully deleted!"; row disappears; DB row gone.
+- **Actual:** PASS — modal shown (`docs/screenshots/issue-1574-scriptedit-delete-modal.png`), toast, row + DB row removed.
+
+### Test 8 — Delete deep link (scriptDelete parity): modal auto-opens, Cancel keeps the row
+1. Open `scriptEdit.html?user_action=delete&tcversion_id=5&tproject_id=1&tplan_id=2&script_id=sebiboga%26%26testlink-upgraded%26%26README.md`.
+- **Expected:** screen loads with context `1 — SED1574 Scripted TC`; the delete confirm modal auto-opens (scriptDelete
+  legacy popup parity); clicking Cancel closes the modal without deleting.
+- **Actual:** PASS — modal auto-opened; Cancel → modal closed, README.md row still listed.
+
+### Test 9 — Repository file-browser expands directories
+1. In the Repository browser click the `install` folder.
+- **Expected:** contents replace the root listing: sub-dirs css/img/info/sql/util + files index.php, installCheck.php…
+  each with a `install/` path crumb.
+- **Actual:** PASS — 15 entries rendered with `install/` crumbs.
+
+### Test 10 — Locale switcher EN → RO translates the whole UI
+1. Use the header locale switcher (present after the fix commit) and pick `Română`.
+- **Expected:** reload with `locale=ro`; header + meta (Caz de test / Versiune / Proiect de test / Plan de test /
+  Tracker de cod), "Adaugare legătură script", "Creează cod pe tracker", Ramură / ID commit / Cale script (cale cod) /
+  Explorator de repository, Închideți / Salveaza, "Scripturi legate", Vizualizare / Sterge, footer "TestLink 2.0.1 ·
+  Editare script"; zero raw `sced.*` keys.
+- **Actual:** PASS (`docs/screenshots/issue-1574-scriptedit-ro.png`).
+
+### Test 11 — No-rights user: BFF 403 + accurate denied card
+1. `norights` session `GET /api/scriptedit/index.php?action=init&tcversion_id=8&tproject_id=1`.
+- **Expected:** HTTP 403 `mgt_modify_tc right required`.
+- **Actual:** PASS. Browser: the screen shows an "Access denied" card reading "You do not have permission to modify test
+  cases." (no-modify-right message, not the misleading tcversion-required text) — `docs/screenshots/issue-1574-scriptedit-403.png`.
+
+### Test 12 — Auth matrix: anonymous 401, missing action 405
+1. Anonymous `GET /api/scriptedit/index.php?action=init&tcversion_id=5` → 401.
+2. Admin `GET /api/scriptedit/index.php` (no action) → 405.
+- **Expected:** 401 anon / 405 missing action.
+- **Actual:** PASS — both statuses.
+
+### Test 13 — Legacy shims: anon → login, authenticated → modern popup
+1. Anonymous `GET /lib/testcases/scriptAdd.php?user_action=create&tcversion_id=5` and `scriptDelete.php`.
+- **Expected:** legacy session-guard contract — 200 body with `top.location.href='...login.php?note=expired&destination=...'`
+  (anon → login).
+- **Actual:** PASS — JS redirect for both shims.
+2. Admin `GET /lib/testcases/scriptAdd.php?user_action=create&tcversion_id=8&tproject_id=1&tplan_id=2` and
+   `scriptDelete.php?script_id=x&tcversion_id=5&tproject_id=1`.
+- **Expected:** 302 → `gui/templates/testcases/scriptEdit.html?user_action=create&tcversion_id=8&tproject_id=1&tplan_id=2`
+  resp. `?user_action=delete&tcversion_id=5&tproject_id=1&script_id=x`.
+- **Actual:** PASS — both 302 targets verified.
+
+### Test 14 — i18n completeness (all 10 bundles) + footer key
+1. `python3 -c` scan every `gui/templates/i18n/*.json` for `sced.*` and `footers.scriptEdit`.
+- **Expected:** 34 `sced.*` keys + `footers.scriptEdit` present in de/en/es/fr/it/ja/pt/ro/ru/zh; each file
+  `python3 -m json.tool`-valid.
+- **Actual:** PASS — 34 keys per bundle in all 10; footer key in all 10; JSON valid.
+
+### Test 15 — Event hygiene + console + php -l
+1. `SELECT log_level,source,activity FROM events` after all interactions; browser console on the popup (admin + 403).
+2. `php -l api/scriptedit/index.php lib/testcases/scriptAdd.php lib/testcases/scriptDelete.php`.
+- **Expected:** no Error/Warning rows introduced (only `log_level=16` AUDIT: login + `audit_testcasescript_added` /
+  `audit_testcasescript_deleted`); popup console clean (only the pre-existing a11y "No label associated with a form
+  field" issue); all three PHP files lint-clean.
+- **Actual:** PASS — events hold only 16/AUDIT rows (ids 4,5,7,8 = script add/delete events); console clean; `php -l` clean.
+
+**Result: 15/15 PASS.** (Refs #1574)
