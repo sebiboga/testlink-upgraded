@@ -4,7 +4,9 @@ Modernization of the **Test Scripts** screen (`lib/testcases/scriptAdd.php`,
 `lib/testcases/scriptDelete.php`, `gui/templates/dashio/include/showScriptsTable.inc.tpl`),
 which links source files from the test project's Code Tracker to a test case
 version — GitHub issue
-[#1543](https://github.com/sebiboga/testlink-upgraded/issues/1543).
+[#1543](https://github.com/sebiboga/testlink-upgraded/issues/1543). Its popup
+twin (link/unlink right from the Test Case content frame) is the
+[Execution Script Edit popup](Script-Edit-Popup-Modernized.md) (#1574).
 
 TestLink's "Test Scripts" story lets a test case version reference the code
 that automates it. The 1.9.20 implementation was a narrow legacy form that
