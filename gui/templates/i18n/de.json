@@ -418,6 +418,7 @@
   "ct.msg.deleted": "Code-Tracker gelöscht",
   "ct.msg.errorDelete": "Fehler beim Löschen des Code-Trackers",
   "ct.msg.errorSave": "Fehler beim Speichern des Code-Trackers",
+  "ct.msg.noPermission": "Sie haben keine Berechtigung, Code-Tracker anzusehen. Kontaktieren Sie Ihren Administrator.",
   "ct.msg.updated": "Code-Tracker aktualisiert",
   "ct.name": "Name",
   "ct.repository": "Repository-URL",

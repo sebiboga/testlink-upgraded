@@ -182,7 +182,21 @@ function loadMeta() {
     $.each(enabled, function(i, t) {
       sel.append('<option value="' + t.code + '">' + t.label + '</option>');
     });
+  }).fail(function(xhr) {
+    showDenied(xhr);
   });
+}
+
+// A 403 from the codetracker BFF means the logged-in user holds neither
+// codetracker_view nor codetracker_management (legacy checkRights ->
+// lib/codetrackers/codeTrackerView.php:68-70). The screen must not render
+// anything actionable: hide the toolbar (create button) and the table, and
+// surface a localized denial message.
+function showDenied(xhr) {
+  if (xhr.status === 403) {
+    $('.toolbar, .table-wrap').hide();
+    $('#footerText').text(TLi18n.t('ct.msg.noPermission')).css('color', '#e6605e').css('fontWeight', '600');
+  }
 }
 
 function loadTrackers() {
@@ -190,6 +204,8 @@ function loadTrackers() {
     allItems = r.items;
     renderTable(allItems);
     $('#footerText').text(TLi18n.t('ct.trackersCount', {n: r.total}) + ' | ' + TLi18n.t('common.generatedOn') + ' ' + new Date().toLocaleString());
+  }).fail(function(xhr) {
+    showDenied(xhr);
   });
 }
 

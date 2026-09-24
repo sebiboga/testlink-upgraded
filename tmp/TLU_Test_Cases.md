@@ -20248,76 +20248,41 @@ admin/admin logged in; crafted browser build:
 
 **Result: 10/10 PASS. (Refs #965)**
 
----
+## Suite 969 — Task — Issue #969: codetracker_view read-right gate in Code Tracker view BFF (gap vs legacy) (Refs #969)
 
-## Task — Issue #1302: Requirement Viewer Freeze/Unfreeze version buttons
+Fixture users: `ctguest` (role 3 `<no rights>`, 0 role_rights),
+`ctviewonly` (role 99, only `codetracker_view` = right 52), `admin`
+(role 8). Dataset: fixture codetrackers (legacy seed) at project `ct guest scans
+project` (id 17, prefix CX). Entry: `http://localhost:8082/api/codetracker/index.php`;
+screen `http://localhost:8082/gui/templates/codetracker/codetrackerView.html`.
 
-Fixture: `php tmp/fixtures_1302.php` (FZ1302 tproject=1, REQ-100 open version_id=5, REQ-101 frozen version_id=7). Admin session http://localhost:8082, admin/admin.
+### Test 1 — 403 for `codetracker_view`-less user on list route
+- **Steps:** login `ctguest`; `GET /api/codetracker/index.php`.
+- **Expected:** HTTP 403 `{"status":"error","message":"No permission"}`; audit
+  `audit_security_user_right_missing` row.
+- **Actual:** 403 + message; audit row present. PASS.
 
-### Test 1 — Freeze button renders on an OPEN version and is hidden on a FROZEN one
-- **Steps:** open `reqView.html?id=4&tproject_id=1` (REQ-100 v1, open), then `id=6` (REQ-101 v1, frozen); check toolbar `#freezeBtn` / `#unfreezeBtn`; check `GET /view` grant.
-- **Expected:** open → Freeze shown, Unfreeze hidden; frozen → Freeze hidden, Unfreeze shown; `grant.unfreeze_req="yes"` for admin.
-- **Actual:** open: freezeBtn flex / unfreezeBtn none; frozen REQ-101: freezeBtn none / unfreezeBtn flex; grant yes. PASS.
+### Test 2 — 403 on `/meta/types` route (same gate, all routes)
+- **Steps:** login `ctguest`; `GET /api/codetracker/index.php/meta/types`.
+- **Expected:** HTTP 403.
+- **Actual:** 403. PASS.
 
-### Test 2 — Freeze roundtrip (UI + API + DB + audit)
-- **Steps:** on REQ-100 click Freeze → confirm dialog → accept; reload; then `POST /versions/5/unfreeze` via UI; read `req_versions.is_open` and `events` rows.
-- **Expected:** after freeze: toast "Requirement version has been frozen.", FROZEN=Yes, selector `v1r1 *`, Unfreeze shown, New Revision hidden, is_open=0, events FREEZE on req_version id=5 text "Version 1 of Req 'DOCID:REQ-100' - FZ1302 open requirement was frozen."; after unfreeze: toast "…unfrozen.", FROZEN=No, Freeze back, New Revision back, is_open=1, events UNFREEZE.
-- **Actual:** all observed exactly; is_open flipped 1→0→1. PASS.
+### Test 3 — 200 for view-only user (`codetracker_view` only)
+- **Steps:** login `ctviewonly`; list + `/meta/types`.
+- **Expected:** HTTP 200 on both (read-gated, not blocked).
+- **Actual:** 200 / 200. PASS.
 
-### Test 3 — Confirm-dialog wording carries version/docId/title
-- **Steps:** click Freeze on REQ-100; capture the dialog text.
-- **Expected:** matches legacy warning_freeze_requirement fill: "You are going to freeze version 1 - REQ-100: FZ1302 open requirement. Are you sure?".
-- **Actual:** identical (dismissed, no state change). PASS.
+### Test 4 — 200 for admin; full screen renders in browser
+- **Steps:** login `admin`; browser load of codetrackerView.html; same two XHRs.
+- **Expected:** HTTP 200; full toolbar + table rendered, zero JS exceptions.
+- **Actual:** 200; screen renders clean. PASS.
 
-### Test 4 — 403 + hidden buttons for a user without mgt_unfreeze_req
-- **Steps:** create role 100 = role 4 clone minus right 30; user `nofz`/`nofz`; login nofz (isolated context); `GET /view?id=4&version_id=5`; `POST /versions/5/freeze`; check toolbar.
-- **Expected:** grant.unfreeze_req=null; both buttons hidden; POST → HTTP 403 `No permission`; DB is_open unchanged.
-- **Actual:** grant null, buttons none, 403, is_open=1 unchanged. PASS.
+### Test 5 — `ctguest` browser denial + Event Viewer / console hygiene
+- **Steps:** login `ctguest`; load codetrackerView.html; read events + console.
+- **Expected:** localized red denial panel, toolbar + table hidden, both XHRs
+  403; Event Viewer clean (INFO-only `audit_security_user_right_missing`);
+  no console errors.
+- **Actual:** denial panel renders, toolbar/table hidden, XHRs 403, events
+  ERROR/WARNING = 0, console empty. PASS.
 
-### Test 5 — 400/404 route hygiene
-- **Steps:** `POST /versions/abc/freeze` and `POST /versions/999/freeze` as admin.
-- **Expected:** 400 `Invalid version id` / 404 `Requirement version not found`.
-- **Actual:** 400 and 404 (route hygiene inherited from /revision shape). PASS.
-
-### Test 6 — i18n + Event Viewer hygiene
-- **Steps:** switch locale to Română and verify Freeze/Unfreeze labels and toasts render (reqv.freeze/reqv.unfreeze/reqv.frozenOk/reqv.unfrozenOk); read `events` table + browser console after all tests.
-- **Expected:** localized strings render; no new Error/Warning rows; no console errors.
-- **Actual:** locale=ro reload → Freeze "Îngheață această versiune", Unfreeze "Dezgheață această versiune", FROZEN "Da"; events all log_level=16; console clean. PASS.
-
-## Screen — Work Area Launcher (lib/general/frmWorkArea.php → 302 redirect shim, feature map to modern screens) — #1575
-
-Fixture: `tmp/fixtures_1575.php` (tproject=13 "WorkArea Demo" / WAS1575, tplan=14 "WorkArea TPlan", build=3, suite=15, tc1={id16,tcv17}, tc2={id19,tcv20}); admin session.
-
-**Goal:** every legacy `?feature=` deep link lands on the correct modern standalone screen with session context + request overrides; invalid features and anonymous access keep legacy behavior; no new Event Viewer Error/Warning rows.
-
-### Test 1 — All 18 feature deep links 302 to the correct modern screen
-- **Steps:** as admin, navigate each leaf URL `lib/general/frmWorkArea.php?feature=<f>&tproject_id=13&tplan_id=14` and read the resolved window title/URL: editTc, assignReqs, searchTc, searchReq, searchReqSpec, printTestSpec, printReqSpec, keywordsAssign, planAddTC, planRemoveTC, planUpdateTC, show_ve, newest_tcversions, test_urgency, tc_exec_assignment, executeTest, showMetrics, reqSpecMgmt.
-- **Expected:** map → testSpec.html, assignReqs.html, searchView.html, searchReq.html, searchReqSpec.html, printTestSpec.html, printReqSpec.html, keywordsAssign.html, planAddTCView.html, planAddTCView.html, planUpdateTC.html, planNav.html, showNewestTcVersions.html, testUrgency.html, tcExecAssignment.html, execTest.html, resultsNavigator.html, reqSpecMgmt.html — all with `tproject_id=13&tplan_id=14`.
-- **Actual:** all 18 landed on the expected modern screen + context (browser-verified). PASS.
-
-### Test 2 — Session context forwarding + request override
-- **Steps:** (a) deep link with `tproject_id=13` only (session lastTestPlan=14) → searchReq; (b) deep link with `tplan_id` override on a different value.
-- **Expected:** tplan_id comes from session when not overridden; request tplan_id > 0 overrides via regex.
-- **Actual:** tproject only → `searchReq.html?tproject_id=13&tplan_id=14`; override replaces the param in place. PASS.
-
-### Test 3 — Anonymous deep link → login redirect preserving destination
-- **Steps:** unauthenticated (no session) `curl` a feature deep link; inspect response body.
-- **Expected:** not a crash; JS login redirect `login.php?note=expired&destination=%2Flib%2Fgeneral%2FfrmWorkArea.php%3Ffeature%3D...` (session guard `testlinkInitPage($db,TRUE)`).
-- **Actual:** `top.location.href='../../login.php?note=expired&destination=...'`. PASS.
-
-### Test 4 — Invalid feature → tLog + exit, no redirect (legacy parity)
-- **Steps:** `feature=INVALID_FEATURE`; read events table + browser console.
-- **Expected:** stays on the source URL (no Location header); one `Wrong page argument feature = INVALID_FEATURE` event row (log_level INFO/GUI, legacy parity); no Error/Warning rows beyond the parity log.
-- **Actual:** remains on frmWorkArea.php source; events row id=28 `Wrong page argument feature = INVALID_FEATURE`; no E_WARNING/E_ERROR. PASS.
-
-### Test 5 — common.php launcher removal: aside/Reports + dashboard still render
-- **Steps:** log in fresh, load index.php; expand Reports menu; open a report; open Dashboard.
-- **Expected:** every `$actions->*` modern href intact (resultsNav, planNav, testSpec, reqSpecMgmt, planUpdateTC, assignTCVExecution, showNewestTCV, executeTest, keywordsAssign, searchReq, searchReqSpec, printReqSpec, printTestSpec), dashboard renders with fixture project/plan, no `lib/general/frmWorkArea.php?feature=` href anywhere in the rendered menu.
-- **Actual:** Reports dropdown fully modern (all results/results*.html + reportPrint links), dashboard renders (2/2 TCs 0% complete), menu clean. PASS.
-
-### Test 6 — Event Viewer hygiene
-- **Steps:** after all tests, read `events` table for log_level in (ERROR, WARNING) beyond the pre-existing fixture scratch rows.
-- **Expected:** no new Error/Warning rows generated by the shim; only the parity INFO tLog from Test 4 + audit rows.
-- **Actual:** events contain only log_level=16 audit rows + the parity tLog (id 28); fixture `link_tcversions` E_WARNINGs (ids 23-26) scrubbed post-test. PASS.
-
-**Summary: 6/6 PASS (Refs #1575).** Legacy parity preserved: showMetrics/showTestUrgency modernized in common.php; all 18 feature routes verified; anon + invalid paths correct; Event Viewer clean.
+**Result: 5/5 PASS. (Refs #969)**

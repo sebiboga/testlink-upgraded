@@ -418,6 +418,7 @@
   "ct.msg.deleted": "Rastreador de código eliminado",
   "ct.msg.errorDelete": "Erro ao eliminar o rastreador de código",
   "ct.msg.errorSave": "Erro ao guardar o rastreador de código",
+  "ct.msg.noPermission": "Você não tem permissão para visualizar rastreadores de código. Entre em contato com o administrador.",
   "ct.msg.updated": "Rastreador de código atualizado",
   "ct.name": "Nome",
   "ct.repository": "URL do repositório",

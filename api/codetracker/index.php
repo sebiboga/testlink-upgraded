@@ -1,6 +1,7 @@
 <?php
 require_once(__DIR__ . '/../../config.inc.php');
 require_once('common.php');
+require_once('users.inc.php');
 
 doSessionStart();
 
@@ -17,6 +18,32 @@ $userId = $_SESSION['userID'] ?? null;
 if (!$userId || $userId <= 0) {
     http_response_code(401);
     echo json_encode(['status' => 'error', 'message' => 'Not authenticated']);
+    exit;
+}
+
+$user = tlUser::getByID($db, $userId);
+if (is_null($user)) {
+    http_response_code(401);
+    echo json_encode(['status' => 'error', 'message' => 'User not found']);
+    exit;
+}
+
+// Legacy lib/codetrackers/codeTrackerView.php:16,68-70 gates the whole page on
+// `codetracker_view` OR `codetracker_management` (checkRights passed to
+// testlinkInitPage -> redirect-to-login for users without either right).
+// The modern BFF used to serve every route to any authenticated user; mirror
+// the legacy page-level gate here so all routes (list, meta, detail, CRUD and
+// the GitHub native endpoints) return 403 for users holding neither right.
+$canView = $user->hasRight($db, 'codetracker_view') || $user->hasRight($db, 'codetracker_management');
+if (!$canView) {
+    // Match legacy lib/functions/common.php:1010-1032 (checkUserRightsFor): a
+    // denied attempt is trailed into the Event Viewer BEFORE the denial is
+    // served. The JSON BFF cannot redirect home like the legacy page, so the
+    // event is the only trace left.
+    logAuditEvent(TLS('audit_security_user_right_missing', $user->login, 'api/codetracker/index.php', 'view'),
+                  'VIEW', $userId, 'codetrackers');
+    http_response_code(403);
+    echo json_encode(['status' => 'error', 'message' => 'No permission']);
     exit;
 }
 

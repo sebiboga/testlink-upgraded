@@ -418,6 +418,7 @@
   "ct.msg.deleted": "Tracker di codice eliminato",
   "ct.msg.errorDelete": "Errore nell'eliminazione del tracker di codice",
   "ct.msg.errorSave": "Errore nel salvataggio del tracker di codice",
+  "ct.msg.noPermission": "Non hai il permesso di visualizzare i tracker di codice. Contatta l'amministratore.",
   "ct.msg.updated": "Tracker di codice aggiornato",
   "ct.name": "Nome",
   "ct.repository": "URL repository",

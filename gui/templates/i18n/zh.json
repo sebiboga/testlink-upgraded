@@ -418,6 +418,7 @@
   "ct.msg.deleted": "代码追踪器已删除",
   "ct.msg.errorDelete": "删除代码追踪器时出错",
   "ct.msg.errorSave": "保存代码追踪器时出错",
+  "ct.msg.noPermission": "您没有查看代码追踪器的权限。请联系管理员。",
   "ct.msg.updated": "代码追踪器已更新",
   "ct.name": "名称",
   "ct.repository": "仓库URL",
