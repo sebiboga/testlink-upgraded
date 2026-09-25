@@ -5572,6 +5572,14 @@ Changes:
       project tables and added user metrics to the middle section
 
 ## 2.0.1 (in-progress)
+### UI modernization — Remote Test Automation Execution (Refs #1587)
+- New BFF `api/tcautoexec/index.php` (GET `?action=init` = context + runnable
+  node list with the automation server resolved per node, POST `?action=run` =
+  per-test-case XML-RPC results) for the last standalone `lib/testcases/*`
+  controller without a modern twin (`lib/testcases/tcExecute.php` +
+  `lib/functions/remote_exec.php`). Session auth, `mft_view_tc` rights gate,
+  `bffSameOriginGuard`, 400/401/403/404/405 JSON contract.
+
 ### UI modernization — Platforms Export (Refs #1583)
 - Modernized Platforms Export with standalone Dashio
   `gui/templates/platforms/platformsExport.html`, session/rights PHP BFF,
