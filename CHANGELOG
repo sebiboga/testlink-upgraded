@@ -5573,16 +5573,15 @@ Changes:
 
 ## 2.0.1 (in-progress)
 ### Key bugfix — TLi18n locale selection persistence (Refs #1586)
-- Key bugfix #1586: `gui/templates/i18n/i18n.js` `detectLocale()` reads
-  `localStorage('tl_locale')` again, so an explicit language switch survives
-  navigation and every modernized screen that returns to a launcher (Cancel /
-  Back, no `?locale=` in the URL) keeps the chosen language. Resolution order
-  is now `?locale=` ▸ manual switch ▸ DB profile ▸ `en`, as the module header
-  has always documented; the profile path no longer writes the store, so the
-  DB locale can no longer be shadowed by a stale value.
-- A missing locale bundle no longer persists `en` into `tl_locale`: the failed
-  value is dropped so the next load re-resolves from the profile instead of
-  pinning the session to English.
+- Key bugfix #1586: an explicit language switch in the locale switcher now
+  survives navigation, so every modernized screen that returns to a launcher
+  (Cancel/Back, no `?locale=` in the URL) keeps the chosen language again.
+- `gui/templates/i18n/i18n.js`: `detectLocale()` reads `localStorage('tl_locale')`
+  again — resolution order `?locale=` ▸ manual switch ▸ DB profile ▸ `en`, as the
+  module header always documented; the profile lookup still never writes the
+  store. A missing locale bundle no longer persists `en` (it drops the failed
+  value), storage access is exception-guarded, and the profile form now mirrors
+  a saved locale into the store. (Refs #1586)
 
 ### UI modernization — Remote Test Automation Execution (Refs #1587)
 - New BFF `api/tcautoexec/index.php` (GET `?action=init` = context + runnable

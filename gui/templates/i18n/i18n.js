@@ -25,6 +25,7 @@ var TLi18n = (function() {
   var _locale = 'en';
   var _strings = {};
   var _loaded = false;
+  var STORE_KEY = 'tl_locale';
 
   // Map TestLink DB locale codes (en_GB, ro_RO, de_DE...) to i18n file codes (en, ro, de...)
   var LOCALE_MAP = {
@@ -54,6 +55,22 @@ var TLi18n = (function() {
     return LOCALE_MAP[code] || code.substring(0, 2);
   }
 
+  // Storage is a preference cache, never a hard dependency: browsers with
+  // site data blocked (Safari ITP, locked-down policies) throw SecurityError on
+  // every access, and an exception escaping load() would leave the screen
+  // untranslated with literal keys. Same guard pattern as aside.html.
+  function storeGet(key) {
+    try { return localStorage.getItem(key); } catch (e) { return null; }
+  }
+
+  function storeSet(key, value) {
+    try { localStorage.setItem(key, value); } catch (e) {}
+  }
+
+  function storeRemove(key) {
+    try { localStorage.removeItem(key); } catch (e) {}
+  }
+
   function detectLocale() {
     // 1. URL param (highest priority)
     var params = new URLSearchParams(window.location.search);
@@ -63,7 +80,7 @@ var TLi18n = (function() {
     // 2. localStorage (user's manual choice). The profile lookup below never
     // writes here, so this holds explicit switches only and is therefore
     // allowed to outrank the DB profile (Refs #1586).
-    var fromStorage = localStorage.getItem('tl_locale');
+    var fromStorage = storeGet(STORE_KEY);
     if (fromStorage) return mapLocale(fromStorage) || 'en';
 
     // Will be resolved async — return null to signal "need profile lookup"
@@ -72,7 +89,7 @@ var TLi18n = (function() {
 
   function setLocale(loc) {
     _locale = loc;
-    localStorage.setItem('tl_locale', loc);
+    storeSet(STORE_KEY, loc);
   }
 
   function load(callback) {
@@ -120,23 +137,33 @@ var TLi18n = (function() {
         _loaded = true;
         if (callback) callback();
       })
-      .fail(function() {
+      .fail(function(jqXHR) {
         // Fallback to English
         if (_locale !== 'en') {
           var failed = _locale;
-          $.getJSON('/gui/templates/i18n/en.json?_=' + Date.now()).done(function(data) {
-            _strings = data;
-            _loaded = true;
-            _locale = 'en';
-            // A missing bundle is not a user selection. Persisting 'en' here
-            // would pin every later screen load to English for good now that
-            // tl_locale is read back, so drop the value that just failed and
-            // let the next load re-resolve from the profile (Refs #1586).
-            if (localStorage.getItem('tl_locale') === failed) {
-              localStorage.removeItem('tl_locale');
-            }
-            if (callback) callback();
-          });
+          // Compare against the RAW stored string: mapLocale() rewrites
+          // 'ro_RO' to 'ro' and truncates unknown codes, so comparing the
+          // mapped value would leave those entries behind and re-request a
+          // bundle that does not exist on every single load.
+          var stored = storeGet(STORE_KEY);
+          $.getJSON('/gui/templates/i18n/en.json?_=' + Date.now())
+            .done(function(data) {
+              _strings = data;
+              _loaded = true;
+              _locale = 'en';
+              // Only a genuinely absent bundle invalidates the stored choice;
+              // a transient 500/timeout must not destroy a valid selection.
+              if (jqXHR.status === 404 && stored !== null && mapLocale(stored) === failed) {
+                storeRemove(STORE_KEY);
+              }
+              if (callback) callback();
+            })
+            .fail(function() {
+              // English is unreachable too: render the keys rather than
+              // leaving the screen permanently untranslated.
+              _loaded = true;
+              if (callback) callback();
+            });
         } else {
           _loaded = true;
           if (callback) callback();

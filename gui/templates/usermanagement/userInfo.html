@@ -283,6 +283,13 @@ function saveProfile() {
     contentType: 'application/json', data: JSON.stringify(data),
     success: function(r) {
       showAlert('ok', r.message || TLi18n.t('profile.msg.profileUpdated'));
+      // The stored manual switch outranks the DB profile, so saving the
+      // profile alone would leave modernized screens in the old language
+      // until the switcher is used again (Refs #1586).
+      if (data.locale) {
+        var picked = String(data.locale).substring(0, 2);
+        if (picked) TLi18n.setLocale(picked);
+      }
       try {
         if (window.top && window.top.frames['titlebar']) {
           window.top.frames['titlebar'].location.reload();
