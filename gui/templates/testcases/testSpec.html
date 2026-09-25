@@ -744,7 +744,7 @@ function showSuiteView() {
   }
   // Requirements Bulk Assignment (Refs #1595) - legacy parity: the bulk grid
   // was reachable from the Test Specification tree on a test suite.
-  if (ctx.reqEnabled && !!grants['req_tcase_link_management']) {
+  if (ctx.options && ctx.options.requirementsEnabled && !!grants['req_tcase_link_management']) {
     h += '<button class="btn-dark btn-sm" onclick="openReqBulkAssign()"><i class="fa fa-layer-group"></i> ' + t('rtcb.title') + '</button>';
   }
   h += '</div>';
@@ -887,7 +887,7 @@ function renderTcView(r) {
       versionLifecycleButtonsHtml(r) +
     '</div>';
   }
-  if (ctx.reqEnabled && !!grants['req_tcase_link_management']) {
+  if (ctx.options && ctx.options.requirementsEnabled && !!grants['req_tcase_link_management']) {
     h += '<div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap;">' +
       '<button class="btn-dark btn-sm" onclick="openAssignReqs(' + tc.id + ')"><i class="fa fa-bookmark"></i> ' + t('tspec.assignRequirements') + '</button>' +
     '</div>';
