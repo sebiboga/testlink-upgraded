@@ -120,9 +120,31 @@ function executeTestCase($tcaseInfo,$serverCfg,$context)
 				if( $code != '')
 				{
 					$resultsCfg = config_get('results');
-					$codeStatus = array_flip($resultsCfg['status_code']);
-					$dummy = trim($codeStatus[$code]);
-					$ret['execution']['resultVerbose'] = lang_get($resultsCfg['status_label'][$dummy]);
+					// #1588: the remote server answers with a status CODE
+					// (results.status_code: p / f / b / n / x / u / a). A value
+					// outside that domain used to raise an undefined-key
+					// warning and produced an empty label - resolve it
+					// defensively and keep an unknown code verbatim.
+					$lcode = strtolower($code);
+					$domain = null;
+					if( isset($resultsCfg['code_status'][$lcode]) )
+					{
+						$domain = $resultsCfg['code_status'][$lcode];
+					}
+					else if( isset($resultsCfg['status_code'][$lcode]) )
+					{
+						// some servers send the domain word ('passed', ...)
+						$domain = $lcode;
+					}
+
+					if( !is_null($domain) && isset($resultsCfg['status_label'][$domain]) )
+					{
+						$ret['execution']['resultVerbose'] = lang_get($resultsCfg['status_label'][$domain]);
+					}
+					else
+					{
+						$ret['execution']['resultVerbose'] = $code;
+					}
 				}
 			}
 		}
