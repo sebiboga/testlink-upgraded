@@ -20875,12 +20875,36 @@ Commit: `0cf740a14` on `fix/issue-1581`.
   name cell `textContent` = `<img src=x onerror=document.body.dataset.xss=1>` with
   `children.length === 0`. PASS.
 
-### Test 3 — Server URL column: HTML injection neutralised
-- **Steps:** create id 2 (`<uribase>&lt;img …&gt;</uribase>`) and id 3
-  (`<uribase><b>bold</b></uribase>`); reload.
-- **Expected:** no element nodes injected from the Server URL cell.
+### Test 3 — Server URL column: script execution neutralised
+- **Steps:** create id 2 (`<uribase>&lt;img …&gt;</uribase>`), id 3
+  (`<uribase><b>bold</b></uribase>`) and — after the code-review round, see the
+  addendum below — id 7 with the **well-formed** payload
+  `<codetracker><uribase><img src="x" onerror="document.body.dataset.xssURL=1"/></uribase></codetracker>`;
+  reload the screen.
+- **Expected:** no element nodes injected and no handler fired from the Server URL cell.
 - **Actual:** `ZZURLPWN2` row Server URL cell `textContent` = `<b>bold</b>` with
-  `children.length === 0`; table-wide `img` count `0`, `b` count `0`. PASS.
+  `children.length === 0`; table-wide `img` count `0`, `b` count `0`. For id 7:
+  pre-fix the cell `innerHTML` = `<img src="x" onerror="document.body.dataset.xssURL=1">`
+  with 1 child node and `dataset.xssURL === "1"`; post-fix the cell `innerHTML` =
+  `&lt;img src="x" onerror="document.body.dataset.xssURL=1"/&gt;` with
+  `children.length === 0`, `textContent` = the literal payload, table `img` count `0`.
+  PASS.
+
+### Test 3bis — ADDENDUM after code review: the XML validator is NOT a mitigation
+- **Steps:** create the well-formed uribase payload above through
+  `POST /api/codetracker/index.php`; then serve a temporary copy of the PRE-FIX
+  file from the docroot and load it as `admin`; compare with the fixed file.
+- **Expected:** establish whether `<uribase>` values can reach script execution.
+- **Actual:** `POST` returned **HTTP 200** — the payload is accepted, because
+  `tlCodeTracker::checkXMLCfg()` (`lib/functions/tlCodeTracker.class.php:689-718`)
+  only runs `simplexml_load_string` and checks well-formedness, with no
+  element/attribute allowlist. Pre-fix page: `dataset.xssURL === "1"`, 1 injected
+  `img` node. Fixed page: `dataset.xssURL` never set, 0 nodes. Only MALFORMED
+  payloads are rejected (e.g. unquoted `src=x` → HTTP 400 "AttValue: \" or '
+  expected"), which is why the first investigation round wrongly concluded the
+  server-URL column was limited to HTML injection. The temporary demo file
+  `gui/templates/codetracker/_t1581_prefix_demo.html` was deleted again and the
+  `URLXSS` fixture (id 7) removed. Documentation corrected accordingly. PASS.
 
 ### Test 4 — View-only user (`codetracker_view` right 52 only) is protected too
 - **Steps:** log in as `ctonly1581` in an isolated browser context; load the entry
@@ -20957,4 +20981,4 @@ Commit: `0cf740a14` on `fix/issue-1581`.
   and 2 more (`id 5` scratch + `id 6`) removed the rest;
   `SELECT count(*) FROM codetrackers` → `0`; user/role fixture rows deleted. PASS.
 
-**Result: 10/10 PASS for #1581.**
+**Result: 10/10 PASS for #1581** (+ Test 3bis added after the code-review round, also PASS).
