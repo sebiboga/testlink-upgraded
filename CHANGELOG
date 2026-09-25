@@ -25,6 +25,22 @@ screen reaches full parity.
   keys; the 9-case suite passed 9/9 and the final Event Viewer delta was zero.
   (Refs #972)
 
+- [FEATURE GAP] - #973: the modern Code Trackers screen restores the legacy
+  **Environment** column. The BFF list route now requests
+  `getAll(['output' => 'add_link_count', 'checkEnv' => true])` — the option
+  `lib/codetrackers/codeTrackerView.php:23` asked for and the modern BFF had
+  silently dropped — so `tlCodeTracker::getAll()` runs the per-implementation
+  `$impl::checkEnv()` (`tlCodeTracker.class.php:566-572`, e.g.
+  `githubrestCodeTrackerInterface::checkEnv()` requiring the cURL extension) and
+  `trackerToJSON()` forwards `env_check_ok` / `env_check_msg`; the grid renders
+  a green `OK` badge (implementation message as tooltip) or a red badge showing
+  the human failure message, as `codeTrackerView.tpl:42,74`
+  (`$labels.th_codetracker_env`) did. Server URL is kept alongside it (the issue
+  allowed merging, which would have broken the edit modal prefill). Visible to
+  view-only users, exactly like legacy. 3 new i18n keys in all 10 locale
+  bundles; suite 973 passed 13/13, Event Viewer delta zero.
+  (Refs #973)
+
 - [FEATURE GAP] - #1300: the modern Requirement Viewer restores the legacy
   requirement-level **Edit**, **Delete** and **Copy** actions. The toolbar now
   opens the exact-version editor, deletes the complete requirement separately

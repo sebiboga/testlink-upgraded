@@ -21415,3 +21415,160 @@ suites 110-112 / TC 113,116,119) and `tmp/fixtures_1587_bulk.php` (suite 122 + c
   missing and skips custom fields linked to another test project. PASS.
 
 **Result: 24/24 PASS.** (Refs #1587, #1588, #1589)
+
+---
+
+## Suite: Task — Issue #973: Environment (`checkEnv`) column in codetrackerView
+
+**Feature under test:** the legacy 1.9.20 "Environment" column
+(`lib/codetrackers/codeTrackerView.php:23` → `getAll(..., 'checkEnv' => true)`;
+`tlCodeTracker.class.php:566-572` runs the per-implementation `$impl::checkEnv()`;
+`codeTrackerView.tpl:42,74` renders `$labels.th_codetracker_env` /
+`{$item_def.env_check_msg}`) was absent from the modern screen and is now ported.
+
+**Environment:**
+- App `http://localhost:8082` (PHP 8.3 built-in server, docroot = repo root), branch
+  `task/issue-973`, login `admin` / `admin`.
+- Second instance `http://127.0.0.1:8085` started with
+  `php -d disable_functions=curl_init -S 127.0.0.1:8085 -t .` — the exact condition
+  `githubrestCodeTrackerInterface::checkEnv():526` tests with
+  `function_exists('curl_init')`. Used to exercise the KO branch end-to-end.
+- DB: fresh import, fixtures `tmp/fixtures_973.php` (re-runnable) →
+  3 code trackers through the REAL save path `tlCodeTracker::create()`:
+  id 7 GitHub (type 200), id 8 Stash (type 1), id 9 Stash (type 1);
+  plus a view-only user `ctview973` / `viewonly` (role 900, right 52
+  `codetracker_view` only, no `codetracker_management`).
+- Baseline: on the pre-fix screen the grid had 5 columns
+  `Name | Type | Server URL | Active | Actions` and the BFF payload had no
+  `env_check_*` key at all.
+
+### Test 1 — Environment column exists and is correctly labelled
+- **Steps:** log in as admin, open
+  `http://localhost:8082/gui/templates/codetracker/codetrackerView.html`,
+  read the `<thead>` and the row cell count.
+- **Expected:** 6 columns `Name | Type | Server URL | Environment | Active | Actions`
+  and 6 cells per row; header text comes from the i18n bundle, not a hardcoded
+  literal.
+- **Actual:** `["Name","Type","Server URL","Environment","Active","Actions"]`,
+  `envTh = "Environment"`, `colCount = 6`. PASS.
+
+### Test 2 — OK state renders a green badge per row
+- **Steps:** same page as admin (cURL present in PHP), inspect the env cell of
+  every row.
+- **Expected:** each row's Environment cell shows the `ct.envOk` badge
+  (`.badge-env-ok`) — the probe result of that row's own implementation.
+- **Actual:** 3 rows, all `.badge-env-ok` with text `OK` and tooltip `OK`; row
+  values `["GitHub Main (env probe)","github (Interface: rest)","","OK","Active",""]
+  …`. PASS.
+
+### Test 3 — KO state renders the implementation's human message (per row)
+- **Steps:** log in as admin on the **:8085** instance started with
+  `disable_functions=curl_init` and open the same screen; compare the GitHub row
+  with the two Stash rows.
+- **Expected:** only the GitHub row (interface
+  `githubrestCodeTrackerInterface::checkEnv()`) fails, with the message
+  `cURL extension is required for the GitHub code tracker interface` in a red
+  `.badge-env-ko` badge; the Stash rows stay OK — the per-implementation
+  discrimination legacy had and the modern screen had lost.
+- **Actual:** `envBadges = [{cls:"badge-env-ko",
+  txt:"cURL extension is required for the GitHub code tracker interface",
+  title:"Environment check failed"}, {cls:"badge-env-ok",txt:"OK"},
+  {cls:"badge-env-ok",txt:"OK"}]` — same server, same screen, only the
+  implementation differs. Screenshot
+  `docs/screenshots/issue-973-codetracker-env-column-ko.png`. PASS.
+
+### Test 4 — KO badge tooltip is the localized fallback
+- **Steps:** hover the red badge on the :8085 instance.
+- **Expected:** `title` = the localized `ct.envKo`
+  (`Environment check failed` in EN), because the message itself goes in the
+  label and the tooltip explains what the badge means.
+- **Actual:** `title = "Environment check failed"`. PASS.
+
+### Test 5 — Server URL column preserved (no regression from the fix)
+- **Steps:** inspect the Server URL cells of the 3 fixture rows.
+- **Expected:** the `<uribase>` value still reaches the grid — the issue allowed
+  merging Environment into Server URL, which was rejected because
+  `editTracker()` prefills `#editServerUrl` from `t.serverUrl`.
+- **Actual:** Stash rows show `https://stash.example.com/` and
+  `https://stash2.example.com/`; the GitHub row is blank because its cfg uses
+  `<repository>`, not `<uribase>` (pre-existing behaviour, out of scope). PASS.
+
+### Test 6 — Create/Edit modal still prefills
+- **Steps:** click the edit (pencil) icon of the GitHub row and read the modal.
+- **Expected:** name, repository and branch are prefilled; the Actions column
+  index shift (4 → 5) did not break the action icons.
+- **Actual:** `title = "Edit Code Tracker: GitHub Main (env probe)"`,
+  `name = "GitHub Main (env probe)"`, `repo = "sebiboga/testlink-upgraded"`,
+  `branch = "main"`. PASS.
+
+### Test 7 — Action icons still land in the last column
+- **Steps:** query the first data row for `.fa-wrench`, `.fa-edit`, `.fa-trash`.
+- **Expected:** wrench in the Name cell (0), edit + trash in the Actions cell
+  (5) — i.e. the `table.column(5).visible(canManage)` move is correct.
+- **Actual:** `wrenchInNameCell = true`, `actionsInLastCell = true`,
+  `trashVisible = true`. PASS.
+
+### Test 8 — Search / sort still work with the extra column
+- **Steps:** `DataTable().search('stash').draw()`, then `order([[3,'desc']]).draw()`.
+- **Expected:** search narrows to the 2 Stash rows; column 3 (Environment) is
+  orderable and searchable (a bonus over legacy, whose column had no ordering).
+- **Actual:** `rowsAfterSearch = 2`, column count 6, `order([[3,'desc']])` accepted
+  without error. PASS.
+
+### Test 9 — View-only user still sees the Environment column
+- **Steps:** log in as `ctview973` / `viewonly` (role 900: `codetracker_view`
+  only) in an isolated browser context and open the screen.
+- **Expected:** legacy renders `th_codetracker_env` OUTSIDE every
+  `{if $gui->canManage}` block (`codeTrackerView.tpl:42`), so the column stays
+  visible; the Actions column and the Create button stay hidden.
+- **Actual:** `visibleHeads = ["Name","Type","Server URL","Environment","Active"]`,
+  `envBadges = ["OK","OK","OK"]`, `createBtnVisible = false`,
+  `actionsIcons = 0`. PASS.
+
+### Test 10 — No credential leak through the new field
+- **Steps:** as the view-only user, read the raw `GET /api/codetracker/index.php`
+  payload.
+- **Expected:** `env_check_*` present (the probe is credential-free), but `cfg`
+  still blank for non-managers — the #1576 gate must not be weakened.
+- **Expected/Actual:** `env_check_ok` / `env_check_msg` come from
+  `checkEnv()` (a `function_exists()` test), while `trackerToJSON()` keeps
+  `$safeCfg = $canManage ? cfg : ''`; the view-only run above showed the grid
+  populated and no cfg-derived field. PASS.
+
+### Test 11 — create/delete round-trip keeps the column consistent
+- **Steps:** create `UI Create Env Check` (type 200) through the real POST route,
+  reload the grid, then delete it again.
+- **Expected:** the POST response carries the two keys (well-defined defaults for
+  the routes that do not request `checkEnv`), the reloaded list shows the new row
+  with a real `OK` badge, and the delete restores the original 3 rows.
+- **Actual:** `postStatus = "ok"`, `postItemHasEnvKeys = true`,
+  `postEnv = {ok:true, msg:""}`, `before = 3 → after = 4`, new row cells
+  `["UI Create Env Check","github (Interface: rest)","","OK","Active",""]`;
+  delete `id 13` → `status ok` → `finalRows = 3`. PASS.
+  (Note: the POST/PUT/DELETE responses return the `?? true` / `?? ''` fallbacks
+  because those routes use `getByID()`, which does not run the probe — identical
+  to the sibling `api/issuetracker/index.php`. The UI only renders the GET list.)
+
+### Test 12 — i18n coverage in all bundles
+- **Steps:** assert `ct.environment`, `ct.envOk`, `ct.envKo` exist in the 10
+  locale bundles and that every bundle is valid JSON.
+- **Expected:** 3 keys × 10 bundles, no missing key, no parse error.
+- **Actual:** insertion script reported `+3 keys` for each of
+  en/de/es/fr/it/ja/pt/ro/ru/zh; `python3 -m json.tool` valid on all 10;
+  `git diff --stat` = 10 files, **30 insertions(+), 0 deletions(-)** (pure
+  additions — the i18n files are shared with concurrent CI agents, so a mass
+  re-sort was reverted). PASS.
+
+### Test 13 — Event Viewer clean
+- **Steps:** after the whole pass, read the `events` table and the browser
+  console on both instances.
+- **Expected:** no new ERROR (4) or WARNING (2) rows from the app; only AUDIT
+  (16) `audit_login_succeeded` rows from the test logins.
+- **Actual:** `events` grouped by `log_level` = `{16: 3}` and nothing else;
+  browser console on :8082 and :8085 → *no console messages found* (no errors,
+  no warnings). The single ERROR row seen mid-run (id 3) came from the FIRST,
+  superseded version of `tmp/fixtures_973.php` (`roles_users` does not exist in
+  this schema); the fixture was fixed, the stale event deleted and the fixture
+  re-run clean with 0 new events. PASS.
+
+**Result: 13/13 PASS.** (Refs #973)

@@ -163,6 +163,22 @@ function trackerToJSON($item, $mgr, $canManage) {
         'serverUrl' => $serverUrl,
         'github' => $github,
         'implementation' => $item['implementation'] ?? '',
+        // Environment check (issue #973). Legacy lib/codetrackers/codeTrackerView.php:23
+        // requested getAll(..., 'checkEnv' => true) so tlCodeTracker.class.php:566-572
+        // runs the per-implementation $impl::checkEnv() and fills
+        // env_check_ok / env_check_msg, rendered by the "Environment" column of
+        // codeTrackerView.tpl:42,74 ($labels.th_codetracker_env =
+        // 'Environment', locale/*/strings.txt). The modern BFF omitted the
+        // option, so the probe never ran and the readiness of the PHP
+        // environment (e.g. githubrestCodeTrackerInterface::checkEnv() at
+        // lib/codetrackerintegration/githubrestCodeTrackerInterface.class.php:523
+        // requiring cURL) was never surfaced. Same shape as
+        // api/issuetracker/index.php:100-101.
+        // Defaults mirror tlCodeTracker.class.php:562-563 (true / '') so routes
+        // that do not request checkEnv (GET-by-id, POST, PUT, DELETE) stay
+        // well-defined instead of dropping the key.
+        'env_check_ok' => (bool)($item['env_check_ok'] ?? true),
+        'env_check_msg' => (string)($item['env_check_msg'] ?? ''),
         'link_count' => intval($item['link_count'] ?? 0),
     ];
 }
@@ -170,7 +186,11 @@ function trackerToJSON($item, $mgr, $canManage) {
 $mgr = new tlCodeTracker($db);
 
 if ($method === 'GET' && ($path === '/' || $path === '' || $path === '/index.php')) {
-    $all = $mgr->getAll(['output' => 'add_link_count']);
+    // checkEnv parity with legacy codeTrackerView.php:23 — the per-tracker
+    // environment probe ($impl::checkEnv(), tlCodeTracker.class.php:566-572)
+    // runs here so env_check_ok/env_check_msg reach the grid's Environment
+    // column. Omitting it silently downgrades every row to "OK" (issue #973).
+    $all = $mgr->getAll(['output' => 'add_link_count', 'checkEnv' => true]);
     $items = [];
     if ($all) {
         foreach ($all as $item) {

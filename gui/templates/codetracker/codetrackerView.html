@@ -24,6 +24,10 @@ table.dataTable thead th { background: #22242a; color: #fff; font-size: 13px; pa
 table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
 .badge-active { background: #4ECDC4; color: #fff; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 700; }
 .badge-inactive { background: #e6605e; color: #fff; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 700; }
+/* Environment column (legacy th_codetracker_env, issue #973) — same visual
+   language as issuetrackerView.html:28-29 so both integration grids match. */
+.badge-env-ok { background: #3a9c5c; color: #fff; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 700; cursor: default; }
+.badge-env-ko { background: #e6605e; color: #fff; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 700; cursor: default; }
 .action-btn { cursor: pointer; color: #4ECDC4; margin-right: 8px; font-size: 14px; }
 .action-btn:hover { color: #2d8e88; }
 .conn-ok { color: #4ECDC4; }
@@ -54,6 +58,7 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
         <th data-i18n="ct.name">Name</th>
         <th data-i18n="ct.type">Type</th>
         <th data-i18n="ct.serverUrl">Server URL</th>
+        <th data-i18n="ct.environment">Environment</th>
         <th data-i18n="ct.active">Active</th>
         <th style="width:100px" id="actionsTh" data-i18n="common.actions">Actions</th>
       </tr>
@@ -245,10 +250,31 @@ function renderTable(items) {
         actions += '<i class="fa fa-trash action-btn danger" title="Delete" onclick="deleteTracker(' + t.id + ', \'' + jsAttrEsc(t.name) + '\')"></i>';
       }
     }
+    // Legacy Environment column (codeTrackerView.tpl:42,74 -> $labels
+    // .th_codetracker_env = 'Environment' and {$item_def.env_check_msg})
+    // reports whether the PHP environment can serve this tracker's interface.
+    // The BFF runs the per-implementation $impl::checkEnv()
+    // (tlCodeTracker.class.php:566-572, option requested by
+    // codeTrackerView.php:23) and returns env_check_ok / env_check_msg.
+    // OK -> green badge with the implementation's message as tooltip;
+    // KO -> red badge showing the human message, as legacy did.
+    // env_check_msg is a constant string from the implementation class, but it
+    // still goes through esc() per issue #1581 (never trust server text).
+    var envOk = t.env_check_ok !== false;
+    var envMsg = t.env_check_msg ? esc(t.env_check_msg) : '';
+    var envHtml;
+    if (envOk) {
+      envHtml = '<span class="badge-env-ok" title="' + (envMsg || TLi18n.t('ct.envOk')) + '">'
+              + TLi18n.t('ct.envOk') + '</span>';
+    } else {
+      envHtml = '<span class="badge-env-ko" title="' + TLi18n.t('ct.envKo') + '">'
+              + (envMsg || TLi18n.t('ct.envKo')) + '</span>';
+    }
     rows.push([
       nameCell + esc(t.name),
       esc(t.typeDescr || t.typeLabel),
       esc(t.serverUrl || ''),
+      envHtml,
       '<span class="badge-active">' + TLi18n.t('ct.active') + '</span>',
       actions
     ]);
@@ -258,13 +284,13 @@ function renderTable(items) {
     order: [[0, 'asc']],
     pageLength: 25,
     columns: [
-      null, null, null, null,
+      null, null, null, null, null,
       { orderable: false, searchable: false }
     ]
   });
   // View-only users get no manage affordances: collapse the Actions column the
   // way legacy omits the th_delete column (codeTrackerView.tpl:43-45).
-  table.column(4).visible(canManage);
+  table.column(5).visible(canManage);
   if (canManage) {
     $.each(items, function(i, t) { renderConnectionStatus(t.id); });
   }
