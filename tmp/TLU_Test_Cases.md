@@ -21697,3 +21697,21 @@ suites 110-112 / TC 113,116,119) and `tmp/fixtures_1587_bulk.php` (suite 122 + c
   line of the negative tests, no JS errors. PASS
 
 **Result: 13/13 PASS.** (Refs #1299)
+
+### 1299.4 Post-review re-verification (after the code-review fixes) — PASS 5/5
+
+Precondition: fixture project COV1299, requirement version 13 (latest), admin session,
+test cases COV-1 (executed), COV-2, COV-3 (created for the re-run).
+
+| # | Step | Expected | Actual | Result |
+|---|---|---|---|---|
+| 14 | Reload reqView v2r1, inspect the Actions column HTML | no test case value is interpolated into the inline handler | `onclick="removeCoverageLink(this, 11)"` + `data-cov-ext="2"`; only the deletable link gets the icon | PASS |
+| 15 | Open the Add modal, type `COV-3`, submit with Enter | link created, modal closed, table re-rendered | `COV-3 tcv15 deltrue` in the API, 3 rows in the grid, toast "Test case link added" | PASS |
+| 16 | Re-add `COV-3` (already linked) | stays a silent no-op (legacy idempotent), **not** an error | `200 {"status":"ok","action":"add"}` | PASS |
+| 17 | Remove the COV-1 link (closed by an execution) | localized message, no native `alert()` | `409 reqv.errLinkNotDeletable` -> toast "Attention! - The link to this test case cannot be deleted (it is closed by an execution or its version is inactive)" | PASS |
+| 18 | Click the remove icon of COV-3, accept the confirm | link removed, grid + icon list updated | confirm "Remove the link to test case 3?", API back to `COV-1, COV-2`, remove icons `["2"]` | PASS |
+
+Event Viewer after the re-run: newest rows are the two AUDIT entries
+(`audit_reqv_assigned_tcv`, `audit_reqv_assignment_removed_tcv`, log_level 16); the
+only warnings (ids 9-12) are from the throwaway `/tmp/mkexec1299.php` of this run, not
+from the application. Browser console: no errors.
