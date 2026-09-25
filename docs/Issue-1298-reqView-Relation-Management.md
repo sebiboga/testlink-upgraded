@@ -83,9 +83,10 @@ screen offered no way at all to create the **first** relation.
 
 29 new keys × 10 bundles (`de, en, es, fr, it, ja, pt, ro, ru, zh`). Translations
 come from the matching legacy `locale/<L>/strings.txt` entries where they exist.
-This includes `rel_add_error_dest_frozen`, which **is absent from every legacy
-locale file** — 1.9.20 therefore printed the raw key to the user
-(`lang_get()` falls through to the key name), while 2.0.1 shows a real message.
+This includes `rel_add_error_dest_frozen`, which the legacy tree defines in only
+**5 of its 19** locale files (`en_GB, fr_FR, ja_JP, pt_BR, pt_PT`) — a `de`,
+`es`, `it`, `ro`, `ru`, `zh` or `en_US` user got the raw key printed by
+`lang_get()`, and now gets a real message.
 
 ## Legacy notes worth keeping
 

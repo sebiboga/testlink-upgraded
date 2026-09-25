@@ -4945,5 +4945,7 @@
   "rel_add_error_dest_frozen": "La version de l’exigence de destination est verrouillée.",
   "new_rel_add_success": "La nouvelle relation a été ajoutée avec succès.",
   "delete_rel_success": "La relation a été supprimée.",
-  "error_deleting_rel": "La relation n’a pas pu être supprimée."
+  "error_deleting_rel": "La relation n’a pas pu être supprimée.",
+  "rel_add_invalid_type": "Type de relation non valide.",
+  "reqv.errRelationDestFrozen": "La version de l’exigence liée est verrouillée."
 }

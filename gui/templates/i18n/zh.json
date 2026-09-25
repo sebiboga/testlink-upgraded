@@ -4931,5 +4931,7 @@
   "rel_add_error_dest_frozen": "目标产品需求版本已冻结。",
   "new_rel_add_success": "已经成功加入新关联。",
   "delete_rel_success": "成功删除关联。",
-  "error_deleting_rel": "无法删除关联。"
+  "error_deleting_rel": "无法删除关联。",
+  "rel_add_invalid_type": "无效的关系类型。",
+  "reqv.errRelationDestFrozen": "相关产品需求版本已冻结。"
 }

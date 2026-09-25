@@ -4961,5 +4961,7 @@
   "rel_add_error_dest_frozen": "The destination requirement version is frozen.",
   "new_rel_add_success": "New relation was added successfully.",
   "delete_rel_success": "Relation was deleted successfully.",
-  "error_deleting_rel": "Relation could not be deleted."
+  "error_deleting_rel": "Relation could not be deleted.",
+  "rel_add_invalid_type": "Invalid relation type.",
+  "reqv.errRelationDestFrozen": "The related requirement version is frozen."
 }

@@ -4955,5 +4955,7 @@
   "rel_add_error_dest_frozen": "Versiunea cerinței destinație este înghețată.",
   "new_rel_add_success": "Relația nouă a fost adăugată cu succes.",
   "delete_rel_success": "Relația a fost ștearsă cu succes.",
-  "error_deleting_rel": "Relația nu a putut fi ștearsă."
+  "error_deleting_rel": "Relația nu a putut fi ștearsă.",
+  "rel_add_invalid_type": "Tip de relație invalid.",
+  "reqv.errRelationDestFrozen": "Versiunea cerinței relaționate este înghețată."
 }

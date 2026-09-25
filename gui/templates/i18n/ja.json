@@ -4951,5 +4951,7 @@
   "rel_add_error_dest_frozen": "宛先の要件バージョンは凍結されています。",
   "new_rel_add_success": "新しい関連を正常に追加しました。",
   "delete_rel_success": "関連を削除しました。",
-  "error_deleting_rel": "関連を削除できませんでした。"
+  "error_deleting_rel": "関連を削除できませんでした。",
+  "rel_add_invalid_type": "無効な関連タイプです。",
+  "reqv.errRelationDestFrozen": "関連する要件バージョンは凍結されています。"
 }
