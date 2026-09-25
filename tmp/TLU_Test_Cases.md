@@ -21572,3 +21572,110 @@ suites 110-112 / TC 113,116,119) and `tmp/fixtures_1587_bulk.php` (suite 122 + c
   re-run clean with 0 new events. PASS.
 
 **Result: 13/13 PASS.** (Refs #973)
+
+## Regression — Issue #1584: legacy Issue Tracker list mismatched the conditional delete header in read-only mode (Refs #1584)
+
+Preconditions: PHP 8.3 built-in server at `http://localhost:8082`, docroot = repo root;
+DB `mysql -h127.0.0.1 -utestlink -ptestlink testlink`; fresh-import baseline
+`events.max(id)=2`, ERROR/WARNING rows `0/0`.
+
+Fixture recreated for this suite (the imported DB had 0 test projects and 0 issue
+trackers, exactly as the original report stated):
+
+- test project id 1 `Issue1584 Fixture` (`nodes_hierarchy` id 1 → `testprojects` id 1,
+  `issue_tracker_enabled = 1`);
+- issue trackers 1 `IT1584 Redmine` (type 15), 2 `IT1584 Mantis` (type 3),
+  3 `IT1584 GitHub` (type 25);
+- `testproject_issuetracker(1, 2)` — the table's PK is `testproject_id` alone, so only
+  ONE tracker can be linked per project. Result: tracker 2 has `link_count = 1`,
+  trackers 1 and 3 have `link_count = 0` — this exercises the delete gate in both
+  directions;
+- role 10 `issue1584 read-only` holding **exactly** right 32 (`issuetracker_view`) and
+  no right 31 (`issuetracker_management`);
+- user 2 `ro_tracker` / `admin` (bcrypt), assigned to project 1 with role 10 via
+  `user_testproject_roles`.
+
+Entry point: `http://localhost:8082/lib/issuetrackers/issueTrackerView.php?tproject_id=1`.
+Changed file: `gui/templates/dashio/issuetrackers/issueTrackerView.tpl` (+9 / -6).
+Pre-fix screenshot: `docs/screenshots/issue-1584-before.png`; post-fix:
+`docs/screenshots/issue-1584-after-readonly.png`, `docs/screenshots/issue-1584-after-admin.png`.
+
+### Test 1 — R1/R2: read-only user gets a consistent delete-free table and working DataTables
+- **Steps:** log in as `ro_tracker`/`admin`; open the entry URL with a
+  cache-bypassing navigation; probe the DOM and the console.
+- **Expected post-fix:** HTTP 200; 3 `<th>`; exactly 3 `<td>` per row; the row content
+  is name / type / environment; `.dataTables_wrapper` present; DataTables search box
+  present; 0 console errors and 0 warnings; Create button absent; 0 delete icons;
+  0 `issueTrackerEdit` links; 0 connection-test (wrench) links.
+- **Result — observed: PASS.**
+  ```json
+  {"headCount":3,"heads":["Issue Tracker","Type","Environment"],
+   "rowCellCounts":[3,3,3],
+   "rows":[["IT1584 GitHub","github (Interface: rest)","OK"],
+           ["IT1584 Mantis","mantis (Interface: soap)","OK"],
+           ["IT1584 Redmine","redmine (Interface: rest)","OK"]],
+   "createBtn":null,"deleteIcons":0,"editLinks":0,"wrenchLinks":0,
+   "dtWrapper":true,"searchBox":true}
+  ```
+  `list_console_messages(types=[error,warn])` → `<no console messages found>`.
+  **Pre-fix, the same probe returned** `rowCellCounts:[4,4,4]`, `dtWrapper:false`,
+  `searchBox:false`, plus `jQuery.Deferred exception: Cannot read properties of
+  undefined (reading 'mData')` (warn) and the same message as an uncaught `TypeError`,
+  both from DataTables 1.12.1 with the stack terminating at
+  `issueTrackerView.php:275` (the `DataTables.inc.tpl` include).
+
+### Test 2 — R3: manager list keeps the delete column and initializes DataTables
+- **Steps:** log out, log in as `admin`/`admin`, open the entry URL.
+- **Expected post-fix:** 4 `<th>` (…, `delete`); exactly 4 `<td>` per row;
+  `.dataTables_wrapper` present; search box present; Create button present;
+  one `issueTrackerEdit` link and one wrench link per row; 0 console errors.
+- **Result — observed: PASS.**
+  ```json
+  {"headCount":4,"heads":["Issue Tracker","Type","Environment","delete"],
+   "rows":[{"name":"IT1584 GitHub","cells":4,"deleteIcon":true},
+           {"name":"IT1584 Mantis","cells":4,"deleteIcon":false},
+           {"name":"IT1584 Redmine","cells":4,"deleteIcon":true}],
+   "createBtn":"Create","deleteIcons":2,"editLinks":3,"wrenchLinks":3,
+   "dtWrapper":true,"searchBox":true}
+  ```
+  `list_console_messages(types=[error,warn])` → `<no console messages found>`.
+
+### Test 3 — R4: manager still cannot delete a tracker linked to a test project
+- **Steps:** as `admin`, inspect the delete cell/icon of row `IT1584 Mantis`
+  (`link_count = 1`, linked via `testproject_issuetracker(1,2)`).
+- **Expected post-fix:** the delete **cell** is present (4 cells) but the delete
+  **icon** is absent — the `link_count == 0` gate must be preserved by the fix.
+- **Result — observed: PASS.** `{"name":"IT1584 Mantis","cells":4,"deleteIcon":false}`.
+
+### Test 4 — R5: manager can delete an unlinked tracker
+- **Steps:** as `admin`, inspect rows `IT1584 Redmine` and `IT1584 GitHub`
+  (`link_count = 0`).
+- **Expected post-fix:** delete cell **and** delete icon both present.
+- **Result — observed: PASS.** Both rows report `"deleteIcon":true`;
+  `deleteIcons:2` overall, matching the two unlinked trackers.
+
+### Test 5 — R6: the fix introduces no new Error/Warning events
+- **Steps:** `SELECT id, log_level, description FROM events WHERE id > 2 ORDER BY id;`
+  after running Tests 1-4.
+- **Expected post-fix:** no Error/Warning row attributable to the cell change.
+- **Result — observed: PASS for this fix.** The delta contains only rows already
+  explained and tracked separately, none of which are produced by the changed block:
+  - `id 4,5 / 15,16` — Mantis `E_WARNING Undefined property: stdClass::$uribase` +
+    `SOAP Fault ... Parsing WSDL`. **Fixture artifact**: the synthetic Mantis `cfg`
+    points at a non-existent server by design.
+  - `id 6,7,8 / 17,18,19` — `Undefined property: stdClass::$issueTrackerView`,
+    `Attempt to read property "pagination" on null`, `... "length" on null` →
+    filed as **#1591** (`config.inc.php` never defines `pagination` for
+    `issueTrackerView` / `codeTrackerView` / `reqMgrSystemView`).
+  - `id 20,21` — `Undefined array key "testproject_alt_delete"` → filed as **#1590**
+    (`issueTrackerView.tpl:80` uses a label key its `{lang_get}` never loads).
+
+### Test 6 — R7: sibling templates are not regressed
+- **Steps:** `git diff --stat HEAD~1 -- gui/templates/dashio/`.
+- **Expected post-fix:** only `issuetrackers/issueTrackerView.tpl` changed;
+  `codeTrackerView.tpl` (fixed by #1582) and `reqMgrSystemView.tpl` (#1585) untouched.
+- **Result — observed: PASS.**
+  ```
+   gui/templates/dashio/issuetrackers/issueTrackerView.tpl | 17 +++++++++--------
+   1 file changed, 9 insertions(+), 8 deletions(-)
+  ```
