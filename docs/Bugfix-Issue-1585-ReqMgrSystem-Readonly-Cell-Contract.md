@@ -79,7 +79,9 @@ emitted markup, not in request handling or templating.
 ## Root cause chain
 
 1. `lib/reqmgrsystems/reqMgrSystemView.php:25` — `$gui->canManage` is
-   `""` (falsy) for a user without `reqmgrsystem_management`.
+   `null` (falsy) for a user without `reqmgrsystem_management`:
+   `tlUser::hasRight()` delegates to `checkForRights()`, which returns
+   `'yes'` or `null` (`lib/functions/roles.inc.php:271`).
 2. `lib/reqmgrsystems/reqMgrSystemView.php:70` — `checkRights()` returns true
    for `reqmgrsystem_view` alone, so the view-only user legitimately reaches
    the list.
@@ -108,14 +110,17 @@ to live *inside* the permission guard.
 ### Blast radius
 
 Every `gui/templates/dashio/**/*.tpl` referencing `canManage` was swept (15
-files). This was the only remaining mismatch in the family:
+files; only 6 pair a delete `<th>` with a delete `<td>` — the other 9 are
+`*Edit.tpl` forms, `platformsViewControls.inc.tpl` and other templates with no
+delete column at all). This was the only remaining mismatch in the family:
 
-| Template | delete `<th>` guarded | delete `<td>` guarded | Status |
+| Template | delete `<th>` guard line | delete `<td>` guard line | Status |
 | --- | --- | --- | --- |
-| `codetrackers/codeTrackerView.tpl` | yes (:73) | yes (:76) | fixed by #1582 |
+| `codetrackers/codeTrackerView.tpl` | yes (:43) | yes (:75) | fixed by #1582 |
 | `issuetrackers/issueTrackerView.tpl` | yes (:45) | yes (:78) | fixed by #1584 |
 | `keywords/keywordsView.tpl` | yes (:62) | yes (:84) | already correct |
 | `platforms/platformsView.tpl` | yes (:82) | yes (:134) | already correct |
+| `project/projectView.tpl` | yes (:95) | yes (:151) | already correct |
 | **`reqmgrsystems/reqMgrSystemView.tpl`** | **yes (:38)** | **NO (:71)** | **this bug** |
 
 Server-side write rights are unaffected: `lib/reqmgrsystems/reqMgrSystemEdit.php:177-180`
@@ -124,22 +129,26 @@ still enforces `reqmgrsystem_management` on create/edit/delete.
 ## The fix
 
 `gui/templates/dashio/reqmgrsystems/reqMgrSystemView.tpl` — one file,
-+5 / -3:
++4 / -2 (`git diff --numstat`):
 
 ```diff
--        <td class="clickable_icon">
--        {if $gui->canManage != ""  && $item_def.link_count == 0}
--            <span style="border:none;cursor: pointer;" title="{$labels.alt_delete}" onclick="delete_confirmation({$item_def.id}, '{$item_def.name|escape:'javascript'|escape}', '{$del_msgbox_title}','{$warning_msg}');">{$tlImages.delete}</span>
--        {/if}
--        </td>
+       <td class="clickable_icon">{$item_def.env_check_msg|escape}</td>
+ 
 +      {if $gui->canManage != ""}
-+        <td class="clickable_icon">
+         <td class="clickable_icon">
+-        {if $gui->canManage != ""  && $item_def.link_count == 0}
 +          {if $item_def.link_count == 0}
-+            <span style="border:none;cursor: pointer;" title="{$labels.alt_delete}" onclick="delete_confirmation({$item_def.id}, '{$item_def.name|escape:'javascript'|escape}', '{$del_msgbox_title}','{$warning_msg}');">{$tlImages.delete}</span>
+             <span style="border:none;cursor: pointer;" title="{$labels.alt_delete}" onclick="delete_confirmation({$item_def.id}, '{$item_def.name|escape:'javascript'|escape}', '{$del_msgbox_title}','{$warning_msg}');">{$tlImages.delete}</span>
+-        {/if}
 +          {/if}
-+        </td>
+         </td>
 +      {/if}
+     </tr>
 ```
+
+Only the guard moved: the `<td>` line, the `<span … onclick>` line and the
+`</td>` line are re-indented but otherwise byte-identical (the escaping chain
+`{$item_def.name|escape:'javascript'|escape}` is untouched).
 
 The method chosen is the **minimal structural hoist**: the existing
 `$gui->canManage` predicate is lifted from the icon to the enclosing cell, so
@@ -212,7 +221,8 @@ Regression suite: `tmp/TLU_Test_Cases.md`, entry `Regression — Issue #1585`,
 
 | File | Purpose |
 | --- | --- |
-| `gui/templates/dashio/reqmgrsystems/reqMgrSystemView.tpl` | the fix (+5 / -3) |
+| `gui/templates/dashio/reqmgrsystems/reqMgrSystemView.tpl` | the fix (+4 / -2) |
+| `tmp/fixtures_1585.php` | the repro fixture the suite and this page depend on |
 | `tmp/TLU_Test_Cases.md` | `Regression — Issue #1585` suite, 7/7 PASS |
 | `docs/screenshots/issue-1585-before-readonly-3th-4td.png` | pre-fix read-only evidence |
 | `docs/screenshots/issue-1585-after-readonly-3th-3td.png` | post-fix read-only evidence |
