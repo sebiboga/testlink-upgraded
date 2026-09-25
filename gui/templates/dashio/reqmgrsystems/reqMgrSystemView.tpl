@@ -68,11 +68,13 @@ var del_action=fRoot+'lib/reqmgrsystems/reqMgrSystemEdit.php?doAction=doDelete&i
       <td>{$item_def.type_descr|escape}</td>
       <td class="clickable_icon">{$item_def.env_check_msg|escape}</td>
 
+      {if $gui->canManage != ""}
         <td class="clickable_icon">
-        {if $gui->canManage != ""  && $item_def.link_count == 0}
+          {if $item_def.link_count == 0}
             <span style="border:none;cursor: pointer;" title="{$labels.alt_delete}" onclick="delete_confirmation({$item_def.id}, '{$item_def.name|escape:'javascript'|escape}', '{$del_msgbox_title}','{$warning_msg}');">{$tlImages.delete}</span>
-        {/if}
+          {/if}
         </td>
+      {/if}
     </tr>
     {/foreach}
   </table>
