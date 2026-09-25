@@ -216,6 +216,16 @@ function loadTrackers() {
   });
 }
 
+// Issue #1581: DataTables assigns a data value to its cell with innerHTML
+// (1.13.7 cell build -> nTd.innerHTML = cellData for columns declared as
+// `null`, i.e. without a render callback), so any markup a manager stored in
+// a tracker name or uribase would execute for every viewer. Escape every
+// user-controlled value on its way into the table, same as
+// issuetrackerView.html / cfieldsView.html / pluginView.html do.
+function esc(s) {
+  return $('<div>').text(s == null ? '' : String(s)).html();
+}
+
 function renderTable(items) {
   if (table) { table.destroy(); $('#trackersTable tbody').empty(); }
   var rows = [];
@@ -230,9 +240,9 @@ function renderTable(items) {
       }
     }
     rows.push([
-      t.name,
-      t.typeDescr || t.typeLabel,
-      t.serverUrl || '',
+      esc(t.name),
+      esc(t.typeDescr || t.typeLabel),
+      esc(t.serverUrl || ''),
       '<span class="badge-active">' + TLi18n.t('ct.active') + '</span>',
       actions
     ]);
