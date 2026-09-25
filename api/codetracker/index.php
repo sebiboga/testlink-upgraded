@@ -107,6 +107,14 @@ function rejectInvalidTrackerType($type) {
     out(['status' => 'error', 'code' => 'invalid_type', 'type' => $type]);
 }
 
+function storedTrackerType($db, $id) {
+    $tables = tlObject::getDBTables(['codetrackers']);
+    $rows = $db->get_recordset(
+        "SELECT type FROM {$tables['codetrackers']} WHERE id = " . intval($id)
+    );
+    return $rows[0]['type'] ?? null;
+}
+
 function trackerToJSON($item, $mgr, $canManage) {
     $typeDescr = '';
     if (isset($mgr->types[$item['type']])) {
@@ -267,12 +275,16 @@ if ($method === 'PUT' && isset($segments[0]) && is_numeric($segments[0]) && coun
 function githubInterfaceFor($mgr, $id) {
     $tracker = $mgr->getByID($id);
     if (!$tracker) { return [null, 'Code tracker not found']; }
-    $impl = $tracker['implementation'];
-    if (!class_exists($impl)) { return [null, 'Code tracker implementation not found']; }
+    $type = normalizeTrackerType($tracker['type'] ?? null);
+    if ($type === false || !array_key_exists($type, $mgr->systems)) {
+        return [null, 'Unknown code tracker type'];
+    }
+    $impl = $tracker['implementation'] ?? '';
+    if (!$impl || !class_exists($impl)) { return [null, 'Code tracker implementation not found']; }
     try {
-        $iface = new $impl($tracker['type'], $tracker['cfg'], $tracker['name']);
+        $iface = new $impl($type, $tracker['cfg'], $tracker['name']);
         return [$iface, null];
-    } catch (Exception $e) {
+    } catch (Throwable $e) {
         tLog(__METHOD__ . ' ' . $e->getMessage(), 'ERROR');
         return [null, $e->getMessage()];
     }
@@ -328,6 +340,12 @@ if (($method === 'GET' || $method === 'POST') && isset($segments[0]) && is_numer
     $id = intval($segments[0]);
     $action = strtolower($segments[1]);
 
+    if ($action === 'test_connection' && $method !== 'POST') {
+        header('Allow: POST');
+        http_response_code(405);
+        out(['status' => 'error', 'message' => 'Method not allowed']);
+    }
+
     // Issue #1578: every /{id}/{branches|tags|commits|pulls|test_connection}
     // action instantiates the tracker's interface from the STORED cfg (which
     // may hold the plaintext token) and drives it server-side with the
@@ -337,6 +355,23 @@ if (($method === 'GET' || $method === 'POST') && isset($segments[0]) && is_numer
     // Gate identical to the #970 write-gate (denyWrite) so the denial is also
     // trailed into the Event Viewer.
     if (!$canManage) { denyWrite($user, $userId, $action); }
+
+    $knownActions = ['branches', 'tags', 'commits', 'pulls', 'test_connection'];
+    if (!in_array($action, $knownActions, true)) {
+        http_response_code(404);
+        out(['status' => 'error', 'message' => 'Unknown action']);
+    }
+
+    $storedType = storedTrackerType($db, $id);
+    if ($storedType === null) {
+        http_response_code(404);
+        out(['status' => 'error', 'message' => 'Code tracker not found']);
+    }
+    $normalizedType = normalizeTrackerType($storedType);
+    if ($normalizedType === false || !array_key_exists($normalizedType, $mgr->systems)) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Unknown code tracker type']);
+    }
 
     $tracker = $mgr->getByID($id);
     if (!$tracker) { http_response_code(404); out(['status' => 'error', 'message' => 'Code tracker not found']); }
@@ -368,13 +403,17 @@ if (($method === 'GET' || $method === 'POST') && isset($segments[0]) && is_numer
             out(['status' => 'ok', 'items' => $pulls]);
             break;
         case 'test_connection':
-            $connected = $iface->isConnected();
-            out(['status' => $connected ? 'ok' : 'error',
-                 'connected' => $connected,
-                 'message' => $connected ? 'Connection OK' : 'Connection failed (check repository, branch and token)']);
+            try {
+                $connected = (bool)$iface->isConnected();
+                out(['status' => $connected ? 'ok' : 'error',
+                     'connected' => $connected,
+                     'message' => $connected ? 'Connection OK' : 'Connection failed (check repository, branch and token)']);
+            } catch (Throwable $e) {
+                tLog(__METHOD__ . ' ' . $e->getMessage(), 'ERROR');
+                http_response_code(502);
+                out(['status' => 'error', 'connected' => false, 'message' => 'Connection test failed']);
+            }
             break;
-            http_response_code(404);
-            out(['status' => 'error', 'message' => 'Unknown action']);
     }
 }
 

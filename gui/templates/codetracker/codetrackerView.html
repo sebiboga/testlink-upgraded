@@ -26,6 +26,8 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
 .badge-inactive { background: #e6605e; color: #fff; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 700; }
 .action-btn { cursor: pointer; color: #4ECDC4; margin-right: 8px; font-size: 14px; }
 .action-btn:hover { color: #2d8e88; }
+.conn-ok { color: #4ECDC4; }
+.conn-ko { color: #e6605e; }
 .action-btn.danger { color: #e6605e; }
 .action-btn.danger:hover { color: #d04e4c; }
 .dataTables_wrapper .dataTables_paginate .paginate_button.current { background: #4ECDC4 !important; color: #fff !important; border: none !important; }
@@ -143,6 +145,9 @@ var typeMap = {};
 var allItems = [];
 var githubCode = 0;
 var canManage = false;
+var pendingConnections = {};
+var connectionResults = {};
+var connectionRequestSeq = {};
 
 function isGithubType() {
   return parseInt($('#editType').val()) === githubCode && githubCode !== 0;
@@ -230,17 +235,18 @@ function renderTable(items) {
   if (table) { table.destroy(); $('#trackersTable tbody').empty(); }
   var rows = [];
   $.each(items, function(i, t) {
+    var nameCell = '';
     var actions = '';
     if (canManage) {
+      nameCell = '<i class="fa fa-wrench action-btn" title="' + TLi18n.t('ct.checkConnection') + '" onclick="checkConnection(' + t.id + ')"></i>' +
+                 '<span id="conn-' + t.id + '"></span> ';
       actions = '<i class="fa fa-edit action-btn" title="Edit" onclick="editTracker(' + t.id + ')"></i>';
-      // Legacy hides the delete icon when the tracker is linked to a test
-      // project (codeTrackerView.tpl:76 `link_count == 0`).
       if (t.link_count === 0) {
         actions += '<i class="fa fa-trash action-btn danger" title="Delete" onclick="deleteTracker(' + t.id + ', \'' + jsAttrEsc(t.name) + '\')"></i>';
       }
     }
     rows.push([
-      esc(t.name),
+      nameCell + esc(t.name),
       esc(t.typeDescr || t.typeLabel),
       esc(t.serverUrl || ''),
       '<span class="badge-active">' + TLi18n.t('ct.active') + '</span>',
@@ -259,6 +265,57 @@ function renderTable(items) {
   // View-only users get no manage affordances: collapse the Actions column the
   // way legacy omits the th_delete column (codeTrackerView.tpl:43-45).
   table.column(4).visible(canManage);
+  if (canManage) {
+    $.each(items, function(i, t) { renderConnectionStatus(t.id); });
+  }
+}
+
+function renderConnectionStatus(id) {
+  var holder = $('#conn-' + id);
+  if (!holder.length) return;
+  var result = connectionResults[id];
+  if (!result) {
+    holder.html('');
+    return;
+  }
+  if (result.pending) {
+    holder.html('<i class="fa fa-spinner fa-spin" title="' + TLi18n.t('ct.testing') + '"></i>');
+  } else if (result.error) {
+    holder.html('<i class="fas fa-skull-crossbones fa-lg conn-ko" title="' + TLi18n.t('ct.connCheckFailed') + '"></i>');
+  } else if (result.ok) {
+    holder.html('<i class="fas fa-heartbeat fa-lg conn-ok" title="' + TLi18n.t('ct.connOk') + '"></i>');
+  } else {
+    holder.html('<i class="fas fa-skull-crossbones fa-lg conn-ko" title="' + TLi18n.t('ct.connKo') + '"></i>');
+  }
+}
+
+function checkConnection(id) {
+  if (!canManage || pendingConnections[id]) return;
+  var requestSeq = (connectionRequestSeq[id] || 0) + 1;
+  connectionRequestSeq[id] = requestSeq;
+  pendingConnections[id] = true;
+  connectionResults[id] = {pending: true};
+  renderConnectionStatus(id);
+  $.ajax({
+    url: API + '/' + id + '/test_connection',
+    type: 'POST',
+    dataType: 'json',
+    success: function(r) {
+      if (connectionRequestSeq[id] !== requestSeq) return;
+      connectionResults[id] = {pending: false, ok: !!r.connected};
+      renderConnectionStatus(id);
+    },
+    error: function() {
+      if (connectionRequestSeq[id] !== requestSeq) return;
+      connectionResults[id] = {pending: false, ok: false, error: true};
+      renderConnectionStatus(id);
+    },
+    complete: function() {
+      if (connectionRequestSeq[id] !== requestSeq) return;
+      delete pendingConnections[id];
+      renderConnectionStatus(id);
+    }
+  });
 }
 
 function showCreateModal() {
@@ -402,7 +459,16 @@ function saveTracker() {
   $.ajax({
     url: url, type: type,
     contentType: 'application/json', data: JSON.stringify(data),
-    success: function() { $('#trackerModal').modal('hide'); loadTrackers(); },
+    success: function() {
+      if (id) {
+        connectionRequestSeq[id] = (connectionRequestSeq[id] || 0) + 1;
+        delete pendingConnections[id];
+        delete connectionResults[id];
+        renderConnectionStatus(id);
+      }
+      $('#trackerModal').modal('hide');
+      loadTrackers();
+    },
     error: function(xhr) {
       var msg = TLi18n.t('ct.msg.errorSave');
       try {

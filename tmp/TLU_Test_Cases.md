@@ -20982,3 +20982,105 @@ Commit: `0cf740a14` on `fix/issue-1581`.
   `SELECT count(*) FROM codetrackers` → `0`; user/role fixture rows deleted. PASS.
 
 **Result: 10/10 PASS for #1581** (+ Test 3bis added after the code-review round, also PASS).
+
+## Task — Issue #972: Code Tracker per-tracker connection status
+
+**Preconditions:** PHP 8.3.35 server at `http://localhost:8082`; authenticated
+manager `admin/admin`; valid GitHub fixture `codetrackers.id=1` pointing to
+`https://github.com/sebiboga/testlink-upgraded`; unreachable fixture
+`codetrackers.id=2`; temporary view-only user with only `codetracker_view` for
+the rights test. The intentional id 1/id 2 fixtures remain; the temporary
+invalid-type row and view-only user/role were removed after execution.
+
+### Test 1 — Manager list exposes the legacy wrench
+- **Steps:** Open
+  `http://localhost:8082/gui/templates/codetracker/codetrackerView.html?tproject_id=0&tplan_id=0`
+  as `admin`; inspect both tracker rows and the Actions column.
+- **Expected:** Each managed row has a wrench before the name, the status holder
+  is initially blank, and no connection request is made automatically.
+- **Actual:** Snapshot showed two rows with `Check connection` wrench icons and
+  no `#conn-*` result before activation. The network panel contained only
+  `/meta/types` and the list request. PASS.
+
+### Test 2 — Reachable tracker renders heartbeat
+- **Steps:** Click the wrench for `GitHub Live Fixture` (`id=1`) and wait for the
+  request to finish.
+- **Expected:** A spinner appears, then a teal heartbeat icon with the localized
+  success title.
+- **Actual:** `#conn-1` became
+  `<i class="fas fa-heartbeat fa-lg conn-ok" title="Connection OK">`; the API
+  returned HTTP 200 with `connected:true`. PASS.
+
+### Test 3 — Unreachable tracker renders skull
+- **Steps:** Click the wrench for `GitHub Invalid Fixture` (`id=2`) and wait.
+- **Expected:** A spinner appears, then a red skull-crossbones icon with the
+  localized connection-failure title.
+- **Actual:** `#conn-2` became
+  `<i class="fas fa-skull-crossbones fa-lg conn-ko" title="Connection failed (check repository and token).">`;
+  the API returned HTTP 200 with `connected:false`. PASS.
+
+### Test 4 — Duplicate activation is suppressed
+- **Steps:** Invoke `checkConnection(2)` twice before the first request completes;
+  wait for completion and count resource entries for `/2/test_connection`.
+- **Expected:** Only one new request is started while the first is pending.
+- **Actual:** The request count increased by exactly one and the final skull
+  result was rendered. PASS.
+
+### Test 5 — BFF error, method, and malformed-type paths
+- **Steps:** As the manager, issue a GET to
+  `GET /api/codetracker/index.php/1/test_connection`, then request IDs `999`,
+  action `not_an_action`, and a temporary tracker whose stored type is `999`.
+- **Expected:** The connection probe is POST-only, so GET returns 405 with
+  `Allow: POST` without contacting the tracker; a POST without same-origin proof
+  returns 403; unknown
+  ID → 404; unknown action → 404; unsupported stored type → structured 400;
+  the UI transport-error path renders the localized `Connection check failed`
+  skull.
+- **Actual:** GET returned HTTP 405 `Method not allowed` with `Allow: POST` and
+  no probe result; a proofless POST returned HTTP 403 with the CSRF-protection message; the
+  other responses were respectively 404 `Code tracker not found`, 404
+  `Unknown action`, and 400 `Unknown code tracker type`; the UI rendered the
+  expected localized error skull. PASS.
+
+### Test 6 — View-only rights path
+- **Steps:** Log in as the temporary `ctviewonly` user with only
+  `codetracker_view`; load the modern screen and directly request
+  `POST /api/codetracker/index.php/1/test_connection` with same-origin proof.
+- **Expected:** No Create button, Actions column, wrench, or status holder is
+  rendered; the direct connection request is denied.
+- **Actual:** The snapshot showed plain tracker names and no manage affordances;
+  the POST request returned HTTP 403 `No permission`. PASS.
+
+### Test 7 — All locale bundles and static gates
+- **Steps:** Validate `ct.checkConnection` and `ct.connCheckFailed` in all 10
+  locale bundles; run PHP lint, inline JavaScript parsing, and `git diff --check`.
+- **Expected:** Every bundle is valid JSON, both PHP files parse, inline
+  JavaScript parses, and the diff has no whitespace errors.
+- **Actual:** `de/en/es/fr/it/ja/pt/ro/ru/zh` all passed `python3 -m json.tool`;
+  both PHP files returned `No syntax errors detected`; Node reported
+  `inline JavaScript syntax OK`; diff check was clean. PASS.
+
+### Test 8 — Event Viewer regression
+- **Steps:** Re-run the malformed-type list probe after the
+  `tlCodeTracker::getAll()` type-description fallback, remove the temporary
+  fixture, reload the normal list, and query `events` for `log_level IN (1,2)`.
+- **Expected:** The repeated malformed-type probe adds no Error/Warning event,
+  and the normal final screen has no new Error/Warning entry.
+- **Actual:** The first pre-fix malformed-type list load created four
+  `E_WARNING` rows (two per load) at `tlCodeTracker.class.php:559-560`; after
+  the fallback, the warning count was 4 before and 4 after the repeated probe,
+  so the new event delta was zero.
+  The normal final page had no console error/warning and the temporary fixture
+  was removed. PASS.
+
+### Test 9 — Successful edit invalidates an in-flight connection result
+- **Steps:** Start a connection probe for tracker `id=1` under throttled
+  network, save the unchanged stored configuration before the probe response,
+  then wait for the PUT, list reload, and stale response.
+- **Expected:** The edit increments the per-tracker request generation, clears
+  the status, and the old probe cannot repaint a heartbeat or skull afterward.
+- **Actual:** The holder remained empty after the successful PUT/reload and
+  delayed probe; the fixture remained `GitHub Live Fixture`, and no new
+  Error/Warning event was created. PASS.
+
+**Result: 9/9 PASS. (Refs #972)**

@@ -556,8 +556,9 @@ class tlCodeTracker extends tlObject
       
       foreach($rs as &$item)
       {
-        $item['verbose'] = $item['name'] . " ( {$this->types[$item['type']]} )" ;
-        $item['type_descr'] = $this->types[$item['type']];
+        $typeDescr = isset($this->types[$item['type']]) ? $this->types[$item['type']] : '';
+        $item['verbose'] = $item['name'] . " ( {$typeDescr} )" ;
+        $item['type_descr'] = $typeDescr;
         $item['env_check_ok'] = true;
         $item['env_check_msg'] = '';
         $item['connection_status'] = '';

@@ -17,6 +17,14 @@ Every screen of the application was ported one-by-one in a screen-compare
 kept for backward compatibility and is progressively retired as each modern
 screen reaches full parity.
 
+- [FEATURE GAP] - #972: the modern Code Trackers screen restores the legacy
+  manager-only per-tracker connection check. A wrench now runs the stored BFF
+  connection action over POST and renders a localized heartbeat/skull result,
+  with duplicate-request protection and safe handling for unknown IDs,
+  actions, and stored types. All 10 locale bundles include the new connection
+  keys; the 9-case suite passed 9/9 and the final Event Viewer delta was zero.
+  (Refs #972)
+
 - [FEATURE GAP] - #1300: the modern Requirement Viewer restores the legacy
   requirement-level **Edit**, **Delete** and **Copy** actions. The toolbar now
   opens the exact-version editor, deletes the complete requirement separately
