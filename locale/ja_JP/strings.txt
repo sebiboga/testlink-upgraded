@@ -4543,6 +4543,7 @@ $TLS_title_dashboard = 'ダッシュボード';
 
 $TLS_report_test_automation = 'テスト自動化レポート';
 $TLS_btn_report_test_automation = 'テスト自動化仕様';
+$TLS_href_tc_auto_exec = 'テスト自動化実行';
 $TLS_href_tc_create_from_issues = "問題XMLからテストケースを作成";
 // ----- issue #644: keys restored (accidentally deleted by commit 1c33eb305) -----
 $TLS_executed_me_and_also = 'と一緒に実行される';

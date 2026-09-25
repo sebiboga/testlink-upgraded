@@ -236,6 +236,7 @@ Left side menu
                   {/if}
                   {if $menuGrants->view_tc == "yes"}
                     <li><a href="{$gui->uri->testAutomationSpec}" target="mainframe">{$labels.btn_report_test_automation}</a></li>
+                    <li><a href="{$gui->uri->tcAutoExec}" target="mainframe">{$labels.href_tc_auto_exec}</a></li>
                   {/if}
                 </ul>
               </li>

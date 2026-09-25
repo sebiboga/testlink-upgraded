@@ -4059,6 +4059,7 @@ $TLS_doc_youtrack_readme = 'YouTrack Readme';
 
 $TLS_report_test_automation = 'Testautomatiseringsrapport';
 $TLS_btn_report_test_automation = 'Testautomatiseringsrapport';
+$TLS_href_tc_auto_exec = 'Testautomatisering uitvoeren';
 $TLS_href_tc_create_from_issues = "Testgevallen maken uit issues XML";
 // ----- issue #644: keys restored (accidentally deleted by commit 1c33eb305) -----
 $TLS_executed_me_and_also = 'wordt samen uitgevoerd met';

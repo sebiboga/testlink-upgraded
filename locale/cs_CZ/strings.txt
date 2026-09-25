@@ -3925,6 +3925,7 @@ $TLS_href_nfr_maintainability = "NFR: Maintainability"; // "NFR: Maintainability
 $TLS_href_nfr_requirements = "Nefunk�n� po�adavky"; // "Non-Functional Requirements" (Refs #1462)
 
 $TLS_btn_report_test_automation = 'Specifikace automatizace testů';$TLS_href_tc_create_from_issues = "Vytvořit test případy z XML problémů";
+$TLS_href_tc_auto_exec = 'Spusteni automatizace testu';
 
 // ----- issue #1563: after_title / after_preconditions location labels missing from this bundle -----
 $TLS_after_title = 'After Title';

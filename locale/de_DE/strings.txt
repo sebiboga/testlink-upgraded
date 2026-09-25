@@ -3702,6 +3702,7 @@ $TLS_title_plugins = 'Plugins';
 
 $TLS_report_test_automation = 'Testautomatisierungsbericht';
 $TLS_btn_report_test_automation = 'Testautomatisierungsspezifikation';
+$TLS_href_tc_auto_exec = 'Testautomatisierung ausfuehren';
 $TLS_href_tc_create_from_issues = "Testfälle aus Problem-XML erstellen";
 // ----- issue #644: keys restored (accidentally deleted by commit 1c33eb305) -----
 $TLS_executed_me_and_also = 'wird zusammen ausgeführt mit';

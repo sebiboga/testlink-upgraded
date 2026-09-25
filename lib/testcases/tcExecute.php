@@ -1,158 +1,69 @@
 <?php
 /**
- * TestLink Open Source Project - http://testlink.sourceforge.net/ 
- * This script is distributed under the GNU General Public License 2 or later. 
+ * TestLink Open Source Project - http://testlink.sourceforge.net/
  *
- * Filename $RCSfile: tcExecute.php,v $
- * @version $Revision: 1.5 $
+ * @filesource  tcExecute.php
  *
- * Handles testcase execution through AJAX calls. 
- * Testcases are executed on a remote server, and the response 
- * is sent back via an XML-RPC server.
+ * 2.0.1.shim - Refs #1587: the legacy "Execute test case on a remote
+ * automation server" page (TestLink 1.9.20, last modified 2010) was replaced
+ * by the modern Dashio screen gui/templates/testcases/tcAutoExec.html backed
+ * by the api/tcautoexec BFF. The legacy controller:
+ *   - had no rights check at all (any logged in user could trigger remote
+ *     execution on any test project),
+ *   - had no CSRF / same-origin proof,
+ *   - called executeTestCase() with the 1.9.20 signature
+ *     executeTestCase($tcase_id,$tree_manager,$cfield_manager) while
+ *     lib/functions/remote_exec.php now expects
+ *     executeTestCase($tcaseInfo,$serverCfg,$context) - i.e. it was dead code
+ *     throwing a TypeError,
+ *   - did not recurse into the test case subtree for the testsuite /
+ *     testproject levels.
+ * All of that now lives in the BFF (mgt_view_tc gate, bffSameOriginGuard,
+ * server resolution with suite inheritance, recursive collection).
  *
- * Code contributed by: 
- *
- * Important note:
- * XML-RPC Server Settings need to be configured using the custom fields feature.
- * Three fields each for testcase level and testsuite level are required. 
- * The fields are: server_host, server_port and server_path. 
- *                 Precede 'tc_' for custom fields assigned to testcase level.
- * 
- *
- * @modified $Date: 2010/09/27 14:06:04 $ by $Author: franciscom $
-*/
+ * This file is kept as a session-guarded redirect shim so old deep links and
+ * bookmarks keep working: anonymous users are sent to the login screen (the
+ * legacy testlinkInitPage contract) and authenticated users land on the modern
+ * screen with their test project / plan / build / platform context forwarded.
+**/
 require_once("../../config.inc.php");
-require_once("common.php");
-require_once("csv.inc.php");
-require_once("xml.inc.php");
-require_once("../../third_party/phpxmlrpc/lib/xmlrpc.inc");
-require_once("../../third_party/phpxmlrpc/lib/xmlrpcs.inc");
-require_once("../../third_party/phpxmlrpc/lib/xmlrpc_wrappers.inc");
-testlinkInitPage($db);
+require_once("../functions/common.php");
 
-$args = init_args();
+// Anonymous -> login (same contract as the legacy testlinkInitPage call).
+testlinkInitPage($db, FALSE, false, null, true);
 
-$executionResults = array();
-$xmlResponse = null;
+$tprojectID = isset($_SESSION['testprojectID']) ? intval($_SESSION['testprojectID']) : 0;
+$tplanID = isset($_SESSION['testplanID']) ? intval($_SESSION['testplanID']) : 0;
+$buildID = isset($_SESSION['buildID']) ? intval($_SESSION['buildID']) : 0;
+$platformID = isset($_SESSION['platformID']) ? intval($_SESSION['platformID']) : 0;
 
-$msg = array();
-$msg['check_server_setting'] = "<tr><td>" . lang_get("check_test_automation_server") . "</td></tr>";
-
-switch($args->level)
-{
-	case "testcase":
-		$xmlResponse = remote_exec_testcase($db,$args->testcase_id,$msg);
-  		break;  
-	case "testsuite":
-  	case "testproject":
-  		//@TODO schlundus, investigate this!
-  		$tcase_parent_id = $_REQUEST[$args->level . "_id"];
-  		$xmlResponse = remote_exec_testcase_set($db,$tcase_parent_id,$msg);
-  		break;
-	default:
-		echo "<b>" . lang_get("service_not_supported") . "</b>";
-		break;
+// Legacy request parameters (init_args + the $_REQUEST lookups of the
+// testsuite / testproject branches) are accepted so the old links keep their
+// context; the modern screen resolves the node itself.
+$q = array();
+if (isset($_REQUEST['testproject_id'])) { $q['tproject_id'] = intval($_REQUEST['testproject_id']); }
+if (isset($_REQUEST['tplan_id'])) { $q['tplan_id'] = intval($_REQUEST['tplan_id']); }
+if (isset($_REQUEST['build_id'])) { $q['build_id'] = intval($_REQUEST['build_id']); }
+if (isset($_REQUEST['platform_id'])) { $q['platform_id'] = intval($_REQUEST['platform_id']); }
+if (isset($_REQUEST['level'])) {
+    $level = preg_replace('/[^a-z]/', '', strval($_REQUEST['level']));
+    if (in_array($level, array('testcase', 'testsuite', 'testproject'))) { $q['level'] = $level; }
+}
+foreach (array('testcase_id', 'testsuite_id', 'testproject_id') as $legacyLevelKey) {
+    if (isset($_REQUEST[$legacyLevelKey])) {
+        $q[$legacyLevelKey] = intval($_REQUEST[$legacyLevelKey]);
+        break;
+    }
 }
 
-if(!is_null($xmlResponse))
-{
-	$xmlResponse = '<table width="95%" class="simple" border="0">' . $xmlResponse .
-	               '</table>';
-	echo $xmlResponse;
+if (!isset($q['tproject_id']) && $tprojectID > 0) { $q['tproject_id'] = $tprojectID; }
+if (!isset($q['tplan_id']) && $tplanID > 0) { $q['tplan_id'] = $tplanID; }
+if (!isset($q['build_id']) && $buildID > 0) { $q['build_id'] = $buildID; }
+if (!isset($q['platform_id']) && $platformID > 0) { $q['platform_id'] = $platformID; }
+
+$url = $_SESSION['basehref'] . 'gui/templates/testcases/tcAutoExec.html';
+if (count($q) > 0) {
+    $url .= '?' . http_build_query($q, '', '&');
 }
-
-function remote_exec_testcase(&$db,$tcase_id,$msg)
-{
-	$cfield_manager = new cfield_mgr($db);
-	$tree_manager = new tree($db);
-	$xmlResponse = null;
-	$executionResults = array();
-	
-	$executionResults[$tcase_id] = executeTestCase($tcase_id,$tree_manager,$cfield_manager);
-	$myResult = $executionResults[$tcase_id]['result'];
-	$myNotes = $executionResults[$tcase_id]['notes'];
-	$myMessage = $executionResults[$tcase_id]['message'];
-	
-	$xmlResponse = '<tr><th colspan="2">' . lang_get('result_after_exec') . " {$myMessage}</th></tr>";
-
-	if($myResult != -1 and $myNotes != -1)
-	{
-		$xmlResponse .= "<tr><td>" . lang_get('tcexec_result') . "</td>" . 
-		                "<td>{$myResult}</td></tr>" . 
-		                "<tr><td>" . lang_get('tcexec_notes'). "</td>" . 
-		                "<td> {$myNotes}</td></tr>";
-	}
-	else
-	{
-		$xmlResponse .= $msg['check_server_setting'];	
-	}
-  
-	return $xmlResponse;
-}
-
-
-/*
-  function: 
-
-  args :
-  
-  returns: 
-
-*/
-function remote_exec_testcase_set(&$db,$parent_id,$msg)
-{
-	$cfield_manager = new cfield_mgr($db);
-	$tree_manager = new tree($db);
-	$xmlResponse = null;
-	$executionResults = array();
-	$node_type = $tree_manager->get_available_node_types();
-	$subtree_list = $tree_manager->get_subtree($parent_id);
-	
-	foreach($subtree_list as $_key => $_value){
-		if (is_array($_value)){
-			if($_value['node_type_id'] == $node_type['testcase']) {
-				$executionResults[$_value['id']] = executeTestCase($_value['id'],$tree_manager,$cfield_manager);
-			}
-			else{
-				//Can add some logic here. If required.
-				continue;
-			}
-		}
-	}
-	if($executionResults){
-		foreach($executionResults as $key => $value){
-		  
-		  $node_info=$tree_manager->get_node_hierarchy_info($key);
-		  
-			$xmlResponse .= '<tr><th colspan="2">' . lang_get('tcexec_results_for') .
-			                $node_info['name'] . "</th></tr>";
-			$serverTest = 1;
-			foreach($value as $_key => $_value){
-				if($_value != -1){
-					$xmlResponse .= "<tr><td>" . $_key . ":</td><td>" . $_value . "</td></tr>";
-				}
-				else
-					$serverTest = $serverTest+1;
-				
-			}
-			if($serverTest != 1){
-				$xmlResponse .= $xmlResponse .= $msg['check_server_setting'];
-			}
-		}
-	}
-	return $xmlResponse;
-}
-
-/**
- * 
- *
- */
-function init_args()
-{
-	$iParams = array("testcase_id" => array(tlInputParameter::INT_N,0),
-			         "level" => array(tlInputParameter::STRING_N,0,50));
-	$args = new stdClass();
-	R_PARAMS($iParams,$args);
-	return $args;
-}
-?>
+header('Location: ' . $url);
+exit;

@@ -4080,6 +4080,7 @@ $TLS_testers_qty = 'Nombre de testeurs';
 
 $TLS_report_test_automation = 'Rapport de spécification des tests automatiques';
 $TLS_btn_report_test_automation = 'Rapport de spécification des tests automatiques';
+$TLS_href_tc_auto_exec = 'Execution de l'automatisation des tests';
 $TLS_before_summary = "Avant le résumé";
 $TLS_before_preconditions = "Avant les pré-conditions";
 $TLS_after_title = "Après le titre";

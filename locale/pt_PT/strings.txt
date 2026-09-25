@@ -4178,6 +4178,7 @@ $TLS_remove_plat_msgbox_msg = 'Você Tem a Certeza?';
 
 $TLS_report_test_automation = 'Especificação de Relatório de Automação de Testes';
 $TLS_btn_report_test_automation = 'Especificação de Relatório de Automação de Testes';
+$TLS_href_tc_auto_exec = 'Execucao da automatizacao de testes';
 $TLS_before_summary = "Antes do Resumo";
 $TLS_before_preconditions = "Antes das Pré-condições";
 $TLS_after_title = "Depois do Título";

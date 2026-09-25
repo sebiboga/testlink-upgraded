@@ -1962,6 +1962,13 @@ function getActions(&$gui,$baseURL) {
   // Test Specification (editTc) modernized screen - tree & editor
   $actions->testSpec = "/gui/templates/testcases/testSpec.html?{$ctx}";
 
+  // Refs #1587: Remote Test Automation Execution (legacy lib/testcases/
+  // tcExecute.php, the last standalone lib/testcases controller without a
+  // modern twin). The modern screen talks to api/tcautoexec, which enforces
+  // mgt_view_tc on the owning test project on every route; the legacy
+  // controller is now a session-guarded redirect to this page.
+  $actions->tcAutoExec = "/gui/templates/testcases/tcAutoExec.html?{$ctx}";
+
   // Add/Remove Test Cases modernized screen (Dashio standalone page) - Refs #593
   if ($tplan_id > 0) {
     $actions->planAddTC = "/gui/templates/plans/planAddTCView.html?{$ctx}";

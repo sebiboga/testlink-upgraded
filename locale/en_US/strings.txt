@@ -3848,6 +3848,7 @@ $TLS_applyExecTypeChangeToAllSteps = "Apply To All Steps";
 $TLS_no_users_selected = "No users selected - nothing done";
 $TLS_report_test_automation = "Report Test Automation Spec";
 $TLS_btn_report_test_automation = "Report Test Automation Spec";
+$TLS_href_tc_auto_exec = 'Test Automation Execution';
 $TLS_href_tc_create_from_issues = "Create Test Cases from Issues XML";
 
 // Missing localization strings

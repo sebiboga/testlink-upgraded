@@ -516,6 +516,9 @@ if ($show('tests_design')) {
     if ($gm('view_tc') === 'yes') {
         $items[] = array('label' => lang_get('btn_report_test_automation'),
                          'href' => (string)$u('testAutomationSpec'));
+        // Refs #1587: run test cases on a remote automation server (XML-RPC)
+        $items[] = array('label' => lang_get('href_tc_auto_exec'),
+                         'href' => (string)$u('tcAutoExec'));
     }
     if (count($items) > 0) {
         $sections[] = array('key' => 'tests_design', 'label' => lang_get('tests_design'),
