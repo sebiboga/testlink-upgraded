@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title data-i18n="pexp.title"></title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; color: #333; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #147d76; color: #fff; display: flex; gap: 12px; align-items: center; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header .sub { font-size: 13px; font-weight: 400; margin-left: 4px; opacity: 1; }
+.toolbar { align-items: center; background: #22242a; color: #aaa; display: flex; flex-wrap: wrap; font-size: 12px; gap: 16px; padding: 11px 24px; }
+.toolbar .ctx b { color: #fff; }
+.toolbar .spacer { flex: 1; }
+.btn-teal { background: #147d76; border: 0; border-radius: 4px; color: #fff; cursor: pointer; font-size: 13px; font-weight: 600; padding: 8px 20px; }
+.btn-teal:hover { background: #0f6862; }
+.btn-dark { background: #3a3d46; border: 0; border-radius: 4px; color: #eee; cursor: pointer; font-size: 13px; font-weight: 600; padding: 8px 20px; }
+.btn-dark:hover { background: #4a4e59; }
+button:disabled { cursor: not-allowed; opacity: .5; }
+button:focus-visible, a:focus-visible { outline: 3px solid #f2c94c; outline-offset: 2px; }
+.main { margin: 0 auto; max-width: 920px; padding: 20px 16px 8px; }
+.warnbox { background: #fff4e5; border: 1px solid #d99b45; border-radius: 6px; color: #6c4300; display: none; font-size: 13px; margin-bottom: 14px; padding: 11px 14px; }
+.warnbox.danger { background: #fdecea; border-color: #d66b69; color: #8f2523; }
+.card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); overflow: hidden; }
+.card-head { align-items: center; background: #22242a; color: #fff; display: flex; font-size: 15px; font-weight: 700; gap: 10px; padding: 12px 20px; }
+.context-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 20px; }
+.context-item { background: #f8fafb; border: 1px solid #d7dee2; border-left: 4px solid #147d76; border-radius: 6px; min-height: 66px; padding: 10px 12px; }
+.context-item .label { color: #5f6367; display: block; font-size: 11px; margin-bottom: 4px; text-transform: uppercase; }
+.context-item .value { color: #22242a; display: block; font-size: 14px; font-weight: 700; overflow-wrap: anywhere; }
+.form-table { border-collapse: collapse; width: 100%; }
+.form-table td { border-top: 1px solid #eef0f2; padding: 14px 10px; vertical-align: top; }
+.form-table tr:first-child td { border-top: 0; }
+.form-table td.label-cell { color: #22242a; font-size: 13px; font-weight: 700; padding-left: 0; width: 210px; }
+.form-table td.label-cell i { color: #2d8e88; margin-right: 7px; }
+input[type=text], select { background: #fff; border: 1px solid #ccc; border-radius: 4px; color: #333; font-family: inherit; font-size: 13px; min-height: 36px; padding: 7px 10px; }
+input[type=text] { width: min(100%, 480px); }
+input[type=text]:focus, select:focus { border-color: #147d76; box-shadow: 0 0 0 2px rgba(20,125,118,.22); outline: 0; }
+input.is-invalid { border-color: #c33f3d; }
+.hint { color: #62666a; font-size: 12px; margin-top: 5px; }
+.error { color: #a72f2d; display: none; font-size: 12px; margin-top: 6px; }
+.doc-link { color: #0f6862; font-size: 12px; margin-left: 12px; text-decoration: none; white-space: nowrap; }
+.doc-link:hover { text-decoration: underline; }
+.actions { border-top: 1px solid #eef0f2; display: flex; gap: 10px; padding: 16px 0 2px; }
+.footer { color: #555b60; font-size: 12px; padding: 12px 24px 18px; text-align: center; }
+.toast { background: #22242a; border-radius: 5px; bottom: 20px; box-shadow: 0 3px 10px rgba(0,0,0,.25); color: #fff; display: none; font-size: 13px; padding: 10px 16px; position: fixed; right: 20px; z-index: 9999; }
+.toast.err { background: #a72f2d; }
+.loading { background: rgba(255,255,255,.82); bottom: 0; display: none; left: 0; position: fixed; right: 0; text-align: center; top: 0; z-index: 9998; }
+.loading-box { background: #fff; border-radius: 8px; box-shadow: 0 4px 18px rgba(0,0,0,.18); display: inline-block; margin-top: 18vh; padding: 18px 26px; }
+@media (max-width: 720px) {
+  .header { align-items: flex-start; flex-direction: column; }
+  .context-grid { grid-template-columns: 1fr; }
+  .form-table td { display: block; width: 100%; }
+  .form-table td.label-cell { border-bottom: 0; padding-bottom: 5px; width: auto; }
+  .doc-link { display: inline-block; margin: 8px 0 0; white-space: normal; }
+  input[type=text] { width: 100%; }
+}
+</style>
+</head>
+<body>
+<div class="header">
+  <i class="fa fa-file-export"></i>
+  <span data-i18n="pexp.header"></span>
+  <span class="sub" id="headerProject"></span>
+  <span id="localeSwitcher" style="margin-left:auto;"></span>
+</div>
+<div class="toolbar">
+  <span class="ctx"><span data-i18n="pexp.testProject"></span>: <b id="toolbarProject">-</b></span>
+  <span class="ctx"><span data-i18n="pexp.platformCount"></span>: <b id="toolbarCount">-</b></span>
+  <span class="spacer"></span>
+  <button class="btn-dark" id="btnRefresh" type="button"><i class="fa fa-refresh"></i> <span data-i18n="pexp.refresh"></span></button>
+  <button class="btn-dark" id="btnBack" type="button"><i class="fa fa-arrow-left"></i> <span data-i18n="pexp.back"></span></button>
+</div>
+<div class="main">
+  <div class="warnbox" id="warningBox" role="alert" aria-live="assertive" aria-atomic="true"></div>
+  <section class="card" id="exportCard" style="display:none;">
+    <div class="card-head"><i class="fa fa-file-code"></i> <span data-i18n="pexp.exportDetails"></span></div>
+    <div class="card-body">
+      <div class="context-grid">
+        <div class="context-item"><span class="label" data-i18n="pexp.testProject"></span><span class="value" id="contextProject">-</span></div>
+        <div class="context-item"><span class="label" data-i18n="pexp.fileType"></span><span class="value" id="contextFormat">-</span></div>
+        <div class="context-item"><span class="label" data-i18n="pexp.platformCount"></span><span class="value" id="contextCount">-</span></div>
+      </div>
+      <form id="exportForm" novalidate>
+        <table class="form-table">
+          <tr>
+            <td class="label-cell"><i class="fa fa-file"></i><span data-i18n="pexp.filename"></span></td>
+            <td>
+              <label for="exportFilename" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);" data-i18n="pexp.filename"></label>
+              <input type="text" id="exportFilename" maxlength="200" autocomplete="off" aria-describedby="filenameHint filenameError" required data-i18n-placeholder="pexp.filenamePlaceholder">
+              <div class="hint" id="filenameHint" data-i18n="pexp.filenameHint"></div>
+              <div class="error" id="filenameError" role="alert" aria-live="assertive" aria-atomic="true"></div>
+            </td>
+          </tr>
+          <tr>
+            <td class="label-cell"><i class="fa fa-file-code"></i><span data-i18n="pexp.fileType"></span></td>
+            <td>
+              <label for="exportType" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);" data-i18n="pexp.fileType"></label>
+              <select id="exportType"></select>
+              <a class="doc-link" id="formatDocs" href="/docs/tl-file-formats.pdf" target="_blank" rel="noopener"><i class="fa fa-file-pdf-o"></i> <span data-i18n="pexp.viewDocs"></span></a>
+            </td>
+          </tr>
+        </table>
+        <div class="actions">
+          <button class="btn-teal" id="btnExport" type="submit"><i class="fa fa-download"></i> <span data-i18n="pexp.export"></span></button>
+          <button class="btn-dark" id="btnCancel" type="button"><i class="fa fa-times"></i> <span data-i18n="pexp.cancel"></span></button>
+        </div>
+      </form>
+    </div>
+  </section>
+</div>
+<div class="footer" data-i18n="pexp.footer"></div>
+<div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
+<div class="loading" id="loading" role="status" aria-live="polite" aria-busy="false"><div class="loading-box"><i class="fa fa-spinner fa-spin"></i> <span data-i18n="pexp.generating"></span></div></div>
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script>
+var API = '/api/platformsexport/index.php';
+var ctx = {
+  tprojectId: parseInt(new URLSearchParams(window.location.search).get('tproject_id') || '0', 10),
+  tplanId: parseInt(new URLSearchParams(window.location.search).get('tplan_id') || '0', 10),
+  info: null
+};
+
+function esc(value) {
+  return String(value == null ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function toast(message, error) {
+  var element = $('#toast').text(message).toggleClass('err', !!error).show();
+  clearTimeout(element.data('timer'));
+  element.data('timer', setTimeout(function () { element.hide(); }, 4000));
+}
+
+function messageFor(code) {
+  var messages = {
+    AUTH_REQUIRED: 'pexp.sessionExpired',
+    NO_PERMISSION: 'pexp.noPermission',
+    INVALID_TPROJECT_ID: 'pexp.invalidProject',
+    TEST_PROJECT_NOT_FOUND: 'pexp.projectNotFound',
+    INVALID_FILENAME: 'pexp.requiredName',
+    EXPORT_QUERY_FAILED: 'pexp.serverError',
+    DATABASE_UNAVAILABLE: 'pexp.serverError',
+    SERVER_ERROR: 'pexp.serverError'
+  };
+  return TLi18n.t(messages[code] || (code === 'UNKNOWN_ACTION' ? 'pexp.loadError' : 'pexp.exportError'));
+}
+
+function showFatal(code) {
+  $('#warningBox')
+    .removeClass('danger')
+    .addClass('danger')
+    .html('<i class="fa fa-exclamation-triangle"></i> ' + esc(messageFor(code)))
+    .show();
+  $('#exportCard').hide();
+  $('#btnExport').prop('disabled', true);
+  $('#btnRefresh').prop('disabled', false);
+}
+
+function loadInfo() {
+  $('#warningBox').hide().removeClass('danger');
+  $('#btnRefresh').prop('disabled', true);
+  $.getJSON(API, { action: 'init', tproject_id: ctx.tprojectId })
+    .done(function (result) {
+      if (!result || result.status !== 'ok') {
+        showFatal(result && result.error_code);
+        return;
+      }
+      ctx.info = result;
+      renderInfo();
+      $('#exportCard').show();
+    })
+    .fail(function (xhr) {
+      var result = {};
+      try { result = JSON.parse(xhr.responseText) || {}; } catch (error) {}
+      showFatal(result.error_code);
+    })
+    .always(function () {
+      if (!ctx.info) $('#btnRefresh').prop('disabled', false);
+    });
+}
+
+function renderInfo() {
+  var projectName = ctx.info.project.name;
+  var count = parseInt(ctx.info.platform_count, 10) || 0;
+  var countLabel = TLi18n.t('pexp.countValue', { count: count });
+  document.title = TLi18n.t('pexp.title') + ' - ' + projectName;
+  $('#headerProject').text(TLi18n.t('pexp.projectSubtitle', { project: projectName }));
+  $('#toolbarProject').text(projectName);
+  $('#toolbarCount').text(countLabel);
+  $('#contextProject').text(projectName);
+  $('#contextFormat').text(ctx.info.format);
+  $('#contextCount').text(countLabel);
+  $('#exportFilename').val(ctx.info.default_filename);
+  $('#exportType').empty().append($('<option>').val(ctx.info.format).text(ctx.info.format));
+  $('#formatDocs').attr('href', ctx.info.documentation_url);
+  $('#btnExport').prop('disabled', false);
+  $('#btnRefresh').prop('disabled', false);
+  if (count === 0) {
+    $('#warningBox').removeClass('danger').text(TLi18n.t('pexp.noPlatforms')).show();
+  }
+}
+
+function serverFilename(response, fallback) {
+  var disposition = response.headers.get('Content-Disposition') || '';
+  var encoded = /filename\*=UTF-8''([^;]+)/i.exec(disposition);
+  if (encoded) {
+    try { return decodeURIComponent(encoded[1]); } catch (error) {}
+  }
+  var basic = /filename="?([^";]+)"?/i.exec(disposition);
+  return basic ? basic[1] : fallback;
+}
+
+function responseError(response) {
+  return response.text().then(function (text) {
+    var payload = {};
+    try { payload = JSON.parse(text) || {}; } catch (error) {}
+    var exception = new Error(payload.error_code || 'EXPORT_ERROR');
+    exception.code = payload.error_code || 'EXPORT_ERROR';
+    throw exception;
+  });
+}
+
+function labelLocaleSwitcher() {
+  var select = document.getElementById('tl-locale-switcher');
+  if (!select) return false;
+  select.setAttribute('aria-label', TLi18n.t('pexp.locale'));
+  return true;
+}
+
+function returnToPlatforms() {
+  var target = '/gui/templates/platforms/platformsView.html?tproject_id=' + ctx.tprojectId;
+  if (ctx.tplanId > 0) target += '&tplan_id=' + ctx.tplanId;
+  window.location.href = target;
+}
+
+function doExport() {
+  var filename = ($('#exportFilename').val() || '').trim();
+  if (!filename) {
+    $('#exportFilename').addClass('is-invalid').focus();
+    $('#filenameError').text(TLi18n.t('pexp.requiredName')).show();
+    return;
+  }
+  $('#exportFilename').removeClass('is-invalid');
+  $('#filenameError').hide();
+
+  var params = new URLSearchParams();
+  params.set('action', 'download');
+  params.set('tproject_id', ctx.tprojectId);
+  params.set('filename', filename);
+
+  $('#loading').show().attr('aria-busy', 'true');
+  $('#btnExport').prop('disabled', true);
+  fetch(API + '?' + params.toString(), {
+    credentials: 'same-origin',
+    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+  })
+    .then(function (response) {
+      var contentType = response.headers.get('Content-Type') || '';
+      if (!response.ok || contentType.indexOf('application/json') !== -1) {
+        return responseError(response);
+      }
+      var name = serverFilename(response, filename.replace(/ /g, ''));
+      return response.blob().then(function (blob) {
+        return { blob: blob, name: name };
+      });
+    })
+    .then(function (result) {
+      var url = URL.createObjectURL(result.blob);
+      var link = document.createElement('a');
+      link.href = url;
+      link.download = result.name;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+      toast(TLi18n.t('pexp.generated'));
+    })
+    .catch(function (error) {
+      toast(messageFor(error && error.code), true);
+    })
+    .finally(function () {
+      $('#loading').hide().attr('aria-busy', 'false');
+      $('#btnExport').prop('disabled', false);
+    });
+}
+
+$(function () {
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    if (!labelLocaleSwitcher()) {
+      var observer = new MutationObserver(function () {
+        if (labelLocaleSwitcher()) observer.disconnect();
+      });
+      observer.observe(document.getElementById('localeSwitcher'), { childList: true });
+    }
+    document.title = TLi18n.t('pexp.title');
+    loadInfo();
+  });
+  $('#exportForm').on('submit', function (event) {
+    event.preventDefault();
+    doExport();
+  });
+  $('#exportFilename').on('input', function () {
+    $(this).removeClass('is-invalid');
+    $('#filenameError').hide();
+  });
+  $('#btnRefresh').on('click', loadInfo);
+  $('#btnCancel, #btnBack').on('click', returnToPlatforms);
+});
+</script>
+</body>
+</html>

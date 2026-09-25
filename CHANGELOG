@@ -5563,13 +5563,14 @@ Changes:
 
 ## 2.0.1 (in-progress)
 ### UI modernization — Platforms Export (Refs #1583)
-- Added the session-authenticated `api/platformsexport/index.php` BFF for the
-  legacy Platforms Export flow. It validates the requested test project, enforces
+- Added the session-authenticated `api/platformsexport/index.php` BFF and
+  standalone Dashio `platformsExport.html` screen for the legacy Platforms
+  Export flow. The BFF validates the requested test project, enforces
   project-scoped platform view/management rights, returns screen context and the
   default filename, and streams valid XML containing the legacy platform fields
-  with safe filenames and headers. The standalone Dashio screen, link switch,
-  locale coverage, browser regression suite, and documentation follow in the
-  remaining #1583 phases.
+  with safe filenames and headers. The locale coverage, Platforms View link
+  switch, browser regression suite, and documentation follow in the remaining
+  #1583 phases.
 
 ### Gap closed — Event Viewer legacy deep link wired to modern screen (Refs #1579)
 - lib/events/eventviewer.php was the LAST controller in lib/** still rendering a
