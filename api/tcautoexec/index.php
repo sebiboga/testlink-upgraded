@@ -78,6 +78,33 @@ $db = new database(DB_TYPE);
 doDBConnect($db);
 
 /** JSON terminator used by every exit path. */
+/**
+ * The remote server answers with a TestLink status CODE ('p', 'f', 'b', ...)
+ * - see config results.status_code / code_status. Some servers send the
+ * domain word instead, both are accepted here.
+ *
+ * @return array('domain' => string, 'code' => string, 'label' => i18n key)
+ */
+function taeResolveResultStatus($raw)
+{
+    $raw = strtolower(trim(strval($raw)));
+    $resultsCfg = config_get('results');
+    if ($raw === '') {
+        return array('domain' => '', 'code' => '', 'label' => '');
+    }
+    if (isset($resultsCfg['code_status'][$raw])) {
+        $domain = $resultsCfg['code_status'][$raw];
+    } else if (isset($resultsCfg['status_code'][$raw])) {
+        $domain = $raw;
+    } else {
+        // unknown / non conformant answer: show it verbatim, count it as failed
+        return array('domain' => '', 'code' => $raw, 'label' => '');
+    }
+    return array('domain' => $domain, 'code' => $raw,
+                 'label' => isset($resultsCfg['status_label'][$domain])
+                            ? $resultsCfg['status_label'][$domain] : '');
+}
+
 function taeOut($data, $code = null)
 {
     if (!is_null($code)) {
@@ -548,9 +575,10 @@ if ($action === 'run') {
             $timestampISO = strval($exec['timestampISO'] ?? '');
         }
 
+        $resultStatus = taeResolveResultStatus($result);
         if ($status === 'ok') {
             $counters['ok']++;
-            if (trim($result) !== '' && strtoupper(trim($result)) !== 'PASS') {
+            if ($resultStatus['domain'] !== 'passed') {
                 $counters['failed']++;
             }
         } else if ($status === 'configProblems') {
@@ -565,6 +593,8 @@ if ($action === 'run') {
             'name' => $tcaseInfo['name'],
             'system' => array('status' => $status, 'msg' => $sysMsg),
             'result' => $result,
+            'result_status' => $resultStatus['domain'],
+            'result_label' => $resultStatus['label'],
             'resultVerbose' => $resultVerbose,
             'notes' => $notes,
             'message' => $message,

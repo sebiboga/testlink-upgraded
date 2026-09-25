@@ -3,7 +3,9 @@
 // modern screen (gui/templates/testcases/tcAutoExec.html + api/tcautoexec/index.php).
 //
 // Creates tproject `AutoExec Demo` (prefix AX1587) with:
-//   - test plan + open build + platform
+//   - test plan + open build + platform, plus a second plan with its own
+//     platform (exercises the plan -> platform refresh of the screen)
+//   - a role-less `norights` user (403 path)
 //   - suite tree:  AX1587-A / AX1587-A1 (2 TCs: one with tc_-prefixed
 //     automation server custom fields, one without) / AX1587-B (1 TC)
 //   - the three testcase-level custom fields  tc_server_host / tc_server_port /
@@ -82,6 +84,21 @@ if (intval($opPf['id'] ?? 0) <= 0) { die("platform create failed\n"); }
 $pfid = intval($opPf['id']);
 $platformMgr->linkToTestplan($pfid, $plid);
 echo "platform $pfid\n";
+
+// second plan with a different platform: the screen must refresh the platform
+// selector when the test plan changes.
+$plid2 = intval($tplanMgr->create('AutoExec Plan 2', '', $tid, 1, 1));
+$pf2 = new stdClass();
+$pf2->name = 'AutoExec Linux';
+$pf2->notes = '';
+$pf2->testproject_id = $tid;
+$pf2->enable_on_design = 1;
+$pf2->enable_on_execution = 1;
+$opPf2 = $platformMgr->create($pf2);
+if (intval($opPf2['id'] ?? 0) <= 0) { die("platform 2 create failed\n"); }
+$pfid2 = intval($opPf2['id']);
+$platformMgr->linkToTestplan($pfid2, $plid2);
+echo "plan2 $plid2 platform2 $pfid2\n";
 
 // --- suite tree + test cases -------------------------------------------
 $mkSuite = function ($name, $parent) use ($tsuiteMgr) {
@@ -169,4 +186,15 @@ foreach ($defs as $d) {
     echo "cfield {$cfName}={$cfId} on node {$cfNode} (type {$cfNodeType}) = {$cfValue}\n";
 }
 
-echo "DONE fixture 1587 (project $tid, plan $plid, build $bdid, platform $pfid)\n";
+// role-less (guest) user: must get 403 on every tcAutoExec action
+$hash = password_hash('norights', PASSWORD_DEFAULT);
+$db->exec_query("INSERT INTO users (login,password,role_id,email,first,last,locale," .
+    "default_testproject_id,active,cookie_string,auth_method) " .
+    "VALUES ('norights','{$hash}',3,'norights@tl.local','No','Rights','en_GB',0,1," .
+    "'ck_norights_1587','DB') " .
+    "ON DUPLICATE KEY UPDATE password=VALUES(password), role_id=3, active=1, " .
+    "auth_method=VALUES(auth_method)");
+echo "norights user ensured\n";
+
+echo "DONE fixture 1587 (project $tid, plan $plid, build $bdid, platform $pfid, " .
+    "plan2 $plid2, platform2 $pfid2)\n";
