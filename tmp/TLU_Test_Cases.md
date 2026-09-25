@@ -20606,38 +20606,109 @@ Entry: `http://localhost:8082/api/codetracker/index.php`; screen
 
 **Result: 8/8 PASS. (Refs #1577)**
 
-## Suite 971 — Task — Issue #971: linked code-tracker delete gating and detail link-count parity
+## Regression — Issue #1580: legacy Code Tracker list emitted five PHP warnings and dropped pagination/label values
 
-**Precondition:** Fresh fixture with `testprojects.id=2` / `nodes_hierarchy.id=2` named `Linked Project`; code trackers `1=Stash Tracker`, `2=GitHub TestLink`, `3=Linked Stash`; `testproject_codetracker(2,3)`. Authenticated manager: `admin/admin`. Entry screen: `http://localhost:8082/gui/templates/codetracker/codetrackerView.html?tproject_id=0&tplan_id=0`.
+Preconditions: PHP 8.3 server at `http://localhost:8082`; login `admin/admin` with
+Code Tracker management rights; DB command
+`mysql -h127.0.0.1 -utestlink -ptestlink testlink`; fresh DB baseline
+`events.max(id)=1`, ERROR/WARNING counts `0/0`. Fixture: test project id 2
+(`Issue 1580 Project`), codetrackers 1 (`Stash Tracker`, stash), 2
+(`GitHub TestLink`, github), 3 (`Linked Stash`, stash), and
+`testproject_codetracker(2,3)`. Entry:
+`http://localhost:8082/lib/codetrackers/codeTrackerView.php`. The visual table is
+unchanged by this server-warning fix, so the probative evidence is the measured DOM
+and Event Viewer delta; the corrected-state screenshot is
+`docs/screenshots/issue-1580-after.png`.
 
-### Test 1 — List response exposes the legacy link count
-- **Steps:** Load the modern screen as `admin`; inspect the `GET /api/codetracker/index.php` response.
-- **Expected:** Every item has an integer `link_count`; unlinked rows report `0`, the linked row reports `1`.
-- **Actual:** HTTP **200**; ids 2, 3, and 1 reported `link_count` 0, 1, and 0. PASS.
+### Test 1 — Pre-fix reproduction: three pagination-chain warnings plus one per unlinked row
+- **Steps (pre-fix):** load the entry URL as `admin`; inspect the Event Viewer DB
+  delta and DOM page-size/delete-icon values.
+- **Expected post-fix:** HTTP 200; all three tracker rows render; page-size select is
+  populated from `input_dimensions.conf`; every visible delete tooltip is `delete`;
+  no Error/Warning event is added.
+- **Actual (pre-fix, measured):** HTTP 200; events IDs 2-4 were
+  `Undefined property: stdClass::$codeTrackerView`, then missing `pagination`, then
+  missing `length` on null. IDs 5-6 were `Undefined array key
+  "testproject_alt_delete"` (one for each unlinked row). The page-size select had
+  zero options and both delete tooltips were empty. PASS (bug reproduced).
 
-### Test 2 — Detail responses report the actual link count
-- **Steps:** Request `GET /api/codetracker/index.php/1` and `/3` from the authenticated page.
-- **Expected:** The unlinked detail reports `0`; the linked detail reports `1`, not the `trackerToJSON()` fallback value.
-- **Actual:** Both requests returned HTTP **200**; id 1 returned `link_count:0`, id 3 returned `link_count:1`. PASS.
+### Test 2 — Populated list uses the config-loader value and correct delete label
+- **Steps:** after the fix, perform two cache-bypassing reloads of the entry URL.
+- **Expected:** each request returns 200; 3 rows; only the two unlinked rows have
+  delete icons; both icons have `title="delete"`; the page-size select includes the
+  configured `20`; no console Error/Warning.
+- **Actual:** both requests returned 200; rows were `GitHub TestLink`,
+  `Linked Stash`, `Stash Tracker`; delete icons appeared only on the two unlinked
+  rows with title `delete`; page-size options were `["20"]`; zero console
+  error/warning messages were reported by the `error`/`warn` filters. PASS.
 
-### Test 3 — Modern list hides delete for linked trackers
-- **Steps:** Inspect the rendered `#trackersTable` rows as `admin`.
-- **Expected:** `Linked Stash` has edit but no trash; both unlinked rows have edit and trash, matching the legacy condition.
-- **Actual:** DOM row counts were linked `{edit:1, delete:0}` and unlinked `{edit:1, delete:1}`. PASS.
+### Test 3 — Empty-list branch remains valid
+- **Steps:** remove the exact link first with
+  `mysql -h127.0.0.1 -utestlink -ptestlink testlink -e "DELETE FROM testproject_codetracker WHERE testproject_id=2 AND codetracker_id=3;"`;
+  then run
+  `mysqldump -h127.0.0.1 -utestlink -ptestlink --no-create-info --complete-insert testlink codetrackers testproject_codetracker > /tmp/opencode/issue-1580-fixture.sql`;
+  clear both tables with
+  `mysql -h127.0.0.1 -utestlink -ptestlink testlink -e "DELETE FROM testproject_codetracker; DELETE FROM codetrackers;"`;
+  reload the entry URL; restore with
+  `mysql -h127.0.0.1 -utestlink -ptestlink testlink < /tmp/opencode/issue-1580-fixture.sql`,
+  then recreate only the removed link with
+  `INSERT INTO testproject_codetracker (testproject_id,codetracker_id) VALUES (2,3);`.
+  Removing the link before the dump keeps the backup self-contained and prevents a
+  duplicate insert when the unique `(testproject_id,codetracker_id)` row is restored.
+- **Expected:** HTTP 200; no tracker rows, page-size control, or delete icons; the
+  Code Tracker heading and `Create` button remain; no Error/Warning event.
+- **Actual:** HTTP 200; accessibility snapshot contained only the heading and
+  `Create` button; tracker rows/page-size control/delete icons were all absent; the
+  event delta remained zero for levels 1/2. Fixture restored to 3 tracker rows and
+  exact link `(2,3)`. PASS.
 
-### Test 4 — Legacy screen parity
-- **Steps:** Log in to `http://localhost:8082/lib/codetrackers/codeTrackerView.php` with the same fixture.
-- **Expected:** Legacy linked row has no delete icon; unlinked rows retain it.
-- **Actual:** Legacy snapshot showed an empty delete cell for `Linked Stash` and delete icons for `Stash Tracker` and `GitHub TestLink`. PASS.
+### Test 4 — Romanian fallback produces no PHP E_WARNING/ERROR; L18N fallback is expected
+- **Steps:** temporarily set admin locale to `ro_RO`; log out/in through normal
+  authorization; load the entry URL; then restore `en_GB` and re-authenticate.
+- **Expected:** the partial Romanian locale may fall back to English, but the
+  `alt_delete` key resolves; the list and page-size control render; no Error/Warning
+  event is added.
+- **Actual:** HTTP 200; 3 rows; both delete tooltips resolved to `delete`; page-size
+  options were `["20"]`; only expected level-32 `L18N` fallback events were added;
+  level-1 ERROR / level-2 WARNING delta was 0. Admin locale restored to `en_GB`. PASS.
 
-### Test 5 — Server-side linked deletion remains blocked
-- **Steps:** Send `DELETE /api/codetracker/index.php/3` from the authenticated page.
-- **Expected:** HTTP **400** with the linked test-project reason; tracker 3 remains present.
-- **Actual:** HTTP **400** returned `id 3 is linked to: testproject 'Linked Project' with id 2`; MySQL still contained id 3. PASS.
+### Test 5 — Compiled Smarty and repeated live renders are clean
+- **Steps:** run
+  `touch gui/templates/dashio/codetrackers/codeTrackerView.tpl`; cache-bypass reload
+  the entry URL so TLSmarty recompiles it; then run
+  `php -l gui/templates_c/860899c7062bddced0e797a52bcbf4ac2c9f725e_0.file.codeTrackerView.tpl.php`;
+  inspect browser console `error`/`warn` filters.
+- **Expected:** generated PHP has no syntax errors and contains config-loader
+  `pagination_length` plus `labels['alt_delete']`; live requests create no
+  Error/Warning event or console error.
+- **Actual:** both generated files passed `php -l`; compiled line 57 reads
+  `_getConfigVariable(..., 'pagination_length')`; compiled line 130 reads
+  `labels['alt_delete']`; multiple HTTP-200 live reloads produced zero level-1/2
+  event delta and zero console error/warning messages in the filtered console view. PASS.
 
-### Test 6 — Syntax, console, and Event Viewer hygiene
-- **Steps:** Run `php -l api/codetracker/index.php`; reload the modern screen after the test; inspect the current console and query Event Viewer levels.
-- **Expected:** PHP syntax passes; modern load has no console errors; no new ERROR/WARNING entries from the modern feature.
-- **Actual:** PHP lint passed; current-navigation console had no messages; post-test Event Viewer added no warnings from the modern screen. Five warnings observed while loading the legacy parity page were isolated and filed separately as bug #1580. PASS for the modern implementation.
+### Test 6 — Event Viewer and fixture restoration
+- **Steps:** open `http://localhost:8082/lib/events/eventviewer.php`; compare the
+  modern viewer summary and DB rows after the full matrix; verify tracker, link, and
+  admin locale fixture values.
+- **Expected:** viewer reports ERROR 0 and only the five retained pre-fix WARNING
+  rows; no event with `id>6` has level 1/2; fixture is 3 trackers, link `(2,3)`, and
+  `en_GB`.
+- **Actual:** Event Viewer rendered with all 10 network requests HTTP 200 and zero
+  console error/warning messages in the filtered console view; summary was
+  `ERROR: 0`, `WARNING: 5`; DB query for `id>6 AND log_level IN (1,2)` returned
+  0 rows; fixture was 3 tracker rows, link `(2,3)`, and locale `en_GB`. PASS.
 
-**Result: 6/6 PASS. (Refs #971)**
+### Test 7 — View-only rights path: #1580 contract clean; separate JS bug isolated
+- **Steps:** create a temporary user with global right 52 (`codetracker_view`) only,
+  assign project id 2, log in, and load the entry URL. Inspect rows, management
+  controls, page-size control, console, and Event Viewer; remove the user/assignment
+  and temporary project-role grant afterward.
+- **Expected for #1580:** HTTP 200; 3 rows; Create/edit/test/delete controls hidden;
+  no PHP ERROR/WARNING event from the changed template contracts.
+- **Actual:** HTTP 200; 3 rows; Create/edit/test/delete controls all absent; zero
+  level-1/2 event delta. A separate, pre-existing DataTables column-contract error
+  left the read-only page-size control empty and emitted `mData` TypeErrors; it was
+  reproduced, documented, and filed separately as bug #1582 rather than expanding
+  this fix. The temporary user and role grant were removed. PASS for #1580 scope.
+
+**Result: 7/7 PASS for #1580; separate #1582 filed. (Refs #1580)**
