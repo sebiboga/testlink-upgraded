@@ -883,6 +883,187 @@ if ($method === 'POST' && isset($segments[0]) && $segments[0] === 'versions'
 }
 
 // ---------------------------------------------------------------------------
+// POST /versions - create a NEW VERSION of the requirement (legacy New Version
+// button reqViewVersionsViewer.tpl:113-114 -> reqEdit.php doAction=doCreateVersion
+// -> reqCommands::doCreateVersion (reqCommands.class.php:609) ->
+// requirement_mgr::create_new_version (requirement_mgr.class.php:2329)).
+//   - Gated on mgt_modify_req on the OWNING test project (legacy reqEdit.php:
+//     315-316 requires mgt_view_req AND mgt_modify_req; the viewer form that
+//     hosts the button is req_mgmt-gated, reqViewVersionsViewer.tpl:49).
+//   - Body: { req_id, version_id (source, optional), log_message: string,
+//             tproject_id (optional) }
+//   - create_new_version() copies the whole source version (scope, status,
+//     type, expected_coverage, custom fields, attachments, TC links), stamps
+//     the revision log, freezes the SOURCE version when cfg
+//     req_cfg->freezeREQVersionOnNewREQVersion is enabled (config.inc.php:1428,
+//     default TRUE) and notifies the requirement monitors (legacy passes
+//     notify=true). Next version number is always last version + 1.
+// ---------------------------------------------------------------------------
+if ($method === 'POST' && isset($segments[0]) && $segments[0] === 'versions' && !isset($segments[1])) {
+    $body = getBody();
+    $reqId = intval($body['req_id'] ?? ($body['id'] ?? 0));
+    if ($reqId <= 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'req_id required']);
+    }
+    $sourceVersionId = intval($body['version_id'] ?? 0);
+    $logMsg = trim((string)($body['log_message'] ?? ''));
+
+    // a requirement knows its own project (same join as the /revision route)
+    $reqRow = $db->get_recordset(
+        " SELECT REQ.id, REQ.srs_id, REQ.req_doc_id, RS.testproject_id " .
+        " FROM requirements REQ " .
+        " JOIN req_specs RS ON RS.id = REQ.srs_id " .
+        " WHERE REQ.id = " . intval($reqId));
+    if (empty($reqRow)) {
+        http_response_code(404);
+        out(['status' => 'error', 'message' => 'Requirement not found']);
+    }
+    $tpid = intval($reqRow[0]['testproject_id']);
+    if (!$user->hasRight($db, 'mgt_modify_req', $tpid)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission']);
+    }
+
+    // resolve the source version: explicit one must belong to the requirement,
+    // otherwise fall back to the latest version (legacy reqView passes the
+    // current req_version_id; reqEdit BFF falls back to the latest).
+    if ($sourceVersionId > 0) {
+        $srcRow = $db->get_recordset(
+            " SELECT REQV.id, REQV.version FROM req_versions REQV " .
+            " JOIN nodes_hierarchy NH ON NH.id = REQV.id " .
+            " WHERE REQV.id = " . intval($sourceVersionId) .
+            " AND NH.parent_id = " . intval($reqId));
+        if (empty($srcRow)) {
+            http_response_code(404);
+            out(['status' => 'error', 'message' => 'Source version not found for this requirement']);
+        }
+    } else {
+        $srcRow = $db->get_recordset(
+            " SELECT REQV.id, REQV.version FROM req_versions REQV " .
+            " JOIN nodes_hierarchy NH ON NH.id = REQV.id " .
+            " WHERE NH.parent_id = " . intval($reqId) .
+            " ORDER BY REQV.version DESC LIMIT 1");
+        if (empty($srcRow)) {
+            http_response_code(409);
+            out(['status' => 'error', 'message' => 'Requirement has no versions']);
+        }
+        $sourceVersionId = intval($srcRow[0]['id']);
+    }
+
+    $reqCfg = config_get('req_cfg');
+    $freezeSourceVersion = true;
+    if (isset($reqCfg->freezeREQVersionOnNewREQVersion)) {
+        $freezeSourceVersion = (bool)$reqCfg->freezeREQVersionOnNewREQVersion;
+    }
+
+    try {
+        // legacy parity options (reqCommands.doCreateVersion): copy source,
+        // stamp log message, notify monitors, freeze source per config.
+        $op = $reqMgr->create_new_version($reqId, $userId, array(
+            'reqVersionID'        => $sourceVersionId,
+            'log_msg'             => $logMsg,
+            'notify'              => true,
+            'freezeSourceVersion' => $freezeSourceVersion,
+        ));
+    } catch (\Throwable $e) {
+        http_response_code(500);
+        out(['status' => 'error', 'message' => 'Failed to create new version']);
+    }
+    if (!isset($op['id']) || intval($op['id']) <= 0) {
+        http_response_code(500);
+        out(['status' => 'error', 'message' => 'Failed to create new version']);
+    }
+
+    // NOTE: legacy doCreateVersion() emits NO audit event; parity kept.
+
+    out([
+        'status' => 'ok',
+        'req_id' => $reqId,
+        'version_id' => intval($op['id']),
+        'version' => intval($op['version']),
+        'source_version_id' => $sourceVersionId,
+        'source_frozen' => $freezeSourceVersion,
+    ]);
+}
+
+// ---------------------------------------------------------------------------
+// DELETE /versions/{versionId} - delete ONE version of the requirement (legacy
+// Delete this version button reqViewVersionsViewer.tpl:76-81 -> reqEdit.php
+// doAction=doDeleteVersion -> reqCommands::doDeleteVersion (reqCommands.class.
+// php:632) -> requirement_mgr::delete(req_id, version_id, user_id)).
+//   - Gated on mgt_modify_req on the OWNING test project (button lives in the
+//     req_mgmt form). Refuses when the version is the ONLY one (legacy
+//     reqViewVersions.tpl:267-269 hides the button then; with a single version
+//     requirement_mgr::delete() full-deletes the requirement - never allowed
+//     here).
+//   - Notifies monitors before deletion (legacy setNotifyOn({'delete'=>true}))
+//     and writes the audit_req_version_deleted event ("Version {v} of Req
+//     'DOCID:{doc}' - {title} was deleted.", locale/en_US/strings.txt:3375).
+//   - The button is additionally hidden for FROZEN versions in the viewer
+//     (tpl:62/76), matching legacy; the BFF keeps the handler ungated on
+//     is_open exactly like legacy doDeleteVersion.
+// ---------------------------------------------------------------------------
+if ($method === 'DELETE' && isset($segments[0]) && $segments[0] === 'versions' && isset($segments[1])) {
+    $versionId = intval($segments[1]);
+    if ($versionId <= 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid version id']);
+    }
+
+    // a version knows its own requirement + project (same join as /revision)
+    $verRow = $db->get_recordset(
+        " SELECT REQV.id AS version_id, REQV.version, REQV.is_open, " .
+        "        NHR.id AS req_id, NHR.name AS title, " .
+        "        REQ.req_doc_id, RS.testproject_id " .
+        " FROM req_versions REQV " .
+        " JOIN nodes_hierarchy NH ON NH.id = REQV.id " .
+        " JOIN nodes_hierarchy NHR ON NHR.id = NH.parent_id " .
+        " JOIN requirements REQ ON REQ.id = NHR.id " .
+        " JOIN req_specs RS ON RS.id = REQ.srs_id " .
+        " WHERE REQV.id = " . intval($versionId));
+    if (empty($verRow)) {
+        http_response_code(404);
+        out(['status' => 'error', 'message' => 'Requirement version not found']);
+    }
+    $tpid = intval($verRow[0]['testproject_id']);
+    if (!$user->hasRight($db, 'mgt_modify_req', $tpid)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission']);
+    }
+
+    $reqId = intval($verRow[0]['req_id']);
+    // version count of the requirement (nodes_hierarchy children of the req)
+    $cntRow = $db->get_recordset(
+        " SELECT COUNT(0) AS qty FROM nodes_hierarchy " .
+        " WHERE parent_id = " . $reqId);
+    $versionQty = intval($cntRow[0]['qty'] ?? 0);
+    if ($versionQty <= 1) {
+        http_response_code(409);
+        out(['status' => 'error', 'message' => 'Cannot delete the only version of the requirement']);
+    }
+
+    // legacy doDeleteVersion: notify monitors, then delete the single version
+    $reqMgr->setNotifyOn(array('delete' => true));
+    $reqMgr->delete($reqId, $versionId, $userId);
+
+    logAuditEvent(
+        " Version {" . intval($verRow[0]['version']) . "} of Req 'DOCID:" .
+        $verRow[0]['req_doc_id'] . "' - " . $verRow[0]['title'] . " was deleted.",
+        'DELETE',
+        $versionId,
+        'req_version');
+
+    out([
+        'status' => 'ok',
+        'req_id' => $reqId,
+        'version_id' => $versionId,
+        'version' => intval($verRow[0]['version']),
+        'remaining_versions' => $versionQty - 1,
+    ]);
+}
+
+// ---------------------------------------------------------------------------
 // GET ?action=req_print  (single Requirement print document, legacy reqPrint.php)
 // Refs #1305. Port of lib/requirements/reqPrint.php: renders ONE requirement
 // version/revision through the battle-tested renderReqForPrinting() pipeline

@@ -109,6 +109,51 @@ into the modern toolbar:
   reloads — Frozen badge Yes, version selector shows `vN rM *`, and the New
   Revision button disappears for frozen versions.
 
+## New Version / Delete Version (Refs #1301)
+
+Port of the legacy `reqViewVersionsViewer.tpl` "Create a new version" (tpl:113-
+114) and "Delete this version" (tpl:76-81) buttons (`doAction=doCreateVersion` /
+`doDeleteVersion`, `reqCommands.class.php:609,632`) into the modern toolbar,
+placed next to the New Revision button:
+
+- **New Version button** — gated ONLY on the `req_mgmt` grant (right
+  `mgt_modify_req` on the requirement's own test project). Legacy renders it
+  inside the req_mgmt form but NOT on the frozen state, so it stays available
+  even for FROZEN versions. Clicking opens `window.prompt` with
+  `reqv.newVersionPrompt` ("Please add a log message") — the modern
+  `ask4log()` — which may be submitted empty (legacy parity); Cancel is a
+  clean no-op.
+- **Server-side create** `POST /api/requirements/index.php/versions` with
+  `{req_id, version_id?, log_message?, tproject_id?}`: re-checks
+  `mgt_modify_req` on the owning project (HTTP 403), 404 on unknown
+  requirement, resolves the source version (explicit id belonging to the req,
+  else the latest) and mirrors `reqCommands::doCreateVersion` →
+  `requirement_mgr::create_new_version` (copy scope/status/type/expected
+  coverage/custom fields/attachments/TC links, stamp the log message, notify
+  monitors). With `cfg req_cfg->freezeREQVersionOnNewREQVersion` enabled
+  (config.inc.php:1428, default TRUE) the SOURCE version is auto-frozen —
+  the new version selector then shows `vN rM *` for the source. Next version
+  number is always last + 1. Response `{status:'ok', req_id, version_id,
+  version, source_version_id, source_frozen}`. No audit event — legacy emits
+  none (parity).
+- **Delete Version button** — shown ONLY when `grant.req_mgmt` AND the current
+  version is NOT frozen AND more than one version exists (exact legacy gate:
+  req_mgmt form tpl:49, frozen check tpl:62, `my_delete_version` from
+  `reqViewVersions.tpl:267-269`). Clicking opens `window.confirm` with
+  `reqv.deleteVersionConfirm` ("You are going to delete: Version {v} - {docId}:
+  {title}. Are you sure?").
+- **Server-side delete** `DELETE /api/requirements/index.php/versions/{versionId}`:
+  re-checks `mgt_modify_req` on the owning project (HTTP 403), 404 on unknown
+  version, HTTP 409 when the version is the ONLY one (`requirement_mgr::delete()`
+  would otherwise full-delete the requirement). It notifies monitors
+  (`setNotifyOn delete`) then calls `requirement_mgr::delete(req_id,
+  version_id, user_id)` and writes the legacy audit event `logAuditEvent(...,
+  'DELETE', $versionId, 'req_version')` — wording " Version {v} of Req 'DOCID:
+  {doc}' - {title} was deleted." (locale/en_US/strings.txt:3375).
+- **Feedback**: teal toast `reqv.versionCreated` / `reqv.versionDeleted` and
+  the view reloads — the selector drops the deleted version (or gains vN+1),
+  counting "Showing vN rM" reflects the reload target (highest remaining).
+
 ## Access & permission
 
 * Deep links switched from `lib/requirements/reqView.php` to
@@ -138,7 +183,10 @@ bundles: en, de, es, fr, it, ja, pt, ro, ru, zh. The New Revision port adds
 3 more keys to every bundle: `reqv.newRevision`, `reqv.newRevisionPrompt`,
 `reqv.revisionCreated`. The Freeze/Unfreeze port adds 6 more keys to every
 bundle: `reqv.freeze`, `reqv.unfreeze`, `reqv.freezeConfirm`,
-`reqv.unfreezeConfirm`, `reqv.frozenOk`, `reqv.unfrozenOk`.
+`reqv.unfreezeConfirm`, `reqv.frozenOk`, `reqv.unfrozenOk`. The New
+Version/Delete Version port adds 6 more keys to every bundle: `reqv.newVersion`,
+`reqv.newVersionPrompt`, `reqv.versionCreated`, `reqv.deleteVersion`,
+`reqv.deleteVersionConfirm`, `reqv.versionDeleted`.
 
 ## BFF
 
@@ -171,6 +219,25 @@ Freeze/unfreeze the requirement version `{id}`. Checks `mgt_modify_req` AND
 Returns `{status:'ok', req_id, version_id, is_open, frozen}` and fires a
 `FREEZE`/`UNFREEZE` audit event on the `req_version` object.
 
+`POST /api/requirements/index.php/versions` (Refs #1301)
+
+Create a NEW version of a requirement (New Version button). Body
+`{req_id, version_id?, log_message?, tproject_id?}`. Checks `mgt_modify_req`
+on the owning project (HTTP 403), 404s on unknown requirement/source version,
+mirrors `requirement_mgr::create_new_version` (copy source incl. cfields +
+attachments + TC links, stamp log message, notify monitors, auto-freeze source
+when cfg `freezeREQVersionOnNewREQVersion` is on). Returns `{status:'ok',
+req_id, version_id, version, source_version_id, source_frozen}`. No audit
+event (legacy parity).
+
+`DELETE /api/requirements/index.php/versions/{versionId}` (Refs #1301)
+
+Delete ONE version (Delete this version button). Checks `mgt_modify_req` on
+the owning project (HTTP 403), 404s on unknown version, HTTP 409 when it is
+the ONLY version. Notifies monitors then `requirement_mgr::delete`; writes the
+legacy audit event "Version {v} of Req 'DOCID:{doc}' - {title} was deleted."
+Returns `{status:'ok', req_id, version_id, version, remaining_versions}`.
+
 ## Bugs found while testing
 
 * #765 — legacy `requirement_mgr::getTestProjectID()` +
@@ -186,6 +253,10 @@ deep-link regression). Suite 1305 — Print / Direct link / Help (see below).
 Suite 1303 — New Revision button/frozen/403/404/Event-Viewer — 7/7 PASS.
 Suite 1302 — Freeze button gating / freeze+unfreeze roundtrip / confirm
 dialog / 403 no-rights / 400-404 / i18n+Event-Viewer — 6/6 PASS.
+Suite 1301 — New Version / Delete Version buttons, prompt + confirm dialogs,
+create→auto-freeze-source roundtrip, delete→toast, frozen/single-version
+gating, 409 last-version guard, no-rights 403, Event-Viewer + console
+hygiene — 10/10 PASS.
 
 ![reqView toolbar with Direct link box](screenshots/issue-1305-reqview-directlink-toolbar.png)
 ![Print screen](screenshots/issue-1305-reqprint-screen.png)
@@ -193,3 +264,4 @@ dialog / 403 no-rights / 400-404 / i18n+Event-Viewer — 6/6 PASS.
 ![Requirement Viewer after creating a revision (v1r2)](screenshots/issue-1303-reqview-new-revision-v1r2.png)
 ![Requirement Viewer with the Freeze button (open version)](screenshots/issue-1302-reqview-freeze-open.png)
 ![Requirement Viewer after freeze — Unfreeze button on frozen version](screenshots/issue-1302-reqview-unfreeze-frozen.png)
+![Requirement Viewer with New Version + Delete Version buttons (open version)](screenshots/issue-1301-reqview-newversion-delete-buttons.png)

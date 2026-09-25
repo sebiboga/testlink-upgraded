@@ -20406,3 +20406,71 @@ Entry: `http://localhost:8082/api/codetracker/index.php`; screen
   PASS.
 
 **Result: 6/6 PASS. (Refs #1576)**
+
+## Suite 1301 — Task — Issue #1301: reqView.html New Version / Delete Version buttons restored (gap vs legacy)
+
+Fixture: `php tmp/fixtures_1301.php` (project RV1301/prefix RV01, spec SRS-1301,
+REQ-200 = multi-version requirement with v1 FROZEN, REQ-201 = single-version requirement).
+Entry: `http://localhost:8082/gui/templates/requirements/reqView.html?id=14&tproject_id=11`
+(REQ-200) / `?id=18&tproject_id=11` (REQ-201). Verifier: `admin`; deny-user `norights`
+(role 3) + custom role 20 `viewreq-only` (only `mgt_view_req` = right 10) granted on
+tproject 11 via `user_testproject_roles` for the client-gate simulation.
+
+### Test 1 — admin sees Create-a-new-version button on any version (legacy `new_version` is req_mgmt-gated only)
+- **Steps:** login `admin`; open REQ-200 at v3 (open, 3 versions).
+- **Expected:** toolbar shows "Create a new version".
+- **Actual:** snapshot `uid=5_27` present. PASS.
+
+### Test 2 — admin sees Delete button only on non-frozen multi-version req
+- **Steps:** on v3 (open) count toolbar buttons; then select frozen v1r1.
+- **Expected:** Delete shown on v3; hidden on v1 (frozen) — New Version stays.
+- **Actual:** Delete present on v3 (uid=9_6), hidden on v1r1 (only Unfreeze shown), New Version stays. PASS.
+
+### Test 3 — Create a new version end-to-end (prompt, v4, auto-freeze of source, toast)
+- **Steps:** click "Create a new version" → prompt "Please add a log message" → type "v4 created from the New Version button".
+- **Expected:** `POST /api/requirements/versions` 200; dropdown gains `v4r1`; source v3 becomes FROZEN
+  (`config.inc.php:1428 freezeREQVersionOnNewREQVersion=TRUE`, legacy parity); toast "New version created. v4".
+- **Actual:** prompt shown, v4r1 added to dropdown, FROZEN=Yes for v3, toast shown. PASS.
+- **Post-review fix (landing):** re-tested after code review — creating from v2 lands the view ON the
+  new version (v5r1 selected, "Showing v5r1", toast "New version created. v5"), matching legacy which
+  redirects to the last version; the source-freeze applies to the engine's LAST version
+  (requirement_mgr::create_new_version freezes get_last_child_info id — legacy parity). PASS.
+
+### Test 4 — Delete a version end-to-end (confirm dialog, removal, toast)
+- **Steps:** select v4; click "Delete this version" → confirm dialog; accept.
+- **Expected:** `DELETE /api/requirements/versions/{id}` 200; v4 gone from dropdown; toast "Requirement version deleted.";
+  reload lands on highest remaining version.
+- **Actual:** confirm text "You are going to delete: Version 4 - REQ-200: RV1301 multi-version requirement. Are you sure?",
+  v4 removed, toast shown, view reloaded to v3r1. PASS.
+
+### Test 5 — BFF guards: last-version delete → 409 (legacy "only one version" block)
+- **Steps:** as `admin`, `DELETE /api/requirements/versions/19` (REQ-201's only version) via browser fetch.
+- **Expected:** HTTP 409 `{status:error,...}`; row intact.
+- **Actual:** 409; version still listed. PASS.
+
+### Test 6 — BFF write gating: `mgt_modify_req` enforced on owning project
+- **Steps:** CLI `hasRight` probe for `norights` (project role 20 = `mgt_view_req` only) on tproject 11.
+- **Expected:** view_req='yes', modify_req=NULL → the BFF `req_mgmt` grant must be false → server rejects POST/DELETE and UI hides both buttons.
+- **Actual:** {view_req:'yes', modify:NULL}; client-gate simulation with `req_mgmt=false` → `{newVersionShown:false, delShown:false}`. PASS.
+
+### Test 7 — full-deny user: screen 403 (legacy checkRights mgt_view_req parity)
+- **Steps:** login `norights` (global role 3, no project role initially); load REQ-200 viewer.
+- **Expected:** screen shows "Failed to load requirement: No permission" (403 from BFF router).
+- **Actual:** denial text shown, toolbar stripped to Read/Print/Direct link/Help. PASS.
+
+### Test 8 — single-version requirement hides Delete only (New Version kept)
+- **Steps:** open REQ-201 (`?id=18&tproject_id=11`), single version v1 (open).
+- **Expected:** Delete hidden; New Version visible.
+- **Actual:** only "New Revision", "Create a new version", "Freeze" + nav buttons; no Delete. PASS.
+
+### Test 9 — Event Viewer hygiene
+- **Steps:** after full matrix, query `events` for req-version activity + log_level distribution.
+- **Expected:** create/delete produce AUDIT log_level=16 only; ERROR/WARNING = 0.
+- **Actual:** description "Version {4} of Req 'DOCID:REQ-200' - RV1301 multi-version requirement was deleted." (ids 3 & 7) at log_level 16; no ERROR/WARNING. PASS.
+
+### Test 10 — console hygiene
+- **Steps:** execute all UI flows; read browser console (includePreservedMessages on reloads).
+- **Expected:** zero console errors during the whole session.
+- **Actual:** "no console messages found" on both page contexts. PASS.
+
+**Result: 10/10 PASS. (Refs #1301)**

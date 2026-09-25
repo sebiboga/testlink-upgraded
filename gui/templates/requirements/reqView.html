@@ -21,6 +21,8 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 .btn-ghost { background: transparent; color: #ccc; border: 1px solid #555; padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; gap: 7px; }
 .btn-ghost:hover { border-color: #4ECDC4; color: #4ECDC4; }
 .btn-ghost.active { border-color: #4ECDC4; color: #4ECDC4; }
+.btn-danger { background: #e74c3c; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-danger:hover { background: #c0392b; }
 .card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px 0; overflow: hidden; }
 .card-title { background: #f7f7f7; padding: 10px 18px; font-size: 13px; font-weight: 700; color: #22242a; border-bottom: 1px solid #e5e5e5; display: flex; align-items: center; gap: 8px; }
 .card-body { padding: 16px 18px; font-size: 13px; color: #444; }
@@ -63,6 +65,8 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; }
   </label>
   <button class="btn-teal" onclick="loadView()"><i class="fa fa-refresh"></i> <span data-i18n="common.refresh">Refresh</span></button>
   <button id="revBtn" class="btn-teal" style="display:none;"><i class="fa fa-files-o"></i> <span data-i18n="reqv.newRevision">New Revision</span></button>
+  <button id="newVersionBtn" class="btn-teal" style="display:none;"><i class="fa fa-code-branch"></i> <span data-i18n="reqv.newVersion">Create new version</span></button>
+  <button id="delVersionBtn" class="btn-danger" style="display:none;"><i class="fa fa-trash"></i> <span data-i18n="reqv.deleteVersion">Delete this version</span></button>
   <button id="freezeBtn" class="btn-ghost" style="display:none;"><i class="fa fa-snowflake"></i> <span data-i18n="reqv.freeze">Freeze this version</span></button>
   <button id="unfreezeBtn" class="btn-ghost" style="display:none;"><i class="fa fa-sun"></i> <span data-i18n="reqv.unfreeze">Unfreeze this version</span></button>
   <button id="monitorBtn" class="btn-ghost" style="display:none;"></button>
@@ -407,6 +411,29 @@ function renderOverview(r) {
     $('#unfreezeBtn').off('click').on('click', function() { toggleFreeze(true); });
   }
   $('#infoLine').text(TLi18n.t('reqv.displaying') + ' v' + c.version + 'r' + c.revision);
+  // New Version button (legacy reqViewVersionsViewer.tpl:113-114): gated ONLY
+  // on the req_mgmt grant (legacy renders it inside the req_mgmt form, NOT
+  // gated on frozen state - freezing a version never blocks a new version);
+  // prompts for the version log message (legacy ask4log) then POSTs /versions.
+  var nvBtn = $('#newVersionBtn');
+  if (r.grant && r.grant.req_mgmt) {
+    nvBtn.show();
+    nvBtn.off('click').on('click', newVersion);
+  } else {
+    nvBtn.hide();
+  }
+  // Delete Version button (legacy reqViewVersionsViewer.tpl:76-81): the viewer
+  // renders it inside the req_mgmt form AND only when the current version is
+  // NOT frozen (tpl:62) AND more than one version exists
+  // (reqViewVersions.tpl:267-269 args_can_delete_version = other_versions set).
+  var versQty = (r.versions || []).length;
+  var dvBtn = $('#delVersionBtn');
+  if (r.grant && r.grant.req_mgmt && !c.frozen && versQty > 1) {
+    dvBtn.show();
+    dvBtn.off('click').on('click', deleteVersion);
+  } else {
+    dvBtn.hide();
+  }
 }
 
 function newRevision() {
@@ -421,6 +448,60 @@ function newRevision() {
     success: function(r) {
       if (r.status !== 'ok') { alert(r.message || TLi18n.t('reqv.loadError')); return; }
       showToast(TLi18n.t('reqv.revisionCreated'), true);
+      loadView();
+    },
+    error: function(xhr) {
+      var msg = TLi18n.t('reqv.loadError');
+      try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
+      alert(msg);
+    }
+  });
+}
+
+function newVersion() {
+  // legacy ask4log() (reqViewVersions.tpl:155) prompts for the version log
+  // message before creating a new version (commit_title / please_add_revision_log).
+  var logMsg = window.prompt(TLi18n.t('reqv.newVersionPrompt'), '');
+  if (logMsg === null) return;
+  $.ajax({
+    url: API + '/versions',
+    method: 'POST',
+    contentType: 'application/json',
+    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+    data: JSON.stringify({ req_id: REQ_ID, version_id: VERSION_ID, log_message: logMsg, tproject_id: TPROJECT_ID }),
+    success: function(r) {
+      if (r.status !== 'ok') { alert(r.message || TLi18n.t('reqv.loadError')); return; }
+      showToast(TLi18n.t('reqv.versionCreated') + ' v' + r.version, true);
+      // land on the NEW version (legacy redirects with no version id, and
+      // reqView.php defaults to the LAST version = the one just created; the
+      // source version was frozen per config, so staying on it is wrong)
+      VERSION_ID = r.version_id;
+      loadView();
+    },
+    error: function(xhr) {
+      var msg = TLi18n.t('reqv.loadError');
+      try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
+      alert(msg);
+    }
+  });
+}
+
+function deleteVersion() {
+  // legacy pF_delete_req_version confirm dialog (warning_delete_requirement,
+  // locale/en_US/strings.txt:1093) with the version/doc-id/title descriptor.
+  var warn = TLi18n.t('reqv.deleteVersionConfirm', {
+    v: CUR_VERSION_NUM, docId: CUR_DOC_ID, title: $('#vDocId b').text() || ''
+  });
+  if (!window.confirm(warn)) return;
+  $.ajax({
+    url: API + '/versions/' + VERSION_ID,
+    method: 'DELETE',
+    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+    success: function(r) {
+      if (r.status !== 'ok') { alert(r.message || TLi18n.t('reqv.loadError')); return; }
+      showToast(TLi18n.t('reqv.versionDeleted'), true);
+      // reload from the latest remaining version (deleted version is gone)
+      VERSION_ID = 0;
       loadView();
     },
     error: function(xhr) {

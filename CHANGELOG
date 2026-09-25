@@ -5582,6 +5582,29 @@ Changes:
   reqv.unfreezeConfirm / reqv.frozenOk / reqv.unfrozenOk in all 10 locale
   bundles. Suite 1302 N/N PASS; Event Viewer clean.
 
+### Feature parity — Requirement Viewer New Version / Delete Version buttons (Refs #1301)
+- reqView.html + api/requirements/index.php: restore the legacy New Version
+  (reqViewVersionsViewer.tpl:113-114) and Delete this version (tpl:76-81)
+  buttons dropped during modernization. New BFF route POST /versions creates a
+  new requirement version (legacy reqEdit doCreateVersion ->
+  reqCommands::doCreateVersion -> requirement_mgr::create_new_version: copies
+  the source version, stamps log_msg, notifies monitors, auto-freezes the
+  SOURCE version when cfg req_cfg->freezeREQVersionOnNewREQVersion is on,
+  config.inc.php:1428; next number = last+1; NO audit event, legacy parity).
+  New BFF route DELETE /versions/{versionId} deletes one version (legacy
+  doDeleteVersion -> requirement_mgr::delete), notifies monitors then writes
+  the legacy audit "Version {v} of Req 'DOCID:{doc}' - {title} was deleted."
+  event; 409 when it is the only version (legacy hides the button then); both
+  routes enforce mgt_modify_req on the OWNING project (403). Buttons shown iff
+  grant.req_mgmt, Delete additionally only when the current version is NOT
+  frozen AND more than one version exists (exact legacy gate); window.prompt
+  log (reqv.newVersionPrompt) / window.confirm (reqv.deleteVersionConfirm
+  with v/docId/title); teal toast reqv.versionCreated / reqv.versionDeleted +
+  view reload. New i18n keys reqv.newVersion / reqv.newVersionPrompt /
+  reqv.versionCreated / reqv.deleteVersion / reqv.deleteVersionConfirm /
+  reqv.versionDeleted (+ btn-danger CSS) in all 10 locale bundles.
+  Suite 1301 10/10 PASS; Event Viewer clean.
+
 ### Feature parity — Issue Tracker edit modal shows 'used on test project' (Refs #964)
 - issuetrackerView.html + api/issuetracker/index.php: restore the legacy
   displayUsedBy block in the tracker edit modal. Legacy issueTrackerEdit.tpl:73-119
