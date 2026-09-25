@@ -60,6 +60,12 @@ var TLi18n = (function() {
     var fromUrl = params.get('locale');
     if (fromUrl) return mapLocale(fromUrl) || 'en';
 
+    // 2. localStorage (user's manual choice). The profile lookup below never
+    // writes here, so this holds explicit switches only and is therefore
+    // allowed to outrank the DB profile (Refs #1586).
+    var fromStorage = localStorage.getItem('tl_locale');
+    if (fromStorage) return mapLocale(fromStorage) || 'en';
+
     // Will be resolved async — return null to signal "need profile lookup"
     return null;
   }
@@ -117,11 +123,18 @@ var TLi18n = (function() {
       .fail(function() {
         // Fallback to English
         if (_locale !== 'en') {
+          var failed = _locale;
           $.getJSON('/gui/templates/i18n/en.json?_=' + Date.now()).done(function(data) {
             _strings = data;
             _loaded = true;
             _locale = 'en';
-            localStorage.setItem('tl_locale', 'en');
+            // A missing bundle is not a user selection. Persisting 'en' here
+            // would pin every later screen load to English for good now that
+            // tl_locale is read back, so drop the value that just failed and
+            // let the next load re-resolve from the profile (Refs #1586).
+            if (localStorage.getItem('tl_locale') === failed) {
+              localStorage.removeItem('tl_locale');
+            }
             if (callback) callback();
           });
         } else {

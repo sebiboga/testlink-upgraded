@@ -5572,6 +5572,18 @@ Changes:
       project tables and added user metrics to the middle section
 
 ## 2.0.1 (in-progress)
+### Key bugfix — TLi18n locale selection persistence (Refs #1586)
+- Key bugfix #1586: `gui/templates/i18n/i18n.js` `detectLocale()` reads
+  `localStorage('tl_locale')` again, so an explicit language switch survives
+  navigation and every modernized screen that returns to a launcher (Cancel /
+  Back, no `?locale=` in the URL) keeps the chosen language. Resolution order
+  is now `?locale=` ▸ manual switch ▸ DB profile ▸ `en`, as the module header
+  has always documented; the profile path no longer writes the store, so the
+  DB locale can no longer be shadowed by a stale value.
+- A missing locale bundle no longer persists `en` into `tl_locale`: the failed
+  value is dropped so the next load re-resolves from the profile instead of
+  pinning the session to English.
+
 ### UI modernization — Remote Test Automation Execution (Refs #1587)
 - New BFF `api/tcautoexec/index.php` (GET `?action=init` = context + runnable
   node list with the automation server resolved per node, POST `?action=run` =
