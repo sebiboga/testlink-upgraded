@@ -5618,6 +5618,50 @@ Changes:
   value), storage access is exception-guarded, and the profile form now mirrors
   a saved locale into the store. (Refs #1586)
 
+### UI modernization — Requirements Bulk Assignment (Refs #1595)
+- New modern screen `gui/templates/requirements/reqTcBulkAssign.html` for the legacy
+  Requirements Bulk Assignment grid (`lib/requirements/reqTcAssign.php` in
+  testsuite/bulk mode + `gui/templates/dashio/requirements/reqTcBulkAssignment.tpl`),
+  which was reachable only from the Test Specification tree
+  (`listTestCases.php?feature=assignReqs`). It is *not* a duplicate of the
+  `assignReqs.html` "Test Suite (Bulk)" picker: the new screen is a coverage grid —
+  every requirement of the chosen spec with a `n/m test cases of this suite already
+  linked` chip, plus bulk Assign **and** Unassign (legacy offered only Assign).
+  Dashio popup with the legacy `bulk_req_assign_msg` / `bulk_req_assign_no_test_cases`
+  warnings, context card (test project / test suite / deep test-case count /
+  requirement-spec selector), check-uncheck-all, scope column, confirm dialog,
+  feedback box, empty states and localized 401/403/404 cards; 36 `rtcb.*` keys in
+  the 10 locale bundles.
+- New BFF `api/reqtcbassign/index.php`: `GET ?action=init` (context, deep
+  `get_testcases_deep()` count, per-requirement `linked_count`, spec options),
+  `POST ?action=bulkassign` (`requirement_mgr::bulkAssignLatestREQVTCV()`, legacy
+  1:1 and idempotent) and `POST ?action=unassign` (removes exactly the open
+  coverage rows the grid created). Session auth, `req_tcase_link_management`,
+  `bffSameOriginGuard`, 400/401/403/404/405 JSON contract, and one aggregated
+  audit event per effective operation.
+- Hardening beyond legacy: the test suite is proven to belong to the test project
+  and the submitted requirement ids are intersected with the requirements that
+  really live on the submitted spec, so a forged `req_id` from another
+  spec/project can no longer be linked through this route (the hole tracked by
+  #1085 for the legacy controller).
+- Entry points: `$actions->reqTcBulkAssign` in `lib/functions/common.php` and a
+  new "Requirements Bulk Assignment" button in the Test Specification suite view;
+  `lib/requirements/reqTcAssign.php` is now a session-guarded 302 shim
+  (anonymous -> login, `?id=` forwarded as `tsuite_id`).
+- Key bugfix #1596: `gui/templates/testcases/testSpec.html` gated both
+  requirement-linking buttons on `ctx.reqEnabled`, which `init()` never sets, so
+  the pre-existing per-test-case "Assign Requirements" button and the new
+  suite-level one were silently never rendered; both now use
+  `ctx.options.requirementsEnabled`, the flag the context API actually returns.
+- Key bugfix: the repo vendors Bootstrap 3.4.1, so the confirm dialog loaded a
+  non-existent `bootstrap.bundle.min.js` and threw on `bootstrap.Modal`; the
+  screen now uses the jQuery `modal('show'/'hide')` API plus the `data-target`
+  attribute BS3 requires to dismiss a modal (header "x" and Cancel).
+- Key bugfix: the audit events passed the requirements table as `$objectID`, so
+  the Event Viewer showed no object; they are now bound to the test suite and no
+  longer written for a no-op. Event Viewer hygiene: 0 ERROR/WARNING rows.
+  Regression suite 1595: 46/46 PASS.
+
 ### UI modernization — Remote Test Automation Execution (Refs #1587)
 - New BFF `api/tcautoexec/index.php` (GET `?action=init` = context + runnable
   node list with the automation server resolved per node, POST `?action=run` =
