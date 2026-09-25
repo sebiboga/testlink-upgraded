@@ -20407,70 +20407,71 @@ Entry: `http://localhost:8082/api/codetracker/index.php`; screen
 
 **Result: 6/6 PASS. (Refs #1576)**
 
-## Suite 1301 — Task — Issue #1301: reqView.html New Version / Delete Version buttons restored (gap vs legacy)
+## Regression — Issue #1578: codetracker repo-enumeration endpoints (/2/branches|tags|commits|pulls|test_connection) let view-only users drive the stored token server-side (Refs #1578)
 
-Fixture: `php tmp/fixtures_1301.php` (project RV1301/prefix RV01, spec SRS-1301,
-REQ-200 = multi-version requirement with v1 FROZEN, REQ-201 = single-version requirement).
-Entry: `http://localhost:8082/gui/templates/requirements/reqView.html?id=14&tproject_id=11`
-(REQ-200) / `?id=18&tproject_id=11` (REQ-201). Verifier: `admin`; deny-user `norights`
-(role 3) + custom role 20 `viewreq-only` (only `mgt_view_req` = right 10) granted on
-tproject 11 via `user_testproject_roles` for the client-gate simulation.
+Fixture users: `admin` (role 8, has `codetracker_management` right 51 +
+`codetracker_view` right 52), `ctviewonly` (role 10, ONLY right 52
+`codetracker_view`). Dataset: fresh DB, GitHub code tracker `repro-1578-gh`
+(id 2, type 200 = github) created via API with cfg
+`<codetracker>\n  <repository>https://github.com/acme/secret</repository>\n  <branch>main</branch>\n  <token>ghp_SUPERSECRETTOKEN123</token>\n</codetracker>`.
+Entry: `http://localhost:8082/api/codetracker/index.php`; screen
+`http://localhost:8082/gui/templates/codetracker/codetrackerView.html`.
+Pre-fix behavior (measured 2026-09-25): all 5 endpoints executed
+`githubInterfaceFor()` with the stored token — `/2/branches|tags|commits|pulls`
+returned 502 (not 403), `/2/test_connection` returned 200 `connected:false`,
+proving the BFF used the manager's stored credentials at a view-only session.
 
-### Test 1 — admin sees Create-a-new-version button on any version (legacy `new_version` is req_mgmt-gated only)
-- **Steps:** login `admin`; open REQ-200 at v3 (open, 3 versions).
-- **Expected:** toolbar shows "Create a new version".
-- **Actual:** snapshot `uid=5_27` present. PASS.
+### Test 1 — Pre-fix repro: view-only user drove the stored token server-side
+- **Steps:** (before this fix) login `ctviewonly`;
+  `GET /api/codetracker/index.php/2/branches`, `/2/tags`, `/2/commits?branch=main`,
+  `/2/pulls?state=open`, `POST /2/test_connection`.
+- **Expected:** 403 `No permission` (management-only stored-token use).
+- **Actual (pre-fix, measured):** branches/tags/commits/pulls → HTTP 502
+  `Unable to fetch … (check repository and token)`, test_connection → HTTP 200
+  `connected:false` — the interface ran the stored token server-side. PASS
+  (reproduced the bug).
 
-### Test 2 — admin sees Delete button only on non-frozen multi-version req
-- **Steps:** on v3 (open) count toolbar buttons; then select frozen v1r1.
-- **Expected:** Delete shown on v3; hidden on v1 (frozen) — New Version stays.
-- **Actual:** Delete present on v3 (uid=9_6), hidden on v1r1 (only Unfreeze shown), New Version stays. PASS.
+### Test 2 — View-only repo-enumeration endpoints now 403
+- **Steps:** login `ctviewonly` (post-fix);
+  `GET /api/codetracker/index.php/2/branches`, `/2/tags`,
+  `/2/commits?branch=main`, `/2/pulls?state=open`,
+  `POST /api/codetracker/index.php/2/test_connection`.
+- **Expected:** HTTP 403 `{"status":"error","message":"No permission"}` on all
+  five; each `denyWrite()` trails an `audit_security_user_right_missing` WRITE
+  event.
+- **Actual:** all five → HTTP 403 `No permission`; events table gained 5
+  `WRITE` audit rows for `ctviewonly` (log_level 16 AUDIT, not ERROR/WARNING).
+  PASS.
 
-### Test 3 — Create a new version end-to-end (prompt, v4, auto-freeze of source, toast)
-- **Steps:** click "Create a new version" → prompt "Please add a log message" → type "v4 created from the New Version button".
-- **Expected:** `POST /api/requirements/versions` 200; dropdown gains `v4r1`; source v3 becomes FROZEN
-  (`config.inc.php:1428 freezeREQVersionOnNewREQVersion=TRUE`, legacy parity); toast "New version created. v4".
-- **Actual:** prompt shown, v4r1 added to dropdown, FROZEN=Yes for v3, toast shown. PASS.
-- **Post-review fix (landing):** re-tested after code review — creating from v2 lands the view ON the
-  new version (v5r1 selected, "Showing v5r1", toast "New version created. v5"), matching legacy which
-  redirects to the last version; the source-freeze applies to the engine's LAST version
-  (requirement_mgr::create_new_version freezes get_last_child_info id — legacy parity). PASS.
+### Test 3 — View-only read routes unchanged (list + detail)
+- **Steps:** login `ctviewonly`; `GET /api/codetracker/index.php` and
+  `GET /api/codetracker/index.php/2`.
+- **Expected:** HTTP 200; `canManage:false`; `cfg:""`; `github.token` =
+  `********` (unchanged after #1576).
+- **Actual:** HTTP 200, `canManage:false`, `cfg:""`, `github.token` = `********`.
+  PASS.
 
-### Test 4 — Delete a version end-to-end (confirm dialog, removal, toast)
-- **Steps:** select v4; click "Delete this version" → confirm dialog; accept.
-- **Expected:** `DELETE /api/requirements/versions/{id}` 200; v4 gone from dropdown; toast "Requirement version deleted.";
-  reload lands on highest remaining version.
-- **Actual:** confirm text "You are going to delete: Version 4 - REQ-200: RV1301 multi-version requirement. Are you sure?",
-  v4 removed, toast shown, view reloaded to v3r1. PASS.
+### Test 4 — Admin (management) stored-token capability preserved
+- **Steps:** login `admin`; `GET /api/codetracker/index.php` (list),
+  `GET /api/codetracker/index.php/2/branches`,
+  `POST /api/codetracker/index.php/2/test_connection`,
+  `POST /api/codetracker/index.php/test_github` (inline config).
+- **Expected:** list HTTP 200 `canManage:true` full raw `cfg`; branches 502 and
+  test_connection 200 `connected:false` (same as pre-fix — manager still drives
+  the stored token); test_github 200-family (inline-config path unchanged).
+- **Actual:** list 200 `canManage:true` full cfg; branches 502; test_connection
+  200 `connected:false`; test_github 200 `connected:false`. PASS.
 
-### Test 5 — BFF guards: last-version delete → 409 (legacy "only one version" block)
-- **Steps:** as `admin`, `DELETE /api/requirements/versions/19` (REQ-201's only version) via browser fetch.
-- **Expected:** HTTP 409 `{status:error,...}`; row intact.
-- **Actual:** 409; version still listed. PASS.
+### Test 5 — View-only screen renders; no stray repo-enumeration calls; Event Viewer + console hygiene
+- **Steps:** login `ctviewonly`; browser-load codetrackerView.html; inspect
+  network XHRs, `events` table, browser console; then same for `admin`.
+- **Expected:** row renders for both; view-only screen fires NO
+  `/2/branches|tags|commits|pulls|test_connection` XHR (UI uses only
+  `/test_github` for inline config); no new ERROR/WARNING events; console no JS
+  errors.
+- **Actual:** both screens render (view-only: no Create/Actions; admin: Create
+  button + edit/delete icons); network payload shows only list + meta/types
+  XHRs, both 200; events ERROR/WARNING = 0 (only AUDIT rows); console clean
+  (pre-existing a11y notices only). PASS.
 
-### Test 6 — BFF write gating: `mgt_modify_req` enforced on owning project
-- **Steps:** CLI `hasRight` probe for `norights` (project role 20 = `mgt_view_req` only) on tproject 11.
-- **Expected:** view_req='yes', modify_req=NULL → the BFF `req_mgmt` grant must be false → server rejects POST/DELETE and UI hides both buttons.
-- **Actual:** {view_req:'yes', modify:NULL}; client-gate simulation with `req_mgmt=false` → `{newVersionShown:false, delShown:false}`. PASS.
-
-### Test 7 — full-deny user: screen 403 (legacy checkRights mgt_view_req parity)
-- **Steps:** login `norights` (global role 3, no project role initially); load REQ-200 viewer.
-- **Expected:** screen shows "Failed to load requirement: No permission" (403 from BFF router).
-- **Actual:** denial text shown, toolbar stripped to Read/Print/Direct link/Help. PASS.
-
-### Test 8 — single-version requirement hides Delete only (New Version kept)
-- **Steps:** open REQ-201 (`?id=18&tproject_id=11`), single version v1 (open).
-- **Expected:** Delete hidden; New Version visible.
-- **Actual:** only "New Revision", "Create a new version", "Freeze" + nav buttons; no Delete. PASS.
-
-### Test 9 — Event Viewer hygiene
-- **Steps:** after full matrix, query `events` for req-version activity + log_level distribution.
-- **Expected:** create/delete produce AUDIT log_level=16 only; ERROR/WARNING = 0.
-- **Actual:** description "Version {4} of Req 'DOCID:REQ-200' - RV1301 multi-version requirement was deleted." (ids 3 & 7) at log_level 16; no ERROR/WARNING. PASS.
-
-### Test 10 — console hygiene
-- **Steps:** execute all UI flows; read browser console (includePreservedMessages on reloads).
-- **Expected:** zero console errors during the whole session.
-- **Actual:** "no console messages found" on both page contexts. PASS.
-
-**Result: 10/10 PASS. (Refs #1301)**
+**Result: 5/5 PASS. (Refs #1578)**
