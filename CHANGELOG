@@ -5597,7 +5597,11 @@ Changes:
   `check_test_automation_server` hint, and a per-test-case result table with
   status/result/notes plus answered / not-passed / config-problem /
   connection-failure counters and the 200-case truncation notice.
-  All 47 screen strings localized in the 10 client-side locale bundles.
+  All 53 screen strings localized in the 10 client-side locale bundles.
+- Screen wired into the ASIDE (`api/aside/index.php` + the Dashio
+  `gui/templates/dashio/aside.tpl`, `href_tc_auto_exec` in all 19 locale
+  `strings.txt`) and `lib/testcases/tcExecute.php` is now a session-guarded
+  302 shim to the modern page.
 - Key bugfix #1588: `lib/functions/remote_exec.php` no longer raises an
   `Undefined array key` warning (Event Viewer entry) when the remote XML-RPC
   server answers a non-conformant `result` code; the code is kept verbatim.
@@ -5605,6 +5609,18 @@ Changes:
   `results.code_status` / `results.status_code`, so `answered` and
   `not passed` counters are correct and a non conformant code is rendered
   verbatim instead of being counted as a pass.
+- Event Viewer hygiene: the suite/project walk (init **and** run) no longer
+  descends into the `testcase_step` children of a test case, so it stops
+  emitting one `Undefined array key "testcase_step"` warning per test case
+  (core issue #1589).
+- Hardening after the code review: the XML-RPC client gets an explicit 20s
+  timeout (a hung automation server no longer blocks the request), the
+  plan / build / platform of the forwarded context are validated against the
+  authorised project, a non-array or `result`-less XML-RPC answer is reported
+  as a config problem instead of reading an array offset on a non-array, the
+  two missing result-status labels (`not available`, `all`) are localized in
+  the 10 bundles, and the "Open test case" fallback points at the existing
+  `search/searchView.html`.
 
 ### UI modernization — Platforms Export (Refs #1583)
 - Modernized Platforms Export with standalone Dashio

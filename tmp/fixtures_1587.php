@@ -132,10 +132,18 @@ echo "suites $sA/$sA1/$sB tcs $tc1/$tc2/$tc3\n";
 
 // --- custom fields: tc_ and tsuite_ automation server trios -------------
 // custom_fields.name is globally unique -> clean leftovers from earlier runs.
+// Only leftovers that are NOT linked to another test project are dropped, so
+// this fixture can never destroy the automation fields of a foreign project.
 foreach (array('tc_server_host', 'tc_server_port', 'tc_server_path',
                'tsuite_server_host', 'tsuite_server_port', 'tsuite_server_path') as $cfName) {
     foreach ((array)$db->get_recordset("SELECT id FROM custom_fields WHERE name = '{$cfName}'") as $row) {
         $fid = intval($row['id']);
+        $other = $db->fetchOneValue("SELECT COUNT(*) FROM cfield_testprojects " .
+                                    "WHERE field_id = {$fid} AND testproject_id <> {$tid}");
+        if (intval($other) > 0) {
+            echo "cfield {$cfName} ({$fid}) is used by another project - kept\n";
+            continue;
+        }
         $db->exec_query("DELETE FROM custom_fields WHERE id = {$fid}");
         $db->exec_query("DELETE FROM cfield_node_types WHERE field_id = {$fid}");
         $db->exec_query("DELETE FROM cfield_testprojects WHERE field_id = {$fid}");
@@ -186,14 +194,18 @@ foreach ($defs as $d) {
     echo "cfield {$cfName}={$cfId} on node {$cfNode} (type {$cfNodeType}) = {$cfValue}\n";
 }
 
-// role-less (guest) user: must get 403 on every tcAutoExec action
+// role-less (guest) user: must get 403 on every tcAutoExec action.
+// The `norights` login is SHARED with the other no-rights fixtures
+// (tmp/mkuser_norights.php, #1559): only create it when missing, never reset an
+// existing one, so re-running this fixture cannot break their suites.
 $hash = password_hash('norights', PASSWORD_DEFAULT);
 $db->exec_query("INSERT INTO users (login,password,role_id,email,first,last,locale," .
     "default_testproject_id,active,cookie_string,auth_method) " .
-    "VALUES ('norights','{$hash}',3,'norights@tl.local','No','Rights','en_GB',0,1," .
-    "'ck_norights_1587','DB') " .
-    "ON DUPLICATE KEY UPDATE password=VALUES(password), role_id=3, active=1, " .
-    "auth_method=VALUES(auth_method)");
+    "SELECT 'norights','{$hash}',3,'norights@tl.local','No','Rights','en_GB',0,1," .
+    "'ck_norights_1587','DB' FROM DUAL " .
+    "WHERE NOT EXISTS (SELECT 1 FROM users WHERE login = 'norights')");
+$db->exec_query("UPDATE users SET active = 1, role_id = 3, auth_method = 'DB' " .
+    "WHERE login = 'norights'");
 echo "norights user ensured\n";
 
 echo "DONE fixture 1587 (project $tid, plan $plid, build $bdid, platform $pfid, " .

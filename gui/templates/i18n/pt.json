@@ -4856,5 +4856,7 @@
   "tae.status_failed": "Reprovado",
   "tae.status_blocked": "Bloqueado",
   "tae.status_not_run": "Nao executado",
-  "tae.status_unknown": "Desconhecido"
+  "tae.status_unknown": "Desconhecido",
+  "tae.status_not_available": "Não disponível",
+  "tae.status_all": "Todos"
 }

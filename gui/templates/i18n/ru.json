@@ -4856,5 +4856,7 @@
   "tae.status_failed": "Не пройдена",
   "tae.status_blocked": "Заблокирована",
   "tae.status_not_run": "Не выполнялась",
-  "tae.status_unknown": "Неизвестно"
+  "tae.status_unknown": "Неизвестно",
+  "tae.status_not_available": "Недоступно",
+  "tae.status_all": "Все"
 }

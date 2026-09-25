@@ -50,9 +50,12 @@
  *           list with the resolved automation server of every node.
  *        401 anon, 403 without mgt_view_tc, 404 unknown project,
  *        400 missing/unknown params, 405 non-GET.
- *   POST ?action=run {level, node_id, tproject_id, tplan_id, build_id, platform_id}
+ *   POST ?action=run   form-encoded body:
+ *        {level, node_id, tproject_id, tplan_id, build_id, platform_id}
  *        -> per test case {system.status, system.msg, result, resultVerbose,
  *           notes, message, scheduled, timestampISO} + summary counters.
+ *        The body is form-encoded (jQuery default) and the answer is JSON; the
+ *        XML-RPC *call* to the automation server is the only XML involved.
  *        400 bad level/node, 404 unknown node, 403 no rights, 403 CSRF.
  *
  * Session-based auth, JSON I/O, no Smarty.
@@ -308,7 +311,15 @@ function taeCollectTestCases($db, $treeMgr, $nodeId, $nodeTypeId, $typeTestcase)
     $out = array();
     // NULL options = recursive walk in 2.0.1 (passing an options array here
     // makes _get_subtree_rec return an empty set).
-    $subtree = $treeMgr->get_subtree($nodeId);
+    //
+    // exclude_children_of = testcase is what testsuite::get_subtree() passes:
+    // without it _get_subtree() descends into the steps of every test case,
+    // and tree::$_node_tables has no 'testcase_step' entry -> one
+    // "Undefined array key \"testcase_step\"" E_WARNING per test case in the
+    // Event Viewer (the legacy tcExecute.php had the same latent bug, Refs
+    // #1589). We never need the children of a test case, only test cases.
+    $subtree = $treeMgr->get_subtree($nodeId,
+        array('exclude_children_of' => array('testcase' => 'exclude_my_children')));
     if (!is_array($subtree)) {
         return $out;
     }
@@ -354,6 +365,48 @@ function taeCheckRights($db, $user, $treeMgr, $nodeId, $typeTestproject)
     }
     $hasRight = $user->hasRight($db, 'mgt_view_tc', $tprojectId);
     return $hasRight ? $tprojectId : false;
+}
+
+/** Test plan id owned by the project (0 when foreign / unknown). */
+function taeOwnsPlan($db, $tprojectId, $tplanId)
+{
+    global $TaeTables;
+    $tplanId = intval($tplanId);
+    $tprojectId = intval($tprojectId);
+    if ($tplanId <= 0) {
+        return 0;
+    }
+    $n = $db->fetchOneValue(" SELECT COUNT(*) FROM " . $TaeTables['testplans'] .
+                            " WHERE id = {$tplanId} AND testproject_id = {$tprojectId}");
+    return intval($n) > 0 ? $tplanId : 0;
+}
+
+/** Build id owned by the project (builds are project scoped, #834). */
+function taeOwnsBuild($db, $tprojectId, $buildId)
+{
+    global $TaeTables;
+    $buildId = intval($buildId);
+    $tprojectId = intval($tprojectId);
+    if ($buildId <= 0) {
+        return 0;
+    }
+    $n = $db->fetchOneValue(" SELECT COUNT(*) FROM " . $TaeTables['builds'] .
+                            " WHERE id = {$buildId} AND testproject_id = {$tprojectId}");
+    return intval($n) > 0 ? $buildId : 0;
+}
+
+/** Platform id linked to the test plan (platforms are plan scoped). */
+function taeOwnsPlatform($db, $tplanId, $platformId)
+{
+    global $TaeTables;
+    $platformId = intval($platformId);
+    $tplanId = intval($tplanId);
+    if ($platformId <= 0 || $tplanId <= 0) {
+        return 0;
+    }
+    $n = $db->fetchOneValue(" SELECT COUNT(*) FROM " . $TaeTables['testplan_platforms'] .
+                            " WHERE platform_id = {$platformId} AND testplan_id = {$tplanId}");
+    return intval($n) > 0 ? $platformId : 0;
 }
 
 $method = strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET');
@@ -421,7 +474,11 @@ if ($action === 'init') {
 
     // Runnable nodes: every test case + test suite of the project.
     $nodes = array();
-    $subtree = $treeMgr->get_subtree($tprojectId);
+    // Same filter as taeCollectTestCases(): never descend into the steps of a
+    // test case (tree::$node_tables has no 'testcase_step' entry -> E_WARNING,
+    // Refs #1589).
+    $subtree = $treeMgr->get_subtree($tprojectId,
+        array('exclude_children_of' => array('testcase' => 'exclude_my_children')));
     $tcaseCount = 0;
     foreach ($subtree as $node) {
         $nType = intval($node['node_type_id']);
@@ -521,6 +578,13 @@ if ($action === 'run') {
         taeOut(['status' => 'error',
                 'message' => 'Forbidden: mgt_view_tc right required on the owning project'], 403);
     }
+
+    // The plan / build / platform are only forwarded as XML-RPC context, but a
+    // client could otherwise hand us ids of another project: keep the context
+    // inside the project we just authorised.
+    $tplanId = taeOwnsPlan($db, $tprojectId, $tplanId);
+    $buildId = taeOwnsBuild($db, $tprojectId, $buildId);
+    $platformId = taeOwnsPlatform($db, $tplanId, $platformId);
 
     // Which test cases will run (legacy switch($args->level)).
     if ($level === 'testcase') {

@@ -4856,5 +4856,7 @@
   "tae.status_failed": "失敗",
   "tae.status_blocked": "ブロック",
   "tae.status_not_run": "未実行",
-  "tae.status_unknown": "不明"
+  "tae.status_unknown": "不明",
+  "tae.status_not_available": "利用不可",
+  "tae.status_all": "すべて"
 }

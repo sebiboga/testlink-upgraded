@@ -21085,7 +21085,6 @@ invalid-type row and view-only user/role were removed after execution.
 
 **Result: 9/9 PASS. (Refs #972)**
 
----
 
 ## Regression — Issue #1586: TLi18n locale selection is not persisted when returning to a launcher
 
@@ -21202,3 +21201,217 @@ called. Evidence screenshots: `tmp/1586-before-platformsview-english.png`,
 > Test 1/Test 3; `php tmp/fixtures_1586.php` is re-runnable and recreates the
 > project/plan/platform, so the ids in the URLs above change on every run —
 > read the current ones from `/tmp/fixture_1586.txt`.
+
+---
+
+## Suite 1587 — Remote Test Automation Execution (tcAutoExec) + legacy tcExecute shim (Refs #1587)
+
+Scope: `lib/testcases/tcExecute.php` (+ `gui/templates/dashio/testcases/tcExecute.tpl`),
+the last standalone `lib/testcases/*` legacy page → `gui/templates/testcases/tcAutoExec.html`
++ BFF `api/tcautoexec/index.php`; ASIDE entries (modern + Smarty aside) and the
+`href_tc_auto_exec` label in 19 `locale/*/strings.txt`. Fixtures
+`tmp/fixtures_1587.php` (project 107 / plans 108+109 / build 13 / platforms 10+11 /
+suites 110-112 / TC 113,116,119) and `tmp/fixtures_1587_bulk.php` (suite 122 + child 123,
+210 test cases). XML-RPC double: throwaway `/tmp/xmlrpc_mock.php` on 127.0.0.1:9999
+(`/tmp/xmlrpc_mock_mode` holds the `p` / `f` code).
+
+### Test 1 — BFF init returns the context and the three runnable levels
+- **Steps:** authenticated `GET /api/tcautoexec/index.php?action=init&tproject_id=107&tplan_id=108`.
+- **Expected:** 200 `status:ok`, project/plans/builds/platforms, and a node list per
+  level (test case / test suite / whole project) with the resolved server of every node.
+- **Actual:** 200; project `AutoExec Demo (107)`, 2 plans, 1 build, 1 platform for the
+  plan; testcase level 3 entries, suite level 3 entries, project level 1 entry; every
+  entry carries `server` + `server_source`. PASS.
+
+### Test 2 — Single test case run against the XML-RPC double → PASSED
+- **Steps:** page, LEVEL = "Single test case", target `AX1587-1 auto server on TC`, Run.
+- **Expected:** counters 1/1/0/0, row status `ANSWERED`, result `PASSED`, server shown
+  as `http://127.0.0.1:9999/xmlrpc.php` with source "from the test case custom fields".
+- **Actual:** exactly that; notes render the `message` and `notes` returned by the
+  double with their newlines preserved. PASS.
+
+### Test 3 — Failing answer is counted as NOT PASSED, not passed
+- **Steps:** `/tmp/xmlrpc_mock_mode` set to `f`, re-run the same test case.
+- **Expected:** `NOT PASSED` = 1, row result `FAILED`, status still `ANSWERED`.
+- **Actual:** counters `1 / 1 / 1 / 0`, row `ANSWERED | FAILED`. Before the
+  `taeResolveResultStatus()` fix the legacy comparison against `passed`/`failed`
+  mis-counted non-`p` codes. PASS.
+
+### Test 4 — Suite level runs the recursive subtree with the suite server inherited
+- **Steps:** LEVEL = "Test suite", suite `AX1587-A1`, Run.
+- **Expected:** both child test cases run; `AX1587-2` reports the server inherited
+  from the suite custom fields (source `testsuite`).
+- **Actual:** 2 rows; `AX1587-1` source `testcase`, `AX1587-2` source `testsuite`,
+  same endpoint. PASS.
+
+### Test 5 — Whole test project level
+- **Steps:** LEVEL = "Whole test project", Run.
+- **Expected:** every test case of the project (4 at that point) appears, in
+  spec order, including the ones with no server.
+- **Actual:** 4 rows, project-level run completed with mixed `CONFIG PROBLEMS` /
+  executed rows. PASS.
+
+### Test 6 — CONFIG PROBLEMS when no server is configured anywhere
+- **Steps:** single test case `AX1587-3 no server anywhere`, Run.
+- **Expected:** status `CONFIG PROBLEMS`, empty result column, the legacy
+  "check the required Custom Fields" message, counter `config problems` = 1.
+- **Actual:** row `AX1587-3 | no server configured | CONFIG PROBLEMS | — | Remote
+  execution can not be launched due to missing configuration.` PASS.
+
+### Test 7 — CONNECTION FAILURE when the automation server is down
+- **Steps:** stop the XML-RPC double, run the test case that has a server.
+- **Expected:** status `CONNECTION FAILURE`, no PHP notice, no 500.
+- **Actual:** row `CONNECTION FAILURE | Remote execution connection failure - check
+  your config`, HTTP 200 for the whole run. PASS.
+
+### Test 8 — 200-case cap and the truncation bar
+- **Steps:** `php tmp/fixtures_1587_bulk.php` (suite 122 with 210 test cases over a
+  child suite), LEVEL = "Test suite", `AX1587-BULK`, Run.
+- **Expected:** at most 200 executions, `truncated` true, and the localized warning
+  "Only the first 200 test cases were run - narrow the target and run again."
+- **Actual:** BFF `counters.total` = 200, `truncated` = true, 200 rows rendered,
+  warning bar visible in the page. PASS.
+
+### Test 9 — Test plan change reloads builds and platforms
+- **Steps:** switch TEST PLAN from `AutoExec Plan` to `AutoExec Plan 2`.
+- **Expected:** platform list reloaded for the new plan (the second fixture plan owns
+  a different platform), build list reloaded (builds are project scoped).
+- **Actual:** platform select switched to the plan 2 platform, build stayed the
+  project build list, the node list was re-fetched. PASS.
+
+### Test 10 — Access denied for a user without `view test cases`
+- **Steps:** isolated browser context logged in as `norights`, open the screen.
+- **Expected:** 403 rendered as an "Access denied" card naming the right that is
+  missing — not a blank page and not a form that fails on submit.
+- **Actual:** card "You need the \"view test cases\" right on this test project to run
+  remote automation."; the run form is not rendered. PASS.
+
+### Test 11 — Error contract: 400 / 401 / 404 / 405 + CSRF
+- **Steps:** curl / fetch `action=run` with a bad level, with no session, with an
+  unknown node id, with `GET action=run`, and with a POST that omits the
+  `X-Requested-With` same-origin proof.
+- **Expected:** 400 "Missing or unsupported level", 401, 404 "Unknown node", 405,
+  and 403 for the missing CSRF proof.
+- **Actual:** all five responses matched, with the JSON `{status:error, message}`
+  envelope. PASS.
+
+### Test 12 — Unknown test project on init
+- **Steps:** `GET ?action=init&tproject_id=999999`.
+- **Expected:** 404.
+- **Actual:** 404 `Unknown test project`. PASS.
+
+### Test 13 — Anonymous access redirects to the login form
+- **Steps:** open the screen in a clean browser context; also
+  `GET /lib/testcases/tcExecute.php`.
+- **Expected:** 401 on the BFF and the standard TestLink login redirect (with
+  `vwrestorefrom`) for the legacy URL.
+- **Actual:** BFF 401 "Not authenticated"; the legacy URL returned the standard
+  JavaScript login redirect. PASS.
+
+### Test 14 — ASIDE entry (modern + legacy aside templates)
+- **Steps:** `GET /api/aside/index.php?action=init` and open
+  `/gui/templates/aside/aside.html`; compare with `gui/templates/dashio/aside.tpl`.
+- **Expected:** a "Test Automation Execution" entry inside *Test Case Design*,
+  right after *Test Automation Specification*, gated on `view_tc`, pointing at
+  `tcAutoExec.html` with the project/plan context.
+- **Actual:** present in both the JSON menu and the Smarty aside, inside the same
+  group and order, href `/gui/templates/testcases/tcAutoExec.html?tproject_id=..&tplan_id=..`. PASS.
+
+### Test 15 — Legacy `tcExecute.php` is a session-guarded 302 shim
+- **Steps:** navigate to `lib/testcases/tcExecute.php?tproject_id=107&tplan_id=108`
+  authenticated, then anonymously.
+- **Expected:** 302 to `tcAutoExec.html`; the shim resolves the project from the
+  plan server-side (it does not trust the `tproject_id` query parameter); anonymous
+  falls back to the standard login redirect.
+- **Actual:** browser landed on the modern screen (the ASIDE itself always sends a
+  stale `tproject_id`, and the shim corrected it); anonymous → login redirect. PASS.
+
+### Test 16 — Locale switch (ro) with no raw keys
+- **Steps:** switch the locale to Romanian and read every visible string.
+- **Expected:** all labels, counters, status badges and buttons translated, no
+  `tae.*` key visible.
+- **Actual:** fully translated, footer "TestLink 2.0.1 - Remote Test Automation
+  Execution" included, no raw key. PASS.
+
+### Test 17 — i18n coverage of the 10 client bundles
+- **Steps:** `python3 -m json.tool` on every modified bundle; count the `tae.*` keys.
+- **Expected:** all bundles valid, 46 screen keys + 7 status keys in each, plus
+  `footers.tcAutoExec`; `href_tc_auto_exec` present in all 19 `strings.txt`.
+- **Actual:** 10/10 valid JSON, identical key sets, 19/19 locale files updated. PASS.
+
+### Test 18 — Regression: unknown XML-RPC result code (#1588)
+- **Steps:** make the double answer with a code that is not in `code_status`
+  (`code_status` lookup of an unknown key) and run a test case; then read the
+  Event Viewer rows created by the run.
+- **Expected:** no PHP warning; the code is still displayed verbatim, classified
+  as failed.
+- **Expected result before the fix:** `E_WARNING Undefined array key` from
+  `lib/functions/remote_exec.php:125` for every executed test case.
+- **Actual:** pre-fix run produced the warning rows (bug #1588); after
+  `e12b249d7` the same request produced **0** new Error/Warning events and the
+  unknown code was displayed verbatim. PASS.
+
+### Test 19 — Regression: `tree::_get_subtree()` step nodes (#1589 containment)
+- **Steps:** run the 210-test-case suite (BFF `action=run`) and count the new
+  Event Viewer `E_WARNING` rows before/after the BFF filter fix.
+- **Expected:** 0 new `E_WARNING` rows; the suite still returns 200 executions.
+- **Actual:** the pre-fix run created `Undefined array key "testcase_step"` rows
+  from `lib/functions/tree.class.php:963`; after passing
+  `exclude_children_of => testcase` the identical 200-case run added **no**
+  warning, counters unchanged. The latent core bug is filed as #1589. PASS.
+
+### Test 20 — Event Viewer hygiene of the whole screen
+- **Steps:** exercise init, all three levels, pass, fail, config problem, connection
+  failure, truncation, 403 and the shim; then query the `events` table for
+  `log_level IN (1,2)` created during the session.
+- **Expected:** no new ERROR, and no WARNING other than the ones already fixed in
+  tests 18/19.
+- **Actual:** 0 new ERROR, 0 new WARNING; only the pre-existing audit rows of the
+  login/project creation. PASS.
+
+### Test 21 — Syntax / lint / diff hygiene of the change set
+- **Steps:** `php -l` on the BFF, `common.php`, the shim and `api/aside/index.php`;
+  `python3 -m json.tool` on the 10 bundles; Node syntax check of the inline script of
+  `tcAutoExec.html`; `git diff --check`.
+- **Expected:** everything clean.
+- **Actual:** all PHP files "No syntax errors detected", 10/10 bundles valid, inline
+  JavaScript parses, `git diff --check` silent. PASS.
+
+### Test 22 — Context ids outside the authorised project are dropped
+- **Steps:** `POST ?action=run` for test case 113 of project 107 with
+  (a) `tplan_id=999999&build_id=888888&platform_id=777777` and
+  (b) `tplan_id=108` (real) with `platform_id=11` (a platform of the OTHER plan 109).
+- **Expected:** the response `context` only carries ids that belong to the
+  project/plan the run was authorised for: bogus ids become 0, and a platform of
+  another plan is dropped while the valid plan and build are kept.
+- **Actual:** (a) `{"tproject_id":107,"tplan_id":0,"platform_id":0,"build_id":0}`,
+  (b) `{"tproject_id":107,"tplan_id":108,"platform_id":0,"build_id":13}`; the run
+  itself still answered 200 and executed the test case. PASS.
+
+### Test 23 — Non conformant XML-RPC answer (scalar / no `result` key)
+- **Steps:** make the double answer `executeTestCase` with a scalar instead of a
+  result map, and with a map that has no `result` key; run the test case; read the
+  new Event Viewer rows.
+- **Expected:** no PHP warning ("Trying to access array offset on value of type
+  ..."); a non-array answer is reported as a config problem, a map without
+  `result` is kept as an unanswered result.
+- **Actual:** `is_array($response)` + `array_key_exists('result')` + `is_scalar()`
+  guards added in `lib/functions/remote_exec.php`; the identical
+  init + suite run that followed produced 0 new Error/Warning events. PASS.
+
+### Test 24 — Code review follow-ups (i18n gaps, dead fallback href, fixture safety)
+- **Steps:** review the change set; check every dynamically built i18n key, every
+  href the page can produce, and the re-run behaviour of the fixture.
+- **Expected:** no raw i18n key can reach the result column, no dead link, the
+  fixture cannot reset the shared `norights` user nor delete the automation
+  custom fields of a foreign project.
+- **Actual:** `tae.status_not_available` / `tae.status_all` added to the 10
+  bundles (the `results.status_code` domains were not all covered) and the result
+  badge now falls back to the raw remote code when a key is unknown; the
+  "Open test case" fallback pointed at the non-existing
+  `gui/templates/testcases/searchTestCase.html` and now points at the modern
+  `gui/templates/search/searchView.html` (verified 200);
+  `tmp/fixtures_1587.php` only creates the shared `norights` user when it is
+  missing and skips custom fields linked to another test project. PASS.
+
+**Result: 24/24 PASS.** (Refs #1587, #1588, #1589)

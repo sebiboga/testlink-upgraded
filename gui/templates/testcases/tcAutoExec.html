@@ -407,8 +407,12 @@ function renderResults(d) {
       resHtml = '<span style="color:#aaa;">—</span>';
     } else {
       var cls = (domain === 'passed') ? 'badge-ok'
-              : (domain === 'blocked') ? 'badge-config' : 'badge-failed';
-      var label = domain ? TLi18n.t('tae.status_' + domain) : res;
+              : (domain === 'failed') ? 'badge-failed'
+              : (domain === 'blocked') ? 'badge-config' : 'badge-pending';
+      // TLi18n.t() echoes the key back when it is missing: fall back to the
+      // raw code the automation server sent instead of printing a key.
+      var skey = 'tae.status_' + domain, slabel = TLi18n.t(skey);
+      var label = (domain && slabel !== skey) ? slabel : res;
       resHtml = '<span class="badge ' + cls + '">' + esc(label) + '</span>' +
                 (r.message ? '<div style="font-size:12px;color:#666;margin-top:4px;">' + msgHtml(r.message) + '</div>' : '');
     }
@@ -460,7 +464,10 @@ function refreshTcViewLink() {
       '&tproject_id=' + encodeURIComponent(tprojectId) +
       (tplanId ? '&tplan_id=' + encodeURIComponent(tplanId) : ''));
   } else {
-    $a.attr('href', '/gui/templates/testcases/searchTestCase.html' +
+    // no single test case selected: fall back to the project test case search
+    // (gui/templates/search/searchView.html is the modern twin of the legacy
+    // searchTestCase.php screen)
+    $a.attr('href', '/gui/templates/search/searchView.html' +
       (tprojectId ? '?tproject_id=' + encodeURIComponent(tprojectId) : ''));
   }
 }

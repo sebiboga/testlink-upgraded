@@ -4850,5 +4850,7 @@
   "tae.status_failed": "Fehlgeschlagen",
   "tae.status_blocked": "Blockiert",
   "tae.status_not_run": "Nicht ausgefuehrt",
-  "tae.status_unknown": "Unbekannt"
+  "tae.status_unknown": "Unbekannt",
+  "tae.status_not_available": "Nicht verfügbar",
+  "tae.status_all": "Alle"
 }

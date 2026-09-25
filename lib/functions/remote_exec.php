@@ -75,6 +75,11 @@ function executeTestCase($tcaseInfo,$serverCfg,$context)
   	if($do_it)
   	{
 		$xmlrpcClient = new IXR_Client($serverCfg["url"]);
+		// A hung automation server must not pin the browser: without an explicit
+		// timeout fsockopen() blocks for the OS default (minutes). 20s per call
+		// keeps the 200-case run bounded; the answer becomes a
+		// connectionFailure, which is what the legacy page shows.
+		$xmlrpcClient->timeout = 20;
 		if( is_null($xmlrpcClient) )
 		{
 			$do_it = false;
@@ -111,12 +116,24 @@ function executeTestCase($tcaseInfo,$serverCfg,$context)
 		}
 		else
 		{
+			// A non conformant server can answer with something that is not a
+			// result map at all (scalar / empty). Keep the legacy payload shape
+			// and treat it as an unusable answer instead of emitting
+			// "Trying to access array offset on value of type ..." (#1588).
+			if( !is_array($response) )
+			{
+				$ret['system']['status'] = 'configProblems';
+				$ret['system']['msg'] = $labels['remoteExecServerConfigProblems'];
+				$ret['execution'] = null;
+			}
+			else
+			{
 			$ret['execution'] = $response;
 			$ret['execution']['resultVerbose'] = '';
 			
-			if(!is_null($response['result']))
+			if(array_key_exists('result', $response) && !is_null($response['result']) && is_scalar($response['result']))
 			{	
-				$code = trim($response['result']);
+				$code = trim(strval($response['result']));
 				if( $code != '')
 				{
 					$resultsCfg = config_get('results');
@@ -147,6 +164,7 @@ function executeTestCase($tcaseInfo,$serverCfg,$context)
 					}
 				}
 			}
+			} // is_array($response)
 		}
   	} 
 

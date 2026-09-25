@@ -4836,5 +4836,7 @@
   "tae.status_failed": "未通过",
   "tae.status_blocked": "已阻塞",
   "tae.status_not_run": "未执行",
-  "tae.status_unknown": "未知"
+  "tae.status_unknown": "未知",
+  "tae.status_not_available": "不可用",
+  "tae.status_all": "全部"
 }

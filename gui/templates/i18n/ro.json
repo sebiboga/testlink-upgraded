@@ -4860,5 +4860,7 @@
   "tae.status_failed": "Neprocedat",
   "tae.status_blocked": "Blochat",
   "tae.status_not_run": "Neexecutat",
-  "tae.status_unknown": "Necunoscut"
+  "tae.status_unknown": "Necunoscut",
+  "tae.status_not_available": "Nu este disponibil",
+  "tae.status_all": "Toate"
 }
