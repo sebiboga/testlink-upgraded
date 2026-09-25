@@ -286,6 +286,17 @@ if (($method === 'GET' || $method === 'POST') && isset($segments[0]) && is_numer
     isset($segments[1])) {
     $id = intval($segments[0]);
     $action = strtolower($segments[1]);
+
+    // Issue #1578: every /{id}/{branches|tags|commits|pulls|test_connection}
+    // action instantiates the tracker's interface from the STORED cfg (which
+    // may hold the plaintext token) and drives it server-side with the
+    // manager's credentials. Legacy grants that only to managers: the wrench
+    // connection check (codeTrackerView.tpl:51-61) is rendered only when
+    // canManage, so a view-only user must never exercise the stored token.
+    // Gate identical to the #970 write-gate (denyWrite) so the denial is also
+    // trailed into the Event Viewer.
+    if (!$canManage) { denyWrite($user, $userId, $action); }
+
     $tracker = $mgr->getByID($id);
     if (!$tracker) { http_response_code(404); out(['status' => 'error', 'message' => 'Code tracker not found']); }
 
