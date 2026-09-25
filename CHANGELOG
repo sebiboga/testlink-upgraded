@@ -5568,8 +5568,9 @@ Changes:
   Export flow. The BFF validates the requested test project, enforces
   project-scoped platform view/management rights, returns screen context and the
   default filename, and streams valid XML containing the legacy platform fields
-  with safe filenames and headers. The locale coverage, Platforms View link
-  switch, browser regression suite, and documentation follow in the remaining
+  with safe filenames and headers. All ten client locale bundles include the
+  standalone screen, and Platforms View now launches it instead of its legacy
+  export modal. Browser regression and documentation follow in the remaining
   #1583 phases.
 
 ### Gap closed — Event Viewer legacy deep link wired to modern screen (Refs #1579)

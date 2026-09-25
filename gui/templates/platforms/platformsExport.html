@@ -190,7 +190,7 @@ function loadInfo() {
 function renderInfo() {
   var projectName = ctx.info.project.name;
   var count = parseInt(ctx.info.platform_count, 10) || 0;
-  var countLabel = TLi18n.t('pexp.countValue', { count: count });
+  var countLabel = TLi18n.t('pexp.countValue', {n: count});
   document.title = TLi18n.t('pexp.title') + ' - ' + projectName;
   $('#headerProject').text(TLi18n.t('pexp.projectSubtitle', { project: projectName }));
   $('#toolbarProject').text(projectName);

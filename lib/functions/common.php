@@ -1916,6 +1916,7 @@ function getActions(&$gui,$baseURL) {
 
   $actions->keywordsView = "/gui/templates/keywords/keywordsView.html?{$ctx}";
   $actions->platformsView = "/gui/templates/platforms/platformsView.html?{$ctx}";
+  $actions->platformsExport = "/gui/templates/platforms/platformsExport.html?{$ctx}";
   $actions->issueTrackerView = "/gui/templates/issuetracker/issuetrackerView.html?{$ctx}";
   $actions->codeTrackerView = "/gui/templates/codetracker/codetrackerView.html?{$ctx}";
   // Requirement Management Systems modernized screen (Dashio standalone
