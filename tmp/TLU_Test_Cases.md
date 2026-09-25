@@ -21780,3 +21780,25 @@ that already had a config block keep their current menus.
   `contoursoapInterface.class.php` include warnings — filed separately as **#1592** and **#1593**.
 - `issueTrackerView.tpl:81` still logs `Undefined array key "testproject_alt_delete"` — that is
   the already-tracked **#1590**.
+
+### 1591.1 Read-only path + code-review follow-up (post-review) — PASS 3/3
+
+Code review of `fix/issue-1591` demanded the read-only (`codetracker_view` without
+`codetracker_management`) path be exercised, because the `codeTrackerView.tpl` line is the same
+one #1580 touched. Fixture added:
+
+```sql
+INSERT INTO roles (id,description) VALUES (10,'ct_viewonly_1591');
+INSERT INTO role_rights (role_id,right_id) VALUES (10,52);          -- 52 = codetracker_view ONLY
+INSERT INTO users (login,password,role_id,email,first,last,active,cookie_string)
+  VALUES ('ctvo1591',MD5('admin'),10,'ctvo@x','ct','vo',1,'ck1591ctvo0000000000000000000a');
+INSERT INTO user_testproject_roles (user_id,testproject_id,role_id) SELECT id,1,10 FROM users WHERE login='ctvo1591';
+```
+
+| # | Step | Expected | Actual | Result |
+|---|---|---|---|---|
+| 13 | Log in as `ctvo1591`, load `lib/codetrackers/codeTrackerView.php?tproject_id=1` | 200, no PHP warnings, full page-size menu | HTTP 200; `"lengthMenu": [ [20, 40, 60, -1], [20, 40, 60, "All"] ],`; `events` gained only the AUDIT login row (log_level 16) | PASS |
+| 14 | Browser, same read-only page | options 20/40/60/All, table intact, no delete-body/header mismatch | `{"opts":["20","40","60","All"],"headers":["Code Tracker","Type","Environment","delete"],"pageLen":20}`; console: no messages | PASS |
+| 15 | Empty list on `codeTrackerView.php` and `platformsView.php` (`DELETE FROM codetrackers` / `platforms`) | 200, nothing logged | both HTTP 200, `events` row count 0 | PASS |
+
+**Result: 3/3 PASS** (suite total for #1591: 15/15). (Refs #1591)
