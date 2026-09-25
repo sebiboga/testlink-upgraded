@@ -23,7 +23,7 @@ var del_action=fRoot+'lib/codetrackers/codeTrackerEdit.php?doAction=doDelete&id=
 </script>
 
 {if $gui->items != ''}
-  {$ll = $tlCfg->gui->{$cfg_section}->pagination->length}
+  {$ll = #pagination_length#}
   {include file="DataTables.inc.tpl" DataTablesSelector="#item_view" DataTablesLengthMenu=$ll}
 {/if}
 
@@ -74,7 +74,7 @@ var del_action=fRoot+'lib/codetrackers/codeTrackerEdit.php?doAction=doDelete&id=
             <td class="clickable_icon">{$item_def.env_check_msg|escape}</td>
               <td class="clickable_icon">
                 {if $gui->canManage != ""  && $item_def.link_count == 0}
-                  <i class="fas fa-minus-circle" title="{$labels.testproject_alt_delete}" 
+                  <i class="fas fa-minus-circle" title="{$labels.alt_delete}"
                      onclick="delete_confirmation({$item_def.id},'{$item_def.name|escape:'javascript'|escape}',
                                                         '{$del_msgbox_title}','{$warning_msg}');"></i>
                 {/if}
