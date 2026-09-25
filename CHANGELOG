@@ -5639,11 +5639,14 @@ Changes:
   coverage rows the grid created). Session auth, `req_tcase_link_management`,
   `bffSameOriginGuard`, 400/401/403/404/405 JSON contract, and one aggregated
   audit event per effective operation.
-- Hardening beyond legacy: the test suite is proven to belong to the test project
-  and the submitted requirement ids are intersected with the requirements that
-  really live on the submitted spec, so a forged `req_id` from another
-  spec/project can no longer be linked through this route (the hole tracked by
-  #1085 for the legacy controller).
+- Hardening beyond legacy: the test suite is proven to belong to the test project,
+  the requirement-spec id (request *and* the persisted session memory) is proven
+  to belong to that project, `tsuite_id` must be a real test-suite node, the
+  project must have requirements enabled, and the submitted requirement ids are
+  intersected with the requirements that really live on the submitted spec — so a
+  forged `req_id`/`idSRS` from another spec/project can no longer be read or
+  linked through this route (the hole tracked by #1085 for the legacy
+  controller).
 - Entry points: `$actions->reqTcBulkAssign` in `lib/functions/common.php` and a
   new "Requirements Bulk Assignment" button in the Test Specification suite view;
   `lib/requirements/reqTcAssign.php` is now a session-guarded 302 shim
@@ -5660,7 +5663,26 @@ Changes:
 - Key bugfix: the audit events passed the requirements table as `$objectID`, so
   the Event Viewer showed no object; they are now bound to the test suite and no
   longer written for a no-op. Event Viewer hygiene: 0 ERROR/WARNING rows.
-  Regression suite 1595: 46/46 PASS.
+- Security fixes from the mandatory code review:
+  - stored XSS: the test-suite name reached the warning bar and the confirm
+    dialog as raw HTML; it is now escaped, and all placeholder interpolation uses
+    a replacer callback so a name containing `$&`/`` $` ``/`$'` can never rewrite
+    the sentence;
+  - IDOR: `idSRS` was only checked for `> 0`, so a spec of another project could
+    be read or used to create/delete cross-project links — the spec is now
+    resolved against the current test project (404 init / 400 writes);
+  - the right is now evaluated with `hasRight(..., getAccess = true)`, matching
+    legacy `pageAccessCheck()`: a user holding the right only through a *global*
+    role can no longer touch a **private** test project they are not a member of;
+  - a refused access is audited (`SECURITY` / `testprojects`) like legacy did,
+    "nothing selected" is a 400 (the screen renders the message), the action
+    buttons stay disabled on a suite without test cases (legacy rendered no
+    button), `linked_count` counts only the open links `unassign` can remove, a
+    test-case node id is rejected with 404, the footer uses the translated
+    `footers.reqTcBulkAssign` key, every row regains the legacy requirement
+    version editor link, the checkboxes get accessible titles, and responses are
+    sent as `application/json; charset=utf-8` + `X-Content-Type-Options: nosniff`.
+  Regression suite 1595: 63/63 PASS.
 
 ### UI modernization — Remote Test Automation Execution (Refs #1587)
 - New BFF `api/tcautoexec/index.php` (GET `?action=init` = context + runnable

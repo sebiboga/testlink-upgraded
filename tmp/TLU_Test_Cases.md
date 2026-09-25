@@ -21807,35 +21807,41 @@ INSERT INTO user_testproject_roles (user_id,testproject_id,role_id) SELECT id,1,
 
 ## 1595. Requirements Bulk Assignment — `gui/templates/requirements/reqTcBulkAssign.html` + `api/reqtcbassign`
 
-Fixture `tmp/fixtures_1595.php` (re-runnable, DB is reset on every CI run):
+Fixture `tmp/fixtures_1595.php` (re-runnable, **the DB is reset on every CI run, so the ids below
+are the ones printed by the fixture run — never hard-code them in assertions**):
 
-* test project **BULK1595** (id 19, prefix `BULK`, requirements enabled)
-* req specs **RS-MAIN** (id 20, 4 requirements: BULK-1..BULK-4) and **RS-EMPTY** (id 22, 0 requirements)
-* suite **Suite A** (id 32) with 2 test cases + sub-suite **Sub B** (id 33) with 1 test case -> 3 test cases deep
-* suite **Empty Suite** (id 34), 0 test cases
-* 1 seeded coverage link (BULK-1 <-> BULK Login 01) so the `linked/total` chip is non-zero from the start
+* test project **BULK1595** (requirements enabled)
+* req specs **RS-MAIN** (4 requirements BULK-1..BULK-4) and **RS-EMPTY** (0 requirements)
+* suite **Suite A** with 2 test cases + sub-suite **Sub B** with 1 test case -> 3 test cases deep
+* suite **Empty Suite**, 0 test cases
+* 1 seeded coverage link so the `linked/total` chip is non-zero from the start
 * user **norights1595** (role without `req_tcase_link_management`, attached to the project) - `tmp/norights_1595.php`
+* security fixtures created for the IDOR / rights cases (see 1595.5):
+  * project **FOREIGN1595** + req spec + requirement whose title contains an XSS payload
+  * project **NORQ1595** (requirements **disabled**) + one suite
+  * user **globalonly1595** (global role *senior tester* -> has `req_tcase_link_management`
+    globally, but **no role on a private test project**)
 
 ### 1595.1 BFF contract (curl)
 
 | # | Step | Expected | Actual | Result |
 |---|---|---|---|---|
 | 1 | `GET ?action=init` without session | 401, no data | `{"status":"error","message":"Not authenticated"}` HTTP 401 | PASS |
-| 2 | `GET ?action=init&tproject_id=19&tsuite_id=32` (admin) | 200, grid + counters | `tcase_count: 3`, `has_req_spec: true`, 2 spec options, 4 requirements, `linked_count: 1` for BULK-1 / 0 for the rest | PASS |
-| 3 | `POST ?action=bulkassign` 2 requirements x 3 test cases | `assigned: 6` | `{"status":"ok","assigned":6,"rejected":0,"tcase_count":3}`; `req_coverage` grew by 6 | PASS |
+| 2 | `GET ?action=init&tproject_id=P&tsuite_id=SuiteA` (admin) | 200, grid + counters | `tcase_count: 3`, `has_req_spec: true`, 2 spec options (`[RS-MAIN] - ...` dotted labels), 4 requirements, `linked_count` 1 for BULK-1 / 0 for the rest | PASS |
+| 3 | `POST ?action=bulkassign` 2 requirements x 3 test cases | `assigned: 6` | `{"status":"ok","assigned":6,"rejected":[],"tcase_count":3}`; `req_coverage` grew by 6 | PASS |
 | 4 | Repeat the same assign | idempotent, `assigned: 0` | `assigned: 0`, link count unchanged | PASS |
-| 5 | Assign a requirement id that is not on the submitted `idSRS` (forged) | rejected, HTTP 400 | `rejected: 1`, `assigned: 0`; the foreign requirement is never linked | PASS |
-| 6 | Assign with an empty `req_ids` | `status: error`, no write | `{"status":"error","message":"nothing_selected"}` | PASS |
-| 7 | `tsuite_id` of **Empty Suite** (34) | 400, no write | `{"status":"error","message":"...no test cases..."}` | PASS |
-| 8 | Unknown `tsuite_id=999999` | 404 | `{"status":"error","message":"not_found"}` | PASS |
-| 9 | `POST` on `?action=init` | 405 | `{"status":"error","message":"method_not_allowed"}` | PASS |
-| 10 | Unknown action | 400 | `{"status":"error","message":"unknown_action"}` | PASS |
-| 11 | `POST` without same-origin proof (no `Origin`/`Referer`) | 403, CSRF guard | HTTP 403 | PASS |
+| 5 | Assign a requirement id that is not on the submitted `idSRS` (forged) | rejected, HTTP 400 | HTTP 400 `None of the selected requirements belong to the selected requirement specification`; the foreign requirement is never linked | PASS |
+| 6 | Assign with an empty `req_id` | HTTP 400, no write | `{"status":"error","message":"Nothing selected"}` HTTP 400 (was HTTP 200 before the code-review fix; the screen now renders the error message) | PASS |
+| 7 | `tsuite_id` of **Empty Suite** | 400, no write | `{"status":"error","message":"There are no test cases inside the selected test suite"}` | PASS |
+| 8 | Unknown `tsuite_id` | 404 | `{"status":"error","message":"Test suite not found"}` | PASS |
+| 9 | `POST` on `?action=init` | 405 | `{"status":"error","message":"POST required"}` | PASS |
+| 10 | Unknown action | 400 | `{"status":"error","message":"Unknown action"}` | PASS |
+| 11 | `POST` without same-origin proof (no `Origin`/`Referer`) | 403, CSRF guard | HTTP 403 `Forbidden: missing or mismatched same-origin proof (CSRF protection)` | PASS |
 | 12 | `GET` (safe verb) without same-origin proof | allowed | 200 | PASS |
 | 13 | `POST ?action=bulkassign` as **norights1595** | 403 | `{"status":"error","message":"You do not have rights to manage requirement / test case links"}` | PASS |
 | 14 | `POST ?action=unassign` 1 requirement x 3 test cases | `unassigned: 3` | `{"status":"ok","unassigned":3}`; the grid chip flips to "not linked" | PASS |
 | 15 | Unassign the same requirement again | idempotent | `unassigned: 0` | PASS |
-| 16 | Suite that belongs to another project / not in the project | 404 (no cross-project write) | verified with `tsuite_id=999999` and by the project check in `resolveCtx()` | PASS |
+| 16 | `linked_count` only counts links the grid can still act on | closed links are not counted | `linked_count` query is restricted to `link_status = LINK_TC_REQ_OPEN`, the same set `unassign` deletes, so chip and result can never disagree | PASS |
 
 **Result: 16/16 PASS** (Refs #1595)
 
@@ -21843,38 +21849,40 @@ Fixture `tmp/fixtures_1595.php` (re-runnable, DB is reset on every CI run):
 
 | # | Step | Expected | Actual | Result |
 |---|---|---|---|---|
-| 17 | Open `reqTcBulkAssign.html?tproject_id=19&tsuite_id=32` (admin) | full grid, no console errors | title/subtitle, toolbar (Refresh / Back to test specification / Close), warning bar, context card (project, suite, 3 deep test cases, spec selector), 4 rows | PASS |
-| 18 | Coverage chips | truthful per requirement | `1/3` (seeded), `not linked to any test case of this suite (3)`, `3/3` | PASS |
+| 17 | Open `reqTcBulkAssign.html?tproject_id=P&tsuite_id=SuiteA` (admin) | full grid, no console errors | title/subtitle, toolbar (Refresh / Back to test specification / Close), warning bar, context card (project, suite, 3 deep test cases, spec selector), 4 rows | PASS |
+| 18 | Coverage chips | truthful per requirement | `3/3 test cases of this suite already linked` / `not linked to any test case of this suite (3)` | PASS |
 | 19 | Check one row | counter + buttons enable | `1 of 4 requirements selected`, Assign + Unassign enabled, row highlighted | PASS |
 | 20 | "Check / uncheck all" | all rows, checkbox checked | `4 of 4 requirements selected`, `checkAll.checked = true` | PASS |
 | 21 | Uncheck one row after check-all | indeterminate state | `checkAll.indeterminate = true` | PASS |
 | 22 | Select none | buttons disabled, hint | `Please select at least one requirement`, both buttons `disabled` | PASS |
-| 23 | Assign -> confirm dialog | Bootstrap dialog with counts | "Confirm bulk assignment" / "Assign 4 selected requirement(s) to 3 test case(s) of Suite A (#32)?" | PASS |
-| 24 | Confirm | success message + refreshed chips | `8 assignments have been done` (2+3+3 new links), all chips `3/3` | PASS |
-| 25 | Unassign one requirement -> confirm | dialog + removal | "3 requirement / test case links have been removed", chip back to "not linked" | PASS |
+| 23 | Assign -> confirm dialog | Bootstrap 3 dialog with counts | `modal fade in` / "Assign 4 selected requirement(s) to 3 test case(s) of Suite A (#57)?" | PASS |
+| 24 | Confirm | success message + refreshed chips | `6 assignments have been done` (new links only), all chips `3/3` | PASS |
+| 25 | Unassign all -> confirm | dialog + removal | `12 requirement / test case links have been removed`, chips back to "not linked" | PASS |
 | 26 | Cancel via header `x` | dialog closes, no write | `modal fade` (hidden), `msg` empty, selection kept | PASS |
 | 27 | Cancel via `Cancel` button | same | `msg` empty, selection kept | PASS |
 | 28 | Switch the requirement spec to **RS-EMPTY** | empty state, no action possible | `reqCount: 0`, "There are no requirements on this specification.", action bar hidden | PASS |
-| 29 | Open the **Empty Suite** (id 34) | legacy "no test cases" warning | "Operation can not be done because there are no test cases inside the selected test suite.", `TEST CASES (DEEP) 0` | PASS |
-| 30 | Unknown suite `tsuite_id=999999` | 404 card | "The test suite could not be found in this test project.", context + grid hidden | PASS |
+| 29 | Open the **Empty Suite** | legacy "no test cases" warning + **disabled actions** | "Operation can not be done because there are no test cases inside the selected test suite.", `TEST CASES (DEEP) 0`; with 4/4 rows selected both Assign and Unassign stay `disabled` (legacy rendered no button at all) | PASS |
+| 30 | Unknown suite `tsuite_id` | 404 card | "The test suite could not be found in this test project.", context + grid hidden | PASS |
 | 31 | No context (`reqTcBulkAssign.html`) | precondition card | "Missing test project / test suite context." | PASS |
 | 32 | Anonymous (incognito, no session) | 401 card | "Your session has expired - please log in again." | PASS |
 | 33 | `norights1595` (no `req_tcase_link_management`) | 403 card | "Access denied: you have no rights to manage requirement / test case links on this test project." | PASS |
-| 34 | Locale switcher EN -> RO (`?locale=ro`) | whole screen localized | "Atribuire masivă a cerințelor", "Reîmprospătează", "Context", "SUITA DE TESTE", grid headers, footer | PASS |
-| 35 | Toolbar **Back to test specification** | links to the test spec screen | `/gui/templates/testcases/testSpec.html?tproject_id=19` | PASS |
+| 34 | Locale switcher EN -> RO | whole screen localized | "Atribuire masivă a cerințelor", "Reîmprospătează", "Context", grid headers, **footer "Atribuire masivă a cerințelor"** (now the translated `footers.reqTcBulkAssign` key) | PASS |
+| 35 | Toolbar **Back to test specification** | links to the test spec screen | `/gui/templates/testcases/testSpec.html?tproject_id=<P>` | PASS |
 | 36 | Toolbar **Refresh** | reloads the grid | chips and counters re-read from the API | PASS |
-| 37 | Legacy deep link `lib/requirements/reqTcAssign.php?id=32` | 302 to the modern screen | `Location: .../reqTcBulkAssign.html?tsuite_id=32&tproject_id=19&tplan_id=0` | PASS |
-| 38 | Legacy deep link without a session | redirect to login | `302` -> `login.php` | PASS |
+| 37 | Legacy deep link `lib/requirements/reqTcAssign.php?id=<SuiteA>` | 302 to the modern screen | `Location: .../reqTcBulkAssign.html?tsuite_id=<SuiteA>&tproject_id=<P>&tplan_id=0` | PASS |
+| 38 | Legacy deep link without a session | redirect to login | `302` -> `login.php` (the shim keeps the legacy `testlinkInitPage($db, false, false)` contract) | PASS |
+| 39 | **Requirement title row** (legacy parity fix) | a clickable icon opening the requirement version editor, as `openLinkedReqVersionWindow()` did | pencil link per row -> `/gui/templates/requirements/reqEdit.html?tproject_id=<P>&id=<req>&version_id=<req_version>`; tooltip/aria "Edit this requirement version" | PASS |
+| 40 | **Accessibility titles** | the checkboxes expose a description | `checkAll.title = "Check / uncheck all requirements"`, each row `title = "Select requirement BULK-1 [1]"` | PASS |
 
-**Result: 22/22 PASS** (Refs #1595)
+**Result: 24/24 PASS** (Refs #1595)
 
 ### 1595.3 Entry point from the Test Specification screen + bug #1596
 
 | # | Step | Expected | Actual | Result |
 |---|---|---|---|---|
-| 39 | `testSpec.html?tproject_id=19`, select the suite **Suite A** | "Requirements Bulk Assignment" button | button present after the #1596 fix; `openReqBulkAssign()` builds `reqTcBulkAssign.html?tproject_id=19&tsuite_id=32` | PASS |
-| 40 | Select the test case **BULK Session 01** | "Assign Requirements" button (pre-existing feature) | button present again after the #1596 fix (it was never rendered before) | PASS |
-| 41 | Both buttons hidden for a project without requirements / without the right | no button | condition `ctx.options.requirementsEnabled && grants['req_tcase_link_management']` | PASS |
+| 41 | `testSpec.html?tproject_id=<P>`, select the suite **Suite A** | "Requirements Bulk Assignment" button | button present after the #1596 fix; `openReqBulkAssign()` builds `reqTcBulkAssign.html?tproject_id=<P>&tsuite_id=<SuiteA>` | PASS |
+| 42 | Select the test case **BULK Session 01** | "Assign Requirements" button (pre-existing feature) | button present again after the #1596 fix (it was never rendered before) | PASS |
+| 43 | Both buttons hidden for a project without requirements / without the right | no button | condition `ctx.options.requirementsEnabled && grants['req_tcase_link_management']` | PASS |
 
 **Result: 3/3 PASS** (Refs #1595, #1596)
 
@@ -21882,67 +21890,47 @@ Fixture `tmp/fixtures_1595.php` (re-runnable, DB is reset on every CI run):
 
 | # | Step | Expected | Actual | Result |
 |---|---|---|---|---|
-| 42 | Bulk assign | one aggregated AUDIT event | `activity = ASSIGN`, `object_id = 32`, `object_type = testsuites`, description "Requirement with title '4 requirement(s) of Req Spec #20' was assigned to the Test Case 'Suite A (3 test cases)'" | PASS |
-| 43 | Bulk unassign | one aggregated AUDIT event | `activity = UNASSIGN`, `object_id = 32`, `object_type = testsuites` | PASS |
-| 44 | Re-running an assign that changes nothing | no new event | no `ASSIGN` row created (`$done > 0` guard) | PASS |
-| 45 | `events` table after the whole run | no ERROR/WARNING from the app | `SELECT ... WHERE log_level IN (10,20,30)` -> 0 rows (the 2 rows present are from the fixture script itself, not the app) | PASS |
-| 46 | Audit descriptions in the modern Event Viewer | localized text, not the raw DB payload | `GET /api/eventviewer/index.php/events` -> "Login for 'norights1595' from '127.0.0.1' succeeded" | PASS |
+| 44 | Bulk assign | one aggregated AUDIT event | `activity = ASSIGN`, `object_id = <SuiteA>`, `object_type = testsuites` | PASS |
+| 45 | Bulk unassign | one aggregated AUDIT event | `activity = UNASSIGN`, `object_id = <SuiteA>`, `object_type = testsuites` | PASS |
+| 46 | Re-running an assign that changes nothing | no new event | no `ASSIGN` row created (`$done > 0` guard) | PASS |
+| 47 | Denied rights (403) | the refused access is audited like the legacy `pageAccessCheck()` | 3 rows `activity = SECURITY`, `object_type = testprojects`, `object_id = <P>` (one per denied init/assign/unassign) | PASS |
+| 48 | `events` table after the whole run | no ERROR/WARNING from the app | `SELECT ... WHERE log_level IN (1,2)` -> **0 rows** | PASS |
+| 49 | Audit descriptions in the modern Event Viewer | localized text, not the raw DB payload | `GET /api/eventviewer/index.php/events` -> decoded meta strings | PASS |
 
-**Result: 5/5 PASS** (Refs #1595)
+**Result: 6/6 PASS** (Refs #1595)
 
-**Result: 46/46 PASS overall** for the screen. (Refs #1595)
+### 1595.5 Code-review security regressions (Refs #1595, after the mandatory review)
+
+| # | Step | Expected | Actual | Result |
+|---|---|---|---|---|
+| 50 | **XSS**: suite name = `S <img src=x onerror=window.__XSS1=1> $& $$1 "q"`, load the grid | the payload is shown as text, never parsed | warning box `textContent` contains the raw payload, `warnBox.querySelector('img') === null`, `window.__XSS1` undefined | PASS |
+| 51 | **XSS**: open the Assign confirm with the same suite name | the dialog body is escaped, `$&`/`$$1` are NOT treated as replacement patterns | `confirmBody.textContent` shows the literal payload, `confirmBody.querySelector('img') === null`, innerHTML shows `&lt;b&gt;` / `&lt;img ...&gt;` | PASS |
+| 52 | **XSS**: Unassign confirm with the same suite name | same | same result (shared `esc(fill(...))` helper) | PASS |
+| 53 | **IDOR**: `GET ?action=init&...&idSRS=<FOREIGN spec>` | 404, no data | `{"status":"error","message":"Requirement specification not found in this test project"}` | PASS |
+| 54 | **IDOR**: `POST ?action=bulkassign` with `idSRS=<FOREIGN spec>` + its requirement | 400, no write, no link created | `Requirement specification not found in this test project` | PASS |
+| 55 | **IDOR**: `POST ?action=unassign` with `idSRS=<FOREIGN spec>` + a **local** requirement | 400, existing local links untouched | same message; `req_coverage` unchanged | PASS |
+| 56 | **IDOR**: `idSRS` sent as a JSON array (type juggling) | cannot bypass the ownership check | the non-scalar value is ignored, the session/default spec is used, the foreign requirement is rejected | PASS |
+| 57 | **IDOR**: `idSRS` omitted -> the persisted `currentSrsId` is validated, not trusted | valid spec keeps working, foreign/removed one is rejected | `assign` with the session spec succeeded (200), the same call with the session pointing at the empty spec was rejected 400 | PASS |
+| 58 | **Node type**: `tsuite_id` = a **test case** node (legacy `edit=testcase` deep link) | must not silently resolve to the parent suite | 404 `Only a test suite can be bulk assigned` | PASS |
+| 59 | **Project option**: project with `requirementsEnabled = 0` | 400, the grid is not offered | `Requirements are not enabled on this test project` | PASS |
+| 60 | **Suite ownership**: suite id of another project | 404 | `Test suite not found in this test project` | PASS |
+| 61 | **Private project**: `globalonly1595` (global `req_tcase_link_management` via *senior tester*, **no role** on the private project) | 403 - legacy `pageAccessCheck()` semantics | HTTP 403. Control: `hasRight($db,'req_tcase_link_management',P)` returned `yes` while `hasRight(...,null,true)` returned `false`, so the old check leaked private-project access | PASS |
+| 62 | **CSRF** | unchanged | POST without `Origin`/`Referer` -> 403 | PASS |
+| 63 | **Response hardening** | JSON is never sniffed as HTML | `Content-Type: application/json; charset=utf-8` + `X-Content-Type-Options: nosniff` | PASS |
+
+**Result: 14/14 PASS** (Refs #1595)
+
+**Result: 63/63 PASS overall** for the screen. (Refs #1595)
 
 **Notes / out of scope:**
 - The aggregated audit description reuses the platform label `audit_req_assigned_tc`
   ("Requirement with title '%s' was assigned to the Test Case '%s'"), so the first `%s` carries
   "4 requirement(s) of Req Spec #20". Legacy `bulkAssignLatestREQVTCV()` wrote **no** audit event at
   all, so this is new (better) coverage; the wording is a platform-label limitation, not a defect.
+  The same label is used for UNASSIGN, exactly as the legacy controller did.
+- The `database` wrapper exposes no transaction API (no `beginTransaction`/`commit`), so the
+  unassign loop deletes coverage row by row - same as legacy. Documented in a code comment.
 - The PHP lang strings (`locale/*/strings.txt`) are untouched: the new screen is fully client-side
   i18n (`gui/templates/i18n/*.json`), the audit labels come from the platform meta strings.
 
 
-## Regression — Issue #1582: codetracker read-only table has mismatched delete cell
-
-Preconditions/fixtures: fresh TestLink database on MariaDB; TestLink 2.0.1 at
-`http://localhost:8082`; Test Project 2 (`I1582:Issue 1582 Project`) with
-trackers `1` (`Stash Tracker`), `2` (`GitHub TestLink`), and `3` (`Linked Stash`),
-and project link `(2,3)`. `ct_viewonly_1582` has only Code Tracker view right
-`52`; `admin` has management and view rights. Entry:
-`http://localhost:8082/lib/codetrackers/codeTrackerView.php?tproject_id=2`.
-
-### Test 1 — Pre-fix reproduction: read-only user receives four cells for three headers
-- **Steps:** Before the fix, log in as `ct_viewonly_1582` and request the entry URL.
-- **Expected:** The read-only table should have the same number of header and body columns, initialize DataTables, and expose no management controls.
-- **Actual (pre-fix, measured):** HTTP 200 rendered 3 headers but 4 cells in every row; the DataTables length control was absent and the console contained `TypeError: Cannot read properties of undefined (reading 'mData')`. PASS (bug reproduced).
-
-### Test 2 — Read-only populated list renders a valid three-column table
-- **Steps:** Load the entry URL as `ct_viewonly_1582` with all three trackers present.
-- **Expected:** Three headers and three cells per row; DataTables initializes; Create and management controls are hidden.
-- **Actual:** Headers=`3`, row cell counts=`[3,3,3]`, DataTables initialized=`true`, length option=`20`, Create=`false`, management links=`0`, delete icons=`0`, console messages=`0`. PASS.
-
-### Test 3 — Manager populated list preserves management and link-count gating
-- **Steps:** Load the same URL as `admin` with trackers `1–3` and link `(2,3)`.
-- **Expected:** Four headers and four cells per row; Create and edit links remain; delete icons appear only for unlinked trackers.
-- **Actual:** Headers=`4`, row cell counts=`[4,4,4]`, Create=`true`, management links=`6`, delete icons=`2`; the linked tracker has no delete icon. PASS.
-
-### Test 4 — Empty list does not initialize DataTables
-- **Steps:** Remove all tracker rows and the project link, reload the manager URL, then restore the exact fixture.
-- **Expected:** Empty state renders without a DataTables error; manager Create remains available.
-- **Actual:** HTTP 200, tracker rows=`0`, length control=`false`, Create=`true`, body text=`Code Trackers`, console messages=`0`; fixture restoration returned three trackers and exactly one link `(2,3)`. PASS.
-
-### Test 5 — Unauthorized user is still denied
-- **Steps:** Log in as temporary `ct_guest_1582` with no Code Tracker rights and request the entry URL directly.
-- **Expected:** The protected screen is not rendered and access is denied.
-- **Actual:** Browser resolved to `http://localhost:8082/` and rendered only the guest dashboard; no Code Tracker heading, table, or management controls appeared. Event Viewer recorded the expected INFO security audit. PASS.
-
-### Test 6 — Cache-bypassing second read-only reload is stable
-- **Steps:** Log in again as `ct_viewonly_1582` and request the entry URL with `issue1582_final=1` and cache ignored.
-- **Expected:** The corrected table renders again with no console errors.
-- **Actual:** HTTP 200, headers=`3`, row cell counts=`[3,3,3]`, DataTables initialized=`true`, length option=`20`, Create=`false`, management links=`0`, delete icons=`0`, console messages=`0`. PASS.
-
-### Test 7 — Event Viewer and static validation hygiene
-- **Steps:** Query `events` after the browser matrix; run PHP lint for the controller and generated Smarty output; run `git diff --check`.
-- **Expected:** No new Error/Warning events and all syntax/diff checks pass.
-- **Actual:** Event Viewer max id=`8`, `errors=0`, `warnings=0`; controller and generated-template PHP lint passed; `git diff --check` passed. PASS.
-
-**Result: 7/7 PASS. (Refs #1582)**

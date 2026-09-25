@@ -92,11 +92,38 @@ switcher.
    Viewer showed no object; they are now bound to the test suite
    (`object_id = <suite>`, `object_type = testsuites`) and are no longer written
    for a no-op.
+4. **Stored XSS (code review)** — the test-suite name was injected raw into the
+   warning bar and the confirm dialog. It is now escaped, and every placeholder
+   is filled with a replacer callback, so a name containing `$&`, `` $` `` or
+   `$'` is displayed literally and can never rewrite the sentence.
+5. **IDOR on `idSRS` (code review)** — the spec id was only validated as
+   `> 0`, so a spec of *another* test project could be read and its requirements
+   linked to (or unlinked from) this project's test cases. The spec is now
+   resolved against the current test project in `init` (request id *and* the
+   persisted session memory) and in both POST actions.
+6. **Private-project rights bypass (code review)** — the right was evaluated
+   without `getAccess`, so a user holding `req_tcase_link_management` through a
+   *global* role could act on a **private** project they are not a member of.
+   `hasRight(..., null, true)` (legacy `pageAccessCheck()` semantics) now
+   denies it, and the refusal is audited (`SECURITY` / `testprojects`).
+7. Smaller review fixes: `tsuite_id` must be a real test-suite node (a legacy
+   `edit=testcase` deep link no longer resolves to the parent suite), the project
+   must have requirements enabled, "nothing selected" is a 400 that the screen
+   renders, the actions stay disabled on a suite without test cases, the
+   `linked_count` chip only counts the open links `unassign` removes, the footer
+   uses the translated `footers.reqTcBulkAssign` key, every row regained the
+   legacy requirement-version editor link, the checkboxes have accessible
+   titles, and responses carry `charset=utf-8` + `nosniff`.
 
 ## Verification
 
-* Regression suite **1595: 46/46 PASS** in `tmp/TLU_Test_Cases.md`
-  (16 BFF contract + 22 browser states + 3 entry point + 5 Event Viewer).
+* Regression suite **1595: 63/63 PASS** in `tmp/TLU_Test_Cases.md`
+  (16 BFF contract + 24 browser states + 3 entry point + 6 Event Viewer +
+  14 security regressions: XSS suite name in the warning bar and in both
+  confirm dialogs, foreign-spec IDOR on init/assign/unassign, `idSRS` sent as a
+  JSON array, unvalidated session spec, test-case node as `tsuite_id`,
+  requirements-disabled project, private-project global-right bypass, CSRF and
+  response hardening).
 * Fixtures: `tmp/fixtures_1595.php` (project BULK1595, 2 specs, suite with 3
   deep test cases, empty suite, 1 seeded link) and `tmp/norights_1595.php`
   (user without `req_tcase_link_management`).
