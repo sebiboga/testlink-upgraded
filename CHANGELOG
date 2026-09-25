@@ -5545,6 +5545,23 @@ Changes:
       project tables and added user metrics to the middle section
 
 ## 2.0.1 (in-progress)
+### Gap closed — Event Viewer legacy deep link wired to modern screen (Refs #1579)
+- lib/events/eventviewer.php was the LAST controller in lib/** still rendering a
+  full standalone page (inline HTML + Chart.js, POST-driven). It is now a
+  session-guarded 302 shim (anon -> login, legacy testlinkInitPage contract) that
+  forwards object_id/object_type/tproject_id/tplan_id to the modern Dashio screen
+  gui/templates/eventviewer/eventviewer.html (Refs #872 + api/eventviewer BFF,
+  which gate mgt_view_events / events_mgt server-side).
+- gui/javascript/testlink_library.js showEventHistoryFor() no longer POSTs a
+  hidden form to the legacy controller — it opens eventviewer.html with
+  object_id/object_type query params (modern screens already had their own
+  showEventHistory() wiring); cfg/const.inc.php guiTopMenu[7] events entry
+  targets the modern screen. Browser-verified: 302 redirect with context,
+  object-filter rows render (empty + populated), unfiltered view + RO locale
+  switch work, anon -> login with destination preserved, Event Viewer clean
+  (0 ERROR/WARNING; walk-fixture color/notes WARNING rows fixed at source and
+  scrubbed). Suite 1579 8/8 PASS.
+
 ### Feature parity — Requirement Viewer New Revision button (Refs #1303)
 - reqView.html + api/requirements/index.php: restore the legacy New Revision
   button (reqViewVersionsViewer.tpl:106-111, doAction=doCreateRevision) dropped
