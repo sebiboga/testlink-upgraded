@@ -598,6 +598,10 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'view') {
     }
 
     // linked test cases (active coverage links for the current version)
+    // can_be_deleted: legacy 'remove' button gate (reqViewVersionsViewer.tpl:224-228)
+    // comes straight from requirement_mgr::getActiveForReqVersion()
+    // (requirement_mgr.class.php:4653-4654): 0 when the link was closed by
+    // execution, else the linked tcversion is_active flag.
     $coverage = [];
     $covRs = $reqMgr->getActiveForReqVersion($curVersionId);
     if (!empty($covRs)) {
@@ -609,6 +613,7 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'view') {
                 'tc_external_id' => $tc['tc_external_id'],
                 'tc_version' => intval($tc['version']),
                 'is_obsolete' => intval($tc['is_obsolete']) === 1,
+                'can_be_deleted' => intval($tc['can_be_deleted']) === 1,
             ];
         }
     }
@@ -695,6 +700,8 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'view') {
         'tproject_id' => $resolvedTid,
         'tproject_name' => $tproject_name,
         'tcase_prefix' => $tcasePrefix,
+        'glue_char' => config_get('testcase_cfg')->glue_character,
+        'piece_sep' => config_get('gui_title_separator_1'),
         'direct_link' => $_SESSION['basehref'] . 'gui/templates/links/directLink.html?tprojectPrefix=' .
             urlencode($tcasePrefix) . '&item=req&id=' . urlencode($cur['req_doc_id']),
         'req_id' => $reqId,
@@ -729,6 +736,11 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'view') {
         ],
         'cf_values' => $cfValues,
         'latest_version_id' => $latestVersionId,
+        // legacy $gui->canAddCoverage (reqCommands.class.php:109-115): coverage
+        // links may only be ADDED on the latest requirement version; non-latest
+        // versions are rendered with args_can_manage_coverage=false
+        // (reqViewVersions.tpl:496).
+        'can_manage_coverage' => ($curVersionId === $latestVersionId),
         'versions' => $versionList,
         'coverage' => $coverage,
         'coverage_qty' => $coverageQty,
@@ -736,6 +748,174 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'view') {
         'coverage_pct' => $coveragePct,
         'relations' => $relList,
         'monitors' => $monitorsList,
+    ]);
+}
+
+// ---------------------------------------------------------------------------
+// Coverage (test case link) management - Refs #1299
+// Port of lib/requirements/reqCommands.class.php::addTestCase()/removeTestCase()
+// as driven from the modern Requirement Viewer (reqView.html):
+//   POST   /coverage   { req_id, version_id, tcaseIdentity }
+//                      add a req_version <-> latest active tcversion link
+//   DELETE /coverage   { req_version_id, tcversion_id }
+//                      drop one link; identity is the LEGACY one,
+//                      (req_version_id, tcversion_id) - a test case may have
+//                      several linked versions, so tcase_id is NOT enough
+//                      (requirement_mgr::delReqVersionTCVersionLink,
+//                      requirement_mgr.class.php:4671-4699).
+//
+// Validation on add reproduces reqCommands.class.php:891-955 verbatim:
+// full external id required, project prefix enforced, unknown TC rejected,
+// and (when testcase_cfg->reqLinkingDisabledAfterExec) already executed
+// latest versions rejected.
+// ---------------------------------------------------------------------------
+if (($method === 'POST' || $method === 'DELETE') && isset($segments[0]) && $segments[0] === 'coverage') {
+    $body = getBody();
+    $reqId = intval($body['req_id'] ?? ($body['requirement_id'] ?? 0));
+    $versionId = intval($body['version_id'] ?? ($body['req_version_id'] ?? ($body['req_version_id'] ?? 0)));
+    if ($method === 'DELETE' && $versionId <= 0) {
+        $versionId = intval($body['req_version_id'] ?? 0);
+    }
+    $tcversionId = intval($body['tcversion_id'] ?? 0);
+    $tcaseIdentity = trim((string)($body['tcaseIdentity'] ?? ''));
+
+    if ($reqId <= 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'requirement id required']);
+    }
+
+    // requirement + owning project (a requirement knows its own project)
+    $reqRow = $db->get_recordset(
+        "SELECT REQ.id, REQ.srs_id, RS.testproject_id FROM requirements REQ " .
+        " JOIN req_specs RS ON RS.id = REQ.srs_id WHERE REQ.id = " . intval($reqId) . " LIMIT 1");
+    if (empty($reqRow)) {
+        http_response_code(404);
+        out(['status' => 'error', 'message' => 'Requirement not found']);
+    }
+    $covTid = intval($reqRow[0]['testproject_id']);
+
+    // legacy gate: $args_grants->req_tcase_link_management == "yes"
+    // (reqView.php:249 + reqViewVersionsViewer.tpl:226,253)
+    if (!$user->hasRight($db, 'req_tcase_link_management', $covTid)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission']);
+    }
+
+    $node = $reqMgr->tree_mgr->get_node_hierarchy_info($versionId);
+    if (empty($node) || $versionId <= 0 || intval($node['parent_id']) !== $reqId) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid requirement version']);
+    }
+    $lastVersion = $reqMgr->get_last_version_info($reqId, ['output' => 'id']);
+
+    if ($method === 'DELETE') {
+        // remove: legacy reqCommands::removeTestCase -> delReqVersionTCVersionLink
+        if ($tcversionId <= 0) {
+            http_response_code(400);
+            out(['status' => 'error', 'message' => 'tcversion id required']);
+        }
+        $covRs = $reqMgr->getActiveForReqVersion($versionId);
+        $deletable = false;
+        if (!empty($covRs)) {
+            foreach ($covRs as $row) {
+                if (intval($row['tcversion_id']) === $tcversionId) {
+                    $deletable = intval($row['can_be_deleted']) === 1;
+                    break;
+                }
+            }
+        }
+        if (!$deletable) {
+            // the remove button is not rendered for links that cannot be
+            // deleted (closed by execution / inactive version)
+            http_response_code(409);
+            out(['status' => 'error', 'message' => 'Link cannot be deleted']);
+        }
+        $done = $reqMgr->delReqVersionTCVersionLink(
+            ['req' => $versionId, 'tc' => $tcversionId], 'api/requirements/index.php');
+        if (!$done) {
+            http_response_code(409);
+            out(['status' => 'error', 'message' => 'Link not found']);
+        }
+        out(['status' => 'ok', 'action' => 'remove', 'req_version_id' => $versionId,
+             'tcversion_id' => $tcversionId]);
+    }
+
+    // ---- add --------------------------------------------------------------
+    // canAddCoverage (reqCommands.class.php:109-115): links may only be added
+    // on the latest requirement version.
+    if (intval($lastVersion['id']) !== $versionId) {
+        http_response_code(409);
+        out([
+            'status' => 'error',
+            'message' => 'Test case links can only be managed on the latest requirement version',
+            'message_key' => 'reqv.errNotLatestVersion',
+        ]);
+    }
+
+    $tcaseCfg = config_get('testcase_cfg');
+    $glueChar = $tcaseCfg->glue_character;
+    $tcasePrefix = $tprojectMgr->getTestCasePrefix($covTid);
+
+    $fail = function ($key, $msg) {
+        http_response_code(409);
+        out(['status' => 'error', 'message' => $msg, 'message_key' => $key]);
+    };
+
+    $statusOk = false;
+    $msg = '';
+    $msgKey = '';
+    $gluePos = strrpos($tcaseIdentity, $glueChar);
+    $isFullExternal = ($gluePos !== false);
+    if ($isFullExternal) {
+        $statusOk = true;
+        $rawPrefix = substr($tcaseIdentity, 0, $gluePos);
+        $statusOk = (strcmp($rawPrefix, $tcasePrefix) == 0);
+        if (!$statusOk) {
+            $msgKey = 'reqv.errOtherProject';
+            $msg = sprintf(lang_get('seems_to_belong_to_other_tproject'), $rawPrefix, $tcasePrefix);
+        }
+    } else {
+        $msgKey = 'reqv.errFullExternalId';
+        $msg = sprintf(lang_get('provide_full_external_tcase_id'), $tcasePrefix, $glueChar);
+    }
+
+    $tcaseId = 0;
+    $linkedVersionId = 0;
+    if ($statusOk) {
+        $tcMgr = new testcase($db);
+        $tcaseId = $tcMgr->getInternalID($tcaseIdentity, ['tproject_id' => $covTid]);
+        if ($tcaseId > 0) {
+            $doLink = true;
+            if ($tcaseCfg->reqLinkingDisabledAfterExec
+                && $tcMgr->latestVersionHasBeenExecuted($tcaseId)) {
+                $doLink = false;
+                $msgKey = 'reqv.errLinkExecuted';
+                $msg = sprintf(lang_get('cannot_link_latest_version_reason_has_been_exec'),
+                    $tcaseIdentity);
+            }
+            if ($doLink) {
+                // links the latest ACTIVE tcversion to the latest REQ version
+                // (requirement_mgr::assign_to_tcase, :1097-1170)
+                $linkedVersionId = intval($lastVersion['id']);
+                $reqMgr->assign_to_tcase($reqId, $tcaseId, intval($userId));
+            }
+        } else {
+            $msgKey = 'reqv.errTcaseMissing';
+            $msg = sprintf(lang_get('tcase_doesnot_exist'), $tcaseIdentity);
+        }
+    }
+
+    if ($msgKey !== '') {
+        $fail($msgKey, $msg);
+    }
+
+    out([
+        'status' => 'ok',
+        'action' => 'add',
+        'req_id' => $reqId,
+        'req_version_id' => $linkedVersionId,
+        'tcase_id' => intval($tcaseId),
+        'tcaseIdentity' => $tcaseIdentity,
     ]);
 }
 

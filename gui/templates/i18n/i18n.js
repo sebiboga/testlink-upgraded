@@ -254,11 +254,15 @@ var TLi18n = (function() {
 
   function getLocale() { return _locale; }
   function isLoaded() { return _loaded; }
+  // True when the key exists in the active bundle - lets callers fall back to
+  // a server-rendered string instead of echoing the raw key back to the user.
+  function has(key) { return Object.prototype.hasOwnProperty.call(_strings, key); }
 
   return {
     load: load,
     apply: apply,
     t: t,
+    has: has,
     setLocale: setLocale,
     getLocale: getLocale,
     isLoaded: isLoaded,
