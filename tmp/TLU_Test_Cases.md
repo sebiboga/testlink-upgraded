@@ -22076,3 +22076,42 @@ the two defects fixed in checkpoint 2 were corrected — they are the `$tables`-
 (`Undefined variable $tables` + `1064 SQL syntax error` at `api/requirements/index.php:907`).
 They are deliberately left in place as the evidence trail for those findings; every event
 written after the fix is `log_level=16`.
+
+### Review findings (code review of 19fadfe1b) — cases 976.26-976.33
+
+| # | Steps | Expected | Actual | Result |
+|---|---|---|---|---|
+| 976.26 | Inspect the write route: is `mgt_modify_req` checked on the **owning** project, like legacy `reqEdit.php:312-316` (`rightsAnd = ["mgt_view_req","mgt_modify_req"]` via `pageAccessCheck`)? | Yes — the router-level gate is *unscoped* (global role), so the per-project role must be re-checked | `api/requirements/index.php` now calls `hasRight($db,'mgt_view_req',$relOwnTid)` **and** `hasRight($db,'mgt_modify_req',$relOwnTid)`, 403 via `reqv.errNoPermission`; `grant.req_relations_rw` in `/view` also requires `mgt_modify_req`, so a read-only viewer sees no button/trash at all | PASS |
+| 976.27 | A user whose **global** role is leader/admin but whose **project** role is guest or tester: `POST /relation` on a requirement of that project | 403 — the global role must not grant a write the project role denies | `hasRight($db,'mgt_modify_req',$relOwnTid)` is evaluated against the project, so a tester/guest is refused | PASS |
+| 976.28 | Set a user's display name to `Bad" onmouseover="alert(1)` and reload the relations table (the *Set by* tooltip is built into a `title="…"` attribute by DataTables `innerHTML`) | Name rendered as inert text; `escapeHtml()` does **not** escape `"` so `escAttr()` is mandatory here | `escAttr()` now wraps every value interpolated into the tooltip (`reqv.titleCreated`, `creation_ts`, `by`, `author`) and both trash-icon tooltips; the file already had `escAttr()` (`reqView.html:794`) for exactly this | PASS |
+| 976.29 | Trigger the duplicate-relation error through the **UI** (not by reading the JSON) and read the message shown to the user | No literal `%s` — `TLi18n.t()` interpolates `{name}` only, so preferring `message_key` rendered `…("%s")…` | `relErrText()` now falls back to the server's formatted text whenever the translated key still contains `%`; rendered: `A relation of similar type ("is Parent or is Child") already exists between these two requirements.` | PASS |
+| 976.30 | `POST /relation` with a type id that is not configured (`relation_type:"99_source"`) | 400 — `get_relations()` silently drops rows with an unknown `relation_type` (`requirement_mgr.class.php:2591`), so accepting one would insert an invisible, undeletable orphan | `{code:400, message_key:"rel_add_invalid_type"}`, no `req_relations` row inserted | PASS |
+| 976.31 | With the **related** requirement's last version frozen (`REQ-GAMMA` v1 frozen), `DELETE /relation` on a relation pointing at it, while the *viewed* requirement is open | 409 — legacy renders the trash only when `rw && !$frozen_version && $relation.related_req.is_open` (`reqViewVersions.tpl:411`), the shipped `can_delete` flag was ignored by the write route | `{code:409, message_key:"reqv.errRelationDestFrozen"}`; the row is still in `req_relations` | PASS |
+| 976.32 | Column order of the relations table | Legacy header order is `#`, Type, Related Requirement, Status, **[In TestProject]**, Set by, [Delete] (`reqViewVersions.tpl:373-390`) — Project comes *after* Status | Project/Status swapped; `order` array and the `visible:false` target updated accordingly. With inter-project linking off the rendered headers are `# Relation Target Status Set by Delete` | PASS |
+| 976.33 | Re-run the full gates after the review fixes | `php -l`, `node --check`, 10× `json.tool`, and the whole 976.26-976.32 matrix | all clean; 33/33 PASS in suite 976 | PASS |
+
+**Suite 976 total: 33/33 PASS. (Refs #1298)**
+
+### Notes from the review round
+
+* The `$isAlien` gate now reads the project id from the **request context**
+  (`$_GET['tproject_id']`, then the session) instead of the JSON body. The client
+  always echoed back the *owning* project (`reqView.html` overwrites
+  `TPROJECT_ID = r.tproject_id` from `/view`, which is the owning one), so a
+  body-supplied id could never have made the gate fire — case 976.14 had passed
+  only because the request was hand-crafted.
+* The frozen-*viewed*-version gate is explicitly documented as mirroring a legacy
+  **display** gate, so the viewed `version_id` is the one value only the client
+  knows. The authoritative checks (project rights, relation ownership, related
+  requirement state) are all server-computed.
+* Two dead branches were removed rather than ported: the "destination doc id
+  still equals the placeholder label" check (the modern input is always cleared
+  and has its own `<label>`, so it could only misfire), and a missing relation
+  type that reported `reqv.loadError` ("Failed to load requirement") — nonsense
+  for a form validation error; it now reports `rel_add_invalid_type`.
+* `rel_add_error_dest_frozen` **is** defined in the legacy tree, but in only 5 of
+  its 19 locale files (`en_GB, fr_FR, ja_JP, pt_BR, pt_PT`). An earlier draft of
+  the docs and the CHANGELOG claimed it was absent everywhere; that was wrong
+  (the key was not found by grepping `locale/en_US/`, which is not the default
+  locale) and both documents were corrected. The i18n key is still worth having,
+  because it gives a real message to the other 14 locales.

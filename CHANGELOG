@@ -33,9 +33,12 @@ screen reaches full parity.
   re-checked server-side, and a check that a relation id really belongs to the
   requirement being viewed. Fixes the blocker where the card was hidden with
   zero relations, making the first relation impossible to create. 29 new i18n
-  keys in all 10 locale bundles, including `rel_add_error_dest_frozen` which is
-  missing from every legacy locale file (1.9.20 printed the raw key). Suite
-  passed 25/25. (Refs #1298)
+  keys in all 10 locale bundles, including `rel_add_error_dest_frozen`, which
+  the legacy tree defines in only 5 of its 19 locale files (so 1.9.20 printed the
+  raw key to a de/es/it/ro/ru/zh user). Suite passed 25/25, plus 8 more after the
+  code review (missing `mgt_modify_req` check, attribute-context XSS in the
+  author tooltip, literal `%s` in the duplicate-relation error, rogue relation
+  type accepted, delete allowed on a frozen related requirement). (Refs #1298)
 
 - [FEATURE GAP] - #1299: the modern Requirement Viewer restores the legacy test
   case link management of the Coverage fieldset

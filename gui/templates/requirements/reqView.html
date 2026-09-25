@@ -173,8 +173,8 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; }
             <th data-i18n="reqv.relId">ID</th>
             <th data-i18n="reqv.relType">Relation</th>
             <th data-i18n="reqv.relTarget">Target</th>
-            <th data-i18n="reqv.relProject" id="relProjectTh">Project</th>
             <th data-i18n="reqv.status">Status</th>
+            <th data-i18n="reqv.relProject" id="relProjectTh">Project</th>
             <th data-i18n="reqv.relSetBy">Set by</th>
             <th data-i18n="reqv.relDelete">Delete</th>
           </tr>
@@ -280,6 +280,10 @@ var API = '/api/requirements/index.php';
 var REQ_ID = 0;
 var VERSION_ID = 0;
 var TPROJECT_ID = 0;
+// the project the user NAVIGATED through - may differ from the owning project
+// ($isAlien in reqView.php:97-99). /view overwrites TPROJECT_ID with the OWNING
+// project, so the two must never share one variable.
+var CTX_TPROJECT_ID = 0;
 var SPEC_ID = 0;
 var EXPLICIT_VERSION = false;
 var META = null;
@@ -302,6 +306,7 @@ $(function() {
   VERSION_ID = parseInt(p.get('version_id') || p.get('req_version_id') || 0, 10);
   EXPLICIT_VERSION = p.has('version_id') || p.has('req_version_id');
   TPROJECT_ID = parseInt(p.get('tproject_id') || 0, 10);
+  CTX_TPROJECT_ID = TPROJECT_ID;
   TLi18n.load(function() {
     TLi18n.apply();
     TLi18n.initLocaleSwitcher('#localeSwitcher');
@@ -965,11 +970,11 @@ function renderRelations(r) {
     }
     // legacy: trash when rw && !frozen && related.is_open, otherwise the
     // disabled-delete image carrying img_title_relation_frozen (:411-419)
-    var delCell = canAdd && rel.can_delete
-      ? '<a href="javascript:void(0)" class="cov-ic cov-ic-del" title="' + TLi18n.t('reqv.clickDelRelation') +
+    var delCell = (REL_RW && rel.can_delete)
+      ? '<a href="javascript:void(0)" class="cov-ic cov-ic-del" title="' + escAttr(TLi18n.t('reqv.clickDelRelation')) +
         '" onclick="askDeleteRelation(' + rel.relation_id + ');"><i class="fa fa-trash"></i></a>'
       : '<i class="fa fa-trash cov-disabled" style="opacity:.25;cursor:not-allowed;" title="' +
-        TLi18n.t('reqv.relFrozen') + '"></i>';
+        escAttr(REL_RW ? TLi18n.t('reqv.relFrozen') : TLi18n.t('reqv.errRelationsReadOnly')) + '"></i>';
 
     rows.push([
       escapeHtml(String(rel.relation_id)),
@@ -977,17 +982,17 @@ function renderRelations(r) {
       '<a href="javascript:void(0)" onclick="openReq(' + rel.related_req_id + ',' + rel.related_version_id + ')">' +
         '<span class="id-chip" style="font-size:11px;">' + escapeHtml(rel.related_doc_id) + '</span> ' +
         escapeHtml(rel.related_title) + '</a>',
-      showProject ? escapeHtml(rel.related_tproject || '-') : '',
       escapeHtml(st || '-'),
+      showProject ? escapeHtml(rel.related_tproject || '-') : '',
       authorCell,
       delCell
     ]);
   });
-  var order = showProject ? [0, 1, 2, 3, 4, 5, 6] : [0, 1, 2, 4, 5, 6];
+  var order = showProject ? [0, 1, 2, 3, 4, 5, 6] : [0, 1, 2, 3, 5, 6];
   var columns = [];
   if (!showProject) {
     // hide the Project column without leaving a gap in the indexes above
-    columns.push({ targets: 3, visible: false });
+    columns.push({ targets: 4, visible: false });
   }
   relTable = $('#relTable').DataTable({
     data: rows,
@@ -1023,15 +1028,16 @@ function openAddRelation() {
 function addRelation() {
   var destDocId = $.trim($('#relDestDocId').val() || '');
   var relType = $('#relTypeSel').val() || '';
-  // legacy validate_req_docid_input() (reqViewVersions.tpl:110-121): only an
-  // empty / whitespace value or the untouched placeholder label is refused -
-  // requirement doc IDs are free-form strings
-  if (!destDocId || destDocId === TLi18n.t('reqv.relDestDocId')) {
+  // legacy validate_req_docid_input() (reqViewVersions.tpl:110-121) refuses an
+  // empty / whitespace value. The legacy second condition ("still equals the
+  // placeholder label") is not portable: the modern input is always cleared and
+  // carries its own <label>. Requirement doc IDs are free-form strings.
+  if (!destDocId) {
     showRelError(TLi18n.t('reqv.relDestDocId') + ' - ' + TLi18n.t('reqv.errDestIdInvalid'));
     return;
   }
   if (!relType) {
-    showRelError(TLi18n.t('reqv.relTypeLbl') + ' - ' + TLi18n.t('reqv.loadError'));
+    showRelError(TLi18n.t('reqv.relTypeLbl') + ' - ' + TLi18n.t('rel_add_invalid_type'));
     return;
   }
   $('#addRelSave').prop('disabled', true);
@@ -1046,7 +1052,9 @@ function addRelation() {
     body.destination_tproject_id = $('#relProjectSel').val() || TPROJECT_ID;
   }
   $.ajax({
-    url: API + '/relation', method: 'POST', contentType: 'application/json',
+    url: API + '/relation' + (CTX_TPROJECT_ID > 0 ? '?tproject_id=' + CTX_TPROJECT_ID : ''),
+    method: 'POST', contentType: 'application/json',
+    headers: { 'X-Requested-With': 'XMLHttpRequest' },
     data: JSON.stringify(body)
   }).done(function(res) {
     $('#addRelModal').modal('hide');
@@ -1072,7 +1080,9 @@ function confirmDeleteRelation() {
   if (!relationId) return;
   $('#delRelOk').prop('disabled', true);
   $.ajax({
-    url: API + '/relation', method: 'DELETE', contentType: 'application/json',
+    url: API + '/relation' + (CTX_TPROJECT_ID > 0 ? '?tproject_id=' + CTX_TPROJECT_ID : ''),
+    method: 'DELETE', contentType: 'application/json',
+    headers: { 'X-Requested-With': 'XMLHttpRequest' },
     data: JSON.stringify({ req_id: REQ_ID, version_id: VERSION_ID || 0,
                            tproject_id: TPROJECT_ID, relation_id: relationId })
   }).done(function(res) {
@@ -1095,8 +1105,14 @@ function relErrText(xhr) {
   var fallback = TLi18n.t('reqv.loadError');
   try {
     var j = JSON.parse(xhr.responseText);
-    if (j.message_key && TLi18n.t(j.message_key) !== j.message_key) {
-      return TLi18n.t(j.message_key);
+    if (j.message_key) {
+      var t = TLi18n.t(j.message_key);
+      // a key whose translation still carries a printf placeholder (e.g.
+      // rel_add_error_exists_already has %s, which TLi18n cannot interpolate) is
+      // useless here - the server already sent the formatted lang_get() text
+      if (t !== j.message_key && t.indexOf('%') === -1) {
+        return t;
+      }
     }
     return j.message || fallback;
   } catch (e) { return fallback; }

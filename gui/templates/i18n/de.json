@@ -4945,5 +4945,7 @@
   "rel_add_error_dest_frozen": "Die Zielversion der Anforderung ist eingefroren.",
   "new_rel_add_success": "Neue Beziehung wurde erfolgreich hinzugefügt.",
   "delete_rel_success": "Beziehung wurde erfolgreich gelöscht.",
-  "error_deleting_rel": "Beziehung konnte nicht gelöscht werden."
+  "error_deleting_rel": "Beziehung konnte nicht gelöscht werden.",
+  "rel_add_invalid_type": "Ungültiger Beziehungstyp.",
+  "reqv.errRelationDestFrozen": "Die Version der verknüpften Anforderung ist eingefroren."
 }

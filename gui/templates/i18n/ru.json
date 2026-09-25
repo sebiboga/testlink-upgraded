@@ -4951,5 +4951,7 @@
   "rel_add_error_dest_frozen": "Версия требования назначения заморожена.",
   "new_rel_add_success": "Новая связь успешно добавлена.",
   "delete_rel_success": "Связь успешно удалена.",
-  "error_deleting_rel": "Не удалось удалить связь."
+  "error_deleting_rel": "Не удалось удалить связь.",
+  "rel_add_invalid_type": "Неверный тип связи.",
+  "reqv.errRelationDestFrozen": "Версия связанного требования заморожена."
 }

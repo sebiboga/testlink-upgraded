@@ -4951,5 +4951,7 @@
   "rel_add_error_dest_frozen": "A versão do requisito de destino está congelada.",
   "new_rel_add_success": "Nova relação adicionada com sucesso.",
   "delete_rel_success": "Uma relação foi removida com sucesso.",
-  "error_deleting_rel": "Relação não pode ser removida."
+  "error_deleting_rel": "Relação não pode ser removida.",
+  "rel_add_invalid_type": "Tipo de relação inválido.",
+  "reqv.errRelationDestFrozen": "A versão do requisito relacionado está congelada."
 }

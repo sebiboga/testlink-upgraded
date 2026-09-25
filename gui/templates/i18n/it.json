@@ -4945,5 +4945,7 @@
   "rel_add_error_dest_frozen": "La versione del requisito di destinazione è congelata.",
   "new_rel_add_success": "Nuova relazione aggiunta con successo.",
   "delete_rel_success": "Relazione eliminata con successo.",
-  "error_deleting_rel": "Non è stato possibile eliminare la relazione."
+  "error_deleting_rel": "Non è stato possibile eliminare la relazione.",
+  "rel_add_invalid_type": "Tipo di relazione non valido.",
+  "reqv.errRelationDestFrozen": "La versione del requisito collegato è congelata."
 }
