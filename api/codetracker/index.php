@@ -115,7 +115,7 @@ function storedTrackerType($db, $id) {
     return $rows[0]['type'] ?? null;
 }
 
-function attachLinks($mgr, $id, &$item, $purgeDead) {
+function attachLinks($mgr, $id, &$item, $canPurge) {
     // Port of legacy initializeGui (lib/codetrackers/codeTrackerEdit.php:144-172,
     // issue #974). The 1.9.20 edit page did TWO things with the link table that
     // the modern BFF dropped:
@@ -130,12 +130,15 @@ function attachLinks($mgr, $id, &$item, $purgeDead) {
     //      testproject_id => testproject_name that the info-icon toggle renders
     //      as "Used on Test Project" / "Code Tracker Not Used (Linked)"
     //      (codeTrackerEdit.tpl:73-116,105-113).
-    // The purge is $purgeDead-gated so it fires ONLY where legacy ran it (the
-    // edit screen request, i.e. GET /{id}); write routes just report the current
-    // state so a create/update/delete response is never misleading.
+    // The purge is $canPurge-gated so it fires ONLY where legacy ran it AND only
+    // for the role legacy required: the edit screen was gated on
+    // codetracker_management (codeTrackerEdit.php:180-184), so a view-only user
+    // (right 52) must not be able to cause a DB write through a GET. The purge
+    // is idempotent self-healing, but "read routes never write for viewers" is
+    // the invariant the #970 write-gate established, so it is kept here too.
     // Same shape as the issue-tracker port (api/issuetracker/index.php:266-291,
     // issue #964) so all three integration screens behave identically.
-    if ($purgeDead) {
+    if ($canPurge) {
         $dead = $mgr->getLinks($id, array('getDeadLinks' => true));
         if ($dead) {
             foreach ($dead as $tpid => $dummy) {
@@ -147,7 +150,16 @@ function attachLinks($mgr, $id, &$item, $purgeDead) {
     $links = $mgr->getLinks($id);
     if (is_array($links)) {
         foreach ($links as $link) {
-            $item['links'][] = $link['testproject_name'];
+            // A dead row (its nodes_hierarchy node is gone) LEFT JOINs to a NULL
+            // name. A manager never sees one because the purge above just removed
+            // it, but a view-only caller must not be shown a phantom project
+            // either — and link_count must match what the grid shows for the same
+            // tracker, or the delete gating (#971) and this list would disagree.
+            $name = isset($link['testproject_name']) ? $link['testproject_name'] : null;
+            if ($name === null || $name === '') {
+                continue;
+            }
+            $item['links'][] = $name;
         }
     }
     $item['link_count'] = count($item['links']);
@@ -273,8 +285,10 @@ if ($method === 'GET' && isset($segments[0]) && is_numeric($segments[0]) && coun
     if (!$item) { http_response_code(404); out(['status' => 'error', 'message' => 'Code tracker not found']); }
     // The request the edit modal makes, so this is where legacy initializeGui()
     // ran: purge dead links, then return the linked test-project names that the
-    // used-by toggle renders (issue #974 — see attachLinks()).
-    attachLinks($mgr, $id, $item, true);
+    // used-by toggle renders (issue #974 — see attachLinks()). The purge is a
+    // write, so it is limited to codetracker_management exactly like the legacy
+    // edit page; a view-only caller still gets the (read-only) links list.
+    attachLinks($mgr, $id, $item, $canManage);
     out(['status' => 'ok', 'item' => trackerToJSON($item, $mgr, $canManage)]);
 }
 

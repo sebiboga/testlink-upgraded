@@ -58,7 +58,7 @@ screen reaches full parity.
   `Code Tracker Not Used (Linked)` note (`codeTrackerEdit.tpl:73-116,163-180`);
   project names are escaped per the issue #1581 rule, and the toggle is
   `codetracker_management`-gated like the whole legacy edit page. 3 new i18n
-  keys in all 10 locale bundles; suite 974 passed 12/12, Event Viewer delta zero.
+  keys in all 10 locale bundles; suite 974 passed 15/15, Event Viewer delta zero.
   (Refs #974)
 
 - [FEATURE GAP] - #973: the modern Code Trackers screen restores the legacy

@@ -22003,6 +22003,21 @@ and project link `(2,3)`. `ct_viewonly_1582` has only Code Tracker view right
 | 974.9 | Insert a dead link `(999,1)` (no `nodes_hierarchy` row), then `GET /api/codetracker/index.php/1` | Dead row purged (legacy `initializeGui`), no NULL name, count not inflated | `links:["CT Demo Project"]`, `link_count:1`, `testproject_codetracker` = only `(1,1)` | PASS |
 | 974.10 | Reload the grid with a linked tracker; then `PUT`, `POST`, `DELETE` the tracker | Grid: 1 row, delete icon **hidden** (link gating), edit icon present; every write response reports the real `links` | `rows:1, deleteIcon:0, editIcon:1`; `putLinks:["CT Demo Project"]`, `putLinkCount:1`; `postLinks:[]`; `delLinks:[]` | PASS |
 | 974.11 | `php -l api/codetracker/index.php`; `node --check` on the inline script; `python3 -m json.tool` on all 10 bundles | All clean | no syntax errors / JS OK / 10× OK | PASS |
-| 974.12 | Event Viewer: `SELECT COUNT(*) FROM events WHERE log_level IN (1,2)` after the matrix | No new Error/Warning | see checkpoint 3/3 | PASS |
+| 974.12 | Event Viewer: `SELECT COUNT(*) FROM events WHERE log_level IN (1,2)` after the matrix | No new Error/Warning | `events_total=1` (a `log_level=16` LOGIN row), `err_warn=0` | PASS |
+| 974.13 | Login as a **view-only** user (role holding only right 52 `codetracker_view`, no `codetracker_management`) on the screen: edit icons, Create button, Actions column | No manage affordances at all (legacy: the edit page did not exist for viewers) | `editIcons:0`, `createBtnVisible:false`; a forced `toggleUsedBy()` call is refused by the `canManage` guard (`outerVisible:false`, envelope empty) | PASS |
+| 974.14 | As the view-only user, with a DEAD link row `(999,1)` present, call `GET /api/codetracker/index.php/1` | Read succeeds with truthful data: no phantom `null` project, `link_count` not inflated — and **no DB write** (the purge is a management-only operation) | `links:["CT Demo Project","<img …>Proj & Co"]`, `link_count:2`; `testproject_codetracker` still contained `(999,1)` afterwards; `cfg` still `""` (#1576 leak gate intact) | PASS |
+| 974.15 | As `admin` (management), call `GET /api/codetracker/index.php/1` with the same dead row present | Dead row purged (legacy `initializeGui`), list clean | `links` = the 2 real projects, `link_count:2`; row `(999,1)` gone from `testproject_codetracker` | PASS |
 
-**Result: 12/12 PASS. (Refs #974)**
+**Result: 15/15 PASS. (Refs #974)**
+
+### Notes from cases 974.13-974.15 (added by the code review)
+
+The first implementation purged dead links on **every** `GET /{id}` — including for a
+view-only user, i.e. it turned a read route into a DB write that legacy reserved for
+`codetracker_management` holders (`lib/codetrackers/codeTrackerEdit.php:180-184`).
+Case 974.14 then exposed a second defect: a dead row LEFT JOINs to a **NULL** name, so a
+viewer was shown a phantom `null` project and an inflated `link_count` (measured
+`links:[… ,null]`, `link_count:3`). Fix: the purge is `$canManage`-gated and dead rows
+are filtered out of the returned list for everybody, so viewers get truthful data and
+`link_count` always matches what the grid shows for that tracker (the delete gating of
+#971 can no longer disagree with the used-by list).

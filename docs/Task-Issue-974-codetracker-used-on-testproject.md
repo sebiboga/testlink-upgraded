@@ -46,8 +46,15 @@ one without it.
     `link_count` is never inflated;
   - then `links[] = testproject_name` for each remaining row, and
     `link_count = count(links)`.
-- `GET /{id}` calls `attachLinks(..., true)` — this is the request the edit modal makes,
-  i.e. exactly where legacy ran the purge.
+- `GET /{id}` calls `attachLinks(..., $canManage)` — this is the request the edit modal
+  makes, i.e. exactly where legacy ran the purge. The purge is a **write**, and legacy
+  reserved the edit page for `codetracker_management` holders
+  (`codeTrackerEdit.php:180-184`), so it is limited to managers: a view-only caller
+  (right 52) can no longer cause a DB write through a read route.
+- Dead rows are filtered out of the returned list for everybody (a dead row LEFT JOINs
+  to a NULL name). A manager never sees one because the purge just removed it, but a
+  viewer would otherwise be shown a phantom project and an inflated `link_count` — which
+  could disagree with the grid's delete gating (#971).
 - `POST` (create), `PUT` (update) and `DELETE` call `attachLinks(..., false)` so a write
   response is never misleading (a tracker that has links reports them; the deleted one
   reports its pre-delete state, which is what the legacy delete form showed to explain
@@ -86,7 +93,7 @@ reformat):
 
 ## Verification
 
-Test suite: `tmp/TLU_Test_Cases.md` → **974.1–974.12, 12/12 PASS** (tooltip, linked
+Test suite: `tmp/TLU_Test_Cases.md` → **974.1–974.15, 15/15 PASS** (tooltip, linked
 state, toggle on/off/on, unlinked state, create-modal state, Romanian locale, XSS in a
 project name, BFF `links`, dead-link purge, grid + write-route regression, syntax
 gates, Event Viewer). `events` gained **1** row (a normal `log_level=16` activity from
