@@ -132,19 +132,19 @@ table.reqgrid tbody tr.sel { background: #e8f8f2; }
     <div class="modal-content">
       <div class="modal-header" style="background:#4ECDC4;color:#fff;">
         <h5 class="modal-title" style="font-size:15px;font-weight:700;" id="confirmTitle"></h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" style="filter:invert(1);"></button>
+        <button type="button" class="close" data-dismiss="modal" data-target="#confirmModal" aria-label="Close" style="opacity:1;"><span aria-hidden="true">&times;</span></button>
       </div>
       <div class="modal-body" style="font-size:13px;" id="confirmBody"></div>
       <div class="modal-footer" style="padding:10px 16px;">
-        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal" data-i18n="common.cancel">Cancel</button>
+        <button type="button" class="btn btn-default btn-sm" data-dismiss="modal" data-target="#confirmModal" data-i18n="common.cancel">Cancel</button>
         <button type="button" class="btn-teal btn-sm" id="confirmOk"></button>
       </div>
     </div>
   </div>
 </div>
 
-<script src="/gui/templates/dashio/lib/jquery/jquery.min.js"></script>
-<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.bundle.min.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
 <script src="/gui/templates/i18n/i18n.js"></script>
 <script>
 var API = '/api/reqtcbassign/index.php';
@@ -306,10 +306,9 @@ function confirmThen(title, body, okLabel, fn) {
   $('#confirmTitle').text(title);
   $('#confirmBody').html(body);
   $('#confirmOk').text(okLabel);
-  var modalEl = document.getElementById('confirmModal');
-  var m = window.bootstrap.Modal.getOrCreateInstance(modalEl);
-  $('#confirmOk').off('click').on('click', function () { m.hide(); fn(); });
-  m.show();
+  // the vendored bootstrap in this repo is v3.4.1 (jQuery plugin API)
+  $('#confirmOk').off('click').on('click', function () { $('#confirmModal').modal('hide'); fn(); });
+  $('#confirmModal').modal('show');
 }
 
 function post(action, ids, done) {
