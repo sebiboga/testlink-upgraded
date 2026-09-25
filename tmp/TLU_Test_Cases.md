@@ -21980,44 +21980,58 @@ and project link `(2,3)`. `ct_viewonly_1582` has only Code Tracker view right
 
 **Result: 7/7 PASS. (Refs #1582)**
 
-## 974. Task — "used on test project" block in the code-tracker edit modal (Refs #974)
 
-**Feature under test:** the legacy 1.9.20 edit-screen used-by block — an `fa-info-circle` toggle next to the Name field that lists every test project a code tracker is linked to ("Used on Test Project" + one name per line) or the italics "Code Tracker Not Used (Linked)" note, plus the dead-link purge `initializeGui()` performed on page load (legacy `lib/codetrackers/codeTrackerEdit.php:144-172`, `gui/templates/dashio/codetrackers/codeTrackerEdit.tpl:73-116,163-180`).
+## Regression — Issue #1585: reqmgrsystem read-only table has mismatched delete cell
 
-**Preconditions / fixtures** (fresh DB, seeded by SQL):
-- `nodes_hierarchy` 1 `CT Demo Project` (node_type 1) + `testprojects` 1 (`CTP`, `code_tracker_enabled=1`).
-- `codetrackers` 1 `CT Demo Tracker` type 1 (stash/rest), cfg `<codetracker><uribase>https://git.example.com/</uribase><apikey>demo-key</apikey></codetracker>`.
-- `testproject_codetracker` (1,1) — and, for the XSS case, project 2 named `<img src=x onerror=alert(1)>Proj & Co`.
-- Login `admin/admin` (role 8: `codetracker_view` + `codetracker_management`); page `/gui/templates/codetracker/codetrackerView.html`.
+Preconditions/fixtures: fresh TestLink database on MariaDB (`testlink` /
+`testlink`); TestLink 2.0.1 at `http://localhost:8082`; fixture created by
+`php tmp/fixtures_1585.php`, which inserts Test Project 1 (`RM1585`,
+`reqmgr_integration_enabled=1`), Requirement Manager Systems 1
+(`ReqMgr 1585 unlinked`) and 2 (`ReqMgr 1585 linked`) of type `contour`
+(`Interface: soap`), the project link `(1,2)` that gives system 2 a
+`link_count = 1`, role 20 `reqmgr view only` holding **only** right 34
+(`reqmgrsystem_view`, right 33 `reqmgrsystem_management` deliberately absent),
+user `rmreadonly` / `rmreadonly` bound to that role, and the negative control
+user `rmguest` / `rmguest` on role 3 `<no rights>`. `admin` / `admin` holds
+both reqmgrsystem rights. Entry point:
+`http://localhost:8082/lib/reqmgrsystems/reqMgrSystemView.php`
+(the legacy 1.9.20 controller accepts `reqmgrsystem_view` OR
+`reqmgrsystem_management`, so the view-only user legitimately reaches it).
+`link_count` is the number of `testproject_reqmgrsystem` links, not SRS links.
 
-| # | Steps | Expected | Actual | Result |
-|---|---|---|---|---|
-| 974.1 | Open the screen, click the pencil on `CT Demo Tracker` | Modal opens; an `fa-info-circle` next to Name with tooltip "Show/Hide (Linked to Project)"; used-by block hidden | `#btnUsedBy` present, `title="Show/Hide (Linked to Project)"`, `#usedByOuter` hidden | PASS |
-| 974.2 | Click the info-circle | Block shows `Used on Test Project` + `CT Demo Project` | `<b>Used on Test Project</b><br>CT Demo Project` | PASS |
-| 974.3 | Click it twice more (off / on) | Collapses, then re-expands with the list intact (no empty shell) | `true → false → true`, envelope unchanged | PASS |
-| 974.4 | Empty `testproject_codetracker`, re-open the edit modal, toggle | Italics note instead of a list | `<b><i>Code Tracker Not Used (Linked)</i></b>` | PASS |
-| 974.5 | Click **Create Code Tracker**, toggle the info-circle | Same note (a new tracker has no links) | `<b><i>Code Tracker Not Used (Linked)</i></b>`, `#editTrackerId` = `""` | PASS |
-| 974.6 | Reload the page with `?locale=ro_RO`, edit + toggle | Romanian strings from `ro.json`, no raw key | `title="Arată/Ascunde (Legat de proiect)"`, envelope `Urmăritor de cod neutilizat (nelegat)` | PASS |
-| 974.7 | Link the tracker to project 2 (`<img src=x onerror=alert(1)>Proj & Co`), edit + toggle with `window.alert` stubbed | Name rendered as inert text, no script execution | `innerHTML` `&lt;img src=x onerror=alert(1)&gt;Proj &amp; Co`, 0 `img` nodes, 0 `alert` calls | PASS |
-| 974.8 | `curl GET /api/codetracker/index.php/1` (linked) | `links:["CT Demo Project"]`, `link_count:1` | as expected | PASS |
-| 974.9 | Insert a dead link `(999,1)` (no `nodes_hierarchy` row), then `GET /api/codetracker/index.php/1` | Dead row purged (legacy `initializeGui`), no NULL name, count not inflated | `links:["CT Demo Project"]`, `link_count:1`, `testproject_codetracker` = only `(1,1)` | PASS |
-| 974.10 | Reload the grid with a linked tracker; then `PUT`, `POST`, `DELETE` the tracker | Grid: 1 row, delete icon **hidden** (link gating), edit icon present; every write response reports the real `links` | `rows:1, deleteIcon:0, editIcon:1`; `putLinks:["CT Demo Project"]`, `putLinkCount:1`; `postLinks:[]`; `delLinks:[]` | PASS |
-| 974.11 | `php -l api/codetracker/index.php`; `node --check` on the inline script; `python3 -m json.tool` on all 10 bundles | All clean | no syntax errors / JS OK / 10× OK | PASS |
-| 974.12 | Event Viewer: `SELECT COUNT(*) FROM events WHERE log_level IN (1,2)` after the matrix | No new Error/Warning | `events_total=1` (a `log_level=16` LOGIN row), `err_warn=0` | PASS |
-| 974.13 | Login as a **view-only** user (role holding only right 52 `codetracker_view`, no `codetracker_management`) on the screen: edit icons, Create button, Actions column | No manage affordances at all (legacy: the edit page did not exist for viewers) | `editIcons:0`, `createBtnVisible:false`; a forced `toggleUsedBy()` call is refused by the `canManage` guard (`outerVisible:false`, envelope empty) | PASS |
-| 974.14 | As the view-only user, with a DEAD link row `(999,1)` present, call `GET /api/codetracker/index.php/1` | Read succeeds with truthful data: no phantom `null` project, `link_count` not inflated — and **no DB write** (the purge is a management-only operation) | `links:["CT Demo Project","<img …>Proj & Co"]`, `link_count:2`; `testproject_codetracker` still contained `(999,1)` afterwards; `cfg` still `""` (#1576 leak gate intact) | PASS |
-| 974.15 | As `admin` (management), call `GET /api/codetracker/index.php/1` with the same dead row present | Dead row purged (legacy `initializeGui`), list clean | `links` = the 2 real projects, `link_count:2`; row `(999,1)` gone from `testproject_codetracker` | PASS |
+### Test 1 — Pre-fix reproduction: read-only user gets four cells for three headers
+- **Steps:** Before the fix, sign in as `rmreadonly` in a clean browser context and request the entry URL, then count `<th>` of the first row and `<td>` of every body row of `table.simple_tableruler`.
+- **Expected:** The read-only table should honour the same column contract as the manager table — one header per cell — and expose no management controls.
+- **Actual (pre-fix, measured):** HTTP 200, `thCount:3` (`["Req. Management System","Type","Environment"]`) but `tdCounts:[4,4]`; the extra cell was an empty `<td class="clickable_icon">`; `createBtn:false`; console messages: none. PASS (bug reproduced, screenshot `docs/screenshots/issue-1585-before-readonly-3th-4td.png`).
 
-**Result: 15/15 PASS. (Refs #974)**
+### Test 2 — Read-only populated list renders a valid three-column table
+- **Steps:** Hard-reload the entry URL as `rmreadonly` (cache ignored) with both systems present.
+- **Expected:** Three headers and three cells per row; no empty trailing cell; no Create button, no wrench/check-status icons, no delete icon.
+- **Actual:** `thCount:3`, `tdCounts:[3,3]`, rows `["ReqMgr 1585 linked","contour (Interface: soap)",""]` and `["ReqMgr 1585 unlinked","contour (Interface: soap)",""]`, `createBtn:false`, console errors/warnings: 0. PASS (screenshot `docs/screenshots/issue-1585-after-readonly-3th-3td.png`).
 
-### Notes from cases 974.13-974.15 (added by the code review)
+### Test 3 — Manager list keeps four columns and the link_count gate
+- **Steps:** Load the entry URL as `admin` with systems 1 and 2 and the project link `(1,2)`.
+- **Expected:** Four headers and four cells per row; Create present; the delete icon rendered for the unlinked system only, and the linked system keeps an empty delete cell (no icon).
+- **Actual:** `thCount:4` (`[..., "delete"]`), row cell counts `[4,4]`, `createBtn:true`; `ReqMgr 1585 linked` (link_count 1) → `lastCellHasIcon:false`, cell HTML `""`; `ReqMgr 1585 unlinked` (link_count 0) → `lastCellHasIcon:true`, cell HTML `<span ... onclick="delete_confirmation…">`. PASS.
 
-The first implementation purged dead links on **every** `GET /{id}` — including for a
-view-only user, i.e. it turned a read route into a DB write that legacy reserved for
-`codetracker_management` holders (`lib/codetrackers/codeTrackerEdit.php:180-184`).
-Case 974.14 then exposed a second defect: a dead row LEFT JOINs to a **NULL** name, so a
-viewer was shown a phantom `null` project and an inflated `link_count` (measured
-`links:[… ,null]`, `link_count:3`). Fix: the purge is `$canManage`-gated and dead rows
-are filtered out of the returned list for everybody, so viewers get truthful data and
-`link_count` always matches what the grid shows for that tracker (the delete gating of
-#971 can no longer disagree with the used-by list).
+### Test 4 — Empty list renders without table and keeps manager Create
+- **Steps:** `DELETE FROM reqmgrsystems`, hard-reload the manager URL, then restore the fixture (`php tmp/fixtures_1585.php` + re-insert the link `(1,2)`) and reload again.
+- **Expected:** No malformed/empty table and no error when the list is empty; the Create button stays available for the manager; the restored list returns to the Test 3 state.
+- **Actual:** Empty state: HTTP 200, `hasTable:false`, `createBtn:true`, no error text. After restore: `thCount:4`, `tdCounts:[4,4]`, `createBtn:true`, `ReqMgr 1585 linked` back in the DOM, console errors/warnings: 0. PASS.
+
+### Test 5 — Unauthorized user is still denied
+- **Steps:** In a fresh isolated browser context sign in as `rmguest` (role 3, no reqmgrsystem rights) and request the entry URL directly.
+- **Expected:** `checkRights()` denies the screen; no Requirement Manager table is rendered.
+- **Actual:** The browser resolved to `http://localhost:8082/` (no protected screen), `hasTable:false`, no "Req. Management System" heading. Event Viewer recorded the expected INFO audit `audit_security_user_right_missing`. PASS.
+
+### Test 6 — Cache-bypassing second read-only reload is stable
+- **Steps:** Sign in as `rmreadonly` in a clean context and request the entry URL with a cache-busting query string.
+- **Expected:** The corrected three-column grid renders again with no console errors.
+- **Actual:** HTTP 200, `thCount:3`, `tdCounts:[3,3]`, `createBtn:false`, console errors/warnings: 0. PASS.
+
+### Test 7 — Event Viewer, log and static hygiene
+- **Steps:** Inspect the `events` table and `tmp/php_server.log` after the full matrix; run the Smarty `{/if}` balance gate and `git diff --check`.
+- **Expected:** No new Error/Warning entries caused by the fix; all five `reqMgrSystemView.php` requests return 200; template gates pass.
+- **Actual:** All requests `[200]`; `events` contains only level 16 INFO audit rows (`audit_login_succeeded`, `audit_security_user_right_missing`) plus level 2 rows whose description is the `include_once(contoursoapInterface.class.php)` warning produced by this fixture's `contour` system type — a pre-existing, separately tracked defect (**#1593**), identical before and after the change; no PHP Warning/Error/Fatal added to `tmp/php_server.log`. `{if ` = 9 and `{/if}` = 9 in the template; `git diff --check` clean. PASS.
+
+**Result: 7/7 PASS. (Refs #1585)**
