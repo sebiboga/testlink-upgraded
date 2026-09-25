@@ -20680,48 +20680,61 @@ BFF copy/delete routes, and preserve exact-version editing. Fixture: test projec
 
 **Result: 7/7 PASS. (Refs #1300)**
 
-## Regression — Issue #1582: codetracker read-only table has mismatched delete cell
+## Suite 1583 — Platforms Export standalone screen and BFF
 
-Preconditions/fixtures: fresh TestLink database on MariaDB; TestLink 2.0.1 at
-`http://localhost:8082`; Test Project 2 (`I1582:Issue 1582 Project`) with
-trackers `1` (`Stash Tracker`), `2` (`GitHub TestLink`), and `3` (`Linked Stash`),
-and project link `(2,3)`. `ct_viewonly_1582` has only Code Tracker view right
-`52`; `admin` has management and view rights. Entry:
-`http://localhost:8082/lib/codetrackers/codeTrackerView.php?tproject_id=2`.
+### Test 1 — Live launcher and project context
+- **Steps:** Open Platforms Management for disposable project `PEXPR` and click
+  **Export Platforms**.
+- **Expected:** The standalone export screen loads with the selected project.
+- **Actual:** `platformsExport.html?tproject_id=915801` loaded in the Dashio
+  shell and reported two defined platforms. PASS.
 
-### Test 1 — Pre-fix reproduction: read-only user receives four cells for three headers
-- **Steps:** Before the fix, log in as `ct_viewonly_1582` and request the entry URL.
-- **Expected:** The read-only table should have the same number of header and body columns, initialize DataTables, and expose no management controls.
-- **Actual (pre-fix, measured):** HTTP 200 rendered 3 headers but 4 cells in every row; the DataTables length control was absent and the console contained `TypeError: Cannot read properties of undefined (reading 'mData')`. PASS (bug reproduced).
+### Test 2 — Filename validation and safe download naming
+- **Steps:** Submit an empty filename, then export with
+  `a/b name <regression>.xml`.
+- **Expected:** Empty input is blocked and unsafe characters are sanitized.
+- **Actual:** Empty input showed the required-name error. The second download
+  was named `a_bname_regression_.xml`. PASS.
 
-### Test 2 — Read-only populated list renders a valid three-column table
-- **Steps:** Load the entry URL as `ct_viewonly_1582` with all three trackers present.
-- **Expected:** Three headers and three cells per row; DataTables initializes; Create and management controls are hidden.
-- **Actual:** Headers=`3`, row cell counts=`[3,3,3]`, DataTables initialized=`true`, length option=`20`, Create=`false`, management links=`0`, delete icons=`0`, console messages=`0`. PASS.
+### Test 3 — Legacy-compatible populated XML
+- **Steps:** Inspect the populated export with an XML parser.
+- **Expected:** Every platform and the five legacy XML fields are present.
+- **Actual:** Valid XML contained both platforms with `name`, `notes`,
+  `enable_on_design`, `enable_on_execution`, and `is_open`, including escaped
+  special characters. PASS.
 
-### Test 3 — Manager populated list preserves management and link-count gating
-- **Steps:** Load the same URL as `admin` with trackers `1–3` and link `(2,3)`.
-- **Expected:** Four headers and four cells per row; Create and edit links remain; delete icons appear only for unlinked trackers.
-- **Actual:** Headers=`4`, row cell counts=`[4,4,4]`, Create=`true`, management links=`6`, delete icons=`2`; the linked tracker has no delete icon. PASS.
+### Test 4 — Empty project
+- **Steps:** Open the export for disposable project `PEMPTY` and download it.
+- **Expected:** A warning is shown and valid zero-platform XML is downloaded.
+- **Actual:** The empty warning rendered and the downloaded XML parsed with
+  zero platform records. PASS.
 
-### Test 4 — Empty list does not initialize DataTables
-- **Steps:** Remove all tracker rows and the project link, reload the manager URL, then restore the exact fixture.
-- **Expected:** Empty state renders without a DataTables error; manager Create remains available.
-- **Actual:** HTTP 200, tracker rows=`0`, length control=`false`, Create=`true`, body text=`Code Trackers`, console messages=`0`; fixture restoration returned three trackers and exactly one link `(2,3)`. PASS.
+### Test 5 — Romanian localization
+- **Steps:** Load the export with the Romanian locale.
+- **Expected:** All screen controls and labels are localized.
+- **Actual:** The screen rendered in Romanian using the 29 `pexp.*` keys. PASS.
 
-### Test 5 — Unauthorized user is still denied
-- **Steps:** Log in as temporary `ct_guest_1582` with no Code Tracker rights and request the entry URL directly.
-- **Expected:** The protected screen is not rendered and access is denied.
-- **Actual:** Browser resolved to `http://localhost:8082/` and rendered only the guest dashboard; no Code Tracker heading, table, or management controls appeared. Event Viewer recorded the expected INFO security audit. PASS.
+### Test 6 — Invalid project
+- **Steps:** Request an unknown Test Project.
+- **Expected:** A structured project error with a Back action is shown.
+- **Actual:** The fatal project state rendered without a JavaScript exception. PASS.
 
-### Test 6 — Cache-bypassing second read-only reload is stable
-- **Steps:** Log in again as `ct_viewonly_1582` and request the entry URL with `issue1582_final=1` and cache ignored.
-- **Expected:** The corrected table renders again with no console errors.
-- **Actual:** HTTP 200, headers=`3`, row cell counts=`[3,3,3]`, DataTables initialized=`true`, length option=`20`, Create=`false`, management links=`0`, delete icons=`0`, console messages=`0`. PASS.
+### Test 7 — Authentication and rights
+- **Steps:** Request init/download anonymously and with a no-rights user.
+- **Expected:** Anonymous access returns 401; insufficient access returns 403.
+- **Actual:** Both BFF responses and the corresponding UI states matched. PASS.
 
-### Test 7 — Event Viewer and static validation hygiene
-- **Steps:** Query `events` after the browser matrix; run PHP lint for the controller and generated Smarty output; run `git diff --check`.
-- **Expected:** No new Error/Warning events and all syntax/diff checks pass.
-- **Actual:** Event Viewer max id=`8`, `errors=0`, `warnings=0`; controller and generated-template PHP lint passed; `git diff --check` passed. PASS.
+### Test 8 — Navigation and documentation
+- **Steps:** Exercise Refresh and Cancel/Back; verify the documentation target.
+- **Expected:** Navigation preserves project context and docs opens correctly.
+- **Actual:** Refresh completed successfully, Cancel/Back returned to Platforms
+  Management, and the documentation link uses the legacy guide. PASS.
 
-**Result: 7/7 PASS. (Refs #1582)**
+### Test 9 — Static checks and Event Viewer hygiene
+- **Steps:** Run PHP/JavaScript checks, validate all locale JSON, inspect browser
+  console/server output, and query Error/Warning events.
+- **Expected:** Checks pass without new errors or warnings.
+- **Actual:** PHP and JavaScript checks passed, all 10 JSON bundles parsed, and
+  no unexpected JavaScript exception or new server Error/Warning was found. PASS.
+
+**Result: 9/9 PASS. (Refs #1583)**
