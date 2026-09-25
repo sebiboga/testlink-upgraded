@@ -179,7 +179,9 @@ var TLi18n = (function() {
     // jQuery. typeof 'object' keeps arrays + plain objects working.
     if (params && typeof params === 'object') {
       $.each(params, function(k, v) {
-        str = str.replace(new RegExp('\\{' + k + '\\}', 'g'), v);
+        // replacement function, not a string: a typed value containing $& or
+        // $` would otherwise be expanded as a replacement pattern
+        str = str.replace(new RegExp('\\{' + k + '\\}', 'g'), function() { return v; });
       });
     }
     return str;

@@ -29,8 +29,10 @@ screen reaches full parity.
   prefix check, the already-executed-TC block, the `req_tcase_link_management`
   right and the audit trail. The screen gained the add-link modal, the per-row
   remove button, the execution-history and design icons, the obsolete tooltip and
-  the legacy `PREFIX-ID : name` label. 16 new i18n keys in all 10 locale
-  bundles; the 13-case suite passed 13/13. (Refs #1299)
+  the legacy `PREFIX-ID : name` label. 20 new i18n keys in all 10 locale
+  bundles; the suite passed 13/13 plus 5/5 after the code review (latent XSS in
+  the remove handler, silent `assign_to_tcase()` failure, unlocalized DELETE
+  errors). (Refs #1299)
 
 - [FEATURE GAP] - #972: the modern Code Trackers screen restores the legacy
   manager-only per-tracker connection check. A wrench now runs the stored BFF

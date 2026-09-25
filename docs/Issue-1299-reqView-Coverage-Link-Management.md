@@ -92,3 +92,27 @@ i18n completeness and Event Viewer hygiene. Only AUDIT events were produced by
 the app.
 
 Fixture: `php tmp/fixtures_1299.php` (project `COV1299`, prefix `COV`).
+
+## Code review (subagent) and the fixes it produced
+
+A review of `api/requirements/index.php`, `gui/templates/requirements/reqView.html` and
+`gui/templates/i18n/i18n.js` found **no blocker** (no SQL injection - all ids `intval()`ed,
+`bffSameOriginGuard()` covers POST+DELETE, the rights check derives the project from the
+requirement and ignores the client-supplied `tproject_id`) and confirmed the legacy
+identity, the latest-version gate and the add validation line-for-line. Fixed:
+
+| Severity | Finding | Fix |
+|---|---|---|
+| MAJOR | the test case external id was interpolated into a single-quoted `onclick` argument, where HTML entity escaping does not survive the HTML parser (latent stored XSS, currently unreachable because the column is `int unsigned`) | the icon now carries `data-cov-ext` and the handler takes the element: `onclick="removeCoverageLink(this, 11)"` (`reqView.html:691-699,788`) |
+| MAJOR | `assign_to_tcase()` returns 0 when it inserts nothing, but the route always answered `ok` -> a false "link added" toast | the return value is checked; the link is then re-read and only a genuinely missing link fails with `reqv.errLinkFailed` (already-linked stays a silent no-op) (`index.php:900-921`) |
+| MAJOR | the four DELETE/403 error paths returned no `message_key` and the client surfaced them with a native `alert()` in English | added `reqv.errLinkNotDeletable`, `reqv.errLinkNotFound`, `reqv.errLinkFailed`, `reqv.errNoPermission` to all 10 bundles; the client renders them with `showToast()` + `covMessage()` (`index.php:801,832,839`, `reqView.html:788-812`) |
+| MINOR | duplicated `req_version_id` nesting made the DELETE fallback dead code | collapsed to `$body['version_id'] ?? $body['req_version_id'] ?? 0` |
+| MINOR | `intval($lastVersion['id'])` would warn on a requirement without versions; `$lastVersion` was computed for the DELETE path too | `?? 0` guard, and the call moved into the add branch |
+| MINOR | the version guard ran after `get_node_hierarchy_info()` | guard hoisted above the call |
+| MINOR | `/view` derived `latest_version_id` from `MAX(version)` while the gate uses `get_last_version_info()`, so a version-number tie could show a button the server rejects | `/view` now asks `get_last_version_info()` as well |
+| MINOR | `$&` / `` $` `` in a typed value were expanded as replacement patterns in `TLi18n.t()` | `str.replace()` now takes a replacement function (`i18n.js:181-183`) |
+| MINOR | dead `#covFeedback` node, unused `tproject_id` in the add body, no in-flight guard on remove, no Enter submit | node removed, field dropped, `covBusy` flag + `disabled` class added, keydown binding added |
+
+Post-review re-verification (5 extra cases, `tmp/TLU_Test_Cases.md` 1299.4) - all PASS;
+`php -l`, `node --check` and `python3 -m json.tool` clean; no new Error/Warning in the
+Event Viewer.

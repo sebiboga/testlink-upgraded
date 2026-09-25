@@ -128,7 +128,6 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; }
       <button id="addLinkBtn" class="btn-teal" style="display:none;margin-left:auto;padding:4px 12px;font-size:12px;"><i class="fa fa-plus"></i> <span data-i18n="reqv.addLinkToTestCase">Add link to test case</span></button>
     </div>
     <div class="card-body">
-      <div id="covFeedback" class="cov-feedback" style="display:none;"></div>
       <div id="noCov" class="empty-state" style="display:none;" data-i18n="reqv.noCoverage"></div>
       <table id="covTable" class="display" style="width:100%;display:none;">
         <thead>
@@ -191,10 +190,12 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; }
       <div class="modal-body">
         <div class="form-group" style="margin-bottom:8px;">
           <label style="font-size:12px;font-weight:600;" data-i18n="reqv.tcIdentity">Test case external ID *</label>
+          <form id="addLinkForm" onsubmit="return false;">
           <input type="text" id="tcaseIdentityInput" class="form-control" style="font-size:13px;" autocomplete="off">
           <div style="font-size:11px;color:#777;margin-top:4px;" data-i18n="reqv.tcIdentityHelp">Full external ID, project prefix included.</div>
         </div>
         <div id="addLinkError" class="cov-feedback cov-feedback-err" style="display:none;"></div>
+          </form>
       </div>
       <div class="modal-footer" style="border-top:1px solid #e5e5e5;">
         <button type="button" class="btn btn-secondary" data-dismiss="modal" style="font-size:13px;" data-i18n="common.cancel">Cancel</button>
@@ -225,6 +226,7 @@ var DIRECT_LINK = '';
 var GLUE_CHAR = '-';
 var TCASE_PREFIX = '';
 var covTable = null;
+var covBusy = false;
 var relTable = null;
 var monitorsTable = null;
 
@@ -688,9 +690,14 @@ function renderCoverage(r) {
       '<a href="javascript:void(0)" class="cov-ic" title="' + escAttr(TLi18n.t('reqv.design')) +
       '" onclick="openTCEdit(' + t.tcase_id + ')"><i class="fa fa-pencil"></i></a>';
     if (canLink && t.can_be_deleted) {
-      actions += '<a href="javascript:void(0)" class="cov-ic cov-ic-del" title="' +
-        escAttr(TLi18n.t('reqv.removeLinkToTestCase')) + '" onclick="removeCoverageLink(' +
-        t.tcversion_id + ', \'' + escAttr(t.tc_external_id || '') + '\')"><i class="fa fa-unlink"></i></a>';
+      // the external id is read back from data-cov-ext instead of being
+      // interpolated into the inline handler: HTML entity escaping does not
+      // survive the HTML parser inside an event-handler attribute, so a
+      // crafted value could break out of the JS string argument.
+      actions += '<a href="javascript:void(0)" class="cov-ic cov-ic-del" data-cov-ext="' +
+        escAttr(t.tc_external_id || '') + '" title="' +
+        escAttr(TLi18n.t('reqv.removeLinkToTestCase')) + '" onclick="removeCoverageLink(this, ' +
+        t.tcversion_id + ')"><i class="fa fa-unlink"></i></a>';
     }
     rows.push([
       escapeHtml(t.tc_external_id || '-'),
@@ -735,6 +742,20 @@ function openAddLink() {
   setTimeout(function() { $('#tcaseIdentityInput').focus(); }, 300);
 }
 
+// legacy submitted the add form with Enter (reqViewVersionsViewer.tpl:262).
+// A keydown binding is used instead of relying on implicit form submission:
+// this form has no submit button, which browsers refuse to submit on Enter.
+$('#addLinkForm').on('submit', function(e) {
+  e.preventDefault();
+  addCoverageLink();
+});
+$('#tcaseIdentityInput').on('keydown', function(e) {
+  if (e.key === 'Enter' || e.keyCode === 13) {
+    e.preventDefault();
+    addCoverageLink();
+  }
+});
+
 function addCoverageLink() {
   var identity = $.trim($('#tcaseIdentityInput').val() || '');
   var expected = TCASE_PREFIX;
@@ -754,8 +775,7 @@ function addCoverageLink() {
     data: JSON.stringify({
       req_id: REQ_ID,
       version_id: VERSION_ID,
-      tcaseIdentity: identity,
-      tproject_id: TPROJECT_ID
+      tcaseIdentity: identity
     }),
     success: function(r) {
       $('#addLinkSave').prop('disabled', false);
@@ -776,8 +796,17 @@ function addCoverageLink() {
   });
 }
 
-function removeCoverageLink(tcversionId, extId) {
-  if (!window.confirm(TLi18n.t('reqv.removeLinkConfirm', { id: extId }))) return;
+function removeCoverageLink(el, tcversionId) {
+  var extId = $(el).data('cov-ext');
+  if (!covBusy) {
+    covBusy = true;
+    $(el).addClass('disabled');
+  }
+  if (!window.confirm(TLi18n.t('reqv.removeLinkConfirm', { id: extId }))) {
+    covBusy = false;
+    $(el).removeClass('disabled');
+    return;
+  }
   $.ajax({
     url: API + '/coverage',
     method: 'DELETE',
@@ -785,14 +814,21 @@ function removeCoverageLink(tcversionId, extId) {
     headers: { 'X-Requested-With': 'XMLHttpRequest' },
     data: JSON.stringify({ req_id: REQ_ID, version_id: VERSION_ID, tcversion_id: tcversionId }),
     success: function(r) {
-      if (r.status !== 'ok') { alert(r.message || TLi18n.t('reqv.loadError')); return; }
+      if (r.status !== 'ok') {
+        covBusy = false;
+        $(el).removeClass('disabled');
+        showToast(covMessage(r.message_key, { id: extId }, r.message), false);
+        return;
+      }
       showToast(TLi18n.t('reqv.linkRemoved'), true);
       loadView();
     },
     error: function(xhr) {
-      var msg = TLi18n.t('reqv.loadError');
-      try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
-      alert(msg);
+      covBusy = false;
+      $(el).removeClass('disabled');
+      var r = {};
+      try { r = JSON.parse(xhr.responseText); } catch(e) {}
+      showToast(covMessage(r.message_key, { id: extId }, r.message), false);
     }
   });
 }

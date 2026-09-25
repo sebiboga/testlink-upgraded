@@ -691,6 +691,13 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'view') {
         }
     }
 
+    // the add gate below uses get_last_version_info() - ask the same source so
+    // the button and the server cannot disagree on a version-number tie
+    $lastInfo = $reqMgr->get_last_version_info($reqId, ['output' => 'id']);
+    if (!empty($lastInfo['id'])) {
+        $latestVersionId = intval($lastInfo['id']);
+    }
+
     $modifiedNever = is_null($cur['modification_ts'])
         || $cur['modification_ts'] == '0000-00-00 00:00:00';
 
@@ -772,10 +779,7 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'view') {
 if (($method === 'POST' || $method === 'DELETE') && isset($segments[0]) && $segments[0] === 'coverage') {
     $body = getBody();
     $reqId = intval($body['req_id'] ?? ($body['requirement_id'] ?? 0));
-    $versionId = intval($body['version_id'] ?? ($body['req_version_id'] ?? ($body['req_version_id'] ?? 0)));
-    if ($method === 'DELETE' && $versionId <= 0) {
-        $versionId = intval($body['req_version_id'] ?? 0);
-    }
+    $versionId = intval($body['version_id'] ?? ($body['req_version_id'] ?? 0));
     $tcversionId = intval($body['tcversion_id'] ?? 0);
     $tcaseIdentity = trim((string)($body['tcaseIdentity'] ?? ''));
 
@@ -798,15 +802,19 @@ if (($method === 'POST' || $method === 'DELETE') && isset($segments[0]) && $segm
     // (reqView.php:249 + reqViewVersionsViewer.tpl:226,253)
     if (!$user->hasRight($db, 'req_tcase_link_management', $covTid)) {
         http_response_code(403);
-        out(['status' => 'error', 'message' => 'No permission']);
+        out(['status' => 'error', 'message' => 'No permission',
+             'message_key' => 'reqv.errNoPermission']);
     }
 
-    $node = $reqMgr->tree_mgr->get_node_hierarchy_info($versionId);
-    if (empty($node) || $versionId <= 0 || intval($node['parent_id']) !== $reqId) {
+    if ($versionId <= 0) {
         http_response_code(400);
         out(['status' => 'error', 'message' => 'Invalid requirement version']);
     }
-    $lastVersion = $reqMgr->get_last_version_info($reqId, ['output' => 'id']);
+    $node = $reqMgr->tree_mgr->get_node_hierarchy_info($versionId);
+    if (empty($node) || intval($node['parent_id']) !== $reqId) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid requirement version']);
+    }
 
     if ($method === 'DELETE') {
         // remove: legacy reqCommands::removeTestCase -> delReqVersionTCVersionLink
@@ -828,13 +836,15 @@ if (($method === 'POST' || $method === 'DELETE') && isset($segments[0]) && $segm
             // the remove button is not rendered for links that cannot be
             // deleted (closed by execution / inactive version)
             http_response_code(409);
-            out(['status' => 'error', 'message' => 'Link cannot be deleted']);
+            out(['status' => 'error', 'message' => 'Link cannot be deleted',
+                 'message_key' => 'reqv.errLinkNotDeletable']);
         }
         $done = $reqMgr->delReqVersionTCVersionLink(
             ['req' => $versionId, 'tc' => $tcversionId], 'api/requirements/index.php');
         if (!$done) {
             http_response_code(409);
-            out(['status' => 'error', 'message' => 'Link not found']);
+            out(['status' => 'error', 'message' => 'Link not found',
+                 'message_key' => 'reqv.errLinkNotFound']);
         }
         out(['status' => 'ok', 'action' => 'remove', 'req_version_id' => $versionId,
              'tcversion_id' => $tcversionId]);
@@ -843,7 +853,8 @@ if (($method === 'POST' || $method === 'DELETE') && isset($segments[0]) && $segm
     // ---- add --------------------------------------------------------------
     // canAddCoverage (reqCommands.class.php:109-115): links may only be added
     // on the latest requirement version.
-    if (intval($lastVersion['id']) !== $versionId) {
+    $lastVersion = $reqMgr->get_last_version_info($reqId, ['output' => 'id']);
+    if (intval($lastVersion['id'] ?? 0) !== $versionId) {
         http_response_code(409);
         out([
             'status' => 'error',
@@ -896,8 +907,27 @@ if (($method === 'POST' || $method === 'DELETE') && isset($segments[0]) && $segm
             if ($doLink) {
                 // links the latest ACTIVE tcversion to the latest REQ version
                 // (requirement_mgr::assign_to_tcase, :1097-1170)
-                $linkedVersionId = intval($lastVersion['id']);
-                $reqMgr->assign_to_tcase($reqId, $tcaseId, intval($userId));
+                $linkedVersionId = intval($lastVersion['id'] ?? 0);
+                if (!$reqMgr->assign_to_tcase($reqId, $tcaseId, intval($userId))) {
+                    // assign_to_tcase() answers 0 when it inserted nothing, either
+                    // because the latest test case version is inactive
+                    // (:1112-1115) or because the link already exists
+                    // (:1150-1168 is idempotent). Only the first case is an
+                    // error; the second is the legacy "already linked" no-op and
+                    // must stay silent, so the state decides.
+                    $alreadyLinked = false;
+                    foreach ((array)$reqMgr->getActiveForReqVersion($linkedVersionId) as $covRow) {
+                        if (intval($covRow['testcase_id'] ?? 0) === $tcaseId) {
+                            $alreadyLinked = true;
+                            break;
+                        }
+                    }
+                    if (!$alreadyLinked) {
+                        $fail('reqv.errLinkFailed',
+                            sprintf(lang_get('cannot_link_latest_version_reason_has_been_exec'),
+                                $tcaseIdentity));
+                    }
+                }
             }
         } else {
             $msgKey = 'reqv.errTcaseMissing';
