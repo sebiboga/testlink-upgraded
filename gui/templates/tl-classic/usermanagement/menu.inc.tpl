@@ -5,11 +5,14 @@ include to generate menu when managing users and roles
 *}
 
 {* Action managed via menu *}
+{* Legacy lib/usermanagement/usersAssign.php was deleted (Refs #947): the
+   modern Assign Project/Plan Roles screens reached full parity and honour
+   tproject_id/tplan_id, so the menu links point at them directly. *}
 {$lib = 'lib/usermanagement'}
 {$act['view_users']['url'] = $lib|cat:'/usersView.php'}
 {$act['view_roles']['url'] = $lib|cat:'/rolesView.php'}
-{$act['assign_users_tproject']['url'] = $lib|cat:'/usersAssign.php?featureType=testproject'}
-{$act['assign_users_tplan']['url'] = $lib|cat:'/usersAssign.php?featureType=testplan'}
+{$act['assign_users_tproject']['url'] = "gui/templates/usermanagement/usersAssignProject.html?tproject_id={$gui->tproject_id}"}
+{$act['assign_users_tplan']['url'] = "gui/templates/usermanagement/usersAssignPlan.html?tproject_id={$gui->tproject_id}&tplan_id={$gui->tplan_id}"}
 
 
 {lang_get var="menuLbl"

@@ -18,7 +18,7 @@ some smarty and javascript variables are created on the inc_*.tpl files.
 {$createAction="$managerURL?do_action=create"}
 {$exportAction="lib/plan/planExport.php?tplan_id="}
 {$importAction="lib/plan/planImport.php?tplan_id="}
-{$assignRolesAction="lib/usermanagement/usersAssign.php?featureType=testplan&featureID="}
+{$assignRolesAction="gui/templates/usermanagement/usersAssignPlan.html?tplan_id="}
 {$gotoExecuteAction="lib/general/frmWorkArea.php?feature=executeTest&tplan_id="}
 
 {include file="plan/planView.labels.tpl"}

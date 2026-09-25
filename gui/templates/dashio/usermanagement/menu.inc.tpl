@@ -17,8 +17,8 @@ CTX {$context}
 {$lib = 'lib/usermanagement'}
 {$act['view_users']['url'] = $lib|cat:'/usersView.php?'}
 {$act['view_roles']['url'] = $lib|cat:'/rolesView.php?'}
-{$act['assign_users_tproject']['url'] = $lib|cat:'/usersAssign.php?featureType=testproject&'}
-{$act['assign_users_tplan']['url'] = $lib|cat:'/usersAssign.php?featureType=testplan&'}
+{$act['assign_users_tproject']['url'] = 'gui/templates/usermanagement/usersAssignProject.html?'}
+{$act['assign_users_tplan']['url'] = 'gui/templates/usermanagement/usersAssignPlan.html?'}
 
 
 {lang_get var="menuLbl"

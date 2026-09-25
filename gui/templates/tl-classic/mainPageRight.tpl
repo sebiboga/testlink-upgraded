@@ -22,7 +22,7 @@
 {$mileView="lib/plan/planMilestonesView.php"}
 {$platformAssign="lib/platforms/platformsAssign.php?tplan_id="}
 
-{$usersAssign="lib/usermanagement/usersAssign.php?featureType=testplan&featureID="}
+{$usersAssign="gui/templates/usermanagement/usersAssignPlan.html?tplan_id="}
 
 {$menuLayout=$tlCfg->gui->layoutMainPageRight}
 {$display_right_block_1=false}

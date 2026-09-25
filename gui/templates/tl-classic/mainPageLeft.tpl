@@ -73,7 +73,7 @@
 {$aStyle="padding: 3px 15px;font-size:16px"}
 
 {$projectView="lib/project/projectView.php"}
-{$usersAssign="lib/usermanagement/usersAssign.php?featureType=testproject&featureID="}
+{$usersAssign="gui/templates/usermanagement/usersAssignProject.html?tproject_id="}
 {$cfAssignment="lib/cfields/cfieldsTprojectAssign.php"}
 {$keywordsAssignment="lib/keywords/keywordsView.php?tproject_id="}
 {$platformsView="lib/platforms/platformsView.php?tproject_id="}

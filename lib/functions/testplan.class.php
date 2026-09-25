@@ -8240,8 +8240,16 @@ class testplan extends tlObjectWithAttachments
     $act->exportAction = "lib/plan/planExport.php?$impex";
     $act->importAction = "lib/plan/planImport.php?$impex";
 
-    $act->assignRolesAction = 
-      "lib/usermanagement/usersAssign.php?featureType=testplan$ent&featureID=";
+    // Legacy lib/usermanagement/usersAssign.php was deleted (Refs #947): the
+    // Assign Test Plan Roles screen reached full parity (#935-#946) and the
+    // modern one honours the same tproject_id/tplan_id params (#945). Point
+    // the legacy planView/planEdit "assign roles" link at it instead of the
+    // removed file, mirroring api/plans/index.php assignRolesAction.
+    $tprojectId = property_exists($context,'tproject_id')
+                    ? intval($context->tproject_id) : 0;
+    $act->assignRolesAction =
+      "gui/templates/usermanagement/usersAssignPlan.html?tproject_id=" .
+      $tprojectId . "&tplan_id=";
     $act->gotoExecuteAction = 
       "lib/general/frmWorkArea.php?feature=executeTest$entProj";
 

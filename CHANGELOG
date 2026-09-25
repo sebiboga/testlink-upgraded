@@ -591,6 +591,33 @@ screen reaches full parity.
   leader — injected verbatim, ignored by browsers). No i18n (no new strings).
   Suite 946 7/7 PASS, Event Viewer clean. (Refs #946)
 
+- [CLEANUP] - #947: the legacy Assign Test Project/Plan Roles controller is
+  deleted now that both modern screens are at parity. Removed
+  lib/usermanagement/usersAssign.php (18 898 B, served BOTH contexts off the
+  featureType param: testproject -> row 5 gaps #924-#932, testplan -> row 6
+  gaps #935-#946) plus its two Smarty templates
+  gui/templates/dashio/usermanagement/usersAssign.tpl and
+  gui/templates/tl-classic/usermanagement/usersAssign.tpl. The modern action
+  map (lib/functions/common.php:1887-1889) and api/plans/index.php:112-114
+  already pointed at usersAssignProject.html / usersAssignPlan.html, so nothing
+  in the modern UI reached the deleted file; every function in it
+  (init_args, checkRights, checkRightsForUpdate, getTestProjectEffectiveRoles,
+  getTestPlanEffectiveRoles[NEW], doUpdate, initializeGui, initLabels) was
+  file-local, and the shared .tpl includes it pulled in (inc_head, inc_ext_js,
+  bootstrap, DataTables, menu.inc, inc_update) are all still used elsewhere.
+  Every surviving legacy entry point was retargeted at the modern screens
+  instead of 404ing: testplan::getViewActions() assignRolesAction
+  (testplan.class.php:8243, now also carrying the real tproject_id the modern
+  plan screen needs per #945), the dashio + tl-classic usermanagement
+  menu.inc.tpl and tabsmenu.tpl, tl-classic planView.tpl:21 and
+  mainPageLeft/Right.tpl. The ~60 "Legacy parity: usersAssign.php:NNN"
+  comments across api/roles/index.php, testplan.class.php,
+  testproject.class.php and both modern screens are KEPT as the audit trail
+  for the #924-#946 batch. Verified: php -l clean, real Smarty 4.5.7 compile
+  of all 7 edited templates 7/7 OK with the correct generated URLs, repo-wide
+  grep leaves no live reference. No i18n / BFF / DB change. Docs:
+  docs/Task-Issue-947-Delete-Legacy-UsersAssign.md. (Refs #947)
+
 MAJOR AREAS
 -----------
 
