@@ -210,6 +210,16 @@ function trackerToJSON($item, $mgr, $canManage) {
         'type' => intval($item['type']),
         'typeLabel' => $typeLabel,
         'typeDescr' => $typeDescr,
+        // Issue #1597: false when the row's type is not a key of the manager's
+        // systems map (import/migration, hand-edited DB, or an implementation
+        // dropped in a later release). Such a row is now LISTED instead of
+        // fataling the whole grid (tlCodeTracker::getImplementationForType()
+        // returns null and getAll() degrades its env check to "not OK"), so the
+        // grid has to be able to say WHY the Type/Environment cells are empty
+        // instead of rendering two blank cells. $typeLabel is non-empty for
+        // every known type (it is built from the systems spec), so it doubles
+        // as the "is this type known" flag.
+        'typeKnown' => $typeLabel !== '',
         'cfg' => $safeCfg,
         'serverUrl' => $serverUrl,
         'github' => $github,
