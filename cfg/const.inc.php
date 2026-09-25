@@ -906,7 +906,7 @@ $tlCfg->guiTopMenu[6] = array('label' => 'title_admin',
 
 $tlCfg->guiTopMenu[7] = array('label' => 'title_events',
                               'imgKey' => 'events',
-                              'url' => 'lib/events/eventviewer.php',
+                              'url' => 'gui/templates/eventviewer/eventviewer.html', // Refs #1579 modern screen
                               'right' => array('events_mgt', 'mgt_view_events'),'condition'=>'',
                               'shortcut'=>'v','target'=>'mainframe'); 
 $tlCfg->guiTopMenu[8] = array('label' => 'title_plugins',

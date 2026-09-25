@@ -1,314 +1,39 @@
 <?php
+/**
+ * TestLink Open Source Project - http://testlink.sourceforge.net/
+ *
+ * @filesource  eventviewer.php
+ *
+ * 2.0.1.shim - Refs #1579: the legacy standalone Event Viewer page was
+ * replaced by the modern Dashio screen gui/templates/eventviewer/eventviewer.html
+ * (Refs #872) backed by the api/eventviewer BFF. The legacy controller was the
+ * LAST controller in lib/** still rendering a full standalone page; this file
+ * is kept as a session-guarded redirect shim so old deep links keep working:
+ * anonymous users are sent to the login screen (legacy testlinkInitPage
+ * contract) and authenticated users land on the modern viewer with their
+ * object_id / object_type / tproject_id / tplan_id context forwarded. The
+ * rights gate (mgt_view_events / events_mgt) lives in the BFF exactly like the
+ * legacy eventviewer.legacy.php checks.
+**/
 require_once("../../config.inc.php");
-require_once("common.php");
-testlinkInitPage($db, false, false, "checkRights");
+require_once('../functions/common.php');
 
-function checkRights(&$db, &$user, $action) {
-    return $user->hasRight($db, "mgt_view_events");
-}
+// Anonymous -> login (same contract as the legacy testlinkInitPage call).
+testlinkInitPage($db, FALSE, false, null, true);
 
-$tproject_id = intval($_SESSION['testprojectID'] ?? 0);
-$tplan_id = intval($_SESSION['testplanID'] ?? 0);
+$tprojectID = isset($_SESSION['testprojectID']) ? intval($_SESSION['testprojectID']) : 0;
+$tplanID = isset($_SESSION['testplanID']) ? intval($_SESSION['testplanID']) : 0;
 
-// Optional per-object drill-down (e.g. "Show event history" from a screen
-// posts object_id/object_type); filters charts and table to that object.
 $objectId = intval($_REQUEST['object_id'] ?? 0);
 $objectType = preg_replace('/[^a-zA-Z0-9_]/', '', strval($_REQUEST['object_type'] ?? ''));
-?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<title>Event Viewer</title>
-<link rel="stylesheet" href="<?php echo $tplCfg['templates_dir'] ?? '../..'; ?>/dashio/lib/bootstrap/css/bootstrap.min.css">
-<link rel="stylesheet" href="https://cdn.datatables.net/1.10.25/css/dataTables.bootstrap.min.css">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css">
-<style>
-* { box-sizing: border-box; }
-body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
 
-.header {
-  background: #4ECDC4; color: #fff; padding: 14px 24px;
-  font-size: 20px; font-weight: 700; letter-spacing: 1px;
+$url = $_SESSION['basehref'] . 'gui/templates/eventviewer/eventviewer.html';
+$url .= '?tproject_id=' . $tprojectID . '&tplan_id=' . $tplanID;
+if ($objectId > 0) {
+    $url .= '&object_id=' . $objectId;
 }
-.header span { font-size: 13px; font-weight: 400; opacity: .8; margin-left: 12px; }
-
-.filters {
-  background: #22242a; padding: 16px 24px; display: flex; gap: 16px;
-  align-items: flex-end; flex-wrap: wrap;
+if ($objectType !== '') {
+    $url .= '&object_type=' . rawurlencode($objectType);
 }
-.filter-group label { color: #ccc; font-size: 12px; display: block; margin-bottom: 4px; }
-.filter-group select, .filter-group input {
-  background: #333; color: #fff; border: 1px solid #555;
-  border-radius: 4px; padding: 6px 10px; font-size: 13px;
-}
-.filter-group select { min-width: 160px; }
-.filter-group input[type="text"] { width: 140px; }
-
-.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px;
-  border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
-.btn-teal:hover { background: #3dbdb5; }
-.btn-red { background: #e6605e; color: #fff; border: none; padding: 7px 18px;
-  border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
-.btn-red:hover { background: #d04e4c; }
-
-.charts-row { display: flex; gap: 20px; padding: 20px 24px; flex-wrap: wrap; }
-.chart-box {
-  background: #fff; border-radius: 8px; padding: 20px; flex: 1; min-width: 300px;
-  box-shadow: 0 1px 4px rgba(0,0,0,.08);
-}
-.chart-box h3 { margin: 0 0 14px; font-size: 15px; color: #22242a; }
-
-.table-wrap { padding: 0 24px 24px; }
-table.dataTable thead th { background: #22242a; color: #fff; font-size: 13px; padding: 10px 14px; }
-table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
-
-.level-badge {
-  display: inline-block; padding: 2px 8px; border-radius: 3px;
-  font-size: 11px; font-weight: 700; color: #fff; text-transform: uppercase;
-}
-.level-AUDIT { background: #4ECDC4; }
-.level-ERROR { background: #e6605e; }
-.level-WARNING { background: #f0ad4e; color: #333; }
-.level-INFO { background: #3498db; }
-.level-DEBUG { background: #8f8f8f; }
-.level-L18N { background: #9b59b6; }
-
-tr.shown { background: #f9fffe !important; }
-.detail-row { background: #f7fffe; }
-.detail-row td { padding: 0 !important; }
-.detail-content { padding: 14px 24px; border-top: 2px solid #4ECDC4; }
-.detail-content table th { color: #555; font-weight: 600; width: 140px; font-size: 12px; }
-.detail-content table td { color: #333; font-size: 13px; }
-
-.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
-
-td.details-control { cursor: pointer; text-align: center; color: #4ECDC4; font-weight: 700; font-size: 16px; }
-td.details-control:hover { color: #2d8e88; }
-.dataTables_wrapper .dataTables_paginate .paginate_button.current {
-  background: #4ECDC4 !important; color: #fff !important; border: none !important;
-}
-</style>
-</head>
-<body>
-
-<div class="header">Event Viewer <span>real-time log monitoring</span><?php
-if ($objectId > 0 && $objectType !== '') {
-    echo '<span style="display:inline-block;margin-left:12px;background:#e6605e;border-radius:4px;padding:2px 10px;">'
-       . 'filtered by object: ' . htmlspecialchars($objectType) . ' #' . $objectId . '</span>';
-}
-?></div>
-
-<div class="filters">
-  <div class="filter-group">
-    <label>Log Levels</label>
-    <select id="filterLevel" multiple size="4"></select>
-  </div>
-  <div class="filter-group">
-    <label>User</label>
-    <select id="filterUser"><option value="">All users</option></select>
-  </div>
-  <div class="filter-group">
-    <label>From</label>
-    <input type="text" id="filterStart" placeholder="dd/mm/yyyy">
-  </div>
-  <div class="filter-group">
-    <label>To</label>
-    <input type="text" id="filterEnd" placeholder="dd/mm/yyyy">
-  </div>
-  <div class="filter-group" style="display:flex;gap:8px;">
-    <button class="btn-teal" onclick="applyFilters()">Apply</button>
-    <button class="btn-red" id="btnClear" onclick="clearEvents()" style="display:none">Clear Events</button>
-  </div>
-</div>
-
-<div class="charts-row">
-  <div class="chart-box">
-    <h3>Events by Level</h3>
-    <div><canvas id="pieChart" width="280" height="260"></canvas></div>
-  </div>
-  <div class="chart-box">
-    <h3>Events per Day (last 30 days)</h3>
-    <div><canvas id="lineChart" width="700" height="260"></canvas></div>
-  </div>
-</div>
-
-<div class="table-wrap">
-  <table id="eventsTable" class="display" style="width:100%">
-    <thead>
-      <tr>
-        <th style="width:30px"></th>
-        <th>Timestamp</th>
-        <th>Level</th>
-        <th>User</th>
-        <th>Description</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-</div>
-
-<div class="footer" id="footerText"></div>
-
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="https://cdn.datatables.net/1.10.25/js/jquery.dataTables.min.js"></script>
-<script src="https://cdn.datatables.net/1.10.25/js/dataTables.bootstrap.min.js"></script>
-<script src="https://cdn.jsdelivr.net/momentjs/latest/moment.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.min.js"></script>
-<script src="../templates/dashio/lib/chart-master/Chart.js"></script>
-<script>
-var API = '/api/eventviewer/index.php';
-var OBJECT_FILTER = {
-  objectId: <?php echo json_encode($objectId > 0 ? $objectId : null); ?>,
-  objectType: <?php echo json_encode($objectType !== '' ? $objectType : null); ?>
-};
-var LEVEL_COLORS = {
-  AUDIT: '#4ECDC4', ERROR: '#e6605e', WARNING: '#f0ad4e',
-  INFO: '#3498db', DEBUG: '#8f8f8f', L18N: '#9b59b6'
-};
-var eventItems = [];
-var table = null, pieChart = null, lineChart = null;
-
-$(function() {
-  loadMeta();
-  loadEvents();
-
-  $('#filterStart, #filterEnd').daterangepicker({
-    autoUpdateInput: false,
-    locale: { cancelLabel: 'Clear', format: 'DD/MM/YYYY' }
-  });
-  $('#filterStart, #filterEnd').on('apply.daterangepicker', function(ev, picker) {
-    $(this).val(picker.startDate.format('DD/MM/YYYY') + ' - ' + picker.endDate.format('DD/MM/YYYY'));
-  });
-  $('#filterStart, #filterEnd').on('cancel.daterangepicker', function() { $(this).val(''); });
-});
-
-function loadMeta() {
-  $.getJSON(API + '/events/meta/logLevels', function(r) {
-    var sel = $('#filterLevel');
-    $.each(r.items, function(code, name) {
-      sel.append('<option value="' + code + '" selected>' + name + '</option>');
-    });
-  });
-  $.getJSON(API + '/events/meta/users', function(r) {
-    var sel = $('#filterUser');
-    $.each(r.items, function(i, u) {
-      sel.append('<option value="' + u.id + '">' + u.displayName + '</option>');
-    });
-  });
-  $.getJSON(API + '/events/meta/rights', function(r) {
-    if (r.canDelete) $('#btnClear').show();
-  });
-}
-
-function buildQuery() {
-  var p = [];
-  var levels = $('#filterLevel').val();
-  if (levels && levels.length) p.push('logLevel=' + levels.join(','));
-  var user = $('#filterUser').val();
-  if (user) p.push('user=' + user);
-  var start = $('#filterStart').val();
-  if (start) p.push('startDate=' + encodeURIComponent(start.split(' - ')[0]));
-  var end = $('#filterEnd').val();
-  if (end) p.push('endDate=' + encodeURIComponent(end.split(' - ').pop()));
-  if (OBJECT_FILTER.objectId) p.push('objectId=' + OBJECT_FILTER.objectId);
-  if (OBJECT_FILTER.objectType) p.push('objectType=' + encodeURIComponent(OBJECT_FILTER.objectType));
-  return p.length ? '?' + p.join('&') : '';
-}
-
-function loadEvents() {
-  var q = buildQuery();
-  $.getJSON(API + '/events' + q, function(r) {
-    eventItems = r.items;
-    renderTable(r.items);
-    $('#footerText').text(r.total + ' events | Generated on ' + new Date().toLocaleString());
-  });
-  $.getJSON(API + '/events/stats/byLevel' + q, function(r) { renderPie(r.items); });
-  $.getJSON(API + '/events/stats/perDay' + q, function(r) { renderLine(r.labels, r.data); });
-}
-
-function renderTable(items) {
-  if (table) { table.destroy(); }
-  var rows = [];
-  $.each(items, function(i, ev) {
-    rows.push([
-      '<span class="details-control">+</span>',
-      ev.timestampFormatted,
-      '<span class="level-badge level-' + ev.logLevel + '">' + ev.logLevel + '</span>',
-      ev.userDisplayName || ev.userID || '-',
-      ev.description || ''
-    ]);
-  });
-  table = $('#eventsTable').DataTable({
-    data: rows, order: [[1, 'desc']], pageLength: 25,
-    columns: [
-      { orderable: false, searchable: false },
-      null, null, null, null
-    ]
-  });
-}
-
-$('#eventsTable tbody').on('click', 'td.details-control', function() {
-  var tr = $(this).closest('tr');
-  var row = table.row(tr);
-  if (row.child.isShown()) {
-    row.child.hide();
-    tr.removeClass('shown');
-    $(this).text('+');
-  } else {
-    var idx = row.index();
-    var id = eventItems[idx] ? eventItems[idx].id : null;
-    if (!id) return;
-    $(this).text('-');
-    $.getJSON(API + '/events/' + id, function(d) {
-      var e = d.item;
-      var html = '<div class="detail-content"><table>';
-      html += '<tr><th>Source</th><td>' + (e.source||'-') + '</td></tr>';
-      html += '<tr><th>Timestamp</th><td>' + e.timestampFormatted + '</td></tr>';
-      html += '<tr><th>Transaction</th><td>' + (e.transactionID ? '#'+e.transactionID : '-') + '</td></tr>';
-      html += '<tr><th>Object Type</th><td>' + (e.objectType||'-') + '</td></tr>';
-      html += '<tr><th>Object ID</th><td>' + (e.objectID||'-') + '</td></tr>';
-      html += '<tr><th>Activity</th><td>' + (e.activityCode||'-') + '</td></tr>';
-      html += '</table></div>';
-      row.child(html, 'detail-row').show();
-      tr.addClass('shown');
-    });
-  }
-});
-
-function renderPie(items) {
-  var data = [];
-  $.each(items, function(name, count) {
-    data.push({value: count, color: LEVEL_COLORS[name] || '#ccc', label: name});
-  });
-  if (pieChart) pieChart.destroy();
-  pieChart = new Chart(document.getElementById('pieChart').getContext('2d'))
-    .Doughnut(data, {segmentStrokeWidth: 1, percentageInnerCutout: 45});
-}
-
-function renderLine(labels, data) {
-  if (lineChart) lineChart.destroy();
-  lineChart = new Chart(document.getElementById('lineChart').getContext('2d')).Line({
-    labels: labels,
-    datasets: [{
-      fillColor: 'rgba(78,205,196,0.2)', strokeColor: '#4ECDC4',
-      pointColor: '#4ECDC4', pointStrokeColor: '#fff', data: data
-    }]
-  }, {scaleBeginAtZero: true, bezierCurve: true, datasetFill: true});
-}
-
-function applyFilters() { loadEvents(); }
-
-function clearEvents() {
-  if (!confirm('Delete events matching current filters?')) return;
-  var levels = $('#filterLevel').val();
-  var body = levels && levels.length ? JSON.stringify({logLevel: levels.map(Number)}) : '{}';
-  $.ajax({
-    url: API + '/events', type: 'DELETE',
-    contentType: 'application/json', data: body,
-    success: function() { loadEvents(); }
-  });
-}
-</script>
-</body>
-</html>
+header('Location: ' . $url);
+exit;

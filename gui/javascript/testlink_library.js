@@ -1394,42 +1394,17 @@ function onSelect(datePicker,date)
 
 function showEventHistoryFor(objectID,objectType)
 {
-  var f = document.getElementById('eventhistory');
-  if (!f)
-  {
-    f = document.createElement("form");
-    if (!f)
-    {
-      return;
-    }
-    var b = document.getElementsByTagName('body')[0];
-    if (!b)
-    {
-      return;
-    }
-    b.appendChild(f);
-    f.style.display = "none";
-    f.id = "eventhistory";
-    f.target = "_blank";
-    f.method = "POST";
-    var i = document.createElement("input");
-    i.type = "hidden";
-    i.name = "object_id";
-    i.id = "object_id";
-    f.appendChild(i);
-    i = document.createElement("input");
-    i.type = "hidden";
-    i.name = "object_type";
-    i.id = "object_type";
-    f.appendChild(i);
-    f.action = fRoot+"lib/events/eventviewer.php";
-  }
-  if (f)
-  {
-    f.object_id.value = objectID;
-    f.object_type.value = objectType;
-    f.submit();
-  }
+  // 2.0.1 - Refs #1579: open the modern Event Viewer
+  // (gui/templates/eventviewer/eventviewer.html + api/eventviewer, Refs #872)
+  // pre-filtered to the object's audit activity. The legacy POST to
+  // lib/events/eventviewer.php is gone; the legacy controller is now a
+  // session-guarded 302 shim. The BFF re-checks mgt_view_events anyway.
+  var url = fRoot + "gui/templates/eventviewer/eventviewer.html";
+  var q = [];
+  if (objectID) { q.push("object_id=" + encodeURIComponent(objectID)); }
+  if (objectType) { q.push("object_type=" + encodeURIComponent(objectType)); }
+  if (q.length) { url += "?" + q.join("&"); }
+  window.open(url, "_blank");
 }
 
 /*
