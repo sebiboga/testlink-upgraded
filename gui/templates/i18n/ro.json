@@ -418,6 +418,7 @@
   "ct.msg.deleted": "Urmatorul cod sters",
   "ct.msg.errorDelete": "Eroare la stergerea urmatorului cod",
   "ct.msg.errorSave": "Eroare la salvarea urmatorului cod",
+  "ct.msg.invalidType": "Tipul {type} al urmăritorului de cod este necunoscut.",
   "ct.msg.noPermission": "Nu aveți permisiunea să vizualizați următoarele de cod. Contactați administratorul.",
   "ct.msg.updated": "Urmatorul cod actualizat",
   "ct.name": "Nume",

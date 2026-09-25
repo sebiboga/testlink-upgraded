@@ -397,7 +397,9 @@ function saveTracker() {
       var msg = TLi18n.t('ct.msg.errorSave');
       try {
         var resp = JSON.parse(xhr.responseText);
-        if (resp.message && resp.message.indexOf('Failure loading XML STRING') !== -1) {
+        if (resp.code === 'invalid_type') {
+          msg = TLi18n.t('ct.msg.invalidType', {type: resp.type});
+        } else if (resp.message && resp.message.indexOf('Failure loading XML STRING') !== -1) {
           msg = TLi18n.t('ct.validation.xmlFormat');
         } else if (resp.message) {
           msg = resp.message;

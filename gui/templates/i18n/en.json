@@ -418,6 +418,7 @@
   "ct.msg.deleted": "Code tracker deleted",
   "ct.msg.errorDelete": "Error deleting code tracker",
   "ct.msg.errorSave": "Error saving code tracker",
+  "ct.msg.invalidType": "Code Tracker type {type} is unknown.",
   "ct.msg.noPermission": "You do not have permission to view code trackers. Contact your administrator.",
   "ct.msg.updated": "Code tracker updated",
   "ct.name": "Name",

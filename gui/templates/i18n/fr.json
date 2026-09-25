@@ -418,6 +418,7 @@
   "ct.msg.deleted": "Suiveur de code supprimé",
   "ct.msg.errorDelete": "Erreur lors de la suppression du suiveur de code",
   "ct.msg.errorSave": "Erreur lors de l'enregistrement du suiveur de code",
+  "ct.msg.invalidType": "Le type de suiveur de code {type} est inconnu.",
   "ct.msg.noPermission": "Vous n'avez pas la permission de consulter les suiveurs de code. Contactez votre administrateur.",
   "ct.msg.updated": "Suiveur de code mis à jour",
   "ct.name": "Nom",

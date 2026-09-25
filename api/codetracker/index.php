@@ -79,7 +79,33 @@ $method = $_SERVER['REQUEST_METHOD'];
 $segments = array_values(array_filter(explode('/', $path)));
 
 function out($data) { echo json_encode($data); exit; }
-function getBody() { return json_decode(file_get_contents('php://input'), true) ?? []; }
+function getBody() {
+    $body = json_decode(file_get_contents('php://input'));
+    if (!is_object($body)) {
+        http_response_code(400);
+        out(['status' => 'error', 'code' => 'invalid_body']);
+    }
+    return get_object_vars($body);
+}
+
+function normalizeTrackerType($type) {
+    if (is_int($type)) {
+        return $type;
+    }
+    if (is_string($type) && preg_match('/^-?\d+$/D', $type)) {
+        return intval($type);
+    }
+    return false;
+}
+
+function isEnabledTrackerType($mgr, $type) {
+    return array_key_exists($type, $mgr->getSystems(['status' => 'enabled']));
+}
+
+function rejectInvalidTrackerType($type) {
+    http_response_code(400);
+    out(['status' => 'error', 'code' => 'invalid_type', 'type' => $type]);
+}
 
 function trackerToJSON($item, $mgr, $canManage) {
     $typeDescr = '';
@@ -174,12 +200,17 @@ if ($method === 'POST' && empty($segments)) {
     if (!$canManage) { denyWrite($user, $userId, 'create'); }
     $body = getBody();
     $name = trim($body['name'] ?? '');
-    $type = intval($body['type'] ?? 0);
+    $rawType = $body['type'] ?? null;
+    $type = normalizeTrackerType($rawType);
     $cfg = $body['cfg'] ?? '';
 
     if (empty($name)) {
         http_response_code(400);
         out(['status' => 'error', 'message' => 'Name is required']);
+    }
+
+    if ($type === false || !isEnabledTrackerType($mgr, $type)) {
+        rejectInvalidTrackerType($type === false ? 0 : $type);
     }
 
     $ct = new stdClass();
@@ -200,14 +231,21 @@ if ($method === 'POST' && empty($segments)) {
 if ($method === 'PUT' && isset($segments[0]) && is_numeric($segments[0]) && count($segments) === 1) {
     if (!$canManage) { denyWrite($user, $userId, 'update'); }
     $id = intval($segments[0]);
+    $body = getBody();
+    $hasType = array_key_exists('type', $body);
+    $rawType = $hasType ? $body['type'] : null;
+    $type = $hasType ? normalizeTrackerType($rawType) : null;
+    if ($hasType && ($type === false || !isEnabledTrackerType($mgr, $type))) {
+        rejectInvalidTrackerType($type === false ? 0 : $type);
+    }
+
     $existing = $mgr->getByID($id);
     if (!$existing) { http_response_code(404); out(['status' => 'error', 'message' => 'Code tracker not found']); }
 
-    $body = getBody();
     $ct = new stdClass();
     $ct->id = $id;
     $ct->name = isset($body['name']) ? trim($body['name']) : $existing['name'];
-    $ct->type = isset($body['type']) ? intval($body['type']) : intval($existing['type']);
+    $ct->type = $hasType ? $type : intval($existing['type']);
     $ct->cfg = isset($body['cfg']) ? $body['cfg'] : ($existing['cfg'] ?? '');
 
     $result = $mgr->update($ct);
