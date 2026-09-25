@@ -21145,7 +21145,7 @@ called. Evidence screenshots: `tmp/1586-before-platformsview-english.png`,
 ### Test 3 — Empty store, profile `ro_RO` is honoured (R2)
 - **Steps:** `update users set locale='ro_RO' where login='admin'`, store cleared, load the launcher.
 - **Expected:** Romanian from the DB profile; `tl_locale` remains unset so the DB profile keeps authority.
-- **Actual:** `resolved='ro'`, `ls=null`, profile `ro_RO`. PASS.
+- **Actual:** `resolved='ro'`, `ls=null`, profile `ro_RO`. PASS. Teardown in the block at the end of this suite restores `en_GB`.
 
 ### Test 4 — Explicit `?locale=` still wins over the stored switch (R4/R5)
 - **Steps:** Store `'ro'`, then load `…platformsView.html?tproject_id=6&tplan_id=7&locale=en`, then the same with `&locale=de`.
@@ -21172,4 +21172,33 @@ called. Evidence screenshots: `tmp/1586-before-platformsview-english.png`,
 - **Expected:** No new Error/Warning rows produced by the fix.
 - **Actual:** Only audit rows (`log_level=16`, newest `17:41:53` `audit_login_succeeded`). The 3 `log_level` 1/2 rows are timestamped `17:41:17`/`17:41:34` and come from the fixture author's own first two attempts (`new testplatform()` → swallowed `include_once` warning in `lib/functions/common.php:122`; wrong-arg `testplan->create` → SQL 1064), i.e. **before** the fix was applied. Browser console: *no console messages found*. PASS.
 
-**Result: 8/8 PASS. (Fixes #1586)**
+### Test 9 — Profile form mirrors the saved locale into the store (code review)
+- **Steps:** Seed `tl_locale='en'`; open `/gui/templates/usermanagement/userInfo.html`, set **Locale** to `ro_RO` and a valid address (`admin@testlink.io` — the configured regex `config.inc.php:623` rejects a 5-letter TLD such as `.local`), press Save.
+- **Expected:** "Profile updated" and `tl_locale` becomes `ro`, so the next screen without `?locale=` renders Romanian.
+- **Actual:** Alert "Profile updated", `localStorage['tl_locale'] === 'ro'`; reloading `platformsView.html?tproject_id=8&tplan_id=9` with no `locale` param gave `resolved='ro'`, title "I1586-LOCALE - Gestionare Platforme". Before the review fix the store stayed `'en'` and the screens kept the old language. PASS.
+
+### Test 10 — Stored TestLink code is mapped, not re-requested raw
+- **Steps:** `localStorage.setItem('tl_locale','ro_RO')`, load the launcher.
+- **Expected:** `mapLocale` normalises to `ro`, `ro.json` is fetched, the raw stored value stays untouched (`ro_RO` — a user switch writes bundle codes, not TL codes, so nothing rewrites it in place).
+- **Actual:** `resolved='ro'`, `ls` still `'ro_RO'`, `GET /gui/templates/i18n/ro.json [200]`. PASS.
+
+### Test 11 — A code that mapLocale rewrites is still self-healed
+- **Steps:** `localStorage.setItem('tl_locale','bogus')` (`mapLocale` truncates it to `bo`), load the launcher, then reload once more.
+- **Expected:** `bo.json` 404 → English fallback → the stored value is dropped (the comparison is made on the raw string, so the rewritten form is still recognised) and the 404 does not repeat on the next load.
+- **Actual:** Network `bo.json [404]` → `en.json [200]`; `ls_after=null`; the next load went straight to the profile. This is the case the first version of the self-heal missed (it compared the mapped value against itself). PASS.
+
+### Test 12 — Blocked storage does not break the screens
+- **Steps:** Load the launcher with `localStorage` replaced by a getter that throws `DOMException('SecurityError')` (Safari ITP / locked-down policy simulation), and also call `TLi18n.load(cb)` directly.
+- **Expected:** No exception escapes `load()`, the callback still fires, the screen renders translated (English via the profile) and shows no literal keys.
+- **Actual:** `load()` → `{threw:false, callback_fired:true, ms:16, locale:'en', strings_loaded:true}`; full page load → `resolved='en'`, `isLoaded()===true`, heading "Platform Management(1)", 1 data row, `header.platManage` raw-key scan → *none*, console → *no console messages found*. Before the review fix the `SecurityError` escaped `detectLocale()` into `load()` and the callback never ran. PASS.
+
+### Test 13 — Explicit manual switch wins over a differing DB profile (recorded trade-off)
+- **Steps:** Store an explicit `tl_locale='en'`, set the DB profile to `ro_RO`, load the launcher.
+- **Expected (as designed):** English — an explicit manual choice outranks the profile, which is exactly what the issue asked for ("keeping explicit selection ahead of the server profile").
+- **Actual:** `resolved='en'`, profile `ro_RO`. Documented, not a defect: it is the flip side of restoring the documented chain. The compensating paths are Test 9 (the profile form now writes the store) and the switcher itself, so a user who changes the profile or picks a language gets a consistent result. PASS (behaviour recorded).
+
+> Teardown: `update users set locale='en_GB' where login='admin'` and
+> `localStorage.removeItem('tl_locale')` restore the defaults set up by
+> Test 1/Test 3; `php tmp/fixtures_1586.php` is re-runnable and recreates the
+> project/plan/platform, so the ids in the URLs above change on every run —
+> read the current ones from `/tmp/fixture_1586.txt`.
