@@ -113,6 +113,18 @@ class tlCodeTracker extends tlObject
    */
   function getImplementationForType($codeTrackerType)
   {
+    // Issue #1597: a row whose type is not a key of $systems (import/migration,
+    // hand-edited DB, or an implementation dropped in a later release) used to
+    // fall through with $spec = NULL, raising "Undefined array key <type>" plus
+    // three "Trying to access array offset on null" warnings and returning the
+    // literal string "Interface" - which then fataled every caller that
+    // instantiated the "class" (getAll()'s $impl::checkEnv() at line 569 killed
+    // the whole Code Trackers grid with an empty HTTP 500). Return NULL instead,
+    // so callers can detect "unknown type" instead of crashing on a garbage name.
+    if( !isset($this->systems[$codeTrackerType]) )
+    {
+      return null;
+    }
     $spec = $this->systems[$codeTrackerType];
     // GitHub: the plain "githubrestInterface" name is already taken by the
     // issue-tracker integration (lib/issuetrackerintegration), so the code
@@ -566,9 +578,26 @@ class tlCodeTracker extends tlObject
         if( $my['options']['checkEnv'] )
         {
            $impl = $this->getImplementationForType($item['type']);
-           $dummy = $impl::checkEnv();
-           $item['env_check_ok'] = $dummy['status'];
-           $item['env_check_msg'] = $dummy['msg'];
+           // Issue #1597: one row with an unknown/unloadable implementation must
+           // not take the whole listing down. Degrade that single row to
+           // "environment not OK" (the grid renders it as a red badge) and keep
+           // listing every other row. class_exists() is @-silenced on purpose:
+           // the autoloader include_once()s "<class>.class.php"
+           // (lib/functions/common.php:122) and would otherwise log two
+           // "Failed opening ...class.php" E_WARNINGs per row per page load -
+           // the same Event-Viewer noise the reqmgr list route avoids with
+           // @class_exists() (api/reqmgrsystems/index.php:107).
+           if( is_null($impl) || !@class_exists($impl) || !method_exists($impl, 'checkEnv') )
+           {
+             $item['env_check_ok'] = false;
+             $item['env_check_msg'] = '';
+           }
+           else
+           {
+             $dummy = $impl::checkEnv();
+             $item['env_check_ok'] = $dummy['status'];
+             $item['env_check_msg'] = $dummy['msg'];
+           }
         }
 
         
