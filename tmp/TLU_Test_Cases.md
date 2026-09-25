@@ -22014,106 +22014,65 @@ both reqmgrsystem rights. Entry point:
 - **Expected:** Four headers and four cells per row; Create present; the delete icon rendered for the unlinked system only, and the linked system keeps an empty delete cell (no icon).
 - **Actual:** `thCount:4` (`[..., "delete"]`), row cell counts `[4,4]`, `createBtn:true`; `ReqMgr 1585 linked` (link_count 1) → `lastCellHasIcon:false`, cell HTML `""`; `ReqMgr 1585 unlinked` (link_count 0) → `lastCellHasIcon:true`, cell HTML `<span ... onclick="delete_confirmation…">`. PASS.
 
-### Test 4 — Empty list renders without table and keeps manager Create
-- **Steps:** `DELETE FROM reqmgrsystems`, hard-reload the manager URL, then restore the fixture (`php tmp/fixtures_1585.php` + re-insert the link `(1,2)`) and reload again.
-- **Expected:** No malformed/empty table and no error when the list is empty; the Create button stays available for the manager; the restored list returns to the Test 3 state.
-- **Actual:** Empty state: HTTP 200, `hasTable:false`, `createBtn:true`, no error text. After restore: `thCount:4`, `tdCounts:[4,4]`, `createBtn:true`, `ReqMgr 1585 linked` back in the DOM, console errors/warnings: 0. PASS.
+The first implementation purged dead links on **every** `GET /{id}` — including for a
+view-only user, i.e. it turned a read route into a DB write that legacy reserved for
+`codetracker_management` holders (`lib/codetrackers/codeTrackerEdit.php:180-184`).
+Case 974.14 then exposed a second defect: a dead row LEFT JOINs to a **NULL** name, so a
+viewer was shown a phantom `null` project and an inflated `link_count` (measured
+`links:[… ,null]`, `link_count:3`). Fix: the purge is `$canManage`-gated and dead rows
+are filtered out of the returned list for everybody, so viewers get truthful data and
+`link_count` always matches what the grid shows for that tracker (the delete gating of
+#971 can no longer disagree with the used-by list).
 
-### Test 5 — Unauthorized user is still denied
-- **Steps:** In a fresh isolated browser context sign in as `rmguest` (role 3, no reqmgrsystem rights) and request the entry URL directly.
-- **Expected:** `checkRights()` denies the screen; no Requirement Manager table is rendered.
-- **Actual:** The browser resolved to `http://localhost:8082/` (no protected screen), `hasTable:false`, no "Req. Management System" heading. Event Viewer recorded the expected INFO audit `audit_security_user_right_missing`. PASS.
+## 976. Task — Issue #1298: reqView.html relation management (add + delete), gap vs legacy
 
-### Test 6 — Cache-bypassing second read-only reload is stable
-- **Steps:** Sign in as `rmreadonly` in a clean context and request the entry URL with a cache-busting query string.
-- **Expected:** The corrected three-column grid renders again with no console errors.
-- **Actual:** HTTP 200, `thCount:3`, `tdCounts:[3,3]`, `createBtn:false`, console errors/warnings: 0. PASS.
+**Feature under test:** the relation block of the 1.9.20 Requirement Viewer — the "New relation"
+form (relation type dropdown + destination `req_doc_id` + optional cross-project selector)
+and the per-row delete icon, both of which were absent from the modern screen
+(legacy `gui/templates/dashio/requirements/reqViewVersions.tpl:323-419`,
+`lib/requirements/reqCommands.class.php::doAddRelation()` :666-733 and
+`::doDeleteRelation()` :745-769).
 
-### Test 7 — Event Viewer, log and static hygiene
-- **Steps:** Inspect the `events` table and `tmp/php_server.log` after the full matrix; run the Smarty `{/if}` balance gate and `git diff --check`.
-- **Expected:** No new Error/Warning entries caused by the fix; all five `reqMgrSystemView.php` requests return 200; template gates pass.
-- **Actual:** All requests `[200]`; `events` contains only level 16 INFO audit rows (`audit_login_succeeded`, `audit_security_user_right_missing`) plus level 2 rows whose description is the `include_once(contoursoapInterface.class.php)` warning produced by this fixture's `contour` system type — a pre-existing, separately tracked defect (**#1593**), identical before and after the change; no PHP Warning/Error/Fatal added to `tmp/php_server.log`. `{if ` = 9 and `{/if}` = 9 in the template; `git diff --check` clean. PASS.
+**Preconditions / fixtures** (`php tmp/fixtures_1298.php`, fresh DB):
+- `testprojects` 1 `REL1298` (prefix `R98`, id 4) + 1 `OTH1298` (prefix `OTH`, id 13) for the alien/read-only path.
+- `req_specs` 1 `SRS-PARENT-001` (id 5); `requirements` 3: `REQ-ALPHA` (id 7), `REQ-BETA` (id 9), `REQ-GAMMA` (id 11).
+- `req_cfg->relations->enable = TRUE`, `interproject_linking = FALSE` (repo default, `config.inc.php:1782-1783`).
+- Login `admin/admin` (role 8); screen `/gui/templates/requirements/reqView.html?id=7&tproject_id=4`.
 
-**Result: 7/7 PASS. (Refs #1585)**
+| # | Steps | Expected | Actual | Result |
+|---|---|---|---|---|
+| 976.1 | Open the screen for a requirement that has **zero** relations | Card visible with the "New relation" affordance (legacy renders the add row outside the `num_relations` guard, `reqViewVersions.tpl:340` vs `:368`) | `#relCard` display `block`, `#addRelationBtn` `block`, `#noRel` "No relations" shown | PASS |
+| 976.2 | Read the relation-type dropdown options | Legacy `init_relation_type_select()` set: source+destination entries for asymmetric types, single entry for the equal type, "related to" preselected | `1_source=parent of, 1_destination=child of, 2_source=blocks, 2_destination=depends on, 3_source=related to*` | PASS |
+| 976.3 | Click "New relation" with an **empty** destination, then **Add** | Client-side `validate_req_docid_input()` refusal, modal stays open, no request sent | `#addRelError` = "Requirement Document ID - Enter a Requirement Document ID." | PASS |
+| 976.4 | Type `REQ-BETA`, type `related to`, click **Add** | Row appears, success toast, modal closed | toast "New relation was added successfully." (`toast-bar ok`); row `3 \| related to \| REQ-BETA Beta requirement \| Valid \| Testlink Administrator` | PASS |
+| 976.5 | Table column set | The 7 legacy columns (`relation_id, relation_type, relation_document, relation_status, relation_project, relation_set_by, relation_delete`), Project hidden when inter-project linking is off | `#`, `Relation`, `Target`, `Project`(hidden), `Status`, `Set by`, `Delete`; 6 cells rendered per row | PASS |
+| 976.6 | Inspect the "Set by" cell | Legacy tooltip `title="Created <creation_ts> by <author>"` | `<span title="Created 2026-09-25 23:39:26 by Testlink Administrator">` | PASS |
+| 976.7 | Re-open the requirement from the **other** side (`id=9`) | Mirrored direction label (legacy picks `source_localized`/`destination_localized` by which side you view from) | row `1 \| parent of \| REQ-ALPHA …` (added as `child of`) | PASS |
+| 976.8 | Click the trash icon, then **Delete** in the confirm modal | Confirm text `Really delete relation #N?`, row removed, success toast | `#delRelMsg` = "Really delete relation #3?"; toast "Relation was deleted successfully."; remaining rows `["1:child of"]` | PASS |
+| 976.9 | `POST /relation` with an **unknown** doc id | `rel_add_error_dest_id` (409) | `{code:409, message_key:"rel_add_error_dest_id"}` | PASS |
+| 976.10 | `POST /relation` pointing at the requirement **itself** | `rel_add_error_self` (409) | `{code:409, message_key:"rel_add_error_self"}` | PASS |
+| 976.11 | `POST /relation` duplicating an existing pair+type | `rel_add_error_exists_already` (409) with the localized type name | `A relation of similar type ("related to") already exists between these two requirements.` | PASS |
+| 976.12 | `POST /relation` with a non-numeric/blank `relation_type` | `rel_add_error` (400) | `{code:400, message_key:"rel_add_error"}` | PASS |
+| 976.13 | `POST /relation` for a **non-existent** requirement id | 404, not a 500 | `{code:404, message_key:"reqv.errRelationSource"}` | PASS |
+| 976.14 | `POST /relation` with `tproject_id` ≠ the project owning the requirement (`$isAlien`) | 403 read-only, nothing inserted | `{code:403, message_key:"reqv.errRelationsReadOnly"}` | PASS |
+| 976.15 | Freeze the viewed version (`POST /versions/8/freeze`), reload | Add button hidden, trash icons greyed with the read-only/frozen tooltip | `#addRelationBtn` `none`, cells `<i class="fa fa-trash cov-disabled" … title="…">` | PASS |
+| 976.16 | With the version frozen, force `POST /relation` and `DELETE /relation` | Server refuses with 403 even though the UI is hidden | both `{code:403, message_key:"reqv.errReqFrozen"}` | PASS |
+| 976.17 | Unfreeze req 7, freeze req 11 (`REQ-GAMMA`), then add a relation targeting `REQ-GAMMA` | `rel_add_error_dest_frozen` (409) — the DESTINATION's last version is closed | `{code:409, message_key:"rel_add_error_dest_frozen"}` | PASS |
+| 976.18 | `DELETE /relation` with a non-numeric relation id | `error_deleting_rel` (400) | `{code:400, message_key:"error_deleting_rel"}` | PASS |
+| 976.19 | `DELETE /relation` for a relation id that belongs to **another** requirement | 404, target untouched (a forged id must not delete someone else's link) | `{code:404, message_key:"reqv.errRelationNotFound"}`; the relation was still in `req_relations` | PASS |
+| 976.20 | `DELETE /relation` for a nonexistent relation id | 404 | `{code:404, message_key:"reqv.errRelationNotFound"}` | PASS |
+| 976.21 | `DELETE /relation` with an alien `tproject_id` | 403 | `{code:403, message_key:"reqv.errRelationsReadOnly"}` | PASS |
+| 976.22 | Open the screen with `&locale=ro_RO` | Romanian labels and tooltips, no raw key leaked | card "Relații", button "Relație nouă", headers `# Tip relație Țintă Stare Setată de Șterge`, delete tooltip "Apăsați pentru a șterge această relație." | PASS |
+| 976.23 | Rename the related requirement to `<img src=x onerror=alert(1)>Evil & Co` and reload with `window.alert` stubbed | Name rendered as inert text, no script execution | `innerHTML` `&lt;img src=x onerror=alert(1)&gt;Evil &amp; Co`, `imgNodes:0`, `alerts:0` | PASS |
+| 976.24 | `php -l api/requirements/index.php`; `node --check` on the inline script; `python3 -m json.tool` on all 10 bundles | All clean | no syntax errors / JS OK (878 lines) / 10× OK | PASS |
+| 976.25 | Event Viewer: `SELECT log_level,COUNT(*) FROM events GROUP BY log_level` after the whole matrix | No new Error/Warning from the fixed code | events created after the last code fix: 4 rows, all `log_level=16` (audit: project created, 2× version frozen, 1× unfrozen); `log_level IN (1,2)` count unchanged | PASS |
 
-## Regression — Issue #1597: one codetrackers row with an unknown type 500s the whole grid
+**Result: 25/25 PASS. (Refs #1298)**
 
-**Precondition.** Fresh DB (fixture inserted per run, `codetrackers` empty at session start).
-App on `http://localhost:8082` (PHP 8.3 built-in server, docroot = repo root), DB MariaDB
-`testlink/testlink@127.0.0.1:3306/testlink`, login `admin/admin`.
-Screen: `http://localhost:8082/gui/templates/codetracker/codetrackerView.html`
-API: `GET /api/codetracker/index.php` (header `X-Requested-With: XMLHttpRequest`).
-Fixture:
+### Notes from case 976.25
 
-```sql
-INSERT INTO codetrackers (name, type, cfg) VALUES ('Bad Type Tracker', 5, '<codetracker></codetracker>');   -- id 1, unknown type
-INSERT INTO codetrackers (name, type, cfg) VALUES ('Stash Valid', 1, '<codetracker><uribase>http://127.0.0.1:7999/</uribase></codetracker>');
-INSERT INTO codetrackers (name, type, cfg) VALUES ('GitHub Valid', 200, '<codetracker><uribase>https://api.github.com</uribase><repository>o/r</repository><branch>main</branch><token>secret123</token></codetracker>');
-```
-
-`type=5` is deliberately outside `$systems = {1 stash/rest, 200 github/rest}`
-(`lib/functions/tlCodeTracker.class.php:28-29`) — the state a row can reach through an
-import/migration, a hand-edited DB, or an implementation dropped in a later release. The BFF write
-routes cannot create it (`isEnabledTrackerType()`, `api/codetracker/index.php:308`).
-
-### Test 1 — Pre-fix reproduction of the empty 500
-- **Steps:** insert the `type=5` row, then `GET /api/codetracker/index.php` as `admin`; open the
-  Code Trackers screen in the browser.
-- **Expected (2.0.1 wanted):** HTTP 200, the row listed, `env_check_ok=false`, no Event-Viewer noise.
-- **Actual (pre-fix, measured):** `API HTTP 500 len=0` (empty body);
-  `tmp/php_server.log`: `PHP Fatal error: Uncaught Error: Class "Interface" not found in
-  lib/functions/tlCodeTracker.class.php:569` with stack `#0 api/codetracker/index.php(254):
-  tlCodeTracker->getAll()`; `events` gained 6 `log_level=2` rows (ids 4-9 of that run: `Undefined array key 5`
-  :116, three `Trying to access array offset on null` :120/:124/:124, two
-  `include_once(Interface.class.php)` from the autoloader `lib/functions/common.php:122`); the
-  screen rendered the 6 column headers with **0 rows and no footer**. FAIL — bug reproduced
-  (screenshot `docs/screenshots/issue-1597-codetracker-unknown-type-before.png`).
-
-### Test 2 — Post-fix: the listing survives and the bad row is diagnosable
-- **Steps:** same request/screen, no DB change.
-- **Expected:** HTTP 200 with a body, the bad row listed, both diagnostics visible, no new events.
-- **Actual:** `API HTTP 200` (314 B with only the bad row, 1174 B with all three fixtures); payload `items[0] = {type:5, typeLabel:"", typeDescr:"",
-  typeKnown:false, implementation:"", env_check_ok:false, env_check_msg:"", link_count:0}`;
-  screen: `rows:3`, footer `Showing 1 to 3 of 3 entries`, Type cell `Code Tracker type 5 is unknown.`,
-  Environment cell `Environment check failed`; console: no messages;
-  `SELECT COUNT(*) FROM events WHERE log_level=2` = 12, all 12 from the two deliberate pre-fix captures (ids 4-9 = first repro, ids 12-17 = the before-screenshot capture) and **none from a post-fix request**.
-  PASS (screenshot `docs/screenshots/issue-1597-codetracker-unknown-type-after.png`).
-
-### Test 3 — Valid types keep their green OK probe (regression of the `checkEnv` path)
-- **Steps:** read the list with `type=1` and `type=200` rows present.
-- **Expected:** both rows listed with their type label and a green `OK` environment badge.
-- **Actual:** `Stash Valid` → `stash (Interface: rest)` + `OK`; `GitHub Valid` →
-  `github (Interface: rest)` + `OK`; the corrupt row's badge did not leak into them. PASS.
-
-### Test 4 — Detail route (`getByID`, the 2nd unguarded call site) returns cleanly
-- **Steps:** `GET /api/codetracker/index.php/1` (edit-modal data route) on the `type=5` row.
-- **Expected:** HTTP 200, `implementation` empty rather than the bogus `"Interface"`, no warnings.
-- **Actual:** `HTTP 200`, `item.implementation === ""`, `item.typeKnown === false`; no new events
-  rows. PASS.
-
-### Test 5 — Pre-existing write guards must not regress
-- **Steps:** `POST /api/codetracker/index.php/1/test_connection` as `admin` on the `type=5` row;
-  `POST /api/codetracker/index.php` with `type: 5`.
-- **Expected:** 400 with a clear message in both cases; a bogus type is never persisted.
-- **Actual:** test_connection → `HTTP 400 {"status":"error","message":"Unknown code tracker type"}`;
-  create with `type:5` → 400 `invalid_type` (pre-existing `rejectInvalidTrackerType()`); DB still has
-  exactly the 3 fixture rows. PASS.
-
-### Test 6 — A manager can repair the degraded row from the UI
-- **Steps:** click the edit icon of the `Bad Type Tracker` row, pick `stash (Interface: rest)` in the
-  Type dropdown, press Save, then re-read the DB and reload the screen.
-- **Expected:** the row is updated to a valid type and renders green afterwards.
-- **Actual:** edit modal opened with the cfg prefilled (detail route 200, no JS error); after Save
-  `SELECT type FROM codetrackers WHERE id=1` → **1**; the screen then shows `OK` for that row.
-  (Fixture restored to `type=5` afterwards to keep the bug reproducible.) PASS.
-
-### Test 7 — Static gates, Event Viewer and log hygiene
-- **Steps:** `php -l` on both changed PHP files, `node` parse of every `<script>` block of
-  `codetrackerView.html`, `git diff --check`, and a full re-read of `events` + `tmp/php_server.log`.
-- **Expected:** no syntax/whitespace defect, no new Error/Warning entry, no fatal in the log.
-- **Actual:** `No syntax errors detected` ×2; all 6 script blocks parse (`new Function` OK ×6);
-  `git diff --check` clean; `events WHERE log_level=2` = 6 with the newest id 9 dated 23:45:08 (the
-  pre-fix request); `tmp/php_server.log` tail shows plain `[200]`s and no PHP notice block.
-  PASS.
-
-**Result: 7/7 PASS (Test 1 documents the pre-fix failure, Tests 2-7 are post-fix). (Refs #1597)**
+The six `log_level IN (1,2)` rows present in `events` were generated by this run **before**
+the two defects fixed in checkpoint 2 were corrected — they are the `$tables`-scope bug
+(`Undefined variable $tables` + `1064 SQL syntax error` at `api/requirements/index.php:907`).
+They are deliberately left in place as the evidence trail for those findings; every event
+written after the fix is `log_level=16`.

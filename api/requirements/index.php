@@ -332,6 +332,64 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'meta' && !isse
     out(['status' => 'ok', 'meta' => buildMeta($tid)]);
 }
 
+/**
+ * Localized relation type dropdown for the "New relation" form.
+ * Port of requirement_mgr::init_relation_type_select()
+ * (lib/functions/requirement_mgr.class.php:2779-2815): every configured type
+ * contributes a "<id>_source" item, and - unless source/destination labels are
+ * identical - a "<id>_destination" item. The suffix is NOT cosmetic: legacy
+ * doAddRelation() swaps source/destination when it finds "_destination" in the
+ * posted value (lib/requirements/reqCommands.class.php:694-698).
+ */
+function buildRelationTypeOptions($reqMgr, $enabled) {
+    $out = [];
+    if (!$enabled) {
+        return $out;
+    }
+    $sel = $reqMgr->init_relation_type_select();
+    $selected = isset($sel['selected']) ? (string)$sel['selected'] : null;
+    foreach ((array)$sel['items'] as $key => $label) {
+        $out[] = ['id' => (string)$key, 'label' => $label, 'selected' => ((string)$key === $selected)];
+    }
+    return $out;
+}
+
+/**
+ * Is the given requirement version frozen? The relation add/delete UI is only
+ * rendered when the VIEWED version is not frozen (reqViewVersions.tpl:340,411),
+ * so both verbs refuse to act on a frozen version.
+ */
+function relationVersionIsFrozen($reqMgr, $reqId, $versionId) {
+    if ($versionId <= 0) {
+        return false;
+    }
+    $rows = (array)$reqMgr->get_by_id($reqId, $versionId);
+    foreach ($rows as $row) {
+        if (intval($row['version_id']) === intval($versionId)) {
+            return intval($row['is_open']) === 0;
+        }
+    }
+    return false;
+}
+
+/**
+ * TestProject dropdown for cross-project relations, only rendered by legacy
+ * when req_cfg->relations->interproject_linking is on (reqView.php:224-226).
+ * Port of reqView.php::initTestprojectSelect() - the projects the current user
+ * may see, the owning one preselected.
+ */
+function buildRelationProjectOptions($tprojectMgr, $userId, $tprojectId) {
+    $out = [];
+    $opt = ['output' => 'map_name_with_inactive_mark',
+            'order_by' => config_get('gui')->tprojects_combo_order_by];
+    $projects = (array)$tprojectMgr->get_accessible_for_user($userId, $opt);
+    foreach ($projects as $id => $label) {
+        $out[] = ['id' => (string)intval($id), 'label' => $label,
+                  'selected' => (intval($id) === intval($tprojectId))];
+    }
+    return $out;
+}
+
 // Route: GET /overview - all requirements of the project with latest or all versions
 if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'overview') {
     $chronoStart = microtime(true);
@@ -542,6 +600,13 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'view') {
 
     $reqCfg = config_get('req_cfg');
     $relationsEnabled = isset($reqCfg->relations->enable) ? (bool)$reqCfg->relations->enable : false;
+    $relationsInterproject = isset($reqCfg->relations->interproject_linking)
+        ? (bool)$reqCfg->relations->interproject_linking : false;
+
+    // legacy $isAlien (lib/requirements/reqView.php:97-99): the requirement is
+    // being viewed from a tproject_id that is NOT the one owning it. Relations
+    // are then read-only, whatever the user role is.
+    $isAlien = (intval(resolveTprojectId()) !== $resolvedTid);
 
     $versions = $reqMgr->get_by_id($reqId, requirement_mgr::ALL_VERSIONS, null,
         ['output_format' => 'mapOfArray', 'renderImageInline' => false]);
@@ -645,6 +710,10 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'view') {
 
     // relations (same filtering legacy get_relations() applies)
     $relList = [];
+    $relRw = (!$isAlien);
+    // legacy reqViewVersions.tpl:411 - the trash icon needs rw AND an unfrozen
+    // viewing version AND the RELATED requirement being open
+    $curFrozen = !intval($cur['is_open']);
     if ($relationsEnabled) {
         $rels = $reqMgr->get_relations($reqId);
         if (!empty($rels['relations'])) {
@@ -652,6 +721,7 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'view') {
                 $other = $r['related_req'];
                 $modifiedNever = is_null($other['modification_ts'])
                     || $other['modification_ts'] == '0000-00-00 00:00:00';
+                $otherOpen = intval(isset($other['is_open']) ? $other['is_open'] : 0) === 1;
                 $relList[] = [
                     'relation_id' => intval($r['id']),
                     'type_localized' => $r['type_localized'],
@@ -661,11 +731,17 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'view') {
                     'related_version_id' => intval($other['version_id']),
                     'related_status' => $other['status'],
                     'related_type' => $other['type'],
-                    'is_frozen' => !intval($other['is_open']),
+                    'is_frozen' => !$otherOpen,
+                    'is_open' => $otherOpen,
                     'modified_never' => $modifiedNever,
                     'modification_ts' => $modifiedNever ? null : $other['modification_ts'],
                     'related_tproject' => isset($r['related_req']['testproject_name'])
                         ? $r['related_req']['testproject_name'] : '',
+                    // legacy "relation_set_by" column + creation tooltip
+                    // (reqViewVersions.tpl:373,404)
+                    'author' => isset($r['author']) ? $r['author'] : '',
+                    'creation_ts' => isset($r['creation_ts']) ? $r['creation_ts'] : '',
+                    'can_delete' => ($relRw && !$curFrozen && $otherOpen),
                 ];
             }
         }
@@ -720,6 +796,17 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'view') {
             // (reqView.php:250) - the sole right gating BOTH Freeze and Unfreeze
             // version buttons (reqViewVersionsViewer.tpl:86-98).
             'unfreeze_req' => $user->hasRight($db, 'mgt_unfreeze_req', $resolvedTid),
+            // legacy $gui->req_relations['rw'] = !$isAlien
+            // (lib/requirements/reqView.php:222) - gates BOTH the add-relation
+            // row and the per-row delete icon (reqViewVersions.tpl:340,411)
+            'req_relations_rw' => $relRw,
+        ],
+        'relation_config' => [
+            'enabled' => $relationsEnabled,
+            'interproject_linking' => $relationsInterproject,
+            'types' => buildRelationTypeOptions($reqMgr, $relationsEnabled),
+            'projects' => $relationsInterproject
+                ? buildRelationProjectOptions($tprojectMgr, $userId, $resolvedTid) : [],
         ],
         'meta' => $meta,
         'spec_path' => $specPath,
@@ -759,7 +846,153 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'view') {
 }
 
 // ---------------------------------------------------------------------------
-// Coverage (test case link) management - Refs #1299
+// Relation management (test-case link management's sibling) - Refs #1298
+// Port of lib/requirements/reqCommands.class.php::doAddRelation() (:666-733)
+// and ::doDeleteRelation() (:745-769) as driven from the modern Requirement
+// Viewer (reqView.html):
+//   POST   /relation  { req_id, relation_type, destination_doc_id,
+//                       destination_tproject_id? }
+//   DELETE /relation  { req_id, relation_id }
+//
+// The legacy form posts to reqEdit.php with doAction=doAddRelation /
+// doDeleteRelation; here the HTTP verb carries the intent. Every legacy gate is
+// re-checked server side - the hidden form fields are never trusted:
+//   req_relations.rw (!$isAlien, reqView.php:222) on both verbs
+//   !frozen_version on both (reqViewVersions.tpl:340,411)
+//   destination last version must be open (reqCommands.class.php:716-721)
+// and the whole error chain of doAddRelation is reproduced with the same
+// lang_get() messages, returned as message_key so the client can i18n them.
+// ---------------------------------------------------------------------------
+if (($method === 'POST' || $method === 'DELETE') && isset($segments[0]) && $segments[0] === 'relation') {
+    $body = getBody();
+    $reqId = intval($body['req_id'] ?? ($body['requirement_id'] ?? 0));
+
+    $fail = function ($key, $msg, $code = 409) {
+        http_response_code($code);
+        out(['status' => 'error', 'message' => $msg, 'message_key' => $key]);
+    };
+
+    // owning project of the requirement (same lookup /view uses)
+    $relReqRow = $db->get_recordset(
+        "SELECT REQ.id, RSPEC.testproject_id FROM requirements REQ " .
+        " JOIN req_specs RSPEC ON RSPEC.id = REQ.srs_id WHERE REQ.id = " . intval($reqId) . " LIMIT 1");
+    if (empty($relReqRow)) {
+        $fail('reqv.errRelationSource', 'Requirement not found', 404);
+    }
+    $relOwnTid = intval($relReqRow[0]['testproject_id']);
+
+    $relReqCfg = config_get('req_cfg');
+    if (empty($relReqCfg->relations->enable)) {
+        $fail('reqv.errRelationsDisabled', 'Requirement relations are disabled', 403);
+    }
+    // legacy $isAlien: relations are read-only when the screen was reached
+    // through a tproject_id that does not own the requirement (reqView.php:97-99)
+    $relRequestedTid = intval($body['tproject_id'] ?? ($_SESSION['testprojectID'] ?? 0));
+    if ($relRequestedTid > 0 && $relRequestedTid !== $relOwnTid) {
+        $fail('reqv.errRelationsReadOnly', 'No permission', 403);
+    }
+
+    // ---- delete -----------------------------------------------------------
+    if ($method === 'DELETE') {
+        $relationId = $body['relation_id'] ?? null;
+        if (is_null($relationId) || !is_numeric($relationId)
+            || !is_numeric($body['req_id'] ?? ($body['requirement_id'] ?? null))) {
+            $fail('error_deleting_rel', lang_get('error_deleting_rel'), 400);
+        }
+        $relationId = intval($relationId);
+
+        // the relation must actually hang on this requirement, otherwise the id
+        // from the client could delete an unrelated link
+        $relTables = tlObjectWithDB::getDBTables(['req_relations']);
+        $relOwned = $db->get_recordset(
+            "SELECT id FROM {$relTables['req_relations']} WHERE id = " . $relationId .
+            " AND (source_id = " . $reqId . " OR destination_id = " . $reqId . ") LIMIT 1");
+        if (empty($relOwned)) {
+            $fail('reqv.errRelationNotFound', 'Relation not found', 404);
+        }
+        // frozen viewing version blocks the delete too (reqViewVersions.tpl:411)
+        $relViewVersionId = intval($body['version_id'] ?? ($reqMgr->get_last_version_info($reqId, ['output' => 'id'])['id'] ?? 0));
+        if (relationVersionIsFrozen($reqMgr, $reqId, $relViewVersionId)) {
+            $fail('reqv.errReqFrozen', lang_get('can_not_edit_req'), 403);
+        }
+        $reqMgr->delete_relation($relationId);
+        out(['status' => 'ok', 'action' => 'delete', 'relation_id' => $relationId,
+             'message' => lang_get('delete_rel_success'), 'message_key' => 'delete_rel_success']);
+    }
+
+    // ---- add --------------------------------------------------------------
+    // legacy client-side validate_req_docid_input() (reqViewVersions.tpl:110-121)
+    // only rejects an EMPTY / whitespace value and the untouched placeholder
+    // label: requirement doc IDs are free-form strings, not numbers
+    $destDocId = trim((string)($body['destination_doc_id'] ?? ''));
+    $relType = trim((string)($body['relation_type'] ?? ''));
+    if ($destDocId === '' || $destDocId === lang_get('relation_destination_doc_id')) {
+        $fail('rel_add_error_dest_id', lang_get('rel_add_error_dest_id'), 400);
+    }
+    if ($relType === '' || !is_numeric(current(explode('_', $relType)))) {
+        $fail('rel_add_error', lang_get('rel_add_error'), 400);
+    }
+
+    // destination project: cross-project selector when interproject linking is
+    // on (reqView.php:224-226), otherwise the requirement's own project
+    $relDestTid = $relOwnTid;
+    $relInterproject = !empty($relReqCfg->relations->interproject_linking);
+    if ($relInterproject && isset($body['destination_tproject_id'])
+        && is_numeric($body['destination_tproject_id']) && intval($body['destination_tproject_id']) > 0) {
+        $relDestTid = intval($body['destination_tproject_id']);
+    }
+
+    $otherReq = (array)$reqMgr->getByDocID($destDocId, $relDestTid);
+    if (count($otherReq) < 1) {
+        $fail('rel_add_error_dest_id', lang_get('rel_add_error_dest_id'));
+    }
+    $otherReq = current($otherReq);
+
+    $otherId = intval($otherReq['id']);
+    $sourceId = $reqId;
+    $destinationId = $otherId;
+    $relTypeId = (int)current(explode('_', $relType));
+    if (strpos($relType, '_destination')) {
+        // "child of" / "depends on" etc. - direction is reversed
+        $sourceId = $otherId;
+        $destinationId = $reqId;
+    }
+
+    if (!is_numeric($userId) || !is_numeric($sourceId) || !is_numeric($destinationId)) {
+        $fail('rel_add_error', lang_get('rel_add_error'));
+    }
+    if ($sourceId == $destinationId) {
+        $fail('rel_add_error_self', lang_get('rel_add_error_self'));
+    }
+    if ($reqMgr->check_if_relation_exists($sourceId, $destinationId, $relTypeId)) {
+        // legacy message embeds the localized relation type
+        // (reqCommands.class.php:714)
+        $relAllLabels = $reqMgr->get_all_relation_labels();
+        $descr = isset($relAllLabels[$relTypeId]['source'])
+            ? $relAllLabels[$relTypeId]['source'] : '';
+        $fail('rel_add_error_exists_already',
+            sprintf(lang_get('rel_add_error_exists_already'), $descr));
+    }
+    $destLastVersionInfo = $reqMgr->get_last_version_info($destinationId);
+    if (empty($destLastVersionInfo['is_open'])) {
+        $fail('rel_add_error_dest_frozen', lang_get('rel_add_error_dest_frozen'));
+    }
+    // legacy add form is hidden on a frozen viewing version
+    // (reqViewVersions.tpl:340) - enforce it here too
+    $relAddViewVersionId = intval($body['version_id'] ?? ($reqMgr->get_last_version_info($reqId, ['output' => 'id'])['id'] ?? 0));
+    if (relationVersionIsFrozen($reqMgr, $reqId, $relAddViewVersionId)) {
+        $fail('reqv.errReqFrozen', lang_get('can_not_edit_req'), 403);
+    }
+
+    $reqMgr->add_relation($sourceId, $destinationId, $relTypeId, $userId);
+    out(['status' => 'ok', 'action' => 'add',
+         'relation_source_id' => $sourceId,
+         'relation_destination_id' => $destinationId,
+         'relation_type' => $relTypeId,
+         'message' => lang_get('new_rel_add_success'), 'message_key' => 'new_rel_add_success']);
+}
+
+
 // Port of lib/requirements/reqCommands.class.php::addTestCase()/removeTestCase()
 // as driven from the modern Requirement Viewer (reqView.html):
 //   POST   /coverage   { req_id, version_id, tcaseIdentity }
