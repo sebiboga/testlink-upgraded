@@ -47,6 +47,24 @@ if (!$canView) {
     exit;
 }
 
+// Write gate (gap vs legacy #970): legacy gates create/update/delete AND the
+// connection check on `codetracker_management` — lib/codetrackers/codeTrackerEdit.php:181-184
+// (checkRights() = hasRight('codetracker_management'), denying the whole edit
+// controller) and codeTrackerView.tpl:51-61 (wrench "check connection" rendered
+// only when canManage). The modern BFF used to let any viewer POST/PUT/DELETE/
+// test_github (measured escalation in issue #970), so those routes now require
+// codetracker_management and trail a denial into the Event Viewer first, exactly
+// like the legacy read gate above.
+$canManage = ($user->hasRight($db, 'codetracker_management') == 'yes');
+
+function denyWrite($user, $userId, $action) {
+    logAuditEvent(TLS('audit_security_user_right_missing', $user->login, 'api/codetracker/index.php', $action),
+                  'WRITE', $userId, 'codetrackers');
+    http_response_code(403);
+    echo json_encode(['status' => 'error', 'message' => 'No permission']);
+    exit;
+}
+
 $path = $_SERVER['PATH_INFO'] ?? parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $path = preg_replace('#^/api/codetracker(/index\.php)?#', '', $path);
 $path = '/' . trim($path, '/');
@@ -97,6 +115,7 @@ function trackerToJSON($item, $mgr) {
         'serverUrl' => $serverUrl,
         'github' => $github,
         'implementation' => $item['implementation'] ?? '',
+        'link_count' => intval($item['link_count'] ?? 0),
     ];
 }
 
@@ -110,7 +129,10 @@ if ($method === 'GET' && ($path === '/' || $path === '' || $path === '/index.php
             $items[] = trackerToJSON($item, $mgr);
         }
     }
-    out(['status' => 'ok', 'items' => $items, 'total' => count($items)]);
+    // canManage mirrors legacy $gui->canManage
+    // (lib/codetrackers/codeTrackerView.php:24) so the UI can gate the Create
+    // button and the edit/delete action icons on codetracker_management.
+    out(['status' => 'ok', 'items' => $items, 'total' => count($items), 'canManage' => $canManage]);
 }
 
 if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'meta' && isset($segments[1]) && $segments[1] === 'types') {
@@ -135,6 +157,7 @@ if ($method === 'GET' && isset($segments[0]) && is_numeric($segments[0]) && coun
 }
 
 if ($method === 'POST' && empty($segments)) {
+    if (!$canManage) { denyWrite($user, $userId, 'create'); }
     $body = getBody();
     $name = trim($body['name'] ?? '');
     $type = intval($body['type'] ?? 0);
@@ -161,6 +184,7 @@ if ($method === 'POST' && empty($segments)) {
 }
 
 if ($method === 'PUT' && isset($segments[0]) && is_numeric($segments[0]) && count($segments) === 1) {
+    if (!$canManage) { denyWrite($user, $userId, 'update'); }
     $id = intval($segments[0]);
     $existing = $mgr->getByID($id);
     if (!$existing) { http_response_code(404); out(['status' => 'error', 'message' => 'Code tracker not found']); }
@@ -202,6 +226,7 @@ function githubInterfaceFor($mgr, $id) {
 // Test a GitHub connection using inline (unsaved) config, so the create modal
 // can verify before saving. Body: { repository, token, branch }.
 if ($method === 'POST' && isset($segments[0]) && $segments[0] === 'test_github') {
+    if (!$canManage) { denyWrite($user, $userId, 'test_github'); }
     $body = getBody();
     $repository = trim($body['repository'] ?? '');
     $token = trim($body['token'] ?? '');
@@ -288,6 +313,7 @@ if (($method === 'GET' || $method === 'POST') && isset($segments[0]) && is_numer
 }
 
 if ($method === 'DELETE' && isset($segments[0]) && is_numeric($segments[0])) {
+    if (!$canManage) { denyWrite($user, $userId, 'delete'); }
     $id = intval($segments[0]);
     $existing = $mgr->getByID($id);
     if (!$existing) { http_response_code(404); out(['status' => 'error', 'message' => 'Code tracker not found']); }

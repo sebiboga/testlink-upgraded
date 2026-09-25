@@ -40,7 +40,7 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
 <div class="header"><span data-i18n="header.codeTrackers">Code Trackers</span> <span data-i18n="header.codeTrackersSub" style="font-size:13px;font-weight:400;opacity:.8;margin-left:12px;">manage source code tracker integrations</span><span id="localeSwitcher" style="float:right;"></span></div>
 
 <div class="toolbar">
-  <button class="btn-teal" onclick="showCreateModal()"><i class="fa fa-plus"></i> <span data-i18n="ct.createTracker">Create Code Tracker</span></button>
+  <button id="createBtn" class="btn-teal" onclick="showCreateModal()"><i class="fa fa-plus"></i> <span data-i18n="ct.createTracker">Create Code Tracker</span></button>
   <span style="flex:1"></span>
   <span id="footerInfo" style="color:#aaa;font-size:12px;"></span>
 </div>
@@ -53,7 +53,7 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
         <th data-i18n="ct.type">Type</th>
         <th data-i18n="ct.serverUrl">Server URL</th>
         <th data-i18n="ct.active">Active</th>
-        <th style="width:100px" data-i18n="common.actions">Actions</th>
+        <th style="width:100px" id="actionsTh" data-i18n="common.actions">Actions</th>
       </tr>
     </thead>
     <tbody></tbody>
@@ -142,6 +142,7 @@ var table = null;
 var typeMap = {};
 var allItems = [];
 var githubCode = 0;
+var canManage = false;
 
 function isGithubType() {
   return parseInt($('#editType').val()) === githubCode && githubCode !== 0;
@@ -202,6 +203,12 @@ function showDenied(xhr) {
 function loadTrackers() {
   $.getJSON(API, function(r) {
     allItems = r.items;
+    // canManage mirrors legacy $gui->canManage
+    // (lib/codetrackers/codeTrackerView.php:24): the Create button and the
+    // per-row edit/delete actions are management-only in 1.9.20
+    // (codeTrackerView.tpl:43-45,64-70,76), so hide them for view-only users.
+    canManage = !!r.canManage;
+    $('#createBtn').toggle(canManage);
     renderTable(allItems);
     $('#footerText').text(TLi18n.t('ct.trackersCount', {n: r.total}) + ' | ' + TLi18n.t('common.generatedOn') + ' ' + new Date().toLocaleString());
   }).fail(function(xhr) {
@@ -213,13 +220,21 @@ function renderTable(items) {
   if (table) { table.destroy(); $('#trackersTable tbody').empty(); }
   var rows = [];
   $.each(items, function(i, t) {
+    var actions = '';
+    if (canManage) {
+      actions = '<i class="fa fa-edit action-btn" title="Edit" onclick="editTracker(' + t.id + ')"></i>';
+      // Legacy hides the delete icon when the tracker is linked to a test
+      // project (codeTrackerView.tpl:76 `link_count == 0`).
+      if (t.link_count === 0) {
+        actions += '<i class="fa fa-trash action-btn danger" title="Delete" onclick="deleteTracker(' + t.id + ', \'' + jsAttrEsc(t.name) + '\')"></i>';
+      }
+    }
     rows.push([
       t.name,
       t.typeDescr || t.typeLabel,
       t.serverUrl || '',
       '<span class="badge-active">' + TLi18n.t('ct.active') + '</span>',
-      '<i class="fa fa-edit action-btn" title="Edit" onclick="editTracker(' + t.id + ')"></i>' +
-      '<i class="fa fa-trash action-btn danger" title="Delete" onclick="deleteTracker(' + t.id + ', \'' + (t.name || '').replace(/'/g, "\\'") + '\')"></i>'
+      actions
     ]);
   });
   table = $('#trackersTable').DataTable({
@@ -231,6 +246,9 @@ function renderTable(items) {
       { orderable: false, searchable: false }
     ]
   });
+  // View-only users get no manage affordances: collapse the Actions column the
+  // way legacy omits the th_delete column (codeTrackerView.tpl:43-45).
+  table.column(4).visible(canManage);
 }
 
 function showCreateModal() {
@@ -274,6 +292,15 @@ function editTracker(id) {
 
 function xmlEsc(s) {
   return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// Escape a value for interpolation inside a double-quoted HTML attribute whose
+// JS uses single quotes (e.g. `onclick="deleteTracker(id, '<name>')"`). Legacy
+// used Smarty `|escape:'javascript'|escape` for the same double context: escape
+// backslash and quote first (JS string), then the attribute's HTML entities.
+function jsAttrEsc(s) {
+  return String(s == null ? '' : s).replace(/\\/g, '\\\\').replace(/'/g, "\\'")
+    .replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 function buildGhCfg(repoUrl, branch, token) {

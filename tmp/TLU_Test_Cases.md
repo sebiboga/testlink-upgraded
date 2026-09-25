@@ -20286,3 +20286,66 @@ screen `http://localhost:8082/gui/templates/codetracker/codetrackerView.html`.
   ERROR/WARNING = 0, console empty. PASS.
 
 **Result: 5/5 PASS. (Refs #969)**
+
+## Suite 970 — Task — Issue #970: codetracker_management write + UI-action gating in codetrackerView (gap vs legacy) (Refs #970)
+
+Fixture users: `ctviewonly` (role 99, only `codetracker_view` = right 52),
+`admin` (role 8, has `codetracker_management` = right 51). Dataset: tracker
+"Admin Tracker A" (codetrackers.id=2) + temporary "Temp Tracker B" (id=3,
+deleted mid-test). Entry: `http://localhost:8082/gui/templates/codetracker/codetrackerView.html?tproject_id=0&tplan_id=0`.
+
+### Test 1 — BFF denies write for view-only user (POST create → 403)
+- **Steps:** login `ctviewonly`; `POST /api/codetracker/index.php` {name:"Hack", type:200, cfg:...}.
+- **Expected:** HTTP 403 `No permission`; audit `audit_security_user_right_missing` (action create); no row inserted.
+- **Actual:** 403; audit row; 0 new rows. PASS.
+
+### Test 2 — BFF denies PUT update → 403
+- **Steps:** `PUT /api/codetracker/index.php/2` rename as `ctviewonly`.
+- **Expected:** HTTP 403.
+- **Actual:** 403. PASS.
+
+### Test 3 — BFF denies DELETE → 403
+- **Steps:** `DELETE /api/codetracker/index.php/2` as `ctviewonly`.
+- **Expected:** HTTP 403; tracker stays.
+- **Actual:** 403; id=2 row intact. PASS.
+
+### Test 4 — BFF denies test_github → 403
+- **Steps:** `POST /api/codetracker/index.php/test_github` as `ctviewonly`.
+- **Expected:** HTTP 403.
+- **Actual:** 403. PASS.
+
+### Test 5 — GET list exposes `canManage` (legacy `$gui->canManage`)
+- **Steps:** GET list as `ctviewonly` and as `admin`.
+- **Expected:** `ctviewonly` → `canManage:false` (boolean), `admin` → `canManage:true`.
+- **Actual:** false / true, both typed boolean in JSON. PASS.
+
+### Test 6 — view-only UI: no Create button, no Actions column, no icons
+- **Steps:** login `ctviewonly`; load codetrackerView.html with tracker present.
+- **Expected:** table + tracker render read-only; "Create Code Tracker" button and
+  the Actions column (edit/delete icons) absent.
+- **Actual:** snapshot: only Name/Type/Server URL/Active headers, 1 row, no button
+  (`#createBtn` display:none), no actions. PASS.
+
+### Test 7 — admin UI: Create button + edit/delete icons present
+- **Steps:** login `admin`; load codetrackerView.html.
+- **Expected:** Create button visible; each row shows edit (+delete when
+  `link_count == 0`).
+- **Actual:** button visible; id=2 (link_count=0 at that moment) edit+trash,
+  modal create + save + rename (PUT) + delete (id=3) all worked UI-driven. PASS.
+
+### Test 8 — delete icon hidden for linked tracker (legacy `link_count == 0`)
+- **Steps:** insert `testproject_codetracker(9999,2)` so link_count=1; reload as admin.
+- **Expected:** row id=2 shows ONLY edit icon, no trash.
+- **Actual:** only `fa-edit` rendered (verified innerHTML). PASS. (link removed after test)
+
+### Test 9 — Event Viewer hygiene
+- **Steps:** after the whole matrix, query `events` grouped by log_level.
+- **Expected:** ERROR(1)/WARNING(2) count = 0; only AUDIT(16)/INFO events.
+- **Actual:** all 13 events are log_level 16 (AUDIT). PASS.
+
+### Test 10 — legacy parity summary: escaped direct API no longer possible
+- **Steps:** full ctviewonly matrix above (1-4) re-executed in one browser fetch batch.
+- **Expected:** all four write routes 403; GET 200.
+- **Actual:** {POST:403, PUT:403, DELETE:403, TEST_GITHUB:403, GET_VIEW:200, canManage:false}. PASS.
+
+**Result: 10/10 PASS. (Refs #970)**

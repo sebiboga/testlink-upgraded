@@ -679,6 +679,25 @@ System:
   Browser-verified: ctguest → 403 denied panel, ctviewonly → 200, admin → 200
   full screen; Event Viewer shows only INFO `audit_security_user_right_missing`
   events. Suite 969 5/5 PASS. (Refs #969)
+- [FEATURE GAP] - #970: the modern Code Tracker Management screen now enforces
+  the legacy `codetracker_management` WRITE right. Legacy
+  `lib/codetrackers/codeTrackerEdit.php:181-184` (`checkRights()` =
+  hasRight('codetracker_management')) denies the whole edit controller and
+  `codeTrackerView.tpl:43-45,51-61,64-70,76` renders the Create button, the
+  wrench check, the name edit-link and the delete icon ONLY when `canManage`
+  (delete additionally only when `link_count == 0`). The modern BFF served
+  POST/PUT/DELETE and `test_github` to ANY viewer — measured: user `ctviewonly`
+  (only `codetracker_view`) got HTTP 200 + created/renamed/deleted trackers and
+  ran the GitHub connection test (privilege escalation). `api/codetracker/index.php`
+  now computes `$canManage` and returns HTTP 403 + `audit_security_user_right_missing`
+  (activity WRITE) on POST/PUT/DELETE/`test_github` for users without
+  `codetracker_management`; the GET list now returns `canManage` (mirrors legacy
+  `$gui->canManage`) plus per-row `link_count`. `codetrackerView.html` gates the
+  Create button and the edit/delete action icons on `canManage` and collapses the
+  Actions column for view-only users, hiding the delete icon for linked trackers.
+  Browser-verified: ctviewonly → 403 on all write routes + read-only UI; admin →
+  full manage UI + working create/edit/delete; Event Viewer ERROR/WARNING = 0.
+  Suite 970 10/10 PASS. (Refs #970)
 - Plugin Management (plugins/pluginView.html) - BFF api/plugins.
 - Install / Upgrade check (install/installView.html) - BFF api/install.
   Schema state, security notes, GD check (#797, #1282-#1287).
