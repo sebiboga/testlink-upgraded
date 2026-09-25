@@ -22035,3 +22035,85 @@ both reqmgrsystem rights. Entry point:
 - **Actual:** All requests `[200]`; `events` contains only level 16 INFO audit rows (`audit_login_succeeded`, `audit_security_user_right_missing`) plus level 2 rows whose description is the `include_once(contoursoapInterface.class.php)` warning produced by this fixture's `contour` system type — a pre-existing, separately tracked defect (**#1593**), identical before and after the change; no PHP Warning/Error/Fatal added to `tmp/php_server.log`. `{if ` = 9 and `{/if}` = 9 in the template; `git diff --check` clean. PASS.
 
 **Result: 7/7 PASS. (Refs #1585)**
+
+## Regression — Issue #1597: one codetrackers row with an unknown type 500s the whole grid
+
+**Precondition.** Fresh DB (fixture inserted per run, `codetrackers` empty at session start).
+App on `http://localhost:8082` (PHP 8.3 built-in server, docroot = repo root), DB MariaDB
+`testlink/testlink@127.0.0.1:3306/testlink`, login `admin/admin`.
+Screen: `http://localhost:8082/gui/templates/codetracker/codetrackerView.html`
+API: `GET /api/codetracker/index.php` (header `X-Requested-With: XMLHttpRequest`).
+Fixture:
+
+```sql
+INSERT INTO codetrackers (name, type, cfg) VALUES ('Bad Type Tracker', 5, '<codetracker></codetracker>');   -- id 1, unknown type
+INSERT INTO codetrackers (name, type, cfg) VALUES ('Stash Valid', 1, '<codetracker><uribase>http://127.0.0.1:7999/</uribase></codetracker>');
+INSERT INTO codetrackers (name, type, cfg) VALUES ('GitHub Valid', 200, '<codetracker><uribase>https://api.github.com</uribase><repository>o/r</repository><branch>main</branch><token>secret123</token></codetracker>');
+```
+
+`type=5` is deliberately outside `$systems = {1 stash/rest, 200 github/rest}`
+(`lib/functions/tlCodeTracker.class.php:28-29`) — the state a row can reach through an
+import/migration, a hand-edited DB, or an implementation dropped in a later release. The BFF write
+routes cannot create it (`isEnabledTrackerType()`, `api/codetracker/index.php:308`).
+
+### Test 1 — Pre-fix reproduction of the empty 500
+- **Steps:** insert the `type=5` row, then `GET /api/codetracker/index.php` as `admin`; open the
+  Code Trackers screen in the browser.
+- **Expected (2.0.1 wanted):** HTTP 200, the row listed, `env_check_ok=false`, no Event-Viewer noise.
+- **Actual (pre-fix, measured):** `API HTTP 500 len=0` (empty body);
+  `tmp/php_server.log`: `PHP Fatal error: Uncaught Error: Class "Interface" not found in
+  lib/functions/tlCodeTracker.class.php:569` with stack `#0 api/codetracker/index.php(254):
+  tlCodeTracker->getAll()`; `events` gained 6 `log_level=2` rows (ids 4-9: `Undefined array key 5`
+  :116, three `Trying to access array offset on null` :120/:124/:124, two
+  `include_once(Interface.class.php)` from the autoloader `lib/functions/common.php:122`); the
+  screen rendered the 6 column headers with **0 rows and no footer**. FAIL — bug reproduced
+  (screenshot `docs/screenshots/issue-1597-codetracker-unknown-type-before.png`).
+
+### Test 2 — Post-fix: the listing survives and the bad row is diagnosable
+- **Steps:** same request/screen, no DB change.
+- **Expected:** HTTP 200 with a body, the bad row listed, both diagnostics visible, no new events.
+- **Actual:** `API HTTP 200 len=314`; payload `items[0] = {type:5, typeLabel:"", typeDescr:"",
+  typeKnown:false, implementation:"", env_check_ok:false, env_check_msg:"", link_count:0}`;
+  screen: `rows:3`, footer `Showing 1 to 3 of 3 entries`, Type cell `Code Tracker type 5 is unknown.`,
+  Environment cell `Environment check failed`; console: no messages;
+  `SELECT COUNT(*) FROM events WHERE log_level=2` unchanged at 6 (all pre-fix).
+  PASS (screenshot `docs/screenshots/issue-1597-codetracker-unknown-type-after.png`).
+
+### Test 3 — Valid types keep their green OK probe (regression of the `checkEnv` path)
+- **Steps:** read the list with `type=1` and `type=200` rows present.
+- **Expected:** both rows listed with their type label and a green `OK` environment badge.
+- **Actual:** `Stash Valid` → `stash (Interface: rest)` + `OK`; `GitHub Valid` →
+  `github (Interface: rest)` + `OK`; the corrupt row's badge did not leak into them. PASS.
+
+### Test 4 — Detail route (`getByID`, the 2nd unguarded call site) returns cleanly
+- **Steps:** `GET /api/codetracker/index.php/1` (edit-modal data route) on the `type=5` row.
+- **Expected:** HTTP 200, `implementation` empty rather than the bogus `"Interface"`, no warnings.
+- **Actual:** `HTTP 200`, `item.implementation === ""`, `item.typeKnown === false`; no new events
+  rows. PASS.
+
+### Test 5 — Pre-existing write guards must not regress
+- **Steps:** `POST /api/codetracker/index.php/1/test_connection` as `admin` on the `type=5` row;
+  `POST /api/codetracker/index.php` with `type: 5`.
+- **Expected:** 400 with a clear message in both cases; a bogus type is never persisted.
+- **Actual:** test_connection → `HTTP 400 {"status":"error","message":"Unknown code tracker type"}`;
+  create with `type:5` → 400 `invalid_type` (pre-existing `rejectInvalidTrackerType()`); DB still has
+  exactly the 3 fixture rows. PASS.
+
+### Test 6 — A manager can repair the degraded row from the UI
+- **Steps:** click the edit icon of the `Bad Type Tracker` row, pick `stash (Interface: rest)` in the
+  Type dropdown, press Save, then re-read the DB and reload the screen.
+- **Expected:** the row is updated to a valid type and renders green afterwards.
+- **Actual:** edit modal opened with the cfg prefilled (detail route 200, no JS error); after Save
+  `SELECT type FROM codetrackers WHERE id=1` → **1**; the screen then shows `OK` for that row.
+  (Fixture restored to `type=5` afterwards to keep the bug reproducible.) PASS.
+
+### Test 7 — Static gates, Event Viewer and log hygiene
+- **Steps:** `php -l` on both changed PHP files, `node` parse of every `<script>` block of
+  `codetrackerView.html`, `git diff --check`, and a full re-read of `events` + `tmp/php_server.log`.
+- **Expected:** no syntax/whitespace defect, no new Error/Warning entry, no fatal in the log.
+- **Actual:** `No syntax errors detected` ×2; all 6 script blocks parse (`new Function` OK ×6);
+  `git diff --check` clean; `events WHERE log_level=2` = 6 with the newest id 9 dated 23:45:08 (the
+  pre-fix request); `tmp/php_server.log` tail shows plain `[200]`s and no PHP notice block.
+  PASS.
+
+**Result: 7/7 PASS (Test 1 documents the pre-fix failure, Tests 2-7 are post-fix). (Refs #1597)**
