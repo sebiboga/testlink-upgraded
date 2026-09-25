@@ -20475,3 +20475,62 @@ proving the BFF used the manager's stored credentials at a view-only session.
   (pre-existing a11y notices only). PASS.
 
 **Result: 5/5 PASS. (Refs #1578)**
+
+## Suite 1579 — Event Viewer legacy deep link → modern screen (Refs #1579)
+
+Scope: `lib/events/eventviewer.php` last remaining legacy full-page renderer →
+session-guarded 302 shim; `testlink_library.js` `showEventHistoryFor()` switch;
+`cfg/const.inc.php` guiTopMenu[7] url. Modern twin `eventviewer.html` + BFF
+`api/eventviewer` (Refs #872) already existed.
+
+### Test 1 — BFF still up; authenticated call returns events
+- **Steps:** browser fetch `GET /api/eventviewer/index.php/events?limit=3`.
+- **Expected:** 200, `status:ok`, non-empty items (AUDIT rows exist).
+- **Actual:** 200, items returned. PASS.
+
+### Test 2 — Legacy deep link 302 → modern screen with context (shim)
+- **Steps:** navigate to
+  `http://localhost:8082/lib/events/eventviewer.php?object_id=1&object_type=testcases`.
+- **Expected:** responds 302 (Location `gui/templates/eventviewer/eventviewer.html?tproject_id=3&tplan_id=4&object_id=1&object_type=testcases`), browser lands on modern viewer, object filter group visible, label filtered by testcases #1.
+- **Actual:** landed on modern eventviewer.html with tproject_id=3, tplan_id=4, object_id=1, object_type=testcases; filter group `flex`; label "Filtered by testcases #1"; table shows empty-state "No events found." PASS.
+
+### Test 3 — Object filter returns matching rows end-to-end
+- **Steps:** BFF `GET /api/eventviewer/index.php/events?objectId=3&objectType=testprojects`; then navigate shim `?object_id=3&object_type=testprojects`.
+- **Expected:** total 1 ("Test Project 'Walk Probe' was created"); viewer shows the AUDIT row + badge.
+- **Actual:** total 1, row rendered. PASS.
+
+### Test 4 — Unfiltered modern screen still renders; locale switch intact
+- **Steps:** open `eventviewer.html` directly; switch locale to `ro`.
+- **Expected:** 16 rows, object filter hidden; header becomes Romanian.
+- **Actual:** 16 rows, filter `none`; header "Vizualizare Evenimente" (ro). PASS.
+
+### Test 5 — Anonymous shim → login (legacy testlinkInitPage contract)
+- **Steps:** incognito/isolated context, open `lib/events/eventviewer.php?object_id=3&object_type=testprojects`.
+- **Expected:** redirected to `login.php?note=expired&destination=%2Flib%2Fevents%2Feventviewer.php...`.
+- **Actual:** redirected exactly as expected. PASS.
+
+### Test 6 — JS wiring switched (no legacy POST remains)
+- **Steps:** grep `testlink_library.js` `showEventHistoryFor`; grep repo for
+  `lib/events/eventviewer.php` references (non-shim, non-dead-template).
+- **Expected:** function now opens modern `eventviewer.html` with
+  `object_id`/`object_type` query params via `window.open`; only dead legacy
+  tpls (dashio/tl-classic eventviewer.tpl) and code comments still mention the
+  legacy URL.
+- **Actual:** function switched; remaining refs are dead templates + comments
+  only. PASS.
+
+### Test 7 — JS + PHP syntax valid
+- **Steps:** `php -l lib/events/eventviewer.php`; `node --check testlink_library.js`.
+- **Expected:** no syntax errors.
+- **Actual:** both clean. PASS.
+
+### Test 8 — Event Viewer hygiene + fixture warning fix
+- **Steps:** filter `events?logLevel=1,2`; verify 0 ERROR/WARNING; inspect
+  `tmp/fixtures_aside_walk.php`.
+- **Expected:** 0 new ERROR/WARNING events; earlier "Undefined property
+  color/notes" rows scrubbed and root cause fixed in the walk fixture
+  (`$item->color=''` `$item->notes=''`).
+- **Actual:** 0 ERROR/WARNING; 6 stale rows scrubbed; fixture aligned with
+  sibling fixtures. PASS.
+
+**Result: 8/8 PASS. (Refs #1579)**
