@@ -742,6 +742,11 @@ function showSuiteView() {
       '<button class="btn-dark btn-sm" onclick="openSuiteRename()"><i class="fa fa-pen"></i> ' + t('tspec.renameSuite') + '</button>' +
       '<button class="btn-red btn-sm" onclick="askDeleteSuite()"><i class="fa fa-trash"></i> ' + t('tspec.deleteSuite') + '</button>';
   }
+  // Requirements Bulk Assignment (Refs #1595) - legacy parity: the bulk grid
+  // was reachable from the Test Specification tree on a test suite.
+  if (ctx.reqEnabled && !!grants['req_tcase_link_management']) {
+    h += '<button class="btn-dark btn-sm" onclick="openReqBulkAssign()"><i class="fa fa-layer-group"></i> ' + t('rtcb.title') + '</button>';
+  }
   h += '</div>';
   h += '</div></div>';
   $('#suiteView').html(h).show();
@@ -753,6 +758,14 @@ function openSuiteExport(deep) {
     '&containerID=' + selected.id;
   if (deep) url += '&useRecursion=1';
   window.open(url, '_blank', 'width=900,height=720,resizable=yes,scrollbars=yes');
+}
+
+// Requirements Bulk Assignment popup (Refs #1595) - suite level coverage grid
+function openReqBulkAssign() {
+  if (!selected || selected.type !== 'testsuite') return;
+  var url = '/gui/templates/requirements/reqTcBulkAssign.html?tproject_id=' + ctx.tproject_id +
+    '&tsuite_id=' + selected.id;
+  window.open(url, '_blank', 'width=1080,height=720,resizable=yes,scrollbars=yes');
 }
 
 function importanceLabel(v) {

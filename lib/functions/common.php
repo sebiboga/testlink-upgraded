@@ -2088,6 +2088,12 @@ function getActions(&$gui,$baseURL) {
   // real req_spec_id; this generic launcher keeps legacy pointer/template
   // parity. (Regressed by 8ef9694d3, restored Refs #1518.)
   $actions->reqReorder = "/gui/templates/requirements/reqReorder.html?{$ctx}";
+  // Requirements Bulk Assignment modernized screen (Dashio popup) - Refs #1595.
+  // Replaces lib/requirements/reqTcAssign.php in its testsuite/bulk mode
+  // (reqTcBulkAssignment.tpl). The Test Specification screen suite view
+  // (testSpec.html) opens it with tsuite_id= of the selected suite; this
+  // generic launcher keeps legacy deep-link/template parity.
+  $actions->reqTcBulkAssign = "/gui/templates/requirements/reqTcBulkAssign.html?{$ctx}";
   $actions->reqImport = "/gui/templates/requirements/reqImport.html?{$ctx}";
   $actions->printReqSpec = "/gui/templates/requirements/printReqSpec.html?{$ctx}";
   // Print Test Specification modernized screen (Dashio standalone page) -
