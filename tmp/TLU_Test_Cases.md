@@ -21715,3 +21715,68 @@ Event Viewer after the re-run: newest rows are the two AUDIT entries
 (`audit_reqv_assigned_tcv`, `audit_reqv_assignment_removed_tcv`, log_level 16); the
 only warnings (ids 9-12) are from the throwaway `/tmp/mkexec1299.php` of this run, not
 from the application. Browser console: no errors.
+
+---
+
+## Regression — Issue #1591: `$tlCfg->gui->pagination` missing for issueTrackerView / platformsView / codeTrackerView
+
+**Precondition:** MariaDB `127.0.0.1:3306`, db `testlink` (freshly imported — empty), app on
+`http://localhost:8082`, `admin`/`admin` login. Fixtures (all needed because the imported DB has
+no list data):
+
+```sql
+INSERT INTO issuetrackers (name,type,cfg) VALUES ('Bugzilla Demo',1,'{"uribase":"http://localhost:9999/","uriview":"bz.cgi?id=%bugid%"}');
+INSERT INTO codetrackers  (name,type,cfg) VALUES ('Git Demo',1,'{"uribase":"http://localhost:9999/g","uriview":"%commitid%"}');
+INSERT INTO testprojects (id,prefix,api_key) VALUES (1,'TL','aaaa...1111');
+INSERT INTO platforms (name,testproject_id,notes,enable_on_design,enable_on_execution,is_open) VALUES ('Linux',1,'demo',1,1,1);
+```
+
+**Repro steps (PRE-fix)** — after logging in:
+1. `http://localhost:8082/lib/issuetrackers/issueTrackerView.php?tproject_id=1`
+2. `http://localhost:8082/lib/platforms/platformsView.php?tproject_id=1`
+3. `http://localhost:8082/lib/codetrackers/codeTrackerView.php?tproject_id=1`
+4. Inspect the DataTables length `<select>` in the bottom-left and run
+   `select id,log_level,description from events order by id desc`.
+
+**PRE-fix symptom (measured):**
+
+| Screen | `lengthMenu` emitted | `<select>` options | E_WARNINGs added |
+|---|---|---|---|
+| `issueTrackerView` | `"lengthMenu": [  ],` | one blank option | 3 (`events` 2/3/4: `Undefined property: stdClass::$issueTrackerView`, `... "pagination" on null`, `... "length" on null`) |
+| `platformsView` | `lengthMenu: [],` | one blank option | 3 (`events` 11/12/13) |
+| `codeTrackerView` | `"lengthMenu": [ 20 ],` | only `20` | 0 |
+| `reqMgrSystemView` | not emitted (no DataTables) | n/a | 0 (of this class) |
+
+**Expected POST-fix:** the length control offers 20 / 40 / 60 / All on all three list screens and
+loading them writes no Error/Warning row at all; `reqMgrSystemView` stays as-is; the 5 screens
+that already had a config block keep their current menus.
+
+**Actual POST-fix results (executed, 2026-09-25, branch `fix/issue-1591`, commit `56a61b872`):**
+
+| # | Step | Expected | Actual | Result |
+|---|---|---|---|---|
+| 1 | `php -l config.inc.php` | no syntax errors | `No syntax errors detected` | PASS |
+| 2 | Load `issueTrackerView.php` (1 tracker) | `lengthMenu` populated, 0 warnings | `"lengthMenu": [ [20, 40, 60, -1], [20, 40, 60, "All"] ],`; `events` rows for this class: **0** | PASS |
+| 3 | Browser: length `<select>` on that screen | 4 options | `["20","40","60","All"]` | PASS |
+| 4 | Browser: choose 40 | page length becomes 40 | `DataTable().page.len()` = 40 | PASS |
+| 5 | Browser console | no errors/warnings | `<no console messages found>` | PASS |
+| 6 | Load `platformsView.php` (1 platform) | populated menu, 0 warnings | `[[20, 40, 60, -1], [20, 40, 60, "All"]]`; 0 warnings | PASS |
+| 7 | Load `codeTrackerView.php` (1 code tracker) | populated menu, 0 warnings | `["20","40","60","All"]`; 0 warnings | PASS |
+| 8 | Load `reqMgrSystemView.php` | unchanged (no DataTables), 0 of this class | no `lengthMenu` in output; 0 of this class | PASS |
+| 9 | Regression `planView.php` | unchanged menu | `[20, 40, 60, -1], [20, 40, 60, "All"]` | PASS |
+| 10 | Regression `keywordsView.php` | unchanged 40/60/80 menu | `[40, 60, 80, -1], [40, 60, 80, "All"]` | PASS |
+| 11 | Config dump of all 8 pagination sections | 5 originals identical, 3 new present | see checkpoint 2 comment — all `enabled=true` with expected `length` | PASS |
+| 12 | Empty list: `DELETE FROM issuetrackers`, reload `issueTrackerView.php` | table still renders, no warning | `http=200`, table present, `events` row count 0 | PASS |
+
+**Result: 12/12 PASS.** (Refs #1591)
+
+**Notes / out of scope (not defects of this fix):**
+- `buildView.php` and `usersAssign.php` answer HTTP 500 (empty body) on this fixture DB — there
+  are 0 test plans and no `testcases` table in the 2.x import. Pre-existing, data related, and
+  unrelated to the config keys added here.
+- `projectView.php` answers with the "create your first project" redirect, so it never reaches
+  its DataTables block on an empty DB.
+- `reqMgrSystemView.php` still logs `Undefined array key "tproject_id"` and 2
+  `contoursoapInterface.class.php` include warnings — filed separately as **#1592** and **#1593**.
+- `issueTrackerView.tpl:81` still logs `Undefined array key "testproject_alt_delete"` — that is
+  the already-tracked **#1590**.
