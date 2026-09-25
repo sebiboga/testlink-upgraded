@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title data-i18n="rtcb.title">Requirements Bulk Assignment</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0 0 24px; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; display: flex; align-items: center; }
+.header span.sub { font-size: 13px; font-weight: 400; color: #0d3f3c; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 7px; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-teal:disabled { opacity: .45; cursor: not-allowed; }
+.btn-red { background: #e6605e; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 7px; }
+.btn-red:hover { background: #d04e4c; }
+.btn-red:disabled { opacity: .45; cursor: not-allowed; }
+.btn-ghost { background: transparent; color: #ccc; border: 1px solid #555; padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; gap: 7px; text-decoration: none; }
+.btn-ghost:hover { border-color: #4ECDC4; color: #4ECDC4; text-decoration: none; }
+.sep { flex: 1; }
+.card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px 0; overflow: hidden; }
+.card-title { background: #f7f7f7; padding: 10px 18px; font-size: 13px; font-weight: 700; color: #22242a; border-bottom: 1px solid #e5e5e5; display: flex; align-items: center; gap: 8px; }
+.card-body { padding: 16px 18px; font-size: 13px; color: #444; }
+.meta-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; }
+.meta-item { border: 1px solid #e6e6e6; border-radius: 5px; padding: 9px 12px; background: #fbfbfb; }
+.meta-item b { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .6px; color: #888; margin-bottom: 4px; }
+.meta-item span { font-size: 14px; color: #22242a; font-weight: 600; word-break: break-word; }
+.warnbox { margin: 14px 24px 0; padding: 10px 14px; border-radius: 5px; font-size: 13px; background: #fff8e1; border: 1px solid #ffe0a3; color: #8a6100; }
+.warnbox.err { background: #fdecea; border-color: #f5c6cb; color: #b94a48; }
+.grid-wrap { padding: 0 18px 4px; overflow-x: auto; }
+table.reqgrid { width: 100%; border-collapse: collapse; }
+table.reqgrid thead th { background: #22242a; color: #fff; font-size: 12px; font-weight: 600; text-align: left; padding: 9px 12px; white-space: nowrap; }
+table.reqgrid tbody td { padding: 9px 12px; font-size: 13px; border-bottom: 1px solid #eee; vertical-align: top; }
+table.reqgrid tbody tr:hover { background: #f7fdfd; }
+table.reqgrid tbody tr.sel { background: #e8f8f2; }
+.cbx { width: 16px; height: 16px; cursor: pointer; }
+.docid { font-family: monospace; font-size: 12px; color: #1c7a94; white-space: nowrap; }
+.req-title { font-weight: 600; color: #22242a; }
+.cov-chip { display: inline-block; margin-top: 4px; background: #4ECDC4; color: #fff; padding: 1px 8px; border-radius: 9px; font-size: 11px; font-weight: 700; }
+.cov-chip.full { background: #1d7a4f; }
+.cov-chip.none { background: #bbb; }
+.scope { color: #666; font-size: 12px; }
+.actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 14px 18px; border-top: 1px solid #eee; background: #fcfcfc; }
+.actions .sel-info { color: #777; font-size: 12px; }
+.msg { display: none; margin: 12px 24px 0; padding: 10px 16px; border-radius: 5px; font-size: 13px; }
+.msg.ok { display: block; background: #e8f8f2; border: 1px solid #b8e6d3; color: #1d7a4f; }
+.msg.err { display: block; background: #fdecea; border: 1px solid #f5c6cb; color: #b94a48; }
+.empty-state { padding: 34px; text-align: center; color: #888; font-size: 14px; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+.req-link { color: #3498db; cursor: pointer; }
+.req-link:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <i class="fa fa-layer-group"></i>
+  <span data-i18n="rtcb.title">Requirements Bulk Assignment</span>
+  <span class="sub" data-i18n="rtcb.headerSub">assign requirements to every test case of a test suite</span>
+  <span id="localeSwitcher" style="margin-left:auto;"></span>
+</div>
+
+<div class="toolbar">
+  <button class="btn-teal" id="btnRefresh" onclick="load()"><i class="fa fa-refresh"></i> <span data-i18n="common.refresh">Refresh</span></button>
+  <a class="btn-ghost" id="backLink" href="#" target="_blank"><i class="fa fa-folder-tree"></i> <span data-i18n="rtcb.backToSpec">Back to test specification</span></a>
+  <span class="ctx" id="ctxLine"></span>
+  <span class="sep"></span>
+  <button class="btn-ghost" id="btnClose" onclick="window.close()"><i class="fa fa-times"></i> <span data-i18n="common.close">Close</span></button>
+</div>
+
+<div class="msg" id="msg"></div>
+<div class="warnbox" id="warnBox" style="display:none;"></div>
+
+<div class="card" id="ctxCard" style="display:none;">
+  <div class="card-title"><i class="fa fa-info-circle"></i> <span data-i18n="rtcb.context">Context</span></div>
+  <div class="card-body">
+    <div class="meta-grid">
+      <div class="meta-item"><b data-i18n="rtcb.testProject">Test Project</b><span id="mTproject">-</span></div>
+      <div class="meta-item"><b data-i18n="rtcb.testSuite">Test Suite</b><span id="mSuite">-</span></div>
+      <div class="meta-item"><b data-i18n="rtcb.testCases">Test Cases (deep)</b><span id="mTcases">-</span></div>
+      <div class="meta-item" style="grid-column: span 2;">
+        <b data-i18n="reqAssign.reqSpec">Requirement Specification</b>
+        <select id="specSel" class="form-control form-control-sm" onchange="onSpecChange()"></select>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card" id="gridCard" style="display:none;">
+  <div class="card-title">
+    <i class="fa fa-list"></i> <span data-i18n="rtcb.reqsTitle">Requirements on the selected specification</span>
+    <span class="cov-chip" id="reqCount">0</span>
+  </div>
+  <div class="grid-wrap">
+    <table class="reqgrid" id="reqTable">
+      <thead>
+        <tr>
+          <th style="width:34px;text-align:center;">
+            <input type="checkbox" class="cbx" id="checkAll" title="" onchange="onCheckAll(this)">
+          </th>
+          <th style="width:130px;" data-i18n="rtcb.colDocId">Req. Doc ID</th>
+          <th data-i18n="rtcb.colReq">Requirement</th>
+          <th style="width:34%;" data-i18n="rtcb.colScope">Scope</th>
+        </tr>
+      </thead>
+      <tbody id="reqBody"></tbody>
+    </table>
+  </div>
+  <div class="empty-state" id="emptyReqs" style="display:none;" data-i18n="rtcb.noReqs">There are no requirements on this specification.</div>
+  <div class="actions" id="actionsBar" style="display:none;">
+    <button class="btn-teal" id="btnAssign" disabled><i class="fa fa-bolt"></i> <span data-i18n="rtcb.assign">Assign to all test cases of the suite</span></button>
+    <button class="btn-red" id="btnUnassign" disabled><i class="fa fa-trash"></i> <span data-i18n="rtcb.unassign">Unassign from the suite test cases</span></button>
+    <span class="sel-info" id="selInfo"></span>
+  </div>
+</div>
+
+<div class="card" id="emptyCard" style="display:none;">
+  <div class="empty-state" id="emptyText"></div>
+</div>
+
+<div class="footer"><span id="footerText">TestLink 2.0.1</span></div>
+
+<!-- confirm modal (Bootstrap) -->
+<div class="modal fade" id="confirmModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered" style="max-width:520px;">
+    <div class="modal-content">
+      <div class="modal-header" style="background:#4ECDC4;color:#fff;">
+        <h5 class="modal-title" style="font-size:15px;font-weight:700;" id="confirmTitle"></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" style="filter:invert(1);"></button>
+      </div>
+      <div class="modal-body" style="font-size:13px;" id="confirmBody"></div>
+      <div class="modal-footer" style="padding:10px 16px;">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal" data-i18n="common.cancel">Cancel</button>
+        <button type="button" class="btn-teal btn-sm" id="confirmOk"></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/gui/templates/dashio/lib/jquery/jquery.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.bundle.min.js"></script>
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script>
+var API = '/api/reqtcbassign/index.php';
+var TPROJECT_ID = 0;
+var TSUITE_ID = 0;
+var SPEC_ID = 0;
+var TCASE_COUNT = 0;
+var rows = [];
+
+function esc(s) {
+  return $('<div>').text(s == null ? '' : String(s)).html();
+}
+
+function t(k) { return TLi18n.t(k); }
+
+function showMsg(ok, text) {
+  var m = $('#msg');
+  m.removeClass('ok err').addClass(ok ? 'ok' : 'err').text(text);
+  m.css('display', 'block');
+  clearTimeout(m.data('tm'));
+  m.data('tm', setTimeout(function () { m.removeClass('ok err'); m.css('display', 'none'); }, 9000));
+}
+
+function showWarn(html, isErr) {
+  var w = $('#warnBox');
+  if (!html) { w.hide(); return; }
+  w.html(html).toggleClass('err', !!isErr).show();
+}
+
+function showEmpty(text) {
+  $('#ctxCard,#gridCard').hide();
+  $('#emptyCard').show();
+  $('#emptyText').html(text);
+}
+
+function covChip(r) {
+  var total = TCASE_COUNT;
+  var n = parseInt(r.linked_count, 10) || 0;
+  var cls = 'cov-chip';
+  var txt;
+  if (total > 0 && n >= total) {
+    cls += ' full';
+    txt = t('rtcb.covFull').replace('{n}', n).replace('{m}', total);
+  } else if (n === 0) {
+    cls += ' none';
+    txt = t('rtcb.covNone').replace('{m}', total);
+  } else {
+    txt = t('rtcb.covPart').replace('{n}', n).replace('{m}', total);
+  }
+  return '<span class="' + cls + '">' + esc(txt) + '</span>';
+}
+
+function selectedIds() {
+  var out = [];
+  $('#reqBody .cbx:checked').each(function () { out.push(parseInt($(this).val(), 10)); });
+  return out;
+}
+
+function syncChecks() {
+  var total = $('#reqBody .cbx').length;
+  var sel = $('#reqBody .cbx:checked').length;
+  $('#checkAll').prop('checked', total > 0 && sel === total);
+  $('#checkAll').prop('indeterminate', sel > 0 && sel < total);
+  $('#btnAssign').prop('disabled', sel === 0);
+  $('#btnUnassign').prop('disabled', sel === 0);
+  $('#selInfo').text(sel > 0
+    ? t('rtcb.selected').replace('{n}', sel).replace('{m}', total)
+    : t('rtcb.selectFirst'));
+  $('#reqBody tr').removeClass('sel');
+  $('#reqBody tr:has(.cbx:checked)').addClass('sel');
+}
+
+function onCheckAll(el) {
+  $('#reqBody .cbx').prop('checked', !!el.checked);
+  syncChecks();
+}
+
+function onSpecChange() {
+  SPEC_ID = parseInt($('#specSel').val(), 10) || 0;
+  load();
+}
+
+function renderRows(list) {
+  rows = list || [];
+  var h = '';
+  rows.forEach(function (r) {
+    h += '<tr data-id="' + r.id + '">' +
+      '<td style="text-align:center;"><input type="checkbox" class="cbx" value="' + r.id + '" onchange="syncChecks()"></td>' +
+      '<td><span class="docid">' + esc(r.doc_id) + '</span></td>' +
+      '<td><div class="req-title">' + esc(r.title) + '</div>' + covChip(r) + '</td>' +
+      '<td><div class="scope">' + esc(r.scope) + '</div></td>' +
+      '</tr>';
+  });
+  $('#reqBody').html(h);
+  $('#reqCount').text(rows.length);
+  $('#emptyReqs').toggle(rows.length === 0);
+  $('#actionsBar').css('display', rows.length ? 'flex' : 'none');
+  syncChecks();
+}
+
+function load() {
+  showWarn('', false);
+  var url = API + '?action=init&tproject_id=' + TPROJECT_ID + '&tsuite_id=' + TSUITE_ID;
+  if (SPEC_ID > 0) { url += '&idSRS=' + SPEC_ID; }
+  $.getJSON(url)
+    .done(function (r) {
+      if (r.status !== 'ok') { renderError(r.message || t('rtcb.errLoad')); return; }
+      TPROJECT_ID = r.tproject_id;
+      TCASE_COUNT = r.tcase_count || 0;
+      $('#mTproject').text(r.tproject_name || ('#' + r.tproject_id));
+      $('#mSuite').text(r.tsuite.name + ' (#' + r.tsuite.id + ')');
+      $('#mTcases').text(TCASE_COUNT);
+      $('#ctxLine').html('<b>' + esc(r.tsuite.name) + '</b> · #' + r.tsuite.id);
+      $('#backLink').attr('href', '/gui/templates/testcases/testSpec.html?tproject_id=' + r.tproject_id);
+      $('#footerText').text('TestLink 2.0.1 - ' + TLi18n.t('rtcb.title'));
+
+      var sel = r.selected_req_spec || { id: 0, name: '' };
+      var opts = '';
+      (r.req_specs || []).forEach(function (s) {
+        opts += '<option value="' + s.id + '"' + (s.id === sel.id ? ' selected' : '') + '>' +
+          esc(s.name) + '</option>';
+      });
+      $('#specSel').html(opts).prop('disabled', !(r.req_specs || []).length);
+      SPEC_ID = sel.id || 0;
+
+      if (!r.has_req_spec) {
+        showEmpty('<i class="fa fa-info-circle"></i> ' + t('rtcb.noReqSpecs'));
+        return;
+      }
+      $('#emptyCard').hide();
+      $('#ctxCard').show();
+
+      if (TCASE_COUNT === 0) {
+        showWarn('<i class="fa fa-exclamation-triangle"></i> ' + t('rtcb.warnNoTCases'), true);
+      } else {
+        showWarn('<i class="fa fa-exclamation-triangle"></i> ' +
+          t('rtcb.warnTCases').replace('{n}', TCASE_COUNT).replace('{s}', r.tsuite.name));
+      }
+      $('#gridCard').show();
+      renderRows(r.requirements);
+    })
+    .fail(function (xhr) {
+      var msg = t('rtcb.errLoad');
+      try { msg = JSON.parse(xhr.responseText).message || msg; } catch (e) {}
+      if (xhr.status === 401) { msg = t('rtcb.errNoSession'); }
+      if (xhr.status === 403) { msg = t('rtcb.errNoRights'); }
+      if (xhr.status === 404) { msg = t('rtcb.errNotFound'); }
+      showEmpty('<i class="fa fa-ban"></i> ' + esc(msg));
+      $('#ctxCard,#gridCard').hide();
+    });
+}
+
+function renderError(msg) {
+  showEmpty('<i class="fa fa-exclamation-triangle"></i> ' + esc(msg));
+  $('#ctxCard,#gridCard').hide();
+}
+
+function confirmThen(title, body, okLabel, fn) {
+  $('#confirmTitle').text(title);
+  $('#confirmBody').html(body);
+  $('#confirmOk').text(okLabel);
+  var modalEl = document.getElementById('confirmModal');
+  var m = window.bootstrap.Modal.getOrCreateInstance(modalEl);
+  $('#confirmOk').off('click').on('click', function () { m.hide(); fn(); });
+  m.show();
+}
+
+function post(action, ids, done) {
+  var payload = {
+    tproject_id: TPROJECT_ID,
+    tsuite_id: TSUITE_ID,
+    idSRS: SPEC_ID,
+    req_id: ids
+  };
+  $.ajax({
+    url: API + '?action=' + action,
+    method: 'POST',
+    contentType: 'application/json',
+    dataType: 'json',
+    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+    data: JSON.stringify(payload)
+  }).done(function (d) {
+    done(d);
+  }).fail(function (xhr) {
+    var msg = t('rtcb.errGeneric');
+    try { msg = JSON.parse(xhr.responseText).message || msg; } catch (e) {}
+    if (xhr.status === 403) { msg = t('rtcb.errNoRights'); }
+    showMsg(false, msg);
+  });
+}
+
+function doAssign() {
+  var ids = selectedIds();
+  if (!ids.length) { showMsg(false, t('rtcb.selectFirst')); return; }
+  confirmThen(t('rtcb.assignConfirmTitle'),
+    t('rtcb.assignConfirm').replace('{n}', ids.length).replace('{m}', TCASE_COUNT)
+      .replace('{s}', $('#mSuite').text()),
+    t('rtcb.assign'),
+    function () {
+      post('bulkassign', ids, function (d) {
+        showMsg(true, t('rtcb.assignDone').replace('{n}', d.assigned));
+        load();
+      });
+    });
+}
+
+function doUnassign() {
+  var ids = selectedIds();
+  if (!ids.length) { showMsg(false, t('rtcb.selectFirst')); return; }
+  confirmThen(t('rtcb.unassignConfirmTitle'),
+    t('rtcb.unassignConfirm').replace('{n}', ids.length).replace('{m}', TCASE_COUNT)
+      .replace('{s}', $('#mSuite').text()),
+    t('rtcb.unassign'),
+    function () {
+      post('unassign', ids, function (d) {
+        showMsg(true, t('rtcb.unassignDone').replace('{n}', d.unassigned));
+        load();
+      });
+    });
+}
+
+$(function () {
+  var p = new URLSearchParams(window.location.search);
+  TPROJECT_ID = parseInt(p.get('tproject_id') || 0, 10);
+  TSUITE_ID = parseInt(p.get('tsuite_id') || 0, 10);
+  SPEC_ID = parseInt(p.get('idSRS') || 0, 10);
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    $('#checkAll').attr('title', TLi18n.t('rtcb.checkAll'));
+    $('#btnAssign').on('click', doAssign);
+    $('#btnUnassign').on('click', doUnassign);
+    if (!TPROJECT_ID || !TSUITE_ID) {
+      showEmpty('<i class="fa fa-ban"></i> ' + TLi18n.t('rtcb.errNoContext'));
+      return;
+    }
+    load();
+  });
+});
+</script>
+</body>
+</html>
