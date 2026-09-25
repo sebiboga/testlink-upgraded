@@ -42,6 +42,25 @@ screen reaches full parity.
   keys; the 9-case suite passed 9/9 and the final Event Viewer delta was zero.
   (Refs #972)
 
+- [FEATURE GAP] - #974: the modern Code Tracker edit modal restores the legacy
+  **used on test project** block. The BFF route the edit modal calls
+  (`GET /api/codetracker/index.php/{id}`) now runs a faithful port of
+  `initializeGui()` (`lib/codetrackers/codeTrackerEdit.php:144-172`) through a new
+  `attachLinks()` helper: it purges DEAD `testproject_codetracker` rows
+  (`getLinks($id,['getDeadLinks'=>true])` + `unlink()`, legacy's *"just to fix
+  erroneous test project delete"*) and returns the linked test-project names in a
+  new `links` key, so `link_count` can no longer be inflated by an orphan. POST /
+  PUT / DELETE report the real link set too (no purge — legacy only purged on the
+  edit page load), while the list route keeps only `link_count` to avoid an N+1
+  query. The modal gained the `fa-info-circle` toggle with tooltip
+  `show_hide_linked_to_project` and the collapsible block rendering
+  `Used on Test Project` + one escaped project name per line, or the italics
+  `Code Tracker Not Used (Linked)` note (`codeTrackerEdit.tpl:73-116,163-180`);
+  project names are escaped per the issue #1581 rule, and the toggle is
+  `codetracker_management`-gated like the whole legacy edit page. 3 new i18n
+  keys in all 10 locale bundles; suite 974 passed 12/12, Event Viewer delta zero.
+  (Refs #974)
+
 - [FEATURE GAP] - #973: the modern Code Trackers screen restores the legacy
   **Environment** column. The BFF list route now requests
   `getAll(['output' => 'add_link_count', 'checkEnv' => true])` — the option

@@ -21979,3 +21979,30 @@ and project link `(2,3)`. `ct_viewonly_1582` has only Code Tracker view right
 - **Actual:** Event Viewer max id=`8`, `errors=0`, `warnings=0`; controller and generated-template PHP lint passed; `git diff --check` passed. PASS.
 
 **Result: 7/7 PASS. (Refs #1582)**
+
+## 974. Task — "used on test project" block in the code-tracker edit modal (Refs #974)
+
+**Feature under test:** the legacy 1.9.20 edit-screen used-by block — an `fa-info-circle` toggle next to the Name field that lists every test project a code tracker is linked to ("Used on Test Project" + one name per line) or the italics "Code Tracker Not Used (Linked)" note, plus the dead-link purge `initializeGui()` performed on page load (legacy `lib/codetrackers/codeTrackerEdit.php:144-172`, `gui/templates/dashio/codetrackers/codeTrackerEdit.tpl:73-116,163-180`).
+
+**Preconditions / fixtures** (fresh DB, seeded by SQL):
+- `nodes_hierarchy` 1 `CT Demo Project` (node_type 1) + `testprojects` 1 (`CTP`, `code_tracker_enabled=1`).
+- `codetrackers` 1 `CT Demo Tracker` type 1 (stash/rest), cfg `<codetracker><uribase>https://git.example.com/</uribase><apikey>demo-key</apikey></codetracker>`.
+- `testproject_codetracker` (1,1) — and, for the XSS case, project 2 named `<img src=x onerror=alert(1)>Proj & Co`.
+- Login `admin/admin` (role 8: `codetracker_view` + `codetracker_management`); page `/gui/templates/codetracker/codetrackerView.html`.
+
+| # | Steps | Expected | Actual | Result |
+|---|---|---|---|---|
+| 974.1 | Open the screen, click the pencil on `CT Demo Tracker` | Modal opens; an `fa-info-circle` next to Name with tooltip "Show/Hide (Linked to Project)"; used-by block hidden | `#btnUsedBy` present, `title="Show/Hide (Linked to Project)"`, `#usedByOuter` hidden | PASS |
+| 974.2 | Click the info-circle | Block shows `Used on Test Project` + `CT Demo Project` | `<b>Used on Test Project</b><br>CT Demo Project` | PASS |
+| 974.3 | Click it twice more (off / on) | Collapses, then re-expands with the list intact (no empty shell) | `true → false → true`, envelope unchanged | PASS |
+| 974.4 | Empty `testproject_codetracker`, re-open the edit modal, toggle | Italics note instead of a list | `<b><i>Code Tracker Not Used (Linked)</i></b>` | PASS |
+| 974.5 | Click **Create Code Tracker**, toggle the info-circle | Same note (a new tracker has no links) | `<b><i>Code Tracker Not Used (Linked)</i></b>`, `#editTrackerId` = `""` | PASS |
+| 974.6 | Reload the page with `?locale=ro_RO`, edit + toggle | Romanian strings from `ro.json`, no raw key | `title="Arată/Ascunde (Legat de proiect)"`, envelope `Urmăritor de cod neutilizat (nelegat)` | PASS |
+| 974.7 | Link the tracker to project 2 (`<img src=x onerror=alert(1)>Proj & Co`), edit + toggle with `window.alert` stubbed | Name rendered as inert text, no script execution | `innerHTML` `&lt;img src=x onerror=alert(1)&gt;Proj &amp; Co`, 0 `img` nodes, 0 `alert` calls | PASS |
+| 974.8 | `curl GET /api/codetracker/index.php/1` (linked) | `links:["CT Demo Project"]`, `link_count:1` | as expected | PASS |
+| 974.9 | Insert a dead link `(999,1)` (no `nodes_hierarchy` row), then `GET /api/codetracker/index.php/1` | Dead row purged (legacy `initializeGui`), no NULL name, count not inflated | `links:["CT Demo Project"]`, `link_count:1`, `testproject_codetracker` = only `(1,1)` | PASS |
+| 974.10 | Reload the grid with a linked tracker; then `PUT`, `POST`, `DELETE` the tracker | Grid: 1 row, delete icon **hidden** (link gating), edit icon present; every write response reports the real `links` | `rows:1, deleteIcon:0, editIcon:1`; `putLinks:["CT Demo Project"]`, `putLinkCount:1`; `postLinks:[]`; `delLinks:[]` | PASS |
+| 974.11 | `php -l api/codetracker/index.php`; `node --check` on the inline script; `python3 -m json.tool` on all 10 bundles | All clean | no syntax errors / JS OK / 10× OK | PASS |
+| 974.12 | Event Viewer: `SELECT COUNT(*) FROM events WHERE log_level IN (1,2)` after the matrix | No new Error/Warning | see checkpoint 3/3 | PASS |
+
+**Result: 12/12 PASS. (Refs #974)**

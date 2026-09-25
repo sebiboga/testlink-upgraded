@@ -81,7 +81,15 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
         <input type="hidden" id="editTrackerId">
         <div class="form-group" style="margin-bottom:12px;">
           <label style="font-size:12px;font-weight:600;" data-i18n="ct.name">Name *</label>
+          <a href="javascript:void(0)" id="btnUsedBy" onclick="toggleUsedBy()" style="margin-left:6px;color:#4ECDC4;" title="" data-i18n-title="ct.showHideLinkedToProject"><i class="fas fa-info-circle"></i></a>
           <input type="text" id="editName" class="form-control" maxlength="100" style="font-size:13px;">
+        </div>
+        <!-- Port of the legacy "used on testproject" block (issue #974):
+             codeTrackerEdit.tpl:163-179 rendered an fa-info-circle anchor next to
+             the Name label plus this hidden envelope row; displayUsedBy()
+             (codeTrackerEdit.tpl:73-116) filled it on toggle. -->
+        <div class="form-group" id="usedByOuter" style="display:none;margin-bottom:12px;">
+          <div id="usedByEnvelope" style="font-size:12px;padding:8px 12px;background:#f6f6f6;border-radius:4px;"></div>
         </div>
         <div class="form-group" style="margin-bottom:12px;">
           <label style="font-size:12px;font-weight:600;" data-i18n="ct.type">Type *</label>
@@ -153,6 +161,11 @@ var canManage = false;
 var pendingConnections = {};
 var connectionResults = {};
 var connectionRequestSeq = {};
+// Linked test-project names for the tracker being edited (issue #974). Filled
+// from BFF GET /{id} -> item.links (legacy $gui->testProjectSet,
+// lib/codetrackers/codeTrackerEdit.php:158-159); empty on create, which is what
+// makes toggleUsedBy() render the "not used (linked)" state.
+var usedByProjects = [];
 
 function isGithubType() {
   return parseInt($('#editType').val()) === githubCode && githubCode !== 0;
@@ -357,6 +370,11 @@ function showCreateModal() {
   $('#editToken').val('');
   $('#ghTestResult').text('');
   $('#editActive').prop('checked', true);
+  // Create has no links yet: legacy only built $gui->testProjectSet when
+  // $argsObj->id > 0 (codeTrackerEdit.php:150-159) and left the toggle showing
+  // the "not used (linked)" note.
+  usedByProjects = [];
+  $('#usedByOuter').hide();
   $('#modalError').hide();
   onTypeChange();
   $('#trackerModal').modal('show');
@@ -378,9 +396,46 @@ function editTracker(id) {
     $('#ghTestResult').text('');
     onTypeChange();
     $('#editActive').prop('checked', true);
+    // Port of the legacy used-by block (issue #974): the BFF purges dead links
+    // and returns the linked test-project names on this very request, so the
+    // toggle renders the same two states as 1.9.20 (codeTrackerEdit.tpl:105-113).
+    usedByProjects = (t.links && t.links.length) ? t.links : [];
+    $('#usedByOuter').hide();
     $('#modalError').hide();
     $('#trackerModal').modal('show');
   });
+}
+
+// Port of legacy displayUsedBy() (gui/templates/dashio/codetrackers/
+// codeTrackerEdit.tpl:73-116, issue #974): an info-circle anchor next to the
+// Name label toggles a block listing every test project the tracker is linked
+// to ("Used on Test Project" + one name per line), or the italics
+// "Code Tracker Not Used (Linked)" note when there is none. Project names come
+// from the DB through the BFF, so they are escaped like every other
+// manager-controlled string (issue #1581).
+function toggleUsedBy() {
+  // Legacy gated the whole edit page on codetracker_management
+  // (lib/codetrackers/codeTrackerEdit.php:180-184), so the info-circle existed
+  // only for managers. The modern modal is likewise opened from the Actions
+  // column, which renderTable() hides for view-only users
+  // (codetrackerView.html:291-293) — guard anyway, same as the sibling screen.
+  if (!canManage) return;
+  var outer = $('#usedByOuter');
+  if (outer.is(':visible')) {
+    outer.hide();
+    return;
+  }
+  var html = '';
+  if (usedByProjects && usedByProjects.length) {
+    html += '<b>' + esc(TLi18n.t('ct.usedOnTestproject')) + '</b>';
+    $.each(usedByProjects, function(i, name) {
+      html += '<br>' + esc(name);
+    });
+  } else {
+    html += '<b><i>' + esc(TLi18n.t('ct.notUsedLinked')) + '</i></b>';
+  }
+  $('#usedByEnvelope').html(html);
+  outer.show();
 }
 
 function xmlEsc(s) {

@@ -115,6 +115,45 @@ function storedTrackerType($db, $id) {
     return $rows[0]['type'] ?? null;
 }
 
+function attachLinks($mgr, $id, &$item, $purgeDead) {
+    // Port of legacy initializeGui (lib/codetrackers/codeTrackerEdit.php:144-172,
+    // issue #974). The 1.9.20 edit page did TWO things with the link table that
+    // the modern BFF dropped:
+    //   1. purges DEAD links on load — getLinks($id,['getDeadLinks'=>true])
+    //      returns rows whose testproject node no longer exists
+    //      (tlCodeTracker.class.php:490-500, LEFT OUTER JOIN ... IS NULL) and
+    //      legacy unlinks each of them, "just to fix erroneous test project
+    //      delete" (codeTrackerEdit.php:150-157). Without the purge a NULL
+    //      project name would be LEFT JOINed into the used-by list below and
+    //      would also inflate link_count.
+    //   2. exposes $gui->testProjectSet = getLinks($id) — the map
+    //      testproject_id => testproject_name that the info-icon toggle renders
+    //      as "Used on Test Project" / "Code Tracker Not Used (Linked)"
+    //      (codeTrackerEdit.tpl:73-116,105-113).
+    // The purge is $purgeDead-gated so it fires ONLY where legacy ran it (the
+    // edit screen request, i.e. GET /{id}); write routes just report the current
+    // state so a create/update/delete response is never misleading.
+    // Same shape as the issue-tracker port (api/issuetracker/index.php:266-291,
+    // issue #964) so all three integration screens behave identically.
+    if ($purgeDead) {
+        $dead = $mgr->getLinks($id, array('getDeadLinks' => true));
+        if ($dead) {
+            foreach ($dead as $tpid => $dummy) {
+                $mgr->unlink($id, intval($tpid));
+            }
+        }
+    }
+    $item['links'] = [];
+    $links = $mgr->getLinks($id);
+    if (is_array($links)) {
+        foreach ($links as $link) {
+            $item['links'][] = $link['testproject_name'];
+        }
+    }
+    $item['link_count'] = count($item['links']);
+    return $item;
+}
+
 function trackerToJSON($item, $mgr, $canManage) {
     $typeDescr = '';
     if (isset($mgr->types[$item['type']])) {
@@ -180,6 +219,16 @@ function trackerToJSON($item, $mgr, $canManage) {
         'env_check_ok' => (bool)($item['env_check_ok'] ?? true),
         'env_check_msg' => (string)($item['env_check_msg'] ?? ''),
         'link_count' => intval($item['link_count'] ?? 0),
+        // Linked test-project names, consumed by the edit modal's used-by
+        // toggle (issue #974 — legacy codeTrackerEdit.php:158-159 set
+        // $gui->testProjectSet the same way). attachLinks() fills it for every
+        // per-tracker route (GET /{id} with the legacy dead-link purge, and the
+        // create/update/delete responses); the LIST route deliberately keeps
+        // only link_count (getAll 'add_link_count', tlCodeTracker.class.php:
+        // 575-590) because the grid needs no names and resolving them per row
+        // would be an N+1 query. Values are returned raw (JSON API): the screen
+        // escapes them on render, exactly like the other columns (issue #1581).
+        'links' => array_values((array)($item['links'] ?? [])),
     ];
 }
 
@@ -222,8 +271,10 @@ if ($method === 'GET' && isset($segments[0]) && is_numeric($segments[0]) && coun
     $id = intval($segments[0]);
     $item = $mgr->getByID($id);
     if (!$item) { http_response_code(404); out(['status' => 'error', 'message' => 'Code tracker not found']); }
-    $links = $mgr->getLinks($id);
-    $item['link_count'] = is_array($links) ? count($links) : 0;
+    // The request the edit modal makes, so this is where legacy initializeGui()
+    // ran: purge dead links, then return the linked test-project names that the
+    // used-by toggle renders (issue #974 — see attachLinks()).
+    attachLinks($mgr, $id, $item, true);
     out(['status' => 'ok', 'item' => trackerToJSON($item, $mgr, $canManage)]);
 }
 
@@ -252,6 +303,10 @@ if ($method === 'POST' && empty($segments)) {
     $result = $mgr->create($ct);
     if ($result['status_ok']) {
         $item = $mgr->getByID($result['id']);
+        // Report the (empty) link set of a brand-new tracker instead of the
+        // 0/[] defaults, so a create response is as truthful as an edit one
+        // (issue #974). No purge: legacy only purged on the edit page load.
+        attachLinks($mgr, intval($result['id']), $item, false);
         out(['status' => 'ok', 'item' => trackerToJSON($item, $mgr, $canManage)]);
     } else {
         http_response_code(400);
@@ -282,6 +337,9 @@ if ($method === 'PUT' && isset($segments[0]) && is_numeric($segments[0]) && coun
     $result = $mgr->update($ct);
     if ($result['status_ok']) {
         $item = $mgr->getByID($id);
+        // An edit can rename the tracker but never touches its links; report
+        // the real ones so the response cannot contradict the grid (issue #974).
+        attachLinks($mgr, $id, $item, false);
         out(['status' => 'ok', 'item' => trackerToJSON($item, $mgr, $canManage)]);
     } else {
         http_response_code(400);
@@ -445,6 +503,11 @@ if ($method === 'DELETE' && isset($segments[0]) && is_numeric($segments[0])) {
 
     $result = $mgr->delete($id);
     if ($result['status_ok']) {
+        // The legacy delete form refused to delete a LINKED tracker and showed
+        // the very same used-by list (codeTrackerView.tpl:66-72 / #971 gating
+        // mirrored in the grid). The response carries the pre-delete state so
+        // a client can still explain the refusal (issue #974).
+        attachLinks($mgr, $id, $existing, false);
         out(['status' => 'ok', 'item' => trackerToJSON($existing, $mgr, $canManage)]);
     } else {
         http_response_code(400);
