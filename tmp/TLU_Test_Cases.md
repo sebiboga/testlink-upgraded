@@ -20349,3 +20349,60 @@ deleted mid-test). Entry: `http://localhost:8082/gui/templates/codetracker/codet
 - **Actual:** {POST:403, PUT:403, DELETE:403, TEST_GITHUB:403, GET_VIEW:200, canManage:false}. PASS.
 
 **Result: 10/10 PASS. (Refs #970)**
+
+## Regression — Issue #1576: codetracker GET list/detail leaks raw cfg (plaintext token) to codetracker_view-only users (Refs #1576)
+
+Fixture users: `admin` (role 8, has `codetracker_management` right 51 +
+`codetracker_view` right 52), `ctviewonly` (role 10, ONLY right 52
+`codetracker_view`). Dataset: fresh DB, GitHub code tracker `repro-1576-gh`
+(id 2, type 200 = github) created via API with cfg
+`<codetracker>\n  <repository>https://github.com/acme/secret</repository>\n  <branch>main</branch>\n  <token>ghp_SUPERSECRETTOKEN123</token>\n</codetracker>`.
+Entry: `http://localhost:8082/api/codetracker/index.php`; screen
+`http://localhost:8082/gui/templates/codetracker/codetrackerView.html`.
+
+### Test 1 — Pre-fix repro: view-only user saw plaintext token in raw cfg
+- **Steps:** (before this fix) login `ctviewonly`;
+  `GET /api/codetracker/index.php` and `GET /api/codetracker/index.php/2`.
+- **Expected:** `cfg` must NOT contain the token (it leaks it);
+  `github.token` masked.
+- **Actual (pre-fix, measured):** `cfg` = full XML verbatim with
+  `ghp_SUPERSECRETTOKEN123` on BOTH list and detail, while `github.token` =
+  `********` — masking defeated. PASS (reproduced the bug).
+
+### Test 2 — View-only GET list no longer leaks cfg
+- **Steps:** login `ctviewonly`; `GET /api/codetracker/index.php`.
+- **Expected:** HTTP 200; every `items[].cfg` empty string `""`; other fields
+  (name, typeLabel, serverUrl, github.repository/branch, `github.token` =
+  `********`) intact.
+- **Actual:** HTTP 200, `cfg` = `""` for all items, `github.token` =
+  `********`. PASS.
+
+### Test 3 — View-only GET detail no longer leaks cfg
+- **Steps:** login `ctviewonly`; `GET /api/codetracker/index.php/2`.
+- **Expected:** HTTP 200; `item.cfg` = `""`; parsed github fields intact.
+- **Actual:** HTTP 200, `item.cfg` = `""`. PASS.
+
+### Test 4 — Admin (management) still gets full cfg on list + detail
+- **Steps:** login `admin`; `GET /api/codetracker/index.php` and
+  `GET /api/codetracker/index.php/2`.
+- **Expected:** HTTP 200; `cfg` = full raw XML incl. token (manager legitimately
+  sees/edit it); edit modal prefills repository/branch from `github` fields.
+- **Actual:** HTTP 200, full cfg on both routes; modal opens with
+  `editRepoUrl` prefilled, token input blank. PASS.
+
+### Test 5 — Admin write responses keep full cfg
+- **Steps:** login `admin`; `PUT /api/codetracker/index.php/2` (same cfg
+  body); inspect response `item.cfg`.
+- **Expected:** HTTP 200; `item.cfg` = full XML (write path unchanged).
+- **Actual:** HTTP 200, full cfg returned. PASS.
+
+### Test 6 — View-only screen renders; Event Viewer + console hygiene
+- **Steps:** login `ctviewonly`; browser-load codetrackerView.html; then
+  re-check `events` table and browser console.
+- **Expected:** row renders (name/type/Active); XHR list 200;
+  Event Viewer ERROR/WARNING = 0 for valid-typed tracker; console no JS errors.
+- **Actual:** row renders, list XHR 200 with `cfg:""` in network payload,
+  events ERROR/WARNING = 0, console clean (pre-existing a11y notice only).
+  PASS.
+
+**Result: 6/6 PASS. (Refs #1576)**
