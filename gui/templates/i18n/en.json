@@ -4927,5 +4927,7 @@
   "rtcb.errNoSession": "Your session has expired - please log in again.",
   "rtcb.errNotFound": "The test suite could not be found in this test project.",
   "rtcb.errNoContext": "Missing test project / test suite context.",
-  "footers.reqTcBulkAssign": "Requirements Bulk Assignment"
+  "footers.reqTcBulkAssign": "Requirements Bulk Assignment",
+  "rtcb.editReq": "Edit this requirement version",
+  "rtcb.checkOne": "Select requirement {n}"
 }

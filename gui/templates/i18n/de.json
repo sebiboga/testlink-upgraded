@@ -4911,5 +4911,7 @@
   "rtcb.errNoSession": "Ihre Sitzung ist abgelaufen - bitte erneut anmelden.",
   "rtcb.errNotFound": "Die Testsuite wurde in diesem Projekt nicht gefunden.",
   "rtcb.errNoContext": "Kontext von Testprojekt / Testsuite fehlt.",
-  "footers.reqTcBulkAssign": "Massenanforderungszuordnung"
+  "footers.reqTcBulkAssign": "Massenanforderungszuordnung",
+  "rtcb.editReq": "Diese Anforderungsversion bearbeiten",
+  "rtcb.checkOne": "Anforderung {n} auswählen"
 }

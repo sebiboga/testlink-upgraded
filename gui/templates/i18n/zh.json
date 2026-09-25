@@ -4897,5 +4897,7 @@
   "rtcb.errNoSession": "会话已过期，请重新登录。",
   "rtcb.errNotFound": "在此项目中未找到该测试套件。",
   "rtcb.errNoContext": "缺少测试项目 / 测试套件上下文。",
-  "footers.reqTcBulkAssign": "需求批量分配"
+  "footers.reqTcBulkAssign": "需求批量分配",
+  "rtcb.editReq": "编辑此需求版本",
+  "rtcb.checkOne": "选择需求 {n}"
 }

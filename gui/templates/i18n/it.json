@@ -4911,5 +4911,7 @@
   "rtcb.errNoSession": "La sessione è scaduta - effettua nuovamente il login.",
   "rtcb.errNotFound": "La test suite non è stata trovata in questo progetto.",
   "rtcb.errNoContext": "Contesto progetto di test / test suite mancante.",
-  "footers.reqTcBulkAssign": "Assegnazione massiva dei requisiti"
+  "footers.reqTcBulkAssign": "Assegnazione massiva dei requisiti",
+  "rtcb.editReq": "Modifica questa versione del requisito",
+  "rtcb.checkOne": "Seleziona il requisito {n}"
 }

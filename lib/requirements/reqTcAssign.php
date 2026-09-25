@@ -26,8 +26,9 @@
 require_once("../../config.inc.php");
 require_once("common.php");
 
-// Anonymous -> login (same contract as the legacy testlinkInitPage call).
-testlinkInitPage($db, TRUE);
+// Same contract as the legacy controller: no project initialisation and the
+// regular session check (anonymous users are sent to the login screen).
+testlinkInitPage($db, false, false);
 
 // Legacy input contract: the testsuite/bulk mode was reached with
 // ?id=<test suite node id> (also POSTed as 'id' by the legacy grid form).

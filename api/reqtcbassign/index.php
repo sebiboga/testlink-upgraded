@@ -46,7 +46,8 @@ doSessionStart();
 require_once(__DIR__ . '/../_guard.php');
 bffSameOriginGuard();
 
-header('Content-Type: application/json');
+header('Content-Type: application/json; charset=utf-8');
+header('X-Content-Type-Options: nosniff');
 
 $db = new database(DB_TYPE);
 doDBConnect($db);
@@ -54,15 +55,13 @@ doDBConnect($db);
 $userId = $_SESSION['userID'] ?? null;
 if (!$userId || $userId <= 0) {
     http_response_code(401);
-    echo json_encode(['status' => 'error', 'message' => 'Not authenticated']);
-    exit;
+    out(['status' => 'error', 'message' => 'Not authenticated']);
 }
 
 $user = tlUser::getByID($db, $userId);
 if (is_null($user)) {
     http_response_code(401);
-    echo json_encode(['status' => 'error', 'message' => 'User not found']);
-    exit;
+    out(['status' => 'error', 'message' => 'User not found']);
 }
 
 function out($data) {
@@ -124,7 +123,11 @@ function resolveCtx($tprojectId, $tsuiteId) {
     if ($tsuiteId <= 0) {
         badRequest('Invalid test suite id');
     }
-    if (!$user->hasRight($db, 'req_tcase_link_management', $tprojectId)) {
+    if (!$user->hasRight($db, 'req_tcase_link_management', $tprojectId, null, true)) {
+        // legacy pageAccessCheck() logged the refused access before blocking
+        logAuditEvent(TLS('audit_security_user_right_missing',
+                          'req_tcase_link_management'),
+                      'SECURITY', $tprojectId, 'testprojects');
         denyForbidden();
     }
 
@@ -133,10 +136,21 @@ function resolveCtx($tprojectId, $tsuiteId) {
     if (is_null($tp) || count($tp) === 0) {
         notFound('Test project not found');
     }
+    $opt = $tprojectMgr->getOptions($tprojectId);
+    $opt = is_object($opt) ? $opt : new stdClass();
+    if (empty($opt->requirementsEnabled)) {
+        badRequest('Requirements are not enabled on this test project');
+    }
 
     $suite = $tprojectMgr->tree_manager->get_node_hierarchy_info($tsuiteId);
     if (is_null($suite) || intval($suite['node_type_id'] ?? 0) <= 0) {
         notFound('Test suite not found');
+    }
+    // a legacy edit=testcase deep link passes a TEST CASE node id: it must not
+    // silently resolve to the parent suite grid
+    $suiteType = $tprojectMgr->tree_manager->getNodeType($tsuiteId);
+    if (is_null($suiteType) || $suiteType['node_type'] !== 'testsuite') {
+        notFound('Only a test suite can be bulk assigned');
     }
 
     // The suite must belong to the requested test project (walk up the tree
@@ -183,6 +197,21 @@ function reqSpecCombo($tprojectId) {
         }
     }
     return $items;
+}
+
+/**
+ * Resolve a requirement specification id that really belongs to $tprojectId.
+ * Without this a caller could pass the idSRS of another project (or of a
+ * project that has requirements disabled) and read/assign its requirements.
+ */
+function resolveSpecId($tprojectId, $specId) {
+    $specs = reqSpecCombo($tprojectId);
+    foreach ($specs as $s) {
+        if ($s['id'] === intval($specId)) {
+            return $s['id'];
+        }
+    }
+    return 0;
 }
 
 /** Latest requirements of a spec — legacy getAllLatestRQVOnReqSpec() */
@@ -248,9 +277,20 @@ if ($action === 'init') {
 
     // Legacy selection order: ?idSRS wins, then the session memory, then the
     // first combo entry.
-    $selected = intval($_REQUEST['idSRS'] ?? 0);
-    if ($selected <= 0) {
-        $selected = intval($_SESSION['currentSrsId'] ?? 0);
+    $requested = 0;
+    if (isset($_REQUEST['idSRS']) && is_scalar($_REQUEST['idSRS'])) {
+        $requested = intval($_REQUEST['idSRS']);
+    }
+    $sessionSrs = intval($_SESSION['currentSrsId'] ?? 0);
+    $selected = 0;
+    if ($requested > 0) {
+        // a spec id of ANOTHER test project must not be read or remembered
+        $selected = resolveSpecId($tprojectId, $requested);
+        if ($selected === 0) {
+            notFound('Requirement specification not found in this test project');
+        }
+    } elseif ($sessionSrs > 0) {
+        $selected = resolveSpecId($tprojectId, $sessionSrs);
     }
     if ($selected <= 0 && count($specs) > 0) {
         $selected = $specs[0]['id'];
@@ -282,6 +322,7 @@ if ($action === 'init') {
             "SELECT DISTINCT RCOV.req_version_id, RCOV.testcase_id " .
             "FROM {$t['req_coverage']} RCOV " .
             "WHERE RCOV.req_version_id IN ({$inReqV}) " .
+            "AND RCOV.link_status = " . intval(LINK_TC_REQ_OPEN) . " " .
             "AND RCOV.testcase_id IN ({$inTc})");
         $counter = [];
         if (!is_null($rs)) {
@@ -326,19 +367,22 @@ if ($action === 'bulkassign' || $action === 'unassign') {
     $ctx = resolveCtx(intval($payload['tproject_id'] ?? 0),
                       intval($payload['tsuite_id'] ?? 0));
 
-    $specId = intval($payload['idSRS'] ?? 0);
+    $specId = 0;
+    if (isset($payload['idSRS']) && is_scalar($payload['idSRS'])) {
+        $specId = intval($payload['idSRS']);
+    }
     if ($specId <= 0) {
         $specId = intval($_SESSION['currentSrsId'] ?? 0);
     }
+    $specId = resolveSpecId($ctx['tproject_id'], $specId);
     if ($specId <= 0) {
-        badRequest('Missing requirement specification id');
+        badRequest('Requirement specification not found in this test project');
     }
 
     $reqIds = toIdSet($payload['req_id'] ?? null);
     if (count($reqIds) === 0) {
         // legacy: check_action_precondition() blocked with "please_select_a_req"
-        out(['status' => 'error', 'code' => 'nothing_selected',
-             'message' => 'Nothing selected']);
+        badRequest('Nothing selected');
     }
 
     // The target test cases are ALWAYS the ones deep under the suite
@@ -388,8 +432,7 @@ if ($action === 'bulkassign' || $action === 'unassign') {
                 TLS('audit_req_assigned_tc',
                     count($accepted) . ' requirement(s) of Req Spec #' . $specId,
                     $ctx['tsuite_name'] . ' (' . count($tcaseIds) . ' test cases)'),
-                'ASSIGN', $ctx['tsuite_id'],
-                (tlObjectWithDB::getDBTables('testsuites')['testsuites'] ?? 'testsuites'));
+                'ASSIGN', $ctx['tsuite_id'], 'testsuites');
         }
         out([
             'status' => 'ok',
@@ -408,6 +451,8 @@ if ($action === 'bulkassign' || $action === 'unassign') {
     foreach ($accepted as $rid) {
         $reqVersionIds[] = $valid[$rid]['req_version_id'];
     }
+    // NOTE: the database wrapper has no transaction support and the legacy
+    // controller had none either; each coverage row is deleted individually.
     $removed = 0;
     foreach ($reqVersionIds as $reqV) {
         $reqV = intval($reqV);
@@ -437,8 +482,7 @@ if ($action === 'bulkassign' || $action === 'unassign') {
             TLS('audit_req_assignment_removed_tc',
                 count($accepted) . ' requirement(s) of Req Spec #' . $specId,
                 $ctx['tsuite_name'] . ' (' . $removed . ' links)'),
-            'UNASSIGN', $ctx['tsuite_id'],
-            (tlObjectWithDB::getDBTables('testsuites')['testsuites'] ?? 'testsuites'));
+            'UNASSIGN', $ctx['tsuite_id'], 'testsuites');
     }
     out([
         'status' => 'ok',

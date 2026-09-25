@@ -4917,5 +4917,7 @@
   "rtcb.errNoSession": "Sua sessão expirou - faça login novamente.",
   "rtcb.errNotFound": "A suíte de testes não foi encontrada neste projeto.",
   "rtcb.errNoContext": "Contexto de projeto de teste / suíte de testes ausente.",
-  "footers.reqTcBulkAssign": "Atribuição em massa de requisitos"
+  "footers.reqTcBulkAssign": "Atribuição em massa de requisitos",
+  "rtcb.editReq": "Editar esta versão do requisito",
+  "rtcb.checkOne": "Selecionar o requisito {n}"
 }

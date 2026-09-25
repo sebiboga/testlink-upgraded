@@ -4911,5 +4911,7 @@
   "rtcb.errNoSession": "Votre session a expiré - veuillez vous reconnecter.",
   "rtcb.errNotFound": "La suite de tests est introuvable dans ce projet.",
   "rtcb.errNoContext": "Contexte projet de test / suite de tests manquant.",
-  "footers.reqTcBulkAssign": "Affectation massive des exigences"
+  "footers.reqTcBulkAssign": "Affectation massive des exigences",
+  "rtcb.editReq": "Modifier cette version de l'exigence",
+  "rtcb.checkOne": "Sélectionner l'exigence {n}"
 }

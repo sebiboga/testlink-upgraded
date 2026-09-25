@@ -4921,5 +4921,7 @@
   "rtcb.errNoSession": "Sesiunea a expirat - vă rugăm să vă autentificați din nou.",
   "rtcb.errNotFound": "Suita de teste nu a fost găsită în acest proiect.",
   "rtcb.errNoContext": "Lipsește contextul proiect de test / suită de teste.",
-  "footers.reqTcBulkAssign": "Atribuire masivă a cerințelor"
+  "footers.reqTcBulkAssign": "Atribuire masivă a cerințelor",
+  "rtcb.editReq": "Editează această versiune de cerință",
+  "rtcb.checkOne": "Selectează cerința {n}"
 }

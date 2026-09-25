@@ -4917,5 +4917,7 @@
   "rtcb.errNoSession": "セッションの有効期限が切れました。再度ログインしてください。",
   "rtcb.errNotFound": "このプロジェクト内にテストスイートが見つかりません。",
   "rtcb.errNoContext": "テストプロジェクト / テストスイートのコンテキストがありません。",
-  "footers.reqTcBulkAssign": "要件の一括割り当て"
+  "footers.reqTcBulkAssign": "要件の一括割り当て",
+  "rtcb.editReq": "この要件バージョンを編集",
+  "rtcb.checkOne": "要件 {n} を選択"
 }

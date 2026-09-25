@@ -4911,5 +4911,7 @@
   "rtcb.errNoSession": "Su sesión ha expirado - inicie sesión de nuevo.",
   "rtcb.errNotFound": "No se encontró la suite de pruebas en este proyecto.",
   "rtcb.errNoContext": "Falta el contexto proyecto de pruebas / suite de pruebas.",
-  "footers.reqTcBulkAssign": "Asignación masiva de requisitos"
+  "footers.reqTcBulkAssign": "Asignación masiva de requisitos",
+  "rtcb.editReq": "Editar esta versión del requisito",
+  "rtcb.checkOne": "Seleccionar el requisito {n}"
 }
