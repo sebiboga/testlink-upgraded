@@ -21084,3 +21084,92 @@ invalid-type row and view-only user/role were removed after execution.
   Error/Warning event was created. PASS.
 
 **Result: 9/9 PASS. (Refs #972)**
+
+---
+
+## Regression — Issue #1586: TLi18n locale selection is not persisted when returning to a launcher
+
+**Precondition**
+* App at `http://localhost:8082` (PHP built-in server, docroot = repo root), DB
+  `testlink` on 127.0.0.1:3306, login `admin` / `admin`.
+* Fixture `php tmp/fixtures_1586.php` (re-runnable) creates test project
+  `I1586-LOCALE` (prefix `I1586`, `platformsEnabled=1`), test plan
+  `I1586-TPLAN` and platform `I1586-PLATFORM`; it writes the ids to
+  `/tmp/fixture_1586.txt` (`{"tproject_id":6,"tplan_id":7,"platform_id":2}`).
+* Admin profile locale is `en_GB` unless a test case changes it explicitly.
+* Branch `fix/issue-1586`; patched file `gui/templates/i18n/i18n.js`.
+
+**Repro steps (pre-fix)**
+1. Open
+   `/gui/templates/platforms/platformsView.html?tproject_id=6&tplan_id=7`
+   (Platforms Management).
+2. Click **Export Platforms** →
+   `/gui/templates/platforms/platformsExport.html?tproject_id=6&tplan_id=7`.
+3. In `#tl-locale-switcher` choose **Română**. The URL gains `&locale=ro` and
+   the export screen renders Romanian ("Export Platforme", "Anulează");
+   `localStorage['tl_locale'] === 'ro'`.
+4. Click **Anulează / Cancel**. `returnToPlatforms()`
+   (`gui/templates/platforms/platformsExport.html:238-242`) navigates to
+   `…/platformsView.html?tproject_id=6&tplan_id=7` — **without** `locale`.
+
+**Expected behaviour**
+The launcher keeps Romanian (`TLi18n.getLocale() === 'ro'`,
+`<html lang="ro">`, `GET /gui/templates/i18n/ro.json`).
+
+**Actual result pre-fix**
+```json
+{ "profile_locale": "en_GB", "ls": "ro", "resolved": "en", "heading": ["Platform Management(1)"] }
+```
+The launcher rendered **English** although `tl_locale` held `'ro'`;
+`en.json` was requested and `/api/userinfo/index.php` returned the DB locale.
+
+**Actual result post-fix**
+```json
+{ "url": ".../platformsView.html?tproject_id=6&tplan_id=7", "title": "I1586-LOCALE - Gestionare Platforme",
+  "resolved": "ro", "ls": "ro", "heading": "Gestionare Platforme(1)" }
+```
+`GET /gui/templates/i18n/ro.json` → `[200]`; `/api/userinfo/` is not even
+called. Evidence screenshots: `tmp/1586-before-platformsview-english.png`,
+`tmp/1586-after-platformsview-romanian.png`.
+
+### Test 1 — Main repro: Export → Română → Cancel keeps Romanian (R7)
+- **Steps:** Steps 1-4 above from a clean slate (`localStorage.removeItem('tl_locale')`, DB profile `en_GB`), using real clicks on **Export Platforms** and **Anulează**.
+- **Expected:** Landing launcher is Romanian, no `locale` param in the URL.
+- **Actual:** `resolved='ro'`, `title="I1586-LOCALE - Gestionare Platforme"`, heading `Gestionare Platforme(1)`, network `ro.json [200]`. PASS (pre-fix: English, `Platform Management(1)`).
+
+### Test 2 — Empty store, profile `en_GB` is the baseline (R1)
+- **Steps:** `localStorage.removeItem('tl_locale')`, DB `en_GB`, load the launcher with no `locale` param.
+- **Expected:** English via the profile path; the store stays empty (the profile is never persisted).
+- **Actual:** `resolved='en'`, `ls=null`, `GET /api/userinfo/index.php [200] → en_GB`. PASS.
+
+### Test 3 — Empty store, profile `ro_RO` is honoured (R2)
+- **Steps:** `update users set locale='ro_RO' where login='admin'`, store cleared, load the launcher.
+- **Expected:** Romanian from the DB profile; `tl_locale` remains unset so the DB profile keeps authority.
+- **Actual:** `resolved='ro'`, `ls=null`, profile `ro_RO`. PASS.
+
+### Test 4 — Explicit `?locale=` still wins over the stored switch (R4/R5)
+- **Steps:** Store `'ro'`, then load `…platformsView.html?tproject_id=6&tplan_id=7&locale=en`, then the same with `&locale=de`.
+- **Expected:** English, then German; the stored manual switch is not clobbered.
+- **Actual:** `resolved='en'` (title "Platform Management"), `resolved='de'` (title "Plattformverwaltung"), `ls` stayed `'ro'` in both cases. PASS.
+
+### Test 5 — Missing bundle self-heals instead of pinning English (R6)
+- **Steps:** `localStorage.setItem('tl_locale','xx')` (no `xx.json` exists), load the launcher.
+- **Expected:** English fallback for this load, `tl_locale` dropped so the next load re-resolves from the profile — no permanent English pin.
+- **Actual:** Network `xx.json [404]` → `en.json [200]`; `resolved='en'`; `ls_after=null`; next load falls back to `/api/userinfo/index.php`. PASS.
+
+### Test 6 — Switcher round-trip on the launcher (R8)
+- **Steps:** With `ls='ro'`, switch to English, reload **without** a `locale` param, switch back to Română, reload again.
+- **Expected:** English launcher, then Romanian launcher, and `#tl-locale-switcher` always shows the resolved locale.
+- **Actual:** after `en` → title "Platform Management", `ls='en'`; after `ro` → `resolved='ro'`, `ls='ro'`, switcher `value='ro'`. PASS.
+
+### Test 7 — Static gates
+- **Steps:** `node --check gui/templates/i18n/i18n.js`; `git diff --check`; `python3 -m json.tool` on every locale bundle; confirm the module header contract matches the implemented order.
+- **Expected:** Clean syntax, no whitespace errors, all bundles valid, header order = `?locale=` ▸ `tl_locale` ▸ profile ▸ `en`.
+- **Actual:** `node --check` OK; all 10 bundles (`de en es fr it ja pt ro ru zh`) valid; header (`i18n.js:5-9`) and `detectLocale()` agree. PASS.
+
+### Test 8 — Event Viewer regression (R9)
+- **Steps:** `select log_level, count(*), max(from_unixtime(fired_at)) from events group by log_level` and a browser console error/warning listing after exercising all patched screens.
+- **Expected:** No new Error/Warning rows produced by the fix.
+- **Actual:** Only audit rows (`log_level=16`, newest `17:41:53` `audit_login_succeeded`). The 3 `log_level` 1/2 rows are timestamped `17:41:17`/`17:41:34` and come from the fixture author's own first two attempts (`new testplatform()` → swallowed `include_once` warning in `lib/functions/common.php:122`; wrong-arg `testplan->create` → SQL 1064), i.e. **before** the fix was applied. Browser console: *no console messages found*. PASS.
+
+**Result: 8/8 PASS. (Fixes #1586)**
