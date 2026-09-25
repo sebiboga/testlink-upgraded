@@ -20845,3 +20845,116 @@ and Event Viewer delta; the corrected-state screenshot is
   this fix. The temporary user and role grant were removed. PASS for #1580 scope.
 
 **Result: 7/7 PASS for #1580; separate #1582 filed. (Refs #1580)**
+
+## Regression — Issue #1581: codetrackerView stored XSS via tracker name and server URL (Refs #1581)
+
+Fixture: fresh DB (`codetrackers` empty at start). Users: `admin` (role 8, has
+`codetracker_management` 51 + `codetracker_view` 52 → `canManage: true`) and
+`ctonly1581` (role 20 holding ONLY right 52 `codetracker_view`, created for this
+run and removed at the end). Trackers created through
+`POST /api/codetracker/index.php` as `admin` (a manager) and read back by both
+users. Entry screen:
+`http://localhost:8082/gui/templates/codetracker/codetrackerView.html?tproject_id=0&tplan_id=0`
+(loaded both standalone and inside the `index.php` iframe shell).
+Commit: `0cf740a14` on `fix/issue-1581`.
+
+### Test 1 — Pre-fix repro: tracker name executes script for a manager
+- **Steps:** (before the fix) create via API
+  `{"name":"<img src=x onerror=document.body.dataset.xss=1>","type":1,"cfg":"<codetracker><uribase>http://example.test/</uribase></codetracker>"}`;
+  reload the entry screen; read the Name cell DOM.
+- **Expected post-fix:** the payload is inert text, no element node, no execution.
+- **Actual (pre-fix, measured):** `document.body.dataset.xss === "1"` (payload RAN),
+  Name cell `innerHTML` = `<img src="x" onerror="document.body.dataset.xss=1">`,
+  `cell.querySelectorAll('img').length === 1` → live element. PASS (reproduced).
+
+### Test 2 — Tracker name is rendered as text after the fix
+- **Steps:** reload the entry screen with tracker id 1 (crafted name) still stored.
+- **Expected:** `document.body.dataset.xss` undefined; 0 `img` nodes in the table;
+  `td.textContent` equals the literal payload.
+- **Actual:** `dataset.xss` undefined; `#trackersTable img` count `0`;
+  name cell `textContent` = `<img src=x onerror=document.body.dataset.xss=1>` with
+  `children.length === 0`. PASS.
+
+### Test 3 — Server URL column: HTML injection neutralised
+- **Steps:** create id 2 (`<uribase>&lt;img …&gt;</uribase>`) and id 3
+  (`<uribase><b>bold</b></uribase>`); reload.
+- **Expected:** no element nodes injected from the Server URL cell.
+- **Actual:** `ZZURLPWN2` row Server URL cell `textContent` = `<b>bold</b>` with
+  `children.length === 0`; table-wide `img` count `0`, `b` count `0`. PASS.
+
+### Test 4 — View-only user (`codetracker_view` right 52 only) is protected too
+- **Steps:** log in as `ctonly1581` in an isolated browser context; load the entry
+  screen while tracker id 6 (`name` = `<img … onerror=document.body.dataset.xssVO=1>`,
+  cfg `<uribase><b>bold</b></uribase>`) exists.
+- **Expected:** no execution, no injected elements, no management affordances.
+- **Actual:** `dataset.xssVO` undefined; `#trackersTable img, b` count `0`; name and
+  URL cells show the payload as text; `#actionsTh` hidden; `#createBtn` hidden;
+  footer `1 code trackers | Generated on …`. PASS.
+
+### Test 5 — No double escaping / plain values render unchanged
+- **Steps:** create id 4 with `name` = `Tom & Jerry <test> "q" s` and
+  `<uribase>http://a.test/plain</uribase>`; reload; also search the table for `Tom`.
+- **Expected:** `&`/`<`/`>`/`"` escaped exactly once, no `&amp;amp;`; plain names
+  byte-identical; DataTables search still matches.
+- **Actual:** name cell `innerHTML` = `Tom &amp; Jerry &lt;test&gt; "q" s`,
+  `textContent` = `Tom & Jerry <test> "q" s`, `children.length === 0`;
+  `ZZURLPWN` row `innerHTML === textContent === "ZZURLPWN"` (no change for plain
+  values); Server URL `http://a.test/plain` unchanged; `search('Tom')` → 1 filtered
+  row with the payload shown as text. PASS.
+
+### Test 6 — Delete confirmation still shows the RAW (unescaped) name
+- **Steps:** intercept `window.confirm` to capture the message instead of showing
+  the native dialog; click the per-row delete icon of the crafted row and of the
+  `Tom & Jerry` row.
+- **Expected:** the user-facing message contains the original name, not
+  `&lt;img …&gt;`; nothing is deleted while the dialog is dismissed.
+- **Actual:** crafted row →
+  `Are you sure you want to delete code tracker "<img src=x onerror=document.body.dataset.xss=1>"?`;
+  `Tom & Jerry` row →
+  `Are you sure you want to delete code tracker "Tom & Jerry <test> "q" s"?`;
+  row count unchanged (`4`) because the interceptor returned `false`. PASS.
+
+### Test 7 — Edit modal on a crafted tracker is unaffected
+- **Steps:** call `editTracker(1)` and read the modal title and field values.
+- **Expected:** title renders as text (0 element children), the edit fields keep the
+  RAW stored values so the tracker stays editable.
+- **Actual:** `#modalTitle` `text()` =
+  `Edit Code Tracker: <img src=x onerror=document.body.dataset.xss=1>` with
+  `children().length === 0`; `#editName` = raw payload; `#editServerUrl` =
+  `http://example.test/`; `#editCfg` length 66; `#modalError` hidden. PASS.
+
+### Test 8 — Sink proof: DataTables itself is not hardened
+- **Steps:** on the live page, bypass `esc()` by initialising a second DataTable
+  with a raw array value and the same `columns: [null, …]` contract, then destroy it
+  and reload the real table.
+- **Expected:** the element is still created by the library — i.e. the fix is the
+  escaping, and any future unescaped column would be exploitable again.
+- **Actual:** the temporary table's first cell `innerHTML` =
+  `<img src="x" onerror="window.__raw=1">` with `children.length === 1` (element
+  injected). After `destroy()` + `loadTrackers()` the real table shows 0 injected
+  nodes. PASS (documents why the `esc()` call must stay on every cell).
+
+### Test 9 — Before/after screenshots
+- **Steps:** screenshot the pre-fix rendering (temporary copy of the pre-fix file
+  served from the docroot, removed immediately afterwards) and the fixed screen.
+- **Expected:** before = broken image node + injected `<b>`; after = payload text.
+- **Actual:** `docs/screenshots/issue-1581-codetracker-stored-xss-prefix.png`
+  (`nameHtml` = `<img src="x" onerror="document.body.dataset.xssVO=1">`,
+  `xssVO === "1"`, 1 `img`, 1 `b` node) and
+  `docs/screenshots/issue-1581-codetracker-stored-xss-fixed.png`
+  (`injected: 0`). The temporary demo file
+  `gui/templates/codetracker/_t1581_prefix_demo.html` was deleted
+  (`git status` clean except the CHANGELOG/docs/test-case files). PASS.
+
+### Test 10 — Console, Event Viewer and fixture restoration
+- **Steps:** filtered console (`error`/`warn`) on both browser contexts;
+  `SELECT count(*) FROM events WHERE log_level IN (1,2)`; delete all trackers
+  (ids 1-6), user `ctonly1581`, role 20 and its `role_rights` row.
+- **Expected:** no console errors/warnings; zero ERROR/WARNING events; fixture
+  tables back to their start state.
+- **Actual:** no console error/warn messages; event levels 1/2 count `0` (only the
+  `audit_login_succeeded` INFO row, log_level 16); 4 `DELETE` calls returned 200
+  and 2 more (`id 5` scratch + `id 6`) removed the rest;
+  `SELECT count(*) FROM codetrackers` → `0`; user/role fixture rows deleted. PASS.
+
+**Result: 10/10 PASS for #1581.**
