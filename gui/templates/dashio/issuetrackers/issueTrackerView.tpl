@@ -75,14 +75,15 @@ var del_action=fRoot+'lib/issuetrackers/issueTrackerEdit.php?doAction=doDelete&i
         </td>
         <td>{$item_def.type_descr|escape}</td>
         <td class="clickable_icon">{$item_def.env_check_msg|escape}</td>
-          <td class="clickable_icon">
-            {if $gui->canManage != ""  && $item_def.link_count == 0}
-              <i class="fas fa-minus-circle" title="{$labels.testproject_alt_delete}" 
-                 onclick="delete_confirmation({$item_def.id},'{$item_def.name|escape:'javascript'|escape}',
-                                                      '{$del_msgbox_title}','{$warning_msg}');"></i>
-            {/if}
-          </td>
-        </td>  
+          {if $gui->canManage != ""}
+            <td class="clickable_icon">
+              {if $item_def.link_count == 0}
+                <i class="fas fa-minus-circle" title="{$labels.testproject_alt_delete}" 
+                   onclick="delete_confirmation({$item_def.id},'{$item_def.name|escape:'javascript'|escape}',
+                                                        '{$del_msgbox_title}','{$warning_msg}');"></i>
+              {/if}
+            </td>
+          {/if}
       </tr>
     {/foreach}
   {/if}
