@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Remote Test Automation Execution</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0 0 60px; }
+
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px;
+          font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; opacity: .9; margin-left: 12px; }
+
+.toolbar { background: #22242a; padding: 10px 24px; display: flex; gap: 10px;
+           align-items: center; flex-wrap: wrap; }
+.toolbar .tbtn { display: inline-flex; align-items: center; gap: 6px;
+  background: #33363f; color: #fff; border: none; border-radius: 4px;
+  padding: 7px 12px; font-size: 12px; cursor: pointer; text-decoration: none; }
+.toolbar .tbtn:hover { background: #454955; color: #fff; text-decoration: none; }
+.toolbar .tbtn i { color: #4ECDC4; }
+.toolbar .tbtn.primary { background: #4ECDC4; color: #17302e; font-weight: 700; }
+.toolbar .tbtn.primary:hover { background: #3fbdb4; }
+.toolbar .tbtn.primary:disabled { background: #5a6b6a; color: #9fb3b2; cursor: not-allowed; }
+.toolbar .spacer { flex: 1; }
+.toolbar select, .toolbar #localeSwitcher select { background: #33363f; color: #fff;
+  border: 1px solid #4a4e59; border-radius: 4px; padding: 6px 8px; font-size: 12px; }
+.toolbar #localeSwitcher select option { background: #33363f; color: #fff; }
+
+.card { background: #fff; border-radius: 8px; margin: 20px 24px;
+        box-shadow: 0 1px 4px rgba(0,0,0,.08); overflow: hidden; }
+.card-head { padding: 14px 24px; border-bottom: 1px solid #eee;
+             display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.card-head h3 { margin: 0; font-size: 16px; color: #22242a; }
+.card-head .hint { font-size: 12px; color: #888; }
+.card-body { padding: 16px 24px 20px; }
+
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; }
+.field label { display: block; font-size: 11px; text-transform: uppercase;
+  letter-spacing: .6px; color: #6b6f76; margin-bottom: 5px; font-weight: 700; }
+.field select, .field input { width: 100%; border: 1px solid #d7d9de; border-radius: 4px;
+  padding: 8px 10px; font-size: 13px; background: #fff; color: #333; }
+.field select:focus, .field input:focus { outline: none; border-color: #4ECDC4; }
+
+.badge { display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 11px;
+         font-weight: 700; text-transform: uppercase; }
+.badge-ok { background: #2fbf9b; color: #fff; }
+.badge-failed { background: #e6605e; color: #fff; }
+.badge-config { background: #f0ad4e; color: #4a3a12; }
+.badge-conn { background: #e6605e; color: #fff; }
+.badge-pending { background: #8f8f8f; color: #fff; }
+.badge-server { background: #e6f7f5; color: #2b6f69; border: 1px solid #bfe8e3;
+                text-transform: none; font-weight: 600; }
+.badge-noserver { background: #fdeaea; color: #a13c3a; border: 1px solid #f3c9c8;
+                   text-transform: none; font-weight: 600; }
+
+.warnbox { background: #fff8e6; border: 1px solid #f0d9a0; border-left: 4px solid #f0ad4e;
+           border-radius: 4px; padding: 12px 16px; margin: 0 0 16px; font-size: 13px; color: #6b5a24; }
+.warnbox i { color: #f0ad4e; margin-right: 6px; }
+.warnbox code { background: #fdf3d8; padding: 1px 5px; border-radius: 3px; font-size: 12px; }
+.warnbox ul { margin: 8px 0 0 18px; padding: 0; }
+
+.tiles { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+.tile { flex: 1 1 120px; background: #fafafa; border: 1px solid #ececec; border-radius: 6px;
+        padding: 12px 14px; }
+.tile .num { font-size: 22px; font-weight: 700; color: #22242a; }
+.tile .lbl { font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: #8a8d93; }
+.tile.t-ok .num { color: #2fbf9b; }
+.tile.t-failed .num { color: #e6605e; }
+.tile.t-config .num { color: #d99a2b; }
+.tile.t-conn .num { color: #e6605e; }
+
+table.grid-tbl { width: 100%; border-collapse: collapse; }
+table.grid-tbl th { background: #f7f7f9; color: #555; font-size: 11px; text-transform: uppercase;
+  letter-spacing: .5px; text-align: left; padding: 9px 10px; border-bottom: 2px solid #e6e6ea; }
+table.grid-tbl td { font-size: 13px; color: #333; padding: 9px 10px;
+  border-bottom: 1px solid #f0f0f2; vertical-align: top; }
+table.grid-tbl tr:hover td { background: #fbfdfd; }
+table.grid-tbl td.mono { font-family: 'Courier New', monospace; font-size: 12px; color: #555;
+  word-break: break-all; }
+table.grid-tbl td.notes { color: #555; max-width: 320px; }
+
+.state-box { background: #fff; border-radius: 8px; margin: 20px 24px; padding: 28px 32px;
+             text-align: center; }
+.state-box i { font-size: 34px; margin-bottom: 10px; display: block; }
+.state-box h3 { margin: 0 0 8px; font-size: 18px; color: #22242a; }
+.state-box p { margin: 0; font-size: 14px; color: #777; }
+.state-denied i, .state-error i { color: #e6605e; }
+.state-empty i { color: #4ECDC4; }
+
+.footer { position: fixed; bottom: 0; left: 0; right: 0; background: #22242a; color: #a9adb6;
+          padding: 9px 24px; font-size: 11px; letter-spacing: .5px; }
+.hidden { display: none !important; }
+.spin { display: inline-block; width: 12px; height: 12px; border: 2px solid #fff;
+        border-top-color: transparent; border-radius: 50%; animation: sp .7s linear infinite; }
+@keyframes sp { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span data-i18n="tae.title">Remote Test Automation Execution</span>
+  <span class="sub" data-i18n="tae.subtitle">Run test cases on a remote automation server over XML-RPC</span>
+</div>
+
+<div class="toolbar">
+  <button class="tbtn primary" id="btnRun"><i class="fa fa-play"></i>
+    <span class="lbl" data-i18n="tae.run">Run on automation server</span></button>
+  <button class="tbtn" id="btnReload"><i class="fa fa-rotate"></i>
+    <span data-i18n="tae.reload">Reload</span></button>
+  <a class="tbtn" id="btnTcView" href="#" target="_top"><i class="fa fa-file-lines"></i>
+    <span data-i18n="tae.openTestCase">Open test case</span></a>
+  <span class="spacer"></span>
+  <span id="localeSwitcher"></span>
+</div>
+
+<!-- ================= execution context ================= -->
+<div class="card" id="ctxCard">
+  <div class="card-head">
+    <h3 data-i18n="tae.context">Execution context</h3>
+    <span class="hint" data-i18n="tae.contextHint">Forwarded to the automation server as XML-RPC context</span>
+  </div>
+  <div class="card-body">
+    <div class="grid">
+      <div class="field">
+        <label data-i18n="tae.testProject">Test project</label>
+        <input type="text" id="fProject" readonly>
+      </div>
+      <div class="field">
+        <label data-i18n="tae.testPlan">Test plan</label>
+        <select id="fPlan"></select>
+      </div>
+      <div class="field">
+        <label data-i18n="tae.build">Build</label>
+        <select id="fBuild"></select>
+      </div>
+      <div class="field">
+        <label data-i18n="tae.platform">Platform</label>
+        <select id="fPlatform"></select>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= execution target ================= -->
+<div class="card" id="targetCard">
+  <div class="card-head">
+    <h3 data-i18n="tae.target">Execution target</h3>
+    <span class="hint" data-i18n="tae.targetHint">Pick the test case, suite or whole project to run remotely</span>
+  </div>
+  <div class="card-body">
+    <div class="warnbox hidden" id="cfgWarn">
+      <i class="fa fa-exclamation-triangle"></i>
+      <span data-i18n="tae.checkServerTitle">Check the test automation server configuration</span>
+      <div data-i18n="tae.checkServerBody">Remote execution cannot be launched because the configuration is missing. Please check that the required Custom Fields are defined and assigned to this test project:</div>
+      <ul id="cfgCfields"></ul>
+    </div>
+
+    <div class="grid">
+      <div class="field">
+        <label data-i18n="tae.level">Level</label>
+        <select id="fLevel">
+          <option value="testcase" data-i18n="tae.levelTestcase">Single test case</option>
+          <option value="testsuite" data-i18n="tae.levelTestsuite">Test suite</option>
+          <option value="testproject" data-i18n="tae.levelTestproject">Whole test project</option>
+        </select>
+      </div>
+      <div class="field" style="grid-column: span 2;">
+        <label data-i18n="tae.node">Test case / suite</label>
+        <select id="fNode"></select>
+      </div>
+    </div>
+    <div style="margin-top:12px; font-size:12px; color:#6b6f76;">
+      <span data-i18n="tae.serverOf">Automation server</span>:
+      <span id="nodeServer"></span>
+    </div>
+  </div>
+</div>
+
+<!-- ================= results ================= -->
+<div class="card hidden" id="resCard">
+  <div class="card-head">
+    <h3 data-i18n="tae.results">Remote execution results</h3>
+    <span class="hint" id="resTarget"></span>
+  </div>
+  <div class="card-body">
+    <div class="tiles">
+      <div class="tile t-total"><div class="num" id="cTotal">0</div>
+        <div class="lbl" data-i18n="tae.total">Test cases</div></div>
+      <div class="tile t-ok"><div class="num" id="cOk">0</div>
+        <div class="lbl" data-i18n="tae.ok">Answered</div></div>
+      <div class="tile t-failed"><div class="num" id="cFailed">0</div>
+        <div class="lbl" data-i18n="tae.failed">Not passed</div></div>
+      <div class="tile t-config"><div class="num" id="cConfig">0</div>
+        <div class="lbl" data-i18n="tae.configProblems">Config problems</div></div>
+      <div class="tile t-conn"><div class="num" id="cConn">0</div>
+        <div class="lbl" data-i18n="tae.connectionFailure">Connection failure</div></div>
+    </div>
+    <div class="warnbox hidden" id="truncWarn">
+      <i class="fa fa-list-ol"></i><span id="truncMsg"></span>
+    </div>
+    <table class="grid-tbl">
+      <thead><tr>
+        <th data-i18n="tae.testCase">Test case</th>
+        <th data-i18n="tae.server">Automation server</th>
+        <th data-i18n="tae.status">Status</th>
+        <th data-i18n="tae.result">Result</th>
+        <th data-i18n="tae.notes">Notes</th>
+      </tr></thead>
+      <tbody id="resBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="state-box state-empty hidden" id="emptyState">
+  <i class="fa fa-plug"></i>
+  <h3 data-i18n="tae.emptyTitle">No test case to run</h3>
+  <p data-i18n="tae.emptyMsg">This test project has no test case available for the selected level.</p>
+</div>
+
+<div class="state-box state-denied hidden" id="deniedState">
+  <i class="fa fa-lock"></i>
+  <h3 data-i18n="tae.deniedTitle">Access denied</h3>
+  <p data-i18n="tae.deniedMsg">You need the &quot;view test cases&quot; right on this test project to run remote automation.</p>
+</div>
+
+<div class="state-box state-error hidden" id="errorState">
+  <i class="fa fa-exclamation-triangle"></i>
+  <h3 data-i18n="tae.errorTitle">Could not load the remote execution context</h3>
+  <p id="errorMsg"></p>
+</div>
+
+<div class="footer"><span data-i18n="footers.tcAutoExec">TestLink 2.0.1 - Remote Test Automation Execution</span></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script>
+function esc(s) {
+  return s == null ? '' : String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+var API = '/api/tcautoexec/index.php';
+var qs = new URLSearchParams(window.location.search);
+var tprojectId = qs.get('tproject_id') || '';
+var tplanId = qs.get('tplan_id') || '';
+var buildId = qs.get('build_id') || '';
+var platformId = qs.get('platform_id') || '';
+var DATA = null;
+var keepBuild = '', keepPlatform = '', keepNode = '';
+
+function showState(sel) {
+  $('#ctxCard, #targetCard, #resCard, #emptyState, #deniedState, #errorState').addClass('hidden');
+  if (sel) { $(sel).removeClass('hidden'); }
+  // nothing can be run without a loaded context: hide the run / open actions
+  var blind = (sel === '#deniedState' || sel === '#errorState');
+  $('#btnRun, #btnTcView').toggleClass('hidden', blind);
+}
+
+function fillSelect(sel, items, keepValue) {
+  var $s = $(sel), cur = keepValue !== undefined ? keepValue : $s.val();
+  $s.empty();
+  items.forEach(function (it) {
+    $s.append($('<option>').attr('value', it.id).text(it.name));
+  });
+  if (cur && $s.find('option[value="' + cur + '"]').length) { $s.val(cur); }
+  if (!$s.val() && $s.find('option').length) { $s.val($s.find('option').first().attr('value')); }
+  if (!$s.find('option').length) {
+    $s.append($('<option>').attr('value', '').text(TLi18n.t('tae.none')));
+  }
+}
+
+function levelLabel(level) {
+  if (level === 'testcase') { return TLi18n.t('tae.levelTestcase'); }
+  if (level === 'testsuite') { return TLi18n.t('tae.levelTestsuite'); }
+  return TLi18n.t('tae.levelTestproject');
+}
+
+function renderNodes(restoreId) {
+  if (!DATA) { return; }
+  var level = $('#fLevel').val();
+  DATA.cfieldLevelKey = (level === 'testsuite') ? 'testsuite' : 'testcase';
+  var $n = $('#fNode').empty();
+  var list = DATA.nodes.filter(function (n) {
+    if (level === 'testcase') { return n.level === 'testcase'; }
+    if (level === 'testsuite') { return n.level === 'testsuite'; }
+    return true;
+  });
+  if (level === 'testproject' && DATA.project) {
+    list = [{ id: DATA.project.id, name: DATA.project.name, level: 'testproject',
+              has_server: false, server_url: null }];
+  }
+  list.forEach(function (n) {
+    var label = n.name;
+    if (level !== 'testproject' && !n.has_server) {
+      label += '  — ' + TLi18n.t('tae.serverMissing');
+    }
+    $n.append($('<option>').attr('value', n.id).text(label));
+  });
+  if (!$n.find('option').length) {
+    $n.append($('<option>').attr('value', '').text(TLi18n.t('tae.noNodes')));
+  } else if (restoreId && $n.find('option[value="' + restoreId + '"]').length) {
+    $n.val(restoreId);
+  }
+  updateNodeServer();
+  refreshTcViewLink();
+}
+
+// Test cases the current level + selection will really run (a suite runs the
+// test cases of its whole subtree - the legacy get_subtree() behaviour).
+function casesForSelection() {
+  if (!DATA) { return []; }
+  var level = $('#fLevel').val();
+  var all = DATA.nodes.filter(function (n) { return n.level === 'testcase'; });
+  if (level === 'testcase') {
+    var id = String($('#fNode').val() || '');
+    return all.filter(function (n) { return String(n.id) === id; });
+  }
+  if (level === 'testsuite') {
+    var sid = String($('#fNode').val() || '');
+    var byId = {};
+    DATA.nodes.forEach(function (n) { byId[n.id] = n; });
+    return all.filter(function (n) {
+      var p = n.parent_id, hops = 0;
+      while (p && hops++ < 50) {
+        if (String(p) === sid) { return true; }
+        p = byId[p] ? byId[p].parent_id : 0;
+      }
+      return false;
+    });
+  }
+  return all;
+}
+
+// legacy check_test_automation_server hint: none of the test cases that are
+// about to be run resolves an endpoint.
+function updateConfigHint() {
+  var cases = casesForSelection();
+  var show = cases.length > 0 && !cases.some(function (n) { return n.has_server; });
+  $('#cfgWarn').toggleClass('hidden', !show);
+  if (show) {
+    var names = (DATA.cfield_names || {})[DATA.cfieldLevelKey || 'testcase'] || {};
+    var ul = '';
+    Object.keys(names).forEach(function (f) {
+      ul += '<li><code>' + esc(f) + '</code></li>';
+    });
+    $('#cfgCfields').html(ul);
+  }
+  $('#emptyState').toggleClass('hidden', cases.length > 0);
+}
+
+function updateNodeServer() {
+  if (!DATA) { return; }
+  var id = String($('#fNode').val() || '');
+  var level = $('#fLevel').val();
+  var node = null;
+  DATA.nodes.forEach(function (n) { if (String(n.id) === id) { node = n; } });
+  updateConfigHint();
+  var $t = $('#nodeServer');
+  if (level === 'testproject') {
+    $t.html('<span class="badge badge-server">' + esc(TLi18n.t('tae.levelTestproject')) + '</span>');
+    return;
+  }
+  if (!node) { $t.html('<span class="badge badge-noserver">' + esc(TLi18n.t('tae.serverMissing')) + '</span>'); return; }
+  if (node.has_server) {
+    var src = node.server_source === 'testsuite' ? TLi18n.t('tae.serverFromTestsuite')
+                                                   : TLi18n.t('tae.serverFromTestcase');
+    $t.html('<span class="badge badge-server">' + esc(node.server_url) + '</span> ' +
+            '<span style="font-size:11px;color:#8a8d93;">' + esc(src) + '</span>');
+  } else {
+    $t.html('<span class="badge badge-noserver">' + esc(TLi18n.t('tae.serverMissing')) + '</span>');
+  }
+}
+
+// legacy XML payloads carry "\n" inside the message: render them as breaks
+function msgHtml(s) {
+  return esc(String(s == null ? '' : s)).replace(/\\n/g, '<br>');
+}
+
+function statusBadge(st) {
+  if (st === 'ok') { return '<span class="badge badge-ok">' + esc(TLi18n.t('tae.answered')) + '</span>'; }
+  if (st === 'configProblems') { return '<span class="badge badge-config">' + esc(TLi18n.t('tae.configProblems')) + '</span>'; }
+  if (st === 'connectionFailure') { return '<span class="badge badge-conn">' + esc(TLi18n.t('tae.connectionFailure')) + '</span>'; }
+  return '<span class="badge badge-pending">' + esc(st || '') + '</span>';
+}
+
+function renderResults(d) {
+  var c = d.counters || {};
+  $('#cTotal').text(c.total || 0);
+  $('#cOk').text(c.ok || 0);
+  $('#cFailed').text(c.failed || 0);
+  $('#cConfig').text(c.configProblems || 0);
+  $('#cConn').text(c.connectionFailure || 0);
+  $('#resTarget').text(levelLabel(d.level) + ': ' + d.node_name + '  (' + TLi18n.t('tae.ofSelected', { n: d.selected }) + ')');
+
+  var html = '';
+  (d.results || []).forEach(function (r) {
+    // r.result is the TestLink status CODE sent by the server (p / f / b),
+    // r.result_status the resolved domain (passed / failed / blocked).
+    var domain = r.result_status || '';
+    var res = (r.result || '').trim();
+    var resHtml;
+    if (!res) {
+      resHtml = '<span style="color:#aaa;">—</span>';
+    } else {
+      var cls = (domain === 'passed') ? 'badge-ok'
+              : (domain === 'blocked') ? 'badge-config' : 'badge-failed';
+      var label = domain ? TLi18n.t('tae.status_' + domain) : res;
+      resHtml = '<span class="badge ' + cls + '">' + esc(label) + '</span>' +
+                (r.message ? '<div style="font-size:12px;color:#666;margin-top:4px;">' + msgHtml(r.message) + '</div>' : '');
+    }
+    var srv = r.server_url
+      ? '<span class="badge badge-server">' + esc(r.server_url) + '</span>'
+      : '<span class="badge badge-noserver">' + esc(TLi18n.t('tae.serverMissing')) + '</span>';
+    var notes = r.notes ? esc(r.notes) : (r.system.msg ? '<span style="color:#8a8d93;">' + msgHtml(r.system.msg) + '</span>' : '');
+    html += '<tr>'
+      + '<td><a href="#" class="tcLink" data-tc="' + r.tcase_id +
+      '" data-tcv="' + r.tcversion_id + '">' + esc(r.name) + '</a>'
+      + '<div style="font-size:11px;color:#999;">#' + r.tcase_id + ' / v#' + r.tcversion_id + '</div></td>'
+      + '<td>' + srv + '</td>'
+      + '<td>' + statusBadge(r.system.status) + '</td>'
+      + '<td>' + resHtml + '</td>'
+      + '<td class="notes">' + notes + '</td>'
+      + '</tr>';
+  });
+  $('#resBody').html(html);
+  $('#resBody .tcLink').on('click', function (e) {
+    e.preventDefault();
+    openTestCase($(this).data('tc'), $(this).data('tcv'));
+  });
+  $('#emptyState').addClass('hidden');
+  $('#truncWarn').toggleClass('hidden', !d.truncated);
+  if (d.truncated) { $('#truncMsg').text(TLi18n.t('tae.truncated')); }
+  $('#resCard').removeClass('hidden');
+}
+
+function openTestCase(tcaseId, tcversionId) {
+  var p = ['tcase_id=' + encodeURIComponent(tcaseId)];
+  if (tcversionId) { p.push('tcversion_id=' + encodeURIComponent(tcversionId)); }
+  if (tprojectId) { p.push('tproject_id=' + encodeURIComponent(tprojectId)); }
+  if (tplanId) { p.push('tplan_id=' + encodeURIComponent(tplanId)); }
+  window.open('/gui/templates/testcases/tcView.html?' + p.join('&'), 'TestCaseSpec',
+    'width=900,height=700,resizable=yes,scrollbars=yes');
+}
+
+// Toolbar "Open test case": jumps to the test case currently picked in the
+// target selector; on the suite/project level there is no single test case, so
+// it falls back to the test case search of the project.
+function refreshTcViewLink() {
+  var $a = $('#btnTcView'), id = String($('#fNode').val() || ''), node = null;
+  if ($('#fLevel').val() === 'testcase') {
+    DATA && DATA.nodes.forEach(function (n) { if (String(n.id) === id) { node = n; } });
+  }
+  if (node && tcversionIdOf(node)) {
+    $a.attr('href', '/gui/templates/testcases/tcView.html?tcase_id=' +
+      encodeURIComponent(node.id) + '&tcversion_id=' + encodeURIComponent(node.tcversion_id) +
+      '&tproject_id=' + encodeURIComponent(tprojectId) +
+      (tplanId ? '&tplan_id=' + encodeURIComponent(tplanId) : ''));
+  } else {
+    $a.attr('href', '/gui/templates/testcases/searchTestCase.html' +
+      (tprojectId ? '?tproject_id=' + encodeURIComponent(tprojectId) : ''));
+  }
+}
+
+function tcversionIdOf(n) { return n.tcversion_id ? n.tcversion_id : 0; }
+
+function load() {
+  $.ajax({
+    url: API + '?action=init',
+    data: { tproject_id: tprojectId, tplan_id: tplanId, build_id: buildId, platform_id: platformId },
+    dataType: 'json',
+    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+  }).done(function (d) {
+    DATA = d;
+    $('#btnRun, #btnTcView').removeClass('hidden');
+    tprojectId = d.project.id;
+    tplanId = (d.context && d.context.tplan_id) ? d.context.tplan_id : (d.plans[0] ? d.plans[0].id : 0);
+    $('#fProject').val(d.project.name + ' (' + d.project.id + ')');
+    $('#ctxCard, #targetCard').removeClass('hidden');
+    $('#resCard').addClass('hidden');
+    fillSelect('#fPlan', d.plans, tplanId);
+    fillSelect('#fBuild', d.builds, keepBuild || buildId);
+    fillSelect('#fPlatform', d.platforms, keepPlatform || platformId);
+    buildId = $('#fBuild').val() || buildId;
+    platformId = $('#fPlatform').val() || platformId;
+    keepBuild = keepPlatform = '';
+    renderNodes(keepNode);
+    keepNode = '';
+  }).fail(function (xhr) {
+    if (xhr.status === 401) {
+      window.location.href = '/login.php?vwrestorefrom=' + encodeURIComponent(window.location.pathname + window.location.search);
+      return;
+    }
+    if (xhr.status === 403) { showState('#deniedState'); return; }
+    showState('#errorState');
+    var msg = '';
+    try { msg = JSON.parse(xhr.responseText).message; } catch (e) { msg = xhr.status + ' ' + xhr.statusText; }
+    $('#errorMsg').text(msg || TLi18n.t('common.error'));
+  });
+}
+
+function run() {
+  var nodeId = $('#fNode').val();
+  if (!nodeId || !/^\d+$/.test(String(nodeId))) { return; }
+  var $btn = $('#btnRun').prop('disabled', true);
+  $btn.find('span.lbl').html('<span class="spin"></span>&nbsp;' + esc(TLi18n.t('tae.running')));
+  $.ajax({
+    url: API + '?action=run',
+    method: 'POST',
+    data: {
+      level: $('#fLevel').val(), node_id: nodeId, tproject_id: tprojectId,
+      tplan_id: $('#fPlan').val() || 0, build_id: $('#fBuild').val() || 0,
+      platform_id: $('#fPlatform').val() || 0
+    },
+    dataType: 'json',
+    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+  }).done(function (d) {
+    renderResults(d);
+  }).fail(function (xhr) {
+    if (xhr.status === 401) {
+      window.location.href = '/login.php?vwrestorefrom=' + encodeURIComponent(window.location.pathname + window.location.search);
+      return;
+    }
+    var msg = '';
+    try { msg = JSON.parse(xhr.responseText).message; } catch (e) { msg = xhr.status + ' ' + xhr.statusText; }
+    showState('#errorState');
+    $('#errorMsg').text(msg);
+  }).always(function () {
+    $btn.prop('disabled', false);
+    $btn.find('span.lbl').text(TLi18n.t('tae.run'));
+  });
+}
+
+$(function () {
+  $('#btnRun').on('click', run);
+  $('#btnReload').on('click', function () { location.reload(); });
+  $('#fLevel').on('change', renderNodes);
+  $('#fNode').on('change', function () { updateNodeServer(); refreshTcViewLink(); });
+  $('#fPlan').on('change', function () {
+    // platforms are attached to the test plan -> reload the context, keeping
+    // the build / platform / target selection.
+    tplanId = this.value;
+    keepBuild = $('#fBuild').val();
+    keepPlatform = $('#fPlatform').val();
+    keepNode = String($('#fNode').val() || '');
+    load();
+  });
+
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    load();
+  });
+});
+</script>
+</body>
+</html>
