@@ -2637,6 +2637,8 @@
   "reqv.author": "作者",
   "reqv.compareVersions": "比较版本",
   "reqv.copyLink": "复制",
+  "reqv.deleteConfirm": "将要删除需求 {docId}: {title}。确定删除？",
+  "reqv.requirementDeleted": "需求已删除。",
   "reqv.coverage": "覆盖率",
   "reqv.createdOn": "创建时间",
   "reqv.customFields": "自定义字段",

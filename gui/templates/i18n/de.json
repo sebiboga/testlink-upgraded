@@ -2631,6 +2631,8 @@
   "reqv.author": "Autor",
   "reqv.compareVersions": "Versionen vergleichen",
   "reqv.copyLink": "Kopieren",
+  "reqv.deleteConfirm": "Sie möchten die Anforderung {docId}: {title} löschen. Sind Sie sicher?",
+  "reqv.requirementDeleted": "Anforderung gelöscht.",
   "reqv.coverage": "Abdeckung",
   "reqv.createdOn": "Erstellt",
   "reqv.customFields": "Benutzerdefinierte Felder",

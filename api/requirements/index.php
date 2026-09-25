@@ -668,6 +668,8 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'view') {
 
     // all versions summary for the version selector
     $versionList = [];
+    $latestVersionId = 0;
+    $latestVersionNumber = 0;
     foreach ($versionRows as $vrow) {
         $versionList[] = [
             'version_id' => intval($vrow['version_id']),
@@ -677,6 +679,11 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'view') {
             'status' => $vrow['status'],
             'is_open' => intval($vrow['is_open']),
         ];
+        $versionNumber = intval($vrow['version']);
+        if ($versionNumber > $latestVersionNumber) {
+            $latestVersionNumber = $versionNumber;
+            $latestVersionId = intval($vrow['version_id']);
+        }
     }
 
     $modifiedNever = is_null($cur['modification_ts'])
@@ -721,6 +728,7 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'view') {
             'srs_id' => $srsId,
         ],
         'cf_values' => $cfValues,
+        'latest_version_id' => $latestVersionId,
         'versions' => $versionList,
         'coverage' => $coverage,
         'coverage_qty' => $coverageQty,
@@ -728,6 +736,103 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'view') {
         'coverage_pct' => $coveragePct,
         'relations' => $relList,
         'monitors' => $monitorsList,
+    ]);
+}
+
+if ($method === 'POST' && isset($segments[0]) && $segments[0] === 'copy') {
+    $body = getBody();
+    $reqId = intval($body['req_id'] ?? ($body['requirement_id'] ?? 0));
+    $containerId = intval($body['container_id'] ?? ($body['target_spec_id'] ?? 0));
+    if ($reqId <= 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid requirement id']);
+    }
+    if ($containerId <= 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid target specification id']);
+    }
+
+    $reqRows = $db->get_recordset(
+        "SELECT REQ.id, REQ.srs_id, REQ.req_doc_id, NH.name AS title, RS.testproject_id " .
+        " FROM requirements REQ " .
+        " JOIN nodes_hierarchy NH ON NH.id = REQ.id " .
+        " JOIN req_specs RS ON RS.id = REQ.srs_id " .
+        " WHERE REQ.id = " . intval($reqId) . " LIMIT 1");
+    if (empty($reqRows)) {
+        http_response_code(404);
+        out(['status' => 'error', 'message' => 'Requirement not found']);
+    }
+    $ownerTid = intval($reqRows[0]['testproject_id']);
+    if (!$user->hasRight($db, 'mgt_modify_req', $ownerTid)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission']);
+    }
+    $targetRows = $db->get_recordset(
+        'SELECT testproject_id FROM req_specs WHERE id = ' . intval($containerId) . ' LIMIT 1');
+    if (empty($targetRows) || intval($targetRows[0]['testproject_id']) !== $ownerTid) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Target specification does not belong to this test project']);
+    }
+
+    $ret = $reqMgr->copy_to(
+        $reqId,
+        $containerId,
+        $userId,
+        $ownerTid,
+        ['copy_also' => ['testcase_assignment' => !empty($body['copy_testcase_assignment'])]]
+    );
+    if (empty($ret['status_ok'])) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => (string)($ret['msg'] ?? 'Requirement copy failed')]);
+    }
+    $newId = intval($ret['id'] ?? 0);
+    $newReq = $reqMgr->get_by_id($newId, requirement_mgr::LATEST_VERSION);
+    $srcReq = $reqMgr->get_by_id($reqId, requirement_mgr::LATEST_VERSION);
+    $logMsg = (string)($ret['msg'] ?? '');
+    if (is_array($newReq) && count($newReq) && is_array($srcReq) && count($srcReq)) {
+        $logMsg = (string)TLS('audit_requirement_copy',
+            $newReq[0]['req_doc_id'], $srcReq[0]['req_doc_id']);
+    }
+    logAuditEvent($logMsg, 'COPY', $newId, 'requirements');
+    out([
+        'status' => 'ok',
+        'id' => $newId,
+        'message' => (string)($ret['msg'] ?? ''),
+        'audit_message' => $logMsg,
+    ]);
+}
+
+if ($method === 'DELETE' && count($segments) === 1 && ctype_digit($segments[0])) {
+    $reqId = intval($segments[0]);
+    $reqRows = $db->get_recordset(
+        "SELECT REQ.id, REQ.srs_id, REQ.req_doc_id, NH.name AS title, RS.testproject_id " .
+        " FROM requirements REQ " .
+        " JOIN nodes_hierarchy NH ON NH.id = REQ.id " .
+        " JOIN req_specs RS ON RS.id = REQ.srs_id " .
+        " WHERE REQ.id = " . intval($reqId) . " LIMIT 1");
+    if (empty($reqRows)) {
+        http_response_code(404);
+        out(['status' => 'error', 'message' => 'Requirement not found']);
+    }
+    $ownerTid = intval($reqRows[0]['testproject_id']);
+    if (!$user->hasRight($db, 'mgt_modify_req', $ownerTid)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission']);
+    }
+    $req = $reqRows[0];
+    $reqMgr->setNotifyOn(['delete' => true]);
+    $deleteResult = $reqMgr->delete($reqId, requirement_mgr::ALL_VERSIONS, $userId);
+    if ($deleteResult !== 'ok') {
+        http_response_code(500);
+        out(['status' => 'error', 'message' => (string)$deleteResult]);
+    }
+    $logMsg = (string)TLS('audit_requirement_deleted', (string)$req['req_doc_id']);
+    logAuditEvent($logMsg, 'DELETE', $reqId, 'requirements');
+    out([
+        'status' => 'ok',
+        'req_id' => $reqId,
+        'req_doc_id' => (string)$req['req_doc_id'],
+        'title' => (string)$req['title'],
     ]);
 }
 

@@ -2637,6 +2637,8 @@
   "reqv.author": "Autor",
   "reqv.compareVersions": "Comparar versões",
   "reqv.copyLink": "Copiar",
+  "reqv.deleteConfirm": "Você vai deletar o requisito {docId}: {title}. Tem certeza?",
+  "reqv.requirementDeleted": "Requisito removido.",
   "reqv.coverage": "Cobertura",
   "reqv.createdOn": "Criado",
   "reqv.customFields": "Campos personalizados",

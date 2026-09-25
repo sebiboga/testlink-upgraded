@@ -2637,6 +2637,8 @@
   "reqv.author": "Autor",
   "reqv.compareVersions": "Compară versiuni",
   "reqv.copyLink": "Copiază",
+  "reqv.deleteConfirm": "Urmează să ștergi cerința {docId}: {title}. Ești sigur?",
+  "reqv.requirementDeleted": "Cerință ștearsă.",
   "reqv.coverage": "Acoperire",
   "reqv.createdOn": "Creat",
   "reqv.customFields": "Câmpuri personalizate",

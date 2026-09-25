@@ -139,6 +139,7 @@ var API = '/api/reqedit/index.php';
 var REQ_ID = 0;
 var SPEC_ID = 0;
 var TPROJECT_ID = 0;
+var EDIT_VERSION_ID = 0;
 var MODE = 'create';
 var OPTIONS = null;
 var CURRENT = null;
@@ -232,11 +233,13 @@ function loadForm() {
   var url = API + '?action=form' +
     (REQ_ID > 0 ? '&id=' + REQ_ID : '&spec_id=' + SPEC_ID) +
     '&tproject_id=' + TPROJECT_ID;
+  if (REQ_ID > 0 && EDIT_VERSION_ID > 0) url += '&version_id=' + EDIT_VERSION_ID;
   $.getJSON(url, function(r) {
     if (r.status !== 'ok') { showError(r.message || TLi18n.t('reqe.loadError')); return; }
     MODE = r.mode;
     OPTIONS = r.options || {};
     CURRENT = r.requirement || {};
+    EDIT_VERSION_ID = CURRENT.version_id || EDIT_VERSION_ID;
     CURRENT.last_doc_id = r.last_doc_id || null;
     CURRENT.allow_insert_last_doc_id = !!(r.allow_insert_last_doc_id);
     SPEC_ID = CURRENT.srs_id || SPEC_ID;
@@ -489,7 +492,10 @@ function save() {
     return;
   }
   payload.custom_fields = collectCustomFields();
-  if (MODE === 'edit') { payload.id = REQ_ID; }
+  if (MODE === 'edit') {
+    payload.id = REQ_ID;
+    if (EDIT_VERSION_ID > 0) payload.version_id = EDIT_VERSION_ID;
+  }
   else { payload.spec_id = SPEC_ID; }
 
   doSave(payload, function(r) {
@@ -561,6 +567,8 @@ function newVersion() {
                            log_message: logMsg }),
     success: function(r) {
       if (r.status !== 'ok') { showError(r.message || TLi18n.t('reqe.versionError')); return; }
+      EDIT_VERSION_ID = parseInt(r.version_id || 0, 10);
+      if (CURRENT) { CURRENT.version_id = EDIT_VERSION_ID; }
       $('#infoBar').text(TLi18n.t('reqe.versionCreated') + ' v' + r.version).show();
       setTimeout(function() { $('#infoBar').fadeOut(); }, 2500);
       loadForm();
@@ -578,6 +586,7 @@ $(function() {
   REQ_ID = parseInt(p.get('id') || p.get('requirement_id') || 0, 10);
   SPEC_ID = parseInt(p.get('spec_id') || 0, 10);
   TPROJECT_ID = parseInt(p.get('tproject_id') || p.get('tp_id') || 0, 10);
+  EDIT_VERSION_ID = parseInt(p.get('version_id') || p.get('req_version_id') || 0, 10);
   TLi18n.load(function() {
     TLi18n.apply();
     TLi18n.initLocaleSwitcher('#localeSwitcher');

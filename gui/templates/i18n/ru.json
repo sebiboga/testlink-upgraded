@@ -2637,6 +2637,8 @@
   "reqv.author": "Автор",
   "reqv.compareVersions": "Сравнить версии",
   "reqv.copyLink": "Копировать",
+  "reqv.deleteConfirm": "Вы собираетесь удалить требование {docId}: {title}. Вы уверены?",
+  "reqv.requirementDeleted": "Требование удалено.",
   "reqv.coverage": "Покрытие",
   "reqv.createdOn": "Создано",
   "reqv.customFields": "Настраиваемые поля",

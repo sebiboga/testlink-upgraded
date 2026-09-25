@@ -20606,109 +20606,76 @@ Entry: `http://localhost:8082/api/codetracker/index.php`; screen
 
 **Result: 8/8 PASS. (Refs #1577)**
 
-## Regression — Issue #1580: legacy Code Tracker list emitted five PHP warnings and dropped pagination/label values
+## Suite 1300 — Requirement Viewer Edit / Delete / Copy (Refs #1300)
 
-Preconditions: PHP 8.3 server at `http://localhost:8082`; login `admin/admin` with
-Code Tracker management rights; DB command
-`mysql -h127.0.0.1 -utestlink -ptestlink testlink`; fresh DB baseline
-`events.max(id)=1`, ERROR/WARNING counts `0/0`. Fixture: test project id 2
-(`Issue 1580 Project`), codetrackers 1 (`Stash Tracker`, stash), 2
-(`GitHub TestLink`, github), 3 (`Linked Stash`, stash), and
-`testproject_codetracker(2,3)`. Entry:
-`http://localhost:8082/lib/codetrackers/codeTrackerView.php`. The visual table is
-unchanged by this server-warning fix, so the probative evidence is the measured DOM
-and Event Viewer delta; the corrected-state screenshot is
-`docs/screenshots/issue-1580-after.png`.
+Scope: restore the single-requirement lifecycle actions from the legacy
+`reqView` flow in `gui/templates/requirements/reqView.html`, add authenticated
+BFF copy/delete routes, and preserve exact-version editing. Fixture: test project
+`1` (`I1300`), spec `2` (`SPEC-1300`), requirement `4` (`REQ-1300`), version
+`5` (`v1r1`). Authenticated with `admin/admin` in the application shell.
 
-### Test 1 — Pre-fix reproduction: three pagination-chain warnings plus one per unlinked row
-- **Steps (pre-fix):** load the entry URL as `admin`; inspect the Event Viewer DB
-  delta and DOM page-size/delete-icon values.
-- **Expected post-fix:** HTTP 200; all three tracker rows render; page-size select is
-  populated from `input_dimensions.conf`; every visible delete tooltip is `delete`;
-  no Error/Warning event is added.
-- **Actual (pre-fix, measured):** HTTP 200; events IDs 2-4 were
-  `Undefined property: stdClass::$codeTrackerView`, then missing `pagination`, then
-  missing `length` on null. IDs 5-6 were `Undefined array key
-  "testproject_alt_delete"` (one for each unlinked row). The page-size select had
-  zero options and both delete tooltips were empty. PASS (bug reproduced).
+### Test 1 — Edit action and exact-version save
+- **Steps:** Open `reqView.html?id=4&tproject_id=1`; click **Edit**; change the
+  title, save twice, and inspect the save request.
+- **Expected:** The editor loads the selected version and sends `version_id=5`
+  for both form load and save; the change is persisted and can be restored.
+- **Actual:** Form request was `GET /api/reqedit/index.php?action=form&id=4&tproject_id=1&version_id=5`;
+  save requests were HTTP 200 and included `"id":4,"version_id":5`; title was
+  restored to `Original requirement title`. PASS.
 
-### Test 2 — Populated list uses the config-loader value and correct delete label
-- **Steps:** after the fix, perform two cache-bypassing reloads of the entry URL.
-- **Expected:** each request returns 200; 3 rows; only the two unlinked rows have
-  delete icons; both icons have `title="delete"`; the page-size select includes the
-  configured `20`; no console Error/Warning.
-- **Actual:** both requests returned 200; rows were `GitHub TestLink`,
-  `Linked Stash`, `Stash Tracker`; delete icons appeared only on the two unlinked
-  rows with title `delete`; page-size options were `["20"]`; zero console
-  error/warning messages were reported by the `error`/`warn` filters. PASS.
+### Test 2 — New version action resets explicit-version state
+- **Steps:** Click **Create a new version**, provide a log message, and inspect
+  the version selector and action visibility.
+- **Expected:** The newly created version becomes current and the full
+  Edit/Delete/Copy actions are available for it.
+- **Actual:** Version `v2r1` was created; the selector switched to `v2r1`, the
+  success toast appeared, and Edit/Delete/Copy were visible. PASS.
 
-### Test 3 — Empty-list branch remains valid
-- **Steps:** remove the exact link first with
-  `mysql -h127.0.0.1 -utestlink -ptestlink testlink -e "DELETE FROM testproject_codetracker WHERE testproject_id=2 AND codetracker_id=3;"`;
-  then run
-  `mysqldump -h127.0.0.1 -utestlink -ptestlink --no-create-info --complete-insert testlink codetrackers testproject_codetracker > /tmp/opencode/issue-1580-fixture.sql`;
-  clear both tables with
-  `mysql -h127.0.0.1 -utestlink -ptestlink testlink -e "DELETE FROM testproject_codetracker; DELETE FROM codetrackers;"`;
-  reload the entry URL; restore with
-  `mysql -h127.0.0.1 -utestlink -ptestlink testlink < /tmp/opencode/issue-1580-fixture.sql`,
-  then recreate only the removed link with
-  `INSERT INTO testproject_codetracker (testproject_id,codetracker_id) VALUES (2,3);`.
-  Removing the link before the dump keeps the backup self-contained and prevents a
-  duplicate insert when the unique `(testproject_id,codetracker_id)` row is restored.
-- **Expected:** HTTP 200; no tracker rows, page-size control, or delete icons; the
-  Code Tracker heading and `Create` button remain; no Error/Warning event.
-- **Actual:** HTTP 200; accessibility snapshot contained only the heading and
-  `Create` button; tracker rows/page-size control/delete icons were all absent; the
-  event delta remained zero for levels 1/2. Fixture restored to 3 tracker rows and
-  exact link `(2,3)`. PASS.
+### Test 3 — Frozen and historical-version action gates
+- **Steps:** Select the auto-frozen `v1r3 *`; unfreeze it; inspect the toolbar;
+  click Edit and inspect the popup URL.
+- **Expected:** Frozen versions hide Edit/Delete/Copy; after unfreezing an
+  explicitly selected historical version, Edit remains available while full
+  requirement Delete and Copy remain unavailable.
+- **Actual:** Frozen `v1r3` showed only Unfreeze and no Edit/Delete/Copy. After
+  unfreeze, Edit was visible, Delete/Copy were hidden, and Edit opened
+  `reqEdit.html?id=4&tproject_id=1&version_id=5`. PASS.
 
-### Test 4 — Romanian fallback produces no PHP E_WARNING/ERROR; L18N fallback is expected
-- **Steps:** temporarily set admin locale to `ro_RO`; log out/in through normal
-  authorization; load the entry URL; then restore `en_GB` and re-authenticate.
-- **Expected:** the partial Romanian locale may fall back to English, but the
-  `alt_delete` key resolves; the list and page-size control render; no Error/Warning
-  event is added.
-- **Actual:** HTTP 200; 3 rows; both delete tooltips resolved to `delete`; page-size
-  options were `["20"]`; only expected level-32 `L18N` fallback events were added;
-  level-1 ERROR / level-2 WARNING delta was 0. Admin locale restored to `en_GB`. PASS.
+### Test 4 — Single-requirement Copy flow
+- **Steps:** Create destination spec `SPEC-1300-COPY` (`id=8`); open
+  `reqCopy.html?id=2&tproject_id=1&req_id=4`; verify the requirement is
+  preselected; choose the destination and click **Copy**.
+- **Expected:** The screen uses the single-requirement BFF copy route and
+  creates the copied requirement in the destination specification.
+- **Actual:** The preselected row and Copy button were enabled; confirmation
+  succeeded; `POST /api/requirements/index.php/copy` returned HTTP 200 with
+  `{"req_id":4,"container_id":8,...}` and created requirement `10`; destination
+  `GET /api/reqspec/index.php?action=reqs&spec_id=8` returned that requirement. PASS.
 
-### Test 5 — Compiled Smarty and repeated live renders are clean
-- **Steps:** run
-  `touch gui/templates/dashio/codetrackers/codeTrackerView.tpl`; cache-bypass reload
-  the entry URL so TLSmarty recompiles it; then run
-  `php -l gui/templates_c/860899c7062bddced0e797a52bcbf4ac2c9f725e_0.file.codeTrackerView.tpl.php`;
-  inspect browser console `error`/`warn` filters.
-- **Expected:** generated PHP has no syntax errors and contains config-loader
-  `pagination_length` plus `labels['alt_delete']`; live requests create no
-  Error/Warning event or console error.
-- **Actual:** both generated files passed `php -l`; compiled line 57 reads
-  `_getConfigVariable(..., 'pagination_length')`; compiled line 130 reads
-  `labels['alt_delete']`; multiple HTTP-200 live reloads produced zero level-1/2
-  event delta and zero console error/warning messages in the filtered console view. PASS.
+### Test 5 — Full requirement Delete flow
+- **Steps:** Open the copied requirement `id=10` in the authenticated shell;
+  click **Delete** and confirm.
+- **Expected:** The full requirement is removed, the deleted banner is shown,
+  and the destination no longer lists the requirement.
+- **Actual:** `DELETE /api/requirements/index.php/10` returned HTTP 200 with
+  `status:ok`; the UI showed `This requirement no longer exists` and
+  `Requirement deleted.`; destination cleanup was confirmed. PASS.
 
-### Test 6 — Event Viewer and fixture restoration
-- **Steps:** open `http://localhost:8082/lib/events/eventviewer.php`; compare the
-  modern viewer summary and DB rows after the full matrix; verify tracker, link, and
-  admin locale fixture values.
-- **Expected:** viewer reports ERROR 0 and only the five retained pre-fix WARNING
-  rows; no event with `id>6` has level 1/2; fixture is 3 trackers, link `(2,3)`, and
-  `en_GB`.
-- **Actual:** Event Viewer rendered with all 10 network requests HTTP 200 and zero
-  console error/warning messages in the filtered console view; summary was
-  `ERROR: 0`, `WARNING: 5`; DB query for `id>6 AND log_level IN (1,2)` returned
-  0 rows; fixture was 3 tracker rows, link `(2,3)`, and locale `en_GB`. PASS.
+### Test 6 — BFF authentication and invalid-id error paths
+- **Steps:** Request the new endpoints without the shell session and request
+  unknown requirement IDs while authenticated.
+- **Expected:** Anonymous requests return 401; authenticated unknown IDs return
+  structured 404 JSON without PHP errors.
+- **Actual:** Standalone unauthenticated viewer/API requests returned 401;
+  authenticated copy with `req_id=999` and delete of `999` each returned HTTP
+  404 with `status:error`. PASS.
 
-### Test 7 — View-only rights path: #1580 contract clean; separate JS bug isolated
-- **Steps:** create a temporary user with global right 52 (`codetracker_view`) only,
-  assign project id 2, log in, and load the entry URL. Inspect rows, management
-  controls, page-size control, console, and Event Viewer; remove the user/assignment
-  and temporary project-role grant afterward.
-- **Expected for #1580:** HTTP 200; 3 rows; Create/edit/test/delete controls hidden;
-  no PHP ERROR/WARNING event from the changed template contracts.
-- **Actual:** HTTP 200; 3 rows; Create/edit/test/delete controls all absent; zero
-  level-1/2 event delta. A separate, pre-existing DataTables column-contract error
-  left the read-only page-size control empty and emitted `mData` TypeErrors; it was
-  reproduced, documented, and filed separately as bug #1582 rather than expanding
-  this fix. The temporary user and role grant were removed. PASS for #1580 scope.
+### Test 7 — Syntax, locale, and Event Viewer hygiene
+- **Steps:** Run PHP syntax checks, extract inline JavaScript and run
+  `node --check`, validate all 10 locale bundles, run `git diff --check`, and
+  query Event Viewer for Error/Warning levels after the browser flow.
+- **Expected:** All checks pass and no new Error/Warning events are created.
+- **Actual:** PHP, JavaScript, JSON, and diff checks passed; Event Viewer
+  `logLevel=1,2` returned HTTP 200 with `items:[]` and `total:0`. PASS.
 
-**Result: 7/7 PASS for #1580; separate #1582 filed. (Refs #1580)**
+**Result: 7/7 PASS. (Refs #1300)**

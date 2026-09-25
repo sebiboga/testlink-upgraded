@@ -107,6 +107,7 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; }
 var API = '/api/reqspec/index.php';
 var SPEC_ID = 0;
 var TPROJECT_ID = 0;
+var PRESELECT_REQ_ID = 0;
 var allItems = [];
 var containers = {};
 var copyTable = null;
@@ -115,6 +116,7 @@ $(function () {
   var p = new URLSearchParams(window.location.search);
   SPEC_ID = parseInt(p.get('id') || p.get('req_spec_id') || 0, 10);
   TPROJECT_ID = parseInt(p.get('tproject_id') || 0, 10);
+  PRESELECT_REQ_ID = parseInt(p.get('req_id') || p.get('requirement_id') || 0, 10);
   TLi18n.load(function () {
     TLi18n.apply();
     TLi18n.initLocaleSwitcher('#localeSwitcher');
@@ -168,6 +170,9 @@ function loadData() {
     if (r.status !== 'ok') { showMsg(false, r.message || TLi18n.t('rco.errLoad')); return; }
     TPROJECT_ID = r.tproject_id || TPROJECT_ID;
     allItems = r.items || [];
+    if (PRESELECT_REQ_ID > 0) {
+      allItems = allItems.filter(function (q) { return parseInt(q.id, 10) === PRESELECT_REQ_ID; });
+    }
     containers = r.containers || {};
     $('#specLine').text(r.spec.doc_id + ' — ' + r.spec.title);
     $('#backLink').attr('href', '/gui/templates/requirements/reqSpecView.html?id=' + SPEC_ID +
@@ -177,7 +182,7 @@ function loadData() {
       TLi18n.t('common.generatedOn') + ' ' + new Date().toLocaleString());
     buildContainers();
     renderTable(allItems);
-    $('#copyBtn').prop('disabled', true);
+    syncCheckAll();
     $('#actionsBar').css('display', allItems.length ? 'flex' : 'none');
   }).fail(function (xhr) {
     var msg = TLi18n.t('rco.errLoad');
@@ -210,10 +215,11 @@ function renderTable(items) {
   $('#emptyState').hide();
   $('#copyTable').show();
   var rows = items.map(function (q) {
+    var reqId = parseInt(q.id, 10);
     return [
-      '<input type="checkbox" class="check-req" value="' + q.id + '">',
+      '<input type="checkbox" class="check-req" data-req-id="' + reqId + '" value="' + reqId + '">',
       '<span class="id-chip" style="font-size:11px;">' + esc(q.req_doc_id) + '</span>',
-      '<a class="req-link" href="javascript:void(0)" onclick="openReq(' + q.id + ')">' + esc(q.title) + '</a>',
+      '<a class="req-link" href="javascript:void(0)" onclick="openReq(' + reqId + ')">' + esc(q.title) + '</a>',
       esc(String(q.version))
     ];
   });
@@ -226,6 +232,9 @@ function renderTable(items) {
     bInfo: false,
     initComplete: function () {
       $('.check-req').off('change').on('change', syncCheckAll);
+      if (PRESELECT_REQ_ID > 0) {
+        $('.check-req[data-req-id="' + PRESELECT_REQ_ID + '"]').prop('checked', true);
+      }
       $('#checkAll').prop('checked', false);
       syncCheckAll();
     }
@@ -246,19 +255,29 @@ function doCopy() {
   if (containerId === SPEC_ID) { showMsg(false, TLi18n.t('rco.errSelfTarget')); return; }
   var targetLabel = $('#containerSel option:selected').text() || String(containerId);
   if (!window.confirm(TLi18n.t('rco.confirm', { n: ids.length, target: targetLabel }))) { return; }
+  var copyUrl = API + '?action=copy_reqs';
+  var copyPayload = {
+    tproject_id: TPROJECT_ID,
+    req_spec_id: SPEC_ID,
+    container_id: containerId,
+    itemSet: ids,
+    copy_testcase_assignment: $('#copyCas').is(':checked')
+  };
+  if (PRESELECT_REQ_ID > 0 && ids.length === 1 && ids[0] === PRESELECT_REQ_ID) {
+    copyUrl = '/api/requirements/index.php/copy';
+    copyPayload = {
+      req_id: PRESELECT_REQ_ID,
+      container_id: containerId,
+      copy_testcase_assignment: $('#copyCas').is(':checked')
+    };
+  }
   $('#copyBtn').prop('disabled', true);
   $.ajax({
-    url: API + '?action=copy_reqs',
+    url: copyUrl,
     method: 'POST',
     contentType: 'application/json',
     headers: { 'X-Requested-With': 'XMLHttpRequest' },
-    data: JSON.stringify({
-      tproject_id: TPROJECT_ID,
-      req_spec_id: SPEC_ID,
-      container_id: containerId,
-      itemSet: ids,
-      copy_testcase_assignment: $('#copyCas').is(':checked')
-    }),
+    data: JSON.stringify(copyPayload),
     success: function (r) {
       if (r.status !== 'ok') { showMsg(false, r.message || TLi18n.t('rco.errCopy')); loadData(); return; }
       var html = '';

@@ -2637,6 +2637,8 @@
   "reqv.author": "作成者",
   "reqv.compareVersions": "バージョンを比較",
   "reqv.copyLink": "コピー",
+  "reqv.deleteConfirm": "要件 {docId}: {title} を削除します。よろしいですか？",
+  "reqv.requirementDeleted": "要件を削除しました。",
   "reqv.coverage": "カバレッジ",
   "reqv.createdOn": "作成日",
   "reqv.customFields": "カスタムフィールド",

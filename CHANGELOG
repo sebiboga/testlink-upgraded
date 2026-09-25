@@ -17,6 +17,14 @@ Every screen of the application was ported one-by-one in a screen-compare
 kept for backward compatibility and is progressively retired as each modern
 screen reaches full parity.
 
+- [FEATURE GAP] - #1300: the modern Requirement Viewer restores the legacy
+  requirement-level **Edit**, **Delete** and **Copy** actions. The toolbar now
+  opens the exact-version editor, deletes the complete requirement separately
+  from Delete this version, and launches the single-requirement destination
+  copy flow; the BFF adds authenticated management-gated copy/delete routes,
+  audit logging and full-delete monitor notification. All 10 locale bundles
+  contain the new reqv keys. Suite 1300 passed 7/7; Event Viewer remained clean. (Refs #1300)
+
 - [FEATURE GAP] - #1308: the modern Requirement Version Compare screen
   (gui/templates/requirements/reqCompare.html) restores the legacy **log-message
   hover tooltip**: every Log message cell opens a mouse-tracked tooltip showing

@@ -2631,6 +2631,8 @@
   "reqv.author": "Auteur",
   "reqv.compareVersions": "Comparer les versions",
   "reqv.copyLink": "Copier",
+  "reqv.deleteConfirm": "Vous allez supprimer l'exigence {docId} : {title}. Êtes-vous sûr ?",
+  "reqv.requirementDeleted": "Exigence supprimée.",
   "reqv.coverage": "Couverture",
   "reqv.createdOn": "Créé le",
   "reqv.customFields": "Champs personnalisés",
