@@ -22021,3 +22021,56 @@ viewer was shown a phantom `null` project and an inflated `link_count` (measured
 are filtered out of the returned list for everybody, so viewers get truthful data and
 `link_count` always matches what the grid shows for that tracker (the delete gating of
 #971 can no longer disagree with the used-by list).
+
+## 976. Task — Issue #1298: reqView.html relation management (add + delete), gap vs legacy
+
+**Feature under test:** the relation block of the 1.9.20 Requirement Viewer — the "New relation"
+form (relation type dropdown + destination `req_doc_id` + optional cross-project selector)
+and the per-row delete icon, both of which were absent from the modern screen
+(legacy `gui/templates/dashio/requirements/reqViewVersions.tpl:323-419`,
+`lib/requirements/reqCommands.class.php::doAddRelation()` :666-733 and
+`::doDeleteRelation()` :745-769).
+
+**Preconditions / fixtures** (`php tmp/fixtures_1298.php`, fresh DB):
+- `testprojects` 1 `REL1298` (prefix `R98`, id 4) + 1 `OTH1298` (prefix `OTH`, id 13) for the alien/read-only path.
+- `req_specs` 1 `SRS-PARENT-001` (id 5); `requirements` 3: `REQ-ALPHA` (id 7), `REQ-BETA` (id 9), `REQ-GAMMA` (id 11).
+- `req_cfg->relations->enable = TRUE`, `interproject_linking = FALSE` (repo default, `config.inc.php:1782-1783`).
+- Login `admin/admin` (role 8); screen `/gui/templates/requirements/reqView.html?id=7&tproject_id=4`.
+
+| # | Steps | Expected | Actual | Result |
+|---|---|---|---|---|
+| 976.1 | Open the screen for a requirement that has **zero** relations | Card visible with the "New relation" affordance (legacy renders the add row outside the `num_relations` guard, `reqViewVersions.tpl:340` vs `:368`) | `#relCard` display `block`, `#addRelationBtn` `block`, `#noRel` "No relations" shown | PASS |
+| 976.2 | Read the relation-type dropdown options | Legacy `init_relation_type_select()` set: source+destination entries for asymmetric types, single entry for the equal type, "related to" preselected | `1_source=parent of, 1_destination=child of, 2_source=blocks, 2_destination=depends on, 3_source=related to*` | PASS |
+| 976.3 | Click "New relation" with an **empty** destination, then **Add** | Client-side `validate_req_docid_input()` refusal, modal stays open, no request sent | `#addRelError` = "Requirement Document ID - Enter a Requirement Document ID." | PASS |
+| 976.4 | Type `REQ-BETA`, type `related to`, click **Add** | Row appears, success toast, modal closed | toast "New relation was added successfully." (`toast-bar ok`); row `3 \| related to \| REQ-BETA Beta requirement \| Valid \| Testlink Administrator` | PASS |
+| 976.5 | Table column set | The 7 legacy columns (`relation_id, relation_type, relation_document, relation_status, relation_project, relation_set_by, relation_delete`), Project hidden when inter-project linking is off | `#`, `Relation`, `Target`, `Project`(hidden), `Status`, `Set by`, `Delete`; 6 cells rendered per row | PASS |
+| 976.6 | Inspect the "Set by" cell | Legacy tooltip `title="Created <creation_ts> by <author>"` | `<span title="Created 2026-09-25 23:39:26 by Testlink Administrator">` | PASS |
+| 976.7 | Re-open the requirement from the **other** side (`id=9`) | Mirrored direction label (legacy picks `source_localized`/`destination_localized` by which side you view from) | row `1 \| parent of \| REQ-ALPHA …` (added as `child of`) | PASS |
+| 976.8 | Click the trash icon, then **Delete** in the confirm modal | Confirm text `Really delete relation #N?`, row removed, success toast | `#delRelMsg` = "Really delete relation #3?"; toast "Relation was deleted successfully."; remaining rows `["1:child of"]` | PASS |
+| 976.9 | `POST /relation` with an **unknown** doc id | `rel_add_error_dest_id` (409) | `{code:409, message_key:"rel_add_error_dest_id"}` | PASS |
+| 976.10 | `POST /relation` pointing at the requirement **itself** | `rel_add_error_self` (409) | `{code:409, message_key:"rel_add_error_self"}` | PASS |
+| 976.11 | `POST /relation` duplicating an existing pair+type | `rel_add_error_exists_already` (409) with the localized type name | `A relation of similar type ("related to") already exists between these two requirements.` | PASS |
+| 976.12 | `POST /relation` with a non-numeric/blank `relation_type` | `rel_add_error` (400) | `{code:400, message_key:"rel_add_error"}` | PASS |
+| 976.13 | `POST /relation` for a **non-existent** requirement id | 404, not a 500 | `{code:404, message_key:"reqv.errRelationSource"}` | PASS |
+| 976.14 | `POST /relation` with `tproject_id` ≠ the project owning the requirement (`$isAlien`) | 403 read-only, nothing inserted | `{code:403, message_key:"reqv.errRelationsReadOnly"}` | PASS |
+| 976.15 | Freeze the viewed version (`POST /versions/8/freeze`), reload | Add button hidden, trash icons greyed with the read-only/frozen tooltip | `#addRelationBtn` `none`, cells `<i class="fa fa-trash cov-disabled" … title="…">` | PASS |
+| 976.16 | With the version frozen, force `POST /relation` and `DELETE /relation` | Server refuses with 403 even though the UI is hidden | both `{code:403, message_key:"reqv.errReqFrozen"}` | PASS |
+| 976.17 | Unfreeze req 7, freeze req 11 (`REQ-GAMMA`), then add a relation targeting `REQ-GAMMA` | `rel_add_error_dest_frozen` (409) — the DESTINATION's last version is closed | `{code:409, message_key:"rel_add_error_dest_frozen"}` | PASS |
+| 976.18 | `DELETE /relation` with a non-numeric relation id | `error_deleting_rel` (400) | `{code:400, message_key:"error_deleting_rel"}` | PASS |
+| 976.19 | `DELETE /relation` for a relation id that belongs to **another** requirement | 404, target untouched (a forged id must not delete someone else's link) | `{code:404, message_key:"reqv.errRelationNotFound"}`; the relation was still in `req_relations` | PASS |
+| 976.20 | `DELETE /relation` for a nonexistent relation id | 404 | `{code:404, message_key:"reqv.errRelationNotFound"}` | PASS |
+| 976.21 | `DELETE /relation` with an alien `tproject_id` | 403 | `{code:403, message_key:"reqv.errRelationsReadOnly"}` | PASS |
+| 976.22 | Open the screen with `&locale=ro_RO` | Romanian labels and tooltips, no raw key leaked | card "Relații", button "Relație nouă", headers `# Tip relație Țintă Stare Setată de Șterge`, delete tooltip "Apăsați pentru a șterge această relație." | PASS |
+| 976.23 | Rename the related requirement to `<img src=x onerror=alert(1)>Evil & Co` and reload with `window.alert` stubbed | Name rendered as inert text, no script execution | `innerHTML` `&lt;img src=x onerror=alert(1)&gt;Evil &amp; Co`, `imgNodes:0`, `alerts:0` | PASS |
+| 976.24 | `php -l api/requirements/index.php`; `node --check` on the inline script; `python3 -m json.tool` on all 10 bundles | All clean | no syntax errors / JS OK (878 lines) / 10× OK | PASS |
+| 976.25 | Event Viewer: `SELECT log_level,COUNT(*) FROM events GROUP BY log_level` after the whole matrix | No new Error/Warning from the fixed code | events created after the last code fix: 4 rows, all `log_level=16` (audit: project created, 2× version frozen, 1× unfrozen); `log_level IN (1,2)` count unchanged | PASS |
+
+**Result: 25/25 PASS. (Refs #1298)**
+
+### Notes from case 976.25
+
+The six `log_level IN (1,2)` rows present in `events` were generated by this run **before**
+the two defects fixed in checkpoint 2 were corrected — they are the `$tables`-scope bug
+(`Undefined variable $tables` + `1064 SQL syntax error` at `api/requirements/index.php:907`).
+They are deliberately left in place as the evidence trail for those findings; every event
+written after the fix is `log_level=16`.

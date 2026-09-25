@@ -17,6 +17,26 @@ Every screen of the application was ported one-by-one in a screen-compare
 kept for backward compatibility and is progressively retired as each modern
 screen reaches full parity.
 
+- [FEATURE GAP] - #1298: the modern Requirement Viewer restores the legacy
+  relation management block (`reqViewVersions.tpl:323-419`), which was
+  completely absent: the "New relation" form (relation type + destination
+  `req_doc_id` + optional cross-project select), the per-row delete with its
+  confirm dialog, and 3 of the 7 list columns. `GET /view` now returns the
+  `req_relations_rw` grant (legacy `$isAlien` — read-only when the screen is
+  reached through another project's id), the relation-type dropdown
+  (`init_relation_type_select()`), the cross-project selector
+  (`initTestprojectSelect()`) and the author / creation-time / delete-gate
+  fields; new `POST /relation` and `DELETE /relation` routes port
+  `reqCommands::doAddRelation()` / `doDeleteRelation()` with the full error
+  chain (unknown doc id, direction swap on `_destination`, self-relation,
+  duplicate type, frozen destination), the `!$isAlien` and frozen-version gates
+  re-checked server-side, and a check that a relation id really belongs to the
+  requirement being viewed. Fixes the blocker where the card was hidden with
+  zero relations, making the first relation impossible to create. 29 new i18n
+  keys in all 10 locale bundles, including `rel_add_error_dest_frozen` which is
+  missing from every legacy locale file (1.9.20 printed the raw key). Suite
+  passed 25/25. (Refs #1298)
+
 - [FEATURE GAP] - #1299: the modern Requirement Viewer restores the legacy test
   case link management of the Coverage fieldset
   (`reqViewVersionsViewer.tpl:214-268`). `GET /view` now returns

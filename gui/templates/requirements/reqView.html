@@ -58,6 +58,7 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; }
 .cov-ic:hover { color: #4ECDC4; }
 .cov-ic-del:hover { color: #e74c3c; }
 .cov-obsolete { color: #e67e22; cursor: help; }
+.cov-disabled { color: #999; }
 </style>
 </head>
 <body>
@@ -159,16 +160,23 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; }
   </div>
 
   <div class="card" id="relCard" style="display:none;">
-    <div class="card-title"><i class="fa fa-sitemap"></i> <span data-i18n="reqv.relations">Relations</span></div>
+    <div class="card-title"><i class="fa fa-sitemap"></i> <span data-i18n="reqv.relations">Relations</span>
+      <button type="button" class="btn-teal" id="addRelationBtn" style="margin-left:auto;display:none;" onclick="openAddRelation()">
+        <i class="fa fa-plus"></i> <span data-i18n="reqv.newRelation">New relation</span>
+      </button>
+    </div>
     <div class="card-body">
       <div id="noRel" class="empty-state" style="display:none;" data-i18n="reqv.noRelations"></div>
       <table id="relTable" class="display" style="width:100%;display:none;">
         <thead>
           <tr>
+            <th data-i18n="reqv.relId">ID</th>
             <th data-i18n="reqv.relType">Relation</th>
             <th data-i18n="reqv.relTarget">Target</th>
-            <th data-i18n="reqv.relProject">Project</th>
+            <th data-i18n="reqv.relProject" id="relProjectTh">Project</th>
             <th data-i18n="reqv.status">Status</th>
+            <th data-i18n="reqv.relSetBy">Set by</th>
+            <th data-i18n="reqv.relDelete">Delete</th>
           </tr>
         </thead>
         <tbody></tbody>
@@ -205,6 +213,63 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; }
   </div>
 </div>
 
+<div class="modal fade" id="addRelModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" data-i18n="reqv.newRelation">New relation</h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="addRelForm" onsubmit="return false;">
+          <div class="form-group" style="margin-bottom:8px;">
+            <label style="font-size:12px;font-weight:600;" data-i18n="reqv.relCurrentReq">Current requirement</label>
+            <div style="font-size:13px;color:#333;">
+              <span class="id-chip" style="font-size:11px;" id="relSrcDocId"></span>
+              <span id="relSrcTitle"></span>
+            </div>
+          </div>
+          <div class="form-group" style="margin-bottom:8px;">
+            <label style="font-size:12px;font-weight:600;" data-i18n="reqv.relTypeLbl">Relation type</label>
+            <select id="relTypeSel" class="form-control" style="font-size:13px;"></select>
+          </div>
+          <div class="form-group" id="relProjectGroup" style="margin-bottom:8px;display:none;">
+            <label style="font-size:12px;font-weight:600;" data-i18n="reqv.relProjectLbl">In TestProject</label>
+            <select id="relProjectSel" class="form-control" style="font-size:13px;"></select>
+          </div>
+          <div class="form-group" style="margin-bottom:8px;">
+            <label style="font-size:12px;font-weight:600;" data-i18n="reqv.relDestDocId">Requirement Document ID</label>
+            <input type="text" id="relDestDocId" class="form-control" style="font-size:13px;" autocomplete="off">
+          </div>
+        </form>
+        <div id="addRelError" class="cov-feedback cov-feedback-err" style="display:none;"></div>
+      </div>
+      <div class="modal-footer" style="border-top:1px solid #e5e5e5;">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal" style="font-size:13px;" data-i18n="common.cancel">Cancel</button>
+        <button type="button" class="btn-teal" id="addRelSave" onclick="addRelation()"><i class="fa fa-plus"></i> <span data-i18n="common.add">Add</span></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="delRelModal" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" data-i18n="reqv.delRelTitle">Delete relation</h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div style="font-size:13px;color:#333;" id="delRelMsg"></div>
+      </div>
+      <div class="modal-footer" style="border-top:1px solid #e5e5e5;">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal" style="font-size:13px;" data-i18n="common.cancel">Cancel</button>
+        <button type="button" class="btn-danger" id="delRelOk" onclick="confirmDeleteRelation()"><i class="fa fa-trash"></i> <span data-i18n="common.delete">Delete</span></button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script src="/gui/templates/i18n/i18n.js"></script>
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
@@ -220,6 +285,7 @@ var EXPLICIT_VERSION = false;
 var META = null;
 var META_REQ_TOKEN = 0;
 var CUR_DOC_ID = '';
+var CUR_TITLE = '';
 var CUR_VERSION_NUM = 0;
 var CUR_REVISION = 0;
 var DIRECT_LINK = '';
@@ -373,6 +439,7 @@ function renderOverview(r) {
   SPEC_ID = c.srs_id || SPEC_ID;
   VERSION_ID = c.version_id;
   CUR_DOC_ID = c.req_doc_id;
+  CUR_TITLE = c.title || '';
   CUR_VERSION_NUM = c.version || 0;
   CUR_REVISION = c.revision || 0;
   if ($('#directLinkBox').is(':visible')) updateDirectLinks();
@@ -847,33 +914,192 @@ function openTCEdit(tcaseId) {
     'width=' + w + ',height=' + h + ',resizable=yes,scrollbars=yes');
 }
 
+// Relations (test-case-link management sibling) - port of
+// gui/templates/dashio/requirements/reqViewVersions.tpl:323-419.
+// Legacy renders the "New relation" row whenever relations are enabled and
+// req_relations.rw is set on an unfrozen version, EVEN WITH ZERO relations
+// (the {if num_relations} guard at :368 only wraps the list). The previous
+// modern version hid the whole card when the list was empty, which made the
+// very first relation impossible to create.
+var REL_CFG = { enabled: false, interproject_linking: false, types: [], projects: [] };
+var REL_RW = false;
+var relDelTarget = 0;
+
 function renderRelations(r) {
   if (relTable) { relTable.destroy(); relTable = null; }
-  if (!(r.relations || []).length) {
-    $('#relCard').hide();
+
+  REL_CFG = r.relation_config || { enabled: false, interproject_linking: false, types: [], projects: [] };
+  REL_RW = !!(r.grant && r.grant.req_relations_rw);
+
+  // legacy gate for the whole block: req_cfg->relations->enable
+  if (!REL_CFG.enabled) { $('#relCard').hide(); return; }
+  $('#relCard').show();
+
+  // "New relation" button: rw AND viewing version not frozen
+  var canAdd = REL_RW && !(r.current && r.current.frozen);
+  $('#addRelationBtn').toggle(canAdd);
+
+  // project column only exists with inter-project linking
+  var showProject = !!REL_CFG.interproject_linking;
+  $('#relProjectTh').toggle(showProject);
+
+  var list = r.relations || [];
+  if (!list.length) {
+    $('#noRel').show();
+    $('#relTable').hide();
     return;
   }
-  $('#relCard').show();
+  $('#noRel').hide();
+  $('#relTable').show();
+
   var rows = [];
-  $.each(r.relations, function(i, rel) {
+  $.each(list, function(i, rel) {
     var st = (META.status_labels && META.status_labels[rel.related_status])
       ? META.status_labels[rel.related_status] : rel.related_status;
+    var author = rel.author || '-';
+    // legacy tooltip: "Date/time <creation_ts> by <author>" (reqViewVersions.tpl:404)
+    var authorCell = escapeHtml(author);
+    if (rel.creation_ts) {
+      authorCell = '<span title="' + TLi18n.t('reqv.titleCreated') + ' ' + escapeHtml(rel.creation_ts) +
+        ' ' + TLi18n.t('reqv.by') + ' ' + escapeHtml(author) + '">' + escapeHtml(author) + '</span>';
+    }
+    // legacy: trash when rw && !frozen && related.is_open, otherwise the
+    // disabled-delete image carrying img_title_relation_frozen (:411-419)
+    var delCell = canAdd && rel.can_delete
+      ? '<a href="javascript:void(0)" class="cov-ic cov-ic-del" title="' + TLi18n.t('reqv.clickDelRelation') +
+        '" onclick="askDeleteRelation(' + rel.relation_id + ');"><i class="fa fa-trash"></i></a>'
+      : '<i class="fa fa-trash cov-disabled" style="opacity:.25;cursor:not-allowed;" title="' +
+        TLi18n.t('reqv.relFrozen') + '"></i>';
+
     rows.push([
+      escapeHtml(String(rel.relation_id)),
       escapeHtml(rel.type_localized || '-'),
       '<a href="javascript:void(0)" onclick="openReq(' + rel.related_req_id + ',' + rel.related_version_id + ')">' +
         '<span class="id-chip" style="font-size:11px;">' + escapeHtml(rel.related_doc_id) + '</span> ' +
         escapeHtml(rel.related_title) + '</a>',
-      escapeHtml(rel.related_tproject || '-'),
-      escapeHtml(st || '-')
+      showProject ? escapeHtml(rel.related_tproject || '-') : '',
+      escapeHtml(st || '-'),
+      authorCell,
+      delCell
     ]);
   });
+  var order = showProject ? [0, 1, 2, 3, 4, 5, 6] : [0, 1, 2, 4, 5, 6];
+  var columns = [];
+  if (!showProject) {
+    // hide the Project column without leaving a gap in the indexes above
+    columns.push({ targets: 3, visible: false });
+  }
   relTable = $('#relTable').DataTable({
     data: rows,
+    order: order,
     pageLength: 10,
     lengthMenu: [[10, 25, -1], [10, 25, 'All']],
-    columnDefs: [{ targets: '_all', defaultContent: '' }],
+    columnDefs: columns.concat([{ targets: '_all', defaultContent: '' }]),
     bInfo: false
   });
+}
+
+function openAddRelation() {
+  $('#addRelError').hide();
+  $('#relDestDocId').val('');
+  $('#relSrcDocId').text(CUR_DOC_ID || '');
+  $('#relSrcTitle').text(CUR_TITLE || '');
+
+  var sel = $('#relTypeSel').empty();
+  $.each(REL_CFG.types || [], function(i, t) {
+    $('<option>').val(t.id).text(t.label).prop('selected', !!t.selected).appendTo(sel);
+  });
+
+  var psel = $('#relProjectSel').empty();
+  $.each(REL_CFG.projects || [], function(i, p) {
+    $('<option>').val(p.id).text(p.label).prop('selected', !!p.selected).appendTo(psel);
+  });
+  $('#relProjectGroup').toggle(!!REL_CFG.interproject_linking);
+
+  $('#addRelModal').modal('show');
+  setTimeout(function() { $('#relDestDocId').focus(); }, 350);
+}
+
+function addRelation() {
+  var destDocId = $.trim($('#relDestDocId').val() || '');
+  var relType = $('#relTypeSel').val() || '';
+  // legacy validate_req_docid_input() (reqViewVersions.tpl:110-121): only an
+  // empty / whitespace value or the untouched placeholder label is refused -
+  // requirement doc IDs are free-form strings
+  if (!destDocId || destDocId === TLi18n.t('reqv.relDestDocId')) {
+    showRelError(TLi18n.t('reqv.relDestDocId') + ' - ' + TLi18n.t('reqv.errDestIdInvalid'));
+    return;
+  }
+  if (!relType) {
+    showRelError(TLi18n.t('reqv.relTypeLbl') + ' - ' + TLi18n.t('reqv.loadError'));
+    return;
+  }
+  $('#addRelSave').prop('disabled', true);
+  var body = {
+    req_id: REQ_ID,
+    version_id: VERSION_ID || 0,
+    tproject_id: TPROJECT_ID,
+    relation_type: relType,
+    destination_doc_id: destDocId
+  };
+  if (REL_CFG.interproject_linking) {
+    body.destination_tproject_id = $('#relProjectSel').val() || TPROJECT_ID;
+  }
+  $.ajax({
+    url: API + '/relation', method: 'POST', contentType: 'application/json',
+    data: JSON.stringify(body)
+  }).done(function(res) {
+    $('#addRelModal').modal('hide');
+    showToast(TLi18n.t(relMsgKey(res, 'new_rel_add_success')), true);
+    loadView();
+  }).fail(function(xhr) {
+    showRelError(relErrText(xhr));
+  }).always(function() { $('#addRelSave').prop('disabled', false); });
+}
+
+function showRelError(msg) {
+  $('#addRelError').text(msg).show();
+}
+
+function askDeleteRelation(relationId) {
+  relDelTarget = relationId;
+  $('#delRelMsg').text(TLi18n.t('reqv.delRelMsg').replace('%i', relationId));
+  $('#delRelModal').modal('show');
+}
+
+function confirmDeleteRelation() {
+  var relationId = relDelTarget;
+  if (!relationId) return;
+  $('#delRelOk').prop('disabled', true);
+  $.ajax({
+    url: API + '/relation', method: 'DELETE', contentType: 'application/json',
+    data: JSON.stringify({ req_id: REQ_ID, version_id: VERSION_ID || 0,
+                           tproject_id: TPROJECT_ID, relation_id: relationId })
+  }).done(function(res) {
+    $('#delRelModal').modal('hide');
+    showToast(TLi18n.t(relMsgKey(res, 'delete_rel_success')), true);
+    loadView();
+  }).fail(function(xhr) {
+    $('#delRelModal').modal('hide');
+    showToast(relErrText(xhr), false);
+  }).always(function() { $('#delRelOk').prop('disabled', false); relDelTarget = 0; });
+}
+
+// server replies carry the legacy lang_get() text AND a message_key: prefer the
+// key so the message follows the active UI locale
+function relMsgKey(res, fallback) {
+  return (res && res.message_key) ? res.message_key : fallback;
+}
+
+function relErrText(xhr) {
+  var fallback = TLi18n.t('reqv.loadError');
+  try {
+    var j = JSON.parse(xhr.responseText);
+    if (j.message_key && TLi18n.t(j.message_key) !== j.message_key) {
+      return TLi18n.t(j.message_key);
+    }
+    return j.message || fallback;
+  } catch (e) { return fallback; }
 }
 
 function renderMonitors(r) {
