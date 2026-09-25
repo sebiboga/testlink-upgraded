@@ -380,12 +380,17 @@ if ($action === 'bulkassign' || $action === 'unassign') {
     if ($action === 'bulkassign') {
         $done = $reqMgr->bulkAssignLatestREQVTCV($accepted, $tcaseIds, $userId);
         // legacy bulkAssignLatestREQVTCV() writes no audit by itself; we add
-        // one aggregated entry so the Event Viewer keeps a trace.
-        logAuditEvent(
-            TLS('audit_req_assigned_tc',
-                count($accepted) . ' requirement(s) of Req Spec #' . $specId,
-                $ctx['tsuite_name'] . ' (' . count($tcaseIds) . ' test cases)'),
-            'ASSIGN', $reqMgr->object_table);
+        // one aggregated entry so the Event Viewer keeps a trace. Nothing is
+        // logged for a no-op (every link already existed), so re-running the
+        // operation does not pollute the audit trail.
+        if ($done > 0) {
+            logAuditEvent(
+                TLS('audit_req_assigned_tc',
+                    count($accepted) . ' requirement(s) of Req Spec #' . $specId,
+                    $ctx['tsuite_name'] . ' (' . count($tcaseIds) . ' test cases)'),
+                'ASSIGN', $ctx['tsuite_id'],
+                (tlObjectWithDB::getDBTables('testsuites')['testsuites'] ?? 'testsuites'));
+        }
         out([
             'status' => 'ok',
             'action' => 'bulkassign',
@@ -427,11 +432,14 @@ if ($action === 'bulkassign' || $action === 'unassign') {
             "DELETE FROM {$t['req_coverage']} WHERE id IN (" . implode(',', $ids) . ")");
         $removed += count($ids);
     }
-    logAuditEvent(
-        TLS('audit_req_assignment_removed_tc',
-            count($accepted) . ' requirement(s) of Req Spec #' . $specId,
-            $ctx['tsuite_name'] . ' (' . $removed . ' links)'),
-        'UNASSIGN', $reqMgr->object_table);
+    if ($removed > 0) {
+        logAuditEvent(
+            TLS('audit_req_assignment_removed_tc',
+                count($accepted) . ' requirement(s) of Req Spec #' . $specId,
+                $ctx['tsuite_name'] . ' (' . $removed . ' links)'),
+            'UNASSIGN', $ctx['tsuite_id'],
+            (tlObjectWithDB::getDBTables('testsuites')['testsuites'] ?? 'testsuites'));
+    }
     out([
         'status' => 'ok',
         'action' => 'unassign',
