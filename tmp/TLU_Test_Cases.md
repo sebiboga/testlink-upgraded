@@ -20534,3 +20534,74 @@ session-guarded 302 shim; `testlink_library.js` `showEventHistoryFor()` switch;
   sibling fixtures. PASS.
 
 **Result: 8/8 PASS. (Refs #1579)**
+
+## Regression — Issue #1577: unregistered Code Tracker types persisted and generated Event Viewer warnings (Refs #1577)
+
+Preconditions/fixtures: PHP 8.3.35 server at `http://localhost:8082`; fresh
+TestLink DB; authenticated `admin` with `codetracker_management` right 51 and
+`codetracker_view` right 52; temporary view-only role/user holding only right 52;
+registered enabled systems type `1` (stash) and type `200` (github). Event Viewer
+baseline after the pre-fix reproduction was exactly 10 WARNING rows, ids 2-11.
+Entry: `http://localhost:8082/api/codetracker/index.php`; screen
+`http://localhost:8082/gui/templates/codetracker/codetrackerView.html`.
+
+### Test 1 — Pre-fix repro: unknown type persisted and warned
+- **Steps (pre-fix):** POST `{name:"repro-1577-unknown",type:6,cfg:""}`; list
+  the collection; delete the returned id.
+- **Expected:** unknown input is rejected before persistence and emits no PHP warning.
+- **Actual (pre-fix, measured):** POST/list/delete each returned HTTP 200; type 6
+  was persisted; Event Viewer gained 10 `E_WARNING` rows from
+  `tlCodeTracker.class.php:116,120,124,559,560`. PASS (bug reproduced).
+
+### Test 2 — Registered types retain full CRUD behavior
+- **Steps:** create type 1 and type 200; list and fetch detail; update `1→200` and
+  `200→1`; delete both.
+- **Expected:** enabled registered types remain accepted on create/update and all
+  normal CRUD paths remain unchanged.
+- **Actual:** both creates, list, details, and both type transitions returned HTTP
+  200; deletes returned 200 and deleted detail returned 404. PASS.
+
+### Test 3 — Invalid create inputs are rejected without persistence
+- **Steps:** POST types `6`, `0`, `-1`, `999`, numeric string `999`, missing type,
+  boolean, float, and null.
+- **Expected:** HTTP 400 `code=invalid_type`; `codetrackers` count does not grow.
+- **Actual:** every case returned HTTP 400 with no persistence; final
+  `codetrackers=0`. PASS.
+
+### Test 4 — Invalid update is rejected; omitted type remains a partial update
+- **Steps:** create a valid tracker; PUT invalid types `999` and numeric-string
+  `999`; then PUT only a new name.
+- **Expected:** invalid explicit types return 400 and preserve the row; omitted type
+  returns 200 and retains the stored type.
+- **Actual:** invalid updates returned 400; omitted-type update returned 200 and
+  retained type 200. PASS.
+
+### Test 5 — Malformed JSON body shapes return structured 400 responses
+- **Steps:** POST and PUT with top-level JSON string, boolean, list, and malformed body.
+- **Expected:** HTTP 400 `code=invalid_body`, never a PHP 500/TypeError.
+- **Actual:** all malformed/scalar/list bodies returned HTTP 400
+  `{"status":"error","code":"invalid_body"}`. PASS.
+
+### Test 6 — Auth and management rights take precedence over type validation
+- **Steps:** anonymous invalid create; temporary right-52-only user invalid create
+  and `/1/test_connection`; restore admin.
+- **Expected:** anonymous request returns 401; view-only writes return 403 before
+  type validation/persistence.
+- **Actual:** 401 anonymous; 403 for both view-only write paths; no tracker created.
+  PASS.
+
+### Test 7 — Modern UI renders the structured error in the active locale
+- **Steps:** open the create modal, inject an unregistered option with value 999,
+  fill the generic tracker fields, and save.
+- **Expected:** modal stays open with localized `ct.msg.invalidType`; no row is added.
+- **Actual:** POST returned HTTP 400; modal displayed `Code Tracker type 999 is
+  unknown.`; table remained empty. PASS.
+
+### Test 8 — Event Viewer and static validation hygiene
+- **Steps:** query `events` after the complete matrix; validate PHP, inline JS,
+  `git diff --check`, and all 10 locale bundles.
+- **Expected:** no new ERROR/WARNING; all syntax/JSON checks pass.
+- **Actual:** total WARNING/ERROR stayed 10; `events.id>11` WARNING/ERROR count is
+  0; tracker fixture count is 0. PHP/JS/JSON and diff checks all passed. PASS.
+
+**Result: 8/8 PASS. (Refs #1577)**
