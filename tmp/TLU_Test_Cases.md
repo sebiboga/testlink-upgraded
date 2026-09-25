@@ -21573,163 +21573,127 @@ suites 110-112 / TC 113,116,119) and `tmp/fixtures_1587_bulk.php` (suite 122 + c
 
 **Result: 13/13 PASS.** (Refs #973)
 
-## Regression — Issue #1584: legacy Issue Tracker list mismatched the conditional delete header in read-only mode (Refs #1584)
+---
 
-Preconditions: PHP 8.3 built-in server at `http://localhost:8082`, docroot = repo root;
-DB `mysql -h127.0.0.1 -utestlink -ptestlink testlink`; fresh-import baseline
-`events.max(id)=2`, ERROR/WARNING rows `0/0`.
+## Suite 1299 — Task: Issue #1299 reqView.html add/remove test case links + TC icons
 
-Fixture recreated for this suite (the imported DB had 0 test projects and 0 issue
-trackers, exactly as the original report stated):
+**Preconditions**
+- `php tmp/fixtures_1299.php` → test project `COV1299` (prefix `COV`, requirements
+  on), spec `COV-SPEC`, requirement `COV-REQ-1` (id 4) and two test cases
+  (`COV-1` id 7 / `COV-2` id 10). Fixture output: `/tmp/fixture_1299.txt`.
+- Login `admin/admin` on `http://localhost:8082/gui/templates/requirements/reqView.html?id=4&tproject_id=1`.
+- For the rights cases a user `norights` (created with `tmp/mkuser_norights.php`)
+  is used, first with role 3 (no rights at all), then with role 5 granted only
+  `mgt_view_req` (right id 10) and **not** `req_tcase_link_management` (right id 28).
 
-- test project id 1 `Issue1584 Fixture` (`nodes_hierarchy` id 1 → `testprojects` id 1,
-  `issue_tracker_enabled = 1`);
-- issue trackers 1 `IT1584 Redmine` (type 15), 2 `IT1584 Mantis` (type 3),
-  3 `IT1584 GitHub` (type 25);
-- `testproject_issuetracker(1, 2)` — the table's PK is `testproject_id` alone, so only
-  ONE tracker can be linked per project. Result: tracker 2 has `link_count = 1`,
-  trackers 1 and 3 have `link_count = 0` — this exercises the delete gate in both
-  directions;
-- role 10 `issue1584 read-only` holding **exactly** right 32 (`issuetracker_view`) and
-  no right 31 (`issuetracker_management`);
-- user 2 `ro_tracker` / `admin` (bcrypt), assigned to project 1 with role 10 via
-  `user_testproject_roles`.
+### Test 1 — BFF projection: `can_be_deleted`, `can_manage_coverage`, glue/separator
+- **Steps:** `GET /api/requirements/index.php/view?id=4&tproject_id=1` and inspect
+  the coverage/grant/meta keys.
+- **Expected:** the coverage row carries `can_be_deleted` (legacy field of
+  `requirement_mgr::getActiveForReqVersion()`), the response carries
+  `can_manage_coverage` and `tcase_prefix` / `glue_char` / `piece_sep`.
+- **Actual:** `prefix "COV"`, `glue "-"`, `sep " : "`, `canManage true`,
+  `grant.req_tcase_link_management "yes"`, and after a link existed
+  `coverage[0] = {tcase_id:7, tcversion_id:8, tc_external_id:"1", tc_version:1,
+  is_obsolete:false, can_be_deleted:true}`. PASS
 
-Entry point: `http://localhost:8082/lib/issuetrackers/issueTrackerView.php?tproject_id=1`.
-Changed file: `gui/templates/dashio/issuetrackers/issueTrackerView.tpl`
-(+9 / -8, per `git diff --stat`; plus the rule-22 `CHANGELOG` line).
-Pre-fix screenshot: `docs/screenshots/issue-1584-before.png`; post-fix:
-`docs/screenshots/issue-1584-after-readonly.png`, `docs/screenshots/issue-1584-after-admin.png`.
+### Test 2 — Add link: happy path through the modal
+- **Steps:** click **Add link to test case**, type `COV-1`, click **Save**.
+- **Expected:** modal closes, teal toast, the row appears in the Linked Test Cases
+  grid, a `req_coverage` row is written and an AUDIT `audit_reqv_assigned_tcv`
+  event is fired.
+- **Actual:** modal placeholder `COV-`; POST `/coverage` → `{"status":"ok","action":"add",
+  "req_version_id":13,"tcase_id":7}`; toast "Test case link added";
+  `req_coverage` row `(req_id 4, testcase_id 7, req_version_id 13, tcversion_id 8)`;
+  `events` id 3/5/6 = `audit_reqv_assigned_tcv`. PASS
 
-### Test 1 — R1/R2: read-only user gets a consistent delete-free table and working DataTables
-- **Steps:** log in as `ro_tracker`/`admin`; open the entry URL with a
-  cache-bypassing navigation; probe the DOM and the console.
-- **Expected post-fix:** HTTP 200; 3 `<th>`; exactly 3 `<td>` per row; the row content
-  is name / type / environment; `.dataTables_wrapper` present; DataTables search box
-  present; 0 console errors and 0 warnings; Create button absent; 0 delete icons;
-  0 `issueTrackerEdit` links; 0 connection-test (wrench) links.
-- **Result — observed: PASS.**
-  ```json
-  {"headCount":3,"heads":["Issue Tracker","Type","Environment"],
-   "rowCellCounts":[3,3,3],
-   "rows":[["IT1584 GitHub","github (Interface: rest)","OK"],
-           ["IT1584 Mantis","mantis (Interface: soap)","OK"],
-           ["IT1584 Redmine","redmine (Interface: rest)","OK"]],
-   "createBtn":null,"deleteIcons":0,"editLinks":0,"wrenchLinks":0,
-   "dtWrapper":true,"searchBox":true}
-  ```
-  `list_console_messages(types=[error,warn])` → `<no console messages found>`.
-  **Pre-fix, the same probe returned** `rowCellCounts:[4,4,4]`, `dtWrapper:false`,
-  `searchBox:false`, plus `jQuery.Deferred exception: Cannot read properties of
-  undefined (reading 'mData')` (warn) and the same message as an uncaught `TypeError`,
-  both from DataTables 1.12.1 with the stack terminating at
-  `issueTrackerView.php:275` (the `DataTables.inc.tpl` include).
+### Test 3 — Add link: legacy label + action icons
+- **Steps:** read the rendered row cells.
+- **Expected:** legacy label `PREFIX-ID pieceSep name`, an execution-history icon,
+  a design icon and (deletable link) a remove icon.
+- **Actual:** `["1", "<a …>COV-1 : COV first test case</a>", "1", "…openExecHistory(7)…fa-clock-o…
+  …openTCEdit(7)…fa-pencil… …removeCoverageLink(8, '1')…fa-unlink…"]`. PASS
 
-### Test 2 — R3: manager list keeps the delete column and initializes DataTables
-- **Steps:** log out, log in as `admin`/`admin`, open the entry URL.
-- **Expected post-fix:** 4 `<th>` (…, `delete`); exactly 4 `<td>` per row;
-  `.dataTables_wrapper` present; search box present; Create button present;
-  one `issueTrackerEdit` link and one wrench link per row; 0 console errors.
-- **Result — observed: PASS.**
-  ```json
-  {"headCount":4,"heads":["Issue Tracker","Type","Environment","delete"],
-   "rows":[{"name":"IT1584 GitHub","cells":4,"deleteIcon":true},
-           {"name":"IT1584 Mantis","cells":4,"deleteIcon":false},
-           {"name":"IT1584 Redmine","cells":4,"deleteIcon":true}],
-   "createBtn":"Create","deleteIcons":2,"editLinks":3,"wrenchLinks":3,
-   "dtWrapper":true,"searchBox":true}
-  ```
-  `list_console_messages(types=[error,warn])` → `<no console messages found>`.
+### Test 4 — Add link: empty identity
+- **Steps:** open the modal, leave the field empty, click **Save**.
+- **Expected:** client-side guard shows the legacy "FULL test case id" message, no request.
+- **Actual:** error box `Attention! - You need to provide FULL test case id: COV-NUMBER`
+  (i18n key `reqv.errFullExternalId`). PASS
 
-### Test 3 — R4: manager still cannot delete a tracker linked to a test project
-- **Steps:** as `admin`, inspect the delete cell/icon of row `IT1584 Mantis`
-  (`link_count = 1`, linked via `testproject_issuetracker(1,2)`).
-- **Expected post-fix:** the delete **cell** is present (4 cells) but the delete
-  **icon** is absent — the `link_count == 0` gate must be preserved by the fix.
-- **Result — observed: PASS.** `{"name":"IT1584 Mantis","cells":4,"deleteIcon":false}`.
+### Test 5 — Add link: server validation matrix
+- **Steps:** POST `/coverage` directly with `XXX-2` (foreign prefix), `COV-9999`
+  (unknown TC) and `1` (bare id).
+- **Expected:** legacy `lang_get` messages + i18n keys, HTTP 409, no link written.
+- **Actual:** foreign prefix → 409 `message_key reqv.errOtherProject`,
+  *"Test case have prefix XXX that is different than expected prefix COV"*;
+  unknown → 409 `reqv.errTcaseMissing`; bare id → 409 `reqv.errFullExternalId`. PASS
 
-### Test 4 — R5: manager can delete an unlinked tracker
-- **Steps:** as `admin`, inspect rows `IT1584 Redmine` and `IT1584 GitHub`
-  (`link_count = 0`).
-- **Expected post-fix:** delete cell **and** delete icon both present.
-- **Result — observed: PASS.** Both rows report `"deleteIcon":true`;
-  `deleteIcons:2` overall, matching the two unlinked trackers.
+### Test 6 — Add link: already executed latest version
+- **Steps:** insert an `executions` row for `COV-1`'s tcversion 8, then POST `COV-1`
+  and `COV-2`.
+- **Expected:** `COV-1` rejected (`reqLinkingDisabledAfterExec`), `COV-2` accepted.
+- **Actual:** `COV-1` → 409 `reqv.errLinkExecuted`, *"Link to latest version of test
+  case <b>COV-1</b> cannot be added - REASON: has been executed"*; `COV-2` → 200 and
+  the modal shows the localized `reqv.errLinkExecuted` text. PASS
 
-### Test 5 — R6: the fix introduces no new Error/Warning events
-- **Steps:** `SELECT id, log_level, description FROM events WHERE id > 2 ORDER BY id;`
-  after running Tests 1-4.
-- **Expected post-fix:** no Error/Warning row attributable to the cell change.
-- **Result — observed: PASS for this fix.** The delta contains only rows already
-  explained and tracked separately, none of which are produced by the changed block:
-  - `id 4,5 / 15,16` — Mantis `E_WARNING Undefined property: stdClass::$uribase` +
-    `SOAP Fault ... Parsing WSDL`. **Fixture artifact**: the synthetic Mantis `cfg`
-    points at a non-existent server by design.
-  - `id 6,7,8 / 17,18,19` — `Undefined property: stdClass::$issueTrackerView`,
-    `Attempt to read property "pagination" on null`, `... "length" on null` →
-    filed as **#1591** (`config.inc.php` never defines `pagination` for
-    `issueTrackerView` / `codeTrackerView` / `reqMgrSystemView`).
-  - `id 20,21` — `Undefined array key "testproject_alt_delete"` → filed as **#1590**
-    (`issueTrackerView.tpl:81` post-fix / `:80` pre-fix uses a label key the
-    template's `{lang_get}` at `:12-16` never loads; the sibling `codeTrackerView.tpl`
-    correctly uses `{$labels.alt_delete}`). Pre-existing, introduced with the Dashio
-    theme port, left untouched here.
+### Test 7 — `can_manage_coverage`: add only on the latest version
+- **Steps:** create version v2 of the requirement, then select v1 in the version
+  selector and POST an add on v1.
+- **Expected:** the add button disappears on the old version and the server refuses.
+- **Actual:** `can_manage_coverage` true for v2 (id 13), `addLinkBtn.offsetParent`
+  null on v1 (id 5), POST on v1 → 409 `reqv.errNotLatestVersion`. PASS
 
-### Test 6 — R7: sibling templates are not regressed
-- **Steps:** `git diff --stat HEAD~1 -- gui/templates/dashio/`.
-- **Expected post-fix:** only `issuetrackers/issueTrackerView.tpl` changed;
-  `codeTrackerView.tpl` (already fixed by #1582) and `reqMgrSystemView.tpl` untouched.
-  Note `reqMgrSystemView.tpl:71-77` still carries the **identical** defect; it is
-  tracked by the still-**open** issue **#1585** and is deliberately NOT fixed here
-  (out of scope for a single-bug run).
-- **Result — observed: PASS.**
-  ```
-   gui/templates/dashio/issuetrackers/issueTrackerView.tpl | 17 +++++++++--------
-   1 file changed, 9 insertions(+), 8 deletions(-)
-  ```
+### Test 8 — Remove link: happy path through the UI
+- **Steps:** click the remove (unlink) icon on a deletable row and confirm.
+- **Expected:** localized confirm dialog, link deleted, grid refreshed, AUDIT
+  `audit_reqv_assignment_removed_tcv` fired.
+- **Actual:** confirm text *"Remove the link to test case 1?"*; after confirm
+  `coverage []`, empty state shown, toast "Test case link removed",
+  `req_coverage` empty, `events` id 4 = `audit_reqv_assignment_removed_tcv`. PASS
 
-### Test 7 — R8: empty Issue Tracker list still renders header-only and stays error-free
-- **Steps:** as `admin`, `DELETE FROM issuetrackers;` (all 3 rows), reload the entry URL
-  with a cache-bypassing navigation, probe the DOM + console + `events` delta; then
-  recreate the 3 trackers and re-link one of them.
-- **Expected post-fix:** `$gui->items == ''` so the `{if $gui->items != ''}` guard at
-  `issueTrackerView.tpl:26`/`50` skips the `DataTables.inc.tpl` include entirely —
-  the table renders the header row only, with **no** `<tbody>` and **no** DataTables
-  wrapper, and no console error. Header count still follows the manager right (4 for
-  `admin`), because the header loop is outside the `items` guard.
-- **Result — observed: PASS.**
-  ```json
-  {"headCount":4,"heads":["Issue Tracker","Type","Environment","delete"],
-   "bodyRowCount":0,"tbodyExists":false,"dtWrapper":false,
-   "createBtn":"Create","deleteIcons":0}
-  ```
-  `list_console_messages(types=[error,warn])` → `<no console messages found>`;
-  `SELECT COUNT(*) FROM events WHERE id>21 AND log_level IN (1,2)` → **0**.
-  **Caveat recorded honestly:** recreating the rows assigns *new* AUTO_INCREMENT ids
-  (`4,5,6` instead of `1,2,3`), because `issuetrackers.id` is `auto_increment` and
-  the recreation is a fresh INSERT, not a restore. The suite re-linked
-  `testproject_issuetracker(1, 5)` (Mantis) so the `link_count` split is preserved.
-  Behaviour is id-independent; a post-restore reload re-confirmed Test 2/3/4 exactly:
-  `{"headCount":4, rows:[{GitHub,4,true},{Mantis,4,false},{Redmine,4,true}],
-  "createBtn":"Create","dtWrapper":true}`.
+### Test 9 — `can_be_deleted = false` blocks remove
+- **Steps:** set `req_coverage.link_status = 2` (`LINK_TC_REQ_CLOSED_BY_EXEC`, what
+  `exec.inc.php:186` does) and reload.
+- **Expected:** remove icon disappears and a direct DELETE is rejected server-side.
+- **Actual:** `coverage[0].can_be_deleted false`, `a.cov-ic-del` count 0, DELETE → 409
+  `Link cannot be deleted`. PASS
 
-### Test 8 — R9: anonymous access is refused (not leaked)
-- **Steps:** open the entry URL in a **fresh isolated browser context** (no session
-  cookie).
-- **Expected post-fix:** redirect to the sign-in page with the original destination
-  preserved; the tracker list is never rendered.
-- **Result — observed: PASS.** Final URL after redirect:
-  ```
-  http://localhost:8082/login.php?note=expired&destination=%2Flib%2Fissuetrackers%2FissueTrackerView.php%3Ftproject_id%3D1
-  ```
-  No `item_view` table, no tracker names in the response.
+### Test 10 — Rights gate
+- **Steps:** repeat the add/remove calls as `norights` with role 3 (no rights) and
+  with role 5 (`mgt_view_req` only).
+- **Expected:** 403 for every write; the read view only loads in the second case,
+  where the add button and the remove icons stay hidden while the history/design
+  icons remain (legacy renders them unconditionally).
+- **Actual:** role 3 → `/view` 403, POST 403, DELETE 403; role 5 → `/view` 200 with
+  `grant.*` all null, `addBtn false`, `removeIcons 0`, `histIcons 2`, `designIcons 2`,
+  POST 403, DELETE 403. PASS
 
-### Suite result
+### Test 11 — Invalid identifiers
+- **Steps:** POST/DELETE with `version_id 3` (not a version of req 4), DELETE with
+  `tcversion_id 0` and `4242`, DELETE with a version of another requirement.
+- **Expected:** 400/409, never a silent success.
+- **Actual:** `version_id 3` → 400 `Invalid requirement version`; `tcversion_id 0` →
+  400 `tcversion id required`; `4242` → 409 `Link cannot be deleted`; foreign
+  version → 400 `Invalid requirement version`. PASS
 
-**8/8 PASS** for the scope of issue #1584 (R1-R9 as numbered above: read-only table
-contract + DataTables init, read-only control suppression, manager table contract,
-`link_count` gate in both directions, Event Viewer, sibling non-regression, empty list,
-anonymous access). Two pre-existing defects found while testing are tracked separately
-and are **not** claimed as fixed by this suite: **#1590** (undefined
-`testproject_alt_delete` label key) and **#1591** (missing
-`$tlCfg->gui->{issueTrackerView,codeTrackerView,reqMgrSystemView}->pagination`, which
-is why the page-length menu is still empty after the fix).
+### Test 12 — i18n coverage in all bundles
+- **Steps:** assert the 16 new `reqv.*` keys in the 10 locale bundles and validate
+  each bundle.
+- **Expected:** 16 keys × 10 bundles, valid JSON, additive-only diff.
+- **Actual:** insertion script reported `inserted 16` for en/de/es/fr/it/ja/pt/ro/ru/zh;
+  `python3 -m json.tool` valid on all 10; `git diff --stat gui/templates/i18n/` =
+  10 bundles × **16 insertions(+), 0 deletions(-)** (no re-sort: the bundles are
+  shared with parallel CI agents). PASS
+
+### Test 13 — Event Viewer / console hygiene
+- **Steps:** read the `events` table and the browser console after the whole pass.
+- **Expected:** only AUDIT (16) rows from the coverage work; no new ERROR/WARNING
+  from the app.
+- **Actual:** `events` = ids 1-8 all `log_level 16` (project created, logins,
+  `audit_reqv_assigned_tcv`, `audit_reqv_assignment_removed_tcv`); ids 9-12
+  `log_level 2` come from a THROWAWAY fixture script of this run
+  (`/tmp/mkexec1299.php` instantiating a non-existent `testexecution` class) — not
+  from the app; browser console holds only the expected `409 (Conflict)` network
+  line of the negative tests, no JS errors. PASS
+
+**Result: 13/13 PASS.** (Refs #1299)
