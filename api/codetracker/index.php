@@ -191,8 +191,11 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'meta' && isset
 }
 
 if ($method === 'GET' && isset($segments[0]) && is_numeric($segments[0]) && count($segments) === 1) {
-    $item = $mgr->getByID(intval($segments[0]));
+    $id = intval($segments[0]);
+    $item = $mgr->getByID($id);
     if (!$item) { http_response_code(404); out(['status' => 'error', 'message' => 'Code tracker not found']); }
+    $links = $mgr->getLinks($id);
+    $item['link_count'] = is_array($links) ? count($links) : 0;
     out(['status' => 'ok', 'item' => trackerToJSON($item, $mgr, $canManage)]);
 }
 

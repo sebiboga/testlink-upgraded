@@ -20605,3 +20605,39 @@ Entry: `http://localhost:8082/api/codetracker/index.php`; screen
   0; tracker fixture count is 0. PHP/JS/JSON and diff checks all passed. PASS.
 
 **Result: 8/8 PASS. (Refs #1577)**
+
+## Suite 971 — Task — Issue #971: linked code-tracker delete gating and detail link-count parity
+
+**Precondition:** Fresh fixture with `testprojects.id=2` / `nodes_hierarchy.id=2` named `Linked Project`; code trackers `1=Stash Tracker`, `2=GitHub TestLink`, `3=Linked Stash`; `testproject_codetracker(2,3)`. Authenticated manager: `admin/admin`. Entry screen: `http://localhost:8082/gui/templates/codetracker/codetrackerView.html?tproject_id=0&tplan_id=0`.
+
+### Test 1 — List response exposes the legacy link count
+- **Steps:** Load the modern screen as `admin`; inspect the `GET /api/codetracker/index.php` response.
+- **Expected:** Every item has an integer `link_count`; unlinked rows report `0`, the linked row reports `1`.
+- **Actual:** HTTP **200**; ids 2, 3, and 1 reported `link_count` 0, 1, and 0. PASS.
+
+### Test 2 — Detail responses report the actual link count
+- **Steps:** Request `GET /api/codetracker/index.php/1` and `/3` from the authenticated page.
+- **Expected:** The unlinked detail reports `0`; the linked detail reports `1`, not the `trackerToJSON()` fallback value.
+- **Actual:** Both requests returned HTTP **200**; id 1 returned `link_count:0`, id 3 returned `link_count:1`. PASS.
+
+### Test 3 — Modern list hides delete for linked trackers
+- **Steps:** Inspect the rendered `#trackersTable` rows as `admin`.
+- **Expected:** `Linked Stash` has edit but no trash; both unlinked rows have edit and trash, matching the legacy condition.
+- **Actual:** DOM row counts were linked `{edit:1, delete:0}` and unlinked `{edit:1, delete:1}`. PASS.
+
+### Test 4 — Legacy screen parity
+- **Steps:** Log in to `http://localhost:8082/lib/codetrackers/codeTrackerView.php` with the same fixture.
+- **Expected:** Legacy linked row has no delete icon; unlinked rows retain it.
+- **Actual:** Legacy snapshot showed an empty delete cell for `Linked Stash` and delete icons for `Stash Tracker` and `GitHub TestLink`. PASS.
+
+### Test 5 — Server-side linked deletion remains blocked
+- **Steps:** Send `DELETE /api/codetracker/index.php/3` from the authenticated page.
+- **Expected:** HTTP **400** with the linked test-project reason; tracker 3 remains present.
+- **Actual:** HTTP **400** returned `id 3 is linked to: testproject 'Linked Project' with id 2`; MySQL still contained id 3. PASS.
+
+### Test 6 — Syntax, console, and Event Viewer hygiene
+- **Steps:** Run `php -l api/codetracker/index.php`; reload the modern screen after the test; inspect the current console and query Event Viewer levels.
+- **Expected:** PHP syntax passes; modern load has no console errors; no new ERROR/WARNING entries from the modern feature.
+- **Actual:** PHP lint passed; current-navigation console had no messages; post-test Event Viewer added no warnings from the modern screen. Five warnings observed while loading the legacy parity page were isolated and filed separately as bug #1580. PASS for the modern implementation.
+
+**Result: 6/6 PASS. (Refs #971)**

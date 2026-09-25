@@ -701,6 +701,13 @@ System:
   Browser-verified: ctviewonly → 403 on all write routes + read-only UI; admin →
   full manage UI + working create/edit/delete; Event Viewer ERROR/WARNING = 0.
   Suite 970 10/10 PASS. (Refs #970)
+- [FEATURE GAP] - #971: linked Code Tracker delete gating is complete across the
+  modern list and detail BFF responses. The list already exposed `link_count`
+  and hid trash icons for linked trackers; `GET /api/codetracker/index.php/{id}`
+  now also hydrates the real count before serialization, so detail consumers
+  cannot mistake a linked tracker for an unlinked one. Browser-verified list and
+  detail counts, linked/unlinked icon parity, and the existing HTTP 400 linked
+  deletion guard. Suite 971 6/6 PASS. (Refs #971)
 - Plugin Management (plugins/pluginView.html) - BFF api/plugins.
 - Install / Upgrade check (install/installView.html) - BFF api/install.
   Schema state, security notes, GD check (#797, #1282-#1287).
