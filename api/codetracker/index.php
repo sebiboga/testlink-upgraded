@@ -55,6 +55,13 @@ if (!$canView) {
 // test_github (measured escalation in issue #970), so those routes now require
 // codetracker_management and trail a denial into the Event Viewer first, exactly
 // like the legacy read gate above.
+//
+// Issue #1576: the same $canManage also gates READ access to the raw cfg (the
+// stored XML may contain <token>/<apikey> credentials in plaintext) — legacy
+// codeTrackerView.tpl only rendered name/type/env-check and never the cfg.
+// hasRight() returns the string 'yes' or null (lib/functions/roles.inc.php:254-273),
+// so '== "yes"' yields a clean bool mirroring legacy $gui->canManage
+// (lib/codetrackers/codeTrackerView.php:24).
 $canManage = ($user->hasRight($db, 'codetracker_management') == 'yes');
 
 function denyWrite($user, $userId, $action) {
@@ -74,7 +81,7 @@ $segments = array_values(array_filter(explode('/', $path)));
 function out($data) { echo json_encode($data); exit; }
 function getBody() { return json_decode(file_get_contents('php://input'), true) ?? []; }
 
-function trackerToJSON($item, $mgr) {
+function trackerToJSON($item, $mgr, $canManage) {
     $typeDescr = '';
     if (isset($mgr->types[$item['type']])) {
         $typeDescr = $mgr->types[$item['type']];
@@ -105,13 +112,20 @@ function trackerToJSON($item, $mgr) {
         }
     }
 
+    // Issue #1576: raw cfg may contain plaintext <token>/<apikey> credentials.
+    // Only management users get it (their edit modal prefills it); view-only
+    // users get '' — matching legacy codeTrackerView.tpl which never surfaced
+    // the raw XML on the list. serverUrl and the parsed github fields above
+    // still work without it.
+    $safeCfg = $canManage ? ($item['cfg'] ?? '') : '';
+
     return [
         'id' => intval($item['id']),
         'name' => $item['name'],
         'type' => intval($item['type']),
         'typeLabel' => $typeLabel,
         'typeDescr' => $typeDescr,
-        'cfg' => $item['cfg'] ?? '',
+        'cfg' => $safeCfg,
         'serverUrl' => $serverUrl,
         'github' => $github,
         'implementation' => $item['implementation'] ?? '',
@@ -126,7 +140,7 @@ if ($method === 'GET' && ($path === '/' || $path === '' || $path === '/index.php
     $items = [];
     if ($all) {
         foreach ($all as $item) {
-            $items[] = trackerToJSON($item, $mgr);
+            $items[] = trackerToJSON($item, $mgr, $canManage);
         }
     }
     // canManage mirrors legacy $gui->canManage
@@ -153,7 +167,7 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'meta' && isset
 if ($method === 'GET' && isset($segments[0]) && is_numeric($segments[0]) && count($segments) === 1) {
     $item = $mgr->getByID(intval($segments[0]));
     if (!$item) { http_response_code(404); out(['status' => 'error', 'message' => 'Code tracker not found']); }
-    out(['status' => 'ok', 'item' => trackerToJSON($item, $mgr)]);
+    out(['status' => 'ok', 'item' => trackerToJSON($item, $mgr, $canManage)]);
 }
 
 if ($method === 'POST' && empty($segments)) {
@@ -176,7 +190,7 @@ if ($method === 'POST' && empty($segments)) {
     $result = $mgr->create($ct);
     if ($result['status_ok']) {
         $item = $mgr->getByID($result['id']);
-        out(['status' => 'ok', 'item' => trackerToJSON($item, $mgr)]);
+        out(['status' => 'ok', 'item' => trackerToJSON($item, $mgr, $canManage)]);
     } else {
         http_response_code(400);
         out(['status' => 'error', 'message' => $result['msg']]);
@@ -199,7 +213,7 @@ if ($method === 'PUT' && isset($segments[0]) && is_numeric($segments[0]) && coun
     $result = $mgr->update($ct);
     if ($result['status_ok']) {
         $item = $mgr->getByID($id);
-        out(['status' => 'ok', 'item' => trackerToJSON($item, $mgr)]);
+        out(['status' => 'ok', 'item' => trackerToJSON($item, $mgr, $canManage)]);
     } else {
         http_response_code(400);
         out(['status' => 'error', 'message' => $result['msg']]);
@@ -320,7 +334,7 @@ if ($method === 'DELETE' && isset($segments[0]) && is_numeric($segments[0])) {
 
     $result = $mgr->delete($id);
     if ($result['status_ok']) {
-        out(['status' => 'ok', 'item' => trackerToJSON($existing, $mgr)]);
+        out(['status' => 'ok', 'item' => trackerToJSON($existing, $mgr, $canManage)]);
     } else {
         http_response_code(400);
         out(['status' => 'error', 'message' => $result['msg']]);
