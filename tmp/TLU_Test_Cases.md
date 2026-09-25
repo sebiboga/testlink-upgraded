@@ -22063,7 +22063,7 @@ routes cannot create it (`isEnabledTrackerType()`, `api/codetracker/index.php:30
 - **Actual (pre-fix, measured):** `API HTTP 500 len=0` (empty body);
   `tmp/php_server.log`: `PHP Fatal error: Uncaught Error: Class "Interface" not found in
   lib/functions/tlCodeTracker.class.php:569` with stack `#0 api/codetracker/index.php(254):
-  tlCodeTracker->getAll()`; `events` gained 6 `log_level=2` rows (ids 4-9: `Undefined array key 5`
+  tlCodeTracker->getAll()`; `events` gained 6 `log_level=2` rows (ids 4-9 of that run: `Undefined array key 5`
   :116, three `Trying to access array offset on null` :120/:124/:124, two
   `include_once(Interface.class.php)` from the autoloader `lib/functions/common.php:122`); the
   screen rendered the 6 column headers with **0 rows and no footer**. FAIL — bug reproduced
@@ -22072,11 +22072,11 @@ routes cannot create it (`isEnabledTrackerType()`, `api/codetracker/index.php:30
 ### Test 2 — Post-fix: the listing survives and the bad row is diagnosable
 - **Steps:** same request/screen, no DB change.
 - **Expected:** HTTP 200 with a body, the bad row listed, both diagnostics visible, no new events.
-- **Actual:** `API HTTP 200 len=314`; payload `items[0] = {type:5, typeLabel:"", typeDescr:"",
+- **Actual:** `API HTTP 200` (314 B with only the bad row, 1174 B with all three fixtures); payload `items[0] = {type:5, typeLabel:"", typeDescr:"",
   typeKnown:false, implementation:"", env_check_ok:false, env_check_msg:"", link_count:0}`;
   screen: `rows:3`, footer `Showing 1 to 3 of 3 entries`, Type cell `Code Tracker type 5 is unknown.`,
   Environment cell `Environment check failed`; console: no messages;
-  `SELECT COUNT(*) FROM events WHERE log_level=2` unchanged at 6 (all pre-fix).
+  `SELECT COUNT(*) FROM events WHERE log_level=2` = 12, all 12 from the two deliberate pre-fix captures (ids 4-9 = first repro, ids 12-17 = the before-screenshot capture) and **none from a post-fix request**.
   PASS (screenshot `docs/screenshots/issue-1597-codetracker-unknown-type-after.png`).
 
 ### Test 3 — Valid types keep their green OK probe (regression of the `checkEnv` path)

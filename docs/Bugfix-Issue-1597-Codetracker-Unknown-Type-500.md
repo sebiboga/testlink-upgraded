@@ -14,9 +14,9 @@ whenever **a single** row in `codetrackers` had a `type` outside
 
 The state is reachable through an import/migration, a hand-edited DB, or an implementation removed
 in a later release. The modern BFF itself cannot create it: `POST`/`PUT` validate the type against
-`getSystems(['status' => 'enabled'])` (`api/codetracker/index.php:308`,
-`rejectInvalidTrackerType()`), and the stored-token routes re-check at `:463` and in
-`githubInterfaceFor()` `:370`.
+`getSystems(['status' => 'enabled'])` (`api/codetracker/index.php:318`,
+`rejectInvalidTrackerType()`), and the stored-token routes re-check at `:473` and in
+`githubInterfaceFor()` `:381`.
 
 ## Environment and fixtures
 
@@ -71,23 +71,23 @@ the fatal. `php -l` cannot see this: it is a runtime class-resolution error.
 
 | Call site | Reachable with an out-of-map type? | Before the fix |
 |---|---|---|
-| `tlCodeTracker::getAll():568` (list, `checkEnv`) | yes, from DB rows | **fatal 500, empty body** (this issue) |
-| `tlCodeTracker::getByID():358` (detail / edit modal) | yes, from DB rows | 4 warnings + `implementation: "Interface"` in the JSON |
+| `tlCodeTracker::getAll():568` (list, `checkEnv`) — *pre-fix* line numbers | yes, from DB rows | **fatal 500, empty body** (this issue) |
+| `getByAttr():370` via `getByID()` (detail / edit modal) | yes, from DB rows | 4 warnings + `implementation: "Interface"` in the JSON |
 | `lib/codetrackers/codeTrackerView.php:23` (legacy view) | yes, from DB rows | same fatal on the legacy page (upstream origin) |
 | `lib/ajax/getcodetrackercfgtemplate.php:24` | no — pre-guarded (`isset($ctt[$type])`) | `codetracker_invalid_type` |
 | `lib/codetrackers/codeTrackerCommands.class.php:265` | only from the legacy edit controller, which validates first | pre-existing, unreachable with a bogus type |
-| `api/codetracker/index.php:308,370,375,463` | no — all pre-validate | 400 with a clear message |
+| `api/codetracker/index.php:318,381,384,473` | no — all pre-validate | 400 with a clear message |
 
 ## The fix
 
 ### 1. `lib/functions/tlCodeTracker.class.php` — guard in the library, degrade per row
 
 `getImplementationForType()` now returns `null` for a type that is not a key of `$systems`, **before**
-`$spec` is dereferenced (`:115-127`). One guard covers both unguarded call sites, including the legacy
-view; `getByID():358` then yields `implementation: null`, which `trackerToJSON()`'s existing
-`$item['implementation'] ?? ''` maps to `""`.
+`$spec` is dereferenced (`:114-127`). One guard covers both unguarded call sites, including the legacy
+view; `getByAttr():370` (reached via `getByID()`) then yields `implementation: null`, which
+`trackerToJSON()`'s existing `$item['implementation'] ?? ''` maps to `""`.
 
-`getAll()`'s `checkEnv` block (`:578-599`) no longer calls the implementation blindly:
+`getAll()`'s `checkEnv` block (`:578-601`) no longer calls the implementation blindly:
 
 ```php
 if( is_null($impl) || !@class_exists($impl) || !method_exists($impl, 'checkEnv') )
@@ -102,7 +102,8 @@ else
 }
 ```
 
-so one bad row degrades **only itself** and every other row keeps being listed. `class_exists()` is
+so one bad row degrades **only itself** and every other row keeps being listed. `is_callable([$impl,'checkEnv'])` (not `method_exists`) proves the probe is a **public static**
+method, which is the only thing `$impl::checkEnv()` can legally call. `class_exists()` is
 `@`-silenced on purpose: the autoloader `include_once()`s `<class>.class.php`
 (`lib/functions/common.php:122`) and would otherwise re-log the two `Failed opening …class.php`
 warnings for a *known* type whose file is missing — the same reasoning already applied to the
@@ -110,9 +111,8 @@ requirement-manager list route (`api/reqmgrsystems/index.php:107`, issue #1593).
 
 ### 2. `api/codetracker/index.php` — `typeKnown` (one field)
 
-`trackerToJSON()` adds `'typeKnown' => $typeLabel !== ''`. `$typeLabel` is built from
-`$mgr->systems[$item['type']]` and is non-empty for every known type (`"stash (Interface: rest)"`),
-so it doubles as the "is this type in the map" flag: no extra lookup, no string sniffing in JS.
+`trackerToJSON()` adds `'typeKnown' => isset($mgr->systems[$item['type']])` — deliberately the SAME
+predicate as the library guard, not a derivation from `$typeLabel`, so the two can never drift apart.
 
 ### 3. `gui/templates/codetracker/codetrackerView.html` — make the cause visible
 
@@ -123,9 +123,9 @@ row arrives with an empty `env_check_msg`).
 
 **No new i18n key was introduced** — `ct.msg.invalidType` already exists in all 10 locale bundles
 (`en, de, es, fr, it, ja, pt, ro, ru, zh`) with its `{type}` placeholder. The interpolated string goes
-through `esc()` like every other cell, preserving the #1581 escaping contract. The stale
-`tlCodeTracker.class.php:566-572` line reference in the neighbouring comment was updated to
-`:578-599`.
+through `esc()` like every other cell, preserving the #1581 escaping contract. The stale `tlCodeTracker.class.php:566-572` line references in the neighbouring comments of **both**
+`codetrackerView.html` and `api/codetracker/index.php` were updated to the post-fix `:578-601` (plus
+`:574-575` and `:604-610` for the other two pre-existing refs the guard shifted).
 
 ## Alternatives rejected
 
@@ -142,11 +142,11 @@ through `esc()` like every other cell, preserving the #1581 escaping contract. T
 
 | # | Case | Expected | Measured | Verdict |
 |---|---|---|---|---|
-| 1 | row `type=5` | 200, row listed, `env_check_ok=false`, `typeKnown=false`, no new events | `API HTTP 200 len=314`; `rows:3`, footer `Showing 1 to 3 of 3 entries`, Type cell `Code Tracker type 5 is unknown.`, Environment cell `Environment check failed`; `events WHERE log_level=2` = 6 (unchanged) | PASS |
+| 1 | row `type=5` | 200, row listed, `env_check_ok=false`, `typeKnown=false`, no new events | `API HTTP 200` (314 B with the single bad row, 1174 B with all three fixtures); `rows:3`, footer `Showing 1 to 3 of 3 entries`, Type cell `Code Tracker type 5 is unknown.`, Environment cell `Environment check failed`; `events WHERE log_level=2` = 12, all of them from the two deliberate pre-fix captures, **none after the fix** | PASS |
 | 2 | row `type=1` | green OK | `stash (Interface: rest)` + `OK` | PASS |
 | 3 | row `type=200` | green OK | `github (Interface: rest)` + `OK` | PASS |
 | 4 | `GET /api/codetracker/index.php/1` | 200, `implementation: ""` | `HTTP 200`, `implementation === ""` | PASS |
-| 5 | `POST /api/codetracker/index.php/1/test_connection` | 400 | `{"status":"error","message":"Unknown code tracker type"}` | PASS |
+| 5 | `POST /api/codetracker/index.php/1/test_connection` | 400 | `HTTP 400 {"status":"error","message":"Unknown code tracker type"}` | PASS |
 | 6 | screen in the browser | row visible with 2 diagnostics, no console error | console: no messages | PASS |
 | 7 | manager repair path | the row is fixable from the UI | edit modal → type `stash` → Save → DB `type` 5 → **1**; row then green | PASS |
 | 8 | static gates + log | clean | `php -l` ×2, all 6 `<script>` blocks parse, `git diff --check` clean, no new WARNING/fatal | PASS |
@@ -160,11 +160,14 @@ Regression suite: `tmp/TLU_Test_Cases.md` → *"Regression — Issue #1597"*, **
 
 ## Out of scope (noted, not changed)
 
-`tlCodeTracker::checkConnection()` and `getInterfaceFromDB()` still do
-`new $xx['implementation'](...)` without a type check. Nothing in the modernized screen or the BFF
-reaches them (the modern wrench icon calls the guarded `/{id}/test_connection` route), and they were
-equally fatal before the fix — with the string `"Interface"` instead of `null` — so this is not a
-regression. Hardening them is a candidate for a future task.
+`tlCodeTracker::getInterfaceObject()` (`:655`, called from the legacy execution path
+`lib/execute/execSetResults.php:753`) and `tlCodeTracker::checkConnection()` (`:700`) still do
+`new $xx['implementation'](...)` without a type check. **Nothing in the modernized screen or the BFF
+reaches them** — the modern wrench icon calls the guarded `/{id}/test_connection` route — and they
+were equally fatal before the fix (`Error: Class "Interface" not found` instead of
+`Error: Class name must be a valid object or a string`; both are uncaught `Error`s, which the
+`catch (Exception)` at `:689` does not catch either). So this is not a regression; hardening the two
+legacy methods is a candidate for a future task.
 
 ## Files changed
 

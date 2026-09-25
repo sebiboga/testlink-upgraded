@@ -216,16 +216,16 @@ function trackerToJSON($item, $mgr, $canManage) {
         // fataling the whole grid (tlCodeTracker::getImplementationForType()
         // returns null and getAll() degrades its env check to "not OK"), so the
         // grid has to be able to say WHY the Type/Environment cells are empty
-        // instead of rendering two blank cells. $typeLabel is non-empty for
-        // every known type (it is built from the systems spec), so it doubles
-        // as the "is this type known" flag.
-        'typeKnown' => $typeLabel !== '',
+        // instead of rendering two blank cells. Deliberately the SAME predicate
+        // as the library guard (isset on $mgr->systems), not a derivation from
+        // $typeLabel, so the two can never drift apart.
+        'typeKnown' => isset($mgr->systems[$item['type']]),
         'cfg' => $safeCfg,
         'serverUrl' => $serverUrl,
         'github' => $github,
         'implementation' => $item['implementation'] ?? '',
         // Environment check (issue #973). Legacy lib/codetrackers/codeTrackerView.php:23
-        // requested getAll(..., 'checkEnv' => true) so tlCodeTracker.class.php:566-572
+        // requested getAll(..., 'checkEnv' => true) so tlCodeTracker.class.php:578-601
         // runs the per-implementation $impl::checkEnv() and fills
         // env_check_ok / env_check_msg, rendered by the "Environment" column of
         // codeTrackerView.tpl:42,74 ($labels.th_codetracker_env =
@@ -235,7 +235,7 @@ function trackerToJSON($item, $mgr, $canManage) {
         // lib/codetrackerintegration/githubrestCodeTrackerInterface.class.php:523
         // requiring cURL) was never surfaced. Same shape as
         // api/issuetracker/index.php:100-101.
-        // Defaults mirror tlCodeTracker.class.php:562-563 (true / '') so routes
+        // Defaults mirror tlCodeTracker.class.php:574-575 (true / '') so routes
         // that do not request checkEnv (GET-by-id, POST, PUT, DELETE) stay
         // well-defined instead of dropping the key.
         'env_check_ok' => (bool)($item['env_check_ok'] ?? true),
@@ -247,7 +247,7 @@ function trackerToJSON($item, $mgr, $canManage) {
         // per-tracker route (GET /{id} with the legacy dead-link purge, and the
         // create/update/delete responses); the LIST route deliberately keeps
         // only link_count (getAll 'add_link_count', tlCodeTracker.class.php:
-        // 575-590) because the grid needs no names and resolving them per row
+        // 604-610) because the grid needs no names and resolving them per row
         // would be an N+1 query. Values are returned raw (JSON API): the screen
         // escapes them on render, exactly like the other columns (issue #1581).
         'links' => array_values((array)($item['links'] ?? [])),
@@ -258,7 +258,7 @@ $mgr = new tlCodeTracker($db);
 
 if ($method === 'GET' && ($path === '/' || $path === '' || $path === '/index.php')) {
     // checkEnv parity with legacy codeTrackerView.php:23 — the per-tracker
-    // environment probe ($impl::checkEnv(), tlCodeTracker.class.php:566-572)
+    // environment probe ($impl::checkEnv(), tlCodeTracker.class.php:578-601)
     // runs here so env_check_ok/env_check_msg reach the grid's Environment
     // column. Omitting it silently downgrades every row to "OK" (issue #973).
     $all = $mgr->getAll(['output' => 'add_link_count', 'checkEnv' => true]);

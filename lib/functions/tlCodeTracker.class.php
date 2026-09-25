@@ -118,7 +118,7 @@ class tlCodeTracker extends tlObject
     // fall through with $spec = NULL, raising "Undefined array key <type>" plus
     // three "Trying to access array offset on null" warnings and returning the
     // literal string "Interface" - which then fataled every caller that
-    // instantiated the "class" (getAll()'s $impl::checkEnv() at line 569 killed
+    // instantiated the "class" (getAll()'s $impl::checkEnv() at line 597 killed
     // the whole Code Trackers grid with an empty HTTP 500). Return NULL instead,
     // so callers can detect "unknown type" instead of crashing on a garbage name.
     if( !isset($this->systems[$codeTrackerType]) )
@@ -586,8 +586,12 @@ class tlCodeTracker extends tlObject
            // (lib/functions/common.php:122) and would otherwise log two
            // "Failed opening ...class.php" E_WARNINGs per row per page load -
            // the same Event-Viewer noise the reqmgr list route avoids with
-           // @class_exists() (api/reqmgrsystems/index.php:107).
-           if( is_null($impl) || !@class_exists($impl) || !method_exists($impl, 'checkEnv') )
+           // @class_exists() (api/reqmgrsystems/index.php:109).
+           // is_callable() (not method_exists) because only a PUBLIC STATIC
+           // checkEnv can satisfy the `$impl::checkEnv()` call below: a private
+           // or non-static declaration would raise an Error and re-introduce
+           // the whole-listing fatal this guard exists to prevent.
+           if( is_null($impl) || !@class_exists($impl) || !is_callable([$impl, 'checkEnv']) )
            {
              $item['env_check_ok'] = false;
              $item['env_check_msg'] = '';

@@ -264,10 +264,10 @@ function renderTable(items) {
       }
     }
     // Legacy Environment column (codeTrackerView.tpl:42,74 -> $labels
-    //th_codetracker_env = 'Environment' and {$item_def.env_check_msg})
+    // .th_codetracker_env = 'Environment' and {$item_def.env_check_msg})
     // reports whether the PHP environment can serve this tracker's interface.
     // The BFF runs the per-implementation $impl::checkEnv()
-    // (tlCodeTracker.class.php:578-599, option requested by
+    // (tlCodeTracker.class.php:578-601, option requested by
     // codeTrackerView.php:23) and returns env_check_ok / env_check_msg.
     // OK -> green badge with the implementation's message as tooltip;
     // KO -> red badge showing the human message, as legacy did.
