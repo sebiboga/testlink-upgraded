@@ -698,8 +698,6 @@ $tlCfg->gui->platformsView->pagination = new stdClass();
 $tlCfg->gui->platformsView->pagination->enabled = true;
 $tlCfg->gui->platformsView->pagination->length = '[20, 40, 60, -1], [20, 40, 60, "All"]';
 
-
-
 /** 
  * controls if operation area (buttons) starts open ('' or 'inline') or closed ('none') on:
  * - test suite management

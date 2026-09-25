@@ -70,6 +70,18 @@ This mirrors the working legacy Code Tracker template and the established
 - **Add a fabricated `$tlCfg->gui->codeTrackerView` object:** this duplicates
   configuration state and would hide the mismatch between the loaded Smarty
   configuration and the template access path.
+  > **Superseded by #1591.** This alternative was later adopted — but together
+  > with the real config block, not instead of it: `config.inc.php` now defines
+  > `$tlCfg->gui->codeTrackerView->pagination` and `codeTrackerView.tpl:26`
+  > reads it again. Rationale: `pagination_length` is a bare scalar, so this
+  > screen rendered `"lengthMenu": [ 20 ]` (a page-size control with one
+  > unusable choice) instead of the 20/40/60/All menu of its sibling list
+  > screens, and leaving the two mechanisms in place kept the duplicate source
+  > of truth that this page warned about. Warnings stay fixed. See
+  > `docs/Bugfix-Issue-1591-Missing-Pagination-Config-Empty-LengthMenu.md`
+  > ("Relationship to #1580"). The passages below that describe
+  > `{$ll = #pagination_length#}` and the "configured option 20" therefore
+  > describe the state between #1580 and #1591.
 - **Use a Smarty default such as `|default:20`:** a fallback could suppress the
   warning but would silently ignore configured values. The configured value must
   be consumed directly.

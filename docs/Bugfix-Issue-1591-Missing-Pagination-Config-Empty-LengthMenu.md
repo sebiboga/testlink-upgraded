@@ -133,6 +133,35 @@ config block for it would be dead configuration.
 - Aligning `codeTrackerView` with the config tree is what makes the reported expectation ("the
   page-length control offers the configured options") true on all three listed screens.
 
+### Relationship to #1580 — this reverses one line of that fix, on purpose
+
+`docs/Bugfix-Issue-1580-Codetracker-Warnings.md:70-72` rejected exactly this shape as an
+alternative ("*Add a fabricated `$tlCfg->gui->codeTrackerView` object: this duplicates
+configuration state and would hide the mismatch between the loaded Smarty configuration and the
+template access path*"). #1580 was right that the two mechanisms must not be mixed silently, and
+its change (`{$ll = #pagination_length#}`) did silence the warnings.
+
+This issue changes that decision, for two measured reasons:
+
+1. `pagination_length` in `input_dimensions.conf` is a **bare scalar** (`20`), so
+   `codeTrackerView` ended up with `"lengthMenu": [ 20 ]` — a page-size control with exactly one
+   unusable choice, unlike its five sibling list screens. `.conf` cannot express a length menu;
+   the config tree can.
+2. Leaving `codeTrackerView` on the `.conf` scalar would have kept the very mismatch #1580 warned
+   about: two sources of truth for the same setting, of which one (`pagination_length=20`) is now
+   unread by these templates and the other silently defaults to `20` for the sections that have no
+   conf section at all (`rolesView.tpl:33`, `planMilestonesView.tpl:35` — they fall back to the
+   unnamed default section, `input_dimensions.conf:51`).
+
+So the config block is added **and** the template is pointed at it, which keeps the warnings fixed
+(verified) *and* removes the duplicate source of truth for this screen. The `pagination_length`
+entries in `input_dimensions.conf` are intentionally left in place: `#pagination_length#` still has
+five live readers, and removing keys would break custom templates in the wild.
+
+The `->pagination->enabled = true` lines are kept although these three templates do not test
+`enabled`, because all five pre-existing blocks define it and dropping it would make the section
+inconsistent for anyone gating on it later.
+
 ## Verification
 
 | Screen | `lengthMenu` before | after | `<select>` options after |
@@ -145,12 +174,20 @@ config block for it would be dead configuration.
   `Attempt to read property` rows remain (previously 3 per screen).
 - Browser console on `issueTrackerView`: no errors, no warnings. Selecting `40` really changes
   the page length (`DataTable().page.len()` = 40).
+- Read-only path (`codetracker_view`-only user, i.e. **without** `codetracker_management`): the
+  screen still returns 200 and now offers the same four options; measured in the browser as
+  `{"opts":["20","40","60","All"],"headers":["Code Tracker","Type","Environment","delete"],"pageLen":20}`,
+  console clean, `events` gained only the AUDIT login row.
 - Regression of the pre-existing consumers: `planView` still renders
   `[20, 40, 60, -1], [20, 40, 60, "All"]`, `keywordsView` still renders
   `[40, 60, 80, -1], [40, 60, 80, "All"]`; a direct config dump shows the five original blocks
   unchanged and all eight sections resolving.
-- Empty list (`DELETE FROM issuetrackers`): the screen still renders (HTTP 200) and logs nothing.
-- Full suite: `tmp/TLU_Test_Cases.md` → *Regression — Issue #1591*, 12/12 PASS.
+- Every `pagination->` read in the repository (15 call sites in `dashio` and `tl-classic`) now maps
+  to a section defined in `config.inc.php`; no call site is left dereferencing a missing section.
+- Empty list (`DELETE FROM codetrackers` / `DELETE FROM platforms`): both screens still return
+  HTTP 200 and log nothing.
+- Full suite: `tmp/TLU_Test_Cases.md` → *Regression — Issue #1591*, 12/12 PASS plus the read-only
+  pass above.
 
 ## Files changed
 
@@ -159,6 +196,9 @@ config block for it would be dead configuration.
 | `config.inc.php` | +15 lines: `issueTrackerView`, `codeTrackerView`, `platformsView` pagination blocks |
 | `gui/templates/dashio/codetrackers/codeTrackerView.tpl` | 1 line: read the length menu from the config tree instead of the bare `.conf` scalar |
 | `docs/screenshots/issue-1591-issueTrackerView-lengthMenu-fixed.png` | browser evidence |
+| `docs/Bugfix-Issue-1591-Missing-Pagination-Config-Empty-LengthMenu.md` | this page |
+| `CHANGELOG` | 2.0.1 `[KEY BUGFIX]` entry for #1591 |
+| `tmp/TLU_Test_Cases.md` | regression suite (local file, gitignored per AGENTS.md rule 9) |
 
 ## Related
 
