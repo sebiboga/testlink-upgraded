@@ -21899,3 +21899,50 @@ Fixture `tmp/fixtures_1595.php` (re-runnable, DB is reset on every CI run):
   all, so this is new (better) coverage; the wording is a platform-label limitation, not a defect.
 - The PHP lang strings (`locale/*/strings.txt`) are untouched: the new screen is fully client-side
   i18n (`gui/templates/i18n/*.json`), the audit labels come from the platform meta strings.
+
+
+## Regression — Issue #1582: codetracker read-only table has mismatched delete cell
+
+Preconditions/fixtures: fresh TestLink database on MariaDB; TestLink 2.0.1 at
+`http://localhost:8082`; Test Project 2 (`I1582:Issue 1582 Project`) with
+trackers `1` (`Stash Tracker`), `2` (`GitHub TestLink`), and `3` (`Linked Stash`),
+and project link `(2,3)`. `ct_viewonly_1582` has only Code Tracker view right
+`52`; `admin` has management and view rights. Entry:
+`http://localhost:8082/lib/codetrackers/codeTrackerView.php?tproject_id=2`.
+
+### Test 1 — Pre-fix reproduction: read-only user receives four cells for three headers
+- **Steps:** Before the fix, log in as `ct_viewonly_1582` and request the entry URL.
+- **Expected:** The read-only table should have the same number of header and body columns, initialize DataTables, and expose no management controls.
+- **Actual (pre-fix, measured):** HTTP 200 rendered 3 headers but 4 cells in every row; the DataTables length control was absent and the console contained `TypeError: Cannot read properties of undefined (reading 'mData')`. PASS (bug reproduced).
+
+### Test 2 — Read-only populated list renders a valid three-column table
+- **Steps:** Load the entry URL as `ct_viewonly_1582` with all three trackers present.
+- **Expected:** Three headers and three cells per row; DataTables initializes; Create and management controls are hidden.
+- **Actual:** Headers=`3`, row cell counts=`[3,3,3]`, DataTables initialized=`true`, length option=`20`, Create=`false`, management links=`0`, delete icons=`0`, console messages=`0`. PASS.
+
+### Test 3 — Manager populated list preserves management and link-count gating
+- **Steps:** Load the same URL as `admin` with trackers `1–3` and link `(2,3)`.
+- **Expected:** Four headers and four cells per row; Create and edit links remain; delete icons appear only for unlinked trackers.
+- **Actual:** Headers=`4`, row cell counts=`[4,4,4]`, Create=`true`, management links=`6`, delete icons=`2`; the linked tracker has no delete icon. PASS.
+
+### Test 4 — Empty list does not initialize DataTables
+- **Steps:** Remove all tracker rows and the project link, reload the manager URL, then restore the exact fixture.
+- **Expected:** Empty state renders without a DataTables error; manager Create remains available.
+- **Actual:** HTTP 200, tracker rows=`0`, length control=`false`, Create=`true`, body text=`Code Trackers`, console messages=`0`; fixture restoration returned three trackers and exactly one link `(2,3)`. PASS.
+
+### Test 5 — Unauthorized user is still denied
+- **Steps:** Log in as temporary `ct_guest_1582` with no Code Tracker rights and request the entry URL directly.
+- **Expected:** The protected screen is not rendered and access is denied.
+- **Actual:** Browser resolved to `http://localhost:8082/` and rendered only the guest dashboard; no Code Tracker heading, table, or management controls appeared. Event Viewer recorded the expected INFO security audit. PASS.
+
+### Test 6 — Cache-bypassing second read-only reload is stable
+- **Steps:** Log in again as `ct_viewonly_1582` and request the entry URL with `issue1582_final=1` and cache ignored.
+- **Expected:** The corrected table renders again with no console errors.
+- **Actual:** HTTP 200, headers=`3`, row cell counts=`[3,3,3]`, DataTables initialized=`true`, length option=`20`, Create=`false`, management links=`0`, delete icons=`0`, console messages=`0`. PASS.
+
+### Test 7 — Event Viewer and static validation hygiene
+- **Steps:** Query `events` after the browser matrix; run PHP lint for the controller and generated Smarty output; run `git diff --check`.
+- **Expected:** No new Error/Warning events and all syntax/diff checks pass.
+- **Actual:** Event Viewer max id=`8`, `errors=0`, `warnings=0`; controller and generated-template PHP lint passed; `git diff --check` passed. PASS.
+
+**Result: 7/7 PASS. (Refs #1582)**
