@@ -21596,7 +21596,8 @@ trackers, exactly as the original report stated):
   `user_testproject_roles`.
 
 Entry point: `http://localhost:8082/lib/issuetrackers/issueTrackerView.php?tproject_id=1`.
-Changed file: `gui/templates/dashio/issuetrackers/issueTrackerView.tpl` (+9 / -6).
+Changed file: `gui/templates/dashio/issuetrackers/issueTrackerView.tpl`
+(+9 / -8, per `git diff --stat`; plus the rule-22 `CHANGELOG` line).
 Pre-fix screenshot: `docs/screenshots/issue-1584-before.png`; post-fix:
 `docs/screenshots/issue-1584-after-readonly.png`, `docs/screenshots/issue-1584-after-admin.png`.
 
@@ -21668,14 +21669,67 @@ Pre-fix screenshot: `docs/screenshots/issue-1584-before.png`; post-fix:
     filed as **#1591** (`config.inc.php` never defines `pagination` for
     `issueTrackerView` / `codeTrackerView` / `reqMgrSystemView`).
   - `id 20,21` — `Undefined array key "testproject_alt_delete"` → filed as **#1590**
-    (`issueTrackerView.tpl:80` uses a label key its `{lang_get}` never loads).
+    (`issueTrackerView.tpl:81` post-fix / `:80` pre-fix uses a label key the
+    template's `{lang_get}` at `:12-16` never loads; the sibling `codeTrackerView.tpl`
+    correctly uses `{$labels.alt_delete}`). Pre-existing, introduced with the Dashio
+    theme port, left untouched here.
 
 ### Test 6 — R7: sibling templates are not regressed
 - **Steps:** `git diff --stat HEAD~1 -- gui/templates/dashio/`.
 - **Expected post-fix:** only `issuetrackers/issueTrackerView.tpl` changed;
-  `codeTrackerView.tpl` (fixed by #1582) and `reqMgrSystemView.tpl` (#1585) untouched.
+  `codeTrackerView.tpl` (already fixed by #1582) and `reqMgrSystemView.tpl` untouched.
+  Note `reqMgrSystemView.tpl:71-77` still carries the **identical** defect; it is
+  tracked by the still-**open** issue **#1585** and is deliberately NOT fixed here
+  (out of scope for a single-bug run).
 - **Result — observed: PASS.**
   ```
    gui/templates/dashio/issuetrackers/issueTrackerView.tpl | 17 +++++++++--------
    1 file changed, 9 insertions(+), 8 deletions(-)
   ```
+
+### Test 7 — R8: empty Issue Tracker list still renders header-only and stays error-free
+- **Steps:** as `admin`, `DELETE FROM issuetrackers;` (all 3 rows), reload the entry URL
+  with a cache-bypassing navigation, probe the DOM + console + `events` delta; then
+  recreate the 3 trackers and re-link one of them.
+- **Expected post-fix:** `$gui->items == ''` so the `{if $gui->items != ''}` guard at
+  `issueTrackerView.tpl:26`/`50` skips the `DataTables.inc.tpl` include entirely —
+  the table renders the header row only, with **no** `<tbody>` and **no** DataTables
+  wrapper, and no console error. Header count still follows the manager right (4 for
+  `admin`), because the header loop is outside the `items` guard.
+- **Result — observed: PASS.**
+  ```json
+  {"headCount":4,"heads":["Issue Tracker","Type","Environment","delete"],
+   "bodyRowCount":0,"tbodyExists":false,"dtWrapper":false,
+   "createBtn":"Create","deleteIcons":0}
+  ```
+  `list_console_messages(types=[error,warn])` → `<no console messages found>`;
+  `SELECT COUNT(*) FROM events WHERE id>21 AND log_level IN (1,2)` → **0**.
+  **Caveat recorded honestly:** recreating the rows assigns *new* AUTO_INCREMENT ids
+  (`4,5,6` instead of `1,2,3`), because `issuetrackers.id` is `auto_increment` and
+  the recreation is a fresh INSERT, not a restore. The suite re-linked
+  `testproject_issuetracker(1, 5)` (Mantis) so the `link_count` split is preserved.
+  Behaviour is id-independent; a post-restore reload re-confirmed Test 2/3/4 exactly:
+  `{"headCount":4, rows:[{GitHub,4,true},{Mantis,4,false},{Redmine,4,true}],
+  "createBtn":"Create","dtWrapper":true}`.
+
+### Test 8 — R9: anonymous access is refused (not leaked)
+- **Steps:** open the entry URL in a **fresh isolated browser context** (no session
+  cookie).
+- **Expected post-fix:** redirect to the sign-in page with the original destination
+  preserved; the tracker list is never rendered.
+- **Result — observed: PASS.** Final URL after redirect:
+  ```
+  http://localhost:8082/login.php?note=expired&destination=%2Flib%2Fissuetrackers%2FissueTrackerView.php%3Ftproject_id%3D1
+  ```
+  No `item_view` table, no tracker names in the response.
+
+### Suite result
+
+**8/8 PASS** for the scope of issue #1584 (R1-R9 as numbered above: read-only table
+contract + DataTables init, read-only control suppression, manager table contract,
+`link_count` gate in both directions, Event Viewer, sibling non-regression, empty list,
+anonymous access). Two pre-existing defects found while testing are tracked separately
+and are **not** claimed as fixed by this suite: **#1590** (undefined
+`testproject_alt_delete` label key) and **#1591** (missing
+`$tlCfg->gui->{issueTrackerView,codeTrackerView,reqMgrSystemView}->pagination`, which
+is why the page-length menu is still empty after the fix).
