@@ -22316,6 +22316,10 @@ and the admin session cookie; browser checks use the Chrome MCP session.
 | R18b | rights of the same user on its own project | view-only may list/read, may not create/update/cfl-init/import | PASS (list+read `200`, create/update/cfl `403 NO_RIGHT`, import `403`) |
 | R19 | Event Viewer after this regression pass | no new ERROR/WARNING rows | PASS |
 | R20 | `node --check` on the extracted JS of the 3 touched templates + `php -l` on the 3 PHP files | no syntax errors | PASS |
+| R21 | delete a keyword linked to a **NOT_RUN** tcversion | allowed (legacy rule: only *executed* or *frozen* links block) | PASS (`200`, link row removed) |
+| R22 | delete a keyword linked to an **executed** tcversion (`executions` row present) | `422 DELETE_BLOCKED`, keyword survives, list shows `block_reason: EXECUTED` | PASS |
+| R23 | delete an already deleted keyword | `404` | PASS |
+| R24 | Event Viewer after the final round | 0 ERROR / 0 WARNING | PASS |
 
 Bugs found by this pass and fixed in `be04a680e`: **#1603** (cross-project
 `tcversion_id` in create-and-link) and **#1604** (shim ownership / CSRF / array
