@@ -142,17 +142,27 @@ function bffAdOwnerLabel($db, $attachInfo) {
     $hasExtId = bffAdHasColumn($db, 'nodes_hierarchy', 'tc_external_id');
 
     if ($fkTable === 'nodes_hierarchy') {
-        $cols = 'tcversions_tc.id AS tcid, tcversions_tc.name AS tcname';
-        if ($hasExtId) {
-            $cols .= ', tcversions_tc.tc_external_id AS tcext';
-        }
-        $rows = $db->get_recordset("SELECT $cols FROM {$nh} tcversions_tc " .
-            "WHERE tcversions_tc.id = " . $fkId . " LIMIT 1");
-        if (!is_null($rows) && count($rows) > 0) {
-            $r = $rows[0];
-            $ref = strval($r['tcext'] ?? '');
-            return 'Test case ' . ($ref !== '' ? $ref : '#' . intval($r['tcid'])) .
-                ' - ' . strval($r['tcname'] ?? '');
+        // nodes_hierarchy holds EVERY kind of container (test project 1, test
+        // suite 2, test case 3, build 4, test plan 5), so the node type decides
+        // the wording: calling a test suite "Test case" is wrong. The test case
+        // name is not reachable from the node in this fork (no
+        // testcase_tsuite, and tcversions has no name column), so the node name
+        // is the best human label available.
+        $type = 0;
+        $rows = $db->get_recordset("SELECT name, node_type_id FROM {$nh} " .
+            "WHERE id = " . $fkId . " LIMIT 1");
+        if (is_array($rows) && count($rows) > 0) {
+            $nm = trim(strval($rows[0]['name'] ?? ''));
+            $type = intval($rows[0]['node_type_id'] ?? 0);
+            $words = array(
+                1 => 'Test project',
+                2 => 'Test suite',
+                3 => 'Test case',
+                4 => 'Build',
+                5 => 'Test plan',
+            );
+            $word = isset($words[$type]) ? $words[$type] : 'Node';
+            return $word . ' #' . $fkId . ($nm !== '' ? ' - ' . $nm : '');
         }
         return $fallback;
     }
