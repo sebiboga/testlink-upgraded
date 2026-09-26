@@ -5744,6 +5744,27 @@ Changes:
       project tables and added user metrics to the middle section
 
 ## 2.0.1 (in-progress)
+### UI modernization — Launch Test Case Print gateway (Refs #1623)
+- The public share-link entry point `ltcp.php` (`?apikey=<32-char user key>&testcase=<PREFIX>-<NUM>-<VERSION>`)
+  is modernized as `gui/templates/testcases/tcLaunchPrint.html` (Dashio: resolved-test-case card
+  with external id / name / suite / version / project, clickable version pills to switch version
+  without editing the link, print-screen URL, access-denied + not-found + error state cards that
+  carry the legacy `LTCP-0x` marker, TLi18n locale switcher) + BFF `api/tcprintlaunch/index.php`.
+- All 6 legacy resolution branches are ported: `LTCP-01` bad API key (400/403), `LTCP-02` malformed
+  external id (400), `LTCP-03` unknown project prefix (404), `LTCP-04` no `mgt_view_tc` (403),
+  `LTCP-05` unresolvable test case (404) and the legacy empty-body `die()` for a missing version
+  (404) — the machine code and the `legacy_code` marker are both returned so every old outcome is
+  still recognizable, and the raw untranslated English `echo` markers are gone.
+- The link now resolves to the already-modern print screen `tcPrint.html` instead of the
+  still-legacy `lib/testcases/tcPrint.php` renderer, which was the last page this public gateway
+  could land on. `ltcp.php` is kept as a public 302 shim forwarding the whole query string
+  (same pattern as the `lnl.php` publicLink shim, Refs #1541), so every existing share link keeps
+  working unchanged.
+- Security: the apikey path establishes the remote-access session for the link owner
+  (`setUpEnvForRemoteAccess`) so the session-based print BFF works, but does NOT reproduce the
+  legacy `clearSession => true` that logged an unrelated user out; `tlUser::getByAPIKey()` is
+  null-guarded (PHP 8 `count(null)` TypeError on an unknown key would have been a 500).
+
 ### UI modernization — Keyword Create/Edit/Delete/Create-and-Link dialog (Refs #1599)
 - New modern screen `gui/templates/keywords/keywordsEdit.html` (Dashio popup: context card
   test project + test case in create-and-link mode, Name/Notes with the legacy

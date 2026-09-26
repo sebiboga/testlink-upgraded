@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Launch Test Case Print</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+
+.header {
+  background: #4ECDC4; color: #fff; padding: 14px 24px;
+  font-size: 20px; font-weight: 700; letter-spacing: 1px;
+}
+.header span.sub { font-size: 13px; font-weight: 400; opacity: .85; margin-left: 12px; }
+
+.toolbar {
+  background: #22242a; padding: 10px 24px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+}
+.toolbar .tbtn {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: #33363f; color: #fff; border: none; border-radius: 4px;
+  padding: 7px 12px; font-size: 12px; cursor: pointer; text-decoration: none;
+}
+.toolbar .tbtn:hover { background: #454955; color: #fff; text-decoration: none; }
+.toolbar .tbtn i { color: #4ECDC4; }
+.toolbar .tbtn.primary { background: #4ECDC4; color: #14302e; font-weight: 700; }
+.toolbar .tbtn.primary:hover { background: #3fbdb5; color: #14302e; }
+.toolbar .tbtn.primary i { color: #14302e; }
+.toolbar .tbtn[disabled] { background: #4a4d55; opacity: .6; cursor: default; }
+.toolbar .spacer { flex: 1; }
+
+.card {
+  background: #fff; border-radius: 8px; margin: 20px 24px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.08); overflow: hidden;
+}
+.card-head {
+  padding: 14px 24px; border-bottom: 1px solid #eee; display: flex;
+  align-items: center; gap: 10px; flex-wrap: wrap;
+}
+.card-head h3 { margin: 0; font-size: 16px; color: #22242a; }
+.card-body { padding: 6px 24px 18px; }
+
+table.lpinfo { width: 100%; border-collapse: collapse; }
+table.lpinfo th {
+  color: #555; font-weight: 600; width: 210px; font-size: 12px;
+  text-align: left; padding: 8px 12px 8px 0; vertical-align: top;
+}
+table.lpinfo td { color: #333; font-size: 13px; padding: 8px 0; word-break: break-word; }
+
+.extid {
+  font-family: 'Courier New', monospace; background: #eef7f7;
+  border: 1px solid #c3e6e4; color: #1d7a74; border-radius: 4px;
+  padding: 2px 8px; font-weight: 700; font-size: 13px;
+}
+.legacy-tag {
+  display: inline-block; background: #fdf3e3; color: #9a6a12;
+  border: 1px solid #f0dcae; border-radius: 12px; padding: 1px 9px;
+  font-size: 11px; font-weight: 700; font-family: 'Courier New', monospace;
+}
+.auth-chip {
+  display: inline-block; background: #eef5ef; color: #3c8a4e;
+  border: 1px solid #c6e3cd; border-radius: 12px; padding: 2px 10px;
+  font-size: 11.5px; font-weight: 600;
+}
+.vpill {
+  display: inline-block; background: #f4f4f6; color: #444;
+  border: 1px solid #dddde2; border-radius: 12px; padding: 2px 10px;
+  font-size: 12px; margin: 2px 4px 2px 0; cursor: pointer;
+}
+.vpill.active { background: #4ECDC4; border-color: #3fbdb5; color: #14302e; font-weight: 700; }
+.vpill:hover { border-color: #4ECDC4; }
+
+.link-box {
+  font-family: 'Courier New', monospace; font-size: 12px; color: #444;
+  background: #f7f7f9; border: 1px solid #e3e3e8; border-radius: 4px;
+  padding: 8px 10px; word-break: break-all;
+}
+
+.state-box {
+  background: #fff; border-radius: 8px; margin: 20px 24px; padding: 28px 32px;
+  text-align: center;
+}
+.state-box i { font-size: 34px; margin-bottom: 10px; display: block; }
+.state-box h3 { margin: 0 0 8px; font-size: 18px; color: #22242a; }
+.state-box p { margin: 0; font-size: 14px; color: #777; }
+.state-box .code { margin-top: 12px; }
+.state-denied { border: 1px solid #f0d0d0; border-left: 4px solid #e6605e; }
+.state-denied i { color: #e6605e; }
+.state-notfound { border: 1px solid #f3e6c8; border-left: 4px solid #f0ad4e; }
+.state-notfound i { color: #f0ad4e; }
+.state-error { border: 1px solid #f0d0d0; border-left: 4px solid #e6605e; }
+.state-error i { color: #e6605e; }
+
+.loading { padding: 34px 24px; text-align: center; color: #777; font-size: 14px; }
+.loading i { color: #4ECDC4; margin-right: 8px; }
+
+.footer {
+  padding: 12px 24px; color: #888; font-size: 12px;
+  border-top: 1px solid #ddd; background: #fff;
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span data-i18n="ltcpl.title">Launch Test Case Print</span>
+  <span class="sub" data-i18n="ltcpl.subtitle">public share-link resolver</span>
+  <div id="localeSwitcher" style="float:right;"></div>
+</div>
+
+<div class="toolbar">
+  <button type="button" class="tbtn primary" id="btnOpenPrint" disabled>
+    <i class="fa fa-print"></i> <span data-i18n="ltcpl.openPrint">Open test case print</span>
+  </button>
+  <button type="button" class="tbtn" id="btnResolve">
+    <i class="fa fa-redo"></i> <span data-i18n="ltcpl.resolveAgain">Resolve again</span>
+  </button>
+  <span class="spacer"></span>
+  <button type="button" class="tbtn" id="btnClose">
+    <i class="fa fa-times"></i> <span data-i18n="common.close">Close</span>
+  </button>
+</div>
+
+<div class="card" id="resultCard" style="display:none;">
+  <div class="card-head">
+    <h3 data-i18n="ltcpl.resolved">Resolved test case</h3>
+    <span class="auth-chip" id="authChip"></span>
+  </div>
+  <div class="card-body">
+    <table class="lpinfo"><tbody id="infoBody"></tbody></table>
+    <div id="verPills" style="margin-top:6px;"></div>
+    <div style="margin-top:16px;">
+      <div style="font-size:12px;color:#555;font-weight:600;margin-bottom:6px;" data-i18n="ltcpl.targetUrl">Print screen URL</div>
+      <div class="link-box" id="printUrlBox"></div>
+    </div>
+  </div>
+</div>
+
+<div class="loading" id="loadingBox" style="display:none;">
+  <i class="fa fa-spinner fa-spin"></i> <span data-i18n="ltcpl.resolving">Resolving the share link…</span>
+</div>
+
+<div class="state-box state-denied" id="deniedBox" style="display:none;">
+  <i class="fa fa-lock"></i>
+  <h3 data-i18n="ltcpl.deniedTitle">Access denied</h3>
+  <p id="deniedMsg"></p>
+  <div class="code"><span class="legacy-tag" id="deniedCode"></span></div>
+</div>
+
+<div class="state-box state-notfound" id="notFoundBox" style="display:none;">
+  <i class="fa fa-search-minus"></i>
+  <h3 data-i18n="ltcpl.notFoundTitle">Test case not found</h3>
+  <p id="notFoundMsg"></p>
+  <div class="code"><span class="legacy-tag" id="notFoundCode"></span></div>
+</div>
+
+<div class="state-box state-error" id="errorBox" style="display:none;">
+  <i class="fa fa-exclamation-triangle"></i>
+  <h3 data-i18n="common.error">Error</h3>
+  <p id="errorMsg"></p>
+  <div class="code"><span class="legacy-tag" id="errorCode"></span></div>
+</div>
+
+<div class="footer"><span data-i18n="footers.tcLaunchPrint">TestLink 2.0.1 - Launch Test Case Print</span></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+function esc(s) {
+  return s == null ? '' : String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+var API = '/api/tcprintlaunch/index.php';
+var qs = new URLSearchParams(window.location.search);
+var apikey = qs.get('apikey') || '';
+var externalId = qs.get('testcase') || '';
+var payload = null;
+
+function row(labelKey, value) {
+  return '<tr><th>' + esc(TLi18n.t(labelKey)) + '</th><td>' + value + '</td></tr>';
+}
+
+function hideAll() {
+  $('#resultCard').hide();
+  $('#loadingBox').hide();
+  $('#deniedBox').hide();
+  $('#notFoundBox').hide();
+  $('#errorBox').hide();
+  $('#btnOpenPrint').prop('disabled', true);
+}
+
+function showDenied(msg, legacyCode) {
+  hideAll();
+  $('#deniedMsg').text(msg);
+  $('#deniedCode').text(legacyCode || '');
+  $('#deniedBox').show();
+}
+
+function showNotFound(msg, legacyCode) {
+  hideAll();
+  $('#notFoundMsg').text(msg);
+  $('#notFoundCode').text(legacyCode || '');
+  $('#notFoundBox').show();
+}
+
+function showError(msg, legacyCode) {
+  hideAll();
+  $('#errorMsg').text(msg);
+  $('#errorCode').text(legacyCode || '');
+  $('#errorBox').show();
+}
+
+function legacyTag(code) {
+  return code ? ' <span class="legacy-tag">' + esc(code) + '</span>' : '';
+}
+
+function renderResult(r) {
+  var tc = r.testcase || {};
+  var html = '';
+  html += row('ltcpl.externalId', '<span class="extid">' + esc(tc.external_id) + '</span>');
+  html += row('ltcpl.name', esc(tc.name));
+  html += row('ltcpl.suite', esc(tc.suite) || '&ndash;');
+  html += row('ltcpl.version', esc(tc.version));
+  html += row('ltcpl.project', esc(tc.tproject_name) + ' <span class="extid">' + esc(tc.prefix) + '</span>');
+  $('#infoBody').html(html);
+
+  var versions = tc.available_versions || [];
+  var pills = '';
+  if (versions.length > 1) {
+    pills = '<div style="font-size:12px;color:#555;font-weight:600;margin:14px 0 4px;">' +
+            esc(TLi18n.t('ltcpl.otherVersions')) + '</div>';
+  }
+  $('#verPills').html(pills);
+  var $p = $('#verPills');
+  versions.forEach(function (v) {
+    var $p2 = $('<span class="vpill"></span>');
+    $p2.text(TLi18n.t('ltcpl.versionLabel') + ' ' + v.version);
+    if (parseInt(v.version, 10) === parseInt(tc.version, 10)) { $p2.addClass('active'); }
+    $p2.on('click', function () {
+      var next = (tc.prefix || '') + '-' +
+        String(tc.external_id || '').split('-').slice(1).join('-') + '-' + v.version;
+      var url = window.location.pathname + '?testcase=' + encodeURIComponent(next) +
+        (apikey ? '&apikey=' + encodeURIComponent(apikey) : '');
+      window.location.href = url;
+    });
+    $p.append($p2);
+  });
+
+  $('#printUrlBox').text(r.print_url || '');
+  $('#authChip').text(r.auth_mode === 'apikey'
+    ? TLi18n.t('ltcpl.authApikey') : TLi18n.t('ltcpl.authSession'));
+
+  $('#loadingBox').hide();
+  $('#resultCard').show();
+  $('#btnOpenPrint').prop('disabled', false).off('click').on('click', function () {
+    if (r.print_url) { window.location.href = r.print_url; }
+  });
+}
+
+function resolve() {
+  hideAll();
+  $('#loadingBox').show();
+  var q = new URLSearchParams({ action: 'resolve' });
+  if (apikey) { q.set('apikey', apikey); }
+  if (externalId) { q.set('testcase', externalId); }
+
+  $.ajax({
+    url: API + '?' + q.toString(),
+    method: 'GET',
+    dataType: 'json'
+  }).done(function (r) {
+    if (r && r.status === 'ok') {
+      payload = r;
+      renderResult(r);
+      return;
+    }
+    var code = r ? r.code : 'unknown';
+    var msg = (r && r.message) ? TLi18nLocalize(r) : TLi18n.t('ltcpl.errGeneric');
+    if (code === 'no_rights' || code === 'bad_apikey' || code === 'unauthenticated') {
+      showDenied(msg, r ? r.legacy_code : '');
+    } else if (code === 'testcase_not_found' || code === 'version_not_found' ||
+               code === 'unknown_prefix') {
+      showNotFound(msg, r ? r.legacy_code : '');
+    } else {
+      showError(msg, r ? r.legacy_code : '');
+    }
+  }).fail(function (xhr) {
+    $('#loadingBox').hide();
+    if (xhr.status === 401) {
+      showDenied(TLi18n.t('ltcpl.errUnauthenticated'), '');
+    } else {
+      showError(TLi18n.t('ltcpl.errGeneric'), '');
+    }
+  });
+}
+
+// Prefer a localized message per machine code, fall back to the BFF text.
+var ERRKEYS = {
+  bad_apikey: 'ltcpl.errApikey',
+  missing_testcase: 'ltcpl.errMissingTestcase',
+  bad_external_id: 'ltcpl.errBadExternalId',
+  unknown_prefix: 'ltcpl.errUnknownPrefix',
+  no_rights: 'ltcpl.errNoRights',
+  testcase_not_found: 'ltcpl.errTestcaseNotFound',
+  version_not_found: 'ltcpl.errVersionNotFound'
+};
+function TLi18nLocalize(r) {
+  var k = ERRKEYS[r.code];
+  if (k) { return TLi18n.t(k); }
+  return r.message || TLi18n.t('ltcpl.errGeneric');
+}
+
+$(function () {
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    $('#btnClose').on('click', function () { window.close(); });
+    $('#btnResolve').on('click', resolve);
+    if (!apikey && !externalId) {
+      showError(TLi18n.t('ltcpl.errMissingParams'), '');
+    } else {
+      resolve();
+    }
+  });
+});
+</script>
+</body>
+</html>
