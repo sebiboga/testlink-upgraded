@@ -4808,6 +4808,7 @@
   "user.generateApiKeyConfirm": "Se generează o nouă cheie API pentru utilizatorul \"{login}\"? O cheie nouă va fi creată și trimisă prin e-mail la adresa utilizatorului.",
   "user.globalRole": "Rol Global",
   "user.inactive": "Inactiv",
+  "user.fullName": "Nume",
   "user.lastName": "Nume",
   "user.locale": "Limba",
   "user.login": "Utilizator",

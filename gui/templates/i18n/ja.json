@@ -4804,6 +4804,7 @@
   "user.generateApiKeyConfirm": "ユーザー \"{login}\" に新しいAPIキーを生成しますか？新しいキーが作成され、ユーザーのアドレスにメールで送信されます。",
   "user.globalRole": "グローバルロール",
   "user.inactive": "無効",
+  "user.fullName": "氏名",
   "user.lastName": "姓",
   "user.locale": "言語",
   "user.login": "ログイン",

@@ -4804,6 +4804,7 @@
   "user.generateApiKeyConfirm": "Gerar uma nova chave de API para o utilizador \"{login}\"? Será criada uma nova chave e enviada por correio para o endereço do utilizador.",
   "user.globalRole": "Função global",
   "user.inactive": "Inativo",
+  "user.fullName": "Nome",
   "user.lastName": "Apelido",
   "user.locale": "Idioma",
   "user.login": "Nome de utilizador",

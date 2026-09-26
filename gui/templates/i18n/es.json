@@ -4798,6 +4798,7 @@
   "user.generateApiKeyConfirm": "¿Generar una nueva clave API para el usuario \"{login}\"? Se creará una nueva clave y se enviará por correo a la dirección del usuario.",
   "user.globalRole": "Rol global",
   "user.inactive": "Inactivo",
+  "user.fullName": "Nombre",
   "user.lastName": "Apellido",
   "user.locale": "Idioma",
   "user.login": "Usuario",

@@ -4804,6 +4804,7 @@
   "user.generateApiKeyConfirm": "Создать новый API-ключ для пользователя \"{login}\"? Новый ключ будет создан и отправлен на адрес электронной почты пользователя.",
   "user.globalRole": "Глобальная роль",
   "user.inactive": "Неактивен",
+  "user.fullName": "Полное имя",
   "user.lastName": "Фамилия",
   "user.locale": "Язык",
   "user.login": "Логин",
