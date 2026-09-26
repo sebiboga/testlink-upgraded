@@ -2132,6 +2132,7 @@
   "proj.activate": "Activate",
   "proj.active": "Active",
   "proj.availability": "Availability",
+  "proj.apiId": "[ID: {id}]",
   "proj.basicInfo": "Basic Information",
   "proj.codeTracker": "Code Tracker",
   "proj.codeTrackerIntegration": "Code Tracker Integration",

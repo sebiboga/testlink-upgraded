@@ -2132,6 +2132,7 @@
   "proj.activate": "Активировать",
   "proj.active": "Активен",
   "proj.availability": "Доступность",
+  "proj.apiId": "[ID: {id}]",
   "proj.basicInfo": "Основная информация",
   "proj.codeTracker": "Трекер кода",
   "proj.codeTrackerIntegration": "Интеграция трекера кода",

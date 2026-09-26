@@ -36,12 +36,11 @@ change with no API contract impact.
 
 ### 2.1 The Notes column
 
-* `gui/templates/projectsView.html:151` — new header
-  `<th data-col-filter="1" data-i18n="proj.notes">Notes</th>`, placed directly
-  after `Project Name`, exactly where legacy puts it (`projectView.tpl:88,89`).
-  It carries `data-col-filter="1"`, so it is one of the legacy
-  `{#SMART_SEARCH#}` columns and gets a per-column filter box from
-  `buildColumnFilters()` (#986).
+* New header `<th data-i18n="proj.notes">Notes</th>`, placed directly after
+  `Project Name`, exactly where legacy puts it (`projectView.tpl:88,89`).
+  Legacy marks that header `{#NOT_SORTABLE#}`, so the column is deliberately
+  **neither sortable nor per-column filterable** — no `data-col-filter="1"`,
+  and `columnDefs` gives it `orderable: false` alongside ID and Actions.
 * `notesCell(p)` (`:425-431`) renders the value:
 
   ```js
@@ -61,31 +60,42 @@ change with no API contract impact.
   * `.trim()` because `api/projects` can hand back `''`/`null`; the empty branch
     gets the `-` placeholder from CSS.
 * **Multi-line parity.** Legacy runs the notes through `nl2br` when the project
-  editor is `none`. The modern equivalent is
-  `white-space: pre-line` on the cell, which preserves the author's newlines
-  without injecting `<br>` into the DOM.
-* **Truncation.** `:106-113` clamps the cell to 2 lines
-  (`-webkit-line-clamp: 2`, `max-width: 260px`, `overflow: hidden`) and puts the
-  full text in the `title` attribute, so one 2 KB note cannot blow up a row
-  height while the legacy content stays fully readable. The `-` placeholder for
-  an empty project is `td.col-notes > .col-notes:empty::before` — the selector
-  has to target the inner span, because the `<td>` is never `:empty`.
-* `columnDefs` gained `{ targets: 2, className: 'col-notes' }` so the class lands
-  on the `<td>` of exactly that column.
+  editor is `none`. The modern equivalent is `white-space: pre-line`, which
+  preserves the author's newlines without injecting `<br>` into the DOM.
+* **Truncation.** The cell is clamped to 2 lines (`-webkit-line-clamp: 2`,
+  `max-width: 260px`, `overflow: hidden`) and the full text goes in the `title`,
+  so one 2 KB note cannot blow up a row height while the legacy content stays
+  fully readable. **The clamp must live on the inner `<span>`, not on the
+  `<td>`**: `display: -webkit-box` on a `<td>` cancels the table-cell layout and
+  silently drops the `vertical-align: middle` that
+  `#projectsTable.dataTable tbody td` sets, which measurably misaligned the whole
+  column by 13px against every other cell. The `<td>` only carries
+  `max-width`/`min-width`; the span carries the clamp and the
+  `span.col-notes:empty::before { content:'-' }` placeholder (the `<td>` is never
+  `:empty`, so the placeholder has to target the span).
+* `columnDefs` gained `{ targets: 2, className: 'col-notes', orderable: false }`
+  so the class lands on the `<td>` of exactly that column.
 
 ### 2.2 The API-id tooltip
 
-* `apiIdFormat(projectId)` (`:418-420`) returns `testproject/<id>`, mirroring
-  1.9.20's `tlCfg->api->id_format` (`%s/%s`, service/resource) with the
-  project service name, and legacy's `formatStringId()` in `lib/functions.php`.
-* `projectRow()` prepends the legacy cube icon to the name cell (`:373-376`):
+* Legacy `projectView.tpl:104` renders
+  `title="API {$tlCfg->api->id_format|replace:'%s':$id}"`, and
+  `config.inc.php:637` sets `$tlCfg->api->id_format = "[ID: %s ]"` — so legacy
+  shows `API [ID: 6 ]`.
+* `projectRow()` follows the **established Dashio pattern** already used by the
+  two modernized siblings that carry the same icon
+  (`gui/templates/plans/buildsView.html:308-309`,
+  `gui/templates/platforms/platformsView.html:254-255`):
 
   ```js
-  const apiIcon = `<i class="fas fa-cubes project-api-icon" title="API ${esc(apiIdFormat(p.id))}"></i>`;
+  const apiIcon = '<i class="fas fa-cubes api-id" title="' +
+    esc(TLi18n.t('proj.apiId').replace('{id}', p.id)) + '"></i>';
   ```
 
-  Styled `color: #95a5a6; cursor: help; margin-right: 6px` — the `cursor: help`
-  comes from legacy's inline `style="cursor: help"`.
+  with the shared `.api-id { cursor: help; color: #999; font-size: 12px; margin-right: 6px; }`
+  rule (same declaration as `buildsView.html:31` / `platformsView.html:31`) and
+  `proj.apiId = "[ID: {id}]"`, mirroring the existing `pl.apiId = "[ID: {id}]"`.
+  The `cursor: help` comes from legacy's inline `style="cursor: help"`.
 
 ### 2.3 Realignment forced by the new column
 
@@ -94,8 +104,7 @@ had to move (this is the class of bug a new column always introduces):
 
 * the loading placeholder `colspan="7"` → `colspan="8"` (`:161`)
 * `columnDefs`: `{ targets: 6, orderable: false }` (actions) → `targets: 7`,
-  and the new `{ targets: 1, className: 'project-name-col' }` / `{ targets: 2,
-  className: 'col-notes' }`
+  and the new `{ targets: 2, className: 'col-notes', orderable: false }`
 
 Regression-checked after the shift: the **Actions** column is still the
 non-sortable one, the Edit modal still opens with the description pre-filled,
@@ -103,16 +112,12 @@ and the Info popup (`projectInfoView.html?tproject_id=6`) still opens.
 
 ## 3. i18n
 
-New key `proj.notes` in **all 10** bundles, inserted in alphabetical position
-after `proj.noProjectsHint`:
+New keys in **all 10** bundles, each inserted in alphabetical position:
 
-| locale | value | locale | value |
-|---|---|---|---|
-| en | Notes | pt | Notas |
-| de | Notizen | ro | Notițe |
-| es | Notas | ru | Заметки |
-| fr | Notes | zh | 备注 |
-| it | Note | ja | 備考 |
+| key | value | note |
+|---|---|---|
+| `proj.notes` | en/de/es/fr/it/ja/pt/ro/ru/zh: Notes / Notizen / Notas / Notes / Note / 備考 / Notas / Notițe / Заметки / 备注 | real translation, legacy `$labels.th_notes` |
+| `proj.apiId` | `[ID: {id}]` in all 10 | **not** translated: it is the format string of `config.inc.php:637` `$tlCfg->api->id_format = "[ID: %s ]"`, exactly like the existing `pl.apiId = "[ID: {id}]"` |
 
 A **separate** key from the existing `proj.description` ("Description") was
 required: that one labels the *edit modal* field, whereas legacy's list header is
@@ -120,7 +125,9 @@ required: that one labels the *edit modal* field, whereas legacy's list header i
 the modal as well.
 
 Each bundle was inserted line-wise (not re-serialised) so the diff is one line
-per locale — these files are shared with concurrent CI agents.
+per key per locale — these files are shared with concurrent CI agents. All 10
+files re-validated with `python3 -m json.tool`; each has exactly one `proj.notes`
+and one `proj.apiId`.
 
 ## 4. Gotchas found while implementing
 
@@ -137,9 +144,23 @@ per locale — these files are shared with concurrent CI agents.
    `<span>` (needed for the clamp). First attempt rendered no placeholder for
    empty projects; measured `::before` content was `"none"` until the selector
    was moved to `> .col-notes:empty::before`.
-5. **The global search listens on `keyup`, not `input`** (`:757`), so a scripted
-   `input` event produces a false "search does not work" FAIL — it must be
-   dispatched as `KeyboardEvent('keyup')` (same trap as #986 gotcha 4).
+5. **The global search listens on `keyup`, not `input`**, so a scripted `input`
+   event produces a false "search does not work" FAIL — it must be dispatched
+   as `KeyboardEvent('keyup')` (same trap as #986 gotcha 4).
+6. **Code review caught four real defects in the first implementation** (all
+   fixed before landing):
+   a. `display: -webkit-box` on the `<td>` broke `vertical-align: middle` and
+      measurably misaligned the column by 13px — the clamp belongs on the span.
+   b. The tooltip was hardcoded English `"API "` (i18n rule 3) and used a
+      one-off `project-api-icon` class instead of the shared `.api-id`.
+   c. The first tooltip value `API testproject/6` was **wrong**: legacy
+      `config.inc.php:637` `id_format` is `"[ID: %s ]"`, so legacy shows
+      `API [ID: 6 ]`. The code comment also cited a `formatStringId()` in
+      `lib/functions.php` — **neither the function nor the file exists in this
+      repo**; the comment was fabricated and has been removed.
+   d. The column was made sortable + per-column filterable, but legacy marks
+      the Notes header `{#NOT_SORTABLE#}` — a false parity claim in the first
+      CHANGELOG entry and docs, corrected to match legacy.
 
 ## 5. Verification
 
@@ -153,11 +174,14 @@ Suite `tmp/TLU_Test_Cases.md` → *Suite 987*: **16/16 PASS**, over 4 fixtures
 | newline preservation | computed `white-space: pre-line` |
 | escaping | `hasRealBold: false` |
 | full text in `title` | identical to the stored note |
-| truncation | `clientHeight 46` vs `scrollHeight 166`, `-webkit-line-clamp: 2` |
-| empty note | `::before` content `"-"` |
-| API tooltip | `API testproject/6` … `API testproject/9` |
-| Notes column filter `one-liner` | `["#7"]` → cleared → all 4 |
-| Notes sort asc / desc | `["#8","#6","#7","#9"]` / `["#9","#7","#6","#8"]` |
+| truncation | span `clientHeight 30` vs `scrollHeight 225`, `-webkit-line-clamp: 2` |
+| empty note | span `::before` content `"-"` |
+| escaping (adversarial) | note `"><img src=x onerror=alert(1)>` produced 0 `<img>` elements, no attribute breakout |
+| API tooltip | `[ID: 6]` … `[ID: 9]` (legacy `id_format`) |
+| Notes **not** sortable / not filtered (legacy `NOT_SORTABLE`) | no `aria-sort` on the th, `cursor: auto`, filter inputs stay at **5** (the Notes header has no `data-col-filter`) |
+| vertical alignment | every `<td>` of the row measured at `top 307 / height 57` — Notes no longer offset |
+| other columns still filterable | per-column filter inputs 5, prefix/name/status filters unaffected |
+| Notes sort asc / desc (regression: the *other* columns still sort) | name sort re-verified, `aria-sort` present on the sortable headers |
 | global search `Gamma` / `regression` | `["#8"]` / `["#6"]` (notes text is searchable) |
 | Actions sortability | no `aria-sort` (still `orderable: false`) |
 | Edit modal | opens "Edit Test Project", description pre-filled |

@@ -110,14 +110,22 @@
     /* Legacy parity: Notes column (projectView.tpl:88,113-115) — legacy ran the
        notes through nl2br when the project editor is 'none', so newlines are
        preserved here with pre-line; the cell is clamped to 2 lines and the full
-       text stays reachable through the cell title attribute. */
-    #projectsTable td.col-notes {
-      white-space: pre-line; max-width: 260px; min-width: 120px; color: #555;
-      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
-      overflow: hidden; cursor: help; word-break: break-word;
+       text stays reachable through the cell title attribute. The clamp lives on
+       the inner <span>, NOT on the <td>: display:-webkit-box on a <td> cancels
+       the table-cell layout and silently drops the vertical-align: middle that
+       #projectsTable.dataTable tbody td sets, misaligning the whole column. */
+    #projectsTable td.col-notes { max-width: 260px; min-width: 120px; }
+    #projectsTable span.col-notes {
+      white-space: pre-line; display: -webkit-box; -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical; overflow: hidden; word-break: break-word;
+      cursor: help;
     }
-    #projectsTable td.col-notes > .col-notes:empty::before { content: '-'; color: #bdc3c7; }
-    #projectsTable .project-api-icon { color: #95a5a6; cursor: help; margin-right: 6px; }
+    #projectsTable span.col-notes:empty::before { content: '-'; color: #bdc3c7; }
+
+    /* Legacy parity: the cube icon carrying the REST API id of the row
+       (projectView.tpl:104). Same shared .api-id rule as buildsView.html:31 and
+       platformsView.html:31. */
+    .api-id { cursor: help; color: #999; font-size: 12px; margin-right: 6px; }
 
   .footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
 </style>
@@ -148,7 +156,7 @@
         <tr>
           <th data-i18n="proj.id">ID</th>
           <th data-col-filter="1" data-i18n="proj.name">Project Name</th>
-          <th data-col-filter="1" data-i18n="proj.notes">Notes</th>
+          <th data-i18n="proj.notes">Notes</th>
           <th data-col-filter="1" data-i18n="proj.prefix">Prefix</th>
           <th data-col-filter="1" data-i18n="proj.issueTracker">Issue Tracker</th>
           <th data-col-filter="1" data-i18n="proj.codeTracker">Code Tracker</th>
@@ -382,8 +390,12 @@
     // which is incompatible with DataTables' row cache.
     function projectRow(p) {
       // Legacy parity: projectView.tpl:104 — the cube icon carries the REST API
-      // id of the project in its tooltip (tlCfg->api->id_format with %s -> id).
-      const apiIcon = `<i class="fas fa-cubes project-api-icon" title="API ${esc(apiIdFormat(p.id))}"></i>`;
+      // id of the project in its tooltip. Legacy rendered
+      // "API {$tlCfg->api->id_format|replace:'%s':$id}" and config.inc.php:637
+      // sets $tlCfg->api->id_format = "[ID: %s ]", i.e. "API [ID: 6 ]". Same
+      // pattern as buildsView.html:308 and platformsView.html:254.
+      const apiIcon = '<i class="fas fa-cubes api-id" title="' +
+        esc(TLi18n.t('proj.apiId').replace('{id}', p.id)) + '"></i>';
       const issueTracker = p.issueTracker && p.issueTracker.name ? `
               <span class="integration-badge ${p.issueTracker.enabled ? 'integration-enabled' : 'integration-disabled'}">
                 ${esc(p.issueTracker.name)}
@@ -425,21 +437,14 @@
       ];
     }
 
-    // Legacy parity: projectView.tpl:104 — tlCfg->api->id_format is "%s/%s"
-    // (service/project) in 1.9.20; the project service prefix is "testproject".
-    // Mirrors formatStringId() in lib/functions.php.
-    function apiIdFormat(projectId) {
-      return `testproject/${projectId}`;
-    }
-
     // Legacy parity: projectView.tpl:113-115 — the Notes cell renders the
     // project description verbatim (nl2br when the project editor is 'none',
-    // raw otherwise). Content is clamped by CSS, so the full text goes into
-    // the title attribute to stay readable/copyable.
+    // raw otherwise). The 2-line clamp is CSS, so the full text goes into the
+    // title attribute to stay readable/copyable.
     function notesCell(p) {
       const notes = (p.description || '').trim();
       if (!notes) {
-        return `<span class="col-notes" aria-label="${TLi18n.t('proj.notes')}"></span>`;
+        return `<span class="col-notes" aria-label="${esc(TLi18n.t('proj.notes'))}"></span>`;
       }
       return `<span class="col-notes" title="${esc(notes)}">${esc(notes)}</span>`;
     }
@@ -489,8 +494,7 @@
         language: dtLanguage(),
         columnDefs: [
           { targets: 0, className: 'text-center', orderable: false },
-          { targets: 1, className: 'project-name-col' },
-          { targets: 2, className: 'col-notes' },
+          { targets: 2, className: 'col-notes', orderable: false },
           { targets: 7, orderable: false }
         ]
       });

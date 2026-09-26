@@ -2132,6 +2132,7 @@
   "proj.activate": "有効化",
   "proj.active": "有効",
   "proj.availability": "利用可否",
+  "proj.apiId": "[ID: {id}]",
   "proj.basicInfo": "基本情報",
   "proj.codeTracker": "コードトラッカー",
   "proj.codeTrackerIntegration": "コードトラッカー連携",

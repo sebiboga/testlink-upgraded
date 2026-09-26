@@ -2132,6 +2132,7 @@
   "proj.activate": "Activează",
   "proj.active": "Activ",
   "proj.availability": "Disponibilitate",
+  "proj.apiId": "[ID: {id}]",
   "proj.basicInfo": "Informatii de baza",
   "proj.codeTracker": "Urmator Cod",
   "proj.codeTrackerIntegration": "Integrare Urmator Cod",

@@ -2132,6 +2132,7 @@
   "proj.activate": "激活",
   "proj.active": "启用",
   "proj.availability": "可用性",
+  "proj.apiId": "[ID: {id}]",
   "proj.basicInfo": "基本信息",
   "proj.codeTracker": "代码跟踪器",
   "proj.codeTrackerIntegration": "代码跟踪器集成",

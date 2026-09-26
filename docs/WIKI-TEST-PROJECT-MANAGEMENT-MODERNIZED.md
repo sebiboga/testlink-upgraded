@@ -99,15 +99,16 @@ All routes require an authenticated session; non-admin callers without
   `projectView.tpl:88,113-115` (`$testproject.notes`, `nl2br` when the project
   editor is `none`). Newlines are preserved with `white-space: pre-line`, the
   cell is clamped to 2 lines with the full text in its `title`, an empty project
-  shows `-`, and the value is HTML-escaped (legacy trusted the DB). The column
-  is sortable and gets a per-column filter box like the other
-  `{#SMART_SEARCH#}` columns. **No BFF change** was needed — `api/projects`
-  already returned `description` from `tp.notes`; the data was reaching the
-  browser and being dropped by the row builder.
+  shows `-`, and the value is HTML-escaped (legacy trusted the DB). Like the
+  legacy `{#NOT_SORTABLE#}` header it is **neither sortable nor per-column
+  filterable**. **No BFF change** was needed — `api/projects` already returned
+  `description` from `tp.notes`; the data was reaching the browser and being
+  dropped by the row builder.
 * **REST API id tooltip** (Ref #987): the name cell is prefixed with the legacy
-  `fa-cubes` icon (`projectView.tpl:104`) whose tooltip is
-  `API testproject/<id>` — legacy's `tlCfg->api->id_format` (`%s/%s`) with the
-  project service name.
+  `fa-cubes` icon (`projectView.tpl:104`) using the shared `.api-id` style, whose
+  tooltip is `[ID: <id>]` — legacy renders `"API " + $tlCfg->api->id_format` and
+  `config.inc.php:637` sets `$tlCfg->api->id_format = "[ID: %s ]"`. Same pattern
+  and i18n format string as `buildsView.html` / `platformsView.html`.
 
 
 *Before #987 — 7 columns, no notes, no cube icon:*
@@ -126,7 +127,9 @@ irreversible deletion. Ref #991 adds `proj.eventHistory`
 ("Create from existing Test Project?") and `proj.noProject` ("-- No --").
 Ref #987 adds `proj.notes` ("Notes") for the list Notes column — a
 separate key from `proj.description` ("Description"), which labels the edit
-modal field; legacy's list header is `th_notes` = "Notes".
+modal field; legacy's list header is `th_notes` = "Notes" — and `proj.apiId`
+("[ID: {id}]", the format string of `$tlCfg->api->id_format`, mirroring
+`pl.apiId`) for the API-id tooltip.
 
 ## 5. Security
 
