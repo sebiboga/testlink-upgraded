@@ -118,8 +118,48 @@ function tlAutoload($class_name)  {
   // Reason: We had a problem integrating TestLink with other apps. 
   // You can reproduce it installing ThinkUp and TestLink applications in the same stack. 
 
+  $classFile = $classFileName . '.class.php';
+
+  // Issue #1593: the include must be guarded. include_once() on a file that is
+  // not shipped does NOT throw, it raises TWO E_WARNINGs ("Failed to open
+  // stream" + "Failed opening ... for inclusion"), so the catch(Exception)
+  // below never saw them and TestLink's watchPHPErrors() handler
+  // (lib/functions/logger.class.php:1407) pushed both into the `events` table on
+  // every request that touched a missing class - and, because
+  // shutdownLogger() commits the open transaction even on a fatal, the rows
+  // survived the HTTP 500 as well. Concrete instance: contoursoapInterface,
+  // the implementation of reqmgrsystems.type=1, which this fork never shipped
+  // (find . -iname '*contour*' -> nothing): lib/requirements/reqSpecSearch.php
+  // -> reqSpecCommands::__construct() -> tlReqMgrSystem::getInterfaceObject()
+  // -> "new $iname" -> here.
+  //
+  // So resolve the file first, using the SAME search order include() itself
+  // uses, and only include when it really exists:
+  //  1. include_path (stream_resolve_include_path) - this is where every
+  //     TestLink class file lives,
+  //  2. relative to the current working directory,
+  //  3. relative to the directory of THIS file, which is the calling-script
+  //     directory that include() falls back to as well.
+  // Nothing that resolves today stops resolving; a class that cannot be found
+  // just stays undefined, and PHP raises its usual "Class not found" Error at
+  // the actual `new` / class_exists() site - where the callers already guard
+  // it (see tlReqMgrSystem::checkConnection(), issue #1625).
+  $resolvedClassFile = stream_resolve_include_path($classFile);
+  if( $resolvedClassFile === false )
+  {
+    if( is_file($classFile) ) {
+      $resolvedClassFile = $classFile;
+    }
+    elseif( is_file(__DIR__ . DIRECTORY_SEPARATOR . $classFile) ) {
+      $resolvedClassFile = __DIR__ . DIRECTORY_SEPARATOR . $classFile;
+    }
+    else {
+      return;
+    }
+  }
+
   try {
-      include_once $classFileName . '.class.php';
+      include_once $resolvedClassFile;
   } 
   catch (Exception $e) {
   }  
