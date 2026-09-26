@@ -5981,6 +5981,52 @@ Changes:
   route this fix unblocked) and **#1629** (the third unguarded `new` in
   `getInterfaceObject()`, an unverified code-path reading). (Fixes #1625)
 
+### Key bugfix — autoloader no longer logs 2 E_WARNINGs for a class this fork does not ship (Refs #1593)
+- Key bugfix #1593: the application's **only** class loader, `tlAutoload()`
+  (`lib/functions/common.php:52` registers it), did an **unconditional**
+  `include_once $classFileName . '.class.php'`. `include_once` on an absent file is not an
+  exception — it raises **two** `E_WARNING`s (`Failed to open stream` + `Failed opening ... for
+  inclusion`) and returns `false`, so the BitNami `try { } catch (Exception) { }` underneath it
+  could never catch them and `watchPHPErrors()` (`lib/functions/logger.class.php:1407`) wrote
+  **both** into the `events` table on every request that touched a class missing from this fork.
+  Because `register_shutdown_function("shutdownLogger")` commits the open logger transaction
+  even on a fatal, the two rows survived the HTTP 500 as well, so the Event Viewer was polluted
+  by exactly the requests that were already broken for a different reason.
+  Live instance: `contoursoapInterface`, the `implementation` of `reqmgrsystems.type=1`
+  (`tlReqMgrSystem.class.php:33`), a class that is absent and never was (`find . -iname
+  '*contour*'` → nothing, `git log --all -- '*contour*'` empty).
+  **The report's own repro no longer warned** — #1625 had already silenced the two
+  `checkConnection()` call sites with `@class_exists()` — but the loader defect was untouched
+  and still reachable through the *unguarded* instantiation in
+  `tlReqMgrSystem::getInterfaceObject()` (`:617`): `reqSpecSearch.php:34` →
+  `reqSpecCommands::__construct()` → `reqSpecCommands.class.php:44` → `new $iname` →
+  autoloader. Measured pre-fix: `GET /lib/requirements/reqSpecSearch.php` → 500 with **2** new
+  `E_WARNING` rows naming `contoursoapInterface.class.php` and `common.php` line 122
+  (attribution control: `reqMgrSystemView.php` on the same session adds 0).
+  Fix: **resolve the file, then include it** — `stream_resolve_include_path()` first (the same
+  `include_path` order `include()` itself uses), falling back to `is_file()` for the current
+  working directory, and `return` quietly when the target is not a real file, so the class
+  simply stays undefined and PHP raises its usual `Error: Class not found` at the actual
+  `new`/`class_exists()` site where the callers already decide how to degrade. No caller was
+  touched, no i18n bundle was touched, and a code review over 120 class names (108 shipped +
+  absent/edge names) measured **0** resolution changes and 0 new diagnostics.
+  Also corrected the now-stale `common.php:122` cross-reference left in
+  `tlReqMgrSystem.class.php:647` by #1625.
+  Verified: primary repro 2 events → **0**; the report's own repro stays 200/0 events; the
+  loader still autoloads flat classes and classes from sub-directory `include_path` entries
+  (`lib/issuetrackerintegration/`, `lib/codetrackerintegration/`,
+  `lib/reqmgrsystemintegration/`); a 9-screen app-wide sweep and a browser pass (Dashboard,
+  Requirements Design → Search Requirements) add **0** `E_WARNING`/Error rows and **0** console
+  errors. Regression suite #1593 26 PASS / 0 FAIL (`bash tmp/verify_1593.sh`, exit 0; pre-fix
+  baseline 4 FAIL / exit 1, so the harness is discriminating).
+  **Deliberately NOT fixed here** (separate issue): the HTTP 500 of the same request, i.e. the
+  unguarded `new` in `getInterfaceObject()` whose `catch (Exception)` cannot catch a PHP 8
+  `Error` — **#1629**; this fix only removes the warning noise and must not mask that fatal.
+  Also found while testing and filed separately, not fixed: `third_party/phpxmlrpc/lib/xmlrpc.inc`
+  uses `$temp =& new xmlrpcval(...)`, a `ParseError` on PHP 8, so autoloading
+  `tracxmlrpcInterface` fatals identically before and after this change (**#1635**).
+  (Refs #1593)
+
 ### Key bugfix — TLi18n locale selection persistence (Refs #1586)
 - Key bugfix #1586: an explicit language switch in the locale switcher now
   survives navigation, so every modernized screen that returns to a launcher
