@@ -22285,3 +22285,56 @@ create-and-link). Bugs found: **#1600** (fatal 500 on every keyword create error
 `testproject::addKeyword()` called the removed `tlKeyword::getErrorMessage()`; plus
 `tlKeyword::getError()` returned `E_NAMENOTALLOWED` for `E_NAMELENGTH` and had no
 `default`), fixed in commit `aaec569ad`.
+
+### 1599-R  Code-review regression pass (commit `be04a680e`, #1603 / #1604)
+
+Environment: app `http://localhost:8082`, admin `admin/admin`, fixture
+`tmp/fixtures_1599.php`. Host-curl uses `-H "X-Requested-With: XMLHttpRequest"`
+and the admin session cookie; browser checks use the Chrome MCP session.
+
+| # | Case | Expected | Result |
+|---|------|----------|--------|
+| R1 | `POST api/keywordsedit action=create_link` with a **foreign** `tcversion_id` (node chain rooted at another test project) as a manager of project 1 | `404`, no keyword row, no `testcase_keywords` row | PASS (`404`, keyword count 0, link count 0) |
+| R2 | `GET api/keywordsedit action=init&mode=cfl` with the same foreign `tcversion_id` | `404`, foreign test case name not disclosed | PASS (`404 "Test case version not found"`) |
+| R3 | `action=init&mode=cfl` with the project's **own** tcversion id | `200` + correct tcase id/name context | PASS (tcversion 4 → tcase 3 "Keyword dialog case 1") |
+| R4 | `action=init&mode=cfl` with a **test suite** id, the **project** id, and an **unknown** id | `404` for all three (only TC/TCV are accepted) | PASS (404/404/404) |
+| R5 | `action=init&mode=cfl` with a bare **test case** id (legacy tolerated it) | `200`, context resolved from the test case node | PASS (tcversion 3 → tcase 3) |
+| R6 | `action=init` / `create_link` with `tproject_id=999999` (non-existent project) | `404 Test project not found` | PASS |
+| R7 | `action=create` with a 150-char name | accepted, stored truncated to the 100-char column limit | PASS (`200`, `char_length(keyword)=100`) |
+| R8 | `action=init&mode=cfl` with a non-numeric `tcversion_id` | `400 Invalid test case version id` | PASS |
+| R8b | `action=init` / `create_link` with a non-numeric or zero `tproject_id` | `400 Invalid test project id` | PASS |
+| R9 | legacy shim `do_delete` / `do_update` with a **foreign** keyword id as project 1 | refused (`303` + `kwerr=-1`), keyword row untouched | PASS (keyword 8 still `testproject_id=2`, `keyword=foreign-kw`) |
+| R10 | legacy shim POST with `Sec-Fetch-Site: cross-site` + foreign `Origin` | refused (`302`), nothing created | PASS (keyword count 0) |
+| R11 | legacy shim POST with array params `keyword[]=x&notes[]=y` | no 500 | PASS (`303`, was `TypeError` → `500`) |
+| R12 | legacy shim `do_create` of an existing name | `303` with `kwerr=-4` surfaced to the user | PASS (redirect carries `kwerr=-4`) |
+| R13 | legacy shim GET `?doAction=create` | still loads the popup, session project unchanged | PASS (`302`, `testlinkInitPage($db)` without `TRUE`) |
+| R14 | browser: `keywordsView.html?tproject_id=1&kwerr=-4` | localized error toast, `kwerr` stripped from the URL | PASS (RO: "Un cuvânt cheie cu acest nume există deja în acest proiect de test", URL cleaned) |
+| R15 | browser: popup in `mode=edit` with `mgt_view_events` | "Show event history" link visible, opens the event viewer filtered for the keyword | PASS (RO label "Afișează istoricul evenimentelor"; URL `eventviewer.html?object_id=2&object_type=keywords&tproject_id=1`; API returns 2 matching events) |
+| R16 | `tcaseVersionContext` chain indexing after review | root = `chain[0]`, requested node = last element | PASS (fixed twice: first attempt returned `404` for own tcversion 4, second inverted the node types) |
+| R17 | `api/keywords GET /{id}` rights are evaluated on the keyword's **own** project | a project-scoped viewer gets `403` for a foreign keyword, `200` for its own | PASS (foreign kw 8 → `403`, own kw 2 → `200`, unknown id → `404`) |
+| R18 | `api/keywords POST /import` checks `mgt_modify_key` AND `mgt_view_key` | `403` for view-only and no-rights users, `200` for a full manager | PASS (kwviewonly → `403`, kwnorights → `403`, admin → `200`, both keywords inserted) |
+| R18b | rights of the same user on its own project | view-only may list/read, may not create/update/cfl-init/import | PASS (list+read `200`, create/update/cfl `403 NO_RIGHT`, import `403`) |
+| R19 | Event Viewer after this regression pass | no new ERROR/WARNING rows | PASS |
+| R20 | `node --check` on the extracted JS of the 3 touched templates + `php -l` on the 3 PHP files | no syntax errors | PASS |
+
+Bugs found by this pass and fixed in `be04a680e`: **#1603** (cross-project
+`tcversion_id` in create-and-link) and **#1604** (shim ownership / CSRF / array
+params / swallowed errors). The pass also caught two bugs I introduced in the
+fix itself (inverted parent-chain indexing, wrong `node_type_id` constant) —
+both corrected before the commit.
+
+### Notes / discoveries of the regression pass
+
+* `tlUser::hasRight()` applies the **global** role's rights in *every* project
+  where the user has no project role. The fixture originally gave `kwviewonly`
+  the global "test designer" role, so its first project-scope assertions passed
+  for the wrong reason (it legitimately had `mgt_view_key` in project 2 too).
+  The fixture now sets the global role to `<no rights>` for both test users, so
+  the only source of rights is the project role.
+* Node types (this schema): 1 = test project, 2 = test suite, 3 = test case,
+  4 = test case version.
+* `testproject::importKeywordsFromCSV()` splits on **`;`** (legacy default), not
+  a comma; a comma-delimited file yields `200 {"status":"ok"}` and imports
+  nothing. Reported separately — the API answers a silent no-op with no counts.
+* `kwParentChain()` is **root-first** (`array_reverse` of a leaf→root walk):
+  `chain[0]` is the project, the last element is the requested node.
