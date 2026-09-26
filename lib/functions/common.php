@@ -120,42 +120,25 @@ function tlAutoload($class_name)  {
 
   $classFile = $classFileName . '.class.php';
 
-  // Issue #1593: the include must be guarded. include_once() on a file that is
-  // not shipped does NOT throw, it raises TWO E_WARNINGs ("Failed to open
-  // stream" + "Failed opening ... for inclusion"), so the catch(Exception)
-  // below never saw them and TestLink's watchPHPErrors() handler
-  // (lib/functions/logger.class.php:1407) pushed both into the `events` table on
-  // every request that touched a missing class - and, because
-  // shutdownLogger() commits the open transaction even on a fatal, the rows
-  // survived the HTTP 500 as well. Concrete instance: contoursoapInterface,
-  // the implementation of reqmgrsystems.type=1, which this fork never shipped
-  // (find . -iname '*contour*' -> nothing): lib/requirements/reqSpecSearch.php
-  // -> reqSpecCommands::__construct() -> tlReqMgrSystem::getInterfaceObject()
-  // -> "new $iname" -> here.
-  //
-  // So resolve the file first, using the SAME search order include() itself
-  // uses, and only include when it really exists:
-  //  1. include_path (stream_resolve_include_path) - this is where every
-  //     TestLink class file lives,
-  //  2. relative to the current working directory,
-  //  3. relative to the directory of THIS file, which is the calling-script
-  //     directory that include() falls back to as well.
-  // Nothing that resolves today stops resolving; a class that cannot be found
-  // just stays undefined, and PHP raises its usual "Class not found" Error at
-  // the actual `new` / class_exists() site - where the callers already guard
-  // it (see tlReqMgrSystem::checkConnection(), issue #1625).
+  // Issue #1593: resolve before including. include_once() on a file that is not
+  // shipped does NOT throw, it raises TWO E_WARNINGs ("Failed to open stream" +
+  // "Failed opening ... for inclusion"), so the catch(Exception) below never saw
+  // them and watchPHPErrors() wrote both into `events` on every request touching
+  // a missing class - and shutdownLogger() commits them even on a fatal. Live
+  // instance: contoursoapInterface (reqmgrsystems.type=1), never ported here.
+  // Look the file up first, with the search order include() itself uses:
+  // include_path, then the current working directory.
   $resolvedClassFile = stream_resolve_include_path($classFile);
-  if( $resolvedClassFile === false )
-  {
-    if( is_file($classFile) ) {
-      $resolvedClassFile = $classFile;
-    }
-    elseif( is_file(__DIR__ . DIRECTORY_SEPARATOR . $classFile) ) {
-      $resolvedClassFile = __DIR__ . DIRECTORY_SEPARATOR . $classFile;
-    }
-    else {
-      return;
-    }
+  if( $resolvedClassFile === false && is_file($classFile) ) {
+    $resolvedClassFile = $classFile;
+  }
+  if( $resolvedClassFile === false || !is_file($resolvedClassFile) ) {
+    // Not a real file: stay undefined and let PHP raise its usual
+    // "Class not found" Error at the `new` / class_exists() site, so nothing is
+    // logged as a PHP warning. Guarded callers keep degrading gracefully
+    // (tlReqMgrSystem::checkConnection, #1625); an UNGUARDED instantiation
+    // still fatals - tlReqMgrSystem::getInterfaceObject(), tracked as #1629.
+    return;
   }
 
   try {

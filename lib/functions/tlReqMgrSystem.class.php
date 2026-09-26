@@ -643,9 +643,9 @@ class tlReqMgrSystem extends tlObject
     //    "new NULL" raised "Class name must be a valid object or a string".
     // 2. an existing row: type 1 (contour/soap) resolves to contoursoapInterface,
     //    a class that is not shipped in this repository and never was
-    //    (git log --all -- '*contour*' is empty), so the autoloader's
-    //    include_once() (lib/functions/common.php:122) failed twice and
-    //    "new <missing>" raised "Class contoursoapInterface not found".
+    //    (git log --all -- '*contour*' is empty), so the autoloader could not
+    //    find a file to include and "new <missing>" raised
+    //    "Class contoursoapInterface not found".
     // Same degradation as the two twins already fixed: tlIssueTracker::checkConnection()
     // (issue #1617) and the getAll() checkEnv guard in tlCodeTracker (issue #1597).
     // Reporting "not connected" is what the caller and the template already

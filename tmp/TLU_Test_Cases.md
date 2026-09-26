@@ -23291,6 +23291,7 @@ Before the fix the header was `Last Name` over `Ann Designer`.
 and `docs/screenshots/issue-1630-after.png` (header "Name", same cells).
 
 ## Suite 1632 — Import Platforms standalone screen + `api/platformsimport` BFF
+## Regression — Issue #1593: the autoloader must not `include_once` a class file that is not shipped
 
 **Precondition**
 
@@ -23440,3 +23441,109 @@ Refs #1632.
   revision, filed as **#1633**.
 
 **Screenshots:** `docs/screenshots/issue-988-requirement-feature-column.png`
+- Curl login that works for these legacy entry points:
+  `curl -c jar -b jar -d "tl_login=admin&tl_password=admin" http://localhost:8082/login.php`
+  (the 2.0.1 `POST /api/auth/login` route needs same-origin proof headers; the legacy
+  form login does not, and the legacy screens are what this suite measures).
+- **The fixture is the point of the suite**: a `reqmgrsystems` row of `type=1`
+  (contour/soap ⇒ `implementation = contoursoapInterface`, a class this fork never
+  shipped) **LINKED to a test project that has `reqmgr_integration_enabled = 1`**.
+  Without the *link* the unguarded instantiation is unreachable, which is why the
+  earlier report's repro (`reqMgrSystemView.php`, no link) no longer warned once
+  #1625 added its `@class_exists()` guard — and why Suite 1625 filed the third
+  unguarded `new` as **#1629** with the note "UNVERIFIED, no project linked".
+  `php tmp/fixtures_1593.php` creates exactly that (project `ContourDemo`,
+  prefix `CD1593`) and is re-runnable.
+- Reusable asserting harnesses (both gitignored, both force-added):
+  - **`bash tmp/verify_1593.sh`** — 26 assertions, creates/removes its own fixtures,
+    exits non-zero on any failure. **Verified discriminating**:
+    - pre-fix baseline (`git show 68ec9bb09:lib/functions/common.php` restored over the
+      working tree, then re-run) → **22 PASS / 4 FAIL, exit 1**
+    - with the fix → **26 PASS / 0 FAIL, exit 0**
+  - **`php tmp/verify_1593.php`** — 19 assertions on the loader itself (which classes
+    still autoload, that a missing class stays undefined, and that the contour system
+    still degrades to `false`); exit 0.
+
+**Defect reproduction (pre-fix)**
+
+1. `php tmp/fixtures_1593.php` → `tproject=1 / reqmgr_integration_enabled=1 /
+   reqmgrsystem=2 (type=1 => contoursoapInterface) / linked_to=Contour Demo`.
+2. `mysql -e "delete from events;"` then
+   `curl -b jar -c jar -o /dev/null -w "%{http_code}\n" http://localhost:8082/lib/requirements/reqSpecSearch.php`
+   → `500` (that 500 is **#1629**, a separate bug; the *warnings* are #1593).
+3. `mysql -e "select count(*) from events;"` → **2**, byte-identical to the report:
+   ```
+   | 4 | 2 | E_WARNING include_once(contoursoapInterface.class.php): Failed to open stream: No such file or directory - in .../lib/functions/common.php - Line 122 |
+   | 5 | 2 | E_WARNING include_once(): Failed opening 'contoursoapInterface.class.php' for inclusion (include_path='.:...') - in .../lib/functions/common.php - Line 122 |
+   ```
+4. Attribution control: a `reqMgrSystemView.php?tproject_id=1` request on the *same*
+   session adds **0** rows.
+5. `php tmp/verify_1593.php` under the pre-fix loader logs **4** rows (it deliberately
+   autoloads 2 absent class names) — the loader is the only writer.
+
+| # | Step | Expected | Observed | Result |
+|---|---|---|---|---|
+| 1 | `reqSpecSearch.php` with the contour system linked | **0** rows in `events` | post-fix `0` (pre-fix `2`) | **PASS** |
+| 2 | same request, `log_level IN (1,2,16)` | **0** | post-fix `0` (pre-fix `2`) | **PASS** |
+| 3 | HTTP status of that request | unchanged (the 500 belongs to #1629, this fix must not mask it) | `500` before and after | **PASS** |
+| 4 | the report's own repro, `reqMgrSystemView.php?tproject_id=1` | HTTP 200, **0** new rows | `200`, `0` | **PASS** |
+| 5 | control request on the same session | adds no rows | `0` | **PASS** |
+| 6 | `events` searched for `%contour%` / `%Failed opening%` | **0** rows | `0` / `0` | **PASS** |
+| 7 | loader still autoloads a flat class (`database`, `testproject`, `tlReqMgrSystem`) | true | true | **PASS** |
+| 8 | loader still autoloads a class from a **sub-directory** `include_path` entry (`mantisrestInterface`/`redminerestInterface` ← `lib/issuetrackerintegration/`, `stashrestInterface`/`githubrestCodeTrackerInterface` ← `lib/codetrackerintegration/`, `reqMgrSystemInterface` ← `lib/reqmgrsystemintegration/`) | true | 6/6 true | **PASS** |
+| 9 | **negative control** — `class_exists('exttable')` (the file `exttable.class.php` exists but declares `tlExtTable`) | `false`, exactly as before the fix, only without the warnings | `false`; and an explicit `require_once('exttable.class.php')` still defines `tlExtTable` | **PASS** |
+| 10 | `class_exists('contoursoapInterface', true)` | `false` and **defines nothing** | `false`, `class_exists(..., false) === false` | **PASS** |
+| 11 | `class_exists('zzNoSuchClass1593', true)` (invented name) | `false`, no diagnostic | `false`, no new `E_WARNING` | **PASS** |
+| 12 | `tlReqMgrSystem::getByName('Contour Demo')` / `['implementation']` | row readable, value `contoursoapInterface` | readable, `contoursoapInterface` | **PASS** |
+| 13 | `tlReqMgrSystem::checkConnection(<row>)` (#1625's degradation) | `false`, no fatal | `false` | **PASS** |
+| 14 | the class is still absent after `checkConnection()` | true | true | **PASS** |
+| 15 | `php -l` on both touched files | clean | clean | **PASS** |
+| 16 | app-wide sweep, 9 screens: `login.php`, `index.php`, `reqMgrSystemView`, `cfieldsView`, `issueTrackerView`, `reqSpecSearch`, `api/reqmgrsystems`, modernized `mainPage.html`, modernized `searchReq.html` | **0** new `events` rows each | 9/9 → `0` | **PASS** |
+| 17 | browser (chrome-devtools MCP): login → **Requirements Design → Search Requirements** | screen renders, console clean, `events` empty | title `ContourDemo - Search Requirements`, body "Search Requirements in test project ContourDemo", `/api/requirements/index.php/search-context?tproject_id=1` → **200**, **0** console errors, `events` **0** | **PASS** |
+| 18 | `events` after the entire pass | no new `E_WARNING`/Error | **0** rows | **PASS** |
+
+**Result: 26 PASS / 0 FAIL (`bash tmp/verify_1593.sh`, exit 0) — 11 of them restated above;
+pre-fix baseline 4 FAIL / exit 1.**
+
+**Bug-fix-quality gotchas recorded for the next agent**
+
+- **`include_once` on a missing file is NOT an exception.** It raises two `E_WARNING`s
+  (`Failed to open stream` + `Failed opening ... for inclusion`) and returns `false`, so
+  the BitNami `try { include_once } catch (Exception)` that has sat in `tlAutoload` for
+  years could never catch it. A `try/catch` is the wrong shape for this; *resolve, then
+  include* is the right one.
+- **The rows survive the fatal.** `register_shutdown_function("shutdownLogger")`
+  (`lib/functions/logger.class.php:1471`) commits the open logger transaction even when
+  PHP 8 aborts the request, so the Event Viewer is polluted by exactly the requests that
+  are already broken for a different reason. That is why the bug stayed invisible to
+  anyone only reading the (empty) error page.
+- **A missing optional integration class is normal here.** `contoursoapInterface`
+  (`reqmgrsystems.type=1`) has no definition anywhere and never had
+  (`git log --all -- '*contour*'` is empty), so a *silent* loader is the correct
+  contract; PHP's own `Error: Class not found` at the `new` site is the signal, and the
+  callers decide how to degrade.
+- **Do not "fix" this by shipping a stub class** and do not silence it with
+  `@include_once`: the first would advertise a Contour SOAP transport that cannot work,
+  the second would also hide a real parse/fatal inside a file that *does* exist.
+- **Two comments had to be corrected after code review**, and both mattered:
+  (a) my own first version claimed "the callers already guard it" — they do not:
+  `tlReqMgrSystem::getInterfaceObject()` (`lib/functions/tlReqMgrSystem.class.php:617`)
+  is still an unguarded `new` whose `catch (Exception)` cannot catch a PHP 8 `Error`
+  (that is **#1629**, deliberately **not** fixed here), so the comment now states the
+  opposite; (b) `tlReqMgrSystem.class.php:647` pointed at the now-moved
+  `common.php:122` include. A stale `file:line` cross-reference is a real defect in a
+  codebase that leans on them, and this repo's agents use them to navigate.
+- **`stream_resolve_include_path()` alone is enough** in production: `lib/functions/`
+  *and* `.` are both already in `include_path` (`cfg/const.inc.php:43`), so the
+  `is_file()` fallbacks are belt-and-braces. A code-review check over 120 class names
+  (108 shipped + absent/edge names) found **0** resolution changes and 0 new
+  diagnostics; the `is_file($resolved)` test additionally closes the "a *directory*
+  named `X.class.php`" hole.
+- **`class_exists()` on an absent class fires the autoloader.** The reason #1625 had to
+  write `@class_exists(...)` at its call sites is exactly this; with the loader fixed,
+  those `@` operators are now redundant — but they are harmless and were left alone to
+  keep that fix's diff minimal.
+
+**Screenshots:** none attached — the defect is invisible in the UI (it only ever
+appeared in the Event Viewer), so the evidence is the `events`-table counts recorded
+above. Browser pass is documented in row #17.
