@@ -22121,14 +22121,20 @@ written after the fix is `log_level=16`.
 Preconditions/fixtures: fresh TestLink database on MariaDB; TestLink 2.0.1 at
 `http://localhost:8082` (PHP 8.3.35 built-in server); `admin` / `admin` (Administrator,
 so `req_tcase_link_management` is granted). Fixture `php tmp/fixtures_1596.php` →
-test project **REQ1596** id `13` (prefix `RQ96`, `option_reqs=1`, requirements
-ENABLED), requirement specification `RS1596` id `14` with 2 requirements
+test project **REQ1596** id `13` (prefix `RQ96`, requirements ENABLED via the
+serialized `requirementsEnabled` option that `testproject::create()` writes), requirement specification `RS1596` id `14` with 2 requirements
 (REQ-001 id `16`, REQ-002 id `18`), test suite **Suite A** id `20`, test case
 **REQ1596 TC 01** id `21`. Entry:
 `http://localhost:8082/gui/templates/testcases/testSpec.html?tproject_id=13`.
 
 The fix under test is `d270ea7dd` (2 lines, `gui/templates/testcases/testSpec.html:747`
-and `:890`): `ctx.reqEnabled` (never assigned anywhere) → `ctx.options && ctx.options.requirementsEnabled`.
+and `:890`): `ctx.reqEnabled` → `ctx.options && ctx.options.requirementsEnabled`.
+Regression source (checked with git, not assumed): the property *was* assigned in
+`d327ece3a` (`testSpec.html:257 ctx.reqEnabled = !!(r.options && r.options.requirementsEnabled);`),
+and the merge `8038f9670` (2026-09-15) resolved the conflict in favour of the parent that
+lacked it — parent 1 `492b8280c` 0 assignments/0 gates, parent 2 `4673dd4f5` 1/1,
+merge result 0 assignments/1 gate. So the button worked from `d327ece3a` until that merge,
+and #1595 copied the already-broken pattern for the second gate.
 To obtain a true *before* state without touching the default branch, the two gated
 lines were reverted **in the working copy only** (never committed) and the screen was
 hard-reloaded with `ignoreCache`; the working copy was then restored from git and
@@ -22159,12 +22165,12 @@ verified clean (`git status --short gui/templates/testcases/testSpec.html` → e
 - **Expected:** the modal opens with the project's requirement-specification combo, the FREE / ASSIGNED lists, the Assign / Unassign actions and Cancel / Close.
 - **Actual:** modal rendered; `Requirement Specification:` = `[RS1596] - RS1596 Specification`; buttons `Assign`, `Unassign`, `Cancel`, `Close` present. PASS for the opening behaviour.
 - **Follow-up finding (NOT a #1596 regression, filed separately as #1598):** the FREE/ASSIGNED lists are **empty** because `openAssignReqs(tcaseId)` never stores the id in `arqTcaseId` (`testSpec.html:357` vs `:433`), so `arqLoadReqs()` bails at `:383` and the `GET /assign-reqs` call is never issued. Proof that the backend is healthy:
-  `GET /api/requirements/index.php/assign-reqs?req_spec_id=14&tcase_id=21` → `200 {"status":"ok","unassigned":["REQ-001","REQ-002"],"assigned":0}` while the page issued only `assign-reqspecs`. Different root cause, out of scope here → issue **#1598**.
+  `GET /api/requirements/index.php/assign-reqs?req_spec_id=14&tcase_id=21` → `200` with `{"status":"ok","all":[…],"assigned":[],"unassigned":[{"id":16,"doc_id":"REQ-001",…},{"id":18,"doc_id":"REQ-002",…}]}` (each element is an object from `arReqRowToJSON()`, `api/requirements/index.php:2291-2298`; the console probe read the `doc_id` of each) while the page issued only `assign-reqspecs`. Different root cause, out of scope here → issue **#1598**.
 
 ### Test 6 — Event Viewer + console hygiene after the whole pass
 - **Steps:** Re-read the `events` table and the browser console after tests 1-5, on both screens.
 - **Expected:** no new Error/Warning entries, no console errors.
-- **Actual:** `select log_level, count(*) from events group by log_level` → `16 → 9` rows only (INFO/audit; the bulk assign is audited correctly); **0 ERROR, 0 WARNING**; console on `testSpec.html` and on `reqTcBulkAssign.html` → no errors, no warnings. PASS.
+- **Actual:** `select log_level, count(*) from events group by log_level` → `16 → 9` rows only — level 16 is `logger::AUDIT` (`lib/functions/logger.class.php:54`; ERROR is 1, WARNING is 2, INFO is 4), the bulk assign being audited correctly; **0 ERROR, 0 WARNING**; console on `testSpec.html` and on `reqTcBulkAssign.html` → no errors, no warnings. PASS.
 
 **Suite #1596 total: 6/6 PASS (test 5 = PASS for the button/modal opening, with the
 empty-list defect tracked separately as #1598). (Refs #1596)**
