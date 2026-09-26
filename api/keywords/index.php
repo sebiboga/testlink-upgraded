@@ -68,6 +68,45 @@ function needTprojectId() {
  * used to check only the global mgt_modify_key right, so a project-scoped role
  * holding mgt_modify_key but not mgt_view_key could still write keywords.
  */
+/**
+ * Refs #1600: tlKeyword::getErrorMessage() no longer exists after the 2.0.1
+ * refactor (it became tlKeyword::getError(), which returns the symbolic code).
+ * Localized mapping, legacy parity with lib/keywords/keywordsEdit.php::
+ * getKeywordErrorMessage() and the tlKeyword::E_* codes.
+ */
+function kwErrorMessage($code) {
+    switch (intval($code)) {
+        case tlKeyword::E_NAMENOTALLOWED:
+            return lang_get('keywords_char_not_allowed');
+        case tlKeyword::E_NAMELENGTH:
+            return lang_get('empty_keyword_no');
+        case tlKeyword::E_NAMEALREADYEXISTS:
+            return lang_get('keyword_already_exists');
+        case tlKeyword::E_WRONGFORMAT:
+        case tlKeyword::E_DBERROR:
+        default:
+            return lang_get('kw_update_fails');
+    }
+}
+
+/**
+ * Refs #1601: rights are checked for the tproject_id supplied by the caller,
+ * but the keyword is addressed by a bare id, and neither
+ * tlKeyword::writeToDB() (UPDATE ... WHERE id = X) nor
+ * testproject::deleteKeyword() (id only) re-checks testproject_id. Without
+ * this guard a user with keyword rights in project A could rename, re-own or
+ * delete a keyword of project B. 404 (never 403) so the existence of a
+ * foreign keyword is not disclosed.
+ */
+function requireKeywordOfProject($db, $keyword_id, $tproject_id) {
+    $kw = tlKeyword::getByID($db, $keyword_id);
+    if (is_null($kw) || $kw->dbID <= 0 || intval($kw->testprojectID) !== intval($tproject_id)) {
+        http_response_code(404);
+        out(['status' => 'error', 'message' => 'Keyword not found', 'error_code' => 'KW_NOT_FOUND']);
+    }
+    return $kw;
+}
+
 function kwWriteRights($user, $db, $tproject_id) {
     return (bool)$user->hasRight($db, 'mgt_modify_key', $tproject_id)
         && (bool)$user->hasRight($db, 'mgt_view_key', $tproject_id);
@@ -197,6 +236,7 @@ if ($method === 'PUT' && isset($segments[0]) && ctype_digit($segments[0])) {
         http_response_code(403);
         out(['status' => 'error', 'message' => 'No permission', 'error_code' => 'NO_RIGHT']);
     }
+    requireKeywordOfProject($db, intval($segments[0]), $tproject_id);
     $result = $tproject_mgr->updateKeyword(
         $tproject_id,
         intval($segments[0]),
@@ -209,7 +249,7 @@ if ($method === 'PUT' && isset($segments[0]) && ctype_digit($segments[0])) {
     http_response_code(422);
     out([
         'status' => 'error',
-        'message' => tlKeyword::getErrorMessage($result),
+        'message' => kwErrorMessage($result),
         'error_code' => intval($result),
     ]);
 }
@@ -224,6 +264,7 @@ if ($method === 'DELETE' && isset($segments[0]) && ctype_digit($segments[0])) {
         http_response_code(403);
         out(['status' => 'error', 'message' => 'No permission', 'error_code' => 'NO_RIGHT']);
     }
+    requireKeywordOfProject($db, intval($segments[0]), $tproject_id);
     $dko = array('context' => 'getTestProjectName', 'tproject_id' => $tproject_id);
     $result = $tproject_mgr->deleteKeyword(intval($segments[0]), $dko);
     if ($result >= tl::OK) {
