@@ -244,6 +244,12 @@ $KNOWN_TABLES = [
     'executions', 'tcsteps', 'tcversions', 'testcases',
     'requirement_specs', 'req_specs', 'requirements', 'testprojects',
     'testsuites', 'nodes_hierarchy', 'testplans',
+    // Refs #1297 - requirement VERSION sink. Legacy requirement_mgr sets
+    // $this->attachmentTableName = 'req_versions'
+    // (lib/functions/requirement_mgr.class.php:68) and reqView.php:198-209
+    // stores one attachment set per version id, so the Requirement Viewer
+    // uploads/downloads/deletes against req_versions + version id.
+    'req_versions',
 ];
 
 /** @return int the attachment id on success, or exits with an error. */

@@ -4985,5 +4985,21 @@
   "kwedit.msgUpdated": "Palavra-chave atualizada.",
   "kwedit.msgDeleted": "Palavra-chave excluída.",
   "kwedit.msgLinked": "Palavra-chave criada e vinculada ao caso de teste:",
-  "footers.keywordsEdit": "TestLink 2.0.1 - Gestão de palavras-chave"
+  "footers.keywordsEdit": "TestLink 2.0.1 - Gestão de palavras-chave",
+  "reqv.attachments": "Anexos",
+  "reqv.noAttachments": "Sem anexos para esta versão do requisito",
+  "reqv.attFeatureDisabled": "A funcionalidade de anexos está desativada nesta instalação",
+  "reqv.attReadonly": "Somente leitura: enviar e excluir anexos exige o direito de Gestor de Requisitos e uma versão aberta (não congelada)",
+  "reqv.attDelete": "Excluir anexo",
+  "reqv.attDownload": "Baixar",
+  "reqv.attClickToGet": "Clique para obter o anexo",
+  "reqv.attTitle": "Título do anexo",
+  "reqv.attUpload": "Enviar",
+  "reqv.attMaxSize": "Tamanho máximo do arquivo",
+  "reqv.attNoFile": "Escolha um arquivo para enviar",
+  "reqv.attUploadOk": "Anexo enviado",
+  "reqv.attUploadFail": "Falha ao enviar o anexo",
+  "reqv.attDeleteConfirm": "Excluir este anexo?",
+  "reqv.attDeleteOk": "Anexo excluído",
+  "reqv.attDeleteFail": "Falha ao excluir o anexo"
 }

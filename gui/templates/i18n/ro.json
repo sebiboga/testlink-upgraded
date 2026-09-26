@@ -4989,5 +4989,21 @@
   "kwedit.msgUpdated": "Cuvântul cheie a fost actualizat.",
   "kwedit.msgDeleted": "Cuvântul cheie a fost șters.",
   "kwedit.msgLinked": "Cuvântul cheie a fost creat și asociat cazului de test:",
-  "footers.keywordsEdit": "TestLink 2.0.1 - Managementul cuvintelor cheie"
+  "footers.keywordsEdit": "TestLink 2.0.1 - Managementul cuvintelor cheie",
+  "reqv.attachments": "Atașamente",
+  "reqv.noAttachments": "Niciun atașament pentru această versiune a cerinței",
+  "reqv.attFeatureDisabled": "Funcționalitatea de atașamente este dezactivată în această instalare",
+  "reqv.attReadonly": "Doar citire: încărcarea și ștergerea atașamentelor necesită dreptul Manager Cerințe și o versiune deschisă (neînghețată)",
+  "reqv.attDelete": "Șterge atașamentul",
+  "reqv.attDownload": "Descarcă",
+  "reqv.attClickToGet": "Click pentru a obține atașamentul",
+  "reqv.attTitle": "Titlu atașament",
+  "reqv.attUpload": "Încarcă",
+  "reqv.attMaxSize": "Dimensiune maximă fișier",
+  "reqv.attNoFile": "Alegeți un fișier pentru încărcare",
+  "reqv.attUploadOk": "Atașament încărcat",
+  "reqv.attUploadFail": "Încărcarea atașamentului a eșuat",
+  "reqv.attDeleteConfirm": "Ștergeți acest atașament?",
+  "reqv.attDeleteOk": "Atașament șters",
+  "reqv.attDeleteFail": "Ștergerea atașamentului a eșuat"
 }

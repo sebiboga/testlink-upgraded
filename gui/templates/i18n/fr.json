@@ -4979,5 +4979,21 @@
   "kwedit.msgUpdated": "Mot-clé mis à jour.",
   "kwedit.msgDeleted": "Mot-clé supprimé.",
   "kwedit.msgLinked": "Mot-clé créé et lié au cas de test :",
-  "footers.keywordsEdit": "TestLink 2.0.1 - Gestion des mots-clés"
+  "footers.keywordsEdit": "TestLink 2.0.1 - Gestion des mots-clés",
+  "reqv.attachments": "Pièces jointes",
+  "reqv.noAttachments": "Aucune pièce jointe pour cette version de l'exigence",
+  "reqv.attFeatureDisabled": "La fonction pièces jointes est désactivée dans cette installation",
+  "reqv.attReadonly": "Lecture seule : ajouter et supprimer des pièces jointes nécessite le droit Gestionnaire d'exigences et une version ouverte (non gelée)",
+  "reqv.attDelete": "Supprimer la pièce jointe",
+  "reqv.attDownload": "Télécharger",
+  "reqv.attClickToGet": "Cliquez pour obtenir la pièce jointe",
+  "reqv.attTitle": "Titre de la pièce jointe",
+  "reqv.attUpload": "Téléverser",
+  "reqv.attMaxSize": "Taille maximale du fichier",
+  "reqv.attNoFile": "Veuillez choisir un fichier à téléverser",
+  "reqv.attUploadOk": "Pièce jointe téléversée",
+  "reqv.attUploadFail": "Échec du téléversement de la pièce jointe",
+  "reqv.attDeleteConfirm": "Supprimer cette pièce jointe ?",
+  "reqv.attDeleteOk": "Pièce jointe supprimée",
+  "reqv.attDeleteFail": "Échec de la suppression de la pièce jointe"
 }

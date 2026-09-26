@@ -4979,5 +4979,21 @@
   "kwedit.msgUpdated": "Parola chiave aggiornata.",
   "kwedit.msgDeleted": "Parola chiave eliminata.",
   "kwedit.msgLinked": "Parola chiave creata e collegata al caso di test:",
-  "footers.keywordsEdit": "TestLink 2.0.1 - Gestione delle parole chiave"
+  "footers.keywordsEdit": "TestLink 2.0.1 - Gestione delle parole chiave",
+  "reqv.attachments": "Allegati",
+  "reqv.noAttachments": "Nessun allegato per questa versione del requisito",
+  "reqv.attFeatureDisabled": "La funzionalità allegati è disabilitata in questa installazione",
+  "reqv.attReadonly": "Sola lettura: caricare ed eliminare allegati richiede il diritto Gestore Requisiti e una versione aperta (non congelata)",
+  "reqv.attDelete": "Elimina allegato",
+  "reqv.attDownload": "Scarica",
+  "reqv.attClickToGet": "Clicca per scaricare l'allegato",
+  "reqv.attTitle": "Titolo allegato",
+  "reqv.attUpload": "Carica",
+  "reqv.attMaxSize": "Dimensione massima del file",
+  "reqv.attNoFile": "Scegli un file da caricare",
+  "reqv.attUploadOk": "Allegato caricato",
+  "reqv.attUploadFail": "Caricamento dell'allegato non riuscito",
+  "reqv.attDeleteConfirm": "Eliminare questo allegato?",
+  "reqv.attDeleteOk": "Allegato eliminato",
+  "reqv.attDeleteFail": "Eliminazione dell'allegato non riuscita"
 }

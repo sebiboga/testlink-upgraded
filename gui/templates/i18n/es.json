@@ -4979,5 +4979,21 @@
   "kwedit.msgUpdated": "Palabra clave actualizada.",
   "kwedit.msgDeleted": "Palabra clave eliminada.",
   "kwedit.msgLinked": "Palabra clave creada y vinculada al caso de prueba:",
-  "footers.keywordsEdit": "TestLink 2.0.1 - Gestión de palabras clave"
+  "footers.keywordsEdit": "TestLink 2.0.1 - Gestión de palabras clave",
+  "reqv.attachments": "Adjuntos",
+  "reqv.noAttachments": "Sin adjuntos para esta versión del requisito",
+  "reqv.attFeatureDisabled": "La funcionalidad de adjuntos está deshabilitada en esta instalación",
+  "reqv.attReadonly": "Solo lectura: subir y eliminar adjuntos requiere el permiso Gestor de Requisitos y una versión abierta (no congelada)",
+  "reqv.attDelete": "Eliminar adjunto",
+  "reqv.attDownload": "Descargar",
+  "reqv.attClickToGet": "Haga clic para obtener el adjunto",
+  "reqv.attTitle": "Título del adjunto",
+  "reqv.attUpload": "Subir",
+  "reqv.attMaxSize": "Tamaño máximo de archivo",
+  "reqv.attNoFile": "Elija un archivo para subir",
+  "reqv.attUploadOk": "Adjunto subido",
+  "reqv.attUploadFail": "Error al subir el adjunto",
+  "reqv.attDeleteConfirm": "¿Eliminar este adjunto?",
+  "reqv.attDeleteOk": "Adjunto eliminado",
+  "reqv.attDeleteFail": "Error al eliminar el adjunto"
 }
