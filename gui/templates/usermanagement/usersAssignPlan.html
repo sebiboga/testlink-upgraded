@@ -234,22 +234,37 @@ function loadProjects(selectedId, selectedPlanId) {
     buildBulkSelect();
     demoMode = !!(r.demoMode);
     applyDemoMode();
-    // Legacy parity (issue #1631): usersAssign.php:344-409
-    // getTestPlanEffectiveRoles() works on ONE test project - when the caller
-    // has no accessible test project at all, testprojectID resolves to 0,
-    // get_all_testplans(0) is null, the function returns NULL and the page
-    // sets user_feedback = no_test_plans_available (usersAssign.php:109-111),
-    // so $gui->features stays null and the single {if $gui->features neq ''}
-    // guard of the legacy template renders NO controls (usersAssign.tpl:142-295).
-    // Mirror the sibling project screen's showDisabled() branch
-    // (usersAssignProject.html:234-237) and suppress the whole form here too.
+    // Legacy parity (issue #1631): with NO accessible test project there is no
+    // plan to show and no combo to pick from, so the whole form is suppressed
+    // (usersAssign.tpl:142 -> :295). Legacy itself could not render this state
+    // at all: init_args() THROWS "INVALID Test Project ID" for featureType
+    // testplan when the session has no test project (usersAssign.php:173-175),
+    // so the legacy page died with a fatal error. The modern screen degrades
+    // to the same localized "your role configuration does not allow you"
+    // notice (not_for_you == testplan_roles_assign_disabled, usersAssign.php:123-127)
+    // that the sibling project screen already shows for the identical condition
+    // (usersAssignProject.html:235 showDisabled() -> assign.rolesDisabled).
     if (!r.projects || !r.projects.length) {
-      showPlanDisabled(0);
+      showPlanDisabled(0, 'assign.rolesForPlansDisabled');
       return;
     }
-    if (selectedId) { sel.val(selectedId); loadPlans(selectedId, selectedPlanId); }
+    // Legacy parity: usersAssign.php:380-397 - the screen NEVER opens with an
+    // empty context. Only a project present in the (accessible) combo can be
+    // selected; otherwise fall back to the first one, exactly like the sibling
+    // project screen (usersAssignProject.html:238-243). Without this the
+    // ASIDE entry point '?tproject_id=0' (aside.tpl:73 -> getActions(), and the
+    // 'tp || 0' context every tab bar builds) - where params.get() returns the
+    // STRING "0", which is truthy - would select no project, land in
+    // showPlanDisabled() and, with the toolbar suppressed, leave the user with
+    // no way back (issue #1631 review, BLOCKER).
+    var ids = $.map(r.projects, function(p) { return String(p.id); });
+    var pid = (selectedId && $.inArray(String(selectedId), ids) !== -1)
+      ? String(selectedId) : String(r.projects[0].id);
+    sel.val(pid);
+    loadPlans(pid, selectedPlanId);
   }).fail(function(xhr) {
     if (xhr && xhr.status === 403) { showNoAccess(); }
+    else { $('#emptyMsg').show(); }
   });
   $('#projectSelect').on('change', function() {
     var pid = $(this).val();
@@ -265,14 +280,18 @@ function loadProjects(selectedId, selectedPlanId) {
 
 // Legacy parity (issue #1631): counterpart of showPlanDisabled() - re-enable the
 // assignment form after a suppressed state. Every hide done by
-// showPlanDisabled()/showNoProjects() must be undone here, otherwise the
-// in-page project switcher could never bring the toolbar back (usersAssignPlan
-// keeps its own stateful project/plan combos, unlike the legacy page which
-// reloaded). applyDemoMode() also restores the demo banner, the Save button and
-// the demo note in their correct legacy combination (usersAssign.tpl:286-292).
+// showPlanDisabled() must be undone here. NOTE: with the toolbar suppressed the
+// in-page switchers are hidden too, so in practice the suppressed state is left
+// by a page load (ASIDE entry, tab bar, reload) - exactly like the legacy page,
+// which reloaded on every context change. This helper keeps the transitions that
+// do happen within one page load consistent instead of leaving a half-suppressed
+// DOM behind, and it is the single place that re-applies the demo combination
+// (usersAssign.tpl:286-292): the banner, the Save button and the demo note are
+// mutually exclusive, so they must be restored together, never one by one.
 function showAssignForm() {
   $('.toolbar').show();
   $('#projectSelect').prop('disabled', false);
+  $('#denyBox').hide();
   applyDemoMode();
 }
 
@@ -281,7 +300,9 @@ function showAssignForm() {
 // page shows no_test_plans_available; with active plans but none assignable it
 // shows testplan_roles_assign_disabled. Both replace the assign form with the
 // localized notice (usersAssignProject.html:242-250 pattern, issue #937).
-function showPlanDisabled(totalPlans) {
+// noticeKey forces a specific notice, for the states that are not driven by a
+// plan count (see the no-accessible-project call in loadProjects()).
+function showPlanDisabled(totalPlans, noticeKey) {
   // Legacy parity (issue #1631): the whole assignment form - Test Project combo,
   // Test Plan combo, "Set roles to" combo, Do button, grid and Save - lives
   // inside ONE {if $gui->features neq ''} ... {/if} block of the legacy template
@@ -296,8 +317,6 @@ function showPlanDisabled(totalPlans) {
   // it: the warn_demo note lived INSIDE that guard (usersAssign.tpl:286-292),
   // so legacy rendered no demo note at all in this state - same pairing
   // #1621 established on the project screen.
-  // The state is RECOVERABLE here (usersAssignPlan.html keeps its own project
-  // switcher), so every path that leaves it must call showAssignForm() below.
   $('#demoBanner').hide();
   $('.toolbar').hide();
   // Legacy parity: the form is not rendered at all in this state, so no control
@@ -305,10 +324,14 @@ function showPlanDisabled(totalPlans) {
   // screen's showDisabled(), usersAssignProject.html:290).
   $('#projectSelect').prop('disabled', true);
   $('#planSelect').empty().prop('disabled', true);
+  // Drop the DataTables handle BEFORE emptying the tbody it wraps, otherwise a
+  // later render would destroy a DataTable over a hand-emptied body.
+  if (assignDt) { assignDt.destroy(); assignDt = null; }
   $('#assignBody').empty();
   $('#assignTable').hide();
   $('#emptyMsg').hide();
-  $('#disabledMsgTxt').text(TLi18n.t((totalPlans > 0) ? 'assign.rolesForPlansDisabled' : 'assign.noUsablePlans'));
+  $('#disabledMsgTxt').text(TLi18n.t(noticeKey ||
+    ((totalPlans > 0) ? 'assign.rolesForPlansDisabled' : 'assign.noUsablePlans')));
   $('#disabledMsg').show();
   $('#demoNote').hide();
   $('#footerText').empty();
@@ -493,12 +516,12 @@ function renderUsersTable(keep) {
 
 function loadUsers(pid, planId) {
   currentProject = pid; currentPlan = planId;
-  // A suppressed state (showPlanDisabled - no assignable plan, issue #1631) must
-  // be lifted as soon as a real plan context is loaded, otherwise the toolbar
-  // would stay hidden for the rest of the page life.
-  showAssignForm();
   $('#saveBtn').prop('disabled', true);
   $.getJSON(API + '/meta/tplan-roles?tproject_id=' + pid + '&tplan_id=' + planId, function(r) {
+    // A suppressed state (showPlanDisabled - no assignable plan, issue #1631) is
+    // lifted here, once a real plan context really loaded: doing it before the
+    // request would flash the toolbar on a load that ends in a 403/deny box.
+    showAssignForm();
     roles = r.roles || roles;
     buildBulkSelect();
     demoMode = !!(r.demoMode);

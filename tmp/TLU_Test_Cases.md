@@ -23559,3 +23559,101 @@ pre-fix baseline 4 FAIL / exit 1.**
 **Screenshots:** none attached — the defect is invisible in the UI (it only ever
 appeared in the Event Viewer), so the evidence is the `events`-table counts recorded
 above. Browser pass is documented in row #17.
+
+## Task — Issue #1631: suppress the whole assignment toolbar in the no-assignable-plans state (Assign Test Plan Roles)
+
+**Feature implemented** (Refs #1631, branch `task/issue-1631`, commits `73f35d580` + the
+post-code-review fixup).
+Legacy references: `gui/templates/dashio/usermanagement/usersAssign.tpl:142`
+(`{if $gui->features neq ''}`) … `:295` (`{/if}`) — the *entire* assignment form is one
+guarded block; `lib/usermanagement/usersAssign.php:123-127` (empty features →
+`not_for_you` == `testplan_roles_assign_disabled`) and `:109-111` (NULL features →
+`no_test_plans_available`, i.e. the project has no ACTIVE plan at all).
+Modern: `gui/templates/usermanagement/usersAssignPlan.html` — `showPlanDisabled()` now
+hides `#demoBanner` + `.toolbar`, disables both combos and drops the DataTables handle;
+`loadProjects()` gained the `projects.length === 0` branch; new `showAssignForm()` is the
+restore counterpart; and `loadProjects()` now validates the requested project (the ASIDE
+entry point passes the *string* `tproject_id=0`, which is truthy — see row #15).
+BFF untouched — `api/roles/index.php:870-912` already answers `plans: []` / `projects: []`
+exactly like legacy.
+
+**Precondition**
+
+```bash
+php tmp/fixtures_1631.php   # private project T1631P (prefix T16) + ACTIVE plan T1631P-P1
+                             # role rm1631 (role_management only)                   -> user u1631b/testlink
+                             # role pm1631 (role_management + user_role_assignment) -> user u1631a/testlink
+```
+
+**Entry points** (hit `http://localhost:8082/logout.php` FIRST when switching users —
+TestLink ignores a login POST over a live session; if the click does not navigate, drive
+the form from the console: `f.querySelector('input[type=text]').value=…; f.submit()`):
+
+* state A (project visible, no assignable plan) → `u1631a`/`testlink` → `…/usersAssignPlan.html?tproject_id=<T1631P id>` or the ASIDE URL `?tproject_id=0&tplan_id=0`
+* state B (no accessible project at all) → `u1631b`/`testlink` → same ASIDE URL
+* normal state / recovery probes → `admin`/`admin` → same URLs
+
+| # | Step | Expected | Observed | Result |
+|---|---|---|---|---|
+| 1 | Baseline BEFORE the fix (issue INVESTIGATION): `u1631a` loads the screen | legacy: title + menu + notice only; modern kept the toolbar | `.toolbar` ON-SCREEN, `#bulkRoleSelect` ON-SCREEN **11 options**, `#bulkDoBtn` ON-SCREEN `disabled=false`, `#disabledMsg` ON-SCREEN, grid hidden; BFF `plans:[] totalPlans:1 projects:1` | **GAP CONFIRMED** |
+| 1b | Clicking the enabled "Do" in that state | nothing can happen (empty row set) | `applyBulkRole()` re-rendered 1 hidden `assign.noUsers` row, no assignment, no toast | **GAP CONFIRMED** |
+| 1c | Baseline BEFORE the fix: `u1631b` loads the screen | legacy: one message | `.toolbar` ON-SCREEN, `#projectSelect` ENABLED with 1 placeholder option, 11-option role combo, enabled Do, and **neither** `#disabledMsg` **nor** `#emptyMsg` (blank work area); BFF `projects:[]` | **GAP CONFIRMED** |
+| 2 | `u1631a` after the fix | whole form suppressed, notice + tab bar remain | `toolbarVisible:false`, `doBtnVisible:false`, `disabledMsgVisible:true`, text "Your role configuration do not allow you Assign Roles for Test Plans", `tabsVisible:true` | **PASS** |
+| 3 | `u1631b` after the fix | whole form suppressed + a localized notice (legacy threw here — see gotcha) | `toolbarVisible:false`, `projectSelDisabled:true`, `disabledMsgVisible:true`, `tabsVisible:true` | **PASS** |
+| 4 | Same page after a hard reload | the suppression is not a one-shot DOM artefact | identical measurements to #2 (state A) and #3 (state B) | **PASS** |
+| 5 | No dead control is left clickable | 0 rows and no visible trigger | `#bulkDoBtn` `getBoundingClientRect()` = `[0,0]`, `offsetParent === null`, 0 grid rows | **PASS** |
+| 6 | Regression, normal state: `admin` on project `<T1631P>` / plan | toolbar + grid fully working | `toolbarVisible:true`, `projectVal` set, `planVal` set, `planDisabled:false`, 3 rows, 11 bulk options, no notice, footer "3 users" | **PASS** |
+| 7 | **Recovery** as `admin`: force `showPlanDisabled(0)`, then re-select the project | no in-page transition may leave a half-suppressed DOM | suppressed `{toolbar:false,msg:true,rows:0}` → `$('#projectSelect').val(id).trigger('change')` ⇒ `{toolbar:true,msg:false,rows:3}` | **PASS** |
+| 8 | **Recovery** as `admin`: force `showPlanDisabled(0)`, then clear the project combo | toolbar back + empty hint | `toolbar:true`, `emptyMsg:true`, `projectDisabled:false`, `planDisabled:true` | **PASS** |
+| 9 | Regression, bulk "Do" + Save | non-admin rows take the role, admin row protected, write persists | model `[admin:0 (skipped), u1631a:7, u1631b:7]`, `isDirty():true`, Save enabled, toast "User Roles updated"; SQL `user_testplan_roles` = 2 rows with `role_id=7` | **PASS** |
+| 10 | Regression, demoMode pairing (`demoMode=true; applyDemoMode()`) | banner + note go down and come back **with** the toolbar | demo on `{banner:true,save:false,note:true}` → suppressed `{banner:false,toolbar:false,note:false}` → recovered `{banner:true,toolbar:true,note:true,save:false}` | **PASS** |
+| 11 | Regression, sibling `usersAssignProject.html` (file untouched) | unchanged | `toolbarVisible:true`, 3 rows, `disabledMsg:false`, project selected | **PASS** |
+| 12 | i18n | no new user-facing string ⇒ no new key required | both notices reuse `assign.rolesForPlansDisabled` / `assign.noUsablePlans`; `python3 -m json.tool` valid for all 10 bundles and both keys present in de,en,es,fr,it,ja,pt,ro,ru,zh | **PASS** |
+| 13 | Syntax gates | clean | `node --check` on the extracted inline script **OK**; `php -l tmp/fixtures_1631.php` **No syntax errors** | **PASS** |
+| 14 | Event Viewer (`events` table) after the whole pass | no new Error/Warning | browser phases (`fired_at >= 1790464400`): **only `log_level=16` (INFO)**. The `log_level in (1,2)` rows (ids 11-29) carry `fired_at` 1790464349-1790464393 and were produced by **my own first, buggy fixture iterations**, before the fixed screen was ever loaded | **PASS** |
+| 15 | **Review regression** the ASIDE entry point `?tproject_id=0&tplan_id=0` as `admin` (BLOCKER found by the code review of commit 1) | the truthy string `"0"` must not select a bogus project; legacy never opens with an empty context (`usersAssign.php:380-397`) | `toolbarVisible:true, projectVal:"14", planVal:"15", rows:3, disabledMsg:false` — falls back to the first accessible project | **PASS** |
+| 16 | **Review regression** the same ASIDE URL as `u1631a` / `u1631b` | suppressed state still reached correctly through the ASIDE URL | both: `toolbarVisible:false`, notice ON-SCREEN, `tabsVisible:true`, `#bulkDoBtn` rect `[0,0]` | **PASS** |
+| 17 | **Review regression** notice in the no-accessible-project state | `not_for_you` (same as the sibling project screen for the identical condition) | "Your role configuration do not allow you Assign Roles for Test Plans" | **PASS** |
+| 18 | **Review nit** `.show()` on the `display:flex` `.toolbar` | the flex layout must be restored, not flattened to `block` | after `showAssignForm()`: inline `style.display === ""`, computed `flex` | **PASS** |
+
+**Result: 15 PASS / 0 FAIL** (rows #1/#1b/#1c are the pre-fix baseline, not tests of the fix).
+
+**Code review of the first commit (subagent) and how each finding was resolved**
+
+| Severity | Finding | Resolution |
+|---|---|---|
+| BLOCKER | `?tproject_id=0` (ASIDE `aside.tpl:73` → `getActions()`, and every tab bar's `tp \|\| '0'`) passes the truthy string `"0"` → no project selected → suppressed toolbar → dead page, a regression versus the pre-fix toolbar | row #15/#16: `loadProjects()` validates the requested project against the accessible list and falls back to the first, like `usersAssignProject.html:238-243` |
+| MAJOR | the "the switchers can always bring the toolbar back" claim is false — the switchers live inside the hidden toolbar | wording corrected in code, commit message, CHANGELOG and docs; the real escapes are the page load / tab bar / reload, exactly as in legacy |
+| MAJOR | the `projects: []` notice was sold as legacy parity, but `init_args()` (`usersAssign.php:173-175`) **throws** `"INVALID Test Project ID"` when the session has no test project | the branch now shows `not_for_you` (row #17) and the divergence is documented |
+| MINOR | stale DataTables instance in the suppressed state | `assignDt.destroy()` added to `showPlanDisabled()` |
+| MINOR | `showAssignForm()` did not clear `#denyBox` | added |
+| MINOR | non-403 failures left a live toolbar over a blank area | `else { $('#emptyMsg').show(); }` added, like the sibling screen |
+| MINOR | `showAssignForm()` ran on `loadUsers()` entry, flashing the toolbar before a possible 403 | moved into the success callback |
+| MINOR | comments referenced a non-existent `showNoProjects()` and a "below" declaration that is above | corrected |
+| NIT | `.show()` on `display:flex` | verified not a regression (row #18) |
+
+**Gotchas recorded for the next agent**
+
+- **`$db->exec_query("SELECT id …")` returns a record set, not an int.** `intval()` on it = **1**,
+  so a reset block written as `DELETE FROM users WHERE id = intval(exec_query(...))` silently
+  deletes **user id 1 (admin)**. Resolve ids through a helper that returns 0 when there is no row.
+- This run's freshly imported DB shipped an `admin` row whose bcrypt hash does **not** verify
+  `admin`; `admin`/`admin` failed with "Invalid login or password" until it was restored locally
+  with `UPDATE users SET password=password_hash('admin') WHERE login='admin'`. Verify the admin
+  login before trusting a 401/403 in a fresh run.
+- **`params.get('tproject_id')` returns a STRING**, so `if (selectedId)` is TRUE for
+  `?tproject_id=0` — the ASIDE entry of every User-Management screen. Any screen that
+  auto-selects a context must validate the id against the fetched list.
+- The suppressed state hides the switchers it contains, so it is left by a **page load**
+  (ASIDE entry, tab, reload) — legacy-faithful, since the legacy page reloaded on every change.
+  Rows #7/#8 therefore force the state from the console to prove the restore helper works.
+
+**Screenshots:** `docs/screenshots/issue-1631-before-toolbar-live.png`,
+`docs/screenshots/issue-1631-before-no-projects.png` (pre-fix states A and B) and
+`docs/screenshots/issue-1631-after-toolbar-suppressed.png`,
+`docs/screenshots/issue-1631-after-no-projects.png` (post-fix, re-taken after the review fixup).
+
+---
+
+---
+

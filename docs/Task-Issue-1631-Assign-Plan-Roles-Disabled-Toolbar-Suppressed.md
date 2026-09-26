@@ -1,7 +1,7 @@
 # Task 1631 — Suppress the whole assignment toolbar in the no-assignable-plans state (gap vs legacy)
 
 **Issue:** [#1631](https://github.com/sebiboga/testlink-upgraded/issues/1631)
-**Status:** IMPLEMENTED & VERIFIED (2026-09-26) — branch `task/issue-1631`, commit `73f35d580`
+**Status:** IMPLEMENTED & VERIFIED (2026-09-26) — branch `task/issue-1631`, commits `73f35d580` + the post-code-review fixup (see *Code review* below)
 **Screen:** `gui/templates/usermanagement/usersAssignPlan.html` (Assign Test Plan Roles)
 **BFF:** unchanged — `api/roles/index.php:870-912` already reported the legacy-equivalent `plans: []` / `projects: []`
 **i18n:** unchanged — no new user-facing string (both notices reuse existing localized keys)
@@ -24,8 +24,8 @@ one — the shared `usersAssign.tpl` served both the project and the plan contex
 Controller side (`lib/usermanagement/usersAssign.php`, `case 'testplan'`):
 
 * `:109-111` — `getTestPlanEffectiveRoles()` returned NULL ⇒ `user_feedback = no_test_plans_available`.
-  That happens when the caller has **no test project holding a usable active plan**
-  (no accessible project ⇒ `testprojectID` resolves to 0 ⇒ `get_all_testplans(0)` is null).
+  It returns NULL only when `get_all_testplans()` is null, i.e. the project in the session
+  has **no active plan at all**.
 * `:123-127` — `count($gui->features) == 0` ⇒ `user_feedback = $gui->not_for_you`
   (= `testplan_roles_assign_disabled`): active plans exist, but the caller cannot assign
   roles on any of them.
@@ -48,7 +48,7 @@ rendered **title + menu + that single message and no controls whatsoever**.
 | `#bulkDoBtn` | ON-SCREEN, `disabled === false` | **NOT-RENDERED** | ON-SCREEN, `disabled === false` | **NOT-RENDERED** |
 | `#bulkRoleSelect` | 11 role options | — (hidden) | 11 role options | — (hidden) |
 | `#projectSelect` | ON-SCREEN, `T1631P` selected | hidden + **disabled** | ON-SCREEN, 1 placeholder option | hidden + **disabled** |
-| `#disabledMsg` | ON-SCREEN, `…do not allow you Assign Roles for Test Plans` | ON-SCREEN (same) | **NOT-RENDERED** | ON-SCREEN, `There are no usable test plans on this test project` |
+| `#disabledMsg` | ON-SCREEN, `…do not allow you Assign Roles for Test Plans` | ON-SCREEN (same) | **NOT-RENDERED** | ON-SCREEN, `…do not allow you Assign Roles for Test Plans` (see the code-review table: `not_for_you`, the same notice the sibling project screen uses) |
 | `#tabsBar` | ON-SCREEN | ON-SCREEN (legacy menu outside the guard) | ON-SCREEN | ON-SCREEN |
 
 BFF answers that drive it (no BFF change needed):
@@ -68,22 +68,64 @@ All in `gui/templates/usermanagement/usersAssignPlan.html` (+50 lines, 0 deletio
    plus `#projectSelect.prop('disabled', true)`. The demo banner goes with the toolbar because the
    legacy `warn_demo` note sat *inside* the same guard (`usersAssign.tpl:286-292`) — the pairing #1621
    established. The tab bar stays: legacy kept its menu outside the guard.
-2. **New `projects.length === 0` branch in `loadProjects()`** — enters the same state, passing
-   `totalPlans = 0` so the notice is `assign.noUsablePlans`, which is the **verbatim** legacy string
-   of `$TLS_no_test_plans_available` (`locale/en_US/strings.txt:2151`).
-3. **New `showAssignForm()` recovery helper** — `$('.toolbar').show(); $('#projectSelect').prop('disabled', false); applyDemoMode();`
+2. **New `projects.length === 0` branch in `loadProjects()`** — enters the same state. It passes the
+   `assign.rolesForPlansDisabled` notice explicitly, because this state has no legacy rendering at
+   all (legacy threw, see the review table) and the closest reachable legacy message is `not_for_you`
+   — the very one the sibling project screen shows for the identical condition
+   (`usersAssignProject.html:235` → `assign.rolesDisabled`). The plan-count-driven message
+   `assign.noUsablePlans` (= the verbatim legacy `$TLS_no_test_plans_available`,
+   `locale/en_US/strings.txt:2151`) is kept for the genuine "no active plan" case, where legacy
+   did render it.
+3. **New `showAssignForm()` recovery helper** — `$('.toolbar').show(); $('#projectSelect').prop('disabled', false); $('#denyBox').hide(); applyDemoMode();`
    wired into **every** transition out of the suppressed state: `loadPlans()` success,
-   `loadUsers()` entry, the project `change` handler's empty-value branch and the plan
-   `change` handler's empty-value branch.
+   `loadUsers()` **success callback** (not on entry, so a 403 can still end in the deny
+   box), the project `change` handler's empty-value branch and the plan `change`
+   handler's empty-value branch.
+4. **`loadProjects()` validates the requested project** (see the review section below) —
+   the ASIDE/tab entry point passes the *string* `tproject_id=0`, which is truthy, so
+   without validation it selected no project, landed in the suppressed state and, with
+   the toolbar hidden, left the user with no way out. It now falls back to the first
+   accessible project, exactly like `usersAssignProject.html:238-243` and legacy
+   `usersAssign.php:380-397`.
+5. **The DataTables handle is dropped** in `showPlanDisabled()` before the `<tbody>` is
+   emptied, so a later render can never destroy a DataTable over a hand-emptied body.
+6. **A non-403 failure of the meta read** now shows `#emptyMsg` instead of leaving a live
+   toolbar over a blank area — the same `else` branch the sibling screen has
+   (`usersAssignProject.html:247`).
 
-### Why the recovery helper is mandatory (the issue's core warning)
+### Why the recovery helper exists (and what it does *not* promise)
 
-Copying #1621's one-liner verbatim **would have been a regression here**: the plan screen keeps its
-own in-page project/plan switchers, while the legacy page reloaded on every change. A one-way hide
-would leave a user who landed on a plan-less project with a permanently blank page. That is why the
-hide is paired with `showAssignForm()` on all four leave-paths, and why the helper routes through
-`applyDemoMode()` instead of a bare `.show()` — the demo banner, the Save button and the `demoNote`
-must be restored together (they are mutually exclusive in legacy).
+The issue correctly warned that #1621's one-liner could not simply be copied here, because this
+screen keeps its own in-page project/plan switchers while the legacy page reloaded on every
+context change. `showAssignForm()` therefore restores the form on **every** in-page transition
+that leaves the suppressed state, and routes through `applyDemoMode()` instead of a bare
+`.show()` — the demo banner, the Save button and the `demoNote` are mutually exclusive in legacy
+and must be restored together.
+
+Honest scope statement (corrected by the code review of this run): with the toolbar suppressed,
+the switchers it contains are hidden too, so in practice the suppressed state is left by a **page
+load** — the ASIDE entry, a tab, a reload — which is exactly what legacy did. The helper's real
+value is that no in-page transition can leave a *half*-suppressed DOM behind, and that the demo
+triple is restored atomically. It is **not** a claim that the hidden switchers themselves can
+revive the form; the code review of the first commit pointed this out and the commit message,
+CHANGELOG and this page were corrected accordingly.
+
+### Code review findings that were fixed before landing
+
+An independent subagent review of `73f35d580` returned one BLOCKER, two MAJOR and several MINOR
+findings; the following were fixed in the follow-up commit:
+
+| Severity | Finding | Resolution |
+|---|---|---|
+| **BLOCKER** | `?tproject_id=0` — the ASIDE entry point (`aside.tpl:73` → `getActions()`) and every tab bar (`tp \|\| '0'`) pass the **string** `"0"`, which is truthy, so `loadProjects()` selected no project → `showPlanDisabled()` → toolbar hidden → **permanently dead page** (a regression versus the pre-fix toolbar) | requested project is now validated against the accessible list and falls back to the first one (`loadProjects()`), like the sibling screen |
+| **MAJOR** | the "recovery" guarantee was overstated (see above) | wording corrected in the code, commit message, CHANGELOG and this page |
+| **MAJOR** | the `projects: []` notice was claimed as legacy parity, but `init_args()` (`usersAssign.php:173-175`) **throws** `"INVALID Test Project ID"` when the session has no test project, so legacy never rendered that state | the branch now shows the `not_for_you` notice — the same one the sibling project screen shows for the identical condition — and the divergence is documented as intentional |
+| MINOR | stale DataTables instance in the suppressed state | `assignDt.destroy()` added to `showPlanDisabled()` |
+| MINOR | `showAssignForm()` did not clear `#denyBox` | added |
+| MINOR | non-403 failures of the meta read left a live toolbar over a blank area | `else { $('#emptyMsg').show(); }` added, like the sibling screen |
+| MINOR | `showAssignForm()` ran on `loadUsers()` **entry**, flashing the toolbar before a 403 could still deny | moved into the success callback |
+| MINOR | comments referenced a non-existent `showNoProjects()` and a "below" declaration that is above | corrected |
+| NIT | `.show()` on a `display:flex` element | verified **not** a regression: jQuery restores the stylesheet `display` (`.toolbar` measured back as `flex`, inline `""`) |
 
 ### No i18n change
 
@@ -92,7 +134,7 @@ The two notices are the **existing** localized keys:
 `assign.noUsablePlans` (= `$TLS_no_test_plans_available`, identical English text). No new string, so
 nothing to add to the ten bundles.
 
-## Verification (regression suite 1631 — 11 PASS / 0 FAIL)
+## Verification (regression suite 1631 — 14 PASS / 0 FAIL)
 
 | # | Case | Measured |
 |---|---|---|
@@ -143,8 +185,10 @@ over a live session):
   enabled "Do".
 * `docs/screenshots/issue-1631-before-no-projects.png` — **before**: `u1631b` sees a live toolbar
   over a completely blank work area, no notice at all.
-* `docs/screenshots/issue-1631-after-toolbar-suppressed.png` — **after**, state A.
-* `docs/screenshots/issue-1631-after-no-projects.png` — **after**, state B.
+* `docs/screenshots/issue-1631-after-toolbar-suppressed.png` — **after**, state A (re-taken after
+  the code-review fixup).
+* `docs/screenshots/issue-1631-after-no-projects.png` — **after**, state B (re-taken after the
+  code-review fixup, so it shows the corrected `not_for_you` notice).
 
 Test suite: `tmp/TLU_Test_Cases.md`, section
 *Task — Issue #1631: suppress the whole assignment toolbar in the
