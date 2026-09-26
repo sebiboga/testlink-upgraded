@@ -23657,3 +23657,85 @@ the form from the console: `f.querySelector('input[type=text]').value=…; f.sub
 
 ---
 
+
+## Suite 1638 — Attachment Delete standalone popup + `api/attachmentsdelete` BFF
+
+**Precondition**
+
+- App on `http://localhost:8082` (PHP 8.3 built-in server, docroot = repo root),
+  MariaDB `testlink` on `127.0.0.1:3306` (`testlink`/`testlink`), login `admin`/`admin`.
+- Fixture: **`php tmp/fixtures_1638.php`** — drops and rebuilds a disposable
+  project so the suite is re-runnable; prints
+  `FIXTURE_OK tproject=… tplan=… suite=… tcase=… tcv=… exec=… att_tc=… att_exec=… att_plan=…`.
+  **Ids change on every run — never hardcode them** (`att_exec` also contains the
+  substring `exec`, so naive `sed 's/.*exec=\([0-9]*\).*/\1/p'` silently returns
+  the attachment id; the harness anchors on `[[:space:]]exec=`).
+- Asserting harness: **`bash tmp/verify_1638.sh`** — **95 assertions**, non-zero
+  exit on failure, `trap … EXIT` restores `config.inc.php`.
+  Discriminating: **56 PASS / 39 FAIL** against the pre-fix revision
+  (`07783cf82`), **95 PASS / 0 FAIL** after the fixes.
+
+**Result: 95 PASS / 0 FAIL.**
+
+| # | Area | Assertion | Result |
+|---|---|---|---|
+| 1 | fixture | `FIXTURE_OK` with all 9 ids | **PASS** |
+| 2 | auth #1639 | cookie-less `action=init` → **401** `NOT_AUTHENTICATED` | **PASS** |
+| 3 | auth #1639 | cookie-less `action=delete` (with `X-Requested-With`) → **401** | **PASS** |
+| 4 | auth #1639 | the row survives the anonymous delete attempt | **PASS** |
+| 5 | auth | a fresh `curl` session without login → 401; after `tl_login=admin&tl_password=admin` → 200 | **PASS** |
+| 6 | init | test case attachment: `title`, `file_name`, `file_size` 21, `owner_table=nodes_hierarchy`, `owner_id=<tcase>` | **PASS** |
+| 7 | init | test case owner label = `Test case #<id> - ADEL test case` (node_type_id 3) | **PASS** |
+| 8 | init | execution owner label = `Execution #<id>` | **PASS** |
+| 9 | init | test plan owner label = `<plan name> #<id>`, `owner_table=testplans` | **PASS** |
+| 10 | init | `download_url=/api/attachments/index.php?action=download&id=N`, `legacy_code=ADEL-01`, `Content-Type: application/json; charset=utf-8` | **PASS** |
+| 11 | ownership | wrong `fk_id` → 403 `ATTACHMENT_NOT_ALLOWED`; wrong `table` → 403 | **PASS** |
+| 12 | ownership | `table` without `fk_id` → 403; `fk_id` without `table` → 403 (no half-proof) | **PASS** |
+| 13 | validation | no `id` → 400 `INVALID_ID`; `id=abc` → 400; `id=0` → 400; `id=999999` → 404 `ATTACHMENT_NOT_FOUND` | **PASS** |
+| 14 | validation | `action=bogus` → 400 `UNKNOWN_ACTION` | **PASS** |
+| 15 | verbs | `GET ?action=delete` → 405 `METHOD_NOT_ALLOWED` **and the row is untouched** (the legacy page deleted on GET) | **PASS** |
+| 16 | verbs | `POST ?action=init` → 405 | **PASS** |
+| 17 | CSRF | POST without same-origin proof → **403**; with `Origin: https://evil.invalid` → **403**; with same-origin `Referer` → 200 and the row is gone | **PASS** |
+| 18 | CSRF | re-init after delete → 404; delete again → 404; delete with a wrong owner → 403 | **PASS** |
+| 19 | delete | 200 `{status:ok, deleted_id, title, legacy_code:ADEL-03}` | **PASS** |
+| 20 | delete | the DB row is gone **and** the file is unlinked from `upload_area` | **PASS** |
+| 21 | audit | exactly one `log_level=16 / object_type=attachments / activity=DELETE` row, description carrying `audit_attachment_deleted` | **PASS** |
+| 22 | audit | 4 DELETE rows after the full run (plan + test case + execution + re-enabled) | **PASS** |
+| 23 | disabled | `config_get('attachments')->enabled=FALSE` → init **and** delete both 403 `ATTACHMENTS_DISABLED` | **PASS** |
+| 24 | disabled | `config.inc.php` restored (clean `git status`) and the endpoint answers 200/200 again — needs `sleep 3`, `opcache.revalidate_freq=2` | **PASS** |
+| 25 | shim | `lib/attachments/attachmentdelete.php` anonymous → `login.php?note=expired&destination=…` script (same contract as the other screens) | **PASS** |
+| 26 | shim | authenticated → **302** to `attachmentDelete.html` forwarding `id`, `table` and `fk_id` | **PASS** |
+| 27 | shim | the shim GET **no longer deletes** anything | **PASS** |
+| 28 | wiring | `inc_attachments.tpl` + `attachments.inc.tpl` (dashio **and** tl-classic) all forward the owner | **PASS** |
+| 29 | wiring | `testlink_library.js` builds `&table=` and `&fk_id=`; `$actions->attachmentDelete` present; the shim contains no destructive call | **PASS** |
+| 30 | BFF guards | POST-only, `NOT_AUTHENTICATED` guard present, `bffEnforceSession()` called | **PASS** |
+| 31 | i18n | 29 `adel.*` keys, 17 used by the screen, **identical key set in all 10 bundles**, every used key defined in each of them, all 10 files valid JSON | **PASS** |
+| 32 | markup | standalone DOCTYPE, single `API` entry point, `data-i18n` + English fallback on title/button/footer, no `{include` (no Smarty), no legacy delete URL, no inline `onerror=`, no `alert(`/hardcoded error text | **PASS** |
+| 33 | Event Viewer | **no new `log_level IN (1,2)` row** (FATAL/ERROR) produced by the whole suite | **PASS** |
+
+**Browser (Chrome, real clicks) — the harness cannot prove rendering**
+
+| # | Step | Observed | Result |
+|---|---|---|---|
+| B1 | open `attachmentDelete.html?id=<att>&table=nodes_hierarchy&fk_id=<tc>` | teal header, object `Test case #86 - ADEL test case`, 6 detail rows, download link, Refresh + locale switcher | **PASS** |
+| B2 | screenshot with the raw key bug present | button read `adel.deleteBtn` → caught, fixed, re-shot | **PASS** |
+| B3 | click **Delete attachment** | button disabled, action card hidden, teal check state `Done / The file has been removed from the server. / ADEL-03` | **PASS** |
+| B4 | `?id=9999&…&locale=ro` | `Atașament inexistent` + `Acest atasament nu mai exista.` + `ATTACHMENT_NOT_FOUND`, all Romanian, title bar `Șterge atasament` | **PASS** |
+| B5 | mismatched owner (`table=executions` on a test case attachment) | `Not allowed / This attachment does not belong to the object in context.` | **PASS** |
+| B6 | no `id` at all | `Nothing selected / No attachment selected. / ADEL-00` | **PASS** |
+| B7 | anonymous (isolated cookie-less context) | `401` surfaced as the session card, no data rendered | **PASS** |
+| B8 | attachments disabled (temporary `config.inc.php` toggle, reverted with `git checkout`) | `Attachments disabled / Attachments are disabled on this installation.` | **PASS** |
+| B9 | `attachmentUpload.html?id=<tc>&table=nodes_hierarchy` (regression) | lists `ADEL-1638-testcase`, `21 B`, `(nodes_hierarchy #86)`, `1.0 MB`; `api/attachments?action=list` still 200 for 2 owner kinds | **PASS** |
+| B10 | cookie-less `POST …?action=delete` from DevTools | before the fix: attachment **deleted**; after: `401 NOT_AUTHENTICATED` | **PASS** |
+
+**Bugs found while testing** (each with its own pushed commit)
+
+| # | Bug | Commit | Issue |
+|---|---|---|---|
+| 1 | BFF had no session-auth check → anonymous delete | `e5c402ad7` | #1639 |
+| 2 | `getAttachmentInfo()` is a flat hash, `$info[0]` emptied the proof → every attachment 403 + 4 `E_WARNING` rows | `e5c402ad7` | #1638 |
+| 3 | slim schema (`nodes_hierarchy` without `tc_external_id`/`testproject_id`) killed the owner-label queries | `e5c402ad7` | #1638 |
+| 4 | Delete button used the undefined key `adel.deleteBtn` | `e5c402ad7` | #1638 |
+| 5 | `attachments.inc.tpl` lost the owner context → delete impossible from tcView/planEdit/reqSpecView | `9dcf71d9c` | #1640 |
+| 6 | a file already removed by hand reported a spurious 500 although the row was gone | `e5c402ad7` | #1638 |
+| 7 | a test **suite** attachment was labelled `Test case #id` | `c6bb0d8f9` | #1638 |
