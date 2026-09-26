@@ -210,9 +210,25 @@ $(function () {
     TLi18n.apply();
     TLi18n.initLocaleSwitcher('#localeSwitcher');
     $('#fileSizeNote').text(TLi18n.t('kw.maxFileSize'));
+    showShimResult();
     load();
   });
 });
+
+// Refs #1604: the legacy shim (lib/keywords/keywordsEdit.php) answers a
+// rejected POST with a redirect back to this page carrying ?kwerr=<tlKeyword
+// error code>. Without this the user saw nothing at all, so surface it.
+function showShimResult() {
+  var p = new URLSearchParams(window.location.search);
+  var code = p.get('kwerr');
+  if (code === null || code === '') { return; }
+  var msg = errorCodeToMessage(code, TLi18n.t('common.error'));
+  if (msg) { toast(msg, true); }
+  if (window.history && window.history.replaceState) {
+    window.history.replaceState({}, document.title,
+      window.location.pathname + window.location.search.replace(/[?&]kwerr=[^&]*/, ''));
+  }
+}
 
 function esc(s) {
   return String(s == null ? '' : s)

@@ -4984,6 +4984,7 @@
   "kwedit.errAlreadyExists": "Există deja un cuvânt cheie cu acest nume.",
   "kwedit.errUpdateFails": "Actualizarea cuvântului cheie a eșuat.",
   "kwedit.errDeleteBlocked": "Cuvântul cheie este asociat unor cazuri de test executate sau înghețate.",
+  "kwedit.showEventHistory": "Afișează istoricul evenimentelor",
   "kwedit.msgSaved": "Cuvântul cheie a fost creat.",
   "kwedit.msgUpdated": "Cuvântul cheie a fost actualizat.",
   "kwedit.msgDeleted": "Cuvântul cheie a fost șters.",

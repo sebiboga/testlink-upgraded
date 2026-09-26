@@ -533,8 +533,12 @@ function openKeywordPopup(mode, tcversion_id) {
   if (!currentVersion || !data) { return; }
   var vid = parseInt(tcversion_id, 10) || 0;
   if (vid <= 0) { vid = currentVersion.tcversion_id; }
+  // tplan_id is forwarded so the popup's Cancel/Open Keyword Management links
+  // do not drop the user's test-plan context (they navigate to
+  // keywordsView.html?...&tplan_id=0 otherwise).
   var url = '/gui/templates/keywords/keywordsEdit.html?mode=' + encodeURIComponent(mode)
     + '&tproject_id=' + data.tproject.id
+    + '&tplan_id=' + (parseInt(qs('tplan_id') || '0', 10) || 0)
     + '&tcversion_id=' + vid;
   window.open(url, 'kw_dialog', 'width=680,height=620,resizable=yes,scrollbars=yes');
 }

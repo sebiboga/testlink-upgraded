@@ -4974,6 +4974,7 @@
   "kwedit.errAlreadyExists": "Ya existe una palabra clave con ese nombre.",
   "kwedit.errUpdateFails": "No se pudo actualizar la palabra clave.",
   "kwedit.errDeleteBlocked": "La palabra clave está vinculada a casos de prueba ejecutados o congelados.",
+  "kwedit.showEventHistory": "Mostrar historial de eventos",
   "kwedit.msgSaved": "Palabra clave creada.",
   "kwedit.msgUpdated": "Palabra clave actualizada.",
   "kwedit.msgDeleted": "Palabra clave eliminada.",

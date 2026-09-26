@@ -74,6 +74,17 @@ function needTprojectId() {
  * Localized mapping, legacy parity with lib/keywords/keywordsEdit.php::
  * getKeywordErrorMessage() and the tlKeyword::E_* codes.
  */
+/**
+ * Legacy parity: initEnv() declared the keyword STRING_N 0..100 and the input
+ * parameter layer truncated it with tlSubStr($value, 0, 100).
+ */
+function kwTrimName($name) {
+    if (is_array($name)) {
+        return '';
+    }
+    return substr(trim((string)$name), 0, 100);
+}
+
 function kwErrorMessage($code) {
     switch (intval($code)) {
         case tlKeyword::E_NAMENOTALLOWED:
@@ -107,6 +118,13 @@ function requireKeywordOfProject($db, $keyword_id, $tproject_id) {
     return $kw;
 }
 
+/**
+ * Refs #1599 / #1008: the legacy keywordsEdit.php worked in AND mode at test
+ * project level - mgt_modify_key AND mgt_view_key. This BFF only required
+ * mgt_modify_key, so a *view-only* keyword manager could POST a write; every
+ * write route (single keyword + import) now goes through this gate.
+ * Refs #1601: also applied before delete/update, see requireKeywordOfProject().
+ */
 function kwWriteRights($user, $db, $tproject_id) {
     return (bool)$user->hasRight($db, 'mgt_modify_key', $tproject_id)
         && (bool)$user->hasRight($db, 'mgt_view_key', $tproject_id);
@@ -125,14 +143,20 @@ function kwToJSON($kw) {
 // GET /{id} - single keyword (mgt_view_key)
 // ---------------------------------------------------------------------------
 if ($method === 'GET' && isset($segments[0]) && ctype_digit($segments[0]) && !isset($segments[1])) {
-    if (!$user->hasRight($db, 'mgt_view_key')) {
-        http_response_code(403);
-        out(['status' => 'error', 'message' => 'No permission']);
-    }
+    // Refs #1604: this route used to be gated on the GLOBAL mgt_view_key only
+    // and returned any keyword of the installation, so a global holder could
+    // read the name+notes of keywords of projects they are not a member of -
+    // the read-side twin of the #1601 write IDOR. The keyword's owning project
+    // is now taken from the row itself and the right is checked on it.
     $kw = tlKeyword::getByID($db, intval($segments[0]));
     if (!$kw || $kw->dbID <= 0) {
         http_response_code(404);
-        out(['status' => 'error', 'message' => 'Keyword not found']);
+        out(['status' => 'error', 'message' => 'Keyword not found', 'error_code' => 'KW_NOT_FOUND']);
+    }
+    $kwTprojectId = intval($kw->testprojectID);
+    if ($kwTprojectId <= 0 || !$user->hasRight($db, 'mgt_view_key', $kwTprojectId)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission', 'error_code' => 'NO_RIGHT']);
     }
     out(['status' => 'ok', 'item' => kwToJSON($kw)]);
 }
@@ -214,7 +238,10 @@ if ($method === 'POST' && count($segments) === 0) {
         http_response_code(403);
         out(['status' => 'error', 'message' => 'No permission', 'error_code' => 'NO_RIGHT']);
     }
-    $op = $tproject_mgr->addKeyword($tproject_id, (string)($body['name'] ?? ''), (string)($body['notes'] ?? ''));
+    // legacy initEnv() declared the keyword as STRING_N 0..100 and
+    // inputparameter.class.php truncated it; keywords.keyword is varchar(100),
+    // so an over-long value from a direct API call would be a DB error
+    $op = $tproject_mgr->addKeyword($tproject_id, kwTrimName($body['name'] ?? ''), (string)($body['notes'] ?? ''));
     if ($op['status'] >= tl::OK) {
         out(['status' => 'ok', 'id' => intval($op['id'])]);
     }
@@ -240,7 +267,7 @@ if ($method === 'PUT' && isset($segments[0]) && ctype_digit($segments[0])) {
     $result = $tproject_mgr->updateKeyword(
         $tproject_id,
         intval($segments[0]),
-        (string)($body['name'] ?? ''),
+        kwTrimName($body['name'] ?? ''),
         (string)($body['notes'] ?? '')
     );
     if ($result >= tl::OK) {
@@ -333,14 +360,17 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'export') {
 // fields: tproject_id, type=xml|csv, uploadedFile
 // ---------------------------------------------------------------------------
 if ($method === 'POST' && isset($segments[0]) && $segments[0] === 'import') {
-    if (!$user->hasRight($db, 'mgt_modify_key')) {
-        http_response_code(403);
-        out(['status' => 'error', 'message' => 'No permission']);
-    }
     $tproject_id = intval($_POST['tproject_id'] ?? 0);
     if ($tproject_id <= 0) {
         http_response_code(400);
         out(['status' => 'error', 'message' => 'Invalid test project id']);
+    }
+    // Refs #1604: a bulk keyword import is a write, so it has to obey the very
+    // same AND-mode gate as the single-keyword writes (#1008) instead of the
+    // global mgt_modify_key only.
+    if (!kwWriteRights($user, $db, $tproject_id)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission', 'error_code' => 'NO_RIGHT']);
     }
 
     $type = $_POST['type'] ?? 'xml';

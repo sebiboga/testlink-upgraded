@@ -84,6 +84,21 @@ function getBody() {
  * evaluated against the test project, plus the tproject_id > 0 precondition.
  */
 function requireKeywordRights($db, $user, $tproject_id) {
+    // hasRight() falls back to the GLOBAL role rights for an unknown project
+    // id, so a global holder would otherwise pass with tproject_id=999999 and
+    // createKeyword() would insert an orphan row (review finding).
+    if ($tproject_id > 0) {
+        static $knownProjects = array();
+        if (!isset($knownProjects[$tproject_id])) {
+            $tp = tlObject::getDBTables('testprojects');
+            $rs = $db->get_recordset("SELECT id FROM {$tp['testprojects']} WHERE id = " . intval($tproject_id));
+            if (is_null($rs) || count($rs) == 0) {
+                http_response_code(404);
+                out(['status' => 'error', 'message' => 'Test project not found']);
+            }
+            $knownProjects[$tproject_id] = true;
+        }
+    }
     if ($tproject_id <= 0) {
         http_response_code(400);
         out(['status' => 'error', 'message' => 'Invalid test project id']);
@@ -119,18 +134,23 @@ function requireKeywordOfProject($db, $keyword_id, $tproject_id) {
 }
 
 function keywordErrorMessage($code) {
+    // Refs #1604: these were hardcoded English literals, so a Romanian user saw
+    // English in the error box. lang_get() keys are the same ones the legacy
+    // getKeywordErrorMessage() used.
     switch (intval($code)) {
         case tlKeyword::E_NAMENOTALLOWED:
-            return 'Keywords: character not allowed.';
+            return lang_get('keywords_char_not_allowed');
+
         case tlKeyword::E_NAMELENGTH:
-            return 'Keyword name cannot be empty.';
+            return lang_get('empty_keyword_no');
+
         case tlKeyword::E_NAMEALREADYEXISTS:
-            return 'Keyword already exists.';
-        case tlKeyword::E_DBERROR:
-        case ERROR:
-            return 'Unable to process keyword update.';
+            return lang_get('keyword_already_exists');
+
+        case tlKeyword::E_WRONGFORMAT:
+        default:
+            return lang_get('kw_update_fails');
     }
-    return 'ok';
 }
 
 function kwToJSON($kw) {
@@ -142,27 +162,79 @@ function kwToJSON($kw) {
 }
 
 /**
+ * Walk up the nodes_hierarchy parent chain (same helper as api/testcases).
+ */
+function kwParentChain($db, $nodesTable, $nodeId) {
+    $chain = array();
+    $cur = intval($nodeId);
+    for ($i = 0; $i < 50 && $cur > 0; $i++) {
+        $rs = $db->get_recordset(
+            "SELECT id, name, parent_id, node_type_id FROM {$nodesTable} WHERE id = {$cur}");
+        if (is_null($rs) || count($rs) == 0) {
+            break;
+        }
+        $chain[] = $rs[0];
+        $next = intval($rs[0]['parent_id']);
+        if ($next <= 0 || $next === $cur) {
+            break;
+        }
+        $cur = $next;
+    }
+    return array_reverse($chain);
+}
+
+/**
  * Resolve the test case version context used by the create-and-link flow.
  * Mirrors legacy do_cfl(): nodes_hierarchy.parent_id of the tcversion is the
  * owning test case.
+ *
+ * Refs #1603: the version id is caller supplied, so the whole chain is walked
+ * and BOTH preconditions are enforced here:
+ *   - the node must be a test case version (node_type_id 4) or a test case
+ *     (node_type_id 3, legacy tolerated a bare tcase id) - a test suite or a
+ *     project id is refused, and
+ *   - the chain root must be a test project (node_type_id 1) equal to
+ *     $tproject_id. Without this a keyword manager of project A could create
+ *     a project-A keyword and link it to a test case version of project B,
+ *     and could read the name of any test case in the installation.
+ * Returns null in both cases (the caller answers 404, so nothing about a
+ * foreign node is disclosed).
  */
-function tcaseVersionContext($db, $tcversion_id) {
+function tcaseVersionContext($db, $tcversion_id, $tproject_id) {
     $tbl = tlObject::getDBTables('nodes_hierarchy');
-    $sql = "SELECT id, parent_id FROM {$tbl['nodes_hierarchy']} WHERE id = " . intval($tcversion_id);
-    $rs = $db->get_recordset($sql);
-    if (is_null($rs) || count($rs) == 0) {
+    $chain = kwParentChain($db, $tbl['nodes_hierarchy'], $tcversion_id);
+    if (count($chain) < 2) {
         return null;
     }
-    $tcase_id = intval($rs[0]['parent_id']);
+
+    // $chain is ordered root -> leaf (kwParentChain() walks leaf -> root and
+    // reverses it), so chain[0] is the test project and the last element is
+    // the node the caller asked for. Node types (cfg/const.inc.php):
+    // 1 = test project, 2 = test suite, 3 = test case, 4 = test case version.
+    $root = $chain[0];
+    if (intval($root['node_type_id']) !== 1 || intval($root['id']) !== intval($tproject_id)) {
+        return null;
+    }
+
+    $node = $chain[count($chain) - 1];
+    $nodeType = intval($node['node_type_id']);
+    if ($nodeType !== 4 && $nodeType !== 3) {
+        return null;                       // a suite or the project itself
+    }
+
+    $tcase_id = 0;
     $tcaseName = '';
-    if ($tcase_id > 0) {
-        // the test case name lives in the same hierarchy table (the legacy
-        // dialog only needed the id, the modern popup shows the name too)
-        $rs2 = $db->get_recordset("SELECT name FROM {$tbl['nodes_hierarchy']} WHERE id = " . $tcase_id);
-        if (is_null($rs2) === false && count($rs2)) {
-            $tcaseName = (string)$rs2[0]['name'];
+    for ($i = count($chain) - 1; $i >= 0; $i--) {
+        if (intval($chain[$i]['node_type_id']) === 3) {
+            $tcase_id = intval($chain[$i]['id']);
+            $tcaseName = (string)$chain[$i]['name'];
+            break;
         }
     }
+    if ($tcase_id <= 0) {
+        return null;
+    }
+
     return [
         'tcversion_id' => intval($tcversion_id),
         'tcase_id' => $tcase_id,
@@ -221,7 +293,7 @@ if ($method === 'GET') {
             http_response_code(400);
             out(['status' => 'error', 'message' => 'Invalid test case version id']);
         }
-        $ctx = tcaseVersionContext($db, $tcversion_id);
+        $ctx = tcaseVersionContext($db, $tcversion_id, $tproject_id);
         if (is_null($ctx)) {
             http_response_code(404);
             out(['status' => 'error', 'message' => 'Test case version not found']);
@@ -241,7 +313,10 @@ $body = getBody();
 $tproject_id = intval($body['tproject_id'] ?? 0);
 requireKeywordRights($db, $user, $tproject_id);
 
-$keyword = (string)($body['keyword'] ?? '');
+// legacy initEnv() declared the keyword STRING_N 0..100 and the input parameter
+// layer truncated it; keywords.keyword is varchar(100), so an over-long value
+// sent straight to the API would be a DB error instead of a truncated name.
+$keyword = substr(trim((string)($body['keyword'] ?? '')), 0, 100);
 $notes = (string)($body['notes'] ?? '');
 
 // ---------------------------------------------------------------------------
@@ -291,7 +366,7 @@ if ($action === 'create_link') {
         http_response_code(400);
         out(['status' => 'error', 'message' => 'Invalid test case version id']);
     }
-    $ctx = tcaseVersionContext($db, $tcversion_id);
+    $ctx = tcaseVersionContext($db, $tcversion_id, $tproject_id);
     if (is_null($ctx) || $ctx['tcase_id'] <= 0) {
         http_response_code(404);
         out(['status' => 'error', 'message' => 'Test case version not found']);

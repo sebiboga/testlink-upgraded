@@ -4990,6 +4990,7 @@
   "kwedit.errAlreadyExists": "A keyword with this name already exists.",
   "kwedit.errUpdateFails": "Unable to process keyword update.",
   "kwedit.errDeleteBlocked": "Keyword is linked to executed or frozen test case versions.",
+  "kwedit.showEventHistory": "Show event history",
   "kwedit.msgSaved": "Keyword created.",
   "kwedit.msgUpdated": "Keyword updated.",
   "kwedit.msgDeleted": "Keyword deleted.",

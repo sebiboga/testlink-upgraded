@@ -93,6 +93,13 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
         <span class="spacer"></span>
         <button class="btn-red" id="btnDelete" onclick="askDelete()" style="display:none;" data-i18n="common.delete">Delete</button>
       </div>
+      <!-- Legacy parity: keywordsEdit.tpl rendered showEventHistoryFor(keywordID,'keywords')
+           when mgt_view_events was held and keywordID > 0 (edit mode only). -->
+      <div id="eventHistoryWrap" style="display:none;margin-top:14px;padding-top:12px;border-top:1px solid #eee;">
+        <a href="javascript:;" id="btnEventHistory" onclick="showEventHistory()">
+          <i class="fa fa-history"></i> <span data-i18n="kwedit.showEventHistory">Show event history</span>
+        </a>
+      </div>
     </div>
 
     <div class="card" id="manageCard" style="display:none;">
@@ -220,6 +227,11 @@ function load() {
         $('#kwName').val(r.keyword.name);
         $('#kwNotes').val(r.keyword.notes);
         $('#btnDelete').show();
+        // legacy parity: showEventHistoryFor() only in edit mode, and only
+        // when the caller holds mgt_view_events on the test project
+        if (MODE === 'edit' && r.rights && r.rights.mgt_view_events) {
+          $('#eventHistoryWrap').show();
+        }
       }
       $('#content').show();
       if (MODE !== 'edit') { $('#kwName').focus(); }
@@ -317,6 +329,12 @@ function refreshOpener() {
 
 function goManage() {
   window.location.href = '/gui/templates/keywords/keywordsView.html?tproject_id=' + TPID + '&tplan_id=' + TPLANID;
+}
+
+function showEventHistory() {
+  if (!KW || !KW.id || MODE !== 'edit') { return; }
+  window.open('/gui/templates/eventviewer/eventviewer.html?object_id=' + encodeURIComponent(KW.id)
+    + '&object_type=keywords&tproject_id=' + encodeURIComponent(TPID), 'tl_events');
 }
 
 function closeWindow() {

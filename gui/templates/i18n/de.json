@@ -4974,6 +4974,7 @@
   "kwedit.errAlreadyExists": "Ein Schlüsselwort mit diesem Namen existiert bereits.",
   "kwedit.errUpdateFails": "Das Schlüsselwort konnte nicht aktualisiert werden.",
   "kwedit.errDeleteBlocked": "Das Schlüsselwort ist mit ausgeführten oder eingefrorenen Testfällen verknüpft.",
+  "kwedit.showEventHistory": "Ereignisverlauf anzeigen",
   "kwedit.msgSaved": "Schlüsselwort angelegt.",
   "kwedit.msgUpdated": "Schlüsselwort aktualisiert.",
   "kwedit.msgDeleted": "Schlüsselwort gelöscht.",

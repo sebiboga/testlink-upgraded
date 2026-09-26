@@ -4974,6 +4974,7 @@
   "kwedit.errAlreadyExists": "Un mot-clé portant ce nom existe déjà.",
   "kwedit.errUpdateFails": "Impossible de mettre à jour le mot-clé.",
   "kwedit.errDeleteBlocked": "Le mot-clé est lié à des cas de test exécutés ou figés.",
+  "kwedit.showEventHistory": "Afficher l'historique des événements",
   "kwedit.msgSaved": "Mot-clé créé.",
   "kwedit.msgUpdated": "Mot-clé mis à jour.",
   "kwedit.msgDeleted": "Mot-clé supprimé.",

@@ -27,12 +27,37 @@ require_once("../../config.inc.php");
 require_once("common.php");
 
 // Anonymous -> login (same contract as the legacy testlinkInitPage call).
-testlinkInitPage($db, TRUE);
+// NOTE: the second argument stays FALSE on purpose. Passing TRUE runs
+// initProject(), which would let a crafted GET overwrite the session's
+// testprojectID/testplanID from the request string - the legacy controller
+// called testlinkInitPage($db) and never had that side effect (Refs #1604).
+testlinkInitPage($db);
 
-function kwShimOut($msg, $tproject_id) {
+/**
+ * Refs #1601: rights are checked for the tproject_id sent by the caller while
+ * the keyword is addressed by a bare id, and neither tlKeyword::writeToDB()
+ * (UPDATE ... WHERE id = X) nor testproject::deleteKeyword() (id only) re-check
+ * the owner - a keyword manager of project A could rename/re-own or delete a
+ * keyword of project B through this still-live URL.
+ */
+function kwShimOwnedBy($db, $keywordId, $tprojectID) {
+	$kw = tlKeyword::getByID($db, $keywordId);
+	return (!is_null($kw) && $kw->dbID > 0 && intval($kw->testprojectID) === intval($tprojectID));
+}
+
+/**
+ * $status < 0 is a tlKeyword::E_* error code: it is forwarded to the modern
+ * screen as kwerr= so a failed legacy write is not silently reported as a
+ * success (Refs #1604). 303 for the POST branch, 302 for the GET branch.
+ */
+function kwShimOut($status, $tproject_id, $httpCode = 302) {
 	$base = isset($_SESSION['basehref']) ? $_SESSION['basehref'] : '/';
 	$url = $base . 'gui/templates/keywords/keywordsView.html?tproject_id=' . intval($tproject_id) .
 		'&tplan_id=' . (isset($_SESSION['testplanID']) ? intval($_SESSION['testplanID']) : 0);
+	if (intval($status) < 0) {
+		$url .= '&kwerr=' . intval($status);
+	}
+	http_response_code($httpCode);
 	header('Location: ' . $url);
 	exit;
 }
@@ -40,8 +65,12 @@ function kwShimOut($msg, $tproject_id) {
 // Legacy input contract (initEnv() in the pre-2.0.1 controller).
 $doAction = isset($_REQUEST['doAction']) ? trim($_REQUEST['doAction']) : '';
 $keywordId = isset($_REQUEST['id']) ? intval($_REQUEST['id']) : 0;
-$keyword = isset($_REQUEST['keyword']) ? $_REQUEST['keyword'] : '';
-$notes = isset($_REQUEST['notes']) ? $_REQUEST['notes'] : '';
+// Cast to string and drop arrays: keyword[]=x would reach
+// tlKeyword::checkKeyword() -> trim(array) and fatal with a TypeError.
+$keyword = isset($_REQUEST['keyword']) && !is_array($_REQUEST['keyword'])
+	? (string)$_REQUEST['keyword'] : '';
+$notes = isset($_REQUEST['notes']) && !is_array($_REQUEST['notes'])
+	? (string)$_REQUEST['notes'] : '';
 $tprojectID = isset($_REQUEST['tproject_id']) ? intval($_REQUEST['tproject_id']) : 0;
 $tcversionId = isset($_REQUEST['tcversion_id']) ? intval($_REQUEST['tcversion_id']) : 0;
 
@@ -63,27 +92,52 @@ if ($isWrite) {
 		exit;
 	}
 
+		// CSRF: the modern BFFs use bffSameOriginGuard(), the shim performed the
+	// same writes with session validation only, so a cross-site form POST with
+	// the victim's cookie could delete a keyword (Refs #1604).
+	$origin = isset($_SERVER['HTTP_ORIGIN']) ? $_SERVER['HTTP_ORIGIN'] : '';
+	$secFetchSite = isset($_SERVER['HTTP_SEC_FETCH_SITE']) ? $_SERVER['HTTP_SEC_FETCH_SITE'] : '';
+	$isXhr = isset($_SERVER['HTTP_X_REQUESTED_WITH'])
+		&& $_SERVER['HTTP_X_REQUESTED_WITH'] === 'XMLHttpRequest';
+	$base = isset($_SESSION['basehref']) ? $_SESSION['basehref'] : '/';
+	$baseHost = parse_url((isset($_SERVER['HTTP_HOST']) ? 'http://' . $_SERVER['HTTP_HOST'] : $base), PHP_URL_HOST);
+	if (!$isXhr && $secFetchSite === 'cross-site') {
+		header('Location: ' . $base . 'gui/templates/keywords/keywordsView.html?tproject_id=' . $tprojectID);
+		exit;
+	}
+	if ($origin !== '' && $baseHost !== null && parse_url($origin, PHP_URL_HOST) !== $baseHost) {
+		header('Location: ' . $base . 'gui/templates/keywords/keywordsView.html?tproject_id=' . $tprojectID);
+		exit;
+	}
+
 	$tprojectMgr = new testproject($db);
+	$status = tl::OK;
 	switch ($doAction) {
 		case 'do_create':
-			$tprojectMgr->addKeyword($tprojectID, $keyword, $notes);
+			$op = $tprojectMgr->addKeyword($tprojectID, $keyword, $notes);
+			$status = intval($op['status']);
 			break;
 
 		case 'do_update':
-			if ($keywordId > 0) {
-				$tprojectMgr->updateKeyword($tprojectID, $keywordId, $keyword, $notes);
+			if ($keywordId > 0 && kwShimOwnedBy($db, $keywordId, $tprojectID)) {
+				$status = intval($tprojectMgr->updateKeyword($tprojectID, $keywordId, $keyword, $notes));
+			} else {
+				$status = -1;
 			}
 			break;
 
 		case 'do_delete':
-			if ($keywordId > 0) {
+			if ($keywordId > 0 && kwShimOwnedBy($db, $keywordId, $tprojectID)) {
 				$dko = array('context' => 'getTestProjectName', 'tproject_id' => $tprojectID);
-				$tprojectMgr->deleteKeyword($keywordId, $dko);
+				$status = intval($tprojectMgr->deleteKeyword($keywordId, $dko));
+			} else {
+				$status = -1;
 			}
 			break;
 
 		case 'do_cfl':
 			$op = $tprojectMgr->addKeyword($tprojectID, $keyword, $notes);
+			$status = intval($op['status']);
 			if ($op['status'] >= tl::OK && $tcversionId > 0) {
 				$tbl = tlObject::getDBTables('nodes_hierarchy');
 				$sql = "SELECT parent_id FROM {$tbl['nodes_hierarchy']} WHERE id=" . $tcversionId;
@@ -96,7 +150,7 @@ if ($isWrite) {
 			}
 			break;
 	}
-	kwShimOut('', $tprojectID);
+	kwShimOut($status, $tprojectID, 303);
 }
 
 // GET (form display) -> modern popup

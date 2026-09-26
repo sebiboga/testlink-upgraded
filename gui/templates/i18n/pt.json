@@ -4980,6 +4980,7 @@
   "kwedit.errAlreadyExists": "Já existe uma palavra-chave com este nome.",
   "kwedit.errUpdateFails": "Não foi possível atualizar a palavra-chave.",
   "kwedit.errDeleteBlocked": "A palavra-chave está vinculada a casos de teste executados ou congelados.",
+  "kwedit.showEventHistory": "Mostrar histórico de eventos",
   "kwedit.msgSaved": "Palavra-chave criada.",
   "kwedit.msgUpdated": "Palavra-chave atualizada.",
   "kwedit.msgDeleted": "Palavra-chave excluída.",

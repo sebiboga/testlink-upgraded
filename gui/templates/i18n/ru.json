@@ -4980,6 +4980,7 @@
   "kwedit.errAlreadyExists": "Ключевое слово с таким названием уже существует.",
   "kwedit.errUpdateFails": "Не удалось обновить ключевое слово.",
   "kwedit.errDeleteBlocked": "Ключевое слово связано с выполненными или замороженными тестовыми случаями.",
+  "kwedit.showEventHistory": "Показать историю событий",
   "kwedit.msgSaved": "Ключевое слово создано.",
   "kwedit.msgUpdated": "Ключевое слово обновлено.",
   "kwedit.msgDeleted": "Ключевое слово удалено.",
