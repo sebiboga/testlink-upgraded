@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Delete Attachment</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; font-size: 13px; }
+.header { background: #4ECDC4; color: #fff; padding: 12px 24px; font-size: 19px; font-weight: 700; letter-spacing: 1px; display: flex; align-items: center; gap: 12px; }
+.header .sub { font-size: 13px; font-weight: 400; opacity: .85; }
+.toolbar { background: #22242a; padding: 10px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-dark { background: #3a3d46; color: #eee; border: none; padding: 7px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-dark:hover { background: #4a4e59; }
+.btn-red { background: #e6605e; color: #fff; border: none; padding: 7px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-red:hover { background: #d34f4d; }
+.btn-sm { padding: 4px 10px; font-size: 12px; }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.main { max-width: 720px; margin: 20px auto; padding: 0 16px; }
+.card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin-bottom: 16px; overflow: hidden; }
+.card-head { background: #22242a; color: #fff; padding: 11px 20px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.card-head h2 { font-size: 15px; font-weight: 700; margin: 0; flex: 1; }
+.card-body { padding: 16px 20px; }
+.kv { display: flex; gap: 10px; padding: 5px 0; border-bottom: 1px solid #f0f0f0; font-size: 13px; }
+.kv:last-child { border-bottom: none; }
+.kv .k { color: #888; width: 140px; flex-shrink: 0; }
+.kv .v { color: #333; font-weight: 600; word-break: break-all; }
+.kv .v a { color: #2d8e88; }
+.warn { background: #fff8e1; border: 1px solid #f2d98c; color: #8a6d1a; border-radius: 6px; padding: 12px 14px; font-size: 13px; }
+.warn i { margin-right: 6px; }
+.state { text-align: center; padding: 34px 20px; color: #777; }
+.state .ico { font-size: 40px; color: #ccc; margin-bottom: 12px; }
+.state.danger .ico { color: #e6605e; }
+.state.ok .ico { color: #4ECDC4; }
+.state h3 { font-size: 15px; font-weight: 700; color: #333; margin: 0 0 6px; }
+.state p { margin: 0; font-size: 13px; }
+.state .code { display: inline-block; margin-top: 10px; font-family: monospace; font-size: 11px; color: #999; }
+.actions { display: flex; gap: 10px; justify-content: flex-end; }
+.loading { color: #999; padding: 10px 0; }
+.footer { text-align: center; color: #aaa; font-size: 12px; padding: 14px 0 20px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <i class="fa fa-trash"></i>
+  <span data-i18n="adel.title">Delete Attachment</span>
+  <span class="sub"><span id="attLabel">-</span></span>
+</div>
+<div class="toolbar">
+  <span class="ctx"><span data-i18n="adel.object">Object</span>: <b id="ownerLabel">-</b></span>
+  <span id="localeSwitcher"></span>
+  <button class="btn-teal btn-sm" style="margin-left:auto;" onclick="load()"><i class="fa fa-refresh"></i> <span data-i18n="common.refresh">Refresh</span></button>
+</div>
+
+<div class="main">
+  <div class="card">
+    <div class="card-head"><h2><span data-i18n="adel.confirmTitle">Delete attachment</span></h2></div>
+    <div class="card-body">
+      <div class="warn"><i class="fa fa-exclamation-triangle"></i><span data-i18n="adel.irreversible">This action is irreversible. The file is removed from the server.</span></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h2><span data-i18n="adel.attachmentInfo">Attachment</span></h2></div>
+    <div class="card-body" id="infoBox"><div class="loading"><i class="fa fa-spinner fa-spin"></i></div></div>
+  </div>
+
+  <div class="card" id="actionCard" style="display:none;">
+    <div class="card-body">
+      <div class="actions">
+        <button class="btn-dark" onclick="closePopup()"><span data-i18n="common.cancel">Cancel</span></button>
+        <button class="btn-red" id="btnDelete" onclick="doDelete()"><i class="fa fa-trash"></i> <span data-i18n="adel.deleteBtn">Delete attachment</span></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="footer"><span data-i18n="footers.attachmentDelete">TestLink 2.0.1 - Attachments</span></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/attachmentsdelete/index.php';
+var ATTID = 0;
+var TABLE = '';
+var FKID = 0;
+var standalone = !window.opener || window.opener.closed;
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function formatSize(bytes) {
+  bytes = parseInt(bytes, 10) || 0;
+  if (bytes < 1024) { return bytes + ' B'; }
+  if (bytes < 1048576) { return (bytes / 1024).toFixed(1) + ' KB'; }
+  return (bytes / 1048576).toFixed(1) + ' MB';
+}
+
+function closePopup() {
+  try {
+    if (!standalone) { window.close(); return; }
+  } catch (e) { /* ignore */ }
+  window.history.back();
+}
+
+function stateBox(kind, ico, title, text, code) {
+  var h = '<div class="state ' + kind + '"><div class="ico"><i class="fa ' + ico + '"></i></div>' +
+          '<h3>' + esc(title) + '</h3><p>' + esc(text) + '</p>';
+  if (code) { h += '<div class="code">' + esc(code) + '</div>'; }
+  h += '</div>';
+  return h;
+}
+
+function hideAll() {
+  $('#actionCard').hide();
+  $('#infoBox').html('');
+  $('#attLabel').text('-');
+  $('#ownerLabel').text('-');
+}
+
+function failState(kind, ico, titleKey, textKey, code) {
+  hideAll();
+  $('#infoBox').html(stateBox(kind, ico, TLi18n.t(titleKey), TLi18n.t(textKey), code));
+}
+
+function kv(k, v) {
+  return '<div class="kv"><div class="k">' + esc(k) + '</div><div class="v">' + v + '</div></div>';
+}
+
+function load() {
+  $('#actionCard').hide();
+  $('#infoBox').html('<div class="loading"><i class="fa fa-spinner fa-spin"></i> <span data-i18n="adel.loading">Loading…</span></div>');
+  TLi18n.apply();
+  if (ATTID <= 0) {
+    failState('danger', 'fa fa-ban', 'adel.errNoId', 'adel.errNoId', 'ADEL-00');
+    return;
+  }
+  var qs = 'action=init&id=' + encodeURIComponent(ATTID);
+  if (TABLE) { qs += '&table=' + encodeURIComponent(TABLE) + '&fk_id=' + encodeURIComponent(FKID); }
+  $.getJSON(API + '?' + qs)
+    .done(function (r) {
+      if (r.status !== 'ok') { renderError(r); return; }
+      var a = r.attachment;
+      $('#attLabel').text(' ' + (a.title || a.file_name || ''));
+      $('#ownerLabel').text(a.owner_label || (a.owner_table + ' #' + a.owner_id));
+      var h = '';
+      h += kv(TLi18n.t('adel.fTitle'), esc(a.title || '-'));
+      h += kv(TLi18n.t('adel.fFileName'), esc(a.file_name || '-'));
+      h += kv(TLi18n.t('adel.fType'), esc(a.file_type || '-') + ' &middot; ' + formatSize(a.file_size));
+      h += kv(TLi18n.t('adel.fAdded'), esc(a.date_added || '-'));
+      h += kv(TLi18n.t('adel.fOwner'), esc(a.owner_label || '-'));
+      h += kv(TLi18n.t('adel.fDownload'),
+              '<a href="' + esc(r.download_url) + '" target="_blank" rel="noopener">' +
+              '<i class="fa fa-download"></i> ' + esc(a.file_name || '') + '</a>');
+      $('#infoBox').html(h);
+      $('#actionCard').show();
+    })
+    .fail(function (xhr) { renderError(xhr.responseJSON || {}); });
+}
+
+function renderError(r) {
+  var code = r.code || '';
+  if (code === 'ATTACHMENTS_DISABLED') {
+    failState('danger', 'fa fa-lock', 'adel.errDisabled', 'adel.errDisabled', code);
+  } else if (code === 'ATTACHMENT_NOT_FOUND') {
+    failState('danger', 'fa fa-question-circle', 'adel.errNotFound', 'adel.errNotFound', code);
+  } else if (code === 'ATTACHMENT_NOT_ALLOWED') {
+    failState('danger', 'fa fa-user-lock', 'adel.errNotAllowed', 'adel.errNotAllowed', code);
+  } else if (code === 'INVALID_ID') {
+    failState('danger', 'fa fa-ban', 'adel.errNoId', 'adel.errNoId', code);
+  } else if (!r.code) {
+    failState('danger', 'fa fa-plug', 'adel.errSession', 'adel.errSession', '');
+  } else {
+    failState('danger', 'fa fa-exclamation-triangle', 'adel.errGeneric', 'adel.errGeneric', code);
+  }
+}
+
+function doDelete() {
+  $('#btnDelete').prop('disabled', true);
+  var body = 'action=delete&id=' + encodeURIComponent(ATTID);
+  if (TABLE) { body += '&table=' + encodeURIComponent(TABLE) + '&fk_id=' + encodeURIComponent(FKID); }
+  $.ajax({
+    url: API,
+    method: 'POST',
+    data: body,
+    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+    dataType: 'json'
+  })
+    .done(function (r) {
+      if (r.status !== 'ok') {
+        $('#btnDelete').prop('disabled', false);
+        if (r.code === 'ATTACHMENT_NOT_ALLOWED') {
+          failState('danger', 'fa fa-user-lock', 'adel.errNotAllowed', 'adel.errNotAllowed', r.code);
+        } else {
+          failState('danger', 'fa fa-exclamation-triangle', 'adel.errDelete', 'adel.errDelete', r.code);
+        }
+        return;
+      }
+      hideAll();
+      $('#infoBox').html(stateBox('ok', 'fa fa-check-circle', TLi18n.t('adel.okTitle'), TLi18n.t('adel.okText'), r.legacy_code || ''));
+      try { if (typeof opener !== 'undefined' && opener && !opener.closed) { opener.TLrefreshAttachments(); } } catch (e) { /* ignore */ }
+      try { if (!standalone) { setTimeout(function () { window.close(); }, 1200); } } catch (e) { /* ignore */ }
+    })
+    .fail(function (xhr) {
+      $('#btnDelete').prop('disabled', false);
+      if (xhr.status === 0 || xhr.status === 401 || xhr.status === 403) {
+        renderError(xhr.responseJSON || { code: '' });
+      } else {
+        failState('danger', 'fa fa-exclamation-triangle', 'adel.errDelete', 'adel.errDelete', 'HTTP ' + xhr.status);
+      }
+    });
+}
+
+$(function () {
+  var p = new URLSearchParams(window.location.search);
+  ATTID = parseInt(p.get('id') || '0', 10);
+  TABLE = p.get('table') || '';
+  FKID = parseInt(p.get('fk_id') || p.get('object_id') || '0', 10);
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    document.title = TLi18n.t('adel.title');
+    load();
+  });
+});
+</script>
+</body>
+</html>
