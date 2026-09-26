@@ -945,7 +945,12 @@ if ($action === 'view') {
     $grants = [];
     foreach (array('mgt_modify_tc', 'mgt_view_req', 'testcase_freeze',
                    'keyword_assignment', 'req_tcase_link_management',
-                   'testplan_planning') as $gk) {
+                   'testplan_planning',
+                   // keyword dialog gate (Refs #1599): the popup requires BOTH
+                   // mgt_modify_key AND mgt_view_key (legacy keywordsEdit.php
+                   // AND-mode), so tcView needs both grants to decide whether
+                   // to render the create / create-and-link buttons.
+                   'mgt_modify_key', 'mgt_view_key') as $gk) {
         $grants[$gk] = $user->hasRight($db, $gk, $tprojectId) ? 1 : 0;
     }
 

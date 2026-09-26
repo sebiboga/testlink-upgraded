@@ -421,10 +421,14 @@ function renderVersion(v) {
   // Keyword create / create-and-link popup (Refs #1599) - legacy
   // lib/keywords/keywordsEdit.php?doAction=create|cfl (keywords.inc.tpl)
   if (canManageKeywords) {
+    // The buttons live inside the per-version card, so the version id has to
+    // be passed explicitly: with several versions the popup must link the new
+    // keyword to the version the user clicked on, not to the "current" one.
+    var vkw = parseInt(v.tcversion_id, 10) || 0;
     h += '<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">'
-      + '<button class="btn btn-sm btn-teal" onclick="openKeywordPopup(\'create\')">'
+      + '<button class="btn btn-sm btn-teal" onclick="openKeywordPopup(\'create\',' + vkw + ')">'
       + '<i class="fa fa-plus"></i> ' + esc(TLi18n.t('kwedit.create')) + '</button>'
-      + '<button class="btn btn-sm btn-teal" onclick="openKeywordPopup(\'cfl\')">'
+      + '<button class="btn btn-sm btn-teal" onclick="openKeywordPopup(\'cfl\',' + vkw + ')">'
       + '<i class="fa fa-link"></i> ' + esc(TLi18n.t('kwedit.cfl')) + '</button>'
       + '</div>';
   }
@@ -523,11 +527,15 @@ function openTcEdit() {
 // Keyword dialog popup (Refs #1599) - modern twin of the legacy
 // lib/keywords/keywordsEdit.php?doAction=create|cfl&tcversion_id=... dialog
 // that used to be opened from the test case keywords panel.
-function openKeywordPopup(mode) {
+// tcversion_id is optional: the per-version cards pass their own id, the
+// callers that act on the "current" version can omit it (Refs #1599).
+function openKeywordPopup(mode, tcversion_id) {
   if (!currentVersion || !data) { return; }
+  var vid = parseInt(tcversion_id, 10) || 0;
+  if (vid <= 0) { vid = currentVersion.tcversion_id; }
   var url = '/gui/templates/keywords/keywordsEdit.html?mode=' + encodeURIComponent(mode)
     + '&tproject_id=' + data.tproject.id
-    + '&tcversion_id=' + currentVersion.tcversion_id;
+    + '&tcversion_id=' + vid;
   window.open(url, 'kw_dialog', 'width=680,height=620,resizable=yes,scrollbars=yes');
 }
 
