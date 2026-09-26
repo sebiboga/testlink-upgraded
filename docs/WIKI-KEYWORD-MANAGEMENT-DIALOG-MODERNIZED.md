@@ -67,6 +67,11 @@ event history link for the keyword, exactly like the legacy dialog did.
 - `testproject::getName()` is used for the context; in `cfl` mode the test case
   name is read from the `nodes_hierarchy` row of the version's parent id (the
   2.0.1 refactor has **no** static `testcase::getName()`, see issue #1600/#1601).
+- **Show event history** is back in edit mode for holders of `mgt_view_events`
+  (legacy `showEventHistoryFor()`), opening the modern event viewer filtered
+  by `object_type=keywords` — key `kwedit.showEventHistory`.
+- Keyword names are truncated to the 100-character column limit before the
+  write, as the legacy dialog did.
 - The delete refusal uses the same `deleteKeyword(checkBeforeDelete:true)` call
   as 1.9.20, so `$cfg->keywords->onDeleteCheckExecutedTCVersions` and
   `onDeleteCheckFrozenTCVersions` still decide.
@@ -103,13 +108,33 @@ deleteTitle, deleteText, deleteConfirm, deleteCancel, openManager, required`.
   takes a keyword id now loads it and answers `404` when it belongs to another
   project, so a manager of project A can neither rename, re-own nor delete a
   keyword of project B (issue #1601, fixed in both keyword BFFs).
+- **Create-and-link must not cross projects** — the `tcversion_id` is
+  caller-supplied, so `tcaseVersionContext()` walks the whole
+  `nodes_hierarchy` parent chain: the root has to be a test project
+  (`node_type_id = 1`) **equal to `tproject_id`**, and the requested node has
+  to be a test case (`3`) or a test case version (`4`) — a suite or the
+  project itself is refused. Everything else answers `404`, so neither the
+  foreign link nor the foreign test case name leaks (issue #1603).
+  Remember `kwParentChain()` is **root-first**: `chain[0]` is the project.
+- The legacy shim `lib/keywords/keywordsEdit.php` re-checks the project of the
+  keyword on `do_update`/`do_delete`, rejects cross-site POSTs
+  (`Sec-Fetch-Site` / `Origin`), coerces request parameters to scalars and
+  surfaces the resulting `kwerr` code as a toast in `keywordsView.html`
+  (issue #1604). Its GET no longer re-points the session project
+  (`testlinkInitPage($db)` without `TRUE`).
+- In the sibling BFF `api/keywords`: `GET /{id}` checks `mgt_view_key` on the
+  **keyword's own** project and bulk `POST /import` needs
+  `mgt_modify_key` **AND** `mgt_view_key` (issue #1604). Note the legacy
+  import parser splits on `;`; a comma-delimited file answers
+  `200 {"status":"ok"}` and imports nothing (issue #1605, not fixed yet).
 - **CSRF** — `bffSameOriginGuard()` on all writes; anonymous requests get 401.
 - Nothing is interpolated into HTML unescaped (`esc()` in the front-end,
   prepared statements in the model layer).
 
 ## 6. Testing
 
-Suite **1599** in `tmp/TLU_Test_Cases.md` (24 cases, all PASS): init for the
+Suite **1599** in `tmp/TLU_Test_Cases.md` (24 cases) plus the code-review
+regression suite **1599-R** (23 cases), all PASS. The first suite covers init for the
 three modes, 400/404/403/401 paths, all four writes, the three name-validation
 errors, the executed/frozen delete refusal, the view-only and no-rights users,
 the browser flows (create, duplicate-name error box, delete modal, locale
@@ -124,6 +149,9 @@ Bugs found and fixed while testing:
 | [#1600](https://github.com/sebiboga/testlink-upgraded/issues/1600) | every keyword create error was a fatal **HTTP 500** (`tlKeyword::getErrorMessage()` no longer exists) | new legacy-parity error mapping; `tlKeyword::getError()` `E_NAMELENGTH` case + `default` fixed |
 | [#1601](https://github.com/sebiboga/testlink-upgraded/issues/1601) | cross-project keyword rename / re-own / delete | `requireKeywordOfProject()` in both keyword BFFs |
 | [#1602](https://github.com/sebiboga/testlink-upgraded/issues/1602) | tcView buttons never rendered; wrong version targeted | grants added to the `view` action; `openKeywordPopup(mode, tcversion_id)` |
+| [#1603](https://github.com/sebiboga/testlink-upgraded/issues/1603) | Create-and-Link accepted a `tcversion_id` of **another** project (cross-project IDOR + foreign test case name disclosure) | `tcaseVersionContext()` parent-chain + owning-project validation, 404 |
+| [#1604](https://github.com/sebiboga/testlink-upgraded/issues/1604) | shim: no ownership check on update/delete, no CSRF guard, `keyword[]=x` → 500, errors swallowed; `api/keywords` read/import rights on the wrong project | `kwShimOwnedBy()`, cross-site rejection, scalar coercion, `kwerr` toast, own-project `mgt_view_key`, AND-mode import gate |
+| [#1605](https://github.com/sebiboga/testlink-upgraded/issues/1605) | bulk import answers `200 {"status":"ok"}` while importing nothing (legacy `;` delimiter, per-row errors dropped) | **open** — not part of this screen |
 
 ## 7. Screenshots
 

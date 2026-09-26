@@ -5702,6 +5702,22 @@ Changes:
 - Key bugfix #1602: the Test Case Viewer keyword buttons never rendered (the keyword grants
   had been added to the `api/testcases` `context` action instead of `view`) and they always
   opened the *current* test case version instead of the version card that was clicked.
+- Key bugfix #1603 (security): Create-and-Link accepted a `tcversion_id` from **any** test
+  project — a manager of project A could create a project-A keyword and link it to a
+  project-B test case version (rows in `testcase_keywords`) and read a foreign test case
+  name. `tcaseVersionContext()` now walks the whole `nodes_hierarchy` parent chain: the root
+  must be a test project equal to `tproject_id` and the node must be a test case or test
+  case version; anything else answers 404.
+- Key bugfix #1604 (security): the legacy keyword shim had no ownership check on
+  update/delete, accepted cross-site POSTs, turned `keyword[]=x` into a 500 and swallowed
+  the resulting error code. The shim now verifies the keyword's project, rejects cross-site
+  requests, coerces request params to scalars, and `keywordsView.html` renders the error as
+  a localized toast. `api/keywords` also checks `mgt_view_key` on the keyword's own project
+  for `GET /{id}` and requires `mgt_modify_key` AND `mgt_view_key` for bulk import.
+- Keyword parity: the popup regains the legacy **Show event history** action in edit mode
+  for holders of `mgt_view_events` (opens the modern event viewer filtered by the keyword),
+  names are truncated to the 100-character column limit, and the Test Case Viewer forwards
+  `tplan_id` to the popup so Cancel keeps the test-plan context.
 
 ### Key bugfix — TLi18n locale selection persistence (Refs #1586)
 - Key bugfix #1586: an explicit language switch in the locale switcher now
