@@ -23290,6 +23290,115 @@ Before the fix the header was `Last Name` over `Ann Designer`.
 **Screenshots:** `docs/screenshots/issue-1630-before.png` (header "Last Name")
 and `docs/screenshots/issue-1630-after.png` (header "Name", same cells).
 
+## Suite 1632 — Import Platforms standalone screen + `api/platformsimport` BFF
+
+**Precondition**
+
+- App on `http://localhost:8082` (PHP 8.3 built-in server, docroot = repo root),
+  MariaDB `testlink` on `127.0.0.1:3306` (`testlink`/`testlink`), login `admin`/`admin`.
+- Fixtures: **`php tmp/fixtures_1632.php`** (prints the ids it created). It drops and
+  rebuilds a disposable project so the suite is re-runnable on a fresh database:
+  - project `PIMP` (id **16**) with seeded platforms `Win11` and `MacOS`
+  - plan `PIMP Plan` (id **17**)
+  - user `pimpviewer1632` / `pimp1632` — global role 7 (Tester) + **project role 6
+    (Senior Tester)**, the only seeded role holding `platform_view` (right 25)
+    *without* `platform_management` (right 24). Roles 8/9 (Admin/Leader) hold both.
+  - user `pimpno1632` / `pimp1632` — global role 3 (no rights), no project role
+  - XML fixtures `tmp/pimp_{good,malformed,notxml,toobig}.xml`
+- Reusable asserting harness: **`bash tmp/verify_1632.sh`** — **74 assertions**,
+  exits non-zero on any failure, cleans up nothing it did not create.
+  Verified discriminating against the pre-fix code
+  (`git show 68ec9bb09~1 -- api/platformsimport/index.php gui/templates/platforms/platformsImport.html`)
+  → **67 PASS / 7 FAIL, exit 1**.
+
+**Result: 74 PASS / 0 FAIL.**
+
+| # | Area | Assertion | Result |
+|---|---|---|---|
+| 1 | shim | `lib/platforms/platformsImport.php` 302s to the standalone screen, keeping `tproject_id`+`tplan_id` | **PASS** |
+| 2 | shim | 302 with project only, and honours the legacy `testproject_id`/`testplan_id` aliases | **PASS** |
+| 3 | shim | follows through to HTTP 200; anonymous requests get the standard `login.php?note=expired` script | **PASS** |
+| 4 | init | 200 + project name `PIMP`, echoes `tplan_id`, `platform_count` equals the DB row count | **PASS** |
+| 5 | init | `import_types` = `["XML"]`, cap = `10485760`, `file_formats_doc` = `/docs/tl-file-formats.pdf`, `grants.platform_management` = `yes` | **PASS** |
+| 6 | import | valid file → 1 `IMPORTED` + 1 `UPDATED` + 1 `BAD_LINE`, `node_count` 3, per-row `{code,name}` contract | **PASS** |
+| 7 | import | both the created and the updated row are asserted **in the database**, including the three flags (`010`) | **PASS** |
+| 8 | import | `imported_total` equals `SELECT COUNT(*) FROM platforms` after the run | **PASS** |
+| 9 | import | same platform name twice in one file → 1 import + 1 update, **exactly one row**, and the 2nd node's values win | **PASS** |
+| 10 | import | not-XML / malformed / zero-byte file → 422 `WRONG_FORMAT` with libxml line/column detail | **PASS** |
+| 11 | import | valid but empty `<platforms/>` → 200, `node_count` 0, 0 imported (no error) | **PASS** |
+| 12 | import | 3 MB file → **413** (PHP `upload_max_filesize` is 2 MB, so the upload-error branch fires before the config cap) | **PASS** |
+| 13 | protocol | unknown project 404 `TEST_PROJECT_NOT_FOUND`; missing/non-numeric id 400 `INVALID_TPROJECT_ID` | **PASS** |
+| 14 | protocol | unknown and missing action → 400 `UNKNOWN_ACTION`; `GET` on import and `POST` on init → 405 `METHOD_NOT_ALLOWED` | **PASS** |
+| 15 | protocol | import with no file → 422 `NO_FILE`; import with no project → 400; anonymous init → **401** | **PASS** |
+| 16 | rights | viewer: init **200** with `platform_management` null, import **403 `NO_RIGHTS`** | **PASS** |
+| 17 | rights | no-rights user: init **403**, body leaks neither the project name nor `platform_count` | **PASS** |
+| 18 | audit | both denials write `audit_security_user_right_missing` into `events` (`activity=IMPORT`, user + action in the payload) | **PASS** |
+| 19 | assets | screen loads `i18n/i18n.js`, calls the BFF, has no Smarty/`.tpl` dependency; `platformsView.html` launches it and no longer contains `doImport` | **PASS** |
+| 20 | i18n | all 10 bundles valid JSON and every referenced `pimp.*` key present in all 10 (49 keys) | **PASS** |
+
+**Browser verification (Chrome, not covered by the HTTP-only harness)**
+
+| # | Check | Result |
+|---|---|---|
+| 21 | Screen renders with project/plan/platform count, Refresh, Back, criteria, doc link, file picker | **PASS** |
+| 22 | Upload enabled for admin; **client-side "choose a file" validation** with `is-invalid` + toast | **PASS** |
+| 23 | Import → result card with `Imported/Updated/Skipped/Platforms now` chips and one tagged row per entry; toolbar count updates 4 → 5 | **PASS** |
+| 24 | "Import another file" hides the card, clears the input, re-enables Upload and focuses the picker | **PASS** |
+| 25 | Malformed XML → danger banner + parser-message count, form stays usable, Upload re-enabled | **PASS** |
+| 26 | 3 MB file → "The file exceeds the server upload size limit.", form stays usable | **PASS** |
+| 27 | Valid-but-empty file → chips `Imported: 0 / Updated: 0` + "The file contained no platform entries." | **PASS** |
+| 28 | Viewer sees the read-only alert, file picker and Upload disabled, criteria still readable | **PASS** |
+| 29 | No-rights user gets the full-page permission state (main content hidden) with a Back action | **PASS** |
+| 30 | Locale switch to Romanian translates every label, button, hint, chip and the footer | **PASS** |
+| 31 | Back → Platforms Management and the View's Import button → this screen, both keeping project **and** plan | **PASS** |
+| 32 | **No console errors or warnings** in any state | **PASS** |
+
+**Bugs found by this suite and fixed**
+
+| Bug | Symptom | Fix |
+|---|---|---|
+| 1 | Upload button permanently disabled for `platform_management` holders | `load()` called `busy(false)` before assigning `canManage`; assign the grant first |
+| 2 | "View file format documentation" 404 | BFF returned the raw `PARTIAL_URL_TL_FILE_FORMATS_DOCUMENT`; make it root-relative like `api/platformsexport` |
+| 3 | A platform name repeated in one file lost the 2nd node's values while still reporting "updated" | the in-memory map was seeded with `id => 0`, so the next node called `update(0, …)`; store the real id from `create()` and honour its status |
+| 4 | Denied attempts left no trace, and init leaked the project name + platform count to a user with no platform right | log `audit_security_user_right_missing` before the 403 (as `checkUserRightsFor()` did) and gate init on `platform_view` |
+
+**Legacy parity notes (verified against `git show f00a4649b~1:lib/platforms/platformsImport.php`)**
+
+- `doImport()` walked the file with `foreach($xml as $platform)`, i.e. the **root's
+  direct children**. A whole-project TestLink export (root `<TestLink>`) therefore
+  yields one nameless child and one "bad line" — the BFF reproduces this exactly,
+  which is why the fixtures use `<platforms>` as the root.
+- Legacy wrote the upload to `TL_TEMP_PATH . session_id() . "-import_platforms.tmp"`
+  and never deleted it. The BFF unlinks it in a `finally` block.
+- Legacy gated **the whole page** on `platform_management`, so a plain
+  `platform_view` holder could not even open it. The modern screen splits the gate:
+  init needs `platform_view`, import needs `platform_management`. This is a
+  deliberate, documented superset — the view right is not dropped, it is what
+  guards init.
+
+**Event Viewer:** `SELECT COUNT(*) FROM events WHERE log_level IN (1,2)`
+returns **7** — but **0** of them come from `platformsImport.html` or
+`api/platformsimport` (asserted). They are debug residue from building the
+fixture script itself, and are listed here so the next agent is not misled:
+
+| ids | Level | Origin |
+|---|---|---|
+| 2 | E_WARNING | `tmp/fixtures_1632.php` — undefined property while I was fixing the fixture's unquoted SQL |
+| 14, 19, 20, 21 | ERROR | the same fixture's malformed `INSERT` (the unquoted `prepare_string` bug) |
+| 34, 35 | E_WARNING | `lib/functions/common.php:122` — the autoloader's `include_once` of the non-existent `tlUserRole.class.php`, triggered by the fixture before it was changed to write `user_testproject_roles` directly |
+
+The last pair is a **pre-existing application bug**, not fixture noise: the
+autoloader wraps `include_once` in `catch (Exception)`, but since PHP 7 a failed
+include raises `E_WARNING`, so the catch can never run and every missing class
+permanently writes two rows. Filed as **#1634**; out of scope here.
+
+The only rows this screen itself produced are the two intentional
+`audit_security_user_right_missing` denials (`log_level=16`, INFO).
+
+**Screenshots:** `docs/screenshots/issue-1632-platformsimport-{normal,results,malformed,view-only,no-permission}.png`
+
+Refs #1632.
+
 ---
 
 ## Task — Issue #988: requirement-feature quick toggle in projectsView
