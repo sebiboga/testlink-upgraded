@@ -22,7 +22,6 @@ Three separate routes reached the same defect:
 
 Entry point: `http://localhost:8082/lib/issuetrackers/issueTrackerView.php?tproject_id=1`.
 
-![Before: the Issue Trackers screen is a blank page](issue-1617-grid-before.png)
 
 ## Environment and fixtures
 
@@ -38,8 +37,9 @@ Entry point: `http://localhost:8082/lib/issuetrackers/issueTrackerView.php?tproj
   DELETE FROM events;
   ```
 
-  `0` is not a key of `$systems`; the 17 valid keys are listed at
-  `lib/functions/tlIssueTracker.class.php:31-149` (`1` = bugzilla/xmlrpc).
+  `0` is not a key of `$systems`. The map has **26** keys, of which **17 are
+  `enabled`** (the 9 disabled ones are 10,11,12,13,16,17,18,20,21) and spans
+  `lib/functions/tlIssueTracker.class.php:31-87`; `1` = bugzilla/xmlrpc.
 
 ## Measured evidence (before)
 
@@ -140,8 +140,17 @@ Minimal, and a deliberate port of the shape proven in #1597. Diff: 2 files,
    `checkEnv` can satisfy `$impl::checkEnv()` — a private or non-static declaration
    would raise an `Error` and re-introduce the very fatal this guard prevents.
 3. **`tlIssueTracker::getLinkedTo()`** — return `NULL` when the linked tracker's type is
-   unknown, so `getInterfaceObject()` degrades down the path it **already** handles for
-   "project has `issue_tracker_enabled=1` but no tracker linked" (`:677-679`).
+   not a key of `$systems`, so `getInterfaceObject()` degrades down the path it **already**
+   handles for "project has `issue_tracker_enabled=1` but no tracker linked" (`:677-679`).
+   The guard deliberately tests **`$systems` only, never `$types`**: `getTypes()`
+   (`:150-159`) populates `$this->types` for `enabled` systems *only*, while `$systems` has
+   26 keys of which **9 are disabled** (10, 11, 12, 13, 16, 17, 18, 20, 21). Guarding on
+   `$types` as well would wrongly reject a legitimate disabled type such as gforge/soap
+   (10) — and `link()` (`:489-502`) chooses INSERT vs UPDATE from `is_null($statusQuo)`
+   against a `PRIMARY KEY (testproject_id)`, so a spurious `NULL` turns a project save
+   into a "Duplicate entry" DATABASE error page. Caught in code review and fixed; the
+   display label is read separately (`verboseType = ''` for a disabled type).
+   Regression-guarded by the `DISABLED type` assertions in `tmp/unit_1617.php`.
 4. **`tlIssueTracker::checkConnection()`** — return `false` before the `new`; the caller
    maps that to `'ko'`, which `issueTrackerView.tpl:60` already renders with the
    existing localized `bts_check_ko` badge.
@@ -152,7 +161,6 @@ Minimal, and a deliberate port of the shape proven in #1597. Diff: 2 files,
    The `@class_exists()` half also covers a *valid* `$systems` key whose interface file
    is absent (the Contour case from #1593).
 
-![After: the bad row is listed next to the healthy ones, screen fully functional](issue-1617-grid-after.png)
 
 **No new i18n key and no bundle edit** was needed — every message reuses a string that
 already exists. `gui/templates/i18n/*.json` was therefore left untouched.
@@ -180,12 +188,17 @@ already exists. `gui/templates/i18n/*.json` was therefore left untouched.
 | `?id=<bad row>` | `500`, 0 B, 12 event rows | `200`, 14188 B, **0 event rows** |
 | `checkConnection&type=0` | `500`, 0 B, 5 event rows | `200` + "Issue Tracker type 0 is unknown", **0 event rows** |
 
-Full 9-row regression matrix in `tmp/TLU_Test_Cases.md` ("Suite 1617"), re-runnable via
-`bash tmp/verify_1617.sh` and `php tmp/unit_1617.php`. All rows PASS, including the two
-regression guards: the code-tracker screen (`lib/codetrackers/codeTrackerView.php`,
-the #1597 twin) and `lib/ajax/getissuetrackercfgtemplate.php?type=0`. Browser-verified:
-the grid renders "Showing 1 to 3 of 3 entries" with the bad row listed and clickable,
-no console errors, Event Viewer empty.
+Full regression matrix in `tmp/TLU_Test_Cases.md` ("Suite 1617"), re-runnable via
+`bash tmp/verify_1617.sh` (22 HTTP assertions) and `php tmp/unit_1617.php` (13
+class-level assertions). Both harnesses **assert and exit non-zero on failure** — proved
+discriminating, not just self-reporting: against the pre-fix baseline
+`verify_1617.sh` reports **12 FAIL and exits 1**, against the fix **22 PASS and exits 0**.
+Coverage includes the two regression guards — the code-tracker screen
+(`lib/codetrackers/codeTrackerView.php`, the #1597 twin) and
+`lib/ajax/getissuetrackercfgtemplate.php?type=0` — plus a disabled-type guard for the
+`getLinkedTo()` subtlety described above. Browser-verified: the grid renders
+"Showing 1 to 3 of 3 entries" with the bad row listed and clickable, no console errors,
+Event Viewer empty.
 
 ## Two unrelated defects found while testing — filed, not fixed
 

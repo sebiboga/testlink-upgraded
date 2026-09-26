@@ -284,14 +284,20 @@ class issueTrackerCommands
     // submitted with a type the legacy controller never validated (there is no
     // checkCreate/checkUpdate in this class). Report it through the existing
     // feedback channel and re-render the edit form instead of 500ing.
-    // Reuses the legacy string 'issuetracker_invalid_type' already shipped for
-    // the ajax sibling (lib/ajax/getissuetrackercfgtemplate.php:46) - no new
-    // i18n key needed.
+    // The two cases get the two different existing strings that the ajax
+    // sibling already uses (lib/ajax/getissuetrackercfgtemplate.php:44,46), so
+    // no new i18n key is needed:
+    //   - unknown type            -> 'issuetracker_invalid_type' (takes the type)
+    //   - known type, no class    -> 'issuetracker_interface_not_implemented'
+    //                                (takes the interface name; the Contour case
+    //                                 of issue #1593)
     if( is_null($class2create) || !@class_exists($class2create) )
     {
       $guiObj->connectionStatus = 'ko';
-      $guiObj->user_feedback['message'] = 
-        sprintf(lang_get('issuetracker_invalid_type'), $argsObj->type);
+      $guiObj->user_feedback['type'] = 'ERROR';
+      $guiObj->user_feedback['message'] = is_null($class2create)
+        ? sprintf(lang_get('issuetracker_invalid_type'), $argsObj->type)
+        : sprintf(lang_get('issuetracker_interface_not_implemented'), $class2create);
       return $guiObj;
     }
 

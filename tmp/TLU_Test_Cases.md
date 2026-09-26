@@ -22680,8 +22680,14 @@ legitimately use it.
   either. Getting this wrong silently makes every project-scoped case a no-op.
 - Reusable harness (creates its own fixtures, logs in itself):
   - `bash tmp/repro_1617.sh` — the single-crash reproduction
-  - `bash tmp/verify_1617.sh` — rows 1-4, 7, 8, 9 over HTTP
-  - `php  tmp/unit_1617.php` — rows 5, 5b, 6 at the class level
+  - `bash tmp/verify_1617.sh` — 22 HTTP assertions (rows 1-4, 7, 8, 9)
+  - `php  tmp/unit_1617.php` — 13 class-level assertions (rows 5, 5b, 6, 6b)
+
+  **Both harnesses assert and exit non-zero on failure** (added after code review found
+  the first version only echoed values, so `bash tmp/verify_1617.sh` exited 0 even
+  against the crashing code). Verified discriminating: pre-fix baseline → 12 FAIL / exit 1;
+  with the fix → 22 PASS / exit 0. `unit_1617.php` also seeds its own test project and
+  cleans up its `U1617-%` fixtures.
 
 **Steps to reproduce the defect (pre-fix)**
 
@@ -22711,7 +22717,8 @@ repair it), the healthy rows unaffected, and **zero** new rows in `events`.
 | 4c | `POST issueTrackerEdit.php` `doAction=checkConnection&type=0` | `200` 17248 B, feedback **"Issue Tracker type 0 is unknown"** shown, **0 warnings** |
 | 5 | `getLinkedTo()` on a project linked to a bad-type tracker | returns `NULL`, **0 warnings** |
 | 5b | `getLinkedTo()` on a valid-type tracker | real data (`verboseType: bugzilla (Interface: xmlrpc)`, `api: xmlrpc`) — no regression |
-| 6 | `getImplementationForType(0 / 999 / 1)` | `NULL` / `NULL` / `'bugzillaxmlrpcInterface'`; 17 valid keys intact |
+| 6 | `getImplementationForType(0 / 999 / 1)` | `NULL` / `NULL` / `'bugzillaxmlrpcInterface'`; 26 `$systems` keys (17 enabled) intact |
+| 6b | `getLinkedTo()` on a project linked to a tracker whose type is **valid but `enabled => false`** (e.g. 10 gforge/soap) | **PASS** still resolves (`api = soap`, `verboseType = ''`), 0 warnings — regression guard for the code-review finding below |
 | 7 | `lib/ajax/getissuetrackercfgtemplate.php?type=0` | unchanged `{"sucess":true,"cfg":"Issue Tracker type 0 is unknown"}` |
 | 8 | `lib/codetrackers/codeTrackerView.php` (the #1597 twin) | `200`, **0 warnings** — unaffected |
 | 9 | Event Viewer at the end of the matrix | **0 rows** |
@@ -22728,6 +22735,27 @@ Pre-fix vs post-fix on the two crashing routes, same session, same fixtures:
 and the Event Viewer stays empty. Verified in the browser as well: the Issue Tracker
 Management grid renders "Showing 1 to 3 of 3 entries" with the bad-type row listed
 and clickable, and the edit form re-renders with the localized message.
+
+**Code-review finding that changed the fix (worth knowing before touching `getLinkedTo()`)**
+
+The first version of the `getLinkedTo()` guard tested **both** maps:
+
+```php
+if( !isset($this->types[$ret['type']]) || !isset($this->systems[$ret['type']]) ) { return null; }
+```
+
+That is **wrong**. `getTypes()` (`tlIssueTracker.class.php:150-159`) populates
+`$this->types` for `enabled` systems **only**, while `$systems` has 26 keys of which
+**9 are disabled** (10, 11, 12, 13, 16, 17, 18, 20, 21). So a legitimate disabled type
+such as gforge/soap (10) would have been rejected. That matters because `link()`
+(`:489-502`) picks INSERT vs UPDATE from `is_null($statusQuo)` and
+`testproject_issuetracker` is `PRIMARY KEY (testproject_id)` — a spurious `NULL` makes
+the INSERT fail with "Duplicate entry", which `database::exec_query()` (`:190-200`) logs
+as a `DATABASE` **ERROR** event and then `die()`s with a backtrace page. Reachable from
+`api/projects/index.php:264-270`, `api/projectedit/index.php:178-184` and
+`lib/project/projectEdit.php:487`. The guard now tests `$systems` only and reads the
+display label separately (`verboseType = ''` for a disabled type). Proven by re-running
+the harness with the old guard restored: **3 assertions FAIL**; with the fix all pass.
 
 **Gotchas for the next agent**
 

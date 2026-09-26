@@ -696,16 +696,25 @@ class tlIssueTracker extends tlObject
     if (!is_null($ret)) { 
       $ret = $ret[0];
       // Issue #1617: a tracker linked to the test project whose type is not a
-      // key of $systems has no $this->types entry and no $this->systems spec.
-      // Returning NULL here makes the caller (getInterfaceObject()) degrade
-      // exactly like the already-handled "project has issue_tracker_enabled=1
-      // but NO tracker linked" case instead of raising 2 E_WARNINGs and handing
-      // a bogus class name further down the chain.
-      if( !isset($this->types[$ret['type']]) || !isset($this->systems[$ret['type']]) )
+      // key of $systems has no spec at all. Returning NULL here makes the caller
+      // (getInterfaceObject()) degrade exactly like the already-handled
+      // "project has issue_tracker_enabled=1 but NO tracker linked" case instead
+      // of raising 2 E_WARNINGs and handing a bogus class name further down the
+      // chain.
+      // Guard on $systems ONLY, never on $types: getTypes() (:150-159) populates
+      // $this->types for 'enabled' systems only, while $systems has 26 keys of
+      // which 9 are disabled (10,11,12,13,16,17,18,20,21). Testing $types as
+      // well would wrongly reject a legitimate disabled type such as gforge/soap
+      // (10), and that matters: link() (:489-502) picks INSERT vs UPDATE from
+      // is_null($statusQuo) and testproject_issuetracker is PRIMARY KEY
+      // (testproject_id), so a spurious NULL turns a project save into a
+      // "Duplicate entry" DATABASE error page. The display label is therefore
+      // read separately and simply left empty for a disabled type.
+      if( !isset($this->systems[$ret['type']]) )
       {
         return null;
       }
-      $ret['verboseType'] = $this->types[$ret['type']];
+      $ret['verboseType'] = isset($this->types[$ret['type']]) ? $this->types[$ret['type']] : '';
       $spec = $this->systems[$ret['type']];
       $ret['api'] = $spec['api'];
     }
