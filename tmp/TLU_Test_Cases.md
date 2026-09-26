@@ -22115,3 +22115,60 @@ written after the fix is `log_level=16`.
   (the key was not found by grepping `locale/en_US/`, which is not the default
   locale) and both documents were corrected. The i18n key is still worth having,
   because it gives a real message to the other 14 locales.
+
+## Regression — Issue #1596: requirement-linking buttons never render in Test Specification
+
+Preconditions/fixtures: fresh TestLink database on MariaDB; TestLink 2.0.1 at
+`http://localhost:8082` (PHP 8.3.35 built-in server); `admin` / `admin` (Administrator,
+so `req_tcase_link_management` is granted). Fixture `php tmp/fixtures_1596.php` →
+test project **REQ1596** id `13` (prefix `RQ96`, `option_reqs=1`, requirements
+ENABLED), requirement specification `RS1596` id `14` with 2 requirements
+(REQ-001 id `16`, REQ-002 id `18`), test suite **Suite A** id `20`, test case
+**REQ1596 TC 01** id `21`. Entry:
+`http://localhost:8082/gui/templates/testcases/testSpec.html?tproject_id=13`.
+
+The fix under test is `d270ea7dd` (2 lines, `gui/templates/testcases/testSpec.html:747`
+and `:890`): `ctx.reqEnabled` (never assigned anywhere) → `ctx.options && ctx.options.requirementsEnabled`.
+To obtain a true *before* state without touching the default branch, the two gated
+lines were reverted **in the working copy only** (never committed) and the screen was
+hard-reloaded with `ignoreCache`; the working copy was then restored from git and
+verified clean (`git status --short gui/templates/testcases/testSpec.html` → empty).
+
+### Test 1 — Pre-fix reproduction: both entry points absent for an admin
+- **Steps:** With the gate reverted, log in as `admin`, open the entry URL, click **Suite A**, then click **REQ1596 TC 01**.
+- **Expected (the bug):** `#suiteView` has no "Requirements Bulk Assignment" button and `#tcView` has no "Assign Requirements" button, although the project has requirements enabled and the user holds the link-management right.
+- **Actual (pre-fix, measured):** `ctx.reqEnabled` = `undefined`, `ctx.options.requirementsEnabled` = `true`, `grants['req_tcase_link_management']` = `true`; `#suiteView` buttons = `Export Test Cases, Export Test Suite, New Test Case Here, New Sub-Suite, Rename Suite, Delete Suite`; `#tcView` buttons = `Edit Test Case, Create New Version, Full Viewer, Delete Test Case, Freeze, Deactivate, Delete this version`. No console error, no log entry — a silent loss of both entry points. PASS (bug reproduced).
+
+### Test 2 — Post-fix: the suite-level "Requirements Bulk Assignment" button renders and opens the right grid
+- **Steps:** Working copy restored, hard reload, click **Suite A**.
+- **Expected:** the button is rendered and `openReqBulkAssign()` opens `reqTcBulkAssign.html` for the selected suite of the current project.
+- **Actual:** `#suiteView` buttons = `…, Delete Suite, Requirements Bulk Assignment`; the button carries `onclick="openReqBulkAssign()"`; `window.open` captured `/gui/templates/requirements/reqTcBulkAssign.html?tproject_id=13&tsuite_id=20` (project 13 = the viewed project, suite 20 = the selected node). PASS.
+
+### Test 3 — Post-fix: the per-test-case "Assign Requirements" button renders with the right test-case id
+- **Steps:** Click **REQ1596 TC 01** in the tree.
+- **Expected:** the button is rendered and its handler carries the clicked test case, not the version or the suite.
+- **Actual:** `#tcView` buttons = `…, Delete this version, Assign Requirements`; `onclick="openAssignReqs(21)"` and `21` is the test case id (its version id is `22`). PASS.
+
+### Test 4 — Post-fix: the restored bulk entry point is functional end-to-end (real DB writes)
+- **Steps:** Open `reqTcBulkAssign.html?tproject_id=13&tsuite_id=20`; tick both requirements (check-uncheck-all); click **Assign to all test cases of the suite**; confirm in the dialog.
+- **Expected:** the confirmation states the real counts, the assignment is written, the per-row chips switch to the linked state, and an audit event is emitted.
+- **Actual:** confirm dialog read `Assign 2 selected requirement(s) to 1 test case(s) of Suite A (#20)?`; after Assign both rows read `1/1 test cases of this suite already linked` (previously `not linked to any test case of this suite (1)`); `events` row `id=9 log_level=16 object_type=testsuites object_id=20` (`audit_req_assigned_tc`). PASS.
+
+### Test 5 — Post-fix: the restored per-test-case entry point opens its modal
+- **Steps:** Click **Assign Requirements** on **REQ1596 TC 01**.
+- **Expected:** the modal opens with the project's requirement-specification combo, the FREE / ASSIGNED lists, the Assign / Unassign actions and Cancel / Close.
+- **Actual:** modal rendered; `Requirement Specification:` = `[RS1596] - RS1596 Specification`; buttons `Assign`, `Unassign`, `Cancel`, `Close` present. PASS for the opening behaviour.
+- **Follow-up finding (NOT a #1596 regression, filed separately as #1598):** the FREE/ASSIGNED lists are **empty** because `openAssignReqs(tcaseId)` never stores the id in `arqTcaseId` (`testSpec.html:357` vs `:433`), so `arqLoadReqs()` bails at `:383` and the `GET /assign-reqs` call is never issued. Proof that the backend is healthy:
+  `GET /api/requirements/index.php/assign-reqs?req_spec_id=14&tcase_id=21` → `200 {"status":"ok","unassigned":["REQ-001","REQ-002"],"assigned":0}` while the page issued only `assign-reqspecs`. Different root cause, out of scope here → issue **#1598**.
+
+### Test 6 — Event Viewer + console hygiene after the whole pass
+- **Steps:** Re-read the `events` table and the browser console after tests 1-5, on both screens.
+- **Expected:** no new Error/Warning entries, no console errors.
+- **Actual:** `select log_level, count(*) from events group by log_level` → `16 → 9` rows only (INFO/audit; the bulk assign is audited correctly); **0 ERROR, 0 WARNING**; console on `testSpec.html` and on `reqTcBulkAssign.html` → no errors, no warnings. PASS.
+
+**Suite #1596 total: 6/6 PASS (test 5 = PASS for the button/modal opening, with the
+empty-list defect tracked separately as #1598). (Refs #1596)**
+
+Evidence: `docs/screenshots/issue-1596-prefix-tcview.png` (before, viewport),
+`docs/screenshots/issue-1596-postfix-assign-requirements.png` (after, viewport),
+`docs/screenshots/issue-1596-postfix-bulk-assign-button.png` (suite toolbar, full page).
