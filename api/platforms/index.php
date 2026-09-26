@@ -10,11 +10,19 @@
  * Rights split (same as the legacy screens):
  *   view   -> platform_view OR platform_management
  *   manage -> platform_management
+ *
+ * Scope: view/CRUD/flags/assign/export only. Importing platforms is NOT served
+ * here - the single canonical implementation lives in api/platformsimport/index.php
+ * (POST ?action=import), which the Import button of gui/templates/platforms/
+ * platformsView.html reaches through gui/templates/platforms/platformsImport.html.
+ * The former POST /import branch here had no caller left and was the weaker of the
+ * two implementations (raw HTML + HTTP 200 on a parse error, 422 instead of 413 for
+ * TOO_LARGE, create() return status discarded); it was removed so exactly one import
+ * path exists to audit. Refs #1636.
  */
 
 require_once(__DIR__ . '/../../config.inc.php');
 require_once('common.php');
-require_once('xml.inc.php');
 require_once(__DIR__ . '/../../third_party/adodb_xml/class.ADODB_XML.php');
 
 doSessionStart();
@@ -379,96 +387,6 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'export') {
     header('Content-Length: ' . strlen($content));
     echo $content;
     exit;
-}
-
-// ---------------------------------------------------------------------------
-// POST /import - multipart upload XML (platform_management)
-// field: tproject_id, uploadedFile
-// Same create-or-update-by-name logic as legacy platformsImport.php doImport().
-// ---------------------------------------------------------------------------
-if ($method === 'POST' && isset($segments[0]) && $segments[0] === 'import') {
-    $tproject_id = intval($_POST['tproject_id'] ?? 0);
-    if ($tproject_id <= 0) {
-        http_response_code(400);
-        out(['status' => 'error', 'message' => 'Invalid test project id']);
-    }
-    if (!canManage($user, $db, $tproject_id)) {
-        http_response_code(403);
-        out(['status' => 'error', 'message' => 'No permission']);
-    }
-
-    $fInfo = $_FILES['targetFilename'] ?? $_FILES['uploadedFile'] ?? null;
-    if (is_null($fInfo) || $fInfo['error'] == UPLOAD_ERR_NO_FILE) {
-        http_response_code(422);
-        out(['status' => 'error', 'message' => 'Please choose a platforms file',
-             'error_code' => 'NO_FILE']);
-    }
-    if ($fInfo['error'] != UPLOAD_ERR_OK) {
-        http_response_code(422);
-        out(['status' => 'error', 'message' => 'File upload failed',
-             'error_code' => 'UPLOAD_ERROR']);
-    }
-    $maxSize = config_get('import_file_max_size_bytes');
-    if ($fInfo['size'] > $maxSize) {
-        http_response_code(422);
-        out(['status' => 'error', 'message' => 'File too large',
-             'error_code' => 'TOO_LARGE']);
-    }
-
-    $dest = TL_TEMP_PATH . session_id() . "-import_platforms.tmp";
-    if (!move_uploaded_file($fInfo['tmp_name'], $dest)) {
-        http_response_code(500);
-        out(['status' => 'error', 'message' => 'Could not store uploaded file']);
-    }
-
-    // http://websec.io/2012/08/27/Preventing-XXE-in-PHP.html
-    $xml = @simplexml_load_file_wrapper($dest);
-    @unlink($dest);
-
-    if ($xml === FALSE || $xml === null) {
-        http_response_code(422);
-        out(['status' => 'error', 'message' => 'Problems loading XML content',
-             'error_code' => 'WRONG_FORMAT']);
-    }
-
-    $mgr = platMgrFor($tproject_id);
-    $platformsOnSystem = $mgr->getAllAsMap(['accessKey' => 'name',
-                                            'output' => 'rows',
-                                            'enable_on_design' => null,
-                                            'enable_on_execution' => null,
-                                            'is_open' => null]);
-
-    $imported = 0;
-    $updated = 0;
-    $skipped = 0;
-    foreach ($xml as $platform) {
-        if (property_exists($platform, 'name')) {
-            $name = trim((string)$platform->name);
-            if (isset($platformsOnSystem[$name])) {
-                $mgr->update($platformsOnSystem[$name]['id'],
-                             $name,
-                             (string)$platform->notes,
-                             intval($platform->enable_on_design),
-                             intval($platform->enable_on_execution),
-                             intval($platform->is_open));
-                $updated++;
-            } else {
-                $item = new stdClass();
-                $item->name = $name;
-                $item->notes = (string)$platform->notes;
-                $item->enable_on_design = intval($platform->enable_on_design);
-                $item->enable_on_execution = intval($platform->enable_on_execution);
-                $item->is_open = intval($platform->is_open);
-                $mgr->create($item);
-                $imported++;
-            }
-        } else {
-            $skipped++;
-        }
-    }
-
-    out(['status' => 'ok', 'imported' => $imported, 'updated' => $updated,
-         'skipped' => $skipped]);
 }
 
 // ---------------------------------------------------------------------------

@@ -5847,6 +5847,19 @@ Changes:
       project tables and added user metrics to the middle section
 
 ## 2.0.1 (in-progress)
+### Bugfix — one canonical platform import path (Refs #1636)
+- Removed the caller-less second import implementation, `POST /import` on
+  `api/platforms/index.php` (and the `lib/functions/xml.inc.php` require that only it needed). The
+  Import Platforms modernization (#1632) moved the UI to
+  `gui/templates/platforms/platformsImport.html` + `api/platformsimport/index.php`, leaving the old
+  branch reachable but unused and the weaker of the two: a malformed upload answered **raw HTML with
+  HTTP 200** (`lib/functions/xml.inc.php:37-41` echoes and `die()`s before the JSON error can be
+  built), `TOO_LARGE` was answered 422 instead of 413, and `create()`'s return status was discarded
+  so a never-written platform still counted as `imported`. Importing is now served only by
+  `api/platformsimport/index.php` (`POST ?action=import`), which keeps the hardened
+  `ok[]`/`ko[]` `BAD_LINE` contract; `POST /api/platforms/index.php/import` now falls through to the
+  pre-existing JSON 404. Every other route of `api/platforms/index.php`
+  (list/CRUD/flags/assign/export) is unchanged.
 ### UI modernization — Import Platforms (Refs #1632)
 - The last fully legacy standalone screen of the Platforms area, `lib/platforms/platformsImport.php`
   (+ `gui/templates/dashio/platforms/platformsImport.tpl`), is modernized as
