@@ -22898,82 +22898,53 @@ with a `responseText` fallback) and completing the code→i18n-key map with
 **Screenshots:** `docs/screenshots/issue-1623-launch-{ok,denied,notfound,ro}.png` and
 `issue-1623-print-anon.png` (anonymous hand-over to the modern print screen).
 
-## Suite 987
+### Code-review round (subagent review of the screen + BFF)
 
-**Task — Issue #987: Notes (description) column + API-id tooltip in projectsView list**
+A subagent reviewed the BFF, the screen and the shim against the legacy body. Twelve
+findings; the substantive ones are listed below with the re-test that proves each fix.
+Two were real defects found by the review and fixed here.
 
-**Scope** — legacy `gui/templates/dashio/project/projectView.tpl:88` (Notes
-header) / `:113-115` (Notes cell, `nl2br` when the project editor is `none`) and
-`:104` (`fa-cubes` icon titled `API {tlCfg->api->id_format}`) vs modern
-`gui/templates/projectsView.html`.
+**MAJOR — the documented session branch was unreachable: `$_SESSION` was read with no
+`doSessionStart()`.** Neither `config.inc.php` nor `common.php` start the session on
+their own (only `doSessionStart()` and `checkConfiguration()` do), and in this BFF the
+first `session_start()` happened *inside* the apikey branch. So `isset($_SESSION['userID'])`
+was always false and **every apikey-less request answered 401 — even for a logged-in
+user** — contradicting the docblock and the docs page. A user who opened the screen from
+the app would see "Access denied / You are not logged in and the link carries no API key"
+while logged in. Fixed with `doSessionStart()` before the read (same call as
+`api/executionprint` / `api/testcasesprint`).
 
-**Preconditions**
-- App at `http://localhost:8082`, logged in as `admin`/`admin`.
-- `testprojects` seeded with 4 fixtures (the CI DB is a fresh import, table is
-  otherwise empty):
+**MINOR — `print_url` was an open-redirect sink.** `TL_BASE_HREF` comes from
+`get_home_url()`, which prefers `HTTP_X_FORWARDED_HOST` over `HTTP_HOST`; behind a proxy
+that forwards a client-supplied header the *Open test case print* button navigated
+off-site. Fixed by pinning the authority (host **and** port, so a sub-directory install
+keeps its path prefix) and falling back to a same-origin relative URL on mismatch.
 
-  | id | name | prefix | notes | why |
-  |---|---|---|---|---|
-  | 6 | Fixture Alpha | AL | 2 lines, contains `<b>markup</b>`, `&` and a newline | `nl2br` parity + HTML escaping |
-  | 7 | Fixture Beta | BE | one short line | normal case |
-  | 8 | Fixture Gamma | GA | empty | empty-notes case |
-  | 9 | Fixture Delta | DE | 320 bytes (20× "Very long note. ") | truncation case |
+| # | Test | Expected | Result |
+|---|---|---|---|
+| R1 | logged in (real session cookie, no `apikey`) `?action=resolve&testcase=L16-1-1` | **200** `auth_mode=session`, name + 2 versions + `print_url` — *this was 401 before the fix* | PASS |
+| R2 | same in the browser, no apikey | auth chip reads **"Session"**, result card visible, not the denied card | PASS |
+| R3 | `X-Forwarded-Host: evil.example.com` + valid apikey | `print_url` falls back to a **relative** `/gui/templates/…` URL (no off-site redirect) | PASS |
+| R4 | normal request (`:8082`, non-default port) | `print_url` stays **absolute** — the authority pin does not break a legit port/sub-directory | PASS |
+| R5 | `bffEnforceSession($db)` now called (issue #1614 inactivity window) + `ltcpl.errSessionExpired` in all 10 bundles | 401 `session_expired` maps to the localized **denied** card, not the generic error card | PASS |
+| R6 | `session_regenerate_id(true)` after the apikey identity switch | session id re-issued; the old cookie cannot be replayed against the link owner | PASS |
+| R7 | legacy check **order**: `apikey=badkey` with **no** `testcase` param | **400 `bad_apikey` / LTCP-01** (legacy validated the key first) — was `missing_testcase`/LTCP-02 | PASS |
+| R8 | `missing_testcase` card routing | amber **not-found** card with message + `LTCP-02` marker — was the red Error card, so one marker mapped to two different cards | PASS |
+| R9 | version pills keyboard path | pill carries `role="button"` + `tabindex="0"`; **Enter** navigates to that version; focus ring `2px` visible | PASS |
+| R10 | a11y tree of the resolved screen | pills exposed as `button "Version 1"` / `"Version 2"`; all 4 state boxes have `role="status" aria-live="polite"` | PASS |
+| R11 | localized `document.title` | `locale=ro_RO` → title `Lansare Afisare Test Case` | PASS |
+| R12 | dead code removal | `payload`, the unused `legacyTag()` helper and the byte-identical `abort` branch deleted; no behavioural change | PASS |
+| R13 | `strings_stripSlashes` applied twice / to an unread superglobal | dead lines removed (the params come from `$_GET`) | PASS |
+| R14 | N+1 query removed | `available_versions` now one `SELECT id,version … WHERE id IN (…) ORDER BY version`; same 2 entries, same order | PASS |
+| R15 | `checkConfiguration()` restored in `ltcp.php` (legacy lines 19-20) | an uninstalled instance bounces to the installer instead of a raw PHP fatal | PASS |
+| R16 | `php -l` BFF + shim after the review patches | no syntax errors | PASS |
+| R17 | full 14-case API matrix re-run after the review patches | all 14 as before, plus the corrected R7 ordering | PASS |
+| R18 | Event Viewer after the whole review round | `log_level IN (1,2,3)` = **0** (only level 16 audit rows) | PASS |
+| R19 | console on the resolved + denied + session screens | clean apart from the expected 403 network line the browser logs for the deliberate denial | PASS |
 
-  ```sql
-  SELECT tp.id, nh.name, tp.prefix, tp.notes FROM testprojects tp
-    JOIN nodes_hierarchy nh ON nh.id = tp.id ORDER BY tp.id;
-  ```
-  Note: `testprojects.api_key` is UNIQUE **with a shared default** `0d8ab81d…`,
-  so any fixture INSERT must supply its own `api_key` or the 2nd row fails with
-  `Duplicate entry '0d8ab81d…'`. `nodes_hierarchy` in 2.0.1 has `node_type_id`,
-  not legacy `nodetype`.
-
-**Steps / expected / actual**
-
-| # | Steps | Expected | Actual | Result |
-|---|---|---|---|---|
-| 1 | Open `/gui/templates/projectsView.html`, read `#projectsTable thead th` | 8 columns incl. a `Notes` column placed right after `Project Name` | `["ID","Project Name","Notes","Prefix","Issue Tracker","Code Tracker","Status","Actions"]` | PASS |
-| 2 | Read the Notes cell of project #6 | Both lines visible (legacy `nl2br`), newlines preserved | `"Main regression project.\nSecond line of notes <b>with markup</b> & an ampersand."` | PASS |
-| 3 | Check computed style of the Notes cell | `white-space: pre-line` (the `nl2br` equivalent) | `whiteSpace: "pre-line"` | PASS |
-| 4 | Inspect #6's Notes DOM for a real `<b>` element | none — markup is escaped, not rendered | `hasRealBold: false`, `innerHTML` shows `&lt;b&gt;` | PASS |
-| 5 | Read the `title` attribute of #6's Notes cell | full untruncated text | `"Main regression project.\nSecond line of notes <b>with markup</b> & an ampersand."` | PASS |
-| 6 | Compare `clientHeight` vs `scrollHeight` of #9's Notes **span** | clamped to 2 lines (30px) with overflow hidden | `clientH 30 / scrollH 225`, `-webkit-line-clamp: 2`, `max-width 260px` on the td | PASS |
-| 6b | Save a note of `"><img src=x onerror=alert(1)>`, reload, inspect the cell | escaping must hold in the `title` attribute too (a `"` could break out) | 0 `<img>` elements, no attribute breakout, no console error | PASS |
-| 7 | Read the Notes cell of #8 (no notes) | placeholder, no empty/blank artifact | span `::before` content is `"-"` | PASS |
-| 8 | Read `title` of the `fa-cubes` icon on each name cell | legacy `id_format` value → `[ID: <id>]` for every row (`config.inc.php:637` `[ID: %s ]`) | `[ID: 6]`, `[ID: 7]`, `[ID: 8]`, `[ID: 9]` | PASS |
-| 9 | Count per-column filter inputs, click the `Notes` header | legacy marks the Notes header `{#NOT_SORTABLE#}` → no filter box, no sorting | 5 filter inputs (unchanged by #987), Notes header `cursor: auto`, no `aria-sort` | PASS |
-| 9b | Measure the `<td>` rect of every column in one row | the Notes cell must not be vertically offset (regression: `display:-webkit-box` on a `<td>` drops `vertical-align: middle`) | all 8 cells `top 307 / height 57` | PASS |
-| 10 | Type `Gamma` in the global search box (`keyup`) | only #8 | `["#8"]` | PASS |
-| 11 | Type `regression` in the global search box | only #6 — notes text is now searchable | `["#6"]` | PASS |
-| 11b | Type a note as a project **prefix** column filter | the other columns are still per-column filterable | 5 inputs present for name/prefix/IT/CT/status | PASS |
-| 13 | Click the `Actions` header | no sorting (legacy `{#NOT_SORTABLE#}` on that cell) | no `aria-sort` on the th | PASS |
-| 14 | Click `Edit` on #6 | modal opens titled "Edit Test Project" with the description pre-filled | `modalTitle: "Edit Test Project"`, description field = the 2-line note | PASS |
-| 15 | Close the modal, click `Info` on #6 | project info popup opens (regression after the column realignment) | new tab `projectInfoView.html?tproject_id=6` opened | PASS |
-| 16 | Console + Event Viewer after the whole pass | no console errors, no new Error/Warning in `events` | 0 console errors; `events` holds only the login audit row (`log_level 16`) | PASS |
-
-**Note on the 2-line clamp** — legacy renders the notes in full. The modern grid
-clamps to 2 lines so one long note cannot blow up the row height, and keeps the
-complete text in the `title` attribute (steps 5/6). The clamp is a deliberate
-modernization decision, the `title` makes the legacy content fully reachable.
-
-**Code review corrections (rule 16) — the suite was re-run after them**
-
-A subagent review of the diff found 4 real defects in the first implementation;
-all were fixed and the affected steps re-measured:
-
-1. `display: -webkit-box` on the Notes `<td>` cancelled the table-cell layout and
-   dropped `vertical-align: middle` → 13px misalignment of the whole column.
-   Clamp moved to the inner `<span>`; re-measured (step 9b).
-2. The tooltip was hardcoded English `"API "` (i18n rule 3) with a one-off
-   `project-api-icon` class → now `TLi18n.t('proj.apiId')` + the shared
-   `.api-id` rule used by `buildsView.html:31` / `platformsView.html:31`.
-3. The tooltip **value was wrong**: `API testproject/6` vs legacy
-   `API [ID: 6 ]` (`config.inc.php:637` `$tlCfg->api->id_format = "[ID: %s ]"`).
-   The code comment also cited a `formatStringId()` in `lib/functions.php`,
-   which does not exist in this repo — comment removed.
-4. The column had been made sortable + per-column filterable, but legacy marks
-   the Notes header `{#NOT_SORTABLE#}` — the first CHANGELOG entry and docs
-   claimed parity that did not exist. `data-col-filter` removed,
-   `orderable: false` added, docs corrected.
-
-**Result: 18/18 PASS.**
+**Review notes that needed no change:** SQL injection (`$prjPrefix` is only ever an array
+key into the pre-loaded map; every id is `intval()`-ed), authorization (`mgt_view_tc` is
+checked on the *owning* project, and `testcase::getInternalID()` already refuses a
+foreign project), XSS (every `innerHTML` interpolation goes through `esc()`, everything
+else uses `.text()`), information disclosure (no error text leaks SQL/paths/ids), and
+i18n completeness (all 29 keys in all 10 bundles, now 30 with `errSessionExpired`).

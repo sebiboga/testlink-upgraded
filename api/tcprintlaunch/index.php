@@ -94,6 +94,12 @@ if ($testcase === '') {
 }
 
 // ---- authorization ---------------------------------------------------------
+// config.inc.php / common.php never start the session on their own, so without
+// this the $_SESSION read below is always empty and the documented session
+// branch would 401 a logged-in user. Same call as api/executionprint (line 47)
+// and api/testcasesprint (line 60); safe here because nothing has been echoed.
+doSessionStart();
+
 $user = null;
 $authMode = 'session';
 $sessionUserId = isset($_SESSION['userID']) ? intval($_SESSION['userID']) : 0;
