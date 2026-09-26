@@ -78,7 +78,7 @@ var del_action=fRoot+'lib/issuetrackers/issueTrackerEdit.php?doAction=doDelete&i
           {if $gui->canManage != ""}
             <td class="clickable_icon">
               {if $item_def.link_count == 0}
-                <i class="fas fa-minus-circle" title="{$labels.testproject_alt_delete}" 
+                <i class="fas fa-minus-circle" title="{$labels.alt_delete}"
                    onclick="delete_confirmation({$item_def.id},'{$item_def.name|escape:'javascript'|escape}',
                                                         '{$del_msgbox_title}','{$warning_msg}');"></i>
               {/if}
