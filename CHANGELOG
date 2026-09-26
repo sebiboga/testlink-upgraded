@@ -5847,6 +5847,32 @@ Changes:
       project tables and added user metrics to the middle section
 
 ## 2.0.1 (in-progress)
+### UI modernization — Import Platforms (Refs #1632)
+- The last fully legacy standalone screen of the Platforms area, `lib/platforms/platformsImport.php`
+  (+ `gui/templates/dashio/platforms/platformsImport.tpl`), is modernized as
+  `gui/templates/platforms/platformsImport.html` backed by the BFF `api/platformsimport/index.php`
+  (`GET ?action=init`, `POST ?action=import`). The Import button of the modern Platforms Management
+  screen used to open an inline modal wired to `POST /import` on `api/platforms/index.php`, which
+  answers counts only, so the per-platform reporting contract was lost.
+- Legacy parity restored: create-or-update-by-name, one `IMPORTED`/`UPDATED` line per platform and
+  one skipped line per `<platform>` node without a `<name>`, plus the full legacy file walk
+  (`foreach($xml as $platform)` — the root's direct children). `lib/platforms/platformsImport.php`
+  is kept as a session-guarded 302 shim, and all `pimp.*` keys exist in the 10 locale bundles.
+- Hardening over legacy: the temp copy is unlinked in a `finally` block, `LIBXML_NONET` is explicit,
+  libxml errors are returned with line/column so the screen can say *why* a file was rejected, the
+  upload cap is enforced server-side (413) and every PHP upload error maps to its own `error_code`.
+- The rights gate is split: init needs `platform_view` (or `platform_management`) and import needs
+  `platform_management`, so a plain viewer keeps a read-only screen instead of the dead page legacy
+  showed, while a user with neither right still gets 403 and no project name or platform count. Every
+  403 writes the `audit_security_user_right_missing` event that `checkUserRightsFor()` produced, which
+  the JSON BFF had otherwise dropped.
+- Four bugs found while testing and fixed: the Upload button stayed disabled for right-holders
+  (`busy(false)` ran before the grant was known), the format-documentation link 404'd (partial path
+  needed `$basehref`), a platform name repeated in one file called `update(0, …)` and silently lost
+  the second node's values, and 405 leaked an untranslated server string.
+- Filed #1634 (pre-existing): the class autoloader wraps `include_once` in `catch (Exception)`, but
+  PHP 7+ raises `E_WARNING`, so every missing class permanently adds two Error/Warning rows to the
+  Event Viewer.
 ### UI modernization — Launch Test Case Print gateway (Refs #1623)
 - The public share-link entry point `ltcp.php` (`?apikey=<32-char user key>&testcase=<PREFIX>-<NUM>-<VERSION>`)
   is modernized as `gui/templates/testcases/tcLaunchPrint.html` (Dashio: resolved-test-case card
