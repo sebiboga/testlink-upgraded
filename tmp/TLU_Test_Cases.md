@@ -23123,3 +23123,79 @@ pre-fix baseline 11 FAIL.**
 
 **Screenshots:** `docs/screenshots/issue-1625-reqMgrSystemView-id1-after.png`
 (`?id=1` after the fix: the row carries the KO badge, the page renders).
+## Task — Issue #1621: suppress the whole assignment toolbar in the no-assignable-projects state (Assign Test Project Roles)
+
+**Feature implemented** (Refs #1621, branch `task/issue-1621`, commit `5570d6303`).
+Legacy references: `gui/templates/dashio/usermanagement/usersAssign.tpl:142`
+(`{if $gui->features neq ''}`) … `:295` (`{/if}`) — the *entire* assignment form is
+one guarded block; `lib/usermanagement/usersAssign.php:122-127` (empty `features` →
+`$gui->user_feedback = $gui->not_for_you`) and `:52` (`not_for_you` IS
+`testproject_roles_assign_disabled`).
+Modern: `gui/templates/usermanagement/usersAssignProject.html` `showDisabled()`
+(now hides `.toolbar`, the same suppression `showNoAccess()` already did).
+BFF untouched — `api/roles/index.php:79-94` (`userCanAssignRoles`) + `:123-142`
+(`getAssignableProjects`) already answer `projects: []` exactly like legacy.
+
+**Precondition**
+
+The freshly imported DB has 0 test projects and 1 user, so two re-runnable fixtures:
+
+```bash
+php tmp/fixtures_1621.php          # role 10 "Role Manager Only" (ONLY right 14
+                                   #   role_management) + user rolemgr/rolemgr
+php tmp/fixtures_1621_project.php  # projects 1 "AAA Public 1621" (public),
+                                   #   2 "ZZZ Private 1621" (private)
+```
+
+**Entry points** (login as stated; `logout.php` FIRST when switching users —
+TestLink ignores a login POST over a live session, it does not switch users):
+
+* disabled state → `rolemgr`/`rolemgr` → `…/usersAssignProject.html?tproject_id=1`
+* normal state → `admin`/`admin` → same URL
+* no-access state → `norights`/`norights` (global role 3) → same URL
+
+| # | Step | Expected | Observed | Result |
+|---|---|---|---|---|
+| 1 | Baseline BEFORE the fix (issue INVESTIGATION): `rolemgr` loads the screen | legacy: title + menu + notice only; modern kept the toolbar | `.toolbar` ON-SCREEN, `#projectSelect` ON-SCREEN **0 options**, `#bulkRoleSelect` ON-SCREEN **10 options**, `#bulkDoBtn` ON-SCREEN `disabled=false`, `#saveBtn` ON-SCREEN, grid 0 rows, BFF `projects:0` | **GAP CONFIRMED** |
+| 2 | `rolemgr` loads the screen after the fix | whole form suppressed, notice + tab bar remain | `api: status ok, projects 0`; `.toolbar` NOT-RENDERED, `#projectSelect` NOT-RENDERED, `#bulkRoleSelect` NOT-RENDERED, `#bulkDoBtn` NOT-RENDERED, `#saveBtn` NOT-RENDERED, `#assignTable` NOT-RENDERED; `#tabsBar` ON-SCREEN with 4 links; `#disabledMsg` ON-SCREEN "Your role configuration do not allow you Assign Roles for Test Projects" | **PASS** |
+| 3 | Same page after a hard reload | the suppression is not a one-shot DOM artefact | identical measurements to #2 | **PASS** |
+| 4 | Page text of the disabled state | title + menu + one message, nothing else | `Assign Test Project Roles assign user roles within test projects … User Management Role Management Assign Test Project Roles Assign Test Plan Roles Your role configuration do not allow you Assign Roles for Test Projects` | **PASS** |
+| 5 | No dead control is left clickable (keyboard/programmatic `applyBulkRole()` cannot do anything) | 0 rows in `currentItems` and no visible trigger | `#bulkDoBtn` NOT-RENDERED (`getBoundingClientRect()` 0×0, `offsetParent` null) and forced-show reproduction shows `changed:false` (no row select altered) | **PASS** |
+| 6 | Regression, normal state: `admin` (2 assignable projects) | toolbar + grid fully working | `.toolbar` ON-SCREEN, combo `["-- select project --","1:AAA Public 1621","2:ZZZ Private 1621"]`, selected `1`, grid 3 rows, `#bulkDoBtn` + `#saveBtn` ON-SCREEN, `#disabledMsg` / `#denyBox` NOT-RENDERED | **PASS** |
+| 7 | Regression, bulk "Do": `#bulkRoleSelect=3` → click `#bulkDoBtn` | non-admin rows take the chosen role, admin row protected | row selects `["0","3"]` (admin stays `0`), toast "Saved view restored (search, sort, entries per page and page kept)" | **PASS** |
+| 8 | Regression, no-access state: `norights` (role 3) | deny box, no toolbar, no tabs (unchanged by the fix) | BFF 403 `no_permissions_for_action`; `#denyBox` ON-SCREEN "You do not have enough rights to access this feature."; `.toolbar` + `#tabsBar` NOT-RENDERED | **PASS** |
+| 9 | Regression, demoMode: `admin` with `demoMode=true; applyDemoMode()` | legacy only swapped Save for the warn_demo note — the form stays | `#demoBanner` ON-SCREEN, `.toolbar` ON-SCREEN, `#projectSelect` ON-SCREEN, `#bulkDoBtn` ON-SCREEN, `#saveBtn` NOT-RENDERED, `#demoNote` ON-SCREEN "We are sorry. This feature is disabled for Demo." | **PASS** |
+| 10 | Zero test projects at all (admin on the fresh DB, before the project fixture) | same suppressed-toolbar + notice state (legacy takes the same branch) | `.toolbar` NOT-RENDERED, `#disabledMsg` ON-SCREEN | **PASS** |
+| 11 | i18n | no new user-facing string ⇒ no new key required; the reused notice key exists in all bundles | `assign.rolesDisabled` present in en/ro/de/es/fr/it/ja/pt/ru/zh; `python3 -m json.tool` valid for all 10 bundles | **PASS** |
+| 12 | Syntax gates | clean | `node --check` on the extracted inline script **OK**; `php -l api/roles/index.php` **No syntax detected**; `php -l tmp/fixtures_1621_project.php` OK | **PASS** |
+| 13 | Browser console over the whole pass (errors + warnings) | none | `<no console messages found>` on every load | **PASS** |
+| 14 | Event Viewer (`events` table) after the whole pass | no new Error/Warning | `select count(*) from events where log_level in (1,2)` = **0** (only `log_level=16` audit rows, which are the expected `audit_login_succeeded` / `audit_user_logout` / `audit_security_user_right_missing` entries of the 403 probe) | **PASS** |
+
+**Result: 12 PASS / 0 FAIL** (row #1 is the pre-fix baseline, not a test of the fix).
+
+**Gotchas recorded for the next agent**
+
+- **TestLink does not switch users on a login POST over a live session.** Filling
+  the form and clicking SIGN IN while another user is logged in silently does
+  nothing and the page stays on the sign-in form; the next BFF call then answers
+  403 as the *old* user, which is easy to misread as a product bug. Always hit
+  `http://localhost:8082/logout.php` first. When the click still does not submit
+  (no navigation), drive it from the console: `f.querySelector('input[type=password]')`
+  … `form.submit()`.
+- The freshly imported DB has **0 test projects**, so the screen's *normal* state
+  is unreachable until a project exists; any test suite for this screen must
+  create one (`tmp/fixtures_1621_project.php`).
+- Project **names are not** in `testprojects` (that table only has `prefix`);
+  they live in the nested-set node table, so a raw `SELECT … WHERE name=…`
+  against `testprojects` fails. Use `testproject::get_all()` for existence checks.
+- `showDisabled()` is also the state of a user whose database has **no test
+  projects at all** — the suppression is correct there too (legacy
+  `usersAssign.php:52` + `:122-127`).
+- `tmp/` is gitignored, so the fixtures of this suite stay local by convention.
+
+**Screenshots:** `docs/screenshots/issue-1621-after-disabled.png` (fix) and
+`docs/screenshots/issue-1621-before-disabled-simulated.png` (pre-fix state
+reproduced by force-showing `.toolbar` in the console).
+
+---
+

@@ -17,6 +17,32 @@ Every screen of the application was ported one-by-one in a screen-compare
 kept for backward compatibility and is progressively retired as each modern
 screen reaches full parity.
 
+- [FEATURE GAP] - #1621: the modern Assign Test Project Roles screen no longer
+  offers assignment controls to a user who cannot assign anything. The legacy
+  template wrapped the WHOLE form — Test Project combo, "Set roles to" combo,
+  Do button, grid and Save — in one `{if $gui->features neq ''}` …
+  `{/if}` guard (`gui/templates/dashio/usermanagement/usersAssign.tpl:142` →
+  `:295`), so when the controller found no assignable test project
+  (`lib/usermanagement/usersAssign.php:122-127`, whose `not_for_you` IS
+  `testproject_roles_assign_disabled`, `:52`) the page rendered title + menu +
+  that single message and nothing else. The modern screen called
+  `showDisabled()` for the very same BFF answer (`projects: []`, from
+  `api/roles/index.php:79-94` + `:123-142`) but that function hid only the
+  grid, leaving the fully populated role combo and an ENABLED "Do" button on
+  screen — a live control that can never do anything, since
+  `applyBulkRole()` iterates an empty row set. `showDisabled()` now hides
+  `.toolbar` exactly like the sibling `showNoAccess()` already did, while the
+  tab bar stays visible (legacy rendered its menu outside the guard). No BFF
+  change (the empty `projects` list was already correct) and no new
+  user-facing string, so no i18n bundle was touched. Verified on a fresh DB with
+  a role holding ONLY `role_management` (BFF 200 + `projects:0`): every toolbar
+  control is no longer rendered and the page reads title + tabs + notice, and
+  the four neighbouring states are unchanged — admin normal state (toolbar,
+  2-project combo, 3-row grid, bulk `Do` applies role 3 to the non-admin row),
+  the 403 no-access deny box, demoMode (only Save is swapped for the
+  `warn_demo` note, the form stays) and a database with no test projects at
+  all; 0 console errors, 0 new Event Viewer Error/Warning rows. Regression
+  suite 1621 12/12 PASS. (Fixes #1621)
 - [FEATURE GAP] - #1622: the modern Assign Test Project Roles grid
   (`gui/templates/usermanagement/usersAssignProject.html`) is stateful again.
   The shared legacy include `gui/templates/dashio/include/DataTables.inc.tpl:100-104`
