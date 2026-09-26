@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Keyword Management</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; display: flex; align-items: center; }
+.header .sub { font-size: 13px; font-weight: 400; color: #0d3f3c; margin-left: 12px; }
+.header .spacer { flex: 1; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-teal:disabled { opacity: .45; cursor: not-allowed; }
+.btn-red { background: #e6605e; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-red:hover { background: #d04e4c; }
+.btn-grey { background: #6c757d; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-grey:hover { background: #5a636b; }
+.wrap { padding: 18px 24px 4px; }
+.card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 16px 18px; margin-bottom: 16px; }
+.card h2 { font-size: 14px; font-weight: 700; color: #22242a; margin: 0 0 12px; }
+.ctx-table { width: 100%; font-size: 13px; border-collapse: collapse; }
+.ctx-table td { padding: 4px 8px 4px 0; vertical-align: top; }
+.ctx-table td.k { color: #888; width: 150px; }
+.ctx-table td.v { color: #22242a; font-weight: 600; word-break: break-word; }
+.form-group label { font-size: 12px; font-weight: 600; color: #22242a; }
+.alert { border-radius: 6px; font-size: 13px; padding: 10px 14px; margin-bottom: 14px; display: none; }
+.alert.err { background: #fdecea; color: #a3342f; border: 1px solid #f5c6c2; }
+.alert.ok { background: #e9f7f4; color: #1d6b64; border: 1px solid #bfe5e2; }
+.alert.warn { background: #fff8e1; color: #8a6d3b; border: 1px solid #ffe08a; }
+.actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.actions .spacer { flex: 1; }
+.state { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 26px; text-align: center; color: #888; font-size: 13px; }
+.state .big { font-size: 34px; color: #e6605e; margin-bottom: 10px; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.toast.err { background: #e6605e; }
+.modal-title { font-size: 16px; font-weight: 700; }
+.hint { color: #888; font-size: 12px; margin-top: 6px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span data-i18n="kwedit.title">Keyword Management</span>
+  <span class="sub" id="modeSub" data-i18n="kwedit.create">Create Keyword</span>
+  <span class="spacer"></span>
+  <span id="localeSwitcher"></span>
+  <button class="btn-grey" onclick="closeWindow()" style="margin-left:12px;" data-i18n="kwedit.close">Close</button>
+</div>
+
+<div class="wrap">
+  <div id="msgOk" class="alert ok"></div>
+  <div id="msgErr" class="alert err"></div>
+  <div id="msgWarn" class="alert warn"></div>
+
+  <div id="loader" class="state" style="display:none;" data-i18n="common.loading">Loading...</div>
+
+  <div id="denied" class="state" style="display:none;">
+    <div class="big"><i class="fas fa-lock"></i></div>
+    <div data-i18n="kwedit.denied">You do not have permission to manage keywords in this test project.</div>
+  </div>
+
+  <div id="content" style="display:none;">
+    <div class="card">
+      <h2 data-i18n="kwedit.context">Context</h2>
+      <table class="ctx-table">
+        <tbody>
+          <tr><td class="k" data-i18n="kwedit.testProject">Test Project</td><td class="v" id="ctxProject">-</td></tr>
+          <tr id="rowTcase" style="display:none;"><td class="k" data-i18n="kwedit.testCase">Test Case</td><td class="v" id="ctxTcase">-</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2 id="formTitle" data-i18n="kwedit.create">Create Keyword</h2>
+      <div class="form-group" style="margin-bottom:12px;">
+        <label for="kwName"><span data-i18n="kwedit.name">Name</span> *</label>
+        <input type="text" id="kwName" class="form-control" maxlength="100" style="font-size:13px;">
+        <div class="hint" data-i18n="kwedit.nameHint">Quotes and commas are not allowed in keyword names.</div>
+      </div>
+      <div class="form-group" style="margin-bottom:14px;">
+        <label for="kwNotes" data-i18n="kwedit.notes">Notes</label>
+        <textarea id="kwNotes" class="form-control" rows="5" style="font-size:13px;"></textarea>
+      </div>
+      <div class="actions">
+        <button class="btn-teal" id="btnSave" onclick="save()" data-i18n="common.save">Save</button>
+        <button class="btn-grey" onclick="closeWindow()" data-i18n="common.cancel">Cancel</button>
+        <span class="spacer"></span>
+        <button class="btn-red" id="btnDelete" onclick="askDelete()" style="display:none;" data-i18n="common.delete">Delete</button>
+      </div>
+    </div>
+
+    <div class="card" id="manageCard" style="display:none;">
+      <div class="actions">
+        <button class="btn-teal" onclick="goManage()" data-i18n="kwedit.manage">Open Keyword Management</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="footer" id="footerInfo"></div>
+<div class="footer"><span data-i18n="footers.keywordsEdit">TestLink 2.0.1 - Keyword Management</span></div>
+<div class="toast" id="toast"></div>
+
+<!-- Delete confirm modal -->
+<div class="modal fade" id="delModal" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" data-i18n="common.delete">Delete</h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body" style="font-size:13px;" id="delMsg"></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal" style="font-size:13px;" data-i18n="common.cancel">Cancel</button>
+        <button type="button" class="btn-red" onclick="doDelete()" style="font-size:13px;" data-i18n="common.delete">Delete</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/keywordsedit/index.php';
+var MODE = 'create';
+var TPID = 0;
+var TPLANID = 0;
+var TCV = 0;
+var KWID = 0;
+var KW = { id: 0, name: '', notes: '' };
+var standalone = true;
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function toast(msg, isErr) {
+  var $t = $('#toast').text(msg).toggleClass('err', !!isErr).show();
+  clearTimeout($t.data('tm'));
+  $t.data('tm', setTimeout(function(){ $t.hide(); }, 3500));
+}
+
+function showMsg(sel, text) {
+  if (!text) { $(sel).hide(); return; }
+  $(sel).html(text).show();
+}
+
+function errorText(xhr, fallbackKey) {
+  var r = {};
+  try { r = JSON.parse(xhr.responseText); } catch (e) {}
+  if (r.error_code === undefined || r.error_code === null) {
+    return r.message || TLi18n.t(fallbackKey);
+  }
+  switch (parseInt(r.error_code, 10)) {
+    case -1: return TLi18n.t('kwedit.errCharNotAllowed');
+    case -2: return TLi18n.t('kwedit.errEmptyNotAllowed');
+    case -4: return TLi18n.t('kwedit.errAlreadyExists');
+    case -8: return TLi18n.t('kwedit.errUpdateFails');
+  }
+  if (r.error_code === 'DELETE_BLOCKED') { return TLi18n.t('kwedit.errDeleteBlocked'); }
+  return r.message || TLi18n.t(fallbackKey);
+}
+
+$(function () {
+  var p = new URLSearchParams(window.location.search);
+  TPID = parseInt(p.get('tproject_id') || '0', 10);
+  TPLANID = parseInt(p.get('tplan_id') || '0', 10);
+  TCV = parseInt(p.get('tcversion_id') || '0', 10);
+  KWID = parseInt(p.get('id') || '0', 10);
+  MODE = (p.get('mode') || '').toLowerCase();
+  standalone = !window.opener || window.opener.closed;
+
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    $('#footerInfo').text(TLi18n.t('footers.keywordsEdit'));
+    applyModeLabels();
+    load();
+  });
+});
+
+function applyModeLabels() {
+  if (MODE === 'edit') {
+    $('#modeSub').text(TLi18n.t('kwedit.edit'));
+    $('#formTitle').text(TLi18n.t('kwedit.edit'));
+  } else if (MODE === 'cfl') {
+    $('#modeSub').text(TLi18n.t('kwedit.cfl'));
+    $('#formTitle').text(TLi18n.t('kwedit.cfl'));
+    $('#btnSave').text(TLi18n.t('kwedit.createAndLink'));
+  }
+}
+
+function load() {
+  $('#loader').show();
+  var url = API + '?action=init&tproject_id=' + TPID + '&mode=' + encodeURIComponent(MODE) +
+            '&id=' + KWID + '&tcversion_id=' + TCV;
+  $.getJSON(url)
+    .done(function (r) {
+      $('#loader').hide();
+      if (r.status !== 'ok') { showDenied(); return; }
+      MODE = r.mode;
+      applyModeLabels();
+      $('#ctxProject').text(r.tproject.name);
+      if (r.tcase) {
+        $('#rowTcase').show();
+        $('#ctxTcase').text(r.tcase.tcase_name + ' (#' + r.tcase.tcase_id + ')');
+      }
+      if (r.keyword) {
+        KW = r.keyword;
+        KWID = r.keyword.id;
+        $('#kwName').val(r.keyword.name);
+        $('#kwNotes').val(r.keyword.notes);
+        $('#btnDelete').show();
+      }
+      $('#content').show();
+      if (MODE !== 'edit') { $('#kwName').focus(); }
+    })
+    .fail(function (xhr) {
+      $('#loader').hide();
+      if (xhr.status === 403 || xhr.status === 401) { showDenied(); return; }
+      showMsg('#msgErr', esc(errorText(xhr, 'common.error')));
+      $('#content').show();
+      $('#btnSave').prop('disabled', true);
+    });
+}
+
+function showDenied() {
+  $('#denied').show();
+  $('#content').hide();
+}
+
+function save() {
+  var name = $.trim($('#kwName').val());
+  var notes = $('#kwNotes').val();
+
+  if (name === '') { showMsg('#msgErr', esc(TLi18n.t('kwedit.errEmptyNotAllowed'))); return; }
+  if (name.length > 100) { showMsg('#msgErr', esc(TLi18n.t('kwedit.errNameLength'))); return; }
+  if (/("|,)/.test(name)) { showMsg('#msgErr', esc(TLi18n.t('kwedit.errCharNotAllowed'))); return; }
+  showMsg('#msgErr', '');
+
+  var payload = { tproject_id: TPID, keyword: name, notes: notes };
+  var action = 'create';
+  if (MODE === 'edit') { action = 'update'; payload.id = KWID; }
+  else if (MODE === 'cfl') { action = 'create_link'; payload.tcversion_id = TCV; }
+
+  $('#btnSave').prop('disabled', true);
+  $.ajax({
+    url: API + '?action=' + action,
+    method: 'POST',
+    contentType: 'application/json',
+    data: JSON.stringify(payload)
+  }).done(function (r) {
+    $('#btnSave').prop('disabled', false);
+    if (r.status === 'ok') {
+      if (MODE === 'cfl') {
+        showMsg('#msgOk', esc(TLi18n.t('kwedit.msgLinked')) + ' <b>' + esc(name) + '</b>');
+      } else if (MODE === 'edit') {
+        showMsg('#msgOk', esc(TLi18n.t('kwedit.msgUpdated')));
+      } else {
+        showMsg('#msgOk', esc(TLi18n.t('kwedit.msgSaved')));
+      }
+      $('#btnSave').prop('disabled', true);
+      $('#manageCard').show();
+      refreshOpener();
+      if (!standalone) { setTimeout(function(){ window.close(); }, 1200); }
+    } else {
+      showMsg('#msgErr', esc(r.message || TLi18n.t('common.error')));
+    }
+  }).fail(function (xhr) {
+    $('#btnSave').prop('disabled', false);
+    showMsg('#msgErr', esc(errorText(xhr, 'common.error')));
+  });
+}
+
+function askDelete() {
+  $('#delMsg').html('<b>' + esc($('#kwName').val()) + '</b><br>' + esc(TLi18n.t('kwedit.deleteConfirm')));
+  $('#delModal').modal('show');
+}
+
+function doDelete() {
+  $('#delModal').modal('hide');
+  $.ajax({
+    url: API + '?action=delete',
+    method: 'POST',
+    contentType: 'application/json',
+    data: JSON.stringify({ tproject_id: TPID, id: KWID })
+  }).done(function (r) {
+    if (r.status === 'ok') {
+      toast(TLi18n.t('kwedit.msgDeleted'), false);
+      showMsg('#msgOk', esc(TLi18n.t('kwedit.msgDeleted')));
+      $('#btnDelete').prop('disabled', true);
+      $('#btnSave').prop('disabled', true);
+      $('#manageCard').show();
+      refreshOpener();
+      if (!standalone) { setTimeout(function(){ window.close(); }, 1200); }
+    } else {
+      showMsg('#msgErr', esc(r.message || TLi18n.t('common.error')));
+    }
+  }).fail(function (xhr) {
+    showMsg('#msgErr', esc(errorText(xhr, 'common.error')));
+  });
+}
+
+function refreshOpener() {
+  if (standalone) { return; }
+  try { window.opener.location.reload(); } catch (e) {}
+}
+
+function goManage() {
+  window.location.href = '/gui/templates/keywords/keywordsView.html?tproject_id=' + TPID + '&tplan_id=' + TPLANID;
+}
+
+function closeWindow() {
+  if (!standalone) { window.close(); return; }
+  window.location.href = '/gui/templates/keywords/keywordsView.html?tproject_id=' + TPID + '&tplan_id=' + TPLANID;
+}
+</script>
+</body>
+</html>
