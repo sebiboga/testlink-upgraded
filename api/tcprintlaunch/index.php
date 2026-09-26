@@ -221,6 +221,25 @@ if ($baseHref === '' && isset($_SESSION['basehref'])) {
     $baseHref = strval($_SESSION['basehref']);
 }
 $baseHref = rtrim($baseHref, '/');
+// print_url is a window.location.href sink in the screen, so it must stay
+// same-origin. TL_BASE_HREF comes from get_home_url(), which prefers
+// HTTP_X_FORWARDED_HOST over HTTP_HOST - behind a proxy that forwards a
+// client-supplied header this would turn 'Open test case print' into an
+// off-site redirect. Fall back to a same-origin relative URL on any authority
+// mismatch; the port is part of the compare so a legit :8082 install (and a
+// sub-directory path prefix) is preserved.
+if ($baseHref !== '') {
+    $bHost = strval(parse_url($baseHref, PHP_URL_HOST));
+    $bPort = parse_url($baseHref, PHP_URL_PORT);
+    $reqHost = isset($_SERVER['HTTP_HOST']) ? strval($_SERVER['HTTP_HOST']) : '';
+    $bAuthority = strtolower($bHost) . (is_null($bPort) ? '' : ':' . intval($bPort));
+    $reqAuthority = strtolower($reqHost);
+    $defaultPort = (parse_url($baseHref, PHP_URL_SCHEME) === 'https') ? 443 : 80;
+    if ($reqAuthority === '' || ($bAuthority !== $reqAuthority &&
+                                $reqAuthority !== $bAuthority . ':' . $defaultPort)) {
+        $baseHref = '';
+    }
+}
 $printUrl = $baseHref . '/gui/templates/testcases/tcPrint.html'
           . '?testcase_id=' . $testcase_id
           . '&tcversion_id=' . $tcversion_id
