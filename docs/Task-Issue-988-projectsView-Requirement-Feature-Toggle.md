@@ -85,8 +85,39 @@ Auth model unchanged: the session check, `bffSameOriginGuard()` and the
 `mgt_modify_product` gate at the top of the file already cover the new route, so
 a role-3 "no rights" user gets the same `403` as every other projects operation.
 
-Status codes: `404` unknown project, `400` missing `enabled` / missing id,
-`200 {"success":true,"id":N,"optReq":0|1}` on success.
+Status codes: `404` unknown project, `400` missing/invalid `enabled` or malformed
+path, `200 {"success":true,"id":N,"optReq":0|1}` on success.
+
+**Route shape is matched exactly.** `parts === ['api','projects',<id>,'requirements']`.
+Detection is by the presence of the literal `requirements` segment anywhere in the
+path, so `…/1/requirements/extra`, `…/requirements/1` and `…/1/2/requirements` are
+all rejected with `400` and can never fall through to `createProject()` — verified
+by firing all of them and confirming the project count is unchanged.
+
+**`"enabled"` is coerced strictly.** `(int)(bool)"false"` is `1`, so a JSON client
+sending the *string* `"false"` would have silently enabled the feature. The value
+must now be one of `0, 1, false, true, "0", "1"`, otherwise `400`.
+
+**The write is verified.** `testproject::setOptions()` only issues its UPDATE when
+the stored blob already contained a decodable object (it iterates the *stored*
+object), so a row whose `testprojects.options` is `NULL`/empty — exactly how the
+shipped sample data inserts it — can never be written by that method. The route
+re-reads the flag afterwards and returns `500 Failed to store the requirements
+feature flag` instead of claiming `success:true`, and the client alerts rather than
+redrawing a list that disagrees with the click. Legacy was silent here, so this is
+deliberately stricter than legacy.
+
+## Known limitation
+
+The toggle cannot write to a project whose `testprojects.options` is `NULL`/empty:
+`testproject::setOptions()` (`lib/functions/testproject.class.php:4000-4024`)
+iterates the **stored** object and runs its UPDATE only when the loop body executed
+at least once, so an empty stored object is a structural dead end. The route
+surfaces that as a `500` instead of a silent no-op. The repair path is the edit
+modal (or `PUT /api/projects/<id>`), which writes `options` unconditionally —
+confirmed: a `PUT` on a `NULL`-blob project restores all four flags and answers
+`200`. Legacy had the same dead end, silently; fixing `setOptions()` itself affects
+every caller and is filed as a separate issue.
 
 ### 2. Screen — `gui/templates/projectsView.html`
 
