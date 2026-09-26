@@ -22242,3 +22242,46 @@ hardcoded `uribase`/`apikey` example that matched NEITHER interface and no per-t
 
 Evidence: `docs/screenshots/issue-975-codetracker-cfg-template.png` (modal with the
 per-type GitHub example loaded).
+
+---
+
+## Suite 1599 — Keyword Create/Edit/Delete/Create-and-Link popup (`keywordsEdit`)
+
+Screen `gui/templates/keywords/keywordsEdit.html` + BFF `api/keywordsedit/index.php`
+(modernization of `lib/keywords/keywordsEdit.php`, Refs #1599, fixes #1008, fixes #1600).
+Fixture: `tmp/fixtures_1599.php` (project **KW1599** id=1, plan 9, suite 2,
+tc 3 / tcversion 4 "Keyword dialog case 1", tc 6 / tcversion 7, users
+`kwviewonly` (project role with mgt_view_key ONLY) and `kwnorights` (role 3)).
+
+| # | Test | Expected | Result |
+|---|---|---|---|
+| 1 | `GET ?action=init&tproject_id=1&mode=create` | 200 + tproject name, no keyword | PASS |
+| 2 | `GET ?action=init&tproject_id=1&mode=edit&id=<kw>` | 200 + keyword name/notes | PASS |
+| 3 | `GET ?action=init&tproject_id=1&mode=cfl&tcversion_id=4` | 200 + `tcase{tcase_id:3,tcase_name:"Keyword dialog case 1"}` | PASS |
+| 4 | `GET …&mode=edit&id=999` | 404 keyword not found | PASS |
+| 5 | `GET …&tproject_id=0` | 400 invalid test project id (legacy exception parity) | PASS |
+| 6 | `GET …&action=bogus` | 400 unknown action | PASS |
+| 7 | anon `GET` (no session) | 401 not authenticated | PASS |
+| 8 | `POST` without `X-Requested-With`/Origin | 403 CSRF guard (`bffSameOriginGuard`) | PASS |
+| 9 | `POST ?action=create` new name | 200 `{id}` + row in `keywords` | PASS |
+| 10 | `POST ?action=create` duplicate name | 422 `error_code -4` (localized msg) | PASS (after #1600 fix — was HTTP 500) |
+| 11 | `POST ?action=create` name with a quote | 422 `error_code -1` | PASS (after #1600 fix) |
+| 12 | `POST ?action=create` empty name | 422 `error_code -2` | PASS (after #1600 fix) |
+| 13 | `POST ?action=update` | 200, name/notes persisted | PASS |
+| 14 | `POST ?action=create_link` | 200 + `testcase_keywords` row for tcversion 4 | PASS (row verified in DB) |
+| 15 | `POST ?action=delete` | 200, keyword removed | PASS |
+| 16 | rights: user with mgt_modify_key but NOT mgt_view_key (`kwviewonly`) | 403 on init + on every write (**legacy AND-mode gate**, issue #1008) | PASS |
+| 17 | rights: no-rights user (`kwnorights`, role 3) | 403 on init | PASS |
+| 18 | browser: create mode renders Dashio popup, Save → "Keyword created." + management link | as expected | PASS |
+| 19 | browser: duplicate name → error box "A keyword with this name already exists." | as expected | PASS |
+| 20 | browser: cfl mode shows test case context + "Create and link", success box "Keyword created and linked to the test case: …" | as expected | PASS |
+| 21 | browser: `tcView.html` Keywords panel shows "Create Keyword" / "Create Keyword and Link" for a user with both rights | buttons visible | PASS (grants extended in `api/testcases`) |
+| 22 | locale switcher EN↔RO on the popup | no raw `kwedit.*` keys | PASS |
+| 23 | legacy `lib/keywords/keywordsEdit.php?doAction=create|cfl|edit` | 302 → modern popup with `mode=` mapped | PASS |
+| 24 | Event Viewer after the whole suite | no ERROR/WARNING rows (audit-only) | PASS |
+
+Evidence: `docs/screenshots/issue-1599-keywordsedit-cfl.png` (cfl mode after the
+create-and-link). Bugs found: **#1600** (fatal 500 on every keyword create error —
+`testproject::addKeyword()` called the removed `tlKeyword::getErrorMessage()`; plus
+`tlKeyword::getError()` returned `E_NAMENOTALLOWED` for `E_NAMELENGTH` and had no
+`default`), fixed in commit `aaec569ad`.
