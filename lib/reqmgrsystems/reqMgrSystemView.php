@@ -31,7 +31,7 @@ if($args->id > 0 && isset($gui->items[$args->id]))
   // $gui->items is keyed by id, so a non-existent ?id= used to append a phantom
   // (empty) row to the grid once checkConnection() stopped raising a fatal
   // instead of returning a verdict. The wrench link in
-  // reqMgrSystemView.tpl:38-40 always passes a real id, so this costs nothing
+  // reqMgrSystemView.tpl:47-49 always passes a real id, so this costs nothing
   // on the normal path.
   $gui->items[$args->id]['connection_status'] = $mgr->checkConnection($args->id) ? 'ok' : 'ko'; 
 }

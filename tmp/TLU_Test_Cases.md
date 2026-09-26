@@ -23054,11 +23054,15 @@ toast).
   ```sql
   INSERT INTO reqmgrsystems (name,type,cfg) VALUES ('TLU1625 Contour',1,'{}');
   ```
-- Reusable asserting harness: **`bash tmp/verify_1625.sh`** (27 assertions, creates and
+- Reusable asserting harness: **`bash tmp/verify_1625.sh`** (31 assertions, creates and
   removes its own fixtures, cleans up after itself). It **exits non-zero on any failure** and
   was verified discriminating against the pre-fix code:
   - pre-fix baseline (`git checkout 6d110083a -- <the two files>`) → **16 PASS / 11 FAIL, exit 1**
-  - with the fix → **27 PASS / 0 FAIL, exit 0**
+  - with the fix → **31 PASS / 0 FAIL, exit 0**
+
+  The harness is **force-added** (`git add -f tmp/verify_1625.sh`): `.gitignore:47` ignores
+  `tmp/`, and without `-f` the commit message, the CHANGELOG and the docs "Files changed"
+  table would all point at a 404.
 
 **Defect reproduction (pre-fix)**
 
@@ -23083,9 +23087,10 @@ toast).
 | 7 | `api/reqmgrsystems/index.php` (modernized 2.0.1 BFF fronting the same data) | `{"status":"ok",...}` with the row | `status:ok`, `TLU1625 Contour` in `items` | **PASS** |
 | 8 | `php -l` on both touched files + `reqMgrSystemEdit.php?doAction=create` | clean lint, HTTP 200 | no syntax errors, `http=200` | **PASS** |
 | 9 | Browser (chrome-devtools MCP): `?id=1` and `?id=99999` | screen renders inside the frame, no blank page | a11y tree: header row + `Jira Demo` (`contour (Interface: soap)`) + `Create` button, for both URLs; **console: `<no console messages found>`** | **PASS** |
-| 10 | Event Viewer after the whole pass | no new `E_WARNING`/Error from the reqmgr screens | 0 new `log_level=2` rows across all 11 requests of the pass | **PASS** |
+| 10 | Event Viewer after the whole pass | no new `E_WARNING`/Error from the reqmgr screens | 0 new `log_level=2` rows across all 14 requests of the pass | **PASS** |
+| 11 | **Found by code review:** the SAME unguarded `new` duplicated in `reqMgrSystemCommands::checkConnection()` — `reqMgrSystemEdit.php?doAction=checkConnection&id=<row>` / `&id=99999` / no `id` | HTTP 200, no fatal, nothing new in the Event Viewer from the repaired probe | pre-fix **500/0 B** on all three; post-fix **200/200/200**; 0 new `E_WARNING` rows mentioning `contoursoap%`/`tlReqMgrSystem%` (the 3 remaining ones are `Undefined array key "checkConnection"` from a different pre-existing defect, tracked as **#1628**, which the 500 used to mask) | **PASS** |
 
-**Result: 27 PASS / 0 FAIL (`bash tmp/verify_1625.sh`, exit 0) — 10 of them restated above,
+**Result: 31 PASS / 0 FAIL (`bash tmp/verify_1625.sh`, exit 0) — 11 of them restated above,
 pre-fix baseline 11 FAIL.**
 
 **Bug-fix-quality gotchas recorded for the next agent**
@@ -23104,6 +23109,17 @@ pre-fix baseline 11 FAIL.**
   (a non-static or private one would raise an `Error` at the call site).
 - `reqMgrSystemEdit.php` with no/whitelisted-violating `doAction` is a **separate** hard 500
   (`$opObj->template` on null) → filed as #1627, not fixed here.
+- **The bug was in THREE places, not one.** A code review pass over the full diff caught the
+  second copy (`reqMgrSystemCommands::checkConnection()`, the edit screen's whitelisted
+  `doAction=checkConnection` route) which the original repro and the class-level harness had
+  missed — it is a separate 500 with a byte-identical symptom. It is fixed by **deleting the
+  duplicate** and delegating to `tlReqMgrSystem::checkConnection()`. Lesson for the next
+  agent: `grep -rn "function checkConnection" lib/<area>/` FIRST; here that returned two hits
+  in two different classes and both were fatal.
+- A third unguarded `new` remains in `tlReqMgrSystem::getInterfaceObject()`
+  (`:588-608`, `catch (Exception)` cannot catch a PHP 8 `Error`), reachable from
+  `lib/requirements/reqSpecCommands.class.php:44` → filed as **#1629**, explicitly marked
+  UNVERIFIED because the fresh CI DB has no project linked to a ReqMgrSystem.
 
 **Screenshots:** `docs/screenshots/issue-1625-reqMgrSystemView-id1-after.png`
 (`?id=1` after the fix: the row carries the KO badge, the page renders).

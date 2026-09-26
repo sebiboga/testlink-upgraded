@@ -5874,9 +5874,10 @@ Changes:
 
 ### Key bugfix — Req. Management System "Check connection" empty HTTP 500 (Fixes #1625)
 - Key bugfix #1625: the legacy Dashio Req. Management System list answered
-  **HTTP 500 with a 0-byte body** for *any* `?id=` — existing row or not — and logged 5
-  `E_WARNING` rows per request. `reqMgrSystemView.php:30` calls
-  `tlReqMgrSystem::checkConnection()` (`:616-622`), which built a class name with
+  **HTTP 500 with a 0-byte body** for *any* `?id=` — existing row or not — and logged 4
+  `E_WARNING` rows per request (5 for a non-existent `id`).
+  `reqMgrSystemView.php:36` calls `tlReqMgrSystem::checkConnection()` (`:616-622`),
+  which built a class name with
   `getImplementationForType()` (`:111-115`) and instantiated it with **no existence
   check**: `type=1` resolves to `contoursoapInterface`, whose file is not shipped and
   never was (`git log --all -- '*contour*'` is empty — only the abstract
@@ -5884,24 +5885,36 @@ Changes:
   non-existent id reaches `new NULL` because `getByID()` returns `NULL`. Both raise an
   uncaught `Error` — not an `Exception`, so the `catch (Exception)` of the sibling
   `getInterfaceObject()` never applied — which PHP 8 aborts before a byte is flushed.
-  Pre-existing since 1.9.6 and masked on PHP 5.x, where the same defect was a catchable
-  fatal with a message. Fix: `checkConnection()` returns `false` when the row is missing
+  Pre-existing since 1.9.6; the *empty* body is a PHP 8 + `display_errors=Off` symptom
+
+  (the `Error` fires while the page is still being built, and nothing has been flushed
+  yet).
+
+  Fix: `checkConnection()` returns `false` when the row is missing
   or the implementation class cannot be loaded (the caller maps it to `'ko'` and
-  `reqMgrSystemView.tpl:41-42` already draws the existing localized
+  `reqMgrSystemView.tpl:52-53` already draws the existing localized
   `reqmgrsystem_check_ko` badge — **no new i18n key**), the controller stamps
   `connection_status` only on a row that exists (otherwise `?id=999` traded a 500 for a
   phantom empty grid row, the #1618 family), and `getAll()`'s `checkEnv` block gets the
   same `is_null($impl) || !@class_exists($impl) || !is_callable([$impl,'checkEnv'])`
   guard already landed for the twins `tlIssueTracker` (#1617) and `tlCodeTracker`
   (#1597) — which also removes the two `include_once` events per row per load that #1593
-  tracks for this screen. Verified: `?id=<row>` 500/0 B/5 events -> 200/10994 B/KO badge/0
-  events; `?id=999` 500 -> 200 with no phantom row; no-`id` loads 2 events -> 0; the two
-  twins and the modernized `api/reqmgrsystems` BFF unchanged; browser console clean.
-  Regression suite 1625 27/27 PASS (`bash tmp/verify_1625.sh`, exit 0; pre-fix baseline
-  11 FAIL / exit 1, so the harness is discriminating). Two sibling defects found while
-  testing and filed, not fixed: **#1626** (a row whose `type` is not a key of `$systems`
-  still logs 6 `E_WARNING` per load) and **#1627** (`reqMgrSystemEdit.php` without a
-  whitelisted `doAction` is a hard 500). (Fixes #1625)
+  tracks for this screen.
+  Code review then found the SAME defect duplicated in
+  `reqMgrSystemCommands::checkConnection()` (the edit screen's whitelisted
+  `doAction=checkConnection` route, measured `500`/0 B pre-fix); the duplicate is deleted
+  and the method now delegates to the single hardened `tlReqMgrSystem::checkConnection()`,
+  keeping its `'ok' : 'ko'` mapping. Verified: `?id=<row>` 500/0 B/4 events -> 200/10994 B/
+  KO badge/0 events; `?id=999` 500 -> 200 with no phantom row; no-`id` loads 2 events -> 0;
+  `doAction=checkConnection` 500 -> 200; the two twins and the modernized
+  `api/reqmgrsystems` BFF unchanged; browser console clean. Regression suite 1625 31/31
+  PASS (`bash tmp/verify_1625.sh`, exit 0; pre-fix baseline 11 FAIL / exit 1, so the
+  harness is discriminating). Sibling defects found while testing/reviewing and filed,
+  not fixed: **#1626** (a row whose `type` is not a key of `$systems` still logs 6
+  `E_WARNING` per load), **#1627** (`reqMgrSystemEdit.php` without a whitelisted
+  `doAction` is a hard 500), **#1628** (`Undefined array key "checkConnection"` on the
+  route this fix unblocked) and **#1629** (the third unguarded `new` in
+  `getInterfaceObject()`, an unverified code-path reading). (Fixes #1625)
 
 ### Key bugfix — TLi18n locale selection persistence (Refs #1586)
 - Key bugfix #1586: an explicit language switch in the locale switcher now

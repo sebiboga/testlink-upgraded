@@ -649,8 +649,8 @@ class tlReqMgrSystem extends tlObject
     // Same degradation as the two twins already fixed: tlIssueTracker::checkConnection()
     // (issue #1617) and the getAll() checkEnv guard in tlCodeTracker (issue #1597).
     // Reporting "not connected" is what the caller and the template already
-    // understand: reqMgrSystemView.php turns false into 'ko' and
-    // reqMgrSystemView.tpl draws the existing localized reqmgrsystem_check_ko
+    // understand: reqMgrSystemView.php:36 turns false into 'ko' and
+    // reqMgrSystemView.tpl:52-53 draws the existing localized reqmgrsystem_check_ko
     // badge - no new i18n key and no template change needed.
     if( is_null($xx) || !isset($xx['implementation']) )
     {

@@ -4,23 +4,24 @@
 
 The legacy Dashio **Req. Management System** list
 (`lib/reqmgrsystems/reqMgrSystemView.php`) returned **HTTP 500 with a 0-byte body**
-whenever an `id` parameter was present, and wrote **5** PHP 8 `E_WARNING` rows into
-the `events` table (the Event Viewer source) on every such request.
+whenever an `id` parameter was present, and wrote **4** PHP 8 `E_WARNING` rows into
+the `events` table (the Event Viewer source) on every such request (**5** when the `id`
+does not exist — one extra `array offset on null`).
 
 | Route | Pre-fix |
 |---|---|
-| `reqMgrSystemView.php?id=<existing row>` ("check connection" wrench) | `500`, 0 bytes, 5 event rows |
-| `reqMgrSystemView.php?id=999` (id that does not exist) | `500`, 0 bytes, 5 event rows |
+| `reqMgrSystemView.php?id=<existing row>` ("check connection" wrench) | `500`, 0 bytes, 4 event rows |
+| `reqMgrSystemView.php?id=999` (id that does not exist) | `500`, 0 bytes, 5 event rows (4 + the `:619` one) |
 | `reqMgrSystemView.php` (no `id`) | `200`, but still 2 event rows per load |
 
 Entry point: `http://localhost:8082/lib/reqmgrsystems/reqMgrSystemView.php?id=1`
 (the wrench icon of the first column in
-`gui/templates/dashio/reqmgrsystems/reqMgrSystemView.tpl:38-40` links exactly there).
+`gui/templates/dashio/reqmgrsystems/reqMgrSystemView.tpl:47-49` links exactly there).
 
 ## Environment and fixtures
 
-- TestLink 2.0.1, PHP 8.3 built-in server, MariaDB `testlink` on `127.0.0.1:3306`
-  (`testlink`/`testlink`), login `admin`/`admin`.
+- TestLink 2.0.1, PHP 8.3 built-in server, MariaDB `testlink` on the local CI instance (`127.0.0.1:3306`,
+  throwaway container credentials), login `admin`/`admin`.
 - Pre-fix baseline commit `6d110083a`; fix commit `b4c325c33`.
 - Minimal reproduction:
 
@@ -58,7 +59,8 @@ checkConnection(1)   THROWS Error: Class "contoursoapInterface" not found
 checkConnection(999) THROWS Error: Class name must be a valid object or a string
 ```
 
-Event Viewer (`events` table), 5 rows per request, all `log_level=2`, `activity=PHP`:
+Event Viewer (`events` table), all `log_level=2`, `activity=PHP`. 4 rows for a real
+row; the 5th below appears only for `?id=999`:
 
 | description | source |
 |---|---|
@@ -117,11 +119,13 @@ if( method_exists($impl,'checkEnv') ) { … }
 (`lib/functions/common.php:122`) fails and logs **two** events per row per page load —
 the Event Viewer noise tracked in **#1593**, for this screen.
 
-**Why it breaks now.** Not a regression: pre-existing since 1.9.6 upstream, and masked
-because (a) `?id=<n>` was only reachable by hand-clicking the wrench, and (b) on the
-PHP 5.x TestLink 1.9.20 was written for, the same defect produced a catchable
-exception/fatal-with-message rather than an instant `Error` on a page that had not yet
-flushed output.
+**Why the 500 is *empty*.** The `Error` is raised while the page is still being built, so
+nothing has been written yet, and with `display_errors=Off` (the default for both FPM and
+the built-in server) PHP adds nothing either — hence a 0-byte body rather than a stack
+trace. On the PHP 5.x that TestLink 1.9.20 targeted the same line was an uncatchable
+`E_ERROR` *with* a message when `display_errors` was on, which is why this was never a
+blank page back then. The defect itself is pre-existing since 1.9.6, and `?id=<n>` was
+reachable only by hand-clicking the wrench icon.
 
 **The two twins of this code were already hardened for the very same defect and this one
 was not:**
@@ -146,7 +150,7 @@ Minimal, and a deliberate port of the shape already proven twice. Diff: 2 files,
    if( !is_string($class2create) || !@class_exists($class2create) ) { return false; }
    ```
    `false` is the right verdict because the whole chain already understands it:
-   `reqMgrSystemView.php:30` maps it to `'ko'` and `reqMgrSystemView.tpl:41-42` draws the
+   `reqMgrSystemView.php:36` maps it to `'ko'` and `reqMgrSystemView.tpl:52-53` draws the
    **existing localized** `reqmgrsystem_check_ko` badge.
 2. **`reqMgrSystemView.php:28-37`** — the probe is stamped only on a row that exists
    (`$args->id > 0 && isset($gui->items[$args->id])`). `$gui->items` is keyed by row id, so
@@ -189,13 +193,14 @@ already exists, so `gui/templates/i18n/*.json` was left untouched.
 | `?id=<existing row>` | `500`, 0 B, 5 event rows | `200`, 10994 B, KO badge, **0 event rows** |
 | `?id=999` | `500`, 0 B, 5 event rows | `200`, 10887 B, **no phantom row**, **0 event rows** |
 | no `id` | `200`, 2 event rows | `200`, **0 event rows** |
+| `reqMgrSystemEdit.php?doAction=checkConnection&id=<n>` | `500`, 0 B | `200` |
 | `?id=abc` / `id=0` / `id=-1` | `200` | `200`, probe not run |
 
 Full regression matrix in `tmp/TLU_Test_Cases.md` ("Suite 1625"), re-runnable via
-`bash tmp/verify_1625.sh` (27 asserting HTTP/Event-Viewer/DB checks). The harness
+`bash tmp/verify_1625.sh` (31 asserting HTTP/Event-Viewer/DB checks). The harness
 **asserts and exits non-zero on failure** — proved discriminating, not self-reporting:
 against the pre-fix baseline (`git checkout 6d110083a -- <the two files>`) it reports
-**16 PASS / 11 FAIL, exit 1**; against the fix **27 PASS / 0 FAIL, exit 0**.
+**16 PASS / 11 FAIL, exit 1**; against the fix **31 PASS / 0 FAIL, exit 0**.
 
 Coverage also includes the regression guards: the two hardened twins
 (`lib/issuetrackers/issueTrackerView.php`, `lib/codetrackers/codeTrackerView.php` — the
@@ -205,7 +210,25 @@ Coverage also includes the regression guards: the two hardened twins
 Browser-verified for both `?id=1` and `?id=999`: the grid renders (header + `Jira Demo` +
 `Create`), and the browser console reports `<no console messages found>`.
 
-## Two unrelated defects found while testing — filed, not fixed
+## The second copy of the same probe (found by code review, also fixed here)
+
+`lib/reqmgrsystems/reqMgrSystemCommands.class.php::checkConnection()` — the "Check
+connection" action dispatched from the **edit** screen — contained the identical
+duplicated instantiation, unguarded, and was therefore a second, independent 500:
+
+```
+$ curl ... "reqMgrSystemEdit.php?doAction=checkConnection&id=1"     ->  http=500 bytes=0   (pre-fix)
+$ curl ... "reqMgrSystemEdit.php?doAction=checkConnection&id=999"   ->  http=500 bytes=0   (pre-fix)
+$ curl ... "reqMgrSystemEdit.php?doAction=checkConnection&id=1"     ->  http=200           (post-fix)
+```
+
+`checkConnection` is whitelisted in `reqMgrSystemCommands.class.php:38` and dispatched by
+`reqMgrSystemEdit.php:22-26`, so the route is live and reachable by plain URL. Rather than
+guarding a second copy, the duplicate is **deleted**: the method now delegates to the one
+hardened implementation, `$this->mgr->checkConnection($argsObj->id)`, keeping its original
+`'ok' : 'ko'` mapping. This is the same decision the issue-tracker twin took in #1617.
+
+## Unrelated defects found while testing / reviewing — filed, not fixed
 
 Both reproduce with **valid** data and neither is a regression from this diff:
 
@@ -217,6 +240,18 @@ Both reproduce with **valid** data and neither is a regression from this diff:
 - **#1627** — `lib/reqmgrsystems/reqMgrSystemEdit.php` **without** (or with a
   non-whitelisted) `doAction` is a hard `500`: `$op` stays `null` and `renderGui()`
   dereferences `$opObj->template`. Reachable by plain URL.
+- **#1628** — the `doAction=checkConnection` route that #1625 unblocked writes
+  `E_WARNING Undefined array key "checkConnection"` (3 per pass):
+  `reqMgrSystemCommands.class.php:72` reads `$obj->l18n[$caller]` for a key
+  `init_labels()` was never given it; the issue-tracker twin carries the missing
+  `'checkConnection' => 'btn_check_connection'` entry
+  (`lib/issuetrackers/issueTrackerCommands.class.php:70-71`). **Revealed** by this fix
+  (the 500 used to mask it), not caused by it.
+- **#1629** — `tlReqMgrSystem::getInterfaceObject()` is the **third** unguarded `new` in
+  the class, and its `catch (Exception $e)` cannot catch a PHP 8 `Error`; it is called from
+  `lib/requirements/reqSpecCommands.class.php:44` for every project with
+  `reqmgr_integration_enabled`. Filed as an **UNVERIFIED code-path reading** — the fresh CI
+  database has no project linked to a ReqMgrSystem, so the 500 was not reproduced here.
 
 ## Files changed
 
@@ -224,7 +259,8 @@ Both reproduce with **valid** data and neither is a regression from this diff:
 |---|---|
 | `lib/functions/tlReqMgrSystem.class.php` | guards in `checkConnection()` and in the `getAll()` `checkEnv` block |
 | `lib/reqmgrsystems/reqMgrSystemView.php` | probe only on a row that exists (no phantom row) |
-| `tmp/verify_1625.sh` | regression harness, 27 asserting checks |
+| `lib/reqmgrsystems/reqMgrSystemCommands.class.php` | the edit screen's second copy of the probe now delegates instead of duplicating the unguarded `new` |
+| `tmp/verify_1625.sh` | regression harness, 31 asserting checks (force-added: `tmp/` is gitignored) |
 | `tmp/TLU_Test_Cases.md` | "Suite 1625" test cases and results |
 | `docs/screenshots/issue-1625-reqMgrSystemView-id1-before.png` | before: blank HTTP 500 page |
 | `docs/screenshots/issue-1625-reqMgrSystemView-id1-after.png` | after: grid rendered, row carries the KO badge |

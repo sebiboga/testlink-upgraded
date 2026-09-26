@@ -223,14 +223,17 @@ class reqMgrSystemCommands
   function checkConnection(&$argsObj,$request)
   {
     $guiObj = $this->initGuiBean($argsObj,__FUNCTION__);
-    
-    $xx = $this->mgr->getByID($argsObj->id);
-    $class2create = $xx['implementation'];
-    $its = new $class2create($xx['type'],$xx['cfg']);
 
-    
+    // Issue #1625: this used to duplicate the instantiation of
+    // tlReqMgrSystem::checkConnection() verbatim - including its missing
+    // class_exists() guard - so "Check connection" reached from the edit
+    // screen answered HTTP 500 with an empty body for every id
+    // (reqMgrSystemEdit.php?doAction=checkConnection&id=<n>), twice over:
+    // contoursoapInterface is not shipped and an unknown id reached "new NULL".
+    // Delegate to the single hardened implementation instead of forking it again;
+    // it degrades to false, which maps to the 'ko' badge below.
     $guiObj->template = "reqMgrSystemView.php?";
-    $guiObj->connectionStatus = $its->isConnected() ? 'ok' : 'ko';
+    $guiObj->connectionStatus = $this->mgr->checkConnection($argsObj->id) ? 'ok' : 'ko';
     return $guiObj;
   }
 
