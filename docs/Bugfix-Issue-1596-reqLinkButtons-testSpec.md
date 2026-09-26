@@ -2,7 +2,7 @@
 
 **Screen:** `gui/templates/testcases/testSpec.html` (modern *Test Specification*, Dashio)
 **Fixed by:** `d270ea7dd` — 2 lines, no backend change, no new endpoint, no new i18n key
-**Verified:** 2026-09-26 — browser (headless Chrome 154) on a fresh database, admin, `bug` label, closed after independent re-verification
+**Verified:** 2026-09-26 — browser (headless Chrome 154) on a fresh database, signed in as `admin`; issue closed after that independent re-verification
 
 ---
 
@@ -19,7 +19,7 @@ They stayed invisible even for an **Administrator** in a test project with
 
 ## 2. Root cause
 
-`ctx` is built in `init()` (`gui/templates/testcases/testSpec.html:542-556`) and enriched
+`ctx` is built in `init()` (`gui/templates/testcases/testSpec.html:542-554`) and enriched
 from the context API response:
 
 ```js
@@ -28,7 +28,7 @@ ctx.options      = r.options || {};   // -> { requirementsEnabled, automationEna
 ctx.hasTestPlans = !!r.hasTestPlans;
 ```
 
-Both gates read a property that **nothing ever assigns**:
+Both gates read a property that **is not assigned in the current tree**:
 
 ```js
 // testSpec.html:747  (showSuiteView)  and  testSpec.html:890  (renderTcView)
@@ -36,9 +36,38 @@ if (ctx.reqEnabled && !!grants['req_tcase_link_management']) { … }
 ```
 
 `ctx.reqEnabled` is `undefined` → `undefined && …` is always falsy → the button HTML is
-never appended. The property exists neither in `testSpec.html` nor in the API payload;
-the flag the screen actually receives is `options.requirementsEnabled`
-(`api/testcases/index.php:588`, `tprojectOpt($opt, 'requirementsEnabled')`).
+never appended. The API never sends such a key either; the flag the screen actually
+receives is `options.requirementsEnabled` (`api/testcases/index.php:588`,
+`tprojectOpt($opt, 'requirementsEnabled')`).
+
+### 2.1 Why it breaks NOW — the regression source is a *merge*, not a missing line
+
+The property **was** assigned when the feature was introduced. `d327ece3a`
+(2026-09-15, *“feat(testspec): assign requirements button+modal in Test Specification
+editor and Test Case Viewer”*) had both halves:
+
+```js
+// gui/templates/testcases/testSpec.html:257 in d327ece3a
+ctx.reqEnabled = !!(r.options && r.options.requirementsEnabled);
+…
+// gui/templates/testcases/testSpec.html:620 in d327ece3a
+if (ctx.reqEnabled && !!grants['req_tcase_link_management']) { … }
+```
+
+`d327ece3a` is an ancestor of `4673dd4f5` (parent 2 of the merge `8038f9670`,
+2026-09-15 *“Merge branch 'origin/sebiboga' into sebiboga”*). Measured on the three trees:
+
+| tree | `ctx.reqEnabled =` | `if (ctx.reqEnabled` |
+|---|---|---|
+| parent 1 `492b8280c` | 0 | 0 |
+| parent 2 `4673dd4f5` (has `d327ece3a`) | 1 | 1 |
+| **merge result `8038f9670`** | **0** | **1** |
+
+The merge resolved the conflict in favour of the side **without** the feature, so it kept
+the gate and dropped the assignment: the button was therefore working between `d327ece3a`
+and `8038f9670`, and has been silently missing ever since. #1595 then added the second
+gate (`testSpec.html:890`, suite view) copying the already-broken pattern, so the new
+screen inherited the dead gate on its first day.
 
 The failure was **silent by construction**: no undefined-property warning (reading a
 missing key of an existing object is legal JS), no failed request, so nothing landed in
@@ -84,6 +113,9 @@ flag under its own name).
 
 ## 4. How the fix was verified (before / after)
 
+All ids, event ids and counters below come from **one ephemeral run on a freshly imported
+database**; they are evidence of that run, not stable values.
+
 `tmp/fixtures_1596.php` → test project **REQ1596** (id 13, requirements ENABLED),
 specification `RS1596` (id 14) with 2 requirements, test suite **Suite A** (id 20),
 test case **REQ1596 TC 01** (id 21). Signed in as `admin` / `admin`
@@ -103,7 +135,8 @@ restored from git and confirmed clean.
 | `window.open` target of the suite button | – | `/gui/templates/requirements/reqTcBulkAssign.html?tproject_id=13&tsuite_id=20` |
 | `GET /api/requirements/index.php/assign-reqspecs` | – | `200 {"status":"ok","items":[{"id":14,"name":"[RS1596] - RS1596 Specification"}]}` |
 
-The restored entry points are functional, not merely visible:
+The **suite-level** restored entry point is functional, not merely visible
+(the per-test-case modal opens but is dead inside — see §6 / #1598):
 
 * **Suite → Requirements Bulk Assignment** — the grid lists both requirements with
   `not linked to any test case of this suite (1)`; check-uncheck-all + **Assign to all
@@ -115,7 +148,19 @@ The restored entry points are functional, not merely visible:
   specification combo, FREE / ASSIGNED lists and the Assign / Unassign / Cancel / Close
   actions.
 * **Event Viewer** — `select log_level, count(*) from events group by log_level` →
-  `16 → 9` rows, i.e. **0 ERROR and 0 WARNING**; console clean on both screens.
+  `16 → 9` rows, i.e. **0 ERROR and 0 WARNING** (levels 1 and 2); console clean on both screens.
+
+### 4.1 Residual edge worth recording (pre-existing, not introduced here)
+
+`tprojectOpt()` returns `false` when a project's serialized options blob lacks the
+`requirementsEnabled` key (`api/testcases/index.php:52-60`, with a missing blob becoming
+`new stdClass()` at `:480-481`), whereas the write route's `projReqsEnabled()`
+(`api/requirements/index.php:1813-1824`) falls back to **default-true**. A legacy project
+with a missing/partial options blob therefore still sees no button, even though the BFF
+would accept the write. No false positive is possible (the BFF re-checks both the right
+at `api/requirements/index.php:2181` and the project option at
+`api/reqtcbassign/index.php:141`), and the fix strictly improves on "always hidden" —
+recorded for the next reader, not fixed here.
 
 ## 5. Regression test suite
 
@@ -135,8 +180,10 @@ Cause: `openAssignReqs(tcaseId)` (`testSpec.html:357`) never stores the id in th
 module-level `arqTcaseId` (`testSpec.html:433 var arqTcaseId = 0;`), so `arqLoadReqs()`
 returns at `testSpec.html:383` before its `GET /assign-reqs` call and the Assign /
 Unassign actions would post `tcase_id=0`. The backend is healthy —
-`GET /assign-reqs?req_spec_id=14&tcase_id=21` answers
-`{"status":"ok","unassigned":["REQ-001","REQ-002"],"assigned":0}`.
+`GET /assign-reqs?req_spec_id=14&tcase_id=21` answers `200` with
+`{"status":"ok","all":[…],"assigned":[],"unassigned":[{"id":16,"doc_id":"REQ-001",…},{"id":18,"doc_id":"REQ-002",…}]}`
+(each element is an object from `arReqRowToJSON()`, `api/requirements/index.php:2291-2298`;
+the route also returns `all`, which the quote above omits for brevity).
 
 That is a different property, a different code path and a different symptom (button
 *present but dead* vs button *missing*), so it was **filed as its own `bug` issue #1598**
