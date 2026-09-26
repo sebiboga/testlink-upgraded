@@ -630,8 +630,12 @@ class tlIssueTracker extends tlObject
            $impl = $this->getImplementationForType($item['type']);
            // Issue #1617: one row with an unknown/unloadable implementation must
            // not take the whole listing down. Degrade that single row to
-           // "environment not OK" (the grid renders it as a red badge) and keep
-           // listing every other row. class_exists() is @-silenced on purpose:
+           // "environment not OK" and keep listing every other row: the row
+           // stays visible in the grid (and its edit link still works), so the
+           // manager can see and repair the bad type instead of the whole
+           // screen being blank. Same degradation as the code tracker twin
+           // (tlCodeTracker.class.php:580-598, issue #1597).
+           // class_exists() is @-silenced on purpose:
            // the autoloader include_once()s "<class>.class.php"
            // (lib/functions/common.php:122) and would otherwise log two
            // "Failed opening ...class.php" E_WARNINGs per row per page load.
