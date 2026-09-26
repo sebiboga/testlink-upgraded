@@ -56,6 +56,7 @@
   "assign.testPlan": "Plan de test :",
   "assign.testProject": "Projet de test :",
   "assign.updateFailed": "Erreur lors de la mise à jour des rôles des utilisateurs",
+  "assign.viewStateRestored": "Vue enregistrée restaurée (recherche, tri, entrées par page et page conservés)",
   "assigned_to": "Assigné à",
   "ato.confirmExec": "Êtes-vous sûr de vouloir exécuter ce cas de test ?",
   "ato.errLoad": "Échec du chargement du rapport",

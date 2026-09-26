@@ -56,6 +56,7 @@
   "assign.testPlan": "Plan de prueba:",
   "assign.testProject": "Proyecto de prueba:",
   "assign.updateFailed": "Error al actualizar los roles de usuario",
+  "assign.viewStateRestored": "Vista guardada restaurada (búsqueda, ordenación, entradas por página y página conservadas)",
   "assigned_to": "Asignado a",
   "ato.confirmExec": "¿Está seguro de que desea ejecutar este caso de prueba?",
   "ato.errLoad": "Error al cargar el informe",

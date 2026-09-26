@@ -56,6 +56,7 @@
   "assign.testPlan": "Plan:",
   "assign.testProject": "Proiect:",
   "assign.updateFailed": "Eroare la actualizarea rolurilor utilizatorului",
+  "assign.viewStateRestored": "Vizualizarea salvata a fost restaurata (cautare, sortare, elemente pe pagina si pagina pastrate)",
   "assigned_to": "Atribuit",
   "ato.confirmExec": "Sigur doriți să executați acest caz de test?",
   "ato.errLoad": "Încărcarea raportului a eșuat",
