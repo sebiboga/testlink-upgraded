@@ -270,6 +270,19 @@ function applyDemoMode() {
 }
 
 function showDisabled() {
+  // Legacy parity (issue #1621): the whole assignment form - Test Project combo,
+  // "Set roles to" combo, Do button, grid and Save - lives inside ONE
+  // {if $gui->features neq ''} ... {/if} block of the legacy template
+  // (usersAssign.tpl:142 → :295). When the controller found no assignable test
+  // project (usersAssign.php:123-127 sets user_feedback =
+  // testproject_roles_assign_disabled) the legacy page rendered title + menu +
+  // that single message and NOTHING else. So the toolbar must be suppressed
+  // here too - otherwise a live "Set roles to <role>" combo plus an enabled
+  // "Do" button stay on screen and can never act on anything
+  // (applyBulkRole() over an empty row set). Same suppression as showNoAccess()
+  // below; the tab bar stays visible because legacy kept its menu outside the
+  // guard.
+  $('.toolbar').hide();
   $('#projectSelect').empty().prop('disabled', true);
   $('#assignTable').hide();
   $('#emptyMsg').hide();
