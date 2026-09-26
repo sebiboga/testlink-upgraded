@@ -22325,3 +22325,94 @@ written by a real upload always carry 1, so uploads/downloads are unaffected.
 **Evidence**: `docs/screenshots/issue-1297-reqview-attachments.png` (open version,
 upload + delete visible) and `docs/screenshots/issue-1297-reqview-attachments-frozen.png`
 (frozen version, read-only).
+
+## Regression — Issue #1589: `tree::_get_subtree()` E_WARNING "Undefined array key testcase_step" (Event Viewer noise)
+
+**Precondition / fixture** — the DB is freshly imported on every run, so
+`tmp/fixtures_1589.php` (re-runnable) recreates everything:
+
+```
+$ php tmp/fixtures_1589.php
+project 999915  plan 999916  build 9
+suites 999917 (TR1589-A, root) / 999918 (TR1589-A1, nested)
+tcs 999919 / 999922 / 999925        <- each WITH one step
+testcase_step nodes: 3
+req spec 999928  requirement 999930
+linked tcversions ... to plan 999916   (testplan_tcversions rows: 3)
+wrote tmp/fixtures_1589.json
+```
+
+`nodes_hierarchy` then holds the chain that triggers the bug:
+`testsuite(2) → testcase(3) → tcversion(4) → testcase_step(9)` × 3.
+
+**Repro steps (PRE-FIX behaviour)**
+
+1. `php tmp/repro_1589.php` — calls `tree::get_subtree($suiteId)` with **no**
+   filters, the same pattern as `api/reports/index.php:4427`.
+2. `DELETE FROM events;`
+3. In a browser session logged in as `admin`/`admin`, open
+   `/gui/templates/results/resultsMoreBuilds.html?tproject_id=999915&tplan_id=999916`
+   and issue, from the page,
+   `fetch('/api/reports/index.php?action=more_builds&tproject_id=999915&tplan_id=999916&build[]=9&testsuite[]=999918&testsuite[]=999918&keyword=0&owner=0&executor=0&lastStatus[]=n&search_notes_string=&display_suite_summaries=1&display_test_cases=1&display_query_params=1&display_totals=1&display_latest_results=1')`
+   — the duplicated suite id is what defeats the accidental `$userWantsAll`
+   shortcut at `api/reports/index.php:4420` and forces the bare
+   `get_subtree()` call.
+4. `SELECT log_level, source, description, activity FROM events;`
+
+**Expected POST-FIX behaviour** — step 1 reports `warnings raised: 0` /
+`EXIT=0`; step 4 returns **0 rows**. The returned node set and every
+`node_table` value must be **byte-identical** to pre-fix.
+
+**Actual result observed**
+
+| | PRE-FIX | POST-FIX |
+|---|---|---|
+| `php tmp/repro_1589.php` warnings | **3** (`EXIT=1`) | **0** (`EXIT=0`) |
+| `events` rows from the one `more_builds` request | **6** | **0** |
+| Event Viewer `stats/byLevel` | `WARNING: 6` | `WARNING: 0` |
+| `get_subtree()` node count | 10 | 10 (unchanged) |
+| nodes per `node_type_id` | `2=1 3=3 4=3 9=3` | `2=1 3=3 4=3 9=3` (unchanged) |
+| `node_table` values | `testsuites, testcases, tcversions, NULL` | identical (unchanged) |
+
+**Cases** — each runs in its OWN php process
+(`php tmp/matrix_1589.php <case>`), because `_get_subtree()`'s `static $my`
+leaks `order_cfg` between top-level calls in one process (filed separately as
+#1607) and would otherwise produce false `doc_id` warnings.
+
+| # | Case | Result |
+|---|---|---|
+| 1 | `php tmp/matrix_1589.php c1` — bare `get_subtree(suite)`: 0 warnings, 10 nodes incl. 3 step rows, `node_table` real values unchanged + `NULL` for steps, step rows still returned | **4/4 PASS** |
+| 2 | `php tmp/matrix_1589.php c2unknown` — injected `node_type_id=99` row (plugin case): 0 warnings, row returned, no crash | **2/2 PASS** |
+| 3 | `php tmp/matrix_1589.php c3` — `testsuite::get_subtree()` (`exclude_children_of` path): 0 warnings, still stops at test cases | **2/2 PASS** |
+| 4 | `php tmp/matrix_1589.php c4id` — `output=id`: 0 warnings, 10 scalars | **2/2 PASS** |
+| 5 | `php tmp/matrix_1589.php c4essential` — `output=essential`: 0 warnings, key set kept | **2/2 PASS** |
+| 6 | `php tmp/matrix_1589.php c4rspec` — `output=rspec` + `order_cfg=rspec`: 0 warnings (0 rows on a suite tree is correct — rspec INNER JOINs `req_specs`) | **2/2 PASS** |
+| 7 | `php tmp/matrix_1589.php c4full` — `output=full`: 0 warnings, key set kept | **2/2 PASS** |
+| 8 | `php tmp/matrix_1589.php c5` — `recursive=true` (`_get_subtree_rec`): tree returned; **3 warnings UNCHANGED** → pre-existing sibling defect, filed as **#1606**, NOT a regression (verified with `git stash`: 3 before, 3 after) | **1 PASS / 1 KNOWN-FAIL (out of scope)** |
+| 9 | `php tmp/matrix_1589.php c6` — `order_cfg=exec_order` + `tplan_id` (test-plan report path): 0 warnings, root suite + 3 test cases present | **2/2 PASS** |
+| 10 | `php tmp/matrix_1589.php c7` — `order_cfg=rspec` on requirement spec `999928`: 0 warnings, req-spec nodes still map to `req_specs_revisions` | **2/2 PASS** |
+| 11 | `php tmp/matrix_1589.php c9` — the exact `api/tcautoexec` call (project subtree, `exclude_children_of=testcase`, the #1587 path): 0 warnings, only real tables, no `NULL`, no pseudo type | **2/2 PASS** |
+| 12 | live `GET /api/reports/index.php?action=more_builds` + nested suite twice | 200 `status:ok`, **0 new `events` rows** (was 6) — PASS |
+| 13 | live `GET …?action=more_builds` + root suite `999917` (the `$userWantsAll` shortcut) | 200 `status:ok`, 0 new events — PASS |
+| 14 | live `GET …?action=more_builds` with **no** suite filter | 200 `status:ok`, 0 new events — PASS |
+| 15 | live `GET /api/reqspec/index.php?action=specs&tproject_id=999915` | 200, 1 spec, 0 new events — PASS |
+| 16 | live `GET /api/reqspec/index.php?action=reqs&tproject_id=999915&spec_id=999928` | 200 `status:ok`, 0 new events — PASS |
+| 17 | `php -l lib/functions/tree.class.php` | no syntax errors — PASS |
+| 18 | Event Viewer screen `/gui/templates/eventviewer/eventviewer.html` + `/api/eventviewer/index.php/events/stats/byLevel` | `DEBUG 0, INFO 0, WARNING 0, ERROR 0, AUDIT 0, L18N 0` — PASS |
+| 19 | no fatal / 5xx in `tmp/php_server.log` for the whole run; Remote Test Automation Execution screen (#1587 path) unaffected | clean — PASS |
+
+**Result: 19 cases PASS, 1 known-fail that is a pre-existing sibling defect
+out of the scope of this issue (#1606).**
+
+Evidence: `docs/screenshots/issue-1589-before-eventviewer.png` (6 WARNING rows
+in the Event Viewer) and `docs/screenshots/issue-1589-after-eventviewer.png`
+(0 rows). Fix commit `7f1e01056`, branch `fix/issue-1589`.
+
+Bugs found while testing and filed separately (not fixed here):
+**#1606** — `_get_subtree_rec()` at `tree.class.php:1145` does
+`$this->node_tables_by['id'][$row['node_type_id']]` against
+`node_tables_by['id']`, which is an **empty array** (`tree.class.php:60`) → the
+same "one warning per step node" noise through `recursive => true`;
+**#1607** — `static $my` leaks `order_cfg`/`output` between top-level
+`get_subtree()` calls in one process → spurious
+`Undefined array key "doc_id"` at `tree.class.php:995`.
