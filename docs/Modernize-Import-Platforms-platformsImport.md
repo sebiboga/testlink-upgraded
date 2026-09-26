@@ -55,13 +55,15 @@ with `xml_errors[{line,column,message}]`), `TOO_LARGE` and every `UPLOAD_ERR_*`
 | Not well-formed XML | 422 `WRONG_FORMAT` with libxml line/column; form stays usable |
 | Plain text / zero-byte file | 422 `WRONG_FORMAT` |
 | Valid but empty `<platforms/>` | 200, `node_count` 0, "no platform entries" empty state |
+| Wrong root (a test-case export) | 422 `WRONG_FORMAT`, nothing written |
+| `<platform>` without `<is_open>` | created/updated **closed**, matching legacy |
 | 3 MB file | 413, size-limit message |
 | Unknown / missing / non-numeric project | 404 / 400 / 400 |
 | `GET` on import, `POST` on init | 405 `METHOD_NOT_ALLOWED` |
 | Anonymous request | 401, session-expired state |
 | Viewer (`platform_view` only) | init 200 read-only screen, Upload and file picker disabled, import 403 |
 | No rights at all | init 403, no project name or platform count in the body |
-| Denied attempts | `audit_security_user_right_missing` written to the Event Viewer |
+| Denied attempts | `audit_security_user_right_missing` written to the Event Viewer — `VIEW` for the page gate, `IMPORT` for the upload gate |
 | Legacy deep link | 302 to the standalone screen, `testproject_id`/`testplan_id` aliases honoured |
 | Romanian locale | every label, button, hint, chip and the footer translated |
 | No JavaScript errors | console clean in all states |
@@ -114,17 +116,48 @@ even open the page for them, because `checkRights()` required
 4. **405 leaked an untranslated server string** — now `error_code`
    `METHOD_NOT_ALLOWED` with its own i18n key.
 
+## Code review findings (also fixed)
+
+The mandatory subagent code review of this change set found no blockers and six
+should-fix items, all of which are now fixed and covered by 9 new regression
+cases (Suite 1632: **83/83**):
+
+5. **A wrong file could be imported** — only well-formedness was checked, so a
+   test-case export (`<testlink><testcase><name>TC-1 Login</name>`) created one
+   *platform* per *test case* and reported them as imported. The BFF now
+   requires the `<platforms>` root and `<platform>` children (what both the
+   legacy exporter and `api/platformsexport` emit) and answers 422
+   `WRONG_FORMAT` otherwise; a non-`<platform>` child is a `BAD_LINE`.
+6. **A failed write was reported as `UPDATED`** — `tlPlatform::update()` returns
+   `tl::OK` or `E_DBERROR` and the value was dropped, so a failed write was
+   counted as updated. It is now checked, like the `create()` branch.
+7. **A missing `<is_open>` silently re-opened closed platforms** — the modern
+   default was 1 (open) while legacy read `intval($platform->is_open)` (0,
+   closed). The legacy default is restored, so a partial file cannot change the
+   exec visibility of existing platforms.
+8. **A denied page view was audited as `activity=IMPORT`** — it is now
+   `VIEW` (as in `api/issuetracker`), keeping the Event Viewer truthful.
+9. **`UPLOAD_ERROR` was untranslated** — the `is_uploaded_file()` guard's code
+   had no client mapping, so the raw server string reached a localized screen;
+   it now maps to `pimp.errUpload`, and the generic `r.message` fall-through is
+   escaped before it is injected as HTML.
+10. **The footer rendered twice** and `showState()` had a dead i18n-key branch;
+    both cleaned up. A POST body over `post_max_size` also now answers 413
+    `TOO_LARGE` instead of a misleading "choose a file".
+
 Separately filed: **#1634** — the class autoloader in `lib/functions/common.php`
 wraps `include_once` in `catch (Exception)`, but since PHP 7 a failed include
 raises `E_WARNING`, so the catch can never run and every missing class adds two
-Error/Warning rows to the Event Viewer.
+Error/Warning rows to the Event Viewer. It was fixed independently on the
+branch by **#1593** (`stream_resolve_include_path()` guard), so #1634 is closed
+as its duplicate.
 
 ## Test suite
 
 Suite **1632 — Import Platforms standalone screen and BFF** was added to
-`tmp/TLU_Test_Cases.md`: **74/74 PASS** in `tmp/verify_1632.sh` (verified
-discriminating: 67 PASS / 7 FAIL against the pre-fix code), plus 12
-browser-only checks.
+`tmp/TLU_Test_Cases.md`: **83/83 PASS** in `tmp/verify_1632.sh` (verified
+discriminating: 67 PASS / 7 FAIL against the pre-fix code, 76 PASS / 7 FAIL
+against the pre-review BFF), plus 12 browser-only checks.
 
 ## Files
 

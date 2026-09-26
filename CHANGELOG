@@ -5870,9 +5870,18 @@ Changes:
   (`busy(false)` ran before the grant was known), the format-documentation link 404'd (partial path
   needed `$basehref`), a platform name repeated in one file called `update(0, …)` and silently lost
   the second node's values, and 405 leaked an untranslated server string.
+- Hardened further after the mandatory code review, with 9 new regression cases (Suite 1632 is now
+  83/83): a wrong file can no longer be imported — the `<platforms>` root and `<platform>` children
+  are required, so a test-case export no longer creates one platform per test case; a failed
+  `update()` is reported `IMPORT_FAILED` instead of `UPDATED`; a file without `<is_open>` keeps the
+  legacy "closed" default instead of silently re-opening closed platforms; a denied page view is
+  audited as `VIEW` (the upload gate stays `IMPORT`); a POST body over `post_max_size` answers 413
+  `TOO_LARGE`; the `UPLOAD_ERROR` code is translated client-side and the raw server message is
+  escaped before it reaches the DOM; the footer is no longer rendered twice.
 - Filed #1634 (pre-existing): the class autoloader wraps `include_once` in `catch (Exception)`, but
   PHP 7+ raises `E_WARNING`, so every missing class permanently adds two Error/Warning rows to the
-  Event Viewer.
+  Event Viewer. Already fixed independently on the branch by #1593 (`stream_resolve_include_path()`
+  guard), so #1634 is closed as its duplicate.
 ### UI modernization — Launch Test Case Print gateway (Refs #1623)
 - The public share-link entry point `ltcp.php` (`?apikey=<32-char user key>&testcase=<PREFIX>-<NUM>-<VERSION>`)
   is modernized as `gui/templates/testcases/tcLaunchPrint.html` (Dashio: resolved-test-case card
