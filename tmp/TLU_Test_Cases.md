@@ -22898,53 +22898,128 @@ with a `responseText` fallback) and completing the code→i18n-key map with
 **Screenshots:** `docs/screenshots/issue-1623-launch-{ok,denied,notfound,ro}.png` and
 `issue-1623-print-anon.png` (anonymous hand-over to the modern print screen).
 
-### Code-review round (subagent review of the screen + BFF)
+## Regression — Issue #1592: `reqMgrSystemView.php` `init_args()` guarded `$_REQUEST['tproject_id']` but read `$_SESSION['tproject_id']` (never assigned) → E_WARNING on every visit carrying `?tproject_id=`
 
-A subagent reviewed the BFF, the screen and the shim against the legacy body. Twelve
-findings; the substantive ones are listed below with the re-test that proves each fix.
-Two were real defects found by the review and fixed here.
+**Precondition / fixtures** (the DB is freshly imported every run — `reqmgrsystems`,
+`testprojects` and `events` are all empty, so these MUST be recreated):
 
-**MAJOR — the documented session branch was unreachable: `$_SESSION` was read with no
-`doSessionStart()`.** Neither `config.inc.php` nor `common.php` start the session on
-their own (only `doSessionStart()` and `checkConfiguration()` do), and in this BFF the
-first `session_start()` happened *inside* the apikey branch. So `isset($_SESSION['userID'])`
-was always false and **every apikey-less request answered 401 — even for a logged-in
-user** — contradicting the docblock and the docs page. A user who opened the screen from
-the app would see "Access denied / You are not logged in and the link carries no API key"
-while logged in. Fixed with `doSessionStart()` before the read (same call as
-`api/executionprint` / `api/testcasesprint`).
+```sql
+-- (a) a public test project, so a login auto-selects one into $_SESSION['testprojectID']
+--     (is_public=1 => setUserSession() picks key($arrProducts), lib/functions/users.inc.php:59-66)
+INSERT INTO testprojects (id,prefix,notes,is_public,active)
+VALUES (7,'TP-SEVEN','session-precedence fixture for #1592',1,1);
 
-**MINOR — `print_url` was an open-redirect sink.** `TL_BASE_HREF` comes from
-`get_home_url()`, which prefers `HTTP_X_FORWARDED_HOST` over `HTTP_HOST`; behind a proxy
-that forwards a client-supplied header the *Open test case print* button navigated
-off-site. Fixed by pinning the authority (host **and** port, so a sub-directory install
-keeps its path prefix) and falling back to a same-origin relative URL on mismatch.
+-- (b) one ReqMgrSystem row. NOTE: NOT required to reproduce the defect (see gotcha 1) —
+--     it is only needed for the full-list-render case.
+INSERT INTO reqmgrsystems (name,type,cfg) VALUES ('Jira Demo',1,'{}');
 
-| # | Test | Expected | Result |
-|---|---|---|---|
-| R1 | logged in (real session cookie, no `apikey`) `?action=resolve&testcase=L16-1-1` | **200** `auth_mode=session`, name + 2 versions + `print_url` — *this was 401 before the fix* | PASS |
-| R2 | same in the browser, no apikey | auth chip reads **"Session"**, result card visible, not the denied card | PASS |
-| R3 | `X-Forwarded-Host: evil.example.com` + valid apikey | `print_url` falls back to a **relative** `/gui/templates/…` URL (no off-site redirect) | PASS |
-| R4 | normal request (`:8082`, non-default port) | `print_url` stays **absolute** — the authority pin does not break a legit port/sub-directory | PASS |
-| R5 | `bffEnforceSession($db)` now called (issue #1614 inactivity window) + `ltcpl.errSessionExpired` in all 10 bundles | 401 `session_expired` maps to the localized **denied** card, not the generic error card | PASS |
-| R6 | `session_regenerate_id(true)` after the apikey identity switch | session id re-issued; the old cookie cannot be replayed against the link owner | PASS |
-| R7 | legacy check **order**: `apikey=badkey` with **no** `testcase` param | **400 `bad_apikey` / LTCP-01** (legacy validated the key first) — was `missing_testcase`/LTCP-02 | PASS |
-| R8 | `missing_testcase` card routing | amber **not-found** card with message + `LTCP-02` marker — was the red Error card, so one marker mapped to two different cards | PASS |
-| R9 | version pills keyboard path | pill carries `role="button"` + `tabindex="0"`; **Enter** navigates to that version; focus ring `2px` visible | PASS |
-| R10 | a11y tree of the resolved screen | pills exposed as `button "Version 1"` / `"Version 2"`; all 4 state boxes have `role="status" aria-live="polite"` | PASS |
-| R11 | localized `document.title` | `locale=ro_RO` → title `Lansare Afisare Test Case` | PASS |
-| R12 | dead code removal | `payload`, the unused `legacyTag()` helper and the byte-identical `abort` branch deleted; no behavioural change | PASS |
-| R13 | `strings_stripSlashes` applied twice / to an unread superglobal | dead lines removed (the params come from `$_GET`) | PASS |
-| R14 | N+1 query removed | `available_versions` now one `SELECT id,version … WHERE id IN (…) ORDER BY version`; same 2 entries, same order | PASS |
-| R15 | `checkConfiguration()` restored in `ltcp.php` (legacy lines 19-20) | an uninstalled instance bounces to the installer instead of a raw PHP fatal | PASS |
-| R16 | `php -l` BFF + shim after the review patches | no syntax errors | PASS |
-| R17 | full 14-case API matrix re-run after the review patches | all 14 as before, plus the corrected R7 ordering | PASS |
-| R18 | Event Viewer after the whole review round | `log_level IN (1,2,3)` = **0** (only level 16 audit rows) | PASS |
-| R19 | console on the resolved + denied + session screens | clean apart from the expected 403 network line the browser logs for the deliberate denial | PASS |
+-- (c) non-manager account for the rights-gate case (password = md5('viewer1592')).
+--     rights 33 reqmgrsystem_management + 34 reqmgrsystem_view are granted to role 8 (admin) ONLY.
+INSERT INTO users (login,password,role_id,email,first,last,locale,active,cookie_string,auth_method)
+VALUES ('viewer1592',MD5('viewer1592'),1,'v1592@x.y','View','Er1592','en_GB',1,
+        'ck1592viewer000000000000000000a','local');
+```
 
-**Review notes that needed no change:** SQL injection (`$prjPrefix` is only ever an array
-key into the pre-loaded map; every id is `intval()`-ed), authorization (`mgt_view_tc` is
-checked on the *owning* project, and `testcase::getInternalID()` already refuses a
-foreign project), XSS (every `innerHTML` interpolation goes through `esc()`, everything
-else uses `.text()`), information disclosure (no error text leaks SQL/paths/ids), and
-i18n completeness (all 29 keys in all 10 bundles, now 30 with `errSessionExpired`).
+**Repro steps (pre-fix):**
+
+1. Log in as `admin`/`admin` (holds rights 33/34).
+2. `GET http://localhost:8082/lib/reqmgrsystems/reqMgrSystemView.php?tproject_id=1`
+3. `SELECT id,log_level,description FROM events ORDER BY id DESC LIMIT 3;`
+4. Observe one `log_level=2` row: `E_WARNING Undefined array key "tproject_id" - in .../lib/reqmgrsystems/reqMgrSystemView.php - Line 58`
+
+**Root cause in one line:** `reqMgrSystemView.php:58` tested `isset($_REQUEST['tproject_id'])` but
+took the value from `$_SESSION['tproject_id']` — a key with **zero writers** anywhere in the repo
+(the live session key is `$_SESSION['testprojectID']`, set at `lib/functions/common.php:459`), so
+whenever the guard passed the read was guaranteed to warn.
+
+**Expected post-fix behaviour:** the guard and the read name the same superglobal, so **no** load of
+this screen writes a `tproject_id` warning — for any parameter value, present or absent.
+
+**Actual result — measured on the fix branch (`25d387f5c`), all `events` counts taken with the
+table truncated immediately before each request so they are attributable, not inherited:**
+
+| # | Case | Request / action | Expected | Measured | Result |
+|---|---|---|---|---|---|
+| 1 | **Primary symptom** | admin, `?tproject_id=1`, no project in session | 200, 0 `tproject_id` warnings | `http=200 tproject_id_warnings=0 total_events=0` | **PASS** |
+| 2 | Control — was already clean, must stay clean | admin, **no** query string | 200, 0 warnings | `http=200 tproject_id_warnings=0 total_events=0` | **PASS** |
+| 3 | Non-numeric value | `?tproject_id=abc` | 200, 0 warnings, coerced to `0`, no notice | `http=200 tproject_id_warnings=0 total_events=0` | **PASS** |
+| 4 | Empty value | `?tproject_id=` | 200, 0 warnings (`intval('')===0`) | `http=200 tproject_id_warnings=0 total_events=0` | **PASS** |
+| 5 | **Session precedence** | login with `TP-SEVEN` in session, then pass a *different* `?tproject_id=999` | session value wins (line 54 short-circuits, branch never entered), no warning, `?999` has no effect | `http=200`, `tproject_id` warnings **0** | **PASS** |
+| 6 | **Rights gate intact** | `viewer1592` (role 1, no rights 33/34) hits `?tproject_id=1` | request refused by `checkRights()`, no ReqMgrSystem data leaked, no warning | `http=200 bytes=204`, `Jira Demo` occurrences **0**, `tproject_id` warnings **0** | **PASS** (live) |
+| 7 | Full-list render | 1 ReqMgrSystem row present | row renders with type/environment columns, no new warnings from this screen | DOM: `"Req. Management System Type Environment delete Jira Demo contour (Interface: soap)"`; `grep -c "Jira Demo" → 2` | **PASS** (live browser) |
+| 8 | Syntax gate | `php -l lib/reqmgrsystems/reqMgrSystemView.php` | no syntax errors | `No syntax errors detected` | **PASS** |
+| 9 | Sibling sweep — modernized screen | `gui/templates/reqmgrsystems/reqMgrSystemView.html?tproject_id=1` | 200, unaffected | `http=200 tproj_warn=0` | **PASS** |
+| 10 | Sibling sweep — Issue Tracker / Code Tracker legacy views | `lib/issuetrackers/issueTrackerView.php`, `lib/codetrackers/codeTrackerView.php` with `?tproject_id=1` | 200, unaffected | `http=200 tproj_warn=0` (both) | **PASS** |
+| 11 | Event Viewer after the whole matrix | `SELECT log_level,count(*) ... GROUP BY` | no Error/Warning attributable to this screen | only `log_level 1` white-list row from the #1624 probe (different file); **0** `log_level IN (1,2,3,4)` from the reqmgr view | **PASS** |
+| 12 | **`?id=` branch of the edited function** — `if($args->id > 0)` at `reqMgrSystemView.php:28-31` is inside the function that was changed, so it must be exercised | the `tproject_id` fix must not affect it | `?id=1&tproject_id=1` → `http=500 bytes=0 tproj_warn=0`; `?id=1` → 500; `?id=999` (nonexistent) → 500. **Pre-existing/unrelated** — missing `contoursoapInterface` class, see gotcha 7 / #1625 | **PASS** (fix neutral) |
+
+**Result: 12/12 PASS.**
+
+> Reading the table: `total_events=0` in cases 1-5 is a **fixture** artefact — those cases ran against an
+> *empty* `reqmgrsystems` table. With a row present every load also writes the two `contoursoapInterface`
+> rows from #1593, so the meaningful assertion in every case is the `tproject_id_warnings` / `tproj_warn`
+> column, never `total_events`.
+
+**Pre-fix vs post-fix on the identical primary request (same session, same URL):**
+```
+BEFORE:  | 2 | 2 | E_WARNING Undefined array key "tproject_id" - .../reqMgrSystemView.php - Line 58 |
+AFTER:   SELECT count(*) FROM events WHERE description LIKE '%tproject_id%';  ->  0
+```
+
+### Gotchas / discoveries (recorded so future repros don't chase red herrings)
+
+1. **A ReqMgrSystem row is NOT required to reproduce.** `init_args()` runs at
+   `reqMgrSystemView.php:23`, before `$mgr->getAll()` at line 24, so the warning fires on a
+   completely empty `reqmgrsystems` table. The original issue listed "have at least one ReqMgrSystem
+   configured" as step 1 — it is not a precondition.
+2. **The trigger is narrower than the issue states.** The report says "on every load". Measured: the
+   warning appears ONLY when the URL carries a `?tproject_id=` parameter. Without it, `isset()` is
+   false, the branch yields `0`, and **zero** rows are written (case 2). Correct invariant post-fix:
+   "no load writes a `tproject_id` warning" — true for every input.
+3. **The issue's stated root cause was wrong.** It hypothesised a missing `isset()` guard on a
+   `$_REQUEST` read. The guard *was* present and the read was from `$_SESSION` — the mismatch between
+   the two is the actual mechanism. Confirmed by
+   `grep -rn "SESSION\['tproject_id'\]" --include=*.php .` → **1 hit, and it is the read itself;
+   there is no writer.**
+4. **Case 5 needs the `TP-SEVEN` fixture.** On a fresh DB `$_SESSION['testprojectID']` is unset, so
+   line 56's branch is *always* taken and the session-precedence path is unreachable. The fixture
+   must be `is_public=1` so login auto-selects it.
+5. **The `contoursoapInterface.class.php` warnings are a different issue (#1593), not a regression.**
+   They appear once a ReqMgrSystem row exists (because `getAll(['checkEnv'=>true])` at line 24 pulls
+   in that class), on a **different file**, and this fix did not change their count. The two defects
+   are cleanly separable: **#1592 fires on an empty table, #1593 fires on a populated one.**
+6. **Sibling discovery, filed separately as #1624.** During case 10 the sweep hit
+   `lib/reqmgrsystems/reqMgrSystemEdit.php`, which returns **HTTP 500** when `doAction` is absent or
+   unknown (`reqMgrSystemEdit.php:126` throws an uncaught `Exception`; the whitelist from
+   `reqMgrSystemCommands.class.php:38-39` has no key for the empty value). The legitimate entry
+   points `?doAction=edit&id=1` and `?doAction=create` both return 200 with 0 error rows. Independent
+   of #1592, not fixed here — logged as **#1624**.
+7. **The `?id=` (Check Connection) path is a hard 500 — found by code review, filed as #1625.**
+   Case 12 exists because `if($args->id > 0)` (`reqMgrSystemView.php:28-31`) sits **inside the
+   function that was edited**; leaving it untested would have overstated the "11/11" claim. It returns
+   `HTTP 500` with a 0-byte body for *any* id, including a nonexistent one, because `checkConnection()`
+   (`:30`) reaches `tlReqMgrSystem.class.php:616-621` which does `new contoursoapInterface(...)` and
+   that class is **absent from the repo**:
+
+   ```
+   $ git cat-file -e ea1aa68e6:lib/reqmgrsystems/contoursoapInterface.class.php
+   fatal: path 'lib/reqmgrsystems/contoursoapInterface.class.php' does not exist in 'ea1aa68e6'
+   ```
+
+   Proven pre-existing and unreachable from this fix: the file is missing at the baseline, and the
+   value assigned at `:58` is never consumed, so the fix cannot influence `:30`. Same **missing file**
+   as #1593 but a more severe symptom (fatal 500 vs Event Viewer noise), hence its own issue.
+   Corollary: the docs' claim that the screen "returns HTTP 200" holds for the plain list load only.
+
+### RESUME
+
+```bash
+# one-liner: does the defect still exist on any branch?
+mysql -h 127.0.0.1 -utestlink -ptestlink testlink -e "delete from events;"
+curl -s -b <cookie> "http://localhost:8082/lib/reqmgrsystems/reqMgrSystemView.php?tproject_id=1" -o /dev/null
+mysql -h 127.0.0.1 -utestlink -ptestlink testlink \
+  -e "select count(*) from events where description like '%tproject_id%';"   # 0 == fixed, 1 == regressed
+```
+Browser re-test: log in `admin`/`admin` at `http://localhost:8082/login.php`, open
+`http://localhost:8082/lib/reqmgrsystems/reqMgrSystemView.php?tproject_id=1`, then check
+Event Viewer → no new Warning row.
