@@ -22617,7 +22617,7 @@ row is written to `events`.
 | 3 | tracker **linked** (`INSERT INTO testproject_issuetracker (testproject_id,issuetracker_id) VALUES (1,1);`) | icons 2 → **1** (linked row correctly loses the icon), **0** new rows | **PASS** |
 | 4 | non-manager — needs `INSERT INTO role_rights (role_id,right_id) VALUES (7,32);` because the shipped matrix grants `issuetracker_view`/`issuetracker_management` **only to role 8 (admin)** | page renders fully (`size=11556`), **0** delete icons — `canManage` gate intact, **0** new rows | **PASS** |
 | 5 | sibling Code Tracker view `lib/codetrackers/codeTrackerView.php` | `view=200`, unchanged, **0** new rows | **PASS** |
-| 6 | `projectView.tpl` — the *legitimate* owner of `testproject_alt_delete` | static: commit touches 1 file; `projectView.tpl:31` loads + `:153` uses the key — untouched. (The legacy controller now routes to a modernized screen, so it is not reachable over HTTP — static verification only, by design.) | **PASS** (static) |
+| 6 | `projectView.tpl` — the *legitimate* owner of `testproject_alt_delete` | **LIVE**: `view=200` (16455 bytes), 1 delete icon, `title="Delete the Test project and all related data."` — the correct long string survives; **0** new rows. Requires a `nodes_hierarchy` row in the fixture (see gotcha below) | **PASS** (live) |
 | 7 | locales `de_DE` / `fr_FR` / `es_ES` / `ro_RO` / `it_IT` | `de_DE` → `title="löschen"`; `fr_FR`/`es_ES` localized; `ro_RO`/`it_IT` (no `alt_delete` key) → graceful en_GB fallback `"delete"`. All **0** new Warning rows (fallback logs at `log_level 32`, not Warning) | **PASS** |
 | 8 | live browser DOM (not curl) | `[{"title":"delete","hasOnclick":true},{"title":"delete","hasOnclick":true}]` — tooltip fixed **and** the `delete_confirmation()` handler untouched | **PASS** |
 | 9 | Event Viewer after the whole matrix | **0** new Error/Warning rows attributable to this screen (only `log_level 32` LOCALIZATION info events, pre-existing) | **PASS** |
@@ -22632,6 +22632,13 @@ id=24 log_level=2 E_WARNING Undefined array key "testproject_alt_delete" ... Lin
 ```
 
 **Gotchas for the next agent (each cost time during this run):**
+- **A `testprojects` row alone is not enough for project-scoped screens.**
+  `testproject::get_accessible_for_user()` (`testproject.class.php:565-573`) INNER JOINs
+  `nodes_hierarchy`, so with that table empty `projectView.php` sees
+  `$gui->itemQty == 0` and answers with a 161-byte redirect stub to
+  `projectEdit.php?doAction=create` instead of the list. This is what made the
+  first attempt at case 6 look like "the template is gone". Add:
+  `INSERT INTO nodes_hierarchy (id,name,parent_id,node_type_id,node_order) VALUES (1,'REPRO',0,1,1);`
 - **Locale tests need a NEW SESSION.** `$_SESSION['locale']` is cached, so updating
   `users.locale` alone silently keeps rendering English — that produced a false
   negative on the first attempt at case 7. Use a fresh cookie jar per locale.
