@@ -22505,3 +22505,71 @@ Bugs found while testing, filed separately, **not** fixed here:
 
 Evidence: `docs/screenshots/issue-1607-execute-tests-exec-order.png`. Fix
 commit `681ab1eff`, branch `fix/issue-1607`.
+
+---
+
+## Task — Issue #986: DataTables sort/search/pagination/column-filtering in `projectsView.html`
+
+**Feature implemented** (Refs #986, branch `task/issue-986`, commit `143d8588d`).
+Legacy reference: `gui/templates/dashio/project/projectView.tpl:37,50-51,87-89` +
+`gui/templates/dashio/include/DataTablesColumnFiltering.inc.tpl`.
+
+**Precondition**
+
+The DB is re-imported on every run and ships with **0** test projects, so the
+fixture below is mandatory. It creates **14** projects (> 10) so that the
+default `pageLength: 20` does not hide the pager, and it populates issue/code
+trackers so those columns are non-empty.
+
+```bash
+mysql -h 127.0.0.1 -utestlink -ptestlink testlink < tmp/issue-986-fixtures.sql
+```
+
+**GOTCHA (cost me one wrong measurement):** `api/projects/index.php:projectSelect()`
+joins `nodes_hierarchy nh ON nh.id = tp.id`. Inserting only into `testprojects`
+makes the endpoint return `{"success":true,"data":[]}` with HTTP 200 — the list
+looks broken, not empty-by-design. Always insert into **both** tables.
+
+**Entry point:** `http://localhost:8082/gui/templates/projectsView.html` (login `admin`/`admin`).
+
+| # | Step | Expected | Observed | Result |
+|---|---|---|---|---|
+| 1 | Load the screen with the 14-project fixture | DataTable grid: sort glyphs, length menu, record counter, pagination | `{"isDataTable":true,"headerRows":2,"filterInputs":5,"paginate":true,"info":"Showing 1 to 14 of 14 entries","lengthOptions":["10","20","50"],"dtFilterBox":false}` | **PASS** |
+| 2 | Inspect `<thead>` | 2 rows: labels (sortable) + cloned filter row with 5 inputs | `headerRow0:["ID","Project Name","Prefix","Issue Tracker","Code Tracker","Status","Actions"]`, `headerRow1:["","","","","","",""]`, `filterInputs:5` | **PASS** |
+| 3 | Click the **Project Name** header | sorts ascending/descending, filter row unaffected | `class="sorting sorting_asc"`, first row `Alpha Regression Project` | **PASS** |
+| 4 | `sortable` classes per column | ID + Actions not sortable (legacy `{#NOT_SORTABLE#}`), the other 5 sortable | `["text-center sorting_disabled…","sorting","sorting","sorting","sorting","sorting","sorting_disabled"]` | **PASS** |
+| 5 | Length menu → 10 | page shows 10 rows, counter `1 to 10 of 14` | `info_len10:"Showing 1 to 10 of 14 entries"`, 10 rows in tbody | **PASS** |
+| 6 | Next page | counter `11 to 14 of 14`, last 4 projects | `info_page2:"Showing 11 to 14 of 14 entries"` → `[Lambda…, Mu…, Nu…, Xi…]` | **PASS** |
+| 7 | Sort Project Name desc / asc | reverse + alphabetical order | `[Zeta…, Xi…, Theta…]` / `[Alpha…, Beta…, Delta…]` | **PASS** |
+| 8 | Prefix column filter `AL` | only ALPHA | `["ALPHA"]` | **PASS** |
+| 9 | **Real typing** (not jQuery) in the prefix box: `BE` | BETA + LAMBDA (prefix match, not whole-cell) | `["BETA","LAMBDA"]`, `Showing 1 to 2 of 2 entries (filtered from 14 total entries)` | **PASS** |
+| 10 | Issue-Tracker filter `git` | 0 rows (Git is a code tracker here) | `No entries available (filtered from 14 total entries)` | **PASS** |
+| 11 | Code-Tracker filter `subversion` | Alpha + Delta | `["Alpha Regression Project","Delta Performance Bench"]` | **PASS** |
+| 12 | Status filter `inactive` | GAMMA, ZETA, MU | `["Inactive","Inactive","Inactive"]` | **PASS** |
+| 13 | Name filter `alpha kappa` (2 whitespace-separated terms) | smart search = terms AND-ed | `["Kappa Alpha Regression"]` | **PASS** |
+| 14 | Combine two column filters | intersection, not union | only the rows matching **both** | **PASS** |
+| 15 | Global search box, real typing `mu` | DataTables global search filters the grid | `apiSearch:"mu"` → `["Mu Mobile Coverage"]` | **PASS** |
+| 16 | Clear the global search with Backspace | full list restored | `apiSearch:""`, `Showing 1 to 14 of 14 entries` | **PASS** |
+| 17 | `Deactivate` on a row, then re-inspect the grid | toggle works AND the DataTable survives destroy/re-init | status `Active → Inactive`, `isDataTable:true`, `filterInputs:5`, `theadRows:2` | **PASS** |
+| 18 | `Delete` a row (confirm) | row disappears, counter decrements, grid still a DataTable | `14 → 13`, `stillHasZeta:false`, `isDataTable:true`, `filterInputs:5` | **PASS** |
+| 19 | Create a project via the modal | new row appears, grid re-initialised | `14 → 15`, `hasOmega:true`, `isDataTable:true`, modal closed | **PASS** |
+| 20 | Empty list (delete all fixtures) | table hidden, empty state shown, no DataTable leak | `{"emptyStateVisible":true,"tableVisible":false,"isDataTable":false,"wrapperGone":true}` | **PASS** |
+| 21 | Filter inputs stay alive across draw | 5 inputs, same DOM node, handlers intact | `inputCount 5 → 5`, `sameNode:true` | **PASS** |
+| 22 | `python3 -m json.tool` on all 10 bundles | all valid | 10 × `OK gui/templates/i18n/<x>.json` | **PASS** |
+| 23 | i18n keys resolve at runtime | no raw key, no English-only string | `{"desc":"activate to sort column descending","colFilter":"Filter column","info":"Showing _START_ to _END_ of _TOTAL_ entries","lenMenu":"Show _MENU_ entries"}` | **PASS** |
+| 24 | Browser console `error` + `warn` for the whole pass | none | `<no console messages found>` | **PASS** |
+| 25 | Event Viewer: `select count(*),max(id) from events` after the pass | no new Error/Warning rows | `5 5` — unchanged, no new event rows | **PASS** |
+
+**Result: 25/25 PASS.** The screen now has the full legacy grid: column sorting,
+length menu + pagination + record counter, global search, and per-column
+smart-search filters with `stateSave` restore — none of which existed before
+(measured in the INVESTIGATION comment: `hasDataTables:false`,
+`dtScripts:[]`, `hasPagination/hasInfo/hasLengthMenu/hasColumnFilterRow:false`).
+
+Screenshots: `tmp/shots/issue-986-before.png` (plain table, 8 rows, no grid
+chrome) vs `tmp/shots/issue-986-after.png` (length menu, 2-row header with the
+teal filter row, record counter, paginate buttons).
+
+**Known nuance (not a defect):** `stateSave: true` re-applies an active global
+search after the destroy/re-init performed by `loadProjects()` — the same
+behaviour legacy had when it reloaded the view with its filter still active.
