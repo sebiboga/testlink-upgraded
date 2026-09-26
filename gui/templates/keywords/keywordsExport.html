@@ -73,6 +73,7 @@ pre.sample { background: #f7f7f7; border: 1px solid #e3e3e3; border-radius: 4px;
 <div class="toast" id="toast"></div>
 
 <script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script>
 var API = '/api/keywordsxml/index.php';
 var TPROJECT_ID = 0;
@@ -90,9 +91,9 @@ function esc(s) {
     .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
-function t(key, fallback) {
-  var v = TLi18n.t(key);
-  return (v === undefined || v === null || v === '') ? (fallback || key) : v;
+function t(key, params) {
+  var v = TLi18n.t(key, params);
+  return (v === undefined || v === null || v === '' || v === key) ? key : v;
 }
 
 function toast(msg, isErr) {
@@ -160,6 +161,18 @@ function typeOptions(list, selected) {
   return s;
 }
 
+// The default (first) serialization interface, resolved WITHOUT touching the
+// DOM: the panels are built as an HTML string, so the <select> does not exist
+// yet while they are rendered.
+function defaultId() {
+  return (CTX.exportTypes || [])[0] ? CTX.exportTypes[0].id : '';
+}
+
+function extOf(id) {
+  var hit = (CTX.exportTypes || []).filter(function (x) { return x.id === id; })[0];
+  return hit ? (hit.ext || '').toLowerCase() : '';
+}
+
 function formatSample(type) {
   var d = (CTX.formatDescriptions || {})[type] || '';
   if (!d) { return ''; }
@@ -171,12 +184,12 @@ function exportPanel(right) {
   if (!right.export) {
     return msgCard('fa-lock', '#e6605e', 'kwxml.deniedTitle', 'kwxml.deniedExportMsg');
   }
-  var ext = ((CTX.exportTypes || [])[0] || {}).ext || 'xml';
+  var ext = extOf(defaultId()) || 'xml';
   return '<div class="card"><div class="card-h"><i class="fa fa-file-export"></i> ' +
     esc(t('kwxml.modeExport')) + '</div><div class="card-b">' +
     '<label for="exportType">' + esc(t('kwxml.format')) + '</label>' +
     '<select id="exportType" onchange="exportTypeChanged()">' + typeOptions(CTX.exportTypes) + '</select>' +
-    formatSample($('#exportType').val()) +
+    formatSample(extOf(defaultId()).toUpperCase()) +
     '<label for="exportFilename" style="margin-top:16px">' + esc(t('kwxml.fileName')) + '</label>' +
     '<input type="text" id="exportFilename" value="' + esc(CTX.default_filename || ('keywords.' + ext)) + '">' +
     '<div class="hint">' + esc(t('kwxml.fileNameHint')) + '</div>' +
@@ -195,10 +208,10 @@ function importPanel(right) {
     esc(t('kwxml.modeImport')) + '</div><div class="card-b">' +
     '<label for="importType">' + esc(t('kwxml.format')) + '</label>' +
     '<select id="importType" onchange="renderImportSample()">' + typeOptions(CTX.importTypes) + '</select>' +
-    formatSample($('#importType').val()) +
+    formatSample(extOf(defaultId()).toUpperCase()) +
     '<label for="importFile" style="margin-top:16px">' + esc(t('kwxml.fileLabel')) + '</label>' +
     '<input type="file" id="importFile">' +
-    '<div class="hint">' + (kb ? esc(t('kwxml.maxFileSize')).replace('%s', kb) : '') + '</div>' +
+    '<div class="hint">' + (kb ? esc(t('kwxml.maxFileSize', {kb: kb})) : '') + '</div>' +
     '<div style="margin-top:18px"><button class="btn-teal" id="btnImportGo" onclick="doImport()">' +
     '<i class="fa fa-upload"></i> ' + esc(t('kwxml.importBtn')) + '</button></div>' +
     '<div class="hint" style="margin-top:12px">' + esc(t('kwxml.importHint')) + '</div>' +
@@ -208,7 +221,7 @@ function importPanel(right) {
 function renderImportSample() {
   var box = $('#importType').closest('.card-b');
   var old = box.find('pre.sample');
-  var html = formatSample($('#importType').val());
+  var html = formatSample(extOf($('#importType').val()).toUpperCase());
   if (old.length) {
     old.replaceWith(html ? $(html) : '');
   } else if (html) {
@@ -218,7 +231,7 @@ function renderImportSample() {
 
 function exportTypeChanged() {
   var type = $('#exportType').val();
-  var ext = ((CTX.exportTypes || []).filter(function (x) { return x.id === type; })[0] || {}).ext || 'xml';
+  var ext = extOf(type) || 'xml';
   var f = $('#exportFilename').val() || '';
   if (!f || /\.(xml|csv)$/i.test(f)) {
     $('#exportFilename').val(f ? f.replace(/\.(xml|csv)$/i, '.' + ext) : ('keywords.' + ext));
@@ -232,7 +245,7 @@ function exportTypeChanged() {
 
 function doExport() {
   var type = $('#exportType').val();
-  var fn = $.trim($('#exportFilename').val()) || 'keywords.' + ((type === 'iSerializationToCSV') ? 'csv' : 'xml');
+  var fn = $.trim($('#exportFilename').val()) || ('keywords.' + (extOf(type) || 'xml'));
   $('#btnExportGo').prop('disabled', true);
   toast(t('kwxml.exporting'));
   var url = API + '/?action=export&tproject_id=' + TPROJECT_ID +
@@ -280,7 +293,7 @@ function doImport() {
   }).done(function (r) {
     if (r && r.status === 'ok') {
       CTX.msg = '';
-      CTX.notice = t('kwxml.importedMsg').replace('%s', r.keyword_count);
+      CTX.notice = t('kwxml.importedMsg', {count: r.keyword_count});
       toast(CTX.notice);
       input.value = '';
       load(true);
@@ -290,8 +303,12 @@ function doImport() {
       render();
     }
   }).fail(function (xhr) {
+    // The localized reason travels in the JSON body even on 4xx: without
+    // parsing it every failure would degrade to the generic "Error" box.
+    var r = {};
+    try { r = JSON.parse(xhr.responseText) || {}; } catch (e) { r = {}; }
     CTX.notice = '';
-    CTX.msg = serverMessage({});
+    CTX.msg = serverMessage(r);
     render();
     if (xhr.status === 401 || xhr.status === 403) {
       CTX.error = 'denied';
@@ -312,10 +329,16 @@ function serverMessage(r) {
 
 $(document).ready(function () {
   TPROJECT_ID = parseInt(qs('tproject_id') || '0', 10);
-  TLi18n.initLocaleSwitcher('#localeSwitcher');
   var m = qs('mode');
   MODE = (m === 'import') ? 'import' : 'export';
-  load();
+  // TLi18n must finish loading the bundle BEFORE any rendering: apply() walks
+  // the static data-i18n nodes and t() reads the bundle, so calling load()
+  // earlier renders raw keys.
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    load();
+  });
 });
 
 function load(keepNotice) {
