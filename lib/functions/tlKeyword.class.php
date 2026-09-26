@@ -80,7 +80,7 @@ class tlKeyword extends tlDBObject implements iSerialization,iSerializationToXML
       break;
       
       case self::E_NAMELENGTH:
-        $v = 'E_NAMENOTALLOWED';
+        $v = 'E_NAMELENGTH';
       break;
   
       case self::E_NAMEALREADYEXISTS:
@@ -93,6 +93,10 @@ class tlKeyword extends tlDBObject implements iSerialization,iSerializationToXML
 
       case self::E_WRONGFORMAT:
         $v = 'E_WRONGFORMAT';
+      break;
+
+      default:
+        $v = 'E_DBERROR';
       break;
     }
 

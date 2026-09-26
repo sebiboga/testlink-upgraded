@@ -1120,10 +1120,40 @@ function setPublicStatus($id,$status)
                        testproject::getName($this->db,$tprojID));
       logAuditEvent($audit,"CREATE",$op['id'],"keywords");
     } else {
-      $op['msg'] = tlKeyword::getErrorMessage($op['status']);
+      // Refs #1600: tlKeyword::getErrorMessage() no longer exists after the
+      // 2.0.1 refactor (it became tlKeyword::getError(), which returns the
+      // symbolic code, not a message). Calling it made every keyword-create
+      // error - duplicate name, quote/comma, empty name - fatal with HTTP 500.
+      // Legacy parity: lib/keywords/keywordsEdit.php::getKeywordErrorMessage().
+      $op['msg'] = $this->getKeywordErrorMessage($op['status']);
     }
 
     return $op;
+  }
+
+  /**
+   * Localized message for a keyword write status code.
+   * Refs #1600 - legacy parity with lib/keywords/keywordsEdit.php::
+   * getKeywordErrorMessage() and the tlKeyword::E_* codes.
+   */
+  private function getKeywordErrorMessage($code) {
+    switch (intval($code)) {
+      case tlKeyword::E_NAMENOTALLOWED:
+        return lang_get('keywords_char_not_allowed');
+
+      case tlKeyword::E_NAMELENGTH:
+        return lang_get('empty_keyword_no');
+
+      case tlKeyword::E_NAMEALREADYEXISTS:
+        return lang_get('keyword_already_exists');
+
+      case tlKeyword::E_WRONGFORMAT:
+        return lang_get('kw_update_fails');
+
+      case tlKeyword::E_DBERROR:
+      default:
+        return lang_get('kw_update_fails');
+    }
   }
 
   /**
