@@ -123,12 +123,23 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
           </div>
           <div class="form-group" style="margin-bottom:12px;">
             <label style="font-size:12px;font-weight:600;" data-i18n="ct.cfg">Configuration (XML)</label>
+            <a href="javascript:void(0)" id="btnCfgExample" class="cfgExampleToggle" onclick="toggleCfgTemplate()" style="margin-left:6px;color:#4ECDC4;" title="" data-i18n-title="ct.showHideConfigExample"><i class="fas fa-eye"></i></a>
             <textarea id="editCfg" class="form-control" rows="6" style="font-size:13px;font-family:monospace;" placeholder="<codetracker>&#10;  &lt;uribase&gt;https://git.example.com/&lt;/uribase&gt;&#10;  &lt;apikey&gt;your-token&lt;/apikey&gt;&#10;&lt;/codetracker&gt;"></textarea>
             <div style="font-size:11px;color:#777;margin-top:4px;" data-i18n="ct.cfgHelp">Configuration must be valid XML. Example format:</div>
-            <pre style="font-size:11px;background:#f6f6f6;border:1px solid #e3e3e3;border-radius:4px;padding:6px 8px;margin:4px 0 0;">&lt;codetracker&gt;
-  &lt;uribase&gt;https://git.example.com/&lt;/uribase&gt;
-  &lt;apikey&gt;your-token&lt;/apikey&gt;
-&lt;/codetracker&gt;</pre>
+          </div>
+        </div>
+        <!-- Port of legacy #cfg_example (codeTrackerEdit.tpl:194-196 +
+             displayCfgExample, issue #975). Kept OUTSIDE #genericFields on
+             purpose: the legacy eye sits next to the Configuration field on a
+             page where that field is always rendered, whereas the modern modal
+             hides the whole generic block for the GitHub interface — and GitHub
+             is the default type, so an example trapped inside #genericFields
+             would be unreachable exactly where it matters most. -->
+        <div class="form-group" style="margin-bottom:12px;">
+          <label style="font-size:12px;font-weight:600;" data-i18n="ct.cfgExample">Configuration example</label>
+          <a href="javascript:void(0)" class="cfgExampleToggle" onclick="toggleCfgTemplate()" style="margin-left:6px;color:#4ECDC4;" title="" data-i18n-title="ct.showHideConfigExample"><i class="fas fa-eye"></i></a>
+          <div id="cfgExampleOuter" style="display:none;margin-top:4px;">
+            <pre id="cfgExample" style="font-size:11px;font-family:monospace;background:#f6f6f6;border:1px solid #e3e3e3;border-radius:4px;padding:6px 8px;margin:0;max-height:220px;overflow:auto;white-space:pre-wrap;word-break:break-all;"></pre>
           </div>
         </div>
         <div class="form-group">
@@ -176,6 +187,52 @@ function onTypeChange() {
   $('#ghFields, #ghFields2, #ghFields3, #ghFields4').toggle(gh);
   $('#genericFields').toggle(!gh);
   $('#ghTestResult').text('');
+  // Legacy reloaded the example only on eye-click (codeTrackerEdit.tpl:26-66);
+  // the issue's suggested fix asks for the template to FOLLOW the Type select
+  // — refresh a SHOWN example whenever the interface changes, so the sample
+  // keys always match the interface actually being configured.
+  if ($('#cfgExampleOuter').is(':visible')) loadCfgTemplate();
+}
+
+/* ---- Per-type cfg template example (legacy displayCfgExample, issue #975) ---- */
+
+// Legacy displayCfgExample (codeTrackerEdit.tpl:26-66): the eye icon next to
+// the Configuration field AJAX-loads lib/ajax/getcodetrackercfgtemplate.php?type=N
+// and injects the selected interface's getCfgTemplate() as <pre><xmp> (or the
+// localized invalid-type / interface-not-implemented messages) into #cfg_example.
+// Modern mirror over the BFF /cfg-template route; the template is drawn via
+// textContent so raw XML is displayed verbatim (xmp parity). Before this route
+// existed the modal showed ONE hardcoded <uribase>/<apikey> example that matched
+// neither enabled interface (issue #975).
+function loadCfgTemplate(done) {
+  var type = parseInt($('#editType').val());
+  var pre = $('#cfgExample');
+  pre.text(TLi18n.t('ct.loading'));
+  $.getJSON(API + '/cfg-template?type=' + type, function(r) {
+    if (r.status === 'ok') {
+      pre.text(r.template);
+    } else if (r.code === 'interface_missing') {
+      pre.text(TLi18n.t('ct.msg.interfaceMissing', {iface: r.iface}));
+    } else {
+      pre.text(TLi18n.t('ct.msg.invalidType', {type: r.type}));
+    }
+    if (done) done();
+  }).fail(function() {
+    pre.text(TLi18n.t('ct.msg.errorTemplate'));
+    if (done) done();
+  });
+}
+
+// Port of displayCfgExample's hide/show toggle (codeTrackerEdit.tpl:37-52): a
+// click on the eye hides an already rendered example, otherwise it loads the
+// template for the currently selected Type and shows it.
+function toggleCfgTemplate() {
+  var outer = $('#cfgExampleOuter');
+  if (outer.is(':visible')) {
+    outer.hide();
+    return;
+  }
+  loadCfgTemplate(function() { outer.show(); });
 }
 
 $(function() {
@@ -186,6 +243,11 @@ $(function() {
     TLi18n.initLocaleSwitcher('#localeSwitcher');
     loadMeta();
     loadTrackers();
+  });
+  // Collapse the config-example block whenever the modal is dismissed, so the
+  // editor always reopens collapsed — the legacy displayCfgExample state.
+  $('#trackerModal').on('hidden.bs.modal', function() {
+    $('#cfgExampleOuter').hide();
   });
 });
 
@@ -391,6 +453,9 @@ function showCreateModal() {
   // the "not used (linked)" note.
   usedByProjects = [];
   $('#usedByOuter').hide();
+  // Legacy opens every editor with the example block collapsed — the eye is the
+  // only way in (codeTrackerEdit.tpl:194-196 / displayCfgExample).
+  $('#cfgExampleOuter').hide();
   $('#modalError').hide();
   onTypeChange();
   $('#trackerModal').modal('show');
@@ -417,6 +482,7 @@ function editTracker(id) {
     // toggle renders the same two states as 1.9.20 (codeTrackerEdit.tpl:105-113).
     usedByProjects = (t.links && t.links.length) ? t.links : [];
     $('#usedByOuter').hide();
+    $('#cfgExampleOuter').hide();
     $('#modalError').hide();
     $('#trackerModal').modal('show');
   });

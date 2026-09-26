@@ -289,6 +289,43 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'meta' && isset
     out(['status' => 'ok', 'items' => $items]);
 }
 
+// Legacy lib/ajax/getcodetrackercfgtemplate.php: the eye icon next to the
+// Configuration field in codeTrackerEdit.tpl:194-196 calls displayCfgExample()
+// (codeTrackerEdit.tpl:26-66), which GETs getcodetrackercfgtemplate.php?type=N
+// and injects the selected interface's $cname::getCfgTemplate() as <pre><xmp>
+// into #cfg_example — the PER-TYPE config example, plus the localized
+// codetracker_interface_not_implemented / codetracker_invalid_type fallbacks.
+// Modern BFF mirror: GET /cfg-template?type=N returns the raw template for an
+// ENABLED type (getTypes() parity — disabled types are "invalid" like legacy),
+// or a structured error code the client localizes via TLi18n (the JSON BFF has
+// no lang_get). i18n keys: ct.msg.invalidType / ct.msg.interfaceMissing.
+// Gap closed: issue #975 — until now the modal showed ONE hardcoded example
+// (codetrackerView.html) that matched neither enabled interface.
+if ($method === 'GET' && ($segments[0] ?? '') === 'cfg-template' && empty($segments[1])) {
+    $type = intval($_GET['type'] ?? 0);
+    // getTypes() = ENABLED types only (tlCodeTracker.class.php:150-160);
+    // isset() on it reproduces the legacy "unknown type" branch for disabled
+    // and out-of-map ids alike.
+    $ctt = $mgr->getTypes();
+    if (isset($ctt[$type])) {
+        $iname = $mgr->getImplementationForType($type);
+        // Legacy probes stream_resolve_include_path() BEFORE any include, so a
+        // missing interface never makes the autoloader emit the E_WARNING that
+        // class_exists() would log into the events table (measured during the
+        // issue #965 interface_missing test on the sibling issuetracker BFF:
+        // 2 E_WARNING rows were written). require_once() then loads the file
+        // through the same include_path stream_resolve just validated.
+        if (stream_resolve_include_path($iname . '.class.php') !== false) {
+            if (!class_exists($iname, false)) {
+                require_once($iname . '.class.php');
+            }
+            out(['status' => 'ok', 'type' => $type, 'template' => $iname::getCfgTemplate()]);
+        }
+        out(['status' => 'error', 'code' => 'interface_missing', 'iface' => $iname]);
+    }
+    out(['status' => 'error', 'code' => 'invalid_type', 'type' => $type]);
+}
+
 if ($method === 'GET' && isset($segments[0]) && is_numeric($segments[0]) && count($segments) === 1) {
     $id = intval($segments[0]);
     $item = $mgr->getByID($id);
