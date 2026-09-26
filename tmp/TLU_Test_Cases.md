@@ -22178,3 +22178,67 @@ empty-list defect tracked separately as #1598). (Refs #1596)**
 Evidence: `docs/screenshots/issue-1596-prefix-tcview.png` (before, viewport),
 `docs/screenshots/issue-1596-postfix-assign-requirements.png` (after, viewport),
 `docs/screenshots/issue-1596-postfix-bulk-assign-button.png` (suite toolbar, full page).
+
+## Task — Issue #975: per-type configuration template loader (getCfgTemplate) in codetrackerView edit
+
+**Precondition** — app at `http://localhost:8082`, logged in as `admin/admin`
+(`codetracker_management` granted). DB `testlink` freshly imported; the two ENABLED code
+tracker interfaces are `code=1 → stashrestInterface` and `code=200 →
+githubrestCodeTrackerInterface` (measured with `tlCodeTracker::getTypes()`), so the modal's
+Type select offers exactly `github (Interface: rest)` and `stash (Interface: rest)`.
+
+**Gap under test** — legacy `lib/ajax/getcodetrackercfgtemplate.php` +
+`displayCfgExample()` (`gui/templates/dashio/codetrackers/codeTrackerEdit.tpl:26-66,194-196`)
+load the selected interface's `getCfgTemplate()` behind an eye icon. The modern modal had ONE
+hardcoded `uribase`/`apikey` example that matched NEITHER interface and no per-type loader.
+
+### Test 1 — BFF route returns the per-type template (enabled types)
+- **Steps:** `GET /api/codetracker/index.php/cfg-template?type=200`, then `?type=1`.
+- **Expected:** `{"status":"ok",...}` with the interface's own `getCfgTemplate()` body — the GitHub repository/branch/token shape and the Stash username/password/uribase/uriapi/uriview/projectkey shape.
+- **Actual:** `type=200` → `<!-- Template githubrestCodeTrackerInterface -->\n<codetracker>\n<repository>https://github.com/OWNER/REPO</repository>\n<branch>main</branch>\n<token>ghp_xxx or empty for public repos</token>\n</codetracker>`; `type=1` → `<!-- Template stashrestInterface -->` + the 6-key Stash shape. PASS.
+
+### Test 2 — BFF route rejects an unknown type
+- **Steps:** `GET .../cfg-template?type=99`.
+- **Expected:** the legacy `codetracker_invalid_type` branch as a structured code (`isset($ctt[99])` is false — `getTypes()` is ENABLED types only).
+- **Actual:** `{"status":"error","code":"invalid_type","type":99}`; the client renders it as `Code Tracker type 99 is unknown.` (`ct.msg.invalidType`, legacy `lang_get('codetracker_invalid_type')` parity). PASS.
+
+### Test 3 — Create modal: the eye loads the GitHub example and the block starts collapsed
+- **Steps:** Open **Code Trackers** → **Create Code Tracker**; observe the block; click the eye.
+- **Expected:** collapsed on open (legacy state); after the click the GitHub template — the interface actually selected by default — is rendered verbatim.
+- **Actual:** `visible=false` on open; after click `visible=true` with `<!-- Template githubrestCodeTrackerInterface -->` + `<repository>/<branch>/<token>`. PASS.
+
+### Test 4 — The example FOLLOWS the Type select (refresh on change)
+- **Steps:** With the example shown, switch Type to **stash**.
+- **Expected:** the block reloads with the Stash shape; no stale GitHub keys remain.
+- **Actual:** text became `<!-- Template stashrestInterface -->` + `<username>/<password>/<uribase>/<uriapi>/<uriview>/<projectkey>`; no `<repository>` left. PASS.
+
+### Test 5 — Eye toggle hides and re-shows (legacy `displayCfgExample` clear branch)
+- **Steps:** Click the eye three times.
+- **Expected:** show → hide → show (each show reloads the current interface template).
+- **Actual:** `visible=true → false → true`, template re-rendered on the last show. PASS.
+
+### Test 6 — Modal lifecycle resets the example block
+- **Steps:** Show the example, close the modal (Cancel), reopen **Create Code Tracker**; repeat from the **Edit** action of a row.
+- **Expected:** the block is collapsed again in every entry path.
+- **Actual:** collapsed after `hidden.bs.modal` and on both `showCreateModal()` and `editTracker()`. PASS.
+
+### Test 7 — i18n: all 5 new keys resolve in every locale bundle
+- **Steps:** `python3 -m json.tool` on all 10 bundles; runtime switch to `ro_RO` and re-render the modal.
+- **Expected:** 10 valid JSON files; Romanian labels instead of the English fallback.
+- **Actual:** 10/10 valid; `ro_RO` → `Exemplu de configurare` / `Arată/Ascunde exemplu de configurare` / `Tipul 99 al urmăritorului de cod este necunoscut.` / `Interfața {iface} ... nu este implementată/disponibilă` / `Încărcarea exemplului de configurare a eșuat` / `Se încarcă...`. PASS.
+
+### Test 8 — Regression: list, env check and CRUD still work
+- **Steps:** Load the grid; run the GitHub connection test from the modal; save a tracker; open its Edit modal.
+- **Expected:** no change to the existing behaviour (GitHub repo/branch/token fields, XML build, `Test Connection`, save/edit round trip).
+- **Expected failure path also exercised:** the synthetic `type=99` option injected in the test browser only exists in the DOM, so it never reached a POST.
+- **Actual:** grid loads, modal opens/saves as before; the eye/`#cfgExampleOuter` changes touch no other handler. PASS.
+
+### Test 9 — Event Viewer / console hygiene
+- **Steps:** Re-read the `events` table and the browser console after tests 1-8.
+- **Expected:** no new Error/Warning rows (the `stream_resolve_include_path()` probe before any `include` is what keeps the autoloader quiet).
+- **Actual:** `select count(*) from events where log_level in (3,4)` → `0`; browser console (errors + warnings) → none. PASS.
+
+**Suite #975 total: 9/9 PASS. (Refs #975)**
+
+Evidence: `docs/screenshots/issue-975-codetracker-cfg-template.png` (modal with the
+per-type GitHub example loaded).
