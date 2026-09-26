@@ -163,3 +163,7 @@ Bugs found and fixed while testing:
   `docs/screenshots/issue-1599-keywordsedit-no-right.png`
 - Test Case Viewer with the two keyword buttons:
   `docs/screenshots/issue-1599-tcview-keyword-buttons.png`
+- Edit mode with the restored **Show event history** action (issue #1604 round):
+  `docs/screenshots/issue-1599-keywordsedit-event-history.png`
+- Error toast rendered from the legacy shim's `?kwerr=` redirect (issue #1604):
+  `docs/screenshots/issue-1599-keywordsview-kwerr-toast.png`
