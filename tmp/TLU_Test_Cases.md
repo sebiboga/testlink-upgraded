@@ -23289,3 +23289,45 @@ Before the fix the header was `Last Name` over `Ann Designer`.
 
 **Screenshots:** `docs/screenshots/issue-1630-before.png` (header "Last Name")
 and `docs/screenshots/issue-1630-after.png` (header "Name", same cells).
+
+---
+
+## Task — Issue #988: requirement-feature quick toggle in projectsView
+
+**Precondition**
+- App at `http://localhost:8082`, login `admin/admin` (holds `mgt_modify_product`).
+- The freshly imported DB has **0** test projects, so three fixtures were created
+  through the BFF (`POST /api/projects`), which doubles as a check that the
+  `createProject()` branch of the modified dispatcher still works:
+  | id | name | prefix | requirements | priority | automation | inventory |
+  |----|------|--------|--------------|----------|------------|-----------|
+  | 1 | Alpha Req OFF | ARO | off | 1 | 1 | 1 |
+  | 2 | Beta Req ON   | BRO | on  | 1 | 1 | 0 |
+  | 3 | Gamma Req OFF| GRO | off | 0 | 0 | 0 |
+- Baseline captured with
+  `SELECT id, options FROM testprojects ORDER BY id;`
+  before any toggle.
+
+| # | Steps | Expected | Actual | Result |
+|---|-------|----------|--------|--------|
+| 1 | Open `/gui/templates/projectsView.html` | A "Requirement Feature" column exists between "Code Tracker" and "Status"; 9 headers total | Header present, 9 columns, correct position (legacy `projectView.tpl:92` order) | PASS |
+| 2 | Inspect the 3 rows' icons | Row 1 `fa-toggle-off`, row 2 `fa-toggle-on`, row 3 `fa-toggle-off`, matching the fixtures | `aria-pressed` = false / true / false; tooltips "Inactive (click to set active)" / "Active (click to set inactive)" | PASS |
+| 3 | Click the icon on row 1 (off → on) | `requirementsEnabled` 0→1; the other 3 flags and name/prefix/notes/active/is_public unchanged | `requirementsEnabled`=1, priority/automation/inventory still 1/1/1, row otherwise identical | PASS |
+| 4 | Hard-reload the page (cache ignored) | The flag survives: row 1 still on | `GET /api/projects` → `1:1 2:0 3:0`, icons render `true / false / false` | PASS |
+| 5 | Click the icon on row 2 (on → off) | `requirementsEnabled` 1→0, other flags untouched | id 2 → `requirementsEnabled`=0, priority 1, automation 1, inventory 0 preserved | PASS |
+| 6 | Check the events table after 3 toggles | Legacy logs **no** event for this path — so no new rows at all | Event count unchanged at 5 (1+1 logins, 3 creates); zero `audit_testproject_saved`, zero Error/Warning | PASS |
+| 7 | `POST /api/projects/999999/requirements {"enabled":1}` | 404 | `HTTP 404 {"error":"Project not found"}` | PASS |
+| 8 | `POST /api/projects/1/requirements {}` (no `enabled`) | 400 | `HTTP 400 {"error":"Missing \"enabled\" flag"}` | PASS |
+| 9 | `POST /api/projects/requirements {"enabled":1}` (no id in path) | 400, and it must NOT fall through to `createProject()` | `HTTP 400 {"error":"Project ID required"}`, project count stayed 3 | PASS |
+| 10 | Click the column header "Requirement Feature" | Not sortable (legacy `{#NOT_SORTABLE#}`) | No `sorting` class, no `aria-sort`, order unchanged | PASS |
+| 11 | Look at the filter row under "Requirement Feature" | No filter input (legacy `icon_cell` has no `{#SMART_SEARCH#}`) | `filterRowHasInput[6] === false`; 5 inputs total, for the 5 smart-search columns | PASS |
+| 12 | Sort by Prefix desc / Name asc / ID asc, global-search "Beta", type "Gamma" in the Project Name filter, then clear | Sorting, global search and per-column filtering still drive the table with the extra column | `GRO / BRO / ARO`; `Beta Req ON`; `Gamma Req OFF`; back to all 3 after clearing | PASS |
+| 13 | Login as a role-3 "no rights" user (`guestprobe`) in an isolated browser context, then `POST /api/projects/1/requirements {"enabled":1}` | 403 No permission, and no DB change | `HTTP 403 {"status":"error","message":"No permission"}`; project 1 stayed at `requirementsEnabled`=1 | PASS |
+| 14 | `GET /api/projects` and `POST /api/projects` (create) after the dispatcher change | Existing routes unaffected | `GET` → HTTP 200 with 3 projects; 3 creates → HTTP 200 earlier in the run | PASS |
+
+**Not covered by this suite (found while testing, filed separately)**
+- After any list re-render the per-column filter boxes display `[object Object]`
+  instead of the saved search text. Pre-existing, reproduced on the pre-change
+  revision, filed as **#1633**.
+
+**Screenshots:** `docs/screenshots/issue-988-requirement-feature-column.png`
