@@ -22791,3 +22791,89 @@ returns `NULL`, and every caller degrades that single row instead of the screen.
 
 **Screenshots:** `docs/screenshots/issue-1617-grid-after.png` (bad row + 2 healthy
 rows rendering), and the same path in the wiki clone.
+
+## Suite 1623 — Launch Test Case Print gateway (`tcLaunchPrint`) + `ltcp.php` shim (Refs #1623)
+
+Screen `gui/templates/testcases/tcLaunchPrint.html` + BFF `api/tcprintlaunch/index.php`
+(modernization of the public share-link entry point `ltcp.php`).
+Fixture: `tmp/fixtures_1623.php` → test project **LTCP1623** (prefix `L16`), suite
+`LTCP Suite`, `L16-1` (versions 1 and 2), `L16-2` (version 1); apikeys assigned as
+`users.script_key` (NOT `users.apikey` — see gotchas): admin `1623aa11bb22cc33dd44ee55ff667788`,
+`norights` (role 3) `aaaa1111bbbb2222cccc3333dddd4444`.
+
+Harness: `bash /tmp/1623suite.sh` (36 assertions, kept in the run log; the API is
+stateless JSON so every case is a plain `curl` + status/body assertion).
+
+| # | Test | Expected | Result |
+|---|---|---|---|
+| 1 | `?action=resolve&apikey=<admin>&testcase=L16-1-2` | 200, `tcversion_id=86`, `version=2`, `tproject_name=LTCP1623`, 2 `available_versions`, `auth_mode=apikey` | PASS |
+| 2 | same for the single-version case `L16-2-1` | 200, `external_id=L16-2`, `suite="LTCP Suite"` | PASS |
+| 3 | `apikey=short` (length != 32) | **400** `bad_apikey` / `legacy_code=LTCP-01` | PASS |
+| 4 | 32-char key that resolves to no user | **403** `bad_apikey` / `LTCP-01` (no 500 — the PHP 8 `count(null)` guard) | PASS |
+| 5 | `testcase=L16-1` (not 3 pieces) | **400** `bad_external_id` / `LTCP-02` | PASS |
+| 6 | `testcase=ZZZ-9-1` (unknown prefix) | **404** `unknown_prefix` / `LTCP-03` | PASS |
+| 7 | rights: `norights` (role 3, no `mgt_view_tc`) | **403** `no_rights` / `LTCP-04` | PASS |
+| 8 | `testcase=L16-99-1` (no such test case) | **404** `testcase_not_found` / `LTCP-05` | PASS |
+| 9 | `testcase=L16-1-9` (version outside the id set — legacy bare `die()`) | **404** `version_not_found` | PASS |
+| 10 | no `testcase` param | **400** `missing_testcase` / `LTCP-02` | PASS |
+| 11 | no `apikey` and no session | **401** `unauthenticated` | PASS |
+| 12 | `action=bogus` | **400** `unknown_action` | PASS |
+| 13 | `POST` | **405** `method_not_allowed` | PASS |
+| 14 | `GET /ltcp.php?apikey=..&testcase=..` | **302** → `/gui/templates/testcases/tcLaunchPrint.html` with the **whole query string preserved** | PASS |
+| 15 | same, following redirects | **200** (the modern screen renders) | PASS |
+| 16 | i18n coverage: 28 `ltcpl.*` + `footers.tcLaunchPrint` in all 10 bundles | 0 missing | PASS |
+| 17 | every `data-i18n=` / `TLi18n.t('…')` key in the screen exists in `en.json` | 0 missing | PASS |
+| 18 | no live `lib/testcases/tcPrint.php` reference in the screen or the shim (comments excluded) | 0 | PASS |
+| 19 | `php -l` on the BFF and the shim | no syntax errors | PASS |
+| 20 | Event Viewer `events` rows with `log_level IN (1,2,3)` | **0** | PASS |
+
+Browser-verified in headless Chrome (36 assertions above are the API layer):
+
+| # | Browser case | Expected | Result |
+|---|---|---|---|
+| B1 | admin session, `ltcp.php?apikey=..&testcase=L16-1-2` | lands on `tcLaunchPrint.html`, "Resolved test case" card with External ID `L16-1`, Test case `LTCP Alpha v1`, Suite, Version `2`, Project `LTCP1623 L16`, auth chip **API key**, 2 version pills, print URL | PASS |
+| B2 | **Open test case print** | navigates to `tcPrint.html?testcase_id=80&tcversion_id=86&tproject_id=78` → "Print Test Case: LTCP Alpha v1", version 2 rendered in the document frame | PASS |
+| B3 | version pill "Version 1" click | URL becomes `?testcase=L16-1-1&apikey=..` and the card re-renders with Version `1` + the pill marked active | PASS |
+| B4 | `apikey=ffff…` (unknown key) | **Access denied** card, localized "Aborting - bad API key. The link is not valid for any user.", `LTCP-01` marker, Open-print button disabled | PASS (after the fix commit — see bug below) |
+| B5 | `testcase=ZZZ-9-1` (unknown prefix) | **Test case not found** card, localized prefix message, `LTCP-03` marker | PASS (after the fix commit) |
+| B6 | anonymous isolated browser context, `?testcase=L16-1-1` (no key) | **Access denied** card, "You are not logged in and the link carries no API key." | PASS |
+| B7 | **anonymous** isolated context, full share link `ltcp.php?apikey=..&testcase=L16-1-2` → Open print | `tcPrint.html` renders the test case — the apikey-established session authenticates the session-based print BFF, so the public link works for users with **no TestLink login** (legacy parity, the reason the gateway existed) | PASS |
+| B8 | `&locale=ro_RO` | header "Lansare Afisare Test Case", "ID extern / Suita de teste / Versiune / Proiect de test", pills "Versiune 1/2", "Alte versiuni", chip "Cheie API", button "Afiseaza test case-ul", footer "TestLink 2.0.1 - Lansare Afisare Test Case" — **0 raw keys** | PASS |
+| B9 | console (error/warn) on the screen | no messages | PASS |
+| B10 | Event Viewer after the whole run | only AUDIT rows (`log_level=16`), 0 ERROR/WARNING | PASS |
+
+**Result: 36 API assertions + 10 browser cases — all PASS (1 browser case set initially
+FAILED and was fixed, see below).**
+
+### Bug found and fixed while testing this screen
+
+**Non-2xx responses never reached the state-card handler** (fix commit, same branch).
+jQuery routes 400/401/403/404/405 to `.fail()`, and *every* error branch of
+`api/tcprintlaunch/index.php` answers a non-2xx status, so the `.done()` handler never
+saw them. Every error card therefore fell back to the generic "The share link could not
+be resolved." and **never showed the legacy `LTCP-0x` marker** — reproduced in the
+browser: `apikey=ffff…` rendered "Error / The share link could not be resolved." with
+no marker instead of "Access denied / … / LTCP-01". Fixed by extracting a shared
+`handleResult()` called from both `.done()` and `.fail()` (parsing `xhr.responseJSON`
+with a `responseText` fallback) and completing the code→i18n-key map with
+`unauthenticated` / `unknown_action` / `method_not_allowed`.
+
+### Gotchas for anyone extending this fixture
+
+- The apikey column is **`users.script_key`** (32 chars) — there is no `users.apikey`
+  column, and `tlUser::getByAPIKey()` selects `WHERE script_key='…'`.
+- `testprojects` and `tcversions` have **no `name` column** in this schema and there is
+  **no `testcases` table**: node names live in `nodes_hierarchy` (read them with
+  `tree::get_node_hierarchy_info()`), and a test case version links to its node through
+  the node id, not a `tcversions.tc_id` column. `testcase::create_new_version($tcase_id,
+  $userId, $source_tcversion_id)` is the way to get a second version (it returns
+  `id`/`version`/`msg`, **not** `status_ok` — checking `status_ok` is a false failure).
+- i18n bundles are *nearly* sorted; dumping them with `sort_keys=True` produced a
+  3 000-line diff. New keys must be inserted in alphabetical position **without**
+  reordering the existing ones (`tmp/i18n_1623.py` does this: +29 lines per bundle).
+- `loc.prefix` is a **root-relative** path (`/gui/templates/…`) while `TL_BASE_HREF` is
+  absolute (`http://host/`), so the shim's `Location` is absolute — assert on the
+  absolute form.
+
+**Screenshots:** `docs/screenshots/issue-1623-launch-{ok,denied,notfound,ro}.png` and
+`issue-1623-print-anon.png` (anonymous hand-over to the modern print screen).
