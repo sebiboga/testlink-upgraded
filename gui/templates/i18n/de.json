@@ -3,6 +3,13 @@
     "code": "de",
     "name": "Deutsch"
   },
+  "adel.stDisabled": "Anhaenge deaktiviert",
+  "adel.stError": "Fehler",
+  "adel.stNoId": "Nichts ausgewaehlt",
+  "adel.stNotAllowed": "Nicht erlaubt",
+  "adel.stNotFound": "Anhang nicht gefunden",
+  "adel.stOk": "Fertig",
+  "adel.stSession": "Sitzung abgelaufen",
   "alx.btnExportXls": "Export as spreadsheet",
   "alx.choosePlatform": "-- Select a platform --",
   "alx.elapsedSeconds": "Processing time (seconds):",

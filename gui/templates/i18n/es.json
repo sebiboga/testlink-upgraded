@@ -3,6 +3,13 @@
     "code": "es",
     "name": "Español"
   },
+  "adel.stDisabled": "Adjuntos deshabilitados",
+  "adel.stError": "Error",
+  "adel.stNoId": "Nada seleccionado",
+  "adel.stNotAllowed": "No permitido",
+  "adel.stNotFound": "Adjunto no encontrado",
+  "adel.stOk": "Listo",
+  "adel.stSession": "Sesion caducada",
   "alx.btnExportXls": "Export as spreadsheet",
   "alx.choosePlatform": "-- Select a platform --",
   "alx.elapsedSeconds": "Processing time (seconds):",

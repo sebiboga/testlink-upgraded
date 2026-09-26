@@ -3,6 +3,13 @@
     "code": "pt",
     "name": "Português"
   },
+  "adel.stDisabled": "Anexos desativados",
+  "adel.stError": "Erro",
+  "adel.stNoId": "Nada selecionado",
+  "adel.stNotAllowed": "Nao permitido",
+  "adel.stNotFound": "Anexo nao encontrado",
+  "adel.stOk": "Concluido",
+  "adel.stSession": "Sessao expirada",
   "alx.btnExportXls": "Export as spreadsheet",
   "alx.choosePlatform": "-- Select a platform --",
   "alx.elapsedSeconds": "Processing time (seconds):",

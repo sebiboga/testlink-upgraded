@@ -3,6 +3,13 @@
     "code": "it",
     "name": "Italiano"
   },
+  "adel.stDisabled": "Allegati disabilitati",
+  "adel.stError": "Errore",
+  "adel.stNoId": "Nessuna selezione",
+  "adel.stNotAllowed": "Non consentito",
+  "adel.stNotFound": "Allegato non trovato",
+  "adel.stOk": "Fatto",
+  "adel.stSession": "Sessione scaduta",
   "alx.btnExportXls": "Export as spreadsheet",
   "alx.choosePlatform": "-- Select a platform --",
   "alx.elapsedSeconds": "Processing time (seconds):",

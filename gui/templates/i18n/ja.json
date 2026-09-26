@@ -3,6 +3,13 @@
     "code": "ja",
     "name": "日本語"
   },
+  "adel.stDisabled": "添付ファイルは無効です",
+  "adel.stError": "エラー",
+  "adel.stNoId": "何も選択されていません",
+  "adel.stNotAllowed": "許可されていません",
+  "adel.stNotFound": "添付ファイルが見つかりません",
+  "adel.stOk": "完了",
+  "adel.stSession": "セッションの有効期限が切れました",
   "alx.btnExportXls": "Export as spreadsheet",
   "alx.choosePlatform": "-- Select a platform --",
   "alx.elapsedSeconds": "Processing time (seconds):",

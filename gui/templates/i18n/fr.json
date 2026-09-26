@@ -3,6 +3,13 @@
     "code": "fr",
     "name": "Fran&ccedil;ais"
   },
+  "adel.stDisabled": "Pieces jointes desactivees",
+  "adel.stError": "Erreur",
+  "adel.stNoId": "Aucune selection",
+  "adel.stNotAllowed": "Non autorise",
+  "adel.stNotFound": "Piece jointe introuvable",
+  "adel.stOk": "Termine",
+  "adel.stSession": "Session expiree",
   "alx.btnExportXls": "Export as spreadsheet",
   "alx.choosePlatform": "-- Select a platform --",
   "alx.elapsedSeconds": "Processing time (seconds):",

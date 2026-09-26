@@ -3,6 +3,13 @@
     "code": "en",
     "name": "English"
   },
+  "adel.stDisabled": "Attachments disabled",
+  "adel.stError": "Error",
+  "adel.stNoId": "Nothing selected",
+  "adel.stNotAllowed": "Not allowed",
+  "adel.stNotFound": "Attachment not found",
+  "adel.stOk": "Done",
+  "adel.stSession": "Session expired",
   "alx.btnExportXls": "Export as spreadsheet",
   "alx.choosePlatform": "-- Select a platform --",
   "alx.elapsedSeconds": "Processing time (seconds):",

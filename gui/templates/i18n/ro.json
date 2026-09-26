@@ -3,6 +3,13 @@
     "code": "ro",
     "name": "Romana"
   },
+  "adel.stDisabled": "Atașamente dezactivate",
+  "adel.stError": "Eroare",
+  "adel.stNoId": "Nimic selectat",
+  "adel.stNotAllowed": "Nepermis",
+  "adel.stNotFound": "Atașament inexistent",
+  "adel.stOk": "Gata",
+  "adel.stSession": "Sesiune expirata",
   "alx.btnExportXls": "Export as spreadsheet",
   "alx.choosePlatform": "-- Select a platform --",
   "alx.elapsedSeconds": "Processing time (seconds):",

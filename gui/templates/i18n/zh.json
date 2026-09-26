@@ -3,6 +3,13 @@
     "code": "zh",
     "name": "中文"
   },
+  "adel.stDisabled": "附件已禁用",
+  "adel.stError": "错误",
+  "adel.stNoId": "未选择任何内容",
+  "adel.stNotAllowed": "不允许",
+  "adel.stNotFound": "找不到附件",
+  "adel.stOk": "完成",
+  "adel.stSession": "会话已过期",
   "alx.btnExportXls": "Export as spreadsheet",
   "alx.choosePlatform": "-- Select a platform --",
   "alx.elapsedSeconds": "Processing time (seconds):",

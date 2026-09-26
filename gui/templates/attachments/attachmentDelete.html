@@ -78,7 +78,7 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
     <div class="card-body">
       <div class="actions">
         <button class="btn-dark" onclick="closePopup()"><span data-i18n="common.cancel">Cancel</span></button>
-        <button class="btn-red" id="btnDelete" onclick="doDelete()"><i class="fa fa-trash"></i> <span data-i18n="adel.deleteBtn">Delete attachment</span></button>
+        <button class="btn-red" id="btnDelete" onclick="doDelete()"><i class="fa fa-trash"></i> <span data-i18n="adel.confirmTitle">Delete attachment</span></button>
       </div>
     </div>
   </div>
@@ -133,6 +133,7 @@ function hideAll() {
 
 function failState(kind, ico, titleKey, textKey, code) {
   hideAll();
+  $('#attLabel').text('');
   $('#infoBox').html(stateBox(kind, ico, TLi18n.t(titleKey), TLi18n.t(textKey), code));
 }
 
@@ -145,7 +146,7 @@ function load() {
   $('#infoBox').html('<div class="loading"><i class="fa fa-spinner fa-spin"></i> <span data-i18n="adel.loading">Loading…</span></div>');
   TLi18n.apply();
   if (ATTID <= 0) {
-    failState('danger', 'fa fa-ban', 'adel.errNoId', 'adel.errNoId', 'ADEL-00');
+    failState('danger', 'fa fa-ban', 'adel.stNoId', 'adel.errNoId', 'ADEL-00');
     return;
   }
   var qs = 'action=init&id=' + encodeURIComponent(ATTID);
@@ -174,17 +175,18 @@ function load() {
 function renderError(r) {
   var code = r.code || '';
   if (code === 'ATTACHMENTS_DISABLED') {
-    failState('danger', 'fa fa-lock', 'adel.errDisabled', 'adel.errDisabled', code);
+    failState('danger', 'fa fa-lock', 'adel.stDisabled', 'adel.errDisabled', code);
   } else if (code === 'ATTACHMENT_NOT_FOUND') {
-    failState('danger', 'fa fa-question-circle', 'adel.errNotFound', 'adel.errNotFound', code);
+    failState('danger', 'fa fa-question-circle', 'adel.stNotFound', 'adel.errNotFound', code);
   } else if (code === 'ATTACHMENT_NOT_ALLOWED') {
-    failState('danger', 'fa fa-user-lock', 'adel.errNotAllowed', 'adel.errNotAllowed', code);
+    failState('danger', 'fa fa-user-lock', 'adel.stNotAllowed', 'adel.errNotAllowed', code);
   } else if (code === 'INVALID_ID') {
-    failState('danger', 'fa fa-ban', 'adel.errNoId', 'adel.errNoId', code);
-  } else if (!r.code) {
-    failState('danger', 'fa fa-plug', 'adel.errSession', 'adel.errSession', '');
+    failState('danger', 'fa fa-ban', 'adel.stNoId', 'adel.errNoId', code);
+  } else if (code === 'session_expired' || code === 'NOT_AUTHENTICATED' ||
+             !r.code) {
+    failState('danger', 'fa fa-plug', 'adel.stSession', 'adel.errSession', '');
   } else {
-    failState('danger', 'fa fa-exclamation-triangle', 'adel.errGeneric', 'adel.errGeneric', code);
+    failState('danger', 'fa fa-exclamation-triangle', 'adel.stError', 'adel.errGeneric', code);
   }
 }
 
@@ -203,14 +205,14 @@ function doDelete() {
       if (r.status !== 'ok') {
         $('#btnDelete').prop('disabled', false);
         if (r.code === 'ATTACHMENT_NOT_ALLOWED') {
-          failState('danger', 'fa fa-user-lock', 'adel.errNotAllowed', 'adel.errNotAllowed', r.code);
+          failState('danger', 'fa fa-user-lock', 'adel.stNotAllowed', 'adel.errNotAllowed', r.code);
         } else {
-          failState('danger', 'fa fa-exclamation-triangle', 'adel.errDelete', 'adel.errDelete', r.code);
+          failState('danger', 'fa fa-exclamation-triangle', 'adel.stError', 'adel.errDelete', r.code);
         }
         return;
       }
       hideAll();
-      $('#infoBox').html(stateBox('ok', 'fa fa-check-circle', TLi18n.t('adel.okTitle'), TLi18n.t('adel.okText'), r.legacy_code || ''));
+      $('#infoBox').html(stateBox('ok', 'fa fa-check-circle', TLi18n.t('adel.stOk'), TLi18n.t('adel.okText'), r.legacy_code || ''));
       // the attachment list popup (attachmentUpload.html) defines a global refresh()
       try { if (typeof opener !== 'undefined' && opener && !opener.closed && typeof opener.refresh === 'function') { opener.refresh(); } } catch (e) { /* ignore */ }
       try { if (!standalone) { setTimeout(function () { window.close(); }, 1200); } } catch (e) { /* ignore */ }
@@ -220,7 +222,7 @@ function doDelete() {
       if (xhr.status === 0 || xhr.status === 401 || xhr.status === 403) {
         renderError(xhr.responseJSON || { code: '' });
       } else {
-        failState('danger', 'fa fa-exclamation-triangle', 'adel.errDelete', 'adel.errDelete', 'HTTP ' + xhr.status);
+        failState('danger', 'fa fa-exclamation-triangle', 'adel.stError', 'adel.errDelete', 'HTTP ' + xhr.status);
       }
     });
 }

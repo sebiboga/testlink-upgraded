@@ -46,9 +46,6 @@ bffSameOriginGuard();
 $db = new database(DB_TYPE);
 doDBConnect($db);
 
-$action = trim(strval($_GET['action'] ?? ($_POST['action'] ?? '')));
-$method = strtoupper(strval($_SERVER['REQUEST_METHOD'] ?? 'GET'));
-
 /**
  * @param array $data
  * @param int   $code
@@ -59,6 +56,31 @@ function bffAdOut($data, $code = 200) {
     echo json_encode($data);
     exit;
 }
+
+$action = trim(strval($_GET['action'] ?? ($_POST['action'] ?? '')));
+$method = strtoupper(strval($_SERVER['REQUEST_METHOD'] ?? 'GET'));
+
+// ---- session authentication (the legacy page got it from testlinkInitPage) ----
+// Mandatory: without it an anonymous visitor who guesses a valid (table, fk_id)
+// pair could delete any attachment. Fail closed.
+$userId = intval($_SESSION['userID'] ?? 0);
+if ($userId <= 0) {
+    bffAdOut([
+        'status' => 'error',
+        'code'   => 'NOT_AUTHENTICATED',
+        'message' => 'Not authenticated',
+    ], 401);
+}
+$currentUser = tlUser::getByID($db, $userId);
+if (is_null($currentUser)) {
+    bffAdOut([
+        'status' => 'error',
+        'code'   => 'NOT_AUTHENTICATED',
+        'message' => 'User not found',
+    ], 401);
+}
+// legacy checkSessionValid() parity (see api/_guard.php, issue #1614)
+bffEnforceSession($db);
 
 /** Legacy checkRights() of lib/attachments/attachmentdelete.php. */
 function bffAdEnabled() {
@@ -83,6 +105,27 @@ function bffAdInSessionAllowList($id) {
 }
 
 /**
+ * Cached column probe. This fork ships a slimmed-down nodes_hierarchy /
+ * executions schema (no tc_external_id, no testproject_id and no tcversion_id
+ * on executions), so the owner-label queries must be built defensively: an
+ * unknown column raises a DB error page (get_recordset() dies) instead of
+ * degrading to the plain '<table> #<id>' label.
+ */
+function bffAdHasColumn($db, $table, $col) {
+    static $cache = array();
+    $key = $table . '.' . $col;
+    if (!isset($cache[$key])) {
+        $cache[$key] = false;
+        $rows = $db->get_recordset("SHOW COLUMNS FROM " .
+            $table . " LIKE '" . $db->prepare_string($col) . "'");
+        if (is_array($rows) && count($rows) > 0) {
+            $cache[$key] = true;
+        }
+    }
+    return $cache[$key];
+}
+
+/**
  * Best-effort human label of the entity owning the attachment, so the popup can
  * state what is being deleted. Unknown tables fall back to '<table> #<id>'.
  */
@@ -95,49 +138,62 @@ function bffAdOwnerLabel($db, $attachInfo) {
     }
     $t = tlObjectWithDB::getDBTables(
         ['executions', 'testplans', 'testprojects', 'builds', 'nodes_hierarchy']);
-    try {
-        if ($fkTable === 'nodes_hierarchy') {
-            $rows = $db->get_recordset(
-                "SELECT tcversions_tc.id AS tcid, tcversions.id AS tcv_id, " .
-                "tcversions_tc.name AS tcname, tcversions_tc.testproject_id " .
-                "FROM {$t['nodes_hierarchy']} tcversions_tc " .
-                "INNER JOIN {$t['nodes_hierarchy']} tcversions " .
-                "ON tcversions_tc.parent_id = tcversions.id " .
-                "WHERE tcversions_tc.id = " . $fkId . " LIMIT 1");
-            if (!is_null($rows) && count($rows) > 0) {
-                $r = $rows[0];
-                return 'Test case #' . intval($r['tcid']) . ' - ' .
-                    strval($r['tcname'] ?? '') . ' (version ' .
-                    intval($r['tcv_id']) . ')';
-            }
-            return $fallback;
+    $nh = $t['nodes_hierarchy'];
+    $hasExtId = bffAdHasColumn($db, 'nodes_hierarchy', 'tc_external_id');
+
+    if ($fkTable === 'nodes_hierarchy') {
+        $cols = 'tcversions_tc.id AS tcid, tcversions_tc.name AS tcname';
+        if ($hasExtId) {
+            $cols .= ', tcversions_tc.tc_external_id AS tcext';
         }
-        if ($fkTable === 'executions') {
-            $rows = $db->get_recordset(
-                "SELECT e.id AS exec_id, e.testcase_id, ntc.tc_external_id, " .
-                "e.status FROM {$t['executions']} e " .
-                "LEFT JOIN {$t['testplans']} tp ON e.testplan_id = tp.id " .
-                "LEFT JOIN {$t['nodes_hierarchy']} ntc ON e.tcversion_id = ntc.parent_id " .
-                "WHERE e.id = " . $fkId . " LIMIT 1");
-            if (!is_null($rows) && count($rows) > 0) {
-                $r = $rows[0];
-                $ref = strval($r['tc_external_id'] ?? '');
-                return 'Execution #' . intval($r['exec_id']) .
-                    ($ref !== '' ? ' - ' . $ref : '');
-            }
-            return $fallback;
+        $rows = $db->get_recordset("SELECT $cols FROM {$nh} tcversions_tc " .
+            "WHERE tcversions_tc.id = " . $fkId . " LIMIT 1");
+        if (!is_null($rows) && count($rows) > 0) {
+            $r = $rows[0];
+            $ref = strval($r['tcext'] ?? '');
+            return 'Test case ' . ($ref !== '' ? $ref : '#' . intval($r['tcid'])) .
+                ' - ' . strval($r['tcname'] ?? '');
         }
-        if ($fkTable === 'testplans' || $fkTable === 'testprojects' ||
-            $fkTable === 'builds') {
-            $rows = $db->get_recordset(
-                "SELECT name FROM {$t[$fkTable]} WHERE id = " . $fkId . " LIMIT 1");
+        return $fallback;
+    }
+
+    if ($fkTable === 'executions') {
+        $cols = 'e.id AS exec_id';
+        $extra = '';
+        if (bffAdHasColumn($db, 'executions', 'tcversion_id') && $hasExtId) {
+            $cols .= ', ntc.tc_external_id AS tcext';
+            $extra = "LEFT JOIN {$nh} ntc ON e.tcversion_id = ntc.parent_id ";
+        }
+        $rows = $db->get_recordset("SELECT $cols FROM {$t['executions']} e " .
+            $extra . "WHERE e.id = " . $fkId . " LIMIT 1");
+        if (!is_null($rows) && count($rows) > 0) {
+            $ref = strval($rows[0]['tcext'] ?? '');
+            return 'Execution #' . intval($rows[0]['exec_id']) .
+                ($ref !== '' ? ' - ' . $ref : '');
+        }
+        return $fallback;
+    }
+
+    if ($fkTable === 'testplans' || $fkTable === 'testprojects' ||
+        $fkTable === 'builds') {
+        // Upstream keeps the human name in the table, this fork keeps the plan /
+        // project name in nodes_hierarchy - probe instead of assuming.
+        if (bffAdHasColumn($db, $fkTable, 'name')) {
+            $rows = $db->get_recordset("SELECT name FROM {$t[$fkTable]} " .
+                "WHERE id = " . $fkId . " LIMIT 1");
             if (!is_null($rows) && count($rows) > 0) {
-                return strval($rows[0]['name'] ?? '') . ' #' . $fkId;
+                $nm = trim(strval($rows[0]['name'] ?? ''));
+                return ($nm !== '' ? $nm . ' #' : '#') . $fkId;
             }
         }
-    } catch (Throwable $e) {
-        logAuditEvent('attachmentdelete owner lookup failed: ' . $e->getMessage(),
-            'WARNING', $fkId, 'attachments');
+        $rows = $db->get_recordset("SELECT name FROM {$nh} " .
+            "WHERE id = " . $fkId . " LIMIT 1");
+        if (!is_null($rows) && count($rows) > 0) {
+            $nm = trim(strval($rows[0]['name'] ?? ''));
+            if ($nm !== '') {
+                return $nm . ' #' . $fkId;
+            }
+        }
     }
     return $fallback;
 }
@@ -169,15 +225,16 @@ function bffAdLoad($db) {
     }
 
     $repo = tlAttachmentRepository::create($db);
+    // getAttachmentInfo() returns the FLAT info hash of the single attachment
+    // (id / fk_id / fk_table / title / file_name / ...), not a row list.
     $info = $repo->getAttachmentInfo($id);
-    if (is_null($info) || count($info) === 0) {
+    if (!is_array($info) || count($info) === 0) {
         bffAdOut([
             'status' => 'error',
             'code'   => 'ATTACHMENT_NOT_FOUND',
             'message' => 'Attachment not found',
         ], 404);
     }
-    $info = $info[0];
 
     // Ownership proof: either the caller states the owning object and it
     // matches, or the id is in the session allow-list filled by the
@@ -257,6 +314,15 @@ if ($action === 'delete') {
     try {
         $repo = tlAttachmentRepository::create($db);
         $done = $repo->deleteAttachment($id, $info);
+        // tlAttachmentRepository::deleteAttachment() also unlinks the file from
+        // the filesystem repository and returns tl::ERROR when that unlink
+        // fails, even though the DB row IS gone (file already removed by hand,
+        // repository folder missing, ...). What the user cares about is whether
+        // the attachment still exists, so confirm that before reporting failure.
+        if (!$done) {
+            $still = $repo->getAttachmentInfo($id);
+            $done = (is_null($still) || count($still) === 0);
+        }
     } catch (Throwable $e) {
         logAuditEvent('attachmentdelete failed: ' . $e->getMessage(),
             'ERROR', $id, 'attachments');
