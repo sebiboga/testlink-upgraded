@@ -17003,7 +17003,27 @@ branch `sebiboga`, apibase `https://api.github.com/`, token from env).
 - **Expected:** opens `tcScripts.html?tproject_id=12&tcversion_id=15` in a new window.
 - **Actual:** PASS — all toolbar patterns reused (window.open, 1100×760).
 
-**Result: 16/16 PASS.** Screenshots: `docs/screenshots/tcScripts-view.png`,
+**Code review corrections (rule 16) — the suite was re-run after them**
+
+A subagent review of the diff found 4 real defects in the first implementation;
+all were fixed and the affected steps re-measured:
+
+1. `display: -webkit-box` on the Notes `<td>` cancelled the table-cell layout and
+   dropped `vertical-align: middle` → 13px misalignment of the whole column.
+   Clamp moved to the inner `<span>`; re-measured (step 9b).
+2. The tooltip was hardcoded English `"API "` (i18n rule 3) with a one-off
+   `project-api-icon` class → now `TLi18n.t('proj.apiId')` + the shared
+   `.api-id` rule used by `buildsView.html:31` / `platformsView.html:31`.
+3. The tooltip **value was wrong**: `API testproject/6` vs legacy
+   `API [ID: 6 ]` (`config.inc.php:637` `$tlCfg->api->id_format = "[ID: %s ]"`).
+   The code comment also cited a `formatStringId()` in `lib/functions.php`,
+   which does not exist in this repo — comment removed.
+4. The column had been made sortable + per-column filterable, but legacy marks
+   the Notes header `{#NOT_SORTABLE#}` — the first CHANGELOG entry and docs
+   claimed parity that did not exist. `data-col-filter` removed,
+   `orderable: false` added, docs corrected.
+
+**Result: 18/18 PASS.** Screenshots: `docs/screenshots/tcScripts-view.png`,
 `docs/screenshots/tcScripts-modal.png`.
 
 ## Suite 1544 — Task Issue #1351: revision log history tooltip in `reqSpecView.html`
@@ -22917,13 +22937,15 @@ header) / `:113-115` (Notes cell, `nl2br` when the project editor is `none`) and
 | 3 | Check computed style of the Notes cell | `white-space: pre-line` (the `nl2br` equivalent) | `whiteSpace: "pre-line"` | PASS |
 | 4 | Inspect #6's Notes DOM for a real `<b>` element | none — markup is escaped, not rendered | `hasRealBold: false`, `innerHTML` shows `&lt;b&gt;` | PASS |
 | 5 | Read the `title` attribute of #6's Notes cell | full untruncated text | `"Main regression project.\nSecond line of notes <b>with markup</b> & an ampersand."` | PASS |
-| 6 | Compare `clientHeight` vs `scrollHeight` of #9's Notes cell | clamped to 2 lines (46px) with overflow hidden | `clientH 46 / scrollH 166`, `-webkit-line-clamp: 2`, `max-width 260px` | PASS |
-| 7 | Read the Notes cell of #8 (no notes) | placeholder, no empty/blank artifact | `::before` content is `"-"` | PASS |
-| 8 | Read `title` of the `fa-cubes` icon on each name cell | `API testproject/<id>` for every row | `API testproject/6`, `…/7`, `…/8`, `…/9` | PASS |
-| 9 | Type `one-liner` into the **Notes** column filter box | only #7 remains; clearing restores all 4 | `afterNotesFilter: ["#7"]`, `afterClear: ["#6","#7","#8","#9"]` | PASS |
-| 10 | Click the `Notes` header twice | sort asc/desc on notes content, empty notes first ascending | asc `["#8","#6","#7","#9"]`, desc `["#9","#7","#6","#8"]` | PASS |
-| 11 | Type `Gamma` in the global search box (`keyup`) | only #8 | `["#8"]` | PASS |
-| 12 | Type `regression` in the global search box | only #6 — notes text is now searchable | `["#6"]` | PASS |
+| 6 | Compare `clientHeight` vs `scrollHeight` of #9's Notes **span** | clamped to 2 lines (30px) with overflow hidden | `clientH 30 / scrollH 225`, `-webkit-line-clamp: 2`, `max-width 260px` on the td | PASS |
+| 6b | Save a note of `"><img src=x onerror=alert(1)>`, reload, inspect the cell | escaping must hold in the `title` attribute too (a `"` could break out) | 0 `<img>` elements, no attribute breakout, no console error | PASS |
+| 7 | Read the Notes cell of #8 (no notes) | placeholder, no empty/blank artifact | span `::before` content is `"-"` | PASS |
+| 8 | Read `title` of the `fa-cubes` icon on each name cell | legacy `id_format` value → `[ID: <id>]` for every row (`config.inc.php:637` `[ID: %s ]`) | `[ID: 6]`, `[ID: 7]`, `[ID: 8]`, `[ID: 9]` | PASS |
+| 9 | Count per-column filter inputs, click the `Notes` header | legacy marks the Notes header `{#NOT_SORTABLE#}` → no filter box, no sorting | 5 filter inputs (unchanged by #987), Notes header `cursor: auto`, no `aria-sort` | PASS |
+| 9b | Measure the `<td>` rect of every column in one row | the Notes cell must not be vertically offset (regression: `display:-webkit-box` on a `<td>` drops `vertical-align: middle`) | all 8 cells `top 307 / height 57` | PASS |
+| 10 | Type `Gamma` in the global search box (`keyup`) | only #8 | `["#8"]` | PASS |
+| 11 | Type `regression` in the global search box | only #6 — notes text is now searchable | `["#6"]` | PASS |
+| 11b | Type a note as a project **prefix** column filter | the other columns are still per-column filterable | 5 inputs present for name/prefix/IT/CT/status | PASS |
 | 13 | Click the `Actions` header | no sorting (legacy `{#NOT_SORTABLE#}` on that cell) | no `aria-sort` on the th | PASS |
 | 14 | Click `Edit` on #6 | modal opens titled "Edit Test Project" with the description pre-filled | `modalTitle: "Edit Test Project"`, description field = the 2-line note | PASS |
 | 15 | Close the modal, click `Info` on #6 | project info popup opens (regression after the column realignment) | new tab `projectInfoView.html?tproject_id=6` opened | PASS |
@@ -22934,4 +22956,24 @@ clamps to 2 lines so one long note cannot blow up the row height, and keeps the
 complete text in the `title` attribute (steps 5/6). The clamp is a deliberate
 modernization decision, the `title` makes the legacy content fully reachable.
 
-**Result: 16/16 PASS.**
+**Code review corrections (rule 16) — the suite was re-run after them**
+
+A subagent review of the diff found 4 real defects in the first implementation;
+all were fixed and the affected steps re-measured:
+
+1. `display: -webkit-box` on the Notes `<td>` cancelled the table-cell layout and
+   dropped `vertical-align: middle` → 13px misalignment of the whole column.
+   Clamp moved to the inner `<span>`; re-measured (step 9b).
+2. The tooltip was hardcoded English `"API "` (i18n rule 3) with a one-off
+   `project-api-icon` class → now `TLi18n.t('proj.apiId')` + the shared
+   `.api-id` rule used by `buildsView.html:31` / `platformsView.html:31`.
+3. The tooltip **value was wrong**: `API testproject/6` vs legacy
+   `API [ID: 6 ]` (`config.inc.php:637` `$tlCfg->api->id_format = "[ID: %s ]"`).
+   The code comment also cited a `formatStringId()` in `lib/functions.php`,
+   which does not exist in this repo — comment removed.
+4. The column had been made sortable + per-column filterable, but legacy marks
+   the Notes header `{#NOT_SORTABLE#}` — the first CHANGELOG entry and docs
+   claimed parity that did not exist. `data-col-filter` removed,
+   `orderable: false` added, docs corrected.
+
+**Result: 18/18 PASS.**
