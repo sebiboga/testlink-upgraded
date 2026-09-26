@@ -277,6 +277,24 @@ class issueTrackerCommands
 
     $class2create = $guiObj->item['implementation'];
 
+    // Issue #1617: getImplementationForType() returns NULL for a type that is
+    // not a key of tlIssueTracker::$systems, and "new NULL" is an uncaught
+    // Error. This path is reachable in two ways: the "Test Connection" button
+    // on a row that already has a bad type in the DB, and a *create* form
+    // submitted with a type the legacy controller never validated (there is no
+    // checkCreate/checkUpdate in this class). Report it through the existing
+    // feedback channel and re-render the edit form instead of 500ing.
+    // Reuses the legacy string 'issuetracker_invalid_type' already shipped for
+    // the ajax sibling (lib/ajax/getissuetrackercfgtemplate.php:46) - no new
+    // i18n key needed.
+    if( is_null($class2create) || !@class_exists($class2create) )
+    {
+      $guiObj->connectionStatus = 'ko';
+      $guiObj->user_feedback['message'] = 
+        sprintf(lang_get('issuetracker_invalid_type'), $argsObj->type);
+      return $guiObj;
+    }
+
     $its = new $class2create($argsObj->type,$argsObj->cfg,$argsObj->name);
     $guiObj->connectionStatus = $its->isConnected() ? 'ok' : 'ko';
 

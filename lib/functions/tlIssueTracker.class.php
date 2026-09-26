@@ -691,6 +691,16 @@ class tlIssueTracker extends tlObject
     $ret = $this->db->get_recordset($sql);
     if (!is_null($ret)) { 
       $ret = $ret[0];
+      // Issue #1617: a tracker linked to the test project whose type is not a
+      // key of $systems has no $this->types entry and no $this->systems spec.
+      // Returning NULL here makes the caller (getInterfaceObject()) degrade
+      // exactly like the already-handled "project has issue_tracker_enabled=1
+      // but NO tracker linked" case instead of raising 2 E_WARNINGs and handing
+      // a bogus class name further down the chain.
+      if( !isset($this->types[$ret['type']]) || !isset($this->systems[$ret['type']]) )
+      {
+        return null;
+      }
       $ret['verboseType'] = $this->types[$ret['type']];
       $spec = $this->systems[$ret['type']];
       $ret['api'] = $spec['api'];
@@ -759,6 +769,19 @@ class tlIssueTracker extends tlObject
    */
   function checkConnection($its) {
     $xx = $this->getByID($its);
+
+    // Issue #1617: getImplementationForType() now returns NULL for a tracker
+    // whose type is not a key of $systems. "new NULL" is an uncaught Error
+    // ("Class name must be a valid object or a string") which used to kill
+    // lib/issuetrackers/issueTrackerView.php?id=<row> with an empty HTTP 500.
+    // Report the connection as failed instead: the caller turns this into the
+    // 'ko' value, which issueTrackerView.tpl:60 already renders with the
+    // existing localized bts_check_ko badge - no new i18n string needed.
+    if( is_null($xx) || is_null($xx['implementation']) )
+    {
+      return false;
+    }
+
     $class2create = $xx['implementation'];
     $its = new $class2create($xx['type'],$xx['cfg'],$xx['name']);
 
