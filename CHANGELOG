@@ -5672,6 +5672,37 @@ Changes:
       project tables and added user metrics to the middle section
 
 ## 2.0.1 (in-progress)
+### UI modernization — Keyword Create/Edit/Delete/Create-and-Link dialog (Refs #1599)
+- New modern screen `gui/templates/keywords/keywordsEdit.html` (Dashio popup: context card
+  test project + test case in create-and-link mode, Name/Notes with the legacy
+  quotes-and-commas hint, Save/Cancel/Delete with a confirm modal, success + error boxes,
+  permission-denied card, TLi18n locale switcher) + BFF `api/keywordsedit/index.php`
+  (`GET ?action=init&mode=create|edit|cfl`, `POST ?action=create|update|create_link|delete`,
+  session auth + `bffSameOriginGuard`, legacy `mgt_modify_key` AND `mgt_view_key` gate).
+  The legacy `lib/keywords/keywordsEdit.php` is kept as a session-guarded redirect shim
+  (anon -> login, `create|edit|cfl` -> modern popup, legacy `do_*` POSTs still executed
+  server-side) and `$actions->keywordsEdit` is now exposed in `lib/functions/common.php`.
+  Test Case Viewer gained per-version `Create Keyword` / `Create Keyword and Link` buttons.
+  i18n `kwedit.*` (25 keys) + `footers.keywordsEdit` in all 10 locale bundles.
+- Key bugfix #1008: the keyword write dialog no longer opens for a *view-only* keyword
+  manager (legacy `initEnv()` required `mgt_modify_key` AND `mgt_view_key`); the same gate
+  protects the `api/keywords` writes.
+- Key bugfix #1600: a keyword create/update error (duplicate name, quote or comma, empty
+  name) returned a fatal **HTTP 500** — `testproject::addKeyword()` called the
+  `tlKeyword::getErrorMessage()` removed by the 2.0.1 refactor. The legacy localized
+  messages are back, `tlKeyword::getError()` returns the right constant for `E_NAMELENGTH`
+  and gained a `default` branch, and the second remaining caller
+  (`api/keywords/index.php` PUT) was fixed too.
+- Key bugfix #1601 (security): the keyword BFFs checked the caller's rights against the
+  `tproject_id` sent in the request while addressing the object by a bare `id`, and neither
+  `tlKeyword::writeToDB()` nor `testproject::deleteKeyword()` re-checked the owner — a
+  manager of project A could rename/**re-own** or delete a keyword of project B. Every
+  keyword-id route in `api/keywordsedit` and `api/keywords` now answers 404 for a keyword
+  owned by another project.
+- Key bugfix #1602: the Test Case Viewer keyword buttons never rendered (the keyword grants
+  had been added to the `api/testcases` `context` action instead of `view`) and they always
+  opened the *current* test case version instead of the version card that was clicked.
+
 ### Key bugfix — TLi18n locale selection persistence (Refs #1586)
 - Key bugfix #1586: an explicit language switch in the locale switcher now
   survives navigation, so every modernized screen that returns to a launcher
