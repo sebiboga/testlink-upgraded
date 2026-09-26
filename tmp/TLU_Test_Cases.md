@@ -22612,3 +22612,98 @@ the change (`git diff config.inc.php` empty after the run).
 The legacy guarantee is restored: past `sessionInactivityTimeout` a stale tab can
 neither read the user list nor write role assignments, and it is bounced to
 `login.php?note=expired&destination=<screen>` exactly like legacy 1.9.20.
+## Suite 1615 — Screen: Keyword XML/CSV Export + Import popup (`keywordsExport` / `keywordsImport`, Refs #1615)
+
+Fixture: `tmp/fixtures_1615.php` — project `KWXML1615` (tproject id 10) with 3 keywords
+(`smoke_login`, `regression_nightly` with quotes+commas in the notes, `empty_notes_keyword`
+with NULL notes), users `kwview1615` (global role 5 = view only + project role 5) and
+`kwnorights1615` (global role 3 `<no rights>`, no project role). Password `admin` for all.
+App served from the repo root on `http://localhost:8082`.
+
+| # | Test | Expected | Result |
+|---|---|---|---|
+| 1 | Open `keywordsExport.html?mode=export&tproject_id=10` as admin | Teal header, Export/Import tabs, context card `KWXML1615` + `3` keywords, Format XML/CSV, sample `keywords.xml` | PASS |
+| 2 | Switch Format to CSV | Filename flips to `keywords.csv`, sample becomes `keyword;notes` | PASS |
+| 3 | `GET ?action=export&type=iSerializationToXML` | 200, `text/xml`, `content-disposition: attachment; filename="kw.xml"`, `<?xml …?>` + `<keywords>` root, notes in CDATA | PASS |
+| 4 | `GET ?action=export&type=iSerializationToCSV` | 200, `;` delimiter header row + RFC4180 doubling of the embedded quotes, no data loss | PASS |
+| 5 | Import a valid XML with one new keyword (real file upload) | Success box `Keywords imported. The project now has 4 keywords.`, count 3 → 4 | PASS |
+| 6 | Import a second valid XML | Count 4 → 5 | PASS |
+| 7 | Import a non-keyword XML (`<testcases>` root) | 400 `wrong_keywords_file`; UI shows the localized `Wrong keywords file - the format could not be read.` (not a bare `Error`) | PASS |
+| 8 | Import CSV (Format = CSV, sample switched first) | Success, count 5 → 7 (the 7th row is the legacy header-row artifact, see #1616) | PASS |
+| 9 | Import with no file selected | Client-side guard, localized `Please choose a keywords file.`, no request | PASS |
+| 10 | `kwview1615` (view only) → `?action=init` | `rights: {export:true, import:false}` | PASS |
+| 11 | `kwview1615` → export | 200 with valid XML; Export panel renders | PASS |
+| 12 | `kwview1615` → import (server side) | 403 `{right: mgt_modify_key}`, nothing written; UI card `You need the mgt_modify_key right to import keywords.` | PASS |
+| 13 | `kwnorights1615` (no rights) → `?action=init` | **403** `Access denied` — no project name, no keyword count, no rights map in the body, project header renders `-` | PASS |
+| 13b | `kwnorights1615` (no rights) → export | 403 `{right: mgt_view_key}`; UI card `You need the mgt_view_key right to export keywords.` | PASS |
+| 14 | BFF contract: unknown `tproject_id` / missing project / unknown action / `POST` on a GET route | 404 `Unknown test project` / 400 `Invalid test project` / 400 `Unknown action` / 405 `Method not allowed` | PASS |
+| 15 | Anonymous `?action=init` / `?action=export` / anonymous `POST` | 401 / 401 / 403 (same-origin guard fires before the session check) | PASS |
+| 16 | Locale switcher EN → RO on the import tab | Footer, hints, buttons and the new-success text render in Romanian, no raw keys | PASS |
+| 17 | Export a project with **0** keywords (XML and CSV) | 400 `no_keywords_to_export` — no 500, and no E_WARNING row for the CSV branch | PASS |
+| 18 | Switch the export format XML → CSV → XML | The format sample keeps rendering (keyed by extension, not by the interface id) and the filename extension follows | PASS |
+| 19 | Type a custom filename, then export | The typed name survives the re-render; the blob is saved under it and the success box appears | PASS |
+| 20 | Import a 3 MB file (over `upload_max_filesize` = 2M) | 400 with the **real** PHP upload message + `code: upload_error` (not "please choose a file"); the UI hint shows the clamped cap (2048 KB, not the 10240 KB config value) | PASS |
+| 21 | Import a single-column text file as CSV | Legacy parity: one line = one keyword row (count +1), so the before/after guard does not fire — documented, not a defect | PASS |
+| 22 | `filename` of 5000 chars | Server truncates to 255; `Content-Disposition` stays well formed | PASS |
+| 23 | i18n key parity after the change | 33 `kwxml.*` + `footers.keywordsExport` keys in **all 10** bundles, no key used-but-missing, the 10 orphaned `kw.*` keys removed | PASS |
+
+**RESULT: 23/23 PASS.**
+
+Defects found while testing and fixed before the push (commit `e0c1553f0`):
+
+* the locale bundles used printf `%s` while `TLi18n` interpolates `{name}` — the file-size
+  hint and the import confirmation printed the raw `%s` (`kwxml.maxFileSize`,
+  `kwxml.importedMsg` now use `{kb}` / `{count}` in all 10 bundles);
+* jQuery was never loaded by the screen;
+* `TLi18n` was initialised before its bundle promise resolved;
+* the format sample was looked up with the wrong key and was rendered before its `<select>`
+  existed, so it stayed empty;
+* the import `.fail()` handler dropped `xhr.responseText`, so **every** 4xx degraded to a
+  bare `Error` box (row 7 is the regression test for this).
+
+A mandatory code review pass (ai/AGENTS.md rule 16) then produced a second batch of real
+defects, all fixed in commit `6556dc91e` and all re-verified above:
+
+* **security** — `init` returned the project name + keyword count (and a 404-vs-200
+  oracle for project ids) to a user with no rights at all on that project; it now denies
+  with 403 when the caller holds neither `mgt_view_key` nor `mgt_modify_key` (rows 13/13b);
+* **500 on every brand-new project** — `exportKeywordsToXML()` calls `sizeof()` on
+  `getKeywordIDsFor()`, which returns `null` for an empty project (uncaught `TypeError`),
+  and the CSV branch logged an `E_WARNING` in `lib/functions/csv.inc.php:33`; empty
+  projects are now refused up front (row 17, and the E_WARNING row is gone);
+* the format sample went blank after switching the export format, because
+  `getSupportedSerializationFormatDescriptions()` is keyed by the **format name**
+  (`XML`/`CSV`) while the select holds the serialization **interface id** (row 18);
+* an oversized upload arrived with an empty `tmp_name`, so the handler told the user to
+  pick a file although they had one — `$_FILES['error']` is now inspected first, and the
+  advertised cap is clamped to `min(config, upload_max_filesize, post_max_size)` so the UI
+  no longer promises 10240 KB while PHP accepts 2048 KB (row 20);
+* the export used a plain `<a download>` navigation, so a 4xx/5xx JSON body was saved under
+  the chosen filename while the UI still reported success — the response is now fetched,
+  checked, and only a successful body is turned into a download (row 19);
+* the typed filename was wiped by the re-render, the button-disable guard was a no-op and
+  the download filename was unbounded server-side (now `substr(…, 0, 255)` + `maxlength`);
+* `importKeywordsFromCSV()` returns `tl::OK` as soon as `fopen()` works, so a body that
+  yields zero rows reported success — the keyword count is now compared before/after and
+  an unchanged count is reported as `wrong_keywords_file` (row 21 shows the deliberate
+  boundary: a one-line file legitimately imports one row, legacy parity).
+
+Bugs found while testing, filed separately, **not** fixed here:
+
+* **#1616** — `testproject::importKeywordsFromCSV()`
+  (`lib/functions/testproject.class.php:1362`) never skips the header row that
+  `exportKeywordsToCSV()` writes, so importing a TestLink-exported CSV inserts a junk
+  keyword named `Keyword` (row 8's count 5 → 7 is exactly this artifact). The modern screen
+  keeps legacy parity on purpose; the fix belongs in the import model.
+
+Fixture-side discovery worth keeping (it cost three false 403s during the rights matrix):
+`tlUser::hasRight()` (`lib/functions/tlUser.class.php:846-880`) **replaces** the global right
+set with the project role's set for that project, and a project role holding **exactly one
+right is always denied** (the "Special situation => just one right" branch returns `false`
+unless the right carries a `dbID`). A view-only keyword manager therefore needs a
+multi-right view-only role at *project* level. Also: the in-session `tlUser` is cached, so a
+rights change applied straight in the DB only shows up after a fresh login.
+
+Evidence: `docs/screenshots/issue-1615-kwxml-export.png`,
+`docs/screenshots/issue-1615-kwxml-import.png`.
+Commits `3f6a52e47`, `1af75f0a1`, `e0c1553f0`.
