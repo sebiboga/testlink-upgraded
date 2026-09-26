@@ -55,13 +55,20 @@ $projectId = ctype_digit((string)$last) ? (int)$last : null;
 // POST /api/projects/<id>/requirements — the legacy "Requirement Feature"
 // quick toggle (projectEdit.php doAction=enableRequirements/disableRequirements).
 // The id sits one segment before the action word, so resolve it separately.
+//
+// The shape is matched EXACTLY: parts === ['api','projects',<id>,'requirements'].
+// Detection is by the presence of the literal 'requirements' segment anywhere,
+// so a malformed variant (extra segment, swapped order, non-numeric id) can
+// never fall through to createProject() — it is rejected by the id check in
+// toggleRequirements() instead of silently creating a project.
 $toggleRequirements = false;
-if ($method === 'POST' && $last === 'requirements') {
+if ($method === 'POST' && in_array('requirements', $parts, true)) {
   $toggleRequirements = true;
   $projectId = null;
-  $actionSeg = $parts[count($parts) - 2] ?? '';
-  if (ctype_digit((string)$actionSeg)) {
-    $projectId = (int)$actionSeg;
+  if (count($parts) === 4
+      && $parts[0] === 'api' && $parts[1] === 'projects'
+      && ctype_digit((string)$parts[2]) && $parts[3] === 'requirements') {
+    $projectId = (int)$parts[2];
   }
 }
 
@@ -471,6 +478,15 @@ function updateProject(&$db, &$tprojectMgr, &$user, $projectId) {
  * flags) is left alone, and NO audit event is logged for this path — hence this
  * dedicated route instead of a full PUT through updateProject(), which would
  * re-run the name/prefix duplicate checks and emit audit_testproject_saved.
+ *
+ * The write is VERIFIED afterwards: testproject::setOptions() only issues its
+ * UPDATE when the stored blob already contained a decodable object, so a row
+ * whose testprojects.options is NULL/empty/corrupt (the shipped sample data
+ * inserts the column as NULL) cannot be written by that method at all. Legacy
+ * was silent about it, but a JSON API answering success:true while writing
+ * nothing is a lie the client cannot detect, so the write is verified and a
+ * failure is reported as a server error instead. The client alerts in that case
+ * rather than redrawing a list that disagrees with what the user clicked.
  */
 function toggleRequirements(&$db, &$tprojectMgr, $projectId) {
   if (!$projectId) {
@@ -488,8 +504,13 @@ function toggleRequirements(&$db, &$tprojectMgr, $projectId) {
   if (!is_array($input) || !array_key_exists('enabled', $input)) {
     throw new Exception('Missing "enabled" flag');
   }
-
+  // Strict coercion: (int)(bool)"false" is 1, so a JSON client sending the
+  // STRING "false" would silently enable the feature.
+  if (!in_array($input['enabled'], [0, 1, false, true, '0', '1'], true)) {
+    throw new Exception('Invalid "enabled" flag');
+  }
   $enabled = (int)(bool)$input['enabled'];
+
   if ($enabled) {
     $tprojectMgr->enableRequirements($projectId);
   } else {
@@ -498,8 +519,20 @@ function toggleRequirements(&$db, &$tprojectMgr, $projectId) {
 
   // Re-read through getOptions() (the same accessor legacy used) instead of
   // trusting the write, so the response always reflects what landed in the DB.
+  // is_object() guards the case where the stored blob is a serialized ARRAY
+  // (getOptions() accepts a leading 'a'), where a property read would fatal.
   $opt = $tprojectMgr->getOptions($projectId);
-  $nowEnabled = (!empty($opt->requirementsEnabled)) ? 1 : 0;
+  $nowEnabled = (is_object($opt) && !empty($opt->requirementsEnabled)) ? 1 : 0;
+
+  if ($nowEnabled !== $enabled) {
+    // setOptions() cannot repair this: it iterates the STORED object and only
+    // issues its UPDATE when the foreach body ran at least once, so a NULL /
+    // empty / undecodable testprojects.options blob is a permanent dead end
+    // for that method (legacy had the same dead end, silently). Fixing it
+    // properly means changing setOptions() itself, which is tracked separately;
+    // here we refuse to answer success:true for a write that did not happen.
+    throw new BFFServerError('Failed to store the requirements feature flag');
+  }
 
   // No extra AUDIT event — legacy doAction=enableRequirements is silent.
   echo json_encode([

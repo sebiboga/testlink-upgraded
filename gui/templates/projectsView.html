@@ -127,9 +127,10 @@
        platformsView.html:31. */
     .api-id { cursor: help; color: #999; font-size: 12px; margin-right: 6px; }
 
-    /* Legacy parity: the "Requirement Feature" column of projectView.tpl:126-134 is a
-       bare click-to-change icon (class "clickable_icon" in the legacy stylesheet), so
-       the hit area is the glyph itself rather than the whole cell. */
+    /* Legacy parity: the "Requirement Feature" cell of projectView.tpl:126-134 puts the
+       click handler on the <i> glyph itself, not on the cell, so the whole cell is not a
+       hit area here either (the legacy .clickable_icon class only sets padding /
+       text-align / vertical-align). */
     #projectsTable .req-toggle { cursor: pointer; font-size: 15px; color: #2d8e88; }
     #projectsTable .req-toggle.fa-toggle-off { color: #bdc3c7; }
     #projectsTable .req-toggle:hover { color: #1a6b66; }
@@ -425,7 +426,7 @@
               <i class="fas fa-toggle-${p.optReq ? 'on' : 'off'} req-toggle"
                  title="${esc(p.optReq ? TLi18n.t('proj.activeClickToChange') : TLi18n.t('proj.inactiveClickToChange'))}"
                  role="button" tabindex="0" aria-pressed="${p.optReq ? 'true' : 'false'}"
-                 onclick="toggleRequirements(${p.id}, ${p.optReq ? 0 : 1})"></i>`;
+                 onclick="toggleRequirements(${parseInt(p.id, 10)}, ${p.optReq ? 0 : 1})"></i>`;
       const actions = `
               <div class="actions">
                 <button class="action-btn info-btn" onclick="openProjectInfo(${p.id})" title="${TLi18n.t('piv.title')}">
@@ -516,8 +517,7 @@
           // Legacy parity: projectView.tpl:92 flags the "Requirement Feature" cell
           // with {#NOT_SORTABLE#} and gives it no {#SMART_SEARCH#} cell, so the
           // toggle column is not orderable and gets no filter input.
-          { targets: 6, orderable: false },
-          { targets: 8, orderable: false }
+          { targets: '6, 8', orderable: false }
         ]
       });
 
@@ -580,7 +580,16 @@
         contentType: 'application/json',
         data: JSON.stringify({ enabled: enable ? 1 : 0 }),
         success: function(response) {
-          if (response.success) loadProjects();
+          if (!response.success) return;
+          // The BFF re-reads the flag after writing it, so a mismatch means the
+          // write did not land (e.g. an empty/corrupt testprojects.options blob)
+          // — report it instead of redrawing a list that silently disagrees
+          // with what the user just clicked.
+          if (Number(response.optReq) !== (enable ? 1 : 0)) {
+            alert(TLi18n.t('proj.msg.errorToggleRequirements'));
+            return;
+          }
+          loadProjects();
         },
         error: function(xhr) {
           alert(xhr.responseJSON?.error || TLi18n.t('proj.msg.errorToggleRequirements'));
