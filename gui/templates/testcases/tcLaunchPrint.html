@@ -275,29 +275,47 @@ function resolve() {
     method: 'GET',
     dataType: 'json'
   }).done(function (r) {
-    if (r && r.status === 'ok') {
-      payload = r;
-      renderResult(r);
+    handleResult(r);
+  }).fail(function (xhr, textStatus) {
+    // Every error path of the BFF answers a NON-2xx status with a JSON body
+    // (400/401/403/404/405), so jQuery routes them here - the body has to be
+    // routed through the very same handler, otherwise the localized message
+    // and the legacy LTCP-0x marker are lost.
+    var r = xhr.responseJSON;
+    if (!r && xhr.responseText) {
+      try { r = JSON.parse(xhr.responseText); } catch (e) { r = null; }
+    }
+    if (r) {
+      handleResult(r);
       return;
     }
-    var code = r ? r.code : 'unknown';
-    var msg = (r && r.message) ? TLi18nLocalize(r) : TLi18n.t('ltcpl.errGeneric');
-    if (code === 'no_rights' || code === 'bad_apikey' || code === 'unauthenticated') {
-      showDenied(msg, r ? r.legacy_code : '');
-    } else if (code === 'testcase_not_found' || code === 'version_not_found' ||
-               code === 'unknown_prefix') {
-      showNotFound(msg, r ? r.legacy_code : '');
-    } else {
-      showError(msg, r ? r.legacy_code : '');
-    }
-  }).fail(function (xhr) {
     $('#loadingBox').hide();
     if (xhr.status === 401) {
       showDenied(TLi18n.t('ltcpl.errUnauthenticated'), '');
+    } else if (textStatus === 'abort') {
+      showError(TLi18n.t('ltcpl.errGeneric'), '');
     } else {
       showError(TLi18n.t('ltcpl.errGeneric'), '');
     }
   });
+}
+
+function handleResult(r) {
+  if (r && r.status === 'ok') {
+    payload = r;
+    renderResult(r);
+    return;
+  }
+  var code = r ? r.code : 'unknown';
+  var msg = (r && r.code) ? localizeMessage(r) : TLi18n.t('ltcpl.errGeneric');
+  if (code === 'no_rights' || code === 'bad_apikey' || code === 'unauthenticated') {
+    showDenied(msg, r ? r.legacy_code : '');
+  } else if (code === 'testcase_not_found' || code === 'version_not_found' ||
+             code === 'unknown_prefix') {
+    showNotFound(msg, r ? r.legacy_code : '');
+  } else {
+    showError(msg, r ? r.legacy_code : '');
+  }
 }
 
 // Prefer a localized message per machine code, fall back to the BFF text.
@@ -308,9 +326,12 @@ var ERRKEYS = {
   unknown_prefix: 'ltcpl.errUnknownPrefix',
   no_rights: 'ltcpl.errNoRights',
   testcase_not_found: 'ltcpl.errTestcaseNotFound',
-  version_not_found: 'ltcpl.errVersionNotFound'
+  version_not_found: 'ltcpl.errVersionNotFound',
+  unauthenticated: 'ltcpl.errUnauthenticated',
+  unknown_action: 'ltcpl.errGeneric',
+  method_not_allowed: 'ltcpl.errGeneric'
 };
-function TLi18nLocalize(r) {
+function localizeMessage(r) {
   var k = ERRKEYS[r.code];
   if (k) { return TLi18n.t(k); }
   return r.message || TLi18n.t('ltcpl.errGeneric');
