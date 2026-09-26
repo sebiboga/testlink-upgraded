@@ -17,6 +17,22 @@ Every screen of the application was ported one-by-one in a screen-compare
 kept for backward compatibility and is progressively retired as each modern
 screen reaches full parity.
 
+- [FEATURE GAP] - #988: the modern Test Project Management screen lost the legacy
+  "Requirement Feature" quick toggle. The legacy list carried a dedicated column
+  (`gui/templates/dashio/project/projectView.tpl:92` + `:126-134`) whose only
+  content was a click-to-change `fa-toggle-on` / `fa-toggle-off` icon posting
+  `doAction=enableRequirements|disableRequirements`, which
+  `lib/project/projectEdit.php:87-88` routed to
+  `testproject::enableRequirements()` / `disableRequirements()`
+  (`lib/functions/testproject.class.php:3935-3951`) — flipping only
+  `requirementsEnabled` and logging no event. The modern screen could reach the
+  flag only through the edit modal. Restored as a new BFF route
+  `POST /api/projects/<id>/requirements` (same manager methods, so no spurious
+  `audit_testproject_saved` on every click) plus the non-sortable,
+  unfilterable column in `gui/templates/projectsView.html`, with the legacy
+  active/inactive click-to-change tooltips and 4 new i18n keys in all 10
+  locale bundles.
+
 - [FEATURE GAP] - #1621: the modern Assign Test Project Roles screen no longer
   offers assignment controls to a user who cannot assign anything. The legacy
   template wrapped the WHOLE form — Test Project combo, "Set roles to" combo,
