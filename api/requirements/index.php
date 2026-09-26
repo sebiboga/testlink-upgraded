@@ -777,6 +777,43 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'view') {
     $modifiedNever = is_null($cur['modification_ts'])
         || $cur['modification_ts'] == '0000-00-00 00:00:00';
 
+    // -------------------------------------------------------------------
+    // Per-version attachments (Refs #1297)
+    // legacy reqView.php:198-209 builds $gui->attachments[version_id] for
+    // EVERY version in the shown set, rendered by
+    // reqViewVersions.tpl:440-445 (latest version) and :509-513 (per
+    // "Other Versions"). Attachments are bound to the requirement VERSION,
+    // not the requirement doc (requirement_mgr.class.php:68
+    // attachmentTableName = 'req_versions'), so the current version id is
+    // the fk_id. The modern screen shows one version at a time through its
+    // version <select> (each change re-reads /view), which yields the same
+    // per-version attachment set the legacy page rendered.
+    $reqMgrRight = $user->hasRight($db, 'mgt_modify_req', $resolvedTid);
+    $attEnabled = (bool)config_get('attachments')->enabled;
+    $attachments = [];
+    if ($attEnabled) {
+        $attTables = tlObjectWithDB::getDBTables(array('attachments'));
+        $attRows = $db->get_recordset(
+            "SELECT id, title, file_name, file_type, file_size, date_added " .
+            "FROM {$attTables['attachments']} " .
+            "WHERE fk_table = 'req_versions' AND fk_id = " . $curVersionId .
+            " ORDER BY id");
+        if (!is_null($attRows)) {
+            foreach ($attRows as $arow) {
+                $attachments[] = [
+                    'id'           => intval($arow['id']),
+                    'title'        => strval($arow['title'] ?? ''),
+                    'file_name'    => strval($arow['file_name'] ?? ''),
+                    'file_type'    => strval($arow['file_type'] ?? ''),
+                    'file_size'    => intval($arow['file_size'] ?? 0),
+                    'date_added'   => strval($arow['date_added'] ?? ''),
+                    'download_url' => '/api/attachments/index.php?action=download&id=' .
+                                      intval($arow['id']),
+                ];
+            }
+        }
+    }
+
     out([
         'status' => 'ok',
         'req_deleted' => false,
@@ -844,6 +881,17 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'view') {
         'coverage_pct' => $coveragePct,
         'relations' => $relList,
         'monitors' => $monitorsList,
+        // Refs #1297 - per-version attachment block. `download_only` mirrors
+        // legacy reqViewVersions.tpl:314-317: the upload form and the per-file
+        // delete icon (attachments.inc.tpl:104-110, :122-177) are rendered
+        // only when the user has req_mgmt AND the version is open; for the
+        // latest version that is the same flag, for the "Other Versions"
+        // include (reqViewVersions.tpl:511) the flag is that version's own
+        // frozen state - both collapse into the same expression here.
+        'attachments'          => $attachments,
+        'attachments_enabled'  => $attEnabled,
+        'attachments_max_size' => intval(TL_REPOSITORY_MAXFILESIZE),
+        'attachments_download_only' => (!$reqMgrRight || !intval($cur['is_open'])),
     ]);
 }
 

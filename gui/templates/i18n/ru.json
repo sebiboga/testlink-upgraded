@@ -4985,5 +4985,21 @@
   "kwedit.msgUpdated": "Ключевое слово обновлено.",
   "kwedit.msgDeleted": "Ключевое слово удалено.",
   "kwedit.msgLinked": "Ключевое слово создано и связано с тестовым случаем:",
-  "footers.keywordsEdit": "TestLink 2.0.1 - Управление ключевыми словами"
+  "footers.keywordsEdit": "TestLink 2.0.1 - Управление ключевыми словами",
+  "reqv.attachments": "Вложения",
+  "reqv.noAttachments": "Нет вложений для этой версии требования",
+  "reqv.attFeatureDisabled": "Функция вложений отключена в этой установке",
+  "reqv.attReadonly": "Только чтение: загрузка и удаление вложений требуют права Менеджер требований и открытой (не замороженной) версии",
+  "reqv.attDelete": "Удалить вложение",
+  "reqv.attDownload": "Скачать",
+  "reqv.attClickToGet": "Щёлкните, чтобы получить вложение",
+  "reqv.attTitle": "Заголовок вложения",
+  "reqv.attUpload": "Загрузить",
+  "reqv.attMaxSize": "Максимальный размер файла",
+  "reqv.attNoFile": "Выберите файл для загрузки",
+  "reqv.attUploadOk": "Вложение загружено",
+  "reqv.attUploadFail": "Не удалось загрузить вложение",
+  "reqv.attDeleteConfirm": "Удалить это вложение?",
+  "reqv.attDeleteOk": "Вложение удалено",
+  "reqv.attDeleteFail": "Не удалось удалить вложение"
 }

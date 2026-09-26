@@ -59,6 +59,19 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; }
 .cov-ic-del:hover { color: #e74c3c; }
 .cov-obsolete { color: #e67e22; cursor: help; }
 .cov-disabled { color: #999; }
+.att-row { display: flex; align-items: center; gap: 12px; padding: 9px 0; border-bottom: 1px solid #f0f0f0; }
+.att-row:last-child { border-bottom: none; }
+.att-row .icon { font-size: 20px; color: #e74c3c; width: 26px; text-align: center; }
+.att-row .info { flex: 1; }
+.att-row .info .fn { font-weight: 700; color: #22242a; }
+.att-row .info .meta { color: #999; font-size: 11px; }
+.att-del { background: #e74c3c; color: #fff; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 600; }
+.att-del:hover { background: #c0392b; }
+.att-upload { border-top: 1px dashed #e5e5e5; margin-top: 12px; padding-top: 12px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.att-upload input[type=file] { font-size: 12px; flex: 1; min-width: 180px; }
+.att-upload input[type=text] { font-size: 12px; flex: 1; min-width: 140px; }
+.att-upload .att-max { color: #999; font-size: 11px; width: 100%; }
+.att-readonly { color: #999; font-size: 11px; font-style: italic; }
 </style>
 </head>
 <body>
@@ -122,6 +135,17 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; }
   <div class="card" id="cfCard" style="display:none;">
     <div class="card-title"><i class="fa fa-tags"></i> <span data-i18n="reqv.customFields">Custom Fields</span></div>
     <div class="card-body"><div class="kv" id="vCF"></div></div>
+  </div>
+
+  <div class="card" id="attCard" style="display:none;">
+    <div class="card-title"><i class="fa fa-paperclip"></i> <span data-i18n="reqv.attachments">Attachments</span><span id="attVerChip" class="id-chip" style="margin-left:8px;"></span></div>
+    <div class="card-body">
+      <div id="attDisabledNote" class="cov-feedback" style="display:none;"><i class="fa fa-exclamation-triangle"></i> <span data-i18n="reqv.attFeatureDisabled"></span></div>
+      <div id="noAtt" class="empty-state" style="display:none;" data-i18n="reqv.noAttachments"></div>
+      <div id="attList"></div>
+      <div id="attReadonly" class="att-readonly" style="display:none;" data-i18n="reqv.attReadonly"></div>
+      <div id="attUpload" style="display:none;"></div>
+    </div>
   </div>
 
   <div class="card">
@@ -351,6 +375,7 @@ function loadView() {
     renderCoverage(r);
     renderRelations(r);
     renderMonitors(r);
+    renderAttachments(r);
     $('#footerText').text('TestLink 2.0.1 - ' + TLi18n.t('reqv.title') +
       ' | ' + TLi18n.t('common.generatedOn') + ' ' + new Date().toLocaleString());
   }).fail(function(xhr) {
@@ -1118,12 +1143,167 @@ function relErrText(xhr) {
   } catch (e) { return fallback; }
 }
 
+// ---------------------------------------------------------------------------
+// Per-version attachments (Refs #1297)
+// Port of the two legacy attachments.inc.tpl includes driven from
+// reqViewVersions.tpl: the latest-version block (:440-445) and the
+// per-"Other Versions" block (:509-513). The modern viewer shows one version
+// at a time in #versionSelect and re-reads /view on every change, so rendering
+// the attachment set of r.current.version_id reproduces both legacy blocks:
+//   - files are always downloadable (attachments.inc.tpl:78)
+//   - the per-file delete icon (attachments.inc.tpl:104-110) and the upload
+//     form (:122-177) only when attachments_download_only is false, i.e. the
+//     user has req_mgmt AND this version is open (reqViewVersions.tpl:314-317)
+//   - the "feature disabled" notice when config attachments.enabled is off
+//     (attachments.inc.tpl:52-56)
+// Uploads/deletes go through the shared attachments BFF with
+// fk_table='req_versions' and fk_id = the requirement version id
+// (requirement_mgr.class.php:68) - the same sink legacy
+// reqEdit.php?doAction=fileUpload / =deleteFile wrote to
+// (requirement_mgr.class.php:3498-3525).
+// ---------------------------------------------------------------------------
+var ATT_API = '/api/attachments/index.php';
+var MAX_ATT_SIZE = 0;
+
+function renderAttachments(r) {
+  var enabled = (r.attachments_enabled !== false);
+  var atts = r.attachments || [];
+  // legacy attachments.inc.tpl:59 only renders the block when the feature is
+  // enabled AND (there are files OR the upload button is available).
+  var canManage = !r.attachments_download_only;
+  if (!enabled) {
+    $('#attDisabledNote').show();
+  } else {
+    $('#attDisabledNote').hide();
+  }
+  if (!enabled && !atts.length && !canManage) {
+    $('#attCard').hide();
+    return;
+  }
+  $('#attCard').show();
+  $('#attVerChip').text(r.current ? (TLi18n.t('reqv.version') + ' ' + r.current.version) : '');
+  if (atts.length) { $('#noAtt').hide(); } else { $('#noAtt').show(); }
+  var out = '';
+  $.each(atts, function(i, a) {
+    out += '<div class="att-row"><div class="icon"><i class="fa fa-file-o"></i></div>' +
+      '<div class="info"><div class="fn">' + escapeHtml(a.title || a.file_name) + '</div>' +
+      '<div class="meta">' + escapeHtml(a.file_name) + ' · ' + fmtSize(a.file_size) +
+      ' · ' + escapeHtml(a.file_type) + ' · ' + fmtTs(a.date_added) + '</div></div>';
+    if (canManage) {
+      // legacy attachments.inc.tpl:104-110 - delete_confirmation + jsCallDeleteFile
+      out += '<button type="button" class="att-del" title="' + TLi18n.t('reqv.attDelete') +
+        '" onclick="deleteAttachment(' + a.id + ')"><i class="fa fa-trash"></i></button>';
+    }
+    out += '<a class="btn-teal" style="text-decoration:none;font-size:12px;padding:5px 12px;" ' +
+      'title="' + TLi18n.t('reqv.attClickToGet') + '" href="' + escapeHtml(a.download_url) +
+      '" target="_blank"><i class="fa fa-download"></i> ' + TLi18n.t('reqv.attDownload') + '</a></div>';
+  });
+  $('#attList').html(out);
+  if (enabled && !canManage && atts.length) {
+    $('#attReadonly').show();
+  } else {
+    $('#attReadonly').hide();
+  }
+  renderAttachmentUpload(enabled && canManage, r.attachments_max_size);
+}
+
+// Upload control - legacy attachments.inc.tpl:121-177 (multipart form with
+// uploadedFile + attachment title, guarded by checkFileSize() against
+// $gui->import_limit = TL_REPOSITORY_MAXFILESIZE).
+function renderAttachmentUpload(canManage, maxSize) {
+  MAX_ATT_SIZE = Number(maxSize) || 0;
+  if (!canManage) { $('#attUpload').hide().empty(); return; }
+  var html = '<div class="att-upload">' +
+    '<input type="file" id="attFile" name="uploadedFile">' +
+    '<input type="text" id="attTitle" maxlength="250" data-i18n-placeholder="reqv.attTitle" ' +
+      'placeholder="' + TLi18n.t('reqv.attTitle') + '">' +
+    '<button type="button" class="btn-teal" id="attUploadBtn" onclick="uploadAttachment()">' +
+      '<i class="fa fa-upload"></i> ' + TLi18n.t('reqv.attUpload') + '</button>' +
+    '<div class="att-max">' + TLi18n.t('reqv.attMaxSize') + ': ' +
+      escapeHtml(fmtSize(maxSize || 0)) + '</div>' +
+    '</div>';
+  $('#attUpload').html(html).show();
+}
+
+function uploadAttachment() {
+  var fileInput = $('#attFile')[0];
+  if (!fileInput || !fileInput.files || !fileInput.files.length) {
+    showToast(TLi18n.t('reqv.attNoFile'), false);
+    return;
+  }
+  // legacy attachments.inc.tpl checkFileSize() - refuse over-limit files client
+  // side (the BFF re-checks against TL_REPOSITORY_MAXFILESIZE).
+  if (MAX_ATT_SIZE > 0 && fileInput.files[0].size > MAX_ATT_SIZE) {
+    showToast(TLi18n.t('reqv.attMaxSize') + ': ' + fmtSize(max), false);
+    return;
+  }
+  var title = $.trim($('#attTitle').val() || '') || fileInput.files[0].name;
+  var fd = new FormData();
+  fd.append('action', 'upload');
+  fd.append('table', 'req_versions');
+  fd.append('id', VERSION_ID);
+  fd.append('title', title);
+  fd.append('uploadedFile[]', fileInput.files[0]);
+  $('#attUploadBtn').prop('disabled', true);
+  $.ajax({
+    url: ATT_API, method: 'POST', data: fd,
+    processData: false, contentType: false, dataType: 'json'
+  }).done(function(res) {
+    $('#attUploadBtn').prop('disabled', false);
+    if (res.status !== 'ok' || !res.uploaded || (res.errors && res.errors.length)) {
+      var msg = (res.errors && res.errors.length) ? res.errors.join('; ')
+                                                  : (res.message || '');
+      showToast(TLi18n.t('reqv.attUploadFail') + (msg ? ' ' + msg : ''), false);
+      return;
+    }
+    showToast(TLi18n.t('reqv.attUploadOk'), true);
+    $('#attFile').val('');
+    $('#attTitle').val('');
+    loadView();
+  }).fail(function(xhr) {
+    $('#attUploadBtn').prop('disabled', false);
+    var msg = TLi18n.t('reqv.attUploadFail');
+    try { var b = JSON.parse(xhr.responseText); msg = b.message || msg; } catch(e) {}
+    showToast(msg, false);
+  });
+}
+
+// Mirrors legacy jsCallDeleteFile (attachments.inc.tpl:104-110 + inc_del_onclick):
+// confirm, then delete the attachment bound to this version and re-render.
+function deleteAttachment(id) {
+  if (!window.confirm(TLi18n.t('reqv.attDeleteConfirm'))) return;
+  var fd = new FormData();
+  fd.append('action', 'delete');
+  fd.append('table', 'req_versions');
+  fd.append('id', VERSION_ID);
+  fd.append('file_id', id);
+  $.ajax({
+    url: ATT_API, method: 'POST', data: fd,
+    processData: false, contentType: false, dataType: 'json'
+  }).done(function(res) {
+    if (res.status !== 'ok') {
+      showToast(res.message || TLi18n.t('reqv.attDeleteFail'), false);
+      return;
+    }
+    showToast(TLi18n.t('reqv.attDeleteOk'), true);
+    loadView();
+  }).fail(function() {
+    showToast(TLi18n.t('reqv.attDeleteFail'), false);
+  });
+}
+
+function fmtSize(bytes) {
+  var b = Number(bytes) || 0;
+  if (b < 1024) return b + ' B';
+  if (b < 1048576) return (b / 1024).toFixed(1) + ' KB';
+  return (b / 1048576).toFixed(2) + ' MB';
+}
+
 function renderMonitors(r) {
   if (monitorsTable) { monitorsTable.destroy(); monitorsTable = null; }
   if (!(r.grant && r.grant.monitor_req)) {
     $('#monitorsCard').hide();
-    return;
-  }
+    return;  }
   var list = r.monitors || [];
   if (!list.length) {
     $('#noMonitors').show();

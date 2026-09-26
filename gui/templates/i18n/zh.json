@@ -4965,5 +4965,21 @@
   "kwedit.msgUpdated": "Keyword updated.",
   "kwedit.msgDeleted": "Keyword deleted.",
   "kwedit.msgLinked": "Keyword created and linked to the test case:",
-  "footers.keywordsEdit": "TestLink 2.0.1 - Keyword Management"
+  "footers.keywordsEdit": "TestLink 2.0.1 - Keyword Management",
+  "reqv.attachments": "附件",
+  "reqv.noAttachments": "此需求版本没有附件",
+  "reqv.attFeatureDisabled": "此安装已禁用附件功能",
+  "reqv.attReadonly": "只读：上传和删除附件需要需求管理员权限以及已打开（未冻结）的版本",
+  "reqv.attDelete": "删除附件",
+  "reqv.attDownload": "下载",
+  "reqv.attClickToGet": "点击获取附件",
+  "reqv.attTitle": "附件标题",
+  "reqv.attUpload": "上传",
+  "reqv.attMaxSize": "最大文件大小",
+  "reqv.attNoFile": "请选择要上传的文件",
+  "reqv.attUploadOk": "附件已上传",
+  "reqv.attUploadFail": "附件上传失败",
+  "reqv.attDeleteConfirm": "删除此附件？",
+  "reqv.attDeleteOk": "附件已删除",
+  "reqv.attDeleteFail": "附件删除失败"
 }

@@ -22285,3 +22285,43 @@ create-and-link). Bugs found: **#1600** (fatal 500 on every keyword create error
 `testproject::addKeyword()` called the removed `tlKeyword::getErrorMessage()`; plus
 `tlKeyword::getError()` returned `E_NAMENOTALLOWED` for `E_NAMELENGTH` and had no
 `default`), fixed in commit `aaec569ad`.
+
+---
+
+## Task — Issue #1297: reqView.html per-version attachments section
+
+**Precondition** — fresh DB: testproject 1 (`TL1`) → req_spec 1 → requirement doc 2
+(`REQ-1`) with 2 versions: `req_versions.id=3` (v1, `is_open=0` = FROZEN) and
+`id=4` (v2, `is_open=1` = latest/open). One real attachment per version
+(`attachments.fk_table='req_versions'`, `fk_id` = version id, files under
+`upload_area/req_versions/<fk_id>/…`). Login admin/admin (role 8).
+Screen: `http://localhost:8082/gui/templates/requirements/reqView.html?id=2&tproject_id=1`
+
+| # | Step | Expected | Actual | Result |
+|---|------|----------|--------|--------|
+| 1 | `grep -c attach gui/templates/requirements/reqView.html` before the fix | 0 (feature absent) | 0 | PASS (gap reproduced) |
+| 2 | `GET /api/requirements/index.php/view?id=2&tproject_id=1` before the fix | no `attachments` key | `'attachments' in j === false` | PASS (gap reproduced) |
+| 3 | open the screen (latest version v2) after the fix | `Attachments` card between Scope and Linked Test Cases, one row per file | card list = Overview, Scope, Custom Fields, **Attachments (Version 2)**, Linked Test Cases, Monitors, Relations; 1 row `spec v2 notes / tl_v2_spec.txt · 22 B · text/plain` | PASS |
+| 4 | inspect the row of the open version (admin has `mgt_modify_req`) | download link + delete icon + upload form (legacy `downloadOnly=false`) | `upload:true`, `del` count 1, `Max file size: 1.00 MB` | PASS |
+| 5 | switch to version 1 (`&version_id=3`, frozen) | per-version attachment of THAT version, download-only, no delete, no upload, read-only note | 1 row `spec v1 notes / tl_v1_spec.txt`, `upload:false`, `del:0`, `readonly:true`, chip `Version 1` | PASS |
+| 6 | click Download on both versions | `GET /api/attachments/index.php?action=download&id=N` → 200 + real content | id1 → 200 `attachment body for v2`, id2 → 200 `attachment body for v1`, id3/id4 (real uploads) → 200 | PASS |
+| 7 | choose a file + title, click Upload (open version) | new row appears, toast "Attachment uploaded", inputs cleared | 3 rows after, toast `Attachment uploaded` | PASS |
+| 8 | click the delete icon of a file (confirm accepted) | row removed, toast "Attachment deleted" | rows 3 → 2, toast `Attachment deleted` | PASS |
+| 9 | click Upload with no file selected | refuse, toast "Please choose a file to upload" | toast shown, no request fired | PASS |
+| 10 | POST `/api/attachments` with `table=req_versions` before the allowlist fix | would be rejected | `400 {"message":"Invalid attachment table"}` | FAIL → fixed (see below) |
+| 11 | same POST after adding `req_versions` to `$KNOWN_TABLES` | `status:ok, uploaded:1` | `{"status":"ok","message":"1 file(s) uploaded","uploaded":1}` | PASS |
+| 12 | `POST` delete with a `file_id` belonging to another version | 404 (legacy-hardened: attachment must belong to the given fk_id) | `404 Attachment not found for this object` | PASS |
+| 13 | locale switcher EN↔RO on the card | no raw `reqv.att*` keys | labels translated in both | PASS |
+| 14 | `php -l api/requirements/index.php`, `php -l api/attachments/index.php`, `python3 -m json.tool` on 10 bundles | no errors | all clean | PASS |
+| 15 | Event Viewer after the suite | no new Error/Warning rows | none | PASS |
+
+**Fixture gotcha (not a product bug)**: hand-seeded `attachments` rows need
+`file_path` = full relative path INCLUDING the file name and
+`compression_type = 1` (`TL_REPOSITORY_COMPRESSIONTYPE_NONE`);
+`getAttachmentContentFromFS()` (`tlAttachmentRepository.class.php:390-410`)
+switches on `compression_type` and returns null (→ HTTP 404) for 0. Files
+written by a real upload always carry 1, so uploads/downloads are unaffected.
+
+**Evidence**: `docs/screenshots/issue-1297-reqview-attachments.png` (open version,
+upload + delete visible) and `docs/screenshots/issue-1297-reqview-attachments-frozen.png`
+(frozen version, read-only).

@@ -4985,5 +4985,21 @@
   "kwedit.msgUpdated": "Keyword updated.",
   "kwedit.msgDeleted": "Keyword deleted.",
   "kwedit.msgLinked": "Keyword created and linked to the test case:",
-  "footers.keywordsEdit": "TestLink 2.0.1 - Keyword Management"
+  "footers.keywordsEdit": "TestLink 2.0.1 - Keyword Management",
+  "reqv.attachments": "添付ファイル",
+  "reqv.noAttachments": "この要件バージョンには添付ファイルがありません",
+  "reqv.attFeatureDisabled": "このインストールでは添付ファイル機能が無効です",
+  "reqv.attReadonly": "読み取り専用：添付ファイルのアップロードと削除には要件マネージャ権限とオープン（非凍結）バージョンが必要です",
+  "reqv.attDelete": "添付ファイルを削除",
+  "reqv.attDownload": "ダウンロード",
+  "reqv.attClickToGet": "クリックして添付ファイルを取得",
+  "reqv.attTitle": "添付ファイルのタイトル",
+  "reqv.attUpload": "アップロード",
+  "reqv.attMaxSize": "最大ファイルサイズ",
+  "reqv.attNoFile": "アップロードするファイルを選択してください",
+  "reqv.attUploadOk": "添付ファイルをアップロードしました",
+  "reqv.attUploadFail": "添付ファイルのアップロードに失敗しました",
+  "reqv.attDeleteConfirm": "この添付ファイルを削除しますか？",
+  "reqv.attDeleteOk": "添付ファイルを削除しました",
+  "reqv.attDeleteFail": "添付ファイルの削除に失敗しました"
 }

@@ -4995,5 +4995,21 @@
   "kwedit.msgUpdated": "Keyword updated.",
   "kwedit.msgDeleted": "Keyword deleted.",
   "kwedit.msgLinked": "Keyword created and linked to the test case:",
-  "footers.keywordsEdit": "TestLink 2.0.1 - Keyword Management"
+  "footers.keywordsEdit": "TestLink 2.0.1 - Keyword Management",
+  "reqv.attachments": "Attachments",
+  "reqv.noAttachments": "No attachments for this requirement version",
+  "reqv.attFeatureDisabled": "The attachments feature is disabled for this installation",
+  "reqv.attReadonly": "Read-only: uploading and deleting attachments requires the Requirement Manager right and an open (not frozen) version",
+  "reqv.attDelete": "Delete attachment",
+  "reqv.attDownload": "Download",
+  "reqv.attClickToGet": "Click to get the attachment",
+  "reqv.attTitle": "Attachment title",
+  "reqv.attUpload": "Upload",
+  "reqv.attMaxSize": "Max file size",
+  "reqv.attNoFile": "Please choose a file to upload",
+  "reqv.attUploadOk": "Attachment uploaded",
+  "reqv.attUploadFail": "Attachment upload failed",
+  "reqv.attDeleteConfirm": "Delete this attachment?",
+  "reqv.attDeleteOk": "Attachment deleted",
+  "reqv.attDeleteFail": "Attachment delete failed"
 }

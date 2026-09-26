@@ -4979,5 +4979,21 @@
   "kwedit.msgUpdated": "Schlüsselwort aktualisiert.",
   "kwedit.msgDeleted": "Schlüsselwort gelöscht.",
   "kwedit.msgLinked": "Schlüsselwort angelegt und mit dem Testfall verknüpft:",
-  "footers.keywordsEdit": "TestLink 2.0.1 - Schlüsselwortverwaltung"
+  "footers.keywordsEdit": "TestLink 2.0.1 - Schlüsselwortverwaltung",
+  "reqv.attachments": "Anhänge",
+  "reqv.noAttachments": "Keine Anhänge für diese Anforderungsversion",
+  "reqv.attFeatureDisabled": "Die Anhänge-Funktion ist in dieser Installation deaktiviert",
+  "reqv.attReadonly": "Nur lesen: Anhänge hochladen und löschen erfordert das Recht Anforderungsmanager und eine offene (nicht eingefrorene) Version",
+  "reqv.attDelete": "Anhang löschen",
+  "reqv.attDownload": "Herunterladen",
+  "reqv.attClickToGet": "Klicken, um den Anhang zu holen",
+  "reqv.attTitle": "Anhangstitel",
+  "reqv.attUpload": "Hochladen",
+  "reqv.attMaxSize": "Maximale Dateigröße",
+  "reqv.attNoFile": "Bitte eine Datei zum Hochladen wählen",
+  "reqv.attUploadOk": "Anhang hochgeladen",
+  "reqv.attUploadFail": "Hochladen des Anhangs fehlgeschlagen",
+  "reqv.attDeleteConfirm": "Diesen Anhang löschen?",
+  "reqv.attDeleteOk": "Anhang gelöscht",
+  "reqv.attDeleteFail": "Löschen des Anhangs fehlgeschlagen"
 }
