@@ -23253,12 +23253,29 @@ Before the fix the header was `Last Name` over `Ann Designer`.
 
 **Result: 14 PASS / 0 FAIL** (row #4 is the pre-fix baseline, not a test of the fix).
 
+**How much each row actually proves (read before over-reading the 14/14).**
+
+- **Row #4 is the only row that proves the key swap.** Rows #1/#2 (and the
+  screenshots) were taken in `en`, where the pre-fix hard-coded fallback was
+  already the literal `Name` — so in `en` alone, header text cannot tell the
+  fixed page from the broken one. Rows #5-#7 assert header text that
+  `TLi18n.apply()` derives from the bundle, so they verify the *bundle value +
+  the wiring*, which together are what changed. Row #5 (`de`) is the single
+  strongest assertion: there `user.lastName` is `Nachname` and
+  `user.fullName` is `Name`, so only a correctly-rebound header can pass.
+- The grid is **console-driven** (`loadUsers(1)`) because of the empty-project
+  fixture described above; it is not the normal end-user path.
+- Rows #10-#12 verify the bundle layer, not the DOM; row #8 verifies that the
+  deliberately-untouched screen did NOT move.
+
 **Gotchas recorded for the next agent**
 
 - **`fr` and `ro` cannot visually detect this bug**: in both languages the
   surname word and the plain "Name" word are the same string (`Nom` / `Nume`).
-  Use **`de`** (or `en` / `ru`) when you need an assertion that actually
-  distinguishes `user.fullName` from `user.lastName`.
+  This is why the fix uses the explicit `Nom complet` / `Nume complet` in those
+  two bundles — with the plain forms the bug was still present there, merely
+  invisible. Use **`de`** (or `en` / `ru`) when you need an assertion that
+  actually distinguishes `user.fullName` from `user.lastName`.
 - `user.lastName` is NOT globally wrong — `usersView.html:107,150` uses it
   correctly for a genuine Last Name column. Only the two fused-name headers
   (`usersAssignProject.html:86`, `usersAssignPlan.html:88`) were mis-bound; a
@@ -23266,7 +23283,9 @@ Before the fix the header was `Last Name` over `Ann Designer`.
 - Setting the locale is done via `localStorage.setItem('tl_locale','<loc>')`
   (see `gui/templates/i18n/i18n.js:28`) followed by a full page reload — the
   bundle is fetched once at load, not re-read per render.
-- `tmp/` is gitignored, so the fixtures of this suite stay local by convention.
+- `tmp/` is gitignored (`.gitignore:47`), so any NEW fixture file you drop in
+  there stays local; this suite file itself is force-tracked and does live in
+  the repo.
 
 **Screenshots:** `docs/screenshots/issue-1630-before.png` (header "Last Name")
 and `docs/screenshots/issue-1630-after.png` (header "Name", same cells).
