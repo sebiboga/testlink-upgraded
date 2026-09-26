@@ -5059,7 +5059,6 @@
   "kwxml.uploadError": "Impossibile caricare il file - potrebbe essere più grande di quanto il server accetti.",
   "pimp.title": "Importa piattaforme",
   "pimp.header": "Importa piattaforme",
-  "pimp.inProject": "nel progetto di test",
   "pimp.testProject": "Progetto di test",
   "pimp.testPlan": "Piano di test",
   "pimp.noPlan": "Nessun piano di test nel contesto",
@@ -5106,5 +5105,6 @@
   "pimp.errUpload": "Caricamento del file non riuscito.",
   "pimp.errServer": "Non è stato possibile completare l'importazione. Riprova.",
   "pimp.errUnknown": "Azione richiesta sconosciuta.",
+  "pimp.errMethod": "Questa operazione non è consentita per questo tipo di richiesta.",
   "footers.platformsImport": "TestLink 2.0.1 - Importa piattaforme"
 }

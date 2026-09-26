@@ -5065,7 +5065,6 @@
   "kwxml.uploadError": "Não foi possível enviar o ficheiro - pode ser maior do que o servidor aceita.",
   "pimp.title": "Importar plataformas",
   "pimp.header": "Importar plataformas",
-  "pimp.inProject": "no projeto de teste",
   "pimp.testProject": "Projeto de teste",
   "pimp.testPlan": "Plano de teste",
   "pimp.noPlan": "Nenhum plano de teste no contexto",
@@ -5112,5 +5111,6 @@
   "pimp.errUpload": "O carregamento do ficheiro falhou.",
   "pimp.errServer": "Não foi possível concluir a importação. Tente novamente.",
   "pimp.errUnknown": "Ação solicitada desconhecida.",
+  "pimp.errMethod": "Esta operação não é permitida para este tipo de pedido.",
   "footers.platformsImport": "TestLink 2.0.1 - Importar plataformas"
 }

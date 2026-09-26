@@ -5045,7 +5045,6 @@
   "kwxml.uploadError": "无法上传文件 - 可能超过了服务器允许的大小。",
   "pimp.title": "导入平台",
   "pimp.header": "导入平台",
-  "pimp.inProject": "在测试项目中",
   "pimp.testProject": "测试项目",
   "pimp.testPlan": "测试计划",
   "pimp.noPlan": "上下文中无测试计划",
@@ -5092,5 +5091,6 @@
   "pimp.errUpload": "文件上传失败。",
   "pimp.errServer": "无法完成导入，请重试。",
   "pimp.errUnknown": "请求了未知操作。",
+  "pimp.errMethod": "此请求类型不允许该操作。",
   "footers.platformsImport": "TestLink 2.0.1 - 导入平台"
 }

@@ -5075,7 +5075,6 @@
   "kwxml.uploadError": "The file could not be uploaded - it may be larger than the server accepts.",
   "pimp.title": "Import Platforms",
   "pimp.header": "Import Platforms",
-  "pimp.inProject": "in test project",
   "pimp.testProject": "Test Project",
   "pimp.testPlan": "Test Plan",
   "pimp.noPlan": "No test plan in context",
@@ -5122,5 +5121,6 @@
   "pimp.errUpload": "The file upload failed.",
   "pimp.errServer": "The import could not be completed. Please try again.",
   "pimp.errUnknown": "Unknown action requested.",
+  "pimp.errMethod": "This operation is not allowed for this request type.",
   "footers.platformsImport": "TestLink 2.0.1 - Import Platforms"
 }

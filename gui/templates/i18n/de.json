@@ -5059,7 +5059,6 @@
   "kwxml.uploadError": "Die Datei konnte nicht hochgeladen werden - sie ist evtl. größer als der Server erlaubt.",
   "pimp.title": "Plattformen importieren",
   "pimp.header": "Plattformen importieren",
-  "pimp.inProject": "im Testprojekt",
   "pimp.testProject": "Testprojekt",
   "pimp.testPlan": "Testplan",
   "pimp.noPlan": "Kein Testplan im Kontext",
@@ -5106,5 +5105,6 @@
   "pimp.errUpload": "Der Datei-Upload ist fehlgeschlagen.",
   "pimp.errServer": "Der Import konnte nicht abgeschlossen werden. Bitte erneut versuchen.",
   "pimp.errUnknown": "Unbekannte Aktion angefordert.",
+  "pimp.errMethod": "Dieser Vorgang ist für diesen Anfragetyp nicht zulässig.",
   "footers.platformsImport": "TestLink 2.0.1 - Plattformen importieren"
 }

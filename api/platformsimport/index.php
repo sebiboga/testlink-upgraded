@@ -220,7 +220,7 @@ function pimPlatformMgr($db, $tprojectId)
 // ---------------------------------------------------------------------------
 if ($action === 'init') {
     if ($method !== 'GET') {
-        pimJson(405, array('status' => 'error', 'message' => 'Method not allowed'));
+        pimJson(405, array('status' => 'error', 'error_code' => 'METHOD_NOT_ALLOWED', 'message' => 'Method not allowed'));
     }
     $tprojectId = pimProjectId();
     $project = pimProject($db, $tprojectId);
@@ -245,8 +245,12 @@ if ($action === 'init') {
         // Legacy $gui->importTypes: XML is the only supported serialization.
         'import_types' => array('XML'),
         'import_limit_bytes' => intval(config_get('import_file_max_size_bytes')),
+        // PARTIAL_URL_TL_FILE_FORMATS_DOCUMENT is a partial path
+        // ('docs/tl-file-formats.pdf'); legacy prefixed it with $basehref.
+        // It must be ROOT-relative here, otherwise the browser resolves it
+        // against the current screen directory and the link 404s.
         'file_formats_doc' => defined('PARTIAL_URL_TL_FILE_FORMATS_DOCUMENT')
-            ? constant('PARTIAL_URL_TL_FILE_FORMATS_DOCUMENT') : '',
+            ? '/' . ltrim((string)constant('PARTIAL_URL_TL_FILE_FORMATS_DOCUMENT'), '/') : '',
         'grants' => array(
             'platform_management' => pimCanManage($db, $user, $tprojectId),
         ),
@@ -258,7 +262,7 @@ if ($action === 'init') {
 // ---------------------------------------------------------------------------
 if ($action === 'import') {
     if ($method !== 'POST') {
-        pimJson(405, array('status' => 'error', 'message' => 'Method not allowed'));
+        pimJson(405, array('status' => 'error', 'error_code' => 'METHOD_NOT_ALLOWED', 'message' => 'Method not allowed'));
     }
     $tprojectId = pimProjectId();
     $tplanId = pimTplanId();
@@ -406,12 +410,9 @@ if ($action === 'import') {
         try {
             if (isset($platformsOnSystem[$name])) {
                 // Legacy: lang_get('platform_updated')
-                $mgr->update($platformsOnSystem[$name]['id'], $name, $notes, $onDesign, $onExec, $isOpen);
+                $mgr->update(intval($platformsOnSystem[$name]['id']), $name, $notes, $onDesign, $onExec, $isOpen);
                 $updated++;
                 $ok[] = array('code' => 'UPDATED', 'name' => $name);
-                // Keep the in-memory map in sync so a file listing the same
-                // name twice reports the 2nd node as updated, not imported.
-                $platformsOnSystem[$name]['id'] = $platformsOnSystem[$name]['id'];
             } else {
                 // Legacy: lang_get('platform_imported')
                 $item = new stdClass();
@@ -420,10 +421,21 @@ if ($action === 'import') {
                 $item->enable_on_design = $onDesign;
                 $item->enable_on_execution = $onExec;
                 $item->is_open = $isOpen;
-                $mgr->create($item);
+                $created = $mgr->create($item);
+                // create() reports failures in its return value (duplicate name,
+                // DB error) instead of throwing: honour it, otherwise a platform
+                // that was never written would be reported as imported.
+                if (!is_array($created) || !isset($created['status'])
+                    || intval($created['status']) !== intval(tl::OK)
+                    || intval($created['id']) <= 0) {
+                    $ko[] = array('code' => 'IMPORT_FAILED', 'name' => $name);
+                    continue;
+                }
                 $imported++;
                 $ok[] = array('code' => 'IMPORTED', 'name' => $name);
-                $platformsOnSystem[$name] = array('id' => 0, 'name' => $name);
+                // Record the *real* new id: a file listing the same platform name
+                // twice must update the row just created, not id 0.
+                $platformsOnSystem[$name] = array('id' => intval($created['id']), 'name' => $name);
             }
         } catch (Throwable $e) {
             $ko[] = array('code' => 'IMPORT_FAILED', 'name' => $name);

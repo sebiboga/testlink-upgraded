@@ -226,6 +226,7 @@ function errorFor(r) {
     case 'UPLOAD_ERR_CANT_WRITE':  return t('pimp.errCantWrite');
     case 'UPLOAD_ERR_EXTENSION':   return t('pimp.errExtension');
     case 'UNKNOWN_ACTION':    return t('pimp.errUnknown');
+    case 'METHOD_NOT_ALLOWED': return t('pimp.errMethod');
     case 'DATABASE_UNAVAILABLE':
     case 'SERVER_ERROR':       return t('pimp.errServer');
   }
@@ -302,9 +303,12 @@ function load() {
   $.getJSON(API + '?action=init&tproject_id=' + tprojectId +
              (tplanId > 0 ? '&tplan_id=' + tplanId : ''))
     .done(function (r) {
-      busy(false);
-      if (!r || r.status !== 'ok') { showState(t('pimp.errServer'), true); return; }
+      if (!r || r.status !== 'ok') { busy(false); showState(t('pimp.errServer'), true); return; }
+      // Assign canManage BEFORE busy(): busy(false) re-enables Upload only when
+      // the grant is already known, so calling it first left the button
+      // permanently disabled for holders of platform_management.
       canManage = !!r.grants.platform_management;
+      busy(false);
 
       $('#headerProject').text(r.tproject.name);
       $('#toolbarProject').text(r.tproject.name);

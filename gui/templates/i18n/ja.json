@@ -5065,7 +5065,6 @@
   "kwxml.uploadError": "ファイルをアップロードできませんでした - サーバーが許可するサイズを超えている可能性があります。",
   "pimp.title": "プラットフォームのインポート",
   "pimp.header": "プラットフォームのインポート",
-  "pimp.inProject": "テストプロジェクト内",
   "pimp.testProject": "テストプロジェクト",
   "pimp.testPlan": "テスト計画",
   "pimp.noPlan": "コンテキストにテスト計画なし",
@@ -5112,5 +5111,6 @@
   "pimp.errUpload": "ファイルのアップロードに失敗しました。",
   "pimp.errServer": "インポートを完了できませんでした。もう一度お試しください。",
   "pimp.errUnknown": "不明な操作が要求されました。",
+  "pimp.errMethod": "このリクエストタイプではこの操作は許可されていません。",
   "footers.platformsImport": "TestLink 2.0.1 - プラットフォームのインポート"
 }

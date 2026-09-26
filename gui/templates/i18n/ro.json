@@ -5069,7 +5069,6 @@
   "kwxml.uploadError": "Fișierul nu a putut fi încărcat - poate fi mai mare decât acceptă serverul.",
   "pimp.title": "Import platforme",
   "pimp.header": "Import platforme",
-  "pimp.inProject": "în proiectul de test",
   "pimp.testProject": "Proiect de test",
   "pimp.testPlan": "Plan de test",
   "pimp.noPlan": "Niciun plan de test în context",
@@ -5116,5 +5115,6 @@
   "pimp.errUpload": "Încărcarea fișierului a eșuat.",
   "pimp.errServer": "Importul nu a putut fi finalizat. Încercați din nou.",
   "pimp.errUnknown": "Acțiune cerută necunoscută.",
+  "pimp.errMethod": "Această operațiune nu este permisă pentru acest tip de cerere.",
   "footers.platformsImport": "TestLink 2.0.1 - Import platforme"
 }

@@ -5059,7 +5059,6 @@
   "kwxml.uploadError": "Le fichier n'a pas pu être envoyé - il est peut-être trop volumineux pour le serveur.",
   "pimp.title": "Importer des plateformes",
   "pimp.header": "Importer des plateformes",
-  "pimp.inProject": "dans le projet de test",
   "pimp.testProject": "Projet de test",
   "pimp.testPlan": "Plan de test",
   "pimp.noPlan": "Aucun plan de test dans le contexte",
@@ -5106,5 +5105,6 @@
   "pimp.errUpload": "Le téléversement du fichier a échoué.",
   "pimp.errServer": "L'import n'a pas pu être effectué. Veuillez réessayer.",
   "pimp.errUnknown": "Action demandée inconnue.",
+  "pimp.errMethod": "Cette opération n'est pas autorisée pour ce type de requête.",
   "footers.platformsImport": "TestLink 2.0.1 - Importer des plateformes"
 }
