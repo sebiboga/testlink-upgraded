@@ -1424,6 +1424,7 @@
   "ltcpl.errMissingParams": "SSylka ne soderzhit ni klyucha API, ni ssylki na testovyj sluchay.",
   "ltcpl.errMissingTestcase": "SSylka ne soderzhit ssylki na testovyj sluchay.",
   "ltcpl.errNoRights": "Vashi prava ne pozvolyayut etu operaciyu v dannom proekte testov.",
+  "ltcpl.errSessionExpired": "Vasha sessiya istekla. Vojдите v sistemu znovu i otkroyte ssylku.",
   "ltcpl.errTestcaseNotFound": "Testovyj sluchay ne sushchestvuet ili udalyon.",
   "ltcpl.errUnauthenticated": "Vy ne avtorizovany i ssylka ne soderzhit klyuch API.",
   "ltcpl.errUnknownPrefix": "Prefiks v ssylke ne sootvetstvuet ni odnomu proektu testov.",

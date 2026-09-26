@@ -5768,7 +5768,7 @@ Changes:
   with external id / name / suite / version / project, clickable version pills to switch version
   without editing the link, print-screen URL, access-denied + not-found + error state cards that
   carry the legacy `LTCP-0x` marker, TLi18n locale switcher) + BFF `api/tcprintlaunch/index.php`.
-- All 6 legacy resolution branches are ported: `LTCP-01` bad API key (400/403), `LTCP-02` malformed
+- All 7 legacy resolution outcomes (6 failure modes + the OK branch) are ported: `LTCP-01` bad API key (400/403), `LTCP-02` malformed
   external id (400), `LTCP-03` unknown project prefix (404), `LTCP-04` no `mgt_view_tc` (403),
   `LTCP-05` unresolvable test case (404) and the legacy empty-body `die()` for a missing version
   (404) — the machine code and the `legacy_code` marker are both returned so every old outcome is

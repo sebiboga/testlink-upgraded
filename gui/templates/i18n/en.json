@@ -1424,6 +1424,7 @@
   "ltcpl.errMissingParams": "The link carries neither an API key nor a test case reference.",
   "ltcpl.errMissingTestcase": "The link does not carry a test case reference.",
   "ltcpl.errNoRights": "Your rights do not allow this operation on that test project.",
+  "ltcpl.errSessionExpired": "Your session has expired. Please log in and open the link again.",
   "ltcpl.errTestcaseNotFound": "The test case does not exist or was deleted.",
   "ltcpl.errUnauthenticated": "You are not logged in and the link carries no API key.",
   "ltcpl.errUnknownPrefix": "The prefix in the test case reference does not match any test project.",

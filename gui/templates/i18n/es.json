@@ -1424,6 +1424,7 @@
   "ltcpl.errMissingParams": "El enlace no lleva clave API ni referencia a un caso de prueba.",
   "ltcpl.errMissingTestcase": "El enlace no lleva ninguna referencia a un caso de prueba.",
   "ltcpl.errNoRights": "Sus permisos no permiten esta operacion en ese proyecto de pruebas.",
+  "ltcpl.errSessionExpired": "Tu sesion ha expirado. Inicia sesion de nuevo y vuelve a abrir el enlace.",
   "ltcpl.errTestcaseNotFound": "El caso de prueba no existe o ha sido eliminado.",
   "ltcpl.errUnauthenticated": "No ha iniciado sesion y el enlace no lleva clave API.",
   "ltcpl.errUnknownPrefix": "El prefijo de la referencia no corresponde a ningun proyecto de pruebas.",

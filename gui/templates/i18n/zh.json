@@ -1424,6 +1424,7 @@
   "ltcpl.errMissingParams": "该链接既不包含 API 密钥，也不包含测试用例引用。",
   "ltcpl.errMissingTestcase": "链接中没有测试用例引用。",
   "ltcpl.errNoRights": "您的权限不允许在该测试项目上执行此操作。",
+  "ltcpl.errSessionExpired": "您的会话已过期。请重新登录并再次打开该链接。",
   "ltcpl.errTestcaseNotFound": "测试用例不存在或已被删除。",
   "ltcpl.errUnauthenticated": "您未登录，且该链接不包含 API 密钥。",
   "ltcpl.errUnknownPrefix": "引用中的前缀不匹配任何测试项目。",

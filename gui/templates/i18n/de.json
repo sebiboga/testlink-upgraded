@@ -1424,6 +1424,7 @@
   "ltcpl.errMissingParams": "Der Link enthaelt weder einen API-Schluessel noch einen Test-Case-Verweis.",
   "ltcpl.errMissingTestcase": "Der Link enthaelt keinen Test-Case-Verweis.",
   "ltcpl.errNoRights": "Ihre Rechte erlauben diese Operation in diesem Testprojekt nicht.",
+  "ltcpl.errSessionExpired": "Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an und offnen Sie den Link.",
   "ltcpl.errTestcaseNotFound": "Der Test Case existiert nicht oder wurde geloescht.",
   "ltcpl.errUnauthenticated": "Sie sind nicht angemeldet und der Link enthaelt keinen API-Schluessel.",
   "ltcpl.errUnknownPrefix": "Das Praefix im Verweis passt zu keinem Testprojekt.",

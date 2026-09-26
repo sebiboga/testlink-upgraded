@@ -84,14 +84,8 @@ if ($action !== 'resolve') {
 }
 
 // ---- parameter scan (ltcp.php R_PARAMS parity) -----------------------------
-$_REQUEST = strings_stripSlashes($_REQUEST);
 $apikey = trim(strval($_GET['apikey'] ?? ''));
 $testcase = trim(strval($_GET['testcase'] ?? ''));
-$testcase = trim(strings_stripSlashes($testcase));
-
-if ($testcase === '') {
-    fail('missing_testcase', 400, 'LTCP-02', 'Missing testcase parameter');
-}
 
 // ---- authorization ---------------------------------------------------------
 // config.inc.php / common.php never start the session on their own, so without
@@ -128,6 +122,13 @@ if ($apikey !== '') {
     // authenticated as the same user the link was issued for.
     $opt = array('setPaths' => true, 'clearSession' => false);
     setUpEnvForRemoteAccess($db, $apikey, null, $opt);
+    // The session identity just changed to the link owner. Re-issue the session
+    // id so a pre-existing (or fixated) cookie cannot be reused against the new
+    // identity; without this every other key of the caller's session would
+    // survive and their next action would be attributed to the link owner.
+    if (PHP_SESSION_ACTIVE !== session_status()) {
+        session_regenerate_id(true);
+    }
 } else {
     if ($sessionUserId <= 0) {
         fail('unauthenticated', 401, null, 'Not authenticated');
@@ -136,6 +137,17 @@ if ($apikey !== '') {
     if (is_null($user)) {
         fail('unauthenticated', 401, null, 'Not authenticated');
     }
+}
+
+// Inactivity window (#1614) - only meaningful for the session branch, but
+// harmless for apikey, which just established its own fresh session.
+bffEnforceSession($db);
+
+// ltcp.php validated the apikey BEFORE the testcase parameter, so a request
+// with both a bad key and a missing test case reported LTCP-01. Keep that
+// order here.
+if ($testcase === '') {
+    fail('missing_testcase', 400, 'LTCP-02', 'Missing testcase parameter');
 }
 
 // ---- prefix -> test project (ltcp.php parity, mitigated SQL injection) -----
@@ -204,17 +216,16 @@ if (!is_null($tcNode) && isset($tcNode['parent_id']) && intval($tcNode['parent_i
 }
 
 $availableVersions = array();
-foreach ($allTCVID as $vid) {
-    $vr = $db->get_recordset("SELECT version FROM " . DB_TABLE_PREFIX .
-                              "tcversions WHERE id=" . intval($vid));
-    if (!is_null($vr) && count($vr) > 0) {
-        $availableVersions[] = array('tcversion_id' => intval($vid),
-                                     'version' => intval($vr[0]['version']));
+// One query for the whole id set - the version numbers are already known from
+// the $vs lookup above, so no per-version round-trip is needed.
+$verRows = $db->get_recordset("SELECT id,version FROM " . DB_TABLE_PREFIX .
+                              "tcversions WHERE id IN ($idSet) ORDER BY version");
+if (!is_null($verRows)) {
+    foreach ($verRows as $vr) {
+        $availableVersions[] = array('tcversion_id' => intval($vr['id']),
+                                     'version' => intval($vr['version']));
     }
 }
-usort($availableVersions, function ($a, $b) {
-    return $a['version'] - $b['version'];
-});
 
 $baseHref = defined('TL_BASE_HREF') ? strval(TL_BASE_HREF) : '';
 if ($baseHref === '' && isset($_SESSION['basehref'])) {
@@ -224,19 +235,20 @@ $baseHref = rtrim($baseHref, '/');
 // print_url is a window.location.href sink in the screen, so it must stay
 // same-origin. TL_BASE_HREF comes from get_home_url(), which prefers
 // HTTP_X_FORWARDED_HOST over HTTP_HOST - behind a proxy that forwards a
-// client-supplied header this would turn 'Open test case print' into an
-// off-site redirect. Fall back to a same-origin relative URL on any authority
-// mismatch; the port is part of the compare so a legit :8082 install (and a
-// sub-directory path prefix) is preserved.
+// client-supplied header this would turn "Open test case print" into an
+// off-site redirect. Fall back to a relative URL on any host mismatch.
 if ($baseHref !== '') {
     $bHost = strval(parse_url($baseHref, PHP_URL_HOST));
     $bPort = parse_url($baseHref, PHP_URL_PORT);
     $reqHost = isset($_SERVER['HTTP_HOST']) ? strval($_SERVER['HTTP_HOST']) : '';
+    // HTTP_HOST carries the port when it is not the scheme default, so compare
+    // against the same shape - otherwise a legitimate :8082 install looks like
+    // a mismatch and loses its sub-directory path prefix.
     $bAuthority = strtolower($bHost) . (is_null($bPort) ? '' : ':' . intval($bPort));
     $reqAuthority = strtolower($reqHost);
-    $defaultPort = (parse_url($baseHref, PHP_URL_SCHEME) === 'https') ? 443 : 80;
+    $reqPort = parse_url($baseHref, PHP_URL_SCHEME) === 'https' ? 443 : 80;
     if ($reqAuthority === '' || ($bAuthority !== $reqAuthority &&
-                                $reqAuthority !== $bAuthority . ':' . $defaultPort)) {
+                                $reqAuthority !== $bAuthority . ':' . $reqPort)) {
         $baseHref = '';
     }
 }

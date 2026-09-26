@@ -1424,6 +1424,7 @@
   "ltcpl.errMissingParams": "リンクにAPIキーもテストケース参照もありません。",
   "ltcpl.errMissingTestcase": "リンクにテストケースの参照がありません。",
   "ltcpl.errNoRights": "そのテストプロジェクトで操作する権限がありません。",
+  "ltcpl.errSessionExpired": "セッションの有効期限が切れました。再度ログインしてリンクを開いてください。",
   "ltcpl.errTestcaseNotFound": "テストケースが存在しないか、削除されました。",
   "ltcpl.errUnauthenticated": "ログインしておらず、リンクにもAPIキーがありません。",
   "ltcpl.errUnknownPrefix": "参照の接頭辞がどのテストプロジェクトにも一致しません。",

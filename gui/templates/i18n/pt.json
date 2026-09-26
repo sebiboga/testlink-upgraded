@@ -1424,6 +1424,7 @@
   "ltcpl.errMissingParams": "O link nao traz chave API nem referencia a um caso de teste.",
   "ltcpl.errMissingTestcase": "O link nao traz nenhuma referencia a um caso de teste.",
   "ltcpl.errNoRights": "Seus direitos nao permitem esta operacao nesse projeto de testes.",
+  "ltcpl.errSessionExpired": "A sua sessao expirou. Inicie sessao novamente e reabra a ligacao.",
   "ltcpl.errTestcaseNotFound": "O caso de teste nao existe ou foi excluido.",
   "ltcpl.errUnauthenticated": "Voce nao esta conectado e o link nao traz chave API.",
   "ltcpl.errUnknownPrefix": "O prefixo da referencia nao corresponde a nenhum projeto de testes.",

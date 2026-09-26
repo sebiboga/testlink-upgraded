@@ -29,6 +29,10 @@
 require_once('config.inc.php');
 require_once('reports.cfg.php');
 require_once('common.php');
+// keeps legacy parity: bounce an uninstalled instance to the installer
+// instead of failing with a raw PHP fatal (legacy ltcp.php lines 19-20)
+require_once('lib/functions/configCheck.php');
+checkConfiguration();
 
 // strip any control characters that could poison a Location header
 $qs = isset($_SERVER['QUERY_STRING']) ? $_SERVER['QUERY_STRING'] : '';

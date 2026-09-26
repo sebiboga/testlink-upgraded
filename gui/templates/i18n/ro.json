@@ -1424,6 +1424,7 @@
   "ltcpl.errMissingParams": "Linkul nu contine nici cheie API, nici referinta la un test case.",
   "ltcpl.errMissingTestcase": "Linkul nu contine o referinta la un test case.",
   "ltcpl.errNoRights": "Drepturile tale nu permit aceasta operatiune pe proiectul de test respectiv.",
+  "ltcpl.errSessionExpired": "Sesiunea ta a expirat. Te rugam sa te loghezi din nou si sa deschizi linkul.",
   "ltcpl.errTestcaseNotFound": "Test case-ul nu exista sau a fost sters.",
   "ltcpl.errUnauthenticated": "Nu esti conectat si linkul nu contine o cheie API.",
   "ltcpl.errUnknownPrefix": "Prefixul din referinta test case-ului nu corespunde niciunui proiect de test.",

@@ -73,6 +73,8 @@ table.lpinfo td { color: #333; font-size: 13px; padding: 8px 0; word-break: brea
 }
 .vpill.active { background: #4ECDC4; border-color: #3fbdb5; color: #14302e; font-weight: 700; }
 .vpill:hover { border-color: #4ECDC4; }
+.vpill:focus { outline: 2px solid #14302e; outline-offset: 2px; }
+.vpill:focus-visible { outline: 2px solid #14302e; outline-offset: 2px; }
 
 .link-box {
   font-family: 'Courier New', monospace; font-size: 12px; color: #444;
@@ -140,25 +142,25 @@ table.lpinfo td { color: #333; font-size: 13px; padding: 8px 0; word-break: brea
   </div>
 </div>
 
-<div class="loading" id="loadingBox" style="display:none;">
+<div class="loading" id="loadingBox" role="status" aria-live="polite" style="display:none;">
   <i class="fa fa-spinner fa-spin"></i> <span data-i18n="ltcpl.resolving">Resolving the share link…</span>
 </div>
 
-<div class="state-box state-denied" id="deniedBox" style="display:none;">
+<div class="state-box state-denied" id="deniedBox" role="status" aria-live="polite" style="display:none;">
   <i class="fa fa-lock"></i>
   <h3 data-i18n="ltcpl.deniedTitle">Access denied</h3>
   <p id="deniedMsg"></p>
   <div class="code"><span class="legacy-tag" id="deniedCode"></span></div>
 </div>
 
-<div class="state-box state-notfound" id="notFoundBox" style="display:none;">
+<div class="state-box state-notfound" id="notFoundBox" role="status" aria-live="polite" style="display:none;">
   <i class="fa fa-search-minus"></i>
   <h3 data-i18n="ltcpl.notFoundTitle">Test case not found</h3>
   <p id="notFoundMsg"></p>
   <div class="code"><span class="legacy-tag" id="notFoundCode"></span></div>
 </div>
 
-<div class="state-box state-error" id="errorBox" style="display:none;">
+<div class="state-box state-error" id="errorBox" role="status" aria-live="polite" style="display:none;">
   <i class="fa fa-exclamation-triangle"></i>
   <h3 data-i18n="common.error">Error</h3>
   <p id="errorMsg"></p>
@@ -180,7 +182,6 @@ var API = '/api/tcprintlaunch/index.php';
 var qs = new URLSearchParams(window.location.search);
 var apikey = qs.get('apikey') || '';
 var externalId = qs.get('testcase') || '';
-var payload = null;
 
 function row(labelKey, value) {
   return '<tr><th>' + esc(TLi18n.t(labelKey)) + '</th><td>' + value + '</td></tr>';
@@ -216,10 +217,6 @@ function showError(msg, legacyCode) {
   $('#errorBox').show();
 }
 
-function legacyTag(code) {
-  return code ? ' <span class="legacy-tag">' + esc(code) + '</span>' : '';
-}
-
 function renderResult(r) {
   var tc = r.testcase || {};
   var html = '';
@@ -239,9 +236,15 @@ function renderResult(r) {
   $('#verPills').html(pills);
   var $p = $('#verPills');
   versions.forEach(function (v) {
-    var $p2 = $('<span class="vpill"></span>');
+    var $p2 = $('<span class="vpill" role="button" tabindex="0"></span>');
     $p2.text(TLi18n.t('ltcpl.versionLabel') + ' ' + v.version);
     if (parseInt(v.version, 10) === parseInt(tc.version, 10)) { $p2.addClass('active'); }
+    $p2.on('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
+        e.preventDefault();
+        $(this).trigger('click');
+      }
+    });
     $p2.on('click', function () {
       var next = (tc.prefix || '') + '-' +
         String(tc.external_id || '').split('-').slice(1).join('-') + '-' + v.version;
@@ -302,16 +305,16 @@ function resolve() {
 
 function handleResult(r) {
   if (r && r.status === 'ok') {
-    payload = r;
     renderResult(r);
     return;
   }
   var code = r ? r.code : 'unknown';
   var msg = (r && r.code) ? localizeMessage(r) : TLi18n.t('ltcpl.errGeneric');
-  if (code === 'no_rights' || code === 'bad_apikey' || code === 'unauthenticated') {
+  if (code === 'no_rights' || code === 'bad_apikey' || code === 'unauthenticated' ||
+      code === 'session_expired') {
     showDenied(msg, r ? r.legacy_code : '');
   } else if (code === 'testcase_not_found' || code === 'version_not_found' ||
-             code === 'unknown_prefix') {
+             code === 'unknown_prefix' || code === 'missing_testcase') {
     showNotFound(msg, r ? r.legacy_code : '');
   } else {
     showError(msg, r ? r.legacy_code : '');
@@ -328,6 +331,7 @@ var ERRKEYS = {
   testcase_not_found: 'ltcpl.errTestcaseNotFound',
   version_not_found: 'ltcpl.errVersionNotFound',
   unauthenticated: 'ltcpl.errUnauthenticated',
+  session_expired: 'ltcpl.errSessionExpired',
   unknown_action: 'ltcpl.errGeneric',
   method_not_allowed: 'ltcpl.errGeneric'
 };
@@ -339,6 +343,7 @@ function localizeMessage(r) {
 
 $(function () {
   TLi18n.load(function () {
+  document.title = TLi18n.t('ltcpl.title');
     TLi18n.apply();
     TLi18n.initLocaleSwitcher('#localeSwitcher');
     $('#btnClose').on('click', function () { window.close(); });
