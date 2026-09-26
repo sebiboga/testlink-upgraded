@@ -99,7 +99,7 @@ var warning_delete_attachment = "{lang_get s='warning_delete_attachment'}";
 
         {if !$attach_downloadOnly}
           <a href="javascript:delete_confirmation({$info.id},'{$info.file_name|escape:'javascript'|escape}',
-          '{$del_msgbox_title|escape:'javascript'|escape}','{$warning_msg|escape:'javascript'|escape}',jsCallDeleteFile);">
+          '{$del_msgbox_title|escape:'javascript'|escape}','{$warning_msg|escape:'javascript'|escape}',function(b,t,i){deleteAttachment_onClick(b,t,i,'{$attach_tableName|escape:'javascript'|escape}','{$attach_id}');});">
             <span style="border:none;" title="{$labels.alt_delete_attachment}">{$tlImages.delete}</span></a>
         {/if}
         {if isset($gui->showExternalAccessString) && $gui->showExternalAccessString}
