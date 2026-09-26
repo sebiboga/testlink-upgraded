@@ -20,7 +20,17 @@
  *
  * Legacy parity (lib/platforms/platformsImport.php):
  *   - testlinkInitPage($db,false,false,"checkRights") with
- *     checkRights() = $user->hasRightOnProj($db,"platform_management")
+ *     checkRights() = $user->hasRightOnProj($db,"platform_management"),
+ *     so the legacy page hard-blocked *every* request -- the page view and the
+ *     upload alike -- for anyone without platform_management, and logged
+ *     audit_security_user_right_missing before dying (checkUserRightsFor(),
+ *     lib/functions/common.php:1010-1032)
+ *   - the modern split is: init needs platform_view (or platform_management),
+ *     import needs platform_management. A plain viewer therefore reaches the
+ *     screen in a disabled/read-only state instead of a dead page, while a user
+ *     with neither right still gets 403 and no project name / platform count.
+ *     Every 403 writes the audit event legacy produced, because a JSON BFF
+ *     cannot redirect home the way the legacy page did.
  *   - tproject_id must resolve to a real test project (init_args threw otherwise)
  *   - form fields: importType (XML only), targetFilename (file),
  *     MAX_FILE_SIZE = config_get('import_file_max_size_bytes'), doAction
@@ -210,6 +220,29 @@ function pimCanManage($db, $user, $tprojectId)
     return $user->hasRight($db, 'platform_management', $tprojectId);
 }
 
+function pimCanView($db, $user, $tprojectId)
+{
+    return $user->hasRight($db, 'platform_view', $tprojectId)
+        || $user->hasRight($db, 'platform_management', $tprojectId);
+}
+
+/**
+ * Trailed into the Event Viewer BEFORE a denial is served, the same trace
+ * legacy produced through checkUserRightsFor()
+ * (lib/functions/common.php:1010-1032). A JSON BFF cannot redirect home the
+ * way the legacy page did, so without this the attempt leaves no record.
+ * Same convention as api/issuetracker and api/codetracker.
+ */
+function pimAuditDenied($db, $user, $action)
+{
+    logAuditEvent(
+        TLS('audit_security_user_right_missing', $user->login, basename($_SERVER['PHP_SELF']), $action),
+        'IMPORT',
+        $user->dbID,
+        'users'
+    );
+}
+
 function pimPlatformMgr($db, $tprojectId)
 {
     return new tlPlatform($db, $tprojectId);
@@ -224,6 +257,21 @@ if ($action === 'init') {
     }
     $tprojectId = pimProjectId();
     $project = pimProject($db, $tprojectId);
+
+    // Legacy gated the page on platform_management only (checkRights()), which
+    // also locked out plain platform_view holders. The modern screen lets a
+    // viewer read the criteria in a disabled state, but a user with neither
+    // right gets no project name and no platform count: that gate is what the
+    // view right exists for, and dropping it would leak data the legacy page
+    // never showed them.
+    if (!pimCanView($db, $user, $tprojectId)) {
+        pimAuditDenied($db, $user, 'view');
+        pimJson(403, array(
+            'status' => 'error',
+            'error_code' => 'NO_RIGHTS',
+            'message' => 'No permission to view platforms on this test project',
+        ));
+    }
 
     $mgr = pimPlatformMgr($db, $tprojectId);
     $platforms = $mgr->getAllAsMap(array(
@@ -269,6 +317,7 @@ if ($action === 'import') {
     pimProject($db, $tprojectId);
 
     if (!pimCanManage($db, $user, $tprojectId)) {
+        pimAuditDenied($db, $user, 'import');
         pimJson(403, array(
             'status' => 'error',
             'error_code' => 'NO_RIGHTS',
