@@ -23559,3 +23559,59 @@ pre-fix baseline 4 FAIL / exit 1.**
 **Screenshots:** none attached — the defect is invisible in the UI (it only ever
 appeared in the Event Viewer), so the evidence is the `events`-table counts recorded
 above. Browser pass is documented in row #17.
+
+---
+
+## Suite 1636 — Regression: dead second import path on `api/platforms/index.php` (Issue #1636)
+
+**Screen:** `gui/templates/platforms/platformsView.html` + `gui/templates/platforms/platformsImport.html`
+**API:** `api/platforms/index.php` (branch removed) · `api/platformsimport/index.php` (canonical)
+**Fix commit:** `7202a16f6` on `fix/issue-1636`
+
+### Preconditions (DB is freshly imported each run — recreate)
+
+```sql
+INSERT INTO testprojects (id,prefix,active,notes,color,option_reqs,option_priority,
+  option_automation,options,tc_counter,is_public,api_key)
+VALUES (1,'T1',1,'repro','#9BD',0,0,0,'',0,1,'k1f1be2a3c4d5e6f708192a3b4c5d6e7f80912a3b4c5d6e7f8091a2b3c4d5e6f');
+INSERT INTO nodes_hierarchy (id,name,parent_id,node_type_id,node_order)
+VALUES (1,'Repro Project T1',0,1,0);   -- platformsimport joins nodes_hierarchy
+```
+Fixtures `pimp_good.xml` (1 valid `<platform>` + 1 nameless) and `pimp_broken.xml`
+(unterminated tag). Session: `POST /api/auth/login` `{admin,admin}` → cookie jar.
+
+### Pre-fix behaviour (reproduced, see the issue's INVESTIGATION comment)
+
+| Call | Pre-fix answer |
+|---|---|
+| `POST /api/platforms/index.php/import` + good XML | `200 {"status":"ok","imported":1,"updated":0,"skipped":1}` — **it really imports** |
+| `POST /api/platforms/index.php/import` + malformed XML | `200` + **raw HTML** `Please give this text to your TestLink Administrator<br> - Failed to load XML<br>…` |
+| `POST /api/platforms/index.php?action=import` (URL from the issue body) | `400 Invalid test project id` — never reached the branch; the router uses path segments |
+| Caller census | **0** callers of the route anywhere in the repo |
+
+### Expected post-fix behaviour
+
+Importing is served by exactly one implementation (`api/platformsimport/index.php`); the old
+route stops importing and answers the pre-existing JSON 404; every other route of
+`api/platforms/index.php` is untouched.
+
+### Results
+
+| # | Case | Expected | Observed | Verdict |
+|---|---|---|---|---|
+| R1 | old route + good XML | no import, JSON error | `404 {"status":"error","message":"Not found"}`; `count(*) from platforms` unchanged | PASS |
+| R2 | old route + malformed XML | no raw HTML, no 200-on-error | `404 {"status":"error","message":"Not found"}` | PASS |
+| R3 | canonical + good XML | full `ok[]`/`ko[]`/`imported_total` contract, 200 | `200 {"imported_total":1,"ok":[{"code":"UPDATED",…}],"ko":[{"code":"BAD_LINE","name":""}]}` | PASS |
+| R4 | canonical + malformed XML | 422 `WRONG_FORMAT` + `xml_errors[]` | `422 {"error_code":"WRONG_FORMAT","xml_errors":[{"line":3,…}]}` | PASS |
+| R5 | canonical as `platform_view`-only user `r5viewer` | 403, no write | `403 {"error_code":"NO_RIGHTS",…}`; old route `404`; platforms unchanged | PASS |
+| R6 | list/create/update/flags/delete on the same file | unchanged | `GET /` 200 + items+rights; `POST /` 200 `id:2`; `PUT /1` 200; `PUT /1/flags {field:is_open,value:0}` 200 and `is_open`→0 in DB; `DELETE /2` 200 | PASS |
+| R7 | `GET`/`POST /assign` | unchanged | `200 {"rights":{"canAssign":true},…}` | PASS |
+| R8 | no session | 401 | `401 {"message":"Not authenticated"}` | PASS |
+| R9 | `GET /export` | unchanged XML | full `<platforms><platform><name><![CDATA[…]]>` document, 200 (proves dropping the `xml.inc.php` require is safe) | PASS |
+| R10 | browser: Platforms Management + Import screen | renders, imports, no console error | Platform Management `Platform Management(1)`, 0 console messages; Import screen uploaded `pimp_ui.xml` → `Imported: 1 / Updated: 0 / Skipped: 1 / Platforms now: 2`, per-line `Imported UI_FIXTURE_1` + `Skipped (line skipped: no name element)`, 0 console messages | PASS |
+| R11 | `php -l api/platforms/index.php` | no syntax errors | `No syntax errors detected` | PASS |
+| R12 | `events` table | no new Error/Warning | 3 rows only, all `log_level=16` (audit INFO): 2 × `audit_login_succeeded` + 1 × `audit_security_user_right_missing` (the R5 403, legacy-parity audit) | PASS |
+
+**13/13 PASS** (12 matrix rows + the pre-fix reproduction). Screenshots:
+`docs/screenshots/issue-1636-platforms-view.png`,
+`docs/screenshots/issue-1636-import-result.png`.

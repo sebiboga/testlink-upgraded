@@ -5,20 +5,22 @@
  * Plain PHP, no framework, no compilation
  *
  * Mirrors lib/platforms/platformsView.php + platformsEdit.php +
- * platformsExport.php + platformsImport.php (TestLink 1.9.20 behavior).
+ * platformsExport.php (TestLink 1.9.20 behavior).
  *
  * Rights split (same as the legacy screens):
  *   view   -> platform_view OR platform_management
  *   manage -> platform_management
  *
  * Scope: view/CRUD/flags/assign/export only. Importing platforms is NOT served
- * here - the single canonical implementation lives in api/platformsimport/index.php
- * (POST ?action=import), which the Import button of gui/templates/platforms/
- * platformsView.html reaches through gui/templates/platforms/platformsImport.html.
+ * here - the single canonical implementation is api/platformsimport/index.php
+ * (POST ?action=import), reached from the Import button of platformsView.html,
+ * which opens gui/templates/platforms/platformsImport.html.
  * The former POST /import branch here had no caller left and was the weaker of the
  * two implementations (raw HTML + HTTP 200 on a parse error, 422 instead of 413 for
  * TOO_LARGE, create() return status discarded); it was removed so exactly one import
- * path exists to audit. Refs #1636.
+ * path exists to audit. A same-origin XHR POST to the old path now falls through to
+ * the JSON 404 at the end of this file; a cross-origin POST is refused earlier with
+ * 403 by bffSameOriginGuard(). Refs #1636.
  */
 
 require_once(__DIR__ . '/../../config.inc.php');

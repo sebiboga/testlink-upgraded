@@ -5847,7 +5847,7 @@ Changes:
       project tables and added user metrics to the middle section
 
 ## 2.0.1 (in-progress)
-### Bugfix — one canonical platform import path (Refs #1636)
+### Key bugfix — one canonical platform import path (Refs #1636)
 - Removed the caller-less second import implementation, `POST /import` on
   `api/platforms/index.php` (and the `lib/functions/xml.inc.php` require that only it needed). The
   Import Platforms modernization (#1632) moved the UI to
