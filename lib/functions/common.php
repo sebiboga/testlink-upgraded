@@ -1951,6 +1951,15 @@ function getActions(&$gui,$baseURL) {
   // export flow, mgt_modify_key for the import flow) is enforced per action by
   // the BFF api/keywordsxml.
   $actions->keywordsExport = "/gui/templates/keywords/keywordsExport.html?{$ctx}";
+  // Attachment Delete popup, modernized in Refs #1638. The legacy controller
+  // lib/attachments/attachmentdelete.php (+ dashio/attachments/attachmentdelete.tpl,
+  // which deleted the file on a plain GET) is now a session-guarded 302 shim
+  // onto this popup; deleteAttachment_onClick() in
+  // gui/javascript/testlink_library.js and the inc_attachments.tpl callers open
+  // it with ?id=&table=&fk_id= so the BFF can prove the attachment belongs to
+  // the object in context. The legacy rights gate
+  // (config_get('attachments')->enabled) lives in api/attachmentsdelete.
+  $actions->attachmentDelete = "/gui/templates/attachments/attachmentDelete.html?{$ctx}";
   $actions->platformsView = "/gui/templates/platforms/platformsView.html?{$ctx}";
   $actions->platformsExport = "/gui/templates/platforms/platformsExport.html?{$ctx}";
   // Import Platforms screen - Refs #1632. Replaces lib/platforms/platformsImport.php

@@ -211,7 +211,8 @@ function doDelete() {
       }
       hideAll();
       $('#infoBox').html(stateBox('ok', 'fa fa-check-circle', TLi18n.t('adel.okTitle'), TLi18n.t('adel.okText'), r.legacy_code || ''));
-      try { if (typeof opener !== 'undefined' && opener && !opener.closed) { opener.TLrefreshAttachments(); } } catch (e) { /* ignore */ }
+      // the attachment list popup (attachmentUpload.html) defines a global refresh()
+      try { if (typeof opener !== 'undefined' && opener && !opener.closed && typeof opener.refresh === 'function') { opener.refresh(); } } catch (e) { /* ignore */ }
       try { if (!standalone) { setTimeout(function () { window.close(); }, 1200); } } catch (e) { /* ignore */ }
     })
     .fail(function (xhr) {

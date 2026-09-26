@@ -1,62 +1,47 @@
 <?php
 /**
- * TestLink Open Source Project - http://testlink.sourceforge.net/ 
- * This script is distributed under the GNU General Public License 2 or later. 
+ * TestLink Open Source Project - http://testlink.sourceforge.net/
+ * This script is distributed under the GNU General Public License 2 or later.
  *
  * @filesource  attachmentdelete.php
- * Deletes an attachment by a given id
- */
+ *
+ * 2.0.1.shim - Refs #1638: the legacy Smarty Attachment Delete popup
+ * (gui/templates/dashio/attachments/attachmentdelete.tpl) was replaced by the
+ * modern Dashio popup gui/templates/attachments/attachmentDelete.html + the
+ * api/attachmentsdelete BFF. This controller is kept as a session-guarded
+ * redirect shim so old deep links resolve: anonymous users are sent to the
+ * login screen (legacy testlinkInitPage behaviour) and authenticated users
+ * land on the modern popup with the attachment id (and the owning object, when
+ * the legacy caller supplied it) forwarded.
+ *
+ * Note the legacy page deleted the attachment as a side effect of a plain GET,
+ * so simply opening this URL removed a file. The shim never mutates anything:
+ * deletion now requires an explicit POST to the BFF behind
+ * bffSameOriginGuard(), and the popup makes the user confirm it.
+ *
+ * The rights gate (config_get('attachments')->enabled, legacy checkRights())
+ * plus the attachment ownership proof live in the BFF.
+**/
 require_once('../../config.inc.php');
 require_once('../functions/common.php');
-require_once('../functions/attachments.inc.php');
-testlinkInitPage($db,false,false,"checkRights");
 
-$args = init_args();  
-$deleteDone = false;
-if ($args->id)
-{
-  $attachmentRepository = tlAttachmentRepository::create($db);
-  $attachmentInfo = $attachmentRepository->getAttachmentInfo($args->id);
-  if ($attachmentInfo && checkAttachmentID($db,$args->id,$attachmentInfo))
-  {
-    $deleteDone = $attachmentRepository->deleteAttachment($args->id,$attachmentInfo);
-    if ($deleteDone)
-    {
-      logAuditEvent(TLS("audit_attachment_deleted",
-                    $attachmentInfo['title']),"DELETE",$args->id,"attachments");
-    } 
-  }
+// Anonymous -> login (same contract as the legacy testlinkInitPage call).
+testlinkInitPage($db, FALSE, false, null, true);
+
+$id = isset($_REQUEST['id']) && is_scalar($_REQUEST['id'])
+    ? intval($_REQUEST['id']) : 0;
+$table = isset($_REQUEST['table']) && is_scalar($_REQUEST['table'])
+    ? trim((string) $_REQUEST['table']) : '';
+$fkId = isset($_REQUEST['fk_id']) && is_scalar($_REQUEST['fk_id'])
+    ? intval($_REQUEST['fk_id']) : 0;
+
+$url = $_SESSION['basehref'] . 'gui/templates/attachments/attachmentDelete.html';
+$url .= '?id=' . $id;
+if ($table !== '') {
+    $url .= '&table=' . rawurlencode($table);
+    $url .= '&fk_id=' . $fkId;
 }
-
-$smarty = new TLSmarty();
-$smarty->assign('bDeleted',$deleteDone);
-$smarty->display('attachmentdelete.tpl');
-
-
-/**
- * @return object returns the arguments for the page
- */
-function init_args()
-{
-  //the id (attachments.id) of the attachment to be deleted
-  $iParams = array(
-    "id" => array(tlInputParameter::INT_N),
-  );
-  $args = new stdClass();
-  G_PARAMS($iParams,$args);
-  
-  return $args;
-}
-
-
-/**
- * @param $db resource the database connection handle
- * @param $user the current active user
- * 
- * @return boolean returns true if the page can be accessed
- */
-function checkRights(&$db,&$user)
-{
-  return (config_get("attachments")->enabled);
-}
-?>
+$url .= '&tproject_id=' .
+    intval($_SESSION['testprojectID'] ?? 0);
+header('Location: ' . $url);
+exit;

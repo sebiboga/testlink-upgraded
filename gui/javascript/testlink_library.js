@@ -466,13 +466,19 @@ function openFileUploadWindow(id,tableName) {
   returns:
 
 */
-function deleteAttachment_onClick(btn,txt,id)
+function deleteAttachment_onClick(btn,txt,id,table,fkId)
 {
   if (btn == 'yes')
   {
-    var windowCfg="width=510,height=150,resizable=yes,dependent=yes";
-    window.open(fRoot+"lib/attachments/attachmentdelete.php?id="+id,
-                "Delete",windowCfg);
+    // Refs #1638: modern Attachment Delete popup (Dashio) + api/attachmentsdelete.
+    // table/fkId are the owning object, used by the BFF to prove that the
+    // attachment really belongs to the object the user is working on.
+    var windowCfg="width=680,height=520,resizable=yes,dependent=yes";
+    var url = fRoot+"gui/templates/attachments/attachmentDelete.html?id="+
+              encodeURIComponent(id);
+    if (table) { url += "&table=" + encodeURIComponent(table); }
+    if (fkId) { url += "&fk_id=" + encodeURIComponent(fkId); }
+    window.open(url,"Delete",windowCfg);
   } 
 }
 

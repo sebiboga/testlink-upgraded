@@ -160,8 +160,8 @@ Ext.onReady(function() {
  */
 function jsCallDeleteFile(btn, text, o_id) { 
   if( btn == 'yes' ) {
-    var windowCfg="width=510,height=150,resizable=yes,dependent=yes";
-    window.open(fRoot+"lib/attachments/attachmentdelete.php?id="+o_id,
+    var windowCfg="width=680,height=520,resizable=yes,dependent=yes";
+    window.open(fRoot+"gui/templates/attachments/attachmentDelete.html?id="+o_id,
                 "Delete",windowCfg);
   }
 }        
