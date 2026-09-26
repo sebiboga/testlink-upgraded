@@ -41,6 +41,22 @@ screen reaches full parity.
   search box is now the DataTables global search (`dom:'lrtip'`, no duplicate
   filter box) and row rendering moved to the DataTable `data:` API so the grid
   survives the destroy/re-init performed after every create/edit/toggle/delete.
+- [FEATURE GAP] - #987: the modern Test Project Management list
+  (`gui/templates/projectsView.html`) restores the two legacy list decorations
+  that the modernization dropped: the **Notes column** (legacy
+  `projectView.tpl:88` header `{$labels.th_notes}` and the cell at `:113-115`,
+  which renders the project description with `nl2br` when the project editor is
+  `none`) and the **REST API id tooltip** on the name cell (legacy
+  `projectView.tpl:104`, `fa-cubes` icon titled `API {tlCfg->api->id_format}`,
+  i.e. `API testproject/<id>`). The Notes cell is inserted after Project Name,
+  preserves newlines with `white-space: pre-line` (the `nl2br` equivalent),
+  clamps to 2 lines with the full text in the cell `title`, renders `-` when the
+  project has no notes, and is HTML-escaped (legacy trusted the DB, the modern
+  list escapes). It is sortable and carries a per-column filter box like the
+  legacy `{#SMART_SEARCH#}` columns. The BFF needed no change:
+  `api/projects/index.php:88,115` already selects `tp.notes` and returns it as
+  `description`. Header colspan 7 -> 8 and the DataTables `columnDefs` action
+  target 6 -> 7 were realigned. New i18n key `proj.notes` in all 10 locales.
 - [SCREEN] - #1615: the legacy keyword exchange popups `lib/keywords/keywordsExport.php` + `lib/keywords/keywordsImport.php` are modernized into the standalone Dashio popup `gui/templates/keywords/keywordsExport.html` (Export/Import tabs, format sample, filename, upload cap, split access-denied cards) backed by BFF `api/keywordsxml/index.php` (`GET ?action=init|export`, `POST ?action=import`; `mgt_view_key` to export, `mgt_modify_key` to import; anon 401 / 403 / 400 / 404 / 405 / 413), the modern Keyword Manager toolbar opens it and the legacy controllers became 302 shims. i18n `kwxml.*` (30) + `footers.keywordsExport` in all 10 locales. Also fixed the broken TLi18n placeholders, the missing jQuery dependency, the format-sample lookup and the import error-detail handling; bug #1616 filed for the CSV header-row import defect.
 - [FEATURE GAP] - #1297: the modern Requirement Viewer restores the legacy
   per-version attachments section (`reqView.php:198-209` building

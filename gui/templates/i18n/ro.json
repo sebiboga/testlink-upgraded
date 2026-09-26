@@ -2160,6 +2160,7 @@
   "proj.noProject": "-- Nu --",
   "proj.noProjects": "Niciun proiect gasit",
   "proj.noProjectsHint": "Creaza primul tau proiect de test pentru a incepe",
+  "proj.notes": "Notițe",
   "proj.prefix": "Prefix",
   "proj.prefixHint": "Prefix (folosit pentru ID-ul cazului de test)",
   "proj.public": "Public",

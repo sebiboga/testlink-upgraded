@@ -2160,6 +2160,7 @@
   "proj.noProject": "-- Não --",
   "proj.noProjects": "Nenhum projeto encontrado",
   "proj.noProjectsHint": "Crie o seu primeiro projeto de teste para começar",
+  "proj.notes": "Notas",
   "proj.prefix": "Prefixo",
   "proj.prefixHint": "Prefixo (usado para o ID do caso de teste)",
   "proj.public": "Público",

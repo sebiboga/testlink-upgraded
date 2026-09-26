@@ -2160,6 +2160,7 @@
   "proj.noProject": "-- いいえ --",
   "proj.noProjects": "プロジェクトが見つかりません",
   "proj.noProjectsHint": "最初のテストプロジェクトを作成してください",
+  "proj.notes": "備考",
   "proj.prefix": "プレフィックス",
   "proj.prefixHint": "プレフィックス（テストケースIDに使用）",
   "proj.public": "公開",

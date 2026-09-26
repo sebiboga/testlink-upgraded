@@ -2160,6 +2160,7 @@
   "proj.noProject": "-- Нет --",
   "proj.noProjects": "Проекты не найдены",
   "proj.noProjectsHint": "Создайте свой первый тест-проект",
+  "proj.notes": "Заметки",
   "proj.prefix": "Префикс",
   "proj.prefixHint": "Префикс (используется для ID тест-кейса)",
   "proj.public": "Публичный",

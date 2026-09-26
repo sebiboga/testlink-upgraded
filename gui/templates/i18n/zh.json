@@ -2160,6 +2160,7 @@
   "proj.noProject": "-- 不 --",
   "proj.noProjects": "未找到项目",
   "proj.noProjectsHint": "创建您的第一个测试项目",
+  "proj.notes": "备注",
   "proj.prefix": "前缀",
   "proj.prefixHint": "前缀（用于测试用例 ID）",
   "proj.public": "公开",
