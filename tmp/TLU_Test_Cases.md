@@ -22954,128 +22954,82 @@ with a `responseText` fallback) and completing the code→i18n-key map with
 **Screenshots:** `docs/screenshots/issue-1623-launch-{ok,denied,notfound,ro}.png` and
 `issue-1623-print-anon.png` (anonymous hand-over to the modern print screen).
 
-## Regression — Issue #1592: `reqMgrSystemView.php` `init_args()` guarded `$_REQUEST['tproject_id']` but read `$_SESSION['tproject_id']` (never assigned) → E_WARNING on every visit carrying `?tproject_id=`
+---
 
-**Precondition / fixtures** (the DB is freshly imported every run — `reqmgrsystems`,
-`testprojects` and `events` are all empty, so these MUST be recreated):
+## Task — Issue #1622: DataTables `stateSave` (persist entries-per-page / search / sort / page) in Assign Test Project Roles
 
-```sql
--- (a) a public test project, so a login auto-selects one into $_SESSION['testprojectID']
---     (is_public=1 => setUserSession() picks key($arrProducts), lib/functions/users.inc.php:59-66)
-INSERT INTO testprojects (id,prefix,notes,is_public,active)
-VALUES (7,'TP-SEVEN','session-precedence fixture for #1592',1,1);
+**Feature implemented** (Refs #1622, branch `task/issue-1622`, commit `fb5fc309d`).
+Legacy references: `gui/templates/dashio/include/DataTables.inc.tpl:100-104`
+(`config = { "lengthMenu": [ … ], "stateSave": true }`) pulled in by the deleted
+`gui/templates/dashio/usermanagement/usersAssign.tpl:111-120`
+(`{include file="DataTables.inc.tpl" DataTablesSelector="#item_view" …}`), same in
+`gui/templates/tl-classic/usermanagement/usersAssign.tpl`.
+Modern: `gui/templates/usermanagement/usersAssignProject.html` `initAssignTable()`,
+`loadUsers()`, `notifyRestoredState()`.
 
--- (b) one ReqMgrSystem row. NOTE: NOT required to reproduce the defect (see gotcha 1) —
---     it is only needed for the full-list-render case.
-INSERT INTO reqmgrsystems (name,type,cfg) VALUES ('Jira Demo',1,'{}');
+**Precondition**
 
--- (c) non-manager account for the rights-gate case (password = md5('viewer1592')).
---     rights 33 reqmgrsystem_management + 34 reqmgrsystem_view are granted to role 8 (admin) ONLY.
-INSERT INTO users (login,password,role_id,email,first,last,locale,active,cookie_string,auth_method)
-VALUES ('viewer1592',MD5('viewer1592'),1,'v1592@x.y','View','Er1592','en_GB',1,
-        'ck1592viewer000000000000000000a','local');
-```
-
-**Repro steps (pre-fix):**
-
-1. Log in as `admin`/`admin` (holds rights 33/34).
-2. `GET http://localhost:8082/lib/reqmgrsystems/reqMgrSystemView.php?tproject_id=1`
-3. `SELECT id,log_level,description FROM events ORDER BY id DESC LIMIT 3;`
-4. Observe one `log_level=2` row: `E_WARNING Undefined array key "tproject_id" - in .../lib/reqmgrsystems/reqMgrSystemView.php - Line 58`
-
-**Root cause in one line:** `reqMgrSystemView.php:58` tested `isset($_REQUEST['tproject_id'])` but
-took the value from `$_SESSION['tproject_id']` — a key with **zero writers** anywhere in the repo
-(the live session key is `$_SESSION['testprojectID']`, set at `lib/functions/common.php:459`), so
-whenever the guard passed the read was guaranteed to warn.
-
-**Expected post-fix behaviour:** the guard and the read name the same superglobal, so **no** load of
-this screen writes a `tproject_id` warning — for any parameter value, present or absent.
-
-**Actual result — measured on the fix branch (`25d387f5c`), all `events` counts taken with the
-table truncated immediately before each request so they are attributable, not inherited:**
-
-| # | Case | Request / action | Expected | Measured | Result |
-|---|---|---|---|---|---|
-| 1 | **Primary symptom** | admin, `?tproject_id=1`, no project in session | 200, 0 `tproject_id` warnings | `http=200 tproject_id_warnings=0 total_events=0` | **PASS** |
-| 2 | Control — was already clean, must stay clean | admin, **no** query string | 200, 0 warnings | `http=200 tproject_id_warnings=0 total_events=0` | **PASS** |
-| 3 | Non-numeric value | `?tproject_id=abc` | 200, 0 warnings, coerced to `0`, no notice | `http=200 tproject_id_warnings=0 total_events=0` | **PASS** |
-| 4 | Empty value | `?tproject_id=` | 200, 0 warnings (`intval('')===0`) | `http=200 tproject_id_warnings=0 total_events=0` | **PASS** |
-| 5 | **Session precedence** | login with `TP-SEVEN` in session, then pass a *different* `?tproject_id=999` | session value wins (line 54 short-circuits, branch never entered), no warning, `?999` has no effect | `http=200`, `tproject_id` warnings **0** | **PASS** |
-| 6 | **Rights gate intact** | `viewer1592` (role 1, no rights 33/34) hits `?tproject_id=1` | request refused by `checkRights()`, no ReqMgrSystem data leaked, no warning | `http=200 bytes=204`, `Jira Demo` occurrences **0**, `tproject_id` warnings **0** | **PASS** (live) |
-| 7 | Full-list render | 1 ReqMgrSystem row present | row renders with type/environment columns, no new warnings from this screen | DOM: `"Req. Management System Type Environment delete Jira Demo contour (Interface: soap)"`; `grep -c "Jira Demo" → 2` | **PASS** (live browser) |
-| 8 | Syntax gate | `php -l lib/reqmgrsystems/reqMgrSystemView.php` | no syntax errors | `No syntax errors detected` | **PASS** |
-| 9 | Sibling sweep — modernized screen | `gui/templates/reqmgrsystems/reqMgrSystemView.html?tproject_id=1` | 200, unaffected | `http=200 tproj_warn=0` | **PASS** |
-| 10 | Sibling sweep — Issue Tracker / Code Tracker legacy views | `lib/issuetrackers/issueTrackerView.php`, `lib/codetrackers/codeTrackerView.php` with `?tproject_id=1` | 200, unaffected | `http=200 tproj_warn=0` (both) | **PASS** |
-| 11 | Event Viewer after the whole matrix | `SELECT log_level,count(*) ... GROUP BY` | no Error/Warning attributable to this screen | only `log_level 1` white-list row from the #1624 probe (different file); **0** `log_level IN (1,2,3,4)` from the reqmgr view | **PASS** |
-| 12 | **`?id=` branch of the edited function** — `if($args->id > 0)` at `reqMgrSystemView.php:28-31` is inside the function that was changed, so it must be exercised | the `tproject_id` fix must not affect it | `?id=1&tproject_id=1` → `http=500 bytes=0 tproj_warn=0`; `?id=1` → 500; `?id=999` (nonexistent) → 500. **Pre-existing/unrelated** — missing `contoursoapInterface` class, see gotcha 7 / #1625 | **PASS** (fix neutral) |
-
-**Result: 12/12 PASS.**
-
-> Reading the table: `total_events=0` in cases 1-5 is a **fixture** artefact — those cases ran against an
-> *empty* `reqmgrsystems` table. With a row present every load also writes the two `contoursoapInterface`
-> rows from #1593, so the meaningful assertion in every case is the `tproject_id_warnings` / `tproj_warn`
-> column, never `total_events`.
-
-**Pre-fix vs post-fix on the identical primary request (same session, same URL):**
-```
-BEFORE:  | 2 | 2 | E_WARNING Undefined array key "tproject_id" - .../reqMgrSystemView.php - Line 58 |
-AFTER:   SELECT count(*) FROM events WHERE description LIKE '%tproject_id%';  ->  0
-```
-
-### Gotchas / discoveries (recorded so future repros don't chase red herrings)
-
-1. **A ReqMgrSystem row is NOT required to reproduce.** `init_args()` runs at
-   `reqMgrSystemView.php:23`, before `$mgr->getAll()` at line 24, so the warning fires on a
-   completely empty `reqmgrsystems` table. The original issue listed "have at least one ReqMgrSystem
-   configured" as step 1 — it is not a precondition.
-2. **The trigger is narrower than the issue states.** The report says "on every load". Measured: the
-   warning appears ONLY when the URL carries a `?tproject_id=` parameter. Without it, `isset()` is
-   false, the branch yields `0`, and **zero** rows are written (case 2). Correct invariant post-fix:
-   "no load writes a `tproject_id` warning" — true for every input.
-3. **The issue's stated root cause was wrong.** It hypothesised a missing `isset()` guard on a
-   `$_REQUEST` read. The guard *was* present and the read was from `$_SESSION` — the mismatch between
-   the two is the actual mechanism. Confirmed by
-   `grep -rn "SESSION\['tproject_id'\]" --include=*.php .` → **1 hit, and it is the read itself;
-   there is no writer.**
-4. **Case 5 needs the `TP-SEVEN` fixture.** On a fresh DB `$_SESSION['testprojectID']` is unset, so
-   line 56's branch is *always* taken and the session-precedence path is unreachable. The fixture
-   must be `is_public=1` so login auto-selects it.
-5. **The `contoursoapInterface.class.php` warnings are a different issue (#1593), not a regression.**
-   They appear once a ReqMgrSystem row exists (because `getAll(['checkEnv'=>true])` at line 24 pulls
-   in that class), on a **different file**, and this fix did not change their count. The two defects
-   are cleanly separable: **#1592 fires on an empty table, #1593 fires on a populated one.**
-6. **Sibling discovery, filed separately as #1624.** During case 10 the sweep hit
-   `lib/reqmgrsystems/reqMgrSystemEdit.php`, which returns **HTTP 500** when `doAction` is absent or
-   unknown (`reqMgrSystemEdit.php:126` throws an uncaught `Exception`; the whitelist from
-   `reqMgrSystemCommands.class.php:38-39` has no key for the empty value). The legitimate entry
-   points `?doAction=edit&id=1` and `?doAction=create` both return 200 with 0 error rows. Independent
-   of #1592, not fixed here — logged as **#1624**.
-7. **The `?id=` (Check Connection) path is a hard 500 — found by code review, filed as #1625.**
-   Case 12 exists because `if($args->id > 0)` (`reqMgrSystemView.php:28-31`) sits **inside the
-   function that was edited**; leaving it untested would have overstated the "11/11" claim. It returns
-   `HTTP 500` with a 0-byte body for *any* id, including a nonexistent one, because `checkConnection()`
-   (`:30`) reaches `tlReqMgrSystem.class.php:616-621` which does `new contoursoapInterface(...)` and
-   that class is **absent from the repo**:
-
-   ```
-   $ git cat-file -e ea1aa68e6:lib/reqmgrsystems/contoursoapInterface.class.php
-   fatal: path 'lib/reqmgrsystems/contoursoapInterface.class.php' does not exist in 'ea1aa68e6'
-   ```
-
-   Proven pre-existing and unreachable from this fix: the file is missing at the baseline, and the
-   value assigned at `:58` is never consumed, so the fix cannot influence `:30`. Same **missing file**
-   as #1593 but a more severe symptom (fatal 500 vs Event Viewer noise), hence its own issue.
-   Corollary: the docs' claim that the screen "returns HTTP 200" holds for the plain list load only.
-
-### RESUME
+A freshly imported DB has 0 test projects and 1 user, so the mandatory fixture:
 
 ```bash
-# one-liner: does the defect still exist on any branch?
-mysql -h 127.0.0.1 -utestlink -ptestlink testlink -e "delete from events;"
-curl -s -b <cookie> "http://localhost:8082/lib/reqmgrsystems/reqMgrSystemView.php?tproject_id=1" -o /dev/null
-mysql -h 127.0.0.1 -utestlink -ptestlink testlink \
-  -e "select count(*) from events where description like '%tproject_id%';"   # 0 == fixed, 1 == regressed
+php tmp/fixtures_1622.php     # re-runnable
+# -> projects: A=7 B=8 | users present: 28 | 'ale' logins: 4
 ```
-Browser re-test: log in `admin`/`admin` at `http://localhost:8082/login.php`, open
-`http://localhost:8082/lib/reqmgrsystems/reqMgrSystemView.php?tproject_id=1`, then check
-Event Viewer → no new Warning row.
+
+It creates two public test projects (`TS1622A`, `TS1622B`) and 28 users
+(`tlu1622_u01…28`, of which `tlu1622_ale03/11/19/27` carry the `ale` string) so
+that the grid has 29 rows: pagination is visible, `Show entries` 20/40/60/All is
+meaningful and the search box has a deterministic hit set. **Note**: the fixture
+gives every user the first name `Alex`, so the search string `ale` matches the
+Name column of all 28 fixture users (admin excluded) — that is intentional and
+is what makes the "filtered from 29 total entries" assertions stable.
+
+**Entry point:** `http://localhost:8082/gui/templates/usermanagement/usersAssignProject.html?tproject_id=<id>&tplan_id=0`
+(login `admin`/`admin). Project ids change on every fixture re-run — read them
+from the combo box, not from a hard-coded number.
+
+| # | Step | Expected | Observed | Result |
+|---|---|---|---|---|
+| 1 | Baseline BEFORE the fix (measured in the issue's INVESTIGATION): drive `search='ale'`, `len=60`, `order=[[2,'desc']]` on `tproject_id=1` | legacy would persist it; modern writes nothing | `localStorage` = `[]` (0 keys); after reload `{"search":"","len":20,"order":"[[1,"asc"]]","page":0}` | **GAP CONFIRMED** |
+| 2 | Load the screen with no saved state | default view, no toast | `{"search":"","len":20,"order":"[[1,"asc"]]","page":0}`, `localStorage` empty, toast not shown | **PASS** |
+| 3 | Set `search='ale'`, `Show entries` → 60, click `Last Name` twice (desc) | view is applied and a state is written | `{"search":"ale","len":60,"order":"[[2,"desc"]]"}`, key `DataTables_assignTable_/gui/templates/usermanagement/usersAssignProject.html`, payload `{"length":60,"order":[[2,"desc"]],"search":{"search":"ale",…},"tproject_id":"7",…}` | **PASS** |
+| 4 | Reload the SAME url | search, entries-per-page, sort and page are restored | `{"search":"ale","len":60,"order":"[[2,"desc"]]","page":0}`, search input `ale`, length select `60`, info `Showing 1 to 28 of 28 entries (filtered from 29 total entries)`, first row `tlu1622_u28` | **PASS** |
+| 5 | Real typing in the `User` search box (`User`), then click the pager link `2` | 2nd page shown, both facts persisted | `Showing 21 to 28 of 28 entries`, `page:1`, first row `tlu1622_u20`, saved `{"start":20,"search":"User","length":20,"tproject_id":"8"}` | **PASS** |
+| 6 | Reload after #5 | search + page restored, visible in the chrome | `{"search":"User","len":20,"order":"[[1,"asc"]]","page":1}`, search input `User`, info `Showing 21 to 28 of 28 entries (filtered from 29 total entries)`, first row `tlu1622_u20` | **PASS** |
+| 7 | Leave to **User Management** (`usersView.html`) and come back via the tab bar | view still restored (legacy "same URL" promise) | `{"search":"User","len":20,"order":"[[2,"desc"]],"page":1}` + info `Showing 21 to 29 of 29 entries` (on the 8-id project used for that pass) | **PASS** |
+| 8 | Switch project in the in-page `Test Project:` combo (7 → 8) while 7 has a saved `search='ale'`/len 60/Name desc view | NO leak: 8 starts at the default view and the state is re-stamped for 8 | `{"search":"","len":20,"order":"[[1,"asc"]]","page":0}`, search input `""`, length select `20`, info `Showing 1 to 20 of 29 entries`, saved `{tproject_id:"8",length:20,search:"",order:[[1,"asc"]],start:0}` | **PASS** |
+| 9 | Deep-link to the previous project again (`?tproject_id=7`) | the state saved for 8 must be rejected → default view, no toast | `{"search":"","len":20,"order":"[[1,"asc"]],"page":0}`, `toast:""`, `toastShown:false` | **PASS** |
+| 10 | Set a view on 7 and reload the same URL | 7's own view is restored | `{"search":"ale","len":40,"order":"[[2,"asc"]]}`, search input `ale`, length select `40`, info `Showing 1 to 28 of 28 entries (filtered from 29 total entries)`, first row `tlu1622_u01` | **PASS** |
+| 11 | In-screen re-render: bulk `Set roles to` → `Do` while a non-default view is active (len 20, Name desc, page 2) | the `keep` path still preserves the view (issue #930 behaviour must not regress) | `{"len":20,"order":"[[2,"desc"]],"page":1,"search":""}`, info `Showing 21 to 29 of 29 entries`, 19 `changed-badge` cells rendered | **PASS** |
+| 12 | Per-row role change (`onRoleChange`) while on page 2 | re-render keeps page/len/order/search | `{"page":1,"len":20,"order":"[[2,"desc"]]","search":""}`, info `Showing 21 to 29 of 29 entries` | **PASS** |
+| 13 | "Saved view restored" toast on a restored non-default view | localized notice shown once | `#toast` text = `Saved view restored (search, sort, entries per page and page kept)` (en) | **PASS** |
+| 14 | Toast NOT shown when there is no state or the state IS the default view | no noise | `toast:""`, `toastShown:false` | **PASS** |
+| 15 | Toast not repeated on every in-screen re-render | once per page load per project | `restoredStateNotified` latch; the bulk-`Do` and role-change re-renders produced no new notice | **PASS** |
+| 16 | Regression: select `-- select project --` then re-select a project | empty state shown, no crash, grid usable again | `bodyRows:0`, `#emptyMsg` display `block`, back to 8: `{"search":"User","len":20,"order":"[[1,"asc"]],"page":1}`, `isDataTable:true` | **PASS** |
+| 17 | Regression: a user **without** the assign right (global role `guest`, `tlu1622_u04`) opens the screen | deny box, no grid, no state written, no JS error | `denyVisible:"block"`, `tableVisible:"none"`, `isDataTable:false`, `localStorage:[]`; console: only the expected `403 (Forbidden)` network error of the guarded BFF read | **PASS** |
+| 18 | i18n: `python3 -m json.tool` on all 10 bundles + key present in each | all valid, key in every locale | 10 × `VALID gui/templates/i18n/<x>.json`; `assign.viewStateRestored` in en/ro/de/es/fr/it/ja/pt/ru/zh | **PASS** |
+| 19 | Browser console `error` + `warn` over the whole admin pass | none | `<no console messages found>` | **PASS** |
+| 20 | Event Viewer: no new Error/Warning from the screen | none | only the 2 pre-existing warnings emitted by the fixture's own first run (`tmp/fixtures_1622.php:79`, since fixed), nothing from the app | **PASS** |
+
+**Result: 19 PASS + 1 gap row (#1 is the pre-fix baseline, not a test of the fix).**
+The legacy `stateSave` promise is now honoured by the modern screen, and the
+project switcher can no longer leak one project's view into another — a leak
+legacy actually had.
+
+**Gotchas for anyone extending this**
+
+- `dt.page(1).draw()` (chained, full redraw) lands on page 0 in DataTables
+  1.13.7; `dt.page(1); dt.draw('page')` is the form that sticks. The screen's
+  own `renderAssignTable()` uses `.page(keep.page).draw(false)` and was measured
+  to preserve the page (cases #11/#12), so this only bites hand-written test
+  scripts.
+- The length `<select>` generated by DataTables has **no id** in this build
+  (`#assignTable_length` does not exist); address it as
+  `.dataTables_length select` or with jQuery.
+- Only ONE state exists per page URL (DataTables keys it by URL, query string
+  excluded), so the state of the last viewed project is the one kept — same as
+  legacy. The stamp guarantees a *foreign* state is never applied.
+
+**Screenshots:** `docs/screenshots/issue-1622-view-state-restored.png` and
+`docs/screenshots/issue-1622-view-state-restored-toast.png` (restored view +
+toast).
