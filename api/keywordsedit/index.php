@@ -98,6 +98,26 @@ function requireKeywordRights($db, $user, $tproject_id) {
 }
 
 /** legacy getKeywordErrorMessage() equivalent, server side (EN fallback). */
+/**
+ * Refs #1601: the rights are checked against the tproject_id supplied by the
+ * caller, but the keyword itself is addressed by a bare id. Legacy
+ * tlKeyword::writeToDB() (UPDATE ... WHERE id = X) and
+ * testproject::deleteKeyword() (id only) never re-check testproject_id, so
+ * without this guard a user with keyword rights in project A could rename,
+ * re-own or delete a keyword of project B.
+ *
+ * Exits with 404 when the keyword does not exist or is owned by another
+ * project - we never leak the existence of a foreign keyword.
+ */
+function requireKeywordOfProject($db, $keyword_id, $tproject_id) {
+    $kw = tlKeyword::getByID($db, $keyword_id);
+    if (is_null($kw) || $kw->dbID <= 0 || intval($kw->testprojectID) !== intval($tproject_id)) {
+        http_response_code(404);
+        out(['status' => 'error', 'message' => 'Keyword not found']);
+    }
+    return $kw;
+}
+
 function keywordErrorMessage($code) {
     switch (intval($code)) {
         case tlKeyword::E_NAMENOTALLOWED:
@@ -136,7 +156,12 @@ function tcaseVersionContext($db, $tcversion_id) {
     $tcase_id = intval($rs[0]['parent_id']);
     $tcaseName = '';
     if ($tcase_id > 0) {
-        $tcaseName = testcase::getName($db, $tcase_id);
+        // the test case name lives in the same hierarchy table (the legacy
+        // dialog only needed the id, the modern popup shows the name too)
+        $rs2 = $db->get_recordset("SELECT name FROM {$tbl['nodes_hierarchy']} WHERE id = " . $tcase_id);
+        if (is_null($rs2) === false && count($rs2)) {
+            $tcaseName = (string)$rs2[0]['name'];
+        }
     }
     return [
         'tcversion_id' => intval($tcversion_id),
@@ -186,11 +211,7 @@ if ($method === 'GET') {
             http_response_code(400);
             out(['status' => 'error', 'message' => 'Invalid keyword id']);
         }
-        $kw = tlKeyword::getByID($db, $keyword_id);
-        if (is_null($kw) || $kw->dbID <= 0) {
-            http_response_code(404);
-            out(['status' => 'error', 'message' => 'Keyword not found']);
-        }
+        $kw = requireKeywordOfProject($db, $keyword_id, $tproject_id);
         $payload['keyword'] = kwToJSON($kw);
     }
 
@@ -248,6 +269,7 @@ if ($action === 'update') {
         http_response_code(400);
         out(['status' => 'error', 'message' => 'Invalid keyword id']);
     }
+    requireKeywordOfProject($db, $keyword_id, $tproject_id);
     $result = $tproject_mgr->updateKeyword($tproject_id, $keyword_id, $keyword, $notes);
     if ($result >= tl::OK) {
         out(['status' => 'ok', 'id' => $keyword_id]);
@@ -304,6 +326,7 @@ if ($action === 'delete') {
         http_response_code(400);
         out(['status' => 'error', 'message' => 'Invalid keyword id']);
     }
+    requireKeywordOfProject($db, $keyword_id, $tproject_id);
     $dko = array('context' => 'getTestProjectName', 'tproject_id' => $tproject_id);
     $result = $tproject_mgr->deleteKeyword($keyword_id, $dko);
     if ($result >= tl::OK) {
