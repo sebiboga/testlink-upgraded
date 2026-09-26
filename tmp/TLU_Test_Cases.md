@@ -23306,13 +23306,13 @@ and `docs/screenshots/issue-1630-after.png` (header "Name", same cells).
     *without* `platform_management` (right 24). Roles 8/9 (Admin/Leader) hold both.
   - user `pimpno1632` / `pimp1632` — global role 3 (no rights), no project role
   - XML fixtures `tmp/pimp_{good,malformed,notxml,toobig}.xml`
-- Reusable asserting harness: **`bash tmp/verify_1632.sh`** — **74 assertions**,
+- Reusable asserting harness: **`bash tmp/verify_1632.sh`** — **83 assertions** (74 pre-review + 9 from the mandatory code review),
   exits non-zero on any failure, cleans up nothing it did not create.
   Verified discriminating against the pre-fix code
   (`git show 68ec9bb09~1 -- api/platformsimport/index.php gui/templates/platforms/platformsImport.html`)
   → **67 PASS / 7 FAIL, exit 1**.
 
-**Result: 74 PASS / 0 FAIL.**
+**Result: 83 PASS / 0 FAIL.** (74 before the code review, 9 added by it; still 76 PASS / 7 FAIL against the pre-review BFF, so every new case is discriminating)
 
 | # | Area | Assertion | Result |
 |---|---|---|---|
@@ -23333,9 +23333,13 @@ and `docs/screenshots/issue-1630-after.png` (header "Name", same cells).
 | 15 | protocol | import with no file → 422 `NO_FILE`; import with no project → 400; anonymous init → **401** | **PASS** |
 | 16 | rights | viewer: init **200** with `platform_management` null, import **403 `NO_RIGHTS`** | **PASS** |
 | 17 | rights | no-rights user: init **403**, body leaks neither the project name nor `platform_count` | **PASS** |
-| 18 | audit | both denials write `audit_security_user_right_missing` into `events` (`activity=IMPORT`, user + action in the payload) | **PASS** |
+| 18 | audit | both denials write `audit_security_user_right_missing` into `events` — the **page gate as `activity=VIEW`**, the upload gate as `activity=IMPORT` (code-review fix) | **PASS** |
 | 19 | assets | screen loads `i18n/i18n.js`, calls the BFF, has no Smarty/`.tpl` dependency; `platformsView.html` launches it and no longer contains `doImport` | **PASS** |
 | 20 | i18n | all 10 bundles valid JSON and every referenced `pimp.*` key present in all 10 (49 keys) | **PASS** |
+| 21 | format | wrong root (`<testlink><testcase><name>…`) → **422 `WRONG_FORMAT`**, nothing created. Code-review fix: legacy accepted *any* well-formed XML whose children had a `<name>`, so importing a test-case export created one platform per test case | **PASS** |
+| 22 | format | wrong child inside a `<platforms>` root → 200 with `ko[0]=BAD_LINE`, `imported=0`, nothing written | **PASS** |
+| 23 | parity | a `<platform>` **without `<is_open>`** is created/updated **closed** (`is_open=0`) — legacy `intval($platform->is_open)`; the code review caught a silent re-open of closed platforms | **PASS** |
+| 24 | protocol | POST body over `post_max_size` → 413 `TOO_LARGE` instead of the misleading `NO_FILE` ("choose a file") | **PASS** |
 
 **Browser verification (Chrome, not covered by the HTTP-only harness)**
 
@@ -23362,6 +23366,12 @@ and `docs/screenshots/issue-1630-after.png` (header "Name", same cells).
 | 2 | "View file format documentation" 404 | BFF returned the raw `PARTIAL_URL_TL_FILE_FORMATS_DOCUMENT`; make it root-relative like `api/platformsexport` |
 | 3 | A platform name repeated in one file lost the 2nd node's values while still reporting "updated" | the in-memory map was seeded with `id => 0`, so the next node called `update(0, …)`; store the real id from `create()` and honour its status |
 | 4 | Denied attempts left no trace, and init leaked the project name + platform count to a user with no platform right | log `audit_security_user_right_missing` before the 403 (as `checkUserRightsFor()` did) and gate init on `platform_view` |
+| 5 | Code review: a well-formed but **wrong** file (e.g. a test-case export) created one *platform* per *test case* | require the `<platforms>` root (both the legacy exporter and `api/platformsexport` emit it) → 422 `WRONG_FORMAT`; a non-`<platform>` child counts as `BAD_LINE` |
+| 6 | Code review: `update()`'s return value was dropped, so a **failed** write was still reported `UPDATED` | check it against `tl::OK`, else `IMPORT_FAILED` into `ko` (mirrors the `create()` branch) |
+| 7 | Code review: a file without `<is_open>` silently **re-opened** closed platforms (legacy default was 0) | default restored to `0` = closed |
+| 8 | Code review: a denied **page view** was logged with `activity=IMPORT` | `VIEW` for the page gate, `IMPORT` for the upload gate (as `api/issuetracker` does) |
+| 9 | Code review: `UPLOAD_ERROR` (the `is_uploaded_file()` guard) had no client mapping → raw English in a localized UI | mapped to `pimp.errUpload`; the generic `r.message` fallthrough is now `esc()`-ed before it reaches `.html()` |
+| 10 | Code review: the footer rendered **twice** and `showState()` had a dead i18n-key branch | one `data-i18n` footer (as `platformsExport.html`), `showState(msg, danger)` simplified |
 
 **Legacy parity notes (verified against `git show f00a4649b~1:lib/platforms/platformsImport.php`)**
 
@@ -23391,7 +23401,9 @@ fixture script itself, and are listed here so the next agent is not misled:
 The last pair is a **pre-existing application bug**, not fixture noise: the
 autoloader wraps `include_once` in `catch (Exception)`, but since PHP 7 a failed
 include raises `E_WARNING`, so the catch can never run and every missing class
-permanently writes two rows. Filed as **#1634**; out of scope here.
+permanently writes two rows. Filed as **#1634** — meanwhile fixed on the branch by **#1593**
+(`stream_resolve_include_path()` guard, commits `30cdec58c`/`f0574cd20`), so #1634 is closed as a
+duplicate of that fix.
 
 The only rows this screen itself produced are the two intentional
 `audit_security_user_right_missing` denials (`log_level=16`, INFO).

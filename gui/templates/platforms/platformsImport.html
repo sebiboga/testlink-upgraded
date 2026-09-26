@@ -154,8 +154,7 @@ input[type=text].is-invalid { border-color: #c33f3d; }
   </section>
 </div>
 
-<div class="footer" id="footerInfo"></div>
-<div class="footer"><span data-i18n="footers.platformsImport"></span></div>
+<div class="footer" data-i18n="footers.platformsImport"></div>
 <div class="toast" id="toast"></div>
 
 <script src="/gui/templates/i18n/i18n.js"></script>
@@ -195,11 +194,11 @@ function warn(html, danger) {
 
 function clearWarn() { $('#warningBox').hide().removeClass('danger').empty(); }
 
-function showState(msgKey, danger) {
+function showState(msg, danger) {
   $('#mainContent').hide();
-  $('#stateMsg').text(typeof msgKey === 'string' && msgKey.indexOf('pimp.') === 0 ? TLi18n.t(msgKey) : msgKey);
+  $('#stateMsg').text(msg);
   $('#stateBox').show();
-  if (danger) { warn(esc(typeof msgKey === 'string' && msgKey.indexOf('pimp.') === 0 ? TLi18n.t(msgKey) : msgKey), true); }
+  if (danger) { warn(esc(msg), true); }
 }
 
 function busy(on) {
@@ -218,7 +217,8 @@ function errorFor(r) {
     case 'NO_RIGHTS':        return t('pimp.denied');
     case 'INVALID_TPROJECT_ID': return t('pimp.errNoProject');
     case 'TEST_PROJECT_NOT_FOUND': return t('pimp.notFound');
-    case 'CANNOT_STORE':     return t('pimp.errUpload');
+    case 'CANNOT_STORE':
+    case 'UPLOAD_ERROR':     return t('pimp.errUpload');
     case 'UPLOAD_ERR_INI_SIZE':    return t('pimp.errIniSize');
     case 'UPLOAD_ERR_FORM_SIZE':   return t('pimp.errFormSize');
     case 'UPLOAD_ERR_PARTIAL':     return t('pimp.errPartial');
@@ -230,7 +230,7 @@ function errorFor(r) {
     case 'DATABASE_UNAVAILABLE':
     case 'SERVER_ERROR':       return t('pimp.errServer');
   }
-  return (r && r.message) ? String(r.message) : t('common.error');
+  return (r && r.message) ? esc(String(r.message)) : t('common.error');
 }
 
 function onFail(xhr) {
@@ -258,7 +258,6 @@ $(function () {
   TLi18n.load(function () {
     TLi18n.apply();
     TLi18n.initLocaleSwitcher('#localeSwitcher');
-    $('#footerInfo').text(TLi18n.t('footers.platformsImport'));
     $('#fileHint').text(t('pimp.maxSize', { kb: 0 }));   // replaced by load()
     $('#btnRefresh').on('click', load);
     $('#btnBack').on('click', goBack);

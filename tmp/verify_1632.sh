@@ -155,6 +155,43 @@ is "import without project" \
    "$(code -b "$ADMIN" -H 'X-Requested-With: XMLHttpRequest' -X POST -F "uploadedFile=@$TMPD/good.xml" "$API?action=import")" "400"
 is "anonymous init 401" "$(code -H 'X-Requested-With: XMLHttpRequest' "$API?action=init&tproject_id=$TP")" "401"
 
+# ------------------------------------------- 5b. file shape + is_open ----
+printf '\n-- file shape validation --'
+cat > "$TMPD/wrongroot.xml" <<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<testlink>
+  <testcase><name>HarnessShouldNotExist</name><notes>wrong root</notes></testcase>
+</testlink>
+XML
+cat > "$TMPD/wrongchild.xml" <<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<platforms>
+  <testcase><name>HarnessShouldNotExist2</name><notes>wrong child</notes></testcase>
+</platforms>
+XML
+cat > "$TMPD/noopen.xml" <<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<platforms>
+  <platform><name>HarnessNoIsOpen</name><notes>legacy default</notes>
+    <enable_on_design>1</enable_on_design><enable_on_execution>1</enable_on_execution></platform>
+</platforms>
+XML
+$DB "DELETE FROM platforms WHERE testproject_id=$TP AND name LIKE 'HarnessShouldNotExist%'" >/dev/null
+$DB "DELETE FROM platforms WHERE testproject_id=$TP AND name='HarnessNoIsOpen'" >/dev/null
+is "wrong root 422" \
+   "$(code -b "$ADMIN" -H 'X-Requested-With: XMLHttpRequest' -F "tproject_id=$TP" -F "uploadedFile=@$TMPD/wrongroot.xml" "$API?action=import")" "422"
+is "wrong root code" "$(jq_ "d['error_code']")" "WRONG_FORMAT"
+is "wrong root wrote nothing" "$($DB "SELECT COUNT(*) FROM platforms WHERE testproject_id=$TP AND name LIKE 'HarnessShouldNotExist%'")" "0"
+is "wrong child 200" \
+   "$(code -b "$ADMIN" -H 'X-Requested-With: XMLHttpRequest' -F "tproject_id=$TP" -F "uploadedFile=@$TMPD/wrongchild.xml" "$API?action=import")" "200"
+is "wrong child is a bad line" "$(jq_ "d['ko'][0]['code']")" "BAD_LINE"
+is "wrong child imported 0" "$(jq_ "d['imported']")" "0"
+is "wrong child wrote nothing" "$($DB "SELECT COUNT(*) FROM platforms WHERE testproject_id=$TP AND name='HarnessShouldNotExist2'")" "0"
+is "missing is_open imports" \
+   "$(code -b "$ADMIN" -H 'X-Requested-With: XMLHttpRequest' -F "tproject_id=$TP" -F "uploadedFile=@$TMPD/noopen.xml" "$API?action=import")" "200"
+is "missing is_open stays closed (legacy parity)" \
+   "$($DB "SELECT is_open FROM platforms WHERE testproject_id=$TP AND name='HarnessNoIsOpen'")" "0"
+
 # ------------------------------------------------- 6. rights + audit ------
 printf '\n-- rights and audit trail --\n'
 login pimpviewer1632 pimp1632 "$VIEW"
@@ -177,8 +214,8 @@ hasnt "no-rights init leaks no project name" "$(cat "$TMPD/body")" '"name"'
 hasnt "no-rights init leaks no platform count" "$(cat "$TMPD/body")" 'platform_count'
 
 ge1() { if [ "${1:-0}" -ge 1 ]; then ok "$2"; else bad "$2" ">=1" "${1:-0}"; fi; }
-ge1 "$($DB "SELECT COUNT(*) FROM events WHERE object_type='users' AND activity='IMPORT' AND description LIKE '%pimpno1632%view%'")"    "denied view is audited (legacy wrote this via checkUserRightsFor)"
-ge1 "$($DB "SELECT COUNT(*) FROM events WHERE object_type='users' AND activity='IMPORT' AND description LIKE '%pimpviewer1632%import%'")" "denied import is audited"
+ge1 "$($DB "SELECT COUNT(*) FROM events WHERE object_type='users' AND activity='VIEW' AND description LIKE '%pimpno1632%view%'")"    "denied view is audited as VIEW (legacy wrote this via checkUserRightsFor)"
+ge1 "$($DB "SELECT COUNT(*) FROM events WHERE object_type='users' AND activity='IMPORT' AND description LIKE '%pimpviewer1632%import%'")" "denied import is audited as IMPORT"
 
 # ------------------------------------------------- 7. i18n / markup -------
 printf '\n-- screen assets --\n'

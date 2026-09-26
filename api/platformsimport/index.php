@@ -235,9 +235,13 @@ function pimCanView($db, $user, $tprojectId)
  */
 function pimAuditDenied($db, $user, $action)
 {
+    // Event Viewer triage: a denial on the page gate is a VIEW attempt, not an
+    // import attempt. Legacy passed the raw $action (null -> "any"); the
+    // issuetracker/codetracker BFFs use VIEW for the page gate too.
+    $eventCode = (strtoupper((string)$action) === 'VIEW') ? 'VIEW' : 'IMPORT';
     logAuditEvent(
         TLS('audit_security_user_right_missing', $user->login, basename($_SERVER['PHP_SELF']), $action),
-        'IMPORT',
+        $eventCode,
         $user->dbID,
         'users'
     );
@@ -246,6 +250,30 @@ function pimAuditDenied($db, $user, $action)
 function pimPlatformMgr($db, $tprojectId)
 {
     return new tlPlatform($db, $tprojectId);
+}
+
+/**
+ * Parse a php.ini shorthand size ("8M", "1024K", "1G", plain bytes) into bytes.
+ * Returns 0 for "0" / unparsable values, which disables the check.
+ */
+function pimIniBytes($value)
+{
+    $value = trim((string)$value);
+    if ($value === '') {
+        return 0;
+    }
+    $unit = strtolower(substr($value, -1));
+    $number = (int)$value;
+    if ($unit === 'g') {
+        return $number * 1024 * 1024 * 1024;
+    }
+    if ($unit === 'm') {
+        return $number * 1024 * 1024;
+    }
+    if ($unit === 'k') {
+        return $number * 1024;
+    }
+    return intval($value);
 }
 
 // ---------------------------------------------------------------------------
@@ -331,6 +359,18 @@ if ($action === 'import') {
            : (isset($_FILES['targetFilename']) ? $_FILES['targetFilename'] : null);
 
     if (!is_array($fInfo) || !isset($fInfo['error']) || $fInfo['error'] == UPLOAD_ERR_NO_FILE) {
+        // When the POST body exceeds post_max_size PHP discards $_POST and
+        // $_FILES entirely, so the request would be reported as "choose a
+        // file" instead of the size error it actually is (issue #1632 review).
+        $postMax = pimIniBytes(ini_get('post_max_size'));
+        $contentLength = isset($_SERVER['CONTENT_LENGTH']) ? intval($_SERVER['CONTENT_LENGTH']) : 0;
+        if ($postMax > 0 && $contentLength > $postMax) {
+            pimJson(413, array(
+                'status' => 'error',
+                'error_code' => 'TOO_LARGE',
+                'message' => 'The uploaded file is too large',
+            ));
+        }
         pimJson(422, array(
             'status' => 'error',
             'error_code' => 'NO_FILE',
@@ -439,9 +479,23 @@ if ($action === 'import') {
     $ko = array();
     $nodeCount = 0;
 
+    // Issue #1632 code review: legacy only checked well-formedness, so ANY XML
+    // whose direct children carry a <name> was accepted - importing a
+    // test-case export (<testlink><testcase><name>..</name>) created one
+    // platform per test case. Both the legacy exporter
+    // (lib/platforms/platformsExport.php) and api/platformsexport emit
+    // <platforms> as the root and <platform> per row, so require both.
+    if ($xml->getName() !== 'platforms') {
+        pimJson(422, array(
+            'status' => 'error',
+            'error_code' => 'WRONG_FORMAT',
+            'message' => 'Problems loading XML content',
+        ));
+    }
+
     foreach ($xml as $platform) {
         $nodeCount++;
-        if (!property_exists($platform, 'name')) {
+        if ($platform->getName() !== 'platform' || !property_exists($platform, 'name')) {
             // Legacy: lang_get('bad_line_skipped')
             $ko[] = array('code' => 'BAD_LINE', 'name' => '');
             continue;
@@ -454,12 +508,30 @@ if ($action === 'import') {
         $notes = property_exists($platform, 'notes') ? (string)$platform->notes : '';
         $onDesign = property_exists($platform, 'enable_on_design') ? intval($platform->enable_on_design) : 0;
         $onExec = property_exists($platform, 'enable_on_execution') ? intval($platform->enable_on_execution) : 0;
-        $isOpen = property_exists($platform, 'is_open') ? intval($platform->is_open) : 1;
+        // Legacy (cf9cc834f:lib/platforms/platformsImport.php) read
+        // intval($platform->is_open) straight, so a file without <is_open>
+        // meant 0 = CLOSED. Keep that default: defaulting to open would
+        // silently re-open every closed platform on an update.
+        $isOpen = property_exists($platform, 'is_open') ? intval($platform->is_open) : 0;
 
         try {
             if (isset($platformsOnSystem[$name])) {
                 // Legacy: lang_get('platform_updated')
-                $mgr->update(intval($platformsOnSystem[$name]['id']), $name, $notes, $onDesign, $onExec, $isOpen);
+                // update() reports failures in its return value (tl::OK or
+                // E_DBERROR): honour it, otherwise a platform that was not
+                // written would be reported as updated.
+                $updateResult = $mgr->update(
+                    intval($platformsOnSystem[$name]['id']),
+                    $name,
+                    $notes,
+                    $onDesign,
+                    $onExec,
+                    $isOpen
+                );
+                if (intval($updateResult) !== intval(tl::OK)) {
+                    $ko[] = array('code' => 'IMPORT_FAILED', 'name' => $name);
+                    continue;
+                }
                 $updated++;
                 $ok[] = array('code' => 'UPDATED', 'name' => $name);
             } else {
