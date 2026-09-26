@@ -22573,3 +22573,42 @@ teal filter row, record counter, paginate buttons).
 **Known nuance (not a defect):** `stateSave: true` re-applies an active global
 search after the destroy/re-init performed by `loadProjects()` — the same
 behaviour legacy had when it reloaded the view with its filter still active.
+
+---
+
+## Suite — Task — Issue #1614: session inactivity timeout on the tproject-roles BFF
+
+**Screen:** `gui/templates/usermanagement/usersAssignProject.html`
+**BFF:** `api/roles/index.php` → `GET /meta/tproject-roles`, `PUT /tproject-roles`
+**Legacy parity target:** `checkSessionValid()` (`lib/functions/common.php:258-286`),
+called by `testlinkInitPage()` (`common.php:531-533`) and again explicitly at
+`lib/usermanagement/usersAssign.php:97` → redirect `login.php?note=expired&destination=…`
+**Precondition:** `admin`/`admin` logged in; the config lever
+`config.inc.php:301 $tlCfg->sessionInactivityTimeout` is temporarily forced from
+`9900` to `0` for the stale-session cases (any session older than 0 s is then
+stale) and restored to `9900` for the happy-path cases. The file is NOT part of
+the change (`git diff config.inc.php` empty after the run).
+
+| # | Action | Expected | Measured | Result |
+|---|---|---|---|---|
+| 1 | Baseline, shipped `sessionInactivityTimeout = 9900`, open the screen | user list loads, no redirect, no console error | `GET /api/roles/index.php/meta/tproject-roles?tproject_id=1` → `200`, 1 user (`admin`, role 8), tabs + bulk "Set roles to" combo rendered | **PASS** |
+| 2 | **Before** the fix, timeout forced to `0`, reload the screen | legacy would refuse | `GET` → `200` with 1 user **and** `PUT /api/roles/tproject-roles` → `200 {"status":"ok","feedback_key":"no_users_selected"}` — the write went through on a stale session | **GAP (baseline)** |
+| 3 | **After** the fix, timeout `0`: `GET /meta/tproject-roles` | `401` + machine-readable code, no user data in the body | `401 {"status":"error","code":"session_expired","message":"session_expired"}` | **PASS** |
+| 4 | **After** the fix, timeout `0`: `PUT /tproject-roles` (write path) | `401`, no role row written | `401 {"status":"error","code":"session_expired","message":"session_expired"}` | **PASS** |
+| 5 | Screen left on the URL, stale session, initial load | user is bounced to the login screen with the legacy note | landed on `http://localhost:8082/login.php?note=expired&destination=%2Fgui%2Ftemplates%2Fusermanagement%2FusersAssignProject.html%3Ftproject_id%3D1` | **PASS** |
+| 6 | The login page reached that way | localized "session expired" info box | a11y tree: `StaticText "Session expired. Please log in again."` (i.e. `auth.sessionExpired`, not a raw key) | **PASS** |
+| 7 | A `401` on the **Save** path (`saveAssignments()` error branch) | localized expiry toast + bounce, **not** the generic "update failed" toast | `sessionExpired(xhr)` returns `true` before the `assign.updateFailed` mapping, so `updateFailed` can never be shown for a dead session | **PASS** (code-path) |
+| 8 | Stale session must not render the misleading empty state | "Select a test project above" box must stay hidden | `if (sessionExpired(xhr)) { return; }` is the first statement of `loadUsers().fail()` (line 333), before the `403`/empty branches | **PASS** (code-path) |
+| 9 | Redirect target when the screen runs **inside the Dashio iframe** | whole shell is replaced, not just the iframe (legacy used `top.location`) | `if (window.self !== window.top) { window.top.location.href = target; }` — same pattern as `documentation/staticPage.html:96` | **PASS** (code-path) |
+| 10 | Happy path restored (`sessionInactivityTimeout = 9900`), re-login | no regression on read and on write | `GET` → `200`; `PUT /tproject-roles` → `200 {"status":"ok","feedback_key":"assign_roles_updated"}`; read-back identical | **PASS** |
+| 11 | Gate ordering | a stale session is rejected *before* the rights audit / any DB read | `bffEnforceSession($db)` at `api/roles/index.php:40`, i.e. after the `userID` gate (21-26) and before the route-aware rights block (363+) | **PASS** |
+| 12 | `php -l` on both PHP files | no syntax error | `No syntax errors detected` × 2 | **PASS** |
+| 13 | `node --check` on the extracted inline `<script>` of the screen | no JS syntax error | `JS SYNTAX OK` | **PASS** |
+| 14 | i18n: new user-facing string needed? | all bundles valid, key present everywhere | reuses the existing `auth.sessionExpired`; `python3 -m json.tool` on all 10 bundles → `ALL BUNDLES VALID`; key present in de, en, es, fr, it, ja, pt, ro, ru, zh | **PASS** |
+| 15 | Event Viewer after the whole pass | no new Error/Warning row | `select count(*),max(id) from events;` → `4 4`; the only new row is `id 4`, `log_level 16` (INFO) audit `UPDATE / testprojects "Test project roles updated for project #1"` from case 10 | **PASS** |
+| 16 | `config.inc.php` left untouched by the run | no config leakage into the commit | `git diff config.inc.php` → empty | **PASS** |
+
+**Result: 15/16 PASS (case 2 is the recorded "before" baseline, not a failure).**
+The legacy guarantee is restored: past `sessionInactivityTimeout` a stale tab can
+neither read the user list nor write role assignments, and it is bounced to
+`login.php?note=expired&destination=<screen>` exactly like legacy 1.9.20.
