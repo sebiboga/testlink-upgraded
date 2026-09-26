@@ -54,7 +54,7 @@ request**, so it does not depend on that accidental guard.
 
 ## Root cause
 
-`tree::$node_types` (`lib/functions/tree.class.php:22-27`) maps **12** node type
+`tree::$node_types` (`lib/functions/tree.class.php:24-28`) maps **12** node type
 ids to names and its own comment says *"Now contains also PSEUDO NODES"*:
 
 ```php
@@ -65,12 +65,15 @@ var $node_types = array( 1 => 'testproject','testsuite',
                           'build');
 ```
 
-`tree::$node_tables_by['name']` (`:41-49`) has only **9** names — the pseudo types
-`testcase_step` (9) and `build` (12) have **no row table** (and `req_revision`
-aliases `req_versions`). `$this->node_tables = $this->node_tables_by['name']`
-(`:78`).
+`tree::$node_tables_by['name']` (`:42-53`) has only **10** names (9 *distinct*
+tables, because `req_revision` aliases `req_versions`). Measured
+(`count()` on the live object): 12 ids, 10 names, 9 distinct tables, and exactly
+**two ids with no entry at all** — `testcase_step` (9) and `build` (12).
+`requirement_spec_revision` (11) **does** have one
+(`'requirement_spec_revision' => 'req_specs_revisions'`, `:53`); it is *not* one of
+the tableless types. `$this->node_tables = $this->node_tables_by['name']` (`:79`).
 
-`tree::$class_name` (`:28-31`) already encodes this correctly — the pseudo types
+`tree::$class_name` (`:31-34`) already encodes this correctly — the pseudo types
 are `null`. **`class_name` is the authoritative "has a table" flag;
 `node_tables` is not, and line 963 ignored that flag:**
 
@@ -84,9 +87,9 @@ Two unguarded array accesses. For `node_type_id = 9` the inner lookup yields
 becomes `null`. The loop **keeps going** and still appends the step row.
 
 The recursion guard that would have stopped the descent sits **below** the
-warning (`:1011`, `exclude_children_of`) and therefore never protected the pseudo
-type. The recursion itself (`:1019`) runs for every row, so one stepped test case
-in the subtree makes every step below it warn.
+warning (`:1018` pre-fix, `exclude_children_of`) and therefore never protected
+the pseudo type. The recursion itself (`:1021` pre-fix) runs for every row, so one
+stepped test case in the subtree makes every step below it warn.
 
 Why it surfaces only in 2.0.1: on PHP 5/7 an undefined array key was an
 `E_NOTICE` and `$node_table` was silently `null` — harmless. PHP 8 promoted it to
@@ -96,7 +99,8 @@ recent commit.
 
 ## Fix
 
-The only fault site: `grep -rn "node_tables\[" lib/` → **1** hit (line 963).
+`grep -rn "node_tables\[" lib/` returned **exactly one** hit before the fix
+(line 963) and now returns the two halves of the guarded statement (`:973-974`).
 
 ```diff
 -        $node_table = $this->node_tables[$this->node_types[$row['node_type_id']]];
@@ -109,20 +113,40 @@ The only fault site: `grep -rn "node_tables\[" lib/` → **1** hit (line 963).
 +        // plugin could introduce) node_table is null, which is exactly what
 +        // $class_name already declares for them.
 +        $nodeTypeName = isset($this->node_types[$row['node_type_id']])
-+                        ? $this->node_types[$row['node_type_id']] : '';
-+        $node_table = isset($this->node_tables[$nodeTypeName])
-+                        ? $this->node_tables[$nodeTypeName] : null;
++                        ? $this->node_tables[...] : null;   // (abridged)
 ```
 
-The two `isset()` guards make the resolution total. For the pseudo types — and
-for any unknown `node_type_id` a plugin could introduce — `node_table` is `null`,
-which is exactly what `$class_name` already declares for them, so the fix makes
-`node_tables` consistent with the existing contract instead of inventing a new
-one. It also cannot emit a SQL fragment like `FROM ` if a consumer ever
+plus a second, one-line change in the **same loop iteration** — the recursion
+guard did its own second unguarded lookup of the very same name:
+
+```diff
+-        if( !isset($my['filters']['exclude_children_of'][$this->node_types[$row['node_type_id']]]) &&
++        // $nodeTypeName is the name resolved above for THIS row: reusing it
++        // keeps the recursion guard free of a second unguarded lookup (Refs #1589).
++        if( !isset($my['filters']['exclude_children_of'][$nodeTypeName]) &&
+             !isset($my['filters']['exclude_branches'][$row['id']]) )
+```
+
+Without that second part the fix would only be partial: an injected row with a
+genuinely unknown `node_type_id` still raised `Undefined array key 99` at
+`:1029` (**measured**: 1 warning). With it, 0 warnings.
+
+The two `isset()` guards make the resolution total. For the two tableless types —
+and for any unknown `node_type_id` a plugin could introduce — `node_table` is
+`null`, which is exactly what `$class_name` already declares for them, so the fix
+makes `node_tables` consistent with the existing contract instead of inventing a
+new one. It also cannot emit a SQL fragment like `FROM ` if a consumer ever
 dereferences it.
 
-The returned node set and every `node_table` value of the 9 real types are
-**unchanged**.
+The returned node set and every `node_table` value of the 10 mapped types are
+**unchanged**. Verified against the pre-fix output: 10 nodes, per-type
+`2=1 3=3 4=3 9=3`, `node_table` = `testsuites, testcases, tcversions, NULL`.
+
+`isset()` is the right predicate here, not `array_key_exists()`: all 10 mapped
+values are non-`null` strings, so no legitimate `null` can be masked. mysqli
+returns `node_type_id` as the *string* `'9'`, but PHP normalises canonical
+integer strings for array access, so `isset($this->node_types['9'])` resolves
+exactly as the old direct access did — checked against live rows.
 
 ### Alternatives considered and rejected
 
@@ -130,7 +154,7 @@ The returned node set and every `node_table` value of the 9 real types are
    (the issue's option 2). Rejected: it silently changes the returned node set
    for every existing caller that legitimately wants the flat step list
    (`api/reqspec/index.php:1251`, `lib/functions/specview.php:688`,
-   `lib/functions/printDocument.php:52`). A behaviour change disguised as a
+   `lib/results/printDocument.php:52`). A behaviour change disguised as a
    warning fix.
 2. **Add `testcase_step => null` to `$node_tables_by['name']`.** Rejected: a
    one-off patch of the *data* for one pseudo type; `build` (12) and any future
@@ -158,6 +182,16 @@ without the `exclude_children_of` filter:
 | `lib/functions/testproject.class.php:700,721,865,1557` | mixed | latent |
 | `lib/functions/testsuite.class.php:739,806,850,1265` | **always** (`:52`, `:800`) | no |
 | `api/reqdoc/index.php:233`, `lib/results/printDocument.php:52` | legacy print path | latent |
+
+A second, *different* unguarded pattern — `node_tables_by['id'][$row['node_type_id']]`
+— exists at `tree.class.php:493` (`_get_path`), `tree.class.php:615`
+(`get_children`), `tree.class.php:1147` (`_get_subtree_rec`),
+`testproject.class.php:3356` and `testplan.class.php:4384`. `node_tables_by['id']`
+is **not** empty: the constructor fills it from the `name` map
+(`tree.class.php:81-84`, measured keys `1,2,3,4,5,6,7,8,10,11` — i.e. it inherits
+the same two missing ids, 9 and 12). `get_children()` on a test-case-version node
+measures **1 warning** and is reachable from an ordinary call, so that family is
+filed as a follow-up rather than folded into this minimal fix.
 
 ## Verification
 
@@ -190,14 +224,13 @@ Full suite: `tmp/TLU_Test_Cases.md` →
 
 ## Two sibling defects found while testing — filed, not fixed here
 
-1. **#1606** — `_get_subtree_rec()` at `tree.class.php:1145` does
-   `$this->node_tables_by['id'][$row['node_type_id']]` while
-   `node_tables_by['id']` is declared as an **empty array**
-   (`tree.class.php:60`) → `Undefined array key 9`, one warning per step node via
-   `get_subtree(..., ['recursive' => true])`. This is the single non-PASS of the
-   matrix. Confirmed **pre-existing and untouched** by this fix: `git stash` →
-   3 warnings, `git stash pop` → the same 3 warnings (the line only moved
-   1134 → 1145 because this patch shifted the file by 11 lines).
+1. **#1606** — `_get_subtree_rec()` at `tree.class.php:1147` does
+   `$this->node_tables_by['id'][$row['node_type_id']]` and the key for
+   `testcase_step` is missing there → `Undefined array key 9`, one warning per
+   step node via `get_subtree(..., ['recursive' => true])`. This is the single
+   non-PASS of the matrix. Confirmed **pre-existing and untouched** by this fix:
+   `git stash` → 3 warnings, `git stash pop` → the same 3 warnings (the line only
+   moved 1134 → 1147 because this patch shifted the file by 13 lines).
 2. **#1607** — `static $my` in `_get_subtree()` leaks `order_cfg`/`output` between
    top-level calls within one process → spurious
    `Undefined array key "doc_id"` at `tree.class.php:995`. Measured 13 spurious

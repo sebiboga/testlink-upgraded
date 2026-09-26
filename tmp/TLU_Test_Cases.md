@@ -22382,7 +22382,7 @@ leaks `order_cfg` between top-level calls in one process (filed separately as
 | # | Case | Result |
 |---|---|---|
 | 1 | `php tmp/matrix_1589.php c1` — bare `get_subtree(suite)`: 0 warnings, 10 nodes incl. 3 step rows, `node_table` real values unchanged + `NULL` for steps, step rows still returned | **4/4 PASS** |
-| 2 | `php tmp/matrix_1589.php c2unknown` — injected `node_type_id=99` row (plugin case): 0 warnings, row returned, no crash | **2/2 PASS** |
+| 2 | `php tmp/matrix_1589.php c2unknown` — a **genuinely unknown** `node_type_id=99` row (present in NEITHER `node_types` NOR `node_tables`, i.e. what a plugin inserting a custom node type would produce): 0 warnings, row returned, `node_table` null, no crash — this case covers BOTH `isset()` guards and catches a regression in the recursion guard at `tree.class.php:1029`, which before the second part of the fix still warned once here (measured 1 -> 0) | **2/2 PASS** |
 | 3 | `php tmp/matrix_1589.php c3` — `testsuite::get_subtree()` (`exclude_children_of` path): 0 warnings, still stops at test cases | **2/2 PASS** |
 | 4 | `php tmp/matrix_1589.php c4id` — `output=id`: 0 warnings, 10 scalars | **2/2 PASS** |
 | 5 | `php tmp/matrix_1589.php c4essential` — `output=essential`: 0 warnings, key set kept | **2/2 PASS** |
@@ -22401,8 +22401,8 @@ leaks `order_cfg` between top-level calls in one process (filed separately as
 | 18 | Event Viewer screen `/gui/templates/eventviewer/eventviewer.html` + `/api/eventviewer/index.php/events/stats/byLevel` | `DEBUG 0, INFO 0, WARNING 0, ERROR 0, AUDIT 0, L18N 0` — PASS |
 | 19 | no fatal / 5xx in `tmp/php_server.log` for the whole run; Remote Test Automation Execution screen (#1587 path) unaffected | clean — PASS |
 
-**Result: 19 cases PASS, 1 known-fail that is a pre-existing sibling defect
-out of the scope of this issue (#1606).**
+**Result: 20 cases PASS for the scope of #1589, 1 known-fail that is a
+pre-existing sibling defect outside that scope (#1606).**
 
 Evidence: `docs/screenshots/issue-1589-before-eventviewer.png` (6 WARNING rows
 in the Event Viewer) and `docs/screenshots/issue-1589-after-eventviewer.png`

@@ -960,14 +960,14 @@ class tree extends tlObject
         if( !isset($my['filters']['exclude_branches'][$row['id']]) )
         {  
             
-        // $node_types also holds the PSEUDO node types (testcase_step,
-        // requirement_spec_revision, build) which have NO row table of their own,
-        // so $node_tables has no key for them. On PHP 8 the raw double lookup
-        // raised one E_WARNING "Undefined array key \"testcase_step\"" per step
-        // node, which watchPHPErrors turns into Event Viewer noise (Refs #1589).
-        // Resolve defensively: for the pseudo types (and for any unknown id a
-        // plugin could introduce) node_table is null, which is exactly what
-        // $class_name already declares for them.
+        // $node_types (tree.class.php:24) also holds the PSEUDO node types
+        // testcase_step (9) and build (12), which have NO row table, so
+        // $node_tables (10 names, 9 distinct tables) has no key for them. The
+        // raw double lookup raised one PHP 8 E_WARNING "Undefined array key
+        // \"testcase_step\"" per step node, which watchPHPErrors turns into
+        // Event Viewer noise (Refs #1589). Resolve defensively: for a pseudo
+        // type - or an id neither array knows - node_table is null, which is
+        // what $class_name (tree.class.php:31) already declares for them.
         $nodeTypeName = isset($this->node_types[$row['node_type_id']])
                         ? $this->node_types[$row['node_type_id']] : '';
         $node_table = isset($this->node_tables[$nodeTypeName])
@@ -1026,7 +1026,9 @@ class tree extends tlObject
         // in a null result set.
         //
         //
-        if( !isset($my['filters']['exclude_children_of'][$this->node_types[$row['node_type_id']]]) && 
+        // $nodeTypeName is the name resolved above for THIS row: reusing it
+        // keeps the recursion guard free of a second unguarded lookup (Refs #1589).
+        if( !isset($my['filters']['exclude_children_of'][$nodeTypeName]) && 
             !isset($my['filters']['exclude_branches'][$row['id']]) )
         {
           $this->_get_subtree($row['id'],$node_list,$filters,$options);
