@@ -1,371 +1,128 @@
 <?php
 /**
- * TestLink Open Source Project - http://testlink.sourceforge.net/ 
- * This script is distributed under the GNU General Public License 2 or later. 
+ * TestLink Open Source Project - http://testlink.sourceforge.net/
+ * This script is distributed under the GNU General Public License 2 or later.
  *
- * @filesource: keywordsEdit.php
+ * @filesource	keywordsEdit.php
  *
- * Allows users to create/edit keywords. 
+ * 2.0.1.shim - Refs #1599: the legacy Smarty keyword dialog (create / edit /
+ * delete / create-and-link) was replaced by the modern Dashio popup
+ * gui/templates/keywords/keywordsEdit.html + the api/keywordsedit BFF.
  *
- * @package    TestLink
- * @copyright  2005,2019 TestLink community 
- * @link       http://www.testlink.org/
- *  
+ * This controller is kept as a session-guarded redirect shim so old deep links
+ * (and the still-shipped dead tl-classic / dashio templates) resolve:
+ *   - anonymous users are sent to the login screen (legacy testlinkInitPage
+ *     behaviour);
+ *   - GET requests (form display: doAction=create|edit|cfl) are mapped onto the
+ *     modern popup with the mode/id/tcversion_id/tproject_id/tplan_id context
+ *     forwarded;
+ *   - POST requests (the legacy do_create / do_update / do_delete / do_cfl
+ *     writes) are performed here with the very same model calls and the very
+ *     same legacy AND-mode rights gate (mgt_modify_key AND mgt_view_key at
+ *     test-project level), then redirected (303) back to the modern Keyword
+ *     Management screen. Keeping the writes server-side avoids a silent data
+ *     loss for any form that still posts here.
 **/
 require_once("../../config.inc.php");
 require_once("common.php");
-require_once("csv.inc.php");
-require_once("xml.inc.php");
-require_once("keywordsEnv.php");
 
+// Anonymous -> login (same contract as the legacy testlinkInitPage call).
+testlinkInitPage($db, TRUE);
 
-testlinkInitPage($db);
-$tplCfg = templateConfiguration();
-
-$tplEngine = new TLSmarty();
-
-$op = new stdClass();
-$op->status = 0;
-
-$args = initEnv($db);
-$gui = initializeGui($db,$args);
-
-$tprojectMgr = new testproject($db);
-
-$action = $args->doAction;
-
-switch ($action) {
-  case "do_create":
-  case "do_update":
-  case "do_delete":
-  case "edit":
-  case "create":
-  case "cfl":
-  case "do_cfl":
-    $op = $action($args,$gui,$tprojectMgr);
-  break;
+function kwShimOut($msg, $tproject_id) {
+	$base = isset($_SESSION['basehref']) ? $_SESSION['basehref'] : '/';
+	$url = $base . 'gui/templates/keywords/keywordsView.html?tproject_id=' . intval($tproject_id) .
+		'&tplan_id=' . (isset($_SESSION['testplanID']) ? intval($_SESSION['testplanID']) : 0);
+	header('Location: ' . $url);
+	exit;
 }
 
+// Legacy input contract (initEnv() in the pre-2.0.1 controller).
+$doAction = isset($_REQUEST['doAction']) ? trim($_REQUEST['doAction']) : '';
+$keywordId = isset($_REQUEST['id']) ? intval($_REQUEST['id']) : 0;
+$keyword = isset($_REQUEST['keyword']) ? $_REQUEST['keyword'] : '';
+$notes = isset($_REQUEST['notes']) ? $_REQUEST['notes'] : '';
+$tprojectID = isset($_REQUEST['tproject_id']) ? intval($_REQUEST['tproject_id']) : 0;
+$tcversionId = isset($_REQUEST['tcversion_id']) ? intval($_REQUEST['tcversion_id']) : 0;
 
-if($op->status == 1) {
-  $tpl = $op->template;
-} else {
-  $tpl = $tplCfg->default_template;
-  $gui->user_feedback = getKeywordErrorMessage($op->status);
+if ($tprojectID <= 0) {
+	$tprojectID = isset($_SESSION['testprojectID']) ? intval($_SESSION['testprojectID']) : 0;
+}
+$tplanID = isset($_SESSION['testplanID']) ? intval($_SESSION['testplanID']) : 0;
+
+$isWrite = in_array($doAction, array('do_create', 'do_update', 'do_delete', 'do_cfl'), TRUE);
+
+if ($isWrite) {
+	// Same rights gate as the legacy initEnv(): AND mode on the test project.
+	$currentUser = $_SESSION['currentUser'];
+	$canModify = $currentUser->hasRight($db, 'mgt_modify_key', $tprojectID);
+	$canView = $currentUser->hasRight($db, 'mgt_view_key', $tprojectID);
+	if (!$canModify || !$canView || $tprojectID <= 0) {
+		header('Location: ' . (isset($_SESSION['basehref']) ? $_SESSION['basehref'] : '/') .
+			'gui/templates/keywords/keywordsView.html?tproject_id=' . $tprojectID);
+		exit;
+	}
+
+	$tprojectMgr = new testproject($db);
+	switch ($doAction) {
+		case 'do_create':
+			$tprojectMgr->addKeyword($tprojectID, $keyword, $notes);
+			break;
+
+		case 'do_update':
+			if ($keywordId > 0) {
+				$tprojectMgr->updateKeyword($tprojectID, $keywordId, $keyword, $notes);
+			}
+			break;
+
+		case 'do_delete':
+			if ($keywordId > 0) {
+				$dko = array('context' => 'getTestProjectName', 'tproject_id' => $tprojectID);
+				$tprojectMgr->deleteKeyword($keywordId, $dko);
+			}
+			break;
+
+		case 'do_cfl':
+			$op = $tprojectMgr->addKeyword($tprojectID, $keyword, $notes);
+			if ($op['status'] >= tl::OK && $tcversionId > 0) {
+				$tbl = tlObject::getDBTables('nodes_hierarchy');
+				$sql = "SELECT parent_id FROM {$tbl['nodes_hierarchy']} WHERE id=" . $tcversionId;
+				$rs = $db->get_recordset($sql);
+				$tcaseId = !is_null($rs) && count($rs) ? intval($rs[0]['parent_id']) : 0;
+				if ($tcaseId > 0) {
+					$tcaseMgr = new testcase($db);
+					$tcaseMgr->addKeywords($tcaseId, $tcversionId, array(intval($op['id'])));
+				}
+			}
+			break;
+	}
+	kwShimOut('', $tprojectID);
 }
 
-$gui->keywords = null;
-$gui->activeMenu['projects'] = 'active';
-$gui->submitCode = "";
-if ($tpl != $tplCfg->default_template) {
-  // I'm going to return to screen that display all keywords
-  $kwe = getKeywordsEnv($db,$args->user,$args->tproject_id);
-  foreach($kwe as $prop => $val) {
-    $gui->$prop = $val;
-  }  
-  $setUpDialog = $gui->openByOther;  
-} else {
-  $setUpDialog = $gui->directAccess;  
-  $gui->submitCode="return dialog_onSubmit($gui->dialogName)";
+// GET (form display) -> modern popup
+$mode = 'create';
+switch ($doAction) {
+	case 'edit':
+		$mode = 'edit';
+		break;
+
+	case 'cfl':
+		$mode = 'cfl';
+		break;
 }
 
-if( $setUpDialog ) {
-  $gui->dialogName = 'kw_dialog';
-  $gui->bodyOnLoad = "dialog_onLoad($gui->dialogName)";
-  $gui->bodyOnUnload = "dialog_onUnload($gui->dialogName)";  
-
-  if( $gui->directAccess ) {
-    $gui->submitCode = "return dialog_onSubmit($gui->dialogName)";
-  }  
+if ($mode === 'edit' && $keywordId <= 0) {
+	$mode = 'create';
+}
+if ($mode === 'cfl' && $tcversionId <= 0) {
+	$mode = 'create';
 }
 
-$tplEngine->assign('gui',$gui);
-$tplEngine->display($tplCfg->template_dir . $tpl);
-
-
-/**
- * Sets dialogName/bodyOnLoad/bodyOnUnload for the case where this page is
- * opened embedded in another one (openByOther), mirroring the equivalent
- * inline logic in keywordsView.php::init_args().
- *
- * initializeGui() reads these three properties off $args unconditionally
- * (see $gui->dialogName = $args->dialogName; and its neighbours), so they
- * have to exist here even when the page was not opened by another one.
- */
-function setOpenByAnotherEnv(&$args) {
-  $args->dialogName = '';
-  $args->bodyOnLoad = '';
-  $args->bodyOnUnload = '';
-
-  if( $args->openByOther ) {
-    $args->dialogName = 'kw_dialog';
-    $args->bodyOnLoad = "dialog_onLoad($args->dialogName)";
-    $args->bodyOnUnload = "dialog_onUnload($args->dialogName)";
-  }
-}
-
-
-/**
- * @return object returns the arguments for the page
- */
-function initEnv(&$dbHandler) {
-  $args = new stdClass();
-  $_REQUEST = strings_stripSlashes($_REQUEST);
-  $source = sizeof($_POST) ? "POST" : "GET";
-  
-  $ipcfg = 
-    array( "doAction" => array($source,tlInputParameter::STRING_N,0,50),
-           "id" => array($source, tlInputParameter::INT_N),
-           "keyword" => array($source, tlInputParameter::STRING_N,0,100),
-           "notes" => array($source, tlInputParameter::STRING_N),
-           "tproject_id" => array($source, tlInputParameter::INT_N),
-           "openByOther" => array($source, tlInputParameter::INT_N),
-           "directAccess" => array($source, tlInputParameter::INT_N),
-           "tcversion_id" => array($source, tlInputParameter::INT_N));
-    
-  $ip = I_PARAMS($ipcfg);
-
-  $args = new stdClass();
-  $args->doAction = $ip["doAction"];
-  $args->notes = $ip["notes"];
-  $args->keyword = $ip["keyword"];
-  $args->keyword_id = $ip["id"];
-  $args->tproject_id = $ip["tproject_id"];
-  $args->openByOther = intval($ip["openByOther"]);
-  $args->directAccess = intval($ip["directAccess"]);
-  $args->tcversion_id = intval($ip["tcversion_id"]);
-
- 
-  if( $args->tproject_id <= 0 ) {
-    throw new Exception("Error Invalid Test Project ID", 1);
-  }
-
-  // Check rights before doing anything else
-  // Abort if rights are not enough 
-  // Check Only At Test project level
-  $args->user = $_SESSION['currentUser'];
-  $environment = array('tproject_id' => $args->tproject_id);
-  
-  $check = new stdClass();
-  $check->items = array('mgt_modify_key','mgt_view_key');
-  $check->mode = 'and';
-  checkAccess($dbHandler,$args->user,$environment,$check);
-
-  // OK Go ahead
-  $args->canManage = true;
-  $args->mgt_view_events = $args->user->hasRight($dbHandler,"mgt_view_events",$args->tproject_id);
-
-  $treeMgr = new tree($dbHandler);
-  $dummy = $treeMgr->get_node_hierarchy_info($args->tproject_id);
-  $args->tproject_name = $dummy['name'];  
-
-  setOpenByAnotherEnv($args);
-
-  return $args;
-}
-
-/*
- *  initialize variables to launch user interface (smarty template)
- *  to get information to accomplish create task.
-*/
-function create(&$argsObj,&$guiObj) {
-  $guiObj->submit_button_action = 'do_create';
-  $guiObj->submit_button_label = lang_get('btn_save');
-  $guiObj->main_descr = lang_get('keyword_management');
-  $guiObj->action_descr = lang_get('create_keyword');
-
-  $ret = new stdClass();
-  $ret->template = 'keywordsEdit.tpl';
-  $ret->status = 1;
-  return $ret;
-}
-
-/*
- *  initialize variables to launch user interface (smarty template)
- *  to get information to accomplish edit task.
-*/
-function edit(&$argsObj,&$guiObj,&$tproject_mgr) {
-  $guiObj->submit_button_action = 'do_update';
-  $guiObj->submit_button_label = lang_get('btn_save');
-  $guiObj->main_descr = lang_get('keyword_management');
-  $guiObj->action_descr = lang_get('edit_keyword');
-
-  $ret = new stdClass();
-  $ret->template = 'keywordsEdit.tpl';
-  $ret->status = 1;
-
-  $keyword = $tproject_mgr->getKeyword($argsObj->keyword_id);
-  if ($keyword) {
-    $guiObj->keyword = $argsObj->keyword = $keyword->name;
-    $guiObj->notes = $argsObj->notes = $keyword->notes;
-    $guiObj->action_descr .= TITLE_SEP . $guiObj->keyword;
-  }
-
-  return $ret;
-}
-
-/*
- * Creates the keyword
- */
-function do_create(&$args,&$guiObj,&$tproject_mgr) {
-  $guiObj->submit_button_action = 'do_create';
-  $guiObj->submit_button_label = lang_get('btn_save');
-  $guiObj->main_descr = lang_get('keyword_management');
-  $guiObj->action_descr = lang_get('create_keyword');
-
-  $op = $tproject_mgr->addKeyword($args->tproject_id,$args->keyword,$args->notes);
-  $ret = new stdClass();
-  $ret->template = 'keywordsView.tpl';
-  $ret->status = $op['status'];
-  return $ret;
-}
-
-/*
- * Updates the keyword
- */
-function do_update(&$argsObj,&$guiObj,&$tproject_mgr) {
-  $guiObj->submit_button_action = 'do_update';
-  $guiObj->submit_button_label = lang_get('btn_save');
-  $guiObj->main_descr = lang_get('keyword_management');
-  $guiObj->action_descr = lang_get('edit_keyword');
-
-  $keyword = $tproject_mgr->getKeyword($argsObj->keyword_id);
-  if ($keyword) {
-    $guiObj->action_descr .= TITLE_SEP . $keyword->name;
-  }
-  
-  $ret = new stdClass();
-  $ret->template = 'keywordsView.tpl';
-  $ret->status = $tproject_mgr->updateKeyword($argsObj->tproject_id,
-    $argsObj->keyword_id,$argsObj->keyword,$argsObj->notes);
-  return $ret;
-}
-
-/*
- * Deletes the keyword 
- */
-function do_delete(&$args,&$guiObj,&$tproject_mgr) {
-  $guiObj->submit_button_action = 'do_update';
-  $guiObj->submit_button_label = lang_get('btn_save');
-  $guiObj->main_descr = lang_get('keyword_management');
-  $guiObj->action_descr = lang_get('delete_keyword');
-
-  $ret = new stdClass();
-  $ret->template = 'keywordsView.tpl';
-
-  $dko = array('context' => 'getTestProjectName',
-               'tproject_id' => $args->tproject_id);
-  $ret->status = $tproject_mgr->deleteKeyword($args->keyword_id,$dko);
-
-  return $ret;
-}
-
-/*
- *  initialize variables to launch user interface (smarty template)
- *  to get information to accomplish create task.
-*/
-function cfl(&$argsObj,&$guiObj) {
-  $guiObj->submit_button_action = 'do_cfl';
-  $guiObj->submit_button_label = lang_get('btn_create_and_link');
-  $guiObj->main_descr = lang_get('keyword_management');
-  $guiObj->action_descr = lang_get('create_keyword_and_link');
-
-  $ret = new stdClass();
-  $ret->template = 'keywordsEdit.tpl';
-  $ret->status = 1;
-  return $ret;
-}
-
-/*
- * Creates the keyword
- */
-function do_cfl(&$args,&$guiObj,&$tproject_mgr) {
-  $guiObj->submit_button_action = 'do_cfl';
-  $guiObj->submit_button_label = lang_get('btn_save');
-  $guiObj->main_descr = lang_get('keyword_management');
-  $guiObj->action_descr = lang_get('create_keyword');
-
-  $op = $tproject_mgr->addKeyword($args->tproject_id,$args->keyword,$args->notes);
-  if( $op['status'] >= tl::OK ) {
-    $tcaseMgr = new testcase($tproject_mgr->db);
-    $tbl = tlObject::getDBTables('nodes_hierarchy');
-    $sql = "SELECT parent_id FROM {$tbl['nodes_hierarchy']}
-            WHERE id=" . intval($args->tcversion_id);
-    $rs = $tproject_mgr->db->get_recordset($sql);
-    $tcase_id = intval($rs[0]['parent_id']);
-    $tcaseMgr->addKeywords($tcase_id,$args->tcversion_id,array($op['id']));
-  }
-
-  $ret = new stdClass();
-  $ret->template = 'keywordsView.tpl';
-  $ret->status = $op['status'];
-  return $ret;
-}
-
-
-
-/**
- *
- */
-function getKeywordErrorMessage($code) {
-
-  switch($code) {
-    case tlKeyword::E_NAMENOTALLOWED:
-      $msg = lang_get('keywords_char_not_allowed'); 
-      break;
-
-    case tlKeyword::E_NAMELENGTH:
-      $msg = lang_get('empty_keyword_no');
-      break;
-
-    case tlKeyword::E_DBERROR:
-    case ERROR: 
-      $msg = lang_get('kw_update_fails');
-      break;
-
-    case tlKeyword::E_NAMEALREADYEXISTS:
-      $msg = lang_get('keyword_already_exists');
-      break;
-
-    default:
-      $msg = 'ok';
-  }
-  return $msg;
-}
-
-/**
- *
- *
- */
-function initializeGui(&$dbH,&$args) {
-
-  list($add2args,$gui) = initUserEnv($dbH,$args);
-  $gui->openByOther = $args->openByOther;
-  $gui->directAccess = $args->directAccess;
-  $gui->tcversion_id = $args->tcversion_id;
-  $gui->dialogName = $args->dialogName;
-  $gui->bodyOnLoad = $args->bodyOnLoad;
-  $gui->bodyOnUnload = $args->bodyOnUnload;  
-
-  $gui->user_feedback = '';
-
-  // Needed by the smarty template to be launched
-  $kr = array('canManage' => "mgt_modify_key", 'canAssign' => "keyword_assignment");
-  foreach( $kr as $vk => $rk ) {
-    $gui->$vk = 
-      $args->user->hasRight($dbH,$rk,$args->tproject_id);
-  }
-
-  $gui->tproject_id = $args->tproject_id;
-  $gui->canManage = $args->canManage;
-  $gui->mgt_view_events = $args->mgt_view_events;
-  $gui->notes = $args->notes;
-  $gui->name = $args->keyword;
-  $gui->keyword = $args->keyword;
-  $gui->keywordID = $args->keyword_id;
-
-  $gui->editUrl = $_SESSION['basehref'] . "lib/keywords/keywordsEdit.php?" .
-                  "tproject_id={$gui->tproject_id}"; 
-
-  return $gui;
-}
+$url = $_SESSION['basehref'] . 'gui/templates/keywords/keywordsEdit.html';
+$url .= '?mode=' . $mode .
+	'&tproject_id=' . $tprojectID .
+	'&tplan_id=' . $tplanID .
+	'&id=' . $keywordId .
+	'&tcversion_id=' . $tcversionId;
+header('Location: ' . $url);
+exit;

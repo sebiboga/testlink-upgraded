@@ -61,6 +61,18 @@ function needTprojectId() {
     return $id;
 }
 
+/**
+ * Refs #1599 (fixes #1008): legacy lib/keywords/keywordsEdit.php::initEnv()
+ * performed an AND-mode rights check on the test project
+ * (mgt_modify_key AND mgt_view_key) before ANY keyword write. The modern BFF
+ * used to check only the global mgt_modify_key right, so a project-scoped role
+ * holding mgt_modify_key but not mgt_view_key could still write keywords.
+ */
+function kwWriteRights($user, $db, $tproject_id) {
+    return (bool)$user->hasRight($db, 'mgt_modify_key', $tproject_id)
+        && (bool)$user->hasRight($db, 'mgt_view_key', $tproject_id);
+}
+
 function kwToJSON($kw) {
     // tlKeyword object or stdClass row from getByIDs()
     return [
@@ -151,15 +163,17 @@ if ($method === 'GET' && count($segments) === 0) {
 // POST / - create keyword (mgt_modify_key)
 // ---------------------------------------------------------------------------
 if ($method === 'POST' && count($segments) === 0) {
-    if (!$user->hasRight($db, 'mgt_modify_key')) {
-        http_response_code(403);
-        out(['status' => 'error', 'message' => 'No permission']);
-    }
     $body = getBody();
     $tproject_id = intval($body['tproject_id'] ?? 0);
     if ($tproject_id <= 0) {
         http_response_code(400);
         out(['status' => 'error', 'message' => 'Invalid test project id']);
+    }
+    // Refs #1599 (fixes #1008): legacy keywordsEdit.php gated every write with
+    // an AND-mode project-scoped check on mgt_modify_key + mgt_view_key.
+    if (!kwWriteRights($user, $db, $tproject_id)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission', 'error_code' => 'NO_RIGHT']);
     }
     $op = $tproject_mgr->addKeyword($tproject_id, (string)($body['name'] ?? ''), (string)($body['notes'] ?? ''));
     if ($op['status'] >= tl::OK) {
@@ -173,15 +187,15 @@ if ($method === 'POST' && count($segments) === 0) {
 // PUT /{id} - update keyword (mgt_modify_key)
 // ---------------------------------------------------------------------------
 if ($method === 'PUT' && isset($segments[0]) && ctype_digit($segments[0])) {
-    if (!$user->hasRight($db, 'mgt_modify_key')) {
-        http_response_code(403);
-        out(['status' => 'error', 'message' => 'No permission']);
-    }
     $body = getBody();
     $tproject_id = intval($body['tproject_id'] ?? 0);
     if ($tproject_id <= 0) {
         http_response_code(400);
         out(['status' => 'error', 'message' => 'Invalid test project id']);
+    }
+    if (!kwWriteRights($user, $db, $tproject_id)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission', 'error_code' => 'NO_RIGHT']);
     }
     $result = $tproject_mgr->updateKeyword(
         $tproject_id,
@@ -205,11 +219,11 @@ if ($method === 'PUT' && isset($segments[0]) && ctype_digit($segments[0])) {
 // Legacy do_delete used checkBeforeDelete semantics via deleteKeyword().
 // ---------------------------------------------------------------------------
 if ($method === 'DELETE' && isset($segments[0]) && ctype_digit($segments[0])) {
-    if (!$user->hasRight($db, 'mgt_modify_key')) {
-        http_response_code(403);
-        out(['status' => 'error', 'message' => 'No permission']);
-    }
     $tproject_id = needTprojectId();
+    if (!kwWriteRights($user, $db, $tproject_id)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission', 'error_code' => 'NO_RIGHT']);
+    }
     $dko = array('context' => 'getTestProjectName', 'tproject_id' => $tproject_id);
     $result = $tproject_mgr->deleteKeyword(intval($segments[0]), $dko);
     if ($result >= tl::OK) {

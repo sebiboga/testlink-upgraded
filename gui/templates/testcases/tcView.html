@@ -169,6 +169,7 @@ table.steps tbody tr:nth-child(even) { background: #fafafa; }
 var ctx = null;
 var data = null;
 var currentVersion = null;
+var canManageKeywords = false;
 
 // Refs #1479: this viewer was opened from the Set Results popup (pencil icon,
 // edit-on-execution). We forward the editor's save notification to our own
@@ -216,6 +217,9 @@ function loadView() {
       $('#loadingBox').hide();
       if (r.status !== 'ok') { showError(r.message || TLi18n.t('tcview.errLoad')); return; }
       data = r;
+      // keyword create / create-and-link popup gate (Refs #1599): the legacy
+      // keywordsEdit.php required mgt_modify_key AND mgt_view_key.
+      canManageKeywords = !!(data.grants && data.grants.mgt_modify_key && data.grants.mgt_view_key);
       render();
     })
     .fail(function (xhr) {
@@ -414,6 +418,16 @@ function renderVersion(v) {
   } else {
     h += '<span class="none-text">' + esc(TLi18n.t('tcview.none')) + '</span>';
   }
+  // Keyword create / create-and-link popup (Refs #1599) - legacy
+  // lib/keywords/keywordsEdit.php?doAction=create|cfl (keywords.inc.tpl)
+  if (canManageKeywords) {
+    h += '<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">'
+      + '<button class="btn btn-sm btn-teal" onclick="openKeywordPopup(\'create\')">'
+      + '<i class="fa fa-plus"></i> ' + esc(TLi18n.t('kwedit.create')) + '</button>'
+      + '<button class="btn btn-sm btn-teal" onclick="openKeywordPopup(\'cfl\')">'
+      + '<i class="fa fa-link"></i> ' + esc(TLi18n.t('kwedit.cfl')) + '</button>'
+      + '</div>';
+  }
 
   // platforms assigned to this version (gap #915; legacy platforms.inc.tpl)
   if (v.platforms !== undefined) {
@@ -504,6 +518,17 @@ function openTcEdit() {
     + '&tcversion_id=' + currentVersion.tcversion_id + '&tproject_id=' + data.tproject.id;
   if (execEditMode) url += '&editOnExec=1';
   window.open(url, '_blank', 'width=1024,height=768,resizable=yes,scrollbars=yes');
+}
+
+// Keyword dialog popup (Refs #1599) - modern twin of the legacy
+// lib/keywords/keywordsEdit.php?doAction=create|cfl&tcversion_id=... dialog
+// that used to be opened from the test case keywords panel.
+function openKeywordPopup(mode) {
+  if (!currentVersion || !data) { return; }
+  var url = '/gui/templates/keywords/keywordsEdit.html?mode=' + encodeURIComponent(mode)
+    + '&tproject_id=' + data.tproject.id
+    + '&tcversion_id=' + currentVersion.tcversion_id;
+  window.open(url, 'kw_dialog', 'width=680,height=620,resizable=yes,scrollbars=yes');
 }
 
 function openExecHistory() {

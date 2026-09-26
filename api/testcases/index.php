@@ -495,6 +495,9 @@ if ($action === 'context') {
     $grantKeys = array('mgt_modify_tc', 'mgt_view_req', 'mgt_modify_req',
         'testplan_planning', 'mgt_modify_product', 'testcase_freeze',
         'keyword_assignment', 'req_tcase_link_management',
+        // keyword dialog gate (Refs #1599): the popup requires BOTH
+        // mgt_modify_key AND mgt_view_key, legacy keywordsEdit.php AND-mode.
+        'mgt_modify_key', 'mgt_view_key',
         'testproject_edit_executed_testcases',
         'testproject_delete_executed_testcases',
         'testproject_add_remove_keywords_executed_tcversions',

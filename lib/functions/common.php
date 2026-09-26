@@ -1915,6 +1915,12 @@ function getActions(&$gui,$baseURL) {
   $actions->cfieldsExchange = "/gui/templates/cfields/cfieldsExchange.html?{$ctx}";
 
   $actions->keywordsView = "/gui/templates/keywords/keywordsView.html?{$ctx}";
+  // Keyword create/edit/create-and-link dialog, modernized in Refs #1599.
+  // Legacy controller lib/keywords/keywordsEdit.php (+ keywordsEdit.tpl) is now
+  // a session-guarded 302 shim onto this popup; the legacy AND-mode rights gate
+  // (mgt_modify_key AND mgt_view_key at test-project level) is enforced by the
+  // BFF api/keywordsedit on every route.
+  $actions->keywordsEdit = "/gui/templates/keywords/keywordsEdit.html?{$ctx}";
   $actions->platformsView = "/gui/templates/platforms/platformsView.html?{$ctx}";
   $actions->platformsExport = "/gui/templates/platforms/platformsExport.html?{$ctx}";
   $actions->issueTrackerView = "/gui/templates/issuetracker/issuetrackerView.html?{$ctx}";
