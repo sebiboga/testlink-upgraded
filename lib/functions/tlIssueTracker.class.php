@@ -167,6 +167,20 @@ class tlIssueTracker extends tlObject
    */
   function getImplementationForType($issueTrackerType)
   {
+    // Issue #1617: a row whose type is not a key of $systems (import/migration,
+    // hand-edited DB, or an implementation dropped in a later release) used to
+    // fall through with $spec = NULL, raising "Undefined array key <type>" plus
+    // two "Trying to access array offset on null" warnings and returning the
+    // literal string "Interface" - which then fataled every caller that
+    // instantiated/"statically" called that "class" (getAll()'s $impl::checkEnv()
+    // at line 613 killed the whole Issue Tracker Management grid with an empty
+    // HTTP 500). Return NULL instead, so callers can detect "unknown type"
+    // instead of crashing on a garbage name. Same shape as the code tracker
+    // twin fixed in tlCodeTracker.class.php:114-137 (issue #1597).
+    if( !isset($this->systems[$issueTrackerType]) )
+    {
+      return null;
+    }
     $spec = $this->systems[$issueTrackerType];
     return $spec['type'] . $spec['api'] . 'Interface';
   }
@@ -601,8 +615,12 @@ class tlIssueTracker extends tlObject
       
       foreach($rs as &$item)
       {
-        $item['verbose'] = $item['name'] . " ( {$this->types[$item['type']]} )" ;
-        $item['type_descr'] = $this->types[$item['type']];
+        // Issue #1617: $this->types is projected from $this->systems (getTypes()),
+        // so an unknown type has no entry - read it through a guarded local
+        // instead of warning twice per bad row.
+        $typeDescr = isset($this->types[$item['type']]) ? $this->types[$item['type']] : '';
+        $item['verbose'] = $item['name'] . " ( {$typeDescr} )" ;
+        $item['type_descr'] = $typeDescr;
         $item['env_check_ok'] = true;
         $item['env_check_msg'] = '';
         $item['connection_status'] = '';
@@ -610,9 +628,28 @@ class tlIssueTracker extends tlObject
         if( $my['options']['checkEnv'] )
         {
            $impl = $this->getImplementationForType($item['type']);
-           $dummy = $impl::checkEnv();
-           $item['env_check_ok'] = $dummy['status'];
-           $item['env_check_msg'] = $dummy['msg'];
+           // Issue #1617: one row with an unknown/unloadable implementation must
+           // not take the whole listing down. Degrade that single row to
+           // "environment not OK" (the grid renders it as a red badge) and keep
+           // listing every other row. class_exists() is @-silenced on purpose:
+           // the autoloader include_once()s "<class>.class.php"
+           // (lib/functions/common.php:122) and would otherwise log two
+           // "Failed opening ...class.php" E_WARNINGs per row per page load.
+           // is_callable() (not method_exists) because only a PUBLIC STATIC
+           // checkEnv can satisfy the `$impl::checkEnv()` call below: a private
+           // or non-static declaration would raise an Error and re-introduce
+           // the whole-listing fatal this guard exists to prevent.
+           if( is_null($impl) || !@class_exists($impl) || !is_callable([$impl, 'checkEnv']) )
+           {
+             $item['env_check_ok'] = false;
+             $item['env_check_msg'] = '';
+           }
+           else
+           {
+             $dummy = $impl::checkEnv();
+             $item['env_check_ok'] = $dummy['status'];
+             $item['env_check_msg'] = $dummy['msg'];
+           }
         }
 
         
