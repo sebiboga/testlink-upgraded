@@ -22659,3 +22659,107 @@ and all related data.") remains correct in the two `projectView.tpl` files that
 legitimately use it.
 
 **Screenshot:** `docs/screenshots/issue-1590-issueTrackerView-delete-tooltip.png`
+
+---
+
+## Suite 1617 — Regression: issuetrackers with an unknown `type` must not 500 the screen
+
+**Precondition**
+
+- App at `http://localhost:8082`, MariaDB `testlink` on `127.0.0.1:3306`
+  (`testlink`/`testlink`), logged in as `admin`/`admin`.
+- A test project exists (matrix rows 5/5b link a tracker to it):
+  ```sql
+  INSERT INTO testprojects (id,notes,color,active,option_reqs,option_priority,option_automation,options,prefix)
+    VALUES (9901,'issue 1617 fixture','#9BD',1,0,0,0,'','TLP1615') ON DUPLICATE KEY UPDATE notes=VALUES(notes);
+  INSERT INTO nodes_hierarchy (id,name,parent_id,node_type_id,node_order)
+    VALUES (9901,'TL1615 Project',0,1,1) ON DUPLICATE KEY UPDATE name=VALUES(name);
+  ```
+  Note: in 2.0.1 the test-project **name lives in `nodes_hierarchy.name`**, not in a
+  `testprojects.testproject_name` column, and `testprojects` has no `testproject_id`
+  either. Getting this wrong silently makes every project-scoped case a no-op.
+- Reusable harness (creates its own fixtures, logs in itself):
+  - `bash tmp/repro_1617.sh` — the single-crash reproduction
+  - `bash tmp/verify_1617.sh` — rows 1-4, 7, 8, 9 over HTTP
+  - `php  tmp/unit_1617.php` — rows 5, 5b, 6 at the class level
+
+**Steps to reproduce the defect (pre-fix)**
+
+1. `DELETE FROM issuetrackers;`
+2. `INSERT INTO issuetrackers (name,type,cfg) VALUES ('BadType',0,'');`
+   (`0` is not a key of `tlIssueTracker::$systems`, `lib/functions/tlIssueTracker.class.php:31`.)
+   Add a healthy row too, e.g. `('GoodType',1,'<testlink/>')`.
+3. `DELETE FROM events;`
+4. Open `http://localhost:8082/lib/issuetrackers/issueTrackerView.php?tproject_id=9901`.
+5. Observe a **blank page**; check
+   `SELECT id,log_level,description FROM events ORDER BY id;`.
+
+**Expected post-fix behaviour**
+
+HTTP 200 with the grid rendered, the unknown-type row still listed (so a manager can
+repair it), the healthy rows unaffected, and **zero** new rows in `events`.
+
+**Actual result observed — PASS (all rows)**
+
+| # | Case | Result |
+|---|---|---|
+| 1 | only `type=0`, grid, `checkEnv=1` | `200` 12259 B, bad row listed, **0 warnings** |
+| 2 | only `type=1`, grid | `200` 12292 B, unchanged, **0 warnings** |
+| 3 | mixed `type` 0 + 1 + 5 | `200` 14064 B, **all 3 rows** listed, **0 warnings** |
+| 4 | `?id=<real bad row>` (`checkConnection()` path) | `200` 14188 B, **0 warnings** |
+| 4b | `?id=<real valid row>` | `200` 14138 B |
+| 4c | `POST issueTrackerEdit.php` `doAction=checkConnection&type=0` | `200` 17248 B, feedback **"Issue Tracker type 0 is unknown"** shown, **0 warnings** |
+| 5 | `getLinkedTo()` on a project linked to a bad-type tracker | returns `NULL`, **0 warnings** |
+| 5b | `getLinkedTo()` on a valid-type tracker | real data (`verboseType: bugzilla (Interface: xmlrpc)`, `api: xmlrpc`) — no regression |
+| 6 | `getImplementationForType(0 / 999 / 1)` | `NULL` / `NULL` / `'bugzillaxmlrpcInterface'`; 17 valid keys intact |
+| 7 | `lib/ajax/getissuetrackercfgtemplate.php?type=0` | unchanged `{"sucess":true,"cfg":"Issue Tracker type 0 is unknown"}` |
+| 8 | `lib/codetrackers/codeTrackerView.php` (the #1597 twin) | `200`, **0 warnings** — unaffected |
+| 9 | Event Viewer at the end of the matrix | **0 rows** |
+
+Pre-fix vs post-fix on the two crashing routes, same session, same fixtures:
+
+| Route | Pre-fix | Post-fix |
+|---|---|---|
+| `issueTrackerView.php?tproject_id=9901` | `500`, 0 bytes, 7 event rows | `200`, 12259 bytes, 0 rows |
+| `issueTrackerView.php?tproject_id=9901&id=<bad row>` | `500`, 0 bytes, 12 event rows | `200`, 14188 bytes, 0 rows |
+| `POST issueTrackerEdit.php` `checkConnection&type=0` | `500`, 0 bytes, 5 event rows | `200` + localized message, 0 rows |
+
+**Verdict: PASS.** The primary symptom (blank HTTP 500) is gone on all three routes
+and the Event Viewer stays empty. Verified in the browser as well: the Issue Tracker
+Management grid renders "Showing 1 to 3 of 3 entries" with the bad-type row listed
+and clickable, and the edit form re-renders with the localized message.
+
+**Gotchas for the next agent**
+
+- The `issuetrackers` table in 2.0.1 has only `id,name,type,cfg` — **no
+  `configurable` column**, so the INSERT from the issue body fails until it is
+  dropped. `testprojects` likewise has no `testproject_name`.
+- The login form posts `tl_login` / `tl_password` / `tl_login_btn` to
+  `login.php?viewer=public` — not `login` / `password` to `index.php?it_login=1`.
+  Getting it wrong returns a 204-byte `login.php?note=expired` stub that looks
+  exactly like an empty result set.
+- `issueTrackerView.php?id=<NON-EXISTENT id>` raises 8 warnings and renders a
+  **phantom grid row** — a *separate* pre-existing defect, **filed as #1618**, not
+  part of this suite. Always use a real `id` here, otherwise this suite reports a
+  false failure.
+- A `type=1` row whose `cfg` is not real Bugzilla XML logs one
+  `Undefined property: stdClass::$uribase` from the interface's own `catch` block —
+  **filed as #1619**, also not part of this suite. Give bugzilla rows a real cfg, or
+  accept that single warning.
+- Both `issueTrackerView.tpl:77` and `codeTrackerView.tpl:74` render only
+  `env_check_msg`, never `env_check_ok`. A degraded row therefore shows an **empty**
+  Environment cell, not a red badge — the row being present and editable is the
+  actual signal, so don't assert on badge markup.
+- The `type_descr` of an unknown type is `''`, so `verbose` renders as
+  `BadType (  )` (two spaces). Cosmetic, and identical to the #1597 code-tracker
+  behaviour — no new i18n label was introduced for it.
+
+**Root cause (1 line):** `tlIssueTracker::getImplementationForType()` string-built
+`$spec['type'] . $spec['api'] . 'Interface'` from a `NULL` `$spec` when
+`issuetrackers.type` was not a key of `$systems`, returning the literal garbage
+class name `"Interface"`, which then fataled at `getAll()`'s `$impl::checkEnv()`
+(`tlIssueTracker.class.php:613`) and in both `checkConnection()` paths. It now
+returns `NULL`, and every caller degrades that single row instead of the screen.
+
+**Screenshots:** `docs/screenshots/issue-1617-grid-after.png` (bad row + 2 healthy
+rows rendering), and the same path in the wiki clone.
