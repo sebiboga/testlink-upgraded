@@ -52,6 +52,19 @@ $parts = array_values(array_filter(explode('/', $path)));
 $last = end($parts);
 $projectId = ctype_digit((string)$last) ? (int)$last : null;
 
+// POST /api/projects/<id>/requirements — the legacy "Requirement Feature"
+// quick toggle (projectEdit.php doAction=enableRequirements/disableRequirements).
+// The id sits one segment before the action word, so resolve it separately.
+$toggleRequirements = false;
+if ($method === 'POST' && $last === 'requirements') {
+  $toggleRequirements = true;
+  $projectId = null;
+  $actionSeg = $parts[count($parts) - 2] ?? '';
+  if (ctype_digit((string)$actionSeg)) {
+    $projectId = (int)$actionSeg;
+  }
+}
+
 try {
   switch ($method) {
     case 'GET':
@@ -59,7 +72,11 @@ try {
       break;
 
     case 'POST':
-      createProject($db, $tprojectMgr, $user);
+      if ($toggleRequirements) {
+        toggleRequirements($db, $tprojectMgr, $projectId);
+      } else {
+        createProject($db, $tprojectMgr, $user);
+      }
       break;
 
     case 'PUT':
@@ -439,6 +456,56 @@ function updateProject(&$db, &$tprojectMgr, &$user, $projectId) {
     'success' => true,
     'id' => $projectId,
     'message' => 'Project updated successfully'
+  ]);
+}
+
+/**
+ * Legacy parity (projectView.tpl:126-134 -> projectEdit.php:87-88 ->
+ * testproject.class.php:3935-3951): the "Requirement Feature" column toggle.
+ *
+ * Legacy ran a single form submit with doAction=enableRequirements /
+ * disableRequirements, which called the manager method of the same name; that
+ * method reads the stored testprojects.options blob, flips ONLY
+ * requirementsEnabled and writes it back through setOptions(). Everything else
+ * on the row (name, prefix, notes, active, is_public, the other three feature
+ * flags) is left alone, and NO audit event is logged for this path — hence this
+ * dedicated route instead of a full PUT through updateProject(), which would
+ * re-run the name/prefix duplicate checks and emit audit_testproject_saved.
+ */
+function toggleRequirements(&$db, &$tprojectMgr, $projectId) {
+  if (!$projectId) {
+    throw new Exception('Project ID required');
+  }
+
+  $current = $tprojectMgr->get_by_id($projectId);
+  if (is_null($current) || !$current) {
+    http_response_code(404);
+    echo json_encode(['error' => 'Project not found']);
+    return;
+  }
+
+  $input = json_decode(file_get_contents('php://input'), true);
+  if (!is_array($input) || !array_key_exists('enabled', $input)) {
+    throw new Exception('Missing "enabled" flag');
+  }
+
+  $enabled = (int)(bool)$input['enabled'];
+  if ($enabled) {
+    $tprojectMgr->enableRequirements($projectId);
+  } else {
+    $tprojectMgr->disableRequirements($projectId);
+  }
+
+  // Re-read through getOptions() (the same accessor legacy used) instead of
+  // trusting the write, so the response always reflects what landed in the DB.
+  $opt = $tprojectMgr->getOptions($projectId);
+  $nowEnabled = (!empty($opt->requirementsEnabled)) ? 1 : 0;
+
+  // No extra AUDIT event — legacy doAction=enableRequirements is silent.
+  echo json_encode([
+    'success' => true,
+    'id' => (int)$projectId,
+    'optReq' => $nowEnabled
   ]);
 }
 
