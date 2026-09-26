@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title data-i18n="pimp.title"></title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; color: #333; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #147d76; color: #fff; display: flex; gap: 12px; align-items: center; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header .sub { font-size: 13px; font-weight: 400; opacity: 1; }
+.toolbar { align-items: center; background: #22242a; color: #aaa; display: flex; flex-wrap: wrap; font-size: 12px; gap: 16px; padding: 11px 24px; }
+.toolbar .ctx b { color: #fff; }
+.toolbar .spacer { flex: 1; }
+.btn-teal { background: #147d76; border: 0; border-radius: 4px; color: #fff; cursor: pointer; font-size: 13px; font-weight: 600; padding: 8px 20px; }
+.btn-teal:hover { background: #0f6862; }
+.btn-dark { background: #3a3d46; border: 0; border-radius: 4px; color: #eee; cursor: pointer; font-size: 13px; font-weight: 600; padding: 8px 20px; }
+.btn-dark:hover { background: #4a4e59; }
+button:disabled { cursor: not-allowed; opacity: .5; }
+button:focus-visible, a:focus-visible { outline: 3px solid #f2c94c; outline-offset: 2px; }
+.main { margin: 0 auto; max-width: 920px; padding: 20px 16px 8px; }
+.warnbox { background: #fff4e5; border: 1px solid #d99b45; border-radius: 6px; color: #6c4300; display: none; font-size: 13px; margin-bottom: 14px; padding: 11px 14px; }
+.warnbox.danger { background: #fdecea; border-color: #d66b69; color: #8f2523; }
+.card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); overflow: hidden; margin-bottom: 18px; }
+.card-head { align-items: center; background: #22242a; color: #fff; display: flex; font-size: 15px; font-weight: 700; gap: 10px; padding: 12px 20px; }
+.context-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 20px; }
+.context-item { background: #f8fafb; border: 1px solid #d7dee2; border-left: 4px solid #147d76; border-radius: 6px; min-height: 66px; padding: 10px 12px; }
+.context-item .label { color: #5f6367; display: block; font-size: 11px; margin-bottom: 4px; text-transform: uppercase; }
+.context-item .value { color: #22242a; display: block; font-size: 14px; font-weight: 700; overflow-wrap: anywhere; }
+.form-table { border-collapse: collapse; width: 100%; }
+.form-table td { border-top: 1px solid #eef0f2; padding: 14px 10px; vertical-align: top; }
+.form-table tr:first-child td { border-top: 0; }
+.form-table td.label-cell { color: #22242a; font-size: 13px; font-weight: 700; padding-left: 0; width: 210px; }
+.form-table td.label-cell i { color: #2d8e88; margin-right: 7px; }
+input[type=text], select, input[type=file] { background: #fff; border: 1px solid #ccc; border-radius: 4px; color: #333; font-family: inherit; font-size: 13px; min-height: 36px; padding: 7px 10px; }
+input[type=text]:focus, select:focus { border-color: #147d76; box-shadow: 0 0 0 2px rgba(20,125,118,.22); outline: 0; }
+input[type=text] { width: min(100%, 480px); }
+input[type=text].is-invalid { border-color: #c33f3d; }
+.hint { color: #62666a; font-size: 12px; margin-top: 5px; }
+.error { color: #a72f2d; display: none; font-size: 12px; margin-top: 6px; }
+.doc-link { color: #0f6862; font-size: 12px; margin-left: 12px; text-decoration: none; white-space: nowrap; }
+.doc-link:hover { text-decoration: underline; }
+.actions { border-top: 1px solid #eef0f2; display: flex; gap: 10px; padding: 16px 0 2px; }
+.summary { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
+.chip { background: #f8fafb; border: 1px solid #d7dee2; border-radius: 999px; font-size: 12px; font-weight: 700; padding: 5px 12px; }
+.chip.ok { background: #e9f7f4; border-color: #bfe5e2; color: #14655e; }
+.chip.upd { background: #eef2fd; border-color: #c3d0f0; color: #2b4a8b; }
+.chip.bad { background: #fdecea; border-color: #f5c6c2; color: #a3342f; }
+.result-list { list-style: none; margin: 0; padding: 0; max-height: 320px; overflow: auto; }
+.result-list li { border-top: 1px solid #eef0f2; font-size: 13px; padding: 8px 4px; }
+.result-list li:first-child { border-top: 0; }
+.result-list .tag { border-radius: 4px; display: inline-block; font-size: 11px; font-weight: 700; margin-right: 8px; min-width: 92px; padding: 2px 8px; text-align: center; }
+.tag.t-imported { background: #e9f7f4; color: #14655e; }
+.tag.t-updated { background: #eef2fd; color: #2b4a8b; }
+.tag.t-bad { background: #fdecea; color: #a3342f; }
+.empty { color: #62666a; font-size: 13px; padding: 18px 4px; text-align: center; }
+.state { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 30px; text-align: center; }
+.state .big { color: #e6605e; font-size: 34px; margin-bottom: 10px; }
+.state .msg { color: #62666a; font-size: 13px; }
+.footer { color: #555b60; font-size: 12px; padding: 12px 24px 18px; text-align: center; }
+.toast { background: #22242a; border-radius: 5px; bottom: 20px; box-shadow: 0 3px 10px rgba(0,0,0,.25); color: #fff; display: none; font-size: 13px; padding: 10px 16px; position: fixed; right: 20px; z-index: 9999; }
+.toast.err { background: #a72f2d; }
+.loading { background: rgba(255,255,255,.82); bottom: 0; display: none; left: 0; position: fixed; right: 0; text-align: center; top: 0; z-index: 9998; }
+.loading-box { background: #fff; border-radius: 8px; box-shadow: 0 4px 18px rgba(0,0,0,.18); display: inline-block; margin-top: 18vh; padding: 18px 26px; }
+@media (max-width: 720px) {
+  .header { align-items: flex-start; flex-direction: column; }
+  .context-grid { grid-template-columns: 1fr; }
+  .form-table td { display: block; width: 100%; }
+  .form-table td.label-cell { border-bottom: 0; padding-bottom: 5px; width: auto; }
+  .doc-link { display: inline-block; margin: 8px 0 0; white-space: normal; }
+  input[type=text] { width: 100%; }
+}
+</style>
+</head>
+<body>
+<div class="header">
+  <i class="fa fa-file-import"></i>
+  <span data-i18n="pimp.header"></span>
+  <span class="sub" id="headerProject"></span>
+  <span id="localeSwitcher" style="margin-left:auto;"></span>
+</div>
+<div class="toolbar">
+  <span class="ctx"><span data-i18n="pimp.testProject"></span>: <b id="toolbarProject">-</b></span>
+  <span class="ctx"><span data-i18n="pimp.platformCount"></span>: <b id="toolbarCount">-</b></span>
+  <span class="spacer"></span>
+  <button class="btn-dark" id="btnRefresh" type="button"><i class="fa fa-refresh"></i> <span data-i18n="pimp.refresh"></span></button>
+  <button class="btn-dark" id="btnBack" type="button"><i class="fa fa-arrow-left"></i> <span data-i18n="pimp.back"></span></button>
+</div>
+<div class="main">
+  <div class="warnbox" id="warningBox" role="alert" aria-live="assertive" aria-atomic="true"></div>
+
+  <div class="loading" id="loading"><div class="loading-box"><span data-i18n="common.loading"></span> ...</div></div>
+
+  <div class="state" id="stateBox" style="display:none;">
+    <div class="big"><i class="fa fa-exclamation-triangle"></i></div>
+    <div class="msg" id="stateMsg"></div>
+  </div>
+
+  <section id="mainContent" style="display:none;">
+    <div class="context-grid">
+      <div class="context-item"><span class="label" data-i18n="pimp.testProject"></span><span class="value" id="contextProject">-</span></div>
+      <div class="context-item"><span class="label" data-i18n="pimp.testPlan"></span><span class="value" id="contextPlan">-</span></div>
+      <div class="context-item"><span class="label" data-i18n="pimp.platformCount"></span><span class="value" id="contextCount">-</span></div>
+    </div>
+
+    <section class="card">
+      <div class="card-head"><i class="fa fa-file-code"></i> <span data-i18n="pimp.criteria"></span></div>
+      <form id="importForm" novalidate>
+        <table class="form-table">
+          <tr>
+            <td class="label-cell"><i class="fa fa-file"></i><span data-i18n="pimp.fileType"></span></td>
+            <td>
+              <label for="importType" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);" data-i18n="pimp.fileType"></label>
+              <select id="importType" aria-describedby="formatHint"></select>
+              <a class="doc-link" id="formatDocLink" href="#" target="_blank" rel="noopener">
+                <i class="fa fa-book"></i> <span data-i18n="pimp.viewFormatDoc"></span>
+              </a>
+              <div class="hint" id="formatHint" data-i18n="pimp.formatHint"></div>
+            </td>
+          </tr>
+          <tr>
+            <td class="label-cell"><i class="fa fa-folder-open"></i><span data-i18n="pimp.localFile"></span></td>
+            <td>
+              <label for="importFile" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);" data-i18n="pimp.localFile"></label>
+              <input type="file" id="importFile" accept=".xml,application/xml,text/xml" aria-describedby="fileHint fileError">
+              <div class="hint" id="fileHint"></div>
+              <div class="error" id="fileError" role="alert" aria-live="assertive" aria-atomic="true"></div>
+            </td>
+          </tr>
+        </table>
+        <div class="actions">
+          <button class="btn-teal" id="btnUpload" type="button"><i class="fa fa-upload"></i> <span data-i18n="pimp.btnUpload"></span></button>
+          <button class="btn-dark" id="btnCancel" type="button"><i class="fa fa-times"></i> <span data-i18n="common.cancel"></span></button>
+        </div>
+      </form>
+    </section>
+
+    <section class="card" id="resultCard" style="display:none;">
+      <div class="card-head"><i class="fa fa-list-alt"></i> <span data-i18n="pimp.importResults"></span></div>
+      <div style="padding:14px 20px 18px;">
+        <div class="summary" id="resultSummary"></div>
+        <p class="hint" id="resultFile" style="margin:0 0 10px;"></p>
+        <ul class="result-list" id="resultList"></ul>
+        <div class="empty" id="resultEmpty" style="display:none;" data-i18n="pimp.emptyResult"></div>
+        <div class="actions">
+          <button class="btn-teal" id="btnBackToView" type="button"><i class="fa fa-list"></i> <span data-i18n="pimp.backToPlatforms"></span></button>
+          <button class="btn-dark" id="btnAgain" type="button"><i class="fa fa-rotate-right"></i> <span data-i18n="pimp.importAnother"></span></button>
+        </div>
+      </div>
+    </section>
+  </section>
+</div>
+
+<div class="footer" id="footerInfo"></div>
+<div class="footer"><span data-i18n="footers.platformsImport"></span></div>
+<div class="toast" id="toast"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script>
+var API = '/api/platformsimport/index.php';
+var tprojectId = 0;
+var tplanId = 0;
+var canManage = false;
+var lastResult = null;
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function t(key, vars) {
+  var s = TLi18n.t(key);
+  if (vars) {
+    Object.keys(vars).forEach(function (k) {
+      s = s.split('{' + k + '}').join(String(vars[k]));
+    });
+  }
+  return s;
+}
+
+function toast(msg, isErr) {
+  var $t = $('#toast').text(msg).toggleClass('err', !!isErr).show();
+  clearTimeout($t.data('tm'));
+  $t.data('tm', setTimeout(function () { $t.hide(); }, 3500));
+}
+
+function warn(html, danger) {
+  $('#warningBox').html(html).toggleClass('danger', !!danger).show();
+}
+
+function clearWarn() { $('#warningBox').hide().removeClass('danger').empty(); }
+
+function showState(msgKey, danger) {
+  $('#mainContent').hide();
+  $('#stateMsg').text(typeof msgKey === 'string' && msgKey.indexOf('pimp.') === 0 ? TLi18n.t(msgKey) : msgKey);
+  $('#stateBox').show();
+  if (danger) { warn(esc(typeof msgKey === 'string' && msgKey.indexOf('pimp.') === 0 ? TLi18n.t(msgKey) : msgKey), true); }
+}
+
+function busy(on) {
+  $('#loading').toggle(!!on);
+  $('#btnUpload').prop('disabled', !!on || !canManage);
+  $('#btnRefresh').prop('disabled', !!on);
+}
+
+/** Map every BFF error_code onto a localized client string. */
+function errorFor(r) {
+  var code = r && r.error_code;
+  switch (code) {
+    case 'NO_FILE':          return t('pimp.errNoFile');
+    case 'WRONG_FORMAT':     return t('pimp.errWrongFormat');
+    case 'TOO_LARGE':        return t('pimp.errTooLarge');
+    case 'NO_RIGHTS':        return t('pimp.denied');
+    case 'INVALID_TPROJECT_ID': return t('pimp.errNoProject');
+    case 'TEST_PROJECT_NOT_FOUND': return t('pimp.notFound');
+    case 'CANNOT_STORE':     return t('pimp.errUpload');
+    case 'UPLOAD_ERR_INI_SIZE':    return t('pimp.errIniSize');
+    case 'UPLOAD_ERR_FORM_SIZE':   return t('pimp.errFormSize');
+    case 'UPLOAD_ERR_PARTIAL':     return t('pimp.errPartial');
+    case 'UPLOAD_ERR_NO_TMP_DIR':  return t('pimp.errNoTmpDir');
+    case 'UPLOAD_ERR_CANT_WRITE':  return t('pimp.errCantWrite');
+    case 'UPLOAD_ERR_EXTENSION':   return t('pimp.errExtension');
+    case 'UNKNOWN_ACTION':    return t('pimp.errUnknown');
+    case 'DATABASE_UNAVAILABLE':
+    case 'SERVER_ERROR':       return t('pimp.errServer');
+  }
+  return (r && r.message) ? String(r.message) : t('common.error');
+}
+
+function onFail(xhr) {
+  var r = {};
+  try { r = JSON.parse(xhr.responseText); } catch (e) {}
+  if (xhr.status === 401) { showState(t('pimp.sessionExpired'), true); return; }
+  if (xhr.status === 403) { showState(t('pimp.denied'), true); return; }
+  if (xhr.status === 404) { showState(t('pimp.notFound'), true); return; }
+  if (xhr.status === 400) { showState(t('pimp.errNoProject'), true); return; }
+  var msg = errorFor(r);
+  if (r.xml_errors && r.xml_errors.length) {
+    msg += '<br><span class="hint">' +
+      esc(t('pimp.xmlErrors').replace('{count}', r.xml_errors.length)) + '</span>';
+  }
+  warn(msg, true);
+  $('#fileError').text(msg.replace(/<br>.*/s, '')).show();
+  toast(msg.replace(/<br>.*/s, ''), true);
+}
+
+$(function () {
+  var p = new URLSearchParams(window.location.search);
+  tprojectId = parseInt(p.get('tproject_id') || '0', 10);
+  tplanId = parseInt(p.get('tplan_id') || '0', 10);
+
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    $('#footerInfo').text(TLi18n.t('footers.platformsImport'));
+    $('#fileHint').text(t('pimp.maxSize', { kb: 0 }));   // replaced by load()
+    $('#btnRefresh').on('click', load);
+    $('#btnBack').on('click', goBack);
+    $('#btnCancel').on('click', goBack);
+    $('#btnBackToView').on('click', goBack);
+    $('#btnAgain').on('click', resetForm);
+    $('#importFile').on('change', function () {
+      $('#fileError').hide().text('');
+      $('#importFile').removeClass('is-invalid');
+    });
+    $('#btnUpload').on('click', doImport);
+    load();
+  });
+});
+
+function goBack() {
+  var target = '/gui/templates/platforms/platformsView.html?tproject_id=' + tprojectId;
+  if (tplanId > 0) { target += '&tplan_id=' + tplanId; }
+  window.location.href = target;
+}
+
+function resetForm() {
+  lastResult = null;
+  $('#resultCard').hide();
+  $('#importFile').val('');
+  $('#fileError').hide().text('');
+  clearWarn();
+  $('#importForm')[0].reset();
+  busy(false);
+  $('#importFile').focus();
+}
+
+function load() {
+  clearWarn();
+  busy(true);
+  $('#stateBox').hide();
+  if (tprojectId <= 0) {
+    busy(false);
+    showState(t('pimp.errNoProject'), true);
+    return;
+  }
+  $.getJSON(API + '?action=init&tproject_id=' + tprojectId +
+             (tplanId > 0 ? '&tplan_id=' + tplanId : ''))
+    .done(function (r) {
+      busy(false);
+      if (!r || r.status !== 'ok') { showState(t('pimp.errServer'), true); return; }
+      canManage = !!r.grants.platform_management;
+
+      $('#headerProject').text(r.tproject.name);
+      $('#toolbarProject').text(r.tproject.name);
+      $('#contextProject').text(r.tproject.name);
+      $('#toolbarCount').text(r.platform_count);
+      $('#contextCount').text(r.platform_count);
+      $('#contextPlan').text(r.tplan_id > 0 ? ('#' + r.tplan_id) : t('pimp.noPlan'));
+
+      $('#fileHint').text(t('pimp.maxSize', { kb: Math.round(r.import_limit_bytes / 1024) }));
+      if (r.file_formats_doc) { $('#formatDocLink').attr('href', r.file_formats_doc).show(); }
+      else { $('#formatDocLink').hide(); }
+
+      var $sel = $('#importType').empty();
+      (r.import_types || []).forEach(function (ft) {
+        $sel.append($('<option>').val(ft).text(ft));
+      });
+
+      $('#stateBox').hide();
+      $('#mainContent').show();
+      // Legacy checkRights(): platform_management. A view-only user still sees
+      // the criteria (read-only) but cannot upload.
+      if (!canManage) {
+        $('#btnUpload').prop('disabled', true);
+        $('#importFile').prop('disabled', true);
+        warn(esc(t('pimp.viewOnly')), false);
+      }
+    })
+    .fail(function (xhr) {
+      busy(false);
+      onFail(xhr);
+      $('#stateBox').show();
+    });
+}
+
+function doImport() {
+  var input = document.getElementById('importFile');
+  if (!input.files || !input.files.length) {
+    $('#importFile').addClass('is-invalid');
+    $('#fileError').text(t('pimp.errNoFile')).show();
+    toast(t('pimp.errNoFile'), true);
+    return;
+  }
+  var file = input.files[0];
+
+  var fd = new FormData();
+  fd.append('tproject_id', tprojectId);
+  if (tplanId > 0) { fd.append('tplan_id', tplanId); }
+  fd.append('uploadedFile', file);
+
+  clearWarn();
+  $('#fileError').hide().text('');
+  busy(true);
+
+  $.ajax({
+    url: API + '?action=import',
+    method: 'POST',
+    data: fd,
+    processData: false,
+    contentType: false
+  }).done(function (r) {
+    busy(false);
+    if (!r || r.status !== 'ok') { warn(esc(t('pimp.errServer')), true); return; }
+    lastResult = r;
+    renderResults(r);
+    toast(t('pimp.msg.imported', { imported: r.imported, updated: r.updated }), false);
+  }).fail(function (xhr) {
+    busy(false);
+    onFail(xhr);
+  });
+}
+
+function renderResults(r) {
+  var lines = [];
+  (r.ok || []).forEach(function (row) {
+    var tag = row.code === 'UPDATED' ? 't-updated' : 't-imported';
+    var lbl = row.code === 'UPDATED' ? t('pimp.tagUpdated') : t('pimp.tagImported');
+    lines.push('<li><span class="tag ' + tag + '">' + esc(lbl) + '</span>' + esc(row.name) + '</li>');
+  });
+  (r.ko || []).forEach(function (row) {
+    var lbl = row.code === 'IMPORT_FAILED' ? t('pimp.tagFailed') : t('pimp.tagSkipped');
+    lines.push('<li><span class="tag t-bad">' + esc(lbl) + '</span>' +
+      (row.name ? esc(row.name) : '<span class="hint">' + esc(t('pimp.badLine')) + '</span>') + '</li>');
+  });
+
+  var chips = '';
+  chips += '<span class="chip ok">' + esc(t('pimp.countImported', { n: r.imported })) + '</span>';
+  chips += '<span class="chip upd">' + esc(t('pimp.countUpdated', { n: r.updated })) + '</span>';
+  if (r.skipped > 0) {
+    chips += '<span class="chip bad">' + esc(t('pimp.countSkipped', { n: r.skipped })) + '</span>';
+  }
+  chips += '<span class="chip">' + esc(t('pimp.countTotal', { n: r.imported_total })) + '</span>';
+  $('#resultSummary').html(chips);
+
+  $('#resultFile').text(r.filename ? t('pimp.fileLabel', { name: r.filename }) : '');
+  $('#resultList').html(lines.join(''));
+  $('#resultList').toggle(lines.length > 0);
+  $('#resultEmpty').toggle(lines.length === 0);
+  $('#resultCard').show();
+  $('#resultCard')[0].scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  // Keep the toolbar count truthful after the import (legacy page only had a
+  // "go back" button, so this is a superset rather than a parity gap).
+  $('#toolbarCount').text(r.imported_total);
+  $('#contextCount').text(r.imported_total);
+}
+</script>
+</body>
+</html>

@@ -1930,6 +1930,14 @@ function getActions(&$gui,$baseURL) {
   $actions->keywordsExport = "/gui/templates/keywords/keywordsExport.html?{$ctx}";
   $actions->platformsView = "/gui/templates/platforms/platformsView.html?{$ctx}";
   $actions->platformsExport = "/gui/templates/platforms/platformsExport.html?{$ctx}";
+  // Import Platforms screen - Refs #1632. Replaces lib/platforms/platformsImport.php
+  // (+ gui/templates/dashio/platforms/platformsImport.tpl), which was the last
+  // fully legacy standalone screen in the Platforms area: the modern
+  // Platforms Management screen only had an inline import modal and no
+  // deep-linkable page, and the export twin had a link switch (#1583) while the
+  // import side had none. The legacy right (checkRights() =
+  // hasRightOnProj("platform_management")) is enforced by api/platformsimport.
+  $actions->platformsImport = "/gui/templates/platforms/platformsImport.html?{$ctx}";
   $actions->issueTrackerView = "/gui/templates/issuetracker/issuetrackerView.html?{$ctx}";
   $actions->codeTrackerView = "/gui/templates/codetracker/codetrackerView.html?{$ctx}";
   // Requirement Management Systems modernized screen (Dashio standalone

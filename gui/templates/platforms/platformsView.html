@@ -142,34 +142,6 @@ table.dataTable tbody td { padding: 8px 14px; font-size: 13px; vertical-align: m
   </div>
 </div>
 
-<!-- Import Modal -->
-<div class="modal fade" id="importModal" tabindex="-1">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" data-i18n="pl.import">Import</h5>
-        <button type="button" class="close" data-dismiss="modal">&times;</button>
-      </div>
-      <div class="modal-body">
-        <div class="form-group" style="margin-bottom:12px;">
-          <label data-i18n="pl.format">Format *</label>
-          <input type="text" class="form-control" style="font-size:13px;background:#eee;" value="XML" disabled>
-        </div>
-        <div class="form-group" style="margin-bottom:12px;">
-          <label for="importFile" data-i18n="pl.chooseFileLabel">File *</label>
-          <input type="file" id="importFile" class="form-control" style="font-size:13px;" accept=".xml,application/xml,text/xml">
-        </div>
-        <div style="color:#888;font-size:12px;" id="fileSizeNote"></div>
-        <div id="importError" style="color:#e6605e;font-size:12px;margin-top:8px;display:none;"></div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-dismiss="modal" style="font-size:13px;" data-i18n="common.cancel">Cancel</button>
-        <button type="button" class="btn-teal" onclick="doImport()" style="font-size:13px;" data-i18n="pl.upload">Upload file</button>
-      </div>
-    </div>
-  </div>
-</div>
-
 <form id="eventhistory" target="_blank" method="GET" action="/gui/templates/eventviewer/eventviewer.html" style="display:none;">
   <input type="hidden" name="object_id" id="eh_object_id">
   <input type="hidden" name="object_type" id="eh_object_type" value="platforms">
@@ -196,7 +168,6 @@ $(function () {
   TLi18n.load(function () {
     TLi18n.apply();
     TLi18n.initLocaleSwitcher('#localeSwitcher');
-    $('#fileSizeNote').text(TLi18n.t('pl.maxFileSize'));
     load();
   });
 });
@@ -436,46 +407,14 @@ function showEventHistory() {
   $('#eventhistory').submit();
 }
 
+// Refs #1632: the import moved to its own deep-linkable Dashio screen
+// gui/templates/platforms/platformsImport.html + api/platformsimport BFF
+// (the legacy lib/platforms/platformsImport.php twin, with the full
+// per-platform imported/updated/skipped reporting contract).
 function openImport() {
-  $('#importError').hide();
-  $('#importFile').val('');
-  $('#importModal').modal('show');
-}
-
-function doImport() {
-  var fileInput = document.getElementById('importFile');
-  if (!fileInput.files.length) {
-    $('#importError').text(TLi18n.t('pl.chooseFile')).show();
-    return;
-  }
-  var fd = new FormData();
-  fd.append('tproject_id', tprojectId);
-  fd.append('uploadedFile', fileInput.files[0]);
-
-  $.ajax({
-    url: API + '/import',
-    method: 'POST',
-    data: fd,
-    processData: false,
-    contentType: false
-  }).done(function (r) {
-    if (r.status === 'ok') {
-      $('#importModal').modal('hide');
-      toast(TLi18n.t('pl.msg.imported')
-        .replace('{imported}', r.imported).replace('{updated}', r.updated));
-      load();
-    } else {
-      $('#importError').text(r.message || TLi18n.t('pl.wrongFile')).show();
-    }
-  }).fail(function (xhr) {
-    var r = {};
-    try { r = JSON.parse(xhr.responseText); } catch(e) {}
-    $('#importError').text(
-      r.error_code === 'NO_FILE' ? TLi18n.t('pl.chooseFile') :
-      r.error_code === 'WRONG_FORMAT' ? TLi18n.t('pl.wrongFile') :
-      r.message || TLi18n.t('common.error')
-    ).show();
-  });
+  var target = '/gui/templates/platforms/platformsImport.html?tproject_id=' + tprojectId;
+  if (tplanId > 0) target += '&tplan_id=' + tplanId;
+  window.location.href = target;
 }
 
 function openExport() {
