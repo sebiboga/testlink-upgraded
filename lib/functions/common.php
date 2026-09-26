@@ -1921,6 +1921,13 @@ function getActions(&$gui,$baseURL) {
   // (mgt_modify_key AND mgt_view_key at test-project level) is enforced by the
   // BFF api/keywordsedit on every route.
   $actions->keywordsEdit = "/gui/templates/keywords/keywordsEdit.html?{$ctx}";
+  // Keyword XML/CSV Export + Import gateway, modernized in Refs #1615. The
+  // legacy pair lib/keywords/keywordsExport.php + keywordsImport.php (and their
+  // dashio/tl-classic templates) is now a pair of session-guarded 302 shims
+  // onto this screen. The legacy split rights gate (mgt_view_key for the
+  // export flow, mgt_modify_key for the import flow) is enforced per action by
+  // the BFF api/keywordsxml.
+  $actions->keywordsExport = "/gui/templates/keywords/keywordsExport.html?{$ctx}";
   $actions->platformsView = "/gui/templates/platforms/platformsView.html?{$ctx}";
   $actions->platformsExport = "/gui/templates/platforms/platformsExport.html?{$ctx}";
   $actions->issueTrackerView = "/gui/templates/issuetracker/issuetrackerView.html?{$ctx}";

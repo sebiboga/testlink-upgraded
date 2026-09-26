@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Keyword Export / Import</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; color: #0d3f3c; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 10px 24px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-teal:disabled { opacity: .45; cursor: not-allowed; }
+.btn-ghost { background: none; border: 1px solid #555; color: #ddd; padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+.btn-ghost:hover { border-color: #4ECDC4; color: #4ECDC4; }
+.modes { display: flex; gap: 0; border-bottom: 3px solid #22242a; background: #fff; padding: 0 24px; }
+.modes button { background: none; border: none; border-bottom: 3px solid transparent; margin-bottom: -3px; padding: 12px 22px; font-size: 14px; font-weight: 600; color: #666; cursor: pointer; }
+.modes button.active { color: #2d8e88; border-bottom-color: #4ECDC4; }
+.section { padding: 20px 24px 24px; }
+.card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin-bottom: 18px; }
+.card > .card-h { background: #22242a; color: #fff; padding: 10px 16px; font-size: 14px; font-weight: 700; border-radius: 8px 8px 0 0; }
+.card > .card-b { padding: 16px; }
+.kv { display: flex; flex-wrap: wrap; gap: 26px; }
+.kv div { font-size: 13px; color: #555; }
+.kv div b { color: #22242a; }
+label { display: block; font-size: 12px; font-weight: 600; color: #22242a; margin-bottom: 5px; }
+input[type=text], select, textarea { width: 100%; padding: 8px 10px; border: 1px solid #d5d5d5; border-radius: 4px; font-size: 13px; font-family: inherit; }
+.hint { font-size: 11px; color: #888; margin-top: 5px; }
+pre.sample { background: #f7f7f7; border: 1px solid #e3e3e3; border-radius: 4px; padding: 10px; font-size: 11px; color: #333; white-space: pre-wrap; word-break: break-all; max-height: 220px; overflow: auto; margin: 8px 0 0; }
+.ok { background: #e8f8f5; border: 1px solid #bfe5e2; color: #1d6f69; border-radius: 5px; padding: 10px 14px; font-size: 13px; margin-bottom: 14px; }
+.err { background: #fdeceb; border: 1px solid #f5c6c4; color: #a13b39; border-radius: 5px; padding: 10px 14px; font-size: 13px; margin-bottom: 14px; }
+.msg-card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 34px; text-align: center; }
+.msg-card .ico { font-size: 34px; margin-bottom: 12px; }
+.msg-card .t { font-size: 16px; font-weight: 700; color: #22242a; margin-bottom: 6px; }
+.msg-card .m { font-size: 13px; color: #777; }
+.empty { color: #888; font-size: 13px; padding: 6px 0; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; }
+.toast.err { background: #e6605e; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span data-i18n="kwxml.title">Keyword Export / Import</span>
+  <span class="sub" data-i18n="kwxml.subtitle">move your keywords between test projects</span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="toolbar">
+  <span class="ctx"><span data-i18n="kwxml.testProject">Test Project</span>: <b id="tprojectName">-</b></span>
+  <span style="flex:1"></span>
+  <button class="btn-ghost" onclick="refresh()"><i class="fa fa-refresh"></i> <span data-i18n="common.refresh">Refresh</span></button>
+  <button class="btn-ghost" onclick="goBack()"><i class="fa fa-arrow-left"></i> <span data-i18n="kwxml.backToList">Back to Keyword Management</span></button>
+  <button class="btn-ghost" onclick="window.close()"><i class="fa fa-times"></i> <span data-i18n="common.close">Close</span></button>
+</div>
+
+<div class="modes">
+  <button id="tabExport" class="active" onclick="setMode('export')"><i class="fa fa-file-export"></i> <span data-i18n="kwxml.modeExport">Export</span></button>
+  <button id="tabImport" onclick="setMode('import')"><i class="fa fa-file-import"></i> <span data-i18n="kwxml.modeImport">Import</span></button>
+</div>
+
+<div class="section" id="content"></div>
+
+<div class="footer"><span data-i18n="footers.keywordsExport">TestLink 2.0.1 - Keyword Export / Import</span></div>
+<div class="toast" id="toast"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script>
+var API = '/api/keywordsxml/index.php';
+var TPROJECT_ID = 0;
+var MODE = 'export';
+var CTX = null;
+var MAXSIZE = 0;
+
+function qs(name) {
+  return new URLSearchParams(window.location.search).get(name);
+}
+
+function esc(s) {
+  return String(s === null || s === undefined ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function t(key, fallback) {
+  var v = TLi18n.t(key);
+  return (v === undefined || v === null || v === '') ? (fallback || key) : v;
+}
+
+function toast(msg, isErr) {
+  var el = $('#toast');
+  el.text(msg).toggleClass('err', !!isErr).fadeIn(160);
+  clearTimeout(el.data('timer'));
+  el.data('timer', setTimeout(function () { el.fadeOut(220); }, 3800));
+}
+
+function msgCard(icon, iconColor, titleKey, msgKey) {
+  return '<div class="msg-card"><div class="ico" style="color:' + iconColor + '"><i class="fa ' + icon + '"></i></div>' +
+    '<div class="t">' + esc(t(titleKey)) + '</div>' +
+    '<div class="m">' + esc(t(msgKey)) + '</div></div>';
+}
+
+function setMode(m) {
+  MODE = (m === 'import') ? 'import' : 'export';
+  $('#tabExport').toggleClass('active', MODE === 'export');
+  $('#tabImport').toggleClass('active', MODE === 'import');
+  render();
+}
+
+function goBack() {
+  window.location.href = '/gui/templates/keywords/keywordsView.html?tproject_id=' + TPROJECT_ID;
+}
+
+function refresh() { load(); }
+
+function render() {
+  if (!CTX) { return; }
+  var right = CTX.rights || {};
+  var out = '';
+
+  if (CTX.error === 'denied') {
+    out += msgCard('fa-lock', '#e6605e', 'kwxml.deniedTitle', 'kwxml.deniedMsg');
+  } else if (CTX.error === 'notfound') {
+    out += msgCard('fa-question-circle', '#e6605e', 'kwxml.notFoundTitle', 'kwxml.notFoundMsg');
+  } else if (CTX.error) {
+    out += msgCard('fa-exclamation-triangle', '#e6605e', 'common.error', 'common.error');
+  } else {
+    if (CTX.notice) { out += '<div class="ok">' + esc(CTX.notice) + '</div>'; }
+    if (CTX.msg) { out += '<div class="err">' + esc(CTX.msg) + '</div>'; }
+
+    out += '<div class="card"><div class="card-h"><i class="fa fa-info-circle"></i> ' +
+      esc(t('kwxml.contextTitle')) + '</div><div class="card-b"><div class="kv">' +
+      '<div>' + esc(t('kwxml.testProject')) + ': <b>' + esc(CTX.tproject_name) + '</b></div>' +
+      '<div>' + esc(t('kwxml.keywordCount')) + ': <b>' + esc(CTX.keyword_count) + '</b></div>' +
+      '</div></div></div>';
+
+    if (MODE === 'export') {
+      out += exportPanel(right);
+    } else {
+      out += importPanel(right);
+    }
+  }
+  $('#content').html(out);
+}
+
+function typeOptions(list, selected) {
+  var s = '';
+  (list || []).forEach(function (t) {
+    s += '<option value="' + esc(t.id) + '"' + (t.id === selected ? ' selected' : '') + '>' +
+      esc(t.id.replace('iSerializationTo', '')) + '</option>';
+  });
+  return s;
+}
+
+function formatSample(type) {
+  var d = (CTX.formatDescriptions || {})[type] || '';
+  if (!d) { return ''; }
+  return '<label style="margin-top:16px">' + esc(t('kwxml.formatSample')) + '</label>' +
+    '<pre class="sample">' + esc(d) + '</pre>';
+}
+
+function exportPanel(right) {
+  if (!right.export) {
+    return msgCard('fa-lock', '#e6605e', 'kwxml.deniedTitle', 'kwxml.deniedExportMsg');
+  }
+  var ext = ((CTX.exportTypes || [])[0] || {}).ext || 'xml';
+  return '<div class="card"><div class="card-h"><i class="fa fa-file-export"></i> ' +
+    esc(t('kwxml.modeExport')) + '</div><div class="card-b">' +
+    '<label for="exportType">' + esc(t('kwxml.format')) + '</label>' +
+    '<select id="exportType" onchange="exportTypeChanged()">' + typeOptions(CTX.exportTypes) + '</select>' +
+    formatSample($('#exportType').val()) +
+    '<label for="exportFilename" style="margin-top:16px">' + esc(t('kwxml.fileName')) + '</label>' +
+    '<input type="text" id="exportFilename" value="' + esc(CTX.default_filename || ('keywords.' + ext)) + '">' +
+    '<div class="hint">' + esc(t('kwxml.fileNameHint')) + '</div>' +
+    '<div style="margin-top:18px"><button class="btn-teal" id="btnExportGo" onclick="doExport()">' +
+    '<i class="fa fa-download"></i> ' + esc(t('kwxml.exportBtn')) + '</button></div>' +
+    (CTX.keyword_count === 0 ? '<div class="empty" style="margin-top:14px">' + esc(t('kwxml.noKeywords')) + '</div>' : '') +
+    '</div></div>';
+}
+
+function importPanel(right) {
+  if (!right.import) {
+    return msgCard('fa-lock', '#e6605e', 'kwxml.deniedTitle', 'kwxml.deniedImportMsg');
+  }
+  var kb = MAXSIZE > 0 ? Math.round(MAXSIZE / 1024) : 0;
+  return '<div class="card"><div class="card-h"><i class="fa fa-file-import"></i> ' +
+    esc(t('kwxml.modeImport')) + '</div><div class="card-b">' +
+    '<label for="importType">' + esc(t('kwxml.format')) + '</label>' +
+    '<select id="importType" onchange="renderImportSample()">' + typeOptions(CTX.importTypes) + '</select>' +
+    formatSample($('#importType').val()) +
+    '<label for="importFile" style="margin-top:16px">' + esc(t('kwxml.fileLabel')) + '</label>' +
+    '<input type="file" id="importFile">' +
+    '<div class="hint">' + (kb ? esc(t('kwxml.maxFileSize')).replace('%s', kb) : '') + '</div>' +
+    '<div style="margin-top:18px"><button class="btn-teal" id="btnImportGo" onclick="doImport()">' +
+    '<i class="fa fa-upload"></i> ' + esc(t('kwxml.importBtn')) + '</button></div>' +
+    '<div class="hint" style="margin-top:12px">' + esc(t('kwxml.importHint')) + '</div>' +
+    '</div></div>';
+}
+
+function renderImportSample() {
+  var box = $('#importType').closest('.card-b');
+  var old = box.find('pre.sample');
+  var html = formatSample($('#importType').val());
+  if (old.length) {
+    old.replaceWith(html ? $(html) : '');
+  } else if (html) {
+    box.find('#importType').after(html);
+  }
+}
+
+function exportTypeChanged() {
+  var type = $('#exportType').val();
+  var ext = ((CTX.exportTypes || []).filter(function (x) { return x.id === type; })[0] || {}).ext || 'xml';
+  var f = $('#exportFilename').val() || '';
+  if (!f || /\.(xml|csv)$/i.test(f)) {
+    $('#exportFilename').val(f ? f.replace(/\.(xml|csv)$/i, '.' + ext) : ('keywords.' + ext));
+  }
+  var box = $('#exportType').closest('.card-b');
+  var old = box.find('pre.sample');
+  var html = formatSample(type);
+  if (old.length) { old.replaceWith(html ? $(html) : ''); }
+  else if (html) { box.find('#exportType').after(html); }
+}
+
+function doExport() {
+  var type = $('#exportType').val();
+  var fn = $.trim($('#exportFilename').val()) || 'keywords.' + ((type === 'iSerializationToCSV') ? 'csv' : 'xml');
+  $('#btnExportGo').prop('disabled', true);
+  toast(t('kwxml.exporting'));
+  var url = API + '/?action=export&tproject_id=' + TPROJECT_ID +
+    '&type=' + encodeURIComponent(type) + '&filename=' + encodeURIComponent(fn);
+  // Plain navigation so the browser handles the Content-Disposition download.
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = fn;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(function () { $('#btnExportGo').prop('disabled', false); }, 1200);
+  CTX.msg = '';
+  CTX.notice = t('kwxml.exportedMsg');
+  render();
+}
+
+function doImport() {
+  var input = document.getElementById('importFile');
+  if (!input.files || !input.files.length) {
+    CTX.msg = t('kwxml.noFile');
+    CTX.notice = '';
+    render();
+    return;
+  }
+  var f = input.files[0];
+  if (MAXSIZE > 0 && f.size > MAXSIZE) {
+    CTX.msg = t('kwxml.tooLarge');
+    CTX.notice = '';
+    render();
+    return;
+  }
+  var fd = new FormData();
+  fd.append('tproject_id', TPROJECT_ID);
+  fd.append('type', $('#importType').val());
+  fd.append('uploadedFile', f);
+
+  $('#btnImportGo').prop('disabled', true);
+  $.ajax({
+    url: API + '/?action=import',
+    method: 'POST',
+    data: fd,
+    processData: false,
+    contentType: false
+  }).done(function (r) {
+    if (r && r.status === 'ok') {
+      CTX.msg = '';
+      CTX.notice = t('kwxml.importedMsg').replace('%s', r.keyword_count);
+      toast(CTX.notice);
+      input.value = '';
+      load(true);
+    } else {
+      CTX.notice = '';
+      CTX.msg = serverMessage(r);
+      render();
+    }
+  }).fail(function (xhr) {
+    CTX.notice = '';
+    CTX.msg = serverMessage({});
+    render();
+    if (xhr.status === 401 || xhr.status === 403) {
+      CTX.error = 'denied';
+      render();
+    }
+  }).always(function () { $('#btnImportGo').prop('disabled', false); });
+}
+
+function serverMessage(r) {
+  var code = r && (r.code || r.error_code);
+  if (code === 'please_choose_keywords_file') { return t('kwxml.noFile'); }
+  if (code === 'wrong_keywords_file') { return t('kwxml.wrongFile'); }
+  if (r && r.message === 'File too large') { return t('kwxml.tooLarge'); }
+  if (r && r.message === 'Access denied') { return t('kwxml.deniedMsg'); }
+  if (r && r.message) { return r.message; }
+  return t('common.error');
+}
+
+$(document).ready(function () {
+  TPROJECT_ID = parseInt(qs('tproject_id') || '0', 10);
+  TLi18n.initLocaleSwitcher('#localeSwitcher');
+  var m = qs('mode');
+  MODE = (m === 'import') ? 'import' : 'export';
+  load();
+});
+
+function load(keepNotice) {
+  var notice = keepNotice ? CTX.notice : '';
+  var msg = keepNotice ? CTX.msg : '';
+  $.ajax({ url: API + '/?action=init&tproject_id=' + TPROJECT_ID })
+    .done(function (r) {
+      CTX = r || {};
+      if (notice) { CTX.notice = notice; }
+      if (msg) { CTX.msg = msg; }
+      $('#tprojectName').text(CTX.tproject_name || '-');
+      MAXSIZE = (CTX.limits && CTX.limits.import_file_max_size_bytes) || 0;
+      render();
+    })
+    .fail(function (xhr) {
+      CTX = { error: xhr.status === 403 ? 'denied' : (xhr.status === 404 ? 'notfound' : 'error') };
+      render();
+    });
+}
+</script>
+</body>
+</html>

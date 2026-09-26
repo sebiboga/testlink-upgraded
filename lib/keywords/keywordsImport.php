@@ -1,141 +1,37 @@
 <?php
 /**
- * TestLink Open Source Project - http://testlink.sourceforge.net/ 
- * This script is distributed under the GNU General Public License 2 or later. 
+ * TestLink Open Source Project - http://testlink.sourceforge.net/
+ * This script is distributed under the GNU General Public License 2 or later.
  *
- * Scope: Import keywords page
+ * @filesource	keywordsImport.php
  *
- * @filesource  keywordsImport.php
- * @package     TestLink
- * @copyright   2005,2020 TestLink community 
- * @link        http://www.testlink.org/
+ * 2.0.1.shim - Refs #1615: the legacy Smarty keyword export screen was replaced
+ * by the modern Dashio screen gui/templates/keywords/keywordsExport.html backed
+ * by the api/keywordsxml BFF (which also carries the import flow of the
+ * sibling lib/keywords/keywordsImport.php).
  *
- */
+ * This controller is kept as a session-guarded redirect shim so old deep links
+ * and the still-shipped dashio / tl-classic templates resolve:
+ *   - anonymous users are sent to the login screen (legacy testlinkInitPage
+ *     behaviour);
+ *   - every other request is mapped onto the modern screen in Import mode with
+ *     the tproject_id context forwarded.
+ *
+ * NOTE: the second testlinkInitPage() argument stays FALSE on purpose, so a
+ * crafted GET cannot overwrite the session testprojectID (Refs #1604 pattern).
+**/
 require_once('../../config.inc.php');
 require_once('common.php');
-require_once('csv.inc.php');
-require_once('xml.inc.php');
 
-testlinkInitPage($db, false, false, "checkRights");
-$templateCfg = templateConfiguration();
+testlinkInitPage($db, false, false);
 
-$args = init_args($db);
-$gui = initializeGui($args);
+$base = isset($_SESSION['basehref']) ? $_SESSION['basehref'] : '/';
+$tproject_id = intval($_REQUEST['tproject_id'] ?? 0);
+$tplan_id = isset($_REQUEST['tplan_id']) ? intval($_REQUEST['tplan_id']) : 0;
 
-if (!$gui->msg && $args->UploadFile) {
+$url = $base . 'gui/templates/keywords/keywordsExport.html?mode=import' .
+	'&tproject_id=' . $tproject_id . '&tplan_id=' . $tplan_id;
 
-  if(($args->source != 'none') && ($args->source != '')) { 
-    if (move_uploaded_file($args->source, $args->dest)) {
-      $pfn = null;
-      switch($args->importType) {
-        case 'iSerializationToCSV':
-          $pfn = "importKeywordsFromCSV";
-        break;
- 
-        case 'iSerializationToXML':
-          $pfn = "importKeywordsFromXMLFile";
-        break;
-      }
- 
-      if ($pfn) {
-        $tproject = new testproject($db);
-        $result = $tproject->$pfn($args->tproject_id,$args->dest);
-        if ($result != tl::OK) {  
-          $gui->msg = lang_get('wrong_keywords_file'); 
-        } else {
-          header("Location: keywordsView.php?tproject_id={$gui->tproject_id}");
-          exit();   
-        }
-      }
-      @unlink($args->dest);
-    }
-  } else {  
-    $gui->msg = lang_get('please_choose_keywords_file');
-  }
-}
-      
-$smarty = new TLSmarty();
-$smarty->assign('gui',$gui);  
-$smarty->display($templateCfg->tpl);
-
-/**
- * @return object returns the arguments for the page
- */
-function init_args(&$dbHandler)
-{
-  $_REQUEST = strings_stripSlashes($_REQUEST);
-
-  $ipcfg = 
-    array("UploadFile" => array(tlInputParameter::STRING_N,0,1),
-          "importType" => array(tlInputParameter::STRING_N,0,100),
-          "tproject_id" => array(tlInputParameter::INT_N));
-
-  $args = new stdClass();
-  R_PARAMS($ipcfg,$args);
-
-  if ($args->tproject_id <= 0) {
-    throw new Exception(" Error Invalid Test Project ID", 1);
-  }
-
-  $tproj_mgr = new testproject($dbHandler);
-  $dm = $tproj_mgr->get_by_id($args->tproject_id,
-                              array('output' => 'name'));
-  $args->tproject_name = $dm['name'];
-
-  $args->UploadFile = ($args->UploadFile != "") ? 1 : 0; 
-  $args->fInfo = isset($_FILES['uploadedFile']) ? $_FILES['uploadedFile'] : null;
-  $args->source = isset($args->fInfo['tmp_name']) ? $args->fInfo['tmp_name'] : null;
-
-  // whitelist
-  switch($args->importType) {
-    case 'iSerializationToCSV':
-    case 'iSerializationToXML':
-    break;
-
-    default:
-      $args->importType = 'iSerializationToXML';
-    break;
-  }
-
-  $tlkw = new tlKeyword();
-  $args->importTypes = $tlkw->getSupportedSerializationInterfaces();
-  $args->keywordFormatStrings = $tlkw->getSupportedSerializationFormatDescriptions();
-
-  $args->dest = TL_TEMP_PATH . session_id() . 
-                "-importkeywords." . 
-                $args->importTypes[$args->importType];
-
-  return $args;
-}
-
-/**
- *
- */
-function initializeGui(&$argsObj)
-{
-  $gui = new stdClass();
-  $gui->tproject_id = $argsObj->tproject_id;
-  $gui->tproject_name = $argsObj->tproject_name;
-
-  $gui->main_descr = lang_get('testproject') . TITLE_SEP . $gui->tproject_name;
-  $gui->viewUrl = "lib/keywords/keywordsView.php?tproject_id={$gui->tproject_id}";
-  $gui->import_type_selected = $argsObj->importType;
-  $gui->msg = getFileUploadErrorMessage($argsObj->fInfo);
-
-  $gui->importTypes = $argsObj->importTypes;
-  $gui->keywordFormatStrings = $argsObj->keywordFormatStrings;;
-
-  $fslimit = config_get('import_file_max_size_bytes');
-  $gui->fileSizeLimitMsg = 
-    sprintf(lang_get('max_file_size_is'), $fslimit/1024 . ' KB ');
-  $gui->importLimit = $fslimit;
-
-
-
-
-  return $gui;
-}
-
-function checkRights(&$db,&$user) {
-	return ($user->hasRightOnProj($db,'mgt_modify_key'));
-}
+http_response_code(302);
+header('Location: ' . $url);
+exit;

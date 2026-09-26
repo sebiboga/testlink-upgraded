@@ -1,128 +1,37 @@
 <?php
 /**
- * TestLink Open Source Project - http://testlink.sourceforge.net/ 
- * This script is distributed under the GNU General Public License 2 or later. 
+ * TestLink Open Source Project - http://testlink.sourceforge.net/
+ * This script is distributed under the GNU General Public License 2 or later.
  *
- * @filesource  keywordsExport.php
- * @package     TestLink
- * @copyright   2005,2019 TestLink community 
- * @link        http://www.testlink.org/
+ * @filesource	keywordsExport.php
  *
- */
-require_once("../../config.inc.php");
-require_once("common.php");
-require_once("csv.inc.php");
-require_once("xml.inc.php");
-require_once("keywordsEnv.php");
-
-testlinkInitPage($db, false, false, "checkRights");
-$templateCfg = templateConfiguration();
-$args = init_args($db);
-$gui = initializeGui($args);
-
-switch ($args->doAction) {
-  case "do_export":
-    $op = do_export($db,$smarty,$args);
-  break;
-}
-
-$smarty = new TLSmarty();
-$smarty->assign('gui',$gui);
-$smarty->display($templateCfg->template_dir . $templateCfg->default_template);
-
-/**
+ * 2.0.1.shim - Refs #1615: the legacy Smarty keyword export screen was replaced
+ * by the modern Dashio screen gui/templates/keywords/keywordsExport.html backed
+ * by the api/keywordsxml BFF (which also carries the import flow of the
+ * sibling lib/keywords/keywordsImport.php).
  *
- */
-function init_args(&$dbHandler) {
-  $ipcfg = array("doAction" => array("GET",tlInputParameter::STRING_N,0,50),
-                 "tproject_id" => array("GET",tlInputParameter::INT_N),
-                 "export_filename" => array("POST", tlInputParameter::STRING_N,0,255),
-                 "exportType" => array("POST", tlInputParameter::STRING_N,0,255));
-
-  $args = new stdClass();
-  $pps = I_PARAMS($ipcfg,$args);
-
-  if( $args->tproject_id <= 0 ) {
-    throw new Exception("Error Invalid Test Project ID", 1);
-  }
-  
-  $args->user = $_SESSION['currentUser'];
-  $tproj_mgr = new testproject($dbHandler);
-  $dm = $tproj_mgr->get_by_id($args->tproject_id,array('output' => 'name'));
-  $args->tproject_name = $dm['name'];
-
-  return $args;
-}
-
-
-/*
-  function: do_export
-            generate export file
-
-  args :
-  
-  returns: 
-
-*/
-function do_export(&$db,&$smarty,&$args) {
-  $pfn = null;
-  $pfx = null;
-  switch($args->exportType) {
-    case 'iSerializationToCSV':
-      $pfn = null;
-      $pfx = "exportKeywordsToCSV";
-    break;
-
-    case 'iSerializationToXML':
-      $pfn = "exportKeywordsToXML";
-    break;
-  }
-
-  if (null != $pfn) {
-    $tprojectMgr = new testproject($db);
-    $content = $tprojectMgr->$pfn($args->tproject_id);
-    downloadContentsToFile($content,$args->export_filename);
-    exit();
-  }
-
-  if (null != $pfx) {
-    $cu = getKeywordsEnv($db,$args->user,$args->tproject_id,
-            array('usage' => 'csvExport'));
-
-    $content = exportKeywordsToCSV($cu->kwOnTCV);
-    downloadContentsToFile($content,$args->export_filename);
-    exit();
-  }
-
-}
-
-/**
+ * This controller is kept as a session-guarded redirect shim so old deep links
+ * and the still-shipped dashio / tl-classic templates resolve:
+ *   - anonymous users are sent to the login screen (legacy testlinkInitPage
+ *     behaviour);
+ *   - every other request is mapped onto the modern screen in Export mode with
+ *     the tproject_id context forwarded.
  *
- */
-function initializeGui(&$argsObj) {
-  $kw = new tlKeyword();
-  $gui = new stdClass();
-  $gui->tproject_id = $argsObj->tproject_id;
-  $gui->exportTypes = $kw->getSupportedSerializationInterfaces();
-  $gui->main_descr = lang_get('testproject') . TITLE_SEP . $argsObj->tproject_name;
-  $gui->export_filename = is_null($argsObj->export_filename) ? 'keywords.xml' : $argsObj->export_filename;
-  $gui->action_descr = lang_get('export_keywords');
+ * NOTE: the second testlinkInitPage() argument stays FALSE on purpose, so a
+ * crafted GET cannot overwrite the session testprojectID (Refs #1604 pattern).
+**/
+require_once('../../config.inc.php');
+require_once('common.php');
 
-  $gui->actionUrl = "lib/keywords/keywordsExport.php?doAction=do_export&tproject_id={$gui->tproject_id}";
-  $gui->cancelUrl = "lib/keywords/keywordsView.php?tproject_id={$gui->tproject_id}";
-  return $gui;
-} 
+testlinkInitPage($db, false, false);
 
+$base = isset($_SESSION['basehref']) ? $_SESSION['basehref'] : '/';
+$tproject_id = intval($_REQUEST['tproject_id'] ?? 0);
+$tplan_id = isset($_REQUEST['tplan_id']) ? intval($_REQUEST['tplan_id']) : 0;
 
-/**
- *
- */
-function exportKeywordsToCSV($kwSet) {
-  $keys = array( "keyword","notes","tcv_qty" );
-  $csv = exportDataToCSV($kwSet,$keys,$keys,array('addHeader' => 1));
-  return $csv;
-}
+$url = $base . 'gui/templates/keywords/keywordsExport.html?mode=export' .
+	'&tproject_id=' . $tproject_id . '&tplan_id=' . $tplan_id;
 
-function checkRights(&$db,&$user) {
-	return ($user->hasRightOnProj($db,'mgt_view_key'));
-}
+http_response_code(302);
+header('Location: ' . $url);
+exit;

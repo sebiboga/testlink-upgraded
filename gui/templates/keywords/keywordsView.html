@@ -127,66 +127,6 @@ table.dataTable tbody td { padding: 8px 14px; font-size: 13px; vertical-align: m
   </div>
 </div>
 
-<!-- Import Modal -->
-<div class="modal fade" id="importModal" tabindex="-1">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" data-i18n="kw.import">Import</h5>
-        <button type="button" class="close" data-dismiss="modal">&times;</button>
-      </div>
-      <div class="modal-body">
-        <div class="form-group" style="margin-bottom:12px;">
-          <label for="importType" data-i18n="kw.format">Format *</label>
-          <select id="importType" class="form-control" style="font-size:13px;">
-            <option value="xml" data-i18n="kw.xml">XML</option>
-            <option value="csv" data-i18n="kw.csv">CSV</option>
-          </select>
-        </div>
-        <div class="form-group" style="margin-bottom:12px;">
-          <label for="importFile" data-i18n="kw.chooseFileLabel">File *</label>
-          <input type="file" id="importFile" class="form-control" style="font-size:13px;" accept=".xml,.csv,text/csv,application/xml,text/xml">
-        </div>
-        <div style="color:#888;font-size:12px;" id="fileSizeNote"></div>
-        <div id="importError" style="color:#e6605e;font-size:12px;margin-top:8px;display:none;"></div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-dismiss="modal" style="font-size:13px;" data-i18n="common.cancel">Cancel</button>
-        <button type="button" class="btn-teal" onclick="doImport()" style="font-size:13px;" data-i18n="kw.upload">Upload file</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Export Modal -->
-<div class="modal fade" id="exportModal" tabindex="-1">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" data-i18n="kw.export">Export</h5>
-        <button type="button" class="close" data-dismiss="modal">&times;</button>
-      </div>
-      <div class="modal-body">
-        <div class="form-group" style="margin-bottom:12px;">
-          <label for="exportType" data-i18n="kw.format">Format *</label>
-          <select id="exportType" class="form-control" style="font-size:13px;" onchange="exportTypeChanged()">
-            <option value="xml" data-i18n="kw.xml">XML</option>
-            <option value="csv" data-i18n="kw.csv">CSV</option>
-          </select>
-        </div>
-        <div class="form-group" style="margin-bottom:12px;">
-          <label for="exportFilename" data-i18n="kw.fileName">File name *</label>
-          <input type="text" id="exportFilename" class="form-control" maxlength="255" style="font-size:13px;" value="keywords.xml">
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-dismiss="modal" style="font-size:13px;" data-i18n="common.cancel">Cancel</button>
-        <button type="button" class="btn-teal" onclick="doExport()" style="font-size:13px;" data-i18n="kw.export">Export</button>
-      </div>
-    </div>
-  </div>
-</div>
-
 <script src="/gui/templates/i18n/i18n.js"></script>
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
@@ -209,7 +149,6 @@ $(function () {
   TLi18n.load(function () {
     TLi18n.apply();
     TLi18n.initLocaleSwitcher('#localeSwitcher');
-    $('#fileSizeNote').text(TLi18n.t('kw.maxFileSize'));
     showShimResult();
     load();
   });
@@ -437,67 +376,29 @@ function goAssign() {
   window.location.href = '/gui/templates/keywords/keywordsAssign.html?tproject_id=' + tprojectId + '&tplan_id=' + tplanId;
 }
 
+// Refs #1615: the keyword XML/CSV exchange is a standalone Dashio screen
+// (gui/templates/keywords/keywordsExport.html + the api/keywordsxml BFF). It is
+// a real deep-linkable popup instead of two inline modals because the legacy
+// pair lib/keywords/keywordsExport.php + keywordsImport.php were two separate
+// screens, and because the server-provided serialization interfaces + format
+// samples (tlKeyword::getSupportedSerializationFormatDescriptions()) can only be
+// rendered outside this screen's static <option> list.
 function openImport() {
-  $('#importError').hide();
-  $('#importFile').val('');
-  $('#importModal').modal('show');
-}
-
-function doImport() {
-  var fileInput = document.getElementById('importFile');
-  if (!fileInput.files.length) {
-    $('#importError').text(TLi18n.t('kw.chooseFile')).show();
-    return;
-  }
-  var fd = new FormData();
-  fd.append('tproject_id', tprojectId);
-  fd.append('type', $('#importType').val());
-  fd.append('uploadedFile', fileInput.files[0]);
-
-  $.ajax({
-    url: API + '/import',
-    method: 'POST',
-    data: fd,
-    processData: false,
-    contentType: false
-  }).done(function (r) {
-    if (r.status === 'ok') {
-      $('#importModal').modal('hide');
-      toast(TLi18n.t('kw.msg.imported'));
-      load();
-    } else {
-      $('#importError').text(r.message || TLi18n.t('kw.wrongFile')).show();
-    }
-  }).fail(function (xhr) {
-    var r = {};
-    try { r = JSON.parse(xhr.responseText); } catch(e) {}
-    $('#importError').text(
-      r.error_code === 'NO_FILE' ? TLi18n.t('kw.chooseFile') :
-      r.error_code === 'WRONG_FORMAT' ? TLi18n.t('kw.wrongFile') :
-      r.message || TLi18n.t('common.error')
-    ).show();
-  });
+  openExchange('import');
 }
 
 function openExport() {
-  exportTypeChanged();
-  $('#exportModal').modal('show');
+  openExchange('export');
 }
 
-function exportTypeChanged() {
-  var t = $('#exportType').val();
-  var f = $('#exportFilename').val();
-  var ext = t === 'csv' ? '.csv' : '.xml';
-  if (!f || /\.(xml|csv)$/i.test(f)) {
-    $('#exportFilename').val(f ? f.replace(/\.(xml|csv)$/i, ext) : (t === 'csv' ? 'keywords.csv' : 'keywords.xml'));
-  }
-}
-
-function doExport() {
-  var t = $('#exportType').val();
-  var f = $.trim($('#exportFilename').val()) || (t === 'csv' ? 'keywords.csv' : 'keywords.xml');
-  window.location.href = API + '/export?tproject_id=' + tprojectId + '&type=' + t + '&filename=' + encodeURIComponent(f);
-  $('#exportModal').modal('hide');
+function openExchange(mode) {
+  var w = 720, h = 620;
+  var left = Math.max(0, Math.round((window.screen.width - w) / 2));
+  var top = Math.max(0, Math.round((window.screen.height - h) / 2));
+  window.open('/gui/templates/keywords/keywordsExport.html?mode=' + mode +
+    '&tproject_id=' + tprojectId, 'KeywordExchange',
+    'width=' + w + ',height=' + h + ',left=' + left + ',top=' + top +
+    ',resizable=yes,scrollbars=yes');
 }
 </script>
 </body>
