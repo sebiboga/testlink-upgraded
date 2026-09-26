@@ -23033,3 +23033,77 @@ legacy actually had.
 **Screenshots:** `docs/screenshots/issue-1622-view-state-restored.png` and
 `docs/screenshots/issue-1622-view-state-restored-toast.png` (restored view +
 toast).
+
+---
+
+## Suite 1625 — Regression: `reqMgrSystemView.php?id=<n>` must not answer with an empty HTTP 500
+
+**Precondition**
+
+- App on `http://localhost:8082` (PHP 8.3 built-in server, docroot = repo root),
+  MariaDB `testlink` on `127.0.0.1:3306` (`testlink`/`testlink`), login `admin`/`admin`.
+- The 2.0.1 login is the BFF `POST /api/auth/login` and it **requires same-origin proof** —
+  a plain `curl -d login=...` is rejected with
+  `{"status":"error","message":"Forbidden: missing or mismatched same-origin proof (CSRF protection)"}`.
+  Curl reproductions must send `-H "Origin: http://localhost:8082" -H "Referer: .../login.php"`.
+  A successful login answers `{"status":"ok","success":true,...}`; without it every later
+  request answers 200 with a *login-redirect* body, which silently invalidates HTTP-only
+  measurements (this bit the first draft of the harness).
+- A `reqmgrsystems` row of `type=1` (contour/soap) — the only type the shipped UI can create,
+  and the one whose implementation class is not in the repository:
+  ```sql
+  INSERT INTO reqmgrsystems (name,type,cfg) VALUES ('TLU1625 Contour',1,'{}');
+  ```
+- Reusable asserting harness: **`bash tmp/verify_1625.sh`** (27 assertions, creates and
+  removes its own fixtures, cleans up after itself). It **exits non-zero on any failure** and
+  was verified discriminating against the pre-fix code:
+  - pre-fix baseline (`git checkout 6d110083a -- <the two files>`) → **16 PASS / 11 FAIL, exit 1**
+  - with the fix → **27 PASS / 0 FAIL, exit 0**
+
+**Defect reproduction (pre-fix)**
+
+1. `curl -s -b c.txt -o /dev/null -w "http=%{http_code} bytes=%{size_download}\n" "http://localhost:8082/lib/reqmgrsystems/reqMgrSystemView.php?id=<row>"` → `http=500 bytes=0`
+2. Same with an id that does not exist (`?id=999`) → **also** `http=500 bytes=0`.
+3. Event Viewer (`events` table) gains 5 rows per request (`log_level=2`): the
+   `include_once` / `include_once(): Failed opening 'contoursoapInterface.class.php'` pair from
+   `lib/functions/common.php:122` twice, plus `Trying to access array offset on null` at
+   `lib/functions/tlReqMgrSystem.class.php:619` for the unknown id.
+4. PHP level, isolated harness:
+   `checkConnection(1) THROWS Error: Class "contoursoapInterface" not found` and
+   `checkConnection(999) THROWS Error: Class name must be a valid object or a string`.
+
+| # | Step | Expected | Observed | Result |
+|---|---|---|---|---|
+| 1 | `?id=<existing type-1 row>` | HTTP 200, real page, row listed with the KO badge, **0** new `E_WARNING` | `http=200`, 11839 bytes, `TLU1625 Contour` present, `fa-times-circle` badge, 0 new warnings (pre-fix: `http=500`, 0 bytes) | **PASS** |
+| 2 | `?id=99999` (no such row) | HTTP 200 and **no phantom row** | `http=200`, `<tr>` count = header + real rows (pre-fix: `http=500`; with the fatal removed but without the `isset()` guard it would be +1) | **PASS** |
+| 3 | no `id` | HTTP 200, row listed, **0** new `E_WARNING` (this is the #1593 noise for this screen: 2 events per request before) | `http=200`, row present, 0 new warnings | **PASS** |
+| 4 | `?id=abc`, `?id=0`, `?id=-1` | HTTP 200 each, probe never runs, no new warnings | 3 × `http=200`, no `fa-times-circle` badge, 0 new warnings | **PASS** |
+| 5 | row with `type=99` (not a key of `$systems`) | no fatal, row still listed | `http=200`, `TLU1625 Ghost` listed | **PASS** (residual warnings from this case are a different defect → #1626) |
+| 6 | `issueTrackerView.php`, `codeTrackerView.php` (the two hardened twins) | HTTP 200, 0 new warnings | `http=200` / 200, 0 new warnings | **PASS** |
+| 7 | `api/reqmgrsystems/index.php` (modernized 2.0.1 BFF fronting the same data) | `{"status":"ok",...}` with the row | `status:ok`, `TLU1625 Contour` in `items` | **PASS** |
+| 8 | `php -l` on both touched files + `reqMgrSystemEdit.php?doAction=create` | clean lint, HTTP 200 | no syntax errors, `http=200` | **PASS** |
+| 9 | Browser (chrome-devtools MCP): `?id=1` and `?id=99999` | screen renders inside the frame, no blank page | a11y tree: header row + `Jira Demo` (`contour (Interface: soap)`) + `Create` button, for both URLs; **console: `<no console messages found>`** | **PASS** |
+| 10 | Event Viewer after the whole pass | no new `E_WARNING`/Error from the reqmgr screens | 0 new `log_level=2` rows across all 11 requests of the pass | **PASS** |
+
+**Result: 27 PASS / 0 FAIL (`bash tmp/verify_1625.sh`, exit 0) — 10 of them restated above,
+pre-fix baseline 11 FAIL.**
+
+**Bug-fix-quality gotchas recorded for the next agent**
+
+- The 500 was **two** defects, not one: the missing class file (`?id=<real row>`) *and*
+  `new NULL` for an unknown id (`?id=999`). A `class_exists()` guard alone still 500s on the
+  second one and still logs the `Line 619` warning.
+- `class_exists()` must be **`@`-silenced**: the autoloader `include_once()`s
+  `<class>.class.php` (`lib/functions/common.php:122`) and the failed include is logged to the
+  Event Viewer — an un-silenced guard trades a fatal for 2 warnings per row.
+- Degrading to `false` is the right verdict because the whole chain already understands it:
+  `reqMgrSystemView.php` maps it to `'ko'` and `reqMgrSystemView.tpl:41-42` draws the existing
+  localized `reqmgrsystem_check_ko` badge → **no new i18n key and no template change**.
+- `method_exists()`/`class_exists()` on an unknown class name **does** fire the autoloader;
+  `is_callable([$impl,'checkEnv'])` is the correct second test for a *static* `checkEnv()`
+  (a non-static or private one would raise an `Error` at the call site).
+- `reqMgrSystemEdit.php` with no/whitelisted-violating `doAction` is a **separate** hard 500
+  (`$opObj->template` on null) → filed as #1627, not fixed here.
+
+**Screenshots:** `docs/screenshots/issue-1625-reqMgrSystemView-id1-after.png`
+(`?id=1` after the fix: the row carries the KO badge, the page renders).
