@@ -22573,3 +22573,82 @@ teal filter row, record counter, paginate buttons).
 **Known nuance (not a defect):** `stateSave: true` re-applies an active global
 search after the destroy/re-init performed by `loadProjects()` — the same
 behaviour legacy had when it reloaded the view with its filter still active.
+
+---
+
+## Regression — Issue #1590: `issueTrackerView.tpl` delete icon tooltip used undefined label key `testproject_alt_delete`
+
+**Precondition / fixtures** (the DB is freshly imported every run — `testprojects`
+and `issuetrackers` are both empty, so these MUST be recreated):
+
+```sql
+INSERT INTO testprojects (id,notes,color,active,option_reqs,option_priority,option_automation,options,prefix)
+VALUES (1,'Repro project for #1590','#9BD9BD',1,0,0,0,'','REPRO');
+INSERT INTO issuetrackers (name,type,cfg) VALUES ('ReproBugTracker1590',1,'');
+INSERT INTO issuetrackers (name,type,cfg) VALUES ('ReproBugTracker1590-B',1,'');
+-- non-manager account (password = md5('viewer1590'))
+INSERT INTO users (id,login,password,role_id,email,first,last,locale,default_testproject_id,active)
+VALUES (90,'viewer1590',MD5('viewer1590'),1,'v@x.y','View','Er','en_GB',1,1);
+```
+
+> ⚠️ `issuetrackers.type` **must** be a real key of `tlIssueTracker::$systems`
+> (`lib/functions/tlIssueTracker.class.php:31`). `type=1` = bugzilla/xmlrpc works.
+> A fixture with `type=0` makes the screen return **HTTP 500** and floods `events`
+> with 5 unrelated warnings from `tlIssueTracker.class.php:170-171,604-605` —
+> that is a separate pre-existing defect, NOT #1590.
+
+**Repro steps (pre-fix):**
+
+1. Log in as `admin`/`admin` (holds right 31 `issuetracker_management`).
+2. `GET http://localhost:8082/lib/issuetrackers/issueTrackerView.php?tproject_id=1`.
+3. `SELECT id,log_level,description FROM events ORDER BY id DESC LIMIT 3;`
+4. Inspect the delete icon's tooltip in the DOM.
+
+**Expected post-fix behaviour:** the delete icon renders with the localized
+`delete` tooltip, and **no** `E_WARNING "Undefined array key "testproject_alt_delete"`
+row is written to `events`.
+
+**Actual result — measured on the fix branch (`0fcf6b793`):**
+
+| # | Case | Measured | Result |
+|---|---|---|---|
+| 1 | admin, 1 unlinked tracker | `view=200`, `icons=1`, `title="delete"`, **0** new `log_level IN (1,2,3)` | **PASS** |
+| 2 | admin, 2 unlinked trackers | `view=200`, `icons=2`, `title="delete"` ×2, **0** new rows | **PASS** |
+| 3 | tracker **linked** (`INSERT INTO testproject_issuetracker (testproject_id,issuetracker_id) VALUES (1,1);`) | icons 2 → **1** (linked row correctly loses the icon), **0** new rows | **PASS** |
+| 4 | non-manager — needs `INSERT INTO role_rights (role_id,right_id) VALUES (7,32);` because the shipped matrix grants `issuetracker_view`/`issuetracker_management` **only to role 8 (admin)** | page renders fully (`size=11556`), **0** delete icons — `canManage` gate intact, **0** new rows | **PASS** |
+| 5 | sibling Code Tracker view `lib/codetrackers/codeTrackerView.php` | `view=200`, unchanged, **0** new rows | **PASS** |
+| 6 | `projectView.tpl` — the *legitimate* owner of `testproject_alt_delete` | static: commit touches 1 file; `projectView.tpl:31` loads + `:153` uses the key — untouched. (The legacy controller now routes to a modernized screen, so it is not reachable over HTTP — static verification only, by design.) | **PASS** (static) |
+| 7 | locales `de_DE` / `fr_FR` / `es_ES` / `ro_RO` / `it_IT` | `de_DE` → `title="löschen"`; `fr_FR`/`es_ES` localized; `ro_RO`/`it_IT` (no `alt_delete` key) → graceful en_GB fallback `"delete"`. All **0** new Warning rows (fallback logs at `log_level 32`, not Warning) | **PASS** |
+| 8 | live browser DOM (not curl) | `[{"title":"delete","hasOnclick":true},{"title":"delete","hasOnclick":true}]` — tooltip fixed **and** the `delete_confirmation()` handler untouched | **PASS** |
+| 9 | Event Viewer after the whole matrix | **0** new Error/Warning rows attributable to this screen (only `log_level 32` LOCALIZATION info events, pre-existing) | **PASS** |
+
+**Result: 9/9 PASS.**
+
+**Pre-fix measurement (recorded in the INVESTIGATION comment) for contrast:**
+```
+title=""                        <- tooltip empty
+id=24 log_level=2 E_WARNING Undefined array key "testproject_alt_delete" ... Line 134
+2 trackers -> 3 cumulative rows  => exactly 1 warning per row that renders the icon
+```
+
+**Gotchas for the next agent (each cost time during this run):**
+- **Locale tests need a NEW SESSION.** `$_SESSION['locale']` is cached, so updating
+  `users.locale` alone silently keeps rendering English — that produced a false
+  negative on the first attempt at case 7. Use a fresh cookie jar per locale.
+- **Case 4 is untestable with stock roles** — see the `role_rights` note above.
+- The generated Smarty cache under `gui/templates_c/` recompiles automatically on
+  template mtime change; no manual purge is needed before re-testing.
+- `issueTrackerView.tpl` needs no CSRF token, but login POSTs use
+  `tl_login` / `tl_password` (not `login` / `password`), and the screen rejects
+  requests whose session expired, returning a 204-byte `login.php?note=expired`
+  stub that is easy to mistake for an empty result set.
+
+**Root cause (1 line):** `gui/templates/dashio/issuetrackers/issueTrackerView.tpl:81`
+referenced `{$labels.testproject_alt_delete}`, a key the template's `{lang_get}`
+call (lines 12-16) never loads. It now uses `{$labels.alt_delete}` — already loaded
+at line 15, and the same key the sibling `codeTrackerView.tpl:78` uses. **No new
+i18n key was added**; the key `testproject_alt_delete` ("Delete the Test project
+and all related data.") remains correct in the two `projectView.tpl` files that
+legitimately use it.
+
+**Screenshot:** `docs/screenshots/issue-1590-issueTrackerView-delete-tooltip.png`
