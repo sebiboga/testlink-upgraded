@@ -25,8 +25,14 @@ $gui->items = $mgr->getAll(array('output' => 'add_link_count', 'checkEnv' => tru
 $gui->canManage = $args->currentUser->hasRight($db,"reqmgrsystem_management");
 $gui->user_feedback = $args->user_feedback;
 
-if($args->id > 0)
+if($args->id > 0 && isset($gui->items[$args->id]))
 {
+  // Issue #1625: the probe is only stamped on a row that really exists.
+  // $gui->items is keyed by id, so a non-existent ?id= used to append a phantom
+  // (empty) row to the grid once checkConnection() stopped raising a fatal
+  // instead of returning a verdict. The wrench link in
+  // reqMgrSystemView.tpl:38-40 always passes a real id, so this costs nothing
+  // on the normal path.
   $gui->items[$args->id]['connection_status'] = $mgr->checkConnection($args->id) ? 'ok' : 'ko'; 
 }
 

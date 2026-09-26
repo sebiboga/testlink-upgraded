@@ -528,7 +528,23 @@ class tlReqMgrSystem extends tlObject
         if( $my['options']['checkEnv'] )
         {
            $impl = $this->getImplementationForType($item['type']);
-           if( method_exists($impl,'checkEnv') )
+           // Issue #1625: same degradation as the two twins already hardened
+           // (tlIssueTracker.class.php:646 - issue #1617, tlCodeTracker.class.php:594 -
+           // issue #1597): one row with an unknown/unloadable implementation must not
+           // take the whole listing down. method_exists() on an unknown class name
+           // invokes the autoloader, whose include_once() (lib/functions/common.php:122)
+           // then logs the two "Failed opening ...class.php" E_WARNINGs per row per
+           // page load - the Event Viewer noise issue #1593 tracks for this screen.
+           // class_exists() is @-silenced for the very same reason.
+           // is_callable() (not method_exists) because only a PUBLIC STATIC checkEnv
+           // can satisfy the `$impl::checkEnv()` call below: a private or non-static
+           // declaration would raise an Error.
+           if( is_null($impl) || !@class_exists($impl) || !is_callable([$impl, 'checkEnv']) )
+           {
+             $item['env_check_ok'] = false;
+             $item['env_check_msg'] = '';
+           }
+           else
            {
              $dummy = $impl::checkEnv();
              $item['env_check_ok'] = $dummy['status'];
@@ -616,7 +632,41 @@ class tlReqMgrSystem extends tlObject
   function checkConnection($systemID)
   {
     $xx = $this->getByID($systemID);
+
+    // Issue #1625: a row whose type has no loadable implementation class must not
+    // take the whole page down. Two independent triggers used to end in an
+    // uncaught Error (an Error is not an Exception, so the try/catch in
+    // getInterfaceObject() never helped) and PHP 8 aborted before a single byte
+    // was flushed -> HTTP 500 with a 0-byte body:
+    // 1. a non-existent id: getByID() returns NULL, so $xx['implementation'] was
+    //    NULL ("Trying to access array offset on null" at the next line) and
+    //    "new NULL" raised "Class name must be a valid object or a string".
+    // 2. an existing row: type 1 (contour/soap) resolves to contoursoapInterface,
+    //    a class that is not shipped in this repository and never was
+    //    (git log --all -- '*contour*' is empty), so the autoloader's
+    //    include_once() (lib/functions/common.php:122) failed twice and
+    //    "new <missing>" raised "Class contoursoapInterface not found".
+    // Same degradation as the two twins already fixed: tlIssueTracker::checkConnection()
+    // (issue #1617) and the getAll() checkEnv guard in tlCodeTracker (issue #1597).
+    // Reporting "not connected" is what the caller and the template already
+    // understand: reqMgrSystemView.php turns false into 'ko' and
+    // reqMgrSystemView.tpl draws the existing localized reqmgrsystem_check_ko
+    // badge - no new i18n key and no template change needed.
+    if( is_null($xx) || !isset($xx['implementation']) )
+    {
+      return false;
+    }
+
     $class2create = $xx['implementation'];
+
+    // @-silenced on purpose: the autoloader include_once()s "<class>.class.php"
+    // and would otherwise log the two "Failed opening ...class.php" E_WARNINGs
+    // that issue #1593 tracks, once more, on every probe.
+    if( !is_string($class2create) || !@class_exists($class2create) )
+    {
+      return false;
+    }
+
     $system = new $class2create($xx['type'],$xx['cfg']);
     return $system->isConnected();
   }
