@@ -57,6 +57,27 @@ screen reaches full parity.
   the remove handler, silent `assign_to_tcase()` failure, unlocalized DELETE
   errors). (Refs #1299)
 
+- [FEATURE GAP] - #975: the modern Code Tracker edit modal restores the legacy
+  **per-type configuration example** behind the `fa-eye` icon
+  (`codeTrackerEdit.tpl:26-66,194-196` + `lib/ajax/getcodetrackercfgtemplate.php`).
+  The modal previously showed ONE hardcoded `<uribase>`/`<apikey>` sample that
+  matched NEITHER enabled interface and contradicted the modal's own
+  `buildCfgXml()`; new BFF route `GET /api/codetracker/index.php/cfg-template?type=N`
+  returns the selected interface's `$iname::getCfgTemplate()` for an ENABLED type
+  (`getTypes()` parity, so a disabled type takes the legacy `invalid_type` branch)
+  and probes `stream_resolve_include_path()` BEFORE any `include` so a missing
+  interface never makes the autoloader log an E_WARNING into `events` (issue #965
+  lesson); the two legacy `lang_get()` fallbacks become structured
+  `interface_missing` / `invalid_type` codes localized by the client, since the JSON
+  BFF has no `lang_get`. The screen gained the legacy eye toggle (clear/refresh
+  branch included) + a `Configuration example` block rendered with `.text()` for
+  `<xmp>` parity, refreshed whenever the Type select changes, reset to collapsed on
+  modal open/close, and deliberately placed OUTSIDE `#genericFields` so it stays
+  reachable for the GitHub interface (which hides that whole block — the default
+  type). 5 new i18n keys in all 10 locale bundles, reusing the existing
+  `ct.msg.invalidType`; suite 975 passed 9/9, Event Viewer delta zero.
+  (Refs #975)
+
 - [FEATURE GAP] - #972: the modern Code Trackers screen restores the legacy
   manager-only per-tracker connection check. A wrench now runs the stored BFF
   connection action over POST and renders a localized heartbeat/skull result,
