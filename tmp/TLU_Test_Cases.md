@@ -22576,134 +22576,79 @@ behaviour legacy had when it reloaded the view with its filter still active.
 
 ---
 
-## Suite — Task — Issue #1614: session inactivity timeout on the tproject-roles BFF
+## Regression — Issue #1590: `issueTrackerView.tpl` delete icon tooltip used undefined label key `testproject_alt_delete`
 
-**Screen:** `gui/templates/usermanagement/usersAssignProject.html`
-**BFF:** `api/roles/index.php` → `GET /meta/tproject-roles`, `PUT /tproject-roles`
-**Legacy parity target:** `checkSessionValid()` (`lib/functions/common.php:258-286`),
-called by `testlinkInitPage()` (`common.php:531-533`) and again explicitly at
-`lib/usermanagement/usersAssign.php:97` → redirect `login.php?note=expired&destination=…`
-**Precondition:** `admin`/`admin` logged in; the config lever
-`config.inc.php:301 $tlCfg->sessionInactivityTimeout` is temporarily forced from
-`9900` to `0` for the stale-session cases (any session older than 0 s is then
-stale) and restored to `9900` for the happy-path cases. The file is NOT part of
-the change (`git diff config.inc.php` empty after the run).
+**Precondition / fixtures** (the DB is freshly imported every run — `testprojects`
+and `issuetrackers` are both empty, so these MUST be recreated):
 
-| # | Action | Expected | Measured | Result |
-|---|---|---|---|---|
-| 1 | Baseline, shipped `sessionInactivityTimeout = 9900`, open the screen | user list loads, no redirect, no console error | `GET /api/roles/index.php/meta/tproject-roles?tproject_id=1` → `200`, 1 user (`admin`, role 8), tabs + bulk "Set roles to" combo rendered | **PASS** |
-| 2 | **Before** the fix, timeout forced to `0`, reload the screen | legacy would refuse | `GET` → `200` with 1 user **and** `PUT /api/roles/tproject-roles` → `200 {"status":"ok","feedback_key":"no_users_selected"}` — the write went through on a stale session | **GAP (baseline)** |
-| 3 | **After** the fix, timeout `0`: `GET /meta/tproject-roles` | `401` + machine-readable code, no user data in the body | `401 {"status":"error","code":"session_expired","message":"session_expired"}` | **PASS** |
-| 4 | **After** the fix, timeout `0`: `PUT /tproject-roles` (write path) | `401`, no role row written | `401 {"status":"error","code":"session_expired","message":"session_expired"}` | **PASS** |
-| 5 | Screen left on the URL, stale session, initial load | user is bounced to the login screen with the legacy note | landed on `http://localhost:8082/login.php?note=expired&destination=%2Fgui%2Ftemplates%2Fusermanagement%2FusersAssignProject.html%3Ftproject_id%3D1` | **PASS** |
-| 6 | The login page reached that way | localized "session expired" info box | a11y tree: `StaticText "Session expired. Please log in again."` (i.e. `auth.sessionExpired`, not a raw key) | **PASS** |
-| 7 | A `401` on the **Save** path (`saveAssignments()` error branch) | localized expiry toast + bounce, **not** the generic "update failed" toast | `sessionExpired(xhr)` returns `true` before the `assign.updateFailed` mapping, so `updateFailed` can never be shown for a dead session | **PASS** (code-path) |
-| 8 | Stale session must not render the misleading empty state | "Select a test project above" box must stay hidden | `if (sessionExpired(xhr)) { return; }` is the first statement of `loadUsers().fail()` (line 333), before the `403`/empty branches | **PASS** (code-path) |
-| 9 | Redirect target when the screen runs **inside the Dashio iframe** | whole shell is replaced, not just the iframe (legacy used `top.location`) | `if (window.self !== window.top) { window.top.location.href = target; }` — same pattern as `documentation/staticPage.html:96` | **PASS** (code-path) |
-| 10 | Happy path restored (`sessionInactivityTimeout = 9900`), re-login | no regression on read and on write | `GET` → `200`; `PUT /tproject-roles` → `200 {"status":"ok","feedback_key":"assign_roles_updated"}`; read-back identical | **PASS** |
-| 11 | Gate ordering | a stale session is rejected *before* the rights audit / any DB read | `bffEnforceSession($db)` at `api/roles/index.php:40`, i.e. after the `userID` gate (21-26) and before the route-aware rights block (363+) | **PASS** |
-| 12 | `php -l` on both PHP files | no syntax error | `No syntax errors detected` × 2 | **PASS** |
-| 13 | `node --check` on the extracted inline `<script>` of the screen | no JS syntax error | `JS SYNTAX OK` | **PASS** |
-| 14 | i18n: new user-facing string needed? | all bundles valid, key present everywhere | reuses the existing `auth.sessionExpired`; `python3 -m json.tool` on all 10 bundles → `ALL BUNDLES VALID`; key present in de, en, es, fr, it, ja, pt, ro, ru, zh | **PASS** |
-| 15 | Event Viewer after the whole pass | no new Error/Warning row | `select count(*),max(id) from events;` → `4 4`; the only new row is `id 4`, `log_level 16` (INFO) audit `UPDATE / testprojects "Test project roles updated for project #1"` from case 10 | **PASS** |
-| 16 | `config.inc.php` left untouched by the run | no config leakage into the commit | `git diff config.inc.php` → empty | **PASS** |
+```sql
+INSERT INTO testprojects (id,notes,color,active,option_reqs,option_priority,option_automation,options,prefix)
+VALUES (1,'Repro project for #1590','#9BD9BD',1,0,0,0,'','REPRO');
+INSERT INTO issuetrackers (name,type,cfg) VALUES ('ReproBugTracker1590',1,'');
+INSERT INTO issuetrackers (name,type,cfg) VALUES ('ReproBugTracker1590-B',1,'');
+-- non-manager account (password = md5('viewer1590'))
+INSERT INTO users (id,login,password,role_id,email,first,last,locale,default_testproject_id,active)
+VALUES (90,'viewer1590',MD5('viewer1590'),1,'v@x.y','View','Er','en_GB',1,1);
+```
 
-**Result: 15/16 PASS (case 2 is the recorded "before" baseline, not a failure).**
-The legacy guarantee is restored: past `sessionInactivityTimeout` a stale tab can
-neither read the user list nor write role assignments, and it is bounced to
-`login.php?note=expired&destination=<screen>` exactly like legacy 1.9.20.
-## Suite 1615 — Screen: Keyword XML/CSV Export + Import popup (`keywordsExport` / `keywordsImport`, Refs #1615)
+> ⚠️ `issuetrackers.type` **must** be a real key of `tlIssueTracker::$systems`
+> (`lib/functions/tlIssueTracker.class.php:31`). `type=1` = bugzilla/xmlrpc works.
+> A fixture with `type=0` makes the screen return **HTTP 500** and floods `events`
+> with 5 unrelated warnings from `tlIssueTracker.class.php:170-171,604-605` —
+> that is a separate pre-existing defect, NOT #1590.
 
-Fixture: `tmp/fixtures_1615.php` — project `KWXML1615` (tproject id 10) with 3 keywords
-(`smoke_login`, `regression_nightly` with quotes+commas in the notes, `empty_notes_keyword`
-with NULL notes), users `kwview1615` (global role 5 = view only + project role 5) and
-`kwnorights1615` (global role 3 `<no rights>`, no project role). Password `admin` for all.
-App served from the repo root on `http://localhost:8082`.
+**Repro steps (pre-fix):**
 
-| # | Test | Expected | Result |
+1. Log in as `admin`/`admin` (holds right 31 `issuetracker_management`).
+2. `GET http://localhost:8082/lib/issuetrackers/issueTrackerView.php?tproject_id=1`.
+3. `SELECT id,log_level,description FROM events ORDER BY id DESC LIMIT 3;`
+4. Inspect the delete icon's tooltip in the DOM.
+
+**Expected post-fix behaviour:** the delete icon renders with the localized
+`delete` tooltip, and **no** `E_WARNING "Undefined array key "testproject_alt_delete"`
+row is written to `events`.
+
+**Actual result — measured on the fix branch (`0fcf6b793`):**
+
+| # | Case | Measured | Result |
 |---|---|---|---|
-| 1 | Open `keywordsExport.html?mode=export&tproject_id=10` as admin | Teal header, Export/Import tabs, context card `KWXML1615` + `3` keywords, Format XML/CSV, sample `keywords.xml` | PASS |
-| 2 | Switch Format to CSV | Filename flips to `keywords.csv`, sample becomes `keyword;notes` | PASS |
-| 3 | `GET ?action=export&type=iSerializationToXML` | 200, `text/xml`, `content-disposition: attachment; filename="kw.xml"`, `<?xml …?>` + `<keywords>` root, notes in CDATA | PASS |
-| 4 | `GET ?action=export&type=iSerializationToCSV` | 200, `;` delimiter header row + RFC4180 doubling of the embedded quotes, no data loss | PASS |
-| 5 | Import a valid XML with one new keyword (real file upload) | Success box `Keywords imported. The project now has 4 keywords.`, count 3 → 4 | PASS |
-| 6 | Import a second valid XML | Count 4 → 5 | PASS |
-| 7 | Import a non-keyword XML (`<testcases>` root) | 400 `wrong_keywords_file`; UI shows the localized `Wrong keywords file - the format could not be read.` (not a bare `Error`) | PASS |
-| 8 | Import CSV (Format = CSV, sample switched first) | Success, count 5 → 7 (the 7th row is the legacy header-row artifact, see #1616) | PASS |
-| 9 | Import with no file selected | Client-side guard, localized `Please choose a keywords file.`, no request | PASS |
-| 10 | `kwview1615` (view only) → `?action=init` | `rights: {export:true, import:false}` | PASS |
-| 11 | `kwview1615` → export | 200 with valid XML; Export panel renders | PASS |
-| 12 | `kwview1615` → import (server side) | 403 `{right: mgt_modify_key}`, nothing written; UI card `You need the mgt_modify_key right to import keywords.` | PASS |
-| 13 | `kwnorights1615` (no rights) → `?action=init` | **403** `Access denied` — no project name, no keyword count, no rights map in the body, project header renders `-` | PASS |
-| 13b | `kwnorights1615` (no rights) → export | 403 `{right: mgt_view_key}`; UI card `You need the mgt_view_key right to export keywords.` | PASS |
-| 14 | BFF contract: unknown `tproject_id` / missing project / unknown action / `POST` on a GET route | 404 `Unknown test project` / 400 `Invalid test project` / 400 `Unknown action` / 405 `Method not allowed` | PASS |
-| 15 | Anonymous `?action=init` / `?action=export` / anonymous `POST` | 401 / 401 / 403 (same-origin guard fires before the session check) | PASS |
-| 16 | Locale switcher EN → RO on the import tab | Footer, hints, buttons and the new-success text render in Romanian, no raw keys | PASS |
-| 17 | Export a project with **0** keywords (XML and CSV) | 400 `no_keywords_to_export` — no 500, and no E_WARNING row for the CSV branch | PASS |
-| 18 | Switch the export format XML → CSV → XML | The format sample keeps rendering (keyed by extension, not by the interface id) and the filename extension follows | PASS |
-| 19 | Type a custom filename, then export | The typed name survives the re-render; the blob is saved under it and the success box appears | PASS |
-| 20 | Import a 3 MB file (over `upload_max_filesize` = 2M) | 400 with the **real** PHP upload message + `code: upload_error` (not "please choose a file"); the UI hint shows the clamped cap (2048 KB, not the 10240 KB config value) | PASS |
-| 21 | Import a single-column text file as CSV | Legacy parity: one line = one keyword row (count +1), so the before/after guard does not fire — documented, not a defect | PASS |
-| 22 | `filename` of 5000 chars | Server truncates to 255; `Content-Disposition` stays well formed | PASS |
-| 23 | i18n key parity after the change | 33 `kwxml.*` + `footers.keywordsExport` keys in **all 10** bundles, no key used-but-missing, the 10 orphaned `kw.*` keys removed | PASS |
+| 1 | admin, 1 unlinked tracker | `view=200`, `icons=1`, `title="delete"`, **0** new `log_level IN (1,2,3)` | **PASS** |
+| 2 | admin, 2 unlinked trackers | `view=200`, `icons=2`, `title="delete"` ×2, **0** new rows | **PASS** |
+| 3 | tracker **linked** (`INSERT INTO testproject_issuetracker (testproject_id,issuetracker_id) VALUES (1,1);`) | icons 2 → **1** (linked row correctly loses the icon), **0** new rows | **PASS** |
+| 4 | non-manager — needs `INSERT INTO role_rights (role_id,right_id) VALUES (7,32);` because the shipped matrix grants `issuetracker_view`/`issuetracker_management` **only to role 8 (admin)** | page renders fully (`size=11556`), **0** delete icons — `canManage` gate intact, **0** new rows | **PASS** |
+| 5 | sibling Code Tracker view `lib/codetrackers/codeTrackerView.php` | `view=200`, unchanged, **0** new rows | **PASS** |
+| 6 | `projectView.tpl` — the *legitimate* owner of `testproject_alt_delete` | static: commit touches 1 file; `projectView.tpl:31` loads + `:153` uses the key — untouched. (The legacy controller now routes to a modernized screen, so it is not reachable over HTTP — static verification only, by design.) | **PASS** (static) |
+| 7 | locales `de_DE` / `fr_FR` / `es_ES` / `ro_RO` / `it_IT` | `de_DE` → `title="löschen"`; `fr_FR`/`es_ES` localized; `ro_RO`/`it_IT` (no `alt_delete` key) → graceful en_GB fallback `"delete"`. All **0** new Warning rows (fallback logs at `log_level 32`, not Warning) | **PASS** |
+| 8 | live browser DOM (not curl) | `[{"title":"delete","hasOnclick":true},{"title":"delete","hasOnclick":true}]` — tooltip fixed **and** the `delete_confirmation()` handler untouched | **PASS** |
+| 9 | Event Viewer after the whole matrix | **0** new Error/Warning rows attributable to this screen (only `log_level 32` LOCALIZATION info events, pre-existing) | **PASS** |
 
-**RESULT: 23/23 PASS.**
+**Result: 9/9 PASS.**
 
-Defects found while testing and fixed before the push (commit `e0c1553f0`):
+**Pre-fix measurement (recorded in the INVESTIGATION comment) for contrast:**
+```
+title=""                        <- tooltip empty
+id=24 log_level=2 E_WARNING Undefined array key "testproject_alt_delete" ... Line 134
+2 trackers -> 3 cumulative rows  => exactly 1 warning per row that renders the icon
+```
 
-* the locale bundles used printf `%s` while `TLi18n` interpolates `{name}` — the file-size
-  hint and the import confirmation printed the raw `%s` (`kwxml.maxFileSize`,
-  `kwxml.importedMsg` now use `{kb}` / `{count}` in all 10 bundles);
-* jQuery was never loaded by the screen;
-* `TLi18n` was initialised before its bundle promise resolved;
-* the format sample was looked up with the wrong key and was rendered before its `<select>`
-  existed, so it stayed empty;
-* the import `.fail()` handler dropped `xhr.responseText`, so **every** 4xx degraded to a
-  bare `Error` box (row 7 is the regression test for this).
+**Gotchas for the next agent (each cost time during this run):**
+- **Locale tests need a NEW SESSION.** `$_SESSION['locale']` is cached, so updating
+  `users.locale` alone silently keeps rendering English — that produced a false
+  negative on the first attempt at case 7. Use a fresh cookie jar per locale.
+- **Case 4 is untestable with stock roles** — see the `role_rights` note above.
+- The generated Smarty cache under `gui/templates_c/` recompiles automatically on
+  template mtime change; no manual purge is needed before re-testing.
+- `issueTrackerView.tpl` needs no CSRF token, but login POSTs use
+  `tl_login` / `tl_password` (not `login` / `password`), and the screen rejects
+  requests whose session expired, returning a 204-byte `login.php?note=expired`
+  stub that is easy to mistake for an empty result set.
 
-A mandatory code review pass (ai/AGENTS.md rule 16) then produced a second batch of real
-defects, all fixed in commit `6556dc91e` and all re-verified above:
+**Root cause (1 line):** `gui/templates/dashio/issuetrackers/issueTrackerView.tpl:81`
+referenced `{$labels.testproject_alt_delete}`, a key the template's `{lang_get}`
+call (lines 12-16) never loads. It now uses `{$labels.alt_delete}` — already loaded
+at line 15, and the same key the sibling `codeTrackerView.tpl:78` uses. **No new
+i18n key was added**; the key `testproject_alt_delete` ("Delete the Test project
+and all related data.") remains correct in the two `projectView.tpl` files that
+legitimately use it.
 
-* **security** — `init` returned the project name + keyword count (and a 404-vs-200
-  oracle for project ids) to a user with no rights at all on that project; it now denies
-  with 403 when the caller holds neither `mgt_view_key` nor `mgt_modify_key` (rows 13/13b);
-* **500 on every brand-new project** — `exportKeywordsToXML()` calls `sizeof()` on
-  `getKeywordIDsFor()`, which returns `null` for an empty project (uncaught `TypeError`),
-  and the CSV branch logged an `E_WARNING` in `lib/functions/csv.inc.php:33`; empty
-  projects are now refused up front (row 17, and the E_WARNING row is gone);
-* the format sample went blank after switching the export format, because
-  `getSupportedSerializationFormatDescriptions()` is keyed by the **format name**
-  (`XML`/`CSV`) while the select holds the serialization **interface id** (row 18);
-* an oversized upload arrived with an empty `tmp_name`, so the handler told the user to
-  pick a file although they had one — `$_FILES['error']` is now inspected first, and the
-  advertised cap is clamped to `min(config, upload_max_filesize, post_max_size)` so the UI
-  no longer promises 10240 KB while PHP accepts 2048 KB (row 20);
-* the export used a plain `<a download>` navigation, so a 4xx/5xx JSON body was saved under
-  the chosen filename while the UI still reported success — the response is now fetched,
-  checked, and only a successful body is turned into a download (row 19);
-* the typed filename was wiped by the re-render, the button-disable guard was a no-op and
-  the download filename was unbounded server-side (now `substr(…, 0, 255)` + `maxlength`);
-* `importKeywordsFromCSV()` returns `tl::OK` as soon as `fopen()` works, so a body that
-  yields zero rows reported success — the keyword count is now compared before/after and
-  an unchanged count is reported as `wrong_keywords_file` (row 21 shows the deliberate
-  boundary: a one-line file legitimately imports one row, legacy parity).
-
-Bugs found while testing, filed separately, **not** fixed here:
-
-* **#1616** — `testproject::importKeywordsFromCSV()`
-  (`lib/functions/testproject.class.php:1362`) never skips the header row that
-  `exportKeywordsToCSV()` writes, so importing a TestLink-exported CSV inserts a junk
-  keyword named `Keyword` (row 8's count 5 → 7 is exactly this artifact). The modern screen
-  keeps legacy parity on purpose; the fix belongs in the import model.
-
-Fixture-side discovery worth keeping (it cost three false 403s during the rights matrix):
-`tlUser::hasRight()` (`lib/functions/tlUser.class.php:846-880`) **replaces** the global right
-set with the project role's set for that project, and a project role holding **exactly one
-right is always denied** (the "Special situation => just one right" branch returns `false`
-unless the right carries a `dbID`). A view-only keyword manager therefore needs a
-multi-right view-only role at *project* level. Also: the in-session `tlUser` is cached, so a
-rights change applied straight in the DB only shows up after a fresh login.
-
-Evidence: `docs/screenshots/issue-1615-kwxml-export.png`,
-`docs/screenshots/issue-1615-kwxml-import.png`.
-Commits `3f6a52e47`, `1af75f0a1`, `e0c1553f0`.
+**Screenshot:** `docs/screenshots/issue-1590-issueTrackerView-delete-tooltip.png`
