@@ -84,3 +84,15 @@ blast radius is zero lines outside this file.
 - `docs/screenshots/issue-1636-platforms-view.png` — Platform Management after the fix
 - `docs/screenshots/issue-1636-import-result.png` — the surviving import path reporting
   Imported/Updated/Skipped + the per-line BAD_LINE message
+
+## Follow-up filed from the code review
+
+While reviewing this fix, the subagent surfaced a **pre-existing, unrelated** data-integrity bug in
+the same file, which I measured and filed separately rather than drive-by changing:
+[#1637](https://github.com/sebiboga/testlink-upgraded/issues/1637) — `DELETE` bypasses the
+`DELETE_BLOCKED` guard when the platform has `is_open = 0` or `enable_on_execution = 0`, so a still
+linked platform is deleted and an orphan `testplan_platforms` row is left behind
+(`api/platforms/index.php:335` calls `getAll()` without the `null` flag overrides the list route
+passes at `:131-133`). The two other out-of-diff findings from that review — `catch (Exception)` at
+`:211` not catching a PHP 8 `Error`, and `$p['name']` dereferenced without an `is_array()` guard at
+`:332/345` — are recorded in the closure comment of #1636 as remaining work.
