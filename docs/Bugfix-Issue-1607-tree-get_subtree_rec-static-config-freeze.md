@@ -60,7 +60,7 @@ function _get_subtree_rec($node_id,&$pnode,$filters = null, $options = null)
 ```
 
 The recursion itself was never the problem: it passes the merged arrays down
-explicitly at `tree.class.php:1183`:
+explicitly at `tree.class.php:1195`:
 
 ```php
 $this->_get_subtree_rec($row['id'],$node,$my['filters'],$my['options']);
@@ -102,7 +102,7 @@ with no warning to make it discoverable.
    plain assignments at the top of the function;
 2. the `if (!$tcNodeTypeID) { … }` wrapper deleted and its body de-indented one
    level, so the two `array_merge()` calls apply **every** call's own arguments;
-3. the recursion at tree.class.php:1183 untouched;
+3. the recursion at tree.class.php:1195 untouched;
 4. `_get_subtree()`'s `static $my` (line 871) **deliberately not touched** — it
    is measured not to leak, and changing it would be churn outside the defect.
 

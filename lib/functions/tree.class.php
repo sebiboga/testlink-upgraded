@@ -1048,7 +1048,7 @@ class tree extends tlObject
     // top-level get_subtree() call had its $filters/$options accepted and then
     // silently discarded, and reused the first call's order_cfg, key_type,
     // platform_filter, fclause, exclude_branches/exclude_children_of.
-    // Measured: a 12-node std subtree silently rendered as a 2-node extjs
+    // Measured: a 13-node std subtree silently rendered as a 2-node extjs
     // subtree when a previous recursive call had set those options.
     // The recursion below passes $my['filters']/$my['options'] down
     // explicitly, so rebuilding the defaults per level is idempotent and the
@@ -1090,8 +1090,8 @@ class tree extends tlObject
     
 
     $exclude_branches = $my['filters']['exclude_branches'];
-    $exclude_children_of = $my['filters']['exclude_children_of'];  
-      
+    $exclude_children_of = $my['filters']['exclude_children_of'];
+
       switch($my['options']['order_cfg']['type'])
       {
           case 'spec_order':
