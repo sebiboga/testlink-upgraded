@@ -22416,3 +22416,92 @@ same "one warning per step node" noise through `recursive => true`;
 **#1607** — `static $my` leaks `order_cfg`/`output` between top-level
 `get_subtree()` calls in one process → spurious
 `Undefined array key "doc_id"` at `tree.class.php:995`.
+
+---
+
+## Regression — Issue #1607: `tree::_get_subtree_rec()` `static $my` leaks `order_cfg`/`output` between top-level `get_subtree()` calls in one process
+
+**Precondition**
+
+```
+# DB freshly imported; fixtures must be (re)created for this suite
+php tmp/fixtures_1607.php
+# -> idP=129 TQ1607 | suites TQ1607-S1/TQ1607-S2 | cases TQ1607-TC1/TQ1607-TC2
+#    plan TQ1607-P1 | req specs TQ1607-RS1 + TQ1607-RS1-CHILD
+php tmp/verify_1607.php     # seeds testplan_tcversions on first run
+```
+
+App: http://localhost:8082/index.php, login `admin` / `admin`.
+
+**Repro steps (PRE-FIX — the failing behaviour)**
+
+1. `php tmp/repro_1607.php rec-b` — call B **alone**, in its own process:
+   `tree->get_subtree($idP, null, ['recursive' => true])`.
+2. `php tmp/repro_1607.php rec-leak` — call A then call B in **one** process,
+   each on its **own** `tree` object (exactly how the BFF endpoints build it):
+   * A: `get_subtree($idP, ['additionalWhereClause' => ' AND node_type_id = 2'], ['recursive' => true, 'key_type' => 'extjs'])`
+   * B: `get_subtree($idP, null, ['recursive' => true])` — **no filters, no options at all**
+3. `php tmp/verify_1607.php | grep '^row 7'` — two `exec_order` recursive calls in
+   one process, `order_cfg.tplan_id` 132 then 0.
+
+**Expected**
+
+Each top-level `get_subtree()` behaves as if it were the only call in the
+process: its `filters`/`options` come from its own arguments plus the
+documented defaults, never from a previous caller. So `rec-leak` must return
+**the same 13-node std subtree as `rec-b`**, and row 7's two calls must return
+**different** node counts (132 includes the 2 linked test cases, 0 excludes them).
+
+**Actual, PRE-FIX (measured)**
+
+```
+case=rec-b      rows: TQ1607-RS1, …, TQ1607-S2, TQ1607-TC2, , ,      count=13
+case=rec-leak   rows: EXTJS:TQ1607-S1, EXTJS:TQ1607-S2                 count=2   <-- WRONG
+row 7: exec_order(tplan=132)=13 nodes, then exec_order(tplan=0 EMPTY)=13 nodes  <-- LEAK
+```
+
+`rec-leak` returned **2** nodes in **extjs** shape instead of 13 in std shape —
+call B silently inherited call A's `additionalWhereClause`, `key_type` and
+`order_cfg`. Row 7 returned **13 both times** even though the second call
+explicitly asked for `tplan_id = 0`.
+
+**Actual, POST-FIX (measured) — `rec-leak` is now identical to `rec-b`**
+
+| # | test | expected | observed | result |
+|---|---|---|---|---|
+| 1 | `php tmp/repro_1607.php rec-b` (control) | 13 nodes, std shape | 13 nodes, std shape | **PASS** |
+| 2 | `php tmp/repro_1607.php rec-a` (control) | 2 nodes, extjs shape | 2 nodes, extjs shape | **PASS** |
+| 3 | `php tmp/repro_1607.php rec-leak` — **A then B, one process** | 13 nodes, std shape, identical to row 1 | 13 nodes, std shape | **PASS** (was 2 nodes / extjs) |
+| 4 | `php tmp/repro_1607.php flat-leak` vs `flat-b` — flat `_get_subtree()` path | identical (3 rows each) | 3 / 3 | **PASS** (no leak there before or after) |
+| 5 | `php tmp/verify_1607.php` row 5 — `get_subtree(<suite>, null, ['recursive'=>true])` | suite + testcase + step pseudo-node, 0 warnings | `TQ1607-TC1/3 \| /4 \| /9` = 3 nodes, 0 warnings | **PASS** |
+| 6 | `php tmp/verify_1607.php` row 6 — recursive `order_cfg => ['type'=>'exec_order','tplan_id'=>132]` | executes, no "Undefined array key" | 13 nodes, 0 new warnings | **PASS** |
+| 7 | `php tmp/verify_1607.php` row 7 — two `order_cfg` in ONE process (`tplan_id` 132 then 0) | **different** node counts | 13 then **7** | **PASS** (was 13 then 13) |
+| 8 | browser: Test Specification `testSpec.html` | `2 suites · 2 cases`, TC1 under S1, TC2 under S2 | as expected | **PASS** |
+| 9 | browser: Requirement Spec Mgmt `reqSpecMgmt.html` | 2 specs, `1 to 2 of 2` | as expected | **PASS** |
+| 10 | browser: Test Plan Management `planView.html` | 1 plan, Test Cases `2` | as expected | **PASS** |
+| 11 | browser: Execute Tests `execTest.html?feature=executeTest` (**exec_order**) | `Test Cases (2)`, TQ1-1 / TQ1607-TC1 / v1 | as expected | **PASS** |
+| 12 | `php -l lib/functions/tree.class.php` | no syntax errors | `No syntax errors detected` | **PASS** |
+| 13 | Event Viewer: `select count(*),max(id) from events` after all of rows 8-11 | no new rows | `77 77` (unchanged from the login row), `where id>77` → 0 rows | **PASS** |
+| 14 | browser console `error` + `warn` for the whole pass | none | `<no console messages found>` | **PASS** |
+| 15 | `php tmp/repro_1607.php mismatch` — the `doc_id` Line-995 warning | unchanged by this fix (separate caller-side defect) | 3× `Undefined array key "doc_id" - Line 995` before **and** after | **PASS** (no behaviour change) |
+
+**Result: 15/15 PASS.** The primary symptom (row 3) and the discriminating
+no-leak proof (row 7) both flipped from FAIL to PASS; every control stayed
+byte-identical.
+
+Bugs found while testing, filed separately, **not** fixed here:
+
+* **#1606** — `_get_subtree_rec()` does
+  `$this->node_tables_by['id'][$row['node_type_id']]` against `node_tables_by['id']`,
+  which is empty for pseudo types (`testcase_step`=9, `build`=12) → 2×
+  `Undefined array key 9` at `tree.class.php:1147` per suite traversal. Present
+  identically before and after this change.
+* **NEW** — `output => 'rspec'` combined with the default
+  `order_cfg => ['type' => 'spec_order']` raises one
+  `Undefined array key "doc_id"` per returned row at `tree.class.php:995`,
+  because the `spec_order` SELECT does not project `RSPEC.doc_id`. This is what
+  the #1607 report described, but it is a **caller-side option mismatch**
+  reachable from a *single* call, not a `static` leak — filed as its own issue.
+
+Evidence: `docs/screenshots/issue-1607-execute-tests-exec-order.png`. Fix
+commit `681ab1eff`, branch `fix/issue-1607`.
