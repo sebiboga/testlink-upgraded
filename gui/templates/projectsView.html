@@ -6,6 +6,7 @@
   <title>Test Project Management - TestLink</title>
 
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+  <link href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" type="text/css" href="../themes/default/css/frame.css">
 
   <style>
@@ -80,6 +81,32 @@
 
     .empty-state { text-align: center; padding: 40px; color: #7f8c8d; }
     .empty-state i { font-size: 48px; margin-bottom: 20px; opacity: 0.5; }
+
+    /* Legacy parity: DataTables grid (projectView.tpl:37,50-51) */
+    #projectsTable.dataTable thead th { background: #22242a; color: #fff; font-size: 13px; padding: 10px 14px; white-space: nowrap; }
+    #projectsTable.dataTable tbody td { padding: 8px 14px; font-size: 13px; vertical-align: middle; }
+    #projectsTable.dataTable tbody tr:hover { background: #f9f9f9; }
+    #projectsTable_wrapper .dataTables_length label,
+    #projectsTable_wrapper .dataTables_info,
+    #projectsTable_wrapper .dataTables_paginate { font-size: 13px; color: #555; }
+    #projectsTable_wrapper .dataTables_paginate .paginate_button {
+      background: #fff; border: 1px solid #ddd; border-radius: 3px; color: #2d8e88; margin: 0 2px;
+    }
+    #projectsTable_wrapper .dataTables_paginate .paginate_button.current {
+      background: #4ECDC4; border-color: #4ECDC4; color: #fff;
+    }
+    #projectsTable_wrapper .dataTables_paginate .paginate_button.disabled { color: #ccc; }
+    #projectsTable_wrapper .row { margin-bottom: 0; }
+    #projectsTable_wrapper .col-sm-6, #projectsTable_wrapper .col-sm-12 { padding: 0; }
+    #projectsTable_wrapper .dataTables_filter { text-align: right; }
+
+    /* Legacy parity: cloned per-column filter row (DataTablesColumnFiltering.inc.tpl:33-82) */
+    #projectsTable thead tr.filters th { background: #4ECDC4; padding: 4px 6px; }
+    #projectsTable thead tr.filters th input {
+      width: 100%; padding: 4px 6px; border: 1px solid #bdc3c7; border-radius: 3px;
+      font-size: 12px; color: #000;
+    }
+    #projectsTable thead tr.filters th input:focus { outline: none; border-color: #2d8e88; }
   .footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
 </style>
 
@@ -108,11 +135,11 @@
       <thead>
         <tr>
           <th data-i18n="proj.id">ID</th>
-          <th data-i18n="proj.name">Project Name</th>
-          <th data-i18n="proj.prefix">Prefix</th>
-          <th data-i18n="proj.issueTracker">Issue Tracker</th>
-          <th data-i18n="proj.codeTracker">Code Tracker</th>
-          <th data-i18n="proj.status">Status</th>
+          <th data-col-filter="1" data-i18n="proj.name">Project Name</th>
+          <th data-col-filter="1" data-i18n="proj.prefix">Prefix</th>
+          <th data-col-filter="1" data-i18n="proj.issueTracker">Issue Tracker</th>
+          <th data-col-filter="1" data-i18n="proj.codeTracker">Code Tracker</th>
+          <th data-col-filter="1" data-i18n="proj.status">Status</th>
           <th data-i18n="common.actions">Actions</th>
         </tr>
       </thead>
@@ -274,12 +301,15 @@
   </div>
 
   <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap.min.js"></script>
   <script src="/gui/templates/i18n/i18n.js"></script>
 
   <script>
     let currentProjectId = null;
     let projectsData = [];
     let grantsData = {};
+    let projectsTbl = null;
 
     // Escape user-controlled values before injecting into HTML strings
     // (project names / prefixes / tracker names are free text).
@@ -308,61 +338,170 @@
       });
     }
 
+    // Legacy parity: projectView.tpl:37,50-51 — the list is a DataTable with
+    // column sorting, a length menu, record counter and pagination.
+    // DataTables language strings reuse the existing rtf.dt* bundle keys.
+    function dtLanguage() {
+      return {
+        search: '',
+        searchPlaceholder: TLi18n.t('common.search'),
+        lengthMenu: TLi18n.t('rtf.dtLengthMenu'),
+        info: TLi18n.t('rtf.dtInfo'),
+        infoEmpty: TLi18n.t('rtf.dtInfoEmpty'),
+        infoFiltered: TLi18n.t('rtf.dtInfoFiltered'),
+        zeroRecords: TLi18n.t('rtf.dtZeroRecords'),
+        aria: {
+          sortAscending: TLi18n.t('dt.aria.sortAscending'),
+          sortDescending: TLi18n.t('dt.aria.sortDescending'),
+          sortNone: TLi18n.t('dt.aria.sortNone')
+        },
+        paginate: {
+          first: TLi18n.t('rtf.dtFirst'),
+          last: TLi18n.t('rtf.dtLast'),
+          next: TLi18n.t('rtf.dtNext'),
+          previous: TLi18n.t('rtf.dtPrev')
+        }
+      };
+    }
+
+    // Build one row (array of cells) per project. DataTables needs a data
+    // source: renderProjects() used to write raw <tr> markup into the tbody,
+    // which is incompatible with DataTables' row cache.
+    function projectRow(p) {
+      const issueTracker = p.issueTracker && p.issueTracker.name ? `
+              <span class="integration-badge ${p.issueTracker.enabled ? 'integration-enabled' : 'integration-disabled'}">
+                ${esc(p.issueTracker.name)}
+              </span>` : `<span class="integration-badge integration-disabled">${TLi18n.t('common.none')}</span>`;
+      const codeTracker = p.codeTracker && p.codeTracker.name ? `
+              <span class="integration-badge ${p.codeTracker.enabled ? 'integration-enabled' : 'integration-disabled'}">
+                ${esc(p.codeTracker.name)}
+              </span>` : `<span class="integration-badge integration-disabled">${TLi18n.t('common.none')}</span>`;
+      const status = `
+              <span class="status-badge ${p.isActive ? 'status-active' : 'status-inactive'}">
+                ${p.isActive ? TLi18n.t('proj.active') : TLi18n.t('proj.inactive')}
+              </span>
+              ${p.isPublic ? `<span class="status-badge badge-public" style="margin-left: 4px;">${TLi18n.t('proj.public')}</span>` : ''}`;
+      const actions = `
+              <div class="actions">
+                <button class="action-btn info-btn" onclick="openProjectInfo(${p.id})" title="${TLi18n.t('piv.title')}">
+                  <i class="fas fa-info-circle"></i> ${TLi18n.t('piv.infoShort')}
+                </button>
+                <button class="action-btn edit-btn" onclick="editProject(${p.id})">
+                  <i class="fas fa-edit"></i> ${TLi18n.t('common.edit')}
+                </button>
+                <button class="action-btn toggle-btn" onclick="toggleActive(${p.id})" title="${TLi18n.t('proj.toggleActive')}">
+                  <i class="fas fa-toggle-${p.isActive ? 'on' : 'off'}"></i> ${p.isActive ? TLi18n.t('proj.deactivate') : TLi18n.t('proj.activate')}
+                </button>
+                <button class="action-btn delete-btn" onclick="confirmDelete(${p.id})">
+                  <i class="fas fa-trash"></i> ${TLi18n.t('common.delete')}
+                </button>
+              </div>`;
+
+      return [
+        '#' + p.id,
+        '<strong>' + esc(p.name) + '</strong>',
+        esc(p.prefix) || '-',
+        issueTracker,
+        codeTracker,
+        status,
+        actions
+      ];
+    }
+
     // Render projects table
     function renderProjects() {
-      const tbody = document.getElementById('projectsBody');
       const emptyState = document.getElementById('emptyState');
 
       if (projectsData.length === 0) {
-        tbody.innerHTML = '';
+        if ($.fn.DataTable.isDataTable('#projectsTable')) {
+          $('#projectsTable').DataTable().destroy();
+          projectsTbl = null;
+        }
+        $('#projectsTable tbody').empty();
+        $('#projectsTable').hide();
         emptyState.style.display = 'block';
         return;
       }
 
       emptyState.style.display = 'none';
-      tbody.innerHTML = projectsData.map(p => `
-        <tr>
-          <td>#${p.id}</td>
-          <td><strong>${esc(p.name)}</strong></td>
-          <td>${esc(p.prefix) || '-'}</td>
-          <td>
-            ${p.issueTracker && p.issueTracker.name ? `
-              <span class="integration-badge ${p.issueTracker.enabled ? 'integration-enabled' : 'integration-disabled'}">
-                ${esc(p.issueTracker.name)}
-              </span>
-            ` : `<span class="integration-badge integration-disabled">${TLi18n.t('common.none')}</span>`}
-          </td>
-          <td>
-            ${p.codeTracker && p.codeTracker.name ? `
-              <span class="integration-badge ${p.codeTracker.enabled ? 'integration-enabled' : 'integration-disabled'}">
-                ${esc(p.codeTracker.name)}
-              </span>
-            ` : `<span class="integration-badge integration-disabled">${TLi18n.t('common.none')}</span>`}
-          </td>
-          <td>
-            <span class="status-badge ${p.isActive ? 'status-active' : 'status-inactive'}">
-              ${p.isActive ? TLi18n.t('proj.active') : TLi18n.t('proj.inactive')}
-            </span>
-            ${p.isPublic ? `<span class="status-badge badge-public" style="margin-left: 4px;">${TLi18n.t('proj.public')}</span>` : ''}
-          </td>
-          <td>
-            <div class="actions">
-              <button class="action-btn info-btn" onclick="openProjectInfo(${p.id})" title="${TLi18n.t('piv.title')}">
-                <i class="fas fa-info-circle"></i> ${TLi18n.t('piv.infoShort')}
-              </button>
-              <button class="action-btn edit-btn" onclick="editProject(${p.id})">
-                <i class="fas fa-edit"></i> ${TLi18n.t('common.edit')}
-              </button>
-              <button class="action-btn toggle-btn" onclick="toggleActive(${p.id})" title="${TLi18n.t('proj.toggleActive')}">
-                <i class="fas fa-toggle-${p.isActive ? 'on' : 'off'}"></i> ${p.isActive ? TLi18n.t('proj.deactivate') : TLi18n.t('proj.activate')}
-              </button>
-              <button class="action-btn delete-btn" onclick="confirmDelete(${p.id})">
-                <i class="fas fa-trash"></i> ${TLi18n.t('common.delete')}
-              </button>
-            </div>
-          </td>
-        </tr>
-      `).join('');
+      $('#projectsTable').show();
+
+      // Teardown must key on the DataTables registry, not on projectsTbl: a
+      // live instance can exist while the variable is null after a failed init.
+      if ($.fn.DataTable.isDataTable('#projectsTable')) {
+        $('#projectsTable').DataTable().destroy();
+        projectsTbl = null;
+      }
+      $('#projectsTable thead tr.filters').remove();
+      $('#projectsTable tbody').empty();
+
+      const rows = projectsData.map(projectRow);
+
+      // The filter row is cloned into <thead> BEFORE init so DataTables sees
+      // a stable two-row header. header:0 (the default) keeps the label row as
+      // the title/sort row — that is the DT 1.13 equivalent of legacy's
+      // orderCellsTop (projectView.tpl + DataTablesColumnFiltering.inc.tpl:22).
+      buildColumnFilters();
+
+      projectsTbl = $('#projectsTable').DataTable({
+        data: rows,
+        orderCellsTop: true,
+        stateSave: true,
+        pageLength: 20,
+        lengthMenu: [10, 20, 50],
+        dom: 'lrtip',
+        language: dtLanguage(),
+        columnDefs: [
+          { targets: 0, className: 'text-center', orderable: false },
+          { targets: 6, orderable: false }
+        ]
+      });
+
+      restoreColumnFilterState(projectsTbl);
+    }
+
+    // Legacy parity: DataTablesColumnFiltering.inc.tpl — clone the header row
+    // (clone(false) keeps sort handlers out of the clone) and drop a text input
+    // into every column flagged with data-col-filter, i.e. legacy's
+    // {#SMART_SEARCH#} cells. Columns without the flag stay empty.
+    function buildColumnFilters() {
+      const $table = $('#projectsTable');
+
+      $table.find('thead tr').eq(0).clone(false)
+        .removeAttr('id')
+        .addClass('filters')
+        .appendTo($table.find('thead'));
+
+      $table.find('thead tr.filters th').each(function(idx) {
+        const $th = $(this);
+        // Never show the sort glyphs inside the filter row.
+        $th.removeAttr('class').addClass('filters-th');
+        const hasFilter = $table.find('thead tr').eq(0).find('th').eq(idx).data('col-filter') !== undefined;
+        if (!hasFilter) {
+          $th.html('');
+          return;
+        }
+
+        $th.html('<input type="text" placeholder="' + esc(TLi18n.t('proj.colFilterPlaceholder')) + '" />');
+        $th.find('input').on('keyup change', function() {
+          if (!projectsTbl) return;
+          // smart search, like legacy: whitespace-separated terms, no regex
+          if (projectsTbl.column(idx).search() !== this.value) {
+            projectsTbl.column(idx).search(this.value, false, true).draw();
+          }
+        });
+      });
+    }
+
+    // Legacy parity: DataTablesColumnFiltering.inc.tpl:40-46 — repopulate the
+    // filter boxes from the state saved by a previous visit (stateSave:true).
+    function restoreColumnFilterState(tbl) {
+      const state = tbl.state.loaded();
+      if (!state) return;
+      $('#projectsTable').find('thead tr.filters th').each(function(idx) {
+        const value = (state.columns[idx] && state.columns[idx].search) || '';
+        $(this).find('input').val(value);
+      });
     }
 
     // Legacy parity: active/inactive click-to-change toggle
@@ -572,16 +711,18 @@
       currentProjectId = null;
     }
 
-    // Search
+    // Legacy parity: the modern search box becomes the DataTables global
+    // search (superset of legacy's server-side "search on name" doAction).
+    // The DataTable 'f' box is not rendered (dom has no 'f') to avoid a
+    // duplicate search input.
+    let searchTimer = null;
     document.getElementById('searchInput').addEventListener('keyup', function(e) {
-      const query = e.target.value.toLowerCase();
-      const tbody = document.getElementById('projectsBody');
-      const rows = tbody.querySelectorAll('tr');
-
-      rows.forEach(row => {
-        const text = row.textContent.toLowerCase();
-        row.style.display = text.includes(query) ? '' : 'none';
-      });
+      const query = e.target.value;
+      if (!projectsTbl) return;
+      window.clearTimeout(searchTimer);
+      searchTimer = window.setTimeout(function() {
+        projectsTbl.search(query).draw();
+      }, 200);
     });
 
     // Close modal on background click
