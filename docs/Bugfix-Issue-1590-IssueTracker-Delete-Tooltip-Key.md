@@ -24,7 +24,8 @@ Entry point:
 ## Environment and fixtures
 
 - TestLink 2.0.1, PHP 8.3.35, MariaDB on the local CI instance, commit
-  `922e86e53` (branch `fix/issue-1590`).
+  pre-fix baseline `922e86e53` (the default-branch commit the branch was cut
+  from); the fix itself is `0fcf6b793`.
 - The database is freshly imported on every run, so **`testprojects` and
   `issuetrackers` are both empty** and must be recreated:
 
@@ -108,7 +109,9 @@ title=""                      <- the delete icon: EMPTY
 
 3. Smarty compiles that reference to a **raw array read with no guard** — no
    `isset()`, no `|default` — confirmed in the generated cache
-   `gui/templates_c/2563b481caa80ddabd651341d294cdd1f0429b57_0.file.issueTrackerView.tpl.php:134`:
+   `gui/templates_c/2563b481caa80ddabd651341d294cdd1f0429b57_0.file.issueTrackerView.tpl.php:134`
+   (pre-fix artifact — `gui/templates_c/` is gitignored and has since been
+   regenerated with `alt_delete` on that line):
 
    ```php
    <?php echo $_smarty_tpl->tpl_vars['labels']->value['testproject_alt_delete'];?>
@@ -136,7 +139,7 @@ bundle. It means *"Delete the Test project and all related data."*
 (`locale/en_US/strings.txt:1635`).
 
 ```
-$ grep -rl testproject_alt_delete --include=*.tpl gui/templates/
+$ grep -rl testproject_alt_delete --include=*.tpl gui/templates/   # pre-fix
 gui/templates/dashio/issuetrackers/issueTrackerView.tpl     <- the bug
 gui/templates/dashio/project/projectView.tpl                <- correct user
 gui/templates/tl-classic/project/projectView.tpl            <- correct user
@@ -195,7 +198,7 @@ Full regression matrix (9/9 PASS, recorded in `tmp/TLU_Test_Cases.md`):
 | 3 | tracker **linked** (`testproject_issuetracker`) | icons 2 → **1**; the linked row correctly loses the icon; 0 new rows | PASS |
 | 4 | non-manager (`canManage` empty) | page renders fully (11556 bytes), **0** delete icons — the guard is intact; 0 new rows | PASS |
 | 5 | sibling Code Tracker view | HTTP 200, unchanged, 0 new rows | PASS |
-| 6 | `projectView.tpl` — the legitimate owner of `testproject_alt_delete` | static: commit touches 1 file; key loaded at `:31`, used at `:153` — untouched | PASS (static) |
+| 6 | `projectView.tpl` — the legitimate owner of `testproject_alt_delete` | `view=200` (16455 bytes), 1 delete icon, `title="Delete the Test project and all related data."` — the **correct long string** survives, 0 new rows | PASS (live) |
 | 7 | locales `de_DE` / `fr_FR` / `es_ES` / `ro_RO` / `it_IT` | `de_DE` → `title="löschen"`; `fr_FR`/`es_ES` localized; `ro_RO`/`it_IT` (no key) → graceful en_GB fallback `"delete"`; 0 new Warning rows | PASS |
 | 8 | live browser DOM | both icons `title="delete"`, `hasOnclick: true` | PASS |
 | 9 | Event Viewer after the whole matrix | **0** new `log_level IN (1,2,3)` rows from this screen | PASS |
@@ -210,12 +213,27 @@ Full regression matrix (9/9 PASS, recorded in `tmp/TLU_Test_Cases.md`):
 - **Case 4 is untestable with the stock role matrix.** `role_rights` grants
   `issuetracker_view` (32) and `issuetracker_management` (31) **only to role 8
   (admin)**; a tester/leader account is redirected before the template is
-  reached. I inserted `(role_id=7, right_id=32)` temporarily and removed it
-  afterwards.
+  reached. I inserted `(role_id=7, right_id=32)` temporarily and **removed it
+  again** — verified afterwards with
+  `SELECT * FROM role_rights WHERE role_id=7;` (the `32` row is gone). If a
+  future run finds `(7,32)` already present, that is a leftover, not the stock
+  matrix.
+- **A `testprojects` row is not enough for project-scoped screens.** Inserting
+  into `testprojects` alone leaves `nodes_hierarchy` empty, and
+  `testproject::get_accessible_for_user()`
+  (`testproject.class.php:565-573`) INNER JOINs `nodes_hierarchy` — so
+  `projectView.php` sees `$gui->itemQty == 0` and answers with a 161-byte
+  redirect stub to `projectEdit.php?doAction=create` instead of the list. My
+  first case-6 attempt looked like "the template is gone" because of this; the
+  template is live and reachable. Add
+  `INSERT INTO nodes_hierarchy (id,name,parent_id,node_type_id,node_order) VALUES (1,'REPRO',0,1,1);`
+  to the fixture.
 - **Session expiry is easy to misread.** An expired session returns a 204-byte
   `login.php?note=expired` stub that looks like an empty result set.
 - The `gui/templates_c/` Smarty cache recompiles automatically on template
-  mtime change; no manual purge is needed before re-testing.
+  mtime change; no manual purge is needed before re-testing. The compiled-PHP
+  excerpt quoted above is therefore a **pre-fix** artifact — that directory is
+  gitignored and has since been regenerated with `alt_delete` on line 134.
 
 ## Known remaining issues (found while testing, **not** fixed here — out of scope)
 
@@ -228,8 +246,10 @@ evidence.
    (`tlIssueTracker.class.php:170-171,604-605`: `Undefined array key 0` and
    `Trying to access array offset on null`). Reachable whenever a tracker row
    carries a type that is absent from, or disabled in, the `$systems` map.
-   Related to the already-filed #1597 (unknown code-tracker type → 500).
-2. **7 of 20 locale bundles have no `alt_delete` key** — `es_AR`, `fi_FI`,
+   **Filed as a separate `bug` issue (#1617)** — note that #1597 covers the
+   *code*tracker variant only and is already closed, so nothing was tracking
+   the *issue*tracker variant.
+2. **7 of 19 locale bundles have no `alt_delete` key** — `es_AR`, `fi_FI`,
    `id_ID`, `it_IT`, `ko_KR`, `ro_RO`, `ru_RU`. They fall back to en_GB and log
    a `log_level 32` LOCALIZATION *info* event, not a Warning. This is
    pre-existing and shared with the already-fixed `codeTrackerView.tpl`; it is
@@ -243,7 +263,7 @@ evidence.
   evidence.
 - `docs/Bugfix-Issue-1590-IssueTracker-Delete-Tooltip-Key.md` — this mirror.
 - `CHANGELOG` — one-line 2.0.1 summary.
-- `tmp/TLU_Test_Cases.md` — regression suite (gitignored, local).
+- `tmp/TLU_Test_Cases.md` — regression suite (committed in `d109806f5`).
 - `tmp/wiki-repo/Bugfix-Issue-1590-IssueTracker-Delete-Tooltip-Key.md` — the
   GitHub Wiki page with the screenshot.
 
