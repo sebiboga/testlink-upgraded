@@ -5812,6 +5812,28 @@ Changes:
   names are truncated to the 100-character column limit, and the Test Case Viewer forwards
   `tplan_id` to the popup so Cancel keeps the test-plan context.
 
+### Key bugfix — Req. Management System list Event Viewer noise (Refs #1592)
+- Key bugfix #1592: `lib/reqmgrsystems/reqMgrSystemView.php:58` guarded
+  `$_REQUEST['tproject_id']` but read `$_SESSION['tproject_id']` — a session key with
+  zero writers anywhere in the repo (the live key is `$_SESSION['testprojectID']`, set at
+  `lib/functions/common.php:459`). Every visit carrying a `?tproject_id=` therefore wrote
+  `E_WARNING Undefined array key "tproject_id"` to the `events` table. The read now names
+  the superglobal the guard tests; one line, `intval()` sanitisation retained, no rights,
+  template, i18n or other-file change. The modernized `reqMgrSystemView.html` was never
+  affected. 12/12 regression cases pass, including case 12 which exercises the `?id=`
+  Check Connection branch of the same function to prove the fix is neutral there.
+- Sibling defect found while regression-testing #1592 and filed as **#1624** (not fixed
+  here): `lib/reqmgrsystems/reqMgrSystemEdit.php` returns HTTP 500 when `doAction` is
+  missing or unknown, because `reqMgrSystemEdit.php:126` throws an uncaught `Exception` and
+  the whitelist in `reqMgrSystemCommands.class.php:38-39` has no key for the empty value.
+- Sibling defect found by code review of #1592 and filed as **#1625** (not fixed here):
+  `reqMgrSystemView.php?id=<n>` returns HTTP 500 with an empty body for **any** id, because
+  `checkConnection()` reaches `tlReqMgrSystem.class.php:616-621`, which instantiates
+  `contoursoapInterface` — a class absent from the repository. Pre-existing (`git cat-file -e`
+  fails at the baseline commit too) and unreachable from the #1592 change, which only
+  assigns a variable nothing reads. Same missing file as #1593 but a fatal rather than a
+  warning, hence tracked separately.
+
 ### Key bugfix — TLi18n locale selection persistence (Refs #1586)
 - Key bugfix #1586: an explicit language switch in the locale switcher now
   survives navigation, so every modernized screen that returns to a launcher
