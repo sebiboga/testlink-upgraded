@@ -191,10 +191,11 @@ function exportPanel(right) {
     '<select id="exportType" onchange="exportTypeChanged()">' + typeOptions(CTX.exportTypes) + '</select>' +
     formatSample(extOf(defaultId()).toUpperCase()) +
     '<label for="exportFilename" style="margin-top:16px">' + esc(t('kwxml.fileName')) + '</label>' +
-    '<input type="text" id="exportFilename" value="' + esc(CTX.default_filename || ('keywords.' + ext)) + '">' +
+    '<input type="text" id="exportFilename" maxlength="255" oninput="CTX.filename = this.value" ' +
+    'value="' + esc(CTX.filename || CTX.default_filename || ('keywords.' + ext)) + '">' +
     '<div class="hint">' + esc(t('kwxml.fileNameHint')) + '</div>' +
-    '<div style="margin-top:18px"><button class="btn-teal" id="btnExportGo" onclick="doExport()">' +
-    '<i class="fa fa-download"></i> ' + esc(t('kwxml.exportBtn')) + '</button></div>' +
+    '<div style="margin-top:18px"><button class="btn-teal" id="btnExportGo"' + (CTX.busy ? ' disabled' : '') +
+    ' onclick="doExport()"><i class="fa fa-download"></i> ' + esc(t('kwxml.exportBtn')) + '</button></div>' +
     (CTX.keyword_count === 0 ? '<div class="empty" style="margin-top:14px">' + esc(t('kwxml.noKeywords')) + '</div>' : '') +
     '</div></div>';
 }
@@ -238,7 +239,9 @@ function exportTypeChanged() {
   }
   var box = $('#exportType').closest('.card-b');
   var old = box.find('pre.sample');
-  var html = formatSample(type);
+  // CTX.formatDescriptions is keyed by the format NAME ('XML' / 'CSV'), the
+  // select holds the serialization INTERFACE id - look the sample up by ext.
+  var html = formatSample((extOf(type) || 'XML').toUpperCase());
   if (old.length) { old.replaceWith(html ? $(html) : ''); }
   else if (html) { box.find('#exportType').after(html); }
 }
@@ -246,21 +249,49 @@ function exportTypeChanged() {
 function doExport() {
   var type = $('#exportType').val();
   var fn = $.trim($('#exportFilename').val()) || ('keywords.' + (extOf(type) || 'xml'));
-  $('#btnExportGo').prop('disabled', true);
+  // render() re-creates the button node, so the guard has to live on CTX.
+  if (CTX.busy) { return; }
+  CTX.busy = true;
+  CTX.filename = fn;
+  render();
   toast(t('kwxml.exporting'));
   var url = API + '/?action=export&tproject_id=' + TPROJECT_ID +
     '&type=' + encodeURIComponent(type) + '&filename=' + encodeURIComponent(fn);
-  // Plain navigation so the browser handles the Content-Disposition download.
-  var a = document.createElement('a');
-  a.href = url;
-  a.download = fn;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  setTimeout(function () { $('#btnExportGo').prop('disabled', false); }, 1200);
-  CTX.msg = '';
-  CTX.notice = t('kwxml.exportedMsg');
-  render();
+
+  // Fetched instead of a plain navigation: a plain <a download> would hand the
+  // user the 401/403/500 JSON body saved under the chosen filename while the UI
+  // still claimed success.
+  fetch(url, { credentials: 'same-origin' }).then(function (res) {
+    if (!res.ok) {
+      return res.text().then(function (body) {
+        var r = {};
+        try { r = JSON.parse(body) || {}; } catch (e) { r = {}; }
+        throw r;
+      });
+    }
+    var disp = res.headers.get('content-disposition') || '';
+    var m = /filename="([^"]+)"/.exec(disp);
+    return res.blob().then(function (blob) {
+      return { name: m ? m[1] : fn, blob: blob };
+    });
+  }).then(function (file) {
+    var href = URL.createObjectURL(file.blob);
+    var a = document.createElement('a');
+    a.href = href;
+    a.download = file.name;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(href); }, 4000);
+    CTX.msg = '';
+    CTX.notice = t('kwxml.exportedMsg');
+  }).catch(function (r) {
+    CTX.notice = '';
+    CTX.msg = serverMessage(r || {});
+  }).then(function () {
+    CTX.busy = false;
+    render();
+  });
 }
 
 function doImport() {
@@ -322,6 +353,8 @@ function serverMessage(r) {
   if (code === 'please_choose_keywords_file') { return t('kwxml.noFile'); }
   if (code === 'wrong_keywords_file') { return t('kwxml.wrongFile'); }
   if (r && r.message === 'File too large') { return t('kwxml.tooLarge'); }
+  if (code === 'upload_error') { return t('kwxml.uploadError'); }
+  if (r && r.message === 'no_keywords_to_export') { return t('kwxml.noKeywordsToExport'); }
   if (r && r.message === 'Access denied') { return t('kwxml.deniedMsg'); }
   if (r && r.message) { return r.message; }
   return t('common.error');

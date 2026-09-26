@@ -163,7 +163,10 @@ function safeDownloadName($name, $fallback) {
     if ($name === '' || $name === '.' || $name === '..') {
         return $fallback;
     }
-    return $name;
+    // Legacy capped the field with maxlength="{#FILENAME_MAXLEN#}" (255); keep the
+    // same bound server-side so a scripted caller cannot push an unbounded name
+    // into the Content-Disposition header.
+    return substr($name, 0, 255);
 }
 
 switch ($action) {
@@ -182,6 +185,12 @@ switch ($action) {
             }
             $canExport = (bool) $user->hasRight($db, 'mgt_view_key', $tproject_id, null, true);
             $canImport = (bool) $user->hasRight($db, 'mgt_modify_key', $tproject_id, null, true);
+            if (!$canExport && !$canImport) {
+                // Do not hand the project name / keyword count to a caller that
+                // may not touch the project at all (and do not let a 404-vs-200
+                // answer be used to enumerate project ids).
+                out(['status' => 'error', 'message' => 'Access denied'], 403);
+            }
         }
 
         $kw = new tlKeyword();
@@ -196,7 +205,10 @@ switch ($action) {
             'formatDescriptions' => (object) $kw->getSupportedSerializationFormatDescriptions(),
             'rights' => array('export' => $canExport, 'import' => $canImport),
             'limits' => array(
-                'import_file_max_size_bytes' => intval(config_get('import_file_max_size_bytes')),
+                // Never advertise more than PHP accepts: an oversize POST is
+                // discarded by PHP before the BFF can answer, and the user must
+                // not be told about a limit the runtime cannot honour.
+                'import_file_max_size_bytes' => importCapBytes(),
             ),
             'default_filename' => 'keywords.xml',
         ));
@@ -214,6 +226,14 @@ switch ($action) {
         $filename = safeDownloadName($_GET['filename'] ?? '', 'keywords.' . $ext);
         if (strpos($filename, '.') === false) {
             $filename .= '.' . $ext;
+        }
+
+        // exportKeywordsToXML() calls sizeof() on getKeywordIDsFor(), which
+        // returns null for a project without keywords -> uncaught TypeError (500)
+        // and exportKeywordsToCSV() logs an E_WARNING on the same null. Refuse
+        // the empty project up front instead.
+        if (keywordCount($db, $tproject_id) === 0) {
+            out(['status' => 'error', 'message' => 'no_keywords_to_export'], 400);
         }
 
         $tprojectMgr = new testproject($db);
@@ -246,17 +266,25 @@ switch ($action) {
 
         $type = normalizeType(param('type', 'iSerializationToXML'));
         $ext = importExtension($type);
-        $limit = intval(config_get('import_file_max_size_bytes'));
+        $limit = importCapBytes();
 
         $tmpFile = null;
         $cleanup = false;
         $fInfo = isset($_FILES['uploadedFile']) ? $_FILES['uploadedFile'] : null;
 
-        if (!is_null($fInfo) && isset($fInfo['tmp_name']) && $fInfo['tmp_name'] !== '') {
+        // A file rejected by PHP itself (over upload_max_filesize / post_max_size)
+        // arrives with an empty tmp_name, so the error code has to be inspected
+        // BEFORE the "is there a file at all" test - otherwise the user is told to
+        // pick a file although they did (legacy read $_FILES[...]['error'] too).
+        if (!is_null($fInfo) && isset($fInfo['error']) && $fInfo['error'] != UPLOAD_ERR_OK) {
             $uploadError = getFileUploadErrorMessage($fInfo);
-            if (!is_null($uploadError) && $uploadError !== '') {
-                out(['status' => 'error', 'message' => $uploadError], 400);
+            if (is_null($uploadError) || $uploadError === '') {
+                $uploadError = 'please_choose_keywords_file';
             }
+            out(['status' => 'error', 'message' => $uploadError, 'code' => 'upload_error'], 400);
+        }
+
+        if (!is_null($fInfo) && isset($fInfo['tmp_name']) && $fInfo['tmp_name'] !== '') {
             if ($limit > 0 && filesize($fInfo['tmp_name']) > $limit) {
                 out(['status' => 'error', 'message' => 'File too large'], 413);
             }
@@ -290,13 +318,22 @@ switch ($action) {
         }
 
         $tproject = new testproject($db);
+        $before = keywordCount($db, $tproject_id);
         if ($type === 'iSerializationToXML') {
             $result = $tproject->importKeywordsFromXMLFile($tproject_id, $tmpFile);
         } else {
             $result = $tproject->importKeywordsFromCSV($tproject_id, $tmpFile);
         }
+        $after = keywordCount($db, $tproject_id);
         if ($cleanup && is_file($tmpFile)) {
             @unlink($tmpFile);
+        }
+
+        if ($result == tl::OK && $after === $before) {
+            // importKeywordsFromCSV() returns tl::OK as soon as fopen() on the
+            // temp file succeeds, so a non-CSV file is "imported" with zero rows
+            // and the screen would report success. Nothing landed => wrong file.
+            $result = tl::ERROR;
         }
 
         if ($result != tl::OK) {
@@ -335,6 +372,38 @@ function exportExtension($type) {
 
 function importExtension($type) {
     return exportExtension($type);
+}
+
+/** Effective upload cap: TestLink config clamped to the PHP runtime limits. */
+function importCapBytes() {
+    $limit = intval(config_get('import_file_max_size_bytes'));
+    if ($limit <= 0) {
+        $limit = 1048576;
+    }
+    foreach (array('upload_max_filesize', 'post_max_size') as $directive) {
+        // ini_get() returns the shorthand form ('2M'), so it has to be expanded.
+        $raw = parse_size((string) ini_get($directive));
+        if ($raw > 0 && $raw < $limit) {
+            $limit = $raw;
+        }
+    }
+    return max(1, $limit);
+}
+
+/** '10M' / '2048K' / plain bytes -> bytes. */
+function parse_size($value) {
+    $value = trim((string) $value);
+    if ($value === '') {
+        return 0;
+    }
+    $unit = strtolower(substr($value, -1));
+    $number = (float) $value;
+    switch ($unit) {
+        case 'g': return intval($number * 1024 * 1024 * 1024);
+        case 'm': return intval($number * 1024 * 1024);
+        case 'k': return intval($number * 1024);
+        default:  return intval($number);
+    }
 }
 
 /** keywordCount(): testproject::getKeywordIDsFor() is protected, count directly. */
