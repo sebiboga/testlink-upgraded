@@ -22877,3 +22877,83 @@ with a `responseText` fallback) and completing the code→i18n-key map with
 
 **Screenshots:** `docs/screenshots/issue-1623-launch-{ok,denied,notfound,ro}.png` and
 `issue-1623-print-anon.png` (anonymous hand-over to the modern print screen).
+
+---
+
+## Task — Issue #1622: DataTables `stateSave` (persist entries-per-page / search / sort / page) in Assign Test Project Roles
+
+**Feature implemented** (Refs #1622, branch `task/issue-1622`, commit `fb5fc309d`).
+Legacy references: `gui/templates/dashio/include/DataTables.inc.tpl:100-104`
+(`config = { "lengthMenu": [ … ], "stateSave": true }`) pulled in by the deleted
+`gui/templates/dashio/usermanagement/usersAssign.tpl:111-120`
+(`{include file="DataTables.inc.tpl" DataTablesSelector="#item_view" …}`), same in
+`gui/templates/tl-classic/usermanagement/usersAssign.tpl`.
+Modern: `gui/templates/usermanagement/usersAssignProject.html` `initAssignTable()`,
+`loadUsers()`, `notifyRestoredState()`.
+
+**Precondition**
+
+A freshly imported DB has 0 test projects and 1 user, so the mandatory fixture:
+
+```bash
+php tmp/fixtures_1622.php     # re-runnable
+# -> projects: A=7 B=8 | users present: 28 | 'ale' logins: 4
+```
+
+It creates two public test projects (`TS1622A`, `TS1622B`) and 28 users
+(`tlu1622_u01…28`, of which `tlu1622_ale03/11/19/27` carry the `ale` string) so
+that the grid has 29 rows: pagination is visible, `Show entries` 20/40/60/All is
+meaningful and the search box has a deterministic hit set. **Note**: the fixture
+gives every user the first name `Alex`, so the search string `ale` matches the
+Name column of all 28 fixture users (admin excluded) — that is intentional and
+is what makes the "filtered from 29 total entries" assertions stable.
+
+**Entry point:** `http://localhost:8082/gui/templates/usermanagement/usersAssignProject.html?tproject_id=<id>&tplan_id=0`
+(login `admin`/`admin). Project ids change on every fixture re-run — read them
+from the combo box, not from a hard-coded number.
+
+| # | Step | Expected | Observed | Result |
+|---|---|---|---|---|
+| 1 | Baseline BEFORE the fix (measured in the issue's INVESTIGATION): drive `search='ale'`, `len=60`, `order=[[2,'desc']]` on `tproject_id=1` | legacy would persist it; modern writes nothing | `localStorage` = `[]` (0 keys); after reload `{"search":"","len":20,"order":"[[1,"asc"]]","page":0}` | **GAP CONFIRMED** |
+| 2 | Load the screen with no saved state | default view, no toast | `{"search":"","len":20,"order":"[[1,"asc"]]","page":0}`, `localStorage` empty, toast not shown | **PASS** |
+| 3 | Set `search='ale'`, `Show entries` → 60, click `Last Name` twice (desc) | view is applied and a state is written | `{"search":"ale","len":60,"order":"[[2,"desc"]]"}`, key `DataTables_assignTable_/gui/templates/usermanagement/usersAssignProject.html`, payload `{"length":60,"order":[[2,"desc"]],"search":{"search":"ale",…},"tproject_id":"7",…}` | **PASS** |
+| 4 | Reload the SAME url | search, entries-per-page, sort and page are restored | `{"search":"ale","len":60,"order":"[[2,"desc"]]","page":0}`, search input `ale`, length select `60`, info `Showing 1 to 28 of 28 entries (filtered from 29 total entries)`, first row `tlu1622_u28` | **PASS** |
+| 5 | Real typing in the `User` search box (`User`), then click the pager link `2` | 2nd page shown, both facts persisted | `Showing 21 to 28 of 28 entries`, `page:1`, first row `tlu1622_u20`, saved `{"start":20,"search":"User","length":20,"tproject_id":"8"}` | **PASS** |
+| 6 | Reload after #5 | search + page restored, visible in the chrome | `{"search":"User","len":20,"order":"[[1,"asc"]]","page":1}`, search input `User`, info `Showing 21 to 28 of 28 entries (filtered from 29 total entries)`, first row `tlu1622_u20` | **PASS** |
+| 7 | Leave to **User Management** (`usersView.html`) and come back via the tab bar | view still restored (legacy "same URL" promise) | `{"search":"User","len":20,"order":"[[2,"desc"]],"page":1}` + info `Showing 21 to 29 of 29 entries` (on the 8-id project used for that pass) | **PASS** |
+| 8 | Switch project in the in-page `Test Project:` combo (7 → 8) while 7 has a saved `search='ale'`/len 60/Name desc view | NO leak: 8 starts at the default view and the state is re-stamped for 8 | `{"search":"","len":20,"order":"[[1,"asc"]]","page":0}`, search input `""`, length select `20`, info `Showing 1 to 20 of 29 entries`, saved `{tproject_id:"8",length:20,search:"",order:[[1,"asc"]],start:0}` | **PASS** |
+| 9 | Deep-link to the previous project again (`?tproject_id=7`) | the state saved for 8 must be rejected → default view, no toast | `{"search":"","len":20,"order":"[[1,"asc"]],"page":0}`, `toast:""`, `toastShown:false` | **PASS** |
+| 10 | Set a view on 7 and reload the same URL | 7's own view is restored | `{"search":"ale","len":40,"order":"[[2,"asc"]]}`, search input `ale`, length select `40`, info `Showing 1 to 28 of 28 entries (filtered from 29 total entries)`, first row `tlu1622_u01` | **PASS** |
+| 11 | In-screen re-render: bulk `Set roles to` → `Do` while a non-default view is active (len 20, Name desc, page 2) | the `keep` path still preserves the view (issue #930 behaviour must not regress) | `{"len":20,"order":"[[2,"desc"]],"page":1,"search":""}`, info `Showing 21 to 29 of 29 entries`, 19 `changed-badge` cells rendered | **PASS** |
+| 12 | Per-row role change (`onRoleChange`) while on page 2 | re-render keeps page/len/order/search | `{"page":1,"len":20,"order":"[[2,"desc"]]","search":""}`, info `Showing 21 to 29 of 29 entries` | **PASS** |
+| 13 | "Saved view restored" toast on a restored non-default view | localized notice shown once | `#toast` text = `Saved view restored (search, sort, entries per page and page kept)` (en) | **PASS** |
+| 14 | Toast NOT shown when there is no state or the state IS the default view | no noise | `toast:""`, `toastShown:false` | **PASS** |
+| 15 | Toast not repeated on every in-screen re-render | once per page load per project | `restoredStateNotified` latch; the bulk-`Do` and role-change re-renders produced no new notice | **PASS** |
+| 16 | Regression: select `-- select project --` then re-select a project | empty state shown, no crash, grid usable again | `bodyRows:0`, `#emptyMsg` display `block`, back to 8: `{"search":"User","len":20,"order":"[[1,"asc"]],"page":1}`, `isDataTable:true` | **PASS** |
+| 17 | Regression: a user **without** the assign right (global role `guest`, `tlu1622_u04`) opens the screen | deny box, no grid, no state written, no JS error | `denyVisible:"block"`, `tableVisible:"none"`, `isDataTable:false`, `localStorage:[]`; console: only the expected `403 (Forbidden)` network error of the guarded BFF read | **PASS** |
+| 18 | i18n: `python3 -m json.tool` on all 10 bundles + key present in each | all valid, key in every locale | 10 × `VALID gui/templates/i18n/<x>.json`; `assign.viewStateRestored` in en/ro/de/es/fr/it/ja/pt/ru/zh | **PASS** |
+| 19 | Browser console `error` + `warn` over the whole admin pass | none | `<no console messages found>` | **PASS** |
+| 20 | Event Viewer: no new Error/Warning from the screen | none | only the 2 pre-existing warnings emitted by the fixture's own first run (`tmp/fixtures_1622.php:79`, since fixed), nothing from the app | **PASS** |
+
+**Result: 19 PASS + 1 gap row (#1 is the pre-fix baseline, not a test of the fix).**
+The legacy `stateSave` promise is now honoured by the modern screen, and the
+project switcher can no longer leak one project's view into another — a leak
+legacy actually had.
+
+**Gotchas for anyone extending this**
+
+- `dt.page(1).draw()` (chained, full redraw) lands on page 0 in DataTables
+  1.13.7; `dt.page(1); dt.draw('page')` is the form that sticks. The screen's
+  own `renderAssignTable()` uses `.page(keep.page).draw(false)` and was measured
+  to preserve the page (cases #11/#12), so this only bites hand-written test
+  scripts.
+- The length `<select>` generated by DataTables has **no id** in this build
+  (`#assignTable_length` does not exist); address it as
+  `.dataTables_length select` or with jQuery.
+- Only ONE state exists per page URL (DataTables keys it by URL, query string
+  excluded), so the state of the last viewed project is the one kept — same as
+  legacy. The stamp guarantees a *foreign* state is never applied.
+
+**Screenshots:** `docs/screenshots/issue-1622-view-state-restored.png` and
+`docs/screenshots/issue-1622-view-state-restored-toast.png` (restored view +
+toast).
