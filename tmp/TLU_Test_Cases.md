@@ -23200,3 +23200,73 @@ reproduced by force-showing `.toolbar` in the console).
 
 ---
 
+
+---
+
+## Regression — Issue #1630: "Last Name" column header over a fused full-name cell in the role-assign grids
+
+**Precondition / fixtures.** Fresh DB has 0 test projects and only the `admin`
+user, so the grid cannot render rows until a project and a second user exist.
+Recreate with (the freshly imported DB wipes these every run):
+
+```sql
+INSERT INTO testprojects (id,notes,color,active,option_reqs,option_priority,
+  option_automation,options,prefix,tc_counter,is_public,issue_tracker_enabled,
+  code_tracker_enabled,reqmgr_integration_enabled,api_key)
+  VALUES (1,'repro','#9BD1',1,0,0,0,'','TL-P',0,1,0,0,0,'reprokey1630');
+INSERT INTO users (login,password,first,last,email,role_id,active)
+  VALUES ('adesigner', MD5('password'),'Ann','Designer','ann@example.org',7,1);
+```
+
+Note: the project NAME is not stored in `testprojects` (that table only holds
+`prefix`); on a bare import `custom_fields` / `cfield_node_types` are empty, so
+the BFF returns `projects: []` and the combo stays empty. The grid is still
+reachable by driving the page's own `loadUsers(1)` from the console after
+fetching the meta endpoint — that is enough to exercise the header/cell pairing,
+which is what this regression is about.
+
+**Repro steps (pre-fix symptom).**
+1. Log in `admin`/`admin` at `http://localhost:8082/index.php`.
+2. Open `gui/templates/usermanagement/usersAssignProject.html?tproject_id=1&tplan_id=0`.
+3. Read the 3rd `<th>` of `#assignTable` and the 3rd cell of each `#assignBody` row.
+
+**Expected post-fix behavior.** The 3rd header resolves to the full-name label
+(`Name` in `en`) and the cells still hold the fused `first last` display name.
+Before the fix the header was `Last Name` over `Ann Designer`.
+
+| # | Case | Expected | Observed | Result |
+|---|------|----------|----------|--------|
+| 1 | `usersAssignProject.html`, locale `en`, 3rd header | `Name` | `["#","Login","Name","Assigned Role"]` | **PASS** |
+| 2 | `usersAssignProject.html`, 3rd cell of the `adesigner` row | fused full name, unchanged by the fix | `Ann Designer` | **PASS** |
+| 3 | `usersAssignProject.html`, 3rd cell of the `admin` row | fused full name | `Testlink Administrator` | **PASS** |
+| 4 | Baseline (pre-fix) same page, 3rd header | was `Last Name` | `["#","Login","Last Name","Assigned Role"]` — defect reproduced | **PASS** (baseline) |
+| 5 | Real locale switch → `de` (the strongest single assertion: `user.lastName`=`Nachname` ≠ `user.fullName`=`Name`) | `Name`, NOT `Nachname` | `["#","Login","Name","Zugewiesene Rolle"]` | **PASS** |
+| 6 | Real locale switch → `ro` | `Nume` | `["#","Utilizator","Nume","Rol Atribuit"]` | **PASS** |
+| 7 | Twin screen `usersAssignPlan.html`, locale `de`, 3rd header | `Name` | `["#","Login","Name","Geerbte Rolle","Planrollen-Überschreibung"]` | **PASS** |
+| 8 | `usersView.html` NOT regressed — that grid shows two real columns, so it must keep `user.firstName` / `user.lastName`; locale `de` | `Vorname` / `Nachname` over cells `Ann` / `Designer` | `["Login","Vorname","Nachname","E-Mail",…]` / `["adesigner","Ann","Designer",…]` | **PASS** |
+| 9 | Hard-coded i18n fallback (render before the bundle resolves) | literal `Name` | both `<th>` still carry the literal `Name` text | **PASS** |
+| 10 | All 10 bundles serve a real full-name word for `user.fullName` (fetched over HTTP from the live server) | no bundle falls back to a last-name-only label | en `Name`, de `Name`, es `Nombre`, fr `Nom`, it `Nome`, ja `氏名`, pt `Nome`, ro `Nume`, ru `Полное имя`, zh `姓名` — all HTTP 200 | **PASS** |
+| 11 | `python3 -m json.tool` on all 10 touched bundles | valid JSON | 10/10 OK | **PASS** |
+| 12 | `user.firstName` / `user.lastName` values byte-identical to pre-fix | unchanged | re-read from disk, identical | **PASS** |
+| 13 | Browser console on both role-assign screens | 0 errors | 0 error, 0 warning | **PASS** |
+| 14 | Event Viewer (`events` table) after the pass | no new Error/Warning | 1 row total, `log_level=16` (INFO, `audit_login_succeeded`); `log_level in (1,2)` = **0** | **PASS** |
+
+**Result: 14 PASS / 0 FAIL** (row #4 is the pre-fix baseline, not a test of the fix).
+
+**Gotchas recorded for the next agent**
+
+- **`fr` and `ro` cannot visually detect this bug**: in both languages the
+  surname word and the plain "Name" word are the same string (`Nom` / `Nume`).
+  Use **`de`** (or `en` / `ru`) when you need an assertion that actually
+  distinguishes `user.fullName` from `user.lastName`.
+- `user.lastName` is NOT globally wrong — `usersView.html:107,150` uses it
+  correctly for a genuine Last Name column. Only the two fused-name headers
+  (`usersAssignProject.html:86`, `usersAssignPlan.html:88`) were mis-bound; a
+  blanket rename of the key would have broken the split grid.
+- Setting the locale is done via `localStorage.setItem('tl_locale','<loc>')`
+  (see `gui/templates/i18n/i18n.js:28`) followed by a full page reload — the
+  bundle is fetched once at load, not re-read per render.
+- `tmp/` is gitignored, so the fixtures of this suite stay local by convention.
+
+**Screenshots:** `docs/screenshots/issue-1630-before.png` (header "Last Name")
+and `docs/screenshots/issue-1630-after.png` (header "Name", same cells).
