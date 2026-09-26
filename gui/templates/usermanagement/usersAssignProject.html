@@ -166,6 +166,33 @@ function assignFeedback(feedbackKey) {
   return TLi18n.t(map[feedbackKey] || 'assign.rolesUpdated');
 }
 
+// Legacy parity: checkSessionValid() (lib/functions/common.php:258-286), run by
+// testlinkInitPage() on every legacy page, bounced a session idle for longer
+// than config_get("sessionInactivityTimeout") minutes to
+// login.php?note=expired&destination=<this screen>, with the localized
+// "Session expired. Please log in again." box the modern login screen already
+// renders for that note (gui/templates/auth/login.html:145-155). The BFF cannot
+// redirect, so it answers 401 {"code":"session_expired"} (issue #1614) and the
+// screen performs the bounce here - both on the initial user list load and on a
+// Save, so a stale tab can neither read the user list nor write role changes.
+function sessionExpired(xhr) {
+  var code = '';
+  try { code = (JSON.parse(xhr.responseText) || {}).code || ''; } catch (e) {}
+  if (xhr.status !== 401 && code !== 'session_expired') return false;
+  toast(TLi18n.t('auth.sessionExpired'), 'err');
+  // Legacy redirected the TOP window ("top.location"), and the Dashio shell
+  // loads content screens inside an iframe - redirecting only this window would
+  // leave the stale shell (and its menu) on screen (staticPage.html:96 pattern).
+  var dest = window.location.pathname + window.location.search;
+  var target = window.location.origin + '/login.php?note=expired&destination=' +
+               encodeURIComponent(dest);
+  setTimeout(function() {
+    try { if (window.self !== window.top) { window.top.location.href = target; }
+          else { window.location.href = target; } } catch (e) { window.location.href = target; }
+  }, 600);
+  return true;
+}
+
 $(function() {
   var params = new URLSearchParams(window.location.search);
   var tp = params.get('tproject_id');
@@ -300,6 +327,10 @@ function loadUsers(pid) {
     // failure (403/500/network) keep the previous view coherent and never let
     // Save run against a half-loaded state (issue #930). A 403 means the
     // caller lost/never had the assign right -> localized deny box (issue #935).
+    // A 401 means the session went stale past the inactivity timeout: legacy
+    // bounced to login.php?note=expired, so never render the empty-state box
+    // for it (issue #1614).
+    if (sessionExpired(xhr)) { return; }
     if (xhr.status === 403) { showNoAccess(); }
     else {
       $('#assignBody').empty();
@@ -521,6 +552,13 @@ function saveAssignments() {
       loadUsers(currentProject);
     },
     error: function(xhr) {
+      // Legacy parity: checkSessionValid() (common.php:258-286) re-ran right
+      // after the update block (usersAssign.php:97) and redirected a session
+      // that had gone stale during the write to login.php?note=expired. The
+      // BFF now answers 401 session_expired for that case (issue #1614): bounce
+      // before any localized failure toast, so the user is not told the update
+      // failed when in fact the session - not the update - was the problem.
+      if (sessionExpired(xhr)) { return; }
       // Legacy parity: usersAssign.php:80-91 - on any failure the legacy page
       // simply reloads with current values and no positive feedback; the modern
       // rewrite surfaces a localized error banner instead of a silent uncaught

@@ -27,6 +27,18 @@ if (!$userId || $userId <= 0) {
     exit;
 }
 
+// Legacy parity: usersAssign.php:23 -> testlinkInitPage() -> checkSessionValid()
+// (lib/functions/common.php:531-533, 258-286) plus the second explicit call at
+// usersAssign.php:97 right after the update block. The legacy screen therefore
+// refused BOTH the user list and the role write once the session had been idle
+// longer than config_get("sessionInactivityTimeout") minutes, bouncing the user
+// to login.php?note=expired. doSessionStart() alone does not enforce that
+// window, so without this call a tab left open past the timeout kept listing
+// users and kept writing role assignments (issue #1614). Placed after the
+// userID gate and before any route dispatch, so it covers every route of this
+// BFF - GET /meta/tproject-roles (read) and PUT /tproject-roles (write).
+bffEnforceSession($db);
+
 $currentUser = tlUser::getByID($db, $userId);
 if (is_null($currentUser)) {
     http_response_code(401);

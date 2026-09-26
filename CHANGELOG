@@ -17,6 +17,19 @@ Every screen of the application was ported one-by-one in a screen-compare
 kept for backward compatibility and is progressively retired as each modern
 screen reaches full parity.
 
+- [FEATURE GAP] - #1614: the Assign Test Project Roles BFF
+  (`api/roles/index.php`) enforces the legacy session inactivity timeout again.
+  Legacy `usersAssign.php:23` ran `checkSessionValid()` on every page load and
+  re-ran it after the update block (`:97`), so a session idle longer than
+  `config_get("sessionInactivityTimeout")` minutes could neither read the user
+  list nor write role assignments and was bounced to
+  `login.php?note=expired&destination=…`; the modern BFF only called
+  `doSessionStart()` and checked `$_SESSION['userID'] > 0`. New shared helper
+  `bffEnforceSession()` in `api/_guard.php` wraps `checkSessionValid($db, false)`
+  and answers `401 {"code":"session_expired"}`, and the screen turns that into
+  the same `note=expired` bounce (localized `auth.sessionExpired` toast +
+  top-window navigation, `destination` preserved). The helper is reusable by the
+  follow-up sweep of the remaining BFFs, which have the same gap.
 - [FEATURE GAP] - #986: the modern Test Project Management list
   (`gui/templates/projectsView.html`) is a real DataTable again, matching legacy
   `projectView.tpl:37,50-51` (column sorting, length menu `[10,20,50]`, record
