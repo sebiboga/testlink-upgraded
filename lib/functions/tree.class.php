@@ -960,7 +960,18 @@ class tree extends tlObject
         if( !isset($my['filters']['exclude_branches'][$row['id']]) )
         {  
             
-        $node_table = $this->node_tables[$this->node_types[$row['node_type_id']]];
+        // $node_types also holds the PSEUDO node types (testcase_step,
+        // requirement_spec_revision, build) which have NO row table of their own,
+        // so $node_tables has no key for them. On PHP 8 the raw double lookup
+        // raised one E_WARNING "Undefined array key \"testcase_step\"" per step
+        // node, which watchPHPErrors turns into Event Viewer noise (Refs #1589).
+        // Resolve defensively: for the pseudo types (and for any unknown id a
+        // plugin could introduce) node_table is null, which is exactly what
+        // $class_name already declares for them.
+        $nodeTypeName = isset($this->node_types[$row['node_type_id']])
+                        ? $this->node_types[$row['node_type_id']] : '';
+        $node_table = isset($this->node_tables[$nodeTypeName])
+                        ? $this->node_tables[$nodeTypeName] : null;
 
         
         switch($my['options']['output'])
