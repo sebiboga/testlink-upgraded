@@ -17,6 +17,17 @@ Every screen of the application was ported one-by-one in a screen-compare
 kept for backward compatibility and is progressively retired as each modern
 screen reaches full parity.
 
+- [FEATURE GAP] - #986: the modern Test Project Management list
+  (`gui/templates/projectsView.html`) is a real DataTable again, matching legacy
+  `projectView.tpl:37,50-51` (column sorting, length menu `[10,20,50]`, record
+  counter, pagination) and `DataTablesColumnFiltering.inc.tpl` (a cloned header
+  row carrying a per-column smart-search filter box, with `stateSave` restore).
+  The columns filterable are the legacy `{#SMART_SEARCH#}` ones — name, prefix,
+  issue tracker, code tracker, status — while ID and actions stay
+  `orderable: false` like the legacy `{#NOT_SORTABLE#}` cells. The pre-existing
+  search box is now the DataTables global search (`dom:'lrtip'`, no duplicate
+  filter box) and row rendering moved to the DataTable `data:` API so the grid
+  survives the destroy/re-init performed after every create/edit/toggle/delete.
 - [FEATURE GAP] - #1297: the modern Requirement Viewer restores the legacy
   per-version attachments section (`reqView.php:198-209` building
   `$gui->attachments[version_id]`, rendered by the two
