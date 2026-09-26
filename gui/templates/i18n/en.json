@@ -56,6 +56,7 @@
   "assign.testPlan": "Test Plan:",
   "assign.testProject": "Test Project:",
   "assign.updateFailed": "Error updating user roles",
+  "assign.viewStateRestored": "Saved view restored (search, sort, entries per page and page kept)",
   "assigned_to": "Assigned To",
   "ato.confirmExec": "Are you sure you want to execute this test case?",
   "ato.errLoad": "Failed to load report",

@@ -130,6 +130,9 @@ var NO_RIGHTS_ROLE_ID = 3;
 // excludes it the same way (issue #928).
 var ADMIN_ROLE_ID = 8;
 var assignTbl = null;
+// Issue #1622: one "saved view restored" notice per page load per project, so
+// the toast does not repeat on every in-screen re-render (bulk Do / role change).
+var restoredStateNotified = false;
 var currentItems = [];
 var roleChoices = {};
 var changedMap = {};
@@ -295,6 +298,20 @@ function showNoAccess() {
 }
 
 function loadUsers(pid) {
+  var prevProject = currentProject;
+  // Legacy parity + issue #1622: the grid is stateful (DataTables.inc.tpl:103
+  // stateSave:true) and the state key is per page URL, not per project. Reset it
+  // when the in-page #projectSelect switcher really changes the test project so
+  // the previous project's entries-per-page / search / sort / page can never be
+  // written onto, or inherited by, the new project's grid. Same guard as the
+  // sibling plan screen's deliberate "no leak across a plan switch".
+  var projectSwitched = prevProject != null && String(prevProject) !== String(pid);
+  if (projectSwitched) {
+    if ($.fn.DataTable && $.fn.DataTable.isDataTable('#assignTable')) {
+      $('#assignTable').DataTable().state.clear();
+    }
+    restoredStateNotified = false;
+  }
   currentProject = pid;
   $('#saveBtn').prop('disabled', true);
   $.getJSON(API + '/meta/tproject-roles?tproject_id=' + pid, function(r) {
@@ -451,10 +468,52 @@ function initAssignTable() {
     lengthMenu: menu,
     pageLength: menu[0] && menu[0][0] ? menu[0][0] : 20,
     order: [[1, 'asc']],
+    // Legacy parity: DataTables.inc.tpl:100-104 initialised EVERY legacy grid
+    // with { "lengthMenu": [...], "stateSave": true }, so entries-per-page, the
+    // "User" search string, the sort column/order and the current page were
+    // persisted in the DataTables localStorage state and restored on the next
+    // visit of the same URL (issue #1622).
+    stateSave: true,
+    // The state key is per page URL, and this screen carries the selected test
+    // project in the in-page #projectSelect combo - so the saved state is
+    // stamped with its tproject_id and a state saved for a DIFFERENT project is
+    // dropped (returning false aborts the load). Without this a project switch
+    // would leak the previous project's search/page/len into the new grid -
+    // the same leak the sibling plan screen documents (usersAssignPlan.html
+    // stateSave note) and that legacy had (legacy switched project by full page
+    // navigation, so it restored whatever the last project had saved).
+    stateSaveParams: function (settings, state) {
+      state.tproject_id = currentProject == null ? '' : String(currentProject);
+      return state;
+    },
+    stateLoadParams: function (settings, state) {
+      var saved = (state && state.tproject_id != null) ? String(state.tproject_id) : '';
+      var current = currentProject == null ? '' : String(currentProject);
+      return saved === current;
+    },
     // Legacy parity: usersAssign.tpl:116 language.search = "User" - the DataTables
     // search box is labelled like the legacy grid's search label.
     language: { search: TLi18n.t('assign.searchUsers') }
   });
+  // Runs after the constructor assigned assignTbl, i.e. once a persisted state
+  // (if any) has been restored into the table.
+  notifyRestoredState();
+}
+
+// Legacy parity (issue #1622): with stateSave:true a returning administrator
+// gets their saved view back, which is invisible feedback - tell them the
+// filter/length/sort/page they are looking at is the persisted one. Fires once
+// per grid build (and not at all when the restored state IS the default view).
+function notifyRestoredState() {
+  if (!assignTbl || restoredStateNotified) return;
+  var st = assignTbl.state.loaded();
+  if (!st) return;
+  var dfltLen = (paginationCfg.lengthMenu && paginationCfg.lengthMenu[0] && paginationCfg.lengthMenu[0][0]) || 20;
+  var isDefault = !st.search && st.length === dfltLen && st.start === 0 &&
+    String(st.order) === '[[1,"asc"]]';
+  if (isDefault) return;
+  restoredStateNotified = true;
+  toast(TLi18n.t('assign.viewStateRestored'), 'ok');
 }
 
 function onRoleChange(sel, uid, origRoleId) {

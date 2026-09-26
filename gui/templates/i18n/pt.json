@@ -56,6 +56,7 @@
   "assign.testPlan": "Plano de teste:",
   "assign.testProject": "Projeto de teste:",
   "assign.updateFailed": "Erro ao atualizar os perfis de utilizador",
+  "assign.viewStateRestored": "Vista guardada restaurada (pesquisa, ordenação, entradas por página e página mantidas)",
   "assigned_to": "Atribuído a",
   "ato.confirmExec": "Tem certeza de que deseja executar este caso de teste?",
   "ato.errLoad": "Falha ao carregar o relatório",

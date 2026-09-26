@@ -17,6 +17,26 @@ Every screen of the application was ported one-by-one in a screen-compare
 kept for backward compatibility and is progressively retired as each modern
 screen reaches full parity.
 
+- [FEATURE GAP] - #1622: the modern Assign Test Project Roles grid
+  (`gui/templates/usermanagement/usersAssignProject.html`) is stateful again.
+  The shared legacy include `gui/templates/dashio/include/DataTables.inc.tpl:100-104`
+  initialised every legacy grid with `{ "lengthMenu": […], "stateSave": true }`
+  and the deleted `dashio/usermanagement/usersAssign.tpl:111-120` pulled it in
+  for this screen, so entries-per-page, the `User` search string, the sort
+  column/order and the current page were persisted and restored on the next
+  visit of the same URL; `initAssignTable()` had no `stateSave`, so every visit
+  restarted from the hard-coded default (20 rows, empty search, `Login` asc,
+  page 1) and nothing was written to `localStorage` (measured: 0 keys after
+  setting `search="ale"`, `len=60`, `order=[[2,"desc"]]`; all lost on reload).
+  `initAssignTable()` now sets `stateSave: true` and stamps the state with its
+  `tproject_id` (`stateSaveParams`), rejecting a state saved for another
+  project (`stateLoadParams`), and `loadUsers()` clears the live state when the
+  in-page project switcher really changes project — so a project switch can
+  never leak the previous project's search/page/len into the new grid, which the
+  sibling plan screen also documents. A restored non-default view is announced
+  with the localized `assign.viewStateRestored` toast (new key, all 10 locale
+  bundles). The in-screen re-render `keep` path (bulk `Do`, per-row change) is
+  unchanged and still preserves the view. No BFF change needed.
 - [FEATURE GAP] - #1614: the Assign Test Project Roles BFF
   (`api/roles/index.php`) enforces the legacy session inactivity timeout again.
   Legacy `usersAssign.php:23` ran `checkSessionValid()` on every page load and
