@@ -1042,55 +1042,55 @@ class tree extends tlObject
    */   
   function _get_subtree_rec($node_id,&$pnode,$filters = null, $options = null)
   {
-    static $tcNodeTypeID;
-    static $qnum;
-    static $my;
-    static $platform_filter;
-    static $fclause;
-    static $exclude_branches;
-    static $exclude_children_of;
-    
-    if (!$tcNodeTypeID)
+    // These are NOT static on purpose (Refs #1607).
+    // They used to be `static`, with the whole setup below guarded by
+    // `if (!$tcNodeTypeID)`, so it ran only ONCE per PHP process: every later
+    // top-level get_subtree() call had its $filters/$options accepted and then
+    // silently discarded, and reused the first call's order_cfg, key_type,
+    // platform_filter, fclause, exclude_branches/exclude_children_of.
+    // Measured: a 12-node std subtree silently rendered as a 2-node extjs
+    // subtree when a previous recursive call had set those options.
+    // The recursion below passes $my['filters']/$my['options'] down
+    // explicitly, so rebuilding the defaults per level is idempotent and the
+    // `static` bought nothing but a per-level array_merge it was meant to skip.
+    $tcNodeTypeID = $this->node_descr_id['testcase'];
+
+    $qnum=0;
+
+    $my['filters'] = array('exclude_children_of' => null,'exclude_branches' => null,
+                        'additionalWhereClause' => '', 'family' => null);
+                             
+    $my['options'] = array('order_cfg' => array("type" =>'spec_order'),'key_type' => 'std',
+                        'remove_empty_nodes_of_type' => null);
+
+    // Cast to array to handle $options = null
+    $my['filters'] = array_merge($my['filters'], (array)$filters);
+    $my['options'] = array_merge($my['options'], (array)$options);
+
+    $platform_filter = "";
+    if( isset($my['options']['order_cfg']['platform_id']) && 
+      ($safe_pid = intval($my['options']['order_cfg']['platform_id']) ) > 0 )
     {
-      $tcNodeTypeID = $this->node_descr_id['testcase'];
-
-      $qnum=0;
-
-      $my['filters'] = array('exclude_children_of' => null,'exclude_branches' => null,
-                          'additionalWhereClause' => '', 'family' => null);
-                               
-      $my['options'] = array('order_cfg' => array("type" =>'spec_order'),'key_type' => 'std',
-                          'remove_empty_nodes_of_type' => null);
-
-      // Cast to array to handle $options = null
-      $my['filters'] = array_merge($my['filters'], (array)$filters);
-      $my['options'] = array_merge($my['options'], (array)$options);
-
-      $platform_filter = "";
-      if( isset($my['options']['order_cfg']['platform_id']) && 
-        ($safe_pid = intval($my['options']['order_cfg']['platform_id']) ) > 0 )
-      {
-        $platform_filter = " /* Platform filter */ " . 
-                   " AND T.platform_id = " . $safe_pid;
-      }
-      
-      $fclause = " AND node_type_id <> {$tcNodeTypeID} {$my['filters']['additionalWhereClause']} ";
-      
-
-      if( !is_null($my['options']['remove_empty_nodes_of_type']) )
-      {
-        // this way I can manage code or description      
-        if( !is_numeric($my['options']['remove_empty_nodes_of_type']) )
-        {
-          $my['options']['remove_empty_nodes_of_type'] = 
-                  $this->node_descr_id[$my['options']['remove_empty_nodes_of_type']];
-        }
-      }
-      
-
-      $exclude_branches = $my['filters']['exclude_branches'];
-      $exclude_children_of = $my['filters']['exclude_children_of'];  
+      $platform_filter = " /* Platform filter */ " . 
+                 " AND T.platform_id = " . $safe_pid;
     }
+    
+    $fclause = " AND node_type_id <> {$tcNodeTypeID} {$my['filters']['additionalWhereClause']} ";
+    
+
+    if( !is_null($my['options']['remove_empty_nodes_of_type']) )
+    {
+      // this way I can manage code or description      
+      if( !is_numeric($my['options']['remove_empty_nodes_of_type']) )
+      {
+        $my['options']['remove_empty_nodes_of_type'] = 
+                $this->node_descr_id[$my['options']['remove_empty_nodes_of_type']];
+      }
+    }
+    
+
+    $exclude_branches = $my['filters']['exclude_branches'];
+    $exclude_children_of = $my['filters']['exclude_children_of'];  
       
       switch($my['options']['order_cfg']['type'])
       {
