@@ -94,6 +94,24 @@ All routes require an authenticated session; non-admin callers without
   keywords, platforms, requirements per the `optReq` checkbox, test
   specification, test plans, user roles). The dropdown is hidden in edit mode
   and the field is zeroed in edit PUTs so editing never triggers a copy.
+* **Notes column** (Ref #987): the list carries a **Notes** column right after
+  *Project Name*, showing the project description that legacy rendered at
+  `projectView.tpl:88,113-115` (`$testproject.notes`, `nl2br` when the project
+  editor is `none`). Newlines are preserved with `white-space: pre-line`, the
+  cell is clamped to 2 lines with the full text in its `title`, an empty project
+  shows `-`, and the value is HTML-escaped (legacy trusted the DB). The column
+  is sortable and gets a per-column filter box like the other
+  `{#SMART_SEARCH#}` columns. **No BFF change** was needed — `api/projects`
+  already returned `description` from `tp.notes`; the data was reaching the
+  browser and being dropped by the row builder.
+* **REST API id tooltip** (Ref #987): the name cell is prefixed with the legacy
+  `fa-cubes` icon (`projectView.tpl:104`) whose tooltip is
+  `API testproject/<id>` — legacy's `tlCfg->api->id_format` (`%s/%s`) with the
+  project service name.
+
+
+*Before #987 — 7 columns, no notes, no cube icon:*
+
 
 ## 4. i18n Keys
 
@@ -106,6 +124,9 @@ en, de, es, fr, it, ja, pt, ro, ru, zh. New in #640:
 irreversible deletion. Ref #991 adds `proj.eventHistory`
 ("Show event history"). Ref #989 adds `proj.copyFrom`
 ("Create from existing Test Project?") and `proj.noProject` ("-- No --").
+Ref #987 adds `proj.notes` ("Notes") for the list Notes column — a
+separate key from `proj.description` ("Description"), which labels the edit
+modal field; legacy's list header is `th_notes` = "Notes".
 
 ## 5. Security
 
@@ -129,5 +150,6 @@ create-modal dropdown listing every project, copy via UI + via BFF with
 `copy_from_tproject_id`, clone verification (`cfield_testprojects` carried
 over), invalid source 400, no-copy regression, edit-mode hiding, payload
 `copy_from_tproject_id:0` on plain create, i18n coverage, Event Viewer clean.
-Screenshot: `docs/screenshots/issue-989-copy-from-project-modal.png`.
+
+
 

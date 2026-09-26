@@ -22877,3 +22877,61 @@ with a `responseText` fallback) and completing the code→i18n-key map with
 
 **Screenshots:** `docs/screenshots/issue-1623-launch-{ok,denied,notfound,ro}.png` and
 `issue-1623-print-anon.png` (anonymous hand-over to the modern print screen).
+
+## Suite 987
+
+**Task — Issue #987: Notes (description) column + API-id tooltip in projectsView list**
+
+**Scope** — legacy `gui/templates/dashio/project/projectView.tpl:88` (Notes
+header) / `:113-115` (Notes cell, `nl2br` when the project editor is `none`) and
+`:104` (`fa-cubes` icon titled `API {tlCfg->api->id_format}`) vs modern
+`gui/templates/projectsView.html`.
+
+**Preconditions**
+- App at `http://localhost:8082`, logged in as `admin`/`admin`.
+- `testprojects` seeded with 4 fixtures (the CI DB is a fresh import, table is
+  otherwise empty):
+
+  | id | name | prefix | notes | why |
+  |---|---|---|---|---|
+  | 6 | Fixture Alpha | AL | 2 lines, contains `<b>markup</b>`, `&` and a newline | `nl2br` parity + HTML escaping |
+  | 7 | Fixture Beta | BE | one short line | normal case |
+  | 8 | Fixture Gamma | GA | empty | empty-notes case |
+  | 9 | Fixture Delta | DE | 320 bytes (20× "Very long note. ") | truncation case |
+
+  ```sql
+  SELECT tp.id, nh.name, tp.prefix, tp.notes FROM testprojects tp
+    JOIN nodes_hierarchy nh ON nh.id = tp.id ORDER BY tp.id;
+  ```
+  Note: `testprojects.api_key` is UNIQUE **with a shared default** `0d8ab81d…`,
+  so any fixture INSERT must supply its own `api_key` or the 2nd row fails with
+  `Duplicate entry '0d8ab81d…'`. `nodes_hierarchy` in 2.0.1 has `node_type_id`,
+  not legacy `nodetype`.
+
+**Steps / expected / actual**
+
+| # | Steps | Expected | Actual | Result |
+|---|---|---|---|---|
+| 1 | Open `/gui/templates/projectsView.html`, read `#projectsTable thead th` | 8 columns incl. a `Notes` column placed right after `Project Name` | `["ID","Project Name","Notes","Prefix","Issue Tracker","Code Tracker","Status","Actions"]` | PASS |
+| 2 | Read the Notes cell of project #6 | Both lines visible (legacy `nl2br`), newlines preserved | `"Main regression project.\nSecond line of notes <b>with markup</b> & an ampersand."` | PASS |
+| 3 | Check computed style of the Notes cell | `white-space: pre-line` (the `nl2br` equivalent) | `whiteSpace: "pre-line"` | PASS |
+| 4 | Inspect #6's Notes DOM for a real `<b>` element | none — markup is escaped, not rendered | `hasRealBold: false`, `innerHTML` shows `&lt;b&gt;` | PASS |
+| 5 | Read the `title` attribute of #6's Notes cell | full untruncated text | `"Main regression project.\nSecond line of notes <b>with markup</b> & an ampersand."` | PASS |
+| 6 | Compare `clientHeight` vs `scrollHeight` of #9's Notes cell | clamped to 2 lines (46px) with overflow hidden | `clientH 46 / scrollH 166`, `-webkit-line-clamp: 2`, `max-width 260px` | PASS |
+| 7 | Read the Notes cell of #8 (no notes) | placeholder, no empty/blank artifact | `::before` content is `"-"` | PASS |
+| 8 | Read `title` of the `fa-cubes` icon on each name cell | `API testproject/<id>` for every row | `API testproject/6`, `…/7`, `…/8`, `…/9` | PASS |
+| 9 | Type `one-liner` into the **Notes** column filter box | only #7 remains; clearing restores all 4 | `afterNotesFilter: ["#7"]`, `afterClear: ["#6","#7","#8","#9"]` | PASS |
+| 10 | Click the `Notes` header twice | sort asc/desc on notes content, empty notes first ascending | asc `["#8","#6","#7","#9"]`, desc `["#9","#7","#6","#8"]` | PASS |
+| 11 | Type `Gamma` in the global search box (`keyup`) | only #8 | `["#8"]` | PASS |
+| 12 | Type `regression` in the global search box | only #6 — notes text is now searchable | `["#6"]` | PASS |
+| 13 | Click the `Actions` header | no sorting (legacy `{#NOT_SORTABLE#}` on that cell) | no `aria-sort` on the th | PASS |
+| 14 | Click `Edit` on #6 | modal opens titled "Edit Test Project" with the description pre-filled | `modalTitle: "Edit Test Project"`, description field = the 2-line note | PASS |
+| 15 | Close the modal, click `Info` on #6 | project info popup opens (regression after the column realignment) | new tab `projectInfoView.html?tproject_id=6` opened | PASS |
+| 16 | Console + Event Viewer after the whole pass | no console errors, no new Error/Warning in `events` | 0 console errors; `events` holds only the login audit row (`log_level 16`) | PASS |
+
+**Note on the 2-line clamp** — legacy renders the notes in full. The modern grid
+clamps to 2 lines so one long note cannot blow up the row height, and keeps the
+complete text in the `title` attribute (steps 5/6). The clamp is a deliberate
+modernization decision, the `title` makes the legacy content fully reachable.
+
+**Result: 16/16 PASS.**
