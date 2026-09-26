@@ -32,9 +32,12 @@ screen reaches full parity.
   screen — a live control that can never do anything, since
   `applyBulkRole()` iterates an empty row set. `showDisabled()` now hides
   `.toolbar` exactly like the sibling `showNoAccess()` already did, while the
-  tab bar stays visible (legacy rendered its menu outside the guard). No BFF
-  change (the empty `projects` list was already correct) and no new
-  user-facing string, so no i18n bundle was touched. Verified on a fresh DB with
+  tab bar stays visible (legacy rendered its menu outside the guard), and the
+  demo banner is hidden together with it — the legacy `warn_demo` note lived
+  INSIDE that guard (`usersAssign.tpl:286-292`), so legacy rendered no demo
+  note at all in this state, which is also why `showNoAccess()` already hid
+  `#demoBanner`. No BFF change (the empty `projects` list was already correct)
+  and no new user-facing string, so no i18n bundle was touched. Verified on a fresh DB with
   a role holding ONLY `role_management` (BFF 200 + `projects:0`): every toolbar
   control is no longer rendered and the page reads title + tabs + notice, and
   the four neighbouring states are unchanged — admin normal state (toolbar,

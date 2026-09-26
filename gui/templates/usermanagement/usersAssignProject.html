@@ -281,7 +281,11 @@ function showDisabled() {
   // "Do" button stay on screen and can never act on anything
   // (applyBulkRole() over an empty row set). Same suppression as showNoAccess()
   // below; the tab bar stays visible because legacy kept its menu outside the
-  // guard.
+  // guard. The demo banner goes with it: the legacy warn_demo note lived INSIDE
+  // that guard (usersAssign.tpl:286-292), so legacy rendered no demo note at
+  // all in this state - showNoAccess() already hides #demoBanner for the same
+  // reason, and the two states must not disagree.
+  $('#demoBanner').hide();
   $('.toolbar').hide();
   $('#projectSelect').empty().prop('disabled', true);
   $('#assignTable').hide();

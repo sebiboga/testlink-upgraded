@@ -83,7 +83,7 @@ Your role configuration do not allow you Assign Roles for Test Projects
 
 ## The implementation
 
-One statement, as the first line of `showDisabled()`
+Two statements, at the top of `showDisabled()`
 (`gui/templates/usermanagement/usersAssignProject.html:272-283`):
 
 ```js
@@ -92,6 +92,7 @@ function showDisabled() {
   // "Set roles to" combo, Do button, grid and Save - lives inside ONE
   // {if $gui->features neq ''} ... {/if} block of the legacy template
   // (usersAssign.tpl:142 → :295). …
+  $('#demoBanner').hide();
   $('.toolbar').hide();
   $('#projectSelect').empty().prop('disabled', true);
   $('#assignTable').hide();
@@ -103,6 +104,12 @@ Deliberate decisions:
 
 * **`#tabsBar` stays visible.** Legacy rendered its menu *outside* the guard, so the
   user keeps the way back to the other User Management screens.
+* **`#demoBanner` is hidden as well** (added by the code review of this run): the legacy
+  `warn_demo` note sat *inside* the guard (`usersAssign.tpl:286-292`), so legacy rendered
+  no demo note in this state at all — and the sibling `showNoAccess()` already hid the
+  banner, so the two states could not disagree. Verified live in the combined state
+  (`demoMode=ON` **and** `projects: []`): banner NOT-RENDERED, toolbar NOT-RENDERED, only
+  the notice + the tab bar.
 * **The combo contents keep being built** (`buildBulkSelect()` still runs) — the issue
   is purely about the visibility of the controls, and the now-hidden `#projectSelect`
   is emptied + disabled anyway, so no state can leak into the next render.
@@ -120,6 +127,7 @@ Deliberate decisions:
 | b′ | bulk "Do" | `#bulkRoleSelect=3` → click Do | row selects `["0","3"]` — non-admin row takes role 3, admin row protected |
 | c | 403 no-access | `norights` (role 3) | deny box ON-SCREEN, no toolbar, no tabs — `showNoAccess()` untouched |
 | d | demoMode | `admin` + `applyDemoMode()` | only Save is swapped for the `warn_demo` note; the form stays visible — legacy parity (tpl:286-292) |
+| d′ | demoMode **and** no assignable project | `rolemgr` with `config.inc.php` `demoMode = ON` | banner NOT-RENDERED, toolbar NOT-RENDERED, notice + tab bar only — legacy rendered no `warn_demo` in this state |
 | e | no test projects at all | `admin` on the fresh DB | same suppressed toolbar + notice; legacy takes the same branch (`usersAssign.php:52`, `:122-127`) |
 
 Also verified: stable across a hard reload, `node --check` clean on the extracted
