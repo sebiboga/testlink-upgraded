@@ -143,23 +143,61 @@ chk "PUT with foreign Origin + proof -> 405" 405 "$(code -b $JAR -H 'Origin: htt
 chk "GET stays 200 (safe read-only verb)" 200 "$(code -b $JAR -H 'Origin: https://evil.invalid' "$API?action=log&type=requirement_version&id=$REQ1_V1&tproject_id=$TPROJECT")"
 chk "safe GET still works after CSRF attempts" 200 "$(code -b $JAR "$API?action=log&type=requirement_version&id=$REQ1_V1&tproject_id=$TPROJECT")"
 
-echo "=== 8. legacy shims (session bootstrap + 302) ==="
+echo "=== 8. legacy shims: escaped fragment for XHR, 302 for a browser ==="
+# The legacy Ext.ToolTip call sites are still live and autoLoad these URLs, and
+# Ext injects the response BODY as HTML - so an XHR caller must get a FRAGMENT,
+# never a redirect (which would dump the whole modern page into the tooltip)
+# and never the raw unescaped blob (the legacy XSS).
+frag(){ curl -s -b $JAR -H "X-Requested-With: XMLHttpRequest" "$1"; }
 shim(){ curl -s -b $JAR -o /dev/null -w '%{redirect_url}' "$1"; }
+
+F1=$(frag "$BASE/lib/ajax/getreqspeclog.php?item_id=$SPEC_REV2")
+contains "XHR getreqspeclog returns a fragment" "tlLogFragment" "$F1"
+absent "XHR fragment is not a document" "DOCTYPE" "$F1"
+absent "XHR fragment carries no <html>" "<html" "$F1"
+absent "XHR fragment carries no <script> of its own" "<script" "$F1"
+absent "XHR fragment ESCAPES the script tag (legacy XSS closed)" "<script>alert" "$F1"
+contains "XHR fragment escapes angle brackets" "&lt;script&gt;" "$F1"
+contains "XHR fragment keeps newlines as <br />" "<br />" "$F1"
+contains "XHR fragment keeps the ampersand escaped" "&amp;" "$F1"
+chk "XHR getreqspeclog on the EMPTY revision -> empty fragment" "" "$(frag "$BASE/lib/ajax/getreqspeclog.php?item_id=$SPEC_EMPTY_REV1")"
+F2=$(frag "$BASE/lib/ajax/getreqlog.php?item_id=$REQ1_V1")
+contains "XHR getreqlog returns a fragment" "tlLogFragment" "$F2"
+contains "XHR getreqlog escapes the ampersand" "&amp;" "$F2"
+F3=$(frag "$BASE/lib/ajax/getreqlog.php?item_id=$REQ2_REV")
+contains "XHR getreqlog revision fragment" "tlLogFragment" "$F3"
+absent "XHR getreqlog fragment carries no <script>" "<script" "$F3"
+chk "XHR getreqlog scopes out a foreign project" "" "$(frag "$BASE/lib/ajax/getreqspeclog.php?item_id=$SPEC_ALT_REV1&tproject_id=$TPROJECT")"
+F4=$(frag "$BASE/lib/ajax/getreqlog.php?item_id=$REQ1_V1&tproject_id=$ALT")
+chk "XHR getreqlog scopes out a foreign project" "" "$F4"
+
 SH1=$(shim "$BASE/lib/ajax/getreqspeclog.php?item_id=$SPEC_REV2")
-contains "getreqspeclog -> 302 Location modern screen" "/gui/templates/requirements/logViewer.html?type=requirement_spec_version&id=$SPEC_REV2" "$SH1"
+contains "browser getreqspeclog -> 302 to the modern screen" "logViewer.html?type=requirement_spec_version&id=$SPEC_REV2" "$SH1"
 SH2=$(shim "$BASE/lib/ajax/getreqlog.php?item_id=$REQ1_V1&tproject_id=$TPROJECT")
-contains "getreqlog version -> 302" "type=requirement_version&id=$REQ1_V1" "$SH2"
-contains "getreqlog forwards tproject_id" "tproject_id=$TPROJECT" "$SH2"
+contains "browser getreqlog -> 302 requirement_version" "type=requirement_version&id=$REQ1_V1" "$SH2"
+contains "browser getreqlog forwards tproject_id" "tproject_id=$TPROJECT" "$SH2"
 SH3=$(shim "$BASE/lib/ajax/getreqlog.php?item_id=$REQ2_REV")
-contains "getreqlog revision -> 302 requirement" "type=requirement&id=$REQ2_REV" "$SH3"
-SH4=$(shim "$BASE/lib/ajax/getreqlog.php?item_id=$SPEC_REV2")
-contains "getreqlog spec row -> requirement (404 by design)" "type=requirement&id=$SPEC_REV2" "$SH4"
+contains "browser getreqlog revision -> 302" "type=requirement_version&id=$REQ2_REV" "$SH3"
+SH4=$(shim "$BASE/lib/ajax/getreqspeclog.php?item_id=$REQ1_V1&tproject_id=$TPROJECT")
+contains "browser getreqspeclog scopes a foreign project -> 302 anyway (BFF answers)" "type=requirement_spec_version&id=$REQ1_V1" "$SH4"
 AN1=$(curl -s "$BASE/lib/ajax/getreqspeclog.php?item_id=$SPEC_REV2")
 contains "anon getreqspeclog -> login.php note=expired" "login.php?note=expired" "$AN1"
 AN2=$(curl -s "$BASE/lib/ajax/getreqlog.php?item_id=$REQ1_V1")
 contains "anon getreqlog -> login.php note=expired" "login.php?note=expired" "$AN2"
-absent "anon shim leaks no log text" "Version 1 of" "$AN1$AN2"
+AN3=$(curl -s -H "X-Requested-With: XMLHttpRequest" "$BASE/lib/ajax/getreqlog.php?item_id=$REQ1_V1")
+contains "anon XHR getreqlog -> login.php note=expired" "login.php?note=expired" "$AN3"
+absent "anon shim leaks no log text" "Version 1 of" "$AN1$AN2$AN3"
 absent "getreqlog has no discarded duplicate query" 'SELECT id FROM nodes_hierarchy' "$(sed -n '40,50p' lib/ajax/getreqlog.php)"
+# The legacy Ext.ToolTip consumers must keep existing and must keep pointing here.
+for tpl in reqSpecCompareRevisions reqSpecViewRevision include/reqSpecViewJS.inc \
+            reqViewVersions reqViewRevisionRO reqCompareVersions; do
+  f="gui/templates/dashio/requirements/$tpl.tpl"
+  if [ -f "$f" ]; then
+    if grep -q "Ext.ToolTip" "$f" && grep -qE "lib/ajax/(getreqlog|getreqspeclog)\.php\?item_id=" "$f"; then
+      ok "legacy tooltip consumer $tpl.tpl still served as a fragment"
+    else no "legacy tooltip consumer $tpl.tpl lost its Ext.ToolTip contract"; fi
+  else no "legacy tooltip consumer $tpl.tpl missing"; fi
+done
 
 echo "=== 9. static checks: BFF ==="
 S=api/logviewer/index.php
