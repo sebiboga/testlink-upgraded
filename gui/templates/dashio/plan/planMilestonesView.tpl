@@ -45,7 +45,12 @@ var del_action=fRoot+'{$deleteAction}';
 
 <div class="workBack">
 	{if $gui->items != "" && null != $gui->items}
-		<table class="common" width="100%">
+		{* table id MUST BE item_view: DataTables.inc.tpl is included above with
+		   DataTablesSelector="#item_view", so the page-length menu, global search,
+		   column sorting and the record counter only appear when this id is present.
+		   thead/tbody are mandatory for DataTables to build its column model. *}
+		<table class="{#item_view_table#}" id="item_view">
+		<thead class="{#item_view_thead#}">
 		<tr>
 			<th>{$labels.th_name}</th>
 			<th>{$labels.th_date_format}</th>
@@ -57,9 +62,10 @@ var del_action=fRoot+'{$deleteAction}';
 			{else}
 				<th>{$labels.th_perc_testcases}</th>
 			{/if}
-			<th>{$labels.th_delete}</th>
+			<th data-orderable="false" class="icon_cell">{$labels.th_delete}</th>
 		</tr>
-
+		</thead>
+		<tbody>
 		{foreach item=milestone from=$gui->items}
 		<tr>
 			<td>
@@ -95,6 +101,7 @@ var del_action=fRoot+'{$deleteAction}';
   				</td>
 		</tr>
 		{/foreach}
+		</tbody>
 		</table>
 
 		{if $gui->itemsLive != "" && null != $gui->itemsLive}
