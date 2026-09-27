@@ -4,11 +4,15 @@
  *
  * bffSameOriginGuard() is the central CSRF defense-in-depth for every
  * non-safe verb (POST/PUT/DELETE/PATCH/...): a request is only accepted
- * when it carries proof of same-origin, i.e. one of:
- *   - header X-Requested-With: XMLHttpRequest (jQuery $.ajax same-origin,
- *     dropzone and fetch() wrappers all send it), or
- *   - an Origin / Referer whose host+port authority matches HTTP_HOST.
- * Anything else gets 403 JSON. Safe verbs (GET/HEAD/OPTIONS) pass through.
+ * when it carries proof of same-origin, evaluated in this order:
+ *   1. an Origin / Referer whose host+port authority matches HTTP_HOST
+ *      (authoritative - set by the browser, cannot be forged by page JS);
+ *   2. otherwise, and ONLY when the browser sent neither header, an
+ *      X-Requested-With: XMLHttpRequest hint (jQuery $.ajax same-origin,
+ *      dropzone and fetch() wrappers all send it).
+ * A present-but-foreign Origin/Referer is always rejected - the XRW hint
+ * never overrides it (issue #1679). Anything else gets 403 JSON.
+ * Safe verbs (GET/HEAD/OPTIONS) pass through.
  *
  * This complements (does not replace) session auth and per-route rights:
  * it blocks cross-site "confused deputy" requests riding the victim's
@@ -75,12 +79,15 @@ function bffSameOriginGuard() {
         return;
     }
 
-    $xrw = trim((string)($_SERVER['HTTP_X_REQUESTED_WITH'] ?? ''));
-    if (strcasecmp($xrw, 'XMLHttpRequest') === 0) {
-        return;
-    }
-
+    // Refs #1679: Origin/Referer are validated FIRST. The X-Requested-With
+    // shortcut used to short-circuit before either header was read, so a
+    // request carrying a FOREIGN Origin was accepted as same-origin and the
+    // authoritative signal was unreachable. XRW is only a hint (any client can
+    // set it, browser page JS cannot), Origin is the authoritative signal, so
+    // XRW now acts solely as the fallback for the same-origin fetch/XHR case
+    // where the browser sent neither header.
     $host = bffAuthority($_SERVER['HTTP_HOST'] ?? '');
+    $sawAuthority = false;
     foreach (array('HTTP_ORIGIN', 'HTTP_REFERER') as $hdr) {
         $val = trim((string)($_SERVER[$hdr] ?? ''));
         if ($val === '') {
@@ -90,10 +97,22 @@ function bffSameOriginGuard() {
         if ($authority === '') {
             continue;
         }
+        $sawAuthority = true;
         if ($host !== '' && strcasecmp($authority, $host) === 0) {
             return;
         }
         bffRejectForbidden();
+    }
+
+    // An Origin/Referer was present but none of them matched: reject instead of
+    // falling through to the XRW fallback.
+    if ($sawAuthority) {
+        bffRejectForbidden();
+    }
+
+    $xrw = trim((string)($_SERVER['HTTP_X_REQUESTED_WITH'] ?? ''));
+    if (strcasecmp($xrw, 'XMLHttpRequest') === 0) {
+        return;
     }
 
     bffRejectForbidden();
