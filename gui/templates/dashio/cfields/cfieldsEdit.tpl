@@ -24,7 +24,11 @@ This is done to simplify logic.
 {config_load file="input_dimensions.conf" section=$cfg_section}
 
 {$managerURL="lib/cfields/cfieldsEdit.php"}
-{$viewAction="lib/cfields/cfieldsView.php"}
+{* Refs #957: the legacy lib/cfields/cfieldsView.php controller was retired;
+   the modern screen took over. Note $viewAction is currently unused in this
+   template (the Cancel button below hardcodes its own href) — kept pointing at
+   a live path so it cannot rot into a dead reference. *}
+{$viewAction="gui/templates/cfields/cfieldsView.html?tproject_id={$gui->tproject_id}"}
 
 {lang_get s='warning_delete_cf' var="warning_msg" }
 {lang_get s='delete' var="del_msgbox_title" }
@@ -211,7 +215,7 @@ This is done to simplify logic.
                   <input class="{#BUTTON_CLASS#}" type="button" 
                          name="cancel" id="cancel" 
                          value="{$labels.btn_cancel}"
-                         onclick="javascript: location.href=fRoot+'lib/cfields/cfieldsView.php';" />
+                         onclick="javascript: location.href=fRoot+'gui/templates/cfields/cfieldsView.html?tproject_id={$gui->tproject_id}';" />
 
                   {if $buttonGroupLayout == "form-group"}
                     </div>
