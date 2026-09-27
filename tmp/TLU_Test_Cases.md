@@ -24326,3 +24326,119 @@ stdClass::$tproject_id` / `::$tplan_id` at `reqSpecEdit.tpl` lines 203/205 — #
 already-migrated `get_metrics()` has the same schema drift but 0 callers — #1657. The
 Postgres installer creates `req_specs_revisions_uidx1` on the wrong table `req_revisions`,
 so `(parent_id,revision)` uniqueness is not enforced on PostgreSQL — #1659.
+
+---
+
+## Suite 1660 — Reorder Test Cases screen (`tcReorder.html`) + `api/tcreorder` BFF
+
+Modernization of the Reorder Test Cases feature: the legacy ExtJS
+test-specification tree's drag-and-drop / reorder toolbar
+(`lib/testcases/listTestCases.php` + `gui/templates/dashio/testcases/tcTree.tpl`,
+backend `lib/ajax/dragdroptprojectnodes.php`).
+
+**Fixture** (`tmp/fixtures_1660.php`, re-runnable): project A `69` (root suite
+`70` with 5 test cases, nested suite `86` with 2, empty suite `93`, test plan
+node `94`), project B `95` (suite `96` with 2 test cases), users `reonorights`
+(global role 3 = *no rights*) and `reoviewonly` (project `mgt_view_tc`), both
+with password `reo1660`.
+
+### A. Rendering and data contract
+
+| # | Case | Expected | Result |
+|---|---|---|---|
+| A1 | Load with a valid project + container | Header shows project name **and** prefix, container name, criterion, count | PASS — `REO1660 (RE1)`, `REO1660 Root Suite`, `Name`, `5` |
+| A2 | Container selector lists the project root + **every** suite in the project | 4 options | PASS — root, Empty, Nested, Root Suite |
+| A3 | Rows show position, name, external id, 4 move buttons | 5 rows, ext ids 1-5 | PASS |
+| A4 | First row's *Move to top* / *Move up* are disabled | boundary-aware | PASS |
+| A5 | Last row's *Move down* / *Move to bottom* are disabled | boundary-aware | PASS |
+| A6 | Project prefix resolves (2.0.1 keeps it in `testprojects`) | `RE1` | PASS (was empty — fixed in `d927d4306`) |
+| A7 | No console messages on load | none | PASS |
+
+### B. Move
+
+| # | Case | Expected | Result |
+|---|---|---|---|
+| B1 | *Move down* on row 1 | swaps with row 2, toast, order re-read from the server | PASS — `Bravo, Alpha, Charlie, Delta, Echo` |
+| B2 | *Move to top* / *Move to bottom* | node reaches the boundary | PASS |
+| B3 | *Move up* / *Move down* at a boundary | `no_change`, no toast, no write | PASS |
+| B4 | Order survives a reload (persisted `node_order`) | same order after `init` | PASS |
+| B5 | Boundary button states update after a move | recomputed per row | PASS |
+
+### C. Sort
+
+| # | Case | Expected | Result |
+|---|---|---|---|
+| C1 | *Sort by external ID* opens a confirmation naming the criterion | modal text = `Reorder every test case of this container by External ID?` | PASS |
+| C2 | **Cancel** on the modal | modal closes, order unchanged, **no** request | PASS |
+| C3 | **Apply** | order becomes ascending by external id, criterion chip updates to `External ID` | PASS — `Charlie(1), Alpha(2), Echo(3), Bravo(4), Delta(5)` |
+| C4 | *Sort by name* | ascending by name | PASS |
+| C5 | Sorting an already-sorted container | `no_change` | PASS |
+| C6 | Invalid criterion | `400 bad_param` | PASS |
+
+### D. Container switching and empty states
+
+| # | Case | Expected | Result |
+|---|---|---|---|
+| D1 | Switch to the empty suite | `This container has no test cases.`, table hidden, count `0`, sort buttons disabled | PASS |
+| D2 | Switch to the project root | container label = project name, count `0` (no direct test cases) | PASS |
+| D3 | Switch to the nested suite | 2 rows, ext ids 6-7 | PASS |
+| D4 | Empty container state is localized | Romanian `Acest container nu conține cazuri de test.` | PASS |
+
+### E. Errors and rights
+
+| # | Case | Expected | Result |
+|---|---|---|---|
+| E1 | Unknown project `999999` | `Not found` state, content hidden | PASS |
+| E2 | Container from **another** project | `Access denied` | PASS (was silently retargeted — fixed in `d927d4306`) |
+| E3 | `reonorights` on every action | `403` + order provably intact | PASS — init/move/sort/reorder all 403 |
+| E4 | `reoviewonly` on every action | `403` + order intact | PASS |
+| E5 | Reorder button on `testSpec.html` hidden for a view-only user | `display:none` | PASS |
+| E6 | View-only user opening the screen by URL | `Access denied` state | PASS |
+| E7 | Anonymous `init` / `move` | `401 Not authenticated` | PASS |
+| E8 | `GET` on a write action | `405` | PASS |
+| E9 | Write without `X-Requested-With` | `403` CSRF guard | PASS |
+| E10 | Reorder a *partial* list | rejected, order intact | PASS |
+| E11 | Reorder a list with a foreign node id | `404 Node does not belong to this container` | PASS |
+| E12 | Reorder with a duplicate id | `400 Duplicate node ids` | PASS |
+| E13 | Reorder with a non-numeric id | `400 Node list must be numeric ids` | PASS |
+| E14 | Move a node that is not a child of the container | `404` | PASS |
+| E15 | Address a test plan node as the container | `404 Container is not a test suite` | PASS |
+| E16 | Unknown legacy feature on the `listTestCases` shim | `400` + plain-text reason | PASS |
+
+### F. Legacy surface retirement
+
+| # | Case | Expected | Result |
+|---|---|---|---|
+| F1 | Authenticated `GET` on `lib/ajax/dragdroptprojectnodes.php` | 302 → modern screen | PASS |
+| F2 | `POST` on the same endpoint | `405` JSON, **never** replays the mutation | PASS |
+| F3 | Authenticated `GET` on `lib/testcases/listTestCases.php?feature=edit_tc` | 302 → `testSpec.html` | PASS |
+| F4 | `feature=keywordsAssign` / `assignReqs` | 302 → the matching modern screen | PASS — all three targets return 200 |
+| F5 | **Anonymous** request on either shim | lands on the sign-in form with the original destination | PASS (was a 404 — fixed in `a8062fd4a`, #1662) |
+| F6 | Reorder popup opened from the `testSpec.html` button | new tab, `tproject_id` propagated, defaults to the project root | PASS |
+
+### G. i18n
+
+| # | Case | Expected | Result |
+|---|---|---|---|
+| G1 | Switch to Romanian | title, subtitle, all labels, empty message, footer translated | PASS — `Reordonare Cazuri de Test` / `Acest container nu conține cazuri de test.` |
+| G2 | `tcreo.*`, `footers.tcReorder`, `tspec.reorderTestCases*` in **all 10** bundles | present, JSON valid | PASS (`python3 -m json.tool` on each) |
+| G3 | No dead keys left behind | `tcreo.confirmReorder` removed from all 10 bundles after `doReorderAll()` was dropped | PASS |
+
+### H. Event Viewer
+
+| # | Case | Expected | Result |
+|---|---|---|---|
+| H1 | Full pass with a clean `events` baseline | **0** new rows | PASS after `22254e0ae` |
+| H2 | 1 289 rows of `E_WARNING Undefined global variable $dbprefix` from this endpoint | reported + fixed | PASS — #1663; table names now via `tlObjectWithDB::getDBTables()` |
+
+### Bugs found and fixed by this suite
+
+| Issue | Symptom | Fix |
+|---|---|---|
+| #1661 | 2.0.1 dropped `testproject_id` / `testcase_id` / `tcversion_id` / `testsuite_id` from `nodes_hierarchy` — **every** read was dead SQL; plus the default container 404'd, the suite selector was always empty, a no-op write reported `ok`, and a foreign container was silently retargeted | rebuilt on the real shape (`d927d4306`) |
+| #1662 | Both retired shims bounced anonymous users to a relative `login.php` → **404** | use `checkSessionValid()`'s own redirect (`a8062fd4a`) |
+| #1663 | `E_WARNING Undefined global variable $dbprefix` on every query — 1 289 event rows | `tlObjectWithDB::getDBTables()` (`22254e0ae`) |
+
+**Syntax gates:** `php -l` on `api/tcreorder/index.php`,
+`lib/ajax/dragdroptprojectnodes.php`, `lib/testcases/listTestCases.php`,
+`lib/functions/common.php` — all `No syntax errors detected`.
