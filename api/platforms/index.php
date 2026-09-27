@@ -203,10 +203,18 @@ if ($method === 'POST' && count($segments) === 0) {
     $plat = new stdClass();
     $plat->name = $name;
     $plat->notes = (string)($body['notes'] ?? '');
+    // Refs #1012: an absent flag is an unticked checkbox, and legacy stores 0 for it.
+    //   - init_args() (lib/platforms/platformsEdit.php:158-169) coerces the null of a
+    //     missing CB_BOOL to 0
+    //   - do_create() ($k2c, platformsEdit.php:260-269) defaults all three flags to 0
+    // tlPlatform::create() itself (tlPlatform.class.php:76-80) falls back to is_open=1 when
+    // the property is absent, but that branch is UNREACHABLE from the platformsEdit create
+    // path (do_create always assigns it). It is still LIVE for XML-RPC createPlatform
+    // (lib/api/xmlrpc/v1/xmlrpc.class.php:6909-6917 builds $plot without is_open) and for
+    // tlPlatform callers generally, so it must not leak into the REST create contract.
     $plat->enable_on_design = !empty($body['enable_on_design']) ? 1 : 0;
     $plat->enable_on_execution = !empty($body['enable_on_execution']) ? 1 : 0;
-    // legacy create() defaults is_open to 1 when not provided
-    $plat->is_open = array_key_exists('is_open', $body) ? (!empty($body['is_open']) ? 1 : 0) : 1;
+    $plat->is_open = !empty($body['is_open']) ? 1 : 0;
 
     try {
         $op = $mgr->create($plat);

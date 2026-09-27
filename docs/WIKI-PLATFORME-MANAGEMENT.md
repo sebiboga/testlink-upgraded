@@ -252,3 +252,76 @@ produce documentul ADODB_XML legacy (`<platforms><platform>…<is_open>`); buton
 **Export Platforms** din UI funcționează (HTTP 200); rutele surioare
 (list/create/delete) re-testate OK; Event Viewer fără erori noi.
 
+
+---
+
+## Task #1012 — Default-urile noii platforme trebuie să coincidă cu legacy
+
+**Ecran:** Platform Management (`gui/templates/platforms/platformsView.html`)
+
+### Simptom
+
+Platformele create din 2.0.1 se nășteau mereu cu toate cele trei flag-uri
+ACTIVE: `enable_on_design=1`, `enable_on_execution=1`, `is_open=1`. Legacy
+1.9.20 deschide formularul de creare cu toate cele trei căsuțe **debifate**.
+
+### Contractul legacy (măsurat, cu file:line)
+
+1. `lib/platforms/platformsEdit.php:364-378` `init_gui()` fixează explicit
+   `$gui->enable_on_design = 0; $gui->enable_on_execution = 0; $gui->is_open = 0;`
+2. `gui/templates/dashio/platforms/platformsEdit.tpl:60-77` randează
+   `checked` doar cu `{if $gui-><flag> eq 1}` ⇒ formularul de creare apare gol.
+3. `lib/platforms/platformsEdit.php:158-169` `init_args()` — o căsuță nebifată
+   lipsește din POST, `tlInputParameter::CB_BOOL` întoarce `null`, iar toate cele
+   trei sunt coerționate la `0`.
+4. `lib/platforms/platformsEdit.php:260-269` `do_create()` — `$k2c` are default
+   `'enable_on_design' => 0, 'enable_on_execution' => 0, 'is_open' => 0`.
+
+⇒ Legacy salvează **0/0/0**.
+
+### Abaterea din 2.0.1
+
+- `gui/templates/platforms/platformsView.html:304-306` `openCreate()` bifa toate
+  trei căsuțe (`prop('checked', true)`) ⇒ rând 1/1/1 în DB.
+- `api/platforms/index.php:208-209` — câmpul `is_open` lipsit din body primea
+  default **1**, iar comentariul care o explica („legacy create() defaults
+  is_open to 1") era **factual greșit**: el cita ramura `,1` din
+  `tlPlatform::create()` (`lib/functions/tlPlatform.class.php:76-80`), care este
+  **inaccesibil de pe calea de creare a lui `platformsEdit`** — `do_create()`
+  atribuie întotdeauna proprietatea prin `$k2c`, deci
+  `property_exists($platform,'is_open')` e mereu adevărat. BFF-ul re-expunea în
+  sursă a doua ramura a modelului ca comportament viu. Ramura respectivă
+  rămâne **activă** pentru XML-RPC `createPlatform`
+  (`lib/api/xmlrpc/v1/xmlrpc.class.php:6909-6917` construiește `$plot` fără
+  `is_open`), motiv pentru care corecția elimină default-ul doar din ruta REST și
+  nu atinge `tlPlatform::create()`.
+
+### Corecția
+
+- `openCreate()` bifează acum `false` pentru toate trei (cu referință la sursa
+  legacy în comentariu). Modalul de **editare** rămâne neatins: acolo
+  `editPlat()` trebuie să continue să reflecte valorile stocate.
+- BFF-ul tratează un flag absent ca `0`, exact ca pe celelalte două.
+
+Este o schimbare de **default**, nu de coerție: cine bifează toate trei tot
+primește 1/1/1, iar flag-urile unei platforme existente nu sunt atinse niciodată.
+Nu e necesară nicio cheie i18n (niciun șir nou afișat utilizatorului).
+
+### Verificare
+
+| Caz | Așteptat | Măsurat | Verdict |
+|---|---|---|---|
+| Creare, toate nebifate | 0/0/0 | `{onDesign:false, onExec:false, isOpen:false}`; DB `Solaris 0 0 0` | PASS |
+| Creare, doar *Open for Execution* | 0/0/1 | DB `LinuxOpenOnly 0 0 1` | PASS |
+| Creare, toate bifate | 1/1/1 | DB `WinAllOn 1 1 1` | PASS |
+| Editare platformă existentă | reflectă valorile stocate | `WinAllOn` 1/1/1; după debifarea *On Design* → 0/1/1 | PASS |
+| `POST /` fără flag-uri | 0/0/0 (înainte: 0/0/1) | `{"status":"ok","id":6}`; DB `OmitFlagsAfterFix 0 0 0` | PASS |
+| Toggle-uri rapide `PUT /{id}/flags` | funcționează | 3× `{"status":"ok"}`; DB 1/1/1 → 0/1/1 | PASS |
+| Nume gol la creare | eroare inline | `Empty platform name is not allowed` | PASS |
+| Ștergere | rândul dispare | listă `(3)` | PASS |
+| Event Viewer | 0 rânduri noi ERROR/WARNING | doar `(log_level 16, count 1)` = `audit_login_succeeded` | PASS |
+| Consolă browser | fără erori JS | fără erori | PASS |
+
+Suita de teste: **16/16 PASS** (`tmp/TLU_Test_Cases.md`, secțiunea
+„Task — Issue #1012"). `node --check` + `php -l` curate.
+

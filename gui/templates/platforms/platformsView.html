@@ -301,9 +301,14 @@ function openCreate() {
   $('#editPlatId').val('');
   $('#editPlatName').val('');
   $('#editPlatNotes').val('');
-  $('#editOnDesign').prop('checked', true);
-  $('#editOnExec').prop('checked', true);
-  $('#editIsOpen').prop('checked', true);
+  // Refs #1012: legacy init_gui() (lib/platforms/platformsEdit.php:364-378) hard-codes
+  // all three flags to 0 and platformsEdit.tpl:60-77 renders them with
+  // `{if $gui-><flag> eq 1} checked {/if}`, so a NEW platform's form is fully
+  // unchecked and do_create() stores 0/0/0. Pre-checking here stored 1/1/1.
+  // editPlat() below is deliberately left reflecting the STORED values.
+  $('#editOnDesign').prop('checked', false);
+  $('#editOnExec').prop('checked', false);
+  $('#editIsOpen').prop('checked', false);
   $('#evHistoryWrap').hide();
   $('#platModalError').hide();
   $('#platModalTitle').text(TLi18n.t('pl.createPlatform'));

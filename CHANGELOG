@@ -17,6 +17,28 @@ Every screen of the application was ported one-by-one in a screen-compare
 kept for backward compatibility and is progressively retired as each modern
 screen reaches full parity.
 
+- [FEATURE GAP] - #1012: new platforms created from the modern Platform Management screen were
+  stored with the WRONG defaults. Legacy 1.9.20 renders the create form with all three flag
+  checkboxes UNCHECKED - `init_gui()` hard-codes `$gui->enable_on_design = 0;
+  $gui->enable_on_execution = 0; $gui->is_open = 0;` (lib/platforms/platformsEdit.php:364-378) and
+  platformsEdit.tpl:60-77 gates `checked` on `{if $gui-><flag> eq 1}`, so `do_create()` persists
+  0/0/0. The modern `openCreate()` pre-checked all three
+  (gui/templates/platforms/platformsView.html:304-306), so every platform created in 2.0.1 was
+  silently born enabled for design, enabled for execution and open. The BFF carried the same gap
+  in a second place: `api/platforms/index.php:208-209` defaulted an omitted `is_open` to **1**,
+  citing `tlPlatform::create()`'s `,1` fallback (tlPlatform.class.php:76-80) - but that branch is
+  UNREACHABLE from the platformsEdit create path, because `do_create()` always assigns the
+  property via its `$k2c` map (platformsEdit.php:260-269) and `init_args()` already coerces a
+  missing checkbox's `null` to 0 (:158-169). It is still LIVE for XML-RPC `createPlatform`
+  (lib/api/xmlrpc/v1/xmlrpc.class.php:6909-6917 builds `$plot` with no `is_open`) and for
+  `tlPlatform` callers generally, so it must not leak into the REST create contract. Fix: the create modal now opens with the three flags unchecked (the EDIT modal is
+  untouched - it must keep showing the stored values), and the BFF treats an absent flag as 0,
+  exactly like the other two. This is a default change only, not a coercion: a user who ticks the
+  boxes still gets 1/1/1, and an existing platform's flags are never altered. No i18n key needed
+  (no new user-facing string). Regression suite 1012: 16/16 PASS, `node --check` + `php -l` clean,
+  no JS errors in the console (one pre-existing unrelated a11y notice), Event Viewer 0 new
+  ERROR/WARNING rows. (Refs #1012)
+
 - [FEATURE GAP] - #1676: the modern Assign Test Plan Roles screen (and its test-project twin) never
   showed a user's first/last names when the admin-settable `$tlCfg->username_format`
   (config.inc.php:757-764) omitted `%first%`/`%last%` (the four tokens `getDisplayName()` knows are

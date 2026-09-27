@@ -20114,7 +20114,7 @@ branch sebiboga; real GitHub Contents API, no token), testplan 2, suite 3, `SED1
   field" issue); all three PHP files lint-clean.
 - **Actual:** PASS — events hold only 16/AUDIT rows (ids 4,5,7,8 = script add/delete events); console clean; `php -l` clean.
 
-**Result: 15/15 PASS.** (Refs #1574)
+**Result: 16/16 PASS.** (Refs #1574)
 
 ## Suite 965 — Task — Issue #965: Per-type configuration template loader (getCfgTemplate) in issuetrackerView (Refs #965)
 
@@ -22561,7 +22561,7 @@ explicitly asked for `tplan_id = 0`.
 | 14 | browser console `error` + `warn` for the whole pass | none | `<no console messages found>` | **PASS** |
 | 15 | `php tmp/repro_1607.php mismatch` — the `doc_id` Line-995 warning | unchanged by this fix (separate caller-side defect) | 3× `Undefined array key "doc_id" - Line 995` before **and** after | **PASS** (no behaviour change) |
 
-**Result: 15/15 PASS.** The primary symptom (row 3) and the discriminating
+**Result: 16/16 PASS.** The primary symptom (row 3) and the discriminating
 no-leak proof (row 7) both flipped from FAIL to PASS; every control stayed
 byte-identical.
 
@@ -25444,3 +25444,77 @@ concurrently on one machine.
 | JSON body + `X-Requested-With` | `200 {"status":"ok","id":12}` | passed |
 | JSON body, no XRW (browser `Origin` only) | `409 warning_duplicate_build` | passed |
 | form-encoded + `X-Requested-With` | `400 Invalid test plan id` | passed |
+
+---
+
+## Task — Issue #1012: new-platform defaults must match legacy in platformsView (design/exec/open pre-checks)
+
+**Preconditions**
+
+- App at `http://localhost:8082`, logged in as `admin` / `admin` (role_id 8 = admin, keeps
+  `platform_management`).
+- Freshly imported DB ships **0** `testprojects`, **0** `nodes_hierarchy` and **0** `platforms`
+  rows, so a fixture is required (the DB is recreated on every run). Fixture used below
+  (`tmp/fixtures_1012.sql`):
+
+  ```sql
+  INSERT INTO testprojects (id, notes, prefix, color, active)
+    VALUES (1001, 'fixture project for #1012', 'FIX1012', '#4ECDC4', 1);
+  INSERT INTO nodes_hierarchy (id, parent_id, node_type_id, name, node_order)
+    VALUES (1001, 0, 1, 'FixProj1012', 1);
+  UPDATE users SET default_testproject_id = 1001 WHERE id = 1;
+  ```
+
+  **Gotcha:** both rows must share the SAME id — `testproject::getName()`
+  (`lib/functions/testproject.class.php:4540-4548`) JOINs `testprojects.id = nodes_hierarchy.id`,
+  so mismatched ids make `tproject.name` come back `null` and the header renders
+  `null - Platform Management`.
+
+- Screen under test: `/gui/templates/platforms/platformsView.html?tproject_id=1001`.
+- Legacy reference for the ported behaviour: `lib/platforms/platformsEdit.php:364-378`
+  `init_gui()` (hard-codes the three flags to 0), `:158-169` `init_args()` (coerces the `null` of
+  a missing `CB_BOOL` to 0), `:260-269` `do_create()` (`$k2c` defaults all three to 0),
+  `gui/templates/dashio/platforms/platformsEdit.tpl:60-77` (`{if $gui-><flag> eq 1} checked {/if}`).
+
+**Steps, expected behavior, actual result**
+
+| # | Step | Expected | Actual result | Verdict |
+|---|---|---|---|---|
+| 1012-1 | Open the screen, click **Create Platform** | all three checkboxes **unchecked**, as in the legacy create form | `evaluate_script` → `{onDesign:false, onExec:false, isOpen:false}` | PASS |
+| 1012-2 | Type `Solaris`, leave all three unticked, **Save**; read the DB | row `enable_on_design=0, enable_on_execution=0, is_open=0` (0/0/0) | DB row: `3 Solaris 0 0 0` | PASS |
+| 1012-3 | **Create Platform** again | the grid shows 3 toggle buttons described `Inactive (click to set active)` | a11y snapshot: all three buttons `description="Inactive (click to set active)"` | PASS |
+| 1012-4 | **Create Platform**, tick ONLY *Open for Execution*, name `LinuxOpenOnly`, **Save** | 0/0/1 — proves the fix is a default, not a coercion | DB row: `4 LinuxOpenOnly 0 0 1` | PASS |
+| 1012-5 | **Create Platform**, tick ALL THREE, name `WinAllOn`, **Save** | 1/1/1 — ticking still works | DB row: `5 WinAllOn 1 1 1` | PASS |
+| 1012-6 | Click `WinAllOn` → modal prefill | 1/1/1 (the EDIT path must still show the stored values) | `{title:"Edit Platform: WinAllOn", onDesign:true, onExec:true, isOpen:true}` | PASS |
+| 1012-7 | Untick *On Design*, **Save**; re-open the modal | DB 0/1/1 | DB row: `5 WinAllOn 0 1 1` | PASS |
+| 1012-8 | Open `Solaris` (a 0/0/0 platform) for editing | 0/0/0 — no create-time default leaks into the edit form | `{name:"Solaris", onDesign:false, onExec:false, isOpen:false}` | PASS |
+| 1012-9 | `POST /api/platforms/index.php` with the three flags **omitted** from the body | 0/0/0 (legacy `do_create()` `$k2c`); pre-fix this stored `is_open=1` | `{"status":"ok","id":6}`; DB row: `6 OmitFlagsAfterFix 0 0 0` | PASS |
+| 1012-10 | `PUT /api/platforms/index.php/6/flags` for each of the three fields with `value=1` | all three flip on, list reloads | three `{"status":"ok"}`; DB row: `0 1 1` → then `1 1 1` → after untoggling design `0 1 1` | PASS |
+| 1012-11 | **Create Platform** with an empty name, **Save** | inline error `Empty platform name is not allowed`, no row created | inline error shown; list count unchanged | PASS |
+| 1012-12 | Delete `LinuxOpenOnly` via the row's delete button → **Delete** | row removed, list count drops to `(3)` | count `(3)`; `4 LinuxOpenOnly` gone from the DB | PASS |
+| 1012-13 | Event Viewer / `events` table after the whole pass | no new Error/Warning rows | `select log_level,count(*) from events group by log_level` → only `(16, 1)`, which is the `audit_login_succeeded` row from the initial login; **0** new rows | PASS |
+| 1012-14 | Browser console after the whole pass | no JS errors from `openCreate()` / `savePlat()` | no errors logged (only the unrelated pre-existing a11y `issue` about a form field without an id) | PASS |
+| 1012-15 | i18n | no new user-facing string, so no locale bundle edited and none broken | at the time of the browser pass `git status --short` showed only `api/platforms/index.php` + `gui/templates/platforms/platformsView.html` as code changes (the later commit additionally adds `CHANGELOG`, `docs/`, `tmp/TLU_Test_Cases.md`, the screenshot); `node --check` on the extracted inline script OK; `php -l api/platforms/index.php` OK | PASS |
+| 1012-16 | **Code-review static regression** of the two callers that reach `tlPlatform::create()` WITHOUT going through this endpoint: (a) `POST /` as a user lacking `platform_management`; (b) the platform **import** of a file carrying no `<is_open>` | (a) 403 `No permission`; (b) imported row `is_open=0` — both unchanged by this fix | (a) the `canManage()` gate is untouched at `api/platforms/index.php:189-192` and fires *before* the changed line; (b) `api/platformsimport/index.php:544-545` always assigns `$item->is_open` (`property_exists(...) ? intval(...) : 0`) before calling `$mgr->create($item)`, so the import never reaches the `,1` fallback and is unaffected (regression harness `tmp/verify_1632.sh` case `HarnessNoIsOpen` still expects 0). `lib/api/xmlrpc/v1/xmlrpc.class.php:6909-6917` is likewise untouched and keeps its `,1` behaviour | PASS |
+
+**Result: 16/16 PASS.**
+
+**Note on the second, less visible half of the gap.** The pre-fix BFF commented
+*"legacy create() defaults is_open to 1 when not provided"*. That cited
+`tlPlatform::create()`'s own `,1` fallback (`lib/functions/tlPlatform.class.php:76-80`), which is
+**unreachable from the platformsEdit create path** — `do_create()` always assigns the property
+via `$k2c`, so `property_exists($platform,'is_open')` is always true. It remains **live** for
+XML-RPC `createPlatform` (`lib/api/xmlrpc/v1/xmlrpc.class.php:6909-6917` builds `$plot` without
+`is_open`), which is why the fix removes the default from the REST route only and leaves
+`tlPlatform::create()` itself untouched. The BFF had re-exposed that dead
+model-layer branch as live API behaviour (case 1012-9). The comment was factually wrong as well
+as the behaviour.
+
+**Re-test one-liner (RESUME):**
+```bash
+mysql -h 127.0.0.1 -utestlink -ptestlink testlink < tmp/fixtures_1012.sql
+# open http://localhost:8082/gui/templates/platforms/platformsView.html?tproject_id=1001
+# as admin/admin -> Create Platform -> all three checkboxes must be UNCHECKED
+mysql -h 127.0.0.1 -utestlink -ptestlink testlink -e \
+  "select id,name,enable_on_design,enable_on_execution,is_open from platforms order by id;"
+```
