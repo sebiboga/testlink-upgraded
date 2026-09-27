@@ -45,6 +45,7 @@
   "assign.inheritedRoleHint": "このロールはユーザーのグローバルロールから継承されています。",
   "assign.inheritedRoleOption": "<継承> {role}",
   "assign.noOverride": "-- 上書きなし --",
+  "assign.overrideClearedRole": "継承の {role} に戻す",
   "assign.noRights": "この機能にアクセスするための十分な権限がありません。",
   "assign.noRole": "-- ロールなし --",
   "assign.noUsablePlans": "このテストプロジェクトに利用できるテスト計画はありません",

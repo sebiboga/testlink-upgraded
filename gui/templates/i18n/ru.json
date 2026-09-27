@@ -45,6 +45,7 @@
   "assign.inheritedRoleHint": "Эта роль унаследована из глобальной роли пользователя.",
   "assign.inheritedRoleOption": "<унаследована> {role}",
   "assign.noOverride": "-- без переопределения --",
+  "assign.overrideClearedRole": "вернуться к унаследованной роли {role}",
   "assign.noRights": "У вас недостаточно прав для доступа к этой функции.",
   "assign.noRole": "-- без роли --",
   "assign.noUsablePlans": "Нет доступных тестовых планов для этого тестового проекта",
