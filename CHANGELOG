@@ -30,8 +30,9 @@ screen reaches full parity.
   value and every test-project link will be removed, which is exactly what
   `remove_all_scopes_values()` / `unlink_from_testproject()` do (`cfield_mgr.class.php:1451-1463`).
   On confirm it calls the already-existing `DELETE /api/cfields/{id}` and reloads both tables. No
-  BFF change was needed. 4 new i18n keys (`cfa.deleteField`, `cfa.msg.confirmDelete`,
-  `cfa.msg.confirmDeleteInUse`, `cfa.msg.deleted`) in all 10 locales.
+  BFF change was needed. 3 new i18n keys (`cfa.msg.confirmDelete` with a `{name}` placeholder,
+  `cfa.msg.confirmDeleteInUse`, `cfa.msg.deleted`) in all 10 locales; the button label reuses the
+  pre-existing `common.delete` (the convention for a `.btn-red` Delete in a modal footer).
 
 - [FEATURE GAP] - #1651: the value-0 ("revert to inherited") option of every per-user role
   `<select>` in the Assign Test Plan Roles and Assign Test Project Roles screens lost the name of

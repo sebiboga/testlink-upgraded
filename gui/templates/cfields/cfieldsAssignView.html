@@ -163,7 +163,7 @@ table.dataTable tbody tr.selected-row td { background: #eefaf9; }
         <div id="modalError" style="color:#e6605e;font-size:12px;margin-top:8px;display:none;"></div>
       </div>
       <div class="modal-footer">
-        <button type="button" id="btnDeleteCf" class="btn-red" onclick="deleteCfFromModal()" style="font-size:13px;float:left;" data-i18n="cfa.deleteField">Delete</button>
+        <button type="button" id="btnDeleteCf" class="btn-red" onclick="deleteCfFromModal()" style="font-size:13px;float:left;" data-i18n="common.delete">Delete</button>
         <button type="button" class="btn btn-secondary" data-dismiss="modal" style="font-size:13px;" data-i18n="common.cancel">Cancel</button>
         <button type="button" class="btn-teal" onclick="saveCf()" style="font-size:13px;" data-i18n="common.save">Save</button>
       </div>
@@ -339,22 +339,29 @@ function esc(s) {
 
 // Delete from the edit modal ----------------------------------------------
 //
-// Legacy parity: cfieldsEdit.tpl:190-198 offered Update + Delete on the very
+// Legacy parity: cfieldsEdit.tpl:186-197 offered Update + Delete on the very
 // form the assign screen links to, and do_delete ran through
 // cfield_mgr::delete() (cfieldsEdit.php:395-413), which - when the field
 // already holds values - calls remove_all_scopes_values() first
 // (cfield_mgr.class.php:1451-1454). That cascade is irreversible, so the
-// confirmation names the field like the legacy warning_delete_cf did and, for
-// an in-use field, adds the explicit "stored values will be removed" warning.
+// confirmation names the field like the legacy warning_delete_cf did ("You are
+// going to delete: %s ... Are you sure?", locale/*/strings.txt) and, for an
+// in-use field, adds the explicit "stored values will be removed" warning.
+// The field name goes through the {name} placeholder rather than string
+// concatenation, so the quotes and the question mark stay inside the
+// translation instead of being hardcoded English punctuation.
 function deleteCfFromModal() {
   var id = $('#editCfId').val();
   if (!id) { return; }
   var name = editCfName || $('#editName').val();
-  var msg = TLi18n.t('cfa.msg.confirmDelete') + ' "' + name + '"?';
+  var msg = TLi18n.t('cfa.msg.confirmDelete', { name: name });
   if (editCfIsUsed) { msg += '\n\n' + TLi18n.t('cfa.msg.confirmDeleteInUse'); }
   if (!confirm(msg)) { return; }
 
-  var $btn = $('#btnDeleteCf').prop('disabled', true);
+  // Disable the whole footer, not just Delete: a Cancel click would dismiss the
+  // modal and park the error in a hidden #modalError, and a Save click would
+  // PUT a row that is being deleted.
+  var $btn = $('#btnDeleteCf, #cfModal .modal-footer button').prop('disabled', true);
   $.ajax({
     url: API + '/' + id, type: 'DELETE'
   }).done(function () {
@@ -369,7 +376,6 @@ function deleteCfFromModal() {
     var m = TLi18n.t('cf.msg.errorDelete');
     try { m = JSON.parse(xhr.responseText).message || m; } catch (e) {}
     $('#modalError').text(m).show();
-    toast(m, true);
   }).always(function () {
     $btn.prop('disabled', false);
   });
