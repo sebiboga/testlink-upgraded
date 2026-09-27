@@ -24165,3 +24165,127 @@ The two lists show the project's requirements for the chosen specification, with
   (`Unknown column 'RSPEC.scope' … get_all_in_testproject`) came from an **aborted line in the
   throwaway fixture**, not from the screen or the fix; that latent schema defect was filed
   separately as **#1656**.
+
+---
+
+## Regression — Issue #1656: `requirement_spec_mgr::get_all_in_testproject()` / `::get_by_title()` raise 1054 on the 2.0.1 `req_specs` schema
+
+**Precondition**
+
+* Fresh DB import; `php tmp/fixtures_1656.php` run from the repo root.
+  It creates test project **`TP1656`** (Requirements enabled) holding two requirement
+  specifications, so both a *single-revision* and a *multi-revision* spec are covered:
+
+  | spec | `req_specs.id` | `req_specs_revisions` | `node_order` |
+  |---|---|---|---|
+  | `SRS Alpha` | 21 | rev 1 (id 22) + rev 2 (id 23) | 10 |
+  | `SRS Beta`  | 24 | rev 1 (id 25)                | 20 |
+
+  The exact ids vary per import; every assertion resolves them by title.
+* Scripts: `tmp/repro_1656.php <step> <tproject_id>` (one process per step, because a
+  failing query `die()`s) and `tmp/verify_1656.php <tproject_id>` (the full matrix).
+* App at `http://localhost:8082`, login `admin`/`admin`.
+
+### A. Repro steps (PRE-FIX behaviour, recorded on base commit `09d030416`)
+
+1. `php tmp/repro_1656.php 1 <tproject_id>` — `get_all_in_testproject($tproject_id)`
+2. `php tmp/repro_1656.php 2 <tproject_id>` — same, with the `order_by` the legacy
+   reorder screen passes: `' ORDER BY NH.node_order,REQ_SPEC.id '`
+3. `php tmp/repro_1656.php 3 <tproject_id>` — `get_by_title('SRS Alpha', $tproject_id)`
+4. `php tmp/repro_1656.php 4 <tproject_id>` — `check_title('SRS Alpha', $tproject_id)`
+5. `php tmp/repro_1656.php 5 <tproject_id>` — `get_all_in_testproject(999999)` (a project
+   that has no specifications at all)
+6. Browser: `http://localhost:8082/lib/requirements/reqSpecEdit.php?doAction=reorder&tproject_id=<id>`
+7. `mysql … -e "select id,log_level,source,description from events where source='DATABASE'"`
+
+### B. Expected POST-FIX behaviour
+
+* Steps 1–5 all return normally: the full spec list / the matched spec / `null` for a
+  project without specs — and **no** `DB Access Error`.
+* The reorder screen renders the drag&drop tree listing every specification.
+* `events` gains **no** `source='DATABASE'` row.
+
+### C. ACTUAL result observed
+
+**PRE-FIX — every one of the 5 steps `die()`d and the browser showed a raw error page:**
+
+```
+=== 1. get_all_in_testproject(2) default ' ORDER BY title' ===
+ DB Access Error - debug_print_backtrace() OUTPUT START
+#0 lib/functions/database.class.php(789): database->exec_query('...', -1, -1)
+#1 lib/functions/requirement_spec_mgr.class.php(377): database->get_recordset('...')
+=== 3. get_by_title('SRS Alpha', 2) ===       -> die() @ requirement_spec_mgr.class.php:820
+=== 4. check_title('SRS Alpha', 2) ===         -> die() @ :820 <- get_by_title from :861
+=== 5. get_all_in_testproject(999999) ===      -> die() @ :377  (fault is in the SQL, not the data)
+```
+
+Browser (pre-fix): `document.body.innerText` of the reorder screen begins with
+`DB Access Error - debug_print_backtrace() OUTPUT START` and leaks the absolute repo path
+(CWE-200). Screenshot: `docs/screenshots/issue-1656-legacy-reorder-dberror.png`.
+
+`events`, 5 rows, `log_level=1`, `source=DATABASE`:
+
+```
+1054 - Unknown column 'RSPEC.scope' in 'SELECT'   (get_all_in_testproject, 2×)
+1054 - Unknown column 'RSPEC.scope' in 'SELECT'   (get_by_title,         2×)
+```
+
+**POST-FIX — `php tmp/verify_1656.php <tproject_id>` → 19 passed, 0 failed (exit 0):**
+
+| # | case | expected | observed | result |
+|---|---|---|---|---|
+| 1 | `get_all_in_testproject($tp)` default order | all specs | `count=2` | PASS |
+| 1b | every documented map key present (`id,testproject_id,doc_id,title,node_order,scope,total_req,type,author_id,creation_ts,modifier_id,modification_ts`) | none missing | `all present` | PASS |
+| 1c | titles resolve | `SRS Alpha` + `SRS Beta` | both present | PASS |
+| 2 | reorder `order_by ' ORDER BY NH.node_order,RSPEC.id '` | rows sorted by `node_order` | `node_order=10,20` | PASS |
+| 3 | `get_all_in_testproject(999999)` | `null`, no error | `NULL` | PASS |
+| 4 | `get_by_title('SRS Alpha')` | **latest** revision | `rev=2 scope=scope of SRS Alpha rev2` | PASS |
+| 5 | `get_by_title('SRS Beta')` | revision 1 | `revision 1` | PASS |
+| 6 | `get_by_title('No Such Spec')` | `null` | `null` | PASS |
+| 7 | `check_title('SRS Alpha')` duplicate | `status_ok=0` | `0` + "There's already a requirement with this title!" | PASS |
+| 8 | `check_title('Brand New Spec')` | `status_ok=1` | `1` + "ok" | PASS |
+| 9 | `create()` a new spec (exercises `check_title`→`get_by_title`) | `status_ok=1`, id > 0 | `id=26 msg=ok` | PASS |
+| 10a | `update()` rename (exercises `check_title`→`get_by_title`) | `status_ok=1` | `msg=ok` | PASS |
+| 10b | renamed spec resolves under its new title | map keyed by its id | found | PASS |
+| 11 | rename visible in `get_all_in_testproject` | 3 rows incl. new name | `SRS Alpha\|SRS Beta\|SRS Gamma Renamed` | PASS |
+| 12 | `node_order` still sorts after the rename | ascending | `10,20,30` | PASS |
+| 13 | `get_by_id(output=full)` — the already-migrated sibling — unchanged | title + latest rev | `title=SRS Alpha rev=2` | PASS |
+| 13b | `get_by_id(output=credentials)` still resolves the latest revision id | `revision_id > 0` | `revision_id=23` | PASS |
+| 14 | `delete()` removes the spec from the list | back to 2 rows | `count=2` | PASS |
+
+Non-regression proof for case 13: `git worktree add /tmp/opencode/base1656 09d030416`, then
+the same probe on both trees —
+
+```
+BASE    09d030416 : get_by_id(11,'credentials') = row with NO 'title' key ; get_by_id(11,'full') = title=SRS Alpha rev=2
+BRANCH  fix/issue-1656 : byte-identical output for both
+```
+
+(`output=credentials` never selects `title` — see the `switch` at
+`requirement_spec_mgr.class.php:193-206` — so asserting it was my test's error, not a
+regression. Case 13 was corrected to use `output=full`.)
+
+**POST-FIX, live browser:**
+
+* `reqSpecEdit.php?doAction=reorder&tproject_id=20` → `hasDBErr=false`,
+  tree items `["", "SRS Alpha", "SRS Beta"]`
+  → `docs/screenshots/issue-1656-legacy-reorder-fixed.png`
+* `reqSpecEdit.php?doAction=create&tproject_id=20` → filled the **real** legacy form
+  (`doc_id` / `title` / `scope`) and clicked **Create SRS** → *"Requirement Specification:
+  SRS Via Real UI was successfully created"*; `req_specs` row written, `req_specs_revisions`
+  row written, `audit_req_spec_created` audit event.
+* Submitted the same title **and** doc_id again → *"There's already a req. spec
+  (title:SRS Via Real UI) with this doc id (DOC-1656-UI)"* and `req_specs` still holds 4
+  rows — the duplicate was rejected, i.e. the uniqueness guard that used to `die()` is now
+  actually enforced.
+  → `docs/screenshots/issue-1656-srs-create-duplicate-rejected.png`
+* `select count(*) from events where source='DATABASE'` → **0**
+
+**Syntax gates:** `php -l lib/functions/requirement_spec_mgr.class.php`,
+`php -l lib/requirements/reqSpecCommands.class.php`, `php -l tmp/verify_1656.php` — all
+`No syntax errors detected`.
+
+**Known non-regression noise (PRE-EXISTING, unrelated to this diff, filed separately):**
+the legacy create screen render logs `E_WARNING Undefined property:
+stdClass::$tproject_id` / `::$tplan_id` at `reqSpecEdit.tpl` lines 203/205 — #1658. The
+already-migrated `get_metrics()` has the same schema drift but 0 callers — #1657.
