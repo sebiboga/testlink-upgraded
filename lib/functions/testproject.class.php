@@ -3460,7 +3460,9 @@ function _get_subtree_rec($node_id,&$pnode,$filters = null, $options = null) {
   
   foreach($rs as $row) {
   if(!isset($exclude_branches[$row['id']])) {  
-      $node = $row + array('node_table' => $this->tree_manager->node_tables_by['id'][$row['node_type_id']]);
+      // getNodeTable(): null for the two tableless pseudo node types
+      // (testcase_step, build) - see tree.class.php, Refs #1606
+      $node = $row + array('node_table' => $this->tree_manager->getNodeTable($row['node_type_id']));
       $node['childNodes'] = null;
 
       if($node['node_table'] == 'testcases') {

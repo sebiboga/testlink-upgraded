@@ -490,7 +490,9 @@ class tree extends tlObject
         // of the parent of $node
         switch($format) {
           case 'full':
-            $row['node_table'] = $this->node_tables_by['id'][$row['node_type_id']];
+            // node_table: null for the two tableless pseudo node types, see
+            // getNodeTable() (Refs #1589, #1606)
+            $row['node_table'] = $this->getNodeTable($row['node_type_id']);
             $node_list[] = $row;
           break;    
             
@@ -612,7 +614,7 @@ class tree extends tlObject
     {
       if( !isset($exclude_node_types[$this->node_types[$row['node_type_id']]]))
       {
-        $node_table = $this->node_tables_by['id'][$row['node_type_id']];
+        $node_table = $this->getNodeTable($row['node_type_id']);
 
         $ak = is_null($my['opt']['accessKey']) ? $xdx : $row[$my['opt']['accessKey']];
         $node_list[$ak] = array('id' => $row['id'], 'parent_id' => $row['parent_id'],
@@ -968,10 +970,12 @@ class tree extends tlObject
         // Event Viewer noise (Refs #1589). Resolve defensively: for a pseudo
         // type - or an id neither array knows - node_table is null, which is
         // what $class_name (tree.class.php:31) already declares for them.
+        // The twin 'id' lookup is now resolved by the single resolver
+        // getNodeTable() (Refs #1606), so the two styles cannot drift again;
+        // $nodeTypeName is still needed below for the recursion guard.
         $nodeTypeName = isset($this->node_types[$row['node_type_id']])
                         ? $this->node_types[$row['node_type_id']] : '';
-        $node_table = isset($this->node_tables[$nodeTypeName])
-                        ? $this->node_tables[$nodeTypeName] : null;
+        $node_table = $this->getNodeTable($row['node_type_id']);
 
         
         switch($my['options']['output'])
@@ -1144,7 +1148,7 @@ class tree extends tlObject
                                'id' => $row['id'],
                                          'name' => $row['name'],
                                          'childNodes' => null,
-                                         'node_table' => $this->node_tables_by['id'][$row['node_type_id']],
+                                         'node_table' => $this->getNodeTable($row['node_type_id']),
                                          'node_type_id' => $row['node_type_id'],
                                          'node_order' => $row['node_order']);
                                   
@@ -1690,6 +1694,33 @@ class tree extends tlObject
     $sql .= $addJoin . $where;
     $rs = $this->db->fetchRowsIntoMap($sql,'id');
     return $rs;  
+  }
+
+  /**
+   * Resolve the row table of a node type, in ONE place.
+   *
+   * $node_types (tree.class.php:24) also holds the PSEUDO node types
+   * testcase_step (9) and build (12), which have NO row table, so neither
+   * $node_tables (the 'name' map) nor $node_tables_by['id'] (the 'id' map,
+   * built from it in the constructor) has a key for them: a raw
+   * $this->node_tables_by['id'][$nodeTypeId] raised one PHP 8 E_WARNING
+   * "Undefined array key 9" per testcase_step row, which watchPHPErrors turns
+   * into Event Viewer noise (Refs #1589 for the 'name' lookup, #1606 for the
+   * 'id' one). Every node_table resolution goes through here so the two lookup
+   * styles cannot drift apart again.
+   *
+   * @return string|null table name, or null for the two tableless pseudo types
+   *         and for an id neither map knows - the same contract $class_name
+   *         (tree.class.php:31) already declares for them, and exactly what
+   *         every consumer of node_table expects (they all compare it against
+   *         a table name).
+   */
+  function getNodeTable($node_type_id)
+  {
+    $nodeTypeId = intval($node_type_id);
+
+    return isset($this->node_tables_by['id'][$nodeTypeId])
+           ? $this->node_tables_by['id'][$nodeTypeId] : null;
   }
 
   /**

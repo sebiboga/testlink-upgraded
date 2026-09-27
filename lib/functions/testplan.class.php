@@ -4389,7 +4389,9 @@ class testplan extends tlObjectWithAttachments
       if(!isset($exclude_branches[$row['id']])) {  
         $node = $row + 
                 array('node_type' => $this->tree_manager->node_types[$row['node_type_id']],
-                      'node_table' => $this->tree_manager->node_tables_by['id'][$row['node_type_id']]);
+                      // getNodeTable(): null for the two tableless pseudo node
+                      // types (testcase_step, build) - Refs #1606
+                      'node_table' => $this->tree_manager->getNodeTable($row['node_type_id']));
         $node['childNodes'] = null;
         
         if($node['node_table'] == 'testcases') {
