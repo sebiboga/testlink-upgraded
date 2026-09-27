@@ -25271,55 +25271,148 @@ XW_SHORTCUT_FIXED=1 python3 tmp/suite_1677.py   # flip S9c to its post-#1679 exp
 # json:  python3 -m json.tool gui/templates/i18n/<lang>.json
 ```
 
-## Suite 1676 — Feature, Issue #1676: `usersAssignPlan.html` Name column must never hide the first/last names (legacy `usersAssign.tpl:242` parity)
+---
 
-**Precondition**
-```bash
-php tmp/fixtures_1676.php          # tproject AN1676 (id 1) + plan AN1676PLAN (id 2)
-                                    # + users an1676designer/Anna Designer, an1676leader/Lars Leader,
-                                    #   an1676tester/Tina Tester, an1676guest/Gus Guest
-# extra edge-case user with BOTH names empty:
-mysql -h 127.0.0.1 -utestlink -ptestlink testlink -e "INSERT INTO users
-  (login,password,email,first,last,locale,role_id,active,cookie_string,auth_method)
-  VALUES ('an1676noname','','an1676noname@localhost','','','en_GB',5,1,MD5(RAND()),'')"
+## Regression — Issue #1679: `api/_guard.php` `bffSameOriginGuard()` short-circuited on `X-Requested-With` BEFORE validating `Origin`/`Referer` (101 BFF endpoints)
+
+**Executable suite:** `python3 tmp/suite_1679.py` → **20/20 PASS, exit 0** (re-runs the whole matrix unattended).
+
+### Precondition
+- TestLink 2.0.1 at `http://localhost:8082` (PHP built-in server, docroot = repo root), DB `testlink@127.0.0.1:3306/testlink`.
+- Authenticated as `admin`/`admin`. The suite logs in itself via the modern form fields (`tl_login`/`tl_password`) and **proves** the session is real: the auth probe must reach business logic, never `{"code":"unauthenticated"}`.
+- Endpoints exercised: `api/ltx/index.php` (representative guarded route), `api/tcassignments/index.php`, `api/builds/index.php` (real write route).
+
+### Root cause being regression-tested
+`api/_guard.php:78-81` (pre-fix) returned success the instant it saw `X-Requested-With: XMLHttpRequest`, **before** the `HTTP_ORIGIN`/`HTTP_REFERER` loop at `:83-97`, making the authoritative same-origin signal dead code whenever XRW was present. `api/_guard.php` is the ONLY CSRF control in the BFF layer — 101 endpoints / 107 call sites, and `grep -rn HTTP_ORIGIN api/ | grep -v _guard.php` returns 0, so no endpoint compensates.
+
+### Repro steps (pre-fix)
 ```
-The `username_format` under test is the **admin-settable** `$tlCfg->username_format`
-(config.inc.php:756-764). Because it is read at include time, each variant is set by
-writing the gitignored override file (config.inc.php:2208 requires it last):
-```bash
-printf '%s\n' '<?php' '$tlCfg->username_format = "%login%";' > custom_config.inc.php   # variant
-rm -f custom_config.inc.php                                                              # default
+# authenticated cookie jar
+curl -s -c cj -o /dev/null http://localhost:8082/login.php
+curl -s -b cj -c cj -L -o /dev/null -d "tl_login=admin&tl_password=admin" http://localhost:8082/login.php
+
+B=http://localhost:8082/api/ltx/index.php
+# 1) the bug — foreign Origin rides in on the XRW hint
+curl -s -b cj -X POST "$B?action=init&item=exec" \
+     -H "X-Requested-With: XMLHttpRequest" -H "Origin: http://evil.example"
+# 2) the control — same request WITHOUT XRW is correctly rejected
+curl -s -b cj -X POST "$B?action=init&item=exec" -H "Origin: http://evil.example"
 ```
-Entry point: `http://localhost:8082/gui/templates/usermanagement/usersAssignPlan.html?tproject_id=1&tplan_id=2`
-(login `admin/admin`).
+**Observed pre-fix:** (1) `405 {"code":"method_not_allowed"}` — the guard ALLOWED a foreign-Origin request; (2) `403 …CSRF protection…`. The single differing header is the whole story.
 
-**Steps / expected / actual**
-
-| id | Step | Expected | Actual |
-|---|---|---|---|
-| `C1` | default `'%first% %last%'`, open the screen, read `#assignBody` cells 2+3 | `an1676designer` / `Anna Designer` — **no** `(Anna Designer)` duplication | **PASS** (byte-identical to pre-fix) |
-| `C2` | set `'%login%'`, reload, read the grid | `an1676designer` / `an1676designer (Anna Designer)` — legacy `login (first last)` visible | **PASS** (pre-fix: `an1676designer` / `an1676designer`) |
-| `C3` | `'%login%'`, row `admin` (stock `Testlink Administrator`) | `admin` / `admin (Testlink Administrator)` | **PASS** |
-| `C4` | set `'%email%'`, reload | `an1676guest` / `an1676guest@localhost (Gus Guest)` | **PASS** |
-| `C5` | `'%email%'`, row `admin` (no e-mail → empty display value) | `Testlink Administrator` — bare names, **no** leading `()` | **PASS** |
-| `C6` | set `'%first% %last% %login%'`, reload | `Tina Tester an1676tester` — both names already present, nothing appended | **PASS** |
-| `C7` | default format, row `an1676noname` (first **and** last empty) | Name cell empty, Login cell `an1676noname` (legacy `login ()` trimmed) | **PASS** |
-| `C8` | `'%login%'`, DataTables search `Lars` in the Name column | exactly the `an1676leader` row matches (the appended part is searchable, as the legacy fused cell was) | **PASS** |
-| `C9` | any format: sort the Name column, page with the entries selector, bulk "Do", Save | Name cells intact after every re-render, no duplicated names, save state unchanged | **PASS** (regression) |
-| `C10` | browser console after all reloads | no error/warn entries | **PASS** (`<no console messages found>`) |
-| `C12` | twin screen `usersAssignProject.html?tproject_id=1`, `'%login%'` | `an1676designer (Anna Designer)`, `admin (Testlink Administrator)` — the SHARED legacy `usersAssign.tpl:242` cell is restored on the test-project grid too | **PASS** |
-| `C13` | twin screen, default format + bulk "Do" → Save state | Name cells unchanged (`Anna Designer`), 5 rows flagged, Save enabled | **PASS** |
-| `C14` | plan screen, `'%login%'`: sort Name asc, bulk "Do" | sorted first cell `admin (Testlink Administrator)`, 5 rows flagged, Save enabled | **PASS** |
-| `C11` | Event Viewer / `events` table after the whole run | no new Error/Warning row | **PASS** (2 rows, both `log_level=16` audit: `audit_login_succeeded`, `audit_testproject_created`) |
-
-**Automated harness** — `tmp/suite_1676.py` re-runs the whole matrix: Part A evaluates the
-**shipped** `userNameCell()` of each screen (extracted from the HTML, not a copy) in node over 9
-format/edge combinations, Part B logs in over real HTTP and asserts the BFF contract for
-three formats, Part C asserts the twin screen ships the same helper through `esc()`. Result of
-this run: **32/32 PASS**.
-
-```bash
-python3 tmp/suite_1676.py
-# browser: admin/admin -> http://localhost:8082/gui/templates/usermanagement/usersAssignPlan.html?tproject_id=1&tplan_id=2
-# php -l api/roles/index.php ; node --check <inline script of usersAssignPlan.html>
+**The state-changing proof:** on a write route the bypassed request reaches business logic instead of being stopped:
 ```
+curl -s -b cj -X POST "http://localhost:8082/api/builds/index.php?action=create" \
+     -H "X-Requested-With: XMLHttpRequest" -H "Origin: http://evil.example"
+# pre-fix: 400 {"message":"Invalid test plan id"}   <- neither 403 nor 401: guard bypassed,
+#                                                      request dispatched to the create handler
+```
+
+### Expected post-fix behaviour
+A present-but-foreign `Origin`/`Referer` is ALWAYS rejected with 403, regardless of `X-Requested-With`. `X-Requested-With` survives only as the fallback for the same-origin fetch case where the browser sent neither header. All legitimate same-origin traffic — including real browser writes — must keep working.
+
+### Test matrix and actual results (all executed, all PASS)
+
+| ID | Case | Expected | Actual | Result |
+|---|---|---|---|---|
+| S1 | `POST` XRW + **foreign** `Origin` (ltx) | 403 CSRF | 403 CSRF | PASS |
+| S2 | `POST` XRW + **foreign** `Referer` (ltx) | 403 CSRF | 403 CSRF | PASS |
+| S3 | `api/tcassignments` XRW + foreign `Origin` | 403 CSRF | 403 CSRF | PASS |
+| S4 | `api/builds` XRW + foreign `Origin` — must NOT reach business logic | 403 CSRF | 403 CSRF | PASS |
+| S5.POST/PUT/DELETE/PATCH | every unsafe verb, XRW + foreign `Origin` | 403 CSRF | 403 CSRF ×4 | PASS |
+| S6 | `POST` XRW only (same-origin fetch) | allowed | 405 (route rejects) | PASS |
+| S7 | `POST` matching `Origin` | allowed | 405 (route rejects) | PASS |
+| S8 | `POST` matching `Referer`, no `Origin` | allowed | 405 (route rejects) | PASS |
+| S9 | `POST` XRW + `Origin: http://LOCALHOST:8082` (host case) | allowed | 405 (route rejects) | PASS |
+| S10 | `GET` no headers (`api/builds?tplan_id=2`) | 200 served | 200 | PASS |
+| S10b | `GET` no headers (ltx) | not 403 by the guard | 400 `build_id_not_set` | PASS |
+| S11 | `POST` no headers at all | 403 CSRF | 403 CSRF | PASS |
+| S12 | `POST` foreign `Origin`, no XRW | 403 CSRF | 403 CSRF | PASS |
+| S13 | `POST` XRW + `Origin: http://localhost:9999` (port mismatch) | 403 CSRF | 403 CSRF | PASS |
+| S14 | `POST` XRW + `Origin: http://evil.localhost:8082` (subdomain) | 403 CSRF | 403 CSRF | PASS |
+| S15 | `POST` XRW + `Origin: null` (sandboxed iframe w/o `allow-same-origin`) | 403 CSRF | 403 CSRF | PASS |
+| S16 | syntax gate `php -l api/_guard.php` | no syntax errors | No syntax errors | PASS |
+
+"allowed" cases land on `405 method_not_allowed` / `400 build_id_not_set` because the **route**, not the guard, is what rejects them — the point of the assertion is only that the guard did not answer 403.
+
+### Suite proven to actually detect the bug
+Temporarily restored the pre-fix `api/_guard.php` (`git show HEAD~1:api/_guard.php`) and re-ran:
+```
+9/20 PASS
+FAILED: S1, S2, S3, S4, S5.POST, S5.PUT, S5.DELETE, S5.PATCH, S13, S14, S15
+```
+The 11 failures are exactly the foreign-origin cases; restoring the fix returns 20/20. So the suite is a true regression test, not a tautology.
+
+### Live browser write (no false-positive risk)
+Logged in as `admin` in headless Chrome, loaded `tmp/fixtures_1677.sql` (tplan 2), then from the page:
+```js
+fetch('/api/builds/index.php', {method:'POST',
+  headers:{'Content-Type':'application/json','X-Requested-With':'XMLHttpRequest'},
+  body: JSON.stringify({tplan_id:2, name:'BROWSER-WRITE-1679'})})
+```
+→ `200 {"status":"ok","id":9}`. DevTools network panel shows the browser really sent `origin: http://localhost:8082` beside `host: localhost:8082` → authorities match → allowed. A second fetch **without** XRW also passed the guard (`409 warning_duplicate_build`, i.e. business validation, not a 403), proving the browser's own `Origin` alone suffices. `SELECT id,name FROM builds` → `9 | BROWSER-WRITE-1679`: the write persisted. **Legitimate traffic is unaffected.**
+
+### Sandbox / `Origin: null` risk assessment
+`grep -rhno 'sandbox="[^"]*"' gui/ lib/ api/ | sort | uniq -c` → the only value in the whole repo is `"allow-same-origin allow-popups allow-modals allow-downloads"` (5 occurrences: `printDocument.html`, `reqSpecPrintRevision.html`, `printReq.html`, `printTestDoc.html`, `tcPrint.html`). Because all 5 keep `allow-same-origin`, their requests carry a real `Origin` and are unaffected by the new `Origin: null` rejection (S15 asserts the rejection is *intended* for the unsafe case).
+
+### Event Viewer
+`SELECT count(*) FROM events WHERE log_level IN ('ERROR','WARNING','FATAL')` → **0** before the fix and **0** after — the fix introduces no Error/Warning entries. The only DB side effect of the suite is its own build row `BROWSER-WRITE-1679` (id 9).
+
+### RESUME
+```bash
+python3 tmp/suite_1679.py                    # 20/20 PASS, exit 0
+git show HEAD~1:api/_guard.php > api/_guard.php && python3 tmp/suite_1679.py   # 9/20 -> proves detection
+git checkout api/_guard.php                  # restore
+mysql -h 127.0.0.1 -utestlink -ptestlink testlink < tmp/fixtures_1677.sql       # fresh fixture (tplan 2)
+php -l api/_guard.php
+# browser: admin/admin -> any modernized screen that writes, e.g. Builds (api/builds)
+```
+
+### Suite grown to 28 cases after the mandatory code review
+
+A code-review subagent ran over the `api/_guard.php` diff and produced three changes to
+the landed code plus test hardening. Suite is now **28/28 PASS** (`python3 tmp/suite_1679.py`).
+
+| New case | What it locks in |
+|---|---|
+| S6b | form-encoded `POST` (the classic top-level CSRF vector) passes the guard — `api/builds` answers `400` because `getBody()` (`api/builds/index.php:52`) is JSON-only, which is an endpoint property, not a guard verdict |
+| S9b | `Host: localhost:80` + `Origin: http://localhost` (proxy leaves the scheme-default port on `Host`) → **allowed**. Review finding #3: without this the guard 403s every write on such a deployment |
+| S9c | `Origin: http://localhost:80` vs `Host: localhost:8082` → **403**. Guards against S9b over-normalising away a *real* port difference |
+| S17 | `Origin: file:///etc/passwd` → 403. Review finding #6: the present-but-unparseable case the (originally dead) `$sawAuthority` flag was meant to govern |
+| S18 | `Origin: about:blank` → 403 |
+| S19 | `Origin: not-a-url` (bare garbage) → 403 |
+| S20 | `Origin: http://localhost:8082@evil.example` (userinfo trick) → 403 |
+| S21 | `Origin: http://localhost:8082.evil.example` (host-suffix trick) → 403 |
+
+S6–S9 were also rewritten to assert a **real business verdict** (`409 warning_duplicate_build`
+from an actual `POST /api/builds/index.php` with the existing name `LTX Build 1`) rather than
+merely "not 403" — review finding #5: a `401`/`404`/`500` would have satisfied the old
+assertion, and these are precisely the no-false-positive cases.
+
+**Detection re-verified after the rewrite** (pre-fix guard in place):
+```
+[FAIL] S1  expected 403 CSRF   got 405 CSRF=False
+[FAIL] S2  expected 403 CSRF   got 405 CSRF=False
+[FAIL] S3  expected 403 CSRF   got 200 CSRF=False
+[FAIL] S4  expected 403 CSRF   got 400 CSRF=False
+```
+
+**Gotcha worth recording:** the first detection run reported a bogus **28/28 against the
+pre-fix guard**. Root cause was PHP opcache revalidation, not the test — the pre-fix file was
+written and the suite started within the same second, so the built-in server served stale
+opcodes and the suite silently re-tested the *fixed* code. Any "does my regression test still
+fail on the broken code?" check on a running PHP server must let the file sit for at least a
+second first (`sleep 3`). The RESUME block above does this.
+
+Also hardened per review finding #9: the response temp file is now per-PID
+(`/tmp/opencode/_s1679_<pid>.txt`), because the 5-workflow CI factory can run suites
+concurrently on one machine.
+
+**Event Viewer after the full review cycle:** `ERROR`/`WARNING`/`FATAL` count **0**.
+
+**Live browser re-verification after the review changes** (headless Chrome, `admin`, tplan 2):
+| Browser write | Response | Guard |
+|---|---|---|
+| JSON body + `X-Requested-With` | `200 {"status":"ok","id":12}` | passed |
+| JSON body, no XRW (browser `Origin` only) | `409 warning_duplicate_build` | passed |
+| form-encoded + `X-Requested-With` | `400 Invalid test plan id` | passed |
