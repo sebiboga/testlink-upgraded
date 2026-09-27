@@ -17,6 +17,21 @@ Every screen of the application was ported one-by-one in a screen-compare
 kept for backward compatibility and is progressively retired as each modern
 screen reaches full parity.
 
+- [FEATURE GAP] - #1651: the value-0 ("revert to inherited") option of every per-user role
+  `<select>` in the Assign Test Plan Roles and Assign Test Project Roles screens lost the name of
+  the role the user falls back to. Legacy `usersAssign.tpl:225-232` resolved `$ikx` (the effective
+  role when inherited, else the user's GLOBAL role via `uplayer_role_id`) and `usersAssign.tpl
+  :264-271` appended it to the id-0 option **unconditionally** — the `TL_ROLES_INHERITED` guard had
+  no `is_inherited` counterpart — so an explicitly-overridden row read "inherited leader" and a
+  `<no rights>` row on a private plan read "inherited test designer". Both modern screens only
+  interpolated the name for inherited rows and showed a bare "-- no override --" / "-- no role --"
+  for the rest. The BFF already shipped the resolved legacy `$ikx` as `inheritedRoleName`
+  (`api/roles/index.php:311-312, :789-790, :956-957`), so no API change was needed; the gap was
+  rendering-only. Both screens now interpolate it on the non-inherited branch via the new
+  `assign.overrideClearedRole` key (all 10 locale bundles), keeping the inherited branch's
+  "<inherited> <role>" wording and the bare labels as the fallback when no resolved name is
+  present. The bulk "set roles to" select stays undecorated, as in legacy `usersAssign.tpl:193-197`.
+
 - [FEATURE GAP] - #988: the modern Test Project Management screen lost the legacy
   "Requirement Feature" quick toggle. The legacy list carried a dedicated column
   (`gui/templates/dashio/project/projectView.tpl:92` + `:126-134`) whose only

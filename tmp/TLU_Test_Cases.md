@@ -23952,3 +23952,43 @@ the priority columns; a project whose blob is missing/corrupt must hide them.
   against an empty one" path that both compare screens expose.
 - Reviewing the Event Viewer is what caught #1654: the HTTP response was correct
   the whole time, so only the `events` table exposed the dead reads.
+
+## Task — Issue #1651: resolved-role name on the value-0 override option for non-inherited rows
+
+**Precondition** (freshly imported DB, `mysql -h 127.0.0.1 -utestlink -ptestlink testlink`):
+`tmp/fixtures_1651.sql` creates test project `1000` (public, prefix `I1651`, nodes 1000/2000/2001),
+test plan `2000` (public) and `2001` (private), users `2=an12designer` (global 4 = test designer),
+`3=an12guest` (global 5 = guest), `4=an12leader` (global 9 = leader), an explicit **plan** role
+`user_testplan_roles (4, 2000, 6)` (= senior tester) and an explicit **project** role
+`user_testproject_roles (4, 1000, 6)`. Log in as `admin` / `admin`. Default
+`testplan_role_inheritance_mode` = `testproject`.
+
+Screens: `gui/templates/usermanagement/usersAssignPlan.html` (values `tproject_id=1000`,
+`tplan_id=2000` / `2001`) and `gui/templates/usermanagement/usersAssignProject.html`
+(`tproject_id=1000`).
+
+| # | Area | Step | Expected | Result |
+|---|---|---|---|---|
+| 1 | payload | `GET /api/roles/meta/tplan-roles?tproject_id=1000&tplan_id=2000` | every item carries `inheritedRoleID` / `inheritedRoleName` = the resolved legacy `$ikx`; `an12leader` → `isInherited=0`, `inhName='leader'` | **PASS** — `planRole=6 eff=6 isInh=0 inhRoleID=9 inhName='leader'`; the other three `isInh=1` |
+| 2 | payload | same with `tplan_id=2001` (private) | non-admins collapse to `<no rights>` with `isInherited=0` but still expose the global role name | **PASS** — `an12designer eff=3 isInh=0 inhName='test designer'`, `an12guest inhName='guest'`, `an12leader inhName='leader'` |
+| 3 | plan screen | `?tproject_id=1000&tplan_id=2000`, read `options[0].text` of every row `<select>` | inherited rows keep `<inherited> <role>`; the explicitly-overridden row names its fallback | **PASS** — `admin`→`<inherited> admin`, `an12designer`→`<inherited> test designer`, `an12guest`→`<inherited> guest`, `an12leader`→`revert to inherited leader` (was `-- no override --`) |
+| 4 | plan screen | `?tplan_id=2001` (private ⇒ `<no rights>` rows) | `<no rights>` rows name the role the user falls back to | **PASS** — `revert to inherited test designer` / `… guest` / `… leader` (were `-- no override --`) |
+| 5 | project screen | `usersAssignProject.html?tproject_id=1000`, `options[0].text` per row | inherited rows unchanged; explicit project role 6 row names its fallback | **PASS** — `an12leader`→`revert to inherited leader` (was `-- no role --`), the other three keep `<inherited> <role>` |
+| 6 | bulk select | read `#bulkRoleSelect` `options[0].text` on both plans | **unchanged** `-- no override --` — legacy `usersAssign.tpl:193-197` does not decorate it | **PASS** — `bulkFirst: "-- no override --"` on `tplan_id=2000` and `2001` |
+| 7 | save round-trip | plan `2000`, set the `an12leader` select (`data-role=6`) to `0`, click `#saveBtn` | the `user_testplan_roles` row is deleted; the row re-renders with the inherited label | **PASS** — `select * from user_testplan_roles` became empty; the row re-rendered `<inherited> senior tester` (the plan now inherits the explicit **project** role 6) and the Save button re-disabled |
+| 8 | i18n | parse all 10 bundles, read `assign.overrideClearedRole` | key present in all 10, each with a `{role}` placeholder, all 10 files valid JSON | **PASS** — `en de es fr it ja pt ro ru zh` all present, all contain `{role}`, all valid |
+| 9 | i18n live | set `users.locale='ro_RO'` for `admin`, reload the plan screen | Romanian label interpolated with the role name | **PASS** — `revino la mostenit leader` on the explicit row, `<mostenit> test designer` on an inherited one; locale restored to `en_GB` |
+| 10 | syntax gate | `node --check` on the inline `<script>` of both screens | both parse | **PASS** — `block 0 OK` for `usersAssignPlan.html` and `usersAssignProject.html` |
+| 11 | console | load both screens, list console `error` + `warn` messages | no new messages | **PASS** — `<no console messages found>` |
+| 12 | Event Viewer | `select … from events where log_level>0` after the whole suite | no new `log_level IN (1,2)` (Error/Warning) row | **PASS** — 3 rows total, all `log_level=16` (2 × login audit, 1 × `Test plan roles updated for plan #2000`) |
+
+### Notes
+
+- The value-0 option is a **label-only** change: the `value` stays `0`, so the save payload and the
+  `not_authorized_user` / `changed` row markers are untouched. Test #7 proves the round-trip.
+- Step #7's `<inherited> senior tester` is the 3-layer model working, not a wrong name: the user's
+  explicit *project* role 6 now reaches plan 2000 through
+  `testplan_role_inheritance_mode=testproject`, and the inherited branch deliberately shows the
+  **effective** role (legacy `$ikx = effective_role_id` when `is_inherited == 1`).
+- The role name itself stays the raw `roles.description` (`leader`, not a localized string): that is
+  `tlRole::getDisplayName()`'s legacy behaviour, so only the surrounding wording is translated.
