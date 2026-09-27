@@ -5174,5 +5174,6 @@
   "logv.charCount": "{count} caracteres exibidos ({raw} bytes armazenados)",
   "footers.logViewer": "TestLink 2.0.1 - Mensagem de registo",
   "logv.openFull": "Abrir registo completo",
-  "logv.specDocId": "Doc ID da especificação"
+  "logv.specDocId": "Doc ID da especificação",
+  "logv.accessDeniedTitle": "Acesso negado"
 }

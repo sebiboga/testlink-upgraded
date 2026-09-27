@@ -32,14 +32,12 @@
  *                 / foreign project | 405 non-GET | 500 guarded.
  * Machine codes mirror the other BFFs: NOT_AUTHENTICATED, NOT_PERMITTED,
  * UNKNOWN_ACTION, UNKNOWN_TYPE, INVALID_ID, INVALID_TPROJECT_ID, NOT_FOUND,
- * METHOD_NOT_ALLOWED.
+ * METHOD_NOT_ALLOWED, plus db_error and internal_error for a failed
+ * query / a fatal outside the try block.
  */
 
 require_once(__DIR__ . '/../../config.inc.php');
 require_once('common.php');
-require_once(__DIR__ . '/../../lib/functions/requirements.inc.php');
-require_once(__DIR__ . '/../../lib/functions/requirement_mgr.class.php');
-require_once(__DIR__ . '/../../lib/functions/requirement_spec_mgr.class.php');
 
 doSessionStart();
 
@@ -148,7 +146,7 @@ if ($action === '') {
     lvError(400, 'Missing action', 'UNKNOWN_ACTION');
 }
 if ($action !== 'log') {
-    lvError(400, 'Unknown action: ' . $action, 'UNKNOWN_ACTION');
+    lvError(400, 'Unknown action', 'UNKNOWN_ACTION');
 }
 
 // ------------------------------------------------------------- params ----
@@ -162,7 +160,7 @@ if ($type === '') {
     lvError(400, 'Missing type', 'UNKNOWN_TYPE');
 }
 if (!isset($typeMap[$type])) {
-    lvError(400, 'Unknown type: ' . $type, 'UNKNOWN_TYPE');
+    lvError(400, 'Unknown type', 'UNKNOWN_TYPE');
 }
 
 $id = isset($_REQUEST['id']) ? trim((string)$_REQUEST['id']) : '';
@@ -223,7 +221,7 @@ if ($type === 'requirement_spec_version') {
         lvError(404, 'Node not found', 'NOT_FOUND');
     }
     if (intval($nh[0]['node_type_id']) !== $expectedNodeType) {
-        lvError(404, 'Node ' . $id . ' is not a ' . $type, 'NOT_FOUND');
+        lvError(404, 'Node is not of the requested type', 'NOT_FOUND');
     }
 
     if ($type === 'requirement_version') {
@@ -263,7 +261,7 @@ if ($type === 'requirement_spec_version') {
         );
     } else {
         $row = $db->get_recordset(
-            "SELECT RR.id, RR.revision, RR.req_doc_id, RR.name, RR.log_message " .
+            "SELECT RR.id, RR.revision, RR.log_message " .
             " FROM req_revisions RR WHERE RR.id = " . $id);
         if (empty($row)) {
             lvError(404, 'Requirement revision not found', 'NOT_FOUND');

@@ -5168,5 +5168,6 @@
   "logv.charCount": "{count} caratteri mostrati ({raw} byte memorizzati)",
   "footers.logViewer": "TestLink 2.0.1 - Messaggio di log",
   "logv.openFull": "Apri il log completo",
-  "logv.specDocId": "Doc ID specifica"
+  "logv.specDocId": "Doc ID specifica",
+  "logv.accessDeniedTitle": "Accesso negato"
 }

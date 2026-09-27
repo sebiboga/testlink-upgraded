@@ -52,6 +52,8 @@ td.log-cell { max-width: 340px; cursor: help; }
 td.log-cell .log-open { color: #4ECDC4; font-size: 12px; margin-left: 6px;
   cursor: pointer; }
 td.log-cell .log-open:hover { color: #22242a; }
+td.log-cell .log-open { text-decoration: none; }
+td.log-cell .log-open:focus-visible { outline: 2px solid #22242a; outline-offset: 2px; }
 #logTooltip { display: none; position: fixed; z-index: 9999; max-width: 500px;
   background: #22242a; color: #fff; border: 1px solid #4ECDC4; border-radius: 6px;
   padding: 8px 12px; font-size: 12px; line-height: 1.55;
@@ -258,17 +260,25 @@ function bindLogTooltips() {
     // standalone viewer (was impossible with the legacy hover-only Ext.ToolTip).
     .on('click.logtip', '.log-open', function(e) {
       e.stopPropagation();
+      e.preventDefault();
       openLogViewer($(this).data('item-id'));
     });
 }
 
 // Refs #1652 - open the modern log-message viewer in a popup window.
-function openLogViewer(itemId) {
-  if (!itemId || parseInt(itemId, 10) <= 0) { return; }
+// Refs #1652 - the URL is also emitted as a real href on each icon, so the
+// affordance survives with JS disabled and is reachable by keyboard and screen
+// reader (a bare <i> was click-only and aria-hidden).
+function logViewerUrl(itemId) {
   var q = 'type=requirement_version&id=' + encodeURIComponent(itemId);
   if (TPROJECT_ID > 0) { q += '&tproject_id=' + encodeURIComponent(TPROJECT_ID); }
+  return '/gui/templates/requirements/logViewer.html?' + q;
+}
+
+function openLogViewer(itemId) {
+  if (!itemId || parseInt(itemId, 10) <= 0) { return; }
   var w = Math.floor(window.innerWidth * 0.7), h = Math.floor(window.innerHeight * 0.7);
-  window.open('/gui/templates/requirements/logViewer.html?' + q,
+  window.open(logViewerUrl(itemId),
     'logviewer_requirement_version_' + itemId,
     'width=' + w + ',height=' + h + ',resizable=yes,scrollbars=yes,toolbar=yes');
 }
@@ -294,8 +304,10 @@ function verRow(it, isRight, isLeft) {
     '<td class="log-cell" data-item-id="' + it.item_id + '">' + escapeHtml(logDisp) +
       // Refs #1652 - the legacy tip4log() tooltip was hover-only; add the
       // modern standalone log viewer as an explicit action on the same cell.
-      '<i class="fa fa-external-link log-open" data-item-id="' + it.item_id +
-        '" title="' + TLi18n.t('logv.openFull') + '" aria-hidden="true"></i></td>' +
+      '<a class="fa fa-external-link log-open" data-item-id="' + it.item_id +
+        '" href="' + escapeHtml(logViewerUrl(it.item_id)) + '" target="logviewer_requirement_version_' + it.item_id +
+        '" rel="noopener" title="' + escapeHtml(TLi18n.t('logv.openFull')) +
+        '" aria-label="' + escapeHtml(TLi18n.t('logv.openFull')) + '"></a></td>' +
     // Refs #1309 - legacy reqCompareVersions.tpl:228-230 renders the Last change
     // cell as a link (onclick openReqRevisionWindow(item_id)); restore the
     // clickable cell opening the modern revision viewer (reqRevisionView.html),

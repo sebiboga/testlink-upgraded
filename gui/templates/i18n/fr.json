@@ -5168,5 +5168,6 @@
   "logv.charCount": "{count} caractères affichés ({raw} octets stockés)",
   "footers.logViewer": "TestLink 2.0.1 - Message de journal",
   "logv.openFull": "Ouvrir le journal complet",
-  "logv.specDocId": "Doc ID de spécification"
+  "logv.specDocId": "Doc ID de spécification",
+  "logv.accessDeniedTitle": "Accès refusé"
 }

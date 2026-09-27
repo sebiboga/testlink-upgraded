@@ -45,7 +45,8 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 .rev-log-tip .log-ico { color: #888; font-size: 13px; }
 .rev-log-tip .log-ico:hover { color: #3498db; }
 /* Refs #1652 - explicit link to the standalone modern log viewer. */
-.rev-log-tip .log-open { color: #4ECDC4; font-size: 12px; cursor: pointer; }
+.rev-log-tip .log-open { color: #4ECDC4; font-size: 12px; cursor: pointer; text-decoration: none; }
+.rev-log-tip .log-open:focus-visible { outline: 2px solid #22242a; outline-offset: 2px; }
 .rev-log-tip .log-open:hover { color: #22242a; }
 #logTooltip { display: none; position: fixed; z-index: 9999; max-width: 500px;
   background: #22242a; color: #fff; border: 1px solid #4ECDC4; border-radius: 6px;
@@ -400,9 +401,13 @@ function renderOverview(r) {
       // log was unreachable on touch devices and could not be copied. Add the
       // modern standalone viewer as an explicit "open" action on the same row.
       (s.revision_id > 0
-        ? '<i class="fa fa-external-link log-open" aria-hidden="true" data-rev-id="' +
+        ? '<a class="fa fa-external-link log-open" href="' +
+            escapeHtml(logViewerUrl(String(s.revision_id), 'requirement_spec_version')) +
+            '" target="logviewer_requirement_spec_version_' +
+            escapeHtml(String(s.revision_id)) + '" rel="noopener" data-rev-id="' +
             escapeHtml(String(s.revision_id)) + '" title="' +
-            TLi18n.t('logv.openFull') + '"></i>'
+            escapeHtml(TLi18n.t('logv.openFull')) + '" aria-label="' +
+            escapeHtml(TLi18n.t('logv.openFull')) + '"></a>'
         : '') +
     '</span>');
   $('#vType').html('<span class="badge-type">' + escapeHtml(s.type_label || s.type) + '</span>');
@@ -746,17 +751,25 @@ function bindRevLogTooltip() {
     // standalone viewer (was impossible with the legacy hover-only Ext.ToolTip).
     .on('click.logtip', '.log-open', function(e) {
       e.stopPropagation();
+      e.preventDefault();
       openLogViewer($(this).data('rev-id'), 'requirement_spec_version');
     });
+}
+
+// Refs #1652 - the URL is also emitted as a real href on each icon, so the
+// affordance survives with JS disabled and is reachable by keyboard and screen
+// reader (a bare <i> was click-only and aria-hidden).
+function logViewerUrl(itemId, type) {
+  var q = 'type=' + encodeURIComponent(type) + '&id=' + encodeURIComponent(itemId);
+  if (TPROJECT_ID > 0) { q += '&tproject_id=' + encodeURIComponent(TPROJECT_ID); }
+  return '/gui/templates/requirements/logViewer.html?' + q;
 }
 
 // Refs #1652 - open the modern log-message viewer in a popup window.
 function openLogViewer(itemId, type) {
   if (!itemId || parseInt(itemId, 10) <= 0) { return; }
-  var q = 'type=' + encodeURIComponent(type) + '&id=' + encodeURIComponent(itemId);
-  if (TPROJECT_ID > 0) { q += '&tproject_id=' + encodeURIComponent(TPROJECT_ID); }
   var w = Math.floor(window.innerWidth * 0.7), h = Math.floor(window.innerHeight * 0.7);
-  window.open('/gui/templates/requirements/logViewer.html?' + q, 'logviewer_' + type + '_' + itemId,
+  window.open(logViewerUrl(itemId, type), 'logviewer_' + type + '_' + itemId,
     'width=' + w + ',height=' + h + ',resizable=yes,scrollbars=yes,toolbar=yes');
 }
 

@@ -239,6 +239,20 @@ for s in reqSpecView reqSpecCompare reqCompare; do
   contains "$s renders the open icon" "log-open" "$(cat $f)"
   contains "$s targets the logViewer screen" "requirements/logViewer.html" "$(cat $f)"
 done
+# Review: the open affordance must be a real focusable link, not a bare <i>
+# (click-only, aria-hidden, unreachable by keyboard/screen reader, and on touch
+# the only path to the log since the hover tooltip does not exist there).
+for s2 in reqSpecView reqSpecCompare reqCompare; do
+  f="gui/templates/requirements/$s2.html"
+  contains "$s2 renders a real <a href> affordance" "'<a class=\"fa fa-external-link log-open\"" "$(cat $f)"
+  contains "$s2 gives the affordance an href" "logViewerUrl(" "$(cat $f)"
+  contains "$s2 gives the affordance an aria-label" "aria-label=\"' +" "$(cat $f)"
+  contains "$s2 gives the affordance a focus ring" "log-open:focus-visible" "$(cat $f)"
+  contains "$s2 blocks the anchor default" "e.preventDefault();" "$(cat $f)"
+  absent "$s2 affordance is not aria-hidden" "log-open\" data-item-id=\"' + rev.item_id +
+        '\" title=\"' + TLi18n.t('logv.openFull') + '\" aria-hidden" "$(cat $f)"
+done
+
 # The remaining mentions are comments documenting the legacy affordance that was
 # replaced, so only non-comment code may be free of the legacy URLs.
 # Strip /* ... */ blocks and // line comments textually (the tokenizer cannot
@@ -261,7 +275,7 @@ import json
 d=json.load(open('gui/templates/i18n/en.json',encoding='utf-8'))
 print(' '.join(sorted(k for k in d if k.startswith('logv.'))))")
 NKEYS=$(printf '%s' "$EXPKEYS" | wc -w)
-chk "logv.* key count" "23" "$NKEYS"
+chk "logv.* key count" "24" "$NKEYS"
 USED=$(python3 -c "
 import re
 s=open('gui/templates/requirements/logViewer.html',encoding='utf-8').read()

@@ -5178,5 +5178,6 @@
   "logv.charCount": "{count} caractere afișate ({raw} octeți stocați)",
   "footers.logViewer": "TestLink 2.0.1 - Mesaj de jurnal",
   "logv.openFull": "Deschide jurnalul complet",
-  "logv.specDocId": "Doc ID specificație"
+  "logv.specDocId": "Doc ID specificație",
+  "logv.accessDeniedTitle": "Acces refuzat"
 }

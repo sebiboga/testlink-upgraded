@@ -5174,5 +5174,6 @@
   "logv.charCount": "Показано символов: {count} (сохранено байт: {raw})",
   "footers.logViewer": "TestLink 2.0.1 - Сообщение журнала",
   "logv.openFull": "Открыть полный журнал",
-  "logv.specDocId": "Doc ID спецификации"
+  "logv.specDocId": "Doc ID спецификации",
+  "logv.accessDeniedTitle": "Доступ запрещён"
 }

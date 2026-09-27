@@ -5168,5 +5168,6 @@
   "logv.charCount": "{count} Zeichen angezeigt ({raw} Bytes gespeichert)",
   "footers.logViewer": "TestLink 2.0.1 - Protokollnachricht",
   "logv.openFull": "Vollständiges Protokoll öffnen",
-  "logv.specDocId": "Spezifikations-Doc-ID"
+  "logv.specDocId": "Spezifikations-Doc-ID",
+  "logv.accessDeniedTitle": "Zugriff verweigert"
 }

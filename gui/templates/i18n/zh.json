@@ -5154,5 +5154,6 @@
   "logv.charCount": "显示 {count} 个字符（存储 {raw} 字节）",
   "footers.logViewer": "TestLink 2.0.1 - 日志消息",
   "logv.openFull": "打开完整日志",
-  "logv.specDocId": "规格 Doc ID"
+  "logv.specDocId": "规格 Doc ID",
+  "logv.accessDeniedTitle": "拒绝访问"
 }
