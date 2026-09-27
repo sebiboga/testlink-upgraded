@@ -173,6 +173,16 @@ function esc(s) {
     .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
+// True when the BFF shipped a real role name for the value-0 "revert to
+// inherited" option. The resolved legacy $ikx name (issue #1651) is produced by
+// $roleNameOf() in api/roles/index.php, which answers the literal '-' - not an
+// empty string - when the role id cannot be resolved (e.g. a user whose global
+// role is 0). Such a name must NOT be interpolated, otherwise the option would
+// read "revert to inherited -".
+function hasResolvedRoleName(name) {
+  return !!name && name !== '-';
+}
+
 // Legacy parity: usersAssign.tpl:286-292 ($tlCfg->demoMode, shared template).
 // In demoMode the Save button is replaced by the localized warn_demo note; the
 // same note shows as a banner. Selects/bulk "Do" stay usable as in legacy;
@@ -401,11 +411,13 @@ function loadPlans(pid, selectedPlanId) {
 // (issue #1651). The two labels stay distinct: an inherited row keeps the
 // current-state "<inherited> <role>" wording, an overridden row states the
 // fallback it reverts TO. The bare assign.noOverride label remains the fallback
-// when the payload carries no resolved name.
+// when the payload carries no resolved name - and that "no name" case arrives
+// as the literal '-' sentinel (api/roles/index.php:268-277 $roleNameOf for a role
+// id 0), never as an empty string, so the guard tests for it explicitly.
 function rolesOptions(u, chosenVal) {
   var noRoleLbl = u.isInherited
     ? esc(TLi18n.t('assign.inheritedRoleOption', {role: u.inheritedRoleName}))
-    : (u.inheritedRoleName
+    : (hasResolvedRoleName(u.inheritedRoleName)
         ? esc(TLi18n.t('assign.overrideClearedRole', {role: u.inheritedRoleName}))
         : esc(TLi18n.t('assign.noOverride')));
   var opts = '<option value="0"' + (chosenVal === 0 ? ' selected' : '') + '>' + noRoleLbl + '</option>';
