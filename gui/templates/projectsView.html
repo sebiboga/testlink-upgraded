@@ -77,6 +77,19 @@
     .checkbox-item input[type="checkbox"] { margin-right: 8px; cursor: pointer; }
     .checkbox-item label { margin: 0; font-weight: normal; cursor: pointer; }
 
+    /* Legacy parity: project API key row (projectEdit.tpl:269-274) — read-only
+       monospace value, never an input: the key is generated server-side by
+       testproject::create() and must not be editable. The button reuses the
+       file's existing .action-btn.info-btn pair instead of a new rule. */
+    .form-row.readonly-row { margin-top: 15px; margin-bottom: 0; }
+    .readonly-val {
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      font-size: 12px; color: #555; background: #f8f9fa; border: 1px solid #e2e3e5;
+      border-radius: 4px; padding: 10px; word-break: break-all; user-select: all;
+    }
+    .readonly-val:focus { outline: 2px solid #2d8e88; outline-offset: 1px; }
+    .api-key-copy-btn { margin-top: 8px; }
+
     .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 25px; padding-top: 15px; border-top: 1px solid #ecf0f1; }
 
     .empty-state { text-align: center; padding: 40px; color: #7f8c8d; }
@@ -319,6 +332,21 @@
             <div class="checkbox-item">
               <input type="checkbox" id="is_public" name="is_public">
               <label for="is_public" data-i18n="proj.public">Public</label>
+            </div>
+          </div>
+          <!-- Legacy parity: projectEdit.tpl:269-274 — the API key row sits right
+               after the Active/Public checkboxes, inside Availability, and is
+               rendered only when the key is set ({if $gui->api_key != ''}).
+               Read-only: legacy shows plain text, never an input. Shown in edit
+               mode only (projectEdit.php::edit() is the only legacy path that
+               loads it; the create screen never has a key yet). -->
+          <div class="form-row full readonly-row" id="apiKeyRow" style="display:none;">
+            <div class="form-group">
+              <label for="apiKeyVal" data-i18n="proj.apiKey">API Key</label>
+              <div class="readonly-val" id="apiKeyVal" tabindex="0" role="textbox" aria-readonly="true"></div>
+              <button type="button" class="action-btn info-btn api-key-copy-btn" id="apiKeyCopyBtn" onclick="copyApiKey(this)">
+                <i class="fas fa-copy"></i> <span data-i18n="proj.apiKeyCopy" aria-live="polite">Copy</span>
+              </button>
             </div>
           </div>
         </div>
@@ -667,6 +695,13 @@
       document.getElementById('active').checked = true;
       document.getElementById('is_public').checked = true;
       document.getElementById('copyFromRow').style.display = '';
+      // A project has no key until it is created (testproject.class.php:124
+      // generates it on INSERT), so the create modal never shows the row. The
+      // value is cleared too, so a key from a previously edited project cannot
+      // linger in the hidden DOM node.
+      document.getElementById('apiKeyVal').textContent = '';
+      document.getElementById('apiKeyRow').style.display = 'none';
+      resetApiKeyButton();
       populateCopyFromDropdown();
       loadTrackers().then(function() {
         document.getElementById('issue_tracker_id').value = '0';
@@ -708,6 +743,19 @@
       document.getElementById('optInventory').checked = !!project.optInventory;
       document.getElementById('issue_tracker_enabled').checked = project.issueTracker.enabled;
       document.getElementById('code_tracker_enabled').checked = project.codeTracker.enabled;
+
+      // Legacy parity: projectEdit.tpl:269-274 — read-only API key row, shown
+      // only when the key is set. projectsData comes from
+      // GET /api/projects/ (api/projects/index.php formatProject() -> apiKey).
+      const apiKeyRow = document.getElementById('apiKeyRow');
+      resetApiKeyButton();
+      if (project.apiKey) {
+        document.getElementById('apiKeyVal').textContent = project.apiKey;
+        apiKeyRow.style.display = '';
+      } else {
+        document.getElementById('apiKeyVal').textContent = '';
+        apiKeyRow.style.display = 'none';
+      }
 
       loadTrackers().then(function() {
         selectTrackerByName('issue_tracker_id', project.issueTracker.name);
@@ -806,6 +854,50 @@
             alert(xhr.responseJSON?.error || TLi18n.t('proj.msg.errorDelete'));
           }
         });
+      }
+    }
+
+    // Copy the read-only API key to the clipboard. The value is written with
+    // textContent (never innerHTML) in editProject(), and the button lives
+    // inside the form, hence type="button" so it cannot submit.
+    // Reset the copy button to its idle label. Called on every modal open so a
+    // "copied" message from a previously edited project cannot survive into the
+    // next one, and it cancels the pending revert timer.
+    let apiKeyLabelTimer = null;
+    function resetApiKeyButton() {
+      window.clearTimeout(apiKeyLabelTimer);
+      const label = document.querySelector('#apiKeyCopyBtn [data-i18n]');
+      if (label) label.textContent = TLi18n.t('proj.apiKeyCopy');
+    }
+
+    function copyApiKey(btn) {
+      const key = document.getElementById('apiKeyVal').textContent;
+      if (!key) return;
+      const label = btn.querySelector('[data-i18n]');
+      const done = function(ok) {
+        label.textContent = TLi18n.t(ok ? 'proj.apiKeyCopied' : 'proj.apiKeyCopyFailed');
+        // A single module-scoped handle: a second click cancels the first
+        // revert, so the label never flips back mid-message.
+        window.clearTimeout(apiKeyLabelTimer);
+        apiKeyLabelTimer = window.setTimeout(function() {
+          label.textContent = TLi18n.t('proj.apiKeyCopy');
+        }, 2000);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(key).then(function() { done(true); },
+                                              function() { done(false); });
+      } else {
+        // Fallback for non-secure contexts (clipboard API needs https/localhost).
+        const ta = document.createElement('textarea');
+        ta.value = key;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        let ok = false;
+        try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+        document.body.removeChild(ta);
+        done(ok);
       }
     }
 

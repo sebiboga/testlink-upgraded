@@ -110,7 +110,7 @@ try {
 
 function projectSelect() {
   return "SELECT tp.id, nh.name, tp.prefix, tp.notes, tp.active, tp.is_public,
-                 tp.color, tp.options, tp.issue_tracker_enabled,
+                 tp.color, tp.options, tp.issue_tracker_enabled, tp.api_key,
                  tp.code_tracker_enabled, tp.reqmgr_integration_enabled,
                  it.name AS issue_tracker_name, ct.name AS code_tracker_name,
                  rm.name AS reqmgrsystem_name
@@ -139,6 +139,14 @@ function formatProject($row) {
     'description' => $row['notes'] ?? '',
     'isActive' => (int)$row['active'],
     'isPublic' => (int)$row['is_public'],
+    // Legacy parity: projectEdit.tpl:269-274 shows the project's API key as
+    // read-only text, but only when it is set. testproject::create() always
+    // generates one (testproject.class.php:124), so the empty case is a
+    // hand-cleared key. Never writable through this endpoint (POST/PUT ignore
+    // it) — the key is generated server-side and is the project's anonymous
+    // access credential (lnl.php share links, metricsDashboard.php?apikey=,
+    // resolved by testproject::getByAPIKey()).
+    'apiKey' => (string)($row['api_key'] ?? ''),
     'optReq' => $flag('requirementsEnabled'),
     'optPriority' => $flag('testPriorityEnabled'),
     'optAutomation' => $flag('automationEnabled'),

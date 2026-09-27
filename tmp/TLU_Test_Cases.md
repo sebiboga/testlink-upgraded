@@ -23754,73 +23754,69 @@ the form from the console: `f.querySelector('input[type=text]').value=…; f.sub
 | 9 | owner labels carried hardcoded English type nouns ("Test case", "Build", …) — untranslatable | `665128bf2` | #1638 |
 | 10 | object-level authorization missing: a logged-in user with a valid `(id, table, fk_id)` triple can delete an attachment from a project they have no rights on | — | #1647 (open follow-up) |
 
----
-
-## Regression — Issue #1594: duplicate/missing sections in `input_dimensions.conf` + one-option length menu
+## Task — Issue #990: project API key display in the projectsView edit modal
 
 **Precondition**
+- App at `http://localhost:8082`, login `admin/admin` (holds `mgt_modify_product`).
+- Freshly imported DB has **0** test projects, so four fixtures were created through the
+  BFF (`POST /api/projects/`, same-origin headers required) and one key was blanked by hand:
+  | id | name | prefix | `testprojects.api_key` |
+  |----|------|--------|------------------------|
+  | 1 | AKEY Demo Project | AKEY | 64 chars, server-generated (`md5(rand()).md5(rand())`) |
+  | 2 | AKEY Blank        | AKBK | `''` — hand-cleared, the "key not set" case |
+  | 3 | AKEY Fresh        | AKFR | 64 chars, never touched after creation |
+  Baseline `select id,prefix,length(api_key) from testprojects order by id;` → `1/AKEY/64  2/AKBK/0  3/AKFR/64`.
+- Legacy reference read before coding: `gui/templates/dashio/project/projectEdit.tpl:269-274`
+  (`{if $gui->api_key != ''}` row after Active/Public), `lib/project/projectEdit.php:589`
+  (`api_key` copied into the gui), `lib/project/projectEdit.php:239` (`api_key` is a
+  nullable key), `lib/functions/testproject.class.php:124-136` (key generated on create).
 
-Freshly imported DB. Fixtures recreated (all list tables were empty):
+| # | Steps | Expected | Actual | Result |
+|---|-------|----------|--------|--------|
+| 1 | `GET /api/projects/1` (authenticated) | `apiKey` present, 64 chars, equal to the DB value | `apiKey='41d0df7fc01f6815c62ea3871dfcc74680e93f6950d2300982f9fa2f726e26ca'`, `len 64`, matches `left(api_key,16)=41d0df7fc01f6815` | PASS |
+| 2 | `GET /api/projects/` (list) | the field is present in the list shape too (same `formatProject()`) | `list apiKey='41d0df7fc01f6815…'` | PASS |
+| 3 | Open `/gui/templates/projectsView.html`, click **Edit** on project 1 | the *Availability* section grows an **API Key** row after Active/Public, read-only, showing the key | `rowVisible:true`, `label:"API Key"`, 64-char value, **no** `input`/`textarea` inside the row | PASS |
+| 4 | Click **New Project** (create modal) | row hidden — a project has no key until it is INSERTed | `createHidden:true`, value element empty | PASS |
+| 5 | Edit project 2 (`api_key=''`) | row hidden, `{if $gui->api_key != ''}` parity | `blankHidden:true`, `valueEmpty:true` | PASS |
+| 6 | Sequence create-modal → edit #2 → edit #1 → create-modal | each state wins; no stale key shown or left in the DOM | `seq1:false seq2:false seq3:true seq4:false` and after the final create `valueEmpty:true` | PASS |
+| 7 | Edit project 3 (key auto-generated, never touched) | row visible with its own key | `freshProjectVisible:true`, `freshProjectLen:64` | PASS |
+| 8 | Press **Copy** in the row | key goes to the clipboard, button label confirms | label flips to `API key copied to clipboard`; clipboard *read-back* is refused in headless (`NotAllowedError` = browser permission, not a code fault) | PASS |
+| 9 | Edit project 1, change Description, submit | update applied, `api_key` unchanged | modal closed, `description:"saved via UI #990"`, `apiKeyAfterSave` = the same 64 chars | PASS |
+| 10 | `PUT /api/projects/1 {"apiKey":"HACKED", …}` | key is **not** writable through the API (read-only contract) | `apiKeyAfterTamperPut` = unchanged 64 chars, while the description in the same body *was* written | PASS |
+| 11 | `?locale=ro` | Romanian label + button | `label:"Cheie API"`, `copyBtn:"Copiază"`, `tCopied:"Cheia API a fost copiată în clipboard"` | PASS |
+| 12 | `?locale=ja` | Japanese label + button | `label:"APIキー"`, `copyBtn:"コピー"` | PASS |
+| 13 | Check that the value is injected as text, not markup | no HTML parsing of the key (XSS guard) | `apiKeyVal.children.length === 0`, `innerHTML` contains no `<` | PASS |
+| 14 | Copy button inside `<form id="projectForm">` | `type="button"` so it can never submit the form | `type="button"`, `closest('#projectForm')` = the form | PASS |
+| 15 | `GET /api/projects/999999` | 404, unchanged by the new column | `HTTP 404 {"error":"Project not found"}` | PASS |
+| 16 | Anonymous `GET /api/projects/1` (no cookie) | 401 — the key must not leak | `HTTP 401 {"status":"error","message":"Not authenticated"}` | PASS |
+| 17 | `?locale=xx` where the bundle lacks the key | falls back to English, no `undefined` | all 10 bundles carry `proj.apiKey*`; `python3 -m json.tool` valid on all 10 | PASS |
+| 18 | Regression: other consumers of `/api/projects/index.php` (`tcAssignments.html`, `planUpdateTC.html`, `testUrgency.html`, `platformsAssign.html`) | additive field breaks nothing | `GET /api/projects/index.php` = 200 on `tcAssignments.html`; those screens only read `id`/`name` | PASS |
+| 19 | Event Viewer / `events` table after the whole suite | no new Error/Warning | 8 rows, **all `log_level=16`** (audit: logins, creates, the 2 updates under test), `sum(log_level>16) = 0` | PASS |
+| 20 | Browser console on `projectsView.html` | no errors/warnings | `<no console messages found>` for `error`+`warn` | PASS |
+| 21 | `php -l` on the touched BFF file | no syntax error | `No syntax errors detected in api/projects/index.php` | PASS |
 
-```sql
-INSERT INTO testprojects (id,notes,color,active,option_reqs,option_priority,option_automation,prefix,tc_counter,is_public,issue_tracker_enabled,code_tracker_enabled,reqmgr_integration_enabled,api_key)
-  VALUES (1,'demo','#9BD',1,0,0,0,'TL',0,1,0,0,0,'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
-INSERT INTO testplans (id,testproject_id,notes,active,is_open,is_public,api_key)
-  VALUES (1,1,'demo plan',1,1,1,'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb');
-INSERT INTO milestones (testplan_id,target_date,start_date,a,b,c,name)
-  VALUES (1,'2026-12-31','2026-01-01',100,0,0,'Milestone One');
-INSERT INTO nodes_hierarchy (id,name,parent_id,node_type_id,node_order) VALUES (1,'demo plan',NULL,1,1);
-INSERT INTO platforms (name,testproject_id,notes,enable_on_design,enable_on_execution,is_open)
-  VALUES ('Linux',1,'demo notes for truncation check',1,1,1);
-```
+| 22 | Review fix: copy label must not survive a modal reopen | edit #1 → Copy → close → open #3 within the 2 s window → the label is idle again, not a stale "copied" | `copyLabel:"API key copied to clipboard"` → `labelAfterReopen_otherProject:"Copy"` → `labelOnCreate:"Copy"` | PASS |
+| 23 | Review fix: two clicks 1.9 s apart (timer race) | the second click cancels the first revert, so the message never flips back mid-flight | t=1.9 s `"API key copied…"`, t=2.15 s still `"API key copied…"` (first timer cancelled), t=3.95 s `"Copy"` (second timer reverted) | PASS |
+| 24 | Review fix: a11y wiring of the new row | label points at the value, value is focusable + announced read-only, feedback is a live region, button keeps the file's existing class pair and `type="button"` | `aria-live:"polite"`, `label[for]="apiKeyVal"`, `role="textbox"`, `aria-readonly="true"`, `tabindex="0"`, `class="action-btn info-btn api-key-copy-btn"`, `type="button"` | PASS |
+| 25 | Review fix: `.copy-btn` bespoke CSS removed; inline JS still parses; PHP still lints | no dead rule, no syntax regression | `.copy-btn` rule absent, `new Function(<inline script>)` parses OK, `php -l api/projects/index.php` clean | PASS |
 
-`nodes_hierarchy` is mandatory: `lib/functions/milestone.class.php:239` joins
-`milestones M, nodes_hierarchy NH`; without the row the screen returns HTTP 500.
-Login `admin/admin` (user id 1).
+**Result: 25 / 25 PASS, 0 FAIL.**
 
-**Repro steps (pre-fix behaviour)**
+Notes
+- A clipboard *rejection* is reported through `proj.apiKeyCopyFailed`, never thrown:
+  after this suite's `readText()` probe the headless browser denies clipboard
+  access (`NotAllowedError`), which also poisons the next `writeText` — the button
+  then correctly shows "Copy failed". Two clean consecutive writes (probe
+  removed) both succeed, so the failure is a harness permission artifact.
+- The `execCommand('copy')` fallback is inside a `try`, so an absent
+  `document.execCommand` degrades to the failure message instead of an exception.
 
-1. `curl -s -b cj.txt "http://localhost:8082/lib/usermanagement/rolesView.php" | grep -o 'lengthMenu.*'`
-2. `curl -s -b cj.txt "http://localhost:8082/lib/plan/planMilestonesView.php?tplan_id=1&tproject_id=1" | grep -o 'lengthMenu.*'`
-3. `grep -n "^\[" gui/templates/conf/input_dimensions.conf | awk -F'[][]' '{print $2}' | sort | uniq -c | awk '$1>1'`
-4. `grep -c "'rolesView' =>" gui/templates_c/*input_dimensions.conf.php`
+**Bug found while testing (not in scope here, filed separately)**
+- `GET /api/tcassignments/index.php/rows?tproject_id=<id>&tplan_id=0` → HTTP 500 with an
+  **empty body** (`TypeError: array_keys()` on `null` at `api/tcassignments/index.php:348`)
+  when the project has no test plans, which is the state of every fresh import. Reproduced
+  identically with the #990 changes stashed, so it is a pre-existing defect → filed as
+  **#1648**.
 
-**Expected post-fix**
-
-* Every section is declared exactly once.
-* `rolesView` and `planMilestonesView` each have their own section (no silent global fallback).
-* Both screens serve the full `20 / 40 / 60 / All` page-length menu, like every other list screen.
-* The **compiled** config is unchanged for every pre-existing section (the merge is behaviour-preserving).
-* No new `Error`/`Warning` row in the Event Viewer.
-
-**Actual result**
-
-| # | Assertion | Result |
-|---|---|---|
-| 1 | `rolesView.php` ×3 cache-bypassing loads → HTTP 200 and `"lengthMenu": [ [20, 40, 60, -1], [20, 40, 60, "All"] ]` (pre-fix: `[ 20 ]`) | **PASS** |
-| 2 | `rolesView.php` markup intact: `<table id="item_view" class="table table-bordered">`, 10 `<tr>` (pre-fix: same) | **PASS** |
-| 3 | `planMilestonesView.php?tplan_id=1&tproject_id=1` → HTTP 200, `Milestone One` rendered, `"lengthMenu": [ [20, 40, 60, -1], [20, 40, 60, "All"] ]` (pre-fix: `[ 20 ]`) | **PASS** |
-| 4 | No duplicate section: `uniq -c \| awk '$1>1'` → no output (pre-fix: `[platformsView]`, `[buildView]`, `[cfieldsTprojectAssign]` each ×2) | **PASS** |
-| 5 | Compiled config diff before/after: 44 → 46 sections, `removed: []`, `added: ['planMilestonesView','rolesView']`, every pre-existing section **byte-identical** | **PASS** |
-| 6 | `platformsView.php` → HTTP 200, `PLATFORM_NOTES_TRUNCATE_LEN => 120` still in the compiled conf, `demo notes for truncation check` still rendered (guards the `[platformsView]` merge) | **PASS** |
-| 7 | `cfieldsTprojectAssign.php` → HTTP 200 (guards the `[cfieldsTprojectAssign]` merge) | **PASS** |
-| 8 | Sibling screens byte-identical to the pre-fix baseline: `planView` `[20,40,60,-1]/All`, `platformsView` same, `keywordsView` `[40,60,80,-1]/All`, `projectView` same; `issueTrackerView` / `codeTrackerView` emit no `lengthMenu` before or after (no fixture rows) | **PASS** |
-| 9 | `buildView.php` → HTTP 500 **before and after** the fix (fresh DB has no `builds`/`testplan_testbuild` rows) — pre-existing, fixture-dependent, not a regression | **PASS** (documented, not blocking) |
-| 10 | Event Viewer: `DELETE FROM events WHERE log_level IN (1,2)` then reload all screens → 0 warnings on the `rolesView`/conf/`config.inc.php` path; the only rows are 2 × pre-existing `E_WARNING Undefined property: stdClass::$testPriorityEnabled` (one per `planMilestonesView` load) | **PASS** |
-| 11 | Locale matrix `ro_RO` / `en_GB` / `es_ES`: `rolesView.php` HTTP 200, full length menu, 0 warning rows after each locale | **PASS** |
-| 12 | Browser (chrome-devtools, real DOM): `.dataTables_length select` options = `["20=20","40=40","60=60","All=-1"]`, 9 role rows, no init error | **PASS** |
-| 13 | Browser: `planMilestonesView` has 0 elements with `id="item_view"` and no `.dataTables_length` — pre-existing template gap (out of scope, filed as a follow-up) | **PASS** (documented) |
-| 15 | `cfieldsTprojectAssign.php` (code-review follow-through F1 — the last remaining `#pagination_length#` consumer) | HTTP 200 and `"lengthMenu": [ [20, 40, 60, -1], [20, 40, 60, "All"] ]` (pre-fix: `[ 20 ]`); after this change `grep -rn "#pagination_length#" gui/templates/` has only the defensive `planView.tpl:38` form left | **PASS** |
-| 14 | Syntax gates: `php -l config.inc.php` and `php -l` on the recompiled `rolesView` / `planMilestonesView` templates — all clean | **PASS** |
-
-**Totals: 15 assertions — 15 PASS / 0 FAIL.** (assertions 1-14 executed after the main fix commit `2ebf39803`; assertion 15 executed after the code-review follow-through commit `b14fa7d00`, which closed finding F1 — `cfieldsTprojectAssign.tpl` carried the identical one-option length menu and its conf section is edited by this fix, so leaving it behind would have made the commit internally inconsistent.)
-
-**Corrected assumptions** (measured, documented on the issue):
-
-* The three duplicate sections were **not** dropping keys — `smarty_internal_configfileparser.php:1037-1044`
-  reuses the vars array, so the second block's keys merge with the first one's; the compiled
-  `platformsView` section holds all 8 keys. De-duplication is hygiene, not a key-loss bugfix.
-* `rolesView.tpl`'s missing `|basename` was **not** a cause — on Smarty 4.5.7 `$smarty.template`
-  already compiles to `basename($_smarty_tpl->source->filepath)`
-  (`smarty_internal_compile_private_special_variable.php:82`), so `$cfg_section` was `rolesView`
-  all along. The missing section was the cause.
+**Screenshots:** `docs/screenshots/issue-990-before.png` (modal with no API key row, pre-change)
+and `docs/screenshots/issue-990-after.png` (row rendered, post-change).

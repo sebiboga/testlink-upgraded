@@ -6371,3 +6371,23 @@ Changes:
   uses history.back() when history exists, else falls back same-origin to
   reqView.html?id=..&tproject_id=.. (mirrors reqSpecCompare.html toolbar, Refs
   #1307), so the screen no longer dead-ends on a fresh tab.
+
+### Feature parity — project API key in the Test Project Management edit modal (Refs #990)
+- The modern `projectsView.html` edit modal never showed the project's API key:
+  `api/projects/index.php` `projectSelect()` did not even SELECT `tp.api_key`, so
+  `formatProject()` could not expose it and no front-end change alone could have
+  displayed it. Legacy shows it as read-only text inside the *Availability* block
+  after the Active/Public checkboxes, and only when set
+  (`gui/templates/dashio/project/projectEdit.tpl:269-274`, fed by
+  `lib/project/projectEdit.php:589`; `testproject::create()` always generates one,
+  `lib/functions/testproject.class.php:124`). The BFF now selects `tp.api_key`
+  and serializes it as `apiKey` in both the list and the single-project response;
+  the screen renders a read-only monospace row (no input, plus a Copy button with
+  an `execCommand` fallback for non-secure contexts) shown only in edit mode and
+  only for a non-empty key, with the value cleared on the create path so no key
+  lingers in the DOM. The key — the project's anonymous-access credential for
+  `lnl.php` share links and `metricsDashboard.php?apikey=` — stays read-only:
+  `POST`/`PUT` never accept it, and
+  the endpoint's existing `mgt_modify_product` gate is the only access path
+  (anonymous still 401). 4 new i18n keys in all 10 locale bundles. Suite #990
+  21/21 PASS; Event Viewer clean. (Refs #990)
