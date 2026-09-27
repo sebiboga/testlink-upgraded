@@ -25307,12 +25307,16 @@ Entry point: `http://localhost:8082/gui/templates/usermanagement/usersAssignPlan
 | `C8` | `'%login%'`, DataTables search `Lars` in the Name column | exactly the `an1676leader` row matches (the appended part is searchable, as the legacy fused cell was) | **PASS** |
 | `C9` | any format: sort the Name column, page with the entries selector, bulk "Do", Save | Name cells intact after every re-render, no duplicated names, save state unchanged | **PASS** (regression) |
 | `C10` | browser console after all reloads | no error/warn entries | **PASS** (`<no console messages found>`) |
+| `C12` | twin screen `usersAssignProject.html?tproject_id=1`, `'%login%'` | `an1676designer (Anna Designer)`, `admin (Testlink Administrator)` — the SHARED legacy `usersAssign.tpl:242` cell is restored on the test-project grid too | **PASS** |
+| `C13` | twin screen, default format + bulk "Do" → Save state | Name cells unchanged (`Anna Designer`), 5 rows flagged, Save enabled | **PASS** |
+| `C14` | plan screen, `'%login%'`: sort Name asc, bulk "Do" | sorted first cell `admin (Testlink Administrator)`, 5 rows flagged, Save enabled | **PASS** |
 | `C11` | Event Viewer / `events` table after the whole run | no new Error/Warning row | **PASS** (2 rows, both `log_level=16` audit: `audit_login_succeeded`, `audit_testproject_created`) |
 
 **Automated harness** — `tmp/suite_1676.py` re-runs the whole matrix: Part A evaluates the
-**shipped** `userNameCell()` (extracted from the HTML, not a copy) in node over 9
+**shipped** `userNameCell()` of each screen (extracted from the HTML, not a copy) in node over 9
 format/edge combinations, Part B logs in over real HTTP and asserts the BFF contract for
-three formats. Result of this run: **20/20 PASS**.
+three formats, Part C asserts the twin screen ships the same helper through `esc()`. Result of
+this run: **32/32 PASS**.
 
 ```bash
 python3 tmp/suite_1676.py

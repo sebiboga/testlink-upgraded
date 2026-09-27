@@ -1,7 +1,9 @@
 # Issue #1676 — `usersAssignPlan.html`: first/last names in the Name column (gap vs legacy)
 
 **Status:** implemented and verified (closes #1676)
-**Screen:** `gui/templates/usermanagement/usersAssignPlan.html` (Assign Test Plan Roles)
+**Screens:** `gui/templates/usermanagement/usersAssignPlan.html` (Assign Test Plan Roles) and its
+test-project twin `gui/templates/usermanagement/usersAssignProject.html` (Assign Test Project Roles)
+— the legacy template was **shared**, so one legacy cell, two modern grids
 **BFF:** `api/roles/index.php` — `GET /api/roles/index.php/meta/tplan-roles`
 
 ## The gap
@@ -18,8 +20,10 @@ i.e. the first/last names were **always** on screen, whatever the configured
 `'%last%, %first%'`, `'%first% %last% %login%'`, but also `'%login%'` / `'%email%'`;
 overridable through `custom_config.inc.php` / `config_db.inc.php`).
 
-The modern grid splits that legacy cell into a **Login** and a **Name** column, and the Name
-column carried only `$u->getDisplayName()` (`api/roles/index.php`, `'name' => $u->getDisplayName()`).
+The modern grids split that legacy cell into a **Login** and a **Name** column, and the Name
+column carried only `$u->getDisplayName()` (`api/roles/index.php`, `'name' => $u->getDisplayName()`;
+the same pattern in `meta/tproject-roles` feeds the Assign Test Project Roles screen, which the
+shared legacy template governed with the very same line).
 `tlUser::getDisplayName()` (`lib/functions/tlUser.class.php:525-534`) expands the format, so for
 every format that omits `%first%`/`%last%` the Name column became a byte-for-byte duplicate of the
 Login column and the names were rendered **nowhere** — a silent loss of information that legacy
@@ -48,13 +52,19 @@ Measured, same fixture, only the format differs:
 `name` stays exactly `getDisplayName()` — the BFF is not made responsible for composing the cell,
 so both columns remain reusable by any other screen.
 
-**Screen** — a new pure helper `userNameCell(u)` in `usersAssignPlan.html`:
+**Screens** — a new pure helper `userNameCell(u)` in `usersAssignPlan.html` **and** its identical
+twin in `usersAssignProject.html` (the file-local `esc()` duplication is this repo's established
+per-screen convention, so the helper is too):
 
 * returns the display value unchanged when it already contains both raw names (default format,
   `'%last%, %first%'`, `'%first% %last% %login%'`, …) — **no** `Anna Designer (Anna Designer)`;
 * returns `<display> (<first> <last>)` when it does not (`'%login%'`, `'%email%'`, `'%last%'`, …);
 * returns the bare `<first> <last>` when the display value is empty (no leading `()`);
-* returns the display value alone when the user has no first and no last name.
+* returns the display value alone when the user has no first and no last name;
+* accepts (and documents) a repeated name for a **single-token** format whose token is one of the
+  two names (`'%first%'` → `Anna (Anna Designer)`) — nothing is lost, the other name would
+  otherwise be invisible, and the format was chosen by an administrator;
+* trims only the outer parts, so a name containing a non-breaking space renders as stored.
 
 The decision is a **substring test against the resolved display value**, not a guess about the
 configured format string — any custom format (`'%last% - %first%'`) is handled by construction.
@@ -72,12 +82,16 @@ the appended text is data).
 
 ## Verification
 
-* Automated harness `tmp/suite_1676.py` — **20/20 PASS**: Part A evaluates the *shipped*
-  `userNameCell()` (extracted from the HTML, not a copy) over 9 format/edge combinations in node;
-  Part B logs in over real HTTP and asserts the BFF contract for 3 formats (raw names shipped,
-  empty names survive the cast, existing keys untouched, `name` still follows the format).
-* 11 browser cases (`tmp/TLU_Test_Cases.md`, suite 1676) — 11/11 PASS, including sort / paging /
-  bulk "Do" / Save regressions and the console.
+* Automated harness `tmp/suite_1676.py` — **32/32 PASS**: Part A evaluates the *shipped*
+  `userNameCell()` **of both screens** (extracted from the HTML, not a copy) over 9 format/edge
+  combinations in node; Part B logs in over real HTTP and asserts the BFF contract for 3 formats
+  (raw names shipped, empty names survive the cast, existing keys untouched, `name` still follows
+  the format); Part C asserts the twin screen ships the same helper and renders it through `esc()`.
+* 14 browser cases (`tmp/TLU_Test_Cases.md`, suite 1676) — 14/14 PASS, including sort / paging /
+  bulk "Do" / Save regressions on BOTH grids and the console.
+* Twin screen measured: with `'%login%'` → `an1676designer (Anna Designer)`, `admin (Testlink
+  Administrator)`; with the default format → `Anna Designer` (unchanged), bulk "Do" + Save state
+  still work (5 rows changed, Save enabled), console clean.
 * `php -l api/roles/index.php`, `node --check` on the extracted inline script: clean.
 * Browser console (error + warn) after all reloads: none. Event Viewer: 2 rows, both audit INFO
   (`log_level=16`), no new Error/Warning.
@@ -93,6 +107,7 @@ names empty for the edge case).
 |---|---|
 | `api/roles/index.php` | ship `firstName` / `lastName` in the tplan-roles (and, additively, tproject-roles) items |
 | `gui/templates/usermanagement/usersAssignPlan.html` | `userNameCell()` helper, Name cell render, data-model fields |
+| `gui/templates/usermanagement/usersAssignProject.html` | same helper + Name cell render on the test-project twin grid |
 | `tmp/suite_1676.py` | executable harness (client + live BFF) |
 | `tmp/fixtures_1676.php` | throwaway fixture (project/plan/users) |
 | `docs/screenshots/issue-1676-usersAssignPlan-name-column-login-format.png` | fixed state with `username_format = '%login%'` |

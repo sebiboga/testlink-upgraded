@@ -147,6 +147,34 @@ function esc(s) {
     .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
+// Legacy parity: the legacy template was SHARED between the test-project and
+// the test-plan contexts, so usersAssign.tpl:242 - "{$user->login}
+// ({$user->firstName} {$user->lastName})" - governed this grid too: the
+// first/last names were ALWAYS visible, whatever $tlCfg->username_format is
+// (documented examples config.inc.php:757-764; the four tokens
+// getDisplayName() knows are '%first%', '%last%', '%login%', '%email%',
+// lib/functions/tlUser.class.php:526-527). The Name column carried only
+// getDisplayName() (api/roles/index.php meta/tproject-roles), so for every
+// format omitting %first%/%last% it collapsed into a duplicate of the Login
+// column and the names were rendered nowhere (issue #1676). Identical helper -
+// and identical contract - as the plan screen
+// (usersAssignPlan.html userNameCell()): append " (first last)" only when the
+// RESOLVED display value does not already contain both names, so the default
+// '%first% %last%' rendering stays byte-identical; a single-token format may
+// repeat a name (documented, nothing is lost), only the outer parts are
+// trimmed (non-breaking spaces render as stored) and a user with no names at
+// all keeps the plain display value.
+function userNameCell(u) {
+  var display = String(u.name == null ? '' : u.name);
+  var first = String(u.firstName == null ? '' : u.firstName).trim();
+  var last = String(u.lastName == null ? '' : u.lastName).trim();
+  var full = (first + ' ' + last).trim();
+  if (!full) return display;
+  if (display.trim().length === 0) return full;
+  if (display.indexOf(first) !== -1 && display.indexOf(last) !== -1) return display;
+  return display + ' (' + full + ')';
+}
+
 // True when the BFF shipped a real role name for the value-0 "revert to
 // inherited" option. The resolved legacy $ikx name (issue #1651) is produced by
 // $roleNameOf() in api/roles/index.php, which answers the literal '-' - not an
@@ -449,7 +477,7 @@ function buildBodyHtml() {
     html += '<tr data-uid="' + esc(u.id) + '"' + (rowClass ? ' class="' + rowClass + '"' : '') + '>' +
       '<td>' + (i + 1) + '</td>' +
       '<td' + rowStyle + '>' + esc(u.login) + badge + '</td>' +
-      '<td' + rowStyle + '>' + esc(u.name) + '</td>' +
+      '<td' + rowStyle + '>' + esc(userNameCell(u)) + '</td>' +
       '<td><select' + disabled + ' data-role="' + esc(u.roleID) + '" onchange="onRoleChange(this,' + esc(u.id) + ',' + esc(u.roleID) + ')">' + opts + '</select>' + hint + '</td>' +
     '</tr>';
   });

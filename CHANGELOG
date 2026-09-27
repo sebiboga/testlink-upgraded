@@ -17,13 +17,15 @@ Every screen of the application was ported one-by-one in a screen-compare
 kept for backward compatibility and is progressively retired as each modern
 screen reaches full parity.
 
-- [FEATURE GAP] - #1676: the modern Assign Test Plan Roles screen never showed a user's first/last names
-  when the admin-settable `$tlCfg->username_format` (config.inc.php:756-764) omitted `%first%`/`%last%`
-  (`'%login%'`, `'%email%'`): `api/roles/index.php` shipped only `'name' => $u->getDisplayName()` and
-  `usersAssignPlan.html` rendered that single value as the whole Name column, so the column became a
+- [FEATURE GAP] - #1676: the modern Assign Test Plan Roles screen (and its test-project twin) never
+  showed a user's first/last names when the admin-settable `$tlCfg->username_format`
+  (config.inc.php:757-764) omitted `%first%`/`%last%` (the four tokens `getDisplayName()` knows are
+  `'%first%'`, `'%last%'`, `'%login%'`, `'%email%'`, lib/functions/tlUser.class.php:526-527):
+  `api/roles/index.php` shipped only `'name' => $u->getDisplayName()` and `usersAssignPlan.html`
+  rendered that single value as the whole Name column, so the column became a
   byte-duplicate of the Login column and the names were rendered NOWHERE - while legacy 1.9.20
-  `usersAssign.tpl:242` always printed `{$user->login} ({$user->firstName} {$user->lastName})`,
-  independent of that format. Both assign payloads (`meta/tplan-roles`, `meta/tproject-roles`) now
+  `usersAssign.tpl:242`, the template **shared** by both assign contexts, always printed
+  `{$user->login} ({$user->firstName} {$user->lastName})`, independent of that format. Both assign payloads (`meta/tplan-roles`, `meta/tproject-roles`) now
   ship the raw `firstName`/`lastName` next to the display name, and the plan grid's new pure
   `userNameCell()` helper appends ` (first last)` only when the RESOLVED display value does not
   already contain them - a substring test against the rendered value, not a guess about the format

@@ -200,9 +200,11 @@ $.fn.dataTable.ext.order['tlu-role-select'] = function (settings, col, visCol) {
 // Legacy parity: usersAssign.tpl:242 rendered the user cell as
 //   {$user->login} ({$user->firstName} {$user->lastName})
 // i.e. the first/last names were ALWAYS visible, whatever
-// $tlCfg->username_format is (config.inc.php:756-764: '%first% %last%',
-// '%last%, %first%', '%first% %last% %login%', '%login%', '%email%', ...).
-// getDisplayName() (lib/functions/tlUser.class.php:525-534) expands that
+// $tlCfg->username_format is - documented examples '%first% %last%',
+// '%last%, %first%', '%first% %last% %login%' (config.inc.php:757-764) and any
+// combination of the four tokens getDisplayName() knows
+// (lib/functions/tlUser.class.php:526-527: '%first%', '%last%', '%login%',
+// '%email%'). getDisplayName() (tlUser.class.php:525-534) expands that
 // admin-settable format, so for every format that omits %first%/%last% the
 // Name column collapsed into a byte-duplicate of the Login column and the
 // names were rendered NOWHERE (issue #1676). The BFF therefore ships the raw
@@ -213,19 +215,26 @@ $.fn.dataTable.ext.order['tlu-role-select'] = function (settings, col, visCol) {
 // '%email%' regain the legacy visibility as "login (first last)".
 // A user with no first AND no last name gets no parenthetical at all (that is
 // what the legacy cell rendered for them: "login ()" trimmed to "login").
+// Duplicated text is accepted (and documented) for a SINGLE-token format whose
+// token is one of the two names ('%first%' -> "Anna (Anna Designer)"): nothing
+// is lost - the other name would otherwise be invisible - and the format was
+// chosen by an administrator. Only the outer parts are trimmed, so a name
+// holding a non-breaking space renders exactly as stored (legacy parity).
 function userNameCell(u) {
   var display = String(u.name == null ? '' : u.name);
   var first = String(u.firstName == null ? '' : u.firstName).trim();
   var last = String(u.lastName == null ? '' : u.lastName).trim();
-  var full = (first + ' ' + last).replace(/\s+/g, ' ').trim();
+  var full = (first + ' ' + last).trim();
   if (!full) return display;
   // Empty display value (e.g. username_format '%email%' for a user with no
   // e-mail): the raw names ARE the name here, so render them bare instead of a
   // leading "()" - the Login column already carries the login half of the
   // legacy "login (first last)" cell.
-  if (display.replace(/\s+/g, '').length === 0) return full;
+  if (display.trim().length === 0) return full;
   // Substring test, not a format test: a format like '%last% - %first%' is as
   // legitimate as '%first% %last%' and only the rendered value is authoritative.
+  // A false positive needs BOTH names to already be in the cell, i.e. the worst
+  // case is cosmetic - the test can never hide a name.
   if (display.indexOf(first) !== -1 && display.indexOf(last) !== -1) return display;
   return display + ' (' + full + ')';
 }
