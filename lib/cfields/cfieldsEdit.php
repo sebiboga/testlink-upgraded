@@ -97,6 +97,20 @@ if($args->do_action == 'edit' && $gui->cfield['enable_on_execution'] ) {
 
 $gui->cfieldCfg = $cfieldCfg;
 
+// Refs #957: the legacy cfieldsView.tpl is retired. doCreate()/doUpdate()/
+// doDelete() null out $op->template precisely on success, which used to make
+// renderGui() re-display that template as the "field saved" confirmation.
+// The modern screen (gui/templates/cfields/cfieldsView.html) is BFF-driven
+// HTML+JS+CSS, not a Smarty template, so it cannot be display()'d — redirect
+// there instead, matching the assignRolesAction pattern from #947.
+// On failure $op->template stays "cfieldsEdit.tpl" and the inline error
+// message is still rendered on the edit form, as before.
+if( is_null($templateCfg->template)
+    && in_array($args->do_action, ['do_add','do_add_and_assign','do_update','do_delete']) )
+{
+  redirect($_SESSION['basehref'] . 'gui/templates/cfields/cfieldsView.html?tproject_id=' . intval($gui->tproject_id));
+}
+
 $smarty = new TLSmarty();
 $smarty->assign('operation_descr',$operation_descr);
 $smarty->assign('user_feedback',$user_feedback);
@@ -463,16 +477,13 @@ function cfieldCfgInit($cfieldMgr)
 function renderGui(&$smartyObj,&$argsObj,&$guiObj,&$cfieldMgr,$templateCfg)
 {
   $doRender=false;
+  // Refs #957: the do_add / do_add_and_assign / do_update / do_delete cases
+  // used to fall through to here with $op->template === null and re-display
+  // the now-retired cfieldsView.tpl as the "saved" confirmation. They now
+  // redirect to the modern screen before reaching this function, so only the
+  // form-rendering actions are handled here.
   switch($argsObj->do_action)
   {
-  	case "do_add":
-  	case "do_delete":
-  	case "do_update":
-    case "do_add_and_assign":
-      $doRender=true;
-  		$tpl = is_null($templateCfg->template) ? 'cfieldsView.tpl' : $templateCfg->template;
-  	break;
-
   	case "edit":
   	case "create":
       $doRender=true;

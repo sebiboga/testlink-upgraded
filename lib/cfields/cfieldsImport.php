@@ -69,8 +69,12 @@ function init_args()
 	R_PARAMS($iParams,$args);
   $args->userID = $_SESSION['userID'];
 
+  // Refs #957: lib/cfields/cfieldsView.php was retired; the modern screen
+  // (gui/templates/cfields/cfieldsView.html) took over. Carry the project id
+  // explicitly, since the legacy controller used to infer it from the session.
   $args->goback_url = $_SESSION['basehref'] .
-                      'lib/cfields/cfieldsView.php';
+                      'gui/templates/cfields/cfieldsView.html?tproject_id=' .
+                      intval($_SESSION['testprojectID']);
 
 	return $args;
 }
