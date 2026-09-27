@@ -65,3 +65,36 @@ both the `milestonesView` link and the old `mileView` launcher entry).
   delete + audit events, duplicate-name/past-date/% validation, `testplan_planning`
   403). Only gap was the dropped event-history icon → fixed (#1149). Test suite:
   `tmp/TLU_Test_Cases.md` **Suite 1148 — 11/11 PASS**.
+
+* **Legacy grid DataTables contract (added 2026-09-27, Fixes #1650):** the legacy
+  screen `lib/plan/planMilestonesView.php` →
+  `gui/templates/dashio/plan/planMilestonesView.tpl` already *included*
+  `DataTables.inc.tpl` with `DataTablesSelector="#item_view"` (tpl:36), but its table
+  was `<table class="common" width="100%">` with **no id** and no `<thead>` — so
+  `$('#item_view').DataTable(config)` was a silent no-op on an empty jQuery set (no
+  console error). Measured before the fix: `#item_view` = 0, no
+  `.dataTables_length` / `.dataTables_filter` / `.dataTables_info`, `thead` count 0,
+  while the `lengthMenu`/`stateSave` config *was* emitted into the page. The
+  `[planMilestonesView]` config added by #1594 (`item_view_table="table table-bordered"`,
+  `item_view_thead="thead-dark"`, `pagination_length=20`) had no consumer.
+  Fixed by porting the grid to the same contract the sibling Dashio list screens use
+  (`buildView.tpl:86`, `planView.tpl:96`, `rolesView.tpl:73`):
+  `<table class="{#item_view_table#}" id="item_view">`, header row in
+  `<thead class="{#item_view_thead#}">`, data rows in `<tbody>`, and the Delete action
+  column marked `data-orderable="false" class="icon_cell"` so it stays out of sorting
+  and out of the global search index. The separate "Milestones Report"
+  (`simple_tableruler`) table is deliberately untouched.
+  After the fix (both project variants, `testPriorityEnabled` 1 → 7 columns and
+  0 → 5 columns): `#item_view` = 1 with class
+  `table table-bordered dataTable no-footer`, thead `thead-dark`,
+  `#item_view_wrapper` present, page-length menu `20/40/60/All`,
+  `.dataTables_info` "Showing 1 to 3 of 3 entries", search filters, Name sorting
+  asc/desc, `stateSave` persists the page length across reloads, delete
+  `delete_confirmation()` handlers and `planMilestonesEdit.php` links unchanged.
+  The modernized screen `gui/templates/plans/planMilestones.html` was **not** affected —
+  it already initialises DataTables on `#msTable` / `#reportTable`; this gap was
+  confined to the legacy template that is still shipped (cf. the open
+  "Delete legacy …" cleanup tasks). Test suite:
+  `tmp/TLU_Test_Cases.md` **Suite 1650 — 22/22 PASS**; Event Viewer 0 new
+  ERROR/WARNING. See GitHub issue #1650.
+

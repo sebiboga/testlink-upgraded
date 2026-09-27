@@ -24474,3 +24474,89 @@ with password `reo1660`.
 **Syntax gates:** `php -l` on `api/tcreorder/index.php`,
 `lib/ajax/dragdroptprojectnodes.php`, `lib/testcases/listTestCases.php`,
 `lib/functions/common.php` — all `No syntax errors detected`.
+
+---
+
+## Suite 1650 — Task, Issue #1650: legacy `planMilestonesView.tpl` milestone grid had no `id="item_view"`, so DataTables never initialised
+
+**Target:** `gui/templates/dashio/plan/planMilestonesView.tpl` (legacy Smarty screen reached
+via `lib/plan/planMilestonesView.php`), reached from the aside entry
+"Test Plan → Milestones" (the aside launcher itself already points at the modern BFF page
+`gui/templates/plans/planMilestones.html`; this suite covers the legacy controller/template
+pair that is still shipped — see the sibling open cleanup tasks "Delete legacy …").
+
+**Preconditions (DB is freshly imported each run, so fixtures were recreated here):**
+- login `admin` / `admin`
+- project `1` = `MS Project`, `testPriorityEnabled=1` — `POST /api/projects/`
+- plan `2` = `MS Plan` — `POST lib/plan/planEdit.php` `do_action=do_create&tproject_id=1`
+- milestones `1` `Milestone Alpha`, `2` `Milestone Beta`, `3` `Milestone Gamma` —
+  `POST /api/milestones/create?tplan_id=2`
+- project `3` = `MS NoPrio` (`PUT /api/projects/3 {"optPriority":0}`), plan `4` = `NP Plan`,
+  milestones `4` `NoPrio One`, `5` `NoPrio Two` — the `testPriorityEnabled=0` variant
+- **the session context must be bound first** (`GET index.php?tproject_id=<id>&tplan_id=<id>`),
+  otherwise `initContext()` yields `tproject_id=0` and the screen shows
+  "There are currently no testproject defined!" and the grid is never rendered
+- clear the `DataTables_item_view_*` localStorage key between runs (`stateSave` persists)
+
+**Reference screen used as the contract oracle:** `lib/plan/planView.php?tproject_id=1`
+(same session, same include, `planView.tpl:96` already uses the contract).
+
+### A. The gap itself (before the fix — measured, documented in the investigation comment)
+
+| # | Case | Expected | Result |
+|---|---|---|---|
+| A1 | `planMilestonesView.php?tproject_id=1&tplan_id=2` → `querySelectorAll('#item_view').length` | 1 | **FAIL before fix → 0** |
+| A2 | `.dataTables_length` present | true | **FAIL before fix → false** |
+| A3 | `.dataTables_filter` present | true | **FAIL before fix → false** |
+| A4 | `.dataTables_info` present | true | **FAIL before fix → false** |
+| A5 | the milestone data itself renders | 3 rows | PASS (3 rows — only the grid chrome was missing) |
+| A6 | reference `planView.php` in the same session | contract satisfied | PASS (`#item_view`=1, thead `thead-dark`, all 3 controls true) |
+
+### B. Contract after the fix (testPriorityEnabled = 1 → 7 columns)
+
+| # | Case | Expected | Result |
+|---|---|---|---|
+| B1 | `#item_view` count / class | 1 / `table table-bordered dataTable no-footer` | PASS |
+| B2 | `#item_view thead` class | `thead-dark` (from `[planMilestonesView] item_view_thead`) | PASS |
+| B3 | `#item_view_wrapper` exists (DataTables took over the table) | true | PASS |
+| B4 | `.dataTables_length` options | `20`, `40`, `60`, `All` (from `config.inc.php:709` pagination->length) | PASS |
+| B5 | `.dataTables_info` text | `Showing 1 to 3 of 3 entries` | PASS |
+| B6 | column headers | Name, Target Date, Start Date, High %, Medium %, Low %, delete | PASS (7) |
+
+### C. Grid behaviour (real DataTables API + real DOM events)
+
+| # | Case | Expected | Result |
+|---|---|---|---|
+| C1 | global search `Gamma` | `Showing 1 to 1 of 1 entries (filtered from 3 total entries)`, 1 row | PASS |
+| C2 | clear the search | `Showing 1 to 3 of 3 entries`, 3 rows | PASS |
+| C3 | page length → `20` | select value `20` | PASS |
+| C4 | sort Name asc / desc | `Alpha,Beta,Gamma` / `Gamma,Beta,Alpha` | PASS |
+| C5 | `stateSave`: set length `40`, reload page | length still `40`; localStorage key `DataTables_item_view_/lib/plan/planMilestonesView.php` created | PASS |
+| C6 | Delete column is not sortable | `<th data-orderable="false">` + DataTables class `icon_cell sorting_disabled`, no sort arrow | PASS |
+| C7 | Delete icon handler survives the migration | 3 icons, `onclick="delete_confirmation(1, 'Milestone Alpha', 'Delete', …)"` | PASS |
+| C8 | Edit links survive the migration | `lib/plan/planMilestonesEdit.php?tproject_id=1&tplan_id=2&doAction=edit&id=1|2|3` | PASS |
+
+### D. Regression — `testPriorityEnabled = 0` branch (project 3 / plan 4)
+
+| # | Case | Expected | Result |
+|---|---|---|---|
+| D1 | `#item_view` + thead + length/filter/info | 1 / `thead-dark` / true / true / true | PASS |
+| D2 | column count and headers | 5: Name, Target Date, Start Date, Completed tests [0-100%], delete | PASS |
+| D3 | delete `<th>` still `data-orderable="false"` | false | PASS |
+| D4 | rows + search | `NoPrio One`, `NoPrio Two`; search `NoPrio Two` → `1 of 1 (filtered from 2)` | PASS |
+
+### E. Out-of-scope table + hygiene
+
+| # | Case | Expected | Result |
+|---|---|---|---|
+| E1 | "Milestones Report" `simple_tableruler` table | untouched by this change (skipped by `{if $gui->itemsLive != ""}` — the plan has no test cases, pre-existing) | PASS (no change, verified) |
+| E2 | browser console (errors + warnings) on both variants | none | PASS (0 messages) |
+| E3 | Event Viewer: new ERROR/WARNING rows | none | PASS — 11 rows, **all** `log_level 16` (audit INFO), 0 with `log_level IN (1,2)` |
+| E4 | modernized screen `gui/templates/plans/planMilestones.html` unaffected | still initialises `#msTable` (`:365`) and `#reportTable` (`:431`) | PASS (not touched; out of scope per investigation §4) |
+
+**Syntax gate:** Smarty template — no `php -l` applies; markup re-read after the edit
+(`thead` opened/closed, `tbody` opened/closed, both inside the `{if $gui->items}` block),
+`git diff` = 1 file, +14/−1.
+
+**Result: 22/22 PASS** (A1–A4 measured FAIL before the fix and PASS after; A5–E4 PASS
+before and after, i.e. no regression).

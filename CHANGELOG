@@ -5997,6 +5997,35 @@ Changes:
       project tables and added user metrics to the middle section
 
 ## 2.0.1 (in-progress)
+### Gap closed — legacy Test Plan Milestones grid never got DataTables (Fixes #1650)
+- `gui/templates/dashio/plan/planMilestonesView.tpl:36` included
+  `DataTables.inc.tpl` with `DataTablesSelector="#item_view"`, but the template's only
+  candidate element was `<table class="common" width="100%">` with NO id, so
+  `$('#item_view').DataTable(config)` ran on an empty jQuery set and was a silent
+  no-op (no console error): the page-length menu, global search, column sorting and
+  the record counter were all absent, and the `lengthMenu`/`stateSave` config emitted
+  into the page by the include was never applied. The `[planMilestonesView]`
+  `item_view_table` / `item_view_thead` / `pagination_length` config added by #1594
+  had no consumer.
+- Ported the grid to the Dashio list-screen contract already used by the sibling
+  templates (`buildView.tpl:86`, `planView.tpl:96`, `rolesView.tpl:73`,
+  `projectView.tpl:84`): `<table class="{#item_view_table#}" id="item_view">`, header
+  row wrapped in `<thead class="{#item_view_thead#}">`, data rows in `<tbody>`
+  (DataTables needs the thead/tbody split to build its column model), and the Delete
+  action column marked `data-orderable="false" class="icon_cell"` so it stays out of
+  sorting and out of the global search index. The separate "Milestones Report"
+  (`simple_tableruler`) table is untouched, per the issue scope.
+- Browser-verified on both project variants: `testPriorityEnabled=1` (7 columns) and
+  `testPriorityEnabled=0` (5 columns). `#item_view` = 1, class
+  `table table-bordered dataTable no-footer`, thead `thead-dark`, `#item_view_wrapper`
+  present, `.dataTables_length` (20/40/60/All) / `.dataTables_filter` /
+  `.dataTables_info` ("Showing 1 to 3 of 3 entries") all present, search filters
+  ("Gamma" -> 1 of 1 filtered from 3), Name sorting asc/desc works, `stateSave` now
+  persists the page length across reloads, delete `delete_confirmation()` handlers and
+  `planMilestonesEdit.php` links unchanged. Reference screen `planView.php` in the same
+  session measured identically, proving the contract. Console clean, Event Viewer
+  0 new ERROR/WARNING (all 11 rows are log_level 16 audit). Suite 1650 14/14 PASS.
+
 ### Key bugfix — 'Assign Requirements' modal on Test Specification was always empty (Refs #1598)
 - `gui/templates/testcases/testSpec.html`: `openAssignReqs(tcaseId)` accepted the test-case id
   the button passes and never stored it, so the module-level `arqTcaseId` stayed `0` for the whole
