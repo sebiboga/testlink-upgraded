@@ -57,11 +57,25 @@
  *   die('ltx - tplan info does not exist')        | 404 LTX-02  plan_not_found
  *   $hasRight === false (default: "need to fail!")| 403 LTX-03  no_rights
  *   echo lang_get('build_id_not_set')             | 400 LTX-04  build_id_not_set
- *   echo lang_get('item_not_set')                 | 400 LTX-05  item_not_set
  *   echo lang_get('testplan_not_set')             | 400 LTX-06  testplan_not_set
  *   echo lang_get('tcversion_id')                 | 400 LTX-07  tcversion_not_set
- *   echo lang_get('platform_id_not_set')          | 400 LTX-08  platform_not_set
  *   (nothing echoed, plain $jump_to['msg']='ko')  | 404 LTX-09  not_resolvable
+ *   null recordset from an unknown feature_id     | 404 LTX-10  unknown_feature
+ *
+ * NOTE: the legacy table also listed LTX-05 (item_not_set) and LTX-08
+ * (platform_id_not_set). No legacy branch ever reached them - `item` was
+ * validated by the init_args switch that answers LTX-01, and a missing
+ * platform_id is OPTIONAL in the legacy script (it defaulted to the plan
+ * link's platform). They are not emulated, and the screen has no mapping for
+ * them either. The code review (MINOR-14) flagged this comment as claiming
+ * two branches that do not exist.
+ *
+ * Every distinct machine code actually emitted (19, verified by grepping
+ * `fail('`): unauthenticated, unknown_action, method_not_allowed,
+ * security_check_ko, build_id_not_set, testplan_not_set, tcversion_not_set,
+ * missing_user_id, not_your_tasks, no_rights, plan_not_found,
+ * project_not_found, tcversion_not_found, tcase_not_found, unknown_build,
+ * unknown_platform, version_not_in_plan, unknown_feature, server_error.
  *
  * SECURITY FIXES vs the legacy script (each one a real hole, see #1677 body)
  * ------------------------------------------------------------------------
@@ -102,8 +116,6 @@ require_once(__DIR__ . '/../../config.inc.php');
 require_once('common.php');
 require_once(__DIR__ . '/../_guard.php');
 
-doDBConnect($db);
-
 header('Content-Type: application/json; charset=utf-8');
 header('X-Content-Type-Options: nosniff');
 
@@ -130,6 +142,16 @@ try {
 
     if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'GET') {
         fail('method_not_allowed', 405, null, 'Only GET is accepted');
+    }
+
+    // Connect INSIDE the try and INSIDE the auth gate (code review MINOR-8 /
+    // MINOR-13). common.php:190-191 echoes the raw dbms_msg on a failed
+    // connect, so doing this before the guard leaked an untranslated DBMS
+    // message - host and database name - in the body of an HTTP 200.
+    $db = new database(DB_TYPE);
+    $conn = doDBConnect($db);
+    if (!empty($conn) && isset($conn['status']) && !$conn['status']) {
+        fail('server_error', 500, null, 'Database connection failed');
     }
 
     $action = trim(strval($_GET['action'] ?? ''));
@@ -159,6 +181,10 @@ try {
 
     $tplanId    = gInt('tplan_id');
     $buildId    = gInt('build_id');
+    // Distinguish "no platform_id key" from an explicit `platform_id=0`
+    // ("no platform"): only the former may fall back to the plan link's
+    // platform (code review MINOR-3).
+    $platformIdGiven = isset($_GET['platform_id']);
     $platformId = gInt('platform_id');
     $tcversionId = gInt('tcversion_id');
     $featureId  = gInt('feature_id');
@@ -200,7 +226,14 @@ try {
             }
             $tplanId = intval($rs[0]['testplan_id']);
             $tcversionId = intval($rs[0]['tcversion_id']);
-            $platformId = intval($rs[0]['platform_id']);
+            // Only DEFAULT the platform from the feature row: an explicitly
+            // submitted platform_id must win, otherwise the platform selector
+            // on the screen silently snaps back to the feature row's platform
+            // on every Apply (code review MAJOR-1). An explicit empty value
+            // means "no platform" and is honoured (code review MINOR-3).
+            if ($platformId <= 0 && !$platformIdGiven) {
+                $platformId = intval($rs[0]['platform_id']);
+            }
         }
         if ($tplanId <= 0 || $tcversionId <= 0) {
             if ($tcversionId <= 0) {
@@ -238,7 +271,7 @@ try {
     // exec + xta2m. Applied on every action - the legacy inner frame never
     // did this (fix 1).
     $hasRight = $user->hasRight($db, 'testplan_execute', $tprojectId, $tplanId);
-    if ($hasRight == false) {
+    if (!$hasRight) {
         fail('no_rights', 403, 'LTX-03',
              'System checks do not allow the operation requested');
     }
@@ -273,6 +306,12 @@ try {
                             'active' => $tplanActive, 'is_open' => $tplanIsOpen),
     );
 
+    // Table names for both branches (the xta2m branch proves the forwarded
+    // build belongs to the owning project, so it needs `builds` too).
+    $tables = tlObjectWithDB::getDBTables(array(
+        'nodes_hierarchy', 'tcversions', 'testplan_tcversions', 'builds',
+        'platforms'));
+
     // =====================================================================
     // xta2m -> assignedTcOverview.html (legacy launch_inner_xta2m)
     // =====================================================================
@@ -285,7 +324,19 @@ try {
              . '&user_id=' . $targetUserId;
         // legacy: only forwarded the ids that were > 0
         if ($tplanId > 0)  { $url .= '&tplan_id=' . $tplanId; }
-        if ($buildId > 0)  { $url .= '&build_id=' . $buildId; }
+        if ($buildId > 0) {
+            // The build is forwarded to assignedTcOverview.html, so prove it
+            // belongs to the OWNING project first - the exec branch already
+            // did, this branch did not (code review MINOR-2).
+            $bRs = $db->get_recordset(
+                "SELECT id FROM {$tables['builds']}" .
+                " WHERE id = $buildId AND testproject_id = $tprojectId");
+            if (is_null($bRs) || count($bRs) === 0) {
+                fail('unknown_build', 404, 'LTX-09',
+                     'Build not found in this test project');
+            }
+            $url .= '&build_id=' . $buildId;
+        }
 
         out(array(
             'status' => 'ok',
@@ -305,9 +356,6 @@ try {
     // =====================================================================
     // exec -> execSetResults.html + execNavigator.html
     // =====================================================================
-    $tables = tlObjectWithDB::getDBTables(array(
-        'nodes_hierarchy', 'tcversions', 'testplan_tcversions', 'builds',
-        'platforms'));
 
     // the test case node: in 2.0.1 a version is its own nodes_hierarchy row
     // whose parent is the test case node (see api/execsetresults
@@ -329,15 +377,29 @@ try {
         fail('tcase_not_found', 404, 'LTX-09', 'Test case not found');
     }
 
-    // the version must be LINKED to the plan (fix 3)
-    $linkRs = $db->get_recordset(
-        "SELECT id, platform_id FROM {$tables['testplan_tcversions']}" .
-        " WHERE testplan_id = $tplanId AND tcversion_id = $tcversionId");
+    // the version must be LINKED to the plan (fix 3). A version linked under
+    // several platforms has one testplan_tcversions row PER platform, so the
+    // row used for `feature` / the platform fallback is chosen deterministically
+    // (ORDER BY id) and PREFERRED for the requested platform - but a version
+    // linked under platform A is still perfectly valid on platform B, so the
+    // platform filter is a preference and never a gate (code review MINOR-7).
+    $linkSql = "SELECT id, platform_id FROM {$tables['testplan_tcversions']}" .
+               " WHERE testplan_id = $tplanId AND tcversion_id = $tcversionId" .
+               " ORDER BY id";
+    $linkRs = $db->get_recordset($linkSql);
     if (is_null($linkRs) || count($linkRs) === 0) {
         fail('version_not_in_plan', 404, 'LTX-09',
              'The test case version is not linked to this test plan');
     }
     $linkRow = $linkRs[0];
+    if ($platformId > 0) {
+        foreach ($linkRs as $candidate) {
+            if (intval($candidate['platform_id'] ?? 0) === $platformId) {
+                $linkRow = $candidate;
+                break;
+            }
+        }
+    }
 
     // the build must belong to the OWNING project (fix 3)
     $buildRow = $db->get_recordset(
@@ -355,7 +417,7 @@ try {
     $platformIsOpen = 1;
     if ($platformId > 0) {
         $platRs = $db->get_recordset(
-            "SELECT id, name, is_open, enable_on_execution" .
+            "SELECT id, name, is_open" .
             " FROM {$tables['platforms']}" .
             " WHERE id = $platformId AND testproject_id = $tprojectId");
         if (is_null($platRs) || count($platRs) === 0) {
@@ -365,9 +427,11 @@ try {
         $platformName = strval($platRs[0]['name'] ?? '');
         $platformIsOpen = intval($platRs[0]['is_open'] ?? 1);
     }
-    // when the caller did not name a platform, keep the plan link's platform
-    // so the resolved deep link is complete.
-    if ($platformId <= 0) {
+    // When the caller named NO platform at all, keep the plan link's platform
+    // so the resolved deep link is complete. An EXPLICIT `platform_id=0` (the
+    // screen's "No platform" choice) is honoured and must not be overridden -
+    // otherwise that option can never take effect (code review MINOR-3).
+    if ($platformId <= 0 && !$platformIdGiven) {
         $platformId = intval($linkRow['platform_id'] ?? 0);
         if ($platformId > 0) {
             $platRs = $db->get_recordset(
@@ -457,31 +521,36 @@ try {
         }
     }
 
+    // One row per LINKED test case version. A version linked under several
+    // platforms has several testplan_tcversions rows, so GROUP BY the version
+    // and take the lowest feature id - otherwise the selector rendered
+    // duplicate <option> values (code review MINOR-11) - and join the test case
+    // node for its name instead of issuing one extra query per version
+    // (code review MINOR-6: a 2000-TC plan meant 2001 queries per page load).
     $linkedVersions = array();
     $lvRs = $db->get_recordset(
-        "SELECT TPTCV.id AS feature_id, TPTCV.tcversion_id, TPTCV.platform_id," .
-        " V.version, NH.name AS name, NH.parent_id AS tcase_id" .
+        "SELECT MIN(TPTCV.id) AS feature_id, TPTCV.tcversion_id," .
+        " MIN(TPTCV.platform_id) AS platform_id, V.version," .
+        " NH.parent_id AS tcase_id, NH_TC.name AS name, NH.name AS version_name" .
         " FROM {$tables['testplan_tcversions']} TPTCV" .
         " JOIN {$tables['tcversions']} V ON V.id = TPTCV.tcversion_id" .
         " JOIN {$tables['nodes_hierarchy']} NH ON NH.id = V.id" .
+        " LEFT JOIN {$tables['nodes_hierarchy']} NH_TC ON NH_TC.id = NH.parent_id" .
         " WHERE TPTCV.testplan_id = $tplanId" .
-        " ORDER BY NH.name, V.version");
+        " GROUP BY TPTCV.tcversion_id, V.version, NH.parent_id, NH_TC.name" .
+        " ORDER BY NH_TC.name, V.version");
     if (!is_null($lvRs)) {
         foreach ($lvRs as $lv) {
-            $lvTcaseId = intval($lv['tcase_id'] ?? 0);
             $lvName = strval($lv['name'] ?? '');
-            if ($lvTcaseId > 0) {
-                $tnRs = $db->get_recordset(
-                    "SELECT name FROM {$tables['nodes_hierarchy']}" .
-                    " WHERE id = $lvTcaseId");
-                if (!is_null($tnRs) && count($tnRs) > 0) {
-                    $lvName = strval($tnRs[0]['name'] ?? $lvName);
-                }
+            if ($lvName === '') {
+                // no test case node (orphan version): fall back to the version
+                // node's own name
+                $lvName = strval($lv['version_name'] ?? '');
             }
             $linkedVersions[] = array(
                 'feature_id' => intval($lv['feature_id']),
                 'tcversion_id' => intval($lv['tcversion_id']),
-                'tcase_id' => $lvTcaseId,
+                'tcase_id' => intval($lv['tcase_id'] ?? 0),
                 'platform_id' => intval($lv['platform_id'] ?? 0),
                 'version' => intval($lv['version'] ?? 1),
                 'name' => $lvName,

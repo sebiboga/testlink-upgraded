@@ -5,7 +5,7 @@ Executable harness: drives the BFF contract + the fixture data, then reports
 PASS/FAIL per case. Browser-only cases are marked BROWSER and were executed
 separately through chrome-devtools (results recorded in the same table).
 """
-import json, subprocess, sys, os, urllib.parse
+import json, subprocess, sys, os, re, urllib.parse
 
 BASE = 'http://localhost:8082'
 API = BASE + '/api/ltx/index.php'
@@ -216,6 +216,83 @@ c, b, _ = api('action=init&item=exec&build_id=%d&feature_id=9999' % BUILD)
 check('S14', 'unknown feature_id -> 404 unknown_feature (legacy dereferenced a null rowset)',
       c == '404' and b['code'] == 'unknown_feature', c)
 
+# ------------------------------------------------- code-review regressions --
+# Findings from the mandatory subagent code review; each pins the FIX.
+print('== code-review regressions ==')
+c, b, _ = api('action=init&item=exec&build_id=%d&tplan_id=%d&tcversion_id=%d&platform_id=%d'
+              % (BUILD, PLAN, TCVER, PLAT2))
+check('R1', 'MAJOR-1: an explicit platform_id WINS over the feature row platform '
+      '(the platform selector was a silent no-op)',
+      c == '200' and b['context']['platform']['id'] == PLAT2
+      and 'platform_id=%d' % PLAT2 in b['targets']['primary_url'], c)
+c, b, _ = api('action=init&item=exec&build_id=%d&feature_id=%d&platform_id=%d'
+              % (BUILD, FEAT, PLAT2))
+check('R2', 'MAJOR-1: feature_id + explicit platform -> the platform still wins',
+      c == '200' and b['context']['platform']['id'] == PLAT2, c)
+c, b, _ = api('action=init&item=exec&build_id=%d&feature_id=%d' % (BUILD, FEAT))
+check('R3', 'MAJOR-1/MINOR-3: with NO platform_id key the feature platform is '
+      'still defaulted (legacy complete-link behaviour kept)',
+      c == '200' and b['context']['platform']['id'] == PLAT, c)
+c, b, _ = api('action=init&item=exec&build_id=%d&tplan_id=%d&tcversion_id=%d&platform_id=0'
+              % (BUILD, PLAN, TCVER))
+check('R4', 'MINOR-3: an explicit empty platform_id ("No platform") is honoured, '
+      'not overridden by the plan link',
+      c == '200' and b['context']['platform']['id'] == 0
+      and 'platform_id=0' in b['targets']['primary_url'], c)
+c, b, _ = api('action=init&item=exec&build_id=%d&tplan_id=%d&tcversion_id=%d&platform_id='
+              % (BUILD, PLAN, TCVER))
+check('R5', 'MINOR-3: platform_id= (empty string) behaves like "no platform"',
+      c == '200' and b['context']['platform']['id'] == 0, c)
+c, b, _ = api('action=init&item=exec&build_id=%d&tplan_id=%d&tcversion_id=%d&platform_id=%d'
+              % (BUILD, PLAN, TCVER, PLAT2))
+check('R6', 'MINOR-7: a version linked under platform A is still valid on '
+      'platform B (the platform filter is a preference, never a gate)', c == '200', c)
+check('R7', 'MINOR-7: the reported feature id is deterministic',
+      b['context']['feature']['testplan_tcversions_id'] == FEAT,
+      str(b['context']['feature']))
+c, b, _ = api('action=init&item=xta2m&tplan_id=%d&user_id=1&build_id=999' % PLAN)
+check('R8', 'MINOR-2: xta2m refuses a build outside the owning project',
+      c == '404' and b['code'] == 'unknown_build', '%s %s' % (c, b and b.get('code')))
+c, b, _ = api('action=init&item=xta2m&tplan_id=%d&user_id=1&build_id=%d' % (PLAN, BUILD))
+check('R9', 'MINOR-2: a valid xta2m build is still forwarded',
+      c == '200' and 'build_id=%d' % BUILD in b['targets']['primary_url'], c)
+lv = api('action=init&item=exec&build_id=%d&tplan_id=%d&tcversion_id=%d&platform_id=%d'
+         % (BUILD, PLAN, TCVER, PLAT))[1]['options']['linked_versions']
+ids = [x['tcversion_id'] for x in lv]
+check('R10', 'MINOR-11: no duplicate <option> values in the version selector',
+      len(ids) == len(set(ids)), str(ids))
+check('R11', 'MINOR-6: the linked-version list is still complete + named',
+      sorted(x['version'] for x in lv) == [1, 2]
+      and all(x['name'] == 'LTX Case A' for x in lv), str(lv))
+c, b, _ = api('action=init&item=exec&build_id=%d&tplan_id=%d&tcversion_id=%d&platform_id=%d'
+              % (BUILD, PLAN, TCVER, PLAT), cookie=ANON)
+check('R12', 'MINOR-8/13: the DB is now connected INSIDE the auth gate '
+      '(anon is refused before any connection is opened)', c == '401', c)
+bffsrc = open('api/ltx/index.php').read()
+emitted = re.findall(r"fail\('[a-z_]+',\s*\d+,\s*'(LTX-\d+)'", bffsrc)
+check('R13', 'MINOR-14: LTX-05 / LTX-08 are documented as NEVER EMITTED and are '
+      'not emitted anywhere in the code',
+      'LTX-05' not in emitted and 'LTX-08' not in emitted
+      and 'No legacy branch ever reached them' in bffsrc, str(sorted(set(emitted))))
+dead = ['ltx.errPlatformNotSet', 'ltx.errUnauthenticated']
+bundles = [f for f in __import__('glob').glob('gui/templates/i18n/*.json')
+           if any(k in open(f).read() for k in dead)]
+check('R14', 'MINOR-15: the 2 unreachable i18n keys are gone from all 10 bundles',
+      not bundles, str(bundles))
+check('R15', 'MINOR-15: the screen no longer maps the removed codes either',
+      'errPlatformNotSet' not in open('gui/templates/links/ltxDirectLink.html').read()
+      and 'errUnauthenticated' not in open('gui/templates/links/ltxDirectLink.html').read(), '')
+js = open('gui/templates/links/ltxDirectLink.html').read()
+check('R16', 'MINOR-4: Apply re-emits build_id for xta2m too '
+      '(hoisted out of the exec-only branch)',
+      js.index("q.set('build_id', buildId)") < js.index("q.set('user_id', userId)"), '')
+check('R17', 'MINOR-3: Apply always emits platform_id, even when empty',
+      "q.set('platform_id'" in js, '')
+check('R18', 'MINOR-3: the BFF REQUEST builder (currentParams) also forwards an '
+      'explicit empty platform_id - it is not just the Apply URL',
+      'platformIdGiven = qs.has' in js
+      and 'if (platformIdGiven) { q.set' in js, '')
+
 # ---------------------------------------------------------------- options ---
 print('== options / contract ==')
 c, b, _ = api('action=init&item=exec&build_id=%d&tplan_id=%d&tcversion_id=%d&platform_id=%d'
@@ -315,18 +392,15 @@ check('H9', 'ltx.php keeps the legacy non-public contract (no ?goto= / no public
 
 # ----------------------------------------------------------------- i18n -----
 print('== i18n / wiring ==')
-out = subprocess.run(['python3', '-c', '''
-import json, glob, sys
-missing = []
-for f in sorted(glob.glob("gui/templates/i18n/*.json")):
-    d = json.load(open(f))
-    need = [k for k in d if k.startswith("ltx.")]
-    if len(need) != 53 or "footers.ltxDirectLink" not in d:
-        missing.append((f, len(need), "footers.ltxDirectLink" in d))
-print(missing)
-'''], capture_output=True, text=True, cwd='.')
-check('I1', 'all 10 bundles carry the 53 ltx.* keys + footers.ltxDirectLink',
-      out.stdout.strip() == '[]', out.stdout.strip() or out.stderr.strip()[:80])
+bad = []
+for _f in sorted(__import__('glob').glob('gui/templates/i18n/*.json')):
+    _d = json.load(open(_f))
+    _n = [k for k in _d if k.startswith('ltx.')]
+    if len(_n) != 51 or 'footers.ltxDirectLink' not in _d:
+        bad.append((_f, len(_n), 'footers.ltxDirectLink' in _d))
+out = str(bad)
+check('I1', 'all 10 bundles carry the 51 ltx.* keys + footers.ltxDirectLink',
+      out.strip() == '[]', out.strip())
 commonphp = open('lib/functions/common.php').read()
 check('I2', '$actions->ltxDirectLink registered in common.php',
       '$actions->ltxDirectLink' in commonphp, '')

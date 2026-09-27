@@ -6334,11 +6334,24 @@ Changes:
   short-circuit (the 2.0.1 `nodes_hierarchy` refactor made `parent_id` nullable).
 - Fixes **#1679** — see the dedicated *Key bugfix* entry at the top of the 2.0.1 section:
   `bffSameOriginGuard()` short-circuited on `X-Requested-With` before reading
-  `Origin`/`Referer`, so a foreign `Origin` was accepted as same-origin across all 101
-  guarded BFF endpoints. Fixed there (Origin/Referer validated first, XRW demoted to
-  fallback); recorded here as a cross-reference from the screen where it was found.
-- Test suite: 78 executable cases (`tmp/suite_1677.py`), 78/78 PASS; Event Viewer clean
-  (0 `ERROR`/`WARNING`, 0 `DATABASE`).
+  `Origin`/`Referer`, so a foreign `Origin` was accepted as same-origin across all guarded
+  BFF endpoints. Found from this screen and fixed repo-wide (Origin/Referer validated first,
+  XRW demoted to fallback); recorded here as a cross-reference.
+- Mandatory code review (subagent): 1 MAJOR + 14 MINOR + 14 NIT, **no security hole**, all
+  actionable findings fixed. MAJOR: the platform selector was a silent no-op — `Apply`
+  re-emitted a `feature_id` whose `testplan_tcversions` row then overwrote the chosen
+  `platform_id`; an explicit platform now always wins and the feature platform is only a
+  default. MINORs: the "No platform" option could never take effect (BFF *and* screen used
+  truthiness instead of parameter presence, in `applySettings()` and in the `currentParams()`
+  request builder); an ambiguous multi-platform `testplan_tcversions` row made the reported
+  feature id non-deterministic; the DB was connected **before** the auth gate, so a down
+  database answered HTTP 200 with a raw `dbms_msg`; `item=xta2m` forwarded `build_id`
+  unvalidated; one extra `SELECT` per linked version (N+1) plus duplicate `<option>` values
+  for a multi-platform version; the header comment claimed `LTX-05`/`LTX-08` branches that
+  never existed and the docs said "7 machine codes" where 19 are emitted; 2 unreachable
+  i18n keys removed.
+- Test suite: 96 executable cases (`tmp/suite_1677.py`), 96/96 PASS, including 18 regression
+  cases pinning the review fixes; Event Viewer clean (0 `ERROR`/`WARNING`, 0 `DATABASE`).
 
 ### UI modernization — Launch Test Case Print gateway (Refs #1623)
 - The public share-link entry point `ltcp.php` (`?apikey=<32-char user key>&testcase=<PREFIX>-<NUM>-<VERSION>`)

@@ -75,6 +75,13 @@ answer also returns the `legacy_code` marker so each old outcome stays recogniza
 | `unknown_build` / `tcversion_not_found` / `unknown_platform` / `version_not_in_plan` | 404 | `LTX-09` | the legacy `die()` class |
 | `unknown_feature` | 404 | `LTX-10` | null `feature_id` recordset |
 | `method_not_allowed` | 405 | — | non-GET |
+| `server_error` | 500 | — | DB connection failed, guarded JSON |
+
+The legacy table also listed `LTX-05` (`item_not_set`) and `LTX-08`
+(`platform_id_not_set`), but **no legacy branch ever reached them** — `item`
+was validated by the `init_args` switch that answers `LTX-01`, and a missing
+`platform_id` is optional. They are not emulated. 19 distinct machine codes
+are emitted in total.
 
 Links now hand over to the already-modern `execSetResults.html`, `execNavigator.html` and
 `assignedTcOverview.html` instead of the still-legacy `lib/execute/*.php` renderers.
@@ -124,11 +131,51 @@ Each was a real hole in 1.9.20, found by porting the branch:
 `ltx.*` (53 keys) + `footers.ltxDirectLink` in **all 10** bundles (`en`, `ro`, `de`, `es`, `fr`,
 `it`, `pt`, `ru`, `ja`, `zh`), validated with `python3 -m json.tool`. No hardcoded strings.
 
+## Code review
+
+The mandatory subagent review found **1 MAJOR, 14 MINOR, 14 NIT** and no security hole —
+it could not find a path around the `version_not_in_plan` proof, and rated the `.fail()`
+handling better than `execDashboard.html`'s. Everything actionable is fixed; the
+interesting ones:
+
+- **MAJOR — the platform selector was a silent no-op.** `applySettings()` always re-emitted
+  a `feature_id`, and the BFF's `feature_id` branch then *overwrote* `platform_id` from the
+  `testplan_tcversions` row. Choosing a platform and clicking **Apply** snapped the context
+  back to the feature row's platform. An explicit `platform_id` now always wins, and the
+  feature platform is only used as a **default**.
+- **MINOR — "No platform" could never take effect.** The BFF re-derived the platform from
+  the plan link whenever `platform_id <= 0`, and the screen's "No platform" `<option>` has
+  `value=""`, so the choice was indistinguishable from "the link named no platform". Both
+  sides now use *presence* (`isset($_GET['platform_id'])` / `URLSearchParams.has()`)
+  instead of truthiness — including in `currentParams()`, the BFF **request** builder, which
+  had the same bug and was only caught by exercising the screen in the browser.
+- **MINOR — an ambiguous `testplan_tcversions` row.** A version linked under several
+  platforms has one row per platform and the old query had no `ORDER BY`, so both the
+  reported `feature` id and the platform fallback came from an arbitrary row. Now ordered,
+  and the requested platform is a *preference* (a version linked under platform A is still
+  valid on platform B — that must not 404).
+- **MINOR — the DB was connected before the auth gate.** `common.php` echoes the raw
+  `dbms_msg` on a failed connect, so a down database produced an **HTTP 200** carrying an
+  untranslated host/database name. The connect moved inside the `try` and behind the guard.
+- **MINOR — the xta2m branch forwarded `build_id` unvalidated** while the docs claimed
+  membership was proven for all three link shapes. It is now proven against the owning
+  project.
+- **MINOR — N+1 query and duplicate options.** One extra `SELECT` per linked version (2001
+  queries on a 2000-TC plan) and one `<option>` per platform link, so a multi-platform
+  version rendered duplicate option values. Replaced by a single `LEFT JOIN` + `GROUP BY`.
+- **MINOR — the header comment claimed two branches that do not exist** (`LTX-05`, `LTX-08`)
+  and the docs listed "7 stable machine codes" where 19 are emitted. Both regenerated from
+  the source.
+- **MINOR — 2 unreachable i18n keys** (`ltx.errPlatformNotSet`, `ltx.errUnauthenticated`)
+  removed from all 10 bundles and from the screen's error map.
+
 ## Tests
 
-`tmp/suite_1677.py` — 78 executable cases, **78/78 PASS** (exit 0): F fixture · A auth ·
+`tmp/suite_1677.py` — 96 executable cases, **96/96 PASS** (exit 0): F fixture · A auth ·
 E exec resolution · X xta2m · S security · O options · C contract/legacy markers · H shim ·
-I i18n/wiring · V Event Viewer. Plus a browser pass in EN and RO with a clean console.
+I i18n/wiring · V Event Viewer · **R code-review regressions** (18 cases, one per review
+fix, so none of them can silently regress). Plus a browser pass in EN and RO with a clean
+console.
 
 Event Viewer after the whole run: **0** `ERROR`/`WARNING` rows, **0** `DATABASE` rows, **0**
 rows mentioning ltx.

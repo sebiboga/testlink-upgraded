@@ -25175,7 +25175,7 @@ one Dashio resolver screen plus a session-guarded 302 shim.
 6. **Non-numeric params** — `1abc` is truthy in PHP, so the legacy `if ($f_id)` accepted
    it. Now `intval`-gated (`S7`).
 
-### Test cases (78/78 PASS)
+### Test cases (96/96 PASS)
 
 Executable harness: `tmp/suite_1677.py` (fresh fixture + real HTTP against the BFF,
 re-runnable; the browser cases were driven through chrome-devtools in the same run).
@@ -25230,7 +25230,31 @@ Sections: `F` fixture · `A` auth · `E` exec resolution · `X` xta2m · `S` sec
 `O` options · `C` contract/legacy markers · `H` `ltx.php` shim · `I` i18n/wiring ·
 `V` Event Viewer.
 
-**Result: 78/78 PASS.** `python3 tmp/suite_1677.py` → exit 0.
+**Result: 96/96 PASS.** `python3 tmp/suite_1677.py` → exit 0.
+
+### Code-review round (18 new `R*` cases)
+
+The mandatory subagent review returned **1 MAJOR, 14 MINOR, 14 NIT and NO security hole**
+(it could not find a path around the `version_not_in_plan` proof, and rated this screen's
+`.fail()` handling better than `execDashboard.html`'s, which is the one thing most BFF screens
+get wrong). Every actionable finding is fixed and pinned by a regression case:
+
+| Case | Fix |
+|---|---|
+| `R1` `R2` `R3` | **MAJOR-1** an explicit `platform_id` wins over the feature row's platform; with no `platform_id` key the feature platform is still defaulted (legacy behaviour kept) |
+| `R4` `R5` `R17` `R18` | **MINOR-3** "No platform" is honoured — parameter **presence**, not truthiness, in the BFF, in `applySettings()` *and* in the `currentParams()` request builder |
+| `R6` `R7` | **MINOR-7** a version linked under platform A stays valid on platform B; the reported feature id is deterministic |
+| `R8` `R9` | **MINOR-2** `item=xta2m` proves the forwarded `build_id` belongs to the owning project |
+| `R10` `R11` | **MINOR-11 / MINOR-6** no duplicate `<option>` values; the linked-version list is still complete and named (single JOIN, no N+1) |
+| `R12` | **MINOR-8 / MINOR-13** the DB is connected inside the auth gate, so an anonymous request never opens a connection (nor emits a raw `dbms_msg` in a 200) |
+| `R13` | **MINOR-14** `LTX-05` / `LTX-08` are documented as never emitted and are emitted nowhere |
+| `R14` `R15` | **MINOR-15** the 2 unreachable i18n keys are gone from the bundles and from the screen's error map |
+| `R16` | **MINOR-4** Apply re-emits `build_id` for `xta2m` too |
+
+Two of these were **caught by the browser pass, not the harness**: the `currentParams()` request
+builder had the same empty-`platform_id` bug as `applySettings()`, so the address bar showed the
+right URL while the screen still displayed the plan link's platform. That is exactly why a
+static read of the code did not find it.
 
 ### Bugs filed from this screen (labels correct, both verified)
 

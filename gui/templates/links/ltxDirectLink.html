@@ -218,7 +218,8 @@ table.ltinfo td { color: #333; font-size: 13px; padding: 7px 0; word-break: brea
 <script>
 function esc(s) {
   return s == null ? '' : String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 var API = '/api/ltx/index.php';
@@ -229,6 +230,11 @@ var item        = qs.get('item') || '';
 var tplanId     = qs.get('tplan_id') || '';
 var buildId     = qs.get('build_id') || '';
 var platformId  = qs.get('platform_id') || '';
+// `platform_id=` (present but empty) is the screen's explicit "No platform"
+// choice and MUST reach the BFF as such - it is not the same as the key being
+// absent, where the BFF defaults to the plan link's platform. Tracked with
+// has(), not truthiness (code review MINOR-3).
+var platformIdGiven = qs.has('platform_id');
 var tcversionId = qs.get('tcversion_id') || '';
 var featureId   = qs.get('feature_id') || '';
 var userId      = qs.get('user_id') || '';
@@ -329,7 +335,7 @@ function renderResult(r) {
     html += row('ltx.tcase',
       '<span class="extid">' + esc(tc.external_id || '') + '</span> ' +
       esc(tc.name || '') + ' ' + chip('v' + tc.version, 'chip-info'));
-    html += row('ltx.suite', esc(tc.suite || '') || '&ndash;');
+    html += row('ltx.suite', (tc.suite ? esc(tc.suite) : '&ndash;'));
     html += row('ltx.feature', '<span class="extid">#' +
       esc((ctx.feature || {}).testplan_tcversions_id || '') + '</span>');
   } else {
@@ -398,7 +404,7 @@ function currentParams() {
   if (item) { q.set('item', item); }
   if (tplanId) { q.set('tplan_id', tplanId); }
   if (buildId) { q.set('build_id', buildId); }
-  if (platformId) { q.set('platform_id', platformId); }
+  if (platformIdGiven) { q.set('platform_id', platformId); }
   if (tcversionId) { q.set('tcversion_id', tcversionId); }
   if (featureId) { q.set('feature_id', featureId); }
   if (userId) { q.set('user_id', userId); }
@@ -440,8 +446,6 @@ var ERRKEYS = {
   build_id_not_set: 'ltx.errBuildNotSet',
   testplan_not_set: 'ltx.errTestplanNotSet',
   tcversion_not_set: 'ltx.errTcversionNotSet',
-  platform_not_set: 'ltx.errPlatformNotSet',
-  item_not_set: 'ltx.errSecurityCheck',
   missing_user_id: 'ltx.errMissingUser',
   plan_not_found: 'ltx.errPlanNotFound',
   project_not_found: 'ltx.errPlanNotFound',
@@ -453,7 +457,6 @@ var ERRKEYS = {
   tcversion_not_found: 'ltx.errTcversionNotFound',
   tcase_not_found: 'ltx.errTcversionNotFound',
   version_not_in_plan: 'ltx.errNotInPlan',
-  unauthenticated: 'ltx.errUnauthenticated',
   session_expired: 'ltx.errSessionExpired',
   unknown_action: 'ltx.errGeneric',
   method_not_allowed: 'ltx.errGeneric',
@@ -496,21 +499,28 @@ function applySettings() {
   // build them, so the produced URL stays copy/pasteable.
   var q = new URLSearchParams();
   q.set('item', item);
+  if (buildId) { q.set('build_id', buildId); }   // applies to BOTH items (code review MINOR-4)
   if (item === 'exec') {
-    var b = $('#selBuild').val();
     var p = $('#selPlatform').val();
     var v = $('#selVersion').val();
-    if (b) { q.set('build_id', b); }
-    if (p) { q.set('platform_id', p); }
+    // ALWAYS emit platform_id, including an empty value: an explicit
+    // "No platform" choice has to reach the BFF as platform_id=, otherwise it
+    // is indistinguishable from "the link named no platform" and the BFF falls
+    // back to the plan link's platform (code review MINOR-3).
+    q.set('platform_id', (p === null || p === undefined) ? '' : p);
     if (v) {
       q.set('tcversion_id', v);
-      // when a feature row is known for that version, use the compact
-      // feature_id form the legacy ltx.php also accepted
+      // When a feature row is known for that version, use the compact
+      // feature_id form the legacy ltx.php also accepted. Only when an actual
+      // platform is selected: with "No platform" chosen the platform is
+      // authoritative, and a platform + feature_id pair is ambiguous.
       var vs = (lastResult && lastResult.options && lastResult.options.linked_versions) || [];
-      for (var i = 0; i < vs.length; i++) {
-        if (String(vs[i].tcversion_id) === String(v)) {
-          q.set('feature_id', String(vs[i].feature_id));
-          break;
+      if (p) {
+        for (var i = 0; i < vs.length; i++) {
+          if (String(vs[i].tcversion_id) === String(v)) {
+            q.set('feature_id', String(vs[i].feature_id));
+            break;
+          }
         }
       }
     }
