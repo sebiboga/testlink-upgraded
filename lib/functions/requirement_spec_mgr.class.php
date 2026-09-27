@@ -361,14 +361,28 @@ class requirement_spec_mgr extends tlObjectWithAttachments
   */
   function get_all_in_testproject($tproject_id,$order_by=" ORDER BY title")
   {
-   	$debugMsg = 'Class:' . __CLASS__ . ' - Method: ' . __FUNCTION__;
-	  $sql = "/* $debugMsg */ " . 
-	         " SELECT RSPEC.id,testproject_id,RSPEC.scope,RSPEC.total_req,RSPEC.type," .
-           " RSPEC.author_id,RSPEC.creation_ts,RSPEC.modifier_id," .
-           " RSPEC.modification_ts,NH.name AS title,NH.node_order " .
-	         " FROM {$this->object_table} RSPEC, {$this->tables['nodes_hierarchy']} NH " .
-	         " WHERE NH.id=RSPEC.id" .
-	         " AND testproject_id={$tproject_id}";
+    $debugMsg = 'Class:' . __CLASS__ . ' - Method: ' . __FUNCTION__;
+    // Developer Note:
+    // on 2.0.1 the per-revision data (scope,total_req,type,author_id,creation_ts,
+    // modifier_id,modification_ts) no longer lives on req_specs, it lives on
+    // req_specs_revisions -> join the LATEST revision of each spec, the same way
+    // get_by_id() and get_by_doc_id() already do. LEFT JOIN so a spec with no
+    // revision rows is still listed, as it was before the revision split.
+    // Aliases RSPEC / NH are kept: callers order by NH.node_order.
+	  $sql = "/* $debugMsg */ " .
+	         " SELECT RSPEC.id,RSPEC.testproject_id,RSPEC.doc_id," .
+           " RSPEC_REV.revision,RSPEC_REV.scope,RSPEC_REV.total_req,RSPEC_REV.type," .
+           " RSPEC_REV.author_id,RSPEC_REV.creation_ts,RSPEC_REV.modifier_id," .
+           " RSPEC_REV.modification_ts,NH.name AS title,NH.node_order " .
+	         " FROM {$this->object_table} RSPEC " .
+	         " LEFT JOIN (SELECT parent_id, MAX(id) AS last_rev_id " .
+	         " FROM {$this->tables['req_specs_revisions']} GROUP BY parent_id) LASTREV " .
+	         " ON LASTREV.parent_id = RSPEC.id " .
+	         " LEFT JOIN {$this->tables['req_specs_revisions']} RSPEC_REV " .
+	         " ON RSPEC_REV.id = LASTREV.last_rev_id " .
+	         " JOIN {$this->tables['nodes_hierarchy']} NH " .
+	         " ON NH.id = RSPEC.id " .
+	         " WHERE RSPEC.testproject_id={$tproject_id}";
 
     if (!is_null($order_by))
 	  {
@@ -787,11 +801,18 @@ function get_requirement_child_by_id_req($id){
     	$output=null;
     	$title=trim($title);
       $the_title=$this->db->prepare_string($title);
-    	$sql = "/* $debugMsg */ " .
-    		     " SELECT RSPEC.id,testproject_id,RSPEC.doc_id,RSPEC.scope,RSPEC.total_req,RSPEC.type," .
-             " RSPEC.author_id,RSPEC.creation_ts,RSPEC.modifier_id," .
-             " RSPEC.modification_ts,NH.name AS title " .
-    	       " FROM {$this->object_table} RSPEC, {$this->tables['nodes_hierarchy']} NH";
+     	$sql = "/* $debugMsg */ " .
+    		     " SELECT RSPEC.id,RSPEC.testproject_id,RSPEC.doc_id," .
+             " RSPEC_REV.revision,RSPEC_REV.scope,RSPEC_REV.total_req,RSPEC_REV.type," .
+             " RSPEC_REV.author_id,RSPEC_REV.creation_ts,RSPEC_REV.modifier_id," .
+             " RSPEC_REV.modification_ts,NH.name AS title " .
+    	       " FROM {$this->object_table} RSPEC " .
+             " LEFT JOIN (SELECT parent_id, MAX(id) AS last_rev_id " .
+             " FROM {$this->tables['req_specs_revisions']} GROUP BY parent_id) LASTREV " .
+             " ON LASTREV.parent_id = RSPEC.id " .
+             " LEFT JOIN {$this->tables['req_specs_revisions']} RSPEC_REV " .
+             " ON RSPEC_REV.id = LASTREV.last_rev_id " .
+             " JOIN {$this->tables['nodes_hierarchy']} NH ON NH.id = RSPEC.id";
 
       switch ($case_analysis)
       {
@@ -803,8 +824,6 @@ function get_requirement_child_by_id_req($id){
               $sql .= " WHERE UPPER(NH.name)='" . strtoupper($the_title) . "'";    
           break;
       }
-    	$sql .= " AND RSPEC.id=NH.id ";
-
 
     	if( !is_null($tproject_id) )
     	{
@@ -816,7 +835,6 @@ function get_requirement_child_by_id_req($id){
     	  $sql .= " AND NH.parent_id={$parent_id}";
       }
 
-      $sql .= " AND RSPEC.id=NH.id ";
       $output = $this->db->fetchRowsIntoMap($sql,'id');
 
     	return $output;

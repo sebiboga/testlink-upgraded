@@ -2264,7 +2264,41 @@ KEY BUGFIX / COMPATIBILITY EFFORTS (selection)
   reused via `clear()/rows.add()/draw()` with row styling moved into
   `createdRow` (re-applied on every draw); verified with live fixtures across
   the selected / all / refresh paths (suite 15/15 PASS).
-- [KEY BUGFIX] - #1630: the Assign Test Project Roles and Assign Test Plan Roles
+ - [KEY BUGFIX] - #1656: two `requirement_spec_mgr` methods were still left on the pre-2.0.1
+  `req_specs` table shape and could not execute at all - `get_all_in_testproject()`
+  (`lib/functions/requirement_spec_mgr.class.php:362`) and `get_by_title()` (`:798`) both
+  selected `scope,total_req,type,author_id,creation_ts,modifier_id,modification_ts` from
+  `req_specs`, but on 2.0.1 that table is only `(id,testproject_id,doc_id)` and those 7
+  per-revision columns live in `req_specs_revisions`, so every call raised
+  `1054 - Unknown column 'RSPEC.scope' in 'SELECT'` and `database::exec_query()` **die()d**
+  (`lib/functions/database.class.php:224`) - the legacy reorder screen
+  (`lib/requirements/reqSpecCommands.class.php:343` -> `reqSpecReorder.tpl`) answered with a
+  raw `DB Access Error` backtrace page (absolute-path disclosure) instead of the drag&drop
+  tree, and, far more widely than the issue reported, the SRS **create/edit** path died too,
+  because `check_title()` -> `check_main_data()` -> `create()`/`update()` route through
+  `get_by_title()` - which also meant the duplicate-title guard was never enforced.
+  A third defect sat in the same statement: the caller ordered by the undefined alias
+  `REQ_SPEC.id` while the query aliases `RSPEC` (`1054 Unknown column 'REQ_SPEC.id' in
+  'ORDER BY'`). Fix: both methods now join the LATEST revision exactly like the already
+  migrated siblings `get_by_id()` (`:189`) and `get_by_doc_id()` (`:1799`) do -
+  `LEFT JOIN (SELECT parent_id, MAX(id) AS last_rev_id FROM req_specs_revisions
+  GROUP BY parent_id) LASTREV ...` (`LEFT JOIN`, not `JOIN`, so a spec without revision
+  rows is still listed as before); `RSPEC`/`NH` aliases preserved so the caller's
+  `ORDER BY NH.node_order` keeps working, `testproject_id` qualified, `doc_id` + `revision`
+  added, the duplicated `AND RSPEC.id=NH.id` collapsed into the single `JOIN`; and
+  `reqSpecCommands.class.php:342` `REQ_SPEC.id` -> `RSPEC.id`. No i18n / BFF / template
+  change - all strings come from the pre-existing `lang_get()` keys. Verified on a fresh
+  DB: 19/19 regression cases (both methods, latest-revision resolution, `node_order`
+  ordering, empty project, unknown title, `check_title` accept/reject, `create()` +
+  `update()` + `delete()` lifecycle, and the already-migrated `get_by_id()` proven
+  byte-identical against base commit `09d030016` in a throwaway worktree), plus the live
+  UI: the reorder screen lists both specs, the real create form saves, a duplicate
+  title/doc_id is rejected, and `SELECT count(*) FROM events WHERE source='DATABASE'`
+  is **0** (5 error events pre-fix). Two unrelated pre-existing defects found while
+  testing were filed, not fixed: #1657 (`get_metrics()` `:318` has the same drift, dead
+  code) and #1658 (legacy create screen logs 2 E_WARNING per load on
+  `reqSpecEdit.tpl:203,205`). (Fixes #1656)
+ - [KEY BUGFIX] - #1630: the Assign Test Project Roles and Assign Test Plan Roles
   grids labelled a FUSED full-name column "Last Name". The 2.0.1 rewrite split
   the legacy single user cell (`gui/templates/dashio/usermanagement/
   usersAssign.tpl:242`, `{$user->login} ({$user->firstName} {$user->lastName})`)

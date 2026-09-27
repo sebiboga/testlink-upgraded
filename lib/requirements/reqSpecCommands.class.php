@@ -339,7 +339,7 @@ class reqSpecCommands
     $guiObj->main_descr = lang_get('testproject') . TITLE_SEP . $argsObj->tproject_name;
     $guiObj->action_descr = lang_get('title_change_req_spec_order');
 
-    $order_by = ' ORDER BY NH.node_order,REQ_SPEC.id ';
+    $order_by = ' ORDER BY NH.node_order,RSPEC.id ';
     $guiObj->all_req_spec = $this->reqSpecMgr->get_all_in_testproject($argsObj->tproject_id,$order_by);
     $guiObj->tproject_name=$argsObj->tproject_name;
     $guiObj->tproject_id=$argsObj->tproject_id;
