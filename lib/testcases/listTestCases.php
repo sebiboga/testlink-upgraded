@@ -41,12 +41,12 @@ doDBConnect($db);
 
 // Legacy testlinkInitPage() contract: an anonymous visitor is bounced to the
 // login screen with a note=expired bounce and the original destination.
-if (!checkSessionValid($db, false)) {
-    $dest = 'listTestCases.php'
-          . (isset($_SERVER['QUERY_STRING']) && $_SERVER['QUERY_STRING'] !== ''
-             ? '?' . $_SERVER['QUERY_STRING'] : '');
-    header('Location: ' . str_replace(' ', '%20', 'login.php?note=expired&destination=' . $dest));
-    exit;
+// checkSessionValid()'s own redirect is used (rather than a hand-rolled
+// header()) because it walks up from dirname(SCRIPT_FILENAME) until it finds
+// login.php - a relative 'login.php' would resolve against /lib/testcases/
+// and 404.
+if (!checkSessionValid($db)) {
+    exit;  // unreachable: the call above already redirected
 }
 
 // The legacy feature was carried in the query string of the old work area.

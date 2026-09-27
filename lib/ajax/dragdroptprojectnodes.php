@@ -41,21 +41,20 @@ $db = new database(DB_TYPE);
 doDBConnect($db);
 
 // Legacy testlinkInitPage() contract: an anonymous visitor is bounced to the
-// login screen instead of receiving a redirect target.
-if (!checkSessionValid($db, false)) {
-    $dest = 'dragdroptprojectnodes.php'
-          . (isset($_SERVER['QUERY_STRING']) && $_SERVER['QUERY_STRING'] !== ''
-             ? '?' . $_SERVER['QUERY_STRING'] : '');
-    header('Location: ' . str_replace(' ', '%20', 'login.php?note=expired&destination=' . $dest));
-    exit;
+// login screen. checkSessionValid()'s own redirect is used (rather than a
+// hand-rolled header()) because it walks up from dirname(SCRIPT_FILENAME)
+// until it finds login.php - a relative 'login.php' would resolve against
+// /lib/ajax/ and 404.
+if (!checkSessionValid($db)) {
+    exit;  // unreachable: the call above already redirected
 }
 
 $method = strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET');
 
 if ($method !== 'GET' && $method !== 'HEAD') {
-    tLog('BFF shim: refused unauthenticated-by-right ' . $method .
-         ' to legacy dragdroptprojectnodes.php - use POST /api/tcreorder/index.php ' .
-         '?action=move|sort|reorder instead (Refs #1660).', 'WARNING');
+    tLog('BFF shim: refused ' . $method . ' on the retired legacy drag-and-drop ' .
+         'endpoint - use POST /api/tcreorder/index.php?action=move|sort|reorder ' .
+         'instead (Refs #1660).', 'WARNING');
     http_response_code(405);
     header('Content-Type: application/json; charset=utf-8');
     header('X-Content-Type-Options: nosniff');
