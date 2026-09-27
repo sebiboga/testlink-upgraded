@@ -3954,7 +3954,7 @@ function getPublicAttr($id)
   /**
    * @used-by 
    */
-   function getOptions($id) {
+  function getOptions($id) {
     $debugMsg = $this->debugMsg . __FUNCTION__;
     $sql = "/* $debugMsg */ SELECT testprojects.options ".
            " FROM {$this->object_table} testprojects " .
@@ -3968,12 +3968,16 @@ function getPublicAttr($id)
       return $this->getDefaultOptions();
     }
     $obj = $this->decodeStoredOptions($raw);
-    if ($obj === false) {
+    if (!is_object($obj)) {
+      // a scalar or array blob (the whitelist above still admits 'a' and 'N'):
+      // a consumer reading ->key on it raises "Attempt to read property on
+      // array/null/bool/int", so degrade to the defaults as well - same guard
+      // as the sibling decoder parseTestProjectRecordset()
       return $this->getDefaultOptions();
     }
     // a blob written by an older release can be valid but carry only a subset
     // of the keys: complete it, otherwise the same E_WARNING comes back
-    return is_object($obj) ? $this->completeOptions($obj) : $obj;
+    return $this->completeOptions($obj);
   }  
 
   /**
@@ -4002,14 +4006,15 @@ function getPublicAttr($id)
    * unserialize). All of them used to return an EMPTY object, so every
    * consumer that reads an option key without an isset() guard raised
    * "Undefined property: stdClass::$testPriorityEnabled" (14 Smarty templates
-   * + ~10 PHP call sites), and setOptions() could never persist the first
-   * write because it only copies properties that already exist on the object.
+   * + 41 call sites of this accessor in 24 files), and setOptions() could never
+   * persist the first write because it only copies properties that already
+   * exist on the object.
    *
    * All four keys are returned with their "disabled" default, exactly as the
    * sibling decoder parseTestProjectRecordset() does. Consumers keep their
    * current behaviour: 0 is falsy, like a missing property was.
    */
-  function getDefaultOptions() {
+  private function getDefaultOptions() {
     $obj = new stdClass();
     $obj->requirementsEnabled = 0;
     $obj->testPriorityEnabled = 0;

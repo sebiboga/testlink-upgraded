@@ -23845,7 +23845,7 @@ the priority columns; a project whose blob is missing/corrupt must hide them.
 | 3 | corrupt blob (`O:8:"stdClass":93:{corrupt`, the #1484 shape) | 200 / 12091 B / priority header absent, `log_level=2` = 0 | 200, columns hidden, no warning | PASS |
 | 4 | `getOptions()` on a **valid partial** blob (`{testPriorityEnabled:1}` only) | `{"testPriorityEnabled":1,"requirementsEnabled":0,"automationEnabled":0,"inventoryEnabled":0}` | missing keys = 0, stored value preserved | PASS |
 | 5 | `setOptions()` on a project with `options IS NULL` | blob written to `testprojects.options` and re-read as `testPriorityEnabled:1` | write must not be dropped (pre-fix it was) | PASS |
-| 6 | unknown id / empty string / array payload | array payload passed through untouched; the others give all-zero defaults | no behaviour change for arrays | PASS |
+| 6 | unknown id / empty string / scalar + array payloads (`N;`, `b:1;`, `i:42;`, `serialize([...])`) | all four give the all-zero defaults object | a consumer must never read `->key` on an array/null/bool (same guard as `parseTestProjectRecordset()`) | PASS |
 | 7 | Regression: `asideMenu.php`, `tcSearchForm.php`, `frmWorkArea.php` with a NULL-options project | 200 / 200 / 200, `log_level=2` = 0 | no new warnings on the shared path | PASS |
 | 8 | `php -l lib/functions/testproject.class.php` | `No syntax errors detected` | clean | PASS |
 | 9 | Event Viewer / `events` after the whole suite | only the `audit_login_succeeded` INFO row (`log_level=16`), `sum(log_level=2)` = 0 | no Error/Warning | PASS |
@@ -23859,3 +23859,8 @@ the priority columns; a project whose blob is missing/corrupt must hide them.
 - Rows 1-3 exercise the *page*; the underlying fix is in
   `lib/functions/testproject.class.php` (`getOptions()`, `getDefaultOptions()`,
   `completeOptions()`), which is the accessor behind 24 files / 41 call sites.
+- Row 6 changed after code review: the first version of the fix passed a non-object
+  payload (serialized array / `N;`) through untouched, which still left unguarded
+  consumers raising `Attempt to read property on array|null|bool|int`. The reviewed
+  version degrades every non-object decode to the defaults, exactly like the sibling
+  decoder `parseTestProjectRecordset()` (`:244`).

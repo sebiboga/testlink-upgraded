@@ -132,15 +132,26 @@ the bug was only ever *visible* where the read is unguarded: the Smarty template
 
 Single file, `lib/functions/testproject.class.php`:
 
-1. **`getDefaultOptions()`** (new, `:3974-3996`) — returns `new stdClass()` with
+1. **`getDefaultOptions()`** (new, private, `:4002-4024`) — returns `new stdClass()` with
    `requirementsEnabled / testPriorityEnabled / automationEnabled / inventoryEnabled = 0`,
    i.e. exactly the fallback `parseTestProjectRecordset()` already used.
-2. **`getOptions()`** (`:3957-3972`) — its three `(object)[]` returns now call
+2. **`getOptions()`** (`:3957-3982`) — its three `(object)[]` returns now call
    `getDefaultOptions()`; a successfully decoded object goes through `completeOptions()`.
-3. **`completeOptions()`** (new, private, `:3973-3989`) — adds only the *missing* canonical
-   keys, `0`, never overwriting a stored value. Non-object payloads (a serialized array,
-   which the `['a','s',…]` whitelist still admits) are passed through unchanged, so no
-   behaviour moves for them.
+3. **`completeOptions()`** (new, private, `:3984-4000`) — adds only the *missing* canonical
+   keys, `0`, never overwriting a stored value.
+
+Both new methods are `private`; `getOptions()` remains the single public entry point, as
+with the sibling `decodeStoredOptions()` from the #1484 work. (Code review finding.)
+
+**Non-object payloads (code review finding).** The first version of the fix passed a
+non-object payload — a serialized array, or `N;` / `b:1;` / `i:42;`, all of which the
+`['O','a','s','i','d','b','N','R']` whitelist still admits — through untouched, to avoid
+changing behaviour. Review pointed out that a consumer then reads `->testPriorityEnabled`
+on an array/`null`/bool/int and gets `E_WARNING Attempt to read property on array`, and
+that the sibling decoder in the *same file* already gets this right
+(`parseTestProjectRecordset():244` — `if (!is_object($decoded))`). One line was added, so
+every no-usable-object path now returns the defaults and `getOptions()` is total: it can no
+longer hand out a value a caller cannot read an option key from.
 
 ### Why this method, and what was rejected
 
@@ -168,7 +179,7 @@ Accessor matrix (real class, real DB):
 | valid **partial** `{testPriorityEnabled:1}` | 1 of 4 keys (would still warn) | stored `1` preserved + 3 keys `0` |
 | valid **full**, all `1` | all `1` | all `1` (untouched) |
 | corrupt (#1484 shape) | `{}` | all `0` |
-| valid **array** payload | pass-through | pass-through (unchanged) |
+| valid **array** payload, `N;`, `b:1;`, `i:42;` | passed through (consumer then warns `Attempt to read property on array/null/bool`) | all `0` |
 | unknown id / empty string | `{}` | all `0` |
 
 Live page (`tplan_id=1&tproject_id=1`, admin session):
