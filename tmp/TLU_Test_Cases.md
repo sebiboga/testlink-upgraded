@@ -23820,3 +23820,42 @@ Notes
 
 **Screenshots:** `docs/screenshots/issue-990-before.png` (modal with no API key row, pre-change)
 and `docs/screenshots/issue-990-after.png` (row rendered, post-change).
+
+---
+
+## Regression — Issue #1649: `Undefined property: stdClass::$testPriorityEnabled` on `planMilestonesView.php`
+
+**Precondition** — fresh import, then the fixtures from the issue body (a test project
+whose `options` column is left at its `text DEFAULT NULL`, one test plan, one milestone).
+Login `admin/admin` at `http://localhost:8082/login.php` (form fields are `tl_login` /
+`tl_password`).
+
+**Repro steps (pre-fix)**
+1. `curl -s -b cj.txt "http://localhost:8082/lib/plan/planMilestonesView.php?tplan_id=1&tproject_id=1"`
+2. `SELECT id, log_level, description FROM events ORDER BY id DESC LIMIT 2;`
+
+**Expected post-fix** — HTTP 200, the milestone row renders, and **no** `E_WARNING` row is
+written to `events` for the page load. A project that has priorities enabled must still show
+the priority columns; a project whose blob is missing/corrupt must hide them.
+
+| # | Check | Result | Expected | Status |
+|---|---|---|---|---|
+| 1 | `options IS NULL`, load `planMilestonesView.php` | 200 / 12091 B / "Milestone One" ×2, `events` rows with `log_level=2` = **0** | 0 warnings (pre-fix: **2**) | PASS |
+| 2 | valid blob with `testPriorityEnabled=1` | 200 / **12327 B** / `Completed tests with High Priority` header present | priority columns still render | PASS |
+| 3 | corrupt blob (`O:8:"stdClass":93:{corrupt`, the #1484 shape) | 200 / 12091 B / priority header absent, `log_level=2` = 0 | 200, columns hidden, no warning | PASS |
+| 4 | `getOptions()` on a **valid partial** blob (`{testPriorityEnabled:1}` only) | `{"testPriorityEnabled":1,"requirementsEnabled":0,"automationEnabled":0,"inventoryEnabled":0}` | missing keys = 0, stored value preserved | PASS |
+| 5 | `setOptions()` on a project with `options IS NULL` | blob written to `testprojects.options` and re-read as `testPriorityEnabled:1` | write must not be dropped (pre-fix it was) | PASS |
+| 6 | unknown id / empty string / array payload | array payload passed through untouched; the others give all-zero defaults | no behaviour change for arrays | PASS |
+| 7 | Regression: `asideMenu.php`, `tcSearchForm.php`, `frmWorkArea.php` with a NULL-options project | 200 / 200 / 200, `log_level=2` = 0 | no new warnings on the shared path | PASS |
+| 8 | `php -l lib/functions/testproject.class.php` | `No syntax errors detected` | clean | PASS |
+| 9 | Event Viewer / `events` after the whole suite | only the `audit_login_succeeded` INFO row (`log_level=16`), `sum(log_level=2)` = 0 | no Error/Warning | PASS |
+
+**Result: 9 / 9 PASS, 0 FAIL.**
+
+**Notes**
+- The per-key accessor matrix (rows 4-6) was measured by instantiating the real
+  `testproject` class against the real DB from a throwaway CLI harness; the harness is not
+  committed. Rows 1-3, 7-9 were measured over HTTP on the live app.
+- Rows 1-3 exercise the *page*; the underlying fix is in
+  `lib/functions/testproject.class.php` (`getOptions()`, `getDefaultOptions()`,
+  `completeOptions()`), which is the accessor behind 24 files / 41 call sites.
