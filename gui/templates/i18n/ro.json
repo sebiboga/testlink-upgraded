@@ -45,6 +45,7 @@
   "assign.inheritedRoleHint": "Acest rol este mostenit din rolul global al utilizatorului.",
   "assign.inheritedRoleOption": "<mostenit> {role}",
   "assign.noOverride": "-- fara suprascriere --",
+  "assign.overrideClearedRole": "revino la mostenit {role}",
   "assign.noRights": "Nu aveți suficiente drepturi pentru a accesa această funcție.",
   "assign.noRole": "-- fara rol --",
   "assign.noUsablePlans": "Nu exista planuri de test utilizabile pentru acest proiect de test",

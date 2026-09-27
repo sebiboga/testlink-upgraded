@@ -389,11 +389,25 @@ function buildBodyHtml() {
     // is inherited from the global role, "-- no role --" otherwise. The
     // effective role is never hidden (issue #926).
     var inherited = u.isInherited == 1;
-    // Legacy parity: usersAssign.tpl:264-269 renders "<inherited> <role>".
+    // Legacy parity: usersAssign.tpl:225-232 - the role name decorating the
+    // value-0 option is resolved as $ikx = effective role when inherited, else
+    // the user's GLOBAL role (uplayer_role_id).
+    // Legacy parity: usersAssign.tpl:264-269 - that name is appended to the
+    // value-0 option UNCONDITIONALLY (the {if $role_id == TL_ROLES_INHERITED}
+    // guard has no is_inherited counterpart), so an explicitly-overridden row
+    // also read "inherited leader" and a <no rights> row on a private project
+    // read "inherited guest". inheritedRoleName of the tproject-roles payload
+    // (api/roles/index.php) already IS that resolved legacy $ikx, so both
+    // branches interpolate it (issue #1651); an inherited row keeps the
+    // current-state "<inherited> <role>" wording, an overridden row states the
+    // fallback it reverts TO. The bare assign.noRole label stays the fallback
+    // when no resolved name is available.
     // Escaped as a whole so the literal <inherited> is not parsed as HTML.
     var noRoleLbl = u.isInherited == 1
       ? esc(TLi18n.t('assign.inheritedRoleOption', {role: u.inheritedRoleName}))
-      : esc(TLi18n.t('assign.noRole'));
+      : (u.inheritedRoleName
+          ? esc(TLi18n.t('assign.overrideClearedRole', {role: u.inheritedRoleName}))
+          : esc(TLi18n.t('assign.noRole')));
     var cur = roleChoices[u.id];
     var opts = '<option value="0"' + (cur === 0 ? ' selected' : '') + '>' + noRoleLbl + '</option>';
     $.each(roles, function(j, role) {

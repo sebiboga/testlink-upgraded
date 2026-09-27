@@ -45,6 +45,7 @@
   "assign.inheritedRoleHint": "This role is inherited from the user's global role.",
   "assign.inheritedRoleOption": "<inherited> {role}",
   "assign.noOverride": "-- no override --",
+  "assign.overrideClearedRole": "revert to inherited {role}",
   "assign.noRights": "You do not have enough rights to access this feature.",
   "assign.noRole": "-- no role --",
   "assign.noUsablePlans": "There are no usable test plans on this test project",

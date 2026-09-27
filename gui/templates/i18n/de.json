@@ -45,6 +45,7 @@
   "assign.inheritedRoleHint": "Diese Rolle wird von der globalen Rolle des Benutzers geerbt.",
   "assign.inheritedRoleOption": "<geerbt> {role}",
   "assign.noOverride": "-- keine Überschreibung --",
+  "assign.overrideClearedRole": "zurück zum geerbten {role}",
   "assign.noRights": "Sie haben nicht genügend Rechte, um auf diese Funktion zuzugreifen.",
   "assign.noRole": "-- keine Rolle --",
   "assign.noUsablePlans": "Es existieren keine benutzbaren Testpläne in diesem Testprojekt",

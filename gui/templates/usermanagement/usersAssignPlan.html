@@ -389,14 +389,25 @@ function loadPlans(pid, selectedPlanId) {
 // id 8) is only offered when it is the row's current explicit plan assignment
 // (issue #928). chosenVal drives the selected option from the data model so a
 // row re-rendered by DataTables keeps the user's chosen override.
-// Legacy parity: usersAssign.tpl:264-269 - for a row whose effective role is
-// INHERITED the value-0 option renders "<inherited> <role>" with the real
-// inherited role name (legacy $inherited_role_name via $ikx), the same pattern
-// usersAssignProject.html:326-331 uses for project contexts (issue #944).
+// Legacy parity: usersAssign.tpl:264-271 - the resolved role name is appended
+// to the value-0 option UNCONDITIONALLY (the {if $role_id == TL_ROLES_INHERITED}
+// guard has no is_inherited counterpart), for inherited rows AND for explicit /
+// <no rights> ones. Legacy $ikx (usersAssign.tpl:225-232) is the effective role
+// when inherited, else the user's GLOBAL role (uplayer_role_id), so an
+// explicitly-overridden row read "inherited leader" and a <no rights> row on a
+// private plan read "inherited test designer". That resolved value is exactly
+// the inheritedRoleName field of the tplan-roles payload
+// (api/roles/index.php:311-312, :956-957), so both branches interpolate it here
+// (issue #1651). The two labels stay distinct: an inherited row keeps the
+// current-state "<inherited> <role>" wording, an overridden row states the
+// fallback it reverts TO. The bare assign.noOverride label remains the fallback
+// when the payload carries no resolved name.
 function rolesOptions(u, chosenVal) {
   var noRoleLbl = u.isInherited
     ? esc(TLi18n.t('assign.inheritedRoleOption', {role: u.inheritedRoleName}))
-    : esc(TLi18n.t('assign.noOverride'));
+    : (u.inheritedRoleName
+        ? esc(TLi18n.t('assign.overrideClearedRole', {role: u.inheritedRoleName}))
+        : esc(TLi18n.t('assign.noOverride')));
   var opts = '<option value="0"' + (chosenVal === 0 ? ' selected' : '') + '>' + noRoleLbl + '</option>';
   $.each(roles, function(j, role) {
     if (role.id == ADMIN_ROLE_ID && u.origRoleID != role.id) return;

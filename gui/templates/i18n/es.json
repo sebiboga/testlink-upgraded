@@ -45,6 +45,7 @@
   "assign.inheritedRoleHint": "Esta función se hereda de la función global del usuario.",
   "assign.inheritedRoleOption": "<heredado> {role}",
   "assign.noOverride": "-- sin sustitución --",
+  "assign.overrideClearedRole": "volver al heredado {role}",
   "assign.noRights": "No tiene suficientes derechos para acceder a esta función.",
   "assign.noRole": "-- sin rol --",
   "assign.noUsablePlans": "No hay planes de pruebas usables en este proyecto de pruebas",

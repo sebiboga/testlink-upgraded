@@ -45,6 +45,7 @@
   "assign.inheritedRoleHint": "此角色继承自用户的全局角色。",
   "assign.inheritedRoleOption": "<继承> {role}",
   "assign.noOverride": "-- 无覆盖 --",
+  "assign.overrideClearedRole": "恢复为继承的 {role}",
   "assign.noRights": "您没有足够的权限访问此功能。",
   "assign.noRole": "-- 无角色 --",
   "assign.noUsablePlans": "此测试项目无可用测试计划",
