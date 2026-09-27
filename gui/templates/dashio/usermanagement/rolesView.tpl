@@ -14,7 +14,7 @@ Purpose: smarty template - View defined roles
              warning_users_will_be_reset,btn_confirm_delete,btn_cancel,no_roles,th_duplicate_role,
              th_roles,th_role_description,th_delete,alt_edit_role,alt_delete_role,N_A,duplicate_role"}
 
-{$cfg_section=$smarty.template|replace:".tpl":""}
+{$cfg_section=$smarty.template|basename|replace:".tpl":""}
 {config_load file="input_dimensions.conf" section=$cfg_section}
 
 {lang_get s='warning_delete_role' var="warning_msg"}
@@ -30,7 +30,7 @@ Purpose: smarty template - View defined roles
 }
 </style> 
 
-{$ll = #pagination_length#}
+{$ll = $tlCfg->gui->{$cfg_section}->pagination->length}
 {include file="DataTables.inc.tpl" DataTablesSelector="#item_view"
                                    DataTablesLengthMenu=$ll}
 </head>

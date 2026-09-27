@@ -32,7 +32,7 @@ var del_action=fRoot+'{$deleteAction}';
 </script>
 
 {include file="bootstrap.inc.tpl"} 
-{$ll = #pagination_length#}
+{$ll = $tlCfg->gui->{$cfg_section}->pagination->length}
 {include file="DataTables.inc.tpl" DataTablesSelector="#item_view"
                                    DataTablesLengthMenu=$ll}
 

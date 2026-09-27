@@ -698,6 +698,16 @@ $tlCfg->gui->platformsView->pagination = new stdClass();
 $tlCfg->gui->platformsView->pagination->enabled = true;
 $tlCfg->gui->platformsView->pagination->length = '[20, 40, 60, -1], [20, 40, 60, "All"]';
 
+$tlCfg->gui->rolesView = new stdClass();
+$tlCfg->gui->rolesView->pagination = new stdClass();
+$tlCfg->gui->rolesView->pagination->enabled = true;
+$tlCfg->gui->rolesView->pagination->length = '[20, 40, 60, -1], [20, 40, 60, "All"]';
+
+$tlCfg->gui->planMilestonesView = new stdClass();
+$tlCfg->gui->planMilestonesView->pagination = new stdClass();
+$tlCfg->gui->planMilestonesView->pagination->enabled = true;
+$tlCfg->gui->planMilestonesView->pagination->length = '[20, 40, 60, -1], [20, 40, 60, "All"]';
+
 /** 
  * controls if operation area (buttons) starts open ('' or 'inline') or closed ('none') on:
  * - test suite management
