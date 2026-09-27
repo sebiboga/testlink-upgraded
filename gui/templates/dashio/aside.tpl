@@ -124,6 +124,21 @@ Left side menu
                     <li><a href="{$gui->uri->inventoryView}" target="mainframe">{$labels.href_inventory_management}</a></li>
                   {/if}
 
+                  {* Builds & Releases modernized screen (Dashio standalone page)
+                     - Refs #585, moved to the PROJECTS aside scope - Refs #1030.
+                     Builds are a project-level (not test-plan) entity:
+                     builds.testproject_id, no testplan_id; the BFF
+                     (api/builds) enforces the project-scoped right
+                     (testplan_create_build) server-side on every route
+                     (Refs #503). Menu presence is decoupled from countPlans ->
+                     gate ONLY on the project-scoped grant + buildView (which
+                     common.php now assigns at project scope, Refs #1030). *}
+                  {if $gui->uri->buildView != null
+                      && $menuGrants->testplan_create_build == "yes"}
+                    <li><a href="{$gui->uri->buildView}" target="mainframe">{$labels.href_build_new}</a>
+                    </li>  
+                  {/if}  
+
                   {if $gui->countPlans > 0}
                   <li><a href="{$gui->uri->metrics_dashboard}" target="mainframe">{$labels.href_metrics_dashboard}</a>
                   </li>  

@@ -141,27 +141,73 @@ $buildMgr = new build($db);
 
 // GET /?tplan_id=N  -> builds list + context + per-screen rights
 if ($method === 'GET' && count($segments) === 0) {
-    $tplanId = needTplanId();
-    $ctx = resolveTplan($db, $tplanId);
+    // Issue #1030: builds are project-scoped (issue #503), so a list may be
+    // requested either for a concrete test plan (tplan_id>0, legacy callers
+    // and plan-scoped screens) or for the whole active project
+    // (tplan_id=0 -> "Builds & Releases" under the project submenu).
+    $tplanId = intval($_GET['tplan_id'] ?? ($_POST['tplan_id'] ?? 0));
+    if ($tplanId > 0) {
+        $ctx = resolveTplan($db, $tplanId);
+    } else {
+        // Project-scoped list: resolve the project from the active session
+        // (legacy buildEdit fallback, common.php:testprojectID key), clip the
+        // project to the same tree hierarchy used by resolveTplan().
+        $tproject_id = intval($_SESSION['testprojectID'] ?? 0);
+        if ($tproject_id <= 0) {
+            http_response_code(400);
+            out(['status' => 'error', 'message' => 'No active test project']);
+        }
+        $tpMgr = new testproject($db);
+        $pinfo = $tpMgr->tree_manager->get_node_hierarchy_info($tproject_id);
+        if (is_null($pinfo)) {
+            http_response_code(404);
+            out(['status' => 'error', 'message' => 'Invalid Test Project ID']);
+        }
+        $ctx = [
+            'tplan_id' => 0,
+            'tplan_name' => $pinfo['name'],
+            'tproject_id' => $tproject_id,
+        ];
+    }
     if (!canManage($user, $db, $ctx['tproject_id'])) {
         http_response_code(403);
         out(['status' => 'error', 'message' => 'Insufficient rights']);
     }
 
     // Source-build selector data (legacy init_source_build_selector):
-    // newest first + assignment count per build.
+    // newest first + assignment count per build. Project-scoped lists
+    // (tplan_id=0) reuse the whole project build set (issue #503/#1030).
     $srcItems = [];
-    $opts = $tplanMgr->get_builds_for_html_options(
-        $tplanId, null, null, array('orderByDir' => 'id:DESC'));
-    if (!is_null($opts)) {
-        foreach ($opts as $bid => $bname) {
-            $count = $tplanMgr->assignment_mgr->get_count_of_assignments_for_build_id($bid);
-            $srcItems[] = ['id' => intval($bid), 'name' => $bname,
-                           'assignments' => intval($count)];
+    $buildSet = null;
+    if ($tplanId > 0) {
+        $opts = $tplanMgr->get_builds_for_html_options(
+            $tplanId, null, null, array('orderByDir' => 'id:DESC'));
+        if (!is_null($opts)) {
+            foreach ($opts as $bid => $bname) {
+                $count = $tplanMgr->assignment_mgr
+                    ->get_count_of_assignments_for_build_id($bid);
+                $srcItems[] = ['id' => intval($bid), 'name' => $bname,
+                               'assignments' => intval($count)];
+            }
+        }
+        $buildSet = $tplanMgr->get_builds($tplanId);
+    } else {
+        // Project scope (issue #1030): list all builds of the project.
+        $buildSet = $tplanMgr->get_builds(0, null, null,
+            array('tproject_id' => $ctx['tproject_id']));
+        if (!is_null($buildSet)) {
+            // Newest first to mirror legacy selector ordering.
+            $tmp = $buildSet;
+            usort($tmp, function ($x, $y) { return intval($y['id']) - intval($x['id']); });
+            foreach ($tmp as $b) {
+                $count = $tplanMgr->assignment_mgr
+                    ->get_count_of_assignments_for_build_id($b['id']);
+                $srcItems[] = ['id' => intval($b['id']), 'name' => $b['name'],
+                               'assignments' => intval($count)];
+            }
         }
     }
 
-    $buildSet = $tplanMgr->get_builds($tplanId);
     $items = [];
     if (!is_null($buildSet)) {
         foreach ($buildSet as $b) {
