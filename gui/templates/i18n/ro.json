@@ -5292,10 +5292,13 @@
   "tcsr.stErrorMsg": "Ecranul nu a putut fi încărcat.",
   "tcsr.pickCount": "Versiuni cu pași",
   "tcsr.pickHeading": "Alegeți o versiune de test",
-  "tcsr.pickHint": "Sunt listate doar versiunile care au pași - fără pași nu este ce nimic de reordonat.",
+  "tcsr.pickHint": "Sunt listate doar versiunile care au pași - fără pași nu este nimic de reordonat.",
   "tcsr.pickFilter": "Filtrați după ID extern sau nume",
   "tcsr.pickEmpty": "Acest proiect de test nu are nicio versiune de test cu pași.",
   "tcsr.thTestCase": "Caz de test",
   "tcsr.thSteps": "Pași",
-  "tcsr.changeVersion": "Schimbă versiunea"
+  "tcsr.changeVersion": "Schimbă versiunea",
+  "tcsr.stNoVersionMsg": "Alegeți o versiune de test case pentru a-i reordona pașii.",
+  "tcsr.stNoContext": "Niciun proiect de test în context",
+  "tcsr.stNoContextMsg": "Deschideți ecranul dintr-un proiect de test și reîncercați."
 }

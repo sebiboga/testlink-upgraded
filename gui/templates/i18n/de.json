@@ -5287,5 +5287,8 @@
   "tcsr.pickEmpty": "Dieses Testprojekt hat keine Testfallversion mit Schritten.",
   "tcsr.thTestCase": "Testfall",
   "tcsr.thSteps": "Schritte",
-  "tcsr.changeVersion": "Version wechseln"
+  "tcsr.changeVersion": "Version wechseln",
+  "tcsr.stNoVersionMsg": "Wählen Sie eine Testfallversion, um ihre Schritte neu zu ordnen.",
+  "tcsr.stNoContext": "Kein Testprojekt im Kontext",
+  "tcsr.stNoContextMsg": "Öffnen Sie den Bildschirm aus einem Testprojekt und versuchen Sie es erneut."
 }

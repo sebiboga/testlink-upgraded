@@ -259,7 +259,7 @@ function tsroOwningProject(&$db, $node)
 }
 
 /** Full "Project / Suite / Sub-suite" path of the test case, for the context card. */
-function tsroSuitePath(&$db, $tcase, $tprojectId)
+function tsroSuitePath(&$db, $tcase)
 {
     $T = tsroTables();
     $n = tsroNodeTypes($db);
@@ -368,7 +368,7 @@ function tsroExecTypeCode($type)
  * HTML string into the page (the same class as the stored-XSS the legacy
  * tooltip readers had, Refs #1652).
  */
-function tsroStepsPayload(&$db, $rows)
+function tsroStepsPayload($rows)
 {
     $out = array();
     $i = 0;
@@ -472,7 +472,7 @@ function tsroWriteResult(&$db, $tcverId, $before, $extra = array())
     $payload = array(
         'status' => $changed ? 'ok' : 'no_change',
         'count' => count($after),
-        'steps' => tsroStepsPayload($db, $after),
+        'steps' => tsroStepsPayload($after),
     );
     if (!$changed) {
         $payload['message'] = 'Order already up to date';
@@ -488,6 +488,39 @@ function tsroWriteResult(&$db, $tcverId, $before, $extra = array())
  * either be 0 or exactly the owning project, otherwise 403 - silently
  * retargeting would let an admin unknowingly reorder another project's steps.
  */
+/**
+ * Has this version ever been executed?
+ *
+ * testcase::set_step_number() is the very write the Test Case Editor performs,
+ * and the editor refuses it on an executed version without
+ * `testproject_edit_executed_testcases` (or the global canEditExecuted config) -
+ * api/testcasesedit/index.php:580-588. Without this check the reorder screen
+ * was a second, unguarded door to the same write: `execution_tcsteps` links a
+ * result to a step by tcstep_id and not to a snapshot of its number, so
+ * renumbering an executed version silently re-labels every historical result
+ * ("step 1" becomes "step 3") in all past reports.
+ */
+function tsroHasExecutions(&$db, $tcverId)
+{
+    $t = tlObjectWithDB::getDBTables(array('executions'));
+    $row = $db->fetchFirstRow(
+        "SELECT id FROM {$t['executions']} WHERE tcversion_id = " . intval($tcverId) . " LIMIT 1");
+    return (is_array($row) && isset($row['id']) && intval($row['id']) > 0);
+}
+
+/** mgt_modify_tc AND (not executed OR edit-executed right OR canEditExecuted). */
+function tsroMayWrite(&$db, &$user, $tprojectId, $tcverId)
+{
+    if (!tsroHasExecutions($db, $tcverId)) {
+        return true;
+    }
+    if ($user->hasRight($db, 'testproject_edit_executed_testcases', $tprojectId)) {
+        return true;
+    }
+    $cfg = config_get('testcase_cfg');
+    return intval($cfg->canEditExecuted ?? 0) > 0;
+}
+
 function tsroContext(&$db, &$user, $tcverId, $requestedProject, $right)
 {
     list($version, $tcase, $tprojectId) = tsroVersion($db, $tcverId);
@@ -502,20 +535,30 @@ function tsroContext(&$db, &$user, $tcverId, $requestedProject, $right)
                   'message' => 'Insufficient rights on this test project'), 403);
     }
 
+    // An executed version is protected by the Test Case Editor's own rule, and
+    // this screen writes the very same step_number column through the very same
+    // testcase::set_step_number() (see tsroMayWrite()).
+    if ($right === 'mgt_modify_tc' && !tsroMayWrite($db, $user, $tprojectId, $tcverId)) {
+        out(array('status' => 'error', 'code' => 'forbidden',
+                  'message' => 'This version has executions: re-ordering requires special permission'), 403);
+    }
+
     return array($version, $tcase, $tprojectId);
 }
 
 /**
  * Every test case version of the project that owns at least one step, for the
- * screen's version picker (the $actions->tcStepReorder hub entry and the legacy
- * shim open the screen without a version id).
+ * screen's version picker. The picker is needed because the screen is reachable
+ * without a version id: the $actions->tcStepReorder route (the same context-only
+ * pattern as the sibling tcReorder route) and a legacy stepReorder.php bookmark
+ * both land here, and the per-version entry in tcView.html is rights-gated.
  *
  * The list is built by walking DOWN from the project root - the same proof
  * api/tcreorder uses - so a test case re-parented under a foreign project
  * (which the legacy unauthenticated drag-drop could actually do) can never leak
  * in. Versions with no step are excluded: there is nothing to re-order there.
  */
-function tsroVersions(&$db, &$user, $requestedProject)
+function tsroVersions(&$db, $requestedProject)
 {
     $T = tsroTables();
     $n = tsroNodeTypes($db);
@@ -607,15 +650,27 @@ $action = getStr('action', 'init');
 $method = strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET');
 
 if ($method !== 'GET' && $action === 'init') {
-    out(array('status' => 'error', 'message' => 'Method not allowed'), 405);
+    out(array('status' => 'error', 'code' => 'method_not_allowed',
+              'message' => 'Method not allowed'), 405);
 }
 
 if ($action === 'versions') {
     if ($method !== 'GET') {
-        out(array('status' => 'error', 'message' => 'Method not allowed'), 405);
+        out(array('status' => 'error', 'code' => 'method_not_allowed',
+              'message' => 'Method not allowed'), 405);
+    }
+    $requestedProject = getInt('tproject_id', 0);
+    if ($requestedProject <= 0) {
+        $requestedProject = intval($_SESSION['testprojectID'] ?? 0);
+    }
+    // Right first: an unauthorised request must not pay for the tree walk. The
+    // project's own resolution (session fallback / no_context) happens inside.
+    if ($requestedProject > 0 && !$user->hasRight($db, 'mgt_view_tc', $requestedProject)) {
+        out(array('status' => 'error', 'code' => 'forbidden',
+                  'message' => 'Insufficient rights on this test project'), 403);
     }
     list($tprojectId, $tprojectName, $prefix, $versions) =
-        tsroVersions($db, $user, getInt('tproject_id', 0));
+        tsroVersions($db, $requestedProject);
 
     if (!$user->hasRight($db, 'mgt_view_tc', $tprojectId)) {
         out(array('status' => 'error', 'code' => 'forbidden',
@@ -641,7 +696,7 @@ if ($action === 'versions') {
 if ($action === 'init') {
     $tcverId = getInt('tcversion_id', 0);
     if ($tcverId <= 0) {
-        out(array('status' => 'error', 'code' => 'bad_param',
+        out(array('status' => 'error', 'code' => 'no_version',
                   'message' => 'tcversion_id is required'), 400);
     }
 
@@ -676,11 +731,11 @@ if ($action === 'init') {
             'tcversion_id' => intval($version['id']),
             'version' => $versionNo,
             'tcase_name' => (string)$tcase['name'],
-            'suite_path' => tsroSuitePath($db, $tcase, $tprojectId),
+            'suite_path' => tsroSuitePath($db, $tcase),
             'external_id' => $prefix . $glue . $externalId,
         ),
         'count' => count($steps),
-        'steps' => tsroStepsPayload($db, $steps),
+        'steps' => tsroStepsPayload($steps),
         'rights' => array(
             'mgt_view_tc' => true,
             'mgt_modify_tc' => $user->hasRight($db, 'mgt_modify_tc', $tprojectId),
@@ -689,7 +744,8 @@ if ($action === 'init') {
 }
 
 if ($method !== 'POST') {
-    out(array('status' => 'error', 'message' => 'Method not allowed'), 405);
+    out(array('status' => 'error', 'code' => 'method_not_allowed',
+              'message' => 'Method not allowed'), 405);
 }
 
 $tcverId = getInt('tcversion_id', 0);
@@ -739,7 +795,7 @@ if ($action === 'move') {
         if ($swap < 0 || $swap >= count($ids)) {
             out(array('status' => 'no_change', 'message' => 'Already at the boundary',
                       'count' => count($steps),
-                      'steps' => tsroStepsPayload($db, $steps)), 200);
+                      'steps' => tsroStepsPayload($steps)), 200);
         }
         $tmp = $ids[$idx];
         $ids[$idx] = $ids[$swap];

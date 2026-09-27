@@ -140,6 +140,7 @@ td.ops button:disabled { color: #ccc; cursor: not-allowed; border-color: #eee; }
   <i class="fa fa-exclamation-triangle"></i>
   <h3 id="stateTitle">-</h3>
   <p id="stateMsg"></p>
+  <button class="btn-outline" onclick="reload()" style="margin-top:14px;"><i class="fa fa-sync"></i> <span data-i18n="common.refresh">Refresh</span></button>
 </div>
 
 <div class="wrap" id="wrap">
@@ -203,7 +204,7 @@ td.ops button:disabled { color: #ccc; cursor: not-allowed; border-color: #eee; }
 
       <div class="toolbar">
         <button class="btn-outline" id="btnApply" onclick="openApply()"><i class="fa fa-check"></i> <span data-i18n="tcsr.apply">Apply order</span></button>
-        <button class="btn-outline" id="btnReset" onclick="discardPending()"><i class="fa fa-undo"></i> <span data-i18n="tcsr.discard">Discard changes</span></button>
+        <button class="btn-outline" id="btnReset"><i class="fa fa-undo"></i> <span data-i18n="tcsr.discard">Discard changes</span></button>
         <button class="btn-teal" id="btnNormalize" onclick="openNormalize()"><i class="fa fa-sort-numeric-asc"></i> <span data-i18n="tcsr.normalize">Renumber steps</span></button>
         <span class="chip gray" id="permChip" style="display:none;"><i class="fa fa-lock"></i> <span data-i18n="tcsr.readOnly">read only</span></span>
       </div>
@@ -261,16 +262,6 @@ function qs(k, d) {
   return p.get(k) === null ? d : p.get(k);
 }
 
-/**
- * Substitute the {name} placeholders of an i18n message. Without it the
- * renumber copy reached the user with a literal "{count}" in it.
- */
-function tpl(msg, subs) {
-  return String(msg == null ? '' : msg).replace(/\{(\w+)\}/g, function (m, k) {
-    return (subs && subs[k] !== undefined && subs[k] !== null) ? String(subs[k]) : m;
-  });
-}
-
 function esc(s) {
   return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
     .replace(/>/g, '&gt;').replace(/"/g, '&quot;')
@@ -297,9 +288,32 @@ function isSessionGone(xhr) {
   return !!xhr && (xhr.status === 401 || r.code === 'session_expired');
 }
 
+/* Legacy error semantics -> localized state cards. Every code the BFF can emit
+   is mapped to a key pair, so an operator never reads an English server string
+   in a Romanian session; r.message is only used for a code we do not know. */
+var TCSR_CODES = {
+    session_expired: ['tcsr.stNotAllowed', 'tcsr.stNotAllowedMsg'],
+    forbidden: ['tcsr.stNotAllowed', 'tcsr.stNotAllowedMsg'],
+    not_found: ['tcsr.stNotFound', 'tcsr.stNotFoundMsg'],
+    no_version: ['tcsr.stNoVersion', 'tcsr.stNoVersionMsg'],
+    no_context: ['tcsr.stNoContext', 'tcsr.stNoContextMsg'],
+    bad_param: ['tcsr.stBadParam', 'tcsr.stBadParamMsg'],
+    unknown_action: ['tcsr.stError', 'tcsr.stErrorMsg'],
+    method_not_allowed: ['tcsr.stError', 'tcsr.stErrorMsg'],
+    write_failed: ['tcsr.stError', 'tcsr.stErrorMsg']
+};
+
+/** Localized (title, message) for a BFF error code, or null when unknown. */
+function codePair(code) {
+  if (!code || !TCSR_CODES[code]) { return null; }
+  return [TLi18n.t(TCSR_CODES[code][0]), TLi18n.t(TCSR_CODES[code][1])];
+}
+
 function stateForResponse(xhr) {
   var r = (xhr && xhr.responseJSON) ? xhr.responseJSON : {};
-  var code = r.code || '';
+  var pair = codePair(r.code || '');
+  if (pair) { return pair; }
+  var s = xhr ? xhr.status : 0;
   var s = xhr ? xhr.status : 0;
   if (s === 403) {
     return [TLi18n.t('tcsr.stNotAllowed'), TLi18n.t('tcsr.stNotAllowedMsg')];
@@ -308,7 +322,7 @@ function stateForResponse(xhr) {
     return [TLi18n.t('tcsr.stNotFound'), TLi18n.t('tcsr.stNotFoundMsg')];
   }
   if (s === 400) {
-    return [TLi18n.t('tcsr.stBadParam'), r.message || TLi18n.t('tcsr.stBadParamMsg')];
+    return [TLi18n.t('tcsr.stBadParam'), TLi18n.t('tcsr.stBadParamMsg')];
   }
   return [TLi18n.t('tcsr.stError'), r.message || TLi18n.t('tcsr.stErrorMsg')];
 }
@@ -525,7 +539,11 @@ function setNotice(kind, msg) {
   $t.text(msg).show();
 }
 
-function absorb(r) {
+function absorb(r, sentVer) {
+  // A slow write answer must never repaint a version the user has already left
+  // (Change version / Refresh): it would overwrite STEPS/PENDING with another
+  // version's steps, and the next move would then post a foreign step_id.
+  if (sentVer && TCVER_ID && sentVer !== TCVER_ID) { return; }
   if (r.steps) {
     STEPS = r.steps.map(function (x) {
       return {
@@ -545,6 +563,7 @@ function postAction(action, extra, okMsg) {
   // re-render would send the same write twice (and the slower of two responses
   // would then re-render a stale order).
   if (BUSY) { return; }
+  var sentVer = TCVER_ID;
   setNotice('', '');
   var payload = {
     action: action,
@@ -560,11 +579,12 @@ function postAction(action, extra, okMsg) {
     data: JSON.stringify(payload)
   }).done(function (r) {
     if (r.status === 'ok' || r.status === 'no_change') {
-      absorb(r);
+      absorb(r, sentVer);
       if (r.status === 'ok' && okMsg) { setNotice('ok', okMsg); }
       if (r.status === 'no_change') { toast(TLi18n.t('tcsr.noChange'), 'ok'); }
     } else {
-      setNotice('err', r.message || TLi18n.t('tcsr.stError'));
+      var pair = codePair(r.code || '');
+      setNotice('err', pair ? pair[1] : TLi18n.t('tcsr.stErrorMsg'));
     }
   }).always(function () {
     setBusy(false);
@@ -577,7 +597,8 @@ function postAction(action, extra, okMsg) {
     // The BFF answers an idle session with 401 session_expired instead of
     // redirecting; a BFF must not redirect, so send the user to the login page.
     if (isSessionGone(xhr)) { window.location.href = '/login.php'; return; }
-    setNotice('err', r.message || TLi18n.t('tcsr.stErrorMsg'));
+    var fp = codePair(r.code || '');
+    setNotice('err', fp ? fp[1] : TLi18n.t('tcsr.stErrorMsg'));
   });
 }
 
@@ -601,6 +622,7 @@ function discardPending() {
 }
 
 function openApply() {
+  if (!CAN_EDIT) { return; }
   if (!isDirty() || PENDING.length < 2) { return; }
   $('#mTitle').text(TLi18n.t('tcsr.applyTitle'));
   $('#mBody').text(TLi18n.t('tcsr.applyBody'));
@@ -611,7 +633,7 @@ function openApply() {
 function openNormalize() {
   if (!CAN_EDIT) { return; }
   $('#mTitle').text(TLi18n.t('tcsr.normalizeTitle'));
-  $('#mBody').text(tpl(TLi18n.t('tcsr.normalizeConfirm'), { count: STEPS.length }));
+  $('#mBody').text(TLi18n.t('tcsr.normalizeConfirm', { count: STEPS.length }));
   PENDING_ACTION = { kind: 'normalize' };
   $('#mask').addClass('show');
 }
@@ -626,7 +648,7 @@ function confirmModal() {
   var p = PENDING_ACTION;
   closeModal();
   if (p.kind === 'normalize') {
-    postAction('normalize', {}, tpl(TLi18n.t('tcsr.renumbered'), { count: STEPS.length }));
+    postAction('normalize', {}, TLi18n.t('tcsr.renumbered', { count: STEPS.length }));
     return;
   }
   var ids = PENDING.map(function (r) { return r.step_id; });
@@ -699,16 +721,23 @@ $(function () {
         }
         if (from < 0 || to < 0) { return; }
         var moved = PENDING.splice(from, 1)[0];
+        // Insert at `to` AFTER the removal, so the dragged row always LANDS ON
+        // the target's position, whichever direction the drag went. dragFrom is
+        // cleared here because renderRows() detaches the source row, so the
+        // delegated dragend never fires for a completed drop - a stale value
+        // would make the next unrelated drag reorder a row.
         PENDING.splice(to, 0, moved);
+        dragFrom = null;
         renderRows();
       });
 
       $('#btnReset').on('click', discardPending);
     }
 
-    // No version in the URL: this is the $actions->tcStepReorder hub entry (or a
-    // legacy stepReorder.php bookmark), so offer the version picker instead of
-    // an error card. With a version in the URL, load the step table.
+    // No version in the URL: the screen was opened as a route without a version
+    // ($actions->tcStepReorder, or a legacy stepReorder.php bookmark), so offer
+    // the version picker instead of an error card. With a version in the URL,
+    // load the step table.
     if (TCVER_ID) { load(); } else { loadVersions(); }
   });
 });

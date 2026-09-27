@@ -5293,5 +5293,8 @@
   "tcsr.pickEmpty": "このテストプロジェクトにステップを持つテストケースバージョンはありません。",
   "tcsr.thTestCase": "テストケース",
   "tcsr.thSteps": "ステップ",
-  "tcsr.changeVersion": "バージョンを変更"
+  "tcsr.changeVersion": "バージョンを変更",
+  "tcsr.stNoVersionMsg": "手順を並べ替えるテストケースバージョンを選んでください。",
+  "tcsr.stNoContext": "コンテキストにテストプロジェクトがありません",
+  "tcsr.stNoContextMsg": "テストプロジェクトから画面を開き、もう一度お試しください。"
 }

@@ -5303,5 +5303,8 @@
   "tcsr.pickEmpty": "This test project has no test case version with steps.",
   "tcsr.thTestCase": "Test case",
   "tcsr.thSteps": "Steps",
-  "tcsr.changeVersion": "Change version"
+  "tcsr.changeVersion": "Change version",
+  "tcsr.stNoVersionMsg": "Pick a test case version to re-order its steps.",
+  "tcsr.stNoContext": "No test project in context",
+  "tcsr.stNoContextMsg": "Open the screen from a test project and try again."
 }

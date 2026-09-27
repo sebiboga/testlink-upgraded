@@ -5273,5 +5273,8 @@
   "tcsr.pickEmpty": "此测试项目没有任何包含步骤的测试用例版本。",
   "tcsr.thTestCase": "测试用例",
   "tcsr.thSteps": "步骤",
-  "tcsr.changeVersion": "切换版本"
+  "tcsr.changeVersion": "切换版本",
+  "tcsr.stNoVersionMsg": "请选择要重新排序步骤的测试用例版本。",
+  "tcsr.stNoContext": "上下文中没有测试项目",
+  "tcsr.stNoContextMsg": "请从测试项目中打开本屏幕后重试。"
 }

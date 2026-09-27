@@ -5287,5 +5287,8 @@
   "tcsr.pickEmpty": "Questo progetto di test non ha versioni di test case con passi.",
   "tcsr.thTestCase": "Test case",
   "tcsr.thSteps": "Passi",
-  "tcsr.changeVersion": "Cambia versione"
+  "tcsr.changeVersion": "Cambia versione",
+  "tcsr.stNoVersionMsg": "Scegli una versione del test case per riordinarne i passaggi.",
+  "tcsr.stNoContext": "Nessun progetto di test nel contesto",
+  "tcsr.stNoContextMsg": "Apri la schermata da un progetto di test e riprova."
 }
