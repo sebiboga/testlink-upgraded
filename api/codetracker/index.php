@@ -28,7 +28,7 @@ if (is_null($user)) {
     exit;
 }
 
-// Legacy lib/codetrackers/codeTrackerView.php:16,68-70 gates the whole page on
+// Legacy lib/codetrackers/codeTrackerView.php (removed in #976) gates the whole page on
 // `codetracker_view` OR `codetracker_management` (checkRights passed to
 // testlinkInitPage -> redirect-to-login for users without either right).
 // The modern BFF used to serve every route to any authenticated user; mirror
@@ -48,9 +48,9 @@ if (!$canView) {
 }
 
 // Write gate (gap vs legacy #970): legacy gates create/update/delete AND the
-// connection check on `codetracker_management` — lib/codetrackers/codeTrackerEdit.php:181-184
+// connection check on `codetracker_management` — lib/codetrackers/codeTrackerEdit.php (removed in #976)
 // (checkRights() = hasRight('codetracker_management'), denying the whole edit
-// controller) and codeTrackerView.tpl:51-61 (wrench "check connection" rendered
+// controller) and codeTrackerView.tpl (removed in #976) (wrench "check connection" rendered
 // only when canManage). The modern BFF used to let any viewer POST/PUT/DELETE/
 // test_github (measured escalation in issue #970), so those routes now require
 // codetracker_management and trail a denial into the Event Viewer first, exactly
@@ -61,7 +61,7 @@ if (!$canView) {
 // codeTrackerView.tpl only rendered name/type/env-check and never the cfg.
 // hasRight() returns the string 'yes' or null (lib/functions/roles.inc.php:254-273),
 // so '== "yes"' yields a clean bool mirroring legacy $gui->canManage
-// (lib/codetrackers/codeTrackerView.php:24).
+// (lib/codetrackers/codeTrackerView.php).
 $canManage = ($user->hasRight($db, 'codetracker_management') == 'yes');
 
 function denyWrite($user, $userId, $action) {
@@ -116,23 +116,23 @@ function storedTrackerType($db, $id) {
 }
 
 function attachLinks($mgr, $id, &$item, $canPurge) {
-    // Port of legacy initializeGui (lib/codetrackers/codeTrackerEdit.php:144-172,
+    // Port of legacy initializeGui (lib/codetrackers/codeTrackerEdit.php (removed in #976),
     // issue #974). The 1.9.20 edit page did TWO things with the link table that
     // the modern BFF dropped:
     //   1. purges DEAD links on load — getLinks($id,['getDeadLinks'=>true])
     //      returns rows whose testproject node no longer exists
     //      (tlCodeTracker.class.php:490-500, LEFT OUTER JOIN ... IS NULL) and
     //      legacy unlinks each of them, "just to fix erroneous test project
-    //      delete" (codeTrackerEdit.php:150-157). Without the purge a NULL
+    //      delete" (codeTrackerEdit.php). Without the purge a NULL
     //      project name would be LEFT JOINed into the used-by list below and
     //      would also inflate link_count.
     //   2. exposes $gui->testProjectSet = getLinks($id) — the map
     //      testproject_id => testproject_name that the info-icon toggle renders
     //      as "Used on Test Project" / "Code Tracker Not Used (Linked)"
-    //      (codeTrackerEdit.tpl:73-116,105-113).
+    //      (codeTrackerEdit.tpl).
     // The purge is $canPurge-gated so it fires ONLY where legacy ran it AND only
     // for the role legacy required: the edit screen was gated on
-    // codetracker_management (codeTrackerEdit.php:180-184), so a view-only user
+    // codetracker_management (codeTrackerEdit.php), so a view-only user
     // (right 52) must not be able to cause a DB write through a GET. The purge
     // is idempotent self-healing, but "read routes never write for viewers" is
     // the invariant the #970 write-gate established, so it is kept here too.
@@ -224,11 +224,11 @@ function trackerToJSON($item, $mgr, $canManage) {
         'serverUrl' => $serverUrl,
         'github' => $github,
         'implementation' => $item['implementation'] ?? '',
-        // Environment check (issue #973). Legacy lib/codetrackers/codeTrackerView.php:23
+        // Environment check (issue #973). Legacy lib/codetrackers/codeTrackerView.php (removed in #976)
         // requested getAll(..., 'checkEnv' => true) so tlCodeTracker.class.php:578-601
         // runs the per-implementation $impl::checkEnv() and fills
         // env_check_ok / env_check_msg, rendered by the "Environment" column of
-        // codeTrackerView.tpl:42,74 ($labels.th_codetracker_env =
+        // codeTrackerView.tpl (removed in #976) ($labels.th_codetracker_env =
         // 'Environment', locale/*/strings.txt). The modern BFF omitted the
         // option, so the probe never ran and the readiness of the PHP
         // environment (e.g. githubrestCodeTrackerInterface::checkEnv() at
@@ -242,7 +242,7 @@ function trackerToJSON($item, $mgr, $canManage) {
         'env_check_msg' => (string)($item['env_check_msg'] ?? ''),
         'link_count' => intval($item['link_count'] ?? 0),
         // Linked test-project names, consumed by the edit modal's used-by
-        // toggle (issue #974 — legacy codeTrackerEdit.php:158-159 set
+        // toggle (issue #974 — legacy codeTrackerEdit.php (removed in #976) set
         // $gui->testProjectSet the same way). attachLinks() fills it for every
         // per-tracker route (GET /{id} with the legacy dead-link purge, and the
         // create/update/delete responses); the LIST route deliberately keeps
@@ -257,7 +257,7 @@ function trackerToJSON($item, $mgr, $canManage) {
 $mgr = new tlCodeTracker($db);
 
 if ($method === 'GET' && ($path === '/' || $path === '' || $path === '/index.php')) {
-    // checkEnv parity with legacy codeTrackerView.php:23 — the per-tracker
+    // checkEnv parity with legacy codeTrackerView.php (removed in #976) — the per-tracker
     // environment probe ($impl::checkEnv(), tlCodeTracker.class.php:578-601)
     // runs here so env_check_ok/env_check_msg reach the grid's Environment
     // column. Omitting it silently downgrades every row to "OK" (issue #973).
@@ -269,7 +269,7 @@ if ($method === 'GET' && ($path === '/' || $path === '' || $path === '/index.php
         }
     }
     // canManage mirrors legacy $gui->canManage
-    // (lib/codetrackers/codeTrackerView.php:24) so the UI can gate the Create
+    // (lib/codetrackers/codeTrackerView.php) so the UI can gate the Create
     // button and the edit/delete action icons on codetracker_management.
     out(['status' => 'ok', 'items' => $items, 'total' => count($items), 'canManage' => $canManage]);
 }
@@ -290,8 +290,9 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'meta' && isset
 }
 
 // Legacy lib/ajax/getcodetrackercfgtemplate.php: the eye icon next to the
-// Configuration field in codeTrackerEdit.tpl:194-196 calls displayCfgExample()
-// (codeTrackerEdit.tpl:26-66), which GETs getcodetrackercfgtemplate.php?type=N
+// Configuration field in codeTrackerEdit.tpl (removed in #976) calls displayCfgExample()
+// (codeTrackerEdit.tpl), which GETs
+// getcodetrackercfgtemplate.php (removed in #976) with ?type=N
 // and injects the selected interface's $cname::getCfgTemplate() as <pre><xmp>
 // into #cfg_example — the PER-TYPE config example, plus the localized
 // codetracker_interface_not_implemented / codetracker_invalid_type fallbacks.
@@ -489,7 +490,7 @@ if (($method === 'GET' || $method === 'POST') && isset($segments[0]) && is_numer
     // action instantiates the tracker's interface from the STORED cfg (which
     // may hold the plaintext token) and drives it server-side with the
     // manager's credentials. Legacy grants that only to managers: the wrench
-    // connection check (codeTrackerView.tpl:51-61) is rendered only when
+    // connection check (codeTrackerView.tpl) is rendered only when
     // canManage, so a view-only user must never exercise the stored token.
     // Gate identical to the #970 write-gate (denyWrite) so the denial is also
     // trailed into the Event Viewer.
@@ -565,7 +566,7 @@ if ($method === 'DELETE' && isset($segments[0]) && is_numeric($segments[0])) {
     $result = $mgr->delete($id);
     if ($result['status_ok']) {
         // The legacy delete form refused to delete a LINKED tracker and showed
-        // the very same used-by list (codeTrackerView.tpl:66-72 / #971 gating
+        // the very same used-by list (codeTrackerView.tpl (removed in #976) / #971 gating
         // mirrored in the grid). The response carries the pre-delete state so
         // a client can still explain the refusal (issue #974).
         attachLinks($mgr, $id, $existing, false);

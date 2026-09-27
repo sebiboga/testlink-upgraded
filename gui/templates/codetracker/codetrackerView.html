@@ -85,9 +85,9 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
           <input type="text" id="editName" class="form-control" maxlength="100" style="font-size:13px;">
         </div>
         <!-- Port of the legacy "used on testproject" block (issue #974):
-             codeTrackerEdit.tpl:163-179 rendered an fa-info-circle anchor next to
+             codeTrackerEdit.tpl (removed in #976) rendered an fa-info-circle anchor next to
              the Name label plus this hidden envelope row; displayUsedBy()
-             (codeTrackerEdit.tpl:73-116) filled it on toggle. -->
+             (codeTrackerEdit.tpl) filled it on toggle. -->
         <div class="form-group" id="usedByOuter" style="display:none;margin-bottom:12px;">
           <div id="usedByEnvelope" style="font-size:12px;padding:8px 12px;background:#f6f6f6;border-radius:4px;"></div>
         </div>
@@ -128,7 +128,7 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
             <div style="font-size:11px;color:#777;margin-top:4px;" data-i18n="ct.cfgHelp">Configuration must be valid XML. Example format:</div>
           </div>
         </div>
-        <!-- Port of legacy #cfg_example (codeTrackerEdit.tpl:194-196 +
+        <!-- Port of legacy #cfg_example (codeTrackerEdit.tpl (removed in #976) +
              displayCfgExample, issue #975). Kept OUTSIDE #genericFields on
              purpose: the legacy eye sits next to the Configuration field on a
              page where that field is always rendered, whereas the modern modal
@@ -174,7 +174,7 @@ var connectionResults = {};
 var connectionRequestSeq = {};
 // Linked test-project names for the tracker being edited (issue #974). Filled
 // from BFF GET /{id} -> item.links (legacy $gui->testProjectSet,
-// lib/codetrackers/codeTrackerEdit.php:158-159); empty on create, which is what
+// lib/codetrackers/codeTrackerEdit.php (removed in #976)); empty on create, which is what
 // makes toggleUsedBy() render the "not used (linked)" state.
 var usedByProjects = [];
 
@@ -187,7 +187,7 @@ function onTypeChange() {
   $('#ghFields, #ghFields2, #ghFields3, #ghFields4').toggle(gh);
   $('#genericFields').toggle(!gh);
   $('#ghTestResult').text('');
-  // Legacy reloaded the example only on eye-click (codeTrackerEdit.tpl:26-66);
+  // Legacy reloaded the example only on eye-click (codeTrackerEdit.tpl);
   // the issue's suggested fix asks for the template to FOLLOW the Type select
   // — refresh a SHOWN example whenever the interface changes, so the sample
   // keys always match the interface actually being configured.
@@ -196,8 +196,9 @@ function onTypeChange() {
 
 /* ---- Per-type cfg template example (legacy displayCfgExample, issue #975) ---- */
 
-// Legacy displayCfgExample (codeTrackerEdit.tpl:26-66): the eye icon next to
-// the Configuration field AJAX-loads lib/ajax/getcodetrackercfgtemplate.php?type=N
+// Legacy displayCfgExample (codeTrackerEdit.tpl): the eye icon next to
+// the Configuration field AJAX-loaded lib/ajax/getcodetrackercfgtemplate.php
+  // (removed in #976) with ?type=N
 // and injects the selected interface's getCfgTemplate() as <pre><xmp> (or the
 // localized invalid-type / interface-not-implemented messages) into #cfg_example.
 // Modern mirror over the BFF /cfg-template route; the template is drawn via
@@ -223,7 +224,7 @@ function loadCfgTemplate(done) {
   });
 }
 
-// Port of displayCfgExample's hide/show toggle (codeTrackerEdit.tpl:37-52): a
+// Port of displayCfgExample's hide/show toggle (codeTrackerEdit.tpl): a
 // click on the eye hides an already rendered example, otherwise it loads the
 // template for the currently selected Type and shows it.
 function toggleCfgTemplate() {
@@ -275,7 +276,7 @@ function loadMeta() {
 
 // A 403 from the codetracker BFF means the logged-in user holds neither
 // codetracker_view nor codetracker_management (legacy checkRights ->
-// lib/codetrackers/codeTrackerView.php:68-70). The screen must not render
+// lib/codetrackers/codeTrackerView.php (removed in #976)). The screen must not render
 // anything actionable: hide the toolbar (create button) and the table, and
 // surface a localized denial message.
 function showDenied(xhr) {
@@ -289,9 +290,9 @@ function loadTrackers() {
   $.getJSON(API, function(r) {
     allItems = r.items;
     // canManage mirrors legacy $gui->canManage
-    // (lib/codetrackers/codeTrackerView.php:24): the Create button and the
+    // (lib/codetrackers/codeTrackerView.php): the Create button and the
     // per-row edit/delete actions are management-only in 1.9.20
-    // (codeTrackerView.tpl:43-45,64-70,76), so hide them for view-only users.
+    // (codeTrackerView.tpl), so hide them for view-only users.
     canManage = !!r.canManage;
     $('#createBtn').toggle(canManage);
     renderTable(allItems);
@@ -325,12 +326,12 @@ function renderTable(items) {
         actions += '<i class="fa fa-trash action-btn danger" title="Delete" onclick="deleteTracker(' + t.id + ', \'' + jsAttrEsc(t.name) + '\')"></i>';
       }
     }
-    // Legacy Environment column (codeTrackerView.tpl:42,74 -> $labels
+    // Legacy Environment column (codeTrackerView.tpl (removed in #976) -> $labels
     // .th_codetracker_env = 'Environment' and {$item_def.env_check_msg})
     // reports whether the PHP environment can serve this tracker's interface.
     // The BFF runs the per-implementation $impl::checkEnv()
     // (tlCodeTracker.class.php:578-601, option requested by
-    // codeTrackerView.php:23) and returns env_check_ok / env_check_msg.
+    // codeTrackerView.php (removed in #976)) and returns env_check_ok / env_check_msg.
     // OK -> green badge with the implementation's message as tooltip;
     // KO -> red badge showing the human message, as legacy did.
     // Issue #1597: a row whose type is unknown/unloadable gets env_check_ok=false
@@ -380,7 +381,7 @@ function renderTable(items) {
     ]
   });
   // View-only users get no manage affordances: collapse the Actions column the
-  // way legacy omits the th_delete column (codeTrackerView.tpl:43-45).
+  // way legacy omits the th_delete column (codeTrackerView.tpl).
   table.column(5).visible(canManage);
   if (canManage) {
     $.each(items, function(i, t) { renderConnectionStatus(t.id); });
@@ -449,12 +450,12 @@ function showCreateModal() {
   $('#ghTestResult').text('');
   $('#editActive').prop('checked', true);
   // Create has no links yet: legacy only built $gui->testProjectSet when
-  // $argsObj->id > 0 (codeTrackerEdit.php:150-159) and left the toggle showing
+  // $argsObj->id > 0 (codeTrackerEdit.php) and left the toggle showing
   // the "not used (linked)" note.
   usedByProjects = [];
   $('#usedByOuter').hide();
   // Legacy opens every editor with the example block collapsed — the eye is the
-  // only way in (codeTrackerEdit.tpl:194-196 / displayCfgExample).
+  // only way in (codeTrackerEdit.tpl (removed in #976) / displayCfgExample).
   $('#cfgExampleOuter').hide();
   $('#modalError').hide();
   onTypeChange();
@@ -479,7 +480,7 @@ function editTracker(id) {
     $('#editActive').prop('checked', true);
     // Port of the legacy used-by block (issue #974): the BFF purges dead links
     // and returns the linked test-project names on this very request, so the
-    // toggle renders the same two states as 1.9.20 (codeTrackerEdit.tpl:105-113).
+    // toggle renders the same two states as 1.9.20 (codeTrackerEdit.tpl).
     usedByProjects = (t.links && t.links.length) ? t.links : [];
     $('#usedByOuter').hide();
     $('#cfgExampleOuter').hide();
@@ -489,7 +490,7 @@ function editTracker(id) {
 }
 
 // Port of legacy displayUsedBy() (gui/templates/dashio/codetrackers/
-// codeTrackerEdit.tpl:73-116, issue #974): an info-circle anchor next to the
+// codeTrackerEdit.tpl (removed in #976), issue #974): an info-circle anchor next to the
 // Name label toggles a block listing every test project the tracker is linked
 // to ("Used on Test Project" + one name per line), or the italics
 // "Code Tracker Not Used (Linked)" note when there is none. Project names come
@@ -497,7 +498,7 @@ function editTracker(id) {
 // manager-controlled string (issue #1581).
 function toggleUsedBy() {
   // Legacy gated the whole edit page on codetracker_management
-  // (lib/codetrackers/codeTrackerEdit.php:180-184), so the info-circle existed
+  // (lib/codetrackers/codeTrackerEdit.php), so the info-circle existed
   // only for managers. The modern modal is likewise opened from the Actions
   // column, which renderTable() hides for view-only users
   // (codetrackerView.html:291-293) — guard anyway, same as the sibling screen.

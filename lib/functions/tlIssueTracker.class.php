@@ -786,9 +786,10 @@ class tlIssueTracker extends tlObject
     // Issue #1617: getImplementationForType() now returns NULL for a tracker
     // whose type is not a key of $systems. "new NULL" is an uncaught Error
     // ("Class name must be a valid object or a string") which used to kill
-    // lib/issuetrackers/issueTrackerView.php?id=<row> with an empty HTTP 500.
+    // lib/issuetrackers/issueTrackerView.php (removed in #966) with
+    // ?id=<row> with an empty HTTP 500.
     // Report the connection as failed instead: the caller turns this into the
-    // 'ko' value, which issueTrackerView.tpl:60 already renders with the
+    // 'ko' value, which issueTrackerView.tpl (removed in #966) already renders with the
     // existing localized bts_check_ko badge - no new i18n string needed.
     if( is_null($xx) || is_null($xx['implementation']) )
     {

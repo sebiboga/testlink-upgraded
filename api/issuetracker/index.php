@@ -28,7 +28,7 @@ if (is_null($user)) {
     exit;
 }
 
-// Legacy lib/issuetrackers/issueTrackerView.php:61-66 gates the whole page on
+// Legacy lib/issuetrackers/issueTrackerView.php (removed in #966) gates the whole page on
 // `issuetracker_view` OR `issuetracker_management` (checkRights passed to
 // testlinkInitPage). The modern BFF used to serve every route to any
 // authenticated user; mirror the legacy page-level gate here so all routes
@@ -80,9 +80,9 @@ function trackerToJSON($item, $mgr) {
         $spec = $mgr->systems[$item['type']];
         $typeLabel = $spec['type'];
     }
-    // Legacy lib/issuetrackers/issueTrackerView.php:23 requested output =>
+    // Legacy lib/issuetrackers/issueTrackerView.php (removed in #966) requested output =>
     // add_link_count so getAll() fills link_count (tlIssueTracker.class.php:
-    // 591-624); issueTrackerView.tpl:78-83 then renders the delete icon ONLY
+    // 591-624); issueTrackerView.tpl (removed in #966) then renders the delete icon ONLY
     // when link_count == 0. The modern BFF recomputes link_count below; the
     // UI hides the delete action for linked trackers (issue #963).
     return [
@@ -93,10 +93,10 @@ function trackerToJSON($item, $mgr) {
         'typeDescr' => $typeDescr,
         'cfg' => $item['cfg'] ?? '',
         'implementation' => $item['implementation'] ?? '',
-        // Legacy lib/issuetrackers/issueTrackerView.php:23 requested
+        // Legacy lib/issuetrackers/issueTrackerView.php (removed in #966) requested
         // checkEnv=>true so getAll() runs the per-tracker $impl::checkEnv()
         // (tlIssueTracker.class.php:610-616) and fills env_check_ok/msg,
-        // rendered by issueTrackerView.tpl:77 in the "Environment" column.
+        // rendered by issueTrackerView.tpl (removed in #966) in the "Environment" column.
         'env_check_ok' => (bool)($item['env_check_ok'] ?? true),
         'env_check_msg' => (string)($item['env_check_msg'] ?? ''),
         'link_count' => intval($item['link_count'] ?? 0),
@@ -107,11 +107,11 @@ function trackerToJSON($item, $mgr) {
 $mgr = new tlIssueTracker($db);
 
 if ($method === 'GET' && ($path === '/' || $path === '' || $path === '/index.php')) {
-    // checkEnv parity with legacy issueTrackerView.php:23 — per-tracker
+    // checkEnv parity with legacy issueTrackerView.php (removed in #966) — per-tracker
     // environment check (env_check_ok/env_check_msg) is computed server-side.
     $all = $mgr->getAll(['output' => 'add_link_count', 'checkEnv' => true]);
 
-    // Attach the linking test project names (legacy issueTrackerView.tpl:78-83
+    // Attach the linking test project names (legacy issueTrackerView.tpl (removed in #966)
     // gating on link_count; the names feed the UI tooltip when delete is
     // hidden — matching tlIssueTracker::delete() message which lists them).
     $links = $mgr->getLinkSet();
@@ -150,7 +150,7 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'meta' && isset
 }
 
 // Legacy lib/ajax/getissuetrackercfgtemplate.php: the eye icon next to the
-// Configuration field in issueTrackerEdit.tpl:24-65 (displayCfgExample) loads
+// Configuration field in issueTrackerEdit.tpl (removed in #966) (displayCfgExample) loads
 // the per-type $iname::getCfgTemplate() template via ?type=N, falling back to
 // the localized issuetracker_interface_not_implemented (missing interface
 // class) / issuetracker_invalid_type (unknown type) messages. Modern BFF
@@ -183,7 +183,8 @@ if ($method === 'GET' && ($segments[0] ?? '') === 'cfg-template' && empty($segme
     out(['status' => 'error', 'code' => 'invalid_type', 'type' => $type]);
 }
 
-// Legacy list wrench icon (issueTrackerView.tpl:55-58 -> issueTrackerView.php?id=N
+// Legacy list wrench icon (issueTrackerView.tpl (removed in #966) ->
+    // issueTrackerView.php (removed in #966) with ?id=N
 // -> tlIssueTracker::checkConnection() at tlIssueTracker.class.php:723-735) runs
 // the STORED config through the implementation's isConnected() and renders an
 // fa-heartbeat (ok) / fa-skull-crossbones (ko) status icon. GET /{id}/check-connection
@@ -219,8 +220,8 @@ if ($method === 'GET' && isset($segments[0]) && is_numeric($segments[0]) &&
     }
 }
 
-// Legacy edit form "Check Connection" button (issueTrackerEdit.tpl:226-229 ->
-// issueTrackerCommands::checkConnection at issueTrackerCommands.class.php:253-281)
+// Legacy edit form "Check Connection" button (issueTrackerEdit.tpl (removed in #966) ->
+// issueTrackerCommands::checkConnection at issueTrackerCommands.class.php (removed in #966))
 // instantiates the implementation class from the CURRENT form fields (name/type/cfg)
 // and calls isConnected(), showing an alert-success (issueTracker_connection_ok) or
 // alert-danger (issueTracker_connection_ko). This route mirrors it so the modal can
@@ -266,13 +267,13 @@ if ($method === 'GET' && isset($segments[0]) && is_numeric($segments[0])) {
     $id = intval($segments[0]);
     $item = $mgr->getByID($id);
     if (!$item) { http_response_code(404); out(['status' => 'error', 'message' => 'Issue tracker not found']); }
-    // Port of legacy issueTrackerEdit.php initializeGui (lines 140-153): the edit
+    // Port of legacy issueTrackerEdit.php (removed in #966) initializeGui: the edit
     // form surfaces every test project linked to the tracker ('used on test
     // project' / 'not used/linked', issue #964). getLinks() returns a map of
     // testproject_id => testproject_name (tlIssueTracker.class.php:516-543);
     // consume the names the same way the list route does for its delete tooltip.
     // Legacy initializeGui first purges DEAD links (rows pointing at a test
-    // project node that no longer exists — issueTrackerEdit.php:141-146 =
+    // project node that no longer exists — issueTrackerEdit.php (removed in #966) =
     // getLinks(id,getDeadLinks) + unlink(id,tpid); a plain getLinks() would
     // LEFT JOIN a NULL name into the used-by list and inflate link_count).
     $dead = $mgr->getLinks($id, array('getDeadLinks' => true));
