@@ -5047,7 +5047,7 @@
   "kwxml.exporting": "正在准备下载...",
   "kwxml.exportedMsg": "导出已开始 - 请查看浏览器下载。",
   "kwxml.importedMsg": "关键字已导入。该项目现在有 {count} 个关键字。",
-  "kwxml.importHint": "同名的现有关键字将被更新，新的关键字将被创建。",
+  "kwxml.importHint": "同名的现有关键字将被更新，新的关键字将被创建。请使用分号 \";\" 作为字段分隔符（也接受逗号分隔的文件）。",
   "kwxml.noFile": "请选择关键字文件。",
   "kwxml.wrongFile": "文件错误 - 无法读取该格式。",
   "kwxml.tooLarge": "所选文件过大。",
@@ -5206,5 +5206,9 @@
   "tcreo.sortedExtId": "测试用例已按外部ID排序。",
   "footers.tcReorder": "TestLink 2.0.1 - 重新排序测试用例",
   "tspec.reorderTestCases": "重新排序测试用例",
-  "tspec.reorderTestCasesTitle": "重新排序所选测试集的测试用例（测试规格树中的拖放）"
+  "tspec.reorderTestCasesTitle": "重新排序所选测试集的测试用例（测试规格树中的拖放）",
+  "kwxml.errNoneImported": "未导入任何关键字 — 每一行都被拒绝。详见下方详情。",
+  "kwxml.errEmptyFile": "关键字文件没有数据行。",
+  "kwxml.rowError": "第 {row} 行（{name}）：{reason}",
+  "kwxml.partialImportMsg": "已导入 {rows} 行中的 {imported} 行；{skipped} 行被拒绝 — 详见下方详情。"
 }

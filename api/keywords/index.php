@@ -409,15 +409,85 @@ if ($method === 'POST' && isset($segments[0]) && $segments[0] === 'import') {
         out(['status' => 'error', 'message' => 'Could not store uploaded file']);
     }
 
-    $pfn = $type === 'csv' ? 'importKeywordsFromCSV' : 'importKeywordsFromXMLFile';
-    $result = $tproject_mgr->$pfn($tproject_id, $dest);
+    // Refs #1605: importKeywordsFromCSV() returns tl::OK as soon as fopen() on
+    // the temp file succeeds, so this route used to answer {"status":"ok"} even
+    // when ZERO keywords were created (wrong delimiter, every row a duplicate,
+    // empty names, ...). The importer now hands back a per-row report and this
+    // route publishes it, instead of claiming a success it cannot prove.
+    $stats = ['rows' => 0, 'imported' => 0, 'skipped' => 0, 'errors' => []];
+    if ($type === 'csv') {
+        $result = $tproject_mgr->importKeywordsFromCSV($tproject_id, $dest, ';', $stats);
+    } else {
+        $before = keywordCountFor($db, $tproject_id);
+        $result = $tproject_mgr->importKeywordsFromXMLFile($tproject_id, $dest);
+        $stats['rows'] = max(0, keywordCountFor($db, $tproject_id) - $before);
+        $stats['imported'] = $stats['rows'];
+    }
     @unlink($dest);
 
     if ($result != tl::OK) {
         http_response_code(422);
         out(['status' => 'error', 'message' => 'Wrong keywords file', 'error_code' => 'WRONG_FORMAT']);
     }
-    out(['status' => 'ok']);
+
+    if ($stats['imported'] <= 0) {
+        // Distinguish "the file had nothing to import" from "every data row was
+        // rejected" - the user needs a different answer in each case.
+        if ($stats['rows'] <= 0) {
+            http_response_code(422);
+            out(['status' => 'error', 'message' => 'The keywords file has no data rows',
+                 'error_code' => 'EMPTY_FILE', 'imported' => 0, 'rows' => 0]);
+        }
+        http_response_code(422);
+        out(['status' => 'error', 'message' => 'No keyword was imported',
+             'error_code' => 'NO_KEYWORDS_IMPORTED', 'imported' => 0,
+             'rows' => $stats['rows'], 'skipped' => $stats['skipped'],
+             'errors' => importErrorRows($stats['errors'])]);
+    }
+
+    out(['status' => 'ok',
+         'imported' => $stats['imported'],
+         'skipped' => $stats['skipped'],
+         'rows' => $stats['rows'],
+         'errors' => importErrorRows($stats['errors']),
+         'keyword_count' => keywordCountFor($db, $tproject_id)]);
+}
+
+/** testproject::getKeywordIDsFor() is protected, so count the rows directly. */
+function keywordCountFor($db, $tproject_id) {
+    if ($tproject_id <= 0) {
+        return 0;
+    }
+    $t = tlObject::getDBTables('keywords');
+    $rs = $db->get_recordset(
+        "SELECT COUNT(id) AS qty FROM {$t['keywords']} WHERE testproject_id = " . intval($tproject_id)
+    );
+    return is_null($rs) || count($rs) == 0 ? 0 : intval($rs[0]['qty']);
+}
+
+/**
+ * Row-level failure list for the response body: the importer reports the raw
+ * tlKeyword::E_* constant, this maps it onto a stable short code the client
+ * (and the i18n layer) can translate.
+ */
+function importErrorRows($errors) {
+    $map = array(
+        (int)tlKeyword::E_NAMENOTALLOWED => 'CHAR_NOT_ALLOWED',
+        (int)tlKeyword::E_NAMELENGTH => 'EMPTY_NAME',
+        (int)tlKeyword::E_NAMEALREADYEXISTS => 'ALREADY_EXISTS',
+        (int)tlKeyword::E_DBERROR => 'DB_ERROR',
+        (int)tlKeyword::E_WRONGFORMAT => 'WRONG_FORMAT',
+    );
+    $out = array();
+    foreach ((array)$errors as $e) {
+        $code = isset($e['code']) ? intval($e['code']) : 0;
+        $out[] = array(
+            'row' => isset($e['row']) ? intval($e['row']) : 0,
+            'code' => isset($map[$code]) ? $map[$code] : 'REJECTED',
+            'name' => isset($e['name']) ? (string)$e['name'] : '',
+        );
+    }
+    return $out;
 }
 
 http_response_code(404);

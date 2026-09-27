@@ -319,17 +319,30 @@ switch ($action) {
 
         $tproject = new testproject($db);
         $before = keywordCount($db, $tproject_id);
+        $stats = array('rows' => 0, 'imported' => 0, 'skipped' => 0, 'errors' => array());
         if ($type === 'iSerializationToXML') {
             $result = $tproject->importKeywordsFromXMLFile($tproject_id, $tmpFile);
         } else {
-            $result = $tproject->importKeywordsFromCSV($tproject_id, $tmpFile);
+            // Refs #1605: the out-param gives the dialog the real per-row
+            // report (imported / skipped / errors[]) instead of a bare "ok".
+            $result = $tproject->importKeywordsFromCSV($tproject_id, $tmpFile, ';', $stats);
         }
         $after = keywordCount($db, $tproject_id);
         if ($cleanup && is_file($tmpFile)) {
             @unlink($tmpFile);
         }
 
-        if ($result == tl::OK && $after === $before) {
+        if ($type === 'iSerializationToXML') {
+            $stats['rows'] = max(0, $after - $before);
+            $stats['imported'] = $stats['rows'];
+        }
+
+        // Captured BEFORE the guard below overwrites it: "the file was readable"
+        // is what decides whether an empty/fully-rejected CSV is a row problem
+        // or a genuinely unreadable file.
+        $fileWasReadable = ($result == tl::OK);
+
+        if ($result == tl::OK && $stats['imported'] <= 0 && $after === $before) {
             // importKeywordsFromCSV() returns tl::OK as soon as fopen() on the
             // temp file succeeds, so a non-CSV file is "imported" with zero rows
             // and the screen would report success. Nothing landed => wrong file.
@@ -337,11 +350,26 @@ switch ($action) {
         }
 
         if ($result != tl::OK) {
+            // Refs #1605: "wrong_keywords_file" was all the user ever got, even
+            // when the file was perfectly readable and every row was rejected
+            // for a named reason. Name the actual outcome so the dialog can say
+            // whether the file was empty, or every row failed. Gated on
+            // $fileWasReadable so an unreadable file (fopen() failed) keeps the
+            // legacy code, which is the accurate one there. XML keeps the legacy
+            // code on purpose - see the note in the import arm above.
+            $code = 'wrong_keywords_file';
+            if ($type !== 'iSerializationToXML' && $fileWasReadable) {
+                $code = ($stats['rows'] > 0) ? 'NO_KEYWORDS_IMPORTED' : 'EMPTY_FILE';
+            }
             out(array(
                 'status' => 'error',
                 'message' => 'wrong_keywords_file',
-                'code' => 'wrong_keywords_file',
+                'code' => $code,
                 'result' => $result,
+                'imported' => $stats['imported'],
+                'skipped' => $stats['skipped'],
+                'rows' => $stats['rows'],
+                'errors' => importErrorRows($stats['errors']),
             ), 400);
         }
 
@@ -349,6 +377,10 @@ switch ($action) {
             'status' => 'ok',
             'tproject_id' => $tproject_id,
             'keyword_count' => keywordCount($db, $tproject_id),
+            'imported' => $stats['imported'],
+            'skipped' => $stats['skipped'],
+            'rows' => $stats['rows'],
+            'errors' => importErrorRows($stats['errors']),
         ));
     break;
 
@@ -404,6 +436,31 @@ function parse_size($value) {
         case 'k': return intval($number * 1024);
         default:  return intval($number);
     }
+}
+
+/**
+ * Row-level failure list: the importer reports the raw tlKeyword::E_*
+ * constant, this maps it onto a stable short code the client translates with
+ * the kwedit.err* / kwxml.errRow* i18n keys.
+ */
+function importErrorRows($errors) {
+    $map = array(
+        (int)tlKeyword::E_NAMENOTALLOWED => 'CHAR_NOT_ALLOWED',
+        (int)tlKeyword::E_NAMELENGTH => 'EMPTY_NAME',
+        (int)tlKeyword::E_NAMEALREADYEXISTS => 'ALREADY_EXISTS',
+        (int)tlKeyword::E_DBERROR => 'DB_ERROR',
+        (int)tlKeyword::E_WRONGFORMAT => 'WRONG_FORMAT',
+    );
+    $out = array();
+    foreach ((array)$errors as $e) {
+        $code = isset($e['code']) ? intval($e['code']) : 0;
+        $out[] = array(
+            'row' => isset($e['row']) ? intval($e['row']) : 0,
+            'code' => isset($map[$code]) ? $map[$code] : 'REJECTED',
+            'name' => isset($e['name']) ? (string)$e['name'] : '',
+        );
+    }
+    return $out;
 }
 
 /** keywordCount(): testproject::getKeywordIDsFor() is protected, count directly. */

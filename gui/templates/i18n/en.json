@@ -5077,7 +5077,7 @@
   "kwxml.exporting": "Preparing the download...",
   "kwxml.exportedMsg": "Export started - check your browser downloads.",
   "kwxml.importedMsg": "Keywords imported. The project now has {count} keywords.",
-  "kwxml.importHint": "Existing keywords with the same name are updated; new ones are created.",
+  "kwxml.importHint": "Existing keywords with the same name are updated; new ones are created. Use semicolon \";\" as the field separator (a comma separated file is accepted too).",
   "kwxml.noFile": "Please choose a keywords file.",
   "kwxml.wrongFile": "Wrong keywords file - the format could not be read.",
   "kwxml.tooLarge": "The selected file is too large.",
@@ -5236,5 +5236,9 @@
   "tcreo.sortedExtId": "Test cases sorted by external ID.",
   "footers.tcReorder": "TestLink 2.0.1 - Reorder Test Cases",
   "tspec.reorderTestCases": "Reorder Test Cases",
-  "tspec.reorderTestCasesTitle": "Reorder the test cases of the selected suite (legacy drag-and-drop of the test-spec tree)"
+  "tspec.reorderTestCasesTitle": "Reorder the test cases of the selected suite (legacy drag-and-drop of the test-spec tree)",
+  "kwxml.errNoneImported": "No keyword was imported - every row was rejected. See the details below.",
+  "kwxml.errEmptyFile": "The keywords file has no data rows.",
+  "kwxml.rowError": "Row {row} ({name}): {reason}",
+  "kwxml.partialImportMsg": "Imported {imported} of {rows} rows; {skipped} row(s) were rejected - see the details below."
 }

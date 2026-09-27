@@ -5071,7 +5071,7 @@
   "kwxml.exporting": "Se pregateste descarcarea...",
   "kwxml.exportedMsg": "Export pornit - verifica-ti descarcarile din browser.",
   "kwxml.importedMsg": "Cuvintele cheie au fost importate. Proiectul are acum {count} cuvinte cheie.",
-  "kwxml.importHint": "Cuvintele cheie existente cu acelasi nume sunt actualizate; celelalte sunt create.",
+  "kwxml.importHint": "Cuvintele-cheie existente cu acelasi nume sunt actualizate; celelalte sunt create. Folositi punctul si virgula \";\" ca separator de campuri (un fisier separat prin virgula este de asemenea acceptat).",
   "kwxml.noFile": "Te rugam alege un fisier cu cuvinte cheie.",
   "kwxml.wrongFile": "Fisier incorect - formatul nu a putut fi citit.",
   "kwxml.tooLarge": "Fisierul selectat este prea mare.",
@@ -5230,5 +5230,9 @@
   "tcreo.sortedExtId": "Cazurile de test au fost sortate după ID extern.",
   "footers.tcReorder": "TestLink 2.0.1 - Reordonare Cazuri de Test",
   "tspec.reorderTestCases": "Reordonare Cazuri de Test",
-  "tspec.reorderTestCasesTitle": "Reordonează cazurile de test din suita selectată (trăgerea și drops din arborele specificației de test)"
+  "tspec.reorderTestCasesTitle": "Reordonează cazurile de test din suita selectată (trăgerea și drops din arborele specificației de test)",
+  "kwxml.errNoneImported": "Nu s-a importat niciun cuvant-cheie - toate randurile au fost respinse. Vezi detaliile mai jos.",
+  "kwxml.errEmptyFile": "Fisierul de cuvinte-cheie nu contine niciun rand de date.",
+  "kwxml.rowError": "Randul {row} ({name}): {reason}",
+  "kwxml.partialImportMsg": "S-au importat {imported} din {rows} randuri; {skipped} rand(uri) au fost respinse - vezi detaliile mai jos."
 }

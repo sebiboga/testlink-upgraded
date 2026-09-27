@@ -5061,7 +5061,7 @@
   "kwxml.exporting": "Preparazione del download...",
   "kwxml.exportedMsg": "Esportazione avviata - controlla i download del browser.",
   "kwxml.importedMsg": "Parole chiave importate. Il progetto ne contiene ora {count}.",
-  "kwxml.importHint": "Le parole chiave esistenti con lo stesso nome vengono aggiornate; le nuove vengono create.",
+  "kwxml.importHint": "Le parole chiave esistenti con lo stesso nome vengono aggiornate; le nuove vengono create. Usare il punto e virgola \";\" come separatore di campi (un file separato da virgole è accettato).",
   "kwxml.noFile": "Seleziona un file di parole chiave.",
   "kwxml.wrongFile": "File errato - il formato non è stato letto.",
   "kwxml.tooLarge": "Il file selezionato è troppo grande.",
@@ -5220,5 +5220,9 @@
   "tcreo.sortedExtId": "Casi di test ordinati per ID esterno.",
   "footers.tcReorder": "TestLink 2.0.1 - Riordina i casi di test",
   "tspec.reorderTestCases": "Riordina i casi di test",
-  "tspec.reorderTestCasesTitle": "Riordina i casi di test della suite selezionata (trascinamento dell'albero della specifica)"
+  "tspec.reorderTestCasesTitle": "Riordina i casi di test della suite selezionata (trascinamento dell'albero della specifica)",
+  "kwxml.errNoneImported": "Nessuna parola chiave importata - tutte le righe sono state rifiutate. Vedi i dettagli qui sotto.",
+  "kwxml.errEmptyFile": "Il file delle parole chiave non contiene righe di dati.",
+  "kwxml.rowError": "Riga {row} ({name}): {reason}",
+  "kwxml.partialImportMsg": "Importate {imported} righe su {rows}; {skipped} riga/e rifiutate - vedi i dettagli qui sotto."
 }

@@ -2294,6 +2294,11 @@ $g_ereg_forbidden = "/[|]/i";
  * use $tlCfg instead of old variables and constants
  */
 define('TL_IMPORT_ROW_MAX', $tlCfg->import_max_row);
+// Refs #1605: the keyword CSV importer reports every rejected row, so the list
+// is capped (rows/skipped stay exact) and the delimiter sniff only needs to
+// look at the head of the file.
+define('IMPORT_KEYWORD_ERRORS_MAX', 200);
+define('IMPORT_KEYWORD_SNIFF_LINES', 50);
 define('TL_TPL_CHARSET', $tlCfg->charset);
 define('TITLE_SEP',$tlCfg->gui_title_separator_1);
 define('TITLE_SEP_TYPE2',$tlCfg->gui_title_separator_2);

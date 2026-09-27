@@ -5067,7 +5067,7 @@
   "kwxml.exporting": "ダウンロードを準備しています...",
   "kwxml.exportedMsg": "エクスポートを開始しました - ブラウザのダウンロードを確認してください。",
   "kwxml.importedMsg": "キーワードをインポートしました。プロジェクトには現在 {count} 個のキーワードがあります。",
-  "kwxml.importHint": "同じ名前の既存のキーワードは更新され、新しいものは作成されます。",
+  "kwxml.importHint": "同じ名前の既存のキーワードは更新され、新しいものは作成されます。フィールド区切りにはセミコロン \";\" を使用してください（カンマ区切りのファイルも受け付けられます）。",
   "kwxml.noFile": "キーワードファイルを選択してください。",
   "kwxml.wrongFile": "ファイルが正しくありません - 形式を読み取れませんでした。",
   "kwxml.tooLarge": "選択したファイルが大きすぎます。",
@@ -5226,5 +5226,9 @@
   "tcreo.sortedExtId": "テストケースを外部IDで並べ替えました。",
   "footers.tcReorder": "TestLink 2.0.1 - テストケースの並び替え",
   "tspec.reorderTestCases": "テストケースの並び替え",
-  "tspec.reorderTestCasesTitle": "選択したスイートのテストケースを並び替えます（テスト仕様ツリーのドラッグ＆ドロップ）"
+  "tspec.reorderTestCasesTitle": "選択したスイートのテストケースを並び替えます（テスト仕様ツリーのドラッグ＆ドロップ）",
+  "kwxml.errNoneImported": "キーワードは1件もインポートされませんでした - すべての行が拒否されました。詳細は下記をご覧ください。",
+  "kwxml.errEmptyFile": "キーワードファイルにデータ行がありません。",
+  "kwxml.rowError": "{row} 行目 ({name}): {reason}",
+  "kwxml.partialImportMsg": "{rows} 行中 {imported} 行をインポートしました。{skipped} 行が拒否されました - 詳細は下記をご覧ください。"
 }

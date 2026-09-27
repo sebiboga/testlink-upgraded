@@ -5067,7 +5067,7 @@
   "kwxml.exporting": "Preparando o download...",
   "kwxml.exportedMsg": "Exportação iniciada - verifique os downloads do navegador.",
   "kwxml.importedMsg": "Palavras-chave importadas. O projeto agora tem {count} palavras-chave.",
-  "kwxml.importHint": "Palavras-chave existentes com o mesmo nome são atualizadas; as novas são criadas.",
+  "kwxml.importHint": "Palavras-chave existentes com o mesmo nome são atualizadas; as novas são criadas. Use ponto e vírgula \";\" como separador de campos (um arquivo separado por vírgulas também é aceito).",
   "kwxml.noFile": "Por favor escolha um arquivo de palavras-chave.",
   "kwxml.wrongFile": "Arquivo incorreto - o formato não pôde ser lido.",
   "kwxml.tooLarge": "O arquivo selecionado é muito grande.",
@@ -5226,5 +5226,9 @@
   "tcreo.sortedExtId": "Casos de teste ordenados por ID externo.",
   "footers.tcReorder": "TestLink 2.0.1 - Reordenar casos de teste",
   "tspec.reorderTestCases": "Reordenar casos de teste",
-  "tspec.reorderTestCasesTitle": "Reordena os casos de teste da suíte selecionada (arrastar e soltar da árvore de especificação)"
+  "tspec.reorderTestCasesTitle": "Reordena os casos de teste da suíte selecionada (arrastar e soltar da árvore de especificação)",
+  "kwxml.errNoneImported": "Nenhuma palavra-chave foi importada - todas as linhas foram rejeitadas. Veja os detalhes abaixo.",
+  "kwxml.errEmptyFile": "O arquivo de palavras-chave não contém linhas de dados.",
+  "kwxml.rowError": "Linha {row} ({name}): {reason}",
+  "kwxml.partialImportMsg": "{imported} de {rows} linhas importadas; {skipped} linha(s) rejeitada(s) - veja os detalhes abaixo."
 }

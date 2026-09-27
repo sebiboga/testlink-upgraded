@@ -5061,7 +5061,7 @@
   "kwxml.exporting": "Download wird vorbereitet...",
   "kwxml.exportedMsg": "Export gestartet - bitte den Browser-Download prüfen.",
   "kwxml.importedMsg": "Schlüsselwörter importiert. Das Projekt enthält jetzt {count} Schlüsselwörter.",
-  "kwxml.importHint": "Vorhandene Schlüsselwörter mit gleichem Namen werden aktualisiert; neue werden angelegt.",
+  "kwxml.importHint": "Vorhandene Schlüsselwörter mit gleichem Namen werden aktualisiert; neue werden angelegt. Verwenden Sie das Semikolon \";\" als Feldtrenner (auch eine kommagetrennte Datei wird akzeptiert).",
   "kwxml.noFile": "Bitte eine Schlüsselwortdatei auswählen.",
   "kwxml.wrongFile": "Falsche Datei - das Format konnte nicht gelesen werden.",
   "kwxml.tooLarge": "Die gewählte Datei ist zu groß.",
@@ -5220,5 +5220,9 @@
   "tcreo.sortedExtId": "Testfälle nach externer ID sortiert.",
   "footers.tcReorder": "TestLink 2.0.1 - Testfälle neu anordnen",
   "tspec.reorderTestCases": "Testfälle neu anordnen",
-  "tspec.reorderTestCasesTitle": "Testfälle der ausgewählten Suite neu anordnen (Ziehen und Ablegen im Test specificationsbaum)"
+  "tspec.reorderTestCasesTitle": "Testfälle der ausgewählten Suite neu anordnen (Ziehen und Ablegen im Test specificationsbaum)",
+  "kwxml.errNoneImported": "Es wurde kein Schlüsselwort importiert - jede Zeile wurde abgelehnt. Details siehe unten.",
+  "kwxml.errEmptyFile": "Die Schlüsselwortdatei enthält keine Datenzeilen.",
+  "kwxml.rowError": "Zeile {row} ({name}): {reason}",
+  "kwxml.partialImportMsg": "{imported} von {rows} Zeilen importiert; {skipped} Zeile(n) wurden abgelehnt - Details siehe unten."
 }

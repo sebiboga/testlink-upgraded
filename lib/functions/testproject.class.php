@@ -1359,20 +1359,85 @@ function setPublicStatus($id,$status)
     return $csv;
   }
 
-  function importKeywordsFromCSV($testproject_id,$fileName,$delim = ';')
+  /**
+   * Imports keywords from a CSV file.
+   *
+   * Refs #1605: the loop below used to discard the per-row verdict, so the
+   * function returned tl::OK as soon as fopen() succeeded — 0 imported rows
+   * and 500 imported rows were indistinguishable to the caller, and a comma
+   * delimited file (the natural thing to upload) silently imported nothing.
+   * It now optionally reports what actually happened through $stats:
+   *   rows     => number of data rows found in the file
+   *   imported => number of keywords actually written
+   *   skipped  => rows that were rejected (rows - imported)
+   *   errors   => [{row, code, name}] one entry per rejected row, where
+   *               code is the tlKeyword::E_* constant produced by
+   *               readFromCSV()/writeToDB(). Capped at
+   *               IMPORT_KEYWORD_ERRORS_MAX entries; skipped stays exact.
+   * The parameter is optional and by reference, so both existing callers and
+   * the legacy tl-classic / dashio screens keep working unchanged.
+   *
+   * Delimiter: ';' is the legacy default and what exportKeywordsToCSV()
+   * writes, so it wins whenever any line really splits on it. Only when NO
+   * line does - i.e. the file is single-column as far as ';' is concerned -
+   * is ',' tried, which is what makes a normal comma separated file work.
+   * The choice is made ONCE for the whole file (never per row, which would
+   * import a mixed file half-wrong) and it is quote-aware, so a quoted
+   * single field such as "a,b" still ends up as ONE rejected name instead of
+   * being invented into name + notes.
+   *
+   * @param int $testproject_id
+   * @param string $fileName
+   * @param string $delim
+   * @param array $stats [ref] optional import report, see above
+   * @return integer tl::OK when the file could be read, ERROR otherwise
+   */
+  function importKeywordsFromCSV($testproject_id,$fileName,$delim = ';',&$stats = null)
   {
+    if (!is_null($stats)) {
+      $stats = array('rows'=>0,'imported'=>0,'skipped'=>0,'errors'=>array());
+    }
+    $report = !is_null($stats);
+
     $handle = fopen($fileName,"r");
     if ($handle)
     {
+      $delim = $this->keywordImportDelimiter($handle, $delim);
+      rewind($handle);
+
+      $rowNo = 0;
       while($data = fgetcsv($handle, TL_IMPORT_ROW_MAX, $delim))
       {
+        $rowNo++;
+        // fgetcsv() yields array(null) for a blank line: not a data row.
+        $isBlank = (count($data) === 1) && (trim((string)$data[0]) === '');
+        if ($isBlank) {
+          continue;
+        }
+        if ($report) {
+          $stats['rows']++;
+        }
+
         $kw = new tlKeyword();
         $kw->initialize(null,$testproject_id,NULL,NULL);
-        if ($kw->readFromCSV(implode($delim,$data)) >= tl::OK)
+        $rowCode = $kw->readFromCSV(implode($delim,$data), $delim);
+        if ($rowCode >= tl::OK) {
+          $rowCode = $kw->writeToDB($this->db);
+        }
+        if ($rowCode >= tl::OK)
         {
-          if ($kw->writeToDB($this->db) >= tl::OK)
-          {  
-            logAuditEvent(TLS("audit_keyword_created",$kw->name),"CREATE",$kw->dbID,"keywords");
+          logAuditEvent(TLS("audit_keyword_created",$kw->name),"CREATE",$kw->dbID,"keywords");
+          if ($report) {
+            $stats['imported']++;
+          }
+        } elseif ($report) {
+          $stats['skipped']++;
+          if (count($stats['errors']) < IMPORT_KEYWORD_ERRORS_MAX) {
+            $stats['errors'][] = array(
+              'row' => $rowNo,
+              'code' => intval($rowCode),
+              'name' => (string)$kw->name,
+            );
           }
         }
       }
@@ -1383,6 +1448,48 @@ function setPublicStatus($id,$status)
     {
       return ERROR;
     }  
+  }
+
+  /**
+   * Refs #1605: picks the delimiter for a whole keyword CSV file.
+   *
+   * $delim (';', the legacy default and what exportKeywordsToCSV() writes) is
+   * kept unless NO sampled line really splits on it - only then is a comma
+   * separated file accepted, which is what makes the natural comma CSV work
+   * instead of being silently rejected. Deciding per file (not per row) is what
+   * stops a mixed file from being imported half-wrong.
+   *
+   * The sniff is quote-aware because it reads the RAW lines: a quoted single
+   * field such as "a,b" must stay ONE field, so the file keeps ';' and the
+   * keyword is rejected by checkKeywordName() exactly as it was in 1.9.20 -
+   * rather than being invented into name + notes.
+   *
+   * @param resource $handle positioned on the first line; not rewound here
+   * @param string $delim the caller's default delimiter
+   * @return string the delimiter to use for the whole file
+   */
+  private function keywordImportDelimiter($handle, $delim) {
+    if ($delim === ',') {
+      return $delim;
+    }
+    $semiHits = 0;
+    $commaHits = 0;
+    $sampled = 0;
+    while (($line = fgets($handle)) !== false && $sampled < IMPORT_KEYWORD_SNIFF_LINES) {
+      $line = trim($line);
+      if ($line === '') {
+        continue;
+      }
+      $sampled++;
+      // > 1 field means the delimiter really separates data on this line.
+      if (count(str_getcsv($line, $delim, '"')) > 1) {
+        $semiHits++;
+      }
+      if (count(str_getcsv($line, ',', '"')) > 1) {
+        $commaHits++;
+      }
+    }
+    return ($semiHits === 0 && $commaHits > 0) ? ',' : $delim;
   }
 
   /**

@@ -5061,7 +5061,7 @@
   "kwxml.exporting": "Préparation du téléchargement...",
   "kwxml.exportedMsg": "Export démarré - vérifiez les téléchargements du navigateur.",
   "kwxml.importedMsg": "Mots-clés importés. Le projet contient maintenant {count} mots-clés.",
-  "kwxml.importHint": "Les mots-clés existants de même nom sont mis à jour ; les nouveaux sont créés.",
+  "kwxml.importHint": "Les mots-clés existants de même nom sont mis à jour ; les nouveaux sont créés. Utilisez le point-virgule \";\" comme séparateur de champs (un fichier séparé par des virgules est également accepté).",
   "kwxml.noFile": "Veuillez choisir un fichier de mots-clés.",
   "kwxml.wrongFile": "Fichier incorrect - le format n'a pas pu être lu.",
   "kwxml.tooLarge": "Le fichier sélectionné est trop volumineux.",
@@ -5220,5 +5220,9 @@
   "tcreo.sortedExtId": "Cas de test triés par ID externe.",
   "footers.tcReorder": "TestLink 2.0.1 - Réordonner les cas de test",
   "tspec.reorderTestCases": "Réordonner les cas de test",
-  "tspec.reorderTestCasesTitle": "Réordonner les cas de test de la suite sélectionnée (glisser-déposer de l'arbre de spécification)"
+  "tspec.reorderTestCasesTitle": "Réordonner les cas de test de la suite sélectionnée (glisser-déposer de l'arbre de spécification)",
+  "kwxml.errNoneImported": "Aucun mot-clé n'a été importé - toutes les lignes ont été rejetées. Voir les détails ci-dessous.",
+  "kwxml.errEmptyFile": "Le fichier de mots-clés ne contient aucune ligne de données.",
+  "kwxml.rowError": "Ligne {row} ({name}) : {reason}",
+  "kwxml.partialImportMsg": "{imported} ligne(s) importée(s) sur {rows} ; {skipped} ligne(s) rejetée(s) - voir les détails ci-dessous."
 }

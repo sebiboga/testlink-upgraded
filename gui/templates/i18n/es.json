@@ -5061,7 +5061,7 @@
   "kwxml.exporting": "Preparando la descarga...",
   "kwxml.exportedMsg": "Exportación iniciada - revise las descargas del navegador.",
   "kwxml.importedMsg": "Palabras clave importadas. El proyecto ahora tiene {count} palabras clave.",
-  "kwxml.importHint": "Las palabras clave existentes con el mismo nombre se actualizan; las nuevas se crean.",
+  "kwxml.importHint": "Las palabras clave existentes con el mismo nombre se actualizan; las nuevas se crean. Use el punto y coma \";\" como separador de campos (también se acepta un archivo separado por comas).",
   "kwxml.noFile": "Por favor elija un archivo de palabras clave.",
   "kwxml.wrongFile": "Archivo incorrecto - no se pudo leer el formato.",
   "kwxml.tooLarge": "El archivo seleccionado es demasiado grande.",
@@ -5220,5 +5220,9 @@
   "tcreo.sortedExtId": "Casos de prueba ordenados por ID externo.",
   "footers.tcReorder": "TestLink 2.0.1 - Reordenar casos de prueba",
   "tspec.reorderTestCases": "Reordenar casos de prueba",
-  "tspec.reorderTestCasesTitle": "Reordena los casos de prueba de la suite seleccionada (arrastrar y soltar del árbol de especificación)"
+  "tspec.reorderTestCasesTitle": "Reordena los casos de prueba de la suite seleccionada (arrastrar y soltar del árbol de especificación)",
+  "kwxml.errNoneImported": "No se importó ninguna palabra clave - todas las filas fueron rechazadas. Vea los detalles a continuación.",
+  "kwxml.errEmptyFile": "El archivo de palabras clave no contiene filas de datos.",
+  "kwxml.rowError": "Fila {row} ({name}): {reason}",
+  "kwxml.partialImportMsg": "Se importaron {imported} de {rows} filas; {skipped} fila(s) fueron rechazadas - vea los detalles a continuación."
 }

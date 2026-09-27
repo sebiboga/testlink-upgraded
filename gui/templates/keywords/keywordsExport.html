@@ -136,6 +136,7 @@ function render() {
   } else {
     if (CTX.notice) { out += '<div class="ok">' + esc(CTX.notice) + '</div>'; }
     if (CTX.msg) { out += '<div class="err">' + esc(CTX.msg) + '</div>'; }
+    if (MODE === 'import') { out += importErrorList(CTX.rowErrors); }
 
     out += '<div class="card"><div class="card-h"><i class="fa fa-info-circle"></i> ' +
       esc(t('kwxml.contextTitle')) + '</div><div class="card-b"><div class="kv">' +
@@ -298,6 +299,7 @@ function doImport() {
   var input = document.getElementById('importFile');
   if (!input.files || !input.files.length) {
     CTX.msg = t('kwxml.noFile');
+    CTX.rowErrors = [];
     CTX.notice = '';
     render();
     return;
@@ -305,6 +307,7 @@ function doImport() {
   var f = input.files[0];
   if (MAXSIZE > 0 && f.size > MAXSIZE) {
     CTX.msg = t('kwxml.tooLarge');
+    CTX.rowErrors = [];
     CTX.notice = '';
     render();
     return;
@@ -324,12 +327,17 @@ function doImport() {
   }).done(function (r) {
     if (r && r.status === 'ok') {
       CTX.msg = '';
-      CTX.notice = t('kwxml.importedMsg', {count: r.keyword_count});
+      CTX.rowErrors = r.errors || [];
+      CTX.notice = (r.skipped > 0)
+        ? t('kwxml.partialImportMsg', {
+            imported: r.imported, rows: r.rows, skipped: r.skipped})
+        : t('kwxml.importedMsg', {count: r.keyword_count});
       toast(CTX.notice);
       input.value = '';
       load(true);
     } else {
       CTX.notice = '';
+      CTX.rowErrors = (r && r.errors) || [];
       CTX.msg = serverMessage(r);
       render();
     }
@@ -339,6 +347,7 @@ function doImport() {
     var r = {};
     try { r = JSON.parse(xhr.responseText) || {}; } catch (e) { r = {}; }
     CTX.notice = '';
+    CTX.rowErrors = r.errors || [];
     CTX.msg = serverMessage(r);
     render();
     if (xhr.status === 401 || xhr.status === 403) {
@@ -352,12 +361,40 @@ function serverMessage(r) {
   var code = r && (r.code || r.error_code);
   if (code === 'please_choose_keywords_file') { return t('kwxml.noFile'); }
   if (code === 'wrong_keywords_file') { return t('kwxml.wrongFile'); }
+  if (code === 'NO_KEYWORDS_IMPORTED') { return t('kwxml.errNoneImported'); }
+  if (code === 'EMPTY_FILE') { return t('kwxml.errEmptyFile'); }
   if (r && r.message === 'File too large') { return t('kwxml.tooLarge'); }
   if (code === 'upload_error') { return t('kwxml.uploadError'); }
   if (r && r.message === 'no_keywords_to_export') { return t('kwxml.noKeywordsToExport'); }
   if (r && r.message === 'Access denied') { return t('kwxml.deniedMsg'); }
   if (r && r.message) { return r.message; }
   return t('common.error');
+}
+
+// Refs #1605: the BFF reports the short codes below for every rejected CSV row.
+// They deliberately reuse the keyword popup's kwedit.err* wording (issue
+// requirement) so the same reason reads identically in both screens.
+var ROW_REASON = {
+  CHAR_NOT_ALLOWED: 'kwedit.errCharNotAllowed',
+  EMPTY_NAME: 'kwedit.errEmptyNotAllowed',
+  ALREADY_EXISTS: 'kwedit.errAlreadyExists',
+  DB_ERROR: 'kwedit.errUpdateFails',
+  WRONG_FORMAT: 'kwxml.wrongFile'
+};
+
+function rowReason(code) {
+  return t(ROW_REASON[code] || 'kwedit.errUpdateFails');
+}
+
+function importErrorList(errors) {
+  if (!errors || !errors.length) { return ''; }
+  var out = '<div class="card"><div class="card-h"><i class="fa fa-exclamation-circle"></i> ' +
+    esc(t('common.error')) + '</div><div class="card-b"><ul style="margin:0;padding-left:18px">';
+  errors.forEach(function (e) {
+    out += '<li style="margin:4px 0">' +
+      esc(t('kwxml.rowError', {row: e.row, name: e.name || '-', reason: rowReason(e.code)})) + '</li>';
+  });
+  return out + '</ul></div></div>';
 }
 
 $(document).ready(function () {
@@ -377,11 +414,15 @@ $(document).ready(function () {
 function load(keepNotice) {
   var notice = keepNotice ? CTX.notice : '';
   var msg = keepNotice ? CTX.msg : '';
+  // CTX is rebuilt from the init payload, so the per-row import report has to
+  // be carried over explicitly or a partial import would lose its error list.
+  var rowErrors = keepNotice ? (CTX.rowErrors || []) : [];
   $.ajax({ url: API + '/?action=init&tproject_id=' + TPROJECT_ID })
     .done(function (r) {
       CTX = r || {};
       if (notice) { CTX.notice = notice; }
       if (msg) { CTX.msg = msg; }
+      CTX.rowErrors = rowErrors;
       $('#tprojectName').text(CTX.tproject_name || '-');
       MAXSIZE = (CTX.limits && CTX.limits.import_file_max_size_bytes) || 0;
       render();
