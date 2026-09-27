@@ -278,6 +278,11 @@ function render(d) {
   html += row('logv.objectKind', label);
   html += row('logv.testProject', c.parent_name || '');
   if (c.object_id) { html += row('logv.docId', c.object_id); }
+  // For a requirement version / revision the owning spec's Doc ID is useful
+  // context that the object row does not carry.
+  if (c.parent_doc_id && c.parent_doc_id !== c.object_id) {
+    html += row('logv.specDocId', c.parent_doc_id);
+  }
   html += row('logv.version', c.version_label || '');
   html += row('logv.itemId', String(c.item_id));
   $('#ctxBody').html(html);

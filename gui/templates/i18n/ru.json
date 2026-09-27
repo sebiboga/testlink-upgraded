@@ -5162,7 +5162,7 @@
   "logv.missingId": "Не указан идентификатор версии или ревизии.",
   "logv.missingType": "Тип объекта отсутствует или неизвестен.",
   "logv.objectKind": "Тип объекта",
-  "logv.testProject": "Спецификация требований",
+  "logv.testProject": "Тестовый проект",
   "logv.docId": "Doc ID",
   "logv.version": "Версия",
   "logv.itemId": "ID элемента",
@@ -5173,5 +5173,6 @@
   "logv.type_requirement_spec_version": "Версия спецификации",
   "logv.charCount": "Показано символов: {count} (сохранено байт: {raw})",
   "footers.logViewer": "TestLink 2.0.1 - Сообщение журнала",
-  "logv.openFull": "Открыть полный журнал"
+  "logv.openFull": "Открыть полный журнал",
+  "logv.specDocId": "Doc ID спецификации"
 }

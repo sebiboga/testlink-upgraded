@@ -5162,7 +5162,7 @@
   "logv.missingId": "バージョン ID またはリビジョン ID が指定されていません。",
   "logv.missingType": "オブジェクト種別が指定されていないか、不明です。",
   "logv.objectKind": "オブジェクト種別",
-  "logv.testProject": "要件仕様",
+  "logv.testProject": "テストプロジェクト",
   "logv.docId": "Doc ID",
   "logv.version": "バージョン",
   "logv.itemId": "項目 ID",
@@ -5173,5 +5173,6 @@
   "logv.type_requirement_spec_version": "仕様バージョン",
   "logv.charCount": "{count} 文字を表示（保存 {raw} バイト）",
   "footers.logViewer": "TestLink 2.0.1 - ログメッセージ",
-  "logv.openFull": "完全なログを開く"
+  "logv.openFull": "完全なログを開く",
+  "logv.specDocId": "仕様 Doc ID"
 }

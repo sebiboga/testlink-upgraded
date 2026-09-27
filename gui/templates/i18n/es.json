@@ -5156,7 +5156,7 @@
   "logv.missingId": "No se indicó ningún id de versión o revisión.",
   "logv.missingType": "Falta el tipo de objeto o es desconocido.",
   "logv.objectKind": "Tipo de objeto",
-  "logv.testProject": "Especificación de requisitos",
+  "logv.testProject": "Proyecto de prueba",
   "logv.docId": "Doc ID",
   "logv.version": "Versión",
   "logv.itemId": "ID de elemento",
@@ -5167,5 +5167,6 @@
   "logv.type_requirement_spec_version": "Versión de especificación",
   "logv.charCount": "{count} caracteres mostrados ({raw} bytes almacenados)",
   "footers.logViewer": "TestLink 2.0.1 - Mensaje de registro",
-  "logv.openFull": "Abrir registro completo"
+  "logv.openFull": "Abrir registro completo",
+  "logv.specDocId": "Doc ID de especificación"
 }

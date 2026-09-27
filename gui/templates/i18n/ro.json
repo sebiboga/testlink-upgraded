@@ -5166,7 +5166,7 @@
   "logv.missingId": "Nu a fost furnizat niciun id de versiune sau revizie.",
   "logv.missingType": "Tipul obiectului lipsește sau este necunoscut.",
   "logv.objectKind": "Tip obiect",
-  "logv.testProject": "Specificație de cerințe",
+  "logv.testProject": "Proiect de test",
   "logv.docId": "Doc ID",
   "logv.version": "Versiune",
   "logv.itemId": "ID element",
@@ -5177,5 +5177,6 @@
   "logv.type_requirement_spec_version": "Versiune specificație",
   "logv.charCount": "{count} caractere afișate ({raw} octeți stocați)",
   "footers.logViewer": "TestLink 2.0.1 - Mesaj de jurnal",
-  "logv.openFull": "Deschide jurnalul complet"
+  "logv.openFull": "Deschide jurnalul complet",
+  "logv.specDocId": "Doc ID specificație"
 }

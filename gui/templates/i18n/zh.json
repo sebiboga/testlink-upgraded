@@ -5142,7 +5142,7 @@
   "logv.missingId": "未提供版本或修订 ID。",
   "logv.missingType": "对象类型缺失或未知。",
   "logv.objectKind": "对象类型",
-  "logv.testProject": "需求规格",
+  "logv.testProject": "测试项目",
   "logv.docId": "Doc ID",
   "logv.version": "版本",
   "logv.itemId": "项目 ID",
@@ -5153,5 +5153,6 @@
   "logv.type_requirement_spec_version": "规格版本",
   "logv.charCount": "显示 {count} 个字符（存储 {raw} 字节）",
   "footers.logViewer": "TestLink 2.0.1 - 日志消息",
-  "logv.openFull": "打开完整日志"
+  "logv.openFull": "打开完整日志",
+  "logv.specDocId": "规格 Doc ID"
 }
