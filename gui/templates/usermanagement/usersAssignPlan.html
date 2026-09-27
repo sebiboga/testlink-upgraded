@@ -167,6 +167,36 @@ $('#assignTable').on('click', 'thead th', function() {
   }
 });
 
+// Legacy parity: the roles-select column is ORDERABLE (usersAssign.tpl:111-120
+// never set orderable:false) and its sort key must be the role CURRENTLY
+// SELECTED in the row - that is how an administrator grouped the user list by
+// assigned role (usersAssign.tpl:216-271).
+// The default string key cannot express that: the cell text of a <select> is
+// every option label concatenated, so all rows share one long suffix and only
+// the first label ("<inherited> x" / "revert to inherited x") differs, i.e. an
+// effectively arbitrary order.
+// DataTables 1.13.7 ships an EMPTY $.fn.dataTable.ext.order registry (dt.js
+// :14494) - "dom-text"/"dom-select" exist only as DOCUMENTED examples for
+// exactly this case, "user editable elements such as form inputs" (dt.js:14487)
+// - so the key provider is registered here and referenced from the columnDefs
+// below via orderDataType. It is evaluated on every sort/draw from the live DOM,
+// therefore it follows an edited <select> (onRoleChange re-syncs the cell data,
+// :628) and the rows rebuilt by applyBulkRole() without any extra bookkeeping.
+$.fn.dataTable.ext.order['tlu-role-select'] = function (settings, col, visCol) {
+  // Values must be in DATA (index) order, matching settings.aoData (dt.js
+  // :6424-6438), hence {order:'index'} rather than the display order. The API
+  // is reached through `this` (= settings.oInstance, dt.js:6413) - 1.13.7 has
+  // no settings.api(), only the documented "this.api()" call form.
+  var nodes = this.api().column(visCol, { order: 'index' }).nodes();
+  var out = [];
+  for (var i = 0; i < nodes.length; i++) {
+    var sel = nodes[i] ? nodes[i].querySelector('select') : null;
+    if (!sel || sel.selectedIndex < 0) { out.push(''); continue; }
+    out.push($(sel.options[sel.selectedIndex]).text());
+  }
+  return out;
+};
+
 function esc(s) {
   return String(s == null ? '' : s)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -494,13 +524,20 @@ function renderUsersTable(keep) {
     // otherwise leak the previous plan's page/search into the new grid. View
     // state is preserved explicitly across in-screen re-renders (see keep).
     columnDefs: [
-      // # column: never searchable, never sortable (row number follows data).
+      // Legacy parity: usersAssign.tpl:111-120 - the legacy grid config only
+      // switched OFF searchability ("searchable": false, "targets": 1) and
+      // never set orderable:false, so the roles-select column stayed SORTABLE
+      // (the sibling project screen usersAssignProject.html:505-508 keeps it
+      // that way too). The ordinal column (0) is decorative in the modern
+      // 5-column layout and stays non-orderable.
       { searchable: false, orderable: false, targets: 0 },
       // Inherited Role: legacy had no such searchable column.
       { searchable: false, targets: 3 },
       // Plan Role Override <select>: the legacy roles-select column (legacy
-      // usersAssign.tpl:114 "searchable":false, "targets":1) - not searchable.
-      { searchable: false, orderable: false, targets: 4 }
+      // usersAssign.tpl:114 "searchable":false, "targets":1) - not searchable,
+      // but SORTABLE like in legacy; the sort key is the selected option
+      // (orderDataType registered above as 'tlu-role-select').
+      { searchable: false, orderDataType: 'tlu-role-select', targets: 4 }
     ],
     // Same default as the sibling project screen (usersAssignProject.html:406
     // order [[1,'asc']]): Login asc. Deterministic and equals the BFF order.

@@ -6071,6 +6071,26 @@ Changes:
       project tables and added user metrics to the middle section
 
 ## 2.0.1 (in-progress)
+### Gap closed — Assign Test Plan Roles: the legacy role column was not sortable (Fixes #1670)
+- `gui/templates/usermanagement/usersAssignPlan.html`: the `Plan Role Override`
+  column carried `orderable: false` in `renderUsersTable()`'s `columnDefs`, so the
+  header was dead (`sorting_disabled`, `aoColumns[4].bSortable === false`) and the
+  administrator could not group the user list by assigned role. Legacy
+  `gui/templates/dashio/usermanagement/usersAssign.tpl:111-120` only ever set
+  `{"searchable": false, "targets": 1}` — no `orderable:false` anywhere — so the
+  2-column legacy grid sorted by BOTH columns, and its sibling
+  `usersAssignProject.html:505-508` already keeps the role column sortable.
+- Restored orderability while keeping the column non-searchable (legacy parity), and
+  gave it a real sort key: the cell holds a `<select>`, so DataTables' default string
+  key is every `<option>` label concatenated — all rows share one suffix and only the
+  first label ("<inherited> x" / "revert to inherited x") differs, i.e. an
+  effectively arbitrary order. `$.fn.dataTable.ext.order['tlu-role-select']` (the
+  documented DataTables extension point for "user editable elements such as form
+  inputs", dt.js:14487 — the core registry is empty) now returns the selected option's
+  label in data-index order, so clicking the header truly groups the list by assigned
+  role and follows a live edit, an `onRoleChange()` cell re-sync and an
+  `applyBulkRole()` re-render. The third-click default-order reset (:158-168) fires
+  for the column too. No BFF change, no new i18n key. Suite 1670 9/9 PASS.
 ### Gap closed — legacy Test Plan Milestones grid never got DataTables (Fixes #1650)
 - `gui/templates/dashio/plan/planMilestonesView.tpl:36` included
   `DataTables.inc.tpl` with `DataTablesSelector="#item_view"`, but the template's only
