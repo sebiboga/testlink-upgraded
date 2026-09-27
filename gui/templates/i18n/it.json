@@ -5222,5 +5222,7 @@
   "tcreo.sortedName": "Casi di test ordinati per nome.",
   "tcreo.sortedExtId": "Casi di test ordinati per ID esterno.",
   "tcreo.reorderSaved": "Ordine dei casi di test salvato.",
-  "footers.tcReorder": "TestLink 2.0.1 - Riordina i casi di test"
+  "footers.tcReorder": "TestLink 2.0.1 - Riordina i casi di test",
+  "tspec.reorderTestCases": "Riordina i casi di test",
+  "tspec.reorderTestCasesTitle": "Riordina i casi di test della suite selezionata (trascinamento dell'albero della specifica)"
 }

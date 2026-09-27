@@ -2015,6 +2015,23 @@ function getActions(&$gui,$baseURL) {
   // Test Specification (editTc) modernized screen - tree & editor
   $actions->testSpec = "/gui/templates/testcases/testSpec.html?{$ctx}";
 
+  // Refs #1660: Reorder Test Cases popup. This is the modern home of the
+  // legacy reorder paths of the ExtJS test-specification tree frame
+  // (lib/testcases/listTestCases.php + gui/templates/dashio/testcases/
+  // tcTree.tpl): the drag-drop backend lib/ajax/dragdroptprojectnodes.php
+  // and the btn_reorder_testcases_alpha / btn_reorder_testcases_externalid
+  // toolbar of lib/testcases/containerEdit.php. Both legacy files are now
+  // session-guarded 302 shims to this page, which talks to api/tcreorder -
+  // the BFF enforces mgt_modify_tc on the OWNING test project and proves every
+  // submitted node id to be a test case of the addressed container, closing
+  // the unauthenticated-authorization hole the legacy drag-drop had.
+  // Initialized up-front so aside/tools rendering without an active test
+  // project (tproject_id = 0) never emits an undefined-property warning.
+  $actions->tcReorder = null;
+  if ($tproject_id > 0 && !empty($_SESSION['userID'])) {
+    $actions->tcReorder = "/gui/templates/testcases/tcReorder.html?{$ctx}";
+  }
+
   // Refs #1587: Remote Test Automation Execution (legacy lib/testcases/
   // tcExecute.php, the last standalone lib/testcases controller without a
   // modern twin). The modern screen talks to api/tcautoexec, which enforces

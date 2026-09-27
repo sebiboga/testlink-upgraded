@@ -5238,5 +5238,7 @@
   "tcreo.sortedName": "Test cases sorted by name.",
   "tcreo.sortedExtId": "Test cases sorted by external ID.",
   "tcreo.reorderSaved": "Test case order saved.",
-  "footers.tcReorder": "TestLink 2.0.1 - Reorder Test Cases"
+  "footers.tcReorder": "TestLink 2.0.1 - Reorder Test Cases",
+  "tspec.reorderTestCases": "Reorder Test Cases",
+  "tspec.reorderTestCasesTitle": "Reorder the test cases of the selected suite (legacy drag-and-drop of the test-spec tree)"
 }

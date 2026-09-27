@@ -5208,5 +5208,7 @@
   "tcreo.sortedName": "测试用例已按名称排序。",
   "tcreo.sortedExtId": "测试用例已按外部ID排序。",
   "tcreo.reorderSaved": "测试用例顺序已保存。",
-  "footers.tcReorder": "TestLink 2.0.1 - 重新排序测试用例"
+  "footers.tcReorder": "TestLink 2.0.1 - 重新排序测试用例",
+  "tspec.reorderTestCases": "重新排序测试用例",
+  "tspec.reorderTestCasesTitle": "重新排序所选测试集的测试用例（测试规格树中的拖放）"
 }

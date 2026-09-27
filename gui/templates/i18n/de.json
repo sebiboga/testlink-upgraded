@@ -5222,5 +5222,7 @@
   "tcreo.sortedName": "Testfälle nach Name sortiert.",
   "tcreo.sortedExtId": "Testfälle nach externer ID sortiert.",
   "tcreo.reorderSaved": "Reihenfolge der Testfälle gespeichert.",
-  "footers.tcReorder": "TestLink 2.0.1 - Testfälle neu anordnen"
+  "footers.tcReorder": "TestLink 2.0.1 - Testfälle neu anordnen",
+  "tspec.reorderTestCases": "Testfälle neu anordnen",
+  "tspec.reorderTestCasesTitle": "Testfälle der ausgewählten Suite neu anordnen (Ziehen und Ablegen im Test specificationsbaum)"
 }

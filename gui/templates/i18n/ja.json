@@ -5228,5 +5228,7 @@
   "tcreo.sortedName": "テストケースを名前で並べ替えました。",
   "tcreo.sortedExtId": "テストケースを外部IDで並べ替えました。",
   "tcreo.reorderSaved": "テストケースの順序を保存しました。",
-  "footers.tcReorder": "TestLink 2.0.1 - テストケースの並び替え"
+  "footers.tcReorder": "TestLink 2.0.1 - テストケースの並び替え",
+  "tspec.reorderTestCases": "テストケースの並び替え",
+  "tspec.reorderTestCasesTitle": "選択したスイートのテストケースを並び替えます（テスト仕様ツリーのドラッグ＆ドロップ）"
 }

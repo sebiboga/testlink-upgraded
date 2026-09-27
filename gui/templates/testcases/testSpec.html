@@ -139,6 +139,7 @@ textarea.form-control2 { min-height: 80px; resize: vertical; }
   <button class="btn-dark btn-sm" id="btnNewSubSuite" onclick="openSuiteCreate()" style="display:none;"><i class="fa fa-trash"></i> <span data-i18n="tspec.newSubSuite">New Sub-Suite</span></button>
   <button class="btn-dark btn-sm" id="btnRenameSuite" onclick="openSuiteRename()" style="display:none;"><i class="fa fa-pen"></i> <span data-i18n="tspec.renameSuite">Rename Suite</span></button>
   <button class="btn-red btn-sm" id="btnDelSuite" onclick="askDeleteSuite()" style="display:none;"><i class="fa fa-trash"></i> <span data-i18n="tspec.deleteSuite">Delete Suite</span></button>
+  <button class="btn-dark btn-sm" id="btnReorder" onclick="openTcReorder()" style="display:none;" data-i18n-title="tspec.reorderTestCasesTitle"><i class="fa fa-sort-numeric-asc"></i> <span data-i18n="tspec.reorderTestCases">Reorder Test Cases</span></button>
   <span style="flex:1"></span>
   <span class="ctx"><b id="treeCounts">-</b></span>
 </div>
@@ -586,6 +587,10 @@ function updateContextButtons() {
   $('#btnNewSubSuite').toggle(canMod && isSuite);
   $('#btnRenameSuite').toggle(canMod && isSuite);
   $('#btnDelSuite').toggle(canMod && isSuite);
+  // Reorder Test Cases (Refs #1660) - the modern replacement of the legacy
+  // ExtJS tree drag-and-drop / reorder toolbar. Suite-scoped like the other
+  // container actions; the popup itself can also target the project root.
+  $('#btnReorder').toggle(canMod && (isSuite || rootSelected));
   if ($('#btnNewSuite').length && canMod) {
     $('#btnNewSuite').toggle(true);
   }
@@ -774,6 +779,18 @@ function openSuiteExport(deep) {
 }
 
 // Requirements Bulk Assignment popup (Refs #1595) - suite level coverage grid
+/* Refs #1660: Reorder Test Cases popup - modern home of the legacy
+   lib/ajax/dragdroptprojectnodes.php drag-and-drop backend and of the
+   btn_reorder_testcases_alpha / btn_reorder_testcases_externalid toolbar
+   that used to live in the ExtJS test-spec tree frame (listTestCases.php). */
+function openTcReorder() {
+  var url = '/gui/templates/testcases/tcReorder.html?tproject_id=' + ctx.tproject_id;
+  if (selected && selected.type === 'testsuite') {
+    url += '&container_id=' + selected.id;
+  }
+  window.open(url, '_blank', 'width=1000,height=720,resizable=yes,scrollbars=yes');
+}
+
 function openReqBulkAssign() {
   if (!selected || selected.type !== 'testsuite') return;
   var url = '/gui/templates/requirements/reqTcBulkAssign.html?tproject_id=' + ctx.tproject_id +
