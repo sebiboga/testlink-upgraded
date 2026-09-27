@@ -41,6 +41,22 @@ screen reaches full parity.
   401 rendered a session card with no way out of it - a 401 now bounces to `/login.php`, the
   convention of the other modernized screens.
 
+- [FEATURE GAP] - #1006: the modern Keyword Management screen hid the **Export** button from every
+  view-only keyword manager. Legacy rendered it on `{if $gui->keywords != ''}` alone
+  (`gui/templates/dashio/keywords/keywordsView.tpl:142-147`) and the export screen itself only
+  required `mgt_view_key` (`lib/keywords/keywordsExport.php` → `checkRights(…,'mgt_view_key')`),
+  so a user holding `mgt_view_key` without `mgt_modify_key` could export XML/CSV. The modern
+  screen reused `rights.canManage` (`mgt_modify_key`) for the Export toggle and the list BFF
+  (`api/keywords/index.php`) never exposed an export right at all, so the toolbar button was
+  hidden from exactly the users the backend still served the export to
+  (`api/keywordsxml?action=export` → `HTTP 200 text/xml` for a view-only user). Fix: the list
+  payload now carries `rights.canExport = hasRight('mgt_view_key')` — the very right the export
+  route enforces — and `keywordsView.html` toggles `#btnExport` on `canExport && items.length > 0`,
+  a 1:1 port of the four legacy toolbar conditions (Create/Import on `canManage`, Assign on
+  `canAssign`). No write path is widened: import stays on `mgt_modify_key`, Create/Import/Assign
+  stay on their legacy gates, and the import route still refuses a token-less POST. Regression
+  suite 1006: 16 cases, 15 PASS + 1 pre-fix baseline reproduction, Event Viewer 0 new
+  error/warning rows. No i18n change (only the button *gate* moved). (Fixes #1006)
 - [FEATURE GAP] - #1003: the modern Assign Custom Fields screen could not delete a custom field.
   Legacy links every field name (assigned *and* available) to
   `cfieldsEdit.php?do_action=edit&cfield_id=N`, whose button group was Update | Delete | Cancel

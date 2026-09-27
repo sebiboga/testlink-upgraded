@@ -138,6 +138,13 @@ var tprojectId = 0;
 var tplanId = 0;
 var canManage = false;
 var canAssign = false;
+// Refs #1006: keyword EXPORT is gated on mgt_view_key, not on mgt_modify_key -
+// see api/keywords/index.php (rights.canExport) and the export route
+// api/keywordsxml/index.php?action=export. Legacy keywordsView.tpl rendered the
+// Export button on `{if $gui->keywords != ''}` alone (no rights check), so a
+// view-only keyword manager could export; gating it on canManage hid it from
+// exactly those users while the backend kept allowing the export.
+var canExport = false;
 var itemsCache = [];
 var kwTbl = null;
 var deleteTarget = null;
@@ -202,11 +209,12 @@ function load() {
       if (r.status !== 'ok') { toast(TLi18n.t('common.error'), true); return; }
       canManage = r.rights.canManage;
       canAssign = r.rights.canAssign;
+      canExport = !!r.rights.canExport;
       $('#tprojectName').text(r.tproject.name);
       document.title = r.tproject.name + ' - ' + TLi18n.t('header.kwManage');
       $('#btnCreate').toggle(canManage);
       $('#btnImport').toggle(canManage);
-      $('#btnExport').toggle(canManage && r.items.length > 0);
+      $('#btnExport').toggle(canExport && r.items.length > 0);
       $('#btnAssign').toggle(canAssign && r.items.length > 0);
 
       render(r.items);

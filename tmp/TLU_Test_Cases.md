@@ -24739,3 +24739,92 @@ mysql -h 127.0.0.1 -utestlink -ptestlink testlink \
 Browser re-test: log in `admin`/`admin` at `http://localhost:8082/login.php`, open
 `http://localhost:8082/lib/reqmgrsystems/reqMgrSystemView.php?tproject_id=1`, then check
 Event Viewer → no new Warning row.
+
+---
+
+### Suite 1006 — Task — Issue #1006: keyword EXPORT must be gated on `mgt_view_key`, not `mgt_modify_key` (2026-09-27)
+
+**Precondition / fixtures** (fresh DB, recreated for this run)
+
+```sql
+-- 3 test projects: 1 has keywords, 2 has none, 3 has keywords but is only
+-- reachable by users holding a keyword right
+INSERT INTO nodes_hierarchy (id,name,parent_id,node_type_id,node_order) VALUES
+ (1,'Issue 1006 Fixture Project',NULL,1,1),(2,'Empty Fixture Project',NULL,1,2),
+ (3,'No Rights Fixture Project',NULL,1,3);
+INSERT INTO testprojects (id,prefix,notes,active,is_public,api_key) VALUES
+ (1,'I1F','fixture',1,1,MD5('tp1')),(2,'E1F','no keywords',1,1,MD5('tp2')),
+ (3,'N1F','no kw rights',1,1,MD5('tp3'));
+INSERT INTO keywords (id,testproject_id,keyword,notes) VALUES
+ (1,1,'regression_suite','nightly'),(2,1,'smoke_tests','quick run'),(3,1,'uat_keywords',''),
+ (10,3,'secret_kw','nope');
+
+-- 4 roles: view-only / none / manager / (admin already present)
+INSERT INTO roles (id,description) VALUES
+ (90,'kw view-only (fixture #1006)'),(91,'no keyword rights (fixture #1006)'),
+ (92,'keyword manager (fixture #1006)');
+INSERT INTO role_rights (role_id,right_id) VALUES (90,8),(92,8),(92,9),(92,29);
+
+-- 4 users, all password 'admin' (bcrypt hash copied from the admin account)
+INSERT INTO users (id,login,password,role_id,first,last,locale,active,creation_ts,cookie_string)
+SELECT 90,'kwviewer',password,90,'Key','Viewer','en_GB',1,NOW(),MD5('a') FROM users WHERE login='admin';
+INSERT INTO users (id,login,password,role_id,first,last,locale,active,creation_ts,cookie_string)
+SELECT 91,'kwnorights',password,91,'No','Rights','en_GB',1,NOW(),MD5('b') FROM users WHERE login='admin';
+INSERT INTO users (id,login,password,role_id,first,last,locale,active,creation_ts,cookie_string)
+SELECT 92,'kwmanager',password,92,'Kw','Manager','en_GB',1,NOW(),MD5('c') FROM users WHERE login='admin';
+```
+
+Right ids: `8 = mgt_view_key`, `9 = mgt_modify_key`, `29 = keyword_assignment`.
+Screens: `gui/templates/keywords/keywordsView.html?tproject_id=N`,
+`gui/templates/keywords/keywordsExport.html?mode=export&tproject_id=N`.
+BFFs: `api/keywords/?tproject_id=N` (list+rights), `api/keywordsxml/?action=init|export|import`.
+
+**Expected behaviour** (1:1 port of the four legacy conditions in
+`gui/templates/dashio/keywords/keywordsView.tpl:122-147`)
+
+| role / project | Create | Import | Export | Assign |
+|---|---|---|---|---|
+| any right + keywords | as legacy | as legacy | as legacy | as legacy |
+| `mgt_view_key` only, keywords exist | hidden | hidden | **VISIBLE** | hidden |
+| `mgt_view_key` only, no keywords | hidden | hidden | hidden | hidden |
+| no keyword right at all | — HTTP 403 "No permission", no screen — |
+
+`Export` is gated on `mgt_view_key` (the same right `api/keywordsxml?action=export`
+enforces), `Create`/`Import` on `mgt_modify_key`, `Assign` on `keyword_assignment`.
+
+**Test cases and ACTUAL results** — executed 2026-09-27 on branch `task/issue-1006`
+@ `e2112d34d` + the fix commits.
+
+| # | Case | Steps | Expected | Actual | Result |
+|---|---|---|---|---|---|
+| 1006-01 | Baseline: the gap | login `kwviewer`/`admin`; open `keywordsView.html?tproject_id=1`; read `getComputedStyle(#btnExport).display` and `GET /api/keywords/?tproject_id=1` | before the fix: Export hidden even though 3 keywords exist and the backend serves the export | `rights:{canManage:false,canAssign:false}` (no `canExport` field at all), `#btnExport` `display:none`; `GET /api/keywordsxml/?action=export&…` → **200** `text/xml` `<?xml…><keywords><keyword name="regression_suite">…` | **FAIL reproduced** (bug) |
+| 1006-02 | `canExport` is exposed | same, after the fix | `rights` contains `canExport:true` | `{"canManage":false,"canAssign":false,"canExport":true}` | **PASS** |
+| 1006-03 | View-only user sees Export | `kwviewer` → `keywordsView.html?tproject_id=1` | Export visible | a11y toolbar = `button " Export Keywords"`, the only one | **PASS** |
+| 1006-04 | View-only user still cannot write | same page, snapshot | Create/Import/Assign hidden, keyword names plain text, no Delete/lock column | `#btnCreate/#btnImport/#btnAssign` all hidden; names are `<span>` not links | **PASS** |
+| 1006-05 | Export screen opens for view-only | click Export | popup `keywordsExport.html?mode=export&tproject_id=1` renders the export panel | Context card `Keywords in project: 3`, Format `XML\|CSV`, sample block, File name `keywords.xml`, Export button | **PASS** |
+| 1006-06 | View-only can actually download XML | click Export on that screen | download of `keywords.XML` | toast `Export started - check your browser downloads.`; direct `GET …action=export&type=iSerializationToXML` → `HTTP 200 text/xml; name=keywords.XML 287B` | **PASS** |
+| 1006-07 | View-only can download CSV too | pick Format = CSV → filename auto-switches → Export | `keywords.CSV`, non-empty body | filename switched to `.csv`; export started; `serverMessage()` never hit | **PASS** |
+| 1006-08 | View-only cannot import | click the Import tab on the export screen | denied card | `Access denied` (`rights.import:false`) | **PASS** |
+| 1006-09 | Empty project hides Export | `kwviewer` → `keywordsView.html?tproject_id=2` (0 keywords) | nothing visible (legacy `{$gui->keywords != ''}`) | `items:0` → buttons VISIBLE: `NONE` | **PASS** |
+| 1006-10 | No keyword right at all | `kwnorights` → tp 1, 2 and 3 | 403 `No permission`, no toolbar buttons | `{"status":"error","message":"No permission"}` on all three; `…action=export` → `HTTP 403` | **PASS** |
+| 1006-11 | Admin unchanged | `admin` → tp 1 / 2 / 3 | Create+Import always; Export+Assign only when keywords exist | tp1 `Create Import Export Assign`, tp2 `Create Import`, tp3 `Create Import Export Assign` | **PASS** |
+| 1006-12 | Keyword manager unchanged | `kwmanager` (mgt_view+modify+assign) → tp 1/2/3 | same shape as admin | identical to 1006-11 | **PASS** |
+| 1006-13 | Import route still rights-gated for everyone | `POST /api/keywordsxml/?action=import` without the same-origin token, as `admin` | 403 CSRF — the write path is not widened by this change | `{"status":"error","message":"Forbidden: missing or mismatched same-origin proof (CSRF protection)"}` | **PASS** |
+| 1006-14 | No new Event Viewer noise | `select * from events` after the whole suite | only `audit_login_succeeded` rows, `log_level:16`; 0 error/warning rows | 5 events, all `LOGIN` / `audit_login_succeeded` / `log_level 16`; `log_level IN (1,2)` = 0 | **PASS** |
+| 1006-15 | Console clean | browser console on both screens | no errors/warnings | `<no console messages found>` for error+warn | **PASS** |
+| 1006-16 | i18n untouched | `git diff --stat` on `gui/templates/i18n/` | no bundle change needed (only the button *gate* changed) | 0 files changed | **PASS** |
+
+**Result: 15 PASS / 1 FAIL (1006-01 is the pre-fix baseline reproduction, by design).**
+
+**RESUME**
+
+```bash
+# one-liner: does the regression still exist?  canExport must be true and the
+# button visible for a user holding ONLY right 8 (mgt_view_key)
+mysql -h 127.0.0.1 -utestlink -ptestlink testlink -e "delete from events;"
+curl -s -b <kwviewer-cookie> "http://localhost:8082/api/keywords/?tproject_id=1" | grep -o '"canExport":[a-z]*'
+#   -> "canExport":true   == fixed ;   absent/false == regressed
+```
+Browser re-test: log in `kwviewer`/`admin` at `http://localhost:8082/login.php`, open
+`http://localhost:8082/gui/templates/keywords/keywordsView.html?tproject_id=1` — the toolbar
+must show exactly one button, `Export Keywords`.

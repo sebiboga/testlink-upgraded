@@ -218,6 +218,15 @@ if ($method === 'GET' && count($segments) === 0) {
         'rights' => [
             'canManage' => (bool)$user->hasRight($db, 'mgt_modify_key', $tproject_id),
             'canAssign' => (bool)$user->hasRight($db, 'keyword_assignment', $tproject_id),
+            // Refs #1006: the export BFF (api/keywordsxml, action=export) gates on
+            // mgt_view_key - the same right this very route already required to
+            // return the list. Legacy keywordsView.tpl rendered the Export button
+            // on `{if $gui->keywords != ''}` alone, so a view-only keyword manager
+            // could export. The view screen had no matching right to gate the
+            // button on and reused canManage (mgt_modify_key) instead, hiding
+            // Export from exactly the users the backend allows. Expose the right
+            // so the front-end can gate on the very same check.
+            'canExport' => (bool)$user->hasRight($db, 'mgt_view_key', $tproject_id),
         ],
     ]);
 }
