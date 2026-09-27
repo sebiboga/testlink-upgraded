@@ -32,7 +32,6 @@ $tprojectId = isset($_REQUEST['tproject_id']) ? intval($_REQUEST['tproject_id'])
 // from req_versions, anything else fell back to req_revisions. The modern BFF
 // proves the type, so resolve it here the same way and forward the right type.
 $type = 'requirement_version';
-$db->get_recordset("SELECT id FROM nodes_hierarchy WHERE id = " . intval($itemId));
 $nodeTypes = $db->get_recordset("SELECT id, description FROM node_types");
 $descr = array();
 foreach ((array)$nodeTypes as $nt) {
