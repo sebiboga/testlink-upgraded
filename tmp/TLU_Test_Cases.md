@@ -24086,3 +24086,82 @@ Screens: `gui/templates/usermanagement/usersAssignPlan.html` (values `tproject_i
   hence the wording "unlink it from all test projects".
 - Legacy had no separate "in use" branch (`warning_delete_cf` is generic); the extra paragraph is
   the issue's explicit "with in-use confirmation" requirement and is additive to legacy parity.
+
+---
+
+## Regression — Issue #1598: 'Assign Requirements' modal on Test Specification is always empty (`arqTcaseId` never set)
+
+### Precondition
+
+* App on `http://localhost:8082/index.php`, sign in `admin` / `admin`.
+* Fixtures (DB is freshly imported on every run, so recreate them):
+  ```bash
+  php tmp/fixtures_1596.php   # project REQ1596, spec RS1596 (2 reqs), suite A, 1 test case
+  php tmp/fixtures_1598.php   # 2nd test case in suite A + project NOSPEC1598 (reqs enabled, 0 specs)
+  ```
+  On the run that produced this suite the ids were `idP=1 idSpec=2 idS=8 idTC=9` and
+  `idTC2=20 idP2=23 idS2=24 idTC3=25` (they differ per run on a fresh DB — the suites
+  below are written against the *observed* values, the assertions themselves are id-agnostic).
+* Test project has requirements **enabled** and the user holds `req_tcase_link_management`,
+  otherwise the button is (correctly) not rendered at all.
+
+### Symptom to reproduce (pre-fix)
+
+Open `gui/templates/testcases/testSpec.html?tproject_id=<idP>`, click a test case in the
+tree, click **Assign Requirements**:
+
+* `Requirement Specification:` is correctly populated,
+* **FREE REQUIREMENTS and ASSIGNED REQUIREMENTS are both empty**, counters blank,
+* `arqTcaseId === 0` although the test case on screen has a real id,
+* the network panel shows **only** `GET /assign-reqspecs` — `GET /assign-reqs` is never
+  issued, because `arqLoadReqs()` returns at `if (!specId || !arqTcaseId) return;`,
+* the backend is healthy: issuing that request by hand returns `200` with both
+  requirements in `unassigned`.
+
+### Expected post-fix
+
+The two lists show the project's requirements for the chosen specification, with counters;
+**Assign** / **Unassign** then link/unlink *that* test case (legacy
+`lib/requirements/reqTcAssign.php` single-mode parity), and the state is per test case.
+
+### Test cases and results (executed in the browser, session cookie as `admin`)
+
+| # | Case | Expected | Measured | Verdict |
+|---|---|---|---|---|
+| 1 | open modal on test case `9` | `arqTcaseId=9`; FREE = `REQ-001`, `REQ-002`; counters `(2)` / `(0)`; ASSIGNED empty-hint shown | `{"tcaseId":9,"free":["REQ-001 - … (v. 1)","REQ-002 - … (v. 1)"],"cnt":["(2)","(0)"]}` | **PASS** |
+| 2 | select one free requirement → **Assign** | toast `1 requirement(s) assigned.`; it moves to ASSIGNED; counters `(1)` / `(1)` | `{"free":1,"assigned":["REQ-001 - … [v1]  (v. 1)"],"cnt":["(1)","(1)"],"toast":"1 requirement(s) assigned."}` | **PASS** |
+| 3 | select it in ASSIGNED → **Unassign** | toast `1 link(s) removed.`; back in FREE; counters `(2)` / `(0)` | `{"free":2,"assigned":0,"toast":"1 link(s) removed."}` | **PASS** |
+| 4 | re-select the specification in the combo | lists reload from `assign-reqs`; state preserved | `{"spec":"2","free":1,"assigned":["REQ-001 …"],"cnt":["(1)","(1)"]}` | **PASS** |
+| 5 | **Close** the modal (Cancel and Close both) | `arqTcaseId → 0`, `arqSpecs → []`, 0 options in spec/free/assigned, modal hidden | `{"tcaseId":0,"specs":[],"opts":0,"modalVisible":"hidden"}` | **PASS** |
+| 6 | close → open on a **different** test case `20` | `arqTcaseId=20`; FREE `(2)`, ASSIGNED `0` — **no leakage** of test case `9`'s link | `{"tcaseId":20,"free":["REQ-001 …","REQ-002 …"],"assigned":0,"cnt":["(2)","(0)"]}` | **PASS** |
+| 6b | …then back on test case `9` | the link created earlier is still there; reset is symmetric | `{"tcaseId":9,"assigned":["REQ-001 …"],"free":1}` | **PASS** |
+| 7 | spec-less project `NOSPEC1598` (requirements enabled, 0 specs) | "no specification" hint shown, **no** `assign-reqs` request, id still stored | `{"buttonPresent":true,"tcaseId":25,"noSpecShown":"shown","noSpecText":" There are no requirement specifications defined in this test project.","assignReqsCalled":[]}` | **PASS** |
+| 8 | guard: **Assign** with no test case selected | **no HTTP request at all**; localised `reqAssign.noTestCase` toast | `arqApiPost` monkey-patched to record instead of send → `{"tcaseId":0,"postIssued":null,"toast":"No test case selected. Open Assign Requirements from a test case."}` | **PASS** |
+| 9 | sibling screen regression: `tcView.html?tproject_id=1&tcase_id=9` | its own modal still works and agrees with testSpec's state | FREE = `REQ-002`, ASSIGNED = 1, counters `(1)` / `(1)`; 0 console errors | **PASS** |
+| 10 | i18n | new key in all 10 bundles, each valid JSON, no reformat churn | `python3 -m json.tool` **OK ×10**; `grep -c reqAssign.noTestCase` = **1** per bundle; `git diff --stat gui/templates/i18n/` = 10 files × **1** insertion | **PASS** |
+| 11 | syntax gate | screen script parses | `node --check` on the extracted inline script → **JS SYNTAX OK** | **PASS** |
+| 12 | console | no new errors/warnings | `<no console messages found>` after load + open/assign/unassign/close | **PASS** |
+| 13 | Event Viewer / `events` table | no new Error/Warning rows | every row is `log_level=16` (`tlLogger::AUDIT`; `ERROR=1`, `WARNING=2`) — no `log_level IN (1,2)`; the expected `audit_reqv_assigned_tcv` / `audit_reqv_assignment_removed_tcv` rows confirm both mutations are audited | **PASS** |
+
+### Notes
+
+- **The backend needed no change.** `GET /assign-reqs` and `POST /assign-reqs` were measured
+  healthy before the fix (200 with both requirements `unassigned` for `tcase_id=9`); the
+  defect was entirely the dropped id in the frontend. `POST` also already rejected
+  `tcase_id <= 0` (`api/requirements/index.php`), so the bug could never corrupt data — it
+  was strictly an unusable feature with no error shown.
+- **The button had to exist for the bug to be visible.** `renderTcView()` only renders it when
+  `ctx.options.requirementsEnabled && grants['req_tcase_link_management']`; that gate was
+  restored in #1596, which is why the omission went unnoticed until then.
+- **`tcView.html` / `tcEdit.html` also define an `openAssignReqs()`, but it is a different,
+  argument-less function** reading `data.tcase.id` and stashing it via
+  `$('#assignReqsModal').data('tcaseId', …)`. It was deliberately **not** touched; test case 9
+  above is the regression guard for that. It also confirms that deriving the id from the
+  caller's `tc.id` — as the fix does — is the established idiom in this codebase.
+- Guard placement in `arqDoAssign()` is **before** the "select a requirement" check on
+  purpose: after a close, a never-populated modal has no options either, and the reverse
+  order would report the misleading *"Please select at least one requirement."*
+- The single `log_level=1` row seen during this session
+  (`Unknown column 'RSPEC.scope' … get_all_in_testproject`) came from an **aborted line in the
+  throwaway fixture**, not from the screen or the fix; that latent schema defect was filed
+  separately as **#1656**.
