@@ -439,6 +439,8 @@ var {$gui->dialogName} = new std_dialog('&refreshTree');
   {* Attachment for LATEST Version *}
   {include file="attachments.inc.tpl" 
              attach_attachmentInfos=$gui->attachments[$latestReqVersionID]  
+             attach_id=$latestReqVersionID
+             attach_tableName="req_versions"
              attach_downloadOnly=$downloadOnly
              attach_uploadURL=$gui->fileUploadURL[$latestReqVersionID]
              attach_loadOnCancelURL=$loadOnCancelURL}
@@ -505,6 +507,8 @@ var {$gui->dialogName} = new std_dialog('&refreshTree');
         
              {include file="attachments.inc.tpl" 
                attach_attachmentInfos=$gui->attachments[$reqVersionID]
+               attach_id=$reqVersionID
+               attach_tableName="req_versions"
                attach_downloadOnly=($frozen_version == "yes")
                attach_uploadURL=$gui->fileUploadURL[$reqVersionID]
                attach_loadOnCancelURL=$loadOnCancelURL}

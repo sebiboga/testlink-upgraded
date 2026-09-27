@@ -8,7 +8,6 @@
   "adel.stNoId": "Ничего не выбрано",
   "adel.stNotAllowed": "Не разрешено",
   "adel.stNotFound": "Вложение не найдено",
-  "adel.stOk": "Готово",
   "adel.stSession": "Сессия истекла",
   "alx.btnExportXls": "Export as spreadsheet",
   "alx.choosePlatform": "-- Select a platform --",
@@ -5145,5 +5144,7 @@
   "adel.okText": "Файл был удалён с сервера.",
   "adel.okTitle": "Вложение удалено",
   "adel.title": "Удалить вложение",
-  "footers.attachmentDelete": "TestLink 2.0.1 - Вложения"
+  "footers.attachmentDelete": "TestLink 2.0.1 - Вложения",
+  "adel.stBlocked": "Запрос заблокирован",
+  "adel.errBlocked": "Запрос отклонён защитой CSRF."
 }

@@ -1157,7 +1157,7 @@ class testcase extends tlObjectWithAttachments {
 
         if( $my['opt']['getAttachments'] ) {
           $gui->attachments[$currentVersionID] = 
-            getAttachmentInfosFrom($this,$currentVersionID);
+            getAttachmentInfosFrom($this,$currentVersionID,true,1);
         }
 
         // get linked testcase scripts
@@ -1255,7 +1255,7 @@ class testcase extends tlObjectWithAttachments {
 
             if( $my['opt']['getAttachments'] ) {
               $gui->attachments[$version['id']] = 
-                getAttachmentInfosFrom($this,$version['id']);
+                getAttachmentInfosFrom($this,$version['id'],true,1);
             }
 
 

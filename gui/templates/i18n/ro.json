@@ -8,7 +8,6 @@
   "adel.stNoId": "Nimic selectat",
   "adel.stNotAllowed": "Nepermis",
   "adel.stNotFound": "Atașament inexistent",
-  "adel.stOk": "Gata",
   "adel.stSession": "Sesiune expirata",
   "alx.btnExportXls": "Export as spreadsheet",
   "alx.choosePlatform": "-- Select a platform --",
@@ -5149,5 +5148,7 @@
   "adel.okText": "Fisierul a fost eliminat de pe server.",
   "adel.okTitle": "Atasament sters",
   "adel.title": "Sterge atasament",
-  "footers.attachmentDelete": "TestLink 2.0.1 - Atașamente"
+  "footers.attachmentDelete": "TestLink 2.0.1 - Atașamente",
+  "adel.stBlocked": "Cerere blocata",
+  "adel.errBlocked": "Cererea a fost respinsa de protectia CSRF."
 }

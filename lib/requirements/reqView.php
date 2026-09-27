@@ -205,7 +205,7 @@ function initialize_gui(&$dbHandler,$argsObj,&$tproject_mgr,&$req_mgr) {
   }
 
   foreach ($versionSet as $kiwi) {
-    $gui->attachments[$kiwi] = getAttachmentInfosFrom($req_mgr,$kiwi);
+    $gui->attachments[$kiwi] = getAttachmentInfosFrom($req_mgr,$kiwi,true,1);
   }
 
   $gui->reqStatus = init_labels($gui->req_cfg->status_labels);

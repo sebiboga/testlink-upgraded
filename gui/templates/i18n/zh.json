@@ -8,7 +8,6 @@
   "adel.stNoId": "未选择任何内容",
   "adel.stNotAllowed": "不允许",
   "adel.stNotFound": "找不到附件",
-  "adel.stOk": "完成",
   "adel.stSession": "会话已过期",
   "alx.btnExportXls": "Export as spreadsheet",
   "alx.choosePlatform": "-- Select a platform --",
@@ -5125,5 +5124,7 @@
   "adel.okText": "文件已从服务器中删除。",
   "adel.okTitle": "附件已删除",
   "adel.title": "删除附件",
-  "footers.attachmentDelete": "TestLink 2.0.1 - 附件"
+  "footers.attachmentDelete": "TestLink 2.0.1 - 附件",
+  "adel.stBlocked": "请求被阻止",
+  "adel.errBlocked": "请求已被 CSRF 防护拒绝。"
 }

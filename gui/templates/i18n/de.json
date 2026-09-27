@@ -8,7 +8,6 @@
   "adel.stNoId": "Nichts ausgewaehlt",
   "adel.stNotAllowed": "Nicht erlaubt",
   "adel.stNotFound": "Anhang nicht gefunden",
-  "adel.stOk": "Fertig",
   "adel.stSession": "Sitzung abgelaufen",
   "alx.btnExportXls": "Export as spreadsheet",
   "alx.choosePlatform": "-- Select a platform --",
@@ -5139,5 +5138,7 @@
   "adel.okText": "Die Datei wurde vom Server entfernt.",
   "adel.okTitle": "Anhang geloescht",
   "adel.title": "Anhang loschen",
-  "footers.attachmentDelete": "TestLink 2.0.1 - Anhaenge"
+  "footers.attachmentDelete": "TestLink 2.0.1 - Anhaenge",
+  "adel.stBlocked": "Anfrage blockiert",
+  "adel.errBlocked": "Die Anfrage wurde vom CSRF-Schutz abgelehnt."
 }

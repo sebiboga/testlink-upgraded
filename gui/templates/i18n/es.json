@@ -8,7 +8,6 @@
   "adel.stNoId": "Nada seleccionado",
   "adel.stNotAllowed": "No permitido",
   "adel.stNotFound": "Adjunto no encontrado",
-  "adel.stOk": "Listo",
   "adel.stSession": "Sesion caducada",
   "alx.btnExportXls": "Export as spreadsheet",
   "alx.choosePlatform": "-- Select a platform --",
@@ -5139,5 +5138,7 @@
   "adel.okText": "El archivo se ha eliminado del servidor.",
   "adel.okTitle": "Adjunto eliminado",
   "adel.title": "Eliminar adjunto",
-  "footers.attachmentDelete": "TestLink 2.0.1 - Adjuntos"
+  "footers.attachmentDelete": "TestLink 2.0.1 - Adjuntos",
+  "adel.stBlocked": "Solicitud bloqueada",
+  "adel.errBlocked": "La solicitud fue rechazada por la proteccion CSRF."
 }

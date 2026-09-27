@@ -8,7 +8,6 @@
   "adel.stNoId": "Aucune selection",
   "adel.stNotAllowed": "Non autorise",
   "adel.stNotFound": "Piece jointe introuvable",
-  "adel.stOk": "Termine",
   "adel.stSession": "Session expiree",
   "alx.btnExportXls": "Export as spreadsheet",
   "alx.choosePlatform": "-- Select a platform --",
@@ -5139,5 +5138,7 @@
   "adel.okText": "Le fichier a ete supprime du serveur.",
   "adel.okTitle": "Piece jointe supprimee",
   "adel.title": "Supprimer la piece jointe",
-  "footers.attachmentDelete": "TestLink 2.0.1 - Pieces jointes"
+  "footers.attachmentDelete": "TestLink 2.0.1 - Pieces jointes",
+  "adel.stBlocked": "Requete bloquee",
+  "adel.errBlocked": "La requete a ete rejetee par la protection CSRF."
 }

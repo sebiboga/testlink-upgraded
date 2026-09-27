@@ -24,9 +24,12 @@
  *
  * Hardening vs legacy: the legacy page deleted on GET with a bare ?id=, so a
  * single click anywhere in the app was destructive and a crafted link was
- * enough to remove an attachment of any object. Here the delete is an explicit
- * POST behind bffSameOriginGuard() and the id must be proven to belong to the
- * object the caller is working on.
+ * enough to remove an attachment of any object. Here the delete requires an
+ * authenticated session, an explicit POST behind bffSameOriginGuard() and an
+ * id that matches the object in the URL (or the session allow-list).
+ * NOT a rights check: like the legacy page it does not verify that the user may
+ * touch the owning object - that gap is shared with api/attachments and tracked
+ * in the follow-up filed with this commit.
  *
  * JSON contract:
  *   GET  ?action=init&id=N[&table=T][&fk_id=M] -> attachment + owner context
@@ -51,9 +54,16 @@ doDBConnect($db);
  * @param int   $code
  */
 function bffAdOut($data, $code = 200) {
-    http_response_code($code);
-    header('Content-Type: application/json; charset=utf-8');
-    echo json_encode($data);
+    // JSON_INVALID_UTF8_SUBSTITUTE: a legacy DB can hold a latin1 attachment
+    // title; without it json_encode() returns false and the client parses an
+    // empty body as a generic error. Same header contract as api/_guard.php.
+    $json = json_encode($data, JSON_INVALID_UTF8_SUBSTITUTE);
+    if (!headers_sent()) {
+        http_response_code($code);
+        header('Content-Type: application/json; charset=utf-8');
+        header('X-Content-Type-Options: nosniff');
+    }
+    echo ($json === false) ? '{"status":"error","code":"ENCODING_FAILED"}' : $json;
     exit;
 }
 
@@ -116,10 +126,17 @@ function bffAdHasColumn($db, $table, $col) {
     $key = $table . '.' . $col;
     if (!isset($cache[$key])) {
         $cache[$key] = false;
-        $rows = $db->get_recordset("SHOW COLUMNS FROM " .
-            $table . " LIKE '" . $db->prepare_string($col) . "'");
-        if (is_array($rows) && count($rows) > 0) {
-            $cache[$key] = true;
+        // NB: no LIKE - '_' is a single-char wildcard there, so 'tc_id' would
+        // also match 'tcc_id' and the caller would then query a column that does
+        // not exist. Compare the returned Field name instead.
+        $rows = $db->get_recordset("SHOW COLUMNS FROM " . $table);
+        if (is_array($rows)) {
+            foreach ($rows as $r) {
+                if (strcasecmp(strval($r['Field'] ?? ''), $col) === 0) {
+                    $cache[$key] = true;
+                    break;
+                }
+            }
         }
     }
     return $cache[$key];
@@ -148,21 +165,11 @@ function bffAdOwnerLabel($db, $attachInfo) {
         // name is not reachable from the node in this fork (no
         // testcase_tsuite, and tcversions has no name column), so the node name
         // is the best human label available.
-        $type = 0;
         $rows = $db->get_recordset("SELECT name, node_type_id FROM {$nh} " .
             "WHERE id = " . $fkId . " LIMIT 1");
         if (is_array($rows) && count($rows) > 0) {
             $nm = trim(strval($rows[0]['name'] ?? ''));
-            $type = intval($rows[0]['node_type_id'] ?? 0);
-            $words = array(
-                1 => 'Test project',
-                2 => 'Test suite',
-                3 => 'Test case',
-                4 => 'Build',
-                5 => 'Test plan',
-            );
-            $word = isset($words[$type]) ? $words[$type] : 'Node';
-            return $word . ' #' . $fkId . ($nm !== '' ? ' - ' . $nm : '');
+            return $fkId . ($nm !== '' ? ' - ' . $nm : '');
         }
         return $fallback;
     }
@@ -176,9 +183,9 @@ function bffAdOwnerLabel($db, $attachInfo) {
         }
         $rows = $db->get_recordset("SELECT $cols FROM {$t['executions']} e " .
             $extra . "WHERE e.id = " . $fkId . " LIMIT 1");
-        if (!is_null($rows) && count($rows) > 0) {
+        if (is_array($rows) && count($rows) > 0) {
             $ref = strval($rows[0]['tcext'] ?? '');
-            return 'Execution #' . intval($rows[0]['exec_id']) .
+            return intval($rows[0]['exec_id']) .
                 ($ref !== '' ? ' - ' . $ref : '');
         }
         return $fallback;
@@ -191,14 +198,14 @@ function bffAdOwnerLabel($db, $attachInfo) {
         if (bffAdHasColumn($db, $fkTable, 'name')) {
             $rows = $db->get_recordset("SELECT name FROM {$t[$fkTable]} " .
                 "WHERE id = " . $fkId . " LIMIT 1");
-            if (!is_null($rows) && count($rows) > 0) {
+            if (is_array($rows) && count($rows) > 0) {
                 $nm = trim(strval($rows[0]['name'] ?? ''));
                 return ($nm !== '' ? $nm . ' #' : '#') . $fkId;
             }
         }
         $rows = $db->get_recordset("SELECT name FROM {$nh} " .
             "WHERE id = " . $fkId . " LIMIT 1");
-        if (!is_null($rows) && count($rows) > 0) {
+        if (is_array($rows) && count($rows) > 0) {
             $nm = trim(strval($rows[0]['name'] ?? ''));
             if ($nm !== '') {
                 return $nm . ' #' . $fkId;
@@ -215,8 +222,6 @@ function bffAdOwnerLabel($db, $attachInfo) {
  * @return array
  */
 function bffAdLoad($db) {
-    global $method;
-
     if (!bffAdEnabled()) {
         bffAdOut([
             'status' => 'error',
@@ -266,14 +271,6 @@ function bffAdLoad($db) {
             'code'   => 'ATTACHMENT_NOT_ALLOWED',
             'message' => 'Attachment does not belong to the object in context',
         ], 403);
-    }
-
-    if ($method !== 'GET' && $method !== 'POST') {
-        bffAdOut([
-            'status' => 'error',
-            'code'   => 'METHOD_NOT_ALLOWED',
-            'message' => 'Method not allowed',
-        ], 405);
     }
 
     return $info;

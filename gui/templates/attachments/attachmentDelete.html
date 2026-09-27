@@ -58,7 +58,7 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 <div class="toolbar">
   <span class="ctx"><span data-i18n="adel.object">Object</span>: <b id="ownerLabel">-</b></span>
   <span id="localeSwitcher"></span>
-  <button class="btn-teal btn-sm" style="margin-left:auto;" onclick="load()"><i class="fa fa-refresh"></i> <span data-i18n="common.refresh">Refresh</span></button>
+  <button class="btn-teal btn-sm" id="btnRefresh" style="margin-left:auto;" onclick="load()"><i class="fa fa-refresh"></i> <span data-i18n="common.refresh">Refresh</span></button>
 </div>
 
 <div class="main">
@@ -113,7 +113,8 @@ function closePopup() {
   try {
     if (!standalone) { window.close(); return; }
   } catch (e) { /* ignore */ }
-  window.history.back();
+  if (window.history.length > 1) { window.history.back(); return; }
+  window.location.href = '/index.php';
 }
 
 function stateBox(kind, ico, title, text, code) {
@@ -131,10 +132,17 @@ function hideAll() {
   $('#ownerLabel').text('-');
 }
 
-function failState(kind, ico, titleKey, textKey, code) {
-  hideAll();
-  $('#attLabel').text('');
-  $('#infoBox').html(stateBox(kind, ico, TLi18n.t(titleKey), TLi18n.t(textKey), code));
+// keepActions: an initialisation failure leaves nothing to retry, but a failed
+// DELETE must stay retryable - hiding the action card turned a transient 500
+// into a dead end with only Cancel.
+function failState(kind, ico, titleKey, textKey, code, keepActions) {
+  if (keepActions) {
+    $('#infoBox').html(stateBox(kind, ico, TLi18n.t(titleKey), TLi18n.t(textKey), code));
+  } else {
+    hideAll();
+    $('#attLabel').text('');
+    $('#infoBox').html(stateBox(kind, ico, TLi18n.t(titleKey), TLi18n.t(textKey), code));
+  }
 }
 
 function kv(k, v) {
@@ -169,11 +177,19 @@ function load() {
       $('#infoBox').html(h);
       $('#actionCard').show();
     })
-    .fail(function (xhr) { renderError(xhr.responseJSON || {}); });
+    .fail(function (xhr) { renderError(xhr.responseJSON || {}, xhr.status); });
 }
 
-function renderError(r) {
+function renderError(r, status) {
   var code = r.code || '';
+  if (code === 'session_expired' || code === 'NOT_AUTHENTICATED') {
+    window.location.href = '/login.php?note=expired';
+    return;
+  }
+  if (!code && (status === 401 || status === 0)) {
+    window.location.href = '/login.php?note=expired';
+    return;
+  }
   if (code === 'ATTACHMENTS_DISABLED') {
     failState('danger', 'fa fa-lock', 'adel.stDisabled', 'adel.errDisabled', code);
   } else if (code === 'ATTACHMENT_NOT_FOUND') {
@@ -182,8 +198,9 @@ function renderError(r) {
     failState('danger', 'fa fa-user-lock', 'adel.stNotAllowed', 'adel.errNotAllowed', code);
   } else if (code === 'INVALID_ID') {
     failState('danger', 'fa fa-ban', 'adel.stNoId', 'adel.errNoId', code);
-  } else if (code === 'session_expired' || code === 'NOT_AUTHENTICATED' ||
-             !r.code) {
+  } else if (!code && status === 403) {
+    failState('danger', 'fa fa-shield-alt', 'adel.stBlocked', 'adel.errBlocked', '403');
+  } else if (!code) {
     failState('danger', 'fa fa-plug', 'adel.stSession', 'adel.errSession', '');
   } else {
     failState('danger', 'fa fa-exclamation-triangle', 'adel.stError', 'adel.errGeneric', code);
@@ -192,6 +209,7 @@ function renderError(r) {
 
 function doDelete() {
   $('#btnDelete').prop('disabled', true);
+  $('#btnRefresh').prop('disabled', true);
   var body = 'action=delete&id=' + encodeURIComponent(ATTID);
   if (TABLE) { body += '&table=' + encodeURIComponent(TABLE) + '&fk_id=' + encodeURIComponent(FKID); }
   $.ajax({
@@ -205,14 +223,14 @@ function doDelete() {
       if (r.status !== 'ok') {
         $('#btnDelete').prop('disabled', false);
         if (r.code === 'ATTACHMENT_NOT_ALLOWED') {
-          failState('danger', 'fa fa-user-lock', 'adel.stNotAllowed', 'adel.errNotAllowed', r.code);
+          failState('danger', 'fa fa-user-lock', 'adel.stNotAllowed', 'adel.errNotAllowed', r.code, true);
         } else {
-          failState('danger', 'fa fa-exclamation-triangle', 'adel.stError', 'adel.errDelete', r.code);
+          failState('danger', 'fa fa-exclamation-triangle', 'adel.stError', 'adel.errDelete', r.code, true);
         }
         return;
       }
       hideAll();
-      $('#infoBox').html(stateBox('ok', 'fa fa-check-circle', TLi18n.t('adel.stOk'), TLi18n.t('adel.okText'), r.legacy_code || ''));
+      $('#infoBox').html(stateBox('ok', 'fa fa-check-circle', TLi18n.t('adel.okTitle'), TLi18n.t('adel.okText'), r.legacy_code || ''));
       // the attachment list popup (attachmentUpload.html) defines a global refresh()
       try { if (typeof opener !== 'undefined' && opener && !opener.closed && typeof opener.refresh === 'function') { opener.refresh(); } } catch (e) { /* ignore */ }
       try { if (!standalone) { setTimeout(function () { window.close(); }, 1200); } } catch (e) { /* ignore */ }
@@ -220,9 +238,9 @@ function doDelete() {
     .fail(function (xhr) {
       $('#btnDelete').prop('disabled', false);
       if (xhr.status === 0 || xhr.status === 401 || xhr.status === 403) {
-        renderError(xhr.responseJSON || { code: '' });
+        renderError(xhr.responseJSON || {}, xhr.status);
       } else {
-        failState('danger', 'fa fa-exclamation-triangle', 'adel.stError', 'adel.errDelete', 'HTTP ' + xhr.status);
+        failState('danger', 'fa fa-exclamation-triangle', 'adel.stError', 'adel.errDelete', 'HTTP ' + xhr.status, true);
       }
     });
 }
@@ -231,7 +249,7 @@ $(function () {
   var p = new URLSearchParams(window.location.search);
   ATTID = parseInt(p.get('id') || '0', 10);
   TABLE = p.get('table') || '';
-  FKID = parseInt(p.get('fk_id') || p.get('object_id') || '0', 10);
+  FKID = parseInt(p.get('fk_id') || '0', 10);
   TLi18n.load(function () {
     TLi18n.apply();
     TLi18n.initLocaleSwitcher('#localeSwitcher');

@@ -8,7 +8,6 @@
   "adel.stNoId": "何も選択されていません",
   "adel.stNotAllowed": "許可されていません",
   "adel.stNotFound": "添付ファイルが見つかりません",
-  "adel.stOk": "完了",
   "adel.stSession": "セッションの有効期限が切れました",
   "alx.btnExportXls": "Export as spreadsheet",
   "alx.choosePlatform": "-- Select a platform --",
@@ -5145,5 +5144,7 @@
   "adel.okText": "ファイルをサーバーから削除しました。",
   "adel.okTitle": "添付ファイルを削除しました",
   "adel.title": "添付ファイルを削除",
-  "footers.attachmentDelete": "TestLink 2.0.1 - 添付ファイル"
+  "footers.attachmentDelete": "TestLink 2.0.1 - 添付ファイル",
+  "adel.stBlocked": "リクエストがブロックされました",
+  "adel.errBlocked": "リクエストは CSRF 保護により拒否されました。"
 }

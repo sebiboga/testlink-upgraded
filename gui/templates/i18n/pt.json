@@ -8,7 +8,6 @@
   "adel.stNoId": "Nada selecionado",
   "adel.stNotAllowed": "Nao permitido",
   "adel.stNotFound": "Anexo nao encontrado",
-  "adel.stOk": "Concluido",
   "adel.stSession": "Sessao expirada",
   "alx.btnExportXls": "Export as spreadsheet",
   "alx.choosePlatform": "-- Select a platform --",
@@ -5145,5 +5144,7 @@
   "adel.okText": "O ficheiro foi removido do servidor.",
   "adel.okTitle": "Anexo eliminado",
   "adel.title": "Eliminar anexo",
-  "footers.attachmentDelete": "TestLink 2.0.1 - Anexos"
+  "footers.attachmentDelete": "TestLink 2.0.1 - Anexos",
+  "adel.stBlocked": "Requisicao bloqueada",
+  "adel.errBlocked": "A requisicao foi rejeitada pela protecao CSRF."
 }

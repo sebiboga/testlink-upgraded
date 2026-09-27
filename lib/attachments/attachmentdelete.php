@@ -25,8 +25,10 @@
 require_once('../../config.inc.php');
 require_once('../functions/common.php');
 
-// Anonymous -> login (same contract as the legacy testlinkInitPage call).
-testlinkInitPage($db, FALSE, false, null, true);
+// Anonymous -> login: the bounce comes from checkSessionValid() inside
+// testlinkInitPage(). The 5th argument ($onFailureGoToLogin) is a no-op here - it
+// is only consulted when $userRightsCheckFunction is not null (common.php:558).
+testlinkInitPage($db, FALSE, false, null);
 
 $id = isset($_REQUEST['id']) && is_scalar($_REQUEST['id'])
     ? intval($_REQUEST['id']) : 0;
@@ -37,7 +39,9 @@ $fkId = isset($_REQUEST['fk_id']) && is_scalar($_REQUEST['fk_id'])
 
 $url = $_SESSION['basehref'] . 'gui/templates/attachments/attachmentDelete.html';
 $url .= '?id=' . $id;
-if ($table !== '') {
+// both parts are required: forwarding table with fk_id=0 could never satisfy
+// the BFF ownership proof, so it would only produce a misleading 403
+if ($table !== '' && $fkId > 0) {
     $url .= '&table=' . rawurlencode($table);
     $url .= '&fk_id=' . $fkId;
 }
