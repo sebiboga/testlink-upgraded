@@ -17,6 +17,24 @@ Every screen of the application was ported one-by-one in a screen-compare
 kept for backward compatibility and is progressively retired as each modern
 screen reaches full parity.
 
+- [FEATURE GAP] - #1676: the modern Assign Test Plan Roles screen never showed a user's first/last names
+  when the admin-settable `$tlCfg->username_format` (config.inc.php:756-764) omitted `%first%`/`%last%`
+  (`'%login%'`, `'%email%'`): `api/roles/index.php` shipped only `'name' => $u->getDisplayName()` and
+  `usersAssignPlan.html` rendered that single value as the whole Name column, so the column became a
+  byte-duplicate of the Login column and the names were rendered NOWHERE - while legacy 1.9.20
+  `usersAssign.tpl:242` always printed `{$user->login} ({$user->firstName} {$user->lastName})`,
+  independent of that format. Both assign payloads (`meta/tplan-roles`, `meta/tproject-roles`) now
+  ship the raw `firstName`/`lastName` next to the display name, and the plan grid's new pure
+  `userNameCell()` helper appends ` (first last)` only when the RESOLVED display value does not
+  already contain them - a substring test against the rendered value, not a guess about the format
+  string, so `'%last% - %first%'` and friends behave by construction. The default `'%first% %last%'`
+  output is byte-identical to before (no `Anna Designer (Anna Designer)`), an empty display value
+  (a user with no e-mail under `'%email%'`) renders the bare names instead of a leading `()`, and a
+  user with no names at all keeps the empty cell. Bonus parity: the appended names are searchable,
+  like the legacy fused cell was. No i18n key needed (no new user-facing string; the "Name" header
+  reuses `user.fullName`). Regression suite 1676: 20/20 PASS (9 client cases on the shipped helper +
+  11 live BFF cases over 3 formats) and 11/11 browser cases; console and Event Viewer clean. (Fixes #1676)
+
 - [SCREEN] - #1671: the Reorder Test Case Steps screen is modernized. Legacy 1.9.20 had a backend
   (`lib/ajax/stepReorder.php`, the server side of the TableDnD widget in
   `gui/templates/tl-classic/testcases/steps_horizontal.inc.tpl`) but no screen, no URL and no right:

@@ -197,6 +197,39 @@ $.fn.dataTable.ext.order['tlu-role-select'] = function (settings, col, visCol) {
   return out;
 };
 
+// Legacy parity: usersAssign.tpl:242 rendered the user cell as
+//   {$user->login} ({$user->firstName} {$user->lastName})
+// i.e. the first/last names were ALWAYS visible, whatever
+// $tlCfg->username_format is (config.inc.php:756-764: '%first% %last%',
+// '%last%, %first%', '%first% %last% %login%', '%login%', '%email%', ...).
+// getDisplayName() (lib/functions/tlUser.class.php:525-534) expands that
+// admin-settable format, so for every format that omits %first%/%last% the
+// Name column collapsed into a byte-duplicate of the Login column and the
+// names were rendered NOWHERE (issue #1676). The BFF therefore ships the raw
+// names alongside the display name (api/roles/index.php firstName/lastName)
+// and this helper appends them exactly when the resolved display value does
+// not already contain them - keeping the default '%first% %last%' rendering
+// byte-identical to what the screen has always shown, while '%login%' /
+// '%email%' regain the legacy visibility as "login (first last)".
+// A user with no first AND no last name gets no parenthetical at all (that is
+// what the legacy cell rendered for them: "login ()" trimmed to "login").
+function userNameCell(u) {
+  var display = String(u.name == null ? '' : u.name);
+  var first = String(u.firstName == null ? '' : u.firstName).trim();
+  var last = String(u.lastName == null ? '' : u.lastName).trim();
+  var full = (first + ' ' + last).replace(/\s+/g, ' ').trim();
+  if (!full) return display;
+  // Empty display value (e.g. username_format '%email%' for a user with no
+  // e-mail): the raw names ARE the name here, so render them bare instead of a
+  // leading "()" - the Login column already carries the login half of the
+  // legacy "login (first last)" cell.
+  if (display.replace(/\s+/g, '').length === 0) return full;
+  // Substring test, not a format test: a format like '%last% - %first%' is as
+  // legitimate as '%first% %last%' and only the rendered value is authoritative.
+  if (display.indexOf(first) !== -1 && display.indexOf(last) !== -1) return display;
+  return display + ' (' + full + ')';
+}
+
 function esc(s) {
   return String(s == null ? '' : s)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -500,7 +533,7 @@ function renderUsersTable(keep) {
       '<tr data-uid="' + esc(u.id) + '">' +
       '<td>' + (i + 1) + '</td>' +
       '<td' + rowStyle + '>' + esc(u.login) + '</td>' +
-      '<td' + rowStyle + '>' + esc(u.name) + '</td>' +
+      '<td' + rowStyle + '>' + esc(userNameCell(u)) + '</td>' +
       '<td class="inherited-col">' + esc(u.inheritedRoleName) + '</td>' +
       '<td>' + buildSelectHtml(u) + hint + '</td>' +
       '</tr>');
@@ -593,6 +626,11 @@ function loadUsers(pid, planId) {
         id: u.id,
         login: u.login,
         name: u.name,
+        // Legacy parity: usersAssign.tpl:242 always printed the raw names in
+        // the user cell, independent of $tlCfg->username_format; userNameCell()
+        // re-appends them whenever getDisplayName() dropped them (issue #1676).
+        firstName: u.firstName || '',
+        lastName: u.lastName || '',
         // Legacy parity: lib/functions/roles.inc.php:373-437
         // get_tplan_effective_role() - effective plan role + inheritance nature
         // (issue #944). isInherited == 1 means the effective role is INHERITED
