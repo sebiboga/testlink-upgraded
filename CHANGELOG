@@ -6645,3 +6645,43 @@ Changes:
   the endpoint's existing `mgt_modify_product` gate is the only access path
   (anonymous still 401). 4 new i18n keys in all 10 locale bundles. Suite #990
   21/21 PASS; Event Viewer clean. (Refs #990)
+
+  ### Cleanup — delete legacy codeTrackerView + codeTrackerEdit cluster (Refs #976, #969-#975)
+  - Removed 8 files / 1167 lines: `lib/codetrackers/codeTrackerView.php`,
+    `codeTrackerEdit.php`, `codeTrackerCommands.class.php`,
+    `gui/templates/dashio/codetrackers/codeTracker{View,Edit}.tpl`, the two
+    `tl-classic` copies, and `lib/ajax/getcodetrackercfgtemplate.php`. The issue
+    gated the deletion on parity, so each of #969-#975 was located in the shipped
+    source first (not merely checked for `CLOSED`): `codetracker_view` read gate
+    on every BFF route, `codetracker_management` write gate + `canManage` UI
+    gating, `link_count` delete gating, `POST /{id}/test_connection` connection
+    status, `checkEnv`/`env_check_msg`, the used-on-test-project `links` map, and
+    `GET /cfg-template?type=N` (superseding the deleted ajax helper). The two
+    enabled interfaces match the #975 suite precondition exactly — `code=1 →
+    stash`, `code=200 → github`.
+  - Retargeted `gui/templates/tl-classic/mainPageLeft.tpl:86`, the last live link
+    to the retired controller. Dead code (`tlsmarty.inc.php:101` hardcodes
+    `template_dir` to `dashio/`), but the same line was already retargeted for
+    cfields and issue trackers by #957/#966. `common.php:1974`, `dashio/aside.tpl:85`
+    and `api/aside/index.php:326` already resolved to the modern screen and were
+    left untouched.
+  - Swept 54 dangling provenance references across 6 files — comments that cited
+    line numbers in now-deleted files, so they resolved nowhere. 20 were created
+    by this deletion, 21 were left by #957/#966. Rewrote `NAME.ext:144-172` to
+    `NAME.ext (removed in #976)`, preserving the sentence and annotating only the
+    first mention per line; 7 more with a query string or an orphaned line range
+    were fixed by hand. The sweep only touches a target basename that no longer
+    exists anywhere in the tree, which is why the surviving tl-classic cfields
+    templates were left alone. Same defect class as the stale `36b7b6b51` hash.
+  - Reported, not removed: `config.inc.php:691-694`
+    (`$tlCfg->gui->codeTrackerView->pagination`, no reader),
+    `cfg/userRightMatrix.php:76` (maps the deleted `cfieldsView.php` to a right;
+    the file is consumed by nothing), `gui/templates/conf/input_dimensions.conf`
+    `[codeTrackerView]`/`[codeTrackerEdit]` (no PHP reference to the file), and
+    the dead-theme `{$viewAction="lib/cfields/cfieldsView.php"}` in
+    `tl-classic/cfields/*.tpl` (belongs to #957's cluster).
+  - Verified: BFF harness 20/20 after deletion, identical to the pre-deletion
+    baseline; rights 4/4 with the #969 fixtures recreated temporarily and removed
+    after (role-3 → 403 on list and `/meta/types`; `codetracker_view`-only → 200
+    with `canManage:false` and 403 on write, 0 rows persisted); legacy 3/3 → 404;
+    modern 4/4 render; `php -l` clean; browser console clean. (Refs #976)
