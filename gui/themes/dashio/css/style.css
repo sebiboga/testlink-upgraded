@@ -3484,3 +3484,22 @@ ul.chat-available-user li a:hover {
 #copyrights a {
   color: #fff;
 }
+
+/* ----------------------------------------------------------------------------
+ * Header subtitle contrast (all screens, dashio theme)
+ *
+ * Every screen's .header pulled its subtitle from the same teal-accent
+ * background (#4ECDC4) while the shared template marked subtitle text as
+ * white at 0.8 opacity (e.g. dash.headerSub). Measured contrast was 1.93:1
+ * — below the WCAG AA 4.5:1 floor on *every* dashio screen.
+ *
+ * Fix: paint the subtitle (all markers: data-i18n="$Sub" and the common
+ * inline "opacity:.8;font-weight:400" style) with the deep-teal ink used by
+ * the theme elsewhere, at full opacity. One shared rule, zero per-template
+ * edits.
+ * -------------------------------------------------------------------------- */
+.header span[data-i18n$="Sub"],
+.header span[style*="opacity:.8"] {
+    color: #0e2f2c !important;
+    opacity: 1 !important;
+}
