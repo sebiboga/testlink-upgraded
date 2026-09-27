@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reorder Test Cases</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; color: #22242a; }
+
+.header {
+  background: #4ECDC4; color: #fff; padding: 14px 24px;
+  font-size: 20px; font-weight: 700; letter-spacing: 1px;
+  display: flex; align-items: center;
+}
+.header .sub { font-size: 13px; font-weight: 400; opacity: .85; margin-left: 12px; }
+.header .spacer { flex: 1; }
+.header button {
+  background: rgba(255,255,255,.18); color: #fff; border: 1px solid rgba(255,255,255,.5);
+  padding: 6px 16px; border-radius: 4px; cursor: pointer; font-size: 13px;
+}
+.header button:hover { background: rgba(255,255,255,.32); }
+
+.wrap { padding: 22px 24px; max-width: 1080px; margin: 0 auto; }
+
+.meta, .card {
+  background: #fff; border-radius: 8px; padding: 18px 20px; margin-bottom: 18px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.08);
+}
+.meta .row { display: flex; flex-wrap: wrap; gap: 8px 28px; }
+.meta .field { font-size: 13px; color: #555; }
+.meta .field b { color: #22242a; margin-right: 5px; }
+
+.card h3 { margin: 0 0 14px; font-size: 15px; color: #22242a; }
+.card h3 .hint { font-weight: 400; font-size: 12px; color: #888; margin-left: 10px; }
+
+.toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 14px; }
+.toolbar label { font-size: 13px; color: #555; }
+select {
+  border: 1px solid #ccc; border-radius: 4px; padding: 7px 10px; font-size: 13px;
+  background: #fff; min-width: 240px;
+}
+
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 8px 18px;
+  border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-teal:disabled { background: #b9e7e3; cursor: not-allowed; }
+.btn-outline { background: #fff; color: #555; border: 1px solid #ccc; padding: 8px 18px;
+  border-radius: 4px; cursor: pointer; font-size: 13px; }
+.btn-outline:hover { background: #f0f0f0; }
+.btn-outline:disabled { color: #bbb; cursor: not-allowed; }
+
+table.reorder { width: 100%; border-collapse: collapse; }
+table.reorder th {
+  text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: .5px;
+  color: #6b7280; border-bottom: 2px solid #e5e7eb; padding: 8px 10px;
+}
+table.reorder td { padding: 9px 10px; border-bottom: 1px solid #f0f0f0; font-size: 13px; vertical-align: middle; }
+table.reorder tr:hover td { background: #f7fdfd; }
+td.pos { width: 52px; color: #888; font-variant-numeric: tabular-nums; text-align: right; }
+td.ext { width: 90px; color: #555; font-size: 12px; }
+td.ops { width: 190px; text-align: right; white-space: nowrap; }
+td.ops button {
+  background: #fff; border: 1px solid #d5d5d5; color: #555; border-radius: 3px;
+  width: 28px; height: 28px; margin-left: 4px; cursor: pointer; font-size: 12px;
+}
+td.ops button:hover:not(:disabled) { background: #4ECDC4; color: #fff; border-color: #4ECDC4; }
+td.ops button:disabled { color: #ccc; cursor: not-allowed; border-color: #eee; }
+.chip { display: inline-block; background: #eefaf9; color: #2a8f88; border-radius: 10px;
+  padding: 2px 10px; font-size: 11px; font-weight: 600; }
+
+.empty { color: #999; font-style: italic; padding: 18px 4px; }
+
+.notice { border-radius: 6px; padding: 11px 14px; font-size: 13px; margin-bottom: 14px; display: none; }
+.notice.ok { display: block; background: #e8f8f6; border: 1px solid #b8e6e2; color: #1f7a73; }
+.notice.err { display: block; background: #fdecea; border: 1px solid #f5c6c3; color: #a32b28; }
+.notice.warn { display: block; background: #fff6e5; border: 1px solid #ffe0a3; color: #8a6100; }
+
+.toast {
+  position: fixed; top: 16px; right: 16px; background: #2c3e50; color: #fff;
+  padding: 12px 18px; border-radius: 6px; font-size: 13px; opacity: 0;
+  transition: opacity .25s; z-index: 999; pointer-events: none; max-width: 60%;
+}
+.toast.show { opacity: 1; }
+.toast.ok { background: #4ECDC4; }
+.toast.err { background: #e6605e; }
+
+.state {
+  background: #fff; border: 1px solid #f0d0d0; border-left: 4px solid #e6605e;
+  border-radius: 8px; margin: 24px; padding: 28px 32px; text-align: center; display: none;
+}
+.state i { font-size: 34px; color: #e6605e; margin-bottom: 10px; }
+.state h3 { margin: 0 0 8px; font-size: 18px; color: #22242a; }
+.state p { margin: 0 0 6px; color: #666; font-size: 13px; }
+
+.modal-mask {
+  position: fixed; inset: 0; background: rgba(0,0,0,.45); display: none;
+  align-items: center; justify-content: center; z-index: 1000;
+}
+.modal-mask.show { display: flex; }
+.modal-box {
+  background: #fff; border-radius: 8px; width: 440px; max-width: 92vw;
+  box-shadow: 0 10px 40px rgba(0,0,0,.3); overflow: hidden;
+}
+.modal-box .m-head { background: #4ECDC4; color: #fff; padding: 12px 18px; font-weight: 700; font-size: 15px; }
+.modal-box .m-body { padding: 18px; font-size: 13px; color: #444; }
+.modal-box .m-foot { padding: 12px 18px; background: #fafafa; border-top: 1px solid #eee; text-align: right; }
+.modal-box .m-foot button { margin-left: 8px; }
+.btn-red { background: #e6605e; color: #fff; border: none; padding: 8px 18px;
+  border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-red:hover { background: #d24f4d; }
+
+.footer { text-align: center; color: #8a8a8a; font-size: 12px; padding: 6px 0 22px; }
+
+#loading { text-align: center; padding: 30px; color: #888; font-size: 13px; }
+#content { display: none; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span data-i18n="tcreo.title">Reorder Test Cases</span>
+  <span class="sub" id="hdrSub" data-i18n="tcreo.subtitle">Test specification</span>
+  <span class="spacer"></span>
+  <span id="localeSwitcher"></span>
+  <button onclick="closeWindow()" data-i18n="common.close">Close</button>
+</div>
+
+<div id="stateBox" class="state">
+  <i class="fa fa-exclamation-triangle"></i>
+  <h3 id="stateTitle">-</h3>
+  <p id="stateMsg"></p>
+  <p><button class="btn-outline" onclick="reload()" data-i18n="common.refresh">Refresh</button></p>
+</div>
+
+<div class="wrap" id="wrap">
+  <div id="loading"><i class="fa fa-spinner fa-spin"></i> <span data-i18n="tcreo.loading">Loading...</span></div>
+
+  <div id="content">
+    <div class="meta">
+      <div class="row">
+        <span class="field"><b data-i18n="tcreo.testProject">Test project</b><span id="mbProject">-</span></span>
+        <span class="field"><b data-i18n="tcreo.container">Container</b><span id="mbContainer">-</span></span>
+        <span class="field"><b data-i18n="tcreo.criterion">Reorder by</b><span id="mbCriterion">-</span></span>
+        <span class="field"><b data-i18n="tcreo.count">Test cases</b><span id="mbCount">-</span></span>
+      </div>
+    </div>
+
+    <div class="notice ok" id="noticeOk"></div>
+    <div class="notice err" id="noticeErr"></div>
+
+    <div class="card">
+      <h3><i class="fa fa-sort-numeric-asc"></i>
+        <span data-i18n="tcreo.orderHeading">Test case order</span>
+        <span class="hint" data-i18n="tcreo.orderHint">The order below is the stored node order used by the test specification tree.</span>
+      </h3>
+
+      <div class="toolbar">
+        <label for="selSuite" data-i18n="tcreo.suiteLabel">Container</label>
+        <select id="selSuite"></select>
+        <button class="btn-teal" id="btnSortName" onclick="doSort('NAME')"><i class="fa fa-sort-alpha-asc"></i> <span data-i18n="tcreo.sortByName">Sort by name</span></button>
+        <button class="btn-teal" id="btnSortExt" onclick="doSort('EXTERNALID')"><i class="fa fa-sort-numeric-asc"></i> <span data-i18n="tcreo.sortByExtId">Sort by external ID</span></button>
+        <span class="chip" id="criterionChip"></span>
+      </div>
+
+      <div id="rowsWrap">
+        <table class="reorder" id="tbl">
+          <thead>
+            <tr>
+              <th class="pos" data-i18n="tcreo.thPos">#</th>
+              <th data-i18n="tcreo.thTestCase">Test case</th>
+              <th data="ext" data-i18n="tcreo.thExternalId">External ID</th>
+              <th style="text-align:right" data-i18n="tcreo.thMove">Move</th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+        <div class="empty" id="emptyMsg" style="display:none" data-i18n="tcreo.empty">This container has no test cases.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-mask" id="mask">
+  <div class="modal-box">
+    <div class="m-head" data-i18n="tcreo.confirmTitle">Apply order</div>
+    <div class="m-body" id="mBody"></div>
+    <div class="m-foot">
+      <button class="btn-outline" onclick="closeModal()" data-i18n="common.cancel">Cancel</button>
+      <button class="btn-red" onclick="confirmModal()" data-i18n="tcreo.confirmOk">Apply</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script>
+var TPROJECT_ID = 0;
+var CONTAINER_ID = 0;
+var ROWS = [];
+var CRITERION = 'NAME';
+var PENDING_ORDER = null;
+
+function qs(k, d) {
+  var p = new URLSearchParams(window.location.search);
+  return p.get(k) === null ? d : p.get(k);
+}
+
+function esc(s) {
+  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function toast(msg, kind) {
+  var t = $('#toast');
+  t.removeClass('ok err').addClass('show ' + (kind || 'ok')).text(msg);
+  clearTimeout(t.data('to'));
+  t.data('to', setTimeout(function () { t.removeClass('show'); }, 2800));
+}
+
+function showState(title, msg) {
+  $('#wrap').hide();
+  $('#stateTitle').text(title);
+  $('#stateMsg').text(msg);
+  $('#stateBox').show();
+}
+
+/* Legacy error semantics -> localized state cards. */
+function stateForResponse(xhr) {
+  var r = (xhr && xhr.responseJSON) ? xhr.responseJSON : {};
+  var code = r.code || '';
+  var s = xhr ? xhr.status : 0;
+  if (s === 401 || code === 'session_expired') {
+    return [TLi18n.t('tcreo.stSession'), TLi18n.t('tcreo.stSessionMsg')];
+  }
+  if (s === 403) {
+    return [TLi18n.t('tcreo.stNotAllowed'), TLi18n.t('tcreo.stNotAllowedMsg')];
+  }
+  if (s === 404) {
+    return [TLi18n.t('tcreo.stNotFound'), TLi18n.t('tcreo.stNotFoundMsg')];
+  }
+  if (s === 400 || code === 'no_context') {
+    return [TLi18n.t('tcreo.stNoContext'), TLi18n.t('tcreo.stNoContextMsg')];
+  }
+  return [TLi18n.t('tcreo.stError'), r.message || TLi18n.t('tcreo.stErrorMsg')];
+}
+
+function closeWindow() {
+  try { window.close(); } catch (e) {}
+  setTimeout(function () {
+    if (!window.closed) { window.opener && window.opener.location.reload(); }
+  }, 150);
+}
+
+function reload() {
+  $('#stateBox').hide();
+  $('#wrap').show();
+  load();
+}
+
+function criterionLabel(c) {
+  return c === 'EXTERNALID' ? TLi18n.t('tcreo.critExternalId') : TLi18n.t('tcreo.critName');
+}
+
+function renderSuites(suites, currentId) {
+  var h = '';
+  h += '<option value="' + TPROJECT_ID + '">' + esc(TLi18n.t('tcreo.projectRoot')) + '</option>';
+  for (var i = 0; i < suites.length; i++) {
+    var s = suites[i];
+    h += '<option value="' + s.id + '"' + (s.id === currentId ? ' selected' : '') + '>' +
+         esc(s.name) + '</option>';
+  }
+  $('#selSuite').html(h);
+}
+
+function renderRows() {
+  var h = '';
+  for (var i = 0; i < ROWS.length; i++) {
+    var r = ROWS[i];
+    var first = (i === 0);
+    var last = (i === ROWS.length - 1);
+    h += '<tr data-node="' + r.node_id + '">';
+    h += '<td class="pos">' + r.position + '</td>';
+    h += '<td>' + esc(r.name) + '</td>';
+    h += '<td class="ext">' + esc(r.external_id || '') + '</td>';
+    h += '<td class="ops">';
+    h += '<button title="' + esc(TLi18n.t('tcreo.moveTop')) + '" class="op" data-op="top" data-node="' + r.node_id + '"' + (first ? ' disabled' : '') + '><i class="fa fa-angle-double-up"></i></button>';
+    h += '<button title="' + esc(TLi18n.t('tcreo.moveUp')) + '" class="op" data-op="up" data-node="' + r.node_id + '"' + (first ? ' disabled' : '') + '><i class="fa fa-angle-up"></i></button>';
+    h += '<button title="' + esc(TLi18n.t('tcreo.moveDown')) + '" class="op" data-op="down" data-node="' + r.node_id + '"' + (last ? ' disabled' : '') + '><i class="fa fa-angle-down"></i></button>';
+    h += '<button title="' + esc(TLi18n.t('tcreo.moveBottom')) + '" class="op" data-op="bottom" data-node="' + r.node_id + '"' + (last ? ' disabled' : '') + '><i class="fa fa-angle-double-down"></i></button>';
+    h += '</td></tr>';
+  }
+  $('#rows').html(h);
+  $('#tbl').toggle(ROWS.length > 0);
+  $('#emptyMsg').toggle(ROWS.length === 0);
+  $('#btnSortName').prop('disabled', ROWS.length < 2);
+  $('#btnSortExt').prop('disabled', ROWS.length < 2);
+  $('#mbCount').text(String(ROWS.length));
+}
+
+function load() {
+  $('#loading').show();
+  $('#content').hide();
+  $.getJSON('/api/tcreorder/index.php', {
+    action: 'init',
+    tproject_id: TPROJECT_ID,
+    container_id: CONTAINER_ID
+  }).done(function (r) {
+    $('#loading').hide();
+    if (r.status !== 'ok') {
+      showState(TLi18n.t('tcreo.stError'), r.message || '');
+      return;
+    }
+    TPROJECT_ID = r.context.tproject_id;
+    CRITERION = r.reorder_by;
+    $('#mbProject').text(r.context.tproject_name + ' (' + r.context.tproject_prefix + ')');
+    $('#mbContainer').text(r.container.name);
+    $('#mbCriterion').text(criterionLabel(CRITERION));
+    $('#criterionChip').text(criterionLabel(CRITERION));
+    renderSuites(r.suites || [], r.container.id);
+    if (r.container.id !== CONTAINER_ID) { CONTAINER_ID = r.container.id; }
+    ROWS = (r.testcases || []).map(function (x) {
+      return {
+        node_id: x.node_id, tcase_id: x.tcase_id, name: x.name,
+        external_id: x.external_id, position: x.position
+      };
+    });
+    renderRows();
+    $('#content').show();
+  }).fail(function (xhr) {
+    $('#loading').hide();
+    var st = stateForResponse(xhr);
+    showState(st[0], st[1]);
+  });
+}
+
+function setNotice(kind, msg) {
+  $('#noticeOk').hide(); $('#noticeErr').hide();
+  if (!msg) { return; }
+  var $t = (kind === 'ok') ? $('#noticeOk') : $('#noticeErr');
+  $t.text(msg).show();
+}
+
+function postAction(action, extra, okMsg) {
+  setNotice('', '');
+  var payload = {
+    action: action,
+    tproject_id: TPROJECT_ID,
+    container_id: CONTAINER_ID
+  };
+  for (var k in extra) { if (extra.hasOwnProperty(k)) { payload[k] = extra[k]; } }
+  return $.ajax({
+    url: '/api/tcreorder/index.php',
+    method: 'POST',
+    contentType: 'application/json',
+    data: JSON.stringify(payload)
+  }).done(function (r) {
+    if (r.status === 'ok' || r.status === 'no_change') {
+      if (r.testcases) {
+        ROWS = r.testcases.map(function (x) {
+          return {
+            node_id: x.node_id, tcase_id: x.tcase_id, name: x.name,
+            external_id: x.external_id, position: x.position
+          };
+        });
+      }
+      if (r.reorder_by) {
+        CRITERION = r.reorder_by;
+        $('#mbCriterion').text(criterionLabel(CRITERION));
+        $('#criterionChip').text(criterionLabel(CRITERION));
+      }
+      renderRows();
+      if (r.status === 'ok' && okMsg) { setNotice('ok', okMsg); }
+      if (r.status === 'no_change') { toast(TLi18n.t('tcreo.boundary'), 'ok'); }
+    } else {
+      setNotice('err', r.message || TLi18n.t('tcreo.stError'));
+    }
+  }).fail(function (xhr) {
+    var r = (xhr && xhr.responseJSON) ? xhr.responseJSON : {};
+    if (xhr && xhr.status === 403 && r.message && r.message.indexOf('CSRF') >= 0) {
+      setNotice('err', TLi18n.t('tcreo.csrfBlocked'));
+      return;
+    }
+    setNotice('err', r.message || TLi18n.t('tcreo.stErrorMsg'));
+  });
+}
+
+function doMove(nodeId, op) {
+  var msgs = {
+    top: TLi18n.t('tcreo.movedTop'),
+    bottom: TLi18n.t('tcreo.movedBottom'),
+    up: TLi18n.t('tcreo.movedUp'),
+    down: TLi18n.t('tcreo.movedDown')
+  };
+  postAction('move', { node_id: nodeId, position: op }, msgs[op] || '');
+}
+
+function doSort(by) {
+  var label = (by === 'NAME') ? TLi18n.t('tcreo.critName') : TLi18n.t('tcreo.critExternalId');
+  $('#mBody').text(TLi18n.t('tcreo.confirmSort', { criterion: label }));
+  PENDING_ORDER = { kind: 'sort', by: by };
+  $('#mask').addClass('show');
+}
+
+function doReorderAll() {
+  var ids = ROWS.map(function (r) { return r.node_id; });
+  if (ids.length < 2) { return; }
+  $('#mBody').text(TLi18n.t('tcreo.confirmReorder', { n: ids.length }));
+  PENDING_ORDER = { kind: 'reorder', nodelist: ids.join(',') };
+  $('#mask').addClass('show');
+}
+
+function closeModal() {
+  $('#mask').removeClass('show');
+  PENDING_ORDER = null;
+}
+
+function confirmModal() {
+  if (!PENDING_ORDER) { return; }
+  var p = PENDING_ORDER;
+  closeModal();
+  if (p.kind === 'sort') {
+    postAction('sort', { by: p.by },
+      p.by === 'NAME' ? TLi18n.t('tcreo.sortedName') : TLi18n.t('tcreo.sortedExtId'));
+  } else {
+    postAction('reorder', { nodelist: p.nodelist }, TLi18n.t('tcreo.reorderSaved'));
+  }
+}
+
+$(function () {
+  TPROJECT_ID = parseInt(qs('tproject_id', 0), 10) || 0;
+  CONTAINER_ID = parseInt(qs('container_id', 0), 10) || 0;
+
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    $('#footerInfo').text(TLi18n.t('footers.tcReorder'));
+
+    $('#selSuite').on('change', function () {
+      CONTAINER_ID = parseInt($(this).val(), 10) || 0;
+      setNotice('', '');
+      load();
+    });
+    $('#rows').on('click', 'button.op', function () {
+      doMove(parseInt($(this).data('node'), 10), $(this).data('op'));
+    });
+    $('#mask').on('click', function (e) {
+      if (e.target === this) { closeModal(); }
+    });
+    load();
+  });
+});
+</script>
+</body>
+</html>

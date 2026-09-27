@@ -286,8 +286,9 @@ function tcreoContainerChildren(&$db, $containerId, $tprojectId)
                   'message' => 'Container belongs to another test project'), 404);
     }
 
-    $sql = "SELECT NH.id, NH.name, NH.node_order, NH.testcase_id" .
+    $sql = "SELECT NH.id, NH.name, NH.node_order, NH.testcase_id, TC.tc_external_id" .
            " FROM {$GLOBALS['dbprefix']}nodes_hierarchy NH" .
+           " LEFT JOIN {$GLOBALS['dbprefix']}testcases TC ON TC.id = NH.testcase_id" .
            " WHERE NH.parent_id = " . intval($containerId) .
            " AND NH.node_type_id = " . NODE_TYPE_TESTCASE .
            " ORDER BY NH.node_order, NH.id";
@@ -329,6 +330,7 @@ function tcreoRowsPayload(&$db, $rows)
             'node_id' => intval($r['id']),
             'tcase_id' => intval($r['testcase_id']),
             'name' => $r['name'],
+            'external_id' => isset($r['tc_external_id']) ? (string)$r['tc_external_id'] : '',
             'position' => $n,
         );
     }
@@ -363,21 +365,7 @@ if ($action === 'init') {
     list($container, $children) = tcreoContainerChildren($db, $containerId, $tprojectId);
 
     $criterion = tcreoSortCriterion();
-    $tcversionMgr = new testcase($db);
-    $paged = array();
-    foreach ($children as $r) {
-        $r['external_id'] = '';
-        $paged[] = $r;
-    }
-    // external id comes from the test case itself
-    foreach ($paged as $k => $r) {
-        $sql = "SELECT tc_external_id FROM {$GLOBALS['dbprefix']}testcases" .
-               " WHERE id = " . intval($r['testcase_id']);
-        $erow = $db->get_recordset($sql);
-        if (!is_null($erow) && count($erow) > 0) {
-            $paged[$k]['external_id'] = $erow[0]['tc_external_id'];
-        }
-    }
+    $paged = $children;
 
     out(array(
         'status' => 'ok',
@@ -467,16 +455,8 @@ if ($action === 'sort') {
     $rows = $children;
     $key = ($by === 'NAME') ? 'sort_name' : 'sort_ext';
     foreach ($rows as $k => $r) {
-        $ext = '';
-        $sql = "SELECT tc_external_id FROM {$GLOBALS['dbprefix']}testcases" .
-               " WHERE id = " . intval($r['testcase_id']);
-        $erow = $db->get_recordset($sql);
-        if (!is_null($erow) && count($erow) > 0) {
-            $ext = (string)$erow[0]['tc_external_id'];
-        }
-        $name = (string)$r['name'];
-        $rows[$k]['sort_name'] = strcasecmp($name, '') === 0 ? $name : $name;
-        $rows[$k]['sort_ext'] = $ext;
+        $rows[$k]['sort_name'] = (string)$r['name'];
+        $rows[$k]['sort_ext'] = isset($r['tc_external_id']) ? (string)$r['tc_external_id'] : '';
     }
     usort($rows, function ($a, $b) use ($key) {
         $c = strcasecmp((string)$a[$key], (string)$b[$key]);
