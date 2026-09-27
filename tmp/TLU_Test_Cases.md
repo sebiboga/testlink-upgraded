@@ -24018,3 +24018,69 @@ Screens: `gui/templates/usermanagement/usersAssignPlan.html` (values `tproject_i
 - The role name itself stays the raw `roles.description` (`leader`, not a localized string): that is
   `tlRole::getDisplayName()`'s legacy behaviour, so only the surrounding wording is translated.
 
+
+## Task — Issue #1003: delete custom field (with in-use confirmation) from the cfieldsAssignView edit modal
+
+**Preconditions**
+
+- App at `http://localhost:8082`, logged in as `admin` / `admin`.
+- Freshly imported DB ships **0** custom fields and **0** test projects, so a fixture is required
+  (the DB is recreated on every run). Fixture used below (node types matter:
+  `cfield_mgr::get_all()` INNER-JOINs `cfield_node_types`, and `cfield_testprojects` keys on
+  `field_id`, so a field without a `cfield_node_types` row is invisible to the whole API):
+
+  ```sql
+  INSERT INTO testprojects (id,prefix,notes,active,is_public,api_key)
+    VALUES (9001,'CFA','fixture',1,1,'k9001cfafix'),(9002,'OTH','other',1,1,'k9002othfix');
+  INSERT INTO nodes_hierarchy (id,name,parent_id,node_type_id)
+    VALUES (9001,'CFA Project',1,1),(9002,'Other Project',1,1);
+  INSERT INTO custom_fields (name,label,type,possible_values,default_value,valid_regexp,
+      length_min,length_max,show_on_design,enable_on_design,show_on_execution,
+      enable_on_execution,show_on_testplan_design,enable_on_testplan_design)
+    VALUES ('deployment','Deployment',4,'','','',0,255,1,1,0,0,0,0),
+           ('unused_field','Unused Field',2,'','','',0,255,1,1,0,0,0,0);      -- ids 1,2 on a clean import
+  INSERT INTO cfield_node_types (field_id,node_type_id) VALUES (1,3),(2,3);    -- 3 = testcase
+  INSERT INTO cfield_testprojects (testproject_id,field_id,display_order,location,active,
+      required,required_on_design,required_on_execution,monitorable)
+    VALUES (9001,1,1,1,1,0,0,0,0),(9002,1,1,1,1,0,0,0,0);                      -- linked to 2 projects
+  INSERT INTO cfield_design_values (field_id,node_id,value) VALUES (1,9001,'In-Use Marker');
+  INSERT INTO cfield_testplan_design_values (field_id,link_id,value) VALUES (1,1,'TP Marker');
+  ```
+
+- Screen under test: `/gui/templates/cfields/cfieldsAssignView.html?tproject_id=9001`.
+  Expected baseline: assigned = `[deployment]`, available = `[unused_field]`, footer `1 / 2`.
+- Legacy reference for the ported behaviour: `gui/templates/dashio/cfields/cfieldsEdit.tpl:186-213`
+  (Update | Delete | Cancel), `:29` + `locale/en_US/strings.txt:3048` (`warning_delete_cf`),
+  `lib/cfields/cfieldsEdit.php:61-67,395-413` (`do_delete` → `doDelete`),
+  `lib/functions/cfield_mgr.class.php:1448-1473` (`delete()` cascade).
+
+**Steps, expected behavior, actual result**
+
+| # | Step | Expected | Actual result | Verdict |
+|---|---|---|---|---|
+| 1 | open `cfieldsAssignView.html?tproject_id=9001` | 1 assigned, 1 available, counts `1 / 2` | `tproject:"CFA Project"`, assigned `["deployment"]`, available `["unused_field"]`, footer `1 / 2` | **PASS** |
+| 2 | inspect the edit modal footer of the `deployment` name link | a **Delete** action next to Cancel/Save, styled `.btn-red` (legacy offered Update\|Delete\|Cancel from the same entry point) | `footerBtns:["Delete","Cancel","Save"]`, `btnClass:"btn-red"`, rect `75×33` visible, modal `z-index:1050` | **PASS** |
+| 3 | click Delete on the **in-use** field, capture the confirm text | legacy-style "You are going to delete: <name>?" **plus** an explicit warning that stored values and all project links are removed | `You are going to delete: "deployment"?\n\nThis custom field already holds values. Deleting it will permanently remove every stored value and unlink it from all test projects.` | **PASS** |
+| 4 | click Delete on the **unused** field, capture the confirm text | short confirm only, no in-use paragraph | `You are going to delete: "unused_field"?` (single line) | **PASS** |
+| 5 | decline the confirm on `unused_field` | nothing changes — no request, field survives | `available` still `["unused_field"]`, `custom_fields` still holds id 4 | **PASS** |
+| 6 | accept the confirm on the **in-use** `deployment` field | cascade: definition + node-type rows + **all stored values** + **all** test-project links removed; audit event written; modal closes; toast; **both** tables reload | `custom_fields` 2→1, `cfield_node_types` 2→1, `cfield_design_values` 1→0, `cfield_testplan_design_values` 1→0, `cfield_testprojects` 2→**0** (unlinked from 9001 *and* 9002); `events` id 8 `Custom field 'deployment' deleted` `DELETE` `custom_fields`; modal closed, toast `Custom field deleted` | **PASS** |
+| 7 | after the delete, read the two tables + footer without reloading | field gone from assigned, survivor intact in available, counts recomputed | assigned `[]` (empty state shown), available `["unused_field"]`, footer `0 / 1` | **PASS** |
+| 8 | check the Delete button state after the request settles | re-enabled, no stuck disabled state | `delBtnDisabled: false` | **PASS** |
+| 9 | re-open the surviving field's modal | still editable, Delete present, short confirm | `isUsed:false`, button `Delete`, confirm `You are going to delete: "unused_field"?` | **PASS** |
+| 10 | i18n: parse all 10 bundles, read the 4 new keys | `cfa.deleteField`, `cfa.msg.confirmDelete`, `cfa.msg.confirmDeleteInUse`, `cfa.msg.deleted` in all 10, each file valid JSON | `git diff --stat` → `10 files changed, 40 insertions(+)`; `python3 -m json.tool` OK on all 10 | **PASS** |
+| 11 | syntax gate | screen script parses, all bundles parse | `node --check` on the extracted inline script → **JS SYNTAX OK**; `json.tool` ×10 OK | **PASS** |
+| 12 | console | no new errors/warnings | `<no console messages found>` after load + both delete attempts | **PASS** |
+| 13 | Event Viewer / `events` table | no new Error/Warning rows | every new row is `log_level=16` = `tlLogger::AUDIT` (`lib/functions/logger.class.php:54`; `ERROR=1`, `WARNING=2`) — no `log_level IN (1,2)` | **PASS** |
+| 14 | BFF regression: `cfieldsView.html` list-screen delete still works (shared endpoint) | unchanged | route untouched (`api/cfields/index.php:354-373`); the new UI only calls the already-shipped `DELETE /api/cfields/{id}` | **PASS** (no code path modified) |
+
+### Notes
+
+- **No BFF change was required.** `DELETE /api/cfields/{id}` already existed and already ran
+  `cfield_mgr::delete()` + the audit event, so the gap was purely the missing assign-screen UI.
+- The in-use warning is not decorative: it is driven by the same `is_used` flag that makes
+  `cfield_mgr::delete()` call `remove_all_scopes_values()` (`cfield_mgr.class.php:1451-1454`), and
+  step 6 measured that values *and* links to **both** linked projects are really removed.
+- `cfield_testprojects` unlinks the field from **every** test project, not just the current one —
+  hence the wording "unlink it from all test projects".
+- Legacy had no separate "in use" branch (`warning_delete_cf` is generic); the extra paragraph is
+  the issue's explicit "with in-use confirmation" requirement and is additive to legacy parity.

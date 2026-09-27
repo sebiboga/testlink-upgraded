@@ -163,6 +163,7 @@ table.dataTable tbody tr.selected-row td { background: #eefaf9; }
         <div id="modalError" style="color:#e6605e;font-size:12px;margin-top:8px;display:none;"></div>
       </div>
       <div class="modal-footer">
+        <button type="button" id="btnDeleteCf" class="btn-red" onclick="deleteCfFromModal()" style="font-size:13px;float:left;" data-i18n="cfa.deleteField">Delete</button>
         <button type="button" class="btn btn-secondary" data-dismiss="modal" style="font-size:13px;" data-i18n="common.cancel">Cancel</button>
         <button type="button" class="btn-teal" onclick="saveCf()" style="font-size:13px;" data-i18n="common.save">Save</button>
       </div>
@@ -183,6 +184,11 @@ var assignedTbl = null, availableTbl = null;
 var dirty = false;
 var typeMap = {};
 var nodeMap = {};
+// State of the field currently open in #cfModal, kept so the Delete action can
+// build the legacy-style confirmation (which names the field) and knows whether
+// cfield_mgr::delete() will also wipe stored values.
+var editCfIsUsed = false;
+var editCfName = '';
 
 $(function () {
   var p = new URLSearchParams(window.location.search);
@@ -267,6 +273,8 @@ function editCf(id) {
     $('#editEnableExecution').prop('checked', cf.enable_on_execution === 1);
     $('#editEnableTestplanDesign').prop('checked', cf.enable_on_testplan_design === 1);
     $('#editShowOnExecution').prop('checked', cf.show_on_execution === 1);
+    editCfIsUsed = !!cf.is_used;
+    editCfName = cf.name;
     $('#modalError').hide();
     applyShowOnExecVis();
     $('#cfModal').modal('show');
@@ -327,6 +335,44 @@ function saveCf() {
 
 function esc(s) {
   return $('<div>').text(s == null ? '' : s).html();
+}
+
+// Delete from the edit modal ----------------------------------------------
+//
+// Legacy parity: cfieldsEdit.tpl:190-198 offered Update + Delete on the very
+// form the assign screen links to, and do_delete ran through
+// cfield_mgr::delete() (cfieldsEdit.php:395-413), which - when the field
+// already holds values - calls remove_all_scopes_values() first
+// (cfield_mgr.class.php:1451-1454). That cascade is irreversible, so the
+// confirmation names the field like the legacy warning_delete_cf did and, for
+// an in-use field, adds the explicit "stored values will be removed" warning.
+function deleteCfFromModal() {
+  var id = $('#editCfId').val();
+  if (!id) { return; }
+  var name = editCfName || $('#editName').val();
+  var msg = TLi18n.t('cfa.msg.confirmDelete') + ' "' + name + '"?';
+  if (editCfIsUsed) { msg += '\n\n' + TLi18n.t('cfa.msg.confirmDeleteInUse'); }
+  if (!confirm(msg)) { return; }
+
+  var $btn = $('#btnDeleteCf').prop('disabled', true);
+  $.ajax({
+    url: API + '/' + id, type: 'DELETE'
+  }).done(function () {
+    $('#cfModal').modal('hide');
+    editCfIsUsed = false;
+    editCfName = '';
+    toast(TLi18n.t('cfa.msg.deleted'));
+    // Rebuilds both tables: the field disappears from assigned and/or available
+    // and the counts/footer info are recomputed.
+    load();
+  }).fail(function (xhr) {
+    var m = TLi18n.t('cf.msg.errorDelete');
+    try { m = JSON.parse(xhr.responseText).message || m; } catch (e) {}
+    $('#modalError').text(m).show();
+    toast(m, true);
+  }).always(function () {
+    $btn.prop('disabled', false);
+  });
 }
 
 function toast(msg, isError) {
