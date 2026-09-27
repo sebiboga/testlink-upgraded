@@ -23753,3 +23753,73 @@ the form from the console: `f.querySelector('input[type=text]').value=…; f.sub
 | 8 | **code review blocker** — `reqViewVersions.tpl` passed no context and the per-version loops in `testcase.class.php` / `reqView.php` *overwrote* `$_SESSION['s_lastAttachmentInfos']`, so the allow-list only described the last row | `665128bf2` | #1640 |
 | 9 | owner labels carried hardcoded English type nouns ("Test case", "Build", …) — untranslatable | `665128bf2` | #1638 |
 | 10 | object-level authorization missing: a logged-in user with a valid `(id, table, fk_id)` triple can delete an attachment from a project they have no rights on | — | #1647 (open follow-up) |
+
+---
+
+## Regression — Issue #1594: duplicate/missing sections in `input_dimensions.conf` + one-option length menu
+
+**Precondition**
+
+Freshly imported DB. Fixtures recreated (all list tables were empty):
+
+```sql
+INSERT INTO testprojects (id,notes,color,active,option_reqs,option_priority,option_automation,prefix,tc_counter,is_public,issue_tracker_enabled,code_tracker_enabled,reqmgr_integration_enabled,api_key)
+  VALUES (1,'demo','#9BD',1,0,0,0,'TL',0,1,0,0,0,'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
+INSERT INTO testplans (id,testproject_id,notes,active,is_open,is_public,api_key)
+  VALUES (1,1,'demo plan',1,1,1,'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb');
+INSERT INTO milestones (testplan_id,target_date,start_date,a,b,c,name)
+  VALUES (1,'2026-12-31','2026-01-01',100,0,0,'Milestone One');
+INSERT INTO nodes_hierarchy (id,name,parent_id,node_type_id,node_order) VALUES (1,'demo plan',NULL,1,1);
+INSERT INTO platforms (name,testproject_id,notes,enable_on_design,enable_on_execution,is_open)
+  VALUES ('Linux',1,'demo notes for truncation check',1,1,1);
+```
+
+`nodes_hierarchy` is mandatory: `lib/functions/milestone.class.php:239` joins
+`milestones M, nodes_hierarchy NH`; without the row the screen returns HTTP 500.
+Login `admin/admin` (user id 1).
+
+**Repro steps (pre-fix behaviour)**
+
+1. `curl -s -b cj.txt "http://localhost:8082/lib/usermanagement/rolesView.php" | grep -o 'lengthMenu.*'`
+2. `curl -s -b cj.txt "http://localhost:8082/lib/plan/planMilestonesView.php?tplan_id=1&tproject_id=1" | grep -o 'lengthMenu.*'`
+3. `grep -n "^\[" gui/templates/conf/input_dimensions.conf | awk -F'[][]' '{print $2}' | sort | uniq -c | awk '$1>1'`
+4. `grep -c "'rolesView' =>" gui/templates_c/*input_dimensions.conf.php`
+
+**Expected post-fix**
+
+* Every section is declared exactly once.
+* `rolesView` and `planMilestonesView` each have their own section (no silent global fallback).
+* Both screens serve the full `20 / 40 / 60 / All` page-length menu, like every other list screen.
+* The **compiled** config is unchanged for every pre-existing section (the merge is behaviour-preserving).
+* No new `Error`/`Warning` row in the Event Viewer.
+
+**Actual result**
+
+| # | Assertion | Result |
+|---|---|---|
+| 1 | `rolesView.php` ×3 cache-bypassing loads → HTTP 200 and `"lengthMenu": [ [20, 40, 60, -1], [20, 40, 60, "All"] ]` (pre-fix: `[ 20 ]`) | **PASS** |
+| 2 | `rolesView.php` markup intact: `<table id="item_view" class="table table-bordered">`, 10 `<tr>` (pre-fix: same) | **PASS** |
+| 3 | `planMilestonesView.php?tplan_id=1&tproject_id=1` → HTTP 200, `Milestone One` rendered, `"lengthMenu": [ [20, 40, 60, -1], [20, 40, 60, "All"] ]` (pre-fix: `[ 20 ]`) | **PASS** |
+| 4 | No duplicate section: `uniq -c \| awk '$1>1'` → no output (pre-fix: `[platformsView]`, `[buildView]`, `[cfieldsTprojectAssign]` each ×2) | **PASS** |
+| 5 | Compiled config diff before/after: 44 → 46 sections, `removed: []`, `added: ['planMilestonesView','rolesView']`, every pre-existing section **byte-identical** | **PASS** |
+| 6 | `platformsView.php` → HTTP 200, `PLATFORM_NOTES_TRUNCATE_LEN => 120` still in the compiled conf, `demo notes for truncation check` still rendered (guards the `[platformsView]` merge) | **PASS** |
+| 7 | `cfieldsTprojectAssign.php` → HTTP 200 (guards the `[cfieldsTprojectAssign]` merge) | **PASS** |
+| 8 | Sibling screens byte-identical to the pre-fix baseline: `planView` `[20,40,60,-1]/All`, `platformsView` same, `keywordsView` `[40,60,80,-1]/All`, `projectView` same; `issueTrackerView` / `codeTrackerView` emit no `lengthMenu` before or after (no fixture rows) | **PASS** |
+| 9 | `buildView.php` → HTTP 500 **before and after** the fix (fresh DB has no `builds`/`testplan_testbuild` rows) — pre-existing, fixture-dependent, not a regression | **PASS** (documented, not blocking) |
+| 10 | Event Viewer: `DELETE FROM events WHERE log_level IN (1,2)` then reload all screens → 0 warnings on the `rolesView`/conf/`config.inc.php` path; the only rows are 2 × pre-existing `E_WARNING Undefined property: stdClass::$testPriorityEnabled` (one per `planMilestonesView` load) | **PASS** |
+| 11 | Locale matrix `ro_RO` / `en_GB` / `es_ES`: `rolesView.php` HTTP 200, full length menu, 0 warning rows after each locale | **PASS** |
+| 12 | Browser (chrome-devtools, real DOM): `.dataTables_length select` options = `["20=20","40=40","60=60","All=-1"]`, 9 role rows, no init error | **PASS** |
+| 13 | Browser: `planMilestonesView` has 0 elements with `id="item_view"` and no `.dataTables_length` — pre-existing template gap (out of scope, filed as a follow-up) | **PASS** (documented) |
+| 14 | Syntax gates: `php -l config.inc.php` and `php -l` on the recompiled `rolesView` / `planMilestonesView` templates — all clean | **PASS** |
+
+**Totals: 14 assertions — 14 PASS / 0 FAIL.**
+
+**Corrected assumptions** (measured, documented on the issue):
+
+* The three duplicate sections were **not** dropping keys — `smarty_internal_configfileparser.php:1037-1044`
+  reuses the vars array, so the second block's keys merge with the first one's; the compiled
+  `platformsView` section holds all 8 keys. De-duplication is hygiene, not a key-loss bugfix.
+* `rolesView.tpl`'s missing `|basename` was **not** a cause — on Smarty 4.5.7 `$smarty.template`
+  already compiles to `basename($_smarty_tpl->source->filepath)`
+  (`smarty_internal_compile_private_special_variable.php:82`), so `$cfg_section` was `rolesView`
+  all along. The missing section was the cause.
