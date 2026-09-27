@@ -3954,21 +3954,68 @@ function getPublicAttr($id)
   /**
    * @used-by 
    */
-  function getOptions($id) {
+   function getOptions($id) {
     $debugMsg = $this->debugMsg . __FUNCTION__;
     $sql = "/* $debugMsg */ SELECT testprojects.options ".
            " FROM {$this->object_table} testprojects " .
            " WHERE testprojects.id = " . intval($id);
     $rs = $this->db->get_recordset($sql);  
     if (null == $rs || count($rs) <=0) {
-      return (object)[];
+      return $this->getDefaultOptions();
     }
     $raw = $rs[0]['options'];
     if (!is_string($raw) || $raw === '' || !in_array($raw[0], ['O','a','s','i','d','b','N','R'], true)) {
-      return (object)[];
+      return $this->getDefaultOptions();
     }
     $obj = $this->decodeStoredOptions($raw);
-    return $obj !== false ? $obj : (object)[];
+    if ($obj === false) {
+      return $this->getDefaultOptions();
+    }
+    // a blob written by an older release can be valid but carry only a subset
+    // of the keys: complete it, otherwise the same E_WARNING comes back
+    return is_object($obj) ? $this->completeOptions($obj) : $obj;
+  }  
+
+  /**
+   * Add the canonical option keys that a decoded blob does not carry, without
+   * ever overwriting a stored value.
+   *
+   * Refs #1649. getDefaultOptions() covers the "no usable blob" paths; this
+   * covers the "valid but partial blob" path (older releases only serialized
+   * the options that were once toggled). Values already present are kept.
+   */
+  private function completeOptions($obj) {
+    $defaults = $this->getDefaultOptions();
+    foreach (get_object_vars($defaults) as $prop => $value) {
+      if (!property_exists($obj, $prop)) {
+        $obj->$prop = $value;
+      }
+    }
+    return $obj;
+  }
+
+  /**
+   * Options object used when a test project has no usable options blob.
+   *
+   * Refs #1649. testprojects.options is a nullable column, and the decode
+   * hardening of #1484 added two more fallback paths (bad first byte, failed
+   * unserialize). All of them used to return an EMPTY object, so every
+   * consumer that reads an option key without an isset() guard raised
+   * "Undefined property: stdClass::$testPriorityEnabled" (14 Smarty templates
+   * + ~10 PHP call sites), and setOptions() could never persist the first
+   * write because it only copies properties that already exist on the object.
+   *
+   * All four keys are returned with their "disabled" default, exactly as the
+   * sibling decoder parseTestProjectRecordset() does. Consumers keep their
+   * current behaviour: 0 is falsy, like a missing property was.
+   */
+  function getDefaultOptions() {
+    $obj = new stdClass();
+    $obj->requirementsEnabled = 0;
+    $obj->testPriorityEnabled = 0;
+    $obj->automationEnabled = 0;
+    $obj->inventoryEnabled = 0;
+    return $obj;
   }  
 
   /**
