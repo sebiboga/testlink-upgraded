@@ -2236,6 +2236,22 @@ class testplan extends tlObjectWithAttachments
   {
     $debugMsg = 'Class:' . __CLASS__ . ' - Method: ' . __FUNCTION__;
 
+      // Refs #1678: the upward walk is bounded only by the
+      // `node_type_id <> <testproject>` filter below, so it can reach a node
+      // that has no parent (an orphan suite, a node whose parent row was
+      // deleted, or any non-testproject node sitting at the root) and then
+      // recurse with NULL. NULL used to be concatenated straight into the
+      // SQL, producing `AND NH.id = ` -> MariaDB 1064, which
+      // database.class.php:789 records as a `log_level=1 DATABASE` Event
+      // Viewer row on every hit. The 2.0.1 nodes_hierarchy refactor made
+      // parent_id nullable, so this shape is far easier to reach than in
+      // 1.9.20. Guard + intval: same class of fix as the #577 cast-to-array
+      // applied to the caller's get_recordset() (get_testsuites()).
+      $id = intval($id);
+      if ($id <= 0) {
+        return array();
+      }
+
       $sql = " /* $debugMsg */ SELECT name, id, parent_id " .
            "FROM {$this->tables['nodes_hierarchy']}  NH " .
            "WHERE NH.node_type_id <> {$this->node_types_descr_id['testproject']} " .
