@@ -5040,6 +5040,7 @@
   "kwxml.formatSample": "格式示例",
   "kwxml.fileName": "文件名",
   "kwxml.fileNameHint": "扩展名将根据所选格式自动调整。",
+  "kwxml.viewDocs": "查看文件格式文档",
   "kwxml.fileLabel": "关键字文件",
   "kwxml.maxFileSize": "文件大小上限：{kb} KB",
   "kwxml.exportBtn": "导出",

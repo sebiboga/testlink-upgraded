@@ -33,6 +33,8 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 label { display: block; font-size: 12px; font-weight: 600; color: #22242a; margin-bottom: 5px; }
 input[type=text], select, textarea { width: 100%; padding: 8px 10px; border: 1px solid #d5d5d5; border-radius: 4px; font-size: 13px; font-family: inherit; }
 .hint { font-size: 11px; color: #888; margin-top: 5px; }
+.doc-link { display: inline-block; color: #0f6862; font-size: 12px; margin-top: 6px; text-decoration: none; }
+.doc-link:hover { text-decoration: underline; }
 pre.sample { background: #f7f7f7; border: 1px solid #e3e3e3; border-radius: 4px; padding: 10px; font-size: 11px; color: #333; white-space: pre-wrap; word-break: break-all; max-height: 220px; overflow: auto; margin: 8px 0 0; }
 .ok { background: #e8f8f5; border: 1px solid #bfe5e2; color: #1d6f69; border-radius: 5px; padding: 10px 14px; font-size: 13px; margin-bottom: 14px; }
 .err { background: #fdeceb; border: 1px solid #f5c6c4; color: #a13b39; border-radius: 5px; padding: 10px 14px; font-size: 13px; margin-bottom: 14px; }
@@ -181,6 +183,18 @@ function formatSample(type) {
     '<pre class="sample">' + esc(d) + '</pre>';
 }
 
+// Legacy keywordsImport.tpl:31 / keywordsExport.tpl:63 render a "view file
+// format documentation" anchor right below the file-type select, pointing at
+// PARTIAL_URL_TL_FILE_FORMATS_DOCUMENT (cfg/const.inc.php:919 ->
+// docs/tl-file-formats.pdf). Same anchor, same spot, in both exchange panels -
+// the PDF is a static asset under the served docroot, so no BFF call is needed.
+var FILE_FORMATS_DOC = '/docs/tl-file-formats.pdf';
+
+function docLink() {
+  return '<a class="doc-link" href="' + FILE_FORMATS_DOC + '" target="_blank" rel="noopener">' +
+    '<i class="fa fa-file-pdf-o"></i> ' + esc(t('kwxml.viewDocs')) + '</a>';
+}
+
 function exportPanel(right) {
   if (!right.export) {
     return msgCard('fa-lock', '#e6605e', 'kwxml.deniedTitle', 'kwxml.deniedExportMsg');
@@ -190,6 +204,7 @@ function exportPanel(right) {
     esc(t('kwxml.modeExport')) + '</div><div class="card-b">' +
     '<label for="exportType">' + esc(t('kwxml.format')) + '</label>' +
     '<select id="exportType" onchange="exportTypeChanged()">' + typeOptions(CTX.exportTypes) + '</select>' +
+    docLink() +
     formatSample(extOf(defaultId()).toUpperCase()) +
     '<label for="exportFilename" style="margin-top:16px">' + esc(t('kwxml.fileName')) + '</label>' +
     '<input type="text" id="exportFilename" maxlength="255" oninput="CTX.filename = this.value" ' +
@@ -210,6 +225,7 @@ function importPanel(right) {
     esc(t('kwxml.modeImport')) + '</div><div class="card-b">' +
     '<label for="importType">' + esc(t('kwxml.format')) + '</label>' +
     '<select id="importType" onchange="renderImportSample()">' + typeOptions(CTX.importTypes) + '</select>' +
+    docLink() +
     formatSample(extOf(defaultId()).toUpperCase()) +
     '<label for="importFile" style="margin-top:16px">' + esc(t('kwxml.fileLabel')) + '</label>' +
     '<input type="file" id="importFile">' +

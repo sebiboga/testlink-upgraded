@@ -5070,6 +5070,7 @@
   "kwxml.formatSample": "Format sample",
   "kwxml.fileName": "File name",
   "kwxml.fileNameHint": "The extension is adjusted to the selected format.",
+  "kwxml.viewDocs": "View File Format Documentation",
   "kwxml.fileLabel": "Keywords file",
   "kwxml.maxFileSize": "Maximum file size: {kb} KB",
   "kwxml.exportBtn": "Export",

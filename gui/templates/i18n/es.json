@@ -5054,6 +5054,7 @@
   "kwxml.formatSample": "Ejemplo de formato",
   "kwxml.fileName": "Nombre del archivo",
   "kwxml.fileNameHint": "La extensión se ajusta al formato seleccionado.",
+  "kwxml.viewDocs": "Ver documentación del formato de archivo",
   "kwxml.fileLabel": "Archivo de palabras clave",
   "kwxml.maxFileSize": "Tamaño máximo del archivo: {kb} KB",
   "kwxml.exportBtn": "Exportar",

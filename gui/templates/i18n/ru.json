@@ -5060,6 +5060,7 @@
   "kwxml.formatSample": "Пример формата",
   "kwxml.fileName": "Имя файла",
   "kwxml.fileNameHint": "Расширение подстраивается под выбранный формат.",
+  "kwxml.viewDocs": "Посмотреть документацию по формату файла",
   "kwxml.fileLabel": "Файл ключевых слов",
   "kwxml.maxFileSize": "Максимальный размер файла: {kb} КБ",
   "kwxml.exportBtn": "Экспорт",

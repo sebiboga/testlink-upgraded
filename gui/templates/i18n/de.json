@@ -5054,6 +5054,7 @@
   "kwxml.formatSample": "Formatbeispiel",
   "kwxml.fileName": "Dateiname",
   "kwxml.fileNameHint": "Die Endung wird dem gewählten Format angepasst.",
+  "kwxml.viewDocs": "Dokumentation zum Dateiformat anzeigen",
   "kwxml.fileLabel": "Schlüsselwortdatei",
   "kwxml.maxFileSize": "Maximale Dateigröße: {kb} KB",
   "kwxml.exportBtn": "Export",

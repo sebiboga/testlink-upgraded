@@ -5060,6 +5060,7 @@
   "kwxml.formatSample": "形式の例",
   "kwxml.fileName": "ファイル名",
   "kwxml.fileNameHint": "選択した形式に合わせて拡張子が調整されます。",
+  "kwxml.viewDocs": "ファイル形式のドキュメンテーションを表示",
   "kwxml.fileLabel": "キーワードファイル",
   "kwxml.maxFileSize": "最大ファイルサイズ: {kb} KB",
   "kwxml.exportBtn": "エクスポート",

@@ -5064,6 +5064,7 @@
   "kwxml.formatSample": "Exemplu de format",
   "kwxml.fileName": "Nume fisier",
   "kwxml.fileNameHint": "Extensia este ajustata la formatul selectat.",
+  "kwxml.viewDocs": "Vezi documentația formatului de fișier",
   "kwxml.fileLabel": "Fisier cuvinte cheie",
   "kwxml.maxFileSize": "Dimensiune maxima a fisierului: {kb} KB",
   "kwxml.exportBtn": "Export",
