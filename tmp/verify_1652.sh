@@ -7,6 +7,7 @@ DB="mysql -h 127.0.0.1 -utestlink -ptestlink testlink -N -B -e"
 API="$BASE/api/logviewer/index.php"
 JAR=/tmp/verify_1652_cookies.txt
 JAR2=/tmp/verify_1652_norights.txt
+JAR3=/tmp/verify_1652_projonly.txt
 DEAD=/tmp/verify_1652_dead.txt
 P=0; F=0
 ok(){ P=$((P+1)); printf 'PASS %s\n' "$1"; }
@@ -46,7 +47,7 @@ done
 EV0=$($DB "SELECT IFNULL(MAX(id),0) FROM events;")
 
 echo "=== 1. auth ==="
-rm -f $JAR $JAR2 $DEAD
+rm -f $JAR $JAR2 $JAR3 $DEAD
 code "$API?action=log&type=requirement_version&id=$REQ1_V1&tproject_id=$TPROJECT" >/dev/null
 chk "anonymous -> 401" 401 "$(code "$API?action=log&type=requirement_version&id=$REQ1_V1&tproject_id=$TPROJECT")"
 chk "anonymous code" "session_expired" "$(jqf "['code']")"
@@ -58,13 +59,33 @@ curl -s -c $JAR -b $JAR -o /dev/null -d "tl_login=admin&tl_password=admin" "$BAS
 chk "admin session -> 200" 200 "$(code -b $JAR "$API?action=log&type=requirement_version&id=$REQ1_V1&tproject_id=$TPROJECT")"
 contains "admin session cookie present" "PHPSESSID" "$(cat $JAR)"
 
-echo "=== 2. no-rights user -> 403 ==="
+echo "=== 2. no-rights user -> 403, project-scoped role -> 200 on its own project ==="
 BCRYPT=$(php -r 'echo password_hash("Passw0rd!x", PASSWORD_BCRYPT);')
-$DB "DELETE FROM users WHERE login='norights1652';" >/dev/null
-$DB "INSERT INTO users (login,password,role_id,email,first,last,locale,active)
-     VALUES ('norights1652','$BCRYPT',3,'nr@tl.invalid','No','Rights','en_GB',1);" >/dev/null
+# NB: users.cookie_string carries a UNIQUE key, so every fixture user needs its
+# own non-empty value or the second INSERT dies with ER_DUP_ENTRY.
+$DB "DELETE FROM users WHERE login IN ('norights1652','projonly1652');" >/dev/null
+$DB "DELETE FROM users WHERE cookie_string IN ('1652-norights','1652-projonly');" >/dev/null
+$DB "INSERT INTO users (login,password,role_id,email,first,last,locale,active,cookie_string)
+     VALUES ('norights1652','$BCRYPT',3,'nr@tl.invalid','No','Rights','en_GB',1,'1652-norights');" >/dev/null
 if [ "$($DB "SELECT COUNT(*) FROM users WHERE login='norights1652' AND role_id=3 AND active=1;")" = "1" ]; then
   ok "no-rights fixture user created (role_id 3)"; else no "no-rights fixture user missing"; fi
+# A user with NO global rights but a role grant (role 4 = test designer, which
+# carries mgt_view_req) on ONE project only. This is the production
+# user_testproject_roles path, and it takes a different branch in
+# tlUser::hasRight() than either the admin (global) or the role-3 user.
+$DB "INSERT INTO users (login,password,role_id,email,first,last,locale,active,cookie_string)
+     VALUES ('projonly1652','$BCRYPT',3,'po@tl.invalid','Project','Only','en_GB',1,'1652-projonly');" >/dev/null
+PU=$($DB "SELECT id FROM users WHERE login='projonly1652' LIMIT 1;")
+if [ -n "$PU" ] && [ "$PU" -gt 0 ] 2>/dev/null; then
+  ok "project-scoped fixture user created (global role_id 3)"; else no "project-scoped fixture user missing"; fi
+$DB "DELETE FROM user_testproject_roles WHERE user_id=$PU;" >/dev/null
+$DB "INSERT INTO user_testproject_roles (user_id,testproject_id,role_id) VALUES ($PU,$TPROJECT,4);" >/dev/null
+if [ "$($DB "SELECT COUNT(*) FROM user_testproject_roles WHERE user_id=$PU AND testproject_id=$TPROJECT AND role_id=4;")" = "1" ]; then
+  ok "project-scoped role grant stored (role 4 on tproject $TPROJECT)"; else no "project-scoped role grant missing"; fi
+rm -f $JAR3
+curl -s -c $JAR3 -b $JAR3 -o /dev/null "$BASE/login.php"
+curl -s -c $JAR3 -b $JAR3 -o /dev/null -d "tl_login=projonly1652&tl_password=Passw0rd%21x" "$BASE/login.php"
+contains "project-scoped user session cookie present" "PHPSESSID" "$(cat $JAR3)"
 curl -s -c $JAR2 -b $JAR2 -o /dev/null "$BASE/login.php"
 curl -s -c $JAR2 -b $JAR2 -o /dev/null -d "tl_login=norights1652&tl_password=Passw0rd%21x" "$BASE/login.php"
 chk "no-rights user -> 403" 403 "$(code -b $JAR2 "$API?action=log&type=requirement_version&id=$REQ1_V1&tproject_id=$TPROJECT")"
@@ -160,16 +181,72 @@ absent "XHR fragment ESCAPES the script tag (legacy XSS closed)" "<script>alert"
 contains "XHR fragment escapes angle brackets" "&lt;script&gt;" "$F1"
 contains "XHR fragment keeps newlines as <br />" "<br />" "$F1"
 contains "XHR fragment keeps the ampersand escaped" "&amp;" "$F1"
-chk "XHR getreqspeclog on the EMPTY revision -> empty fragment" "" "$(frag "$BASE/lib/ajax/getreqspeclog.php?item_id=$SPEC_EMPTY_REV1")"
+chk "XHR getreqspeclog on the EMPTY revision -> legacy 'Log Message is empty' hint" "Log Message is empty" "$(frag "$BASE/lib/ajax/getreqspeclog.php?item_id=$SPEC_EMPTY_REV1" | sed -e 's/<[^>]*>//g')"
 F2=$(frag "$BASE/lib/ajax/getreqlog.php?item_id=$REQ1_V1")
 contains "XHR getreqlog returns a fragment" "tlLogFragment" "$F2"
 contains "XHR getreqlog escapes the ampersand" "&amp;" "$F2"
 F3=$(frag "$BASE/lib/ajax/getreqlog.php?item_id=$REQ2_REV")
 contains "XHR getreqlog revision fragment" "tlLogFragment" "$F3"
 absent "XHR getreqlog fragment carries no <script>" "<script" "$F3"
-chk "XHR getreqlog scopes out a foreign project" "" "$(frag "$BASE/lib/ajax/getreqspeclog.php?item_id=$SPEC_ALT_REV1&tproject_id=$TPROJECT")"
-F4=$(frag "$BASE/lib/ajax/getreqlog.php?item_id=$REQ1_V1&tproject_id=$ALT")
-chk "XHR getreqlog scopes out a foreign project" "" "$F4"
+chk "XHR getreqspeclog scopes out a foreign project (empty hint, no log)" "Log Message is empty" "$(frag "$BASE/lib/ajax/getreqspeclog.php?item_id=$SPEC_ALT_REV1&tproject_id=$TPROJECT" | sed -e 's/<[^>]*>//g')"
+chk "XHR getreqlog scopes out a foreign project (empty hint, no log)" "Log Message is empty" "$(frag "$BASE/lib/ajax/getreqlog.php?item_id=$REQ1_V1&tproject_id=$ALT" | sed -e 's/<[^>]*>//g')"
+absent "XHR getreqlog foreign-project scope leaks no log text" "Version 1 of" "$(frag "$BASE/lib/ajax/getreqlog.php?item_id=$REQ1_V1&tproject_id=$ALT")"
+
+# --- legacy fragment authorization (the 1.9.20 SQL was `WHERE id = <intval>`
+#     with NO rights check, so any authenticated user could read any project's
+#     log; the shims must now derive the owning project and enforce mgt_view_req
+#     even when the caller states no tproject_id) ---
+# fragc captures status AND body in ONE curl call: a shared temp file read
+# out-of-band would be cross-contaminated by a concurrent CI run.
+fragc(){ curl -s -b "$1" -H "X-Requested-With: XMLHttpRequest" -w '\n@@%{http_code}' "$2"; }
+# fragc_code / fragc_body split the combined answer.
+fragc_code(){ printf '%s' "$1" | tail -1 | sed 's/^@@//'; }
+fragc_body(){ printf '%s' "$1" | sed '$d'; }
+# fragc_text strips the markup so the assertion compares the exact visible text.
+fragc_text(){ printf '%s' "$1" | sed '$d' | sed -e 's/<[^>]*>//g'; }
+
+DENIED='User has not needed right to do requested action'
+A=$(fragc $JAR2 "$BASE/lib/ajax/getreqspeclog.php?item_id=$SPEC_REV2")
+chk "XHR getreqspeclog for a no-rights user -> 403" 403 "$(fragc_code "$A")"
+chk "XHR getreqspeclog denial body is EXACTLY the legacy no-right text" "$DENIED" "$(fragc_text "$A")"
+absent "XHR getreqspeclog denial leaks no spec log text" "Second revision of the spec" "$(fragc_body "$A")"
+A=$(fragc $JAR2 "$BASE/lib/ajax/getreqlog.php?item_id=$REQ1_V1")
+chk "XHR getreqlog for a no-rights user (no tproject_id stated) -> 403" 403 "$(fragc_code "$A")"
+absent "XHR getreqlog denial leaks no requirement log text" "Version 1 of" "$(fragc_body "$A")"
+A=$(fragc $JAR2 "$BASE/lib/ajax/getreqlog.php?item_id=$REQ2_REV")
+chk "XHR getreqlog revision for a no-rights user -> 403" 403 "$(fragc_code "$A")"
+A=$(fragc $JAR2 "$BASE/lib/ajax/getreqspeclog.php?item_id=$SPEC_ALT_REV1")
+chk "XHR getreqspeclog cross-project for a no-rights user -> 403" 403 "$(fragc_code "$A")"
+absent "XHR cross-project denial leaks no ALT log text" "ALT project secret log" "$(fragc_body "$A")"
+A=$(fragc $JAR2 "$BASE/lib/ajax/getreqlog.php?item_id=$REQ1_V1&tproject_id=$ALT")
+chk "XHR getreqlog with a foreign tproject_id is scoped out (empty hint)" 200 "$(fragc_code "$A")"
+absent "XHR getreqlog foreign tproject_id leaks no log text" "Version 1 of" "$(fragc_body "$A")"
+# an authorized admin still gets the log, and the admin's browser deep link for a
+# REVISION must resolve to type=requirement, not type=requirement_version
+A=$(fragc $JAR "$BASE/lib/ajax/getreqspeclog.php?item_id=$SPEC_ALT_REV1")
+chk "XHR getreqspeclog cross-project for an admin -> 200" 200 "$(fragc_code "$A")"
+contains "XHR getreqspeclog cross-project for an admin still returns the log" "ALT project secret log" "$(fragc_body "$A")"
+
+# --- the PRODUCTION rights path: a user who only holds mgt_view_req through
+#     user_testproject_roles on ONE project (tlUser::hasRight() replaces the
+#     global rights with the project rights on that branch - neither the global
+#     admin nor the role-3 user reaches it) ---
+A=$(fragc $JAR3 "$BASE/lib/ajax/getreqspeclog.php?item_id=$SPEC_REV2")
+chk "XHR getreqspeclog for a project-scoped role -> 200 on its OWN project" 200 "$(fragc_code "$A")"
+contains "XHR getreqspeclog for a project-scoped role returns the log" "Second revision of the spec" "$(fragc_body "$A")"
+A=$(fragc $JAR3 "$BASE/lib/ajax/getreqlog.php?item_id=$REQ1_V1")
+chk "XHR getreqlog for a project-scoped role -> 200 on its OWN project" 200 "$(fragc_code "$A")"
+contains "XHR getreqlog for a project-scoped role returns the log" "Version 1 of" "$(fragc_body "$A")"
+A=$(fragc $JAR3 "$BASE/lib/ajax/getreqspeclog.php?item_id=$SPEC_ALT_REV1")
+chk "XHR getreqspeclog for a project-scoped role -> 403 on a FOREIGN project" 403 "$(fragc_code "$A")"
+absent "XHR project-scoped denial leaks no ALT log text" "ALT project secret log" "$(fragc_body "$A")"
+A=$(fragc $JAR3 "$BASE/lib/ajax/getreqlog.php?item_id=$REQ1_V1&tproject_id=$ALT")
+# REQ1_V1 lives in $TPROJECT, so a foreign tproject_id scopes the row out
+# BEFORE the right is evaluated: not-found (empty hint), never the log.
+chk "XHR getreqlog for a project-scoped role with a foreign tproject_id -> scoped out" 200 "$(fragc_code "$A")"
+absent "XHR project-scoped foreign scope leaks no log text" "Version 1 of" "$(fragc_body "$A")"
+chk "BFF for a project-scoped role -> 200 on its OWN project" 200 "$(code -b $JAR3 "$API?action=log&type=requirement_version&id=$REQ1_V1&tproject_id=$TPROJECT")"
+chk "BFF for a project-scoped role -> 403 on a FOREIGN project" 403 "$(code -b $JAR3 "$API?action=log&type=requirement_spec_version&id=$SPEC_ALT_REV1")"
 
 SH1=$(shim "$BASE/lib/ajax/getreqspeclog.php?item_id=$SPEC_REV2")
 contains "browser getreqspeclog -> 302 to the modern screen" "logViewer.html?type=requirement_spec_version&id=$SPEC_REV2" "$SH1"
@@ -177,7 +254,8 @@ SH2=$(shim "$BASE/lib/ajax/getreqlog.php?item_id=$REQ1_V1&tproject_id=$TPROJECT"
 contains "browser getreqlog -> 302 requirement_version" "type=requirement_version&id=$REQ1_V1" "$SH2"
 contains "browser getreqlog forwards tproject_id" "tproject_id=$TPROJECT" "$SH2"
 SH3=$(shim "$BASE/lib/ajax/getreqlog.php?item_id=$REQ2_REV")
-contains "browser getreqlog revision -> 302" "type=requirement_version&id=$REQ2_REV" "$SH3"
+contains "browser getreqlog revision -> 302 requirement (legacy auto-detect)" "type=requirement&id=$REQ2_REV" "$SH3"
+absent "browser getreqlog revision is NOT sent to the requirement_version screen" "type=requirement_version" "$SH3"
 SH4=$(shim "$BASE/lib/ajax/getreqspeclog.php?item_id=$REQ1_V1&tproject_id=$TPROJECT")
 contains "browser getreqspeclog scopes a foreign project -> 302 anyway (BFF answers)" "type=requirement_spec_version&id=$REQ1_V1" "$SH4"
 AN1=$(curl -s "$BASE/lib/ajax/getreqspeclog.php?item_id=$SPEC_REV2")
@@ -187,7 +265,16 @@ contains "anon getreqlog -> login.php note=expired" "login.php?note=expired" "$A
 AN3=$(curl -s -H "X-Requested-With: XMLHttpRequest" "$BASE/lib/ajax/getreqlog.php?item_id=$REQ1_V1")
 contains "anon XHR getreqlog -> login.php note=expired" "login.php?note=expired" "$AN3"
 absent "anon shim leaks no log text" "Version 1 of" "$AN1$AN2$AN3"
-absent "getreqlog has no discarded duplicate query" 'SELECT id FROM nodes_hierarchy' "$(sed -n '40,50p' lib/ajax/getreqlog.php)"
+absent "getreqlog has no discarded duplicate query" 'SELECT id FROM nodes_hierarchy' "$(cat lib/ajax/getreqlog.php)"
+# the legacy fragment branch must resolve the owning project and check the right;
+# needle the actual CALL (a comment mentioning mgt_view_req would pass otherwise)
+contains "getreqlog fragment derives the owning test project" "RSPEC.testproject_id " "$(cat lib/ajax/getreqlog.php)"
+contains "getreqlog fragment enforces mgt_view_req" "hasRight(\$db, 'mgt_view_req', \$owningProjectId)" "$(cat lib/ajax/getreqlog.php)"
+contains "getreqspeclog fragment enforces mgt_view_req" "hasRight(\$db, 'mgt_view_req', \$owningProjectId)" "$(cat lib/ajax/getreqspeclog.php)"
+contains "getreqlog revision branch proves the node type" "RN.node_type_id" "$(cat lib/ajax/getreqlog.php)"
+contains "getreqspeclog branch proves the node type" "SNH.node_type_id" "$(cat lib/ajax/getreqspeclog.php)"
+contains "both shims escape with ENT_SUBSTITUTE" "ENT_SUBSTITUTE" "$(cat lib/ajax/getreqlog.php)$(cat lib/ajax/getreqspeclog.php)"
+contains "getreqlog browser deep link auto-detects the node type" "GETREQLOG_TYPE_VERSION" "$(cat lib/ajax/getreqlog.php)"
 # The legacy Ext.ToolTip consumers must keep existing and must keep pointing here.
 for tpl in reqSpecCompareRevisions reqSpecViewRevision include/reqSpecViewJS.inc \
             reqViewVersions reqViewRevisionRO reqCompareVersions; do
