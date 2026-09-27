@@ -6134,6 +6134,32 @@ Changes:
       project tables and added user metrics to the middle section
 
 ## 2.0.1 (in-progress)
+### Key bugfix — BFF CSRF guard accepted a FOREIGN `Origin` whenever `X-Requested-With` was present (Fixes #1679)
+- `api/_guard.php` `bffSameOriginGuard()` returned success the moment it saw
+  `X-Requested-With: XMLHttpRequest`, **before** reading `Origin`/`Referer`, so the
+  authoritative same-origin signal was dead code whenever that header was present and a
+  cross-origin `POST`/`PUT`/`DELETE`/`PATCH` was accepted as same-origin.
+- The guard is the **only** CSRF control in the BFF layer — **101** endpoint files / **107**
+  call sites invoke it, **102** files `include` `api/_guard.php` (101 endpoints + the guard
+  itself), and `grep -rn HTTP_ORIGIN api/ | grep -v _guard.php` returns 0 (no endpoint
+  validates `Origin` on its own) — so the ordering inversion disabled CSRF defence repo-wide.
+  Demonstrated on a write route: `POST /api/builds/index.php?action=create` with
+  `X-Requested-With` + `Origin: http://evil.example` reached the create handler
+  (`400 Invalid test plan id`, i.e. neither 403 nor 401) instead of being rejected.
+- Fix: validate `Origin`/`Referer` **first**; `X-Requested-With` now only survives as the
+  fallback for the same-origin fetch case where the browser sent neither header, and a
+  present-but-unmatched authority header rejects instead of falling through. `Origin` is set
+  by the browser and cannot be forged by page JS, `X-Requested-With` can — the strong signal
+  is now the primary one. Defense-in-depth: no BFF endpoint emits CORS headers, so a browser
+  cannot set XRW cross-origin without a failing preflight.
+- Verified with a real browser write: Chrome sends `origin: http://localhost:8082` beside
+  `host: localhost:8082`, so `POST /api/builds/index.php` still returns `200` and persists
+  the build. Test suite: 20 executable cases (`tmp/suite_1679.py`), 20/20 PASS, and 9/20
+  against the pre-fix guard (proving it detects the bug); Event Viewer clean (0
+  `ERROR`/`WARNING`).
+- Docs: `docs/Bugfix-Issue-1679-bffSameOriginGuard-Origin-Before-XRW.md` + wiki page
+  *Bugfix-Issue-1679-bffSameOriginGuard-Origin-Before-XRW*.
+
 ### Gap closed — Assign Test Plan Roles: the legacy role column was not sortable (Fixes #1670)
 - `gui/templates/usermanagement/usersAssignPlan.html`: the `Plan Role Override`
   column carried `orderable: false` in `renderUsersTable()`'s `columnDefs`, so the
@@ -6306,9 +6332,11 @@ Changes:
   `AND NH.id = ` → MariaDB 1064 and a `log_level=1 DATABASE` Event Viewer row on every hit from
   any screen on the `get_testsuites()` reporting path; guarded with `intval()` + a `<= 0`
   short-circuit (the 2.0.1 `nodes_hierarchy` refactor made `parent_id` nullable).
-- Fixes **#1679 filed, not fixed here** — `bffSameOriginGuard()` short-circuits on
-  `X-Requested-With` before reading `Origin`/`Referer`; shared by 102 BFF endpoints and not
-  CORS-exploitable, so the repo-wide fix is left to its own PR.
+- Fixes **#1679** — see the dedicated *Key bugfix* entry at the top of the 2.0.1 section:
+  `bffSameOriginGuard()` short-circuited on `X-Requested-With` before reading
+  `Origin`/`Referer`, so a foreign `Origin` was accepted as same-origin across all 101
+  guarded BFF endpoints. Fixed there (Origin/Referer validated first, XRW demoted to
+  fallback); recorded here as a cross-reference from the screen where it was found.
 - Test suite: 78 executable cases (`tmp/suite_1677.py`), 78/78 PASS; Event Viewer clean
   (0 `ERROR`/`WARNING`, 0 `DATABASE`).
 

@@ -5,14 +5,22 @@
  * bffSameOriginGuard() is the central CSRF defense-in-depth for every
  * non-safe verb (POST/PUT/DELETE/PATCH/...): a request is only accepted
  * when it carries proof of same-origin, evaluated in this order:
- *   1. an Origin / Referer whose host+port authority matches HTTP_HOST
- *      (authoritative - set by the browser, cannot be forged by page JS);
+ *   1. an Origin / Referer whose host[:port] authority matches HTTP_HOST
+ *      (authoritative - set by the browser, cannot be forged by page JS).
+ *      A scheme-default port is optional on the Origin/Referer side, so
+ *      "localhost" and "localhost:80" compare equal. A present header
+ *      that yields no authority at all is rejected;
  *   2. otherwise, and ONLY when the browser sent neither header, an
  *      X-Requested-With: XMLHttpRequest hint (jQuery $.ajax same-origin,
  *      dropzone and fetch() wrappers all send it).
  * A present-but-foreign Origin/Referer is always rejected - the XRW hint
  * never overrides it (issue #1679). Anything else gets 403 JSON.
  * Safe verbs (GET/HEAD/OPTIONS) pass through.
+ *
+ * Only host[:port] is compared, not the scheme, and a reverse proxy MUST
+ * rewrite Host to the value the browser used (HTTP_X_FORWARDED_HOST is
+ * deliberately NOT trusted here: an unvalidated forwarding header is
+ * client-spoofable and would defeat the whole control).
  *
  * This complements (does not replace) session auth and per-route rights:
  * it blocks cross-site "confused deputy" requests riding the victim's
@@ -73,6 +81,24 @@ function bffAuthority($value) {
     return $authority;
 }
 
+/**
+ * Drop a scheme-default port from a "host[:port]" authority so that
+ * "localhost:80" and "localhost" compare equal. $defaultPort includes the
+ * leading colon. Only the DEFAULT port is removed, so a real port mismatch
+ * survives the comparison.
+ */
+function bffStripDefaultPort($authority, $defaultPort) {
+    $authority = (string)$authority;
+    $len = strlen($defaultPort);
+    if ($len === 0 || strlen($authority) <= $len) {
+        return $authority;
+    }
+    if (substr($authority, -$len) === $defaultPort) {
+        return substr($authority, 0, -$len);
+    }
+    return $authority;
+}
+
 function bffSameOriginGuard() {
     $method = strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET');
     if ($method === 'GET' || $method === 'HEAD' || $method === 'OPTIONS') {
@@ -87,7 +113,16 @@ function bffSameOriginGuard() {
     // XRW now acts solely as the fallback for the same-origin fetch/XHR case
     // where the browser sent neither header.
     $host = bffAuthority($_SERVER['HTTP_HOST'] ?? '');
-    $sawAuthority = false;
+    // A URL omits the port when it is the scheme default (Origin/Referer), but
+    // HTTP_HOST keeps it, so Host "localhost:80" and Origin "http://localhost"
+    // describe the SAME origin and must not be rejected. Strip the scheme's
+    // default port from both sides before comparing. Same normalization as
+    // api/tcprintlaunch/index.php:247-251. Note this only ever removes the
+    // DEFAULT port, so a genuine port mismatch (Origin :80 vs Host :8082) is
+    // still rejected.
+    $https = strtolower(trim((string)($_SERVER['HTTPS'] ?? '')));
+    $defaultPort = ':' . (($https !== '' && $https !== 'off') ? '443' : '80');
+    $hostKey = bffStripDefaultPort($host, $defaultPort);
     foreach (array('HTTP_ORIGIN', 'HTTP_REFERER') as $hdr) {
         $val = trim((string)($_SERVER[$hdr] ?? ''));
         if ($val === '') {
@@ -95,21 +130,22 @@ function bffSameOriginGuard() {
         }
         $authority = bffAuthority($val);
         if ($authority === '') {
-            continue;
+            // A present-but-unparseable Origin/Referer (file:// URL, malformed
+            // host, port parse failure) can never be proven same-origin, so it
+            // is rejected instead of falling through to the XRW fallback.
+            // Browsers only ever send "scheme://host[:port]" or "null", both of
+            // which parse, so this cannot reject a genuine browser request.
+            bffRejectForbidden();
         }
-        $sawAuthority = true;
-        if ($host !== '' && strcasecmp($authority, $host) === 0) {
+        if ($hostKey !== '' &&
+            strcasecmp(bffStripDefaultPort($authority, $defaultPort), $hostKey) === 0) {
             return;
         }
         bffRejectForbidden();
     }
 
-    // An Origin/Referer was present but none of them matched: reject instead of
-    // falling through to the XRW fallback.
-    if ($sawAuthority) {
-        bffRejectForbidden();
-    }
-
+    // Reached only when the browser sent neither Origin nor Referer: the
+    // same-origin fetch/XHR case the XRW hint exists to cover.
     $xrw = trim((string)($_SERVER['HTTP_X_REQUESTED_WITH'] ?? ''));
     if (strcasecmp($xrw, 'XMLHttpRequest') === 0) {
         return;
