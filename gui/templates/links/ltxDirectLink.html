@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Direct Link Resolver</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+
+.header {
+  background: #4ECDC4; color: #fff; padding: 14px 24px;
+  font-size: 20px; font-weight: 700; letter-spacing: 1px;
+}
+.header span.sub { font-size: 13px; font-weight: 400; opacity: .85; margin-left: 12px; }
+
+.toolbar {
+  background: #22242a; padding: 10px 24px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+}
+.toolbar .tbtn {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: #33363f; color: #fff; border: none; border-radius: 4px;
+  padding: 7px 12px; font-size: 12px; cursor: pointer; text-decoration: none;
+}
+.toolbar .tbtn:hover { background: #454955; color: #fff; text-decoration: none; }
+.toolbar .tbtn i { color: #4ECDC4; }
+.toolbar .tbtn.primary { background: #4ECDC4; color: #14302e; font-weight: 700; }
+.toolbar .tbtn.primary:hover { background: #3fbdb5; color: #14302e; }
+.toolbar .tbtn.primary i { color: #14302e; }
+.toolbar .tbtn[disabled] { background: #4a4d55; opacity: .6; cursor: default; }
+.toolbar .spacer { flex: 1; }
+
+.card {
+  background: #fff; border-radius: 8px; margin: 20px 24px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.08); overflow: hidden;
+}
+.card-head {
+  padding: 14px 24px; border-bottom: 1px solid #eee; display: flex;
+  align-items: center; gap: 10px; flex-wrap: wrap;
+}
+.card-head h3 { margin: 0; font-size: 16px; color: #22242a; }
+.card-body { padding: 16px 24px 20px; }
+
+table.ltinfo { width: 100%; border-collapse: collapse; }
+table.ltinfo th {
+  color: #555; font-weight: 600; width: 220px; font-size: 12px;
+  text-align: left; padding: 7px 12px 7px 0; vertical-align: top;
+}
+table.ltinfo td { color: #333; font-size: 13px; padding: 7px 0; word-break: break-word; }
+
+.extid {
+  font-family: 'Courier New', monospace; background: #eef7f7;
+  border: 1px solid #c3e6e4; color: #1d7a74; border-radius: 4px;
+  padding: 2px 8px; font-weight: 700; font-size: 13px;
+}
+.chip {
+  display: inline-block; border-radius: 12px; padding: 2px 10px;
+  font-size: 11.5px; font-weight: 600; border: 1px solid;
+}
+.chip-ok { background: #eef5ef; color: #3c8a4e; border-color: #c6e3cd; }
+.chip-info { background: #eef2f9; color: #3a5f9c; border-color: #c8d8ef; }
+.chip-warn { background: #fdf3e3; color: #9a6a12; border-color: #f0dcae; }
+.chip-item { background: #4ECDC4; color: #14302e; border-color: #3fbdb5; font-weight: 700; }
+.legacy-tag {
+  display: inline-block; background: #fdf3e3; color: #9a6a12;
+  border: 1px solid #f0dcae; border-radius: 12px; padding: 1px 9px;
+  font-size: 11px; font-weight: 700; font-family: 'Courier New', monospace;
+}
+
+.form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+.fld label {
+  display: block; font-size: 12px; color: #555; font-weight: 600; margin-bottom: 4px;
+}
+.fld select, .fld input {
+  width: 100%; border: 1px solid #dcdce1; border-radius: 4px; padding: 7px 9px;
+  font-size: 13px; background: #fff; color: #333;
+}
+.fld select:focus, .fld input:focus { outline: 2px solid #4ECDC4; outline-offset: 0; border-color: #4ECDC4; }
+.fld .hint { font-size: 11px; color: #888; margin-top: 4px; }
+
+.link-box {
+  font-family: 'Courier New', monospace; font-size: 12px; color: #444;
+  background: #f7f7f9; border: 1px solid #e3e3e8; border-radius: 4px;
+  padding: 8px 10px; word-break: break-all;
+}
+.sublabel { font-size: 12px; color: #555; font-weight: 600; margin: 0 0 6px; }
+
+.state-box {
+  background: #fff; border-radius: 8px; margin: 20px 24px; padding: 28px 32px;
+  text-align: center;
+}
+.state-box i { font-size: 34px; margin-bottom: 10px; display: block; }
+.state-box h3 { margin: 0 0 8px; font-size: 18px; color: #22242a; }
+.state-box p { margin: 0; font-size: 14px; color: #777; }
+.state-box .code { margin-top: 12px; }
+.state-denied { border: 1px solid #f0d0d0; border-left: 4px solid #e6605e; }
+.state-denied i { color: #e6605e; }
+.state-notfound { border: 1px solid #f3e6c8; border-left: 4px solid #f0ad4e; }
+.state-notfound i { color: #f0ad4e; }
+.state-error { border: 1px solid #f0d0d0; border-left: 4px solid #e6605e; }
+.state-error i { color: #e6605e; }
+
+.loading { padding: 34px 24px; text-align: center; color: #777; font-size: 14px; }
+.loading i { color: #4ECDC4; margin-right: 8px; }
+
+.empty-note { font-size: 13px; color: #8a6d3b; background: #fdf8ec;
+  border: 1px solid #f0e2bd; border-radius: 4px; padding: 10px 12px; }
+
+.footer { padding: 12px 24px; color: #888; font-size: 12px;
+  border-top: 1px solid #ddd; background: #fff; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span data-i18n="ltx.title">Direct Link Resolver</span>
+  <span class="sub" data-i18n="ltx.subtitle">ltx deep-link gateway</span>
+  <div id="localeSwitcher" style="float:right;"></div>
+</div>
+
+<div class="toolbar">
+  <button type="button" class="tbtn primary" id="btnOpenPrimary" disabled>
+    <i class="fa fa-play"></i> <span id="btnOpenPrimaryLabel" data-i18n="ltx.openExecution">Open execution</span>
+  </button>
+  <button type="button" class="tbtn" id="btnOpenTree" disabled>
+    <i class="fa fa-sitemap"></i> <span data-i18n="ltx.openNavigator">Open execution navigator</span>
+  </button>
+  <button type="button" class="tbtn" id="btnRefresh">
+    <i class="fa fa-redo"></i> <span data-i18n="ltx.refresh">Refresh</span>
+  </button>
+  <span class="spacer"></span>
+  <button type="button" class="tbtn" id="btnClose">
+    <i class="fa fa-times"></i> <span data-i18n="common.close">Close</span>
+  </button>
+</div>
+
+<div class="card" id="resultCard" style="display:none;">
+  <div class="card-head">
+    <h3 data-i18n="ltx.resolved">Resolved deep link</h3>
+    <span class="chip chip-item" id="itemChip"></span>
+    <span class="chip chip-info" id="rightChip"></span>
+  </div>
+  <div class="card-body">
+    <table class="ltinfo"><tbody id="infoBody"></tbody></table>
+  </div>
+</div>
+
+<div class="card" id="settingsCard" style="display:none;">
+  <div class="card-head"><h3 data-i18n="ltx.linkSettings">Deep link settings</h3></div>
+  <div class="card-body">
+    <div class="form-grid">
+      <div class="fld" id="fldBuild">
+        <label for="selBuild" data-i18n="ltx.build">Build</label>
+        <select id="selBuild"></select>
+      </div>
+      <div class="fld" id="fldPlatform">
+        <label for="selPlatform" data-i18n="ltx.platform">Platform</label>
+        <select id="selPlatform"></select>
+      </div>
+      <div class="fld" id="fldVersion">
+        <label for="selVersion" data-i18n="ltx.linkedVersion">Test case version</label>
+        <select id="selVersion"></select>
+        <div class="hint" id="versionHint"></div>
+      </div>
+      <div class="fld">
+        <label for="inpAnchor" data-i18n="ltx.anchor">Anchor</label>
+        <input type="text" id="inpAnchor" maxlength="64" autocomplete="off">
+        <div class="hint" data-i18n="ltx.anchorHelp">Forwarded to the execution screen.</div>
+      </div>
+    </div>
+    <div style="margin-top:14px;">
+      <button type="button" class="tbtn primary" id="btnApply"
+              style="background:#4ECDC4;color:#14302e;font-weight:700;">
+        <i class="fa fa-check" style="color:#14302e;"></i>
+        <span data-i18n="ltx.apply">Apply</span>
+      </button>
+    </div>
+    <div style="margin-top:18px;">
+      <div class="sublabel" data-i18n="ltx.url">Modern screen URL</div>
+      <div class="link-box" id="urlBox"></div>
+    </div>
+  </div>
+</div>
+
+<div class="loading" id="loadingBox" role="status" aria-live="polite" style="display:none;">
+  <i class="fa fa-spinner fa-spin"></i> <span data-i18n="ltx.resolving">Resolving the direct link&hellip;</span>
+</div>
+
+<div class="state-box state-denied" id="deniedBox" role="status" aria-live="polite" style="display:none;">
+  <i class="fa fa-lock"></i>
+  <h3 data-i18n="ltx.deniedTitle">Access denied</h3>
+  <p id="deniedMsg"></p>
+  <div class="code"><span class="legacy-tag" id="deniedCode"></span></div>
+</div>
+
+<div class="state-box state-notfound" id="notFoundBox" role="status" aria-live="polite" style="display:none;">
+  <i class="fa fa-search-minus"></i>
+  <h3 data-i18n="ltx.notFoundTitle">Deep link not found</h3>
+  <p id="notFoundMsg"></p>
+  <div class="code"><span class="legacy-tag" id="notFoundCode"></span></div>
+</div>
+
+<div class="state-box state-error" id="errorBox" role="status" aria-live="polite" style="display:none;">
+  <i class="fa fa-exclamation-triangle"></i>
+  <h3 data-i18n="ltx.errorTitle">Error</h3>
+  <p id="errorMsg"></p>
+  <div class="code"><span class="legacy-tag" id="errorCode"></span></div>
+</div>
+
+<div class="footer"><span data-i18n="footers.ltxDirectLink">TestLink 2.0.1 - Direct Link Resolver</span></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+function esc(s) {
+  return s == null ? '' : String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+var API = '/api/ltx/index.php';
+var qs = new URLSearchParams(window.location.search);
+// Legacy ltx.php read exactly these keys (init_args): item, tplan_id,
+// build_id, platform_id, tcversion_id, feature_id, user_id, anchor.
+var item        = qs.get('item') || '';
+var tplanId     = qs.get('tplan_id') || '';
+var buildId     = qs.get('build_id') || '';
+var platformId  = qs.get('platform_id') || '';
+var tcversionId = qs.get('tcversion_id') || '';
+var featureId   = qs.get('feature_id') || '';
+var userId      = qs.get('user_id') || '';
+var anchor      = qs.get('anchor') || '';
+
+// last successful resolution, kept for the toolbar hand-off
+var lastResult = null;
+
+function row(labelKey, value) {
+  return '<tr><th>' + esc(TLi18n.t(labelKey)) + '</th><td>' + value + '</td></tr>';
+}
+
+function hideAll() {
+  $('#resultCard').hide();
+  $('#settingsCard').hide();
+  $('#loadingBox').hide();
+  $('#deniedBox').hide();
+  $('#notFoundBox').hide();
+  $('#errorBox').hide();
+  $('#btnOpenPrimary').prop('disabled', true);
+  $('#btnOpenTree').prop('disabled', true);
+  $('#btnOpenTree').hide();
+}
+
+function showDenied(msg, legacyCode) {
+  hideAll();
+  $('#deniedMsg').text(msg);
+  $('#deniedCode').text(legacyCode || '');
+  $('#deniedBox').show();
+}
+
+function showNotFound(msg, legacyCode) {
+  hideAll();
+  $('#notFoundMsg').text(msg);
+  $('#notFoundCode').text(legacyCode || '');
+  $('#notFoundBox').show();
+}
+
+function showError(msg, legacyCode) {
+  hideAll();
+  $('#errorMsg').text(msg);
+  $('#errorCode').text(legacyCode || '');
+  $('#errorBox').show();
+}
+
+function stateChip(labelKey, cls) {
+  return chip(TLi18n.t(labelKey), cls);
+}
+
+function chip(text, cls) {
+  return '<span class="chip ' + cls + '">' + esc(text) + '</span>';
+}
+
+function fillSelect(sel, items, valueKey, labelFn, emptyLabel) {
+  var $s = $(sel);
+  $s.empty();
+  if (emptyLabel !== undefined && emptyLabel !== null) {
+    $s.append($('<option></option>').attr('value', '').text(emptyLabel));
+  }
+  (items || []).forEach(function (it) {
+    $s.append($('<option></option>')
+      .attr('value', String(it[valueKey]))
+      .text(labelFn(it)));
+  });
+  return $s;
+}
+
+function renderResult(r) {
+  lastResult = r;
+  var ctx = r.context || {};
+  var tg = r.targets || {};
+  var opt = r.options || {};
+  var isExec = (r.item === 'exec');
+  var html = '';
+
+  html += row('ltx.item', isExec
+    ? stateChip('ltx.itemExec', 'chip-item')
+    : stateChip('ltx.itemXta2m', 'chip-item'));
+  html += row('ltx.user', esc((ctx.user || {}).display_name || ''));
+  html += row('ltx.project', esc((ctx.tproject || {}).name || '') +
+    ' <span class="extid">' + esc((ctx.tproject || {}).prefix || '') + '</span>');
+  html += row('ltx.plan', esc((ctx.tplan || {}).name || '') +
+    ' <span class="extid">#' + esc((ctx.tplan || {}).id || '') + '</span>' +
+    ((ctx.tplan || {}).is_open ? '' : ' ' + stateChip('ltx.closed', 'chip-warn')) +
+    ((ctx.tplan || {}).active ? '' : ' ' + stateChip('ltx.inactive', 'chip-warn')));
+
+  if (isExec) {
+    var b = ctx.build || {};
+    var p = ctx.platform || {};
+    var tc = ctx.tcase || {};
+    html += row('ltx.build', esc(b.name || '') +
+      ' <span class="extid">#' + esc(b.id) + '</span>' +
+      (b.is_open ? '' : ' ' + stateChip('ltx.closed', 'chip-warn')));
+    html += row('ltx.platform', p.id
+      ? esc(p.name || '') + ' <span class="extid">#' + esc(p.id) + '</span>' +
+        (p.is_open ? '' : ' ' + stateChip('ltx.closed', 'chip-warn'))
+      : stateChip('ltx.noPlatform', 'chip-warn'));
+    html += row('ltx.tcase',
+      '<span class="extid">' + esc(tc.external_id || '') + '</span> ' +
+      esc(tc.name || '') + ' ' + chip('v' + tc.version, 'chip-info'));
+    html += row('ltx.suite', esc(tc.suite || '') || '&ndash;');
+    html += row('ltx.feature', '<span class="extid">#' +
+      esc((ctx.feature || {}).testplan_tcversions_id || '') + '</span>');
+  } else {
+    html += row('ltx.selfNote',
+      esc((ctx.user || {}).display_name || '') + ' ' +
+      stateChip('ltx.selfChip', 'chip-ok'));
+  }
+  $('#infoBody').html(html);
+
+  $('#itemChip').text(isExec ? TLi18n.t('ltx.itemExec') : TLi18n.t('ltx.itemXta2m'));
+  $('#rightChip').text(TLi18n.t('ltx.rightTestplanExecute'));
+
+  // ---- settings card ----------------------------------------------------
+  $('#fldVersion').toggle(isExec);
+  $('#fldBuild').toggle(isExec);
+  $('#fldPlatform').toggle(isExec);
+
+  if (isExec) {
+    fillSelect('#selBuild', opt.builds, 'id',
+      function (b) { return b.name + ' (#' + b.id + ')'; }, null)
+      .val(String((ctx.build || {}).id || ''));
+    fillSelect('#selPlatform', opt.platforms, 'id',
+      function (p) { return p.name + ' (#' + p.id + ')'; },
+      TLi18n.t('ltx.noPlatform'))
+      .val(String((ctx.platform || {}).id || ''));
+
+    var vs = opt.linked_versions || [];
+    if (vs.length === 0) {
+      $('#versionHint').text(TLi18n.t('ltx.noLinkedVersions'));
+      $('#versionHint').addClass('empty-note');
+    } else {
+      $('#versionHint').removeClass('empty-note');
+      $('#versionHint').text('');
+    }
+    fillSelect('#selVersion', vs, 'tcversion_id',
+      function (v) {
+        return v.name + ' - v' + v.version + ' (#' + v.tcversion_id + ')';
+      }, null)
+      .val(String((ctx.tcase || {}).tcversion_id || ''));
+  }
+  $('#inpAnchor').val(anchor);
+
+  // ---- toolbar hand-off -------------------------------------------------
+  $('#btnOpenPrimaryLabel').text(TLi18n.t(
+    tg.primary_label_key || (isExec ? 'ltx.openExecution' : 'ltx.openOverview')));
+  $('#urlBox').text(tg.primary_url || '');
+
+  $('#loadingBox').hide();
+  $('#resultCard').show();
+  $('#settingsCard').show();
+  $('#btnOpenPrimary').prop('disabled', false).off('click').on('click', function () {
+    if (tg.primary_url) { window.location.href = tg.primary_url; }
+  });
+  if (tg.tree_url) {
+    $('#btnOpenTree').show().prop('disabled', false).off('click').on('click', function () {
+      window.location.href = tg.tree_url;
+    });
+  } else {
+    $('#btnOpenTree').hide().prop('disabled', true).off('click');
+  }
+}
+
+function currentParams() {
+  var q = new URLSearchParams();
+  q.set('action', 'init');
+  if (item) { q.set('item', item); }
+  if (tplanId) { q.set('tplan_id', tplanId); }
+  if (buildId) { q.set('build_id', buildId); }
+  if (platformId) { q.set('platform_id', platformId); }
+  if (tcversionId) { q.set('tcversion_id', tcversionId); }
+  if (featureId) { q.set('feature_id', featureId); }
+  if (userId) { q.set('user_id', userId); }
+  if (anchor) { q.set('anchor', anchor); }
+  return q;
+}
+
+function resolve() {
+  hideAll();
+  $('#loadingBox').show();
+  var q = currentParams();
+
+  $.ajax({
+    url: API + '?' + q.toString(),
+    method: 'GET',
+    dataType: 'json'
+  }).done(function (r) {
+    handleResult(r);
+  }).fail(function (xhr, textStatus) {
+    // Every error path of the BFF answers a NON-2xx status WITH a JSON body,
+    // so jQuery routes them here; the body has to go through the very same
+    // handler, otherwise the localized message and the LTX-0x marker are lost.
+    var r = xhr.responseJSON;
+    if (!r && xhr.responseText) {
+      try { r = JSON.parse(xhr.responseText); } catch (e) { r = null; }
+    }
+    if (r) { handleResult(r); return; }
+    $('#loadingBox').hide();
+    if (xhr.status === 401) {
+      window.location.href = '/login.php?note=expired';
+    } else {
+      showError(TLi18n.t('ltx.errGeneric'), '');
+    }
+  });
+}
+
+var ERRKEYS = {
+  security_check_ko: 'ltx.errSecurityCheck',
+  build_id_not_set: 'ltx.errBuildNotSet',
+  testplan_not_set: 'ltx.errTestplanNotSet',
+  tcversion_not_set: 'ltx.errTcversionNotSet',
+  platform_not_set: 'ltx.errPlatformNotSet',
+  item_not_set: 'ltx.errSecurityCheck',
+  missing_user_id: 'ltx.errMissingUser',
+  plan_not_found: 'ltx.errPlanNotFound',
+  project_not_found: 'ltx.errPlanNotFound',
+  no_rights: 'ltx.errNoRights',
+  not_your_tasks: 'ltx.errNotYourTasks',
+  unknown_feature: 'ltx.errUnknownFeature',
+  unknown_build: 'ltx.errUnknownBuild',
+  unknown_platform: 'ltx.errUnknownPlatform',
+  tcversion_not_found: 'ltx.errTcversionNotFound',
+  tcase_not_found: 'ltx.errTcversionNotFound',
+  version_not_in_plan: 'ltx.errNotInPlan',
+  unauthenticated: 'ltx.errUnauthenticated',
+  session_expired: 'ltx.errSessionExpired',
+  unknown_action: 'ltx.errGeneric',
+  method_not_allowed: 'ltx.errGeneric',
+  server_error: 'ltx.errGeneric'
+};
+
+function localizeMessage(r) {
+  var k = ERRKEYS[r.code];
+  if (k) { return TLi18n.t(k); }
+  return r.message || TLi18n.t('ltx.errGeneric');
+}
+
+function handleResult(r) {
+  if (r && r.status === 'ok') { renderResult(r); return; }
+  var code = (r && r.code) ? r.code : 'unknown';
+
+  // Session over - bounce to the login page exactly like every other
+  // modernized screen does (login.php?note=expired).
+  if (code === 'unauthenticated' || code === 'session_expired') {
+    window.location.href = '/login.php?note=expired';
+    return;
+  }
+
+  var msg = localizeMessage(r || {});
+  if (code === 'no_rights' || code === 'not_your_tasks') {
+    showDenied(msg, r ? r.legacy_code : '');
+  } else if (code === 'plan_not_found' || code === 'project_not_found' ||
+             code === 'unknown_feature' || code === 'unknown_build' ||
+             code === 'unknown_platform' || code === 'tcversion_not_found' ||
+             code === 'tcase_not_found' || code === 'version_not_in_plan') {
+    showNotFound(msg, r ? r.legacy_code : '');
+  } else {
+    showError(msg, r ? r.legacy_code : '');
+  }
+}
+
+function applySettings() {
+  // Re-issue the deep link with the new selector values, exactly the way the
+  // legacy link generators (assignment_mgr, tcAssignedToUser, execSetResults)
+  // build them, so the produced URL stays copy/pasteable.
+  var q = new URLSearchParams();
+  q.set('item', item);
+  if (item === 'exec') {
+    var b = $('#selBuild').val();
+    var p = $('#selPlatform').val();
+    var v = $('#selVersion').val();
+    if (b) { q.set('build_id', b); }
+    if (p) { q.set('platform_id', p); }
+    if (v) {
+      q.set('tcversion_id', v);
+      // when a feature row is known for that version, use the compact
+      // feature_id form the legacy ltx.php also accepted
+      var vs = (lastResult && lastResult.options && lastResult.options.linked_versions) || [];
+      for (var i = 0; i < vs.length; i++) {
+        if (String(vs[i].tcversion_id) === String(v)) {
+          q.set('feature_id', String(vs[i].feature_id));
+          break;
+        }
+      }
+    }
+  } else {
+    if (userId) { q.set('user_id', userId); }
+  }
+  if (tplanId) { q.set('tplan_id', tplanId); }
+  var a = $('#inpAnchor').val();
+  if (a) { q.set('anchor', a); }
+  window.location.href = window.location.pathname + '?' + q.toString();
+}
+
+$(function () {
+  TLi18n.load(function () {
+    document.title = TLi18n.t('ltx.title');
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    $('#btnClose').on('click', function () { window.close(); });
+    $('#btnRefresh').on('click', resolve);
+    $('#btnApply').on('click', applySettings);
+    if (!item) {
+      showError(TLi18n.t('ltx.errMissingParams'), '');
+    } else {
+      resolve();
+    }
+  });
+});
+</script>
+</body>
+</html>
