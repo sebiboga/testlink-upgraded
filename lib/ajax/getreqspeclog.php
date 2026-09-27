@@ -1,34 +1,36 @@
 <?php
-/** 
- * 	TestLink Open Source Project - http://testlink.sourceforge.net/
- * 
- * 	@filesource	getreqspeclog.php
- * 	@author 	Francisco Mancardi
- * 
- *	@internal Revisions:
+/**
+ * TestLink Open Source Project - http://testlink.sourceforge.net/
+ * This script is distributed under the GNU General Public License 2 or later.
+ *
+ * @filesource getreqspeclog.php
+ *
+ * @internal Refs #1652 - legacy deep link closed by the log-message viewer
+ *   modernization. This endpoint used to `echo` an UNESCAPED HTML fragment
+ *   built with nl2br() + str_replace('<p>','',...) straight out of
+ *   req_specs_revisions.log_message, with no rights check and no proof that
+ *   the id belonged to the caller's test project. It is now a non-mutating,
+ *   session-guarded 302 redirect to the modern Dashio log viewer, which
+ *   renders the log from the BFF's PLAIN-TEXT payload and enforces
+ *   mgt_view_req on the owning test project.
  */
+
 require_once('../../config.inc.php');
 require_once('common.php');
+
+// Legacy parity: testlinkInitPage() sent anonymous callers to login.php.
 testlinkInitPage($db);
 
-$item_id = isset($_REQUEST['item_id']) ? intval($_REQUEST['item_id']): null;
-$info = '';
-if( !is_null($item_id) )
-{
-	$tables = tlObjectWithDB::getDBTables(array('req_specs_revisions'));
-	$target_table = 'req_specs_revisions';
-	$sql = "SELECT log_message FROM {$tables[$target_table]} WHERE id=" . intval($item_id);
-	$info = $db->get_recordset($sql);
-    $info = nl2br($info[0]['log_message']);
-    
-    // <p> and </p> tag at the beginning and the end of summary cause visualization
-    // errors -> remove them and add <br> to get a similar effect
-    $info = str_replace("<p>","",$info);
-    $info = str_replace("</p>","<br>",$info);
-    
-    // if log message is empty show this information
-    if ($info == "") {
-    	$info = lang_get("empty_log_message");
-    }
+$itemId = isset($_REQUEST['item_id']) ? $_REQUEST['item_id']
+         : (isset($_REQUEST['id']) ? $_REQUEST['id'] : 0);
+
+$tprojectId = isset($_REQUEST['tproject_id']) ? intval($_REQUEST['tproject_id']) : 0;
+
+$url = '/gui/templates/requirements/logViewer.html' .
+       '?type=requirement_spec_version&id=' . intval($itemId);
+if ($tprojectId > 0) {
+    $url .= '&tproject_id=' . $tprojectId;
 }
-echo $info;
+
+header('Location: ' . $url);
+exit;

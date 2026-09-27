@@ -45,6 +45,10 @@ table.diff-table tr.changed { background: #fdf3e7; }
 /* Refs #1357 - log-message hover tooltip mirroring the legacy Ext.ToolTip affordance
    (reqSpecCompareRevisions.tpl tip4log: width 500, dismissDelay 0, trackMouse true). */
 td.log-cell { max-width: 340px; cursor: help; }
+/* Refs #1652 - explicit link to the standalone modern log viewer. */
+td.log-cell .log-open { color: #4ECDC4; font-size: 12px; margin-left: 6px;
+  cursor: pointer; }
+td.log-cell .log-open:hover { color: #22242a; }
 #logTooltip { display: none; position: fixed; z-index: 9999; max-width: 500px;
   background: #22242a; color: #fff; border: 1px solid #4ECDC4; border-radius: 6px;
   padding: 8px 12px; font-size: 12px; line-height: 1.55;
@@ -251,7 +255,24 @@ function bindLogTooltips() {
     // the table body entirely (renderRevisions also hides it explicitly).
     .on('mouseleave.logtip', 'tbody', function() {
       $('#logTooltip').hide();
+    })
+    // Refs #1652 - explicit "open the full log" affordance -> the modern
+    // standalone viewer (was impossible with the legacy hover-only Ext.ToolTip).
+    .on('click.logtip', '.log-open', function(e) {
+      e.stopPropagation();
+      openLogViewer($(this).data('item-id'));
     });
+}
+
+// Refs #1652 - open the modern log-message viewer in a popup window.
+function openLogViewer(itemId) {
+  if (!itemId || parseInt(itemId, 10) <= 0) { return; }
+  var q = 'type=requirement_spec_version&id=' + encodeURIComponent(itemId);
+  if (TPROJECT_ID > 0) { q += '&tproject_id=' + encodeURIComponent(TPROJECT_ID); }
+  var w = Math.floor(window.innerWidth * 0.7), h = Math.floor(window.innerHeight * 0.7);
+  window.open('/gui/templates/requirements/logViewer.html?' + q,
+    'logviewer_requirement_spec_version_' + itemId,
+    'width=' + w + ',height=' + h + ',resizable=yes,scrollbars=yes,toolbar=yes');
 }
 
 function revRow(rev, isRight, isLeft) {
@@ -273,7 +294,11 @@ function revRow(rev, isRight, isLeft) {
       '<label class="radio-inline" title="' + TLi18n.t('rsvc.left') + '"><input type="radio" name="left_item_id" value="' + rev.item_id + '"' + (isLeft ? ' checked' : '') + '></label> ' +
       '<label class="radio-inline" title="' + TLi18n.t('rsvc.right') + '"><input type="radio" name="right_item_id" value="' + rev.item_id + '"' + (isRight ? ' checked' : '') + '></label>' +
     '</td>' +
-    '<td class="log-cell" data-item-id="' + rev.item_id + '">' + escapeHtml(logDisp) + '</td>' +
+    '<td class="log-cell" data-item-id="' + rev.item_id + '">' + escapeHtml(logDisp) +
+      // Refs #1652 - the legacy tip4log() tooltip was hover-only; add the
+      // modern standalone log viewer as an explicit action on the same cell.
+      '<i class="fa fa-external-link log-open" data-item-id="' + rev.item_id +
+        '" title="' + TLi18n.t('logv.openFull') + '" aria-hidden="true"></i></td>' +
     // Refs #1358 - legacy reqSpecCompareRevisions.tpl:234 renders the Last
     // change cell as a link (openReqSpecRevisionWindow(item_id)); restore the
     // clickable cell opening the modern revision viewer (reqSpecViewRevision.html)

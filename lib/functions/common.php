@@ -2209,6 +2209,17 @@ function getActions(&$gui,$baseURL) {
   $actions->reqRevisionView =
     "/gui/templates/requirements/reqRevisionView.html?{$ctx}";
 
+  // Requirement log-message viewer modernized screen (Dashio popup) - Refs
+  // #1652. Replaces the two legacy AJAX readers lib/ajax/getreqspeclog.php
+  // (req_specs_revisions.log_message) and lib/ajax/getreqlog.php
+  // (req_versions / req_revisions log_message), which echoed UNESCAPED HTML and
+  // performed no rights check. The BFF (api/logviewer) proves the node type,
+  // enforces mgt_view_req on the OWNING project and returns the log as PLAIN
+  // TEXT; type+id are supplied by the caller (reqSpecView / reqSpecCompare /
+  // reqCompare open the popup per log cell).
+  $actions->logViewer =
+    "/gui/templates/requirements/logViewer.html?{$ctx}";
+
   // Show Newest Test Case Versions modernized screen (Dashio standalone
   // page) - Refs #643. The legacy showNewestTCV launcher entry is gone (Refs
   // #1575).
