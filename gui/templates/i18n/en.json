@@ -5210,8 +5210,6 @@
   "tcreo.empty": "This container has no test cases.",
   "tcreo.confirmTitle": "Apply order",
   "tcreo.confirmOk": "Apply",
-  "tcreo.stSession": "Session expired",
-  "tcreo.stSessionMsg": "Your session expired. Please sign in again.",
   "tcreo.stNotAllowed": "Access denied",
   "tcreo.stNotAllowedMsg": "You need the test case management right on this test project to reorder test cases.",
   "tcreo.stNotFound": "Not found",

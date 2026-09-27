@@ -5200,8 +5200,6 @@
   "tcreo.empty": "このコンテナにはテストケースがありません。",
   "tcreo.confirmTitle": "順序を適用",
   "tcreo.confirmOk": "適用",
-  "tcreo.stSession": "セッションの有効期限切れ",
-  "tcreo.stSessionMsg": "セッションの有効期限が切れました。再度ログインしてください。",
   "tcreo.stNotAllowed": "アクセス拒否",
   "tcreo.stNotAllowedMsg": "テストケースを並び替えるには、このテストプロジェクトでのテストケース管理権限が必要です。",
   "tcreo.stNotFound": "見つかりません",

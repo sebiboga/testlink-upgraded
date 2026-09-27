@@ -24316,6 +24316,34 @@ regression. Case 13 was corrected to use `output=full`.)
   → `16 / GUI - Test Project ID : <tp> / 1` (the healthy `audit_login_succeeded` INFO)
   and nothing else for the fixed project.
 
+### I. Final write-path smoke pass (post-review)
+
+| # | Case | Expected | Result |
+|---|---|---|---|
+| I1 | Boundary state **on load** | first row `top`/`up` disabled, last row `down`/`bottom` disabled | PASS |
+| I2 | Boundary state **after** a move | new first row `top`/`up` disabled, new last row `down`/`bottom` disabled | **FAIL → FIXED** — `setBusy(false)` in `.always()` re-enabled every button, undoing the boundary state `renderRows()` had just emitted |
+| I3 | In-flight guard engages | sampled between click and response: every `button.op` and both sort buttons `disabled` | **FAIL → FIXED** — `setBusy(true)` was never called anywhere; guard was dead code |
+| I4 | A second write while one is in flight | ignored (no second request) | **FAIL → FIXED** — `postAction()` now returns early when `BUSY`; the first move's order stands |
+| I5 | A no-op click is impossible after a move | the boundary buttons are not clickable | PASS after I2 — before the fix the server answered `no_change` and the screen toasted "boundary" for a redundant request |
+| I6 | Single test case in the container | all four move buttons + both sort buttons disabled | PASS (`n < 2` and the first/last rules coincide) |
+| I7 | Sort by name end-to-end | modal names the criterion, Apply sorts, notice confirms | PASS |
+| I8 | Modal **Cancel** | order unchanged, modal closed | PASS |
+| I9 | Sort by external id is numeric-aware | ext ids 2,4,1,5,3 → 1,2,3,4,5 (Charlie, Alpha, Echo, Bravo, Delta) | PASS — a text compare would give 1,2,3,4,5 too here, but `TC 10`/`TC 2` is the real case (see D-series) |
+| I10 | `401 session_expired` on a write | bounce to `/login.php` | **FAIL → FIXED** — it rendered a session card with no link out of it |
+| I11 | `403` on a write | stays on the screen, shows the server message, releases the buttons | PASS — and it must **not** redirect |
+| I12 | Access-denied card for a view-only user (direct URL) | card, no table | PASS |
+| I13 | i18n key count | 46 net new keys in all 10 bundles, bundles are FLAT (dotted top-level keys) | PASS — the CHANGELOG's "50" was wrong; corrected |
+| I14 | Dead keys after I10 | `tcreo.stSession` / `tcreo.stSessionMsg` removed from all 10 bundles | PASS — `adel.stSession` left alone (belongs to `attachmentDelete`) |
+| I15 | Console clean over the whole pass | no errors or warnings | PASS |
+| I16 | Event Viewer after the final pass | no new rows | PASS |
+
+**Root cause of I2/I3:** the in-flight guard was written as a blanket
+`prop('disabled', busy)` helper, but `.done()` (which renders the rows and their
+boundary attributes) is registered before `.always()` in the same `$.ajax`
+chain, so the guard's `false` pass always ran last and won. Fixed with a
+single writer, `applyRowState()`, which recomputes `boundary || BUSY` from
+`ROWS`; `setBusy()` and `renderRows()` both call it.
+
 **Syntax gates:** `php -l lib/functions/requirement_spec_mgr.class.php`,
 `php -l lib/requirements/reqSpecCommands.class.php`, `php -l tmp/verify_1656.php` — all
 `No syntax errors detected`.
@@ -24428,8 +24456,10 @@ with password `reo1660`.
 
 | # | Case | Expected | Result |
 |---|---|---|---|
-| H1 | Full pass with a clean `events` baseline | **0** new rows | PASS after `22254e0ae` |
+| H1 | Full pass with a clean `events` baseline | **0** new rows | PASS after `22254e0ae` + `e3b4ec6f8` |
 | H2 | 1 289 rows of `E_WARNING Undefined global variable $dbprefix` from this endpoint | reported + fixed | PASS — #1663; table names now via `tlObjectWithDB::getDBTables()` |
+| H3 | Two more `$dbprefix` warnings appeared at 12:15:16, *after* `22254e0ae` | not the fix's fault — the pre-review file still interpolated `$dbprefix` in two queries | PASS — removed by `e3b4ec6f8`; the file now contains **zero** `$dbprefix` |
+| H4 | Events after the review commit | **0** rows, newest event predates it | PASS — the whole final smoke pass logged nothing |
 
 ### Bugs found and fixed by this suite
 
@@ -24438,6 +24468,8 @@ with password `reo1660`.
 | #1661 | 2.0.1 dropped `testproject_id` / `testcase_id` / `tcversion_id` / `testsuite_id` from `nodes_hierarchy` — **every** read was dead SQL; plus the default container 404'd, the suite selector was always empty, a no-op write reported `ok`, and a foreign container was silently retargeted | rebuilt on the real shape (`d927d4306`) |
 | #1662 | Both retired shims bounced anonymous users to a relative `login.php` → **404** | use `checkSessionValid()`'s own redirect (`a8062fd4a`) |
 | #1663 | `E_WARNING Undefined global variable $dbprefix` on every query — 1 289 event rows | `tlObjectWithDB::getDBTables()` (`22254e0ae`) |
+| _(review)_ | The in-flight guard clobbered the boundary state of the response it had just rendered, and its `setBusy(true)` half was never called — so there was no guard at all | `applyRowState()` as the single writer of the disabled state; `postAction()` refuses a second write while `BUSY` |
+| _(review)_ | A `401` rendered a session card with no way out of it | bounce to `/login.php`, the convention of the other modernized screens |
 
 **Syntax gates:** `php -l` on `api/tcreorder/index.php`,
 `lib/ajax/dragdroptprojectnodes.php`, `lib/testcases/listTestCases.php`,

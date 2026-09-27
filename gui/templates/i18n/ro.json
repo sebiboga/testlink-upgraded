@@ -5204,8 +5204,6 @@
   "tcreo.empty": "Acest container nu conține cazuri de test.",
   "tcreo.confirmTitle": "Aplică ordinea",
   "tcreo.confirmOk": "Aplică",
-  "tcreo.stSession": "Sesiune expirată",
-  "tcreo.stSessionMsg": "Sesiunea ta a expirat. Te rugăm să te autentifici din nou.",
   "tcreo.stNotAllowed": "Acces refuzat",
   "tcreo.stNotAllowedMsg": "Ai nevoie de dreptul de management al cazurilor de test pe acest proiect pentru a reordona cazurile de test.",
   "tcreo.stNotFound": "Nu a fost găsit",

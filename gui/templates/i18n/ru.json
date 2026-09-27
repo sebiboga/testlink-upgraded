@@ -5200,8 +5200,6 @@
   "tcreo.empty": "В этом контейнере нет тест-кейсов.",
   "tcreo.confirmTitle": "Применить порядок",
   "tcreo.confirmOk": "Применить",
-  "tcreo.stSession": "Сессия истекла",
-  "tcreo.stSessionMsg": "Сессия истекла. Пожалуйста, войдите снова.",
   "tcreo.stNotAllowed": "Доступ запрещён",
   "tcreo.stNotAllowedMsg": "Для изменения порядка тест-кейсов нужно право управления тест-кейсами в этом проекте.",
   "tcreo.stNotFound": "Не найдено",

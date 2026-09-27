@@ -5194,8 +5194,6 @@
   "tcreo.empty": "Este contenedor no tiene casos de prueba.",
   "tcreo.confirmTitle": "Aplicar orden",
   "tcreo.confirmOk": "Aplicar",
-  "tcreo.stSession": "Sesión expirada",
-  "tcreo.stSessionMsg": "Su sesión ha expirado. Inicie sesión de nuevo.",
   "tcreo.stNotAllowed": "Acceso denegado",
   "tcreo.stNotAllowedMsg": "Necesita el permiso de gestión de casos de prueba en este proyecto para reordenar los casos de prueba.",
   "tcreo.stNotFound": "No encontrado",

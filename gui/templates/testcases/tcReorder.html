@@ -206,6 +206,7 @@ var CONTAINER_ID = 0;
 var ROWS = [];
 var CRITERION = 'NAME';
 var PENDING_ORDER = null;
+var BUSY = false;
 
 function qs(k, d) {
   var p = new URLSearchParams(window.location.search);
@@ -233,13 +234,15 @@ function showState(title, msg) {
 }
 
 /* Legacy error semantics -> localized state cards. */
+function isSessionGone(xhr) {
+  var r = (xhr && xhr.responseJSON) ? xhr.responseJSON : {};
+  return !!xhr && (xhr.status === 401 || r.code === 'session_expired');
+}
+
 function stateForResponse(xhr) {
   var r = (xhr && xhr.responseJSON) ? xhr.responseJSON : {};
   var code = r.code || '';
   var s = xhr ? xhr.status : 0;
-  if (s === 401 || code === 'session_expired') {
-    return [TLi18n.t('tcreo.stSession'), TLi18n.t('tcreo.stSessionMsg')];
-  }
   if (s === 403) {
     return [TLi18n.t('tcreo.stNotAllowed'), TLi18n.t('tcreo.stNotAllowedMsg')];
   }
@@ -300,9 +303,27 @@ function renderRows() {
   $('#rows').html(h);
   $('#tbl').toggle(ROWS.length > 0);
   $('#emptyMsg').toggle(ROWS.length === 0);
-  $('#btnSortName').prop('disabled', ROWS.length < 2);
-  $('#btnSortExt').prop('disabled', ROWS.length < 2);
   $('#mbCount').text(String(ROWS.length));
+  applyRowState();
+}
+
+/**
+ * Single writer for the disabled state of the write controls. The boundary
+ * buttons are disabled by the markup renderRows() emits, and setBusy() blanket
+ * -enables them: whoever runs last wins, so the in-flight guard would otherwise
+ * undo the boundary state of the very response it just rendered. Recompute
+ * both from ROWS and BUSY here instead.
+ */
+function applyRowState() {
+  var n = ROWS.length;
+  $('#rows tr').each(function (i) {
+    $(this).find('button.op').each(function () {
+      var op = this.dataset.op;
+      var atBoundary = (op === 'top' || op === 'up') ? (i === 0) : (i === n - 1);
+      this.disabled = BUSY || atBoundary;
+    });
+  });
+  $('#btnSortName, #btnSortExt').prop('disabled', BUSY || n < 2);
 }
 
 function load() {
@@ -336,6 +357,10 @@ function load() {
     $('#content').show();
   }).fail(function (xhr) {
     $('#loading').hide();
+    // An idle session gets 401 session_expired from the BFF, which must not
+    // redirect by itself. Every other modernized screen bounces to the login
+    // page, so do the same here instead of stranding the user on a dead card.
+    if (isSessionGone(xhr)) { window.location.href = '/login.php'; return; }
     var st = stateForResponse(xhr);
     showState(st[0], st[1]);
   });
@@ -349,6 +374,10 @@ function setNotice(kind, msg) {
 }
 
 function postAction(action, extra, okMsg) {
+  // One write at a time. A second click landing between a response and its
+  // re-render would send the same move twice (the server answers `no_change`,
+  // but the slower of two responses then re-renders a stale order).
+  if (BUSY) { return; }
   setNotice('', '');
   var payload = {
     action: action,
@@ -356,6 +385,7 @@ function postAction(action, extra, okMsg) {
     container_id: CONTAINER_ID
   };
   for (var k in extra) { if (extra.hasOwnProperty(k)) { payload[k] = extra[k]; } }
+  setBusy(true);
   return $.ajax({
     url: '/api/tcreorder/index.php',
     method: 'POST',
@@ -391,12 +421,8 @@ function postAction(action, extra, okMsg) {
       return;
     }
     // The BFF answers an idle session with 401 session_expired instead of
-    // redirecting; a BFF must not redirect, so say so and offer the way out.
-    if (xhr && (xhr.status === 401 || r.code === 'session_expired')) {
-      setNotice('err', TLi18n.t('tcreo.stSession'));
-      showState(TLi18n.t('tcreo.stSession'), TLi18n.t('tcreo.stSessionMsg'));
-      return;
-    }
+    // redirecting; a BFF must not redirect, so send the user to the login page.
+    if (isSessionGone(xhr)) { window.location.href = '/login.php'; return; }
     setNotice('err', r.message || TLi18n.t('tcreo.stErrorMsg'));
   });
 }
@@ -407,7 +433,8 @@ function postAction(action, extra, okMsg) {
  * same move twice (which the server would then have to reject as ambiguous).
  */
 function setBusy(busy) {
-  $('#rows button.op, #btnSortName, #btnSortExt').prop('disabled', busy);
+  BUSY = busy;
+  applyRowState();
 }
 
 function doMove(nodeId, op) {

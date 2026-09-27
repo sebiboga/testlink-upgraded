@@ -25,8 +25,8 @@ screen reaches full parity.
   sort by name or external ID behind a confirmation modal, empty and error states) backed by the new
   BFF `api/tcreorder` (`init`/`move`/`sort`/`reorder`, session auth, same-origin guard,
   `mgt_modify_tc` on the OWNING project). Opened from a rights-gated "Reorder Test Cases" button on
-  the Test Specification screen. 50 new i18n keys in all 10 locales. Regression suite 1660: 62 cases
-  PASS. Four defects found and fixed while doing it: 2.0.1 dropped `testproject_id` /
+  the Test Specification screen. 46 new i18n keys in all 10 locales. Regression suite 1660: 62 cases
+  PASS. Seven defects found and fixed while doing it: 2.0.1 dropped `testproject_id` /
   `testcase_id` / `tcversion_id` / `testsuite_id` from `nodes_hierarchy`, so the first BFF was dead
   SQL and had to be rebuilt on the real shape (#1661); both retired legacy shims bounced anonymous
   users to a relative `login.php` that 404s (#1662); the endpoint raised
@@ -34,7 +34,12 @@ screen reaches full parity.
   code review caught an inverted sort criterion (`config_get('testcase_reorder_by')` ships as
   `EXTERNAL_ID`, not `EXTERNALID`, so the screen silently sorted by name), a missing
   inactivity-timeout check on a write endpoint, and `strcasecmp` where legacy used `natsort`
-  (so "TC 10" sorted before "TC 2").
+  (so "TC 10" sorted before "TC 2"). A final smoke pass of the write path found three more: the
+  in-flight guard re-enabled every move button in its own `.always()` and so undid the boundary
+  state of the response it had just rendered (the first and last row offered a no-op move again),
+  its `setBusy(true)` counterpart was never actually called so there was no guard at all, and a
+  401 rendered a session card with no way out of it - a 401 now bounces to `/login.php`, the
+  convention of the other modernized screens.
 
 - [FEATURE GAP] - #1003: the modern Assign Custom Fields screen could not delete a custom field.
   Legacy links every field name (assigned *and* available) to

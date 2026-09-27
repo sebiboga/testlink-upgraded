@@ -5194,8 +5194,6 @@
   "tcreo.empty": "Dieser Container enthält keine Testfälle.",
   "tcreo.confirmTitle": "Reihenfolge anwenden",
   "tcreo.confirmOk": "Anwenden",
-  "tcreo.stSession": "Sitzung abgelaufen",
-  "tcreo.stSessionMsg": "Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an.",
   "tcreo.stNotAllowed": "Zugriff verweigert",
   "tcreo.stNotAllowedMsg": "Sie benötigen das Testfall-Verwaltungsrecht in diesem Testprojekt, um Testfälle neu anzuordnen.",
   "tcreo.stNotFound": "Nicht gefunden",

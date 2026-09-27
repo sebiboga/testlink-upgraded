@@ -5194,8 +5194,6 @@
   "tcreo.empty": "Ce conteneur ne contient aucun cas de test.",
   "tcreo.confirmTitle": "Appliquer l'ordre",
   "tcreo.confirmOk": "Appliquer",
-  "tcreo.stSession": "Session expirée",
-  "tcreo.stSessionMsg": "Votre session a expiré. Veuillez vous reconnecter.",
   "tcreo.stNotAllowed": "Accès refusé",
   "tcreo.stNotAllowedMsg": "Vous avez besoin du droit de gestion des cas de test sur ce projet pour réordonner les cas de test.",
   "tcreo.stNotFound": "Introuvable",

@@ -5200,8 +5200,6 @@
   "tcreo.empty": "Este contêiner não possui casos de teste.",
   "tcreo.confirmTitle": "Aplicar ordem",
   "tcreo.confirmOk": "Aplicar",
-  "tcreo.stSession": "Sessão expirada",
-  "tcreo.stSessionMsg": "Sua sessão expirou. Entre novamente.",
   "tcreo.stNotAllowed": "Acesso negado",
   "tcreo.stNotAllowedMsg": "Você precisa do direito de gerenciamento de casos de teste neste projeto para reordenar os casos de teste.",
   "tcreo.stNotFound": "Não encontrado",

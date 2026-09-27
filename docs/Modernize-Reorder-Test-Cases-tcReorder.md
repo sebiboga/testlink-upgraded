@@ -41,8 +41,8 @@ before writing.
 Dashio layout: teal header + dark toolbar (Refresh / Back to Test Specification
 / Close), a context card (Test project, Container, Reorder by, Test cases), a
 container card with the suite selector and the two sort buttons, the order
-table, and explicit loading / empty / session-expired / access-denied /
-not-found states. `TLi18n` locale switcher in the toolbar.
+table, and explicit loading / empty / access-denied / not-found states (a 401 bounces to
+`/login.php`, as on every other modernized screen). `TLi18n` locale switcher in the toolbar.
 
 | Control | Behaviour |
 |---|---|
@@ -134,9 +134,12 @@ Both controllers are now thin shims, and **neither replays a mutation**:
 ## i18n
 
 `tcreo.*` + `footers.tcReorder` + `tspec.reorderTestCases` /
-`tspec.reorderTestCasesTitle` in **all 10** bundles (`python3 -m json.tool`
-validated). Dead keys were removed rather than left behind: `tcreo.confirmReorder`
-(its only caller `doReorderAll()` was unreachable) and `tcreo.reorderSaved`.
+`tspec.reorderTestCasesTitle` - **46 keys** - in **all 10** bundles
+(`python3 -m json.tool` validated). The bundles are FLAT (dotted keys at top level),
+not nested objects. Dead keys were removed rather than left behind:
+`tcreo.confirmReorder` (its only caller `doReorderAll()` was unreachable),
+`tcreo.reorderSaved`, and `tcreo.stSession` / `tcreo.stSessionMsg` once the 401
+path became a redirect.
 
 ## Bugs found and fixed while building this
 
@@ -145,6 +148,7 @@ validated). Dead keys were removed rather than left behind: `tcreo.confirmReorde
 | **#1661** | 2.0.1 dropped four `nodes_hierarchy` columns — every read was dead SQL. Plus: the default container always 404'd, the suite selector was always empty (the tree walk omitted `parent_id`, which is exactly what the ownership proof starts from), a no-op write reported `ok`, and a container from another project was silently retargeted and reordered. |
 | **#1662** | Both shims bounced anonymous users to a *relative* `login.php`, which resolved against `/lib/ajax/` and `/lib/testcases/` → **404**. The session-expiry path landed on a dead page. |
 | **#1663** | `E_WARNING Undefined global variable $dbprefix` on every query — **1 289** event rows, which buried the two log lines that actually mattered. |
+| final smoke pass | The in-flight guard re-enabled **every** move button from its own `.always()`, undoing the boundary state of the response it had just rendered (the first and last row offered a no-op move again), its `setBusy(true)` counterpart was never called so there was no guard at all, and a 401 rendered a session card with no way out of it - now a bounce to `/login.php`. |
 | code review | Inverted sort criterion (`EXTERNAL_ID` vs `EXTERNALID`, so the screen silently sorted by name on every install), no inactivity-timeout check on a write endpoint, `strcasecmp` where legacy used `natsort`, plus 5 MINOR and 7 NIT items. |
 
 ## Testing

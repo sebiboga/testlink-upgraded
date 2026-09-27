@@ -5180,8 +5180,6 @@
   "tcreo.empty": "该容器没有测试用例。",
   "tcreo.confirmTitle": "应用顺序",
   "tcreo.confirmOk": "应用",
-  "tcreo.stSession": "会话已过期",
-  "tcreo.stSessionMsg": "您的会话已过期，请重新登录。",
   "tcreo.stNotAllowed": "拒绝访问",
   "tcreo.stNotAllowedMsg": "重新排序测试用例需要此测试项目中的测试用例管理权限。",
   "tcreo.stNotFound": "未找到",
