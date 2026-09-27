@@ -147,6 +147,16 @@ function esc(s) {
     .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
+// True when the BFF shipped a real role name for the value-0 "revert to
+// inherited" option. The resolved legacy $ikx name (issue #1651) is produced by
+// $roleNameOf() in api/roles/index.php, which answers the literal '-' - not an
+// empty string - when the role id cannot be resolved (e.g. a user whose global
+// role is 0). Such a name must NOT be interpolated, otherwise the option would
+// read "revert to inherited -".
+function hasResolvedRoleName(name) {
+  return !!name && name !== '-';
+}
+
 // Dashio toast pattern (see rolesView.html:178, usersView.html:233): fixed
 // bottom-right banner replacing the legacy inc_update.tpl user_feedback box
 // that usersAssign.php:82-89 fed with no_users_selected /
@@ -405,7 +415,7 @@ function buildBodyHtml() {
     // Escaped as a whole so the literal <inherited> is not parsed as HTML.
     var noRoleLbl = u.isInherited == 1
       ? esc(TLi18n.t('assign.inheritedRoleOption', {role: u.inheritedRoleName}))
-      : (u.inheritedRoleName
+      : (hasResolvedRoleName(u.inheritedRoleName)
           ? esc(TLi18n.t('assign.overrideClearedRole', {role: u.inheritedRoleName}))
           : esc(TLi18n.t('assign.noRole')));
     var cur = roleChoices[u.id];

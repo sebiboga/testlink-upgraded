@@ -17,7 +17,7 @@ decorated that option with the name of the role the user would fall back to, for
 {if $gui->userFeatureRoles[$uID].is_inherited == 1}
   {$ikx=$effective_role_id}
 {else}
-  {$ikx=$gui->userFeatureRoles[$uID].uplayer_role_id}   (* always the GLOBAL role *)
+  {$ikx=$gui->userFeatureRoles[$uID].uplayer_role_id}   {* always the GLOBAL role: roles.inc.php:334-336 *}
 {/if}
 {$inherited_role_name=$gui->optRights[$ikx]->name}
 
@@ -88,7 +88,7 @@ when the payload carries no resolved name.
 ```js
 var noRoleLbl = u.isInherited
   ? esc(TLi18n.t('assign.inheritedRoleOption', {role: u.inheritedRoleName}))
-  : (u.inheritedRoleName
+  : (hasResolvedRoleName(u.inheritedRoleName)
       ? esc(TLi18n.t('assign.overrideClearedRole', {role: u.inheritedRoleName}))
       : esc(TLi18n.t('assign.noOverride')));
 ```
@@ -97,7 +97,7 @@ var noRoleLbl = u.isInherited
 
 ### Deliberately not changed
 
-* `buildBulkSelect()` (`usersAssignPlan.html:607`) — the bulk "set roles to" select keeps the bare
+* `buildBulkSelect()` (`usersAssignPlan.html:618`) — the bulk "set roles to" select keeps the bare
   `-- no override --`. Legacy `usersAssign.tpl:193-197` renders the pseudo-role display name alone
   there, because `$inherited_role_name` is not assigned until line 225.
 * The option `value` stays `0`, so the save payload, the `not_authorized_user` row marker and the
@@ -115,6 +115,8 @@ var noRoleLbl = u.isInherited
 * bulk select unchanged on both plans.
 * save round-trip: value 0 deletes `user_testplan_roles (4,2000,6)` and the row re-renders as
   `<inherited> senior tester` (the plan now inherits the explicit project role 6).
+* `'-'` sentinel (a user with `role_id=0` + an explicit project role): the value-0 option
+  falls back to `-- no role --` instead of rendering `revert to inherited -`.
 * `ro_RO` locale live: `revino la mostenit leader`.
 * `node --check` clean on both screens; no console errors; no new `log_level IN (1,2)` event row.
 

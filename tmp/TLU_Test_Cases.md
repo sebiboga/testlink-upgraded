@@ -23981,6 +23981,8 @@ Screens: `gui/templates/usermanagement/usersAssignPlan.html` (values `tproject_i
 | 10 | syntax gate | `node --check` on the inline `<script>` of both screens | both parse | **PASS** — `block 0 OK` for `usersAssignPlan.html` and `usersAssignProject.html` |
 | 11 | console | load both screens, list console `error` + `warn` messages | no new messages | **PASS** — `<no console messages found>` |
 | 12 | Event Viewer | `select … from events where log_level>0` after the whole suite | no new `log_level IN (1,2)` (Error/Warning) row | **PASS** — 3 rows total, all `log_level=16` (2 × login audit, 1 × `Test plan roles updated for plan #2000`) |
+| 13 | edge case | add a user with `role_id=0` (no global role) + an explicit project role 4, reload `usersAssignProject.html?tproject_id=1000` | the value-0 option must NOT read `revert to inherited -`; the bare fallback label is used | **PASS** — API returned `isInh=0 inhRoleID=0 inhName='-'`, the option rendered `-- no role --` (found by the code review, see checkpoint 4) |
+| 14 | re-verify | after the `hasResolvedRoleName()` guard, re-run steps 3-6 | identical results, bulk select still bare | **PASS** — plan 2000 → `<inherited> admin` / `<inherited> test designer` / `<inherited> guest` / `revert to inherited leader`; bulk `-- no override --`; no console errors |
 
 ### Notes
 
