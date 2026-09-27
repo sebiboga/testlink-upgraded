@@ -2484,6 +2484,7 @@
   "reqAssign.executedWarning": "该测试用例版本已被执行过。",
   "reqAssign.inProject": "在测试项目中",
   "reqAssign.loadError": "从服务器加载数据时出错。",
+  "reqAssign.noTestCase": "未选择测试用例。请从测试用例打开“分配需求”。",
   "reqAssign.loading": "加载中...",
   "reqAssign.modeBulkSuite": "测试套件(批量)",
   "reqAssign.modeTestCase": "测试用例",

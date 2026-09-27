@@ -2484,6 +2484,7 @@
   "reqAssign.executedWarning": "Эта версия тестового сценария уже выполнялась.",
   "reqAssign.inProject": "в тестовом проекте",
   "reqAssign.loadError": "Ошибка загрузки данных с сервера.",
+  "reqAssign.noTestCase": "Тестовый случай не выбран. Откройте «Назначить требования» из тестового случая.",
   "reqAssign.loading": "Загрузка...",
   "reqAssign.modeBulkSuite": "Группа Тестов (Массово)",
   "reqAssign.modeTestCase": "Тестовый Сценарий",

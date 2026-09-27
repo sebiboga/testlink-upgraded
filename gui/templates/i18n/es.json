@@ -2478,6 +2478,7 @@
   "reqAssign.executedWarning": "Esta versión del caso de prueba ya ha sido ejecutada.",
   "reqAssign.inProject": "en el proyecto de pruebas",
   "reqAssign.loadError": "Error al cargar datos del servidor.",
+  "reqAssign.noTestCase": "Ningún caso de prueba seleccionado. Abra Asignar requisitos desde un caso de prueba.",
   "reqAssign.loading": "Cargando...",
   "reqAssign.modeBulkSuite": "Suite de Pruebas (Masivo)",
   "reqAssign.modeTestCase": "Caso de Prueba",

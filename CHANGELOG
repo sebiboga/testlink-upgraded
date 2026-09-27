@@ -5925,6 +5925,24 @@ Changes:
       project tables and added user metrics to the middle section
 
 ## 2.0.1 (in-progress)
+### Key bugfix — 'Assign Requirements' modal on Test Specification was always empty (Refs #1598)
+- `gui/templates/testcases/testSpec.html`: `openAssignReqs(tcaseId)` accepted the test-case id
+  the button passes and never stored it, so the module-level `arqTcaseId` stayed `0` for the whole
+  session. The guard `if (!specId || !arqTcaseId) return;` in `arqLoadReqs()` therefore
+  short-circuited **before** issuing `GET /assign-reqs`, and `arqDoAssign()` would have posted
+  `tcase_id=0` (rejected server-side by `api/requirements/index.php`). Result: the
+  FREE/ASSIGNED REQUIREMENTS lists were always empty while the specification combo above them was
+  correctly populated — a functional-looking dead end, so the legacy "link a requirement to a single
+  test case" feature had no working entry point. The backend was measured healthy (200 with both
+  requirements `unassigned` for `tcase_id=9`); the button only became reachable through the gate
+  restored in #1596, which is why the omission stayed invisible until now. The id is now stored on
+  open (`arqTcaseId = parseInt(tcaseId || 0, 10) || 0`), the state (`arqTcaseId`, `arqSpecs` and
+  every list/counter/hint) is reset on close via the new `closeAssignReqs()` so a stale id can
+  never be reused for a different test case, the shared clear-on-open/close block is extracted to
+  `arqResetUi()`, and `arqDoAssign()` refuses to POST with a localised
+  `reqAssign.noTestCase` message (added to all 10 locale bundles) instead of silently posting
+  `tcase_id=0`. The `openAssignReqs()` of `tcView.html` / `tcEdit.html` are separate, argument-less
+  functions and were deliberately left untouched.
 ### Key bugfix — requirement log messages were echoed as unescaped HTML (Refs #1652, #1653, #1654, #1655)
 - `lib/ajax/getreqspeclog.php` and `lib/ajax/getreqlog.php` did `SELECT log_message FROM
   <table> WHERE id = <intval>` and `echo`ed the stored RichEdit/TinyMCE blob straight into the page:

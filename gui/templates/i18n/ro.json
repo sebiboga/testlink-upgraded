@@ -2484,6 +2484,7 @@
   "reqAssign.executedWarning": "Această versiune a cazului de test a fost deja executată.",
   "reqAssign.inProject": "în proiectul de test",
   "reqAssign.loadError": "Eroare la încărcarea datelor de pe server.",
+  "reqAssign.noTestCase": "Niciun caz de test selectat. Deschideți Asociere cerințe dintr-un caz de test.",
   "reqAssign.loading": "Se încarcă...",
   "reqAssign.modeBulkSuite": "Suită de Test (În masă)",
   "reqAssign.modeTestCase": "Caz de Test",

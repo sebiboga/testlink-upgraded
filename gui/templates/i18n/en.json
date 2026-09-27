@@ -2484,6 +2484,7 @@
   "reqAssign.executedWarning": "This test case version has already been executed.",
   "reqAssign.inProject": "in test project",
   "reqAssign.loadError": "Error loading data from server.",
+  "reqAssign.noTestCase": "No test case selected. Open Assign Requirements from a test case.",
   "reqAssign.loading": "Loading...",
   "reqAssign.modeBulkSuite": "Test Suite (Bulk)",
   "reqAssign.modeTestCase": "Test Case",

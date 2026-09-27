@@ -2484,6 +2484,7 @@
   "reqAssign.executedWarning": "このテストケースバージョンは既に実行されています。",
   "reqAssign.inProject": "テストプロジェクト:",
   "reqAssign.loadError": "サーバーからのデータ取得中にエラーが発生しました。",
+  "reqAssign.noTestCase": "テストケースが選択されていません。テストケースから「要件を割り当て」を開いてください。",
   "reqAssign.loading": "読み込み中...",
   "reqAssign.modeBulkSuite": "テストスイート(一括)",
   "reqAssign.modeTestCase": "テストケース",

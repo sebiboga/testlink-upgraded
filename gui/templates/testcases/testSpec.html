@@ -251,8 +251,8 @@ textarea.form-control2 { min-height: 80px; resize: vertical; }
       </div>
     </div>
     <div class="modal-foot">
-      <button class="btn-dark btn-sm" onclick="closeModal('assignReqsModal')"><span data-i18n="tspec.cancel">Cancel</span></button>
-      <button class="btn-teal btn-sm" onclick="closeModal('assignReqsModal')"><i class="fa fa-check"></i> <span data-i18n="rpt.close">Close</span></button>
+      <button class="btn-dark btn-sm" onclick="closeAssignReqs()"><span data-i18n="tspec.cancel">Cancel</span></button>
+      <button class="btn-teal btn-sm" onclick="closeAssignReqs()"><i class="fa fa-check"></i> <span data-i18n="rpt.close">Close</span></button>
     </div>
   </div>
 </div>
@@ -354,7 +354,7 @@ function arqOptLabel(r) {
   return esc(r.doc_id || r.req_doc_id || '') + ' - ' + esc(r.title || '') + (r.version ? ' (' + t('reqAssign.versionShort') + ' ' + r.version + ')' : '');
 }
 
-function openAssignReqs(tcaseId) {
+function arqResetUi() {
   $('#arqSpecSel').empty();
   $('#arqFree').empty();
   $('#arqAssigned').empty();
@@ -363,6 +363,18 @@ function openAssignReqs(tcaseId) {
   $('#arqEmptyFree').hide();
   $('#arqEmptyAssigned').hide();
   $('#arqNoSpec').hide();
+}
+
+function closeAssignReqs() {
+  arqTcaseId = 0;
+  arqSpecs = [];
+  arqResetUi();
+  closeModal('assignReqsModal');
+}
+
+function openAssignReqs(tcaseId) {
+  arqTcaseId = parseInt(tcaseId || 0, 10) || 0;
+  arqResetUi();
   arqApiGet('/assign-reqspecs', {tproject_id: ctx.tproject_id}, function(d) {
     arqSpecs = (d && d.items) ? d.items : [];
     if (!arqSpecs.length) {
@@ -380,7 +392,7 @@ function openAssignReqs(tcaseId) {
 
 function arqLoadReqs() {
   var specId = parseInt($('#arqSpecSel').val() || '0', 10);
-  if (!specId || !arqTcaseId) return;
+  if (!specId || !(arqTcaseId > 0)) return;
   arqApiGet('/assign-reqs', {req_spec_id: specId, tcase_id: arqTcaseId}, function(d) {
     if (!d || d.status !== 'ok') return;
     var $free = $('#arqFree');
@@ -402,6 +414,7 @@ function arqLoadReqs() {
 }
 
 function arqDoAssign() {
+  if (arqTcaseId <= 0) { toast(t('reqAssign.noTestCase'), true); return; }
   var ids = $('#arqFree').val() || [];
   if (!ids.length) { toast(t('reqAssign.selectOneReq'), true); return; }
   arqApiPost('/assign-reqs', {tcase_id: arqTcaseId, req_ids: ids.map(Number)}, function(d) {

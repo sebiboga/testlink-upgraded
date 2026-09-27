@@ -2478,6 +2478,7 @@
   "reqAssign.executedWarning": "Diese Testfallversion wurde bereits ausgeführt.",
   "reqAssign.inProject": "im Testprojekt",
   "reqAssign.loadError": "Fehler beim Laden der Daten vom Server.",
+  "reqAssign.noTestCase": "Kein Testfall ausgewählt. Öffnen Sie Anforderungen zuweisen über einen Testfall.",
   "reqAssign.loading": "Lade...",
   "reqAssign.modeBulkSuite": "Testsuite (Sammelzuweisung)",
   "reqAssign.modeTestCase": "Testfall",

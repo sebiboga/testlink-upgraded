@@ -2478,6 +2478,7 @@
   "reqAssign.executedWarning": "Cette version du cas de test a déjà été exécutée.",
   "reqAssign.inProject": "dans le projet de test",
   "reqAssign.loadError": "Erreur lors du chargement des données depuis le serveur.",
+  "reqAssign.noTestCase": "Aucun cas de test sélectionné. Ouvrir Affecter les exigences depuis un cas de test.",
   "reqAssign.loading": "Chargement...",
   "reqAssign.modeBulkSuite": "Suite de Tests (Masse)",
   "reqAssign.modeTestCase": "Cas de Test",
