@@ -17,6 +17,29 @@ Every screen of the application was ported one-by-one in a screen-compare
 kept for backward compatibility and is progressively retired as each modern
 screen reaches full parity.
 
+- [SCREEN] - #1671: the Reorder Test Case Steps screen is modernized. Legacy 1.9.20 had a backend
+  (`lib/ajax/stepReorder.php`, the server side of the TableDnD widget in
+  `gui/templates/tl-classic/testcases/steps_horizontal.inc.tpl`) but no screen, no URL and no right:
+  it re-ordered steps with no session check, no `mgt_modify_tc`, no same-origin proof, accepted a
+  mutating GET, never proved a submitted step id to belong to the edited version, and wrote a
+  `DEBUG_MODE` log row per call (#1673 - it is now a non-mutating 302/405 shim). It is now the
+  standalone Dashio screen `gui/templates/testcases/tcStepReorder.html` (a version picker with a
+  live filter when opened without a version, context card, execution-type chips, plain-text step
+  cells, four boundary-aware move buttons, HTML5 drag-and-drop that only reorders locally until
+  "Apply order" is confirmed, "Discard changes", "Renumber steps", read-only banner and explicit
+  loading/empty/access-denied/not-found states) backed by the new BFF `api/tcstepsreorder`
+  (`init`/`versions`/`move`/`reorder`/`normalize`, session auth, same-origin guard, inactivity
+  timeout, `mgt_view_tc` for the reads and `mgt_modify_tc` for the writes on the OWNING project,
+  every step id proven to belong to the version, `no_change` instead of `ok` for a pointless
+  write). Reachable from `$actions->tcStepReorder` and from a rights-gated "Reorder steps" button
+  on every version card of the test case screen. 62 new i18n keys in all 10 locales. Regression
+  suite 1671: 55 cases PASS. Two defects found and fixed while doing it (#1674): every delegated
+  handler was bound inside an `if/else` on `tcversion_id`, so the picker entry point left the move
+  buttons, the drag-and-drop and "Discard changes" dead (and the URL entry point left the
+  "Change version" picker rows dead); the no-op detection compared sorted id sequences, which are
+  identical before and after any write, so every move was reported as "nothing changed" and
+  renumbering could never report the gap it had just fixed; and the renumber copy still showed a
+  literal `{count}`.
 - [SCREEN] - #1660: the Reorder Test Cases screen is modernized. Legacy 1.9.20 exposed re-ordering
   as an ExtJS drag-and-drop on the test-specification tree frame
   (`lib/testcases/listTestCases.php` + `gui/templates/dashio/testcases/tcTree.tpl`, backend

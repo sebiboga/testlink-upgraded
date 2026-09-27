@@ -24912,3 +24912,134 @@ Browser re-test: log in `admin`/`admin`, open
 check Event Viewer (`http://localhost:8082/lib/events/eventViewer.php`) - no new
 `log_level=2` rows; and view-source the two hidden inputs - they must read
 `name="tproject_id" value="20"`.
+
+## Suite 1671 — Reorder Test Case Steps screen (`tcStepReorder.html`) + `api/tcstepsreorder` BFF
+
+Modernization of the Reorder Test Case Steps feature: the 1.9.20 backend
+`lib/ajax/stepReorder.php`, whose only caller was the dead TableDnD template
+`gui/templates/tl-classic/testcases/steps_horizontal.inc.tpl`. Tracked in
+#1671; the legacy defects are filed as #1673, the new-screen defects as #1674.
+
+**Fixture** (`tmp/fixtures_1671.php`, re-runnable): project `1` `StepReorder
+Demo` (prefix `TSR1671`, automation enabled), test plan `2`, suite `3`, test
+cases `4` (`TSR1671-1`, 4 steps, step 3 automated, step 2 carrying RichEdit
+`<b>`/`<br>` markup), `10` (`TSR1671-2`, 2 steps), `14` (`TSR1671-3`, 1 step)
+and version `18` (`TSR1671-4`, 3 steps). Users: `admin`/`admin` (role 8),
+`norights`/`norights` (role 3, *no rights*).
+
+### A. Version picker (hub entry, no `tcversion_id` in the URL)
+
+| # | Case | Expected | Result |
+|---|---|---|---|
+| A1 | `GET tcStepReorder.html?tproject_id=1` | Picker card, no state card | PASS — "Choose a test case version" |
+| A2 | Picker lists only versions **that have steps** | 4 rows | PASS — 5, 11, 15, 18 |
+| A3 | Each row shows external id, name, version, step count | `TSR1671-1: TSR1671 Four Steps` / `v1` / `4` | PASS |
+| A4 | Live filter on external id / name | counter `1 / 4`, only the matching row | PASS — "Two" -> `TSR1671-2` |
+| A5 | Filter with no match | empty state + `0 / 4` | PASS — "This test project has no test case version with steps." |
+| A6 | Clicking a row opens that version | context card + step table | PASS — `TSR1671-1 v1`, 4 rows |
+| A7 | **Move buttons work after arriving through the picker** | POST leaves the browser | PASS — was **dead** before `f08cd9520` (#1674) |
+| A8 | "Change version" returns to a **live** picker | row click re-opens a version | PASS — was **dead** before `f08cd9520` (#1674) |
+
+### B. Rendering and data contract
+
+| # | Case | Expected | Result |
+|---|---|---|---|
+| B1 | Context card completeness | project + prefix, suite path, test case, version, step count | PASS — `StepReorder Demo (TSR1671)` / `StepReorder Suite` / `TSR1671-1: ... Four Steps` / `1` / `4` |
+| B2 | Execution type chips | Manual / Automated | PASS — row 4 of the original order shows `Automated` |
+| B3 | Upload indicators (mandatory/optional) | chip in the TYPE cell | PASS — grey paperclip (`upload_enabled` is always on in 2.0.1) |
+| B4 | RichEdit markup stripped to plain text, line break kept | `Check bold markup` + newline | PASS — `<b>bold</b><br>second line 2` -> `Check bold markup\nsecond line 2` |
+| B5 | First row: *Move to top* / *Move up* disabled | boundary-aware | PASS |
+| B6 | Last row: *Move down* / *Move to bottom* disabled | boundary-aware | PASS |
+| B7 | Apply / Discard disabled while nothing is pending | `isDirty()` | PASS |
+| B8 | No console messages, no new `events` rows | none | PASS |
+
+### C. Move buttons (immediate server write, like the legacy TableDnD drop)
+
+| # | Case | Expected | Result |
+|---|---|---|---|
+| C1 | *Move down* on row 1 | swaps, green success notice, re-read from the server | PASS — `7,6,8,9` in `tcsteps`, "The new step order was saved." |
+| C2 | *Move up* on the last row | `6,8,9,7` | PASS |
+| C3 | *Move to top* on a middle row | row becomes #1 | PASS |
+| C4 | *Move to bottom* on a middle row | row becomes #N | PASS |
+| C5 | Boundary move (`up` on the first row) | `no_change` toast, no write | PASS — "Order already up to date" |
+| C6 | Write is reported as a real change | `status=ok` | PASS — was `no_change` before `f08cd9520` (#1674) |
+
+### D. Drag-and-drop, Apply, Discard
+
+| # | Case | Expected | Result |
+|---|---|---|---|
+| D1 | Rows are `draggable` and the drag only reorders locally | no POST until Apply | PASS — `draggable="true"`, pending `6,8,9,7`, steps untouched |
+| D2 | Dragging marks the screen dirty | Apply + Discard enabled | PASS — `isDirty() === true` |
+| D3 | "Apply order" opens the confirm dialog | localized title + body | PASS — "Save the order shown above as the stored step order of this test case version?" |
+| D4 | Confirm writes the order | `tcsteps.step_number` reordered, success notice | PASS — `6,8,9,7`; "The new step order was saved." |
+| D5 | Cancel (X / mask / Cancel button) | no write, pending kept | PASS |
+| D6 | "Discard changes" restores the stored order | `isDirty() === false` | PASS |
+
+### E. Renumber steps
+
+| # | Case | Expected | Result |
+|---|---|---|---|
+| E1 | Confirm body interpolates the step count | no literal `{count}` | PASS — "Renumber the steps from 1 to 4 ..." (fixed in `f08cd9520`, #1674) |
+| E2 | Gapped numbers `11,22,33,44` | rewritten to `1,2,3,4` | PASS |
+| E3 | Success notice interpolates the count | "Steps were renumbered from 1 to 4." | PASS |
+| E4 | Second run on an already clean version | `no_change` toast | PASS — "Order already up to date" |
+| E5 | Single-step version | Apply disabled, all move ops disabled, `draggable=false`, Renumber enabled | PASS — `TSR1671-3` |
+
+### F. Rights and error states
+
+| # | Case | Expected | Result |
+|---|---|---|---|
+| F1 | `norights` (role 3) on `?tcversion_id=5` | 403 state card | PASS — "Access denied" / "You are not allowed to manage the test cases of this test project." |
+| F2 | Anonymous `?action=init` | 401 `session_expired` | PASS |
+| F3 | Unknown `tcversion_id=999999` | 404 state card | PASS — "This test case version was not found or belongs to another test project." |
+| F4 | A suite node id as `tcversion_id` (`3`) | 404 (not a version) | PASS |
+| F5 | `tproject_id` of another project | 403 "belongs to another test project" | PASS |
+| F6 | Missing `tcversion_id` on `action=init` | 400 `tcversion_id is required` | PASS |
+| F7 | POST without the CSRF proof (no `X-Requested-With`/`Origin`) | 403 "Forbidden: missing or mismatched same-origin proof" | PASS |
+| F8 | GET of a write verb | 405 | PASS |
+| F9 | Unknown action | 400 `unknown_action` | PASS |
+| F10 | Invalid `position` | 400 `Invalid position` | PASS |
+| F11 | Version with `< 2` steps, `move` | 400 "This test case version has fewer than two steps" | PASS |
+| F12 | `reorder` with a foreign step id | 404 "Step does not belong to this test case version" | PASS |
+| F13 | `reorder` with a non-step node id (suite) | 404 | PASS |
+| F14 | `reorder` with an incomplete list | 400 "must contain every step of this version exactly once" | PASS |
+| F15 | `reorder` with duplicate ids | 400 "Duplicate step ids in list" | PASS |
+
+### G. Legacy endpoint `lib/ajax/stepReorder.php` (retired shim, #1673)
+
+| # | Case | Expected | Result |
+|---|---|---|---|
+| G1 | Anonymous GET | session-expired redirect from `checkSessionValid` | PASS |
+| G2 | Authenticated GET | `302` to `tcStepReorder.html?tproject_id=1` | PASS |
+| G3 | Any write verb | `405` | PASS |
+| G4 | The mutation is not replayed for a POST | no `step_number` change | PASS |
+
+### H. Aside / entry points and i18n
+
+| # | Case | Expected | Result |
+|---|---|---|---|
+| H1 | `$actions->tcStepReorder` in `lib/functions/common.php` | hub link for a logged-in user with a project | PASS |
+| H2 | `tcView.html` per-version card button | rights-gated on `mgt_modify_tc`, passes that card's `tcversion_id`, disabled with no steps | PASS |
+| H3 | All 10 locale bundles carry the screen's keys | 62 `tcsr.*` + `footers.tcStepReorder` | PASS — `python3 -m json.tool` clean |
+| H4 | Locale switcher (ro) re-renders the screen | "Aplică ordinea" / "Renumerotă pașii" / footer | PASS |
+| H5 | Error cards follow the UI language | 404 card in Romanian | PASS |
+
+**Result: 55 PASS / 0 FAIL** (4 of them regressions of defects #1673/#1674 fixed in
+`f08cd9520`; the fixture-driven matrix was re-run after that commit).
+
+**RESUME**
+
+```bash
+php tmp/fixtures_1671.php                      # re-create the fixture
+mysql -h 127.0.0.1 -utestlink -ptestlink testlink -e "delete from events;"   # Event Viewer reset
+# the screen is clean if this prints 0
+mysql -h 127.0.0.1 -utestlink -ptestlink testlink \
+  -e "select count(*) from events where log_level in (1,2);"
+# the order written by the last Apply, for a manual re-check
+mysql -h 127.0.0.1 -utestlink -ptestlink testlink \
+  -e "select id, step_number from tcsteps where id in (6,7,8,9) order by step_number;"
+```
+Browser re-test: `admin`/`admin` -> http://localhost:8082/gui/templates/testcases/tcStepReorder.html
+(picker) and `?tcversion_id=5&tproject_id=1` (step table); 403 path with
+`norights`/`norights`; Event Viewer at http://localhost:8082/lib/events/eventViewer.php
+must show no new Error/Warning rows.
