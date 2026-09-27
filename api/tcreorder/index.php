@@ -82,6 +82,25 @@ define('NODE_TYPE_TESTPROJECT', 1);
 define('NODE_TYPE_TESTSUITE', 2);
 define('NODE_TYPE_TESTCASE', 3);
 
+/**
+ * Table names for this endpoint.
+ *
+ * 2.0.1 has no table-prefix global at all, so interpolating one raised
+ * "Undefined global variable" on EVERY query - a 1.2k-row E_WARNING storm in
+ * the events table. tlObjectWithDB::getDBTables() is the canonical accessor
+ * and the only one that honours a configured DB prefix, so it is resolved
+ * once here and cached for the request.
+ */
+function tcreoTables()
+{
+    static $t = null;
+    if ($t === null) {
+        $t = tlObjectWithDB::getDBTables(
+            array('nodes_hierarchy', 'tcversions', 'testprojects'));
+    }
+    return $t;
+}
+
 function out($data, $code = 200)
 {
     http_response_code($code);
@@ -211,6 +230,7 @@ function tcreoProject(&$db, &$user, $requestedId, $containerId = 0)
  */
 function tcreoNodeInfo(&$db, $nodeId)
 {
+    $T = tcreoTables();
     static $cache = array();
     $nodeId = intval($nodeId);
     if ($nodeId <= 0) {
@@ -222,7 +242,7 @@ function tcreoNodeInfo(&$db, $nodeId)
 
     $row = $db->get_recordset(
         "SELECT id, name, parent_id, node_type_id, node_order" .
-        " FROM {$GLOBALS['dbprefix']}nodes_hierarchy WHERE id = {$nodeId}");
+        " FROM {$T['nodes_hierarchy']} WHERE id = {$nodeId}");
 
     $info = null;
     if (!is_null($row) && count($row) > 0) {
@@ -236,6 +256,7 @@ function tcreoNodeInfo(&$db, $nodeId)
 /** Walk up nodes_hierarchy until the test project root (type 1) is reached. */
 function tcreoOwningProject(&$db, $node)
 {
+    $T = tcreoTables();
     if (intval($node['node_type_id']) == NODE_TYPE_TESTPROJECT) {
         return intval($node['id']);
     }
@@ -245,7 +266,7 @@ function tcreoOwningProject(&$db, $node)
     while ($parentId > 0 && $guard < 64) {
         $guard++;
         $row = $db->get_recordset(
-            "SELECT id, parent_id, node_type_id FROM {$GLOBALS['dbprefix']}nodes_hierarchy" .
+            "SELECT id, parent_id, node_type_id FROM {$T['nodes_hierarchy']}" .
             " WHERE id = {$parentId}");
         if (is_null($row) || count($row) == 0) {
             return 0;
@@ -288,6 +309,7 @@ function tcreoRequireChildTestcase(&$db, $nodeId, $containerId, $tprojectId)
 /** Prove the container node + return the ordered direct test-case children. */
 function tcreoContainerChildren(&$db, $containerId, $tprojectId)
 {
+    $T = tcreoTables();
     $container = tcreoNodeInfo($db, $containerId);
     if (is_null($container)) {
         out(array('status' => 'error', 'code' => 'not_found',
@@ -307,10 +329,10 @@ function tcreoContainerChildren(&$db, $containerId, $tprojectId)
     // 2.0.1: a test case NODE id is the test case id, and its external id
     // lives in the tcversions rows whose node parent is that test case.
     $sql = "SELECT NH.id, NH.name, NH.node_order," .
-           " (SELECT MAX(TCV.tc_external_id) FROM {$GLOBALS['dbprefix']}tcversions TCV" .
-           "   JOIN {$GLOBALS['dbprefix']}nodes_hierarchy VNH ON VNH.id = TCV.id" .
+           " (SELECT MAX(TCV.tc_external_id) FROM {$T['tcversions']} TCV" .
+           "   JOIN {$T['nodes_hierarchy']} VNH ON VNH.id = TCV.id" .
            "   WHERE VNH.parent_id = NH.id) AS tc_external_id" .
-           " FROM {$GLOBALS['dbprefix']}nodes_hierarchy NH" .
+           " FROM {$T['nodes_hierarchy']} NH" .
            " WHERE NH.parent_id = " . intval($containerId) .
            " AND NH.node_type_id = " . NODE_TYPE_TESTCASE .
            " ORDER BY NH.node_order, NH.id";
@@ -330,6 +352,7 @@ function tcreoContainerChildren(&$db, $containerId, $tprojectId)
  */
 function tcreoSuitesOf(&$db, $tprojectId)
 {
+    $T = tcreoTables();
     $tprojectId = intval($tprojectId);
     $out = array();
     $queue = array($tprojectId);
@@ -342,7 +365,7 @@ function tcreoSuitesOf(&$db, $tprojectId)
         // parent_id is REQUIRED: tcreoOwningProject() walks up from it to prove
         // the node really lives under this test project.
         $rows = $db->get_recordset(
-            "SELECT id, name, node_type_id, parent_id FROM {$GLOBALS['dbprefix']}nodes_hierarchy" .
+            "SELECT id, name, node_type_id, parent_id FROM {$T['nodes_hierarchy']}" .
             " WHERE parent_id = {$id} ORDER BY node_order, id");
         if (is_null($rows)) {
             continue;
@@ -377,8 +400,9 @@ function tcreoSuitesOf(&$db, $tprojectId)
  */
 function tcreoProjectName(&$db, $tprojectId)
 {
+    $T = tcreoTables();
     $row = $db->get_recordset(
-        "SELECT name FROM {$GLOBALS['dbprefix']}nodes_hierarchy WHERE id = " .
+        "SELECT name FROM {$T['nodes_hierarchy']} WHERE id = " .
         intval($tprojectId) . " AND node_type_id = " . NODE_TYPE_TESTPROJECT);
     if (!is_null($row) && count($row) > 0) {
         return (string)$row[0]['name'];
@@ -389,8 +413,9 @@ function tcreoProjectName(&$db, $tprojectId)
 /** The external-id prefix is the only column testprojects still owns. */
 function tcreoProjectPrefix(&$db, $tprojectId)
 {
+    $T = tcreoTables();
     $row = $db->get_recordset(
-        "SELECT prefix FROM {$GLOBALS['dbprefix']}testprojects WHERE id = " .
+        "SELECT prefix FROM {$T['testprojects']} WHERE id = " .
         intval($tprojectId));
     if (!is_null($row) && count($row) > 0) {
         return (string)$row[0]['prefix'];
