@@ -29,11 +29,12 @@ therefore lifted into one standalone Dashio popup, exactly like the other action
 | Context card | Test project + live keyword count |
 | Format select | XML / CSV, populated from `getSupportedSerializationInterfaces()` |
 | Format sample | the real snippet for the selected format, from `getSupportedSerializationFormatDescriptions()` |
+| **File format doc link** | *View File Format Documentation* anchor under the format select, opening `docs/tl-file-formats.pdf` in a new tab — **restored in #1007** (legacy `keywordsImport.tpl:31` / `keywordsExport.tpl:63`) |
 | Export panel | editable filename (`maxlength=255`, default `keywords.<ext>`) + Download |
 | Import panel | file picker, `Maximum file size: N KB` hint, Upload, "existing keywords with the same name are updated" note |
 | States | success box, error box, per-right **Access denied** cards, unknown project, empty project |
 
-Everything is localized: `kwxml.*` (33 keys incl. the two server-error strings) +
+Everything is localized: `kwxml.*` (34 keys incl. `viewDocs` and the two server-error strings) +
 `footers.keywordsExport` in all 10 bundles (`de, en, es, fr, it, ja, pt, ro, ru, zh`),
 validated with `python3 -m json.tool` and checked for key parity.
 
@@ -145,3 +146,17 @@ commas in the notes, one with NULL notes — plus `kwview1615` and `kwnorights16
 
 Commits: `3f6a52e47` (BFF) → `1af75f0a1` (screen + i18n + link switch) → `e0c1553f0`
 (test-found fixes) → `6556dc91e` (code-review fixes).
+
+
+## 10. Follow-up — #1007: the file-format documentation link
+
+The exchange popup was missing the legacy "view file format documentation" anchor
+that both legacy screens rendered next to the file-type select
+(`keywordsImport.tpl:31`, `keywordsExport.tpl:63` →
+`PARTIAL_URL_TL_FILE_FORMATS_DOCUMENT`, `cfg/const.inc.php:919`). Measured before
+the fix: **0 anchors in the DOM** in either panel. Both panels now render it via a
+`docLink()` string helper at the legacy position, with i18n `kwxml.viewDocs` in all
+10 locales. No BFF change. Suite 1007 13/13 PASS; Event Viewer clean.
+
+Details: `docs/Task-Issue-1007-keywords-file-format-doc-link.md`
+(wiki: *Task-Issue-1007-keywords-file-format-doc-link*).

@@ -24963,3 +24963,75 @@ php tmp/fixtures_1670.php                    # SRT1670 / plan 2 / six distinct r
 #   click "Plan Role Override": rows must regroup by the SELECTED role; 3rd click resets to Login asc
 # console: assignDt.settings()[0].aoColumns.map(c => c.bSortable)   # -> [false,true,true,true,true]
 ```
+
+---
+
+### Suite 1007 — Task — Issue #1007: "View File Format Documentation" link in keyword import/export (2026-09-27)
+
+**Feature under test** — the legacy anchor `PARTIAL_URL_TL_FILE_FORMATS_DOCUMENT`
+(`cfg/const.inc.php:919` → `docs/tl-file-formats.pdf`) that legacy
+`gui/templates/dashio/keywords/keywordsImport.tpl:31` and `keywordsExport.tpl:63`
+rendered next to the file-type select. Restored in the modern exchange popup
+`gui/templates/keywords/keywordsExport.html` (both `exportPanel()` and
+`importPanel()`), reached from `keywordsView.html` → Import / Export →
+`openExchange()`.
+
+**Precondition / fixtures** (fresh DB — this fork has NO `testprojects.name`
+column, project names live in `nodes_hierarchy`):
+
+```sql
+INSERT INTO testprojects (id,prefix,color,active,tc_counter,is_public)
+  VALUES (9001,'KWFIX','#4ECDC4',1,0,1);
+INSERT INTO nodes_hierarchy (id,parent_id,node_type_id,name,node_order)
+  VALUES (9001,0,1,'Keyword Fixture Project',0);
+```
+
+Login `admin/admin`. Entry point:
+`http://localhost:8082/gui/templates/keywords/keywordsExport.html?mode=export&tproject_id=9001`
+
+**Expected** — an anchor labelled *View File Format Documentation*, with a
+PDF glyph, teal, opening `docs/tl-file-formats.pdf` in a new tab, directly
+under the Format select, in BOTH the Export and the Import panel, surviving a
+format switch and a locale switch, with no raw i18n key leaking.
+
+**Results**
+
+| # | Case | Expected | Observed | Result |
+|---|---|---|---|---|
+| 1007-01 | Baseline: the gap is real | before the fix, no anchor in either panel | `document.querySelectorAll('a').length === 0` in the Export panel **and** in the Import panel; `grep -rlc tl-file-formats.pdf gui/templates/keywords/*.html` → 0 files | **FAIL reproduced** (gap) |
+| 1007-02 | Anchor in the **Export** panel | one `a.doc-link` under `#exportType` | found; `text="View File Format Documentation"`, `href="/docs/tl-file-formats.pdf"`, `target=_blank`, `rel=noopener`, `i.fa-file-pdf-o` present, parent contains `#exportType`, `color=rgb(15, 104, 98)` | **PASS** |
+| 1007-03 | Anchor in the **Import** panel | one `a.doc-link` under `#importType` | `setMode('import')` → found, `text="View File Format Documentation"`, parent contains `#importType` | **PASS** |
+| 1007-04 | Position matches legacy | inside the file-type cell, i.e. before the format sample | a11y order zh page: 格式 select → **查看文件格式文档** → 格式示例 — same as `keywordsExport.tpl:63` | **PASS** |
+| 1007-05 | Link actually resolves | click → PDF opens in a new tab | clicked → new tab `http://localhost:8082/docs/tl-file-formats.pdf`; `curl -D` → `200 OK`, `Content-Type: application/pdf`, `Content-Length: 570890` | **PASS** |
+| 1007-06 | Survives a format switch | link kept after `exportTypeChanged()` (CSV) | `linkStillThere: true`, `href` unchanged (the panel is rebuilt as an HTML string, so the link must come from `docLink()`) | **PASS** |
+| 1007-07 | Locale switch → `ro` | localized label in both panels | `localStorage tl_locale=ro` + reload → *„Vezi documentația formatului de fișier"* in Export **and** Import | **PASS** |
+| 1007-08 | Locale switch → `zh` | localized label, no raw key | `tl_locale=zh` + reload → *„查看文件格式文档"*; `rawKeyLeak: false` | **PASS** |
+| 1007-09 | All 10 bundles filled and translated | `kwxml.viewDocs` present & distinct in de/en/es/fr/it/ja/pt/ro/ru/zh | all 10 return a non-empty translated string; `python3 -m json.tool` → 10/10 OK; each bundle diff = **+1 line, 0 deletions** | **PASS** |
+| 1007-10 | Syntax gate | clean | `node --check` on the extracted inline `<script>` (14281 bytes) → `JS SYNTAX OK` | **PASS** |
+| 1007-11 | Console sweep | 0 errors/warnings | `list_console_messages(types=[error,warn])` → `<no console messages found>` | **PASS** |
+| 1007-12 | Event Viewer / `events` table | 0 new Error/Warning rows | `select log_level,count(*) from events group by log_level` → `16 | 1` (audit INFO only); `where log_level in ('ERROR','WARNING')` → empty | **PASS** |
+| 1007-13 | Regression: exchange still works | Export + Import paths unaffected | no BFF change; `action=init` payload untouched; panels still render format select, sample, file name / file picker and their buttons | **PASS** |
+
+**Result: 13 PASS / 0 FAIL** (1007-01 is the pre-fix baseline, reproduced
+deliberately before the change).
+
+**Gotchas recorded so future repros don't chase red herrings**
+- The modern keywords exchange is a **popup window**, not inline modals as the
+  issue body assumed — the link therefore belongs in `keywordsExport.html`, and
+  it is produced by a **string helper** (`docLink()`), not a static
+  `data-i18n` node, because the panels are re-rendered as HTML on every
+  `render()`.
+- This fork has no `testprojects.name`; `testProjectName()` reads
+  `nodes_hierarchy.name`, so a project fixture needs rows in **both** tables or
+  the screen shows the "Test project not found" card.
+
+**RESUME**
+
+```bash
+mysql -h 127.0.0.1 -utestlink -ptestlink testlink
+mysql> INSERT INTO testprojects (id,prefix,color,active,tc_counter,is_public) VALUES (9001,'KWFIX','#4ECDC4',1,0,1);
+mysql> INSERT INTO nodes_hierarchy (id,parent_id,node_type_id,name,node_order) VALUES (9001,0,1,'Keyword Fixture Project',0);
+# browser: admin/admin -> http://localhost:8082/gui/templates/keywords/keywordsExport.html?mode=export&tproject_id=9001
+#   Export tab and Import tab must each show "View File Format Documentation" under the Format select
+#   console: document.querySelector('a.doc-link').getAttribute('href')   # -> /docs/tl-file-formats.pdf
+```
