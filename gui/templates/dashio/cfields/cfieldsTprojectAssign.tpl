@@ -19,7 +19,7 @@ Purpose: management Custom fields assignment to a test project
 {config_load file="input_dimensions.conf" section=$cfg_section}
 
 <head>
-{$ll = #pagination_length#}
+{$ll = $tlCfg->gui->{$cfg_section}->pagination->length}
 {$dataAttrDataTable = 'data-view'}
 {include file="DataTables.inc.tpl" 
          DataTablesSelector="[$dataAttrDataTable]"
