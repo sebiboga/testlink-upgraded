@@ -1,481 +1,73 @@
 <?php
-/** 
- * TestLink Open Source Project - http://testlink.sourceforge.net/
- * This script is distributed under the GNU General Public License 2 or later. 
+/**
+ * Direct Links Frameset Gateway - legacy shim (Refs #1677).
  *
- * Direct links for external access to testlink items with frames for navigation and tree.
+ * This entry point is MODERNIZED:
+ *   - api/ltx/index.php                   -> BFF resolver (auth, rights, JSON)
+ *   - gui/templates/links/ltxDirectLink.html -> resolver screen (Dashio)
  *
- * IMPORTANT - LIMITATIONS:
- * User has to login before clicking the link!
- * If user is not logged in he is redirected to login page. 
- * After login main page is shown, Clicking the link again then it works!
+ * WHAT THE LEGACY SCRIPT DID
+ * --------------------------
+ * `ltx.php?item=<exec|xta2m>&...` was a TWO-STEP Smarty FRAMESET:
+ *   Step 1 (outer frame) init_args() + checkTestPlan() then `main.tpl`, i.e.
+ *           navBar + asideMenu + an inner iframe pointing back at ltx.php
+ *           with `&load=1`;
+ *   Step 2 (inner frame) `launch_inner_exec()` / `launch_inner_xta2m()`
+ *           re-resolved the context and displayed `frmInner.tpl` (exec
+ *           navigator + execSetResults) or `workframe.tpl` (single frame),
+ *           pointing at the still-legacy `lib/execute/execSetResults.php`
+ *           and `lib/execute/execNavigator.php`.
  *
- * 
- * @package     TestLink
- * @author      Francisco Mancardi
- * @copyright   2015,2017 TestLink community
- * @link        http://www.testlink.org/
+ * It was the LAST root-level legacy frameset gateway still rendering Smarty
+ * (`main.tpl` / `frmInner.tpl` / `workframe.tpl`); its siblings are already
+ * modernized - `linkto.php` -> gui/templates/links/directLink.html
+ * (Refs #1532/#1542), `lnl.php` -> gui/templates/links/publicLink.html
+ * (Refs #1541), `ltcp.php` -> gui/templates/testcases/tcLaunchPrint.html
+ * (Refs #1623).
  *
+ * The 2.0.1 shell (navBar + asideMenu + content iframe) is served by
+ * index.php, so the outer frameset is simply dropped: the modern screen
+ * resolves the same item and hands over to the ALREADY-MODERN screens
+ * `gui/templates/execute/execSetResults.html`,
+ * `gui/templates/execute/execNavigator.html` and
+ * `gui/templates/results/assignedTcOverview.html`.
+ *
+ * This shim keeps every existing deep link working unchanged:
+ *   ltx.php?item=exec&build_id=N&feature_id=M
+ *   ltx.php?item=exec&build_id=N&tplan_id=M&tcversion_id=V&platform_id=P
+ *   ltx.php?item=exec&load=1&...
+ *   ltx.php?item=xta2m&user_id=U&tplan_id=M[&build_id=N]
+ * The whole query string is forwarded unchanged; the BFF owns the item
+ * whitelist, the `testplan_execute` right check and the xta2m "assigned to
+ * ME" self-check (all of which the legacy inner frame skipped - the fix
+ * documented in api/ltx/index.php).
+ *
+ * Unlike ltcp.php/lnl.php this gateway is NOT public: ltx.php ran
+ * testlinkInitPage($db, true), so an anonymous deep link was bounced to the
+ * login page. That contract is preserved here - the session guard runs
+ * BEFORE the redirect, so a bookmarked ltx.php link still lands on
+ * login.php?note=expired&destination=... instead of on a screen that would
+ * immediately answer 401.
  */
 
-// use output buffer to prevent headers/data from being sent before 
-// cookies are set, else it will fail
+// use output buffer to prevent headers/data from being sent before cookies
+// are set, else the session guard cannot start the session (legacy line 23)
 ob_start();
 
-// some session and settings stuff from original index.php 
+// some session and settings stuff from original ltx.php
 require_once('lib/functions/configCheck.php');
 checkConfiguration();
 require_once('config.inc.php');
 require_once('common.php');
+// legacy contract: anon -> login.php (preserved verbatim, incl. the
+// destination= round trip testlinkInitPage builds)
 testlinkInitPage($db, true);
 
-$smarty = new TLSmarty();
+// Strip control characters that could poison the Location header.
+$qs = isset($_SERVER['QUERY_STRING']) ? $_SERVER['QUERY_STRING'] : '';
+$qs = str_replace(["\r", "\n"], '', $qs);
 
-// This process seems to have two steps
-//
-// Step 1
-// Display outer frame, and do a new call 
-// to display the wished content, in inner frame
-//
-// Step 2
-// Here we will get what we need
-// 
-// display outer or inner frame?
-// why I'm asking this question?
-//
-if (!isset($_GET['load'])) 
-{
-  // display outer frame, pass parameters to next script call for inner frame
-  // ATTENTION:
-  // Because we are going to recreate an URL with paramenters on the URL, we need 
-  // to use urlencode() on data we have got.
-  //
-  $args = init_args($db);
-  $args->tproject_id = 0;  
-  
-  if( $args->status_ok )
-  {
-    if($args->tplan_id != '')
-    {
-      $hasRight = checkTestPlan($db,$args->user,$args);
-      if( $hasRight )
-      {
-        $lof = 'launch_outer_' . $args->item;
-        $lof($smarty,$args);
-      }  
-    }   
-  } 
-  else
-  {
-    echo lang_get('security_check_ko');
-    ob_end_flush();
-    exit();    
-  } 
-} 
-else 
-{
-  // 
-  // inner frame, parameters passed
-  // figure out what to display 
-  //
-  // key: item, value: url to tree management page
-  $driver = isset($_GET['item']) ? $_GET['item'] : null;
-  if(is_null($driver))
-  {
-    die();
-  }  
-  
-  $lif = 'launch_inner_' . $driver;
-  $lif($db,$smarty);
-}
+header('Location: ' . TL_BASE_HREF . 'gui/templates/links/ltxDirectLink.html' .
+       ($qs !== '' ? '?' . $qs : ''), true, 302);
 ob_end_flush();
-
-
-/**
- *
- *
- */
-function checkTestPlan(&$db,&$user,&$args)
-{
-  $hasRight = false;
-  $tplan_mgr = new testplan($db);
-  
-  $item_info = $tplan_mgr->get_by_id($args->tplan_id,array( 'output' => 'minimun'));
-  if(!is_null($item_info))
-  {
-    $args->tproject_id = intval($item_info['tproject_id']);
-
-    switch($args->item)
-    {
-      case 'exec':
-      case 'xta2m':
-        $hasRight = $user->hasRight($db,'testplan_execute',
-                                    $args->tproject_id,$args->tplan_id);
-      break;
-
-
-      default:
-        // need to fail!!
-      break;
-    }
-  }
-  return $hasRight;
-}  
-
-
-/**
- *
- */
-function init_args(&$dbHandler)
-{
-  $args = new stdClass();
-  $args->tplan_id = intval(isset($_GET['tplan_id']) ? $_GET['tplan_id'] : null);
-  $args->tcversion_id = intval(isset($_GET['tcversion_id']) ? $_GET['tcversion_id'] : null);
-  $args->platform_id = intval(isset($_GET['platform_id']) ? $_GET['platform_id'] : null);
-  $args->build_id = intval(isset($_GET['build_id']) ? $_GET['build_id'] : null);
-
-  $args->anchor = isset($_GET['anchor']) ? $_GET['anchor'] : null;
-  $args->item = isset($_GET['item']) ? $_GET['item'] : null;
-
-  $args->feature_id = isset($_GET['feature_id']) ? $_GET['feature_id'] : null;
-
-
-  $args->target_user_id = intval(isset($_GET['user_id']) ? $_GET['user_id'] : null);
-  $args->user = $_SESSION['currentUser'];
-  $args->user_id = $_SESSION['userID']; 
-
-  // status depends on access request
-  $cfn = 'check_';
-  switch($args->item)
-  {
-    case 'exec':
-      $cfn .= $args->item;
-      $args->status_ok = ($args->build_id >0);
-    break;
-
-    case 'xta2m':
-      $cfn .= $args->item;
-      $args->status_ok = ($args->target_user_id >0 && $args->tplan_id >0);
-    break;
-
-    default:
-      $cfn = '';
-      $args->status_ok = false;
-    break;
-  }
-
-  if($args->status_ok && $cfn != '')
-  {
-    $cfn($dbHandler,$args);
-  }  
-  return $args;  
-}
-
-/**
- *
- */
-function build_link_exec(&$argsObj)
-{
-  $lk = isset($_GET['item']) ? "item=" . $_GET['item'] : '';
-  
-  if($argsObj->feature_id >0)
-  {
-    $lk .= "&feature_id=" . $argsObj->feature_id;
-  } 
-  else
-  {
-    $lk .= "&tplan_id=" . $argsObj->tplan_id . "&platform_id=" . $argsObj->platform_id .
-           "&tcversion_id=" . $argsObj->tcversion_id;
-  } 
-  $lk .= "&build_id=" . $argsObj->build_id;
-  $lk .= '&load=1' . (isset($_GET['anchor']) ? '&anchor=' . $_GET['anchor'] : "");
- 
-  return $lk;
-}
-
-
-
-
-/**
- * 
- *
- */
-function process_exec(&$dbHandler,$context)
-{
-  $ret = array();
-  $ret['url'] = null;
-  $ret['msg'] = 'ko';
-
-  $treeMgr = new tree($dbHandler);
-  $info = $treeMgr->get_node_hierarchy_info($context['tcversion_id']);
-
-  $ret['url'] = "lib/execute/execSetResults.php?level=testcase" .
-                "&version_id=" . $context['tcversion_id'] . 
-                "&id=" . $info['parent_id'] . 
-                "&setting_testplan=" . $context['setting_testplan'] .
-                "&setting_build=" . $context['setting_build'] .
-                "&setting_platform=" . $context['setting_platform'];
-
-
-
-  $ret['msg'] = 'ok';
-  return $ret;
-}
-
-/**
- * xta2m: eXecution Tasks Assigned TO Me
- *
- */
-function process_xta2m(&$dbHandler,$context)
-{
-  return process_exec($dbHandler,$context);
-}
-
-/**
- *
- *
- */
-function check_exec(&$dbHandler,&$argsObj)
-{
-
-  if( $argsObj->feature_id >0 )
-  {
-    // get missing data
-    $tb = DB_TABLE_PREFIX . 'testplan_tcversions';
-    $sql = "SELECT testplan_id,platform_id,tcversion_id " .
-           "FROM {$tb} WHERE id=" . intval($argsObj->feature_id);
-
-    $rs = $dbHandler->get_recordset($sql);
-    $argsObj->tplan_id = $rs[0]['testplan_id'];
-    $argsObj->tcversion_id = $rs[0]['tcversion_id'];
-    $argsObj->platform_id = $rs[0]['platform_id'];
-  } 
-  else
-  {
-    $argsObj->status_ok = ($argsObj->tplan_id > 0) &&  
-                          ($argsObj->tcversion_id >0); 
-  } 
-}
-
-/**
- *
- *
- */
-function check_xta2m(&$dbHandler,&$argsObj)
-{
-  $argsObj->status_ok = ($argsObj->target_user_id > 0 && 
-                         $argsObj->tplan_id >0);
-
-  if($argsObj->target_user_id != $argsObj->user_id)
-  {
-    $argsObj->status_ok = false;
-  }
-}
-
-
-/**
- * 
- *
- */
-function launch_inner_exec(&$dbHandler,&$tplMgr)
-{
-  $itemCode = array('exec' => 'lib/execute/execNavigator.php');
-  $op = array('status_ok' => true, 'msg' => '');
-
-  // First check for keys in _GET that MUST EXIST
-  // key: key on _GET, value: labelID defined on strings.txt
-  $mandatoryKeys = array('item' => 'item_not_set',
-                         'build_id' => 'build_id_not_set');
-
-  foreach($mandatoryKeys as $key => $labelID)
-  {
-    $op['status_ok'] = isset($_GET[$key]);
-    if( !$op['status_ok'])
-    {
-      $op['msg'] = lang_get($labelID);
-      break;
-    }
-  } 
-
-  if( $op['status_ok'] )
-  {
-    $op['status_ok'] = isset($_GET['feature_id']);
-    if( !$op['status_ok'] )
-    {
-      $keySet = array('tplan_id' => 'testplan_not_set',
-                      'tcversion_id' => 'tcversion_id',
-                      'platform_id' => 'platform_id_not_set');
-
-      foreach($keySet as $key => $labelID)
-      {
-        $op['status_ok'] = isset($_GET[$key]);
-        if( !$op['status_ok'])
-        {
-          $op['msg'] = lang_get($labelID);
-          break;
-        }
-      } 
-    }  
-  }
-
-  $args = init_args($dbHandler);
-  if($op['status_ok'])
-  {
-    // Set Environment    
-    $tplan_mgr = new testplan($dbHandler);
-    $info = $tplan_mgr->get_by_id($args->tplan_id,array('output' => 'minimun'));
-    
-    if(is_null($info))
-    {
-      die('ltx - tplan info does not exist');
-    }  
-
-    $tproject_mgr = new testproject($dbHandler);
-    // Refs #1537: testproject::setSessionProject() was removed during the
-    // 2.0.1 refactor (commit 94c9adf5c) and called with an undefined method
-    // fatal. Restore its exact semantics (recovered from fe154f2e6): set the
-    // session testproject vars from the project row so the legacy inner-frame
-    // exec dashboard (execNavigator.php) keeps working for deep links.
-    $tproject = $tproject_mgr->get_by_id($info['tproject_id']);
-    if(!is_null($tproject))
-    {
-      $_SESSION['testprojectID'] = $tproject['id'];
-      $_SESSION['testprojectName'] = $tproject['name'];
-      $_SESSION['testprojectColor'] = $tproject['color'];
-      $_SESSION['testprojectPrefix'] = $tproject['prefix'];
-      $_SESSION['testprojectOptReqs'] = isset($tproject['option_reqs']) ? $tproject['option_reqs'] : null;
-      $_SESSION['testprojectOptPriority'] = isset($tproject['option_priority']) ? $tproject['option_priority'] : null;
-      $_SESSION['testprojectOptAutomation'] = isset($tproject['option_automation']) ? $tproject['option_automation'] : null;
-    }
-    else
-    {
-      // deactivation path of the removed method (fe154f2e6)
-      unset($_SESSION['testprojectID']);
-      unset($_SESSION['testprojectName']);
-      unset($_SESSION['testprojectColor']);
-      unset($_SESSION['testprojectOptReqs']);
-      unset($_SESSION['testprojectOptPriority']);
-      unset($_SESSION['testprojectOptAutomation']);
-      unset($_SESSION['testprojectPrefix']);
-    }
-    $op['status_ok'] = true;
-  } 
-
-  if($op['status_ok'])
-  {
-    // Build  name of function to call for doing the job.
-    $pfn = 'process_' . $args->item;
-
-    $ctx = array();
-    $ctx['setting_testplan'] = $args->tplan_id;
-    $ctx['setting_build'] = $args->build_id;
-    $ctx['setting_platform'] = $args->platform_id;
-    $ctx['tcversion_id'] = $args->tcversion_id;
-    $ctx['tcase_id'] = 0;
-    $ctx['user_id'] = $args->user_id;
-
-    $jump_to = $pfn($dbHandler,$ctx);
-    $op['status_ok'] = !is_null($jump_to['url']);
-    $op['msg'] = $jump_to['msg'];
-  }
-
-  if($op['status_ok'])
-  {
-    $treeframe = $itemCode[$args->item] .
-                 '?loadExecDashboard=0' . 
-                 '&setting_testplan=' . $args->tplan_id .
-                 '&setting_build=' . $args->build_id .
-                 '&setting_platform=' . $args->platform_id;
-
-    $tplMgr->assign('title', lang_get('main_page_title'));
-    $tplMgr->assign('treewidth', TL_FRMWORKAREA_LEFT_FRAME_WIDTH);
-    $tplMgr->assign('workframe', $jump_to['url']);
-    $tplMgr->assign('treeframe', $treeframe);
-    $tplMgr->display('frmInner.tpl');
-  }
-  else
-  {
-    echo $op['msg'];
-    ob_end_flush();
-    exit();
-  }
-} // function end
-
-/**
- * xta2m: eXecution Tasks Assigned TO Me
- *
- */
-function launch_inner_xta2m(&$dbHandler,&$tplMgr)
-{
-  $args = init_args($dbHandler);
-
-  // Refs #1255: assignedTcOverview.html is the Dashio replacement of the
-  // legacy tcAssignedToUser.php this email workflow used to land on; the
-  // modern screen's BFF requires tproject_id, so resolve it from the plan.
-  $tplan_mgr = new testplan($dbHandler);
-  $planInfo = $tplan_mgr->get_by_id($args->tplan_id);
-  $tprojectId = isset($planInfo['tproject_id']) ? intval($planInfo['tproject_id']) : 0;
-
-  $jt = $_SESSION['basehref'] . 'gui/templates/results/assignedTcOverview.html' .
-        '?tproject_id=' . $tprojectId .
-        '&user_id=' . $args->target_user_id;
-
-  $k2c = array('tplan_id','build_id');
-  foreach($k2c as $tg)
-  {
-    if( property_exists($args,$tg) && $args->$tg > 0 )
-    {
-      $jt .= "&$tg=" . $args->$tg;
-    }
-  }
-
-  $tplMgr->assign('workframe', $jt);
-  $tplMgr->display('workframe.tpl');
-}
-
-/**
- *
- */
-function launch_outer_exec(&$tplMgr,$argsObj)
-{
-  $gui = new stdClass();
-  $gui->titleframe = 'lib/general/navBar.php?caller=linkto';
-  $gui->asideframe = 'lib/general/asideMenu.php';
-  $gui->asideRailed = menuRailIsOn();
-  $gui->navbar_height = config_get('navbar_height');
-  
-  if( $argsObj->tproject_id > 0)
-  {
-    $gui->titleframe .= '&testproject=' . $argsObj->tproject_id;
-  } 
-  $gui->title = lang_get('main_page_title');
-  $gui->mainframe = 'ltx.php?' . build_link_exec($argsObj);
-
-  $tplMgr->assign('gui', $gui);
-  $tplMgr->display('main.tpl');
-}
-
-/**
- *
- */
-function launch_outer_xta2m(&$tplMgr,$argsObj)
-{
-  $gui = new stdClass();
-  $gui->titleframe = 'lib/general/navBar.php?caller=linkto';
-  $gui->asideframe = 'lib/general/asideMenu.php';
-  $gui->asideRailed = menuRailIsOn();
-  $gui->navbar_height = config_get('navbar_height');
-  
-  if( $argsObj->tproject_id > 0)
-  {
-    $gui->titleframe .= '&testproject=' . $argsObj->tproject_id;
-  } 
-  $gui->title = lang_get('main_page_title');
-  $gui->mainframe = 'ltx.php?item=xta2m&load=1' .
-                    '&user_id=' . $argsObj->target_user_id .
-                    '&tplan_id=' . $argsObj->tplan_id;
-  
-  $tplMgr->assign('gui', $gui);
-  $tplMgr->display('main.tpl');
-}
-
+exit();

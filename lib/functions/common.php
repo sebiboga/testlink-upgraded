@@ -2175,6 +2175,16 @@ function getActions(&$gui,$baseURL) {
   // screen gui/templates/links/publicLink.html resolves through the BFF and
   // the BFF caps resolver screen rendering for session-only contexts.
   $actions->publicLink = "/gui/templates/links/publicLink.html";
+  // Direct Links frameset gateway modernized screen (Dashio standalone page) -
+  // Refs #1677. Replaces the legacy ltx.php two-step Smarty frameset
+  // (main.tpl / frmInner.tpl / workframe.tpl) for
+  // ltx.php?item=exec|xta2m&build_id=&feature_id=|&tplan_id=&tcversion_id=
+  // &platform_id=&user_id=; the resolver screen
+  // gui/templates/links/ltxDirectLink.html resolves through the BFF, which
+  // ALSO owns the testplan_execute right check and the xta2m "assigned to ME"
+  // self-check the legacy inner frame skipped, and hands over to the modern
+  // execSetResults.html / execNavigator.html / assignedTcOverview.html.
+  $actions->ltxDirectLink = "/gui/templates/links/ltxDirectLink.html";
   // Reorder Requirements modernized screen (Dashio standalone page) - Refs
   // #1488/#1518. The Reorder toolbar button in reqSpecView.html carries the
   // real req_spec_id; this generic launcher keeps legacy pointer/template
