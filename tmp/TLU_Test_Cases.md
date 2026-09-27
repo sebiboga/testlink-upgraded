@@ -23810,9 +23810,10 @@ Login `admin/admin` (user id 1).
 | 11 | Locale matrix `ro_RO` / `en_GB` / `es_ES`: `rolesView.php` HTTP 200, full length menu, 0 warning rows after each locale | **PASS** |
 | 12 | Browser (chrome-devtools, real DOM): `.dataTables_length select` options = `["20=20","40=40","60=60","All=-1"]`, 9 role rows, no init error | **PASS** |
 | 13 | Browser: `planMilestonesView` has 0 elements with `id="item_view"` and no `.dataTables_length` — pre-existing template gap (out of scope, filed as a follow-up) | **PASS** (documented) |
+| 15 | `cfieldsTprojectAssign.php` (code-review follow-through F1 — the last remaining `#pagination_length#` consumer) | HTTP 200 and `"lengthMenu": [ [20, 40, 60, -1], [20, 40, 60, "All"] ]` (pre-fix: `[ 20 ]`); after this change `grep -rn "#pagination_length#" gui/templates/` has only the defensive `planView.tpl:38` form left | **PASS** |
 | 14 | Syntax gates: `php -l config.inc.php` and `php -l` on the recompiled `rolesView` / `planMilestonesView` templates — all clean | **PASS** |
 
-**Totals: 14 assertions — 14 PASS / 0 FAIL.**
+**Totals: 15 assertions — 15 PASS / 0 FAIL.** (assertions 1-14 executed after the main fix commit `2ebf39803`; assertion 15 executed after the code-review follow-through commit `b14fa7d00`, which closed finding F1 — `cfieldsTprojectAssign.tpl` carried the identical one-option length menu and its conf section is edited by this fix, so leaving it behind would have made the commit internally inconsistent.)
 
 **Corrected assumptions** (measured, documented on the issue):
 
