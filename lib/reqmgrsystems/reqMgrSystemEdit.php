@@ -3,7 +3,7 @@
  * TestLink Open Source Project - http://testlink.sourceforge.net/ 
  * This script is distributed under the GNU General Public License 2 or later. 
  *
- * @filesource  issueTrackerEdit.php
+ * @filesource  reqMgrSystemEdit.php
  * @author      francisco.mancardi@gmail.com
  * @since 1.9.6
  *

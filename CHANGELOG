@@ -842,6 +842,62 @@ screen reaches full parity.
   grep leaves no live reference. No i18n / BFF / DB change. Docs:
   docs/Task-Issue-947-Delete-Legacy-UsersAssign.md. (Refs #947)
 
+- [CLEANUP] - #966: the legacy Issue Tracker list + create/edit/delete cluster
+  is deleted now that gui/templates/issuetracker/issuetrackerView.html
+  (backed by api/issuetracker/index.php) is at parity - all 7 gating gaps
+  #959-#965 confirmed CLOSED before starting (read right, write gating,
+  environment column, connection check, link-count delete gating, used-by
+  display, per-type cfg template). Removed 10 files / 1 612 lines:
+  lib/issuetrackers/issueTrackerView.php (66), issueTrackerEdit.php (166),
+  issueTrackerCommands.class.php (310), lib/ajax/getissuetrackercfgtemplate.php
+  (49), the four gui/templates/dashio/issuetrackers/*.tpl (761) and the two
+  gui/templates/tl-classic/issuetrackers/*.tpl (260). The issue listed 5
+  files; two corrections. (1) issueTrackerCommands.class.php was NOT listed
+  but is orphaned by the deletion - issueTrackerEdit.php:89 was its ONLY
+  instantiator in the tree (api/issuetracker/index.php:107 uses
+  `new tlIssueTracker($db)` directly), and it held the three
+  `$guiObj->template = "issueTrackerView.php"` assignments that
+  issueTrackerEdit.php:59 turned into `header("Location:")` on every
+  successful create, every successful update and every delete. The legacy
+  cluster was a closed loop - the view template linked back into the edit
+  controller (issueTrackerView.tpl:23,68,93) and the edit controller
+  redirected back to the view - so the issue's premise that only
+  common.php:1879 and aside.tpl:82 reached it was incomplete. (2)
+  issueTrackerEdit.new.tpl / .ori.tpl are dead snapshots and always were:
+  templateConfiguration() (common.php:932-949) picks the variant from
+  config_get('tpl')['issueTrackerEdit'] and $tlCfg->tpl is set nowhere in
+  the tree, so default_template is unconditionally issueTrackerEdit.tpl.
+  checkConnection and displayCfgExample are not lost - #962 and #965
+  reimplemented them as BFF routes (api/issuetracker/index.php:222 and the
+  GET /cfg-template route at :161), which is what makes
+  getissuetrackercfgtemplate.php safe to delete. Legacy checkRights accepted
+  issuetracker_view OR issuetracker_management; the BFF enforces the
+  equivalent (api/issuetracker/index.php:31-51). One surviving entry point
+  retargeted instead of 404ing: tl-classic mainPageLeft.tpl:80-81, which
+  also carried a link already orphaned by #957 - both now point at the modern
+  HTML screens. lib/reqmgrsystems/reqMgrSystemEdit.php:6 `@filesource
+  issueTrackerEdit.php` was a copy-paste of the wrong controller and is
+  corrected to reqMgrSystemEdit.php. The "Legacy ...parity" comments in
+  api/issuetracker/index.php (16), gui/templates/issuetracker/
+  issuetrackerView.html (9) and tlIssueTracker.class.php:789-791 are KEPT as
+  the audit trail for the #959-#965 batch. Verified: php -l clean, real
+  Smarty 4.5.7 compile of the edited template generates 17 184 B with both
+  modern URLs present and no legacy path, repo-wide grep leaves no live
+  reference outside those comments. No BFF / DB / i18n change. Left for
+  follow-up rather than changed here: config.inc.php:686-689
+  ($tlCfg->gui->issueTrackerView->pagination, added by #1591 for the legacy
+  template and read by nobody - the modern screen hardcodes pageLength 25),
+  the [issueTrackerEdit] / [issueTrackerView] sections of
+  gui/templates/conf/input_dimensions.conf:312,334 (loaded only by
+  {config_load section=$cfg_section} in the deleted templates), and 3 lang_get
+  keys now unused outside locale/*.txt (th_issuetracker_type,
+  title_issuetracker_mgmt, th_issuetracker_env - the modern screen uses its
+  own flat `it.*` namespace in gui/templates/i18n/*.json). The historical
+  regression suites #1590 / #1591 / #1592 / #1617 in tmp/TLU_Test_Cases.md
+  exercise the legacy URL and are kept as past-fix records, not re-run; the 5
+  live suites covering the modern screen are 960-965. Docs:
+  docs/Task-Issue-966-Delete-Legacy-IssueTrackerView.md. (Refs #966)
+
 MAJOR AREAS
 -----------
 
