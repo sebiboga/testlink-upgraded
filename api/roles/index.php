@@ -783,6 +783,15 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'meta' && isset
                     'id' => intval($u->dbID),
                     'login' => $u->login,
                     'name' => $u->getDisplayName(),
+                    // Legacy parity (issue #1676): the legacy assign cell printed
+                    // the RAW names - usersAssign.tpl:242 "{$user->login} ({$user->firstName}
+                    // {$user->lastName})" - unconditionally, never consulting
+                    // $tlCfg->username_format. getDisplayName() alone collapses the
+                    // Name column into a duplicate of the Login column for every
+                    // format that omits %first%/%last% ('%login%', '%email%'), so the
+                    // grid needs the raw parts to always be able to show them.
+                    'firstName' => (string)$u->firstName,
+                    'lastName' => (string)$u->lastName,
                     'roleID' => $assignedRoleId,
                     'effectiveRoleID' => $eff['effective_role_id'],
                     'isInherited' => $eff['is_inherited'],
@@ -947,6 +956,11 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'meta' && isset
                     'id' => intval($u->dbID),
                     'login' => $u->login,
                     'name' => $u->getDisplayName(),
+                    // Legacy parity (issue #1676): raw names so the assign grid can
+                    // always render them (usersAssign.tpl:242). Additive only - the
+                    // tplan-roles sibling payload is the one the plan screen reads.
+                    'firstName' => (string)$u->firstName,
+                    'lastName' => (string)$u->lastName,
                     'roleID' => $assignedRoleId,
                     // Legacy parity: get_tplan_effective_role() effective role +
                     // inheritance nature (issue #944).

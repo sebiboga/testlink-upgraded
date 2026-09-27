@@ -25270,3 +25270,52 @@ XW_SHORTCUT_FIXED=1 python3 tmp/suite_1677.py   # flip S9c to its post-#1679 exp
 # php -l api/ltx/index.php ltx.php lib/functions/testplan.class.php
 # json:  python3 -m json.tool gui/templates/i18n/<lang>.json
 ```
+
+## Suite 1676 — Feature, Issue #1676: `usersAssignPlan.html` Name column must never hide the first/last names (legacy `usersAssign.tpl:242` parity)
+
+**Precondition**
+```bash
+php tmp/fixtures_1676.php          # tproject AN1676 (id 1) + plan AN1676PLAN (id 2)
+                                    # + users an1676designer/Anna Designer, an1676leader/Lars Leader,
+                                    #   an1676tester/Tina Tester, an1676guest/Gus Guest
+# extra edge-case user with BOTH names empty:
+mysql -h 127.0.0.1 -utestlink -ptestlink testlink -e "INSERT INTO users
+  (login,password,email,first,last,locale,role_id,active,cookie_string,auth_method)
+  VALUES ('an1676noname','','an1676noname@localhost','','','en_GB',5,1,MD5(RAND()),'')"
+```
+The `username_format` under test is the **admin-settable** `$tlCfg->username_format`
+(config.inc.php:756-764). Because it is read at include time, each variant is set by
+writing the gitignored override file (config.inc.php:2208 requires it last):
+```bash
+printf '%s\n' '<?php' '$tlCfg->username_format = "%login%";' > custom_config.inc.php   # variant
+rm -f custom_config.inc.php                                                              # default
+```
+Entry point: `http://localhost:8082/gui/templates/usermanagement/usersAssignPlan.html?tproject_id=1&tplan_id=2`
+(login `admin/admin`).
+
+**Steps / expected / actual**
+
+| id | Step | Expected | Actual |
+|---|---|---|---|
+| `C1` | default `'%first% %last%'`, open the screen, read `#assignBody` cells 2+3 | `an1676designer` / `Anna Designer` — **no** `(Anna Designer)` duplication | **PASS** (byte-identical to pre-fix) |
+| `C2` | set `'%login%'`, reload, read the grid | `an1676designer` / `an1676designer (Anna Designer)` — legacy `login (first last)` visible | **PASS** (pre-fix: `an1676designer` / `an1676designer`) |
+| `C3` | `'%login%'`, row `admin` (stock `Testlink Administrator`) | `admin` / `admin (Testlink Administrator)` | **PASS** |
+| `C4` | set `'%email%'`, reload | `an1676guest` / `an1676guest@localhost (Gus Guest)` | **PASS** |
+| `C5` | `'%email%'`, row `admin` (no e-mail → empty display value) | `Testlink Administrator` — bare names, **no** leading `()` | **PASS** |
+| `C6` | set `'%first% %last% %login%'`, reload | `Tina Tester an1676tester` — both names already present, nothing appended | **PASS** |
+| `C7` | default format, row `an1676noname` (first **and** last empty) | Name cell empty, Login cell `an1676noname` (legacy `login ()` trimmed) | **PASS** |
+| `C8` | `'%login%'`, DataTables search `Lars` in the Name column | exactly the `an1676leader` row matches (the appended part is searchable, as the legacy fused cell was) | **PASS** |
+| `C9` | any format: sort the Name column, page with the entries selector, bulk "Do", Save | Name cells intact after every re-render, no duplicated names, save state unchanged | **PASS** (regression) |
+| `C10` | browser console after all reloads | no error/warn entries | **PASS** (`<no console messages found>`) |
+| `C11` | Event Viewer / `events` table after the whole run | no new Error/Warning row | **PASS** (2 rows, both `log_level=16` audit: `audit_login_succeeded`, `audit_testproject_created`) |
+
+**Automated harness** — `tmp/suite_1676.py` re-runs the whole matrix: Part A evaluates the
+**shipped** `userNameCell()` (extracted from the HTML, not a copy) in node over 9
+format/edge combinations, Part B logs in over real HTTP and asserts the BFF contract for
+three formats. Result of this run: **20/20 PASS**.
+
+```bash
+python3 tmp/suite_1676.py
+# browser: admin/admin -> http://localhost:8082/gui/templates/usermanagement/usersAssignPlan.html?tproject_id=1&tplan_id=2
+# php -l api/roles/index.php ; node --check <inline script of usersAssignPlan.html>
+```
