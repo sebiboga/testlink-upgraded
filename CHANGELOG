@@ -6257,6 +6257,41 @@ Changes:
   PHP 7+ raises `E_WARNING`, so every missing class permanently adds two Error/Warning rows to the
   Event Viewer. Already fixed independently on the branch by #1593 (`stream_resolve_include_path()`
   guard), so #1634 is closed as its duplicate.
+### UI modernization — Direct Links frameset gateway (Refs #1677)
+- The direct-links entry point `ltx.php` (`?item=exec|xta2m&build_id=…&feature_id=…|tplan_id=…&tcversion_id=…&platform_id=…[&anchor=…]`)
+  is modernized as `gui/templates/links/ltxDirectLink.html` (Dashio: resolved-context card with
+  project / plan / build / platform / test case external id / suite / version, clickable chips to
+  switch build, platform and any version **linked to the plan** without editing the link, primary
+  "Open Execution" / secondary "Open Navigator" actions, access-denied / not-found / error state
+  cards carrying the legacy `LTX-0x` markers, TLi18n locale switcher) + BFF `api/ltx/index.php`.
+- It was the **last root-level legacy frameset** still rendering Smarty (`main.tpl` /
+  `frmInner.tpl` / `workframe.tpl`, via the two-step `ltx.php&load=1` inner frame). Both link
+  shapes and all 10 failure outcomes are ported — `LTX-01` bad item / missing user, `LTX-02`
+  unknown plan, `LTX-03` xta2m not your tasks, `LTX-04` build not set, `LTX-06` test plan not
+  set, `LTX-09` unknown build / version / platform / version-not-in-plan, `LTX-10` unknown
+  feature — and each answer returns the machine code **and** the `legacy_code` marker, so the
+  raw untranslated legacy `echo`/`die()` strings are gone. Links now hand over to the
+  already-modern `execSetResults.html`, `execNavigator.html` and `assignedTcOverview.html`
+  instead of the still-legacy `lib/execute/*.php` renderers. `ltx.php` is kept as a
+  session-guarded 302 shim that forwards the whole query string, preserving the non-public
+  `testlinkInitPage($db, true)` contract, so an anonymous deep link still bounces to
+  `login.php?note=expired&destination=…` and every bookmark keeps working.
+- Security (each was a real hole in 1.9.20): the `&load=1` inner frame no longer bypasses the
+  rights check, `item=xta2m` now enforces the "assigned to **me**" self-check for any user id,
+  the version is proved to belong to the addressed plan (`404 version_not_in_plan`), unknown
+  `feature_id`/`tcversion_id` no longer dereference a null recordset (PHP 8 fatal), the
+  `anchor` parameter is whitelisted instead of interpolated into the iframe `src`, and
+  non-numeric ids (`build_id=1abc`, truthy in PHP) are rejected.
+- Fixes **#1678** — `testplan::get_parenttestsuites()` recursed on a NULL `parent_id`, producing
+  `AND NH.id = ` → MariaDB 1064 and a `log_level=1 DATABASE` Event Viewer row on every hit from
+  any screen on the `get_testsuites()` reporting path; guarded with `intval()` + a `<= 0`
+  short-circuit (the 2.0.1 `nodes_hierarchy` refactor made `parent_id` nullable).
+- Fixes **#1679 filed, not fixed here** — `bffSameOriginGuard()` short-circuits on
+  `X-Requested-With` before reading `Origin`/`Referer`; shared by 102 BFF endpoints and not
+  CORS-exploitable, so the repo-wide fix is left to its own PR.
+- Test suite: 78 executable cases (`tmp/suite_1677.py`), 78/78 PASS; Event Viewer clean
+  (0 `ERROR`/`WARNING`, 0 `DATABASE`).
+
 ### UI modernization — Launch Test Case Print gateway (Refs #1623)
 - The public share-link entry point `ltcp.php` (`?apikey=<32-char user key>&testcase=<PREFIX>-<NUM>-<VERSION>`)
   is modernized as `gui/templates/testcases/tcLaunchPrint.html` (Dashio: resolved-test-case card
