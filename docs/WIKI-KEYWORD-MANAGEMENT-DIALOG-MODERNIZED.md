@@ -125,8 +125,11 @@ deleteTitle, deleteText, deleteConfirm, deleteCancel, openManager, required`.
 - In the sibling BFF `api/keywords`: `GET /{id}` checks `mgt_view_key` on the
   **keyword's own** project and bulk `POST /import` needs
   `mgt_modify_key` **AND** `mgt_view_key` (issue #1604). Note the legacy
-  import parser splits on `;`; a comma-delimited file answers
-  `200 {"status":"ok"}` and imports nothing (issue #1605, not fixed yet).
+  import parser splits on `;`. A comma-delimited file used to answer
+  `200 {"status":"ok"}` and import nothing; since **#1605** the importer
+  reports the real outcome (`imported`/`skipped`/`errors[]`, `422` when
+  nothing landed) and a comma-delimited file is accepted — see
+  `docs/Bugfix-Issue-1605-Keyword-CSV-Import-False-Success.md`.
 - **CSRF** — `bffSameOriginGuard()` on all writes; anonymous requests get 401.
 - Nothing is interpolated into HTML unescaped (`esc()` in the front-end,
   prepared statements in the model layer).
@@ -151,7 +154,7 @@ Bugs found and fixed while testing:
 | [#1602](https://github.com/sebiboga/testlink-upgraded/issues/1602) | tcView buttons never rendered; wrong version targeted | grants added to the `view` action; `openKeywordPopup(mode, tcversion_id)` |
 | [#1603](https://github.com/sebiboga/testlink-upgraded/issues/1603) | Create-and-Link accepted a `tcversion_id` of **another** project (cross-project IDOR + foreign test case name disclosure) | `tcaseVersionContext()` parent-chain + owning-project validation, 404 |
 | [#1604](https://github.com/sebiboga/testlink-upgraded/issues/1604) | shim: no ownership check on update/delete, no CSRF guard, `keyword[]=x` → 500, errors swallowed; `api/keywords` read/import rights on the wrong project | `kwShimOwnedBy()`, cross-site rejection, scalar coercion, `kwerr` toast, own-project `mgt_view_key`, AND-mode import gate |
-| [#1605](https://github.com/sebiboga/testlink-upgraded/issues/1605) | bulk import answers `200 {"status":"ok"}` while importing nothing (legacy `;` delimiter, per-row errors dropped) | **open** — not part of this screen |
+| [#1605](https://github.com/sebiboga/testlink-upgraded/issues/1605) | bulk import answers `200 {"status":"ok"}` while importing nothing (legacy `;` delimiter, per-row errors dropped) | **fixed** — `importKeywordsFromCSV()` reports `imported`/`skipped`/`errors[]`, `422` when nothing landed, `,` accepted (see the Bugfix-1605 page) |
 
 ## 7. Screenshots
 
