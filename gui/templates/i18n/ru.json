@@ -5226,7 +5226,6 @@
   "tcreo.confirmSort": "Изменить порядок всех тест-кейсов этого контейнера по: {criterion}?",
   "tcreo.sortedName": "Тест-кейсы отсортированы по имени.",
   "tcreo.sortedExtId": "Тест-кейсы отсортированы по внешнему ID.",
-  "tcreo.reorderSaved": "Порядок тест-кейсов сохранён.",
   "footers.tcReorder": "TestLink 2.0.1 - Порядок тест-кейсов",
   "tspec.reorderTestCases": "Изменение порядка тест-кейсов",
   "tspec.reorderTestCasesTitle": "Изменить порядок тест-кейсов выбранного набора (перетаскивание в дереве спецификации)"

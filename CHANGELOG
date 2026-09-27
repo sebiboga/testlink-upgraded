@@ -17,6 +17,25 @@ Every screen of the application was ported one-by-one in a screen-compare
 kept for backward compatibility and is progressively retired as each modern
 screen reaches full parity.
 
+- [SCREEN] - #1660: the Reorder Test Cases screen is modernized. Legacy 1.9.20 exposed re-ordering
+  as an ExtJS drag-and-drop on the test-specification tree frame
+  (`lib/testcases/listTestCases.php` + `gui/templates/dashio/testcases/tcTree.tpl`, backend
+  `lib/ajax/dragdroptprojectnodes.php`). It is now the standalone Dashio screen
+  `gui/templates/testcases/tcReorder.html` (container selector, per-row move to top/up/down/bottom,
+  sort by name or external ID behind a confirmation modal, empty and error states) backed by the new
+  BFF `api/tcreorder` (`init`/`move`/`sort`/`reorder`, session auth, same-origin guard,
+  `mgt_modify_tc` on the OWNING project). Opened from a rights-gated "Reorder Test Cases" button on
+  the Test Specification screen. 50 new i18n keys in all 10 locales. Regression suite 1660: 62 cases
+  PASS. Four defects found and fixed while doing it: 2.0.1 dropped `testproject_id` /
+  `testcase_id` / `tcversion_id` / `testsuite_id` from `nodes_hierarchy`, so the first BFF was dead
+  SQL and had to be rebuilt on the real shape (#1661); both retired legacy shims bounced anonymous
+  users to a relative `login.php` that 404s (#1662); the endpoint raised
+  `E_WARNING Undefined global variable $dbprefix` on every query - 1 289 event rows (#1663); and a
+  code review caught an inverted sort criterion (`config_get('testcase_reorder_by')` ships as
+  `EXTERNAL_ID`, not `EXTERNALID`, so the screen silently sorted by name), a missing
+  inactivity-timeout check on a write endpoint, and `strcasecmp` where legacy used `natsort`
+  (so "TC 10" sorted before "TC 2").
+
 - [FEATURE GAP] - #1003: the modern Assign Custom Fields screen could not delete a custom field.
   Legacy links every field name (assigned *and* available) to
   `cfieldsEdit.php?do_action=edit&cfield_id=N`, whose button group was Update | Delete | Cancel

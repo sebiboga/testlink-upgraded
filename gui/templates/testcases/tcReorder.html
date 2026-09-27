@@ -77,7 +77,6 @@ td.ops button:disabled { color: #ccc; cursor: not-allowed; border-color: #eee; }
 .notice { border-radius: 6px; padding: 11px 14px; font-size: 13px; margin-bottom: 14px; display: none; }
 .notice.ok { display: block; background: #e8f8f6; border: 1px solid #b8e6e2; color: #1f7a73; }
 .notice.err { display: block; background: #fdecea; border: 1px solid #f5c6c3; color: #a32b28; }
-.notice.warn { display: block; background: #fff6e5; border: 1px solid #ffe0a3; color: #8a6100; }
 
 .toast {
   position: fixed; top: 16px; right: 16px; background: #2c3e50; color: #fff;
@@ -215,7 +214,8 @@ function qs(k, d) {
 
 function esc(s) {
   return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 function toast(msg, kind) {
@@ -382,14 +382,32 @@ function postAction(action, extra, okMsg) {
     } else {
       setNotice('err', r.message || TLi18n.t('tcreo.stError'));
     }
+  }).always(function () {
+    setBusy(false);
   }).fail(function (xhr) {
     var r = (xhr && xhr.responseJSON) ? xhr.responseJSON : {};
     if (xhr && xhr.status === 403 && r.message && r.message.indexOf('CSRF') >= 0) {
       setNotice('err', TLi18n.t('tcreo.csrfBlocked'));
       return;
     }
+    // The BFF answers an idle session with 401 session_expired instead of
+    // redirecting; a BFF must not redirect, so say so and offer the way out.
+    if (xhr && (xhr.status === 401 || r.code === 'session_expired')) {
+      setNotice('err', TLi18n.t('tcreo.stSession'));
+      showState(TLi18n.t('tcreo.stSession'), TLi18n.t('tcreo.stSessionMsg'));
+      return;
+    }
     setNotice('err', r.message || TLi18n.t('tcreo.stErrorMsg'));
   });
+}
+
+/**
+ * Guard against a double submit: every write re-renders the table, and a
+ * second click landing between the response and the re-render would send the
+ * same move twice (which the server would then have to reject as ambiguous).
+ */
+function setBusy(busy) {
+  $('#rows button.op, #btnSortName, #btnSortExt').prop('disabled', busy);
 }
 
 function doMove(nodeId, op) {
@@ -418,12 +436,8 @@ function confirmModal() {
   if (!PENDING_ORDER) { return; }
   var p = PENDING_ORDER;
   closeModal();
-  if (p.kind === 'sort') {
-    postAction('sort', { by: p.by },
-      p.by === 'NAME' ? TLi18n.t('tcreo.sortedName') : TLi18n.t('tcreo.sortedExtId'));
-  } else {
-    postAction('reorder', { nodelist: p.nodelist }, TLi18n.t('tcreo.reorderSaved'));
-  }
+  postAction('sort', { by: p.by },
+    p.by === 'NAME' ? TLi18n.t('tcreo.sortedName') : TLi18n.t('tcreo.sortedExtId'));
 }
 
 $(function () {

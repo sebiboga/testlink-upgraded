@@ -5230,7 +5230,6 @@
   "tcreo.confirmSort": "Reordonezi toate cazurile de test din acest container după {criterion}?",
   "tcreo.sortedName": "Cazurile de test au fost sortate după nume.",
   "tcreo.sortedExtId": "Cazurile de test au fost sortate după ID extern.",
-  "tcreo.reorderSaved": "Ordinea cazurilor de test a fost salvată.",
   "footers.tcReorder": "TestLink 2.0.1 - Reordonare Cazuri de Test",
   "tspec.reorderTestCases": "Reordonare Cazuri de Test",
   "tspec.reorderTestCasesTitle": "Reordonează cazurile de test din suita selectată (trăgerea și drops din arborele specificației de test)"

@@ -5220,7 +5220,6 @@
   "tcreo.confirmSort": "Réordonner tous les cas de test de ce conteneur par {criterion} ?",
   "tcreo.sortedName": "Cas de test triés par nom.",
   "tcreo.sortedExtId": "Cas de test triés par ID externe.",
-  "tcreo.reorderSaved": "Ordre des cas de test enregistré.",
   "footers.tcReorder": "TestLink 2.0.1 - Réordonner les cas de test",
   "tspec.reorderTestCases": "Réordonner les cas de test",
   "tspec.reorderTestCasesTitle": "Réordonner les cas de test de la suite sélectionnée (glisser-déposer de l'arbre de spécification)"

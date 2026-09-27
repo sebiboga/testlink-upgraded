@@ -55,14 +55,20 @@ require_once('common.php');
 
 doSessionStart();
 
-require_once(__DIR__ . '/../_guard.php');
-bffSameOriginGuard();
-
 header('Content-Type: application/json; charset=utf-8');
 header('X-Content-Type-Options: nosniff');
 
 $db = new database(DB_TYPE);
 doDBConnect($db);
+
+require_once(__DIR__ . '/../_guard.php');
+bffSameOriginGuard();
+// Legacy parity: testlinkInitPage() ran checkSessionValid() on EVERY page, so
+// an idle tab was thrown back to the login screen. This endpoint WRITES, so
+// without this a tab left open past sessionInactivityTimeout would keep
+// reordering test cases (the issue #1614 class). It must run after $db
+// exists - checkSessionValid() takes the handle by reference.
+bffEnforceSession($db);
 
 $userId = $_SESSION['userID'] ?? null;
 if (!$userId || $userId <= 0) {
@@ -74,13 +80,37 @@ if (!$userId || $userId <= 0) {
 $user = tlUser::getByID($db, $userId);
 if (is_null($user)) {
     http_response_code(401);
-    echo json_encode(array('status' => 'error', 'message' => 'User found'));
+    echo json_encode(array('status' => 'error', 'message' => 'User not found'));
     exit;
 }
 
-define('NODE_TYPE_TESTPROJECT', 1);
-define('NODE_TYPE_TESTSUITE', 2);
-define('NODE_TYPE_TESTCASE', 3);
+/**
+ * Node type ids, resolved from the node_types table by DESCRIPTION instead of
+ * being hardcoded, so a renamed or localized description can never silently
+ * re-route the screen (the same defensive approach api/suiteview uses).
+ */
+function tcreoNodeTypes(&$db)
+{
+    static $n = null;
+    if ($n === null) {
+        $T = tlObjectWithDB::getDBTables(array('node_types'));
+        $rows = $db->get_recordset("SELECT id, description FROM {$T['node_types']}");
+        $n = array();
+        if (!is_null($rows)) {
+            foreach ($rows as $r) {
+                $n[strtolower((string)$r['description'])] = intval($r['id']);
+            }
+        }
+        // The numeric fallbacks are only used if the table cannot be read at
+        // all, which is the 1.9.20 ordering.
+        $n += array('testproject' => 1, 'testsuite' => 2, 'testcase' => 3);
+    }
+    return $n;
+}
+
+function tcreoNodeTypeTestproject(&$db) { $n = tcreoNodeTypes($db); return $n['testproject']; }
+function tcreoNodeTypeTestsuite(&$db)  { $n = tcreoNodeTypes($db); return $n['testsuite']; }
+function tcreoNodeTypeTestcase(&$db)  { $n = tcreoNodeTypes($db); return $n['testcase']; }
 
 /**
  * Table names for this endpoint.
@@ -178,12 +208,21 @@ function tcreoProject(&$db, &$user, $requestedId, $containerId = 0)
                       'message' => 'Container not found'), 404);
         }
         // Only a test suite (or the project root itself) may host test cases.
-        if ($info['node_type_id'] != NODE_TYPE_TESTSUITE &&
-            $info['node_type_id'] != NODE_TYPE_TESTPROJECT) {
+        if (intval($info['node_type_id']) != tcreoNodeTypeTestsuite($db) &&
+            intval($info['node_type_id']) != tcreoNodeTypeTestproject($db)) {
             out(array('status' => 'error', 'code' => 'not_found',
                       'message' => 'Container is not a test suite'), 404);
         }
-        $owner = intval($info['testproject_id'] ? $info['testproject_id'] : $info['parent_id']);
+        // tcreoOwningProject() walks parent_id to the node_type 1 root. If that
+        // walk cannot prove ownership it returns 0, and the container must be
+        // treated as orphaned - never assumed to belong to its own parent,
+        // which would produce a rights check against the wrong project (and a
+        // misleading 403 instead of an honest 404).
+        $owner = intval($info['testproject_id']);
+        if ($owner <= 0) {
+            out(array('status' => 'error', 'code' => 'not_found',
+                      'message' => 'Container has no owning test project'), 404);
+        }
         if ($owner > 0) {
             // The container's real owner always wins, and a request that names a
             // different project is refused outright instead of being silently
@@ -257,7 +296,7 @@ function tcreoNodeInfo(&$db, $nodeId)
 function tcreoOwningProject(&$db, $node)
 {
     $T = tcreoTables();
-    if (intval($node['node_type_id']) == NODE_TYPE_TESTPROJECT) {
+    if (intval($node['node_type_id']) == tcreoNodeTypeTestproject($db)) {
         return intval($node['id']);
     }
 
@@ -271,7 +310,7 @@ function tcreoOwningProject(&$db, $node)
         if (is_null($row) || count($row) == 0) {
             return 0;
         }
-        if (intval($row[0]['node_type_id']) == NODE_TYPE_TESTPROJECT) {
+        if (intval($row[0]['node_type_id']) == tcreoNodeTypeTestproject($db)) {
             return intval($row[0]['id']);
         }
         $parentId = intval($row[0]['parent_id']);
@@ -290,7 +329,7 @@ function tcreoRequireChildTestcase(&$db, $nodeId, $containerId, $tprojectId)
         out(array('status' => 'error', 'code' => 'not_found',
                   'message' => 'Node not found'), 404);
     }
-    if ($info['node_type_id'] != NODE_TYPE_TESTCASE) {
+    if (intval($info['node_type_id']) != tcreoNodeTypeTestcase($db)) {
         out(array('status' => 'error', 'code' => 'not_found',
                   'message' => 'Node is not a test case'), 404);
     }
@@ -315,8 +354,8 @@ function tcreoContainerChildren(&$db, $containerId, $tprojectId)
         out(array('status' => 'error', 'code' => 'not_found',
                   'message' => 'Container not found'), 404);
     }
-    if ($container['node_type_id'] != NODE_TYPE_TESTSUITE &&
-        $container['node_type_id'] != NODE_TYPE_TESTPROJECT) {
+    if (intval($container['node_type_id']) != tcreoNodeTypeTestsuite($db) &&
+        intval($container['node_type_id']) != tcreoNodeTypeTestproject($db)) {
         out(array('status' => 'error', 'code' => 'not_found',
                   'message' => 'Container is not a test suite'), 404);
     }
@@ -334,7 +373,7 @@ function tcreoContainerChildren(&$db, $containerId, $tprojectId)
            "   WHERE VNH.parent_id = NH.id) AS tc_external_id" .
            " FROM {$T['nodes_hierarchy']} NH" .
            " WHERE NH.parent_id = " . intval($containerId) .
-           " AND NH.node_type_id = " . NODE_TYPE_TESTCASE .
+           " AND NH.node_type_id = " . tcreoNodeTypeTestcase($db) .
            " ORDER BY NH.node_order, NH.id";
     $rows = $db->get_recordset($sql);
     return array($container, is_null($rows) ? array() : $rows);
@@ -379,7 +418,7 @@ function tcreoSuitesOf(&$db, $tprojectId)
             if (intval(tcreoOwningProject($db, $r)) !== $tprojectId) {
                 continue;
             }
-            if (intval($r['node_type_id']) == NODE_TYPE_TESTSUITE) {
+            if (intval($r['node_type_id']) == tcreoNodeTypeTestsuite($db)) {
                 $out[] = array('id' => $childId, 'name' => $r['name']);
             }
             $queue[] = $childId;
@@ -403,7 +442,7 @@ function tcreoProjectName(&$db, $tprojectId)
     $T = tcreoTables();
     $row = $db->get_recordset(
         "SELECT name FROM {$T['nodes_hierarchy']} WHERE id = " .
-        intval($tprojectId) . " AND node_type_id = " . NODE_TYPE_TESTPROJECT);
+        intval($tprojectId) . " AND node_type_id = " . tcreoNodeTypeTestproject($db));
     if (!is_null($row) && count($row) > 0) {
         return (string)$row[0]['name'];
     }
@@ -423,10 +462,21 @@ function tcreoProjectPrefix(&$db, $tprojectId)
     return '';
 }
 
+/**
+ * Criterion the legacy screen honours, normalised to the two values this
+ * screen offers.
+ *
+ * The shipped config value is the string 'EXTERNAL_ID'
+ * (config.inc.php: $tlCfg->testcase_reorder_by = 'EXTERNAL_ID'), NOT
+ * 'EXTERNALID' - matching only on 'EXTERNALID' meant the criterion silently
+ * degraded to NAME on every install, i.e. the screen reported the opposite of
+ * what 1.9.20 did (containerEdit.php: reorderTestCasesByExtID vs
+ * reorderTestCasesDictionary). NAME is therefore the opt-in.
+ */
 function tcreoSortCriterion()
 {
     $c = strtoupper((string)config_get('testcase_reorder_by'));
-    return ($c === 'EXTERNALID') ? 'EXTERNALID' : 'NAME';
+    return ($c === 'NAME') ? 'NAME' : 'EXTERNALID';
 }
 
 function tcreoRowsPayload(&$db, $rows)
@@ -587,7 +637,23 @@ if ($action === 'sort') {
         $rows[$k]['sort_ext'] = isset($r['tc_external_id']) ? (string)$r['tc_external_id'] : '';
     }
     usort($rows, function ($a, $b) use ($key) {
-        $c = strcasecmp((string)$a[$key], (string)$b[$key]);
+        if ($key === 'sort_name') {
+            // Legacy parity: natsort() over strtolower(name) - a plain
+            // strcasecmp() put "TC 10" before "TC 2".
+            $c = strnatcasecmp((string)$a[$key], (string)$b[$key]);
+        } else {
+            // Legacy used ORDER BY tc_external_id, which sorts the VARCHAR
+            // column as text. Numeric ids are compared numerically on purpose:
+            // users store plain numbers, and a text sort of '2' vs '10' is
+            // never what anyone means. Non-numeric ext ids ('TC-A') still fall
+            // back to a natural text compare.
+            $ea = (string)$a[$key];
+            $eb = (string)$b[$key];
+            $bothNumeric = ($ea !== '' && $eb !== '' && is_numeric($ea) && is_numeric($eb));
+            $c = $bothNumeric
+                ? ((float)$ea < (float)$eb ? -1 : ((float)$ea > (float)$eb ? 1 : 0))
+                : strnatcasecmp($ea, $eb);
+        }
         if ($c !== 0) {
             return $c;
         }
