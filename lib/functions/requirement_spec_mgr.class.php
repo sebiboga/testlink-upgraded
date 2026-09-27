@@ -342,15 +342,23 @@ class requirement_spec_mgr extends tlObjectWithAttachments
 
 
     args: tproject_id
-          [order_by]
+          [order_by] RAW SQL fragment appended to the query, e.g.
+                     ' ORDER BY NH.node_order,RSPEC.id '.
+                     It is interpolated verbatim: only pass a trusted LITERAL,
+                     and remember only the RSPEC / NH / RSPEC_REV aliases of
+                     this method and its tables are in scope.
 
     returns: null if no srs exits, or no srs exists for id
-	           array, where each element is a map with req spec data.
+	           array, where each element is a map with req spec data,
+	           always taken from the LATEST revision of each spec.
 
 	           map keys:
              id
              testproject_id
+             doc_id
+             revision
              title
+             node_order
              scope
              total_req
              type
@@ -358,16 +366,23 @@ class requirement_spec_mgr extends tlObjectWithAttachments
              creation_ts
              modifier_id
              modification_ts
+             (the revision-scoped keys are NULL when a spec has no revision row)
   */
   function get_all_in_testproject($tproject_id,$order_by=" ORDER BY title")
   {
-    $debugMsg = 'Class:' . __CLASS__ . ' - Method: ' . __FUNCTION__;
+   	$debugMsg = 'Class:' . __CLASS__ . ' - Method: ' . __FUNCTION__;
     // Developer Note:
     // on 2.0.1 the per-revision data (scope,total_req,type,author_id,creation_ts,
     // modifier_id,modification_ts) no longer lives on req_specs, it lives on
-    // req_specs_revisions -> join the LATEST revision of each spec, the same way
-    // get_by_id() and get_by_doc_id() already do. LEFT JOIN so a spec with no
-    // revision rows is still listed, as it was before the revision split.
+    // req_specs_revisions -> join the LATEST revision of each spec. Resolved by
+    // MAX(revision), the same way get_last_child_info() (:2203) and the modernized
+    // BFF (api/reqreorder/index.php:157) do, so legacy and modernized screens cannot
+    // disagree on the scope/total_req of one spec. The correlated subquery also lets
+    // the optimizer walk the unique index (parent_id,revision) instead of aggregating
+    // the whole revisions table.
+    // LEFT JOIN so a spec whose revision row is missing is still listed, as it was
+    // before the revision split (create() inserts req_specs + nodes_hierarchy before
+    // create_revision(), so such a spec is reachable).
     // Aliases RSPEC / NH are kept: callers order by NH.node_order.
 	  $sql = "/* $debugMsg */ " .
 	         " SELECT RSPEC.id,RSPEC.testproject_id,RSPEC.doc_id," .
@@ -375,13 +390,13 @@ class requirement_spec_mgr extends tlObjectWithAttachments
            " RSPEC_REV.author_id,RSPEC_REV.creation_ts,RSPEC_REV.modifier_id," .
            " RSPEC_REV.modification_ts,NH.name AS title,NH.node_order " .
 	         " FROM {$this->object_table} RSPEC " .
-	         " LEFT JOIN (SELECT parent_id, MAX(id) AS last_rev_id " .
-	         " FROM {$this->tables['req_specs_revisions']} GROUP BY parent_id) LASTREV " .
-	         " ON LASTREV.parent_id = RSPEC.id " .
-	         " LEFT JOIN {$this->tables['req_specs_revisions']} RSPEC_REV " .
-	         " ON RSPEC_REV.id = LASTREV.last_rev_id " .
 	         " JOIN {$this->tables['nodes_hierarchy']} NH " .
 	         " ON NH.id = RSPEC.id " .
+	         " LEFT JOIN {$this->tables['req_specs_revisions']} RSPEC_REV " .
+	         " ON RSPEC_REV.parent_id = RSPEC.id " .
+	         " AND RSPEC_REV.revision = (SELECT MAX(RSPEC_REV2.revision) " .
+	         " FROM {$this->tables['req_specs_revisions']} RSPEC_REV2 " .
+	         " WHERE RSPEC_REV2.parent_id = RSPEC.id) " .
 	         " WHERE RSPEC.testproject_id={$tproject_id}";
 
     if (!is_null($order_by))
@@ -782,10 +797,12 @@ function get_requirement_child_by_id_req($id){
 
     returns: map.
              key: req spec id
-             value: srs info,  map with folowing keys:
+             value: srs info,  map with folowing keys, always taken from the
+                   LATEST revision of the spec:
                     id
                     testproject_id
                     doc_id
+                    revision
                     title
                     scope
                     total_req
@@ -807,12 +824,12 @@ function get_requirement_child_by_id_req($id){
              " RSPEC_REV.author_id,RSPEC_REV.creation_ts,RSPEC_REV.modifier_id," .
              " RSPEC_REV.modification_ts,NH.name AS title " .
     	       " FROM {$this->object_table} RSPEC " .
-             " LEFT JOIN (SELECT parent_id, MAX(id) AS last_rev_id " .
-             " FROM {$this->tables['req_specs_revisions']} GROUP BY parent_id) LASTREV " .
-             " ON LASTREV.parent_id = RSPEC.id " .
+             " JOIN {$this->tables['nodes_hierarchy']} NH ON NH.id = RSPEC.id " .
              " LEFT JOIN {$this->tables['req_specs_revisions']} RSPEC_REV " .
-             " ON RSPEC_REV.id = LASTREV.last_rev_id " .
-             " JOIN {$this->tables['nodes_hierarchy']} NH ON NH.id = RSPEC.id";
+             " ON RSPEC_REV.parent_id = RSPEC.id " .
+             " AND RSPEC_REV.revision = (SELECT MAX(RSPEC_REV2.revision) " .
+             " FROM {$this->tables['req_specs_revisions']} RSPEC_REV2 " .
+             " WHERE RSPEC_REV2.parent_id = RSPEC.id)";
 
       switch ($case_analysis)
       {

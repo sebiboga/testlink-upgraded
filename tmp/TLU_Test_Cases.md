@@ -24230,12 +24230,13 @@ Browser (pre-fix): `document.body.innerText` of the reorder screen begins with
 1054 - Unknown column 'RSPEC.scope' in 'SELECT'   (get_by_title,         2×)
 ```
 
-**POST-FIX — `php tmp/verify_1656.php <tproject_id>` → 19 passed, 0 failed (exit 0):**
+**POST-FIX — `php tmp/verify_1656.php <tproject_id>` → 22 passed, 0 failed, 1 skipped (exit 0):**
 
 | # | case | expected | observed | result |
 |---|---|---|---|---|
+| 0 | fixture resolvable (both specs found by title) | ids resolved | `SRS Alpha=9015 SRS Beta=9018` | PASS |
 | 1 | `get_all_in_testproject($tp)` default order | all specs | `count=2` | PASS |
-| 1b | every documented map key present (`id,testproject_id,doc_id,title,node_order,scope,total_req,type,author_id,creation_ts,modifier_id,modification_ts`) | none missing | `all present` | PASS |
+| 1b | every documented map key present (`id,testproject_id,doc_id,revision,title,node_order,scope,total_req,type,author_id,creation_ts,modifier_id,modification_ts`) | none missing | `all present` | PASS |
 | 1c | titles resolve | `SRS Alpha` + `SRS Beta` | both present | PASS |
 | 2 | reorder `order_by ' ORDER BY NH.node_order,RSPEC.id '` | rows sorted by `node_order` | `node_order=10,20` | PASS |
 | 3 | `get_all_in_testproject(999999)` | `null`, no error | `NULL` | PASS |
@@ -24244,14 +24245,45 @@ Browser (pre-fix): `document.body.innerText` of the reorder screen begins with
 | 6 | `get_by_title('No Such Spec')` | `null` | `null` | PASS |
 | 7 | `check_title('SRS Alpha')` duplicate | `status_ok=0` | `0` + "There's already a requirement with this title!" | PASS |
 | 8 | `check_title('Brand New Spec')` | `status_ok=1` | `1` + "ok" | PASS |
-| 9 | `create()` a new spec (exercises `check_title`→`get_by_title`) | `status_ok=1`, id > 0 | `id=26 msg=ok` | PASS |
+| 9 | `create()` a new spec (exercises `check_title`→`get_by_title`) | `status_ok=1`, id > 0 | `id=9008 msg=ok` | PASS |
 | 10a | `update()` rename (exercises `check_title`→`get_by_title`) | `status_ok=1` | `msg=ok` | PASS |
 | 10b | renamed spec resolves under its new title | map keyed by its id | found | PASS |
 | 11 | rename visible in `get_all_in_testproject` | 3 rows incl. new name | `SRS Alpha\|SRS Beta\|SRS Gamma Renamed` | PASS |
 | 12 | `node_order` still sorts after the rename | ascending | `10,20,30` | PASS |
 | 13 | `get_by_id(output=full)` — the already-migrated sibling — unchanged | title + latest rev | `title=SRS Alpha rev=2` | PASS |
-| 13b | `get_by_id(output=credentials)` still resolves the latest revision id | `revision_id > 0` | `revision_id=23` | PASS |
+| 13b | `get_by_id(output=credentials)` still resolves the latest revision id | `revision_id > 0` | `revision_id=9005` | PASS |
 | 14 | `delete()` removes the spec from the list | back to 2 rows | `count=2` | PASS |
+| 15 | **orphan** spec (`req_specs` row, NO `req_specs_revisions` row) is still listed | listed, revision columns `NULL` | `title=SRS Orphan rev=NULL` | PASS |
+| 15b | `get_by_title()` also returns the orphan | map keyed by its id | found | PASS |
+| 15c | `check_title()` rejects the orphan title (no false negative) | `status_ok=0` | `0` + "There's already a requirement with this title! (SRS Orphan)" | PASS |
+| 16 | legacy method agrees with the **modernized BFF** on the latest revision | same `revision` + `scope` | see the browser pass below | SKIP in CLI (BFF is session-authenticated) |
+
+Cases 15/15b/15c exist because the join must stay a `LEFT JOIN`: `create()`
+(`requirement_spec_mgr.class.php:137-158`) inserts the `req_specs` row **and** the
+`nodes_hierarchy` node *before* `create_revision()` and returns `id = -1` when the revision
+insert fails, so a spec with no revision row is reachable in production. The test creates
+one, deletes its revision rows, and asserts the spec is still listed (so the reorder tree
+does not silently drop it) and that its title is still treated as taken.
+
+**Case 16 — cross-layer agreement, measured in the browser** (authenticated session;
+`fetch('/api/reqspec/index.php?action=specs&tproject_id=<tp>', {X-Requested-With:'XMLHttpRequest'})`):
+
+```
+status 200, count 2
+[ {id: 9015, title:"SRS Alpha", revision: 2, scope:"scope of SRS Alpha rev2"},
+  {id: 9018, title:"SRS Beta",  revision: 1, scope:"scope of SRS Beta"        } ]
+```
+
+versus the legacy `get_all_in_testproject()` for the same project:
+
+```
+[ {id: 9015, revision: 2, scope:"scope of SRS Alpha rev2"},
+  {id: 9018, revision: 1, scope:"scope of SRS Beta"        } ]
+```
+
+→ **identical**. This is what forced the `MAX(revision)` resolution during code review:
+a `MAX(revision_id)` join returns revision 1 / `…rev1` for `SRS Alpha`, so the legacy and
+the modernized screen would have shown different `scope`/`total_req` for the same spec.
 
 Non-regression proof for case 13: `git worktree add /tmp/opencode/base1656 09d030416`, then
 the same probe on both trees —
@@ -24267,10 +24299,10 @@ regression. Case 13 was corrected to use `output=full`.)
 
 **POST-FIX, live browser:**
 
-* `reqSpecEdit.php?doAction=reorder&tproject_id=20` → `hasDBErr=false`,
+* `reqSpecEdit.php?doAction=reorder&tproject_id=<tp>` → `hasDBErr=false`,
   tree items `["", "SRS Alpha", "SRS Beta"]`
   → `docs/screenshots/issue-1656-legacy-reorder-fixed.png`
-* `reqSpecEdit.php?doAction=create&tproject_id=20` → filled the **real** legacy form
+* `reqSpecEdit.php?doAction=create&tproject_id=<tp>` → filled the **real** legacy form
   (`doc_id` / `title` / `scope`) and clicked **Create SRS** → *"Requirement Specification:
   SRS Via Real UI was successfully created"*; `req_specs` row written, `req_specs_revisions`
   row written, `audit_req_spec_created` audit event.
@@ -24280,6 +24312,9 @@ regression. Case 13 was corrected to use `output=full`.)
   actually enforced.
   → `docs/screenshots/issue-1656-srs-create-duplicate-rejected.png`
 * `select count(*) from events where source='DATABASE'` → **0**
+* `select log_level, source, count(*) from events group by log_level, source`
+  → `16 / GUI - Test Project ID : <tp> / 1` (the healthy `audit_login_succeeded` INFO)
+  and nothing else for the fixed project.
 
 **Syntax gates:** `php -l lib/functions/requirement_spec_mgr.class.php`,
 `php -l lib/requirements/reqSpecCommands.class.php`, `php -l tmp/verify_1656.php` — all
@@ -24288,4 +24323,6 @@ regression. Case 13 was corrected to use `output=full`.)
 **Known non-regression noise (PRE-EXISTING, unrelated to this diff, filed separately):**
 the legacy create screen render logs `E_WARNING Undefined property:
 stdClass::$tproject_id` / `::$tplan_id` at `reqSpecEdit.tpl` lines 203/205 — #1658. The
-already-migrated `get_metrics()` has the same schema drift but 0 callers — #1657.
+already-migrated `get_metrics()` has the same schema drift but 0 callers — #1657. The
+Postgres installer creates `req_specs_revisions_uidx1` on the wrong table `req_revisions`,
+so `(parent_id,revision)` uniqueness is not enforced on PostgreSQL — #1659.

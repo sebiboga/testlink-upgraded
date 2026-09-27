@@ -2279,25 +2279,39 @@ KEY BUGFIX / COMPATIBILITY EFFORTS (selection)
   `get_by_title()` - which also meant the duplicate-title guard was never enforced.
   A third defect sat in the same statement: the caller ordered by the undefined alias
   `REQ_SPEC.id` while the query aliases `RSPEC` (`1054 Unknown column 'REQ_SPEC.id' in
-  'ORDER BY'`). Fix: both methods now join the LATEST revision exactly like the already
-  migrated siblings `get_by_id()` (`:189`) and `get_by_doc_id()` (`:1799`) do -
-  `LEFT JOIN (SELECT parent_id, MAX(id) AS last_rev_id FROM req_specs_revisions
-  GROUP BY parent_id) LASTREV ...` (`LEFT JOIN`, not `JOIN`, so a spec without revision
-  rows is still listed as before); `RSPEC`/`NH` aliases preserved so the caller's
+  'ORDER BY'`). Fix: both methods now join the LATEST revision, the same way the already
+  migrated sibling `get_by_id()` (`:189`, via `get_last_child_info()` `:2203`) does -
+  `LEFT JOIN req_specs_revisions RSPEC_REV ON RSPEC_REV.parent_id = RSPEC.id AND
+  RSPEC_REV.revision = (SELECT MAX(RSPEC_REV2.revision) FROM req_specs_revisions RSPEC_REV2
+  WHERE RSPEC_REV2.parent_id = RSPEC.id)` (`LEFT JOIN`, not `JOIN`, so a spec without
+  revision rows is still listed as before); `RSPEC`/`NH` aliases preserved so the caller's
   `ORDER BY NH.node_order` keeps working, `testproject_id` qualified, `doc_id` + `revision`
   added, the duplicated `AND RSPEC.id=NH.id` collapsed into the single `JOIN`; and
   `reqSpecCommands.class.php:342` `REQ_SPEC.id` -> `RSPEC.id`. No i18n / BFF / template
   change - all strings come from the pre-existing `lang_get()` keys. Verified on a fresh
-  DB: 19/19 regression cases (both methods, latest-revision resolution, `node_order`
+  DB: 22/22 regression cases (both methods, latest-revision resolution, `node_order`
   ordering, empty project, unknown title, `check_title` accept/reject, `create()` +
   `update()` + `delete()` lifecycle, and the already-migrated `get_by_id()` proven
   byte-identical against base commit `09d030016` in a throwaway worktree), plus the live
   UI: the reorder screen lists both specs, the real create form saves, a duplicate
   title/doc_id is rejected, and `SELECT count(*) FROM events WHERE source='DATABASE'`
-  is **0** (5 error events pre-fix). Two unrelated pre-existing defects found while
-  testing were filed, not fixed: #1657 (`get_metrics()` `:318` has the same drift, dead
-  code) and #1658 (legacy create screen logs 2 E_WARNING per load on
-  `reqSpecEdit.tpl:203,205`). (Fixes #1656)
+  is **0** (5 error events pre-fix). Post-code-review the latest-revision resolution was
+  switched from `MAX(revision_id)` to `MAX(revision)` in a correlated subquery, so the two
+  legacy methods now agree with `get_last_child_info()` (`:2203`) **and** with the
+  modernized BFF (`api/reqreorder/index.php:157`, `api/reqspec/index.php:335,880`) instead
+  of possibly disagreeing on the `scope`/`total_req` of one spec; the correlated form also
+  lets the optimizer walk the unique `(parent_id,revision)` index instead of aggregating
+  the whole revisions table, and both docblocks were completed with the `doc_id` /
+  `revision` / `node_order` keys plus a trusted-literal warning on the raw `order_by`
+  argument. Suite extended from 19 to 22 cases — adds the orphan-spec case (reachable
+  because `create()` inserts `req_specs` + `nodes_hierarchy` *before* `create_revision()`,
+  which is why the join must stay a `LEFT JOIN`) and the cross-layer agreement check
+  (legacy `revision=2 scope="…rev2"` == BFF `revision=2 scope="…rev2"`). Three unrelated
+  pre-existing defects found while testing were filed, not fixed: #1657 (`get_metrics()`
+  `:318` has the same drift, dead code), #1658 (legacy create screen logs 2 E_WARNING per
+  load on `reqSpecEdit.tpl:203,205`) and #1659 (the Postgres installer creates
+  `req_specs_revisions_uidx1` on the wrong table `req_revisions`, so `(parent_id,revision)`
+  uniqueness is not enforced on PostgreSQL). (Fixes #1656)
  - [KEY BUGFIX] - #1630: the Assign Test Project Roles and Assign Test Plan Roles
   grids labelled a FUSED full-name column "Last Name". The 2.0.1 rewrite split
   the legacy single user cell (`gui/templates/dashio/usermanagement/
