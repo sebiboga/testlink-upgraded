@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reorder Test Steps</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; color: #22242a; }
+
+.header {
+  background: #4ECDC4; color: #fff; padding: 14px 24px;
+  font-size: 20px; font-weight: 700; letter-spacing: 1px;
+  display: flex; align-items: center;
+}
+.header .sub { font-size: 13px; font-weight: 400; opacity: .85; margin-left: 12px; }
+.header .spacer { flex: 1; }
+.header button {
+  background: rgba(255,255,255,.18); color: #fff; border: 1px solid rgba(255,255,255,.5);
+  padding: 6px 16px; border-radius: 4px; cursor: pointer; font-size: 13px;
+}
+.header button:hover { background: rgba(255,255,255,.32); }
+
+.wrap { padding: 22px 24px; max-width: 1080px; margin: 0 auto; }
+
+.meta, .card {
+  background: #fff; border-radius: 8px; padding: 18px 20px; margin-bottom: 18px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.08);
+}
+.meta .row { display: flex; flex-wrap: wrap; gap: 8px 28px; }
+.meta .field { font-size: 13px; color: #555; }
+.meta .field b { color: #22242a; margin-right: 5px; }
+
+.card h3 { margin: 0 0 14px; font-size: 15px; color: #22242a; }
+.card h3 .hint { font-weight: 400; font-size: 12px; color: #888; margin-left: 10px; }
+
+.toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 14px; }
+
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 8px 18px;
+  border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-teal:disabled { background: #b9e7e3; cursor: not-allowed; }
+.btn-outline { background: #fff; color: #555; border: 1px solid #ccc; padding: 8px 18px;
+  border-radius: 4px; cursor: pointer; font-size: 13px; }
+.btn-outline:hover { background: #f0f0f0; }
+.btn-outline:disabled { color: #bbb; cursor: not-allowed; }
+
+table.reorder { width: 100%; border-collapse: collapse; }
+table.reorder th {
+  text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: .5px;
+  color: #6b7280; border-bottom: 2px solid #e5e7eb; padding: 8px 10px;
+}
+table.reorder td { padding: 9px 10px; border-bottom: 1px solid #f0f0f0; font-size: 13px; vertical-align: top; }
+table.reorder tr:hover td { background: #f7fdfd; }
+table.reorder tr.dragging { opacity: .45; }
+table.reorder tr.dragover td { background: #e8f8f6; box-shadow: inset 0 2px 0 #4ECDC4; }
+td.pos { width: 52px; color: #888; font-variant-numeric: tabular-nums; text-align: right; }
+td.grip { width: 30px; color: #c2c8cf; cursor: grab; }
+td.type { width: 120px; }
+td.ops { width: 160px; text-align: right; white-space: nowrap; }
+td.ops button {
+  background: #fff; border: 1px solid #d5d5d5; color: #555; border-radius: 3px;
+  width: 28px; height: 28px; margin-left: 4px; cursor: pointer; font-size: 12px;
+}
+td.ops button:hover:not(:disabled) { background: #4ECDC4; color: #fff; border-color: #4ECDC4; }
+td.ops button:disabled { color: #ccc; cursor: not-allowed; border-color: #eee; }
+.celltext { white-space: pre-wrap; word-break: break-word; max-width: 380px; color: #444; }
+.celltext.dim { color: #999; }
+.chip { display: inline-block; background: #eefaf9; color: #2a8f88; border-radius: 10px;
+  padding: 2px 10px; font-size: 11px; font-weight: 600; }
+.chip.auto { background: #eef2ff; color: #4338ca; }
+.chip.gray { background: #f1f3f5; color: #6b7280; }
+.chip.amber { background: #fff4e5; color: #b45309; }
+
+.empty { color: #999; font-style: italic; padding: 18px 4px; }
+
+.notice { border-radius: 6px; padding: 11px 14px; font-size: 13px; margin-bottom: 14px; display: none; }
+.notice.ok { display: block; background: #e8f8f6; border: 1px solid #b8e6e2; color: #1f7a73; }
+.notice.err { display: block; background: #fdecea; border: 1px solid #f5c6c3; color: #a32b28; }
+.notice.warn { display: block; background: #fff8e6; border: 1px solid #ffe1a8; color: #9a6700; }
+
+.toast {
+  position: fixed; top: 16px; right: 16px; background: #2c3e50; color: #fff;
+  padding: 12px 18px; border-radius: 6px; font-size: 13px; opacity: 0;
+  transition: opacity .25s; z-index: 999; pointer-events: none; max-width: 60%;
+}
+.toast.show { opacity: 1; }
+.toast.ok { background: #4ECDC4; }
+.toast.err { background: #e6605e; }
+
+.state {
+  background: #fff; border: 1px solid #f0d0d0; border-left: 4px solid #e6605e;
+  border-radius: 8px; margin: 24px; padding: 28px 32px; text-align: center; display: none;
+}
+.state i { font-size: 34px; color: #e6605e; margin-bottom: 10px; }
+.state h3 { margin: 0 0 8px; font-size: 18px; color: #22242a; }
+.state p { margin: 0 0 6px; color: #666; font-size: 13px; }
+
+.modal-mask {
+  position: fixed; inset: 0; background: rgba(0,0,0,.45); display: none;
+  align-items: center; justify-content: center; z-index: 1000;
+}
+.modal-mask.show { display: flex; }
+.modal-box {
+  background: #fff; border-radius: 8px; width: 440px; max-width: 92vw;
+  box-shadow: 0 10px 40px rgba(0,0,0,.3); overflow: hidden;
+}
+.modal-box .m-head { background: #4ECDC4; color: #fff; padding: 12px 18px; font-weight: 700; font-size: 15px; }
+.modal-box .m-body { padding: 18px; font-size: 13px; color: #444; }
+.modal-box .m-foot { padding: 12px 18px; background: #fafafa; border-top: 1px solid #eee; text-align: right; }
+.modal-box .m-foot button { margin-left: 8px; }
+.btn-red { background: #e6605e; color: #fff; border: none; padding: 8px 18px;
+  border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-red:hover { background: #d24f4d; }
+
+.footer { text-align: center; color: #8a8a8a; font-size: 12px; padding: 6px 0 22px; }
+
+#loading { text-align: center; padding: 30px; color: #888; font-size: 13px; }
+#content { display: none; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <i class="fa fa-list-ol" style="margin-right:8px;"></i>
+  <span data-i18n="tcsr.title">Reorder Test Steps</span>
+  <span class="sub" id="hdrSub" data-i18n="tcsr.subtitle">Test case version</span>
+  <span class="spacer"></span>
+  <span id="localeSwitcher"></span>
+  <button onclick="closeWindow()" data-i18n="common.close">Close</button>
+</div>
+
+<div class="state" id="stateBox">
+  <i class="fa fa-exclamation-triangle"></i>
+  <h3 id="stateTitle">-</h3>
+  <p id="stateMsg"></p>
+</div>
+
+<div class="wrap" id="wrap">
+  <p><button class="btn-outline" onclick="reload()"><i class="fa fa-sync"></i> <span data-i18n="common.refresh">Refresh</span></button></p>
+
+  <div id="loading"><i class="fa fa-spinner fa-spin"></i> <span data-i18n="tcsr.loading">Loading...</span></div>
+
+  <div id="content">
+    <div class="meta">
+      <div class="row">
+        <span class="field"><b data-i18n="tcsr.testProject">Test project</b><span id="mbProject">-</span></span>
+        <span class="field"><b data-i18n="tcsr.testSuite">Test suite</b><span id="mbSuite">-</span></span>
+        <span class="field"><b data-i18n="tcsr.testCase">Test case</b><span id="mbCase">-</span></span>
+        <span class="field"><b data-i18n="tcsr.version">Version</b><span id="mbVersion">-</span></span>
+        <span class="field"><b data-i18n="tcsr.stepCount">Steps</b><span id="mbCount">-</span></span>
+      </div>
+    </div>
+
+    <div class="notice err" id="noticeErr"></div>
+    <div class="notice ok" id="noticeOk"></div>
+    <div class="notice warn" id="noticeWarn"></div>
+
+    <div class="card">
+      <h3>
+        <i class="fa fa-grip-vertical" style="color:#4ECDC4;"></i>
+        <span data-i18n="tcsr.orderHeading">Step order</span>
+        <span class="hint" data-i18n="tcsr.orderHint">Drag a row or use the move buttons. The order below is the step number stored with this test case version.</span>
+      </h3>
+
+      <div class="toolbar">
+        <button class="btn-outline" id="btnApply" onclick="openApply()"><i class="fa fa-check"></i> <span data-i18n="tcsr.apply">Apply order</span></button>
+        <button class="btn-outline" id="btnReset" onclick="discardPending()"><i class="fa fa-undo"></i> <span data-i18n="tcsr.discard">Discard changes</span></button>
+        <button class="btn-teal" id="btnNormalize" onclick="openNormalize()"><i class="fa fa-sort-numeric-asc"></i> <span data-i18n="tcsr.normalize">Renumber steps</span></button>
+        <span class="chip gray" id="permChip" style="display:none;"><i class="fa fa-lock"></i> <span data-i18n="tcsr.readOnly">read only</span></span>
+      </div>
+
+      <table class="reorder" id="tbl">
+        <thead>
+          <tr>
+            <th class="grip"></th>
+            <th class="pos" data-i18n="tcsr.thPos">#</th>
+            <th class="type" data-i18n="tcsr.thType">Type</th>
+            <th data-i18n="tcsr.thActions">Step actions</th>
+            <th data-i18n="tcsr.thExpected">Expected results</th>
+            <th style="text-align:right" data-i18n="tcsr.thMove">Move</th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+
+      <div class="empty" id="emptyMsg" style="display:none" data-i18n="tcsr.empty">This test case version has no steps.</div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-mask" id="mask">
+  <div class="modal-box">
+    <div class="m-head" id="mTitle">-</div>
+    <div class="m-body" id="mBody"></div>
+    <div class="m-foot">
+      <button class="btn-outline" onclick="closeModal()" data-i18n="common.cancel">Cancel</button>
+      <button class="btn-red" id="mOk" onclick="confirmModal()" data-i18n="tcsr.confirmOk">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<div class="footer" id="footerInfo"></div>
+
+<div class="toast" id="toast"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script>
+var TPROJECT_ID = 0;
+var TCVER_ID = 0;
+var STEPS = [];
+/* Order shown in the table. It starts as a copy of STEPS and is only
+   re-synced from the server after a write, so the user can try a drag,
+   change their mind and discard it without a round trip. */
+var PENDING = [];
+var PENDING_ACTION = null;
+var CAN_EDIT = false;
+var BUSY = false;
+
+function qs(k, d) {
+  var p = new URLSearchParams(window.location.search);
+  return p.get(k) === null ? d : p.get(k);
+}
+
+function esc(s) {
+  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function toast(msg, kind) {
+  var t = $('#toast');
+  t.removeClass('ok err').addClass('show ' + (kind || 'ok')).text(msg);
+  clearTimeout(t.data('to'));
+  t.data('to', setTimeout(function () { t.removeClass('show'); }, 2800));
+}
+
+function showState(title, msg) {
+  $('#wrap').hide();
+  $('#stateTitle').text(title);
+  $('#stateMsg').text(msg);
+  $('#stateBox').show();
+}
+
+/* Legacy error semantics -> localized state cards. */
+function isSessionGone(xhr) {
+  var r = (xhr && xhr.responseJSON) ? xhr.responseJSON : {};
+  return !!xhr && (xhr.status === 401 || r.code === 'session_expired');
+}
+
+function stateForResponse(xhr) {
+  var r = (xhr && xhr.responseJSON) ? xhr.responseJSON : {};
+  var code = r.code || '';
+  var s = xhr ? xhr.status : 0;
+  if (s === 403) {
+    return [TLi18n.t('tcsr.stNotAllowed'), TLi18n.t('tcsr.stNotAllowedMsg')];
+  }
+  if (s === 404) {
+    return [TLi18n.t('tcsr.stNotFound'), TLi18n.t('tcsr.stNotFoundMsg')];
+  }
+  if (s === 400) {
+    return [TLi18n.t('tcsr.stBadParam'), r.message || TLi18n.t('tcsr.stBadParamMsg')];
+  }
+  return [TLi18n.t('tcsr.stError'), r.message || TLi18n.t('tcsr.stErrorMsg')];
+}
+
+function closeWindow() {
+  try { window.close(); } catch (e) {}
+  setTimeout(function () {
+    if (!window.closed) { window.opener && window.opener.location.reload(); }
+  }, 150);
+}
+
+function reload() {
+  $('#stateBox').hide();
+  $('#wrap').show();
+  load();
+}
+
+function typeChip(step) {
+  var code = step.execution_type_code || 'manual';
+  var cls = 'chip';
+  var label = TLi18n.t('tcsr.typeManual');
+  if (code === 'automated') { cls += ' auto'; label = TLi18n.t('tcsr.typeAuto'); }
+  else if (code === 'automated_proceed_on_block') { cls += ' amber'; label = TLi18n.t('tcsr.typeAutoProceed'); }
+  else if (code === 'automated_audited') { cls += ' amber'; label = TLi18n.t('tcsr.typeAutoAudited'); }
+  var h = '<span class="' + cls + '">' + esc(label) + '</span>';
+  if (step.upload_mandatory) {
+    h += ' <span class="chip amber" title="' + esc(TLi18n.t('tcsr.uploadMandatory')) + '"><i class="fa fa-upload"></i></span>';
+  } else if (step.upload_enabled) {
+    h += ' <span class="chip gray" title="' + esc(TLi18n.t('tcsr.uploadOptional')) + '"><i class="fa fa-paperclip"></i></span>';
+  }
+  return h;
+}
+
+function isDirty() {
+  if (PENDING.length !== STEPS.length) { return false; }
+  for (var i = 0; i < STEPS.length; i++) {
+    if (PENDING[i].step_id !== STEPS[i].step_id) { return true; }
+  }
+  return false;
+}
+
+function renderRows() {
+  var h = '';
+  for (var i = 0; i < PENDING.length; i++) {
+    var r = PENDING[i];
+    var first = (i === 0);
+    var last = (i === PENDING.length - 1);
+    h += '<tr data-step="' + r.step_id + '" draggable="' + (CAN_EDIT && PENDING.length > 1 ? 'true' : 'false') + '">';
+    h += '<td class="grip"><i class="fa fa-grip-vertical"></i></td>';
+    h += '<td class="pos">' + (i + 1) + '</td>';
+    h += '<td class="type">' + typeChip(r) + '</td>';
+    h += '<td class="celltext' + (r.actions ? '' : ' dim') + '">' + esc(r.actions || TLi18n.t('tcsr.emptyCell')) + '</td>';
+    h += '<td class="celltext' + (r.expected_results ? '' : ' dim') + '">' + esc(r.expected_results || TLi18n.t('tcsr.emptyCell')) + '</td>';
+    h += '<td class="ops">';
+    h += '<button title="' + esc(TLi18n.t('tcsr.moveTop')) + '" class="op" data-op="top" data-step="' + r.step_id + '"' + (first ? ' disabled' : '') + '><i class="fa fa-angle-double-up"></i></button>';
+    h += '<button title="' + esc(TLi18n.t('tcsr.moveUp')) + '" class="op" data-op="up" data-step="' + r.step_id + '"' + (first ? ' disabled' : '') + '><i class="fa fa-angle-up"></i></button>';
+    h += '<button title="' + esc(TLi18n.t('tcsr.moveDown')) + '" class="op" data-op="down" data-step="' + r.step_id + '"' + (last ? ' disabled' : '') + '><i class="fa fa-angle-down"></i></button>';
+    h += '<button title="' + esc(TLi18n.t('tcsr.moveBottom')) + '" class="op" data-op="bottom" data-step="' + r.step_id + '"' + (last ? ' disabled' : '') + '><i class="fa fa-angle-double-down"></i></button>';
+    h += '</td></tr>';
+  }
+  $('#rows').html(h);
+  $('#tbl').toggle(PENDING.length > 0);
+  $('#emptyMsg').toggle(PENDING.length === 0);
+  $('#mbCount').text(String(PENDING.length));
+  applyRowState();
+}
+
+/**
+ * Single writer for the disabled state of the write controls. The boundary
+ * buttons are disabled by the markup renderRows() emits, and setBusy() blanket
+ * -enables them: whoever runs last wins, so the in-flight guard would otherwise
+ * undo the boundary state of the very response it just rendered. Recompute
+ * both from PENDING and BUSY here instead.
+ */
+function applyRowState() {
+  var n = PENDING.length;
+  var ro = !CAN_EDIT;
+  $('#rows tr').each(function (i) {
+    $(this).find('button.op').each(function () {
+      var op = this.dataset.op;
+      var atBoundary = (op === 'top' || op === 'up') ? (i === 0) : (i === n - 1);
+      this.disabled = BUSY || ro || atBoundary;
+    });
+  });
+  $('#btnApply').prop('disabled', BUSY || ro || n < 2 || !isDirty());
+  $('#btnReset').prop('disabled', BUSY || ro || !isDirty());
+  $('#btnNormalize').prop('disabled', BUSY || ro || n < 1);
+}
+
+function setBusy(busy) {
+  BUSY = busy;
+  applyRowState();
+}
+
+function load() {
+  $('#loading').show();
+  $('#content').hide();
+  $.getJSON('/api/tcstepsreorder/index.php', {
+    action: 'init',
+    tcversion_id: TCVER_ID,
+    tproject_id: TPROJECT_ID
+  }).done(function (r) {
+    $('#loading').hide();
+    if (r.status !== 'ok') {
+      showState(TLi18n.t('tcsr.stError'), r.message || '');
+      return;
+    }
+    TPROJECT_ID = r.context.tproject_id;
+    $('#hdrSub').text(r.context.external_id + (r.context.version ? ' v' + r.context.version : '') + ': ' + r.context.tcase_name);
+    $('#mbProject').text(r.context.tproject_name + ' (' + r.context.tproject_prefix + ')');
+    $('#mbSuite').text(r.context.suite_path || '-');
+    $('#mbCase').text(r.context.external_id + ': ' + r.context.tcase_name);
+    $('#mbVersion').text(String(r.context.version));
+    CAN_EDIT = !!(r.rights && r.rights.mgt_modify_tc);
+    $('#permChip').toggle(!CAN_EDIT);
+    $('#noticeWarn').toggle(!CAN_EDIT, CAN_EDIT ? false : true).text(TLi18n.t('tcsr.readOnlyMsg'));
+    STEPS = (r.steps || []).map(function (x) {
+      return {
+        step_id: x.step_id, step_number: x.step_number, position: x.position,
+        actions: x.actions, expected_results: x.expected_results,
+        execution_type: x.execution_type, execution_type_code: x.execution_type_code,
+        upload_enabled: x.upload_enabled, upload_mandatory: x.upload_mandatory
+      };
+    });
+    PENDING = STEPS.slice();
+    setNotice('', '');
+    renderRows();
+    $('#content').show();
+  }).fail(function (xhr) {
+    $('#loading').hide();
+    // An idle session gets 401 session_expired from the BFF, which must not
+    // redirect by itself. Every other modernized screen bounces to the login
+    // page, so do the same here instead of stranding the user on a dead card.
+    if (isSessionGone(xhr)) { window.location.href = '/login.php'; return; }
+    var st = stateForResponse(xhr);
+    showState(st[0], st[1]);
+  });
+}
+
+function setNotice(kind, msg) {
+  $('#noticeOk').hide(); $('#noticeErr').hide();
+  if (!msg) { return; }
+  var $t = (kind === 'ok') ? $('#noticeOk') : $('#noticeErr');
+  $t.text(msg).show();
+}
+
+function absorb(r) {
+  if (r.steps) {
+    STEPS = r.steps.map(function (x) {
+      return {
+        step_id: x.step_id, step_number: x.step_number, position: x.position,
+        actions: x.actions, expected_results: x.expected_results,
+        execution_type: x.execution_type, execution_type_code: x.execution_type_code,
+        upload_enabled: x.upload_enabled, upload_mandatory: x.upload_mandatory
+      };
+    });
+    PENDING = STEPS.slice();
+  }
+  renderRows();
+}
+
+function postAction(action, extra, okMsg) {
+  // One write at a time. A second click landing between a response and its
+  // re-render would send the same write twice (and the slower of two responses
+  // would then re-render a stale order).
+  if (BUSY) { return; }
+  setNotice('', '');
+  var payload = {
+    action: action,
+    tcversion_id: TCVER_ID,
+    tproject_id: TPROJECT_ID
+  };
+  for (var k in extra) { if (extra.hasOwnProperty(k)) { payload[k] = extra[k]; } }
+  setBusy(true);
+  return $.ajax({
+    url: '/api/tcstepsreorder/index.php',
+    method: 'POST',
+    contentType: 'application/json',
+    data: JSON.stringify(payload)
+  }).done(function (r) {
+    if (r.status === 'ok' || r.status === 'no_change') {
+      absorb(r);
+      if (r.status === 'ok' && okMsg) { setNotice('ok', okMsg); }
+      if (r.status === 'no_change') { toast(TLi18n.t('tcsr.noChange'), 'ok'); }
+    } else {
+      setNotice('err', r.message || TLi18n.t('tcsr.stError'));
+    }
+  }).always(function () {
+    setBusy(false);
+  }).fail(function (xhr) {
+    var r = (xhr && xhr.responseJSON) ? xhr.responseJSON : {};
+    if (xhr && xhr.status === 403 && r.message && r.message.indexOf('CSRF') >= 0) {
+      setNotice('err', TLi18n.t('tcsr.csrfBlocked'));
+      return;
+    }
+    // The BFF answers an idle session with 401 session_expired instead of
+    // redirecting; a BFF must not redirect, so send the user to the login page.
+    if (isSessionGone(xhr)) { window.location.href = '/login.php'; return; }
+    setNotice('err', r.message || TLi18n.t('tcsr.stErrorMsg'));
+  });
+}
+
+function doMove(stepId, op) {
+  if (!CAN_EDIT) { return; }
+  var msgs = {
+    top: TLi18n.t('tcsr.movedTop'),
+    bottom: TLi18n.t('tcsr.movedBottom'),
+    up: TLi18n.t('tcsr.movedUp'),
+    down: TLi18n.t('tcsr.movedDown')
+  };
+  postAction('move', { step_id: stepId, position: op }, msgs[op] || '');
+}
+
+/* ---- pending (unsaved) drag order ---- */
+
+function discardPending() {
+  PENDING = STEPS.slice();
+  renderRows();
+  setNotice('', '');
+}
+
+function openApply() {
+  if (!isDirty() || PENDING.length < 2) { return; }
+  $('#mTitle').text(TLi18n.t('tcsr.applyTitle'));
+  $('#mBody').text(TLi18n.t('tcsr.applyBody'));
+  PENDING_ACTION = { kind: 'apply' };
+  $('#mask').addClass('show');
+}
+
+function openNormalize() {
+  if (!CAN_EDIT) { return; }
+  $('#mTitle').text(TLi18n.t('tcsr.normalizeTitle'));
+  $('#mBody').text(TLi18n.t('tcsr.normalizeConfirm'));
+  PENDING_ACTION = { kind: 'normalize' };
+  $('#mask').addClass('show');
+}
+
+function closeModal() {
+  $('#mask').removeClass('show');
+  PENDING_ACTION = null;
+}
+
+function confirmModal() {
+  if (!PENDING_ACTION) { return; }
+  var p = PENDING_ACTION;
+  closeModal();
+  if (p.kind === 'normalize') {
+    postAction('normalize', {}, TLi18n.t('tcsr.renumbered'));
+    return;
+  }
+  var ids = PENDING.map(function (r) { return r.step_id; });
+  postAction('reorder', { order: ids.join(',') }, TLi18n.t('tcsr.reordered'));
+}
+
+$(function () {
+  TCVER_ID = parseInt(qs('tcversion_id', 0), 10) || 0;
+  TPROJECT_ID = parseInt(qs('tproject_id', 0), 10) || 0;
+
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    $('#footerInfo').text(TLi18n.t('footers.tcStepReorder'));
+
+    if (!TCVER_ID) {
+      showState(TLi18n.t('tcsr.stBadParam'), TLi18n.t('tcsr.stNoVersion'));
+    } else {
+      $('#rows').on('click', 'button.op', function () {
+        doMove(parseInt($(this).data('step'), 10), $(this).data('op'));
+      });
+      $('#mask').on('click', function (e) {
+        if (e.target === this) { closeModal(); }
+      });
+
+      /* Drag-and-drop, the 1.9.20 capability (TableDnD) preserved: dragging a
+         row only reorders the local PENDING list - nothing is written until
+         "Apply order" is confirmed. */
+      var dragFrom = null;
+      $('#rows').on('dragstart', 'tr', function (e) {
+        if (!CAN_EDIT || PENDING.length < 2) { e.preventDefault(); return; }
+        dragFrom = parseInt($(this).data('step'), 10);
+        $(this).addClass('dragging');
+        if (e.originalEvent && e.originalEvent.dataTransfer) {
+          e.originalEvent.dataTransfer.effectAllowed = 'move';
+          try { e.originalEvent.dataTransfer.setData('text/plain', String(dragFrom)); } catch (x) {}
+        }
+      });
+      $('#rows').on('dragend', 'tr', function () {
+        $(this).removeClass('dragging');
+        $('#rows tr').removeClass('dragover');
+        dragFrom = null;
+      });
+      $('#rows').on('dragover', 'tr', function (e) {
+        if (dragFrom === null) { return; }
+        e.preventDefault();
+        $(this).addClass('dragover');
+      });
+      $('#rows').on('dragleave', 'tr', function () {
+        $(this).removeClass('dragover');
+      });
+      $('#rows').on('drop', 'tr', function (e) {
+        if (dragFrom === null) { return; }
+        e.preventDefault();
+        var targetId = parseInt($(this).data('step'), 10);
+        if (targetId === dragFrom) { return; }
+        var from = -1;
+        var to = -1;
+        for (var i = 0; i < PENDING.length; i++) {
+          if (PENDING[i].step_id === dragFrom) { from = i; }
+          if (PENDING[i].step_id === targetId) { to = i; }
+        }
+        if (from < 0 || to < 0) { return; }
+        var moved = PENDING.splice(from, 1)[0];
+        PENDING.splice(to, 0, moved);
+        renderRows();
+      });
+
+      $('#btnReset').on('click', discardPending);
+      load();
+    }
+  });
+});
+</script>
+</body>
+</html>
