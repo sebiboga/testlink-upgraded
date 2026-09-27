@@ -30,6 +30,9 @@
  * Auth/contract: 401 anon | 401 session_expired | 403 no mgt_view_req |
  *                 400 bad/missing type or id | 404 unknown id / wrong node type
  *                 / foreign project | 405 non-GET | 500 guarded.
+ * Machine codes mirror the other BFFs: NOT_AUTHENTICATED, NOT_PERMITTED,
+ * UNKNOWN_ACTION, UNKNOWN_TYPE, INVALID_ID, INVALID_TPROJECT_ID, NOT_FOUND,
+ * METHOD_NOT_ALLOWED.
  */
 
 require_once(__DIR__ . '/../../config.inc.php');
@@ -127,25 +130,25 @@ bffEnforceSession($db);
 
 $userId = $_SESSION['userID'] ?? null;
 if (!$userId || $userId <= 0) {
-    lvError(401, 'Not authenticated');
+    lvError(401, 'Not authenticated', 'NOT_AUTHENTICATED');
 }
 
 $user = tlUser::getByID($db, $userId);
 if (is_null($user)) {
-    lvError(401, 'User not found');
+    lvError(401, 'User not found', 'NOT_AUTHENTICATED');
 }
 
 $method = strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET');
 if ($method !== 'GET') {
-    lvError(405, 'Method not allowed');
+    lvError(405, 'Method not allowed', 'METHOD_NOT_ALLOWED');
 }
 
 $action = isset($_REQUEST['action']) ? trim((string)$_REQUEST['action']) : '';
 if ($action === '') {
-    lvError(400, 'Missing action');
+    lvError(400, 'Missing action', 'UNKNOWN_ACTION');
 }
 if ($action !== 'log') {
-    lvError(400, 'Unknown action: ' . $action);
+    lvError(400, 'Unknown action: ' . $action, 'UNKNOWN_ACTION');
 }
 
 // ------------------------------------------------------------- params ----
@@ -156,21 +159,21 @@ $typeMap = array(
     'requirement'              => 10, // node_types.requirement_revision
 );
 if ($type === '') {
-    lvError(400, 'Missing type');
+    lvError(400, 'Missing type', 'UNKNOWN_TYPE');
 }
 if (!isset($typeMap[$type])) {
-    lvError(400, 'Unknown type: ' . $type);
+    lvError(400, 'Unknown type: ' . $type, 'UNKNOWN_TYPE');
 }
 
 $id = isset($_REQUEST['id']) ? trim((string)$_REQUEST['id']) : '';
 if ($id === '' || !ctype_digit((string)$id) || intval($id) <= 0) {
-    lvError(400, 'Invalid id');
+    lvError(400, 'Invalid id', 'INVALID_ID');
 }
 $id = intval($id);
 
 $reqProjectId = isset($_REQUEST['tproject_id']) ? intval($_REQUEST['tproject_id']) : 0;
 if ($reqProjectId < 0) {
-    lvError(400, 'Invalid tproject_id');
+    lvError(400, 'Invalid tproject_id', 'INVALID_TPROJECT_ID');
 }
 
 // ------------------------------------------------------------- resolve ----
@@ -193,7 +196,7 @@ if ($type === 'requirement_spec_version') {
         " LEFT JOIN nodes_hierarchy RSH ON RSH.id = RSPEC.id AND RSH.node_type_id = 6 " .
         " WHERE RSREV.id = " . $id);
     if (empty($row)) {
-        lvError(404, 'Requirement spec version not found');
+        lvError(404, 'Requirement spec version not found', 'NOT_FOUND');
     }
     $r = $row[0];
     $context = array(
@@ -217,10 +220,10 @@ if ($type === 'requirement_spec_version') {
     $nh = $db->get_recordset(
         "SELECT id, parent_id, node_type_id FROM nodes_hierarchy WHERE id = " . $id);
     if (empty($nh)) {
-        lvError(404, 'Node not found');
+        lvError(404, 'Node not found', 'NOT_FOUND');
     }
     if (intval($nh[0]['node_type_id']) !== $expectedNodeType) {
-        lvError(404, 'Node ' . $id . ' is not a ' . $type);
+        lvError(404, 'Node ' . $id . ' is not a ' . $type, 'NOT_FOUND');
     }
 
     if ($type === 'requirement_version') {
@@ -228,7 +231,7 @@ if ($type === 'requirement_spec_version') {
             "SELECT RV.id, RV.version, RV.revision, RV.log_message " .
             " FROM req_versions RV WHERE RV.id = " . $id);
         if (empty($row)) {
-            lvError(404, 'Requirement version not found');
+            lvError(404, 'Requirement version not found', 'NOT_FOUND');
         }
         // the version's parent node is the requirement itself
         $reqNhId = intval($nh[0]['parent_id']);
@@ -242,7 +245,7 @@ if ($type === 'requirement_spec_version') {
             " LEFT JOIN nodes_hierarchy RNH ON RNH.id = R.id AND RNH.node_type_id = 7 " .
             " WHERE R.id = " . $reqNhId);
         if (empty($reqRow)) {
-            lvError(404, 'Owning requirement not found');
+            lvError(404, 'Owning requirement not found', 'NOT_FOUND');
         }
         $rq = $reqRow[0];
         $versionLabel = 'v' . intval($row[0]['version']) . ' / rev#' . intval($row[0]['revision']);
@@ -263,7 +266,7 @@ if ($type === 'requirement_spec_version') {
             "SELECT RR.id, RR.revision, RR.req_doc_id, RR.name, RR.log_message " .
             " FROM req_revisions RR WHERE RR.id = " . $id);
         if (empty($row)) {
-            lvError(404, 'Requirement revision not found');
+            lvError(404, 'Requirement revision not found', 'NOT_FOUND');
         }
         $reqNhId = intval($nh[0]['parent_id']);
         // NB: the requirements table carries no title column - a requirement's
@@ -276,7 +279,7 @@ if ($type === 'requirement_spec_version') {
             " LEFT JOIN nodes_hierarchy RNH ON RNH.id = R.id AND RNH.node_type_id = 7 " .
             " WHERE R.id = " . $reqNhId);
         if (empty($reqRow)) {
-            lvError(404, 'Owning requirement not found');
+            lvError(404, 'Owning requirement not found', 'NOT_FOUND');
         }
         $rq = $reqRow[0];
         $logRaw = $row[0]['log_message'];
@@ -303,10 +306,10 @@ $context['parent_name'] = (string)testproject::getName($db, $owningProject);
 // of silently answering - the legacy readers happily returned a log from any
 // project to any authenticated user.
 if ($reqProjectId > 0 && $reqProjectId !== $owningProject) {
-    lvError(404, 'Node not found in the requested test project');
+    lvError(404, 'Node not found in the requested test project', 'NOT_FOUND');
 }
 if (!$user->hasRight($db, 'mgt_view_req', $owningProject)) {
-    lvError(403, 'No permission');
+    lvError(403, 'No permission', 'NOT_PERMITTED');
 }
 
 // -------------------------------------------------------------- answer ----
