@@ -78,6 +78,7 @@ function init_args()
   
   $args->tproject_id = isset($_SESSION['testprojectID']) ? $_SESSION['testprojectID'] : 0;
   $args->tproject_name = isset($_SESSION['testprojectName']) ? $_SESSION['testprojectName'] : "";
+  $args->tplan_id = isset($_SESSION['testplanID']) ? intval($_SESSION['testplanID']) : null;
   $args->user_id = isset($_SESSION['userID']) ? $_SESSION['userID'] : 0;
   $args->basehref = $_SESSION['basehref'];
   
@@ -202,6 +203,14 @@ function renderGui(&$argsObj,$guiObj,$opObj,$templateCfg,$editorCfg)
         // no matter action_status_ok
         unset($key2loop['scope']);
       }
+      // reqSpecEdit.tpl (and reqBulkMon.tpl) render these two hidden fields, but
+      // no reqSpecCommands method declares them on the GUI bean, so they must
+      // come from the session args. Set BEFORE the copy loop, as a default: a
+      // command object that owns the key (reorder, doReorder, bulkReqMon) still
+      // overwrites it with its own value.
+      $guiObj->tproject_id = $argsObj->tproject_id;
+      $guiObj->tplan_id = $argsObj->tplan_id;
+
       foreach($key2loop as $key => $value)
       {
         $guiObj->$key = $value;

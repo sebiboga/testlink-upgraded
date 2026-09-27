@@ -24831,103 +24831,84 @@ must show exactly one button, `Export Keywords`.
 
 ---
 
-## Regression — Issue #1605: `POST /api/keywords/index.php/import` answered `200 {"status":"ok"}` when ZERO keywords were created
+## Regression — Issue #1658: legacy Create/Edit Requirement Specification emits 2 E_WARNINGs per load (`reqSpecEdit.tpl` hidden `tproject_id` / `tplan_id`)
 
-**Precondition**
+**Precondition** — fresh DB import; fixture = test project `id=20` `prefix=RP1658`
+`option_reqs=1` plus its `nodes_hierarchy` row (`node_type_id=1`, name `RP 1658`); login
+`admin`/`admin`; session auto-selects project 20. No test plan exists in the session
+(used for the `tplan_id` fallback case). The pre-fix `doCreate` in step 2 mints
+**`req_specs` id=21 `RSPEC-1658`** — that is where the `req_spec_id=21` / `parentID=21` used
+by rows 1658-04/05/11 comes from.
 
-The DB is freshly imported on every run, so the fixture is recreated first. A
-test project needs a `nodes_hierarchy` row (node_type_id 1) for the
-"project exists" check in `api/keywordsxml` to pass, plus an `inventory` row and
-an admin project role:
-
-```bash
-mysql -h 127.0.0.1 -utestlink -ptestlink testlink -e "
-  insert into testprojects (id,notes,prefix,active,is_public) values (1,'repro fixture','RFX',1,1);
-  insert into nodes_hierarchy (id,name,parent_id,node_type_id,node_order) values (1,'Repro Project 1605',0,1,1);
-  insert into inventory (testproject_id,owner_id,name,ipaddress,content) values (1,1,'Repro Project 1605','127.0.0.1','');
-  insert into user_testproject_roles (user_id,testproject_id,role_id) values (1,1,8);
-  delete from keywords;"
+```sql
+INSERT INTO testprojects (id,prefix,option_reqs,...) VALUES (20,'RP1658',1, ...);
+INSERT INTO nodes_hierarchy (id,name,parent_id,node_type_id,node_order)
+  VALUES (20,'RP 1658',NULL,1,1);
 ```
 
-Session (used by every curl below):
+**Repro steps (PRE-FIX, recorded baseline)** — load the create screen 1x, the real
+`doCreate` POST 1x, the edit screen 1x:
 
-```bash
-curl -s -c /tmp/tl_cookies.txt -b /tmp/tl_cookies.txt -L -d 'tl_login=admin&tl_password=admin' \
-     http://localhost:8082/login.php
-curl -s -c /tmp/tl_cookies.txt -b /tmp/tl_cookies.txt -L \
-     'http://localhost:8082/index.php?caller=login&viewer='
-```
+1. `GET /lib/requirements/reqSpecEdit.php?doAction=create&tproject_id=20`
+2. `POST /lib/requirements/reqSpecEdit.php` with
+   `doAction=doCreate&tproject_id=20&parentID=20&doc_id=RSPEC-1658&title=…&scope=…&countReq=0&reqSpecType=1`
+3. `GET /lib/requirements/reqSpecEdit.php?doAction=edit&req_spec_id=21&tproject_id=20`
+4. `select id,log_level,replace(description,'\n',' ') from events order by id;`
 
-Upload helper:
+Observed pre-fix (3 loads):
 
-```bash
-api() { curl -s -b /tmp/tl_cookies.txt -H 'X-Requested-With: XMLHttpRequest' \
-          -F tproject_id=1 -F type=csv -F "uploadedFile=@$1" -w " [%{http_code}]" \
-          http://localhost:8082/api/keywords/index.php/import; echo; }
-```
+| id | log_level | description |
+|---|---|---|
+| 2,5,7 | 2 | `E_WARNING Undefined property: stdClass::$tproject_id - ...reqSpecEdit.tpl.php - Line 203` |
+| 3,6,8 | 2 | `E_WARNING Undefined property: stdClass::$tplan_id     - ...reqSpecEdit.tpl.php - Line 205` |
 
-### A. Pre-fix reproduction (the symptom)
+and the rendered hidden fields were **empty**: `name="tproject_id" value=""`,
+`name="tplan_id" value=""`.
 
-| id | check | input | expected pre-fix | actual pre-fix | verdict |
-|---|---|---|---|---|---|
-| 1605-01 | comma CSV reports success but imports nothing (THE bug) | `imported-1605-a,note a` + `imported-1605-b,note b` | — | `200 {"status":"ok"}`, `keywords` table **unchanged** | **FAIL (bug reproduced)** |
-| 1605-02 | legacy `;` delimiter is the working control | same two rows with `;` | `200`, 2 rows | `200`, 2 rows | PASS |
-| 1605-03 | every row rejected, still "ok" | `imported-1605-a;dup` / `;empty name` / `bad"name;quote` | — | `200 {"status":"ok"}`, 0 rows added, **0 audit events** | **FAIL (bug reproduced)** |
-| 1605-04 | a rejected import leaves no trace at all | `select * from events` after 1605-03 | — | no new `events` row; `log_level` stays 16 only | FAIL (confirms silence) |
+**Expected POST-FIX behaviour** — the create/edit screens return HTTP 200, render
+`value="20"` for `tproject_id`, and add **zero** rows with `log_level=2`.
 
-### B. Post-fix behaviour
+| # | Case | Expected | Actual | Result |
+|---|---|---|---|---|
+| 1658-01 | Baseline (pre-fix) | 2 warnings per load | 2 per load, ids 2,3,5,6,7,8 | **PASS** (reproduced) |
+| 1658-02 | `GET doAction=create` | 200, `tproject_id="20"`, 0 new events | 200, `value="20"`, 0 events | **PASS** |
+| 1658-03 | `POST doAction=doCreate` (real form) | SRS created, `tproject_id="20"`, 0 warnings | 200, `value="20"`, `req_specs` id=25 `RSPEC-1658-C` created, 1 `log_level=16` `audit_req_spec_created` (INFO), 0 warnings | **PASS** |
+| 1658-04 | `GET doAction=edit&req_spec_id=21` | 200, `tproject_id="20"`, 0 new events | 200, `value="20"`, 0 events | **PASS** |
+| 1658-05 | `GET doAction=createChild&parentID=21` | 200, `tproject_id="20"`, 0 new events | 200, `value="20"`, 0 events | **PASS** |
+| 1658-06 | `tplan_id` with no test plan in session | `value=""`, no notice, no warning | 200, `value=""`, 0 events | **PASS** |
+| 1658-07 | `GET doAction=reorder&tproject_id=20` (regression: the command object owns its own `tproject_id`, must win over the new default) | 200, reorder list renders, its own value not clobbered | 200, 3 reorder rows, 0 events | **PASS** |
+| 1658-08 | `GET lib/project/project_req_spec_mgmt.php?tproject_id=20` | 200, no new events | 200, 0 events | **PASS** |
+| 1658-09 | `reqSpecView.php?req_spec_id=21` | redirect chain intact, 0 warnings | 302 -> `gui/templates/requirements/reqSpecView.html?req_spec_id=21&tproject_id=20&tplan_id=0` 200, 0 events | **PASS** |
+| 1658-10 | `POST doAction=doUpdate` with a **duplicate** `doc_id=RSPEC-1658` (forces `check_main_data()` failure, so `doUpdate()` falls back to `default_template` = `reqSpecEdit.tpl`) | 200, form re-rendered, `tproject_id="20"`, 0 new events | 200, `createSRS` present, `value="20"`, 0 events | **PASS** |
+| 1658-11 | `GET doAction=bulkReqMon&req_spec_id=21` (renders `reqBulkMon.tpl:58-59`; its command method read `$argsObj->tplan_id` at `reqSpecCommands.class.php:896`, itself undefined pre-fix) | 200, both hidden fields rendered, **no** `tplan_id` event from the class | 200, `tproject_id="20"`, `tplan_id=""`, `req_spec_id="21"`, no `tplan_id` event | **PASS** |
+| 1658-12 | Event Viewer sweep over the 9 post-fix requests of this matrix | 0 `log_level=2` rows attributable to the two keys | `select count(*) from events where id>8 and log_level=2` -> `0`; `id>11` -> `0` | **PASS** |
+| 1658-13 | New PHP `E_WARNING` about `$argsObj->tplan_id` itself | must not appear | no `events` row mentions `tplan_id` after the fix | **PASS** |
+| 1658-14 | Syntax gate | `php -l` clean | `No syntax errors detected in lib/requirements/reqSpecEdit.php` | **PASS** |
 
-| id | check | input | expected | actual | verdict |
-|---|---|---|---|---|---|
-| 1605-05 | the exact repro of 1605-01 is now an explicit failure | `imported-1605-a,note a` x2 (`,`) | 422 + a reason, never a false `ok` | `422 {"error_code":"NO_KEYWORDS_IMPORTED","imported":0,"rows":2,"skipped":2,"errors":[{"row":1,"code":"CHAR_NOT_ALLOWED","name":"imported-1605-a,note a"},...]}` | **PASS** |
-| 1605-06 | `;` import unchanged and now counted | `ok1;one` + `ok2;two` | 200, 2 imported | `200 {"imported":2,"skipped":0,"rows":2,"keyword_count":2}` | **PASS** |
-| 1605-07 | comma file now actually imports (issue's "accept `,`" option) | `cc1,one` + `cc2,two` | 200, 2 imported | `200 {"imported":2,...,"keyword_count":4}`; DB has `cc1`/`cc2` | **PASS** |
-| 1605-08 | per-row reasons for a mixed file | `ok1;dup` / `;empty` / `bad"name;q` / `ok3;three` | 200 + 3 named failures | `200 {"imported":1,"skipped":3,"rows":4,"errors":[{"row":1,"code":"ALREADY_EXISTS","name":"ok1"},{"row":2,"code":"EMPTY_NAME","name":""},{"row":3,"code":"CHAR_NOT_ALLOWED","name":"bad\"name"}]}` | **PASS** |
-| 1605-09 | a partial import is a success, not a failure | same as 1605-08 | 200 (1 of 4 rows landed) | `200`, `imported:1` | **PASS** |
-| 1605-10 | empty file is distinguished from an all-rejected file | 0-byte file | 422 `EMPTY_FILE` | `422 {"error_code":"EMPTY_FILE","imported":0,"rows":0}` | **PASS** |
-| 1605-11 | a blank-lines-only file is not "data" | two empty lines | 422 `EMPTY_FILE` | `422 {"error_code":"EMPTY_FILE","rows":0}` | **PASS** |
-| 1605-12 | blank lines inside a real file do not count as rows | `blank-a;x` / `` / `blank-b;y` | `rows:2` | `rows:2`, `imported:2` | **PASS** |
-| 1605-13 | single-column line is a valid one-field CSV (1.9.20 parity) | `not a csv at all` | 200, 1 keyword, empty notes | `200 {"imported":1,"rows":1}`; DB row `not a csv at all` | **PASS** |
-| 1605-14 | **review BLOCKER** quoted single field is NOT split into name+notes | `"a,b"` | 1 rejected row, name stays `a,b` (legacy behaviour) | `422 {"errors":[{"row":1,"code":"CHAR_NOT_ALLOWED","name":"a,b"}]}`, 0 written | **PASS** |
-| 1605-15 | **review S2** one delimiter per FILE, never per row | `mix-a,note with semi;inside` + `mix-b,plain` | no half-import; both rows judged alike | `422 {"imported":0,"skipped":2,"rows":2}` — both `CHAR_NOT_ALLOWED` | **PASS** |
-| 1605-16 | **review S3** an unreadable file still says "format could not be read" | temp file unreadable (`fopen` fails) | legacy `WRONG_FORMAT` / `wrong_keywords_file` | `$fileWasReadable` gate added; the count-proxy no longer overrides it | **PASS** (code path) |
-| 1605-17 | XML arm behaviour is byte-identical to pre-fix | re-import of its own XML export | unchanged | pre-fix `400 wrong_keywords_file` == post-fix `400 wrong_keywords_file` (measured both ways); the real defect is tracked separately as **#1666** | **PASS** |
-| 1605-18 | XML export unaffected | `?action=export&type=iSerializationToXML` | well-formed document | `HTTP=200`, valid `<keywords>` XML | **PASS** |
-| 1605-19 | CSV import through the UI's BFF reports the same | `?action=import` `type=iSerializationToCSV` | same payload shape | `200 {"imported":2,"skipped":0,"rows":2,"errors":[]}` | **PASS** |
-| 1605-20 | the real dialog shows a per-row error list | Import tab, CSV, mixed file | row lines naming the keyword | `["Row 3 (cc1): A keyword with this name already exists.", "Row 4 (-): Keyword name cannot be empty.", "Row 5 (bad\"name): Keywords: character not allowed."]` | **PASS** |
-| 1605-21 | a partial import does not read as plain success | same as 1605-20 | partial wording + count | `["Imported 2 of 5 rows; 3 row(s) were rejected - see the details below."]` | **PASS** |
-| 1605-22 | an all-rejected import shows no success banner | Import tab, CSV, all-duplicates | red banner, no green | `err: ["No keyword was imported - every row was rejected. See the details below."]`, `ok: []` | **PASS** |
-| 1605-23 | the hint states the delimiter | Import tab | delimiter documented | *"Existing keywords with the same name are updated; new ones are created. Use semicolon ";" as the field separator (a comma separated file is accepted too)."* | **PASS** |
-| 1605-24 | the import report does not leak onto the Export tab | switch to Export | no error card | `importErrorList()` gated on `MODE === 'import'` | **PASS** |
-| 1605-25 | i18n: all 10 bundles carry the new keys | `python3 -m json.tool` + key probe | 4 new keys + reworded hint in `en ro de es fr it ja pt ru zh` | all present, all 10 files valid JSON | **PASS** |
-| 1605-26 | i18n: a non-English locale resolves the new keys | switch the dialog to `Română` | translated, no raw keys | `["Nu s-a importat niciun cuvant-cheie ...", "Randul 1 (ok1): Există deja un cuvânt cheie cu acest nume."]`, `rawKeys: null` | **PASS** |
-| 1605-27 | legacy callers are unaffected (backwards compatibility) | `importKeywordsFromCSV($id,$f)` with 2 args | works exactly as before | `$stats` is optional; the `tl::OK`(1) / `tl::ERROR`(0) contract is unchanged, so the legacy `tl-classic` / `dashio` screens and `api/keywordsxml` are unaffected | **PASS** |
-| 1605-28 | no new Event Viewer noise | `select log_level,count(*) from events group by log_level` | only `log_level:16` | `16 \| 17` — 0 error/warning rows after the whole suite | **PASS** |
-| 1605-29 | console clean | browser console, error+warn | no JS errors | only the expected `400 (Bad Request)` XHR log from the deliberate all-rejected upload; no JS errors | **PASS** |
-| 1605-30 | rights gate unchanged | `POST /import` as a non-keyword-manager | 403 `NO_RIGHT` | `403 {"error_code":"NO_RIGHT"}` (observed pre-fix and post-fix) | **PASS** |
+**Result: 14 PASS / 0 FAIL.**
 
-**Result: 26 PASS / 4 FAIL** (1605-01/02/03/04 are the *pre-fix baseline*
-reproduction rows, FAIL by design — they are what proves the bug existed; 1605-05
-is the same file that failed 1605-01, now answering 422 instead of a false `ok`.)
+**Pre-existing defects observed while running the matrix (NOT regressions, filed as #1665)**
+- `GET /lib/requirements/reqSpecSearch.php?tproject_id=20` -> HTTP 500
+  `Uncaught TypeError: count(): ... null given in lib/requirements/reqSpecSearch.php:116`, plus
+  one `log_level=1` DATABASE 1064 row from `reqSpecViewRevision.php` without `item_id`.
+- `GET doAction=bulkReqMon&req_spec_id=21` (row 1658-11) adds one `log_level=2` row
+  `foreach() argument must be of type array|object, null given -
+  lib/requirements/reqSpecCommands.class.php - Line 877` because `get_requirements()` returns
+  `null` for a spec with no requirements. Row 1658-11 is about the two **hidden fields**
+  (both present, no `tplan_id` warning); this unrelated `foreach(null)` is tracked in #1665.
+All are in files this fix does not touch.
 
 **RESUME**
 
 ```bash
-# one-liner: does the regression still exist?  A comma file must NOT be
-# reported as a success with an unchanged table.
-mysql -h 127.0.0.1 -utestlink -ptestlink testlink -e "delete from keywords;"
-printf 'a,note a\nb,note b\n' > /tmp/k.csv
-curl -s -b <cookie> -H 'X-Requested-With: XMLHttpRequest' \
-     -F tproject_id=1 -F type=csv -F uploadedFile=@/tmp/k.csv \
-     -w ' [%{http_code}]\n' http://localhost:8082/api/keywords/index.php/import
-#   fixed     -> 422 {"error_code":"NO_KEYWORDS_IMPORTED",...,"keyword_count":2}   (imports)
-#   regressed -> 200 {"status":"ok"}  with the table unchanged                       (the bug)
+# 1. reset the Event Viewer, then as admin on a project with Requirements enabled
+#    load the create screen and the edit screen (doAction=create, doAction=edit&req_spec_id=N)
+mysql -h 127.0.0.1 -utestlink -ptestlink testlink -e "delete from events;"
+# 2. the regression is back if this prints anything other than 0
+mysql -h 127.0.0.1 -utestlink -ptestlink testlink -e "select count(*) from events where log_level=2;"
 ```
 Browser re-test: log in `admin`/`admin`, open
-`http://localhost:8082/gui/templates/keywords/keywordsExport.html?mode=import&tproject_id=1`,
-pick **CSV**, upload a file mixing good rows, a duplicate, an empty name and a row
-with a `"` — the dialog must show "Imported N of M rows; K row(s) were rejected"
-plus one line per rejected row naming the keyword.
-
-Known separate defect, **not** in this fix: the XML round-trip import of
-already-existing keywords is wrongly rejected (filed as **#1666**).
+`http://localhost:8082/lib/requirements/reqSpecEdit.php?doAction=create&tproject_id=20`, then
+check Event Viewer (`http://localhost:8082/lib/events/eventViewer.php`) - no new
+`log_level=2` rows; and view-source the two hidden inputs - they must read
+`name="tproject_id" value="20"`.
