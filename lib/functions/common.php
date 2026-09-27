@@ -1956,9 +1956,19 @@ function getActions(&$gui,$baseURL) {
       "/gui/templates/execute/tcAssignments.html?{$ctx}";
   }
 
+  // Builds & Releases modernized screen (Dashio standalone page) - Refs #1030
+  // (moved to the Projects aside scope; builds are project-scoped entities —
+  // builds.testproject_id, no testplan_id — so the URL is valid with NO test
+  // plan selected (tplan_id=0), decoupling menu presence from countPlans).
+  //
+  // The ctx carries tplan_id unconditionally (assigned at 1844), so a
+  // tplan_id=0 URL is what opens a project-wide builds list; the BFF
+  // (api/builds) still enforces the project-scoped right server-side on
+  // every route (Refs #503).
+  $actions->buildView = "/gui/templates/plans/buildsView.html?{$ctx}";
+  $actions->buildNew = "/gui/templates/plans/buildsView.html?{$ctx}";
+
   if ($tplan_id >0) {
-    // Builds & Releases modernized screen (Dashio standalone page) - Refs #585
-    $actions->buildView = "/gui/templates/plans/buildsView.html?{$ctx}";
     // Assign Platforms to Test Plan modernized screen (Dashio standalone page) - Refs #603
     $actions->platformAssign = "/gui/templates/platforms/platformsAssign.html?{$ctx}";
     // Test Plan Milestones modernized screen (Dashio standalone page) - Refs #647.

@@ -2277,7 +2277,8 @@ class testplan extends tlObjectWithAttachments
 
     $my['opt'] = array('fields' => 
                        'id, name, notes, active, is_open,release_date,closed_on_date,creation_ts',
-                       'orderBy' => " ORDER BY name ASC", 'getCount' => false, 'buildID' => null);
+                       'orderBy' => " ORDER BY name ASC", 'getCount' => false, 'buildID' => null,
+                       'tproject_id' => null);
 
     $my['opt'] = array_merge($my['opt'],(array)$opt);
     if( $my['opt']['getCount'] )
@@ -2321,7 +2322,14 @@ class testplan extends tlObjectWithAttachments
     {
       $accessField = 'id';     
       $groupBy = '';
-      $tproject_id = $this->getProjectIdOfPlan($id);
+      // Builds are scoped to the Test Project (issue #503). Prefer an
+      // explicit project (tplan_id=0 project-scoped lists, issue #1030):
+      // otherwise derive the project from the given plan for legacy callers.
+      if( !is_null($my['opt']['tproject_id']) ) {
+        $tproject_id = intval($my['opt']['tproject_id']);
+      } else {
+        $tproject_id = $this->getProjectIdOfPlan($id);
+      }
       $sql = " /* $debugMsg */ " . 
              " SELECT {$my['opt']['fields']} " .
              " FROM {$this->tables['builds']} WHERE testproject_id = {$tproject_id} " ;
