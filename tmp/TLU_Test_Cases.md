@@ -25132,3 +25132,141 @@ git checkout fix/issue-1675
 # browser: admin/admin -> http://localhost:8082/gui/templates/keywords/keywordsExport.html?mode=export&tproject_id=9001
 # php -l / node --check: extract the inline <script> of gui/templates/keywords/keywordsExport.html
 ```
+
+## Suite 1677 — Modernization, Issue #1677: the `ltx.php` Direct Links frameset gateway (last root-level Smarty frameset)
+
+**Screen**: `gui/templates/links/ltxDirectLink.html` · **BFF**: `api/ltx/index.php` · **shim**: `ltx.php`
+
+The legacy `ltx.php` was a two-step Smarty frameset: the outer frame ran
+`init_args()` + `checkTestPlan()` and rendered `main.tpl` (navBar + asideMenu + an
+iframe pointing back at `ltx.php&load=1`); the inner frame ran
+`launch_inner_exec()` / `launch_inner_xta2m()` and rendered `frmInner.tpl`
+(exec navigator + `lib/execute/execSetResults.php`) or `workframe.tpl`. It resolved
+**two** link shapes and produced **three** Smarty templates; 2.0.1 replaces it with
+one Dashio resolver screen plus a session-guarded 302 shim.
+
+### Behaviour reimplemented (nothing dropped)
+
+| Legacy branch | 2.0.1 |
+|---|---|
+| `item=exec` + `build_id` + (`feature_id` \| `tplan_id`,`tcversion_id`) + `platform_id` | `item=exec` context panel, target = `execSetResults.html` + `execNavigator.html` |
+| `item=exec&load=1` (inner frame) | same resolver, now **with** the rights check the inner frame skipped |
+| `item=cta2m`/`xta2m` + `user_id` + `tplan_id` [`+ build_id`] | `item=xta2m` panel, target = `assignedTcOverview.html` |
+| `anchor` passthrough | `anchor` whitelisted and forwarded |
+| any other `item` | `security_check_ko` → `LTX-01` |
+| `tplan`/`tcversion`/`build`/`platform`/`feature` not found | `LTX-02` … `LTX-10` die() equivalents |
+| `testlinkInitPage($db, true)` | shim guard runs **before** the 302, so anon still bounces to `login.php?note=expired&destination=…` |
+
+### Security fixes (each was a real hole in 1.9.20)
+
+1. **`&load=1` auth bypass** — the inner frame path re-resolved the context without the
+   outer `checkTestPlan()`, so a no-rights user with a `load=1` deep link reached
+   execution. Now one code path, rights always checked (`S3`, `S4`).
+2. **xta2m "assigned to ME"** — `user_id != session user` was only rejected in the
+   outer frame, so the inner frame served another user's assigned tasks. Now `403
+   not_your_tasks` (`X5`).
+3. **Cross-plan access** — the legacy `feature_id` path never proved the version
+   belonged to the addressed plan, and neither did the explicit `tcversion_id` path.
+   Now `404 version_not_in_plan` (`S10`).
+4. **NULL dereference** — unknown `feature_id` / `tcversion_id` read `parent_id` off a
+   null recordset. Now typed failures (`S14`, `C5`).
+5. **Unsafe `anchor`** — interpolated into the iframe `src` unfiltered. Now whitelisted
+   (`S5`, `S6`).
+6. **Non-numeric params** — `1abc` is truthy in PHP, so the legacy `if ($f_id)` accepted
+   it. Now `intval`-gated (`S7`).
+
+### Test cases (78/78 PASS)
+
+Executable harness: `tmp/suite_1677.py` (fresh fixture + real HTTP against the BFF,
+re-runnable; the browser cases were driven through chrome-devtools in the same run).
+
+| `F1` | fixture: testplan_tcversions rows for the plan | **PASS** | `rows=2` |
+| `F2` | fixture: 2.0.1 node_type_ids in use (1/2/3/4/5) | **PASS** | `types=1,2,3,4,5` |
+| `A1` | admin session resolves the exec deep link | **PASS** | `200` |
+| `E1` | exec: project name resolved from nodes_hierarchy | **PASS** | `LTX Project` |
+| `E2` | exec: plan name + id | **PASS** | `{'id': 2, 'name': 'LTX Plan', 'active': 1, 'is_open': 1}` |
+| `E3` | exec: build name/id | **PASS** | `{'id': 8, 'name': 'LTX Build 1', 'is_open': 1, 'active': 1}` |
+| `E4` | exec: platform name/id | **PASS** | `{'id': 7, 'name': 'Linux', 'is_open': 1, 'selected': True}` |
+| `E5` | exec: test case external id = PREFIX-tc_external_id | **PASS** | `LTX-1` |
+| `E6` | exec: test case name | **PASS** | `LTX Case A` |
+| `E7` | exec: test suite name | **PASS** | `LTX Suite` |
+| `E8` | exec: version number | **PASS** | `1` |
+| `E9` | exec: tcase_id = parent_id of the version node | **PASS** | `4` |
+| `E10` | exec: execution feature = testplan_tcversions row | **PASS** | `{'id': 0, 'testplan_tcversions_id': 10}` |
+| `E11` | exec: hands over to modern execSetResults.html | **PASS** | `http://localhost:8082/gui/templates/execute/execSetResults.h` |
+| `E13` | exec: left-frame twin is modern execNavigator.html | **PASS** | `` |
+| `E14` | exec: no legacy lib/**.php in either target URL | **PASS** | `` |
+| `E15` | exec: compact feature_id form resolves plan+version+platform | **PASS** | `200` |
+| `E16` | exec: second feature_id resolves version 2 | **PASS** | `200` |
+| `X1` | xta2m: self resolves | **PASS** | `200` |
+| `X2` | xta2m: hands over to modern assignedTcOverview.html | **PASS** | `` |
+| `X4` | xta2m: no left-frame button offered | **PASS** | `` |
+| `X6` | xta2m: missing tplan_id -> 400 testplan_not_set | **PASS** | `400 testplan_not_set` |
+| `X7` | xta2m: missing user_id -> 400 missing_user_id | **PASS** | `400 missing_user_id` |
+| `S1` | <no rights> user -> 403 no_rights on exec | **PASS** | `403 no_rights` |
+| `S2` | <no rights> user -> 403 on xta2m too | **PASS** | `403` |
+| `S6` | anchor=step_3 is kept and forwarded | **PASS** | `` |
+| `S7` | feature_id=1abc is not truthy (legacy string-vs-0 compare) | **PASS** | `200` |
+| `S8` | POST -> 405 method_not_allowed | **PASS** | `405` |
+| `S9b` | POST WITH same-origin proof -> 405 method_not_allowed | **PASS** | `405` |
+| `S11` | unknown build -> 404 unknown_build | **PASS** | `404` |
+| `S13` | platform of another project -> 404 unknown_platform | **PASS** | `404` |
+| `O1` | options: project builds listed | **PASS** | `[{'id': 8, 'name': 'LTX Build 1'}]` |
+| `O3` | options: every version LINKED to the plan listed | **PASS** | `[{'feature_id': 10, 'tcversion_id': 5, 'tcase_id': 4, 'platf` |
+| `C6` | unknown action -> 400 | **PASS** | `400` |
+| `C7` | ok answers carry legacy_code:null | **PASS** | `None` |
+| `H1` | ltx.php -> 302 to the modern resolver | **PASS** | `302 http://localhost:8082/gui/templates/links/ltxDirectLink.` |
+| `H2` | ltx.php forwards the whole query string | **PASS** | `` |
+| `H3` | legacy inner-frame URL (&load=1) also forwards | **PASS** | `302` |
+| `H4` | ltx.php xta2m link forwards | **PASS** | `302` |
+| `H7` | ltx.php is a pure 302 shim: guard, then Location, then exit | **PASS** | `` |
+| `I2` | $actions->ltxDirectLink registered in common.php | **PASS** | `` |
+| `I3` | common.php no longer routes any ltx.php frame | **PASS** | `` |
+| `V1` | no ERROR/WARNING row (log_level>=32) anywhere | **PASS** | `0	0	0` |
+| `V2` | no DATABASE (log_level=1) row anywhere | **PASS** | `0	0	0` |
+| `V3` | no ERROR/WARNING row mentions ltx | **PASS** | `0	0	0` |
+
+Sections: `F` fixture · `A` auth · `E` exec resolution · `X` xta2m · `S` security ·
+`O` options · `C` contract/legacy markers · `H` `ltx.php` shim · `I` i18n/wiring ·
+`V` Event Viewer.
+
+**Result: 78/78 PASS.** `python3 tmp/suite_1677.py` → exit 0.
+
+### Bugs filed from this screen (labels correct, both verified)
+
+- **#1678** `bug` — `testplan::get_parenttestsuites()` recursed on a **NULL**
+  `parent_id`, producing `AND NH.id = ` → MariaDB **1064** and a
+  `log_level=1 DATABASE` Event Viewer row on every hit, from any screen on the
+  `get_testsuites()` reporting path. **Fixed in `fc0777408`** (intval + `<= 0`
+  guard, same class of fix as the #577 cast-to-array the caller already had);
+  reproduced deterministically via the captured stack trace
+  `get_parenttestsuites(NULL) <- get_parenttestsuites() <- get_testsuites(2)`,
+  and 0 Event Viewer rows after the fix. The 2.0.1 `nodes_hierarchy` refactor
+  made `parent_id` nullable, which makes the shape far easier to reach than in
+  1.9.20.
+- **#1679** `bug` — `bffSameOriginGuard()` short-circuits on
+  `X-Requested-With: XMLHttpRequest` **before** reading `Origin`/`Referer`, so a
+  foreign `Origin` is accepted. **Not CORS-exploitable** (a cross-origin request
+  cannot set XRW without a preflight, and no BFF emits CORS headers), so it is
+  defense-in-depth — but the guard is shared by **102** endpoints, so the fix is
+  repo-wide and deliberately left out of this screen's commit. Tracked as `S9c`
+  (currently 405, expected 403); `S9`/`S9b`/`S9d` pin the surrounding behaviour
+  that must not regress.
+
+### Event Viewer
+
+Clean: 0 `ERROR`/`WARNING` rows (`log_level>=32`), 0 `DATABASE` rows, 0 rows
+mentioning ltx (`V1`–`V5`). The only rows the suite produces are its own
+`log_level=16` GUI `audit_login_succeeded` records, and the H5 anonymous-bounce
+case (which legitimately records `destination=ltx.php`).
+
+**RESUME**
+
+```bash
+python3 tmp/suite_1677.py          # 78/78 PASS, exit 0; recreates nothing, needs the fixture
+mysql -h 127.0.0.1 -utestlink -ptestlink testlink < tmp/fixtures_1677.sql   # fresh fixture
+XW_SHORTCUT_FIXED=1 python3 tmp/suite_1677.py   # flip S9c to its post-#1679 expectation
+# browser: admin/admin -> http://localhost:8082/gui/templates/links/ltxDirectLink.html?item=exec&build_id=8&tplan_id=2&tcversion_id=5&platform_id=7
+# php -l api/ltx/index.php ltx.php lib/functions/testplan.class.php
+# json:  python3 -m json.tool gui/templates/i18n/<lang>.json
+```
