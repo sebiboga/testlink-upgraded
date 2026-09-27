@@ -23670,12 +23670,18 @@ the form from the console: `f.querySelector('input[type=text]').value=…; f.sub
   **Ids change on every run — never hardcode them** (`att_exec` also contains the
   substring `exec`, so naive `sed 's/.*exec=\([0-9]*\).*/\1/p'` silently returns
   the attachment id; the harness anchors on `[[:space:]]exec=`).
-- Asserting harness: **`bash tmp/verify_1638.sh`** — **95 assertions**, non-zero
+- Asserting harness: **`bash tmp/verify_1638.sh`** — **108 assertions**, non-zero
   exit on failure, `trap … EXIT` restores `config.inc.php`.
   Discriminating: **56 PASS / 39 FAIL** against the pre-fix revision
-  (`07783cf82`), **95 PASS / 0 FAIL** after the fixes.
+  (`07783cf82`), **108 PASS / 0 FAIL** after the fixes **and** the mandatory code
+  review (`665128bf2`, +13 static / served-markup / Event-Viewer assertions).
+- Mandatory code review (`665128bf2`): 1 blocker (per-version owner context and
+  the clobbering session allow-list) + 7 findings (hardcoded English owner-label
+  nouns, missing 401 → login redirect, no distinct CSRF state, delete failure not
+  retryable, unescaped `attach_id` in the legacy hrefs, JSON encoding without
+  `JSON_INVALID_UTF8_SUBSTITUTE`, dead code paths) + i18n/wiring nits.
 
-**Result: 95 PASS / 0 FAIL.**
+**Result: 108 PASS / 0 FAIL.**
 
 | # | Area | Assertion | Result |
 |---|---|---|---|
@@ -23727,6 +23733,11 @@ the form from the console: `f.querySelector('input[type=text]').value=…; f.sub
 | B8 | attachments disabled (temporary `config.inc.php` toggle, reverted with `git checkout`) | `Attachments disabled / Attachments are disabled on this installation.` | **PASS** |
 | B9 | `attachmentUpload.html?id=<tc>&table=nodes_hierarchy` (regression) | lists `ADEL-1638-testcase`, `21 B`, `(nodes_hierarchy #86)`, `1.0 MB`; `api/attachments?action=list` still 200 for 2 owner kinds | **PASS** |
 | B10 | cookie-less `POST …?action=delete` from DevTools | before the fix: attachment **deleted**; after: `401 NOT_AUTHENTICATED` | **PASS** |
+| B11 | cookie-less `GET attachmentDelete.html?id=…` (isolated context) | serves the **login** screen, `login.php?note=expired` (harness #128) | **PASS** |
+| B12 | re-shot `?id=<att>&table=nodes_hierarchy&fk_id=<tc>` after the review | owner card reads `86 - ADEL test case` — no hardcoded English type noun, no mislabelled "Build" for `node_type_id=4` | **PASS** |
+| B13 | requirement-version list (2 versions) → Delete on a `req_versions` attachment | the version context is carried (`attach_tableName=req_versions`, `attach_fk_id=<version_id>`) and the delete succeeds for **both** versions | **PASS** |
+| B14 | POST without `X-Requested-With` (CSRF) | distinct state `Request blocked / The request was not sent from this page.` (`adel.errBlocked`), data not rendered | **PASS** |
+| B15 | failed delete (attachment row already gone in the DB) | red error state, **Refresh + Delete stay enabled** so the action can be retried | **PASS** |
 
 **Bugs found while testing** (each with its own pushed commit)
 
@@ -23738,4 +23749,7 @@ the form from the console: `f.querySelector('input[type=text]').value=…; f.sub
 | 4 | Delete button used the undefined key `adel.deleteBtn` | `e5c402ad7` | #1638 |
 | 5 | `attachments.inc.tpl` lost the owner context → delete impossible from tcView/planEdit/reqSpecView | `9dcf71d9c` | #1640 |
 | 6 | a file already removed by hand reported a spurious 500 although the row was gone | `e5c402ad7` | #1638 |
-| 7 | a test **suite** attachment was labelled `Test case #id` | `c6bb0d8f9` | #1638 |
+| 7 | a test **suite** attachment was labelled `Test case #id`, and `node_type_id=4` (test version) was labelled "Build" | `c6bb0d8f9` | #1638 |
+| 8 | **code review blocker** — `reqViewVersions.tpl` passed no context and the per-version loops in `testcase.class.php` / `reqView.php` *overwrote* `$_SESSION['s_lastAttachmentInfos']`, so the allow-list only described the last row | `665128bf2` | #1640 |
+| 9 | owner labels carried hardcoded English type nouns ("Test case", "Build", …) — untranslatable | `665128bf2` | #1638 |
+| 10 | object-level authorization missing: a logged-in user with a valid `(id, table, fk_id)` triple can delete an attachment from a project they have no rights on | — | #1647 (open follow-up) |
