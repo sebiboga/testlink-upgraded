@@ -243,7 +243,7 @@ function renderTable(items) {
       var m = t.cfg.match(/<uribase>(.*?)<\/uribase>/) || t.cfg.match(/<url>(.*?)<\/url>/);
       if (m) cfgUrl = esc(m[1]);
     }
-    // Legacy Environment column (issueTrackerView.tpl:16,77) renders the
+    // Legacy Environment column (issueTrackerView.tpl) renders the
     // per-tracker $impl::checkEnv() result: OK (green) or the failure msg
     // (red), whatever the implementation returned server-side (env_check_msg).
     var envOk = t.env_check_ok !== false;
@@ -256,7 +256,7 @@ function renderTable(items) {
     }
     var actions = '';
     if (canManage) {
-      // Legacy list wrench (issueTrackerView.tpl:55-58) opens the connection
+      // Legacy list wrench (issueTrackerView.tpl) opens the connection
       // check for the STORED config; the heartbeat/skull result (bts_check_ok /
       // bts_check_ko) is rendered next to the name. Mirror it: a per-row wrench
       // that runs checkConnection(id) and paints the status icon into #conn-<id>.
@@ -264,7 +264,7 @@ function renderTable(items) {
                      '" onclick="checkConnection(' + t.id + ')"></i>' +
                      '<span id="conn-' + t.id + '"></span> ';
       actions += '<i class="fa fa-edit action-btn" title="' + TLi18n.t('common.edit') + '" onclick="editTracker(' + t.id + ')"></i>';
-      // Legacy issueTrackerView.tpl:78-83 renders the delete icon ONLY when
+      // Legacy issueTrackerView.tpl (removed in #966) renders the delete icon ONLY when
       // $item_def.link_count == 0: trackers linked to a test project cannot be
       // deleted (tlIssueTracker::delete() guard). Mirror it — a dead disabled
       // trash icon with the linking test project names as tooltip (the same
@@ -340,7 +340,7 @@ function editTracker(id) {
   });
 }
 
-// Legacy displayUsedBy() (issueTrackerEdit.tpl:73-119): toggles the
+// Legacy displayUsedBy() (issueTrackerEdit.tpl): toggles the
 // 'Used on Test Project' list next to the Name field; renders the italics
 // 'not used/linked' state when the tracker is not linked to any project.
 function toggleUsedBy() {
@@ -409,7 +409,8 @@ function deleteTracker(id, name) {
 /* ---- Connection checks (legacy checkConnection / isConnected) ---- */
 
 // Row-level check: runs the STORED tracker config through the BFF
-// (mirrors issueTrackerView.php?id=N) and paints heartbeat (ok) / skull (ko).
+// (mirrors issueTrackerView.php (removed in #966) with ?id=N) and paints
+  // heartbeat (ok) / skull (ko).
 function checkConnection(id) {
   var holder = $('#conn-' + id);
   holder.html('<i class="fa fa-spinner fa-spin" style="color:#888;margin-right:4px;"></i>');
@@ -461,8 +462,9 @@ function checkConnectionModal() {
 
 /* ---- Per-type cfg template example (legacy displayCfgExample) ---- */
 
-// Legacy displayCfgExample (issueTrackerEdit.tpl:24-65): the eye icon next to
-// the Configuration field AJAX-loads lib/ajax/getissuetrackercfgtemplate.php?type=N
+// Legacy displayCfgExample (issueTrackerEdit.tpl): the eye icon next to
+// the Configuration field AJAX-loaded lib/ajax/getissuetrackercfgtemplate.php
+  // (removed in #966) with ?type=N
 // and injects the selected interface's getCfgTemplate() as <pre><xmp> (or the
 // localized invalid-type / interface-not-implemented messages) into #cfg_example.
 // Modern mirror over the BFF /cfg-template route; the template is drawn via

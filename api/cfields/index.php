@@ -34,7 +34,7 @@ if (is_null($user)) {
     exit;
 }
 
-// Legacy lib/cfields/cfieldsView.php:30 lets any user holding EITHER
+// Legacy lib/cfields/cfieldsView.php (removed in #957) lets any user holding EITHER
 // cfield_view OR cfield_management browse the custom-field list (Refs #950).
 // Read routes are therefore gated on $canView. Write routes (POST/PUT/DELETE)
 // and the assignment endpoints stay on $canManage, mirroring

@@ -79,11 +79,14 @@
 {$platformsView="lib/platforms/platformsView.php?tproject_id="}
 {* Refs #966: lib/cfields/cfieldsView.php (Refs #957) and
    lib/issuetrackers/issueTrackerView.php (Refs #966) were retired once the
-   modern BFF-driven screens reached parity. Both links retargeted; the
+   modern BFF-driven screens reached parity. Refs #976: same for
+   lib/codetrackers/codeTrackerView.php, now that the modern screen carries
+   #969-#975 (read gate, write gate, link-count gating, connection check,
+   env check, used-by, per-type cfg template). All three retargeted; the
    trailing "=" is kept because the project id is appended by the caller. *}
 {$cfieldsView="gui/templates/cfields/cfieldsView.html?tproject_id="}
 {$issueTrackerView="gui/templates/issuetracker/issuetrackerView.html?tproject_id="}
-{$codeTrackerView="lib/codetrackers/codeTrackerView.php?tproject_id="}
+{$codeTrackerView="gui/templates/codetracker/codetrackerView.html?tproject_id="}
 {$reqOverView="lib/requirements/reqOverview.php"}
 {$reqMonOverView="lib/requirements/reqMonitorOverview.php?tproject_id="}
 {$tcSearch="lib/testcases/tcSearch.php?doAction=userInput&tproject_id="}
