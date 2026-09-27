@@ -243,7 +243,9 @@ function renderImportSample() {
   if (old.length) {
     old.replaceWith(html ? $(html) : '');
   } else if (html) {
-    box.find('#importType').after(html);
+    // After the doc link, not after the select: the anchor sits between the two
+    // in the rendered markup, so inserting here would invert the legacy order.
+    box.find('a.doc-link').after(html);
   }
 }
 
@@ -260,7 +262,8 @@ function exportTypeChanged() {
   // select holds the serialization INTERFACE id - look the sample up by ext.
   var html = formatSample((extOf(type) || 'XML').toUpperCase());
   if (old.length) { old.replaceWith(html ? $(html) : ''); }
-  else if (html) { box.find('#exportType').after(html); }
+  // Same as in renderImportSample(): keep the sample BELOW the doc link.
+  else if (html) { box.find('a.doc-link').after(html); }
 }
 
 function doExport() {

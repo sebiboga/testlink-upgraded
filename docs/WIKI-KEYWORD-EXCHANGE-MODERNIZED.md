@@ -34,7 +34,7 @@ therefore lifted into one standalone Dashio popup, exactly like the other action
 | Import panel | file picker, `Maximum file size: N KB` hint, Upload, "existing keywords with the same name are updated" note |
 | States | success box, error box, per-right **Access denied** cards, unknown project, empty project |
 
-Everything is localized: `kwxml.*` (34 keys incl. `viewDocs` and the two server-error strings) +
+Everything is localized: `kwxml.*` (37 keys incl. `viewDocs` and the two server-error strings) +
 `footers.keywordsExport` in all 10 bundles (`de, en, es, fr, it, ja, pt, ro, ru, zh`),
 validated with `python3 -m json.tool` and checked for key parity.
 
