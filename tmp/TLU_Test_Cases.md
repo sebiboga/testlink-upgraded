@@ -25268,14 +25268,18 @@ static read of the code did not find it.
   and 0 Event Viewer rows after the fix. The 2.0.1 `nodes_hierarchy` refactor
   made `parent_id` nullable, which makes the shape far easier to reach than in
   1.9.20.
-- **#1679** `bug` — `bffSameOriginGuard()` short-circuits on
+- **#1679** `bug` — `bffSameOriginGuard()` short-circuited on
   `X-Requested-With: XMLHttpRequest` **before** reading `Origin`/`Referer`, so a
-  foreign `Origin` is accepted. **Not CORS-exploitable** (a cross-origin request
-  cannot set XRW without a preflight, and no BFF emits CORS headers), so it is
-  defense-in-depth — but the guard is shared by **102** endpoints, so the fix is
-  repo-wide and deliberately left out of this screen's commit. Tracked as `S9c`
-  (currently 405, expected 403); `S9`/`S9b`/`S9d` pin the surrounding behaviour
-  that must not regress.
+  foreign `Origin` was accepted. **Not CORS-exploitable** (a cross-origin request
+  cannot set XRW without a preflight, and no BFF emits CORS headers), so it was
+  defense-in-depth — but the guard is shared by 100+ endpoints, so the fix is
+  repo-wide and was deliberately left out of this screen's commit. **A concurrent
+  CI run landed the repo-wide fix while this screen was in its code-review
+  round** (`api/_guard.php` now validates `Origin`/`Referer` first and demotes
+  the XRW hint to a fallback, including default-port normalization and rejecting
+  an unparseable Origin). `S9c` therefore asserts the **fixed** 403, and
+  `S9`/`S9b`/`S9d` pin the surrounding behaviour that must not regress.
+  The rebase onto that run is also what surfaced the `S9c` expectation flip.
 
 ### Event Viewer
 

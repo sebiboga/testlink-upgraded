@@ -190,10 +190,11 @@ check('S9b', 'POST WITH same-origin proof -> 405 method_not_allowed',
 c, b, _ = api('action=init&item=exec&build_id=%d&tplan_id=%d&tcversion_id=%d'
               % (BUILD, PLAN, TCVER), method='POST',
               extra=['-H', 'X-Requested-With: XMLHttpRequest', '-H', 'Origin: http://evil.example'])
-KNOWN = os.environ.get('XW_SHORTCUT_FIXED') == '1'
-check('S9c', 'POST with a foreign Origin -> 403 CSRF%s'
-      % ('' if KNOWN else '  [KNOWN ISSUE #1679: XRW short-circuits before Origin; not CORS-exploitable]'),
-      (c == '403') if KNOWN else (c == '405'), c)
+# #1679 (found from this screen) was fixed repo-wide by a concurrent run:
+# bffSameOriginGuard() now validates Origin/Referer FIRST and demotes the
+# X-Requested-With hint to a fallback, so a foreign Origin is refused.
+check('S9c', 'POST with a foreign Origin -> 403 CSRF (#1679 fixed: Origin is now '
+      'validated before the X-Requested-With hint)', c == '403', c)
 check('S9d', 'POST with a MATCHING Origin and no XRW -> passes the guard (405, not 403)',
       api('action=init&item=exec&build_id=%d&tplan_id=%d&tcversion_id=%d' % (BUILD, PLAN, TCVER),
           method='POST', extra=['-H', 'Origin: http://localhost:8082'])[0] == '405', '')
