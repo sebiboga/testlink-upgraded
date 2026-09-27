@@ -46,6 +46,35 @@ bffSameOriginGuard();
 header('Content-Type: application/json');
 header('X-Content-Type-Options: nosniff');
 
+/**
+ * Guarded 500: a DB error or an unexpected PHP fatal must still leave a valid
+ * JSON contract for the modern screen instead of TestLink's raw HTML error
+ * page (which is what an un-guarded exec_query() failure used to return).
+ */
+function lvShutdownGuard() {
+    $err = error_get_last();
+    if ($err === null) {
+        return;
+    }
+    if (!in_array($err['type'], array(E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR), true)) {
+        return;
+    }
+    if (headers_sent()) {
+        return;
+    }
+    tLog('BFF logviewer: ' . $err['message'] . ' in ' . $err['file'] . ':' . $err['line'],
+         'ERROR');
+    header('Content-Type: application/json; charset=utf-8');
+    header('X-Content-Type-Options: nosniff');
+    http_response_code(500);
+    echo json_encode(array(
+        'status' => 'error',
+        'code' => 'internal_error',
+        'message' => 'Internal error while reading the log message',
+    ));
+}
+register_shutdown_function('lvShutdownGuard');
+
 $db = new database(DB_TYPE);
 doDBConnect($db);
 
@@ -145,16 +174,23 @@ if ($reqProjectId < 0) {
 }
 
 // ------------------------------------------------------------- resolve ----
+try {
 $context = array();
 $logRaw = null;
 
 if ($type === 'requirement_spec_version') {
+    // NB: neither req_specs nor req_specs_revisions is a reliable title source
+    // in this schema (a revision row can carry a stale/empty name), so the spec
+    // title is read from its nodes_hierarchy node (node_type_id 6) - the same
+    // place the modern reqSpecView BFF reads it from.
     $row = $db->get_recordset(
         "SELECT RSREV.id, RSREV.parent_id, RSREV.revision, RSREV.doc_id, " .
         "       RSREV.name AS rev_name, RSREV.log_message, " .
-        "       RSPEC.testproject_id, RSPEC.name AS spec_name, RSPEC.doc_id AS spec_doc_id " .
+        "       RSPEC.testproject_id, RSPEC.doc_id AS spec_doc_id, " .
+        "       RSH.name AS spec_name " .
         " FROM req_specs_revisions RSREV " .
         " JOIN req_specs RSPEC ON RSPEC.id = RSREV.parent_id " .
+        " LEFT JOIN nodes_hierarchy RSH ON RSH.id = RSPEC.id AND RSH.node_type_id = 6 " .
         " WHERE RSREV.id = " . $id);
     if (empty($row)) {
         lvError(404, 'Requirement spec version not found');
@@ -164,12 +200,15 @@ if ($type === 'requirement_spec_version') {
         'type'          => $type,
         'item_id'       => intval($r['id']),
         'testproject_id' => intval($r['testproject_id']),
-        'object_label'  => (string)$r['rev_name'],
+        // Prefer the SPEC title (from its tree node); fall back to the title
+        // stored on the revision row itself.
+        'object_label'  => (string)((string)$r['spec_name'] !== ''
+                                   ? $r['spec_name'] : $r['rev_name']),
         'object_id'     => (string)$r['doc_id'],
         'version_label' => 'rev#' . intval($r['revision']),
         'revision'      => intval($r['revision']),
         'parent_id'     => intval($r['parent_id']),
-        'parent_name'   => (string)$r['spec_name'],
+        'parent_name'   => (string)$r['tproject_name'],
         'parent_doc_id' => (string)$r['spec_doc_id'],
     );
     $logRaw = $r['log_message'];
@@ -194,10 +233,14 @@ if ($type === 'requirement_spec_version') {
         }
         // the version's parent node is the requirement itself
         $reqNhId = intval($nh[0]['parent_id']);
+        // NB: the requirements table carries no title column - a requirement's
+        // title is the name of its nodes_hierarchy node (node_type_id 7).
         $reqRow = $db->get_recordset(
-            "SELECT R.id, R.req_doc_id, R.name, RSPEC.testproject_id, RSPEC.name AS spec_name " .
+            "SELECT R.id, R.req_doc_id, RSPEC.testproject_id, RSPEC.doc_id AS spec_doc_id, " .
+            "       RNH.name AS req_name " .
             " FROM requirements R " .
             " JOIN req_specs RSPEC ON RSPEC.id = R.srs_id " .
+            " LEFT JOIN nodes_hierarchy RNH ON RNH.id = R.id AND RNH.node_type_id = 7 " .
             " WHERE R.id = " . $reqNhId);
         if (empty($reqRow)) {
             lvError(404, 'Owning requirement not found');
@@ -209,13 +252,13 @@ if ($type === 'requirement_spec_version') {
             'type'          => $type,
             'item_id'       => intval($row[0]['id']),
             'testproject_id' => intval($rq['testproject_id']),
-            'object_label'  => (string)$rq['name'],
+            'object_label'  => (string)$rq['req_name'],
             'object_id'     => (string)$rq['req_doc_id'],
             'version_label' => $versionLabel,
             'revision'      => intval($row[0]['revision']),
             'parent_id'     => $reqNhId,
-            'parent_name'   => (string)$rq['spec_name'],
-            'parent_doc_id' => '',
+            'parent_name'   => (string)$rq['tproject_name'],
+            'parent_doc_id' => (string)$rq['spec_doc_id'],
         );
     } else {
         $row = $db->get_recordset(
@@ -225,10 +268,14 @@ if ($type === 'requirement_spec_version') {
             lvError(404, 'Requirement revision not found');
         }
         $reqNhId = intval($nh[0]['parent_id']);
+        // NB: the requirements table carries no title column - a requirement's
+        // title is the name of its nodes_hierarchy node (node_type_id 7).
         $reqRow = $db->get_recordset(
-            "SELECT R.id, R.req_doc_id, R.name, RSPEC.testproject_id, RSPEC.name AS spec_name " .
+            "SELECT R.id, R.req_doc_id, RSPEC.testproject_id, RSPEC.doc_id AS spec_doc_id, " .
+            "       RNH.name AS req_name " .
             " FROM requirements R " .
             " JOIN req_specs RSPEC ON RSPEC.id = R.srs_id " .
+            " LEFT JOIN nodes_hierarchy RNH ON RNH.id = R.id AND RNH.node_type_id = 7 " .
             " WHERE R.id = " . $reqNhId);
         if (empty($reqRow)) {
             lvError(404, 'Owning requirement not found');
@@ -239,19 +286,22 @@ if ($type === 'requirement_spec_version') {
             'type'          => $type,
             'item_id'       => intval($row[0]['id']),
             'testproject_id' => intval($rq['testproject_id']),
-            'object_label'  => (string)$rq['name'],
+            'object_label'  => (string)$rq['req_name'],
             'object_id'     => (string)$rq['req_doc_id'],
             'version_label' => 'rev#' . intval($row[0]['revision']),
             'revision'      => intval($row[0]['revision']),
             'parent_id'     => $reqNhId,
-            'parent_name'   => (string)$rq['spec_name'],
-            'parent_doc_id' => '',
+            'parent_name'   => (string)$rq['tproject_name'],
+            'parent_doc_id' => (string)$rq['spec_doc_id'],
         );
     }
 }
 
 // -------------------------------------------------------------- rights ----
 $owningProject = intval($context['testproject_id']);
+// testprojects has no name column: the display name lives on the
+// nodes_hierarchy testproject node (testproject::getName() reads it from there).
+$context['parent_name'] = (string)testproject::getName($db, $owningProject);
 // When the caller states a project, refuse ids belonging to another one instead
 // of silently answering - the legacy readers happily returned a log from any
 // project to any authenticated user.
@@ -276,3 +326,15 @@ lvOut(array(
         'legacy_note_empty' => 'empty_log_message',
     ),
 ));
+} catch (Throwable $e) {
+    // database::exec_query() throws on a failed query; exec_query() already
+    // logged the DB error, so just close the JSON contract cleanly instead of
+    // letting the raw HTML error page escape.
+    tLog('BFF logviewer: ' . $e->getMessage() . ' - answering 500 db_error.', 'ERROR');
+    http_response_code(500);
+    lvOut(array(
+        'status' => 'error',
+        'code' => 'db_error',
+        'message' => 'Database error while reading the log message',
+    ), 500);
+}
