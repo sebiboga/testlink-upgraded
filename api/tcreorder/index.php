@@ -166,6 +166,15 @@ function tcreoProject(&$db, &$user, $requestedId, $containerId = 0)
         }
         $owner = intval($info['testproject_id'] ? $info['testproject_id'] : $info['parent_id']);
         if ($owner > 0) {
+            // The container's real owner always wins, and a request that names a
+            // different project is refused outright instead of being silently
+            // retargeted: the screen must never mutate a tree the UI is not
+            // showing (a rights check alone would let an admin unknowingly
+            // reorder another project's test cases).
+            if (intval($requestedId) > 0 && intval($requestedId) !== $owner) {
+                out(array('status' => 'error', 'code' => 'forbidden',
+                          'message' => 'Container belongs to another test project'), 403);
+            }
             $tprojectId = $owner;
         }
     }
@@ -193,7 +202,13 @@ function tcreoProject(&$db, &$user, $requestedId, $containerId = 0)
     return array($tprojectId, $tprojectMgr, $tproject);
 }
 
-/** node row + its owning test project id, for any node id. */
+/**
+ * Node row for any node id, plus its owning test project id.
+ *
+ * 2.0.1 nodes_hierarchy has no testproject_id column, so ownership is proved
+ * by walking parent_id upwards until node_type_id = 1 is reached. The walk is
+ * bounded by the depth guard below so a corrupted parent_id cycle cannot spin.
+ */
 function tcreoNodeInfo(&$db, $nodeId)
 {
     static $cache = array();
@@ -205,11 +220,10 @@ function tcreoNodeInfo(&$db, $nodeId)
         return $cache[$nodeId];
     }
 
-    $sql = "SELECT NH.id, NH.parent_id, NH.node_type_id, NH.name, NH.node_order," .
-           " NH.testcase_id, NH.tcversion_id, NH.testsuite_id" .
-           " FROM {$GLOBALS['dbprefix']}nodes_hierarchy NH" .
-           " WHERE NH.id = {$nodeId}";
-    $row = $db->get_recordset($sql);
+    $row = $db->get_recordset(
+        "SELECT id, name, parent_id, node_type_id, node_order" .
+        " FROM {$GLOBALS['dbprefix']}nodes_hierarchy WHERE id = {$nodeId}");
+
     $info = null;
     if (!is_null($row) && count($row) > 0) {
         $info = $row[0];
@@ -219,23 +233,27 @@ function tcreoNodeInfo(&$db, $nodeId)
     return $info;
 }
 
-/** Walk up nodes_hierarchy until the test project root is reached. */
+/** Walk up nodes_hierarchy until the test project root (type 1) is reached. */
 function tcreoOwningProject(&$db, $node)
 {
-    if ($node['node_type_id'] == NODE_TYPE_TESTPROJECT) {
+    if (intval($node['node_type_id']) == NODE_TYPE_TESTPROJECT) {
         return intval($node['id']);
     }
-    $tprojectMgr = new testproject($db);
-    $info = $tprojectMgr->tree_manager->get_node_hierarchy_info(
-        array(intval($node['id'])), null, array('nodeType' => null));
-    if (!is_null($info) && isset($info[intval($node['id'])])) {
-        $chain = $info[intval($node['id'])];
-        // the root of the returned chain is the test project
-        $first = reset($chain);
-        if (is_array($first) && isset($first['id']) &&
-            intval($first['node_type_id']) == NODE_TYPE_TESTPROJECT) {
-            return intval($first['id']);
+
+    $parentId = intval($node['parent_id']);
+    $guard = 0;
+    while ($parentId > 0 && $guard < 64) {
+        $guard++;
+        $row = $db->get_recordset(
+            "SELECT id, parent_id, node_type_id FROM {$GLOBALS['dbprefix']}nodes_hierarchy" .
+            " WHERE id = {$parentId}");
+        if (is_null($row) || count($row) == 0) {
+            return 0;
         }
+        if (intval($row[0]['node_type_id']) == NODE_TYPE_TESTPROJECT) {
+            return intval($row[0]['id']);
+        }
+        $parentId = intval($row[0]['parent_id']);
     }
     return 0;
 }
@@ -286,9 +304,13 @@ function tcreoContainerChildren(&$db, $containerId, $tprojectId)
                   'message' => 'Container belongs to another test project'), 404);
     }
 
-    $sql = "SELECT NH.id, NH.name, NH.node_order, NH.testcase_id, TC.tc_external_id" .
+    // 2.0.1: a test case NODE id is the test case id, and its external id
+    // lives in the tcversions rows whose node parent is that test case.
+    $sql = "SELECT NH.id, NH.name, NH.node_order," .
+           " (SELECT MAX(TCV.tc_external_id) FROM {$GLOBALS['dbprefix']}tcversions TCV" .
+           "   JOIN {$GLOBALS['dbprefix']}nodes_hierarchy VNH ON VNH.id = TCV.id" .
+           "   WHERE VNH.parent_id = NH.id) AS tc_external_id" .
            " FROM {$GLOBALS['dbprefix']}nodes_hierarchy NH" .
-           " LEFT JOIN {$GLOBALS['dbprefix']}testcases TC ON TC.id = NH.testcase_id" .
            " WHERE NH.parent_id = " . intval($containerId) .
            " AND NH.node_type_id = " . NODE_TYPE_TESTCASE .
            " ORDER BY NH.node_order, NH.id";
@@ -296,22 +318,84 @@ function tcreoContainerChildren(&$db, $containerId, $tprojectId)
     return array($container, is_null($rows) ? array() : $rows);
 }
 
-/** test suite list of the project, for the container selector. */
+/**
+ * Every test suite of the project, for the container selector.
+ *
+ * 2.0.1 nodes_hierarchy has no testproject_id column, so the suites are found
+ * by walking DOWN from the project root and keeping the node_type 2 nodes.
+ * The walk is breadth-first and bounded, and every visited node is re-proven
+ * to belong to this project, so a node re-parented under a foreign project
+ * (something the legacy unauthenticated drag-drop could actually do) can never
+ * leak into this list.
+ */
 function tcreoSuitesOf(&$db, $tprojectId)
 {
-    $sql = "SELECT NH.id, NH.name FROM {$GLOBALS['dbprefix']}nodes_hierarchy NH" .
-           " WHERE NH.node_type_id = " . NODE_TYPE_TESTSUITE .
-           " AND NH.testproject_id = " . intval($tprojectId) .
-           " ORDER BY NH.name";
-    $rows = $db->get_recordset($sql);
-    if (is_null($rows)) {
-        return array();
-    }
+    $tprojectId = intval($tprojectId);
     $out = array();
-    foreach ($rows as $r) {
-        $out[] = array('id' => intval($r['id']), 'name' => $r['name']);
+    $queue = array($tprojectId);
+    $seen = array($tprojectId => true);
+    $guard = 0;
+
+    while (!empty($queue) && $guard < 2000) {
+        $guard++;
+        $id = intval(array_shift($queue));
+        // parent_id is REQUIRED: tcreoOwningProject() walks up from it to prove
+        // the node really lives under this test project.
+        $rows = $db->get_recordset(
+            "SELECT id, name, node_type_id, parent_id FROM {$GLOBALS['dbprefix']}nodes_hierarchy" .
+            " WHERE parent_id = {$id} ORDER BY node_order, id");
+        if (is_null($rows)) {
+            continue;
+        }
+        foreach ($rows as $r) {
+            $childId = intval($r['id']);
+            if (isset($seen[$childId])) {
+                continue;
+            }
+            $seen[$childId] = true;
+            if (intval(tcreoOwningProject($db, $r)) !== $tprojectId) {
+                continue;
+            }
+            if (intval($r['node_type_id']) == NODE_TYPE_TESTSUITE) {
+                $out[] = array('id' => $childId, 'name' => $r['name']);
+            }
+            $queue[] = $childId;
+        }
     }
+
+    usort($out, function ($a, $b) {
+        return strcasecmp($a['name'], $b['name']);
+    });
     return $out;
+}
+
+/**
+ * 2.0.1 stores the test project NAME in the nodes_hierarchy row (id =
+ * testprojects.id), not in testprojects - reading ->name off the
+ * testproject object would emit an undefined-property warning and render an
+ * empty header.
+ */
+function tcreoProjectName(&$db, $tprojectId)
+{
+    $row = $db->get_recordset(
+        "SELECT name FROM {$GLOBALS['dbprefix']}nodes_hierarchy WHERE id = " .
+        intval($tprojectId) . " AND node_type_id = " . NODE_TYPE_TESTPROJECT);
+    if (!is_null($row) && count($row) > 0) {
+        return (string)$row[0]['name'];
+    }
+    return '';
+}
+
+/** The external-id prefix is the only column testprojects still owns. */
+function tcreoProjectPrefix(&$db, $tprojectId)
+{
+    $row = $db->get_recordset(
+        "SELECT prefix FROM {$GLOBALS['dbprefix']}testprojects WHERE id = " .
+        intval($tprojectId));
+    if (!is_null($row) && count($row) > 0) {
+        return (string)$row[0]['prefix'];
+    }
+    return '';
 }
 
 function tcreoSortCriterion()
@@ -328,7 +412,8 @@ function tcreoRowsPayload(&$db, $rows)
         $n++;
         $out[] = array(
             'node_id' => intval($r['id']),
-            'tcase_id' => intval($r['testcase_id']),
+            // 2.0.1: the test case NODE id is the test case id
+            'tcase_id' => intval($r['id']),
             'name' => $r['name'],
             'external_id' => isset($r['tc_external_id']) ? (string)$r['tc_external_id'] : '',
             'position' => $n,
@@ -348,19 +433,16 @@ if ($action === 'init') {
     $requestedProject = getInt('tproject_id', 0);
     $containerId = getInt('container_id', 0);
 
-    if ($containerId <= 0) {
-        // Default container: the project root (test cases directly under it)
-        $tprojectMgrTmp = new testproject($db);
-        $tprojectTmp = intval($requestedProject) > 0
-            ? $tprojectMgrTmp->get_by_id(intval($requestedProject))
-            : null;
-        if (!is_null($tprojectTmp)) {
-            $containerId = intval($tprojectTmp->id);
-        }
-    }
-
     list($tprojectId, $tprojectMgr, $tproject) =
         tcreoProject($db, $user, $requestedProject, $containerId);
+
+    // Default container: the test project root itself, i.e. the test cases that
+    // sit directly under the project. 2.0.1 has one id space for both
+    // (testprojects.id == the node_type 1 node id), so the project id is the
+    // container id.
+    if ($containerId <= 0) {
+        $containerId = $tprojectId;
+    }
 
     list($container, $children) = tcreoContainerChildren($db, $containerId, $tprojectId);
 
@@ -371,8 +453,8 @@ if ($action === 'init') {
         'status' => 'ok',
         'context' => array(
             'tproject_id' => $tprojectId,
-            'tproject_name' => $tproject->name,
-            'tproject_prefix' => $tproject->prefix,
+            'tproject_name' => tcreoProjectName($db, $tprojectId),
+            'tproject_prefix' => tcreoProjectPrefix($db, $tprojectId),
             'tplan_id' => intval($_SESSION['testplanID'] ?? 0),
         ),
         'container' => array(
@@ -399,9 +481,31 @@ list($tprojectId, $tprojectMgr, $tproject) =
 
 if ($containerId <= 0) {
     $containerId = $tprojectId;
-    list($container, $children) = tcreoContainerChildren($db, $containerId, $tprojectId);
-} else {
-    list($container, $children) = tcreoContainerChildren($db, $containerId, $tprojectId);
+}
+list($container, $children) = tcreoContainerChildren($db, $containerId, $tprojectId);
+
+// Ids before the write, so a request that ends up being a no-op is reported as
+// no_change instead of a misleading 'ok' (and the screen then shows no toast).
+$beforeIds = array();
+foreach ($children as $r) {
+    $beforeIds[] = intval($r['id']);
+}
+
+/** Emit the result of a write, flagging a genuine no-op. */
+function tcreoWriteResult(&$db, $containerId, $tprojectId, $beforeIds, $extra = array())
+{
+    list($container2, $after) = tcreoContainerChildren($db, $containerId, $tprojectId);
+    $afterIds = array();
+    foreach ($after as $r) {
+        $afterIds[] = intval($r['id']);
+    }
+    $changed = ($beforeIds !== $afterIds);
+    $payload = array('status' => $changed ? 'ok' : 'no_change',
+                     'testcases' => tcreoRowsPayload($db, $after));
+    if (!$changed) {
+        $payload['message'] = 'Order already up to date';
+    }
+    return array_merge($payload, $extra);
 }
 
 $treeMgr = new tree($db);
@@ -441,8 +545,7 @@ if ($action === 'move') {
         $treeMgr->change_order_bulk($ids);
     }
 
-    list($container2, $after) = tcreoContainerChildren($db, $containerId, $tprojectId);
-    out(array('status' => 'ok', 'testcases' => tcreoRowsPayload($db, $after)));
+    out(tcreoWriteResult($db, $containerId, $tprojectId, $beforeIds));
 }
 
 if ($action === 'sort') {
@@ -474,9 +577,8 @@ if ($action === 'sort') {
         $treeMgr->change_order_bulk($ids);
     }
 
-    list($container2, $after) = tcreoContainerChildren($db, $containerId, $tprojectId);
-    out(array('status' => 'ok', 'reorder_by' => $by,
-              'testcases' => tcreoRowsPayload($db, $after)));
+    out(tcreoWriteResult($db, $containerId, $tprojectId, $beforeIds,
+                         array('reorder_by' => $by)));
 }
 
 if ($action === 'reorder') {
@@ -528,8 +630,7 @@ if ($action === 'reorder') {
 
     $treeMgr->change_order_bulk($ids);
 
-    list($container2, $after) = tcreoContainerChildren($db, $containerId, $tprojectId);
-    out(array('status' => 'ok', 'testcases' => tcreoRowsPayload($db, $after)));
+    out(tcreoWriteResult($db, $containerId, $tprojectId, $beforeIds));
 }
 
 out(array('status' => 'error', 'code' => 'unknown_action',

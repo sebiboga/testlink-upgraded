@@ -5204,7 +5204,6 @@
   "tcreo.movedUp": "测试用例已上移。",
   "tcreo.movedDown": "测试用例已下移。",
   "tcreo.confirmSort": "按 {criterion} 重新排列此容器中的所有测试用例？",
-  "tcreo.confirmReorder": "为此容器中的 {n} 个测试用例保存此顺序？",
   "tcreo.sortedName": "测试用例已按名称排序。",
   "tcreo.sortedExtId": "测试用例已按外部ID排序。",
   "tcreo.reorderSaved": "测试用例顺序已保存。",

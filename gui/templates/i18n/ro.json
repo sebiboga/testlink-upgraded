@@ -5228,7 +5228,6 @@
   "tcreo.movedUp": "Cazul de test a fost mutat în sus.",
   "tcreo.movedDown": "Cazul de test a fost mutat în jos.",
   "tcreo.confirmSort": "Reordonezi toate cazurile de test din acest container după {criterion}?",
-  "tcreo.confirmReorder": "Salvezi această ordine pentru cele {n} cazuri de test din acest container?",
   "tcreo.sortedName": "Cazurile de test au fost sortate după nume.",
   "tcreo.sortedExtId": "Cazurile de test au fost sortate după ID extern.",
   "tcreo.reorderSaved": "Ordinea cazurilor de test a fost salvată.",

@@ -5224,7 +5224,6 @@
   "tcreo.movedUp": "テストケースを上へ移動しました。",
   "tcreo.movedDown": "テストケースを下へ移動しました。",
   "tcreo.confirmSort": "このコンテナのすべてのテストケースを {criterion} で並べ替えますか？",
-  "tcreo.confirmReorder": "このコンテナの {n} 件のテストケースの順序を保存しますか？",
   "tcreo.sortedName": "テストケースを名前で並べ替えました。",
   "tcreo.sortedExtId": "テストケースを外部IDで並べ替えました。",
   "tcreo.reorderSaved": "テストケースの順序を保存しました。",

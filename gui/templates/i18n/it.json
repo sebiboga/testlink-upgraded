@@ -5218,7 +5218,6 @@
   "tcreo.movedUp": "Caso di test spostato su.",
   "tcreo.movedDown": "Caso di test spostato giù.",
   "tcreo.confirmSort": "Riordinare tutti i casi di test di questo contenitore per {criterion}?",
-  "tcreo.confirmReorder": "Salvare questo ordine per i {n} casi di test di questo contenitore?",
   "tcreo.sortedName": "Casi di test ordinati per nome.",
   "tcreo.sortedExtId": "Casi di test ordinati per ID esterno.",
   "tcreo.reorderSaved": "Ordine dei casi di test salvato.",

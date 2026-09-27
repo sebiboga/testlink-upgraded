@@ -5234,7 +5234,6 @@
   "tcreo.movedUp": "Test case moved up.",
   "tcreo.movedDown": "Test case moved down.",
   "tcreo.confirmSort": "Reorder every test case of this container by {criterion}?",
-  "tcreo.confirmReorder": "Store this order for the {n} test cases of this container?",
   "tcreo.sortedName": "Test cases sorted by name.",
   "tcreo.sortedExtId": "Test cases sorted by external ID.",
   "tcreo.reorderSaved": "Test case order saved.",
