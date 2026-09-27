@@ -23879,15 +23879,19 @@ the priority columns; a project whose blob is missing/corrupt must hide them.
   spec_empty=… spec_empty_rev1=… spec_alt=… spec_alt_rev1=… req1=… req1_v1=…
   req1_v2=… req2=… req2_rev1=…` line that the harness parses. **Ids change on every
   run — never hardcode them.**
-- Asserting harness: **`bash tmp/verify_1652.sh`** — **183 assertions**, non-zero
+- Asserting harness: **`bash tmp/verify_1652.sh`** — **257 assertions**, non-zero
   exit on failure.
 - Discriminating: the same harness reports **41+ failures** against the pre-fix
-  BFF/screen (`68cd5336d` / `587231b83`) and **183 PASS / 0 FAIL** after the
-  fixes, the Event Viewer sweep and the code review.
-- No-rights user is created by the harness itself (bcrypt `password_hash`,
-  `role_id=3` Guest, `active=1`) so the 403 path is re-runnable after a DB reset.
+  BFF/screen (`68cd5336d` / `587231b83`) and **257 PASS / 0 FAIL** after the
+  fixes, the Event Viewer sweep and the two code reviews.
+- Two non-admin users are created by the harness itself (bcrypt
+  `password_hash`, `active=1`, each with its own `users.cookie_string` because
+  that column is UNIQUE): `norights1652` (global `role_id=3`, no rights anywhere)
+  and `projonly1652` (also global `role_id=3`, but holding `role_id=4` on the
+  fixture project through `user_testproject_roles` — the production rights branch
+  of `tlUser::hasRight()`, which neither the admin nor the role-3 user reaches).
 
-**Result: 183 PASS / 0 FAIL.**
+**Result: 257 PASS / 0 FAIL.**
 
 | # | Area | Assertion | Result |
 |---|---|---|---|
@@ -23914,11 +23918,16 @@ the priority columns; a project whose blob is missing/corrupt must hide them.
 | 21 | verbs | GET stays **200** — a safe, read-only verb | **PASS** |
 | 22 | CSRF | foreign `Origin` + proof → 405; a plain GET still works afterwards | **PASS** |
 | 23 | machine codes | every error payload carries a stable code (`NOT_AUTHENTICATED`, `NOT_PERMITTED`, `UNKNOWN_ACTION`, `UNKNOWN_TYPE`, `INVALID_ID`, `INVALID_TPROJECT_ID`, `NOT_FOUND`, `METHOD_NOT_ALLOWED`) so clients never string-match English | **PASS** |
-| 24 | shim | `getreqspeclog.php` → **302** to the modern screen (Location header carries the type + id) | **PASS** |
-| 25 | shim | `getreqlog.php` → **302**, auto-detects `requirement_version` vs `requirement` and forwards `tproject_id` | **PASS** |
-| 26 | shim | a **non**-requirement node → `type=requirement` so the modern screen answers its not-found state instead of guessing | **PASS** |
+| 24 | shim | `getreqspeclog.php` browser GET → **302** to the modern screen (Location header carries the type + id) | **PASS** |
+| 25 | shim | `getreqlog.php` browser GET → **302**, restores the 1.9.20 **node-type auto-detection** (`requirement_version` vs `requirement`) and forwards `tproject_id` | **PASS** |
+| 26 | shim | a **revision** deep link is sent to `type=requirement`, never to the requirement-version screen and its 404 | **PASS** |
 | 27 | shim | anonymous → `login.php?note=expired&destination=…` script; **no log text leaks** to an anonymous caller | **PASS** |
-| 28 | #1652 | the shims are pure redirects — the raw `echo` of unescaped HTML is gone | **PASS** |
+| 28 | #1652 | the raw `echo` of unescaped HTML is gone: an XHR caller gets a **fragment** (no `DOCTYPE`/`<html>`/`<script>` of its own) and a browser GET gets a 302 | **PASS** |
+| 28b | XSS | the fragment **escapes** the payload (`&lt;script&gt;`, `&amp;`) and keeps `<br />` for newlines; the empty log keeps the 1.9.20 `Log Message is empty` hint | **PASS** |
+| 28c | auth | **XHR fragment for a user with no right on the owning project → 403**, body is exactly the legacy localized `user_has not needed right…` text, and **no log text** — for the spec reader, the requirement reader, the requirement-revision reader and a cross-project id with **no `tproject_id` stated** (the case the live `Ext.ToolTip` callers actually send) | **PASS** |
+| 28d | auth | a user holding the right **only through `user_testproject_roles`** on the fixture project gets 200 + the log from both fragment endpoints and from the BFF, and **403** on a foreign project's id | **PASS** |
+| 28e | auth | an authorized admin still gets the log for a cross-project id; a `tproject_id` that is not the owning project is scoped out (empty hint, never the log) | **PASS** |
+| 28f | auth | source-level: both shims derive `req_specs.testproject_id` from the id and call `hasRight($db, 'mgt_view_req', $owningProjectId)` — the greps needle the real call, not a comment; the revision branches prove `nodes_hierarchy.node_type_id` (10 / 11) in SQL | **PASS** |
 | 29 | #1654 | no dead `tproject_name` read left in the BFF | **PASS** |
 | 30 | BFF guards | `common.php` required, `bffEnforceSession()` called, `mgt_view_req` checked, owning project proven, JSON shutdown backstop present | **PASS** |
 | 31 | syntax | `php -l` clean on the BFF, both shims and `lib/functions/common.php` | **PASS** |
@@ -23926,9 +23935,10 @@ the priority columns; a project whose blob is missing/corrupt must hide them.
 | 33 | markup | 401 → `/login.php?note=expired`, 403 → access-denied state, 404 → not-found state, empty log → placeholder + **Copy disabled** | **PASS** |
 | 34 | #1655 | the row that was labelled "Requirement specification" now reads "Test project" and carries the test project name; a `Specification Doc ID` row surfaces the owning spec | **PASS** |
 | 35 | wiring | `$actions->logViewer` present in `lib/functions/common.php` and points at the modern screen | **PASS** |
-| 36 | wiring | `reqSpecView`, `reqSpecCompare` and `reqCompare` each define `openLogViewer`, render the `.log-open` icon and target `requirements/logViewer.html` | **PASS** |
+| 36 | wiring | `reqSpecView`, `reqSpecCompare` and `reqCompare` each define `openLogViewer`, render the `.log-open` affordance and target `requirements/logViewer.html` | **PASS** |
+| 36b | a11y | the affordance is a real focusable `<a href>` with an `aria-label` and a `:focus-visible` ring, not a click-only `aria-hidden` `<i>` | **PASS** |
 | 37 | wiring | after stripping comments, **no live call** to `getreqspeclog.php` / `getreqlog.php` remains in any of the three callers (the remaining mentions are comments documenting the replaced affordance) | **PASS** |
-| 38 | i18n | 23 `logv.*` keys, **identical key set in all 10 bundles**, every key the screen uses defined in each, no empty value, all 10 files valid JSON | **PASS** |
+| 38 | i18n | 24 `logv.*` keys, **identical key set in all 10 bundles**, every key the screen uses defined in each, no empty value, all 10 files valid JSON | **PASS** |
 | 39 | i18n | `logv.testProject` = "Test project" / "Proiect de test" and no longer claims "Requirement specification" | **PASS** |
 | 40 | Event Viewer | **no new `log_level IN (1,2)` row** produced by the whole suite | **PASS** |
 
@@ -23940,6 +23950,11 @@ the priority columns; a project whose blob is missing/corrupt must hide them.
 | **#1654** | 44 `E_WARNING Undefined array key "tproject_name"` rows, invisible in the response | when the column was dropped from the SQL the three `parent_name` reads were left behind, and their `''` was overwritten by `testproject::getName()` three lines later — dead reads, visible garbage | removed the three dead lines; `parent_name` has one source of truth |
 | **#1655** | the context table read `Requirement specification = LOGV` | the BFF fills `parent_name` with the **test project**, but the label was translated as "Requirement specification" in all 10 bundles | label corrected in all 10 bundles; added a `Specification Doc ID` row for requirement versions/revisions |
 | (commit `083872475`) | a wasted round trip per legacy request | `getreqlog.php` queried `nodes_hierarchy` once, threw the result away, then queried `node_type_id` for the same id | removed the discarded query |
+| (code review 1) | six legacy log tooltips rendered the whole modern page inside a 500px bubble | the shims redirected unconditionally, but `Ext.ToolTip` `autoLoad` needs a **fragment** | branch on the XHR proof: fragment for `X-Requested-With`, 302 for a browser |
+| (code review 2) | the XHR branch still leaked — any authenticated user could read **any** project's log | the shims enforced the login but not the right, and only scoped by a caller-supplied `tproject_id`, which none of the six live callers send | derive the owning project from the id and check `mgt_view_req` on it; 403 + the legacy no-right text otherwise |
+| (code review 3) | a browser deep link to a requirement **revision** opened the requirement-version screen and a 404 | the redirect hardcoded `type=requirement_version` | restore the 1.9.20 auto-detection, comparing `node_types.id` numerically like the BFF |
+| (code review 4) | an empty log rendered a blank tooltip | 1.9.20 showed the localized `empty_log_message` hint | hint restored on both shims |
+| (code review 5) | a log with invalid UTF-8 rendered blank | `htmlspecialchars()` returns `''` for invalid UTF-8 without `ENT_SUBSTITUTE` | escape with `ENT_QUOTES | ENT_SUBSTITUTE` |
 
 ### Notes
 
@@ -23952,6 +23967,14 @@ the priority columns; a project whose blob is missing/corrupt must hide them.
   against an empty one" path that both compare screens expose.
 - Reviewing the Event Viewer is what caught #1654: the HTTP response was correct
   the whole time, so only the `events` table exposed the dead reads.
+- The second code review is what caught the fragment-branch leak: the response
+  was `200` and looked right for every account the tester had, and the only way
+  to see it was to ask *whose* project the log belonged to. The harness now
+  proves the fragment contract for three different right-holders, including the
+  `user_testproject_roles` path, so the check cannot silently regress.
+- An empty `users.cookie_string` is **not** unique: the fixture users need their
+  own value or the second `INSERT` dies with `ER_DUP_ENTRY` and the assertions
+  silently run against a missing user.
 
 ## Task — Issue #1651: resolved-role name on the value-0 override option for non-inherited rows
 
@@ -23994,3 +24017,4 @@ Screens: `gui/templates/usermanagement/usersAssignPlan.html` (values `tproject_i
   **effective** role (legacy `$ikx = effective_role_id` when `is_inherited == 1`).
 - The role name itself stays the raw `roles.description` (`leader`, not a localized string): that is
   `tlRole::getDisplayName()`'s legacy behaviour, so only the surrounding wording is translated.
+

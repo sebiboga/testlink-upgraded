@@ -5908,6 +5908,34 @@ Changes:
       project tables and added user metrics to the middle section
 
 ## 2.0.1 (in-progress)
+### Key bugfix — requirement log messages were echoed as unescaped HTML (Refs #1652, #1653, #1654, #1655)
+- `lib/ajax/getreqspeclog.php` and `lib/ajax/getreqlog.php` did `SELECT log_message FROM
+  <table> WHERE id = <intval>` and `echo`ed the stored RichEdit/TinyMCE blob straight into the page:
+  **no rights check** and **no proof the id belonged to the caller's test project**, so ANY project's
+  requirement log was returned to ANY authenticated user, and a log containing markup executed in the
+  caller's DOM. Both now answer the contract each live caller actually has - the six legacy
+  `Ext.ToolTip` `autoLoad` call sites (`reqSpecCompareRevisions.tpl:34`, `reqSpecViewRevision.tpl:31`,
+  `include/reqSpecViewJS.inc.tpl:30`, `reqViewVersions.tpl:174`, `reqViewRevisionRO.tpl:28`,
+  `reqCompareVersions.tpl:34`) get an **HTML-escaped fragment**, while a plain browser deep link gets a
+  302 to the modern screen, which enforces `mgt_view_req` on the **owning** project (resolved from
+  the database) and renders the log with `.text()`. The fragment branch authorizes too: it derives the
+  owning project from the id itself (the live tooltip callers pass `item_id` only) and answers **403**
+  without the log body when the user has no `mgt_view_req` there, so the cross-project read that
+  #1652 found is closed on **both** contracts.
+- The new BFF also had three defects of its own, all found by testing: an unknown id answered **500
+  `db_error`** instead of 404 because `get_recordset()` returns `null` for both an empty result and a
+  failed query (#1653); three nonexistent `name` columns (`req_specs.name`, `requirements.name`,
+  `testprojects.name`) 500'd **every** happy path - titles live on `nodes_hierarchy` and
+  `testproject::getName()` (#1653); and the `parent_name` reads left behind by that fix raised
+  **44 `E_WARNING` rows** that only the Event Viewer could see (#1654). The context row also showed the
+  test project under a label reading "Requirement specification" in all 10 locales (#1655).
+### UI modernization — Requirement Log Message viewer (Refs #1652)
+- The last unmodernized requirement-log reader is now a Dashio popup,
+  `gui/templates/requirements/logViewer.html`, backed by `api/logviewer/index.php`
+  (`GET ?action=log`) for the three log families: requirement spec revision, requirement version and
+  requirement revision. It is reached from the new keyboard-reachable "open the full log" affordance on
+  `reqSpecView` / `reqSpecCompare` / `reqCompare` - previously the log was hover-only (and therefore
+  unreachable on touch), so it could not be read in full or copied.
 ### Key bugfix — one canonical platform import path (Refs #1636)
 - Removed the caller-less second import implementation, `POST /import` on
   `api/platforms/index.php` (and the `lib/functions/xml.inc.php` require that only it needed). The
