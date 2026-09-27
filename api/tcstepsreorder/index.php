@@ -407,6 +407,16 @@ function tsroIdsOf($rows)
     return $ids;
 }
 
+/** The stored step_number sequence, in display order. */
+function tsroNumbersOf($rows)
+{
+    $nums = array();
+    foreach ($rows as $r) {
+        $nums[] = intval($r['step_number']);
+    }
+    return $nums;
+}
+
 /**
  * Prove every submitted id is a step of THIS version.
  *
@@ -440,15 +450,24 @@ function tsroRequireOwnSteps(&$db, $ids, $tcverId, $rows)
     return ($known === $given);
 }
 
-/** Emit the result of a write, flagging a genuine no-op. */
-function tsroWriteResult(&$db, $tcverId, $beforeIds, $extra = array())
+/**
+ * Emit the result of a write, flagging a genuine no-op.
+ *
+ * "Changed" means the STORED sequence changed - either which step sits at which
+ * position, or the step_number values themselves. Both have to be compared: the
+ * ordered id sequence alone is identical for ?action=normalize, which only
+ * rewrites the numbers (11,12,13,14 -> 1,2,3,4) and would otherwise be reported
+ * as a no-op, leaving the user with a "nothing to do" toast for a real fix.
+ * The id sequence alone is likewise not enough, because a write can restore the
+ * very same order the user started from.
+ */
+function tsroWriteResult(&$db, $tcverId, $before, $extra = array())
 {
     $after = tsroSteps($db, $tcverId);
     $afterIds = tsroIdsOf($after);
-    sort($afterIds);
-    $before = $beforeIds;
-    sort($before);
-    $changed = ($before !== $afterIds);
+    $afterNumbers = tsroNumbersOf($after);
+
+    $changed = ($before['ids'] !== $afterIds) || ($before['numbers'] !== $afterNumbers);
 
     $payload = array(
         'status' => $changed ? 'ok' : 'no_change',
@@ -683,7 +702,9 @@ list($version, $tcase, $tprojectId) =
     tsroContext($db, $user, $tcverId, getInt('tproject_id', 0), 'mgt_modify_tc');
 
 $steps = tsroSteps($db, $tcverId);
-$beforeIds = tsroIdsOf($steps);
+// Snapshot of the STORED order + numbering, used to tell a real write from a
+// no-op in the answer (see tsroWriteResult).
+$before = array('ids' => tsroIdsOf($steps), 'numbers' => tsroNumbersOf($steps));
 
 if (count($steps) < 2 && $action !== 'normalize') {
     // Nothing to re-order: answering 400 keeps the screen honest instead of
@@ -702,7 +723,7 @@ if ($action === 'move') {
                   'message' => 'Invalid position'), 400);
     }
 
-    $ids = $beforeIds;
+    $ids = $before['ids'];
     $idx = array_search($stepId, $ids, true);
     if ($idx === false) {
         out(array('status' => 'error', 'code' => 'not_found',
@@ -734,7 +755,7 @@ if ($action === 'move') {
     }
     $tcaseMgr->set_step_number($renumbered);
 
-    out(tsroWriteResult($db, $tcverId, $beforeIds));
+    out(tsroWriteResult($db, $tcverId, $before));
 }
 
 if ($action === 'reorder') {
@@ -778,7 +799,7 @@ if ($action === 'reorder') {
     }
     $tcaseMgr->set_step_number($renumbered);
 
-    out(tsroWriteResult($db, $tcverId, $beforeIds));
+    out(tsroWriteResult($db, $tcverId, $before));
 }
 
 if ($action === 'normalize') {
@@ -786,12 +807,12 @@ if ($action === 'normalize') {
     // list, so gaps / duplicates left behind by an import are repairable.
     $renumbered = array();
     $point = 1;
-    foreach ($beforeIds as $id) {
+    foreach ($before['ids'] as $id) {
         $renumbered[$id] = $point++;
     }
     $tcaseMgr->set_step_number($renumbered);
 
-    out(tsroWriteResult($db, $tcverId, $beforeIds));
+    out(tsroWriteResult($db, $tcverId, $before));
 }
 
 out(array('status' => 'error', 'code' => 'unknown_action',

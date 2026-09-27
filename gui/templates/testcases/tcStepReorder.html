@@ -261,6 +261,16 @@ function qs(k, d) {
   return p.get(k) === null ? d : p.get(k);
 }
 
+/**
+ * Substitute the {name} placeholders of an i18n message. Without it the
+ * renumber copy reached the user with a literal "{count}" in it.
+ */
+function tpl(msg, subs) {
+  return String(msg == null ? '' : msg).replace(/\{(\w+)\}/g, function (m, k) {
+    return (subs && subs[k] !== undefined && subs[k] !== null) ? String(subs[k]) : m;
+  });
+}
+
 function esc(s) {
   return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
     .replace(/>/g, '&gt;').replace(/"/g, '&quot;')
@@ -601,7 +611,7 @@ function openApply() {
 function openNormalize() {
   if (!CAN_EDIT) { return; }
   $('#mTitle').text(TLi18n.t('tcsr.normalizeTitle'));
-  $('#mBody').text(TLi18n.t('tcsr.normalizeConfirm'));
+  $('#mBody').text(tpl(TLi18n.t('tcsr.normalizeConfirm'), { count: STEPS.length }));
   PENDING_ACTION = { kind: 'normalize' };
   $('#mask').addClass('show');
 }
@@ -616,7 +626,7 @@ function confirmModal() {
   var p = PENDING_ACTION;
   closeModal();
   if (p.kind === 'normalize') {
-    postAction('normalize', {}, TLi18n.t('tcsr.renumbered'));
+    postAction('normalize', {}, tpl(TLi18n.t('tcsr.renumbered'), { count: STEPS.length }));
     return;
   }
   var ids = PENDING.map(function (r) { return r.step_id; });
@@ -632,16 +642,17 @@ $(function () {
     TLi18n.initLocaleSwitcher('#localeSwitcher');
     $('#footerInfo').text(TLi18n.t('footers.tcStepReorder'));
 
-    if (!TCVER_ID) {
-      // No version in the URL: this is the $actions->tcStepReorder hub entry (or
-      // a legacy stepReorder.php bookmark), so offer the version picker instead
-      // of an error card.
+    /* EVERY delegated handler is bound UNCONDITIONALLY, before any data is
+       loaded. The screen has two entry points into the same two cards - the
+       version picker (hub entry, or the "Change version" button) and the step
+       table (straight from the URL) - and each can be shown while the other one
+       is hidden, so bindings made inside an if/else on TCVER_ID always left
+       one of the two cards dead. Only the initial load is branched. */
+    {
       $('#pkFilter').on('input', renderPicker);
       $('#pkRows').on('click', 'tr', function () {
         openVersion($(this).data('ver'));
       });
-      loadVersions();
-    } else {
       $('#rows').on('click', 'button.op', function () {
         doMove(parseInt($(this).data('step'), 10), $(this).data('op'));
       });
@@ -693,8 +704,12 @@ $(function () {
       });
 
       $('#btnReset').on('click', discardPending);
-      load();
     }
+
+    // No version in the URL: this is the $actions->tcStepReorder hub entry (or a
+    // legacy stepReorder.php bookmark), so offer the version picker instead of
+    // an error card. With a version in the URL, load the step table.
+    if (TCVER_ID) { load(); } else { loadVersions(); }
   });
 });
 </script>
