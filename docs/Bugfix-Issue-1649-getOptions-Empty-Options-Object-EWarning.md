@@ -195,3 +195,18 @@ Regression suite `Regression — Issue #1649` in `tmp/TLU_Test_Cases.md`: **9 / 
 | `CHANGELOG` | 2.0.1 key-bugfix line |
 | `docs/Bugfix-Issue-1649-getOptions-Empty-Options-Object-EWarning.md` | this page |
 | `tmp/wiki-repo/Bugfix-Issue-1649-getOptions-Empty-Options-Object-EWarning.md` | wiki mirror |
+
+## Screenshots — Event Viewer before / after
+
+Before the fix — one load of `lib/plan/planMilestonesView.php?tplan_id=1&tproject_id=1`
+adds **2** WARNING rows (`WARNING: 2 (40%)`), both `testPriorityEnabled`:
+
+![Event Viewer before the fix: 2 testPriorityEnabled warnings](screenshots/issue-1649-before.png)
+
+After the fix — the same load adds **0** rows (`WARNING: 0 (0%)`):
+
+![Event Viewer after the fix: no warnings](screenshots/issue-1649-after.png)
+
+(The single `ERROR: 1` row visible in both shots is `Wrong page argument feature =`,
+produced by the regression pass calling `lib/general/frmWorkArea.php` without a `feature`
+argument — the app's own argument validation logging, unrelated to this fix.)
