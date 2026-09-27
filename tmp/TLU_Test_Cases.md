@@ -25035,3 +25035,99 @@ mysql> INSERT INTO nodes_hierarchy (id,parent_id,node_type_id,name,node_order) V
 #   Export tab and Import tab must each show "View File Format Documentation" under the Format select
 #   console: document.querySelector('a.doc-link').getAttribute('href')   # -> /docs/tl-file-formats.pdf
 ```
+
+---
+
+## Regression — Issue #1675: `keywordsExport.html` duplicated the "Format sample" caption on every Format switch (Export + Import panel)
+
+**Precondition / fixture** (the DB is freshly imported on every run and `testprojects` was
+empty, so the popup could not even be opened — this fork has no `testprojects.name`, the
+name lives in `nodes_hierarchy.name`, see the #1615 suite above):
+
+```bash
+mysql -h 127.0.0.1 -utestlink -ptestlink testlink
+mysql> INSERT INTO testprojects (id,notes,color,active,option_reqs,option_priority,option_automation,options,prefix,tc_counter,is_public,api_key)
+        VALUES (9001,'','#9BD',1,0,0,0,'','DEMO',0,1,'0d8ab81dfa2c77e8235bc829a2ded3edfa2c78235bc829a27eded3ed0d8ab81c');
+mysql> INSERT INTO nodes_hierarchy (id,name,parent_id,node_type_id,node_order) VALUES (9001,'Demo Project 1675',0,1,1);
+```
+
+Login `admin/admin`, open
+`http://localhost:8082/gui/templates/keywords/keywordsExport.html?mode=export&tproject_id=9001`.
+
+**Repro (pre-fix behaviour, measured on the pre-fix commit `9c9dd9e`)**
+
+Dispatch `change` on `#exportType` (and on `#importType` after switching to the Import tab)
+and count the `label` nodes reading `Format sample` inside that panel's own `.card-b`:
+
+| switches | 0 | 1 | 2 | 3 |
+|---|---|---|---|---|
+| Export panel | 1 | **2** | **3** | **4** |
+| Import panel | 1 | **2** | **3** | **4** |
+
+`pre.sample` stayed at 1 throughout, and no network request, console message or `events` row
+was produced — a purely client-side DOM-logic defect. The extra nodes vanish on the next full
+`render()` (page refresh), which is why it looks like "the panel breaks after a click".
+
+**Expected post-fix behaviour**
+
+Exactly **one** `div.sample-block` (hence one caption, one `pre.sample`) per panel, no matter
+how many times the Format select is changed, with the sample text and the `File name` field
+still following the selected format. DOM order preserved: the doc link still immediately
+precedes the caption. Layout unchanged.
+
+**Actual result observed — 13/13 PASS** (commit `addddfcf6`)
+
+| # | Case | Steps / probe | Expected | Actual | Result |
+|---|---|---|---|---|---|
+| 1 | M1 Export, repeated change | 5× `dispatchEvent(change)` on `#exportType` | 1 caption, 1 block, 1 `pre` | 1 / 1 / 1 | **PASS** |
+| 2 | M1 Export, alternating XML↔CSV | 10 changes alternating `iSerializationToXML` / `iSerializationToCSV` | 1 caption, sample tracks format | 1 / 1, sample `keyword;notes` | **PASS** |
+| 3 | M2 Import, repeated change | Import tab, 5× `change` on `#importType` | 1 caption, 1 block, 1 `pre` | 1 / 1 / 1 | **PASS** |
+| 4 | M2 Import, alternating XML↔CSV | 10 alternating changes | 1 caption, sample tracks format | 1 caption, 1 block, 1 `pre`, sample `keyword;notes` | **PASS** |
+| 5 | M4 initial load, no interaction | fresh page load, both panels | 1 caption + 1 `pre` each | 1 + 1, `Export` filename `keywords.xml` | **PASS** |
+| 6 | Document-wide sweep | after 10 switches: `document.querySelectorAll('label')` filtered on the caption text / `document.querySelectorAll('div.sample-block').length` | exactly 1 / 1 | `totalCaptionNodesInDoc = 1`, `totalBlocksInDoc = 1` | **PASS** |
+| 7 | DOM order | `box.querySelector('a.doc-link').nextElementSibling === box.querySelector('div.sample-block')` | `true` (legacy doc-link-then-sample) | `true` on both panels | **PASS** |
+| 8 | M5 `File name` coupling | type `my-keywords`, switch to CSV | left alone (no known ext) | `my-keywords` | **PASS** |
+| 9 | M5 `File name` coupling | type `keywords.xml`, switch to CSV | extension follows | `keywords.csv` | **PASS** |
+| 10 | M5 `File name` fallback | clear the field, switch to XML | `keywords.xml` | `keywords.xml` | **PASS** |
+| 11 | M6 real export, both formats | seed 1 keyword via `POST /api/keywordsedit/?action=create`, then `GET /api/keywordsxml/?action=export&type=iSerializationToXML` and `…iSerializationToCSV` | 200 + correct content-type and body | `200 text/xml` `<keywords><keyword name="Regression KW 1675">…` and `200 text/csv` `Keyword;Notes;Number of Test Case Linked` | **PASS** |
+| 12 | Import round-trip (regression) | Import tab, Format = CSV, pick `import-1675.csv` (`Keyword;Notes;Number of Test Case Linked` + 1 row), click **Upload file** | green banner, counter grows, panel re-renders with 1 caption | *"Keywords imported. The project now has 3 keywords."*, counter `1 → 3`, exactly 1 `Format sample` caption | **PASS** |
+| 13 | M7 locale + M8 clean | switch locale to `Română` (page reloads with `&locale=ro`), change Format 4× | caption localized, no raw key, console clean, 0 new `events` ERROR/WARNING | caption **"Exemplu de format"**, 1 block, `body.innerText.indexOf('kwxml.formatSample') === -1`, console *no messages found*, `events` 4 rows all `log_level = 16` (AUDIT) and `log_level IN (1,2)` → **0** | **PASS** |
+
+Extra check beyond the matrix — **layout regression (margin collapse)**: the new
+`div.sample-block` is an unstyled block, so the caption's `margin-top:16px` now collapses into
+the wrapper's top margin. The pre-fix file was served side by side as a temporary copy
+(`git show HEAD:gui/templates/keywords/keywordsExport.html` →
+`gui/templates/keywords/_prefix_1675_tmp.html`, **deleted afterwards, never committed**) and
+`getBoundingClientRect()` was compared on a fresh, never-interacted Export panel:
+
+| anchor | pre-fix top / height | post-fix top / height |
+|---|---|---|
+| `a.doc-link` | 404 / 17 | **404 / 17** |
+| caption `<label>` | 437 / 17 | **437 / 17** |
+| `pre.sample` | 462 / 38 | **462 / 38** |
+| `label[for="exportFilename"]` | 516 / 17 | **516 / 17** |
+| `#exportFilename` input | 538 / 37 | **538 / 37** |
+
+Pixel-identical — the wrapper introduces no spacing shift.
+
+Syntax gate: the page's single inline `<script>` block extracted and `node --check` → clean.
+No `gui/templates/i18n/*.json` bundle was touched, so no `json.tool` re-validation was needed.
+
+**Out of scope, filed separately, NOT fixed here**
+
+- The CSV import of case 12 produced **3** keywords from a 1-row file: the header line
+  `Keyword;Notes;Number of Test Case Linked` is written as a keyword. That is the already-filed
+  **#1616** (`importKeywordsFromCSV()` does not skip the header row its own export writes) —
+  reproduced on the pre-fix file too, deliberately untouched by this diff.
+
+**RESUME**
+
+```bash
+git checkout fix/issue-1675
+# one-liner that proves the fix, run in the page console on the Export panel:
+#   s=document.querySelector('#exportType'); for(i=0;i<9;i++)s.dispatchEvent(new Event('change',{bubbles:true}));
+#   document.querySelectorAll('div.sample-block').length          # -> 1   (pre-fix: label count 1->10)
+#   s.closest('.card-b').querySelectorAll('label[style*="margin-top:16px"]').length   # -> 1
+# browser: admin/admin -> http://localhost:8082/gui/templates/keywords/keywordsExport.html?mode=export&tproject_id=9001
+# php -l / node --check: extract the inline <script> of gui/templates/keywords/keywordsExport.html
+```
