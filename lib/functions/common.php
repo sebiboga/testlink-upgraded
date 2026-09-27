@@ -2032,6 +2032,18 @@ function getActions(&$gui,$baseURL) {
     $actions->tcReorder = "/gui/templates/testcases/tcReorder.html?{$ctx}";
   }
 
+  // Refs #1671: Reorder Test Steps - modern home of the legacy step-reorder
+  // endpoint lib/ajax/stepReorder.php, which in 1.9.20 was the only backend of
+  // the TableDnD drag-and-drop of the steps of a test case version and had NO
+  // authorization check at all (it also accepted GET, so it was CSRF-able, and
+  // never proved the submitted step ids to belong to the edited version).
+  // Opened without a version id, the screen shows its version picker; the test
+  // case content screen passes ?tcversion_id= straight from the version card.
+  $actions->tcStepReorder = null;
+  if ($tproject_id > 0 && !empty($_SESSION['userID'])) {
+    $actions->tcStepReorder = "/gui/templates/testcases/tcStepReorder.html?{$ctx}";
+  }
+
   // Refs #1587: Remote Test Automation Execution (legacy lib/testcases/
   // tcExecute.php, the last standalone lib/testcases controller without a
   // modern twin). The modern screen talks to api/tcautoexec, which enforces

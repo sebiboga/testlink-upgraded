@@ -170,6 +170,7 @@ var ctx = null;
 var data = null;
 var currentVersion = null;
 var canManageKeywords = false;
+var canReorderSteps = false;
 
 // Refs #1479: this viewer was opened from the Set Results popup (pencil icon,
 // edit-on-execution). We forward the editor's save notification to our own
@@ -220,6 +221,9 @@ function loadView() {
       // keyword create / create-and-link popup gate (Refs #1599): the legacy
       // keywordsEdit.php required mgt_modify_key AND mgt_view_key.
       canManageKeywords = !!(data.grants && data.grants.mgt_modify_key && data.grants.mgt_view_key);
+      // Reorder Test Steps gate (Refs #1671): the legacy step-reorder endpoint
+      // wrote with mgt_modify_tc on the owning project.
+      canReorderSteps = !!(data.grants && data.grants.mgt_modify_tc);
       render();
     })
     .fail(function (xhr) {
@@ -409,6 +413,20 @@ function renderVersion(v) {
     h += '<span class="none-text">' + esc(TLi18n.t('tcview.noSteps')) + '</span>';
   }
 
+  // Reorder steps popup (Refs #1671) - modern home of the legacy
+  // lib/ajax/stepReorder.php TableDnD backend, which had no rights check.
+  // The button sits inside the per-version card, so the version id is passed
+  // explicitly: with several versions the popup must re-order the version the
+  // user clicked on, not the "current" one.
+  if (canReorderSteps) {
+    var vsteps = parseInt(v.tcversion_id, 10) || 0;
+    h += '<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">'
+      + '<button class="btn btn-sm btn-teal" onclick="openStepReorder(' + vsteps + ')"'
+      + (v.steps.length ? '' : ' disabled title="' + esc(TLi18n.t('tcsr.empty')) + '"') + '>'
+      + '<i class="fa fa-list-ol"></i> ' + esc(TLi18n.t('tcsr.title')) + '</button>'
+      + '</div>';
+  }
+
   // keywords
   h += '<div class="field-label">' + esc(TLi18n.t('tcview.keywords')) + '</div>';
   if (v.keywords.length) {
@@ -527,6 +545,17 @@ function openTcEdit() {
 // Keyword dialog popup (Refs #1599) - modern twin of the legacy
 // lib/keywords/keywordsEdit.php?doAction=create|cfl&tcversion_id=... dialog
 // that used to be opened from the test case keywords panel.
+// Reorder Test Steps popup (Refs #1671).
+function openStepReorder(tcversion_id) {
+  if (!data) { return; }
+  var vid = parseInt(tcversion_id, 10) || 0;
+  if (vid <= 0) { return; }
+  var url = '/gui/templates/testcases/tcStepReorder.html?tproject_id=' + data.tproject.id
+    + '&tcversion_id=' + vid
+    + '&tplan_id=' + (parseInt(qs('tplan_id') || '0', 10) || 0);
+  window.open(url, 'tcstepreorder_dialog', 'width=1040,height=680,resizable=yes,scrollbars=yes');
+}
+
 // tcversion_id is optional: the per-version cards pass their own id, the
 // callers that act on the "current" version can omit it (Refs #1599).
 function openKeywordPopup(mode, tcversion_id) {

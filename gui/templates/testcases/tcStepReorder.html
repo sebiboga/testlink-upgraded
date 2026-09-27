@@ -77,6 +77,9 @@ td.ops button:disabled { color: #ccc; cursor: not-allowed; border-color: #eee; }
 
 .empty { color: #999; font-style: italic; padding: 18px 4px; }
 
+#picker .card tbody tr { cursor: pointer; }
+#picker .card tbody tr:hover td { background: #eefaf9; }
+
 .notice { border-radius: 6px; padding: 11px 14px; font-size: 13px; margin-bottom: 14px; display: none; }
 .notice.ok { display: block; background: #e8f8f6; border: 1px solid #b8e6e2; color: #1f7a73; }
 .notice.err { display: block; background: #fdecea; border: 1px solid #f5c6c3; color: #a32b28; }
@@ -144,6 +147,37 @@ td.ops button:disabled { color: #ccc; cursor: not-allowed; border-color: #eee; }
 
   <div id="loading"><i class="fa fa-spinner fa-spin"></i> <span data-i18n="tcsr.loading">Loading...</span></div>
 
+  <div id="picker" style="display:none">
+    <div class="meta">
+      <div class="row">
+        <span class="field"><b data-i18n="tcsr.testProject">Test project</b><span id="pkProject">-</span></span>
+        <span class="field"><b data-i18n="tcsr.pickCount">Versions with steps</b><span id="pkCount">-</span></span>
+      </div>
+    </div>
+    <div class="card">
+      <h3>
+        <i class="fa fa-list-ol" style="color:#4ECDC4;"></i>
+        <span data-i18n="tcsr.pickHeading">Choose a test case version</span>
+        <span class="hint" data-i18n="tcsr.pickHint">Only versions that have steps are listed - there is nothing to re-order without one.</span>
+      </h3>
+      <div class="toolbar">
+        <input id="pkFilter" type="text" style="border:1px solid #ccc;border-radius:4px;padding:7px 10px;font-size:13px;min-width:280px;" data-i18n-placeholder="tcsr.pickFilter">
+      </div>
+      <table class="reorder" id="pkTbl">
+        <thead>
+          <tr>
+            <th class="pos" data-i18n="tcsr.thPos">#</th>
+            <th data-i18n="tcsr.thTestCase">Test case</th>
+            <th class="type" data-i18n="tcsr.version">Version</th>
+            <th style="text-align:right" data-i18n="tcsr.thSteps">Steps</th>
+          </tr>
+        </thead>
+        <tbody id="pkRows"></tbody>
+      </table>
+      <div class="empty" id="pkEmpty" style="display:none" data-i18n="tcsr.pickEmpty">This test project has no test case version with steps.</div>
+    </div>
+  </div>
+
   <div id="content">
     <div class="meta">
       <div class="row">
@@ -152,6 +186,7 @@ td.ops button:disabled { color: #ccc; cursor: not-allowed; border-color: #eee; }
         <span class="field"><b data-i18n="tcsr.testCase">Test case</b><span id="mbCase">-</span></span>
         <span class="field"><b data-i18n="tcsr.version">Version</b><span id="mbVersion">-</span></span>
         <span class="field"><b data-i18n="tcsr.stepCount">Steps</b><span id="mbCount">-</span></span>
+        <span class="field"><button class="btn-outline" onclick="backToPicker()" style="padding:4px 12px;font-size:12px;"><i class="fa fa-arrow-left"></i> <span data-i18n="tcsr.changeVersion">Change version</span></button></span>
       </div>
     </div>
 
@@ -278,7 +313,16 @@ function closeWindow() {
 function reload() {
   $('#stateBox').hide();
   $('#wrap').show();
-  load();
+  if (TCVER_ID) { load(); } else { loadVersions(); }
+}
+
+/** Leave the current version and go back to the picker. */
+function backToPicker() {
+  TCVER_ID = 0;
+  STEPS = [];
+  PENDING = [];
+  $('#content').hide();
+  loadVersions();
 }
 
 function typeChip(step) {
@@ -356,6 +400,67 @@ function applyRowState() {
 function setBusy(busy) {
   BUSY = busy;
   applyRowState();
+}
+
+/* ---- version picker (opened when the screen is reached without a version) ---- */
+
+var VERSIONS = [];
+
+function renderPicker() {
+  var f = String($('#pkFilter').val() || '').toLowerCase();
+  var h = '';
+  var shown = 0;
+  for (var i = 0; i < VERSIONS.length; i++) {
+    var v = VERSIONS[i];
+    var hay = (v.external_id + ' ' + v.tcase_name).toLowerCase();
+    if (f !== '' && hay.indexOf(f) < 0) { continue; }
+    shown++;
+    h += '<tr data-ver="' + v.tcversion_id + '">';
+    h += '<td class="pos">' + shown + '</td>';
+    h += '<td>' + esc(v.external_id + ': ' + v.tcase_name) + '</td>';
+    h += '<td class="type">v' + v.version + '</td>';
+    h += '<td class="ops"><span class="chip">' + v.step_qty + '</span></td>';
+    h += '</tr>';
+  }
+  $('#pkRows').html(h);
+  $('#pkTbl').toggle(shown > 0);
+  $('#pkEmpty').toggle(shown === 0);
+  $('#pkCount').text(String(shown) + (f === '' ? '' : ' / ' + VERSIONS.length));
+}
+
+function loadVersions() {
+  $('#loading').show();
+  $('#picker').hide();
+  $('#content').hide();
+  $.getJSON('/api/tcstepsreorder/index.php', {
+    action: 'versions',
+    tproject_id: TPROJECT_ID
+  }).done(function (r) {
+    $('#loading').hide();
+    if (r.status !== 'ok') {
+      showState(TLi18n.t('tcsr.stError'), r.message || '');
+      return;
+    }
+    TPROJECT_ID = r.context.tproject_id;
+    CAN_EDIT = !!(r.rights && r.rights.mgt_modify_tc);
+    $('#pkProject').text(r.context.tproject_name + ' (' + r.context.tproject_prefix + ')');
+    VERSIONS = r.versions || [];
+    $('#permChip').toggle(!CAN_EDIT);
+    renderPicker();
+    $('#picker').show();
+  }).fail(function (xhr) {
+    $('#loading').hide();
+    if (isSessionGone(xhr)) { window.location.href = '/login.php'; return; }
+    var st = stateForResponse(xhr);
+    showState(st[0], st[1]);
+  });
+}
+
+function openVersion(id) {
+  TCVER_ID = parseInt(id, 10) || 0;
+  if (!TCVER_ID) { return; }
+  $('#picker').hide();
+  load();
 }
 
 function load() {
@@ -528,7 +633,14 @@ $(function () {
     $('#footerInfo').text(TLi18n.t('footers.tcStepReorder'));
 
     if (!TCVER_ID) {
-      showState(TLi18n.t('tcsr.stBadParam'), TLi18n.t('tcsr.stNoVersion'));
+      // No version in the URL: this is the $actions->tcStepReorder hub entry (or
+      // a legacy stepReorder.php bookmark), so offer the version picker instead
+      // of an error card.
+      $('#pkFilter').on('input', renderPicker);
+      $('#pkRows').on('click', 'tr', function () {
+        openVersion($(this).data('ver'));
+      });
+      loadVersions();
     } else {
       $('#rows').on('click', 'button.op', function () {
         doMove(parseInt($(this).data('step'), 10), $(this).data('op'));

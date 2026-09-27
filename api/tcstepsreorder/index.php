@@ -46,6 +46,7 @@
  *     exactly that child set - no partial, foreign or duplicated lists.
  *
  * Endpoints (JSON out):
+ *   GET  ?action=versions&[tproject_id=<pid>]  - version picker for the hub
  *   GET  ?action=init&tcversion_id=<v>[&tproject_id=<pid>]
  *   POST ?action=move     {tcversion_id, step_id, position: top|bottom|up|down}
  *   POST ?action=reorder  {tcversion_id, order: "1,2,3" | [1,2,3]}
@@ -485,11 +486,137 @@ function tsroContext(&$db, &$user, $tcverId, $requestedProject, $right)
     return array($version, $tcase, $tprojectId);
 }
 
+/**
+ * Every test case version of the project that owns at least one step, for the
+ * screen's version picker (the $actions->tcStepReorder hub entry and the legacy
+ * shim open the screen without a version id).
+ *
+ * The list is built by walking DOWN from the project root - the same proof
+ * api/tcreorder uses - so a test case re-parented under a foreign project
+ * (which the legacy unauthenticated drag-drop could actually do) can never leak
+ * in. Versions with no step are excluded: there is nothing to re-order there.
+ */
+function tsroVersions(&$db, &$user, $requestedProject)
+{
+    $T = tsroTables();
+    $n = tsroNodeTypes($db);
+
+    $tprojectId = intval($requestedProject);
+    if ($tprojectId <= 0) {
+        $tprojectId = intval($_SESSION['testprojectID'] ?? 0);
+    }
+    if ($tprojectId <= 0) {
+        out(array('status' => 'error', 'code' => 'no_context',
+                  'message' => 'No test project in context'), 400);
+    }
+
+    $projRow = $db->get_recordset(
+        "SELECT name, prefix FROM {$T['nodes_hierarchy']} NH" .
+        " LEFT JOIN {$T['testprojects']} TP ON TP.id = NH.id" .
+        " WHERE NH.id = " . intval($tprojectId) .
+        " AND NH.node_type_id = {$n['testproject']}");
+    if (is_null($projRow) || count($projRow) == 0) {
+        out(array('status' => 'error', 'code' => 'not_found',
+                  'message' => 'Test project not found'), 404);
+    }
+
+    $tprojectMgr = new testproject($db);
+    $glue = config_get('testcase_cfg')->glue_character;
+    $prefix = $tprojectMgr->getTestCasePrefix($tprojectId);
+    if ($prefix === '' || $prefix === null) {
+        $prefix = (string)$projRow[0]['prefix'];
+    }
+
+    $out = array();
+    $queue = array($tprojectId);
+    $seen = array($tprojectId => true);
+    $guard = 0;
+
+    while (!empty($queue) && $guard < 2000) {
+        $guard++;
+        $id = intval(array_shift($queue));
+        $rows = $db->get_recordset(
+            "SELECT id, name, node_type_id, parent_id FROM {$T['nodes_hierarchy']}" .
+            " WHERE parent_id = {$id} ORDER BY node_order, id");
+        if (is_null($rows)) {
+            continue;
+        }
+        foreach ($rows as $r) {
+            $childId = intval($r['id']);
+            if (isset($seen[$childId])) {
+                continue;
+            }
+            $seen[$childId] = true;
+            if (intval(tsroOwningProject($db, $r)) !== $tprojectId) {
+                continue;
+            }
+            if (intval($r['node_type_id']) == $n['testsuite']) {
+                $queue[] = $childId;
+            } elseif (intval($r['node_type_id']) == $n['testcase']) {
+                $queue[] = $childId;
+                $vers = $db->get_recordset(
+                    "SELECT NH.id, TCVER.version, TCVER.tc_external_id," .
+                    " (SELECT COUNT(1) FROM {$T['tcsteps']} TS" .
+                    "    JOIN {$T['nodes_hierarchy']} SNH ON SNH.id = TS.id" .
+                    "   WHERE SNH.parent_id = NH.id" .
+                    "     AND SNH.node_type_id = {$n['testcase_step']}) AS step_qty" .
+                    " FROM {$T['nodes_hierarchy']} NH" .
+                    " JOIN {$T['tcversions']} TCVER ON TCVER.id = NH.id" .
+                    " WHERE NH.parent_id = {$childId}" .
+                    " AND NH.node_type_id = {$n['testcase_version']}" .
+                    " ORDER BY TCVER.version");
+                if (is_null($vers)) {
+                    continue;
+                }
+                foreach ($vers as $v) {
+                    $out[] = array(
+                        'tcversion_id' => intval($v['id']),
+                        'version' => intval($v['version']),
+                        'external_id' => $prefix . $glue . (string)$v['tc_external_id'],
+                        'tcase_name' => (string)$r['name'],
+                        'step_qty' => intval($v['step_qty']),
+                    );
+                }
+            }
+        }
+    }
+
+    return array($tprojectId, (string)$projRow[0]['name'], $prefix, $out);
+}
+
 $action = getStr('action', 'init');
 $method = strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET');
 
 if ($method !== 'GET' && $action === 'init') {
     out(array('status' => 'error', 'message' => 'Method not allowed'), 405);
+}
+
+if ($action === 'versions') {
+    if ($method !== 'GET') {
+        out(array('status' => 'error', 'message' => 'Method not allowed'), 405);
+    }
+    list($tprojectId, $tprojectName, $prefix, $versions) =
+        tsroVersions($db, $user, getInt('tproject_id', 0));
+
+    if (!$user->hasRight($db, 'mgt_view_tc', $tprojectId)) {
+        out(array('status' => 'error', 'code' => 'forbidden',
+                  'message' => 'Insufficient rights on this test project'), 403);
+    }
+
+    out(array(
+        'status' => 'ok',
+        'context' => array(
+            'tproject_id' => $tprojectId,
+            'tproject_name' => $tprojectName,
+            'tproject_prefix' => $prefix,
+        ),
+        'count' => count($versions),
+        'versions' => $versions,
+        'rights' => array(
+            'mgt_view_tc' => true,
+            'mgt_modify_tc' => $user->hasRight($db, 'mgt_modify_tc', $tprojectId),
+        ),
+    ));
 }
 
 if ($action === 'init') {
