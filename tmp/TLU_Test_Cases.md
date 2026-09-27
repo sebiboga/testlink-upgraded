@@ -25054,7 +25054,8 @@ mysql> INSERT INTO nodes_hierarchy (id,name,parent_id,node_type_id,node_order) V
 Login `admin/admin`, open
 `http://localhost:8082/gui/templates/keywords/keywordsExport.html?mode=export&tproject_id=9001`.
 
-**Repro (pre-fix behaviour, measured on the pre-fix commit `9c9dd9e`)**
+**Repro (pre-fix behaviour, measured on the pre-fix commit `d806fa16f` = `addddfcf6^`; the block first started
+rendering in `0dca857cb`, so that is the earliest commit where the duplication is observable)**
 
 Dispatch `change` on `#exportType` (and on `#importType` after switching to the Import tab)
 and count the `label` nodes reading `Format sample` inside that panel's own `.card-b`:
@@ -25127,7 +25128,7 @@ git checkout fix/issue-1675
 # one-liner that proves the fix, run in the page console on the Export panel:
 #   s=document.querySelector('#exportType'); for(i=0;i<9;i++)s.dispatchEvent(new Event('change',{bubbles:true}));
 #   document.querySelectorAll('div.sample-block').length          # -> 1   (pre-fix: label count 1->10)
-#   s.closest('.card-b').querySelectorAll('label[style*="margin-top:16px"]').length   # -> 1
+#   s.closest('.card-b').querySelectorAll('div.sample-block > label[style*="margin-top:16px"]').length  # -> 1
 # browser: admin/admin -> http://localhost:8082/gui/templates/keywords/keywordsExport.html?mode=export&tproject_id=9001
 # php -l / node --check: extract the inline <script> of gui/templates/keywords/keywordsExport.html
 ```

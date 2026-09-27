@@ -41,7 +41,8 @@ client-side DOM-logic defect, invisible server-side.
 ## 3. Root cause
 
 `formatSample()` produced the caption and the sample as **two sibling nodes**
-(`gui/templates/keywords/keywordsExport.html:179`):
+(`gui/templates/keywords/keywordsExport.html:179`, all line numbers in this section are **pre-fix**,
+i.e. at `d806fa16f`; the post-fix numbers are given in §5):
 
 ```js
 return '<label style="margin-top:16px">' + esc(t('kwxml.formatSample')) + '</label>' +
@@ -73,11 +74,18 @@ four captions in one panel.
 
 ### History
 
-**Not a #1007 regression.** `git log --follow` shows `formatSample()` was born with
-the two-node return value *together with* the `pre.sample`-only `replaceWith()`, in
-the commit that created the modernized popup (#1615). The initial render is correct
-(both panels call `formatSample()` inline while building their HTML, `:208` / `:229`),
-which is exactly why the defect only appears from the *first* format switch on.
+**Not a #1007 regression.** `git log --follow` shows the two-node return value *and* the
+`pre.sample`-only `replaceWith()` were born together in `1af75f0a1` (#1615), the commit
+that created the modernized popup. Note that at `1af75f0a1` the bug was not yet
+*observable*: `extOf()` did not exist there and `formatSample()` was called with the
+interface id `iSerializationToXML` while `formatDescriptions` is keyed `XML`/`CSV`, so
+it always returned `''` and no sample block ever rendered. The block first rendered in
+`0dca857cb` (*close review gaps … format sample*), which re-keyed the lookup by ext —
+**that is the earliest commit where the duplication is observable.**
+
+The initial render is correct either way (both panels call `formatSample()` inline while
+building their HTML, `:208` / `:229` pre-fix), which is exactly why the defect only
+appears from the *first* format switch on.
 
 The `else` fallback in both handlers — `box.find('a.doc-link').after(html)`, the
 insertion anchor #1007 corrected from `#exportType` — is **unreachable** today:
@@ -92,7 +100,7 @@ the correct behaviour for a format that has no description.
   `exportTypeChanged()` (`:252`). Grep over `gui/`, `api/`, `lib/` matches no other
   file — nothing else calls them.
 - **Data:** none. The sample text, the `File name` ⇄ extension coupling
-  (`exportTypeChanged` `:256-258`) and both export/import payloads are unaffected.
+  (`exportTypeChanged` `:264-267` post-fix / `:254-257` pre-fix) and both export/import payloads are unaffected.
 
 ## 5. The fix
 
@@ -105,7 +113,7 @@ return '<div class="sample-block">' +
   '<label style="margin-top:16px">' + esc(t('kwxml.formatSample')) + '</label>' +
   '<pre class="sample">' + esc(d) + '</pre></div>';
 
-// renderImportSample() :250  and  exportTypeChanged() :272
+// renderImportSample() :250  and  exportTypeChanged() :271
 var old = box.find('div.sample-block');    // was box.find('pre.sample')
 ```
 
@@ -189,6 +197,6 @@ git checkout fix/issue-1675
 #   s = document.querySelector('#exportType');
 #   for (var i=0;i<9;i++) s.dispatchEvent(new Event('change',{bubbles:true}));
 #   document.querySelectorAll('div.sample-block').length                    // -> 1  (pre-fix: 10 captions)
-#   s.closest('.card-b').querySelectorAll('label[style*="margin-top:16px"]').length   // -> 1
+#   s.closest('.card-b').querySelectorAll('div.sample-block > label[style*="margin-top:16px"]').length  // -> 1
 # browser: admin/admin -> http://localhost:8082/gui/templates/keywords/keywordsExport.html?mode=export&tproject_id=9001
 ```

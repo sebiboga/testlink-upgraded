@@ -162,6 +162,7 @@ Details: `docs/Task-Issue-1007-keywords-file-format-doc-link.md`
 (wiki: *Task-Issue-1007-keywords-file-format-doc-link*).
 
 
+
 ## 11. Follow-up - #1675: the "Format sample" caption duplicated on every Format switch
 
 Every change of the **Format** select left another "Format sample" caption behind in
@@ -170,35 +171,38 @@ while `pre.sample` correctly stayed at 1. Purely client-side - no network reques
 console message, no `events` row, and the stray nodes vanished on the next full
 `render()`, which made it look like a transient glitch.
 
-**Cause** - `formatSample()` (`:179`) returned the caption and the sample as two sibling
-nodes, but both refresh paths looked up only `pre.sample`
-(`renderImportSample()` `:241`, `exportTypeChanged()` `:260`) and replaced that single
-node. `old.replaceWith($(html))` swapped the `<pre>` and left the old `<label>` orphaned
-right next to the freshly inserted one. The two panels duplicate independently, each
-with its own `.card-b`. Not a #1007 regression: `git log --follow` shows the two-node
-return value and the `pre.sample`-scoped lookup were born together in #1615, and the
-initial render is correct (both panels call `formatSample()` inline, `:208` / `:229`),
-which is why it only showed from the first switch onwards.
+**Cause** - `formatSample()` (pre-fix `:179`) returned the caption and the sample as two sibling
+nodes, but both refresh paths looked up only `pre.sample` (pre-fix `renderImportSample()` `:241`,
+`exportTypeChanged()` `:260`) and replaced that single node. `old.replaceWith($(html))` swapped
+the `<pre>` and left the old `<label>` orphaned right next to the freshly inserted one. The two
+panels duplicate independently, each with its own `.card-b`. Not a #1007 regression
+(`b3d41cfb1` touched neither symbol): the two-node return value and the `pre.sample`-scoped lookup
+were both born in `1af75f0a1` (#1615) - but the block only started **rendering** in
+`0dca857cb` (*close review gaps ... format sample*), which re-keyed the lookup by ext, so that is
+the earliest commit where the duplication is observable.
 
-**Fix** - wrap caption + sample in a single `div.sample-block` and replace that one node
-in both handlers. Three functional lines; no CSS, no new i18n key, no BFF change, no
-other file. The `else` fallback (`box.find('a.doc-link').after(html)`) is kept - it is
-unreachable today (both XML and CSV always have a description) but is the correct
-behaviour for a format without one. The real risk - the caption's `margin-top:16px` now
-collapsing into the new wrapper - was ruled out by serving the pre-fix file side by side
-and comparing `getBoundingClientRect()`: doc-link 404, caption 437, pre 462, file-name
-label 516, input 538, **all unchanged**.
+**Fix** - wrap caption + sample in a single `div.sample-block` and replace that one node in both
+handlers (post-fix `:250` and `:271`). Three functional lines; no CSS, no new i18n key, no BFF
+change, no other file. The `else` fallback (`box.find('a.doc-link').after(html)`) is kept - it is
+unreachable today (both XML and CSV always have a description) but is the correct behaviour for a
+format without one. The real risk - the caption's `margin-top:16px` now collapsing into the new
+wrapper - was ruled out by serving the pre-fix file side by side and comparing
+`getBoundingClientRect()`: doc-link 404, caption 437, pre 462, file-name label 516, input 538,
+**all unchanged**.
 
 **Verified** - suite **13/13 PASS**: 5 and 10 alternating switches on both panels still
 show exactly 1 caption / 1 block / 1 `pre` with the sample text following the format;
 document-wide sweep finds 1 of each; `a.doc-link` still immediately precedes the block
 (legacy order); `File name` coupling intact (`my-keywords` left alone, `keywords.xml` ->
-`keywords.csv`, empty -> `keywords.xml`); both export formats still download
-(`200 text/xml`, `200 text/csv`); a real CSV upload still imports ("Keywords imported.
-The project now has 3 keywords."); `Romana` locale still renders "Exemplu de format"
-with no raw key leakage; `node --check` clean; console clean; Event Viewer
-`log_level IN (1,2)` = 0. Out of scope and deliberately untouched: #1616 (the CSV
-import writes its own header row as a keyword).
+`keywords.csv`, empty -> `keywords.xml`, `exportTypeChanged` `:264-267`); both export formats
+still download (`200 text/xml`, `200 text/csv`); a real CSV upload still imports ("Keywords
+imported. The project now has 3 keywords."); `Romana` locale still renders "Exemplu de format"
+with no raw key leakage; all 10 i18n bundles `json.tool`-valid; `node --check` clean; console
+clean; Event Viewer `log_level IN (1,2)` = 0. A code review subagent found no blocker and 7
+documentation-accuracy findings, all applied (bad pre-fix hash, one off-by-one line citation, an
+under-scoped RESUME probe that returned 2, a wrong line range, unannotated pre-fix citations, the
+`0dca857cb` history nuance, and the open issue). Out of scope and deliberately untouched: #1616
+(the CSV import writes its own header row as a keyword).
 
 Details: `docs/Bugfix-Issue-1675-Format-Sample-Label-Duplication.md`
 (wiki: *Bugfix-Issue-1675-Format-Sample-Label-Duplication*).
