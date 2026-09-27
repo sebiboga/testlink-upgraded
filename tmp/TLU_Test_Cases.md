@@ -23864,3 +23864,91 @@ the priority columns; a project whose blob is missing/corrupt must hide them.
   consumers raising `Attempt to read property on array|null|bool|int`. The reviewed
   version degrades every non-object decode to the defaults, exactly like the sibling
   decoder `parseTestProjectRecordset()` (`:244`).
+
+## Suite 1652 — Requirement / Requirement Spec log-message viewer + `api/logviewer` BFF
+
+**Precondition**
+
+- App on `http://localhost:8082` (PHP 8.3 built-in server, docroot = repo root),
+  MariaDB `testlink` on `127.0.0.1:3306` (`testlink`/`testlink`), login `admin`/`admin`.
+- Fixture: **`php tmp/fixtures_1652.php`** — drops and recreates two disposable
+  projects (`LOGV`, `LOGV-ALT`) plus a spec, a spec with an **empty** revision, a
+  spec in the other project, and two requirements (one with a rich v1 and an
+  **empty** v2, one with a single revision). Prints a machine-readable
+  `FIXTURE_OK issue=1652 tproject=… alt=… spec=… spec_rev1=… spec_rev2=…
+  spec_empty=… spec_empty_rev1=… spec_alt=… spec_alt_rev1=… req1=… req1_v1=…
+  req1_v2=… req2=… req2_rev1=…` line that the harness parses. **Ids change on every
+  run — never hardcode them.**
+- Asserting harness: **`bash tmp/verify_1652.sh`** — **183 assertions**, non-zero
+  exit on failure.
+- Discriminating: the same harness reports **41+ failures** against the pre-fix
+  BFF/screen (`68cd5336d` / `587231b83`) and **183 PASS / 0 FAIL** after the
+  fixes, the Event Viewer sweep and the code review.
+- No-rights user is created by the harness itself (bcrypt `password_hash`,
+  `role_id=3` Guest, `active=1`) so the 403 path is re-runnable after a DB reset.
+
+**Result: 183 PASS / 0 FAIL.**
+
+| # | Area | Assertion | Result |
+|---|---|---|---|
+| 1 | fixture | `FIXTURE_OK` with all 13 ids parsed | **PASS** |
+| 2 | auth | cookie-less request → **401** `session_expired` | **PASS** |
+| 3 | auth | a **dead** `PHPSESSID` (what GC leaves behind) → **401** | **PASS** |
+| 4 | auth | `admin` login → **200**; session cookie present | **PASS** |
+| 5 | rights | no-rights user (`role_id=3`) → **403** `NOT_PERMITTED` | **PASS** |
+| 6 | spec rev | `requirement_spec_version` rev2 → 200, doc id `RS-LOGV`, `rev#2` | **PASS** |
+| 7 | spec rev | empty spec revision → 200, `is_empty=true`, `raw_length=0`, `legacy_note_empty=empty_log_message` | **PASS** |
+| 8 | req version | `requirement_version` v1 → 200, `REQ-LOGV-1`, `v1 / rev#1` | **PASS** |
+| 9 | req version | `requirement_version` v2 (empty log) → 200, `v2 / rev#1` | **PASS** |
+| 10 | req revision | `requirement` rev1 → 200, `REQ-LOGV-2`, `rev#1` | **PASS** |
+| 11 | titles | `object_label` and `parent_name` resolve on **every** path — no nonexistent `req_specs.name` / `requirements.name` / `testprojects.name` column, project name via `testproject::getName()` | **PASS** |
+| 12 | #1653 | unknown id → **404** `NOT_FOUND` (was 500 `db_error`) | **PASS** |
+| 13 | #1653 | wrong node type → **404**; foreign project → **404**; `type=requirement` on a spec row → **404** | **PASS** |
+| 14 | #1653 | a failed query can no longer escape as a raw HTML 500 — `register_shutdown_function` backstop answers valid JSON | **PASS** |
+| 15 | XSS | the payload is **plain text**: the legacy `<p>` wrapper and `&lt;p&gt;` entity form are normalized away, while inner `<script>`/`&` survive as literal characters | **PASS** |
+| 16 | XSS | the screen renders the log with `.text()`, never `.html()` — markup in a log can never reach the DOM | **PASS** |
+| 17 | validation | **400** ×8: missing action, unknown action, missing type, `type=../../etc/passwd`, missing id, `id=0`, `id=abc`, `id=<n> OR 1=1` | **PASS** |
+| 18 | validation | `tproject_id=abc` degrades to 0 instead of crashing | **PASS** |
+| 19 | verbs | unsafe verbs **without** same-origin proof → **403** (shared CSRF guard runs first) | **PASS** |
+| 20 | verbs | POST/PUT/DELETE **with** the same-origin proof → **405** `METHOD_NOT_ALLOWED` | **PASS** |
+| 21 | verbs | GET stays **200** — a safe, read-only verb | **PASS** |
+| 22 | CSRF | foreign `Origin` + proof → 405; a plain GET still works afterwards | **PASS** |
+| 23 | machine codes | every error payload carries a stable code (`NOT_AUTHENTICATED`, `NOT_PERMITTED`, `UNKNOWN_ACTION`, `UNKNOWN_TYPE`, `INVALID_ID`, `INVALID_TPROJECT_ID`, `NOT_FOUND`, `METHOD_NOT_ALLOWED`) so clients never string-match English | **PASS** |
+| 24 | shim | `getreqspeclog.php` → **302** to the modern screen (Location header carries the type + id) | **PASS** |
+| 25 | shim | `getreqlog.php` → **302**, auto-detects `requirement_version` vs `requirement` and forwards `tproject_id` | **PASS** |
+| 26 | shim | a **non**-requirement node → `type=requirement` so the modern screen answers its not-found state instead of guessing | **PASS** |
+| 27 | shim | anonymous → `login.php?note=expired&destination=…` script; **no log text leaks** to an anonymous caller | **PASS** |
+| 28 | #1652 | the shims are pure redirects — the raw `echo` of unescaped HTML is gone | **PASS** |
+| 29 | #1654 | no dead `tproject_name` read left in the BFF | **PASS** |
+| 30 | BFF guards | `common.php` required, `bffEnforceSession()` called, `mgt_view_req` checked, owning project proven, JSON shutdown backstop present | **PASS** |
+| 31 | syntax | `php -l` clean on the BFF, both shims and `lib/functions/common.php` | **PASS** |
+| 32 | markup | standalone DOCTYPE, no Smarty `{include`, no legacy delete/log URL, no inline `onerror=`, no hardcoded `alert(`, `data-i18n` + English fallback | **PASS** |
+| 33 | markup | 401 → `/login.php?note=expired`, 403 → access-denied state, 404 → not-found state, empty log → placeholder + **Copy disabled** | **PASS** |
+| 34 | #1655 | the row that was labelled "Requirement specification" now reads "Test project" and carries the test project name; a `Specification Doc ID` row surfaces the owning spec | **PASS** |
+| 35 | wiring | `$actions->logViewer` present in `lib/functions/common.php` and points at the modern screen | **PASS** |
+| 36 | wiring | `reqSpecView`, `reqSpecCompare` and `reqCompare` each define `openLogViewer`, render the `.log-open` icon and target `requirements/logViewer.html` | **PASS** |
+| 37 | wiring | after stripping comments, **no live call** to `getreqspeclog.php` / `getreqlog.php` remains in any of the three callers (the remaining mentions are comments documenting the replaced affordance) | **PASS** |
+| 38 | i18n | 23 `logv.*` keys, **identical key set in all 10 bundles**, every key the screen uses defined in each, no empty value, all 10 files valid JSON | **PASS** |
+| 39 | i18n | `logv.testProject` = "Test project" / "Proiect de test" and no longer claims "Requirement specification" | **PASS** |
+| 40 | Event Viewer | **no new `log_level IN (1,2)` row** produced by the whole suite | **PASS** |
+
+### Bugs found and fixed while testing
+
+| Issue | Symptom | Root cause | Fix |
+|---|---|---|---|
+| **#1653** | unknown id answered `500 db_error`; a failed query escaped as a raw HTML 500 | `get_recordset()` returns `null` for **both** an empty result and a failed query, so the row-count guard turned every legitimate 404 into a 500; three nonexistent `name` columns 500'd every happy path | branch on `exec_query()` **throwing** (`try`/`catch Throwable`), dropped the probe, added a JSON shutdown backstop, read titles from `nodes_hierarchy` / `testproject::getName()` |
+| **#1654** | 44 `E_WARNING Undefined array key "tproject_name"` rows, invisible in the response | when the column was dropped from the SQL the three `parent_name` reads were left behind, and their `''` was overwritten by `testproject::getName()` three lines later — dead reads, visible garbage | removed the three dead lines; `parent_name` has one source of truth |
+| **#1655** | the context table read `Requirement specification = LOGV` | the BFF fills `parent_name` with the **test project**, but the label was translated as "Requirement specification" in all 10 bundles | label corrected in all 10 bundles; added a `Specification Doc ID` row for requirement versions/revisions |
+| (commit `083872475`) | a wasted round trip per legacy request | `getreqlog.php` queried `nodes_hierarchy` once, threw the result away, then queried `node_type_id` for the same id | removed the discarded query |
+
+### Notes
+
+- The anonymous `200` from the legacy shims is **correct**, not a bug: TestLink's
+  `testlinkInitPage()` answers anonymous callers with a script that redirects to
+  `login.php?note=expired&destination=…`, which is the contract every other
+  already-modernized shim in the repo follows.
+- `requirement_version` id of the second version renders the **empty** state on
+  purpose — the fixture empties it to cover the "compare a populated version
+  against an empty one" path that both compare screens expose.
+- Reviewing the Event Viewer is what caught #1654: the HTTP response was correct
+  the whole time, so only the `events` table exposed the dead reads.
