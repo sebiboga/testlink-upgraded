@@ -208,7 +208,6 @@ if ($type === 'requirement_spec_version') {
         'version_label' => 'rev#' . intval($r['revision']),
         'revision'      => intval($r['revision']),
         'parent_id'     => intval($r['parent_id']),
-        'parent_name'   => (string)$r['tproject_name'],
         'parent_doc_id' => (string)$r['spec_doc_id'],
     );
     $logRaw = $r['log_message'];
@@ -257,7 +256,6 @@ if ($type === 'requirement_spec_version') {
             'version_label' => $versionLabel,
             'revision'      => intval($row[0]['revision']),
             'parent_id'     => $reqNhId,
-            'parent_name'   => (string)$rq['tproject_name'],
             'parent_doc_id' => (string)$rq['spec_doc_id'],
         );
     } else {
@@ -291,7 +289,6 @@ if ($type === 'requirement_spec_version') {
             'version_label' => 'rev#' . intval($row[0]['revision']),
             'revision'      => intval($row[0]['revision']),
             'parent_id'     => $reqNhId,
-            'parent_name'   => (string)$rq['tproject_name'],
             'parent_doc_id' => (string)$rq['spec_doc_id'],
         );
     }
