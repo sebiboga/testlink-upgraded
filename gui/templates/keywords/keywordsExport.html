@@ -176,11 +176,17 @@ function extOf(id) {
   return hit ? (hit.ext || '').toLowerCase() : '';
 }
 
+// The caption and the sample are emitted as ONE sibling pair wrapped in
+// div.sample-block: both refresh paths below replace that single node. Returning
+// the two nodes ungrouped left the caption orphaned, so every format switch
+// inserted a fresh <label> next to the surviving old one and the caption count
+// grew 1 -> 2 -> 3 -> ... (Refs #1675).
 function formatSample(type) {
   var d = (CTX.formatDescriptions || {})[type] || '';
   if (!d) { return ''; }
-  return '<label style="margin-top:16px">' + esc(t('kwxml.formatSample')) + '</label>' +
-    '<pre class="sample">' + esc(d) + '</pre>';
+  return '<div class="sample-block">' +
+    '<label style="margin-top:16px">' + esc(t('kwxml.formatSample')) + '</label>' +
+    '<pre class="sample">' + esc(d) + '</pre></div>';
 }
 
 // Legacy keywordsImport.tpl:31 / keywordsExport.tpl:63 render a "view file
@@ -238,7 +244,10 @@ function importPanel(right) {
 
 function renderImportSample() {
   var box = $('#importType').closest('.card-b');
-  var old = box.find('pre.sample');
+  // div.sample-block groups the "Format sample" caption with the <pre>, so
+  // replacing one node replaces both - otherwise the old caption was left
+  // behind and a new one was added on every format switch (Refs #1675).
+  var old = box.find('div.sample-block');
   var html = formatSample(extOf($('#importType').val()).toUpperCase());
   if (old.length) {
     old.replaceWith(html ? $(html) : '');
@@ -257,7 +266,9 @@ function exportTypeChanged() {
     $('#exportFilename').val(f ? f.replace(/\.(xml|csv)$/i, '.' + ext) : ('keywords.' + ext));
   }
   var box = $('#exportType').closest('.card-b');
-  var old = box.find('pre.sample');
+  // Same handle as in renderImportSample(): replace caption + sample together
+  // so the caption cannot pile up (Refs #1675).
+  var old = box.find('div.sample-block');
   // CTX.formatDescriptions is keyed by the format NAME ('XML' / 'CSV'), the
   // select holds the serialization INTERFACE id - look the sample up by ext.
   var html = formatSample((extOf(type) || 'XML').toUpperCase());
