@@ -3440,7 +3440,7 @@
   "rstl.badRequest": "A tela foi chamada com parâmetros inválidos.",
   "rstl.childrenFail": "Não foi possível carregar os requisitos desta especificação.",
   "rstl.collapseAll": "Recolher tudo",
-  "rstl.containerNote": "Esta especificação contém contêineres aninhados; seus requisitos são listados sob o nó do contêiner.",
+  "rstl.containerNote": "Algumas especificações deste projeto de teste contêm contêineres aninhados; seus requisitos são listados sob o nó do contêiner.",
   "rstl.context": "Contexto",
   "rstl.currentProjectOnly": "Projeto atual",
   "rstl.denied": "Não está autorizado a ver os requisitos deste projeto de teste.",

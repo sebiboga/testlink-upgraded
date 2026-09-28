@@ -3434,7 +3434,7 @@
   "rstl.badRequest": "Der Bildschirm wurde mit ungültigen Parametern aufgerufen.",
   "rstl.childrenFail": "Die Anforderungen dieser Spezifikation konnten nicht geladen werden.",
   "rstl.collapseAll": "Alle zuklappen",
-  "rstl.containerNote": "Diese Spezifikation enthält verschachtelte Container; deren Anforderungen werden unter dem Container-Knoten aufgeführt.",
+  "rstl.containerNote": "Einige Spezifikationen in diesem Testprojekt enthalten verschachtelte Container; deren Anforderungen werden unter dem Container-Knoten aufgeführt.",
   "rstl.context": "Kontext",
   "rstl.currentProjectOnly": "Aktuelles Projekt",
   "rstl.denied": "Sie sind nicht berechtigt, die Anforderungen dieses Testprojekts zu sehen.",

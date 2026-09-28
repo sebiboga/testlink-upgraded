@@ -26009,6 +26009,16 @@ and a human/`workflows`-scoped token must land the one-flag change. See the issu
 | `loadUsers` | 401 swallowed, grid silently empty, **0 toasts** | toast + bounce |
 | `saveAssignments` | 401 fell through to `assign.updateFailed` | toast "Session expired…" + bounce |
 
+**Post-review corrections (code review of this branch applied before landing).**
+
+| # | finding | fix | re-measured |
+|---|---------|-----|-------------|
+| R1 | **MAJOR** — the "Open project" link was `/index.php?testproject_id=<id>`, a parameter `index.php:161` does not read, so the button led to a frameset with `tproject_id=0`. The test case only asserted the string, never loaded it, so it passed. | `/index.php?tproject_id=<id>`, the navbar's own form; the comment now says what the link does instead of claiming `EP()` parity (`EP()` is the **print** test-specification view, not "enter project") | `GET /index.php?tproject_id=39` → 200; case 11 rewritten to load the URL, not assert it |
+| R2 | `container=0` / `container=abc` silently returned the spec's own children, so a caller bug was invisible, and the `invalid_container` guard in `needOwnedContainer()` was unreachable | `array_key_exists('container', …)` + explicit `400 invalid_container`; S5 split into S5/S5b | `container=0` → 400, `container=abc` → 400, absent → spec children |
+| R3 | `rstl.containerNote` said "**This specification** holds…" but is a page-level banner shown when *any* spec has a container | reworded in all 10 bundles ("Some specifications in this test project…") | 10/10 bundles updated + `json.tool` clean |
+| R4 | `data-k` on the container row was the one interpolated value without `esc()`; `e.stopPropagation()` on the open-project handler was a no-op (both selectors are delegated on `#tree`) | `esc(key)`; the no-op removed | `node --check` clean |
+| R5 | unused `containerChildren($specId, $tproject_id)` and `containerNode(s, c)` parameters; `containerReqCount()` docblock claimed a legacy `getAllItemsID()` count that legacy never produced (`getAllItemsID()` is only called for `requirement_spec` rows, with `container => requirement_spec`, so it could not traverse a test-project node) | parameters dropped; the docblock now says the badge is a 2.0.1 addition the issue asked for, not legacy parity | `php -l` clean |
+
 **Notes.**
 
 - The `destination` query string is preserved through `encodeURIComponent`, so the legacy
@@ -26164,3 +26174,102 @@ healthy data must produce a byte-identical payload.
   initialising it, so a result set whose statuses all lack a chart colour
   (`$tlCfg->results['charts']['status_colour']`, `cfg/const.inc.php:466`) raises
   `foreach() argument must be of type array|object, null given`.
+
+---
+
+## Suite 1699 — Task, Issue #1699: requirement children re-parented into a specification (container nodes) are shown in `reqSpecListTree.html` (gap vs legacy `lib/ajax/getrequirementnodes.php`)
+
+**Precondition.**
+
+- App `http://localhost:8082`; login `admin` / `admin` (id 1 — carries `mgt_view_req` /
+  `mgt_modify_req` as GLOBAL rights, so every project is readable).
+- `config.inc.php:1689` → `req_cfg->child_requirements_mgmt = ENABLED` (the default; not changed).
+- Fixture (`tmp/fixture_1699.php`; the DB is freshly imported each run, so it must be recreated):
+
+  | node | type | parent | name |
+  |---|---|---|---|
+  | 38 | 1 testproject | – | TLU1699 Owner `T1699A` |
+  | 40 | 6 requirement_spec | 0 | RS-001 My specification |
+  | 42 / 44 | 7 requirement | 40 | REQ-001 / REQ-002 |
+  | **39** | **1 testproject (container)** | **40** | **TLU1699 Container Project `T1699B`** |
+  | 46 / 48 | 7 requirement | 39 | REQ-003 / REQ-004 |
+  | 50 | 6 requirement_spec | 0 | RS-002 Second specification |
+  | 52 | 7 requirement | 50 | REQ-005 |
+  | 900 | 1 testproject (**empty** container) | 50 | TLU1699 Empty Container `T1699C` |
+
+  `testprojects.options` must be a serialized **object** (`O:8:"stdClass"`), not an array:
+  `testproject::parseTestProjectRecordset()` (`lib/functions/testproject.class.php:242-252`)
+  keeps an object and replaces an array with the all-disabled defaults, which makes
+  `requirements_enabled` 0 and hides the whole screen.
+- Entry point: `http://localhost:8082/gui/templates/requirements/reqSpecListTree.html?tproject_id=38`
+
+**Steps and expected behaviour.**
+
+| # | steps | expected (legacy parity) | actual | verdict |
+|---|-------|---------------------------|--------|---------|
+| 1 | `GET /api/reqspectreelist/index.php?action=init&tproject_id=38` | spec 40 carries a `containers` entry; spec 50's empty container too | spec 40 → `containers:[{id:39,title:"TLU1699 Container Project",total_reqs:2,tproject_id:39,openable:1}]`; spec 50 → `containers:[{id:900,…,total_reqs:0,openable:1}]` | **PASS** |
+| 2 | same, before the fix (baseline) | `containers` absent | the whole `containers` key did not exist and the branch was not reachable | **PASS** (baseline) |
+| 3 | `…&action=children&tproject_id=38&node_id=40` | the 2 requirements parented by the spec only | `REQ-001`, `REQ-002`, `parent_kind:"spec"` | **PASS** |
+| 4 | `…&action=children&tproject_id=38&node_id=40&container=39` | `REQ-003`, `REQ-004` (legacy `…?node=39` returned exactly these) | `REQ-003` (status `D`), `REQ-004` (status `D`), `parent_kind:"container"` | **PASS** |
+| 5 | expand the root, then RS-001 in the browser | container row between the spec's own children, in `node_order` order | `RS-001: My specification [2] → TLU1699 Container Project [2] → REQ-001 → REQ-002` — same sequence legacy returned for `node=40` (container position 1, then REQ-001 pos 1, REQ-002 pos 2) | **PASS** |
+| 6 | expand the container row | `REQ-003` + `REQ-004` with DRAFT badges under it | `▼ TLU1699 Container Project 2 → REQ-003 Third requirement in container (DRAFT), REQ-004 Fourth requirement in container (DRAFT)` | **PASS** |
+| 7 | expand the EMPTY container 900 under RS-002 | empty-state message, not a spinner, not a crash | `This container has no requirement yet.` (`rstl.emptyContainer`) | **PASS** |
+| 8 | "Expand all" | root + every spec + **every container** | root ▼, RS-001 ▼, container ▼ (REQ-003/004), RS-002 ▼ (REQ-005) and the empty container under it | **PASS** |
+| 9 | "Collapse all" | everything folded, including container flags | only the root row `▶ TLU1699 Owner [3]` left; re-expanding does not resurrect a container | **PASS** |
+| 10 | with a container open, click "Refresh" | open branches stay open and are re-fetched | container still ▼ with `REQ-003`/`REQ-004` after the forced reload | **PASS** |
+| 11 | "Open project" button on the container row | the target URL must **actually select** that test project | `data-open-project="39"` → `/index.php?tproject_id=39`; `GET` of that URL answers 200 and `index.php:161` reads it into `$args->tproject_id`, which is the form the navbar itself links to (`navBar.html:120`) | **PASS** |
+| 12 | locale switcher → `ro` | all new labels localized, no raw key | `Deschide proiectul`, `Această specificație conține containere imbricate; …`, title `Arborele specificațiilor de cerințe` | **PASS** |
+| 13 | all 10 bundles | the 3 new keys present and the JSON valid | `rstl.containerNote` / `rstl.emptyContainer` / `rstl.openProject` in de,en,es,fr,it,ja,pt,ro,ru,zh; `python3 -m json.tool` clean 10/10 | **PASS** |
+| 14 | console after the whole run | no error, no warning | 0 console messages | **PASS** |
+| 15 | `events` table (`log_level IN (1,2,3)`) | no new Error/Warning from this work | last E_WARNING is id 28 @ 18:29:04, i.e. BEFORE the fixes; 0 new rows afterwards | **PASS** |
+| 16 | `php -l api/reqspectreelist/index.php`, `node --check` on the screen script | clean | both clean | **PASS** |
+
+**Security regression matrix (the legacy loader had NO scope check here — this must stay closed).**
+
+| # | request | expected | actual | verdict |
+|---|---------|----------|--------|---------|
+| S1 | `node_id=40&container=50` (a **spec**, not a container) | 404 `container_not_found` | ✅ | **PASS** |
+| S2 | `node_id=50&container=39` (container is not a child of that spec) | 404 `container_not_found` | ✅ | **PASS** |
+| S3 | `container=38` (root project node, held by no spec) | 404 `container_not_found` | ✅ | **PASS** |
+| S4 | `container=99999` (does not exist) | 404 `container_not_found` — same answer as a wrong one, so no node oracle | ✅ | **PASS** |
+| S5 | `container` **absent** | the spec's own children (no container addressed) | ✅ | **PASS** |
+| S5b | `container=0` / `container=abc` (present but not a positive id) | 400 `invalid_container` — a caller bug must not be silently degraded to the spec's children | `{"status":"error","code":"invalid_container"}` | **PASS** |
+| S6 | `node_id=39` (a container addressed as a specification) | 404 `req_spec_not_found` | ✅ | **PASS** |
+| S7 | `tproject_id=39&node_id=40` — **cross-project** container | 404 `req_spec_not_found` (the spec proof runs first) | ✅ | **PASS** |
+| S8 | `POST` on `children` | 405 | ✅ | **PASS** |
+| S9 | `?action=children` without a session | 401 | ✅ | **PASS** |
+
+**Second defect fixed and verified on the same path.**
+
+`requirementChildren()` returned `'type' => (string)$r['type']` and `'version' => intval($r['version'])`
+while the SELECT projected neither column, so every requirement answered the constant
+`"type":"","version":0` and the `events` table filled with
+`E_WARNING Undefined array key "type"` / `"version"`.
+
+| # | check | expected | actual | verdict |
+|---|-------|----------|--------|---------|
+| B1 | baseline `events` rows, `log_level=2` | warnings present | ids 19–25, 18:25:33/48, `Undefined array key "type"` / `"version"` at `api/reqspectreelist/index.php:303-304` | **PASS** (baseline) |
+| B2 | `…&node_id=40` after the fix | real values | `"type":"1","version":1` for `REQ-001`/`REQ-002`; `D`+`"1"`+`1` for `REQ-003`/`REQ-004` | **PASS** |
+| B3 | 10 `children` calls after the fix, then re-check `events` | 0 new rows | 0 new `log_level IN (1,2,3)` rows | **PASS** |
+
+**Notes.**
+
+- The row ORDER inside a specification is the only place where the modern tree could have
+  diverged from legacy. Legacy emitted `ORDER BY NHA.node_order` over one node set, so a
+  container and a requirement with the same `node_order` came back in whatever order MySQL
+  scanned them. The first implementation sorted the merged list by `node_order` alone, which
+  put the container between `REQ-001` and `REQ-002`; the tie-break `node_order, id` reproduces
+  the legacy sequence (container id 39 < requirement id 42) deterministically. This was found
+  by test #5, not by reading the code.
+- The spec's own count deliberately stays `COUNT(requirements.srs_id = spec)` and does NOT add
+  the container's requirements, so a spec badge never double-counts what its container shows. The
+  container badge is a 2.0.1 addition (legacy put no count on a `testproject` row at all) that the
+  issue asked for. The **project** total in the header is `projectReqCount()` and is a different
+  number on purpose — the issue text says it is right.
+- `openable` is 0 when the container is a node whose test project the caller may not read
+  requirements on. The row still renders (it holds real requirements) but without a link, so the
+  tree never offers a destination that 403s.
+- `req_cfg->child_requirements_mgmt` gates the whole branch: with it off, `specList()` returns
+  `containers: []` and `children&container=` answers `400 child_requirements_mgmt_disabled`.
+  The default is ENABLED, so the gate was not reachable in this dataset and is verified by code
+  reading rather than by a run.

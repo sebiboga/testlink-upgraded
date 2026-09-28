@@ -3434,7 +3434,7 @@
   "rstl.badRequest": "La pantalla fue llamada con parametros invalidos.",
   "rstl.childrenFail": "No se pudieron cargar los requisitos de esta especificacion.",
   "rstl.collapseAll": "Plegar todo",
-  "rstl.containerNote": "Esta especificación contiene contenedores anidados; sus requisitos se listan bajo el nodo del contenedor.",
+  "rstl.containerNote": "Algunas especificaciones de este proyecto de prueba contienen contenedores anidados; sus requisitos se listan bajo el nodo del contenedor.",
   "rstl.context": "Contexto",
   "rstl.currentProjectOnly": "Proyecto actual",
   "rstl.denied": "No esta autorizado a ver los requisitos de este proyecto de prueba.",

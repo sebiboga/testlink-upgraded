@@ -3434,7 +3434,7 @@
   "rstl.badRequest": "L'écran a été appelé avec des paramètres invalides.",
   "rstl.childrenFail": "Les exigences de cette spécification n'ont pas pu être chargées.",
   "rstl.collapseAll": "Tout replier",
-  "rstl.containerNote": "Cette spécification contient des conteneurs imbriqués ; leurs exigences sont listées sous le nœud du conteneur.",
+  "rstl.containerNote": "Certaines spécifications de ce projet de test contiennent des conteneurs imbriqués ; leurs exigences sont listées sous le nœud du conteneur.",
   "rstl.context": "Contexte",
   "rstl.currentProjectOnly": "Projet courant",
   "rstl.denied": "Vous n'êtes pas autorisé à voir les exigences de ce projet de test.",

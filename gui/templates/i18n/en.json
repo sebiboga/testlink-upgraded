@@ -3446,7 +3446,7 @@
   "rstl.badRequest": "The screen was called with invalid parameters.",
   "rstl.childrenFail": "The requirements of this specification could not be loaded.",
   "rstl.collapseAll": "Collapse all",
-  "rstl.containerNote": "This specification holds nested containers; their requirements are listed under the container node.",
+  "rstl.containerNote": "Some specifications in this test project hold nested containers; their requirements are listed under the container node.",
   "rstl.context": "Context",
   "rstl.currentProjectOnly": "Current project",
   "rstl.denied": "You are not authorized to view requirements of this test project.",

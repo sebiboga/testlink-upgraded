@@ -3440,7 +3440,7 @@
   "rstl.badRequest": "無効なパラメータで画面が呼び出されました。",
   "rstl.childrenFail": "この仕様の要件を読み込めませんでした。",
   "rstl.collapseAll": "すべて折りたたむ",
-  "rstl.containerNote": "この仕様にはネストされたコンテナが含まれ、その要件はコンテナノードの下に一覧表示されます。",
+  "rstl.containerNote": "このテストプロジェクトの仕様の一部にはネストされたコンテナが含まれ、その要件はコンテナノードの下に一覧表示されます。",
   "rstl.context": "コンテキスト",
   "rstl.currentProjectOnly": "現在のプロジェクト",
   "rstl.denied": "このテストプロジェクトの要件を表示する権限がありません。",

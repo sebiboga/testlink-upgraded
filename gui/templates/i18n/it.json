@@ -3434,7 +3434,7 @@
   "rstl.badRequest": "La schermata e stata chiamata con parametri non validi.",
   "rstl.childrenFail": "Non e stato possibile caricare i requisiti di questa specifica.",
   "rstl.collapseAll": "Comprimi tutto",
-  "rstl.containerNote": "Questa specifica contiene contenitori annidati; i loro requisiti sono elencati sotto il nodo del contenitore.",
+  "rstl.containerNote": "Alcune specifiche di questo progetto di test contengono contenitori annidati; i loro requisiti sono elencati sotto il nodo del contenitore.",
   "rstl.context": "Contesto",
   "rstl.currentProjectOnly": "Progetto corrente",
   "rstl.denied": "Non sei autorizzato a vedere i requisiti di questo progetto di test.",

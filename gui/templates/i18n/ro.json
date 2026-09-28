@@ -3440,7 +3440,7 @@
   "rstl.badRequest": "Ecranul a fost apelat cu parametri invalizi.",
   "rstl.childrenFail": "Cerințele acestei specificații nu au putut fi încărcate.",
   "rstl.collapseAll": "Restrânge tot",
-  "rstl.containerNote": "Această specificație conține containere imbricate; cerințele lor sunt listate sub nodul containerului.",
+  "rstl.containerNote": "Unele specificații din acest proiect de test conțin containere imbricate; cerințele lor sunt listate sub nodul containerului.",
   "rstl.context": "Context",
   "rstl.currentProjectOnly": "Proiectul curent",
   "rstl.denied": "Nu ești autorizat să vezi cerințele acestui proiect de test.",

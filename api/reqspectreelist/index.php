@@ -218,10 +218,15 @@ function childRequirementsMgmtEnabled()
 }
 
 /**
- * Requirement count of a container (a node_type_id = 1 node that a specification
- * holds as a child). The legacy label counted through tree::getAllItemsID(), so
- * this live count is the faithful equivalent: it is the number of requirement
- * rows parented by the container, in tree order.
+ * Requirement count of a container - a node_type_id = 1 node a specification
+ * holds as a child. Live, exactly like the count on a specification row (the
+ * #1681 lesson): the number of requirement rows parented by the container.
+ *
+ * Legacy did not count this node at all - getAllItemsID() is only called for
+ * `requirement_spec` rows, with `container => requirement_spec`, so it could
+ * not even traverse a test-project node, and a `testproject` row got nothing
+ * but an href. The badge is therefore a 2.0.1 addition; the issue asked for "its
+ * own live count" and this is that count.
  */
 function containerReqCount($containerId)
 {
@@ -243,7 +248,7 @@ function containerReqCount($containerId)
  * addressed project by needOwnedSpec() before this runs - so a container id can
  * never leak the name of a node from another project.
  */
-function containerChildren($specId, $tproject_id)
+function containerChildren($specId)
 {
     global $db, $tprojMgr, $user;
     $rows = $db->get_recordset(
@@ -264,10 +269,9 @@ function containerChildren($specId, $tproject_id)
             'total_reqs'    => containerReqCount($cid),
             'tproject_id'   => $cid,
             // A container that is a real, readable test project of its own gets
-            // a deep link into the project ("EP(<id>)" in the legacy loader).
-            // One that is only a node (deleted project, or requirements of a
-            // project the caller may not read) still renders, but without a
-            // link, so the tree never offers a destination that 403s.
+            // a deep link into the project. One that is only a node (deleted
+            // project, or a project the caller may not read) still renders, but
+            // without a link, so the tree never offers a destination that 403s.
             'openable'      => (!is_null($info) && isset($info['name'])
                                 && canViewReqs($user, $cid)) ? 1 : 0,
         );
@@ -317,7 +321,7 @@ function specList($tproject_id)
             'node_order'  => intval($r['node_order']),
             'total_reqs'  => intval($r['total_reqs']),
             'containers'  => $withContainers
-                ? containerChildren($sid, $tproject_id) : array(),
+                ? containerChildren($sid) : array(),
         );
     }
     return $out;
@@ -404,8 +408,11 @@ function projectReqCount($tproject_id)
  *
  * Refs #1699: `type` and `version` used to be emitted from keys the SELECT never
  * projected, so every requirement came back with the constant pair "type":"",
- * "version":0. They are now projected (requirement_type / latest version no),
- * or dropped by the caller; see STATUS V.
+ * "version":0 and each expand wrote `E_WARNING Undefined array key` into the
+ * events table. The SELECT now projects `V.type` / `V.version` off the latest
+ * version row, so both keys carry real values. (reqSpecListTree.html does not
+ * render them yet; they are part of the payload the sibling BFFs
+ * api/reqtreereorder / api/reqreorder already return.)
  */
 function requirementChildren($srsId)
 {
@@ -492,13 +499,20 @@ if ($action === 'children') {
     }
     $tproject_id = needTprojectId();
     $specId = needOwnedSpec(param('node_id', 0), $tproject_id);
-    $containerId = intval(param('container', 0));
+    // An ABSENT container means "the specification's own children". A container
+    // that is present but not a positive id is a caller bug, and answering the
+    // specification's children for it would make the mistake invisible - so it
+    // is rejected instead of silently degraded.
+    $containerId = array_key_exists('container', $_REQUEST)
+        ? intval(param('container', 0)) : 0;
     if ($containerId > 0) {
         if (!childRequirementsMgmtEnabled()) {
             failOut(400, 'Child requirement management is disabled',
                 'child_requirements_mgmt_disabled');
         }
         $parentId = needOwnedContainer($containerId, $specId);
+    } elseif (array_key_exists('container', $_REQUEST)) {
+        failOut(400, 'Invalid container id', 'invalid_container');
     } else {
         $parentId = $specId;
     }

@@ -6226,7 +6226,8 @@ Changes:
   (twisty, folder icon, live count, no status badge) merged into the specification's children by
   `node_order, id` - the sequence legacy emitted from a single node set, now with a deterministic
   tie-break - lazy-loading it through the same CACHE/EXPANDED machinery as a specification, and
-  offering the legacy `EP(<id>)` deep link when the caller may read that project. Expand all /
+  opening that project (`/index.php?tproject_id=<id>`, the navbar's own form) when the caller may
+  read it. Expand all /
   collapse all / refresh all cover containers too.
 - 3 new i18n keys (`rstl.openProject`, `rstl.emptyContainer`, `rstl.containerNote`) in all 10
   bundles. The branch is gated on the config flag: with it off, `containers` is `[]` and
@@ -6234,8 +6235,9 @@ Changes:
 - Also fixed on the same path: `requirementChildren()` read `$r['type']` / `$r['version']` from a
   SELECT that projected neither, so every requirement answered the constant `"type":"","version":0`
   and each expand wrote `E_WARNING Undefined array key` into the events table. Suite 1699: 16
-  functional + 9 security + 3 defect cases PASS, 0 new Event Viewer Error/Warning, 0 console
-  messages.
+  functional + 10 security + 3 defect cases PASS, 0 new Event Viewer Error/Warning, 0 console
+  messages; a code review of the branch found and fixed a dead deep-link URL, a silently degraded
+  `container=0`, a misleading page-level banner and two unused parameters.
 - The last unmodernized requirement-area frame, `lib/requirements/reqSpecListTree.php` (an 84-line
   ExtJS frame over `reqSpecListTree.tpl` + `lib/ajax/getrequirementnodes.php`), is now
   `gui/templates/requirements/reqSpecListTree.html` backed by `api/reqspectreelist/index.php`

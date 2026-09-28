@@ -139,7 +139,10 @@ the branch silently — a specification that still held content rendered as half
   `node_order, id` — the legacy loader emitted them from one node set ordered by `node_order`, and
   `id` makes the tie deterministic.
 * **Counts.** A specification's badge stays the count of its *direct* requirement children; the
-  container carries its own. This is exactly how the legacy labels read.
+  container carries its own, so the two never double-count.
+* **Bad `container` argument.** Absent means "the specification's own children"; present but not a
+  positive id is `400 invalid_container`, so a caller bug is never silently degraded into the
+  specification's children.
 * **Flag gate.** With the option off, `containers` is `[]` and `&container=` answers
   `400 child_requirements_mgmt_disabled` — the pairing was not part of the supported UI then
   (`$forbidden_parent['requirement_spec']` becomes `'requirement_spec'`).

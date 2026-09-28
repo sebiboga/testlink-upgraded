@@ -3440,7 +3440,7 @@
   "rstl.badRequest": "使用无效参数调用了此界面。",
   "rstl.childrenFail": "无法加载该规格下的需求。",
   "rstl.collapseAll": "全部折叠",
-  "rstl.containerNote": "此规范包含嵌套容器；其需求列在容器节点下。",
+  "rstl.containerNote": "此测试项目中的部分规范包含嵌套容器；其需求列在容器节点下。",
   "rstl.context": "上下文",
   "rstl.currentProjectOnly": "当前项目",
   "rstl.denied": "您无权查看该测试项目的需求。",

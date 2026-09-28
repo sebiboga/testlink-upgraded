@@ -88,7 +88,7 @@ select { width: 100%; padding: 8px 10px; border: 1px solid #ddd; border-radius: 
 
 <div class="banner" id="roBanner"><i class="fa fa-lock"></i> <span data-i18n="rstl.readOnly">You have read-only access to requirements: moving and reordering are disabled.</span></div>
 <div class="msg" id="msg"></div>
-<div class="msg info" id="containerNote"><i class="fa fa-sitemap"></i> <span data-i18n="rstl.containerNote">This specification holds nested containers; their requirements are listed under the container node.</span></div>
+<div class="msg info" id="containerNote"><i class="fa fa-sitemap"></i> <span data-i18n="rstl.containerNote">Some specifications in this test project hold nested containers; their requirements are listed under the container node.</span></div>
 <div class="state-card" id="stateCard" style="display:none;"><i class="fa fa-exclamation-triangle"></i><p id="stateText"></p></div>
 
 <div class="card" id="ctxCard">
@@ -447,7 +447,7 @@ function specNode(s) {
     });
     rows.forEach(function (r) {
       if (r.req) { ul.append(reqNode(r.req)); }
-      else { ul.append(containerNode(s, r.cont)); }
+      else { ul.append(containerNode(r.cont)); }
     });
     if (st && st.loading) {
       ul.append('<li><div class="node"><span class="twisty leaf"></span>' +
@@ -469,18 +469,19 @@ function specNode(s) {
  *
  * The legacy tree rendered it with cls 'folder' and href javascript:EP(<id>):
  * the node is a folder (it holds requirements) AND a test project. So it gets
- * the expandable twisty, the folder icon, its own live count and - when the
- * container is a project the caller may read - a link into that project.
- * No status badge: it is not a requirement, so it has no version status.
+ * the expandable twisty, the folder icon and its own live count. No status
+ * badge: it is not a requirement, so it has no version status. The link opens
+ * the project itself, not EP()'s print view, so the button label is
+ * "Open project".
  */
-function containerNode(s, c) {
+function containerNode(c) {
   var key = 'c' + c.id;
   var isOpen = !!EXPANDED[key];
   var st = CACHE[key];
   var li = $('<li></li>');
   li.append(
     '<div class="node cont">' +
-      '<span class="twisty" data-k="' + key + '">' + (isOpen ? '&#9660;' : '&#9654;') + '</span>' +
+      '<span class="twisty" data-k="' + esc(key) + '">' + (isOpen ? '&#9660;' : '&#9654;') + '</span>' +
       '<i class="fa fa-folder ico"></i>' +
       '<span class="ntitle">' + esc(c.title) + '</span>' +
       '<span class="ncount">' + esc(String(c.total_reqs != null ? c.total_reqs : 0)) + '</span>' +
@@ -545,11 +546,14 @@ function bindTree() {
     }
     renderTree(CTX);
   });
-  $('#tree').off('click', '[data-open-project]').on('click', '[data-open-project]', function (e) {
-    e.stopPropagation();
+  $('#tree').off('click', '[data-open-project]').on('click', '[data-open-project]', function () {
     var id = parseInt($(this).attr('data-open-project'), 10);
-    // Legacy href was javascript:EP(<id>) - enter that test project.
-    window.open('/index.php?testproject_id=' + id, '_blank');
+    // Enter that test project. index.php reads the project from
+    // $_REQUEST['tproject_id'] (index.php:161), NOT 'testproject_id' - the
+    // legacy loader's href was javascript:EP(<id>), which is the *print*
+    // test-specification view, so the modern equivalent of "enter the project"
+    // is the navbar's own /index.php?tproject_id=<id> form.
+    window.open('/index.php?tproject_id=' + id, '_blank');
   });
   $('#tree').off('click', '[data-open-spec]').on('click', '[data-open-spec]', function () {
     var id = parseInt($(this).attr('data-open-spec'), 10);
