@@ -618,7 +618,9 @@ function update($id,$version_id,$reqdoc_id,$title, $scope, $user_id, $status, $t
       $sql .= " AND node_type_id=" . $this->node_types_descr_id['requirement_version'];
       
       $children_rs=$this->db->fetchRowsIntoMap($sql,'id');
-      $children = array_keys($children_rs); 
+      // An empty requirement specification (or a project holding one) matches no
+      // version row, and fetchRowsIntoMap() returns null for an empty result.
+      $children = is_array($children_rs) ? array_keys($children_rs) : array();
 
       // delete dependencies with test specification
       $sql = "DELETE FROM {$this->tables['req_coverage']} " . 
@@ -674,9 +676,13 @@ function update($id,$version_id,$reqdoc_id,$title, $scope, $user_id, $status, $t
         $result = $this->attachmentRepository->deleteAttachmentsFor($reqVID,$this->attachmentTableName);
       }
 
+      // Everything below is scoped to the version ids collected above. An empty
+      // requirement specification (or a project that holds one) has none, and
+      // implode() would produce "IN ( )", which is a SQL syntax error.
+      $implosion = implode(',',$children);
+      if( $implosion !== '' ) {
 
       // Going to work on REVISIONS
-      $implosion = implode(',',$children);
       $sql = "/* $debugMsg */ " . 
              " SELECT id from {$this->tables['nodes_hierarchy']} " .
              " WHERE parent_id IN ( {$implosion} ) " .
@@ -708,6 +714,7 @@ function update($id,$version_id,$reqdoc_id,$title, $scope, $user_id, $status, $t
              $where['children'] .
              " AND node_type_id=" . $this->node_types_descr_id['requirement_version'];
       $result = $this->db->exec_query($sql);
+      }
     } 
 
     $kaboom = $kaboom || ($deleteAll && $result);

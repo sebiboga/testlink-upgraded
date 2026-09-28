@@ -920,6 +920,13 @@ class cfield_mgr extends tlObject
     $sql = "/* $debugMsg */ DELETE FROM {$this->tables[$table_key]} ";
     if( is_array($node_id) )
     {
+      // An empty id set would render "node_id IN()", a SQL syntax error. Callers
+      // legitimately pass an empty set when the node has no versions yet (e.g.
+      // deleting a test project that holds an empty requirement specification).
+      if( count($node_id) == 0 )
+      {
+        return;
+      }
       $sql .= " WHERE node_id IN(" . implode(",",$node_id) . ") ";
     }
     else
