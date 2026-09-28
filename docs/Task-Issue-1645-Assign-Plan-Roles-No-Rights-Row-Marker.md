@@ -2,7 +2,7 @@
 
 **Issue:** [#1645](https://github.com/sebiboga/testlink-upgraded/issues/1645)
 **Status:** IMPLEMENTED & VERIFIED, issue CLOSED — branch `task/issue-1645`
-**Related:** #1706 (same defect still open on the sibling project screen), #1676, #1664, #946
+**Related:** #1676, #1664, #946, #926 (the sibling screen that introduced the modern grey rendering)
 
 ## The gap
 
@@ -22,10 +22,22 @@ selected feature was `TL_ROLES_NO_RIGHTS` (3):
 `$effective_role_id` is `$gui->userFeatureRoles[$uID].effective_role_id`
 (`usersAssign.tpl:225-228`), i.e. the value produced by
 `get_tproject_effective_role()` / `get_tplan_effective_role()`
-(`lib/functions/roles.inc.php`), **not** the explicit assignment row. The
-`not_authorized_user` class greyed the row out, which is how a manager spotted at
-a glance that a user has no rights on the selected project/plan — the common
-case being every non-admin user on a **private** test plan.
+(`lib/functions/roles.inc.php`), **not** the explicit assignment row. The common
+case for the marker is every non-admin user on a **private** test plan, where
+the effective role is `TL_ROLES_NO_RIGHTS`.
+
+**What the class did in 1.9.20** (verified by `git grep not_authorized_user
+ab387af72^`): the class appears ONLY in the two legacy `.tpl` files — there is no
+CSS for it anywhere, so legacy never greyed the row. It was a machine-readable
+marker: `usersAssign.tpl:46` defines `toggleRowByClass(oid,className,...)`
+(hiding/showing every `tr` whose `className == className`) for the
+`show_only_authorized_users` label the template fetches at `usersAssign.tpl:12`
+— but the dashio/tl-classic templates never **call** it, so on 1.9.20 the marker
+was effectively inert markup. The grey rendering is the modern screens' own
+choice, introduced by the sibling project screen
+(`usersAssignProject.html:33`, issue #926) and reused here for consistency with
+it. The unrendered "show only authorized users" filter is a **separate**
+unported legacy capability.
 
 **What modern did instead:** the modern plan screen wrote
 `<tr data-uid="…">` (`gui/templates/usermanagement/usersAssignPlan.html:600`)
@@ -52,24 +64,26 @@ legacy too — no new user-facing text was introduced). Three additions to
    `config.inc.php` `TL_ROLES_NO_RIGHTS` (same value as
    `usersAssignProject.html:125`).
 3. **Row class** in `renderUsersTable()`, derived from the loaded
-   `u.effectiveRoleID`:
-   `var rowClass = (u.effectiveRoleID == NO_RIGHTS_ROLE_ID) ? ' class="not_authorized_user"' : '';`
-   plus the same condition re-applied in the DataTables `createdRow` callback
-   with `$(row).addClass('not_authorized_user')`.
+   `u.effectiveRoleID` — the same expression the sibling screen uses at
+   `usersAssignProject.html:345`:
+   `var rowClass = (u.effectiveRoleID == NO_RIGHTS_ROLE_ID) ? ' not_authorized_user' : '';`
+   wrapped into the `class` attribute exactly like
+   `usersAssignProject.html:377`.
 
-### Why the `createdRow` re-application is mandatory (measured, not assumed)
+### Does the marker survive a DataTables redraw? (measured)
 
-Writing the class into the static row markup is **not** enough: DataTables
-*replaces* the `className` of every `<tr>` with its own striping classes while
-creating the row. `createdRow` runs **after** that assignment, and `addClass()`
-(never `className =`) keeps the striping class intact.
-
-This was proven empirically during the investigation: the sibling project
-screen, which writes the class into its markup at `usersAssignProject.html:462`
-but has **no** `createdRow` callback, was measured in the browser with the exact
-same `<no rights>` users and produced
-`class="odd" / "even"` only — its marker is dead code for the same reason. That
-defect is out of scope for this issue and is filed separately as **#1706**.
+Yes — and this was verified rather than assumed, because an earlier draft of this
+work claimed the opposite. DataTables 1.13.7 applies its striping with
+`$(tr).removeClass(prevStripe).addClass(...)`, i.e. **additively**: a class
+present in the row markup is never discarded. Measured on the shipped plan screen
+with the `createdRow` hook deliberately removed — the class survived initial
+render, search, column sort, `Show All` and the bulk `Do` full re-render, and
+combined with the `changed` highlight (`class="not_authorized_user changed odd"`).
+The same was confirmed on the sibling project screen, which writes the class in
+its markup and has **no** `createdRow`: with an explicit project role 3 for
+`ua1645designer` it renders `class="not_authorized_user even"` with
+`rgb(153,153,153)`. So the marker needs the markup only — the implementation
+follows the sibling and keeps the condition in one place.
 
 ## Verification (measured, suite 1645 in `tmp/TLU_Test_Cases.md`)
 
@@ -100,6 +114,9 @@ Save).
 
 ## Notes / behaviour decisions
 
+* Cross-check on the sibling project screen: with an explicit project role 3 for
+  `ua1645designer` (`user_testproject_roles(1,2,3)`) it renders
+  `class="not_authorized_user even"` / `rgb(153,153,153)` — the two screens agree.
 * The marker reflects the **effective** role as loaded, exactly like legacy,
   which computed the class while rendering the page and never updated it. A
   role picked in the `<select>` therefore greys/ungreys the row on the next
@@ -107,7 +124,13 @@ Save).
 * The `Inherited Role` column and the pre-selected `<no rights>` option
   (issue #1664) remain the textual carriers of the same information; the marker
   is the visual carrier legacy provided.
-* Sibling screen: #1706 — same fix still needed on
-  `usersAssignProject.html` (it also lacks a `createdRow` callback).
+* The `Inherited Role` column and the pre-selected `<no rights>` option stay the
+  textual carriers; the marker is the visual one.
+* Still unported from the same legacy template: the `show_only_authorized_users`
+  filter (`usersAssign.tpl:12` + `:46`) — legacy fetched the label and shipped
+  the `toggleRowByClass()` helper but never wired them together. Any modern
+  implementation must match with `classList.contains('not_authorized_user')`,
+  because legacy's exact `tr.className ==` compare can never match a modern row
+  (they also carry DataTables' `odd`/`even`).
 
 ![not_authorized_user marker on the no-rights rows](screenshots/issue-1645-not-authorized-user-marker.png)

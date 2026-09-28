@@ -26635,11 +26635,21 @@ rows in `user_testplan_roles` — restore with
 | 11 | control | admin row | never marked (effective role 8) | `admin:odd` | PASS |
 | 12 | save round trip | set designer → `guest` (5) on plan 6, click Save Changes | toast `User Roles updated`, grid reloads, designer NOT marked any more, guest still marked | toast rendered; designer `even:rgb(51,51,51):sel=5`, guest `not_authorized_user odd:rgb(153,153,153):sel=3` | PASS |
 | 13 | persistence | `SELECT * FROM user_testplan_roles` after case 12 | designer got an explicit plan role 5; the plain Save also materialised the legacy `<no rights>` preselect for guest (issue #1664) | `(3,6,3)` + `(2,6,5)` present; guest keeps `effectiveRoleID=3` ⇒ still marked, correct | PASS |
-| 14 | sibling | same check on `usersAssignProject.html?tproject_id=1` | the project's own marker is dead too (DataTables overwrites `className`, no `createdRow`) | rows only `odd`/`even` → filed as #1706, out of scope here | PASS (as expected defect) |
+| 14 | sibling | `usersAssignProject.html?tproject_id=1` with `INSERT INTO user_testproject_roles VALUES (1,2,3)` (an actual `effectiveRoleID=3` user) | the project's own marker WORKS (markup-only, no `createdRow`) — retracts the initial "DataTables overwrites the class" theory | `ua1645designer \| not_authorized_user even \| rgb(153,153,153)`; row removed again afterwards | PASS |
 | 15 | console | every state above | 0 errors, 0 warnings | none | PASS |
 | 16 | Event Viewer | `events` table | 0 new Error/Warning rows | only `log_level 16` AUDIT rows from the Save; `COUNT(*) WHERE log_level NOT IN (16,32,1,2)` = 0 | PASS |
 | 17 | i18n | all 10 locale bundles | valid JSON (no key added — the marker is visual-only, as in legacy) | `python3 -m json.tool` clean 10/10 (unchanged files) | PASS |
 | 18 | JS syntax | `node` parse of the screen's inline `<script>` | no syntax error | script block 0: OK | PASS |
+
+**Correction to an earlier draft of this suite.** A first implementation also
+re-applied the class in the DataTables `createdRow` callback, on the claim that
+DataTables replaces the `<tr>` className and therefore drops any class written in
+the markup. That claim is **false** for the DataTables 1.13.7 build these screens
+load: striping is applied additively (`removeClass(prevStripe).addClass()`).
+Case 14 and the measurement above were taken with the `createdRow` block
+REMOVED, and the marker still survived every redraw, so the final code follows
+the sibling screen and keeps the condition in one place. A bug issue filed on
+that wrong premise was closed as not-reproducible.
 
 **Note on case 12/13.** A plain Save on a private plan materialises an EXPLICIT
 `<no rights>` row for every `<no rights>` user (the legacy preselect, issue

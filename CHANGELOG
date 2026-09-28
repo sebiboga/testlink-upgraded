@@ -47,24 +47,27 @@ screen reaches full parity.
   gui/templates/dashio/usermanagement/usersAssign.tpl:234-237 (deleted in ab387af72, the template
   was shared by the project and plan contexts) tagged every `<tr>` whose
   `$gui->userFeatureRoles[$uID].effective_role_id == TL_ROLES_NO_RIGHTS` with
-  `class="not_authorized_user"`, which greyed the row out - the signal a manager uses to see that a
-  user has no rights on the selected plan (the normal case for every non-admin on a PRIVATE plan,
-  where get_tplan_effective_role() returns 3). The modern screen wrote a bare `<tr data-uid=...>`
+  `class="not_authorized_user"` - the row marker for a user with no rights on the selected plan (the
+  normal case for every non-admin on a PRIVATE plan, where get_tplan_effective_role() returns 3). The
+  modern screen wrote a bare `<tr data-uid=...>`
   (gui/templates/usermanagement/usersAssignPlan.html) and had neither the class, nor the
   `NO_RIGHTS_ROLE_ID` constant, nor the `.assign-table tr.not_authorized_user td { color: #999; }`
-  rule that the sibling project screen already carries (usersAssignProject.html:33 / :125 / :462).
+  rule that the sibling project screen already carries (usersAssignProject.html:33 / :125 / :345).
   No BFF change was needed: `effectiveRoleID` was already part of the tplan-roles payload
   (api/roles/index.php:967). The screen now sets the class in `renderUsersTable()` from
-  `u.effectiveRoleID == NO_RIGHTS_ROLE_ID` and - crucially - re-applies it in the DataTables
-  `createdRow` callback with `addClass()`, because DataTables REPLACES the `<tr>` className with its
-  own striping classes, so a class written only into the static markup never survives. That mechanism
-  was measured, not assumed: the sibling project screen, which writes the class into its markup but
-  has no `createdRow`, was measured in the browser with the same `<no rights>` users and returns
-  `class="odd"/"even"` only - its marker is dead code too, filed separately as #1706. No i18n change:
-  the marker is visual-only in legacy as well. Regression suite 1645: 18/18 PASS (marker on the
-  private plan for exactly the `effectiveRoleID=3` rows, absent on the public plan and on rows with
-  an explicit role, surviving search / sort / Show All / bulk-Do redraws, combining with the `changed`
-  highlight, and clearing after a save round trip), console and Event Viewer clean. (Fixes #1645)
+  `u.effectiveRoleID == NO_RIGHTS_ROLE_ID` (cfg/const.inc.php:524 TL_ROLES_NO_RIGHTS == 3) using
+  the same expression the sibling uses at `usersAssignProject.html:345`; no `createdRow` hook is needed
+  because DataTables 1.13.7 applies its striping additively (`removeClass(prevStripe).addClass()`)
+  and never discards a class set in the row markup - measured with the hook removed (init, search,
+  sort, Show All, bulk-Do redraws) and cross-checked on the sibling screen itself. Legacy shipped NO
+  css for the class (`git grep not_authorized_user ab387af72^` matches only the two .tpl files): in
+  1.9.20 the marker was inert markup, the helper `toggleRowByClass()` that was meant to consume it
+  (`usersAssign.tpl:46`, for the `show_only_authorized_users` label fetched at `:12`) is never called;
+  the grey is the modern rendering the sibling screen introduced in #926. No i18n change: the marker
+  is visual-only. Regression suite 1645: 18/18 PASS (marker on the private plan for exactly the
+  `effectiveRoleID=3` rows, absent on the public plan and on rows with an explicit role, surviving
+  search / sort / Show All / bulk-Do redraws, combining with the `changed` highlight, and clearing
+  after a save round trip), console and Event Viewer clean. (Fixes #1645)
 
 - [FEATURE GAP] - #1646: the modern Assign Test Plan Roles screen only ever branched on 403, never on
   401, so the BFF's `401 {"code":"session_expired"}` - the answer `bffEnforceSession()`
