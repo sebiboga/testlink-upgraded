@@ -1406,12 +1406,24 @@ function setPublicStatus($id,$status)
       rewind($handle);
 
       $rowNo = 0;
+      $dataRowNo = 0;
       while($data = fgetcsv($handle, TL_IMPORT_ROW_MAX, $delim))
       {
         $rowNo++;
         // fgetcsv() yields array(null) for a blank line: not a data row.
         $isBlank = (count($data) === 1) && (trim((string)$data[0]) === '');
         if ($isBlank) {
+          continue;
+        }
+        $dataRowNo++;
+        // Refs #1616: the exporter (exportKeywordsToCSV() -> exportDataToCSV()
+        // with addHeader=1) writes a localized first line
+        // "Keyword;Notes;Number of Test Case Linked". Importing a TestLink
+        // CSV back treated that header as a keyword, corrupting the project
+        // on every export -> import cycle. Skip the first DATA row when it
+        // matches the header; it is not a data row, so it is not counted in
+        // rows/skipped.
+        if ($dataRowNo === 1 && $this->keywordCsvHeaderMatch($data)) {
           continue;
         }
         if ($report) {
@@ -1448,6 +1460,67 @@ function setPublicStatus($id,$status)
     {
       return ERROR;
     }  
+  }
+
+  /**
+   * Refs #1616: true when a parsed CSV row is the header line that the
+   * keyword CSV exporter writes (exportKeywordsToCSV() -> exportDataToCSV()
+   * with addHeader=1), i.e. the localized "keyword;notes;tcv_qty" labels -
+   * "Keyword;Notes;Number of Test Case Linked" in en_GB. Only the first DATA
+   * row is ever tested by the caller, and only a full match is accepted: the
+   * exporter's data rows always carry a numeric tcv_qty in the third cell, so
+   * a real keyword named like the label ('Keyword;Notes;0') still imports.
+   * A UTF-8 BOM on the first line is tolerated, and the en_GB labels are
+   * accepted as an alternative to the session-locale ones so a file exported
+   * under one locale imports cleanly under another.
+   *
+   * @param array $data an fgetcsv()-parsed row
+   * @return boolean
+   */
+  private function keywordCsvHeaderMatch(array $data)
+  {
+    $headers = array(
+      // The exporter resolves the labels against the session locale, exactly
+      // like this call (same signature, see lib/functions/csv.inc.php:21-30).
+      array(
+        lang_get('keyword', null, false),
+        lang_get('notes', null, false),
+        lang_get('tcv_qty', null, false),
+      ),
+      // Fallback: the English labels, so a file exported under another locale
+      // still skips its header. A data row's third cell is always numeric, so
+      // it can equal neither label set.
+      array(
+        lang_get('keyword', 'en_GB', false),
+        lang_get('notes', 'en_GB', false),
+        lang_get('tcv_qty', 'en_GB', false),
+      ),
+    );
+    foreach ($headers as $header) {
+      $matched = true;
+      foreach ($header as $i => $label) {
+        $cell = isset($data[$i]) ? trim((string)$data[$i]) : '';
+        // A spreadsheet re-save can prepend a UTF-8 BOM to the first field.
+        if ($i === 0) {
+          $cell = preg_replace('/^\xEF\xBB\xBF/', '', $cell);
+        }
+        if ($cell === '' || strcasecmp($cell, $label) !== 0) {
+          $matched = false;
+          break;
+        }
+      }
+      if (!$matched) {
+        continue;
+      }
+      // No extra non-empty cell beyond the three header columns may follow.
+      for ($i = count($header); $i < count($data); $i++) {
+        if (trim((string)$data[$i]) !== '') {
+          return false;
+        }
+      }
+      return true;
+    }
+    return false;
   }
 
   /**
