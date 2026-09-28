@@ -26500,3 +26500,80 @@ empty-`__METHOD__` trap in `api/scriptedit/index.php:123`,
 `api/codetracker/index.php:428,472,552`, `api/tcscripts/index.php:119`; those are
 separate issues, not fixed here. `issueTrackerInterface.class.php:237-238` looks
 similar but is `.` concatenation, not interpolation, and is safe.
+
+---
+
+## Suite 1702 — Modernize: single-test-case "Assign Requirements" popup (`reqTcAssign.html` + `api/reqtcassign`)
+
+**Screen.** `gui/templates/requirements/reqTcAssign.html` — the TESTCASE mode of
+the legacy `gui/templates/dashio/requirements/reqTcAssign.tpl`, which the
+`#1595` shim never implemented: it redirected `?edit=testcase&id=<tcase_id>` to
+the **bulk** popup with a test case id in the `tsuite_id` slot, so the live entry
+point `openReqWindow(tcase_id)` opened the wrong screen against a test suite that
+does not exist.
+
+**Fixture.** `tmp/fixtures_1702.php` (local, not committed). Creates test project
+`TCA1702` with requirements enabled, 1 suite, 3 test cases (`TCA-1 Login check`,
+`TCA-2 Logout check`, `TCA-3 Password reset`), 2 requirement specifications
+(`TCA Spec A`, `TCA Spec B`), 3 requirements (`A1`, `A2` in spec A — `A1` already
+linked to `TCA-1`; `B1` in spec B) and one link. The script prints the fresh ids;
+the auto-increment moves on every re-run, so nothing is hardcoded below.
+
+**Environment.** `http://localhost:8082`, `admin`/`admin`; DB
+`mysql -h127.0.0.1 -P3306 -utestlink -ptestlink testlink`. Run of
+`2026-09-28`, ids from the fixture: `tproject=56 suite=57 tcase1=58 tcase2=61
+tcase3=64 specA=67 specB=69 reqA1=71 reqA2=73 reqB1=75`.
+
+| # | Check | Expected | Measured | Result |
+|---|---|---|---|---|
+| 1 | `GET ?action=init&tproject_id=56&tcase_id=58` | `status:ok`; 1 assigned (`TCA-REQ-A1`), 1 free (`TCA-REQ-A2 [1] `), `grants.link:true` | `counts {assigned:1, free:1}`, `grants {req_tcase_link_management:true, link:true, reason:""}` | **PASS** |
+| 2 | Screen render, no console noise | both grids + context card; no horizontal overflow; 0 console messages | cards visible, `scrollWidth == clientWidth == 780`, `freeTable` fits its wrapper, 0 console messages | **PASS** |
+| 3 | Assign: check the free row → `Assign selected` → confirm | modal names the count and the test case; row moves to assigned; selection cleared; success message | modal `"Assign 1 requirement(s) to test case TCA-1 Login check?"`; `assignedCount 1→2`, `freeCount 1→0`, empty-free state shown, `"1 requirement(s) assigned."` | **PASS** |
+| 4 | Spec isolation: switch to `TCA Spec B`, then back | only that spec's rows; switching back restores spec A | spec B → assigned `[]`, free `["TCA-REQ-B1 [1] "]`; back to A → assigned `[A1, A2]`, free `[]` | **PASS** |
+| 5 | Bulk unassign: check-all → `Unassign selected` → confirm | both links removed; both rows return to available; actions bar hidden | `"2 selected"`; `"Unlink 2 requirement(s) from test case TCA-1 Login check?"`; assigned `[]`, free `[A1, A2]`, `assignedActions` `display:none` | **PASS** |
+| 6 | Per-row `Unlink` (modern superset of the legacy multi-select only) | one link removed, row returns to available | `"Unlink this requirement from test case TCA-1 Login check?"`; assigned `[]`, free `[A1, A2]` | **PASS** |
+| 7 | Selection gating | `Assign`/`Unassign` disabled with 0 selected, enabled with ≥1; count shown | disabled with `"0 selected"`, enabled with `"1 selected"`/`"2 selected"` | **PASS** |
+| 8 | Executed test case — read-only state | banner + disabled controls, **rows still visible** (legacy only set `cbDisabled`) | on `tcase2` (executed): banner `"Requirement linking is disabled after execution (the test case already has an execution)."`, 2 rows rendered, every checkbox/row button/assign button disabled, no modal can open | **PASS** |
+| 9 | Forged assign on the executed test case | `409` + `reqLinkingDisabledAfterExec`, no link created | `http=409 {"status":"error","reason":"reqLinkingDisabledAfterExec"}` | **PASS** |
+| 10 | No right — role 5 (guest, no `req_tcase_link_management`) | `403`; screen shows the refusal, no grids | `init` → `403`; screen renders only `"You do not have rights to manage requirement / test case links."`, all three cards hidden | **PASS** |
+| 11 | Frozen link (`link_status` = 2/3/4 with `freezeLinkOnNewREQVersion=1`) | closed links are not listed (legacy `link_status` default = 1) and cannot be removed even by a forged POST | `init` → assigned `[]`; forged `unlink` of link 7 → `400 "None of the selected links belong to this test case on this specification"`, row still in `req_coverage` | **PASS** |
+| 12 | Anonymous | `401` on every route | `401 {"status":"error","message":"Not authenticated"}` | **PASS** |
+| 13 | CSRF / origin | cross-origin POST refused | `403 {"message":"Forbidden: missing or mismatched same-origin proof (CSRF protection)"}` | **PASS** |
+| 14 | Wrong verb / unknown action | `405` / `400` | `POST ?action=init` → `405 "GET required"`; `?action=bogus` → `400 "Unknown or missing action"` | **PASS** |
+| 15 | Foreign / wrong ids | `404`; a spec of another project never read or remembered | suite id used as `tcase_id` → `404`; `idSRS` of another project → `404 "Requirement specification not found in this test project"` | **PASS** |
+| 16 | Scope rendering | legacy parity: raw + `nl2br` when the requirement editor type is `none`, otherwise tags stripped and truncated to `SCOPE_SHORT_TRUNCATE` | `init` reports `req_editor_type='ckeditor'`, `scope_truncate=30`; the installed configuration is therefore the truncating branch and the grid shows `"Scope of TCA-REQ-A1 v1. Filler..."` — 30 chars + `...` — instead of the full ~150-char scope | **PASS** |
+| 17 | Version label | the legacy `" [v<n>] "` title suffix is gone; the version is a `V{n}` chip | `"TCA-REQ-A1 the user can log in"` + chip `V1`; no `[v1]` in the title | **PASS** |
+| 18 | i18n — Romanian | every label, title, button, banner and footer translated; no raw key | title `Atribuieți cerințe unui test case`, columns `ID Doc Cerință` / `Domeniu de aplicabilitate` / `Atribuit de`, buttons `Atribuie selected` / `Dezatribuie selected`, footer `Atribuirea cerințelor unui test case` | **PASS** |
+| 19 | i18n — all bundles valid JSON | `python3 -m json.tool` on every touched bundle | 10/10 valid (`en ro de es fr it pt ru ja zh`), 40 `rtca.*` + `footers.reqTcAssign` each | **PASS** |
+| 20 | New test case version carries the link | version chip follows the active version; the link is not double counted | after `create_new_version(58)`: `V2`, assigned 1 (not 2), free 1 | **PASS** |
+| 21 | Legacy shim routing | `?edit=testcase&id=<tcase>` → testcase screen; a suite id → bulk screen; a bare `?id=<tcase>` is repaired too | `?edit=testcase&id=58` → `302 …reqTcAssign.html?tcase_id=58`; `?id=57` and `?edit=testsuite&id=57` → `302 …reqTcBulkAssign.html?tsuite_id=57`; `?id=58` (bare, no `edit=`) → `302 …reqTcAssign.html?tcase_id=58`; unknown id falls through to the bulk screen, as before | **PASS** |
+| 22 | Event Viewer sweep after the whole run | 0 new `log_level=2` (`E_WARNING`) rows | `SELECT COUNT(*) FROM events WHERE log_level=2 AND log_created > <run start>;` → **0** | **PASS** |
+
+**Result: 22/22 PASS.**
+
+**Bugs found by this suite.**
+
+- The "available" grid was emptied by the BFF when the linking gate was closed.
+  The legacy template only disabled the controls and kept the rows, so the user
+  could not see what would be linkable once the gate is lifted. Fixed in
+  `e2d1e200f` (case 8).
+- `rtca.warnDisabledAfterExec` and `rtca.warnNoLinkingRight` had their texts
+  swapped when the bundle was written, so an executed test case showed the
+  "your role cannot link" message. Fixed in `b3f64919d` (case 8).
+- `requirement_spec_mgr::getReqsOnSpecNotLinkedToLatestTCV()` returns the
+  inverted set (linked requirements listed, free ones with an empty title).
+  Bypassed by the BFF, filed as a separate defect: **#1705**.
+- The first version of the shim fix resolved the node type with
+  `new tree_manager($db)` and answered **500**: `lib/functions/tree.class.php` is
+  not loaded on this request path (`config.inc.php` / `common.php` never require
+  it), so the class does not exist. Replaced by the same query inlined, which
+  also needs `getDBTables('node_types')` separately — `getDBTables()` is per
+  table and does not return the joined name. Caught by case 21, fixed in
+  `e2d1e200f` and re-measured above.
+- **Not fixed here (pre-existing):** an anonymous request to the shim answers an
+  empty `200` instead of redirecting to the login screen. The first two
+  statements of the shim (`testlinkInitPage($db, false, false)`) are unchanged
+  from `#1595`, so this is not a regression of this fix; it is the same legacy
+  contract and is left alone.
+
+**Console: 0 errors, 0 warnings on every page state.**

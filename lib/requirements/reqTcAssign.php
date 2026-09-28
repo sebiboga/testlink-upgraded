@@ -64,8 +64,20 @@ $mode = 'bulk';
 if ((isset($_REQUEST['edit']) && strval($_REQUEST['edit']) === 'testcase') && $id > 0) {
     $mode = 'testcase';
 } elseif ($id > 0) {
-    $treeMgr = new tree_manager($db);
-    $nodeType = $treeMgr->getNodeType($id);
+    // NOTE: this is tree_manager::getNodeType() inlined on purpose.
+    // lib/functions/tree.class.php is not part of the request path loaded by
+    // this shim (config.inc.php / common.php never require it), so
+    // `new tree_manager($db)` fatals with "Class not found" and the shim
+    // answers 500. One narrow query keeps the shim dependency free.
+    // getDBTables() is per table, so the two names are asked for separately.
+    $tNH = tlObjectWithDB::getDBTables('nodes_hierarchy');
+    $tNT = tlObjectWithDB::getDBTables('node_types');
+    $rs = $db->get_recordset(
+        'SELECT NT.description AS node_type ' .
+        " FROM {$tNH['nodes_hierarchy']} NH " .
+        " JOIN {$tNT['node_types']} NT ON NT.id = NH.node_type_id " .
+        ' WHERE NH.id = ' . $id);
+    $nodeType = is_null($rs) ? null : current($rs);
     if (!is_null($nodeType) && $nodeType['node_type'] === 'testcase') {
         $mode = 'testcase';
     }
