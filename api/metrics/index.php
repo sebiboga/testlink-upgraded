@@ -219,6 +219,10 @@ if ($method === 'GET' && ($path === '/dashboard' || $path === '/dashboard/')) {
     // counter that explains the difference between progress and the sum of the
     // configured status columns. Healthy projects keep today's payload.
     $unknownTotal = 0;
+    // per plan total of non renderable rows, so the PLAN level breakdown
+    // (overall.statuses, used by the test plan cell and the group header) can
+    // explain the plan progress on the platform branch too
+    $planUnknown = array();
 
     foreach ($test_plans as $key => $tpinfo) {
         // only plans with (active) builds can have execution data
@@ -256,6 +260,12 @@ if ($method === 'GET' && ($path === '/dashboard' || $path === '/dashboard/')) {
                     // empty-string key '' (it would inflate 'executed' with a
                     // quantity no status column can explain)
                     $sv = isset($codeStatusVerbose[$code]) ? $codeStatusVerbose[$code] : 'unknown';
+                    if (!isset($statusSetForDisplay[$sv])) {
+                        // a code the client cannot render (outside
+                        // results.status_code, or a verbose status missing from
+                        // status_label_for_exec_ui such as 'x' not_available)
+                        $sv = 'unknown';
+                    }
                     $qty = intval($elem['exec_qty']);
                     $row['statuses'][$sv] = array(
                         'qty' => $qty,
@@ -268,10 +278,11 @@ if ($method === 'GET' && ($path === '/dashboard' || $path === '/dashboard/')) {
                         $overall[$sv] = 0;
                     }
                     $overall[$sv] += $qty;
-                    if ($sv === 'unknown') {
-                        // issue #1698: 'unknown' is not part of the display set
-                        // yet, so $total has no key for it here
+                    if (!isset($total[$sv])) {
+                        // issue #1698: $total is seeded from the display set, so
+                        // it has no key for 'unknown' until $unknownTotal > 0
                         $unknownTotal += $qty;
+                        $planUnknown[$key] = (isset($planUnknown[$key]) ? $planUnknown[$key] : 0) + $qty;
                     } else {
                         $total[$sv] += $qty;
                     }
@@ -303,11 +314,15 @@ if ($method === 'GET' && ($path === '/dashboard' || $path === '/dashboard/')) {
                     $statuses['not_run'] = $qty;
                     continue;
                 }
-                $statuses[$sc] = $qty;
-                $overall['executed'] += $qty;
-                if ($sc === 'unknown') {
+                if (isset($statusSetForDisplay[$sc])) {
+                    $statuses[$sc] = $qty;
+                } else {
+                    // issue #1698: not renderable (see platform branch above)
+                    $sc = 'unknown';
+                    $statuses['unknown'] = (isset($statuses['unknown']) ? $statuses['unknown'] : 0) + $qty;
                     $unknownTotal += $qty;
                 }
+                $overall['executed'] += $qty;
             }
             foreach ($statusSetForDisplay as $sv => $lbl) {
                 if (!isset($statuses[$sv])) {
@@ -350,17 +365,22 @@ if ($method === 'GET' && ($path === '/dashboard' || $path === '/dashboard/')) {
                 foreach ($statusSetForDisplay as $sv => $lbl) {
                     $rows[$last]['overall']['statuses'][$sv] = isset($overall[$sv]) ? $overall[$sv] : 0;
                 }
+                if (isset($planUnknown[$key])) {
+                    $rows[$last]['overall']['statuses']['unknown'] = $planUnknown[$key];
+                }
             }
             $last--;
         }
     }
 
     // project-level progress (progress bars)
-    if ($unknownTotal > 0 && !isset($statusSetForDisplay['unknown'])) {
+    if ($unknownTotal > 0) {
         // 'unknown' is a real status in $tlCfg->results['status_label'] (code
         // 'u'), it is simply not part of status_label_for_exec_ui.
-        $statusSetForDisplay['unknown'] = 'test_status_unknown';
-        $total['unknown'] = $unknownTotal;
+        if (!isset($statusSetForDisplay['unknown'])) {
+            $statusSetForDisplay['unknown'] = 'test_status_unknown';
+        }
+        $total['unknown'] = (isset($total['unknown']) ? intval($total['unknown']) : 0) + $unknownTotal;
     }
     $projectMetrics = array();
     $projectMetrics[] = array(
