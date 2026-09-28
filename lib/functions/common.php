@@ -2190,6 +2190,16 @@ function getActions(&$gui,$baseURL) {
   // real req_spec_id; this generic launcher keeps legacy pointer/template
   // parity. (Regressed by 8ef9694d3, restored Refs #1518.)
   $actions->reqReorder = "/gui/templates/requirements/reqReorder.html?{$ctx}";
+  // Requirement specification tree move/re-parent modernized screen (Dashio
+  // standalone page) - Refs #1681. The requirement-tree drag-and-drop had NO
+  // screen at all in 1.9.20: lib/ajax/dragdroprequirementnodes.php
+  // (doAction=changeParent|doReorder) performed the write with no rights
+  // check, no ownership check, no same-origin proof, reading $_REQUEST so a
+  // GET mutated. The modern screen re-parents a requirement into another
+  // specification (top/bottom) and reorders a specification, behind
+  // api/reqtreereorder. Carries req_spec_id= from the session context plus
+  // the optional node_id= of the requirement to preselect.
+  $actions->reqTreeReorder = "/gui/templates/requirements/reqTreeReorder.html?{$ctx}";
   // Requirements Bulk Assignment modernized screen (Dashio popup) - Refs #1595.
   // Replaces lib/requirements/reqTcAssign.php in its testsuite/bulk mode
   // (reqTcBulkAssignment.tpl). The Test Specification screen suite view
