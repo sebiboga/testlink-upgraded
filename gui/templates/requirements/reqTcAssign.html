@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title data-i18n="rtca.title">Assign Requirements to Test Case</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0 0 24px; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; display: flex; align-items: center; }
+.header span.sub { font-size: 13px; font-weight: 400; color: #0d3f3c; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 7px; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-teal:disabled { opacity: .45; cursor: not-allowed; }
+.btn-red { background: #e6605e; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 7px; }
+.btn-red:hover { background: #d04e4c; }
+.btn-red:disabled { opacity: .45; cursor: not-allowed; }
+.btn-ghost { background: transparent; color: #ccc; border: 1px solid #555; padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; gap: 7px; text-decoration: none; }
+.btn-ghost:hover { border-color: #4ECDC4; color: #4ECDC4; text-decoration: none; }
+.sep { flex: 1; }
+.card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px 0; overflow: hidden; }
+.card-title { background: #f7f7f7; padding: 10px 18px; font-size: 13px; font-weight: 700; color: #22242a; border-bottom: 1px solid #e5e5e5; display: flex; align-items: center; gap: 8px; }
+.card-body { padding: 16px 18px; font-size: 13px; color: #444; }
+.meta-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; }
+.meta-item { border: 1px solid #e6e6e6; border-radius: 5px; padding: 9px 12px; background: #fbfbfb; }
+.meta-item b { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .6px; color: #888; margin-bottom: 4px; }
+.meta-item span { font-size: 14px; color: #22242a; font-weight: 600; word-break: break-word; }
+.warnbox { margin: 14px 24px 0; padding: 10px 14px; border-radius: 5px; font-size: 13px; background: #fff8e1; border: 1px solid #ffe0a3; color: #8a6100; }
+.warnbox.err { background: #fdecea; border-color: #f5c6cb; color: #b94a48; }
+.grid-wrap { padding: 0 18px 4px; overflow-x: auto; }
+table.reqgrid { width: 100%; border-collapse: collapse; }
+table.reqgrid thead th { background: #22242a; color: #fff; font-size: 12px; font-weight: 600; text-align: left; padding: 9px 12px; white-space: nowrap; }
+table.reqgrid tbody td { padding: 9px 12px; font-size: 13px; border-bottom: 1px solid #eee; vertical-align: top; }
+table.reqgrid tbody tr:hover { background: #f7fdfd; }
+table.reqgrid tbody tr.sel { background: #e8f8f2; }
+.cbx { width: 16px; height: 16px; cursor: pointer; }
+.docid { font-family: monospace; font-size: 12px; color: #1c7a94; white-space: nowrap; }
+.req-title { font-weight: 600; color: #22242a; }
+.req-link { color: #3498db; }
+.req-link:hover { text-decoration: underline; }
+.ver-chip { display: inline-block; background: #eef0f2; color: #555; border-radius: 9px; padding: 0 7px; font-size: 11px; font-weight: 700; margin-left: 6px; }
+.scope { color: #666; font-size: 12px; }
+.who { color: #777; font-size: 12px; white-space: nowrap; }
+.ts { color: #999; font-size: 12px; white-space: nowrap; }
+.rowbtn { background: transparent; border: 1px solid #e6605e; color: #e6605e; border-radius: 4px; padding: 3px 9px; font-size: 11px; cursor: pointer; }
+.rowbtn:hover { background: #e6605e; color: #fff; }
+.rowbtn:disabled { opacity: .35; cursor: not-allowed; border-color: #bbb; color: #bbb; }
+.rowbtn:disabled:hover { background: transparent; color: #bbb; }
+.actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 14px 18px; border-top: 1px solid #eee; background: #fcfcfc; }
+.actions .sel-info { color: #777; font-size: 12px; }
+.cnt-chip { display: inline-block; background: #4ECDC4; color: #fff; padding: 1px 8px; border-radius: 9px; font-size: 11px; font-weight: 700; }
+.msg { display: none; margin: 12px 24px 0; padding: 10px 16px; border-radius: 5px; font-size: 13px; }
+.msg.ok { display: block; background: #e8f8f2; border: 1px solid #b8e6d3; color: #1d7a4f; }
+.msg.err { display: block; background: #fdecea; border: 1px solid #f5c6cb; color: #b94a48; }
+.empty-state { padding: 34px; text-align: center; color: #888; font-size: 14px; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <i class="fa fa-link"></i>
+  <span data-i18n="rtca.title">Assign Requirements to Test Case</span>
+  <span class="sub" data-i18n="rtca.headerSub">link requirements to a single test case</span>
+  <span id="localeSwitcher" style="margin-left:auto;"></span>
+</div>
+
+<div class="toolbar">
+  <button class="btn-teal" id="btnRefresh" onclick="load()"><i class="fa fa-refresh"></i> <span data-i18n="common.refresh">Refresh</span></button>
+  <a class="btn-ghost" id="tcViewLink" href="#" target="_blank"><i class="fa fa-file-lines-o"></i> <span data-i18n="rtca.backToTestCase">Back to test case</span></a>
+  <span class="ctx" id="ctxLine"></span>
+  <span class="sep"></span>
+  <button class="btn-ghost" id="btnClose" onclick="window.close()"><i class="fa fa-times"></i> <span data-i18n="common.close">Close</span></button>
+</div>
+
+<div class="msg" id="msg"></div>
+<div class="warnbox" id="warnBox" style="display:none;"></div>
+
+<div class="card" id="ctxCard" style="display:none;">
+  <div class="card-title"><i class="fa fa-info-circle"></i> <span data-i18n="rtca.context">Context</span></div>
+  <div class="card-body">
+    <div class="meta-grid">
+      <div class="meta-item"><b data-i18n="rtca.testProject">Test Project</b><span id="mTproject">-</span></div>
+      <div class="meta-item"><b data-i18n="rtca.testCase">Test Case</b><span id="mTcase">-</span></div>
+      <div class="meta-item"><b data-i18n="rtca.version">Version</b><span id="mVersion">-</span></div>
+      <div class="meta-item" style="grid-column: span 2;">
+        <b data-i18n="reqAssign.reqSpec">Requirement Specification</b>
+        <select id="specSel" class="form-control form-control-sm" onchange="onSpecChange()"></select>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card" id="assignedCard" style="display:none;">
+  <div class="card-title">
+    <i class="fa fa-check-square-o"></i> <span data-i18n="rtca.assignedTitle">Assigned requirements</span>
+    <span class="cnt-chip" id="assignedCount">0</span>
+  </div>
+  <div class="grid-wrap">
+    <table class="reqgrid" id="assignedTable">
+      <thead>
+        <tr>
+          <th style="width:34px;text-align:center;">
+            <input type="checkbox" class="cbx" id="checkAllAssigned" onchange="onCheckAllAssigned(this)"
+                   data-i18n-title="rtca.checkAll" title="Check / uncheck all links">
+          </th>
+          <th style="width:130px;" data-i18n="rtca.colDocId">Req. Doc ID</th>
+          <th data-i18n="rtca.colReq">Requirement</th>
+          <th style="width:26%;" data-i18n="rtca.colScope">Scope</th>
+          <th style="width:120px;" data-i18n="rtca.colAuthor">Assigned by</th>
+          <th style="width:130px;" data-i18n="rtca.colTimestamp">Timestamp</th>
+          <th style="width:96px;" data-i18n="rtca.colActions">Actions</th>
+        </tr>
+      </thead>
+      <tbody id="assignedBody"></tbody>
+    </table>
+  </div>
+  <div class="empty-state" id="emptyAssigned" style="display:none;" data-i18n="rtca.noAssigned">No requirement is assigned to this test case on the selected specification.</div>
+  <div class="actions" id="assignedActions" style="display:none;">
+    <button class="btn-red" id="btnUnassign" disabled><i class="fa fa-trash"></i> <span data-i18n="rtca.unassign">Unassign selected</span></button>
+    <span class="sel-info" id="assignedSelInfo"></span>
+  </div>
+</div>
+
+<div class="card" id="freeCard" style="display:none;">
+  <div class="card-title">
+    <i class="fa fa-square-o"></i> <span data-i18n="rtca.freeTitle">Requirements available on this specification</span>
+    <span class="cnt-chip" id="freeCount">0</span>
+  </div>
+  <div class="grid-wrap">
+    <table class="reqgrid" id="freeTable">
+      <thead>
+        <tr>
+          <th style="width:34px;text-align:center;">
+            <input type="checkbox" class="cbx" id="checkAllFree" onchange="onCheckAllFree(this)"
+                   data-i18n-title="rtca.checkAll" title="Check / uncheck all requirements">
+          </th>
+          <th style="width:130px;" data-i18n="rtca.colDocId">Req. Doc ID</th>
+          <th data-i18n="rtca.colReq">Requirement</th>
+          <th style="width:34%;" data-i18n="rtca.colScope">Scope</th>
+        </tr>
+      </thead>
+      <tbody id="freeBody"></tbody>
+    </table>
+  </div>
+  <div class="empty-state" id="emptyFree" style="display:none;" data-i18n="rtca.noFree">Every requirement of this specification is already assigned.</div>
+  <div class="actions" id="freeActions" style="display:none;">
+    <button class="btn-teal" id="btnAssign" disabled><i class="fa fa-bolt"></i> <span data-i18n="rtca.assign">Assign selected</span></button>
+    <span class="sel-info" id="freeSelInfo"></span>
+  </div>
+</div>
+
+<div class="card" id="emptyCard" style="display:none;">
+  <div class="empty-state" id="emptyText"></div>
+</div>
+
+<div class="footer"><span data-i18n="footers.reqTcAssign">Assign Requirements to Test Case</span></div>
+
+<!-- confirm modal (Bootstrap) -->
+<div class="modal fade" id="confirmModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered" style="max-width:520px;">
+    <div class="modal-content">
+      <div class="modal-header" style="background:#4ECDC4;color:#fff;">
+        <h5 class="modal-title" style="font-size:15px;font-weight:700;" id="confirmTitle"></h5>
+        <button type="button" class="close" data-dismiss="modal" data-target="#confirmModal" aria-label="Close" style="opacity:1;"><span aria-hidden="true">&times;</span></button>
+      </div>
+      <div class="modal-body" style="font-size:13px;" id="confirmBody"></div>
+      <div class="modal-footer" style="padding:10px 16px;">
+        <button type="button" class="btn btn-default btn-sm" data-dismiss="modal" data-target="#confirmModal" data-i18n="common.cancel">Cancel</button>
+        <button type="button" class="btn-red btn-sm" id="confirmOk"></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script>
+var API = '/api/reqtcassign/index.php';
+var TCASE_VIEW_URL = '/gui/templates/testcases/tcView.html';
+var TPROJECT_ID = 0;
+var TCASE_ID = 0;
+var SPEC_ID = 0;
+var FREEZE_LINK = false;
+var REQ_EDITOR_TYPE = 'none';
+var SCOPE_TRUNCATE = 30;
+var CAN_WRITE = false;
+var assigned = [];
+var free = [];
+
+function esc(s) {
+  return $('<div>').text(s == null ? '' : String(s)).html();
+}
+
+function t(k, p) { return TLi18n.t(k, p); }
+
+/** interpolate {placeholders} literally (a replacer fn, so a value that
+ *  itself contains $& or $' can never rewrite the sentence) */
+function fill(tpl, map) {
+  return String(tpl).replace(/\{(\w+)\}/g, function (m, key) {
+    return Object.prototype.hasOwnProperty.call(map, key) ? String(map[key]) : m;
+  });
+}
+
+function showMsg(ok, text) {
+  var m = $('#msg');
+  m.removeClass('ok err').addClass(ok ? 'ok' : 'err').text(text);
+  m.css('display', 'block');
+  clearTimeout(m.data('tm'));
+  m.data('tm', setTimeout(function () { m.removeClass('ok err'); m.css('display', 'none'); }, 9000));
+}
+
+function showWarn(html, isErr) {
+  var w = $('#warnBox');
+  if (!html) { w.hide(); return; }
+  w.html(html).toggleClass('err', !!isErr).show();
+}
+
+function showEmpty(html) {
+  $('#ctxCard,#assignedCard,#freeCard').hide();
+  $('#emptyCard').show();
+  $('#emptyText').html(html);
+}
+
+function showAll() {
+  $('#emptyCard').hide();
+  $('#ctxCard,#assignedCard,#freeCard').show();
+}
+
+/** legacy parity: reqEditorType 'none' renders the scope as-is (nl2br),
+ *  otherwise the tags are stripped and the text truncated. */
+function scopeHtml(raw) {
+  var s = raw == null ? '' : String(raw);
+  if (REQ_EDITOR_TYPE === 'none') {
+    return esc(s).replace(/\r?\n/g, '<br>');
+  }
+  var plain = $('<div>').html(s).text().replace(/\s+/g, ' ').trim();
+  if (plain.length > SCOPE_TRUNCATE) {
+    plain = plain.substring(0, SCOPE_TRUNCATE) + '...';
+  }
+  return esc(plain);
+}
+
+function verChip(n) {
+  if (!n) { return ''; }
+  return '<span class="ver-chip">' + esc(fill(t('rtca.versionLabel'), { n: n })) + '</span>';
+}
+
+function confirmThen(title, body, okLabel, fn) {
+  $('#confirmTitle').html(title);
+  $('#confirmBody').html(body);
+  $('#confirmOk').html(okLabel);
+  $('#confirmOk').off('click.rtca').on('click.rtca', function () {
+    $('#confirmModal').modal('hide');
+    fn();
+  });
+  $('#confirmModal').modal('show');
+}
+
+function post(action, payload, done) {
+  $.ajax({
+    url: API + '?action=' + encodeURIComponent(action),
+    type: 'POST',
+    dataType: 'json',
+    contentType: 'application/json',
+    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+    data: JSON.stringify($.extend({
+      tproject_id: TPROJECT_ID,
+      tcase_id: TCASE_ID,
+      idSRS: SPEC_ID
+    }, payload || {})),
+    success: function (d) { if (done) done(d); },
+    error: reportError
+  });
+}
+
+/** server-side error copy is English-only, so the client maps the known
+ *  cases onto the localized message and keeps the raw one as a fallback. */
+function reportError(xhr) {
+  if (xhr.status === 401) { window.location.href = '/login.php'; return; }
+  var raw = '';
+  try { raw = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : ''; } catch (e) { }
+  var key = 'rtca.errGeneric';
+  if (xhr.status === 403) { key = 'rtca.errForbidden'; }
+  else if (xhr.status === 404) { key = 'rtca.errNotFound'; }
+  else if (xhr.status === 409) { key = 'rtca.errLinkDisabled'; }
+  else if (raw === 'Nothing selected') { key = 'rtca.errSelectFirst'; }
+  else if (raw.indexOf('belong') >= 0 || raw.indexOf('available') >= 0) { key = 'rtca.errNotYours'; }
+  showMsg(false, t(key) + (raw ? ' (' + raw + ')' : ''));
+}
+
+function onSpecChange() {
+  SPEC_ID = parseInt($('#specSel').val() || 0, 10) || 0;
+  $('#checkAllAssigned,#checkAllFree').prop('checked', false);
+  load();
+}
+
+function onCheckAllAssigned(el) {
+  $('input.linkcbx').each(function () {
+    if (this.disabled) { this.checked = false; return; }
+    this.checked = el.checked;
+  });
+  renderSelection();
+}
+
+function onCheckAllFree(el) {
+  $('input.freecbx').each(function () { this.checked = el.checked; });
+  renderSelection();
+}
+
+function renderSelection() {
+  var selAssigned = $('input.linkcbx:checked').length;
+  var selFree = $('input.freecbx:checked').length;
+  $('#btnUnassign').prop('disabled', selAssigned === 0);
+  $('#btnAssign').prop('disabled', selFree === 0);
+  $('#assignedSelInfo').text(fill(t('rtca.selectedCount'), { n: selAssigned }));
+  $('#freeSelInfo').text(fill(t('rtca.selectedCount'), { n: selFree }));
+  $('#assignedBody tr').removeClass('sel');
+  $('input.linkcbx:checked').closest('tr').addClass('sel');
+  $('#freeBody tr').removeClass('sel');
+  $('input.freecbx:checked').closest('tr').addClass('sel');
+}
+
+function renderTables() {
+  var a = '';
+  if (assigned.length) {
+    assigned.forEach(function (r) {
+      a += '<tr>'
+        + '<td style="text-align:center;">'
+        + (CAN_WRITE && r.removable
+            ? '<input type="checkbox" class="cbx linkcbx" data-link="' + r.link_id + '">'
+            : '<input type="checkbox" class="cbx linkcbx" data-link="' + r.link_id + '" disabled'
+              + (r.removable ? '' : ' title="' + esc(t('rtca.linkFrozen')) + '"') + '>')
+        + '</td>'
+        + '<td><span class="docid">' + esc(r.doc_id) + '</span></td>'
+        + '<td><a class="req-link req-title" href="' + esc(r.req_view_url) + '" target="_blank">'
+        + esc(r.title) + '</a>' + verChip(r.version) + '</td>'
+        + '<td class="scope">' + scopeHtml(r.scope) + '</td>'
+        + '<td class="who">' + esc(r.author) + '</td>'
+        + '<td class="ts">' + esc(r.ts) + '</td>'
+        + '<td><button class="rowbtn" data-unlink="' + r.link_id + '"'
+        + (CAN_WRITE && r.removable ? '' : ' disabled') + '>'
+        + '<i class="fa fa-times"></i> ' + esc(t('rtca.unlink')) + '</button></td>'
+        + '</tr>';
+    });
+  }
+  $('#assignedBody').html(a);
+  $('#emptyAssigned').css('display', assigned.length ? 'none' : 'block');
+  $('#assignedActions').css('display', assigned.length ? 'flex' : 'none');
+  $('#assignedCount').text(assigned.length);
+
+  var f = '';
+  free.forEach(function (r) {
+    f += '<tr>'
+      + '<td style="text-align:center;"><input type="checkbox" class="cbx freecbx" data-req="' + r.req_id + '"'
+      + (CAN_WRITE ? '' : ' disabled') + '></td>'
+      + '<td><span class="docid">' + esc(r.doc_id) + '</span></td>'
+      + '<td><a class="req-link req-title" href="' + esc(r.req_view_url) + '" target="_blank">'
+      + esc(r.title) + '</a>' + verChip(r.version) + '</td>'
+      + '<td class="scope">' + scopeHtml(r.scope) + '</td>'
+      + '</tr>';
+  });
+  $('#freeBody').html(f);
+  $('#emptyFree').css('display', free.length ? 'none' : 'block');
+  $('#freeActions').css('display', free.length ? 'flex' : 'none');
+  $('#freeCount').text(free.length);
+}
+
+function doAssign() {
+  var ids = [];
+  $('input.freecbx:checked').each(function () { ids.push(parseInt(this.dataset.req, 10)); });
+  if (!ids.length) { showMsg(false, t('rtca.errSelectFirst')); return; }
+  confirmThen(t('rtca.assignConfirmTitle'),
+    esc(fill(t('rtca.assignConfirm'), { n: ids.length, tc: $('#mTcase').text() })),
+    t('rtca.assign'),
+    function () {
+      post('assign', { req_id: ids }, function (d) {
+        showMsg(true, fill(t('rtca.assignDone'), { n: d.assigned_count || 0 }));
+        apply(d);
+      });
+    });
+}
+
+function doUnassign() {
+  var ids = [];
+  $('input.linkcbx:checked').each(function () { ids.push(parseInt(this.dataset.link, 10)); });
+  if (!ids.length) { showMsg(false, t('rtca.errSelectFirst')); return; }
+  confirmThen(t('rtca.unassignConfirmTitle'),
+    esc(fill(t('rtca.unassignConfirm'), { n: ids.length, tc: $('#mTcase').text() })),
+    t('rtca.unassign'),
+    function () {
+      post('unassign', { link_id: ids }, function (d) {
+        showMsg(true, fill(t('rtca.unassignDone'), { n: d.unassigned_count || 0 }));
+        apply(d);
+      });
+    });
+}
+
+/** per-row Unlink (modern superset of the legacy multi-select only) */
+function doUnlink(linkId) {
+  confirmThen(t('rtca.unassignConfirmTitle'),
+    esc(fill(t('rtca.unlinkConfirm'), { tc: $('#mTcase').text() })),
+    t('rtca.unassign'),
+    function () {
+      post('unlink', { link_id: [linkId] }, function (d) {
+        showMsg(true, fill(t('rtca.unassignDone'), { n: d.unassigned_count || 0 }));
+        apply(d);
+      });
+    });
+}
+
+function apply(d) {
+  if (!d || d.status !== 'ok') { return; }
+  if (d.selected_req_spec && d.selected_req_spec.id) {
+    SPEC_ID = d.selected_req_spec.id;
+  }
+  render(d);
+}
+
+function render(d) {
+  assigned = d.assigned || [];
+  free = d.free || [];
+  FREEZE_LINK = !!d.freeze_link_on_new_version;
+  REQ_EDITOR_TYPE = d.req_editor_type || 'none';
+  SCOPE_TRUNCATE = parseInt(d.scope_truncate, 10) || 30;
+
+  $('#mTproject').text(d.tproject_name || '-');
+  $('#mTcase').text(d.tcase ? (d.tcase.name || '-') : '-');
+  $('#mVersion').text(d.tcase ? fill(t('rtca.versionLabel'), { n: d.tcase.version }) : '-');
+  $('#ctxLine').html('<b>' + esc(d.tcase ? d.tcase.name : '') + '</b>');
+  $('#tcViewLink').attr('href', TCASE_VIEW_URL + '?tcase_id=' + TCASE_ID
+    + '&tproject_id=' + TPROJECT_ID);
+
+  var opts = '';
+  (d.req_specs || []).forEach(function (s) {
+    opts += '<option value="' + s.id + '"' + (s.id === SPEC_ID ? ' selected' : '') + '>'
+      + esc(s.name) + '</option>';
+  });
+  $('#specSel').html(opts).prop('disabled', (d.req_specs || []).length < 2);
+
+  // legacy gates
+  var warn = '';
+  if (!d.requirements_enabled) { warn = t('rtca.warnReqDisabled'); }
+  else if (!(d.grants || {}).link) {
+    warn = ((d.grants || {}).reason === 'reqLinkingDisabledAfterExec')
+      ? t('rtca.warnDisabledAfterExec') : t('rtca.warnNoLinkingRight');
+  }
+  showWarn(warn ? '<i class="fa fa-exclamation-triangle"></i> ' + esc(warn) : '', false);
+  CAN_WRITE = (d.grants || {}).link === true;
+
+  renderTables();
+  $('#btnAssign,#btnUnassign,#checkAllAssigned,#checkAllFree').prop('disabled', !CAN_WRITE);
+  renderSelection();
+  showAll();
+}
+
+function load() {
+  if (!TPROJECT_ID || !TCASE_ID) { return; }
+  $.ajax({
+    url: API,
+    type: 'GET',
+    dataType: 'json',
+    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+    data: { action: 'init', tproject_id: TPROJECT_ID, tcase_id: TCASE_ID, idSRS: SPEC_ID },
+    success: function (d) {
+      if (!d || d.status !== 'ok') { return; }
+      if (d.selected_req_spec && d.selected_req_spec.id) { SPEC_ID = d.selected_req_spec.id; }
+      render(d);
+    },
+    error: function (xhr) {
+      if (xhr.status === 401) { window.location.href = '/login.php'; return; }
+      var key = 'rtca.errGeneric';
+      if (xhr.status === 403) { key = 'rtca.errForbidden'; }
+      else if (xhr.status === 404) { key = 'rtca.errNotFound'; }
+      showEmpty('<i class="fa fa-ban"></i> ' + esc(t(key)));
+    }
+  });
+}
+
+$(function () {
+  var p = new URLSearchParams(window.location.search);
+  TPROJECT_ID = parseInt(p.get('tproject_id') || 0, 10);
+  TCASE_ID = parseInt(p.get('tcase_id') || 0, 10);
+  SPEC_ID = parseInt(p.get('idSRS') || 0, 10);
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    $('#checkAllAssigned,#checkAllFree').attr('title', TLi18n.t('rtca.checkAll'));
+    $('#assignedBody').on('change', 'input.linkcbx', renderSelection);
+    $('#freeBody').on('change', 'input.freecbx', renderSelection);
+    $('#assignedBody').on('click', 'button[data-unlink]', function () {
+      doUnlink(parseInt(this.dataset.unlink, 10));
+    });
+    $('#btnAssign').on('click', doAssign);
+    $('#btnUnassign').on('click', doUnassign);
+    if (!TPROJECT_ID || !TCASE_ID) {
+      showEmpty('<i class="fa fa-ban"></i> ' + TLi18n.t('rtca.errNoContext'));
+      return;
+    }
+    load();
+  });
+});
+</script>
+</body>
+</html>
