@@ -131,13 +131,25 @@ function param($key, $default = 0)
     return array_key_exists($key, $_REQUEST) ? $_REQUEST[$key] : $default;
 }
 
-/** Test project must exist; returns its id. No right check here. */
+/**
+ * Validate the requested test project id WITHOUT disclosing whether it exists.
+ *
+ * The rights check has to run BEFORE the existence lookup: if the existence
+ * lookup came first it answered 404 tproject_not_found for a bogus id and 403
+ * no_right for a real one, which lets ANY authenticated user enumerate the ids
+ * of every test project in the installation. So an unauthorized caller gets the
+ * same 403 no_right for both, and only a caller who may read requirements ever
+ * learns that the project is missing.
+ */
 function needTprojectId()
 {
-    global $tprojMgr;
+    global $tprojMgr, $user;
     $tid = intval(param('tproject_id', 0));
     if ($tid <= 0) {
         failOut(400, 'Invalid test project id', 'invalid_tproject');
+    }
+    if (!canViewReqs($user, $tid)) {
+        failOut(403, 'You are not authorized to view requirements', 'no_right');
     }
     $info = $tprojMgr->get_by_id($tid);
     if (is_null($info) || !isset($info['name'])) {
@@ -355,15 +367,10 @@ if ($action === 'init') {
     if ($method !== 'GET') {
         failOut(405, 'This action only accepts GET', 'wrong_method');
     }
+    // needTprojectId() has already enforced mgt_view_req / mgt_modify_req on
+    // this project BEFORE revealing whether it exists.
     $tproject_id = needTprojectId();
     $proj = $tprojMgr->get_by_id($tproject_id);
-
-    // Rights FIRST, on the requested project: resolving anything before this
-    // would turn the endpoint into a cross-project existence oracle (403 for a
-    // real id, 404 for a bogus one).
-    if (!canViewReqs($user, $tproject_id)) {
-        failOut(403, 'You are not authorized to view requirements', 'no_right');
-    }
 
     $reqsEnabled = requirementsEnabled($proj);
     $specs = $reqsEnabled ? specList($tproject_id) : array();
@@ -399,9 +406,6 @@ if ($action === 'children') {
         failOut(405, 'This action only accepts GET', 'wrong_method');
     }
     $tproject_id = needTprojectId();
-    if (!canViewReqs($user, $tproject_id)) {
-        failOut(403, 'You are not authorized to view requirements', 'no_right');
-    }
     $specId = needOwnedSpec(param('node_id', 0), $tproject_id);
     $spec = specHeader($specId);
     out(array(
