@@ -139,9 +139,11 @@ per session in the other 8. The `rstl.status_*` keys reuse the requirement-statu
 
 ## 7. Tests
 
-Suite 1695 in `tmp/TLU_Test_Cases.md`: **51 cases, 51 PASS** on the delivered code, plus one case
-(1695-43) that reproduces the legacy read hole and is filed as **#1696**. Six cases are regression
-proofs for the defects found during the pass:
+Suite 1695 in `tmp/TLU_Test_Cases.md`: **51 cases, 50 PASS + 1 known FAIL**. The single failure is
+1695-43, which reproduces the legacy read hole and is filed as **#1696**; it is not a failure of
+the modern screen (nothing links to that file any more — it is only kept until #1696 is fixed), and
+all 50 modern-screen / BFF / i18n / wiring / security cases pass. Six cases are regression proofs
+for the defects found during the pass:
 
 * 1695-5 / 1695-24 — the screen's local `t()` wrapper dropped its params bucket, so
   `TLi18n.t()` never interpolated and the chip rendered the raw

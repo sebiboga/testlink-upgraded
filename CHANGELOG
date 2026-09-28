@@ -6224,6 +6224,14 @@ Changes:
   project. It is now unreferenced and should be deleted.
 - `rstl.*` (44 keys) + `footers.reqSpecListTree` in all 10 TLi18n bundles, and a new
   `$TLS_href_req_spec_tree` ASIDE label in all 19 server locale bundles.
+- Corrected the non-English bundles after the diacritic pass: de/fr/pt/ro now use proper
+  accented characters throughout `rstl.*` (e.g. de "ä/ü/ß", fr
+  "é/à/è/ê/ç", pt "ã/á/â/ê", ro
+  "ă/â/î/ș/ț"), not ASCII transliterations.
+- Final validation: Suite 1695 reports the honest **50/51 PASS + 1 known FAIL** (the single
+  failure is 1695-43, the legacy loader read hole already filed as #1696; all 50 modern-screen /
+  BFF / i18n / wiring / security cases pass). Container-child re-parenting
+  (`child_requirements_mgmt`) is the tracked read-parity gap **#1699**.
 ### Gap closed — Assign Test Plan Roles: the role select never pre-selected the EFFECTIVE plan role (Fixes #1664)
 - `gui/templates/usermanagement/usersAssignPlan.html` seeded the per-user role
   `<select>` with the user's **explicit** `user_testplan_roles` row
