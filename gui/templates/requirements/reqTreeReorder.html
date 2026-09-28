@@ -142,13 +142,13 @@ td.act { width: 250px; white-space: nowrap; }
 <div class="footer"><span data-i18n="footers.reqTreeReorder">TestLink 2.0.1 - Requirement Specification Tree</span></div>
 
 <div class="modal fade" id="confirmModal" tabindex="-1" role="dialog" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+  <div class="modal-dialog modal-sm"><div class="modal-content">
     <div class="modal-header"><h5 class="modal-title" id="cmTitle"></h5>
-      <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
-    <div class="modal-body" id="cmBody"></div>
+      <button type="button" class="close" data-dismiss="modal" aria-label="Close">&times;</button></div>
+    <div class="modal-body" id="cmBody" style="font-size:13px;"></div>
     <div class="modal-footer">
-      <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal" data-i18n="common.cancel">Cancel</button>
-      <button type="button" class="btn btn-primary btn-sm" id="cmOk"></button>
+      <button type="button" class="btn btn-secondary" data-dismiss="modal" style="font-size:13px;" data-i18n="common.cancel">Cancel</button>
+      <button type="button" class="btn btn-primary" id="cmOk" style="font-size:13px;"></button>
     </div>
   </div></div>
 </div>
@@ -162,7 +162,6 @@ var TPROJECT_ID = parseInt(q.get('tproject_id') || '0', 10);
 var SPEC_ID = parseInt(q.get('req_spec_id') || q.get('id') || '0', 10);
 var NODE_ID = parseInt(q.get('node_id') || '0', 10);
 var API = '/api/reqtreereorder/index.php';
-var BSS = null;
 
 var ITEMS = [];        // requirements of SPEC_ID, in display order
 var SAVED = '';        // id sequence as last persisted by the BFF
@@ -184,9 +183,6 @@ $(function () {
       load(true);
     });
     $('#moveBtn').off('click').on('click', doMove);
-    if (BSS && BSS.Modal) {
-      new BSS.Modal(document.getElementById('confirmModal'));
-    }
     load(false);
   });
 });
@@ -484,14 +480,17 @@ function confirmBox(title, body, okLabel, onOk) {
   $('#cmBody').text(body);
   $('#cmOk').text(okLabel);
   $('#cmOk').off('click').on('click', function () {
-    if (BSS && BSS.Modal) {
-      var inst = BSS.Modal.getInstance(el);
-      if (inst) { inst.hide(); }
-    } else { el.style.display = 'none'; }
+    $(el).modal('hide');
     onOk();
   });
-  if (BSS && BSS.Modal) { new BSS.Modal(el).show(); }
-  else { alert(title + '\n\n' + body); }
+  // The Dashio bundle is Bootstrap 3.4.1: the modal is a jQuery plugin, there
+  // is no BSS/bootstrap.Modal constructor and no getInstance().
+  if ($.fn && $.fn.modal) {
+    $(el).modal('show');
+  } else {
+    // No Bootstrap JS at all - never leave the user without a confirmation.
+    if (window.confirm(title + '\n\n' + body)) { onOk(); }
+  }
 }
 </script>
 </body>
