@@ -5523,5 +5523,7 @@
   "rtca.warnReqDisabled": "Les exigences ne sont pas activées sur ce projet de test.",
   "rtca.warnDisabledAfterExec": "La liaison des exigences est désactivée après exécution (le cas de test a déjà une exécution).",
   "rtca.warnNoLinkingRight": "Votre rôle a la liaison des exigences désactivée.",
-  "footers.reqTcAssign": "Affecter des Exigences à un Cas de Test"
+  "footers.reqTcAssign": "Affecter des Exigences à un Cas de Test",
+  "rtca.noReqSpecs": "Il n'y a pas de spécification d'exigences dans ce projet de test, il n'y a donc rien à affecter.",
+  "rtca.readOnly": "La liaison des exigences est actuellement désactivée pour ce cas de test."
 }

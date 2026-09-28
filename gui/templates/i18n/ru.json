@@ -5529,5 +5529,7 @@
   "rtca.warnReqDisabled": "Requirements are not enabled on this test project.",
   "rtca.warnDisabledAfterExec": "Requirement linking is disabled after execution (the test case already has an execution).",
   "rtca.warnNoLinkingRight": "Your role has requirement linking disabled.",
-  "footers.reqTcAssign": "Назначение требований тестовому случаю"
+  "footers.reqTcAssign": "Назначение требований тестовому случаю",
+  "rtca.noReqSpecs": "There is no requirement specification in this test project, so there is nothing to assign.",
+  "rtca.readOnly": "Requirement linking is currently disabled for this test case."
 }

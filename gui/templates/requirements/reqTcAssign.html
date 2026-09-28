@@ -188,7 +188,6 @@ var TCASE_VIEW_URL = '/gui/templates/testcases/tcView.html';
 var TPROJECT_ID = 0;
 var TCASE_ID = 0;
 var SPEC_ID = 0;
-var FREEZE_LINK = false;
 var REQ_EDITOR_TYPE = 'none';
 var SCOPE_TRUNCATE = 30;
 var CAN_WRITE = false;
@@ -199,7 +198,7 @@ function esc(s) {
   return $('<div>').text(s == null ? '' : String(s)).html();
 }
 
-function t(k, p) { return TLi18n.t(k, p); }
+function t(k) { return TLi18n.t(k); }
 
 /** interpolate {placeholders} literally (a replacer fn, so a value that
  *  itself contains $& or $' can never rewrite the sentence) */
@@ -217,10 +216,10 @@ function showMsg(ok, text) {
   m.data('tm', setTimeout(function () { m.removeClass('ok err'); m.css('display', 'none'); }, 9000));
 }
 
-function showWarn(html, isErr) {
+function showWarn(html) {
   var w = $('#warnBox');
   if (!html) { w.hide(); return; }
-  w.html(html).toggleClass('err', !!isErr).show();
+  w.html(html).removeClass('err').show();
 }
 
 function showEmpty(html) {
@@ -254,9 +253,9 @@ function verChip(n) {
 }
 
 function confirmThen(title, body, okLabel, fn) {
-  $('#confirmTitle').html(title);
+  $('#confirmTitle').text(title);
   $('#confirmBody').html(body);
-  $('#confirmOk').html(okLabel);
+  $('#confirmOk').text(okLabel);
   $('#confirmOk').off('click.rtca').on('click.rtca', function () {
     $('#confirmModal').modal('hide');
     fn();
@@ -282,7 +281,10 @@ function post(action, payload, done) {
 }
 
 /** server-side error copy is English-only, so the client maps the known
- *  cases onto the localized message and keeps the raw one as a fallback. */
+ *  cases onto the localized message and keeps the raw one as a fallback.
+ *  NOTE: errGeneric / errForbidden / errNotFound / errLinkDisabled / errNotYours
+ *  are reached only through the `key` variable below, a static scan of the
+ *  file will not see them - do not "clean them up". */
 function reportError(xhr) {
   if (xhr.status === 401) { window.location.href = '/login.php'; return; }
   var raw = '';
@@ -311,7 +313,10 @@ function onCheckAllAssigned(el) {
 }
 
 function onCheckAllFree(el) {
-  $('input.freecbx').each(function () { this.checked = el.checked; });
+  $('input.freecbx').each(function () {
+    if (this.disabled) { this.checked = false; return; }
+    this.checked = el.checked;
+  });
   renderSelection();
 }
 
@@ -337,10 +342,14 @@ function renderTables() {
         + (CAN_WRITE && r.removable
             ? '<input type="checkbox" class="cbx linkcbx" data-link="' + r.link_id + '">'
             : '<input type="checkbox" class="cbx linkcbx" data-link="' + r.link_id + '" disabled'
-              + (r.removable ? '' : ' title="' + esc(t('rtca.linkFrozen')) + '"') + '>')
+              + (CAN_WRITE
+                 // linking is on, this single link cannot be removed
+                 ? ' title="' + esc(t('rtca.linkFrozen')) + '"'
+                 // the whole screen is read-only
+                 : ' title="' + esc(t('rtca.readOnly')) + '"') + '>')
         + '</td>'
         + '<td><span class="docid">' + esc(r.doc_id) + '</span></td>'
-        + '<td><a class="req-link req-title" href="' + esc(r.req_view_url) + '" target="_blank">'
+        + '<td><a class="req-link req-title" href="' + esc(r.req_view_url) + '" target="_blank" rel="noopener">'
         + esc(r.title) + '</a>' + verChip(r.version) + '</td>'
         + '<td class="scope">' + scopeHtml(r.scope) + '</td>'
         + '<td class="who">' + esc(r.author) + '</td>'
@@ -362,7 +371,7 @@ function renderTables() {
       + '<td style="text-align:center;"><input type="checkbox" class="cbx freecbx" data-req="' + r.req_id + '"'
       + (CAN_WRITE ? '' : ' disabled') + '></td>'
       + '<td><span class="docid">' + esc(r.doc_id) + '</span></td>'
-      + '<td><a class="req-link req-title" href="' + esc(r.req_view_url) + '" target="_blank">'
+      + '<td><a class="req-link req-title" href="' + esc(r.req_view_url) + '" target="_blank" rel="noopener">'
       + esc(r.title) + '</a>' + verChip(r.version) + '</td>'
       + '<td class="scope">' + scopeHtml(r.scope) + '</td>'
       + '</tr>';
@@ -427,7 +436,14 @@ function apply(d) {
 function render(d) {
   assigned = d.assigned || [];
   free = d.free || [];
-  FREEZE_LINK = !!d.freeze_link_on_new_version;
+
+  // legacy warning_req_tc_assignment_impossible: without a specification there
+  // is nothing to assign at all, and the "every requirement is already
+  // assigned" empty state would be a lie.
+  if (d.has_req_spec === false) {
+    showEmpty('<i class="fa fa-info-circle"></i> ' + esc(t('rtca.noReqSpecs')));
+    return;
+  }
   REQ_EDITOR_TYPE = d.req_editor_type || 'none';
   SCOPE_TRUNCATE = parseInt(d.scope_truncate, 10) || 30;
 
@@ -452,7 +468,7 @@ function render(d) {
     warn = ((d.grants || {}).reason === 'reqLinkingDisabledAfterExec')
       ? t('rtca.warnDisabledAfterExec') : t('rtca.warnNoLinkingRight');
   }
-  showWarn(warn ? '<i class="fa fa-exclamation-triangle"></i> ' + esc(warn) : '', false);
+  showWarn(warn ? '<i class="fa fa-exclamation-triangle"></i> ' + esc(warn) : '');
   CAN_WRITE = (d.grants || {}).link === true;
 
   renderTables();

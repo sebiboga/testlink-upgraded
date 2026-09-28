@@ -5523,5 +5523,7 @@
   "rtca.warnReqDisabled": "Los requisitos no están habilitados en este proyecto de pruebas.",
   "rtca.warnDisabledAfterExec": "La vinculación de requisitos está deshabilitada tras la ejecución (el caso de prueba ya tiene una ejecución).",
   "rtca.warnNoLinkingRight": "Su rol tiene la vinculación de requisitos deshabilitada.",
-  "footers.reqTcAssign": "Asignar Requisitos a un Caso de Prueba"
+  "footers.reqTcAssign": "Asignar Requisitos a un Caso de Prueba",
+  "rtca.noReqSpecs": "No hay ninguna especificación de requisitos en este proyecto de pruebas, así que no hay nada que asignar.",
+  "rtca.readOnly": "La vinculación de requisitos está deshabilitada actualmente para este caso de prueba."
 }

@@ -106,6 +106,35 @@ screen reaches full parity.
   reuses `user.fullName`). Regression suite 1676: 20/20 PASS (9 client cases on the shipped helper +
   11 live BFF cases over 3 formats) and 11/11 browser cases; console and Event Viewer clean. (Fixes #1676)
 
+- [SCREEN] - #1702: the single-test-case **Assign Requirements** popup is modernized. Legacy 1.9.20
+  rendered it from `gui/templates/dashio/requirements/reqTcAssign.tpl`, but the #1595 shim
+  `lib/requirements/reqTcAssign.php` never implemented that mode: it read only `?id=` and always
+  redirected to `reqTcBulkAssign.html?tsuite_id=<id>`, ignoring `edit=testcase` - so the live entry
+  point `openReqWindow(tcase_id)` in `gui/javascript/testlink_library.js` (which builds
+  `?edit=testcase&showCloseButton=1&callback=<cb>&id=<tcase_id>`) silently mis-dispatched the
+  **test case** popup to the **bulk** screen with a test case id in the `tsuite_id` slot, against a
+  suite that does not exist. Fixed in three layers: (1) the shim is now a session-guarded 302 that
+  resolves the node TYPE with a narrow inlined query (`tree_manager` is not on this request path, so
+  `new tree_manager($db)` fatals "Class not found" -> 500) and sends test cases to the new screen and
+  everything else to the bulk popup, repairing old `?id=`-only bookmarks; it performs no rights check
+  by design, so it cannot become a node-type oracle, and the popup enforces the rights; (2) the
+  modern screen `gui/templates/requirements/reqTcAssign.html` (teal header, test case + version
+  context, requirement-spec selector, assigned/free grids with the legacy column set, check-all,
+  bulk assign/unassign, per-row unlink, confirmation modal, read-only + frozen states, empty states,
+  responsive) backed by BFF `api/reqtcassign/index.php` (`GET ?action=init`, `POST
+  ?action=assign|unassign`; `bffEnforceSession` + `bffSameOriginGuard`, legacy
+  `req_tcase_link_management`, the `reqLinkingDisabledAfterExec` gate, project-membership proof on
+  every id, 401 anon / 403 no-right / 400 / 404 / 405 / 409 executed); (3) `$actions->reqTcAssign`
+  in `lib/functions/common.php` for deep-link parity. Code review fixed 8 further defects on top:
+  links closed by execution were invisible and un-unassignable and were re-offered in the free grid;
+  the executed gate read ANY version of the test case instead of the latest; `requirementsEnabled`
+  was never enforced server-side; the audit translation was called with the wrong argument list; a
+  free-grid `doc_id` leaked the version suffix used in the id; and the missing "no requirement
+  specification" state (the screen would have shown "every requirement is already assigned"). i18n
+  `rtca.*` (43) + `footers.reqTcAssign` in all 10 locales. 22/22 regression suite + 19 browser
+  cases; Event Viewer clean. Bug filed: #1705 `reqSpecCombo()` provenance in
+  `lib/functions/requirement_spec_mgr.class.php`. (Refs #1702)
+
 - [SCREEN] - #1671: the Reorder Test Case Steps screen is modernized. Legacy 1.9.20 had a backend
   (`lib/ajax/stepReorder.php`, the server side of the TableDnD widget in
   `gui/templates/tl-classic/testcases/steps_horizontal.inc.tpl`) but no screen, no URL and no right:

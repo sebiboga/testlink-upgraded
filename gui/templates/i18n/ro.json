@@ -5533,5 +5533,7 @@
   "rtca.warnReqDisabled": "Cerințele nu sunt activate pe acest proiect de test.",
   "rtca.warnDisabledAfterExec": "Legarea cerințelor este dezactivată după execuție (test case-ul are deja o execuție).",
   "rtca.warnNoLinkingRight": "Rolul dvs. are legarea cerințelor dezactivată.",
-  "footers.reqTcAssign": "Atribuirea cerințelor unui test case"
+  "footers.reqTcAssign": "Atribuirea cerințelor unui test case",
+  "rtca.noReqSpecs": "Nu există nicio specificație de cerințe în acest proiect de test, deci nu este nimic de atribuit.",
+  "rtca.readOnly": "Legarea cerințelor este dezactivată momentan pentru acest test case."
 }

@@ -1,5 +1,4 @@
 <?php
-ob_start();
 /**
  * api/reqtcassign — "Assign Requirements to a Test Case" BFF (Refs #1702)
  *
@@ -93,6 +92,13 @@ if (is_null($user)) {
     out(['status' => 'error', 'message' => 'User not found']);
 }
 
+// The legacy screen went through testlinkInitPage() on every page load, which
+// ran checkSessionValid(); doSessionStart() alone does not honour
+// sessionInactivityTimeout, so a tab left open past the idle window could keep
+// writing req_coverage rows. Placed after the userID gate and before any route
+// dispatch, so it covers GET init and all three POST routes.
+bffEnforceSession($db);
+
 function out($data) {
     echo json_encode($data);
     exit;
@@ -181,28 +187,7 @@ function resolveSpecId($tprojectId, $specId) {
 function tcaseHasBeenExecuted($tcaseId) {
     global $db;
     $tcMgr = new testcase($db);
-    $vers = $tcMgr->get_by_id($tcaseId, testcase::ALL_VERSIONS);
-    $ids = [];
-    if (!is_null($vers)) {
-        foreach ((array) $vers as $v) {
-            $vid = intval($v['tcversion_id'] ?? ($v['id'] ?? 0));
-            if ($vid > 0) {
-                $ids[$vid] = $vid;
-            }
-        }
-    }
-    if (count($ids) === 0) {
-        return false;
-    }
-    $tExec = tlObjectWithDB::getDBTables('executions');
-    $in = implode(',', array_map('intval', array_values($ids)));
-    $rs = $db->get_recordset(
-        "SELECT COUNT(*) AS qty FROM {$tExec['executions']} EX " .
-        " WHERE EX.tcversion_id IN ({$in})");
-    if (is_null($rs) || count($rs) === 0) {
-        return false;
-    }
-    return intval($rs[0]['qty'] ?? 0) > 0;
+    return $tcMgr->latestVersionHasBeenExecuted($tcaseId);
 }
 
 /**
@@ -220,8 +205,8 @@ function resolveCtx($tprojectId, $tcaseId) {
     }
     if (!$user->hasRight($db, 'req_tcase_link_management', $tprojectId, null, true)) {
         // legacy pageAccessCheck() logged the refused access before blocking
-        logAuditEvent(TLS('audit_security_user_right_missing',
-                          'req_tcase_link_management'),
+        logAuditEvent(TLS('audit_security_user_right_missing', $user->login,
+                          $tprojectId, 'req_tcase_link_management'),
                       'SECURITY', $tprojectId, 'testprojects');
         denyForbidden();
     }
@@ -233,6 +218,12 @@ function resolveCtx($tprojectId, $tcaseId) {
     }
     $opt = $tprojectMgr->getOptions($tprojectId);
     $opt = is_object($opt) ? $opt : new stdClass();
+    if (empty($opt->requirementsEnabled)) {
+        // the sibling BFF api/reqtcbassign refuses on a project with
+        // requirements turned off; genComboReqSpec() does not care, so without
+        // this the routes would still list and write requirement links there.
+        badRequest('Requirements are not enabled on this test project');
+    }
 
     // The test case id must really be a test case node ...
     $nodeType = $tprojectMgr->tree_manager->getNodeType($tcaseId);
@@ -286,8 +277,11 @@ function resolveCtx($tprojectId, $tcaseId) {
  * Legacy linking gate. Two independent conditions, exactly as the template
  * evaluated them:
  *   1. the req_tcase_link_management right (already checked in resolveCtx)
- *   2. testcase_cfg.reqLinkingDisabledAfterExec == 1 AND the test case has
- *      already been executed
+ *   2. testcase_cfg.reqLinkingDisabledAfterExec == 1 AND the LATEST test case
+ *      version has already been executed - legacy computed this from
+ *      testcase::get_versions_status_quo($tcase_id, $latest)['executed'], so a
+ *      test case whose old v1 was executed but whose current v2 is not must
+ *      still be linkable
  * Returns [enabled, reason_code] where reason_code is '' when linking is on.
  */
 function linkingGate($tcaseId) {
@@ -307,9 +301,18 @@ function assignedRows($specId, $tcaseId, $versionString) {
         return [];
     }
     $mgr = new requirement_spec_mgr($db);
+    // The legacy controller passed
+    //   array('link_status' => array(LINK_TC_REQ_OPEN, LINK_TC_REQ_CLOSED_BY_EXEC))
+    // (legacy lib/requirements/reqTcAssign.php). Without it the class default
+    // array('link_status' => 1) applies and every link closed by an execution
+    // disappears from the grid and can no longer be removed - and
+    // exec.inc.php::closeOpenReqLinks() closes ALL open links of a version when
+    // it is executed, so this is the normal state of a project that executes
+    // its test cases.
     $rs = $mgr->getReqsOnSpecForLatestTCV(
         $specId, $tcaseId,
-        ['output' => 'array', 'version_string' => $versionString]);
+        ['output' => 'array', 'version_string' => $versionString],
+        ['link_status' => [LINK_TC_REQ_OPEN, LINK_TC_REQ_CLOSED_BY_EXEC]]);
     $rows = [];
     if (!is_null($rs)) {
         foreach ((array) $rs as $r) {
@@ -372,8 +375,11 @@ function localizeTs($ts) {
  * Free grid rows - the requirements of $specId that are NOT linked to the
  * latest active test case version of $tcaseId.
  *
- * The legacy method this screen used,
- * requirement_spec_mgr::getReqsOnSpecNotLinkedToLatestTCV(), is DEFECTIVE
+ * (For the record: 1.9.20 built this list with get_requirements($specId) minus
+ * array_diff_byId() the assigned rows, which is correct - the DEFECTIVE method
+ * in this class, getReqsOnSpecNotLinkedToLatestTCV(), is a different one, filed
+ * separately as issue #1705. It is called from elsewhere, which is why it still
+ * matters, but it was NOT the source of this grid.) That method is DEFECTIVE
  * (reported as a bug in this run): it LEFT JOINs req_coverage and then
  * req_versions ON RCOV.req_version_id, so
  *   (a) a requirement that IS linked comes back as well (its join produced a
@@ -404,7 +410,12 @@ function freeRows($specId, $tcaseId, $versionString) {
             'req_id' => intval($r['id']),
             'req_version_id' => intval($r['req_version_id']),
             'version' => intval($r['version']),
-            'doc_id' => strval($r['req_doc_id'] ?? ''),
+            // getAllLatestRQVOnReqSpec() concatenates the version into
+            // req_doc_id (CONCAT(REQ.req_doc_id,' [',REQV.version,'] ')), the
+            // assigned grid returns the raw doc id - strip it so both columns
+            // read the same and the version shows up only in the V{n} chip.
+            'doc_id' => preg_replace('/\s*\[\d+\]\s*$/', '',
+                                     strval($r['req_doc_id'] ?? '')),
             'title' => strval($r['title'] ?? ''),
             'scope' => strval($r['scope'] ?? ''),
         ];
@@ -414,7 +425,6 @@ function freeRows($specId, $tcaseId, $versionString) {
     }
 
     $tcMgr = new testcase($db);
-    $vers = $tcMgr->get_by_id($tcaseId, testcase::ALL_VERSIONS);
     $active = $tcMgr->get_last_active_version($tcaseId);
     $activeId = intval((is_array($active) && count($active) > 0)
                        ? current($active)['tcversion_id'] : 0);
@@ -427,7 +437,8 @@ function freeRows($specId, $tcaseId, $versionString) {
         "SELECT DISTINCT RCOV.req_id FROM {$t['req_coverage']} RCOV " .
         " WHERE RCOV.req_id IN ({$in}) " .
         " AND RCOV.tcversion_id = " . $activeId .
-        " AND RCOV.link_status = " . intval(LINK_TC_REQ_OPEN));
+        " AND RCOV.link_status IN (" . intval(LINK_TC_REQ_OPEN) . ","
+                                 . intval(LINK_TC_REQ_CLOSED_BY_EXEC) . ")");
     if (!is_null($linked)) {
         foreach ($linked as $row) {
             unset($reqs[intval($row['req_id'])]);

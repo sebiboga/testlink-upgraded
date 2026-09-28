@@ -24,11 +24,17 @@
  * links and bookmarks still resolve:
  *   - anonymous users are sent to the login screen (legacy testlinkInitPage
  *     behaviour);
- *   - ?edit=testcase (or a ?id= that is a test case node) lands on the modern
- *     single-test-case popup;
+ *   - a ?id= that resolves to a TEST CASE node lands on the modern
+ *     single-test-case popup - ?edit= is not needed and not trusted, so a
+ *     suite id that carries it is repaired too, and old links that only had
+ *     ?id= work;
  *   - everything else lands on the modern bulk popup with the test suite id
  *     (legacy ?id= / ?tsuite_id= / POST id) and the test project context
  *     forwarded.
+ * The shim itself performs no rights check: the redirect target is only a
+ * launcher, and both popups enforce req_tcase_link_management on every route
+ * through their BFF (403 for a role without it). Keeping the check out of the
+ * shim is also what stops a redirect from being a node-type oracle.
  * Every write path of the legacy controller (doAction=bulkassign /
  * switchspec / assign / unassign) is now served by a BFF, which enforces the
  * same legacy right (req_tcase_link_management) and additionally proves the
@@ -61,15 +67,15 @@ $tplanID = isset($_SESSION['testplanID']) ? intval($_SESSION['testplanID']) : 0;
 // a test suite node id (sometimes with ?edit=testsuite). Resolving the node
 // type also repairs old links that only carried ?id=.
 $mode = 'bulk';
-if ((isset($_REQUEST['edit']) && strval($_REQUEST['edit']) === 'testcase') && $id > 0) {
-    $mode = 'testcase';
-} elseif ($id > 0) {
-    // NOTE: this is tree_manager::getNodeType() inlined on purpose.
-    // lib/functions/tree.class.php is not part of the request path loaded by
-    // this shim (config.inc.php / common.php never require it), so
-    // `new tree_manager($db)` fatals with "Class not found" and the shim
-    // answers 500. One narrow query keeps the shim dependency free.
-    // getDBTables() is per table, so the two names are asked for separately.
+if ($id > 0) {
+    // The node TYPE decides, not ?edit=. The legacy ?edit=testcase shortcut is
+    // deliberately NOT trusted: a test suite id (or a stale bookmark) carrying
+    // it would land on the test case screen and 404 instead of being repaired
+    // here. The query is inlined because lib/functions/tree.class.php is not
+    // loaded on this request path (config.inc.php / common.php never require
+    // it), so `new tree_manager($db)` fatals with "Class not found" and the
+    // shim answers 500. getDBTables() is per table, so the two names are asked
+    // for separately.
     $tNH = tlObjectWithDB::getDBTables('nodes_hierarchy');
     $tNT = tlObjectWithDB::getDBTables('node_types');
     $rs = $db->get_recordset(

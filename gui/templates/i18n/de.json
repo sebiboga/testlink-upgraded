@@ -5523,5 +5523,7 @@
   "rtca.warnReqDisabled": "Anforderungen sind in diesem Testprojekt nicht aktiviert.",
   "rtca.warnDisabledAfterExec": "Verknüpfung von Anforderungen ist nach der Ausführung deaktiviert (der Testfall hat bereits eine Ausführung).",
   "rtca.warnNoLinkingRight": "Ihre Rolle hat die Anforderungsverknüpfung deaktiviert.",
-  "footers.reqTcAssign": "Anforderungen an Testfall zuweisen"
+  "footers.reqTcAssign": "Anforderungen an Testfall zuweisen",
+  "rtca.noReqSpecs": "In diesem Testprojekt gibt es keine Anforderungsspezifikation, daher gibt es nichts zuzuweisen.",
+  "rtca.readOnly": "Die Anforderungsverknüpfung ist für diesen Testfall derzeit deaktiviert."
 }

@@ -2225,8 +2225,12 @@ function getActions(&$gui,$baseURL) {
   // tsuite_id slot, so openReqWindow() in gui/javascript/testlink_library.js
   // silently mis-dispatched to the wrong screen. The BFF (api/reqtcassign)
   // enforces the legacy req_tcase_link_management right plus the
-  // reqLinkingDisabledAfterExec gate on every route. Carries tcase_id= of the
-  // addressed test case; this generic launcher keeps legacy deep-link parity.
+  // reqLinkingDisabledAfterExec gate on every route.
+  // NOTE: $ctx only carries tproject_id= and tplan_id=, so this generic
+  // launcher lands on the screen's "missing test case" notice. The real entry
+  // point is openReqWindow(), which appends the tcase_id= of the addressed test
+  // case; the assignment is kept only for deep-link parity with the sibling
+  // $actions->reqTcBulkAssign above.
   $actions->reqTcAssign = "/gui/templates/requirements/reqTcAssign.html?{$ctx}";
   $actions->reqImport = "/gui/templates/requirements/reqImport.html?{$ctx}";
   $actions->printReqSpec = "/gui/templates/requirements/printReqSpec.html?{$ctx}";
