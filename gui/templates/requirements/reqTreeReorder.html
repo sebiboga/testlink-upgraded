@@ -35,6 +35,8 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 .meta span.v { color: #22242a; font-size: 13px; font-weight: 600; }
 .chip { background: #22242a; color: #4ECDC4; padding: 3px 10px; border-radius: 3px; font-weight: 700; font-size: 12px; }
 .chip.gray { background: #eceff1; color: #607d8b; }
+.chip[data-href] { color: #22242a; background: #4ECDC4; cursor: pointer; }
+.chip[data-href]:hover { background: #3bb8b0; }
 label.fl { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .6px; color: #999; font-weight: 700; margin: 0 0 4px; }
 select, input[type=text] { width: 100%; padding: 8px 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; font-family: inherit; background: #fff; }
 select:disabled { background: #f5f5f5; color: #aaa; }
@@ -72,7 +74,7 @@ td.act { width: 250px; white-space: nowrap; }
   <button class="btn-teal" id="applyBtn"><i class="fa fa-save"></i> <span data-i18n="reqtr.applyOrder">Apply order</span></button>
   <button class="btn-ghost" id="discardBtn"><i class="fa fa-undo"></i> <span data-i18n="reqtr.discard">Discard changes</span></button>
   <button class="btn-ghost" id="refreshBtn"><i class="fa fa-refresh"></i> <span data-i18n="common.refresh">Refresh</span></button>
-  <a class="btn-ghost" id="backLink" href="#" target="_blank"><i class="fa fa-arrow-left"></i> <span data-i18n="reqtr.backToMgmt">Back to specification management</span></a>
+  <a class="btn-ghost" id="backLink" href="/gui/templates/requirements/reqSpecMgmt.html?tproject_id=13"><i class="fa fa-arrow-left"></i> <span data-i18n="reqtr.backToMgmt">Back to specification management</span></a>
   <span class="hint"><i class="fa fa-grip-vertical"></i> <span data-i18n="reqtr.hint">Drag and drop reorders locally until you apply it</span></span>
 </div>
 
@@ -177,6 +179,10 @@ $(function () {
     $('#applyBtn').off('click').on('click', applyOrder);
     $('#discardBtn').off('click').on('click', discard);
     $('#refreshBtn').off('click').on('click', function () { load(true); });
+    $('#specChip').off('click').on('click', function () {
+      var h = $(this).attr('data-href');
+      if (h) { window.open(h, '_blank'); }
+    });
     $('#specSel').off('change').on('change', function () {
       SPEC_ID = parseInt(this.value || '0', 10);
       PICKED = 0;
@@ -358,10 +364,17 @@ function load(keepMsg) {
       $('#mRev').text(ctx.revision ? String(ctx.revision) : '-');
       $('#mCount').text(String((r.requirements || []).length));
       $('#mWho').text('-');
-      $('#specChip').text(ctx.req_spec_doc_id ? ctx.req_spec_doc_id : '');
-      $('#backLink').attr('href', SPEC_ID > 0
-        ? '/gui/templates/requirements/reqSpecView.html?id=' + SPEC_ID + '&tproject_id=' + TPROJECT_ID
-        : '/gui/templates/requirements/reqSpecMgmt.html?tproject_id=' + TPROJECT_ID);
+      var chip = $('#specChip');
+      chip.text(ctx.req_spec_doc_id ? ctx.req_spec_doc_id : '');
+      if (SPEC_ID > 0) {
+        chip.attr('data-href', '/gui/templates/requirements/reqSpecView.html?id='
+          + SPEC_ID + '&tproject_id=' + TPROJECT_ID);
+      } else {
+        chip.removeAttr('data-href');
+      }
+      // The back link always points at the specification MANAGEMENT screen, which
+      // matches its label and is valid even before this script runs. Only refine
+      // it here; never fall back to '#' (a self-reload of a forbidden page).
       ITEMS = (r.requirements || []).map(function (x) {
         return { id: x.id, req_doc_id: x.req_doc_id, title: x.title,
                  status: x.status, type: x.type, version: x.version };
