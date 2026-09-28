@@ -5396,5 +5396,18 @@
   "usergrid.roleId": "ID de Rôle",
   "usergrid.showAllColumns": "Afficher toutes les colonnes",
   "usergrid.userId": "ID d'utilisateur",
-  "version": "Version"
+  "version": "Version",
+  "md.btnExpandAll": "Développer tous les groupes",
+  "md.btnCollapseAll": "Replier tous les groupes",
+  "md.btnShowAllColumns": "Afficher toutes les colonnes",
+  "md.btnResetFilters": "Réinitialiser les filtres",
+  "md.btnDefaultState": "Réinitialiser l'état par défaut",
+  "md.btnRefresh": "Actualiser",
+  "md.filterPlatform": "Plateforme",
+  "md.filterAllPlatforms": "Toutes les plateformes",
+  "md.groupPrefix": "Plan de test : ",
+  "md.groupItem": "({count} élément)",
+  "md.groupItems": "({count} éléments)",
+  "md.filtersCleared": "Filtres réinitialisés",
+  "md.defaultStateRestored": "État par défaut restauré"
 }

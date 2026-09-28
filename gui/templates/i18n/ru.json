@@ -5402,5 +5402,18 @@
   "usergrid.roleId": "ID роли",
   "usergrid.showAllColumns": "Показать все столбцы",
   "usergrid.userId": "ID пользователя",
-  "version": "Версия"
+  "version": "Версия",
+  "md.btnExpandAll": "Развернуть все группы",
+  "md.btnCollapseAll": "Свернуть все группы",
+  "md.btnShowAllColumns": "Показать все столбцы",
+  "md.btnResetFilters": "Сбросить фильтры",
+  "md.btnDefaultState": "Сбросить к состоянию по умолчанию",
+  "md.btnRefresh": "Обновить",
+  "md.filterPlatform": "Платформа",
+  "md.filterAllPlatforms": "Все платформы",
+  "md.groupPrefix": "План тестирования: ",
+  "md.groupItem": "({count} элемент)",
+  "md.groupItems": "({count} элементов)",
+  "md.filtersCleared": "Фильтры сброшены",
+  "md.defaultStateRestored": "Состояние по умолчанию восстановлено"
 }

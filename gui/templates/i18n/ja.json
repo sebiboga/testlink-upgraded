@@ -5402,5 +5402,18 @@
   "usergrid.roleId": "ロールID",
   "usergrid.showAllColumns": "全ての列を表示",
   "usergrid.userId": "ユーザーID",
-  "version": "バージョン"
+  "version": "バージョン",
+  "md.btnExpandAll": "すべてのグループを展開",
+  "md.btnCollapseAll": "すべてのグループを折りたたむ",
+  "md.btnShowAllColumns": "すべての列を表示",
+  "md.btnResetFilters": "フィルタをリセット",
+  "md.btnDefaultState": "デフォルト状態に戻す",
+  "md.btnRefresh": "更新",
+  "md.filterPlatform": "プラットフォーム",
+  "md.filterAllPlatforms": "すべてのプラットフォーム",
+  "md.groupPrefix": "テストプラン: ",
+  "md.groupItem": "({count} 件)",
+  "md.groupItems": "({count} 件)",
+  "md.filtersCleared": "フィルタをリセットしました",
+  "md.defaultStateRestored": "デフォルト状態を復元しました"
 }

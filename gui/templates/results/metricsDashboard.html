@@ -7,6 +7,7 @@
 <title>Metrics Dashboard</title>
 <link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
 <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/rowgroup/1.4.1/css/rowGroup.dataTables.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <style>
 * { box-sizing: border-box; }
@@ -24,6 +25,24 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 }
 .toolbar label.chk { color: #ccc; font-size: 13px; cursor: pointer; margin: 0; }
 .toolbar label.chk input { margin-right: 6px; vertical-align: middle; cursor: pointer; }
+.tbtn { background: #2c2f36; color: #ddd; border: 1px solid #3c404a; border-radius: 4px;
+  font-size: 12px; padding: 5px 11px; cursor: pointer; display: none;
+  align-items: center; gap: 6px; }
+.tbtn:hover { background: #383c45; color: #fff; }
+.tbtn.on { background: #4ECDC4; border-color: #4ECDC4; color: #10312f; font-weight: 600; }
+.gridbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+.gridbar .spacer { flex: 1; }
+.filterlabel { color: #666; font-size: 12px; }
+.filterlabel select { font-size: 12px; padding: 4px 6px; border: 1px solid #ccc;
+  border-radius: 3px; background: #fff; }
+.col-filter { width: 100%; min-width: 60px; font-size: 12px; padding: 4px 6px;
+  border: 1px solid #ccc; border-radius: 3px; }
+table.dataTable tfoot td { background: #f7f9f9; padding: 6px 8px; }
+tr.dtrg-group td { background: #e9f5f3; font-weight: 700; color: #2b6f69;
+  cursor: pointer; padding: 8px 12px; border-bottom: 1px solid #d2e6e3; font-size: 13px; }
+tr.dtrg-group td i { margin-right: 8px; color: #2d8e88; }
+tr.dtrg-group td:hover { background: #dcefec; }
+tr.dtrg-group .gcount { font-weight: 400; color: #6aa; font-size: 11px; margin-left: 5px; }
 .btn-linkish { background: transparent; border: none; color: #4ECDC4; cursor: pointer;
   font-size: 13px; padding: 0; }
 .btn-linkish:hover { color: #3dbdb5; text-decoration: underline; }
@@ -102,9 +121,21 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; vertical-align: 
 
   <div class="section">
     <h2 data-i18n="md.testPlanProgress">Test Plan Progress</h2>
+    <div class="gridbar" id="gridBar" style="display:none">
+      <button class="tbtn" id="btnExpandAll" type="button"><i class="fa fa-plus-square"></i> <span data-i18n="md.btnExpandAll">Expand all groups</span></button>
+      <button class="tbtn" id="btnCollapseAll" type="button"><i class="fa fa-minus-square"></i> <span data-i18n="md.btnCollapseAll">Collapse all groups</span></button>
+      <button class="tbtn" id="btnShowCols" type="button"><i class="fa fa-columns"></i> <span data-i18n="md.btnShowAllColumns">Show all columns</span></button>
+      <button class="tbtn" id="btnResetFilters" type="button"><i class="fa fa-filter-circle-xmark"></i> <span data-i18n="md.btnResetFilters">Reset Filters</span></button>
+      <button class="tbtn" id="btnDefaultState" type="button"><i class="fa fa-rotate-left"></i> <span data-i18n="md.btnDefaultState">Reset to default state</span></button>
+      <button class="tbtn" id="btnRefreshGrid" type="button"><i class="fa fa-rotate"></i> <span data-i18n="md.btnRefresh">Refresh</span></button>
+      <span class="spacer"></span>
+      <span class="filterlabel"><label for="platformFilter" data-i18n="md.filterPlatform">Platform</label>
+        <select id="platformFilter"></select></span>
+    </div>
     <div class="table-wrap">
       <table id="plansTable" class="display" style="width:100%">
         <thead><tr id="plansHead"></tr></thead>
+        <tfoot id="plansFoot"></tfoot>
         <tbody></tbody>
       </table>
     </div>
@@ -115,11 +146,13 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; vertical-align: 
 
 <div class="footer" id="footerText"></div>
 <div class="footer"><span data-i18n="footers.metricsDashboard">TestLink 2.0.1 - Metrics Dashboard</span></div>
+<div class="toast" id="toast" style="position:fixed;right:20px;bottom:20px;background:#22242a;color:#fff;padding:10px 16px;border-radius:5px;font-size:13px;display:none;z-index:9999;"></div>
 
 <script src="/gui/templates/i18n/i18n.js"></script>
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap.min.js"></script>
+<script src="https://cdn.datatables.net/rowgroup/1.4.1/js/dataTables.rowGroup.min.js"></script>
 <script>
 var API = '/api/metrics/index.php';
 var qs = new URLSearchParams(window.location.search);
@@ -135,6 +168,23 @@ var STATUS_KEYS = {
   failed: 'md.statusFailed', blocked: 'md.statusBlocked'
 };
 var dashboard = null;
+var collapsedGroups = {};   // Refs #1018: group name -> true when collapsed
+var grouped = false;        // legacy: grouping only when platforms are shown
+var platColIdx = -1;        // column index of the Platform column (list filter)
+var defaultOrder = null;    // remembered so "Reset to default state" can restore it
+var qtyColumnIdx = [];      // indices of the qty columns (hidden by default)
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function toast(msg, isErr) {
+  var $t = $('#toast').text(msg).toggleClass('err', !!isErr).show();
+  clearTimeout($t.data('mdtm'));
+  $t.data('mdtm', setTimeout(function () { $t.hide(); }, 3500));
+}
 
 $(function() {
   TLi18n.load(function() {
@@ -242,64 +292,256 @@ function computeTotals(r) {
   return t;
 }
 
+// Refs #1018 - legacy Ext.Table parity for the Test Plan Progress grid:
+//   * grouped by test plan with a "Test Plan: <name> - Overall Progress: X% (N Items)"
+//     group header (lib/results/metricsDashboard.php:50-70 + exttable.class.php:585-592
+//     groupTextTpl '<text> ({n} Item[s])'),
+//   * the grouped column hidden in the child rows (exttable.class.php:55
+//     hideGroupedColumn = true),
+//   * the qty column of every status hidden by default
+//     (lib/results/metricsDashboard.php:333 `'hidden' => true`) and revealed by
+//     "Show all columns" (exttable.class.php:109),
+//   * sorted by progress DESC (metricsDashboard.php:110-111), group asc first so
+//     groups stay contiguous,
+//   * per-column filters in a tfoot row + a platform *list* filter
+//     (metricsDashboard.php:320-321 `'filter' => 'list', 'filterOptions' => $platforms`),
+//   * expand/collapse groups, reset filters, reset to default state
+//     (exttable.class.php:104,109,114,124).
+// The RowGroup plugin is loaded from the same CDN as the already modernized
+// sibling screen gui/templates/results/tplanWithCF.html:107.
 function renderTable(r) {
-  if (table) { table.destroy(); $('#plansTable tbody').empty(); $('#plansHead').empty(); }
+  if (table) { table.destroy(); $('#plansTable tbody').empty(); $('#plansHead').empty(); $('#plansFoot').empty(); }
+  $('#platformFilter').empty();
 
-  var head = [];
-  head.push('<th data-i18n="md.testPlan">Test Plan</th>');
-  if (r.show_platforms) head.push('<th data-i18n="md.platform">Platform</th>');
-  head.push('<th data-i18n="md.activeTCs">Active TCs</th>');
-  $.each(r.status_set, function(i, k) {
-    head.push('<th>' + statusLabel(k) + '</th>');
-    head.push('<th>' + statusLabel(k) + ' %</th>');
+  grouped = !!r.show_platforms;
+  platColIdx = -1;
+  collapsedGroups = {};
+
+  // Plan-level overall block: api/metrics/index.php repeats it on every platform
+  // row of the same plan, so the group header needs no extra endpoint.
+  var planOverall = {};
+  $.each(r.testplans || [], function (i, row) {
+    if (row.overall && typeof row.overall.progress !== 'undefined' && !planOverall[row.tplan_name]) {
+      planOverall[row.tplan_name] = row.overall;
+    }
   });
-  head.push('<th data-i18n="md.progress">Progress %</th>');
-  $('#plansHead').html(head.join(''));
-  TLi18n.apply();
 
-  var rows = [];
-  var lastPlan = null;
-  $.each(r.testplans, function(i, row) {
-    var planCell = '<div class="tplan-cell"><b>' + $('<div>').text(row.tplan_name).html() + '</b>';
+  var rows = (r.testplans || []).map(function (row) {
+    var planHtml = '<div class="tplan-cell"><b>' + $('<div>').text(row.tplan_name).html() + '</b>';
     if (r.show_test_plan_status && row.overall) {
-      var sub = [];
-      sub.push(TLi18n.t('md.overallProgress') + ': ' + row.overall.progress + '%');
-      planCell += '<div class="tplan-subline">' + sub.join(' &middot; ') + '</div>';
+      planHtml += '<div class="tplan-subline">' +
+        esc(TLi18n.t('md.overallProgress')) + ': ' + row.overall.progress + '%</div>';
     }
-    planCell += '</div>';
-    var cells = [planCell];
-    if (r.show_platforms) {
-      cells.push(row.platform_name === null ? TLi18n.t('md.notApplicable') : $('<div>').text(row.platform_name).html());
-    }
-    cells.push(row.active);
-    $.each(r.status_set, function(j, k) {
-      var st = (row.statuses && row.statuses[k]) ? row.statuses[k] :
-               ((row.overall && row.overall.statuses && typeof row.overall.statuses[k] !== 'undefined') ?
-                 { qty: row.overall.statuses[k], pct: row.active > 0 ? Math.round(row.overall.statuses[k] / row.active * 100 * 100) / 100 : 0 } :
-                 { qty: 0, pct: 0 });
-      cells.push(st.qty);
-      cells.push(st.pct);
+    planHtml += '</div>';
+
+    var st = {};
+    $.each(r.status_set, function (i, k) {
+      st[k] = (row.statuses && row.statuses[k]) ? row.statuses[k] :
+              ((row.overall && row.overall.statuses && typeof row.overall.statuses[k] !== 'undefined') ?
+                { qty: row.overall.statuses[k],
+                  pct: row.active > 0 ? Math.round(row.overall.statuses[k] / row.active * 100 * 100) / 100 : 0 } :
+                { qty: 0, pct: 0 });
     });
-    var pct = (typeof row.progress !== 'undefined') ? row.progress :
-              ((row.overall) ? row.overall.progress : 0);
-    cells.push('<div class="minibar"><div class="fill" style="width:' + pct + '%"></div><span>' + pct + '%</span></div>');
-    rows.push(cells);
+    var pct = (typeof row.progress !== 'undefined') ? row.progress : (row.overall ? row.overall.progress : 0);
+
+    return {
+      group: row.tplan_name,
+      plan: planHtml,
+      plat: row.platform_name === null ? '' : String(row.platform_name),
+      active: row.active,
+      st: st,
+      progress: pct
+    };
   });
 
-  var cols = [{ type: 'string' }];
-  if (r.show_platforms) cols.push({ type: 'string' });
-  cols.push({ type: 'num' });
-  $.each(r.status_set, function(i, k) {
-    cols.push({ type: 'num' });
-    cols.push({ type: 'num' });
-  });
-  cols.push({ orderable: false, searchable: false });
+  // Column titles are computed here so the tfoot filter row and the
+  // reset-to-default button can identify the qty columns by title.
+  var titlePlan = TLi18n.t('md.testPlan');
+  var titlePlat = TLi18n.t('md.platform');
+  var titleActive = TLi18n.t('md.activeTCs');
+  var titleProgress = TLi18n.t('md.progress');
+  var qtyCols = [];   // indices of the (default hidden) qty columns
 
-  table = $('#plansTable').DataTable({
+  var cols = [];
+  // Grouped column: legacy hides it in the child rows (hideGroupedColumn = true)
+  // and shows the plan name in the group header instead.
+  cols.push({ title: titlePlan, data: 'plan', type: 'html', visible: !grouped });
+  if (r.show_platforms) {
+    platColIdx = cols.length;
+    cols.push({
+      title: titlePlat, data: 'plat', type: 'string',
+      render: function (d, type) {
+        if (!d) { return type === 'display' ? TLi18n.t('md.notApplicable') : ''; }
+        return type === 'display' ? $('<div>').text(d).html() : d;
+      }
+    });
+  }
+  cols.push({ title: titleActive, data: 'active', type: 'num' });
+  $.each(r.status_set, function (i, k) {
+    var key = k;
+    // qty column: hidden by default, as in legacy 'hidden' => true
+    qtyCols.push(cols.length);
+    cols.push({ title: statusLabel(k), data: null, type: 'num', visible: false,
+      render: function (d, type, row) { return row.st[key] ? row.st[key].qty : 0; } });
+    cols.push({ title: statusLabel(k) + ' %', data: null, type: 'num',
+      render: function (d, type, row) { return row.st[key] ? row.st[key].pct : 0; } });
+  });
+  var progressCol = cols.length;
+  cols.push({ title: titleProgress, data: null, orderable: false, searchable: false,
+    render: function (d, type, row) {
+      if (type !== 'display') { return row.progress; }
+      return '<div class="minibar"><div class="fill" style="width:' + row.progress + '%"></div>' +
+             '<span>' + row.progress + '%</span></div>';
+    } });
+
+  var opt = {
     data: rows,
     columns: cols,
-    order: [[cols.length - 2, 'desc']],
-    pageLength: 25
+    pageLength: 25,
+    language: { search: TLi18n.t('common.search'), searchPlaceholder: TLi18n.t('common.search') }
+  };
+
+  if (grouped) {
+    opt.rowGroup = {
+      dataSrc: 'group',
+      startRender: function (rowsInGroup, group) {
+        var isCollapsed = !!collapsedGroups[group];
+        rowsInGroup.nodes().each(function (n) { n.style.display = isCollapsed ? 'none' : ''; });
+        var n = rowsInGroup.count();
+        // exttable.class.php:589 - groupTextTpl:
+        // '{text} ({[values.rs.length]} {[values.rs.length > 1 ? "Items" : "Item"]})'
+        var cnt = (n > 1 ? TLi18n.t('md.groupItems') : TLi18n.t('md.groupItem')).replace('{count}', n);
+        var ov = planOverall[group];
+        var head = TLi18n.t('md.groupPrefix') + group + ' - ' + TLi18n.t('md.overallProgress') + ': ' +
+                   ((ov && typeof ov.progress !== 'undefined') ? ov.progress : 0) + '%';
+        return $('<tr/>').attr('data-key', encodeURIComponent(group))
+          .append($('<td/>').append(
+            $('<i/>').addClass('fa ' + (isCollapsed ? 'fa-chevron-right' : 'fa-chevron-down')),
+            esc(head) + '<span class="gcount">' + esc(cnt) + '</span>'
+          ));
+      }
+    };
+    // group asc keeps the groups contiguous; legacy sorts by progress DESC
+    opt.order = [[0, 'asc'], [progressCol, 'desc']];
+  } else {
+    opt.order = [[progressCol, 'desc']];
+  }
+  defaultOrder = opt.order.slice();
+  qtyColumnIdx = qtyCols;
+
+  table = $('#plansTable').DataTable(opt);
+  buildColumnFilters();
+  buildPlatformFilter();
+  bindGridToolbar();
+  $('#gridBar').show();
+  $('#btnExpandAll, #btnCollapseAll').toggle(grouped);
+}
+
+// Per-column filters (legacy Ext.grid.GridFilters parity): one input under each
+// column header, wired to column(i).search() - lib/results/metricsDashboard.php
+// :313-341 declares 'filter' => 'string' / 'numeric' per column.
+function buildColumnFilters() {
+  var $tfrow = $('<tr/>').appendTo('#plansFoot');
+  table.columns().every(function (idx) {
+    var $th = $('#plansTable thead th').eq(idx);
+    var label = (($th.text() || '').trim() || (idx + 1));
+    var $input = $('<input type="text" class="col-filter" data-col="' + idx + '" ' +
+      'placeholder="' + esc(label) + '" />');
+    var $td = $('<td/>').append($input).appendTo($tfrow);
+    if (!table.column(idx).visible()) { $td.hide(); }
+    $input.on('keyup change', function () {
+      table.column(idx).search(this.value).draw();
+      updateResetFiltersBtn();
+    });
+  });
+  updateResetFiltersBtn();
+}
+
+function anyFilterActive() {
+  var any = $('#platformFilter').val() !== '';
+  if (!any) {
+    table.columns().every(function () { if (this.search() !== '') { any = true; } });
+  }
+  return any;
+}
+
+function updateResetFiltersBtn() {
+  $('#btnResetFilters').toggle(anyFilterActive());
+}
+
+function clearAllFilters() {
+  table.columns().every(function () { this.search(''); });
+  $('#plansFoot .col-filter').val('');
+  $('#platformFilter').val('');
+  table.draw();
+  updateResetFiltersBtn();
+}
+
+// Platform list filter (lib/results/metricsDashboard.php:320-321 'filter' => 'list',
+// 'filterOptions' => $platforms): a dropdown built from the platform values
+// present in the response, plus the "all" entry.
+function buildPlatformFilter() {
+  var $sel = $('#platformFilter');
+  $sel.closest('.filterlabel').toggle(platColIdx >= 0);
+  if (platColIdx < 0) { return; }
+  var seen = {};
+  var values = [];
+  table.rows().data().each(function (row) {
+    if (row.plat && !seen[row.plat]) { seen[row.plat] = true; values.push(row.plat); }
+  });
+  values.sort();
+  $sel.append($('<option>').val('').text(TLi18n.t('md.filterAllPlatforms')));
+  values.forEach(function (v) { $sel.append($('<option>').val(v).text(v)); });
+  $sel.off('change.mdpf').on('change.mdpf', function () {
+    table.column(platColIdx).search(this.value).draw();
+    updateResetFiltersBtn();
+  });
+}
+
+function bindGridToolbar() {
+  $(table.table().container()).off('click.mdgrp').on('click.mdgrp', 'tr.dtrg-group', function () {
+    var key = decodeURIComponent($(this).attr('data-key') || '');
+    collapsedGroups[key] = !collapsedGroups[key];
+    table.draw(false);
+  });
+
+  $('#btnExpandAll').off('click').on('click', function () {
+    collapsedGroups = {};
+    table.draw(false);
+  });
+  $('#btnCollapseAll').off('click').on('click', function () {
+    table.rows().data().each(function (row) { collapsedGroups[row.group] = true; });
+    table.draw(false);
+  });
+  // "Show all columns" (exttable.class.php:109): reveals the qty columns that
+  // getColumnsDefinition() marks 'hidden' => true.
+  $('#btnShowCols').off('click').on('click', function () {
+    table.columns().visible(true);
+    $('#plansFoot td').show();
+    table.draw(false);
+    $(this).addClass('on');
+  });
+  $('#btnResetFilters').off('click').on('click', function () {
+    clearAllFilters();
+    toast(TLi18n.t('md.filtersCleared'), false);
+  });
+  // "Reset to default settings" (exttable.class.php:114).
+  $('#btnDefaultState').off('click').on('click', function () {
+    table.columns().visible(true);
+    qtyColumnIdx.forEach(function (idx) {
+      table.column(idx).visible(false);
+      if (table.column(idx).footer()) { $(table.column(idx).footer()).hide(); }
+    });
+    if (grouped) { table.column(0).visible(false); }
+    $('#btnShowCols').removeClass('on');
+    clearAllFilters();
+    table.order(defaultOrder).draw(false);
+    collapsedGroups = {};
+    table.draw(false);
+    toast(TLi18n.t('md.defaultStateRestored'), false);
+  });
+  $('#btnRefreshGrid').off('click').on('click', function () {
+    loadDashboard($('#showOnlyActive').is(':checked') ? 1 : 0);
   });
 }
 </script>

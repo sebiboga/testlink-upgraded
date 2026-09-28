@@ -5382,5 +5382,18 @@
   "usergrid.roleId": "角色 ID",
   "usergrid.showAllColumns": "显示所有列",
   "usergrid.userId": "用户 ID",
-  "version": "版本"
+  "version": "版本",
+  "md.btnExpandAll": "展开所有分组",
+  "md.btnCollapseAll": "折叠所有分组",
+  "md.btnShowAllColumns": "显示所有列",
+  "md.btnResetFilters": "重置筛选",
+  "md.btnDefaultState": "重置为默认状态",
+  "md.btnRefresh": "刷新",
+  "md.filterPlatform": "平台",
+  "md.filterAllPlatforms": "所有平台",
+  "md.groupPrefix": "测试计划: ",
+  "md.groupItem": "({count} 项)",
+  "md.groupItems": "({count} 项)",
+  "md.filtersCleared": "筛选条件已重置",
+  "md.defaultStateRestored": "已恢复默认状态"
 }

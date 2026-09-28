@@ -5406,5 +5406,18 @@
   "usergrid.roleId": "ID Rol",
   "usergrid.showAllColumns": "Afișează toate coloanele",
   "usergrid.userId": "ID Utilizator",
-  "version": "Versiune"
+  "version": "Versiune",
+  "md.btnExpandAll": "Extinde toate grupurile",
+  "md.btnCollapseAll": "Restrânge toate grupurile",
+  "md.btnShowAllColumns": "Arată toate coloanele",
+  "md.btnResetFilters": "Resetează filtrele",
+  "md.btnDefaultState": "Resetează la starea implicită",
+  "md.btnRefresh": "Reîmprospătează",
+  "md.filterPlatform": "Platformă",
+  "md.filterAllPlatforms": "Toate platformele",
+  "md.groupPrefix": "Plan de test: ",
+  "md.groupItem": "({count} element)",
+  "md.groupItems": "({count} elemente)",
+  "md.filtersCleared": "Filtrele au fost resetate",
+  "md.defaultStateRestored": "Starea implicită a fost restaurată"
 }

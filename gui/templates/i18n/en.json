@@ -5412,5 +5412,18 @@
   "usergrid.roleId": "Role ID",
   "usergrid.showAllColumns": "Show all Columns",
   "usergrid.userId": "User ID",
-  "version": "Version"
+  "version": "Version",
+  "md.btnExpandAll": "Expand all groups",
+  "md.btnCollapseAll": "Collapse all groups",
+  "md.btnShowAllColumns": "Show all columns",
+  "md.btnResetFilters": "Reset Filters",
+  "md.btnDefaultState": "Reset to default state",
+  "md.btnRefresh": "Refresh",
+  "md.filterPlatform": "Platform",
+  "md.filterAllPlatforms": "All platforms",
+  "md.groupPrefix": "Test Plan: ",
+  "md.groupItem": "({count} item)",
+  "md.groupItems": "({count} items)",
+  "md.filtersCleared": "Filters cleared",
+  "md.defaultStateRestored": "Default state restored"
 }
