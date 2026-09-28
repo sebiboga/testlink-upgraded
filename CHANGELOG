@@ -17,6 +17,30 @@ Every screen of the application was ported one-by-one in a screen-compare
 kept for backward compatibility and is progressively retired as each modern
 screen reaches full parity.
 
+- [FEATURE GAP] - #1019: the modern Metrics Dashboard honoured the config flag
+  `$tlCfg->metrics_dashboard->show_test_plan_status` (config.inc.php:977) only for the overall
+  progress: the test-plan cell rendered `Overall Progress: 50%` while legacy
+  (lib/results/metricsDashboard.php:50-72) appends a per-status breakdown line. The BFF already
+  returned the flag, the config-driven `status_set` and the plan-level `overall.statuses`, so the gap
+  was purely in the HTML cell - the `qty [pct%]` loop did not exist. The new `planStatusBreakdown()`
+  (gui/templates/results/metricsDashboard.html:210-232) is a line-for-line port: it iterates
+  `r.status_set` (so a custom exec status needs no code change), reads the PLAN-level `overall`
+  quantities with `overall.active` as the denominator - legacy `$tplan_metrics['overall']`, not the
+  per-platform row - and appends the overall progress last, so the string is byte-identical to
+  legacy: `Not Run: 4 [50%], Passed: 2 [25%], Failed: 1 [12.5%], Blocked: 1 [12.5%], Overall
+  Progress: 50%`. api/metrics/index.php:365-368 now also sends `precision`
+  (`config_get('dashboard_precision')`, legacy metricsDashboard.php:23), which `/meta/rights` already
+  exposed unused at :139; the builder falls back to 2 decimals when it is absent. The percentage is a
+  rational, so the new `roundPct()` rounds it as one with BigInt (ties away from zero, like PHP
+  `round()`): 23/160*100 is 14.374999999999998 in IEEE-754, so BOTH `Math.round(x*100)/100` and
+  `toFixed(2)` report 14.37 where PHP reports 14.38 - measured over the whole reachable domain
+  (80,600 qty/active pairs) each float variant diverges on 10 exact ties and the BigInt form on 0.
+  Two new i18n keys, `md.statusBreakdownItem` and `md.overallProgressItem`, in all 10 locale bundles
+  with the same locale-independent pattern as legacy's literal `" ["` / `"%]"`, so the rendered string
+  is byte-identical to legacy in every locale, not just `en`; the existing `md.status*` /
+  `md.overallProgress` keys are reused. The shipped `show_test_plan_status` default stays `false` and
+  the flag-off collapsed form is unchanged. Regression suite 1019: 15/15 PASS, `node --check` clean,
+  Event Viewer 0 new Error/Warning entries. (Refs #1019)
 - [FEATURE GAP] - #1646: the modern Assign Test Plan Roles screen only ever branched on 403, never on
   401, so the BFF's `401 {"code":"session_expired"}` - the answer `bffEnforceSession()`
   (api/_guard.php:175-198) gives when `checkSessionValid()` (lib/functions/common.php:258-286) would

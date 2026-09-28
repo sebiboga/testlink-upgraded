@@ -5441,5 +5441,7 @@
   "md.groupItem": "({count} 项)",
   "md.groupItems": "({count} 项)",
   "md.filtersCleared": "筛选条件已重置",
-  "md.defaultStateRestored": "已恢复默认状态"
+  "md.defaultStateRestored": "已恢复默认状态",
+  "md.statusBreakdownItem": "{label}: {qty} [{pct}%]",
+  "md.overallProgressItem": "{label}: {pct}%"
 }

@@ -207,6 +207,47 @@ function statusLabel(key) {
 }
 function statusColor(key) { return STATUS_COLORS[key] || '#ccc'; }
 
+// legacy lib/results/metricsDashboard.php:50-72 — when the config flag
+// $tlCfg->metrics_dashboard->show_test_plan_status is on, the test-plan cell
+// lists every exec status of the status set as "Label: qty [pct%]" and then
+// appends the overall progress, all joined by ", ". Quantities and percentages
+// come from the PLAN-level `overall` block (the BFF repeats it on every
+// platform row of the same plan, legacy metricsDashboard.php:58-60) and the
+// denominator is overall.active, rounded with config dashboard_precision
+// (legacy getPercentage(), metricsDashboard.php:302-306). The status set is
+// taken from the BFF `status_set` so it stays config driven, like the legacy
+// $statusSetForDisplay loop.
+// legacy getPercentage() (metricsDashboard.php:302-306): round($qty/$active*100, $precision),
+// PHP rounds half AWAY FROM ZERO. Doing that with a JS float is not always possible:
+// 23/160*100 is 14.374999999999998 in IEEE-754, so both Math.round(x*100)/100 and
+// toFixed(2) report 14.37 where PHP reports 14.38 (10 of 80600 reachable
+// qty/active pairs, exact ties only). The value is a rational, so round it as one.
+function roundPct(qty, active, precision) {
+  if (active <= 0) { return 0; }
+  if (typeof BigInt === 'function') {
+    var den = BigInt(active);
+    var scale = 10n ** BigInt(precision);
+    var num = BigInt(qty) * 100n * scale;             // value = num/den units of 1/scale %
+    return Number((2n * num + den) / (2n * den)) / Number(scale);  // ties away from zero
+  }
+  return Math.round(((qty / active) * 100) * Math.pow(10, precision)) / Math.pow(10, precision);
+}
+
+function planStatusBreakdown(r, overall) {
+  var precision = (typeof r.precision === 'number') ? r.precision : 2;
+  var active = (typeof overall.active === 'number') ? overall.active : 0;
+  var progress = (typeof overall.progress !== 'undefined') ? overall.progress : 0;
+  var st = overall.statuses || {};
+  var parts = [];
+  $.each(r.status_set || [], function (i, k) {
+    var qty = Number(st[k]) || 0;
+    parts.push(TLi18n.t('md.statusBreakdownItem',
+      { label: statusLabel(k), qty: qty, pct: roundPct(qty, active, precision) }));
+  });
+  parts.push(TLi18n.t('md.overallProgressItem', { label: TLi18n.t('md.overallProgress'), pct: progress }));
+  return parts.join(', ');
+}
+
 function showMsg(sel, key) {
   $(sel).text(TLi18n.t(key)).show();
   $('#content').hide();
@@ -331,7 +372,7 @@ function renderTable(r) {
     var planHtml = '<div class="tplan-cell"><b>' + $('<div>').text(row.tplan_name).html() + '</b>';
     if (r.show_test_plan_status && row.overall) {
       planHtml += '<div class="tplan-subline">' +
-        esc(TLi18n.t('md.overallProgress')) + ': ' + row.overall.progress + '%</div>';
+        esc(planStatusBreakdown(r, row.overall)) + '</div>';
     }
     planHtml += '</div>';
 

@@ -5465,5 +5465,7 @@
   "md.groupItem": "({count} element)",
   "md.groupItems": "({count} elemente)",
   "md.filtersCleared": "Filtrele au fost resetate",
-  "md.defaultStateRestored": "Starea implicită a fost restaurată"
+  "md.defaultStateRestored": "Starea implicită a fost restaurată",
+  "md.statusBreakdownItem": "{label}: {qty} [{pct}%]",
+  "md.overallProgressItem": "{label}: {pct}%"
 }

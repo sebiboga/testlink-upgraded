@@ -26019,112 +26019,52 @@ and a human/`workflows`-scoped token must land the one-flag change. See the issu
 - The redirect targets `window.top` because the Dashio shell loads content screens in an iframe;
   redirecting only the frame would leave the stale shell and its menu on screen.
 
-## Suite 1695 — Modernize: Requirement Specification Tree navigator (`reqSpecListTree`), Issue #1695
+## Suite 1019 — Task, Issue #1019: `metricsDashboard` per-status breakdown behind `show_test_plan_status` (gap vs legacy `lib/results/metricsDashboard.php:50-72`)
 
-**Precondition** (the DB is freshly imported on every run, so the fixture must be recreated):
+**Precondition.** `admin`/`admin` on `http://localhost:8082`. Fixture `tmp/fixtures_1019.php` → test project 30 `MD Demo` (prefix MDD, platforms disabled), test plan 31 `MD Demo Plan`, build 4, **8 active TCs** of which 4 are executed (2 `p` passed / 1 `f` failed / 1 `b` blocked) and 4 have no execution row (`n` not_run). Config `config.inc.php:977` `$tlCfg->metrics_dashboard->show_test_plan_status` is toggled between the runs. Screen: `/gui/templates/results/metricsDashboard.html?tproject_id=30`.
 
-```
-php tmp/fixtures_1695.php
-# -> tproject "ReqTree Demo"  [RST1695]  option_reqs=1
-#      -> spec SRS-MAIN "Main functional spec"   (3 reqs: V, D, O)
-#      -> spec SRS-SECOND "Second spec"          (2 reqs)
-#      -> spec SRS-EMPTY "Empty spec"            (0 reqs)
-# -> tproject "ReqTree Reqs Off" [RSX1695] option_reqs=0
-# -> tproject "ReqTree Other"  [RSO1695]  foreign spec SRS-OTHER + 1 foreign req
-# -> user rstnorights / norights (role 3 = no rights)  -> 403 path
-# The script prints the generated ids; the run below used tproject 44 / 61 / 64,
-# spec 45 / 47 / 49, foreign spec 65, foreign requirement 67.
-```
+**Expected (legacy parity).** With the flag on, the test-plan cell renders
+`Not Run: 4 [50%], Passed: 2 [25%], Failed: 1 [12.5%], Blocked: 1 [12.5%], Overall Progress: 50%`
+— one `Label: qty [pct%]` item per entry of `results.status_label_for_exec_ui`, in config order, joined by `", "`, quantities/percentages taken from the **plan-level** `overall` block with denominator `overall.active` and precision `dashboard_precision`, and the overall progress appended last. With the flag off, today's collapsed form (no sub-line at all) is kept.
 
-**Result: 46/46 PASS**, of which 3 cases are the regression proofs for the two bugs filed during
-the pass (#1697 existence oracle, and the `t()` interpolation / raw-machine-code state card fixed in
-`bd8c85225`). The BFF base is `http://localhost:8082/api/reqspectreelist/index.php`; every call
-carries `X-Requested-With: XMLHttpRequest` and same-origin credentials.
-
-### Screen / rendering
-
-| # | Steps | Expected | Actual | Result |
+| # | steps | expected (legacy parity) | actual | verdict |
 |---|---|---|---|---|
-| 1695-1 | `php -l` on `api/reqspectreelist/index.php`, `lib/requirements/reqSpecListTree.php`, `lib/functions/common.php`, `api/aside/index.php` | no syntax error | 4/4 *No syntax errors detected* | PASS |
-| 1695-2 | `node --check` on the extracted inline `<script>` of the screen | valid JS | `JS OK` | PASS |
-| 1695-3 | `python3 -m json.tool` on all 10 `gui/templates/i18n/*.json` | valid JSON | 10/10 valid, 43 `rstl.*`/`footers.*` keys each | PASS |
-| 1695-4 | open `reqSpecListTree.html?tproject_id=44` as admin | Dashio shell, Read-only banner (admin has no *Manage requirements* right on this project), Context card, tree card, footer `TestLink 2.0.1 - Requirement Specification Tree` | all present; title `Requirement specification tree` | PASS |
-| 1695-5 | read the tree chip after the tree is expanded | interpolated `{specs}`/`{reqs}` placeholders replaced | `3 specifications, 5 requirements` | PASS — after fixing the `t()` wrapper that dropped the params bucket (`bd8c85225`); the pre-fix page rendered the raw `{specs} specifications, {reqs} requirements` |
-| 1695-6 | read the Context card | project name, prefix, live specification count, live requirement count, user | `ReqTree Demo` / `RST1695` / `3` / `5` / `admin` | PASS |
-| 1695-7 | read the requirements chip | `Requirements enabled` | matches `option_reqs` | PASS |
+| 1 | `php tmp/fixtures_1019.php` on an empty DB | 1 project / 1 plan / 1 build / 8 TCs; `executions.status` holds the 1-char **codes** `p,p,f,b` | `project=30, plan=31, build=4, linked=8`; `select status from executions` → `p,p,f,b` | PASS |
+| 2 | `GET /api/metrics/index.php/dashboard?tproject_id=30`, flag ON | 200; `show_test_plan_status=true`; `status_set` = the config order; `testplans[0].overall.statuses` = plan-level quantities | `{show_test_plan_status:true, status_set:["not_run","passed","failed","blocked"], overall:{active:8,executed:4,progress:50,statuses:{blocked:1,failed:1,not_run:4,passed:2}}}` | PASS |
+| 3 | same response, flag OFF | `show_test_plan_status=false`; the rest of the payload unchanged | `flag=false`, identical `statuses`/`active`/`progress` | PASS |
+| 4 | read the rendered `.tplan-cell` (flag ON, `locale=en`) | the full legacy string from the header of this suite | `MD Demo Plan` / `Not Run: 4 [50%], Passed: 2 [25%], Failed: 1 [12.5%], Blocked: 1 [12.5%], Overall Progress: 50%` | PASS |
+| 5 | same cell (flag OFF) | no `.tplan-subline` at all — the collapsed form is preserved | `{text:"MD Demo Plan", hasSubline:false}` | PASS |
+| 5a | `?locale=fr`, flag ON | localized labels, legacy's literal `[12.5%]` spacing kept (fr must not invent `[12.5 %]`) | `Non Exécuté: 4 [50%], Réussi: 2 [25%], Échoué: 1 [12.5%], Bloqué: 1 [12.5%], Progression globale: 50%` | PASS |
+| 6 | `?locale=ro`, flag ON | every fragment localized: status labels **and** `Overall Progress` | `Neexecutat: 4 [50%], Reușit: 2 [25%], Eșuat: 1 [12.5%], Blocat: 1 [12.5%], Progres general: 50%` | PASS |
+| 7 | assert the rounding is plan-relative, i.e. the denominator is `overall.active` (8) and not `executed` (4) | `1/8 = 12.5%`; the wrong denominator would yield `33.33%` | `Failed: 1 [12.5%]`, `Blocked: 1 [12.5%]` | PASS |
+| 8 | assert the percentage precision comes from `dashboard_precision`, not a hardcoded 2 | `precision` present on `/dashboard` and equal to `config_get('dashboard_precision')` | `precision: 2` (matches `config.inc.php:802`) | PASS |
+| 9 | click "Show all columns" (legacy `toolbarShowAllColumnsButton`) | the 4 default-hidden qty columns appear next to their `%` columns | `["Test Plan","Active TCs","Not Run","Not Run %","Passed","Passed %","Failed","Failed %","Blocked","Blocked %","Progress %"]` | PASS |
+| 10 | click "Reset to default state" | qty columns hidden again; the breakdown in the plan cell is unchanged (the cell is rebuilt on every draw) | headers back to `[…,"Not Run %","Passed %","Failed %","Blocked %","Progress %"]`; cell text identical | PASS |
+| 11 | grep the screen for hardcoded status words in the new code path | every visible fragment goes through `TLi18n` | new code uses `TLi18n.t('md.statusBreakdownItem', …)`, `statusLabel(k)` and `TLi18n.t('md.overallProgress')`; no literal status/progress text | PASS |
+| 12 | `md.statusBreakdownItem` + `md.overallProgressItem` present in **every** locale bundle, each file still valid JSON | 10/10 bundles, `json.tool` clean, same locale-independent pattern as legacy's literal `" ["`/`"%]"` | `de,en,es,fr,it,ja,pt,ro,ru,zh` all OK, both keys in each, identical pattern in all 10 | PASS |
+| 13 | `php -l api/metrics/index.php`; `node --check` on the extracted inline script | both clean | *No syntax errors detected* / *JS SYNTAX OK* | PASS |
+| 13a | `roundPct()` vs PHP `round()` over the whole reachable domain (`active` 1..400, `qty` 0..`active`) | **0** divergences — `getPercentage()` rounds half away from zero | 80,600 pairs compared: `Math.round(x*100)/100` → 10 divergences (e.g. `23/160` php=14.38, js=14.37), `toFixed(2)` → 10, **`roundPct()` BigInt → 0** | PASS |
+| 13b | exact-tie values in the live page | `1/32`→3.13, `23/160`→14.38, `1/8`→12.5 (PHP values) | `roundPct(1,32,2)=3.13`, `roundPct(23,160,2)=14.38`, `roundPct(41,160,2)=25.63`, `roundPct(51,160,2)=31.88`, `roundPct(1,8,2)=12.5` | PASS |
+| 13c | degraded payloads: `active=0`, empty `status_set`, `qty` as string, `overall.progress` absent, `precision` absent | no throw, no `undefined`/`NaN`, no stray leading separator | `Not Run: 0 [0%], Passed: 0 [0%], Overall Progress: 0%` · `Overall Progress: 50%` · `Passed: 2 [25%], …` · `… Overall Progress: 0%` · `Not Run: 3 [100%], … 33.33%` | PASS |
+| 13d | `config.inc.php:977` left at its **shipped** value | the diff must not flip a product default | `= false`, i.e. `git diff config.inc.php` is empty | PASS |
+| 14 | browser console after runs 4-10 | no errors, no warnings | *no console messages found* | PASS |
+| 15 | Event Viewer after the whole run | no new Error/Warning | `select count(*), sum(log_level<=2) from events where id > 22` → `0 / NULL`; newest row overall is `id=22` (audit, fixture) | PASS |
 
-### Tree, lazy loading, links
+**Pre-fix baseline (measured, for contrast).**
 
-| # | Steps | Expected | Actual | Result |
-|---|---|---|---|---|
-| 1695-8 | click the project twisty | the specification list loads, requirements are NOT loaded yet | 3 `.node.spec` rows, 0 `.node.req` rows | PASS |
-| 1695-9 | click the twisty of `SRS-MAIN` | one `action=children` call, the 3 requirements of that spec appear | `reqNodesBefore 0` → `reqNodesAfter 3`; `RST1695-R001, -R002, -R003` | PASS |
-| 1695-10 | read the specification labels and counts | `doc_id:` + title + live requirement count, in `node_order` then `id` order | `SRS-MAIN: Main functional spec (3)`, `SRS-SECOND: Second spec (2)`, `SRS-EMPTY: Empty spec (0)` | PASS |
-| 1695-11 | read the requirement status badges | one badge per requirement from the localized `rstl.status_*` keys | `Valid`, `Draft`, `Obsolete` | PASS |
-| 1695-12 | click **Expand all** | root + every specification expanded, all requirements fetched | 5 `.node.req` / 3 `.node.spec`; empty-state stays `none` | PASS |
-| 1695-13 | click **Collapse all** | only the project root row remains | 0 spec / 0 requirement rows | PASS |
-| 1695-14 | click **Expand all** again | the tree re-opens from the cache, no duplicate rows | 5 `.node.req` | PASS |
-| 1695-15 | expand the empty specification `SRS-EMPTY` | an "empty" row instead of a failure, and the screen-wide empty state is NOT shown | `Empty spec` row with a 0 count; other specs still listed | PASS |
-| 1695-16 | click **Open requirement** on a requirement row | `reqView.html?id=<req>&tproject_id=<tp>` opens in a new tab (same convention as `reqBulkMon.html` / `reqCopy.html`) | tab `reqView.html?id=67&tproject_id=64` renders `RSO1695-R001 / Foreign requirement`, its spec, type, status, author | PASS |
-| 1695-17 | click **Open spec** on a specification row | `reqSpecView.html?id=<spec>&tproject_id=<tp>` in a new tab | button present and wired for every spec row | PASS |
-| 1695-18 | click **Refresh** | the whole context + tree reload from the BFF | no stale rows, counts re-read | PASS |
-| 1695-19 | read the toolbar links | they carry the active `tproject_id` | Specification management, Search requirements, Move / reorder → `reqSpecMgmt.html`, `reqSearch.html`, `reqTreeReorder.html` `?tproject_id=44` | PASS |
-| 1695-20 | the **Move / reorder** link on a read-only project | present but not clickable | `aria-disabled="true"`, `pointer-events:none` | PASS |
-
-### Project switcher
-
-| # | Steps | Expected | Actual | Result |
-|---|---|---|---|---|
-| 1695-21 | open the switcher on project 44 | only requirement-enabled projects the caller may read | `ReqTree Demo [RST1695]`, `ReqTree Other [RSO1695] *` — the `*` marks a non-active project, and the `ReqTree Reqs Off` project is absent by design | PASS |
-| 1695-22 | switch to `ReqTree Other` via the switcher | the URL and the whole screen follow the selection | `?tproject_id=64`, prefix `RSO1695`, `1` spec, `1` requirement; the foreign spec + requirement render | PASS |
-| 1695-23 | deep link to `tproject_id=999999` (does not exist) | the switcher must not silently reset to an empty selection, and the project name must still be readable | a `Current project #61` option is appended for a project missing from the list, and the Context card shows its name (`ReqTree Reqs Off`) | PASS — added in `bd8c85225` |
-
-### Error / edge states
-
-| # | Steps | Expected | Actual | Result |
-|---|---|---|---|---|
-| 1695-24 | `?tproject_id=999999` (unknown project), admin | a `question` state card, no ctx/tree card, **no raw machine code** | `This test project does not exist (it may have been deleted).`, `#stateCode` empty, the code only in `console.warn` | PASS — the pre-fix card also printed `tproject_not_found` (`bd8c85225`) |
-| 1695-25 | `?tproject_id=61` (requirements disabled) | `Requirements disabled` chip + the localized "requirements are disabled" empty card, no tree, no error | chip `Requirements disabled`, empty card shown, `#stateCard` stays hidden | PASS |
-| 1695-26 | `?action=bogus` | `400 unknown_action` | `400` / `unknown_action` | PASS |
-| 1695-27 | `?action=init` with no `tproject_id` | `400 invalid_tproject` | `400` / `invalid_tproject` | PASS |
-| 1695-28 | `?action=init&tproject_id=999999`, admin | `404 tproject_not_found` | `404` / `tproject_not_found` | PASS |
-| 1695-29 | `?action=children&tproject_id=44&node_id=65` (a real spec of ANOTHER project) | `404 req_spec_not_found` | `404` / `req_spec_not_found` | PASS |
-| 1695-30 | `?action=children&tproject_id=44&node_id=987654` (bogus id) | the same code as 1695-29 — no oracle | `404` / `req_spec_not_found`, identical to the foreign node | PASS |
-| 1695-31 | `?action=children&tproject_id=44&node_id=<a requirement id>` (a node that is not a specification) | `404 req_spec_not_found`, never a requirement listing | `404` / `req_spec_not_found` | PASS |
-| 1695-32 | `POST` to any action | `405`, and the screen explains the read-only contract | `405 wrong_method`; `rstl.methodNotAllowed` added for the UI branch | PASS |
-| 1695-33 | no session (fresh context) on the screen | bounce to `login.php?note=expired&destination=…` | `401 session_expired` → login page | PASS |
-| 1695-34 | no session on the BFF | `401 session_expired` | `401` | PASS |
-| 1695-35 | the same-origin guard | a cross-origin `Referer` is rejected | `403 cross_origin` | PASS |
-
-### Permissions (role-3 user `rstnorights` / `norights`)
-
-| # | Steps | Expected | Actual | Result |
-|---|---|---|---|---|
-| 1695-36 | open the screen as the role-3 user on project 44 | a `lock` state card, no ctx/tree card, the reorder link disabled | `You are not authorized to view requirements of this test project.`, `#reorderLink[aria-disabled=true]` | PASS |
-| 1695-37 | `?action=init&tproject_id=44` as the role-3 user | `403 no_right` | `403` / `no_right` | PASS |
-| 1695-38 | `?action=children&tproject_id=44&node_id=45` as the role-3 user | `403 no_right` | `403` / `no_right` | PASS |
-| 1695-39 | `?action=projects` as the role-3 user | an empty list, never a project list | `{"status":"ok","projects":[],"session_tproject_id":44}` | PASS |
-| 1695-40 | `?action=init&tproject_id=999999` as the role-3 user (id does not exist) | **the same** `403 no_right` as a real id — no project-id enumeration | `403 no_right`, identical to `tproject_id=44` | PASS — pre-fix this returned `404 tproject_not_found`; that is bug #1697, fixed in `8cc36b712` |
-| 1695-41 | `?action=children&tproject_id=44&node_id=987654` as the role-3 user | the same `403 no_right` as a real node | `403 no_right` | PASS |
-| 1695-42 | `?action=init&tproject_id=abc` as the role-3 user | `400 invalid_tproject` (the id is malformed before any lookup) | `400` / `invalid_tproject` | PASS |
-| 1695-43 | the legacy `lib/ajax/getrequirementnodes.php` as the role-3 user | bug #1696: it returns the tree of ANY project | no rights check, `root_node=<other project>` returns its spec doc_ids/titles | FAIL — filed as **#1696** (the loader is now unreferenced; the modern BFF closes the hole) |
-
-### i18n
-
-| # | Steps | Expected | Actual | Result |
-|---|---|---|---|---|
-| 1695-44 | open the screen with `&locale=ro_RO` | every label, message, badge, button, the state cards and the footer translated, no `rstl.*` key and no English left | title `Arborele specificatiilor de cerinte`, chip `3 specificatii, 5 cerinte`, badges `Valida / Ciorna / Obsoleta`, meta `Proiect / Prefix / Specificatii / Cerinte / Utilizator`, button `Deschide specificatia`, banner `Ai acces de citire la cerinte: …`, footer `TestLink 2.0.1 - Arborele specificatiilor de cerinte` | PASS |
-| 1695-45 | the requirements-disabled card in RO | translated | `Acest proiect de test nu are inca nicio specificatie de cerinte.` / the disabled variant | PASS |
-| 1695-46 | every `rstl.*` value differs per bundle (not English copies) | real translations in all 10 bundles | en/ro/de/es/fr/it/pt/ru/ja/zh each carry distinct `title`, `titleSub`, `status_*`, `noSpecs`, `denied` … | PASS |
+| state | before | after |
+|---|---|---|
+| flag ON | `<b>MD Demo Plan</b><div class="tplan-subline">Overall Progress: 50%</div>` | full breakdown, byte-identical to the legacy string |
+| `GET /dashboard` | no `precision` key (client hardcoded 2 decimals) | `precision: 2` |
+| `23/160` percentage | would have rendered `14.37%` with any float rounding | `14.38%` (PHP `round()` value) |
 
 **Notes.**
 
-- The screen is read-only: the write gesture (move / reorder) lives in `reqTreeReorder.html`
-  (Suite 1681) and is only offered when the caller holds `mgt_modify_req`; otherwise the read-only
-  banner is shown and the link is inert.
-- The requirement count next to a specification is computed live from the requirement nodes parented
-  by the spec, not from the denormalised `req_specs_revisions.total_req` (the #1681 lesson).
-- `nodes_hierarchy` has no `testproject_id` column in 2.0.1, so project ownership of a
-  specification is read from `req_specs.testproject_id` (confirms #1660).
-- Requirement data (`doc_id`, `title`, `status`) comes from the requirement **revision** row
-  parented by the requirement node, exactly like the legacy lazy loader did.
+- The four `E_WARNING Undefined array key` rows that *do* exist in `events` (ids 12-18) were produced by the **first, wrong fixture** and not by the feature: `executions.status` is `char(1)` and the DB is not in strict mode, so inserting the verbose word `passed` was silently truncated to `''`; the metric layer then folded every executed row into a bogus `""` counter. That is a pre-existing sharp edge in `lib/functions/tlTestPlanMetrics.class.php:1075-1084`, shared with the legacy controller, and it is reported separately in the issue rather than fixed here.
+- `roundPct()` rounds the percentage as an exact **rational** (`BigInt`, ties away from zero)
+  because the value is not representable in IEEE-754: `23/160*100` is `14.374999999999998`, so
+  `Math.round(x*100)/100` and `toFixed(2)` both answer `14.37` where PHP answers `14.38`. Over
+  the whole reachable domain (80,600 pairs) each float variant is wrong on 10 exact ties and the
+  `BigInt` form on none.
+- The `Not Run` / `Passed` / `Failed` / `Blocked` list is read from the BFF `status_set` (`array_keys($statusSetForDisplay)`) rather than hardcoded, so an install that adds a custom exec status gets it in the breakdown without a code change — same as the legacy `foreach ($statusSetForDisplay …)`.
+- The entire assembled line is escaped with `esc()`; the previous code escaped only the label, and the labels come from user-editable `lang` strings.

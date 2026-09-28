@@ -130,12 +130,13 @@ contiguous) and `[[progressCol,'desc']]` otherwise — legacy
 | 11 | Event Viewer / `events` | 0 rows with `log_level IN (2,3)` | PASS |
 | 12 | locale switch (ro) | see the issue comment |
 
-## Not in scope
+## Not in scope — since resolved by #1019
 
 `show_test_plan_status` (legacy `lib/results/metricsDashboard.php:51-60`) appends a
-per-status breakdown to the group column value. That is the separate scope of **#1019** and
-is not implemented here; the modern screen already renders that information in the row's
-Test Plan cell.
+per-status breakdown to the test-plan cell. That scope was **#1019** and it is now
+**implemented** — see
+[Issue-1019-MetricsDashboard-PerStatus-Breakdown](Issue-1019-MetricsDashboard-PerStatus-Breakdown.md)
+(`planStatusBreakdown()` in `gui/templates/results/metricsDashboard.html`).
 
 ## Fixtures used
 

@@ -5461,5 +5461,7 @@
   "md.groupItem": "({count} элемент)",
   "md.groupItems": "({count} элементов)",
   "md.filtersCleared": "Фильтры сброшены",
-  "md.defaultStateRestored": "Состояние по умолчанию восстановлено"
+  "md.defaultStateRestored": "Состояние по умолчанию восстановлено",
+  "md.statusBreakdownItem": "{label}: {qty} [{pct}%]",
+  "md.overallProgressItem": "{label}: {pct}%"
 }

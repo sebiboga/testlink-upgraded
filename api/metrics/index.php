@@ -362,6 +362,10 @@ if ($method === 'GET' && ($path === '/dashboard' || $path === '/dashboard/')) {
         'show_platforms' => $show_platforms,
         'show_test_plan_status' => (bool)config_get('metrics_dashboard')->show_test_plan_status,
         'status_set' => array_keys($statusSetForDisplay),
+        // legacy metricsDashboard.php:23 reads $round_precision from
+        // config dashboard_precision and uses it in every getPercentage() call;
+        // the client needs it to reproduce the per-status breakdown exactly.
+        'precision' => $round_precision,
         'direct_link' => $directLink,
         'warning' => (!$hasPlans || count($rows) == 0) ? 'no_testplans_available' : '',
         'project_metrics' => $projectMetrics,

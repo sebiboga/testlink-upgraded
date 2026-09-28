@@ -5461,5 +5461,7 @@
   "md.groupItem": "({count} 件)",
   "md.groupItems": "({count} 件)",
   "md.filtersCleared": "フィルタをリセットしました",
-  "md.defaultStateRestored": "デフォルト状態を復元しました"
+  "md.defaultStateRestored": "デフォルト状態を復元しました",
+  "md.statusBreakdownItem": "{label}: {qty} [{pct}%]",
+  "md.overallProgressItem": "{label}: {pct}%"
 }

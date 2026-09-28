@@ -5455,5 +5455,7 @@
   "md.groupItem": "({count} elemento)",
   "md.groupItems": "({count} elementos)",
   "md.filtersCleared": "Filtros restablecidos",
-  "md.defaultStateRestored": "Estado predeterminado restaurado"
+  "md.defaultStateRestored": "Estado predeterminado restaurado",
+  "md.statusBreakdownItem": "{label}: {qty} [{pct}%]",
+  "md.overallProgressItem": "{label}: {pct}%"
 }
