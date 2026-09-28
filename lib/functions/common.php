@@ -2218,6 +2218,16 @@ function getActions(&$gui,$baseURL) {
   // (testSpec.html) opens it with tsuite_id= of the selected suite; this
   // generic launcher keeps legacy deep-link/template parity.
   $actions->reqTcBulkAssign = "/gui/templates/requirements/reqTcBulkAssign.html?{$ctx}";
+  // Single-test-case "Assign Requirements" modernized screen (Dashio popup) -
+  // Refs #1702. Replaces the TESTCASE mode of lib/requirements/reqTcAssign.php
+  // (reqTcAssign.tpl), which the #1595 shim never implemented: it redirected
+  // ?edit=testcase&id=<tcase_id> to the BULK popup with a test case id in the
+  // tsuite_id slot, so openReqWindow() in gui/javascript/testlink_library.js
+  // silently mis-dispatched to the wrong screen. The BFF (api/reqtcassign)
+  // enforces the legacy req_tcase_link_management right plus the
+  // reqLinkingDisabledAfterExec gate on every route. Carries tcase_id= of the
+  // addressed test case; this generic launcher keeps legacy deep-link parity.
+  $actions->reqTcAssign = "/gui/templates/requirements/reqTcAssign.html?{$ctx}";
   $actions->reqImport = "/gui/templates/requirements/reqImport.html?{$ctx}";
   $actions->printReqSpec = "/gui/templates/requirements/printReqSpec.html?{$ctx}";
   // Print Test Specification modernized screen (Dashio standalone page) -

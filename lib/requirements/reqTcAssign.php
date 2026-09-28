@@ -11,17 +11,28 @@
  * mode were replaced by the modern Dashio popup
  * gui/templates/requirements/reqTcBulkAssign.html + the api/reqtcbassign BFF.
  *
+ * 2.0.1.shim - Refs #1702: BOTH modes are now covered, and the shim used to
+ * mis-dispatch the testcase mode. It only read ?id= and always redirected to
+ * reqTcBulkAssign.html?tsuite_id=<id>, ignoring edit=testcase - so the live
+ * entry point openReqWindow(tcase_id) in gui/javascript/testlink_library.js,
+ * which builds ?edit=testcase&showCloseButton=1&callback=<cb>&id=<tcase_id>,
+ * resolved to the BULK popup with a TEST CASE id in the tsuite_id slot: the
+ * wrong screen, against a suite that does not exist. The testcase mode is now
+ * served by gui/templates/requirements/reqTcAssign.html + api/reqtcassign.
+ *
  * The whole controller is kept as a session-guarded redirect shim so old deep
  * links and bookmarks still resolve:
  *   - anonymous users are sent to the login screen (legacy testlinkInitPage
  *     behaviour);
- *   - authenticated users land on the modern popup with the test suite id
+ *   - ?edit=testcase (or a ?id= that is a test case node) lands on the modern
+ *     single-test-case popup;
+ *   - everything else lands on the modern bulk popup with the test suite id
  *     (legacy ?id= / ?tsuite_id= / POST id) and the test project context
  *     forwarded.
  * Every write path of the legacy controller (doAction=bulkassign /
- * switchspec / assign / unassign) is now served by the BFF, which enforces
- * the same legacy right (req_tcase_link_management) and additionally proves
- * the suite belongs to the test project.
+ * switchspec / assign / unassign) is now served by a BFF, which enforces the
+ * same legacy right (req_tcase_link_management) and additionally proves the
+ * addressed node belongs to the test project.
 **/
 require_once("../../config.inc.php");
 require_once("common.php");
@@ -44,6 +55,28 @@ foreach (array('id', 'tsuite_id', 'idSRS_id') as $k) {
 
 $tprojectID = isset($_SESSION['testprojectID']) ? intval($_SESSION['testprojectID']) : 0;
 $tplanID = isset($_SESSION['testplanID']) ? intval($_SESSION['testplanID']) : 0;
+
+// Refs #1702: decide the mode from the node TYPE, not from ?edit= only.
+// A legacy ?edit=testcase link passes a test case node id; a bulk link passes
+// a test suite node id (sometimes with ?edit=testsuite). Resolving the node
+// type also repairs old links that only carried ?id=.
+$mode = 'bulk';
+if ((isset($_REQUEST['edit']) && strval($_REQUEST['edit']) === 'testcase') && $id > 0) {
+    $mode = 'testcase';
+} elseif ($id > 0) {
+    $treeMgr = new tree_manager($db);
+    $nodeType = $treeMgr->getNodeType($id);
+    if (!is_null($nodeType) && $nodeType['node_type'] === 'testcase') {
+        $mode = 'testcase';
+    }
+}
+
+if ($mode === 'testcase') {
+    $url = $_SESSION['basehref'] . 'gui/templates/requirements/reqTcAssign.html';
+    $url .= '?tcase_id=' . $id . '&tproject_id=' . $tprojectID . '&tplan_id=' . $tplanID;
+    header('Location: ' . $url);
+    exit;
+}
 
 $url = $_SESSION['basehref'] . 'gui/templates/requirements/reqTcBulkAssign.html';
 $url .= '?tsuite_id=' . $id . '&tproject_id=' . $tprojectID . '&tplan_id=' . $tplanID;

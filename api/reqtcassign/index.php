@@ -492,8 +492,12 @@ function scopeShortTruncate() {
     $scopeTruncate = scopeShortTruncate();
 
     $assigned = assignedRows($specId, $ctx['tcase_id'], $versionString);
-    $free = ($linkingEnabled && $specId > 0)
-            ? freeRows($specId, $ctx['tcase_id'], $versionString) : [];
+    // Legacy parity: the "available" grid was ALWAYS filled - the template only
+    // disabled cbDisabled on its check boxes / the assign button, it did not
+    // hide the rows. Keeping the rows visible also tells the user what could
+    // be linked once the gate is lifted. An empty grid is only correct when
+    // there is no requirement specification selected.
+    $free = ($specId > 0) ? freeRows($specId, $ctx['tcase_id'], $versionString) : [];
 
     // legacy cbDisabled: freezeLinkOnNewREQVersion + can_be_removed = 0
     $freeze = !empty(config_get('reqTCLinks')->freezeLinkOnNewREQVersion);
@@ -539,9 +543,18 @@ function scopeShortTruncate() {
     ];
 }
 
-$action = isset($_REQUEST['action']) && is_scalar($_REQUEST['action'])
-        ? strtolower(trim((string) $_REQUEST['action'])) : '';
 $method = $_SERVER['REQUEST_METHOD'];
+
+// The action travels in the query string (?action=...), like every other
+// modernized BFF. It is also accepted from the JSON body so a caller that
+// posts the action in the payload is not mistaken for a missing action.
+$action = '';
+if (isset($_REQUEST['action']) && is_scalar($_REQUEST['action'])) {
+    $action = strtolower(trim((string) $_REQUEST['action']));
+} elseif ($method === 'POST' && ($body = getBody()) && isset($body['action'])
+        && is_scalar($body['action'])) {
+    $action = strtolower(trim((string) $body['action']));
+}
 
 // ---------------------------------------------------------------------------
 // GET ?action=init

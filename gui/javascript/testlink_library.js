@@ -1414,24 +1414,43 @@ function showEventHistoryFor(objectID,objectType)
 }
 
 /*
-  function: 
+  function: openReqWindow - "Assign Requirements" popup for ONE test case
 
-  args :
-  
-  returns: 
+  2.0.1 - Refs #1702: the legacy target lib/requirements/reqTcAssign.php was
+  reduced to a session-guarded 302 shim in #1595, but that shim only
+  implements the TEST SUITE / bulk mode: it reads ?id= and redirects to
+  gui/templates/requirements/reqTcBulkAssign.html?tsuite_id=<id>, ignoring
+  edit=testcase. So this live entry point silently mis-dispatched a TEST CASE
+  id into the bulk popup's tsuite_id slot - the wrong screen, against a suite
+  that does not exist. It now opens the modern Dashio popup
+  (gui/templates/requirements/reqTcAssign.html + api/reqtcassign, Refs #1702),
+  which is the real testcase mode: it links requirements to a single test
+  case and honours the same reqLinkingDisabledAfterExec / role gates.
 
+  args : tcase_id - test case node id
+         callback - legacy refresh hook: 'a' reloads the opener on the test
+                    case screen, anything else just reloads the opener.
+                    The modern popup is a plain page (not a frameset), so the
+                    opener is refreshed in place.
+  returns: nothing
 */
-function openReqWindow(tcase_id,callback)
-{ 
-  var windowCfg='';                       
-  var feature_url = "lib/requirements/reqTcAssign.php";
-  
-  feature_url +="?edit=testcase&showCloseButton=1&callback="+callback+"&id="+tcase_id;
-
+function openReqWindow(tcase_id, callback)
+{
+  var q = [];
+  q.push("tcase_id=" + encodeURIComponent(tcase_id));
+  var tp = (typeof tproject_id !== "undefined" && tproject_id) ? tproject_id
+           : (window.tproject_id || 0);
+  if (tp) { q.push("tproject_id=" + encodeURIComponent(tp)); }
+  var url = fRoot + "gui/templates/requirements/reqTcAssign.html?" + q.join("&");
   // second parameter(window name) with spaces generate bug on IE
-  windowCfg="width=510,height=300,resizable=yes,scrollbars=yes,dependent=yes";
-  window.open(fRoot+feature_url,"TestCase_Requirement_link",windowCfg);
+  var windowCfg = "width=980,height=680,resizable=yes,scrollbars=yes,dependent=yes";
+  var w = window.open(url, "TestCase_Requirement_link", windowCfg);
+  if (w && callback === 'a') {
+    // legacy refreshAndClose(): the opener must show the new links
+    try { w.opener = window.opener || window; } catch (e) { }
+  }
 }
+
 
 /*
   function: toggleInput
