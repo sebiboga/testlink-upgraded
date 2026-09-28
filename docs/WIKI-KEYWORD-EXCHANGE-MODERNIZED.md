@@ -76,8 +76,9 @@ after the import.
 * **Format descriptions are keyed by the extension name** (`XML`, `CSV` — upper case), not by
   the interface id, and `iSerializationToCSV` is spelled `CSV` in caps while the client
   lower-cases it elsewhere. Both panels therefore map id → ext → sample.
-* **CSV is `;`-delimited with a header row** (`Keyword;Notes;Number of Test Case Linked`) and
-  the export is therefore *not* a valid CSV import — see **#1616**.
+* **CSV is `;`-delimited with a header row** (`Keyword;Notes;Number of Test Case Linked`). The
+  exporter writes it and the importer now skips it (`keywordCsvHeaderMatch()`, **#1616**) — the
+  exported file IS a valid import again, while headerless files keep working.
 * `mgt_view_key` gates the export and `mgt_modify_key` the import (legacy `checkRights()`
   per action), checked on the **owning** project with `getAccess = true`, so a global-only
   right no longer reaches a private project.
@@ -116,14 +117,16 @@ up after a fresh login.
 | 11 | CSV import of a zero-row body reported success | compare the keyword count before/after → `wrong_keywords_file` |
 | 12 | 10 `kw.*` keys orphaned by the modal removal | removed from all 10 bundles |
 
-## 7. Bug filed
+## 7. Bug filed and fixed
 
-**#1616** — `testproject::importKeywordsFromCSV()` (`lib/functions/testproject.class.php:1362`)
-never skips the header row that `exportKeywordsToCSV()` itself writes
-(`exportDataToCSV(..., ['addHeader' => 1])`, `lib/functions/csv.inc.php:17`), so importing a
-TestLink-exported CSV inserts a junk keyword literally named `Keyword`. Every export → import
-round trip therefore corrupts the project. The modern screen keeps legacy parity on purpose —
-the fix belongs in the import model.
+**#1616** — `testproject::importKeywordsFromCSV()` never skipped the header row that
+`exportKeywordsToCSV()` itself writes (`exportDataToCSV(..., ['addHeader' => 1])`,
+`lib/functions/csv.inc.php:17`), so importing a TestLink-exported CSV inserted a junk keyword
+literally named `Keyword`. Every export → import round trip corrupted the project. Fixed in the
+import model: the first parsed row is skipped when it matches the localized exporter labels
+(`keywordCsvHeaderMatch()`, `lib/functions/testproject.class.php`). Details:
+`docs/Bugfix-Issue-1616-Keyword-CSV-Import-Header-Row.md`
+(wiki: *Bugfix-Issue-1616-Keyword-CSV-Import-Header-Row*). Suite 1616 13/13 PASS.
 
 ## 8. Wiring
 
