@@ -1735,7 +1735,7 @@ function setPublicStatus($id,$status)
       switch($mode)
       {
           case 'dotted':
-            // Same guard as tree::createHierarchyMap() (tree.class.php:1597):
+            // Same guard as tree::createHierarchyMap() (tree.class.php:1621):
             // the optional prefix field is not guaranteed to exist on every row
             // - tree::get_subtree() 'rspec' output can return rows whose SQL
             // never projected doc_id, resolved to null (Refs #1608), and
