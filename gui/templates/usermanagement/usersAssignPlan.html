@@ -144,7 +144,11 @@ var demoMode = false;
 // DataTables paging keeps only the current page in the DOM, so bulk "Do" and
 // Save must not read/write the visible rows only; every operation goes through
 // this model and rows are rebuilt (or cells re-synced) from it on every draw.
-var users = [];      // {id, login, name, inheritedRoleName, isAdmin, origRoleID, roleVal}
+// origRoleID is the EXPLICIT user_testplan_roles row (0 = none) and is what the
+// Save payload is compared against; roleVal is the option PRE-SELECTED in the
+// row <select> (legacy $applySelected, issue #1664); changed is the explicit
+// "the user touched this row" flag - it can NOT be derived from the two above.
+var users = [];      // {id, login, name, firstName, lastName, inheritedRoleName, isInherited, effectiveRoleID, globalRoleName, roleColour, isAdmin, origRoleID, roleVal, changed}
 var userById = {};   // id -> user entry
 var assignDt = null; // DataTables instance on #assignTable
 
@@ -494,6 +498,15 @@ function rolesOptions(u, chosenVal) {
         : esc(TLi18n.t('assign.noOverride')));
   var opts = '<option value="0"' + (chosenVal === 0 ? ' selected' : '') + '>' + noRoleLbl + '</option>';
   $.each(roles, function(j, role) {
+    // Legacy parity (issue #941): the admin role is offered only when it is the
+    // row's EXPLICIT plan role. The preselect above (issue #1664) is keyed on the
+    // EFFECTIVE role, and the BFF guarantees the two agree here: with
+    // is_inherited == 0 the effective role is either the explicit row or
+    // TL_ROLES_NO_RIGHTS (3) - never admin without an explicit admin row
+    // (get_tplan_effective_role(), roles.inc.php:394-435). So a pre-selected
+    // admin option is never filtered out. (The sibling screen keys both on the
+    // effective role, usersAssignProject.html:459 - equivalent, and immune by
+    // construction.)
     if (role.id == ADMIN_ROLE_ID && u.origRoleID != role.id) return;
     var sel = role.id == chosenVal ? ' selected' : '';
     opts += '<option value="' + esc(role.id) + '"' + sel + '>' + esc(role.name) + '</option>';
@@ -595,9 +608,9 @@ function renderUsersTable(keep) {
       if (u.roleColour && u.roleColour !== '') {
         $(row).find('td:eq(1),td:eq(2)').css('background-color', u.roleColour);
       }
-      if (!u.isAdmin && (u.roleVal != u.origRoleID)) {
+      if (!u.isAdmin && u.changed) {
         $(row).addClass('changed');
-        $(row).find('td:eq(1)').append('<span class="changed-badge">' + TLi18n.t('common.modified') + '</span>');
+        $(row).find('td:eq(1)').append('<span class="changed-badge">' + esc(TLi18n.t('common.modified')) + '</span>');
       }
     }
   });
@@ -649,8 +662,28 @@ function loadUsers(pid, planId) {
         isAdmin: !!u.isAdmin,
         isInherited: !!u.isInherited,
         effectiveRoleID: u.effectiveRoleID,
+        // Legacy parity (issue #1664): origRoleID is the EXPLICIT
+        // user_testplan_roles row (0 when there is none) - the baseline the Save
+        // payload is compared against; roleVal is the option PRE-SELECTED in the
+        // row <select>, i.e. the legacy $applySelected rule of
+        // usersAssign.tpl:249-256: the EFFECTIVE plan role when it is not
+        // inherited, else the value-0 "inherited" option. On a PRIVATE test plan
+        // get_tplan_effective_role() (roles.inc.php:407-416) returns
+        // is_inherited=0 + effective_role_id=TL_ROLES_NO_RIGHTS (3) for a
+        // non-admin without an explicit plan role, so legacy pre-selected the
+        // "<no rights>" option - the modern screen used to pre-select the value-0
+        // option instead and a plain Save then dropped the row instead of
+        // materialising an explicit <no rights> role. Same rule as the sibling
+        // project screen (usersAssignProject.html:390).
         origRoleID: u.roleID,
-        roleVal: u.roleID,
+        roleVal: u.isInherited ? 0 : (u.effectiveRoleID || 0),
+        // Legacy parity (issue #1664): the row counts as "modified" only after the
+        // user (or the bulk Do) touched it. It CANNOT be derived from
+        // roleVal !== origRoleID any more: the legacy preselect makes that
+        // comparison true for every <no rights> row on a private plan even though
+        // nothing was edited (which would enable Save on load). Same changedMap
+        // pattern as usersAssignProject.html:391.
+        changed: false,
         // Legacy parity: usersAssign.tpl:239-241 - the background colour of the
         // user's login/name block, keyed by the user's GLOBAL role when
         // usersAssignGlobalRoleColoring is ENABLED (usersAssign.php:593-598,
@@ -671,7 +704,10 @@ function loadUsers(pid, planId) {
 function isDirty() {
   for (var i = 0; i < users.length; i++) {
     if (users[i].isAdmin) continue;
-    if (users[i].roleVal !== users[i].origRoleID) return true;
+    // Legacy parity (issue #1664): only rows the user actually touched count as
+    // modified - the legacy preselect (usersAssign.tpl:249-256) is part of the
+    // INITIAL state, not an edit.
+    if (users[i].changed) return true;
   }
   return false;
 }
@@ -680,12 +716,16 @@ function onRoleChange(sel, uid, origRoleId) {
   var u = userById[uid];
   if (!u) return;
   u.roleVal = parseInt(sel.value, 10);
+  // Legacy parity (issue #1664): "Modified" == the chosen value differs from the
+  // row's EXPLICIT plan role (usersAssignProject.html:591 sibling pattern) - the
+  // legacy preselect never marks a row modified on its own.
   var changed = u.roleVal !== u.origRoleID;
+  u.changed = changed;
   var tr = $(sel).closest('tr');
   tr.toggleClass('changed', changed);
   tr.find('.changed-badge').remove();
   if (changed) {
-    tr.find('td:eq(1)').append('<span class="changed-badge">' + TLi18n.t('common.modified') + '</span>');
+    tr.find('td:eq(1)').append('<span class="changed-badge">' + esc(TLi18n.t('common.modified')) + '</span>');
   }
   // Re-sync the DataTables cell data (without a redraw) so the choice survives
   // paging/search re-draws of off-page rows; the model is the source of truth.
@@ -750,6 +790,7 @@ function applyBulkRole() {
     // admin (like u941adminpl) - every other row stays untouched (issue #941).
     if (roleVal == ADMIN_ROLE_ID && u.origRoleID != roleVal) return;
     u.roleVal = roleVal;
+    u.changed = (roleVal !== u.origRoleID);
   });
   renderUsersTable(keep);
   // renderUsersTable() does not touch the Save button (loadUsers pre-disables

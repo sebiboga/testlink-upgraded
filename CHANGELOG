@@ -6156,6 +6156,35 @@ Changes:
       project tables and added user metrics to the middle section
 
 ## 2.0.1 (in-progress)
+### Gap closed — Assign Test Plan Roles: the role select never pre-selected the EFFECTIVE plan role (Fixes #1664)
+- `gui/templates/usermanagement/usersAssignPlan.html` seeded the per-user role
+  `<select>` with the user's **explicit** `user_testplan_roles` row
+  (`roleVal: u.roleID`, `0` when there is none), so every user without an
+  explicit plan role opened on the value-0 "*revert to inherited …*" option.
+  Legacy `usersAssign.tpl:249-256` pre-selects the **effective** plan role
+  (`$applySelected`), which `get_tplan_effective_role()` resolves to
+  `TL_ROLES_NO_RIGHTS` (3) with `is_inherited=0` for every non-admin user on a
+  **private** test plan (`lib/functions/roles.inc.php:407-416`) — i.e. legacy
+  opened the dropdown on `<no rights>`. Because the value-0 option was
+  pre-selected, a plain Save submitted `userRole[<uid>]=0` and `doUpdate()`
+  **deleted** those rows instead of materialising the explicit `<no rights>`
+  plan role legacy writes. The BFF already shipped the right value
+  (`effectiveRoleID` + `isInherited`, #944) but nothing consumed it for the
+  select. Fix: `loadUsers()` now seeds `roleVal: u.isInherited ? 0 :
+  u.effectiveRoleID` while `origRoleID` keeps the explicit row as the baseline —
+  the same rule as the sibling screen (`usersAssignProject.html:390`).
+- Because the legacy preselect makes `roleVal !== origRoleID` true for every
+  `<no rights>` row **without any user edit**, the "Modified" bookkeeping can no
+  longer derive from that comparison (it would enable Save on load). Rows now
+  carry an explicit `changed` flag (sibling screen's `changedMap` pattern) set by
+  `onRoleChange()` / `applyBulkRole()` against `origRoleID`, and consumed by
+  `isDirty()`, the DataTables `createdRow` highlight and the badge. The Save
+  payload (`assignments[u.id] = u.roleVal`) is unchanged — legacy always posts
+  every non-admin row — so a plain Save now writes the explicit `<no rights>`
+  rows like legacy `doUpdate()`. No BFF change, no new i18n key (the `<no
+  rights>` label comes from the localized role list). Suite 1664 10/10 PASS,
+  Event Viewer clean. Unrelated pre-existing `assignDt.cell()` TypeError found
+  while testing filed as #1680. (Fixes #1664)
 ### Key bugfix — Reorder Test Steps: dead handlers after picker navigation, `no_change` on every write, literal `{count}` (Fixes #1674)
 - `gui/templates/testcases/tcStepReorder.html` bound all 8 delegated handlers
   (picker row, move buttons, modal backdrop, 5 drag events, Discard) inside an

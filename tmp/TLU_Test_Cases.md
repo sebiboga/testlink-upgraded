@@ -25658,3 +25658,71 @@ opposite directions the old sorted-set comparison could not see) answer `ok`.
 `api/tcstepsreorder/index.php`. Fixed in `f08cd9520`; the sibling screen
 `api/tcreorder` (Refs #1660) shares the legacy `testcase::set_step_number()`
 primitive and is **unaffected** — the change is local to this endpoint.
+
+---
+
+## Task — Issue #1664: usersAssignPlan.html must pre-select the EFFECTIVE plan role (`<no rights>` on a private plan)
+
+**Precondition / fixtures** — `php tmp/fixtures_1664.php` (re-runnable, drops the old
+project first) creates public tproject `AN1664` with plans `AN1664-PUBLIC` (public)
+and `AN1664-PRIVATE` (**private**) and the users `an1664designer` (global role 4),
+`an1664guest` (5), `an1664tester` (7), `an1664leader` (9 + **explicit** plan role 6 on
+both plans) and `an1664dormant` (inactive, must never appear). The whole suite below
+was executed on that **pristine** state — only the leader rows
+`(5|<public>|6) (5|<private>|6)` exist in `user_testplan_roles`, nothing else. Screen
+URL: `http://localhost:8082/gui/templates/usermanagement/usersAssignPlan.html?tproject_id=<P>&tplan_id=<plan>`,
+login `admin`/`admin`. Legacy reference: `usersAssign.tpl:249-256` (`$applySelected`)
++ `get_tplan_effective_role()` `roles.inc.php:407-416` (private plan ⇒
+`is_inherited=0`, `effective_role_id=3`).
+
+**Steps** — open the screen on the private plan, read every row's selected option and
+the Save state; touch one row; force a DataTables redraw; apply the bulk role; reload,
+edit a single row and Save (then read the DB); finally repeat the read on the public
+plan.
+
+**Expected** — the pre-selected option is the EFFECTIVE plan role when the role is not
+inherited (i.e. **`<no rights>` / id 3** on the private plan) and the value-0
+`<inherited> …` option when it is inherited; nothing is marked *Modified* and Save
+stays disabled until the user actually edits a row; a plain Save submits the legacy
+per-row values, so `<no rights>` rows become explicit.
+
+`dr` = the row's explicit assignment (`data-role`), `v` = the selected option value.
+
+| # | Case | Expected | Observed | Result |
+|---|---|---|---|---|
+| S1 | private plan, no interaction | `v3 "<no rights>"` for the 3 users without an explicit plan role, `v6 "senior tester"` for the explicit row, `v0 "<inherited> admin"` for the locked admin | `1:dr0=v0("<inherited> admin")`, `2:dr0=v3("<no rights>")`, `3:dr0=v3("<no rights>")`, `5:dr6=v6("senior tester")`, `4:dr0=v3("<no rights>")` | **PASS** |
+| S2 | same load — no spurious dirty state | Save disabled, 0 *Modified* badges, `isDirty()` false | `saveBtn.disabled=true`, badges `0`, `isDirty()=false` | **PASS** |
+| S3 | admin row | select `disabled`, value-0 `<inherited> admin`, info hint icon | `disabled=true`, `v0`, `.fa-info-circle` present | **PASS** |
+| S4 | inactive user `an1664dormant` | never listed | no row contains "Dormant" | **PASS** |
+| S5 | public plan — inherited rows | value-0 `<inherited> <global role>` selected, explicit row keeps 6 | `Dana Designer dr0=v0("<inherited> test designer")`, `Gus Guest v0("<inherited> guest")`, `Tina Tester v0("<inherited> tester")`, `Lars Leader dr6=v6("senior tester")`, `Testlink Administrator v0("<inherited> admin")`; model `inh=1 ⇒ val=0`, Save disabled | **PASS** |
+| S6 | change one row (uid 2 → 7) on the private plan | row highlighted + badge, Save enabled, only that row flagged | `saveBtn.disabled=false`, `class="even changed"`, badge `true`, badges count `1` | **PASS** |
+| S7 | force a DataTables redraw (search `Tina`, then clear) | the preselect **and** the user's change both survive | redraw shows `4:dr0=v3("<no rights>")`; after clearing: uid 2 `v7 ("tester")`, uid 3 `v3 ("<no rights>")` | **PASS** |
+| S8 | bulk `Do` (role 9) on the private plan | every non-admin row set, admin skipped, a row already holding that role not marked | values `v0, v9, v9, v9, v9` (admin still `0`), badges `4`, Save enabled | **PASS** |
+| S9 | **reload**, edit a single row (uid 4 → 4) and Save on the private plan | legacy `doUpdate()` posts EVERY non-admin row ⇒ the untouched `<no rights>` rows are materialised as explicit role 3 | toast *User Roles updated*; re-render `0=0, 3=3, 3=3, 6=6, 4=4`, badges `0`, Save disabled; DB `user_testplan_roles` = `(5\|<public>\|6) (2\|<private>\|3) (3\|<private>\|3) (4\|<private>\|4) (5\|<private>\|6)` — before the fix `(2\|…)`/`(3\|…)` were submitted as 0 and **deleted** | **PASS** |
+| S10 | Event Viewer / `events` + browser console | no new Error/Warning from the screen | `events` holds only the 3 DATABASE rows written by the fixture script's own earlier (typo'd) runs — none from the screen; console 0 errors / 0 warnings on every clean load | **PASS** |
+
+**Result: 10/10 PASS.**
+
+**Regression matrix for the `roleVal` / `origRoleID` / `changed` split.** S5 is the
+guard against over-correcting: on a public (inherited) plan every row must keep the
+value-0 `<inherited> …` option — legacy and modern agree there — and the admin row must
+stay locked at value 0. S2 is the guard against the opposite error: enabling Save on load
+for the `<no rights>` rows, which is exactly what a naive `isDirty(): roleVal !==
+origRoleID` would do. S7 covers the DataTables redraw path (`createdRow` re-applies
+`u.changed`). S8 covers the bulk Do and the "row already has that role ⇒ not modified"
+case. S3/S4 re-confirm the admin lock (#927) and the inactive-user filter that the model
+change also touches.
+
+**Reading the *Modified* badge.** Legacy posts the whole `userRole[<uid>]` form, so a
+single edit does write the `<no rights>` rows for users the user never touched (S9) —
+that is legacy behaviour, faithfully reproduced. The badge therefore means "**you
+touched this row**", not "this row changed in the DB"; `changed` is deliberately *not*
+recomputed after a save (the screen reloads the model from the server).
+
+**Files under test:** `gui/templates/usermanagement/usersAssignPlan.html`
+(`loadUsers()` model, `rolesOptions()`/`buildSelectHtml()`, `isDirty()`,
+`onRoleChange()`, `applyBulkRole()`, `createdRow`). BFF unchanged —
+`api/roles/index.php:945-956` already ships `effectiveRoleID` + `isInherited` (#944).
+Unrelated pre-existing defect found while testing and filed separately as #1680
+(`assignDt.cell()` TypeError on the 2nd change of the same row; reproduced on the
+unmodified `HEAD` file).
