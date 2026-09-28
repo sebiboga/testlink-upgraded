@@ -270,7 +270,11 @@ function render() {
     if (GRANT.modify && !DEAD) { tr.attr('draggable', 'true'); }
     tr.attr('data-id', it.id);
     tr.toggleClass('sel', it.id === PICKED);
-    tr.append($('<td></td>').append($('<span class="grip" title="' + t('reqtr.dragHint') + '"><i class="fa fa-grip-vertical"></i></span>')));
+    var gripCell = $('<td></td>');
+    if (GRANT.modify && !DEAD) {
+      gripCell.append($('<span class="grip" title="' + t('reqtr.dragHint') + '"><i class="fa fa-grip-vertical"></i></span>'));
+    }
+    tr.append(gripCell);
     tr.append($('<td class="pos"></td>').text(i + 1));
     tr.append($('<td class="rdid"></td>').text(it.req_doc_id));
     tr.append($('<td class="ttl"></td>').text(it.title || ''));
