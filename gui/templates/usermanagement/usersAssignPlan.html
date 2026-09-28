@@ -288,6 +288,41 @@ function showNoAccess() {
   $('#denyBox').show();
 }
 
+// Legacy parity: checkSessionValid() (lib/functions/common.php:258-286), run by
+// testlinkInitPage() on every legacy page, bounced a session idle for longer
+// than config_get("sessionInactivityTimeout") minutes to
+// login.php?note=expired&destination=<this screen>, with the localized
+// "Session expired. Please log in again." box the modern login screen already
+// renders for that note (gui/templates/auth/login.html:145-155). The BFF cannot
+// redirect, so it answers 401 {"code":"session_expired"} (issue #1614) and the
+// screen performs the bounce here - on every request path, so a stale tab can
+// neither read the user list nor write role assignments (issue #1646).
+// Mirrors usersAssignProject.html:219-232 (same helper, same comment intent).
+//
+// The status code is the primary signal, NOT the body: api/roles/index.php:24-27
+// answers a completely absent session with 401
+// {"status":"error","message":"Not authenticated"} and no "code" key at all, so a
+// code-only test would let that 401 fall through to the dead empty state again.
+// The code is still accepted as a second trigger for the rare case of a non-401
+// transport that carries the session_expired payload.
+function sessionExpired(xhr) {
+  var code = '';
+  try { code = (JSON.parse(xhr.responseText) || {}).code || ''; } catch (e) {}
+  if (xhr.status !== 401 && code !== 'session_expired') return false;
+  showDemoToast(TLi18n.t('auth.sessionExpired'), 'err');
+  // Legacy redirected the TOP window ("top.location"), and the Dashio shell
+  // loads content screens inside an iframe - redirecting only this window would
+  // leave the stale shell (and its menu) on screen (staticPage.html:96 pattern).
+  var dest = window.location.pathname + window.location.search;
+  var target = window.location.origin + '/login.php?note=expired&destination=' +
+               encodeURIComponent(dest);
+  setTimeout(function() {
+    try { if (window.self !== window.top) { window.top.location.href = target; }
+          else { window.location.href = target; } } catch (e) { window.location.href = target; }
+  }, 1200);
+  return true;
+}
+
 TLi18n.load(function() {
   TLi18n.apply();
   TLi18n.initLocaleSwitcher('#localeSwitcher');
@@ -349,6 +384,10 @@ function loadProjects(selectedId, selectedPlanId) {
     sel.val(pid);
     loadPlans(pid, selectedPlanId);
   }).fail(function(xhr) {
+    // A 401 is a stale/absent session, not a read failure: legacy bounced to
+    // login.php?note=expired (usersAssign.php:97 -> checkSessionValid), so never
+    // render the dead empty state for it (issue #1646).
+    if (sessionExpired(xhr)) { return; }
     if (xhr && xhr.status === 403) { showNoAccess(); }
     else { $('#emptyMsg').show(); }
   });
@@ -461,6 +500,11 @@ function loadPlans(pid, selectedPlanId) {
       loadUsers(pid, planToLoad);
     }
   }).fail(function(xhr) {
+    // Legacy parity: a session that went stale between the project and plan
+    // requests was bounced by the next checkSessionValid() call
+    // (usersAssign.php:97) - do the same here instead of silently keeping an
+    // unusable plan combo (issue #1646).
+    if (sessionExpired(xhr)) { return; }
     if (xhr && xhr.status === 403) { showNoAccess(); }
   });
   $('#planSelect').off('change').on('change', function() {
@@ -697,6 +741,10 @@ function loadUsers(pid, planId) {
     renderUsersTable();
     $('#emptyMsg').hide();
   }).fail(function(xhr) {
+    // Legacy parity: a stale session was never allowed to list the plan's
+    // users (usersAssign.php:97) - without this the 401 was swallowed whole and
+    // the grid simply stayed empty with no explanation (issue #1646).
+    if (sessionExpired(xhr)) { return; }
     if (xhr && xhr.status === 403) { showNoAccess(); }
   });
 }
@@ -846,6 +894,14 @@ function saveAssignments() {
       loadUsers(currentProject, currentPlan);
     },
     error: function(xhr) {
+      // Legacy parity: checkSessionValid() re-ran right after the update block
+      // (usersAssign.php:97) and bounced a session that had gone stale DURING
+      // the write to login.php?note=expired. The BFF answers 401
+      // session_expired for that case (issue #1646): bounce BEFORE the
+      // failure toast, so the user is never told the update failed when the
+      // session - not the update - was the problem, and so no role assignment
+      // is silently lost behind a misleading message.
+      if (sessionExpired(xhr)) { return; }
       // Surface the demo_mode / permission rejection as a toast instead of a
       // silent fail (usersAssignProject.html:445-461 pattern, issue #931).
       var msg = TLi18n.t('assign.updateFailed');
