@@ -108,12 +108,41 @@ Base: `http://localhost:8082/api/reqspectreelist/index.php`. All calls are `GET`
 
 | Action | Params | 200 payload | Errors |
 |---|---|---|---|
-| `init` | `tproject_id` | `context` (name, prefix, `requirements_enabled`, spec + requirement counts, `user_login`, `grant.modify`) + `specs[]` | `400 invalid_tproject`, `403 no_right`, `404 tproject_not_found`, `405 wrong_method` |
-| `children` | `tproject_id`, `node_id` | `children[]` (id, `req_doc_id`, title, `node_order`, `status`) | `400 invalid_req_spec`, `403 no_right`, `404 tproject_not_found` / `req_spec_not_found` |
+| `init` | `tproject_id` | `context` (name, prefix, `requirements_enabled`, spec + requirement counts, `user_login`, `grant.modify`) + `specs[]` (id, `doc_id`, title, `node_order`, `total_reqs`, `containers[]`) | `400 invalid_tproject`, `403 no_right`, `404 tproject_not_found`, `405 wrong_method` |
+| `children` | `tproject_id`, `node_id` | `children[]` (id, `req_doc_id`, title, `node_order`, `status`, `type`, `version`) + `parent_kind` | `400 invalid_req_spec`, `403 no_right`, `404 tproject_not_found` / `req_spec_not_found` |
+| `children` | `tproject_id`, `node_id`, `container` | same `children[]`, for the requirements parented by the container | `400 child_requirements_mgmt_disabled` / `invalid_container`, `404 container_not_found` |
 | `projects` | – | `projects[]` (id, name, prefix, active, is_current) + `session_tproject_id` | `401` |
 
 `requirements_enabled` comes from `testprojects.option_reqs`; when it is off the screen shows the
 disabled empty state and never lists the project in the switcher.
+
+### 4.1 Container children (`req_cfg->child_requirements_mgmt`, #1699)
+
+With that option **enabled** — the default, `config.inc.php:1689` — TestLink lets a
+`node_type_id = 1` **test project node** be re-parented under a requirement specification, and
+requirements then hang off that container. 1.9.20's `lib/ajax/getrequirementnodes.php` walked
+**any** child node type (its filter only excludes `testcase`, `testsuite`, `testcase_version`,
+`testplan`, `requirement_spec_revision`), so the container and its requirements were part of the
+tree. The first version of this navigator queried only `requirements.srs_id = <spec>` and dropped
+the branch silently — a specification that still held content rendered as half empty.
+
+* `init` now returns `containers[]` on every specification: the `node_type_id = 1` children, with
+  their own live requirement count, the owning `tproject_id`, and `openable`.
+* `children&container=<node_id>` returns the requirements parented by that container, with
+  `parent_kind: "container"`.
+* **Ownership proof.** `needOwnedContainer()` requires the id to be a `node_type_id = 1` node
+  whose `parent_id` **is the addressed specification**, and `needOwnedSpec()` has already proved
+  that specification to the addressed project. A project node from anywhere else is not a child of
+  that spec, so it answers the same `404 container_not_found` as a non-existent id — the legacy
+  loader's missing scope check stays closed.
+* **Order.** The specification's own requirements and its containers are merged by
+  `node_order, id` — the legacy loader emitted them from one node set ordered by `node_order`, and
+  `id` makes the tie deterministic.
+* **Counts.** A specification's badge stays the count of its *direct* requirement children; the
+  container carries its own. This is exactly how the legacy labels read.
+* **Flag gate.** With the option off, `containers` is `[]` and `&container=` answers
+  `400 child_requirements_mgmt_disabled` — the pairing was not part of the supported UI then
+  (`$forbidden_parent['requirement_spec']` becomes `'requirement_spec'`).
 
 ## 5. Data model gotchas found while building it
 
@@ -127,6 +156,15 @@ disabled empty state and never lists the project in the switcher.
   is normalized to a real boolean before it is JSON-encoded.
 * `req_versions.status` / `.type` are `char(1)` (`V`, `D`, `O`, …) under a strict `sql_mode`;
   passing full words raises `Data too long for column 'status'`.
+* `testprojects.options` must serialize an **object**, not an array:
+  `testproject::parseTestProjectRecordset()` keeps an unserialized object and silently replaces
+  an array with the all-disabled defaults, so an array blob makes `requirements_enabled` 0 and
+  hides the whole screen. This bit the #1699 fixture, not the product.
+* `requirementChildren()` used to read `$r['type']` / `$r['version']` from a `SELECT` that
+  projected neither column. Every requirement therefore answered the constant
+  `"type":"","version":0` and the `events` table filled with `E_WARNING Undefined array key "type"`
+  / `"version"` on each expand. Both columns are now projected (`V.type`, `V.version` off the
+  latest version row).
 
 ## 6. i18n
 
@@ -136,6 +174,9 @@ disabled empty state and never lists the project in the switcher.
 ASIDE entry — with only 11/19 `lang_get()` fell back to `en_GB` and logged an L18N warning event
 per session in the other 8. The `rstl.status_*` keys reuse the requirement-status vocabulary already used by
 `reqSpecView.html`.
+
+#1699 added three keys to the same block in all 10 bundles: `rstl.openProject`,
+`rstl.emptyContainer` and `rstl.containerNote` (47 `rstl.*` keys per bundle).
 
 ## 7. Tests
 
@@ -175,10 +216,47 @@ is **no** `ERROR` and **no** `WARNING` entry after 13:58, i.e. the whole browser
 * `lib/ajax/getrequirementnodes.php` is dead code but still present and still unprotected — #1696
   stays open until it is deleted (or locked down if something outside this repository still calls
   it).
-* **`child_requirements_mgmt` container children.** When that option is on, TestLink allows a
-  *test project* node to be re-parented under a specification, and the requirements then hang off
-  that container. The 1.9.20 lazy loader walked any child node type, so such a container — and the
-  requirements below it — appeared in the old tree. This read-only navigator lists the requirements
-  of the specification itself, so a container child is not shown. Tracked as a task issue.
 * The requirement count on each specification is a live count; on a very large specification the
   `children` response can be big, but it is fetched only on the first expand and then cached.
+
+## 9. #1699 — container children re-parented into a specification
+
+Suite **1699** in `tmp/TLU_Test_Cases.md`: **16 functional + 9 security + 3 defect cases, all
+PASS**. The gap, the fix and the security matrix are described in §4.1; the second (unrelated but
+found and measured on the same code path) defect — the undefined `type` / `version` array keys —
+is in §5.
+
+Fixture (fresh import has 0 projects — recreate it; the authoring script was `tmp/fixture_1699.php`):
+
+| node | type | parent | name |
+|---|---|---|---|
+| 38 | 1 testproject | – | TLU1699 Owner `T1699A` |
+| 40 | 6 requirement_spec | 0 | RS-001 My specification |
+| 42 / 44 | 7 requirement | 40 | REQ-001 / REQ-002 |
+| **39** | **1 testproject (container)** | **40** | **TLU1699 Container Project `T1699B`** |
+| 46 / 48 | 7 requirement | 39 | REQ-003 / REQ-004 |
+| 50 | 6 requirement_spec | 0 | RS-002 Second specification |
+| 52 | 7 requirement | 50 | REQ-005 |
+| 900 | 1 testproject (empty container) | 50 | TLU1699 Empty Container `T1699C` |
+
+The container is produced exactly as `reqTreeReorder` / legacy
+`tree::change_parent()` do: `UPDATE nodes_hierarchy SET parent_id = <spec> WHERE id = <project
+node>`, plus requirement rows whose `srs_id` points at the container. Note that
+`testprojects.options` must hold a serialized **object** (§5) or `requirements_enabled` reads 0.
+
+| what | measured |
+|---|---|
+| legacy `getrequirementnodes.php?node=40` | container 39, `REQ-001`, `REQ-002` — one `node_order` sequence |
+| legacy `getrequirementnodes.php?node=39` | `REQ-003`, `REQ-004` |
+| modern `children&node_id=40` (before) | `REQ-001`, `REQ-002` only — container branch absent |
+| modern `init` (after) | spec 40 `containers:[{id:39,total_reqs:2,openable:1}]` |
+| modern `children&node_id=40&container=39` (after) | `REQ-003` (`D`), `REQ-004` (`D`), `parent_kind:"container"` |
+| security S1–S9 | 404 for a non-container, for a container of another spec, for a root project node, for a non-existent id; 404 `req_spec_not_found` cross-project; 405 on POST; 401 without a session |
+| console | 0 messages |
+| `events` (`log_level IN (1,2,3)`) | last `E_WARNING` is 18:29:04, **before** the fixes; 0 new rows afterwards |
+
+The row order was the one thing reading the code could not settle: legacy's `ORDER BY
+NHA.node_order` had no tie-break, so the first implementation (sorting the merged list by
+`node_order` alone) placed the container *between* `REQ-001` and `REQ-002`. Case 5 caught it in
+the browser; sorting by `node_order, id` reproduces the legacy sequence deterministically.
+

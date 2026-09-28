@@ -6208,7 +6208,34 @@ Changes:
       project tables and added user metrics to the middle section
 
 ## 2.0.1 (in-progress)
-### UI modernization — Requirement Specification Tree navigator (Refs #1695, Fixes #1697)
+### Gap closed — Requirement Spec Tree: requirements re-parented into a specification (container nodes) were invisible (Fixes #1699)
+- `req_cfg->child_requirements_mgmt` is ENABLED by default (config.inc.php:1689), so TestLink lets
+  a `node_type_id = 1` test project node be re-parented under a requirement specification and
+  requirements hang off that container. 1.9.20's `lib/ajax/getrequirementnodes.php` walked ANY
+  child node type, so the container and its requirements were part of the tree; the modern
+  navigator queried only `requirements.srs_id = <spec>` and dropped the whole branch silently, so
+  a specification that still held content rendered as half empty.
+- `api/reqspectreelist/index.php`: `init` now returns `containers[]` per specification (the
+  `node_type_id = 1` children with their own live count, the owning project and an `openable`
+  flag), and `children` accepts `&container=<node_id>` (`parent_kind: "container"`). The
+  ownership proof the legacy loader never had is kept closed: `needOwnedContainer()` requires a
+  `node_type_id = 1` node whose `parent_id` IS the addressed specification, which
+  `needOwnedSpec()` already proved to the addressed project, so a project node from anywhere else
+  answers the same 404 as a non-existent id.
+- `gui/templates/requirements/reqSpecListTree.html` renders the container as an expandable row
+  (twisty, folder icon, live count, no status badge) merged into the specification's children by
+  `node_order, id` - the sequence legacy emitted from a single node set, now with a deterministic
+  tie-break - lazy-loading it through the same CACHE/EXPANDED machinery as a specification, and
+  offering the legacy `EP(<id>)` deep link when the caller may read that project. Expand all /
+  collapse all / refresh all cover containers too.
+- 3 new i18n keys (`rstl.openProject`, `rstl.emptyContainer`, `rstl.containerNote`) in all 10
+  bundles. The branch is gated on the config flag: with it off, `containers` is `[]` and
+  `&container=` answers `400 child_requirements_mgmt_disabled`.
+- Also fixed on the same path: `requirementChildren()` read `$r['type']` / `$r['version']` from a
+  SELECT that projected neither, so every requirement answered the constant `"type":"","version":0`
+  and each expand wrote `E_WARNING Undefined array key` into the events table. Suite 1699: 16
+  functional + 9 security + 3 defect cases PASS, 0 new Event Viewer Error/Warning, 0 console
+  messages.
 - The last unmodernized requirement-area frame, `lib/requirements/reqSpecListTree.php` (an 84-line
   ExtJS frame over `reqSpecListTree.tpl` + `lib/ajax/getrequirementnodes.php`), is now
   `gui/templates/requirements/reqSpecListTree.html` backed by `api/reqspectreelist/index.php`
@@ -6231,7 +6258,8 @@ Changes:
 - Final validation: Suite 1695 reports the honest **50/51 PASS + 1 known FAIL** (the single
   failure is 1695-43, the legacy loader read hole already filed as #1696; all 50 modern-screen /
   BFF / i18n / wiring / security cases pass). Container-child re-parenting
-  (`child_requirements_mgmt`) is the tracked read-parity gap **#1699**.
+  (`child_requirements_mgmt`), the read-parity gap **#1699**, was closed later in the same
+  2.0.1 cycle — see the entry above it.
 ### Gap closed — Assign Test Plan Roles: the role select never pre-selected the EFFECTIVE plan role (Fixes #1664)
 - `gui/templates/usermanagement/usersAssignPlan.html` seeded the per-user role
   `<select>` with the user's **explicit** `user_testplan_roles` row
