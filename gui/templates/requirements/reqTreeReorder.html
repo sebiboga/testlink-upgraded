@@ -252,10 +252,10 @@ function render() {
     tr.append($('<td class="rdid"></td>').text(it.req_doc_id));
     tr.append($('<td class="ttl"></td>').text(it.title || ''));
     var act = $('<td class="act"></td>');
-    act.append(btn('fa-arrow-up', t('reqtr.moveUp'), 'up'));
-    act.append(btn('fa-arrow-down', t('reqtr.moveDown'), 'down'));
-    act.append(btn('fa-chevron-up', t('reqtr.moveTop'), 'top'));
-    act.append(btn('fa-chevron-down', t('reqtr.moveBottom'), 'bottom'));
+    act.append(btn('fa-arrow-up', t('reqtr.moveUp'), 'up', i));
+    act.append(btn('fa-arrow-down', t('reqtr.moveDown'), 'down', i));
+    act.append(btn('fa-chevron-up', t('reqtr.moveTop'), 'top', i));
+    act.append(btn('fa-chevron-down', t('reqtr.moveBottom'), 'bottom', i));
     var pick = $('<button class="pickbtn' + (it.id === PICKED ? ' on' : '') + '"><i class="fa fa-hand-pointer-o"></i> ' + t('reqtr.select') + '</button>');
     pick.on('click', function () { PICKED = (PICKED === it.id) ? 0 : it.id; renderSel(); render(); });
     act.append(pick);
@@ -280,21 +280,17 @@ function render() {
   applyRowState();
 }
 
-function btn(icon, label, dir) {
+function btn(icon, label, dir, idx) {
   var b = $('<span class="rm" data-mv="' + dir + '"><i class="fa ' + icon + '"></i> ' + label + '</span>');
-  b.on('click', function () { nudge(dir); });
+  // The row index is bound per button: a reorder control must always act on
+  // the row it lives in, never on the currently selected requirement.
+  b.on('click', function () { nudge(idx, dir); });
   return b;
 }
 
-function nudge(dir) {
+function nudge(i, dir) {
   if (BUSY || !GRANT.modify) { return; }
-  var i = ITEMS.findIndex(function (x) { return x.id === PICKED; });
-  if (i < 0) {
-    // no explicit pick: act on the first row that the button belongs to
-    var el = $('#ordBody .rm[data-mv="' + dir + '"]:not(.dis)').first();
-    if (!el.length) { return; }
-    i = $('#ordBody tr').index(el.closest('tr'));
-  }
+  if (i < 0 || i >= ITEMS.length) { return; }
   var j = i;
   if (dir === 'up') { j = i - 1; } else if (dir === 'down') { j = i + 1; }
   if (j < 0 || j >= ITEMS.length) { return; }
