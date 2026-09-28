@@ -26274,82 +26274,83 @@ while the SELECT projected neither column, so every requirement answered the con
   The default is ENABLED, so the gate was not reachable in this dataset and is verified by code
   reading rather than by a run.
 
----
+## Suite 1025 — Task, Issue #1025: requirements filter panel in `reqSpecMgmt.html` (gap vs legacy `tlRequirementFilterControl` / `inc_filter_panel.tpl`)
 
-## Regression — Issue #1618: a non-existent `?id=` on the Issue Tracker list must not create a phantom grid row (nor log the 8 `E_WARNING`s) — **already fixed upstream, verified as a no-op**
+**Precondition / fixture (project 1, prefix `REQA-`, rebuilt fresh):**
+- Specs: `SPEC-A` id 10 (type 1 Section), `SPEC-B` id 11 (type 2 URS), `SPEC-C` id 12 (type 3 SRS).
+- Requirements (2 per spec, latest version, coverage 1 = "1 TC"):
+  - `REQ-A-1` id 20 — status V, type 2, coverage 1, CF1 `Login`, related-to ↔ `REQ-B-1`
+  - `REQ-A-2` id 21 — status D, type 1, coverage 2, CF1 `Logout`
+  - `REQ-B-1` id 22 — status R, type 3, coverage 1
+  - `REQ-B-2` id 23 — status V, type 2, coverage 3
+  - `REQ-C-1` id 24 — status N, type 5, coverage 1
+  - `REQ-C-2` id 25 — status W, type 4, coverage 2
+- Custom field 1 `Req Origin` linked to requirement CFs.
+- Three leftover fixture rows (`REQ-A-3/4/5`) were removed before the run (the earlier DELETE
+  had failed on a `latest_req_version_id` view); dataset is now exactly 2 reqs/spec.
+- Session: `admin/admin` on `http://localhost:8082`; CSRF needs a same-origin `Origin`/`Referer`
+  header for direct `curl` calls (`/api/auth/login` answers 403 otherwise).
 
-**Precondition.** Fresh DB. `admin`/`admin` logged in via `POST /api/auth/login`.
-One fixture of each: `issuetrackers` id=1 (`type=2`, bugzilla/`db`, `cfg` XML with
-`uribase`/`dbtype`/`dbhost`/`dbname`/`dbuser`/`dbpassword` all present, host
-`127.0.0.1:1` = deliberately unreachable) and `reqmgrsystems` id=1 (`type=1` — the
-**only** key of `tlReqMgrSystem::$systems`, `lib/functions/tlReqMgrSystem.class.php:33`).
-`events` is emptied before each step and only `log_level=2` (`E_WARNING`) rows are
-counted, because the #1618 defect's signature was 8 template-raised `E_WARNING`s.
+**Steps / expected / actual:**
 
-**Harness.** `bash tmp/verify_1618.sh` (exit 0 = all PASS).
+| # | Step | Expected | Actual | Verdict |
+|---|------|----------|--------|---------|
+| 1 | `php -l api/reqspec/index.php` | no syntax errors | `No syntax errors detected` | PASS |
+| 2 | `python3 -m json.tool` on all 10 bundles (`de,en,es,fr,it,ja,pt,ro,ru,zh`) | 10/10 valid | 10/10 `OK` | PASS |
+| 3 | Unauthenticated `GET ?action=options` | 401 | `401` | PASS |
+| 4 | `GET ?action=options&tproject_id=1` (logged in) | 200 + `tcPrefix=REQA-`, all filter domains, `filterCFields` = 1 field | 200; `tcPrefix "REQA-"`, `relationTypes {1_source,1_destination,2_source,2_destination,3}`, `reqStatuses` 8, `reqTypes` 7, `specTypes` 3, `filterCFields [{id:1,"Req Origin"}]` | PASS |
+| 5 | Review fix: equal relation in `relationTypes` | bare key `3` present (matches either side) | `"3": "related to"` present | PASS |
+| 6 | `action=specs` unfiltered | 3 specs | `SPEC-A, SPEC-B, SPEC-C` | PASS |
+| 7 | `filter_status=V` | specs holding a Valid req → A, B | `SPEC-A, SPEC-B` | PASS |
+| 8 | `filter_status=D,W` | → A, C | `SPEC-A, SPEC-C` | PASS |
+| 9 | `filter_status=0` (Any) | legacy rule: Any disables the whole filter → 3 | 3 | PASS |
+| 10 | `filter_type=2` | → A, B | `SPEC-A, SPEC-B` | PASS |
+| 11 | `filter_spec_type=2` | → B only | `SPEC-B` | PASS |
+| 12 | `filter_coverage=2` | → A, C | `SPEC-A, SPEC-C` | PASS |
+| 13 | `filter_coverage=1` | → A, B, C | all 3 | PASS |
+| 14 | `filter_doc_id=SPEC-A` | → A (LIKE on spec doc id) | `SPEC-A` | PASS |
+| 15 | `filter_title=login` | → A | `SPEC-A` | PASS |
+| 16 | `filter_relation=3` (bare, equal) | → A, B | `SPEC-A, SPEC-B` | PASS |
+| 17 | `filter_relation=2_source` (blocks-as-source) | no req in fixture is a blocks source → 0 | 0 | PASS |
+| 18 | `filter_tc_id=REQA-101` (covered by TC) | → A | `SPEC-A` | PASS |
+| 19 | `filter_tc_id=REQA-` (prefix only) | legacy rule: disabled → 3 | 3 | PASS |
+| 20 | `filter_cf_1=Login` | → A | `SPEC-A` | PASS |
+| 21 | `filter_status=V&filter_type=2` | → A, B | `SPEC-A, SPEC-B` | PASS |
+| 22 | `filter_status=F&filter_type=2&filter_cf_1=Logout` (impossible) | 0 | 0 | PASS |
+| 23 | `filter_title=%27%20OR%201%3D1--` (SQLi probe) | treated as a literal string → 0, no injection | 0, no DB error | PASS |
+| 24 | Subtree pruning: `filter_status=F` (no Finished req anywhere) | every spec pruned → 0 | 0 | PASS |
+| 25 | `action=reqs&spec_id=10` unfiltered | REQ-A-1, REQ-A-2 | `REQ-A-1, REQ-A-2` | PASS |
+| 26 | `reqs&spec_id=10&filter_status=V` | REQ-A-1 | `REQ-A-1` | PASS |
+| 27 | `reqs&spec_id=10&filter_cf_1=Logout` | REQ-A-2 | `REQ-A-2` | PASS |
+| 28 | `reqs&spec_id=10&filter_title=login` | REQ-A-1 | `REQ-A-1` | PASS |
+| 29 | `reqs&spec_id=10&filter_type=2` | REQ-A-1 | `REQ-A-1` | PASS |
+| 30 | `reqs&spec_id=10&filter_status=F` | 0 | 0 | PASS |
+| 31 | `reqs&spec_id=11` / `spec_id=12` unfiltered | 2 each | `REQ-B-1, REQ-B-2` / `REQ-C-1, REQ-C-2` | PASS |
+| 32 | Browser: panel renders all 9 controls + CF toggle + Apply/Reset/Advanced | present | doc id, title, status, req type, spec type, expected coverage, relation, TC id, CF toggle, 3 buttons | PASS |
+| 33 | Browser: type `login` in Title, click **Apply** | 1 row, heading `(1)` | `["SPEC-A"]`, `Requirement Specification Management(1)` | PASS |
+| 34 | Browser: click **Reset** | 3 rows, inputs cleared, Status back to `Any` | 3 rows, `title=""`, `status="0"` | PASS |
+| 35 | Browser: **Advanced Filters** | selects become multi-select listboxes, button label flips | 4 `listbox multiselectable`, button reads `Simple Filters` | PASS |
+| 36 | Browser: tick "Show custom field filters" | `Req Origin` input becomes visible | `#fCFields` visible, 1 input, text `REQ ORIGIN` | PASS |
+| 37 | Browser (advanced): Status=`V` + CF=`Logout` + Apply | 0 rows, heading `(0)` | `No data available in table`, `(0)` | PASS |
+| 38 | Browser: open Spec Alpha, Status=`V`, Apply | req table → REQ-A-1; spec table → A, B | `["REQ-A-1"]` / `["SPEC-A","SPEC-B"]` | PASS |
+| 39 | Browser console (whole session, all interactions) | 0 errors/warnings | `<no console messages found>` | PASS |
+| 40 | Event Viewer `events` table after the run | 0 new Error/Warning | level-1 (error) count 5, `MAX(id)=6` — unchanged from before this run; the only new row is id 7, `log_level=16` (LOGIN audit) | PASS |
 
-**Repro steps (pre-fix, as reported in the issue).**
-1. `GET /lib/issuetrackers/issueTrackerView.php?tproject_id=1&id=999`
-2. observe one extra blank grid row and 8 new `E_WARNING` rows in `events`.
+**Result: 40/40 PASS.**
 
-**Expected post-fix behaviour.** The `?id=` that matches no tracker is ignored; the
-grid holds exactly the real rows; **0** new `E_WARNING` rows.
-
-| # | Check | Expected | Measured | Result |
-|---|---|---|---|---|
-| M1 | `GET /api/issuetracker/?tproject_id=1` (modern BFF list) | `total` == 1 == real row count, 0 new events | `total=1`, `items` = 1, 0 new rows | **PASS** |
-| M2 | `GET /api/issuetracker/1/check-connection` (real id) | HTTP 200/502 **with** a verdict body, 0 new `E_WARNING` | `http=502`, body carries `connected`, 0 new `E_WARNING` (one `log_level=1` ERROR, which is the *correct* log for a deliberately dead host) | **PASS** |
-| M3 | `GET /api/issuetracker/999/check-connection` (**bogus id**) | `404` + "not found", **0** new events | `http=404`, `{"status":"error","message":"Issue tracker not found"}`, 0 new rows | **PASS** |
-| M4 | `GET /lib/issuetrackers/issueTrackerView.php?tproject_id=1&id=999` (the reported route) | `404` — controller deleted | `http=404`, 596-byte built-in-server stub, 0 new rows | **PASS** |
-| M5 | same route **without** `id` | `404` | `http=404`, 0 new rows | **PASS** |
-| M6 | `GET /lib/reqmgrsystems/reqMgrSystemView.php?tproject_id=1&id=999` (surviving twin of the pattern) | `200`, edit-links == 1 == real row count, 0 new events | `http=200`, 1 `doAction=edit` link, 0 new rows | **PASS** |
-| M7 | same route **without** `id` | `200`, 1 edit link, 0 new events | `http=200`, 1 link, 0 new rows | **PASS** |
-| M8 | `GET /api/reqmgrsystems/?tproject_id=1` (modern twin BFF) | `total` == 1, 0 new events | `total=1`, 0 new rows | **PASS** |
-
-**Result: 8/8 PASS, harness exit 0.**
-
-**Browser confirmation (headless Chrome, `admin`/`admin`).**
-
-- `gui/templates/issuetracker/issuetrackerView.html?tproject_id=1` → DataTables
-  footer reads **"Showing 1 to 1 of 1 entries"**; the single row is the fixture
-  (`IT-FIXTURE-1618` · `bugzilla (Interface: db)` · `http://127.0.0.1:1/` · env `OK`).
-  No blank row, no un-clickable stub.
-- Same URL **plus `&id=999`** → still **"Showing 1 to 1 of 1 entries"**, row count
-  unchanged. The modern screen ignores a bogus `id` for the list, as M1/M3 show.
-- Wrench ("Check connection") clicked on the real row → modal/toast, no crash.
-- **Console: 0 errors, 0 warnings.**
-- Screenshot: `tmp/1618-issuetracker-bogus-id.png`.
-
-**Notes / why this suite is a no-op by design.**
-
-- The report is **stale by one commit**. `596444f30` ("chore(issuetracker): delete
-  legacy issuetrackerView cluster (Refs #966)", merged `2026-09-27T19:41:11+03:00`)
-  removed **both** files named in the report — `lib/issuetrackers/issueTrackerView.php`
-  (66 lines, auto-vivifying assignment at `:27-28`) and
-  `gui/templates/dashio/issuetrackers/issueTrackerView.tpl` (108 lines, the
-  `{foreach key=item_id …}` at `:51-52` that raised the 8 warnings) — **after** the
-  issue was filed `2026-09-26T13:36:47Z` by the #1617 run (`CHANGELOG:1144`).
-- The one surviving copy of the pattern is already guarded, by the fix for the
-  twin issue **#1625**: `lib/reqmgrsystems/reqMgrSystemView.php:28` reads
-  `if($args->id > 0 && isset($gui->items[$args->id]))`, with an in-code comment
-  naming #1625. That is verbatim the fix the report suggested.
-- The modern replacement cannot auto-vivify: `api/issuetracker/index.php:128-134`
-  appends into a **list** (`$items[] = trackerToJSON(...)`), never an id-keyed map,
-  and resolves the probe through a route that 404s on a missing id
-  (`api/issuetracker/index.php:196-200`).
-- **Fixture trap worth remembering:** using `type=2` for a `reqmgrsystems` fixture
-  raises 6 `E_WARNING`s per load from `tlReqMgrSystem.class.php:522/523/113` —
-  that is the separate, already-tracked **#1626** ("row whose type is not in
-  `$systems`"), *not* #1618. `tlReqMgrSystem::$systems` has exactly one entry,
-  `1 => contour/soap`. A `cfg` that is a bare JSON blob instead of an XML string
-  makes `issueTrackerInterface::setCfg()` log
-  `Failure loading XML STRING` (`issueTrackerInterface.class.php:121`) — also
-  unrelated. Both were filtered out so the matrix measures only the phantom-row
-  defect.
-- Two genuinely new defects were found while building this matrix and were
-  **filed, not fixed** (FIX-ISSUE.md §4): **#1700**
-  (`issueTrackerInterface.class.php:202` reads `$this->cfg->dbhost`/`dbuser`
-  unguarded → `E_WARNING Undefined property: stdClass::$dbhost` for a cfg without
-  db nodes) and **#1701** (`api/issuetracker/index.php:217` logs
-  `" Object of class stdClass could not be converted to string"` with no
-  provenance, because `__METHOD__` is `""` at the top level of a request script).
+**Notes worth keeping:**
+- The 5 pre-existing `log_level=1` rows (ids 2-6) are NOT from this feature: all 5 are
+  MariaDB `1064` from `requirement_spec_mgr::get_by_id` fired 20:43:47-20:44:11 while the
+  fixture spec id 10 still had an empty `latest_req_version_id` (`RSPEC_REV.id = `). They
+  stopped permanently once the fixture revision rows were added. No post-fix request produced
+  any new event row.
+- Test 5 exists because the first implementation published equal relations under a key the
+  relation-type select could not emit; the review fix moved them to the bare relation id, which
+  is also what legacy `init_relation_type_select()` sends for an "equal" relation and which
+  `reqFilterSql()` resolves to "either side of `req_relations`".
+- Test 23 is the escape check for `reqFilterSql()`: every string goes through
+  `$db->prepare_string()` before being concatenated, and the legacy OR-chain for `doc_id` is
+  parenthesised so it cannot swallow the other conditions (MySQL binds `AND` tighter than `OR`).
+- Latest-version filtering is a deliberate deviation from legacy `get_filtered_req_map()` (which
+  matched any revision): the modern spec/requirement tables are built from the latest revision /
+  version, so filtering on another version would produce rows the table never shows.
