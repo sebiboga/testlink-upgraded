@@ -2258,6 +2258,7 @@ $TLS_href_print_tc = "Generate Test Specification Document";
 $TLS_href_print_req = "Generate Requirement Specification Document";
 $TLS_href_req_assign = "Assign Requirements";
 $TLS_href_req_spec = "Requirement Specification";
+$TLS_href_req_spec_tree = "Requirement Specification Tree";
 $TLS_href_req_overview = "Requirement Overview";
 $TLS_href_req_monitor_overview = "Req. Monitoring Overview";
 $TLS_href_quality_objectives = "Quality Objectives"; // "Quality Objectives" (Refs #1280)

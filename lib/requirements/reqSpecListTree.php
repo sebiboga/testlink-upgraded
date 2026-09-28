@@ -30,12 +30,17 @@ require_once("common.php");
 
 testlinkInitPage($db, false, false);
 
-$tid = isset($_REQUEST['tproject_id']) ? intval($_REQUEST['tproject_id']) : 0;
+$tid = (isset($_REQUEST['tproject_id']) && is_scalar($_REQUEST['tproject_id']))
+    ? intval($_REQUEST['tproject_id']) : 0;
 if ($tid <= 0 && isset($_SESSION['testprojectID'])) {
     $tid = intval($_SESSION['testprojectID']);
 }
 
-$target = '/gui/templates/requirements/reqSpecListTree.html';
+// basehref, like every sibling shim (reqTcAssign.php, execNavigator.php,
+// mainPage.php): a sub-directory installation must not be redirected off the
+// document root.
+$base = isset($_SESSION['basehref']) ? $_SESSION['basehref'] : '/';
+$target = $base . 'gui/templates/requirements/reqSpecListTree.html';
 if ($tid > 0) {
     $target .= '?tproject_id=' . $tid;
 }

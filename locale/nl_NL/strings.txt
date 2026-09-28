@@ -2440,6 +2440,7 @@ $TLS_href_print_tc = "Print testcases";
 $TLS_href_print_req = "Maak vereistenspecificatie document";
 $TLS_href_req_assign = "Ken vereisten toe";
 $TLS_href_req_spec = "Vereistenspecificatie document";
+$TLS_href_req_spec_tree = "Boom van vereisten specificaties";
 $TLS_href_req_overview = "Vereisten overzicht";
 $TLS_href_req_monitor_overview = "Vereisten monitor overzicht";
 $TLS_href_quality_objectives = "Kwaliteitsdoelstellingen"; // "Quality Objectives" (Refs #1280)

@@ -1605,6 +1605,7 @@ $TLS_href_keywords_view = "키워드 보기";
 $TLS_href_print_tc = "테스트 명세서 발행";
 $TLS_href_req_assign = "요구사항 지정";
 $TLS_href_req_spec = "요구사항 명세서";
+$TLS_href_req_spec_tree = "요구사항 사양 트리";
 $TLS_href_roles_management = "역할 관리";
 $TLS_href_search_tc = "테스트 케이스 찾기";
 $TLS_href_tproject_management = "테스트 프로젝트 관리";

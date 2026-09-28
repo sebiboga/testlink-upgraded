@@ -1963,6 +1963,7 @@ $TLS_href_print_tc = "Cetak Test Case";
 $TLS_href_req_assign = "Kenakan Kebutuhan";
 
 $TLS_href_req_spec = "Spesifikasi Kebutuhan";
+$TLS_href_req_spec_tree = "Pohon Spesifikasi Kebutuhan";
 
 $TLS_href_roles_management = "Role Management";
 $TLS_href_search_tc = "Cari Test Case";

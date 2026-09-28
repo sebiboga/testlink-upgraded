@@ -2307,6 +2307,7 @@ $TLS_href_print_tc = "Documento de Especificação de Testes";
 $TLS_href_print_req = "Documento de Especificação de Requisitos";
 $TLS_href_req_assign = "Selecionar Requisitos";
 $TLS_href_req_spec = "Especificar Requisitos";
+$TLS_href_req_spec_tree = "Árvore de especificações de requisitos";
 $TLS_href_req_overview = "Visão Geral dos Requisitos";
 $TLS_href_req_monitor_overview = "Visão Geral da Monitorização dos Requisitos";
 $TLS_href_quality_objectives = "Objetivos de qualidade"; // "Quality Objectives" (Refs #1280)

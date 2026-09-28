@@ -1417,6 +1417,7 @@ $TLS_href_keywords_view = "Näytä avainsanat";
 $TLS_href_print_tc = "Luo testimääritely dokumentti";
 $TLS_href_req_assign = "Linkitä vaatimukset";
 $TLS_href_req_spec = "Vaatimusmäärittelydokumentti";
+$TLS_href_req_spec_tree = "Vaatimusspecifikaation puu";
 $TLS_href_roles_management = "Roolin hallinta";
 $TLS_href_search_tc = "Etsi testitapauksia";
 $TLS_href_tproject_management = "Testausprojektien hallinta";

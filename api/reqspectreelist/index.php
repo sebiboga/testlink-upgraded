@@ -119,7 +119,6 @@ $reqSpecMgr = new requirement_spec_mgr($db);
 $reqMgr     = new requirement_mgr($db);
 $tprojMgr   = new testproject($db);
 
-define('NODE_TYPE_TESTPROJECT',     1);
 define('NODE_TYPE_REQUIREMENT_SPEC', 6);
 define('NODE_TYPE_REQUIREMENT',      7);
 
@@ -187,11 +186,19 @@ function canViewReqs($user, $tproject_id)
 /**
  * Specification list of a project, ordered the way the legacy tree ordered it
  * (nodes_hierarchy.node_order ASC, id ASC) so the modern navigator and the
- * legacy one present the specifications in the same sequence. The total
- * requirement count is the same per-spec count the legacy tree appended to the
- * label; it is computed over the requirement nodes parented by the spec
- * (testproject nodes that were re-parented into a spec when
- * req_cfg->child_requirements_mgmt is on are counted too, as before).
+ * legacy one present the specifications in the same sequence.
+ *
+ * The count is the live number of requirement rows parented by the
+ * specification, NOT the denormalised req_specs_revisions.total_req (the #1681
+ * lesson).
+ *
+ * KNOWN GAP vs 1.9.20: when req_cfg->child_requirements_mgmt is on, TestLink
+ * also allows a TEST PROJECT node to be re-parented under a specification
+ * (requirements then hang off that container). The legacy lazy loader walked
+ * any child node type, so such a container - and the requirements under it -
+ * appeared in the old tree. This navigator is read-only and lists the
+ * requirements of the specification itself only, so a container child is not
+ * shown. Tracked separately (see the task issue referenced by #1695).
  */
 function specList($tproject_id)
 {
@@ -209,78 +216,15 @@ function specList($tproject_id)
 
     $out = array();
     foreach (($rows ? $rows : array()) as $r) {
-        $specId = intval($r['id']);
-        $hdr = specHeader($specId);
         $out[] = array(
-            'id'          => $specId,
+            'id'          => intval($r['id']),
             'doc_id'      => (string)$r['doc_id'],
             'title'       => (string)$r['title'],
             'node_order'  => intval($r['node_order']),
             'total_reqs'  => intval($r['total_reqs']),
-            'revision'    => intval($hdr['revision']),
-            'type'        => (string)$hdr['type'],
-            'scope'       => (string)$hdr['scope'],
-            'author_id'   => intval($hdr['author_id']),
-            'author_login' => (string)$hdr['author_login'],
         );
     }
     return $out;
-}
-
-/** Newest revision of a specification, with its author. */
-function specHeader($specId)
-{
-    global $db, $reqSpecMgr;
-    $rows = $db->get_recordset(
-        'SELECT RS.id, RS.doc_id, NH.name AS title, V.revision, V.type,' .
-        ' V.scope, V.author_id, U.login AS author_login' .
-        ' FROM ' . $reqSpecMgr->object_table . ' RS' .
-        ' LEFT JOIN nodes_hierarchy NH ON NH.id = RS.id' .
-        ' LEFT JOIN req_specs_revisions V ON V.parent_id = RS.id' .
-        '   AND V.revision = (SELECT MAX(V2.revision) FROM req_specs_revisions V2' .
-        '        WHERE V2.parent_id = RS.id)' .
-        ' LEFT JOIN users U ON U.id = V.author_id' .
-        ' WHERE RS.id = ' . intval($specId));
-    return ($rows && $rows[0]) ? $rows[0] : array();
-}
-
-/**
- * Node id -> owning test project, proved through the node itself. Used to
- * answer "which project decides the rights for this node" without trusting any
- * caller parameter (the #1681 pattern).
- */
-function nodeOwningTproject($nodeId)
-{
-    global $db, $reqSpecMgr, $reqMgr;
-    $nid = intval($nodeId);
-    if ($nid <= 0) { return 0; }
-
-    $rows = $db->get_recordset(
-        'SELECT NH.node_type_id, RS.testproject_id' .
-        ' FROM nodes_hierarchy NH' .
-        ' LEFT JOIN ' . $reqSpecMgr->object_table . ' RS ON RS.id = NH.id' .
-        ' WHERE NH.id = ' . $nid);
-    if (!$rows || !$rows[0]) { return 0; }
-
-    $type = intval($rows[0]['node_type_id']);
-    if ($type === NODE_TYPE_REQUIREMENT_SPEC) {
-        return intval($rows[0]['testproject_id']);
-    }
-    if ($type === NODE_TYPE_REQUIREMENT) {
-        // Requirement -> its spec -> the project.
-        $rid = $nid;
-        $srs = $db->get_recordset(
-            'SELECT srs_id FROM ' . $reqMgr->object_table . ' WHERE id = ' . $rid);
-        if (!$srs || !$srs[0]) { return 0; }
-        $rows = $db->get_recordset(
-            'SELECT testproject_id FROM ' . $reqSpecMgr->object_table .
-            ' WHERE id = ' . intval($srs[0]['srs_id']));
-        return ($rows && $rows[0]) ? intval($rows[0]['testproject_id']) : 0;
-    }
-    if ($type === NODE_TYPE_TESTPROJECT) {
-        return $nid;
-    }
-    return 0;
 }
 
 /**
@@ -299,12 +243,13 @@ function needOwnedSpec($specId, $tproject_id)
         ' FROM ' . $reqSpecMgr->object_table . ' RS' .
         ' LEFT JOIN nodes_hierarchy NH ON NH.id = RS.id' .
         ' WHERE RS.id = ' . $sid);
-    if (!$rows || !$rows[0]) {
+    // Driven FROM req_specs, so a node that is not a specification produces no
+    // row at all and a foreign specification fails the ownership test below:
+    // both answer the same 404, which is what keeps this endpoint free of a
+    // node-existence oracle.
+    if (!$rows || !$rows[0] ||
+        intval($rows[0]['node_type_id']) !== NODE_TYPE_REQUIREMENT_SPEC) {
         failOut(404, 'Requirement specification not found', 'req_spec_not_found');
-    }
-    if (intval($rows[0]['node_type_id']) !== NODE_TYPE_REQUIREMENT_SPEC) {
-        failOut(400, 'Node ' . $sid . ' is not a requirement specification',
-            'not_a_req_spec');
     }
     if (intval($rows[0]['testproject_id']) !== intval($tproject_id)) {
         // Cross-project id: indistinguishable from a non-existent one on purpose.
@@ -335,7 +280,7 @@ function requirementChildren($specId)
     global $db, $reqMgr;
     $rows = $db->get_recordset(
         'SELECT R.id, R.req_doc_id, NH.name AS title, NH.node_order,' .
-        ' V.status, V.type, V.version' .
+        ' V.status' .
         ' FROM ' . $reqMgr->object_table . ' R' .
         ' JOIN nodes_hierarchy NH ON NH.id = R.id' .
         '   AND NH.node_type_id = ' . NODE_TYPE_REQUIREMENT .
@@ -371,7 +316,6 @@ if ($action === 'init') {
     // this project BEFORE revealing whether it exists.
     $tproject_id = needTprojectId();
     $proj = $tprojMgr->get_by_id($tproject_id);
-
     $reqsEnabled = requirementsEnabled($proj);
     $specs = $reqsEnabled ? specList($tproject_id) : array();
 
@@ -407,14 +351,8 @@ if ($action === 'children') {
     }
     $tproject_id = needTprojectId();
     $specId = needOwnedSpec(param('node_id', 0), $tproject_id);
-    $spec = specHeader($specId);
     out(array(
         'status'  => 'ok',
-        'node'    => array(
-            'id'          => $specId,
-            'doc_id'      => (string)($spec['doc_id'] ?? ''),
-            'title'       => (string)($spec['title'] ?? ''),
-        ),
         'children' => requirementChildren($specId),
     ));
 }

@@ -2346,6 +2346,7 @@ $TLS_href_print_tc = "Wygeneruj dokument specyfikacji testowej";
 $TLS_href_print_req = "Wygeneruj dokument specyfikacji wymagań";
 $TLS_href_req_assign = "Przypisz wymagania";
 $TLS_href_req_spec = "Specyfikacja wymagań";
+$TLS_href_req_spec_tree = "Drzewo specyfikacji wymagan";
 $TLS_href_req_overview = "Przegląd wymagań";
 $TLS_href_roles_management = "Zarządzanie rolami";
 $TLS_href_search_tc = "Szukaj przypadków testowych";

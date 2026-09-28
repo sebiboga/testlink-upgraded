@@ -2400,6 +2400,7 @@ $TLS_href_print_tc = "Vytisknout testovac� pr�pady";
 $TLS_href_print_req = "Generovat dokument specifikace po�adavku";
 $TLS_href_req_assign = "Priradit po�adavky";
 $TLS_href_req_spec = "Dokument specifikace po�adavku";
+$TLS_href_req_spec_tree = "Strom specifikace pozadavku";
 $TLS_href_req_overview = "Prehled po�adavku";
 $TLS_href_roles_management = "Spr�va rol�";
 $TLS_href_search_tc = "Prohledat testovac� pr�pady";
