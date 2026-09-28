@@ -214,7 +214,12 @@ if ($method === 'GET' && isset($segments[0]) && is_numeric($segments[0]) &&
         out(['status' => 'ok', 'connected' => $connected,
              'message' => $connected ? 'Connection OK' : 'Connection failed (check type and configuration)']);
     } catch (\Throwable $e) {
-        tLog(__METHOD__ . ' ' . $e->getMessage(), 'ERROR');
+        // Issue #1701: __METHOD__ at the TOP LEVEL of a request script expands to
+        // the EMPTY STRING in PHP 8 (inside a class it is __FUNCTION__ ::
+        // __CLASS__, at file scope there is no class and no function, so both
+        // parts are empty). This used to log a bare " <msg>" with no source
+        // prefix, so the Event Viewer row named nothing at all. Use a literal.
+        tLog('api/issuetracker/index.php::GET /{id}/check-connection :: ' . $e->getMessage(), 'ERROR');
         http_response_code(502);
         out(['status' => 'error', 'connected' => false, 'message' => 'Connection check failed']);
     }
@@ -257,7 +262,8 @@ if ($method === 'POST' && ($segments[0] ?? '') === 'test-connection' && empty($s
         out(['status' => 'ok', 'connected' => $connected,
              'message' => $connected ? 'Connection OK' : 'Connection failed (check type and configuration)']);
     } catch (\Throwable $e) {
-        tLog(__METHOD__ . ' ' . $e->getMessage(), 'ERROR');
+        // Issue #1701: same empty-__METHOD__ trap as the GET route above.
+        tLog('api/issuetracker/index.php::POST /test-connection :: ' . $e->getMessage(), 'ERROR');
         http_response_code(502);
         out(['status' => 'error', 'connected' => false, 'message' => 'Connection check failed']);
     }
