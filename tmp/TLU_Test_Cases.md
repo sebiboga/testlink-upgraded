@@ -25967,3 +25967,54 @@ other agent's lines still present on `origin/sebiboga`. Pre-fix this printed `0`
 token is not permitted to push ("refusing to allow a GitHub App to create or update workflow
 ... without `workflows` permission"). The branch therefore carries the suite and the docs,
 and a human/`workflows`-scoped token must land the one-flag change. See the issue.
+
+---
+
+## Suite 1646 — Task, Issue #1646: bounce to login on 401 `session_expired` in `usersAssignPlan.html` (gap vs legacy `checkSessionValid`)
+
+**Precondition.**
+
+- App at `http://localhost:8080`; login `admin` / `admin`.
+- Session file for the browser, e.g. `/var/lib/php/sessions/sess_<id>`, must be writable by the
+  `runner` user (`sudo chown runner:runner <file> && sudo chmod 666 <file>`) so the test can age it.
+- `config.inc.php:301` `sessionInactivityTimeout = 9900` → window **594 000 s**. Ageing by
+  `-700000` s is required; **`-100000` s is NOT enough** and still returns `200`, because every
+  valid call slides `lastActivity` forward (`lib/functions/common.php:286-288`).
+- Fixture (fresh DB has 0 projects): `testprojects` id 1 + `nodes_hierarchy` id 1
+  (`node_type_id=1`); `testplans` id 1 + `nodes_hierarchy` id 1001 (`node_type_id=5`).
+- Entry point: `http://localhost:8082/gui/templates/usermanagement/usersAssignPlan.html?tproject_id=1&tplan_id=1`
+
+**Steps and expected behaviour.**
+
+| # | steps | expected (legacy parity) | actual | verdict |
+|---|---|---|---|---|
+| 1 | valid session, open the screen | project + plan selected, grid renders, no toast, no deny box | `project=1, plan=1`, `deny=false`, `toasts=0` | PASS |
+| 2 | age session `-700000 s`, reload the screen | browser lands on `login.php?note=expired&destination=<this screen>`; login page shows "Session expired. Please log in again." | landed on `/login.php?note=expired&destination=%2Fgui%2Ftemplates%2Fusermanagement%2FusersAssignPlan.html%3Ftproject_id%3D1%26tplan_id%3D1`; body contains the message | PASS |
+| 3 | valid session, age it, call `loadPlans(1,1)` | same bounce | redirect fired mid-request, same login URL + note | PASS |
+| 4 | valid session, age it, call `loadUsers(1,1)` | error toast "Session expired…" then the bounce | toast present +200 ms → +1200 ms, then bounce | PASS |
+| 5 | valid session, age it, call `saveAssignments()` | "Session expired…" — **never** "Update failed" — then the bounce | toast = "Session expired. Please log in again.", then bounce | PASS |
+| 6 | call `sessionExpired()` with `{status:403}` | `false` — the deny box must stay the 403 answer | `false` | PASS |
+| 7 | same with `{status:200}`, `{status:500}` | `false` | `false`, `false` | PASS |
+| 8 | same with `{status:401}` and bodies: `{"message":"Not authenticated"}` / `{"code":"session_expired"}` / `''` / `Unauthorized` | `true` for **all four** | `true, true, true, true` | PASS |
+| 9 | valid session, call `showNoAccess()` | `#denyBox` visible | `true` | PASS |
+| 10 | Event Viewer after the whole run | no new Error/Warning | `select count(*) from events where log_level <> 16` → **0** | PASS |
+| 11 | `node --check` on the extracted inline `<script>` | valid | `JS SYNTAX OK` (1 block, 41651 chars) | PASS |
+
+**Pre-fix baseline (measured, for contrast).**
+
+| path | before | after |
+|---|---|---|
+| `loadProjects` | stayed on the screen, dead empty state "Select a test project and test plan above…", toolbar alive, **0 toasts** | bounce + note |
+| `loadPlans` | 401 swallowed, nothing happened | bounce + note |
+| `loadUsers` | 401 swallowed, grid silently empty, **0 toasts** | toast + bounce |
+| `saveAssignments` | 401 fell through to `assign.updateFailed` | toast "Session expired…" + bounce |
+
+**Notes.**
+
+- The `destination` query string is preserved through `encodeURIComponent`, so the legacy
+  "come back where you were" behaviour survives the bounce.
+- The toast lives ~1200 ms before the redirect on purpose — the plan screen has no `#toast`
+  element (it builds `.toast` nodes via `showDemoToast()`), and an instant navigation would
+  erase the message.
+- The redirect targets `window.top` because the Dashio shell loads content screens in an iframe;
+  redirecting only the frame would leave the stale shell and its menu on screen.

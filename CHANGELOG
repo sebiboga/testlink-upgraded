@@ -17,6 +17,28 @@ Every screen of the application was ported one-by-one in a screen-compare
 kept for backward compatibility and is progressively retired as each modern
 screen reaches full parity.
 
+- [FEATURE GAP] - #1646: the modern Assign Test Plan Roles screen only ever branched on 403, never on
+  401, so the BFF's `401 {"code":"session_expired"}` - the answer `bffEnforceSession()`
+  (api/_guard.php:175-198) gives when `checkSessionValid()` (lib/functions/common.php:258-286) would
+  have redirected in legacy - was dropped into the wrong branch on all FOUR request paths.
+  `loadProjects().fail()` (gui/templates/usermanagement/usersAssignPlan.html) rendered the dead empty
+  state "Select a test project and test plan above..." with the toolbar still interactive,
+  `loadPlans().fail()` and `loadUsers().fail()` swallowed the 401 completely, and
+  `saveAssignments()`'s error handler fell through to `assign.updateFailed`, telling the user their
+  role write had failed when the session was in fact dead and nothing had been written. Legacy ran
+  `checkSessionValid()` on every load of the shared controller (lib/usermanagement/usersAssign.php:97,
+  deleted in ab387af72) and again after the update block, bouncing a stale tab to
+  `login.php?note=expired&destination=...`. The screen now carries the `sessionExpired(xhr)` helper
+  already proven on the sibling project screen (usersAssignProject.html:219-235, issues #1614/#1620)
+  and calls it first in all four handlers: it shows the localized `auth.sessionExpired` error toast
+  and then bounces `window.top` to the login page with the `destination` preserved, so the Dashio
+  shell iframe goes with it. The helper keys on `status === 401` rather than on the body code
+  alone, because api/roles/index.php:24-27 answers an *absent* session with
+  `401 {"message":"Not authenticated"}` and no `code` key at all. 403 handling (the deny box) is
+  unchanged. No i18n change - `auth.sessionExpired` already exists in all 10 locale bundles. No BFF
+  change - the guard was already correct. Regression suite 1646: 11/11 PASS, `node --check` clean,
+  Event Viewer 0 new Error/Warning entries. (Refs #1646)
+
 - [FEATURE GAP] - #1018: the modern Metrics Dashboard ported the data grid but dropped the legacy Ext.Table grid chrome. `lib/results/metricsDashboard.php:107-124` built an `tlExtTable` with `setGroupByColumnName(test_plan)`, `showToolbar`, `toolbarExpandCollapseGroupsButton`/`toolbarShowAllColumnsButton`/`toolbarResetFiltersButton`, `showGroupItemsCount` and a progress-DESC sort, and `getColumnsDefinition()` (:313-341) hid the qty column of every status (`'hidden' => true`) and gave the platform column a *list* filter. The modern screen had a 2-control toolbar, a flat table, all columns visible, a single global search box and no RowGroup plugin, so grouping, group item counts, the five toolbar buttons, the per-column filters and the platform list filter were all missing. `gui/templates/results/metricsDashboard.html` now loads the DataTables RowGroup plugin (the working CDN path `cdn.datatables.net/rowgroup/1.4.1/…`, not `cdn.datatables.net/1.13.7/…` which 404s) and rebuilds the grid on object rows: group headers read `Test Plan: <name> - Overall Progress: X% (N Item[s])` with the legacy singular/plural rule, click a header / Expand all / Collapse all toggles a group, the grouped Test Plan column is hidden in the child rows (`hideGroupedColumn`), the qty columns are hidden by default and revealed by Show all columns, a tfoot row carries one filter input per column, a platform `<select>` provides the list filter, and Reset Filters / Reset to default state / Refresh complete the toolbar. Grouping is enabled only when platforms are shown (legacy parity) and the group header reuses the plan-level `overall` block `api/metrics/index.php:320-330` already repeats on every platform row, so the BFF needed no change. 13 new i18n keys in all 10 locale bundles. (Refs #1018)
 - [FEATURE GAP] - #1012: new platforms created from the modern Platform Management screen were
   stored with the WRONG defaults. Legacy 1.9.20 renders the create form with all three flag

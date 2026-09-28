@@ -306,6 +306,7 @@ function showNoAccess() {
 // The code is still accepted as a second trigger for the rare case of a non-401
 // transport that carries the session_expired payload.
 function sessionExpired(xhr) {
+  if (!xhr) return false;
   var code = '';
   try { code = (JSON.parse(xhr.responseText) || {}).code || ''; } catch (e) {}
   if (xhr.status !== 401 && code !== 'session_expired') return false;
