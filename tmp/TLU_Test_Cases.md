@@ -26068,123 +26068,30 @@ and a human/`workflows`-scoped token must land the one-flag change. See the issu
   `BigInt` form on none.
 - The `Not Run` / `Passed` / `Failed` / `Blocked` list is read from the BFF `status_set` (`array_keys($statusSetForDisplay)`) rather than hardcoded, so an install that adds a custom exec status gets it in the breakdown without a code change — same as the legacy `foreach ($statusSetForDisplay …)`.
 - The entire assembled line is escaped with `esc()`; the previous code escaped only the label, and the labels come from user-editable `lang` strings.
-## Suite 1695 — Modernize: Requirement Specification Tree navigator (`reqSpecListTree`), Issue #1695
 
-**Precondition** (the DB is freshly imported on every run, so the fixture must be recreated):
+## Suite 1616 — Regression, Issue #1616: `importKeywordsFromCSV()` must skip the export header row (`Keyword;Notes;Number of Test Case Linked`)
 
-```
-php tmp/fixtures_1695.php
-# -> tproject "ReqTree Demo"  [RST1695]  option_reqs=1
-#      -> spec SRS-MAIN "Main functional spec"   (3 reqs: V, D, O)
-#      -> spec SRS-SECOND "Second spec"          (2 reqs)
-#      -> spec SRS-EMPTY "Empty spec"            (0 reqs)
-# -> tproject "ReqTree Reqs Off" [RSX1695] option_reqs=0
-# -> tproject "ReqTree Other"  [RSO1695]  foreign spec SRS-OTHER + 1 foreign req
-# -> user rstnorights / norights (role 3 = no rights)      -> 403 path
-# -> user rstreadonly / readonly (custom role: mgt_view_req WITHOUT
-#    mgt_modify_req)                                        -> read-only path
-# The script prints the generated ids; the run below used tproject 69 (Demo) /
-# 86 (Reqs Off) / 89 (Other), spec 70 / 72 / 74, foreign spec 90, foreign
-# requirement 92, readonly user 3 (role 10).
-```
+**Precondition.** `admin`/`admin` on `http://localhost:8082`. DB freshly imported. Fixture via SQL (mirrors `testproject::create()`): project 1 `KW1616Proj` (prefix KW1616) with keywords `smoke_login` (notes `smoke test of login`) and `regression_nightly`; project 2 `KW1616Target` (prefix KW1616B) empty; project 3 `KW1616Target2` (prefix KW1616C) empty. Screen: `/gui/templates/keywords/keywordsExport.html?tproject_id=1&mode=export`; BFF `api/keywordsxml/index.php`. Pre-fix, exporting project 1 to CSV and importing that file back created a bogus keyword `Keyword` (notes `Notes`) — DB row `3 | Keyword | 1 | Notes` (measured).
 
-**Result: 51/51 PASS**, of which 5 cases are the regression proofs for the defects found during
-the pass (the `t()` interpolation loss and the raw-machine-code state card of `bd8c85225`, the
-project-id existence oracle of `8cc36b712` / **#1697**, the dead `reqSearch.html` link, the
-Refresh/Collapse-all tree lies, and the switcher dead end) and 1 case is the known FAIL 1695-43
-(the legacy loader read hole, **#1696**). The BFF base is
-`http://localhost:8082/api/reqspectreelist/index.php`; every call carries
-`X-Requested-With: XMLHttpRequest` and same-origin credentials.
-
-### Screen / rendering
-
-| # | Steps | Expected | Actual | Result |
+| # | steps | expected (post-fix) | actual | verdict |
 |---|---|---|---|---|
-| 1695-1 | `php -l` on `api/reqspectreelist/index.php`, `lib/requirements/reqSpecListTree.php`, `lib/functions/common.php`, `api/aside/index.php` | no syntax error | 4/4 *No syntax errors detected* | PASS |
-| 1695-2 | `node --check` on the extracted inline `<script>` of the screen | valid JS | `JS OK` | PASS |
-| 1695-3 | `python3 -m json.tool` on all 10 `gui/templates/i18n/*.json` | valid JSON | 10/10 valid, 43 `rstl.*`/`footers.*` keys each | PASS |
-| 1695-4 | open `reqSpecListTree.html?tproject_id=69` as admin | Dashio shell, Context card, tree card, footer `TestLink 2.0.1 - Requirement Specification Tree` | all present; title `Requirement specification tree`; **no** read-only banner, because `grant.modify` is `true` for admin (see 1695-20) | PASS |
-| 1695-5 | read the tree chip after the tree is expanded | interpolated `{specs}`/`{reqs}` placeholders replaced | `3 specifications, 5 requirements` | PASS — after fixing the `t()` wrapper that dropped the params bucket (`bd8c85225`); the pre-fix page rendered the raw `{specs} specifications, {reqs} requirements` |
-| 1695-6 | read the Context card | project name, prefix, live specification count, live requirement count, user | `ReqTree Demo` / `RST1695` / `3` / `5` / `admin` | PASS |
-| 1695-7 | read the requirements chip | `Requirements enabled` | matches `option_reqs` | PASS |
+| 1 | `GET /api/keywordsxml/index.php?action=export&tproject_id=1&type=iSerializationToCSV&filename=keywords.csv` | 200 text/csv body starts with `Keyword;Notes;Number of Test Case Linked\r\n` — exporter header unchanged | body `Keyword;Notes;Number of Test Case Linked\r\nsmoke_login;smoke test of login;0\r\nregression_nightly;;0\r\n` | PASS |
+| 2 | POST that exact file to `action=import` with `tproject_id=1` (same project, every real keyword already exists) | 400 `NO_KEYWORDS_IMPORTED`, `rows=2`, `skipped=2`; **NO** bogus `Keyword` row created | `{code:"NO_KEYWORDS_IMPORTED", imported:0, skipped:2, rows:2, errors:[ALREADY_EXISTS x2]}`; `select * from keywords where keyword='Keyword' and testproject_id=1` → 0 rows | PASS |
+| 3 | POST project 1's export into **empty** project 2 | 200 ok, `imported=2, skipped=0, rows=2`; project 2 holds exactly `smoke_login`, `regression_nightly` (ids 4-5) | `{status:"ok", keyword_count:2, imported:2, skipped:0, rows:2}`; DB ids 4,5 only | PASS |
+| 4 | headerless 2-column file `hdrless_a;notes for a` / `hdrless_b;notes for b` into project 2 | 200 ok, 2 imported, 0 skipped — headerless files keep working | `{imported:2, skipped:0, rows:2}` | PASS |
+| 5 | one-row 3-col file `Keyword;Notes;0` (a REAL keyword named `Keyword` with numeric tcv_qty) into project 2 | imported as real data — the header skip must not eat it (`Keyword;Notes;0` ≠ header `Keyword;Notes;Number of Test Case Linked`) | `{imported:1, skipped:0, rows:1}`; DB row `8 | Keyword | 2` | PASS |
+| 6 | header-only file `Keyword;Notes;Number of Test Case Linked\r\n` into project 2 | 400 `EMPTY_FILE` (`rows=0`), no keyword created | `{code:"EMPTY_FILE", imported:0, skipped:0, rows:0}` | PASS |
+| 7 | full round trip of project 2's export (contains a real keyword `Keyword`) into **empty** project 3 | 200 ok, `imported=5, skipped=0, rows=5`; project 3 mirrors project 2 exactly (ids 9-13 incl. real `Keyword`), no header junk | `{status:"ok", keyword_count:5, imported:5, skipped:0, rows:5}`; DB ids 9-13 = smoke_login, regression_nightly, hdrless_a, hdrless_b, Keyword | PASS |
+| 8 | comma-delimited file `Keyword,Notes,Number of Test Case Linked\r\ncomma_kw,comma notes,0\r\n` into project 3 | comma header also skipped (delimiter sniff), only `comma_kw` imported | `{imported:1, skipped:0, rows:1}` | PASS |
+| 9 | `php -l lib/functions/testproject.class.php` | clean | `No syntax errors detected` | PASS |
+| 10 | Event Viewer / `events` after the whole run | no new Error/Warning entries | all new rows are `log_level=16` CREATE audit events; no ERROR/WARNING | PASS |
+| 11 | browser console during the run | no errors | no console messages | PASS |
+ | 12 | BOM'd header file `\uFEFFKeyword;Notes;Number of Test Case Linked\r\nbom_kw;;0\r\n` into project 4 | BOM tolerated — header skipped, only `bom_kw` imported, **no** `\uFEFFKeyword` junk row | `{imported:1, skipped:0, rows:1}`; DB has `bom_kw`, no BOM-prefixed row | PASS |
+ | 13 | leading blank line before the header (`\r\nKeyword;Notes;…\r\nblank_kw;;0\r\n`) into project 4 | header detected as the first DATA row and skipped, only `blank_kw` imported | `{imported:1, skipped:0, rows:1}` | PASS |
 
-### Tree, lazy loading, links
-
-| # | Steps | Expected | Actual | Result |
-|---|---|---|---|---|
-| 1695-8 | click the project twisty | the specification list loads, requirements are NOT loaded yet | 3 `.node.spec` rows, 0 `.node.req` rows | PASS |
-| 1695-9 | click the twisty of `SRS-MAIN` | one `action=children` call, the 3 requirements of that spec appear | `reqNodesBefore 0` → `reqNodesAfter 3`; `RST1695-R001, -R002, -R003` | PASS |
-| 1695-10 | read the specification labels and counts | `doc_id:` + title + live requirement count, in `node_order` then `id` order | `SRS-MAIN: Main functional spec (3)`, `SRS-SECOND: Second spec (2)`, `SRS-EMPTY: Empty spec (0)` | PASS |
-| 1695-11 | read the requirement status badges | one badge per requirement from the localized `rstl.status_*` keys | `Valid`, `Draft`, `Obsolete` | PASS |
-| 1695-12 | click **Expand all** | root + every specification expanded, all requirements fetched | 5 `.node.req` / 3 `.node.spec`; empty-state stays `none` | PASS |
-| 1695-13 | click **Collapse all**, then re-open the project root | only the root folds, and re-opening it must NOT bring the specifications back by itself | 0 spec / 0 requirement rows while collapsed; after re-opening the root all three spec twisties read `▶` and 0 requirement rows are rendered | PASS — after the code review found that the per-specification expand flags survived Collapse all, so the whole tree re-opened by itself |
-| 1695-14 | click **Expand all** again | the tree re-opens from the cache, no duplicate rows | 5 `.node.req` | PASS |
-| 1695-15 | expand the empty specification `SRS-EMPTY` | an "empty" row instead of a failure, and the screen-wide empty state is NOT shown | `Empty spec` row with a 0 count; other specs still listed | PASS |
-| 1695-16 | click **Open requirement** on a requirement row | `reqView.html?id=<req>&tproject_id=<tp>` opens in a new tab (same convention as `reqBulkMon.html` / `reqCopy.html`) | tab `reqView.html?id=67&tproject_id=64` renders `RSO1695-R001 / Foreign requirement`, its spec, type, status, author | PASS |
-| 1695-17 | click **Open spec** on a specification row | `reqSpecView.html?id=<spec>&tproject_id=<tp>` in a new tab | button present and wired for every spec row | PASS |
-| 1695-18 | expand the root + one specification, then click **Refresh** | the still-open specification keeps its requirements and never renders the empty-spec row | `beforeRefresh {reqs:3}` -> `afterRefresh {reqs:3}`, spec counts `3,2,0`, no "no requirement yet" row | PASS — after the code review found that Refresh emptied the children cache while keeping the expand flags, so a 3-requirement spec was painted as an empty spec |
-| 1695-19 | read the toolbar links and **follow** them | they carry the active `tproject_id` and every target exists | Specification management, Search requirements, Move / reorder → `reqSpecMgmt.html`, `searchReq.html`, `reqTreeReorder.html` `?tproject_id=<TP>`; `GET reqSearch.html` -> 404, `searchReq.html` -> 200 | PASS — the code review caught that the Search button pointed at `reqSearch.html`, which does not exist (the first version of this row only checked that the link carried `tproject_id`, so it passed) |
-| 1695-20 | the read-only banner + the **Move / reorder** link, as `rstreadonly` (custom role: `mgt_view_req` **without** `mgt_modify_req`) | banner visible, link present but not clickable, everything else fully usable | `grant {"view":true,"modify":false}`, banner `You have read-only access to requirements: moving and reordering are disabled.`, `aria-disabled="true"`, computed `pointer-events: none`; 3 specifications still listed, Refresh and the switcher still enabled | PASS |
-
-### Project switcher
-
-| # | Steps | Expected | Actual | Result |
-|---|---|---|---|---|
-| 1695-21 | open the switcher on project 44 | only requirement-enabled projects the caller may read | `ReqTree Demo [RST1695]`, `ReqTree Other [RSO1695] *` — the `*` marks a non-active project, and the `ReqTree Reqs Off` project is absent by design | PASS |
-| 1695-22 | switch to `ReqTree Other` via the switcher | the URL and the whole screen follow the selection | `?tproject_id=64`, prefix `RSO1695`, `1` spec, `1` requirement; the foreign spec + requirement render | PASS |
-| 1695-23 | deep link to `tproject_id=999999` (does not exist) | the switcher must not silently reset to an empty selection, and the project name must still be readable | a `Current project #61` option is appended for a project missing from the list, and the Context card shows its name (`ReqTree Reqs Off`) | PASS — added in `bd8c85225` |
-
-### Error / edge states
-
-| # | Steps | Expected | Actual | Result |
-|---|---|---|---|---|
-| 1695-24 | `?tproject_id=999999` (unknown project), admin | a `question` state card, no ctx/tree card, **no raw machine code** | `This test project does not exist (it may have been deleted).`, the code only in `console.warn` | PASS — the pre-fix card also printed `tproject_not_found` (`bd8c85225`) |
-| 1695-25 | `?tproject_id=61` (requirements disabled) | `Requirements disabled` chip + the localized "requirements are disabled" empty card, no tree, no error | chip `Requirements disabled`, empty card shown, `#stateCard` stays hidden | PASS |
-| 1695-26 | `?action=bogus` | `400 unknown_action` | `400` / `unknown_action` | PASS |
-| 1695-27 | `?action=init` with no `tproject_id` | `400 invalid_tproject` | `400` / `invalid_tproject` | PASS |
-| 1695-28 | `?action=init&tproject_id=999999`, admin | `404 tproject_not_found` | `404` / `tproject_not_found` | PASS |
-| 1695-29 | `?action=children&tproject_id=44&node_id=65` (a real spec of ANOTHER project) | `404 req_spec_not_found` | `404` / `req_spec_not_found` | PASS |
-| 1695-30 | `?action=children&tproject_id=44&node_id=987654` (bogus id) | the same code as 1695-29 — no oracle | `404` / `req_spec_not_found`, identical to the foreign node | PASS |
-| 1695-31 | `?action=children&tproject_id=44&node_id=<a requirement id>` (a node that is not a specification) | `404 req_spec_not_found`, never a requirement listing | `404` / `req_spec_not_found` | PASS |
-| 1695-32 | `POST` to any action | `405`, and the screen explains the read-only contract | `405 wrong_method`; `rstl.methodNotAllowed` added for the UI branch | PASS |
-| 1695-33 | no session (fresh context) on the screen | bounce to `login.php?note=expired&destination=…` | `401 session_expired` → login page | PASS |
-| 1695-34 | no session on the BFF | `401 session_expired` | `401` | PASS |
-| 1695-35 | the same-origin guard | a cross-origin `Referer` is rejected | `403 cross_origin` | PASS |
-
-### Permissions (role-3 user `rstnorights` / `norights`)
-
-| # | Steps | Expected | Actual | Result |
-|---|---|---|---|---|
-| 1695-36 | open the screen as the role-3 user on project 44 | a `lock` state card, no ctx/tree card, the reorder link disabled | `You are not authorized to view requirements of this test project.`, `#reorderLink[aria-disabled=true]` | PASS |
-| 1695-37 | `?action=init&tproject_id=44` as the role-3 user | `403 no_right` | `403` / `no_right` | PASS |
-| 1695-38 | `?action=children&tproject_id=44&node_id=45` as the role-3 user | `403 no_right` | `403` / `no_right` | PASS |
-| 1695-39 | `?action=projects` as the role-3 user | an empty list, never a project list | `{"status":"ok","projects":[],"session_tproject_id":44}` | PASS |
-| 1695-40 | `?action=init&tproject_id=999999` as the role-3 user (id does not exist) | **the same** `403 no_right` as a real id — no project-id enumeration | `403 no_right`, identical to `tproject_id=44` | PASS — pre-fix this returned `404 tproject_not_found`; that is bug #1697, fixed in `8cc36b712` |
-| 1695-41 | `?action=children&tproject_id=44&node_id=987654` as the role-3 user | the same `403 no_right` as a real node | `403 no_right` | PASS |
-| 1695-42 | `?action=init&tproject_id=abc` as the role-3 user | `400 invalid_tproject` (the id is malformed before any lookup) | `400` / `invalid_tproject` | PASS |
-| 1695-43 | the legacy `lib/ajax/getrequirementnodes.php` as the role-3 user | bug #1696: it returns the tree of ANY project | no rights check, `root_node=<other project>` returns its spec doc_ids/titles | FAIL — filed as **#1696** (the loader is now unreferenced; the modern BFF closes the hole, the file itself is still to be deleted) |
-
-### i18n
-
-| # | Steps | Expected | Actual | Result |
-|---|---|---|---|---|
-| 1695-44 | open the screen with `&locale=ro_RO` | every label, message, badge, button, the state cards and the footer translated, no `rstl.*` key and no English left | title `Arborele specificatiilor de cerinte`, chip `3 specificatii, 5 cerinte`, badges `Valida / Ciorna / Obsoleta`, meta `Proiect / Prefix / Specificatii / Cerinte / Utilizator`, button `Deschide specificatia`, banner `Ai acces de citire la cerinte: …`, footer `TestLink 2.0.1 - Arborele specificatiilor de cerinte` | PASS |
-| 1695-45 | the requirements-disabled card in RO | translated | `Acest proiect de test nu are inca nicio specificatie de cerinte.` / the disabled variant | PASS |
-| 1695-46 | every `rstl.*` value differs per bundle (not English copies) | real translations in all 10 bundles | en/ro/de/es/fr/it/pt/ru/ja/zh each carry distinct `title`, `titleSub`, `status_*`, `noSpecs`, `denied` … | PASS |
-| 1695-47 | after a `404` (unknown project) the project switcher | stays usable — a 403/404 is exactly when the caller has to reach another project | `projSel` not disabled, options `ReqTree Demo [RST1695]`, `ReqTree Other [RSO1695]`, `Current project #999999`; picking project 69 recovers to a full tree | PASS — the code review found the switcher was disabled on 403/404, a dead end with two readable projects on screen |
-| 1695-48 | `TLS_href_req_spec_tree` coverage | present in **all 19** locale bundles (the convention for ASIDE labels) | 19/19 after the code review; it was 11/19, which made `lang_get()` fall back to en_GB and log an L18N warning event per session in the other 8 | PASS |
-| 1695-49 | fr / pt / ro translations | carry the diacritics their own neighbouring lines use | `Arbre des spécifications d'exigences`, `Árvore de especificações de requisitos`, `Arborele specificațiilor de cerințe`; bundle side `Spécifications`, `Terminée`, `Concluída`, `Não testável`, `Em revisão`, `Specificații` | PASS |
-| 1695-50 | the legacy shim on a sub-directory install | the 302 target honours `$_SESSION['basehref']` | target built as `$base . 'gui/templates/requirements/reqSpecListTree.html'`, like `reqTcAssign.php` / `execNavigator.php` | PASS — the code review found the hardcoded root-absolute path |
-| 1695-51 | `lib/ajax/getrequirementnodes.php` reachability after the shim | nothing in the app links to it any more | `lib/requirements/reqSpecListTree.php` is a 302 to the modern screen; the loader is dead code but still present -> **#1696** stays open | PASS (dead code, issue open) |
+**Pre-fix baseline (measured, for contrast).** Same export/import round trip on project 1 produced `keywords` row `3 | Keyword | 1 | Notes` and import response `{status:"ok", keyword_count:3, imported:1, skipped:2, rows:3}`.
 
 **Notes.**
 
-- The screen is read-only: the write gesture (move / reorder) lives in `reqTreeReorder.html`
-  (Suite 1681) and is only offered when the caller holds `mgt_modify_req`; otherwise the read-only
-  banner is shown and the link is inert.
-- The requirement count next to a specification is computed live from the requirement nodes parented
-  by the spec, not from the denormalised `req_specs_revisions.total_req` (the #1681 lesson).
-- `nodes_hierarchy` has no `testproject_id` column in 2.0.1, so project ownership of a
-  specification is read from `req_specs.testproject_id` (confirms #1660).
-- Requirement data (`doc_id`, `title`, `status`) comes from the requirement **revision** row
-  parented by the requirement node, exactly like the legacy lazy loader did.
+- The header skip is scoped to the FIRST parsed row and requires a full match of all three localized exporter labels (`lang_get('keyword'/'notes'/'tcv_qty')`), so a row of actual data — where the third cell is a numeric tcv_qty — can never be mistaken for the header.
+- The skipped header is not counted in `rows`/`skipped`, so a successful round trip reports the clean `imported` count, and a header-only file still degrades to the pre-existing `EMPTY_FILE` guard in `api/keywordsxml/index.php:349`.
