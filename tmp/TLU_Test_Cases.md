@@ -25726,3 +25726,41 @@ recomputed after a save (the screen reloads the model from the server).
 Unrelated pre-existing defect found while testing and filed separately as #1680
 (`assignDt.cell()` TypeError on the 2nd change of the same row; reproduced on the
 unmodified `HEAD` file).
+
+## Suite 1018 — Task, Issue #1018: metricsDashboard test-plan grouping + grid toolbar + column/platform filters
+
+**Precondition** (DB is freshly imported on every run, so fixtures must be recreated):
+`testprojects` 1 (`MDP`, `nodes_hierarchy` 1 = "MD Demo Project") · `testplans` 101/102/103
+(`nodes_hierarchy` 101 "MD Plan Alpha", 102 "MD Plan Beta", 103 "MD Plan NoPlat") ·
+`builds` 101/102/103 (one active build per plan) · `platforms` 1 "Windows", 2 "Linux" ·
+`testplan_platforms` (101,102 → 1,2) and **none** for 103 · `testcase_platforms` (1,2 → 1,2) ·
+`tcversions` 1 "MD TC Alpha", 2 "MD TC Beta" · `testplan_tcversions` 6 rows ·
+`executions`: (101,p,tcv1,plat1), (101,f,tcv2,plat1), (102,p,tcv1,plat1) ·
+`user_testproject_roles` (1,1,1) + `user_testplan_roles` (1,101/102/103,2).
+Sign in `admin/admin`, open
+`http://localhost:8082/gui/templates/results/metricsDashboard.html?tproject_id=1`.
+A plan with **no platforms** must be added because `tlTestPlanMetrics` only emits platform
+rows when `getPlatforms()` returns a set, and `get_builds()` must be non-null or the BFF
+answers `warning: no_testplans_available`.
+
+**Expected**: legacy Ext.Table parity — grouping by test plan with
+`Test Plan: <name> - Overall Progress: X% (N Item[s])` headers, expand/collapse, the six
+toolbar buttons, the qty columns hidden by default, per-column filters and a platform
+list filter; qty columns `'hidden' => true` per `getColumnsDefinition()`, grouped column
+hidden per `hideGroupedColumn = true`, sort progress DESC, grouping only when platforms
+are shown.
+
+| # | Steps | Expected | Actual | Result |
+|---|---|---|---|---|
+| 1018-1 | open the screen with the fixture | one group header per plan: `Test Plan: MD Plan Alpha - Overall Progress: 66.67% (2 items)`, `Test Plan: MD Plan Beta - Overall Progress: 33.33% (2 items)`, `Test Plan: MD Plan NoPlat - Overall Progress: 0% (1 item)` — **singular** for the 1-platform plan | exactly those 3 strings; 5 body rows | PASS |
+| 1018-2 | click the `MD Plan Alpha` group header, then click it again | that group collapses (2 rows hidden, caret `fa-chevron-right`) and re-expands | rows shown 4 → 2 → 4; caret class flipped | PASS |
+| 1018-3 | click **Collapse all groups**, then **Expand all groups** | 0 rows, then all 5 | 0, then 5 | PASS |
+| 1018-4 | note the headers, click **Show all columns** | qty columns (Not Run / Passed / Failed / Blocked) become visible next to their % columns; the **grouped Test Plan column stays hidden** (`hideGroupedColumn`); all 12 tfoot filter cells follow | 7 visible headers → 11 (adds the 4 qty columns, still no Test Plan); 12 footer cells | PASS |
+| 1018-5 | type `1` in the **Active TCs** filter, watch the toolbar, then **Reset Filters** | rows filter to the 2 rows with 1 active TC; **Reset Filters** becomes visible; it clears them and hides itself again | 2 rows; button appears; back to 5 rows; button hidden | PASS |
+| 1018-6 | pick `Linux` in the platform list filter, then `All platforms` | only the 2 Linux rows remain, then all 5 | 2 rows, both `Linux`; back to 5 | PASS |
+| 1018-7 | from a dirty state (show-all + a filter + one group collapsed) click **Reset to default state** | headers back to the 7 default ones, filters cleared, **all groups expanded**, sort restored (group asc + progress desc), Show-all button un-highlighted | 11 → 7 headers, 1 → 5 rows, 3 expanded groups, `.on` removed | PASS |
+| 1018-8 | re-render with `show_platforms = false` (forces the no-platforms code path) | **no** group headers, the Test Plan column visible, Expand/Collapse buttons hidden, platform list filter hidden | 0 group headers; Test Plan visible; both buttons hidden; filter hidden; 5 rows | PASS |
+| 1018-9 | click **Refresh** | grid reloads from the BFF, still grouped, back to the default column set | 3 group headers, 7 headers | PASS |
+| 1018-10 | reload and re-render repeatedly | header row is **not** duplicated (one `<tr>` in `<thead>`, 7 `<th>`) | thead tr = 1, th = 7 before and after a forced re-render | PASS |
+| 1018-11 | check the Event Viewer / `events` table afterwards | no new Error/Warning rows | `SELECT COUNT(*) FROM events WHERE log_level IN (2,3)` = **0** | PASS |
+| 1018-12 | switch the locale (ro) and re-check the toolbar + group header | all new labels translated, no raw `md.*` key leaks | to be recorded on the issue | see issue comment |
