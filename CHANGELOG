@@ -6156,6 +6156,31 @@ Changes:
       project tables and added user metrics to the middle section
 
 ## 2.0.1 (in-progress)
+### Key bugfix — Reorder Test Steps: dead handlers after picker navigation, `no_change` on every write, literal `{count}` (Fixes #1674)
+- `gui/templates/testcases/tcStepReorder.html` bound all 8 delegated handlers
+  (picker row, move buttons, modal backdrop, 5 drag events, Discard) inside an
+  `if/else` on `TCVER_ID`. The screen toggles its two cards in place, so whichever
+  branch did not run at first paint was **permanently dead**: entering via the
+  version picker rendered the step table with every write button, the
+  drag-and-drop and "Discard changes" inert (0 POSTs left the browser, no
+  console error), and entering via `?tcversion_id=N` left the "Change version"
+  picker rows inert. Handlers are now bound unconditionally, branching only the
+  initial load (lines 671-741).
+- `api/tcstepsreorder/index.php` `tsroWriteResult()` compared the **sorted** id
+  sequences before and after a write. The id set is invariant under every
+  operation the screen performs (only `step_number` changes), so **every**
+  successful write answered `status=no_change`: the move persisted but the user
+  saw no success notice. It now compares the ordered id sequence **and** the
+  ordered `step_number` sequence (`tsroNumbersOf()`), which also makes
+  `?action=normalize` correctly report a real repair (`11,12,13,14 → 1,2,3,4`)
+  instead of a no-op. Genuine no-ops (idempotent renumber, boundary move,
+  reorder to the stored order) still answer `no_change` (line 463-468).
+- `tcsr.normalizeConfirm` / `tcsr.renumbered` were rendered verbatim, so the
+  renumber dialog read *"Renumber the steps from 1 to {count} …"*. Both call
+  sites now pass `{ count: STEPS.length }` to `TLi18n.t()` (lines 636, 651).
+- Regression suite `Regression — Issue #1674` in `tmp/TLU_Test_Cases.md`:
+  **11/11 PASS**, Event Viewer clean (1 row, the login notice).
+
 ### Key bugfix — BFF CSRF guard accepted a FOREIGN `Origin` whenever `X-Requested-With` was present (Fixes #1679)
 - `api/_guard.php` `bffSameOriginGuard()` returned success the moment it saw
   `X-Requested-With: XMLHttpRequest`, **before** reading `Origin`/`Referer`, so the

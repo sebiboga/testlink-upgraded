@@ -137,3 +137,125 @@ user). Event Viewer clean — zero new rows after the whole matrix.
 `dd8e8b5b4` BFF → `ce0e7d932` screen → `1ee7c403c` i18n ×10 + aside link +
 `tcView` entry + legacy shim → `f08cd9520` the three test-found fixes (#1673,
 #1674).
+
+---
+
+## Bugfix — Issue #1674: dead handlers after picker navigation, `no_change` on every write, literal `{count}`
+
+Fix commit `f08cd9520`, landed on the default branch with the parent screen
+(#1671) and therefore never closed as its own issue. Independently re-verified
+on `fdc4d19a6` — see the `Regression — Issue #1674` suite in
+`tmp/TLU_Test_Cases.md` (**11/11 PASS**). This section records the *approach*.
+
+### 1. Dead delegated handlers — bindings nested in the `TCVER_ID` branch
+
+**Approach.** The screen is one page with two cards that are only ever
+*toggled*, never re-created (`#picker style="display:none"`,
+gui/templates/testcases/tcStepReorder.html:151), and each card is reachable
+from **both** entry points — the hub entry `?tproject_id=N` shows the picker,
+the `tcView.html` button shows the step table, `Change version`
+(`backToPicker()`, line 190/345) goes back to the picker and clicking a picker
+row (`openVersion()`, line 484) returns to the step table.
+
+jQuery delegated handlers are bound to an element *at bind time*, and the
+original code branched inside the single `$(function(){…})`:
+
+```js
+if (!TCVER_ID) { $('#pkRows').on('click','tr',…); loadVersions(); }
+else           { $('#rows').on('click','button.op',…); …; load(); }
+```
+
+so it permanently bound **one** card and left the other unbound — 8 handlers
+(`#pkRows` click, `#rows button.op`, `#mask` backdrop, the 5 drag events,
+`#btnReset`). Symptom: the DOM rendered perfectly while the **network layer
+stayed completely silent** — no exception, no console error, 0 POSTs.
+
+**Fix.** Bind every handler **unconditionally** in a plain block and branch
+*only* the initial load (tcStepReorder.html:671-741):
+
+```js
+if (TCVER_ID) { load(); } else { loadVersions(); }   // line 741
+```
+
+**Alternatives rejected.** (a) Re-binding on every card switch — duplicates the
+handlers and leaks on each navigation. (b) Splitting the two cards into two URLs
+— changes the UX and breaks the `tcView.html` entry contract. (c)
+`$.on` delegation on `document` — works, but is broader than needed and makes
+the two-card structure implicit. Unconditional binding is what the sibling
+modernized screens do.
+
+### 2. `no_change` reported for every write
+
+**Root cause.** `tsroWriteResult()` compared the **sorted** id sequences before
+and after the write. The id *set* is invariant under every operation this screen
+performs — only `step_number` changes — so `sort()` on both sides yielded two
+identical arrays for every successful write and the endpoint answered
+`status=no_change`. The client then took the correct branch
+(tcStepReorder.html:583-584), so the move persisted in the DB while the UI
+showed *no success notice*: the user was told nothing happened. The defect was
+in the server's **verdict**, not in the UI.
+
+The mirror defect: `?action=normalize` rewrites `step_number` only
+(`11,12,13,14 → 1,2,3,4`) and leaves the id order untouched, so a real repair
+was also reported as a no-op.
+
+**Fix** (api/tcstepsreorder/index.php:463-468) — compare the **ordered** id
+sequence *and* the **ordered `step_number`** sequence:
+
+```php
+$changed = ($before['ids'] !== $afterIds) || ($before['numbers'] !== $afterNumbers);
+```
+
+Both halves are required and they cover opposite cases: `move`/`reorder` change
+the id order, `normalize` changes the numbers alone. Comparing only ids leaves
+the normalize defect; comparing only numbers misses a reorder that restores the
+same numbering.
+
+**Alternatives rejected.** Returning a plain `ok` and letting the client diff —
+would need the whole prior order shipped to the browser and still could not tell
+a boundary refusal from a real write; the server already has both snapshots.
+
+### 3. Literal `{count}` in the renumber copy
+
+`TLi18n.t('tcsr.normalizeConfirm')` was called with no parameters, so the
+`{count}` placeholder in the bundle was never substituted and the confirm dialog
+read *"Renumber the steps from 1 to {count} …"*. The interpolator already exists
+in `gui/templates/i18n/i18n.js`; the two call sites just omitted the argument.
+Fixed at tcStepReorder.html:636 and :651 with
+`TLi18n.t('tcsr.normalizeConfirm', { count: STEPS.length })`.
+
+### Blast radius
+
+`tsroWriteResult()` / `tsroIdsOf()` / `tsroNumbersOf()` are local to
+api/tcstepsreorder/index.php — 1 definition, 3 call sites (`move` / `reorder` /
+`normalize`), all in that one file; no other endpoint calls them. The
+handler-binding block is the only `$(function(){…})` in the screen, so the
+unconditional-bind change cannot affect another screen. The shared legacy write
+primitive `testcase::set_step_number()` is untouched, so 2.0.1 rows stay
+byte-compatible with 1.9.20 and with every modern consumer that does
+`ORDER BY tcsteps.step_number`. The sibling screen `api/tcreorder` (#1660)
+re-orders the specification *tree*, not steps, and is unaffected.
+
+### Verification (11/11 PASS)
+
+Fixture: project `9001` `BugRepro` → test case `9051` → version `9101` with
+steps `9201..9204` numbered **11,12,13,14**. (2.0.1 folds the tree into
+`nodes_hierarchy`; the picker only walks
+`project -> testcase -> testcase_version -> testcase_step`.)
+
+* picker → row → **Move to top** → `POST …{"action":"move","step_id":9202,"position":"top"}`
+  → **200** `{"status":"ok"}`, DB `9202→1, 9201→2, 9203→3, 9204→4`, notice
+  *"Step moved to the top of the version."*
+* gaps `11,12,13,14` → **Renumber steps** → confirm → `{"status":"ok"}`, DB `1,2,3,4`
+* the no-op guard (the fix must not over-correct into "everything is `ok`"):
+  2nd `normalize` → `no_change`; `move up` on the first step →
+  `no_change "Already at the boundary"`; `reorder` to the stored order →
+  `no_change "Order already up to date"`
+* dialog copy → *"Renumber the steps from 1 to 4 keeping the current order?"*
+* drag row 1 onto row 4 → pending `Do A, Do C, Do D, Do B`; **Discard changes** →
+  restored `Do B, Do A, Do C, Do D`, Apply/Discard disabled again
+* `?tcversion_id=9101` → **Change version** → picker row has `data-ver="9101"`,
+  clicking it re-renders the 4-row step table
+* Event Viewer: `events` holds 1 row (`log_level 16`, `activity LOGIN`) —
+  **no new Error/Warning**; console **0 errors, 0 warnings**
+

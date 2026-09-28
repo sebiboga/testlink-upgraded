@@ -25597,3 +25597,64 @@ grep -rn "node_tables_by\['id'\]\[" lib/              # must be: ctor write + re
 #          admin/admin -> http://localhost:8082/gui/templates/eventviewer/eventviewer.html  (ERROR/WARNING counters)
 # php -l lib/functions/tree.class.php lib/functions/testproject.class.php lib/functions/testplan.class.php
 ```
+
+## Regression — Issue #1674: `tcStepReorder` dead handlers after picker navigation, `no_change` on every write, literal `{count}` in the renumber copy
+
+**Precondition.** Freshly imported, EMPTY 2.0.1 DB. 2.0.1 folds the tree into
+`nodes_hierarchy`: `tcsteps.id` joins `nodes_hierarchy.id` and is parented to the
+version node (there is no `tc_id` / `tcstep_id` column), and the version picker
+only walks `project -> testcase -> testcase_version -> testcase_step`
+(`tsroVersions()`, api/tcstepsreorder/index.php:597-641) — a version hung
+directly off the project is silently not listed.
+
+```sql
+INSERT INTO testprojects (id,prefix,notes,active,is_public) VALUES (9001,'BR','fixture',1,1);
+INSERT INTO nodes_hierarchy (id,name,parent_id,node_type_id,node_order) VALUES
+ (9001,'BugRepro',NULL,1,1),(9051,'Reorder target TC',9001,3,1),
+ (9101,'Reorder target TC v1',9051,4,1),
+ (9201,'Step A',9101,9,1),(9202,'Step B',9101,9,2),
+ (9203,'Step C',9101,9,3),(9204,'Step D',9101,9,4);
+INSERT INTO tcversions (id,tc_external_id,version,layout,status,summary,preconditions,importance,author_id,active,is_open,execution_type)
+ VALUES (9101,1,1,1,1,'Reorder target TC','',2,1,1,1,1);
+INSERT INTO tcsteps (id,step_number,actions,expected_results,active,execution_type,upload_on_execution_enabled,upload_on_execution_mandatory) VALUES
+ (9201,11,'Do A','A ok',1,1,0,0),(9202,12,'Do B','B ok',1,1,0,0),
+ (9203,13,'Do C','C ok',1,1,0,0),(9204,14,'Do D','D ok',1,1,0,0);
+```
+
+**Repro steps (pre-fix).**
+1. Sign in `admin`/`admin` at `http://localhost:8082/index.php`.
+2. `gui/templates/testcases/tcStepReorder.html?tproject_id=9001` (picker entry).
+3. Click the `BR-1: Reorder target TC` row → step table renders.
+4. Press a `Move` button / drag a row / `Renumber steps`.
+5. Then the reverse: open `…&tcversion_id=9101` and press `Change version`,
+   then click a picker row.
+
+**Expected post-fix behavior.** Every write reachable from BOTH entries performs
+its POST; a real change answers `status=ok` (with a success notice) and only a
+genuine no-op answers `no_change`; the renumber copy interpolates `{count}`.
+
+| # | Case | Expected | Observed | Result |
+|---|---|---|---|---|
+| S1 | picker → row → `Move to top` on step 2 | POST leaves the browser, DB order changes | `POST /api/tcstepsreorder/index.php {"action":"move","step_id":9202,"position":"top"}` → 200; DB `9202→1, 9201→2, 9203→3, 9204→4` | **PASS** |
+| S2 | the move's verdict | `ok`, not `no_change`; success notice | `{"status":"ok","count":4,…}`; notice *"Step moved to the top of the version."* | **PASS** |
+| S3 | gaps `11,12,13,14` → `Renumber steps` → confirm | gaps repaired AND reported as a change | `POST {"action":"normalize"}` → `{"status":"ok"}`; DB `1,2,3,4` | **PASS** |
+| S4 | `normalize` a 2nd time (already `1..4`) | `no_change` | `{"status":"no_change","message":"Order already up to date"}` | **PASS** |
+| S5 | `move` `up` on the first step | `no_change` (boundary) | `{"status":"no_change","message":"Already at the boundary"}` | **PASS** |
+| S6 | `reorder` back to the stored order | `no_change` | `{"status":"no_change","message":"Order already up to date"}` | **PASS** |
+| S7 | drag row 1 onto row 4 → `Apply order` / `Discard changes` | pending order differs, Discard restores persisted order | pending `Do A, Do C, Do D, Do B` → Discard → `Do B, Do A, Do C, Do D`; Apply/Discard disabled again | **PASS** |
+| S8 | renumber confirm dialog copy | `{count}` interpolated | *"Renumber the steps from 1 to 4 keeping the current order?"* | **PASS** |
+| S9 | `?tcversion_id=9101` → `Change version` → click picker row | picker row is live, step table re-renders | `data-ver="9101"`, `#picker` → `display:none`, 4 `#rows tr` | **PASS** |
+| S10 | boundary buttons | first row `top`/`up` disabled, last row `down`/`bottom` disabled | disabled, and re-disabled after the S1 re-render | **PASS** |
+| S11 | Event Viewer + console | no new Error/Warning | `events` = 1 row, `log_level 16`, `activity LOGIN`; console 0 errors / 0 warnings | **PASS** |
+
+**Result: 11/11 PASS.**
+
+**Regression matrix for the `tsroWriteResult()` change.** The fix must not
+over-correct into "everything is `ok`" — S4/S5/S6 are the guard: all three
+genuine no-ops still answer `no_change`, while S2/S3 (real changes, in the two
+opposite directions the old sorted-set comparison could not see) answer `ok`.
+
+**Screen under test:** `gui/templates/testcases/tcStepReorder.html` +
+`api/tcstepsreorder/index.php`. Fixed in `f08cd9520`; the sibling screen
+`api/tcreorder` (Refs #1660) shares the legacy `testcase::set_step_number()`
+primitive and is **unaffected** — the change is local to this endpoint.
