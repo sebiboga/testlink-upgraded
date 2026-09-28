@@ -222,10 +222,12 @@ abstract class issueTrackerInterface
       // Issue #1701: PHP's SIMPLE (non-curly) string interpolation resolves only
       // ONE property level, so "$this->cfg->dbhost" interpolated $this->cfg (a
       // stdClass since setCfg() :165 json_decode()s it) and left "->dbhost" as
-      // literal text -> "TypeError: Object of class stdClass could not be
-      // converted to string". The TypeError aborted THIS statement, so the
-      // genuinely useful tLog() on the next line never ran and the connection
-      // failure was recorded nowhere. Curly braces are mandatory for 2 levels.
+      // literal text -> "Error: Object of class stdClass could not be converted
+      // to string" (an Error, NOT a TypeError: the offending value is $this->cfg,
+      // whose type is unspecified - the class is stdClass). The Error aborted
+      // THIS statement, so the genuinely useful tLog() on the next line never ran
+      // and the connection failure was recorded nowhere. Curly braces are
+      // mandatory for 2 levels.
       $connection_args = "(interface: - Host:{$this->cfg->dbhost} - " .
                          "DBName: {$this->cfg->dbname} - User: {$this->cfg->dbuser}) ";
       $msg = sprintf(lang_get('BTS_connect_to_database_fails'),$connection_args);

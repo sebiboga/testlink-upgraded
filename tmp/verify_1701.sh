@@ -21,8 +21,9 @@
 # R3 POST /test-connection -> 502, ERROR row prefixed "api/issuetracker/index.php::POST /test-connection ::"
 # R4 GET  /{bogus id}      -> 404 + "not found", 0 new event rows
 # R5 GET  / (list)         -> 200, total == real row count, 0 new event rows
-# R6 POST /test-connection -> reachable control, verdict, 0 new rows
-# R7 Event Viewer sweep    -> 0 new log_level=2 (E_WARNING) rows in the whole run
+# R6 GET  /{LIVE}/check-con -> reachable control, connected:true, 0 new rows
+# R7 Event Viewer sweep    -> 0 log_level=2 (E_WARNING) rows in events (events is
+#                            emptied before every step, so this sweeps R6's own rows)
 #
 # Exit 0 = all PASS.
 BASE="http://localhost:8082"
@@ -76,9 +77,10 @@ res R1 "reported repro id=$DEAD: http=$C, 1 event row, no TypeError, row names t
 q "DELETE FROM events;" >/dev/null
 R=$(curl -s "${AUTH[@]}" -w '\n%{http_code}' "$BASE/api/issuetracker/$BAD/check-connection" 2>/dev/null)
 C=$(printf '%s' "$R" | tail -1)
-D=$(lastdesc)
-res R2 "GET id=$BAD (forces catch): http=$C, row prefixed with the file::route literal" \
+D=$(lastdesc); N=$(rows)
+res R2 "GET id=$BAD (forces catch): http=$C, $N row(s), row prefixed with the file::route literal" \
   "$(printf '%s' "$C" | grep -qx 502 \
+     && [ "$N" = "1" ] \
      && printf '%s' "$D" | grep -q '^api/issuetracker/index\.php::GET /{id}/check-connection :: ' \
      && echo 0 || echo 1)"
 
@@ -88,9 +90,10 @@ R=$(curl -s "${AUTH[@]}" -H "Content-Type: application/json" \
   -d '{"name":"probe","type":2,"cfg":"<issuetracker><dbtype>zzz_no_such_driver</dbtype><dbhost>h</dbhost><dbname>n</dbname><dbuser>u</dbuser><dbpassword>p</dbpassword></issuetracker>"}' \
   -w '\n%{http_code}' "$BASE/api/issuetracker/test-connection" 2>/dev/null)
 C=$(printf '%s' "$R" | tail -1)
-D=$(lastdesc)
-res R3 "POST /test-connection (forces catch): http=$C, row prefixed with the file::route literal" \
+D=$(lastdesc); N=$(rows)
+res R3 "POST /test-connection (forces catch): http=$C, $N row(s), row prefixed with the file::route literal" \
   "$(printf '%s' "$C" | grep -qx 502 \
+     && [ "$N" = "1" ] \
      && printf '%s' "$D" | grep -q '^api/issuetracker/index\.php::POST /test-connection :: ' \
      && echo 0 || echo 1)"
 

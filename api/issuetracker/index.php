@@ -215,10 +215,10 @@ if ($method === 'GET' && isset($segments[0]) && is_numeric($segments[0]) &&
              'message' => $connected ? 'Connection OK' : 'Connection failed (check type and configuration)']);
     } catch (\Throwable $e) {
         // Issue #1701: __METHOD__ at the TOP LEVEL of a request script expands to
-        // the EMPTY STRING in PHP 8 (inside a class it is __FUNCTION__ ::
-        // __CLASS__, at file scope there is no class and no function, so both
-        // parts are empty). This used to log a bare " <msg>" with no source
-        // prefix, so the Event Viewer row named nothing at all. Use a literal.
+        // the EMPTY STRING in PHP 8 (it is __CLASS__ :: __FUNCTION__, and at file
+        // scope there is neither a class nor a function, so both halves are empty).
+        // This used to log a bare " <msg>" with no source prefix, so the Event
+        // Viewer row named nothing at all. Use a literal.
         tLog('api/issuetracker/index.php::GET /{id}/check-connection :: ' . $e->getMessage(), 'ERROR');
         http_response_code(502);
         out(['status' => 'error', 'connected' => false, 'message' => 'Connection check failed']);

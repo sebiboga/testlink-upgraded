@@ -26435,7 +26435,7 @@ PHP resolves only **one** property level in a non-curly interpolated string, so
 `"$this->cfg->dbhost"` interpolates `$this->cfg` — a `stdClass`, since
 `setCfg()` `:165` does `json_decode(json_encode($this->cfg))` — and leaves
 `->dbhost` as literal text. Casting a `stdClass` to string throws
-`TypeError: Object of class stdClass could not be converted to string`, which
+`Error: Object of class stdClass could not be converted to string` (an `Error`, not a `TypeError`), which
 aborted the statement **before** the `tLog()` on `:225` that records host / db /
 user / ADODB code. A dead host therefore produced *no* useful record at all.
 
