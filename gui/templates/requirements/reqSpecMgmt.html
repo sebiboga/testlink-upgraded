@@ -54,6 +54,27 @@ table.dataTable tbody td { padding: 8px 14px; font-size: 13px; vertical-align: m
 #reqPanel { display: none; margin-top: 18px; }
 .panel-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .hint { color: #999; font-size: 12px; margin-top: 6px; }
+/* Refs #1025: requirement filter panel (legacy inc_filter_panel.tpl) */
+.fp-wrap { padding: 14px 24px 0; }
+.fp { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin-bottom: 14px; overflow: hidden; }
+.fp-head { background: #22242a; color: #fff; font-size: 12px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; padding: 8px 14px; display: flex; align-items: center; gap: 8px; }
+.fp-head .fa { color: #4ECDC4; }
+.fp-body { padding: 12px 14px; }
+.fp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px 16px; }
+.fp-grid label { display: block; font-size: 11px; font-weight: 600; color: #666; margin-bottom: 3px; text-transform: uppercase; letter-spacing: .4px; }
+.fp-grid input[type=text], .fp-grid input[type=number], .fp-grid select { width: 100%; border: 1px solid #d8dde3; border-radius: 4px; padding: 5px 7px; font-size: 13px; background: #fff; }
+.fp-grid select[multiple] { height: 92px; }
+.fp-grid input:focus, .fp-grid select:focus { outline: none; border-color: #4ECDC4; }
+.fp-foot { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 12px; padding-top: 10px; border-top: 1px solid #eee; }
+.btn-grey { background: #e9ecef; color: #22242a; border: none; padding: 7px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-grey:hover { background: #dde1e6; }
+.btn-dark { background: #22242a; color: #fff; border: none; padding: 7px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-dark:hover { background: #33363e; }
+.fp-active { color: #2d8e88; font-size: 12px; font-weight: 600; }
+.fp-cb { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #555; }
+.fp-cb input { margin: 0; }
+.cf-row { border-top: 1px dashed #e3e6ea; margin-top: 10px; padding-top: 10px; }
+.match-badge { background: #eefaf9; color: #2d8e88; border: 1px solid #bfe5e2; }
 </style>
 </head>
 <body>
@@ -70,6 +91,55 @@ table.dataTable tbody td { padding: 8px 14px; font-size: 13px; vertical-align: m
   <button class="btn-teal" id="btnCreateSpec" onclick="openSpecCreate()" style="display:none"><i class="fa fa-plus"></i> <span data-i18n="rs.createSpec">Create Spec</span></button>
   <button class="btn-teal" id="btnImportReqs" onclick="goImportReqs()" style="display:none"><i class="fa fa-upload"></i> <span data-i18n="reqimp.header">Requirement Import</span></button>
   <button class="btn-teal" id="btnExportReqs" onclick="goExportReqs()" style="display:none"><i class="fa fa-download"></i> <span data-i18n="reqexp.export">Export</span></button>
+</div>
+
+<!-- Refs #1025: requirement filter panel, port of tlRequirementFilterControl + inc_filter_panel.tpl -->
+<div class="fp-wrap" id="fpWrap" style="display:none">
+  <div class="fp">
+    <div class="fp-head"><i class="fa fa-cogs"></i> <span data-i18n="rsf.settings">Settings</span></div>
+    <div class="fp-body">
+      <label class="fp-cb">
+        <input type="checkbox" id="fAutoUpdate" checked>
+        <span data-i18n="rsf.autoUpdate">Update list after every operation</span>
+      </label>
+    </div>
+  </div>
+  <div class="fp">
+    <div class="fp-head"><i class="fa fa-filter"></i> <span data-i18n="rsf.filters">Filters</span>
+      <span class="fp-active" id="fpActive" style="display:none"></span></div>
+    <div class="fp-body">
+      <div class="fp-grid">
+        <div id="fDocIdWrap"><label data-i18n="rsf.docId">Document ID</label>
+          <input type="text" id="fDocId" maxlength="64"></div>
+        <div id="fTitleWrap"><label data-i18n="rsf.title">Title</label>
+          <input type="text" id="fTitle" maxlength="100"></div>
+        <div id="fStatusWrap"><label data-i18n="rsf.status">Status</label>
+          <select id="fStatus"></select></div>
+        <div id="fTypeWrap"><label data-i18n="rsf.reqType">Requirement Type</label>
+          <select id="fType"></select></div>
+        <div id="fSpecTypeWrap"><label data-i18n="rsf.specType">Req. Spec. Type</label>
+          <select id="fSpecType"></select></div>
+        <div id="fCoverageWrap"><label data-i18n="rsf.coverage">Expected no. of testcases</label>
+          <input type="number" id="fCoverage" min="1" value=""></div>
+        <div id="fRelationWrap"><label data-i18n="rsf.relation">Has relation of type</label>
+          <select id="fRelation"></select></div>
+        <div id="fTcIdWrap"><label data-i18n="rsf.tcId">Test Case ID</label>
+          <input type="text" id="fTcId" maxlength="64"></div>
+      </div>
+      <div class="cf-row" id="fCFieldRow" style="display:none">
+        <label class="fp-cb" style="margin-bottom:8px;">
+          <input type="checkbox" id="fShowCFields">
+          <span data-i18n="rsf.showCFields">Show custom field filters</span>
+        </label>
+        <div class="fp-grid" id="fCFields" style="display:none"></div>
+      </div>
+      <div class="fp-foot">
+        <button class="btn-teal" onclick="applyFilters()"><i class="fa fa-check"></i> <span data-i18n="rsf.apply">Apply</span></button>
+        <button class="btn-grey" onclick="resetFilters()"><i class="fa fa-times"></i> <span data-i18n="rsf.reset">Reset Filters</span></button>
+        <button class="btn-dark" id="btnFilterMode" onclick="toggleFilterMode()" style="display:none"></button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <div class="section">
@@ -244,6 +314,7 @@ var specTbl = null;
 var reqTbl = null;
 var deleteTarget = null;   // {type:'spec'|'req', id:N}
 var options = null;
+var filtering = false;
 var specsCache = [];
 var reqsCache = [];
 
@@ -321,9 +392,141 @@ function load() {
     $('#btnImportReqs').toggle(canManage);
     $('#btnExportReqs').show();
     renderDomains();
+    initFilterPanel();
     loadSpecs();
   });
 }
+
+// ------------------------------------------- Refs #1025 filter panel ------
+var advancedMode = false;   // legacy: Simple <-> Advanced filter mode choice
+var activeFilters = null;    // last applied filter object
+
+function filterCfg() { return (options && options.filters) || {}; }
+
+// legacy ANY key (tlFilterControl::ANY = 0) is always the first option of the
+// multi-selects; a selection containing it disables that filter
+function anyValue() { return '0'; }
+
+function fillFilterSelect($sel, map, multiple) {
+  $sel.empty().attr('multiple', !!multiple);
+  $sel.append($('<option>', { value: anyValue(), text: TLi18n.t('rsf.any') }));
+  $.each(map || {}, function (code, label) {
+    $sel.append($('<option>', { value: String(code), text: label }));
+  });
+}
+
+function currentFilters() {
+  var f = {
+    doc_id: $.trim($('#fDocId').val()),
+    title: $.trim($('#fTitle').val()),
+    coverage: parseInt($('#fCoverage').val() || '0', 10),
+    tc_id: $.trim($('#fTcId').val())
+  };
+  ['status', 'type', 'specType', 'relation'].forEach(function (k) {
+    f[k] = $('#f' + k.charAt(0).toUpperCase() + k.slice(1)).val() || [];
+    if (!$.isArray(f[k])) { f[k] = [f[k]]; }
+    // "Any" selected -> no filter for that field
+    if ($.inArray(anyValue(), f[k]) !== -1) { f[k] = []; }
+  });
+  var cf = {};
+  $('#fCFields input').each(function () {
+    var v = $.trim($(this).val());
+    if (v !== '') { cf[$(this).data('cfid')] = v; }
+  });
+  f.cf = cf;
+  return f;
+}
+
+function filterQuery(f) {
+  var p = [];
+  if (f.doc_id !== '') { p.push('filter_doc_id=' + encodeURIComponent(f.doc_id)); }
+  if (f.title !== '') { p.push('filter_title=' + encodeURIComponent(f.title)); }
+  if (f.coverage > 0) { p.push('filter_coverage=' + f.coverage); }
+  if (f.tc_id !== '' && f.tc_id !== (options.tcPrefix || '')) {
+    p.push('filter_tc_id=' + encodeURIComponent(f.tc_id));
+  }
+  if (f.status.length) { p.push('filter_status=' + encodeURIComponent(f.status.join(','))); }
+  if (f.type.length) { p.push('filter_type=' + encodeURIComponent(f.type.join(','))); }
+  if (f.specType.length) { p.push('filter_spec_type=' + encodeURIComponent(f.specType.join(','))); }
+  if (f.relation.length) { p.push('filter_relation=' + encodeURIComponent(f.relation.join(','))); }
+  $.each(f.cf, function (id, val) {
+    p.push('filter_cf_' + id + '=' + encodeURIComponent(val));
+  });
+  return p.length ? '&' + p.join('&') : '';
+}
+
+function hasActiveFilters(f) { return filterQuery(f) !== ''; }
+
+function initFilterPanel() {
+  var cfg = filterCfg();
+  if (!cfg.show) { return; }
+  $('#fpWrap').show();
+
+  var multi = advancedMode;
+  var maps = { fStatus: options.reqStatuses, fType: options.reqTypes,
+               fSpecType: options.specTypes, fRelation: options.relationTypes };
+  $.each(maps, function (id, map) { fillFilterSelect($('#' + id), map, multi); });
+
+  // legacy gates: a disabled filter is not rendered at all
+  var vis = { fDocIdWrap: cfg.doc_id, fTitleWrap: cfg.title, fStatusWrap: cfg.status,
+              fTypeWrap: cfg.type, fSpecTypeWrap: cfg.spec_type,
+              fCoverageWrap: cfg.coverage, fRelationWrap: cfg.relation, fTcIdWrap: cfg.tc_id };
+  $.each(vis, function (id, show) { $('#' + id).toggle(!!show); });
+
+  if (cfg.tc_id) { $('#fTcId').val(options.tcPrefix || ''); }
+
+  if (cfg.cfields) {
+    $('#fCFieldRow').show();
+    var $cfs = $('#fCFields');
+    $cfs.empty();
+    $.each(options.filterCFields || [], function (i, cf) {
+      $cfs.append('<div><label>' + esc(cf.label) + '</label>' +
+        '<input type="text" data-cfid="' + cf.id + '" maxlength="100"></div>');
+    });
+    $('#fShowCFields').on('change', function () { $cfs.toggle(this.checked); });
+  }
+
+  if (cfg.modeChoice) {
+    $('#btnFilterMode').show().text(filterModeLabel());
+  }
+}
+
+function filterModeLabel() {
+  return advancedMode ? TLi18n.t('rsf.simpleFilters') : TLi18n.t('rsf.advancedFilters');
+}
+
+// Simple <-> Advanced: advanced turns the three multi-selects into real
+// <select multiple> (inc_filter_panel.tpl l.601-627, l.640-648, l.662-670)
+function toggleFilterMode() {
+  advancedMode = !advancedMode;
+  $('#fStatus, #fType, #fSpecType, #fRelation').each(function () {
+    $(this).attr('multiple', advancedMode).height(advancedMode ? 92 : '');
+  });
+  $('#btnFilterMode').text(filterModeLabel());
+}
+
+function applyFilters() {
+  activeFilters = currentFilters();
+  var on = hasActiveFilters(activeFilters);
+  $('#fpActive').toggle(on).text(on ? TLi18n.t('rsf.filterActive') : '');
+  loadSpecs();
+  if (currentSpecId() > 0) { loadReqs(currentSpecId()); } else { closeReqPanel(); }
+}
+
+function resetFilters() {
+  $('#fDocId, #fTitle, #fCoverage, #fTcId').val('');
+  $('#fStatus, #fType, #fSpecType, #fRelation').val(anyValue());
+  $('#fCFields input').val('');
+  if (filterCfg().tc_id) { $('#fTcId').val(options.tcPrefix || ''); }
+  activeFilters = null;
+  $('#fpActive').hide().text('');
+  loadSpecs();
+  if (currentSpecId() > 0) { loadReqs(currentSpecId()); }
+}
+
+// Refs #1025 - setting_refresh_tree_on_action: reload the lists after each
+// write operation so the effect of create/update/delete is immediately visible
+function autoUpdateEnabled() { return $('#fAutoUpdate').is(':checked'); }
 
 function renderDomains() {
   if (!options) return;
@@ -333,9 +536,11 @@ function renderDomains() {
 }
 
 function loadSpecs() {
-  $.getJSON(API + '?action=specs&tproject_id=' + tprojectId, function (r) {
+  var fq = filterQuery(activeFilters || currentFilters());
+  $.getJSON(API + '?action=specs&tproject_id=' + tprojectId + fq, function (r) {
     if (r.status !== 'ok') { toast(TLi18n.t('common.error'), true); return; }
     specsCache = r.specs || [];
+    filtering = !!r.filtering;
     renderSpecs(specsCache);
   }).fail(function (xhr) {
     var msg = TLi18n.t('common.error');
@@ -370,11 +575,16 @@ function renderSpecs(items) {
       action = '<span class="muted"><i class="fas fa-eye" title="' + esc(TLi18n.t('rs.viewOnly')) + '"></i></span>';
     }
 
+    var reqBadge = '<span class="req-count-badge' + (filtering ? ' match-badge' : '') + '"'
+      + (filtering ? ' title="' + esc(TLi18n.t('rsf.matchesOf', { n: s.req_count })) + '"' : '')
+      + '>' + (filtering ? (s.match_count === null ? s.req_count : s.match_count) : s.req_count)
+      + '</span>';
+
     return [
       '<span class="doc-id">' + esc(s.doc_id) + '</span>',
       titleCell,
       '<span class="type-badge">' + esc(specTypeLabel(s.type)) + '</span>',
-      '<span class="req-count-badge">' + s.req_count + '</span>',
+      reqBadge,
       s.total_req,
       esc(s.author || '-'),
       '<span class="updated-cell">' + esc(fmtDate(s.modification_ts)) + '</span>',
@@ -437,7 +647,9 @@ function currentSpecTitle(id) {
 }
 
 function loadReqs(specId) {
-  $.getJSON(API + '?action=reqs&spec_id=' + specId + '&tproject_id=' + tprojectId, function (r) {
+  var fq = filterQuery(activeFilters || currentFilters());
+  $.getJSON(API + '?action=reqs&spec_id=' + specId + '&tproject_id=' + tprojectId + fq,
+    function (r) {
     if (r.status !== 'ok') { toast(TLi18n.t('common.error'), true); return; }
     renderReqs(r.requirements || []);
   }).fail(function (xhr) {
@@ -567,7 +779,7 @@ function saveSpec() {
     if (r.status === 'ok') {
       $('#specModal').modal('hide');
       toast(TLi18n.t('rs.msg.saved'));
-      loadSpecs();
+      if (autoUpdateEnabled()) { loadSpecs(); }
     } else {
       showError($('#specModalError'), r.message || TLi18n.t('common.error'));
     }
@@ -598,6 +810,8 @@ function doDelete() {
     } else {
       toast(r.message || TLi18n.t('common.error'), true);
     }
+    // Refs #1025: honour setting_refresh_tree_on_action (auto refresh)
+    if (!autoUpdateEnabled()) { return; }
     if (isSpec) {
       if (currentSpecId() === deleteTarget.id) { closeReqPanel(); }
       loadSpecs();
@@ -682,8 +896,7 @@ function saveReq() {
       if (r.status === 'ok') {
         $('#reqModal').modal('hide');
         toast(TLi18n.t('rs.msg.reqSaved'));
-        loadReqs(specId);
-        loadSpecs();
+        if (autoUpdateEnabled()) { loadReqs(specId); loadSpecs(); }
       } else {
         showError($('#reqModalError'), r.message || TLi18n.t('common.error'));
       }

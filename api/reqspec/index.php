@@ -14,11 +14,16 @@
  *
  * Endpoints (JSON in/out):
  *   GET  ?action=options&tproject_id=N     -> domains, defaults, rights, project name
- *   GET  ?action=specs&tproject_id=N       -> list of requirement specs (latest revision)
+ *         (+ Refs #1025 filter domains: filters.*, relationTypes, filterCFields, tcPrefix)
+ *   GET  ?action=specs&tproject_id=N[&filter_*] -> list of requirement specs (latest revision)
+ *         Refs #1025: accepts the legacy filter parameters (filter_doc_id, filter_title,
+ *         filter_status, filter_type, filter_spec_type, filter_coverage, filter_relation,
+ *         filter_tc_id, filter_cf_<id>); specs whose subtree keeps no matching
+ *         requirement are dropped and match_count carries the number of hits.
  *   POST ?action=create_spec               {tproject_id,doc_id,title,type,total_req,scope,parent_id?}
  *   POST ?action=update_spec&id=N          {tproject_id,doc_id,title,type,total_req,scope}
  *   POST ?action=delete_spec&id=N&tproject_id=N
- *   GET  ?action=reqs&spec_id=N&tproject_id=N -> requirements of a spec (latest version)
+ *   GET  ?action=reqs&spec_id=N&tproject_id=N[&filter_*] -> requirements of a spec (latest version)
  *   GET  ?action=spec_view&id=N            -> spec header (latest revision) + cfields + attachments
  *   GET  ?action=spec_revision_view&id=N   -> a SINGLE spec revision (read-only viewer)
  *   POST ?action=create_req                {tproject_id,spec_id,req_doc_id,title,status,type,expected_coverage,scope}
@@ -256,6 +261,176 @@ function bulkMonPayload(&$reqSpecMgr, &$reqMgr, &$db, $specId, $userId, $ownerTi
     ];
 }
 
+// ------------------------------------------------- requirement filters ----
+// Refs #1025 - port of the legacy requirement filter panel
+// (lib/functions/tlRequirementFilterControl.class.php + the requirement part of
+// gui/templates/dashio/include/inc_filter_panel.tpl) into the BFF.
+//
+// readReqFilters() applies the legacy "normalization" rules, so the caller can
+// treat every empty/"Any"/prefix-only value as "filter disabled":
+//   * doc_id / title       empty -> null
+//   * status / type / spec_type / relation / cf   empty array or containing
+//     the ANY key (0, tlFilterControl::ANY) -> null
+//   * coverage             non numeric or <= 0 -> null
+//   * tc_id                equal to "<prefix><glue>" -> null (legacy l.520)
+function readReqFilters(&$db, $tproject_id) {
+    $glue = config_get('testcase_cfg')->glue_character;
+    $prefix = testproject::getTestCasePrefix($db, $tproject_id) . $glue;
+
+    $arr = function ($raw) {
+        if ($raw === null) { return []; }
+        if (!is_array($raw)) { $raw = explode(',', (string)$raw); }
+        $out = [];
+        foreach ($raw as $v) {
+            $v = trim((string)$v);
+            if ($v !== '') { $out[] = $v; }
+        }
+        return $out;
+    };
+
+    // ANY (0) anywhere in the selection disables the whole filter
+    $multi = function ($raw) use ($arr) {
+        $list = $arr($raw);
+        if (empty($list)) { return null; }
+        foreach ($list as $v) { if ($v === '0') { return null; } }
+        return $list;
+    };
+
+    $docId = trim((string)($_REQUEST['filter_doc_id'] ?? ''));
+    $title = trim((string)($_REQUEST['filter_title'] ?? ''));
+    $tcId  = trim((string)($_REQUEST['filter_tc_id'] ?? ''));
+    $cov   = $_REQUEST['filter_coverage'] ?? '';
+
+    // custom fields: filter_cf_<field_id> (value may be a comma separated list)
+    $cfields = [];
+    foreach ($_REQUEST as $k => $v) {
+        if (strpos($k, 'filter_cf_') !== 0) { continue; }
+        $fid = intval(substr($k, strlen('filter_cf_')));
+        if ($fid <= 0) { continue; }
+        $vals = $arr($v);
+        if (empty($vals)) { continue; }
+        $cfields[$fid] = $vals;
+    }
+
+    $f = [
+        'doc_id'    => ($docId === '') ? null : $docId,
+        'title'     => ($title === '') ? null : $title,
+        'status'    => $multi($_REQUEST['filter_status'] ?? null),
+        'type'      => $multi($_REQUEST['filter_type'] ?? null),
+        'spec_type' => $multi($_REQUEST['filter_spec_type'] ?? null),
+        'relation'  => $multi($_REQUEST['filter_relation'] ?? null),
+        'coverage'  => (is_numeric($cov) && intval($cov) > 0) ? intval($cov) : null,
+        'tc_id'     => (($tcId === '') || ($tcId === $prefix)) ? null : $tcId,
+        'cfields'   => $cfields,
+        'tc_prefix' => $prefix,
+    ];
+    $f['active'] = ($f['doc_id'] !== null) || ($f['title'] !== null)
+        || ($f['status'] !== null) || ($f['type'] !== null) || ($f['spec_type'] !== null)
+        || ($f['relation'] !== null) || ($f['coverage'] !== null)
+        || ($f['tc_id'] !== null) || !empty($f['cfields']);
+    return $f;
+}
+
+/**
+ * SQL joins + WHERE reproducing lib/functions/treeMenu.inc.php::get_filtered_req_map()
+ * (l.1753-1889). Callers must alias requirement R, requirement version RV,
+ * requirement nodes_hierarchy NH_R, spec RS (and RSPECREV when spec_type is used).
+ */
+function reqFilterSql(&$db, $tproject_id, $f) {
+    $joins = '';
+    $where = ' RS.testproject_id = ' . intval($tproject_id);
+
+    if ($f['doc_id'] !== null) {
+        $d = $db->prepare_string($f['doc_id']);
+        // legacy builds "AND R.req_doc_id LIKE .. OR RS.doc_id LIKE .."; grouped
+        // here so it does not swallow the other conditions (MySQL AND > OR).
+        $where .= " AND (R.req_doc_id LIKE '%{$d}%' OR RS.doc_id LIKE '%{$d}%')";
+    }
+    if ($f['title'] !== null) {
+        $t = $db->prepare_string($f['title']);
+        $where .= " AND NH_R.name LIKE '%{$t}%'";
+    }
+    if ($f['coverage'] !== null) {
+        $where .= ' AND RV.expected_coverage = ' . intval($f['coverage']);
+    }
+    foreach (['status' => 'RV.status', 'type' => 'RV.type'] as $key => $col) {
+        if ($f[$key] === null) { continue; }
+        $vals = array_map(function ($v) use ($db) { return "'" . $db->prepare_string($v) . "'"; },
+                          $f[$key]);
+        $where .= " AND {$col} IN (" . implode(',', $vals) . ')';
+    }
+    if ($f['spec_type'] !== null) {
+        $joins .= ' JOIN req_specs_revisions RSPECREV ON RSPECREV.parent_id = RS.id';
+        $vals = array_map(function ($v) use ($db) { return "'" . $db->prepare_string($v) . "'"; },
+                          $f['spec_type']);
+        $where .= ' AND RSPECREV.type IN (' . implode(',', $vals) . ')';
+    }
+    if ($f['relation'] !== null) {
+        $joins .= ' JOIN req_relations RR ON (RR.destination_id = R.id OR RR.source_id = R.id)';
+        $or = [];
+        foreach ($f['relation'] as $rel) {
+            // "<relTypeId>_source" / "<relTypeId>_destination" (init_relation_type_select)
+            $parts = explode('_', (string)$rel);
+            $relType = intval($parts[0]);
+            $side = isset($parts[1]) ? $parts[1] : '';
+            if ($side === 'destination') {
+                $or[] = ' (RR.destination_id = R.id AND RR.relation_type = ' . $relType . ')';
+            } elseif ($side === 'source') {
+                $or[] = ' (RR.source_id = R.id AND RR.relation_type = ' . $relType . ')';
+            } else {
+                $or[] = ' ((RR.destination_id = R.id OR RR.source_id = R.id)'
+                        . ' AND RR.relation_type = ' . $relType . ')';
+            }
+        }
+        if (!empty($or)) { $where .= ' AND (' . implode(' OR ', $or) . ')'; }
+    }
+    if ($f['tc_id'] !== null) {
+        $extId = intval(str_replace($f['tc_prefix'], '', $f['tc_id']));
+        $joins .= ' JOIN req_coverage RC ON RC.req_id = R.id'
+                . ' JOIN nodes_hierarchy NH_T ON NH_T.id = RC.testcase_id'
+                . ' JOIN nodes_hierarchy NH_TV ON NH_TV.parent_id = NH_T.id'
+                . ' JOIN tcversions TV ON TV.id = NH_TV.id'
+                . ' AND TV.tc_external_id = ' . $extId;
+    }
+    foreach ($f['cfields'] as $fid => $vals) {
+        $alias = 'CF' . intval($fid);
+        $joins .= " JOIN cfield_design_values {$alias} ON {$alias}.node_id = RV.id"
+                . " AND {$alias}.field_id = " . intval($fid) . ' AND (';
+        $or = [];
+        foreach ($vals as $v) {
+            $or[] = "{$alias}.value LIKE '%" . $db->prepare_string($v) . "%'";
+        }
+        $joins .= implode(' OR ', $or) . ')';
+    }
+    return ['joins' => $joins, 'where' => $where];
+}
+
+/**
+ * map requirement id -> spec id for every requirement matching the filters
+ * (latest version only, exactly like the legacy map fed by fetchRowsIntoMap on
+ * "ORDER BY RV.version DESC"). Empty map when no filter is active.
+ */
+function reqFilteredMap(&$db, $tproject_id, $f) {
+    if (!$f['active']) { return null; }
+    $parts = reqFilterSql($db, $tproject_id, $f);
+    $sql = "SELECT R.id, R.srs_id FROM requirements R"
+         . ' JOIN nodes_hierarchy NH_R ON NH_R.id = R.id'
+         . ' JOIN nodes_hierarchy NH_RV ON NH_RV.parent_id = NH_R.id'
+         . ' JOIN req_versions RV ON RV.id = NH_RV.id'
+         . '     AND RV.version = (SELECT MAX(RV2.version) FROM req_versions RV2'
+         . '                       JOIN nodes_hierarchy NH_RV2 ON NH_RV2.id = RV2.id'
+         . '                       WHERE NH_RV2.parent_id = R.id)'
+         . ' JOIN req_specs RS ON RS.id = R.srs_id'
+         . $parts['joins']
+         . ' WHERE ' . $parts['where'];
+    $rows = $db->get_recordset($sql);
+    $map = [];
+    foreach (($rows ? $rows : []) as $r) {
+        $map[intval($r['id'])] = intval($r['srs_id']);
+    }
+    return $map;
+}
+
 if ($action === '' ) {
     http_response_code(400);
     out(['status' => 'error', 'message' => 'Missing action']);
@@ -294,6 +469,50 @@ if ($method === 'GET' && $action === 'options') {
         $expectedCoverageByType[(string)$code] = $value;
     }
 
+    // Refs #1025 - filter panel domains (legacy tlRequirementFilterControl)
+    $treeCfg = config_get('tree_filter_cfg');
+    $reqFilterCfg = ($treeCfg && isset($treeCfg->requirements)) ? $treeCfg->requirements : null;
+    $reqFilterEnabled = function ($name) use ($reqFilterCfg) {
+        return ($reqFilterCfg !== null && isset($reqFilterCfg->$name)
+                && $reqFilterCfg->$name == ENABLED);
+    };
+    $showFilters = ($reqFilterCfg !== null && isset($reqFilterCfg->show_filters)
+                    && $reqFilterCfg->show_filters == ENABLED);
+
+    // "Has relation of type" items, same key scheme as
+    // requirement_mgr::init_relation_type_select() with the _source suffix
+    // stripped for EQUAL relations (tlRequirementFilterControl l.473-479).
+    $relationTypes = [];
+    $relationsEnabled = (is_object($cfg) && isset($cfg->relations)
+                         && boolishConfig($cfg->relations, 'enable', true));
+    if ($relationsEnabled) {
+        $labels = $reqMgr->get_all_relation_labels();
+        foreach ($labels as $key => $lab) {
+            $relationTypes[(string)$key . '_source'] = (string)$lab['source'];
+            if ($lab['source'] != $lab['destination']) {
+                $relationTypes[(string)$key . '_destination'] = (string)$lab['destination'];
+            }
+        }
+    }
+    if (!$relationsEnabled) { $relationTypes = []; }
+
+    // custom fields linked to the project (legacy getCustomFields())
+    $cfieldsFilter = [];
+    $cfMap = $reqMgr->get_linked_cfields(null, null, $tproject_id);
+    if (!empty($cfMap)) {
+        foreach ($cfMap as $cf) {
+            $cfieldsFilter[] = [
+                'id'    => intval($cf['id']),
+                'label' => (string)$cf['label'],
+                'name'  => (string)$cf['name'],
+            ];
+        }
+    }
+    if (!$reqFilterEnabled('filter_custom_fields')) { $cfieldsFilter = []; }
+
+    $tcPrefixGlue = $tprojectMgr->getTestCasePrefix($tproject_id)
+                    . config_get('testcase_cfg')->glue_character;
+
     out([
         'status' => 'ok',
         'tproject_id' => $tproject_id,
@@ -315,6 +534,28 @@ if ($method === 'GET' && $action === 'options') {
         // Spec" viewer action is only offered when child specs are enabled
         // (config.inc.php:1661, req_cfg->child_requirements_mgmt == ENABLED).
         'childRequirementsManagement' => boolishConfig($cfg, 'child_requirements_mgmt', true),
+        // Refs #1025 - filter panel domains + per-filter enable flags, mirroring
+        // tree_filter_cfg->requirements (config.inc.php:1946-1956).
+        'filters' => [
+            'show'          => $showFilters,
+            'doc_id'        => $reqFilterEnabled('filter_doc_id'),
+            'title'         => $reqFilterEnabled('filter_title'),
+            'status'        => $reqFilterEnabled('filter_status'),
+            'type'          => $reqFilterEnabled('filter_type'),
+            'spec_type'     => $reqFilterEnabled('filter_spec_type'),
+            'coverage'      => $reqFilterEnabled('filter_coverage')
+                              && boolishConfig($cfg, 'expected_coverage_management', false),
+            'relation'      => $reqFilterEnabled('filter_relation') && $relationsEnabled,
+            'tc_id'         => $reqFilterEnabled('filter_tc_id'),
+            'cfields'       => !empty($cfieldsFilter),
+            // legacy offers the Simple <-> Advanced mode choice
+            'modeChoice'    => ($reqFilterCfg !== null
+                                && isset($reqFilterCfg->advanced_filter_mode_choice)
+                                && $reqFilterCfg->advanced_filter_mode_choice == ENABLED),
+        ],
+        'relationTypes' => $relationTypes,
+        'filterCFields' => $cfieldsFilter,
+        'tcPrefix'      => $tcPrefixGlue,
     ]);
 }
 
@@ -343,10 +584,32 @@ if ($method === 'GET' && $action === 'specs') {
 
     $rows = $db->get_recordset($sql);
 
+    // Refs #1025 - legacy tree semantics: requirement nodes not in the filtered
+    // map are dropped and every spec whose subtree keeps no requirement is
+    // dropped as well (treeMenu.inc.php:prepare_reqspec_treenode l.1930-1960).
+    $filters = readReqFilters($db, $tproject_id);
+    $map = reqFilteredMap($db, $tproject_id, $filters);
+    $matchCountBySpec = [];
+    if ($map !== null) {
+        foreach ($map as $srsId) {
+            $matchCountBySpec[$srsId] = isset($matchCountBySpec[$srsId])
+                                        ? $matchCountBySpec[$srsId] + 1 : 1;
+        }
+    }
+
     $out = [];
     foreach (($rows ? $rows : []) as $r) {
+        $specId = intval($r['id']);
+        $matchCnt = null;
+        if ($map !== null) {
+            $matchCnt = 0;
+            foreach (reqSpecSubtreeIds($db, $specId) as $sid) {
+                if (isset($matchCountBySpec[$sid])) { $matchCnt += $matchCountBySpec[$sid]; }
+            }
+            if ($matchCnt === 0) { continue; }   // empty spec: delete_node
+        }
         $out[] = [
-            'id'             => intval($r['id']),
+            'id'             => $specId,
             'doc_id'         => (string)$r['doc_id'],
             'title'          => (string)$r['title'],
             'scope'          => (string)$r['scope'],
@@ -358,9 +621,10 @@ if ($method === 'GET' && $action === 'specs') {
             'modification_ts'=> (string)$r['modification_ts'],
             'author'         => (string)$r['author_login'],
             'req_count'      => intval($r['req_count']),
+            'match_count'    => $matchCnt,
         ];
     }
-    out(['status' => 'ok', 'specs' => $out]);
+    out(['status' => 'ok', 'specs' => $out, 'filtering' => ($map !== null)]);
 }
 
 if ($method === 'POST' && $action === 'create_spec') {
@@ -464,8 +728,16 @@ if ($method === 'GET' && $action === 'reqs') {
 
     $rows = $db->get_recordset($sql);
 
+    // Refs #1025 - the requirement table shows only the requirements accepted by
+    // the legacy filter predicate (get_filtered_req_map l.1753-1889), on the
+    // latest version of each requirement, same as the unfiltered listing above.
+    $filters = readReqFilters($db, $tproject_id);
+    $map = reqFilteredMap($db, $tproject_id, $filters);
+
     $out = [];
     foreach (($rows ? $rows : []) as $r) {
+        $reqId = intval($r['id']);
+        if ($map !== null && !array_key_exists($reqId, $map)) { continue; }
         $out[] = [
             'id'                => intval($r['id']),
             'req_doc_id'        => (string)$r['req_doc_id'],
