@@ -160,6 +160,9 @@ td.act { width: 250px; white-space: nowrap; }
 <script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
 <script>
 var q = new URLSearchParams(location.search);
+// DEAD: the init call returned an error (403/404) and the page is an error
+// state. Kept out of GRANT so a 403 can never look like "read-only".
+var DEAD = false;
 var TPROJECT_ID = parseInt(q.get('tproject_id') || '0', 10);
 var SPEC_ID = parseInt(q.get('req_spec_id') || q.get('id') || '0', 10);
 var NODE_ID = parseInt(q.get('node_id') || '0', 10);
@@ -202,22 +205,31 @@ function showMsg(ok, text) {
 }
 
 function showState(text, code) {
+  // An access-denied / not-found result is a dead end for this page: the cards
+  // are hidden, so the toolbar must go dead with them instead of staying live
+  // and answering "Nothing to apply".
+  DEAD = true;
   $('#stateText').text(text || '');
   $('#stateCode').text(code || '');
   $('#stateCard').css('display', 'block');
   $('#ctxCard,#moveCard,#ordCard').css('display', 'none');
+  idleUI();
 }
 
 function hideState() {
+  DEAD = false;
   $('#stateCard').css('display', 'none');
   $('#ctxCard,#moveCard,#ordCard').css('display', 'block');
 }
 
 function idleUI() {
-  $('#roBanner').toggleClass('show', !GRANT.modify);
-  $('#applyBtn,#moveBtn,#discardBtn').prop('disabled', BUSY || !GRANT.modify);
-  $('#targetSel,#posSel,#specSel').prop('disabled', BUSY || !GRANT.modify);
-  if (!GRANT.modify) { $('#specSel').prop('disabled', false); }
+  var off = BUSY || DEAD || !GRANT.modify;
+  // The read-only banner describes a user who CAN see the screen but must not
+  // change it; it must never appear on an error page.
+  $('#roBanner').toggleClass('show', !DEAD && !GRANT.modify);
+  $('#applyBtn,#moveBtn,#discardBtn').prop('disabled', off);
+  $('#targetSel,#posSel,#specSel').prop('disabled', off);
+  if (!DEAD && !GRANT.modify) { $('#specSel').prop('disabled', false); }
 }
 
 function applyRowState() {
@@ -405,6 +417,7 @@ function load(keepMsg) {
 }
 
 function doMove() {
+  if (DEAD) { return; }
   if (BUSY) { return; }
   if (!PICKED) { showMsg(false, t('reqtr.errNoSel')); return; }
   var target = parseInt($('#targetSel').val() || '0', 10);
@@ -445,6 +458,7 @@ function sendMove(target, pos) {
 }
 
 function applyOrder() {
+  if (DEAD) { return; }
   if (BUSY) { return; }
   if (ITEMS.length < 2) { showMsg(true, t('reqtr.nothing')); return; }
   var ids = ITEMS.map(function (x) { return x.id; });
@@ -480,6 +494,7 @@ function sendOrder() {
 }
 
 function discard() {
+  if (DEAD) { return; }
   if (BUSY) { return; }
   PICKED = 0;
   load(true);
