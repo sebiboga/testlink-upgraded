@@ -26273,3 +26273,83 @@ while the SELECT projected neither column, so every requirement answered the con
   `containers: []` and `children&container=` answers `400 child_requirements_mgmt_disabled`.
   The default is ENABLED, so the gate was not reachable in this dataset and is verified by code
   reading rather than by a run.
+
+---
+
+## Regression — Issue #1618: a non-existent `?id=` on the Issue Tracker list must not create a phantom grid row (nor log the 8 `E_WARNING`s) — **already fixed upstream, verified as a no-op**
+
+**Precondition.** Fresh DB. `admin`/`admin` logged in via `POST /api/auth/login`.
+One fixture of each: `issuetrackers` id=1 (`type=2`, bugzilla/`db`, `cfg` XML with
+`uribase`/`dbtype`/`dbhost`/`dbname`/`dbuser`/`dbpassword` all present, host
+`127.0.0.1:1` = deliberately unreachable) and `reqmgrsystems` id=1 (`type=1` — the
+**only** key of `tlReqMgrSystem::$systems`, `lib/functions/tlReqMgrSystem.class.php:33`).
+`events` is emptied before each step and only `log_level=2` (`E_WARNING`) rows are
+counted, because the #1618 defect's signature was 8 template-raised `E_WARNING`s.
+
+**Harness.** `bash tmp/verify_1618.sh` (exit 0 = all PASS).
+
+**Repro steps (pre-fix, as reported in the issue).**
+1. `GET /lib/issuetrackers/issueTrackerView.php?tproject_id=1&id=999`
+2. observe one extra blank grid row and 8 new `E_WARNING` rows in `events`.
+
+**Expected post-fix behaviour.** The `?id=` that matches no tracker is ignored; the
+grid holds exactly the real rows; **0** new `E_WARNING` rows.
+
+| # | Check | Expected | Measured | Result |
+|---|---|---|---|---|
+| M1 | `GET /api/issuetracker/?tproject_id=1` (modern BFF list) | `total` == 1 == real row count, 0 new events | `total=1`, `items` = 1, 0 new rows | **PASS** |
+| M2 | `GET /api/issuetracker/1/check-connection` (real id) | HTTP 200/502 **with** a verdict body, 0 new `E_WARNING` | `http=502`, body carries `connected`, 0 new `E_WARNING` (one `log_level=1` ERROR, which is the *correct* log for a deliberately dead host) | **PASS** |
+| M3 | `GET /api/issuetracker/999/check-connection` (**bogus id**) | `404` + "not found", **0** new events | `http=404`, `{"status":"error","message":"Issue tracker not found"}`, 0 new rows | **PASS** |
+| M4 | `GET /lib/issuetrackers/issueTrackerView.php?tproject_id=1&id=999` (the reported route) | `404` — controller deleted | `http=404`, 596-byte built-in-server stub, 0 new rows | **PASS** |
+| M5 | same route **without** `id` | `404` | `http=404`, 0 new rows | **PASS** |
+| M6 | `GET /lib/reqmgrsystems/reqMgrSystemView.php?tproject_id=1&id=999` (surviving twin of the pattern) | `200`, edit-links == 1 == real row count, 0 new events | `http=200`, 1 `doAction=edit` link, 0 new rows | **PASS** |
+| M7 | same route **without** `id` | `200`, 1 edit link, 0 new events | `http=200`, 1 link, 0 new rows | **PASS** |
+| M8 | `GET /api/reqmgrsystems/?tproject_id=1` (modern twin BFF) | `total` == 1, 0 new events | `total=1`, 0 new rows | **PASS** |
+
+**Result: 8/8 PASS, harness exit 0.**
+
+**Browser confirmation (headless Chrome, `admin`/`admin`).**
+
+- `gui/templates/issuetracker/issuetrackerView.html?tproject_id=1` → DataTables
+  footer reads **"Showing 1 to 1 of 1 entries"**; the single row is the fixture
+  (`IT-FIXTURE-1618` · `bugzilla (Interface: db)` · `http://127.0.0.1:1/` · env `OK`).
+  No blank row, no un-clickable stub.
+- Same URL **plus `&id=999`** → still **"Showing 1 to 1 of 1 entries"**, row count
+  unchanged. The modern screen ignores a bogus `id` for the list, as M1/M3 show.
+- Wrench ("Check connection") clicked on the real row → modal/toast, no crash.
+- **Console: 0 errors, 0 warnings.**
+- Screenshot: `tmp/1618-issuetracker-bogus-id.png`.
+
+**Notes / why this suite is a no-op by design.**
+
+- The report is **stale by one commit**. `596444f30` ("chore(issuetracker): delete
+  legacy issuetrackerView cluster (Refs #966)", merged `2026-09-27T19:41:11+03:00`)
+  removed **both** files named in the report — `lib/issuetrackers/issueTrackerView.php`
+  (66 lines, auto-vivifying assignment at `:27-28`) and
+  `gui/templates/dashio/issuetrackers/issueTrackerView.tpl` (108 lines, the
+  `{foreach key=item_id …}` at `:51-52` that raised the 8 warnings) — **after** the
+  issue was filed `2026-09-26T13:36:47Z` by the #1617 run (`CHANGELOG:1144`).
+- The one surviving copy of the pattern is already guarded, by the fix for the
+  twin issue **#1625**: `lib/reqmgrsystems/reqMgrSystemView.php:28` reads
+  `if($args->id > 0 && isset($gui->items[$args->id]))`, with an in-code comment
+  naming #1625. That is verbatim the fix the report suggested.
+- The modern replacement cannot auto-vivify: `api/issuetracker/index.php:128-134`
+  appends into a **list** (`$items[] = trackerToJSON(...)`), never an id-keyed map,
+  and resolves the probe through a route that 404s on a missing id
+  (`api/issuetracker/index.php:196-200`).
+- **Fixture trap worth remembering:** using `type=2` for a `reqmgrsystems` fixture
+  raises 6 `E_WARNING`s per load from `tlReqMgrSystem.class.php:522/523/113` —
+  that is the separate, already-tracked **#1626** ("row whose type is not in
+  `$systems`"), *not* #1618. `tlReqMgrSystem::$systems` has exactly one entry,
+  `1 => contour/soap`. A `cfg` that is a bare JSON blob instead of an XML string
+  makes `issueTrackerInterface::setCfg()` log
+  `Failure loading XML STRING` (`issueTrackerInterface.class.php:121`) — also
+  unrelated. Both were filtered out so the matrix measures only the phantom-row
+  defect.
+- Two genuinely new defects were found while building this matrix and were
+  **filed, not fixed** (FIX-ISSUE.md §4): **#1700**
+  (`issueTrackerInterface.class.php:202` reads `$this->cfg->dbhost`/`dbuser`
+  unguarded → `E_WARNING Undefined property: stdClass::$dbhost` for a cfg without
+  db nodes) and **#1701** (`api/issuetracker/index.php:217` logs
+  `" Object of class stdClass could not be converted to string"` with no
+  provenance, because `__METHOD__` is `""` at the top level of a request script).
