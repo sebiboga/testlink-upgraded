@@ -49,13 +49,25 @@
  * Ownership of a specification is read from req_specs.testproject_id, which
  * keeps its own project link (nodes_hierarchy does not - see #1660).
  *
+ * Refs #1699 (container parity): with req_cfg->child_requirements_mgmt ENABLED
+ * (the default, config.inc.php:1689) a node_type_id = 1 TEST PROJECT node can
+ * be re-parented under a specification, and requirements then hang off that
+ * container. The legacy loader walked ANY child node type, so the container and
+ * its requirements appeared in the old tree; this navigator used to list only
+ * requirements parented by the specification itself and dropped the whole
+ * branch without a trace. specList() now reports the containers and children
+ * accepts &container=, both behind the same rights + ownership proof.
+ *
  * Endpoints (JSON in/out, GET only - this screen writes nothing):
  *   GET ?action=init&tproject_id=N
  *        -> context + rights + the project node + its specification children
- *           (doc_id, title, revision, total requirement count, author).
- *   GET ?action=children&tproject_id=N&node_id=M
+ *           (doc_id, title, revision, total requirement count, author, and the
+ *           CONTAINERS the specification holds - Refs #1699).
+ *   GET ?action=children&tproject_id=N&node_id=M[&container=K]
  *        -> the lazy-load contract of lib/ajax/getrequirementnodes.php: the
- *           requirements of specification M (M is proven to belong to N).
+ *           requirements of specification M (M is proven to belong to N). With
+ *           &container=K it returns the requirements parented by container K,
+ *           which is proven to be a node_type_id = 1 child of M.
  *   GET ?action=projects
  *        -> the requirement-enabled test projects the caller may read, so the
  *           screen can offer a project switcher (the legacy frame always used
@@ -119,6 +131,7 @@ $reqSpecMgr = new requirement_spec_mgr($db);
 $reqMgr     = new requirement_mgr($db);
 $tprojMgr   = new testproject($db);
 
+define('NODE_TYPE_TESTPROJECT',      1);
 define('NODE_TYPE_REQUIREMENT_SPEC', 6);
 define('NODE_TYPE_REQUIREMENT',      7);
 
@@ -184,21 +197,100 @@ function canViewReqs($user, $tproject_id)
 }
 
 /**
+ * req_cfg->child_requirements_mgmt (config.inc.php:1689, ENABLED by default).
+ *
+ * When it is on, TestLink allows a TEST PROJECT node to be re-parented under a
+ * requirement specification and requirements to hang off that container. The
+ * legacy lazy loader walked any child node type, so such a container - and the
+ * requirements under it - appeared in the old tree. When it is off, the legacy
+ * loader still *listed* the container (the node-type filter is unrelated to the
+ * flag) but the drag-and-drop refused the pairing
+ * ($forbidden_parent['requirement_spec'] = 'none' becomes 'requirement_spec'),
+ * i.e. the shape was not part of the supported UI. The modern navigator mirrors
+ * that: the flag decides whether the container branch is offered at all.
+ */
+function childRequirementsMgmtEnabled()
+{
+    $cfg = config_get('req_cfg');
+    $enabled = (is_object($cfg) && isset($cfg->child_requirements_mgmt))
+        ? $cfg->child_requirements_mgmt : ENABLED;
+    return (intval($enabled) > 0) ? 1 : 0;
+}
+
+/**
+ * Requirement count of a container (a node_type_id = 1 node that a specification
+ * holds as a child). The legacy label counted through tree::getAllItemsID(), so
+ * this live count is the faithful equivalent: it is the number of requirement
+ * rows parented by the container, in tree order.
+ */
+function containerReqCount($containerId)
+{
+    global $db, $reqMgr;
+    $rows = $db->get_recordset(
+        'SELECT COUNT(1) AS c FROM ' . $reqMgr->object_table . ' R' .
+        ' JOIN nodes_hierarchy NH ON NH.id = R.id' .
+        '   AND NH.node_type_id = ' . NODE_TYPE_REQUIREMENT .
+        ' WHERE R.srs_id = ' . intval($containerId));
+    return ($rows && $rows[0]) ? intval($rows[0]['c']) : 0;
+}
+
+/**
+ * The node_type_id = 1 children of a specification - the containers that hold
+ * further requirements. Only returned when child_requirements_mgmt is enabled.
+ *
+ * The node is proved to be a container OF THIS SPECIFICATION here (parent_id),
+ * and the specification it hangs under has already been proved to belong to the
+ * addressed project by needOwnedSpec() before this runs - so a container id can
+ * never leak the name of a node from another project.
+ */
+function containerChildren($specId, $tproject_id)
+{
+    global $db, $tprojMgr, $user;
+    $rows = $db->get_recordset(
+        'SELECT NH.id, NH.name AS title, NH.node_order' .
+        ' FROM nodes_hierarchy NH' .
+        ' WHERE NH.parent_id = ' . intval($specId) .
+        '   AND NH.node_type_id = ' . NODE_TYPE_TESTPROJECT .
+        ' ORDER BY NH.node_order ASC, NH.id ASC');
+
+    $out = array();
+    foreach (($rows ? $rows : array()) as $r) {
+        $cid = intval($r['id']);
+        $info = $tprojMgr->get_by_id($cid);
+        $out[] = array(
+            'id'            => $cid,
+            'title'         => (string)$r['title'],
+            'node_order'    => intval($r['node_order']),
+            'total_reqs'    => containerReqCount($cid),
+            'tproject_id'   => $cid,
+            // A container that is a real, readable test project of its own gets
+            // a deep link into the project ("EP(<id>)" in the legacy loader).
+            // One that is only a node (deleted project, or requirements of a
+            // project the caller may not read) still renders, but without a
+            // link, so the tree never offers a destination that 403s.
+            'openable'      => (!is_null($info) && isset($info['name'])
+                                && canViewReqs($user, $cid)) ? 1 : 0,
+        );
+    }
+    return $out;
+}
+
+/**
  * Specification list of a project, ordered the way the legacy tree ordered it
  * (nodes_hierarchy.node_order ASC, id ASC) so the modern navigator and the
  * legacy one present the specifications in the same sequence.
  *
  * The count is the live number of requirement rows parented by the
  * specification, NOT the denormalised req_specs_revisions.total_req (the #1681
- * lesson).
+ * lesson). It does NOT include the requirements that hang off a container the
+ * specification holds: those are counted on the container row, exactly as the
+ * legacy tree showed them (spec label = direct children, container label = its
+ * own children).
  *
- * KNOWN GAP vs 1.9.20: when req_cfg->child_requirements_mgmt is on, TestLink
- * also allows a TEST PROJECT node to be re-parented under a specification
- * (requirements then hang off that container). The legacy lazy loader walked
- * any child node type, so such a container - and the requirements under it -
- * appeared in the old tree. This navigator is read-only and lists the
- * requirements of the specification itself only, so a container child is not
- * shown. Tracked separately (see the task issue referenced by #1695).
+ * Refs #1699: `containers` carries the node_type_id = 1 children of the
+ * specification when req_cfg->child_requirements_mgmt is on - the shape the
+ * legacy lazy loader walked with getAllItemsID() and the modern navigator used
+ * to drop silently.
  */
 function specList($tproject_id)
 {
@@ -214,14 +306,18 @@ function specList($tproject_id)
         ' WHERE RS.testproject_id = ' . intval($tproject_id) .
         ' ORDER BY NH.node_order ASC, RS.id ASC');
 
+    $withContainers = childRequirementsMgmtEnabled();
     $out = array();
     foreach (($rows ? $rows : array()) as $r) {
+        $sid = intval($r['id']);
         $out[] = array(
-            'id'          => intval($r['id']),
+            'id'          => $sid,
             'doc_id'      => (string)$r['doc_id'],
             'title'       => (string)$r['title'],
             'node_order'  => intval($r['node_order']),
             'total_reqs'  => intval($r['total_reqs']),
+            'containers'  => $withContainers
+                ? containerChildren($sid, $tproject_id) : array(),
         );
     }
     return $out;
@@ -258,6 +354,32 @@ function needOwnedSpec($specId, $tproject_id)
     return $sid;
 }
 
+/**
+ * A container id must be a node_type_id = 1 node whose parent_id is the
+ * addressed specification - and that specification is already proven to belong
+ * to the addressed project by needOwnedSpec(). The chain is what keeps the
+ * legacy loader's missing scope check closed: a project node from anywhere else
+ * in the installation is not a child of this spec, so it fails here with the
+ * same 404 as a non-existent node (no node-existence oracle).
+ */
+function needOwnedContainer($containerId, $specId)
+{
+    global $db;
+    $cid = intval($containerId);
+    if ($cid <= 0) {
+        failOut(400, 'Invalid container id', 'invalid_container');
+    }
+    $rows = $db->get_recordset(
+        'SELECT id FROM nodes_hierarchy' .
+        ' WHERE id = ' . $cid .
+        '   AND node_type_id = ' . NODE_TYPE_TESTPROJECT .
+        '   AND parent_id = ' . intval($specId));
+    if (!$rows) {
+        failOut(404, 'Container not found', 'container_not_found');
+    }
+    return $cid;
+}
+
 /** Total requirement count of a project (the legacy root-node label). */
 function projectReqCount($tproject_id)
 {
@@ -270,17 +392,27 @@ function projectReqCount($tproject_id)
 }
 
 /**
- * Requirements parented by a specification, in tree order - the third level of
- * the legacy navigator, and the body of the lazy-load answer. Only the fields
- * the tree rendered (doc_id, name, latest-version status) plus the modern deep
- * link are returned.
+ * Requirements parented by a specification OR by a container it holds, in tree
+ * order - the third level of the legacy navigator, and the body of the
+ * lazy-load answer. Only the fields the tree rendered (doc_id, name,
+ * latest-version status) plus the modern deep link are returned.
+ *
+ * $srsId is any node id that can legally hold requirements: a specification
+ * (node_type_id 6) or a container (node_type_id 1). The caller proves which one
+ * it is - needOwnedSpec() for the former, needOwnedContainer() for the latter -
+ * before this runs, so this function never has to re-derive the ownership.
+ *
+ * Refs #1699: `type` and `version` used to be emitted from keys the SELECT never
+ * projected, so every requirement came back with the constant pair "type":"",
+ * "version":0. They are now projected (requirement_type / latest version no),
+ * or dropped by the caller; see STATUS V.
  */
-function requirementChildren($specId)
+function requirementChildren($srsId)
 {
     global $db, $reqMgr;
     $rows = $db->get_recordset(
         'SELECT R.id, R.req_doc_id, NH.name AS title, NH.node_order,' .
-        ' V.status' .
+        ' V.status, V.type, V.version' .
         ' FROM ' . $reqMgr->object_table . ' R' .
         ' JOIN nodes_hierarchy NH ON NH.id = R.id' .
         '   AND NH.node_type_id = ' . NODE_TYPE_REQUIREMENT .
@@ -289,7 +421,7 @@ function requirementChildren($specId)
         '   AND VN.id = (SELECT MAX(VN2.id) FROM nodes_hierarchy VN2' .
         '        WHERE VN2.parent_id = R.id AND VN2.node_type_id = 8)' .
         ' LEFT JOIN req_versions V ON V.id = VN.id' .
-        ' WHERE R.srs_id = ' . intval($specId) .
+        ' WHERE R.srs_id = ' . intval($srsId) .
         ' ORDER BY NH.node_order ASC, R.id ASC');
 
     $out = array();
@@ -345,15 +477,35 @@ if ($action === 'init') {
 // The lazy-load answer of lib/ajax/getrequirementnodes.php?node=<id>. The node
 // is proven to be a requirement specification of the addressed project before
 // any requirement name is returned.
+//
+// Refs #1699: with &container=<node_id> the same answer is produced for a
+// CONTAINER - a node_type_id = 1 node a specification holds as a child
+// (req_cfg->child_requirements_mgmt). Without the parameter the node must be a
+// specification; with it the node must be a container OF that specification.
+// A container of a specification of another project fails the spec proof first
+// (404 req_spec_not_found), a container that is not a child of the addressed
+// specification fails the container proof (404 container_not_found) - both
+// indistinguishable from "no such node".
 if ($action === 'children') {
     if ($method !== 'GET') {
         failOut(405, 'This action only accepts GET', 'wrong_method');
     }
     $tproject_id = needTprojectId();
     $specId = needOwnedSpec(param('node_id', 0), $tproject_id);
+    $containerId = intval(param('container', 0));
+    if ($containerId > 0) {
+        if (!childRequirementsMgmtEnabled()) {
+            failOut(400, 'Child requirement management is disabled',
+                'child_requirements_mgmt_disabled');
+        }
+        $parentId = needOwnedContainer($containerId, $specId);
+    } else {
+        $parentId = $specId;
+    }
     out(array(
         'status'  => 'ok',
-        'children' => requirementChildren($specId),
+        'children' => requirementChildren($parentId),
+        'parent_kind' => ($parentId === $specId) ? 'spec' : 'container',
     ));
 }
 
