@@ -5496,5 +5496,6 @@
   "rsf.simpleFilters": "Simple Filters",
   "rsf.showCFields": "Show custom field filters",
   "rsf.filterActive": "filter active",
-  "rsf.matchesOf": "{n} matching requirement(s)"
+  "rsf.matchesOf": "{n} matching requirement(s)",
+  "rsf.selectionTrimmed": "Only the first selected value is kept in Simple Filters mode"
 }

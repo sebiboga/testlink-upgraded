@@ -5466,5 +5466,6 @@
   "rsf.simpleFilters": "简单过滤器",
   "rsf.showCFields": "显示自定义字段过滤器",
   "rsf.filterActive": "过滤器已启用",
-  "rsf.matchesOf": "匹配 {n} 个需求"
+  "rsf.matchesOf": "匹配 {n} 个需求",
+  "rsf.selectionTrimmed": "简单过滤器模式下只保留所选值的第一个"
 }

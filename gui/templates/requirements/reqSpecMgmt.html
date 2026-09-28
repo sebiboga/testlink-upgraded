@@ -74,7 +74,7 @@ table.dataTable tbody td { padding: 8px 14px; font-size: 13px; vertical-align: m
 .fp-cb { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #555; }
 .fp-cb input { margin: 0; }
 .cf-row { border-top: 1px dashed #e3e6ea; margin-top: 10px; padding-top: 10px; }
-.match-badge { background: #eefaf9; color: #2d8e88; border: 1px solid #bfe5e2; }
+.match-badge { background: #4ECDC4; color: #10312f; border: 1px solid #3dbdb5; }
 </style>
 </head>
 <body>
@@ -419,7 +419,7 @@ function currentFilters() {
   var f = {
     doc_id: $.trim($('#fDocId').val()),
     title: $.trim($('#fTitle').val()),
-    coverage: parseInt($('#fCoverage').val() || '0', 10),
+    coverage: parseInt($('#fCoverage').val() || '0', 10) || 0,
     tc_id: $.trim($('#fTcId').val())
   };
   ['status', 'type', 'specType', 'relation'].forEach(function (k) {
@@ -429,15 +429,19 @@ function currentFilters() {
     if ($.inArray(anyValue(), f[k]) !== -1) { f[k] = []; }
   });
   var cf = {};
-  $('#fCFields input').each(function () {
-    var v = $.trim($(this).val());
-    if (v !== '') { cf[$(this).data('cfid')] = v; }
-  });
+  if ($('#fCFields').is(':visible')) {
+    $('#fCFields input').each(function () {
+      var v = $.trim($(this).val());
+      if (v !== '') { cf[parseInt($(this).data('cfid'), 10)] = v; }
+    });
+  }
   f.cf = cf;
   return f;
 }
 
+// f === null means "no filter applied yet" (before Apply / after a reset)
 function filterQuery(f) {
+  if (!f) { return ''; }
   var p = [];
   if (f.doc_id !== '') { p.push('filter_doc_id=' + encodeURIComponent(f.doc_id)); }
   if (f.title !== '') { p.push('filter_title=' + encodeURIComponent(f.title)); }
@@ -455,7 +459,7 @@ function filterQuery(f) {
   return p.length ? '&' + p.join('&') : '';
 }
 
-function hasActiveFilters(f) { return filterQuery(f) !== ''; }
+function hasActiveFilters(f) { return filterQuery(f || {}) !== ''; }
 
 function initFilterPanel() {
   var cfg = filterCfg();
@@ -481,7 +485,7 @@ function initFilterPanel() {
     $cfs.empty();
     $.each(options.filterCFields || [], function (i, cf) {
       $cfs.append('<div><label>' + esc(cf.label) + '</label>' +
-        '<input type="text" data-cfid="' + cf.id + '" maxlength="100"></div>');
+        '<input type="text" data-cfid="' + parseInt(cf.id, 10) + '" maxlength="100"></div>');
     });
     $('#fShowCFields').on('change', function () { $cfs.toggle(this.checked); });
   }
@@ -489,6 +493,9 @@ function initFilterPanel() {
   if (cfg.modeChoice) {
     $('#btnFilterMode').show().text(filterModeLabel());
   }
+  // legacy default of setting_refresh_tree_on_action comes from
+  // tree_filter_cfg->requirements->automatic_tree_refresh
+  if (cfg.autoRefresh === false) { $('#fAutoUpdate').prop('checked', false); }
 }
 
 function filterModeLabel() {
@@ -499,9 +506,18 @@ function filterModeLabel() {
 // <select multiple> (inc_filter_panel.tpl l.601-627, l.640-648, l.662-670)
 function toggleFilterMode() {
   advancedMode = !advancedMode;
-  $('#fStatus, #fType, #fSpecType, #fRelation').each(function () {
-    $(this).attr('multiple', advancedMode).height(advancedMode ? 92 : '');
-  });
+  var $sels = $('#fStatus, #fType, #fSpecType, #fRelation');
+  if (!advancedMode) {
+    // leaving multi mode keeps only the first ticked value: warn instead of
+    // silently narrowing the filter
+    var dropped = false;
+    $sels.each(function () {
+      var v = $(this).val() || [];
+      if ($.isArray(v) && v.length > 1) { dropped = true; }
+    });
+    if (dropped) { toast(TLi18n.t('rsf.selectionTrimmed')); }
+  }
+  $sels.each(function () { $(this).attr('multiple', advancedMode); });
   $('#btnFilterMode').text(filterModeLabel());
 }
 
@@ -536,7 +552,7 @@ function renderDomains() {
 }
 
 function loadSpecs() {
-  var fq = filterQuery(activeFilters || currentFilters());
+  var fq = filterQuery(activeFilters);
   $.getJSON(API + '?action=specs&tproject_id=' + tprojectId + fq, function (r) {
     if (r.status !== 'ok') { toast(TLi18n.t('common.error'), true); return; }
     specsCache = r.specs || [];
@@ -575,10 +591,13 @@ function renderSpecs(items) {
       action = '<span class="muted"><i class="fas fa-eye" title="' + esc(TLi18n.t('rs.viewOnly')) + '"></i></span>';
     }
 
+    // Refs #1025: while filtering, the Reqs cell shows the number of MATCHING
+    // requirements of the spec subtree (what the legacy tree counted), with the
+    // unfiltered total in the tooltip.
+    var shown = filtering ? s.match_count : s.req_count;
     var reqBadge = '<span class="req-count-badge' + (filtering ? ' match-badge' : '') + '"'
       + (filtering ? ' title="' + esc(TLi18n.t('rsf.matchesOf', { n: s.req_count })) + '"' : '')
-      + '>' + (filtering ? (s.match_count === null ? s.req_count : s.match_count) : s.req_count)
-      + '</span>';
+      + '>' + shown + '</span>';
 
     return [
       '<span class="doc-id">' + esc(s.doc_id) + '</span>',
@@ -646,9 +665,13 @@ function currentSpecTitle(id) {
   return found ? found.title : '';
 }
 
+function reqsUrl(specId) {
+  return API + '?action=reqs&spec_id=' + specId + '&tproject_id=' + tprojectId
+       + filterQuery(activeFilters);
+}
+
 function loadReqs(specId) {
-  var fq = filterQuery(activeFilters || currentFilters());
-  $.getJSON(API + '?action=reqs&spec_id=' + specId + '&tproject_id=' + tprojectId + fq,
+  $.getJSON(reqsUrl(specId),
     function (r) {
     if (r.status !== 'ok') { toast(TLi18n.t('common.error'), true); return; }
     renderReqs(r.requirements || []);

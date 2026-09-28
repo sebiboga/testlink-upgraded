@@ -5480,5 +5480,6 @@
   "rsf.simpleFilters": "Einfache Filter",
   "rsf.showCFields": "Filter fuer benutzerdefinierte Felder anzeigen",
   "rsf.filterActive": "Filter aktiv",
-  "rsf.matchesOf": "{n} passende Anforderung(en)"
+  "rsf.matchesOf": "{n} passende Anforderung(en)",
+  "rsf.selectionTrimmed": "Im einfachen Filtermodus wird nur der erste gewaehlte Wert beibehalten"
 }

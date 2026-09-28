@@ -5480,5 +5480,6 @@
   "rsf.simpleFilters": "Filtres simples",
   "rsf.showCFields": "Afficher les filtres de champs personnalises",
   "rsf.filterActive": "filtre actif",
-  "rsf.matchesOf": "{n} exigence(s) correspondante(s)"
+  "rsf.matchesOf": "{n} exigence(s) correspondante(s)",
+  "rsf.selectionTrimmed": "En mode filtres simples, seule la premiere valeur selectionnee est conservee"
 }

@@ -5490,5 +5490,6 @@
   "rsf.simpleFilters": "Filtre simple",
   "rsf.showCFields": "Afiseaza filtrele pentru campuri personalizate",
   "rsf.filterActive": "filtru activ",
-  "rsf.matchesOf": "{n} cerinta(e) potrivita(e)"
+  "rsf.matchesOf": "{n} cerinta(e) potrivita(e)",
+  "rsf.selectionTrimmed": "In modul Filtre simple se pastreaza doar prima valoare selectata"
 }

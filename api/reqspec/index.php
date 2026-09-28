@@ -273,9 +273,19 @@ function bulkMonPayload(&$reqSpecMgr, &$reqMgr, &$db, $specId, $userId, $ownerTi
 //     the ANY key (0, tlFilterControl::ANY) -> null
 //   * coverage             non numeric or <= 0 -> null
 //   * tc_id                equal to "<prefix><glue>" -> null (legacy l.520)
-function readReqFilters(&$db, $tproject_id) {
-    $glue = config_get('testcase_cfg')->glue_character;
-    $prefix = testproject::getTestCasePrefix($db, $tproject_id) . $glue;
+function reqTcPrefixGlue($db, $tproject_id) {
+    global $tprojectMgr;
+    return $tprojectMgr->getTestCasePrefix($tproject_id)
+         . config_get('testcase_cfg')->glue_character;
+}
+
+function readReqFilters($db, $tproject_id) {
+    // cheap gate: nothing to normalize when no filter_* param was sent
+    $hasFilter = false;
+    foreach ($_REQUEST as $k => $v) {
+        if (strpos($k, 'filter_') === 0) { $hasFilter = true; break; }
+    }
+    $prefix = $hasFilter ? reqTcPrefixGlue($db, $tproject_id) : '';
 
     $arr = function ($raw) {
         if ($raw === null) { return []; }
@@ -406,9 +416,13 @@ function reqFilterSql(&$db, $tproject_id, $f) {
 }
 
 /**
- * map requirement id -> spec id for every requirement matching the filters
- * (latest version only, exactly like the legacy map fed by fetchRowsIntoMap on
- * "ORDER BY RV.version DESC"). Empty map when no filter is active.
+ * map requirement id -> spec id for every requirement matching the filters.
+ * Deliberate deviation from legacy: the predicate is evaluated on the LATEST
+ * version only (legacy builds the map from every version row, so a requirement
+ * whose OLDER version matched the filter was kept). The requirement tables of
+ * this screen only ever show the latest version, so pinning the version keeps
+ * the spec list and the requirement list consistent. Empty map when no filter
+ * is active (the caller then skips filtering altogether).
  */
 function reqFilteredMap(&$db, $tproject_id, $f) {
     if (!$f['active']) { return null; }
@@ -481,37 +495,39 @@ if ($method === 'GET' && $action === 'options') {
 
     // "Has relation of type" items, same key scheme as
     // requirement_mgr::init_relation_type_select() with the _source suffix
-    // stripped for EQUAL relations (tlRequirementFilterControl l.473-479).
+    // REMOVED for EQUAL relations (tlRequirementFilterControl l.473-479): a
+    // bare key makes get_filtered_req_map() fall into its "either side"
+    // branch, which is what an equal (symmetric) relation must match.
     $relationTypes = [];
     $relationsEnabled = (is_object($cfg) && isset($cfg->relations)
                          && boolishConfig($cfg->relations, 'enable', true));
     if ($relationsEnabled) {
         $labels = $reqMgr->get_all_relation_labels();
         foreach ($labels as $key => $lab) {
-            $relationTypes[(string)$key . '_source'] = (string)$lab['source'];
-            if ($lab['source'] != $lab['destination']) {
+            $equal = ($lab['source'] == $lab['destination']);
+            $relationTypes[(string)$key . ($equal ? '' : '_source')] = (string)$lab['source'];
+            if (!$equal) {
                 $relationTypes[(string)$key . '_destination'] = (string)$lab['destination'];
             }
         }
     }
-    if (!$relationsEnabled) { $relationTypes = []; }
 
     // custom fields linked to the project (legacy getCustomFields())
     $cfieldsFilter = [];
-    $cfMap = $reqMgr->get_linked_cfields(null, null, $tproject_id);
-    if (!empty($cfMap)) {
-        foreach ($cfMap as $cf) {
-            $cfieldsFilter[] = [
-                'id'    => intval($cf['id']),
-                'label' => (string)$cf['label'],
-                'name'  => (string)$cf['name'],
-            ];
+    if ($reqFilterEnabled('filter_custom_fields')) {
+        $cfMap = $reqMgr->get_linked_cfields(null, null, $tproject_id);
+        if (!empty($cfMap)) {
+            foreach ($cfMap as $cf) {
+                $cfieldsFilter[] = [
+                    'id'    => intval($cf['id']),
+                    'label' => (string)$cf['label'],
+                    'name'  => (string)$cf['name'],
+                ];
+            }
         }
     }
-    if (!$reqFilterEnabled('filter_custom_fields')) { $cfieldsFilter = []; }
 
-    $tcPrefixGlue = $tprojectMgr->getTestCasePrefix($tproject_id)
-                    . config_get('testcase_cfg')->glue_character;
+    $tcPrefixGlue = reqTcPrefixGlue($db, $tproject_id);
 
     out([
         'status' => 'ok',
@@ -552,6 +568,11 @@ if ($method === 'GET' && $action === 'options') {
             'modeChoice'    => ($reqFilterCfg !== null
                                 && isset($reqFilterCfg->advanced_filter_mode_choice)
                                 && $reqFilterCfg->advanced_filter_mode_choice == ENABLED),
+            // legacy default of the setting_refresh_tree_on_action checkbox
+            // (tlRequirementFilterControl l.319 -> automatic_tree_refresh)
+            'autoRefresh'   => ($reqFilterCfg === null
+                                || !isset($reqFilterCfg->automatic_tree_refresh)
+                                || $reqFilterCfg->automatic_tree_refresh == ENABLED),
         ],
         'relationTypes' => $relationTypes,
         'filterCFields' => $cfieldsFilter,
@@ -597,13 +618,40 @@ if ($method === 'GET' && $action === 'specs') {
         }
     }
 
+    // child specs of every spec, resolved in ONE query (no per-row round-trip)
+    $subtreeCache = [];
+    if ($map !== null) {
+        $kids = $db->get_recordset(
+            'SELECT rs.id, nh.parent_id FROM nodes_hierarchy nh' .
+            ' JOIN req_specs rs ON rs.id = nh.id' .
+            ' WHERE rs.testproject_id = ' . intval($tproject_id) .
+            ' AND nh.parent_id IS NOT NULL');
+        $childrenOf = [];
+        foreach (($kids ? $kids : []) as $k) {
+            $childrenOf[intval($k['parent_id'])][] = intval($k['id']);
+        }
+        foreach (($rows ? $rows : []) as $r) {
+            $stack = [intval($r['id'])];
+            $seen = [];
+            while (count($stack)) {
+                $cur = array_pop($stack);
+                if (isset($seen[$cur])) { continue; }
+                $seen[$cur] = true;
+                foreach (isset($childrenOf[$cur]) ? $childrenOf[$cur] : [] as $child) {
+                    $stack[] = $child;
+                }
+            }
+            $subtreeCache[intval($r['id'])] = array_keys($seen);
+        }
+    }
+
     $out = [];
     foreach (($rows ? $rows : []) as $r) {
         $specId = intval($r['id']);
         $matchCnt = null;
         if ($map !== null) {
             $matchCnt = 0;
-            foreach (reqSpecSubtreeIds($db, $specId) as $sid) {
+            foreach ($subtreeCache[$specId] as $sid) {
                 if (isset($matchCountBySpec[$sid])) { $matchCnt += $matchCountBySpec[$sid]; }
             }
             if ($matchCnt === 0) { continue; }   // empty spec: delete_node

@@ -5486,5 +5486,6 @@
   "rsf.simpleFilters": "簡易フィルタ",
   "rsf.showCFields": "カスタムフィールドのフィルタを表示",
   "rsf.filterActive": "フィルタ適用中",
-  "rsf.matchesOf": "一致する要件 {n} 件"
+  "rsf.matchesOf": "一致する要件 {n} 件",
+  "rsf.selectionTrimmed": "簡易フィルタモードでは選択した値の最初の1つだけが保持されます"
 }
