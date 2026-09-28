@@ -282,6 +282,17 @@ if ($action === 'init') {
     }
     $tproject_id = needTprojectId();
 
+    // Rights are decided FIRST, on the project the caller asked for. Resolving
+    // the node before this point would turn the endpoint into an existence
+    // oracle: a user with no rights here got 404 "requirement_not_found" for a
+    // foreign id but 403 for one that exists, which is exactly the cross-project
+    // probe this endpoint must not answer.
+    $canSee = $user->hasRight($db, 'mgt_view_req', $tproject_id) ||
+              $user->hasRight($db, 'mgt_modify_req', $tproject_id);
+    if (!$canSee) {
+        failOut(403, 'You are not authorized to view requirements', 'no_right');
+    }
+
     $specId = intval(param('req_spec_id', 0));
     $nodeId = intval(param('node_id', 0));
     $selectedNode = null;
@@ -305,12 +316,6 @@ if ($action === 'init') {
         $specId = needOwnedSpec($specId, $tproject_id);
     }
 
-    // Can the caller even see this project?
-    $canSee = $user->hasRight($db, 'mgt_view_req', $tproject_id) ||
-              $user->hasRight($db, 'mgt_modify_req', $tproject_id);
-    if (!$canSee) {
-        failOut(403, 'You are not authorized to view requirements', 'no_right');
-    }
     if ($selectedNode !== null && $ownerTid !== $tproject_id) {
         failOut(404, 'Requirement does not exist in this test project',
                 'requirement_not_found');
@@ -366,6 +371,25 @@ if ($action === 'move') {
     }
     $newSpecId = needOwnedSpec(param('new_spec_id', 0), $tproject_id);
 
+    // requirements carries UNIQUE KEY (srs_id, req_doc_id) and the move does not
+    // regenerate req_doc_id, so re-using a document id that already exists in the
+    // target specification would blow up on the SECOND write - after
+    // nodes_hierarchy had already been re-parented and the siblings shifted.
+    // There is no transaction wrapper in the driver, so the collision is caught
+    // up front and answered with a stable machine code instead of a 500 plus
+    // half-applied table drift.
+    if ($newSpecId !== intval($row['srs_id'])) {
+        $dup = $db->get_recordset(
+            'SELECT id FROM ' . $reqMgr->object_table .
+            ' WHERE srs_id = ' . $newSpecId .
+            '   AND req_doc_id = \'' . $db->prepare_string($row['req_doc_id']) . '\'' .
+            '   AND id <> ' . intval($row['id']));
+        if ($dup && $dup[0]) {
+            failOut(409, 'The target specification already contains document ID '
+                    . $row['req_doc_id'], 'duplicate_doc_id');
+        }
+    }
+
     $position = strtolower(trim((string)param('position', 'bottom')));
     if ($position !== 'top' && $position !== 'bottom') {
         failOut(400, 'Position must be "top" or "bottom"', 'invalid_position');
@@ -402,7 +426,9 @@ if ($action === 'move') {
 
     if ($position === 'top') {
         $db->exec_query(
-            'UPDATE nodes_hierarchy SET node_order = node_order + 1' .
+            // node_order is nullable, so a plain +1 leaves NULL siblings tying
+            // with the row we insert at 0.
+            'UPDATE nodes_hierarchy SET node_order = COALESCE(node_order, 0) + 1' .
             ' WHERE parent_id = ' . $newParentId .
             '   AND node_type_id = ' . NODE_TYPE_REQUIREMENT .
             '   AND id <> ' . intval($row['id']));
