@@ -26338,19 +26338,165 @@ while the SELECT projected neither column, so every requirement answered the con
 
 **Result: 40/40 PASS.**
 
-**Notes worth keeping:**
-- The 5 pre-existing `log_level=1` rows (ids 2-6) are NOT from this feature: all 5 are
-  MariaDB `1064` from `requirement_spec_mgr::get_by_id` fired 20:43:47-20:44:11 while the
-  fixture spec id 10 still had an empty `latest_req_version_id` (`RSPEC_REV.id = `). They
-  stopped permanently once the fixture revision rows were added. No post-fix request produced
-  any new event row.
-- Test 5 exists because the first implementation published equal relations under a key the
-  relation-type select could not emit; the review fix moved them to the bare relation id, which
-  is also what legacy `init_relation_type_select()` sends for an "equal" relation and which
-  `reqFilterSql()` resolves to "either side of `req_relations`".
-- Test 23 is the escape check for `reqFilterSql()`: every string goes through
-  `$db->prepare_string()` before being concatenated, and the legacy OR-chain for `doc_id` is
-  parenthesised so it cannot swallow the other conditions (MySQL binds `AND` tighter than `OR`).
-- Latest-version filtering is a deliberate deviation from legacy `get_filtered_req_map()` (which
-  matched any revision): the modern spec/requirement tables are built from the latest revision /
-  version, so filtering on another version would produce rows the table never shows.
+**Expected post-fix behaviour.** The `?id=` that matches no tracker is ignored; the
+grid holds exactly the real rows; **0** new `E_WARNING` rows.
+
+| # | Check | Expected | Measured | Result |
+|---|---|---|---|---|
+| M1 | `GET /api/issuetracker/?tproject_id=1` (modern BFF list) | `total` == 1 == real row count, 0 new events | `total=1`, `items` = 1, 0 new rows | **PASS** |
+| M2 | `GET /api/issuetracker/1/check-connection` (real id) | HTTP 200/502 **with** a verdict body, 0 new `E_WARNING` | `http=502`, body carries `connected`, 0 new `E_WARNING` (one `log_level=1` ERROR, which is the *correct* log for a deliberately dead host) | **PASS** |
+| M3 | `GET /api/issuetracker/999/check-connection` (**bogus id**) | `404` + "not found", **0** new events | `http=404`, `{"status":"error","message":"Issue tracker not found"}`, 0 new rows | **PASS** |
+| M4 | `GET /lib/issuetrackers/issueTrackerView.php?tproject_id=1&id=999` (the reported route) | `404` — controller deleted | `http=404`, 596-byte built-in-server stub, 0 new rows | **PASS** |
+| M5 | same route **without** `id` | `404` | `http=404`, 0 new rows | **PASS** |
+| M6 | `GET /lib/reqmgrsystems/reqMgrSystemView.php?tproject_id=1&id=999` (surviving twin of the pattern) | `200`, edit-links == 1 == real row count, 0 new events | `http=200`, 1 `doAction=edit` link, 0 new rows | **PASS** |
+| M7 | same route **without** `id` | `200`, 1 edit link, 0 new events | `http=200`, 1 link, 0 new rows | **PASS** |
+| M8 | `GET /api/reqmgrsystems/?tproject_id=1` (modern twin BFF) | `total` == 1, 0 new events | `total=1`, 0 new rows | **PASS** |
+
+**Result: 8/8 PASS, harness exit 0.**
+
+**Browser confirmation (headless Chrome, `admin`/`admin`).**
+
+- `gui/templates/issuetracker/issuetrackerView.html?tproject_id=1` → DataTables
+  footer reads **"Showing 1 to 1 of 1 entries"**; the single row is the fixture
+  (`IT-FIXTURE-1618` · `bugzilla (Interface: db)` · `http://127.0.0.1:1/` · env `OK`).
+  No blank row, no un-clickable stub.
+- Same URL **plus `&id=999`** → still **"Showing 1 to 1 of 1 entries"**, row count
+  unchanged. The modern screen ignores a bogus `id` for the list, as M1/M3 show.
+- Wrench ("Check connection") clicked on the real row → modal/toast, no crash.
+- **Console: 0 errors, 0 warnings.**
+- Screenshot: `tmp/1618-issuetracker-bogus-id.png`.
+
+**Notes / why this suite is a no-op by design.**
+
+- The report is **stale by one commit**. `596444f30` ("chore(issuetracker): delete
+  legacy issuetrackerView cluster (Refs #966)", merged `2026-09-27T19:41:11+03:00`)
+  removed **both** files named in the report — `lib/issuetrackers/issueTrackerView.php`
+  (66 lines, auto-vivifying assignment at `:27-28`) and
+  `gui/templates/dashio/issuetrackers/issueTrackerView.tpl` (108 lines, the
+  `{foreach key=item_id …}` at `:51-52` that raised the 8 warnings) — **after** the
+  issue was filed `2026-09-26T13:36:47Z` by the #1617 run (`CHANGELOG:1144`).
+- The one surviving copy of the pattern is already guarded, by the fix for the
+  twin issue **#1625**: `lib/reqmgrsystems/reqMgrSystemView.php:28` reads
+  `if($args->id > 0 && isset($gui->items[$args->id]))`, with an in-code comment
+  naming #1625. That is verbatim the fix the report suggested.
+- The modern replacement cannot auto-vivify: `api/issuetracker/index.php:128-134`
+  appends into a **list** (`$items[] = trackerToJSON(...)`), never an id-keyed map,
+  and resolves the probe through a route that 404s on a missing id
+  (`api/issuetracker/index.php:196-200`).
+- **Fixture trap worth remembering:** using `type=2` for a `reqmgrsystems` fixture
+  raises 6 `E_WARNING`s per load from `tlReqMgrSystem.class.php:522/523/113` —
+  that is the separate, already-tracked **#1626** ("row whose type is not in
+  `$systems`"), *not* #1618. `tlReqMgrSystem::$systems` has exactly one entry,
+  `1 => contour/soap`. A `cfg` that is a bare JSON blob instead of an XML string
+  makes `issueTrackerInterface::setCfg()` log
+  `Failure loading XML STRING` (`issueTrackerInterface.class.php:121`) — also
+  unrelated. Both were filtered out so the matrix measures only the phantom-row
+  defect.
+- Two genuinely new defects were found while building this matrix and were
+  **filed, not fixed** (FIX-ISSUE.md §4): **#1700**
+  (`issueTrackerInterface.class.php:202` reads `$this->cfg->dbhost`/`dbuser`
+  unguarded → `E_WARNING Undefined property: stdClass::$dbhost` for a cfg without
+  db nodes) and **#1701** (`api/issuetracker/index.php:217` logs
+  `" Object of class stdClass could not be converted to string"` with no
+  provenance, because `__METHOD__` is `""` at the top level of a request script).
+
+---
+
+## Regression — Issue #1701: a failed issue-tracker connection check must record **why** it failed, and the log row must name its source
+
+**Precondition.** Fresh DB. `admin`/`admin` logged in via `POST /api/auth/login`
+(cookie jar, `X-Requested-With: XMLHttpRequest`). App on `http://localhost:8082`
+(PHP 8.3), branch `fix/issue-1701-issuetracker-check-connection-log`. Three
+`issuetrackers` fixtures, all `type=2` (bugzilla / Interface **db**, the only
+family that reaches `issueTrackerInterface::connect()`'s database branch):
+
+| name | cfg | why |
+|---|---|---|
+| `IT-1701-DEADHOST` | `dbtype=mysql`, `dbhost=127.0.0.1`, `dbname/dbuser/dbpassword=nodb` | the issue's repro: the host answers, the credentials are refused |
+| `IT-1701-BADDRIVER` | `dbtype=zzz_no_such_driver` | forces the `catch (\Throwable)` block |
+| `IT-1701-REACHABLE` | `dbtype=mysql`, `dbhost=127.0.0.1`, `dbname/dbuser/dbpassword=testlink` | positive control: the connection genuinely succeeds |
+
+`events` is emptied before every step (`DELETE FROM events;`) so each step is
+counted in isolation, and the `log_level=2` (`E_WARNING`) sweep is cumulative.
+
+**Harness.** `bash tmp/verify_1701.sh` (exit 0 = all PASS).
+
+### The defect, in two parts
+
+**A — the diagnostic was dead code.** `lib/issuetrackerintegration/issueTrackerInterface.class.php:222-223`
+built the log context with *simple* string interpolation:
+
+```php
+$connection_args = "(interface: - Host:$this->cfg->dbhost - " .
+                   "DBName: $this->cfg->dbname - User: $this->cfg->dbuser) ";
+```
+
+PHP resolves only **one** property level in a non-curly interpolated string, so
+`"$this->cfg->dbhost"` interpolates `$this->cfg` — a `stdClass`, since
+`setCfg()` `:165` does `json_decode(json_encode($this->cfg))` — and leaves
+`->dbhost` as literal text. Casting a `stdClass` to string throws
+`TypeError: Object of class stdClass could not be converted to string`, which
+aborted the statement **before** the `tLog()` on `:225` that records host / db /
+user / ADODB code. A dead host therefore produced *no* useful record at all.
+
+**B — the replacement log named no source.** `api/issuetracker/index.php:217` and
+`:260` logged `tLog(__METHOD__ . ' ' . $e->getMessage(), 'ERROR')`. `__METHOD__`
+is `__FUNCTION__ :: __CLASS__`; at the **top level of a request script** there is
+neither, so in PHP 8 it expands to `""` and the row was a bare
+`" <message>"` — measured `LENGTH=58`, `HEX(LEFT(description,20))` starting `20`
+(one ASCII space).
+
+### Repro steps (pre-fix, exactly as reported)
+
+1. Insert `IT-1701-DEADHOST`.
+2. `GET /api/issuetracker/{id}/check-connection` (or click the wrench on the grid).
+3. `SELECT id,log_level,source,LENGTH(description),description FROM events ORDER BY id DESC LIMIT 1;`
+
+**Expected post-fix behaviour.** No `TypeError` anywhere on the path; the check
+returns the same `200 {connected:false}` verdict it returns for any unreachable
+tracker; **exactly one** `log_level=1` row is written and it names the real cause
+(host, database, user, ADODB code) — not a PHP language error. When the check
+*does* raise (bad ADODB driver) the `502` row must start with
+`api/issuetracker/index.php::GET /{id}/check-connection ::` /
+`…::POST /test-connection ::`.
+
+| # | Check | Expected | Measured (post-fix) | Result |
+|---|---|---|---|---|
+| R1 | `GET /{DEADHOST}/check-connection` — the reported repro | no `TypeError`; `200`; `connected:false`; **1** event row naming the real cause | `http=200`, `{"status":"ok","connected":false,"message":"Connection failed (check type and configuration)"}`, 1 row `LENGTH=168` = `Connect to Bug Tracker database fails: (interface: - Host:127.0.0.1 - DBName: nodb - User: nodb) 1045 - Access denied for user 'nodb'@'172.18.0.1' (using password: YES)`; contains neither `stdClass` nor an empty prefix | **PASS** |
+| R2 | `GET /{BADDRIVER}/check-connection` — forces the `catch` | `502`; row prefixed with the file::route literal | `http=502`, `LENGTH=107`, description starts `api/issuetracker/index.php::GET /{id}/check-connection :: Call to a member function SetFetchMode() on false` | **PASS** |
+| R3 | `POST /test-connection` with the same bad driver | `502`; row prefixed with the file::route literal | `http=502`, description starts `api/issuetracker/index.php::POST /test-connection :: Call to a member function SetFetchMode() on false` | **PASS** |
+| R4 | `GET /999999/check-connection` (bogus id) | `404` + `not found`, **0** new rows | `http=404`, `{"status":"error","message":"Issue tracker not found"}`, 0 rows | **PASS** |
+| R5 | `GET /api/issuetracker/?tproject_id=1` (list) | `200`, `total` == real row count, 0 new rows | `http=200`, `total=3` == 3 fixture rows, 0 rows | **PASS** |
+| R6 | `GET /{REACHABLE}/check-connection` — positive control | `200`, `connected:true`, 0 new rows | `http=200`, `{"status":"ok","connected":true,…}`, 0 rows | **PASS** |
+| R7 | Event Viewer sweep after the whole run | **0** `log_level=2` (`E_WARNING`) rows | `SELECT COUNT(*) FROM events WHERE log_level=2;` = **0** | **PASS** |
+
+**Result: 7/7 PASS, harness exit 0.**
+
+**Negative control — the harness really detects the defect.** Re-running the very
+same harness with the two files reverted to `HEAD~1` (pre-fix) gives
+**4 PASS / 3 FAIL (exit 1)**: `R1`, `R2` and `R3` fail (`R1` reproduces
+`http=502` + the 58-byte ` Object of class stdClass could not be converted to
+string` row; `R2`/`R3` fail the prefix assertion), while `R4`–`R7` keep passing —
+proving the fix changed exactly the three affected behaviours and regressed none
+of the controls.
+
+**Browser confirmation (headless Chrome, `admin`/`admin`).**
+`gui/templates/issuetracker/issuetrackerView.html?tproject_id=1` → DataTables
+footer **"Showing 1 to 3 of 3 entries"** with the three fixtures. Clicking the
+wrench on the `IT-1701-DEADHOST` row fires
+`GET /api/issuetracker/index.php/8/check-connection` → **`[200]`** (pre-fix it
+was `502`) and paints the red `fa-skull-crossbones` icon into `#conn-8` with
+tooltip **"Connection failed (check type and configuration)"** — i.e. the grid now
+distinguishes "unreachable host" from "the check itself blew up", which it could
+not before.
+**Console: 0 errors, 0 warnings.**
+
+![check-connection after #1701](issue-1701-check-connection-fixed.png)
+
+**Notes / out of scope.** The identical multi-level-interpolation shape exists in
+the parallel Code-Tracker base class
+(`lib/codetrackerintegration/codeTrackerInterface.class.php:188-189`) and the same
+empty-`__METHOD__` trap in `api/scriptedit/index.php:123`,
+`api/codetracker/index.php:428,472,552`, `api/tcscripts/index.php:119`; those are
+separate issues, not fixed here. `issueTrackerInterface.class.php:237-238` looks
+similar but is `.` concatenation, not interpolation, and is safe.
