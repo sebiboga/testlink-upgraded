@@ -6209,6 +6209,43 @@ Changes:
       project tables and added user metrics to the middle section
 
 ## 2.0.1 (in-progress)
+### Gap closed — Requirement Spec Management: the legacy requirements filter panel was missing entirely (Fixes #1025)
+- 1.9.20's Requirement Specification Management screen shipped `inc_filter_panel.tpl`, driven by
+  `tlRequirementFilterControl` (lib/functions/tlRequirementFilterControl.class.php), and the server
+  applied it through `get_filtered_req_map()` (lib/functions/treeMenu.inc.php:1753-1889). The 2.0.1
+  rewrite of `reqSpecMgmt.html` dropped the whole panel: no Document ID, Title, Status, Requirement
+  Type, Spec Type, Expected Coverage, Relation, Test Case ID or Custom Field filtering, and no
+  Apply/Reset/Simple-Advanced/auto-refresh. On a project with more than a handful of specs there
+  was no way to narrow the list at all.
+- The filter is now ported end to end. BFF (`api/reqspec/index.php`): `readReqFilters()` normalises
+  the request with the LEGACY rules (an `Any` = `0` entry anywhere in a multi-select disables that
+  whole filter; a Test Case ID equal to the bare project prefix is disabled; every string goes
+  through `$db->prepare_string()`), `reqFilterSql()` reproduces the legacy JOIN set and WHERE
+  clause - including the `req_coverage` join for a Test Case ID and the `req_relations` join for a
+  relation filter - and `reqFilteredMap()` feeds it to BOTH `action=specs` and `action=reqs`, so a
+  specification whose own plus subtree requirements no longer match is pruned from the list, exactly
+  as legacy did. `action=options` publishes the filter domains (`reqStatuses`, `reqTypes`,
+  `specTypes`, `relationTypes`, `filterCFields`, `tcPrefix`, `childRequirementsManagement`).
+  A single `reqFilteredMap()` call now resolves the whole spec subtree, replacing a per-spec query.
+- Front end (`gui/templates/requirements/reqSpecMgmt.html`): Dashio filter panel with all 9 legacy
+  controls, the project Custom Field inputs, matching-count badges, Apply / Reset Filters, and
+  Simple <-> Advanced (Advanced turns the single selects into multi-selects, Simple warns before
+  trimming a multi-selection). The "Update list after every operation" setting is honoured, and
+  **Apply is authoritative** - typing alone does not re-query, which is what the legacy button
+  driven panel did.
+- Two review findings applied: an "equal" relation is now published under its BARE relation id
+  (`3`, "related to") instead of a key the select could not emit, so it resolves to "either side of
+  `req_relations`"; and switching Advanced -> Simple with a multi-selection warns instead of
+  silently discarding the extra choices.
+- Deliberate deviation, documented in the code: filtering is evaluated on the LATEST spec revision
+  / requirement version. Legacy matched any revision, which on the modern tables (built from the
+  latest revision) could return rows the table never shows.
+- i18n: 20 new `rsf.*` keys in ALL 10 locale bundles (`de,en,es,fr,it,ja,pt,ro,ru,zh`).
+- Verified: regression suite 1025 = **40/40 PASS** (2 syntax/JSON gates, 401 + 22 BFF filter cases
+  across both actions, the legacy `Any`/prefix-only/equal-relation/subtree-pruning rules, an SQLi
+  probe returning 0 rows with no error, 7 live browser interactions incl. Advanced, the Custom Field
+  toggle and requirement-level filtering, a clean console, and Event Viewer with 0 new
+  Error/Warning rows). (Fixes #1025)
 ### Gap closed — Requirement Spec Tree: requirements re-parented into a specification (container nodes) were invisible (Fixes #1699)
 - `req_cfg->child_requirements_mgmt` is ENABLED by default (config.inc.php:1689), so TestLink lets
   a `node_type_id = 1` test project node be re-parented under a requirement specification and
