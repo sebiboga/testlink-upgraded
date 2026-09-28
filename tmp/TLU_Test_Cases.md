@@ -25927,3 +25927,43 @@ function-static, so it is shared process-wide — `php tmp/verify_static1608.php
 pristine` returns **3** rows for a bare call while `… leak` returns **0** for the
 same call on a new `tree` instance after one `rspec` call. Silent wrong subtree,
 no warning.
+
+---
+
+## Regression — Issue #1694: CI fallback-push step deleted a concurrent agent's test suite
+
+**Precondition.** No browser, DB or app state: the defect lives entirely in Git/CI plumbing.
+Requires `git` and `python3` + `PyYAML` (to extract a workflow step verbatim). Build the
+harness in a scratch dir OUTSIDE the repo (e.g. `/tmp/repro1694`) so nothing here is touched.
+Harness = a bare `origin.git`, a clone on branch `sebiboga` holding a *Suite 1600*, the fix-bug
+run checked out as `fix/issue-1608`, then Suite 1681 (45 cases) appended to
+`tmp/TLU_Test_Cases.md` **on `sebiboga`**, then back on `fix/issue-1608` where the worktree
+copy is stale and the agent appends its own Suite 1608 and leaves it UNCOMMITTED.
+
+**Repro steps (pre-fix).**
+
+1. Extract the step verbatim: `python3 -c "import yaml;d=yaml.safe_load(open('.github/workflows/fix-bug.yml'));print([s for s in d['jobs']['fix-bug']['steps'] if s.get('name','').startswith('Fallback commit')][0]['run'])"` → `step.sh`.
+2. Build the harness as above, copy the worktree, run `GITHUB_REF_NAME=sebiboga bash step.sh`.
+3. `git show origin/sebiboga:tmp/TLU_Test_Cases.md | grep -c '1681-'`.
+
+**Expected post-fix behaviour.** `46` (Suite 1681 fully preserved), `push done`, and the
+other agent's lines still present on `origin/sebiboga`. Pre-fix this printed `0`.
+
+**Actual result — measured on the real repository, one pristine origin per scenario.**
+
+| # | case | expectation | result |
+|---|---|---|---|
+| R1 | concurrent agent appended a suite during the run (**the reported bug**) | 1681 preserved | **PASS — 46** |
+| R1b | identical harness, pre-fix step | bug reproduced | **FAIL(repro) — 0** |
+| R2 | no concurrent change, only this run's own leftover | leftover still committed+pushed | **PASS** (`1608=20`, `leftover.txt=yes`) |
+| R3 | leftover in a file nobody else touched | pushed | **PASS** |
+| R4 | rebase needed, single attempt | rebase + `push done` | **PASS** |
+| R5 | push rejected -> `fetch`+rebase retry loop | converges, no data loss | **NOT VERIFIED** (harness reused a mutated `origin.git`; result discarded, not claimed) |
+| R6 | `--force-with-lease`/`--force` escalation | unchanged code path | **PASS** (not touched by the edit) |
+| R7 | `yaml.safe_load` on all 11 workflows + `bash -n` on every `run:` block | valid | **PASS** (11/11, all blocks parse) |
+| R8 | `grep -rn "rebase -X theirs" .github/workflows/` | no hits | **PASS** (0 hits; 7 `-X ours` sites) |
+
+**Note.** The fix is a change to `.github/workflows/*.yml`, which the CI bot's `ghs_` App
+token is not permitted to push ("refusing to allow a GitHub App to create or update workflow
+... without `workflows` permission"). The branch therefore carries the suite and the docs,
+and a human/`workflows`-scoped token must land the one-flag change. See the issue.
