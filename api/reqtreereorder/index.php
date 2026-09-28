@@ -234,6 +234,14 @@ function orderedRequirements($specId) {
         ' JOIN nodes_hierarchy NH ON NH.id = R.id' .
         ' LEFT JOIN nodes_hierarchy VN ON VN.parent_id = R.id' .
         '   AND VN.node_type_id = 8' .
+        // TestLink ADDS a node_type_id=8 node on every revision and never deletes
+        // the previous one, so without "latest only" a revised requirement is
+        // returned once per version - the screen would list it several times and
+        // the resulting POST would always be rejected as a duplicate id. The
+        // LEFT JOIN is kept (unlike api/reqreorder) so a requirement that has no
+        // version node at all still appears in the list.
+        '   AND VN.id = (SELECT MAX(VN2.id) FROM nodes_hierarchy VN2' .
+        '        WHERE VN2.parent_id = R.id AND VN2.node_type_id = 8)' .
         ' LEFT JOIN req_versions V ON V.id = VN.id' .
         ' WHERE R.srs_id = ' . intval($specId) .
         ' ORDER BY NH.node_order ASC, R.id ASC');
