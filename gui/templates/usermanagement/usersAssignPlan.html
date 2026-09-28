@@ -38,6 +38,11 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 .inherited-col { font-size: 12px; color: #666; }
 .assign-table select:disabled { background: #f5f5f5; color: #888; cursor: not-allowed; }
 .footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
+/* Legacy parity: usersAssign.tpl:234-237 tagged every <tr> whose effective role on
+   the selected test plan is TL_ROLES_NO_RIGHTS (3) with not_authorized_user, so a
+   manager could spot at a glance that the user has no rights on that plan. Sibling
+   project screen rule: usersAssignProject.html:33. */
+.assign-table tr.not_authorized_user td { color: #999; }
 /* Dashio demo-mode gating (usersView.html:56-57 pattern): legacy usersAssign.tpl
    is shared by testplan contexts and :286-292 replaces the Save button with the
    localized warn_demo note; the banner + note render that warn_demo text (issue #932). */
@@ -137,6 +142,10 @@ var roles = [];
 // assignment, in which case it is rendered and pre-selected (issue #928).
 // Inherited admin keeps rendering as the "<inherited> <role>" value-0 option.
 var ADMIN_ROLE_ID = 8;
+// Legacy parity: usersAssign.tpl:234-237 + config.inc.php TL_ROLES_NO_RIGHTS == 3.
+// Used only for the not_authorized_user row marker (see renderUsersTable and the
+// DataTables createdRow callback); same constant as usersAssignProject.html:125.
+var NO_RIGHTS_ROLE_ID = 3;
 // Legacy parity: usersAssign.tpl:286-292 (shared template) - read-only
 // assignment form in demoMode; Save button replaced by warn_demo note.
 var demoMode = false;
@@ -596,8 +605,15 @@ function renderUsersTable(keep) {
     // legacy cell fused login+name; the modern grid splits them, so both cells
     // share the same background to reproduce the tinted user-block look.
     var rowStyle = (u.roleColour && u.roleColour !== '') ? ' style="background-color:' + esc(u.roleColour) + ';"' : '';
+    // Legacy parity: usersAssign.tpl:234-237 - the <tr> of every user whose
+    // EFFECTIVE role on this plan is <no rights> (3) carries not_authorized_user.
+    // Like the sibling project screen (usersAssignProject.html:462). The class is
+    // also re-applied in the createdRow callback below: DataTables REPLACES the
+    // className of every row with its own striping classes, so the marker written
+    // here alone would not survive a DataTables draw.
+    var rowClass = (u.effectiveRoleID == NO_RIGHTS_ROLE_ID) ? ' class="not_authorized_user"' : '';
     $b.append(
-      '<tr data-uid="' + esc(u.id) + '">' +
+      '<tr data-uid="' + esc(u.id) + '"' + rowClass + '>' +
       '<td>' + (i + 1) + '</td>' +
       '<td' + rowStyle + '>' + esc(u.login) + '</td>' +
       '<td' + rowStyle + '>' + esc(userNameCell(u)) + '</td>' +
@@ -652,6 +668,14 @@ function renderUsersTable(keep) {
       // mechanism as the "modified" badge below (issue #946).
       if (u.roleColour && u.roleColour !== '') {
         $(row).find('td:eq(1),td:eq(2)').css('background-color', u.roleColour);
+      }
+      // Legacy parity (issue #1645): re-apply the not_authorized_user marker of
+      // usersAssign.tpl:234-237 when DataTables re-draws a row. It is the only
+      // place the class can survive: DataTables REPLACES the <tr> className with
+      // its own striping classes while creating the row, and this callback runs
+      // after that - addClass (not className) so the striping class is preserved.
+      if (u.effectiveRoleID == NO_RIGHTS_ROLE_ID) {
+        $(row).addClass('not_authorized_user');
       }
       if (!u.isAdmin && u.changed) {
         $(row).addClass('changed');

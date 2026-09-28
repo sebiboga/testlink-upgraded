@@ -26604,3 +26604,45 @@ recorded SQL proves they predate the fix) and by pre-existing issues. The
 committed code adds none - case 31 measures the `events` id counter across all
 seven shim paths.
 
+
+---
+
+### Suite 1645 — `not_authorized_user` row marker for `<no rights>` users (Assign Test Plan Roles)
+
+**Precondition:** fresh DB; fixture `php tmp/fixtures_1645.php` (re-runnable) — public
+test project `ALPHA1645` id 1; plans `A-PUBLIC-1645` id 5 (`is_public=1`, control) and
+`A-PRIVATE-1645` id 6 (`is_public=0`); users `ua1645designer` (id 2, global role 4),
+`ua1645guest` (id 3, global role 5), `ua1645tester` (id 4, global role 7, holding an
+EXPLICIT `user_testplan_roles` role 7 on plan 6 → control row that must NOT be marked) +
+`admin` (id 1). Login admin/admin. App at http://localhost:8082. Screen
+`gui/templates/usermanagement/usersAssignPlan.html?tproject_id=1&tplan_id=6`.
+Baseline DB state of the fixture: only `(user 4, plan 6, role 7)` and `(user 4, plan 4, role 7)`
+rows in `user_testplan_roles` — restore with
+`DELETE FROM user_testplan_roles WHERE testplan_id=6 AND user_id<>4;` after case 12.
+
+| # | Area | Action | Expected | Result | Status |
+|---|------|--------|----------|--------|--------|
+| 1 | BFF | `GET /api/roles/index.php/meta/tplan-roles?tproject_id=1&tplan_id=6` | designer + guest `effectiveRoleID=3`, tester `=7`, admin `=8` | 3 / 3 / 7 / 8 as expected — BFF already carried the flag, no API change | PASS |
+| 2 | BFF | same for `tplan_id=5` (public plan, control) | nobody has `effectiveRoleID=3` | 4 / 5 / 7, all `isInherited=1` | PASS |
+| 3 | screen | open the private plan 6 | rows carry the marker ONLY where the effective role is 3 | `admin:odd`, `ua1645designer:not_authorized_user even`, `ua1645guest:not_authorized_user odd`, `ua1645tester:even` | PASS |
+| 4 | CSS | computed colour of the Login cell of a marked row | `#999` = `rgb(153,153,153)` (and `rgb(51,51,51)` on unmarked rows) | 153,153,153 vs 51,51,51 | PASS |
+| 5 | CSS | `document.querySelector('style').textContent.includes('not_authorized_user')` | `true` (rule present) | `true` | PASS |
+| 6 | DataTables | search `ua1645guest` (redraw) | marker survives the redraw | `ua1645guest:not_authorized_user odd:rgb(153,153,153)` | PASS |
+| 7 | DataTables | sort by Login twice (redraw) | markers survive, striping classes preserved | designer `not_authorized_user even`, guest `not_authorized_user odd` | PASS |
+| 8 | DataTables | length menu → Show All (redraw) | markers survive | unchanged, 2 marked rows | PASS |
+| 9 | bulk `Do` | select `guest` → `Do` (full `renderUsersTable(keep)` re-render) | markers survive AND combine with the `changed` class; Save enabled | `ua1645designermodified\|not_authorized_user changed even`, guest likewise, tester `changed even`; Save enabled | PASS |
+| 10 | control | switch the Test Plan combo to the public plan 5 | NO row marked (nobody has effective role 3) | 4 rows, all `odd`/`even`, all `rgb(51,51,51)` | PASS |
+| 11 | control | admin row | never marked (effective role 8) | `admin:odd` | PASS |
+| 12 | save round trip | set designer → `guest` (5) on plan 6, click Save Changes | toast `User Roles updated`, grid reloads, designer NOT marked any more, guest still marked | toast rendered; designer `even:rgb(51,51,51):sel=5`, guest `not_authorized_user odd:rgb(153,153,153):sel=3` | PASS |
+| 13 | persistence | `SELECT * FROM user_testplan_roles` after case 12 | designer got an explicit plan role 5; the plain Save also materialised the legacy `<no rights>` preselect for guest (issue #1664) | `(3,6,3)` + `(2,6,5)` present; guest keeps `effectiveRoleID=3` ⇒ still marked, correct | PASS |
+| 14 | sibling | same check on `usersAssignProject.html?tproject_id=1` | the project's own marker is dead too (DataTables overwrites `className`, no `createdRow`) | rows only `odd`/`even` → filed as #1706, out of scope here | PASS (as expected defect) |
+| 15 | console | every state above | 0 errors, 0 warnings | none | PASS |
+| 16 | Event Viewer | `events` table | 0 new Error/Warning rows | only `log_level 16` AUDIT rows from the Save; `COUNT(*) WHERE log_level NOT IN (16,32,1,2)` = 0 | PASS |
+| 17 | i18n | all 10 locale bundles | valid JSON (no key added — the marker is visual-only, as in legacy) | `python3 -m json.tool` clean 10/10 (unchanged files) | PASS |
+| 18 | JS syntax | `node` parse of the screen's inline `<script>` | no syntax error | script block 0: OK | PASS |
+
+**Note on case 12/13.** A plain Save on a private plan materialises an EXPLICIT
+`<no rights>` row for every `<no rights>` user (the legacy preselect, issue
+#1664). That is expected and does not change the marker: the effective role
+stays 3, so the row stays grey. The fixture's pristine state is restored by the
+`DELETE` shown in the precondition.
