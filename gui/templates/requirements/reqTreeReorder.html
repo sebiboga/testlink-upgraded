@@ -363,7 +363,7 @@ function load(keepMsg) {
       $('#mTproject').text(ctx.tproject_name || ('#' + ctx.tproject_id));
       $('#mRev').text(ctx.revision ? String(ctx.revision) : '-');
       $('#mCount').text(String((r.requirements || []).length));
-      $('#mWho').text('-');
+      $('#mWho').text(ctx.author_login || ('#' + (ctx.author_id || '-')));
       var chip = $('#specChip');
       chip.text(ctx.req_spec_doc_id ? ctx.req_spec_doc_id : '');
       if (SPEC_ID > 0) {

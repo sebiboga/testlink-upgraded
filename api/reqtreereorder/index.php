@@ -256,12 +256,13 @@ function specHeader($specId) {
     global $db, $reqSpecMgr;
     $rows = $db->get_recordset(
         'SELECT RS.id, RS.doc_id, NH.name AS title, V.revision, V.type,' .
-        ' V.scope, V.total_req' .
+        ' V.scope, V.total_req, V.author_id, U.login AS author_login' .
         ' FROM ' . $reqSpecMgr->object_table . ' RS' .
         ' LEFT JOIN nodes_hierarchy NH ON NH.id = RS.id' .
         ' LEFT JOIN req_specs_revisions V ON V.parent_id = RS.id' .
         '   AND V.revision = (SELECT MAX(V2.revision) FROM req_specs_revisions V2' .
         '        WHERE V2.parent_id = RS.id)' .
+        ' LEFT JOIN users U ON U.id = V.author_id' .
         ' WHERE RS.id = ' . intval($specId));
     return ($rows && $rows[0]) ? $rows[0] : array();
 }
@@ -318,6 +319,10 @@ if ($action === 'init') {
             'req_spec_title'  => (string)($spec['title'] ?? ''),
             'req_spec_doc_id' => (string)($spec['doc_id'] ?? ''),
             'revision'        => intval($spec['revision'] ?? 0),
+            // Author of the newest specification revision - powers the
+            // "Modified by" tile instead of a placeholder dash.
+            'author_id'       => intval($spec['author_id'] ?? 0),
+            'author_login'    => (string)($spec['author_login'] ?? ''),
         ),
         'specs'       => specOptions($tproject_id),
         'requirements' => ($specId > 0) ? orderedRequirements($specId) : array(),
