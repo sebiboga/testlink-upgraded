@@ -434,12 +434,17 @@ function specNode(s) {
     // list by node_order reproduces that order exactly.
     var rows = [];
     (st && st.children ? st.children : []).forEach(function (r) {
-      rows.push({ order: Number(r.node_order) || 0, req: r });
+      rows.push({ order: Number(r.node_order) || 0, id: Number(r.id) || 0, req: r });
     });
     (s.containers || []).forEach(function (c) {
-      rows.push({ order: Number(c.node_order) || 0, cont: c });
+      rows.push({ order: Number(c.node_order) || 0, id: Number(c.id) || 0, cont: c });
     });
-    rows.sort(function (a, b) { return a.order - b.order; });
+    // node_order first, node id as the tie-break: that is the sequence the
+    // legacy loader produced (ORDER BY NHA.node_order over one node set) and
+    // the same tie-break both BFF queries use, so the merge is deterministic.
+    rows.sort(function (a, b) {
+      return (a.order - b.order) || (a.id - b.id);
+    });
     rows.forEach(function (r) {
       if (r.req) { ul.append(reqNode(r.req)); }
       else { ul.append(containerNode(s, r.cont)); }
