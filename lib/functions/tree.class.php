@@ -1611,7 +1611,17 @@ class tree extends tlObject
           $hmap[$current['id']] = str_repeat('.',$the_level);
           if($addField)
           {
-            $hmap[$current['id']] .= sprintf($field2add['format'],$current[$field2add['field']]);
+            // The optional prefix field is NOT guaranteed to be present in every
+            // row: tree::get_subtree() 'rspec' output can hand us rows whose SQL
+            // never projected doc_id, in which case it is resolved to null
+            // (Refs #1608). sprintf('%s:', null) silently produced a bare ":"
+            // prefix, so a caller pairing output=rspec with a non-rspec
+            // order_cfg got a corrupt requirement-spec combo label. Skip the
+            // prefix when the field is unknown; identical output when it is set.
+            if( isset($current[$field2add['field']]) && !is_null($current[$field2add['field']]) )
+            {
+              $hmap[$current['id']] .= sprintf($field2add['format'],$current[$field2add['field']]);
+            }
           }  
           $hmap[$current['id']] .= $current['name'];
         break;
