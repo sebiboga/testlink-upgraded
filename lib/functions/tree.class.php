@@ -994,9 +994,26 @@ class tree extends tlObject
           break;                     
 
           case 'rspec':
+            // 'doc_id' is NOT projected by every order_cfg: the SQL switch above
+            // (tree.class.php:888) only adds RSPEC.doc_id in its own 'rspec'
+            // branch, while this row-shape switch is chosen by a DIFFERENT,
+            // independent option ('output'). The default order_cfg is
+            // 'spec_order' (tree.class.php:842), so asking only for
+            // output => 'rspec' is a legal call whose rows have no 'doc_id':
+            // the raw read raised one PHP 8 E_WARNING "Undefined array key
+            // \"doc_id\"" per row, which watchPHPErrors turns into Event Viewer
+            // noise (Refs #1608). Resolve it the same defensive way the sibling
+            // node_table lookup is resolved above (getNodeTable(), Refs #1606):
+            // when the active SQL did not project the field, the doc id is
+            // simply not known -> null, and the key is always present so
+            // callers can isset() it instead of tripping on their own.
+            // NOTE: the order_cfg is deliberately NOT auto-upgraded to 'rspec'
+            // here: that SQL INNER JOINs req_specs and therefore returns a
+            // different set of nodes, not just a different projection.
+            $doc_id = isset($row['doc_id']) ? $row['doc_id'] : null;
             $node_list[] = array('id' => $row['id'],
                                  'parent_id' => $row['parent_id'],
-                                 'doc_id' => $row['doc_id'],
+                                 'doc_id' => $doc_id,
                                  'node_type_id' => $row['node_type_id'],
                                  'node_order' => $row['node_order'],
                                  'node_table' => $node_table,
