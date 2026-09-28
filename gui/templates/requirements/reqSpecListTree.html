@@ -96,6 +96,7 @@ select { width: 100%; padding: 8px 10px; border: 1px solid #ddd; border-radius: 
         <select id="projSel"></select>
       </div>
       <div class="meta">
+        <div><b data-i18n="rstl.projectName">Project</b><span class="v" id="mName">-</span></div>
         <div><b data-i18n="rstl.prefix">Prefix</b><span class="v" id="mPrefix">-</span></div>
         <div><b data-i18n="rstl.specCount">Specifications</b><span class="v" id="mSpecs">-</span></div>
         <div><b data-i18n="rstl.reqCount">Requirements</b><span class="v" id="mReqs">-</span></div>
@@ -161,7 +162,10 @@ $(function () {
 
 var GRANT = { view: false, modify: false };
 
-function t(k) { return TLi18n.t(k); }
+// The params bucket MUST be forwarded: TLi18n.t() interpolates {name}
+// placeholders only when it receives the second argument, so a wrapper that
+// drops it renders the raw "{specs} specifications" template.
+function t(k, params) { return TLi18n.t(k, params); }
 
 function buildLinks() {
   var tp = TPROJECT_ID > 0 ? TPROJECT_ID : 0;
@@ -180,7 +184,10 @@ function showMsg(ok, text) {
 function showState(text, code, icon) {
   DEAD = true;
   $('#stateText').text(text || '');
-  $('#stateCode').text(code || '');
+  // The machine code is a diagnostic, not UI: it goes to the console so a
+  // support case can be correlated with the BFF log, never into the card.
+  if (code) { console.warn('[reqSpecListTree] ' + code); }
+  $('#stateCode').text('');
   $('#stateCard').find('i').attr('class', 'fa fa-' + (icon || 'exclamation-triangle'));
   $('#stateCard').css('display', 'block');
   $('#ctxCard,#treeCard').css('display', 'none');
@@ -242,6 +249,13 @@ function renderProjects() {
     var label = p.name + ' [' + p.prefix + ']' + (p.is_current ? ' *' : '');
     sel.append($('<option>').val(p.id).text(label));
   });
+  // A deep-linked project can legitimately be absent from PROJECTS (it has
+  // requirements disabled, or the caller has no right on it). Appending it keeps
+  // the switcher truthful instead of silently showing an empty selection.
+  if (TPROJECT_ID > 0 && !sel.find('option[value="' + TPROJECT_ID + '"]').length) {
+    sel.append($('<option>').val(TPROJECT_ID)
+      .text(t('rstl.currentProjectOnly') + ' #' + TPROJECT_ID));
+  }
   sel.val(String(TPROJECT_ID));
   sel.prop('disabled', false);
 }
@@ -268,6 +282,10 @@ function load(force) {
       GRANT = r.grant || { view: false, modify: false };
       SPECS = r.specs || [];
       var c = r.context || {};
+      // The switcher only lists requirement-enabled projects the caller may
+      // read, so a project reached by deep link (or one with requirements
+      // disabled) has no selectable option - its name must still be readable.
+      $('#mName').text(c.tproject_name || '-');
       $('#mPrefix').text(c.prefix || '-');
       $('#mSpecs').text(String(SPECS.length));
       $('#mReqs').text(String(c.total_reqs != null ? c.total_reqs : 0));
@@ -306,8 +324,14 @@ function handleError(payload, xhr) {
     showState(t('rstl.notFound'), code || 'tproject_not_found', 'question');
   } else if (status >= 500) {
     showState(t('rstl.serverError'), code || 'server_error', 'exclamation-triangle');
+  } else if (code === 'invalid_tproject' || status === 400) {
+    showState(t('rstl.badRequest'), code || 'invalid_tproject', 'exclamation-triangle');
+  } else if (status === 405) {
+    showState(t('rstl.methodNotAllowed'), code || 'method_not_allowed', 'exclamation-triangle');
   } else {
-    showState((payload && payload.message) || t('rstl.loadError'), code || 'load_error', 'exclamation-triangle');
+    // The BFF message is English server text: it must never reach the screen,
+    // so the generic branch always uses a localized string.
+    showState(t('rstl.loadError'), code || 'load_error', 'exclamation-triangle');
   }
 }
 
