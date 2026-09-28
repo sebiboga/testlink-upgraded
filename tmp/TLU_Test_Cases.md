@@ -25765,6 +25765,97 @@ are shown.
 | 1018-11 | check the Event Viewer / `events` table afterwards | no new Error/Warning rows | `SELECT COUNT(*) FROM events WHERE log_level IN (2,3)` = **0** | PASS |
 | 1018-12 | switch the locale (ro) and re-check the toolbar + group header | all new labels translated, no raw `md.*` key leaks | to be recorded on the issue | see issue comment |
 
+## Suite 1681 — Modernize: Requirement Specification Tree move/reorder (`reqTreeReorder`), Issue #1681
+
+**Precondition** (the DB is freshly imported on every run, so fixtures must be recreated):
+
+```
+php tmp/fixtures_1681.php
+# -> tproject, specA (3 reqs), specB (0 reqs), reqs TR1-1/2/3
+# -> user tr1681norights (role 3 = <no rights>)      -> 403 path
+# -> user tr1681readonly (custom role: mgt_view_req, no mgt_modify_req) -> read-only path
+```
+
+**Result: 45/45 PASS.** (The fixture is re-runnable: it deletes the previous run's project first,
+which is what exposed bug #1692 — a project holding an *empty* requirement specification used to
+make the shared delete path fatal — and it self-heals any requirement row left without a version
+node by the hand-made duplicate-document-id test.)
+
+The fixture prints the generated ids; every step below was run against **admin/admin**
+unless stated. Open
+`http://localhost:8082/gui/templates/requirements/reqTreeReorder.html?tproject_id=<TP>&req_spec_id=<SPECA>`.
+
+BFF base: `http://localhost:8082/api/reqtreereorder/index.php`. All calls carry
+`X-Requested-With: XMLHttpRequest`; writes are JSON `POST` with a same-origin `Referer`.
+
+| # | Steps | Expected | Actual | Result |
+|---|---|---|---|---|
+| 1681-1 | open the screen as admin on spec A | Dashio shell, Context card (project, revision, requirement count, **modified by**), *Move a requirement* card, reorder table `TR1-1, TR1-2, TR1-3` | 3 rows in `node_order` order; Modified by = `admin` (the author of the newest `req_specs_revisions` row) | PASS |
+| 1681-2 | read the requirement counts in the specification picker | `(3)` for spec A, `(0)` for spec B — the **live** count, not the denormalised `req_specs_revisions.total_req` | `TR1-SPEC-A - Specification A (3)`, `TR1-SPEC-B - Specification B (0)` | PASS |
+| 1681-3 | **Select** a row | *Selected requirement* tile fills with doc id + title, and the row is highlighted | `TR1-3 / Third requirement` | PASS |
+| 1681-4 | pick spec B + position **At the bottom**, click **Move requirement** | a **Dashio Bootstrap confirm dialog** (not a native `alert`), body names the doc id and the target spec | modal `#confirmModal` gets `.in`, `display:block`, `btn.close` present, body `Move requirement TR1-3 to TR1-SPEC-B - Specification B (0)?` | PASS — after fixing #1683 (the `BSS` guard was dead and every confirm was an `alert()`) |
+| 1681-5 | confirm the move | success message, the screen follows the requirement to the target spec, the counts change | `The requirement was moved.` / `.msg.ok`; spec picker now on spec B with 2 specs options; table = `TR1-1, TR1-3` | PASS |
+| 1681-6 | DB check after the move | the requirement changed `req_specs_id` **and** was appended to the target's `node_order` | `TR1-3` moved to spec B at the end | PASS |
+| 1681-7 | move a requirement **into its own current position** | `no_change`, nothing written, no error styling | `{"status":"no_change"}` → `Nothing to move` message, no DB write | PASS |
+| 1681-8 | reorder with the Up/Down/To top/To bottom buttons | the row moves; the **Unsaved changes** chip appears; `Apply order` persists it | `TR1-1,TR1-2,TR1-3` → `To bottom` on row 1 → `TR1-2,TR1-3,TR1-1`; chip visible; after Apply + Refresh the server order matches | PASS |
+| 1681-9 | boundary state of a 3-row table | Up/To top disabled on row 1, Down/To bottom disabled on row 3, the middle row fully enabled | first-row Up `dis`+`disabled`, last-row Down `dis`+`disabled` | PASS |
+| 1681-10 | **select row 2** (fills the move card), then click **To top on row 3** | **row 3** goes to the top, the selected row 2 is untouched | `TR1-1,TR1-2,TR1-3` → `TR1-3,TR1-1,TR1-2` | PASS — after fixing #1684 (the buttons used to reorder the *selected* row: picking row 2 and clicking To top on row 3 moved row 2 to the top and left row 3 alone) |
+| 1681-11 | drag row 3 onto row 1 | rows reorder locally **and** the Unsaved changes chip appears | `TR1-1,TR1-2,TR1-3` → `TR1-3,TR1-1,TR1-2`, chip `display:block` | PASS — after fixing #1685 (a drop never called `markDirty()`) |
+| 1681-12 | **Apply order** and confirm | success message, chip cleared, and the order survives a Refresh (proves it reached the DB) | `The new order was saved.`; chip hidden; `SELECT … node_order` = `0,1,2` in the dragged order; re-read after reload identical | PASS |
+| 1681-13 | **Discard changes** after a local reorder | the staged order is dropped, the persisted order is restored | rows return to the server order, chip hidden | PASS |
+| 1681-14 | **Refresh** | reloads from the BFF, keeps the selected specification | 3 groups re-rendered, same spec still chosen | PASS |
+| 1681-15 | POST `reorder` with a **duplicate** id: `nodes_order:[22,18,18]` | `400 invalid_nodes_order`, **nothing written** | was `200 ok` and wrote `node_order` twice for one node, leaving a sibling at a stale order — fixed in #1682; now `400 {"code":"invalid_nodes_order"}` and the table is untouched | PASS (regression #1682) |
+| 1681-16 | POST `reorder` with an incomplete list | `400 incomplete_nodes_order` | `400 incomplete_nodes_order` | PASS |
+| 1681-17 | POST `reorder` with a foreign id (a requirement of another specification) | `400`, nothing written | `400` | PASS |
+| 1681-18 | GET / POST to a wrong verb | `405` | `405` | PASS |
+| 1681-19 | unknown `action` | `400` | `400` | PASS |
+| 1681-20 | `node_id` of a requirement that lives in **another** test project | `404 requirement_not_found` — no cross-project existence leak | `404` | PASS |
+| 1681-21 | `req_spec_id` of a specification owned by another project (both for `init` and for `reorder`) | `404 req_spec_not_found` | `404` in both cases | PASS |
+| 1681-22 | `move` to a specification in another project | `404 req_spec_not_found`, requirement stays put | `404` | PASS |
+| 1681-23 | POST **without** the same-origin `X-Requested-With`/`Referer` | `403` (CSRF guard) — and the guard runs *before* the rights check | `403` | PASS |
+| 1681-24 | POST anonymously with the headers | `401`, and the screen redirects to the login page | `401`; the legacy shim answers `200` with a JS redirect, the same contract as the pre-existing `stepReorder.php` | PASS |
+| 1681-25 | as **tr1681norights**: `init`, `move`, `reorder` | `403 no_right` on all three (view *and* modify denied) | `403` ×3 | PASS |
+| 1681-26 | the same page as tr1681norights | error card *You are not authorized to view requirements of this test project* + code `no_right`; the **whole toolbar and both pickers disabled**; the read-only banner **not** shown; the back link is a real, project-correct target | `DEAD=true`, Apply/Move/Discard/`specSel`/`targetSel`/`posSel` all `disabled`, `roBanner` hidden, `backHref=/gui/templates/requirements/reqSpecMgmt.html?tproject_id=<TP>` | PASS — after fixing #1686 (back link was a dead self-reload on this path), #1688 (toolbar stayed live) and #1690 (back link's `tproject_id` was hardcoded to 13) |
+| 1681-27 | as **tr1681readonly** (view but not modify): `init` | `200`, `grant.view=true`, `grant.modify` falsy, the requirement list and the specification picker are returned | `200`, `{'view': True, 'modify': None}`, 3 reqs, 2 specs | PASS |
+| 1681-28 | as tr1681readonly: `move`, `reorder` | `403 no_right` on both, nothing written | `403` ×2 | PASS |
+| 1681-29 | the read-only page in the browser | read-only banner shown; Up/Down/To top/To bottom disabled; Apply/Discard/Move and the target/position pickers disabled; the specification picker still usable (browsing is allowed); **no** `draggable` rows, **no** grip icon, **no** "Drag and drop reorders…" hint; a drop gesture changes nothing | `roBanner.show`, all reorder buttons + Apply/Discard/Move disabled, `specSel` enabled, `draggable` absent, `.grip` count 0, `#dragHint` hidden, order unchanged after a synthetic drop | PASS — after fixing #1689 |
+| 1681-30 | a bad `req_spec_id` (99999) as admin | error card *…was not found in this test project* + code `req_spec_not_found`, toolbar dead, back link valid for the **current** project | `DEAD=true`, code `req_spec_not_found`, Apply disabled | PASS |
+| 1681-31 | switch the locale to `ro` | page title, toolbar, cards, table headers and row controls all translated, no raw `reqtr.*` key leaks | `Arborele specificațiilor de cerințe`; `Aplică ordinea`; `Trage-and-drop reordonează doar local până aplici` | PASS |
+| 1681-32 | automated i18n cross-check: every `data-i18n` / `t('…')` key the screen uses | present in **all 10** locale bundles, none empty, and no unused `reqtr.*` key left behind | 53 distinct keys, all bundles contain every key, 0 dead `reqtr.*` keys | PASS |
+| 1681-33 | the *Back to specification management* link, on the success path, the 403 path and the 404 path | always a real in-app target for the **current** test project, never `#`, never a self-reload, never another project | `/gui/templates/requirements/reqSpecMgmt.html?tproject_id=<TP>` in all three states | PASS (regression #1690) |
+| 1681-34 | the specification doc-id chip in the Context card | clickable, opens the specification viewer in a new tab; not clickable when no specification is selected | `data-href=/gui/templates/requirements/reqSpecView.html?id=<SPEC>&tproject_id=<TP>` | PASS |
+| 1681-35 | browser console | no errors from the new screen | 1 pre-existing DevTools a11y *issue* (`No label associated with a form field`), 0 errors | PASS |
+| 1681-36 | Event Viewer / `events` table afterwards | no new Error/Warning rows attributable to the new code | 0 events mentioning `reqtreereorder`, `reqTreeReorder` or `dragdroprequirementnodes` at Error/Warning level; the only matching row is the shim's own *refused POST* notice raised by test 1681-23, which is the intended behaviour | PASS |
+| 1681-37 | `POST /lib/ajax/dragdroprequirementnodes.php` (the retired legacy URL) | refused, no mutation, points at the replacement endpoint | `403` + notice *refused POST on the retired legacy requirement-tree drag-and-drop endpoint — use POST /api/reqtreereorder/index.php?action=move\|reorder* | PASS |
+| 1681-38 | `php -l` on every touched PHP file, `python3 -m json.tool` on every touched bundle | no syntax errors, all JSON valid | BFF, shim and `common.php` clean; 10/10 bundles valid | PASS |
+| 1681-39 | revise a requirement (`requirement_mgr::create_version()`), then `GET ?action=init` and a real `POST ?action=reorder` over that spec | the revised requirement is listed **exactly once** at its new version, and the reorder is accepted + persisted | after `create_version(81, 2)` the list returns `81 (v2), 83, 85` (one row, not three) and `POST {nodes_order:[85,81,83]}` answers `200 {"reordered":3}` with `node_order` 0/1/2 for `85/81/83` in the DB; pre-fix the list returned `81,81,81,83,85` and any reorder of it died with `400 duplicate id` | PASS — fixed in #1691 |
+| 1681-40 | requirement with **no** version node (raw `requirements` + `nodes_hierarchy` row, no `node_type_id=8` child, `TR1-4` / id 500) | it is still listed (the `LEFT JOIN` is deliberate, unlike `api/reqreorder`) and the spec still reorders | `GET ?action=init` returns 4 requirements including `500 TR1-4 v0` with an empty status; `POST {nodes_order:[500,85,81,83]}` answers `200 {"reordered":4}` and persists `500=0, 85=1, 81=2, 83=3`; the browser renders the row with no `undefined`/`NaN` cell | PASS |
+
+### Bugs found and fixed while executing this suite
+
+| Issue | Title | Commit |
+|---|---|---|
+| #1682 | `api/reqtreereorder` reorder accepts a **duplicate** requirement id in `nodes_order` and corrupts the order | `2c7fa2446` |
+| #1683 | `reqTreeReorder.html` confirm dialog was a native `alert()` — the Dashio bundle is Bootstrap 3.4.1, not 4/5 | `f790f7241` |
+| #1684 | the Up/Down/To top/To bottom row buttons reordered the **selected** requirement, not their own row | `f60e8965d` |
+| #1685 | drag & drop did not show the *Unsaved changes* chip (the button path did) | `8199bc93e` |
+| #1686 | the *Back to specification management* link was a dead self-reload on the error path and pointed at the wrong screen otherwise | `983c9179c` |
+| #1687 | the *Modified by* tile was a hardcoded `-` placeholder | `9d0c295de` |
+| #1688 | on the 403/404 error page the whole toolbar stayed live | `571760ea4` |
+| #1689 | read-only mode still advertised drag & drop (draggable rows, grip icon, hint) while every drop was ignored | `b426a377e`, `79f50950d` |
+| #1690 | the back link's `tproject_id` was hardcoded to the fixture project's id | `1ba5015e7` |
+| #1691 | `api/reqtreereorder` listed a **revised** requirement once per version, so reordering such a spec always failed with `400` | (this commit) |
+| 1681-41 | fresh **no-rights** session, `GET ?action=init&tproject_id=76&node_id=<real>` vs `node_id=999999` | identical answer for an existing and a non-existing id — no existence oracle | both `403 {"code":"no_right"}`; an earlier attempt returned `401` for both because the fixture cookie had expired, so the session must be recreated with `curl -c /tmp/n2.txt ... -d 'login=tr1681norights&password=admin' .../api/auth/login` | PASS — the pre-fix order answered `404 requirement_not_found` for a foreign id and `403` for an existing one |
+| 1681-42 | mandatory subagent code review over the screen + BFF | every CRITICAL/MAJOR/MINOR finding fixed and re-verified | CRITICAL: the list returned every **version node**, not the latest (#1691). MAJOR: `init` resolved the node before checking rights (403/404 oracle); `move` wrote `srs_id` blindly although `requirements` has `UNIQUE (srs_id, req_doc_id)`, leaving a half-applied move. MINOR: top insertion used `node_order + 1` on a possibly NULL column. All four fixed; the collision is now a `409 duplicate_doc_id` **before** any write (verified: direct `TR1-1` row in the target spec -> `409`, `srs_id`/`node_order` of every row unchanged) | PASS |
+| 1681-43 | `#treeReorderLink` on the Requirement Specification Viewer toolbar | the modern screen is reachable from a modern page, not only from the generic `$actions` launcher | `reqSpecView.html?req_spec_id=77&tproject_id=76` -> `a#treeReorderLink` `href="/gui/templates/requirements/reqTreeReorder.html?req_spec_id=77&tproject_id=76"`, visible, label *Reorder / move requirements*; the screen then preselects `TR1-SPEC-A` | PASS — the screen had no UI entry point (code-review finding) |
+| 1681-44 | accessibility of the three form fields (a11y hint) | every control has an associated label | `label[for=posSel]` was missing (the *Position* label had no `for`), and *Selected requirement* was a `<label>` with no control; the label rule was also `label.fl` (element-qualified) so converting it to a `<div>` would have dropped its styling. Fixed all three; after a cache-bypassing reload the DevTools **issue** list is empty (0 `No label associated with a form field`, 0 `form field should have an id or name`) | PASS |
+| 1681-45 | `php tmp/fixtures_1681.php` **re-run** over a project that holds an empty requirement specification | the fixture is re-runnable and the shared project/spec delete path survives an empty spec | pre-fix the second run died with `TypeError: array_keys(): Argument #1 must be of type array, null given` (requirement_mgr.class.php:621) and then two SQL `IN ()` syntax errors (#1692); after the fix the second run completes (`tproject=76 specA=77 specB=79 reqs=81,83,85`) and removes the previous project + both specs + all requirements. The fixture also self-heals the raw-SQL clash row (a requirement without a version node) that triggered the crash | PASS — bug #1692 found and fixed by this run |
+A defect in the **fixture itself** was also found and fixed while building the read-only
+path: `intval()` was applied to the array returned by `$db->get_recordset()`, and
+`intval()` of a non-empty array is `1` — so the "view only" role was silently granted
+`testplan_execute` (id 1) instead of `mgt_view_req` (id 10), and the read-only path
+appeared to have no view rights at all.
+
 ## Regression — Issue #1608: `tree::get_subtree()` with `output=rspec` + a non-`rspec` `order_cfg` raised one `E_WARNING "Undefined array key doc_id"` per row (Event Viewer noise)
 
 **Precondition**
