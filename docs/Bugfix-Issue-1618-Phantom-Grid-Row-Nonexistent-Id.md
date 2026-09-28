@@ -195,6 +195,17 @@ signature was 8 template-raised warnings.
 - Wrench ("Check connection") clicked on the real row → no crash.
 - **Console: 0 errors, 0 warnings.**
 
+**Event Viewer after a full 8-case re-run** — `gui/templates/eventviewer/eventviewer.html`:
+
+```
+Showing 1 to 2 of 2 entries
+ AUDIT(1 item) | 28/09/2026 20:50:50 | AUDIT | Testlink Administrator | Login for 'admin' from '127.0.0.1' succeeded
+ ERROR(1 item) | 28/09/2026 20:50:50 | ERROR | Testlink Administrator | Object of class stdClass could not be converted to string
+```
+
+**0 `E_WARNING` rows** — precisely what #1618 was about. The single ERROR is the unrelated,
+separately filed **#1701**, raised by the deliberately unreachable tracker host in M2.
+
 ## 8. Notes — two fixture traps (both unrelated defects, filtered out)
 
 1. A `reqmgrsystems` fixture of `type=2` raises 6 `E_WARNING`s per load from
