@@ -1735,7 +1735,15 @@ function setPublicStatus($id,$status)
       switch($mode)
       {
           case 'dotted':
-            $dm = $addprefix ? "[{$current[$addfield]}] - " : '';
+            // Same guard as tree::createHierarchyMap() (tree.class.php:1597):
+            // the optional prefix field is not guaranteed to exist on every row
+            // - tree::get_subtree() 'rspec' output can return rows whose SQL
+            // never projected doc_id, resolved to null (Refs #1608), and
+            // "[{$null}] - " silently produced a bogus "[] - " label. This is
+            // the legacy twin of that function; keeping the two copies in step
+            // is what stops this drifting again (Refs #1606).
+            $dm = ($addprefix && isset($current[$addfield]) && !is_null($current[$addfield]))
+                   ? "[{$current[$addfield]}] - " : '';
             $pding = ($the_level == 1) ? 0 : $the_level+1;  
           $hmap[$current['id']] = str_repeat($dot,$pding) . $dm . $current['name'];
           break;
