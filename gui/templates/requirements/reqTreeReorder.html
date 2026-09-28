@@ -274,6 +274,9 @@ function render() {
       var mv = ITEMS.splice(from, 1)[0];
       ITEMS.splice(i > from ? i - 1 : i, 0, mv);
       render();
+      // Same feedback as a button reorder: a drop changes the pending order
+      // locally, so the "Unsaved changes" chip has to appear.
+      markDirty();
     });
     body.append(tr);
   });
