@@ -2246,6 +2246,7 @@ $TLS_href_print_tc = "Dokument \"Testspezifikation\" erstellen";
 $TLS_href_print_req = "Dokument \"Anforderungsspezifikation\" erstellen";
 $TLS_href_req_assign = "Anforderungen zuweisen";
 $TLS_href_req_spec = "Anforderungsspezifikation";
+$TLS_href_req_spec_tree = "Anforderungsspezifikationsbaum";
 $TLS_href_req_overview = "Anforderungsübersicht";
 $TLS_href_roles_management = "Rollen verwalten";
 $TLS_href_search_tc = "Testfälle suchen";

@@ -2584,6 +2584,7 @@ $TLS_href_print_tc = "テストケースの印刷";
 $TLS_href_print_req = "要件定義文書の作成";
 $TLS_href_req_assign = "要件の割り当て";
 $TLS_href_req_spec = "要件定義文書";
+$TLS_href_req_spec_tree = "要件仕様ツリー";
 $TLS_href_req_overview = "要件概要";
 $TLS_href_req_monitor_overview = "要件モニター概要"; // "Requirement Monitoring Overview";
 $TLS_href_quality_objectives = "品質目標"; // "Quality Objectives" (Refs #1280)

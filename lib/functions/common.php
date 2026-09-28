@@ -2163,6 +2163,18 @@ function getActions(&$gui,$baseURL) {
 
   // Modernized screens (Dashio standalone pages)
   $actions->reqSpecMgmt = "/gui/templates/requirements/reqSpecMgmt.html?{$ctx}";
+  // Requirement Specification Tree navigator (Dashio standalone page) - Refs
+  // #1695. Replaces lib/requirements/reqSpecListTree.php, the 84-line legacy
+  // frame that built an ExtJS tree (test project -> specification -> requirement
+  // counts) through tlRequirementFilterControl::build_tree_menu() and rendered
+  // reqSpecListTree.tpl; the lazy loader it pointed at,
+  // lib/ajax/getrequirementnodes.php, did NO rights check at all, so any
+  // authenticated user could read the requirement doc_ids/titles of ANY project.
+  // The modern screen is backed by api/reqspectreelist, which checks
+  // mgt_view_req / mgt_modify_req on the addressed project and proves every
+  // node id to a specification of that project. Read-only: the write gesture
+  // (move / reorder) lives in reqTreeReorder.html (Refs #1681).
+  $actions->reqSpecListTree = "/gui/templates/requirements/reqSpecListTree.html?{$ctx}";
   // Direct-link resolver modernized screen (Dashio standalone page) - Refs
   // #1532. Replaces the legacy linkto.php deep-link gateway for
   // linkto.php?tprojectPrefix=<prefix>&item=req&id=<doc_id>; the browser-facing

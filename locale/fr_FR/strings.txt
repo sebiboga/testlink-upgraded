@@ -2286,6 +2286,7 @@ $TLS_href_print_tc = "Génération du cahier de test";
 $TLS_href_print_req = "Génération du cahier d’exigences";
 $TLS_href_req_assign = "Lier/Délier exigences et fiches de test";
 $TLS_href_req_spec = "Gestion des exigences";
+$TLS_href_req_spec_tree = "Arbre des specifications d'exigences";
 $TLS_href_req_overview = "Récapitulatif d’exigences";
 $TLS_href_req_monitor_overview = "Surveillance d’exigences";
 $TLS_href_quality_objectives = "Objectifs qualité"; // "Quality Objectives" (Refs #1280)

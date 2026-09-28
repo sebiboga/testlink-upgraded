@@ -1554,6 +1554,7 @@ $TLS_href_keywords_view = "Visualizza Parole chiave";
 $TLS_href_print_tc = "Stampa Test Cases";
 $TLS_href_req_assign = "Assegna Requisiti";
 $TLS_href_req_spec = "Specifiche dei Requisiti";
+$TLS_href_req_spec_tree = "Albero delle specifiche dei requisiti";
 $TLS_href_roles_management = "Gestione ruoli";
 $TLS_href_search_tc = "Cerca Test Cases";
 $TLS_href_tproject_management = "Test Project Management";

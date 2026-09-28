@@ -1967,6 +1967,7 @@ $TLS_href_print_tc = "Imprimir Casos de prueba";
 $TLS_href_print_req = "Imprimir Especificación de Requerimientos";
 $TLS_href_req_assign = "Asignar Requerimientos";
 $TLS_href_req_spec = "Especificación de Requerimientos";
+$TLS_href_req_spec_tree = "Arbol de especificaciones de requisitos";
 $TLS_href_req_overview = "Revisión de Requerimientos";
 $TLS_href_roles_management = "Gestión de Roles";
 $TLS_href_search_tc = "Buscar Casos de prueba";

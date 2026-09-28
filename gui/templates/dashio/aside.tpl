@@ -192,6 +192,8 @@ Left side menu
                 <ul class="sub">
                   <li><a href="{$gui->uri->reqSpecMgmt}" target="mainframe">
                   {$labels.href_req_spec}</a></li>
+                  <li><a href="{$gui->uri->reqSpecListTree}" target="mainframe">
+                  {$labels.href_req_spec_tree}</a></li>
                   <li><a href="{$gui->uri->reqOverView}" target="mainframe">{$labels.href_req_overview}</a></li>
                   <li><a href="{$gui->uri->printReqSpec}" target="mainframe">{$labels.href_print_req}</a></li>
                   <li><a href="{$gui->uri->searchReq}" target="mainframe">{$labels.href_search_req}</a></li>  

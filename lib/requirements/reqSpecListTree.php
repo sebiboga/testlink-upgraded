@@ -1,85 +1,44 @@
 <?php
-/** 
+/**
  * TestLink Open Source Project - http://testlink.sourceforge.net/
- * 
- * @filesource reqSpecListTree.php
- * @author 	Francisco Mancardi (francisco.mancardi@gmail.com)
- * 
- * Tree menu with requirement specifications.
  *
+ * @filesource reqSpecListTree.php
+ *
+ * LEGACY REDIRECT SHIM - the requirement specification tree navigator was
+ * modernized in Refs #1695.
+ *
+ * The 84-line controller this replaces built an ExtJS tree
+ * (test project -> requirement specification -> requirement) through
+ * tlRequirementFilterControl::build_tree_menu() and rendered
+ * gui/templates/dashio/requirements/reqSpecListTree.tpl (inc_head.tpl +
+ * inc_ext_js.tpl + treebyloader.js). Its lazy loader,
+ * lib/ajax/getrequirementnodes.php, did no rights check at all, so any
+ * authenticated user could read the requirement doc_ids and titles of ANY test
+ * project.
+ *
+ * The modern screen is gui/templates/requirements/reqSpecListTree.html and it
+ * is backed by api/reqspectreelist/index.php, which enforces
+ * mgt_view_req / mgt_modify_req on the addressed project and proves every node
+ * id to be a requirement specification of that same project.
+ *
+ * The non-public testlinkInitPage($db, false, false) contract is preserved:
+ * an anonymous call is bounced to login.php?note=expired&destination=... exactly
+ * as the legacy frame did.
  */
-
 require_once('../../config.inc.php');
 require_once("common.php");
-require_once("treeMenu.inc.php");
-require_once('requirements.inc.php');
-testlinkInitPage($db,false,false);
 
-$templateCfg = templateConfiguration();
-$args = init_args();
-$gui = initializeGui($args);
+testlinkInitPage($db, false, false);
 
-$ctx = new stdClass();
-$ctx->tproject_id = $args->tproject_id;
-checkRights($db,$args->user,$ctx);
-
-$control = new tlRequirementFilterControl($db);
-$control->build_tree_menu($gui);
-$control->formAction = '';
-
-$smarty = new TLSmarty();
-$smarty->assign('gui', $gui);
-$smarty->assign('control', $control);
-$smarty->display($templateCfg->template_dir . $templateCfg->default_template);
-
-/**
- *
- */
-function init_args()
-{
-  $args = new stdClass();
-  $args->tproject_id = intval(isset($_SESSION['testprojectID']) ? $_SESSION['testprojectID'] : 0);
-  $args->tproject_name = isset($_SESSION['testprojectName']) ? $_SESSION['testprojectName'] : 'undefned';
-  $args->basehref = $_SESSION['basehref'];
- 
-  $args->user = isset($_SESSION['currentUser']) 
-                ? $_SESSION['currentUser'] : null;
-
-  return $args;
+$tid = isset($_REQUEST['tproject_id']) ? intval($_REQUEST['tproject_id']) : 0;
+if ($tid <= 0 && isset($_SESSION['testprojectID'])) {
+    $tid = intval($_SESSION['testprojectID']);
 }
 
-/*
-  function: initializeGui
-            initialize gui (stdClass) object that will be used as argument
-            in call to Template Engine.
- 
-  args: argsObj: object containing User Input and some session values
-        basehref: URL to web home of your testlink installation.
-  
-  returns: stdClass object
-  
-  rev: 
-
-*/
-function initializeGui($argsObj)
-{
-  $gui = new stdClass();
-  $gui->tproject_id = isset($argsObj->tproject_id) ? intval($argsObj->tproject_id) : 0;
-  $gui->tree_title = lang_get('title_navigator'). ' - ' . lang_get('title_req_spec');
-  
-  $gui->req_spec_manager_url = "lib/requirements/reqSpecView.php";
-  $gui->req_manager_url = "lib/requirements/reqView.php";
-  $gui->basehref = $argsObj->basehref;
-    
-  return $gui;  
+$target = '/gui/templates/requirements/reqSpecListTree.html';
+if ($tid > 0) {
+    $target .= '?tproject_id=' . $tid;
 }
 
-/*
- * rights check 
- */
-function checkRights(&$db, &$user, $context) 
-{
-  $context->rightsOr = ["mgt_view_req","mgt_modify_req"];
-  $context->rightsAnd = [];
-  pageAccessCheck($db, $user, $context);
-}
+header('Location: ' . $target);
+exit;

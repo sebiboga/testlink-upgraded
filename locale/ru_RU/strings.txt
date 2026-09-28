@@ -1802,6 +1802,7 @@ $TLS_href_keywords_view = "Просмотреть ключевые слова";
 $TLS_href_print_tc = "Распечатать тесты";
 $TLS_href_req_assign = "Покрыть требования тестами";
 $TLS_href_req_spec = "Редактировать требования";
+$TLS_href_req_spec_tree = "Дерево спецификаций требований";
 $TLS_href_roles_management = "Редактировать уровни доступа";
 $TLS_href_search_tc = "Искать тесты";
 $TLS_href_tproject_management = "Управление тест-проектом";

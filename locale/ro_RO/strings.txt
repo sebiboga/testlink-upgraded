@@ -86,6 +86,7 @@ $TLS_href_inventory_management = 'Gestionare inventar';
 $TLS_href_metrics_dashboard = 'Tablou de bord metrici';
 $TLS_title_requirements = 'Cerințe';
 $TLS_href_req_spec = 'Specificație cerințe';
+$TLS_href_req_spec_tree = "Arborele specificatiilor de cerinte";
 $TLS_href_req_overview = 'Prezentare cerințe';
 $TLS_href_req_assign = 'Atribuire cerințe';
 $TLS_href_req_monitor_overview = 'Prezentare monitorizare cerințe';

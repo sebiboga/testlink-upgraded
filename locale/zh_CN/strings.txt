@@ -2448,6 +2448,7 @@ $TLS_href_print_tc = "打印测试用例";
 $TLS_href_print_req = "生成产品需求规格文档";
 $TLS_href_req_assign = "指派产品需求";
 $TLS_href_req_spec = "产品需求规格";
+$TLS_href_req_spec_tree = "需求规格树";
 $TLS_href_req_overview = "产品需求概览";
 $TLS_href_req_monitor_overview = "需求监测概览";
 $TLS_href_quality_objectives = "质量目标"; // "Quality Objectives" (Refs #1280)

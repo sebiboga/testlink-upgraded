@@ -446,6 +446,7 @@ if ($show('projects')) {
 if ($show('requirements_design')) {
     $items = array();
     $items[] = array('label' => lang_get('href_req_spec'), 'href' => (string)$u('reqSpecMgmt'));
+    $items[] = array('label' => lang_get('href_req_spec_tree'), 'href' => (string)$u('reqSpecListTree'));
     $items[] = array('label' => lang_get('href_req_overview'), 'href' => (string)$u('reqOverView'));
     $items[] = array('label' => lang_get('href_print_req'), 'href' => (string)$u('printReqSpec'));
     $items[] = array('label' => lang_get('href_search_req'), 'href' => (string)$u('searchReq'));
