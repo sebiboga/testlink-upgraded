@@ -74,7 +74,7 @@ td.act { width: 250px; white-space: nowrap; }
   <button class="btn-teal" id="applyBtn"><i class="fa fa-save"></i> <span data-i18n="reqtr.applyOrder">Apply order</span></button>
   <button class="btn-ghost" id="discardBtn"><i class="fa fa-undo"></i> <span data-i18n="reqtr.discard">Discard changes</span></button>
   <button class="btn-ghost" id="refreshBtn"><i class="fa fa-refresh"></i> <span data-i18n="common.refresh">Refresh</span></button>
-  <a class="btn-ghost" id="backLink" href="/gui/templates/requirements/reqSpecMgmt.html?tproject_id=13"><i class="fa fa-arrow-left"></i> <span data-i18n="reqtr.backToMgmt">Back to specification management</span></a>
+  <a class="btn-ghost" id="backLink" href="/gui/templates/requirements/reqSpecMgmt.html"><i class="fa fa-arrow-left"></i> <span data-i18n="reqtr.backToMgmt">Back to specification management</span></a>
   <span class="hint" id="dragHint"><i class="fa fa-grip-vertical"></i> <span data-i18n="reqtr.hint">Drag and drop reorders locally until you apply it</span></span>
 </div>
 
@@ -175,7 +175,18 @@ var SPECS = [];
 var GRANT = { view: false, modify: false };
 var BUSY = false;
 
+// Build the back target from the URL params SYNCHRONOUSLY, before any API
+// call: the escape hatch must work on the error path, and this template is a
+// static file so no server-side value can be baked in.
+function buildBackLink() {
+  var tp = TPROJECT_ID > 0 ? TPROJECT_ID : 0;
+  $('#backLink').attr('href', tp > 0
+    ? '/gui/templates/requirements/reqSpecMgmt.html?tproject_id=' + tp
+    : '/gui/templates/requirements/reqSpecMgmt.html');
+}
+
 $(function () {
+  buildBackLink();
   TLi18n.load(function () {
     TLi18n.apply();
     TLi18n.initLocaleSwitcher('#localeSwitcher');
