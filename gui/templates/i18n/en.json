@@ -3009,6 +3009,7 @@
   "reqtr.testProject": "Test project",
   "reqtr.title": "Requirement specification tree",
   "reqtr.titleSub": "move a requirement to another specification, or reorder a specification",
+  "reqtr.treeReorderLink": "Reorder / move requirements",
   "reqtr.unsaved": "Unsaved changes",
   "reqv.actions": "Actions",
   "reqv.addLinkToTestCase": "Add link to test case",

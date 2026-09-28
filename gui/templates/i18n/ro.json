@@ -3009,6 +3009,7 @@
   "reqtr.testProject": "Proiect de test",
   "reqtr.title": "Arborele specificațiilor de cerințe",
   "reqtr.titleSub": "mută o cerință în altă specificație sau reordonează cerințele",
+  "reqtr.treeReorderLink": "Reordonare / mutare cerințe",
   "reqtr.unsaved": "Modificări nesalvate",
   "reqv.actions": "Actiuni",
   "reqv.addLinkToTestCase": "Adauga legatura la un test case",

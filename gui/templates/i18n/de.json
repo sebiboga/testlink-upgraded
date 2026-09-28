@@ -3003,6 +3003,7 @@
   "reqtr.testProject": "Testprojekt",
   "reqtr.title": "Anforderungs-Spezifikationsbaum",
   "reqtr.titleSub": "eine Anforderung in eine andere Spezifikation verschieben oder eine Spezifikation neu ordnen",
+  "reqtr.treeReorderLink": "Anforderungen umsortieren / verschieben",
   "reqtr.unsaved": "Nicht gespeicherte Änderungen",
   "reqv.actions": "Aktionen",
   "reqv.addLinkToTestCase": "Verknuepfung zum Testfall hinzufuegen",

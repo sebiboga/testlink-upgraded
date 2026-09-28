@@ -3003,6 +3003,7 @@
   "reqtr.testProject": "Proyecto de pruebas",
   "reqtr.title": "Árbol de especificación de requisitos",
   "reqtr.titleSub": "mover un requisito a otra especificación o reordenar una especificación",
+  "reqtr.treeReorderLink": "Reordenar / mover requisitos",
   "reqtr.unsaved": "Cambios sin guardar",
   "reqv.actions": "Acciones",
   "reqv.addLinkToTestCase": "Agregar enlace al caso de prueba",

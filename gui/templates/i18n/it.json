@@ -3003,6 +3003,7 @@
   "reqtr.testProject": "Progetto di test",
   "reqtr.title": "Albero della specifica dei requisiti",
   "reqtr.titleSub": "sposta un requisito in un’altra specifica o riordina una specifica",
+  "reqtr.treeReorderLink": "Riordina / sposta requisiti",
   "reqtr.unsaved": "Modifiche non salvate",
   "reqv.actions": "Azioni",
   "reqv.addLinkToTestCase": "Aggiungi collegamento al test case",

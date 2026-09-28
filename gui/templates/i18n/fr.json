@@ -3003,6 +3003,7 @@
   "reqtr.testProject": "Projet de test",
   "reqtr.title": "Arborescence de la spécification des exigences",
   "reqtr.titleSub": "déplacer une exigence vers une autre spécification ou réordonner une spécification",
+  "reqtr.treeReorderLink": "Rordonner / déplacer les exigences",
   "reqtr.unsaved": "Modifications non enregistrées",
   "reqv.actions": "Actions",
   "reqv.addLinkToTestCase": "Ajouter un lien vers le cas de test",

@@ -3009,6 +3009,7 @@
   "reqtr.testProject": "テストプロジェクト",
   "reqtr.title": "要件スペット樹のテリス",
   "reqtr.titleSub": "要件を別のスペットジョンに移すまたはスペットジョンを並べ替え",
+  "reqtr.treeReorderLink": "リクエイリッドの並べ替え / 移動",
   "reqtr.unsaved": "未保存の変更",
   "reqv.actions": "アクション",
   "reqv.addLinkToTestCase": "テストケースへのリンクを追加",

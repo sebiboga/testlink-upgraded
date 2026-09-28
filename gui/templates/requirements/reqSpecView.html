@@ -125,6 +125,11 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; }
     <a class="btn-ghost" id="bulkMonLink" href="#" target="_blank"><i class="fa fa-bell-o"></i> <span data-i18n="rsv.bulkMon">Bulk Monitoring</span></a>
   </span>
   <a class="btn-ghost" id="reorderLink" href="#" target="_blank"><i class="fa fa-list-ol"></i> <span data-i18n="reqro.toolbarLink">Reorder requirements</span></a>
+  <!-- Refs #1681 - entry point for the specification-tree move/re-parent screen
+       (reqTreeReorder.html). The reorderLink above reorders INSIDE one version of
+       one spec; this one re-parents a requirement into another spec and reorders the
+       whole spec tree, so it sits next to it on the spec hub. -->
+  <a class="btn-ghost" id="treeReorderLink" href="#" target="_blank"><i class="fa fa-sitemap"></i> <span data-i18n="reqtr.treeReorderLink">Reorder / move requirements</span></a>
   <a class="btn-ghost" id="createFromIssuesLink" href="#" style="display:none;"><i class="fa fa-bug-slash"></i> <span data-i18n="reqfi.title">Create Requirements from Issues</span></a>
   <!-- Refs #1346 - legacy reqSpecViewButtons.inc.tpl:54-57 + :109-112: two Import
        entry points gated on req_mgmt. "Import Reqs" = items scope
@@ -598,6 +603,10 @@ function showHideActions(r) {
   $('#bulkMonLink').attr('href', '/gui/templates/requirements/reqBulkMon.html?id=' +
     SPEC_ID + '&tproject_id=' + TPROJECT_ID);
   $('#reorderLink').attr('href', '/gui/templates/requirements/reqReorder.html?req_spec_id=' +
+    SPEC_ID + '&tproject_id=' + TPROJECT_ID);
+  // Refs #1681 - specification-tree move/re-parent screen. req_spec_id= preselects
+  // the spec in the picker, tproject_id= scopes the rights check.
+  $('#treeReorderLink').attr('href', '/gui/templates/requirements/reqTreeReorder.html?req_spec_id=' +
     SPEC_ID + '&tproject_id=' + TPROJECT_ID);
   $('#createFromIssuesLink').attr('href', '/gui/templates/requirements/reqFromIssues.html?req_spec_id=' +
     SPEC_ID + '&tproject_id=' + TPROJECT_ID);

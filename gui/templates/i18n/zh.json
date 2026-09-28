@@ -3009,6 +3009,7 @@
   "reqtr.testProject": "测试项目",
   "reqtr.title": "需求规格树",
   "reqtr.titleSub": "将需求移到其他规格，或重新排序规格",
+  "reqtr.treeReorderLink": "重排 / 移动需求",
   "reqtr.unsaved": "未保存的更改",
   "reqv.actions": "操作",
   "reqv.addLinkToTestCase": "添加用例链接",
