@@ -1653,6 +1653,7 @@
   "md.statusBlocked": "阻塞",
   "md.statusFailed": "失败",
   "md.statusNotRun": "未执行",
+  "md.statusUnknown": "未知",
   "md.statusPassed": "通过",
   "md.testPlan": "测试计划",
   "md.testPlanProgress": "测试计划进度",

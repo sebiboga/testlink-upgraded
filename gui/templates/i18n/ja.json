@@ -1653,6 +1653,7 @@
   "md.statusBlocked": "ブロック",
   "md.statusFailed": "失敗",
   "md.statusNotRun": "未実行",
+  "md.statusUnknown": "不明",
   "md.statusPassed": "合格",
   "md.testPlan": "テスト計画",
   "md.testPlanProgress": "テスト計画の進捗",

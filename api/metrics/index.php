@@ -213,6 +213,12 @@ if ($method === 'GET' && ($path === '/dashboard' || $path === '/dashboard/')) {
         $total[$sv] = 0;
     }
     $hasPlans = false;
+    // issue #1698: set only when a test plan really reports executions with a
+    // status code outside config results.status_code. The 'unknown' status is
+    // then appended to the status set, so the data driven client renders the
+    // counter that explains the difference between progress and the sum of the
+    // configured status columns. Healthy projects keep today's payload.
+    $unknownTotal = 0;
 
     foreach ($test_plans as $key => $tpinfo) {
         // only plans with (active) builds can have execution data
@@ -245,7 +251,11 @@ if ($method === 'GET' && ($path === '/dashboard' || $path === '/dashboard/')) {
                 );
                 $row['executed'] = 0;
                 foreach ($pinfo as $code => $elem) {
-                    $sv = $codeStatusVerbose[$code];
+                    // issue #1698: never let a status code outside
+                    // config results.status_code fall through to the
+                    // empty-string key '' (it would inflate 'executed' with a
+                    // quantity no status column can explain)
+                    $sv = isset($codeStatusVerbose[$code]) ? $codeStatusVerbose[$code] : 'unknown';
                     $qty = intval($elem['exec_qty']);
                     $row['statuses'][$sv] = array(
                         'qty' => $qty,
@@ -258,7 +268,13 @@ if ($method === 'GET' && ($path === '/dashboard' || $path === '/dashboard/')) {
                         $overall[$sv] = 0;
                     }
                     $overall[$sv] += $qty;
-                    $total[$sv] += $qty;
+                    if ($sv === 'unknown') {
+                        // issue #1698: 'unknown' is not part of the display set
+                        // yet, so $total has no key for it here
+                        $unknownTotal += $qty;
+                    } else {
+                        $total[$sv] += $qty;
+                    }
                 }
                 $row['progress'] = getPercentage($row['executed'], $row['active'], $round_precision);
                 $overall['executed'] += $row['executed'];
@@ -289,6 +305,9 @@ if ($method === 'GET' && ($path === '/dashboard' || $path === '/dashboard/')) {
                 }
                 $statuses[$sc] = $qty;
                 $overall['executed'] += $qty;
+                if ($sc === 'unknown') {
+                    $unknownTotal += $qty;
+                }
             }
             foreach ($statusSetForDisplay as $sv => $lbl) {
                 if (!isset($statuses[$sv])) {
@@ -337,6 +356,12 @@ if ($method === 'GET' && ($path === '/dashboard' || $path === '/dashboard/')) {
     }
 
     // project-level progress (progress bars)
+    if ($unknownTotal > 0 && !isset($statusSetForDisplay['unknown'])) {
+        // 'unknown' is a real status in $tlCfg->results['status_label'] (code
+        // 'u'), it is simply not part of status_label_for_exec_ui.
+        $statusSetForDisplay['unknown'] = 'test_status_unknown';
+        $total['unknown'] = $unknownTotal;
+    }
     $projectMetrics = array();
     $projectMetrics[] = array(
         'key' => 'executed',

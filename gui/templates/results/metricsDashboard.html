@@ -161,11 +161,13 @@ var PUBKEY = qs.get('apikey') || ''; // public share-link apikey (Refs #1541)
 var table = null;
 var STATUS_COLORS = {
   not_run: '#8f8f8f', passed: '#5cb85c',
-  failed: '#e6605e', blocked: '#f0ad4e'
+  failed: '#e6605e', blocked: '#f0ad4e',
+  unknown: '#9e9e9e'
 };
 var STATUS_KEYS = {
   not_run: 'md.statusNotRun', passed: 'md.statusPassed',
-  failed: 'md.statusFailed', blocked: 'md.statusBlocked'
+  failed: 'md.statusFailed', blocked: 'md.statusBlocked',
+  unknown: 'md.statusUnknown'
 };
 var dashboard = null;
 var collapsedGroups = {};   // Refs #1018: group name -> true when collapsed

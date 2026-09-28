@@ -1653,6 +1653,7 @@
   "md.statusBlocked": "Blocat",
   "md.statusFailed": "Eșuat",
   "md.statusNotRun": "Neexecutat",
+  "md.statusUnknown": "Necunoscut",
   "md.statusPassed": "Reușit",
   "md.testPlan": "Plan de Teste",
   "md.testPlanProgress": "Progresul Planurilor de Teste",

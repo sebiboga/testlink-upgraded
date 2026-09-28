@@ -1653,6 +1653,7 @@
   "md.statusBlocked": "Заблокирован",
   "md.statusFailed": "Провален",
   "md.statusNotRun": "Не выполнено",
+  "md.statusUnknown": "Не Известно",
   "md.statusPassed": "Пройден",
   "md.testPlan": "План тестирования",
   "md.testPlanProgress": "Прогресс планов тестирования",

@@ -1076,13 +1076,38 @@ class tlTestPlanMetrics extends testplan
 
     $statusCounters = array('total' => 0);
     $codeVerbose = array_flip($this->map_tc_status);
+    // issue #1698: $code is whatever is stored in executions.status, so a code
+    // outside config results.status_code (truncated/hand edited value, or the
+    // code of a removed custom status) used to land on the empty-string key ''
+    // plus one E_WARNING per call. Such rows are aggregated on the explicit
+    // 'unknown' status and reported ONCE, so that consumers which sum the
+    // status counters (metrics dashboard, pie chart, reports) never disagree
+    // with 'total' / 'executed'.
+    $unknownCodes = array();
     foreach($dummy as $code => $elem)
     {
-      
-      $statusCounters['total'] += $elem['exec_qty'];
-      $statusCounters[$codeVerbose[$code]] = $elem['exec_qty'];
-    } 
-    
+      $qty = intval($elem['exec_qty']);
+      $statusCounters['total'] += $qty;
+
+      $knownCode = isset($codeVerbose[$code]);
+      $verbose = $knownCode ? $codeVerbose[$code] : 'unknown';
+      if( !isset($statusCounters[$verbose]) ) {
+        $statusCounters[$verbose] = 0;
+      }
+      $statusCounters[$verbose] += $qty;
+
+      if( !$knownCode ) {
+        $unknownCodes[] = "'" . $code . "' => " . $qty;
+      }
+    }
+
+    if( count($unknownCodes) > 0 ) {
+      logWarningEvent(
+        'METRICS: ' . count($unknownCodes) . ' execution status code(s) not defined in ' .
+        'config results.status_code, counted as unknown on test plan ' . intval($id) . ': ' .
+        implode(', ', $unknownCodes), 'EXEC_STATUS', intval($id), 'testplans');
+    }
+
     return $statusCounters;
   }
 

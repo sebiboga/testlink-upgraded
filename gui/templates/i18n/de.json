@@ -1653,6 +1653,7 @@
   "md.statusBlocked": "Blockiert",
   "md.statusFailed": "Fehlgeschlagen",
   "md.statusNotRun": "Nicht ausgeführt",
+  "md.statusUnknown": "Unbekannt",
   "md.statusPassed": "Erfolgreich",
   "md.testPlan": "Testplan",
   "md.testPlanProgress": "Testplan-Fortschritt",
