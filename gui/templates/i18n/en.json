@@ -1643,7 +1643,7 @@
   "md.msg.noRights": "You do not have the rights needed to view the metrics dashboard.",
   "md.noTestPlans": "No test plans available for the current test project!",
   "md.notApplicable": "n/a",
-  "md.overallProgress": "Overall progress",
+  "md.overallProgress": "Overall Progress",
   "md.platform": "Platform",
   "md.progress": "Progress %",
   "md.progressAbsolute": "Executed (all test plans)",

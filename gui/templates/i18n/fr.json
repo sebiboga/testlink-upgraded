@@ -1643,7 +1643,7 @@
   "md.msg.noRights": "Vous n'avez pas les droits nécessaires pour consulter le tableau de bord des métriques.",
   "md.noTestPlans": "Aucun plan de test disponible pour le projet actuel !",
   "md.notApplicable": "s/o",
-  "md.overallProgress": "Avancement global",
+  "md.overallProgress": "Progression globale",
   "md.platform": "Plateforme",
   "md.progress": "Avancement %",
   "md.progressAbsolute": "Exécutés (tous les plans)",

@@ -1643,7 +1643,7 @@
   "md.msg.noRights": "Non hai i diritti necessari per visualizzare la dashboard delle metriche.",
   "md.noTestPlans": "Nessun piano di test disponibile per il progetto corrente!",
   "md.notApplicable": "n.d.",
-  "md.overallProgress": "Avanzamento complessivo",
+  "md.overallProgress": "Avanzamento generale",
   "md.platform": "Piattaforma",
   "md.progress": "Avanzamento %",
   "md.progressAbsolute": "Eseguiti (tutti i piani)",

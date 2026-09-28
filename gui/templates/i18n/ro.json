@@ -1643,7 +1643,7 @@
   "md.msg.noRights": "Nu aveți drepturile necesare pentru a vedea panoul de metrici.",
   "md.noTestPlans": "Nu există planuri de teste disponibile pentru proiectul curent!",
   "md.notApplicable": "n/a",
-  "md.overallProgress": "Progres global",
+  "md.overallProgress": "Progres general",
   "md.platform": "Platformă",
   "md.progress": "Progres %",
   "md.progressAbsolute": "Executate (toate planurile)",

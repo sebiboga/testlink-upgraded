@@ -26,7 +26,7 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 .toolbar label.chk { color: #ccc; font-size: 13px; cursor: pointer; margin: 0; }
 .toolbar label.chk input { margin-right: 6px; vertical-align: middle; cursor: pointer; }
 .tbtn { background: #2c2f36; color: #ddd; border: 1px solid #3c404a; border-radius: 4px;
-  font-size: 12px; padding: 5px 11px; cursor: pointer; display: none;
+  font-size: 12px; padding: 5px 11px; cursor: pointer; display: inline-flex;
   align-items: center; gap: 6px; }
 .tbtn:hover { background: #383c45; color: #fff; }
 .tbtn.on { background: #4ECDC4; border-color: #4ECDC4; color: #10312f; font-weight: 600; }
@@ -134,7 +134,7 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; vertical-align: 
     </div>
     <div class="table-wrap">
       <table id="plansTable" class="display" style="width:100%">
-        <thead><tr id="plansHead"></tr></thead>
+        <thead></thead>
         <tfoot id="plansFoot"></tfoot>
         <tbody></tbody>
       </table>
@@ -173,6 +173,7 @@ var grouped = false;        // legacy: grouping only when platforms are shown
 var platColIdx = -1;        // column index of the Platform column (list filter)
 var defaultOrder = null;    // remembered so "Reset to default state" can restore it
 var qtyColumnIdx = [];      // indices of the qty columns (hidden by default)
+var colSearchableIdx = [];  // per column: does it take a filter input?
 
 function esc(s) {
   return String(s == null ? '' : s)
@@ -310,7 +311,7 @@ function computeTotals(r) {
 // The RowGroup plugin is loaded from the same CDN as the already modernized
 // sibling screen gui/templates/results/tplanWithCF.html:107.
 function renderTable(r) {
-  if (table) { table.destroy(); $('#plansTable tbody').empty(); $('#plansHead').empty(); $('#plansFoot').empty(); }
+  if (table) { table.destroy(); $('#plansTable tbody').empty(); $('#plansFoot').empty(); }
   $('#platformFilter').empty();
 
   grouped = !!r.show_platforms;
@@ -361,6 +362,7 @@ function renderTable(r) {
   var titleActive = TLi18n.t('md.activeTCs');
   var titleProgress = TLi18n.t('md.progress');
   var qtyCols = [];   // indices of the (default hidden) qty columns
+  var colSearchable = [];  // mirrors columns[].searchable (Progress % is false)
 
   var cols = [];
   // Grouped column: legacy hides it in the child rows (hideGroupedColumn = true)
@@ -394,6 +396,8 @@ function renderTable(r) {
              '<span>' + row.progress + '%</span></div>';
     } });
 
+  colSearchable = cols.map(function (c) { return c.searchable !== false; });
+
   var opt = {
     data: rows,
     columns: cols,
@@ -413,7 +417,7 @@ function renderTable(r) {
         var cnt = (n > 1 ? TLi18n.t('md.groupItems') : TLi18n.t('md.groupItem')).replace('{count}', n);
         var ov = planOverall[group];
         var head = TLi18n.t('md.groupPrefix') + group + ' - ' + TLi18n.t('md.overallProgress') + ': ' +
-                   ((ov && typeof ov.progress !== 'undefined') ? ov.progress : 0) + '%';
+                   ((ov && typeof ov.progress !== 'undefined') ? ov.progress : 0) + '% ';
         return $('<tr/>').attr('data-key', encodeURIComponent(group))
           .append($('<td/>').append(
             $('<i/>').addClass('fa ' + (isCollapsed ? 'fa-chevron-right' : 'fa-chevron-down')),
@@ -428,6 +432,7 @@ function renderTable(r) {
   }
   defaultOrder = opt.order.slice();
   qtyColumnIdx = qtyCols;
+  colSearchableIdx = colSearchable;
 
   table = $('#plansTable').DataTable(opt);
   buildColumnFilters();
@@ -445,6 +450,11 @@ function buildColumnFilters() {
   table.columns().every(function (idx) {
     var $th = $('#plansTable thead th').eq(idx);
     var label = (($th.text() || '').trim() || (idx + 1));
+    // no filter input for the non-searchable columns (Progress %)
+    if (colSearchableIdx[idx] === false) {
+      $('<td/>').appendTo($tfrow);
+      return;
+    }
     var $input = $('<input type="text" class="col-filter" data-col="' + idx + '" ' +
       'placeholder="' + esc(label) + '" />');
     var $td = $('<td/>').append($input).appendTo($tfrow);
@@ -458,7 +468,7 @@ function buildColumnFilters() {
 }
 
 function anyFilterActive() {
-  var any = $('#platformFilter').val() !== '';
+  var any = ($('#platformFilter').val() || '') !== '';
   if (!any) {
     table.columns().every(function () { if (this.search() !== '') { any = true; } });
   }
@@ -514,10 +524,13 @@ function bindGridToolbar() {
     table.draw(false);
   });
   // "Show all columns" (exttable.class.php:109): reveals the qty columns that
-  // getColumnsDefinition() marks 'hidden' => true.
+  // getColumnsDefinition() marks 'hidden' => true. The grouped column stays
+  // hidden - exttable.class.php:55 hideGroupedColumn = true is independent of it.
   $('#btnShowCols').off('click').on('click', function () {
     table.columns().visible(true);
+    if (grouped) { table.column(0).visible(false); }
     $('#plansFoot td').show();
+    if (grouped) { $(table.column(0).footer()).hide(); }
     table.draw(false);
     $(this).addClass('on');
   });
