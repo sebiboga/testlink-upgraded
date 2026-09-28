@@ -452,16 +452,23 @@ if ($action === 'reorder') {
                 'invalid_nodes_order');
     }
     $order = array();
+    $seen = array();
     foreach ($submitted as $v) {
         $nid = intval($v);
         if ($nid <= 0) {
             failOut(400, 'Invalid requirement id in nodes_order',
                     'invalid_nodes_order');
         }
-        if (isset($order[$nid])) {
+        // The duplicate check must look at the IDS seen so far, not at the
+        // value at array index $nid: $order is a positional list, so
+        // isset($order[$nid]) tested an unrelated slot and let a repeated id
+        // through - which then wrote node_order twice for the same node and
+        // left the omitted sibling with a stale order.
+        if (isset($seen[$nid])) {
             failOut(400, 'Duplicate requirement id in nodes_order',
                     'invalid_nodes_order');
         }
+        $seen[$nid] = 1;
         $order[] = $nid;
     }
 
