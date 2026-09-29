@@ -80,7 +80,8 @@ class bugzillaxmlrpcInterface extends issueTrackerInterface
     // SimpleXMLElement, i.e. a NESTED stdClass, so trim() raised
     // "TypeError: trim(): Argument #1 ($string) must be of type string,
     // stdClass given" (measured, pre-fix) and killed the whole request. A plain
-    // (string) cast only moved that fatal to the issueDefaults loop below.
+    // (string) cast only moved that fatal to the issueDefaults loop below - and
+    // that second site is what issue #1711 fixes.
     // is_scalar() cannot reject a legitimate value: setCfg() is the ONLY writer
     // of $this->cfg (issueTrackerInterface.class.php:116 then :165), so by the
     // time completeCfg() runs it is always a stdClass, never a SimpleXMLElement
@@ -107,9 +108,9 @@ class bugzillaxmlrpcInterface extends issueTrackerInterface
     // switch addIssue() from disabled to enabled.
     foreach(array('username','password','product','component') as $prop)
     {
-      if( property_exists($this->cfg,$prop) && !is_scalar($this->cfg->$prop) )
+      if( $this->cfgIsNotText($prop) )
       {
-        tLog(__METHOD__ . " :: cfg field <$prop> is not a text value, using empty string", 'WARNING');
+        $this->cfgWarn($prop, "using empty string");
         $this->cfg->$prop = '';
       }
     }
@@ -123,23 +124,25 @@ class bugzillaxmlrpcInterface extends issueTrackerInterface
       // for 'version', 'severity', 'op_sys', 'priority' and 'platform'; falling
       // back to $default is precisely what the surrounding property_exists()
       // logic already intended for a missing value.
-      $val = $this->cfgStr($prop, $default);
-      // do NOT cast $this->cfg->$prop to test it: that IS the bug being fixed.
-      if( property_exists($this->cfg,$prop) && !is_scalar($this->cfg->$prop) )
+      if( $this->cfgIsNotText($prop) )
       {
-        tLog(__METHOD__ . " :: cfg field <$prop> is not a text value, using default '$default'", 'WARNING');
+        $this->cfgWarn($prop, "using default '$default'");
       }
-      $this->cfg->$prop = $val;
+      $this->cfg->$prop = $this->cfgStr($prop, $default);
     }
   }
 
   /**
    * Issue #1711: read a cfg member that is STRUCTURALLY KNOWN TO BE A STRING.
    *
-   * setCfg() re-binds $this->cfg to a stdClass, so an element-valued cfg field
-   * ('<version><x/></version>') arrives as a nested stdClass and a plain (string)
-   * cast raises an uncatchable Error. A scalar is returned byte-identically, so
-   * no legitimate configuration is changed.
+   * setCfg() re-binds $this->cfg to a stdClass, so a non-text cfg field arrives as
+   * something a (string) cast cannot convert and the cast raises an uncatchable
+   * Error: an element-valued field ('<version><x/></version>', but also the far more
+   * common '<platform/>' or '<platform>  </platform>') decodes to a NESTED stdClass,
+   * a repeated field ('<platform>a</platform><platform>b</platform>') decodes to a
+   * PHP array, and a field with attributes decodes to an object. A scalar is
+   * returned byte-identically, so no legitimate configuration is changed; a member
+   * that is never null on this path (see issueTrackerInterface.class.php:165).
    *
    * @param string $prop cfg member to read
    * @param string $default value to use when the member is missing or not a scalar
@@ -147,11 +150,37 @@ class bugzillaxmlrpcInterface extends issueTrackerInterface
    **/
   private function cfgStr($prop,$default)
   {
-    if( !property_exists($this->cfg,$prop) || !is_scalar($this->cfg->$prop) )
+    if( !property_exists($this->cfg,$prop) || $this->cfgIsNotText($prop) )
     {
       return $default;
     }
     return (string)$this->cfg->$prop;
+  }
+
+  /**
+   * Issue #1711: is this cfg member present AND not a plain text value?
+   * A missing member is NOT "not text" - the caller decides what a missing member
+   * means (derived default vs. leave it absent).
+   *
+   * @param string $prop cfg member to test
+   * @return bool
+   **/
+  private function cfgIsNotText($prop)
+  {
+    return property_exists($this->cfg,$prop) && !is_scalar($this->cfg->$prop);
+  }
+
+  /**
+   * Issue #1711: report a cfg member that could not be used, naming the field (and
+   * the tracker, so the row is attributable when several are configured) instead of
+   * letting the reader of the Event Viewer guess which element of the XML is wrong.
+   *
+   * @param string $prop offending cfg member
+   * @param string $action what was done about it
+   **/
+  private function cfgWarn($prop,$action)
+  {
+    tLog(__METHOD__ . " [$this->name] :: cfg field <$prop> is not a text value, $action", 'WARNING');
   }
 
   /**

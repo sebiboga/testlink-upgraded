@@ -30,3 +30,72 @@ Screen: `http://localhost:8082/gui/templates/requirements/reqSpecMgmt.html?tproj
 (empty body) for every `create_spec` with a `parent_id` — `needOwnedSpec()`'s dead
 `requirement_spec_mgr::get_by_id()` call fatals without a `latest_rspec_revision`
 view row. Fixed in `api/reqspec/index.php:125-146`.
+
+## Regression — Issue #1711: `bugzillaxmlrpcInterface` element-valued `<version>` / `<urixmlrpc>` raise an uncatchable `Error`
+
+**Precondition.** Fresh DB (`testlink` @ 127.0.0.1:3306), app on `http://localhost:8082`,
+PHP 8.3.35, branch `fix/issue-1711` (base `30aeecd0d`). Login `admin`/`admin`.
+`DELETE FROM events;` before every live-HTTP batch so the Event Viewer rows are
+unambiguous. Tracker type `1` = `bugzilla` / `api: xmlrpc` →
+`bugzillaxmlrpcInterface` (`lib/functions/tlIssueTracker.class.php:32-35`).
+
+**Harness.** `php tmp/repro_1711.php` — calls the real constructor
+`new bugzillaxmlrpcInterface(0,$cfg,'repro')`, i.e. exactly what
+`api/issuetracker/index.php:260` and `tlIssueTracker::checkConnection()` do, wrapped
+in `catch(Throwable)` so an `Error` is *observable* instead of fatal. Exit 1 if any
+case throws or raises a PHP diagnostic. (`tmp/` is gitignored; the script is pasted
+here in full so the suite is reproducible from the repo alone.)
+
+**Repro steps (pre-fix).**
+
+1. Create Issue Tracker → Type `bugzilla (Interface: xmlrpc)` → Configuration:
+   `<issuetracker><uribase>http://b/</uribase><version><x/></version></issuetracker>`
+2. Press **Check connection**.
+3. **Observed pre-fix:** red alert, `POST /api/issuetracker/test-connection` → **502**
+   `{"status":"error","connected":false,"message":"Connection check failed"}`, and
+   `events` gains `log_level=1` `…POST /test-connection :: Object of class stdClass
+   could not be converted to string`.
+
+**Expected post-fix.** The offending field is read as a string (or falls back to the
+carved-on-the-stone default); the check answers `200 {"connected":true}`; the Event
+Viewer records **one WARNING naming the element**, and **no ERROR row**.
+
+| # | Steps | Expected | Actual | Result |
+|---|---|---|---|---|
+| 1711-1 | harness, cfg `<version><x/></version>` | default `unspecified`, no throw | `connected=true`, `version=unspecified`; pre-fix `THROWN Error: Object of class stdClass could not be converted to string` | PASS |
+| 1711-2 | harness, cfg `<platform><x/></platform>` | default `All` | `connected=true`, `platform=All`; pre-fix same `Error` | PASS |
+| 1711-3 | harness, cfg `<urixmlrpc><x/></urixmlrpc>` | derived `http://b/xmlrpc.cgi` (old `:294` cast site) | `connected=true`, `urixmlrpc=http://b/xmlrpc.cgi`; pre-fix same `Error` | PASS |
+| 1711-4 | harness, cfg `<uriview><x/></uriview>` | derived `http://b/show_bug.cgi?id=` | `connected=true`, correct URL | PASS |
+| 1711-5 | harness, cfg `<uricreate><x/></uricreate>` | derived `http://b/` | `connected=true`, correct URL | PASS |
+| 1711-6 | harness, `<uribase>  </uribase>` + nested `<version>` (the #1619 case) | no throw, `$base` degrades to `/` | `connected=true`, `urixmlrpc=/xmlrpc.cgi` | PASS |
+| 1711-7 | harness, `<version>1.0</version>` (scalar **control**) | value preserved **byte-identically** | `version=1.0` | PASS |
+| 1711-8 | harness, no `<urixmlrpc>` at all | derived `http://b/xmlrpc.cgi` | as expected | PASS |
+| 1711-9 | harness, no `product`/`component` | `canCreateViaAPI()` must stay **`false`** — the loop must never CREATE the property | `canCreateViaAPI=false` | PASS |
+| 1711-10 | harness, nested `<product>` + scalar `<component>c</component>` | `product` coerced to `''`, `canCreateViaAPI()` still `true` (property existed) | `product=`, `component=c`, `canCreateViaAPI=true` | PASS |
+| 1711-11 | harness, **empty element** `<platform/>` (review-discovered; likelier in the wild than an explicit child) | default `All` | `connected=true`, `platform=All` | PASS |
+| 1711-12 | harness, **whitespace-only** `<platform>  </platform>` | default `All` | `connected=true`, `platform=All` | PASS |
+| 1711-13 | harness, **repeated** `<platform>a</platform><platform>b</platform>` → PHP array | default `All` (pre-fix: literal `"Array"` + `E_WARNING Array to string conversion`) | `connected=true`, `platform=All` | PASS |
+| 1711-14 | harness, **attribute-only** `<platform x="1"/>` | default `All` | `connected=true`, `platform=All` | PASS |
+| 1711-15 | `curl` live, the 3 reported cfgs (JSON body, `X-Requested-With` + `Origin` proof) | **200** `{"status":"ok","connected":true}` | all 3 × 200; pre-fix all 3 × **502** | PASS |
+| 1711-16 | **browser** via chrome-devtools, *Create Issue Tracker* → bugzilla/xmlrpc → nested `<version>` → **Check connection** | green `Connection successful`, network `[200]` | `alert alert-success :: Connection successful`, `POST /api/issuetracker/index.php/test-connection` `[200]` | PASS |
+| 1711-17 | Event Viewer after the whole suite | **0** new `log_level=1` rows; one `log_level=2` WARNING **naming the element** | only `bugzillaxmlrpcInterface::completeCfg [UIRepro1711] :: cfg field <version> is not a text value, using default 'unspecified'`; pre-fix 3 ERROR rows | PASS |
+| 1711-18 | grid renders a stored row whose cfg is still element-valued | row visible, Environment `OK` | `BZ1711` listed, Server URL `http://b/`, Environment `OK` | PASS |
+| 1711-19 | `php -l lib/issuetrackerintegration/bugzillaxmlrpcInterface.class.php` | clean | `No syntax errors detected` | PASS |
+| 1711-20 | the **code-review refactor** (single `cfgIsNotText()` predicate) re-run through the whole matrix | no behaviour change | **regression caught and fixed during the run** — see the note below — then 14/14 PASS, harness exit 0 | PASS |
+
+**Note on 1711-20 (honest record).** The code review suggested collapsing the
+duplicated `property_exists() && !is_scalar()` predicate into one helper. Doing so
+introduced a real bug: `cfgStr()` tested only "present AND not text", so a **missing**
+member fell through to `(string)$this->cfg->$prop` and raised 8 ×
+`Undefined property: stdClass::$…` — the harness caught it (10/10 cases FAIL),
+`cfgStr()` was corrected to `!property_exists(...) || $this->cfgIsNotText(...)`, and
+the matrix returned to 14/14 PASS. Recorded because it is the reason the harness
+asserts on *diagnostics* and not only on the return value.
+
+**Not fixed / filed, not regressions.** The legacy empty-HTTP-500 half of the report
+is unreachable: `lib/issuetrackers/issueTrackerView.php` and its
+`?doAction=checkConnection` route were **removed in #966** (measured HTTP 404, dir
+empty) and `tlIssueTracker::checkConnection()` has no remaining caller. The 8 sibling
+classes carrying the same cast family (`fogbugzrest`, `gforgesoap`, `jirarest`,
+`jirasoap`, `mantissoap`, `redminerest`, `tracxmlrpc`, `tuleaprest`) are out of scope
+for a one-bug run and were filed as a follow-up.
