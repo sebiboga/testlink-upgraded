@@ -485,7 +485,7 @@ curl -s -b cj.txt "http://localhost:8082/lib/results/tcNotRunAnyPlatform.php?tpl
 | 14 | guard 400 for `tplan_id=999` (unknown plan) | PASS |
 | 15 | guard 400 for `tplan_id=1` (plan of another project) | PASS |
 | 16 | guard 403 for a user without `testplan_metrics` (live login as `tnrap1717norights`) | PASS |
-| 17 | no new Error/Warning row beyond the 2 pre-fix baseline rows | PASS |
+| 17 | no new Error/Warning row beyond the 1 pre-fix baseline row | PASS |
 | 18 | `php -l` clean on all 34 remaining `lib/results/*.php` | PASS |
 | 19 | `php tmp/test_1717.php` still 40/40 PASS | PASS |
 
@@ -496,6 +496,12 @@ matrix (the 403 through a real second login, not by copying the expected value),
 18 keeps a syntax gate over the whole directory, and 19 re-runs the whole #1717
 harness (40 assertions over the BFF helpers, the 10 i18n bundles and the ASIDE
 label), which is the guard that the deletion cost the report no behaviour.
+
+**Baseline note (why "1", not "2"):** the ORIGINAL pre-fix fatal wrote **no** `events` row at
+all — it died at the `require_once` with no session, so it only ever reached `logs/userlog1.log`
+(`[26/Sep/29 13:38:01] … Line 16`). The single `events` row is id 3, the `E_WARNING` raised by the
+deleted controller's own reproduction probe. The bound is therefore the exact baseline: anything
+above 1 means this change (or the harness) started raising diagnostics.
 
 **Harness is discriminating — the case that caught a false PASS in this run's own
 first attempt:** case 5 was originally `grep -rl getMapOfLastResult lib/ | wc -l`

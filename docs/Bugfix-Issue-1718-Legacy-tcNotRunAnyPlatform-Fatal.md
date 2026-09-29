@@ -141,7 +141,7 @@ pass if the deletion had taken the report with it:
 | the fix | 1-6 | legacy URL answers **404**; both `.tpl` + the `.php` deleted; **no** call site left in `lib/`; `results.class.php` still absent (the fix must not re-introduce the coupling) |
 | the report survived | 7-12 | BFF `status ok`, **3 of 5** never-run, rows `TNR1717-1` / `TNR1717-4` / `TNR1717-5` — identical to the pre-fix capture |
 | the guards survived | 13-16 | `400` missing ids / `400` unknown plan / `400` foreign project / `403` measured through a **real second login** as `tnrap1717norights` |
-| the area survived | 17-19 | 0 new `events` rows beyond the 2-row pre-fix baseline; `php -l` on all **34** remaining `lib/results/*.php`; **`php tmp/test_1717.php` still 40/40 PASS** |
+| the area survived | 17-19 | 0 new `events` rows beyond the 1-row pre-fix baseline; `php -l` on all **34** remaining `lib/results/*.php`; **`php tmp/test_1717.php` still 40/40 PASS** |
 
 Browser verification of the surviving report (`http://localhost:8082/gui/templates/results/tcNotRunAnyPlatform.html?tproject_id=1&tplan_id=2`):
 renders "Found **3** of **5** test cases in this test plan", one column per platform
