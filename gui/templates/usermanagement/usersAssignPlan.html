@@ -45,6 +45,11 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
    the grey is the modern rendering introduced by the sibling project screen
    (usersAssignProject.html:33, issue #926) and reused here for parity. */
 .assign-table tr.not_authorized_user td { color: #999; }
+/* Issue #1707: Dashio toolbar checkbox styling for the legacy
+   show_only_authorized_users row filter (usersAssign.tpl:12 + :46). */
+.authz-filter { display: inline-flex; align-items: center; gap: 6px; color: #aaa; font-size: 13px; cursor: pointer; user-select: none; }
+.authz-filter input[type=checkbox] { width: 15px; height: 15px; cursor: pointer; accent-color: #4ECDC4; }
+.authz-filter:hover { color: #4ECDC4; }
 /* Dashio demo-mode gating (usersView.html:56-57 pattern): legacy usersAssign.tpl
    is shared by testplan contexts and :286-292 replaces the Save button with the
    localized warn_demo note; the banner + note render that warn_demo text (issue #932). */
@@ -80,6 +85,16 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
   <label data-i18n="assign.setRolesTo">Set roles to:</label>
   <select id="bulkRoleSelect"></select>
   <button class="btn-ghost" id="bulkDoBtn" onclick="applyBulkRole()"><i class="fa fa-bolt"></i> <span data-i18n="assign.do">Do</span></button>
+  <!-- Issue #1707 / legacy parity: usersAssign.tpl:12 fetched the
+       show_only_authorized_users label and usersAssign.tpl:46 shipped
+       toggleRowByClass() to hide every <no rights> row (the not_authorized_user
+       marker of usersAssign.tpl:234-237) while the box was ticked. The modern
+       port filters through the DataTables pipeline (authzSearchFilter) so the
+       state survives paging/sort/search redraws. -->
+  <label class="authz-filter" for="onlyAuthorizedChk" title="" id="authzFilterLabel">
+    <input type="checkbox" id="onlyAuthorizedChk" onchange="onAuthzFilterToggle()">
+    <span data-i18n="assign.showOnlyAuthorized">Show only authorized users</span>
+  </label>
   <button class="btn-teal" id="saveBtn" onclick="saveAssignments()" disabled data-i18n="assign.saveChanges"><i class="fa fa-save"></i> Save Changes</button>
   <!-- Legacy parity: usersAssign.tpl:286-292 (shared template) - Save button
        replaced by the localized warn_demo note while demoMode is on. -->
@@ -95,6 +110,9 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
         <th data-i18n="user.fullName">Name</th>
         <th style="width:200px;" data-i18n="assign.inheritedRole">Inherited Role</th>
         <th style="width:220px;" data-i18n="assign.planRoleOverride">Plan Role Override</th>
+        <!-- Issue #1707: hidden authorized/1 unauthorized marker column consumed
+             by the show_only_authorized_users filter. -->
+        <th class="authz-col"></th>
       </tr>
     </thead>
     <tbody id="assignBody"></tbody>
@@ -181,6 +199,88 @@ $('#assignTable').on('click', 'thead th', function() {
     assignDt.order([1, 'asc']).draw();
   }
 });
+
+// ---------------------------------------------------------------------------
+// Issue #1707 - "show only authorized users" row filter.
+// Legacy parity: usersAssign.tpl:12 fetched the show_only_authorized_users
+// label and usersAssign.tpl:46 shipped toggleRowByClass(), which hid every <tr>
+// carrying the not_authorized_user marker (usersAssign.tpl:234-237, i.e. the
+// user's EFFECTIVE role on the selected plan is TL_ROLES_NO_RIGHTS) while the
+// checkbox was ticked. The helper compared tr.className == 'not_authorized_user'
+// EXACTLY, which can never match a 2.0.1 row: DataTables 1.13.7 appends its own
+// striping classes, so a modern row reads "not_authorized_user odd" (and
+// "... changed even" once edited). The port therefore
+//   (a) keeps the marker CSS untouched and
+//   (b) filters through the DataTables pipeline instead of style.display, so the
+//       state survives EVERY redraw (paging / sort / search-box), paging counts
+//       stay truthful and the "nothing matched" message can fire - none of which
+//       a raw display:none can do.
+AUTHZ_COL = 5;              // hidden marker column = last column of the 5-col grid
+var showOnlyAuthorized = false;
+var authzFilterRegistered = false;
+
+function isUnauthorizedUser(u) {
+  return u && parseInt(u.effectiveRoleID, 10) === NO_RIGHTS_ROLE_ID;
+}
+
+// A row is EXCLUDED from bulk "Do" and from the Save payload while the filter is
+// ticked: issue #1707 requires that "a hidden <no rights> row is not touched by
+// either". The filter is a pure VIEW filter - unticking it restores the rows
+// with their untouched role values.
+function authzExcluded(u) {
+  return showOnlyAuthorized && isUnauthorizedUser(u);
+}
+
+// Row data for the hidden marker column (column index AUTHZ_COL). Rendered as a
+// <td> so DataTables' own filter can read it, and mirrored by authzCellHtml()
+// when the rows are (re)built.
+function authzCellHtml(u) {
+  return isUnauthorizedUser(u) ? '0' : '1';
+}
+
+// One global search predicate, registered once per page load and scoped to THIS
+// table only (settings.nTable.id). While the box is unticked it returns true for
+// every row, so the DataTables search box keeps working unchanged; DataTables
+// ANDs the ext.search predicates with the built-in column search.
+function registerAuthzFilter() {
+  if (authzFilterRegistered) return;
+  authzFilterRegistered = true;
+  $.fn.dataTable.ext.search.push(function (settings, searchData, dataIndex, rowData) {
+    if (!showOnlyAuthorized) return true;
+    if (settings.nTable.id !== 'assignTable') return true;
+    var row = rowData || searchData;
+    if (!row) return true;
+    return String(row[AUTHZ_COL]) === '1';
+  });
+}
+
+function onAuthzFilterToggle() {
+  showOnlyAuthorized = !!$('#onlyAuthorizedChk').prop('checked');
+  registerAuthzFilter();
+  if (assignDt) {
+    // Localized "nothing matched" for the filtered-out case (assign.noAuthorizedUsers);
+    // the plain no_users message when the box is off and the search box missed.
+    assignDt.settings()[0].oLanguage.sZeroRecords = showOnlyAuthorized
+      ? TLi18n.t('assign.noAuthorizedUsers') : TLi18n.t('assign.noUsers');
+    // Redraw from page 0: filtering can empty the current page, and leaving the
+    // user on an out-of-range page renders an empty grid.
+    assignDt.page(0).draw(false);
+  }
+  updateAuthzFooter();
+  // A row that just became invisible can no longer be edited, so the Save
+  // button's state must be recomputed against the visible set.
+  if (!demoMode) { $('#saveBtn').prop('disabled', !isDirty()); }
+}
+
+function updateAuthzFooter() {
+  var base = TLi18n.t('user.usersCount', { n: users.length });
+  if (showOnlyAuthorized) {
+    var n = 0;
+    for (var i = 0; i < users.length; i++) { if (isUnauthorizedUser(users[i])) n++; }
+    if (n > 0) base += ' — ' + TLi18n.t('assign.unauthorizedHidden', { n: n });
+  }
+  $('#footerText').text(base);
+}
 
 // Legacy parity: the roles-select column is ORDERABLE (usersAssign.tpl:111-120
 // never set orderable:false) and its sort key must be the role CURRENTLY
@@ -622,8 +722,11 @@ function renderUsersTable(keep) {
       '<td' + rowStyle + '>' + esc(userNameCell(u)) + '</td>' +
       '<td class="inherited-col">' + esc(u.inheritedRoleName) + '</td>' +
       '<td>' + buildSelectHtml(u) + hint + '</td>' +
+      '<td class="authz-col">' + authzCellHtml(u) + '</td>' +
       '</tr>');
   });
+  // Issue #1707: one global ext.search predicate, scoped to #assignTable.
+  registerAuthzFilter();
   assignDt = $('#assignTable').DataTable({
     // Legacy parity: DataTables.inc.tpl "language": { "search": "User" }.
     language: {
@@ -632,7 +735,10 @@ function renderUsersTable(keep) {
       info: TLi18n.t('common.pageInfo'),
       paginate: { previous: TLi18n.t('common.prev'), next: TLi18n.t('common.next') },
       emptyTable: TLi18n.t('assign.noUsers'),
-      zeroRecords: TLi18n.t('assign.noUsers')
+      // Issue #1707: when the authorized-only filter removes every row this is
+      // the message shown; onAuthzFilterToggle() swaps it for the plain
+      // no_users text when the box is unticked.
+      zeroRecords: TLi18n.t('assign.noAuthorizedUsers')
     },
     // Legacy parity: config.inc.php:666 - [20, 40, 60, -1], [20, 40, 60, "All"].
     lengthMenu: [[20, 40, 60, -1], [20, 40, 60, TLi18n.t('assign.all')]],
@@ -656,7 +762,12 @@ function renderUsersTable(keep) {
       // usersAssign.tpl:114 "searchable":false, "targets":1) - not searchable,
       // but SORTABLE like in legacy; the sort key is the selected option
       // (orderDataType registered above as 'tlu-role-select').
-      { searchable: false, orderDataType: 'tlu-role-select', targets: 4 }
+      { searchable: false, orderDataType: 'tlu-role-select', targets: 4 },
+      // Issue #1707: hidden authorized marker - visible:false keeps it out of
+      // the grid and searchable:false keeps the search box from matching on a
+      // bare "0"/"1"; the ext.search predicate registered in
+      // registerAuthzFilter() reads its cell value straight from the row data.
+      { visible: false, searchable: false, orderable: false, targets: AUTHZ_COL }
     ],
     // Same default as the sibling project screen (usersAssignProject.html:406
     // order [[1,'asc']]): Login asc. Deterministic and equals the BFF order.
@@ -690,7 +801,9 @@ function renderUsersTable(keep) {
       $(assignDt.table().container()).find('input[type=search]').val(keep.search);
     }
   }
-  $('#footerText').text(TLi18n.t('user.usersCount', {n: users.length}));
+  // Issue #1707: the footer also reports how many <no rights> rows the
+  // authorized-only filter is currently hiding.
+  updateAuthzFooter();
 }
 
 function loadUsers(pid, planId) {
@@ -772,6 +885,10 @@ function loadUsers(pid, planId) {
 function isDirty() {
   for (var i = 0; i < users.length; i++) {
     if (users[i].isAdmin) continue;
+    // Issue #1707: a row hidden by the authorized-only filter is out of scope -
+    // neither bulk "Do" nor Save can touch it, so it can never make the grid
+    // dirty (prevents an enabled Save button that would submit an empty map).
+    if (authzExcluded(users[i])) continue;
     // Legacy parity (issue #1664): only rows the user actually touched count as
     // modified - the legacy preselect (usersAssign.tpl:249-256) is part of the
     // INITIAL state, not an edit.
@@ -850,6 +967,10 @@ function applyBulkRole() {
   }
   $.each(users, function(i, u) {
     if (u.isAdmin) return;
+    // Issue #1707: "a hidden <no rights> row is not touched" - while the
+    // authorized-only filter is ticked the bulk apply skips those rows, exactly
+    // as the legacy helper skipped everything the checkbox had hidden.
+    if (authzExcluded(u)) return;
     // Legacy parity: usersAssign.tpl:189-206 + set_combo_group() assigns each
     // row select's value directly; a browser leaves a select unchanged when the
     // value maps to NO option in it. The bulk list keeps the admin role (id 8)
@@ -896,6 +1017,9 @@ function saveAssignments() {
     // Legacy parity: usersAssign.tpl:244-247 - global-admin rows render a
     // disabled select the browser never submits (issue #927). Skip them.
     if (u.isAdmin) return;
+    // Issue #1707: hidden <no rights> rows are never written while the
+    // authorized-only filter is ticked.
+    if (authzExcluded(u)) return;
     assignments[u.id] = u.roleVal;
   });
   $.ajax({

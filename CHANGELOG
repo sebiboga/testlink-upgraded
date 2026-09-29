@@ -17,6 +17,29 @@ Every screen of the application was ported one-by-one in a screen-compare
 kept for backward compatibility and is progressively retired as each modern
 screen reaches full parity.
 
+- [FEATURE GAP] - #1707: the modern Assign Test Project Roles and Assign Test Plan Roles screens
+  restored the legacy `not_authorized_user` row marker (#1645/#926) but dropped the *show only
+  authorized users* checkbox that consumed it. Legacy
+  `gui/templates/dashio/usermanagement/usersAssign.tpl:12` fetched the `show_only_authorized_users`
+  label and `:46` shipped `toggleRowByClass()`, which set `style.display` on every `<tr>` whose
+  `className == 'not_authorized_user'` (the marker written at `:234-237` for every user whose
+  EFFECTIVE role on the selected plan/project is `TL_ROLES_NO_RIGHTS`); the template was deleted in
+  `ab387af72` and the pair was never ported. A verbatim port cannot work: DataTables 1.13.7 appends
+  its own striping classes additively, so a modern `<no rights>` row reads
+  `class="not_authorized_user odd"` (and `... changed even` once edited) and the legacy exact
+  `tr.className ==` compare never matches. Both screens now carry a Dashio toolbar checkbox
+  (`assign.showOnlyAuthorized`) whose state filters through the DataTables pipeline - a hidden
+  trailing marker column plus one `$.fn.dataTable.ext.search.push()` predicate scoped to
+  `#assignTable` - so the interaction survives paging/sort/search redraws, the paging counts stay
+  truthful (`Showing 1 to 2 of 2 entries (filtered from 5 total entries)`) and an all-filtered-out
+  grid shows the localized `assign.noAuthorizedUsers` message; when
+  `$tlCfg->gui->usersAssign->pagination->enabled` is false the filter falls back to the legacy
+  per-row hide, rendered from `buildBodyHtml()` so re-renders keep it. A hidden `<no rights>` row is
+  excluded from bulk "Do" and from the Save payload while the box is ticked (issue semantics), and
+  isDirty()/updateSaveBtn() ignore it so Save can never submit an empty map. The footer reports the
+  hidden count (`assign.unauthorizedHidden`). No BFF change was required: `effectiveRoleID` was
+  already on both payloads. 3 new i18n keys in all 10 locale bundles. (Refs #1707)
+
 - [FEATURE GAP] - #1026: the modern Requirement Specification Management screen rendered a FLAT
   list of specs: `api/reqspec/index.php?action=specs` never SELECTed `nodes_hierarchy.parent_id`
   (and dropped the `node_order` it already selected), so nested child specifications appeared as
