@@ -4868,6 +4868,330 @@ if ($action === 'uncovered_testcases') {
     ]);
     exit;
 }
+// ── not_run_any_platform ─────────────────────────────────────────────
+// Mirrors lib/results/tcNotRunAnyPlatform.php ("Test Report: Test Cases
+// not run on any Platform") - Refs #1717.
+//
+// LEGACY PARITY / WHY THE BFF DOES NOT include() THE CONTROLLER:
+// the 1.9.20 controller is fatally broken and cannot be reused as-is:
+//   1. `require_once('results.class.php')` - that class no longer exists
+//      in the tree, so the include is a hard fatal;
+//   2. line 50 has `$re = new results(...)` COMMENTED OUT while line 62
+//      still calls `$re->getMapOfLastResult()` and line 124 still reads
+//      `$executionsMap[$suiteId]` (also never assigned) -> "Call to a
+//      member function ... on null".
+// The report semantics are therefore rebuilt on top of the surviving,
+// battle-tested helper the controller itself would have used:
+//   * testPlanUrgency::getPlatforms()             -> the plan's platforms
+//   * tlTestPlanMetrics::getNeverRunByPlatform()  -> (suite, tcase, platform)
+//     triples with NO execution on any active+open build
+// A test case is listed when EVERY platform it is linked to is in that
+// never-run set - i.e. it has not been executed on any platform.
+// Right: testplan_metrics on the OWNING test project.
+// ─────────────────────────────────────────────────────────────────────
+if ($action === 'not_run_any_platform') {
+    $timerOn = microtime(true);
+
+    if ($tprojectId <= 0 || $tplanId <= 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Missing test project or test plan id']);
+    }
+
+    $projInfo = $tprojectMgr->get_by_id($tprojectId);
+    if (is_null($projInfo) || !isset($projInfo['name'])) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid test project id']);
+    }
+
+    // The plan is validated through the nodes_hierarchy link (output
+    // 'minimun' also resolves tproject_id), so a plan that belongs to
+    // another project cannot be read through a project the caller has the
+    // right on.
+    $tplanInfo = $tplanMgr->get_by_id($tplanId, ['output' => 'minimun']);
+    if (is_null($tplanInfo) || !isset($tplanInfo['tproject_id'])) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid test plan id']);
+    }
+    if (intval($tplanInfo['tproject_id']) !== $tprojectId) {
+        http_response_code(400);
+        out(['status' => 'error',
+             'message' => 'Test plan does not belong to this test project']);
+    }
+
+    if (!$user->hasRight($db, 'testplan_metrics', $tprojectId)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission']);
+    }
+
+    $tprojOpt = $tprojectMgr->getOptions($tprojectId);
+    $priorityEnabled = isset($tprojOpt->testPriorityEnabled)
+        ? $tprojOpt->testPriorityEnabled : false;
+
+    $tcCfg = config_get('testcase_cfg');
+    $prefix = $tprojectMgr->getTestCasePrefix($tprojectId) . $tcCfg->glue_character;
+
+    // --- platforms of the test plan (legacy $gui->platforms) --------------
+    $tplanUrgency = new testPlanUrgency($db);
+    $platMap = $tplanUrgency->getPlatforms($tplanId, ['outputFormat' => 'map']);
+    $platforms = [];
+    if (!is_null($platMap)) {
+        foreach ($platMap as $pid => $pinfo) {
+            $platforms[] = [
+                'id'   => intval($pid),
+                'name' => isset($pinfo['name']) ? $pinfo['name'] : $pinfo,
+            ];
+        }
+        usort($platforms, function ($a, $b) {
+            return strcasecmp($a['name'], $b['name']);
+        });
+    }
+    $platformIds = array_map(function ($p) { return $p['id']; }, $platforms);
+    $platformsActive = count($platforms) > 0;
+
+    $rows = [];
+    $numberOfTestCases = 0;
+
+    if ($platformsActive) {
+        $tpMetrics = new tlTestPlanMetrics($db);
+
+        // getNeverRunByPlatform() returns one row per (suite, test case,
+        // platform) that has no execution on any active+open build.
+        $neverRun = $tpMetrics->getNeverRunByPlatform($tplanId, $platformIds);
+
+        if (!is_null($neverRun) && count($neverRun) > 0) {
+            // Index once (the legacy controller walked the same result set
+            // row by row): payload per test case + never-run platform set.
+            $payload = [];
+            $neverPlatSet = [];
+            foreach ($neverRun as $r) {
+                $cid = intval($r['tcase_id']);
+                $pid = intval($r['platform_id']);
+                if (!isset($neverPlatSet[$cid])) {
+                    $neverPlatSet[$cid] = [];
+                    $payload[$cid] = [
+                        'tsuite_id'   => intval($r['tsuite_id']),
+                        'name'        => $r['name'] ?? '',
+                        'external_id' => $prefix . ($r['full_external_id'] ?? ''),
+                    ];
+                }
+                $neverPlatSet[$cid][$pid] = true;
+            }
+
+            $tcIds = array_keys($payload);
+            $numberOfTestCases = count($tcIds);
+
+            // Platforms each test case is actually linked to in the plan
+            // (TPTCV rows) - a case is "not run on any platform" only when
+            // all of ITS platforms are never-run.
+            $linkedPlat = tnrLinkedPlatformsPerCase($db, $tplanId, $tcIds);
+            $lastStatus = tnrLastStatusPerPlatform($db, $tplanId, $tprojectId, $platformIds);
+            $urgImp = $priorityEnabled
+                ? tnrUrgImpPerCase($db, $tcIds) : [];
+
+            $treeMgr = new tree($db);
+            $suitePaths = [];
+            foreach ($tcIds as $cid) {
+                $linked = $linkedPlat[$cid] ?? [];
+                if (count($linked) === 0) {
+                    continue;
+                }
+                $allNeverRun = true;
+                foreach ($linked as $pid) {
+                    if (!isset($neverPlatSet[$cid][$pid])) {
+                        $allNeverRun = false;
+                        break;
+                    }
+                }
+                if (!$allNeverRun) {
+                    continue;
+                }
+
+                $info = $payload[$cid];
+                $suiteId = $info['tsuite_id'];
+                if (!isset($suitePaths[$suiteId])) {
+                    $sp = $treeMgr->get_path($suiteId, null, 'name');
+                    $suitePaths[$suiteId] = implode(' / ', is_array($sp) ? $sp : []);
+                }
+
+                $cells = [];
+                $notRun = 0;
+                foreach ($linked as $pid) {
+                    $st = $lastStatus[$cid][$pid] ?? null;
+                    if (is_null($st)) {
+                        $st = 'not_run';
+                        $notRun++;
+                    }
+                    $cells[] = ['platform_id' => $pid, 'status' => $st];
+                }
+
+                $row = [
+                    'tcase_id'    => $cid,
+                    'tsuite_id'   => $suiteId,
+                    'suite_path'  => $suitePaths[$suiteId],
+                    'external_id' => $info['external_id'],
+                    'name'        => strip_tags($info['name']),
+                    'cells'       => $cells,
+                    'linked_qty'  => count($linked),
+                    'not_run_qty' => $notRun,
+                ];
+                if ($priorityEnabled && isset($urgImp[$cid])) {
+                    $row['urg_imp'] = $urgImp[$cid];
+                }
+                $rows[] = $row;
+            }
+            unset($treeMgr);
+        }
+    }
+
+    // Deterministic order: suite path, then test case name. The DataTable
+    // lets the user re-sort client side.
+    usort($rows, function ($a, $b) {
+        $c = strcasecmp($a['suite_path'], $b['suite_path']);
+        return $c !== 0 ? $c : strcasecmp($a['name'], $b['name']);
+    });
+
+    out([
+        'status'              => 'ok',
+        'tproject_id'         => $tprojectId,
+        'tproject_name'       => $projInfo['name'],
+        'tproject_prefix'     => $tprojectMgr->getTestCasePrefix($tprojectId),
+        'tplan_id'            => $tplanId,
+        'tplan_name'          => $tplanInfo['name'],
+        'platforms_active'    => $platformsActive,
+        'platforms'           => $platforms,
+        'priority_enabled'    => $priorityEnabled,
+        'number_of_testcases' => $numberOfTestCases,
+        'number_of_not_run'   => count($rows),
+        'has_data'            => count($rows) > 0,
+        'rows'                => $rows,
+        'elapsed_time'        => round(microtime(true) - $timerOn, 2),
+    ]);
+    exit;
+}
+
+// Last execution status per (test case, platform) over the plan's ACTIVE
+// builds - feeds the per-platform cells of the matrix. Only real results
+// (passed/failed/blocked) are returned; a missing entry means "not run".
+// Legacy parity: the controller only ever set $any_result_found when an
+// execution had a status on an active build.
+function tnrLastStatusPerPlatform(&$db, $tplanId, $tprojectId, $platformIds) {
+    if (count($platformIds) === 0) {
+        return [];
+    }
+    $T = tlObjectWithDB::getDBTables([
+        'executions', 'builds', 'tcversions',
+    ]);
+    $statusCode = config_get('results')->status_code;
+    $codeToName = [
+        intval($statusCode['passed'])  => 'passed',
+        intval($statusCode['failed'])  => 'failed',
+        intval($statusCode['blocked']) => 'blocked',
+    ];
+
+    $inList = implode(',', array_map('intval', $platformIds));
+    // ORDER BY id ASC + last write wins => the newest execution per
+    // (tcversion, platform) is the one kept.
+    $sql = "SELECT E.tcversion_id, E.platform_id, E.status
+            FROM {$T['executions']} E
+            INNER JOIN {$T['builds']} B ON B.id = E.build_id
+            WHERE E.testplan_id = " . intval($tplanId) . "
+            AND B.testproject_id = " . intval($tprojectId) . "
+            AND B.active = 1
+            AND E.platform_id IN ({$inList})
+            AND E.status IS NOT NULL
+            AND E.status <> " . intval($statusCode['not_run'])
+            . " ORDER BY E.id ASC";
+
+    $rs = $db->get_recordset($sql);
+    if (is_null($rs) || count($rs) === 0) {
+        return [];
+    }
+
+    $latest = [];
+    foreach ($rs as $r) {
+        $latest[intval($r['tcversion_id'])][intval($r['platform_id'])] =
+            $codeToName[intval($r['status'])] ?? null;
+    }
+
+    $tvidIds = array_keys($latest);
+    $map = [];
+    $sql2 = "SELECT TCV.tcversion_id, TCV.tcase_id
+             FROM {$T['tcversions']} TCV
+             WHERE TCV.id IN (" . implode(',', array_map('intval', $tvidIds)) . ")";
+    $rs2 = $db->get_recordset($sql2);
+    if (!is_null($rs2)) {
+        foreach ($rs2 as $r) {
+            $map[intval($r['tcversion_id'])] = intval($r['tcase_id']);
+        }
+    }
+
+    $result = [];
+    foreach ($latest as $tvid => $byPlat) {
+        if (!isset($map[$tvid])) {
+            continue;
+        }
+        foreach ($byPlat as $pid => $st) {
+            if (!is_null($st)) {
+                $result[$map[$tvid]][$pid] = $st;
+            }
+        }
+    }
+    return $result;
+}
+
+// platform ids each test case is linked to in the test plan (TPTCV rows)
+function tnrLinkedPlatformsPerCase(&$db, $tplanId, $tcIds) {
+    $out = [];
+    if (count($tcIds) === 0) {
+        return $out;
+    }
+    $T = tlObjectWithDB::getDBTables(['testplan_tcversions', 'tcversions']);
+    $sql = "SELECT TCV.tcase_id, TPTCV.platform_id
+            FROM {$T['testplan_tcversions']} TPTCV
+            INNER JOIN {$T['tcversions']} TCV ON TCV.id = TPTCV.tcversion_id
+            WHERE TPTCV.testplan_id = " . intval($tplanId) . "
+            AND TCV.tcase_id IN (" . implode(',', array_map('intval', $tcIds)) . ")
+            ORDER BY TPTCV.platform_id ASC";
+    $rs = $db->get_recordset($sql);
+    if (is_null($rs)) {
+        return $out;
+    }
+    foreach ($rs as $r) {
+        $cid = intval($r['tcase_id']);
+        $pid = intval($r['platform_id']);
+        $out[$cid][$pid] = $pid;
+    }
+    foreach ($out as $cid => $arr) {
+        $out[$cid] = array_values($arr);
+    }
+    return $out;
+}
+
+// urgency * impact per test case - only requested when the project has
+// testPriorityEnabled, mirroring the legacy priority column.
+function tnrUrgImpPerCase(&$db, $tcIds) {
+    $out = [];
+    if (count($tcIds) === 0) {
+        return $out;
+    }
+    $T = tlObjectWithDB::getDBTables(['tcversions']);
+    $sql = "SELECT TCV.tcase_id, TCV.urgency, TCV.importance
+            FROM {$T['tcversions']} TCV
+            WHERE TCV.tcase_id IN (" . implode(',', array_map('intval', $tcIds)) . ")";
+    $rs = $db->get_recordset($sql);
+    if (is_null($rs)) {
+        return $out;
+    }
+    foreach ($rs as $r) {
+        $cid = intval($r['tcase_id']);
+        $uip = intval($r['urgency']) * intval($r['importance']);
+        // keep the highest urgency*impact when several versions exist
+        if (!isset($out[$cid]) || $uip > $out[$cid]) {
+            $out[$cid] = $uip;
+        }
+    }
+    return $out;
+}
 
 http_response_code(404);
 out(['status' => 'error', 'message' => 'Unknown action']);
