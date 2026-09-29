@@ -4949,7 +4949,10 @@ if ($action === 'not_run_any_platform') {
     $platformsActive = count($platforms) > 0;
 
     $rows = [];
-    $numberOfTestCases = 0;
+    // Total number of test cases linked to the plan - the denominator of the
+    // legacy "<n> of <total> test cases" sentence, so it must count EVERY
+    // test case in the plan, not only the never-run ones.
+    $numberOfTestCases = tnrCountPlanTestCases($db, $tplanId);
 
     if ($platformsActive) {
         $tpMetrics = new tlTestPlanMetrics($db);
@@ -4968,17 +4971,19 @@ if ($action === 'not_run_any_platform') {
                 $pid = intval($r['platform_id']);
                 if (!isset($neverPlatSet[$cid])) {
                     $neverPlatSet[$cid] = [];
+                    // full_external_id already carries "<prefix>-<external_id>"
+                    // (testplan::helperConcatTCasePrefix), so the project
+                    // prefix must NOT be prepended again.
                     $payload[$cid] = [
                         'tsuite_id'   => intval($r['tsuite_id']),
                         'name'        => $r['name'] ?? '',
-                        'external_id' => $prefix . ($r['full_external_id'] ?? ''),
+                        'external_id' => $r['full_external_id'] ?? '',
                     ];
                 }
                 $neverPlatSet[$cid][$pid] = true;
             }
 
             $tcIds = array_keys($payload);
-            $numberOfTestCases = count($tcIds);
 
             // Platforms each test case is actually linked to in the plan
             // (TPTCV rows) - a case is "not run on any platform" only when
@@ -4986,7 +4991,7 @@ if ($action === 'not_run_any_platform') {
             $linkedPlat = tnrLinkedPlatformsPerCase($db, $tplanId, $tcIds);
             $lastStatus = tnrLastStatusPerPlatform($db, $tplanId, $tprojectId, $platformIds);
             $urgImp = $priorityEnabled
-                ? tnrUrgImpPerCase($db, $tcIds) : [];
+                ? tnrUrgImpPerCase($db, $tplanId, $tcIds) : [];
 
             $treeMgr = new tree($db);
             $suitePaths = [];
@@ -5069,18 +5074,101 @@ if ($action === 'not_run_any_platform') {
     exit;
 }
 
+
+// TestLink stores a test case version on its OWN nodes_hierarchy node; the
+// test case id is that node's parent. The legacy helpers
+// (tlTestPlanMetrics::getNeverRunByPlatform) resolve it the same way:
+//     JOIN nodes_hierarchy NHTCV ON NHTCV.id = TPTCV.tcversion_id
+//     JOIN nodes_hierarchy NHTC  ON NHTC.id  = NHTCV.parent_id
+// so tcase_id is never a column of `tcversions` - the id must come from
+// nodes_hierarchy. Returns [tcversion_id => tcase_id].
+function tnrTcaseIdByTcvId(&$db, $tplanId, $tvidIds) {
+    $map = [];
+    if (count($tvidIds) === 0) {
+        return $map;
+    }
+    $T = tlObjectWithDB::getDBTables(['nodes_hierarchy', 'testplan_tcversions']);
+    $sql = "SELECT NH_TCV.id AS tcv_id, NH_TCV.parent_id AS tcase_id
+            FROM {$T['testplan_tcversions']} TPTCV
+            INNER JOIN {$T['nodes_hierarchy']} NH_TCV
+                    ON NH_TCV.id = TPTCV.tcversion_id
+            WHERE TPTCV.testplan_id = " . intval($tplanId) . "
+            AND TPTCV.tcversion_id IN ("
+            . implode(',', array_map('intval', $tvidIds)) . ")";
+    $rs = $db->get_recordset($sql);
+    if (is_null($rs)) {
+        return $map;
+    }
+    foreach ($rs as $r) {
+        $map[intval($r['tcv_id'])] = intval($r['tcase_id']);
+    }
+    return $map;
+}
+
+// Platform ids each test case is linked to in the test plan. The test case
+// id is derived from the version node's parent (see tnrTcaseIdByTcvId), so
+// the IN(...) filter cannot be pushed into SQL - the candidate version ids
+// are resolved first and the rows are then matched in PHP.
+function tnrLinkedPlatformsPerCase(&$db, $tplanId, $tcIds) {
+    $out = [];
+    if (count($tcIds) === 0) {
+        return $out;
+    }
+    $tcIdSet = array_flip(array_map('intval', $tcIds));
+    $T = tlObjectWithDB::getDBTables(['testplan_tcversions', 'nodes_hierarchy']);
+    $sql = "SELECT NH_TCV.parent_id AS tcase_id, TPTCV.platform_id
+            FROM {$T['testplan_tcversions']} TPTCV
+            INNER JOIN {$T['nodes_hierarchy']} NH_TCV
+                    ON NH_TCV.id = TPTCV.tcversion_id
+            WHERE TPTCV.testplan_id = " . intval($tplanId) . "
+            ORDER BY TPTCV.platform_id ASC";
+    $rs = $db->get_recordset($sql);
+    if (is_null($rs)) {
+        return $out;
+    }
+    foreach ($rs as $r) {
+        $cid = intval($r['tcase_id']);
+        if (!isset($tcIdSet[$cid])) {
+            continue;
+        }
+        $pid = intval($r['platform_id']);
+        $out[$cid][$pid] = $pid;
+    }
+    foreach ($out as $cid => $arr) {
+        $out[$cid] = array_values($arr);
+    }
+    return $out;
+}
+
+// Number of DISTINCT test cases linked to the test plan. The test case id
+// comes from the version node's parent (see tnrTcaseIdByTcvId), so the
+// distinct count is taken on that resolved id - counting version rows
+// instead would double-count a case linked through several versions.
+function tnrCountPlanTestCases(&$db, $tplanId) {
+    $T = tlObjectWithDB::getDBTables(['testplan_tcversions', 'nodes_hierarchy']);
+    $sql = "SELECT COUNT(DISTINCT NH_TCV.parent_id) AS qty
+            FROM {$T['testplan_tcversions']} TPTCV
+            INNER JOIN {$T['nodes_hierarchy']} NH_TCV
+                    ON NH_TCV.id = TPTCV.tcversion_id
+            WHERE TPTCV.testplan_id = " . intval($tplanId);
+    $rs = $db->get_recordset($sql);
+    if (is_null($rs) || count($rs) === 0) {
+        return 0;
+    }
+    return intval($rs[0]['qty'] ?? 0);
+}
+
 // Last execution status per (test case, platform) over the plan's ACTIVE
 // builds - feeds the per-platform cells of the matrix. Only real results
-// (passed/failed/blocked) are returned; a missing entry means "not run".
-// Legacy parity: the controller only ever set $any_result_found when an
-// execution had a status on an active build.
+// (passed/failed/blocked) are returned; a missing entry means "not run",
+// which is the state the report is about.
+// Legacy parity: the controller only set $any_result_found when an
+// execution had a status other than not_run on an active build.
 function tnrLastStatusPerPlatform(&$db, $tplanId, $tprojectId, $platformIds) {
     if (count($platformIds) === 0) {
         return [];
     }
-    $T = tlObjectWithDB::getDBTables([
-        'executions', 'builds', 'tcversions',
-    ]);
+    $T = tlObjectWithDB::getDBTables(['executions', 'builds']);
     $statusCode = config_get('results')->status_code;
     $codeToName = [
         intval($statusCode['passed'])  => 'passed',
@@ -5089,7 +5177,7 @@ function tnrLastStatusPerPlatform(&$db, $tplanId, $tprojectId, $platformIds) {
     ];
 
     $inList = implode(',', array_map('intval', $platformIds));
-    // ORDER BY id ASC + last write wins => the newest execution per
+    // ORDER BY id ASC and last write wins => the newest execution per
     // (tcversion, platform) is the one kept.
     $sql = "SELECT E.tcversion_id, E.platform_id, E.status
             FROM {$T['executions']} E
@@ -5113,18 +5201,7 @@ function tnrLastStatusPerPlatform(&$db, $tplanId, $tprojectId, $platformIds) {
             $codeToName[intval($r['status'])] ?? null;
     }
 
-    $tvidIds = array_keys($latest);
-    $map = [];
-    $sql2 = "SELECT TCV.tcversion_id, TCV.tcase_id
-             FROM {$T['tcversions']} TCV
-             WHERE TCV.id IN (" . implode(',', array_map('intval', $tvidIds)) . ")";
-    $rs2 = $db->get_recordset($sql2);
-    if (!is_null($rs2)) {
-        foreach ($rs2 as $r) {
-            $map[intval($r['tcversion_id'])] = intval($r['tcase_id']);
-        }
-    }
-
+    $map = tnrTcaseIdByTcvId($db, $tplanId, array_keys($latest));
     $result = [];
     foreach ($latest as $tvid => $byPlat) {
         if (!isset($map[$tvid])) {
@@ -5139,45 +5216,31 @@ function tnrLastStatusPerPlatform(&$db, $tplanId, $tprojectId, $platformIds) {
     return $result;
 }
 
-// platform ids each test case is linked to in the test plan (TPTCV rows)
-function tnrLinkedPlatformsPerCase(&$db, $tplanId, $tcIds) {
-    $out = [];
-    if (count($tcIds) === 0) {
-        return $out;
-    }
-    $T = tlObjectWithDB::getDBTables(['testplan_tcversions', 'tcversions']);
-    $sql = "SELECT TCV.tcase_id, TPTCV.platform_id
-            FROM {$T['testplan_tcversions']} TPTCV
-            INNER JOIN {$T['tcversions']} TCV ON TCV.id = TPTCV.tcversion_id
-            WHERE TPTCV.testplan_id = " . intval($tplanId) . "
-            AND TCV.tcase_id IN (" . implode(',', array_map('intval', $tcIds)) . ")
-            ORDER BY TPTCV.platform_id ASC";
-    $rs = $db->get_recordset($sql);
-    if (is_null($rs)) {
-        return $out;
-    }
-    foreach ($rs as $r) {
-        $cid = intval($r['tcase_id']);
-        $pid = intval($r['platform_id']);
-        $out[$cid][$pid] = $pid;
-    }
-    foreach ($out as $cid => $arr) {
-        $out[$cid] = array_values($arr);
-    }
-    return $out;
-}
-
 // urgency * impact per test case - only requested when the project has
 // testPriorityEnabled, mirroring the legacy priority column.
-function tnrUrgImpPerCase(&$db, $tcIds) {
+// urgency is PER TEST PLAN (testplan_tcversions.urgency, seeded from the
+// assignment) while importance is per version (tcversions.importance), which
+// is why the product must join both - reading both from tcversions is a
+// column error. Several versions of the same case can be linked; the highest
+// product is kept.
+function tnrUrgImpPerCase(&$db, $tplanId, $tcIds) {
     $out = [];
     if (count($tcIds) === 0) {
         return $out;
     }
-    $T = tlObjectWithDB::getDBTables(['tcversions']);
-    $sql = "SELECT TCV.tcase_id, TCV.urgency, TCV.importance
-            FROM {$T['tcversions']} TCV
-            WHERE TCV.tcase_id IN (" . implode(',', array_map('intval', $tcIds)) . ")";
+    $T = tlObjectWithDB::getDBTables([
+        'testplan_tcversions', 'nodes_hierarchy', 'tcversions',
+    ]);
+    $sql = "SELECT NH_TC.id AS tcase_id, TPTCV.urgency, TCV.importance
+            FROM {$T['testplan_tcversions']} TPTCV
+            INNER JOIN {$T['tcversions']} TCV
+                    ON TCV.id = TPTCV.tcversion_id
+            INNER JOIN {$T['nodes_hierarchy']} NH_TCV
+                    ON NH_TCV.id = TPTCV.tcversion_id
+            INNER JOIN {$T['nodes_hierarchy']} NH_TC
+                    ON NH_TC.id = NH_TCV.parent_id
+            WHERE TPTCV.testplan_id = " . intval($tplanId) . "
+            AND NH_TC.id IN (" . implode(',', array_map('intval', $tcIds)) . ")";
     $rs = $db->get_recordset($sql);
     if (is_null($rs)) {
         return $out;
@@ -5185,7 +5248,6 @@ function tnrUrgImpPerCase(&$db, $tcIds) {
     foreach ($rs as $r) {
         $cid = intval($r['tcase_id']);
         $uip = intval($r['urgency']) * intval($r['importance']);
-        // keep the highest urgency*impact when several versions exist
         if (!isset($out[$cid]) || $uip > $out[$cid]) {
             $out[$cid] = $uip;
         }
