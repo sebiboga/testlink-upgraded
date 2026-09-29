@@ -72,8 +72,16 @@ foreach (array('tproject_id', 'tplan_id') as $k) {
     $v = isset($_REQUEST[$k]) ? intval($_REQUEST[$k]) : 0;
     if ($v > 0) {
         $qs[$k] = $v;
-    } else if (isset($_SESSION[$k])) {
-        $qs[$k] = intval($_SESSION[$k]);
+    } else {
+        // Refs #1727: the session keys are testprojectID / testplanID (see
+        // lib/functions/common.php and lib/attachments/attachmentdelete.php);
+        // $_SESSION['tproject_id'] is never written anywhere, so a bookmarked
+        // legacy deep link without the query parameters used to lose the
+        // project/plan context.
+        $sessionKey = ($k === 'tproject_id') ? 'testprojectID' : 'testplanID';
+        if (isset($_SESSION[$sessionKey]) && intval($_SESSION[$sessionKey]) > 0) {
+            $qs[$k] = intval($_SESSION[$sessionKey]);
+        }
     }
 }
 $suffix = empty($qs) ? '' : '?' . http_build_query($qs);

@@ -62,21 +62,79 @@ if (is_null($user)) {
     bffOut(401, array('code' => 'not_authenticated', 'message' => 'User not found'));
 }
 
-$action = isset($_GET['action']) ? (string)$_GET['action'] : '';
+// Refs #1730: ?action[]=x raised "Array to string conversion" (E_WARNING) on an
+// ANONYMOUS request, which watchPHPErrors() turns into an events row - a single
+// crafted query string could flood the Event Viewer. is_scalar() is the idiom
+// already used by lib/attachments/attachmentdelete.php.
+$action = (isset($_GET['action']) && is_scalar($_GET['action']))
+      ? trim((string)$_GET['action']) : '';
 $method = strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET');
 
 function bffOut($code, $payload) {
     if (!headers_sent()) {
         http_response_code($code);
+        if ($code >= 400) {
+            header('Allow: GET, POST');
+        }
+    }
+    // Refs #1730: every other producer in api/ (the shared guards included)
+    // answers status:error alongside the machine code; a client that branches on
+    // `status` would otherwise read this BFF's 4xx as a success-shaped payload.
+    if (!isset($payload['status']) && isset($payload['code'])) {
+        $payload = array('status' => 'error') + $payload;
     }
     echo json_encode($payload);
     exit;
+}
+
+/**
+ * Refs #1730: a scalar query parameter, or null when it is absent/array-shaped.
+ * Rejecting arrays here (instead of letting intval()/trim() coerce them) keeps
+ * ?id[]=1 from silently addressing row 1.
+ */
+function bffQueryScalar($name) {
+    if (!isset($_GET[$name]) || !is_scalar($_GET[$name])) {
+        return null;
+    }
+    return trim((string)$_GET[$name]);
+}
+
+function bffQueryInt($name) {
+    $v = bffQueryScalar($name);
+    return ($v === null || !is_numeric($v)) ? null : intval($v);
 }
 
 function bffBody() {
     $raw = file_get_contents('php://input');
     $data = json_decode((string)$raw, true);
     return is_array($data) ? $data : array();
+}
+
+/**
+ * Refs #1730: a scalar field of the decoded JSON body, or null when it is
+ * missing. POST {"name":["x"]} used to be cast to the literal string "Array"
+ * and stored as the system name.
+ */
+function bffBodyScalar($body, $name) {
+    if (!array_key_exists($name, $body) || !is_scalar($body[$name])) {
+        return null;
+    }
+    return (string)$body[$name];
+}
+
+/**
+ * True when the field IS present but is an array/object - i.e. a shape this
+ * endpoint cannot accept. Checked explicitly (rather than being folded into
+ * "absent") so a rejected shape is reported as invalid_body instead of being
+ * silently downgraded to an empty value.
+ */
+function bffBodyShapeInvalid($body, array $names) {
+    foreach ($names as $name) {
+        if (array_key_exists($name, $body) && !is_scalar($body[$name])) {
+            return true;
+        }
+    }
+    return false;
 }
 
 /**
@@ -109,7 +167,9 @@ $isWrite = in_array($action, $WRITES, true);
 if ($isWrite && $method !== 'POST') {
     bffOut(405, array('code' => 'method_not_allowed', 'message' => 'POST required'));
 }
-if (!$isWrite && $method !== 'GET') {
+// Refs #1730: bffSameOriginGuard() treats HEAD as a read, so a HEAD probe must
+// not be answered 405 here.
+if (!$isWrite && $method !== 'GET' && $method !== 'HEAD') {
     bffOut(405, array('code' => 'method_not_allowed', 'message' => 'GET required'));
 }
 
@@ -134,6 +194,14 @@ function typeDomain($mgr) {
     return $out;
 }
 
+/**
+ * tlReqMgrSystem returns the bare 'name already exists' for the UNIQUE-key
+ * collision; the screen maps it to a localized headline (Ref #1730).
+ */
+function isDuplicateName($msg) {
+    return stripos((string)$msg, 'already exists') !== false;
+}
+
 function itemToJson($item, $mgr) {
     return array(
         'id'   => intval($item['id']),
@@ -144,12 +212,21 @@ function itemToJson($item, $mgr) {
 }
 
 // ---------------------------------------------------------------------------
-// GET ?action=init[&id=N] - the create form (id absent / 0) or the edit form.
-// Legacy parity: initializeGui() removed DEAD links to deleted test projects
-// before listing the live ones ("just to fix erroneous test project delete").
+// GET ?action=init[&id=N][&prune=1] - the create form (id absent / 0) or the
+// edit form. Legacy parity: initializeGui() removed DEAD links to deleted test
+// projects before listing the live ones ("just to fix erroneous test project
+// delete") - kept behind the explicit prune=1 so the read verb stays read-only.
 // ---------------------------------------------------------------------------
 if ($action === 'init') {
-    $id = isset($_GET['id']) ? intval($_GET['id']) : 0;
+    // Refs #1730: a present-but-array/object id (?id[]=1) is a 400; an ABSENT id
+    // is the create form, exactly like the legacy editor.
+    if (isset($_GET['id']) && !is_scalar($_GET['id'])) {
+        bffOut(400, array('code' => 'invalid_id', 'message' => 'Invalid id'));
+    }
+    $id = bffQueryInt('id');
+    if ($id === null) {
+        $id = 0;
+    }
     $domain = typeDomain($mgr);
 
     if ($id <= 0) {
@@ -169,12 +246,18 @@ if ($action === 'init') {
                           'message' => 'Requirement management system not found'));
     }
 
-    $dummy = $mgr->getLinks($id, array('getDeadLinks' => true));
-    if (is_null($dummy)) {
-        $dummy = array();
-    }
-    foreach ($dummy as $tprojectId => $elem) {
-        $mgr->unlink($id, $tprojectId);
+    // Refs #1730: this cleanup is a DELETE, and a safe verb must not write -
+    // a link prefetch or a crawler GET used to be able to trigger it. Legacy
+    // parity is preserved where it matters: the screen passes prune=1 on every
+    // edit load, so a manager opening the editor still gets the dead links of
+    // an erroneously deleted test project removed.
+    if (bffQueryScalar('prune') === '1') {
+        $dead = $mgr->getLinks($id, array('getDeadLinks' => true));
+        if (is_array($dead)) {
+            foreach ($dead as $tprojectId => $elem) {
+                $mgr->unlink($id, $tprojectId);
+            }
+        }
     }
 
     $projects = array();
@@ -206,9 +289,9 @@ if ($action === 'init') {
 // interface implementation must degrade to a message, never a fatal.
 // ---------------------------------------------------------------------------
 if ($action === 'cfg_template') {
-    $type = isset($_GET['type']) ? intval($_GET['type']) : 0;
+    $type = bffQueryInt('type');
     $types = $mgr->getTypes();
-    if (!isset($types[$type])) {
+    if ($type === null || !isset($types[$type])) {
         bffOut(400, array('code' => 'invalid_type', 'message' => 'Invalid type'));
     }
     $iname = $mgr->getImplementationForType($type);
@@ -238,9 +321,18 @@ if ($action === 'cfg_template') {
 // ---------------------------------------------------------------------------
 if ($action === 'create') {
     $body = bffBody();
-    $name = isset($body['name']) ? trim((string)$body['name']) : '';
-    $type = isset($body['type']) ? intval($body['type']) : 0;
-    $cfg  = isset($body['cfg']) ? (string)$body['cfg'] : '';
+    // Refs #1730: reject array/object shaped fields instead of casting them -
+    // {"name":["x"]} used to be stored as the literal name "Array".
+    $name = bffBodyScalar($body, 'name');
+    $type = bffBodyScalar($body, 'type');
+    $cfg  = bffBodyScalar($body, 'cfg');
+    if (bffBodyShapeInvalid($body, array('name', 'type', 'cfg'))
+        || ($type !== null && !is_numeric($type))) {
+        bffOut(400, array('code' => 'invalid_body', 'message' => 'Invalid body'));
+    }
+    $name = $name === null ? '' : trim($name);
+    $type = $type === null ? 0 : intval($type);
+    $cfg  = $cfg === null ? '' : $cfg;
 
     if ($name === '') {
         bffOut(400, array('code' => 'validation_failed',
@@ -263,7 +355,11 @@ if ($action === 'create') {
                           'item' => is_null($created) ? null : itemToJson($created, $mgr),
                           'message' => ''));
     }
-    bffOut(409, array('code' => 'create_failed', 'message' => (string)$op['msg']));
+    // Refs #1730: the collision against the UNIQUE key on name is the most
+    // common failure of this form - give it a code the screen can localize.
+    bffOut(409, array('code' => isDuplicateName($op['msg']) ? 'name_exists'
+                                                          : 'create_failed',
+                      'message' => (string)$op['msg']));
 }
 
 // ---------------------------------------------------------------------------
@@ -271,19 +367,27 @@ if ($action === 'create') {
 // ---------------------------------------------------------------------------
 if ($action === 'update') {
     $body = bffBody();
-    $id = isset($body['id']) ? intval($body['id']) : 0;
-    if ($id <= 0) {
+    $bodyId = bffBodyScalar($body, 'id');
+    if ($bodyId === null || !is_numeric($bodyId) || intval($bodyId) <= 0) {
         bffOut(400, array('code' => 'invalid_id', 'message' => 'Invalid id'));
     }
+    $id = intval($bodyId);
     $existing = $mgr->getByID($id);
     if (is_null($existing) || !isset($existing['id'])) {
         bffOut(404, array('code' => 'not_found',
                           'message' => 'Requirement management system not found'));
     }
 
-    $name = isset($body['name']) ? trim((string)$body['name']) : '';
-    $type = isset($body['type']) ? intval($body['type']) : intval($existing['type']);
-    $cfg  = isset($body['cfg']) ? (string)$body['cfg'] : (string)($existing['cfg'] ?? '');
+    $name = bffBodyScalar($body, 'name');
+    $type = bffBodyScalar($body, 'type');
+    $cfg  = bffBodyScalar($body, 'cfg');
+    if (bffBodyShapeInvalid($body, array('id', 'name', 'type', 'cfg'))
+        || ($type !== null && !is_numeric($type))) {
+        bffOut(400, array('code' => 'invalid_body', 'message' => 'Invalid body'));
+    }
+    $name = $name === null ? '' : trim($name);
+    $type = $type === null ? intval($existing['type']) : intval($type);
+    $cfg  = $cfg === null ? (string)($existing['cfg'] ?? '') : $cfg;
 
     if ($name === '') {
         bffOut(400, array('code' => 'validation_failed',
@@ -307,7 +411,9 @@ if ($action === 'update') {
                           'item' => is_null($updated) ? null : itemToJson($updated, $mgr),
                           'message' => ''));
     }
-    bffOut(409, array('code' => 'update_failed', 'message' => (string)$op['msg']));
+    bffOut(409, array('code' => isDuplicateName($op['msg']) ? 'name_exists'
+                                                          : 'update_failed',
+                      'message' => (string)$op['msg']));
 }
 
 // ---------------------------------------------------------------------------
@@ -317,10 +423,11 @@ if ($action === 'update') {
 // ---------------------------------------------------------------------------
 if ($action === 'delete') {
     $body = bffBody();
-    $id = isset($body['id']) ? intval($body['id']) : 0;
-    if ($id <= 0) {
+    $bodyId = bffBodyScalar($body, 'id');
+    if ($bodyId === null || !is_numeric($bodyId) || intval($bodyId) <= 0) {
         bffOut(400, array('code' => 'invalid_id', 'message' => 'Invalid id'));
     }
+    $id = intval($bodyId);
     $existing = $mgr->getByID($id);
     if (is_null($existing) || !isset($existing['id'])) {
         bffOut(404, array('code' => 'not_found',
@@ -340,10 +447,11 @@ if ($action === 'delete') {
 // ---------------------------------------------------------------------------
 if ($action === 'check_connection') {
     $body = bffBody();
-    $id = isset($body['id']) ? intval($body['id']) : 0;
-    if ($id <= 0) {
+    $bodyId = bffBodyScalar($body, 'id');
+    if ($bodyId === null || !is_numeric($bodyId) || intval($bodyId) <= 0) {
         bffOut(400, array('code' => 'invalid_id', 'message' => 'Invalid id'));
     }
+    $id = intval($bodyId);
     $item = $mgr->getByID($id);
     if (is_null($item) || !isset($item['id'])) {
         bffOut(404, array('code' => 'not_found',
