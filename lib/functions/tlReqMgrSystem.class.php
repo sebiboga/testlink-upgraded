@@ -337,7 +337,15 @@ class tlReqMgrSystem extends tlObject
     if( !is_null($rs) )
     {
       $rs = $rs[0];
-      $rs['implementation'] = $this->getImplementationForType($rs['type']);
+      // Refs #1729: the SELECT honours output => 'id' (a single 'id' column),
+      // but this enrichment did not, so an id-only row had no 'type' key and
+      // EVERY create - legacy doCreate, api/reqmgrsystems POST / and
+      // api/reqmgrsystemedit ?action=create - logged an E_WARNING
+      // "Undefined array key type" Event Viewer row. Only enrich when the row
+      // really carries a type; the id-only callers never read 'implementation'.
+      $rs['implementation'] = isset($rs['type'])
+            ? $this->getImplementationForType($rs['type'])
+            : null;
     }
       return $rs; 
   }
