@@ -87,27 +87,71 @@ class bugzillaxmlrpcInterface extends issueTrackerInterface
     // (for which trim() would have worked).
     $uri = $this->cfg->uribase ?? '';
     $base = trim(is_scalar($uri) ? (string)$uri : '',"/") . '/'; // be sure no double // at end
-    if( !property_exists($this->cfg,'urixmlrpc') )
+
+    // Issue #1711: property_exists() is TRUE for a member that the setCfg()
+    // SimpleXML -> json -> stdClass round-trip turned into a NESTED object, i.e. an
+    // element-valued cfg field like '<urixmlrpc><x/></urixmlrpc>'. So the guards
+    // below must test the VALUE, not just the presence: a non-scalar member is
+    // treated as ABSENT and the derived default is built. Without this, the
+    // '(string)$this->cfg->urixmlrpc' in createAPIClient() raised
+    // "Error: Object of class stdClass could not be converted to string" - an Error,
+    // NOT an Exception, so the catch(Exception) in connect() could not stop it.
+    $this->cfg->urixmlrpc = $this->cfgStr('urixmlrpc', $base . 'xmlrpc.cgi');
+    $this->cfg->uriview   = $this->cfgStr('uriview',   $base . 'show_bug.cgi?id=');
+    $this->cfg->uricreate = $this->cfgStr('uricreate', $base);
+
+    // username/password (login()) and product/component (addIssue()) are cast to
+    // string as well. They are COERCED to '' instead of defaulted, and the property
+    // is only ever touched when it already exists: canCreateViaAPI() is
+    // property_exists()-based, so CREATING product/component here would silently
+    // switch addIssue() from disabled to enabled.
+    foreach(array('username','password','product','component') as $prop)
     {
-      $this->cfg->urixmlrpc = $base . 'xmlrpc.cgi';
+      if( property_exists($this->cfg,$prop) && !is_scalar($this->cfg->$prop) )
+      {
+        tLog(__METHOD__ . " :: cfg field <$prop> is not a text value, using empty string", 'WARNING');
+        $this->cfg->$prop = '';
+      }
     }
 
-    if( !property_exists($this->cfg,'uriview') )
-    {
-      $this->cfg->uriview = $base . 'show_bug.cgi?id=';
-    }
-      
-    if( !property_exists($this->cfg,'uricreate') )
-    {
-      $this->cfg->uricreate = $base;
-    }
-    
     $this->issueDefaults = array('version' => 'unspecified', 'severity' => 'Trivial',
                                  'op_sys' => 'All', 'priority' => 'Normal','platform' => "All",);
     foreach($this->issueDefaults as $prop => $default)
     {
-      $this->cfg->$prop = (string)(property_exists($this->cfg,$prop) ? $this->cfg->$prop : $default);
+      // Issue #1711: same defect, same class, one statement below the cast that
+      // #1619 moved here. A nested stdClass here raised the same uncatchable Error
+      // for 'version', 'severity', 'op_sys', 'priority' and 'platform'; falling
+      // back to $default is precisely what the surrounding property_exists()
+      // logic already intended for a missing value.
+      $val = $this->cfgStr($prop, $default);
+      // do NOT cast $this->cfg->$prop to test it: that IS the bug being fixed.
+      if( property_exists($this->cfg,$prop) && !is_scalar($this->cfg->$prop) )
+      {
+        tLog(__METHOD__ . " :: cfg field <$prop> is not a text value, using default '$default'", 'WARNING');
+      }
+      $this->cfg->$prop = $val;
     }
+  }
+
+  /**
+   * Issue #1711: read a cfg member that is STRUCTURALLY KNOWN TO BE A STRING.
+   *
+   * setCfg() re-binds $this->cfg to a stdClass, so an element-valued cfg field
+   * ('<version><x/></version>') arrives as a nested stdClass and a plain (string)
+   * cast raises an uncatchable Error. A scalar is returned byte-identically, so
+   * no legitimate configuration is changed.
+   *
+   * @param string $prop cfg member to read
+   * @param string $default value to use when the member is missing or not a scalar
+   * @return string
+   **/
+  private function cfgStr($prop,$default)
+  {
+    if( !property_exists($this->cfg,$prop) || !is_scalar($this->cfg->$prop) )
+    {
+      return $default;
+    }
+    return (string)$this->cfg->$prop;
   }
 
   /**
