@@ -3420,6 +3420,8 @@
   "rs.testProject": "测试产品",
   "rs.titleLabel": "标题 *",
   "rs.viewOnly": "只读 - 无修改权限",
+  "rs.viewSpecDetail": "打开规范详情（自定义字段、附件、修订历史）",
+  "rs.viewReqDetail": "打开需求详情（版本、关联测试用例、关系、附件）",
   "rsm.applySelection": "应用",
   "rsm.btnExportXls": "导出为电子表格",
   "rsm.btnSendEmail": "通过电子邮件发送电子表格",

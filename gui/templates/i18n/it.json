@@ -3414,6 +3414,8 @@
   "rs.testProject": "Progetto di Test",
   "rs.titleLabel": "Titolo *",
   "rs.viewOnly": "Sola lettura - senza diritti di modifica",
+  "rs.viewSpecDetail": "Apri il dettaglio della specifica (campi personalizzati, allegati, cronologia revisioni)",
+  "rs.viewReqDetail": "Apri il dettaglio del requisito (versioni, casi di test collegati, relazioni, allegati)",
   "rsm.applySelection": "Applica",
   "rsm.btnExportXls": "Esporta come foglio di calcolo",
   "rsm.btnSendEmail": "Invia il foglio di calcolo per email",

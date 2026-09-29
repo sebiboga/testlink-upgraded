@@ -3414,6 +3414,8 @@
   "rs.testProject": "Proyecto de Pruebas",
   "rs.titleLabel": "Título *",
   "rs.viewOnly": "Solo lectura - sin derechos de modificación",
+  "rs.viewSpecDetail": "Abrir detalle de la especificación (campos personalizados, adjuntos, historial de revisiones)",
+  "rs.viewReqDetail": "Abrir detalle del requisito (versiones, casos de prueba relacionados, relaciones, adjuntos)",
   "rsm.applySelection": "Aplicar",
   "rsm.btnExportXls": "Exportar como hoja de cálculo",
   "rsm.btnSendEmail": "Enviar hoja de cálculo por correo",

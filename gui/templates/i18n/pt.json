@@ -3420,6 +3420,8 @@
   "rs.testProject": "Projeto de Teste",
   "rs.titleLabel": "Título *",
   "rs.viewOnly": "Apenas visualização - sem direitos de modificação",
+  "rs.viewSpecDetail": "Abrir detalhe da especificação (campos personalizados, anexos, histórico de revisões)",
+  "rs.viewReqDetail": "Abrir detalhe do requisito (versões, casos de teste vinculados, relações, anexos)",
   "rsm.applySelection": "Aplicar",
   "rsm.btnExportXls": "Exportar como folha de cálculo",
   "rsm.btnSendEmail": "Enviar folha de cálculo por email",

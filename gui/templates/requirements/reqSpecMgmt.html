@@ -56,6 +56,9 @@ table.dataTable tbody tr.spec-child-row td:first-child { border-left: 3px solid 
 .muted { color: #aaa; }
 .updated-cell { color: #888; font-size: 12px; white-space: nowrap; }
 .edit-btn { background: none; border: none; color: #2d8e88; cursor: pointer; font-size: 14px; padding: 2px 6px; }
+/* Refs #1028 - deep link to the full spec/requirement detail screen. */
+.view-btn { background: none; border: none; color: #4ECDC4; cursor: pointer; font-size: 14px; padding: 2px 6px; }
+.view-btn:hover { color: #2d8e88; }
 .del-btn { background: none; border: none; color: #e6605e; cursor: pointer; font-size: 15px; padding: 2px 6px; }
 .del-btn:hover { color: #c53f3d; }
 .empty { background: #fff; border-radius: 8px; padding: 26px; text-align: center; color: #888; font-size: 13px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
@@ -451,6 +454,9 @@ td.ordact { width: 260px; white-space: nowrap; }
 var API = '/api/reqspec/index.php';
 var tprojectId = 0;
 var canManage = false;
+// Refs #1028 - mgt_view_req. Both legacy deep links (REQ_SPEC_MGMT / REQ_MGMT)
+// were view-right gated, so the detail-view affordance follows the same right.
+var canView = false;
 var specTbl = null;
 var reqTbl = null;
 var deleteTarget = null;   // {type:'spec'|'req', id:N}
@@ -512,6 +518,7 @@ function loadOptions(cb) {
     if (r.status !== 'ok') { toast(TLi18n.t('common.error'), true); return; }
     options = r;
     canManage = !!r.rights.manage;
+    canView = !!r.rights.view;
     cb();
   }).fail(function (xhr) {
     var msg = TLi18n.t('common.error');
@@ -821,9 +828,14 @@ function renderSpecs(items) {
                     (kids > 0 ? '<span class="kids-badge" title="' + esc(TLi18n.t('rs.childSpecs', { n: kids })) + '">' +
                                 kids + ' ' + esc(TLi18n.t('rs.childSpecsShort')) + '</span>' : '');
 
-    var action = '';
+    // Refs #1028 - legacy tree node deep link (REQ_SPEC_MGMT,
+    // gui/javascript/testlink_library.js:1213-1224) ported to the DataTable row:
+    // the eye opens the FULL SPEC DETAIL screen (reqSpecView.html) with its custom
+    // fields, attachments, revision history, Freeze / Create Revision and the full
+    // requirement list. Gated on mgt_view_req, exactly like the legacy node href.
+    var action = canView ? viewSpecBtn(s.id) : '';
     if (canManage) {
-      action =
+      action +=
         (childMgmt ? '<button class="edit-btn" title="' + esc(TLi18n.t('rs.newChildSpec')) +
         '" onclick="openSpecCreate(' + s.id + ')"><i class="fas fa-sitemap"></i></button>' : '') +
         '<button class="edit-btn" title="' + esc(TLi18n.t('rs.editSpec')) +
@@ -831,8 +843,10 @@ function renderSpecs(items) {
         '<button class="del-btn" title="' + esc(TLi18n.t('rs.deleteSpec')) +
         '" onclick="confirmDeleteSpec(' + s.id + ')">' +
         '<i class="fas fa-minus-circle"></i></button>';
-    } else {
-      action = '<span class="muted"><i class="fas fa-eye" title="' + esc(TLi18n.t('rs.viewOnly')) + '"></i></span>';
+    } else if (!canView) {
+      // No view right either: keep the legacy "read only" marker.
+      action = '<span class="muted"><i class="fas fa-eye-slash" title="' +
+               esc(TLi18n.t('rs.viewOnly')) + '"></i></span>';
     }
 
     // Refs #1025: while filtering, the Reqs cell shows the number of MATCHING
@@ -892,6 +906,28 @@ function fmtDate(ts) {
 }
 
 // ------------------------------------------------ requirements panel -------
+// Refs #1028 - the legacy requirement_spec / requirement tree nodes were plain
+// hrefs to the full detail screens (REQ_SPEC_MGMT / REQ_MGMT,
+// gui/javascript/testlink_library.js:1213-1244 -> reqSpecView.php / reqView.php).
+// The modern DataTable rows reproduce that contract with an eye link per row;
+// the detail screens read the same parameters from the query string
+// (reqSpecView.html:309 `id`|`req_spec_id`, reqView.html:328 `id`|`requirement_id`,
+// both plus tproject_id), and tproject_id is passed so the rights check on the
+// detail side runs against the right project.
+function viewSpecBtn(id) {
+  return '<a class="view-btn" title="' + esc(TLi18n.t('rs.viewSpecDetail')) +
+         '" href="/gui/templates/requirements/reqSpecView.html?id=' +
+         encodeURIComponent(id) + '&tproject_id=' + encodeURIComponent(tprojectId) +
+         '" target="_self"><i class="fas fa-eye"></i></a>';
+}
+
+function viewReqBtn(id) {
+  return '<a class="view-btn" title="' + esc(TLi18n.t('rs.viewReqDetail')) +
+         '" href="/gui/templates/requirements/reqView.html?id=' +
+         encodeURIComponent(id) + '&tproject_id=' + encodeURIComponent(tprojectId) +
+         '" target="_self"><i class="fas fa-eye"></i></a>';
+}
+
 function selectSpec(id) {
   var title = currentSpecTitle(id);
   $('#reqPanelSpecName').text(title);
@@ -955,16 +991,21 @@ function renderReqs(items) {
   if (reqTbl) { reqTbl.destroy(); $('#reqTable tbody').empty(); }
 
   var rows = items.map(function (q) {
-    var action = '';
+    // Refs #1028 - legacy REQ_MGMT deep link
+    // (gui/javascript/testlink_library.js:1234-1244) ported to the row: the eye
+    // opens the FULL REQUIREMENT DETAIL (reqView.html) with all versions,
+    // per-revision attributes, custom fields, attachments, linked test cases,
+    // relations and monitoring. The title anchor keeps the modern inline editor.
+    var action = canView ? viewReqBtn(q.id) : '';
     if (canManage) {
-      action =
+      action +=
         '<button class="edit-btn" title="' + esc(TLi18n.t('rs.editReq')) +
         '" onclick="openReqEdit(' + q.id + ')"><i class="fas fa-pen"></i></button>' +
         '<button class="del-btn" title="' + esc(TLi18n.t('rs.deleteReq')) +
         '" onclick="confirmDeleteReq(' + q.id + ')">' +
         '<i class="fas fa-minus-circle"></i></button>';
-    } else {
-      action = '<span class="muted"><i class="fas fa-eye"></i></span>';
+    } else if (!canView) {
+      action = '<span class="muted"><i class="fas fa-eye-slash"></i></span>';
     }
     var scopePlain = String(q.scope == null ? '' : q.scope).replace(/<[^>]*>/g, ' ').replace(/\s+/g,' ').trim();
 

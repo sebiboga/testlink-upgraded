@@ -3420,6 +3420,8 @@
   "rs.testProject": "Proiect de Test",
   "rs.titleLabel": "Titlu *",
   "rs.viewOnly": "Doar vizualizare - fără drepturi de modificare",
+  "rs.viewSpecDetail": "Deschide detaliile specificației (câmpuri personalizate, atașamente, istoric revizii)",
+  "rs.viewReqDetail": "Deschide detaliile cerinței (versiuni, cazuri de test asociate, relații, atașamente)",
   "rsm.applySelection": "Aplică",
   "rsm.btnExportXls": "Exportă ca foaie de calcul",
   "rsm.btnSendEmail": "Trimite foaia de calcul prin email",

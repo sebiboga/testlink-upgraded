@@ -3426,6 +3426,8 @@
   "rs.testProject": "Test Project",
   "rs.titleLabel": "Title *",
   "rs.viewOnly": "View only - no modify rights",
+  "rs.viewSpecDetail": "Open specification detail (custom fields, attachments, revision history)",
+  "rs.viewReqDetail": "Open requirement detail (versions, test case links, relations, attachments)",
   "rsm.applySelection": "Apply",
   "rsm.btnExportXls": "Export as Spreadsheet",
   "rsm.btnSendEmail": "Send spreadsheet by email",

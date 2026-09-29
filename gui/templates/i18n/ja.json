@@ -3420,6 +3420,8 @@
   "rs.testProject": "テストプロジェクト",
   "rs.titleLabel": "タイトル *",
   "rs.viewOnly": "閲覧のみ - 変更権限なし",
+  "rs.viewSpecDetail": "仕様の詳細を開く（カスタムフィールド、添付、修订履歴）",
+  "rs.viewReqDetail": "要件の詳細を開く（バージョン、テストケース関連、関連付け、添付）",
   "rsm.applySelection": "適用",
   "rsm.btnExportXls": "表計算としてエクスポート",
   "rsm.btnSendEmail": "表計算をメールで送信",

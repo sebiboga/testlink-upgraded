@@ -3414,6 +3414,8 @@
   "rs.testProject": "Testprojekt",
   "rs.titleLabel": "Titel *",
   "rs.viewOnly": "Nur Ansicht - keine Änderungsrechte",
+  "rs.viewSpecDetail": "Spezifikationsdetails öffnen (Custom Fields, Anhänge, Revisionsverlauf)",
+  "rs.viewReqDetail": "Anforderungsdetails öffnen (Versionen, Testfallverknüpfungen, Beziehungen, Anhänge)",
   "rsm.applySelection": "Anwenden",
   "rsm.btnExportXls": "Als Tabellenkalkulation exportieren",
   "rsm.btnSendEmail": "Tabellenkalkulation per E-Mail senden",

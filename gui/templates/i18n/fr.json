@@ -3414,6 +3414,8 @@
   "rs.testProject": "Projet de Test",
   "rs.titleLabel": "Titre *",
   "rs.viewOnly": "Lecture seule - droits de modification insuffisants",
+  "rs.viewSpecDetail": "Ouvrir le détail de la spécification (champs personnalisés, pièces jointes, historique des révisions)",
+  "rs.viewReqDetail": "Ouvrir le détail de l'exigence (versions, cas de test liés, relations, pièces jointes)",
   "rsm.applySelection": "Appliquer",
   "rsm.btnExportXls": "Exporter comme tableur",
   "rsm.btnSendEmail": "Envoyer le tableur par e-mail",
