@@ -153,6 +153,15 @@ Three keys, added to all 10 locale bundles (`en ro de es fr it ja pt ru zh`):
 | `node --check` both scripts, `python3 -m json.tool` all bundles | clean |
 | browser console / Event Viewer | 0 errors, 0 warnings; `events` has no `log_level` 1/2 rows |
 
+## Post-implementation review hardening
+
+A mandatory code review (AGENTS.md rule 16) over the screen diff surfaced and fixed:
+
+- **Marker column never renders.** `.authz-col { display:none; }` added to both screens. With DataTables active the hidden (`visible:false`) column's `<th>`/`<td>` are stripped from the DOM anyway, but the pagination-disabled fallback (and the pre-init flash) has no DataTables at all, so the literal `0`/`1` column is hidden by CSS.
+- **No stale-row resurrection.** Clearing the Test Project combo empties `#assignBody` but used to leave the DataTable instance and model alive; the authz toggle redraws the grid, so ticking the box after clearing the combo resurrected the previous context's rows over the empty state. The empty branch now destroys the DataTable and clears the model (`users = []` / `currentItems = []`), and `onAuthzFilterToggle()` only draws a live, non-empty grid.
+- **Correct "no results" text on first paint.** `zeroRecords` is initialised from the current toggle state (`assign.noUsers` when off, `assign.noAuthorizedUsers` when on) instead of always the filtered message.
+- Defensive predicate (`if (!rowData) return true;`), `var AUTHZ_COL`, empty-state footer via `updateAuthzFooter()`, and placeholder `colspan` 5→6 / 4→5.
+
 ## Files
 
 | File | Purpose |

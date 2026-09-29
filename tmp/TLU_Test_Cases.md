@@ -31,71 +31,44 @@ Screen: `http://localhost:8082/gui/templates/requirements/reqSpecMgmt.html?tproj
 `requirement_spec_mgr::get_by_id()` call fatals without a `latest_rspec_revision`
 view row. Fixed in `api/reqspec/index.php:125-146`.
 
-## Regression — Issue #1711: `bugzillaxmlrpcInterface` element-valued `<version>` / `<urixmlrpc>` raise an uncatchable `Error`
+## Task — Issue #1707: show-only-authorized-users row filter in the Assign Roles screens (gap vs legacy)
 
-**Precondition.** Fresh DB (`testlink` @ 127.0.0.1:3306), app on `http://localhost:8082`,
-PHP 8.3.35, branch `fix/issue-1711` (base `30aeecd0d`). Login `admin`/`admin`.
-`DELETE FROM events;` before every live-HTTP batch so the Event Viewer rows are
-unambiguous. Tracker type `1` = `bugzilla` / `api: xmlrpc` →
-`bugzillaxmlrpcInterface` (`lib/functions/tlIssueTracker.class.php:32-35`).
+**Precondition** (recreate on every run, DB is freshly imported):
+```bash
+php tmp/fixtures_1707.php
+```
+Fixture: PRIVATE tproject `AN1707` (#10) with plans #11 (public) / #12 (private) and users
+admin(8), an1707designer(4), an1707guest(5), an1707leader(9 + explicit plan/project role 6),
+an1707tester(7) — 3 of the 5 non-admin rows resolve to effective role 3 (`<no rights>`).
+Control project `AN1707PUB` (#13, plan #14, PUBLIC) — 0 `<no rights>` rows.
+Login `admin/admin`.
+Screens:
+- `http://localhost:8082/gui/templates/usermanagement/usersAssignPlan.html?tproject_id=10&tplan_id=12`
+- `http://localhost:8082/gui/templates/usermanagement/usersAssignProject.html?tproject_id=10`
 
-**Harness.** `php tmp/repro_1711.php` — calls the real constructor
-`new bugzillaxmlrpcInterface(0,$cfg,'repro')`, i.e. exactly what
-`api/issuetracker/index.php:260` and `tlIssueTracker::checkConnection()` do, wrapped
-in `catch(Throwable)` so an `Error` is *observable* instead of fatal. Exit 1 if any
-case throws or raises a PHP diagnostic. (`tmp/` is gitignored; the script is pasted
-here in full so the suite is reproducible from the repo alone.)
-
-**Repro steps (pre-fix).**
-
-1. Create Issue Tracker → Type `bugzilla (Interface: xmlrpc)` → Configuration:
-   `<issuetracker><uribase>http://b/</uribase><version><x/></version></issuetracker>`
-2. Press **Check connection**.
-3. **Observed pre-fix:** red alert, `POST /api/issuetracker/test-connection` → **502**
-   `{"status":"error","connected":false,"message":"Connection check failed"}`, and
-   `events` gains `log_level=1` `…POST /test-connection :: Object of class stdClass
-   could not be converted to string`.
-
-**Expected post-fix.** The offending field is read as a string (or falls back to the
-carved-on-the-stone default); the check answers `200 {"connected":true}`; the Event
-Viewer records **one WARNING naming the element**, and **no ERROR row**.
-
-| # | Steps | Expected | Actual | Result |
+| # | Steps | Expected (legacy) | Actual | Result |
 |---|---|---|---|---|
-| 1711-1 | harness, cfg `<version><x/></version>` | default `unspecified`, no throw | `connected=true`, `version=unspecified`; pre-fix `THROWN Error: Object of class stdClass could not be converted to string` | PASS |
-| 1711-2 | harness, cfg `<platform><x/></platform>` | default `All` | `connected=true`, `platform=All`; pre-fix same `Error` | PASS |
-| 1711-3 | harness, cfg `<urixmlrpc><x/></urixmlrpc>` | derived `http://b/xmlrpc.cgi` (old `:294` cast site) | `connected=true`, `urixmlrpc=http://b/xmlrpc.cgi`; pre-fix same `Error` | PASS |
-| 1711-4 | harness, cfg `<uriview><x/></uriview>` | derived `http://b/show_bug.cgi?id=` | `connected=true`, correct URL | PASS |
-| 1711-5 | harness, cfg `<uricreate><x/></uricreate>` | derived `http://b/` | `connected=true`, correct URL | PASS |
-| 1711-6 | harness, `<uribase>  </uribase>` + nested `<version>` (the #1619 case) | no throw, `$base` degrades to `/` | `connected=true`, `urixmlrpc=/xmlrpc.cgi` | PASS |
-| 1711-7 | harness, `<version>1.0</version>` (scalar **control**) | value preserved **byte-identically** | `version=1.0` | PASS |
-| 1711-8 | harness, no `<urixmlrpc>` at all | derived `http://b/xmlrpc.cgi` | as expected | PASS |
-| 1711-9 | harness, no `product`/`component` | `canCreateViaAPI()` must stay **`false`** — the loop must never CREATE the property | `canCreateViaAPI=false` | PASS |
-| 1711-10 | harness, nested `<product>` + scalar `<component>c</component>` | `product` coerced to `''`, `canCreateViaAPI()` still `true` (property existed) | `product=`, `component=c`, `canCreateViaAPI=true` | PASS |
-| 1711-11 | harness, **empty element** `<platform/>` (review-discovered; likelier in the wild than an explicit child) | default `All` | `connected=true`, `platform=All` | PASS |
-| 1711-12 | harness, **whitespace-only** `<platform>  </platform>` | default `All` | `connected=true`, `platform=All` | PASS |
-| 1711-13 | harness, **repeated** `<platform>a</platform><platform>b</platform>` → PHP array | default `All` (pre-fix: literal `"Array"` + `E_WARNING Array to string conversion`) | `connected=true`, `platform=All` | PASS |
-| 1711-14 | harness, **attribute-only** `<platform x="1"/>` | default `All` | `connected=true`, `platform=All` | PASS |
-| 1711-15 | `curl` live, the 3 reported cfgs (JSON body, `X-Requested-With` + `Origin` proof) | **200** `{"status":"ok","connected":true}` | all 3 × 200; pre-fix all 3 × **502** | PASS |
-| 1711-16 | **browser** via chrome-devtools, *Create Issue Tracker* → bugzilla/xmlrpc → nested `<version>` → **Check connection** | green `Connection successful`, network `[200]` | `alert alert-success :: Connection successful`, `POST /api/issuetracker/index.php/test-connection` `[200]` | PASS |
-| 1711-17 | Event Viewer after the whole suite | **0** new `log_level=1` rows; one `log_level=2` WARNING **naming the element** | only `bugzillaxmlrpcInterface::completeCfg [UIRepro1711] :: cfg field <version> is not a text value, using default 'unspecified'`; pre-fix 3 ERROR rows | PASS |
-| 1711-18 | grid renders a stored row whose cfg is still element-valued | row visible, Environment `OK` | `BZ1711` listed, Server URL `http://b/`, Environment `OK` | PASS |
-| 1711-19 | `php -l lib/issuetrackerintegration/bugzillaxmlrpcInterface.class.php` | clean | `No syntax errors detected` | PASS |
-| 1711-20 | the **code-review refactor** (single `cfgIsNotText()` predicate) re-run through the whole matrix | no behaviour change | **regression caught and fixed during the run** — see the note below — then 14/14 PASS, harness exit 0 | PASS |
+| 1707-1 | open the plan screen on the PRIVATE plan, count rows | 5 rows (3 greyed `not_authorized_user`) | 5 rows; info `Showing 1 to 5 of 5 entries` | PASS |
+| 1707-2 | tick **Show only authorized users** | only the authorized rows remain (legacy `toggleRowByClass` hid the marker rows) | 2 rows (admin, an1707leader); info `Showing 1 to 2 of 2 entries (filtered from 5 total entries)` | PASS |
+| 1707-3 | read the footer | — (new) count of hidden rows | `5 users — 3 unauthorized user(s) hidden` | PASS |
+| 1707-4 | untick the box | all 5 rows return, footer back to `5 users` | 5 rows, `Showing 1 to 5 of 5 entries`, footer `5 users` | PASS |
+| 1707-5 | filter ON, type `an1707designer` in the DataTables search box | search and filter compose (AND) | 0 rows + localized `No authorized user matches the current filter.` | PASS |
+| 1707-6 | filter ON, type `admin` | only authorized rows matching the term | 1 row (`Showing 1 to 1 of 1 entries (filtered from 5 total entries)`) | PASS |
+| 1707-7 | filter ON, click the Login column header (sort) | filter survives the redraw | still 2 rows, order toggles | PASS |
+| 1707-8 | filter ON, bulk *Set roles to tester* + **Do** | hidden `<no rights>` rows NOT touched | `users[]`: uids 2,3,4 keep `roleVal` 3, `changed:false`; only authorized uid 5 changes to 7 | PASS |
+| 1707-9 | filter ON, **Save Changes** (plan) | hidden rows absent from the payload | PUT body `{"tplan_id":12,"assignments":{"5":7}}`; DB `user_testplan_roles` 5/12/6 → `5/12/7`; nothing written for 2,3,4 | PASS |
+| 1707-10 | after Save reloads the grid, check the box | filter state persists across the reload | checked, 2 rows, footer `5 users — 3 unauthorized user(s) hidden` | PASS |
+| 1707-11 | open the project screen on the PRIVATE project, tick the box | same behaviour on the 4-col grid | 2 rows; footer `5 users — 3 unauthorized user(s) hidden` | PASS |
+| 1707-12 | project screen, filter ON, bulk role 7 + Do, then **Save** | hidden rows excluded | PUT body `{"tproject_id":10,"assignments":{"5":7}}`; DB `user_testproject_roles` 5/10 → `5/10/7` | PASS |
+| 1707-13 | open the plan screen on the **AN1707PUB** public project/plan (#13/#14), tick the box | control: nothing to hide | 5 rows, `Showing 1 to 5 of 5 entries`, footer `5 users` (no hidden suffix) | PASS |
+| 1707-14 | simulate `pagination->enabled = false` (`paginationCfg.enabled=false`, destroy the DataTable), toggle the box | page must still filter (legacy per-row hide) | off: all visible; on: uids 2,3,4 `display:none`, uids 1,5 visible; footer correct | PASS |
+| 1707-15 | switch locale to `ro` (`&locale=ro`) | label + messages localized | `Afișează doar utilizatorii autorizați`; `TLi18n.t('assign.unauthorizedHidden',{n:2})` = `2 utilizator(i) neautorizați ascunși` | PASS |
+| 1707-16 | `node --check` on both extracted scripts, `python3 -m json.tool` on all 10 bundles | clean | all clean | PASS |
+| 1707-17 | browser console + Event Viewer (`events` table) | no new Error/Warning | 0 console errors/warnings; `SELECT log_level,COUNT(*) FROM events GROUP BY log_level` = only `16` (AUDIT) | PASS |
+| 1707-18 | *(review fix)* plan/project screen, clear the Test Project combo (empty state), then tick/untick **Show only authorized users** | toggle must not resurrect the previous context's rows | `#assignBody` rows stay 0, empty-state message stays visible after toggling | PASS |
+| 1707-19 | *(review fix)* tick/untick the box without touching the search field, read `settings().oLanguage.sZeroRecords` | plain `assign.noUsers` when off, `assign.noAuthorizedUsers` when on (no wrong first-paint message) | `No users in this project.` ⇄ `No authorized user matches the current filter.` | PASS |
+| 1707-20 | *(review fix)* inspect the marker column on the pagination-disabled path / pre-init markup | literal `0`/`1` column must never be visible | `getComputedStyle(a th.authz-col).display === 'none'`; with DataTables active the th/td are stripped from the DOM (5 visible columns) | PASS |
 
-**Note on 1711-20 (honest record).** The code review suggested collapsing the
-duplicated `property_exists() && !is_scalar()` predicate into one helper. Doing so
-introduced a real bug: `cfgStr()` tested only "present AND not text", so a **missing**
-member fell through to `(string)$this->cfg->$prop` and raised 8 ×
-`Undefined property: stdClass::$…` — the harness caught it (10/10 cases FAIL),
-`cfgStr()` was corrected to `!property_exists(...) || $this->cfgIsNotText(...)`, and
-the matrix returned to 14/14 PASS. Recorded because it is the reason the harness
-asserts on *diagnostics* and not only on the return value.
-
-**Not fixed / filed, not regressions.** The legacy empty-HTTP-500 half of the report
-is unreachable: `lib/issuetrackers/issueTrackerView.php` and its
-`?doAction=checkConnection` route were **removed in #966** (measured HTTP 404, dir
-empty) and `tlIssueTracker::checkConnection()` has no remaining caller. The 8 sibling
-classes carrying the same cast family (`fogbugzrest`, `gforgesoap`, `jirarest`,
-`jirasoap`, `mantissoap`, `redminerest`, `tracxmlrpc`, `tuleaprest`) are out of scope
-for a one-bug run and were filed as a follow-up.
+**Notes:** the 2 `log_level=1` rows seen mid-run were caused by a typo in the fixture script
+(`tproject_id` instead of `testproject_id` in `user_testproject_roles`), not by the app; the typo was
+fixed and those 2 self-inflicted rows removed. `tmp/fixtures_1707.php` already contains the fix.
