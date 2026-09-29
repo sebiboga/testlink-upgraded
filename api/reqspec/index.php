@@ -1328,7 +1328,13 @@ if ($method === 'GET' && $action === 'spec_view') {
             $reqMgrSystem = [
                 'id'   => intval($linked['reqmgrsystem_id']),
                 'name' => (string)$linked['reqmgrsystem_name'],
-                'type' => (string)(isset($linked['verboseType']) ? $linked['verboseType'] : $linked['type']),
+                // Refs #1626: getLinkedTo() now always sets 'verboseType' (it
+                // is '' for a linked system whose type is not a key of
+                // $systems), so isset() is true even when the description is
+                // empty - test the VALUE, or the "fall back to the type code"
+                // intent of this expression is silently dead.
+                'type' => (string)((isset($linked['verboseType']) && $linked['verboseType'] !== '')
+                                   ? $linked['verboseType'] : $linked['type']),
             ];
         }
     }

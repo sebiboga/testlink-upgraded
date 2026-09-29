@@ -164,15 +164,28 @@ garbage class name `"Interface"`.
 | 1626-14 | `SELECT COUNT(*) FROM events WHERE id > baseline AND description LIKE '%tlReqMgrSystem%'` | `0` | `0` | PASS |
 | 1626-15 | bad row's `type_descr` degrades gracefully | `""` (was `null`) | `""` | PASS |
 | 1626-16 | `getLinkedTo(1)['verboseType']` degrades gracefully | `""` (was `null`) | `""` | PASS |
+| 1626-17 | the BFF degrades the unprobeable row too, so the modern payload and the legacy grid agree (`tlReqMgrSystem::getAll():562` and `api/codetracker/index.php` both set it false) | `"env_check_ok": false` for the `type=99` row | `false` | PASS |
 
-**Result: 21 assertions, 21 PASS, 0 FAIL, exit 0.**
+**Result: 22 assertions, 22 PASS, 0 FAIL, exit 0.**
 
 **Discriminating power (proved, not assumed):** with only
 `lib/functions/tlReqMgrSystem.class.php` swapped back to `origin/sebiboga`, the
-same harness reports **15 PASS / 6 FAIL / exit 1** — the 6 failures being 1626-05
+same harness reports **16 PASS / 6 FAIL / exit 1** — the 6 failures being 1626-05
 (12 diagnostics), 1626-06 (`"Interface"`), 1626-15/1626-16 (`null`) and
 1626-13/1626-14 (20 new `events` rows). `git checkout --` restores the fix and the
-next run is 21/21 again.
+next run is 22/22 again.
+
+**Code-review pass.** A review subagent over the full diff produced findings that
+were applied before closing: (1) the BFF's `env_check_ok` stayed `true` for the
+unprobeable row while the legacy grid already painted it red -> the guard was
+inverted to the `getAll()` shape and assertion **1626-17** was added; (2)
+`api/reqspec/index.php:1331`'s `isset($linked['verboseType']) ? … : $linked['type']`
+fallback became permanently dead once `getLinkedTo()` always sets the key -> the
+test is now on the VALUE (`!== ''`); (3) the CHANGELOG carried an incorrect
+assertion count, a duplicated word, a wrong pre-fix warning total, a wrong
+description of the pre-fix `check_connection` message and a wrong docs path, and it
+had damaged an unrelated #966 sentence -> all corrected, and **#1715** /
+**#1716** were filed for the two defects the review surfaced.
 
 **Manual / browser verification** (headless Chrome, `admin`/`admin`):
 `gui/templates/reqmgrsystems/reqMgrSystemView.html` renders

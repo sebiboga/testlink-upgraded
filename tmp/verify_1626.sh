@@ -112,6 +112,11 @@ done
 curl -s -b "$COOKIE" -o "$TMP/api.json" -w '' "$BASE/api/reqmgrsystems/index.php"
 chk 1626-13 "modern BFF list: 0 new events for the whole matrix" "$(evcnt "$B")" "0"
 
+# --- 4b. the modern screen must agree with the legacy grid about the row it
+#         cannot probe: getAll() (checkEnv=true) degrades it, so must the BFF.
+bade=$(python3 -c 'import json,sys;print(json.dumps([i["env_check_ok"] for i in json.load(open(sys.argv[1]))["items"] if i["type"]==99]))' "$TMP/api.json" 2>/dev/null)
+chk 1626-17 "BFF degrades the unprobeable row to env_check_ok=false" "$bade" "[false]"
+
 # --- 5. Event Viewer must carry no tlReqMgrSystem row from a post-fix load --
 rows=$($MY "select count(*) from events where id > $B and description like '%tlReqMgrSystem%';")
 chk 1626-14 "no tlReqMgrSystem.class.php event after the fix" "$rows" "0"

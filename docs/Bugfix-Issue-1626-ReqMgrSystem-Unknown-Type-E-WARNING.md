@@ -117,8 +117,9 @@ hardened for the exact same defect by #1597 and #1617.
 | `lib/functions/tlReqMgrSystem.class.php` `getImplementationForType()` | `if( !isset($this->systems[$system]) ) { return null; }` before the read — verbatim the #1597 / #1617 shape (`tlCodeTracker.class.php:114-137`, `tlIssueTracker.class.php:168-190`) |
 | `lib/functions/tlReqMgrSystem.class.php` `getAll()` | `$this->types[$item['type']]` read once into a guarded `$typeDescr` local — verbatim `tlCodeTracker.class.php:570-571` / `tlIssueTracker.class.php:622-623` |
 | `lib/functions/tlReqMgrSystem.class.php` `getLinkedTo()` | same guarded local for `$ret['verboseType']` |
-| `api/reqmgrsystems/index.php:105` | `!is_null($impl) && @class_exists($impl) && …` — `class_exists(NULL)` is `E_DEPRECATED` on PHP 8.1+ and `method_exists(NULL, …)` is a **TypeError**; the `&&` short-circuit is what makes the list route safe by construction |
-| `api/reqmgrsystems/index.php:294` | a NULL implementation answers `Interface for type <n> not implemented` instead of `Interface  not implemented` (empty class name) |
+| `api/reqmgrsystems/index.php:105` | `is_null($impl) || !@class_exists($impl) || !method_exists(…)` → `env_check_ok = false` — `class_exists(NULL)` is `E_DEPRECATED` on PHP 8.1+ and `method_exists(NULL, …)` is a **TypeError**; the `&&` short-circuit is what makes the list route safe by construction. The branch was also **inverted** to the shape `getAll():562-566` and `api/codetracker/index.php` use: before, the modern payload claimed `"env_check_ok": true` for exactly the row the legacy grid paints a red badge for |
+| `api/reqmgrsystems/index.php:302-306` | a NULL implementation answers `Interface for type <n> not implemented` instead of echoing the garbage class name back (`Interface Interface not implemented`) |
+| `api/reqspec/index.php:1331` | `getLinkedTo()` now always sets `verboseType` (it is `''` for an unknown type), which made that expression's `isset($linked['verboseType']) ? … : $linked['type']` fallback permanently dead — the test is now on the VALUE (`!== ''`) |
 
 An unknown type now degrades to an **empty type description**, so the row stays visible
 and **repairable** — the issue's own "Expected" and both twins' behaviour.
@@ -127,8 +128,13 @@ and **repairable** — the issue's own "Expected" and both twins' behaviour.
 
 3 needed **no** change:
 
-- `getByID()` (`:321`) is already NULL-tolerant, because `checkConnection()` guards with
-  `!isset($xx['implementation'])` at `:655` and `isset(NULL)` is `false`;
+- `getByID()` (`:321`) is already NULL-tolerant **on the `checkConnection()` path**,
+  because `checkConnection()` guards with `!isset($xx['implementation'])` at `:655`
+  and `isset(NULL)` is `false`. Its **second** consumer,
+  `getInterfaceObject()` (`:642-643`), is *not* NULL-safe — that unguarded
+  `new $iname` is a standing defect tracked as **#1629** and is deliberately left
+  alone here (`new "Interface"` and `new NULL` both raise an uncatchable `Error`, so
+  the observable outcome is the same empty 500 before and after this change);
 - `getAll()` (`:530`) already has #1625's `is_null($impl)`;
 - `lib/ajax/getreqmgrsystemcfgtemplate.php:29` and `api/reqmgrsystems/index.php:159`
   are both preceded by an `isset($types[$type])` gate, and since `types` is projected
@@ -151,12 +157,16 @@ loaded in two PHP processes against the same database, with a `set_error_handler
 counting every diagnostic:
 
 ```
-########## PRE-FIX ##########
+########## PRE-FIX ##########   (elided repeats marked "...")
   !! E[2] Undefined array key 99                 (orig.class.php:113)
-  !! E[2] Trying to access array offset on null  (orig.class.php:114)   x2
+  !! E[2] Trying to access array offset on null  (orig.class.php:114)   [1 of 2]
 impl(99)  = 'Interface'
+  ...  (impl(0) repeats the same 3)
   !! E[2] Undefined array key 99                 (orig.class.php:522)
   !! E[2] Undefined array key 99                 (orig.class.php:523)
+  !! E[2] Undefined array key 99                 (orig.class.php:113)
+  !! E[2] Trying to access array offset on null  (orig.class.php:114)   [1 of 2]
+  !! E[2] Trying to access array offset on null  (orig.class.php:114)   [2 of 2]
   !! E[2] Undefined array key 99                 (orig.class.php:595)
                                              => 12 diagnostics
 
@@ -183,9 +193,13 @@ new_events
 ```
 
 The **BFF list JSON is byte-identical** to the pre-fix capture (only a missing
-trailing newline in the captured file differs), i.e. the fix changes nothing a client
-can observe except the absence of diagnostics and the `null` → `''` normalisation the
-BFF already performed on its own side.
+trailing newline in the captured file differs) **except for one field**:
+`env_check_ok` on the bad-type row is now `false` (it was `true`), so the modern
+payload agrees with the legacy grid, which requests `checkEnv=true` and already
+painted a red badge for that row. That change came out of the code review, not out
+of the original diagnosis. Otherwise the fix changes nothing a client can observe
+except the absence of diagnostics and the `null` → `''` normalisation the BFF
+already performed on its own side.
 
 **In-browser A/B** by swapping only the class file back to `origin/sebiboga` in the
 running app: 5 events per load; `git checkout --` restores the fix and the next load
@@ -193,18 +207,32 @@ adds 0. Screenshots: `docs/screenshots/issue-1626-reqmgr-system-list-before-fix.
 `issue-1626-reqmgr-system-list-after-fix.png`,
 `issue-1626-event-viewer-after-fix.png`.
 
-**Regression suite:** `bash tmp/verify_1626.sh` → **21 PASS / 0 FAIL, exit 0**;
-with only the class file reverted → **15 PASS / 6 FAIL, exit 1**, so the harness is
+**Regression suite:** `bash tmp/verify_1626.sh` → **22 PASS / 0 FAIL, exit 0**;
+with only the class file reverted → **16 PASS / 6 FAIL, exit 1**, so the harness is
 provably discriminating. Numbered suite in `tmp/TLU_Test_Cases.md`
 ("Regression — Issue #1626"). `php -l` clean on both files.
 
-## Sibling defect found while testing (filed, not fixed)
+## Sibling defects found while testing / reviewing (filed, NOT fixed)
 
-**#1714** — `requirement_spec_mgr::get_by_id()` interpolates an **empty**
-`RSPEC_REV.id = ` into a WHERE clause when `get_last_active_version()` returns
-`false` (1064 syntax error + `E_WARNING` at
-`requirement_spec_mgr.class.php:186`); same family as #1708, different file, needs
-its own regression matrix. Out of scope for this issue.
+* **#1714** — `requirement_spec_mgr::get_by_id()` interpolates an **empty**
+  `RSPEC_REV.id = ` into a WHERE clause when `get_last_active_version()` returns
+  `false` (1064 syntax error + `E_WARNING` at
+  `requirement_spec_mgr.class.php:186`); same family as #1708, different file.
+* **#1715** — `tlCodeTracker::getLinkedTo()` (`:643-648`) still carries the **same**
+  two unguarded `$this->types[…]` / `$this->systems[…][…]` reads this fix removed
+  from the reqmgr twin (3 warnings per call, reachable from every project read).
+  #1597 hardened the other two methods of that class and missed this one;
+  `tlIssueTracker::getLinkedTo():717` and (as of this fix)
+  `tlReqMgrSystem::getLinkedTo():621` both have the guard — `tlCodeTracker` is now
+  the last of the three without it.
+* **#1716** — both `lang_get()` keys used by
+  `lib/ajax/getreqmgrsystemcfgtemplate.php:41,46`
+  (`reqmgrsystem_interface_not_implemented`, `reqmgrsystem_invalid_type`) exist in
+  **no** locale file, so the endpoint answers the literal `LOCALIZE: <key>` marker
+  to the browser and logs an Event Viewer row.
+
+Each is a different file or a different defect and needs its own regression matrix,
+so none was fixed inside this issue.
 
 ## Related
 
