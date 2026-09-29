@@ -31,6 +31,11 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 .changed { background: #fff3cd !important; }
 .footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
 .assign-table tr.not_authorized_user td { color: #999; }
+/* Issue #1707: Dashio toolbar checkbox styling for the legacy
+   show_only_authorized_users row filter (usersAssign.tpl:12 + :46). */
+.authz-filter { display: inline-flex; align-items: center; gap: 6px; color: #aaa; font-size: 13px; cursor: pointer; user-select: none; }
+.authz-filter input[type=checkbox] { width: 15px; height: 15px; cursor: pointer; accent-color: #4ECDC4; }
+.authz-filter:hover { color: #4ECDC4; }
 .inherited-lbl { color: #1a7f74; font-weight: 600; font-size: 11px; display: inline-block; margin-left: 6px; text-transform: uppercase; }
 .assign-table select:disabled { background: #f5f5f5; color: #888; cursor: not-allowed; }
 .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid #ccc; border-top-color: #4ECDC4; border-radius: 50%; animation: spin .6s linear infinite; margin-right: 6px; vertical-align: middle; }
@@ -71,6 +76,16 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
   <label style="color:#aaa;font-size:13px;margin-right:4px;" data-i18n="assign.setRolesTo">Set roles to:</label>
   <select id="bulkRoleSelect" style="font-size:13px;padding:5px 10px;border-radius:4px;border:1px solid #555;background:#333;color:#fff;min-width:180px;"></select>
   <button class="btn-ghost" id="bulkDoBtn" onclick="applyBulkRole()"><i class="fa fa-bolt"></i> <span data-i18n="assign.do">Do</span></button>
+  <!-- Issue #1707 / legacy parity: usersAssign.tpl:12 fetched the
+       show_only_authorized_users label and usersAssign.tpl:46 shipped
+       toggleRowByClass() to hide every <no rights> row (the not_authorized_user
+       marker of usersAssign.tpl:234-237) while the box was ticked. The modern
+       port filters through the DataTables pipeline (authzSearchFilter) so the
+       state survives paging/sort/search redraws. -->
+  <label class="authz-filter" for="onlyAuthorizedChk" id="authzFilterLabel">
+    <input type="checkbox" id="onlyAuthorizedChk" onchange="onAuthzFilterToggle()">
+    <span data-i18n="assign.showOnlyAuthorized">Show only authorized users</span>
+  </label>
   <button class="btn-teal" id="saveBtn" onclick="saveAssignments()" disabled><i class="fa fa-save"></i> <span data-i18n="assign.saveChanges">Save Changes</span></button>
   <!-- Legacy parity: usersAssign.tpl:286-292 - the Save button is replaced by the
        localized warn_demo note while demoMode is on. -->
@@ -85,6 +100,9 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
         <th data-i18n="user.login">Login</th>
         <th data-i18n="user.fullName">Name</th>
         <th style="width:220px;" data-i18n="assign.assignedRole">Assigned Role</th>
+        <!-- Issue #1707: hidden authorized/1 unauthorized marker column consumed
+             by the show_only_authorized_users filter. -->
+        <th class="authz-col"></th>
       </tr>
     </thead>
     <tbody id="assignBody"></tbody>
@@ -140,6 +158,89 @@ var paginationCfg = { enabled: true, lengthMenu: [[20, 40, 60, -1], [20, 40, 60,
 // Legacy parity: usersAssign.tpl:286-292 - read-only assignment form while
 // demoMode is on (Save button replaced by the localized warn_demo note).
 var demoMode = false;
+// ---------------------------------------------------------------------------
+// Issue #1707 - "show only authorized users" row filter.
+// Legacy parity: usersAssign.tpl:12 fetched the show_only_authorized_users
+// label and usersAssign.tpl:46 shipped toggleRowByClass(), which hid every <tr>
+// carrying the not_authorized_user marker (usersAssign.tpl:234-237, i.e. the
+// user's EFFECTIVE role on the selected test project is TL_ROLES_NO_RIGHTS)
+// while the checkbox was ticked. The helper compared
+// tr.className == 'not_authorized_user' EXACTLY, which can never match a 2.0.1
+// row: DataTables 1.13.7 appends its own striping classes, so a modern row
+// reads "not_authorized_user odd" (and "... changed even" once edited). The port
+// therefore
+//   (a) keeps the marker CSS untouched and
+//   (b) filters through the DataTables pipeline instead of style.display, so the
+//       state survives EVERY redraw (paging / sort / search-box), paging counts
+//       stay truthful and the "nothing matched" message can fire - none of which
+//       a raw display:none can do. Same implementation as the sibling plan
+//       screen (usersAssignPlan.html).
+var AUTHZ_COL = 4;        // hidden marker column = last column of the 4-col grid
+var showOnlyAuthorized = false;
+var authzFilterRegistered = false;
+
+function isUnauthorizedUser(u) {
+  return u && parseInt(u.effectiveRoleID, 10) === NO_RIGHTS_ROLE_ID;
+}
+
+// A row is EXCLUDED from bulk "Do" and from the Save payload while the filter is
+// ticked: issue #1707 requires that "a hidden <no rights> row is not touched by
+// either". The filter is a pure VIEW filter - unticking it restores the rows
+// with their untouched role values.
+function authzExcluded(u) {
+  return showOnlyAuthorized && isUnauthorizedUser(u);
+}
+
+// Row data for the hidden marker column (column index AUTHZ_COL).
+function authzCellHtml(u) {
+  return isUnauthorizedUser(u) ? '0' : '1';
+}
+
+// One global search predicate, registered once per page load and scoped to THIS
+// table only (settings.nTable.id). While the box is unticked it returns true for
+// every row, so the DataTables search box keeps working unchanged; DataTables
+// ANDs the ext.search predicates with the built-in column search.
+function registerAuthzFilter() {
+  if (authzFilterRegistered) return;
+  authzFilterRegistered = true;
+  $.fn.dataTable.ext.search.push(function (settings, searchData, dataIndex, rowData) {
+    if (!showOnlyAuthorized) return true;
+    if (settings.nTable.id !== 'assignTable') return true;
+    var row = rowData || searchData;
+    if (!row) return true;
+    return String(row[AUTHZ_COL]) === '1';
+  });
+}
+
+function onAuthzFilterToggle() {
+  showOnlyAuthorized = !!$('#onlyAuthorizedChk').prop('checked');
+  registerAuthzFilter();
+  if (assignTbl) {
+    assignTbl.settings()[0].oLanguage.sZeroRecords = showOnlyAuthorized
+      ? TLi18n.t('assign.noAuthorizedUsers') : TLi18n.t('assign.noUsers');
+    assignTbl.page(0).draw(false);
+  } else {
+    // Pagination disabled: no DataTables -> rebuild from state, which applies the
+    // hidden-row fallback in buildBodyHtml().
+    renderAssignTable();
+  }
+  updateAuthzFooter();
+  // A row that just became invisible can no longer be edited, so the Save
+  // button's state must be recomputed against the visible set.
+  updateSaveBtn();
+}
+
+function updateAuthzFooter() {
+  var base = TLi18n.t('user.usersCount', {n: currentItems.length});
+  if (showOnlyAuthorized) {
+    var n = 0;
+    for (var i = 0; i < currentItems.length; i++) {
+      if (isUnauthorizedUser(currentItems[i])) n++;
+    }
+    if (n > 0) base += ' — ' + TLi18n.t('assign.unauthorizedHidden', {n: n});
+  }
+  $('#footerText').text(base);
+}
 
 function esc(s) {
   return String(s == null ? '' : s)
@@ -393,7 +494,9 @@ function loadUsers(pid) {
     $('#assignBody').html(buildBodyHtml());
     initAssignTable();
     $('#emptyMsg').hide();
-    $('#footerText').text(TLi18n.t('user.usersCount', {n: currentItems.length}));
+    // Issue #1707: the footer also reports how many <no rights> rows the
+    // authorized-only filter is currently hiding.
+    updateAuthzFooter();
   }).fail(function(xhr) {
     // Guard against a stale project's data being saved under the new pid: on
     // failure (403/500/network) keep the previous view coherent and never let
@@ -461,6 +564,12 @@ function buildBodyHtml() {
     });
     var rowClass = (u.effectiveRoleID == NO_RIGHTS_ROLE_ID) ? ' not_authorized_user' : '';
     if (changedMap[u.id]) rowClass += ' changed';
+    // Issue #1707: when $tlCfg->gui->usersAssign->pagination->enabled is false
+    // there is NO DataTables instance to filter, so the authorized-only filter
+    // falls back to the legacy mechanism (hide the matching rows) - rendered
+    // from state here so an in-screen rebuild keeps the filter applied.
+    var authzHide = (!paginationCfg.enabled && showOnlyAuthorized && isUnauthorizedUser(u))
+      ? ' style="display:none;"' : '';
     var disabled = u.isAdmin ? ' disabled' : '';
     var hint = '';
     if (u.isAdmin) {
@@ -474,11 +583,12 @@ function buildBodyHtml() {
     // usersAssignGlobalRoleColoring is ENABLED (usersAssign.php:593-598, issue
     // #946). Legacy fused login+name in one cell; here both cells share the tint.
     var rowStyle = (u.roleColour && u.roleColour !== '') ? ' style="background-color:' + esc(u.roleColour) + ';"' : '';
-    html += '<tr data-uid="' + esc(u.id) + '"' + (rowClass ? ' class="' + rowClass + '"' : '') + '>' +
+    html += '<tr data-uid="' + esc(u.id) + '"' + (rowClass ? ' class="' + rowClass + '"' : '') + authzHide + '>' +
       '<td>' + (i + 1) + '</td>' +
       '<td' + rowStyle + '>' + esc(u.login) + badge + '</td>' +
       '<td' + rowStyle + '>' + esc(userNameCell(u)) + '</td>' +
       '<td><select' + disabled + ' data-role="' + esc(u.roleID) + '" onchange="onRoleChange(this,' + esc(u.id) + ',' + esc(u.roleID) + ')">' + opts + '</select>' + hint + '</td>' +
+      '<td class="authz-col">' + authzCellHtml(u) + '</td>' +
     '</tr>';
   });
   return html;
@@ -526,13 +636,20 @@ function initAssignTable() {
   // Never turn the empty-state placeholder row into a paginated grid.
   if (!paginationCfg.enabled || !currentItems.length) return;
   var menu = paginationCfg.lengthMenu || [[20, 40, 60, -1], [20, 40, 60, 'All']];
+  // Issue #1707: one global ext.search predicate, scoped to #assignTable.
+  registerAuthzFilter();
   assignTbl = $('#assignTable').DataTable({
     // Legacy parity: usersAssign.tpl:115-117 searchable false on the role
     // column only. In the 2.0.1 layout the ordinal column (0) is decorative;
     // the role select lives in column 3.
     columnDefs: [
       { orderable: false, searchable: false, targets: 0 },
-      { searchable: false, targets: 3 }
+      { searchable: false, targets: 3 },
+      // Issue #1707: hidden authorized marker - visible:false keeps it out of
+      // the grid and searchable:false keeps the search box from matching on a
+      // bare "0"/"1"; the ext.search predicate registered in
+      // registerAuthzFilter() reads its cell value straight from the row data.
+      { visible: false, searchable: false, orderable: false, targets: AUTHZ_COL }
     ],
     lengthMenu: menu,
     pageLength: menu[0] && menu[0][0] ? menu[0][0] : 20,
@@ -562,7 +679,13 @@ function initAssignTable() {
     },
     // Legacy parity: usersAssign.tpl:116 language.search = "User" - the DataTables
     // search box is labelled like the legacy grid's search label.
-    language: { search: TLi18n.t('assign.searchUsers') }
+    language: {
+      search: TLi18n.t('assign.searchUsers'),
+      // Issue #1707: shown when the authorized-only filter removes every row;
+      // onAuthzFilterToggle() swaps it for the plain no_users text when the box
+      // is unticked.
+      zeroRecords: TLi18n.t('assign.noAuthorizedUsers')
+    }
   });
   // Runs after the constructor assigned assignTbl, i.e. once a persisted state
   // (if any) has been restored into the table.
@@ -629,6 +752,10 @@ function applyBulkRole() {
     // Skip disabled global-admin rows (legacy !input_element.disabled,
     // usersAssign.tpl:244-247).
     if (u.isAdmin) return;
+    // Issue #1707: "a hidden <no rights> row is not touched" - while the
+    // authorized-only filter is ticked the bulk apply skips those rows, exactly
+    // as the legacy helper skipped everything the checkbox had hidden.
+    if (authzExcluded(u)) return;
     roleChoices[u.id] = roleVal;
     changedMap[u.id] = roleVal !== u.roleID;
   });
@@ -641,7 +768,13 @@ function updateSaveBtn() {
   // (legacy usersAssign.tpl:286-292 replaces it with the warn_demo note).
   if (demoMode) { $('#saveBtn').prop('disabled', true); return; }
   var anyChanged = false;
-  $.each(changedMap, function(k, v) { if (v) { anyChanged = true; return false; } });
+  $.each(currentItems, function(i, u) {
+    // Issue #1707: a row hidden by the authorized-only filter is out of scope -
+    // neither bulk "Do" nor Save can touch it, so it can never enable the Save
+    // button (prevents an empty "No users selected" submission).
+    if (authzExcluded(u)) return;
+    if (changedMap[u.id]) { anyChanged = true; return false; }
+  });
   $('#saveBtn').prop('disabled', !anyChanged);
 }
 
@@ -662,6 +795,9 @@ function saveAssignments() {
   // so a locked admin's project role can never be written or erased by Save.
   $.each(currentItems, function(i, u) {
     if (u.isAdmin) return;
+    // Issue #1707: hidden <no rights> rows are never written while the
+    // authorized-only filter is ticked.
+    if (authzExcluded(u)) return;
     assignments[u.id] = roleChoices[u.id];
   });
   var payload = { tproject_id: parseInt(currentProject), assignments: assignments };
