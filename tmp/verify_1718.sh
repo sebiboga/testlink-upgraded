@@ -87,12 +87,16 @@ done
 got=$(code "$CJ2" "$BASE/api/reports/index.php?action=not_run_any_platform&tproject_id=1&tplan_id=2")
 [ "$got" = "403" ]; ok $? "guard 403 for a user without testplan_metrics" "403" "$got"
 
-# 8. No new Error/Warning row was produced by any of the requests above. The two
-#    known pre-fix rows (the original require_once warning and the deleted
-#    controller's own probe) are the BASELINE, so compare against it.
+# 8. No new Error/Warning row was produced by any of the requests above.
+#    BASELINE = 1: `events` id 3, the E_WARNING raised by the deleted
+#    controller's own reproduction probe. The ORIGINAL pre-fix fatal wrote NO
+#    events row at all - it died at the include with no session, so it only
+#    ever reached logs/userlog1.log ("[26/Sep/29 13:38:01] ... Line 16").
+#    So the bound is the baseline, not "baseline + slack": anything above 1
+#    means this diff (or the harness) started raising diagnostics.
 warns=$(mysql -N -B -h 127.0.0.1 -utestlink -ptestlink testlink \
         -e "SELECT COUNT(*) FROM events WHERE log_level IN (1,2);" 2>/dev/null | tr -d ' ')
-[ "${warns:-99}" -le 2 ]; ok $? "no new Error/Warning row beyond the 2 pre-fix baseline rows" "<= 2" "${warns:-unreadable}"
+[ "${warns:-99}" -le 1 ]; ok $? "no new Error/Warning row beyond the 1 pre-fix baseline row" "<= 1" "${warns:-unreadable}"
 
 # 9. Nothing else in lib/results/ lost its syntax gate.
 bad=0
