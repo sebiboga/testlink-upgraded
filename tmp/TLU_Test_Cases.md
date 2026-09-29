@@ -916,3 +916,30 @@ inline script; all 10 bundles `python3 -m json.tool`.
 **Result: 16 / 16 PASS.** Negative control: before the BFF/HTML change the same payload returned
 no `projectIsPublic`/`planIsPublic` (investigation comment) and the two `<span>` elements did not
 exist — cases 1–7 could not pass.
+
+## Suite 1616 — Regression, Issue #1616: `importKeywordsFromCSV()` must skip the export header row (`Keyword;Notes;Number of Test Case Linked`)
+
+**Precondition.** `admin`/`admin` on `http://localhost:8082`. DB freshly imported. Fixture via SQL (mirrors `testproject::create()`): project 1 `KW1616Proj` (prefix KW1616) with keywords `smoke_login` (notes `smoke test of login`) and `regression_nightly`; project 2 `KW1616Target` (prefix KW1616B) empty; project 3 `KW1616Target2` (prefix KW1616C) empty. Screen: `/gui/templates/keywords/keywordsExport.html?tproject_id=1&mode=export`; BFF `api/keywordsxml/index.php`. Pre-fix, exporting project 1 to CSV and importing that file back created a bogus keyword `Keyword` (notes `Notes`) — DB row `3 | Keyword | 1 | Notes` (measured).
+
+| # | steps | expected (post-fix) | actual | verdict |
+|---|---|---|---|---|
+| 1 | `GET /api/keywordsxml/index.php?action=export&tproject_id=1&type=iSerializationToCSV&filename=keywords.csv` | 200 text/csv body starts with `Keyword;Notes;Number of Test Case Linked\r\n` — exporter header unchanged | body `Keyword;Notes;Number of Test Case Linked\r\nsmoke_login;smoke test of login;0\r\nregression_nightly;;0\r\n` | PASS |
+| 2 | POST that exact file to `action=import` with `tproject_id=1` (same project, every real keyword already exists) | 400 `NO_KEYWORDS_IMPORTED`, `rows=2`, `skipped=2`; **NO** bogus `Keyword` row created | `{code:"NO_KEYWORDS_IMPORTED", imported:0, skipped:2, rows:2, errors:[ALREADY_EXISTS x2]}`; `select * from keywords where keyword='Keyword' and testproject_id=1` → 0 rows | PASS |
+| 3 | POST project 1's export into **empty** project 2 | 200 ok, `imported=2, skipped=0, rows=2`; project 2 holds exactly `smoke_login`, `regression_nightly` (ids 4-5) | `{status:"ok", keyword_count:2, imported:2, skipped:0, rows:2}`; DB ids 4,5 only | PASS |
+| 4 | headerless 2-column file `hdrless_a;notes for a` / `hdrless_b;notes for b` into project 2 | 200 ok, 2 imported, 0 skipped — headerless files keep working | `{imported:2, skipped:0, rows:2}` | PASS |
+| 5 | one-row 3-col file `Keyword;Notes;0` (a REAL keyword named `Keyword` with numeric tcv_qty) into project 2 | imported as real data — the header skip must not eat it (`Keyword;Notes;0` ≠ header `Keyword;Notes;Number of Test Case Linked`) | `{imported:1, skipped:0, rows:1}`; DB row `8 | Keyword | 2` | PASS |
+| 6 | header-only file `Keyword;Notes;Number of Test Case Linked\r\n` into project 2 | 400 `EMPTY_FILE` (`rows=0`), no keyword created | `{code:"EMPTY_FILE", imported:0, skipped:0, rows:0}` | PASS |
+| 7 | full round trip of project 2's export (contains a real keyword `Keyword`) into **empty** project 3 | 200 ok, `imported=5, skipped=0, rows=5`; project 3 mirrors project 2 exactly (ids 9-13 incl. real `Keyword`), no header junk | `{status:"ok", keyword_count:5, imported:5, skipped:0, rows:5}`; DB ids 9-13 = smoke_login, regression_nightly, hdrless_a, hdrless_b, Keyword | PASS |
+| 8 | comma-delimited file `Keyword,Notes,Number of Test Case Linked\r\ncomma_kw,comma notes,0\r\n` into project 3 | comma header also skipped (delimiter sniff), only `comma_kw` imported | `{imported:1, skipped:0, rows:1}` | PASS |
+| 9 | `php -l lib/functions/testproject.class.php` | clean | `No syntax errors detected` | PASS |
+| 10 | Event Viewer / `events` after the whole run | no new Error/Warning entries | all new rows are `log_level=16` CREATE audit events; no ERROR/WARNING | PASS |
+| 11 | browser console during the run | no errors | no console messages | PASS |
+ | 12 | BOM'd header file `\uFEFFKeyword;Notes;Number of Test Case Linked\r\nbom_kw;;0\r\n` into project 4 | BOM tolerated — header skipped, only `bom_kw` imported, **no** `\uFEFFKeyword` junk row | `{imported:1, skipped:0, rows:1}`; DB has `bom_kw`, no BOM-prefixed row | PASS |
+ | 13 | leading blank line before the header (`\r\nKeyword;Notes;…\r\nblank_kw;;0\r\n`) into project 4 | header detected as the first DATA row and skipped, only `blank_kw` imported | `{imported:1, skipped:0, rows:1}` | PASS |
+
+**Pre-fix baseline (measured, for contrast).** Same export/import round trip on project 1 produced `keywords` row `3 | Keyword | 1 | Notes` and import response `{status:"ok", keyword_count:3, imported:1, skipped:2, rows:3}`.
+
+**Notes.**
+
+- The header skip is scoped to the FIRST parsed row and requires a full match of all three localized exporter labels (`lang_get('keyword'/'notes'/'tcv_qty')`), so a row of actual data — where the third cell is a numeric tcv_qty — can never be mistaken for the header.
+- The skipped header is not counted in `rows`/`skipped`, so a successful round trip reports the clean `imported` count, and a header-only file still degrades to the pre-existing `EMPTY_FILE` guard in `api/keywordsxml/index.php:349`.
