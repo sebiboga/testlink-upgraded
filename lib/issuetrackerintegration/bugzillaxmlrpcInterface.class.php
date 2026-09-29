@@ -71,15 +71,20 @@ class bugzillaxmlrpcInterface extends issueTrackerInterface
     // carries no <uribase> element (e.g. '<testlink/>') has no such PROPERTY and
     // reading it raised "Undefined property: stdClass::$uribase" plus a PHP 8.1+
     // "trim(): Passing null to parameter #1" deprecation - both from this one
-    // statement, both logged to the Event Viewer. Null-coalesce + string cast:
-    // a VALID cfg still yields a byte-identical $base, an invalid one degrades
-    // to '/' instead of warning.
-    // is_scalar() is the third case of the same defect and the only one that
-    // KILLED the request: a whitespace-only element ('<uribase>  </uribase>')
+    // statement, both logged to the Event Viewer. Only the DIAGNOSTICS change:
+    // for a no-<uribase> cfg the derived $base was ALREADY '/' pre-fix, and
+    // every valid cfg yields a byte-identical $base.
+    // is_scalar() covers a second shape of the same defect, and it is the one
+    // that KILLED the request: a whitespace-only element ('<uribase>  </uribase>')
     // survives the SimpleXML -> json -> stdClass round-trip as an empty
     // SimpleXMLElement, i.e. a NESTED stdClass, so trim() raised
     // "TypeError: trim(): Argument #1 ($string) must be of type string,
-    // stdClass given" (measured, pre-fix) and killed the whole request.
+    // stdClass given" (measured, pre-fix) and killed the whole request. A plain
+    // (string) cast only moved that fatal to the issueDefaults loop below.
+    // is_scalar() cannot reject a legitimate value: setCfg() is the ONLY writer
+    // of $this->cfg (issueTrackerInterface.class.php:116 then :165), so by the
+    // time completeCfg() runs it is always a stdClass, never a SimpleXMLElement
+    // (for which trim() would have worked).
     $uri = $this->cfg->uribase ?? '';
     $base = trim(is_scalar($uri) ? (string)$uri : '',"/") . '/'; // be sure no double // at end
     if( !property_exists($this->cfg,'urixmlrpc') )

@@ -26731,3 +26731,85 @@ outside the scope of this fix. `getReqsOnSpecForLatestTCV()` keeps its
 `link_status = 1` default — the misleading `// null => do not filter` comment above
 it was corrected instead, because both in-repo callers
 (`api/reqtcassign`, `api/requirements`) pass the list explicitly.
+
+---
+
+## Regression — Issue #1619: `bugzillaxmlrpcInterface` logged `Undefined property: stdClass::$uribase` while building its own diagnostic
+
+**Precondition.** Freshly imported DB (empty `testprojects` / `issuetrackers`).
+`php tmp/fixtures_1619.php` creates the public test project `ITCFG1619` (prefix `I1619`,
+id=1) plus two type-1 (bugzilla/xmlrpc) trackers: `IT_BZ1619_BADCFG` with
+`cfg = '<testlink/>'` (parses, carries **no** `<uribase>`) and `IT_BZ1619_OKCFG` with a
+full Bugzilla cfg document (control). Log in `admin`/`admin`; app on `http://localhost:8082`.
+Events count before the repro: 1.
+
+**Repro steps (pre-fix, measured).**
+1. `POST /api/issuetracker/test-connection` `{name:'IT_BZ1619_REPRO', type:1, cfg:'<testlink/>'}`
+   (this is what the modernized edit modal's "Check Connection" posts; the route does
+   `new bugzillaxmlrpcInterface($type,$cfg,$name)` at `api/issuetracker/index.php:260`) →
+   `200 {"status":"ok","connected":true,"message":"Connection OK"}`.
+2. `SELECT id, description FROM events ORDER BY id DESC LIMIT 1` → the new row is
+   `E_WARNING Undefined property: stdClass::$uribase - .../bugzillaxmlrpcInterface.class.php - Line 69`.
+3. Same result from the list screen's wrench, `GET /api/issuetracker/1/check-connection`
+   (`api/issuetracker/index.php:212`, stored cfg), and from the grid itself
+   (`GET /api/issuetracker/` runs `checkEnv` for every row, `api/issuetracker/index.php:112`).
+4. `GET /api/issuetracker/` — the control tracker `IT_BZ1619_OKCFG` adds **no** row, proving
+   the trigger is the *absent element*, not the tracker type.
+
+**Expected post-fix.** No PHP diagnostic is raised anywhere on that path; the `catch`
+block's own log line renders `uribase= / apikey=` instead of warning; and every **valid**
+cfg keeps producing byte-identical derived URIs. (A plain `(string)` cast was **not**
+enough — see case 6.)
+
+| # | Case | Input | Expected | Observed (post-fix) | Result |
+|---|------|-------|----------|---------------------|--------|
+| 1 | issue repro | `cfg = '<testlink/>'` | 0 diagnostics; `urixmlrpc` degrades to `/xmlrpc.cgi` | `PASS 0 diagnostics` · `urixmlrpc="/xmlrpc.cgi"` | PASS |
+| 2 | full valid cfg (**control**) | Bugzilla doc with `<uribase>`+`<apikey>` | 0 diagnostics; `uribase`/`urixmlrpc`/`uriview`/`uricreate` **byte-identical** to pre-fix | `PASS` on all four, no diagnostic | PASS |
+| 3 | `uribase` present, `apikey` absent | `<issuetracker><uribase>http://127.0.0.1:9/</uribase></issuetracker>` | 0 diagnostics; `urixmlrpc` unchanged | `urixmlrpc="http://127.0.0.1:9/xmlrpc.cgi"`, 0 diagnostics | PASS |
+| 4 | trailing slashes | `<uribase>http://h///</uribase>` | the `trim(...,'/')` de-double-slash contract preserved | `urixmlrpc="http://h/xmlrpc.cgi"`, 0 diagnostics | PASS |
+| 5 | valid cfg with **no** `<uribase>` | `<issuetracker><username>u</username>…<product>P</product></issuetracker>` | 0 diagnostics (the same defect, a more realistic config) | 0 diagnostics | PASS |
+| 6 | whitespace-only `<uribase>` | `<issuetracker><uribase>  </uribase></issuetracker>` | construct cleanly | `PASS` — no diagnostic, no fatal. Pre-fix this was a request-killing `PHP Fatal error: Uncaught TypeError: trim(): Argument #1 ($string) must be of type string, stdClass given` at `:69`, because a whitespace-only element survives `setCfg()`'s SimpleXML→`json`→**stdClass** round-trip as an empty SimpleXMLElement, i.e. a *nested* stdClass | PASS |
+| 7 | `connect()` `catch` log line, 4 cfg shapes — `{}` / full / `uribase`-only / **nested** `<apikey><x/></apikey>` | probe reusing the class's own statements | 0 diagnostics; `uribase= / apikey=`, `uribase=http://b/ / apikey=SECRET`, `uribase=http://b/ / apikey=`, `uribase=http://b/ / apikey=` | 4/4 exact match, 0 diagnostics. Pre-fix: 2 warnings / 0 / 1 warning / **`PHP Fatal error: Uncaught Error: Object of class stdClass could not be converted to string`** — the logger killed the request it was logging | PASS |
+| 8 | live HTTP, as `admin` | `POST /api/issuetracker/test-connection`, `GET /api/issuetracker/1/check-connection`, `GET /api/issuetracker/` | `200` on all three; **0 new `events` rows**; grid still lists both rows | `200 {"connected":true}` ×2; grid returned both `IT_BZ1619_BADCFG` and `IT_BZ1619_OKCFG` with `env_check_ok:true`; `SELECT COUNT(*) FROM events` = **8 before, 8 after** (pre-fix the same single request added id=3) | PASS |
+| 9 | scope guard | `git diff --stat -- lib/` | exactly 1 file, no sibling class, no BFF, no template | `lib/issuetrackerintegration/bugzillaxmlrpcInterface.class.php | 28 ++++++++++++++++++ / 2 -` — 1 file changed | PASS |
+
+**Result: 14 assertions, 14 PASS / 0 FAIL** (`php tmp/verify_1619.php`, exit 0).
+Recorded honestly, with the pre-fix run kept as the baseline: restoring the pre-fix class
+(`git show HEAD:lib/issuetrackerintegration/bugzillaxmlrpcInterface.class.php`) and re-running
+the **same** script gives `FAIL R1` (2 diagnostics) and `FAIL R5` (2 diagnostics) and then dies
+with the case-6 `PHP Fatal error` — so the suite genuinely guards the defect, and the five
+control cases stay PASS on both sides, which is what proves the fix is behaviour-preserving for
+valid configurations. `php -l` clean on the changed file; Event Viewer gained no
+`E_WARNING`/`E_DEPRECATED` row.
+
+**Known limitations, deliberately NOT changed.**
+1. `connect()`'s `catch(Exception $e)` still cannot catch the PHP 8 `Error` that
+   `createAPIClient()` can raise (`:268`, `Object of class stdClass could not be converted to
+   string`) — that is **#1629**, out of scope here. Case 7 exercises the catch's log-building
+   statements directly, because on the normal path the catch is never entered.
+2. The 7 sibling interface classes carry the identical unguarded read and are untouched
+   (out of scope for a one-bug run): `tracxmlrpc:85`+`:149`, `gitlabrest:70`/`:150`/`:178`,
+   `redminerest:67`/`:162`/`:189`, `fogbugzrest:57`/`:105`, `kaitenrest:55`, `trellorest:60`,
+   `tuleaprest:60` — filed as **#1710**.
+3. **Found by the mandatory code review of this fix, measured, NOT fixed here** — the
+   *element-valued* (as opposed to missing or whitespace-only) variant of the same defect at
+   two remaining `(string)` casts in the same class: `completeCfg():104` (the
+   `issueDefaults` loop, where `property_exists()` is true for a nested `stdClass`, so
+   `<version><x/></version>` throws) and `createAPIClient():294`
+   (`(string)$this->cfg->urixmlrpc`, which `Error`s past BOTH `catch(Exception)` blocks, so
+   the log line hardened by this fix is never even reached). Measured:
+   `<version><x/></version>` and `<urixmlrpc><x/></urixmlrpc>` both raise
+   `Error: Object of class stdClass could not be converted to string`; live over HTTP the
+   modern modal answers **502 `Connection check failed`** (ids 17-18 in `events`) while
+   `tlIssueTracker::checkConnection()` (`tlIssueTracker.class.php:800`) instantiates with no
+   `try`/`catch` at all, so the legacy path takes the request down with an empty HTTP 500.
+   Filed as **#1711**. Note the suite has a real blind spot here: a "0 diagnostics"
+   assertion cannot observe an uncatchable `Error` (cases C8/C9 of the review harness report
+   `diag=0` *and* fatally error), so cases 1-9 here must be read together with #1711's
+   numbers, not as evidence that the class is clean.
+4. `issueTrackerInterface::setCfg()` itself still re-binds `$this->cfg` to a `stdClass`
+   (`:165`); hardening that shared base class would change behaviour for **every** tracker
+   type, so the read is guarded at the call site instead.
+3. `issueTrackerInterface::setCfg()` itself still re-binds `$this->cfg` to a `stdClass`
+   (`:165`); hardening that shared base class would change behaviour for **every** tracker
+   type, so the read is guarded at the call site instead.
