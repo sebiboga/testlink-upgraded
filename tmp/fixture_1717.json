@@ -1,13 +1,13 @@
 {
-    "tproject": 47,
-    "tplan": 48,
-    "build": 4,
-    "plat_a": 7,
-    "plat_b": 8,
-    "tc_never_both": 50,
-    "tc_never_both2": 59,
-    "tc_pass_a": 53,
-    "tc_mixed": 56,
-    "tc_closed_build": 62,
-    "unorights": 5
+    "tproject": 1,
+    "tplan": 2,
+    "build": 1,
+    "plat_a": 1,
+    "plat_b": 2,
+    "tc_never_both": 4,
+    "tc_never_both2": 13,
+    "tc_pass_a": 7,
+    "tc_mixed": 10,
+    "tc_closed_build": 16,
+    "unorights": 2
 }
