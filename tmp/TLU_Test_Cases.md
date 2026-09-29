@@ -1014,8 +1014,11 @@ prefix RM1727, requirements enabled, root node 2) and three requirement manageme
 | 53 | shim `?doAction=edit&id=11` with **no** `tproject_id` query param | the context comes from the session (`testprojectID`), not the never-written `tproject_id` key | 302 target contains `tproject_id=4` | PASS |
 | 54 | `rmse.msg.nameExists` + `rmse.cfgExampleFailed` in all 10 bundles, all JSON valid | present everywhere | 31 `rmse.*` keys in `en.json`, all bundles parse | PASS |
 | 55 | `php -l` on the BFF and the shim after the review fixes | clean | clean | PASS |
+| 56 | open the editor from the list screen's per-row *open in full editor* icon | a new tab with the row id + the list screen's own context | `reqMgrSystemEdit.html?id=13&tproject_id=4&tplan_id=0`; Back -> `reqMgrSystemView.html?tproject_id=4` |
+| 57 | the same navigation with `tplan_id=0` in the URL | a `0` means "no plan" and must not be forwarded | Back target is `?tproject_id=4` (no `tplan_id=0`); event-history link `…&tproject_id=4&tplan_id=0` with `rel="noopener noreferrer"` |
 
-**Result: 55 / 55 PASS** (42 screen/BFF/shim cases + 13 code-review regression cases).
+**Result: 55 / 55 PASS** (42 screen/BFF/shim cases + 13 code-review regression cases) plus 2 navigation cases
+(56-57, the list-screen entry icon and the `tplan_id=0` forwarding) = **57 / 57 PASS**.
 
 **Notes.**
 

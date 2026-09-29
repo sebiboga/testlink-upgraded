@@ -313,9 +313,10 @@ function renderForm(r, keepFeedback) {
 
   if (isEdit && r.mgt_view_events) {
     var a = $('#lnkEventHistory');
+    var t = parseInt(qs('tproject_id'), 10), p = parseInt(qs('tplan_id'), 10);
     a.attr('href', '/gui/templates/eventviewer/eventviewer.html?object_id=' + encodeURIComponent(r.item.id) +
-                    '&object_type=reqmrgsystems&tproject_id=' + encodeURIComponent(qs('tproject_id') || 0) +
-                    '&tplan_id=' + encodeURIComponent(qs('tplan_id') || 0));
+                    '&object_type=reqmrgsystems&tproject_id=' + (isNaN(t) ? 0 : t) +
+                    '&tplan_id=' + (isNaN(p) ? 0 : p));
     a.show();
     $('#ctxNoEvents').hide();
   } else {
@@ -457,11 +458,12 @@ $('#btnDeleteConfirm').on('click', function() {
  * carry it, otherwise the user lands on the list screen with no project.
  */
 function contextQs() {
-  var t = qs('tproject_id');
-  var p = qs('tplan_id');
+  // a 0 means "no project / no plan", so it must not be forwarded
+  var t = parseInt(qs('tproject_id'), 10);
+  var p = parseInt(qs('tplan_id'), 10);
   var parts = [];
-  if (t) { parts.push('tproject_id=' + encodeURIComponent(t)); }
-  if (p) { parts.push('tplan_id=' + encodeURIComponent(p)); }
+  if (!isNaN(t) && t > 0) { parts.push('tproject_id=' + encodeURIComponent(t)); }
+  if (!isNaN(p) && p > 0) { parts.push('tplan_id=' + encodeURIComponent(p)); }
   return parts.length ? '?' + parts.join('&') : '';
 }
 
