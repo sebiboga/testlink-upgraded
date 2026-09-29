@@ -1121,3 +1121,70 @@ screen keeps working; the Event Viewer gains no Error/Warning rows.
   1.9.6. The Event Viewer noise was the only observable symptom.
 - Cross-reference: the #1722 suite above already flags this warning as "a separate defect"
   from the blank-body bug; that separation is confirmed here and that bug is unaffected.
+
+---
+
+## Regression — Issue #1731: `reqMgrSystemEdit.php` 302 shim — array-shaped `$_REQUEST` wrote an E_WARNING **and** an ERROR row per request
+
+**Precondition** — MariaDB `testlink` freshly imported, PHP 8.3.35 built-in server on
+`http://localhost:8082`, session established as `admin`/`admin` via
+`POST /login.php?action=ajaxlogin` (`tl_login` / `tl_password`).
+`select count(*) from events where log_level in (1,2)` = 0 before every block.
+
+**Subject** — `lib/reqmgrsystems/reqMgrSystemEdit.php`, the session-guarded 302 redirect shim
+that retires the legacy `reqMgrSystemEdit.php` page. The BFF (`api/reqmgrsystemedit/index.php`)
+was already hardened in `ef3331fd0`; the shim's own `$_REQUEST` reads at lines 66-67 and 72 were
+left exactly as 1.9.20 had them.
+
+**Repro (pre-fix) — 1 request, 2 rows**
+
+```bash
+curl -s -c c.jar -b c.jar -o /dev/null http://localhost:8082/login.php
+curl -s -c c.jar -b c.jar -X POST 'http://localhost:8082/login.php?action=ajaxlogin' \
+     -d 'tl_login=admin&tl_password=admin'
+curl -s -b c.jar -o /dev/null -D- \
+     'http://localhost:8082/lib/reqmgrsystems/reqMgrSystemEdit.php?doAction%5B%5D=x'
+# -> HTTP/1.1 302 Found, Location: .../reqMgrSystemView.html   (looks completely normal)
+```
+
+`events`, verbatim:
+
+```
+log_level 2 | E_WARNING\nArray to string conversion - in .../lib/reqmgrsystems/reqMgrSystemEdit.php - Line 66
+log_level 1 | reqMgrSystemEdit.php shim: unknown doAction "Array" - refusing to guess a modern target (Refs #1727).
+```
+
+**Expected post-fix behaviour** — the array is never cast, so the coerced literal `"Array"` is never
+built, the `default:` branch's `tLog(...,'ERROR')` is never reached, and **no `events` row with
+`log_level in (1,2)` is written**. An array-shaped `doAction` is refused with a 302 to the list
+screen at `INFO`; array-shaped `id` / `tproject_id` / `tplan_id` degrade to `0`, i.e. the
+already-supported "no id / no context" case. Scalar parameters must keep working unchanged.
+
+**Results — 2026-09-29, commit `844bba827`, branch `fix/issue-1731`**
+
+| # | Case | Expected | Observed | Result |
+|---|---|---|---|---|
+| 53 | `?doAction[]=x` | 302 to list screen, **0 new Error/Warning rows** | `302` → `reqmgrsystems/reqMgrSystemView.html`, `rows=+0` | PASS |
+| 54 | `?doAction[]=edit` | 302 to list screen, 0 rows | `302` → `reqMgrSystemView.html`, `rows=+0` | PASS |
+| 55 | `?doAction[]=doDelete` | 302 to list screen, **no server-side write**, 0 rows | `302` → `reqMgrSystemView.html`, `rows=+0`; `reqmgrsystems` row count unchanged | PASS |
+| 56 | `?id[]=1&doAction=edit` | array id must NOT address system 1 | `302` → `reqMgrSystemEdit.html` with **no** `id` (create mode), not `?id=1` | PASS |
+| 57 | `?tproject_id[]=1&doAction=create` | must NOT silently enter test project 1 | `302` → `reqMgrSystemEdit.html` with **no** `tproject_id` | PASS |
+| 58 | `?tplan_id[]=1&doAction=create` | must NOT silently enter test plan 1 | `302` → `reqMgrSystemEdit.html` with **no** `tplan_id` | PASS |
+| 59 | `?doAction=edit&id=1&tproject_id=1` (all scalar) | **legacy parity** — unchanged redirect | `302` → `reqMgrSystemEdit.html?id=1&tproject_id=1` | PASS |
+| 60 | `?doAction=create` (no id) | 302 to the editor, no id | `302` → `reqMgrSystemEdit.html` | PASS |
+| 61 | `?doAction=doCreate` (retired write verb) | 302 to list screen, `INFO` row only, no write | `302` → `reqMgrSystemView.html`, `rows=+0` for `log_level in (1,2)` | PASS |
+| 62 | `?doAction=bogus` (scalar unknown verb) | **pre-existing intentional** `ERROR` row, unchanged by this fix | `302` → `reqMgrSystemView.html`, `rows=+1` at `log_level 1` — the #1727 `default:` branch, untouched | PASS (unchanged, out of scope) |
+| 63 | flood: 5 × `?doAction[]=x` | 0 rows total (was **+10** pre-fix, 2 per request) | `rows=+0` | PASS |
+| 64 | anonymous (no cookie) `?doAction[]=x` | 302 to login, 0 rows | redirect before the cast, `rows=+0` | PASS |
+| 65 | `php -l lib/reqmgrsystems/reqMgrSystemEdit.php` | no syntax errors | `No syntax errors detected` | PASS |
+| 66 | **browser end-to-end**: `GET /lib/reqmgrsystems/reqMgrSystemEdit.php?doAction=edit&id=1&tproject_id=1` → editor loads, rename `SysA` → `SysA-renamed`, click **Save** | shim redirects into the modern editor, the save persists, 0 new Error/Warning rows, no console error | redirect landed on `reqMgrSystemEdit.html?id=1&tproject_id=1`; editor rendered in **Edit** mode with name `SysA`; Save → `select id,name from reqmgrsystems` → `1  SysA-renamed`; `events` `log_level in (1,2)` unchanged at 0; console `error`/`warn` = none | PASS |
+
+**Events-Viewer check (AGENTS.md rule 12)** — after the full matrix plus the browser pass, the
+complete set of rows with `log_level in (1,2)` is **empty** once the deliberate case-62
+scalar-unknown-verb row is removed. No new Error/Warning entry was generated by the fix.
+
+**Out of scope, filed separately** — `lib/testcases/listTestCases.php:52` carries the identical
+bare `(string)$_REQUEST['feature']` cast and produces the identical 2-row outcome; filed as
+**#1732** per `ai/FIX-ISSUE.md` §4 rather than fixed here.
+`lib/keywords/keywordsEdit.php:71,73` has the same cast but is **not** reachable (302 before the
+cast, 0 rows) — checked, no issue needed.
