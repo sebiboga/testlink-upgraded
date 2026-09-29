@@ -6555,6 +6555,15 @@ Changes:
 ### KEY BUGFIX — every create of a requirement management system wrote an E_WARNING Event Viewer row (Fixes #1729)
 ### KEY BUGFIX — the editor BFF: array-shaped parameters logged warnings and could be stored as the name `Array` (Fixes #1730)
 ### KEY BUGFIX (security) — stored DOM XSS: an unescaped system name was injected into the editor's feedback banner (Fixes #1731)
+### KEY BUGFIX — the `reqMgrSystemEdit.php` 302 shim: array-shaped `$_REQUEST` wrote an E_WARNING *and* an ERROR row into the Event Viewer on every request (Fixes #1731)
+- `is_scalar()` guards (`shimReqScalar`/`shimReqInt`, the same idiom as `lib/attachments/attachmentdelete.php`
+  and `api/reqmgrsystemedit/index.php`). `?doAction[]=x` raised `E_WARNING Array to string conversion`
+  (2 rows/request, 5 requests = 10) and the coerced `"Array"` then tripped the `default:` branch's
+  `tLog(...,'ERROR')`; `?tproject_id[]=1` was silently `intval()`'d to 1 — the wrong test project, with
+  no diagnostic at all. Reachable from ANY authenticated session: the shim has no rights check. Array
+  `doAction` is refused early at INFO (never ERROR) with a 302 to the list screen — this file is a
+  bookmark redirector, so a junk query string must not become a 400. Docs
+  `docs/Bugfix-Issue-1731-ReqMgrSystemEdit-Shim-Array-Request-E_WARNING.md`.
 
 ### Screen — Duplicate Name Check `nameCheck` (Refs #1724)
 - Modernizes the GENERIC node name-uniqueness backend `lib/ajax/checkNodeDuplicateName.php`, which
