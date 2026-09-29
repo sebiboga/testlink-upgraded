@@ -3,9 +3,9 @@
 The **Test Cases Not Run on Any Platform** report (ASIDE → Reports → *Test Cases
 not run on any Platform*) lists every test case linked to the current test plan
 that **has never been executed on any platform** of that plan. It replaces the
-legacy 1.9.20 `lib/results/tcNotRunAnyPlatform.php` view — which is still in the
-tree but **cannot run at all** (see *Legacy defect* below) — with a modern
-Dashio-styled page backed by a plain-PHP REST BFF.
+legacy 1.9.20 `lib/results/tcNotRunAnyPlatform.php` view — which **could not run
+at all** (see *Legacy defect* below) and has since been **retired in #1718** — with
+a modern Dashio-styled page backed by a plain-PHP REST BFF.
 
 **Path:** ASIDE menu → Reports → *Test Cases not run on any Platform* (the whole
 Reports block is gated on a test plan being selected)
@@ -41,7 +41,13 @@ worse, was **not registered in `cfg/reports.cfg.php` at all** — so it was not
 linked from the Reports menu and its rot went unnoticed:
 
 * `lib/results/tcNotRunAnyPlatform.php` + `gui/templates/dashio/results/tcNotRunAnyPlatform.tpl`
-* and the tl-classic `gui/templates/tc-xtp-pref/tcNotRunAnyPlatform.tpl` pair.
+* and the tl-classic `gui/templates/tl-classic/results/tcNotRunAnyPlatform.tpl` pair.
+
+**All three files were DELETED in #1718** (commits `047111e9d` / `7287257e4`) once
+this modern screen reached parity: the controller required a `results.class.php`
+that no longer exists, called a method on a null object and read an unassigned
+variable, so it could only ever answer HTTP 500. See
+[Bugfix-Issue-1718](Bugfix-Issue-1718-Legacy-tcNotRunAnyPlatform-Fatal.md).
 
 ## 2. Legacy defect: the controller could never run
 
@@ -51,13 +57,30 @@ Reading the controller first (mandatory) proved it is unusable, so the BFF does
 | # | Legacy line | Problem |
 |---|-------------|---------|
 | 1 | `require_once('results.class.php')` | that class no longer exists in the 2.0.1 tree → hard fatal |
-| 2 | `:50` `$re = new results($db, $tplan_id)` | **commented out**, while `:62` still calls `$re->getMapOfLastResult()` → *Call to a member function on null* |
+| 2 | `:49` `$re = new results($db, $tplan_id)` | **commented out**, while `:62` still calls `$re->getMapOfLastResult()` → *Call to a member function on null* |
 | 3 | `:124` `$executionsMap[$suiteId]` | read, but never assigned — the map the whole aggregation depends on is missing |
 | 4 | — | no `cfg/reports.cfg.php` entry → unreachable from the Reports ASIDE menu |
 
 Filed as **bug #1718** with the `bug` label. The three legacy templates only
 supplied column headers and a legend, so nothing usable was lost by not reusing
 them.
+
+**#1718 CLOSED (2026-09-29, commits `047111e9d` + `7287257e4`).** The four defects
+were re-measured one by one (there is a **fourth**, not listed above: `:37-40`
+reads `$tplan_info` / `$tproject_info` with no null guard, which kills the request
+earlier whenever no test project is selected), and since there was no surviving
+`results` class to restore and this modern screen was already at parity, the dead
+cluster was **retired** rather than repaired:
+`lib/results/tcNotRunAnyPlatform.php` (273 lines) plus its dashio (65) and
+tl-classic (66) Smarty templates. The legacy URL now answers **404** instead of
+**500**; the modern report is byte-identical to its pre-fix baseline; the guard
+matrix still answers 400/400/403; `php tmp/test_1717.php` is still **40/40 PASS**
+and the dedicated `tmp/verify_1718.sh` is **19/19 PASS**. Four locale keys that
+only this cluster used (`title_test_report_not_run_on_any_platform`,
+`not_run_any_platform_status_msg`, `not_run_any_platform_no_platforms`,
+`info_tcNotRunAnyPlatform`) are now dead and are left in the 12 catalogues for a
+separate cleanup. The sibling `lib/results/priorityBarChart.php:5` has the same
+removed dependency and was filed as **#1719**.
 
 ## 3. Screen Layout
 
@@ -259,8 +282,10 @@ HTTP guards and a browser pass with a clean console and a clean Event Viewer.
 | `lib/functions/common.php` | `$actions->tcNotRunAnyPlatform` |
 | `gui/templates/i18n/*.json` | 10 modern bundles |
 | `locale/*/strings.txt` | 19 server catalogues (ASIDE label) |
-| `lib/results/tcNotRunAnyPlatform.php` | legacy controller (broken, **#1718**) |
-| `gui/templates/dashio/results/tcNotRunAnyPlatform.tpl` | legacy template (superseded) |
+| ~~`lib/results/tcNotRunAnyPlatform.php`~~ | legacy controller — **deleted in #1718** (`047111e9d`) |
+| ~~`gui/templates/dashio/results/tcNotRunAnyPlatform.tpl`~~ | legacy template — **deleted in #1718** |
+| ~~`gui/templates/tl-classic/results/tcNotRunAnyPlatform.tpl`~~ | legacy template — **deleted in #1718** |
+| `tmp/verify_1718.sh` | #1718 regression harness (19 assertions) |
 | `tmp/fixtures_1717.php` | two-platform, four-case fixture |
 | `tmp/test_1717.php` | 34-assertion harness |
 | `docs/screenshots/issue-1717-tcnotrunanyplatform-0{1,2}-*.png` | screenshots (linked from the wiki page) |
