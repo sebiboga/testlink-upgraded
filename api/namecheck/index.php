@@ -63,12 +63,9 @@ function nout($data, $code = 200) {
     exit;
 }
 
-$method = $_SERVER['REQUEST_METHOD'];
-if ($method !== 'GET') {
-    nout(['status' => 'error', 'code' => 'method_not_allowed',
-          'message' => 'Method not allowed'], 405);
-}
-
+// Auth FIRST, verb second: an anonymous caller must not be able to learn the
+// route's verb policy, and it keeps the order used by the peer BFFs
+// (api/tcreorder/index.php).
 $userId = $_SESSION['userID'] ?? null;
 if (!$userId || $userId <= 0) {
     nout(['status' => 'error', 'code' => 'not_authenticated',
@@ -80,39 +77,58 @@ if (is_null($user)) {
           'message' => 'User not found'], 401);
 }
 
+$method = $_SERVER['REQUEST_METHOD'];
+if ($method !== 'GET') {
+    nout(['status' => 'error', 'code' => 'method_not_allowed',
+          'message' => 'Method not allowed'], 405);
+}
+
 // Session inactivity window - the BFF counterpart of the legacy
 // testlinkInitPage() -> checkSessionValid() contract.
 bffEnforceSession($db);
 
-$action = isset($_GET['action']) ? strval($_GET['action']) : '';
+/**
+ * Scalar GET readers. An array-typed parameter (?name[]=x) is NOT coerced:
+ * strval() on an array emits a PHP 8 "Array to string conversion" E_WARNING
+ * that would land in the Event Viewer, and intval() on an array silently
+ * yields 1. Both helpers therefore degrade to a well-defined value.
+ */
+function nGetStr($key) {
+    return isset($_GET[$key]) && is_string($_GET[$key]) ? $_GET[$key] : '';
+}
 
 function nGetInt($key, $default = 0) {
     if (!isset($_GET[$key])) { return intval($default); }
-    return intval($_GET[$key]);
+    return is_scalar($_GET[$key]) ? intval($_GET[$key]) : 0;
 }
+
+$action = nGetStr('action');
 
 /**
  * Walk nodes_hierarchy upwards until the node whose type is a test project.
  * Returns the test project id, or null when the chain does not reach one.
  * Mirrors the helper of the same name in api/testcases/index.php.
  */
-function ncOwningProject(&$db, $nodeId) {
+function ncOwningProject(&$db, $nodeId, $testprojectTypeId) {
+    $nhTables = tlObjectWithDB::getDBTables('nodes_hierarchy');
+    $nh = $nhTables['nodes_hierarchy'];
     $walk = intval($nodeId);
+    $projectTypeId = intval($testprojectTypeId);
     $guard = 64;
     while ($walk > 0 && $guard-- > 0) {
         // Test the node's OWN type first: a test SUITE is checked against the
         // test project root as its parent, and that root IS the chain end -
         // walking past it would read parent_id = 0 and wrongly report the
         // project as "not found" (bug #1725).
-        $nt = intval($db->fetchFirstRowSingleColumn(
-            "SELECT node_type_id FROM nodes_hierarchy WHERE id = " . intval($walk),
-            'node_type_id'));
-        if ($nt === 1) { return $walk; }   // node_type_id 1 == testproject
-        $row = $db->fetchFirstRowSingleColumn(
-            "SELECT parent_id FROM nodes_hierarchy WHERE id = " . intval($walk),
-            'parent_id');
-        if (is_null($row)) { return null; }
-        $parent = intval($row);
+        // The "is a test project" id comes from the node_types table, never a
+        // hardcoded 1, so a non-default node_types fixture still works.
+        // fetchFirstRow (NOT fetchFirstRowSingleColumn): two columns are
+        // needed, one query per hop instead of two.
+        $row = $db->fetchFirstRow(
+            "SELECT parent_id, node_type_id FROM $nh WHERE id = " . intval($walk));
+        if (empty($row) || !array_key_exists('parent_id', $row)) { return null; }
+        if (intval($row['node_type_id']) === $projectTypeId) { return $walk; }
+        $parent = intval($row['parent_id']);
         if ($parent == 0) { return null; }
         $walk = $parent;
     }
@@ -144,18 +160,22 @@ if ($action === 'init') {
               'message' => 'No test project selected'], 400);
     }
 
-    $tprojectMgr = new testproject($db);
-    $tprojInfo = $tprojectMgr->get_by_id($tprojId);
-    if (is_null($tprojInfo)) {
-        nout(['status' => 'error', 'code' => 'project_not_found',
-              'message' => 'Test project not found'], 404);
-    }
-
+    // Rights are evaluated BEFORE the existence test, so a session with no
+    // rights anywhere cannot enumerate which test project ids exist by
+    // telling 403 apart from 404. hasRight() answers 'no' for an unknown
+    // project, which is exactly what we want here.
     $canView  = ($user->hasRight($db, 'mgt_view_tc', $tprojId) === 'yes');
     $canModify = ($user->hasRight($db, 'mgt_modify_tc', $tprojId) === 'yes');
     if (!$canView && !$canModify) {
         nout(['status' => 'error', 'code' => 'no_permission',
               'message' => 'No permission'], 403);
+    }
+
+    $tprojectMgr = new testproject($db);
+    $tprojInfo = $tprojectMgr->get_by_id($tprojId);
+    if (is_null($tprojInfo)) {
+        nout(['status' => 'error', 'code' => 'project_not_found',
+              'message' => 'Test project not found'], 404);
     }
 
     $typeMap = ncNodeTypes($db);
@@ -214,8 +234,8 @@ if ($action === 'init') {
 // ---------------------------------------------------------------------------
 // GET ?action=check&node_type=..&name=..&parent_id=M[&node_id=K][&tproject_id=N]
 // ---------------------------------------------------------------------------
-$nodeType = strval($_GET['node_type'] ?? '');
-$name = trim(strval($_GET['name'] ?? ''));
+$nodeType = nGetStr('node_type');
+$name = trim(nGetStr('name'));
 $parentId = nGetInt('parent_id', 0);
 $nodeId = nGetInt('node_id', 0);
 
@@ -227,8 +247,12 @@ if (mb_strlen($name, 'UTF-8') > 100) {
     nout(['status' => 'error', 'code' => 'name_too_long',
           'message' => 'Name is limited to 100 characters'], 400);
 }
+// Allowlist: the route contract is testsuite|testcase. node_types also holds
+// testproject, testplan, build, ... and accepting them would make meaningless
+// "name uniqueness" questions answerable.
 $typeMap = ncNodeTypes($db);
-if (!isset($typeMap[$nodeType])) {
+if (!in_array($nodeType, ['testsuite', 'testcase'], true)
+    || !isset($typeMap[$nodeType])) {
     nout(['status' => 'error', 'code' => 'unknown_node_type',
           'message' => 'Unknown node type'], 400);
 }
@@ -237,12 +261,15 @@ if ($parentId <= 0 && $nodeId <= 0) {
           'message' => 'parent_id or node_id required'], 400);
 }
 
+$nhTables = tlObjectWithDB::getDBTables('nodes_hierarchy');
+$nh = $nhTables['nodes_hierarchy'];
+
 // Resolve the effective parent: when only node_id was supplied the legacy
 // checkNodeDuplicateName.php left it to tree::nodeNameExists() to look the
 // parent up; we do it here so the owning project can be proven first.
 if ($parentId <= 0) {
     $p = $db->fetchFirstRowSingleColumn(
-        "SELECT parent_id FROM nodes_hierarchy WHERE id = " . intval($nodeId),
+        "SELECT parent_id FROM $nh WHERE id = " . intval($nodeId),
         'parent_id');
     if (is_null($p)) {
         nout(['status' => 'error', 'code' => 'node_not_found',
@@ -251,34 +278,58 @@ if ($parentId <= 0) {
     $parentId = intval($p);
 }
 
-// The parent must exist and be a real node, otherwise nodeNameExists()
-// would happily count rows under a parent that does not exist.
-$parentExists = $db->fetchFirstRowSingleColumn(
-    "SELECT id FROM nodes_hierarchy WHERE id = " . intval($parentId), 'id');
-if (is_null($parentExists)) {
-    nout(['status' => 'error', 'code' => 'parent_not_found',
-          'message' => 'Parent node not found'], 404);
-}
-
 // Prove ownership BEFORE answering: the parent must live under the test
 // project the rights are checked on. This is the exact hole of the legacy
 // endpoint, which answered for any parent_id of any project.
-$owningTproj = ncOwningProject($db, $parentId);
+$owningTproj = ncOwningProject($db, $parentId, $typeMap['testproject'] ?? 0);
 if (is_null($owningTproj) || $owningTproj <= 0) {
     nout(['status' => 'error', 'code' => 'parent_not_found',
           'message' => 'Parent node not found'], 404);
 }
+
+// Rights on the OWNING project come before any other answer, so a session
+// with no rights anywhere cannot enumerate which node ids exist by telling
+// 403 apart from 404.
+$canView  = ($user->hasRight($db, 'mgt_view_tc', $owningTproj) === 'yes');
+$canModify = ($user->hasRight($db, 'mgt_modify_tc', $owningTproj) === 'yes');
+if (!$canView && !$canModify) {
+    nout(['status' => 'error', 'code' => 'no_permission',
+          'message' => 'No permission'], 403);
+}
+
+// A test CASE always lives inside a test SUITE, never directly under the test
+// project root. Answering "Available" for that combination would be a green
+// verdict about a question that cannot be true, so refuse it explicitly
+// instead - the user picked the wrong parent.
+if ($nodeType === 'testcase' && $parentId === $owningTproj) {
+    nout(['status' => 'error', 'code' => 'testcase_needs_suite',
+          'message' => 'A test case must be checked inside a test suite, not at test project level'], 400);
+}
+
 $requestedTproj = nGetInt('tproject_id', 0);
 if ($requestedTproj > 0 && $requestedTproj !== $owningTproj) {
     nout(['status' => 'error', 'code' => 'project_mismatch',
           'message' => 'Parent node does not belong to the requested test project'], 400);
 }
 
-$canView  = ($user->hasRight($db, 'mgt_view_tc', $owningTproj) === 'yes');
-$canModify = ($user->hasRight($db, 'mgt_modify_tc', $owningTproj) === 'yes');
-if (!$canView && !$canModify) {
-    nout(['status' => 'error', 'code' => 'no_permission',
-          'message' => 'No permission'], 403);
+// The parent must be a real node of that project, otherwise nodeNameExists()
+// would happily count rows under a parent that does not exist.
+$parentExists = $db->fetchFirstRowSingleColumn(
+    "SELECT id FROM $nh WHERE id = " . intval($parentId), 'id');
+if (is_null($parentExists)) {
+    nout(['status' => 'error', 'code' => 'parent_not_found',
+          'message' => 'Parent node not found'], 404);
+}
+
+// The self-exclusion (edit mode) is only honoured when node_id really is a
+// child of the addressed parent. Otherwise an id borrowed from another
+// project would silently suppress a genuine collision.
+if ($nodeId > 0) {
+    $nodeParent = $db->fetchFirstRowSingleColumn(
+        "SELECT parent_id FROM $nh WHERE id = " . intval($nodeId), 'parent_id');
+    if (is_null($nodeParent) || intval($nodeParent) !== $parentId) {
+        $nodeId = 0;
+    }
 }
 
 $treeMgr = new tree($db);
@@ -303,7 +354,7 @@ $exists = !empty($check['status']);
 $collisions = [];
 if ($exists) {
     $sql = "SELECT NH.id, NH.name, NH.node_type_id, NH.parent_id"
-         . " FROM nodes_hierarchy NH"
+         . " FROM $nh NH"
          . " WHERE NH.node_type_id = " . intval($nodeTypeId)
          . " AND NH.name = '" . $db->prepare_string($name) . "'"
          . " AND NH.parent_id = " . $db->prepare_int($parentId);
@@ -324,7 +375,7 @@ if ($exists) {
 }
 
 $parentName = (string) $db->fetchFirstRowSingleColumn(
-    "SELECT name FROM nodes_hierarchy WHERE id = " . $db->prepare_int($parentId), 'name');
+    "SELECT name FROM $nh WHERE id = " . $db->prepare_int($parentId), 'name');
 
 nout([
     'status' => 'ok',

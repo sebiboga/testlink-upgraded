@@ -138,22 +138,22 @@ table.collisions td.num { width: 90px; color: #888; }
   </div>
   <div class="card-body">
     <div class="form-row">
-      <div class="field-label" data-i18n="nchk.nodeType">Node type</div>
+      <label class="field-label" for="nodeTypeSel" data-i18n="nchk.nodeType">Node type</label>
       <select class="form-control2" id="nodeTypeSel"></select>
     </div>
     <div class="form-row">
-      <div class="field-label" data-i18n="nchk.parentContainer">Parent container</div>
+      <label class="field-label" for="parentSel" data-i18n="nchk.parentContainer">Parent container</label>
       <select class="form-control2" id="parentSel"></select>
       <div class="hint" data-i18n="nchk.parentHint">Test suites are unique inside their parent, test cases inside their test suite.</div>
     </div>
     <div class="row2">
       <div class="form-row">
-        <div class="field-label" data-i18n="nchk.name">Name</div>
+        <label class="field-label" for="nameInput" data-i18n="nchk.name">Name</label>
         <input type="text" class="form-control2" id="nameInput" maxlength="100" autocomplete="off">
         <div class="hint" data-i18n="nchk.nameHint">Maximum 100 characters.</div>
       </div>
       <div class="form-row">
-        <div class="field-label" data-i18n="nchk.excludeNode">Node being edited (id)</div>
+        <label class="field-label" for="excludeInput" data-i18n="nchk.excludeNode">Node being edited (id)</label>
         <input type="text" class="form-control2" id="excludeInput" inputmode="numeric" autocomplete="off">
         <div class="hint" data-i18n="nchk.excludeHint">Leave empty when creating a new node.</div>
       </div>
@@ -221,7 +221,7 @@ function esc(s) {
 var API = '/api/namecheck/index.php';
 var qs = new URLSearchParams(window.location.search);
 var tprojectId = parseInt(qs.get('tproject_id') || '', 10);
-var state = { data: null, timer: null, lastKey: '' };
+var state = { data: null, timer: null };
 
 function showState(sel) {
   ['#loadingBox', '#accessDenied', '#notFound', '#loadError'].forEach(function (s) {
@@ -249,6 +249,7 @@ function errMsg(payload, xhr) {
     return TLi18n.t('nchk.notFoundMsg');
   }
   if (code === 'project_mismatch') { return TLi18n.t('nchk.projectMismatch'); }
+  if (code === 'testcase_needs_suite') { return TLi18n.t('nchk.caseNeedsSuite'); }
   if (code === 'unknown_node_type') { return TLi18n.t('nchk.unknownNodeType'); }
   if (code === 'name_too_long') { return TLi18n.t('nchk.nameTooLong'); }
   if (code === 'missing_name' || code === 'missing_context') { return TLi18n.t('nchk.missingName'); }
@@ -278,6 +279,10 @@ function loadInit() {
         $('#parentSel').val(qs.get('parent_id') || '');
         $('#excludeInput').val(qs.get('node_id') || '');
         $('#nameInput').val(qs.get('name'));
+        if (!deepLinkParentUsable(qs.get('parent_id'))) {
+          showParentMismatch();
+          return;
+        }
         runCheck();
       }
     })
@@ -334,9 +339,27 @@ function renderForm(d) {
     psel += '<option value="' + esc(c.id) + '">' + esc(c.is_root ? d.context.tproject_name : c.name) + '</option>';
   });
   $('#parentSel').html(psel);
-  if (qs.get('parent_id')) { $('#parentSel').val(qs.get('parent_id')); }
-
   $('#nameInput').trigger('focus');
+}
+
+/**
+ * A deep link may address a parent_id that is not a container of the loaded
+ * test project (foreign project, deleted node, wrong tproject_id). Selecting a
+ * value that the <select> does not offer is a silent no-op, so the select would
+ * keep its first option - the project root - and the check would then answer
+ * for the WRONG container, e.g. a green "Available" for a name that is a
+ * duplicate in the requested suite. Detect the mismatch and refuse instead.
+ * Returns true when the requested parent is usable.
+ */
+function deepLinkParentUsable(requested) {
+  if (!requested) { return true; }
+  return String($('#parentSel').val() || '') === String(requested);
+}
+
+function showParentMismatch() {
+  $('#ctxCard, #formCard').hide();
+  showState('#notFound');
+  $('#notFoundMsg').text(TLi18n.t('nchk.projectMismatch'));
 }
 
 function runCheck() {
@@ -347,10 +370,6 @@ function runCheck() {
 
   if (!name) { $('#nameInput').trigger('focus'); return; }
   if (!(parentId > 0)) { return; }
-
-  var key = [nodeType, parentId, nodeId, name].join('|');
-  if (key === state.lastKey) { return; }
-  state.lastKey = key;
 
   $('#resCard').show();
   $('#verdictBox').attr('class', 'verdict pending');
@@ -380,7 +399,6 @@ function runCheck() {
       $('#collTable').toggle(d.exists && (d.collisions || []).length > 0);
     })
     .fail(function (xhr) {
-      state.lastKey = '';
       var payload = null;
       try { payload = JSON.parse(xhr.responseText); } catch (e) {}
       $('#verdictBox').attr('class', 'verdict ko');
@@ -394,21 +412,21 @@ function runCheck() {
 // wiring in gui/templates/dashio/testcases/containerMoveTC.tpl / containerNew.
 function scheduleCheck() {
   clearTimeout(state.timer);
-  state.timer = setTimeout(function () { state.lastKey = ''; runCheck(); }, 350);
+  state.timer = setTimeout(runCheck, 350);
 }
 
 $(function () {
   $('#btnClose').on('click', function () { window.close(); });
-  $('#btnRefresh').on('click', function () { state.lastKey = ''; loadInit(); });
+  $('#btnRefresh').on('click', function () { loadInit(); });
   $('#btnBack').on('click', function () {
     window.location.href = '/gui/templates/testcases/testSpec.html?tproject_id=' + tprojectId;
   });
-  $('#btnCheck').on('click', function () { state.lastKey = ''; runCheck(); });
-  $('#btnCheckTop').on('click', function () { state.lastKey = ''; runCheck(); });
+  $('#btnCheck').on('click', function () { runCheck(); });
+  $('#btnCheckTop').on('click', function () { runCheck(); });
   $('#nameInput').on('keyup', scheduleCheck);
   $('#excludeInput').on('keyup', scheduleCheck);
-  $('#parentSel').on('change', function () { state.lastKey = ''; runCheck(); });
-  $('#nodeTypeSel').on('change', function () { state.lastKey = ''; });
+  $('#parentSel').on('change', function () { runCheck(); });
+  $('#nodeTypeSel').on('change', function () { runCheck(); });
 
   TLi18n.load(function () {
     TLi18n.apply();

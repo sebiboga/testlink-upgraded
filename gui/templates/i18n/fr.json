@@ -5636,5 +5636,6 @@
   "nchk.actionOnDuplicateName": "Action sur doublon",
   "nchk.duplicatesWarned": "Doublons signalés",
   "nchk.duplicatesAllowed": "Doublons autorisés",
-  "footers.nameCheck": "TestLink 2.0.1 - Vérifier les doublons de nom"
+  "footers.nameCheck": "TestLink 2.0.1 - Vérifier les doublons de nom",
+  "nchk.caseNeedsSuite": "Un nom de cas de test ne peut être vérifié qu'à l'intérieur d'une suite de tests. Choisissez une suite comme conteneur parent ou changez le type de nœud en Suite de tests."
 }

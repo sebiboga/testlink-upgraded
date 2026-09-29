@@ -520,6 +520,10 @@ if ($show('tests_design')) {
         // Refs #1587: run test cases on a remote automation server (XML-RPC)
         $items[] = array('label' => lang_get('href_tc_auto_exec'),
                          'href' => (string)$u('tcAutoExec'));
+        // Refs #1724: node name uniqueness diagnostic. Reached only with
+        // view_tc, matching the BFF which answers 403 without it.
+        $items[] = array('label' => lang_get('href_duplicate_name_check'),
+                         'href' => (string)$u('nameCheck'));
     }
     if (count($items) > 0) {
         $sections[] = array('key' => 'tests_design', 'label' => lang_get('tests_design'),

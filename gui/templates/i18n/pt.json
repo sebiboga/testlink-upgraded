@@ -5642,5 +5642,6 @@
   "nchk.actionOnDuplicateName": "Ação sobre nome duplicado",
   "nchk.duplicatesWarned": "Duplicados assinalados",
   "nchk.duplicatesAllowed": "Duplicados permitidos",
-  "footers.nameCheck": "TestLink 2.0.1 - Verificar nome duplicado"
+  "footers.nameCheck": "TestLink 2.0.1 - Verificar nome duplicado",
+  "nchk.caseNeedsSuite": "O nome de um caso de teste só pode ser verificado dentro de uma suíte de testes. Escolha uma suíte como contentor principal ou altere o tipo de nó para Suíte de testes."
 }

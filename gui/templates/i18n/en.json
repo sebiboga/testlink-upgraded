@@ -5652,5 +5652,6 @@
   "nchk.actionOnDuplicateName": "Action on duplicate name",
   "nchk.duplicatesWarned": "Duplicates warned",
   "nchk.duplicatesAllowed": "Duplicates allowed",
-  "footers.nameCheck": "TestLink 2.0.1 - Duplicate Name Check"
+  "footers.nameCheck": "TestLink 2.0.1 - Duplicate Name Check",
+  "nchk.caseNeedsSuite": "A test case name can only be checked inside a test suite. Pick a suite as the parent container, or switch the node type to Test Suite."
 }

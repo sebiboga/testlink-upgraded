@@ -5642,5 +5642,6 @@
   "nchk.actionOnDuplicateName": "重複名時の動作",
   "nchk.duplicatesWarned": "重複を警告します",
   "nchk.duplicatesAllowed": "重複を許可します",
-  "footers.nameCheck": "TestLink 2.0.1 - 重複名チェック"
+  "footers.nameCheck": "TestLink 2.0.1 - 重複名チェック",
+  "nchk.caseNeedsSuite": "テストケースの名前はテストスイート内でのみ確認できます。親コンテナにスイートを選択するか、ノードの種類を「テストスイート」に変更してください。"
 }
