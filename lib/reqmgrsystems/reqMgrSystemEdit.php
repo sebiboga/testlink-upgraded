@@ -63,13 +63,63 @@ $base = isset($_SESSION['basehref']) ? $_SESSION['basehref'] : '/';
 $listUrl = $base . 'gui/templates/reqmgrsystems/reqMgrSystemView.html';
 $editorUrl = $base . 'gui/templates/reqmgrsystems/reqMgrSystemEdit.html';
 
-$doAction = isset($_REQUEST['doAction']) ? trim((string)$_REQUEST['doAction']) : 'create';
-$id = isset($_REQUEST['id']) ? intval($_REQUEST['id']) : 0;
+/**
+ * Refs #1731: a scalar $_REQUEST value, or null when it is absent OR
+ * array-shaped. isset() alone is not enough: PHP fills $_REQUEST['doAction']
+ * with an ARRAY for ?doAction[]=x, and the bare (string)/intval casts the
+ * legacy file used then raised "E_WARNING Array to string conversion"
+ * (persisted as a log_level=2 row by watchPHPErrors, from ANY authenticated
+ * session - this shim has no rights check) and coerced the value to the
+ * literal "Array", which additionally tripped the default: branch's
+ * tLog(..., 'ERROR'). Two Event-Viewer rows per request, on demand.
+ *
+ * The is_scalar() idiom is the one already used in this repo - see
+ * lib/attachments/attachmentdelete.php:33-38 and the bffQueryScalar() /
+ * bffQueryInt() helpers in api/reqmgrsystemedit/index.php.
+ */
+function shimReqScalar($name)
+{
+    if (!isset($_REQUEST[$name]) || !is_scalar($_REQUEST[$name])) {
+        return null;
+    }
+    return trim((string)$_REQUEST[$name]);
+}
+
+function shimReqInt($name)
+{
+    $v = shimReqScalar($name);
+    return ($v === null || !is_numeric($v)) ? 0 : intval($v);
+}
+
+// An array-shaped doAction is not a usable verb. It is deliberately NOT turned
+// into an HTTP error: this file is a bookmark redirector whose whole contract is
+// "never 500, always 302 somewhere sane", and the legacy deep links it exists
+// to serve must keep working. The junk value is replaced by a sentinel that
+// matches no case, so the request is refused without a row ever being written
+// (the retired-write branch below logs the same way, at INFO).
+$rawDoAction = shimReqScalar('doAction');
+$doActionShaped = isset($_REQUEST['doAction']) && $rawDoAction === null;
+$doAction = ($rawDoAction === null) ? '' : $rawDoAction;
+$id = shimReqInt('id');
+
+if ($doActionShaped) {
+    // Refs #1731: ?doAction[]=x - refuse the request, but at INFO like the
+    // retired-write branch, never at ERROR: a crafted query string must not be
+    // able to write a row into the Event Viewer.
+    tLog('reqMgrSystemEdit.php shim: doAction is not a scalar value - ' .
+         'refusing to guess a modern target (Refs #1731).', 'INFO');
+    header('Location: ' . $listUrl, true, 302);
+    exit;
+}
 
 // carry the frame context forward, exactly like the legacy $basehref links did
 $qs = array();
 foreach (array('tproject_id', 'tplan_id') as $k) {
-    $v = isset($_REQUEST[$k]) ? intval($_REQUEST[$k]) : 0;
+    // Refs #1731: an array-shaped ?tproject_id[]=1 used to be silently
+    // intval()'d to 1 (intval(array) is warning-free in PHP 8), dropping the
+    // user into test project 1 with no diagnostic at all. 0 means "no context",
+    // which is the case the session fallback below already handles.
+    $v = shimReqInt($k);
     if ($v > 0) {
         $qs[$k] = $v;
     } else {
