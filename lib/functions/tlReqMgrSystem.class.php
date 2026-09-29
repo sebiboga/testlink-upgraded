@@ -229,7 +229,13 @@ class tlReqMgrSystem extends tlObject
     $msg['syntax_error'] = "Syntax failure - id %s seems to be an invalid value";
     $msg['ok'] = "operation OK for id %s";
     
-      $ret = array('status_ok' => 1, 'id' => $id, 'msg' => $debugMsg);
+      // Refs #1728: msg used to be seeded with $debugMsg ('Class:tlReqMgrSystem -
+      // Method: delete - '), which is meant for the SQL comment only. Both the
+      // failure and the SUCCESS message therefore carried the internal
+      // class/method pair, and the modern screens surface msg verbatim
+      // (api/reqmgrsystems 409 -> alert(), api/reqmgrsystemedit 409 -> feedback
+      // box). create() and update() already build a clean message.
+      $ret = array('status_ok' => 1, 'id' => $id, 'msg' => '');
     if(is_null($id) || ($safeID = intval($id)) <= 0)
     {
         $ret['status_ok'] = 0;
