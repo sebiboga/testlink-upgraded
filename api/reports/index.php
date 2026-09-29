@@ -4869,17 +4869,23 @@ if ($action === 'uncovered_testcases') {
     exit;
 }
 // ── not_run_any_platform ─────────────────────────────────────────────
-// Mirrors lib/results/tcNotRunAnyPlatform.php ("Test Report: Test Cases
-// not run on any Platform") - Refs #1717.
+// Supersedes lib/results/tcNotRunAnyPlatform.php ("Test Report: Test
+// Cases not run on any Platform") - Refs #1717; that controller plus
+// its two Smarty templates were DELETED in #1718.
 //
 // LEGACY PARITY / WHY THE BFF DOES NOT include() THE CONTROLLER:
-// the 1.9.20 controller is fatally broken and cannot be reused as-is:
-//   1. `require_once('results.class.php')` - that class no longer exists
-//      in the tree, so the include is a hard fatal;
-//   2. line 50 has `$re = new results(...)` COMMENTED OUT while line 62
+// the 1.9.20 controller was fatally broken and could not be reused
+// as-is - four independent failures, all measured:
+//   1. `require_once('results.class.php')` - that file no longer exists
+//      in the tree (nor does the CLASS: getMapOfLastResult() has no
+//      definition anywhere), so the include was a hard fatal;
+//   2. line 49 has `$re = new results(...)` COMMENTED OUT while line 62
 //      still calls `$re->getMapOfLastResult()` and line 124 still reads
 //      `$executionsMap[$suiteId]` (also never assigned) -> "Call to a
-//      member function ... on null".
+//      member function ... on null";
+//   3. line 59 is likewise commented out, so $executionsMap is never
+//      assigned and sizeOf() at :133 would raise a TypeError;
+//   4. lines 37-40 read $tplan_info / $tproject_info with no null guard.
 // The report semantics are therefore rebuilt on top of the surviving,
 // battle-tested helper the controller itself would have used:
 //   * testPlanUrgency::getPlatforms()             -> the plan's platforms

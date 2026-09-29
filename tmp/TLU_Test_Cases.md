@@ -421,3 +421,95 @@ column 4 and adds no BFF route.
 rendered as the literal `A&amp;B &lt;draft&gt;`. `.text()` already escapes, which
 is exactly what Smarty's `{$my_feature_name|escape}` achieves. Fixed and
 re-measured — see the checkpoint 2/3 comment on issue #1644.
+
+---
+
+## Regression — Issue #1718: legacy `lib/results/tcNotRunAnyPlatform.php` is fatally broken (missing `results.class.php`, method on null, unassigned `$executionsMap`, unguarded plan/project)
+
+**Precondition:** TestLink 2.0.1 on `http://localhost:8082` (PHP built-in server,
+docroot = repo root); MariaDB `127.0.0.1:3306/testlink` (`testlink`/`testlink`),
+**freshly imported**; login `admin`/`admin`; branch `fix/issue-1718`.
+
+**Fixture** (recreated by `php tmp/fixtures_1717.php`; the DB has no projects on a
+fresh import): test project **1** (prefix `TNR1717`), test plan **2**, platforms
+**1 = Windows 11** / **2 = Linux Ubuntu 22**, build **1** (active+open) + build **2**
+(CLOSED), 5 test cases, 4 executions, plus a no-rights user
+`tnrap1717norights` / `admin` (role 3, no `testplan_metrics`).
+
+**Repro steps (PRE-FIX):**
+```bash
+# the BFF login is CSRF-guarded, so the same-origin Origin header is required
+curl -s -c cj.txt -b cj.txt http://localhost:8082/login.php -o /dev/null
+curl -s -c cj.txt -b cj.txt -X POST http://localhost:8082/api/auth/login \
+     -H "Origin: http://localhost:8082" -d "login=admin&password=admin"
+curl -s -b cj.txt "http://localhost:8082/lib/results/tcNotRunAnyPlatform.php?tplan_id=2" \
+     -o /dev/null -w "HTTP %{http_code}\n"
+```
+1. `HTTP 500` with a **0-byte** body.
+2. `logs/userlog1.log`:
+   `E_WARNING require_once(results.class.php): Failed to open stream: No such
+   file or directory - in …/lib/results/tcNotRunAnyPlatform.php - Line 16`,
+   one request, `took 0.00275 secs` (a fatal, **not** a hang or a loop).
+3. Same URL in the browser → blank page, no rendering.
+4. *Isolated probe* (the controller copied to a scratch file with ONLY the
+   `require_once` line removed) → `HTTP 500`, and
+   `E_WARNING Undefined variable $re - in …/zz_probe_1718.php - Line 62` — i.e.
+   `Call to a member function getMapOfLastResult() on null`.
+5. Same probe with a test project in the session but a stale/zero project id →
+   dies even earlier, at the unguarded `:40`/`:42` name/prefix read.
+6. `ls lib/functions/results.class.php` → ENOENT;
+   `grep -rn getMapOfLastResult lib/` → the only pre-fix **code** call site was
+   `:62` of the controller itself; no definition anywhere.
+
+**Expected POST-FIX:** the legacy URL is **gone** (404), it can no longer answer
+500 or write a warning row, and the report itself is untouched at
+`/gui/templates/results/tcNotRunAnyPlatform.html` (BFF action
+`not_run_any_platform`).
+
+**Actual result — `bash tmp/verify_1718.sh` → 19/19 PASS** (executed on
+`fix/issue-1718` after the deletion; full run, verbatim tail):
+
+| # | Case | Result |
+|---|---|---|
+| 1 | legacy controller answers 404, not 500 | PASS |
+| 2 | `gui/templates/dashio/results/tcNotRunAnyPlatform.tpl` is deleted | PASS |
+| 3 | `gui/templates/tl-classic/results/tcNotRunAnyPlatform.tpl` is deleted | PASS |
+| 4 | `lib/results/tcNotRunAnyPlatform.php` is deleted | PASS |
+| 5 | no `getMapOfLastResult()` **call site** left in `lib/` (comments exempt) | PASS |
+| 6 | `lib/functions/results.class.php` stays absent (no re-introduced coupling) | PASS |
+| 7 | modern BFF `not_run_any_platform` answers `status ok` | PASS |
+| 8 | modern BFF reports 3 never-run | PASS |
+| 9 | modern BFF reports 5 test cases in the plan | PASS |
+| 10-12 | rows `TNR1717-1`, `TNR1717-4`, `TNR1717-5` still returned | PASS ×3 |
+| 13 | guard 400 for `tproject_id=0&tplan_id=0` | PASS |
+| 14 | guard 400 for `tplan_id=999` (unknown plan) | PASS |
+| 15 | guard 400 for `tplan_id=1` (plan of another project) | PASS |
+| 16 | guard 403 for a user without `testplan_metrics` (live login as `tnrap1717norights`) | PASS |
+| 17 | no new Error/Warning row beyond the 2 pre-fix baseline rows | PASS |
+| 18 | `php -l` clean on all 34 remaining `lib/results/*.php` | PASS |
+| 19 | `php tmp/test_1717.php` still 40/40 PASS | PASS |
+
+**Why the suite is not just "the file is gone":** a pure existence check would
+still pass if the deletion had taken the report with it. Cases 7-12 assert the
+BFF payload is identical to the pre-fix capture, 13-16 re-measure the full guard
+matrix (the 403 through a real second login, not by copying the expected value),
+18 keeps a syntax gate over the whole directory, and 19 re-runs the whole #1717
+harness (40 assertions over the BFF helpers, the 10 i18n bundles and the ASIDE
+label), which is the guard that the deletion cost the report no behaviour.
+
+**Harness is discriminating — the case that caught a false PASS in this run's own
+first attempt:** case 5 was originally `grep -rl getMapOfLastResult lib/ | wc -l`
+and it **FAILED with 2**. The two hits were not call sites but the explanatory
+comments in `lib/general/asideMenu.php:237` and `lib/functions/common.php:2089`
+(added by #1717). The *earlier* manual measurement that reported `0` had been run
+with a stale `cd /tmp/opencode` still in effect, so `lib/` did not exist there and
+`grep` silently matched nothing — a silent false PASS, exactly what the suite
+exists to prevent. The assertion now strips `//` and `/* */` before counting, and
+the two comments were rewritten (with `api/reports/index.php:4872`) because the
+deletion is what made "it is not linked" false.
+
+**Bugs found by this suite, filed, NOT fixed here (one-bug run):** **#1719** —
+`lib/results/priorityBarChart.php:5` requires the *same* removed
+`../functions/results.class.php` and instantiates the same removed `results`
+class at `:17`; also unregistered, and its line 2 says
+`//@TODO this file seems not to be in use`. Reported, not touched.

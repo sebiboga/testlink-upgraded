@@ -232,9 +232,11 @@ if($tplanID > 0) {
       // (tcNotRunAnyPlatform) modernized; the BFF (api/reports
       // not_run_any_platform action) rebuilds the report from
       // tlTestPlanMetrics::getNeverRunByPlatform() and enforces
-      // testplan_metrics. The legacy controller is fatally broken (it
-      // requires the removed results.class.php and calls
-      // getMapOfLastResult() on a null object), so it is not linked.
+      // testplan_metrics. Refs #1718 - the legacy controller
+      // (lib/results/tcNotRunAnyPlatform.php) and its two Smarty
+      // templates are now DELETED: it required the removed
+      // results.class.php and then called getMapOfLastResult() on a
+      // null object, so the report is served only by this entry.
       } else if($rptItem['title'] == 'link_report_not_run_on_any_platform') {
         $hrefR = 'gui/templates/results/tcNotRunAnyPlatform.html' .
                  "?tproject_id={$tprojectID}&tplan_id={$tplanID}";

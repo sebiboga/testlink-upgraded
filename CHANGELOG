@@ -1338,23 +1338,28 @@ MAJOR AREAS
   (`lib/results/tcNotRunAnyPlatform.php`) could not run and answered HTTP 500 with a 0-byte body on
   every request. It has FOUR independent hard failures, all measured: (1) `:16`
   `require_once('results.class.php')` names a file that does not exist
-  (`ls lib/functions/results.class.php` -> ENOENT) and whose CLASS is gone too -
-  `grep -rn "getMapOfLastResult" .` matches only the two *call sites*, never a definition, so there
+  (`ls lib/functions/results.class.php` -> ENOENT) and whose CLASS is gone too - the tree has
+  **no** definition of `getMapOfLastResult()` anywhere (its only pre-fix *code* call site was
+  `:62` of this very controller; the other hits are prose in the docs/CHANGELOG), so there
   is nothing to restore; (2) `:49` `// $re = new results(...)` is COMMENTED OUT while `:62` still
   runs `$re->getMapOfLastResult()` -> `Undefined variable $re` + `Call to a member function
   getMapOfLastResult() on null` (measured with an isolated probe copy that removed ONLY the
   `require_once`); (3) `:59` `// $executionsMap = $re->getSuiteList();` is likewise commented out
-  while `:124` reads `$executionsMap[$suiteId]` and feeds it to `sizeOf()`; (4) `:37-40` reads
+  while `:124` reads `$executionsMap[$suiteId]` and feeds it to `sizeOf()` at `:133`; (4) `:37-40`
+  reads
   `$tplan_info['name']` / `$tproject_info['name']` with no null guard, so with no test project
-  selected it fatals earlier at `:38` with `testproject->get_by_id(0)` (a failure mode the issue
-  did not name). It rotted unnoticed because it also had no `cfg/reports.cfg.php` entry, so nothing
+  selected it dies on the missing name/prefix at `:40`/`:42` (`testproject->get_by_id(0)` returns
+  `null` rather than throwing, `testproject.class.php:345-355`) - a failure mode the issue
+  did not name. It rotted unnoticed because it also had no `cfg/reports.cfg.php` entry, so nothing
   in the Reports menu ever linked it - #1717 re-registered the report pointing at the modern screen
   (`gui/templates/results/tcNotRunAnyPlatform.html` + BFF action `not_run_any_platform`) and filed
   this bug. Fix: retire the dead cluster the way the four prior ones were retired
   (`332905e56` cfieldsView, `596444f30` issuetrackerView, `a406f745d` codeTrackerView,
   `029342980` pluginView) - `lib/results/tcNotRunAnyPlatform.php` (273 lines) plus its two now
-  orphaned Smarty templates `gui/templates/dashio/results/tcNotRunAnyPlatform.tpl` (64) and
-  `gui/templates/tl-classic/results/tcNotRunAnyPlatform.tpl` (65). No report is lost: nothing in
+  orphaned Smarty templates `gui/templates/dashio/results/tcNotRunAnyPlatform.tpl` (65) and
+  `gui/templates/tl-classic/results/tcNotRunAnyPlatform.tpl` (66) (line counts per `git show
+  047111e9d --stat`; neither `.tpl` ends in a newline, so `wc -l` undercounts each by one). No
+  report is lost: nothing in
   the app linked the file (`cfg/reports.cfg.php:270` already points at the modern screen, and
   `lib/general/asideMenu.php:239` / `lib/functions/common.php:2094` too), and no locale key was
   removed - `link_report_not_run_on_any_platform` is still live. Rejected: re-adding
@@ -1362,13 +1367,20 @@ MAJOR AREAS
   `tlTestPlanMetrics::getNeverRunByPlatform()`), reducing the file to a redirect to the modern
   screen (zero in-app callers, not the repo pattern) and commenting out the broken statements
   (leaves 200 lines of unreachable code that still advertises itself as a working report - the
-  actual complaint). Verified: the legacy URL now answers **404** with 0 new `E_WARNING` rows
-  (was 500 + a row per request, `logs/userlog1.log:6-7` and `events` id 1/3), the modern report is
+  actual complaint). The three comments that explained WHY the modern screen replaced the dead
+  controller (`lib/general/asideMenu.php`, `lib/functions/common.php`,
+  `api/reports/index.php:4872`) were updated in the same commit, because the deletion is what made
+  them say "it is not linked" about a file that no longer exists. Verified: the legacy URL now
+  answers **404** with 0 new `E_WARNING` rows (pre-fix it answered 500 and wrote exactly **one**
+  `require_once(results.class.php)` warning row into `events`, event id 3 - not "a row per
+  request", and the two `log_level<16` rows seen during the session were id 3 plus the deleted
+  controller's own reproduction probe), the modern report is
   byte-identical to its pre-fix baseline (200, 3 of 5 cases never-run, platforms Linux Ubuntu 22 +
   Windows 11), the guard matrix still answers 400/400/403 (the 403 re-measured live as
   `tnrap1717norights`), `php tmp/test_1717.php` 40/40 PASS, `php -l` clean on all 34 remaining
   `lib/results/*.php`, the Reports ASIDE entry still resolves to the modern screen in the browser
-  and the report renders with 0 console errors. Regression suite 1718 8/8 PASS. A sibling of the
+  and the report renders with 0 console errors. Regression suite 1718
+  (`bash tmp/verify_1718.sh`) **19/19 PASS**. A sibling of the
   same family (`lib/results/priorityBarChart.php:5` requires the same removed file and is likewise
   unregistered) was found while testing and filed separately as **#1719**, not fixed here. (Fixes #1718)
  - [KEY BUGFIX] - #1694: the CI agent workflows' `Fallback commit of any leftover agent changes` step rebased with `git rebase -X theirs`, which in a rebase resolves conflicts towards the **replayed** (stale, agent-local) copy. A leftover whole-file replacement of the shared append-only `tmp/TLU_test_Cases.md` (gitignored at `.gitignore:47` but force-tracked) therefore silently discarded whatever a concurrent agent had appended meanwhile and pushed the result as a clean fast-forward: measured instance `d73f8c012` deleted 44 lines of Suite 1681 plus the suite's 10-row bug table for #1682-#1691. Measured strategy matrix on a reproduction harness (`-X theirs` -> 0 surviving lines; default / `-X ours` / `-X merge` -> all 46). Fix: `git rebase -X ours` in all 7 sites (`fix-bug`, `fix-bug-oldest`, `implement-task-oldest`, `implement-task-newest`, `investigate-fix`, `compare-screens`, `modernize` - the last one also in the agent PROMPT text that told agents to use the destructive strategy by hand). The issue's proposed `git add -A` allow-list / staged-deletion check was measured NOT to work: at commit time the staged diff is 100% additions, so the guard never fires.

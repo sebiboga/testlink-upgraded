@@ -2085,10 +2085,12 @@ function getActions(&$gui,$baseURL) {
   $actions->resultsNav = "/gui/templates/results/resultsNavigator.html?{$ctx}";
 
   // Refs #1717: Test Cases not run on any Platform (tcNotRunAnyPlatform)
-  // modernized. The legacy controller cannot be linked: it requires the
-  // removed results.class.php and then calls $re->getMapOfLastResult() on a
-  // null object, so the legacy URL is a hard fatal. The modern screen reads
-  // the BFF action not_run_any_platform, which rebuilds the same report from
+  // modernized. Refs #1718: the legacy controller
+  // (lib/results/tcNotRunAnyPlatform.php, which required the removed
+  // results.class.php and then called getMapOfLastResult() on a null
+  // object) and its two Smarty templates are DELETED, so this action is
+  // now the only way to reach the report. The modern screen reads the
+  // BFF action not_run_any_platform, which rebuilds the same report from
   // tlTestPlanMetrics::getNeverRunByPlatform() and enforces
   // testplan_metrics server-side.
   $actions->tcNotRunAnyPlatform =
