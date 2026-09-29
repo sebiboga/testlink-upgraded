@@ -62,7 +62,7 @@ if (is_null($user)) {
     bffOut(401, array('code' => 'not_authenticated', 'message' => 'User not found'));
 }
 
-// Refs #1730: ?action[]=x raised "Array to string conversion" (E_WARNING) on an
+// Refs #1731: ?action[]=x raised "Array to string conversion" (E_WARNING) on an
 // ANONYMOUS request, which watchPHPErrors() turns into an events row - a single
 // crafted query string could flood the Event Viewer. is_scalar() is the idiom
 // already used by lib/attachments/attachmentdelete.php.
@@ -77,7 +77,7 @@ function bffOut($code, $payload) {
             header('Allow: GET, POST');
         }
     }
-    // Refs #1730: every other producer in api/ (the shared guards included)
+    // Refs #1731: every other producer in api/ (the shared guards included)
     // answers status:error alongside the machine code; a client that branches on
     // `status` would otherwise read this BFF's 4xx as a success-shaped payload.
     if (!isset($payload['status']) && isset($payload['code'])) {
@@ -88,7 +88,7 @@ function bffOut($code, $payload) {
 }
 
 /**
- * Refs #1730: a scalar query parameter, or null when it is absent/array-shaped.
+ * Refs #1731: a scalar query parameter, or null when it is absent/array-shaped.
  * Rejecting arrays here (instead of letting intval()/trim() coerce them) keeps
  * ?id[]=1 from silently addressing row 1.
  */
@@ -111,7 +111,7 @@ function bffBody() {
 }
 
 /**
- * Refs #1730: a scalar field of the decoded JSON body, or null when it is
+ * Refs #1731: a scalar field of the decoded JSON body, or null when it is
  * missing. POST {"name":["x"]} used to be cast to the literal string "Array"
  * and stored as the system name.
  */
@@ -167,7 +167,7 @@ $isWrite = in_array($action, $WRITES, true);
 if ($isWrite && $method !== 'POST') {
     bffOut(405, array('code' => 'method_not_allowed', 'message' => 'POST required'));
 }
-// Refs #1730: bffSameOriginGuard() treats HEAD as a read, so a HEAD probe must
+// Refs #1731: bffSameOriginGuard() treats HEAD as a read, so a HEAD probe must
 // not be answered 405 here.
 if (!$isWrite && $method !== 'GET' && $method !== 'HEAD') {
     bffOut(405, array('code' => 'method_not_allowed', 'message' => 'GET required'));
@@ -196,7 +196,7 @@ function typeDomain($mgr) {
 
 /**
  * tlReqMgrSystem returns the bare 'name already exists' for the UNIQUE-key
- * collision; the screen maps it to a localized headline (Ref #1730).
+ * collision; the screen maps it to a localized headline (Ref #1731).
  */
 function isDuplicateName($msg) {
     return stripos((string)$msg, 'already exists') !== false;
@@ -218,7 +218,7 @@ function itemToJson($item, $mgr) {
 // delete") - kept behind the explicit prune=1 so the read verb stays read-only.
 // ---------------------------------------------------------------------------
 if ($action === 'init') {
-    // Refs #1730: a present-but-array/object id (?id[]=1) is a 400; an ABSENT id
+    // Refs #1731: a present-but-array/object id (?id[]=1) is a 400; an ABSENT id
     // is the create form, exactly like the legacy editor.
     if (isset($_GET['id']) && !is_scalar($_GET['id'])) {
         bffOut(400, array('code' => 'invalid_id', 'message' => 'Invalid id'));
@@ -246,7 +246,7 @@ if ($action === 'init') {
                           'message' => 'Requirement management system not found'));
     }
 
-    // Refs #1730: this cleanup is a DELETE, and a safe verb must not write -
+    // Refs #1731: this cleanup is a DELETE, and a safe verb must not write -
     // a link prefetch or a crawler GET used to be able to trigger it. Legacy
     // parity is preserved where it matters: the screen passes prune=1 on every
     // edit load, so a manager opening the editor still gets the dead links of
@@ -321,7 +321,7 @@ if ($action === 'cfg_template') {
 // ---------------------------------------------------------------------------
 if ($action === 'create') {
     $body = bffBody();
-    // Refs #1730: reject array/object shaped fields instead of casting them -
+    // Refs #1731: reject array/object shaped fields instead of casting them -
     // {"name":["x"]} used to be stored as the literal name "Array".
     $name = bffBodyScalar($body, 'name');
     $type = bffBodyScalar($body, 'type');
@@ -355,7 +355,7 @@ if ($action === 'create') {
                           'item' => is_null($created) ? null : itemToJson($created, $mgr),
                           'message' => ''));
     }
-    // Refs #1730: the collision against the UNIQUE key on name is the most
+    // Refs #1731: the collision against the UNIQUE key on name is the most
     // common failure of this form - give it a code the screen can localize.
     bffOut(409, array('code' => isDuplicateName($op['msg']) ? 'name_exists'
                                                           : 'create_failed',

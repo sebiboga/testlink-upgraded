@@ -73,12 +73,12 @@ cleanup that `initializeGui()` performed on every edit load, the
   (the screen always sends it), so a link prefetch can no longer DELETE;
 - `is_scalar()` guards on `action`/`id`/`type`/`name`/`cfg` — no
   "Array to string conversion" warning rows, and a system can never be named
-  `Array` (#1730);
+  `Array` (#1731);
 - an absent `?id=` still means create mode, a present-but-array one is a 400;
 - `HEAD` is a read, `405` answers carry `Allow`, a UNIQUE-name collision
   reports `name_exists`;
 - every interpolated value that reaches the DOM is escaped, including a system
-  name inside an i18n message (#1731);
+  name inside an i18n message (#1730);
 - `lib/reqmgrsystems/reqMgrSystemEdit.php` is now a session-guarded **302 shim**
   (`?doAction=create|edit|checkConnection` → the modern editor; the three legacy
   write doActions are logged and **not** executed server side, so there is no
@@ -97,8 +97,8 @@ cleanup that `initializeGui()` performed on every edit load, the
 |---|---|
 | [#1728](https://github.com/sebiboga/testlink-upgraded/issues/1728) | `tlReqMgrSystem::delete()` leaked the internal `Class:tlReqMgrSystem - Method: delete -` prefix into the user-facing (and JSON) message |
 | [#1729](https://github.com/sebiboga/testlink-upgraded/issues/1729) | `getByAttr()` read `$rs['type']` on an `output => 'id'` row, so **every** create logged an E_WARNING Event Viewer row |
-| [#1730](https://github.com/sebiboga/testlink-upgraded/issues/1730) | array-shaped parameters logged E_WARNING rows and could be stored as the name `Array`; a plain GET performed a DELETE |
-| [#1731](https://github.com/sebiboga/testlink-upgraded/issues/1731) | stored DOM XSS: the unescaped system name was injected into the feedback banner through `TLi18n.t()` |
+| [#1730](https://github.com/sebiboga/testlink-upgraded/issues/1730) | stored DOM XSS: the unescaped system name was injected into the feedback banner through `TLi18n.t()` |
+| [#1731](https://github.com/sebiboga/testlink-upgraded/issues/1731) | array-shaped parameters logged E_WARNING rows and could be stored as the name `Array`; a plain GET performed a DELETE; the shim read a session key nothing writes |
 
 ## Verification
 
