@@ -783,3 +783,94 @@ path never produces: a `parent_id` from **another** project (R5, R10), an
 a **test case addressed at project level** (R7). Green tests were not evidence
 of correctness here; they were evidence that the fixtures only ever walked the
 happy path.
+
+---
+
+## Regression — Issue #1722: legacy `lib/reqmgrsystems/reqMgrSystemEdit.php` answered HTTP 200 with a blank body (0 bytes) for the whitelisted-but-unrenderable actions `delete` and `checkConnection`
+
+**Precondition:** TestLink 2.0.1 on `http://localhost:8082` (PHP built-in server, docroot
+= repo root); MariaDB `127.0.0.1:3306/testlink` (`testlink`/`testlink`), freshly imported
+(`reqmgrsystems` empty at the start); login `admin`/`admin`, role Admin
+(`hasRight('reqmgrsystem_management')`); branch `fix/issue-1722`, fix commit `f9cc73b0e`.
+Harness: **`bash tmp/verify_1722.sh`** (creates and deletes its own `reqmgrsystems` row, so it
+is re-runnable on a fresh import).
+
+**Repro steps (PRE-FIX)** — `reqMgrSystemCommands::$guiOpWhiteList`
+(`lib/reqmgrsystems/reqMgrSystemCommands.class.php:38-39`) advertises **7** actions but
+`renderGui()`'s `switch($argsObj->doAction)` (`lib/reqmgrsystems/reqMgrSystemEdit.php:45-75`)
+handles only **5** (`edit|create|doDelete|doCreate|doUpdate`). The other two leave
+`$renderType` at its initial value `'none'` (`:36`) and the second switch then swallows it at
+`default: break;` — ending the request with an **empty body, HTTP 200, and no log line at all**:
+
+1. Log in, then `GET /lib/reqmgrsystems/reqMgrSystemEdit.php?doAction=delete` → `HTTP 200`,
+   **0 bytes**. `delete` is whitelisted but **no `delete()` method exists** on the command
+   class, so `method_exists()` at `:22` is false and `$op` stays `null` — the controller does
+   literally nothing. `events` delta for this request: **0 rows** (undiagnosable).
+2. `GET …?doAction=checkConnection&id=2` → `HTTP 200`, **0 bytes**. Here the method *does*
+   exist (`:223-238`), it hits the DB and computes `connectionStatus = ok|ko` — and the bean is
+   then thrown away, because `checkConnection` is not one of the `case` values. One extra
+   `E_WARNING Undefined array key "checkConnection"` from `initGuiBean()` (`:72`) is
+   **#1628**, a separate defect.
+3. Controls that already worked: `?doAction=create` → 200/11486 · `?doAction=edit&id=N` →
+   200/11485 · `?doAction=doDelete&id=N` → 302 → `reqMgrSystemView.php` · `?doAction=bogus` →
+   302 → the list (**#1627**'s graceful rejection) · `?doAction=` (empty) → 200 create form.
+4. In the browser: `?doAction=delete` renders a **completely empty document** — title is the
+   raw URL, no markup, no error, no way back.
+5. Not reachable from the UI (measured): the only value the edit form ever posts is
+   `{$gui->operation}` (`gui/templates/{tl-classic,dashio}/reqmgrsystems/reqMgrSystemEdit.tpl:129,131`),
+   and `$actionOperation` (`:40-42`) only yields `doUpdate` / `doCreate` / `''`; the
+   modernized list screen calls the BFF (`api/reqmgrsystems/index.php:291-320`), never this
+   controller. Hence *minor* severity — crafted URL only.
+
+**Expected POST-FIX:** every whitelisted-but-unrenderable action takes the **same graceful 302
+back to the Requirements Manager list** that #1627 introduced for a non-whitelisted
+`doAction`, and leaves one greppable `tLog` ERROR row. The 5 renderable actions — including
+the whole create→edit→update→delete write cycle — must behave **byte-for-byte as before**,
+because a "302 everything" patch would also pass a blank-body check while silently breaking
+the only flows that write to the DB.
+
+**Regression — Issue #1722: 31 cases, ALL PASS** (harness exit 0). Discriminating: with the
+pre-fix file restored, the very same harness reports **24 passed / 7 failed** (exit 1), and
+the 7 failures are exactly the new behaviour — every shared behaviour passes both before and
+after, which is the anti-regression proof.
+
+| # | case | pre-fix | post-fix | verdict |
+|---|---|---|---|---|
+| 1 | `GET ?doAction=delete` | 200 | **302** | **PASS** |
+| 2 | `GET ?doAction=delete` body size | 0 | 0 (Location only) | **PASS** |
+| 3 | `GET ?doAction=delete` → Location | *(none)* | `…/gui/templates/reqmgrsystems/reqMgrSystemView.html` | **PASS** |
+| 4 | `GET ?doAction=delete` → `events` | **0 rows** | 1 row, `reqMgrSystemEdit.php - requested action is not renderable - Value:delete …` | **PASS** |
+| 5 | `GET ?doAction=checkConnection&id=1` | 200 | **302** | **PASS** |
+| 6 | `GET ?doAction=checkConnection&id=1` → Location | *(none)* | the Requirements Manager list | **PASS** |
+| 7 | `GET ?doAction=checkConnection&id=1` → `events` | 1 row (#1628 warning only) | 2 rows: the #1628 warning + the new reason | **PASS** |
+| 8 | `GET ?doAction=bogus` → 302 (**#1627 untouched**) | 302 | 302 | **PASS** |
+| 9 | `GET ?doAction=bogus` → Location | the list | the list | **PASS** |
+| 10 | `GET ?doAction=bogus` → `events` wording | `white list validation failure` | `white list validation failure` (still #1627's branch — a non-whitelisted value never reaches `renderGui()`) | **PASS** |
+| 11 | `GET ?doAction=bogus` does **not** also hit the new branch | n/a | no `not renderable` row | **PASS** |
+| 12 | `GET ?doAction=` (empty) → 200 | 200 | 200 | **PASS** |
+| 13 | `GET ?doAction=` still renders the create form | 11487 B | 11487 B | **PASS** |
+| 14 | `GET ?doAction=` logs nothing | 0 | 0 | **PASS** |
+| 15 | `GET ?doAction=create` → 200 | 200 | 200 | **PASS** |
+| 16 | `GET ?doAction=create` renders the form | 11487 B | 11487 B | **PASS** |
+| 17 | `GET ?doAction=create` logs nothing | 0 | 0 | **PASS** |
+| 18 | `POST doAction=doCreate` → 302 to the view screen | 302 | 302 → `reqMgrSystemView.php` | **PASS** |
+| 19 | `POST doAction=doCreate` inserted the row | yes | yes (`id=2`) | **PASS** |
+| 20 | `GET ?doAction=edit&id=<new row>` → 200 | 200 | 200 | **PASS** |
+| 21 | `GET ?doAction=edit&id=<new row>` renders the edit form | 11730 B | 11733 B | **PASS** |
+| 22 | the edit form is pre-filled with the stored name | yes | yes | **PASS** |
+| 23 | `POST doAction=doUpdate` → 302 **and** the row really changed | 302 | 302, `name` + `cfg` updated in the DB | **PASS** |
+| 24 | `GET ?doAction=doDelete&id=N` → 302 **and** the row is gone | 302 | 302, `count(*)=0` | **PASS** |
+| 25 | E_WARNING rows produced by the whole CRUD cycle | — | **0** | **PASS** |
+| 26 | `php -l lib/reqmgrsystems/reqMgrSystemEdit.php` | clean | clean | **PASS** |
+| 27 | exactly one `not renderable` branch in the whole repo | 0 files | 1 file | **PASS** |
+
+**Result: 31 / 31 PASS, Event Viewer introduces no new Warning** (the single new row is the
+intentional `log_level 1` ERROR reason; before the fix this request logged *nothing*, which is
+precisely why the blank page was undiagnosable).
+
+**Out of scope, left for their own issues (not regressions of this fix):** #1721 —
+`?doAction=edit&id=<missing id>` still logs 5 × `Trying to access array offset on null` in the
+compiled `reqMgrSystemEdit.tpl.php` (unguarded `getByID()`); it does **not** occur for an
+existing id, which case 20/21 above re-confirmed (0 warnings for the row the harness created).
+#1628 — `E_WARNING Undefined array key "checkConnection"` at
+`reqMgrSystemCommands.class.php:72`.
