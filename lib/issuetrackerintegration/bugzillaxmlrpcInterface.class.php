@@ -66,7 +66,22 @@ class bugzillaxmlrpcInterface extends issueTrackerInterface
    **/
   function completeCfg()
   {
-    $base = trim($this->cfg->uribase,"/") . '/'; // be sure no double // at end
+    // Issue #1619: setCfg() re-binds $this->cfg to a stdClass
+    // (issueTrackerInterface.class.php:165), so a cfg document that PARSES but
+    // carries no <uribase> element (e.g. '<testlink/>') has no such PROPERTY and
+    // reading it raised "Undefined property: stdClass::$uribase" plus a PHP 8.1+
+    // "trim(): Passing null to parameter #1" deprecation - both from this one
+    // statement, both logged to the Event Viewer. Null-coalesce + string cast:
+    // a VALID cfg still yields a byte-identical $base, an invalid one degrades
+    // to '/' instead of warning.
+    // is_scalar() is the third case of the same defect and the only one that
+    // KILLED the request: a whitespace-only element ('<uribase>  </uribase>')
+    // survives the SimpleXML -> json -> stdClass round-trip as an empty
+    // SimpleXMLElement, i.e. a NESTED stdClass, so trim() raised
+    // "TypeError: trim(): Argument #1 ($string) must be of type string,
+    // stdClass given" (measured, pre-fix) and killed the whole request.
+    $uri = $this->cfg->uribase ?? '';
+    $base = trim(is_scalar($uri) ? (string)$uri : '',"/") . '/'; // be sure no double // at end
     if( !property_exists($this->cfg,'urixmlrpc') )
     {
       $this->cfg->urixmlrpc = $base . 'xmlrpc.cgi';
@@ -133,7 +148,18 @@ class bugzillaxmlrpcInterface extends issueTrackerInterface
       $logDetails = '';
       foreach(array('uribase','apikey') as $v)
       {
-        $logDetails .= "$v={$this->cfg->$v} / "; 
+        // Issue #1619: this catch block is the ERROR DIAGNOSTIC, so it must not
+        // raise diagnostics of its own. Unguarded, "$v={$this->cfg->$v}" warned
+        // "Undefined property: stdClass::$uribase" (the stdClass re-binding is
+        // done by setCfg(), issueTrackerInterface.class.php:165) precisely when
+        // the cfg was never populated - i.e. on the error path, where the log
+        // line is the only clue. Now logs "uribase= / apikey=" instead.
+        // is_scalar(): a cfg like '<apikey><x/></apikey>' decodes apikey to a
+        // NESTED stdClass, and interpolating an object raises an Error that
+        // catch(Exception) cannot catch - the log line could kill the request
+        // it was trying to describe.
+        $val = $this->cfg->$v ?? '';
+        $logDetails .= "$v=" . (is_scalar($val) ? $val : '') . " / ";
       }
       $logDetails = trim($logDetails,'/ ');
       $this->connected = false;
