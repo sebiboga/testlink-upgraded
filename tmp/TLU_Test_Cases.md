@@ -944,52 +944,72 @@ exist — cases 1–7 could not pass.
 - The header skip is scoped to the FIRST parsed row and requires a full match of all three localized exporter labels (`lang_get('keyword'/'notes'/'tcv_qty')`), so a row of actual data — where the third cell is a numeric tcv_qty — can never be mistaken for the header.
 - The skipped header is not counted in `rows`/`skipped`, so a successful round trip reports the clean `imported` count, and a header-only file still degrades to the pre-existing `EMPTY_FILE` guard in `api/keywordsxml/index.php:349`.
 
-## Suite 1033 — Task, Issue #1033: `cfieldsView` "Available For" (custom-field node type) column — gap vs legacy `gui/templates/tl-classic/cfields/cfieldsView.tpl:63,70`
+## Suite 1727 — Regression, Issue #1727: Requirement Management System editor (`reqMgrSystemEdit.html` + `api/reqmgrsystemedit`)
 
-**Feature under test.** The legacy Custom Fields list shows an `available_on` column holding the custom field's **node type** (`node_types.description` via `cfield_node_types`), rendered through `lang_get`. The modern `gui/templates/cfields/cfieldsView.html` had no such column — the node type was only visible after opening the edit modal. This suite verifies the ported column end to end: header, per-row value, localization, sorting/search, and that nothing else in the screen regressed.
+**Precondition.** `admin`/`admin` on `http://localhost:8082`, DB freshly imported. Fixture
+`php tmp/fixtures_1727.php` (re-runnable, self-healing): test project `RM1727 Demo` (id 2,
+prefix RM1727, requirements enabled, root node 2) and three requirement management systems —
+`RMSE1727-LINKED` (id 5, linked to the test project), `RMSE1727-FREE` (id 6, unlinked),
+`RMSE1727-DEAD` (id 7, linked only to the nonexistent node 999999) — plus the role-3 user
+`rmsnorights`. Screen `/gui/templates/reqmgrsystems/reqMgrSystemEdit.html`; BFF
+`api/reqmgrsystemedit/index.php`. The only shipped requirement management system type is
+`1 = contour / soap` and that interface class is NOT shipped, so the configuration example and
+"Check connection" must degrade to a message, never a 500.
 
-**Precondition.**
-
-- App at `http://localhost:8082`, logged in as `admin`/`admin` (`cfield_management` ⇒ `can_manage=1`).
-- Fixtures in `custom_fields` + `cfield_node_types`, one field per node type so the column is provable across node types:
-
-```sql
-INSERT INTO custom_fields (name,label,type,possible_values,default_value,valid_regexp,
-  length_min,length_max,show_on_design,enable_on_design,show_on_execution,enable_on_execution,
-  show_on_testplan_design,enable_on_testplan_design) VALUES
- ('tlu_tier','Tlu Tier',4,'','','',0,0,1,1,1,0,0,0),
- ('tlu_deployment','Tlu Deployment',4,'','','',0,0,0,0,0,1,0,0),
- ('tlu_reqspec','Tlu ReqSpec',1,'','','',0,0,1,1,0,0,0,0),
- ('tlu_tcase_ver','Tlu TCase Ver',4,'','','',0,0,1,1,0,0,0,0);
-INSERT INTO cfield_node_types (field_id,node_type_id) SELECT id,3 FROM custom_fields WHERE name='tlu_tier';        -- testcase
-INSERT INTO cfield_node_types (field_id,node_type_id) SELECT id,5 FROM custom_fields WHERE name='tlu_deployment';  -- testplan
-INSERT INTO cfield_node_types (field_id,node_type_id) SELECT id,6 FROM custom_fields WHERE name='tlu_reqspec';    -- requirement_spec
-INSERT INTO cfield_node_types (field_id,node_type_id) SELECT id,4 FROM custom_fields WHERE name='tlu_tcase_ver';  -- testcase_version
-```
-
-**Expected.** Column 4 of the list reads `Test Case` / `Test Plan` / `Requirement Specification` / `Test Case Version` in `en`, and the translated equivalents in every other locale; it sorts and searches like a normal column; the edit modal, create modal, and the other columns behave exactly as before; no raw `cf.node.*` key ever reaches the user.
-
-| # | Step | Expected | Actual | Result |
+| # | steps | expected | actual | verdict |
 |---|---|---|---|---|
-| 1 | Open `http://localhost:8082/gui/templates/cfields/cfieldsView.html?tproject_id=0&tplan_id=0` and read the `<thead>` | 8 columns, 4th one is the new **Available For** | `Label, Name, Type, Available For, Active, Display on execution, Available On, Actions` | PASS |
-| 2 | Read cell 4 of every row | node type per field, human-readable | `tlu_deployment→Test Plan`, `tlu_reqspec→Requirement Specification`, `tlu_tcase_ver→Test Case Version`, `tlu_tier→Test Case` | PASS |
-| 3 | Issue repro from the issue: `tlu_deployment` (node_type testplan) | row states the node type, matching legacy `available_on` | `["Tlu Deployment","tlu_deployment","email","Test Plan","Yes","-","Execution"]` — legacy renders the same node type as `Test Plan` | PASS |
-| 4 | Reload with `&locale=ro` | header **and** cell values follow the bundle | headers `… Disponibil Pentru …`; values `Plan de Testare`, `Specificație de Cerință`, `Caz de Testare` | PASS |
-| 5 | DataTables: sort column 4 ascending | ordered by node-type label | `["Caz de Testare","Plan de Testare","Specificație de Cerință"]` | PASS |
-| 6 | DataTables: sort column 4 descending | exact reverse | `["Specificație de Cerință","Plan de Testare","Caz de Testare"]` | PASS |
-| 7 | DataTables: search `Test Plan` | filters on the new column too | exactly `["tlu_deployment"]`; clearing restores all 3 rows | PASS |
-| 8 | Click the edit icon on `tlu_deployment` | modal opens and still prefills the node type from `nodeMap` | `#editModal` open (`display:block`, `body.modal-open`), `#editNodeType=testplan`, `#editType=4` | PASS |
-| 9 | Temporary out-of-band node type: insert `node_types(99,'zz_future_node')` + a field bound to it, reload | unmapped node type degrades to the raw slug, never an empty cell and never a raw i18n key | cell rendered `zz_future_node` | PASS |
-| 10 | Temporary probe forcing `allItems = []`, reload | empty table keeps all 8 header columns, no misalignment, no key leakage | headers intact; body `No data available in table`; footer `0 custom fields` | PASS |
-| 11 | `node --check` on the extracted inline script | clean | `JS SYNTAX OK` | PASS |
-| 12 | `python3 -m json.tool gui/templates/i18n/*.json` (all 10 bundles) | clean | OK for de, en, es, fr, it, ja, pt, ro, ru, zh | PASS |
-| 13 | Browser console after steps 1-10 | no errors, no warnings | `<no console messages found>` | PASS |
-| 14 | Event Viewer / `events` table after the run | no new Error/Warning entries | no new ERROR/WARNING rows; only `log_level=16` audit rows from the fixture writes | PASS |
+| 1 | open `?id=5&tproject_id=2` | edit screen: title "Edit Requirement Management System", context card Mode=Edit / ID=5 / Name / Type `contour (Interface: soap)`, Name+Type+Configuration prefilled, Save/Delete/Check connection visible, event-history link present | all rendered; `ctxId=1`→5, `ctxName=RMSE1727-LINKED`, `ctxType=contour (Interface: soap)` | PASS |
+| 2 | "Used on test project" card on the same screen | the linked project is listed | `RM1727 Demo #2` | PASS |
+| 3 | click *show configuration example* (type 1) | degrades to a message, HTTP 200, no fatal | `Interface contoursoapInterface not implemented` | PASS |
+| 4 | click *Check connection* | red chip, HTTP 200 `connected:false`, no fatal | chip "Connection failed", title `Interface contoursoapInterface not implemented` | PASS |
+| 5 | rename to `RMSE1727-LINKED-v2`, click Save | success feedback, context card + form re-render with the new name, row updated | `Requirement management system "RMSE1727-LINKED-v2" saved.`; `ctxName` updated | PASS |
+| 6 | clear the Name, click Save | client-side validation, focus on Name, NO request | `Name is required.`, `document.activeElement.id === 'fldName'` | PASS |
+| 7 | click Delete on the **linked** system, confirm | localized refusal headline + the offending project as a muted detail, stays on the screen (no redirect) | `Cannot delete - still linked to test projects` + `Failure - id 1 is linked to:  testproject 'RM1727 Demo' with id 2`; `location.href` unchanged | PASS |
+| 8 | open the screen with no `id` | create mode: title "Create …", Mode=Create, ID `—`, used-on card hidden, Delete + Check connection hidden, event-history link hidden | verified via DOM | PASS |
+| 9 | create mode, duplicate name `RMSE1727-LINKED-v2` | 409 `create_failed` surfaced, no redirect | `name already exists` + `The requirement management system could not be saved.` | PASS |
+| 10 | create mode, new name `RMSE1727-NEW` + a Configuration body | 200, created, redirect to the list screen | `reqMgrSystemView.html?created=4`; row present in the list | PASS |
+| 11 | open `?id=9999` (unknown id) | explicit not-found card, no broken form, no E_WARNING | `Requirement management system not found` + `It may have been deleted…` | PASS |
+| 12 | `GET ?action=init&id=7` (system whose only link is dead) | legacy dead-link cleanup: link 999999 removed, live list empty | `testprojects: []`; `select * from testproject_reqmgrsystem` → only the live link remains | PASS |
+| 13 | `rmsnorights` (role 3) opens the screen in the browser | denied card, form NOT rendered, no live controls | `Access denied` + `You need the Requirement Management System management right…`; `formArea` display:none, Check connection hidden | PASS |
+| 14 | anonymous browser context opens the screen | 401 → bounce to the login screen | landed on `login.php?note=expired` | PASS |
+| 15 | locale switch en → ro on `?id=5` | every rmse.* string translated, zero raw keys | `Modificare Sistem de Gestionare a Cerințelor`, `Modificare`, `Înapoi la Sisteme de Gestionare a Cerințelor`, footer `TestLink 2.0.1 - Sistem de Gestionare a Cerințelor` | PASS |
+| 16 | click *Show event history* (admin, `mgt_view_events`) | deep link into the modern Event Viewer filtered on this object | `eventviewer.html?object_id=5&object_type=reqmrgsystems` → `Filtrat dupa reqmrgsystems #5` | PASS |
+| 17 | delete the **unlinked** system (id 6) through the UI | modal → delete → redirect to the list, row gone | `reqMgrSystemView.html?deleted=6`; list shows only DEAD + LINKED | PASS |
+| 18 | BFF contract: anonymous `?action=init&id=1` | 401 | 401 | PASS |
+| 19 | BFF contract: `rmsnorights` `?action=init&id=1` | 403 `forbidden` | 403 `{"code":"forbidden"}` | PASS |
+| 20 | BFF contract: `?action=bogus` | 400 `unknown_action` — never a blank 200 (#1722 family) | 400 `{"code":"unknown_action"}` | PASS |
+| 21 | BFF contract: `?action=init&id=999999` | 404 `not_found` | 404 `{"code":"not_found"}` | PASS |
+| 22 | BFF contract: POST to a read action / GET to a write action | 405 `method_not_allowed` both ways | 405 `GET required` / 405 on `?action=create` | PASS |
+| 23 | BFF contract: create with an empty / blank name | 400 `validation_failed` | 400 `empty name is not allowed` | PASS |
+| 24 | BFF contract: create with `type=99` / `cfg_template&type=99` | 400 `invalid_type` | 400 `{"code":"invalid_type"}` on both | PASS |
+| 25 | BFF contract: update with `id=0` | 400 `invalid_id` | 400 | PASS |
+| 26 | BFF contract: create a duplicate name | 409 `create_failed` | 409 `name already exists` | PASS |
+| 27 | BFF contract: delete an unknown id / update an unknown id | 404 `not_found` | 404 | PASS |
+| 28 | BFF contract: delete a linked system | 409 `delete_failed`; message WITHOUT the internal class/method prefix (**#1728**) | `Failure - id 1 is linked to:  testproject 'RM1727 Demo' with id 2` (pre-fix it started with `Class:tlReqMgrSystem - Method: delete - `) | PASS |
+| 29 | BFF contract: `cfg_template&type=1`, `check_connection{id:5}` | 200 with `available:false` / `connected:false` + `not_implemented` | `Interface contoursoapInterface not implemented` on both | PASS |
+| 30 | CSRF: POST `?action=create` with no `Origin`/`Referer` and no `X-Requested-With` | 403 from `bffSameOriginGuard` | 403 | PASS |
+| 31 | legacy shim `reqMgrSystemEdit.php?doAction=edit&id=1&tproject_id=2` | 302 to the modern editor, id + context carried | `302 → reqMgrSystemEdit.html?id=1&tproject_id=2` | PASS |
+| 32 | legacy shim `?doAction=create` (and empty `doAction`) | 302 to the modern editor in create mode | `302 → reqMgrSystemEdit.html` | PASS |
+| 33 | legacy shim `?doAction=checkConnection&id=1` | 302 to the modern editor in edit mode (the modern Check connection button) | `302 → reqMgrSystemEdit.html?id=1` | PASS |
+| 34 | legacy shim `?doAction=doDelete&id=1` (POST write) | NOT executed server side, INFO-logged, 302 to the list — the BFF owns the writes | `302 → reqMgrSystemView.html`, event row log_level=1 `legacy write doAction "doDelete" is no longer executed` | PASS |
+| 35 | legacy shim `?doAction=zzz` | 302 to the list + tLog ERROR (legacy parity) | `302 → reqMgrSystemView.html`, event row log_level=1 `unknown doAction "zzz"` | PASS |
+| 36 | legacy shim, anonymous | legacy `checkSessionValid` JS bounce to login | 200 body with `top.location.href='../../login.php?note=expired&destination=…'` | PASS |
+| 37 | **#1729** re-run of the fixture (3 creates) after the `getByAttr()` fix | ZERO new E_WARNING rows in `events` | only `log_level=16` audit rows; no `log_level=2` | PASS |
+| 38 | **#1728** delete-failure message after the `delete()` fix | no `Class:tlReqMgrSystem` prefix on the success message either | `msg` seeded with `''`; `operation OK for id %s` | PASS |
+| 39 | i18n coverage: `rmse.*` + `footers.reqMgrSystemEdit` in ALL bundles | present in en/ro/de/es/fr/it/pt/ru/ja/zh, all files valid JSON | 28 + `rmse.openEditor` = 29 `rmse.*` keys + footer in all 10, `python3 -m json.tool` clean | PASS |
+| 40 | `php -l` on every touched PHP file | clean | clean (BFF, shim, common.php, tlReqMgrSystem.class.php) | PASS |
+| 41 | browser console during the whole run | no errors / warnings | no console messages | PASS |
+| 42 | Event Viewer / `events` after the whole run | no new Error/Warning rows attributable to the screen | only audit (16) + the 2 intentional shim tLog rows (1) | PASS |
 
-**Pre-fix baseline (measured, for contrast).** Before the port, step 1/2 returned `Label, Name, Type, Active, Display On Execution, Available On, Actions` and rows like `["Tlu Deployment","tlu_deployment","email","Yes","-","Execution"]` — no node type anywhere in the list. `GET /api/cfields/index.php` already returned `node_description` (`"testplan"`, `"testcase"`, …) in both states, proving the gap was front-end-only and no BFF change was required.
+**Result: 42 / 42 PASS.**
 
 **Notes.**
 
-- The modern `Available On` column is **not** the legacy `available_on` column and must not be conflated with the new one: `Available On` is the *enable-on context* (Design / Execution / Test Plan Design) and can list several values, while `Available For` is the *node type* and is always a single value. Both now coexist, which is what makes the list self-explanatory.
-- `nodeTypeLabel()` uses `TLi18n.has()` before `TLi18n.t()`; `TLi18n.t()` echoes the key back when it is missing, so without the `has()` guard a node type without a key would display as `cf.node.<slug>` to the user.
-- The 14 `cf.node.*` keys mirror the `node_types` table 1:1, so every node type TestLink can bind to a custom field has a translated label in all 10 bundles.
+- Legacy parity kept on purpose: the single `reqmgrsystem_management` right (the legacy
+  `checkRights()` had no read/manage split), the "used on test project" table, the
+  dead-link cleanup `initializeGui()` did on every edit load, the
+  `showEventHistoryFor(id,'reqmrgsystems')` deep link, and the configuration example.
+- Hardened vs legacy: `bffEnforceSession` (the legacy page ran `testlinkInitPage` →
+  `checkSessionValid`), `bffSameOriginGuard` (the legacy form was a plain
+  cross-site-postable POST), a machine code on every failure, and no dead switch branch that
+  can answer a blank 200.
