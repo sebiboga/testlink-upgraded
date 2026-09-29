@@ -570,71 +570,96 @@ class at `:17`; also unregistered, and its line 2 says
 - The `Not Run` / `Passed` / `Failed` / `Blocked` list is read from the BFF `status_set` (`array_keys($statusSetForDisplay)`) rather than hardcoded, so an install that adds a custom exec status gets it in the breakdown without a code change — same as the legacy `foreach ($statusSetForDisplay …)`.
 - The entire assembled line is escaped with `esc()`; the previous code escaped only the label, and the labels come from user-editable `lang` strings.
 
----
+## Regression — Issue #1627: legacy `lib/reqmgrsystems/reqMgrSystemEdit.php` answered HTTP 500 with a 0-byte body whenever `doAction` was missing or not whitelisted
 
-## Suite 1028 — Task, Issue #1028: spec / requirement detail deep links from `reqSpecMgmt` (gap vs legacy `REQ_SPEC_MGMT` / `REQ_MGMT` tree-node hrefs)
+**Precondition:** TestLink 2.0.1 on `http://localhost:8082` (PHP built-in server, docroot
+= repo root), PHP 8.3.35; MariaDB `127.0.0.1:3306/testlink` (`testlink`/`testlink`),
+freshly imported; login `admin`/`admin`; branch `fix/issue-1627`, fix commit `01f182bb9`.
+Harness: **`bash tmp/verify_1627.sh`** (creates and deletes its own `reqmgrsystems` row, so
+it is re-runnable on a fresh import).
 
-**Precondition**
+**Repro steps (PRE-FIX)** — `init_args()` at `lib/reqmgrsystems/reqMgrSystemEdit.php:126`
+threw an uncaught `Exception` that nothing catches, and `R_PARAMS` always creates
+`$args->doAction` (empty string when the parameter is absent), so the `property_exists()`
+test at `:118` can never detect "absent" and *every* non-whitelisted value threw:
 
-- App `http://localhost:8082`, admin `admin/admin` (all rights) and read-only user
-  `ro1028readonly` / `admin` (custom role 10 = `mgt_view_req` only, no `mgt_modify_req`).
-- Fixture: `php tmp/fixtures_1028.php` → tproject `VIEW1028` (id 1, prefix R1028),
-  specs A(2)/A1(10)/A2(12)/B(4)/C(6)/D(8), requirements R1028-1(14)/-2(16)/-3(18).
-- Entry point: `http://localhost:8082/gui/templates/requirements/reqSpecMgmt.html?tproject_id=1`
-- Legacy reference exercised: `gui/javascript/testlink_library.js:1213-1244`
-  (`REQ_SPEC_MGMT` → `reqSpecView.php`, `REQ_MGMT` → `reqView.php`), node hrefs built by
-  `lib/functions/treeMenu.inc.php:2086-2110`.
+1. Log in, then `GET /lib/reqmgrsystems/reqMgrSystemEdit.php` → `HTTP 500`, **0 bytes**.
+2. `GET …?doAction=bogus` → `HTTP 500`, **0 bytes**.
+3. `GET …?doAction=create` / `?doAction=edit&id=N` → `HTTP 200` (11488 / 11715 bytes).
+4. `tmp/php_server.log`: `PHP Fatal error: Uncaught Exception: Input parameter doAction -
+   white list validation failure … thrown in …/reqMgrSystemEdit.php on line 126`, stack
+   `#0 init_args() #1 initScript() #2 {main}` — execution never reaches `renderGui()`.
+5. `events` table: the same message at `log_level 1` (ERROR), logged by `tLog()` before
+   the `throw`.
+6. Not reachable only by hand-typed URL: the shipped view forms post
+   `<input type="hidden" name="doAction" value="" />`
+   (`gui/templates/tl-classic/reqmgrsystems/reqMgrSystemView.tpl:83,87`, dashio `:85,89`)
+   and only fill it in with `onclick="doAction.value='create'"` — a GET/POST of that form
+   with JS disabled, aborted or bookmarked posted an empty `doAction` and hit the same 500.
 
-**Steps / expected / actual**
+**Expected POST-FIX:** no request can reach the fatal any more. An empty/absent
+`doAction` renders the create form (200); a non-whitelisted `doAction` is still recorded
+in the Event Viewer and answers 302 back to the Requirements Manager list. The 7
+whitelisted actions — including the writes — must behave **exactly** as before.
 
-| # | Step | Expected | Actual | Result |
-|---|---|---|---|---|
-| 1 | open `reqSpecMgmt.html?tproject_id=1` as `admin` and read the **pre-fix** DOM of every spec row | the only anchor per row is the inline expander `selectSpec(id)` | `links: ["selectSpec(2) -> javascript:void(0)"]`; `innerHTML.indexOf('reqSpecView.html') === -1`, `indexOf('reqView.html') === -1` — **gap reproduced** | PASS (gap) |
-| 2 | same, **post-fix**, as `admin` | one teal eye link per spec row pointing at the full spec detail | 6/6 rows → `/gui/templates/requirements/reqSpecView.html?id=<2,10,12,4,6,8>&tproject_id=1`, `canManage=true, canView=true` | PASS |
-| 3 | click the spec title (expander) | the inline "Requirements of …" panel still works — the new link does not replace it | `selectSpec(2)` reveals the panel, 3 requirement rows load | PASS |
-| 4 | select spec A, read the **requirement** rows | one teal eye link per requirement row pointing at the full requirement detail | 3/3 rows → `/gui/templates/requirements/reqView.html?id=<14,16,18>&tproject_id=1` | PASS |
-| 5 | **click** the eye on spec row A | the full SPEC DETAIL screen opens: header, scope, type, author/editor, custom fields, attachments, revision history, Freeze / Create Revision, requirement list | lands on `reqSpecView.html?id=2&tproject_id=1`, `document.title = "Requirement Specification Viewer"`, toolbar shows *Compare revisions / Freeze / Create revision* | PASS |
-| 6 | **click** the eye on requirement row `R1028-1` | the full REQUIREMENT DETAIL screen opens: versions, per-revision attributes, cfields, attachments, linked test cases, relations, monitoring | lands on `reqView.html?id=14&tproject_id=1`, `document.title = "Requirement Viewer"`, body shows `IDENTIFIER R1028-1`, `Version v1r1`, `Freeze this version`, `Start monitoring`, `New Revision` | PASS |
-| 7 | the detail screen's own **"Open in Spec Management"** round trip | the eye link did not create a one-way dead end | `reqSpecView.html` exposes a link back to `reqSpecMgmt.html?tproject_id=1` | PASS |
-| 8 | log in as `ro1028readonly` (`mgt_view_req` only) | the eye links are STILL offered (legacy gated them on the same right) while edit/delete/new-child stay hidden, **and the pre-existing "read only" signal survives next to the eye** | `canManage=false, canView=true`; `specView=6`, `reqView=3`, `editBtns=0`, `delBtns=0`, `fa-lock=6` spec / `3` requirement with tooltip `View only - no modify rights` | PASS |
-| 9 | as `ro1028readonly`, click the spec eye | the spec detail is reachable for a read-only user | `reqSpecView.html?id=2&tproject_id=1` renders, title `Requirement Specification Viewer`, no write-only toolbar | PASS |
-| 10 | rights wiring: confirm the gate uses the BFF, not a hardcoded flag | `?action=options` already returns `rights.view`; no BFF change needed | `api/reqspec/index.php:571-574` → `'view' => canView(...)`; `canView = !!r.rights.view` in `loadOptions()`; `git diff --stat api/` = empty | PASS |
-| 11 | log in as `ro1028norights` (`<no rights>` role 3) — the branch that must fall back to a non-affordance marker | no dead eye link is rendered; either the row is absent or the cell shows `fa-eye-slash` + `rs.viewOnly` | `canView=false, canManage=false` and the BFF itself returns **0 spec rows** (`specRows=0`, `viewBtn=0`, `eyeSlash=0`) — the marker branch is therefore **defensive, not reachable** with this dataset, and the important part holds: **no dead link is rendered**. Documented as such rather than claimed as an observed render. | PASS (defensive) |
-| 12 | i18n: both new tooltips present in **every** locale bundle, every bundle still valid JSON | 10/10 bundles, 2 keys each, no reformatting | `de,en,es,fr,it,ja,pt,ro,ru,zh` → all `OK`; `git diff --stat gui/templates/i18n/` = `10 files changed, 20 insertions(+)` | PASS |
-| 13 | tooltips are localized, not hardcoded | `TLi18n.t('rs.viewSpecDetail')` / `TLi18n.t('rs.viewReqDetail')` drive both `title` attributes | rendered title as admin = `Open specification detail (custom fields, attachments, revision history)` / `Open requirement detail (versions, test case links, relations, attachments)` | PASS |
-| 14 | no hardcoded user-facing string in the new code path | only ids/urls/icon classes in the new lines | `viewSpecBtn`/`viewReqBtn` build `href` + `title` only, both from `TLi18n.t(...)` | PASS |
-| 15 | `node --check` on the extracted inline `<script>` block | clean | *JS SYNTAX OK* (1 block extracted) | PASS |
-| 15a | Bootstrap global `a:focus, a:hover` must not underline the icon | `.view-btn` sets `text-decoration: none` | `getComputedStyle(a).textDecorationLine === "none"` at rest and in the CSS rule | PASS |
-| 16 | browser console across runs 2-9 | no errors, no warnings | *no console messages found* | PASS |
-| 17 | Event Viewer after the whole run | no new Error/Warning | `select id,log_level from events where log_level>0` → only `log_level=16` audit rows (`audit_login_succeeded`, `audit_testproject_created`, `audit_user_logout`); **no** `log_level<=2` row | PASS |
+**Actual result — `bash tmp/verify_1627.sh` → 24/24 PASS** on `fix/issue-1627`:
+
+| # | assertion | result |
+|---|---|---|
+| 1 | `GET` with no `doAction` answers **200** (was 500 / 0 bytes) | PASS |
+| 2 | …and renders the create form | PASS (11488 bytes) |
+| 3 | …containing the create form fields | PASS |
+| 4 | `GET ?doAction=` (empty) answers **200** (was 500 / 0 bytes) | PASS |
+| 5 | `GET ?doAction=bogus` answers **302** (was 500 / 0 bytes) | PASS |
+| 6 | …redirecting to `gui/templates/reqmgrsystems/reqMgrSystemView.html` | PASS |
+| 7 | `GET ?doAction=CREATE` (wrong case) answers 302 | PASS |
+| 8 | `GET ?doAction=<28 chars>` (over `maxLen` 20) answers 302 | PASS |
+| 9 | the 3 rejections are logged in the Event Viewer (`log_level 1`) | PASS |
+| 10 | `GET ?doAction=create` answers 200 | PASS |
+| 11 | `POST doAction=doCreate` answers 302 → `reqMgrSystemView.php` | PASS |
+| 12 | …redirecting to `reqMgrSystemView.php` | PASS |
+| 13 | …and the row is really **INSERTed** | PASS (`reqmgrsystems` row, DB-verified) |
+| 14 | `GET ?doAction=edit&id=<new>` answers 200 | PASS |
+| 15 | …and the edit form is pre-filled with the stored name | PASS |
+| 16 | `POST doAction=doUpdate` answers 302 → `reqMgrSystemView.php` | PASS |
+| 17 | …and the row is really **UPDATED** | PASS (DB-verified) |
+| 18 | `POST` of the view form with an **empty** `doAction` answers 200 (was 500 / 0 bytes) | PASS |
+| 19 | `POST doAction=doDelete` answers 302 → `reqMgrSystemView.php` | PASS |
+| 20 | …and the row is really **DELETED** | PASS (DB-verified) |
+| 21 | anonymous `GET` still answers 200 | PASS |
+| 22 | …and is bounced to the login screen (`note=expired`) | PASS |
+| 23 | no new E_WARNING/E_ERROR row comes from the controller itself | PASS (0) |
+| 24 | no new FATAL-class row (`log_level 0`) for the rejected input | PASS (0) |
+
+**The harness really detects the bug (negative control).** With the pre-fix file restored
+(`git show 4be7ee6ff:lib/reqmgrsystems/reqMgrSystemEdit.php`) the same harness reports
+**15 passed, 9 failed**; with the fix it is **24 passed, 0 failed**.
+
+**A/B proof that the write path is untouched.** The three write assertions (13, 17, 20)
+were additionally executed against the *pre-fix* file: rows were created, renamed and
+deleted identically. The diff only alters the *rejected* branch.
+
+**Pre-fix baseline (measured, for contrast).**
+
+| request | before | after |
+|---|---|---|
+| `reqMgrSystemEdit.php` (no `doAction`) | 500 / 0 B, `PHP Fatal error: Uncaught Exception` | 200 / 11488 B, create form |
+| `?doAction=bogus` | 500 / 0 B | 302 → `reqMgrSystemView.html` + `ERROR` event |
+| `?doAction=create`, `?doAction=edit&id=N` | 200 | 200 (identical) |
+| `?doAction=doCreate|doUpdate|doDelete` | 302 → `reqMgrSystemView.php`, row written | identical |
 
 **Notes.**
 
-- A code-review pass (ai/AGENTS.md rule 16) ran against commits `48c077954`/`a63af64b8`.
-  No BLOCKER. Two findings were applied and are covered above: `.view-btn` needed
-  `text-decoration: none` (Bootstrap underlines `a:hover`) and the read-only
-  `fa-lock` marker had to be kept next to the eye (test 8). Two further findings were
-  checked and are non-issues: the `action` string is never left empty or
-  double-built, because `canView()` = `mgt_view_req || mgt_modify_req` and
-  `canManage()` = `mgt_modify_req` (`api/reqspec/index.php:98-104`) make
-  `!canView && canManage` unreachable; and both ids are JSON numbers produced by
-  `intval($r['id'])` (`api/reqspec/index.php:736`, `:1092`), so the href cannot carry
-  injected markup. Server-side authorisation was re-measured as `ro1028norights`:
-  `options` 403, `spec_view` 403, `/view` 403, `freeze_spec` 403,
-  `create_revision` 403 — the client-side `rights.view` gate is a UX affordance only.
-- The `fa-eye-slash` fallback in the action cell is a **defensive** branch: with
-  `<no rights>` the BFF returns an empty spec list, so it cannot be observed live. It
-  exists so a future rights combination that renders rows without `rights.view` still
-  shows a marker instead of a dead link.
-- The port is deliberately **front-end only**: both detail screens and both BFF actions
-  (`api/reqspec` `spec_view` / `freeze_spec` / `create_revision`, `api/requirements` `/view`)
-  already existed and already accepted `?id=…&tproject_id=…`; the missing piece was the
-  entry point, exactly as the issue's SUGGESTED FIX describes.
-- The legacy JS passed `?item=req_spec&…&req_spec_id=…` / `?item=requirement&…&requirement_id=…`.
-  The modern detail screens already accept those aliases (`reqSpecView.html:309`,
-  `reqView.html:328`); the links use the canonical `id` form.
-- `tproject_id` is passed on purpose: without it the detail screen self-resolves the
-  project from the object, and the rights check there would not be scoped to the
-  project the user is looking at.
-- Screenshots: `docs/screenshots/issue-1028-before-no-view-links.png`,
-  `…-after-view-links.png`, `…-spec-detail-reached.png`, `…-readonly-view-links.png`.
+- Step 18 is the case the ticket called "no in-app user can hit it today": the shipped
+  view form posts an **empty** hidden `doAction` and only fills it in with JS, so the 500
+  was reachable from the product itself, not just from a hand-typed URL.
+- The `E_WARNING "Trying to access array offset on null"` rows in
+  `gui/templates_c/*reqMgrSystemEdit.tpl.php` (lines 105/126/137/151/188) are **NOT** part
+  of this suite: they are a pre-existing Smarty warning of the legacy template
+  (`$gui->testProjectSet` is `null` on the create screen) that is present in the pre-fix
+  baseline too, and step 23 therefore scopes its query to the controller file and excludes
+  the rejection audit rows asserted in step 8. Reported separately, not fixed here.
+- A request that sends `doAction` **as an array** (`?doAction[]=x`) is still a 500: the
+  `TypeError` comes from the shared input layer
+  (`lib/functions/inputparameter.inc.php:229` catches `Exception` but the failure is a PHP
+  `Error`) and affects every legacy controller, not just this one — filed as a new issue.
