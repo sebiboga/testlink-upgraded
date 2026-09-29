@@ -84,7 +84,7 @@ screen reaches full parity.
   `mgt_view_req` gated. The modern DataTable rows had only `selectSpec(id)` (which expands the
   inline "Requirements of …" panel) and `openReqEdit(id)` (the small inline editor), so
   `reqSpecView.html` and `reqView.html` — although both already existed, already accepted
-  `?id=…&tproject_id=…` (`reqSpecView.html:309-310`, `reqView.html:328-331`) and were already fed
+  `?id=…&tproject_id=…` (`reqSpecView.html:309-310`, `reqView.html:328-332`) and were already fed
   by the complete BFF actions `api/reqspec` `spec_view`/`freeze_spec`/`create_revision` and
   `api/requirements` `/view` — were completely unreachable from the screen. The port is therefore
   deliberately front-end only (`git diff --stat api/` is empty): each spec row and each

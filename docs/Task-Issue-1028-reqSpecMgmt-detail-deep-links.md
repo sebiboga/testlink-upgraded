@@ -49,7 +49,7 @@ document.documentElement.innerHTML.indexOf('reqView.html')     === -1
 ```
 
 `reqSpecView.html` and `reqView.html` were **not missing** — they existed, already parsed
-`?id=…&tproject_id=…` (`reqSpecView.html:309-310`, `reqView.html:328-331`) and were already fed by
+`?id=…&tproject_id=…` (`reqSpecView.html:309-310`, `reqView.html:328-332`) and were already fed by
 the complete BFF actions `spec_view` / `freeze_spec` / `create_revision` and `/view`. The missing
 piece was only the **entry point**.
 
@@ -61,12 +61,12 @@ Pure front-end port; the BFF was not modified (`git diff --stat api/` is empty).
 
 | line | change |
 |---|---|
-| 59-62 | `.view-btn` — teal (`#4ECDC4`) icon-link style, the same visual language as the existing `.edit-btn` |
-| 455-458 | new `canView` flag, documented as the `mgt_view_req` mirror of the legacy gate |
-| 520 | `canView = !!r.rights.view;` in `loadOptions()` — the BFF already returned `rights.view` |
-| 898-919 | `viewSpecBtn(id)` / `viewReqBtn(id)` helpers |
-| 824-836 | spec row action cell: eye link prepended to new-child / edit / delete |
-| 975-988 | requirement row action cell: same treatment |
+| 60-62 | `.view-btn` — teal (`#4ECDC4`) icon-link style, the same visual language as the existing `.edit-btn` |
+| 458-460 | new `canView` flag, documented as the `mgt_view_req` mirror of the legacy gate |
+| 521 | `canView = !!r.rights.view;` in `loadOptions()` — the BFF already returned `rights.view` |
+| 920-947 | `viewSpecBtn(id)` / `viewReqBtn(id)` / `readOnlyMark()` helpers |
+| 836-858 | spec row action cell: eye link prepended to new-child / edit / delete |
+| 1015-1027 | requirement row action cell: same treatment |
 
 ```js
 function viewSpecBtn(id) {
@@ -93,8 +93,18 @@ Design decisions:
 - **`rights.view`, not `rights.manage`, is the gate** — legacy gated both deep links on
   `mgt_view_req`, so a read-only user still gets the detail screens (verified with a custom role 10
   holding `mgt_view_req` only: 6 spec + 3 requirement eye links, 0 edit, 0 delete).
-- A defensive `fa-eye-slash` marker (with the existing `rs.viewOnly` tooltip) replaces the old
-  decorative eye when neither `view` nor `manage` is granted, so no dead link can be rendered.
+- **The "read only" signal is preserved.** Because the eye is offered to plain viewers too, a
+  viewer *without* `mgt_modify_req` also gets a `fa-lock` marker carrying the existing
+  `rs.viewOnly` tooltip (`readOnlyMark()`, appended when `canView && !canManage`) — otherwise the
+  refactor would have silently dropped the only "you are read-only" cue the row used to give.
+- A defensive `fa-eye-slash` marker replaces the old decorative eye when neither `view` nor
+  `manage` is granted, so no dead link can ever be rendered. Note that this branch is **not
+  reachable** today: `?action=options` itself requires `canView()`
+  (`api/reqspec/index.php:122-126`, called from `needTprojectId()` at `:484`), so a session that
+  cannot read requirements gets a 403 from `options` and no rows are rendered at all. It is kept as
+  a safety net for future rights combinations, and labelled as defensive in the source.
+- `text-decoration: none` is set on `.view-btn` so Bootstrap's global `a:focus, a:hover`
+  underline does not strike through the icon.
 
 ## i18n
 

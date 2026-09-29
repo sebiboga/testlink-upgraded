@@ -56,9 +56,10 @@ table.dataTable tbody tr.spec-child-row td:first-child { border-left: 3px solid 
 .muted { color: #aaa; }
 .updated-cell { color: #888; font-size: 12px; white-space: nowrap; }
 .edit-btn { background: none; border: none; color: #2d8e88; cursor: pointer; font-size: 14px; padding: 2px 6px; }
-/* Refs #1028 - deep link to the full spec/requirement detail screen. */
-.view-btn { background: none; border: none; color: #4ECDC4; cursor: pointer; font-size: 14px; padding: 2px 6px; }
-.view-btn:hover { color: #2d8e88; }
+/* Refs #1028 - deep link to the full spec/requirement detail screen.
+   text-decoration:none keeps Bootstrap's global a:hover underline off the icon. */
+.view-btn { background: none; border: none; color: #4ECDC4; cursor: pointer; font-size: 14px; padding: 2px 6px; text-decoration: none; }
+.view-btn:hover { color: #2d8e88; text-decoration: none; }
 .del-btn { background: none; border: none; color: #e6605e; cursor: pointer; font-size: 15px; padding: 2px 6px; }
 .del-btn:hover { color: #c53f3d; }
 .empty { background: #fff; border-radius: 8px; padding: 26px; text-align: center; color: #888; font-size: 13px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
@@ -844,10 +845,17 @@ function renderSpecs(items) {
         '" onclick="confirmDeleteSpec(' + s.id + ')">' +
         '<i class="fas fa-minus-circle"></i></button>';
     } else if (!canView) {
-      // No view right either: keep the legacy "read only" marker.
+      // No view right either: keep the legacy "read only" marker. (Defensive -
+      // ?action=options itself needs canView(), so this branch is not reachable
+      // while rows are rendered; it exists so a future rights combination that
+      // renders rows without rights.view can never show a dead link.)
       action = '<span class="muted"><i class="fas fa-eye-slash" title="' +
                esc(TLi18n.t('rs.viewOnly')) + '"></i></span>';
     }
+    // The eye link is offered to a viewer WITHOUT mgt_modify_req too (legacy
+    // gated both deep links on mgt_view_req), so the pre-existing "read only"
+    // signal must survive next to it.
+    if (canView && !canManage) { action += readOnlyMark(); }
 
     // Refs #1025: while filtering, the Reqs cell shows the number of MATCHING
     // requirements of the spec subtree (what the legacy tree counted), with the
@@ -926,6 +934,14 @@ function viewReqBtn(id) {
          '" href="/gui/templates/requirements/reqView.html?id=' +
          encodeURIComponent(id) + '&tproject_id=' + encodeURIComponent(tprojectId) +
          '" target="_self"><i class="fas fa-eye"></i></a>';
+}
+
+// Refs #1028 - legacy offered the detail screens to plain viewers too, so a
+// viewer WITHOUT mgt_modify_req keeps an explicit "read only" signal in the
+// action cell instead of silently losing the one the old `fa-eye` marker gave.
+function readOnlyMark() {
+  return '<span class="muted"><i class="fas fa-lock" title="' +
+         esc(TLi18n.t('rs.viewOnly')) + '"></i></span>';
 }
 
 function selectSpec(id) {
@@ -1007,6 +1023,8 @@ function renderReqs(items) {
     } else if (!canView) {
       action = '<span class="muted"><i class="fas fa-eye-slash"></i></span>';
     }
+    // keep the pre-existing "read only" signal next to the eye (see renderSpecs)
+    if (canView && !canManage) { action += readOnlyMark(); }
     var scopePlain = String(q.scope == null ? '' : q.scope).replace(/<[^>]*>/g, ' ').replace(/\s+/g,' ').trim();
 
     return [
