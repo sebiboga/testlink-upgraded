@@ -663,3 +663,92 @@ deleted identically. The diff only alters the *rejected* branch.
   `TypeError` comes from the shared input layer
   (`lib/functions/inputparameter.inc.php:229` catches `Exception` but the failure is a PHP
   `Error`) and affects every legacy controller, not just this one — filed as a new issue.
+
+---
+
+## Suite 1724 — Duplicate Name Check (`nameCheck`)
+
+Screen `gui/templates/testcases/nameCheck.html` + BFF `api/namecheck/index.php`.
+Modern replacement for `lib/ajax/checkNodeDuplicateName.php` (generic node name
+check, **no rights check at all** in 1.9.20) and `lib/ajax/checkDuplicateName.php`
+(test-case variant, gated on the **global** `mgt_view_tc` right).
+
+Fixture `tmp/fixtures_1724.php` (re-runnable):
+
+| object | id | note |
+|---|---|---|
+| test project `NCHK1724` (prefix `NCK`) | 3 | `check_names_for_duplicates=1`, `action_on_duplicate_name=generate_new` |
+| test project `NCHK1724B` (prefix `NCB`) | 4 | second project, for the cross-project proof |
+| suite `Alpha Suite` (project 3) | 5 | cases `Shared Case Name` (8), `Alpha Only Case` (11) |
+| suite `Beta Suite` (project 3) | 6 | case `Shared Case Name` (14) — same name, different parent |
+| suite `Gamma Suite` (project 4) | 7 | case `Alpha Only Case` (17) — same name, foreign project |
+| user `nchkadmin` | 2 | global role 8, project role 8 on projects 3 and 4 |
+| user `nchknorights` | 3 | global role 3 + project role 3 on project 3 → 403 path |
+
+### BFF contract (curl, `admin/admin` session cookie)
+
+| # | Case | Request | Expected | Result |
+|---|---|---|---|---|
+| 1 | anonymous `init` | `?action=init&tproject_id=3` (no cookie) | `401 not_authenticated` | **PASS** |
+| 2 | `init` happy path | `?action=init&tproject_id=3` | `200`, `context.tproject_name=NCHK1724`, `tc_prefix=NCK`, 2 `node_types`, 3 `containers`, `grants.can_view/can_modify=true` | **PASS** |
+| 3 | `init` session fallback | `?action=init` (no `tproject_id`) | `200`, falls back to `$_SESSION['testprojectID']` | **PASS** |
+| 4 | `init` unknown project | `?action=init&tproject_id=9999` | `404 project_not_found` | **PASS** |
+| 5 | `init` unknown action | `?action=bogus` | `400 unknown_action` | **PASS** |
+| 6 | wrong verb | `POST ?action=init` | `405 method_not_allowed` | **PASS** |
+| 7 | cross-origin POST | `POST /` + `Origin: http://evil.example` | `403` (CSRF guard) | **PASS** |
+| 8 | duplicate **test case** | `?action=check&node_type=testcase&name=Shared Case Name&parent_id=5` | `200 exists=true duplicate_count=1`, `message="Name:Shared Case Name already exists"`, collision `{id:8,parent_id:5}` | **PASS** |
+| 9 | free test case name | `…&name=Never Seen Case&parent_id=5` | `200 exists=false duplicate_count=0` | **PASS** |
+| 10 | duplicate **test suite** (bug #1725 regression) | `?action=check&node_type=testsuite&name=Alpha Suite&parent_id=3` | `200 exists=true`, collision `{id:5,parent_id:3}` — **was `404 parent_not_found`** | **PASS (after #1725)** |
+| 11 | free test suite name | `…&node_type=testsuite&name=Brand New Suite&parent_id=3` | `200 exists=false` — **was `404 parent_not_found`** | **PASS (after #1725)** |
+| 12 | self-exclude on edit | `…&name=Alpha Only Case&parent_id=5&node_id=11` | `200 exists=false` (the node itself is excluded) | **PASS** |
+| 13 | **parent scoping** | `…&name=Shared Case Name&parent_id=5` vs `parent_id=6` | same name free under Beta, taken under Alpha | **PASS** |
+| 14 | **cross-project parent** | `…&name=Alpha Only Case&parent_id=7&tproject_id=4` | `200 exists=true collision {id:17}`, `tproject_id=4` (other project's suite) | **PASS** |
+| 15 | **cross-project claim** | `…&parent_id=5&tproject_id=4` (parent is in project 3) | `400 project_mismatch` | **PASS** |
+| 16 | bogus parent | `…&parent_id=999999` | `404 parent_not_found` | **PASS** |
+| 17 | missing name | `…&name=&parent_id=5` | `400 missing_name` | **PASS** |
+| 18 | missing context | `…&name=X` (no `parent_id`, no `node_id`) | `400 missing_context` | **PASS** |
+| 19 | unknown node type | `…&node_type=bogus&parent_id=5` | `400 unknown_node_type` | **PASS** |
+| 20 | name over 100 chars | 101 × `a` | `400 name_too_long` | **PASS** |
+| 21 | no-rights user, `init` | cookie of `nchknorights`, `?action=init&tproject_id=3` | `403 no_permission` | **PASS** |
+| 22 | no-rights user, `check` | cookie of `nchknorights`, valid parent | `403 no_permission` | **PASS** |
+| 23 | no-rights user, other project | cookie of `nchknorights`, `?action=init&tproject_id=4` | `403 no_permission` (no project grant) | **PASS** |
+
+### Legacy shim (the endpoints being superseded)
+
+| # | Case | Request | Expected | Result |
+|---|---|---|---|---|
+| 24 | `checkNodeDuplicateName.php` denied | `nchknorights`, `parent_id=3&node_type=testsuite` | `success:false` + `no_permissions_for_action` — **1.9.20 answered `success:true`** | **PASS (hole closed)** |
+| 25 | `checkNodeDuplicateName.php` denied (deep) | `nchknorights`, `parent_id=5&node_type=testcase` | `success:false` + localized denial | **PASS (hole closed)** |
+| 26 | `checkNodeDuplicateName.php` anonymous | no cookie | redirects to `login.php?note=expired` (not a name oracle) | **PASS** |
+| 27 | `checkDuplicateName.php` global-right hole | `nchknorights`, `testcase_id=8` (project 3, no rights) | `success:false` — 1.9.20's `has_rights($db,'mgt_view_tc')` could pass on a **global** grant | **PASS (hole closed)** |
+| 28 | regression: sibling BFF untouched | `api/testcases?action=check_name&…&testsuite_id=5` | `200 {"duplicate":true,"message":"Name:Shared Case Name already exists"}` | **PASS** |
+
+### Browser (headless Chrome, `admin/admin`)
+
+| # | Case | Steps | Expected | Result |
+|---|---|---|---|---|
+| 29 | screen load | open `nameCheck.html?tproject_id=3` | teal header, toolbar, context card (project / prefix / 3 containers / warn `1` / `generate_new`), check card, `DUPLICATES WARNED` chip | **PASS** |
+| 30 | live duplicate check | type `Alpha Suite`, node type `Test Suite`, parent `NCHK1724` | verdict `Name:Alpha Suite already exists`, chip `DUPLICATE`, collision row `5 | Alpha Suite | 3` | **PASS** |
+| 31 | free suite name | `Brand New Suite` | chip `AVAILABLE`, no collision table | **PASS** |
+| 32 | duplicate suite #2 | `Beta Suite` | collision row `6 | Beta Suite | 3` | **PASS** |
+| 33 | duplicate test case | node type `Test Case`, parent `Alpha Suite`, `Shared Case Name` | collision row `8 | Shared Case Name | 5` | **PASS** |
+| 34 | free test case | `Never Seen Case` | `AVAILABLE` | **PASS** |
+| 35 | self-exclude | `Alpha Only Case` + exclude id `11` | `AVAILABLE` | **PASS** |
+| 36 | deep link | `?tproject_id=4&node_type=testcase&parent_id=7&name=Alpha Only Case` | prefills all 4 fields **and auto-runs**: project `NCHK1724B`, `Duplicate`, collision `17 | Alpha Only Case | 7` | **PASS** |
+| 37 | RO locale | switch `English → Română` | header `Verificare nume duplicat`, `Proiect de test`, `Nume de verificat`, hint, chip `Duplicat`, footer `Verificare nume duplicat`; deep-link params preserved through the `&locale=ro` reload | **PASS** |
+| 38 | 403 state card | `nchknorights` (isolated browser context) | `Access Denied` + `You do not have permission to view test cases in this test project.`; context and form cards hidden | **PASS** |
+| 39 | back link | toolbar `Test Specification` → `testSpec.html?tproject_id=3` | `200` | **PASS** |
+| 40 | console | whole session | 0 errors, 0 warnings | **PASS** |
+| 41 | Event Viewer | after the whole suite | `SELECT count(*) FROM events WHERE log_level >= 32` → **0** | **PASS** |
+
+**Result: 41 / 41 PASS** (2 cases — 10 and 11 — failed before the #1725 fix and pass
+after it; 24, 25, 27 are the closed 1.9.20 authorization holes).
+
+### Bug found and fixed by this suite
+
+- **#1725** `nameCheck`: test SUITE name check answered `404 parent_not_found`.
+  The owning-project walk read `parent_id` before the node's own `node_type_id`,
+  so a suite (a direct child of the project root, whose own `parent_id` is `0`)
+  always bailed out. Only the deeper test-case variant worked, which hid the
+  defect. Fixed in the BFF **and** in both legacy shims; the guard is not
+  weakened (cases 15, 16 still `400`/`404`).
