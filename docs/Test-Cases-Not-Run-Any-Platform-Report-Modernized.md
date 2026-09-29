@@ -61,13 +61,10 @@ them.
 
 ## 3. Screen Layout
 
-| Report | Priority (localized level) |
-|--------|------------------------------|
-| Report (rows) | localized **level** (`Medium`), not the raw `urgency x importance` product |
+| **Report (rows)** | localized priority **level** (`Medium`), not the raw `urgency x importance` product |
 
-![Modern report screen](../screenshots/issue-1717-tcnotrunanyplatform-02-after-review.png)
-
-![The screen as first shipped](../screenshots/issue-1717-tcnotrunanyplatform-01-report.png)
+*(Screenshots for this screen live in the GitHub Wiki page — see
+`Test-Cases-Not-Run-Any-Platform-Report-Modernized`.)*
 
 | Section | Description |
 |---------|-------------|
@@ -266,4 +263,4 @@ HTTP guards and a browser pass with a clean console and a clean Event Viewer.
 | `gui/templates/dashio/results/tcNotRunAnyPlatform.tpl` | legacy template (superseded) |
 | `tmp/fixtures_1717.php` | two-platform, four-case fixture |
 | `tmp/test_1717.php` | 34-assertion harness |
-| `docs/screenshots/issue-1717-tcnotrunanyplatform-01-report.png` | screenshot |
+| `docs/screenshots/issue-1717-tcnotrunanyplatform-0{1,2}-*.png` | screenshots (linked from the wiki page) |
