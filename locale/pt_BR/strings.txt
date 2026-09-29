@@ -2935,6 +2935,7 @@ $TLS_link_report_by_tester_per_build = "Resultados por Testador por Baseline";
 $TLS_link_assigned_tc_overview = "Visão Geral dos Casos de Teste atribuídos";
 $TLS_link_report_metrics_more_builds = "Métricas da Consulta";
 $TLS_link_report_not_run = "Casos de Teste não executados";
+$TLS_link_report_not_run_on_any_platform = "Casos de teste não executados em nenhuma plataforma";
 $TLS_link_report_reqs_coverage = "Relatório baseado em Requisitos";
 $TLS_link_report_tcases_without_tester = "Casos de Teste não atribuídos a Testadores";
 $TLS_link_report_test = "Matriz de Resultados de Teste";

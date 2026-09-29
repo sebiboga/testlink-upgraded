@@ -3058,6 +3058,7 @@ $TLS_link_assigned_tc_overview = "Test Case Assignment Overview";
 $TLS_link_report_metrics_active_build = "Prehled aktivn�ho sestaven�";
 $TLS_link_report_metrics_more_builds = "Parametrizovan� prehled";
 $TLS_link_report_not_run = "Neproveden� testovac� pr�pady";
+$TLS_link_report_not_run_on_any_platform = "Testovací případy neprovedené na žádné platformě";
 $TLS_link_report_not_run_any_platform = "Testovac� pr�pady nebe��c� na ��dn� platforme";
 $TLS_link_report_overall_build = "Celkov� stav sestaven�";
 $TLS_link_report_reqs_coverage = "Prehled podle po�adavku";

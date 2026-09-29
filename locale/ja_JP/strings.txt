@@ -3293,6 +3293,7 @@ $TLS_link_assigned_tc_overview = "テストケース割り当て概要";
 $TLS_link_report_metrics_active_build = "有効ビルド指標";
 $TLS_link_report_metrics_more_builds = "指標の抽出";
 $TLS_link_report_not_run = "未実行のテストケース";
+$TLS_link_report_not_run_on_any_platform = "どのプラットフォームでも実行されていないテストケース";
 $TLS_link_report_not_run_any_platform = "どのプラットフォームでも実行しないテストケース";
 $TLS_link_report_overall_build = "全ビルドステータス";
 $TLS_link_report_reqs_coverage = "要件に基づくレポート";

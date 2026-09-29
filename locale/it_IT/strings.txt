@@ -1994,6 +1994,7 @@ $TLS_link_report_general_tp_metrics = "Metriche generali del Test Plan";
 $TLS_link_report_metrics_active_build = "Metriche della Build attiva";
 $TLS_link_report_metrics_more_builds = "Query su Metriche";
 $TLS_link_report_not_run = "Not run Test Cases";
+$TLS_link_report_not_run_on_any_platform = "Casi di test non eseguiti su nessuna piattaforma";
 $TLS_link_report_overall_build = "Stato generale della Build";
 $TLS_link_report_reqs_coverage = "Report basato sui Requisiti";
 $TLS_link_report_test = "Test Report";

@@ -3126,6 +3126,7 @@ $TLS_link_assigned_tc_overview = "测试用例分派概览";
 $TLS_link_report_metrics_active_build = "活动版本的进度";
 $TLS_link_report_metrics_more_builds = "查询进度";
 $TLS_link_report_not_run = "尚未执行的测试用例";
+$TLS_link_report_not_run_on_any_platform = "未在任何平台上执行的测试用例";
 $TLS_link_report_not_run_any_platform = "未关联到测试平台的测试用例";
 $TLS_link_report_overall_build = "全部版本的状态";
 $TLS_link_report_reqs_coverage = "基于产品需求的报告";

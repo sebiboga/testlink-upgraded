@@ -173,3 +173,4 @@ $TLS_req_docid_length_exceeded = 'Lungimea ID-ului documentului cerinței depă�
 // ----- issue #1563: after_title / after_preconditions location labels missing from this bundle -----
 $TLS_after_title = 'După titlu';
 $TLS_after_preconditions = 'După precondiții';
+$TLS_link_report_not_run_on_any_platform = "Cazuri de test neexecutate pe nicio platformă";

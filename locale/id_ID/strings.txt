@@ -2500,6 +2500,7 @@ $TLS_link_report_metrics_active_build = "Metrik dari Build yang aktif";
 $TLS_link_report_metrics_more_builds = "Metrik Query";
 
 $TLS_link_report_not_run = "Not run Test Cases";
+$TLS_link_report_not_run_on_any_platform = "Kasus uji yang tidak dijalankan pada platform apa pun";
 $TLS_link_report_overall_build = "Status 'Build' Keseluruhan";
 
 $TLS_link_report_reqs_coverage = "Laporan berdasarkan kebutuhan";

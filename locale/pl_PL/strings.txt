@@ -2996,6 +2996,7 @@ $TLS_link_assigned_tc_overview = "Przegląd przypisania przypadków testowych";
 $TLS_link_report_metrics_active_build = "Metryki dla aktywnego wydania";
 $TLS_link_report_metrics_more_builds = "Metryki zapytanie";
 $TLS_link_report_not_run = "Niewykonane przypadki";
+$TLS_link_report_not_run_on_any_platform = "Przypadki testowe niewykonane na żadnej platformie";
 $TLS_link_report_not_run_any_platform = "Przypadki testowe niewykonane na żadnej platformie";
 $TLS_link_report_overall_build = "Ogólny status dla wydania";
 $TLS_link_report_reqs_coverage = "Raport oparty na wymaganiach";

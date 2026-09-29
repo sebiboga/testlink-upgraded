@@ -3115,6 +3115,7 @@ $TLS_link_assigned_tc_overview = "Overzicht toegewezen testcases";
 $TLS_link_report_metrics_active_build = "Statistieken voor de actieve build";
 $TLS_link_report_metrics_more_builds = "Opgevraagde statistieken";
 $TLS_link_report_not_run = "Niet uitgevoerde testcase";
+$TLS_link_report_not_run_on_any_platform = "Testcases die op geen enkel platform zijn uitgevoerd";
 $TLS_link_report_not_run_any_platform = "Testcases niet uitgevoerd op enig platform";
 $TLS_link_report_overall_build = "Algemene build status";
 $TLS_link_report_reqs_coverage = "Op vereisten gebaseerd rapport";

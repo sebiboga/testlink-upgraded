@@ -2034,6 +2034,7 @@ $TLS_link_report_general_tp_metrics = "일반적인 테스트 계획의 매트�
 $TLS_link_report_metrics_active_build = "사용하는 빌드의 매트릭";
 $TLS_link_report_metrics_more_builds = "매트릭 질의";
 $TLS_link_report_not_run = "실행하지 않은 테스트 케이스들";
+$TLS_link_report_not_run_on_any_platform = "어떤 플랫폼에서도 실행되지 않은 테스트 케이스";
 $TLS_link_report_overall_build = "모든 빌드의 현황";
 $TLS_link_report_reqs_coverage = "요구사항에 따른 보고서";
 $TLS_link_report_tcases_without_tester = "테스터가 지정되지 않은 테스트 케이스들";

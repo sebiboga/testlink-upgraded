@@ -2272,6 +2272,7 @@ $TLS_link_report_general_tp_metrics = "Показатели выполнения
 $TLS_link_report_metrics_active_build = "Показатели выполнения тест-плана";
 $TLS_link_report_metrics_more_builds = "Запрос по параметрам";
 $TLS_link_report_not_run = "Незапускавшиеся тесты";
+$TLS_link_report_not_run_on_any_platform = "Тест-кейсы, не выполненные ни на одной платформе";
 $TLS_link_report_overall_build = "Суммарный результат прогона по версиям";
 $TLS_link_report_reqs_coverage = "Отчет о выполнении требований";
 $TLS_link_report_tcases_without_tester = "Тесты, для которых не назначены тестировщики";

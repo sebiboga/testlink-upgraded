@@ -257,6 +257,26 @@ $tlCfg->reports_list['free_tcases'] = array(
 'format' => 'format_html'
 );
 
+// Refs #1717 - Test Cases not run on any Platform (tcNotRunAnyPlatform)
+// modernized. The legacy entry was absent from this list, which is why the
+// report was unreachable from the Reports ASIDE menu even though the
+// controller and the dashio/classic templates still existed. It is
+// re-registered here pointing at the modern screen; the BFF action
+// not_run_any_platform rebuilds the report from
+// tlTestPlanMetrics::getNeverRunByPlatform() and enforces
+// testplan_metrics. directLink is empty: the modern screen is HTML only.
+$tlCfg->reports_list['tcNotRunAnyPlatform'] = array(
+	'title' => 'link_report_not_run_on_any_platform',
+	'url' => 'gui/templates/results/tcNotRunAnyPlatform.html',
+	// 'all' and NOT 'testplan': the Reports ASIDE block in
+	// lib/general/asideMenu.php only accepts enabled = all|req|bts, and the
+	// whole block is already gated on a test plan being selected
+	// ($_SESSION['testplanID'] > 0). An unknown 'testplan' value makes the
+	// entry silently invisible.
+	'enabled' => 'all', 'directLink' => '',
+	'format' => 'format_html'
+);
+
 $report = 'report_exec_timeline';
 $tlCfg->reports_list[$report] = array( 
 	'title' => 'link_report_exec_timeline',

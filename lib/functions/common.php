@@ -2084,6 +2084,16 @@ function getActions(&$gui,$baseURL) {
   // Refs #1568: Metrics & Reports launcher hub (legacy lib/results/resultsNavigator.php)
   $actions->resultsNav = "/gui/templates/results/resultsNavigator.html?{$ctx}";
 
+  // Refs #1717: Test Cases not run on any Platform (tcNotRunAnyPlatform)
+  // modernized. The legacy controller cannot be linked: it requires the
+  // removed results.class.php and then calls $re->getMapOfLastResult() on a
+  // null object, so the legacy URL is a hard fatal. The modern screen reads
+  // the BFF action not_run_any_platform, which rebuilds the same report from
+  // tlTestPlanMetrics::getNeverRunByPlatform() and enforces
+  // testplan_metrics server-side.
+  $actions->tcNotRunAnyPlatform =
+    "/gui/templates/results/tcNotRunAnyPlatform.html?{$ctx}";
+
 
   $pp = $bb . '/plan';
   // Test Plan Management modernized screen (Dashio standalone page) - Refs #576

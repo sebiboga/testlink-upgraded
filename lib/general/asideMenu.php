@@ -228,6 +228,16 @@ if($tplanID > 0) {
       // the BFF (api/reports results_bugs action) reuses the very same
       // testplan::getAllExecutionsWithBugs() / getLTCVNewGeneration() calls
       // and enforces testplan_metrics.
+      // Refs #1717 - Test Cases not run on any Platform
+      // (tcNotRunAnyPlatform) modernized; the BFF (api/reports
+      // not_run_any_platform action) rebuilds the report from
+      // tlTestPlanMetrics::getNeverRunByPlatform() and enforces
+      // testplan_metrics. The legacy controller is fatally broken (it
+      // requires the removed results.class.php and calls
+      // getMapOfLastResult() on a null object), so it is not linked.
+      } else if($rptItem['title'] == 'link_report_not_run_on_any_platform') {
+        $hrefR = 'gui/templates/results/tcNotRunAnyPlatform.html' .
+                 "?tproject_id={$tprojectID}&tplan_id={$tplanID}";
       } else if($rptItem['title'] == 'link_report_total_bugs') {
         $hrefR = 'gui/templates/results/resultsBugs.html' .
                  "?tproject_id={$tprojectID}&tplan_id={$tplanID}&type=0";

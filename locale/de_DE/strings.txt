@@ -2869,6 +2869,7 @@ $TLS_link_assigned_tc_overview = "Übersicht der Testzuweisungen";
 $TLS_link_report_metrics_active_build = "Testplan Überblick des Aktiven Build";
 $TLS_link_report_metrics_more_builds = "Abfrage Metriken";
 $TLS_link_report_not_run = "Nicht durchgeführte Testfälle";
+$TLS_link_report_not_run_on_any_platform = "Testfälle, die auf keiner Plattform ausgeführt wurden";
 $TLS_link_report_not_run_any_platform = "Auf keiner Plattform durchgeführte Testfälle";
 $TLS_link_report_overall_build = "Der gesamte Build Status";
 $TLS_link_report_reqs_coverage = "Report basierend auf Anforderungen";

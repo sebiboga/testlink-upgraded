@@ -2912,6 +2912,7 @@ $TLS_link_report_by_tester_per_build = "Matrice d'avancement par testeur et par 
 $TLS_link_assigned_tc_overview = "Matrice d'assignation d'exécution des fiches de test";
 $TLS_link_report_metrics_more_builds = "Métriques de requêtes";
 $TLS_link_report_not_run = "Matrice des fiches de test non exécutées";
+$TLS_link_report_not_run_on_any_platform = "Cas de test non exécutés sur aucune plateforme";
 $TLS_link_report_reqs_coverage = "Matrice de conformité des exigences";
 $TLS_link_report_tcases_without_tester = "Matrice des fiches de test non affectées";
 $TLS_link_report_test = "Matrice de résultats de test";

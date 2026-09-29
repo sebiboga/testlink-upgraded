@@ -2947,6 +2947,7 @@ $TLS_link_report_by_tester_per_build = "Results by Tester per Build";
 $TLS_link_assigned_tc_overview = "Test Case Assignment Overview";
 $TLS_link_report_metrics_more_builds = "Query Metrics";
 $TLS_link_report_not_run = "Not run Test Cases";
+$TLS_link_report_not_run_on_any_platform = "Test Cases not run on any Platform";
 $TLS_link_report_reqs_coverage = "Requirements based Report";
 $TLS_link_report_tcases_without_tester = "Test Cases without Tester Assignment";
 $TLS_link_report_test = "Test Result Matrix";

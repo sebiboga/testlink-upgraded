@@ -2962,6 +2962,7 @@ $TLS_link_assigned_tc_overview = "Resumen de Asignación de Casos de Prueba";
 $TLS_link_report_metrics_active_build = "Métricas de la Build Activa";
 $TLS_link_report_metrics_more_builds = "Métricas por Consulta";
 $TLS_link_report_not_run = "Casos de Prueba No Ejecutados";
+$TLS_link_report_not_run_on_any_platform = "Casos de prueba no ejecutados en ninguna plataforma";
 $TLS_link_report_not_run_any_platform = "Casos de Prueba no ejecutados en ninguna Plataforma";
 $TLS_link_report_overall_build = "Estado Global de la Build";
 $TLS_link_report_reqs_coverage = "Informe basado en los Requisitos";
