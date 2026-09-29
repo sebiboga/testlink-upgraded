@@ -88,6 +88,32 @@ table.dataTable tbody tr.spec-child-row td:first-child { border-left: 3px solid 
 .fp-cb input { margin: 0; }
 .cf-row { border-top: 1px dashed #e3e6ea; margin-top: 10px; padding-top: 10px; }
 .match-badge { background: #4ECDC4; color: #10312f; border: 1px solid #3dbdb5; }
+/* Refs #1027 - reorder / move specifications (legacy requirement-spec tree DnD) */
+.btn-teal:disabled { background: #6d8f8c; cursor: not-allowed; }
+table.ord { width: 100%; border-collapse: collapse; }
+table.ord th { background: #f7f7f7; font-size: 11px; text-transform: uppercase; letter-spacing: .5px;
+  color: #666; text-align: left; padding: 9px 10px; border-bottom: 1px solid #e5e5e5; font-weight: 700; }
+table.ord td { padding: 7px 10px; border-bottom: 1px solid #f0f0f0; font-size: 13px; color: #333; vertical-align: middle; }
+table.ord tr.dragging td { background: #f0fbf9; }
+table.ord tr.pick td { background: #e8f8f2; }
+td.pos { width: 42px; text-align: center; color: #999; font-weight: 700; font-size: 12px; }
+td.ordid { width: 120px; font-weight: 700; color: #22242a; }
+td.ordact { width: 260px; white-space: nowrap; }
+.rm { display: inline-block; color: #888; font-size: 11px; border: 1px solid #ddd; border-radius: 4px;
+  padding: 3px 7px; margin-right: 4px; cursor: pointer; background: #fafafa; }
+.rm:hover { color: #2d8e88; border-color: #2d8e88; }
+.rm.dis { opacity: .35; cursor: not-allowed; }
+.rm.dis:hover { color: #888; border-color: #ddd; }
+.rm.pick { background: #4ECDC4; color: #fff; border-color: #4ECDC4; font-weight: 700; }
+.rm.pick.on { background: #22242a; border-color: #22242a; }
+.grip { color: #bbb; cursor: grab; }
+.ord-depth { display: inline-block; height: 14px; vertical-align: middle; }
+.ord-depth i { display: inline-block; width: 14px; height: 14px; border-left: 1px solid #dcdfe6;
+  border-bottom: 1px solid #dcdfe6; margin-bottom: 3px; }
+.chip { background: #22242a; color: #4ECDC4; padding: 3px 10px; border-radius: 3px; font-weight: 700;
+  font-size: 11px; }
+.chip.gray { background: #eceff1; color: #607d8b; }
+.ord-hint { color: #999; font-size: 12px; margin-bottom: 10px; }
 </style>
 </head>
 <body>
@@ -106,6 +132,9 @@ table.dataTable tbody tr.spec-child-row td:first-child { border-left: 3px solid 
   <button class="btn-teal" id="btnCreateSpec" onclick="openSpecCreate()" style="display:none"><i class="fa fa-plus"></i> <span data-i18n="rs.createSpec">Create Spec</span></button>
   <button class="btn-teal" id="btnImportReqs" onclick="goImportReqs()" style="display:none"><i class="fa fa-upload"></i> <span data-i18n="reqimp.header">Requirement Import</span></button>
   <button class="btn-teal" id="btnExportReqs" onclick="goExportReqs()" style="display:none"><i class="fa fa-download"></i> <span data-i18n="reqexp.export">Export</span></button>
+  <!-- Refs #1027: legacy requirement-spec tree drag-and-drop (dragdroprequirementnodes.php
+       doAction=doReorder|changeParent) - reorder + re-parent the specifications here. -->
+  <button class="btn-teal" id="btnReorderSpecs" onclick="openReorderModal()" style="display:none;background:#22242a;"><i class="fa fa-sort-amount-down"></i> <span data-i18n="rso.reorderSpecs">Reorder specifications</span></button>
 </div>
 
 <!-- Refs #1025: requirement filter panel, port of tlRequirementFilterControl + inc_filter_panel.tpl -->
@@ -189,6 +218,9 @@ table.dataTable tbody tr.spec-child-row td:first-child { border-left: 3px solid 
       <h2><span data-i18n="rs.reqsOf">Requirements of</span> <b id="reqPanelSpecName" style="color:#2d8e88;"></b><span class="count" id="reqCount"></span></h2>
       <span style="flex:1"></span>
       <button class="btn-teal" id="btnCreateReq" onclick="openReqCreate()" style="display:none"><i class="fa fa-plus"></i> <span data-i18n="rs.createReq">Create Requirement</span></button>
+      <!-- Refs #1027: the requirement half of the legacy tree drag-and-drop lives in
+           reqTreeReorder.html (api/reqtreereorder, #1681) - reachable from the tree now. -->
+      <a class="btn-teal" id="btnReqReorder" href="javascript:void(0)" onclick="goReqReorder()" style="display:none;background:#22242a;text-decoration:none;"><i class="fa fa-sort-amount-down"></i> <span data-i18n="rso.reorderReqs">Reorder / move requirements</span></a>
       <button class="btn-teal" style="background:#22242a;" onclick="closeReqPanel()"><i class="fa fa-times"></i> <span data-i18n="rs.closeReqs">Close</span></button>
     </div>
   </div>
@@ -323,6 +355,93 @@ table.dataTable tbody tr.spec-child-row td:first-child { border-left: 3px solid 
   </div>
 </div>
 
+<!-- Refs #1027 - Reorder / move specifications (legacy tree drag-and-drop) -->
+<div class="modal fade" id="reorderModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fa fa-sort-amount-down"></i> <span data-i18n="rso.reorderSpecs">Reorder specifications</span></h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="ord-hint"><i class="fa fa-grip-vertical"></i> <span data-i18n="rso.reorderHint">Drag a row, or use the arrow buttons, to change the order of the specifications of one parent. Nothing is written until you apply it.</span></div>
+        <div id="ordDirty" style="margin-bottom:10px;display:none;"><span class="chip" data-i18n="rso.unsaved">Unsaved order</span></div>
+        <div id="ordError" style="color:#e6605e;font-size:12px;margin-bottom:8px;display:none;"></div>
+        <div id="ordEmpty" class="empty" style="display:none" data-i18n="rso.noSpecsToReorder">No requirement specifications defined for this test project yet</div>
+        <table class="ord" id="ordTable">
+          <thead>
+            <tr>
+              <th style="width:30px"></th>
+              <th style="width:42px" data-i18n="rso.colPos">Pos</th>
+              <th style="width:120px" data-i18n="rs.colDocId">Doc ID</th>
+              <th data-i18n="rs.colTitle">Title</th>
+              <th style="width:270px" data-i18n="rso.colActions">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="ordBody"></tbody>
+        </table>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-teal" id="ordApplyBtn" onclick="applyReorder()"><i class="fa fa-save"></i> <span data-i18n="rso.applyOrder">Apply order</span></button>
+        <button type="button" class="btn-grey" onclick="discardReorder()"><i class="fa fa-undo"></i> <span data-i18n="rso.discard">Discard changes</span></button>
+        <button type="button" class="btn btn-secondary" data-dismiss="modal" style="font-size:13px;" data-i18n="common.close">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Refs #1027 - Move a specification under another parent (legacy changeParent) -->
+<div class="modal fade" id="moveModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fa fa-exchange"></i> <span data-i18n="rso.moveSpec">Move specification</span></h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group" style="margin-bottom:12px;">
+          <label data-i18n="rso.specToMove">Specification to move</label>
+          <div id="moveSpecName" style="font-size:13px;color:#2d8e88;font-weight:700;"></div>
+        </div>
+        <div class="form-group" style="margin-bottom:12px;">
+          <label for="moveParentSel" data-i18n="rso.newParent">New parent specification</label>
+          <select id="moveParentSel" class="form-control" style="font-size:13px;"></select>
+        </div>
+        <div class="form-group" style="margin-bottom:4px;">
+          <label for="movePosSel" data-i18n="rso.position">Position</label>
+          <select id="movePosSel" class="form-control" style="font-size:13px;">
+            <option value="bottom" data-i18n="rso.positionBottom">At the bottom</option>
+            <option value="top" data-i18n="rso.positionTop">At the top</option>
+          </select>
+          <div class="hint" style="font-size:11px;color:#888;" data-i18n="rso.moveHint">Moving a specification moves its whole subtree with it</div>
+        </div>
+        <div id="moveError" style="color:#e6605e;font-size:12px;margin-top:8px;display:none;"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-teal" onclick="doMoveSpec()"><i class="fa fa-check"></i> <span data-i18n="rso.move">Move</span></button>
+        <button type="button" class="btn btn-secondary" data-dismiss="modal" style="font-size:13px;" data-i18n="common.cancel">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Refs #1027 - confirmation before writing the new order (mirrors reqTreeReorder) -->
+<div class="modal fade" id="ordConfirmModal" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="ocTitle"></h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+      </div>
+      <div class="modal-body" id="ocBody" style="font-size:13px;"></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal" style="font-size:13px;" data-i18n="common.cancel">Cancel</button>
+        <button type="button" class="btn-teal" id="ocOk"></button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script src="/gui/templates/i18n/i18n.js"></script>
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
@@ -418,6 +537,8 @@ function load() {
     $('#btnCreateSpec').toggle(canManage);
     $('#btnImportReqs').toggle(canManage);
     $('#btnExportReqs').show();
+    // Refs #1027 - the reorder/move gesture needs mgt_modify_req
+    $('#btnReorderSpecs').toggle(canManage);
     // Refs #1026 - expand/collapse pair only makes sense once a nested spec exists
     $('#btnExpandAll, #btnCollapseAll').show();
     renderDomains();
@@ -581,7 +702,7 @@ function renderDomains() {
   fillSelect($('#reqType'), options.reqTypes, options.defaultReqType);
 }
 
-function loadSpecs() {
+function loadSpecs(extraDone) {
   var fq = filterQuery(activeFilters);
   $.getJSON(API + '?action=specs&tproject_id=' + tprojectId + fq, function (r) {
     if (r.status !== 'ok') { toast(TLi18n.t('common.error'), true); return; }
@@ -591,6 +712,7 @@ function loadSpecs() {
     childMgmt = !!r.child_requirements_mgmt;
     totalReqs = parseInt(r.total_reqs || 0, 10);
     renderSpecs(specsCache);
+    if (typeof extraDone === 'function') { extraDone(); }
   }).fail(function (xhr) {
     var msg = TLi18n.t('common.error');
     try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
@@ -775,7 +897,20 @@ function selectSpec(id) {
   $('#reqPanelSpecName').text(title);
   $('#reqPanel').data('spec-id', id).show();
   $('#btnCreateReq').toggle(canManage);
+  // Refs #1027 - requirement move/reorder entry point (reqTreeReorder.html, #1681)
+  $('#btnReqReorder').toggle(canManage).attr('href',
+    '/gui/templates/requirements/reqTreeReorder.html?tproject_id=' + tprojectId +
+    '&req_spec_id=' + id);
   loadReqs(id);
+}
+
+// Refs #1027 - hand the requirement half of the legacy tree drag-and-drop over to
+// the modern screen that owns it (api/reqtreereorder, Refs #1681).
+function goReqReorder() {
+  var specId = currentSpecId();
+  if (!specId) { return; }
+  window.open('/gui/templates/requirements/reqTreeReorder.html?tproject_id=' +
+              tprojectId + '&req_spec_id=' + specId, '_self');
 }
 
 function closeReqPanel() {
@@ -1124,6 +1259,412 @@ function confirmDeleteReq(id) {
   $('#delMsg').html('<b>' + esc(title) + '</b><br>' +
                     esc(TLi18n.t('rs.deleteReqConfirm')));
   $('#delModal').modal('show');
+}
+
+// ---------------------------------------- Refs #1027 reorder / move specs ----
+// Modern port of the legacy requirement-spec tree drag-and-drop: the ExtJS tree
+// (reqSpecListTree.tpl treeCfg.enableDD/dragDropBackEndUrl) posted every gesture to
+// lib/ajax/dragdroprequirementnodes.php (doAction=doReorder -> node_order,
+// doAction=changeParent -> parent_id). That file did no rights/ownership check
+// and mutated on GET; it is now a shim, and the write lives behind
+// api/reqspec (?action=reorder_specs / ?action=move_spec, Refs #1027).
+//
+// The tree list is flat and in TREE order (a parent is always followed by its
+// children), so a reorder gesture is only ever applied WITHIN one parent group;
+// applyReorder() therefore posts one reorder_specs per parent that changed.
+var ordRows = [];      // [{id, doc_id, title, parentId, depth}]
+var ordSaved = '';    // serialized saved order, for the "unsaved" chip
+var savedGroups = {}; // parentId -> saved server order, captured on open
+var moveTargetId = 0;
+var reopenReorder = false;
+
+function specById(id) {
+  var found = null;
+  $.each(specsCache, function (i, s) {
+    if (parseInt(s.id, 10) === parseInt(id, 10)) { found = s; return false; }
+  });
+  return found;
+}
+
+function flattenSpecTree(items) {
+  var out = [];
+  var byParent = {};
+  $.each(items, function (i, s) {
+    var p = parseInt(s.parent_id || 0, 10);
+    if (!byParent[p]) { byParent[p] = []; }
+    byParent[p].push(s);
+  });
+  var byOrder = function (a, b) {
+    var d = parseInt(a.node_order || 0, 10) - parseInt(b.node_order || 0, 10);
+    return d !== 0 ? d : (parseInt(a.id, 10) - parseInt(b.id, 10));
+  };
+  var seen = {};
+  var walk = function (parentId, depth) {
+    var list = (byParent[parentId] || []).slice().sort(byOrder);
+    for (var i = 0; i < list.length; i++) {
+      var s = list[i];
+      if (seen[s.id]) { continue; }
+      seen[s.id] = true;
+      out.push({ id: s.id, doc_id: s.doc_id, title: s.title,
+                 parentId: parseInt(s.parent_id || 0, 10), depth: depth });
+      walk(s.id, depth + 1);
+    }
+  };
+  walk(0, 0);
+  return out;
+}
+
+function ordSignature() {
+  return ordRows.map(function (r) { return r.id; }).join(',');
+}
+
+function openReorderModal() {
+  if (!canManage) { toast(TLi18n.t('common.error'), true); return; }
+  $('#ordError').hide().text('');
+  ordRows = flattenSpecTree(specsCache);
+  savedGroups = collectGroups(ordRows);
+  ordSaved = ordSignature();
+  renderOrdTable();
+  $('#reorderModal').modal('show');
+}
+
+// Re-open the reorder modal keeping the PENDING order: the Move gesture runs in
+// a second modal, and a cancel must not throw away edits the user already made.
+function showReorderModal() {
+  if (!ordRows.length) {
+    ordRows = flattenSpecTree(specsCache);
+    savedGroups = collectGroups(ordRows);
+    ordSaved = ordSignature();
+    renderOrdTable();
+  }
+  $('#reorderModal').modal('show');
+}
+
+// parentId -> [spec ids in the saved server order]
+function collectGroups(rows) {
+  var groups = {};
+  rows.forEach(function (r) {
+    if (!groups[r.parentId]) { groups[r.parentId] = []; }
+    groups[r.parentId].push(r.id);
+  });
+  return groups;
+}
+
+function savedOrderOf(parentId) {
+  return ((savedGroups[parentId] || [])).join(',') || '';
+}
+
+function renderOrdTable() {
+  var $body = $('#ordBody').empty();
+  $('#ordEmpty').toggle(ordRows.length === 0);
+  $('#ordTable').toggle(ordRows.length > 0);
+
+  ordRows.forEach(function (row, i) {
+    var tr = $('<tr></tr>');
+    // No draggable rows without modify rights: the drop handler ignores the
+    // gesture, so a draggable row would be an affordance that does nothing.
+    tr.attr('draggable', canManage ? 'true' : 'false');
+    tr.attr('data-id', row.id);
+    var indent = '';
+    for (var d = 0; d < row.depth; d++) { indent += '<span class="ord-depth"><i></i></span>'; }
+    tr.append($('<td></td>').append(
+      $('<span class="grip" title="' + esc(TLi18n.t('rso.dragRow')) +
+        '"><i class="fa fa-grip-vertical"></i></span>')));
+    tr.append($('<td class="pos"></td>').text(i + 1));
+    tr.append($('<td class="ordid"></td>').text(row.doc_id));
+    tr.append($('<td></td>').html(indent + '<span class="doc-id">' + esc(row.title) + '</span>'));
+
+    // Reorder controls are bound to THIS row index - a reorder control must
+    // always act on the row it lives in, never on the picked specification.
+    var act = $('<td class="ordact"></td>');
+    act.append(ordBtn('fa-arrow-up', TLi18n.t('rso.moveUp'), 'up', i));
+    act.append(ordBtn('fa-arrow-down', TLi18n.t('rso.moveDown'), 'down', i));
+    act.append(ordBtn('fa-chevron-up', TLi18n.t('rso.moveTop'), 'top', i));
+    act.append(ordBtn('fa-chevron-down', TLi18n.t('rso.moveBottom'), 'bottom', i));
+    var mv = $('<span class="rm" title="' + esc(TLi18n.t('rso.moveToParent')) +
+      '"><i class="fa fa-exchange"></i> ' + esc(TLi18n.t('rso.move')) + '</span>');
+    mv.on('click', function () { openMoveModal(row.id); });
+    act.append(mv);
+    tr.append(act);
+
+    tr.on('dragstart', function (e) {
+      tr.addClass('dragging');
+      e.originalEvent.dataTransfer.setData('text/plain', String(i));
+    });
+    tr.on('dragend', function () { tr.removeClass('dragging'); markOrdDirty(); });
+    tr.on('dragover', function (e) { e.preventDefault(); });
+    tr.on('drop', function (e) {
+      e.preventDefault();
+      if (!canManage) { return; }
+      var from = parseInt(e.originalEvent.dataTransfer.getData('text/plain') || '-1', 10);
+      if (from < 0 || from >= ordRows.length || from === i) { return; }
+      // Children always follow their parent: a row may only be dropped on a
+      // position inside the same parent group, otherwise the parent link of the
+      // moved subtree would have to be rewritten by a reorder (that is what the
+      // Move gesture is for).
+      if (ordRows[from].parentId !== row.parentId) {
+        showError($('#ordError'), TLi18n.t('rso.errDifferentParent'));
+        return;
+      }
+      var mv2 = ordRows.splice(from, 1)[0];
+      ordRows.splice(i > from ? i - 1 : i, 0, mv2);
+      renderOrdTable();
+      markOrdDirty();
+    });
+
+    $body.append(tr);
+  });
+  applyOrdRowState();
+}
+
+function ordBtn(icon, label, dir, idx) {
+  var b = $('<span class="rm" data-mv="' + dir + '"><i class="fa ' + icon + '"></i> ' +
+             esc(label) + '</span>');
+  b.on('click', function () { nudgeOrd(idx, dir); });
+  return b;
+}
+
+function nudgeOrd(i, dir) {
+  if (!canManage || i < 0 || i >= ordRows.length) { return; }
+  var p = ordRows[i].parentId;
+  var j;
+  if (dir === 'up' || dir === 'down') {
+    j = i + (dir === 'up' ? -1 : 1);
+    // Steps may never cross a parent boundary: the parent of a specification is
+    // the Move gesture's business, not the order gesture's.
+    if (j < 0 || j >= ordRows.length || ordRows[j].parentId !== p) { return; }
+  } else {
+    j = (dir === 'top') ? firstIndexOfParent(p) : lastIndexOfParent(p);
+    if (j < 0 || j === i) { return; }
+  }
+  var mv = ordRows.splice(i, 1)[0];
+  ordRows.splice(j, 0, mv);
+  renderOrdTable();
+  markOrdDirty();
+}
+
+function firstIndexOfParent(parentId) {
+  for (var i = 0; i < ordRows.length; i++) {
+    if (ordRows[i].parentId === parentId) { return i; }
+  }
+  return -1;
+}
+
+function lastIndexOfParent(parentId) {
+  for (var i = ordRows.length - 1; i >= 0; i--) {
+    if (ordRows[i].parentId === parentId) { return i; }
+  }
+  return -1;
+}
+
+function applyOrdRowState() {
+  var n = ordRows.length;
+  $('#ordBody tr').each(function (i) {
+    var $r = $(this);
+    $r.find('.rm[data-mv]').each(function () {
+      var d = $(this).data('mv');
+      var dis = !canManage;
+      if (d === 'up' && i === firstIndexOfParent(ordRows[i].parentId)) { dis = true; }
+      if (d === 'down' && i === lastIndexOfParent(ordRows[i].parentId)) { dis = true; }
+      if (d === 'top' && i === firstIndexOfParent(ordRows[i].parentId)) { dis = true; }
+      if (d === 'bottom' && i === lastIndexOfParent(ordRows[i].parentId)) { dis = true; }
+      $(this).toggleClass('dis', dis);
+    });
+  });
+}
+
+function markOrdDirty() {
+  $('#ordDirty').toggle(ordSignature() !== ordSaved);
+}
+
+function discardReorder() {
+  ordRows = flattenSpecTree(specsCache);
+  ordSaved = ordSignature();
+  $('#ordError').hide().text('');
+  renderOrdTable();
+  markOrdDirty();
+}
+
+// One reorder_specs POST per parent group whose order changed.
+function applyReorder() {
+  if (!canManage) { return; }
+  var groups = collectGroups(ordRows);
+  var keys = [];
+  for (var k in groups) { if (groups.hasOwnProperty(k)) { keys.push(parseInt(k, 10)); } }
+  if (!keys.length) { return; }
+  // Only groups whose order differs from what the server last saved are sent,
+  // mirroring the legacy changeorder.php "nothing to do" guard.
+  var changed = false;
+  keys.forEach(function (pid) {
+    if (groups[pid].join(',') !== savedOrderOf(pid)) { changed = true; }
+  });
+  if (!changed) {
+    toast(TLi18n.t('rso.msg.orderUnchanged'));
+    return;
+  }
+  ordConfirm(
+    TLi18n.t('rso.orderConfirmTitle'), TLi18n.t('rso.orderConfirmMsg'),
+    TLi18n.t('rso.applyOrder'), function () { sendReorderGroups(groups, keys); });
+}
+
+function savedOrderOf(parentId) {
+  return ((savedGroups[parentId] || [])).join(',');
+}
+
+function sendReorderGroups(groups, keys) {
+  $('#ordApplyBtn').prop('disabled', true);
+  $('#ordError').hide().text('');
+  // Sequential: every group is a separate table write, chained so a failure
+  // stops the chain instead of leaving a half-applied tree behind.
+  var results = [];
+  var queue = keys.slice().sort(function (a, b) { return a - b; });
+  var step = function (i) {
+    if (i >= queue.length) { finishApply(results); return; }
+    var parentId = queue[i];
+    $.ajax({
+      url: API + '?action=reorder_specs', method: 'POST',
+      contentType: 'application/json',
+      data: JSON.stringify({ tproject_id: tprojectId, parent_id: parentId,
+                             nodes_order: groups[parentId] })
+    }).done(function (r) {
+      results.push({ parent: parentId, status: r.status, message: r.message || '' });
+      step(i + 1);
+    }).fail(function (xhr) {
+      var r = {};
+      try { r = JSON.parse(xhr.responseText); } catch (e) {}
+      results.push({ parent: parentId, status: 'error',
+                     message: r.message || TLi18n.t('common.error') });
+      finishApply(results);
+    });
+  };
+  step(0);
+}
+
+function finishApply(results) {
+  $('#ordApplyBtn').prop('disabled', false);
+  var changed = 0;
+  var errs = [];
+  $.each(results, function (i, r) {
+    if (r.status === 'ok') { changed++; } else if (r.status === 'no_change') { /* nothing to write */ }
+    else { errs.push(r.message); }
+  });
+  if (errs.length) {
+    showError($('#ordError'), errs.join(' '));
+    toast(errs[0], true);
+    return;
+  }
+  ordSaved = ordSignature();
+  $('#ordDirty').hide();
+  $('#reorderModal').modal('hide');
+  toast(changed ? TLi18n.t('rso.msg.reordered') : TLi18n.t('rso.msg.orderUnchanged'));
+  loadSpecs();
+}
+
+function ordConfirm(title, body, okLabel, onOk) {
+  var el = document.getElementById('ordConfirmModal');
+  $('#ocTitle').text(title);
+  $('#ocBody').text(body);
+  $('#ocOk').text(okLabel);
+  $('#ocOk').off('click').on('click', function () {
+    $(el).modal('hide');
+    onOk();
+  });
+  if ($.fn && $.fn.modal) { $(el).modal('show'); }
+  else if (window.confirm(title + '\n\n' + body)) { onOk(); }
+}
+
+// ------------------------------------- Refs #1027 move a spec to a parent ----
+function specSubtreeIdsOf(id) {
+  var out = [];
+  var walk = function (pid) {
+    $.each(specsCache, function (i, s) {
+      if (parseInt(s.parent_id || 0, 10) === parseInt(pid, 10)) {
+        out.push(parseInt(s.id, 10));
+        walk(parseInt(s.id, 10));
+      }
+    });
+  };
+  walk(parseInt(id, 10));
+  out.push(parseInt(id, 10));
+  return out;
+}
+
+function openMoveModal(id) {
+  if (!canManage) { toast(TLi18n.t('common.error'), true); return; }
+  var spec = specById(id);
+  if (!spec) { toast(TLi18n.t('common.error'), true); return; }
+  moveTargetId = parseInt(spec.id, 10);
+  $('#moveSpecName').text(spec.doc_id + ' - ' + spec.title);
+  $('#moveError').hide().text('');
+
+  // A spec may not become a child of itself or of its own subtree, and nesting
+  // is only offered when req_cfg->child_requirements_mgmt is ENABLED - the
+  // legacy forbidden-parent guard (getrequirementnodes.php l.46-51).
+  var blocked = {};
+  $.each(specSubtreeIdsOf(moveTargetId), function (i, bid) { blocked[bid] = true; });
+  var $sel = $('#moveParentSel').empty();
+  $sel.append($('<option>', { value: '0', text: TLi18n.t('rs.parentTopLevel') }));
+  if (childMgmt) {
+    var walk = function (parentId, prefix) {
+      $.each(ordRows.length ? ordRows : flattenSpecTree(specsCache), function (i, r) {
+        if (r.parentId !== parseInt(parentId, 10)) { return; }
+        if (blocked[parseInt(r.id, 10)]) { return; }
+        $sel.append($('<option>', {
+          value: r.id,
+          text: prefix + r.doc_id + ' - ' + r.title
+        }));
+        walk(parseInt(r.id, 10), prefix + '\u00A0\u00A0\u00A0');
+      });
+    };
+    walk(0, '');
+  } else {
+    $sel.prop('disabled', true);
+  }
+  $sel.val(String(parseInt(spec.parent_id || 0, 10)));
+  if ($sel.val() === null || $sel.find('option[value="' + String(spec.parent_id || 0) + '"]').length === 0) {
+    $sel.val('0');
+  }
+  // Two stacked Bootstrap modals fight over the backdrop / body scroll lock, so
+  // the reorder modal is hidden while the move modal is up and restored after.
+  reopenReorder = true;
+  $('#reorderModal').modal('hide');
+  $('#moveModal').modal('show');
+}
+
+$(function () {
+  $('#moveModal').on('hidden.bs.modal', function () {
+    if (!reopenReorder) { return; }
+    reopenReorder = false;
+    showReorderModal();
+  });
+});
+
+function doMoveSpec() {
+  if (!canManage || !moveTargetId) { return; }
+  var body = {
+    tproject_id: tprojectId,
+    spec_id: moveTargetId,
+    new_parent_id: parseInt($('#moveParentSel').val() || '0', 10),
+    position: $('#movePosSel').val()
+  };
+  $.ajax({ url: API + '?action=move_spec', method: 'POST',
+           contentType: 'application/json', data: JSON.stringify(body) })
+    .done(function (r) {
+      $('#moveModal').modal('hide');
+      if (r.status === 'ok') { toast(TLi18n.t('rso.msg.moved')); }
+      else { toast(TLi18n.t('rso.msg.moveUnchanged')); }
+      loadSpecs();
+      // the pending order is stale after a move: rebuild it from the new tree
+      ordRows = flattenSpecTree(specsCache);
+      savedGroups = collectGroups(ordRows);
+      ordSaved = ordSignature();
+      renderOrdTable();
+    })
+    .fail(function (xhr) {
+      var r = {};
+      try { r = JSON.parse(xhr.responseText); } catch (e) {}
+      showError($('#moveError'), r.message || TLi18n.t('common.error'));
+    });
 }
 
 function showError($el, msg) {

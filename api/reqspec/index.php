@@ -34,6 +34,18 @@
  *   POST ?action=create_req                {tproject_id,spec_id,req_doc_id,title,status,type,expected_coverage,scope}
  *   POST ?action=update_req&id=N           {tproject_id,req_doc_id,title,status,type,expected_coverage,scope}
  *   POST ?action=delete_req&id=N&tproject_id=N
+ *   Refs #1027: the two write gestures of the legacy requirement-specification
+ *   tree drag-and-drop (lib/ajax/dragdroprequirementnodes.php, retired in
+ *   #1681 - it did NO rights/ownership check and a GET mutated):
+ *   POST ?action=reorder_specs             {tproject_id,parent_id,nodes_order:[spec_id,...]}
+ *         Rewrites node_order of the child specifications of ONE parent
+ *         (parent_id 0 = the test project node, parent_id N = spec N). The
+ *         list must be COMPLETE and duplicate-free; every id must be a spec
+ *         of the addressed project.
+ *   POST ?action=move_spec                  {tproject_id,spec_id,new_parent_id,position}
+ *         Re-parents one specification (new_parent_id 0 = test project root,
+ *         >0 = another spec - gated by req_cfg->child_requirements_mgmt)
+ *         and rewrites its node_order for the requested position.
  */
 
 require_once(__DIR__ . '/../../config.inc.php');
@@ -72,6 +84,10 @@ $action = isset($_REQUEST['action']) ? trim($_REQUEST['action']) : '';
 $BODY = json_decode(file_get_contents('php://input'), true) ?? [];
 
 function out($data) { echo json_encode($data); exit; }
+
+// node_types: 6 = requirement_spec (the only node type a specification node
+// ever has - api/reqtreereorder/index.php:112 uses the same value).
+define('TL_REQ_SPEC_NODE_TYPE', 6);
 
 $tprojectMgr = new testproject($db);
 $reqSpecMgr  = new requirement_spec_mgr($db);
@@ -823,6 +839,218 @@ if ($method === 'POST' && $action === 'delete_spec') {
     // (removes requirements, versions, revisions and coverage too)
     $reqSpecMgr->delete_deep($specId);
     out(['status' => 'ok']);
+}
+
+// ---------------------------------------------- reorder / move (Refs #1027) --
+// The two write gestures of the legacy requirement-specification tree
+// drag-and-drop. Legacy backend: lib/ajax/dragdroprequirementnodes.php with
+// doAction=doReorder     -> tree::change_order_bulk(explode(',', $nodelist))
+//                          -> UPDATE nodes_hierarchy SET node_order = <index>
+// doAction=changeParent  -> UPDATE nodes_hierarchy SET parent_id = <parent>
+// Both ran with NO rights check, NO ownership check and read $_REQUEST (a
+// plain GET mutated); that file is now a non-mutating shim (Refs #1681). Here
+// every submitted id is proved to be a specification of the addressed project
+// and the write requires mgt_modify_req on it.
+
+/**
+ * Ordered child specification ids of a parent NODE (the test project node or a
+ * specification node). Same read order the screen renders:
+ * nodes_hierarchy.node_order ASC, id ASC.
+ */
+function childSpecIds($parentNodeId) {
+    global $db;
+    $rows = $db->get_recordset(
+        'SELECT NH.id FROM nodes_hierarchy NH' .
+        ' JOIN req_specs RS ON RS.id = NH.id' .
+        ' WHERE NH.parent_id = ' . intval($parentNodeId) .
+        '   AND NH.node_type_id = ' . TL_REQ_SPEC_NODE_TYPE .
+        ' ORDER BY NH.node_order ASC, NH.id ASC');
+    $out = [];
+    foreach (($rows ? $rows : []) as $r) {
+        $out[] = intval($r['id']);
+    }
+    return $out;
+}
+
+/** parent_id / node_order of a specification node; [0, 0] when unknown. */
+function specNodePlacement($specId) {
+    global $db;
+    $rows = $db->get_recordset(
+        'SELECT parent_id, node_order FROM nodes_hierarchy WHERE id = '
+        . intval($specId) . ' AND node_type_id = ' . TL_REQ_SPEC_NODE_TYPE);
+    if (!$rows || !$rows[0]) {
+        return [0, 0];
+    }
+    return [intval($rows[0]['parent_id']), intval($rows[0]['node_order'])];
+}
+
+/**
+ * Every specification id in the subtree of $specId, $specId included - the
+ * move cycle guard: a specification may not become a child of its own
+ * descendant (legacy useBeforeMoveNode only refused the obvious cases).
+ */
+function specSubtreeIds($specId) {
+    $seen = [];
+    $stack = [intval($specId)];
+    while (count($stack)) {
+        $cur = array_pop($stack);
+        if (isset($seen[$cur])) { continue; }
+        $seen[$cur] = true;
+        foreach (childSpecIds($cur) as $child) { $stack[] = $child; }
+    }
+    return array_keys($seen);
+}
+
+if ($method === 'POST' && $action === 'reorder_specs') {
+    $tproject_id = needTprojectId();
+    needManageRight($tproject_id);
+
+    // parent_id addresses the PARENT SPECIFICATION of the reordered set;
+    // 0 (or absent) means the top level, i.e. the test project node.
+    $parentSpecId = intval($BODY['parent_id'] ?? 0);
+    if ($parentSpecId > 0) {
+        needOwnedSpec($parentSpecId, $tproject_id);
+    }
+    $parentNodeId = ($parentSpecId > 0) ? $parentSpecId : $tproject_id;
+
+    $submitted = $BODY['nodes_order'] ?? null;
+    if (!is_array($submitted)) {
+        badRequest('nodes_order must be an array of specification ids');
+    }
+    $order = [];
+    $seen = [];
+    foreach ($submitted as $value) {
+        $sid = intval($value);
+        if ($sid <= 0) {
+            badRequest('Invalid specification id in nodes_order');
+        }
+        if (isset($seen[$sid])) {
+            badRequest('Duplicate specification id in nodes_order');
+        }
+        $seen[$sid] = true;
+        $order[] = $sid;
+    }
+
+    $current = childSpecIds($parentNodeId);
+
+    // The list must be complete: the legacy endpoint accepted any comma list
+    // and renumbered exactly the ids it was given, which left the omitted
+    // siblings with stale orders. Ownership of every id is proved by the
+    // membership test below (childSpecIds only returns specs under this
+    // parent, and needOwnedSpec() already proved the parent).
+    if (count($order) !== count($current)) {
+        badRequest('The order list must contain every child specification of the'
+                 . ' selected parent (' . count($current) . ' expected, '
+                 . count($order) . ' received)');
+    }
+    $currentSet = array_flip($current);
+    foreach ($order as $sid) {
+        if (!isset($currentSet[$sid])) {
+            badRequest('Specification ' . $sid
+                     . ' is not a child specification of the selected parent');
+        }
+    }
+
+    if ($order === $current) {
+        out(['status' => 'no_change', 'reordered' => 0,
+             'parent_spec_id' => $parentSpecId]);
+    }
+
+    foreach ($order as $idx => $sid) {
+        $db->exec_query('UPDATE nodes_hierarchy SET node_order = ' . intval($idx)
+                        . ' WHERE id = ' . intval($sid));
+    }
+
+    tLog('BFF reqspec: specifications reordered under node ' . intval($parentNodeId)
+         . ' (' . count($order) . ' specifications).', 'INFO');
+
+    out(['status' => 'ok', 'reordered' => count($order),
+         'parent_spec_id' => $parentSpecId]);
+}
+
+if ($method === 'POST' && $action === 'move_spec') {
+    $tproject_id = needTprojectId();
+    needManageRight($tproject_id);
+
+    $specId = intval($BODY['spec_id'] ?? 0);
+    if ($specId <= 0) { badRequest('Invalid specification id'); }
+    needOwnedSpec($specId, $tproject_id);
+
+    $newParentSpecId = intval($BODY['new_parent_id'] ?? 0);
+    if ($newParentSpecId > 0) {
+        if ($newParentSpecId === $specId) {
+            badRequest('A specification cannot be moved under itself');
+        }
+        needOwnedSpec($newParentSpecId, $tproject_id);
+        // legacy gate: getrequirementnodes.php l.46-51 clears the forbidden
+        // parent guard only when req_cfg->child_requirements_mgmt is ENABLED,
+        // so with the knob OFF a specification may only live at the top level
+        if (!boolishConfig(config_get('req_cfg'), 'child_requirements_mgmt', false)) {
+            http_response_code(403);
+            out(['status' => 'error',
+                 'message' => 'Nesting specifications inside specifications is disabled'
+                           . ' on this server (req_cfg->child_requirements_mgmt)']);
+        }
+        if (in_array($newParentSpecId, specSubtreeIds($specId), true)) {
+            badRequest('A specification cannot be moved under one of its own child'
+                     . ' specifications');
+        }
+    }
+    $newParentNodeId = ($newParentSpecId > 0) ? $newParentSpecId : $tproject_id;
+
+    // The legacy init_args() read a "top_or_bottom" argument and then never
+    // used it, and change_parent() never touched node_order - a moved node kept
+    // the order of its old parent. The position is honoured here.
+    $position = strtolower(trim((string)($BODY['position'] ?? 'bottom')));
+    if ($position !== 'top' && $position !== 'bottom') {
+        badRequest('Position must be "top" or "bottom"');
+    }
+
+    list($curParentNodeId, $curOrder) = specNodePlacement($specId);
+
+    $siblings = childSpecIds($newParentNodeId);
+    $positionHere = array_search($specId, $siblings, true);
+    if ($curParentNodeId === $newParentNodeId && $positionHere !== false) {
+        if (($position === 'top' && $positionHere === 0) ||
+            ($position === 'bottom' && $positionHere === count($siblings) - 1)) {
+            out(['status' => 'no_change',
+                 'message' => 'The specification is already in that position',
+                 'spec_id' => $specId,
+                 'new_parent_spec_id' => $newParentSpecId]);
+        }
+    }
+
+    if ($position === 'top') {
+        // node_order is nullable, so a plain +1 leaves NULL siblings tying with
+        // the row inserted at 0.
+        $db->exec_query(
+            'UPDATE nodes_hierarchy SET node_order = COALESCE(node_order, 0) + 1'
+            . ' WHERE parent_id = ' . intval($newParentNodeId)
+            . '   AND node_type_id = ' . TL_REQ_SPEC_NODE_TYPE
+            . '   AND id <> ' . intval($specId));
+        $newOrder = 0;
+    } else {
+        $maxRow = $db->get_recordset(
+            'SELECT MAX(node_order) AS m FROM nodes_hierarchy'
+            . ' WHERE parent_id = ' . intval($newParentNodeId)
+            . '   AND node_type_id = ' . TL_REQ_SPEC_NODE_TYPE
+            . '   AND id <> ' . intval($specId));
+        $newOrder = (($maxRow && $maxRow[0]) ? intval($maxRow[0]['m']) : -1) + 1;
+    }
+
+    $db->exec_query('UPDATE nodes_hierarchy SET parent_id = '
+                    . intval($newParentNodeId) . ', node_order = ' . intval($newOrder)
+                    . ' WHERE id = ' . intval($specId));
+
+    tLog('BFF reqspec: specification ' . intval($specId) . ' moved from node '
+         . intval($curParentNodeId) . ' (order ' . intval($curOrder) . ') to node '
+         . intval($newParentNodeId) . ' at position ' . $position . '.', 'INFO');
+
+    out(['status' => 'ok', 'moved' => 1, 'spec_id' => $specId,
+         'from_parent_spec_id' => ($curParentNodeId > 0 && $curParentNodeId != $tproject_id)
+                                    ? intval($curParentNodeId) : 0,
+         'new_parent_spec_id' => $newParentSpecId,
+         'position' => $position]);
 }
 
 // ----------------------------------------------------------- requirements ---
