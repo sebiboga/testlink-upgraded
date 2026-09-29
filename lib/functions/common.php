@@ -1984,7 +1984,8 @@ function getActions(&$gui,$baseURL) {
   $actions->installView = "/gui/templates/install/installView.html?{$ctx}";
   // Plugin Management modernized screen (Dashio standalone page) - Refs #636.
   // Legacy right (mgt_plugins) is enforced by the BFF on every route; the
-  // legacy controller lib/plugins/pluginView.php keeps the same check.
+  // legacy controller lib/plugins/pluginView.php (removed in #984) kept the
+  // same check.
   $actions->pluginView = "/gui/templates/plugins/pluginView.html?{$ctx}";
   // Requirement Overview modernized screen (Dashio standalone page) - Refs #566
   $actions->reqOverView = "/gui/templates/requirements/reqOverview.html?{$ctx}";

@@ -3,7 +3,7 @@
  * TestLink Plugins API (BFF)
  * Modernized Installed/Available Plugins management screen (pluginView).
  *
- * Mirrors lib/plugins/pluginView.php behavior:
+ * Mirrors lib/plugins/pluginView.php (removed in #984) behavior:
  *  - lists installed plugins (from plugins table) and available plugins
  *    (scanned from TL_PLUGIN_PATH, not yet registered)
  *  - install: plugin_register + plugin_init + plugin_install

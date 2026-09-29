@@ -911,7 +911,7 @@ $tlCfg->guiTopMenu[7] = array('label' => 'title_events',
                               'shortcut'=>'v','target'=>'mainframe'); 
 $tlCfg->guiTopMenu[8] = array('label' => 'title_plugins',
                               'imgKey' => 'plugins',
-                              'url' => 'lib/plugins/pluginView.php',
+                              'url' => 'gui/templates/plugins/pluginView.html', // Refs #984 modern screen
                               'right' => array('mgt_plugins'),'condition'=>'',
                               'shortcut'=>'p','target'=>'mainframe');
 
