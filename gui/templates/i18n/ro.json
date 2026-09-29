@@ -5695,5 +5695,7 @@
   "cf.node.requirement_spec_revision": "Revizie Specificație de Cerință",
   "cf.node.build": "Build",
   "cf.node.platform": "Platformă",
-  "cf.node.user": "Utilizator"
+  "cf.node.user": "Utilizator",
+  "rmse.msg.nameExists": "Acest nume este deja folosit de alt sistem de gestionare a cerințelor.",
+  "rmse.cfgExampleFailed": "Exemplul de configurare nu a putut fi încărcat."
 }

@@ -5671,5 +5671,7 @@
   "cf.node.requirement_spec_revision": "需求规格修订",
   "cf.node.build": "构建",
   "cf.node.platform": "平台",
-  "cf.node.user": "用户"
+  "cf.node.user": "用户",
+  "rmse.msg.nameExists": "该名称已被另一个需求管理系统使用。",
+  "rmse.cfgExampleFailed": "无法加载配置示例。"
 }

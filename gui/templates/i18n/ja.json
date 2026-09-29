@@ -5691,5 +5691,7 @@
   "cf.node.requirement_spec_revision": "要求仕様リビジョン",
   "cf.node.build": "ビルド",
   "cf.node.platform": "プラットフォーム",
-  "cf.node.user": "ユーザー"
+  "cf.node.user": "ユーザー",
+  "rmse.msg.nameExists": "この名前は別の要件管理システムがすでに使用しています。",
+  "rmse.cfgExampleFailed": "設定例を読み込めませんでした。"
 }

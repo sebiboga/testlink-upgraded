@@ -5685,5 +5685,7 @@
   "cf.node.requirement_spec_revision": "Revisione della Specifica di Requisito",
   "cf.node.build": "Build",
   "cf.node.platform": "Piattaforma",
-  "cf.node.user": "Utente"
+  "cf.node.user": "Utente",
+  "rmse.msg.nameExists": "Questo nome è già utilizzato da un altro sistema di gestione dei requisiti.",
+  "rmse.cfgExampleFailed": "Non è stato possibile caricare l'esempio di configurazione."
 }

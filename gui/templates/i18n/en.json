@@ -5701,5 +5701,7 @@
   "cf.node.requirement_spec_revision": "Requirement Specification Revision",
   "cf.node.build": "Build",
   "cf.node.platform": "Platform",
-  "cf.node.user": "User"
+  "cf.node.user": "User",
+  "rmse.msg.nameExists": "This name is already used by another requirement management system.",
+  "rmse.cfgExampleFailed": "The configuration example could not be loaded."
 }

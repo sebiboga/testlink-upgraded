@@ -98,7 +98,7 @@ a.lnk { color: #2d8e88; cursor: pointer; text-decoration: underline; font-size: 
           <tr>
             <th data-i18n="rmse.eventHistoryRight">Event history</th>
             <td>
-              <a class="lnk" id="lnkEventHistory" style="display:none;" target="_blank">
+              <a class="lnk" id="lnkEventHistory" style="display:none;" target="_blank" rel="noopener noreferrer">
                 <i class="fa fa-info-circle"></i> <span data-i18n="rmse.eventHistory">Show event history</span>
               </a>
               <span id="ctxNoEvents" class="hint" style="display:none;" data-i18n="rmse.noEventHistory">not available for your role</span>
@@ -185,8 +185,16 @@ function qs(name) {
   return new URLSearchParams(window.location.search).get(name) || '';
 }
 
+/**
+ * HTML-escape for both text nodes AND quoted attributes: jQuery's .html() on a
+ * detached span only escapes & < >, so a '"' in server data (e.g. an exception
+ * message used as a title="...") used to break out of the attribute.
+ * Same body as escAttr() in cfieldsView.html / eventviewer.html.
+ */
 function esc(v) {
-  return $('<span>').text(v === undefined || v === null ? '' : String(v)).html();
+  return String(v === undefined || v === null ? '' : v)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 function showState(kind, icon, titleKey, textKey) {
@@ -203,7 +211,11 @@ function showState(kind, icon, titleKey, textKey) {
 function clearState() { $('#stateBox').empty(); }
 
 function setFeedback(type, key, params) {
-  var html = '<div class="' + (type === 'ok' ? 'ok' : 'err') + '">' + TLi18n.t(key, params || {}) + '</div>';
+  // TLi18n.t() is a plain String.replace() - it does NOT escape - so an
+  // interpolated value (a system name) has to be escaped here, or a name like
+  // `<img src=x onerror=...>` becomes live markup (stored DOM XSS).
+  var html = '<div class="' + (type === 'ok' ? 'ok' : 'err') + '">' +
+    esc(TLi18n.t(key, params || {})) + '</div>';
   $('#feedback').html(html);
 }
 
@@ -217,15 +229,21 @@ jQuery(function() {
   });
 });
 
-function loadForm() {
+/**
+ * keepFeedback: the save handler re-loads the form right after a successful
+ * update, and that reload must NOT wipe the success message it just set.
+ */
+function loadForm(keepFeedback) {
   $('#stateBox').html('<div class="state loading"><i class="fa fa-spinner fa-spin"></i><h3>' +
     TLi18n.t('rmse.state.loading') + '</h3></div>');
   $('#formArea').hide();
-  $.getJSON(API + '?action=init' + (editId > 0 ? '&id=' + editId : ''))
+  // prune=1 keeps the legacy dead-link cleanup (initializeGui() removed links
+  // to deleted test projects) without making the read verb write.
+  $.getJSON(API + '?action=init' + (editId > 0 ? '&id=' + editId + '&prune=1' : ''))
     .done(function(r) {
       clearState();
       formData = r;
-      renderForm(r);
+      renderForm(r, keepFeedback);
     })
     .fail(function(xhr) { handleFail(xhr); });
 }
@@ -248,14 +266,23 @@ function handleFail(xhr) {
   showState('error', 'fa-exclamation-triangle', 'rmse.state.error', 'rmse.state.errorHint');
 }
 
-function renderForm(r) {
+function renderForm(r, keepFeedback) {
+  // a failed save must not survive a successful (re)load, and a connection
+  // verdict must never claim the PREVIOUS configuration still connects - but a
+  // reload triggered by a just-successful save keeps its feedback
+  if (!keepFeedback) {
+    $('#feedback').empty();
+  }
+  $('#connStatus').html('');
   var isEdit = (r.mode === 'edit');
   $('#screenTitle').text(isEdit ? TLi18n.t('rmse.editTitle') : TLi18n.t('rmse.createTitle'));
 
   $('#ctxMode').text(isEdit ? TLi18n.t('rmse.modeEdit') : TLi18n.t('rmse.modeCreate'));
   $('#ctxMode').removeClass('chip-dark chip-teal').addClass(isEdit ? 'chip-dark' : 'chip-teal');
-  $('#ctxId').text(isEdit ? esc(r.item.id) : '&mdash;');
-  $('#ctxName').text(esc(r.item.name));
+  // .text() is a text-only sink: passing esc() here double-escaped (a system
+  // named "R&D" rendered as "R&amp;D"), and the entity string would show raw.
+  $('#ctxId').text(isEdit ? r.item.id : '\u2014');
+  $('#ctxName').text(r.item.name);
   $('#ctxType').text(typeLabel(r.item.type));
 
   var sel = $('#fldType').empty();
@@ -286,9 +313,9 @@ function renderForm(r) {
 
   if (isEdit && r.mgt_view_events) {
     var a = $('#lnkEventHistory');
-    a.attr('href', '/gui/templates/eventviewer/eventviewer.html?object_id=' + r.item.id +
-                    '&object_type=reqmrgsystems&tproject_id=' + (qs('tproject_id') || 0) +
-                    '&tplan_id=' + (qs('tplan_id') || 0));
+    a.attr('href', '/gui/templates/eventviewer/eventviewer.html?object_id=' + encodeURIComponent(r.item.id) +
+                    '&object_type=reqmrgsystems&tproject_id=' + encodeURIComponent(qs('tproject_id') || 0) +
+                    '&tplan_id=' + encodeURIComponent(qs('tplan_id') || 0));
     a.show();
     $('#ctxNoEvents').hide();
   } else {
@@ -306,7 +333,8 @@ function typeLabel(code) {
   if (formData && formData.types) {
     $.each(formData.types, function(i, t) { if (String(t.code) === String(code)) found = t.label; });
   }
-  return found || code;
+  // an unknown/zero code must read as "no type", not as the bare number 0
+  return found || '';
 }
 
 function onTypeChange() {
@@ -348,9 +376,9 @@ function save() {
   }).done(function(r) {
     if (editId > 0) {
       setFeedback('ok', 'rmse.msg.updated', {name: payload.name});
-      loadForm();
+      loadForm(true);
     } else {
-      window.location.href = LIST_URL + '?created=' + r.id;
+      window.location.href = LIST_URL + contextQs() + '&created=' + r.id;
     }
   }).fail(function(xhr) {
     var code = '', msg = '';
@@ -360,13 +388,14 @@ function save() {
       msg = resp.message || '';
     } catch (e) {}
     if (xhr.status === 401) { window.location.href = '/login.php?note=expired'; return; }
-    setFeedback('err', 'rmse.msg.errorSave');
+    setFeedback('err', code === 'name_exists' ? 'rmse.msg.nameExists' : 'rmse.msg.errorSave');
     if (msg) { $('#feedback').append('<div class="hint">' + esc(msg) + '</div>'); }
   }).always(function() { $('#btnSave').prop('disabled', false); });
 }
 
 function doCheckConnection() {
   $('#connStatus').html('<i class="fa fa-spinner fa-spin" style="color:#4ECDC4;"></i>');
+  $('#btnCheckConn').prop('disabled', true);
   $.ajax({
     url: API + '?action=check_connection',
     type: 'POST',
@@ -382,7 +411,7 @@ function doCheckConnection() {
   }).fail(function(xhr) {
     if (xhr.status === 401) { window.location.href = '/login.php?note=expired'; return; }
     $('#connStatus').html('<span class="chip chip-red">' + TLi18n.t('rms.connKo') + '</span>');
-  });
+  }).always(function() { $('#btnCheckConn').prop('disabled', false); });
 }
 
 function confirmDelete() {
@@ -399,7 +428,7 @@ $('#btnDeleteConfirm').on('click', function() {
     contentType: 'application/json',
     data: JSON.stringify({id: editId})
   }).done(function() {
-    window.location.href = LIST_URL + '?deleted=' + editId;
+    window.location.href = LIST_URL + contextQs() + '&deleted=' + editId;
   }).fail(function(xhr) {
     $('#btnDeleteConfirm').prop('disabled', false);
     if (xhr.status === 401) { window.location.href = '/login.php?note=expired'; return; }
@@ -422,13 +451,22 @@ $('#btnDeleteConfirm').on('click', function() {
   });
 });
 
-function goBack() {
+/**
+ * The test project / test plan frame context, as a query string with a leading
+ * '?' (' ' when there is none). Every navigation away from this screen must
+ * carry it, otherwise the user lands on the list screen with no project.
+ */
+function contextQs() {
   var t = qs('tproject_id');
   var p = qs('tplan_id');
-  var url = LIST_URL;
-  if (t) { url += '?tproject_id=' + encodeURIComponent(t); }
-  else if (p) { url += '?tplan_id=' + encodeURIComponent(p); }
-  window.location.href = url;
+  var parts = [];
+  if (t) { parts.push('tproject_id=' + encodeURIComponent(t)); }
+  if (p) { parts.push('tplan_id=' + encodeURIComponent(p)); }
+  return parts.length ? '?' + parts.join('&') : '';
+}
+
+function goBack() {
+  window.location.href = LIST_URL + contextQs();
 }
 </script>
 </body>

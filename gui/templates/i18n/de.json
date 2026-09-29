@@ -5685,5 +5685,7 @@
   "cf.node.requirement_spec_revision": "Revision der Anforderungsspezifikation",
   "cf.node.build": "Build",
   "cf.node.platform": "Plattform",
-  "cf.node.user": "Benutzer"
+  "cf.node.user": "Benutzer",
+  "rmse.msg.nameExists": "Dieser Name wird bereits von einem anderen Anforderungsmanagement-System verwendet.",
+  "rmse.cfgExampleFailed": "Das Konfigurationsbeispiel konnte nicht geladen werden."
 }

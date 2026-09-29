@@ -5691,5 +5691,7 @@
   "cf.node.requirement_spec_revision": "Ревизия спецификации требования",
   "cf.node.build": "Сборка",
   "cf.node.platform": "Платформа",
-  "cf.node.user": "Пользователь"
+  "cf.node.user": "Пользователь",
+  "rmse.msg.nameExists": "Это имя уже используется другой системой управления требованиями.",
+  "rmse.cfgExampleFailed": "Не удалось загрузить пример конфигурации."
 }

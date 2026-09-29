@@ -1001,7 +1001,21 @@ prefix RM1727, requirements enabled, root node 2) and three requirement manageme
 | 41 | browser console during the whole run | no errors / warnings | no console messages | PASS |
 | 42 | Event Viewer / `events` after the whole run | no new Error/Warning rows attributable to the screen | only audit (16) + the 2 intentional shim tLog rows (1) | PASS |
 
-**Result: 42 / 42 PASS.**
+| 43 | **#1731** save a system named `<b>X</b>&"R&D'<img src=x onerror=window.__pwned=1>` | the name is rendered as LITERAL text in the banner and the context card, no element is created, no script runs | `feedbackText` = the name verbatim, `feedback.querySelectorAll('b,img').length === 0`, `window.__pwned === undefined`, `ctxName` = the name verbatim (no `R&amp;D` double-escaping) | PASS |
+| 44 | **#1730** `?action[]=x` (no session) / `?action=init&id[]=1` (admin) | no `E_WARNING` row; the array-shaped id is a 400 `invalid_id` | 401 then `{"code":"invalid_id"}`; `select count(*) from events where log_level=2` → 0 | PASS |
+| 45 | **#1730** POST `{"name":["x"],"type":1}`, `{"name":"x","type":1,"cfg":{}}`, `{"name":[],"type":[]}`, `{"id":[]}` | 400 `invalid_body` / `invalid_id`; **no** system named `Array` is ever stored | `invalid_body` ×3 + `invalid_id`; `select name from reqmgrsystems` contains no `Array` | PASS |
+| 46 | **#1730** `?action=init` with **no** id, `id=0`, `id=abc` | create mode (the regression a first hardening pass introduced) | `mode:create` for all three | PASS |
+| 47 | **#1730** `?action=init&id=7` **without** `prune`, then **with** `prune=1` | the plain GET performs no write; `prune=1` removes the dead link | `count(*) where testproject_id=999999` → 1, then 0; the screen always sends `prune=1`, so the dead link is still gone after opening the editor in the browser | PASS |
+| 48 | **#1730** `HEAD ?action=init&id=11`; `POST` to a read action | 200 (HEAD is a read for `bffSameOriginGuard`), 405 with an `Allow` header | `HTTP/1.1 200`; `HTTP/1.1 405` + `Allow: GET, POST` | PASS |
+| 49 | **#1730** every 4xx payload | carries `status:error` like the shared guards and the other BFFs | `{"status":"error","code":"not_found",...}` | PASS |
+| 50 | **#1730** duplicate name on create **and** on update | a `name_exists` code the screen localizes | `{"code":"name_exists","message":"name already exists"}`; update → `Update can not be done - name ... already exists for id ...` | PASS |
+| 51 | create, then delete through the UI | both redirects carry the test project context | `reqMgrSystemView.html?tproject_id=4&created=14`, `…&tproject_id=4&deleted=14` | PASS |
+| 52 | save, then read the banner again (the reload must not eat it) | the success message survives the post-save reload | banner = `Requirement management system "…" saved.`; the connection chip is cleared | PASS |
+| 53 | shim `?doAction=edit&id=11` with **no** `tproject_id` query param | the context comes from the session (`testprojectID`), not the never-written `tproject_id` key | 302 target contains `tproject_id=4` | PASS |
+| 54 | `rmse.msg.nameExists` + `rmse.cfgExampleFailed` in all 10 bundles, all JSON valid | present everywhere | 31 `rmse.*` keys in `en.json`, all bundles parse | PASS |
+| 55 | `php -l` on the BFF and the shim after the review fixes | clean | clean | PASS |
+
+**Result: 55 / 55 PASS** (42 screen/BFF/shim cases + 13 code-review regression cases).
 
 **Notes.**
 
