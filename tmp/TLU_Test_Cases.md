@@ -752,3 +752,34 @@ after it; 24, 25, 27 are the closed 1.9.20 authorization holes).
   always bailed out. Only the deeper test-case variant worked, which hid the
   defect. Fixed in the BFF **and** in both legacy shims; the guard is not
   weakened (cases 15, 16 still `400`/`404`).
+
+### Code-review regressions (added after the review pass, Refs #1724)
+
+| # | Case | Request | Expected | Result |
+|---|---|---|---|---|
+| R1 | auth before the verb check | anonymous `POST /?action=init` with a valid `Origin` | `401 not_authenticated` (**was `405`** — the verb policy leaked to anonymous callers) | **PASS** |
+| R2 | array `action` | `?action[]=x` | `400 unknown_action`, **0 Event Viewer rows** | **PASS** |
+| R3 | array `name` | `?action=check&node_type=testcase&name[]=x&parent_id=5` | `400 missing_name`, **0 Event Viewer rows** (was a PHP 8 `Array to string conversion` E_WARNING) | **PASS** |
+| R4 | array `parent_id` | `…&parent_id[]=5` | `400 missing_context`, **0 Event Viewer rows** (`intval(array)` silently yielded 1) | **PASS** |
+| R5 | **foreign `node_id` is not excluded** | `…&name=Shared Case Name&parent_id=5&node_id=17` (17 is a case of suite 7) | `exists=true collision {id:8}` — an id borrowed from another project must not suppress a real collision (was a silent **false negative**) | **PASS** |
+| R6 | no rights cannot enumerate projects | `nchknorights` + `?action=init&tproject_id=9999` | `403 no_permission` (not `404` — 403 vs 404 was an existence oracle) | **PASS** |
+| R7 | **case under the project root** | `…&node_type=testcase&parent_id=3` | `400 testcase_needs_suite` — a case always lives in a suite, so "Available" was a green verdict about a question that cannot be true | **PASS** |
+| R8 | **ASIDE reachability** | `api/aside?action=init&tproject_id=3`, admin | `tests_design` contains `Duplicate Name Check → nameCheck.html?tproject_id=3` (was a **dead** `$actions` entry with no caller) | **PASS** |
+| R9 | ASIDE rights gate | same call, `nchknorights` | the item is **absent** (gated on `view_tc`) | **PASS** |
+| R10 | **deep link with a foreign `parent_id`** | `nameCheck.html?tproject_id=3&parent_id=7&name=Alpha Only Case` (7 is a suite of project 4) | `notFound` state + `nchk.projectMismatch`; the form is hidden. **Previously it silently checked the project root and rendered a green "Available"** | **PASS** |
+| R11 | node-type change re-runs | check `Shared Case Name` as a **suite** at project level, then switch to **test case** | fresh verdict for the new type (was a **stale** verdict relabelled with the new type) | **PASS** |
+| R12 | legacy shim `code` discrimination | `checkNodeDuplicateName.php` as admin, `parent_id=999999` vs as `nchknorights` | `code: parent_not_found` vs `code: no_permission` — the two failures were indistinguishable | **PASS** |
+| R13 | legacy shim foreign `node_id` | `checkNodeDuplicateName.php&node_id=17&parent_id=5` | still reports the duplicate | **PASS** |
+| R14 | `href_duplicate_name_check` coverage | `grep` over `locale/*/strings.txt` | present in all **19** locale bundles (ASIDE labels come from the PHP lang files, not the i18n JSON) | **PASS** |
+
+**Result after the review pass: 41 + 14 = 55 / 55 PASS**, Event Viewer still 0.
+
+### Code-review pass — what the review caught
+
+The 41-case suite was green *before* the review and the review still found
+four behaviours the suite could not see, because each needs a value the happy
+path never produces: a `parent_id` from **another** project (R5, R10), an
+**array-typed** query parameter (R2–R4), a **nonexistent** project id (R6), and
+a **test case addressed at project level** (R7). Green tests were not evidence
+of correctness here; they were evidence that the fixtures only ever walked the
+happy path.
