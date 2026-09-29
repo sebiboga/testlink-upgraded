@@ -5670,5 +5670,20 @@
   "nchk.duplicatesAllowed": "Doublons autorisés",
   "footers.nameCheck": "TestLink 2.0.1 - Vérifier les doublons de nom",
   "nchk.caseNeedsSuite": "Un nom de cas de test ne peut être vérifié qu'à l'intérieur d'une suite de tests. Choisissez une suite comme conteneur parent ou changez le type de nœud en Suite de tests.",
-  "footers.reqMgrSystemEdit": "TestLink 2.0.1 - Système de Gestion des Exigences"
+  "footers.reqMgrSystemEdit": "TestLink 2.0.1 - Système de Gestion des Exigences",
+  "cf.availableFor": "Disponible Pour",
+  "cf.node.testproject": "Projet de Test",
+  "cf.node.testsuite": "Suite de Tests",
+  "cf.node.testcase": "Cas de Test",
+  "cf.node.testcase_version": "Version du Cas de Test",
+  "cf.node.testplan": "Plan de Test",
+  "cf.node.requirement_spec": "Spécification d'Exigence",
+  "cf.node.requirement": "Exigence",
+  "cf.node.requirement_version": "Version de l'Exigence",
+  "cf.node.testcase_step": "Étape du Cas de Test",
+  "cf.node.requirement_revision": "Révision de l'Exigence",
+  "cf.node.requirement_spec_revision": "Révision de la Spécification d'Exigence",
+  "cf.node.build": "Build",
+  "cf.node.platform": "Plateforme",
+  "cf.node.user": "Utilisateur"
 }

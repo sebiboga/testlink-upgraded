@@ -943,3 +943,53 @@ exist — cases 1–7 could not pass.
 
 - The header skip is scoped to the FIRST parsed row and requires a full match of all three localized exporter labels (`lang_get('keyword'/'notes'/'tcv_qty')`), so a row of actual data — where the third cell is a numeric tcv_qty — can never be mistaken for the header.
 - The skipped header is not counted in `rows`/`skipped`, so a successful round trip reports the clean `imported` count, and a header-only file still degrades to the pre-existing `EMPTY_FILE` guard in `api/keywordsxml/index.php:349`.
+
+## Suite 1033 — Task, Issue #1033: `cfieldsView` "Available For" (custom-field node type) column — gap vs legacy `gui/templates/tl-classic/cfields/cfieldsView.tpl:63,70`
+
+**Feature under test.** The legacy Custom Fields list shows an `available_on` column holding the custom field's **node type** (`node_types.description` via `cfield_node_types`), rendered through `lang_get`. The modern `gui/templates/cfields/cfieldsView.html` had no such column — the node type was only visible after opening the edit modal. This suite verifies the ported column end to end: header, per-row value, localization, sorting/search, and that nothing else in the screen regressed.
+
+**Precondition.**
+
+- App at `http://localhost:8082`, logged in as `admin`/`admin` (`cfield_management` ⇒ `can_manage=1`).
+- Fixtures in `custom_fields` + `cfield_node_types`, one field per node type so the column is provable across node types:
+
+```sql
+INSERT INTO custom_fields (name,label,type,possible_values,default_value,valid_regexp,
+  length_min,length_max,show_on_design,enable_on_design,show_on_execution,enable_on_execution,
+  show_on_testplan_design,enable_on_testplan_design) VALUES
+ ('tlu_tier','Tlu Tier',4,'','','',0,0,1,1,1,0,0,0),
+ ('tlu_deployment','Tlu Deployment',4,'','','',0,0,0,0,0,1,0,0),
+ ('tlu_reqspec','Tlu ReqSpec',1,'','','',0,0,1,1,0,0,0,0),
+ ('tlu_tcase_ver','Tlu TCase Ver',4,'','','',0,0,1,1,0,0,0,0);
+INSERT INTO cfield_node_types (field_id,node_type_id) SELECT id,3 FROM custom_fields WHERE name='tlu_tier';        -- testcase
+INSERT INTO cfield_node_types (field_id,node_type_id) SELECT id,5 FROM custom_fields WHERE name='tlu_deployment';  -- testplan
+INSERT INTO cfield_node_types (field_id,node_type_id) SELECT id,6 FROM custom_fields WHERE name='tlu_reqspec';    -- requirement_spec
+INSERT INTO cfield_node_types (field_id,node_type_id) SELECT id,4 FROM custom_fields WHERE name='tlu_tcase_ver';  -- testcase_version
+```
+
+**Expected.** Column 4 of the list reads `Test Case` / `Test Plan` / `Requirement Specification` / `Test Case Version` in `en`, and the translated equivalents in every other locale; it sorts and searches like a normal column; the edit modal, create modal, and the other columns behave exactly as before; no raw `cf.node.*` key ever reaches the user.
+
+| # | Step | Expected | Actual | Result |
+|---|---|---|---|---|
+| 1 | Open `http://localhost:8082/gui/templates/cfields/cfieldsView.html?tproject_id=0&tplan_id=0` and read the `<thead>` | 8 columns, 4th one is the new **Available For** | `Label, Name, Type, Available For, Active, Display on execution, Available On, Actions` | PASS |
+| 2 | Read cell 4 of every row | node type per field, human-readable | `tlu_deployment→Test Plan`, `tlu_reqspec→Requirement Specification`, `tlu_tcase_ver→Test Case Version`, `tlu_tier→Test Case` | PASS |
+| 3 | Issue repro from the issue: `tlu_deployment` (node_type testplan) | row states the node type, matching legacy `available_on` | `["Tlu Deployment","tlu_deployment","email","Test Plan","Yes","-","Execution"]` — legacy renders the same node type as `Test Plan` | PASS |
+| 4 | Reload with `&locale=ro` | header **and** cell values follow the bundle | headers `… Disponibil Pentru …`; values `Plan de Testare`, `Specificație de Cerință`, `Caz de Testare` | PASS |
+| 5 | DataTables: sort column 4 ascending | ordered by node-type label | `["Caz de Testare","Plan de Testare","Specificație de Cerință"]` | PASS |
+| 6 | DataTables: sort column 4 descending | exact reverse | `["Specificație de Cerință","Plan de Testare","Caz de Testare"]` | PASS |
+| 7 | DataTables: search `Test Plan` | filters on the new column too | exactly `["tlu_deployment"]`; clearing restores all 3 rows | PASS |
+| 8 | Click the edit icon on `tlu_deployment` | modal opens and still prefills the node type from `nodeMap` | `#editModal` open (`display:block`, `body.modal-open`), `#editNodeType=testplan`, `#editType=4` | PASS |
+| 9 | Temporary out-of-band node type: insert `node_types(99,'zz_future_node')` + a field bound to it, reload | unmapped node type degrades to the raw slug, never an empty cell and never a raw i18n key | cell rendered `zz_future_node` | PASS |
+| 10 | Temporary probe forcing `allItems = []`, reload | empty table keeps all 8 header columns, no misalignment, no key leakage | headers intact; body `No data available in table`; footer `0 custom fields` | PASS |
+| 11 | `node --check` on the extracted inline script | clean | `JS SYNTAX OK` | PASS |
+| 12 | `python3 -m json.tool gui/templates/i18n/*.json` (all 10 bundles) | clean | OK for de, en, es, fr, it, ja, pt, ro, ru, zh | PASS |
+| 13 | Browser console after steps 1-10 | no errors, no warnings | `<no console messages found>` | PASS |
+| 14 | Event Viewer / `events` table after the run | no new Error/Warning entries | no new ERROR/WARNING rows; only `log_level=16` audit rows from the fixture writes | PASS |
+
+**Pre-fix baseline (measured, for contrast).** Before the port, step 1/2 returned `Label, Name, Type, Active, Display On Execution, Available On, Actions` and rows like `["Tlu Deployment","tlu_deployment","email","Yes","-","Execution"]` — no node type anywhere in the list. `GET /api/cfields/index.php` already returned `node_description` (`"testplan"`, `"testcase"`, …) in both states, proving the gap was front-end-only and no BFF change was required.
+
+**Notes.**
+
+- The modern `Available On` column is **not** the legacy `available_on` column and must not be conflated with the new one: `Available On` is the *enable-on context* (Design / Execution / Test Plan Design) and can list several values, while `Available For` is the *node type* and is always a single value. Both now coexist, which is what makes the list self-explanatory.
+- `nodeTypeLabel()` uses `TLi18n.has()` before `TLi18n.t()`; `TLi18n.t()` echoes the key back when it is missing, so without the `has()` guard a node type without a key would display as `cf.node.<slug>` to the user.
+- The 14 `cf.node.*` keys mirror the `node_types` table 1:1, so every node type TestLink can bind to a custom field has a translated label in all 10 bundles.

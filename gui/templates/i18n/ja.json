@@ -5676,5 +5676,20 @@
   "nchk.duplicatesAllowed": "重複を許可します",
   "footers.nameCheck": "TestLink 2.0.1 - 重複名チェック",
   "nchk.caseNeedsSuite": "テストケースの名前はテストスイート内でのみ確認できます。親コンテナにスイートを選択するか、ノードの種類を「テストスイート」に変更してください。",
-  "footers.reqMgrSystemEdit": "TestLink 2.0.1 - 要件管理システム"
+  "footers.reqMgrSystemEdit": "TestLink 2.0.1 - 要件管理システム",
+  "cf.availableFor": "利用可能対象",
+  "cf.node.testproject": "テストプロジェクト",
+  "cf.node.testsuite": "テストスイート",
+  "cf.node.testcase": "テストケース",
+  "cf.node.testcase_version": "テストケースバージョン",
+  "cf.node.testplan": "テストプラン",
+  "cf.node.requirement_spec": "要求仕様",
+  "cf.node.requirement": "要件",
+  "cf.node.requirement_version": "要件バージョン",
+  "cf.node.testcase_step": "テストケースステップ",
+  "cf.node.requirement_revision": "要求リビジョン",
+  "cf.node.requirement_spec_revision": "要求仕様リビジョン",
+  "cf.node.build": "ビルド",
+  "cf.node.platform": "プラットフォーム",
+  "cf.node.user": "ユーザー"
 }

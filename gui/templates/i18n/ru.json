@@ -5676,5 +5676,20 @@
   "nchk.duplicatesAllowed": "Дубликаты разрешены",
   "footers.nameCheck": "TestLink 2.0.1 - Проверка дубликата имени",
   "nchk.caseNeedsSuite": "Имя тест-кейса можно проверить только внутри набора тестов. Выберите набор в качестве родительского контейнера или измените тип узла на «Набор тестов».",
-  "footers.reqMgrSystemEdit": "TestLink 2.0.1 - Система управления требованиями"
+  "footers.reqMgrSystemEdit": "TestLink 2.0.1 - Система управления требованиями",
+  "cf.availableFor": "Доступно Для",
+  "cf.node.testproject": "Тестовый проект",
+  "cf.node.testsuite": "Тест-сьют",
+  "cf.node.testcase": "Тест-кейс",
+  "cf.node.testcase_version": "Версия тест-кейса",
+  "cf.node.testplan": "Тест-план",
+  "cf.node.requirement_spec": "Спецификация требования",
+  "cf.node.requirement": "Требование",
+  "cf.node.requirement_version": "Версия требования",
+  "cf.node.testcase_step": "Шаг тест-кейса",
+  "cf.node.requirement_revision": "Ревизия требования",
+  "cf.node.requirement_spec_revision": "Ревизия спецификации требования",
+  "cf.node.build": "Сборка",
+  "cf.node.platform": "Платформа",
+  "cf.node.user": "Пользователь"
 }

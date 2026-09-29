@@ -5680,5 +5680,20 @@
   "nchk.duplicatesAllowed": "Duplicate permise",
   "footers.nameCheck": "TestLink 2.0.1 - Verificare nume duplicat",
   "nchk.caseNeedsSuite": "Numele unui caz de test poate fi verificat doar în interiorul unei suite de teste. Alege o suită ca container părinte sau schimbă tipul nodului în Suită de teste.",
-  "footers.reqMgrSystemEdit": "TestLink 2.0.1 - Sistem de Gestionare a Cerințelor"
+  "footers.reqMgrSystemEdit": "TestLink 2.0.1 - Sistem de Gestionare a Cerințelor",
+  "cf.availableFor": "Disponibil Pentru",
+  "cf.node.testproject": "Proiect de Testare",
+  "cf.node.testsuite": "Suita de Testare",
+  "cf.node.testcase": "Caz de Testare",
+  "cf.node.testcase_version": "Versiune Caz de Testare",
+  "cf.node.testplan": "Plan de Testare",
+  "cf.node.requirement_spec": "Specificație de Cerință",
+  "cf.node.requirement": "Cerință",
+  "cf.node.requirement_version": "Versiune Cerință",
+  "cf.node.testcase_step": "Pas Caz de Testare",
+  "cf.node.requirement_revision": "Revizie Cerință",
+  "cf.node.requirement_spec_revision": "Revizie Specificație de Cerință",
+  "cf.node.build": "Build",
+  "cf.node.platform": "Platformă",
+  "cf.node.user": "Utilizator"
 }

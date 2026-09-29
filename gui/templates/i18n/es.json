@@ -5670,5 +5670,20 @@
   "nchk.duplicatesAllowed": "Duplicados permitidos",
   "footers.nameCheck": "TestLink 2.0.1 - Comprobar nombre duplicado",
   "nchk.caseNeedsSuite": "El nombre de un caso de prueba solo puede comprobarse dentro de una suite de pruebas. Elija una suite como contenedor principal o cambie el tipo de nodo a Suite de pruebas.",
-  "footers.reqMgrSystemEdit": "TestLink 2.0.1 - Sistema de Gestión de Requisitos"
+  "footers.reqMgrSystemEdit": "TestLink 2.0.1 - Sistema de Gestión de Requisitos",
+  "cf.availableFor": "Disponible Para",
+  "cf.node.testproject": "Proyecto de Pruebas",
+  "cf.node.testsuite": "Suite de Pruebas",
+  "cf.node.testcase": "Caso de Prueba",
+  "cf.node.testcase_version": "Versión del Caso de Prueba",
+  "cf.node.testplan": "Plan de Pruebas",
+  "cf.node.requirement_spec": "Especificación de Requisito",
+  "cf.node.requirement": "Requisito",
+  "cf.node.requirement_version": "Versión del Requisito",
+  "cf.node.testcase_step": "Paso del Caso de Prueba",
+  "cf.node.requirement_revision": "Revisión del Requisito",
+  "cf.node.requirement_spec_revision": "Revisión de la Especificación de Requisito",
+  "cf.node.build": "Build",
+  "cf.node.platform": "Plataforma",
+  "cf.node.user": "Usuario"
 }

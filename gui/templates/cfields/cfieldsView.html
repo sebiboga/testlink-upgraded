@@ -61,6 +61,7 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
         <th data-i18n="cf.label">Label</th>
         <th data-i18n="cf.name">Name</th>
         <th data-i18n="cf.type">Type</th>
+        <th data-i18n="cf.availableFor">Available For</th>
         <th data-i18n="cf.active">Active</th>
         <th data-i18n="cf.displayOnExec">Display On Execution</th>
         <th data-i18n="cf.availableOn">Available On</th>
@@ -165,6 +166,18 @@ function escAttr(v) {
 // requirement_spec/requirement no.
 var NO_EXEC_DISPLAY_NODES = ['requirement_spec', 'requirement'];
 
+// Legacy cfieldsView.tpl:70 renders available_on as `{lang_get s=$cf_def.node_description}`,
+// i.e. the node type (testcase / testplan / requirement_spec / ...) localized through
+// the language files, not the raw DB slug. The modern screen must show the same
+// human label, so map every node_types.description to a cf.node.* i18n key and fall
+// back to the raw slug for a node type that has no key yet.
+function nodeTypeLabel(description) {
+  var slug = String(description == null ? '' : description);
+  if (!slug) return '-';
+  var key = 'cf.node.' + slug;
+  return TLi18n.has(key) ? TLi18n.t(key) : slug;
+}
+
 // Mirrors the legacy initShowOnExec() logic (cfieldsEditJS.tpl:251-269) and
 // the edit-mode rule (cfieldsEdit.php:93-96): when the field is enabled on
 // execution (or can never be shown on execution) the "Display on test
@@ -259,6 +272,7 @@ function renderTable(items) {
       escAttr(cf.label),
       escAttr(cf.name),
       escAttr(typeMap[cf.type] || cf.type),
+      escAttr(nodeTypeLabel(cf.node_description)),
       activeHtml,
       dispExecHtml,
       available.join(', ') || '-',
@@ -270,7 +284,7 @@ function renderTable(items) {
     order: [[0, 'asc']],
     pageLength: 25,
     columns: [
-      null, null, null, null, null, null,
+      null, null, null, null, null, null, null,
       { orderable: false, searchable: false }
     ]
   });

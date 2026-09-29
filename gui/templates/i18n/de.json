@@ -5670,5 +5670,20 @@
   "nchk.duplicatesAllowed": "Duplikate erlaubt",
   "footers.nameCheck": "TestLink 2.0.1 - Namensdopplung prüfen",
   "nchk.caseNeedsSuite": "Ein Testfall-Name kann nur innerhalb einer Testsuite geprüft werden. Wählen Sie eine Suite als übergeordneten Container oder ändern Sie den Knotentyp auf Testsuite.",
-  "footers.reqMgrSystemEdit": "TestLink 2.0.1 - Anforderungsmanagement-System"
+  "footers.reqMgrSystemEdit": "TestLink 2.0.1 - Anforderungsmanagement-System",
+  "cf.availableFor": "Verfügbar Für",
+  "cf.node.testproject": "Testprojekt",
+  "cf.node.testsuite": "Testsuite",
+  "cf.node.testcase": "Testfall",
+  "cf.node.testcase_version": "Testfallversion",
+  "cf.node.testplan": "Testplan",
+  "cf.node.requirement_spec": "Anforderungsspezifikation",
+  "cf.node.requirement": "Anforderung",
+  "cf.node.requirement_version": "Anforderungsversion",
+  "cf.node.testcase_step": "Testfallschritt",
+  "cf.node.requirement_revision": "Anforderungsrevision",
+  "cf.node.requirement_spec_revision": "Revision der Anforderungsspezifikation",
+  "cf.node.build": "Build",
+  "cf.node.platform": "Plattform",
+  "cf.node.user": "Benutzer"
 }

@@ -5656,5 +5656,20 @@
   "nchk.duplicatesAllowed": "允许重复",
   "footers.nameCheck": "TestLink 2.0.1 - 重复名称检查",
   "nchk.caseNeedsSuite": "测试用例名称只能在测试套件内检查。请将父容器选择为套件，或将节点类型改为测试套件。",
-  "footers.reqMgrSystemEdit": "TestLink 2.0.1 - 需求管理系统"
+  "footers.reqMgrSystemEdit": "TestLink 2.0.1 - 需求管理系统",
+  "cf.availableFor": "适用于",
+  "cf.node.testproject": "测试项目",
+  "cf.node.testsuite": "测试套件",
+  "cf.node.testcase": "测试用例",
+  "cf.node.testcase_version": "测试用例版本",
+  "cf.node.testplan": "测试计划",
+  "cf.node.requirement_spec": "需求规格",
+  "cf.node.requirement": "需求",
+  "cf.node.requirement_version": "需求版本",
+  "cf.node.testcase_step": "测试用例步骤",
+  "cf.node.requirement_revision": "需求修订",
+  "cf.node.requirement_spec_revision": "需求规格修订",
+  "cf.node.build": "构建",
+  "cf.node.platform": "平台",
+  "cf.node.user": "用户"
 }

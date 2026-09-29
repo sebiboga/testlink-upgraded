@@ -17,6 +17,23 @@ Every screen of the application was ported one-by-one in a screen-compare
 kept for backward compatibility and is progressively retired as each modern
 screen reaches full parity.
 
+- [FEATURE GAP] - #1033: the modern `cfieldsView.html` dropped the legacy "Available on" (node type)
+  column shown in `gui/templates/tl-classic/cfields/cfieldsView.tpl:63,70`. Legacy rendered
+  `{lang_get s=$cf_def.node_description}` from the join of `custom_fields` ↔ `cfield_node_types` ↔
+  `node_types` (so rows showed whether a field applies to `Test Case`, `Test Plan`, `Requirement
+  Specification`, etc.) and the column was sortable. The BFF already exposes `node_description` in
+  `cfToJSON` (`api/cfields/index.php:69`) — the gap was front-end only. Ported: added `<th>Available
+  For</th>` (column header) after `Type`, with new i18n key `cf.availableFor` in all 10 bundles; added
+  `nodeTypeLabel(description)` helper (uses `TLi18n.has`/`TLi18n.t` and falls back to raw slug) and
+  render the cell with `escAttr(nodeTypeLabel(cf.node_description))`. Also added per-node-type keys
+  `cf.node.*` (14 node types: testproject, testsuite, testcase, testcase_version, testplan,
+  requirement_spec, requirement, requirement_version, testcase_step, requirement_revision,
+  requirement_spec_revision, build, platform, user) to all 10 locale bundles so labels are
+  localized, never a raw key. DataTables column count extended accordingly; sorting + search apply
+  to the new column; edit/create modals unchanged. Verified: 14-case test suite `Suite 1033` in
+  `tmp/TLU_Test_Cases.md` (14 PASS), `node --check` clean, all 10 bundles `python3 -m json.tool`
+  valid, no console errors, 0 new ERROR/WARNING rows in `events`. (Refs #1033)
+
 - [FEATURE GAP] - #1643: the modern Assign Test Plan Roles screen dropped the legacy public/private
   access-type indicator that sat next to the `Test Project` and `Test Plan` labels. Legacy
   `lib/usermanagement/usersAssign.php:70-77` (deleted in `ab387af72`) built `$gui->tprojectAccessTypeImg`

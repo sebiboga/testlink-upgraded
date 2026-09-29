@@ -5686,5 +5686,20 @@
   "nchk.duplicatesAllowed": "Duplicates allowed",
   "footers.nameCheck": "TestLink 2.0.1 - Duplicate Name Check",
   "nchk.caseNeedsSuite": "A test case name can only be checked inside a test suite. Pick a suite as the parent container, or switch the node type to Test Suite.",
-  "footers.reqMgrSystemEdit": "TestLink 2.0.1 - Requirement Management System"
+  "footers.reqMgrSystemEdit": "TestLink 2.0.1 - Requirement Management System",
+  "cf.availableFor": "Available For",
+  "cf.node.testproject": "Test Project",
+  "cf.node.testsuite": "Test Suite",
+  "cf.node.testcase": "Test Case",
+  "cf.node.testcase_version": "Test Case Version",
+  "cf.node.testplan": "Test Plan",
+  "cf.node.requirement_spec": "Requirement Specification",
+  "cf.node.requirement": "Requirement",
+  "cf.node.requirement_version": "Requirement Version",
+  "cf.node.testcase_step": "Test Case Step",
+  "cf.node.requirement_revision": "Requirement Revision",
+  "cf.node.requirement_spec_revision": "Requirement Specification Revision",
+  "cf.node.build": "Build",
+  "cf.node.platform": "Platform",
+  "cf.node.user": "User"
 }
