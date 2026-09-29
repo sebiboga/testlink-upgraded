@@ -110,3 +110,80 @@ Screens: `http://localhost:8082/gui/templates/requirements/reqSpecMgmt.html?tpro
 **Notes:** issue #1027's implementation was landed on the default branch by a previous run
 (`b555d9755`) that died before documenting it; this run re-created the lost fixture, re-verified
 every gesture on a freshly imported DB and completed the CHANGELOG / docs / Wiki trail.
+
+## Regression — Issue #1626: tlReqMgrSystem logs E_WARNING for a row whose `type` is not in `$systems`
+
+**Precondition:** TestLink 2.0.1 on `http://localhost:8082`; MariaDB
+`127.0.0.1:3306/testlink` (`testlink`/`testlink`), **freshly imported**; login
+`admin`/`admin` (form fields `tl_login` / `tl_password` / `tl_login_btn`);
+branch `fix/issue-1626`.
+
+**Fixture** (recreated by the harness, the DB has no projects on a fresh import):
+```sql
+INSERT INTO reqmgrsystems (name,type,cfg) VALUES ('Ghost Type',99,'{}');   -- type NOT a key of $systems
+INSERT INTO reqmgrsystems (name,type,cfg) VALUES ('Good Contour',1,'{}');  -- type 1 = contour/soap
+INSERT INTO testprojects (id,prefix,api_key,reqmgr_integration_enabled,active,is_public,option_reqs)
+     VALUES (1,'PT-','k1626',1,1,1,1);
+INSERT INTO testproject_reqmgrsystem (testproject_id,reqmgrsystem_id) SELECT 1, MIN(id) FROM reqmgrsystems;
+INSERT INTO nodes_hierarchy (id,name,parent_id,node_type_id,node_order) VALUES (1,'PT-',NULL,1,1);
+```
+
+**Repro steps (PRE-FIX):**
+1. `GET /lib/reqmgrsystems/reqMgrSystemView.php` (HTTP 200, the row is rendered).
+2. `SELECT id,log_level,description FROM events ORDER BY id` — 5 new `E_WARNING`
+   rows (`log_level=2`) for the single bad row: `Undefined array key 99` at
+   `tlReqMgrSystem.class.php:522` and `:523`, `Undefined array key 99` at `:113`,
+   `Trying to access array offset on null` at `:114` **twice**.
+3. Same on `GET /api/reqmgrsystems/index.php` (the modern BFF screen) and on
+   `?id=<n>` (3 extra warnings from the second `getImplementationForType()` call
+   inside `getByID()`).
+
+**Expected POST-FIX:** the screen keeps answering 200 and still lists the bad row
+(with an empty Type cell so a manager can repair it), a valid type keeps its full
+description, and **zero** new `events` rows are written.
+`getImplementationForType()` returns `null` for an unknown type instead of the
+garbage class name `"Interface"`.
+
+**Harness:** `bash tmp/verify_1626.sh` (exit 0 = all pass).
+
+| # | Step | Expected | Observed | Result |
+|---|---|---|---|---|
+| 1626-01 | `php -l lib/functions/tlReqMgrSystem.class.php` and `php -l api/reqmgrsystems/index.php` | no syntax errors | "No syntax errors detected" on both | PASS |
+| 1626-02 | log in as `admin`/`admin` | HTTP 200 + session | `http=200`, session cookie set | PASS |
+| 1626-03 | fixture created; count `reqmgrsystems` | 2 rows (type 99 and type 1) | `2` | PASS |
+| 1626-04 | run the harness's PHP probe against `origin/sebiboga`'s copy of the class (discriminating baseline) | > 0 diagnostics pre-fix | `12` diagnostics | PASS |
+| 1626-05 | same probe against the working tree | `0` diagnostics | `0` | PASS |
+| 1626-06 | `getImplementationForType(99)` | `null` (was `"Interface"`) | `null` | PASS |
+| 1626-07 | `getImplementationForType(1)` | `contoursoapInterface` (unchanged) | `contoursoapInterface` | PASS |
+| 1626-08 | A/B the four values the fix must not touch: `impl1`, `verbose` of the bad row, `type_descr` + `verbose` of the good row | byte-identical pre/post | all four identical | PASS |
+| 1626-09 | `GET /lib/reqmgrsystems/reqMgrSystemView.php` | HTTP 200 | `200` | PASS |
+| 1626-10 | bad-type row still present in the legacy grid | listed, not dropped | `Ghost Type` present | PASS |
+| 1626-11 | good-type row still fully described in the legacy grid | `contour (Interface: soap)` | present | PASS |
+| 1626-12 | `GET .../reqMgrSystemView.php?id=1` and `?id=2` (connection probe on both rows) | HTTP 200 both | `200`, `200` | PASS |
+| 1626-13 | events table baselined, then the whole 9-request matrix (legacy list, both `?id=`, BFF list, `meta/types`, `meta/cfg_template` for 1 and 99, both legacy ajax cfg-template calls) | `0` new `events` rows | `0` (pre-fix: 5 per request) | PASS |
+| 1626-14 | `SELECT COUNT(*) FROM events WHERE id > baseline AND description LIKE '%tlReqMgrSystem%'` | `0` | `0` | PASS |
+| 1626-15 | bad row's `type_descr` degrades gracefully | `""` (was `null`) | `""` | PASS |
+| 1626-16 | `getLinkedTo(1)['verboseType']` degrades gracefully | `""` (was `null`) | `""` | PASS |
+
+**Result: 21 assertions, 21 PASS, 0 FAIL, exit 0.**
+
+**Discriminating power (proved, not assumed):** with only
+`lib/functions/tlReqMgrSystem.class.php` swapped back to `origin/sebiboga`, the
+same harness reports **15 PASS / 6 FAIL / exit 1** — the 6 failures being 1626-05
+(12 diagnostics), 1626-06 (`"Interface"`), 1626-15/1626-16 (`null`) and
+1626-13/1626-14 (20 new `events` rows). `git checkout --` restores the fix and the
+next run is 21/21 again.
+
+**Manual / browser verification** (headless Chrome, `admin`/`admin`):
+`gui/templates/reqmgrsystems/reqMgrSystemView.html` renders
+`Ghost Type` (empty Type cell) + `Good Contour` (`contour (Interface: soap)`),
+`Showing 1 to 2 of 2 entries`, and adds **0** `events` rows;
+`gui/templates/eventviewer/eventviewer.html` loads 200 and also adds 0.
+Screenshots: `docs/screenshots/issue-1626-reqmgr-system-list-before-fix.png`,
+`issue-1626-reqmgr-system-list-after-fix.png`,
+`issue-1626-event-viewer-after-fix.png`.
+
+**Filed, not fixed (out of scope):** **#1714** —
+`requirement_spec_mgr::get_by_id()` interpolates an empty `RSPEC_REV.id = ` into
+a WHERE clause when `get_last_active_version()` returns false (1064 + E_WARNING
+at `requirement_spec_mgr.class.php:186`); same family as #1708, different file.
