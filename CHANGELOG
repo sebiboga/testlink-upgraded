@@ -6533,21 +6533,28 @@ Changes:
       project tables and added user metrics to the middle section
 
 ## 2.0.1 (in-progress)
-### KEY BUGFIX — `reqMgrSystemCommands::initGuiBean()` read an undefined label for 2 of its 7 whitelisted actions (Fixes #1628)
-- `lib/reqmgrsystems/reqMgrSystemCommands.class.php` dispatched 7 action names via
-  `guiOpWhiteList`, but the `$obj->l18n` table it built covered only 5. The unconditional
-  `ucfirst($obj->l18n[$caller])` therefore raised a PHP 8 `E_WARNING "Undefined array key"`
-  (plus a `ucfirst(): Passing null to parameter #1` `E_DEPRECATED`) for **both** `checkConnection`
-  and `delete` — every call, surfaced as an Event Viewer row by `watchPHPErrors`. The report named
-  only `checkConnection`; `delete` is the identical defect on the identical line.
-- Both actions are now registered in the `init_labels()` call onto label codes that already ship in
-  the legacy locale bundles (`btn_check_connection`, `btn_delete`), and the read is wrapped in an
-  `isset()` guard so the whitelist and the label table can drift again without emitting warnings.
-- **Trade-off, measured:** `btn_check_connection` ships in 7 of 19 bundles and `btn_delete` in 18,
-  so in the remaining locales `lang_get()` back-fills from `en_GB` and records one `L18N` (level
-  32) audit row per key — the same, already-pre-existing behaviour the function has for its other
-  five labels. Net: 0 Warning/Error rows everywhere, 2 extra level-32 audit rows in 13 locales.
-  Translating 13 bundles is out of scope for a one-line label fix.
+### Screen — Requirement Management System editor `reqMgrSystemEdit` (Refs #1727)
+- Modernizes the last full legacy renderer of the ASIDE menu,
+  `lib/reqmgrsystems/reqMgrSystemEdit.php` (`dashio/reqmgrsystems/reqMgrSystemEdit.tpl`), as
+  `gui/templates/reqmgrsystems/reqMgrSystemEdit.html` (Dashio, one page for create + edit, context
+  card with mode/id/name/type, "used on test project" chips and an event-history deep link,
+  loading/denied/not-found/error states, Bootstrap delete modal, in-place validation +
+  duplicate-name + linked-delete feedback, TLi18n) + BFF `api/reqmgrsystemedit/index.php`
+  (`init` / `cfg_template` / `create` / `update` / `delete` / `check_connection`, session window,
+  same-origin proof, the single `reqmgrsystem_management` right, 400/401/403/404/405/409 with a
+  machine code and `status:error`). 31 `rmse.*` keys + footer in all 10 bundles;
+  `$actions->reqMgrSystemEdit`; a per-row edit icon on `reqMgrSystemView.html`; the legacy page is
+  now a session-guarded 302 shim whose write doActions are logged, not executed.
+- Legacy parity kept (right, used-on list, dead-link cleanup on edit load, configuration example,
+  `reqmrgsystems` event history); hardened beyond it (a GET no longer DELETEs — the cleanup is
+  behind `prune=1` — `is_scalar()` parameter guards, every interpolated value escaped).
+- Verified by 55 numbered cases in `tmp/TLU_Test_Cases.md` (Suite 1727), 55/55 PASS, console and
+  Event Viewer clean. Docs `docs/Modernized-ReqMgrSystemEdit.md`.
+
+### KEY BUGFIX — `tlReqMgrSystem::delete()` leaked an internal class/method prefix into the delete message (Fixes #1728)
+### KEY BUGFIX — every create of a requirement management system wrote an E_WARNING Event Viewer row (Fixes #1729)
+### KEY BUGFIX — the editor BFF: array-shaped parameters logged warnings and could be stored as the name `Array` (Fixes #1730)
+### KEY BUGFIX (security) — stored DOM XSS: an unescaped system name was injected into the editor's feedback banner (Fixes #1731)
 
 ### Screen — Duplicate Name Check `nameCheck` (Refs #1724)
 - Modernizes the GENERIC node name-uniqueness backend `lib/ajax/checkNodeDuplicateName.php`, which
