@@ -49,6 +49,12 @@ function renderGui(&$dbHandler,&$argsObj,$guiObj,$opObj,$templateCfg)
       case "doDelete":
       case "doCreate":
       case "doUpdate":
+        // Refs #1627 (defensive, not the live fix): $op stays null when the action is
+        // not a $commandMgr method, and get_object_vars(null) is a PHP 8 TypeError.
+        if( is_null($opObj) )
+        {
+          break;
+        }
         $key2loop = get_object_vars($opObj);
         foreach($key2loop as $key => $value)
         {
@@ -113,18 +119,38 @@ function init_args($whiteLists)
   R_PARAMS($iParams,$args);
 
   // sanitize via whitelist
+  // Refs #1627: this used to throw, and nothing in this controller catches it, so a
+  // missing or non whitelisted doAction was an uncaught Exception => HTTP 500 with a
+  // 0-byte body. Two very different situations were conflated here, they are now
+  // separated:
+  //  - empty / missing doAction: the shipped view forms post
+  //    <input type="hidden" name="doAction" value="" /> and only fill it in with JS
+  //    (gui/templates/tl-classic/reqmgrsystems/reqMgrSystemView.tpl:83,87 - the same in
+  //    gui/templates/dashio/reqmgrsystems/reqMgrSystemView.tpl:85,89), so an empty value
+  //    is a legitimate request for the create form. R_PARAMS always creates the property
+  //    (empty string), so the property_exists() test below can not detect "absent".
+  //  - a non empty value that is not whitelisted stays a validation failure, but it is
+  //    reported (tLog, unchanged) and the browser is sent back to the list screen with a
+  //    302, the same graceful handling other legacy 2.0.1 controllers use
+  //    (lib/keywords/keywordsEdit.php:105). Only doAction is ever whitelisted here
+  //    (initScript(), line 99), so the redirect target is safe to hard code.
   foreach($whiteLists as $inputKey => $allowedValues)
   {
-    if( property_exists($args,$inputKey) )
+    if( property_exists($args,$inputKey) && !isset($allowedValues[$args->$inputKey]) )
     {
-      if( !isset($allowedValues[$args->$inputKey]) )
+      if( $inputKey === 'doAction' && trim((string)$args->$inputKey) === '' )
       {
-        $msg = "Input parameter $inputKey - white list validation failure - " .
-               "Value:" . $args->$inputKey . " - " .
-               "File: " . basename(__FILE__) . " - Function: " . __FUNCTION__ ; 
-        tLog($msg,'ERROR');
-        throw new Exception($msg);
+        $args->$inputKey = 'create';
+        continue;
       }
+
+      $msg = "Input parameter $inputKey - white list validation failure - " .
+             "Value:" . $args->$inputKey . " - " .
+             "File: " . basename(__FILE__) . " - Function: " . __FUNCTION__ ;
+      tLog($msg,'ERROR');
+      $base = isset($_SESSION['basehref']) ? $_SESSION['basehref'] : '/';
+      header('Location: ' . $base . 'gui/templates/reqmgrsystems/reqMgrSystemView.html', true, 302);
+      exit();
     }
   }
 
