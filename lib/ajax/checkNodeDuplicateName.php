@@ -63,14 +63,18 @@ function checkNodeOwningProject(&$dbHandler, $nodeId)
 	$walk = intval($nodeId);
 	$guard = 64;
 	while ($walk > 0 && $guard-- > 0) {
+			// Test the node's OWN type first: a test SUITE is checked against the
+		// test project root as its parent, and that root IS the chain end -
+		// walking past it reads parent_id = 0 and wrongly reports the project
+		// as "not found", which broke every test SUITE name check (bug #1725).
+		$nt = intval($dbHandler->fetchFirstRowSingleColumn(
+			"SELECT node_type_id FROM nodes_hierarchy WHERE id = " . intval($walk),
+			'node_type_id'));
+		if ($nt === 1) { return $walk; }
 		$parent = intval($dbHandler->fetchFirstRowSingleColumn(
 			"SELECT parent_id FROM nodes_hierarchy WHERE id = " . intval($walk),
 			'parent_id'));
 		if ($parent == 0) { return null; }
-		$nt = intval($dbHandler->fetchFirstRowSingleColumn(
-			"SELECT node_type_id FROM nodes_hierarchy WHERE id = " . $parent,
-			'node_type_id'));
-		if ($nt === 1) { return $parent; }
 		$walk = $parent;
 	}
 	return null;

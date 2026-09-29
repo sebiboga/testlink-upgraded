@@ -100,16 +100,20 @@ function ncOwningProject(&$db, $nodeId) {
     $walk = intval($nodeId);
     $guard = 64;
     while ($walk > 0 && $guard-- > 0) {
+        // Test the node's OWN type first: a test SUITE is checked against the
+        // test project root as its parent, and that root IS the chain end -
+        // walking past it would read parent_id = 0 and wrongly report the
+        // project as "not found" (bug #1725).
+        $nt = intval($db->fetchFirstRowSingleColumn(
+            "SELECT node_type_id FROM nodes_hierarchy WHERE id = " . intval($walk),
+            'node_type_id'));
+        if ($nt === 1) { return $walk; }   // node_type_id 1 == testproject
         $row = $db->fetchFirstRowSingleColumn(
             "SELECT parent_id FROM nodes_hierarchy WHERE id = " . intval($walk),
             'parent_id');
         if (is_null($row)) { return null; }
         $parent = intval($row);
         if ($parent == 0) { return null; }
-        $nt = intval($db->fetchFirstRowSingleColumn(
-            "SELECT node_type_id FROM nodes_hierarchy WHERE id = " . $parent,
-            'node_type_id'));
-        if ($nt === 1) { return $parent; }   // node_type_id 1 == testproject
         $walk = $parent;
     }
     return null;
