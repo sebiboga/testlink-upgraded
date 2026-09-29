@@ -186,7 +186,12 @@ function getAssignablePlans(&$db, &$user, $tprojectID) {
 
     $opts = [];
     foreach ($features as $tp) {
-        $opts[] = ['id' => intval($tp['id']), 'name' => $tp['name']];
+        // Legacy parity (issue #1643): usersAssign.php:129-135 read
+        // $gui->features[$id]['is_public'] to pick the plan access-type icon.
+        // get_all_testplans() already selects is_public (testproject.class.php:2642),
+        // so expose it per plan for the toolbar indicator.
+        $opts[] = ['id' => intval($tp['id']), 'name' => $tp['name'],
+                   'isPublic' => isset($tp['is_public']) ? intval($tp['is_public']) : 1];
     }
     return $opts;
 }
@@ -922,17 +927,29 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'meta' && isset
 
     $items = [];
     $colourCtx = globalRoleColourContext($db);
+    // Legacy parity (issue #1643): usersAssign.php:70-77 (testplan context) built
+    // $gui->tprojectAccessTypeImg from testproject::getPublicAttr(), so the modern
+    // toolbar must be able to render the project access-type indicator even before
+    // a plan is selected. Exposed at envelope level below.
+    $projIsPublic = null;
+    if ($tproject_id) {
+        $tprojectInfo = $tprojectMgr->get_by_id($tproject_id);
+        if ($tprojectInfo && isset($tprojectInfo['is_public'])) {
+            $projIsPublic = intval($tprojectInfo['is_public']);
+        }
+    }
+    // Legacy parity (issue #1643): usersAssign.php:129-135 built $gui->accessTypeImg
+    // for the SELECTED plan (public/private from $gui->features[$id]['is_public'],
+    // vorsicht when the id was not in the assignable set). null = no plan selected,
+    // so the frontend renders no icon until a plan is chosen; -1 = plan id given
+    // but unresolvable -> legacy 'vorsicht' (red exclamation-triangle).
+    $planIsPublic = null;
     if ($tplan_id) {
         // Legacy parity: usersAssign.php:404-405 get_tplan_effective_role() needs
         // both the project's and the plan's is_public to resolve the 3-layer
         // model (public project / private plan no-rights paths).
         $tplanMgr = new testplan($db);
-        $projIsPublic = 1;
-        $tprojectInfo = $tprojectMgr->get_by_id($tproject_id);
-        if ($tprojectInfo && isset($tprojectInfo['is_public'])) {
-            $projIsPublic = intval($tprojectInfo['is_public']);
-        }
-        $planIsPublic = 1;
+        $planIsPublic = -1;
         $tplanInfo = $tplanMgr->get_by_id($tplan_id);
         if ($tplanInfo && isset($tplanInfo['is_public'])) {
             $planIsPublic = intval($tplanInfo['is_public']);
@@ -944,7 +961,12 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'meta' && isset
             // user's login/name cell when usersAssignGlobalRoleColoring is ENABLED
             // (usersAssign.php:593-598, issue #946). $u->globalRole->name is the
             // RAW roles.description used as the role_colour map key.
-            $effectiveMap = getTplanEffectiveRoleMap($db, $users, $tproject_id, $tplan_id, $planIsPublic, $projIsPublic);
+            // The effective-role model only understands public/private: a null
+            // (unresolvable project) must not read as "private" and silently flip
+            // every non-admin to <no rights>, so resolve it to public (the legacy
+            // default) before passing it in; -1 (vorsicht) is truthy like public.
+            $effProjIsPublic = ($projIsPublic === null) ? 1 : $projIsPublic;
+            $effectiveMap = getTplanEffectiveRoleMap($db, $users, $tproject_id, $tplan_id, $planIsPublic, $effProjIsPublic);
             foreach ($users as $u) {
                 $assignedRoleId = 0;
                 if (isset($u->tplanRoles[$tplan_id])) {
@@ -986,6 +1008,10 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'meta' && isset
     // plan contexts too; expose the demo state for the same UI gating (issue #932).
     out(['status' => 'ok', 'items' => $items, 'roles' => $roleOpts, 'plans' => $planOpts, 'projects' => $projectOpts,
          'totalPlans' => $totalPlans,
+         // Access-type context for the toolbar indicators (issue #1643):
+         // 1 = public, 0 = private, null = not resolvable / no context yet.
+         'projectIsPublic' => $projIsPublic,
+         'planIsPublic' => $planIsPublic,
          'demoMode' => (bool)config_get('demoMode'),
          'roleColouring' => $colourCtx['enabled']]);
 }

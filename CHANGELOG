@@ -17,6 +17,27 @@ Every screen of the application was ported one-by-one in a screen-compare
 kept for backward compatibility and is progressively retired as each modern
 screen reaches full parity.
 
+- [FEATURE GAP] - #1643: the modern Assign Test Plan Roles screen dropped the legacy public/private
+  access-type indicator that sat next to the `Test Project` and `Test Plan` labels. Legacy
+  `lib/usermanagement/usersAssign.php:70-77` (deleted in `ab387af72`) built `$gui->tprojectAccessTypeImg`
+  from `testproject::getPublicAttr()` and `:129-135` built `$gui->accessTypeImg` for the selected plan
+  (`public`/`private` from `$gui->features[$id]['is_public']`, `vorsicht` when the id was not in the
+  assignable set); `usersAssign.tpl:163-169` rendered both as
+  `<span title="lang_get('access_<key>')">$imgSet[key]</span>` (`public`=fa-globe, `private`=fa-lock,
+  `vorsicht`=fa-exclamation-triangle). The 2.0.1 port (`usersAssignPlan.html:80-85`) showed bare labels
+  and the BFF computed `$projIsPublic`/`$planIsPublic` internally (`api/roles/index.php:921-930`) but
+  never returned them — a manager could not tell whether the roles they were overwriting lived on a
+  public or a private project/plan (on a private plan a non-admin collapses to `<no rights>`). Restored:
+  the tplan-roles envelope now returns `projectIsPublic`/`planIsPublic` (1|0|null) and
+  `getAssignablePlans()` emits per-plan `isPublic`; `usersAssignPlan.html` renders a tri-state
+  `access-icon` (fa-globe teal / fa-lock amber / fa-exclamation-triangle red) with a localized tooltip
+  next to both labels, refreshed on every project/plan change and cleared when the context is empty or
+  the toolbar is suppressed; three new keys `assign.accessPublic`/`assign.accessPrivate`/
+  `assign.accessVorsicht` in all 10 bundles, seeded from each locale's legacy `$TLS_access_*` wording.
+  Verified: 13-case suite in `tmp/TLU_Test_Cases.md` (13 PASS), `php -l`/`node --check` clean, 10/10
+  bundles JSON-valid, 0 console errors, 0 new ERROR/WARNING rows in `events`. The identical defect on
+  the project twin is tracked separately as #1609. (Fixes #1643)
+
 - [FEATURE GAP] - #1644: the modern Assign Test Plan Roles screen had replaced the legacy
   *context-aware* role-column caption with a static one. Legacy `usersAssign.tpl:216-218` (deleted in
   `ab387af72`) rendered `<th>{lang_get s="th_roles_$featureVerbose"} ({$my_feature_name|escape})</th>`,

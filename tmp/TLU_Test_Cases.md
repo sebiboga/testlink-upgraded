@@ -880,3 +880,39 @@ compiled `reqMgrSystemEdit.tpl.php` (unguarded `getByID()`); it does **not** occ
 existing id, which case 20/21 above re-confirmed (0 warnings for the row the harness created).
 #1628 — `E_WARNING Undefined array key "checkConnection"` at
 `reqMgrSystemCommands.class.php:72`.
+
+---
+
+## Suite 1643 — Assign Test Plan Roles: public/private access-type indicator (issue #1643)
+
+**Precondition** (DB freshly imported every run — `testprojects`/`testplans` are empty):
+recreate the fixtures with the SQL block in
+`docs/Task-Issue-1643-Assign-Roles-Access-Type-Indicator.md`:
+- project 1 `ALPHA1643` **public**, node 1; plans 3 `A-PUBLIC-1643` (public), 4 `A-PRIVATE-1643` (private), node 3 / 4;
+- project 2 `BRAVO1643` **private**, node 2; plan 5 `B-PUBLIC-1643` (public), node 5;
+- project 6 `CHARLIE1643` **private**, node 6, **no plans**.
+Login `admin/admin`. BFF check: `php -l api/roles/index.php`; screen check: `node --check` on the
+inline script; all 10 bundles `python3 -m json.tool`.
+
+| # | case | expected | actual | verdict |
+|---|---|---|---|---|
+| 1 | `GET meta/tplan-roles?tproject_id=1&tplan_id=4` | envelope has `projectIsPublic=1`, `planIsPublic=0`; per-plan `isPublic` present | exactly that; DB truth `testprojects(1)=1`, `testplans(4)=0` | PASS |
+| 2 | `GET …?tproject_id=1&tplan_id=3` | `planIsPublic=1` | 1 | PASS |
+| 3 | `GET …?tproject_id=2&tplan_id=5` | `projectIsPublic=0`, `planIsPublic=1` | 0 / 1 | PASS |
+| 4 | open `usersAssignPlan.html?tproject_id=1&tplan_id=4` | project icon `fa-globe` title "Public"; plan icon `fa-lock` title "Private - User need specific role assignment" | `#projectAccessIcon` = `access-public … title="Public"`, `#planAccessIcon` = `access-private … Private - …` | PASS |
+| 5 | switch plan combo to `A-PUBLIC-1643` | plan icon becomes `fa-globe` "Public"; project unchanged | `access-public … title="Public"` | PASS |
+| 6 | open `…?tproject_id=2&tplan_id=5` (private project) | project icon `fa-lock` private; plan icon `fa-globe` public | matches | PASS |
+| 7 | clear the plan combo (`value=""` + change) | plan icon cleared; project icon kept | plan span class `access-icon` (empty), project `access-public` intact | PASS |
+| 8 | open `…?tproject_id=6&tplan_id=0` (project with no plans) | toolbar hidden + disabled notice; **both** icons cleared | toolbar `display:none`, `#disabledMsg` visible, both spans empty | PASS |
+| 9 | `?locale=ro` on project 2/plan 5 | tooltips in Romanian | project title `Privat - utilizatorul necesită o atribuire de rol specifică`, plan `Public` | PASS |
+| 10 | i18n keys | `assign.accessPublic/Private/Vorsicht` in all 10 bundles | present in all 10; 10/10 `json.tool`-valid | PASS |
+| 11 | JS syntax | inline script parses | `node --check` OK | PASS |
+| 12 | console during cases 4–8 | no errors/warnings | 0 console messages | PASS |
+| 13 | `events` table after the whole suite | no new Error/Warning | only 2 rows, both `log_level=16` (audit) | PASS |
+| 14 | `GET …?tproject_id=1&tplan_id=999` (unresolvable plan) | `projectIsPublic=1`, `planIsPublic=-1` (vorsicht sentinel) | exactly that (code-review fix) | PASS |
+| 15 | `renderAccessIcon('#planAccessIcon', -1)` in-browser | red `fa-exclamation-triangle`, tooltip `assign.accessVorsicht` | `access-vorsicht` + `aria-label="Attention internal error"` | PASS |
+| 16 | per-plan `isPublic` consumed on combo change | plan indicator updates instantly from `r.plans[].isPublic` before `loadUsers()` returns | `planPublicById` map painted; canonical `planIsPublic` confirms | PASS |
+
+**Result: 16 / 16 PASS.** Negative control: before the BFF/HTML change the same payload returned
+no `projectIsPublic`/`planIsPublic` (investigation comment) and the two `<span>` elements did not
+exist — cases 1–7 could not pass.

@@ -27,6 +27,16 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 .btn-ghost:hover { background: #2a2c33; }
 .toolbar select { font-size: 13px; padding: 5px 10px; border-radius: 4px; border: 1px solid #555; background: #333; color: #fff; min-width: 220px; }
 .toolbar label { color: #aaa; font-size: 13px; }
+/* Issue #1643: access-type indicator next to the Test Project / Test Plan
+   labels, replacing the legacy $imgSet public/private/vorsicht icons
+   (usersAssign.tpl:163-169). Legacy: public=fa-globe, private=fa-lock,
+   vorsicht=fa-exclamation-triangle (tlsmarty.inc.php getImageSet()). The title
+   attribute carries the localized access_* tooltip. */
+.access-icon { display: inline-flex; align-items: center; font-size: 14px; margin-left: 6px; cursor: help; }
+.access-icon:empty { display: none; }
+.access-icon.access-public { color: #4ECDC4; }
+.access-icon.access-private { color: #f0ad4e; }
+.access-icon.access-vorsicht { color: #e6605e; }
 .table-wrap { padding: 20px 24px; }
 .assign-table { background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.08); width: 100%; border-collapse: collapse; }
 .assign-table thead th { background: #22242a; color: #fff; font-size: 13px; padding: 10px 14px; text-align: left; }
@@ -79,8 +89,18 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 
 <div class="toolbar">
   <label data-i18n="assign.testProject">Test Project:</label>
+  <!-- Legacy parity (issue #1643): usersAssign.php:70-77 built
+       $gui->tprojectAccessTypeImg (public/private) next to the TestProject
+       label; usersAssign.tpl:163-169 rendered it. Rebuilt from the
+       projectIsPublic field of the tplan-roles payload. -->
+  <span id="projectAccessIcon" class="access-icon"></span>
   <select id="projectSelect"></select>
   <label style="margin-left:8px;" data-i18n="assign.testPlan">Test Plan:</label>
+  <!-- Legacy parity (issue #1643): usersAssign.php:129-135 built
+       $gui->accessTypeImg for the SELECTED plan (public/private, vorsicht when
+       the id is not in the assignable set); usersAssign.tpl:166-167 rendered it
+       next to the TestPlan label. Rebuilt from planIsPublic. -->
+  <span id="planAccessIcon" class="access-icon"></span>
   <select id="planSelect" disabled></select>
   <span style="flex:1"></span>
   <!-- Legacy parity: usersAssign.tpl:189-206 (shared legacy template also covers
@@ -409,6 +429,10 @@ function esc(s) {
 // With no plan selected (transient pre-load state, or the combo cleared) the
 // bare label is rendered WITHOUT empty parentheses - never "Test Plan Role ()".
 var planNameById = {};   // plan id (string) -> plan name, rebuilt per project load
+// Issue #1643: plan id (string) -> is_public (1|0), same r.plans payload as
+// planNameById; lets the plan access-type icon update the instant the combo
+// changes instead of waiting for the loadUsers() round-trip.
+var planPublicById = {};
 function updatePlanRoleHeading() {
   var label = TLi18n.t('header.planRoleHeading');
   var planName = (currentPlan == null) ? '' : (planNameById[String(currentPlan)] || '');
@@ -419,6 +443,34 @@ function updatePlanRoleHeading() {
   // would render as the literal text "A&amp;B &lt;draft&gt;" (measured on the
   // first implementation of this helper - see issue #1644 comments).
   $('#planRoleHeading').text(planName ? label + ' (' + planName + ')' : label);
+}
+
+// ---------------------------------------------------------------------------
+// Issue #1643 - public/private access-type indicator next to the Test Project
+// and Test Plan labels. Legacy parity (usersAssign.php:70-77 + :129-135,
+// deleted in ab387af72): the controller built
+//   <span title="lang_get('access_' . $accessKey)">$imgSet[$accessKey]</span>
+// for the project (public/private from getPublicAttr) and for the selected plan
+// (public/private from $gui->features[$id]['is_public'], 'vorsicht' when the id
+// was not in the assignable set). Icons (tlsmarty.inc.php getImageSet()):
+// public=fa-globe, private=fa-lock, vorsicht=fa-exclamation-triangle. The BFF
+// now ships projectIsPublic / planIsPublic (1|0|null) in the tplan-roles
+// payload; null means "no context yet" so the icon is cleared.
+// renderAccessIcon() maps that tri-state to the Dashio icon + localized tooltip.
+function renderAccessIcon(sel, isPublic) {
+  var $el = $(sel);
+  if (isPublic === null || typeof isPublic === 'undefined') {
+    $el.removeClass('access-public access-private access-vorsicht').removeAttr('title').removeAttr('aria-label').empty();
+    return;
+  }
+  var v = String(isPublic), fa, cls, key;
+  if (v === '1') { fa = 'fa-globe'; cls = 'access-public'; key = 'assign.accessPublic'; }
+  else if (v === '0') { fa = 'fa-lock'; cls = 'access-private'; key = 'assign.accessPrivate'; }
+  else { fa = 'fa-exclamation-triangle'; cls = 'access-vorsicht'; key = 'assign.accessVorsicht'; }
+  $el.removeClass('access-public access-private access-vorsicht').addClass(cls)
+     .attr('title', TLi18n.t(key))
+     .attr('aria-label', TLi18n.t(key))
+     .html('<i class="fa ' + fa + '" aria-hidden="true"></i>');
 }
 
 // True when the BFF shipped a real role name for the value-0 "revert to
@@ -457,6 +509,9 @@ function showNoAccess() {
   $('#emptyMsg').hide();
   $('#disabledMsg').hide();
   $('#footerText').hide();
+  // Issue #1643: the toolbar is gone, so drop the access-type indicators with it.
+  renderAccessIcon('#projectAccessIcon', null);
+  renderAccessIcon('#planAccessIcon', null);
   $('#denyBox').show();
 }
 
@@ -571,8 +626,16 @@ function loadProjects(selectedId, selectedPlanId) {
   $('#projectSelect').on('change', function() {
     var pid = $(this).val();
     currentProject = pid;
-    if (pid) { loadPlans(pid); } else {
+    if (pid) {
+      // Issue #1643: drop the old project/plan indicators while the new project
+      // context loads; loadPlans() repopulates the project icon on response.
+      renderAccessIcon('#projectAccessIcon', null);
+      loadPlans(pid);
+    } else {
       showAssignForm();
+      // Issue #1643: no project -> no access context for either combo.
+      renderAccessIcon('#projectAccessIcon', null);
+      renderAccessIcon('#planAccessIcon', null);
       $('#planSelect').html('<option value="">' + TLi18n.t('assign.selectPlan') + '</option>').prop('disabled', true);
       // Issue #1707 review: the authz toggle redraws the grid, so an emptied
       // context must also drop the DataTable + model - otherwise ticking the box
@@ -634,6 +697,10 @@ function showPlanDisabled(totalPlans, noticeKey) {
   // screen's showDisabled(), usersAssignProject.html:290).
   $('#projectSelect').prop('disabled', true);
   $('#planSelect').empty().prop('disabled', true);
+  // Issue #1643: the form is not rendered, so neither access-type indicator may
+  // linger behind the hidden toolbar.
+  renderAccessIcon('#projectAccessIcon', null);
+  renderAccessIcon('#planAccessIcon', null);
   // Drop the DataTables handle BEFORE emptying the tbody it wraps, otherwise a
   // later render would destroy a DataTable over a hand-emptied body.
   if (assignDt) { assignDt.destroy(); assignDt = null; }
@@ -662,15 +729,27 @@ function loadPlans(pid, selectedPlanId) {
   // to remove. loadUsers() re-adds the "(<plan>)" part for the plan it selects.
   currentPlan = null;
   updatePlanRoleHeading();
+  // Issue #1643: the plan combo is about to be rebuilt, so the previous plan's
+  // access-type icon must not linger; it is re-set by the loadUsers() call below
+  // (tplan_id=0 request carries no planIsPublic). The project icon is refreshed
+  // from this response as soon as the project context resolves.
+  renderAccessIcon('#planAccessIcon', null);
   $.getJSON(API + '/meta/tplan-roles?tproject_id=' + pid + '&tplan_id=0', function(r) {
     var sel = $('#planSelect');
     sel.html('<option value="">' + TLi18n.t('assign.selectPlan') + '</option>');
+    // Issue #1643: project access-type indicator (public/private), from the
+    // same payload that proves the project context. Legacy getPublicAttr().
+    renderAccessIcon('#projectAccessIcon', r.projectIsPublic);
     // Issue #1644: rebuild the id -> name map for THIS project before anything
     // reads it, so a project switch can never leave the previous project's plan
     // name in the column caption. The combo below is filled from the very same
     // r.plans payload, so the map and the <option> labels can never disagree.
     planNameById = {};
-    $.each(r.plans || [], function(i, p) { planNameById[String(p.id)] = p.name; });
+    planPublicById = {};
+    $.each(r.plans || [], function(i, p) {
+      planNameById[String(p.id)] = p.name;
+      planPublicById[String(p.id)] = p.isPublic;
+    });
     if (!r.plans || !r.plans.length) {
       showPlanDisabled(r.totalPlans || 0);
       // The grid is hidden in this state (usersAssign.tpl:142 -> :295 renders no
@@ -701,6 +780,9 @@ function loadPlans(pid, selectedPlanId) {
     }
     if (planToLoad !== null) {
       sel.val(String(planToLoad));
+      // Issue #1643: paint the plan indicator immediately from the per-plan
+      // isPublic, then loadUsers() refreshes it from the canonical planIsPublic.
+      renderAccessIcon('#planAccessIcon', planPublicById[String(planToLoad)]);
       loadUsers(pid, planToLoad);
     }
   }).fail(function(xhr) {
@@ -713,12 +795,19 @@ function loadPlans(pid, selectedPlanId) {
   });
   $('#planSelect').off('change').on('change', function() {
     var planId = $(this).val();
-    if (planId) loadUsers(pid, planId);
+    if (planId) {
+      // Issue #1643: paint the plan indicator instantly from the per-plan
+      // isPublic (loadUsers() refreshes it from planIsPublic on response).
+      renderAccessIcon('#planAccessIcon', planPublicById[String(planId)]);
+      loadUsers(pid, planId);
+    }
     else {
       // Issue #1644: clearing the combo leaves no plan, so the caption falls back
       // to the bare localized label instead of naming the deselected plan.
       currentPlan = null;
       updatePlanRoleHeading();
+      // Issue #1643: no selected plan -> no plan access-type indicator.
+      renderAccessIcon('#planAccessIcon', null);
       showAssignForm(); $('#assignBody').empty(); $('#emptyMsg').show(); $('#saveBtn').prop('disabled', true);
     }
   });
@@ -916,6 +1005,12 @@ function loadUsers(pid, planId) {
     // lifted here, once a real plan context really loaded: doing it before the
     // request would flash the toolbar on a load that ends in a 403/deny box.
     showAssignForm();
+    // Issue #1643: full context (project + selected plan) loaded - refresh both
+    // access-type indicators. planIsPublic comes from testplans.is_public,
+    // projectIsPublic from testprojects.is_public (legacy usersAssign.php:70-77
+    // + :129-135 rendered exactly these two icons here).
+    renderAccessIcon('#projectAccessIcon', r.projectIsPublic);
+    renderAccessIcon('#planAccessIcon', r.planIsPublic);
     roles = r.roles || roles;
     buildBulkSelect();
     demoMode = !!(r.demoMode);
