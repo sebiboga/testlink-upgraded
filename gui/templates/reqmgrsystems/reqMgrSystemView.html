@@ -194,6 +194,7 @@ function renderTable(items) {
     var actions = '';
     if (canManage) {
       actions += '<i class="fa fa-edit action-btn" title="' + TLi18n.t('common.edit') + '" onclick="editSystem(' + t.id + ')"></i>';
+      actions += '<i class="fa fa-external-link-alt action-btn" title="' + TLi18n.t('rmse.openEditor') + '" onclick="openEditor(' + t.id + ')"></i>';
       if (t.link_count > 0) {
         actions += '<i class="fa fa-trash action-btn danger disabled" title="' + TLi18n.t('rms.msg.cannotDeleteLinked') + '"></i>';
       } else {
@@ -258,6 +259,18 @@ function editSystem(id) {
     onTypeChange();
     $('#systemModal').modal('show');
   });
+}
+
+// Refs #1727: the standalone editor screen (the modern twin of the legacy
+// lib/reqmgrsystems/reqMgrSystemEdit.php). Reached from the per-row external
+// link icon, with the same tproject_id / tplan_id context the list screen was
+// opened with, so the Back button returns here with its context intact.
+function openEditor(id) {
+  var p = new URLSearchParams(window.location.search);
+  var url = '/gui/templates/reqmgrsystems/reqMgrSystemEdit.html?id=' + id +
+            '&tproject_id=' + (p.get('tproject_id') || 0) +
+            '&tplan_id=' + (p.get('tplan_id') || 0);
+  window.open(url, '_blank');
 }
 
 function showCfgExample() {

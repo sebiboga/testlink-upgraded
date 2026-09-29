@@ -1977,6 +1977,17 @@ function getActions(&$gui,$baseURL) {
   // are enforced by the BFF on every route; the legacy controller
   // lib/reqmgrsystems/reqMgrSystemView.php keeps the same checks.
   $actions->reqMgrSystemView = "/gui/templates/reqmgrsystems/reqMgrSystemView.html?{$ctx}";
+  // Requirement Management System EDITOR modernized screen (Dashio standalone
+  // page) - Refs #1727. The list screen (#980) only inlined create/edit as a
+  // modal; the legacy controller lib/reqmgrsystems/reqMgrSystemEdit.php (+ its
+  // dashio / tl-classic reqMgrSystemEdit.tpl) was the last live legacy renderer
+  // left in lib/ with no modern twin. The same single legacy right
+  // (reqmgrsystem_management, checkRights()) is enforced on every route of
+  // api/reqmgrsystemedit, together with session + same-origin guards the legacy
+  // POST form never had. lib/reqmgrsystems/reqMgrSystemEdit.php is kept as a
+  // session-guarded 302 shim onto this screen, so an old
+  // ?doAction=edit&id=<n> bookmark still resolves.
+  $actions->reqMgrSystemEdit = "/gui/templates/reqmgrsystems/reqMgrSystemEdit.html?{$ctx}";
   // Install/Upgrade check modernized screen (Dashio standalone page) - Refs #797.
   // Replaces the legacy upgrade landing (install/index.php); the BFF
   // (api/install) reports config/DB/schema/security status. Aside visibility
