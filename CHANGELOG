@@ -40,6 +40,28 @@ screen reaches full parity.
   hidden count (`assign.unauthorizedHidden`). No BFF change was required: `effectiveRoleID` was
   already on both payloads. 3 new i18n keys in all 10 locale bundles. (Refs #1707)
 
+- [FEATURE GAP] - #1027: the modern Requirement Specification Management screen had no way to
+  reorder or move a requirement specification. Legacy set `drag_and_drop->enabled = true` on the
+  req-spec tree (`tlRequirementFilterControl::build_tree_menu()`) and every gesture went to
+  `lib/ajax/dragdroprequirementnodes.php` — `doAction=doReorder` (`tree::change_order_bulk()` ->
+  `nodes_hierarchy.node_order`) or `doAction=changeParent` (`parent_id` + `srs_id`), with
+  `useBeforeMoveNode` guarding forbidden parents; the modern screen offered only
+  Expand/Collapse/Create/Import/Export, so the visible order was frozen at creation
+  (`update_spec` even forces `node_order = null`) and re-ordering meant delete + recreate, losing
+  the requirements, the revisions and the ids. The BFF now exposes `POST ?action=reorder_specs`
+  {tproject_id,parent_id,nodes_order[]} and `POST ?action=move_spec`
+  {tproject_id,spec_id,new_parent_id,position(top|bottom)} — both gated on `mgt_modify_req`,
+  POST-only (the legacy endpoint mutated on GET), proving that every submitted id is a child of
+  the addressed parent and of the addressed project, rejecting duplicates/short lists, refusing a
+  self-parent or a cycle, and honouring `req_cfg->child_requirements_mgmt`. The screen gains a
+  Dashio *Reorder specifications* modal (drag row + Up/Down/To top/To bottom, whole subtrees move
+  with their parent, cross-parent drops refused with an explanatory message, dirty chip, Discard,
+  and a confirmation modal that posts one `reorder_specs` per changed parent group) plus a *Move*
+  modal whose parent picker excludes the spec and its whole subtree (the legacy forbidden-parent
+  guard), and a *Reorder / move requirements* link that hands the requirement half of the legacy
+  gesture to `reqTreeReorder.html` (#1681). 30 new `rso.*` i18n keys in all 10 locale bundles.
+  (Refs #1027)
+
 - [FEATURE GAP] - #1026: the modern Requirement Specification Management screen rendered a FLAT
   list of specs: `api/reqspec/index.php?action=specs` never SELECTed `nodes_hierarchy.parent_id`
   (and dropped the `node_order` it already selected), so nested child specifications appeared as

@@ -52,3 +52,6 @@ vendor/
 
 # Local GitHub OAuth credentials (contains real secrets, NEVER commit)
 cfg/oauth_github_local.inc.php
+
+# Agent runtime artifact: a curl cookie jar holds a LIVE session cookie
+cookies_*.txt

@@ -1350,10 +1350,6 @@ function collectGroups(rows) {
   return groups;
 }
 
-function savedOrderOf(parentId) {
-  return ((savedGroups[parentId] || [])).join(',') || '';
-}
-
 function renderOrdTable() {
   var $body = $('#ordBody').empty();
   $('#ordEmpty').toggle(ordRows.length === 0);
@@ -1406,10 +1402,7 @@ function renderOrdTable() {
         showError($('#ordError'), TLi18n.t('rso.errDifferentParent'));
         return;
       }
-      var mv2 = ordRows.splice(from, 1)[0];
-      ordRows.splice(i > from ? i - 1 : i, 0, mv2);
-      renderOrdTable();
-      markOrdDirty();
+      moveBlock(from, i > from ? i - 1 : i);
     });
 
     $body.append(tr);
@@ -1424,23 +1417,77 @@ function ordBtn(icon, label, dir, idx) {
   return b;
 }
 
+// The flat list is in TREE order, so a specification and its whole subtree are
+// a CONTIGUOUS run starting at the row index. Every order gesture has to move
+// that run as one block, otherwise the children would be left behind (a child
+// rendered above its own parent) and the parent's group order would not change
+// at all, making the gesture a silent no-op.
+function blockEndOf(i) {
+  var ownId = ordRows[i].id;
+  var j = i + 1;
+  while (j < ordRows.length) {
+    var p = ordRows[j].parentId;
+    if (p !== ownId && !isDescendantOf(p, ownId)) { break; }
+    j++;
+  }
+  return j;
+}
+
+function isDescendantOf(parentId, ancestorId) {
+  var seen = 0;
+  while (parentId && seen < 64) {
+    if (parentId === ancestorId) { return true; }
+    var row = null;
+    for (var k = 0; k < ordRows.length; k++) {
+      if (ordRows[k].id === parentId) { row = ordRows[k]; break; }
+    }
+    if (!row) { return false; }
+    parentId = row.parentId;
+    seen++;
+  }
+  return false;
+}
+
+function moveBlock(from, to) {
+  var block = ordRows.splice(from, blockEndOf(from) - from);
+  ordRows.splice.apply(ordRows, [to, 0].concat(block));
+  renderOrdTable();
+  markOrdDirty();
+}
+
 function nudgeOrd(i, dir) {
   if (!canManage || i < 0 || i >= ordRows.length) { return; }
   var p = ordRows[i].parentId;
+  var block = blockEndOf(i) - i;
   var j;
   if (dir === 'up' || dir === 'down') {
-    j = i + (dir === 'up' ? -1 : 1);
     // Steps may never cross a parent boundary: the parent of a specification is
-    // the Move gesture's business, not the order gesture's.
-    if (j < 0 || j >= ordRows.length || ordRows[j].parentId !== p) { return; }
+    // the Move gesture's business, not the order gesture's. The neighbour is
+    // looked up INSIDE the parent group - a parent row is immediately followed
+    // by its own children, so a plain i +/- 1 would always read a row of
+    // another group and silently do nothing.
+    var group = groupIndexesOf(p);
+    var pos = group.indexOf(i);
+    var target = (dir === 'up') ? pos - 1 : pos + 1;
+    if (pos < 0 || target < 0 || target >= group.length) { return; }
+    // j is an index into the list AFTER the block has been removed: everything
+    // behind the block shifts left by its size, everything before it does not.
+    // 'up' inserts BEFORE the previous sibling, 'down' AFTER the next one.
+    j = group[target] + (dir === 'down' ? 1 - block : 0);
   } else {
-    j = (dir === 'top') ? firstIndexOfParent(p) : lastIndexOfParent(p);
+    j = (dir === 'top') ? firstIndexOfParent(p) : lastIndexOfParent(p) - block + 1;
     if (j < 0 || j === i) { return; }
   }
-  var mv = ordRows.splice(i, 1)[0];
-  ordRows.splice(j, 0, mv);
-  renderOrdTable();
-  markOrdDirty();
+  moveBlock(i, j);
+}
+
+// flat indexes of every row of one parent group, in list order
+function groupIndexesOf(parentId) {
+  var out = [];
+  for (var i = 0; i < ordRows.length; i++) {
+    if (ordRows[i].parentId === parentId) { out.push(i); }
+  }
+  return out;
 }
 
 function firstIndexOfParent(parentId) {
@@ -1653,12 +1700,17 @@ function doMoveSpec() {
       $('#moveModal').modal('hide');
       if (r.status === 'ok') { toast(TLi18n.t('rso.msg.moved')); }
       else { toast(TLi18n.t('rso.msg.moveUnchanged')); }
-      loadSpecs();
-      // the pending order is stale after a move: rebuild it from the new tree
-      ordRows = flattenSpecTree(specsCache);
-      savedGroups = collectGroups(ordRows);
-      ordSaved = ordSignature();
-      renderOrdTable();
+      // The pending order is stale after a move (the spec changed parent), so
+      // the whole pending state is rebuilt from the RELOADED tree - loadSpecs()
+      // is async, hence the callback; rebuilding from the old cache would
+      // re-arm the moved spec under its previous parent and make the next
+      // Apply post a list the server rejects.
+      loadSpecs(function () {
+        ordRows = flattenSpecTree(specsCache);
+        savedGroups = collectGroups(ordRows);
+        ordSaved = ordSignature();
+        renderOrdTable();
+      });
     })
     .fail(function (xhr) {
       var r = {};
