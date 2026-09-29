@@ -70,6 +70,32 @@ screen reaches full parity.
   hidden count (`assign.unauthorizedHidden`). No BFF change was required: `effectiveRoleID` was
   already on both payloads. 3 new i18n keys in all 10 locale bundles. (Refs #1707)
 
+- [FEATURE GAP] - #1028: the modern Requirement Specification Management screen could no longer
+  reach the two requirement DETAIL screens. In legacy 1.9.20 every node of the req-spec tree
+  carried an `href` built by `render_reqspec_treenode()` (`lib/functions/treeMenu.inc.php:2086-2110`)
+  from `$js_functions = ['testproject'=>'TPROJECT_REQ_SPEC_MGMT','requirement_spec'=>'REQ_SPEC_MGMT',
+  'requirement'=>'REQ_MGMT']`, and `gui/javascript/testlink_library.js:1213-1244` turned a
+  `REQ_SPEC_MGMT(tproj,id)` click into `reqSpecView.php?item=req_spec&tproject_id=…&req_spec_id=…`
+  and a `REQ_MGMT(tproj,id)` click into `reqView.php?item=requirement&…&requirement_id=…` — i.e.
+  clicking a specification node opened the FULL spec detail (header, scope, type, author/editor,
+  custom fields, attachments, revision history, *Freeze* / *Create Revision*, requirement list) and
+  clicking a requirement node opened the FULL requirement detail (all versions, per-revision
+  attributes, custom fields, attachments, linked test cases, relations, monitoring), both
+  `mgt_view_req` gated. The modern DataTable rows had only `selectSpec(id)` (which expands the
+  inline "Requirements of …" panel) and `openReqEdit(id)` (the small inline editor), so
+  `reqSpecView.html` and `reqView.html` — although both already existed, already accepted
+  `?id=…&tproject_id=…` (`reqSpecView.html:309-310`, `reqView.html:328-331`) and were already fed
+  by the complete BFF actions `api/reqspec` `spec_view`/`freeze_spec`/`create_revision` and
+  `api/requirements` `/view` — were completely unreachable from the screen. The port is therefore
+  deliberately front-end only (`git diff --stat api/` is empty): each spec row and each
+  requirement row gains a teal `.view-btn` eye deep link to `reqSpecView.html?id=<spec>` /
+  `reqView.html?id=<req>`, both carrying `tproject_id` so the detail-side rights check stays
+  scoped to the project being viewed, and both gated on the BFF's already-exposed
+  `rights.view` (`api/reqspec/index.php:571-574`) exactly like the legacy node href. The inline
+  expander/editor gestures are untouched, so the screen keeps its modern inline workflow and gains
+  the legacy deep link; 2 new `rs.viewSpecDetail` / `rs.viewReqDetail` i18n keys in all 10 locale
+  bundles. (Refs #1028)
+
 - [FEATURE GAP] - #1027: the modern Requirement Specification Management screen had no way to
   reorder or move a requirement specification. Legacy set `drag_and_drop->enabled = true` on the
   req-spec tree (`tlRequirementFilterControl::build_tree_menu()`) and every gesture went to
