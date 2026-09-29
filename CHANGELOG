@@ -17,6 +17,36 @@ Every screen of the application was ported one-by-one in a screen-compare
 kept for backward compatibility and is progressively retired as each modern
 screen reaches full parity.
 
+- [FEATURE GAP] - #1644: the modern Assign Test Plan Roles screen had replaced the legacy
+  *context-aware* role-column caption with a static one. Legacy `usersAssign.tpl:216-218` (deleted in
+  `ab387af72`) rendered `<th>{lang_get s="th_roles_$featureVerbose"} ({$my_feature_name|escape})</th>`,
+  where `$featureVerbose` is `$gui->featureType` (so `th_roles_testplan` -> `$TLS_th_roles_testplan` =
+  "Test Plan Role", `locale/en_US/strings.txt:2144`, localized in every shipped locale) and
+  `$my_feature_name` is assigned INSIDE the combo loop only for the selected option
+  (`usersAssign.tpl:177-179`), i.e. the name of the currently selected test plan - so the header read
+  e.g. `Test Plan Role (A-PUBLIC-1644)` and changed with the plan, including via the `tplan_id` deep
+  link. The 2.0.1 port hard-coded `Plan Role Override` (`assign.planRoleOverride`,
+  `usersAssignPlan.html:116`) and no `th_roles_*` key existed in any of the 10 bundles - which matters
+  in practice, because the same user list is reused for every plan, so the column that assigns
+  plan-specific overrides said nothing about WHICH plan it applied to. Restored: a new
+  `header.planRoleHeading` key in all 10 bundles, each value seeded from that locale's own
+  `$TLS_th_roles_testplan` (ro is the one shipped locale that has none, so it got a faithful
+  translation), plus a `planNameById` map and `updatePlanRoleHeading()` that compose
+  `<label> (<plan>)` and are called from EVERY path that changes or clears the plan context (initial
+  load, `loadPlans()` map rebuild + no-plan branch, `loadUsers()`, and both combo "cleared" branches),
+  falling back to the bare label - never `Test Plan Role ()`. The `<th>` deliberately carries no
+  `data-i18n`, since `TLi18n.apply()` would overwrite the composed caption with the bare label. The
+  plan name is interpolated raw and escaped by `.text()`, which is what Smarty's
+  `{$my_feature_name|escape}` does; stacking `esc()` on top double-escaped (caught by the escaping
+  test case, fixed before landing). No BFF change was needed - `api/roles/index.php:895` already
+  returns `planOpts = getAssignablePlans()` -> `[{id,name},...]`, which the combo already consumed.
+  Verified: 17-case suite in `tmp/TLU_Test_Cases.md` (17 PASS) covering auto-selection, manual
+  public/private switching, cleared combo, project with no plans, project switching, a plan named
+  `A&B <draft>-1644`, `?locale=de`/`?locale=ro`, the `tplan_id` deep link, DataTables
+  sort/search redraws, bulk "Do" and row `onRoleChange`; `node --check` OK, 10/10 bundles
+  `json.tool`-valid, 0 console errors, and 0 new ERROR/WARNING rows in `events`. The identical defect
+  on the project twin is tracked separately as #1612. (Fixes #1644)
+
 - [FEATURE GAP] - #1707: the modern Assign Test Project Roles and Assign Test Plan Roles screens
   restored the legacy `not_authorized_user` row marker (#1645/#926) but dropped the *show only
   authorized users* checkbox that consumed it. Legacy

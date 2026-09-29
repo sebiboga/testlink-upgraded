@@ -113,7 +113,19 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
         <th data-i18n="user.login">Login</th>
         <th data-i18n="user.fullName">Name</th>
         <th style="width:200px;" data-i18n="assign.inheritedRole">Inherited Role</th>
-        <th style="width:220px;" data-i18n="assign.planRoleOverride">Plan Role Override</th>
+        <!-- Issue #1644: legacy usersAssign.tpl:216-218 rendered
+             <th>{lang_get s="th_roles_$featureVerbose"} ({$my_feature_name|escape})</th>
+             - a LOCALIZED, context-aware caption naming the feature the override
+             column applies to ($my_feature_name = the SELECTED plan name,
+             usersAssign.tpl:177-179). The static "Plan Role Override" label
+             (assign.planRoleOverride, removed from all 10 bundles with this
+             change) carried no context at all. Composed in JS by
+             updatePlanRoleHeading(), hence NO data-i18n: TLi18n.apply() would
+             overwrite the composed caption with the bare label on every load.
+             The hard-coded "Test Plan Role" inside the <th> is only a graceful
+             degradation fallback for a CDN/JS failure (never an unlabeled
+             column) - it is overwritten as soon as the plan context resolves. -->
+        <th style="width:220px;" id="planRoleHeading">Test Plan Role</th>
         <!-- Issue #1707: hidden authorized/1 unauthorized marker column consumed
              by the show_only_authorized_users filter. -->
         <th class="authz-col"></th>
@@ -373,6 +385,42 @@ function esc(s) {
     .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
+// ---------------------------------------------------------------------------
+// Issue #1644 - the role-override column caption is LOCALIZED and CONTEXT-AWARE.
+// Legacy parity (gui/templates/dashio/usermanagement/usersAssign.tpl:216-218,
+// deleted in ab387af72):
+//   {$featureVerbose=$gui->featureType}
+//   <th>{lang_get s="th_roles_$featureVerbose"} ({$my_feature_name|escape})</th>
+// For a test plan context $featureVerbose is 'testplan', so lang_get resolves
+// $TLS_th_roles_testplan (locale/en_US/strings.txt:2144 "Test Plan Role") and
+// $my_feature_name - assigned INSIDE the combo loop, only for the selected
+// option (usersAssign.tpl:177-179) - is the name of the currently selected test
+// plan. The header therefore read e.g. "Test Plan Role (A-PUBLIC-1644)" and
+// changed with the plan combo; the modern screen had replaced it with the static
+// "Plan Role Override" (assign.planRoleOverride - key removed from all 10
+// bundles together with this change, it had no other consumer), leaving the
+// administrator with no on-screen indication of WHICH plan the override column
+// applies to.
+// The localized half of the label is the new header.planRoleHeading bundle key,
+// seeded from each locale's own $TLS_th_roles_testplan; the context half is the
+// plan name the BFF already delivers in r.plans (api/roles/index.php:895
+// getAssignablePlans(), defined at :153 -> {id, name}) - so this is a pure
+// front-end port, no BFF change is needed.
+// With no plan selected (transient pre-load state, or the combo cleared) the
+// bare label is rendered WITHOUT empty parentheses - never "Test Plan Role ()".
+var planNameById = {};   // plan id (string) -> plan name, rebuilt per project load
+function updatePlanRoleHeading() {
+  var label = TLi18n.t('header.planRoleHeading');
+  var planName = (currentPlan == null) ? '' : (planNameById[String(currentPlan)] || '');
+  // The plan name goes in RAW and .text() does the escaping - that is precisely
+  // {$my_feature_name|escape}: Smarty escapes the interpolated value and then
+  // writes it into the <th> as markup, so the browser shows the characters. Calling
+  // esc() on top of .text() would double-escape and a plan named "A&B <draft>"
+  // would render as the literal text "A&amp;B &lt;draft&gt;" (measured on the
+  // first implementation of this helper - see issue #1644 comments).
+  $('#planRoleHeading').text(planName ? label + ' (' + planName + ')' : label);
+}
+
 // True when the BFF shipped a real role name for the value-0 "revert to
 // inherited" option. The resolved legacy $ikx name (issue #1651) is produced by
 // $roleNameOf() in api/roles/index.php, which answers the literal '-' - not an
@@ -466,6 +514,10 @@ TLi18n.load(function() {
     html += '<a href="' + t.url + '"' + (t.active ? ' class="active"' : '') + '>' + t.label + '</a>';
   });
   $('#tabsBar').html(html);
+  // Issue #1644: seed the role-override column caption with the bare localized
+  // label right after TLi18n.apply() so the <th> is never empty while the plan
+  // combo is still loading; loadPlans() adds the "(<plan>)" part below.
+  updatePlanRoleHeading();
   loadProjects(tp, tpid);
 });
 
@@ -527,6 +579,9 @@ function loadProjects(selectedId, selectedPlanId) {
       // would resurrect the previous plan's cached rows over this empty state.
       if (assignDt) { assignDt.destroy(); assignDt = null; }
       users = [];
+      // Issue #1644: no project means no plan - drop the "(<plan>)" caption too.
+      currentPlan = null;
+      updatePlanRoleHeading();
       $('#assignBody').empty(); $('#emptyMsg').show(); $('#saveBtn').prop('disabled', true);
       $('#disabledMsg').hide(); $('#assignTable').show();
     }
@@ -600,10 +655,29 @@ function showPlanDisabled(totalPlans, noticeKey) {
 // and loadUsers() fired automatically (issue #945); only when there are no
 // assignable plans at all does the page stay on the empty/disabled state.
 function loadPlans(pid, selectedPlanId) {
+  // Issue #1644: drop the previous plan's name from the column caption
+  // SYNCHRONOUSLY, before the request leaves. Doing it only inside the success
+  // callback below would leave the caption naming the PREVIOUS project's plan for
+  // the whole in-flight window, which is exactly the confusion the caption exists
+  // to remove. loadUsers() re-adds the "(<plan>)" part for the plan it selects.
+  currentPlan = null;
+  updatePlanRoleHeading();
   $.getJSON(API + '/meta/tplan-roles?tproject_id=' + pid + '&tplan_id=0', function(r) {
     var sel = $('#planSelect');
     sel.html('<option value="">' + TLi18n.t('assign.selectPlan') + '</option>');
-    if (!r.plans || !r.plans.length) { showPlanDisabled(r.totalPlans || 0); return; }
+    // Issue #1644: rebuild the id -> name map for THIS project before anything
+    // reads it, so a project switch can never leave the previous project's plan
+    // name in the column caption. The combo below is filled from the very same
+    // r.plans payload, so the map and the <option> labels can never disagree.
+    planNameById = {};
+    $.each(r.plans || [], function(i, p) { planNameById[String(p.id)] = p.name; });
+    if (!r.plans || !r.plans.length) {
+      showPlanDisabled(r.totalPlans || 0);
+      // The grid is hidden in this state (usersAssign.tpl:142 -> :295 renders no
+      // table at all), so the caption carries no plan: drop the "(<plan>)" part.
+      updatePlanRoleHeading();
+      return;
+    }
     $.each(r.plans, function(i, p) {
       sel.append('<option value="' + esc(p.id) + '">' + esc(p.name) + '</option>');
     });
@@ -640,7 +714,13 @@ function loadPlans(pid, selectedPlanId) {
   $('#planSelect').off('change').on('change', function() {
     var planId = $(this).val();
     if (planId) loadUsers(pid, planId);
-    else { showAssignForm(); $('#assignBody').empty(); $('#emptyMsg').show(); $('#saveBtn').prop('disabled', true); }
+    else {
+      // Issue #1644: clearing the combo leaves no plan, so the caption falls back
+      // to the bare localized label instead of naming the deselected plan.
+      currentPlan = null;
+      updatePlanRoleHeading();
+      showAssignForm(); $('#assignBody').empty(); $('#emptyMsg').show(); $('#saveBtn').prop('disabled', true);
+    }
   });
 }
 
@@ -826,6 +906,10 @@ function renderUsersTable(keep) {
 
 function loadUsers(pid, planId) {
   currentProject = pid; currentPlan = planId;
+  // Issue #1644: the caption follows the plan the moment the context changes, not
+  // when its users arrive - the grid below is emptied/rebuilt asynchronously, so
+  // deferring this would leave the previous plan's name on screen for a beat.
+  updatePlanRoleHeading();
   $('#saveBtn').prop('disabled', true);
   $.getJSON(API + '/meta/tplan-roles?tproject_id=' + pid + '&tplan_id=' + planId, function(r) {
     // A suppressed state (showPlanDisabled - no assignable plan, issue #1631) is

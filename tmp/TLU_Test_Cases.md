@@ -366,3 +366,58 @@ ERROR rows are this suite's own development history (the pre-fix
 `$re = new results(...)` is commented out while `$re->getMapOfLastResult()`
 survives, and `$executionsMap` is read but never assigned). The modern screen
 replaces it; deleting the dead file is a separate change.
+
+---
+
+## Suite 1644 — Dynamic localized role-column header in Assign Test Plan Roles (issue #1644)
+
+**Feature under test:** the role-override column caption must be a *localized,
+context-aware* `Test Plan Role (<selected plan>)`, restoring legacy
+`usersAssign.tpl:217-219` (`<th>{lang_get s="th_roles_$featureVerbose"}
+({$my_feature_name|escape})</th>`) that the 2.0.1 port had replaced with a static
+`Plan Role Override`.
+
+**Precondition** (the DB is freshly imported every run):
+
+```bash
+php tmp/fixtures_1644.php     # project ALPHA1644 (id 1)
+                               #   plans A-PUBLIC-1644 (2, public),
+                               #          A-PRIVATE-1644 (3, private),
+                               #          'A&B <draft>-1644' (5, HTML metacharacters)
+                               # project BETA1644-EMPTY (id 4) - NO plans
+                               # users ua1644designer/guest/tester (2,3,4)
+```
+
+**Entry point:** `http://localhost:8082/gui/templates/usermanagement/usersAssignPlan.html?tproject_id=1&tplan_id=0`,
+logged in as `admin/admin`.
+
+| # | Step | Expected | Actual | Result |
+|---|---|---|---|---|
+| 1 | Load the screen with `tplan_id=0` | the first assignable plan is auto-selected and the 5th `<th>` reads `Test Plan Role (A-PRIVATE-1644)` | `"Test Plan Role (A-PRIVATE-1644)"` | **PASS** |
+| 2 | Read all `<th>` texts | `["#","Login","Name","Inherited Role","Test Plan Role (<plan>)"]` | `["#","Login","Name","Inherited Role","Test Plan Role (A-PRIVATE-1644)"]` | **PASS** |
+| 3 | Switch the plan combo to `A-PUBLIC-1644` | caption follows: `Test Plan Role (A-PUBLIC-1644)` | `"Test Plan Role (A-PUBLIC-1644)"` | **PASS** |
+| 4 | Switch back to `A-PRIVATE-1644` | `Test Plan Role (A-PRIVATE-1644)` | `"Test Plan Role (A-PRIVATE-1644)"` | **PASS** |
+| 5 | Pick the `-- select plan --` placeholder | bare label, **no** empty `()` | `"Test Plan Role"` | **PASS** |
+| 6 | Switch project → `BETA1644-EMPTY` (no plans) | legacy `no_test_plans_available` state: table hidden, `There are no usable test plans on this test project`, caption without a plan | `tableVisible=false`, `disabledMsgVisible=true`, caption `"Test Plan Role"` | **PASS** |
+| 7 | Switch back to `ALPHA1644` | caption names that project's own plan, not the previous project's | `"Test Plan Role (A&B <draft>-1644)"` (plan 5 is first) | **PASS** |
+| 8 | Select the plan named `A&B <draft>-1644` | name rendered as **text**, not markup, and not double-escaped | `textContent="Test Plan Role (A&B <draft>-1644)"`, `innerHTML="...A&amp;B &lt;draft&gt;-1644"`, `children.length===0` | **PASS** (after fixing the double-escape found in step 8's first run) |
+| 9 | Reload with `?locale=de` | caption localized from the German bundle key | `TLi18n.getLocale()==="de"`, `"Testplan Rolle (A-PUBLIC-1644)"` | **PASS** |
+| 10 | Reload with `?locale=ro` | localized, and the key really exists in the bundle (`has()`) | `true`, `"Rol în Planul de Test (A-PRIVATE-1644)"` | **PASS** |
+| 11 | Deep link `?tplan_id=2` | caption names plan 2 (legacy `$featureID` → `$my_feature_name`) | `"Test Plan Role (A-PUBLIC-1644)"` | **PASS** |
+| 12 | Force a DataTables redraw (`order([1,'desc']).search('a').draw()`) | caption survives the destroy/re-init | `"Test Plan Role (A-PRIVATE-1644)"` | **PASS** |
+| 13 | Bulk "Do" / edit a role select (re-renders the grid) | caption unchanged | unchanged after `renderUsersTable()` | **PASS** |
+| 14 | `node --check` on the screen's inline script | no syntax error | `JS SYNTAX OK` | **PASS** |
+| 15 | `python3 -m json.tool` on all 10 bundles | all valid | 10/10 `OK` | **PASS** |
+| 16 | Browser console | no errors/warnings | 0 error, 0 warning | **PASS** |
+| 17 | Event Viewer / `events` table | no new ERROR/WARNING rows | 3 rows, all `log_level=16` (audit, from my own login + fixture) | **PASS** |
+
+**Regression on the rest of the screen:** the 4 untouched columns, the rows
+(`rowCount=4` on `A-PRIVATE-1644`), the DataTables grid, the toolbar combos and
+the Save button all behave as before — the change touches only the caption of
+column 4 and adds no BFF route.
+
+**Bug found and fixed by this suite (step 8):** the first implementation applied
+`esc(planName)` *and* `.text()`, double-escaping; a plan named `A&B <draft>`
+rendered as the literal `A&amp;B &lt;draft&gt;`. `.text()` already escapes, which
+is exactly what Smarty's `{$my_feature_name|escape}` achieves. Fixed and
+re-measured — see the checkpoint 2/3 comment on issue #1644.
