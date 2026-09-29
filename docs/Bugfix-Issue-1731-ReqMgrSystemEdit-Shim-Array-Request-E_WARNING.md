@@ -124,7 +124,7 @@ One request per case, `events` rows with `log_level in (1,2)` counted before and
 | `?doAction=create` | 302 → editor, no id |
 | `?doAction=doCreate` | 302 → list screen, INFO only |
 | `?doAction=bogus` (scalar unknown verb) | 302 → list screen, +1 ERROR — **pre-existing and intentional, unchanged** |
-| 5 × `?doAction[]=x` | **rows=+0** (was +10) |
+| 5 × `?doAction[]=x` | **rows=+0** (was +10) — measured against the whole table, not just `log_level in (1,2)`: **0 rows of any level**, because `tLog(...,'INFO')` does not persist below WARNING. The refusal is silent apart from the 302 |
 | anonymous | 302 to login, rows=+0 |
 | `php -l` | no syntax errors |
 | browser end-to-end | shim redirect → editor in Edit mode → rename `SysA` → `SysA-renamed` → **Save** → row persisted; 0 new Error/Warning rows; no console errors |

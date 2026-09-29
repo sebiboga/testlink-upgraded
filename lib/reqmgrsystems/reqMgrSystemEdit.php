@@ -94,9 +94,12 @@ function shimReqInt($name)
 // An array-shaped doAction is not a usable verb. It is deliberately NOT turned
 // into an HTTP error: this file is a bookmark redirector whose whole contract is
 // "never 500, always 302 somewhere sane", and the legacy deep links it exists
-// to serve must keep working. The junk value is replaced by a sentinel that
-// matches no case, so the request is refused without a row ever being written
-// (the retired-write branch below logs the same way, at INFO).
+// to serve must keep working. The junk value never becomes a string at all, so
+// the request is refused below with a FIXED log message - no attacker-controlled
+// text reaches the log and no log_level=1/2 row is written (the retired-write
+// branch below logs the same way, at INFO - and INFO does not persist below
+// WARNING, so the refusal is silent apart from the 302: measured 0 rows of ANY
+// level in `events` for a request that used to write 2).
 $rawDoAction = shimReqScalar('doAction');
 $doActionShaped = isset($_REQUEST['doAction']) && $rawDoAction === null;
 $doAction = ($rawDoAction === null) ? '' : $rawDoAction;
@@ -105,7 +108,8 @@ $id = shimReqInt('id');
 if ($doActionShaped) {
     // Refs #1731: ?doAction[]=x - refuse the request, but at INFO like the
     // retired-write branch, never at ERROR: a crafted query string must not be
-    // able to write a row into the Event Viewer.
+    // able to write an Error/Warning row into the Event Viewer. The message is a
+    // fixed literal precisely so that no attacker-controlled text is logged.
     tLog('reqMgrSystemEdit.php shim: doAction is not a scalar value - ' .
          'refusing to guess a modern target (Refs #1731).', 'INFO');
     header('Location: ' . $listUrl, true, 302);
