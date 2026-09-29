@@ -1019,11 +1019,102 @@ prefix RM1727, requirements enabled, root node 2) and three requirement manageme
 
 **Notes.**
 
-- Legacy parity kept on purpose: the single `reqmgrsystem_management` right (the legacy
-  `checkRights()` had no read/manage split), the "used on test project" table, the
-  dead-link cleanup `initializeGui()` did on every edit load, the
-  `showEventHistoryFor(id,'reqmrgsystems')` deep link, and the configuration example.
-- Hardened vs legacy: `bffEnforceSession` (the legacy page ran `testlinkInitPage` →
-  `checkSessionValid`), `bffSameOriginGuard` (the legacy form was a plain
-  cross-site-postable POST), a machine code on every failure, and no dead switch branch that
-  can answer a blank 200.
+- The modern `Available On` column is **not** the legacy `available_on` column and must not be conflated with the new one: `Available On` is the *enable-on context* (Design / Execution / Test Plan Design) and can list several values, while `Available For` is the *node type* and is always a single value. Both now coexist, which is what makes the list self-explanatory.
+- `nodeTypeLabel()` uses `TLi18n.has()` before `TLi18n.t()`; `TLi18n.t()` echoes the key back when it is missing, so without the `has()` guard a node type without a key would display as `cf.node.<slug>` to the user.
+- The 14 `cf.node.*` keys mirror the `node_types` table 1:1, so every node type TestLink can bind to a custom field has a translated label in all 10 bundles.
+
+---
+
+## Regression — Issue #1628: `initGuiBean()` read `$obj->l18n[$caller]` unguarded — E_WARNING `Undefined array key "checkConnection"` **and** `Undefined array key "delete"`
+
+**Precondition:** TestLink 2.0.1 on `http://localhost:8082` (PHP 8.3.35 built-in server,
+docroot = repo root); MariaDB `127.0.0.1:3306/testlink` (`testlink`/`testlink`), freshly
+imported this run (`reqmgrsystems` empty at start, `events` empty at start); login
+`admin`/`admin`, role Admin (`hasRight('reqmgrsystem_management')`); branch `fix/issue-1628`,
+fix commit `f4da422b4`.
+
+**Harnesses** (all in gitignored `tmp/`, re-runnable on a fresh import — the script creates
+and drops its own `reqmgrsystems` row):
+
+| file | role |
+|---|---|
+| `bash tmp/verify_1628.sh` | driver: fixture + syntax gate + unit matrix + Event Viewer + locales + HTTP + cleanup. exits 1 on any failure |
+| `php tmp/unit_1628.php` | assert-based unit matrix over all 7 whitelisted callers (15 assertions) |
+| `php tmp/raw1628.php` | runs `initGuiBean()` with TestLink's own `watchPHPErrors` handler active and **no** suppression, so warnings land in `events` exactly as in a real request |
+| `php tmp/ro1628.php <locale>` | same, per locale, all 7 callers |
+
+**Repro steps (PRE-FIX).** `reqMgrSystemCommands::$guiOpWhiteList`
+(`lib/reqmgrsystems/reqMgrSystemCommands.class.php:38-39`) dispatches **7** action names;
+`initGuiBean()`'s `$obj->l18n` describes only **5** of them (3 from `init_labels()` at
+`:64-65` — `create`, `edit` — plus the 3 hand-mapped names at `:68-70`; `reqmgrsystem_management`
+and `reqmgrsystem_deleted` are page/feedback labels, not action names). Line 72 then read
+`$obj->l18n[$caller]` **unconditionally**:
+
+1. `php tmp/raw1628.php` → `create` OK, then **two** `events` rows, `log_level = 2` (E_WARNING):
+   `Undefined array key "checkConnection" - in …/reqMgrSystemCommands.class.php - Line 72`
+   and `Undefined array key "delete" - in …/reqMgrSystemCommands.class.php - Line 72`.
+   The conversion happens in `lib/functions/logger.class.php:1483 set_error_handler("watchPHPErrors")`.
+2. `php tmp/unit_1628.php` → **5 FAILURE(S)**: both offenders warn, both have an empty
+   `action_descr`, and the whole-loop assertion reports `offenders: checkConnection,delete`.
+3. The author of the report had evidence for only the first row — their query was
+   `limit 3` / `limit 4`. `delete` is the **same defect on the same line** and was never
+   reported. The very next statement, the `switch($caller)` at `:74-76`, has an explicit
+   `case 'delete':` branch, so `delete` is an anticipated caller with no label ever added.
+4. **Reachability caveat (measured, differs from the report).** Since `Refs #1727`,
+   `lib/reqmgrsystems/reqMgrSystemEdit.php` is a session-guarded **302 redirect shim** that no
+   longer requires or instantiates the class, so the issue's HTTP repro now returns
+   `HTTP 302` and raises **0** `events` rows; `grep -rn "reqMgrSystemCommands" --include=*.php .`
+   yields only the class's own two lines plus a *comment* in the shim — the class is orphaned.
+   The HTTP path is therefore the **modern** BFF (`api/reqmgrsystemedit?action=check_connection`),
+   which was already clean. The defect must be reproduced against the class (steps 1-2), and
+   fixed at the source so the class is correct should anything wire it back up.
+
+**Expected POST-FIX.** No E_WARNING for any of the 7 whitelisted callers; `action_descr` is a
+real localized string for `checkConnection` and `delete`; the 5 already-correct actions are
+unchanged; the whitelist, `main_descr` and `submit_button_label` are untouched; the modern
+screen keeps working; the Event Viewer gains no Error/Warning rows.
+
+**Actual result — `bash tmp/verify_1628.sh` → `TOTALS: PASS=12 FAIL=0`, exit 0.**
+
+| # | Case | Expected | Observed | Result |
+|---|---|---|---|---|
+| 1 | fixture `reqmgrsystems` row `TLU1628` (type 1) | row exists | `id` returned, list screen shows 1 row | PASS |
+| 2 | M9 `php -l lib/reqmgrsystems/reqMgrSystemCommands.class.php` | no syntax errors | `No syntax errors detected` | PASS |
+| 3 | M1 `initGuiBean('checkConnection')` — **the issue's subject** | no warning, non-empty localized label | `'Check connection'`, 0 warnings | PASS |
+| 4 | M2 `initGuiBean('delete')` — **the unreported sibling** | no warning, non-empty localized label | `'Delete'`, 0 warnings | PASS |
+| 5 | M3 loop over all 7 whitelisted callers | zero warnings | `offenders: none` | PASS |
+| 6 | M4 `events` after 3 calls, `watchPHPErrors` active | 0 rows at all, 0 at log_level 1/2/4 | `0` / `0` (pre-fix: `2`) | PASS |
+| 7 | M5 `create`/`edit`/`doCreate`/`doUpdate`/`doDelete` | `Create`/`Edit`/`Create`/`Edit`/`''` unchanged | identical | PASS |
+| 8 | M6 `submit_button_label`: `delete`+`doDelete` vs the rest | `''` for the two deletes, `btn_save` otherwise | identical | PASS |
+| 9 | M7 `main_descr` | `reqmgrsystem_management` for every caller | identical | PASS |
+| 10 | M8 `guiOpWhiteList` | still 7 entries, unmodified | 7 entries | PASS |
+| 11 | M11 locale `ro_RO` (the only bundle missing `btn_delete`) | no warning, no raw-key leak, `en_GB` back-fill | `'Check connection'` / `'Delete'`; 0 warning rows; 7 `log_level=32` **INFO** "not localized — using en_GB" rows, 5 of which are pre-existing | PASS |
+| 12 | M11 locale `ja_JP` | properly localized | `接続テスト` / `削除` / `作成` / `編集`; 0 warning rows | PASS |
+| 13 | M11 locale `en_GB` | properly localized | `Check connection` / `Delete`; 0 warning rows | PASS |
+| 14 | M10 `GET gui/templates/reqmgrsystems/reqMgrSystemView.html` | 200, table renders the row | 200, `1 requirement management systems | Generated on …` | PASS |
+| 15 | M10 `POST api/reqmgrsystemedit/index.php?action=check_connection` | 200 JSON, correct degradation | `{"status":"error","connected":false,"code":"not_implemented","message":"Interface contoursoapInterface not implemented"}` | PASS |
+| 16 | M10 legacy route `reqMgrSystemEdit.php?doAction=checkConnection&id=N` | 302 to the modern editor | 302 | PASS |
+| 17 | M12 `events` after the whole HTTP pass | no new Error/Warning | only `log_level=16` login-audit row; browser console `<no console messages found>` | PASS |
+| 18 | cleanup | fixture removed, `events` emptied | removed | PASS |
+
+**Notes.**
+
+- The fix is **two lines plus comments** in one file: both missing actions are registered in
+  the `init_labels()` call using the `key => label_code` two-argument form that
+  `init_labels()` already supports (`lib/functions/lang_api.php:317-325`), mapped onto
+  `btn_check_connection` (`locale/en_GB/strings.txt:275`) and `btn_delete`
+  (`locale/en_GB/strings.txt:282`); the read is wrapped in an `isset()` guard.
+  Passing `null` for those keys would have asked `lang_get()` for the non-existent code
+  `checkConnection` and leaked the raw key into the UI.
+- The `isset()` guard is **load-bearing, not belt-and-braces**: fixing only the two known keys
+  means the 8th whitelist entry added later silently starts warning again — the exact drift
+  that created the bug. `doDelete` already maps to `''` by design (`:70`), so the guard is
+  behaviour-preserving on every correct path.
+- **No locale bundle was edited and no i18n key invented.** `btn_check_connection` ships in
+  7/19 bundles and `btn_delete` in 18/19; `lang_get()`'s `en_GB` back-fill
+  (`lang_api.php:78-81`) covers the rest and emits only `log_level=32` INFO audit rows.
+- `$obj->action_descr` has **no consumer** in the modern UI (`grep -rn action_descr` finds only
+  assignments, no `.tpl`/`.html` read), which is why the missing labels went unnoticed since
+  1.9.6. The Event Viewer noise was the only observable symptom.
+- Cross-reference: the #1722 suite above already flags this warning as "a separate defect"
+  from the blank-body bug; that separation is confirmed here and that bug is unaffected.
