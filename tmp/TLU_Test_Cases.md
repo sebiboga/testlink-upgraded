@@ -519,3 +519,53 @@ deletion is what made "it is not linked" false.
 `../functions/results.class.php` and instantiates the same removed `results`
 class at `:17`; also unregistered, and its line 2 says
 `//@TODO this file seems not to be in use`. Reported, not touched.
+
+## Suite 1019 — Task, Issue #1019: `metricsDashboard` per-status breakdown behind `show_test_plan_status` (gap vs legacy `lib/results/metricsDashboard.php:50-72`)
+
+**Precondition.** `admin`/`admin` on `http://localhost:8082`. Fixture `tmp/fixtures_1019.php` → test project 30 `MD Demo` (prefix MDD, platforms disabled), test plan 31 `MD Demo Plan`, build 4, **8 active TCs** of which 4 are executed (2 `p` passed / 1 `f` failed / 1 `b` blocked) and 4 have no execution row (`n` not_run). Config `config.inc.php:977` `$tlCfg->metrics_dashboard->show_test_plan_status` is toggled between the runs. Screen: `/gui/templates/results/metricsDashboard.html?tproject_id=30`.
+
+**Expected (legacy parity).** With the flag on, the test-plan cell renders
+`Not Run: 4 [50%], Passed: 2 [25%], Failed: 1 [12.5%], Blocked: 1 [12.5%], Overall Progress: 50%`
+— one `Label: qty [pct%]` item per entry of `results.status_label_for_exec_ui`, in config order, joined by `", "`, quantities/percentages taken from the **plan-level** `overall` block with denominator `overall.active` and precision `dashboard_precision`, and the overall progress appended last. With the flag off, today's collapsed form (no sub-line at all) is kept.
+
+| # | steps | expected (legacy parity) | actual | verdict |
+|---|---|---|---|---|
+| 1 | `php tmp/fixtures_1019.php` on an empty DB | 1 project / 1 plan / 1 build / 8 TCs; `executions.status` holds the 1-char **codes** `p,p,f,b` | `project=30, plan=31, build=4, linked=8`; `select status from executions` → `p,p,f,b` | PASS |
+| 2 | `GET /api/metrics/index.php/dashboard?tproject_id=30`, flag ON | 200; `show_test_plan_status=true`; `status_set` = the config order; `testplans[0].overall.statuses` = plan-level quantities | `{show_test_plan_status:true, status_set:["not_run","passed","failed","blocked"], overall:{active:8,executed:4,progress:50,statuses:{blocked:1,failed:1,not_run:4,passed:2}}}` | PASS |
+| 3 | same response, flag OFF | `show_test_plan_status=false`; the rest of the payload unchanged | `flag=false`, identical `statuses`/`active`/`progress` | PASS |
+| 4 | read the rendered `.tplan-cell` (flag ON, `locale=en`) | the full legacy string from the header of this suite | `MD Demo Plan` / `Not Run: 4 [50%], Passed: 2 [25%], Failed: 1 [12.5%], Blocked: 1 [12.5%], Overall Progress: 50%` | PASS |
+| 5 | same cell (flag OFF) | no `.tplan-subline` at all — the collapsed form is preserved | `{text:"MD Demo Plan", hasSubline:false}` | PASS |
+| 5a | `?locale=fr`, flag ON | localized labels, legacy's literal `[12.5%]` spacing kept (fr must not invent `[12.5 %]`) | `Non Exécuté: 4 [50%], Réussi: 2 [25%], Échoué: 1 [12.5%], Bloqué: 1 [12.5%], Progression globale: 50%` | PASS |
+| 6 | `?locale=ro`, flag ON | every fragment localized: status labels **and** `Overall Progress` | `Neexecutat: 4 [50%], Reușit: 2 [25%], Eșuat: 1 [12.5%], Blocat: 1 [12.5%], Progres general: 50%` | PASS |
+| 7 | assert the rounding is plan-relative, i.e. the denominator is `overall.active` (8) and not `executed` (4) | `1/8 = 12.5%`; the wrong denominator would yield `33.33%` | `Failed: 1 [12.5%]`, `Blocked: 1 [12.5%]` | PASS |
+| 8 | assert the percentage precision comes from `dashboard_precision`, not a hardcoded 2 | `precision` present on `/dashboard` and equal to `config_get('dashboard_precision')` | `precision: 2` (matches `config.inc.php:802`) | PASS |
+| 9 | click "Show all columns" (legacy `toolbarShowAllColumnsButton`) | the 4 default-hidden qty columns appear next to their `%` columns | `["Test Plan","Active TCs","Not Run","Not Run %","Passed","Passed %","Failed","Failed %","Blocked","Blocked %","Progress %"]` | PASS |
+| 10 | click "Reset to default state" | qty columns hidden again; the breakdown in the plan cell is unchanged (the cell is rebuilt on every draw) | headers back to `[…,"Not Run %","Passed %","Failed %","Blocked %","Progress %"]`; cell text identical | PASS |
+| 11 | grep the screen for hardcoded status words in the new code path | every visible fragment goes through `TLi18n` | new code uses `TLi18n.t('md.statusBreakdownItem', …)`, `statusLabel(k)` and `TLi18n.t('md.overallProgress')`; no literal status/progress text | PASS |
+| 12 | `md.statusBreakdownItem` + `md.overallProgressItem` present in **every** locale bundle, each file still valid JSON | 10/10 bundles, `json.tool` clean, same locale-independent pattern as legacy's literal `" ["`/`"%]"` | `de,en,es,fr,it,ja,pt,ro,ru,zh` all OK, both keys in each, identical pattern in all 10 | PASS |
+| 13 | `php -l api/metrics/index.php`; `node --check` on the extracted inline script | both clean | *No syntax errors detected* / *JS SYNTAX OK* | PASS |
+| 13a | `roundPct()` vs PHP `round()` over the whole reachable domain (`active` 1..400, `qty` 0..`active`) | **0** divergences — `getPercentage()` rounds half away from zero | 80,600 pairs compared: `Math.round(x*100)/100` → 10 divergences (e.g. `23/160` php=14.38, js=14.37), `toFixed(2)` → 10, **`roundPct()` BigInt → 0** | PASS |
+| 13b | exact-tie values in the live page | `1/32`→3.13, `23/160`→14.38, `1/8`→12.5 (PHP values) | `roundPct(1,32,2)=3.13`, `roundPct(23,160,2)=14.38`, `roundPct(41,160,2)=25.63`, `roundPct(51,160,2)=31.88`, `roundPct(1,8,2)=12.5` | PASS |
+| 13c | degraded payloads: `active=0`, empty `status_set`, `qty` as string, `overall.progress` absent, `precision` absent | no throw, no `undefined`/`NaN`, no stray leading separator | `Not Run: 0 [0%], Passed: 0 [0%], Overall Progress: 0%` · `Overall Progress: 50%` · `Passed: 2 [25%], …` · `… Overall Progress: 0%` · `Not Run: 3 [100%], … 33.33%` | PASS |
+| 13d | `config.inc.php:977` left at its **shipped** value | the diff must not flip a product default | `= false`, i.e. `git diff config.inc.php` is empty | PASS |
+| 14 | browser console after runs 4-10 | no errors, no warnings | *no console messages found* | PASS |
+| 15 | Event Viewer after the whole run | no new Error/Warning | `select count(*), sum(log_level<=2) from events where id > 22` → `0 / NULL`; newest row overall is `id=22` (audit, fixture) | PASS |
+
+**Pre-fix baseline (measured, for contrast).**
+
+| state | before | after |
+|---|---|---|
+| flag ON | `<b>MD Demo Plan</b><div class="tplan-subline">Overall Progress: 50%</div>` | full breakdown, byte-identical to the legacy string |
+| `GET /dashboard` | no `precision` key (client hardcoded 2 decimals) | `precision: 2` |
+| `23/160` percentage | would have rendered `14.37%` with any float rounding | `14.38%` (PHP `round()` value) |
+
+**Notes.**
+
+- The four `E_WARNING Undefined array key` rows that *do* exist in `events` (ids 12-18) were produced by the **first, wrong fixture** and not by the feature: `executions.status` is `char(1)` and the DB is not in strict mode, so inserting the verbose word `passed` was silently truncated to `''`; the metric layer then folded every executed row into a bogus `""` counter. That is a pre-existing sharp edge in `lib/functions/tlTestPlanMetrics.class.php:1075-1084`, shared with the legacy controller, and it is reported separately in the issue rather than fixed here.
+- `roundPct()` rounds the percentage as an exact **rational** (`BigInt`, ties away from zero)
+  because the value is not representable in IEEE-754: `23/160*100` is `14.374999999999998`, so
+  `Math.round(x*100)/100` and `toFixed(2)` both answer `14.37` where PHP answers `14.38`. Over
+  the whole reachable domain (80,600 pairs) each float variant is wrong on 10 exact ties and the
+  `BigInt` form on none.
+- The `Not Run` / `Passed` / `Failed` / `Blocked` list is read from the BFF `status_set` (`array_keys($statusSetForDisplay)`) rather than hardcoded, so an install that adds a custom exec status gets it in the breakdown without a code change — same as the legacy `foreach ($statusSetForDisplay …)`.
+- The entire assembled line is escaped with `esc()`; the previous code escaped only the label, and the labels come from user-editable `lang` strings.
