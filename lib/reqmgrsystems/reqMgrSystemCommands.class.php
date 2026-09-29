@@ -61,13 +61,9 @@ class reqMgrSystemCommands
     $obj->canManage = $argsObj->currentUser->hasRight($this->db,'reqmgrsystem_management'); 
     $obj->user_feedback = array('type' => '', 'message' => '');
 
-    // 'checkConnection' and 'delete' are dispatched by guiOpWhiteList (line 38)
-    // but used to be absent here, so the $obj->l18n[$caller] read below raised
-    // E_WARNING "Undefined array key" for both of them (issue #1628). init_labels()
-    // takes key => label_code, so map them onto labels that already ship in the
-    // legacy locale bundles: btn_check_connection (en_GB/strings.txt:275) and
-    // btn_delete (en_GB/strings.txt:282). lang_get() falls back to en_GB for
-    // bundles that lack them, so no locale file has to change.
+    // 'checkConnection' and 'delete' are dispatched by guiOpWhiteList but used to
+    // be missing here, so the $obj->l18n[$caller] read below raised E_WARNING
+    // "Undefined array key" (and a ucfirst(null) E_DEPRECATED) for both (#1628).
     $obj->l18n = init_labels(array('reqmgrsystem_management' => null, 'btn_save' => null,
                                    'create' => null, 'edit' => null, 'reqmgrsystem_deleted' => null,
                                    'checkConnection' => 'btn_check_connection',

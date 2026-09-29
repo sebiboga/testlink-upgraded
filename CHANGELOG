@@ -6533,6 +6533,22 @@ Changes:
       project tables and added user metrics to the middle section
 
 ## 2.0.1 (in-progress)
+### KEY BUGFIX — `reqMgrSystemCommands::initGuiBean()` read an undefined label for 2 of its 7 whitelisted actions (Fixes #1628)
+- `lib/reqmgrsystems/reqMgrSystemCommands.class.php` dispatched 7 action names via
+  `guiOpWhiteList`, but the `$obj->l18n` table it built covered only 5. The unconditional
+  `ucfirst($obj->l18n[$caller])` therefore raised a PHP 8 `E_WARNING "Undefined array key"`
+  (plus a `ucfirst(): Passing null to parameter #1` `E_DEPRECATED`) for **both** `checkConnection`
+  and `delete` — every call, surfaced as an Event Viewer row by `watchPHPErrors`. The report named
+  only `checkConnection`; `delete` is the identical defect on the identical line.
+- Both actions are now registered in the `init_labels()` call onto label codes that already ship in
+  the legacy locale bundles (`btn_check_connection`, `btn_delete`), and the read is wrapped in an
+  `isset()` guard so the whitelist and the label table can drift again without emitting warnings.
+- **Trade-off, measured:** `btn_check_connection` ships in 7 of 19 bundles and `btn_delete` in 18,
+  so in the remaining locales `lang_get()` back-fills from `en_GB` and records one `L18N` (level
+  32) audit row per key — the same, already-pre-existing behaviour the function has for its other
+  five labels. Net: 0 Warning/Error rows everywhere, 2 extra level-32 audit rows in 13 locales.
+  Translating 13 bundles is out of scope for a one-line label fix.
+
 ### Screen — Duplicate Name Check `nameCheck` (Refs #1724)
 - Modernizes the GENERIC node name-uniqueness backend `lib/ajax/checkNodeDuplicateName.php`, which
   admitted in its own header that it performed "no check on user rights" and had no project scope:
