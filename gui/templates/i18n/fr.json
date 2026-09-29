@@ -5582,6 +5582,7 @@
   "tnrap.matchCount": "Nombre de résultats",
   "tnrap.priority": "Priorité",
   "tnrap.noPlatforms": "Aucune plateforme définie pour ce plan de test.",
+  "tnrap.noActiveBuilds": "Aucune build active et ouverte n'a été trouvée pour ce plan de test.",
   "tnrap.allExecuted": "Tous les cas de test ont été exécutés sur au moins une plateforme.",
   "tnrap.about": "À propos de ce rapport",
   "tnrap.info": "Ce rapport affiche les cas de test liés au plan de test actuel mais qui n'ont été exécutés sur aucune plateforme. Dès qu'un cas de test a été exécuté sur au moins une plateforme, il n'apparaît plus dans ce rapport.",

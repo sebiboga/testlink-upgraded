@@ -108,12 +108,19 @@ function t(key, fallback) {
   var v = TLi18n.t(key);
   return (v && v !== key) ? v : (fallback || key);
 }
-function priorityBadge(uip) {
-  if (uip === null || uip === undefined) return '';
-  var cls = 'priority-low';
-  if (uip >= 8) cls = 'priority-high';
-  else if (uip >= 4) cls = 'priority-medium';
-  return '<span class="priority-badge ' + cls + '">' + esc(uip) + '</span>';
+// The priority LEVEL (1..4) and its localized LABEL are both built
+// server-side - the level by priority_to_level() (so the project's own
+// config_get('urgencyImportance')->threshold[] is honoured, legacy parity
+// with lib/results/tcNotRunAnyPlatform.php) and the label from
+// config_get('priority')->code_label, the same source the sibling report
+// actions use. No raw urgency*importance product is ever shown.
+function priorityBadge(row) {
+  if (row.priority_level === null || row.priority_level === undefined) return '';
+  var lvl = parseInt(row.priority_level, 10);
+  if (isNaN(lvl)) return '';
+  var cls = lvl >= 4 ? 'priority-high' : (lvl >= 2 ? 'priority-medium' : 'priority-low');
+  return '<span class="priority-badge ' + cls + '">' +
+    esc(row.priority_label || lvl) + '</span>';
 }
 function statusBadge(st) {
   var label = t('tnrap.status.' + st, st);
@@ -129,13 +136,22 @@ function tcLink(row) {
   return '<a class="tclink" href="' + esc(url) + '">' + esc(row.external_id) + '</a>';
 }
 // Design + Execution History popups, the two icon links the legacy tlExtTable
-// cell carried (openTCEditWindow / openExecHistoryWindow).
+// cell carried (openTCEditWindow / openExecHistoryWindow). The legacy library
+// helpers are NOT used: openExecHistoryWindow() concatenates
+// `&tproject_id=` + an undeclared variable, so it produced
+// `...&tproject_id=undefined`. The modern screens are addressed directly
+// (same URLs as resultsMatrix.html), with tproject_id always present.
 function rowActions(row) {
-  return ' <a class="tclink" href="javascript:openTCEditWindow(' + row.tcase_id +
-         ');" title="' + esc(t('ntcv.design', 'Test case design')) + '">' +
+  var histUrl = '/gui/templates/execute/execHistory.html?tcase_id=' +
+    encodeURIComponent(row.tcase_id) + '&tproject_id=' + encodeURIComponent(tproject_id);
+  var editUrl = '/gui/templates/testcases/tcView.html?tcase_id=' +
+    encodeURIComponent(row.tcase_id) + '&tproject_id=' + encodeURIComponent(tproject_id);
+  return ' <a class="tclink" href="' + esc(editUrl) + '" target="_blank" title="' +
+         esc(t('ntcv.design', 'Test case design')) + '">' +
          '<i class="fa fa-pencil"></i></a>' +
-         ' <a class="tclink" href="javascript:openExecHistoryWindow(' + row.tcase_id +
-         ');" title="' + esc(t('ntcv.executionHistory', 'Execution history')) + '">' +
+         ' <a class="tclink" href="' + esc(histUrl) + '" title="' +
+         esc(t('ntcv.executionHistory', 'Execution history')) +
+         '" onclick="window.open(this.href,\'history_popup\',\'width=900,height=650,left=100,top=100,resizable=yes,scrollbars=yes\');return false;">' +
          '<i class="fa fa-history"></i></a>';
 }
 
@@ -171,6 +187,16 @@ function loadData() {
         esc(t('tnrap.testCasesInPlan', 'test cases in this test plan'))
       ).show();
 
+      // getNeverRunByPlatform() returns NULL - not an empty set - when the
+      // plan has no active+open build, i.e. when nothing can be proven
+      // never-run. Saying "all executed" there would be false.
+      if (!d.builds_available) {
+        $('#emptyBox').html('<i class="fa fa-exclamation-triangle"></i>' +
+          esc(t('tnrap.noActiveBuilds', 'No active and open build was found for this Test Plan.'))).show();
+        $('#footerInfo').html(t('tnrap.elapsedSeconds', 'Elapsed seconds') + ': ' + d.elapsed_time).show();
+        return;
+      }
+
       if (!d.has_data) {
         $('#emptyBox').html('<i class="fa fa-check-circle"></i>' +
           esc(t('tnrap.allExecuted', 'All test cases have been executed on at least one platform.'))).show();
@@ -178,10 +204,6 @@ function loadData() {
         return;
       }
 
-      var platName = {};
-      for (var i = 0; i < d.platforms.length; i++) {
-        platName[d.platforms[i].id] = d.platforms[i].name;
-      }
       tprojPrefix = d.tproject_prefix || '';
 
       var cols = [
@@ -192,11 +214,13 @@ function loadData() {
           }
         }
       ];
-      // One column per platform, in the order the BFF sorted them.
+      // One column per platform, in the order the BFF sorted them. The title
+      // is a DB string (testplan_platform_management.name is free text) and
+      // DataTables injects it with .html(), so it MUST be escaped here.
       for (var p = 0; p < d.platforms.length; p++) {
         (function(pid, pname) {
           cols.push({
-            title: pname,
+            title: esc(pname),
             data: null,
             orderable: false,
             render: function(data, type, row) {
@@ -211,8 +235,9 @@ function loadData() {
         })(d.platforms[p].id, d.platforms[p].name);
       }
       if (d.priority_enabled) {
-        cols.push({ title: t('tnrap.priority', 'Priority'), data: 'urg_imp',
-                    render: function(data) { return priorityBadge(data); } });
+        cols.push({ title: t('tnrap.priority', 'Priority'), data: null,
+                    orderable: false,
+                    render: function(data, type, row) { return priorityBadge(row); } });
       }
 
       var html = '<div class="section"><div class="section-head">' +

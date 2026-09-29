@@ -200,3 +200,169 @@ Screenshots: `docs/screenshots/issue-1626-reqmgr-system-list-before-fix.png`,
 `requirement_spec_mgr::get_by_id()` interpolates an empty `RSPEC_REV.id = ` into
 a WHERE clause when `get_last_active_version()` returns false (1064 + E_WARNING
 at `requirement_spec_mgr.class.php:186`); same family as #1708, different file.
+
+---
+
+## Modernize — Issue #1717: Test Cases Not Run on Any Platform (`tcNotRunAnyPlatform`)
+
+Fixture: `php tmp/fixtures_1717.php` → project `TNRAP1717` with platforms
+A (`Windows 11`) / B (`Linux Ubuntu 22`), an active+**open** build, a
+**closed** build, 5 cases and a role-3 user `tnrap1717norights`. The fixture
+publishes its auto-increment ids to `tmp/fixture_1717.json` and the harness
+reads them, so the suite is re-runnable on a database that already holds data
+(no hardcoded ids).
+
+| # | Case | Expected | Outcome |
+|---|---|---|---|
+| TC-1 | linked to BOTH platforms, no execution at all | REPORTED | reported |
+| TC-2 | linked to BOTH, `passed` on platform A only | excluded | excluded |
+| TC-3 | linked to BOTH, `passed` on B and a later `not_run` on A | excluded (any platform counts) | excluded |
+| TC-4 | linked to platform A only, never run | REPORTED (proves the per-case platform scope) | reported |
+| TC-5 | linked to A, `passed` **only on a CLOSED build** | REPORTED, cell reads *Not Run* | reported, cell `not_run` |
+
+Harness: `php tmp/test_1717.php` — it slices the `tnr*` helpers **out of
+`api/reports/index.php`** and `eval`s them, so it exercises the shipped code
+rather than a copy that could drift (it fails hard if the helper block moves).
+
+| # | Assertion | Expected | Actual | Result |
+|---|---|---|---|---|
+| 1717-01 | `getNeverRunByPlatform()` returns rows for the fixture | >0 rows | >0 rows | PASS |
+| 1717-02 | exactly the three never-run-on-any-active+open-build cases are reported | the 3 fixture ids | the 3 fixture ids | PASS |
+| 1717-03 | a case executed only on a **closed** build is still reported | reported | reported | PASS |
+| 1717-04 | REGRESSION: its cell is **not** a `passed` badge (closed build is out of the status scope) | absent | absent | PASS |
+| 1717-05 | a case executed on ONE open platform is excluded | excluded | excluded | PASS |
+| 1717-06 | a case with `not_run` on A but `passed` on B is excluded | excluded | excluded | PASS |
+| 1717-07 | platform scope is PER CASE, not global (TC-4 linked to one platform) | 1 | 1 | PASS |
+| 1717-08 | a case linked to both platforms reports both | 2 | 2 | PASS |
+| 1717-09 | `number_of_testcases` counts ALL plan cases, not only the never-run ones | 5 | 5 | PASS |
+| 1717-10 | a never-run case has no entry in the last-status map | absent | absent | PASS |
+| 1717-11 | the `passed` execution on platform A is found | `passed` | `passed` | PASS |
+| 1717-12 | no execution on platform B → no entry (renders as `not_run`) | absent | absent | PASS |
+| 1717-13 | a `not_run` execution is NOT a result: A stays absent for TC-3 | absent | absent | PASS |
+| 1717-14 | the `passed` execution on platform B is still found for TC-3 | `passed` | `passed` | PASS |
+| 1717-15 | tcversion→tcase resolution returns all ids and no `0` | all resolved | all resolved | PASS |
+| 1717-16 | resolved ids are exactly the five fixture cases | the 5 ids | the 5 ids | PASS |
+| 1717-17 | `urgency*impact` from `testplan_tcversions.urgency` × `tcversions.importance` | >0 | >0 | PASS |
+| 1717-18 | the plan resolves to the expected owning test project | fixture id | fixture id | PASS |
+| 1717-19 | admin holds `testplan_metrics` on the fixture project | true | true | PASS |
+| 1717-20 | the role-3 user does NOT hold `testplan_metrics` (403 path) | false | false | PASS |
+| 1717-21 | the modern screen exists | true | true | PASS |
+| 1717-22 | the screen calls the `not_run_any_platform` BFF action | present | present | PASS |
+| 1717-23 | the deep link uses `tprojectPrefix` (legacy `linkto.php` contract) | present | present | PASS |
+| 1717-24 | the deep link does NOT use a `tprojectId` argument (that was the bug) | absent | absent | PASS |
+| 1717-25 | the design + Execution History popups are wired | both present | both present | PASS |
+| 1717-26 | `testlink_library.js` is loaded (the popups live there) | present | present | PASS |
+| 1717-27 | the report is registered in `cfg/reports.cfg.php` | present | present | PASS |
+| 1717-28 | its `enabled` flag is `all` (`asideMenu` only accepts `all|req|bts`) | `all` | `all` | PASS |
+| 1717-29 | no report entry uses the silently-ignored `testplan` value | absent | absent | PASS |
+| 1717-30 | `asideMenu` maps the report title to the modern href | present | present | PASS |
+| 1717-31 | `common.php` exposes `$actions->tcNotRunAnyPlatform` | present | present | PASS |
+| 1717-32 | all 21 `tnrap`/`footers` keys exist in all 10 bundles | 0 missing | 0 missing | PASS |
+| 1717-33 | no untranslated English copy-paste in the ro/ru/ja/zh bundles | 0 | 0 | PASS |
+| 1717-34 | the ASIDE label exists in every legacy `strings.txt` | 0 missing | 0 missing | PASS |
+| 1717-35 | no legacy catalogue is implausibly small | 0 | 0 | PASS |
+| 1717-36 | no legacy catalogue SHRANK against its committed size (truncation guard) | 0 shrunk | 0 | PASS |
+| 1717-37 | REGRESSION: the platform column title is **escaped** (stored XSS) | `title: esc(pname)` | `title: esc(pname)` | PASS |
+| 1717-38 | REGRESSION: the popups carry a real `tproject_id` (no `undefined`) | direct modern URLs | direct modern URLs | PASS |
+| 1717-39 | REGRESSION: the "no active and open build" state is handled, not reported as all-executed | `builds_available` branch | present | PASS |
+| 1717-40 | REGRESSION: `tnrap.noActiveBuilds` is translated in all 10 bundles | 0 missing | 0 missing | PASS |
+
+**Result: 40 assertions, 40 PASS, 0 FAIL, exit 0.**
+
+**Live HTTP verification** (`?action=not_run_any_platform&tproject_id=47&tplan_id=48`):
+`3` of `5` test cases, cells all `not_run`, `priority_label` `Medium` for all
+three rows, `builds_available: true`, HTTP 200. Guards: `400 Missing test
+project or test plan id` (no ids), `400 Invalid test project id`, `400 Invalid
+test plan id`, `400 Test plan does not belong to this test project`, `403 No
+permission` (role-3 session).
+
+**Browser verification** (EN + RO, console clean, Event Viewer clean):
+`Found 3 of 5 test cases in this test plan`; both platform columns; the
+Priority column now shows the localized **level** (`Medium`) instead of the
+raw `4`; TC-5 (passed on a closed build) is listed and its cell reads *Not
+Run*; design/history icons open `tcView.html` / `execHistory.html` with a real
+`tproject_id=47`; `linkto.php?tprojectPrefix=TNR1717&item=testcase&id=TNR1717-1`
+untouched; EN→RO renders "S-au găsit 3 din 5 cazuri de test …", "Suita de
+testare", "Prioritate", "Despre acest raport", "Timpul scurs (secunde)". The
+Reports ASIDE entry carries the translated label "Test Cases not run on any
+Platform". Screenshots: `tmp/shots/1717_01_report.png`,
+`tmp/shots/1717_02_review_fixed.png` (copied to
+`docs/screenshots/issue-1717-tcnotrunanyplatform-0{1,2}-*.png`).
+
+**Live XSS probe.** A platform was renamed
+`<img src=x onerror=alert(1)>Win` in the fixture project and the report
+reloaded: the DataTable header rendered the payload as **text**
+(`&lt;img src=x onerror=alert(1)&gt;Win`) with **0** injected `<img>` nodes
+and no dialog, proving `title: esc(pname)`. The name was restored afterwards.
+
+**Two bugs this suite caught that the fixture's visible output hid** (both
+fixed and committed separately):
+1. `config_get('results')` returns an **array**, so `config_get('results')->status_code`
+   was silently NULL, and the codes are single-char **strings**, so `intval('p') === 0`.
+   That collapsed passed/failed/blocked onto one key AND turned
+   `E.status <> intval('n')` into `E.status <> 0`, i.e. the opposite of the
+   intended filter. Invisible in the report because a listed row is never-run
+   on every platform by construction (1717-11/12/13).
+2. `full_external_id` already carries `<prefix>-<external id>`, so prefixing
+   again rendered `TNR1717-TNR1717-1`.
+
+**Mandatory code review (rule 16) — 2 BLOCKER, 5 SHOULD-FIX, 8 NIT, no security
+hole in the BFF** (a subagent reviewed `2bc0024f4~1..HEAD`; the SQL-injection,
+IDOR, CSRF, rights and escaping surfaces of the five `tnr*` helpers came back
+clean). All BLOCKER/SHOULD-FIX items are fixed:
+1. **BLOCKER, stored XSS** — `cols.push({title: pname})` handed a free-text
+   platform name to DataTables, which injects titles with `.html()`; a
+   platform named `<img src=x onerror=…>` executed for every viewer (the
+   sibling `neverRun.html` escapes the same value). Fixed with `esc(pname)` and
+   pinned by 1717-37 + the live probe above.
+2. **BLOCKER, self-contradicting cells** — the listing source
+   `getNeverRunByPlatform()` only looks at **active+open** builds, but
+   `tnrLastStatusPerPlatform()` filtered `B.active = 1` only, so a case
+   executed solely on a *closed* build was listed by this "Not Run" report
+   **and** carried a `passed` badge. Fixed with `AND B.is_open = 1`, and the
+   fixture grew TC-5 to pin it (1717-03/04).
+3. **SHOULD-FIX** — `getNeverRunByPlatform()` answers **NULL** (not an empty
+   set) when the plan has no active+open build; the action collapsed that with
+   "all executed", which is false. Now `builds_available` + a new
+   `tnrap.noActiveBuilds` key in all 10 bundles.
+4. **SHOULD-FIX** — the Priority column showed a raw `urgency×importance`
+   integer with thresholds hardcoded in JS, ignoring the project's own
+   `urgencyImportance->threshold[]`. Now `priority_to_level()` +
+   `config_get('priority')->code_label` server-side, like every sibling action
+   (`priority_level` + `priority_label`).
+5. **SHOULD-FIX** — `openExecHistoryWindow(row.tcase_id)` concatenated an
+   undeclared `tproject_id` and produced `…&tproject_id=undefined`. The modern
+   screens are now addressed directly (`tcView.html` / `execHistory.html`).
+6. **SHOULD-FIX** — `tnrLinkedPlatformsPerCase()` fetched every
+   `testplan_tcversions` row of the plan and matched in PHP, justified by a
+   comment claiming the filter could not be pushed into SQL (it can, through
+   the `nodes_hierarchy` parent join). Filter pushed down.
+7. **SHOULD-FIX (documented, not built)** — the legacy controller also served
+   `FORMAT_MSWORD` and the e-mail path; this report is registered
+   `format_html` with no `directLink`, and the export gateway has no case for
+   this report type, so the XLS/Word/mail outputs are intentionally not
+   offered. Recorded in the docs page rather than faked with a 500-ing button.
+8. NITs fixed: dead `$tcCfg`/`$prefix` removed, dead `urg_imp` replaced by
+   always-present `priority_level`/`priority_label` (a missing column key made
+   DataTables log "Requested unknown parameter"), dead `platName` map removed,
+   and two misleading comments corrected (the last-status "newest per
+   (tcversion, platform)" is per **(case, platform)**, and the
+   `tnrLinkedPlatformsPerCase` impossibility note).
+9. NIT accepted: `$actions->tcNotRunAnyPlatform` in `common.php` is
+   unreachable — the identical dead pattern of every sibling screen, kept for
+   consistency.
+
+**Known gap:** the Word/e-mail outputs of the 1.9.20 controller are not
+reproduced (see SHOULD-FIX 7).
+
+**Event Viewer:** 0 new rows from the screen or the BFF. The 11 pre-existing
+ERROR rows are this suite's own development history (the pre-fix
+`TCV.urgency` / `TCV.tcase_id` SQL of bugs 1–2 above, fixed in `262865233` /
+`4d2fa6714`, plus two throwaway inspection scripts with wrong column names).
+
+**Filed, not fixed (out of scope):** **#1718** — the legacy
+`lib/results/tcNotRunAnyPlatform.php` is fatally broken
+(`require_once('results.class.php')` names a class that no longer exists;
+`$re = new results(...)` is commented out while `$re->getMapOfLastResult()`
+survives, and `$executionsMap` is read but never assigned). The modern screen
+replaces it; deleting the dead file is a separate change.

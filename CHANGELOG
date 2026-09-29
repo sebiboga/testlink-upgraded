@@ -195,6 +195,61 @@ screen reaches full parity.
   reuses `user.fullName`). Regression suite 1676: 20/20 PASS (9 client cases on the shipped helper +
   11 live BFF cases over 3 formats) and 11/11 browser cases; console and Event Viewer clean. (Fixes #1676)
 
+- [SCREEN] - #1717: the **Test Cases Not Run on Any Platform** report is modernized. Legacy 1.9.20
+  kept `lib/results/tcNotRunAnyPlatform.php` plus its dashio and classic templates, but the
+  controller could never run: `require_once('results.class.php')` names a class that no longer
+  exists in the tree, `$re = new results(...)` is commented out at `:50` while
+  `$re->getMapOfLastResult()` survives at `:62`, and `$executionsMap` is read at `:124` but never
+  assigned. The report was ALSO missing from `cfg/reports.cfg.php`, so nothing in the Reports menu
+  ever linked it and the fatal went unnoticed — bug #1718 filed. It is now the standalone Dashio
+  screen `gui/templates/results/tcNotRunAnyPlatform.html` (teal header, test project/plan context
+  bar, the legacy "n of total test cases" sentence, a DataTable with one column per platform and
+  a status badge, the `info_tcNotRunAnyPlatform` legend, design + Execution History popups)
+  backed by BFF action `not_run_any_platform` in `api/reports/index.php`, which rebuilds the
+  semantics on the two surviving helpers the controller would have used —
+  `testPlanUrgency::getPlatforms()` and `tlTestPlanMetrics::getNeverRunByPlatform()` — and
+  enforces `testplan_metrics` on the OWNING project (400 missing/invalid ids, 400 when the plan
+  belongs to another project, 403 no permission). A test case is listed when EVERY platform it is
+  linked to is never-run. Legacy parity kept: the deep link is
+  `linkto.php?tprojectPrefix=<prefix>&item=testcase&id=<external id>` (not a `tprojectId`
+  argument), and the no-platform / all-executed states end in a message box. i18n `tnrap.*` (20)
+  + `footers.tcNotRunAnyPlatform` in all 10 modern bundles and the new
+  `$TLS_link_report_not_run_on_any_platform` ASIDE label in all 19 legacy catalogues (one line per
+  file, written atomically). Wiring:
+  `cfg/reports.cfg.php` (`enabled => 'all'`, **not** `'testplan'`: `lib/general/asideMenu.php` only
+  accepts `all|req|bts` and an unknown value makes the entry silently invisible),
+  `lib/general/asideMenu.php`, `lib/functions/common.php`. Two bugs the suite caught that the
+  visible output hid: `config_get('results')` returns an array so `->status_code` was silently
+  NULL and the single-char string codes went through `intval()`, collapsing passed/failed/blocked
+  and turning `E.status <> not_run` into `<> 0`; and `full_external_id` already carries the prefix
+  so prefixing again rendered `TNR1717-TNR1717-1`. Live HTTP and browser
+  verification (EN+RO, clean console, clean Event Viewer) + a live XSS probe. **Mandatory code review
+  (subagent) found 2 BLOCKER + 5 SHOULD-FIX + 8 NIT and no security hole in the
+  BFF** (SQL injection, IDOR, CSRF, rights and output escaping all came back
+  clean): the two BLOCKERs are a **stored XSS** — `cols.push({title: pname})`
+  handed a free-text platform name to DataTables, which injects column titles
+  with `.html()`, so a platform named `<img src=x onerror=…>` executed for every
+  viewer (the sibling `neverRun.html` escapes the same value; verified live by
+  renaming a platform to a payload: the header rendered it as text, 0 injected
+  `<img>` nodes) — and a **self-contradicting table**: the rows come from
+  `getNeverRunByPlatform()` (active **and open** builds) while
+  `tnrLastStatusPerPlatform()` filtered `B.active = 1` only, so a case executed
+  solely on a *closed* build was listed by this "Not Run" report **and** carried
+  a `passed` badge; the last-status query now uses the same build set, and the
+  fixture grew a `passed`-on-a-closed-build case to pin it. Also: a plan with no
+  active+open build returns NULL (not an empty set) from the helper and was
+  answered with the false "all test cases have been executed" message (now
+  `builds_available` + a new `tnrap.noActiveBuilds` key in all 10 bundles); the
+  Priority column showed a raw `urgency×importance` integer with the thresholds
+  hardcoded in JS instead of `priority_to_level()` + the project's own
+  `urgencyImportance->threshold[]`; `openExecHistoryWindow(row.tcase_id)`
+  concatenated an undeclared `tproject_id` and produced
+  `…&tproject_id=undefined` (the modern screens are addressed directly now);
+  `tnrLinkedPlatformsPerCase()` scanned every `testplan_tcversions` row of the
+  plan behind a comment wrongly claiming the filter could not be pushed into SQL.
+  Suite 1717 grew to 40 cases, 40/40 PASS, and is now re-runnable (the fixture
+  publishes its auto-increment ids instead of the harness hardcoding them).
+
 - [SCREEN] - #1702: the single-test-case **Assign Requirements** popup is modernized. Legacy 1.9.20
   rendered it from `gui/templates/dashio/requirements/reqTcAssign.tpl`, but the #1595 shim
   `lib/requirements/reqTcAssign.php` never implemented that mode: it read only `?id=` and always

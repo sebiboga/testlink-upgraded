@@ -4927,8 +4927,18 @@ if ($action === 'not_run_any_platform') {
     $priorityEnabled = isset($tprojOpt->testPriorityEnabled)
         ? $tprojOpt->testPriorityEnabled : false;
 
-    $tcCfg = config_get('testcase_cfg');
-    $prefix = $tprojectMgr->getTestCasePrefix($tprojectId) . $tcCfg->glue_character;
+    // Priority is shown as a LEVEL + localized label, like every sibling
+    // report action: the level comes from priority_to_level() (which reads
+    // the project's own config_get('urgencyImportance')->threshold[]) and
+    // the label from config_get('priority')->code_label keyed HIGH/MEDIUM/
+    // LOW - the same pair the legacy controller displayed.
+    $prioLabels = [];
+    $prioCfg = config_get('priority');
+    if (isset($prioCfg['code_label'])) {
+        foreach ($prioCfg['code_label'] as $pcode => $plabel) {
+            $prioLabels[intval($pcode)] = lang_get($plabel);
+        }
+    }
 
     // --- platforms of the test plan (legacy $gui->platforms) --------------
     $tplanUrgency = new testPlanUrgency($db);
@@ -4949,6 +4959,10 @@ if ($action === 'not_run_any_platform') {
     $platformsActive = count($platforms) > 0;
 
     $rows = [];
+    // getNeverRunByPlatform() answers NULL (not an empty set) when the plan
+    // has no active+open build, i.e. when NOTHING can be proven never-run.
+    // That must not be reported as "all test cases have been executed".
+    $buildsAvailable = true;
     // Total number of test cases linked to the plan - the denominator of the
     // legacy "<n> of <total> test cases" sentence, so it must count EVERY
     // test case in the plan, not only the never-run ones.
@@ -4961,7 +4975,9 @@ if ($action === 'not_run_any_platform') {
         // platform) that has no execution on any active+open build.
         $neverRun = $tpMetrics->getNeverRunByPlatform($tplanId, $platformIds);
 
-        if (!is_null($neverRun) && count($neverRun) > 0) {
+        if (is_null($neverRun)) {
+            $buildsAvailable = false;
+        } elseif (count($neverRun) > 0) {
             // Index once (the legacy controller walked the same result set
             // row by row): payload per test case + never-run platform set.
             $payload = [];
@@ -5030,17 +5046,24 @@ if ($action === 'not_run_any_platform') {
                 }
 
                 $row = [
-                    'tcase_id'    => $cid,
-                    'tsuite_id'   => $suiteId,
-                    'suite_path'  => $suitePaths[$suiteId],
+                    'tcase_id'   => $cid,
+                    'tsuite_id'  => $suiteId,
+                    'suite_path' => $suitePaths[$suiteId],
                     'external_id' => $info['external_id'],
-                    'name'        => strip_tags($info['name']),
-                    'cells'       => $cells,
-                    'linked_qty'  => count($linked),
+                    'name'       => strip_tags($info['name']),
+                    'cells'      => $cells,
+                    'linked_qty' => count($linked),
                     'not_run_qty' => $notRun,
+                    // Always present (null when priority is off) so the
+                    // DataTable column never asks for an unknown parameter.
+                    'priority_level' => null,
+                    'priority_label' => '',
                 ];
                 if ($priorityEnabled && isset($urgImp[$cid])) {
-                    $row['urg_imp'] = $urgImp[$cid];
+                    $lvl = priority_to_level($urgImp[$cid]);
+                    $row['priority_level'] = $lvl;
+                    $row['priority_label'] = isset($prioLabels[$lvl])
+                        ? $prioLabels[$lvl] : '';
                 }
                 $rows[] = $row;
             }
@@ -5063,6 +5086,7 @@ if ($action === 'not_run_any_platform') {
         'tplan_id'            => $tplanId,
         'tplan_name'          => $tplanInfo['name'],
         'platforms_active'    => $platformsActive,
+        'builds_available'    => $buildsAvailable,
         'platforms'           => $platforms,
         'priority_enabled'    => $priorityEnabled,
         'number_of_testcases' => $numberOfTestCases,
@@ -5106,21 +5130,24 @@ function tnrTcaseIdByTcvId(&$db, $tplanId, $tvidIds) {
 }
 
 // Platform ids each test case is linked to in the test plan. The test case
-// id is derived from the version node's parent (see tnrTcaseIdByTcvId), so
-// the IN(...) filter cannot be pushed into SQL - the candidate version ids
-// are resolved first and the rows are then matched in PHP.
+// id is the PARENT of the version's own nodes_hierarchy node, so the filter
+// is pushed through that join (NH_TC) rather than through a tcversions
+// column that does not exist.
 function tnrLinkedPlatformsPerCase(&$db, $tplanId, $tcIds) {
     $out = [];
     if (count($tcIds) === 0) {
         return $out;
     }
-    $tcIdSet = array_flip(array_map('intval', $tcIds));
+    $inCases = implode(',', array_map('intval', $tcIds));
     $T = tlObjectWithDB::getDBTables(['testplan_tcversions', 'nodes_hierarchy']);
     $sql = "SELECT NH_TCV.parent_id AS tcase_id, TPTCV.platform_id
             FROM {$T['testplan_tcversions']} TPTCV
             INNER JOIN {$T['nodes_hierarchy']} NH_TCV
                     ON NH_TCV.id = TPTCV.tcversion_id
+            INNER JOIN {$T['nodes_hierarchy']} NH_TC
+                    ON NH_TC.id = NH_TCV.parent_id
             WHERE TPTCV.testplan_id = " . intval($tplanId) . "
+            AND NH_TC.id IN ({$inCases})
             ORDER BY TPTCV.platform_id ASC";
     $rs = $db->get_recordset($sql);
     if (is_null($rs)) {
@@ -5128,9 +5155,6 @@ function tnrLinkedPlatformsPerCase(&$db, $tplanId, $tcIds) {
     }
     foreach ($rs as $r) {
         $cid = intval($r['tcase_id']);
-        if (!isset($tcIdSet[$cid])) {
-            continue;
-        }
         $pid = intval($r['platform_id']);
         $out[$cid][$pid] = $pid;
     }
@@ -5193,14 +5217,21 @@ function tnrLastStatusPerPlatform(&$db, $tplanId, $tprojectId, $platformIds) {
     }
 
     $inList = implode(',', array_map('intval', $platformIds));
+    // B.active = 1 AND B.is_open = 1 is NOT optional: the rows of this
+    // report come from getNeverRunByPlatform(), which only looks at active
+    // AND OPEN builds. With `active` alone a case executed solely on a
+    // CLOSED build would be listed by this "Not Run" report AND carry a
+    // Passed/Failed badge. Both sides now use the same build set.
     // ORDER BY id ASC and last write wins => the newest execution per
-    // (tcversion, platform) is the one kept.
+    // (case, platform) is the one kept (the map is collapsed from the
+    // tcversion id to the tcase id further down).
     $sql = "SELECT E.tcversion_id, E.platform_id, E.status
             FROM {$T['executions']} E
             INNER JOIN {$T['builds']} B ON B.id = E.build_id
             WHERE E.testplan_id = " . intval($tplanId) . "
             AND B.testproject_id = " . intval($tprojectId) . "
             AND B.active = 1
+            AND B.is_open = 1
             AND E.platform_id IN ({$inList})
             AND E.status IS NOT NULL
             AND E.status <> '" . $notRunCode . "'

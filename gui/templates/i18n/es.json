@@ -5582,6 +5582,7 @@
   "tnrap.matchCount": "Número de coincidencias",
   "tnrap.priority": "Prioridad",
   "tnrap.noPlatforms": "No hay ninguna plataforma definida para este plan de pruebas.",
+  "tnrap.noActiveBuilds": "No se encontró ninguna build activa y abierta para este plan de pruebas.",
   "tnrap.allExecuted": "Todos los casos de prueba se han ejecutado en al menos una plataforma.",
   "tnrap.about": "Acerca de este informe",
   "tnrap.info": "Este informe muestra los casos de prueba vinculados al plan de pruebas actual pero que no se han ejecutado en ninguna plataforma. En cuanto un caso de prueba se ejecuta en al menos una plataforma, deja de aparecer en este informe.",

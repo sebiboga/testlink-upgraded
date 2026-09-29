@@ -5568,6 +5568,7 @@
   "tnrap.matchCount": "匹配数量",
   "tnrap.priority": "优先级",
   "tnrap.noPlatforms": "此测试计划未定义任何平台。",
+  "tnrap.noActiveBuilds": "未找到该测试计划的活动且打开的构建。",
   "tnrap.allExecuted": "所有测试用例都已在至少一个平台上执行。",
   "tnrap.about": "关于本报告",
   "tnrap.info": "本报告显示已关联到当前测试计划、但未在任何平台上执行过的测试用例。一旦某个测试用例在至少一个平台上执行过，它就不会再出现在本报告中。",
