@@ -87,7 +87,23 @@ function renderGui(&$dbHandler,&$argsObj,$guiObj,$opObj,$templateCfg)
       break;
 
       default:
-      break;
+        // Refs #1722: $renderType is still 'none' here, which means this controller
+        // can not render the requested action. Two whitelisted actions reach it:
+        //  - 'delete' is in the guiOpWhiteList (reqMgrSystemCommands.class.php:38-39)
+        //    but has no method on the command class, so method_exists() is false and
+        //    $op stays null -> no work, no log, no output;
+        //  - 'checkConnection' is a real method (reqMgrSystemCommands.class.php:223) but
+        //    is not one of the switch cases above, so its result is computed and thrown away.
+        // Both used to end the request with an empty body: HTTP 200, 0 bytes, and no Event
+        // Viewer row at all. Apply the same graceful 302 that #1627 introduced in init_args()
+        // for a non whitelisted doAction, so the two rejections look identical to the user
+        // and no action of this controller can answer a blank page.
+        tLog('reqMgrSystemEdit.php - requested action is not renderable - Value:' .
+             $argsObj->doAction . ' - File: ' . basename(__FILE__) . ' - Function: ' . __FUNCTION__,
+             'ERROR');
+        $base = isset($_SESSION['basehref']) ? $_SESSION['basehref'] : '/';
+        header('Location: ' . $base . 'gui/templates/reqmgrsystems/reqMgrSystemView.html', true, 302);
+        exit();
     }
 }
 
