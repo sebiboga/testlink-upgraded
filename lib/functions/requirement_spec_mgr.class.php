@@ -619,11 +619,14 @@ class requirement_spec_mgr extends tlObjectWithAttachments
                           'output' => 'standard', 
                           'outputLevel' => 'std', 'decodeUsers' => true);
   
-  $my['options'] = array_merge($my['options'], (array)$options);
+    $my['options'] = array_merge($my['options'], (array)$options);
 
-  // null => do not filter
-  $my['filters'] = array('status' => null, 'type' => null);
-  $my['filters'] = array_merge($my['filters'], (array)$filters);
+    // default: only the OPEN links, i.e. the links closed by an execution
+    // (LINK_TC_REQ_CLOSED_BY_EXEC) are NOT returned unless the caller asks
+    // for them in $filters['link_status'].
+    // null => do not filter
+    $my['filters'] = array('link_status' => 1, 'type' => null);
+    $my['filters'] = array_merge($my['filters'], (array)$filters);
 
   $rs = null;	
 	$tcase_filter = '';
@@ -2683,8 +2686,27 @@ function get_requirement_child_by_id_req($id){
 
 
   /**
+   * Requirements that are DIRECT CHILDREN of the req spec $id and are NOT
+   * linked to the latest active test case version of $tcase_id.
    *
-   * 
+   * args: id: req_spec id
+   *       tcase_id: testcase id, or null when the caller can not choose one
+   *                 (Req Spec Tree context): a requirement is then considered
+   *                 linked if it is linked to the latest version of ANY test case
+   *       opt: options
+   *       filters: not used by the query, kept for signature compatibility
+   *
+   * returns: array of rows, one per requirement, with keys
+   *          id, scope, title, req_doc_id, version, can_be_deleted
+   *          can_be_deleted = 1 only for a requirement that has no version row
+   *          at all (orphan), i.e. the only case where there is nothing to link
+   *
+   * The requirement version is taken from the requirement's own latest version
+   * (latest_req_version_id) and NOT from the coverage row: linking the version
+   * through req_coverage made an unlinked requirement come back with
+   * title/scope/version = NULL, because CONCAT() is NULL as soon as one of its
+   * arguments is NULL. A NOT EXISTS on the live coverage rows removes the
+   * already-linked requirements from the result set.
    */
   function getReqsOnSpecNotLinkedToLatestTCV($id, $tcase_id=null, $opt=null, $filters = null) {
 
@@ -2695,61 +2717,68 @@ function get_requirement_child_by_id_req($id){
     }
 
     $debugMsg = 'Class:' . __CLASS__ . ' - Method: ' . __FUNCTION__;
-    $my['options'] = array( 'order_by' => 
-                            ' ORDER BY NH_REQ.node_order,NH_REQ.name,REQ.req_doc_id ', 
-                            'output' => 'standard', 
+    $my['options'] = array( 'order_by' =>
+                            ' ORDER BY NH_REQ.node_order,NH_REQ.name,REQ.req_doc_id ',
+                            'output' => 'standard',
                             'outputLevel' => 'std', 'decodeUsers' => true);
-    
-    $my['options'] = array_merge($my['options'], (array)$options);
+
+    $my['options'] = array_merge($my['options'], (array)$opt);
 
     // null => do not filter
     $my['filters'] = array('status' => null, 'type' => null);
     $my['filters'] = array_merge($my['filters'], (array)$filters);
 
-    // 
+    //
     $ltcv = null;
     if( null == $tcase_id ) {
-      $tcversionJoin =  
-        " LEFT JOIN {$this->views['latest_tcase_version_id']} LTCV " .
-        " ON LTCV.tcversion_id = RCOV.tcversion_id ";
+      $notLinked =
+        " AND NOT EXISTS ( SELECT 1 FROM {$this->tables['req_coverage']} RCOV " .
+        " JOIN {$this->views['latest_tcase_version_id']} LTCV " .
+        " ON LTCV.tcversion_id = RCOV.tcversion_id " .
+        " WHERE RCOV.req_id = NH_REQ.id AND RCOV.is_active = 1 " .
+        " AND RCOV.link_status IN (" . intval(LINK_TC_REQ_OPEN) . "," .
+                                    intval(LINK_TC_REQ_CLOSED_BY_EXEC) . ") ) ";
     } else {
       $tcInfo = current($tcMgr->get_last_active_version($tcase_id));
-      $ltcv = intval($tcInfo['tcversion_id']);            
-      $tcversionJoin = " AND RCOV.tcversion_id = " . $ltcv;
+      $ltcv = intval($tcInfo['tcversion_id']);
+      $notLinked =
+        " AND NOT EXISTS ( SELECT 1 FROM {$this->tables['req_coverage']} RCOV " .
+        " WHERE RCOV.req_id = NH_REQ.id AND RCOV.is_active = 1 " .
+        " AND RCOV.tcversion_id = " . $ltcv .
+        " AND RCOV.link_status IN (" . intval(LINK_TC_REQ_OPEN) . "," .
+                                    intval(LINK_TC_REQ_CLOSED_BY_EXEC) . ") ) ";
     }
 
-    // Step 1 - 
+    // Step 1 -
     // get all req inside the Req Spec Folder ONLY DIRECT CHILDREN
     //
-    // Step 2 - 
-    // Need to get only the Req Versions That are Assigned 
+    // Step 2 -
+    // Need to get only the Req Versions That are NOT Assigned
     // to Latest Active Test Case Version
-    // I'm doing this because I'm calling this function from 
-    // the Test Spec Tree and in this context I CAN NOT choose 
-    // test case version 
-    // 
-    $sql = "/* $debugMsg */ " . 
+    // I'm doing this because I'm calling this function from
+    // the Test Spec Tree and in this context I CAN NOT choose
+    // test case version
+    //
+    $sql = "/* $debugMsg */ " .
            " SELECT NH_REQ.id,REQVER.scope, " .
            " CONCAT(NH_REQ.name,' [v', REQVER.version ,'] ' ) AS title," .
            " REQ.req_doc_id, REQVER.version," .
-           " (CASE WHEN REQVER.version IS NULL " . 
+           " (CASE WHEN REQVER.version IS NULL " .
            "       THEN 1 ELSE 0 END) AS can_be_deleted " .
 
            " FROM {$this->tables['nodes_hierarchy']} NH_REQ " .
            " JOIN {$this->tables['requirements']} REQ " .
            " ON REQ.id = NH_REQ.id " .
 
-
-           " LEFT JOIN {$this->tables['req_coverage']} RCOV " .
-           " ON RCOV.req_id = NH_REQ.id " .
-           $tcversionJoin .
+           " LEFT JOIN {$this->views['latest_req_version_id']} LRQV " .
+           " ON LRQV.req_id = NH_REQ.id " .
 
            " LEFT JOIN {$this->tables['req_versions']} REQVER " .
-           " ON REQVER.id = RCOV.req_version_id " .
-           
-           
+           " ON REQVER.id = LRQV.req_version_id " .
+
            " WHERE NH_REQ.parent_id=" . intval($id) .
-           " AND NH_REQ.node_type_id = {$this->node_types_descr_id['requirement']}";
+           " AND NH_REQ.node_type_id = {$this->node_types_descr_id['requirement']} " .
+           $notLinked;
 
     $itemSet = $this->db->get_recordset($sql);
     return $itemSet;
