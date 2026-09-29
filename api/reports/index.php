@@ -5169,12 +5169,28 @@ function tnrLastStatusPerPlatform(&$db, $tplanId, $tprojectId, $platformIds) {
         return [];
     }
     $T = tlObjectWithDB::getDBTables(['executions', 'builds']);
-    $statusCode = config_get('results')->status_code;
-    $codeToName = [
-        intval($statusCode['passed'])  => 'passed',
-        intval($statusCode['failed'])  => 'failed',
-        intval($statusCode['blocked']) => 'blocked',
-    ];
+    // NB: config_get('results') returns an ARRAY, not an object, and its
+    // status codes are single-character STRINGS ('p', 'f', 'b', 'n'), not
+    // integers. `config_get('results')->status_code` is silently NULL and
+    // intval('p') is 0 - which collapses passed/failed/blocked onto one key
+    // and turns the "E.status <> not_run" filter into "<> 0", i.e. it would
+    // let not_run rows through. Compare the codes as strings.
+    $resultsCfg = config_get('results');
+    $codes = isset($resultsCfg['status_code']) ? $resultsCfg['status_code'] : [];
+    $notRunCode = isset($codes['not_run']) ? $codes['not_run'] : 'n';
+    // The codes are config-supplied single characters, so the value is
+    // whitelisted before it is concatenated: an unexpected multi-character
+    // value (custom_config.inc.php override) must not reach the SQL.
+    if (!is_string($notRunCode) || !preg_match('/^[A-Za-z]$/', $notRunCode)) {
+        $notRunCode = 'n';
+    }
+    $codeToName = array();
+    foreach (array('passed', 'failed', 'blocked') as $nm) {
+        if (isset($codes[$nm]) && is_string($codes[$nm])
+            && preg_match('/^[A-Za-z]$/', $codes[$nm])) {
+            $codeToName[$codes[$nm]] = $nm;
+        }
+    }
 
     $inList = implode(',', array_map('intval', $platformIds));
     // ORDER BY id ASC and last write wins => the newest execution per
@@ -5187,8 +5203,8 @@ function tnrLastStatusPerPlatform(&$db, $tplanId, $tprojectId, $platformIds) {
             AND B.active = 1
             AND E.platform_id IN ({$inList})
             AND E.status IS NOT NULL
-            AND E.status <> " . intval($statusCode['not_run'])
-            . " ORDER BY E.id ASC";
+            AND E.status <> '" . $notRunCode . "'
+            ORDER BY E.id ASC";
 
     $rs = $db->get_recordset($sql);
     if (is_null($rs) || count($rs) === 0) {
@@ -5197,8 +5213,13 @@ function tnrLastStatusPerPlatform(&$db, $tplanId, $tprojectId, $platformIds) {
 
     $latest = [];
     foreach ($rs as $r) {
-        $latest[intval($r['tcversion_id'])][intval($r['platform_id'])] =
-            $codeToName[intval($r['status'])] ?? null;
+        $name = isset($codeToName[$r['status']]) ? $codeToName[$r['status']] : null;
+        if (!is_null($name)) {
+            $latest[intval($r['tcversion_id'])][intval($r['platform_id'])] = $name;
+        }
+    }
+    if (count($latest) === 0) {
+        return [];
     }
 
     $map = tnrTcaseIdByTcvId($db, $tplanId, array_keys($latest));
