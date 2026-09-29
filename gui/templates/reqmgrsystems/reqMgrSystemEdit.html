@@ -353,14 +353,15 @@ function save() {
       window.location.href = LIST_URL + '?created=' + r.id;
     }
   }).fail(function(xhr) {
-    var msg = TLi18n.t('rmse.msg.errorSave');
+    var code = '', msg = '';
     try {
       var resp = JSON.parse(xhr.responseText);
-      if (resp.message) { msg = resp.message; }
+      code = resp.code || '';
+      msg = resp.message || '';
     } catch (e) {}
     if (xhr.status === 401) { window.location.href = '/login.php?note=expired'; return; }
     setFeedback('err', 'rmse.msg.errorSave');
-    $('#feedback').prepend('<div class="err">' + esc(msg) + '</div>');
+    if (msg) { $('#feedback').append('<div class="hint">' + esc(msg) + '</div>'); }
   }).always(function() { $('#btnSave').prop('disabled', false); });
 }
 
@@ -402,13 +403,22 @@ $('#btnDeleteConfirm').on('click', function() {
   }).fail(function(xhr) {
     $('#btnDeleteConfirm').prop('disabled', false);
     if (xhr.status === 401) { window.location.href = '/login.php?note=expired'; return; }
-    var msg = TLi18n.t('rms.msg.errorDelete');
+    var code = '', msg = '';
     try {
       var resp = JSON.parse(xhr.responseText);
-      if (resp.message) { msg = resp.message; }
+      code = resp.code || '';
+      msg = resp.message || '';
     } catch (e) {}
-    setFeedback('err', 'rms.msg.errorDelete');
-    $('#feedback').prepend('<div class="err">' + esc(msg) + '</div>');
+    // #1728: the server message carries the offending test project name, so it
+    // is worth showing - but the headline is the localized one, and a generic
+    // server failure keeps the generic localized text.
+    if (code === 'delete_failed') {
+      setFeedback('err', 'rms.msg.cannotDeleteLinked');
+      if (msg) { $('#feedback').append('<div class="hint">' + esc(msg) + '</div>'); }
+    } else {
+      setFeedback('err', 'rms.msg.errorDelete');
+      if (msg) { $('#feedback').append('<div class="hint">' + esc(msg) + '</div>'); }
+    }
   });
 });
 
