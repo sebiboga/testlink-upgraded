@@ -17,6 +17,22 @@ Every screen of the application was ported one-by-one in a screen-compare
 kept for backward compatibility and is progressively retired as each modern
 screen reaches full parity.
 
+- [FEATURE GAP] - #1026: the modern Requirement Specification Management screen rendered a FLAT
+  list of specs: `api/reqspec/index.php?action=specs` never SELECTed `nodes_hierarchy.parent_id`
+  (and dropped the `node_order` it already selected), so nested child specifications appeared as
+  top-level rows, the Reqs badge showed the DIRECT count instead of the legacy subtree count, the
+  project total was not exposed, there was no expand/collapse, and this screen could not create a
+  nested spec at all. Ported the legacy tree semantics of `reqSpecListTree` (subtree requirement
+  counts, project total, per-node expand/collapse, `child_requirements_mgmt` nesting permission and
+  nested-spec creation): the BFF now emits `parent_id`/`node_order`/`child_specs`/`subtree_reqs` per
+  spec plus `total_reqs` and `child_requirements_mgmt` in the envelope (one post-order pass, no
+  N+1), and `reqSpecMgmt.html` renders an indented tree DataTable with per-row toggles,
+  Expand all / Collapse all, a total-requirements line, localStorage-backed collapse state per
+  project and a *Parent specification* picker. Also fixed the pre-existing HTTP 500 that made the
+  whole nested-spec create path fail: `needOwnedSpec()` called `requirement_spec_mgr::get_by_id()`,
+  whose return value no caller uses, and which fatals whenever the spec has no
+  `latest_rspec_revision` view row.
+
 - [FEATURE GAP] - #1019: the modern Metrics Dashboard honoured the config flag
   `$tlCfg->metrics_dashboard->show_test_plan_status` (config.inc.php:977) only for the overall
   progress: the test-plan cell rendered `Overall Progress: 50%` while legacy

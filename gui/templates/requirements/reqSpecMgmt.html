@@ -30,6 +30,19 @@ table.dataTable tbody td { padding: 8px 14px; font-size: 13px; vertical-align: m
 .spec-name.plain { color: #2d8e88; }
 .doc-id { color: #666; font-family: monospace; margin-right: 6px; }
 .req-count-badge { display: inline-block; background: #eefaf9; color: #2d8e88; border: 1px solid #bfe5e2; border-radius: 10px; padding: 0 8px; font-size: 11px; font-weight: 600; }
+/* Refs #1026 - hierarchical spec tree: indent guides + expand/collapse toggle */
+.tree-indent { display: inline-block; height: 16px; vertical-align: middle; }
+.tree-indent i { display: inline-block; width: 16px; height: 16px; border-left: 1px solid #dcdfe6; border-bottom: 1px solid #dcdfe6; margin-bottom: 4px; }
+.tree-toggle { display: inline-block; width: 16px; height: 16px; line-height: 14px; text-align: center;
+  border: 1px solid #bfe5e2; border-radius: 3px; background: #eefaf9; color: #2d8e88;
+  font-size: 10px; cursor: pointer; user-select: none; margin-right: 4px; }
+.tree-toggle:hover { background: #2d8e88; color: #fff; }
+.tree-toggle.leaf { border-color: transparent; background: transparent; cursor: default; }
+.kids-badge { display: inline-block; background: #f3eefa; color: #5b50a8; border: 1px solid #d4cff0;
+  border-radius: 10px; padding: 0 7px; font-size: 10px; font-weight: 600; margin-left: 6px; }
+.total-reqs-line { color: #666; font-size: 12px; font-weight: 400; margin-left: 12px; }
+.total-reqs-line b { color: #2d8e88; }
+table.dataTable tbody tr.spec-child-row td:first-child { border-left: 3px solid #eefaf9; }
 .type-badge { display: inline-block; background: #eef2fb; color: #55679c; border: 1px solid #ccd6ee; border-radius: 10px; padding: 0 8px; font-size: 11px; font-weight: 600; }
 .status-badge { display: inline-block; border-radius: 10px; padding: 0 8px; font-size: 11px; font-weight: 600; border: 1px solid transparent; }
 .st-V { background: #e6f7ec; color: #1e7e46; border-color:#bfe6cf; }
@@ -88,6 +101,8 @@ table.dataTable tbody td { padding: 8px 14px; font-size: 13px; vertical-align: m
 <div class="toolbar">
   <span class="ctx"><span data-i18n="rs.testProject">Test Project</span>: <b id="tprojectName">-</b></span>
   <span style="flex:1"></span>
+  <button class="btn-teal" id="btnExpandAll" onclick="expandAllSpecs()" style="display:none"><i class="fa fa-angle-double-down"></i> <span data-i18n="rs.expandAll">Expand all</span></button>
+  <button class="btn-teal" id="btnCollapseAll" onclick="collapseAllSpecs()" style="display:none;background:#22242a;"><i class="fa fa-angle-double-up"></i> <span data-i18n="rs.collapseAll">Collapse all</span></button>
   <button class="btn-teal" id="btnCreateSpec" onclick="openSpecCreate()" style="display:none"><i class="fa fa-plus"></i> <span data-i18n="rs.createSpec">Create Spec</span></button>
   <button class="btn-teal" id="btnImportReqs" onclick="goImportReqs()" style="display:none"><i class="fa fa-upload"></i> <span data-i18n="reqimp.header">Requirement Import</span></button>
   <button class="btn-teal" id="btnExportReqs" onclick="goExportReqs()" style="display:none"><i class="fa fa-download"></i> <span data-i18n="reqexp.export">Export</span></button>
@@ -143,8 +158,10 @@ table.dataTable tbody td { padding: 8px 14px; font-size: 13px; vertical-align: m
 </div>
 
 <div class="section">
-  <h2><span data-i18n="rs.header">Requirement Specification Management</span><span class="count" id="specCount"></span></h2>
-  <div class="hint" data-i18n="rs.selectSpecHint">click a specification title to manage its requirements</div>
+  <h2><span data-i18n="rs.header">Requirement Specification Management</span><span class="count" id="specCount"></span>
+    <span class="total-reqs-line" id="specTotalReqs" style="display:none"></span></h2>
+  <div class="hint" data-i18n="rs.selectSpecHint">click a specification title to manage its requirements
+    &middot; <span data-i18n="rs.treeHint">nested specifications are shown indented under their parent specification</span></div>
 </div>
 <div class="table-wrap">
   <div id="specEmpty" class="empty" style="display:none" data-i18n="rs.noSpecs">No requirement specifications defined for this test project yet</div>
@@ -209,6 +226,11 @@ table.dataTable tbody td { padding: 8px 14px; font-size: 13px; vertical-align: m
       </div>
       <div class="modal-body">
         <input type="hidden" id="editSpecId">
+        <div class="form-group" id="specParentGroup" style="margin-bottom:12px;display:none;">
+          <label for="specParent" data-i18n="rs.parentSpecLabel">Parent specification</label>
+          <select id="specParent" class="form-control" style="font-size:13px;"></select>
+          <div class="hint" style="font-size:11px;color:#888;" data-i18n="rs.parentSpecHint">leave at top level to create a specification directly under the test project</div>
+        </div>
         <div class="form-group" style="margin-bottom:12px;">
           <label for="specDocId" data-i18n="rs.docIdLabel">Document ID *</label>
           <input type="text" id="specDocId" class="form-control" maxlength="64" style="font-size:13px;">
@@ -317,6 +339,11 @@ var options = null;
 var filtering = false;
 var specsCache = [];
 var reqsCache = [];
+// Refs #1026 - hierarchical spec tree state
+var childMgmt = false;      // req_cfg->child_requirements_mgmt (config.inc.php l.1689)
+var totalReqs = 0;          // project subtree total (legacy root node count)
+var collapsed = {};         // specId -> true, persisted in localStorage per project
+var treeStoreKey = 'TL_req_spec_mgmt_collapsed_';
 
 // Refs #1516: legacy expected-coverage gates (mirrors reqEdit.html #1376)
 function coverageManagementEnabled() {
@@ -391,8 +418,11 @@ function load() {
     $('#btnCreateSpec').toggle(canManage);
     $('#btnImportReqs').toggle(canManage);
     $('#btnExportReqs').show();
+    // Refs #1026 - expand/collapse pair only makes sense once a nested spec exists
+    $('#btnExpandAll, #btnCollapseAll').show();
     renderDomains();
     initFilterPanel();
+    loadCollapsed();   // Refs #1026 - restore expand/collapse state per project
     loadSpecs();
   });
 }
@@ -557,6 +587,9 @@ function loadSpecs() {
     if (r.status !== 'ok') { toast(TLi18n.t('common.error'), true); return; }
     specsCache = r.specs || [];
     filtering = !!r.filtering;
+    // Refs #1026 - hierarchy + subtree counters + nesting permission
+    childMgmt = !!r.child_requirements_mgmt;
+    totalReqs = parseInt(r.total_reqs || 0, 10);
     renderSpecs(specsCache);
   }).fail(function (xhr) {
     var msg = TLi18n.t('common.error');
@@ -565,23 +598,112 @@ function loadSpecs() {
   });
 }
 
+// ------------------------------- Refs #1026 - hierarchical spec tree -----
+// Collapsed state survives reloads per test project, mirroring the legacy
+// Ext.state.LocalStorageProvider of treebyloader.js (cookiePrefix per project).
+function loadCollapsed() {
+  collapsed = {};
+  try {
+    var raw = window.localStorage.getItem(treeStoreKey + tprojectId);
+    var arr = raw ? JSON.parse(raw) : [];
+    if (Object.prototype.toString.call(arr) === '[object Array]') {
+      for (var i = 0; i < arr.length; i++) { collapsed[arr[i]] = true; }
+    }
+  } catch (e) { collapsed = {}; }
+}
+function saveCollapsed() {
+  try { window.localStorage.setItem(treeStoreKey + tprojectId, JSON.stringify(Object.keys(collapsed))); }
+  catch (e) { /* storage disabled - state is simply not persisted */ }
+}
+function toggleSpecNode(specId) {
+  var k = String(specId);
+  if (collapsed[k]) { delete collapsed[k]; } else { collapsed[k] = true; }
+  saveCollapsed();
+  renderSpecs(specsCache);
+}
+function expandAllSpecs() {
+  collapsed = {};
+  saveCollapsed();
+  renderSpecs(specsCache);
+}
+function collapseAllSpecs() {
+  collapsed = {};
+  $.each(specsCache, function (i, s) {
+    if (parseInt(s.child_specs || 0, 10) > 0) { collapsed[String(s.id)] = true; }
+  });
+  saveCollapsed();
+  renderSpecs(specsCache);
+}
+
+// Depth-first walk over parent_id, children sorted by node_order then id
+// (same ORDER BY as the BFF, treeMenu.inc.php l.1563 spec_order).
+function orderedSpecTree(items) {
+  var byId = {}, kids = {};
+  $.each(items, function (i, s) {
+    byId[s.id] = s;
+    var p = parseInt(s.parent_id || 0, 10);
+    if (!kids[p]) { kids[p] = []; }
+    kids[p].push(s);
+  });
+  var byOrder = function (a, b) {
+    var d = parseInt(a.node_order || 0, 10) - parseInt(b.node_order || 0, 10);
+    return d !== 0 ? d : (parseInt(a.id, 10) - parseInt(b.id, 10));
+  };
+  var seen = {};
+  var walk = function (parentId, depth) {
+    var list = (kids[parentId] || []).slice().sort(byOrder);
+    var acc = [];
+    for (var i = 0; i < list.length; i++) {
+      var s = list[i];
+      if (seen[s.id]) { continue; }              // cycle guard
+      seen[s.id] = true;
+      acc.push({ spec: s, depth: depth });
+      if (!collapsed[String(s.id)]) {
+        acc = acc.concat(walk(s.id, depth + 1));
+      }
+    }
+    return acc;
+  };
+  return walk(0, 0);
+}
+
 function renderSpecs(items) {
+  var visible = orderedSpecTree(items);
   $('#specCount').text('(' + items.length + ')');
   $('#specEmpty').toggle(items.length === 0);
   $('#specTable').toggle(items.length > 0);
+  // legacy root node label: "<testproject> (<total requirements>)"
+  $('#specTotalReqs').toggle(items.length > 0)
+    .html(esc(TLi18n.t('rs.totalReqsOf', { n: totalReqs, p: (options && options.tproject_name) || '-' })));
 
   if (specTbl) { specTbl.destroy(); $('#specTable tbody').empty(); }
 
-  var rows = items.map(function (s) {
+  var rows = visible.map(function (node) {
+    var s = node.spec, depth = node.depth;
     // ids only in inline handlers - titles are resolved from specsCache
     // inside the handlers (stored-XSS-safe, review #571)
-    var titleCell = '<span class="doc-id">' + esc(s.doc_id) + '</span>' +
-                    '<a class="spec-name" href="javascript:void(0)" onclick="selectSpec(' + s.id + ')">' +
-                    esc(s.title) + '</a>';
+    var kids = parseInt(s.child_specs || 0, 10);
+    var isCollapsed = !!collapsed[String(s.id)];
+    var indent = '';
+    for (var i = 0; i < depth; i++) { indent += '<span class="tree-indent"><i></i></span>'; }
+    var toggle = kids > 0
+      ? '<span class="tree-toggle" role="button" title="' + esc(TLi18n.t(isCollapsed ? 'rs.expandNode' : 'rs.collapseNode')) +
+        '" onclick="toggleSpecNode(' + s.id + ')">' + (isCollapsed ? '+' : '-') + '</span>'
+      : '<span class="tree-toggle leaf"></span>';
+
+    var titleCell = toggle + indent +
+                    '<span class="doc-id">' + esc(s.doc_id) + '</span>' +
+                    '<a class="spec-name" href="javascript:void(0)" onclick="selectSpec(' + s.id + ')" title="' +
+                    esc(TLi18n.t('rs.reqsInSubtree', { n: s.subtree_reqs, d: s.req_count })) + '">' +
+                    esc(s.title) + '</a>' +
+                    (kids > 0 ? '<span class="kids-badge" title="' + esc(TLi18n.t('rs.childSpecs', { n: kids })) + '">' +
+                                kids + ' ' + esc(TLi18n.t('rs.childSpecsShort')) + '</span>' : '');
 
     var action = '';
     if (canManage) {
       action =
+        (childMgmt ? '<button class="edit-btn" title="' + esc(TLi18n.t('rs.newChildSpec')) +
+        '" onclick="openSpecCreate(' + s.id + ')"><i class="fas fa-sitemap"></i></button>' : '') +
         '<button class="edit-btn" title="' + esc(TLi18n.t('rs.editSpec')) +
         '" onclick="openSpecEdit(' + s.id + ')"><i class="fas fa-pen"></i></button>' +
         '<button class="del-btn" title="' + esc(TLi18n.t('rs.deleteSpec')) +
@@ -594,10 +716,13 @@ function renderSpecs(items) {
     // Refs #1025: while filtering, the Reqs cell shows the number of MATCHING
     // requirements of the spec subtree (what the legacy tree counted), with the
     // unfiltered total in the tooltip.
-    var shown = filtering ? s.match_count : s.req_count;
+    // Refs #1026: unfiltered it now shows the SUBTREE count (legacy
+    // child_req_count), direct-only count moves to the tooltip.
+    var shown = filtering ? s.match_count : s.subtree_reqs;
+    var hint = filtering ? TLi18n.t('rsf.matchesOf', { n: s.req_count })
+                          : TLi18n.t('rs.reqsInSubtree', { n: s.subtree_reqs, d: s.req_count });
     var reqBadge = '<span class="req-count-badge' + (filtering ? ' match-badge' : '') + '"'
-      + (filtering ? ' title="' + esc(TLi18n.t('rsf.matchesOf', { n: s.req_count })) + '"' : '')
-      + '>' + shown + '</span>';
+      + ' title="' + esc(hint) + '">' + shown + '</span>';
 
     return [
       '<span class="doc-id">' + esc(s.doc_id) + '</span>',
@@ -614,6 +739,10 @@ function renderSpecs(items) {
   specTbl = $('#specTable').DataTable({
     destroy: true,
     data: rows,
+    // Refs #1026: no client side sorting/paging - the rows are already in tree
+    // order and re-ordering them by column 0 would destroy the hierarchy
+    order: [],
+    paging: false,
     language: { search: '', searchPlaceholder: TLi18n.t('common.search') },
     columnDefs: [
       { targets: [3, 4], className: 'text-center' },
@@ -743,13 +872,56 @@ function goExportReqs() {
   window.open(url, '_self');
 }
 
-function openSpecCreate() {
+// Refs #1026 - parent picker for nested specifications. The option list is the
+// spec tree with its dotted path, so the user can see where a new spec will
+// land; the spec being edited is never offered as its own parent.
+function fillParentSelect(selectedId) {
+  var $sel = $('#specParent');
+  var editId = parseInt($('#editSpecId').val() || '0', 10);
+  $sel.empty();
+  $sel.append($('<option>', { value: '0', text: TLi18n.t('rs.parentTopLevel') }));
+  var collapsedNow = {};
+  var byId = {};
+  $.each(specsCache, function (i, s) { byId[s.id] = s; });
+  function build(list, prefix) {
+    $.each(list, function (i, s) {
+      if (s.id === editId) { return; }             // no self-parenting
+      var nk = parseInt(s.child_specs || 0, 10);
+      var isCollapsed = !!collapsedNow[String(s.id)];
+      collapsedNow[String(s.id)] = true;
+      $sel.append($('<option>', {
+        value: s.id,
+        text: prefix + s.doc_id + ' - ' + s.title + (nk > 0 ? ' (' + nk + ')' : '')
+      }));
+      if (nk > 0 && !isCollapsed) { build(specChildren(s.id), prefix + '\u00A0\u00A0\u00A0'); }
+    });
+  }
+  function specChildren(pid) {
+    var out = [];
+    $.each(specsCache, function (i, s) {
+      if (parseInt(s.parent_id || 0, 10) === parseInt(pid, 10)) { out.push(s); }
+    });
+    out.sort(function (a, b) {
+      var d = parseInt(a.node_order || 0, 10) - parseInt(b.node_order || 0, 10);
+      return d !== 0 ? d : (parseInt(a.id, 10) - parseInt(b.id, 10));
+    });
+    return out;
+  }
+  build(specChildren(0), '');
+  $sel.val(String(selectedId || 0));
+}
+
+function openSpecCreate(parentSpecId) {
   $('#editSpecId').val('');
   $('#specDocId').val('');
   $('#specTitle').val('');
   $('#specCountReq').val(0);
   $('#specScope').val('');
   $('#specType').val(options.defaultSpecType);
+  // Refs #1026 - nesting only offered when req_cfg->child_requirements_mgmt is
+  // ENABLED (config.inc.php l.1689, getrequirementnodes.php l.46-51)
+  $('#specParentGroup').toggle(canManage && childMgmt);
+  if (canManage && childMgmt) { fillParentSelect(parseInt(parentSpecId || 0, 10)); }
   $('#specModalError').hide();
   $('#specModalTitle').text(TLi18n.t('rs.createSpec'));
   $('#specModal').modal('show');
@@ -767,6 +939,14 @@ function openSpecEdit(id) {
   $('#specCountReq').val(s.total_req);
   $('#specScope').val(s.scope);
   $('#specType').val(String(s.type));
+  // Refs #1026 - the parent of a spec is part of its node identity; the picker
+  // stays visible so the nesting can be inspected (not re-posted on save, the
+  // dedicated reorder endpoint owns moving nodes).
+  $('#specParentGroup').toggle(canManage && childMgmt);
+  if (canManage && childMgmt) {
+    fillParentSelect(parseInt(s.parent_id || 0, 10));
+    $('#specParent').prop('disabled', true);
+  }
   $('#specModalError').hide();
   $('#specModalTitle').text(TLi18n.t('rs.editSpec'));
   $('#specModal').modal('show');
@@ -794,6 +974,9 @@ function saveSpec() {
     req = $.ajax({ url: API + '?action=update_spec&id=' + encodeURIComponent(id),
                    method: 'POST', contentType: 'application/json', data: JSON.stringify(body) });
   } else {
+    // Refs #1026 - nest the new spec under the chosen parent. 0 = top level,
+    // which the BFF turns into the testproject node (api/reqspec l.700-704).
+    body.parent_id = parseInt($('#specParent').val() || '0', 10);
     req = $.ajax({ url: API + '?action=create_spec',
                    method: 'POST', contentType: 'application/json', data: JSON.stringify(body) });
   }

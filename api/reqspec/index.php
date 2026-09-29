@@ -20,6 +20,11 @@
  *         filter_status, filter_type, filter_spec_type, filter_coverage, filter_relation,
  *         filter_tc_id, filter_cf_<id>); specs whose subtree keeps no matching
  *         requirement are dropped and match_count carries the number of hits.
+ *         Refs #1026: every spec also carries its hierarchy (parent_id 0 = top
+ *         level, node_order, child_specs) and subtree_reqs = requirement count of
+ *         the whole subtree (own + nested child specs, legacy child_req_count);
+ *         the envelope adds total_reqs (project subtree total, legacy root node
+ *         count) and child_requirements_mgmt (config.inc.php l.1689).
  *   POST ?action=create_spec               {tproject_id,doc_id,title,type,total_req,scope,parent_id?}
  *   POST ?action=update_spec&id=N          {tproject_id,doc_id,title,type,total_req,scope}
  *   POST ?action=delete_spec&id=N&tproject_id=N
@@ -130,7 +135,15 @@ function needOwnedSpec($specId, $tproject_id) {
         http_response_code(404);
         out(['status' => 'error', 'message' => 'Requirement specification not found']);
     }
-    return @$reqSpecMgr->get_by_id(intval($specId)) ?: null;
+    // The probe above is the whole guard - every caller uses needOwnedSpec() for
+    // its existence/ownership side effect and ignores the return value.
+    // requirement_spec_mgr::get_by_id() is deliberately NOT called here: it
+    // resolves the latest revision through latest_rspec_revision and builds
+    // "... AND RSPEC_REV.id = " with a NULL child id when that denormalised row
+    // is absent, which is a database error (uncaught Exception -> HTTP 500) and
+    // not a suppressible warning. It used to be called and that alone made the
+    // whole nested-spec create path blow up. Refs #1026.
+    return true;
 }
 
 function badRequest($msg) {
@@ -584,7 +597,10 @@ if ($method === 'GET' && $action === 'options') {
 if ($method === 'GET' && $action === 'specs') {
     $tproject_id = needTprojectId();
 
-    $sql = "SELECT rs.id, rs.doc_id, nh.name AS title, nh.node_order," .
+    // Refs #1026 - nh.parent_id + nh.node_order are part of the payload now:
+    // the screen renders an indented spec tree out of them. nh.node_order was
+    // already selected but never emitted (see the response map below).
+    $sql = "SELECT rs.id, rs.doc_id, nh.name AS title, nh.node_order, nh.parent_id AS node_parent_id," .
            " latest.scope, latest.type, latest.total_req, latest.revision," .
            " latest.creation_ts, latest.modification_ts, u.login AS author_login," .
            " COALESCE(rc.cnt, 0) AS req_count," .
@@ -619,33 +635,69 @@ if ($method === 'GET' && $action === 'specs') {
     }
 
     // child specs of every spec, resolved in ONE query (no per-row round-trip)
+    $childrenOf = [];
+    $kids = $db->get_recordset(
+        'SELECT rs.id, nh.parent_id FROM nodes_hierarchy nh' .
+        ' JOIN req_specs rs ON rs.id = nh.id' .
+        ' WHERE rs.testproject_id = ' . intval($tproject_id) .
+        ' AND nh.parent_id IS NOT NULL');
+    foreach (($kids ? $kids : []) as $k) {
+        $childrenOf[intval($k['parent_id'])][] = intval($k['id']);
+    }
+
+    // reachable spec set of every spec (itself + all req_spec descendants).
+    // Used both by the #1025 filter pruning and by the #1026 subtree counters.
     $subtreeCache = [];
-    if ($map !== null) {
-        $kids = $db->get_recordset(
-            'SELECT rs.id, nh.parent_id FROM nodes_hierarchy nh' .
-            ' JOIN req_specs rs ON rs.id = nh.id' .
-            ' WHERE rs.testproject_id = ' . intval($tproject_id) .
-            ' AND nh.parent_id IS NOT NULL');
-        $childrenOf = [];
-        foreach (($kids ? $kids : []) as $k) {
-            $childrenOf[intval($k['parent_id'])][] = intval($k['id']);
-        }
-        foreach (($rows ? $rows : []) as $r) {
-            $stack = [intval($r['id'])];
-            $seen = [];
-            while (count($stack)) {
-                $cur = array_pop($stack);
-                if (isset($seen[$cur])) { continue; }
-                $seen[$cur] = true;
-                foreach (isset($childrenOf[$cur]) ? $childrenOf[$cur] : [] as $child) {
-                    $stack[] = $child;
-                }
+    foreach (($rows ? $rows : []) as $r) {
+        $stack = [intval($r['id'])];
+        $seen = [];
+        while (count($stack)) {
+            $cur = array_pop($stack);
+            if (isset($seen[$cur])) { continue; }
+            $seen[$cur] = true;
+            foreach (isset($childrenOf[$cur]) ? $childrenOf[$cur] : [] as $child) {
+                $stack[] = $child;
             }
-            $subtreeCache[intval($r['id'])] = array_keys($seen);
         }
+        $subtreeCache[intval($r['id'])] = array_keys($seen);
+    }
+
+    // Refs #1026 - legacy tree semantics: a spec node shows the requirement
+    // count of the WHOLE SUBTREE (own requirements + the ones of every nested
+    // child spec), and the testproject node shows the total of the project.
+    // Mirrors treeMenu.inc.php:prepare_reqspec_treenode() l.1935-1971, which
+    // recurses: requirement child -> +1, requirement_spec child -> += its
+    // child_req_count. One post-order pass, no per-row query.
+    $directReqCount = [];
+    foreach (($rows ? $rows : []) as $r) {
+        $directReqCount[intval($r['id'])] = intval($r['req_count']);
+    }
+    $subtreeReqCount = [];
+    $childSpecCount = [];
+    $totalReqs = 0;
+    // post-order: resolve every descendant before its parent
+    $resolve = function ($specId) use (&$resolve, &$subtreeReqCount, &$childSpecCount,
+                                       &$directReqCount, &$subtreeCache, &$childrenOf,
+                                       &$totalReqs) {
+        if (isset($subtreeReqCount[$specId])) { return; }
+        $acc = $directReqCount[$specId];
+        $kids = isset($childrenOf[$specId]) ? $childrenOf[$specId] : [];
+        $n = 0;
+        foreach ($kids as $child) {
+            $acc += $resolve($child);
+            $n++;
+        }
+        $subtreeReqCount[$specId] = $acc;
+        $childSpecCount[$specId] = $n;
+        return $acc;
+    };
+    foreach (($rows ? $rows : []) as $r) {
+        $totalReqs += $resolve(intval($r['id']));
     }
 
     $out = [];
+    $specIds = [];
+    foreach (($rows ? $rows : []) as $r) { $specIds[intval($r['id'])] = true; }
     foreach (($rows ? $rows : []) as $r) {
         $specId = intval($r['id']);
         $matchCnt = null;
@@ -656,10 +708,22 @@ if ($method === 'GET' && $action === 'specs') {
             }
             if ($matchCnt === 0) { continue; }   // empty spec: delete_node
         }
+        // Refs #1026 - hierarchy of the spec node. A spec whose parent is not
+        // itself a spec of this project (the testproject node, or an orphan)
+        // is reported with parent_id 0 = "top level", which is what the screen
+        // needs to root the tree. Cycles are broken the same way.
+        $parentId = intval($r['node_parent_id']);
+        if ($parentId <= 0 || !isset($specIds[$parentId]) || $parentId === $specId) {
+            $parentId = 0;
+        }
         $out[] = [
             'id'             => $specId,
             'doc_id'         => (string)$r['doc_id'],
             'title'          => (string)$r['title'],
+            'parent_id'      => $parentId,
+            'node_order'     => intval($r['node_order']),
+            'child_specs'    => intval($childSpecCount[$specId]),
+            'subtree_reqs'   => intval($subtreeReqCount[$specId]),
             'scope'          => (string)$r['scope'],
             'type'           => (string)$r['type'],
             'total_req'      => intval($r['total_req']),
@@ -672,7 +736,17 @@ if ($method === 'GET' && $action === 'specs') {
             'match_count'    => $matchCnt,
         ];
     }
-    out(['status' => 'ok', 'specs' => $out, 'filtering' => ($map !== null)]);
+
+    // legacy config.inc.php l.1689 - when ENABLED a requirement_spec may be
+    // nested under another requirement_spec (getrequirementnodes.php l.46-51
+    // clears the forbidden_parent guard in that case), so the screen only
+    // offers the parent picker for nested-spec creation while the knob is on.
+    $reqCfg = config_get('req_cfg');
+    $childReqMgmt = boolishConfig($reqCfg, 'child_requirements_mgmt', false);
+
+    out(['status' => 'ok', 'specs' => $out, 'filtering' => ($map !== null),
+         'total_reqs' => intval($totalReqs),
+         'child_requirements_mgmt' => $childReqMgmt]);
 }
 
 if ($method === 'POST' && $action === 'create_spec') {
