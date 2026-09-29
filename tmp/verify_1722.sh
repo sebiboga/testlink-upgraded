@@ -67,6 +67,11 @@ curl -s -c "$CJ" -b "$CJ" -X POST "$BASE/api/auth/login" \
 SUFFIX="$$"
 CREATE_NAME="RMSS1722A$SUFFIX"
 UPDATED_NAME="RMSS1722U$SUFFIX"
+# N1: a run that dies between doCreate and doDelete must not leak its row
+cleanup_row() {
+  sql "delete from reqmgrsystems where name like 'RMSS1722A$SUFFIX%'" >/dev/null 2>&1
+}
+trap 'cleanup_row; rm -rf "$CJ" "$TMPD"' EXIT
 
 echo "--- (a) no doAction can answer a blank 200 any more ---"
 
@@ -164,16 +169,29 @@ else
      "$(sql "select count(*) from events where id > $M and log_level = 2")"
 fi
 
-# 8: the sink is patched in exactly one place, and the file is still valid PHP
-if command -v php >/dev/null 2>&1; then
-  if php -l lib/reqmgrsystems/reqMgrSystemEdit.php >/dev/null 2>&1; then
-    ok 0 "php -l lib/reqmgrsystems/reqMgrSystemEdit.php is clean"
-  else
-    ok 1 "php -l lib/reqmgrsystems/reqMgrSystemEdit.php is clean" "no syntax error" "syntax error"
+# 8: the sink is gone for good. Structural greps cannot prove behaviour, so this is
+#    a real sweep: NO value of doAction may ever make this controller answer a bare
+#    200 / 0 bytes again. Pre-fix, 'delete' and 'checkConnection' both did exactly that,
+#    so this single assertion fails on the unpatched file and is not self-referential.
+BLANK=""
+for probe in 'delete' 'checkConnection&id=1' 'DELETE' 'CheckConnection&id=1' 'delete&id=1' \
+             'doDeleteX' 'editX' 'createX' 'zzz'; do
+  R="$(get "?doAction=$probe")"
+  if [ "$(echo "$R" | cut -d' ' -f1)" = "200" ] && [ "$(echo "$R" | cut -d' ' -f2)" = "0" ]; then
+    BLANK="$BLANK $probe"
   fi
+done
+eq "no doAction value answers a bare 200 / 0 bytes any more" "" "$BLANK"
+
+# 9: syntax gate is unconditional, so the assertion count does not depend on php being
+#    on the PATH (the '31/31 PASS' figure quoted in the docs must be exact)
+if command -v php >/dev/null 2>&1 && php -l lib/reqmgrsystems/reqMgrSystemEdit.php >/dev/null 2>&1
+then
+  ok 0 "php -l lib/reqmgrsystems/reqMgrSystemEdit.php is clean"
+else
+  ok 1 "php -l lib/reqmgrsystems/reqMgrSystemEdit.php is clean" "php present + no syntax error" \
+     "php missing or syntax error"
 fi
-eq "exactly one graceful 'not renderable' branch exists in the repo" 1 \
-   "$(grep -rl "requested action is not renderable" lib/ 2>/dev/null | wc -l | tr -d ' ')"
 
 echo
 echo "Regression #1722: $PASS passed, $FAIL failed"

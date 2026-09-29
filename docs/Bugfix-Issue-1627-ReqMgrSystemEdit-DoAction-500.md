@@ -160,7 +160,9 @@ and deletes its own `reqmgrsystems` row, so it is re-runnable on a fresh import.
 * `?doAction=edit&id=<unknown id>` renders a broken form and logs 5 `E_WARNING` rows
   (`$gui->item` is `null`, unguarded `reqMgrSystemCommands.class.php:164`).
 * `?doAction=delete` is whitelisted but has **no** command method → HTTP 200 with a
-  0-byte body (`renderGui`'s `switch` has no `default:`).
+  0-byte body (`renderGui`'s `switch` has no `default:`). **Fixed by #1722** — see
+  [Bugfix-Issue-1722-ReqMgrSystemEdit-Blank-200-Default-Render-Branch.md](Bugfix-Issue-1722-ReqMgrSystemEdit-Blank-200-Default-Render-Branch.md);
+  `renderGui()`'s `$renderType` switch now has a `default:` that applies the same graceful 302.
 * `?doAction=checkConnection` logs `E_WARNING Undefined array key "checkConnection"`
   (`initGuiBean`, `reqMgrSystemCommands.class.php:72`) — that is **#1628**.
 

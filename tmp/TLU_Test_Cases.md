@@ -811,8 +811,9 @@ handles only **5** (`edit|create|doDelete|doCreate|doUpdate`). The other two lea
    then thrown away, because `checkConnection` is not one of the `case` values. One extra
    `E_WARNING Undefined array key "checkConnection"` from `initGuiBean()` (`:72`) is
    **#1628**, a separate defect.
-3. Controls that already worked: `?doAction=create` → 200/11486 · `?doAction=edit&id=N` →
-   200/11485 · `?doAction=doDelete&id=N` → 302 → `reqMgrSystemView.php` · `?doAction=bogus` →
+3. Controls that already worked: `?doAction=create` → 200/11488 · `?doAction=edit&id=N` →
+   200/>5000 (exact size is fixture-dependent - it was 11485 B against an empty table and
+   11733 B against the row the harness creates, so the harness asserts a >5000 threshold) · `?doAction=doDelete&id=N` → 302 → `reqMgrSystemView.php` · `?doAction=bogus` →
    302 → the list (**#1627**'s graceful rejection) · `?doAction=` (empty) → 200 create form.
 4. In the browser: `?doAction=delete` renders a **completely empty document** — title is the
    raw URL, no markup, no error, no way back.
@@ -829,9 +830,14 @@ the whole create→edit→update→delete write cycle — must behave **byte-for
 because a "302 everything" patch would also pass a blank-body check while silently breaking
 the only flows that write to the DB.
 
-**Regression — Issue #1722: 31 cases, ALL PASS** (harness exit 0). Discriminating: with the
+**Regression — Issue #1722: 31 cases, ALL PASS** (harness exit 0). The table below
+groups those 31 harness assertions into 27 readable rows (several rows assert the status *and*
+the body size / the `Location` / the log line of one request, and the harness's own sequence
+numbering is the authoritative one - `bash tmp/verify_1722.sh` prints `| 1 |` … `| 31 |`). Discriminating: with the
 pre-fix file restored, the very same harness reports **24 passed / 7 failed** (exit 1), and
-the 7 failures are exactly the new behaviour — every shared behaviour passes both before and
+all 7 failures are genuine behaviour (4 × `delete`/`checkConnection` status+Location+log, plus the 9-value
+sweep that catches all three blank-200 values at once) - no assertion in the harness is
+self-referential, so the negative control proves the *behaviour*, not just the presence of a string — every shared behaviour passes both before and
 after, which is the anti-regression proof.
 
 | # | case | pre-fix | post-fix | verdict |
@@ -851,18 +857,18 @@ after, which is the anti-regression proof.
 | 13 | `GET ?doAction=` still renders the create form | 11487 B | 11487 B | **PASS** |
 | 14 | `GET ?doAction=` logs nothing | 0 | 0 | **PASS** |
 | 15 | `GET ?doAction=create` → 200 | 200 | 200 | **PASS** |
-| 16 | `GET ?doAction=create` renders the form | 11487 B | 11487 B | **PASS** |
+| 16 | `GET ?doAction=create` renders the form | 11488 B | 11488 B | **PASS** |
 | 17 | `GET ?doAction=create` logs nothing | 0 | 0 | **PASS** |
 | 18 | `POST doAction=doCreate` → 302 to the view screen | 302 | 302 → `reqMgrSystemView.php` | **PASS** |
 | 19 | `POST doAction=doCreate` inserted the row | yes | yes (`id=2`) | **PASS** |
 | 20 | `GET ?doAction=edit&id=<new row>` → 200 | 200 | 200 | **PASS** |
-| 21 | `GET ?doAction=edit&id=<new row>` renders the edit form | 11730 B | 11733 B | **PASS** |
+| 21 | `GET ?doAction=edit&id=<new row>` renders the edit form | >5000 B | >5000 B (11733 B measured) | **PASS** |
 | 22 | the edit form is pre-filled with the stored name | yes | yes | **PASS** |
 | 23 | `POST doAction=doUpdate` → 302 **and** the row really changed | 302 | 302, `name` + `cfg` updated in the DB | **PASS** |
 | 24 | `GET ?doAction=doDelete&id=N` → 302 **and** the row is gone | 302 | 302, `count(*)=0` | **PASS** |
 | 25 | E_WARNING rows produced by the whole CRUD cycle | — | **0** | **PASS** |
-| 26 | `php -l lib/reqmgrsystems/reqMgrSystemEdit.php` | clean | clean | **PASS** |
-| 27 | exactly one `not renderable` branch in the whole repo | 0 files | 1 file | **PASS** |
+| 26 | `php -l lib/reqmgrsystems/reqMgrSystemEdit.php` (unconditional, so the assertion count is exactly 31) | clean | clean | **PASS** |
+| 27 | **no** `doAction` value answers a bare 200 / 0 bytes (9-value sweep: `delete`, `checkConnection`, `DELETE`, `CheckConnection`, `delete&id=1`, `doDeleteX`, `editX`, `createX`, `zzz`) | 3 of the 9 are a bare 200 / 0 bytes | **0 of 9** | **PASS** |
 
 **Result: 31 / 31 PASS, Event Viewer introduces no new Warning** (the single new row is the
 intentional `log_level 1` ERROR reason; before the fix this request logged *nothing*, which is
