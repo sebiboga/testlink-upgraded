@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Duplicate Name Check</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+
+.header {
+  background: #4ECDC4; color: #fff; padding: 14px 24px;
+  font-size: 20px; font-weight: 700; letter-spacing: 1px;
+}
+.header span.sub { font-size: 13px; font-weight: 400; opacity: .85; margin-left: 12px; }
+
+.toolbar {
+  background: #22242a; padding: 10px 24px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+}
+.toolbar .tbtn {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: #33363f; color: #fff; border: none; border-radius: 4px;
+  padding: 7px 12px; font-size: 12px; cursor: pointer; text-decoration: none;
+}
+.toolbar .tbtn:hover { background: #454955; color: #fff; text-decoration: none; }
+.toolbar .tbtn i { color: #4ECDC4; }
+.toolbar .tbtn[disabled] { opacity: .45; cursor: not-allowed; }
+
+.card {
+  background: #fff; border-radius: 8px; margin: 20px 24px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.08); overflow: hidden;
+}
+.card-head {
+  padding: 14px 24px; border-bottom: 1px solid #eee; display: flex;
+  align-items: center; gap: 10px; flex-wrap: wrap;
+}
+.card-head h3 { margin: 0; font-size: 16px; color: #22242a; }
+.card-body { padding: 18px 24px; }
+
+table.logctx { width: 100%; border-collapse: collapse; }
+table.logctx th {
+  color: #555; font-weight: 600; width: 220px; font-size: 12px;
+  text-align: left; padding: 8px 12px 8px 0; vertical-align: top;
+}
+table.logctx td { color: #333; font-size: 13px; padding: 8px 0; word-break: break-word; }
+
+.chip {
+  display: inline-block; padding: 2px 10px; border-radius: 3px;
+  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px;
+  background: #eef1f5; color: #556;
+}
+.chip.on { background: #4ECDC4; color: #fff; }
+.chip.warn { background: #f0ad4e; color: #fff; }
+
+.form-row { margin-bottom: 16px; max-width: 760px; }
+.field-label { font-size: 12px; font-weight: 600; color: #555; margin-bottom: 6px; }
+.form-control2 {
+  width: 100%; padding: 8px 12px; border: 1px solid #d6dae0;
+  border-radius: 4px; font-size: 13px; font-family: inherit; background: #fff;
+}
+.form-control2:focus { outline: none; border-color: #4ECDC4; }
+.hint { font-size: 11px; color: #999; margin-top: 5px; }
+.row2 { display: flex; gap: 20px; flex-wrap: wrap; }
+.row2 .form-row { flex: 1; min-width: 240px; }
+
+.btn-primary2 {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: #4ECDC4; color: #fff; border: none; border-radius: 4px;
+  padding: 8px 16px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit;
+}
+.btn-primary2:hover { background: #3bb5ad; color: #fff; }
+.btn-primary2[disabled] { opacity: .5; cursor: not-allowed; }
+
+.verdict {
+  border-radius: 6px; padding: 14px 18px; font-size: 14px; display: flex;
+  align-items: flex-start; gap: 10px; margin-bottom: 16px;
+}
+.verdict i { font-size: 18px; margin-top: 1px; }
+.verdict.ok { background: #e8f7f5; border-left: 4px solid #4ECDC4; color: #17635d; }
+.verdict.ko { background: #fdecea; border-left: 4px solid #e6605e; color: #8a2b2a; }
+.verdict.pending { background: #f6f7f9; border-left: 4px solid #bbb; color: #666; }
+
+table.collisions { width: 100%; border-collapse: collapse; margin-top: 6px; }
+table.collisions th {
+  background: #f4f6f8; color: #555; font-size: 12px; font-weight: 600;
+  text-align: left; padding: 8px 10px; border-bottom: 1px solid #e3e7ec;
+}
+table.collisions td { font-size: 13px; color: #333; padding: 8px 10px; border-bottom: 1px solid #f0f2f5; }
+table.collisions td.num { width: 90px; color: #888; }
+
+.state-box {
+  background: #fff; border-radius: 8px; margin: 20px 24px; padding: 28px 32px; text-align: center;
+}
+.state-box i { font-size: 34px; margin-bottom: 10px; display: block; }
+.state-box h3 { margin: 0 0 8px; font-size: 18px; color: #22242a; }
+.state-box p { margin: 0; font-size: 14px; color: #777; }
+.state-denied { border: 1px solid #f0d0d0; border-left: 4px solid #e6605e; }
+.state-denied i { color: #e6605e; }
+.state-error { border: 1px solid #f0d0d0; border-left: 4px solid #e6605e; }
+.state-error i { color: #e6605e; }
+.state-notfound { border: 1px solid #f3e6c8; border-left: 4px solid #f0ad4e; }
+.state-notfound i { color: #f0ad4e; }
+
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span data-i18n="nchk.title">Duplicate Name Check</span>
+  <span class="sub" data-i18n="nchk.subtitle">test suite / test case name uniqueness</span>
+  <div id="localeSwitcher" style="float:right;"></div>
+</div>
+
+<div class="toolbar">
+  <button type="button" class="tbtn" id="btnRefresh"><i class="fa fa-sync"></i> <span data-i18n="common.refresh">Refresh</span></button>
+  <button type="button" class="tbtn" id="btnCheckTop"><i class="fa fa-magnifying-glass"></i> <span data-i18n="nchk.check">Check name</span></button>
+  <button type="button" class="tbtn" id="btnBack"><i class="fa fa-arrow-left"></i> <span data-i18n="nchk.backToTestSpec">Test Specification</span></button>
+  <button type="button" class="tbtn" id="btnClose"><i class="fa fa-times"></i> <span data-i18n="common.close">Close</span></button>
+</div>
+
+<div class="card" id="ctxCard" style="display:none;">
+  <div class="card-head">
+    <h3 data-i18n="nchk.contextHeading">Context</h3>
+    <span class="chip" id="chipWarnOnSave"></span>
+  </div>
+  <div class="card-body">
+    <table class="logctx"><tbody id="ctxBody"></tbody></table>
+  </div>
+</div>
+
+<div class="card" id="formCard" style="display:none;">
+  <div class="card-head">
+    <h3 data-i18n="nchk.formHeading">Name to check</h3>
+  </div>
+  <div class="card-body">
+    <div class="form-row">
+      <div class="field-label" data-i18n="nchk.nodeType">Node type</div>
+      <select class="form-control2" id="nodeTypeSel"></select>
+    </div>
+    <div class="form-row">
+      <div class="field-label" data-i18n="nchk.parentContainer">Parent container</div>
+      <select class="form-control2" id="parentSel"></select>
+      <div class="hint" data-i18n="nchk.parentHint">Test suites are unique inside their parent, test cases inside their test suite.</div>
+    </div>
+    <div class="row2">
+      <div class="form-row">
+        <div class="field-label" data-i18n="nchk.name">Name</div>
+        <input type="text" class="form-control2" id="nameInput" maxlength="100" autocomplete="off">
+        <div class="hint" data-i18n="nchk.nameHint">Maximum 100 characters.</div>
+      </div>
+      <div class="form-row">
+        <div class="field-label" data-i18n="nchk.excludeNode">Node being edited (id)</div>
+        <input type="text" class="form-control2" id="excludeInput" inputmode="numeric" autocomplete="off">
+        <div class="hint" data-i18n="nchk.excludeHint">Leave empty when creating a new node.</div>
+      </div>
+    </div>
+    <button type="button" class="btn-primary2" id="btnCheck"><i class="fa fa-magnifying-glass"></i> <span data-i18n="nchk.check">Check name</span></button>
+  </div>
+</div>
+
+<div class="card" id="resCard" style="display:none;">
+  <div class="card-head">
+    <h3 data-i18n="nchk.resultHeading">Result</h3>
+    <span class="chip" id="resChip"></span>
+  </div>
+  <div class="card-body">
+    <div class="verdict pending" id="verdictBox">
+      <i class="fa fa-info-circle"></i><span id="verdictText"></span>
+    </div>
+    <table class="collisions" id="collTable" style="display:none;">
+      <thead>
+        <tr>
+          <th class="num" data-i18n="nchk.colId">ID</th>
+          <th data-i18n="nchk.colName">Existing node</th>
+          <th class="num" data-i18n="nchk.colParent">Parent ID</th>
+        </tr>
+      </thead>
+      <tbody id="collBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="state-box" id="loadingBox" style="display:none;">
+  <i class="fa fa-spinner fa-spin"></i>
+  <h3 data-i18n="nchk.loading">Loading</h3>
+  <p data-i18n="nchk.pleaseWait">Please wait...</p>
+</div>
+
+<div class="state-box state-denied" id="accessDenied" style="display:none;">
+  <i class="fa fa-lock"></i>
+  <h3 data-i18n="nchk.accessDeniedTitle">Access Denied</h3>
+  <p id="accessDeniedMsg"></p>
+</div>
+
+<div class="state-box state-notfound" id="notFound" style="display:none;">
+  <i class="fa fa-search-minus"></i>
+  <h3 data-i18n="nchk.notFoundTitle">Not found</h3>
+  <p id="notFoundMsg"></p>
+</div>
+
+<div class="state-box state-error" id="loadError" style="display:none;">
+  <i class="fa fa-exclamation-triangle"></i>
+  <h3 data-i18n="common.error">Error</h3>
+  <p id="loadErrorMsg"></p>
+</div>
+
+<div class="footer"><span data-i18n="footers.nameCheck">TestLink 2.0.1 - Duplicate Name Check</span></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script>
+function esc(s) {
+  return s == null ? '' : String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+var API = '/api/namecheck/index.php';
+var qs = new URLSearchParams(window.location.search);
+var tprojectId = parseInt(qs.get('tproject_id') || '', 10);
+var state = { data: null, timer: null, lastKey: '' };
+
+function showState(sel) {
+  ['#loadingBox', '#accessDenied', '#notFound', '#loadError'].forEach(function (s) {
+    $(s).toggle(s === sel);
+  });
+}
+
+function row(labelKey, value) {
+  return '<tr><th>' + esc(TLi18n.t(labelKey)) + '</th><td>' + esc(value) + '</td></tr>';
+}
+
+// Machine code -> localized message. Unknown codes degrade to the generic
+// localized string instead of leaking the server's English text.
+function errMsg(payload, xhr) {
+  var code = (payload && payload.code) ? payload.code : null;
+  if (!code && xhr && xhr.responseText) {
+    try { var p = JSON.parse(xhr.responseText); code = p && p.code; } catch (e) {}
+  }
+  if (code === 'session_expired' || code === 'not_authenticated') {
+    return TLi18n.t('nchk.sessionExpired');
+  }
+  if (code === 'no_permission') { return TLi18n.t('nchk.noPermission'); }
+  if (code === 'no_project') { return TLi18n.t('nchk.noProject'); }
+  if (code === 'project_not_found' || code === 'parent_not_found' || code === 'node_not_found') {
+    return TLi18n.t('nchk.notFoundMsg');
+  }
+  if (code === 'project_mismatch') { return TLi18n.t('nchk.projectMismatch'); }
+  if (code === 'unknown_node_type') { return TLi18n.t('nchk.unknownNodeType'); }
+  if (code === 'name_too_long') { return TLi18n.t('nchk.nameTooLong'); }
+  if (code === 'missing_name' || code === 'missing_context') { return TLi18n.t('nchk.missingName'); }
+  return TLi18n.t('common.errorLoading');
+}
+
+function loadInit() {
+  showState('#loadingBox');
+  $('#ctxCard, #formCard, #resCard').hide();
+
+  var url = API + '?action=init';
+  if (tprojectId > 0) { url += '&tproject_id=' + tprojectId; }
+
+  $.ajax({ url: url, dataType: 'json' })
+    .done(function (d) {
+      state.data = d;
+      tprojectId = d.context.tproject_id;
+      renderContext(d);
+      renderForm(d);
+      showState('');
+      $('#ctxCard').show();
+      $('#formCard').show();
+      // Deep link: ?node_type=..&parent_id=..&name=..&node_id=.. pre-fills and
+      // runs the check, so a bookmark reproduces the legacy caller state.
+      if (qs.get('name')) {
+        $('#nodeTypeSel').val(qs.get('node_type') || 'testsuite');
+        $('#parentSel').val(qs.get('parent_id') || '');
+        $('#excludeInput').val(qs.get('node_id') || '');
+        $('#nameInput').val(qs.get('name'));
+        runCheck();
+      }
+    })
+    .fail(function (xhr) {
+      var payload = null;
+      try { payload = JSON.parse(xhr.responseText); } catch (e) {}
+      var code = payload && payload.code;
+      if (xhr.status === 401) {
+        // Match every other modernized screen: bounce to login.php so the
+        // session is re-established instead of showing a dead shell.
+        window.location.href = '/login.php?note=expired';
+        return;
+      }
+      if (xhr.status === 403) {
+        showState('#accessDenied');
+        $('#accessDeniedMsg').text(errMsg(payload, xhr));
+        return;
+      }
+      if (xhr.status === 404) {
+        showState('#notFound');
+        $('#notFoundMsg').text(errMsg(payload, xhr));
+        return;
+      }
+      showState('#loadError');
+      $('#loadErrorMsg').text(errMsg(payload, xhr));
+    });
+}
+
+function renderContext(d) {
+  var c = d.context;
+  var html = '';
+  html += row('nchk.testProject', c.tproject_name || ('#' + c.tproject_id));
+  html += row('nchk.tcPrefix', c.tc_prefix || '');
+  html += row('nchk.containers', String(d.containers.length));
+  html += row('nchk.checkNamesForDuplicates', d.config.check_names_for_duplicates);
+  html += row('nchk.actionOnDuplicateName', d.config.action_on_duplicate_name);
+  $('#ctxBody').html(html);
+
+  var warn = d.config.check_names_for_duplicates;
+  var on = (warn === 'true' || warn === '1' || warn === 'yes' || warn === 1);
+  $('#chipWarnOnSave')
+    .text(on ? TLi18n.t('nchk.duplicatesWarned') : TLi18n.t('nchk.duplicatesAllowed'))
+    .attr('class', 'chip ' + (on ? 'warn' : ''));
+}
+
+function renderForm(d) {
+  var sel = '';
+  d.node_types.forEach(function (nt) { sel += '<option value="' + esc(nt.key) + '">' + esc(nt.label) + '</option>'; });
+  $('#nodeTypeSel').html(sel);
+  $('#nodeTypeSel').val(qs.get('node_type') || 'testsuite');
+
+  var psel = '';
+  d.containers.forEach(function (c) {
+    psel += '<option value="' + esc(c.id) + '">' + esc(c.is_root ? d.context.tproject_name : c.name) + '</option>';
+  });
+  $('#parentSel').html(psel);
+  if (qs.get('parent_id')) { $('#parentSel').val(qs.get('parent_id')); }
+
+  $('#nameInput').trigger('focus');
+}
+
+function runCheck() {
+  var name = ($('#nameInput').val() || '').trim();
+  var parentId = parseInt($('#parentSel').val() || '', 10);
+  var nodeId = parseInt(($('#excludeInput').val() || '').trim(), 10) || 0;
+  var nodeType = $('#nodeTypeSel').val() || 'testsuite';
+
+  if (!name) { $('#nameInput').trigger('focus'); return; }
+  if (!(parentId > 0)) { return; }
+
+  var key = [nodeType, parentId, nodeId, name].join('|');
+  if (key === state.lastKey) { return; }
+  state.lastKey = key;
+
+  $('#resCard').show();
+  $('#verdictBox').attr('class', 'verdict pending');
+  $('#verdictText').text(TLi18n.t('nchk.checking'));
+  $('#collTable').hide();
+  $('#resChip').text('');
+
+  var url = API + '?action=check&node_type=' + encodeURIComponent(nodeType) +
+    '&name=' + encodeURIComponent(name) + '&parent_id=' + encodeURIComponent(parentId) +
+    '&node_id=' + encodeURIComponent(nodeId) + '&tproject_id=' + encodeURIComponent(tprojectId);
+
+  $.ajax({ url: url, dataType: 'json' })
+    .done(function (d) {
+      $('#verdictBox').attr('class', 'verdict ' + (d.exists ? 'ko' : 'ok'));
+      // The BFF returns the legacy lang_get('name_already_exists') sentence
+      // verbatim in `message`; it is rendered as TEXT, never as markup.
+      $('#verdictText').text(d.exists ? d.message : TLi18n.t('nchk.nameIsFree', { name: d.name }));
+      $('#resChip').text(d.exists ? TLi18n.t('nchk.duplicate') : TLi18n.t('nchk.unique'))
+        .attr('class', 'chip ' + (d.exists ? 'warn' : 'on'));
+
+      var body = '';
+      (d.collisions || []).forEach(function (c) {
+        body += '<tr><td class="num">' + esc(c.id) + '</td><td>' + esc(c.name) +
+          '</td><td class="num">' + esc(c.parent_id) + '</td></tr>';
+      });
+      $('#collBody').html(body);
+      $('#collTable').toggle(d.exists && (d.collisions || []).length > 0);
+    })
+    .fail(function (xhr) {
+      state.lastKey = '';
+      var payload = null;
+      try { payload = JSON.parse(xhr.responseText); } catch (e) {}
+      $('#verdictBox').attr('class', 'verdict ko');
+      $('#verdictText').text(errMsg(payload, xhr));
+      $('#resChip').text(TLi18n.t('nchk.error')).attr('class', 'chip warn');
+      $('#collTable').hide();
+    });
+}
+
+// Debounced live check, mirroring the legacy onkeyup="checkDuplicateName()"
+// wiring in gui/templates/dashio/testcases/containerMoveTC.tpl / containerNew.
+function scheduleCheck() {
+  clearTimeout(state.timer);
+  state.timer = setTimeout(function () { state.lastKey = ''; runCheck(); }, 350);
+}
+
+$(function () {
+  $('#btnClose').on('click', function () { window.close(); });
+  $('#btnRefresh').on('click', function () { state.lastKey = ''; loadInit(); });
+  $('#btnBack').on('click', function () {
+    window.location.href = '/gui/templates/testcases/testSpec.html?tproject_id=' + tprojectId;
+  });
+  $('#btnCheck').on('click', function () { state.lastKey = ''; runCheck(); });
+  $('#btnCheckTop').on('click', function () { state.lastKey = ''; runCheck(); });
+  $('#nameInput').on('keyup', scheduleCheck);
+  $('#excludeInput').on('keyup', scheduleCheck);
+  $('#parentSel').on('change', function () { state.lastKey = ''; runCheck(); });
+  $('#nodeTypeSel').on('change', function () { state.lastKey = ''; });
+
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    loadInit();
+  });
+});
+</script>
+</body>
+</html>

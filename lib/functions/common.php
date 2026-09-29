@@ -2045,6 +2045,20 @@ function getActions(&$gui,$baseURL) {
     $actions->tcStepReorder = "/gui/templates/testcases/tcStepReorder.html?{$ctx}";
   }
 
+  // Refs #1724: Duplicate Name Check - modern replacement for the two legacy
+  // AJAX name-uniqueness backends, lib/ajax/checkNodeDuplicateName.php (the
+  // generic node check that served the test suite / test case forms: NO rights
+  // check at all and no project scope) and lib/ajax/checkDuplicateName.php
+  // (gated on the GLOBAL mgt_view_tc right, so it enumerated names in every
+  // test project). The modern screen talks to api/namecheck, which proves the
+  // parent node belongs to the resolved test project BEFORE answering and
+  // requires mgt_view_tc OR mgt_modify_tc on it. The check is a warning only,
+  // never a save gate - exact legacy behaviour.
+  $actions->nameCheck = null;
+  if ($tproject_id > 0 && !empty($_SESSION['userID'])) {
+    $actions->nameCheck = "/gui/templates/testcases/nameCheck.html?{$ctx}";
+  }
+
   // Refs #1587: Remote Test Automation Execution (legacy lib/testcases/
   // tcExecute.php, the last standalone lib/testcases controller without a
   // modern twin). The modern screen talks to api/tcautoexec, which enforces
