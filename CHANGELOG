@@ -6493,6 +6493,32 @@ Changes:
       project tables and added user metrics to the middle section
 
 ## 2.0.1 (in-progress)
+### Screen — Duplicate Name Check `nameCheck` (Refs #1724)
+- Modernizes the GENERIC node name-uniqueness backend `lib/ajax/checkNodeDuplicateName.php`, which
+  admitted in its own header that it performed "no check on user rights" and had no project scope:
+  any authenticated session could POST a `parent_id` from ANY test project and learn whether a node
+  name was taken. Its sibling `lib/ajax/checkDuplicateName.php` gated on the GLOBAL `mgt_view_tc`,
+  letting a holder of that right enumerate test case names in every other project. Both endpoints
+  are now session-guarded, resolve the OWNING project of the addressed parent and check
+  `mgt_view_tc` OR `mgt_modify_tc` there.
+- `gui/templates/testcases/nameCheck.html` (Dashio, context + name-to-check + result cards, live
+  debounced check, collision table, AVAILABLE/DUPLICATE/ERROR chip, TLi18n) + BFF
+  `api/namecheck/index.php` (`init` / `check`, same-origin guard, session window, parent-scoped
+  collisions as in `tree::nodeNameExists()`, self-exclusion only for a genuine sibling, full
+  400/401/403/404/405 contract). Reachable from a new ASIDE item in the Test Specification section.
+  The check stays a WARNING, never a save gate — exact 1.9.20 behaviour.
+
+### KEY BUGFIX — a test SUITE name check always failed with `parent_not_found` (Fixes #1725)
+- The owning-project walk read `parent_id` before the node's own `node_type_id`. A test suite is a
+  direct child of the test project root, whose own `parent_id` is 0, so the walk bailed out before
+  classifying the root: the screen's headline use case answered 404 while the deeper test-case
+  variant worked and hid the defect. The node's own type is now tested first (BFF + both shims).
+- Also fixed by the mandatory code review: a deep link with a foreign `parent_id` was a silent
+  `<select>` no-op that rendered a green "Available" for a real duplicate; changing the node type
+  left the previous verdict on screen; a test case addressed at project level answered "Available";
+  no-rights callers could enumerate project/node ids via 403-vs-404; `?action[]=x` emitted a PHP 8
+  `Array to string conversion` warning; and a foreign `node_id` could suppress a real collision.
+
 ### Gap closed — Requirement Spec Management: the legacy requirements filter panel was missing entirely (Fixes #1025)
 - 1.9.20's Requirement Specification Management screen shipped `inc_filter_panel.tpl`, driven by
   `tlRequirementFilterControl` (lib/functions/tlRequirementFilterControl.class.php), and the server
