@@ -110,6 +110,19 @@ class tlReqMgrSystem extends tlObject
    */
   function getImplementationForType($system)
   {
+    // Issue #1626: a row whose type is not a key of $systems (import/migration,
+    // hand-edited DB, or an implementation dropped in a later release) used to
+    // fall through with $spec = NULL, raising "Undefined array key <type>" plus
+    // two "Trying to access array offset on null" warnings and returning the
+    // literal string "Interface" - a garbage class name every caller then had to
+    // defend against. Return NULL instead, so callers can detect "unknown type"
+    // instead of warning on it. Same shape as the code tracker twin fixed in
+    // tlCodeTracker.class.php:114-137 (issue #1597) and the issue tracker twin
+    // fixed in tlIssueTracker.class.php:168-190 (issue #1617).
+    if( !isset($this->systems[$system]) )
+    {
+      return null;
+    }
     $spec = $this->systems[$system];
     return $spec['type'] . $spec['api'] . 'Interface';
   }
@@ -519,8 +532,15 @@ class tlReqMgrSystem extends tlObject
       
       foreach($rs as &$item)
       {
-        $item['verbose'] = $item['name'] . " ( {$this->types[$item['type']]} )" ;
-        $item['type_descr'] = $this->types[$item['type']];
+        // Issue #1626: $this->types is projected from $this->systems
+        // (getTypes(), line 99), so an unknown type has no entry - read it
+        // through a guarded local instead of warning twice per bad row, per
+        // page load. Same guard as the two twins already carrying it:
+        // tlCodeTracker.class.php:570-571 (issue #1597) and
+        // tlIssueTracker.class.php:622-623 (issue #1617).
+        $typeDescr = isset($this->types[$item['type']]) ? $this->types[$item['type']] : '';
+        $item['verbose'] = $item['name'] . " ( {$typeDescr} )" ;
+        $item['type_descr'] = $typeDescr;
         $item['env_check_ok'] = true;
         $item['env_check_msg'] = '';
         $item['connection_status'] = '';
@@ -588,12 +608,18 @@ class tlReqMgrSystem extends tlObject
          " ON ITRK.id = TPIT.reqmgrsystem_id " . 
          " WHERE TPIT.testproject_id = " . intval($tprojectID);
          
-    $ret = $this->db->get_recordset($sql);
-    if( !is_null($ret) )
-    { 
-      $ret = $ret[0];
-      $ret['verboseType'] = $this->types[$ret['type']];
-    }
+      $ret = $this->db->get_recordset($sql);
+      if( !is_null($ret) )
+      { 
+        $ret = $ret[0];
+        // Issue #1626: same guarded read as getAll() - $this->types is
+        // projected from $this->systems, so a linked system whose type is not
+        // a key of $systems (hand-edited DB / migration) has no entry. Callers
+        // of getLinkedTo() (reqSpecCommands::getReqMgrSystem(),
+        // api/reqspec/index.php, api/projectedit/index.php) must keep working,
+        // so an empty description is the correct degradation.
+        $ret['verboseType'] = isset($this->types[$ret['type']]) ? $this->types[$ret['type']] : '';
+      }
     
     return $ret;
   }

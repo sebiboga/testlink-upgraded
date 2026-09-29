@@ -106,7 +106,13 @@ if ($method === 'GET' && ($path === '/' || $path === '' || $path === '/index.php
             $item['env_check_ok'] = true;
             $item['env_check_msg'] = '';
             $item['connection_status'] = '';
-            if (@class_exists($impl) && method_exists($impl, 'checkEnv')) {
+            // Issue #1626: getImplementationForType() now returns NULL for a
+            // type that is not a key of $systems (same hardening as
+            // tlCodeTracker/tlIssueTracker, issues #1597/#1617). Guard for it
+            // explicitly: on PHP 8.1+ class_exists(NULL) is an E_DEPRECATED
+            // "Passing null to parameter #1 ($class) of type string", and
+            // method_exists(NULL, ...) is a TypeError.
+            if (!is_null($impl) && @class_exists($impl) && method_exists($impl, 'checkEnv')) {
                 $dummy = call_user_func([$impl, 'checkEnv']);
                 $item['env_check_ok'] = !empty($dummy['status']);
                 $item['env_check_msg'] = isset($dummy['msg']) ? $dummy['msg'] : '';
@@ -289,6 +295,15 @@ if ($method === 'POST' && isset($segments[0]) && is_numeric($segments[0]) &&
         out(['status' => 'error', 'message' => 'Requirement management system not found']);
     }
     $impl = $item['implementation'];
+    // Issue #1626: getImplementationForType() returns NULL for a type that is
+    // not a key of $systems - keep it out of class_exists() (E_DEPRECATED on
+    // PHP 8.1+ for a null argument) and name it in the message the way the
+    // already-known-but-unshipped interface case is named.
+    if (is_null($impl)) {
+        http_response_code(200);
+        out(['status' => 'error', 'connected' => false,
+             'message' => 'Interface for type ' . intval($item['type']) . ' not implemented']);
+    }
     if (!@class_exists($impl)) {
         http_response_code(200);
         out(['status' => 'error', 'connected' => false,
