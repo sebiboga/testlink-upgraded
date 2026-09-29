@@ -619,14 +619,11 @@ class requirement_spec_mgr extends tlObjectWithAttachments
                           'output' => 'standard', 
                           'outputLevel' => 'std', 'decodeUsers' => true);
   
-    $my['options'] = array_merge($my['options'], (array)$options);
+  $my['options'] = array_merge($my['options'], (array)$options);
 
-    // default: only the OPEN links, i.e. the links closed by an execution
-    // (LINK_TC_REQ_CLOSED_BY_EXEC) are NOT returned unless the caller asks
-    // for them in $filters['link_status'].
-    // null => do not filter
-    $my['filters'] = array('link_status' => 1, 'type' => null);
-    $my['filters'] = array_merge($my['filters'], (array)$filters);
+  // null => do not filter
+  $my['filters'] = array('status' => null, 'type' => null);
+  $my['filters'] = array_merge($my['filters'], (array)$filters);
 
   $rs = null;	
 	$tcase_filter = '';
@@ -2610,6 +2607,10 @@ function get_requirement_child_by_id_req($id){
     
     $my['options'] = array_merge($my['options'], (array)$options);
 
+    // default: only the OPEN links (LINK_TC_REQ_OPEN); the links closed by an
+    // execution (LINK_TC_REQ_CLOSED_BY_EXEC) are NOT returned unless the caller
+    // asks for them with $filters['link_status'] => [LINK_TC_REQ_OPEN,
+    // LINK_TC_REQ_CLOSED_BY_EXEC], as api/reqtcassign and api/requirements do.
     // null => do not filter
     $my['filters'] = array('link_status' => 1, 'type' => null);
     $my['filters'] = array_merge($my['filters'], (array)$filters);
@@ -2739,8 +2740,15 @@ function get_requirement_child_by_id_req($id){
         " AND RCOV.link_status IN (" . intval(LINK_TC_REQ_OPEN) . "," .
                                     intval(LINK_TC_REQ_CLOSED_BY_EXEC) . ") ) ";
     } else {
-      $tcInfo = current($tcMgr->get_last_active_version($tcase_id));
-      $ltcv = intval($tcInfo['tcversion_id']);
+      // get_last_active_version() returns null when the test case has no
+      // active version at all (testcase.class.php), and current(null) is
+      // false - reading ['tcversion_id'] on it raises
+      // "Trying to access array offset on value of type bool" and would make
+      // the NOT EXISTS below match nothing, reporting every requirement as
+      // free. $ltcv = 0 is the honest value: no coverage row can be on
+      // tcversion 0, so the whole spec is reported as available.
+      $tcInfo = current((array)$tcMgr->get_last_active_version($tcase_id));
+      $ltcv = is_array($tcInfo) ? intval($tcInfo['tcversion_id']) : 0;
       $notLinked =
         " AND NOT EXISTS ( SELECT 1 FROM {$this->tables['req_coverage']} RCOV " .
         " WHERE RCOV.req_id = NH_REQ.id AND RCOV.is_active = 1 " .

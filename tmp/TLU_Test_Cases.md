@@ -26656,3 +26656,78 @@ that wrong premise was closed as not-reproducible.
 #1664). That is expected and does not change the marker: the effective role
 stays 3, so the row stays grey. The fixture's pristine state is restored by the
 `DELETE` shown in the precondition.
+
+---
+
+### Regression — Issue #1705: `requirement_spec_mgr::getReqsOnSpecNotLinkedToLatestTCV()` returned the inverted set
+
+**Precondition:** freshly imported DB (0 requirements at session start). Fixture
+`php tmp/fixtures_1705.php` (re-runnable — it deletes its own project first)
+creates test project `RS1705` (id 1, prefix RQ5, requirements enabled) with suite
+`SU-1705` (id 2), test case `TC-1705` (id 3, latest active tcversion id 4, v1) and
+requirement spec id 6 holding `REQ-1705-A` (id 8, **linked** to TC v1 through a
+`req_coverage` row) and `REQ-1705-B` (id 10, **free**).
+Reproduction `php tmp/repro_1705.php`, regression matrix `php tmp/verify_1705.php`
+(re-runnable: it restores the seeded `req_coverage` state and removes its own
+orphan / second-test-case rows before it starts). App at http://localhost:8082,
+login admin/admin.
+
+**Pre-fix symptom (reproduced, `tmp/repro_1705.php`):** the method returned
+**2** rows — `id=8 title='Requirement A (linked) [v1] '` (the LINKED requirement,
+which must be excluded) and `id=10 title=NULL scope=NULL version=NULL` (the FREE
+one, which must be the only result), i.e. the "available requirements" set was
+exactly inverted. Every call additionally raised
+`E_WARNING "Undefined variable $options"` (Event Viewer `events` id 2).
+
+| # | Area | Action | Expected | Result | Status |
+|---|------|--------|----------|--------|--------|
+| 1 | method | `getReqsOnSpecNotLinkedToLatestTCV(6, 3, ['output'=>'array'])` | exactly 1 row, the free requirement, non-empty title | 1 row: `id=10 req_doc_id='REQ-1705-B' title='Requirement B (free) [v1] '` | PASS |
+| 2 | title | same row, `title` | not NULL, not empty | `'Requirement B (free) [v1] '` (was `NULL` pre-fix) | PASS |
+| 3 | scope | same row, `scope` | not NULL, not empty | `'scope of B'` (was `NULL` pre-fix) | PASS |
+| 4 | version | same row, `version` | the requirement's own latest version, `1` | `'1'` (was `NULL` pre-fix) | PASS |
+| 5 | flag | same row, `can_be_deleted` | `0` — a versioned requirement is not deletable | `0` (pre-fix it was `1` for exactly the unlinked/healthy rows) | PASS |
+| 6 | shape | `array_keys()` of the first row | the 6 legacy columns, same order: `id, scope, title, req_doc_id, version, can_be_deleted` | identical (the public output contract is unchanged) | PASS |
+| 7 | no tcase | `getReqsOnSpecNotLinkedToLatestTCV(6, null, …)` | linked requirement excluded (its link is on a latest tcversion), free one returned | `[10]` | PASS |
+| 8 | inactive link | `UPDATE req_coverage SET is_active=0 WHERE req_id=8 AND tcversion_id=4`, then re-query | a frozen link (`testcase::updateCoverage()` sets `is_active=0` when a new tcversion supersedes it) must NOT hide the requirement | `[8,10]` | PASS |
+| 9 | link closed by execution | `UPDATE … SET link_status=2` (`LINK_TC_REQ_CLOSED_BY_EXEC`), re-query | still a live link → requirement stays hidden | `[10]` | PASS |
+| 10 | frozen link status | `UPDATE … SET link_status=3` (`LINK_TC_REQ_CLOSED_BY_NEW_TCVERSION`), re-query | must not hide the requirement | `[8,10]` | PASS |
+| 11 | empty set | link `REQ-1705-B` too, re-query | no requirement available (empty result set, not the linked rows) | `NULL` (legacy `get_recordset` convention for an empty set) | PASS |
+| 12 | cross-test-case | link `REQ-1705-A` to a second test case, mark the TC link `is_active=0`, query TC | a link on ANOTHER test case must not hide the requirement for THIS one | TC 3 → `[8,10]` | PASS |
+| 13 | cross-test-case | same state, query the other test case | that one sees `REQ-1705-A` as linked → only the free requirement | `[10]` (the exclusion is per test case, not global) | PASS |
+| 14 | orphan | insert a `node_type_id=7` node + `requirements` row with no `req_versions` row, re-query | the orphan is still listed, with `can_be_deleted=1` (the flag's only legitimate meaning) | row present, `can_be_deleted=1` | PASS |
+| 15 | cleanup | after the matrix mutations, re-run the baseline query | back to the case-1 answer | `[10]` | PASS |
+| 16 | sibling | `getReqsOnSpecForLatestTCV(6, 3, …, ['link_status'=>[1,2]])` (used by `api/reqtcassign`) | unchanged: the linked requirement is reported as assigned | 1 row, `id=8 link_id=1` | PASS |
+| 17 | BFF | `GET /api/reqtcassign/index.php?action=init&tproject_id=1&tcase_id=3` (browser session) | HTTP 200, 1 assigned + 1 free — the modern screen is NOT affected (it builds the list in `freeRows()`) | `{"assigned":[{…"req_id":8…}],"free":[{…"req_id":10…}],"counts":{"assigned":1,"free":1}}`, `grants.link=true` | PASS |
+| 18 | screen | `http://localhost:8082/gui/templates/requirements/reqTcAssign.html?tproject_id=1&tcase_id=3` | renders, both grids correct | page loads, 0 console errors/warnings | PASS |
+| 19 | Event Viewer | `events` table after the whole matrix | 0 new Error/Warning rows | 3 rows, all from BEFORE the fix (id 2 = the pre-fix `Undefined variable $options` warning, id 3 = the admin LOGIN) | PASS |
+| 20 | syntax | `php -l lib/functions/requirement_spec_mgr.class.php` | no syntax error | *No syntax errors detected* | PASS |
+| 21 | options | the method's `$opt` argument | caller's options merged, no `Undefined variable` warning | `(array)$opt` — `f(['b'=>2])` returns `['a'=>1,'b'=>2]` with no warning (pre-fix: `['a'=>1]` + `PHP Warning: Undefined variable $options`) | PASS |
+| 22 | code-review guard | `get_requirements(6, 'all')` (the method a mis-targeted comment edit had broken: its filter default became `array('link_status' => 1, …)`, which `requirement_mgr::get_by_id()` renders as `AND link_status = '1'` against tables that have no such column) | still returns the spec's 2 requirements, no SQL error | 2 rows, no error (with the bad default: `1054 - Unknown column 'link_status' in 'WHERE'`, Event Viewer `log_level=1`) | PASS |
+| 23 | no active version | create `TC-1705-NOVER`, set its only tcversion `active=0`, then query it | no PHP warning (`current(null)` is `false`) and the whole spec is available (no coverage row can be on tcversion 0) | `PHP diagnostics raised: []`, rows `[8,10]` | PASS |
+
+**Result: 23/23 PASS** (`php tmp/verify_1705.php` covers cases 1-15, 22 and 23 —
+19 assertions, 19 PASS; 16-21 were run as listed). Recorded PASS/FAIL honestly: cases 1-15 all pass on the first
+run of the matrix after the fix; two *expectations* in the first draft of the
+matrix script were wrong (a `NOT EXISTS` set is not sorted, and
+`testcase::create()` creates a new test case rather than a new version of one) —
+the per-case `req_coverage` dump exposed both, the script was corrected, the
+fix was not touched.
+
+**Cases 22/23 come from the mandatory code review** (rule 16), which caught a
+BLOCKER this fix had itself introduced: the comment fix had landed in
+`get_requirements()` instead of `getReqsOnSpecForLatestTCV()`, changing that
+method's filter default and breaking it on every call (measured
+`1054 - Unknown column 'link_status' in 'WHERE'`, which would have taken down
+`GET /api/requirements/index.php/assign-reqs`, i.e. the Assign Requirements
+popups of `tcEdit.html` / `testSpec.html` / `tcView.html` / `assignReqs.html`).
+It was reverted byte-identical before the branch was finalised; case 22 is the
+permanent guard against a repeat. Case 23 guards the review's second finding, a
+`current(null)` warning for a test case without an active version.
+
+**Known limitations, deliberately NOT changed.** `$my['options']['order_by']`
+and `$my['filters']` are still not used by the statement (unchanged from 1.9.18):
+wiring `order_by` in would change the row order for external callers, which is
+outside the scope of this fix. `getReqsOnSpecForLatestTCV()` keeps its
+`link_status = 1` default — the misleading `// null => do not filter` comment above
+it was corrected instead, because both in-repo callers
+(`api/reqtcassign`, `api/requirements`) pass the list explicitly.
