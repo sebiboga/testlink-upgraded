@@ -7164,3 +7164,34 @@ Changes:
     after (role-3 → 403 on list and `/meta/types`; `codetracker_view`-only → 200
     with `canManage:false` and 403 on write, 0 rows persisted); legacy 3/3 → 404;
     modern 4/4 render; `php -l` clean; browser console clean. (Refs #976)
+
+  ### Cleanup — delete legacy pluginView cluster (Refs #984, #983)
+  - Removed 3 files / 315 lines: `lib/plugins/pluginView.php` and both theme
+    copies of `plugins/pluginView.tpl` (dashio + tl-classic). `api/plugins/index.php`
+    enforces `mgt_plugins` once before its route switch, so every route is
+    covered by construction — the same right the legacy `checkRights()`
+    enforced, so nothing is weakened by the deletion. #983, the parity analysis
+    this issue rests on, is CLOSED/COMPLETED.
+  - Retargeted `cfg/const.inc.php:912-916` (`$tlCfg->guiTopMenu[8]`), which the
+    issue did not list: it was a live menu registration still pointing at the
+    retired controller, contradicting the issue's "no other lib/ file
+    references it". Retargeted to `gui/templates/plugins/pluginView.html` with
+    the same marker comment the adjacent `guiTopMenu[7]` carries from #1579.
+    Stated precisely: the config executes on every page load
+    (`testlinkInitPage` → `initTopMenu`), but its HTML only reaches
+    `tl-classic/navBar.tpl`, dead since `tlsmarty.inc.php:101` pins
+    `template_dir` to `dashio/`. Not a link any user can reach today; retargeted
+    for consistency, not to fix a visible break. Bare path, because
+    `initTopMenu` consumes the URL verbatim — verified by loading
+    `pluginView.html` with no query string, which renders from the session.
+  - Corrected the issue body: it cites `common.php:1891-1893` for
+    `$actions->pluginView`, but the assignment is at `common.php:1988`. The
+    claim holds; the line numbers do not.
+  - Annotated two provenance comments that named the legacy controller without
+    line numbers but now point at a deleted file
+    (`common.php:1987`, `api/plugins/index.php:6`).
+  - Verified 12/12 BFF assertions, identical before and after deletion,
+    including a real install/uninstall round-trip of `TLTest` that asserts the
+    `plugins` table returns to 0 rows; `mgt_plugins` 403 for a role without it
+    (temporary fixtures, removed afterwards); legacy 404, modern 200; `php -l`
+    clean; console clean on a fresh load. (Refs #984)
