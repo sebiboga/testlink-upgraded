@@ -123,10 +123,14 @@ full assign → unassign → re-assign round trip that restores the fixture
 baseline. Console clean on every state; the Event Viewer gained **0** ERROR /
 WARNING rows.
 
-Bug found while testing, filed as **#1705**:
-`requirement_spec_mgr::getReqsOnSpecNotLinkedToLatestTCV()` returns the
-inverted set, so a legacy caller would read linked requirements as free (with an
-empty title). The BFF does not use it.
+Bug found while testing, filed as **#1705** and since **fixed** (2026-09-29,
+branch `fix/issue-1705`, write-up
+`docs/Bugfix-Issue-1705-NotLinked-Requirements-Inverted-Set.md`):
+`requirement_spec_mgr::getReqsOnSpecNotLinkedToLatestTCV()` returned the
+inverted set, so a legacy caller read linked requirements as free (with an empty
+title). The BFF does not use it — the grid above is built by `freeRows()` from
+`getAllLatestRQVOnReqSpec()` minus `req_coverage`, which is the correct
+algorithm the class method now also follows.
 
 ## Screenshots
 

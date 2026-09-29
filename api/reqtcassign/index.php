@@ -30,8 +30,11 @@
  *                      can_be_removed (LINK_TC_REQ_OPEN) and a row checkbox
  *                      DISABLED when reqTCLinks.freezeLinkOnNewREQVersion is on
  *                      and can_be_removed = 0 (legacy cbDisabled logic).
- *  - free grid    : requirement_spec_mgr::getReqsOnSpecNotLinkedToLatestTCV(...)
- *                   -> req_doc_id / title [Ver<n>] / scope.
+ *  - free grid    : freeRows() below - getAllLatestRQVOnReqSpec() minus the
+ *                   live req_coverage rows of the latest active tcversion.
+ *                   NOT getReqsOnSpecNotLinkedToLatestTCV(), which was
+ *                   defective and is only fixed as of #1705; see the long
+ *                   note on freeRows().
  *  - unassign     : submits the checked link_id[] (coverage row ids) and
  *                   deletes exactly those rows (legacy req_list unassign).
  *                   Guarded by check_action_precondition() -> we answer 400
@@ -379,15 +382,21 @@ function localizeTs($ts) {
  * array_diff_byId() the assigned rows, which is correct - the DEFECTIVE method
  * in this class, getReqsOnSpecNotLinkedToLatestTCV(), is a different one, filed
  * separately as issue #1705. It is called from elsewhere, which is why it still
- * matters, but it was NOT the source of this grid.) That method is DEFECTIVE
- * (reported as a bug in this run): it LEFT JOINs req_coverage and then
+ * matters, but it was NOT the source of this grid.) That method was DEFECTIVE:
+ * it LEFT JOINed req_coverage and then
  * req_versions ON RCOV.req_version_id, so
- *   (a) a requirement that IS linked comes back as well (its join produced a
- *       row, there is no NOT EXISTS / IS NULL filter), and
- *   (b) a requirement that is NOT linked has a NULL REQVER row, and
- *       CONCAT(name,' [v',NULL,'] ') evaluates to NULL, i.e. an empty title.
+ *   (a) a requirement that IS linked came back as well (its join produced a
+ *       row, there was no NOT EXISTS / IS NULL filter), and
+ *   (b) a requirement that is NOT linked had a NULL REQVER row, and
+ *       CONCAT(name,' [v',NULL,'] ') evaluated to NULL, i.e. an empty title.
  * So the legacy "available" grid listed linked requirements with a title and
- * unlinked ones without one - exactly inverted.
+ * unlinked ones without one - exactly inverted. It was FIXED in #1705
+ * (branch fix/issue-1705, 2026-09-29): it now takes the version from
+ * latest_req_version_id and removes the linked requirements with NOT EXISTS on
+ * the live coverage rows - i.e. the same algorithm as freeRows() below, plus the
+ * is_active = 1 / link_status IN (OPEN, CLOSED_BY_EXEC) restriction that
+ * freeRows() still lacks (a superseded link can still hide a requirement from
+ * this grid - filed for follow-up).
  *
  * The list is rebuilt here from the two proven primitives the bulk-assignment
  * BFF already uses: getAllLatestRQVOnReqSpec() for the latest requirement
