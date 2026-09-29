@@ -50,6 +50,10 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 .authz-filter { display: inline-flex; align-items: center; gap: 6px; color: #aaa; font-size: 13px; cursor: pointer; user-select: none; }
 .authz-filter input[type=checkbox] { width: 15px; height: 15px; cursor: pointer; accent-color: #4ECDC4; }
 .authz-filter:hover { color: #4ECDC4; }
+/* Issue #1707: the marker column must never render. DataTables removes the
+   cells of a visible:false column from the DOM, but during init and in the
+   pagination-disabled fallback there is no DataTables at all - hide it here. */
+.authz-col { display: none; }
 /* Dashio demo-mode gating (usersView.html:56-57 pattern): legacy usersAssign.tpl
    is shared by testplan contexts and :286-292 replaces the Save button with the
    localized warn_demo note; the banner + note render that warn_demo text (issue #932). */
@@ -91,7 +95,7 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
        marker of usersAssign.tpl:234-237) while the box was ticked. The modern
        port filters through the DataTables pipeline (authzSearchFilter) so the
        state survives paging/sort/search redraws. -->
-  <label class="authz-filter" for="onlyAuthorizedChk" title="" id="authzFilterLabel">
+  <label class="authz-filter" for="onlyAuthorizedChk">
     <input type="checkbox" id="onlyAuthorizedChk" onchange="onAuthzFilterToggle()">
     <span data-i18n="assign.showOnlyAuthorized">Show only authorized users</span>
   </label>
@@ -215,7 +219,7 @@ $('#assignTable').on('click', 'thead th', function() {
 //       state survives EVERY redraw (paging / sort / search-box), paging counts
 //       stay truthful and the "nothing matched" message can fire - none of which
 //       a raw display:none can do.
-AUTHZ_COL = 5;              // hidden marker column = last column of the 5-col grid
+var AUTHZ_COL = 5;          // hidden marker column = last column of the 5-col grid
 var showOnlyAuthorized = false;
 var authzFilterRegistered = false;
 
@@ -248,9 +252,8 @@ function registerAuthzFilter() {
   $.fn.dataTable.ext.search.push(function (settings, searchData, dataIndex, rowData) {
     if (!showOnlyAuthorized) return true;
     if (settings.nTable.id !== 'assignTable') return true;
-    var row = rowData || searchData;
-    if (!row) return true;
-    return String(row[AUTHZ_COL]) === '1';
+    if (!rowData) return true;
+    return String(rowData[AUTHZ_COL]) === '1';
   });
 }
 
@@ -258,13 +261,23 @@ function onAuthzFilterToggle() {
   showOnlyAuthorized = !!$('#onlyAuthorizedChk').prop('checked');
   registerAuthzFilter();
   if (assignDt) {
-    // Localized "nothing matched" for the filtered-out case (assign.noAuthorizedUsers);
-    // the plain no_users message when the box is off and the search box missed.
-    assignDt.settings()[0].oLanguage.sZeroRecords = showOnlyAuthorized
-      ? TLi18n.t('assign.noAuthorizedUsers') : TLi18n.t('assign.noUsers');
-    // Redraw from page 0: filtering can empty the current page, and leaving the
-    // user on an out-of-range page renders an empty grid.
-    assignDt.page(0).draw(false);
+    // Only touch a live grid: the project/plan combo can be cleared to an empty
+    // placeholder WITHOUT destroying the DataTable, and a draw would resurrect
+    // the previous context's cached rows over that empty state.
+    if (users.length) {
+      // Localized "nothing matched" for the filtered-out case
+      // (assign.noAuthorizedUsers); the plain no_users message when the box is
+      // off and the search box missed.
+      assignDt.settings()[0].oLanguage.sZeroRecords = showOnlyAuthorized
+        ? TLi18n.t('assign.noAuthorizedUsers') : TLi18n.t('assign.noUsers');
+      // Redraw from page 0: filtering can empty the current page, and leaving the
+      // user on an out-of-range page renders an empty grid.
+      assignDt.page(0).draw(false);
+    }
+  } else if (users.length) {
+    // Pagination disabled: rebuild from state, which applies the hidden-row
+    // fallback in buildBodyHtml().
+    renderUsersTable();
   }
   updateAuthzFooter();
   // A row that just became invisible can no longer be edited, so the Save
@@ -509,6 +522,11 @@ function loadProjects(selectedId, selectedPlanId) {
     if (pid) { loadPlans(pid); } else {
       showAssignForm();
       $('#planSelect').html('<option value="">' + TLi18n.t('assign.selectPlan') + '</option>').prop('disabled', true);
+      // Issue #1707 review: the authz toggle redraws the grid, so an emptied
+      // context must also drop the DataTable + model - otherwise ticking the box
+      // would resurrect the previous plan's cached rows over this empty state.
+      if (assignDt) { assignDt.destroy(); assignDt = null; }
+      users = [];
       $('#assignBody').empty(); $('#emptyMsg').show(); $('#saveBtn').prop('disabled', true);
       $('#disabledMsg').hide(); $('#assignTable').show();
     }
@@ -695,9 +713,9 @@ function renderUsersTable(keep) {
   if (assignDt) { assignDt.destroy(); assignDt = null; }
   var $b = $('#assignBody').empty();
   if (!users.length) {
-    $b.append('<tr><td colspan="5" style="text-align:center;color:#888;padding:30px;">' +
+    $b.append('<tr><td colspan="6" style="text-align:center;color:#888;padding:30px;">' +
       TLi18n.t('assign.noUsers') + '</td></tr>');
-    $('#footerText').text(TLi18n.t('user.usersCount', {n: 0}));
+    updateAuthzFooter();
     return;
   }
   $.each(users, function(i, u) {
@@ -738,7 +756,7 @@ function renderUsersTable(keep) {
       // Issue #1707: when the authorized-only filter removes every row this is
       // the message shown; onAuthzFilterToggle() swaps it for the plain
       // no_users text when the box is unticked.
-      zeroRecords: TLi18n.t('assign.noAuthorizedUsers')
+      zeroRecords: showOnlyAuthorized ? TLi18n.t('assign.noAuthorizedUsers') : TLi18n.t('assign.noUsers')
     },
     // Legacy parity: config.inc.php:666 - [20, 40, 60, -1], [20, 40, 60, "All"].
     lengthMenu: [[20, 40, 60, -1], [20, 40, 60, TLi18n.t('assign.all')]],

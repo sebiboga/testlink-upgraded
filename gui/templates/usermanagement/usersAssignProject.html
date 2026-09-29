@@ -36,6 +36,10 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 .authz-filter { display: inline-flex; align-items: center; gap: 6px; color: #aaa; font-size: 13px; cursor: pointer; user-select: none; }
 .authz-filter input[type=checkbox] { width: 15px; height: 15px; cursor: pointer; accent-color: #4ECDC4; }
 .authz-filter:hover { color: #4ECDC4; }
+/* Issue #1707: the marker column must never render. DataTables removes the
+   cells of a visible:false column from the DOM, but during init and in the
+   pagination-disabled fallback there is no DataTables at all - hide it here. */
+.authz-col { display: none; }
 .inherited-lbl { color: #1a7f74; font-weight: 600; font-size: 11px; display: inline-block; margin-left: 6px; text-transform: uppercase; }
 .assign-table select:disabled { background: #f5f5f5; color: #888; cursor: not-allowed; }
 .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid #ccc; border-top-color: #4ECDC4; border-radius: 50%; animation: spin .6s linear infinite; margin-right: 6px; vertical-align: middle; }
@@ -82,7 +86,7 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
        marker of usersAssign.tpl:234-237) while the box was ticked. The modern
        port filters through the DataTables pipeline (authzSearchFilter) so the
        state survives paging/sort/search redraws. -->
-  <label class="authz-filter" for="onlyAuthorizedChk" id="authzFilterLabel">
+  <label class="authz-filter" for="onlyAuthorizedChk">
     <input type="checkbox" id="onlyAuthorizedChk" onchange="onAuthzFilterToggle()">
     <span data-i18n="assign.showOnlyAuthorized">Show only authorized users</span>
   </label>
@@ -206,9 +210,8 @@ function registerAuthzFilter() {
   $.fn.dataTable.ext.search.push(function (settings, searchData, dataIndex, rowData) {
     if (!showOnlyAuthorized) return true;
     if (settings.nTable.id !== 'assignTable') return true;
-    var row = rowData || searchData;
-    if (!row) return true;
-    return String(row[AUTHZ_COL]) === '1';
+    if (!rowData) return true;
+    return String(rowData[AUTHZ_COL]) === '1';
   });
 }
 
@@ -216,10 +219,15 @@ function onAuthzFilterToggle() {
   showOnlyAuthorized = !!$('#onlyAuthorizedChk').prop('checked');
   registerAuthzFilter();
   if (assignTbl) {
-    assignTbl.settings()[0].oLanguage.sZeroRecords = showOnlyAuthorized
-      ? TLi18n.t('assign.noAuthorizedUsers') : TLi18n.t('assign.noUsers');
-    assignTbl.page(0).draw(false);
-  } else {
+    // Only touch a live grid: clearing the project combo to an empty placeholder
+    // does NOT destroy the DataTable, and a draw would resurrect the previous
+    // context's cached rows over that empty state.
+    if (currentItems.length) {
+      assignTbl.settings()[0].oLanguage.sZeroRecords = showOnlyAuthorized
+        ? TLi18n.t('assign.noAuthorizedUsers') : TLi18n.t('assign.noUsers');
+      assignTbl.page(0).draw(false);
+    }
+  } else if (currentItems.length) {
     // Pagination disabled: no DataTables -> rebuild from state, which applies the
     // hidden-row fallback in buildBodyHtml().
     renderAssignTable();
@@ -388,7 +396,14 @@ function loadProjects(selectedId) {
   $('#projectSelect').on('change', function() {
     var pid = $(this).val();
     if (pid) loadUsers(pid);
-    else { $('#assignBody').empty(); $('#emptyMsg').show(); }
+    else {
+      // Issue #1707 review: the authz toggle redraws the grid, so an emptied
+      // context must also drop the DataTable + model - otherwise ticking the box
+      // would resurrect the previous project's cached rows over this empty state.
+      if (assignTbl) { assignTbl.destroy(); assignTbl = null; }
+      currentItems = [];
+      $('#assignBody').empty(); $('#emptyMsg').show();
+    }
   });
 }
 
@@ -521,7 +536,7 @@ function loadUsers(pid) {
 // change keeps off-page rows consistent.
 function buildBodyHtml() {
   if (!currentItems.length) {
-    return '<tr><td colspan="4" style="text-align:center;color:#888;padding:30px;">' + TLi18n.t('assign.noUsers') + '</td></tr>';
+    return '<tr><td colspan="5" style="text-align:center;color:#888;padding:30px;">' + TLi18n.t('assign.noUsers') + '</td></tr>';
   }
   var html = '';
   $.each(currentItems, function(i, u) {
@@ -684,7 +699,7 @@ function initAssignTable() {
       // Issue #1707: shown when the authorized-only filter removes every row;
       // onAuthzFilterToggle() swaps it for the plain no_users text when the box
       // is unticked.
-      zeroRecords: TLi18n.t('assign.noAuthorizedUsers')
+      zeroRecords: showOnlyAuthorized ? TLi18n.t('assign.noAuthorizedUsers') : TLi18n.t('assign.noUsers')
     }
   });
   // Runs after the constructor assigned assignTbl, i.e. once a persisted state
