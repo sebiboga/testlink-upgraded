@@ -726,6 +726,11 @@ if ($action === 'view') {
         $latestVersionNumber = intval($lvRow['vmax']);
     }
 
+    // Platforms of the owning project — resolved ONCE, then reused for the
+    // per-version "free platforms" list and for the top-level payload key
+    // (legacy $gui->currentVersionFreePlatforms / tlPlatform list).
+    $projectPlatformsMap = projectPlatforms($db, $tprojectId);
+
     $versions = [];
     foreach ($versionsRaw as $tcvx => $vr) {
         // access_key is not always honored -> prefer the row's own id
@@ -783,6 +788,18 @@ if ($action === 'view') {
         $versionCanAssign = canAssignPlatforms(
             $user, $db, $tprojectId,
             intval($vr['is_open'] ?? 1), isset($executedSet[$tcvx]));
+
+        // Free (still assignable) platforms for THIS version — the
+        // "free_platforms[]" multi-select of legacy platforms.inc.tpl, fed by
+        // testcase::getFreePlatforms() (testcase.class.php:9813): project
+        // platforms with enable_on_design=1 minus the ones already linked to
+        // (tcase_id, tcversion_id). Issue #1037: the viewer could not render
+        // that select because this key was never part of the view payload.
+        $assignedPlatformMap = [];
+        foreach ($platforms as $pa) {
+            $assignedPlatformMap[intval($pa['id'])] = strval($pa['name']);
+        }
+        $platformsFree = platformFreeList($projectPlatformsMap, $assignedPlatformMap);
 
         // custom fields with design-time values for this version
         $customFields = [];
@@ -851,6 +868,7 @@ if ($action === 'view') {
             'keywords' => $keywords,
             'platforms' => $platforms,
             'canAssignPlatforms' => $versionCanAssign,
+            'platformsFree' => $platformsFree,
             'customFields' => $customFields,
             'attachments' => $attachments,
         ];
@@ -950,7 +968,12 @@ if ($action === 'view') {
                    // mgt_modify_key AND mgt_view_key (legacy keywordsEdit.php
                    // AND-mode), so tcView needs both grants to decide whether
                    // to render the create / create-and-link buttons.
-                   'mgt_modify_key', 'mgt_view_key') as $gk) {
+                   'mgt_modify_key', 'mgt_view_key',
+                   // Issue #1037: gate of the "Platform Management" link that
+                   // legacy platforms.inc.tpl renders on the Platforms label
+                   // (lib/platforms/platformsView.php checkRights() =
+                   // hasRightOnProj("platform_management")).
+                   'platform_management') as $gk) {
         $grants[$gk] = $user->hasRight($db, $gk, $tprojectId) ? 1 : 0;
     }
 
@@ -969,7 +992,13 @@ if ($action === 'view') {
         'fullExternalId' => $prefix . $glue . intval($first['tc_external_id'] ?? 0),
         'path' => $pathString,
         'versions' => $versions,
-        'platformsProject' => projectPlatforms($db, $tprojectId),
+        'platformsProject' => $projectPlatformsMap,
+        // Issue #1037: modern twin of the legacy
+        // $gsmarty_href_platformsView link (lib/functions/tlsmarty.inc.php:291,
+        // "lib/platforms/platformsView.php?tproject_id=%s%") that legacy
+        // platforms.inc.tpl puts on the "Platforms:" label.
+        'platformsMgmtUrl' => '/gui/templates/platforms/platformsView.html'
+            . '?tproject_id=' . $tprojectId,
         'requirements' => $requirements,
         'requirementsEnabled' => tprojectOpt($opt, 'requirementsEnabled'),
         'testPriorityEnabled' => tprojectOpt($opt, 'testPriorityEnabled'),
