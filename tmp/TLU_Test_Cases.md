@@ -1188,3 +1188,83 @@ bare `(string)$_REQUEST['feature']` cast and produces the identical 2-row outcom
 **#1732** per `ai/FIX-ISSUE.md` §4 rather than fixed here.
 `lib/keywords/keywordsEdit.php:71,73` has the same cast but is **not** reachable (302 before the
 cast, 0 rows) — checked, no issue needed.
+
+---
+
+## Task — Issue #1642: Restore DataTables `stateSave` (persist grid view across visits) in `usersAssignPlan.html`
+
+**Precondition / fixtures** (the DB is freshly imported on every run, so everything below is created per run):
+
+```sql
+INSERT INTO testprojects (id,notes,active,prefix,is_public) VALUES (1,'{"name":"ALPHA1642"}',1,'ALPHA1642',1);
+INSERT INTO nodes_hierarchy (id,name,parent_id,node_type_id,node_order) VALUES
+ (1,'ALPHA1642',NULL,1,1),(3,'A-PUBLIC-1642',1,5,1),(4,'A-PRIVATE-1642',1,5,2);
+INSERT INTO testplans (id,testproject_id,notes,active,is_open,is_public,api_key) VALUES
+ (3,1,'',1,1,1,'a1a1…a1a1'),(4,1,'',1,1,0,'b2b2…b2b2');
+-- 25 more active users user1642_01 … user1642_25 (+ the admin account) = 26 active users
+```
+
+26 users > `pageLength` 20, so page 2 of the grid really exists (needed by the current-page case).
+Login `admin`/`admin`; screen under test
+`/gui/templates/usermanagement/usersAssignPlan.html?tproject_id=1&tplan_id=<3|4>`.
+
+**Legacy reference** — `gui/templates/dashio/usermanagement/usersAssign.tpl:111-120` (deleted in
+`ab387af72`) included `gui/templates/dashio/include/DataTables.inc.tpl`, which initialised **every**
+legacy grid with `{"lengthMenu":[…],"stateSave":true}` (`:100-104`). Entries-per-page, the `User`
+search string, the sort column/order and the current page therefore survived a revisit of the
+screen. Legacy reached a plan by full page navigation (`usersAssign.tpl:100-107`), so its state
+key changed with the plan and a plan switch could never leak a view.
+
+**Steps to exercise the restored feature** — open the plan screen, change the DataTables view
+(search box / *Show N entries* / column sort / page navigation), reload (F5) or leave and come
+back, and additionally switch the test plan through the in-page combo.
+
+**Expected** — search, entries-per-page, sort and page are restored for the **same** plan; a
+different plan never inherits them; a plain revisit of the default view produces no toast; an
+in-screen re-render (bulk "Do") keeps the view without claiming a restore.
+
+**Results — 2026-09-30, commit `63da873aa`, branch `task/issue-1642`, app on `http://localhost:8082`**
+
+| # | Case | Expected | Observed | Result |
+|---|---|---|---|---|
+| 67 | `bStateSave` of the `#assignTable` instance after load | `true` | `true` (measured `null` **before** the fix) | PASS |
+| 68 | `search="user1642_1"`, `len=20`, `order=[[1,desc]]` → **F5** | all three restored, search box repopulated | `search="user1642_1"`, box `user1642_1`, `len=20`, `order=[[1,"desc"]]`, 10 matching rows | PASS |
+| 69 | `len=40`, `order=[[1,desc]]` → **F5** | entries-per-page + sort restored | `len=40`, `order=[[1,"desc"]]` | PASS |
+| 70 | `page(1)` of 2 pages, everything else default → **F5** | **current page** restored (issue requirement) | `page=1`, rows `admin / user1642_01 / user1642_02` | PASS |
+| 71 | inspect `localStorage['DataTables_assignTable_/gui/…/usersAssignPlan.html']` | state persisted **and stamped with the plan** | `{time,start,length,order,search,columns[…6],"tplan_id":"3","childRows":[]}` | PASS |
+| 72 | in-page combo switch plan 3 → 4 | **no leak** of plan 3's view; state re-stamped | `search="" len=20 order=[[1,"asc"]] page=0`, saved stamp `tplan_id:"4"` | PASS |
+| 73 | URL `?tproject_id=1` reloads into plan 4 while the stored state is stamped `tplan_id:"3"` (`search=user1642_05 len=60 order=[[2,asc]]`) | `stateLoadParams` rejects the foreign state | `state.loaded() === null`, `search="" len=20 order=[[1,"asc"]]` | PASS |
+| 74 | revisit with the **default** view (no search/len/sort/page change) | **no** "view restored" toast | `toasts=[]` (fixes the `String(st.order)==='1,asc'` defect, see #1733) | PASS |
+| 75 | revisit with a non-default view | exactly one `ok` toast with the localized text | MutationObserver captured 1 node: `toast ok\|Saved view restored (search, sort, entries per page and page kept)` | PASS |
+| 76 | bulk "Do" (select `guest`, click Do) with `search=user1642_1`, `order=[[2,desc]]` | `keep` wins: view unchanged, **no** toast, Save enabled | before == after (search/box/len/order/page), `toasts=[]`, 25 rows `changed`, Save enabled | PASS |
+| 77 | per-row role `<select>` change | model updated, view untouched, no toast | `roleVal=3 changed=true`, view identical, `toasts=[]` | PASS |
+| 78 | **Save** (post-back grid reload, `loadUsers()` same plan) | roles persisted, view kept, Save re-disabled | 25 rows in `user_testplan_roles` for plan 4; `toast ok\|User Roles updated`; `search=user1642_1 len=20 order=[[2,desc]]`; `changed=0`; Save disabled | PASS |
+| 79 | "show only authorized users" toggle (issue #1707 regression) | filtering still works, view intact | footer `26 users — 1 unauthorized user(s) hidden`, 9 rows shown, `len/order/search/page` unchanged | PASS |
+| 80 | console messages | none | 0 `error`, 0 `warn` | PASS |
+| 81 | `events` table (Event Viewer, rule 12) | no new Error/Warning | `group by log_level` → `16 → 27` only; `where log_level <> 16` → **0 rows** | PASS |
+| 82 | i18n bundles (11) parse + key present | valid, localized (no hardcoded string) | `python3 -m json.tool` OK for all; `assign.viewStateRestored` present in `en/de/es/fr/it/ja/pt/ro/ru/zh` | PASS |
+| 83 | `node --check` on the extracted `<script>` | no syntax error | `JS SYNTAX OK` | PASS |
+| 84 | control: sibling `usersAssignProject.html` (#1622) | untouched by this change | still `bStateSave=true`, restores its own state | PASS |
+
+**Notes for the next agent**
+
+- The DataTables state key is **per page pathname** (`DataTables_assignTable_/gui/templates/usermanagement/usersAssignPlan.html`),
+  *without* the query string — so `?tplan_id=3` and `?tplan_id=4` share one key and the
+  `tplan_id` stamp (not the key) is what prevents the cross-plan restore. Cases 72/73 cover it.
+- `renderUsersTable(keep)` must keep applying `keep` **after** the constructor: with `stateSave:true`
+  the constructor may load a persisted state first, and the caller's live view has to win.
+- `notifyRestoredState()` must be skipped when `keep` is passed, otherwise the first bulk "Do"
+  after the user merely paged around pops a misleading "view restored" toast (measured).
+- `st.search` is always an object and `String(st.order)` is `"1,asc"` in DataTables 1.13.7 — the
+  `isDefault` test must compare `st.search.search` and `JSON.stringify(st.order)`.
+- Out of scope here (separate task #1641): this screen still hardcodes
+  `lengthMenu: [[20,40,60,-1],…]` / `pageLength: 20` instead of reading the BFF pagination block.
+
+**Second execution pass (all 18 cases re-run against the final commit `63da873aa`, after the
+`isDefault` correction)** — cases 67, 68, 70, 71, 72, 73, 84 re-measured in one clean run
+(cache-bypassing reloads): `bStateSave=true`; restore of `search=user1642_1 / len=20 /
+order=[[1,"desc"]] / 10 matches`; `page=1` of 2 restored; saved state stamped `tplan_id:"3"`
+with 6 column entries; switch 3→4 → `search="" len=20 order=[[1,"asc"]]` re-stamped `"4"`; the
+foreign-plan state rejected with `state.loaded()===null`; sibling project screen still
+`bStateSave=true` with `tproject_id:"1"`. Console `error`/`warn` = 0; `events` `log_level <> 16`
+= 0 rows. **18/18 PASS.**

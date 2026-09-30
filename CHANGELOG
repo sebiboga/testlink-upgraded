@@ -556,6 +556,35 @@ screen reaches full parity.
   admin normal state, bulk `Do` + Save, demoMode pairing and the sibling
   project screen unchanged, 0 console errors, 0 new Event Viewer Error/Warning
   rows. Regression suite 1631 14/14 PASS. (Fixes #1631)
+- [FEATURE GAP] - #1642: the modern Assign Test Plan Roles grid
+  (`gui/templates/usermanagement/usersAssignPlan.html`) is stateful again — the
+  second half of the #1622 pair. The shared legacy include
+  `gui/templates/dashio/include/DataTables.inc.tpl:100-104` initialised every
+  legacy grid with `{ "lengthMenu": […], "stateSave": true }` and the deleted
+  `dashio/usermanagement/usersAssign.tpl:111-120` pulled it in for this screen
+  too, so entries-per-page, the `User` search string, the sort column/order and
+  the current page survived a revisit (F5, the post-back reload after Save, or a
+  return from a sibling tab). `renderUsersTable()` had no `stateSave` and its own
+  comment recorded the omission as deliberate — the `keep` object only ever
+  covered in-screen re-renders, so every page revisit silently reset to the
+  hard-coded default (measured: `oFeatures.bStateSave = null`, 0 `DataTables_*`
+  localStorage keys, `search="ale"`-style view + `len=40` + `order=[[1,"desc"]]`
+  all lost on reload). The grid now sets `stateSave: true` and stamps the state
+  with its `tplan_id` (`stateSaveParams`), rejecting a state saved for another
+  plan (`stateLoadParams`), and `loadUsers()` clears the live state when the
+  in-page plan switcher really changes plan. The stamp is what neutralises the
+  in-page-switch leak the old comment referred to: DataTables keys the state by
+  page pathname, so `?tplan_id=3` and `?tplan_id=4` share one slot (verified —
+  a state stamped `tplan_id:"3"` is rejected when the page loads into plan 4).
+  A restored non-default view is announced with the existing localized
+  `assign.viewStateRestored` toast, which is skipped when the caller passed an
+  explicit `keep` (an in-screen re-render restores nothing) and whose default-view
+  test compares `st.search.search` + `JSON.stringify(st.order)` because
+  DataTables 1.13.7 always stores a `search` object and `String(st.order)` is
+  `"1,asc"` — copying #1622's test verbatim toasted on every revisit (that latent
+  defect still lives on the project screen, filed as #1733). The in-screen
+  re-render `keep` path (bulk `Do`) is unchanged and still preserves the view.
+  No BFF change needed, no new i18n key needed.
 - [FEATURE GAP] - #1622: the modern Assign Test Project Roles grid
   (`gui/templates/usermanagement/usersAssignProject.html`) is stateful again.
   The shared legacy include `gui/templates/dashio/include/DataTables.inc.tpl:100-104`
