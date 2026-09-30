@@ -242,6 +242,46 @@ screen reaches full parity.
   search / sort / Show All / bulk-Do redraws, combining with the `changed` highlight, and clearing
   after a save round trip), console and Event Viewer clean. (Fixes #1645)
 
+- [FEATURE GAP] - #1641: the modern Assign Test Plan Roles screen ignored
+  `$tlCfg->gui->usersAssign->pagination`, so the two administrator settings
+  `$tlCfg->gui->usersAssign->pagination->enabled` and `->length`
+  (`config.inc.php:663-666`) had NO effect on its user grid. Legacy
+  `gui/templates/dashio/usermanagement/usersAssign.tpl:111-120` (deleted in
+  ab387af72, template shared by the project and plan contexts) wrapped the bare
+  `<table id="item_view">` in a DataTable ONLY inside
+  `{if $tlCfg->gui->usersAssign->pagination->enabled}` and took the
+  entries-per-page menu from `->length` — so with `enabled = false` legacy
+  rendered a PLAIN table (no search, no length menu, no paging, no sortable
+  headers) and with a custom `length` the page size followed the first configured
+  entry. The modern screen hard-coded `lengthMenu: [[20, 40, 60, -1], …]` /
+  `pageLength: 20` and ALWAYS constructed a DataTable. The BFF half already
+  existed — `getUsersAssignPaginationConfig()` (`api/roles/index.php:449-471`,
+  issue #930) parses both keys and the `meta/tproject-roles` route shipped it at
+  `:820` — but the `meta/tplan-roles` payload never carried it, so the plan
+  screen had no channel for the config. Ported: `'pagination' =>
+  getUsersAssignPaginationConfig()` added to the tplan-roles payload, and
+  `gui/templates/usermanagement/usersAssignPlan.html` now reads it into
+  `paginationCfg` from every tplan-roles loader, skips the DataTable construct
+  when disabled (bare table; the authorized-only filter falls back to hiding the
+  `not_authorized_user` `<tr>`, which is what the screen's already-present but
+  unreachable disabled-fallback code was written for), and feeds `lengthMenu` /
+  `pageLength` from the config with the shipped `"All"` label localized to
+  `assign.all` while admin-supplied labels pass through untouched. The two
+  remaining hard-coded `20`s (the bulk-"Do" `keep` page length and the
+  `notifyRestoredState()` default-view baseline) now read the configured first
+  entry, so a `[10, 30]` config neither loses the administrator's page size nor
+  fires a bogus "saved view restored" toast on its own default view. This also
+  activated a defect found while testing: with no DataTable the `createdRow`
+  hook never ran, so the "modified" class + badge vanished from the plain-table
+  grid; both are now emitted in the row-build loop, gated on
+  `!paginationCfg.enabled` so the DataTable path still shows a single badge. No
+  new i18n key (the only label, `assign.all`, already existed in all 10
+  bundles). Regression suite 1641: 16/16 PASS (default config, custom `length`,
+  `stateSave` round-trip, `enabled = false` bare table with all 28 rows and no
+  DataTables chrome, Save persisting, bulk "Do", the authorized-only filter in
+  both modes, and no double badge in the DataTable path), console and Event
+  Viewer clean. (Fixes #1641)
+
 - [FEATURE GAP] - #1646: the modern Assign Test Plan Roles screen only ever branched on 403, never on
   401, so the BFF's `401 {"code":"session_expired"}` - the answer `bffEnforceSession()`
   (api/_guard.php:175-198) gives when `checkSessionValid()` (lib/functions/common.php:258-286) would
