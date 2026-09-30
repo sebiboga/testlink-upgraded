@@ -626,7 +626,9 @@ function renderAssignTable() {
   }
   assignTbl = null;
   $('#assignBody').html(buildBodyHtml());
-  initAssignTable();
+  // keep=true: this rebuild carries the LIVE view over, it does not restore a
+  // persisted one, so initAssignTable() must not announce a "restored" view.
+  initAssignTable(true);
   if (paginationCfg.enabled && assignTbl) {
     assignTbl.search(keep.search).page.len(keep.len);
     assignTbl.order(keep.order);
@@ -646,7 +648,7 @@ function renderAssignTable() {
 // "User" search box and sortable columns; search is disabled on the role
 // column (legacy columnDefs targets: 1). When disabled the table stays plain.
 // The BFF delivers both flags via the pagination block (issue #930).
-function initAssignTable() {
+function initAssignTable(keep) {
   if (!window.jQuery || !$.fn.DataTable) return;
   // Never turn the empty-state placeholder row into a paginated grid.
   if (!paginationCfg.enabled || !currentItems.length) return;
@@ -703,8 +705,13 @@ function initAssignTable() {
     }
   });
   // Runs after the constructor assigned assignTbl, i.e. once a persisted state
-  // (if any) has been restored into the table.
-  notifyRestoredState();
+  // (if any) has been restored into the table. Skipped when the caller passed
+  // keep (renderAssignTable()'s in-screen re-render): the view then comes from
+  // the caller's LIVE grid, not from storage, so there is no restored view to
+  // announce - otherwise the first bulk Do / role change after the
+  // administrator had merely paged around popped a misleading "view restored"
+  // toast. Same guard as the sibling plan screen (#1642).
+  if (!keep) notifyRestoredState();
 }
 
 // Legacy parity (issue #1622): with stateSave:true a returning administrator

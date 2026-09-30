@@ -2,9 +2,9 @@
 
 **Issue:** [#1733](https://github.com/sebiboga/testlink-upgraded/issues/1733)
 **Status:** FIXED & VERIFIED (2026-09-30) — branch `fix/issue-1733`, commit `0ed3cd422`
-**Screen:** `gui/templates/usermanagement/usersAssignProject.html` (`notifyRestoredState()`, lines 714-736)
+**Screen:** `gui/templates/usermanagement/usersAssignProject.html` (`notifyRestoredState()`, lines 716-742, plus the `keep` guard at line 714)
 **BFF / PHP / i18n:** unchanged — `api/roles/index.php` already returned everything the grid needs, and
-the `assign.viewStateRestored` key already exists in all 11 locale bundles
+the `assign.viewStateRestored` key already exists in all 10 locale bundles
 
 ## The symptom
 
@@ -68,7 +68,7 @@ very state: buggy `isDefault → false` (toast), corrected `isDefault → true` 
 
 ## The fix
 
-One function, +15/−2 lines — compare the search **string** and a **JSON-serialised** order, the exact
+Two functions, +24/−6 lines against `030df3bbe` — compare the search **string** and a **JSON-serialised** order, the exact
 test the plan screen already uses:
 
 ```js
@@ -79,9 +79,24 @@ var isDefault = !searchStr && st.length === dfltLen && st.start === 0 &&
   JSON.stringify(st.order) === '[[1,"asc"]]';
 ```
 
+The `isDefault` fix alone is not enough — fixing it **unmasks a second, false toast**. Pre-fix the
+first `notifyRestoredState()` of every page load always set `restoredStateNotified = true`, which
+silenced every later call on that page. Post-fix a *default*-view load correctly leaves the flag
+`false`, so an in-screen re-render could newly toast: the user merely sorts or changes
+entries-per-page (which DataTables persists), then changes one role or hits bulk **Do** —
+`renderAssignTable()` rebuilds the grid, its constructor re-loads the just-persisted non-default
+state, and the grid would claim "Saved view restored" although the view came from the live grid via
+`keep`. The project screen therefore adopts the plan screen's `keep` guard:
+
+```js
+function initAssignTable(keep) { … if (!keep) notifyRestoredState(); }   // line 714
+renderAssignTable(): initAssignTable(true);                              // line 631
+```
+
 Everything else is untouched: the one-shot guard (`if (!assignTbl || restoredStateNotified) return;`),
 the `loaded() === null` early exit, the `restoredStateNotified = false` reset when the in-page project
-combo really switches project, the caller, the i18n key and every locale bundle.
+combo really switches project, the `loadUsers()` caller at line 510 (which passes no `keep` and must
+announce), the i18n key and every locale bundle.
 
 Alternatives rejected:
 
@@ -108,11 +123,14 @@ cluster that a naive `getComputedStyle` poll miscounts as a second toast.
 | back to the default view | silent again | 0 calls |
 | length only differs (40) | toast | 1 call |
 | in-page project switch 5 → 6 | state cleared, no leak | `state.loaded() === null`, 0 calls |
+| default load → make the view non-default → **change one role** (re-render) | no toast (nothing was restored from a previous visit) | **0 new calls**, view byte-identical, Save enabled |
+| default load → make the view non-default → bulk **Do** (`<no rights>`) | no toast, view kept | **0 new calls**, 20 rows marked `changed`, Save enabled, view identical |
+| non-default view (search + 40 + desc) → bulk **Do** | no toast | **0 new calls** |
 | twin `usersAssignPlan.html` | unchanged | 0 calls with a default state |
 | console | clean | no `error`/`warn` |
 | Event Viewer (`events`) | no new Error/Warning | only an AUDIT (`log_level=16`) row from the fixture; `log_level IN (1,2)` → 0 new rows |
 
-Regression suite **1733 (cases 85-95): 11/11 PASS** — see `tmp/TLU_Test_Cases.md`.
+Regression suite **1733 (cases 85-98): 14/14 PASS** — see `tmp/TLU_Test_Cases.md`.
 
 ## Screenshots
 
@@ -128,7 +146,7 @@ Regression suite **1733 (cases 85-95): 11/11 PASS** — see `tmp/TLU_Test_Cases.
 
 | File | Purpose |
 |---|---|
-| `gui/templates/usermanagement/usersAssignProject.html` | the fix (`notifyRestoredState()`, lines 714-736) |
+| `gui/templates/usermanagement/usersAssignProject.html` | the fix (`notifyRestoredState()`, lines 716-742 + the `keep` guard at line 714; +24/−6 against `030df3bbe`) |
 | `CHANGELOG` | `[KEY BUGFIX] - #1733` entry + the stale "still lives on the project screen" note in the #1642 entry |
 | `tmp/fixtures_1733.php` | per-run fixture (project + 25 users); `tmp/` is gitignored |
 | `tmp/TLU_Test_Cases.md` | regression suite 1733 (cases 85-95) |

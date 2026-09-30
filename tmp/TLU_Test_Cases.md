@@ -1268,3 +1268,62 @@ with 6 column entries; switch 3→4 → `search="" len=20 order=[[1,"asc"]]` re-
 foreign-plan state rejected with `state.loaded()===null`; sibling project screen still
 `bStateSave=true` with `tproject_id:"1"`. Console `error`/`warn` = 0; `events` `log_level <> 16`
 = 0 rows. **18/18 PASS.**
+
+---
+
+## Regression — Issue #1733: "Saved view restored" toast fired on every revisit of `usersAssignProject.html`
+
+**Precondition / fixtures** — the DB was freshly imported (0 test projects, 1 user `admin`), so the
+screen could not even render (`#disabledMsg` = "Your role configuration do not allow you Assign
+Roles for Test Projects", 0 rows). `php tmp/fixtures_1733.php` created test project
+**`tproject_id=5`** (`ASSIGN1733`, public/active) + **25 role-assignable users** `t1733usr01..25`
+(role 7 = tester) → 26 assignable rows > `pageLength` 20, so the grid really paginates. A second
+project **`tproject_id=6`** (`ASSIGN1733B`) and a plan **`tplan_id=8`** (`PLAN1733`, project 5) were
+created for the project-switch and twin-screen cases. Login `admin`/`admin`; screen under test
+`http://localhost:8082/gui/templates/usermanagement/usersAssignProject.html?tproject_id=5`.
+
+**Repro steps (pre-fix)** — open the screen, change **nothing** (search empty, *Show 20 entries*,
+Login ascending, page 1), press F5. The localized toast *Saved view restored (search, sort, entries
+per page and page kept)* becomes visible for its full 4 s window on **every** revisit, even though
+the restored state is byte-for-byte the default one. Measured with a `MutationObserver` on `#toast`
+installed through `initScript`:
+`visible:true ms=175 class="toast ok" text="Saved view restored (search, sort, entries per page and page kept)"`,
+and `window.restoredStateNotified === true`.
+
+**Expected post-fix behaviour** — the toast fires **only** when a genuinely non-default persisted
+view was restored (non-empty search, non-default length, non-default sort, or a page other than the
+first). A default view is restored silently — identical to the already-corrected plan screen
+(`usersAssignPlan.html` `notifyRestoredState()`, issue #1642).
+
+**Actual result observed** — see the table below. `toast()` was **wrapped** via `initScript` so the
+call count is measured directly instead of being inferred from CSS visibility (a 4 s auto-hide
+produces a second "visible" frame cluster while the element fades out, which a naive
+`getComputedStyle` poll miscounts as a second toast).
+
+| # | Case | Expected | Observed | Result |
+|---|---|---|---|---|
+| 85 | revisit with the **default** saved view (`search:"" length:20 start:0 order:[[1,"asc"]]`) — the primary symptom | **no** toast | `toastCallCount: 0`, `#toast` text stays `""`, `restoredStateNotified: false`, 20 rows. **Pre-fix this was 1 call, visible 4 s, on every load** | PASS |
+| 86 | first-ever visit (`state.loaded() === null`) | no toast | `stateLoaded: null`, `toastCallCount: 0` | PASS |
+| 87 | persist a non-default view (search `t1733usr1`, 40 entries, Login desc → 10 rows) then revisit | exactly **one** toast | `state.search.search="t1733usr1"`, `state.length=40`, `state.order=[[1,"desc"]]`, live grid identical, `toastCallCount: 1` @ ms 152, `restoredStateNotified: true` | PASS |
+| 88 | return to the default view, revisit | silent again | `toastCallCount: 0` | PASS |
+| 89 | only the length differs (40, search `""`, asc, page 0) | toast (length is part of the default test) | `toastCallCount: 1`, `state.length=40`, `state.search.search=""`, `state.order=[[1,"asc"]]`, 26 rows | PASS |
+| 90 | in-page `#projectSelect` switch 5 → 6 | state cleared, no toast, no leak | `currentProject:"6"`, `state.loaded() === null`, `restoredStateNotified: false`, `toastCallCount: 0`, grid back to `search "" len 20 [[1,"asc"]] page 0` | PASS |
+| 91 | console `error`/`warn` | none | `<no console messages found>` | PASS |
+| 92 | Event Viewer (`events` table, rule 12) | no new Error/Warning | only id 18 added, `log_level=16` (**AUDIT**) `testproject_created` written by the fixture itself; `where log_level in (1,2)` → ids 3/7/11 only, all `1305 - FUNC` from the install phase → **0 new Error/Warning** | PASS |
+| 93 | control: twin `usersAssignPlan.html?tproject_id=5&tplan_id=8` | unchanged, same corrected behaviour | first visit `stateLoaded:null` → 0 toasts; revisit `state.search.search=""`, `state.length=20`, `state.order=[[1,"asc"]]`, `state.tplan_id:"8"` → `toastCallCount: 0`, 20 rows | PASS |
+| 94 | `node --check` on the page's extracted `<script>` | no syntax error | `JS SYNTAX OK` | PASS |
+| 95 | `git diff --numstat` scope | one file, no PHP/BFF/i18n | `gui/templates/usermanagement/usersAssignProject.html` only (+24/−6 vs `030df3bbe`); i18n key `assign.viewStateRestored` already present in all **10** bundles (`ls gui/templates/i18n/*.json` → 10, `grep -l` → 10), none touched | PASS |
+| 96 | default load (silent, flag left `false`) → make the view non-default (`order([[1,"desc"]])`) → **change one row's role** (`onRoleChange` → `renderAssignTable`) | **no** toast: the view came from the LIVE grid via `keep`, nothing was restored | `toastCallCount` 0 → **0 new calls**, view byte-identical (`search "" len 20 [[1,"desc"]] page 0`), Save enabled | PASS |
+| 97 | default load → non-default view → bulk **Do** (`<no rights>`, `applyBulkRole`) | no toast, view kept, rows marked changed | **0 new calls**, 20 rows `changed`, Save enabled, view identical | PASS |
+| 98 | non-default view (search + 40 + desc) → bulk **Do** | no toast (the `keep` guard) | **0 new calls**; after the two-part fix the primary case still measures 0 calls with a default state and **1 call** with a non-default one (`state.length=40`) | PASS |
+
+**Second part of the fix (found by the mandatory code review)** — correcting `isDefault` alone *unmasks*
+a second, false toast: pre-fix the first `notifyRestoredState()` of a page load always set
+`restoredStateNotified = true`, silencing every later call, whereas a correctly silent default load now
+leaves the flag `false`. So after merely sorting or changing entries-per-page (both persisted), an
+in-screen re-render (`renderAssignTable()` → new DataTable → its constructor re-loads the just-persisted
+non-default state) could newly claim "Saved view restored". Fixed with the plan screen's `keep` guard
+(`initAssignTable(keep)` + `if (!keep) notifyRestoredState();`, `renderAssignTable()` passes `true`);
+the `loadUsers()` caller at line 510 passes no `keep` and still announces. Cases 96-98 cover it.
+
+**Results — 2026-09-30, commits `0ed3cd422` + the code-review follow-up, branch `fix/issue-1733`, app on `http://localhost:8082`: 14/14 PASS** (cases 85-95 re-executed after the follow-up: primary case 0 calls with a default state, 1 call with a non-default state, console clean, `events` max id unchanged at 18).

@@ -1033,8 +1033,8 @@ function renderUsersTable(keep) {
 // gets their saved view back, which is invisible feedback - tell them the
 // filter/length/sort/page they are looking at is the persisted one. Fires once
 // per page load (and not at all when the restored state IS the default view).
-// Same one-shot guard and same localized key as the sibling project screen
-// (usersAssignProject.html:710-724).
+// Same one-shot guard, same `keep` suppression and same localized key as the
+// sibling project screen (usersAssignProject.html:710-714, 716-742).
 function notifyRestoredState() {
   if (!assignDt || restoredStateNotified) return;
   var st = assignDt.state.loaded();
