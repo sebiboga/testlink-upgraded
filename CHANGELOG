@@ -6581,6 +6581,49 @@ Changes:
       project tables and added user metrics to the middle section
 
 ## 2.0.1 (in-progress)
+### Key bugfix — Req. Management System interface instantiation: legacy Requirements screens died with an empty HTTP 500 (Fixes #1629)
+- Key bugfix #1629: `tlReqMgrSystem::getInterfaceObject()` (`lib/functions/tlReqMgrSystem.class.php:646`)
+  was the **third and last** unguarded `new` in the class, after `checkConnection()` and the
+  `getAll()` `checkEnv` guard that #1625 hardened. `lib/functions/common.php:140` already
+  named it as the outstanding one. Reproduced (the report was filed unverified, because the
+  freshly imported CI database has no project linked to a ReqMgr system — the fixture is
+  created by `tmp/verify_1629.sh`): with `testprojects.reqmgr_integration_enabled=1` and a
+  `testproject_reqmgrsystem` link, **every** legacy Requirements screen answered
+  **HTTP 500 with a 0-byte body** — `reqSpecEdit.php:23`, `reqSpecSearch.php:34` and
+  `reqSpecViewRevision.php:59` all build a `reqSpecCommands`, whose constructor calls the
+  method at `reqSpecCommands.class.php:44`. Because that call sits in a **constructor**, the
+  fatal fires before a single byte is flushed, so the user gets a blank page, and because the
+  process dies before `shutdownLogger()` the Event Viewer stays **empty** — a silent 500.
+  Two flavours, both measured on line 657: `type=1` resolves to `contoursoapInterface`
+  (`getImplementationForType()`, `:111`), a class not shipped here and never was
+  (`git log --all -- '*contour*'` is empty) → `Error: Class "contoursoapInterface" not found`;
+  and a `type` that is not a key of `$systems` makes `getByAttr()` (`:344`) store
+  `implementation = NULL` → `Error: Class name must be a valid object or a string`. The
+  `catch (Exception $e)` in the same method **never applied** — an `Error` is not an
+  `Exception`.
+
+  Fix: return `null` when `getByID()` found nothing or `implementation` is missing / not a
+  string / not loadable (`!@class_exists($iname)` — the `@` is required, otherwise the
+  autoloader's `include_once()` writes the two #1593 E_WARNING rows per request), and widen
+  the handler to `catch (Throwable)` so a throwable from a *shipped* implementation class
+  degrades too. Returning `null` is provably safe for the only caller:
+  `reqSpecCommands.class.php:44` **discards** the return value (`$rms` is never read; line 45
+  overwrites it with `getLinkedTo()`), and `null` is what this method already returns when no
+  system is linked, and what `tlIssueTracker::getInterfaceObject()` returns for the same case.
+  No i18n change (no user-facing string added or removed), no template change, no BFF change.
+  Verified: `reqSpecEdit.php` `500`/0 B → `200`/non-empty for both flavours; 0 new
+  `events` rows; the dangling-link and integration-off paths are byte-for-byte unchanged; a
+  *loadable* implementation class is still really instantiated (a shipped stub class proves
+  the guard is not over-broad); the #1625 siblings (`reqMgrSystemView.php`,
+  `reqMgrSystemEdit.php?doAction=checkConnection`) and the modernized
+  `api/reqmgrsystems` / `api/reqspec` BFFs unchanged. Regression suite 1629 31/31 PASS
+  (`bash tmp/verify_1629.sh`, exit 0; pre-fix baseline 7 FAIL / exit 1, so the harness is
+  discriminating). Masked-but-separate defects found while testing and filed, not fixed:
+  **#1735** (`reqSpecSearch.php:116` `count(null)` — the #1629 fatal used to kill the request
+  before that line, and the fix uncovers it) and **#1736** (`reqSpecEdit.php`'s
+  `initialize_gui()` reading a `null` `$gui` for an unrecognised `doAction`).
+  (Fixes #1629)
+
 ### Screen — Requirement Management System editor `reqMgrSystemEdit` (Refs #1727)
 - Modernizes the last full legacy renderer of the ASIDE menu,
   `lib/reqmgrsystems/reqMgrSystemEdit.php` (`dashio/reqmgrsystems/reqMgrSystemEdit.tpl`), as

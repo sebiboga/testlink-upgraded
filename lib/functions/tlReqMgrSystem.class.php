@@ -653,12 +653,45 @@ class tlReqMgrSystem extends tlObject
       if( !is_null($system)  )
       {
         $itd = $this->getByID($system['reqmgrsystem_id']);
-        $iname = $itd['implementation'];
-        $its = new $iname($itd['implementation'],$itd['cfg']);
+        $iname = is_null($itd) ? null : $itd['implementation'];
+
+        // Issue #1629: this was the THIRD - and last - unguarded `new` in the
+        // class, after checkConnection() (:672, #1625) and the getAll() checkEnv
+        // guard (:576, #1625). Its catch(Exception) could not help, because both
+        // failure modes raise an Error, which is NOT an Exception, so PHP 8
+        // aborted the request. Measured on the legacy Requirements screens of a
+        // project with reqmgr_integration_enabled=1:
+        //   1. type 1 (contour) -> getImplementationForType() returns
+        //      "contoursoapInterface", a class that is not shipped here and
+        //      never was -> "Class contoursoapInterface not found"
+        //   2. a type that is not a key of $systems -> getByAttr() (:344)
+        //      stores implementation = NULL -> "Class name must be a valid
+        //      object or a string"
+        // Both landed on line 657 of this method, inside the CONSTRUCTOR of
+        // reqSpecCommands (lib/requirements/reqSpecCommands.class.php:44, reached
+        // from reqSpecEdit.php:23 / reqSpecSearch.php:34 /
+        // reqSpecViewRevision.php:59), i.e. before a single byte was flushed:
+        // HTTP 500 with a 0-byte body and NO Event Viewer row, i.e. silent.
+        //
+        // Degradation is the same one the two #1625 siblings already use, and
+        // provably safe for the only caller: reqSpecCommands.class.php:44
+        // DISCARDS the return value ($rms is never read; line 45 overwrites it
+        // with getLinkedTo()), and NULL is exactly what this method already
+        // returns for "no system linked to this project" and what
+        // tlIssueTracker::getInterfaceObject() returns for the same case.
+        if( is_null($iname) || !is_string($iname) || !@class_exists($iname) )
+        {
+          return null;
+        }
+        $its = new $iname($iname,$itd['cfg']);
       }
       return $its;
     }
-    catch (Exception $e)
+    // Widened from Exception to Throwable: a throwable raised by a *shipped*
+    // implementation class (e.g. a TypeError from a malformed cfg string) must
+    // degrade here too instead of taking the whole page down. The echo() is the
+    // original 1.9.20 behaviour and is kept verbatim on purpose.
+    catch (Throwable $e)
     {
       echo('Probably there is some PHP Config issue regarding extension<b>');
       echo($e->getMessage().'<pre>'.$e->getTraceAsString().'</pre>');   
