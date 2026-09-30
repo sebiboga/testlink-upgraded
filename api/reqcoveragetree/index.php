@@ -274,7 +274,7 @@ function activeCoverageCount($db, $reqId)
         . " WHERE req_id = " . intval($reqId) . " AND is_active = 1";
     $rs = $db->exec_query($sql);
     $row = $db->fetch_array($rs);
-    return is_null($row) ? 0 : intval($row['qty']);
+    return empty($row) ? 0 : intval($row['qty']);
 }
 
 /**
@@ -543,9 +543,9 @@ if ($action === 'coverage') {
             'testcase_id' => intval($row['testcase_id']),
             'active' => intval($row['is_active']) === 1,
             'link_status' => intval($row['link_status']),
-            'external_id' => is_null($row['tc_external_id']) ? null : intval($row['tc_external_id']),
-            'name' => $row['name'],
-            'version' => intval($row['version']),
+            'external_id' => isset($row['tc_external_id']) ? intval($row['tc_external_id']) : null,
+            'name' => isset($row['name']) ? $row['name'] : '',
+            'version' => isset($row['version']) ? intval($row['version']) : 1,
             'req_version' => is_null($row['req_version']) ? 0 : intval($row['req_version']),
         );
     }
