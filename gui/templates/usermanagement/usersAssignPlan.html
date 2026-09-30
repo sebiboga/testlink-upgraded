@@ -216,6 +216,10 @@ var demoMode = false;
 var users = [];      // {id, login, name, firstName, lastName, inheritedRoleName, isInherited, effectiveRoleID, globalRoleName, roleColour, isAdmin, origRoleID, roleVal, changed}
 var userById = {};   // id -> user entry
 var assignDt = null; // DataTables instance on #assignTable
+// Issue #1642: one "saved view restored" notice per page load, so the toast does
+// not repeat on every in-screen re-render (bulk Do / role change) - same
+// one-shot guard as the sibling project screen (usersAssignProject.html:157).
+var restoredStateNotified = false;
 
 // Legacy parity: DataTables 1.9.x (bundled with the legacy grid) reset the
 // sort back to the table's default order on the THIRD click of the same column
@@ -871,13 +875,13 @@ function buildSelectHtml(u) {
 // :664-666 - the users grid is a DataTable: search box labelled by the
 // localized "User" string, sorting on the user columns, entries selector
 // 20/40/60/All, stateSave. In the legacy 2-column layout the roles-select
-// column (1) was non-searchable; in the modern 5-column layout only the Login
+// column (1) was non-searchable; in the modern 6-column layout only the Login
 // + Name columns (the legacy "User" column split in two) stay searchable.
 // Render the assign grid. Optional keep = {search,len,order,page} restores the
 // caller's DataTables view state after a re-init (used by applyBulkRole) so an
 // in-screen re-render behaves like the legacy pure-DOM set_combo_group() which
-// never disturbed the user's page/search. loadUsers does NOT pass keep: each
-// project/plan load starts a clean grid (issue #939).
+// never disturbed the user's page/search. loadUsers does NOT pass keep: a
+// project/plan load restores the PERSISTED view instead (issue #939 + #1642).
 function renderUsersTable(keep) {
   if (assignDt) { assignDt.destroy(); assignDt = null; }
   var $b = $('#assignBody').empty();
@@ -930,11 +934,32 @@ function renderUsersTable(keep) {
     // Legacy parity: config.inc.php:666 - [20, 40, 60, -1], [20, 40, 60, "All"].
     lengthMenu: [[20, 40, 60, -1], [20, 40, 60, TLi18n.t('assign.all')]],
     pageLength: 20,
-    // Legacy parity: DataTables.inc.tpl sets stateSave:true on the legacy grid; the
-    // modern same-page plan switcher deliberately does NOT auto-restore saved
-    // state (like the sibling project screen, issue #930) - a plan switch would
-    // otherwise leak the previous plan's page/search into the new grid. View
-    // state is preserved explicitly across in-screen re-renders (see keep).
+    // Legacy parity: DataTables.inc.tpl:100-104 initialised EVERY legacy grid
+    // with { "lengthMenu": [...], "stateSave": true }, so entries-per-page, the
+    // "User" search string, the sort column/order and the current page were
+    // persisted in the DataTables localStorage state and restored on the next
+    // visit of the same URL - for the PLAN role grid exactly as for every other
+    // legacy grid (issue #1642).
+    stateSave: true,
+    // The state key is per page URL, and this screen carries the selected test
+    // plan in the in-page #planSelect combo - so the saved state is stamped with
+    // its tplan_id and a state saved for a DIFFERENT plan is dropped (returning
+    // false aborts the load). Without this an in-page plan switch would leak the
+    // previous plan's search/page/len into the new grid; legacy never had that
+    // hazard because it reached a plan by FULL page navigation
+    // (usersAssign.tpl:100-107 rebuilt the URL with the new tplan_id), so its
+    // state key changed with the plan. Same guard as the sibling project screen
+    // (usersAssignProject.html:686-698), keyed on tplan_id instead of
+    // tproject_id.
+    stateSaveParams: function (settings, state) {
+      state.tplan_id = currentPlan == null ? '' : String(currentPlan);
+      return state;
+    },
+    stateLoadParams: function (settings, state) {
+      var saved = (state && state.tplan_id != null) ? String(state.tplan_id) : '';
+      var current = currentPlan == null ? '' : String(currentPlan);
+      return saved === current;
+    },
     columnDefs: [
       // Legacy parity: usersAssign.tpl:111-120 - the legacy grid config only
       // switched OFF searchability ("searchable": false, "targets": 1) and
@@ -980,6 +1005,10 @@ function renderUsersTable(keep) {
   // pattern as the sibling project screen (usersAssignProject.html aggregated
   // renderAssignTable): the fresh wrapper ships an empty search box while the
   // filter is re-applied internally - repopulate the visible input too.
+  // Issue #1642: keep stays the in-screen path and is applied AFTER the
+  // constructor, so it still wins over the persisted state DataTables may have
+  // just loaded from localStorage - a bulk Do must not move the user off the
+  // page/search they are looking at.
   if (keep) {
     assignDt.search(keep.search || '').page.len(keep.len || 20);
     assignDt.order(keep.order || [[1, 'asc']]);
@@ -988,12 +1017,62 @@ function renderUsersTable(keep) {
       $(assignDt.table().container()).find('input[type=search]').val(keep.search);
     }
   }
+  // Runs after the constructor assigned assignDt, i.e. once a persisted state
+  // (if any) has been restored into the table (issue #1642). Skipped when the
+  // caller passed keep: the view then comes from the caller's LIVE grid, not
+  // from storage, so there is no restored view to announce (otherwise the first
+  // bulk Do after the administrator had merely paged around would pop a
+  // misleading "view restored" toast).
+  if (!keep) { notifyRestoredState(); }
   // Issue #1707: the footer also reports how many <no rights> rows the
   // authorized-only filter is currently hiding.
   updateAuthzFooter();
 }
 
+// Legacy parity (issue #1642): with stateSave:true a returning administrator
+// gets their saved view back, which is invisible feedback - tell them the
+// filter/length/sort/page they are looking at is the persisted one. Fires once
+// per page load (and not at all when the restored state IS the default view).
+// Same one-shot guard and same localized key as the sibling project screen
+// (usersAssignProject.html:710-724).
+function notifyRestoredState() {
+  if (!assignDt || restoredStateNotified) return;
+  var st = assignDt.state.loaded();
+  if (!st) return;
+  // DataTables 1.13.7 always materialises a `search` OBJECT in the stored state
+  // ({search:'',smart:true,...}), even when the box is empty - so testing
+  // `!st.search` would classify the default view as "restored" and pop a
+  // misleading toast on every plain revisit. Compare the search STRING instead.
+  // Same reason makes the order comparison a JSON one: st.order is an ARRAY of
+  // [col,dir] pairs, so String([[1,'asc']]) is "1,asc" and never equals
+  // '[[1,"asc"]]'.
+  var searchStr = (st.search && typeof st.search === 'object')
+    ? String(st.search.search || '')
+    : String(st.search || '');
+  var isDefault = !searchStr && st.length === 20 && st.start === 0 &&
+    JSON.stringify(st.order) === '[[1,"asc"]]';
+  if (isDefault) return;
+  restoredStateNotified = true;
+  showDemoToast(TLi18n.t('assign.viewStateRestored'), 'ok');
+}
+
 function loadUsers(pid, planId) {
+  // Issue #1642: the grid is stateful (DataTables.inc.tpl:100-104 stateSave:true)
+  // and the state key is per page URL, not per plan. Reset it when the in-page
+  // #planSelect switcher really changes the test plan so the previous plan's
+  // entries-per-page / search / sort / page can never be written onto, or
+  // inherited by, the new plan's grid. Same guard as the sibling project screen
+  // (usersAssignProject.html:472-485) and exactly the leak the legacy page could
+  // not have - it reached a plan by full page navigation, so its state key
+  // changed with the plan (usersAssign.tpl:100-107).
+  var prevPlan = currentPlan;
+  var planSwitched = prevPlan != null && String(prevPlan) !== String(planId);
+  if (planSwitched) {
+    if ($.fn.DataTable && $.fn.DataTable.isDataTable('#assignTable')) {
+      $('#assignTable').DataTable().state.clear();
+    }
+    restoredStateNotified = false;
+  }
   currentProject = pid; currentPlan = planId;
   // Issue #1644: the caption follows the plan the moment the context changes, not
   // when its users arrive - the grid below is emptied/rebuilt asynchronously, so
