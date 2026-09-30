@@ -1013,7 +1013,15 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'meta' && isset
          'projectIsPublic' => $projIsPublic,
          'planIsPublic' => $planIsPublic,
          'demoMode' => (bool)config_get('demoMode'),
-         'roleColouring' => $colourCtx['enabled']]);
+         'roleColouring' => $colourCtx['enabled'],
+         // Legacy parity (issue #1641): config.inc.php:663-666 +
+         // usersAssign.tpl:111-120 - the plan-role grid's DataTable (search /
+         // sort / length menu / paging) is gated on
+         // $tlCfg->gui->usersAssign->pagination->enabled and its entries menu on
+         // ->length. The tproject sibling route already ships this block
+         // (line 820); without it here the modern plan screen had no channel for
+         // the config and hard-coded [20,40,60,-1] (usersAssignPlan.html:935-936).
+         'pagination' => getUsersAssignPaginationConfig()]);
 }
 
 // Route: PUT /roles/tplan-roles - update test plan role assignments

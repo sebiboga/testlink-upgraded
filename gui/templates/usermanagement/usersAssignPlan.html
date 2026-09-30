@@ -221,6 +221,63 @@ var assignDt = null; // DataTables instance on #assignTable
 // one-shot guard as the sibling project screen (usersAssignProject.html:157).
 var restoredStateNotified = false;
 
+// Legacy parity: config.inc.php:663-666 + usersAssign.tpl:111-120 (issue #1641).
+// $tlCfg->gui->usersAssign->pagination->enabled gates the WHOLE DataTable
+// construct on the plan-role grid and ->length supplies the entries-per-page
+// menu. Before #1641 the screen hard-coded [20,40,60,-1] and always built a
+// DataTable, so an administrator who turned pagination off (or picked another
+// page-length set) still got a searchable/sortable/paged grid - the exact
+// opposite of what legacy rendered. The BFF ships both keys in the
+// meta/tplan-roles payload (api/roles/index.php getUsersAssignPaginationConfig(),
+// the same helper the tproject sibling route uses); the defaults below are the
+// shipped config.inc.php values, so a payload without the block degrades to
+// today's behaviour instead of to a bare table.
+var paginationCfg = { enabled: true, lengthMenu: [[20, 40, 60, -1], [20, 40, 60, 'All']] };
+
+// Read the pagination block off a tplan-roles response. Called from every
+// tplan-roles loader so a config change lands on the first paint, not only
+// after a project/plan is picked. Same tolerant `r.pagination || default` shape
+// as the sibling project screen (usersAssignProject.html:490).
+function applyPaginationCfg(r) {
+  paginationCfg = (r && r.pagination) ? r.pagination
+    : { enabled: true, lengthMenu: [[20, 40, 60, -1], [20, 40, 60, 'All']] };
+}
+
+// The configured menu with its LABELS localized. config.inc.php:666 ships the
+// English literal "All" (a legacy JS-array string in the PHP config); the grid
+// must show the localized word, and every other label is admin-supplied so it
+// passes through untouched. Values are the numeric lengths / -1.
+function localizedLengthMenu() {
+  var src = paginationCfg.lengthMenu;
+  if (!src || !src.length || !src[0] || !src[0].length) {
+    return [[20, 40, 60, -1], [20, 40, 60, TLi18n.t('assign.all')]];
+  }
+  var labels = src[1] || src[0];
+  var out = [[], []];
+  for (var i = 0; i < src[0].length; i++) {
+    var v = src[0][i];
+    var lbl = (labels[i] === undefined || labels[i] === null) ? String(v) : String(labels[i]);
+    // Only the shipped "All" sentinel is translated; an administrator who set a
+    // custom label gets exactly what they configured.
+    if (lbl === 'All' || lbl === 'all') { lbl = TLi18n.t('assign.all'); }
+    out[0].push(v);
+    out[1].push(lbl);
+  }
+  return out;
+}
+
+// The first configured length is the grid's pageLength (and the "is this the
+// default view" baseline in notifyRestoredState()). Legacy always started on
+// the FIRST entry of the configured menu - not on a hard-coded 20.
+function defaultPageLength() {
+  var m = paginationCfg.lengthMenu;
+  if (m && m[0] && m[0].length) {
+    var v = parseInt(m[0][0], 10);
+    if (!isNaN(v) && v > 0) { return v; }
+  }
+  return 20;
+}
+
 // Legacy parity: DataTables 1.9.x (bundled with the legacy grid) reset the
 // sort back to the table's default order on the THIRD click of the same column
 // (bSortReset=true; usersAssign.tpl + DataTables.inc.tpl never overrode it).
@@ -588,6 +645,10 @@ function loadProjects(selectedId, selectedPlanId) {
       sel.append('<option value="' + esc(p.id) + '">' + esc(p.name) + '</option>');
     });
     roles = r.roles || [];
+    // Issue #1641: pick up $tlCfg->gui->usersAssign->pagination up front so the
+    // very first grid built - before any project is chosen - already honours the
+    // admin's enabled/length configuration.
+    applyPaginationCfg(r);
     buildBulkSelect();
     demoMode = !!(r.demoMode);
     applyDemoMode();
@@ -744,6 +805,9 @@ function loadPlans(pid, selectedPlanId) {
     // Issue #1643: project access-type indicator (public/private), from the
     // same payload that proves the project context. Legacy getPublicAttr().
     renderAccessIcon('#projectAccessIcon', r.projectIsPublic);
+    // Issue #1641: same pagination block as the project/plan loaders - the plan
+    // combo request already carries the full tplan-roles payload.
+    applyPaginationCfg(r);
     // Issue #1644: rebuild the id -> name map for THIS project before anything
     // reads it, so a project switch can never leave the previous project's plan
     // name in the column caption. The combo below is filled from the very same
@@ -918,6 +982,30 @@ function renderUsersTable(keep) {
   });
   // Issue #1707: one global ext.search predicate, scoped to #assignTable.
   registerAuthzFilter();
+  // Legacy parity (issue #1641): usersAssign.tpl:111-120 wrapped the
+  // <table id="item_view"> in a DataTable ONLY inside
+  // {if $tlCfg->gui->usersAssign->pagination->enabled} - so with enabled=false
+  // legacy rendered the BARE table: no DataTables wrapper, hence no search box,
+  // no length menu, no paging and no sortable headers. DataTables is skipped
+  // here exactly the same way; the rows above are already plain <tr>/<td>, so
+  // the grid keeps working (per-row role <select>, bulk "Do", Save) - the grid
+  // was always driven by the `users` model, never by reading the DOM.
+  // The empty-state guard is the sibling screen's (usersAssignProject.html:654)
+  // and also covers the no-users placeholder, which must never become a
+  // paginated grid.
+  if (!paginationCfg.enabled) {
+    // With no DataTables instance the authorized-only filter has no pipeline to
+    // search, so it falls back to the legacy mechanism - hide the matching
+    // <tr>. Applied here (state -> DOM) so an in-screen rebuild keeps the filter.
+    if (showOnlyAuthorized) {
+      $('#assignBody tr').each(function () {
+        var u = userById[parseInt($(this).attr('data-uid'), 10)];
+        if (isUnauthorizedUser(u)) { $(this).hide(); } else { $(this).show(); }
+      });
+    }
+    updateAuthzFooter();
+    return;
+  }
   assignDt = $('#assignTable').DataTable({
     // Legacy parity: DataTables.inc.tpl "language": { "search": "User" }.
     language: {
@@ -931,9 +1019,14 @@ function renderUsersTable(keep) {
       // no_users text when the box is unticked.
       zeroRecords: showOnlyAuthorized ? TLi18n.t('assign.noAuthorizedUsers') : TLi18n.t('assign.noUsers')
     },
-    // Legacy parity: config.inc.php:666 - [20, 40, 60, -1], [20, 40, 60, "All"].
-    lengthMenu: [[20, 40, 60, -1], [20, 40, 60, TLi18n.t('assign.all')]],
-    pageLength: 20,
+    // Legacy parity: config.inc.php:666 - the menu is $tlCfg->gui->usersAssign
+    // ->pagination->length ('[20, 40, 60, -1], [20, 40, 60, "All"]' out of the
+    // box), and legacy started on its FIRST entry - so an administrator who
+    // configured e.g. [10, 30] gets a 10-row page, not a hard-coded 20. The
+    // BFF parses that legacy JS-array string into numbers (issue #1641);
+    // localizedLengthMenu() maps the shipped "All" label to assign.all.
+    lengthMenu: localizedLengthMenu(),
+    pageLength: defaultPageLength(),
     // Legacy parity: DataTables.inc.tpl:100-104 initialised EVERY legacy grid
     // with { "lengthMenu": [...], "stateSave": true }, so entries-per-page, the
     // "User" search string, the sort column/order and the current page were
@@ -1010,7 +1103,10 @@ function renderUsersTable(keep) {
   // just loaded from localStorage - a bulk Do must not move the user off the
   // page/search they are looking at.
   if (keep) {
-    assignDt.search(keep.search || '').page.len(keep.len || 20);
+    // Issue #1641: fall back to the CONFIGURED first length, not a hard-coded
+    // 20 - with a custom $tlCfg->gui->usersAssign->pagination->length the page
+    // size the user was looking at can legitimately differ.
+    assignDt.search(keep.search || '').page.len(keep.len || defaultPageLength());
     assignDt.order(keep.order || [[1, 'asc']]);
     assignDt.page(keep.page || 0).draw(false);
     if (keep.search) {
@@ -1049,7 +1145,12 @@ function notifyRestoredState() {
   var searchStr = (st.search && typeof st.search === 'object')
     ? String(st.search.search || '')
     : String(st.search || '');
-  var isDefault = !searchStr && st.length === 20 && st.start === 0 &&
+  // Issue #1641: the baseline page length is the CONFIGURED first entry, not a
+  // hard-coded 20 - otherwise a screen configured with e.g. [10, 30] would see
+  // its own untouched default view (length 10) misread as a "restored view" and
+  // pop the toast on every plain revisit. Same correction the sibling project
+  // screen makes (usersAssignProject.html:725).
+  var isDefault = !searchStr && st.length === defaultPageLength() && st.start === 0 &&
     JSON.stringify(st.order) === '[[1,"asc"]]';
   if (isDefault) return;
   restoredStateNotified = true;
@@ -1091,6 +1192,10 @@ function loadUsers(pid, planId) {
     renderAccessIcon('#projectAccessIcon', r.projectIsPublic);
     renderAccessIcon('#planAccessIcon', r.planIsPublic);
     roles = r.roles || roles;
+    // Issue #1641: $tlCfg->gui->usersAssign->pagination (config.inc.php:663-666).
+    // Read BEFORE the grid is built below so renderUsersTable() branches on the
+    // administrator's real setting.
+    applyPaginationCfg(r);
     buildBulkSelect();
     demoMode = !!(r.demoMode);
     applyDemoMode();
