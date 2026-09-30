@@ -163,6 +163,15 @@ function owningProjectId($db, $nodeId)
         if (is_null($node)) { return 0; }
         switch (intval($node['node_type_id'])) {
             case NODE_TESTPROJECT:
+                // Refs #1699: a node_type_id = 1 node with a parent is a
+                // CONTAINER below a specification, not the project itself - the
+                // owning project is the one the parent specification belongs
+                // to. A real project root has parent_id = 0 and answers for
+                // itself.
+                if (intval($node['parent_id']) > 0) {
+                    $id = intval($node['parent_id']);
+                    break;
+                }
                 return intval($node['id']);
             case NODE_REQ_SPEC:
                 $sql = "SELECT testproject_id FROM {$T['req_specs']} WHERE id = " . intval($node['id']);
@@ -226,14 +235,39 @@ function projFlag($proj, $key, $column, $default = 0)
     return intval(isset($proj[$column]) ? $proj[$column] : $default) > 0 ? 1 : 0;
 }
 
+/**
+ * The parent ids whose requirements belong to a node: the node itself plus, for
+ * a specification, every #1699 container it parents (their requirements are
+ * listed under the container node but still count for the specification).
+ */
+function statsParentIds($db, $nodeId, $nodeTypeId, $allowContainers)
+{
+    $ids = array(intval($nodeId));
+    if (intval($nodeTypeId) !== NODE_REQ_SPEC || !$allowContainers) {
+        return $ids;
+    }
+    $T = $GLOBALS['T'];
+    $rs = $db->exec_query(
+        "SELECT id FROM {$T['nodes_hierarchy']}"
+        . " WHERE parent_id = " . intval($nodeId)
+        . " AND node_type_id = " . NODE_TESTPROJECT);
+    while ($row = $db->fetch_array($rs)) {
+        $ids[] = intval($row['id']);
+    }
+    return $ids;
+}
+
 /** Per-specification requirement totals + how many of them are covered. */
-function specStats($db, $specId)
+function specStats($db, $specId, $allowContainers = null, $nodeTypeId = NODE_REQ_SPEC)
 {
     $T = $GLOBALS['T'];
+    if (is_null($allowContainers)) { $allowContainers = childRequirementsMgmtEnabled(); }
+    $parents = statsParentIds($db, $specId, $nodeTypeId, $allowContainers);
+    $in = implode(',', array_map('intval', $parents));
     $sql = "SELECT REQ.id AS req_id"
         . " FROM {$T['nodes_hierarchy']} NH"
         . " JOIN {$T['requirements']} REQ ON REQ.id = NH.id"
-        . " WHERE NH.parent_id = " . intval($specId)
+        . " WHERE NH.parent_id IN (" . $in . ")"
         . " AND NH.node_type_id = " . NODE_REQUIREMENT;
     $rs = $db->exec_query($sql);
     $total = 0;
@@ -294,7 +328,7 @@ function children($db, $parentId, $projectId)
         if (intval($row['node_type_id']) !== NODE_REQ_SPEC && !$allowContainers) {
             continue;
         }
-        $stats = specStats($db, intval($row['id']));
+        $stats = specStats($db, intval($row['id']), $allowContainers, intval($row['node_type_id']));
         $items[] = array(
             'id' => intval($row['id']),
             'kind' => intval($row['node_type_id']) === NODE_REQ_SPEC ? 'spec' : 'container',
@@ -408,6 +442,7 @@ if ($action === 'init') {
     }
 
     $nodes = children($db, $tprojectId, $tprojectId);
+    $hasContainers = false;
     $specCount = 0;
     $reqCount = 0;
     $covered = 0;
@@ -421,18 +456,29 @@ if ($action === 'init') {
             $covered += $n['covered_count'];
         }
     }
+    if (childRequirementsMgmtEnabled()) {
+        $rs = $db->exec_query(
+            "SELECT COUNT(1) AS c FROM {$GLOBALS['T']['nodes_hierarchy']} CONT"
+            . " JOIN {$GLOBALS['T']['req_specs']} RSPEC ON RSPEC.id = CONT.parent_id"
+            . " WHERE CONT.node_type_id = " . NODE_TESTPROJECT
+            . " AND RSPEC.testproject_id = " . intval($tprojectId));
+        $crow = $db->fetch_array($rs);
+        $hasContainers = ($crow && intval($crow['c']) > 0);
+    }
 
     out(array(
         'status' => 'ok',
         'action' => 'init',
         'project' => $project,
         'rights' => array('view' => $rights['view'], 'modify' => $rights['modify']),
+        'user' => isset($user->login) ? $user->login : '',
         'totals' => array(
             'specifications' => $specCount,
             'requirements' => $reqCount,
             'covered' => $covered,
             'uncovered' => max(0, $reqCount - $covered),
         ),
+        'has_containers' => $hasContainers,
         'nodes' => $nodes,
     ));
 }
@@ -501,11 +547,15 @@ if ($action === 'coverage') {
         );
     }
 
+    $docRs = $db->exec_query("SELECT req_doc_id FROM {$T['requirements']} WHERE id = " . intval($reqId));
+    $docRow = $db->fetch_array($docRs);
+
     out(array(
         'status' => 'ok',
         'action' => 'coverage',
         'req_id' => $reqId,
         'req_name' => $node['name'],
+        'req_doc_id' => (is_null($docRow) || empty($docRow)) ? '' : $docRow['req_doc_id'],
         'rows' => $rows,
     ));
 }
