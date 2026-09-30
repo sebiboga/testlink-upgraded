@@ -5746,5 +5746,6 @@
   "smv.stNoContextMsg": "テストプロジェクトから開くか、テストプロジェクト ID を指定してください。",
   "smv.stError": "エラー",
   "smv.stErrorMsg": "テストスイートツリーを読み込めませんでした。",
-  "footers.suiteMove": "TestLink 2.0.1 - テストスイートの移動／並べ替え"
+  "footers.suiteMove": "TestLink 2.0.1 - テストスイートの移動／並べ替え",
+  "smv.noModifyRight": "この順序は表示できますが、変更することはできません。"
 }

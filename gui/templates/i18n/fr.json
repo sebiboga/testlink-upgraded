@@ -5740,5 +5740,6 @@
   "smv.stNoContextMsg": "Ouvrez cet écran depuis un projet de test ou transmettez un identifiant de projet de test.",
   "smv.stError": "Erreur",
   "smv.stErrorMsg": "L'arborescence des suites de tests n'a pas pu être chargée.",
-  "footers.suiteMove": "TestLink 2.0.1 - Déplacer / réordonner les suites de tests"
+  "footers.suiteMove": "TestLink 2.0.1 - Déplacer / réordonner les suites de tests",
+  "smv.noModifyRight": "Vous pouvez voir cet ordre mais vous ne pouvez pas le modifier."
 }

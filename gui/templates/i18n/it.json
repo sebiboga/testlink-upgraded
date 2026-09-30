@@ -5740,5 +5740,6 @@
   "smv.stNoContextMsg": "Apri questa schermata da un progetto di test oppure passa l'id del progetto di test.",
   "smv.stError": "Errore",
   "smv.stErrorMsg": "Non è stato possibile caricare l'albero delle suite di test.",
-  "footers.suiteMove": "TestLink 2.0.1 - Sposta / riordina le suite di test"
+  "footers.suiteMove": "TestLink 2.0.1 - Sposta / riordina le suite di test",
+  "smv.noModifyRight": "Puoi vedere questo ordine ma non puoi modificarlo."
 }

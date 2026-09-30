@@ -181,6 +181,7 @@ td.ops button.wide { font-size: 11px; }
           </thead>
           <tbody id="rows"></tbody>
         </table>
+        <div class="empty" id="noRightMsg" style="display:none" data-i18n="smv.noModifyRight">You can see this order but you cannot change it.</div>
         <div class="empty" id="emptyMsg" style="display:none" data-i18n="smv.empty">This container has no test suites.</div>
       </div>
     </div>
@@ -223,6 +224,7 @@ var CONTAINER_ID = 0;
 var ROWS = [];
 var ALL_SUITES = [];
 var BUSY = false;
+var CAN_MODIFY = false;
 var PENDING_NODE = 0;
 
 function qs(k, d) {
@@ -352,15 +354,20 @@ function renderRows() {
     h += '<td class="cnt">' + esc(r.testcases) + '</td>';
     h += '<td class="cnt">' + esc(r.sub_suites) + '</td>';
     h += '<td class="ops">';
-    h += '<button title="' + esc(TLi18n.t('smv.moveUp')) + '" class="op" data-op="up" data-node="' + esc(r.id) + '"' + (first || BUSY ? ' disabled' : '') + '><i class="fa fa-angle-up"></i></button>';
-    h += '<button title="' + esc(TLi18n.t('smv.moveDown')) + '" class="op" data-op="down" data-node="' + esc(r.id) + '"' + (last || BUSY ? ' disabled' : '') + '><i class="fa fa-angle-down"></i></button>';
-    h += '<button title="' + esc(TLi18n.t('smv.moveTo')) + '" class="op wide" data-op="moveTo" data-node="' + esc(r.id) + '"' + (BUSY ? ' disabled' : '') + '>' + esc(TLi18n.t('smv.moveToShort')) + '</button>';
+    /* Every action in this column mutates the tree, so the whole column is
+       rendered read-only when the context did not grant mgt_modify_tc. */
+    if (CAN_MODIFY) {
+      h += '<button title="' + esc(TLi18n.t('smv.moveUp')) + '" class="op" data-op="up" data-node="' + esc(r.id) + '"' + (first || BUSY ? ' disabled' : '') + '><i class="fa fa-angle-up"></i></button>';
+      h += '<button title="' + esc(TLi18n.t('smv.moveDown')) + '" class="op" data-op="down" data-node="' + esc(r.id) + '"' + (last || BUSY ? ' disabled' : '') + '><i class="fa fa-angle-down"></i></button>';
+      h += '<button title="' + esc(TLi18n.t('smv.moveTo')) + '" class="op wide" data-op="moveTo" data-node="' + esc(r.id) + '"' + (BUSY ? ' disabled' : '') + '>' + esc(TLi18n.t('smv.moveToShort')) + '</button>';
+    }
     h += '<button title="' + esc(TLi18n.t('smv.openContainer')) + '" class="op" data-op="open" data-node="' + esc(r.id) + '"' + (BUSY ? ' disabled' : '') + '><i class="fa fa-folder-open"></i></button>';
     h += '</td></tr>';
   });
   $('#rows').html(h);
   $('#emptyMsg').toggle(ROWS.length === 0);
   $('#countChip').text(fill('smv.subSuiteCount', { count: ROWS.length }));
+  $('#noRightMsg').toggle(!CAN_MODIFY);
 }
 
 function renderModalDest(nodeId) {
@@ -465,6 +472,7 @@ function load(quiet) {
     CONTAINER_ID = r.container ? r.container.id : TPROJECT_ID;
     ALL_SUITES = r.all_suites || [];
     ROWS = r.suites || [];
+    CAN_MODIFY = r.context.can_modify === 'yes';
     $('#mbProject').text(r.context.tproject_name + ' (' + r.context.prefix + ')');
     $('#mbContainer').text((r.container && r.container.root)
       ? TLi18n.t('smv.projectRoot')

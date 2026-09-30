@@ -5746,5 +5746,6 @@
   "smv.stNoContextMsg": "Abra este ecrã a partir de um projeto de teste ou indique o id do projeto de teste.",
   "smv.stError": "Erro",
   "smv.stErrorMsg": "Não foi possível carregar a árvore de suites de teste.",
-  "footers.suiteMove": "TestLink 2.0.1 - Mover / reordenar suites de teste"
+  "footers.suiteMove": "TestLink 2.0.1 - Mover / reordenar suites de teste",
+  "smv.noModifyRight": "Você pode ver esta ordem mas não pode alterá-la."
 }

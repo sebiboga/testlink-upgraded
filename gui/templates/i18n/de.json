@@ -5740,5 +5740,6 @@
   "smv.stNoContextMsg": "Öffnen Sie diesen Bildschirm aus einem Testprojekt oder übergeben Sie eine Testprojekt-ID.",
   "smv.stError": "Fehler",
   "smv.stErrorMsg": "Der Testsuite-Baum konnte nicht geladen werden.",
-  "footers.suiteMove": "TestLink 2.0.1 - Testsuite verschieben / neu sortieren"
+  "footers.suiteMove": "TestLink 2.0.1 - Testsuite verschieben / neu sortieren",
+  "smv.noModifyRight": "Sie können diese Reihenfolge sehen, aber nicht ändern."
 }

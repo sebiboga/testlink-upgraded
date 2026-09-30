@@ -5756,5 +5756,6 @@
   "smv.stNoContextMsg": "Open this screen from a test project or pass a test project id.",
   "smv.stError": "Error",
   "smv.stErrorMsg": "The test suite tree could not be loaded.",
-  "footers.suiteMove": "TestLink 2.0.1 - Move / Reorder Test Suites"
+  "footers.suiteMove": "TestLink 2.0.1 - Move / Reorder Test Suites",
+  "smv.noModifyRight": "You can see this order but you cannot change it."
 }
