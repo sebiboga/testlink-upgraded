@@ -49,6 +49,13 @@ table.steps tbody td { padding: 9px 12px; border-bottom: 1px solid #eee; vertica
 table.steps tbody tr:nth-child(even) { background: #fafafa; }
 .step-num { font-weight: 700; color: #2d8e88; width: 60px; }
 .chip { display: inline-block; background: #eefaf9; color: #2d8e88; border: 1px solid #bfe5e2; border-radius: 12px; padding: 3px 12px; font-size: 12px; font-weight: 600; margin: 0 6px 6px 0; }
+.chip-with-x { display: inline-flex; align-items: center; margin: 0 6px 6px 0; }
+.chip-with-x .chip { margin: 0; }
+.chip-x { background: none; border: none; color: #b94a48; cursor: pointer; font-size: 12px; padding: 0 0 0 6px; line-height: 1; }
+.chip-x:hover { color: #e6605e; }
+.field-label a { color: #2d8e88; text-decoration: none; }
+.field-label a:hover { text-decoration: underline; }
+.field-label a i { font-size: 10px; }
 .kv-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .kv-table td { padding: 6px 10px; border-bottom: 1px solid #f0f0f0; vertical-align: top; }
 .kv-table td:first-child { font-weight: 700; color: #555; width: 240px; }
@@ -157,6 +164,33 @@ table.steps tbody tr:nth-child(even) { background: #fafafa; }
     <div class="modal-foot">
       <button class="btn-dark btn-sm" onclick="$('#assignReqsModal').hide()"><span data-i18n="tspec.cancel">Cancel</span></button>
       <button class="btn-teal btn-sm" onclick="$('#assignReqsModal').hide()"><i class="fa fa-check"></i> <span data-i18n="rpt.close">Close</span></button>
+    </div>
+  </div>
+</div>
+
+<!-- unassign platform confirmation (legacy platforms.inc.tpl remove_plat_msgbox) -->
+<div class="modal-overlay" id="rmPlatModal">
+  <div class="modal-box" style="width:440px;max-width:96vw;">
+    <div class="modal-head"><i class="fa fa-trash"></i> <span id="rmPlatTitle">Remove platform</span></div>
+    <div class="modal-body"><p id="rmPlatMsg" style="margin:0;font-size:13px;color:#333;"></p></div>
+    <div class="modal-foot">
+      <button class="btn-dark btn-sm" onclick="$('#rmPlatModal').hide()"><span data-i18n="tspec.cancel">Cancel</span></button>
+      <button class="btn-red btn-sm" onclick="doRemovePlatform()"><i class="fa fa-trash"></i> <span data-i18n="tcview.platformRemoveBtn">Remove</span></button>
+    </div>
+  </div>
+</div>
+
+<!-- assign platforms (legacy platforms.inc.tpl free_platforms[] + Add) -->
+<div class="modal-overlay" id="addPlatModal">
+  <div class="modal-box" style="width:460px;max-width:96vw;">
+    <div class="modal-head"><i class="fa fa-plus"></i> <span data-i18n="tcview.platformAddTitle">Add platforms</span></div>
+    <div class="modal-body">
+      <div class="field-label" data-i18n="tcview.platformSelectLabel">Free platforms:</div>
+      <select id="addPlatSel" multiple class="reqassign-msel" style="height:200px;"></select>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-dark btn-sm" onclick="$('#addPlatModal').hide()"><span data-i18n="tspec.cancel">Cancel</span></button>
+      <button class="btn-teal btn-sm" onclick="doAddPlatforms()"><i class="fa fa-plus"></i> <span data-i18n="tcview.platformAddBtn">Add</span></button>
     </div>
   </div>
 </div>
@@ -451,15 +485,38 @@ function renderVersion(v) {
       + '</div>';
   }
 
-  // platforms assigned to this version (gap #915; legacy platforms.inc.tpl)
+  // Platforms — full port of legacy platforms.inc.tpl (issue #1037):
+  //   label links to Platform Management (granted platform_management),
+  //   per-platform unassign icon + confirm box (canAssignPlatforms),
+  //   free-platform multi-select + Add button (canAssignPlatforms and a
+  //   non-empty platformsFree list), exactly like the legacy include which
+  //   tcView_viewer.tpl renders once per version with
+  //   args_edit_enabled = platRW / args_frozen_version.
   if (v.platforms !== undefined) {
-    h += '<div class="field-label">' + esc(TLi18n.t('tcview.platforms')) + '</div>';
+    var platCanEdit = !!v.canAssignPlatforms;
+    var platFree = v.platformsFree || {};
+    var platFreeKeys = Object.keys(platFree);
+    h += '<div class="field-label">' + platformMgmtLabelHtml() + '</div>';
     if (v.platforms && v.platforms.length) {
       h += '<div>' + v.platforms.map(function (p) {
-        return '<span class="chip">' + esc(p.name) + '</span>';
+        var one = '<span class="chip">' + esc(p.name) + '</span>';
+        if (!platCanEdit) { return one; }
+        return '<span class="chip-with-x">'
+          + one
+          + '<button class="chip-x" title="' + esc(TLi18n.t('tcview.platformRemoveTitle')) + '"'
+          + ' onclick="confirmRemovePlatform(' + parseInt(v.tcversion_id, 10) + ','
+          + parseInt(p.id, 10) + ','
+          + parseInt(p.tcplat_link, 10) + ",'" + esc(p.name).replace(/'/g, "\\'") + "')"
+          + '><i class="fa fa-times"></i></button></span>';
       }).join('') + '</div>';
     } else {
       h += '<span class="none-text">' + esc(TLi18n.t('tcview.none')) + '</span>';
+    }
+    // legacy: {if $addEnabled && null != $gui->currentVersionFreePlatforms}
+    if (platCanEdit && platFreeKeys.length) {
+      h += '<div style="margin-top:8px;">'
+        + '<button class="btn btn-sm btn-teal" onclick="openPlatformAdd(' + parseInt(v.tcversion_id, 10) + ')">'
+        + '<i class="fa fa-plus"></i> ' + esc(TLi18n.t('tcview.platformAddBtn')) + '</button></div>';
     }
   }
 
@@ -509,6 +566,117 @@ function renderVersion(v) {
 
 function metaItem(label, value) {
   return '<div class="meta-item">' + esc(label) + '<b>' + esc(value === '' || value == null ? '-' : value) + '</b></div>';
+}
+
+/* ============ Platforms (issue #1037) ============
+   Modern port of lib/testcases/tcEdit.php + dashio/testcases/include/
+   platforms.inc.tpl as rendered by tcView_viewer.tpl per version. */
+
+/* Legacy platforms.inc.tpl puts a link to Platform Management on the
+   "Platforms:" label. The legacy controller gated the target screen on
+   hasRightOnProj("platform_management"), which the BFF now exposes as
+   grants.platform_management. */
+function platformMgmtLabelHtml() {
+  var label = esc(TLi18n.t('tcview.platforms'));
+  if (data && data.grants && data.grants.platform_management && data.platformsMgmtUrl) {
+    return '<a href="' + esc(data.platformsMgmtUrl) + '" target="_blank" title="'
+      + esc(TLi18n.t('tcview.platformMgmtTitle')) + '">' + label
+      + ' <i class="fa fa-external-link"></i></a>';
+  }
+  return label;
+}
+
+function findPlatformVersion(tcversionId) {
+  var vid = parseInt(tcversionId, 10) || 0;
+  var found = null;
+  (data.versions || []).forEach(function (v) {
+    if (parseInt(v.tcversion_id, 10) === vid) { found = v; }
+  });
+  return found;
+}
+
+/* legacy platform_remove_confirmation(): Ext.Msg.confirm(title, msg) with
+   %i replaced by the platform name. */
+function confirmRemovePlatform(tcversionId, platformId, tcplatLinkId, platformName) {
+  var msg = String(TLi18n.t('tcview.platformRemoveMsg')).replace('%i', platformName);
+  $('#rmPlatTitle').text(TLi18n.t('tcview.platformRemoveTitle'));
+  $('#rmPlatMsg').text(msg);
+  $('#rmPlatModal').data('tcversionId', parseInt(tcversionId, 10) || 0)
+    .data('platformId', parseInt(platformId, 10) || 0)
+    .data('tcplatLinkId', parseInt(tcplatLinkId, 10) || 0)
+    .css('display', 'flex');
+}
+
+function doRemovePlatform() {
+  var $m = $('#rmPlatModal');
+  var body = { tcase_id: parseInt(data.tcase.id, 10), tcversion_id: $m.data('tcversionId') };
+  if ($m.data('platformId')) { body.platform_id = $m.data('platformId'); }
+  else { body.tcplat_link_id = $m.data('tcplatLinkId'); }
+  $m.hide();
+  platApiPost('remove_platform', body, function (d) {
+    if (!d || d.status !== 'ok') { toast(TLi18n.t('tcview.platformRemoveFailed'), true); return; }
+    toast(TLi18n.t('tcview.platformRemoveDone'));
+    platRefreshMain();
+  });
+}
+
+/* legacy free_platforms[] multi-select + "Add" submit. */
+function openPlatformAdd(tcversionId) {
+  var v = findPlatformVersion(tcversionId);
+  if (!v) { return; }
+  var free = v.platformsFree || {};
+  var keys = Object.keys(free);
+  var $m = $('#addPlatModal').data('tcversionId', parseInt(tcversionId, 10) || 0);
+  var $sel = $('#addPlatSel').empty();
+  if (!keys.length) {
+    $sel.append($('<option disabled>').text(TLi18n.t('tcview.platformNoFree')));
+    $m.find('.btn-teal').prop('disabled', true);
+  } else {
+    keys.forEach(function (pid) { $sel.append($('<option>').val(pid).text(free[pid])); });
+    $m.find('.btn-teal').prop('disabled', false);
+  }
+  $m.css('display', 'flex');
+}
+
+function doAddPlatforms() {
+  var $m = $('#addPlatModal');
+  var ids = ($('#addPlatSel').val() || []).map(Number).filter(function (n) { return n > 0; });
+  if (!ids.length) { toast(TLi18n.t('tcview.platformSelectOne'), true); return; }
+  platApiPost('add_platform', {
+    tcase_id: parseInt(data.tcase.id, 10),
+    tcversion_id: $m.data('tcversionId'),
+    platforms: ids
+  }, function (d) {
+    if (!d || d.status !== 'ok') { toast(TLi18n.t('tcview.platformAddFailed'), true); return; }
+    toast(TLi18n.t('tcview.platformAddDone'));
+    $m.hide();
+    platRefreshMain();
+  });
+}
+
+function platApiPost(action, body, cb) {
+  $.ajax({
+    url: '/api/testcases/index.php', method: 'POST', contentType: 'application/json',
+    data: JSON.stringify(body)
+  }).done(function (d) { cb(d); }).fail(function (xhr) {
+    var msg = null;
+    try { msg = JSON.parse(xhr.responseText).message || null; } catch (e) {}
+    cb(msg ? { status: 'error', message: msg } : null);
+  });
+}
+
+/* Same re-read pattern as arqRefreshMain(): re-fetch the view payload and
+   re-render, so the chips reflect the DB state after assign / unassign. */
+function platRefreshMain() {
+  $.get('/api/testcases/index.php', { action: 'view', tcase_id: parseInt(data.tcase.id, 10) })
+    .done(function (r) {
+      if (r && r.status === 'ok') {
+        data = r;
+        canManageKeywords = !!(data.grants && data.grants.mgt_modify_key && data.grants.mgt_view_key);
+        canReorderSteps = !!(data.grants && data.grants.mgt_modify_tc);
+        render();
+      }
+    });
 }
 
 function renderRelations() {
