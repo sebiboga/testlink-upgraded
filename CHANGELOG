@@ -2677,6 +2677,31 @@ NEW FEATURES
 
 KEY BUGFIX / COMPATIBILITY EFFORTS (selection)
 ----------------------------------------------
+- [KEY BUGFIX] - #1635: the vendored `third_party/phpxmlrpc/lib/xmlrpc.inc` (Trac XML-RPC
+  issue-tracker transport) could not even be **compiled** on PHP 8: `$temp =& new xmlrpcval(...)`
+  at `:554` assigns the result of `new` by reference, removed in PHP 7, so every request that
+  transitively loaded it died with a compile-time `ParseError` -> **HTTP 500 with a 0-byte body
+  and NO Event Viewer row** (a fatal never reaches `tLog()`). Measured blast radius, wider than
+  the report: not only the *Check connection* wrench
+  (`GET /api/issuetracker/index.php/{id}/check-connection`) and the modal *Check Connection*
+  button, but the **Issue Trackers Management grid itself** (`GET /api/issuetracker/index.php`,
+  because `tlIssueTracker::getAll()` resolves every row's implementation) rendered completely
+  EMPTY as soon as one Trac/XML-RPC tracker existed, as did `GET /cfg-template?type=19`. Two
+  stacked PHP-8 removals, one root cause (a PHP-4 era vendored library): the report's line 554
+  was only the **first of 47** `=& new` sites (`php -l` stops at the first), and the 4
+  PHP-4-style constructors (`xmlrpc_client`/`xmlrpcmsg`/`xmlrpcresp`/`xmlrpcval`) are no longer
+  constructors, so `new xmlrpc_client($url)` silently returned an uninitialised object
+  (measured `path=NULL server=NULL port=0`; after the fix `path='/trac/xmlrpc' server='127.0.0.1'
+  port=9`). Fix: all 47 references dropped (object handles make `= new` equivalent) and the 4
+  constructors renamed to `__construct`; plus defence in depth in `api/issuetracker/index.php`,
+  where the autoloading `class_exists($impl)` probe sat **outside** the `try` and let the
+  ParseError escape - it now degrades to the route's existing logged 502 + Event Viewer ERROR
+  row (measured: library reverted, BFF patched -> 502 + `events` row 5). Regression suite 1635
+  in `tmp/TLU_Test_Cases.md`: 14 PASS / 0 FAIL / 1 known residual - the wire layer below the
+  client object still uses the removed `each()` (14 sites) and `split()` (1 site), so a real
+  `ticket.get` round-trip still fatals; that port, plus the fact that
+  `tracxmlrpcInterface::connect()` never probes the server and therefore answers
+  `connected:true` for an unreachable host, is filed as a follow-up issue (Refs #1635).
 - Reorder Requirements screen (`gui/templates/requirements/reqReorder.html`)
   linked Font Awesome from the Dashio-local copy
   (`/gui/templates/dashio/lib/font-awesome/css/all.min.css`), a FA 6 file that
