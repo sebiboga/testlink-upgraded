@@ -135,16 +135,16 @@ table.grid td.num { color: #888; white-space: nowrap; }
 <div class="loading-overlay" id="loadingOverlay"><i class="fa fa-spinner fa-spin"></i> <span id="loadingText" data-i18n="tmvc.loading">Loading...</span></div>
 <div class="toast" id="toast"></div>
 
-<div class="modal fade" id="confirmModal" tabindex="-1" role="dialog" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered" role="document">
+<div class="modal fade" id="confirmModal" tabindex="-1" role="dialog" aria-labelledby="cmTitle" aria-hidden="true">
+  <div class="modal-dialog" role="document">
     <div class="modal-content">
-      <div class="modal-header" style="background:#22242a; color:#fff">
-        <h5 class="modal-title" id="cmTitle">-</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      <div class="modal-header" style="background:#22242a; color:#fff; border-radius:0">
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close" style="color:#fff; opacity:.9"><span aria-hidden="true">&times;</span></button>
+        <h4 class="modal-title" id="cmTitle" style="color:#fff; font-size:16px; font-weight:700">-</h4>
       </div>
       <div class="modal-body" id="cmBody" style="font-size:13px; color:#333"></div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-dark" data-bs-dismiss="modal" id="cmCancel" data-i18n="tmvc.cancel">Cancel</button>
+      <div class="modal-footer" style="border-top:1px solid #eee">
+        <button type="button" class="btn btn-dark" data-dismiss="modal" id="cmCancel" data-i18n="tmvc.cancel">Cancel</button>
         <button type="button" class="btn btn-teal" id="cmOk" data-i18n="tmvc.confirm">Confirm</button>
       </div>
     </div>
@@ -169,17 +169,24 @@ var ctx = {
 
 var ACTION_LABEL = { move: 'move', copy: 'copy', copy_ghost: 'copyGhost' };
 
+// URLSearchParams, not a hand-rolled regex: the legacy shim hands the
+// selection over as tcase_ids[] and a regex character class ('[?&]tcase_ids[]=')
+// silently never matched, so the pre-selection was lost.
 function qs(name) {
-  var m = new RegExp('[?&]' + name + '=([^&]*)').exec(window.location.search);
-  return m ? decodeURIComponent(m[1].replace(/\+/g, ' ')) : '';
+  return new URLSearchParams(window.location.search).get(name) || '';
 }
 
+// PHP's http_build_query() encodes an array as tcase_ids[0], tcase_ids[1]...
+// so the incoming keys are normalized by dropping the [n] suffix before
+// comparing - matching only the literal 'tcase_ids[]' silently loses the
+// selection the legacy form submitted.
 function qsAll(name) {
-  var out = [], rx = new RegExp('[?&]' + name + '=([^&]*)', 'g'), m;
-  while ((m = rx.exec(window.location.search)) !== null) {
-    var v = parseInt(decodeURIComponent(m[1]), 10);
-    if (v > 0) out.push(v);
-  }
+  var out = [];
+  new URLSearchParams(window.location.search).forEach(function (val, key) {
+    if (key.replace(/\[.*\]$/, '') !== name.replace(/\[.*\]$/, '')) { return; }
+    var n = parseInt(val, 10);
+    if (n > 0) { out.push(n); }
+  });
   return out;
 }
 
@@ -257,7 +264,7 @@ $(function () {
   $('#btnGhost').on('click', function () { ask('copy_ghost'); });
   $('#cmOk').on('click', function () {
     var action = ctx.pending;
-    bootstrap.Modal.getInstance(document.getElementById('confirmModal')).hide();
+    $('#confirmModal').modal('hide');
     if (action) run(action);
   });
 });
@@ -271,19 +278,14 @@ function boot() {
   if (ctx.legacyAction) {
     $('#legacyBox').html('<i class="fa fa-info-circle"></i> ' + esc(TLi18n.t('tmvc.legacyNotice')))
       .show();
-    if (ctx.legacyCases.length) {
-      $('input.tmvcChk').each(function () {
-        if (ctx.legacyCases.indexOf(parseInt(this.value, 10)) >= 0) {
-          this.checked = true;
-          $(this).closest('tr').addClass('selected');
-        }
-      });
-    }
   }
   load();
 }
 
-function load() {
+// afterCb runs in .always(), i.e. AFTER the boxes have been reset for the
+// reload - showing the success banner before the reload made load() hide it
+// again, so a successful move/copy was silently swallowed.
+function load(afterCb) {
   $('#errBox, #okBox').hide();
   $('#loadingOverlay').show();
   var params = { action: 'init', suite_id: ctx.suiteId };
@@ -303,7 +305,10 @@ function load() {
       showErr(errMessage(r && r.code, r && r.message, 'tmvc.errLoad'));
       lock();
     })
-    .always(function () { $('#loadingOverlay').hide(); });
+    .always(function () {
+      $('#loadingOverlay').hide();
+      if (typeof afterCb === 'function') afterCb();
+    });
 }
 
 function render() {
@@ -344,16 +349,23 @@ function render() {
     $b.append($tr);
   });
 
+  // Legacy deep link: restore the selection the old form had submitted. This
+  // has to happen here, not before the init call, because the checkboxes only
+  // exist once the rows above are built.
+  if (ctx.legacyCases.length) {
+    $('input.tmvcChk').each(function () {
+      if (ctx.legacyCases.indexOf(parseInt(this.value, 10)) >= 0) {
+        this.checked = true;
+        $(this).closest('tr').addClass('selected');
+      }
+    });
+    ctx.legacyCases = [];
+  }
+
   var isEmpty = rows.length === 0;
   $('#tcTable').toggle(!isEmpty);
   $('#emptyBox').toggle(isEmpty);
-
-  if (ctx.legacyAction && ACTION_LABEL[ctx.legacyAction]) {
-    $('#btn' + ({ move: 'Move', copy: 'Copy', copy_ghost: 'Ghost' })[ctx.legacyAction])
-      .addClass('pulse');
-  }
   syncButtons();
-  if (!isEmpty && ctx.legacyCases.length) { syncButtons(); }
 }
 
 function showErr(msg) { $('#errBox').html('<i class="fa fa-exclamation-triangle"></i> ' + esc(msg)).show(); }
@@ -384,7 +396,7 @@ function ask(action) {
       ? '<div class="msgbox info" style="display:block; margin:10px 0 0"><i class="fa fa-clone"></i> ' +
         esc(TLi18n.t('tmvc.ghostHint')) + '</div>'
       : ''));
-  new bootstrap.Modal(document.getElementById('confirmModal')).show();
+  $('#confirmModal').modal('show');
 }
 
 function run(action) {
@@ -405,9 +417,10 @@ function run(action) {
     .done(function (r) {
       if (r.status !== 'ok') { showErr(errMessage(r.code, r.message)); return; }
       var n = (action === 'move') ? r.moved : r.copied;
-      showOk(TLi18n.t(action === 'move' ? 'tmvc.moveDone' : (action === 'copy_ghost' ? 'tmvc.copyGhostDone' : 'tmvc.copyDone'), { n: n }));
+      var msg = TLi18n.t(action === 'move' ? 'tmvc.moveDone'
+        : (action === 'copy_ghost' ? 'tmvc.copyGhostDone' : 'tmvc.copyDone'), { n: n });
       ctx.legacyCases = [];
-      load();
+      load(function () { showOk(msg); });
     })
     .fail(function (xhr) {
       var r = null;
