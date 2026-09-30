@@ -7947,3 +7947,17 @@ Changes:
     `plugins` table returns to 0 rows; `mgt_plugins` 403 for a role without it
     (temporary fixtures, removed afterwards); legacy 404, modern 200; `php -l`
     clean; console clean on a fresh load. (Refs #984)
+
+### Gap closed — User & Role Management: an expired session was served AND written by `api/users/index.php`, and neither screen bounced the 401 (Fixes #1760)
+- `api/users/index.php` never called `bffEnforceSession()` (unlike `api/roles/index.php:40`), so a
+  session idle past `sessionInactivityTimeout` kept getting `200` + the user catalog — and could
+  still create users (measured: a stale session wrote user `id=2`). One call, placed after the
+  `userID` gate and before any route dispatch, now answers
+  `401 {"code":"session_expired"}` on all 12 routes.
+- `usersView.html` (12 request paths) and `rolesView.html` (8) port the proven
+  `sessionExpired()` / `showSessionExpired()` / `sessionDead` helper set from the assign-roles
+  screens: a 401 now shows the localized `auth.sessionExpired` toast and bounces `window.top` to
+  `login.php?note=expired`, instead of the "mgt_users / role_management right required" deny box, a
+  silent swallow, a false "write failed" message, or an armed delete-confirm dialog. Status-keyed,
+  so the code-less `401 Not authenticated` of an absent session is handled too; 403 handling and
+  all `200` paths unchanged. (Fixes #1760)
