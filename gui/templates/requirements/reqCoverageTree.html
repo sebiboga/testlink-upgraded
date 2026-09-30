@@ -36,6 +36,8 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 .meta b { display: block; color: #999; font-size: 10px; text-transform: uppercase; letter-spacing: .6px; font-weight: 700; }
 .meta span.v { color: #22242a; font-size: 13px; font-weight: 600; }
 .chip { background: #22242a; color: #4ECDC4; padding: 3px 10px; border-radius: 3px; font-weight: 700; font-size: 12px; }
+.chip.warn { background: #3a2a12; color: #FFB74D; }
+.chip + .chip { margin-left: 6px; }
 .chip.gray { background: #eceff1; color: #607d8b; }
 .tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
 .tile { border: 1px solid #eee; border-radius: 6px; padding: 12px 14px; background: #fcfcfc; }
@@ -105,7 +107,7 @@ table.cov tr.dead td { color: #9aa4ad; }
 <div class="state-card" id="stateCard" style="display:none;"><i class="fa fa-exclamation-triangle"></i><p id="stateText"></p></div>
 
 <div class="card" id="ctxCard">
-  <div class="card-title"><i class="fa fa-info-circle"></i> <span data-i18n="covt.context">Context</span><span id="reqsChip" class="chip"></span></div>
+  <div class="card-title"><i class="fa fa-info-circle"></i> <span data-i18n="covt.context">Context</span><span id="reqsChip" class="chip"></span><span id="rmChip" class="chip"></span></div>
   <div class="card-body">
     <div class="grid2">
       <div>
@@ -186,7 +188,8 @@ var NODES = [];
 var CACHE = {};
 var EXPANDED = {};
 var GRANT = { view: false, modify: false };
-var CTX = { name: '', prefix: '', totals: { specifications: 0, requirements: 0, covered: 0, uncovered: 0 } };
+var CTX = { name: '', prefix: '', totals: { specifications: 0, requirements: 0, covered: 0, uncovered: 0 },
+            user: '', reqsOn: 1, reqMgrOn: 0, hasContainers: false };
 var SELECTED_REQ = 0;
 var ONLY_UNCOVERED = false;
 
@@ -198,7 +201,12 @@ $(function () {
     $('#refreshBtn').off('click').on('click', function () { load(true); });
     $('#expandAllBtn').off('click').on('click', function () { setAll(true); });
     $('#collapseAllBtn').off('click').on('click', function () { setAll(false); });
-    $('#covClose').off('click').on('click', function () { $('#covCard').css('display', 'none'); SELECTED_REQ = 0; renderTree(); });
+    $('#covClose').off('click').on('click', function () {
+      SELECTED_REQ = 0;
+      COV_SEQ++;
+      $('#covCard').css('display', 'none');
+      renderTree();
+    });
     $('#onlyUncovered').off('change').on('change', function () {
       ONLY_UNCOVERED = !!this.checked;
       renderTree();
@@ -208,6 +216,7 @@ $(function () {
       CACHE = {};
       EXPANDED = {};
       SELECTED_REQ = 0;
+      COV_SEQ++;
       $('#covCard').css('display', 'none');
       try {
         var u = new URL(location.href);
@@ -223,8 +232,8 @@ $(function () {
     $('#tree').off('click', '[data-toggle]').on('click', '[data-toggle]', function () {
       toggle(parseInt($(this).attr('data-toggle'), 10));
     });
-    $('#tree').off('click', '[data-cov]').on('click', '[data-cov]', function () {
-      showCoverage(parseInt($(this).attr('data-cov'), 10));
+    $('#tree').off('click', '[data-cov],[data-cov-btn]').on('click', '[data-cov],[data-cov-btn]', function () {
+      showCoverage(parseInt($(this).attr('data-cov') || $(this).attr('data-cov-btn'), 10));
     });
     $('#tree').off('click', '[data-open-spec]').on('click', '[data-open-spec]', function (e) {
       e.stopPropagation();
@@ -284,8 +293,9 @@ function idleUI() {
   $('#onlyUncovered').prop('disabled', DEAD);
   $('#assignLink,#reorderLink').toggleClass('disabled', DEAD || !GRANT.modify);
   $('#roBanner').toggleClass('show', !DEAD && GRANT.view && !GRANT.modify);
-  var hasContainers = NODES.some(function (n) { return n.kind === 'container'; });
-  $('#containerNote').toggleClass('show', !DEAD && hasContainers);
+  // Containers hang below a SPECIFICATION, so they never show up in the top
+  // level node list: the BFF flag is the only reliable source.
+  $('#containerNote').toggleClass('show', !DEAD && !!CTX.hasContainers);
 }
 
 /* ------------------------------------------------------------- projects --- */
@@ -305,7 +315,8 @@ function loadProjects() {
     },
     error: function (xhr) {
       if (xhr.status === 401) { window.location.href = '/login.php?note=expired'; return; }
-      showState(t('covt.projectsFail'), 'http_' + xhr.status, 'unlock-alt');
+      var p = errorPayload(xhr);
+      showState(t('covt.projectsFail'), (p && p.code) || 'http_' + xhr.status, 'unlock-alt');
     }
   });
 }
@@ -331,6 +342,7 @@ function load(force) {
     CACHE = {};
     EXPANDED = {};
     SELECTED_REQ = 0;
+    COV_SEQ++;
     $('#covCard').css('display', 'none');
   }
   $('#tree').empty();
@@ -343,7 +355,9 @@ function load(force) {
       if (r && r.status === 'ok') {
         hideState();
         CTX = { name: r.project.name, prefix: r.project.prefix,
-                totals: r.totals, user: r.user || '' };
+                totals: r.totals, user: r.user || '',
+                reqsOn: r.project.req_enabled, reqMgrOn: r.project.req_mgr_enabled,
+                hasContainers: !!r.has_containers };
         GRANT = r.rights || { view: false, modify: false };
         NODES = r.nodes || [];
         EXPANDED['p' + TPROJECT_ID] = true;
@@ -362,11 +376,32 @@ function load(force) {
   });
 }
 
+/**
+ * jQuery routes every 4xx/5xx to the `error` callback, so the BFF's machine
+ * code - which is what makes the state card honest (403 must read "not
+ * authorized", not "server error") - has to be recovered from the body.
+ */
+function errorPayload(xhr) {
+  if (!xhr) { return null; }
+  if (xhr.responseJSON && xhr.responseJSON.code) { return xhr.responseJSON; }
+  try {
+    var parsed = JSON.parse(xhr.responseText);
+    if (parsed && parsed.code) { return parsed; }
+  } catch (e) {}
+  return null;
+}
+
 /** Map a BFF error payload / HTTP status onto a localized state card. */
 function handleError(r, xhr) {
+  if (!r) { r = errorPayload(xhr); }
   var code = r && r.code ? r.code : (xhr ? 'http_' + xhr.status : 'server_error');
   var status = xhr ? xhr.status : 0;
   var map = {
+    http_400: [400, 'exclamation-triangle', 'covt.badRequest'],
+    http_401: [401, 'user-lock', 'covt.sessionExpired'],
+    http_403: [403, 'ban', 'covt.noRights'],
+    http_404: [404, 'folder-open', 'covt.notFound'],
+    http_405: [405, 'exclamation-triangle', 'covt.badRequest'],
     not_authenticated: [401, 'user-lock', 'covt.sessionExpired'],
     no_right_req_view: [403, 'ban', 'covt.noRights'],
     unknown_project: [404, 'folder-open', 'covt.notFound'],
@@ -386,6 +421,15 @@ function handleError(r, xhr) {
 }
 
 function renderMeta() {
+  // The BFF already reports both project options; show them so the tree can
+  // explain up-front why a project is (or is not) covered.
+  var rc = $('#reqsChip');
+  if (CTX.reqsOn) {
+    rc.addClass('ok').removeClass('warn').text(t('covt.chip.reqsOn'));
+  } else {
+    rc.addClass('warn').removeClass('ok').text(t('covt.chip.reqsOff'));
+  }
+  $('#rmChip').text(CTX.reqMgrOn ? t('covt.chip.mgrOn') : t('covt.chip.mgrOff'));
   $('#mName').text(CTX.name || '-');
   $('#mPrefix').text(CTX.prefix || '-');
   $('#mSpecs').text(CTX.totals.specifications);
@@ -433,6 +477,9 @@ function renderNode(n) {
   var div = $('<div class="node">');
   var key = nodeKey(n.id);
   var isReq = n.kind === 'requirement';
+  // Must be computed before the twisty is drawn below (previously the twisty
+  // read a hoisted-but-unassigned `open`, so it always showed the plus icon).
+  var open = !!(n.kind !== 'requirement' && EXPANDED[key]);
 
   if (isReq) {
     div.addClass('req');
@@ -449,23 +496,23 @@ function renderNode(n) {
     if (n.doc_id) { $('<span class="ndoc">').text(n.doc_id + ':').appendTo(div); }
     $('<span class="ntitle">').text(n.text).appendTo(div);
     var btns = $('<span class="rowbtns">');
-    $('<button class="open">').attr('data-cov', n.id)
+    $('<button class="open">').attr('data-cov-btn', n.id)
       .html('<i class="fa fa-link"></i> ' + t('covt.coverage')).appendTo(btns);
     $('<button class="open ghost">').attr('data-open-req', n.id)
       .html('<i class="fa fa-external-link"></i> ' + t('covt.openReq')).appendTo(btns);
     btns.appendTo(div);
   } else {
     div.addClass(n.kind === 'container' ? 'cont' : 'spec');
-    var open = !!EXPANDED[key];
+    // FA6 spellings: fa-plus-square / fa-minus-square (not ...plussquare).
     $('<span class="twisty">').attr('data-toggle', n.id)
-      .html('<i class="fa fa-' + (open ? 'minus' : 'plus') + 'square"></i>').appendTo(div);
+      .html('<i class="fa fa-' + (open ? 'minus-square' : 'plus-square') + '"></i>').appendTo(div);
     $('<i class="ico fa fa-' + (n.kind === 'container' ? 'sitemap' : 'folder') + '">').appendTo(div);
     if (n.doc_id) { $('<span class="ndoc">').text(n.doc_id + ':').appendTo(div); }
     $('<span class="ntitle">').text(n.doc_id ? n.text.substring(n.doc_id.length + 2) : n.text).appendTo(div);
     $('<span class="ncount">').text(t('covt.covCount', { c: n.covered_count, n: n.requirement_count })).appendTo(div);
     var b2 = $('<span class="rowbtns">');
     $('<button class="open ghost">').attr('data-open-spec', n.id)
-      .html('<i class="fa fa-file-text-o"></i> ' + t('covt.openSpec')).appendTo(b2);
+      .html('<i class="fa fa-file-text"></i> ' + t('covt.openSpec')).appendTo(b2);
     b2.appendTo(div);
   }
   li.append(div);
@@ -473,6 +520,10 @@ function renderNode(n) {
   if (isReq) {
     li.addClass('reqrow').attr('data-covered', n.covered_count || 0);
     if (ONLY_UNCOVERED && (n.covered_count || 0) > 0) { li.hide(); }
+  } else if (!open) {
+    // Collapsed: keep the cached payload (a re-expand is instant) but render no
+    // child rows, so the twisty icon and the visible shape always agree.
+    li.addClass('specrow');
   } else {
     li.addClass('specrow');
     if (entry && entry.loading) {
@@ -566,17 +617,29 @@ function loadChildren(nodeId) {
     },
     error: function (xhr) {
       if (xhr.status === 401) { window.location.href = '/login.php?note=expired'; return; }
-      CACHE[key] = { loading: false, loaded: true, children: [], error: 'http_' + xhr.status };
+      var cp = errorPayload(xhr);
+      var ccode = (cp && cp.code) || 'http_' + xhr.status;
+      CACHE[key] = { loading: false, loaded: true, children: [], error: ccode };
       renderTree();
+      if (ccode === 'no_right_req_view' || xhr.status === 403) {
+        showState(t('covt.noRights'), ccode, 'ban');
+        return;
+      }
       showMsg(false, t('covt.childrenFail'));
     }
   });
 }
 
 /* ------------------------------------------------------------- coverage --- */
+var COV_SEQ = 0;
+
 function showCoverage(reqId) {
   SELECTED_REQ = reqId;
   renderTree();
+  // Serialize: an answer that arrives after a NEWER request was fired must not
+  // overwrite the newer selection, and a double click must not append the same
+  // rows twice.
+  var seq = ++COV_SEQ;
   var body = $('#covBody').empty();
   $('#covName').text('-');
   $('#covDoc').text('-');
@@ -589,12 +652,16 @@ function showCoverage(reqId) {
     headers: { 'X-Requested-With': 'XMLHttpRequest' },
     success: function (r) {
       BUSY = false;
+      if (seq !== COV_SEQ) { return; }
       if (!r || r.status !== 'ok') {
         $('#covChip').text((r && r.code) || 'error');
         $('#covEmpty').show();
         return;
       }
       $('#covName').text(r.req_name || '-');
+      // NB: a requirement doc_id is already qualified (CVT-1); only the test
+      // case external_id below is a bare number that needs the prefix.
+      $('#covDoc').text(r.req_doc_id || '-');
       var first = null;
       (r.rows || []).forEach(function (row) {
         var tr = $('<tr>').toggleClass('dead', !row.active);
@@ -622,6 +689,7 @@ function showCoverage(reqId) {
     error: function (xhr) {
       BUSY = false;
       if (xhr.status === 401) { window.location.href = '/login.php?note=expired'; return; }
+      if (seq !== COV_SEQ) { return; }
       $('#covChip').text('http_' + xhr.status);
       $('#covEmpty').show();
     }

@@ -5825,5 +5825,9 @@
   "covt.projectsFail": "Nao foi possivel carregar a lista de projetos de teste.",
   "covt.childrenFail": "Nao foi possivel carregar os filhos deste no.",
   "covt.needModify": "Precisa do direito 'Modificar requisitos' neste projeto de teste para esta accao.",
-  "footers.reqCoverageTree": "TestLink 2.0.1 - Arvore de Cobertura de Requisitos"
+  "footers.reqCoverageTree": "TestLink 2.0.1 - Arvore de Cobertura de Requisitos",
+  "covt.chip.reqsOn": "Requisitos habilitados",
+  "covt.chip.reqsOff": "Requisitos desabilitados",
+  "covt.chip.mgrOn": "Integração habilitada",
+  "covt.chip.mgrOff": "Integração desabilitada"
 }

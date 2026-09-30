@@ -5829,5 +5829,9 @@
   "covt.projectsFail": "Lista proiectelor de test nu a putut fi incarcata.",
   "covt.childrenFail": "Copiii acestui nod nu au putut fi incarcati.",
   "covt.needModify": "Ai nevoie de dreptul 'Modifica cerintele' pe acest proiect de test pentru aceasta actiune.",
-  "footers.reqCoverageTree": "TestLink 2.0.1 - Arbore de Acoperire a Cerintelor"
+  "footers.reqCoverageTree": "TestLink 2.0.1 - Arbore de Acoperire a Cerintelor",
+  "covt.chip.reqsOn": "Cerințe activate",
+  "covt.chip.reqsOff": "Cerințe dezactivate",
+  "covt.chip.mgrOn": "Integrare activă",
+  "covt.chip.mgrOff": "Integrare dezactivată"
 }

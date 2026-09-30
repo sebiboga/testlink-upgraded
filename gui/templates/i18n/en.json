@@ -5835,5 +5835,9 @@
   "covt.projectsFail": "The list of test projects could not be loaded.",
   "covt.childrenFail": "The children of this node could not be loaded.",
   "covt.needModify": "You need the 'Modify requirements' right on this test project for this action.",
-  "footers.reqCoverageTree": "TestLink 2.0.1 - Requirement Coverage Tree"
+  "footers.reqCoverageTree": "TestLink 2.0.1 - Requirement Coverage Tree",
+  "covt.chip.reqsOn": "Requirements enabled",
+  "covt.chip.reqsOff": "Requirements disabled",
+  "covt.chip.mgrOn": "Integration enabled",
+  "covt.chip.mgrOff": "Integration off"
 }

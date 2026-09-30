@@ -5825,5 +5825,9 @@
   "covt.projectsFail": "テストプロジェクトの一覧を読み込めませんでした。",
   "covt.childrenFail": "このノードの子を読み込めませんでした。",
   "covt.needModify": "この操作にはこのテストプロジェクトの「要件を変更」権限が必要です。",
-  "footers.reqCoverageTree": "TestLink 2.0.1 - 要件カバレッジツリー"
+  "footers.reqCoverageTree": "TestLink 2.0.1 - 要件カバレッジツリー",
+  "covt.chip.reqsOn": "要件が有効",
+  "covt.chip.reqsOff": "要件が無効",
+  "covt.chip.mgrOn": "連携が有効",
+  "covt.chip.mgrOff": "連携が無効"
 }

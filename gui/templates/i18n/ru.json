@@ -5825,5 +5825,9 @@
   "covt.projectsFail": "Не удалось загрузить список тестовых проектов.",
   "covt.childrenFail": "Не удалось загрузить дочерние узлы.",
   "covt.needModify": "Для этого действия нужно право «Изменить требования» в этом тестовом проекте.",
-  "footers.reqCoverageTree": "TestLink 2.0.1 - Дерево покрытия требований"
+  "footers.reqCoverageTree": "TestLink 2.0.1 - Дерево покрытия требований",
+  "covt.chip.reqsOn": "Требования включены",
+  "covt.chip.reqsOff": "Требования отключены",
+  "covt.chip.mgrOn": "Интеграция включена",
+  "covt.chip.mgrOff": "Интеграция отключена"
 }

@@ -5819,5 +5819,9 @@
   "covt.projectsFail": "Die Liste der Testprojekte konnte nicht geladen werden.",
   "covt.childrenFail": "Die Kinder dieses Knotens konnten nicht geladen werden.",
   "covt.needModify": "Fuer diese Aktion benoetigst du das Recht 'Anforderungen aendern' in diesem Testprojekt.",
-  "footers.reqCoverageTree": "TestLink 2.0.1 - Anforderungs-Abdeckungsbaum"
+  "footers.reqCoverageTree": "TestLink 2.0.1 - Anforderungs-Abdeckungsbaum",
+  "covt.chip.reqsOn": "Anforderungen aktiviert",
+  "covt.chip.reqsOff": "Anforderungen deaktiviert",
+  "covt.chip.mgrOn": "Schnittstelle aktiv",
+  "covt.chip.mgrOff": "Schnittstelle aus"
 }

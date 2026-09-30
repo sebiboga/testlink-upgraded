@@ -5805,5 +5805,9 @@
   "covt.projectsFail": "无法加载测试项目列表。",
   "covt.childrenFail": "无法加载此节点的子节点。",
   "covt.needModify": "此操作需要该测试项目上的“修改需求”权限。",
-  "footers.reqCoverageTree": "TestLink 2.0.1 - 需求覆盖树"
+  "footers.reqCoverageTree": "TestLink 2.0.1 - 需求覆盖树",
+  "covt.chip.reqsOn": "需求已启用",
+  "covt.chip.reqsOff": "需求已禁用",
+  "covt.chip.mgrOn": "集成已启用",
+  "covt.chip.mgrOff": "集成已关闭"
 }

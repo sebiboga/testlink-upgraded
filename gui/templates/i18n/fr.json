@@ -5819,5 +5819,9 @@
   "covt.projectsFail": "La liste des projets de test n'a pas pu etre chargee.",
   "covt.childrenFail": "Les enfants de ce noeud n'ont pas pu etre charges.",
   "covt.needModify": "Vous avez besoin du droit 'Modifier les exigences' sur ce projet de test pour cette action.",
-  "footers.reqCoverageTree": "TestLink 2.0.1 - Arbre de Couverture des Exigences"
+  "footers.reqCoverageTree": "TestLink 2.0.1 - Arbre de Couverture des Exigences",
+  "covt.chip.reqsOn": "Exigences activées",
+  "covt.chip.reqsOff": "Exigences désactivées",
+  "covt.chip.mgrOn": "Intégration activée",
+  "covt.chip.mgrOff": "Intégration désactivée"
 }
