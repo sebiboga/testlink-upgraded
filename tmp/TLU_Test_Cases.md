@@ -1328,76 +1328,69 @@ the `loadUsers()` caller at line 510 passes no `keep` and still announces. Cases
 
 **Results — 2026-09-30, commits `0ed3cd422` + the code-review follow-up, branch `fix/issue-1733`, app on `http://localhost:8082`: 14/14 PASS** (cases 85-95 re-executed after the follow-up: primary case 0 calls with a default state, 1 call with a non-default state, console clean, `events` max id unchanged at 18).
 
-## Suite 1034 — Task: group-by-Requirement-Specification + ExtGrid toolbar in `reqOverview` (Refs #1034)
+## Regression — Issue #1629: `tlReqMgrSystem::getInterfaceObject()` — third unguarded `new` + `catch(Exception)` that cannot catch a PHP 8 `Error`
 
-**Feature ported** — legacy `lib/requirements/reqOverview.php:282` (`setGroupByColumnName(req_spec_short)`),
-`:286-294` (default sort, `showToolbar`, `toolbarExpandCollapseGroupsButton`,
-`toolbarShowAllColumnsButton`, `toolbarRefreshButton`, `showGroupItemsCount`) and
-`lib/functions/exttable.class.php:55,104,109,119,591` (`hideGroupedColumn=true`, the three toolbar
-buttons, `groupTextTpl: '{text} ({[values.rs.length]} {[... "Items" : "Item"]})'`) into
-`gui/templates/requirements/reqOverview.html` (DataTables RowGroup + dark grid toolbar).
-Side fix: #1734 (`#tableWrap` was never shown → the grid was invisible).
+**Precondition** (the DB is freshly imported and ships with **zero** test projects, which is
+why the original report could not exercise the path — the harness creates the fixture itself):
 
-**Precondition** — fixture `php tmp/fixtures_1034.php` (idempotent):
-* tproject `OV1034` = `tproject_id 1`, prefix `OV34`, requirements enabled
-* specs: `REQOV-A` "System Requirements" (3 reqs), `REQOV-A1` "Nested Requirements"
-  (child of A, 1 req), `REQOV-B` "Interface Requirements" (2 reqs),
-  `REQOV-C` "Performance Requirements" (1 req) → **4 group headers, 7 requirement rows**
-* `tproject_id 24` (`OV1034EMPTY`) — project with requirements enabled but zero requirements
+```bash
+# 1. test project through the modernized BFF (creates nodes_hierarchy + testprojects)
+curl -s -c /tmp/c -b /tmp/c -H "Origin: http://localhost:8082" -H "Referer: http://localhost:8082/login.php" \
+     -d "login=admin&password=admin" http://localhost:8082/api/auth/login
+curl -s -b /tmp/c -H "Referer: http://localhost:8082/" -H "Content-Type: application/json" \
+     -H "Origin: http://localhost:8082" -X POST \
+     -d '{"name":"TLU1629","prefix":"P1629"}' http://localhost:8082/api/projects/index.php
+# 2. a ReqMgr system of type 1 (contour) -> implementation "contoursoapInterface", not shipped
+mysql -h 127.0.0.1 -utestlink -ptestlink testlink \
+  -e "INSERT INTO reqmgrsystems (name,type,cfg) VALUES ('TLU1629 Contour',1,'{}');
+      INSERT INTO testproject_reqmgrsystem (testproject_id,reqmgrsystem_id) VALUES (1,<rid>);
+      UPDATE testprojects SET reqmgr_integration_enabled=1 WHERE id=1;"
+# 3. prime $_SESSION['testprojectID'] — the legacy screens read the project from the SESSION
+#    (reqSpecEdit.php:79), not from the query string
+curl -s -b /tmp/c "http://localhost:8082/index.php?tproject_id=1"
+```
 
-**Entry point** — `http://localhost:8082/gui/templates/requirements/reqOverview.html?tproject_id=1`
-(login `admin`/`admin` at `http://localhost:8082/index.php`).
+Single command: `bash tmp/verify_1629.sh` (self-cleaning, non-zero exit on any failure).
 
-| # | Case | Expected | Observed | Result |
-|---|---|---|---|---|
-| 99 | open `?tproject_id=1` — grid **visible** and rows **grouped per req spec** (primary feature) | grid displayed, one collapsible group header per spec, no flat dump | `#tableWrap` computed `display: block`, `offsetHeight 979`; 4 `tr.dtrg-group` = `Interface Requirements(2 Items)`, `Performance Requirements(1 Item)`, `System Requirements(3 Items)`, `System Requirements/Nested Requirements(1 Item)`; 7 data rows; info `Latest version displayed \| 7 row(s)`. **Pre-fix: 0 group rows and `#tableWrap display:none`** | PASS |
-| 100 | group header text = legacy `groupTextTpl` | `{text} (N Item[s])`, singular for N=1 | 3 groups use `Items`, the two 1-req groups use `Item` (`Performance Requirements(1 Item)`, `System Requirements/Nested Requirements(1 Item)`) | PASS |
-| 101 | toolbar **Expand/Collapse Groups** — click while expanded | all groups collapse, headers stay, button marked active, info message | 0 visible data rows, 4 group headers, `btnGroupToggle.classList.contains('active')=true`, `#gridToolbarInfo` = `Groups collapsed` | PASS |
-| 102 | toolbar **Expand/Collapse Groups** — click again | all groups expand | 7 visible rows, button `.active=false`, info `Groups expanded` | PASS |
-| 103 | click ONE group header (3rd, "System Requirements") | only that group collapses, chevron rotates, other rows stay visible | 4 rows still visible (the 3 hidden ones belong to the clicked group), chevron class `fa fa-chevron-right` (was `fa-chevron-down`) | PASS |
-| 104 | click the same group header again | group expands | 7 visible rows | PASS |
-| 105 | toolbar **Show all Columns** (`toolbarShowAllColumnsButton`) | reveals the grouped column, label flips to the inverse action | first header `Requirement Specification` (grouped column, hidden by default like `hideGroupedColumn=true`), label `Hide grouped column`, button `.active=true` | PASS |
-| 106 | click it again | grouped column hidden again | first header `Requirement`, label `Show all Columns` | PASS |
-| 107 | toolbar **Refresh** (`toolbarRefreshButton`) | re-fetches the BFF payload, grouping + collapsed state rebuilt | 4 groups, 7 rows, info `Latest version displayed \| 7 row(s)`, `#footerText` timestamp updated | PASS |
-| 108 | default order (legacy: coverage desc, else status desc — `reqOverview.php:286-288`) | spec path asc for group order + coverage desc inside | `table.order()` = `[[0,"asc"],[6,"desc"]]` (col 6 = Coverage, `sorting_desc` in the header) | PASS |
-| 109 | DataTables search box | search filters inside groups, group headers follow | search `Interface` → 1 group `Interface Requirements(2 Items)` + 2 rows | PASS |
-| 110 | **Show all versions** toggle | info switches, grouping preserved | `All versions displayed \| 7 row(s)`, 4 group headers | PASS |
-| 111 | toggle back | back to latest-version data set | `Latest version displayed \| 7 row(s)` | PASS |
-| 112 | requirement link / edit pen in a grouped row | still rendered per row (7 rows → 7 pens) | 7 `.fa-edit` action icons inside the grouped body rows | PASS |
-| 113 | locale switch `&locale=ro` (all 10 bundles) | new toolbar + group labels localized, singular/plural correct | `Extinde/Comprimă grupuri`, `Afișează toate coloanele`, `Reîmprospătează`, groups `…(3 elemente)` / `…(1 element)`, info `Grupuri comprimate` | PASS |
-| 114 | empty project `?tproject_id=24` | empty state, no groups, grid hidden | `There are no requirements defined for this test project.`, `#tableWrap display:none`, 0 group rows, info `… \| 0 row(s)` | PASS |
-| 115 | invalid project `?tproject_id=99999` (BFF 404) | error message, grid hidden | `Test project not found`, `#tableWrap display:none` | PASS |
-| 116 | console `error`/`warn` | none | `<no console messages found>` | PASS |
-| 117 | Event Viewer / `events` table (rule 12) | no new Error/Warning | `SELECT id,log_level,... FROM events WHERE log_level IN (0,1)` → **0 rows** | PASS |
-| 118 | syntax gate on the page's inline `<script>` | no syntax error | extracted 1 inline block → `node --check` → `JS SYNTAX OK` | PASS |
-| 119 | i18n bundles valid + complete | 10/10 bundles parse and contain the 7 new keys | `python3 -m json.tool` OK ×10; `ro.grid.*` = 7 keys × 10 bundles (diff: 7 added lines + 1 per file) | PASS |
-| 120 | diff scope | front-end + i18n only, no BFF change needed | `git show --stat d0430b14e` → 1 screen + 10 bundles, +217/−26; `api/requirements/index.php` untouched (already exposed `spec_path`/`srs_id`) | PASS |
+**Repro (pre-fix)**
 
-**Results — 2026-09-30, commit `d0430b14e`, branch `task/issue-1034`, app on `http://localhost:8082`: 22/22 PASS**
-(cases 99-120). Regression note: the grouping keys are the same `spec_path` the grid already
-rendered, sorting/search/paging and the requirement popup links are unchanged; `renderTable()`
-still rebuilds the grid from the BFF payload on every `loadOverview()`, so the
-`all_versions` toggle and the toolbar Refresh keep working with groups.
+| # | Steps | Expected (post-fix) | Pre-fix measured | Post-fix measured | Result |
+|---|---|---|---|---|---|
+| 1629-1 | `reqmgrsystems.type=1`, integration on → `GET /lib/requirements/reqSpecEdit.php?doAction=init` | HTTP 200, non-empty body, 0 new `events` rows | **HTTP 500, `bytes=0`**, server log `Uncaught Error: Class "contoursoapInterface" not found in …tlReqMgrSystem.class.php:657` | HTTP 200, `bytes=28`, 0 new `events` rows, no new fatal | PASS |
+| 1629-2 | same, via `GET /lib/requirements/reqSpecSearch.php` | the class is never instantiated unguarded | fatal on the same line 657 (reached from `reqSpecSearch.php:34`) | constructor returns cleanly; the screen advances to its **own** separate defect (see 1629-10) | PASS (for this defect) |
+| 1629-3 | `UPDATE reqmgrsystems SET type=99` (not a key of `$systems` → `implementation === NULL`) → same URL | HTTP 200 | **HTTP 500, `bytes=0`**, `Uncaught Error: Class name must be a valid object or a string …:657` | HTTP 200, 0 new `events` rows | PASS |
+| 1629-4 | dangling link `testproject_reqmgrsystem → 99999` | unchanged: `getLinkedTo()` is an inner JOIN, so `null` → the guard is never reached | HTTP 200 + 3 pre-existing E_WARNINGs from `reqSpecEdit.php`'s own `initialize_gui()` | HTTP 200, 0 E_WARNINGs attributable to `tlReqMgrSystem` | PASS (no behaviour change) |
+| 1629-5 | no link at all, and separately with `reqmgr_integration_enabled=0` | HTTP 200, method never entered | HTTP 200 | HTTP 200 | PASS |
+| 1629-6 | **no over-guard**: ship a stub `lib/functions/contoursoapInterface.class.php`, `type=1` | `getInterfaceObject()` really returns the object | (would 500) | a direct PHP probe (`doDBConnect` + `getInterfaceObject(1)`) returns `contoursoapInterface`; the screen answers 200; the stub is removed again | PASS |
+| 1629-7 | `reqMgrSystemView.php`, `?id=<row>`, `?id=99999`, `reqMgrSystemEdit.php?doAction=checkConnection&id=<row>` / `=99999` / `?doAction=create` | the #1625 siblings must not regress | 200 (after following the legitimate 302 into `gui/templates/reqmgrsystems/reqMgrSystemEdit.html`) | same, all 200, the probed row still listed | PASS |
+| 1629-8 | `api/reqmgrsystems/index.php` and `api/reqspec/index.php?action=specs` | modernized BFFs untouched | `status:ok`, row present | identical | PASS |
+| 1629-9 | static gates | `php -l` on the patched file + its 3 callers; handler is `catch (Throwable)`; `class_exists` is `@`-silenced | `catch (Exception)` and a bare `class_exists` | all four `php -l` clean; both greps match | PASS |
+| 1629-10 | Event Viewer (rule 12) | no new Error/Warning attributable to the patched method | **0 rows** — the fatal dies before `shutdownLogger()`, i.e. a *silent* 500 | still 0 rows attributable to `tlReqMgrSystem`/`contoursoap` | PASS |
 
-### Suite 1034 — code-review follow-up (same branch, after the mandatory review)
+**Harness discrimination** (this is what makes the suite meaningful):
 
-The code review of `d0430b14e` produced 4 MAJOR + 11 MINOR findings; the ones with real
-user-visible impact were fixed and re-verified in this pass:
+```
+$ bash tmp/verify_1629.sh                       # post-fix
+verify_1629.sh: 31 PASS / 0 FAIL                # exit 0
 
-| # | Case | Expected | Observed | Result |
-|---|---|---|---|---|
-| 121 | group band **spans the whole table** (review M4) | the teal header row has a `colspan` equal to the number of visible columns, and it follows *Show all Columns* | `colspan="9"` with 9 visible headers, `colspan="10"` after *Show all Columns*, back to 9 when hidden again | PASS |
-| 122 | sorting by **another column** must not split a spec into several group headers (review M3) | group column stays the primary sort criterion; 4 groups, 7 rows | `table.order([[7,'asc']]).draw()` → order becomes `[[0,"asc"],[7,"asc"]]` (group column pinned), 4 group headers, 7 rows | PASS |
-| 123 | toolbar state is truthful after a **data-set change** (review M2) | collapse state pruned to the groups that still exist; the Expand/Collapse button reflects the live data | Collapse all → *Show all versions* → 0 rows + 4 headers + button `.active=true`; toggle → 7 rows, `.active=false`; single-group click leaves the button `.active=true` | PASS |
-| 124 | **refresh keeps the legacy default order** (regression found by case 123) | `order()` = `[[spec asc],[coverage desc]]` before and after *Refresh* / after a user sort | before `[[0,"asc"],[6,"desc"]]`, after Refresh `[[0,"asc"],[6,"desc"]]`, after user sort `[[0,"asc"],[7,"asc"]]`, after Refresh `[[0,"asc"],[6,"desc"]]` | PASS |
-| 125 | re-entrancy: sorting inside `order.dt` must not rebuild a half-written tbody (review M3 follow-up) | exactly 4 group rows after every sort | first attempt produced 8 duplicated group headers and 2 visible rows; with the re-apply deferred one tick (`setTimeout`) and stale instances filtered by `settings` identity → 4 group rows, 7 rows | PASS |
-| 126 | prototype-named spec must not be uncollapsible (review m2) | `collapsedGroups` is a null-prototype map, lookups use `hasOwnProperty` | `collapsedGroups = Object.create(null)`, `isGroupCollapsed()` uses `Object.prototype.hasOwnProperty.call` | PASS (code path) |
-| 127 | search matches the **raw** spec path (review m1) | `render: {display: escapeHtml}` keeps sort/filter data unescaped | search `Nested` → 1 group `System Requirements/Nested Requirements(1 Item)` + 1 row | PASS |
-| 128 | grid toolbar hidden in the **empty / error** state (review m9) | no dead buttons when there is nothing to group | `tproject_id=24` → `emptyState` visible, `#tableWrap display:none`, **`#gridToolbar display:none`** | PASS |
-| 129 | `ro` locale after the follow-up | toolbar + groups + info line localized | `Extinde/Comprimă grupuri`, `Afișează toate coloanele`, `Reîmprospătează`, `…(3 elemente)` / `…(1 element)`, `Grupuri comprimate` / `Grupuri extinse` | PASS |
-| 130 | console + Event Viewer after the follow-up | clean | console `<no console messages found>`; `events` `WHERE log_level IN (0,1)` → 0 rows | PASS |
-| 131 | dead code removed (review m5) | no unused `.btn-teal` rules, `relations` only built when the column exists | `grep -c btn-teal gui/templates/requirements/reqOverview.html` → `0`; `row.relations` set only when `META.relations_enabled` | PASS |
-| 132 | `node --check` on the final inline script | no syntax error | `JS SYNTAX OK` | PASS |
+$ git stash push lib/functions/tlReqMgrSystem.class.php && bash tmp/verify_1629.sh   # pre-fix
+  FAIL  reqSpecEdit.php -> HTTP 500 (expected 200)
+  FAIL  0-byte body (pre-fix symptom)
+  FAIL  2 new tlReqMgrSystem fatal(s) in the server log
+  FAIL  HTTP 500 (expected 200)
+  FAIL  2 new fatal(s) from the NULL-implementation flavour
+  FAIL  the handler still says catch(Exception)
+  FAIL  class_exists() is not @-silenced
+verify_1629.sh: 24 PASS / 7 FAIL                # exit 1
+```
 
-**Results — 2026-09-30, follow-up commit on `task/issue-1034`: 12/12 PASS** (cases 121-132),
-full suite 99-132 = **34/34 PASS**.
+**Result — 2026-09-30, commit `44ee48bfe`, branch `fix/issue-1629`, app on `http://localhost:8082`: 10/10 PASS.**
+
+**Out of scope, filed separately, NOT fixed here** (removing the fatal uncovers them; they were
+invisible while the 500 killed the request first):
+
+* `lib/requirements/reqSpecSearch.php:116` — `count($itemSet)` with `$itemSet === null` →
+  `Uncaught TypeError` → still HTTP 500 / 0 bytes.
+* `lib/requirements/reqSpecEdit.php` — `initialize_gui()` returns `null` for a `doAction` that
+  is not a method of `reqSpecCommands`, and line 25 then reads `$gui->askForRevision`,
+  `$gui->askForLog`, `$gui->action_status_ok` → 3 E_WARNING rows per request.
