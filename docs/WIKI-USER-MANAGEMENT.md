@@ -455,7 +455,10 @@ have enough rights…”* deny box. The helper keys on the HTTP status, so an *a
 (`401 {"message":"Not authenticated"}`, no `code` key) is handled too.
 
 Because the Dashio shell never refreshes the session timer, this is the normal fate of a shell tab
-left open past the timeout — every aside link into a modern screen bounces by itself.
+left open past the timeout — a screen that handles the 401 itself bounces by itself. So far the
+**two assign-roles screens** do (this one and
+[Assign Test Plan Roles](#4-assign-test-plan-roles), #1646); other user-management screens
+(`usersView.html`, `rolesView.html`, …) still need the same treatment — filed as a follow-up task.
 
 ![session expired bounce](screenshots/issue-1620-usersAssignProject-session-expired.png)
 
