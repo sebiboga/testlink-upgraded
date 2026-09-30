@@ -80,14 +80,6 @@ td.ops button.wide { font-size: 11px; }
 .notice.ok { display: block; background: #e8f8f6; border: 1px solid #b8e6e2; color: #1f7a73; }
 .notice.err { display: block; background: #fdecea; border: 1px solid #f5c6c3; color: #a32b28; }
 
-.toast {
-  position: fixed; top: 16px; right: 16px; background: #2c3e50; color: #fff;
-  padding: 12px 18px; border-radius: 6px; font-size: 13px; opacity: 0;
-  transition: opacity .25s; z-index: 999; pointer-events: none; max-width: 60%;
-}
-.toast.show { opacity: 1; }
-.toast.ok { background: #4ECDC4; }
-.toast.err { background: #e6605e; }
 
 .state {
   background: #fff; border: 1px solid #f0d0d0; border-left: 4px solid #e6605e;
@@ -213,7 +205,6 @@ td.ops button.wide { font-size: 11px; }
 </div>
 
 <div class="footer" id="footerInfo"></div>
-<div class="toast" id="toast"></div>
 
 <script src="/gui/templates/i18n/i18n.js"></script>
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
@@ -238,19 +229,17 @@ function esc(s) {
     .replace(/'/g, '&#39;');
 }
 
-/* Safe interpolation: $& / $` / $' in a name must not rewrite the sentence. */
-function fill(tpl, params) {
-  params = params || {};
-  return TLi18n.t(tpl, params).replace(/[$&`']/g, function (c) {
-    return ({ '$': '$$$$', '&': '$$&', '`': '$$`', "'": "$$'" })[c];
-  });
-}
-
-function toast(msg, kind) {
-  var t = $('#toast');
-  t.removeClass('ok err').addClass('show ' + (kind || 'ok')).text(msg);
-  clearTimeout(t.data('to'));
-  t.data('to', setTimeout(function () { t.removeClass('show'); }, 2800));
+/*
+ * Translate an i18n key and interpolate its {placeholders}.
+ *
+ * TLi18n.t() (gui/templates/i18n/i18n.js:174) already does the substitution
+ * with a REPLACER FUNCTION, so "$&", "$`" or "$'" inside a value survive
+ * verbatim. This wrapper must therefore NOT post-process the result with a
+ * String.replace(): doing so turned a suite named "R&D Suite" into "R$$&D
+ * Suite" in the move confirmation.
+ */
+function fill(tpl, map) {
+  return TLi18n.t(tpl, map);
 }
 
 function setNotice(kind, msg) {
@@ -332,7 +321,9 @@ function descendantIds(nodeId) {
 function renderContainers() {
   var h = '<option value="' + TPROJECT_ID + '">' + esc(TLi18n.t('smv.projectRoot')) + '</option>';
   ALL_SUITES.forEach(function (s) {
-    if (parseInt(s.id, 10) === CONTAINER_ID) { return; }
+    /* The current container stays in the list and carries the selection -
+       filtering it out left the browser on the first option (project root)
+       while the table below showed the selected suite's sub-suites. */
     h += '<option value="' + esc(s.id) + '"' +
          (parseInt(s.id, 10) === CONTAINER_ID ? ' selected' : '') + '>' + esc(s.name) + '</option>';
   });
@@ -396,23 +387,33 @@ function postAction(action, payload, okMsg) {
     dataType: 'json',
     data: data
   }).done(function (r) {
-    if (r && r.status === 'ok') {
+    /* no_change is a successful no-op, not a failure: the sibling screens
+       answer it with 200 and a neutral notice (api/tcreorder, api/tcstepsreorder). */
+    if (r && (r.status === 'ok' || r.status === 'no_change')) {
       if (r.suites) { ROWS = r.suites; }
-      setNotice('ok', okMsg || '');
+      /* On a no-op the caller's "moved up" text would be a lie: the neutral
+         message wins over okMsg. */
+      setNotice('ok', r.status === 'no_change' ? TLi18n.t('smv.stNoChangeMsg') : (okMsg || ''));
       renderRows();
       /* The tree itself changed, so the destination picker has to be rebuilt. */
       load(true);
     } else {
-      setNotice('err', esc((r && r.message) || TLi18n.t('smv.stErrorMsg')));
-      setBusy(false);
+      setNotice('err', (r && r.message) || TLi18n.t('smv.stErrorMsg'));
     }
   }).fail(function (xhr) {
     var r = (xhr && xhr.responseJSON) ? xhr.responseJSON : {};
+    if (isSessionGone(xhr)) {
+      window.location.href = '/login.php?note=expired';
+      return;
+    }
     if (xhr.status === 403 && r.code !== 'forbidden') {
       setNotice('err', TLi18n.t('smv.csrfBlocked'));
     } else {
-      setNotice('err', esc(r.message || TLi18n.t('smv.stErrorMsg')));
+      setNotice('err', r.message || TLi18n.t('smv.stErrorMsg'));
     }
+  }).always(function () {
+    /* Single place that releases the in-flight guard: without it a failed
+       follow-up reload latched BUSY=true and disabled every action. */
     setBusy(false);
   });
 }

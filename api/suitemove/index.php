@@ -418,79 +418,82 @@ function suitMoveSubSuiteCount(&$db, $suiteId)
     return intval($rows[0]['c']);
 }
 
-/** All test suites of a project, indented by depth, for the destination picker. */
+/**
+ * Every test suite of ONE project, indented by depth, for the destination
+ * picker.
+ *
+ * 2.0.1 has no project_id column on nodes_hierarchy, so the previous version
+ * selected ALL test-suite rows of the whole installation and proved each one
+ * with suitMoveOwningProject() - one SELECT per ancestor, up to 64 per suite.
+ * That is O(all suites x depth) queries on every init/suites call, i.e. a
+ * timeout on a real installation.
+ *
+ * This walks DOWN from the project node instead (same shape as
+ * tcreoSuitesOf(), api/tcreorder/index.php:392): the walk itself is the proof
+ * of ownership, because parent_id is followed from the project node, so no
+ * per-row ownership query is needed at all. Only the two children queries per
+ * visited level are issued.
+ *
+ * @param int $excludeId when non-zero, that suite and its whole subtree are
+ *                       left out (they cannot be the destination of a move).
+ */
 function suitMoveAllSuites(&$db, $tprojectId, $excludeId = 0)
 {
     $T = suitMoveTables();
     $ntSuite = suitMoveNodeTypeTestsuite($db);
-    $ntProject = suitMoveNodeTypeTestproject($db);
-
-    $rows = $db->get_recordset(
-        "SELECT id, name, parent_id, node_type_id, node_order" .
-        " FROM {$T['nodes_hierarchy']}" .
-        " WHERE node_type_id = {$ntSuite}" .
-        " ORDER BY node_order, id");
-
-    if (is_null($rows)) {
-        return array();
-    }
-
-    $byParent = array();
-    foreach ($rows as $r) {
-        if (intval(suitMoveOwningProject($db, $r)) !== intval($tprojectId)) {
-            continue;
-        }
-        $byParent[intval($r['parent_id'])][] = $r;
-    }
-
-    $flat = array();
+    $tprojectId = intval($tprojectId);
     $excludeId = intval($excludeId);
 
-    $walk = function ($parentId, $depth, $guard) use (&$walk, &$flat, &$byParent, $excludeId, $ntProject, $ntSuite) {
-        if ($guard > 32 || !isset($byParent[$parentId])) {
+    $cache = array();
+    $childrenOf = function ($parentId) use (&$cache, &$childrenOf, $db, $T, $ntSuite) {
+        $parentId = intval($parentId);
+        if (!isset($cache[$parentId])) {
+            $cache[$parentId] = array();
+            $rows = $db->get_recordset(
+                "SELECT id, name, parent_id, node_order" .
+                " FROM {$T['nodes_hierarchy']}" .
+                " WHERE parent_id = {$parentId} AND node_type_id = {$ntSuite}" .
+                " ORDER BY node_order, id");
+            if (!is_null($rows)) {
+                foreach ($rows as $r) {
+                    $cache[$parentId][] = $r;
+                }
+            }
+        }
+        return $cache[$parentId];
+    };
+
+    $flat = array();
+    $visited = array($tprojectId => true);
+
+    /*
+     * Depth-FIRST pre-order, because the picker renders an indented tree: a
+     * suite must be followed by its own children before its siblings. The
+     * $visited set makes a corrupt tree that points a suite back at one of its
+     * ancestors terminate instead of looping.
+     */
+    $walk = function ($parentId, $depth) use (&$walk, &$flat, &$visited,
+                                              $childrenOf, $excludeId) {
+        if ($depth > 64) {
             return;
         }
-        foreach ($byParent[$parentId] as $r) {
+        foreach ($childrenOf($parentId) as $r) {
             $id = intval($r['id']);
-            if ($id == $excludeId) {
+            /* Skipping the excluded suite also skips its whole subtree: it is
+               not reachable through any other parent. */
+            if ($id == $excludeId || isset($visited[$id])) {
                 continue;
             }
+            $visited[$id] = true;
             $flat[] = array(
                 'id'    => $id,
                 'name'  => str_repeat('- ', $depth) . (string)$r['name'],
                 'depth' => $depth,
             );
-            $walk($id, $depth + 1, $guard + 1);
+            $walk($id, $depth + 1);
         }
     };
-
-    // The walk starts at the project root node, then at any orphan suite whose
-    // parent is not a suite (defensive: a suite under a broken parent must
-    // still be reachable in the picker).
-    $rootRows = $db->get_recordset(
-        "SELECT id FROM {$T['nodes_hierarchy']} WHERE node_type_id = {$ntProject}");
-    if (!is_null($rootRows)) {
-        foreach ($rootRows as $r) {
-            $walk(intval($r['id']), 0, 0);
-        }
-    }
-    // Suites whose parent is NOT a suite nor the project root (broken tree
-    // data) are surfaced too, so they can never become unreachable. Parent ids
-    // that are themselves a suite are skipped: those subtrees were already
-    // emitted by the recursive walk above (walking them again duplicated every
-    // suite of the project).
-    foreach ($byParent as $parentId => $children) {
-        if ($parentId <= 0 || count($children) == 0) {
-            continue;
-        }
-        $pInfo = suitMoveNodeInfo($db, $parentId);
-        $pType = is_null($pInfo) ? 0 : intval($pInfo['node_type_id']);
-        if ($pType == suitMoveNodeTypeTestsuite($db) ||
-            $pType == suitMoveNodeTypeTestproject($db)) {
-            continue;
-        }
-        $walk($parentId, 0, 0);
-    }
+    $walk($tprojectId, 0);
 
     return $flat;
 }
@@ -648,8 +651,10 @@ switch ($action) {
                       'message' => 'Suite has no owning test project'), 404);
         }
         if ($tprojectId > 0 && $tprojectId !== $owner) {
-            out(array('status' => 'error', 'code' => 'forbidden',
-                      'message' => 'Suite belongs to another test project'), 403);
+            /* 404, not 403: a 403 would tell a caller who has rights on project
+               A that node N exists inside another project B. */
+            out(array('status' => 'error', 'code' => 'not_found',
+                      'message' => 'Suite has no owning test project'), 404);
         }
 
         list($tprojectId, $tproject) = suitMoveProject($db, $user, $owner, 0);
@@ -671,8 +676,8 @@ switch ($action) {
             }
             $swapWith = ($position === 'up') ? $pos - 1 : $pos + 1;
             if ($swapWith < 0 || $swapWith >= count($ids)) {
-                out(array('status' => 'error', 'code' => 'no_change',
-                          'message' => 'Suite is already at the boundary'), 400);
+                out(array('status' => 'no_change',
+                          'message' => 'Suite is already at the boundary'));
             }
             $tmp = $ids[$pos];
             $ids[$pos] = $ids[$swapWith];
@@ -692,6 +697,14 @@ switch ($action) {
 
         // top/bottom: a real re-parent. The destination must be given.
         if ($newParentId <= 0) {
+            /* getInt() maps "abc"/"-1" to 0, so an explicitly supplied but
+               unusable destination must be refused HERE: falling back to the
+               old parent would silently turn it into an in-container reorder. */
+            $rawDest = trim((string)($_REQUEST['new_parent_id'] ?? ''));
+            if ($rawDest !== '' && !preg_match('/^\d+$/', $rawDest)) {
+                out(array('status' => 'error', 'code' => 'bad_request',
+                          'message' => 'Invalid destination test suite'), 400);
+            }
             $newParentId = $oldParentId;
         }
 
@@ -715,8 +728,8 @@ switch ($action) {
         if ($newParentId == $oldParentId) {
             if (($position === 'bottom' && $oldPos === count($oldSiblings) - 1) ||
                 ($position === 'top' && $oldPos === 0)) {
-                out(array('status' => 'error', 'code' => 'no_change',
-                          'message' => 'The suite is already at that position'), 400);
+                out(array('status' => 'no_change',
+                          'message' => 'The suite is already at that position'));
             }
         }
         $parentInfo = suitMoveNodeInfo($db, $newParentId);
@@ -730,8 +743,11 @@ switch ($action) {
                       'message' => 'Destination is not a test suite'), 400);
         }
         if (intval(suitMoveOwningProject($db, $parentInfo)) !== intval($tprojectId)) {
-            out(array('status' => 'error', 'code' => 'forbidden',
-                      'message' => 'Destination belongs to another test project'), 403);
+            /* 404 for the same existence-leak reason as the moved node: a 403
+               here tells the caller that the destination id exists inside a
+               project they have no rights on. */
+            out(array('status' => 'error', 'code' => 'not_found',
+                      'message' => 'Destination has no owning test project'), 404);
         }
 
         // Cycle guard: a suite cannot become its own descendant, which would
@@ -807,7 +823,7 @@ switch ($action) {
             if ($raw === '') {
                 continue;
             }
-            if (!is_numeric($raw)) {
+            if (!preg_match('/^\d+$/', $raw)) {
                 out(array('status' => 'error', 'code' => 'bad_request',
                           'message' => 'Invalid node list'), 400);
             }
@@ -832,8 +848,8 @@ switch ($action) {
         // the new order happened to be id-sorted.
         $currentOrder = array();
         $currentIds = array();
-        foreach ($current as $c) {
-            $currentOrder[] = intval($c['id']);
+        foreach ($current as $i => $c) {
+            $currentOrder[$i] = intval($c['id']);
             $currentIds[] = intval($c['id']);
         }
         sort($currentIds);
@@ -846,9 +862,15 @@ switch ($action) {
         }
 
         $newOrder = array();
-        foreach ($ids as $id) {
+        foreach ($ids as $i => $id) {
             suitMoveRequireSuite($db, $id, $tprojectId, 'Suite');
-            $newOrder[] = $id;
+            $newOrder[$i] = $id;
+        }
+
+        /* No-op decided BEFORE the write: answering after change_order_bulk()
+           reported a failure for a request that had already mutated the DB. */
+        if ($newOrder === $currentOrder) {
+            out(array('status' => 'no_change', 'message' => 'The order did not change'));
         }
 
         $treeMgr = new tree($db);
@@ -859,11 +881,6 @@ switch ($action) {
         foreach ($after as $c) {
             $afterIds[] = intval($c['id']);
         }
-        if ($afterIds === $currentOrder) {
-            out(array('status' => 'error', 'code' => 'no_change',
-                      'message' => 'The order did not change'), 400);
-        }
-
         out(array(
             'status'    => 'ok',
             'changed'   => true,

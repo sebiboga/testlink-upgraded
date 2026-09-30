@@ -5761,5 +5761,6 @@
   "smv.stError": "エラー",
   "smv.stErrorMsg": "テストスイートツリーを読み込めませんでした。",
   "footers.suiteMove": "TestLink 2.0.1 - テストスイートの移動／並べ替え",
-  "smv.noModifyRight": "この順序は表示できますが、変更することはできません。"
+  "smv.noModifyRight": "この順序は表示できますが、変更することはできません。",
+  "smv.stNoChangeMsg": "すでにこの順序です - 変更する内容はありません。"
 }

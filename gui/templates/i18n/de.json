@@ -5755,5 +5755,6 @@
   "smv.stError": "Fehler",
   "smv.stErrorMsg": "Der Testsuite-Baum konnte nicht geladen werden.",
   "footers.suiteMove": "TestLink 2.0.1 - Testsuite verschieben / neu sortieren",
-  "smv.noModifyRight": "Sie können diese Reihenfolge sehen, aber nicht ändern."
+  "smv.noModifyRight": "Sie können diese Reihenfolge sehen, aber nicht ändern.",
+  "smv.stNoChangeMsg": "Die Reihenfolge ist bereits so - es gibt nichts zu ändern."
 }

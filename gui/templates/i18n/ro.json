@@ -5765,5 +5765,6 @@
   "smv.stError": "Eroare",
   "smv.stErrorMsg": "Arborele suitelor de test nu a putut fi încărcat.",
   "footers.suiteMove": "TestLink 2.0.1 - Mută / reordonează suite de test",
-  "smv.noModifyRight": "Puteți vedea această ordine, dar nu o puteți modifica."
+  "smv.noModifyRight": "Puteți vedea această ordine, dar nu o puteți modifica.",
+  "smv.stNoChangeMsg": "Ordinea este deja asa - nu este nimic de schimbat."
 }

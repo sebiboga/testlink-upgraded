@@ -5771,5 +5771,6 @@
   "smv.stError": "Error",
   "smv.stErrorMsg": "The test suite tree could not be loaded.",
   "footers.suiteMove": "TestLink 2.0.1 - Move / Reorder Test Suites",
-  "smv.noModifyRight": "You can see this order but you cannot change it."
+  "smv.noModifyRight": "You can see this order but you cannot change it.",
+  "smv.stNoChangeMsg": "The order is already like that - nothing to change."
 }
