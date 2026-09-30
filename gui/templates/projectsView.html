@@ -591,14 +591,18 @@
       const state = tbl.state.loaded();
       if (!state) return;
       $('#projectsTable').find('thead tr.filters th').each(function(idx) {
-        // DataTables 1.13 stores columns[i].search as the full search descriptor
-        // {search, smart, regex, caseInsensitive} — a plain object, not the bare
-        // string 1.10 exposed. Reading it raw and handing it to .val() rendered
-        // "[object Object]" in every filter box and the next keystroke then
-        // smart-searched for that literal, matching nothing (issue #1633).
-        // Unwrap .search.search, keeping the 1.10 string path as a fallback.
-        // Same guard the sibling screens use for the global search
-        // (usersAssignPlan.html:1157, usersAssignProject.html:731).
+        // state.columns[i].search is the search DESCRIPTOR
+        // {search, smart, regex, caseInsensitive} — it is NOT the bare string that
+        // column(idx).search() returns (that getter has always returned a string;
+        // the two must not be conflated). _fnSaveState() has written the
+        // descriptor since 1.10.4, so the 2.0.1 screen was simply written against
+        // the wrong source: reading the descriptor raw and handing it to .val()
+        // rendered "[object Object]" in every filter box, and the next keystroke
+        // then smart-searched for that literal, matching nothing (issue #1633).
+        // Unwrap .search.search. The bare-string branch is a downgrade/refactor
+        // guard, kept so the helper survives a future pin change. Same guard the
+        // sibling screens use for the global search
+        // (usersAssignPlan.html:1158-1160, usersAssignProject.html:734-736).
         const colSearch = (state.columns[idx] && state.columns[idx].search) || '';
         const value = (typeof colSearch === 'object')
           ? String(colSearch.search || '')

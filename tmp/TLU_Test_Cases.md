@@ -1534,3 +1534,138 @@ $ diff <(post-fix reorder body, CSRF normalised) <(pre-fix reorder body, CSRF no
    an **array-shaped** value for any `STRING_N` parameter of **any** controller is an uncaught
    `TypeError` (HTTP 500, 0 bytes, 0 log rows). #1736 worked around it locally in
    `reqSpecEdit.php` only; the shared layer is untouched by design.
+
+---
+
+## Regression — Issue #1633: column filter boxes polluted with `[object Object]` after a reload (DataTables 1.13 `columns[i].search` is an object, not a string)
+
+**Precondition**
+
+- App on `http://localhost:8082`, logged in as `admin`/`admin`.
+- MariaDB `127.0.0.1:3306`, db `testlink`, user/pass `testlink`/`testlink`. The run starts from a
+  freshly imported DB in which **`testprojects` is empty (0 rows)** — see "Finding F1": with no
+  projects `renderProjects()` returns early into the empty state and never builds the filter row,
+  so the bug is unreachable until a project exists.
+- Fixture: 4 projects created through the authenticated BFF, so they are real rows, not HTML stubs.
+
+  ```
+  POST /api/projects/  {"name":"Alpha Banking","prefix":"ALP"}  -> 200 {"success":true,"id":1}
+  POST /api/projects/  {"name":"Beta Retail","prefix":"BET"}    -> 200 {"success":true,"id":2}
+  POST /api/projects/  {"name":"Gamma Insurance","prefix":"GAM"}-> 200 {"success":true,"id":3}
+  POST /api/projects/  {"name":"Delta Utilities","prefix":"DEL"}-> 200 {"success":true,"id":4}
+  ```
+
+- Grid: `$('#projectsTable').DataTable()` with `stateSave: true`; DataTables `1.13.7`
+  (`$.fn.dataTable.version`). The state key is
+  `DataTables_projectsTable_/gui/templates/projectsView.html` — i.e. **the key includes the page
+  URL**, so the page must be loaded as exactly `/gui/templates/projectsView.html` with **no query
+  string** (see "Harness pitfalls" H1).
+
+### Symptom / repro (pre-fix)
+
+1. Open `http://localhost:8082/gui/templates/projectsView.html` with a clean profile.
+   → 5 filter inputs, all `""`; `tbl.state.loaded() === null`. **The first render is clean.**
+2. Type `Alpha` into filter box #0 (the box under *Project Name*) and let it settle.
+3. Reload the page.
+4. Read the filter inputs → **all 5** contain the literal `[object Object]`.
+5. Append a character to any box → the smart search is applied for the literal
+   `[object Object]<term>`, split on whitespace and ANDed → **0 rows, no error, no warning**.
+
+### Expected post-fix
+
+- Step 4: the boxes contain the terms the user actually typed; the string `[object Object]` never
+  appears in any of them.
+- Step 5: a further keystroke searches for the real term, so matching rows are found.
+
+### Test steps and results
+
+| # | Step | Expected | Measured | Result |
+|---|---|---|---|---|
+| T1 | Clean profile, first render, no `DataTables_*` key | 5 inputs, all `""` | `["","","","",""]` | **PASS** |
+| T2 | Type `Alpha` in box #0 | `column(1).search() === "Alpha"`, 1 row | `term="Alpha" rows=1` | **PASS** |
+| T3 | Reload the page, read all 5 inputs | `["Alpha","","","",""]`, no pollution | `["Alpha","","","",""]` | **PASS** |
+| T4 | Assert no box contains `[object Object]` (all 5) | none does | none does | **PASS** |
+| T5 | Type a term in a **non-first** box (th#4 = Issue Tracker, `GAM`), reload | that box restores its own term, all others `""` | `["","","GAM","",""]`; saved state `c4=GAM` | **PASS** |
+| T6 | State present (`length`/`order`) but no column term, reload | all 5 boxes `""` | `["","","","",""]`, saved terms = 0 | **PASS** |
+| T7 | With T3's state, append a char to the restored box | search term is the real term → 0 rows | `term="Alphae" rows=0` | **PASS** |
+| T8 | Replace the box content with `e` | `term="e"`, >0 rows | `term="e" rows=3` | **PASS** |
+| T9 | In-page re-render `loadProjects()` with a saved term | box keeps the real term, no pollution | `["Alpha","","","",""]`, `recordsDisplay=1` | **PASS** |
+| T10 | `events` table, last hour | 0 new Error/Warning rows | 5 rows, all `log_level=16` (audit `LOGIN` + the 4 fixture `CREATE`s); 0 error/warning | **PASS** |
+| T11 | Browser console on the screen | 0 errors/warnings | `<no console messages found>` | **PASS** |
+| T12 | DataTables 1.10 **string**-shaped saved state (downgrade guard) | box restores the term | restore is a **no-op** — 1.13's own loader normalises a bare-string column search away, so the branch is unreachable through the app; the expression itself verified correct by calling `restoreColumnFilterState()` on the pre-normalisation instance → `["Alpha","","GAM","",""]` | **N/A** (unreachable) |
+
+**12 executed — 11 PASS, 0 FAIL, 1 N/A (unreachable defensive branch, T12, not claimed as passing).**
+
+### Evidence commands
+
+```
+$ curl -s http://localhost:8082/gui/templates/projectsView.html | grep -n colSearch
+602:        const colSearch = (state.columns[idx] && state.columns[idx].search) || '';
+603:        const value = (typeof colSearch === 'object')
+604:          ? String(colSearch.search || '')
+605:          : String(colSearch);
+
+$ mysql -h 127.0.0.1 -utestlink -ptestlink testlink \
+    -e "select id, from_unixtime(fired_at) at, log_level, activity from events \
+        where fired_at > (unix_timestamp() - 3600) order by id desc;"
+id   at                       log_level  activity
+5    2026-09-30 12:56:36      16         CREATE     <- fixture
+4    2026-09-30 12:56:36      16         CREATE     <- fixture
+3    2026-09-30 12:56:36      16         CREATE     <- fixture
+2    2026-09-30 12:56:36      16         CREATE     <- fixture
+1    2026-09-30 12:56:10      16         LOGIN      <- fixture
+```
+
+### Screenshots
+
+- Before: `docs/screenshots/issue-1633-column-filter-object-object.png`
+  (`["[object Object]","[object Object]","[object Object]","[object Object]","[object Object]"]`)
+- After: `docs/screenshots/issue-1633-column-filter-restored.png` (`["Alpha","","","",""]`)
+
+### Root cause and fix (one paragraph)
+
+DataTables 1.13 serialises a **per-column** search into the saved state as the full descriptor
+`{search, smart, regex, caseInsensitive}` — a plain object — whereas 1.10 stored a bare string.
+`gui/templates/projectsView.html:594` read `state.columns[idx].search` raw (written against the
+1.10 string shape) and handed that object to jQuery `.val()`, which coerces a value with no `value`
+key via `val + ""` and therefore rendered the literal `[object Object]` into every filter box. The
+`keyup` handler then pushed the polluted value straight into `column(idx).search(..., false, true)`,
+so the next keystroke smart-searched for the literal and matched nothing. The fix unwraps
+`.search.search` when the value is an object and keeps the 1.10 string path as a fallback — the
+identical guard the two sibling screens already use for the **global** search
+(`usersAssignPlan.html:1157`, `usersAssignProject.html:731`), so there is now one way to read a
+search out of a DataTables state blob in this repo. No user-facing string changed, so no i18n keys
+were needed and no locale bundle was touched.
+
+### Blast radius
+
+```
+$ grep -rn "state.loaded()\|restoreColumnFilterState" --include=*.html gui/templates/
+projectsView.html:552, 590            <- the only consumer of state.columns[i].search (FIXED)
+usermanagement/usersAssignPlan.html:1149      <- global state.search only, already guarded
+usermanagement/usersAssignProject.html:723    <- global state.search only, already guarded
+
+$ grep -rn "state.columns\[" --include=*.html gui/templates/
+projectsView.html:594                 <- the single buggy line
+```
+
+`results/metricsDashboard.html` and `results/tplanWithCF.html` build their per-column filters
+themselves and never read the state blob. Legacy 1.9.20 is unaffected: the Smarty
+`DataTablesColumnFiltering.inc.tpl` helper rendered the inputs server-side from the request value,
+not from a DataTables state blob, so this is a 2.0.1-only defect.
+
+### Harness pitfalls that produced FALSE failures in this suite (important for re-runs)
+
+- **H1 — a query string changes the state key.** `stateSave` keys on
+  `DataTables_projectsTable_<page URL>`. Cache-busting with `?p=…` / `?nocache=…` makes the page
+  look for a *different* key, so the boxes render empty and the save/restore path looks broken when
+  it is not. Always load exactly `/gui/templates/projectsView.html`.
+- **H2 — input-list index ≠ DataTable column index.** The 5 filter inputs sit in `th` 1, 3, 4, 5, 7
+  (only those carry `data-col-filter`), so input #0 → column 1 (*Project Name*), input #1 → column 3
+  (*Prefix*), input #2 → column 4 (*Issue Tracker*), input #3 → column 5, input #4 → column 7.
+  Asserting the wrong column reports a false FAIL.
+- **H3 — `stateSave` is debounced (~500 ms).** Reading `localStorage` immediately after a keystroke
+  returns the *previous* state. Every state assertion must wait past the debounce.
+- **H4 — the bug needs a prior filter + a reload.** `state.loaded()` is `null` on a genuinely first
+  visit, so the helper short-circuits; and with 0 projects the filter row is never built at all.
+  A quick manual pass over a clean profile cannot see this bug.
