@@ -19,6 +19,24 @@ $req_cfg = config_get('req_cfg');
 testlinkInitPage($db,false,false);
 
 $templateCfg = templateConfiguration();
+
+// Refs #1736: ?doAction[]=x (or ?doAction[a]=1&doAction[b]=2) makes PHP fill
+// $_REQUEST['doAction'] with an ARRAY. init_args() declares doAction as
+// tlInputParameter::STRING_N (line 57), and inputparameter.class.php:295 calls
+// trim($value) on whatever it read - trim() does not accept an array, so the
+// request died with an uncaught TypeError ("trim(): Argument #1 ($string) must
+// be of type string, array given") BEFORE any of this screen's own code ran:
+// HTTP 500, 0-byte body, ZERO Event Viewer rows.
+//
+// Drop the array before R_PARAMS can see it, so init_args() reads it as absent
+// and the whitelist check below refuses it with the same graceful 302 as any
+// other unusable action. The same local-shim idiom as #1731 in
+// lib/reqmgrsystems/reqMgrSystemEdit.php:78-92 (shimReqScalar), rather than a
+// change to the shared input-parameter layer: inputparameter.class.php:295
+// trims unconditionally for every STRING_N parameter of every controller, so
+// fixing it there is a separate, much wider change - filed as its own issue.
+reqSpecEditDropShapedAction();
+
 $args = init_args();
 $commandMgr = new reqSpecCommands($db,$args->tproject_id);
 $gui = initialize_gui($db,$args,$req_cfg,$commandMgr);
@@ -34,12 +52,144 @@ $commandMgr->setAuditContext($auditContext);
 
 $pFn = $args->doAction;
 $op = null;
-if(method_exists($commandMgr,$pFn))
+
+// Refs #1736: method_exists() is NOT a whitelist of requestable actions. It also
+// matches the internal helpers of reqSpecCommands (24 method_exists-visible members,
+// only 18 of them GUI actions), and the dispatch below calls whatever it matched with
+// a FIXED 2-argument signature:
+//   - simpleCompare (reqParams=4), process_revision (3)  -> ArgumentCountError -> HTTP 500, 0 bytes
+//   - initGuiObjForAttachmentOperations (PRIVATE, 1)      -> "Call to private method" Error -> HTTP 500
+//   - initGuiBean (0), getReqMgrSystem (0)                -> not a GUI bean -> HTTP 500 / bogus result
+//   - setAuditContext (1)                                 -> returns null -> $op null
+// i.e. an unrecognised doAction produced FIVE different outcomes: a silent 500 with a
+// 0-byte body and ZERO Event Viewer rows (worse than a blank page: nothing to grep),
+// or the 28-byte 'Can not process RENDERING!!!' stub accompanied by 3 E_WARNING rows
+// from renderGui()'s default: branch (reqSpecEdit.php:147).
+//
+// Consult the real whitelist instead: only a name renderGui() can actually dispatch is
+// invoked, so arity and visibility are guaranteed to match by construction, and the
+// array-shaped ?doAction[]=x (which made method_exists() throw a TypeError -> HTTP 500)
+// never reaches the check at all, because $pFn is then an array and fails the is_string()
+// test. Everything refused below is bounced with a 302, never answered blank.
+if(is_string($pFn) && $pFn !== '' && isset(reqSpecEditActionWhitelist()[$pFn]))
 {
   $op = $commandMgr->$pFn($args,$_REQUEST);
 }
+else
+{
+  reqSpecEditRefuseUnknownAction($pFn);
+  // unreachable: reqSpecEditRefuseUnknownAction() always redirects and exits.
+}
 
 renderGui($args,$gui,$op,$templateCfg,$editorCfg);
+
+
+/**
+ * Drop a non-scalar $_REQUEST['doAction'] before R_PARAMS() can choke on it.
+ *
+ * Refs #1736. PHP itself builds the array: ?doAction[]=x makes
+ * $_REQUEST['doAction'] an array, and inputparameter.class.php:295 then calls
+ * trim() on it -> uncaught TypeError -> HTTP 500 with a 0-byte body and no
+ * Event Viewer row. Removing the key here makes init_args() read it as absent,
+ * which the action whitelist refuses with a 302. Nothing is coerced or guessed:
+ * an array is not a verb.
+ *
+ * @return void
+ */
+function reqSpecEditDropShapedAction()
+{
+  if (isset($_REQUEST['doAction']) && !is_scalar($_REQUEST['doAction'])) {
+    unset($_REQUEST['doAction']);
+  }
+}
+
+
+/**
+ * The set of doAction values this controller can render.
+ *
+ * This is deliberately the exact case list of renderGui()'s GUI-rendering switch
+ * (reqSpecEdit.php:207-224), which is the set the templates actually ask for:
+ *   lib/functions/requirement_spec_mgr.class.php:2560 -> fileUpload
+ *   lib/functions/requirement_spec_mgr.class.php:2573 -> deleteFile
+ *   gui/templates/dashio/requirements/reqSpecView.tpl:46-58 -> createChild,
+ *        copyRequirements, copy, bulkReqMon
+ *   gui/templates/dashio/requirements/include/reqSpecViewJS.inc.tpl:7,42 -> doDelete, doFreeze
+ *   gui/templates/dashio/requirements/reqSpecReorder.tpl:13 -> doReorder
+ *   gui/templates/dashio/requirements/project_req_spec_mgmt.tpl:11,14 -> create, reorder
+ *   gui/templates/dashio/requirements/reqSpecCopy.tpl:34 -> doCopy
+ * Keeping the two lists in sync is the invariant; adding a case to renderGui()'s switch
+ * without adding it here degrades that action to a 302.
+ *
+ * Refs #1736.
+ *
+ * @return array<string,bool> whitelist used with isset()
+ */
+function reqSpecEditActionWhitelist()
+{
+  return array(
+    'edit' => true,
+    'create' => true,
+    'createChild' => true,
+    'reorder' => true,
+    'doDelete' => true,
+    'doReorder' => true,
+    'doCreate' => true,
+    'doUpdate' => true,
+    'copyRequirements' => true,
+    'doCopyRequirements' => true,
+    'copy' => true,
+    'doCopy' => true,
+    'doFreeze' => true,
+    'doCreateRevision' => true,
+    'fileUpload' => true,
+    'deleteFile' => true,
+    'bulkReqMon' => true,
+    'doBulkReqMon' => true,
+  );
+}
+
+
+/**
+ * Refuse a doAction this controller can not render.
+ *
+ * Refs #1736. Same remedy the sibling controller got in #1627 / #1722
+ * (lib/reqmgrsystems/reqMgrSystemEdit.php:87-103): no action may answer a blank page
+ * (28 bytes) or a silent 500, so the request is logged and the user is bounced to the
+ * requirement-spec management screen with the test-project context carried forward.
+ *
+ * The log message is a FIXED literal: the requested action is NOT interpolated. The
+ * doAction value comes straight from the query string and is attacker controlled, so
+ * logging it would (a) put unbounded text into the events table and (b) make a crafted
+ * query string able to forge a log row. This is the same reasoning as #1731.
+ *
+ * Level INFO, not ERROR: INFO does not persist below WARNING, so a crafted query string
+ * can not write an Error/Warning row into the Event Viewer - measured 0 rows of any
+ * level for a request that used to write 3.
+ *
+ * @param mixed $pFn the refused doAction (string, null, or an array for ?doAction[]=x)
+ * @return void
+ */
+function reqSpecEditRefuseUnknownAction($pFn)
+{
+  $isKnown = is_string($pFn) && $pFn !== '';
+  tLog('reqSpecEdit.php: the requested doAction is not one this screen can render - ' .
+       'refusing the request instead of rendering a blank page (Refs #1736). ' .
+       ($isKnown ? '' : 'The doAction value was absent or not a usable string. '),
+       'INFO');
+
+  $base = isset($_SESSION['basehref']) ? $_SESSION['basehref'] : '/';
+  $url = $base . 'gui/templates/requirements/reqSpecMgmt.html';
+
+  // Carry the frame context forward, exactly like the legacy $basehref links did.
+  $tprojectId = isset($_SESSION['testprojectID']) ? intval($_SESSION['testprojectID']) : 0;
+  if ($tprojectId > 0)
+  {
+    $url .= '?tproject_id=' . $tprojectId;
+  }
+
+  header('Location: ' . $url, true, 302);
+  exit();
+}
 
 
 /**
@@ -144,7 +294,16 @@ function renderGui(&$argsObj,$guiObj,$opObj,$templateCfg,$editorCfg)
     break;
 
     default:
-      if($opObj->askForRevision || $opObj->askForLog || !$opObj->action_status_ok) 
+      // Refs #1736: $opObj is the command RESULT, not the gui bean, and it is null
+      // whenever the doAction was not a reqSpecCommands method. Reading three
+      // properties off it cost 3 E_WARNING rows per request (persisted to `events`
+      // as log_level=2, all attributed to this line). The dispatch in the controller
+      // now consults a real whitelist so $opObj is never null from the URL - this
+      // guard is defence in depth, so no future caller can reintroduce the warnings.
+      // A null bean means "the command bean has nothing to contribute", which is
+      // exactly the condition the true-branch below already handles: keep the
+      // user-supplied scope as-is instead of pre-filling a template.
+      if(is_null($opObj) || $opObj->askForRevision || $opObj->askForLog || !$opObj->action_status_ok)
       {
         $owebEditor->Value = $argsObj->scope;
       }
