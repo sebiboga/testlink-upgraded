@@ -8022,7 +8022,7 @@ Changes:
   `x / y covered` count, plus a coverage panel per requirement (test case name, external id,
   versions, active/`closed by execution` status, deep link into the test case), coverage summary
   tiles, an *Only uncovered requirements* filter, and toolbar links into Assign test cases /
-  Specification management / Move-reorder. i18n `covt.*` (67 keys) + `footers.reqCoverageTree`
+  Specification management / Move-reorder. i18n `covt.*` (63 keys) + `footers.reqCoverageTree`
   in all 10 bundles.
 - `api/reqcoveragetree/index.php`: `init` / `children` / `coverage` / `projects`, session auth +
   `bffSameOriginGuard` + `bffEnforceSession`; `mgt_view_req|mgt_modify_req` on the addressed
