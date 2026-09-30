@@ -465,7 +465,7 @@ function load(quiet) {
     CONTAINER_ID = r.container ? r.container.id : TPROJECT_ID;
     ALL_SUITES = r.all_suites || [];
     ROWS = r.suites || [];
-    $('#mbProject').text(r.context.tproject_name);
+    $('#mbProject').text(r.context.tproject_name + ' (' + r.context.prefix + ')');
     $('#mbContainer').text((r.container && r.container.root)
       ? TLi18n.t('smv.projectRoot')
       : (r.container ? r.container.name : '-'));

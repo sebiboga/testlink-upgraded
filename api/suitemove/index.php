@@ -121,6 +121,35 @@ function suitMoveTables()
     return $t;
 }
 
+/**
+ * The test project NAME lives in nodes_hierarchy on the project node, NOT in
+ * testprojects (2.0.1 keeps only the prefix there), so it must be read from the
+ * tree - $tproject->testproject_name answers an empty string.
+ */
+function suitMoveProjectName(&$db, $tprojectId)
+{
+    $T = suitMoveTables();
+    $row = $db->get_recordset(
+        "SELECT name FROM {$T['nodes_hierarchy']} WHERE id = " . intval($tprojectId) .
+        " AND node_type_id = " . suitMoveNodeTypeTestproject($db));
+    if (!is_null($row) && count($row) > 0) {
+        return (string)$row[0]['name'];
+    }
+    return '';
+}
+
+/** The external-id prefix is the only column testprojects still owns. */
+function suitMoveProjectPrefix(&$db, $tprojectId)
+{
+    $T = suitMoveTables();
+    $row = $db->get_recordset(
+        "SELECT prefix FROM {$T['testprojects']} WHERE id = " . intval($tprojectId));
+    if (!is_null($row) && count($row) > 0) {
+        return (string)$row[0]['prefix'];
+    }
+    return '';
+}
+
 function out($data, $code = 200)
 {
     http_response_code($code);
@@ -553,8 +582,8 @@ switch ($action) {
             'status'     => 'ok',
             'context'    => array(
                 'tproject_id'   => intval($tprojectId),
-                'tproject_name' => (string)$tproject->testproject_name,
-                'prefix'        => (string)$tproject->prefix,
+                'tproject_name' => suitMoveProjectName($db, $tprojectId),
+                'prefix'        => suitMoveProjectPrefix($db, $tprojectId),
                 'can_modify'    => $user->hasRight($db, 'mgt_modify_tc', $tprojectId),
             ),
             'container'  => $container,
@@ -576,8 +605,8 @@ switch ($action) {
             'status'     => 'ok',
             'context'    => array(
                 'tproject_id'   => intval($tprojectId),
-                'tproject_name' => (string)$tproject->testproject_name,
-                'prefix'        => (string)$tproject->prefix,
+                'tproject_name' => suitMoveProjectName($db, $tprojectId),
+                'prefix'        => suitMoveProjectPrefix($db, $tprojectId),
             ),
             'all_suites' => suitMoveAllSuites($db, $tprojectId, $excludeId),
         ));
