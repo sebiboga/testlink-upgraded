@@ -1797,3 +1797,13 @@ exactly the gap this issue describes (they pass with commit `bdb8a212c`).
   absent → `401 {"message":"Not authenticated"}` with **no `code` key**; hence status-first.
 - The `norights` fixture from `tmp/mkuser_norights.php` (role 3) is the cheapest way to prove the
   403 → deny-box path is preserved by the new 401 handling.
+
+### Step 4 — code-review hardening (issue #1760, after the mandatory review)
+
+The review flagged three items; all three were applied and re-verified in the browser.
+
+| # | Item | Fix | Observed after the fix | Result |
+|---|---|---|---|---|
+| T1760-24 | `sessionExpired()` was not **idempotent**: three concurrent 401s (the screen fires 5 requests on load) each re-ran `showSessionExpired()` + re-showed the toast (only the navigation was de-duplicated) | early `if (sessionDead) { return true; }` after the detection — later 401s still answer `true` (so no caller falls into its own error branch) but never re-show the toast or re-arm the timer | 3 consecutive 401s → `true, true, true`; `redirectTimer` armed once; one toast; terminal state unchanged | PASS |
+| T1760-25 | `$.ajax` **success** handlers could still repaint after the bounce (they call `loadUsers()`/`toast()`/`modal('hide')`) | `if (sessionDead) { return; }` as first statement of all 5 `$.ajax` success handlers in `usersView.html` and all 3 in `rolesView.html` | inserted at `:806`, `:867`, `:944`, `:984`, `:1022` (usersView) and `:524`, `:609`, `:648` (rolesView); `node --check` clean | PASS |
+| T1760-26 | review asked to confirm **no new hardcoded English** | the only new user-visible string is `TLi18n.t('auth.sessionExpired')` (pre-existing key in all ten bundles); `confirmDelete().fail()` reuses `TLi18n.t('role.deleteConfirmMsg')` | no new i18n key needed, no bundle touched | PASS |

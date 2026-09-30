@@ -322,6 +322,12 @@ function sessionExpired(xhr) {
   var code = '';
   try { code = (JSON.parse(xhr.responseText) || {}).code || ''; } catch (e) {}
   if (xhr.status !== 401 && code !== 'session_expired') return false;
+  // Idempotent: this screen fires three requests on load (meta/grants, meta/rights, the
+  // role list), so several 401s can land in the same tick. The first one already
+  // neutralised the page and armed the bounce timer; later ones must still answer TRUE
+  // (so the caller returns instead of falling into its own error branch) but must not
+  // re-show the toast or stack a second navigation.
+  if (sessionDead) { return true; }
   showSessionExpired();
   toast(TLi18n.t('auth.sessionExpired'), true);
   // Legacy redirected the TOP window ("top.location"), and the Dashio shell loads content
@@ -515,6 +521,9 @@ function saveRole() {
     url: url, type: type,
     contentType: 'application/json', data: JSON.stringify(data),
     success: function(r) {
+      // Issue #1760: a sibling request already found the session dead - a response
+      // that raced the bounce must not touch the neutralised screen.
+      if (sessionDead) { return; }
       $('#roleModal').modal('hide');
       loadRoles();
       // Legacy parity: rolesEdit.php:126,131 logAuditEvent feeds
@@ -597,6 +606,9 @@ function doDelete(id) {
   $.ajax({
     url: API + '/' + id, type: 'DELETE',
     success: function(r) {
+      // Issue #1760: a sibling request already found the session dead - a response
+      // that raced the bounce must not touch the neutralised screen.
+      if (sessionDead) { return; }
       $('#deleteModal').modal('hide');
       loadRoles();
       // Legacy parity: roles.inc.php deleteRole() logs audit_role_deleted;
@@ -633,6 +645,9 @@ function duplicateRole(id) {
     url: API + '/' + id + '/duplicate',
     type: 'POST',
     success: function(r) {
+      // Issue #1760: a sibling request already found the session dead - a response
+      // that raced the bounce must not touch the neutralised screen.
+      if (sessionDead) { return; }
       loadRoles();
       // Legacy parity: rolesEdit.php duplicate is a CREATE audit; surface the
       // result as a toast (issue #904) instead of a silent reload.

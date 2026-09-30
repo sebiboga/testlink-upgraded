@@ -115,6 +115,17 @@ only −100 000 s still returns 200 because every valid call slides `lastActivit
   403 network log, no JS errors.
 * `php -l api/users/index.php` clean; `node --check` on both extracted inline scripts clean.
 
-Suite `1760` in `tmp/TLU_Test_Cases.md`: 23/23 PASS.
+### Code-review hardening (post-review, verified)
+
+1. `sessionExpired()` made **idempotent** — `if (sessionDead) { return true; }` after the detection:
+   three concurrent 401s (the screen fires 5 requests on load) all answer `true`, so no caller
+   falls into its own error branch, while the toast and the navigation timer fire exactly once.
+2. `if (sessionDead) { return; }` added as the first statement of every `$.ajax` **success**
+   handler (5 in `usersView.html`, 3 in `rolesView.html`) so a response that raced the bounce
+   cannot repaint or re-open a modal over the neutralised screen.
+3. No new i18n key: the only new user-visible string is the pre-existing
+   `TLi18n.t('auth.sessionExpired')`.
+
+Suite `1760` in `tmp/TLU_Test_Cases.md`: **26/26 PASS**.
 
 ![session expired bounce](screenshots/issue-1760-role-management-session-expired.png)
