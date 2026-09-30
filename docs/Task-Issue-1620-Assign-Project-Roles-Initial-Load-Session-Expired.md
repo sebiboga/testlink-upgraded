@@ -16,7 +16,7 @@ never rendered the assignment form at all: the controller logged INFO and did
 (`usersAssign.php:97`).
 
 The modern BFF cannot redirect, so the guard answers instead
-(`api/_guard.php:175-196 bffEnforceSession()`, called at `api/roles/index.php:40`, after the
+(`api/_guard.php:175-198 bffEnforceSession()`, called at `api/roles/index.php:40`, after the
 `userID` gate and before any route dispatch):
 
 ```
@@ -29,8 +29,8 @@ three** request paths it makes:
 | path | handler | on a 401 |
 |---|---|---|
 | **project combo (FIRST request of the page)** | `loadProjects().fail()` | **was not handled** — fell into the generic `else` and painted the empty-state box |
-| user grid | `loadUsers().fail()` `:523` | `sessionExpired(xhr)` → bounce (#1614) |
-| save | `saveAssignments()` `:561` | `sessionExpired(xhr)` → bounce (#1614) |
+| user grid | `loadUsers().fail()` | `sessionExpired(xhr)` → bounce (#1614) |
+| save | `saveAssignments()` | `sessionExpired(xhr)` → bounce (#1614) |
 
 `loadProjects()` is called first, from the `TLi18n.load` callback at `:364`, so it is exactly the
 request legacy guarded pre-render. Its `.fail()` only branched on `403`:
@@ -66,8 +66,9 @@ link loads this screen straight into the dead state.
    — the same shape as `loadUsers()` and `saveAssignments()`.
 2. New `showSessionExpired()` — the terminal state helper, modelled on the existing
    `showNoAccess()` / `showDisabled()`: hides the demo banner, the tab bar and the toolbar, empties
-   and disables the project combo, destroys the DataTables instance and clears `assignTbl` /
-   `currentItems`, hides the grid and all three message boxes (`#emptyMsg`, `#disabledMsg`,
+   and disables the project combo, destroys the DataTables instance and clears `assignTbl`,
+   `currentItems`, `roleChoices` and `changedMap` (the four pieces `loadUsers()` resets together), hides
+   the grid and all three message boxes (`#emptyMsg`, `#disabledMsg`,
    `#denyBox`), hides the demo note, disables Save and empties the footer.
    `sessionExpired()` calls it before the toast and the 600 ms redirect, so the 600 ms cannot leave
    a live toolbar / combo / Save button on screen. Legacy redirected *before* the first render, so
@@ -80,9 +81,20 @@ link loads this screen straight into the dead state.
 4. The `sessionExpired()` header comment no longer claims the bounce only covers "the initial user
    list load and a Save" — it now lists all three request paths.
 
+### Hardening added by the code review (same run)
+
+| finding | change |
+|---|---|
+| a request already in flight when the 401 landed could repaint the neutralised state from its late `.done()` (re-created the DataTable, re-populated the footer) | `sessionDead` flag set by `showSessionExpired()`, checked at the top of `loadProjects()` / `loadUsers()` **and** in both `.done()` callbacks — the terminal state is now authoritative |
+| two requests 401-ing in the same tick stacked two `setTimeout` redirects | one module-level `redirectTimer`, `clearTimeout` before re-arming → exactly one navigation |
+| `sessionExpired()` threw on a null argument (the sibling screen guards it) | `if (!xhr) return false;` |
+| `showSessionExpired()` cleared `currentItems` but left `roleChoices` / `changedMap` behind | both reset with it |
+| the change handler read `$(this).val()` before its guard (dead store) | guard moved first |
+
 **No i18n change:** the fix reuses `auth.sessionExpired`, already present in all ten locale bundles
 (de, en, es, fr, it, ja, pt, ro, ru, zh) and already used by the two older paths.
 **No BFF change:** `bffEnforceSession()` was already correct.
+
 
 ## Verification
 
@@ -117,6 +129,8 @@ test projects `#2 "Issue 1620 Project"` / `#3 "Issue 1620 Project B"` (public) p
 
 ## Note for the other screens
 
-`usersAssignProject.html` was the last of the user-management screens to miss the 401 branch on its
-first request; `usersAssignPlan.html` got the full four-path treatment in #1646. When porting this
-helper to a new screen, check **every** request path, not just the one that renders the grid.
+Of the two assign-roles screens this was the last one missing the 401 branch on its first request —
+`usersAssignPlan.html` got the full four-path treatment in #1646. The neighbouring
+`usersView.html` and `rolesView.html` (same ASIDE section, same tab bar, 12 and 8 request paths) still
+contain **no** 401 handling at all and are filed as a follow-up task; when porting this helper to a
+new screen, check **every** request path, not just the one that renders the grid.

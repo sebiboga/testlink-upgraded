@@ -693,8 +693,13 @@ screen reaches full parity.
   "nothing to act on" state (hide tab bar + toolbar, empty/disable the combo, drop the grid and its
   DataTables instance, disable Save, clear the footer) before the 600 ms redirect, so no dead
   control can be clicked and no misleading empty-state box is shown; the `#projectSelect` change
-  handler also ignores a disabled combo so the dead context can never re-arm a request. 403 handling
-  (the deny box) is unchanged and verified still reachable, and `sessionExpired()` still returns
+  handler also ignores a disabled combo so the dead context can never re-arm a request. Hardened in
+  the same run by the code review: a `sessionDead` flag (checked at the top of `loadProjects()` /
+  `loadUsers()` and in both `.done()` callbacks) so a request already in flight when the 401 landed
+  cannot repaint the neutralised state, a single `redirectTimer` instead of stacked 600 ms
+  navigations when two requests 401 in the same tick, a null guard in `sessionExpired()` (matching
+  usersAssignPlan.html), and `roleChoices` / `changedMap` cleared together with `currentItems`.
+  403 handling (the deny box) is unchanged and verified still reachable, and `sessionExpired()` still returns
   `false` for 403/500. No i18n change - `auth.sessionExpired` already exists in all 10 bundles. No BFF
   change - the guard was already correct. Regression suite 1620: 10 PASS / 0 FAIL / 1 not
   exercisable, `node --check` clean, Event Viewer and PHP logs clean. (Refs #1620)

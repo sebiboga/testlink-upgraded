@@ -158,6 +158,12 @@ var restoredStateNotified = false;
 var currentItems = [];
 var roleChoices = {};
 var changedMap = {};
+// Issue #1620: set by showSessionExpired() and never cleared - the bounce replaces
+// the whole document, so within one page load "the session is gone" is terminal.
+// Every request entry point checks it, so a request that was already in flight when
+// the 401 landed cannot repaint the neutralised state from its late .done().
+var sessionDead = false;
+var redirectTimer = null;
 var paginationCfg = { enabled: true, lengthMenu: [[20, 40, 60, -1], [20, 40, 60, 'All']] };
 // Legacy parity: usersAssign.tpl:286-292 - read-only assignment form while
 // demoMode is on (Save button replaced by the localized warn_demo note).
@@ -316,7 +322,7 @@ function assignFeedback(feedbackKey) {
   return TLi18n.t(map[feedbackKey] || 'assign.rolesUpdated');
 }
 
-// Legacy parity: checkSessionValid() (lib/functions/common.php:258-286), run by
+// Legacy parity: checkSessionValid() (lib/functions/common.php:281-310), run by
 // testlinkInitPage() on every legacy page, bounced a session idle for longer
 // than config_get("sessionInactivityTimeout") minutes to
 // login.php?note=expired&destination=<this screen>, with the localized
@@ -328,6 +334,7 @@ function assignFeedback(feedbackKey) {
 // guarded pre-render through testlinkInitPage), the user list load and a Save -
 // so a stale tab can neither read the user list nor write role changes.
 function sessionExpired(xhr) {
+  if (!xhr) return false;
   var code = '';
   try { code = (JSON.parse(xhr.responseText) || {}).code || ''; } catch (e) {}
   if (xhr.status !== 401 && code !== 'session_expired') return false;
@@ -345,7 +352,11 @@ function sessionExpired(xhr) {
   var dest = window.location.pathname + window.location.search;
   var target = window.location.origin + '/login.php?note=expired&destination=' +
                encodeURIComponent(dest);
-  setTimeout(function() {
+  // Two requests can 401 in the same tick (e.g. a Save PUT in flight while the
+  // project combo - still enabled until the neutralise lands - fires loadUsers):
+  // re-arm ONE timer instead of stacking two navigations.
+  clearTimeout(redirectTimer);
+  redirectTimer = setTimeout(function() {
     try { if (window.self !== window.top) { window.top.location.href = target; }
           else { window.location.href = target; } } catch (e) { window.location.href = target; }
   }, 600);
@@ -360,6 +371,7 @@ function sessionExpired(xhr) {
 // tab bar too: legacy redirected before the menu could be clicked and every one of
 // those links loads a screen that would now 401 the same way.
 function showSessionExpired() {
+  sessionDead = true;
   $('#demoBanner').hide();
   $('#tabsBar').hide();
   $('.toolbar').hide();
@@ -368,7 +380,12 @@ function showSessionExpired() {
     $('#assignTable').DataTable().destroy();
   }
   assignTbl = null;
+  // Drop EVERY piece of the previous context, not just the row cache: loadUsers()
+  // resets these four together, so an out-of-sync survivor here would resurrect a
+  // row or a pending Save entry for a context that can no longer be saved.
   currentItems = [];
+  roleChoices = {};
+  changedMap = {};
   $('#assignTable').hide();
   $('#emptyMsg').hide();
   $('#disabledMsg').hide();
@@ -401,8 +418,13 @@ $(function() {
 });
 
 function loadProjects(selectedId) {
+  // Issue #1620: never touch the screen again once the session is known dead.
+  if (sessionDead) { return; }
   $.getJSON(API + '/meta/tproject-roles?tproject_id=' + (selectedId || 0))
     .done(function(r) {
+      // A request that was already in flight when the 401 landed must not repaint
+      // the neutralised state from a response the dead session can no longer own.
+      if (sessionDead) { return; }
       var sel = $('#projectSelect');
       sel.empty();
       sel.append('<option value="">' + TLi18n.t('assign.selectProject') + '</option>');
@@ -438,12 +460,12 @@ function loadProjects(selectedId) {
       else { $('#emptyMsg').show(); }
     });
   $('#projectSelect').on('change', function() {
-    var pid = $(this).val();
     // Issue #1620: showSessionExpired() empties and disables the combo, but guard
     // anyway - a stale context must never re-arm a request against the dead
     // session (and a combo emptied while a previous load is still in flight would
     // otherwise fire this handler with an empty value and wipe the grid).
     if ($(this).prop('disabled')) { return; }
+    var pid = $(this).val();
     if (pid) loadUsers(pid);
     else {
       // Issue #1707 review: the authz toggle redraws the grid, so an emptied
@@ -518,6 +540,9 @@ function showNoAccess() {
 }
 
 function loadUsers(pid) {
+  // Issue #1620: a dead session must never be re-queried, and a response that
+  // arrives after the neutralise must not repaint the screen (issue #1620 review).
+  if (sessionDead) { return; }
   var prevProject = currentProject;
   // Legacy parity + issue #1622: the grid is stateful (DataTables.inc.tpl:103
   // stateSave:true) and the state key is per page URL, not per project. Reset it
@@ -535,6 +560,7 @@ function loadUsers(pid) {
   currentProject = pid;
   $('#saveBtn').prop('disabled', true);
   $.getJSON(API + '/meta/tproject-roles?tproject_id=' + pid, function(r) {
+    if (sessionDead) { return; }
     roles = r.roles || roles;
     paginationCfg = r.pagination || { enabled: true, lengthMenu: [[20, 40, 60, -1], [20, 40, 60, 'All']] };
     buildBulkSelect();

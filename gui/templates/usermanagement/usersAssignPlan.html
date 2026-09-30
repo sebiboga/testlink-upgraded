@@ -585,7 +585,7 @@ function showNoAccess() {
 // redirect, so it answers 401 {"code":"session_expired"} (issue #1614) and the
 // screen performs the bounce here - on every request path, so a stale tab can
 // neither read the user list nor write role assignments (issue #1646).
-// Mirrors usersAssignProject.html:219-232 (same helper, same comment intent).
+// Mirrors usersAssignProject.html:330-368 (same helper, same comment intent).
 //
 // The status code is the primary signal, NOT the body: api/roles/index.php:24-27
 // answers a completely absent session with 401
