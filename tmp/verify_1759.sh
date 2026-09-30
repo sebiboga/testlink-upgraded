@@ -30,6 +30,7 @@ g(){ # method url cURL-data label expected_status expected_code
         "$u" -w "\n%{http_code}")
   st=$(echo "$out" | tail -1)
   body=$(echo "$out" | head -n -1)
+  LAST_BODY="$body"
   code=$(echo "$body" | python3 -c 'import sys,json;print(json.load(sys.stdin).get("code",""))' 2>/dev/null)
   if [ "$st" = "$xs" ] && [ "$code" = "$xc" ]; then
     echo "PASS  $label  [$st $code]"; PASS=$((PASS+1))
@@ -67,14 +68,23 @@ else
   echo "FAIL  M6b foreign reorder MUTATED project B: $B_BEFORE -> $B_AFTER"; FAIL=$((FAIL+1))
 fi
 
-# M8: a real reorder inside project A really reverses the order
-g POST "$B" "action=reorder&tproject_id=$A&container_id=$A&nodelist=$SA2,$SA1" \
+# M8: a real reorder inside project A really reverses the order.
+# The order is read HERE, immediately before the call: M11 already ran and left
+# the children swapped, so a stale expectation made this a no-op no_change 200.
+A_BEFORE8=$(order_now $A)
+EXP8=$(echo "$A_BEFORE8" | awk -F, -v a="$SA1" -v b="$SA2" '{for(i=1;i<=NF;i++) if($i==a)print b; else if($i==b)print a; else print $i}' | paste -sd,)
+g POST "$B" "action=reorder&tproject_id=$A&container_id=$A&nodelist=$EXP8" \
                                                      "M8  reorder inside own project (writes)" 200 ""
-A_AFTER=$(order_now $A)
-if [ "$A_AFTER" = "$SA2,$SA1" ]; then
-  echo "PASS  M8b order really reversed in the DB (=$A_AFTER)"; PASS=$((PASS+1))
+if echo "$LAST_BODY" | grep -q '"status":"ok"'; then
+  echo "PASS  M8a reorder really reported status=ok (not no_change)"; PASS=$((PASS+1))
 else
-  echo "FAIL  M8b expected $SA2,$SA1 got $A_AFTER"; FAIL=$((FAIL+1))
+  echo "FAIL  M8a body=$LAST_BODY"; FAIL=$((FAIL+1))
+fi
+A_AFTER=$(order_now $A)
+if [ "$A_AFTER" = "$EXP8" ] && [ "$A_BEFORE8" != "$A_AFTER" ]; then
+  echo "PASS  M8b order really reversed in the DB ($A_BEFORE8 -> $A_AFTER)"; PASS=$((PASS+1))
+else
+  echo "FAIL  M8b expected $EXP8 (was $A_BEFORE8) got $A_AFTER"; FAIL=$((FAIL+1))
 fi
 # restore
 curl -s -b $CK -H "Origin: http://localhost:8082" -X POST \
@@ -103,7 +113,7 @@ out=$(curl -s -b $CK2 -H "Origin: http://localhost:8082" -X POST \
       -d "action=reorder&tproject_id=$A&container_id=$A&nodelist=$SA1,$SA2" "$B" \
       -w "\n%{http_code}")
 st=$(echo "$out" | tail -1)
-if [ "$st" = "200" ] || [ "$st" = "200" ]; then
+if [ "$st" = "200" ]; then
   echo "PASS  M11b admin can still reorder (write path intact)  [$st]"; PASS=$((PASS+1))
 else
   echo "FAIL  M11b admin reorder -> $st"; FAIL=$((FAIL+1))
@@ -112,8 +122,8 @@ out=$(curl -s -b $CK2 -X POST -d "action=reorder&tproject_id=$A&container_id=$A&
       "$B" -w "\n%{http_code}")
 st=$(echo "$out" | tail -1)
 code=$(echo "$out" | head -n -1 | python3 -c 'import sys,json;print(json.load(sys.stdin).get("code",""))' 2>/dev/null)
-if [ "$st" = "403" ]; then
-  echo "PASS  M13 CSRF guard still answers 403 forbidden"; PASS=$((PASS+1))
+if [ "$st" = "403" ] && echo "$(echo "$out" | head -n -1)" | grep -q "same-origin"; then
+  echo "PASS  M13 CSRF guard still answers 403 (same-origin proof)"; PASS=$((PASS+1))
 else
   echo "FAIL  M13 CSRF guard -> [$st] body=$(echo "$out" | head -n -1)"; FAIL=$((FAIL+1))
 fi
@@ -122,7 +132,7 @@ fi
 # pre-existing rows from unrelated fixture authoring are not attributed here)
 W=$(mysql -N -B -h 127.0.0.1 -utestlink -ptestlink testlink \
     -e "SELECT COUNT(*) FROM events WHERE log_level IN (1,2);")
-if [ "$W" = "$WBASE" ]; then
+if [ -n "$WBASE" ] && [ "$W" = "$WBASE" ]; then
   echo "PASS  M14 no new ERROR/WARNING row in events ($W = baseline)"; PASS=$((PASS+1))
 else
   echo "FAIL  M14 events ERROR/WARNING rows $WBASE -> $W"; FAIL=$((FAIL+1))
@@ -147,6 +157,50 @@ gv "$B?action=init&tproject_id=$A&container_id=$SA1" "M12  view-only user, conta
 gv "$B?action=init&tproject_id=$A"                 "M12b view-only user, project root"            403 "forbidden"
 # the foreign container must STILL be 404, never 403 - for EVERY caller
 gv "$B?action=init&tproject_id=$A&container_id=$SB1" "M12c view-only user, FOREIGN container"      404 "not_found"
+
+# ---- M15: the oracle must be closed on the MESSAGE too, not only the status --
+body(){ curl -s -b $CK -H "Origin: http://localhost:8082" $2 "$B?$1"; }
+FOREIGN_BODY=$(body "action=init&tproject_id=$A&container_id=$SB1" "")
+ABSENT_BODY=$(body  "action=init&tproject_id=$A&container_id=999999" "")
+if [ "$FOREIGN_BODY" = "$ABSENT_BODY" ]; then
+  echo "PASS  M15 foreign-container and absent-container bodies are byte-identical"; PASS=$((PASS+1))
+else
+  echo "FAIL  M15 bodies differ: [$FOREIGN_BODY] vs [$ABSENT_BODY]"; FAIL=$((FAIL+1))
+fi
+
+# ---- M16: the BYPASS - naming NO test project must not re-open the oracle -----
+NB_FOREIGN=$(body "action=init&container_id=$SB1" "")
+NB_ABSENT=$(body  "action=init&container_id=999999" "")
+if [ "$NB_FOREIGN" = "$NB_ABSENT" ]; then
+  echo "PASS  M16 init without tproject_id: foreign == absent (=$NB_FOREIGN)"; PASS=$((PASS+1))
+else
+  echo "FAIL  M16 init without tproject_id: [$NB_FOREIGN] vs [$NB_ABSENT]"; FAIL=$((FAIL+1))
+fi
+nb(){ out=$(curl -s -b $CK -H "Origin: http://localhost:8082" -X POST -d "$2" "$B" -w "\n%{http_code}")
+       st=$(echo "$out" | tail -1); body=$(echo "$out" | head -n -1)
+       if [ "$st" = "$3" ]; then echo "PASS  $1  [$st]"; PASS=$((PASS+1))
+       else echo "FAIL  $1 got [$st] want [$3] body=$body"; FAIL=$((FAIL+1)); fi; }
+nb "M17 reorder without tproject_id, foreign container" "action=reorder&container_id=$SB1&nodelist=$SB1,$SB2" 404
+nb "M18 reorder without tproject_id, absent container"  "action=reorder&container_id=999999&nodelist=999999,999998" 404
+nb "M19 move without tproject_id, foreign node"         "action=move&node_id=$SB1&position=down" 404
+nb "M20 move without tproject_id, absent node"          "action=move&node_id=999999&position=down" 404
+
+# ---- M21: the PROJECT id must not be an existence oracle either ---------------
+PJ_OTHER=$(body "action=init&tproject_id=$B_P" "")
+PJ_ABSENT=$(body "action=init&tproject_id=424242" "")
+if [ "$PJ_OTHER" = "$PJ_ABSENT" ]; then
+  echo "PASS  M21 other-project and non-existent tproject_id answer identically"; PASS=$((PASS+1))
+else
+  echo "FAIL  M21 [$PJ_OTHER] vs [$PJ_ABSENT]"; FAIL=$((FAIL+1))
+fi
+
+# ---- M22: legitimate deep links WITHOUT tproject_id still work ---------------
+OUT=$(curl -s -b $CK -H "Origin: http://localhost:8082" "$B?action=init&container_id=$SA1" -w "\n%{http_code}")
+if [ "$(echo "$OUT" | tail -1)" = "200" ]; then
+  echo "PASS  M22 init of an OWN container without tproject_id still 200"; PASS=$((PASS+1))
+else
+  echo "FAIL  M22 $(echo "$OUT" | tail -1) $(echo "$OUT" | head -n -1)"; FAIL=$((FAIL+1))
+fi
 
 echo "===== $PASS passed, $FAIL failed ====="
 [ "$FAIL" = "0" ]

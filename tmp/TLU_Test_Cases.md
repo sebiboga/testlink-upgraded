@@ -1674,7 +1674,31 @@ on the read path, and the same `out()` is reached by `POST ?action=reorder` on t
 | S3 | `…&container_id=52`, click **Move down** on row 1 | notice + real reorder | notice `The test suite was moved down.`, grid and picker flipped to `A-suite-2, A-suite-1`; DB `SELECT id,node_order FROM nodes_hierarchy WHERE parent_id=52` → `55→0, 54→1` | PASS |
 | S4 | console + Event Viewer audit after S1-S3 | 0 console error/warn, 0 new Error/Warning row | `list_console_messages([error,warn])` → none; `events` ERROR/WARNING count `6 → 6` | PASS |
 
-**Summary: 19 API assertions + 4 screen checks = 23 PASS / 0 FAIL / 1 skipped (M5, fixture gap).**
+### Step 4 — code-review round 1: the first fix was BYPASSABLE (new cases M15-M22)
+
+The mandatory code review of commit `30b6056ea` found the first fix incomplete: the mismatch check
+is guarded by `intval($requestedId) > 0`, so **omitting `tproject_id`** made the resolver retarget
+onto the container's own project and answer `403 Insufficient rights…` for the probed id.
+
+| # | Request | Before round 2 | After round 2 |
+|---|---|---|---|
+| M15 | `GET init tproject_id=A container_id=<suite of B>` vs `container_id=999999` — compare the **whole body** | different code paths, only the status differed | bodies **byte-identical** |
+| M16 | `GET init` **without** `tproject_id`, foreign vs absent container | `403 forbidden` vs `404 not_found` | both `404 not_found`, identical body |
+| M17 | `POST reorder` without `tproject_id`, foreign container | `403 forbidden` | `404 not_found` |
+| M18 | `POST reorder` without `tproject_id`, absent container | `404 not_found` | `404 not_found` |
+| M19 | `POST move` without `tproject_id`, foreign node | `403 forbidden` | `404 not_found` |
+| M20 | `POST move` without `tproject_id`, absent node | `404 not_found` | `404 not_found` |
+| M21 | `GET init tproject_id=<project B>` vs `tproject_id=424242` | `403 forbidden` vs `404 Test project not found` | identical `403 forbidden` |
+| M22 | `GET init` without `tproject_id` at an **own** container | `200 ok` | `200 ok` (no false 404) |
+| M8a | assert `reorder` answers `status=ok`, **not** `no_change` | M11 ran first so M8 could silently no-op | PASS |
+| M8b | read `node_order` immediately before M8 and require a real change | stale expectation, could not fail | PASS (`55,54 -> 54,55`) |
+
+Also closed by the same round: `'Container is not a test suite'` and `'Container has no owning
+test project'` now answer `'Container not found'`, so no `nodes_hierarchy` id of any project is
+probe-able by its type; and M12/M12b still return the informative **403** for a view-only user of
+their own project (the leak guard is armed only when the project came from a caller-supplied id).
+
+**Summary after round 2: 28 API assertions + 4 screen checks = 32 PASS / 0 FAIL / 1 skipped.**
 The only case that failed before `30b6056ea` is M2/M6/S1, i.e. exactly the oracle this issue
 describes.
 

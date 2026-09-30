@@ -29,27 +29,27 @@ but one's own project. Reachable on the read path (`GET ?action=init`) **and** o
 
 ## Root cause chain
 
-1. `api/suitemove/index.php:558` (`action=init`) and `:841` (`action=reorder`) both pass the
+1. `api/suitemove/index.php` — `case 'init'` and `case 'reorder'` — both pass the
    client-supplied `container_id` into the shared resolver
-   `suitMoveProject($db, $user, $requestedId, $containerId)` (`:302`).
-2. `:307` → `suitMoveNodeInfo()` (`:213-236`) loads the container with an **unpredicated**
+   `suitMoveProject($db, $user, $requestedId, $containerId)` (`:316`).
+2. → `suitMoveNodeInfo()` (`:213`) loads the container with an **unpredicated**
    `SELECT id, name, parent_id, node_type_id, node_order FROM nodes_hierarchy WHERE id = ?`
    (`:225-227`). No project predicate, so a row of project B is fetched exactly like a row of
    project A.
 3. `:318` the real owner comes from the `parent_id` walk of `suitMoveOwningProject()` (`:239-266`).
-4. `:325-328` on disagreement the resolver answered **`403 forbidden`** — *before* the rights check
-   at `:347-350`, and before anything could be known about the caller.
-5. The genuine insufficient-rights `403` at `:347-350` is correct and untouched.
+4. On disagreement the resolver answered **`403 forbidden`** — *before* the rights check
+   (now `:391`), and before anything could be known about the caller.
+5. The genuine insufficient-rights `403` is correct and untouched for a project the caller named.
 
 ### Why it breaks NOW
 
 The two `move`-path ownership checks had already been hardened to `404` by commit `13f2ca183`
 (“#1740: apply code-review fixes to Move/Reorder Test Suites”):
 
-* `:653-658` — moved node of a foreign project → `404`
+* `case 'move'` — moved node of a foreign project → `404`
   (*“404, not 403: a 403 would tell a caller who has rights on project A that node N exists inside
   another project B.”*)
-* `:745-751` — destination of a foreign project → `404`
+* `case 'move'` — destination of a foreign project → `404`
 
 That commit did **not** touch the resolver, which came in with the endpoint itself (`a45462e2c`)
 and predates both. So the screen shipped with **three of four** ownership checks hardened and one
@@ -58,7 +58,7 @@ code did not implement.
 
 ## Fix
 
-One call site, `api/suitemove/index.php:325-337`:
+One call site inside `suitMoveProject()`:
 
 ```php
   // BEFORE
@@ -76,7 +76,7 @@ One call site, `api/suitemove/index.php:325-337`:
 
 **Why the message was changed too, and not just the status code:** a `403`-turned-`404` that still
 says *“belongs to another test project”* would leave a softer wording oracle. The message is now
-**byte-identical** to the non-existent-id answer produced 16 lines above at `:309-311`.
+**byte-identical** to the non-existent-id answer produced a few lines above it.
 
 ### Alternatives rejected
 
@@ -90,14 +90,55 @@ says *“belongs to another test project”* would leave a softer wording oracle
 
 * `gui/templates/testcases/suiteMove.html` — `:263-269` already maps `404 → smv.stNotFound` and
   `:409` reserves `403` for the CSRF refusal. **No new i18n key, no locale bundle touched.**
-* `suitMoveRequireSuite()` (`:519`), the `move`-path checks (`:653`, `:745`) and the rights 403
-  (`:347`).
+* `suitMoveRequireSuite()`, the `move`-path checks and the rights 403 of a project the caller
+  itself named.
+
+## Code-review round 1 — the first fix was bypassable
+
+A code review over the whole diff found the first fix **incomplete**: the mismatch check was
+guarded by `intval($requestedId) > 0`, so a caller that simply **omitted `tproject_id`** made the
+resolver retarget onto the container's *own* project and then answer `403 Insufficient rights…`
+for the very id it was probing — the oracle, one step further along:
+
+```
+GET  ?action=init&tproject_id=52&container_id=56  -> 404 not_found   (fixed)
+GET  ?action=init&container_id=56                  -> 403 forbidden    (BYPASS)
+GET  ?action=init&container_id=999999              -> 404 not_found
+POST ?action=reorder&container_id=56&nodelist=…    -> 403 forbidden    (BYPASS, write path)
+POST ?action=move&node_id=56&position=down         -> 403 forbidden    (BYPASS, write path)
+```
+
+Two further findings from the same review, all closed in the same commit:
+
+| Finding | Fix |
+|---|---|
+| the project id was itself an existence oracle (`?tproject_id=<other>` → 403 vs `?tproject_id=424242` → 404) | the refusal is now uniform `403 forbidden`; existence is not observable, and a caller that *has* rights still gets its 200 |
+| `'Container is not a test suite'` / `'Container has no owning test project'` still named the node type, so any `nodes_hierarchy` id was probe-able by message | both now answer `'Container not found'`, byte-identical to a non-existent id |
+| the 403 must NOT be swallowed when the caller named **its own** project | `$leakGuard` is armed only when the project in play was derived from a caller-supplied node id, so the view-only user still gets the informative 403 |
+
+```php
+  // suitMoveProject(), 5th parameter
+  function suitMoveProject(&$db, &$user, $requestedId, $containerId = 0, $leakGuard = false)
+  ...
+      // Naming no project at all is the same leak with one more step …
+      $leakGuard = (intval($requestedId) <= 0);
+  ...
+      if (is_null($tproject) || !$user->hasRight($db, 'mgt_modify_tc', $tprojectId)) {
+          if ($leakGuard) {
+              out(array('status' => 'error', 'code' => 'not_found',
+                        'message' => 'Container not found'), 404);
+          }
+          out(array('status' => 'error', 'code' => 'forbidden',
+                    'message' => 'Insufficient rights on this test project'), 403);
+      }
+```
 
 ## Verification
 
-`bash tmp/verify_1759.sh` — **19/19 PASS** (fixture `tmp/fixtures_1759.php`: two **private**
+`bash tmp/verify_1759.sh` — **28/28 PASS** after the code-review round (fixture `tmp/fixtures_1759.php`: two **private**
 projects, an editor of A only, a view-only user and a `<no rights>` user). Suite
-`Regression — Issue #1759` in `tmp/TLU_Test_Cases.md`: **23 PASS / 0 FAIL / 1 skipped**.
+`Regression — Issue #1759` in `tmp/TLU_Test_Cases.md`: **32 PASS / 0 FAIL / 1 skipped**
+(28 API assertions + 4 screen checks).
 
 | Case | Before | After |
 |---|---|---|

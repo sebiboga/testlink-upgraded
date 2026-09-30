@@ -1579,9 +1579,14 @@ MAJOR AREAS
   was the ONLY difference between "this id is a test suite of a project you have no rights on" and
   "this id does not exist" - one 403 per existing suite is enough to enumerate the suite ids of any
   test project of the installation (measured on both the read and the write path). Now `404
-  not_found` with a message byte-identical to the non-existent-id answer, matching what the `move`
-  action already did for the moved node and for the destination. The genuine
-  insufficient-rights `403` is untouched.
+  not_found` with a message byte-identical to the non-existent-id answer. The first attempt was
+  bypassable - a caller that omitted `tproject_id` made the resolver retarget onto the container's
+  own project and got `403` for the probed id - so the resolver now also arms a leak guard: any
+  refusal on a request whose project came from a caller-supplied node id is a 404, the node-type
+  answers ('is not a test suite', 'has no owning test project') no longer name the type either, and
+  the refusal for a project the caller NAMED is uniformly 403 so a project id is not an existence
+  oracle either. The informative 403 for a caller without `mgt_modify_tc` on its OWN project is
+  untouched.
 - [KEY BUGFIX] - #1718: the legacy **Test Cases not run on any Platform** controller
   (`lib/results/tcNotRunAnyPlatform.php`) could not run and answered HTTP 500 with a 0-byte body on
   every request. It has FOUR independent hard failures, all measured: (1) `:16`
