@@ -653,32 +653,42 @@ class tlReqMgrSystem extends tlObject
       if( !is_null($system)  )
       {
         $itd = $this->getByID($system['reqmgrsystem_id']);
-        $iname = is_null($itd) ? null : $itd['implementation'];
+        $iname = isset($itd['implementation']) ? $itd['implementation'] : null;
 
-        // Issue #1629: this was the THIRD - and last - unguarded `new` in the
-        // class, after checkConnection() (:672, #1625) and the getAll() checkEnv
-        // guard (:576, #1625). Its catch(Exception) could not help, because both
-        // failure modes raise an Error, which is NOT an Exception, so PHP 8
+        // Issue #1629: this was the LAST unguarded `new` left in the class, the
+        // two siblings already hardened by #1625 being checkConnection()
+        // (:705) and the getAll() checkEnv block (:576). The
+        // catch (Exception) of this method could not help, because every
+        // failure mode raises an Error, which is NOT an Exception, so PHP 8
         // aborted the request. Measured on the legacy Requirements screens of a
         // project with reqmgr_integration_enabled=1:
-        //   1. type 1 (contour) -> getImplementationForType() returns
+        //   1. type 1 (contour) -> getImplementationForType() (:111) returns
         //      "contoursoapInterface", a class that is not shipped here and
         //      never was -> "Class contoursoapInterface not found"
-        //   2. a type that is not a key of $systems -> getByAttr() (:344)
+        //   2. a type that is not a key of $systems -> getByAttr() (:346-348)
         //      stores implementation = NULL -> "Class name must be a valid
         //      object or a string"
-        // Both landed on line 657 of this method, inside the CONSTRUCTOR of
-        // reqSpecCommands (lib/requirements/reqSpecCommands.class.php:44, reached
-        // from reqSpecEdit.php:23 / reqSpecSearch.php:34 /
+        // Both ended on the `new` of the PRE-patch file, inside the CONSTRUCTOR
+        // of reqSpecCommands (lib/requirements/reqSpecCommands.class.php:44,
+        // reached from reqSpecEdit.php:23 / reqSpecSearch.php:34 /
         // reqSpecViewRevision.php:59), i.e. before a single byte was flushed:
         // HTTP 500 with a 0-byte body and NO Event Viewer row, i.e. silent.
+        // Measured pre/post on the render path reqSpecEdit.php?doAction=create:
+        // 500 / 0 bytes  ->  200 / 15645 bytes.
         //
         // Degradation is the same one the two #1625 siblings already use, and
-        // provably safe for the only caller: reqSpecCommands.class.php:44
-        // DISCARDS the return value ($rms is never read; line 45 overwrites it
-        // with getLinkedTo()), and NULL is exactly what this method already
-        // returns for "no system linked to this project" and what
-        // tlIssueTracker::getInterfaceObject() returns for the same case.
+        // provably safe for the only caller in the tree:
+        // reqSpecCommands.class.php:44 DISCARDS the return value ($rms is never
+        // read; line 45 overwrites it with getLinkedTo()), and NULL is exactly
+        // what this method already returns for "no system linked to this
+        // project" and what tlIssueTracker::getInterfaceObject() returns for the
+        // same case. !is_string() is kept beside the null test on purpose: a
+        // hand-edited type/cfg could store an array in 'implementation', and
+        // "new <array>" is its own Error.
+        // class_exists() is @-silenced for symmetry with the sibling guard at
+        // :735; after the #1593 autoloader fix (lib/functions/common.php:131-142)
+        // the autoloader is already silent here, so the @ is belt-and-braces
+        // rather than load-bearing.
         if( is_null($iname) || !is_string($iname) || !@class_exists($iname) )
         {
           return null;

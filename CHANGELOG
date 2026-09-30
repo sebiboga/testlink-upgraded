@@ -6611,17 +6611,21 @@ Changes:
   overwrites it with `getLinkedTo()`), and `null` is what this method already returns when no
   system is linked, and what `tlIssueTracker::getInterfaceObject()` returns for the same case.
   No i18n change (no user-facing string added or removed), no template change, no BFF change.
-  Verified: `reqSpecEdit.php` `500`/0 B → `200`/non-empty for both flavours; 0 new
-  `events` rows; the dangling-link and integration-off paths are byte-for-byte unchanged; a
-  *loadable* implementation class is still really instantiated (a shipped stub class proves
-  the guard is not over-broad); the #1625 siblings (`reqMgrSystemView.php`,
-  `reqMgrSystemEdit.php?doAction=checkConnection`) and the modernized
-  `api/reqmgrsystems` / `api/reqspec` BFFs unchanged. Regression suite 1629 31/31 PASS
-  (`bash tmp/verify_1629.sh`, exit 0; pre-fix baseline 7 FAIL / exit 1, so the harness is
-  discriminating). Masked-but-separate defects found while testing and filed, not fixed:
-  **#1735** (`reqSpecSearch.php:116` `count(null)` — the #1629 fatal used to kill the request
-  before that line, and the fix uncovers it) and **#1736** (`reqSpecEdit.php`'s
-  `initialize_gui()` reading a `null` `$gui` for an unrecognised `doAction`).
+  Verified on the *render* path `reqSpecEdit.php?doAction=create` (NOT `doAction=init`:
+  `init` is not a `renderGui()` case label, so it answers with the 28-byte
+  `Can not process RENDERING!!!` stub even when the screen is healthy — measured
+  pre/post **`500` / 0 bytes → `200` / 15645 bytes**); 0 new `events` rows; the dangling-link
+  and integration-off paths unchanged; a *loadable* implementation class is still really
+  instantiated (a shipped stub class proves the guard is not over-broad) and a `TypeError`
+  raised by such a class's constructor on a `NULL` `cfg` (the column is nullable, so that is
+  normal data) is caught by the widened handler; the #1625 siblings
+  (`reqMgrSystemView.php`, `reqMgrSystemEdit.php?doAction=checkConnection`) and the
+  modernized `api/reqmgrsystems` / `api/reqspec` BFFs unchanged. Regression suite 1629
+  37/37 PASS (`bash tmp/verify_1629.sh`, exit 0; pre-fix baseline 10 FAIL / exit 1, so the
+  harness is discriminating). Masked-but-separate defects found while testing and filed, not
+  fixed: **#1735** (`reqSpecSearch.php:116` `count(null)` — the #1629 fatal used to kill the
+  request before that line, and the fix uncovers it) and **#1736** (`renderGui()` at
+  `reqSpecEdit.php:147` reading a `null` `$opObj` for an unrecognised `doAction`).
   (Fixes #1629)
 
 ### Screen — Requirement Management System editor `reqMgrSystemEdit` (Refs #1727)
