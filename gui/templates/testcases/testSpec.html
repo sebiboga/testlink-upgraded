@@ -140,6 +140,7 @@ textarea.form-control2 { min-height: 80px; resize: vertical; }
   <button class="btn-dark btn-sm" id="btnRenameSuite" onclick="openSuiteRename()" style="display:none;"><i class="fa fa-pen"></i> <span data-i18n="tspec.renameSuite">Rename Suite</span></button>
   <button class="btn-red btn-sm" id="btnDelSuite" onclick="askDeleteSuite()" style="display:none;"><i class="fa fa-trash"></i> <span data-i18n="tspec.deleteSuite">Delete Suite</span></button>
   <button class="btn-dark btn-sm" id="btnReorder" onclick="openTcReorder()" style="display:none;" data-i18n-title="tspec.reorderTestCasesTitle"><i class="fa fa-sort-numeric-asc"></i> <span data-i18n="tspec.reorderTestCases">Reorder Test Cases</span></button>
+  <button class="btn-dark btn-sm" id="btnSuiteMove" onclick="openSuiteMove()" style="display:none;" data-i18n-title="smv.moveTo"><i class="fa fa-sitemap"></i> <span data-i18n="smv.title">Move / Reorder Test Suites</span></button>
   <span style="flex:1"></span>
   <span class="ctx"><b id="treeCounts">-</b></span>
 </div>
@@ -591,6 +592,10 @@ function updateContextButtons() {
   // ExtJS tree drag-and-drop / reorder toolbar. Suite-scoped like the other
   // container actions; the popup itself can also target the project root.
   $('#btnReorder').toggle(canMod && (isSuite || rootSelected));
+  // Move / Reorder Test Suites (Refs #1740) - suite-scoped exactly like the
+  // test-case reorder button: the popup moves/reorders the SUB-SUITES of the
+  // selected suite (or the top level when the project root is selected).
+  $('#btnSuiteMove').toggle(canMod && (isSuite || rootSelected));
   if ($('#btnNewSuite').length && canMod) {
     $('#btnNewSuite').toggle(true);
   }
@@ -785,6 +790,14 @@ function openSuiteExport(deep) {
    that used to live in the ExtJS test-spec tree frame (listTestCases.php). */
 function openTcReorder() {
   var url = '/gui/templates/testcases/tcReorder.html?tproject_id=' + ctx.tproject_id;
+  if (selected && selected.type === 'testsuite') {
+    url += '&container_id=' + selected.id;
+  }
+  window.open(url, '_blank', 'width=1000,height=720,resizable=yes,scrollbars=yes');
+}
+
+function openSuiteMove() {
+  var url = '/gui/templates/testcases/suiteMove.html?tproject_id=' + ctx.tproject_id;
   if (selected && selected.type === 'testsuite') {
     url += '&container_id=' + selected.id;
   }

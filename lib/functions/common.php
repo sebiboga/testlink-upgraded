@@ -2044,6 +2044,23 @@ function getActions(&$gui,$baseURL) {
     $actions->tcReorder = "/gui/templates/testcases/tcReorder.html?{$ctx}";
   }
 
+  // Refs #1740: Move / Reorder Test Suites - modern home of the legacy generic
+  // tree drag-and-drop endpoint lib/ajax/dragdroptreenodes.php
+  // (doAction=changeParent|doReorder). That endpoint was ORPHANED dead code:
+  // no template/screen/JS referenced it, so it had never been reviewed. It
+  // called only testlinkInitPage() (NO hasRight), read $_REQUEST (so a plain GET
+  // mutated the tree) and never proved a submitted node id belonged to the
+  // caller's project - any authenticated session could re-parent or renumber
+  // any nodes_hierarchy row of ANY test project. api/suitemove enforces
+  // mgt_modify_tc on the OWNING project and proves every id to be a test suite
+  // of it. Its suite-level capability had no modern twin at all: tcReorder
+  // (#1660) only accepts test cases and reqTreeReorder (#1681) only
+  // requirements, so moving a SUITE under another suite had no authorized UI.
+  $actions->suiteMove = null;
+  if ($tproject_id > 0 && !empty($_SESSION['userID'])) {
+    $actions->suiteMove = "/gui/templates/testcases/suiteMove.html?{$ctx}";
+  }
+
   // Refs #1671: Reorder Test Steps - modern home of the legacy step-reorder
   // endpoint lib/ajax/stepReorder.php, which in 1.9.20 was the only backend of
   // the TableDnD drag-and-drop of the steps of a test case version and had NO
