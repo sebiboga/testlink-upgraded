@@ -199,11 +199,19 @@ if ($method === 'GET' && isset($segments[0]) && is_numeric($segments[0]) &&
         out(['status' => 'error', 'message' => 'Issue tracker not found']);
     }
     $impl = $item['implementation'];
-    if (!class_exists($impl)) {
-        http_response_code(400);
-        out(['status' => 'error', 'message' => 'Issue tracker implementation not found for type']);
-    }
     try {
+        // Issue #1635: class_exists() with autoloading LOADS the interface file
+        // (e.g. tracxmlrpcInterface.class.php:30 pulls in third_party/phpxmlrpc/
+        // lib/xmlrpc.inc). When that file cannot be compiled the autoloader
+        // raises a ParseError, and with the probe outside this try the request
+        // died as an unattributable 0-byte HTTP 500 with NO events row. Inside
+        // the try it degrades to the logged 502 below, exactly like a broken
+        // connection. (The library itself is fixed; this is defence in depth for
+        // any future unloadable implementation file.)
+        if (!class_exists($impl)) {
+            http_response_code(400);
+            out(['status' => 'error', 'message' => 'Issue tracker implementation not found for type']);
+        }
         // NOTE: instantiate the interface directly instead of calling
         // tlIssueTracker::checkConnection() (tlIssueTracker.class.php:723-735):
         // that method caches the interface object into $_SESSION['its'], and on
@@ -252,11 +260,14 @@ if ($method === 'POST' && ($segments[0] ?? '') === 'test-connection' && empty($s
         out(['status' => 'error', 'message' => 'Unknown issue tracker type']);
     }
     $impl = $mgr->getImplementationForType($type);
-    if (!class_exists($impl)) {
-        http_response_code(400);
-        out(['status' => 'error', 'message' => 'Issue tracker implementation not found for type']);
-    }
     try {
+        // Issue #1635: same reason as the GET route above - the autoloading
+        // class_exists() can raise a ParseError on a broken interface file, and
+        // that must be caught here instead of killing the request.
+        if (!class_exists($impl)) {
+            http_response_code(400);
+            out(['status' => 'error', 'message' => 'Issue tracker implementation not found for type']);
+        }
         $iface = new $impl($type, $cfg, $name);
         $connected = (bool)$iface->isConnected();
         out(['status' => 'ok', 'connected' => $connected,
