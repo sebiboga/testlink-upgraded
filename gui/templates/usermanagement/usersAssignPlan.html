@@ -970,10 +970,23 @@ function renderUsersTable(keep) {
     // classes (removeClass(prevStripe).addClass(...)), so the class written here
     // is preserved across paging/search/sort redraws - measured, not assumed.
     var rowClass = (u.effectiveRoleID == NO_RIGHTS_ROLE_ID) ? ' not_authorized_user' : '';
+    // Issue #1641: the "modified" highlight + badge are normally re-applied by
+    // DataTables' createdRow hook, which re-runs on every redraw. With
+    // pagination DISABLED there is no DataTable and therefore no hook, so the
+    // marker has to be in the row markup - otherwise a bulk "Do" or a single
+    // role change in the plain-table mode would leave the administrator with no
+    // indication of which rows were touched (Save enabling itself was the only
+    // feedback). Emitted ONLY in the disabled branch: with a DataTable present
+    // the markup must stay clean or createdRow would append a second badge.
+    var changedMark = '';
+    if (!paginationCfg.enabled && !u.isAdmin && u.changed) {
+      rowClass += ' changed';
+      changedMark = '<span class="changed-badge">' + esc(TLi18n.t('common.modified')) + '</span>';
+    }
     $b.append(
       '<tr data-uid="' + esc(u.id) + '"' + (rowClass ? ' class="' + rowClass + '"' : '') + '>' +
       '<td>' + (i + 1) + '</td>' +
-      '<td' + rowStyle + '>' + esc(u.login) + '</td>' +
+      '<td' + rowStyle + '>' + esc(u.login) + changedMark + '</td>' +
       '<td' + rowStyle + '>' + esc(userNameCell(u)) + '</td>' +
       '<td class="inherited-col">' + esc(u.inheritedRoleName) + '</td>' +
       '<td>' + buildSelectHtml(u) + hint + '</td>' +

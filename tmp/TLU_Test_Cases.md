@@ -1328,69 +1328,35 @@ the `loadUsers()` caller at line 510 passes no `keep` and still announces. Cases
 
 **Results — 2026-09-30, commits `0ed3cd422` + the code-review follow-up, branch `fix/issue-1733`, app on `http://localhost:8082`: 14/14 PASS** (cases 85-95 re-executed after the follow-up: primary case 0 calls with a default state, 1 call with a non-default state, console clean, `events` max id unchanged at 18).
 
-## Regression — Issue #1629: `tlReqMgrSystem::getInterfaceObject()` — third unguarded `new` + `catch(Exception)` that cannot catch a PHP 8 `Error`
+## Task — Issue #1641: config-driven `usersAssign` pagination (`enabled` + `lengthMenu`) in `usersAssignPlan.html`
 
-**Precondition** (the DB is freshly imported and ships with **zero** test projects, which is
-why the original report could not exercise the path — the harness creates the fixture itself):
+**Preconditions**
+- `php tmp/fixtures_1641.php` → test project `TQ1641` (id **7**), test plan `TQ1641-P1` (id **8**), 25 Tester users `tlu1641_01..25`.
+- Plus 2 global-role-3 users (no rights) so the `<no rights>` rows exist — a *public* project with only global-Tester users yields **zero** of them, leaving the authorized-only filter unobservable:
+  `tlu1641_nr1` (uid 27), `tlu1641_nr2` (uid 28), `role_id=3`. Total 28 users with admin.
+- App on `http://localhost:8082`, logged in `admin`/`admin`; screen `gui/templates/usermanagement/usersAssignPlan.html?tproject_id=7&tplan_id=8`.
+- Config toggled **per case** in `config.inc.php:665-666` (shipped values: `enabled = true`, `length = '[20, 40, 60, -1], [20, 40, 60, "All"]'`). `config.inc.php` is restored afterwards and never committed.
+- DataTables saved state is cleared (`localStorage` key `DataTables_assignTable_…`) before any case that asserts a page length, otherwise `stateSave` legitimately restores the previous run's length.
 
-```bash
-# 1. test project through the modernized BFF (creates nodes_hierarchy + testprojects)
-curl -s -c /tmp/c -b /tmp/c -H "Origin: http://localhost:8082" -H "Referer: http://localhost:8082/login.php" \
-     -d "login=admin&password=admin" http://localhost:8082/api/auth/login
-curl -s -b /tmp/c -H "Referer: http://localhost:8082/" -H "Content-Type: application/json" \
-     -H "Origin: http://localhost:8082" -X POST \
-     -d '{"name":"TLU1629","prefix":"P1629"}' http://localhost:8082/api/projects/index.php
-# 2. a ReqMgr system of type 1 (contour) -> implementation "contoursoapInterface", not shipped
-mysql -h 127.0.0.1 -utestlink -ptestlink testlink \
-  -e "INSERT INTO reqmgrsystems (name,type,cfg) VALUES ('TLU1629 Contour',1,'{}');
-      INSERT INTO testproject_reqmgrsystem (testproject_id,reqmgrsystem_id) VALUES (1,<rid>);
-      UPDATE testprojects SET reqmgr_integration_enabled=1 WHERE id=1;"
-# 3. prime $_SESSION['testprojectID'] — the legacy screens read the project from the SESSION
-#    (reqSpecEdit.php:79), not from the query string
-curl -s -b /tmp/c "http://localhost:8082/index.php?tproject_id=1"
-```
+**Steps / expected / actual**
 
-Single command: `bash tmp/verify_1629.sh` (self-cleaning, non-zero exit on any failure).
+| # | Case | Expected | Actual (measured) | R |
+|---|---|---|---|---|
+| 1 | `GET /meta/tplan-roles?tproject_id=7&tplan_id=8` | payload carries the pagination block | `pagination: {enabled:true, lengthMenu:[[20,40,60,-1],[20,40,60,"All"]]}`; `tproject-roles` sibling returns the identical block | PASS |
+| 2 | default config, screen load | DataTable with 20/40/60/All, 2 pages, search box, sortable headers | menu values `["20","40","60","-1"]`, labels `["20","40","60","All"]`, info `Showing 1 to 20 of 28 entries`, search → `1 of 1 (filtered from 28 total entries)`, 5/5 headers sortable | PASS |
+| 3 | `length = '[10, 30, -1], [10, 30, "All"]'`, state cleared | menu **and** page length follow the config | BFF `[[10,30,-1],[10,30,"All"]]`; menu `["10","30","-1"]`; `pageLength 10`; info `Showing 1 to 10 of 28 entries` | PASS |
+| 4 | same custom config with a previously saved 20-row page | `stateSave` restores the *user's* length (legacy `DataTables.inc.tpl:100-104` parity) | `pageLen 20`, info `Showing 1 to 20 of 28 entries` | PASS |
+| 5 | custom `length`, fresh state | **no** "saved view restored" toast on the screen's own default view | `restoredStateNotified: false` (would have been `true` with the hard-coded `st.length === 20` baseline) | PASS |
+| 6 | **`enabled = false`** — the core gap | **bare table**: no DataTable, no wrapper, no search, no length menu, no paging, no sortable headers; **all rows in the DOM** | `isDataTable:false`; no `#assignTable_wrapper`; no `input[type=search]`; no `.dataTables_length` / `.dataTables_paginate` / `.dataTables_info`; all 6 headers `sorting:false`; `domRows: 28` | PASS |
+| 7 | disabled → change a role and Save | grid fully functional; the write persists | uid 2 → role 9, Save → toast `User Roles updated`; re-read payload → `roleID: 9`; Save re-disabled | PASS |
+| 8 | disabled → authorized-only filter ticked | `<no rights>` rows hidden (legacy `display:none` mechanism, since there is no DataTable pipeline) | 28 rows → 26 visible, hidden uids exactly `[27,28]`, footer `28 users — 2 unauthorized user(s) hidden`; untick → 28 visible; still no DataTable created | PASS |
+| 9 | enabled → authorized-only filter ticked | filters through the DataTables pipeline | info `Showing 1 to 20 of 26 entries (filtered from 28 total entries)`, footer `28 users — 2 unauthorized…`; untick → `28 entries` | PASS |
+| 10 | disabled → bulk "Do" (`applyBulkRole`) | rebuild takes the plain path, no DataTable error, every non-admin row marked changed **with its badge** | `applyBulkRole` guards `keep` on `if (assignDt)` → `keep` stays `null`; rebuild completes, `assignDt` stays `null`, `isDataTable:false`, 28 rows, **27 changed rows + 27 `.changed-badge`** (the 28th is the admin row, skipped by legacy `set_combo_group`), Save enabled |
+| 10b | **defect found by case 10 and fixed**: with pagination disabled there is no DataTables `createdRow` hook, so the `changed` class + `common.modified` badge were **missing** in the plain-table mode | the marker must survive the disabled branch | first measurement of case 10 gave `changedRows: 0` with `saveDisabled: false` — the rows were changed but nothing on screen said so. Fixed in the row-build loop (`!paginationCfg.enabled && !u.isAdmin && u.changed` → `rowClass += ' changed'` + badge in the Login cell); re-measured `changedRows: 27`, `badges: 27` | PASS |
+| 10c | enabled → the same bulk "Do" (no double badge from the new markup branch) | DataTables' `createdRow` still owns the marker when a DataTable exists | `isDataTable:true`, 20 rows in DOM, 19 changed, **19 badges, 0 cells with >1 badge** | PASS |
+| 11 | config restored + `config_db.inc.php` never staged | no config change committed | `git diff --stat config.inc.php` → empty | PASS |
+| 12 | syntax gates before browser work | PHP + JS clean | `php -l api/roles/index.php` → clean; all 6 extracted inline `<script>` blocks → `node --check` → `JS SYNTAX OK` | PASS |
+| 13 | i18n | no new user-facing string, no bundle edit | the only label is the pre-existing `assign.all`; `git status` shows no `gui/templates/i18n/*.json` modified | PASS |
+| 14 | console + Event Viewer (rule 12) | no new Error/Warning | browser console **0** error/warn; `select … from events where log_level in ('ERROR','WARNING')` → **0 rows** | PASS |
 
-**Repro (pre-fix)**
-
-| # | Steps | Expected (post-fix) | Pre-fix measured | Post-fix measured | Result |
-|---|---|---|---|---|---|
-| 1629-1 | `reqmgrsystems.type=1`, integration on → `GET /lib/requirements/reqSpecEdit.php?doAction=init` | HTTP 200, non-empty body, 0 new `events` rows | **HTTP 500, `bytes=0`**, server log `Uncaught Error: Class "contoursoapInterface" not found in …tlReqMgrSystem.class.php:657` | HTTP 200, `bytes=28`, 0 new `events` rows, no new fatal | PASS |
-| 1629-2 | same, via `GET /lib/requirements/reqSpecSearch.php` | the class is never instantiated unguarded | fatal on the same line 657 (reached from `reqSpecSearch.php:34`) | constructor returns cleanly; the screen advances to its **own** separate defect (see 1629-10) | PASS (for this defect) |
-| 1629-3 | `UPDATE reqmgrsystems SET type=99` (not a key of `$systems` → `implementation === NULL`) → same URL | HTTP 200 | **HTTP 500, `bytes=0`**, `Uncaught Error: Class name must be a valid object or a string …:657` | HTTP 200, 0 new `events` rows | PASS |
-| 1629-4 | dangling link `testproject_reqmgrsystem → 99999` | unchanged: `getLinkedTo()` is an inner JOIN, so `null` → the guard is never reached | HTTP 200 + 3 pre-existing E_WARNINGs from `reqSpecEdit.php`'s own `initialize_gui()` | HTTP 200, 0 E_WARNINGs attributable to `tlReqMgrSystem` | PASS (no behaviour change) |
-| 1629-5 | no link at all, and separately with `reqmgr_integration_enabled=0` | HTTP 200, method never entered | HTTP 200 | HTTP 200 | PASS |
-| 1629-6 | **no over-guard**: ship a stub `lib/functions/contoursoapInterface.class.php`, `type=1` | `getInterfaceObject()` really returns the object | (would 500) | a direct PHP probe (`doDBConnect` + `getInterfaceObject(1)`) returns `contoursoapInterface`; the screen answers 200; the stub is removed again | PASS |
-| 1629-7 | `reqMgrSystemView.php`, `?id=<row>`, `?id=99999`, `reqMgrSystemEdit.php?doAction=checkConnection&id=<row>` / `=99999` / `?doAction=create` | the #1625 siblings must not regress | 200 (after following the legitimate 302 into `gui/templates/reqmgrsystems/reqMgrSystemEdit.html`) | same, all 200, the probed row still listed | PASS |
-| 1629-8 | `api/reqmgrsystems/index.php` and `api/reqspec/index.php?action=specs` | modernized BFFs untouched | `status:ok`, row present | identical | PASS |
-| 1629-9 | static gates | `php -l` on the patched file + its 3 callers; handler is `catch (Throwable)`; `class_exists` is `@`-silenced | `catch (Exception)` and a bare `class_exists` | all four `php -l` clean; both greps match | PASS |
-| 1629-10 | Event Viewer (rule 12) | no new Error/Warning attributable to the patched method | **0 rows** — the fatal dies before `shutdownLogger()`, i.e. a *silent* 500 | still 0 rows attributable to `tlReqMgrSystem`/`contoursoap` | PASS |
-
-**Harness discrimination** (this is what makes the suite meaningful):
-
-```
-$ bash tmp/verify_1629.sh                       # post-fix
-verify_1629.sh: 31 PASS / 0 FAIL                # exit 0
-
-$ git stash push lib/functions/tlReqMgrSystem.class.php && bash tmp/verify_1629.sh   # pre-fix
-  FAIL  reqSpecEdit.php -> HTTP 500 (expected 200)
-  FAIL  0-byte body (pre-fix symptom)
-  FAIL  2 new tlReqMgrSystem fatal(s) in the server log
-  FAIL  HTTP 500 (expected 200)
-  FAIL  2 new fatal(s) from the NULL-implementation flavour
-  FAIL  the handler still says catch(Exception)
-  FAIL  class_exists() is not @-silenced
-verify_1629.sh: 24 PASS / 7 FAIL                # exit 1
-```
-
-**Result — 2026-09-30, commit `44ee48bfe`, branch `fix/issue-1629`, app on `http://localhost:8082`: 10/10 PASS.**
-
-**Out of scope, filed separately, NOT fixed here** (removing the fatal uncovers them; they were
-invisible while the 500 killed the request first):
-
-* `lib/requirements/reqSpecSearch.php:116` — `count($itemSet)` with `$itemSet === null` →
-  `Uncaught TypeError` → still HTTP 500 / 0 bytes.
-* `lib/requirements/reqSpecEdit.php` — `initialize_gui()` returns `null` for a `doAction` that
-  is not a method of `reqSpecCommands`, and line 25 then reads `$gui->askForRevision`,
-  `$gui->askForLog`, `$gui->action_status_ok` → 3 E_WARNING rows per request.
+**Results — 2026-09-30, commits `fa2cece23` + the case-10b follow-up, branch `task/issue-1641`, app on `http://localhost:8082`: 16/16 PASS.**
