@@ -4,6 +4,24 @@ Modernized screen: **Requirement Overview** (ASIDE: Requirements Design →
 Requirement Overview). Refs [#566](https://github.com/sebiboga/testlink-upgraded/issues/566).
 
 
+## Grouping by Requirement Specification (Refs [#1034](https://github.com/sebiboga/testlink-upgraded/issues/1034))
+
+The legacy controller grouped the ExtJS grid by the req-spec path and shipped a
+grid toolbar; the modernized screen originally dropped both. They are now back:
+
+| Legacy (1.9.20) | Modern (2.0.1) |
+|---|---|
+| `reqOverview.php:282` `$matrix->setGroupByColumnName($labels['req_spec_short'])` | DataTables **RowGroup** plugin (`dataTables.rowGroup.min.js`), `rowGroup.dataSrc = 'spec_path'` — one collapsible group header per req-spec path, including nested paths (`System Requirements/Nested Requirements`) |
+| `exttable.class.php:591` `groupTextTpl: '{text} ({[values.rs.length]} {[values.rs.length > 1 ? "Items" : "Item"]})'` | group header text `{{text}} ({n} Item[s])` with the singular/plural split preserved (`Performance Requirements (1 Item)`) |
+| `exttable.class.php:104` `toolbarExpandCollapseGroupsButton` | toolbar **Expand/Collapse Groups** — collapses/expands every group at once; clicking a single group header toggles only that group (chevron rotates) |
+| `exttable.class.php:109` `toolbarShowAllColumnsButton` + `exttable.class.php:55` `hideGroupedColumn = true` | toolbar **Show all Columns** — the grouped *Requirement Specification* column is hidden by default and revealed on demand; the button label flips to the inverse action |
+| `exttable.class.php:119` `toolbarRefreshButton` | toolbar **Refresh** — re-fetches the BFF payload, groups rebuilt |
+| `exttable.class.php:286-288` default sort (coverage desc, else status desc) | `order: [[spec asc], [coverage desc]]` so groups keep the legacy alphabetical order and rows keep the legacy sort inside each group |
+
+The group header is clickable and the toolbar reports its action in an info
+line (*Groups collapsed* / *Groups expanded*). Search, paging and the
+requirement popup links behave exactly as before, now inside groups.
+
 ## What it does
 
 Lists every requirement of the active test project in a DataTables grid —
@@ -31,7 +49,9 @@ columns automatically.
   of each requirement. Legacy parity: the choice is persisted in
   `$_SESSION['all_versions']` and restored on reload; an explicit
   `all_versions=1|0` URL parameter wins.
-* **Refresh** — re-fetches the overview.
+* **Grid toolbar** (dark bar below the top toolbar): **Expand/Collapse Groups**,
+  **Show all Columns** and **Refresh** — the three buttons the legacy ExtJS grid
+  exposed (`reqOverview.php:289-294`). See *Grouping by Requirement Specification*.
 * Locale switcher (all 10 bundles).
 
 
@@ -49,6 +69,11 @@ columns automatically.
 22 new keys (`header.reqOverview`, `common.refresh`, `ro.*`,
 `ro.col.*`) added to **all** locale bundles: en, de, es, fr, it, ja, pt,
 ro, ru, zh.
+
+Seven further keys were added with the grouping feature (Refs #1034) to **all**
+10 bundles: `ro.grid.expandCollapseGroups`, `ro.grid.showAllColumns`,
+`ro.grid.hideGroupedColumn`, `ro.grid.groupItem`, `ro.grid.groupItems`,
+`ro.grid.groupsExpanded`, `ro.grid.groupsCollapsed`.
 
 
 ## BFF
@@ -68,7 +93,16 @@ set, relations counters, bulk custom-field values with date formatting.
   project node.
 * All-versions toggle reset on plain reload instead of using the session —
   fixed for legacy parity.
+* #1734 — the grid wrapper `#tableWrap` shipped with an inline
+  `display:none` and **nothing ever removed it**, so the requirement grid was
+  never rendered on the screen (only the header, toolbars, notes and footer
+  were visible). Fixed with `$('#tableWrap').show()` in the success path of
+  `renderTable()`.
 
 ## Test evidence
 
 Suite 45 in `tmp/TLU_Test_Cases.md` — 14/14 PASS.
+Suite 1034 in `tmp/TLU_Test_Cases.md` — 22/22 PASS (grouping, the three
+toolbar buttons, single-group toggle, search/ordering interaction, all-versions
+toggle, ro locale, empty project, invalid project, console, Event Viewer,
+syntax gate, i18n completeness, diff scope).

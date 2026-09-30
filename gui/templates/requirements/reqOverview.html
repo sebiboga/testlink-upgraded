@@ -15,8 +15,6 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 .header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
 .header span { font-size: 13px; font-weight: 400; opacity: .8; margin-left: 12px; }
 .toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
-.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
-.btn-teal:hover { background: #3dbdb5; }
 .switch-label { color: #fff; font-size: 13px; display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; }
 .table-wrap { padding: 20px 24px; }
 .table-wrap table { background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.08); width: 100%; }
@@ -102,9 +100,12 @@ var explicitAllVersions = null;
 // Legacy grid grouping state (lib/requirements/reqOverview.php:282 setGroupByColumnName,
 // exttable.class.php:588 hideGroupedColumn=true -> the grouped column is hidden by
 // default and only revealed by the toolbarShowAllColumnsButton).
-var collapsedGroups = {};
+var collapsedGroups = Object.create(null);
 var showGroupedCol = false;
 var GRID_SPEC_COL = 'spec_path';
+var SPEC_COL_IDX = 0;
+// guard for the order.dt re-apply (see pinGroupOrder)
+var reordering = false;
 
 $(function() {
   var p = new URLSearchParams(window.location.search);
@@ -132,9 +133,14 @@ $(function() {
   // group header toggle).
   $(document).on('click', '#reqTable tbody tr.dtrg-group', function() {
     var key = decodeURIComponent($(this).attr('data-key') || '');
-    if (collapsedGroups[key]) { delete collapsedGroups[key]; } else { collapsedGroups[key] = true; }
+    if (isGroupCollapsed(key)) { delete collapsedGroups[key]; } else { collapsedGroups[key] = true; }
+    updateGroupToggleBtn();
     if (table) table.draw(false);
   });
+  // Keep the group column as the primary sort criterion: DataTables RowGroup
+  // only merges *contiguous* runs, so sorting by another column first would
+  // split one req spec into several group headers.
+  $(document).on('order.dt', function(e, settings) { pinGroupOrder(settings); });
 });
 
 function loadOverview() {
@@ -157,6 +163,7 @@ function loadOverview() {
     try { msg = JSON.parse(xhr.responseText).message; } catch(e) {}
     $('#emptyState').show().text(msg);
     $('#tableWrap').hide();
+    $('#gridToolbar').hide();
     $('#emptyState').attr('data-i18n', null);
   });
 }
@@ -164,6 +171,7 @@ function loadOverview() {
 function renderTable(items) {
   if (!items.length) {
     $('#tableWrap').hide();
+    $('#gridToolbar').hide();
     $('#notesBlock').hide();
     $('#emptyState').show().attr('data-i18n', 'ro.noRequirements')
       .text(TLi18n.t('ro.noRequirements'));
@@ -172,6 +180,7 @@ function renderTable(items) {
   $('#emptyState').hide();
   $('#notesBlock').show();
   $('#tableWrap').show();
+  $('#gridToolbar').show();
 
   // build columns dynamically depending on cfg flags and linked custom fields
   var cols = [
@@ -229,7 +238,7 @@ function renderTable(items) {
     }
     row.type = escapeHtml((META.type_labels[it.type] || ''));
     row.status = escapeHtml((META.status_labels[it.status] || ''));
-    row.relations = it.relations_qty;
+    if (META.relations_enabled) { row.relations = it.relations_qty; }
     $.each(META.cfields || [], function(j, cf) {
       var v = (it.cfields && it.cfields[cf.name] !== undefined) ? String(it.cfields[cf.name]) : '';
       row['cf:' + cf.name] = '<span style="white-space:normal;word-break:break-word;">' + escapeHtml(v) + '</span>';
@@ -240,14 +249,18 @@ function renderTable(items) {
   // column descriptors; the header labels are rendered in <thead> (kept with
   // their data-i18n attributes so the locale switcher keeps working)
   var columns = [];
+  var specIdx = 0;
   $.each(cols, function(i, c) {
+    if (c.key === GRID_SPEC_COL) { specIdx = i; }
     columns.push({
       data: c.key,
       // legacy hides the grouped column (exttable.class.php:55 hideGroupedColumn)
       visible: c.key === GRID_SPEC_COL ? showGroupedCol : true,
-      render: c.key === GRID_SPEC_COL ? escapeHtml : undefined
+      // display-only renderer: sorting/filtering keep the raw spec path
+      render: c.key === GRID_SPEC_COL ? {display: escapeHtml} : undefined
     });
   });
+  SPEC_COL_IDX = specIdx;
 
   // default sort: spec path asc (group order, as the legacy ExtJS grid orders
   // groups) then coverage desc when available, else status desc (reqOverview.php:286-288)
@@ -264,13 +277,20 @@ function renderTable(items) {
     rowGroup: {
       dataSrc: GRID_SPEC_COL,
       startRender: function (rows, group) {
-        var isCollapsed = !!collapsedGroups[group];
+        var isCollapsed = isGroupCollapsed(group);
         rows.nodes().each(function (r) { r.style.display = isCollapsed ? 'none' : ''; });
         var n = rows.count();
         var cnt = TLi18n.t('ro.grid.groupItem', {count: n});
         if (n !== 1) { cnt = TLi18n.t('ro.grid.groupItems', {count: n}); }
+        // RowGroup only sets a colspan when startRender does not return a <tr>,
+        // so the teal group band is spanned over the visible columns here
+        // (the grouped column itself is hidden by default).
+        var visibleCols = $('#reqTable thead th').filter(function() {
+          return $(this).css('display') !== 'none';
+        }).length;
         return $('<tr/>').attr('data-key', encodeURIComponent(group))
-          .append($('<td/>').append(
+          .attr('colspan', visibleCols)
+          .append($('<td/>').attr('colspan', visibleCols).append(
             $('<i/>').addClass('fa ' + (isCollapsed ? 'fa-chevron-right' : 'fa-chevron-down')),
             ' ' + escapeHtml(group) + '<span class="gcount">' + cnt + '</span>'
           ));
@@ -281,6 +301,7 @@ function renderTable(items) {
     columnDefs: [{targets: '_all', defaultContent: ''}]
   });
   applyGroupedColState();
+  pruneCollapsedGroups();
   updateGroupToggleBtn();
 }
 
@@ -288,27 +309,72 @@ function renderTable(items) {
 // (exttable.class.php:109 + hideGroupedColumn=true at exttable.class.php:55).
 function applyGroupedColState() {
   if (!table) return;
-  table.column(0).visible(showGroupedCol);
+  table.column(SPEC_COL_IDX).visible(showGroupedCol);
   var $btn = $('#btnShowAllCols').toggleClass('active', showGroupedCol);
   $btn.find('span').text(showGroupedCol
     ? TLi18n.t('ro.grid.hideGroupedColumn')
     : TLi18n.t('ro.grid.showAllColumns'));
 }
 
+// hasOwnProperty based: a req spec named e.g. 'toString' must not inherit
+// Object.prototype members (the legacy grid has no such edge case).
+function isGroupCollapsed(key) {
+  return Object.prototype.hasOwnProperty.call(collapsedGroups, key);
+}
+
 function allGroupKeys() {
-  var keys = {};
+  var keys = Object.create(null);
   if (!table) return keys;
   var d = table.rows().data().toArray();
   $.each(d, function(i, r) { keys[r[GRID_SPEC_COL]] = true; });
   return keys;
 }
 
+// The grid is rebuilt on every loadOverview(); drop collapse state of groups
+// that no longer exist in the current data set (e.g. after switching between
+// latest and all versions).
+function pruneCollapsedGroups() {
+  var keys = allGroupKeys();
+  $.each(Object.keys(collapsedGroups), function(i, k) {
+    if (!Object.prototype.hasOwnProperty.call(keys, k)) { delete collapsedGroups[k]; }
+  });
+}
+
 function updateGroupToggleBtn() {
-  $('#btnGroupToggle').toggleClass('active', Object.keys(collapsedGroups).length > 0);
+  $('#btnGroupToggle').toggleClass('active', anyGroupCollapsed());
+}
+
+// decide from the live data, never from the (prunable) state map alone
+function anyGroupCollapsed() {
+  var keys = allGroupKeys();
+  var any = false;
+  $.each(Object.keys(keys), function(i, k) {
+    if (Object.prototype.hasOwnProperty.call(collapsedGroups, k)) { any = true; return false; }
+  });
+  return any;
+}
+
+// DataTables RowGroup merges only contiguous runs, so the group column must
+// stay the primary sort criterion even when the user sorts by another column.
+// order.dt fires *during* a draw: re-drawing synchronously there would rebuild
+// the tbody while it is being written, so the re-apply is deferred one tick.
+function pinGroupOrder(settings) {
+  if (!table || reordering) return;
+  // ignore events of a previous instance (the grid is destroyed and rebuilt on
+  // every loadOverview(), and its initial draw fires order.dt)
+  var cur = table.settings()[0];
+  if (settings && cur && settings !== cur) return;
+  var o = table.order();
+  if (o.length && o[0][0] === SPEC_COL_IDX) return;
+  reordering = true;
+  setTimeout(function() {
+    table.order([[SPEC_COL_IDX, 'asc']].concat(o)).draw(false);
+    reordering = false;
+  }, 0);
 }
 
 function expandAllGroups() {
-  collapsedGroups = {};
+  collapsedGroups = Object.create(null);
   if (table) table.draw(false);
   updateGroupToggleBtn();
   $('#gridToolbarInfo').text(TLi18n.t('ro.grid.groupsExpanded'));
@@ -322,7 +388,7 @@ function collapseAllGroups() {
 }
 
 function toggleGroups() {
-  if (Object.keys(collapsedGroups).length > 0) { expandAllGroups(); } else { collapseAllGroups(); }
+  if (anyGroupCollapsed()) { expandAllGroups(); } else { collapseAllGroups(); }
 }
 
 function openReq(reqId, versionId) {

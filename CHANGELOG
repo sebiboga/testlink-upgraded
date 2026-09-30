@@ -17,6 +17,24 @@ Every screen of the application was ported one-by-one in a screen-compare
 kept for backward compatibility and is progressively retired as each modern
 screen reaches full parity.
 
+- [FEATURE GAP] - #1034: the modern `reqOverview.html` dropped the legacy grouping by Requirement
+  Specification and the whole ExtJS grid toolbar. Legacy `lib/requirements/reqOverview.php:282`
+  called `$matrix->setGroupByColumnName($labels['req_spec_short'])` and `:289-294` enabled
+  `showToolbar`, `toolbarExpandCollapseGroupsButton`, `toolbarShowAllColumnsButton`,
+  `toolbarRefreshButton` and `showGroupItemsCount`, with the group header text
+  `'{text} (N Item[s])'` (`lib/functions/exttable.class.php:591`) and the grouped column hidden by
+  default (`exttable.class.php:55 hideGroupedColumn = true`). The BFF already returned
+  `spec_path`/`srs_id` per row (`api/requirements/index.php:522`), so the gap was front-end only.
+  Ported: DataTables RowGroup groups the rows per req-spec path (nested paths included) with the
+  legacy count text, a clickable per-group chevron, a dark grid toolbar with
+  Expand/Collapse Groups / Show all Columns / Refresh and an info line, the grouped column hidden
+  by default and revealed by *Show all Columns*, and the legacy default order (spec asc +
+  coverage desc, else status desc). New i18n keys `ro.grid.*` (7) added to all 10 locale bundles.
+  Also fixes #1734: `#tableWrap` kept its inline `display:none`, so the grid was never displayed.
+  Verified: Suite 1034 in `tmp/TLU_Test_Cases.md` (22/22 PASS), `node --check` clean, all 10
+  bundles `python3 -m json.tool` valid, no console errors, 0 new Error/Warning rows in `events`.
+  (Refs #1034)
+
 - [FEATURE GAP] - #1033: the modern `cfieldsView.html` dropped the legacy "Available on" (node type)
   column shown in `gui/templates/tl-classic/cfields/cfieldsView.tpl:63,70`. Legacy rendered
   `{lang_get s=$cf_def.node_description}` from the join of `custom_fields` ↔ `cfield_node_types` ↔
