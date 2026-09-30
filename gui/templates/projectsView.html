@@ -591,7 +591,18 @@
       const state = tbl.state.loaded();
       if (!state) return;
       $('#projectsTable').find('thead tr.filters th').each(function(idx) {
-        const value = (state.columns[idx] && state.columns[idx].search) || '';
+        // DataTables 1.13 stores columns[i].search as the full search descriptor
+        // {search, smart, regex, caseInsensitive} — a plain object, not the bare
+        // string 1.10 exposed. Reading it raw and handing it to .val() rendered
+        // "[object Object]" in every filter box and the next keystroke then
+        // smart-searched for that literal, matching nothing (issue #1633).
+        // Unwrap .search.search, keeping the 1.10 string path as a fallback.
+        // Same guard the sibling screens use for the global search
+        // (usersAssignPlan.html:1157, usersAssignProject.html:731).
+        const colSearch = (state.columns[idx] && state.columns[idx].search) || '';
+        const value = (typeof colSearch === 'object')
+          ? String(colSearch.search || '')
+          : String(colSearch);
         $(this).find('input').val(value);
       });
     }
