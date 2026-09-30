@@ -660,6 +660,31 @@ switch ($action) {
         if ($newParentId <= 0) {
             $newParentId = $oldParentId;
         }
+
+        // A no-op is decided on the POSITION IN THE ORDERED CHILD LIST, never
+        // on the stored node_order: 2.0.1 assigns the new suite the next
+        // free counter value (the first suite of a project can legitimately
+        // carry node_order 37), so comparing node_order against 1 refused
+        // every legitimate "move to first" on a real installation.
+        $oldSiblings = suitMoveChildren($db, $oldParentId, $tprojectId);
+        $oldPos = null;
+        foreach ($oldSiblings as $i => $s) {
+            if (intval($s['id']) === intval($nodeId)) {
+                $oldPos = $i;
+                break;
+            }
+        }
+        if ($oldPos === null) {
+            out(array('status' => 'error', 'code' => 'not_found',
+                      'message' => 'Suite is not a child of its container'), 404);
+        }
+        if ($newParentId == $oldParentId) {
+            if (($position === 'bottom' && $oldPos === count($oldSiblings) - 1) ||
+                ($position === 'top' && $oldPos === 0)) {
+                out(array('status' => 'error', 'code' => 'no_change',
+                          'message' => 'The suite is already at that position'), 400);
+            }
+        }
         $parentInfo = suitMoveNodeInfo($db, $newParentId);
         if (is_null($parentInfo)) {
             out(array('status' => 'error', 'code' => 'not_found',
@@ -691,17 +716,6 @@ switch ($action) {
         }
 
         $treeMgr = new tree($db);
-
-        if ($newParentId == $oldParentId && $position === 'bottom' &&
-            intval($nodeInfo['node_order']) >= count(suitMoveChildren($db, $oldParentId, $tprojectId))) {
-            out(array('status' => 'error', 'code' => 'no_change',
-                      'message' => 'Suite is already the last one'), 400);
-        }
-        if ($newParentId == $oldParentId && $position === 'top' &&
-            intval($nodeInfo['node_order']) <= 1) {
-            out(array('status' => 'error', 'code' => 'no_change',
-                      'message' => 'Suite is already the first one'), 400);
-        }
 
         // change_parent() is the legacy primitive; it only rewrites parent_id, so
         // the ordering of the new parent is fixed right afterwards with the very
