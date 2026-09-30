@@ -17,6 +17,29 @@ Every screen of the application was ported one-by-one in a screen-compare
 kept for backward compatibility and is progressively retired as each modern
 screen reaches full parity.
 
+- [FEATURE GAP] - #1038: the modern `tcView.html` dropped the whole "Test Case version Test Plan
+  Assignment" block of the legacy viewer (`tcView_viewer.tpl:599-605` -> `include/quickexec.inc.tpl`),
+  so nothing in the modern UI or API could answer "which test plans is this version linked to?" -
+  the `view` payload carried only the boolean `hasTestPlans` used by the "Add to Test Plan" button.
+  BFF: `action=view` now returns `tplanUsage` = `{enabled, rows[]}` with one row per
+  (tcversion, test plan, platform) link (`testplan_tcversions` + `nodes_hierarchy` + `tcversions` +
+  `platforms`, LEFT JOIN so a link without a platform keeps its row), the exact data set of
+  `testcase::get_linked_versions()` (`lib/functions/testcase.class.php:1706`) with the legacy default
+  filters; `enabled` reproduces the legacy gate `spec_cfg->show_tplan_usage && show_mode != editOnExec`,
+  and a DB error degrades to `rows: []` instead of failing the payload. Screen: `renderTplanUsage()`
+  renders the legacy `Version | Test Plan | Platform` table per version card (platform column only
+  when the project has platforms, empty cell for `platform_id = 0`) with the execute shortcut now
+  pointing at the modern resolution of `frmWorkArea.php?feature=executeTest`
+  (`gui/templates/execute/execTest.html?feature=executeTest&tproject_id=&tplan_id=`) and carrying the
+  **row's** plan id - legacy omitted `tplan_id`, so the shortcut fell back to the session plan and
+  could open a plan unrelated to the row. Unlike legacy, which injected the whole link map into every
+  version panel, each card lists only its own version's rows. 4 new i18n keys in all 10 bundles
+  (`tcview.tplanUsage`, `tcview.tplanUsagePlan`, `tcview.tplanUsagePlatform`, `tcview.gotoExecute`).
+  Verified: Suite 1038 in `tmp/TLU_Test_Cases.md` (21/21 automated via `tmp/verify_1038.sh` + 8/8
+  browser), `php -l` clean, all 10 bundles `json.tool` valid, en + de + `editOnExec` suppression +
+  unlinked-case negatives, 0 new Error/Warning rows in `events`.
+  (Refs #1038)
+
 - [FEATURE GAP] - #1037: the modern `tcView.html` showed the platforms of a test case version
   as read-only chips and dropped the two interactive legs of the legacy include
   `gui/templates/dashio/testcases/include/platforms.inc.tpl` (rendered per version by

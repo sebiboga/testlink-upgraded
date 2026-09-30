@@ -1719,3 +1719,72 @@ describes.
   drafts** of this same session (`testcase::create_step` at 16:51:58 and a truncated
   `tmp/fixtures_1759.php` at 16:52:15). They are fixture-authoring noise, not product defects —
   `tmp/verify_1759.sh` therefore compares against a baseline captured at script start.
+
+## Task — Issue #1038: "Test Plan usage" section in `tcView.html` (legacy `quickexec.inc.tpl`)
+
+**Issue:** [#1038](https://github.com/sebiboga/testlink-upgraded/issues/1038)
+**Branch:** `task/issue-1038` · **Commit:** `cf1fa3a35`
+**Screen:** `gui/templates/testcases/tcView.html` · **BFF:** `api/testcases/index.php` (`action=view`)
+**Legacy:** `gui/templates/dashio/testcases/tcView_viewer.tpl:599-605` → `include/quickexec.inc.tpl`
+(gate: `'editOnExec' != $gui->show_mode && $args_linked_versions != null && $tlCfg->spec_cfg->show_tplan_usage`)
+**Executed:** 2026-09-30, app on `http://localhost:8082`, DB freshly imported (empty), headless Chrome via MCP.
+
+### Preconditions
+
+```bash
+bash tmp/verify_1038.sh          # loads the fixture, runs the 21-assertion matrix
+#   tproject=114 tplan=115 (TPU Plan One) tplan2=116 (TPU Plan Two)
+#   tcase=118  v1=119  v2=120  platform=121 (Chrome/Linux)
+#   testplan_tcversions: v1 -> plan 115 / platform 121, v2 -> plan 116 / platform_id 0
+```
+
+Two versions on purpose: v1 exercises the "platform cell filled" branch of `quickexec.inc.tpl`,
+v2 the `$version_info.platform_id > 0` guard (empty cell). Case `TPU Case Unlinked` (created by the
+script) is the negative case.
+
+### Automated matrix — `tmp/verify_1038.sh`: **21 PASS / 0 FAIL**
+
+| # | Request / check | Expected | Observed | Result |
+|---|---|---|---|---|
+| M1 | `GET view tcase_id=<linked>` | `status ok` | `ok` | PASS |
+| M2 | `tplanUsage.enabled` | `true` (config.inc.php:1258 `show_tplan_usage = TRUE`) | `True` | PASS |
+| M3 | row count | 2 (v1→plan1, v2→plan2) | `2` | PASS |
+| M4 | row 1 `tplan_name`/`platform_name` | `TPU Plan One` / `Chrome/Linux` | identical | PASS |
+| M5 | row 2 `platform_id` | `0` | `0` | PASS |
+| M6 | row 2 `platform_name` | `''` (LEFT JOIN → NULL) | `''` | PASS |
+| M7 | row 1 `testplan_id` | the plan id, not a session default | `115` | PASS |
+| M8 | row 1 `version` | `1` | `1` | PASS |
+| M9 | distinct `tcversion_id` in rows | exactly this case's two versions | `[119, 120]` | PASS |
+| M10 | `hasTestPlans` still `true` | pre-existing key untouched | `True` | PASS |
+| M11 | `…&editOnExec=1` → `enabled` | `false` (legacy gate `show_mode == 'editOnExec'`) | `False` | PASS |
+| M12 | `…&editOnExec=1` → rows | `0` | `0` | PASS |
+| M13 | `…&tcversion_id=119` → rows | still 2 (legacy `get_linked_versions` returns the whole map) | `2` | PASS |
+| M14 | `requestedTcversionId` echoed back | `119` | `119` | PASS |
+| M15 | unlinked case → `status` / rows / enabled | `ok` / `0` / `true` | `ok` / `0` / `True` | PASS |
+| M16 | no session cookie | `status error` | `error` | PASS |
+| M17 | `tcase_id=999999` | `status error` | `error` | PASS |
+| M18 | the 4 new keys in **all 10** bundles | 0 missing | `0` | PASS |
+| M19 | all 10 bundles `json.tool` valid | 0 invalid | `0` | PASS |
+
+(M15c matters: `enabled` stays `true` with zero rows — the screen, not the BFF, hides the block,
+mirroring legacy where an empty map simply produced no table.)
+
+### Browser checks (chrome-devtools MCP, `admin/admin`)
+
+| # | Action | Expected | Observed | Result |
+|---|---|---|---|---|
+| B1 | open `tcView.html?tcase_id=118&tproject_id=114` | one `TEST PLAN USAGE` block per version card | `labels = [SUMMARY, PRECONDITIONS, STEPS, KEYWORDS, PLATFORMS, ATTACHMENTS, TEST PLAN USAGE]` on **both** `#version_119` and `#version_120` | PASS |
+| B2 | inspect both tables | `Version | Test Plan | Platform` with the plan of each version | `1 | TPU Plan One | Chrome/Linux` and `2 | TPU Plan Two | (empty)` | PASS |
+| B3 | click the v1 execute shortcut | opens **that row's** plan | new tab `TPU Plan One - Execute Tests`, href `…/execTest.html?feature=executeTest&tproject_id=114&tplan_id=115` | PASS |
+| B4 | `…&editOnExec=1` (Set Results popup mode) | section suppressed | 6 labels only, `hasUsage=false` | PASS |
+| B5 | `…&locale=de` | German labels from the new keys | `TESTPLAN-NUTZUNG`, `Testplan`, `Plattform`, link title `Zur Ausführung` | PASS |
+| B6 | unlinked case `tcase_id=218` | no usage block | labels stop at `ATTACHMENTS`, `hasUsage=false` | PASS |
+| B7 | console on every page above | no errors | `list_console_messages(error\|warn)` → `<no console messages found>` | PASS |
+| B8 | `events` table after the run | no new Error/Warning | newest 4 rows are all `log_level=16` LOGIN audit entries | PASS |
+
+**Regression** — B1/B2 confirm the version cards still render summary/preconditions/steps/keywords/
+platforms/attachments exactly as before; the new block is appended after `ATTACHMENTS`, so the
+existing `platRefreshMain()` re-render path and the `tcSpecView`/`tcAssign2Tplan` callers of the same
+payload are unaffected (M10 asserts `hasTestPlans` still `true`).
+
+**Result: all cases PASS (21 automated + 8 browser, 0 FAIL).**
