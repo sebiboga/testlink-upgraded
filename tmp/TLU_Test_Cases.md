@@ -1328,92 +1328,76 @@ the `loadUsers()` caller at line 510 passes no `keep` and still announces. Cases
 
 **Results — 2026-09-30, commits `0ed3cd422` + the code-review follow-up, branch `fix/issue-1733`, app on `http://localhost:8082`: 14/14 PASS** (cases 85-95 re-executed after the follow-up: primary case 0 calls with a default state, 1 call with a non-default state, console clean, `events` max id unchanged at 18).
 
----
+## Suite 1034 — Task: group-by-Requirement-Specification + ExtGrid toolbar in `reqOverview` (Refs #1034)
 
-## Suite 1724 — Move/Copy Test Cases to another Test Suite (`containerMoveTC`)
+**Feature ported** — legacy `lib/requirements/reqOverview.php:282` (`setGroupByColumnName(req_spec_short)`),
+`:286-294` (default sort, `showToolbar`, `toolbarExpandCollapseGroupsButton`,
+`toolbarShowAllColumnsButton`, `toolbarRefreshButton`, `showGroupItemsCount`) and
+`lib/functions/exttable.class.php:55,104,109,119,591` (`hideGroupedColumn=true`, the three toolbar
+buttons, `groupTextTpl: '{text} ({[values.rs.length]} {[... "Items" : "Item"]})'`) into
+`gui/templates/requirements/reqOverview.html` (DataTables RowGroup + dark grid toolbar).
+Side fix: #1734 (`#tableWrap` was never shown → the grid was invisible).
 
-**Precondition / fixtures** — `php tmp/fixtures_1724b.php` (re-runnable; it deletes and recreates the
-project). It created test project `tproject_id=157` (`MoveCopy Demo`), suites `src=158` ("Source A"),
-`dst=159` ("Target B"), `nested=160` ("...Nested"), source test cases `161,165,169`, a pre-existing
-target case `173`, and a no-rights user `tmvcnorights` (role 3). Login `admin`/`admin`; screen under
-test `http://localhost:8082/gui/templates/testcases/containerMoveTC.html?suite_id=158&tproject_id=157`.
+**Precondition** — fixture `php tmp/fixtures_1034.php` (idempotent):
+* tproject `OV1034` = `tproject_id 1`, prefix `OV34`, requirements enabled
+* specs: `REQOV-A` "System Requirements" (3 reqs), `REQOV-A1` "Nested Requirements"
+  (child of A, 1 req), `REQOV-B` "Interface Requirements" (2 reqs),
+  `REQOV-C` "Performance Requirements" (1 req) → **4 group headers, 7 requirement rows**
+* `tproject_id 24` (`OV1034EMPTY`) — project with requirements enabled but zero requirements
 
-### Part A — BFF contract (curl, authenticated as `admin`)
-
-| # | Case | Expected | Observed | Result |
-|---|---|---|---|---|
-| 1 | `GET ?action=init&tproject_id=157&suite_id=158` | 200, context + 2 targets + 3 cases + label domains | `status:ok`, `tproject_name:"MoveCopy Demo"`, `suite_name:"Source A"`, targets `[159,160]` (source excluded client-side), 3 cases, `domains.status[1]="Draft"`, `domains.importance[3]="High"`, `domains.execution[1]="Manual"` | PASS |
-| 2 | init, **unknown** suite `suite_id=999999` | 404 `unknown_suite` | `{"code":"unknown_suite"}` **404** | PASS |
-| 3 | init, **missing** suite | 400 `missing_suite_id` | `{"code":"missing_suite_id"}` **400** | PASS |
-| 4 | unknown `action=bogus` | 400 `unknown_action` | **400** | PASS |
-| 5 | anonymous `POST ?action=move` | 403 (CSRF/session) | **403** | PASS |
-| 6 | cross-origin `POST` (`Origin: http://evil.example`) | 403 same-origin proof | **403** `Forbidden: missing or mismatched same-origin proof` | PASS |
-| 7 | `GET` on a write action | 405 `method_not_allowed` | **405** | PASS |
-| 8 | `POST move` with **no** selection | 400 `no_selection` | **400** | PASS |
-| 9 | `POST move` target = source suite | 409 `same_target` | **409** | PASS |
-| 10 | `POST` with a test case of **another** suite | 404 `foreign_testcase` | **404** | PASS |
-| 11 | `POST` with a target of **another project** | 404 `unknown_target_suite` | **404** | PASS |
-| 12 | no-rights user, init **and** move | 403 `access_denied` | **403** on both | PASS |
-| 13 | `POST copy` 1 case, keywords + requirements on | 200, `created[].name` filled | `copied:1`, new `tcase_id`, `name:"…MV Case One"` | PASS |
-| 14 | `POST copy_ghost` 1 case | 200 | `copied:1`, `action:"copy_ghost"` | PASS |
-| 15 | `POST move` 3 cases | 200, source emptied | `moved:3`; `get_children_testcases(158)` → 0 | PASS |
-| 16 | DB state after copy 13 | source keeps originals, target gains copies | source `161,165,169` unchanged; target `177,181,185` added | PASS |
-| 17 | DB state after ghost copy 14 | steps copied without expected results | 7 cases in `160` after the browser run, names preserved | PASS |
-
-### Part B — Screen (browser, `admin`)
+**Entry point** — `http://localhost:8082/gui/templates/requirements/reqOverview.html?tproject_id=1`
+(login `admin`/`admin` at `http://localhost:8082/index.php`).
 
 | # | Case | Expected | Observed | Result |
 |---|---|---|---|---|
-| 18 | open with valid `suite_id` | teal header, context, 3 rows, source suite **not** in the destination list | `#ctxProject="MoveCopy Demo"`, `#ctxSuite2="Source A"`, 3 rows, options `[-- select a test suite --, Target B, ...Nested]`, 1st non-empty option pre-selected | PASS |
-| 19 | initial state | no selection → all three action buttons disabled | `#selCount="0"`, Move/Copy/Ghost all `disabled` | PASS |
-| 20 | **Select all** | 3 checked, count 3, rows highlighted, buttons enabled | `#selCount="3"`, 3 `checked`, `.selected` on rows, Move/Copy/Ghost enabled | PASS |
-| 21 | **Copy** | confirm modal, title + body with the count and destination | modal `dialog` present, `#cmTitle="Copy test cases"`, body `3 test case(s) will be processed in test suite 'Target B'.` | PASS |
-| 22 | confirm the copy | 200, green banner, table refreshed, selection cleared | `#okBox` visible `3 test case(s) have been copied.`, 3 rows still present, `#selCount="0"` | PASS |
-| 23 | **Move** (Select all) → confirm | green banner + **empty state** | `#okBox` `3 test case(s) have been moved.`, 0 rows, `#emptyBox` displayed | PASS |
-| 24 | **Copy as Ghost Steps** with `...Nested` | modal adds the ghost hint | `#cmBody` `… The copies keep the test case attributes but the steps are copied as ghost steps (no expected results).` | PASS |
-| 25 | confirm ghost copy | green banner with the ghost wording | `7 test case(s) have been copied with ghost steps.` | PASS |
-| 26 | destination reset to the placeholder | buttons disabled again (no target) | `#btnMove.disabled === true` | PASS |
-| 27 | **Clear selection** | count 0, disabled | `#selCount="0"`, `#btnNone` disabled | PASS |
-| 28 | **Refresh** | re-reads the source suite | 7 rows after the ghost copy, no error box | PASS |
-| 29 | locale switch → Romanian (`?locale=ro`) | every label translated | title `Mutare/Copiere Cazuri de Test - Target B`, columns `ID Extern / Nume / Sumar / Status / Importanță / Execuție`, buttons `Mutare / Copiere / Copiază ca Pași Fantomă` | PASS |
-| 30 | no-rights user (isolated browser context) | denied box, screen locked, no rows | `#deniedBox` `Access denied: you do not have the rights…`, `#btnMove.disabled`, 0 rows | PASS |
-| 31 | unknown suite `suite_id=999999` | localized error box, locked | `#errBox` `The source test suite does not exist.` | PASS |
-| 32 | **no** `suite_id` | `No source test suite was supplied.`, locked | `#errBox` matches, `#selTarget.disabled` | PASS |
-| 33 | legacy deep link `…&tcase_ids[0]=173&tcase_ids[1]=177&target_suite_id=160&pending_action=copy` | notice + selection + destination restored | `#legacyBox` visible, `checked=["173","177"]`, `#selCount="2"`, `#selTarget="160"` | PASS |
-| 34 | console `error`/`warn` | none | `<no console messages found>` | PASS |
-| 35 | responsive (375 px) | no horizontal overflow of the picker | `.picker select { min-width:0; width:100% }` under the 700 px media query | PASS |
+| 99 | open `?tproject_id=1` — grid **visible** and rows **grouped per req spec** (primary feature) | grid displayed, one collapsible group header per spec, no flat dump | `#tableWrap` computed `display: block`, `offsetHeight 979`; 4 `tr.dtrg-group` = `Interface Requirements(2 Items)`, `Performance Requirements(1 Item)`, `System Requirements(3 Items)`, `System Requirements/Nested Requirements(1 Item)`; 7 data rows; info `Latest version displayed \| 7 row(s)`. **Pre-fix: 0 group rows and `#tableWrap display:none`** | PASS |
+| 100 | group header text = legacy `groupTextTpl` | `{text} (N Item[s])`, singular for N=1 | 3 groups use `Items`, the two 1-req groups use `Item` (`Performance Requirements(1 Item)`, `System Requirements/Nested Requirements(1 Item)`) | PASS |
+| 101 | toolbar **Expand/Collapse Groups** — click while expanded | all groups collapse, headers stay, button marked active, info message | 0 visible data rows, 4 group headers, `btnGroupToggle.classList.contains('active')=true`, `#gridToolbarInfo` = `Groups collapsed` | PASS |
+| 102 | toolbar **Expand/Collapse Groups** — click again | all groups expand | 7 visible rows, button `.active=false`, info `Groups expanded` | PASS |
+| 103 | click ONE group header (3rd, "System Requirements") | only that group collapses, chevron rotates, other rows stay visible | 4 rows still visible (the 3 hidden ones belong to the clicked group), chevron class `fa fa-chevron-right` (was `fa-chevron-down`) | PASS |
+| 104 | click the same group header again | group expands | 7 visible rows | PASS |
+| 105 | toolbar **Show all Columns** (`toolbarShowAllColumnsButton`) | reveals the grouped column, label flips to the inverse action | first header `Requirement Specification` (grouped column, hidden by default like `hideGroupedColumn=true`), label `Hide grouped column`, button `.active=true` | PASS |
+| 106 | click it again | grouped column hidden again | first header `Requirement`, label `Show all Columns` | PASS |
+| 107 | toolbar **Refresh** (`toolbarRefreshButton`) | re-fetches the BFF payload, grouping + collapsed state rebuilt | 4 groups, 7 rows, info `Latest version displayed \| 7 row(s)`, `#footerText` timestamp updated | PASS |
+| 108 | default order (legacy: coverage desc, else status desc — `reqOverview.php:286-288`) | spec path asc for group order + coverage desc inside | `table.order()` = `[[0,"asc"],[6,"desc"]]` (col 6 = Coverage, `sorting_desc` in the header) | PASS |
+| 109 | DataTables search box | search filters inside groups, group headers follow | search `Interface` → 1 group `Interface Requirements(2 Items)` + 2 rows | PASS |
+| 110 | **Show all versions** toggle | info switches, grouping preserved | `All versions displayed \| 7 row(s)`, 4 group headers | PASS |
+| 111 | toggle back | back to latest-version data set | `Latest version displayed \| 7 row(s)` | PASS |
+| 112 | requirement link / edit pen in a grouped row | still rendered per row (7 rows → 7 pens) | 7 `.fa-edit` action icons inside the grouped body rows | PASS |
+| 113 | locale switch `&locale=ro` (all 10 bundles) | new toolbar + group labels localized, singular/plural correct | `Extinde/Comprimă grupuri`, `Afișează toate coloanele`, `Reîmprospătează`, groups `…(3 elemente)` / `…(1 element)`, info `Grupuri comprimate` | PASS |
+| 114 | empty project `?tproject_id=24` | empty state, no groups, grid hidden | `There are no requirements defined for this test project.`, `#tableWrap display:none`, 0 group rows, info `… \| 0 row(s)` | PASS |
+| 115 | invalid project `?tproject_id=99999` (BFF 404) | error message, grid hidden | `Test project not found`, `#tableWrap display:none` | PASS |
+| 116 | console `error`/`warn` | none | `<no console messages found>` | PASS |
+| 117 | Event Viewer / `events` table (rule 12) | no new Error/Warning | `SELECT id,log_level,... FROM events WHERE log_level IN (0,1)` → **0 rows** | PASS |
+| 118 | syntax gate on the page's inline `<script>` | no syntax error | extracted 1 inline block → `node --check` → `JS SYNTAX OK` | PASS |
+| 119 | i18n bundles valid + complete | 10/10 bundles parse and contain the 7 new keys | `python3 -m json.tool` OK ×10; `ro.grid.*` = 7 keys × 10 bundles (diff: 7 added lines + 1 per file) | PASS |
+| 120 | diff scope | front-end + i18n only, no BFF change needed | `git show --stat d0430b14e` → 1 screen + 10 bundles, +217/−26; `api/requirements/index.php` untouched (already exposed `spec_path`/`srs_id`) | PASS |
 
-### Part C — Legacy routing (`lib/testcases/containerEdit.php`)
+**Results — 2026-09-30, commit `d0430b14e`, branch `task/issue-1034`, app on `http://localhost:8082`: 22/22 PASS**
+(cases 99-120). Regression note: the grouping keys are the same `spec_path` the grid already
+rendered, sorting/search/paging and the requirement popup links are unchanged; `renderTable()`
+still rebuilds the grid from the BFF payload on every `loadOverview()`, so the
+`all_versions` toggle and the toolbar Refresh keep working with groups.
+
+### Suite 1034 — code-review follow-up (same branch, after the mandatory review)
+
+The code review of `d0430b14e` produced 4 MAJOR + 11 MINOR findings; the ones with real
+user-visible impact were fixed and re-verified in this pass:
 
 | # | Case | Expected | Observed | Result |
 |---|---|---|---|---|
-| 36 | `doAction=move_testcases_viewer&testsuiteID=158&tproject_id=157` | 302 → modern screen | `302 → /gui/templates/testcases/containerMoveTC.html?suite_id=158&tproject_id=157` | PASS |
-| 37 | `doAction=do_copy_tcase_set` with `objectIDs[]=161&objectIDs[]=165&containerID=160` | 302 carrying selection + destination + pending action | `302 → …?suite_id=158&tproject_id=157&tcase_ids[0]=161&tcase_ids[1]=165&target_suite_id=160&pending_action=copy` | PASS |
-| 38 | `doAction=do_copy_tcase_set_ghost` | 302 with `pending_action=copy_ghost` | `pending_action=copy_ghost` present | PASS |
-| 39 | non-move actions keep the 1.9.20 code | `new_testsuite` still renders | `200` (Smarty) | PASS |
-| 40 | `testcases_table_view` / `doBulkSet` | unchanged (pre-existing state) | 500 **before and after** the change (verified with `git stash`) — not a regression, out of scope for this screen | PASS |
-| 41 | Event Viewer (`events` table, rule 12) | no new Error/Warning from the screen or the BFF | only `log_level=16` (AUDIT) LOGIN/CREATE/DELETE rows from the fixture and the logins; the sole `log_level=2` warnings name `Command line code` (my own probes) → **0 new Error/Warning from the app** | PASS |
-| 42 | `php -l` on every touched PHP file | no syntax error | `api/tcmovecopy/index.php`, `lib/functions/common.php`, `lib/testcases/containerEdit.php` → `No syntax errors detected` | PASS |
-| 43 | i18n bundles valid JSON | all 10 | `python3 -m json.tool` on `en ro de es fr it pt ru ja zh` → OK; each gained 50 `tmvc.*` + 1 `footers.containerMoveTC` | PASS |
-| 44 | BFF no longer calls anything that does not exist | no fatals | `getDBTables()` → `tlObjectWithDB::getDBTables()`, `config_get('testproject_options')` (returns a **string**) → `testproject::getOptions()`, `testcase::get_by_id($id,…)` (no `$db`), `tlLog()` (does not exist) removed | PASS |
+| 121 | group band **spans the whole table** (review M4) | the teal header row has a `colspan` equal to the number of visible columns, and it follows *Show all Columns* | `colspan="9"` with 9 visible headers, `colspan="10"` after *Show all Columns*, back to 9 when hidden again | PASS |
+| 122 | sorting by **another column** must not split a spec into several group headers (review M3) | group column stays the primary sort criterion; 4 groups, 7 rows | `table.order([[7,'asc']]).draw()` → order becomes `[[0,"asc"],[7,"asc"]]` (group column pinned), 4 group headers, 7 rows | PASS |
+| 123 | toolbar state is truthful after a **data-set change** (review M2) | collapse state pruned to the groups that still exist; the Expand/Collapse button reflects the live data | Collapse all → *Show all versions* → 0 rows + 4 headers + button `.active=true`; toggle → 7 rows, `.active=false`; single-group click leaves the button `.active=true` | PASS |
+| 124 | **refresh keeps the legacy default order** (regression found by case 123) | `order()` = `[[spec asc],[coverage desc]]` before and after *Refresh* / after a user sort | before `[[0,"asc"],[6,"desc"]]`, after Refresh `[[0,"asc"],[6,"desc"]]`, after user sort `[[0,"asc"],[7,"asc"]]`, after Refresh `[[0,"asc"],[6,"desc"]]` | PASS |
+| 125 | re-entrancy: sorting inside `order.dt` must not rebuild a half-written tbody (review M3 follow-up) | exactly 4 group rows after every sort | first attempt produced 8 duplicated group headers and 2 visible rows; with the re-apply deferred one tick (`setTimeout`) and stale instances filtered by `settings` identity → 4 group rows, 7 rows | PASS |
+| 126 | prototype-named spec must not be uncollapsible (review m2) | `collapsedGroups` is a null-prototype map, lookups use `hasOwnProperty` | `collapsedGroups = Object.create(null)`, `isGroupCollapsed()` uses `Object.prototype.hasOwnProperty.call` | PASS (code path) |
+| 127 | search matches the **raw** spec path (review m1) | `render: {display: escapeHtml}` keeps sort/filter data unescaped | search `Nested` → 1 group `System Requirements/Nested Requirements(1 Item)` + 1 row | PASS |
+| 128 | grid toolbar hidden in the **empty / error** state (review m9) | no dead buttons when there is nothing to group | `tproject_id=24` → `emptyState` visible, `#tableWrap display:none`, **`#gridToolbar display:none`** | PASS |
+| 129 | `ro` locale after the follow-up | toolbar + groups + info line localized | `Extinde/Comprimă grupuri`, `Afișează toate coloanele`, `Reîmprospătează`, `…(3 elemente)` / `…(1 element)`, `Grupuri comprimate` / `Grupuri extinse` | PASS |
+| 130 | console + Event Viewer after the follow-up | clean | console `<no console messages found>`; `events` `WHERE log_level IN (0,1)` → 0 rows | PASS |
+| 131 | dead code removed (review m5) | no unused `.btn-teal` rules, `relations` only built when the column exists | `grep -c btn-teal gui/templates/requirements/reqOverview.html` → `0`; `row.relations` set only when `META.relations_enabled` | PASS |
+| 132 | `node --check` on the final inline script | no syntax error | `JS SYNTAX OK` | PASS |
 
-### Part D — Final a11y pass (2026-09-30, after `1ffd36bf6`)
-
-| # | Case | Expected | Observed | Result |
-|---|---|---|---|---|
-| 45 | close the confirm modal (Confirm) → console `warn` | none (Bootstrap 3 sets `aria-hidden="true"` on the modal while focus is inside it) | `hide.bs.modal` blurs the focused descendant before `aria-hidden`, `hidden.bs.modal` parks focus on the trigger / `#btnRefresh`; console `<no console messages found>` | PASS |
-
-**Results — 2026-09-30, commits `0ae898f24` (BFF) + `b8067326d` (screen/i18n/routing) + `1ffd36bf6` (browser-test fixes) + the a11y follow-up, branch `sebiboga`, app on `http://localhost:8082`: 45/45 PASS.**
-
-**Bugs found and fixed by this suite (not filed separately — same feature, same commit)**
-1. `gui/templates/dashio/lib/bootstrap` is **Bootstrap 3.4.1**, so the Bootstrap 5 `new bootstrap.Modal()`
-   threw `ReferenceError: bootstrap is not defined` and the confirm dialog never opened. Fixed in
-   `1ffd36bf6` (jQuery plugin API + v3 markup).
-2. The success banner was rendered *before* the post-write reload, and `load()` clears the message
-   boxes — a successful move/copy was silently swallowed. Fixed by an `afterCb` callback in `load()`.
-3. The legacy deep link lost its selection: `http_build_query()` encodes arrays as `tcase_ids[0]`, and
-   the `[?&]tcase_ids[]=` regex character class never matched. Now parsed with `URLSearchParams`.
-4. (a11y) closing the confirm modal logged `Blocked aria-hidden on an element because its descendant
-   retained focus` — Bootstrap 3 focuses the modal element itself and sets `hide.bs.modal`'s
-   `aria-hidden="true"` while focus is still inside. Fixed by blurring the focused descendant in
-   `hide.bs.modal` and restoring focus on `hidden.bs.modal` (case 45).
+**Results — 2026-09-30, follow-up commit on `task/issue-1034`: 12/12 PASS** (cases 121-132),
+full suite 99-132 = **34/34 PASS**.
