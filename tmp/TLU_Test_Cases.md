@@ -1590,3 +1590,108 @@ case was T1620-03 before commit `4a165cb1f`, which is the gap this issue describ
 - The Dashio shell (`index.php`) calls only `doSessionStart()`, never `checkSessionValid()`, so
   a shell tab left open past the timeout still renders its menu and any aside link loads a
   screen that must bounce by itself — that is why the client-side handling exists at all.
+
+---
+
+## Regression — Issue #1759: suiteMove `403` on a foreign container leaked the existence of that test suite
+
+**Issue:** [#1759](https://github.com/sebiboga/testlink-upgraded/issues/1759)
+**Branch:** `fix/issue-1759` · **Fix commit:** `30b6056ea`
+**Screen:** `gui/templates/testcases/suiteMove.html` · **BFF:** `api/suitemove/index.php`
+**Executed:** 2026-09-30, app on `http://localhost:8082`, DB freshly imported.
+
+### Preconditions
+
+```bash
+php tmp/fixtures_1759.php
+# DONE tprojectA=52 tprojectB=53
+#   suiteA1=54 suiteA2=55 suiteB1=56 suiteB2=57
+#   user sm1759a=9          (role 14: mgt_view_tc + mgt_modify_tc on project 52 ONLY)
+#   user sm1759norights=10  (role 3 <no rights>, no project role at all)
+#   user sm1759view=11      (role 15: mgt_view_tc only, on project 52)
+```
+
+Both projects are created with `is_public = 0`, otherwise TestLink grants every authenticated
+session access to a public project and the whole matrix becomes meaningless.
+Login for all three users is `<login>` / `admin`.
+
+The whole matrix is automated and re-runnable:
+
+```bash
+bash tmp/verify_1759.sh     # resolves the fixture ids itself, 19 assertions
+```
+
+### Step 1 — reproduce (pre-fix behaviour, `api/suitemove/index.php:325-328`)
+
+```bash
+curl -s -c /tmp/ck.txt -X POST -d "tl_login=sm1759a&tl_password=admin" \
+     "http://localhost:8082/login.php?action=doLogin"
+B="http://localhost:8082/api/suitemove/index.php"
+
+curl -s -b /tmp/ck.txt -H "Origin: http://localhost:8082" "$B?action=init&tproject_id=52&container_id=56"
+curl -s -b /tmp/ck.txt -H "Origin: http://localhost:8082" "$B?action=init&tproject_id=52&container_id=999999"
+```
+
+| Request (`tproject_id` = 52, `sm1759a`) | Observed **before** the fix | Observed **after** the fix | Expected after |
+|---|---|---|---|
+| `container_id=56` (a suite of project 53) | `403 forbidden` — `Container belongs to another test project` | `404 not_found` — `Container not found` | `404 not_found` |
+| `container_id=999999` (nowhere) | `404 not_found` — `Container not found` | `404 not_found` — `Container not found` | `404 not_found` |
+
+The two answers must be **indistinguishable**: the pre-fix pair is a cross-project existence oracle
+on the read path, and the same `out()` is reached by `POST ?action=reorder` on the write path.
+
+### Step 2 — full matrix (all executed, `tmp/verify_1759.sh`, 19 assertions, 19 PASS / 0 FAIL)
+
+| # | Request / action | Expected | Observed | Result |
+|---|---|---|---|---|
+| M1 | `GET init tproject_id=52 container_id=54` (own suite) | `200 ok`, `can_modify: yes` | `200`, full payload, `can_modify:"yes"` | PASS |
+| M2 | `GET init … container_id=56` (foreign suite) | `404 not_found` | `404 not_found`, `Container not found` | PASS |
+| M3 | `GET init … container_id=999999` | `404 not_found` | `404 not_found`, `Container not found` | PASS |
+| M4 | `GET init tproject_id=52` (no container → project root) | `200 ok` | `200`, `container.root=true` | PASS |
+| M5 | `GET init … container_id=<a test case>` | `404 not_found`, `Container is not a test suite` | no test-case node in the fixture; branch at `:313-317` **not modified** by the fix | SKIP (documented) |
+| M6 | `POST reorder tproject_id=52 container_id=56 nodelist=56,57` | `404 not_found` | `404 not_found`, `Container not found` | PASS |
+| M6b | …same request, then read project B's `node_order` from the DB | unchanged | `56,57` before **and** after — no side effect | PASS |
+| M7 | `POST reorder … container_id=999999` | `404 not_found` | `404 not_found`, `Container not found` | PASS |
+| M8 | `POST reorder … container_id=52 nodelist=55,54` (own project) | `200 ok`, order really written | `200`, DB `node_order` → `55:0, 54:1` | PASS |
+| M8b | read `nodes_hierarchy` after M8 | `55,54` in stored order | `55,54` | PASS |
+| M8c | restore with `nodelist=54,55` | fixture back to `54,55` | `54,55` | PASS |
+| M9 | `POST move tproject_id=52 node_id=56 position=down` (foreign node) | `404 not_found` (unchanged by this fix) | `404 not_found` | PASS |
+| M10 | `POST move node_id=54 new_parent_id=56` (foreign destination) | `404 not_found` (unchanged) | `404 not_found` | PASS |
+| M11 | `POST move tproject_id=52 node_id=54 position=down` | `200 ok`, `changed: true` | `200`, `changed:true` | PASS |
+| M11b | same as `admin` | `200 ok` — the write path is intact | `200` | PASS |
+| M12 | `GET init tproject_id=52 container_id=54` as **`sm1759view`** (project role without `mgt_modify_tc`) | `403 forbidden`, `Insufficient rights on this test project` — **the rights 403 must survive** | `403 forbidden`, exact message | PASS |
+| M12b | `GET init tproject_id=52` as `sm1759view` | `403 forbidden` | `403 forbidden` | PASS |
+| M12c | `GET init … container_id=56` as `sm1759view` | `404 not_found` — never 403, for **any** caller | `404 not_found` | PASS |
+| M13 | `POST reorder` **without** `Origin`/`Referer` | `403` from the CSRF guard (`api/_guard.php:42`) | `403`, `Forbidden: missing or mismatched same-origin proof` | PASS |
+| M14 | `SELECT COUNT(*) FROM events WHERE log_level IN (1,2)` | no **new** row (baseline captured at script start) | `6 → 6`, unchanged | PASS |
+
+### Step 3 — the real screen (headless Chrome, `sm1759a`)
+
+| # | Action | Expected | Observed | Result |
+|---|---|---|---|---|
+| S1 | `/gui/templates/testcases/suiteMove.html?tproject_id=52&container_id=56` | "Not found" panel, **not** "not allowed" | `heading "Not found"` + `The requested test project, container or test suite does not exist.`, `[Close] [Refresh]` | PASS (post-fix) / FAIL (pre-fix: `smv.stNotAllowed`) |
+| S2 | `…&container_id=54` | normal screen | `SM1759A (S9A)` / `A-suite-1`, picker lists **only** `Project root, A-suite-1, A-suite-2` | PASS |
+| S3 | `…&container_id=52`, click **Move down** on row 1 | notice + real reorder | notice `The test suite was moved down.`, grid and picker flipped to `A-suite-2, A-suite-1`; DB `SELECT id,node_order FROM nodes_hierarchy WHERE parent_id=52` → `55→0, 54→1` | PASS |
+| S4 | console + Event Viewer audit after S1-S3 | 0 console error/warn, 0 new Error/Warning row | `list_console_messages([error,warn])` → none; `events` ERROR/WARNING count `6 → 6` | PASS |
+
+**Summary: 19 API assertions + 4 screen checks = 23 PASS / 0 FAIL / 1 skipped (M5, fixture gap).**
+The only case that failed before `30b6056ea` is M2/M6/S1, i.e. exactly the oracle this issue
+describes.
+
+### Notes for future runs
+
+- **A user with NO project role at all does not get the `403 insufficient rights`.**
+  `tlUser::hasRight()` only evaluates the private-project flag when its 5th argument `$getAccess`
+  is true (`lib/functions/tlUser.class.php:824-830`), and `suitMoveProject()` calls it with three
+  arguments (`api/suitemove/index.php:347`), so `$accessPublic` stays `null` and the
+  `is_public == 0` branch at `:875-877` is skipped. To reach the rights 403 you need a project role
+  that exists but does **not** carry `mgt_modify_tc` — hence the `sm1759view` fixture. The privacy
+  consequence of the missing `$getAccess` is filed as its own issue, not as part of #1759.
+- Both `Origin: http://localhost:8082` (curl) and the browser's own header satisfy
+  `bffSameOriginGuard()`; without either, every POST is a `403` (M13).
+- `$tlCfg->log_level = 'ERROR'` means the INFO audit trail of the endpoint produces no server-log
+  line; use the HTTP status + JSON body as the evidence.
+- The `events` table currently holds 6 ERROR/WARNING rows that come from two **broken fixture
+  drafts** of this same session (`testcase::create_step` at 16:51:58 and a truncated
+  `tmp/fixtures_1759.php` at 16:52:15). They are fixture-authoring noise, not product defects —
+  `tmp/verify_1759.sh` therefore compares against a baseline captured at script start.

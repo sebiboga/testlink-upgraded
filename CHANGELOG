@@ -1572,6 +1572,16 @@ MAJOR AREAS
 - [KEY BUGFIX] - #1753: a no-op suiteMove move/reorder answered 400 {"status":"error"} - a red error
   banner with a raw English server string - and the reorder no-op was decided AFTER the write.
   Now 200 {"status":"no_change"} with a neutral localized notice (new smv.stNoChangeMsg key).
+- [KEY BUGFIX - SECURITY] - #1759: the suiteMove BFF answered `403 forbidden "Container belongs to
+  another test project"` when the `container_id` of an `init`/`reorder` request belonged to a
+  different test project than the `tproject_id` the caller named. `suitMoveProject()` looks the
+  container up with an unpredicated `SELECT ... FROM nodes_hierarchy WHERE id = ?`, so that answer
+  was the ONLY difference between "this id is a test suite of a project you have no rights on" and
+  "this id does not exist" - one 403 per existing suite is enough to enumerate the suite ids of any
+  test project of the installation (measured on both the read and the write path). Now `404
+  not_found` with a message byte-identical to the non-existent-id answer, matching what the `move`
+  action already did for the moved node and for the destination. The genuine
+  insufficient-rights `403` is untouched.
 - [KEY BUGFIX] - #1718: the legacy **Test Cases not run on any Platform** controller
   (`lib/results/tcNotRunAnyPlatform.php`) could not run and answered HTTP 500 with a 0-byte body on
   every request. It has FOUR independent hard failures, all measured: (1) `:16`
