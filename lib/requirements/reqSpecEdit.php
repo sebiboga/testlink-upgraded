@@ -98,7 +98,8 @@ renderGui($args,$gui,$op,$templateCfg,$editorCfg);
  */
 function reqSpecEditDropShapedAction()
 {
-  if (isset($_REQUEST['doAction']) && !is_scalar($_REQUEST['doAction'])) {
+  if (isset($_REQUEST['doAction']) && !is_scalar($_REQUEST['doAction']))
+  {
     unset($_REQUEST['doAction']);
   }
 }
@@ -299,7 +300,10 @@ function renderGui(&$argsObj,$guiObj,$opObj,$templateCfg,$editorCfg)
       // properties off it cost 3 E_WARNING rows per request (persisted to `events`
       // as log_level=2, all attributed to this line). The dispatch in the controller
       // now consults a real whitelist so $opObj is never null from the URL - this
-      // guard is defence in depth, so no future caller can reintroduce the warnings.
+      // guard is defence in depth for THIS switch (the web-editor value branch).
+      // The GUI-rendering switch further down is reached only for a whitelisted
+      // doAction, and every whitelisted method returns a GUI bean, so its own reads
+      // of $opObj cannot see null either.
       // A null bean means "the command bean has nothing to contribute", which is
       // exactly the condition the true-branch below already handles: keep the
       // user-supplied scope as-is instead of pre-filling a template.

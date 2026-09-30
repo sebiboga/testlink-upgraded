@@ -6700,6 +6700,51 @@ Changes:
   bookmark redirector, so a junk query string must not become a 400. Docs
   `docs/Bugfix-Issue-1731-ReqMgrSystemEdit-Shim-Array-Request-E_WARNING.md`.
 
+### KEY BUGFIX — the legacy `reqSpecEdit.php`: an unrenderable `doAction` wrote 3 E_WARNING rows + answered a 28-byte blank page, and its internal helpers answered a SILENT HTTP 500 (Fixes #1736)
+- `lib/requirements/reqSpecEdit.php:37` dispatched with `method_exists($commandMgr,$pFn)`. That is not a
+  whitelist of requestable GUI actions: it also matches the INTERNAL HELPERS of `reqSpecCommands`
+  (24 `method_exists`-visible members, only **18** of them GUI actions), and the dispatch invoked
+  whatever it matched with a fixed 2-argument signature `$pFn($args,$_REQUEST)`. One unknown
+  `doAction` therefore had FIVE different outcomes, measured:
+  | `doAction` | before | after |
+  |---|---|---|
+  | unknown / absent / empty / `bogus` / `CREATE` | HTTP 200, **28 bytes** (`Can not process RENDERING!!!`) + **3** `E_WARNING` rows at `reqSpecEdit.php:147` | HTTP **302** -> `reqSpecMgmt.html`, **0** rows |
+  | `simpleCompare` (reqParams=4), `process_revision` (3) | **HTTP 500, 0 bytes, 0 log rows** | HTTP 302, 0 rows |
+  | `initGuiObjForAttachmentOperations` (**private**) | **HTTP 500, 0 bytes, 0 log rows** | HTTP 302, 0 rows |
+  | `initGuiBean` / `getReqMgrSystem` (reqParams=0) | **HTTP 500, 0 bytes** | HTTP 302, 0 rows |
+  | `?doAction[]=x` | **HTTP 500, 0 bytes** — `trim(array)` `TypeError` in `inputparameter.class.php:295`, before this controller ran at all | HTTP 302, 0 rows |
+  The 500 half is the worse half: a 0-byte body with **zero** Event Viewer rows leaves an operator
+  nothing to grep. The two claims in the issue body that `initialize_gui()` can return `null` and
+  that the object at fault is `$gui` are both wrong and are corrected in the issue trail.
+- Fix, all inside `lib/requirements/reqSpecEdit.php` (+161/-2): **(C1)** `reqSpecEditActionWhitelist()` —
+  a whitelist that is the EXACT 18-case list of `renderGui()`'s GUI-rendering switch, consulted with
+  `is_string($pFn) && $pFn !== '' && isset($list[$pFn])`, so arity and visibility match by construction;
+  **(C2)** `reqSpecEditRefuseUnknownAction()` — one `tLog(...,'INFO')` row with a **fixed literal**
+  message (the requested value is attacker controlled and is deliberately NOT interpolated) and a 302 back
+  to `gui/templates/requirements/reqSpecMgmt.html` with `tproject_id` carried forward. INFO does not
+  persist below WARNING, so a crafted query string can not write an Error/Warning row: measured 0 rows
+  of ANY level for a request that used to write 3. Same remedy #1627/#1722 established in
+  `lib/reqmgrsystems/reqMgrSystemEdit.php:87-103`; **(C3)** `reqSpecEditDropShapedAction()` drops a
+  non-scalar `$_REQUEST['doAction']` before `R_PARAMS()` (the same local-shim idiom as #1731, rather than
+  changing the shared input layer — filed separately), plus a null-guard on `renderGui()`'s `default:`
+  branch as defence in depth.
+- **The shared cause was deliberately NOT changed**: `lib/functions/inputparameter.class.php:295`
+  calls `trim()` unconditionally, so an array-shaped value for ANY `STRING_N` parameter of ANY
+  controller is an uncaught `TypeError` (500 / 0 bytes / 0 rows) — filed as **#1738** so the blast
+  radius is fixed once at the root instead of N times per screen.
+- Verified error-free: 32-case regression suite (cases 1-17 the refused actions, 18-23d every
+  whitelisted action, 24 a real `doCreate` POST writing 1 new `req_specs` row, 25 an 18/18 pre-fix vs
+  post-fix equivalence sweep, 28 three hostile `doAction` values producing 0 rows of any level,
+  30-31 the whitelist<->switch invariant and "no in-repo caller is broken"); `php -l`; browser check
+  that `?doAction=init` lands on `RSE1736 - Requirement Specification Management` while
+  `?doAction=create` still renders the full editor; **0** new Error/Warning rows from the fix.
+  Three bugs found while testing and filed, NOT fixed here (each measured identical on the pre-fix
+  code): **#1737** `reqSpecCommands.class.php:844` (`deleteFile()` never sets `$argsObj->uploadOp`) and
+  `:877` (`bulkReqMon()` `foreach(null)` on an empty spec) each write an E_WARNING row per request;
+  **#1739** `lib/requirements/reqEdit.php:41` and `lib/plan/planMilestonesEdit.php:30` still carry the
+  same `method_exists()` dispatch shape. Docs: `docs/Bugfix-Issue-1736-ReqSpecEdit-Unrenderable-Action.md`.
+  (Fixes #1736)
+
 ### Screen — Duplicate Name Check `nameCheck` (Refs #1724)
 - Modernizes the GENERIC node name-uniqueness backend `lib/ajax/checkNodeDuplicateName.php`, which
   admitted in its own header that it performed "no check on user rights" and had no project scope:
