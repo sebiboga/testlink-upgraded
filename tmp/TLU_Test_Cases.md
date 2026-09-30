@@ -1537,135 +1537,91 @@ $ diff <(post-fix reorder body, CSRF normalised) <(pre-fix reorder body, CSRF no
 
 ---
 
-## Regression — Issue #1633: column filter boxes polluted with `[object Object]` after a reload (DataTables 1.13 `columns[i].search` is an object, not a string)
+## Task — Issue #1037: platforms display in tcView.html (gap vs legacy)
 
-**Precondition**
+Ports the three legs of the legacy include `gui/templates/dashio/testcases/include/platforms.inc.tpl`
+(rendered per version by `tcView_viewer.tpl:496-511`) into the modern viewer: the
+Platform Management link on the label, per-platform unassign with the legacy
+`remove_plat_msgbox` confirm, and the free-platform multi-select + Add.
 
-- App on `http://localhost:8082`, logged in as `admin`/`admin`.
-- MariaDB `127.0.0.1:3306`, db `testlink`, user/pass `testlink`/`testlink`. The run starts from a
-  freshly imported DB in which **`testprojects` is empty (0 rows)** — see "Finding F1": with no
-  projects `renderProjects()` returns early into the empty state and never builds the filter row,
-  so the bug is unreachable until a project exists.
-- Fixture: 4 projects created through the authenticated BFF, so they are real rows, not HTML stubs.
+### Precondition / fixture
 
-  ```
-  POST /api/projects/  {"name":"Alpha Banking","prefix":"ALP"}  -> 200 {"success":true,"id":1}
-  POST /api/projects/  {"name":"Beta Retail","prefix":"BET"}    -> 200 {"success":true,"id":2}
-  POST /api/projects/  {"name":"Gamma Insurance","prefix":"GAM"}-> 200 {"success":true,"id":3}
-  POST /api/projects/  {"name":"Delta Utilities","prefix":"DEL"}-> 200 {"success":true,"id":4}
-  ```
-
-- Grid: `$('#projectsTable').DataTable()` with `stateSave: true`; DataTables `1.13.7`
-  (`$.fn.dataTable.version`). The state key is
-  `DataTables_projectsTable_/gui/templates/projectsView.html` — i.e. **the key includes the page
-  URL**, so the page must be loaded as exactly `/gui/templates/projectsView.html` with **no query
-  string** (see "Harness pitfalls" H1).
-
-### Symptom / repro (pre-fix)
-
-1. Open `http://localhost:8082/gui/templates/projectsView.html` with a clean profile.
-   → 5 filter inputs, all `""`; `tbl.state.loaded() === null`. **The first render is clean.**
-2. Type `Alpha` into filter box #0 (the box under *Project Name*) and let it settle.
-3. Reload the page.
-4. Read the filter inputs → **all 5** contain the literal `[object Object]`.
-5. Append a character to any box → the smart search is applied for the literal
-   `[object Object]<term>`, split on whitespace and ANDed → **0 rows, no error, no warning**.
-
-### Expected post-fix
-
-- Step 4: the boxes contain the terms the user actually typed; the string `[object Object]` never
-  appears in any of them.
-- Step 5: a further keystroke searches for the real term, so matching rows are found.
-
-### Test steps and results
-
-| # | Step | Expected | Measured | Result |
-|---|---|---|---|---|
-| T1 | Clean profile, first render, no `DataTables_*` key | 5 inputs, all `""` | `["","","","",""]` | **PASS** |
-| T2 | Type `Alpha` in box #0 | `column(1).search() === "Alpha"`, 1 row | `term="Alpha" rows=1` | **PASS** |
-| T3 | Reload the page, read all 5 inputs | `["Alpha","","","",""]`, no pollution | `["Alpha","","","",""]` | **PASS** |
-| T4 | Assert no box contains `[object Object]` (all 5) | none does | none does | **PASS** |
-| T5 | Type a term in a **non-first** box (th#4 = Issue Tracker, `GAM`), reload | that box restores its own term, all others `""` | `["","","GAM","",""]`; saved state `c4=GAM` | **PASS** |
-| T6 | State present (`length`/`order`) but no column term, reload | all 5 boxes `""` | `["","","","",""]`, saved terms = 0 | **PASS** |
-| T7 | With T3's state, append a char to the restored box | search term is the real term → 0 rows | `term="Alphae" rows=0` | **PASS** |
-| T8 | Replace the box content with `e` | `term="e"`, >0 rows | `term="e" rows=3` | **PASS** |
-| T9 | In-page re-render `loadProjects()` with a saved term | box keeps the real term, no pollution | `["Alpha","","","",""]`, `recordsDisplay=1` | **PASS** |
-| T10 | `events` table, last hour | 0 new Error/Warning rows | 5 rows, all `log_level=16` (audit `LOGIN` + the 4 fixture `CREATE`s); 0 error/warning | **PASS** |
-| T11 | Browser console on the screen | 0 errors/warnings | `<no console messages found>` | **PASS** |
-| T12 | DataTables 1.10 **string**-shaped saved state (downgrade guard) | box restores the term | restore is a **no-op** — 1.13's own loader normalises a bare-string column search away, so the branch is unreachable through the app; the expression itself verified correct by calling `restoreColumnFilterState()` on the pre-normalisation instance → `["Alpha","","GAM","",""]` | **N/A** (unreachable) |
-
-**12 executed — 11 PASS, 0 FAIL, 1 N/A (unreachable defensive branch, T12, not claimed as passing).**
-
-### Evidence commands
+`tmp/fixtures_1037.sql` (freshly imported DB has 0 rows in `nodes_hierarchy`,
+`tcversions` and `platforms`):
 
 ```
-$ curl -s http://localhost:8082/gui/templates/projectsView.html | grep -n colSearch
-602:        const colSearch = (state.columns[idx] && state.columns[idx].search) || '';
-603:        const value = (typeof colSearch === 'object')
-604:          ? String(colSearch.search || '')
-605:          : String(colSearch);
-
-$ mysql -h 127.0.0.1 -utestlink -ptestlink testlink \
-    -e "select id, from_unixtime(fired_at) at, log_level, activity from events \
-        where fired_at > (unix_timestamp() - 3600) order by id desc;"
-id   at                       log_level  activity
-5    2026-09-30 12:56:36      16         CREATE     <- fixture
-4    2026-09-30 12:56:36      16         CREATE     <- fixture
-3    2026-09-30 12:56:36      16         CREATE     <- fixture
-2    2026-09-30 12:56:36      16         CREATE     <- fixture
-1    2026-09-30 12:56:10      16         LOGIN      <- fixture
+tproject 900001 "TLU1037 Project" (prefix TLU1037)
+  suite 900002 > tcase 900003 > tcver 900004 (v1) / 900005 (v2)
+  platform 900006 "Linux"    enable_on_design=1   linked to v1
+  platform 900007 "Win 11"   enable_on_design=1   free
+  platform 900008 "MAC OS X" enable_on_design=0   must never be offered
 ```
+
+Log in as `admin`/`admin`, open
+`http://localhost:8082/gui/templates/testcases/tcView.html?tcase_id=900003`.
+
+### Cases
+
+| # | Step | Expected | Observed | Result |
+|---|------|----------|----------|--------|
+| 1 | Load the viewer (admin, v1 linked to Linux) | `Platforms` label is a link to Platform Management | `isLink:true`, `href=/gui/templates/platforms/platformsView.html?tproject_id=900001`, `title="Open Platform Management"` | PASS |
+| 2 | Inspect v1 chips | `Linux` chip + ✕ button | `chip-x onclick="confirmRemovePlatform(900004,900006,900009)"` | PASS |
+| 3 | Inspect v2 chips | `None`, no ✕, `+ Add` | `None`, `hasX:false`, `addBtn:true` | PASS |
+| 4 | Click `+ Add` on v1 | Modal lists the free platforms only | options `["Win 11"]` — `Linux` (already linked) and `MAC OS X` (`enable_on_design=0`) excluded | PASS |
+| 5 | Select `Win 11`, click Add | Toast, chip appears, DB row created, Add button disappears | toast `Platform(s) added to this test case version`; chip `Win 11` present; `testcase_platforms` → `(900010,900003,900004,900007)`; free list empty → no Add button | PASS |
+| 6 | Click ✕ on `Linux` | Legacy confirm wording with `%i` = platform name | `Remove Platform` / `Do you want to remove all executions linked to Linux?` | PASS |
+| 7 | Confirm removal | Toast, chip gone, DB row deleted | toast `Platform removed from this test case version`; chip gone; `(900009,…)` deleted | PASS |
+| 8 | Freeze v1 (`UPDATE tcversions SET is_open=0 WHERE id=900004`) and reload | platRW=0: no ✕, no Add; management link still shown (legacy renders it unconditionally) | `frozen:true, hasX:false, addBtn:false, mgmtLink:true` | PASS |
+| 9 | Un-freeze v1 | ✕ and Add come back | identical to case 2/3 | PASS |
+| 10 | Switch locale to German (`&locale=de`) and click ✕ | German legacy wording | `Plattform entfernen` / `Möchten Sie alle mit Win 11 verknüpften Ausführungen entfernen?` | PASS |
+| 11 | All 10 bundles carry the 13 new keys | `python3 -m json.tool` valid + key present | 10/10 bundles `+13 keys`, all valid | PASS |
+| 12 | Regression — `enable_on_design=0` never offered | `MAC OS X` absent from every free list | absent for v1 and v2 | PASS |
+| 13 | Regression — no Error/Warning events created | `events` table unchanged | only the 2 pre-existing `audit_login_succeeded` LOGIN rows (log_level 16) | PASS |
+| 14 | Regression — browser console | no errors/warnings | `<no console messages found>` | PASS |
+| 15 | Regression — `tmp/php_server.log` | no PHP error/warning | `grep -iE "error|warning|fatal|notice"` over 371 lines → no match | PASS |
+
+**15 PASS / 0 FAIL.**
+
+### Defect this suite found (fixed in `929618c9f`)
+
+`platApiPost()` initially posted to `/api/testcases/index.php` without `?action=`.
+The BFF is query-routed, so the request fell through to the catch-all
+`api/testcases/index.php:2874` → HTTP 400 `{"status":"error","message":"Bad request"}`
+and assign always failed (network request `reqid=119` captured as proof). Note that the
+sibling BFF `api/requirements/index.php` used by the requirements modal of the same screen
+IS path-routed, so copying that call shape does not work for `api/testcases/index.php`.
 
 ### Screenshots
 
-- Before: `docs/screenshots/issue-1633-column-filter-object-object.png`
-  (`["[object Object]","[object Object]","[object Object]","[object Object]","[object Object]"]`)
-- After: `docs/screenshots/issue-1633-column-filter-restored.png` (`["Alpha","","","",""]`)
+* `docs/screenshots/issue-1037-tcview-platforms-before.png` — read-only chips, no link/✕/Add
+* `docs/screenshots/issue-1037-tcview-platforms-after.png` — full panel
+* `docs/screenshots/issue-1037-tcview-platforms-remove-confirm.png` — legacy confirm box
 
-### Root cause and fix (one paragraph)
+### Code-review remediation round (post #1037 review) — cases 14-24
 
-DataTables 1.13 serialises a **per-column** search into the saved state as the full descriptor
-`{search, smart, regex, caseInsensitive}` — a plain object — whereas 1.10 stored a bare string.
-`gui/templates/projectsView.html:594` read `state.columns[idx].search` raw (written against the
-1.10 string shape) and handed that object to jQuery `.val()`, which coerces a value with no `value`
-key via `val + ""` and therefore rendered the literal `[object Object]` into every filter box. The
-`keyup` handler then pushed the polluted value straight into `column(idx).search(..., false, true)`,
-so the next keystroke smart-searched for the literal and matched nothing. The fix unwraps
-`.search.search` when the value is an object and keeps the 1.10 string path as a fallback — the
-identical guard the two sibling screens already use for the **global** search
-(`usersAssignPlan.html:1157`, `usersAssignProject.html:731`), so there is now one way to read a
-search out of a DataTables state blob in this repo. No user-facing string changed, so no i18n keys
-were needed and no locale bundle was touched.
-
-### Blast radius
+Fixture reset to a deterministic baseline (`tmp/fixtures_1037.sql` is now idempotent and
+restores exactly this state):
 
 ```
-$ grep -rn "state.loaded()\|restoreColumnFilterState" --include=*.html gui/templates/
-projectsView.html:552, 590            <- the only consumer of state.columns[i].search (FIXED)
-usermanagement/usersAssignPlan.html:1149      <- global state.search only, already guarded
-usermanagement/usersAssignProject.html:723    <- global state.search only, already guarded
-
-$ grep -rn "state.columns\[" --include=*.html gui/templates/
-projectsView.html:594                 <- the single buggy line
+v1 (900004, open, NOT executed): Linux      (link 900009)   free: Win 11
+v2 (900005, open, EXECUTED):     Win 11     (link 900012)   free: Linux
+executions 900011 on v2 (platform 900006)
+role 8 (admin) has mgt_modify_tc + testproject_edit_executed_testcases(39)
+role 3 = read-only user tlu1037norights, only mgt_view_tc(6)
 ```
 
-`results/metricsDashboard.html` and `results/tplanWithCF.html` build their per-column filters
-themselves and never read the state blob. Legacy 1.9.20 is unaffected: the Smarty
-`DataTablesColumnFiltering.inc.tpl` helper rendered the inputs server-side from the request value,
-not from a DataTables state blob, so this is a 2.0.1-only defect.
+| # | Step | Expected | Observed | Result |
+|---|------|----------|----------|--------|
+| 14 | **REGRESSION (review MAJOR):** open `tcView.html?tcase_id=900003&tcversion_id=900004` (v1 = NOT the latest), click `+ Add`, select `Win 11`, Add | The toolbar must STAY on v1 — `render()` picks `currentVersion` from `data.requestedTcversionId`, so the refresh must carry `tcversion_id` | Before fix: re-fetch without `tcversion_id` → `requestedTcversionId=0`, `currentVersionVersion=2`, `currentVersionTcversionId=900005` (Edit Version / Print / Export would retarget to v2). After fix: `requestedTcversionId=900004`, `currentVersion.version=1`, `currentVersion.tcversion_id=900004`, 1 version card, chips `[Linux, Win 11]` | PASS |
+| 15 | Same page, ✕ on the new chip | Confirmation modal names the right platform (name resolved from `p.tcplat_link`, not `p.id`) | `confirmRemovePlatform(900004,900011)`; modal `Remove Platform` / `Do you want to remove all executions linked to Win 11?`; modal state `{tcversionId:900004, tcplatLinkId:900011}` (no `platformId` any more) | PASS |
+| 16 | Force a stale link: `$('#rmPlatModal').data('tcplatLinkId', 999999); doRemovePlatform();` | Server rejection is surfaced verbatim and the modal stays open for a retry | toast `Platform link #999999 is no longer assigned to this test case version`; modal `display:flex`; chips unchanged `[Linux, Win 11]` | PASS |
+| 17 | Valid remove after the failed attempt | Toast + chip gone + Add button back (Win 11 free again) | toast `Platform removed from this test case version`; v1 chips `[Linux]`; `currentVersion.tcversion_id=900004` still v1 | PASS |
+| 18 | BFF `remove_platform` with a link id that belongs to ANOTHER version (`tcversion_id=900005` + link `900009`) | 404, nothing deleted (legacy `deletePlatformsByLink` silently no-op'ed and raised an E_WARNING) | `404 {"message":"Platform link #900009 is no longer assigned to this test case version"}`; link 900009 intact | PASS |
+| 19 | BFF `remove_platform` / `add_platform` as the read-only user | 403 on both writes | `403 {"message":"Requires permission: modify test cases"}` twice; DB unchanged | PASS |
+| 20 | Read-only user viewing the test case | Chips without ✕, no `+ Add`, no Platform Management link | `grants platform_management=0 platform_view=0`; v1 `[Linux]` and v2 `[Win 11]` with `canAssignPlatforms=false`, `hasX:false`, `addBtn:false`, `mgmtLink:absent` | PASS |
+| 21 | **REGRESSION (pre-existing BFF bug found here):** version 2 has an execution row | `has_been_executed=true` and the executed branch of `canAssignPlatforms` must evaluate | Before fix: `has_been_executed=false` for BOTH versions because `get_by_id(..., access_key='tcversion_id')` returns a 0-indexed array → the query ran `tcversion_id IN (0,1)`. After fix: admin `v2 executed=True canAssign=True`, read-only `v2 executed=True canAssign=False` | PASS |
+| 22 | `DELETE FROM role_rights WHERE role_id=8 AND right_id=39` (revoke `testproject_edit_executed_testcases`), reload | Executed v2 loses ✕/Add (`canAssignPlatforms=false`) and the BFF refuses the write with 403 | `v2 executed=True canAssign=False`, `v1 canAssign=True`; `add_platform` on v2 → `403 Platform assignment is not allowed on this version (frozen, executed without exec-edit right, or no edit right)`; right restored afterwards | PASS |
+| 23 | Frozen version (`UPDATE tcversions SET is_open=0 WHERE id=900005`) | BFF refuses the write | `403 Platform assignment is not allowed on this version (frozen, executed without exec-edit right, or no edit right)`; `is_open=1` restored | PASS |
+| 24 | **Event Viewer / PHP log after the whole remediation round** | No new Error/Warning | `events` MAX(id) unchanged (10) across bogus + valid removes; `tmp/php_server.log` has no error/warning/fatal lines; browser console: no error/warn messages. Event 10 (E_WARNING `foreach() argument must be of type array\|object, null given`, `testcase.class.php:9885`) was produced by the PRE-FIX silent no-op and is now unreachable from the modern path — filed as a separate `bug` issue | PASS |
 
-### Harness pitfalls that produced FALSE failures in this suite (important for re-runs)
-
-- **H1 — a query string changes the state key.** `stateSave` keys on
-  `DataTables_projectsTable_<page URL>`. Cache-busting with `?p=…` / `?nocache=…` makes the page
-  look for a *different* key, so the boxes render empty and the save/restore path looks broken when
-  it is not. Always load exactly `/gui/templates/projectsView.html`.
-- **H2 — input-list index ≠ DataTable column index.** The 5 filter inputs sit in `th` 1, 3, 4, 5, 7
-  (only those carry `data-col-filter`), so input #0 → column 1 (*Project Name*), input #1 → column 3
-  (*Prefix*), input #2 → column 4 (*Issue Tracker*), input #3 → column 5, input #4 → column 7.
-  Asserting the wrong column reports a false FAIL.
-- **H3 — `stateSave` is debounced (~500 ms).** Reading `localStorage` immediately after a keystroke
-  returns the *previous* state. Every state assertion must wait past the debounce.
-- **H4 — the bug needs a prior filter + a reload.** `state.loaded()` is `null` on a genuinely first
-  visit, so the helper short-circuits; and with 0 projects the filter row is never built at all.
-  A quick manual pass over a clean profile cannot see this bug.
+**Totals for #1037: 24 cases, 24 PASS, 0 FAIL.**

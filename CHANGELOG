@@ -28,12 +28,26 @@ screen reaches full parity.
   select. BFF: `platformsProject` is now resolved once before the version loop and reused,
   each version carries `platformsFree` (project platforms with `enable_on_design=1` minus the
   ones already linked, per `testcase::getFreePlatforms()`), the `grants` map gained
-  `platform_management` (gate of `$gsmarty_href_platformsView`) and the payload carries
-  `platformsMgmtUrl`. Screen: label link, ✕ + confirm modal and Add modal with the free
-  platforms, gated exactly like the legacy `platRW`, re-reading the payload after each write.
-  13 new i18n keys in all 10 bundles, texts ported from the legacy `locale/<L>/strings.txt`.
-  Verified: Suite 1037 in `tmp/TLU_Test_Cases.md` (15/15 PASS), `php -l` + `node --check`
-  clean, all 10 bundles `json.tool` valid, live en + de, 0 new Error/Warning rows in `events`.
+  `platform_management` + `platform_view` (legacy `checkRights()` accepts either) and the
+  payload carries `platformsMgmtUrl`. Screen: label link, ✕ + confirm modal and Add modal with
+  the free platforms, gated by the legacy `platRW` rule, re-reading the payload after each write.
+  Gating follows the legacy `platRW` rule (`mgt_modify_tc` + version not frozen + not
+  executed-or-`canEditExecuted`, BFF helper `canAssignPlatforms()`); note this is slightly
+  MORE permissive than 1.9.20, where `tcView_viewer.tpl:496` set `$platRW=1` only for
+  executed versions with `can_edit_executed=1`, and the free list is computed PER version
+  whereas legacy fed the current version's list into every panel. 13 new i18n keys in all 10
+  bundles, texts ported from the legacy `locale/<L>/strings.txt`.
+  Code-review round: the post-write refresh now carries `tcversion_id` (it used to silently
+  retarget the whole toolbar to the LATEST version after an assign/unassign on an older
+  version); unassign removes by `tcplat_link_id` (the legacy LINK id) and a link belonging to
+  another test case/version is rejected with 404 instead of a silent no-op; write errors are
+  surfaced verbatim and the remove modal closes only on success; and the pre-existing
+  `has_been_executed=false` bug is fixed (the query ran `tcversion_id IN (0,1)` because
+  `testcase::get_by_id()` ignores `access_key`), which also repairs the executed-version
+  branch of `canAssignPlatforms`.
+  Verified: Suite 1037 in `tmp/TLU_Test_Cases.md` (24/24 PASS), `php -l` + `node --check`
+  clean, all 10 bundles `json.tool` valid, live en + de + read-only user, 0 new
+  Error/Warning rows in `events`.
   (Refs #1037)
 
 - [FEATURE GAP] - #1034: the modern `reqOverview.html` dropped the legacy grouping by Requirement

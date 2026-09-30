@@ -700,8 +700,19 @@ if ($action === 'view') {
     }
 
     // which versions have been executed (drives warnings, like legacy)
+    // NOTE: testcase::get_by_id() with access_key='tcversion_id' returns a
+    // 0-indexed array whose rows do NOT carry tcversion_id (only 'id'), so the
+    // ids must be read from the rows — using array_keys() here queried
+    // "tcversion_id IN (0,1)" and left has_been_executed (and therefore the
+    // executed branch of canAssignPlatforms) permanently false.
     $executedSet = [];
-    $tcvIds = array_map('intval', array_keys($versionsRaw));
+    $tcvIds = [];
+    foreach ((array)$versionsRaw as $vrKey => $vrRow) {
+        $tcvIds[] = intval($vrRow['id'] ?? $vrKey);
+    }
+    $tcvIds = array_values(array_filter(array_unique($tcvIds), function ($id) {
+        return $id > 0;
+    }));
     if (count($tcvIds) > 0) {
         $execTable = tlObjectWithDB::getDBTables(array('executions'));
         $rs = $db->get_recordset(
@@ -970,10 +981,12 @@ if ($action === 'view') {
                    // to render the create / create-and-link buttons.
                    'mgt_modify_key', 'mgt_view_key',
                    // Issue #1037: gate of the "Platform Management" link that
-                   // legacy platforms.inc.tpl renders on the Platforms label
-                   // (lib/platforms/platformsView.php checkRights() =
-                   // hasRightOnProj("platform_management")).
-                   'platform_management') as $gk) {
+                   // legacy platforms.inc.tpl renders on the Platforms label.
+                   // Legacy checkRights() (lib/platforms/platformsView.php:49)
+                   // accepts platform_management OR platform_view, and
+                   // platforms.inc.tpl rendered the link unconditionally, so
+                   // BOTH rights are exposed and the client ORs them.
+                   'platform_management', 'platform_view') as $gk) {
         $grants[$gk] = $user->hasRight($db, $gk, $tprojectId) ? 1 : 0;
     }
 
@@ -1158,7 +1171,7 @@ function platformFreeList($platformsProject, $platformsAssigned) {
             continue;
         }
         if (!isset($platformsAssigned[$pid])) {
-            $free[$pid] = $info['name'];
+            $free[$pid] = strval($info['name'] ?? '');
         }
     }
     return $free;
@@ -2333,14 +2346,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action !== '') {
                  403);
         }
 
-        $platId = intval($body['platform_id'] ?? 0);
+        // The link id is what the UI sends (legacy removes by LINK id), so it
+        // must be verified to belong to THIS test case + version: a stale chip
+        // (already unassigned in another tab) would otherwise return a silent
+        // "ok" and leave the user believing the platform was removed.
         $linkId = intval($body['tcplat_link_id'] ?? 0);
-        if ($platId > 0) {
-            $tcaseMgr->deletePlatforms($tcaseId, $tcversionId, $platId);
-        } elseif ($linkId > 0) {
+        $platId = intval($body['platform_id'] ?? 0);
+        if ($linkId <= 0 && $platId <= 0) {
+            jout(['status' => 'error', 'message' => 'Missing platform_id or tcplat_link_id'], 400);
+        }
+        if ($linkId > 0) {
+            $own = $db->fetchFirstRow(
+                " SELECT TCP.id FROM " . tlObjectWithDB::getDBTables(array('testcase_platforms'))['testcase_platforms']
+                . " TCP WHERE TCP.id = " . $linkId
+                . " AND TCP.testcase_id = " . $tcaseId
+                . " AND TCP.tcversion_id = " . $tcversionId);
+            if (empty($own)) {
+                jout(['status' => 'error',
+                      'message' => 'Platform link #' . $linkId
+                        . ' is no longer assigned to this test case version'],
+                     404);
+            }
             $tcaseMgr->deletePlatformsByLink($tcaseId, $linkId);
         } else {
-            jout(['status' => 'error', 'message' => 'Missing platform_id or tcplat_link_id'], 400);
+            $tcaseMgr->deletePlatforms($tcaseId, $tcversionId, $platId);
         }
 
         $prj = projectPlatforms($db, $tprojectId);

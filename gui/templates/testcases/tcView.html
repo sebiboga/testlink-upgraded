@@ -171,7 +171,7 @@ table.steps tbody tr:nth-child(even) { background: #fafafa; }
 <!-- unassign platform confirmation (legacy platforms.inc.tpl remove_plat_msgbox) -->
 <div class="modal-overlay" id="rmPlatModal">
   <div class="modal-box" style="width:440px;max-width:96vw;">
-    <div class="modal-head"><i class="fa fa-trash"></i> <span id="rmPlatTitle">Remove platform</span></div>
+    <div class="modal-head"><i class="fa fa-trash"></i> <span data-i18n="tcview.platformRemoveTitle">Remove Platform</span></div>
     <div class="modal-body"><p id="rmPlatMsg" style="margin:0;font-size:13px;color:#333;"></p></div>
     <div class="modal-foot">
       <button class="btn-dark btn-sm" onclick="$('#rmPlatModal').hide()"><span data-i18n="tspec.cancel">Cancel</span></button>
@@ -297,8 +297,9 @@ function render() {
 
   // pick requested version or latest as "current"
   currentVersion = data.versions[0];
+  var rid = parseInt(data.requestedTcversionId || 0, 10);
   for (var i = 0; i < data.versions.length; i++) {
-    if (data.requestedTcversionId && data.versions[i].tcversion_id === data.requestedTcversionId) {
+    if (rid > 0 && parseInt(data.versions[i].tcversion_id, 10) === rid) {
       currentVersion = data.versions[i];
     }
   }
@@ -486,12 +487,15 @@ function renderVersion(v) {
   }
 
   // Platforms — full port of legacy platforms.inc.tpl (issue #1037):
-  //   label links to Platform Management (granted platform_management),
-  //   per-platform unassign icon + confirm box (canAssignPlatforms),
+  //   label links to Platform Management (platform_management OR platform_view,
+  //     the legacy checkRights() of platformsView.php),
+  //   per-platform unassign icon + confirm box (canAssignPlatforms, the BFF
+  //     mirror of the legacy platRW flag of tcView_viewer.tpl),
   //   free-platform multi-select + Add button (canAssignPlatforms and a
-  //   non-empty platformsFree list), exactly like the legacy include which
-  //   tcView_viewer.tpl renders once per version with
-  //   args_edit_enabled = platRW / args_frozen_version.
+  //     non-empty per-version platformsFree list — legacy fed the CURRENT
+  //     version's free list into every version's panel and only hid the control
+  //     when the list was null; here the list is per version and the button is
+  //     hidden when it is empty).
   if (v.platforms !== undefined) {
     var platCanEdit = !!v.canAssignPlatforms;
     var platFree = v.platformsFree || {};
@@ -503,19 +507,17 @@ function renderVersion(v) {
         if (!platCanEdit) { return one; }
         return '<span class="chip-with-x">'
           + one
-          + '<button class="chip-x" title="' + esc(TLi18n.t('tcview.platformRemoveTitle')) + '"'
+          + '<button type="button" class="chip-x" title="' + esc(TLi18n.t('tcview.platformRemoveTitle')) + '"'
           + ' onclick="confirmRemovePlatform(' + parseInt(v.tcversion_id, 10) + ','
-          + parseInt(p.id, 10) + ','
           + parseInt(p.tcplat_link, 10) + ')">'
           + '<i class="fa fa-times"></i></button></span>';
       }).join('') + '</div>';
     } else {
       h += '<span class="none-text">' + esc(TLi18n.t('tcview.none')) + '</span>';
     }
-    // legacy: {if $addEnabled && null != $gui->currentVersionFreePlatforms}
     if (platCanEdit && platFreeKeys.length) {
       h += '<div style="margin-top:8px;">'
-        + '<button class="btn btn-sm btn-teal" onclick="openPlatformAdd(' + parseInt(v.tcversion_id, 10) + ')">'
+        + '<button type="button" class="btn btn-sm btn-teal" onclick="openPlatformAdd(' + parseInt(v.tcversion_id, 10) + ')">'
         + '<i class="fa fa-plus"></i> ' + esc(TLi18n.t('tcview.platformAddBtn')) + '</button></div>';
     }
   }
@@ -573,13 +575,15 @@ function metaItem(label, value) {
    platforms.inc.tpl as rendered by tcView_viewer.tpl per version. */
 
 /* Legacy platforms.inc.tpl puts a link to Platform Management on the
-   "Platforms:" label. The legacy controller gated the target screen on
-   hasRightOnProj("platform_management"), which the BFF now exposes as
-   grants.platform_management. */
+   "Platforms:" label and renders it unconditionally; the target screen
+   self-checks its own rights with checkRights() = platform_management
+   OR platform_view (lib/platforms/platformsView.php:49), so both grants
+   are OR-ed here. */
 function platformMgmtLabelHtml() {
   var label = esc(TLi18n.t('tcview.platforms'));
-  if (data && data.grants && data.grants.platform_management && data.platformsMgmtUrl) {
-    return '<a href="' + esc(data.platformsMgmtUrl) + '" target="_blank" title="'
+  var g = (data && data.grants) ? data.grants : {};
+  if ((g.platform_management || g.platform_view) && data.platformsMgmtUrl) {
+    return '<a href="' + esc(data.platformsMgmtUrl) + '" target="_blank" rel="noopener" title="'
       + esc(TLi18n.t('tcview.platformMgmtTitle')) + '">' + label
       + ' <i class="fa fa-external-link"></i></a>';
   }
@@ -589,7 +593,8 @@ function platformMgmtLabelHtml() {
 function findPlatformVersion(tcversionId) {
   var vid = parseInt(tcversionId, 10) || 0;
   var found = null;
-  (data.versions || []).forEach(function (v) {
+  var list = (data && data.versions) ? data.versions : [];
+  list.forEach(function (v) {
     if (parseInt(v.tcversion_id, 10) === vid) { found = v; }
   });
   return found;
@@ -598,32 +603,38 @@ function findPlatformVersion(tcversionId) {
 /* legacy platform_remove_confirmation(): Ext.Msg.confirm(title, msg) with
    %i replaced by the platform name. The name is resolved from the payload
    (never embedded in the inline handler) so quotes in platform names cannot
-   break the onclick. */
-function confirmRemovePlatform(tcversionId, platformId, tcplatLinkId) {
+   break the onclick; the replacement is a FUNCTION so a "$&"-like sequence
+   inside a platform name is never treated as a substitution pattern. */
+function confirmRemovePlatform(tcversionId, tcplatLinkId) {
   var v = findPlatformVersion(tcversionId);
   var name = '';
   if (v) {
     (v.platforms || []).forEach(function (p) {
-      if (parseInt(p.id, 10) === parseInt(platformId, 10)) { name = p.name; }
+      if (parseInt(p.tcplat_link, 10) === parseInt(tcplatLinkId, 10)) { name = p.name; }
     });
   }
-  var msg = String(TLi18n.t('tcview.platformRemoveMsg')).replace('%i', name);
-  $('#rmPlatTitle').text(TLi18n.t('tcview.platformRemoveTitle'));
+  var msg = String(TLi18n.t('tcview.platformRemoveMsg')).replace('%i', function () { return name; });
   $('#rmPlatMsg').text(msg);
   $('#rmPlatModal').data('tcversionId', parseInt(tcversionId, 10) || 0)
-    .data('platformId', parseInt(platformId, 10) || 0)
     .data('tcplatLinkId', parseInt(tcplatLinkId, 10) || 0)
     .css('display', 'flex');
 }
 
 function doRemovePlatform() {
+  if (!data || !data.tcase) { return; }
   var $m = $('#rmPlatModal');
-  var body = { tcase_id: parseInt(data.tcase.id, 10), tcversion_id: $m.data('tcversionId') };
-  if ($m.data('platformId')) { body.platform_id = $m.data('platformId'); }
-  else { body.tcplat_link_id = $m.data('tcplatLinkId'); }
-  $m.hide();
-  platApiPost('remove_platform', body, function (d) {
-    if (!d || d.status !== 'ok') { toast(TLi18n.t('tcview.platformRemoveFailed'), true); return; }
+  // legacy removes by LINK id: testcaseCommands::removePlatform ->
+  // testcase::deletePlatformsByLink(testcase_platforms.id)
+  platApiPost('remove_platform', {
+    tcase_id: parseInt(data.tcase.id, 10),
+    tcversion_id: $m.data('tcversionId'),
+    tcplat_link_id: $m.data('tcplatLinkId')
+  }, function (d) {
+    if (!d || d.status !== 'ok') {
+      toast((d && d.message) ? d.message : TLi18n.t('tcview.platformRemoveFailed'), true);
+      return;
+    }
+    $m.hide();
     toast(TLi18n.t('tcview.platformRemoveDone'));
     platRefreshMain();
   });
@@ -648,6 +659,7 @@ function openPlatformAdd(tcversionId) {
 }
 
 function doAddPlatforms() {
+  if (!data || !data.tcase) { return; }
   var $m = $('#addPlatModal');
   var ids = ($('#addPlatSel').val() || []).map(Number).filter(function (n) { return n > 0; });
   if (!ids.length) { toast(TLi18n.t('tcview.platformSelectOne'), true); return; }
@@ -656,9 +668,12 @@ function doAddPlatforms() {
     tcversion_id: $m.data('tcversionId'),
     platforms: ids
   }, function (d) {
-    if (!d || d.status !== 'ok') { toast(TLi18n.t('tcview.platformAddFailed'), true); return; }
-    toast(TLi18n.t('tcview.platformAddDone'));
+    if (!d || d.status !== 'ok') {
+      toast((d && d.message) ? d.message : TLi18n.t('tcview.platformAddFailed'), true);
+      return;
+    }
     $m.hide();
+    toast(TLi18n.t('tcview.platformAddDone'));
     platRefreshMain();
   });
 }
@@ -675,10 +690,16 @@ function platApiPost(action, body, cb) {
   });
 }
 
-/* Same re-read pattern as arqRefreshMain(): re-fetch the view payload and
-   re-render, so the chips reflect the DB state after assign / unassign. */
+/* Re-fetch the view payload and re-render, so the chips reflect the DB state
+   after assign / unassign. tcversion_id MUST be carried over: render() picks
+   currentVersion from data.requestedTcversionId, so dropping it would silently
+   retarget the whole toolbar (Edit Version / Print / Export / Add to Test Plan)
+   to the LATEST version instead of the one the user opened. */
 function platRefreshMain() {
-  $.get('/api/testcases/index.php', { action: 'view', tcase_id: parseInt(data.tcase.id, 10) })
+  var req = { action: 'view', tcase_id: parseInt(data.tcase.id, 10) };
+  var rid = parseInt((data && data.requestedTcversionId) || 0, 10);
+  if (rid > 0) { req.tcversion_id = rid; }
+  $.get('/api/testcases/index.php', req)
     .done(function (r) {
       if (r && r.status === 'ok') {
         data = r;
