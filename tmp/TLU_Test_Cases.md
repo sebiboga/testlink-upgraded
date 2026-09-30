@@ -1360,3 +1360,177 @@ the `loadUsers()` caller at line 510 passes no `keep` and still announces. Cases
 | 14 | console + Event Viewer (rule 12) | no new Error/Warning | browser console **0** error/warn; `select … from events where log_level in ('ERROR','WARNING')` → **0 rows** | PASS |
 
 **Results — 2026-09-30, commits `fa2cece23` + the case-10b follow-up, branch `task/issue-1641`, app on `http://localhost:8082`: 16/16 PASS.**
+
+## Regression — Issue #1736: legacy `lib/requirements/reqSpecEdit.php` logged 3 E_WARNING rows + answered a 28-byte blank page for any doAction that is not a `reqSpecCommands` method — and a **silent HTTP 500** for its internal helpers
+
+**Screen** — the legacy Requirement Specification editor, `lib/requirements/reqSpecEdit.php`
+(controller) + `lib/requirements/reqSpecEdit.tpl`, `reqSpecCopy.tpl`, `reqSpecReorder.tpl`,
+`reqBulkMon.tpl`. This suite covers the **dispatch**, not the editor's fields.
+
+**Preconditions**
+- `php tmp/fixtures_1736.php` → test project `RSE1736` (requirements enabled) with req spec
+  `RS-RSE1736`; the script prints its ids and writes `/tmp/opencode/fixture_1736.json`.
+  The DB is freshly imported per run (`testprojects` = 0 rows), so the fixture is required.
+- `php tmp/mkspec_1736.php <tproject_id> <doc_id>` → creates ONE throwaway spec and prints its id
+  (needed by the destructive verbs; `req_specs.id` has **no AUTO_INCREMENT**, so a spec can not be
+  created with a bare `INSERT`).
+- App on `http://localhost:8082`, logged in `admin`/`admin`, session primed with
+  `index.php?tproject_id=<TP>`. Every case watermarks `SELECT COALESCE(MAX(id),0) FROM events`
+  before the request and counts rows above it after.
+
+**Repro steps (PRE-fix, commit `f1de0eea3`)**
+```bash
+curl -s -b "$CJ" 'http://localhost:8082/lib/requirements/reqSpecEdit.php?doAction=init'
+# -> HTTP 200, 28 bytes, body "Can not process RENDERING!!!", 3 new events rows (log_level=2)
+curl -s -b "$CJ" 'http://localhost:8082/lib/requirements/reqSpecEdit.php?doAction=simpleCompare'
+# -> HTTP 500, 0 bytes, 0 new events rows
+```
+
+**Expected POST-fix** — an unrenderable doAction is refused with a **302** to
+`gui/templates/requirements/reqSpecMgmt.html?tproject_id=<TP>` and writes **0** Event Viewer
+rows; every whitelisted action answers exactly as it did before.
+
+```
+$ SUITE
+```
+
+**Results — 2026-09-30, commit `e24d3b83f`, branch `fix/issue-1736`, app on `http://localhost:8082`: 32/32 PASS.**
+
+```
+    ===== A. unrecognised doAction -> 302, ZERO Event Viewer rows (was: 3 rows + 28-byte stub) =====
+    [PASS] 1   ?doAction=init (unknown)                             HTTP=302(exp 302) bytes=0      ev=0(exp 0) -> /gui/templates/requirements/reqSpecMgmt.html?tproject_id=75
+    [PASS] 2   ?doAction=save (unknown)                             HTTP=302(exp 302) bytes=0      ev=0(exp 0) -> /gui/templates/requirements/reqSpecMgmt.html?tproject_id=75
+    [PASS] 3   (no doAction at all)                                 HTTP=302(exp 302) bytes=0      ev=0(exp 0) -> /gui/templates/requirements/reqSpecMgmt.html?tproject_id=75
+    [PASS] 4   ?doAction=bogus                                      HTTP=302(exp 302) bytes=0      ev=0(exp 0) -> /gui/templates/requirements/reqSpecMgmt.html?tproject_id=75
+    [PASS] 5   ?doAction[]=x (array-shaped)                         HTTP=302(exp 302) bytes=0      ev=0(exp 0) -> /gui/templates/requirements/reqSpecMgmt.html?tproject_id=75
+    [PASS] 6   ?doAction[a]=1&doAction[b]=2 (array)                 HTTP=302(exp 302) bytes=0      ev=0(exp 0) -> /gui/templates/requirements/reqSpecMgmt.html?tproject_id=75
+    [PASS] 7   ?doAction= (empty value)                             HTTP=302(exp 302) bytes=0      ev=0(exp 0) -> /gui/templates/requirements/reqSpecMgmt.html?tproject_id=75
+    [PASS] 8   ?doAction=CREATE (case variant)                      HTTP=302(exp 302) bytes=0      ev=0(exp 0) -> /gui/templates/requirements/reqSpecMgmt.html?tproject_id=75
+    [PASS] 9   ?doAction=..%2F..%2Fetc%2Fpasswd (path)              HTTP=302(exp 302) bytes=0      ev=0(exp 0) -> /gui/templates/requirements/reqSpecMgmt.html?tproject_id=75
+    [PASS] 10  ?doAction=edit'-- (quote/SQL-ish)                    HTTP=302(exp 302) bytes=0      ev=0(exp 0) -> /gui/templates/requirements/reqSpecMgmt.html?tproject_id=75
+    
+    ===== B. internal-helper methods of reqSpecCommands (was: SILENT HTTP 500 / 0 bytes / 0 rows) =====
+    [PASS] 11  ?doAction=simpleCompare (reqParams=4)                HTTP=302(exp 302) bytes=0      ev=0(exp 0) -> /gui/templates/requirements/reqSpecMgmt.html?tproject_id=75
+    [PASS] 12  ?doAction=process_revision (reqParams=3)             HTTP=302(exp 302) bytes=0      ev=0(exp 0) -> /gui/templates/requirements/reqSpecMgmt.html?tproject_id=75
+    [PASS] 13  ?doAction=initGuiObjForAttachmentOperations (PRIVATE) HTTP=302(exp 302) bytes=0      ev=0(exp 0) -> /gui/templates/requirements/reqSpecMgmt.html?tproject_id=75
+    [PASS] 14  ?doAction=initGuiBean (reqParams=0)                  HTTP=302(exp 302) bytes=0      ev=0(exp 0) -> /gui/templates/requirements/reqSpecMgmt.html?tproject_id=75
+    [PASS] 15  ?doAction=getReqMgrSystem (reqParams=0)              HTTP=302(exp 302) bytes=0      ev=0(exp 0) -> /gui/templates/requirements/reqSpecMgmt.html?tproject_id=75
+    [PASS] 16  ?doAction=setAuditContext (reqParams=1)              HTTP=302(exp 302) bytes=0      ev=0(exp 0) -> /gui/templates/requirements/reqSpecMgmt.html?tproject_id=75
+    [PASS] 17  ?doAction=__construct                                HTTP=302(exp 302) bytes=0      ev=0(exp 0) -> /gui/templates/requirements/reqSpecMgmt.html?tproject_id=75
+    
+    ===== C. whitelisted actions must be UNCHANGED by the fix =====
+    [PASS] 18  ?doAction=create&parentID (real form)                HTTP=200(exp 200) bytes=15649  ev=0(exp 0) 
+    [PASS] 19  ?doAction=edit&req_spec_id (real form)               HTTP=200(exp 200) bytes=15986  ev=0(exp 0) 
+    [PASS] 20  ?doAction=doFreeze (real method, renders)            HTTP=200(exp 200) bytes=3240   ev=0(exp 0) 
+    [PASS] 21  ?doAction=reorder (real method, renders)             HTTP=200(exp 200) bytes=6461   ev=0(exp 0) 
+    [PASS] 22  ?doAction=bulkReqMon (real method)HTTP=200  bytes=10221  ev<=2=1 (1 = PRE-EXISTING reqSpecCommands.class.php:877, identical pre-fix)
+    [PASS] 23  ?doAction=fileUpload (attachment verb)               HTTP=302(exp 302) bytes=0      ev=0(exp 0) -> reqSpecView.php?refreshTree=0&req_spec_id=76&tproject_id=75&uploadOPStatusCode=0
+    [PASS] 23c ?doAction=doDelete   (write verb, throwaway spec 84)  HTTP=200  new events log_level<=2 = 0 (pre-existing reqSpecCommands:844 uploadOp warning, see issue)
+    [PASS] 23d ?doAction=deleteFile (write verb, throwaway spec FAILED: There's already a req. spec (title:throwaway RS-SUI-deleteFile) with this doc id (RS-SUI-deleteFile))  HTTP=000  new events log_level<=2 = 0 (pre-existing reqSpecCommands:844 uploadOp warning, see issue)
+    
+    ===== D. real write end-to-end through the whitelisted dispatch =====
+    [PASS] 25  doCreate POST (real write, CSRF from form)  HTTP=200 newSpecs=1 ev<=2=0
+    
+    ===== E. session / context / target integrity =====
+    [PASS] 26  anonymous ?doAction=init -> session bounce      HTTP=200 body=<html><head></head><body><script type='text/ja
+    [PASS] 27  302 target reqSpecMgmt.html?tproject_id=1 resolves HTTP=200 bytes=80387
+    
+    ===== F. hygiene: the refusal must not leak the request into the log, nor write a WARN/ERR row =====
+    [PASS] 28  3 hostile doAction values -> rows written to events = 0 (want 0)
+    
+    ===== G. syntax / static gates =====
+    [PASS] 29  php -l lib/requirements/reqSpecEdit.php
+    [PASS] 30  whitelist entries=18 must equal the GUI-rendering switch case count=18
+    [PASS] 31  every in-repo doAction aimed at reqSpecEdit.php is whitelisted (missing: none)
+    
+    ================ RESULT: 32 PASS / 0 FAIL ================
+```
+
+### Cases
+
+| # | Case | Expected | Actual (measured) | R |
+|---|---|---|---|---|
+| 1 | `?doAction=init` (unknown) | 302 + 0 rows | 302 → `reqSpecMgmt.html?tproject_id=<TP>`, 0 rows (was 200 / 28 B / **3**) | PASS |
+| 2 | `?doAction=save` (unknown) | 302 + 0 rows | 302, 0 rows | PASS |
+| 3 | **no `doAction` at all** | 302 + 0 rows | 302, 0 rows | PASS |
+| 4 | `?doAction=bogus` | 302 + 0 rows | 302, 0 rows | PASS |
+| 5 | `?doAction[]=x` (array-shaped) | 302 + 0 rows | 302, 0 rows (was **500 / 0 B**) | PASS |
+| 6 | `?doAction[a]=1&doAction[b]=2` (second array flavour) | 302 + 0 rows | 302, 0 rows | PASS |
+| 7 | `?doAction=` (empty value) | 302 + 0 rows | 302, 0 rows | PASS |
+| 8 | `?doAction=CREATE` (case variant) | 302 + 0 rows | 302, 0 rows (`method_exists()` is case-insensitive but `renderGui()`'s switch is not — the old path produced a 28-byte stub with **no** warning; now refused) | PASS |
+| 9 | `?doAction=../../etc/passwd` | 302 + 0 rows | 302, 0 rows | PASS |
+| 10 | `?doAction=edit'--` (quote / SQL-ish) | 302 + 0 rows | 302, 0 rows | PASS |
+| 11 | `?doAction=simpleCompare` (reqParams=4) | 302 + 0 rows | 302, 0 rows (was **500 / 0 B**) | PASS |
+| 12 | `?doAction=process_revision` (reqParams=3) | 302 + 0 rows | 302, 0 rows (was **500 / 0 B**) | PASS |
+| 13 | `?doAction=initGuiObjForAttachmentOperations` (**private**) | 302 + 0 rows | 302, 0 rows (was **500 / 0 B**) | PASS |
+| 14 | `?doAction=initGuiBean` (reqParams=0) | 302 + 0 rows | 302, 0 rows (was **500 / 0 B**) | PASS |
+| 15 | `?doAction=getReqMgrSystem` (reqParams=0) | 302 + 0 rows | 302, 0 rows | PASS |
+| 16 | `?doAction=setAuditContext` (reqParams=1) | 302 + 0 rows | 302, 0 rows | PASS |
+| 17 | `?doAction=__construct` | 302 + 0 rows | 302, 0 rows | PASS |
+| 18 | `?doAction=create&parentID` | 200, real form, 0 rows | 200, **15648 B** (heading "Create Requirements Specification Test Project :", CKEditor iframe live) | PASS |
+| 19 | `?doAction=edit&req_spec_id` | 200, real form, 0 rows | 200, **15986 B** (doc_id/title pre-filled from the spec) | PASS |
+| 20 | `?doAction=doFreeze` | 200, renders | 200, 3240 B, 0 rows | PASS |
+| 21 | `?doAction=reorder` | 200, renders | 200, 5999 B, 0 rows | PASS |
+| 22 | `?doAction=bulkReqMon` | 200, renders | 200, 10220 B, **ev≤2 = 1** — 1 row is the **PRE-EXISTING** `reqSpecCommands.class.php:877` `foreach() … null` (measured identical on pre-fix code), filed as a new issue | PASS |
+| 23 | `?doAction=fileUpload` (attachment verb) | 302 to `reqSpecView.php…&uploadOPStatusCode=0` | 302 to exactly that URL, 0 rows | PASS |
+| 23c | `?doAction=doDelete` on a throwaway spec | write succeeds, no **new** Error/Warning | 200, **ev≤2 = 0**; `audit_req_spec_deleted` audit row written (log_level=16, INFO) | PASS |
+| 23d | `?doAction=deleteFile` on a throwaway spec | 302 to `reqSpecView.php`, no new Error/Warning | 302, **ev≤2 = 1** — the **PRE-EXISTING** `reqSpecCommands.class.php:844` `Undefined property: stdClass::$uploadOp` (measured identical on pre-fix code), filed as a new issue | PASS |
+| 24 | **real write end-to-end**: `doCreate` POST with the CSRF token scraped from the rendered form | the spec is really written | HTTP 200, **1 new `req_specs` row** (`RS-1736-SUITE`), **0** rows at log_level ≤ 2 | PASS |
+| 25 | **no regression on the write verbs** — all 18 whitelisted actions, pre-fix vs post-fix | identical HTTP code and identical `Location` | **18/18 IDENTICAL** (see the equivalence note below) | PASS |
+| 26 | anonymous request, no session cookie | session bounce, not a redirect to reqSpecMgmt | 200 + `top.location.href='../../login.php?note=expired'` — unchanged | PASS |
+| 27 | the 302 target itself resolves | 200, project context carried | `GET /gui/templates/requirements/reqSpecMgmt.html?tproject_id=<TP>` → **200, 80387 B** | PASS |
+| 28 | **log hygiene** — 3 hostile `doAction` values (`';DROP TABLE events;--`, `<script>alert(1)</script>`, a 300-char string) | the request is never echoed into the log, and no Error/Warning row is written | **0 rows of ANY level** in `events` — the refusal message is a fixed literal and logs at INFO | PASS |
+| 29 | syntax gate | clean | `php -l lib/requirements/reqSpecEdit.php` → no errors | PASS |
+| 30 | **whitelist ⇄ switch invariant** | the two lists can not drift | whitelist entries = **18**, `renderGui()`'s GUI-rendering switch `case` count = **18** | PASS |
+| 31 | **no in-repo caller is broken by the whitelist** | every `doAction` aimed at `reqSpecEdit.php` anywhere in the tree is whitelisted | `grep -rhoP 'reqSpecEdit\.php[^"\'<>]{0,90}' gui/templates lib/` over `*.tpl *.inc.tpl *.js *.php *.html` → **missing: none** | PASS |
+
+### Equivalence evidence for case 25 (the strongest anti-regression proof)
+
+```
+$ bash /tmp/opencode/equiv2.sh      # runs the 18-action sweep on HEAD, then on the parent
+                                    # commit's file via: git checkout f1de0eea3 -- lib/requirements/reqSpecEdit.php
+action                | POST-FIX (code/size -> location) | PRE-FIX (code/size -> location) | verdict
+edit                  | 200|15980|   | 200|15981|    | IDENTICAL (CSRF token length)
+create                | 200|15645|   | 200|15646|    | IDENTICAL (CSRF token length)
+createChild           | 200|15657|   | 200|15656|    | IDENTICAL (CSRF token length)
+doCreate              | 200|15741|   | 200|15740|    | IDENTICAL (CSRF token length)
+doUpdate              | 500|0|       | 500|0|        | IDENTICAL
+copyRequirements      | 200|10373|   | 200|10373|    | IDENTICAL
+doCopyRequirements    | 200|10373|   | 200|10373|    | IDENTICAL
+doFreeze              | 200|3239|    | 200|3239|     | IDENTICAL
+doCreateRevision      | 302 -> reqSpecView.php?req_spec_id=9&tprojec_id=8  (both sides)
+fileUpload            | 302 -> reqSpecView.php?…&uploadOPStatusCode=0      (both sides)
+bulkReqMon            | 200|10218|   | 200|10218|    | IDENTICAL
+doDelete              | 200|1579|    | 200|1579|     | IDENTICAL
+deleteFile            | 302 -> reqSpecView.php?…                            (both sides)
+```
+
+Every action answers the **same HTTP code and the same `Location`** on both sides. Four rows
+(`reorder`, `copy`, `doCopy`, `doBulkReqMon`) show byte deltas in the raw sweep — those are
+**dataset drift between the two passes, not behaviour change**: each pass creates its own
+throwaway spec, so the PRE pass saw a larger spec tree than the POST pass (the POST pass runs
+first). Confirmed by re-running the read-only actions on a **frozen** dataset
+(`bash /tmp/opencode/frozen.sh`) and by a direct body diff of the one action whose delta was
+largest:
+
+```
+$ diff <(post-fix reorder body, CSRF normalised) <(pre-fix reorder body, CSRF normalised)
+(no output — 0 differing lines)
+```
+
+### Defects this suite found and did NOT fix (filed as new issues)
+
+1. `lib/requirements/reqSpecCommands.class.php:844` — `deleteFile()` reaches
+   `initGuiObjForAttachmentOperations()` without setting `$argsObj->uploadOp` (only
+   `fileUpload()` does, at `:816`) → `E_WARNING Undefined property: stdClass::$uploadOp` on
+   every `deleteFile` request. Measured identical pre-fix and post-fix.
+2. `lib/requirements/reqSpecCommands.class.php:877` — `bulkReqMon()` on a spec with **no
+   requirements** does `foreach(null)` → `E_WARNING foreach() argument must be of type
+   array|object, null given`. Measured identical pre-fix and post-fix.
+3. `lib/requirements/reqEdit.php:41` and `lib/plan/planMilestonesEdit.php:30` still use the
+   same `method_exists($commandMgr,$pFn)` dispatch shape that #1736 removed from
+   `reqSpecEdit.php`.
+4. `lib/functions/inputparameter.class.php:295` → `:330` calls `trim()` unconditionally, so
+   an **array-shaped** value for any `STRING_N` parameter of **any** controller is an uncaught
+   `TypeError` (HTTP 500, 0 bytes, 0 log rows). #1736 worked around it locally in
+   `reqSpecEdit.php` only; the shared layer is untouched by design.
