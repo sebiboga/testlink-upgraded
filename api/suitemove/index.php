@@ -298,6 +298,13 @@ function suitMoveChain(&$db, $nodeId)
  * project B's tree. The rights are checked BEFORE the project is resolved from
  * a caller-supplied id whenever a container is addressed, so this endpoint is
  * not a test-project-id existence oracle.
+ *
+ * Refs #1759: "resolved from a caller-supplied id" only holds for the PROJECT
+ * id; the CONTAINER itself is always looked up in the tree, so a container of
+ * another project is necessarily reached. Every such answer is therefore 404
+ * with the message of a non-existent id - the caller must not be able to tell
+ * "exists elsewhere" from "does not exist". The single remaining 403 of this
+ * function is the genuine insufficient-rights one.
  */
 function suitMoveProject(&$db, &$user, $requestedId, $containerId = 0)
 {
@@ -322,9 +329,18 @@ function suitMoveProject(&$db, &$user, $requestedId, $containerId = 0)
         }
         // The container's real owner always wins and a request naming a
         // different project is refused instead of being silently retargeted.
+        //
+        // Refs #1759: 404, and with the very same message as a container id
+        // that exists nowhere. This check runs BEFORE the rights check, so a
+        // 403 here answered "this id is a real test suite that lives in
+        // another project" to a caller who only has rights on the project it
+        // named - one 403 per existing suite is enough to enumerate the suite
+        // ids of any project of the installation. The moved node (:653) and
+        // the destination (:745) already answered 404 for the same reason;
+        // this was the last ownership check still answering 403.
         if (intval($requestedId) > 0 && intval($requestedId) !== $owner) {
-            out(array('status' => 'error', 'code' => 'forbidden',
-                      'message' => 'Container belongs to another test project'), 403);
+            out(array('status' => 'error', 'code' => 'not_found',
+                      'message' => 'Container not found'), 404);
         }
         $tprojectId = $owner;
     }
