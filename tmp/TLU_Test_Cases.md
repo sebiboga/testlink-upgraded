@@ -1807,3 +1807,98 @@ The review flagged three items; all three were applied and re-verified in the br
 | T1760-24 | `sessionExpired()` was not **idempotent**: three concurrent 401s (the screen fires 5 requests on load) each re-ran `showSessionExpired()` + re-showed the toast (only the navigation was de-duplicated) | early `if (sessionDead) { return true; }` after the detection — later 401s still answer `true` (so no caller falls into its own error branch) but never re-show the toast or re-arm the timer | 3 consecutive 401s → `true, true, true`; `redirectTimer` armed once; one toast; terminal state unchanged | PASS |
 | T1760-25 | `$.ajax` **success** handlers could still repaint after the bounce (they call `loadUsers()`/`toast()`/`modal('hide')`) | `if (sessionDead) { return; }` as first statement of all 5 `$.ajax` success handlers in `usersView.html` and all 3 in `rolesView.html` | inserted at `:806`, `:867`, `:944`, `:984`, `:1022` (usersView) and `:524`, `:609`, `:648` (rolesView); `node --check` clean | PASS |
 | T1760-26 | review asked to confirm **no new hardcoded English** | the only new user-visible string is `TLi18n.t('auth.sessionExpired')` (pre-existing key in all ten bundles); `confirmDelete().fail()` reuses `TLi18n.t('role.deleteConfirmMsg')` | no new i18n key needed, no bundle touched | PASS |
+
+---
+
+## Suite T1765 — Requirement Coverage Tree navigator (issue #1765)
+
+Screen: `gui/templates/requirements/reqCoverageTree.html`
+BFF: `api/reqcoveragetree/index.php` (`init`, `children`, `coverage`, `projects`)
+Legacy loader retired: `lib/ajax/getreqcoveragenodes.php` → 302 shim
+Environment: fresh import + fixture `COVT1765` (project 20, prefix CVT, SPEC-A/SPEC-B,
+4 requirements + 1 inside a #1699 container, 1 active coverage link, 1 executed-only link,
+1 inactive link), `COVEMPTY` (38, requirements enabled, no specification), `COVNOREQ` (39,
+requirements disabled), users `cov1765readonly` (view only) and `cov1765norights`
+(no rights, later `mgt_view_req`-only on 39).
+
+### Step 1 — BFF contract and access control (curl)
+
+| # | Case | Expected | Observed | Result |
+|---|---|---|---|---|
+| T1765-01 | `action=init&tproject_id=20` as admin | 200, 2 specifications, 5 requirements (4 direct + 1 inside the container), 1 covered, 4 uncovered, `has_containers=true` | `totals {specifications:2, requirements:5, covered:1, uncovered:4}`, spec-A `4/1`, container note flag on | PASS |
+| T1765-02 | `action=children&node_id=26` (SPEC-A) | container row + 3 direct requirements | `container CONTAINER-1765 1/0`, `CVT-1 1`, `CVT-2 0`, `CVT-3 0` | PASS |
+| T1765-03 | `action=children&node_id=40` (container, #1699) | 200 + the requirement held by the container | `200 {"nodes":[{id:45, doc_id:"CVT-90"}]}` (was `404 unknown_node` before the fix) | PASS |
+| T1765-04 | `action=coverage&req_id=30` (covered) | 1 row, active link, `req_doc_id` present | `rows[0] active=true, external_id=1, req_doc_id:"CVT-1"` | PASS |
+| T1765-05 | `action=coverage&req_id=32` (executed-only link) | row present, `active=false`, `link_status` executed, `covered_count` stays 0 | `active:false, link_status:2`, tree badge `uncovered` | PASS |
+| T1765-06 | `action=coverage&req_id=34` (no coverage) | `rows: []` | `rows: []` | PASS |
+| T1765-07 | inactive coverage link (`is_active=0`) | not counted as coverage | `covered_count: 0`, badge `uncovered` | PASS |
+| T1765-08 | anonymous request | 401 | `401` | PASS |
+| T1765-09 | `tproject_id` missing / 0 / non-numeric | 400 `invalid_tproject_id` | `400` | PASS |
+| T1765-10 | foreign node under the addressed project | 404 `unknown_node` (no leak, no oracle) | container 40 asked with `tproject_id=38` → `404 unknown_node` | PASS |
+| T1765-11 | user without requirement rights | 403 `no_right_req_view` | `403` | PASS |
+| T1765-12 | view-only user (`mgt_view_req` only) | 200 with `modify=false` | `rights {view:true, modify:false}` | PASS |
+| T1765-13 | requirements-disabled project (39) | 400 `requirements_disabled` | `400` (and after enabling it: `200`) | PASS |
+| T1765-14 | unknown `tproject_id` for a global admin | 404 | `404` | PASS |
+| T1765-15 | `POST` / `PUT` same-origin | 405 `method_not_allowed` | `POST → 405` | PASS |
+| T1765-16 | `PUT` with a foreign `Origin` | 403 same-origin guard | `403` | PASS |
+| T1765-17 | `mgt_view_req` **without** `mgt_view_tc` on the coverage action | 403 `no_right_tc_view` (test case names/ids/versions must not leak) | req-only role on 39: `init → 200`, `coverage → 403 no_right_tc_view`; admin same call `200` | PASS |
+| T1765-18 | action allowlist | unknown action | `400 invalid_action` | PASS |
+| T1765-19 | retired legacy loader GET / write verb | 302 to the modern screen / 405 | `302`, `POST → 405` | PASS |
+| T1765-20 | `action=projects` | only projects the user may read requirements of, active only | 3 projects for admin (20, 38, 39), 0 for the no-rights user | PASS |
+
+### Step 2 — screen behaviour (browser)
+
+| # | Case | Expected | Observed | Result |
+|---|---|---|---|---|
+| T1765-21 | load `?tproject_id=20` as admin | Dashio shell, project strip, context card, 4 tiles, tree card, no console error | rendered; console clean | PASS |
+| T1765-22 | context card | project, prefix, specifications, requirements, user, requirements/integration chips | `COVT1765`, `CVT`, `2`, `5`, `admin`, `Requirements enabled`, `Integration off` | PASS |
+| T1765-23 | lazy tree | specifications load their requirements only when expanded | 0 requirement rows before expanding, 4 after | PASS |
+| T1765-24 | Expand all / Collapse all | all subtrees open, then all closed, twisty icons follow | 4 → 0 → 4, `fa-minus-square` ⇄ `fa-plus-square` | PASS |
+| T1765-25 | single twisty toggle | one specification opens and closes again, cache reused | 3 rows → 0 → 3 without a second request | PASS |
+| T1765-26 | coverage of a covered requirement | one row, `active`, `Open test case` link, doc id shown once | 1 row, chip `1 test cases`, doc `CVT-1` (was `CVT-CVT-1`) | PASS |
+| T1765-27 | one click = one request | a single GET per coverage click | 1 request (was 2: the row and its button both carried the handler) | PASS |
+| T1765-28 | coverage of an executed-only link | row shown with `closed by execution`, requirement still `uncovered` | badge `closed by execution`, dead row style | PASS |
+| T1765-29 | coverage of an uncovered requirement | empty state, `0 test cases` | `rows 0`, empty block, chip `0 test cases` | PASS |
+| T1765-30 | only-uncovered filter | covered rows hidden, uncovered kept, toggle restores | 4 → 3 visible → 4 | PASS |
+| T1765-31 | container node (#1699) | container listed, expandable, its requirement shown, container note visible | `CONTAINER-1765` → `CVT-90`, chip `0 / 1 covered`, spec-A `1 / 4 covered` | PASS |
+| T1765-32 | container row buttons | no "open specification" link (a container is not a specification) | button absent | PASS |
+| T1765-33 | Refresh | re-reads the project without losing the layout | re-renders, chips and tiles unchanged | PASS |
+| T1765-34 | project switch | tree, totals, URL and **toolbar links** follow the switch | links became `?tproject_id=38` for all three | PASS |
+| T1765-35 | 403 state (user without rights) | access-denied card, not the generic server error | `fa-ban` + "You are not authorized to read requirements of this test project." | PASS |
+| T1765-36 | 403 state recovery | the project switcher stays usable so the user can pick another project | strip visible, switched 20 → 38, tree loaded | PASS |
+| T1765-37 | 404 state (unknown project) | not-found card | `fa-folder-open` + "The requested test project … does not exist." | PASS |
+| T1765-38 | requirements-disabled project | requirements-disabled card, context/summary/tree hidden | `fa-ban` + "Requirements are disabled for this test project." | PASS |
+| T1765-39 | empty project (no specification) | root node with `0% covered`, no error | tree card shown, no state card | PASS |
+| T1765-40 | view-only user | read-only banner, assign/reorder disabled, clicking them explains the missing right | banner + `You need the 'Modify requirements' right …`, no navigation | PASS |
+| T1765-41 | locale switch (ro) | every label, tile, badge, chip and footer translated | "Arbore de acoperire a cerintelor", "acoperita de 1", "acoperire activa", placeholders filled | PASS |
+| T1765-42 | Font Awesome 6 glyphs | every icon renders | `fa-plussquare`/`fa-minussquare`/`fa-file-text-o` render nothing → `fa-plus-square`/`fa-minus-square`/`fa-file-text` | PASS |
+| T1765-43 | machine codes never shown as UI text | coverage failures show a localized message, code in the console | `covt.coverageFail` in the chip | PASS |
+| T1765-44 | session expiry | a 401 bounces to the login page | 401 handling unchanged, `bffEnforceSession()` now active | PASS |
+
+### Step 3 — static gates
+
+| # | Case | Expected | Observed | Result |
+|---|---|---|---|---|
+| T1765-45 | PHP syntax | clean | `php -l api/reqcoveragetree/index.php`, `lib/functions/common.php`, `lib/ajax/getreqcoveragenodes.php` all OK | PASS |
+| T1765-46 | inline JS syntax | clean | `node --check` on the extracted script → OK | PASS |
+| T1765-47 | i18n bundles | all valid JSON, every `covt.*` key in all ten bundles | `python3 -m json.tool` ×10 OK, no missing/extra key (`covt.coverageFail`, `covt.chip.*` included) | PASS |
+| T1765-48 | SQL injection surface | only `intval()`ed values, table names from `$T` | verified by review | PASS |
+| T1765-49 | XSS surface | server data always through `.text()` | verified by review | PASS |
+| T1765-50 | Event Viewer | no new error/warning | full exercise of every action leaves the `events` table empty | PASS |
+
+**Summary: 50/50 PASS.**
+
+### Defects found and fixed during this run
+
+| Issue | Symptom | Fix |
+|---|---|---|
+| #1766 | a #1699 container could never be expanded (`404 unknown_node`) and was missing from every count | ownership proof walks a container up to its specification; `specStats()` counts the containers a specification parents; `has_containers` in `init` |
+| — | clicking a coverage button issued two identical requests and could render duplicated rows | `data-cov-btn` + `stopPropagation()`, plus a request sequence guard |
+| — | "Collapse all" did not collapse and the twisty always showed the collapsed icon | cached children render only while expanded; `open` computed before the icon |
+| — | the requirement doc id showed `CVT-CVT-1` and was never sent | `req_doc_id` added to the coverage payload; only the test case external id is prefixed |
+| — | a 403 showed the generic "server could not answer this request" card | `errorPayload()` recovers the machine code from a 4xx body |
+| — | `fa-plussquare` and `fa-file-text-o` render nothing in Font Awesome 6 | correct FA6 class names |
+| — | the toolbar links kept the previous `tproject_id` after a project switch | `buildLinks()` on every switch |
+| — | a 403/404 hid the project switcher (dead end) | own always-visible project strip |
+| — | `mgt_view_req` alone disclosed test case names through the coverage action | `mgt_view_tc`/`mgt_modify_tc` required as well |
+| — | `Trying to access array offset on false` / `Undefined array key external_id` warnings | `fetch_array()` answers `false`: guarded with `empty()`/`isset()` |
