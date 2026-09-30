@@ -676,6 +676,28 @@ screen reaches full parity.
   the same `note=expired` bounce (localized `auth.sessionExpired` toast +
   top-window navigation, `destination` preserved). The helper is reusable by the
   follow-up sweep of the remaining BFFs, which have the same gap.
+- [FEATURE GAP] - #1620: the Assign Test Project Roles screen never bounced an
+  expired session on its FIRST request. Legacy opened the screen through
+  `usersAssign.php:23 testlinkInitPage($db,false,false,"checkRights")`, which runs
+  `checkSessionValid()` (lib/functions/common.php:281-310) BEFORE the first render, so a session
+  idle past `config_get("sessionInactivityTimeout")` never painted an assignment form at all - it
+  went straight to `login.php?note=expired&destination=…`. The modern screen calls
+  `sessionExpired(xhr)` in `loadUsers()` and `saveAssignments()` (#1614) but not in
+  `loadProjects()`, the request `TLi18n.load` fires first, so the BFF's
+  `401 {"code":"session_expired"}` (api/_guard.php:175-196, called at api/roles/index.php:40)
+  fell into the generic `else` and painted the dead empty state: toolbar still interactive, EMPTY
+  `Test Project` combo, "Select a test project above to manage role assignments.", no toast, Save
+  permanently disabled and no redirect - reached by any shell tab left open past the timeout, since
+  the Dashio shell itself calls only `doSessionStart()`. `loadProjects().fail()` now calls
+  `sessionExpired(xhr)` first, and a new `showSessionExpired()` helper puts the page in the legacy
+  "nothing to act on" state (hide tab bar + toolbar, empty/disable the combo, drop the grid and its
+  DataTables instance, disable Save, clear the footer) before the 600 ms redirect, so no dead
+  control can be clicked and no misleading empty-state box is shown; the `#projectSelect` change
+  handler also ignores a disabled combo so the dead context can never re-arm a request. 403 handling
+  (the deny box) is unchanged and verified still reachable, and `sessionExpired()` still returns
+  `false` for 403/500. No i18n change - `auth.sessionExpired` already exists in all 10 bundles. No BFF
+  change - the guard was already correct. Regression suite 1620: 10 PASS / 0 FAIL / 1 not
+  exercisable, `node --check` clean, Event Viewer and PHP logs clean. (Refs #1620)
 - [FEATURE GAP] - #986: the modern Test Project Management list
   (`gui/templates/projectsView.html`) is a real DataTable again, matching legacy
   `projectView.tpl:37,50-51` (column sorting, length menu `[10,20,50]`, record

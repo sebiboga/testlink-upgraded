@@ -1534,3 +1534,59 @@ $ diff <(post-fix reorder body, CSRF normalised) <(pre-fix reorder body, CSRF no
    an **array-shaped** value for any `STRING_N` parameter of **any** controller is an uncaught
    `TypeError` (HTTP 500, 0 bytes, 0 log rows). #1736 worked around it locally in
    `reqSpecEdit.php` only; the shared layer is untouched by design.
+
+---
+
+## Suite 1620 — Task, Issue #1620: expired session on the INITIAL load of Assign Test Project Roles (gap vs legacy `lib/usermanagement/usersAssign.php:23`)
+
+**Precondition / fixture** (freshly imported DB had no test project at all, so the assignment
+form could not be reached):
+
+```sql
+INSERT INTO testprojects (id,notes,color,active,prefix,is_public,api_key)
+  VALUES (2,'issue-1620 fixture','#9BD',1,'ISS1620',1,'a1620aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'),
+         (3,'issue-1620 fixture 2','#9BD',1,'ISS1620B',1,'b1620bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb');
+INSERT INTO nodes_hierarchy (id,name,parent_id,node_type_id,node_order) VALUES
+  (2,'Issue 1620 Project',0,1,1),(3,'Issue 1620 Project B',0,1,2);
+INSERT INTO users (id,login,password,role_id,email,first,last,cookie_string)
+  VALUES (2,'tester1620',MD5('x'),7,'t1620@example.com','Test','User1620','cookie1620abc');
+```
+
+Session ageing (`config.inc.php:301` `$tlCfg->sessionInactivityTimeout = 9900` **minutes**, so
+real idling is not testable): age the stored timestamp of the newest session file, then act.
+After a bounce the login mints a NEW `PHPSESSID`, so re-read the newest file before each ageing.
+
+```bash
+SF=$(sudo ls -t /var/lib/php/sessions/ | head -1)
+sudo sed -i "s/lastActivity|i:[0-9]*/lastActivity|i:$(( $(date +%s) - 700000 ))/" /var/lib/php/sessions/$SF
+```
+
+Login: `admin` / `admin`. Screen under test:
+`http://localhost:8082/gui/templates/usermanagement/usersAssignProject.html?tproject_id=2`
+(reachable in the shell via ASIDE → User Management → Assign Test Project Roles).
+
+| # | Steps | Expected behavior | Observed | Result |
+|---|---|---|---|---|
+| T1620-01 | Fresh session, open `?tproject_id=2` | grid renders: 2 rows (admin + tester1620), combo populated with the projects, toolbar visible, Save disabled, footer "2 users" | 2 rows, combo 3 options `value="2"`, toolbar `flex`, 4 tabs, Save disabled, footer "2 users" | PASS |
+| T1620-02 | Age the session, reload the screen (`ignoreCache`) | Network: `GET /api/roles/index.php/meta/tproject-roles?tproject_id=2` → **401** `{"code":"session_expired"}` | exactly that (trace `6abd0972dcdc2545503446`, 0.0045 s) | PASS |
+| T1620-03 | Same aged-session reload — **the bug** | legacy behaviour: the user is bounced to `login.php?note=expired&destination=<screen URL>` carrying the localized "Session expired. Please log in again." box | **before the fix**: URL unchanged, toolbar still `flex`, combo EMPTY, `#emptyMsg` = "Select a test project above to manage role assignments.", no toast, Save permanently disabled → dead screen. **after the fix**: URL = `http://localhost:8082/login.php?note=expired&destination=%2Fgui%2Ftemplates%2Fusermanagement%2FusersAssignProject.html%3Ftproject_id%3D2` and the a11y tree shows "Session expired. Please log in again." | PASS (post-fix) / FAIL (pre-fix) |
+| T1620-04 | Age the session while the screen is loaded, then **switch the test project** (`#projectSelect` → "Issue 1620 Project B") | bounce to `login.php?note=expired` (`loadUsers()` path) | bounced, same destination | PASS |
+| T1620-05 | Age the session after editing a role (Save enabled), then click **Save Changes** | bounce to `login.php?note=expired` (write path) | bounced, same destination | PASS |
+| T1620-06 | In-page: `sessionExpired({status:403, responseText:'{"message":"no_permissions_for_action"}'})` and `sessionExpired({status:500, responseText:'boom'})` | both `false`, no toast, no redirect — a 403/500 must never be mistaken for an expiry | both `false`, no side effects | PASS |
+| T1620-07 | Stub `$.getJSON` to reject with 403, then `loadProjects(2)` | `#denyBox` shown ("You do not have enough rights…"), `#emptyMsg` hidden, toolbar+tabs hidden, no redirect | `#denyBox` `block`, `#emptyMsg` none, toolbar/tabs `none`, combo disabled, toast empty | PASS |
+| T1620-08 | Healthy page, select the empty combo value (`""`) + `change` | grid cleared, `#emptyMsg` shown, toolbar untouched (the new disabled-combo guard must not swallow this) | 0 rows, `#emptyMsg` `block`, toolbar `flex` | PASS |
+| T1620-09 | Call `showSessionExpired()`, then dispatch `change` on the now-disabled combo with `$.getJSON` wrapped in a counter | **0** requests issued; page stays fully neutral (combo disabled+empty, tabs/toolbar hidden, all 3 message boxes hidden, Save disabled, footer empty) | 0 requests; combo disabled, tabs/toolbar `none`, empty/disabled/deny boxes `none`, Save disabled, footer `""` | PASS |
+| T1620-10 | Console + server log audit after the whole run | 0 browser errors/warnings, 0 new PHP Warning/Notice/Fatal, no new Error/Warning row in Event Viewer | console: no messages; `grep -icE "PHP (Warning\|Notice\|Fatal\|Deprecated)" logs/userlog0.log logs/userlog1.log` → 0 / 0; newest `events` rows are `log_level 16` `audit_login_succeeded` (own logins) | PASS |
+| T1620-11 | Deactivate both fixture projects (`active=0`), reload → `showDisabled()` branch | toolbar hidden, `#disabledMsg` visible | NOT reachable: admin's global role keeps the projects in the combo (3 options), so `r.projects.length == 0` was never produced. Branch is untouched code | NOT EXERCISED (documented) |
+
+**Summary: 10 PASS / 0 FAIL / 1 not exercisable with the available fixture.** The only failing
+case was T1620-03 before commit `4a165cb1f`, which is the gap this issue describes.
+
+### Notes for future runs
+
+- `$tlCfg->log_level = 'ERROR'` (`config.inc.php:336`) suppresses the `bffEnforceSession()`
+  INFO trail, so a 401 leaves **no** server-log line — use the Network-panel status plus the
+  JSON body as evidence.
+- The Dashio shell (`index.php`) calls only `doSessionStart()`, never `checkSessionValid()`, so
+  a shell tab left open past the timeout still renders its menu and any aside link loads a
+  screen that must bounce by itself — that is why the client-side handling exists at all.
