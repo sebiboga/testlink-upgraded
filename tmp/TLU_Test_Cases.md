@@ -1722,68 +1722,78 @@ describes.
 
 ---
 
-## Regression — Issue #1635: `third_party/phpxmlrpc/lib/xmlrpc.inc` ParseError on PHP 8 (Trac XML-RPC transport)
+## Suite 1760 — Task, Issue #1760: expired-session bounce on **every** request path of User Management (`usersView.html`) and Role Management (`rolesView.html`)
 
-**Issue:** [#1635](https://github.com/sebiboga/testlink-upgraded/issues/1635)
-**Branch:** `fix/issue-1635` · **Fix commit:** `a7938609`
-**Files:** `third_party/phpxmlrpc/lib/xmlrpc.inc` (47 `=& new` + 4 constructors),
-`api/issuetracker/index.php` (defence in depth: the autoloading `class_exists()` moved
-inside the existing `try` of both check-connection routes)
+**Precondition / fixture** — freshly imported DB (only `admin` exists). Optional extra fixture for
+the 403 matrix item: `php tmp/mkuser_norights.php` (creates `norights` / role 3 / no rights).
 
-**Precondition / fixture** (the freshly imported DB is empty, so nothing reaches the XML-RPC
-library at all). The Trac/XML-RPC system is **type 19**, not the `22` of the report
-(`lib/functions/tlIssueTracker.class.php:71` `19 => array('type'=>'trac','api'=>'xmlrpc')`):
+**Session ageing** (`config.inc.php:301` `$tlCfg->sessionInactivityTimeout = 9900` min =
+**594 000 s**, so real idling is untestable): rewrite the stored timestamp of the session file of
+the browser under test (`PHPSESSID` is HttpOnly — read it from the Network panel request headers):
 
-```sql
-INSERT INTO testprojects (id,prefix,active,issue_tracker_enabled,code_tracker_enabled)
-  VALUES (1,'TLU',1,1,0);
-INSERT INTO issuetrackers (name,type,cfg) VALUES ('TLU Trac',19,
-  '<issuetracker><username>anonymous</username><password></password><uribase>http://127.0.0.1:9/trac</uribase></issuetracker>');
-INSERT INTO testproject_issuetracker (testproject_id,issuetracker_id) VALUES (1,1);
+```bash
+SID=occicfn79o1l2ucbvk2upt46qk        # from the devtools request Cookie header
+php -r '$f="/var/lib/php/sessions/sess_".$argv[1]; $s=file_get_contents($f);
+  $s=preg_replace("/lastActivity\|i:\d+;/","lastActivity|i:".(time()-700000).";",$s,1);
+  file_put_contents($f,$s);' "$SID"
 ```
 
-The cfg MUST have a single `<issuetracker>` root (2 roots -> `setCfg` logs
-`Failure loading XML STRING / Extra content at the end of the document` and the interface
-is only half-built -> a misleading `connected:false`).
+Ageing by only −100 000 s still answers `200`, because every valid call slides `lastActivity`
+forward. `/var/lib/php/sessions` is `drwx-wx-wt root:root`: the SID cannot be listed, only opened.
 
-Login: `admin` / `admin`. Screen: `http://localhost:8082/gui/templates/issuetracker/issuetrackerView.html`
-(shell: ASIDE -> Issue Trackers). Commands use cookie jar `/tmp/opencode/cj.txt`.
+Login `admin` / `admin`. Screens:
+`gui/templates/usermanagement/usersView.html?tproject_id=1&tplan_id=0`,
+`gui/templates/usermanagement/rolesView.html?tproject_id=1&tplan_id=0`.
+API repro script: `tmp/repro_1760.sh`.
 
-| # | Steps | Expected behavior | Observed | Result |
+### Step 1 — API layer (`api/users/index.php`, `api/roles/index.php`)
+
+| # | Request | Expected | Observed | Result |
 |---|---|---|---|---|
-| R1635-01 | `php -l third_party/phpxmlrpc/lib/xmlrpc.inc` | no syntax errors | pre-fix `PHP Parse error: syntax error, unexpected token "new" ... line 554`; post-fix `No syntax errors detected` | PASS (post-fix) |
-| R1635-02 | `grep -c '=& *new' third_party/phpxmlrpc/lib/xmlrpc.inc` | 0 | 47 before, **0** after (line 554 was only the first of 47) | PASS |
-| R1635-03 | `php -r 'require ".../xmlrpc.inc"; echo "loaded ok\n";'` | `loaded ok`, exit 0 | `loaded ok` | PASS |
-| R1635-04 | `new xmlrpc_client('http://127.0.0.1:9/trac/xmlrpc')` — the PHP-4 constructor hop | `path='/trac/xmlrpc' server='127.0.0.1' port=9` | pre-fix `path=NULL server=NULL port=0` (constructor never called); post-fix correct | PASS |
-| R1635-05 | `GET /api/issuetracker/index.php/1/check-connection` (the row's wrench) | 200 + `connected` bool | pre-fix **500 / 0 bytes**; post-fix **200** `{"status":"ok","connected":true,"message":"Connection OK"}` | PASS (post-fix) |
-| R1635-06 | `GET /api/issuetracker/index.php` (the **grid** itself) | 200 + the Trac row | pre-fix **500 / 0 bytes** -> the whole Issue Trackers grid rendered EMPTY (see the "broken" screenshot); post-fix 200 with `items[0].name = "TLU Trac"`, `typeLabel "trac (Interface: xmlrpc)"` | PASS (post-fix) — **blast radius was wider than the report** |
-| R1635-07 | `GET /api/issuetracker/index.php/cfg-template?type=19` (Configuration eye icon) | 200 + the `tracxmlrpcInterface` cfg template | pre-fix **500 / 0 bytes**; post-fix 200 `{"status":"ok","type":19,"template":"<!-- Template tracxmlrpcInterface -->\n<issuetracker>…"}` | PASS |
-| R1635-08 | `POST /api/issuetracker/index.php/test-connection` (modal *Check Connection*, `Origin`+`X-Requested-With` headers) | 200 + `connected` bool | pre-fix 500; post-fix 200 `{"status":"ok","connected":true,…}` | PASS |
-| R1635-09 | `GET /api/issuetracker/index.php/cfg-template?type=20` (control: disabled/other type) | unchanged 200 `invalid_type` | 200 `{"status":"error","code":"invalid_type","type":20}` | PASS |
-| R1635-10 | Browser: ASIDE -> Issue Trackers, click the wrench of the Trac row | the cell turns into a green heartbeat icon; network `GET .../1/check-connection` = **200** | Network trace `reqid=99` 200, body `{"status":"ok","connected":true,"message":"Connection OK"}`; cell = `<i class="fas fa-heartbeat" …title="Connection successful">` | PASS |
-| R1635-11 | Browser: a malformed cfg (two roots) then the wrench | must not 500, must not log a PHP error page | 200 `connected:false`; the only `events` row is the fixture's own `setCfg` ERROR (`Failure loading XML STRING`) which the malformed fixture legitimately produces | PASS (documented) |
-| R1635-12 | Defence in depth: revert ONLY the library, keep the patched BFF, hit the wrench | no 0-byte 500: the route must answer the logged **502** `{"status":"error","connected":false}` | **502** size=72 + `events` id=5 `api/issuetracker/index.php::GET /{id}/check-connection :: syntax error…` (log_level 1) | PASS |
-| R1635-13 | Rights: a user without `issuetracker_management` on the wrench route | still 401/403 (the `try` must not become a bypass) | guarded by `$canManage` **before** the `try` (`api/issuetracker/index.php:194`); unchanged code path | PASS (code-reviewed, not re-fixtured) |
-| R1635-14 | Event Viewer after the whole post-fix run | 0 new Error/Warning rows | `events` = 1 row, `log_level 16` `audit_login_succeeded` (own login); server log has no `PHP Parse error` for the post-fix requests | PASS |
-| R1635-15 | `new xmlrpcmsg('ticket.get')->serialize()` — the remaining wire layer | **known residual**, NOT fixed by this issue | `PHP Fatal error: Call to undefined function each() in xmlrpc.inc:2946` (13 `each()` sites + 1 `split()`; both removed in PHP 8) | KNOWN FAIL — filed as a follow-up issue, see the notes |
-| R1635-16 | Code-review round: **fault injection** — revert ONLY `third_party/phpxmlrpc/lib/xmlrpc.inc` to the broken version, keep the patched BFF + `tlIssueTracker`, then hit the **grid** route | must not blank the screen: `200` with the Trac row still listed (the `@class_exists()` probe itself raises the ParseError, so the guard had to move outside the `if/else` condition into a `try`) | first attempt: still `500`/0 bytes (the `try` only wrapped the `else` branch); after wrapping the whole `if/else`: **`200`**, `items[0].name = "TLU Trac"`, `env_check_ok = false` | PASS (after correction) |
-| R1635-17 | Same fault injection on `GET /cfg-template?type=19` and `GET /{id}/check-connection` | structured, non-empty answers + an Event Viewer ERROR row each | `200 {"status":"error","code":"interface_missing","iface":"tracxmlrpcInterface"}` and `502 {"status":"error","connected":false,…}`; `events` ids 5/6/7 = `api/issuetracker/index.php::GET /{id}/check-connection :: syntax error…` and `::GET /cfg-template :: syntax error…` (log_level 1) | PASS |
-| R1635-18 | Restore the fixed library, re-run the whole post-fix matrix + `php -l` on all 3 files, Event Viewer | 5 routes 200 (Trac + controls), `events` = 1 row | LIST 200 / check-connection 200 / cfg-template 19 200 / cfg-template 20 200 (`invalid_type`) / POST test-connection 200; `php -l` clean on `xmlrpc.inc`, `api/issuetracker/index.php`, `tlIssueTracker.class.php`; `events` = 1 row (`log_level 16` login) | PASS |
+| T1760-01 | valid session: `GET /api/users/index.php`, `/meta/grants`, `GET /api/roles/index.php`, `/meta/rights` | `200 ok` | 4× `200`, full payloads | PASS |
+| T1760-02 | **stale** session: `GET /api/users/index.php` | **`401 {"code":"session_expired"}`** | before: `200` + whole user list → after: `401 {"status":"error","code":"session_expired","message":"session_expired"}` | PASS (post-fix) / FAIL (pre-fix) |
+| T1760-03 | **stale** session: `GET /api/users/index.php/meta/grants` | `401` | before `200` → after `401 session_expired` | PASS (post-fix) / FAIL (pre-fix) |
+| T1760-04 | **stale** session: `GET /api/users/index.php/1` | `401` | before `200` (login + role) → after `401` | PASS (post-fix) / FAIL (pre-fix) |
+| T1760-05 | **stale** session: `POST /api/users/index.php` (create user) | `401`, **nothing written** | before: `200` and `users` gained row `id=2 stale_probe` → after: `401` and `select id,login from users` still `1 admin` only | PASS (post-fix) / FAIL (pre-fix) |
+| T1760-06 | **stale** session: `PUT /api/users/index.php/2/active`, `POST /api/roles/index.php/5/duplicate` | `401` | `401 session_expired` both | PASS |
+| T1760-07 | **no cookie**: `GET /api/users/index.php`, `GET /api/roles/index.php` | `401` **without** a `code` key (the shape the front-end must also catch) | `401 {"status":"error","message":"Not authenticated"}` ×2 | PASS |
+| T1760-08 | **norights** user: `GET /api/users/index.php/meta/grants`, `/`, `GET /api/roles/index.php` | `403 no_permissions_for_action` (rights, not session) | `403` ×3 with `right: mgt_users` / `right: role_management` | PASS |
 
-**Summary: 17 PASS / 0 FAIL / 1 known residual (R1635-15, filed as follow-up issue #1764).**
-The pre-fix failures were R1635-01/02/04/05/06/07/08; R1635-06 is the newly measured one —
-the *grid* route, not only the connection check, died with the same ParseError.
+### Step 2 — the real screens (headless Chrome, real aged session)
+
+| # | Action | Expected | Observed | Result |
+|---|---|---|---|---|
+| T1760-09 | fresh login → `usersView.html?tproject_id=1&tplan_id=0` | grid renders, 4 tabs, no deny box | 2 rows, tabs `flex`, deny `none`, footer "1 users \| Generated on …" | PASS |
+| T1760-10 | age the session → reload `usersView.html` — **the gap** | toast + bounce to `login.php?note=expired&destination=<screen>` with the localized "Session expired. Please log in again." box | before: deny box **"You do not have the rights required to manage users (mgt_users right required)"** → after: `http://localhost:8082/login.php?note=expired&destination=%2Fgui%2Ftemplates%2Fusermanagement%2FusersView.html%3Ftproject_id%3D1%26tplan_id%3D0`, page text "Session expired. Please log in again." | PASS (post-fix) / FAIL (pre-fix) |
+| T1760-11 | fresh login → `rolesView.html?tproject_id=1&tplan_id=0` | role grid renders | 9 rows, footer "9 roles \| Generated on …", deny `none` | PASS |
+| T1760-12 | age the session → reload `rolesView.html` — **the gap** | same bounce | before: deny box "role_management right required" → after: `login.php?note=expired&destination=%2Fgui%2Ftemplates%2Fusermanagement%2FrolesView.html%3Ftproject_id%3D1%26tplan_id%3D0` + "Session expired. Please log in again." | PASS (post-fix) / FAIL (pre-fix) |
+| T1760-13 | `norights` in the browser → `usersView.html` | deny box, **no** bounce | deny `block`, text "You do not have the rights required to manage users…", URL unchanged, `window.sessionDead === false` | PASS |
+
+### Step 3 — helper matrix, both screens (in-page `sessionExpired(...)`)
+
+| # | Input | Expected | Observed (usersView / rolesView) | Result |
+|---|---|---|---|---|
+| T1760-14 | `{status:401, responseText:'{"status":"error","code":"session_expired"}'}` | `true` | `true` / `true` | PASS |
+| T1760-15 | `{status:401, responseText:'{"status":"error","message":"Not authenticated"}'}` (**no `code` key**) | `true` | `true` / `true` | PASS |
+| T1760-16 | `{401, body:''}`, `{401, body:'<html>nope</html>'}` (non-JSON) | `true`, no exception | `true` / `true` (usersView), n/a rolesView | PASS |
+| T1760-17 | `{200, body:'{"code":"session_expired"}'}` (secondary trigger) | `true` | `true` | PASS |
+| T1760-18 | `{status:403}`, `{status:200}`, `{status:500}`, `null` | `false`, no toast, no redirect, no neutralisation | `false` ×4 | PASS |
+| T1760-19 | after a `true`: terminal state | toast `.err` "Session expired. Please log in again." visible; tab bar / toolbar(+grid toolbar) / table hidden; **deny box hidden**; 0 rows; model cleared (`allItems=[]`, `authMeta=null`, `canViewEvents=false`); `window.sessionDead === true` | all as expected on both screens | PASS |
+| T1760-20 | after the terminal state: call every loader/action (`loadUsers`, `loadGrants`, `loadMeta`, `editUser`, `manageUser`, `saveUser`, `deleteUser`, `toggleActive`, `resetPassword`, `generateApiKey`, `showCreateModal` — and `loadRoles`, `loadMeta`, `loadGrants`, `editRole`, `showCreateModal`) | **0** requests, page stays neutral | model unchanged, layout still hidden, no repaint | PASS |
+| T1760-21 | `showSessionExpired()` must close the **delete-confirm** modal (whose Delete button used to stay armed over a dead session) | modal closed | `#deleteModal` / `#userModal` hidden by `modal('hide')`; the 401 no longer opens the confirm dialog at all | PASS |
+| T1760-22 | Event Viewer + console after the whole run | 0 new Error/Warning rows, 0 JS errors | `select count(*) from events where log_level <> 16` → `0`; console: only the expected `403 (Forbidden)` network log of T1760-13, no JS error | PASS |
+| T1760-23 | syntax gates | clean | `php -l api/users/index.php` OK; `node --check` on the extracted inline scripts of `usersView.html` and `rolesView.html` OK; `grep -c "sessionExpired(xhr)"` → 13 (1 + 12 paths) and 9 (1 + 8 paths) | PASS |
+
+**Summary: 23/23 PASS.** The only failing cases are T1760-02…T1760-06, T1760-10 and T1760-12 —
+exactly the gap this issue describes (they pass with commit `bdb8a212c`).
 
 ### Notes for future runs
 
-- **`tracxmlrpcInterface::connect()` never probes the network** (`tracxmlrpcInterface.class.php:130-156`):
-  it only builds a `xmlrpc_client` object, so `isConnected()` is `true` for any syntactically
-  valid cfg even when the Trac host refuses connections (my fixture points at `127.0.0.1:9`,
-  nothing listens, and the answer is still `connected:true`). That false "Connection OK" is
-  **pre-existing 1.9.20 behaviour**, deliberately not changed by this fix, and is filed together
-  with the `each()`/`split()` residuals as a follow-up issue.
-- The `Environment` column badge in the grid is a *DB* flag (`issuetrackers.type` is present and
-  the row is active), not a connection probe — do not read it as a connection test.
-- `tmp/php_server.log` is the stderr of the `php -S` process and is the only place the ParseError
-  surfaces: a fatal is never routed through `tLog()`, so the Event Viewer stays empty (measured:
-  `events` = 1 row after 2 × HTTP 500).
+- **`/var/lib/php/sessions` is not listable** (`drwx-wx-wt root:root`) — take the `PHPSESSID` from
+  the Network-panel request headers (it is HttpOnly, so JS cannot read it).
+- The Dashio shell (`index.php`) only calls `doSessionStart()`, never `checkSessionValid()`, so a
+  shell tab left open past the timeout still shows its menu: every screen has to bounce by itself.
+- Two 401 shapes exist and both must be honoured: stale → `401 {"code":"session_expired"}`,
+  absent → `401 {"message":"Not authenticated"}` with **no `code` key**; hence status-first.
+- The `norights` fixture from `tmp/mkuser_norights.php` (role 3) is the cheapest way to prove the
+  403 → deny-box path is preserved by the new 401 handling.
