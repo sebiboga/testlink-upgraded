@@ -820,8 +820,15 @@ switch ($action) {
         list($tprojectId, $tproject) = suitMoveProject($db, $user, $tprojectId, $containerId);
 
         $current = suitMoveChildren($db, $containerId, $tprojectId);
+        // Two different orders are needed: the TREE order (to prove the write
+        // actually changed something) and the id-sorted list (to prove the
+        // submitted list is exactly the child set). Comparing the tree order
+        // against a SORTED list reported every real reorder as a no-op whenever
+        // the new order happened to be id-sorted.
+        $currentOrder = array();
         $currentIds = array();
         foreach ($current as $c) {
+            $currentOrder[] = intval($c['id']);
             $currentIds[] = intval($c['id']);
         }
         sort($currentIds);
@@ -847,7 +854,7 @@ switch ($action) {
         foreach ($after as $c) {
             $afterIds[] = intval($c['id']);
         }
-        if ($afterIds === $currentIds) {
+        if ($afterIds === $currentOrder) {
             out(array('status' => 'error', 'code' => 'no_change',
                       'message' => 'The order did not change'), 400);
         }
