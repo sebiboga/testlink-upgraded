@@ -1902,3 +1902,43 @@ requirements disabled), users `cov1765readonly` (view only) and `cov1765norights
 | — | a 403/404 hid the project switcher (dead end) | own always-visible project strip |
 | — | `mgt_view_req` alone disclosed test case names through the coverage action | `mgt_view_tc`/`mgt_modify_tc` required as well |
 | — | `Trying to access array offset on false` / `Undefined array key external_id` warnings | `fetch_array()` answers `false`: guarded with `empty()`/`isset()` |
+
+---
+
+## Regression — Issue #1764: Trac XML-RPC wire layer fatal on PHP 8 (each()/split()/count())
+
+**Precondition**: PHP 8.3 CLI + the running app at http://localhost:8082 (docroot = repo root).
+No DB row needed for the transport-level cases; the wire fixture is a PHP socket listener on
+127.0.0.1:8099 (`tmp/live_server_1764.php`).
+
+**Pre-fix repro (measured)**
+```
+$ php -r 'require "third_party/phpxmlrpc/lib/xmlrpc.inc";
+          $m = new xmlrpcmsg("ticket.get"); $m->addParam(new xmlrpcval(5)); echo $m->serialize();'
+PHP Fatal error: Uncaught Error: Call to undefined function each() in
+  third_party/phpxmlrpc/lib/xmlrpc.inc:2946
+```
+and, after each() alone is fixed, the live round trip dies at
+`count(): Argument #1 ($value) must be of type Countable|array, string given` (xmlrpc.inc:2545).
+
+| # | Case | Steps | Expected | Result |
+|---|---|---|---|---|
+| 1764.1 | Reported repro — serialize a ticket.get | `php -r '<the one-liner above>'` | valid `<methodCall>` XML, no fatal | **PASS** |
+| 1764.2 | Scalar matrix (int, negative, string w/ markup, UTF-8, empty, double, zero, true, false, null, base64, dateTime.iso8601) | `php tmp/verify_1764.php` (R2) | correct type element for each | **PASS** |
+| 1764.3 | Array + nested struct encode | same (R3) | `<array><data>` / `<struct><member>` nesting correct | **PASS** |
+| 1764.4 | `serializeval()` parity with `serialize()` | same (R3) | identical XML | **PASS** |
+| 1764.5 | Legacy API: `scalarval/scalartyp/structmemexists/structmem/structreset/structeach/getval` | same (R7) | 1.9.20 semantics kept; `structeach()` returns `(0,'value',1,'key')` and `false` at the end, resumes from the internal pointer | **PASS** |
+| 1764.6 | `structeach()` on a non-struct val / empty struct | same (R7) | `false`, no fatal | **PASS** |
+| 1764.7 | Decode: struct, array, fault, `extension_api` datetime | same (R6) | `xmlrpcresp` + correct PHP values | **PASS** |
+| 1764.8 | `encode_php_objs` / `decode_php_objs` round trip | same (R8) | object comes back with its properties | **PASS** |
+| 1764.9 | **Behaviour-preservation proof** | `php tmp/matrix_1764.php tmp/xmlrpc_orig_1764.inc` vs the patched file, diff the serialized results | both run with `each()/split()` reconstructed as a polyfill; **0 differences** across 60+ observables | **PASS** (diff empty) |
+| 1764.10 | **Live round trip** — `ticket.get` over TCP | `php tmp/live_server_1764.php &` then `php tmp/live_client_1764.php` | `errno=0`, struct decoded (`id=5`, `summary=trac bug 5`, `priority=normal`), `set-cookie` captured | **PASS** |
+| 1764.11 | Response body length argument | exercised by 1764.10 | `strlen()`, no `count()` TypeError | **PASS** |
+| 1764.12 | Syntax gate on the vendored drop | `php -l third_party/phpxmlrpc/lib/xmlrpc.inc` | No syntax errors | **PASS** |
+
+Suite total: **12/12 PASS** (`php tmp/verify_1764.php` → "31 passed, 0 failed").
+
+**Not covered / remaining**: no real Trac server exists in this environment, so the round trip
+is proven against a fixture endpoint speaking the same wire format, not against Trac's
+XmlRpcPlugin. `xmlrpcs.inc` (server side, 24 `=& new`) and `xmlrpc_wrappers.inc` (7) still
+fail `php -l`; TestLink never loads them, so they do not affect the app.

@@ -8056,3 +8056,21 @@ Changes:
   (`log_level=2`). The coverage row read also used `$row['tc_external_id']` / `['name']` /
   `['version']` without a guard, producing `Undefined array key "external_id"`. Both are now
   `empty()` / `isset()` guarded; exercising every action leaves the `events` table empty. (Refs #1765)
+
+### KEY BUGFIX — Trac XML-RPC transport: the phpxmlrpc wire layer fataled on PHP 8, killing every `ticket.get`/`ticket.create` and the bug-link renderer (Fixes #1764)
+- `third_party/phpxmlrpc/lib/xmlrpc.inc` used the PHP 4 functions **`each()`** (removed in PHP 8.0)
+  and **`split()`** (removed in PHP 7.0) at **15 sites**, so the *first* command the Trac
+  interface sends — `tracxmlrpcInterface::sendCmd()` → `xmlrpcmsg::createPayload()` →
+  `xmlrpcval::serialize()` (`xmlrpc.inc:2946`) — died with `Call to undefined function each()`,
+  taking `getIssue()`, `checkBugIDExistence()`, `addIssue()` and `buildViewBugLink()` with it.
+- Ported as: `foreach` walks for full-array iterations, guarded `key()`/`current()` reads for
+  single pairs (`reset()` semantics preserved, including `null` vs `false` on an empty value),
+  `preg_split('/\r?\n/')` for header parsing, and `structeach()` re-implemented on
+  `key()`/`current()`/`next()` — exactly PHP's own `each()` algorithm, returning the same
+  `(0, 'value', 1, 'key')` slots, so the public contract is unchanged.
+- Found while verifying the port end to end: `xmlrpcmsg::parseResponse()` passed
+  **`count($data)`** (a TypeError on strings since PHP 8.0) as the `xml_parse()` length, so the
+  response side fataled too → now `strlen($data)`.
+- Verified **byte-identical** behaviour against the pre-port library (with `each()`/`split()`
+  reconstructed as a polyfill) over 60+ observables, plus a live TCP round trip: a valid
+  `methodCall` goes out, `set-cookie` is captured and the struct response decodes. (Refs #1764)
