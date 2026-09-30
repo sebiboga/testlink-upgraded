@@ -2243,6 +2243,20 @@ function getActions(&$gui,$baseURL) {
   // node id to a specification of that project. Read-only: the write gesture
   // (move / reorder) lives in reqTreeReorder.html (Refs #1681).
   $actions->reqSpecListTree = "/gui/templates/requirements/reqSpecListTree.html?{$ctx}";
+  // Requirement Coverage Tree navigator (Dashio standalone page) - Refs #1765.
+  // Replaces the 1.9.20 coverage tree, whose only builder was
+  // lib/functions/tlTestCaseFilterByRequirementControl.class.php (a class with
+  // ZERO users in the tree, so the tree itself was already unreachable) and
+  // whose lazy loader lib/ajax/getreqcoveragenodes.php stayed live over HTTP
+  // with no rights check and no project scope - any authenticated user could
+  // walk any test project's specification and requirement doc_ids/titles
+  // (same class as bug #1696). The modern screen is backed by
+  // api/reqcoveragetree, which checks mgt_view_req / mgt_modify_req on the
+  // addressed project, proves every node id to that project, and reports the
+  // requirement -> test case coverage (a link closed by execution is NOT
+  // coverage). Read-only: assignment lives in reqTcBulkAssign.html /
+  // reqTcAssign.html and the move/reorder gesture in reqTreeReorder.html.
+  $actions->reqCoverageTree = "/gui/templates/requirements/reqCoverageTree.html?{$ctx}";
   // Direct-link resolver modernized screen (Dashio standalone page) - Refs
   // #1532. Replaces the legacy linkto.php deep-link gateway for
   // linkto.php?tprojectPrefix=<prefix>&item=req&id=<doc_id>; the browser-facing

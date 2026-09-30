@@ -1,144 +1,106 @@
 <?php
-/** 
-* 	TestLink Open Source Project - http://testlink.sourceforge.net/
-* 
-* 	@author Tanguy Oger
-*
-* 	Is the tree loader, will be called via AJAX.
-*   Ext JS automatically will pass $_REQUEST['node']   
-*   Other arguments will be added by TL php code that needs the tree.
-*   
-*   This tree is used to navigate Test Project, and is used in following feature:
-*
-*   - Create test suites, test cases on test project
-*   - Assign keywords to test cases
-*   - Assign requirements to test cases
-*
-*	@internal revision
-*        
-*/
+/**
+ * TestLink Open Source Project - http://testlink.sourceforge.net/
+ * This script is distributed under the GNU General Public License 2 or later.
+ *
+ * @filesource getreqcoveragenodes.php
+ *
+ * @internal Refs #1765 - legacy REQUIREMENT COVERAGE tree lazy loader. It was
+ *   the server side of the ExtJS tree built by
+ *   lib/functions/tlTestCaseFilterByRequirementControl.class.php (the
+ *   drag-and-drop source of "create suite / create test case", "assign
+ *   keywords to test cases" and "assign requirements to test cases") and
+ *   answered the children of ONE expanded node:
+ *     ?root_node=<tproject_id>[&node=<parent id>][&filter_node=<id>]
+ *     [&show_children=<0|1>][&operation=manage|print]
+ *   Each row was an ExtJS tree node (text / id / leaf / cls /
+ *   testlink_node_type / forbidden_parent / position / href=javascript:EP|ERS|ER)
+ *   built from `SELECT ... FROM nodes_hierarchy WHERE parent_id = <parent>`.
+ *
+ *   It is retired here because it was never authorized AND was unreachable:
+ *
+ *   1. ORPHANED dead code - tlTestCaseFilterByRequirementControl has ZERO users
+ *      in the tree (no template, no screen and no JS instantiates it), so no
+ *      shipped UI ever displayed this tree and its behaviour was never
+ *      exercised.
+ *   2. It performed NO rights check at all - only testlinkInitPage(), i.e. a
+ *      SESSION check. Any authenticated user, including one with no requirement
+ *      right, could read the specification doc_ids/titles and the requirement
+ *      doc_ids/titles of ANY test project by sending an arbitrary root_node or
+ *      node id (same class of bug as #1696 on the sibling
+ *      getrequirementnodes.php).
+ *   3. It had no project scope and no node-type gate: display_children() joined
+ *      on `parent_id` only, so the walk escaped the requirement tree entirely.
+ *   4. The tree it fed advertised drag-and-drop writes onto
+ *      lib/ajax/dragdroprequirementnodes.php, which mutated nodes_hierarchy on
+ *      a plain GET with no rights / ownership / same-origin check (bug #1681,
+ *      hardened by #1699).
+ *
+ *   The equivalent authorized surface is the modern Requirement Coverage Tree
+ *   navigator (gui/templates/requirements/reqCoverageTree.html) backed by
+ *   api/reqcoveragetree, which checks mgt_view_req / mgt_modify_req on the
+ *   ADDRESSED project, proves every node id to belong to that project, gates
+ *   the node types and reports requirement -> test case coverage. It is
+ *   READ-ONLY on purpose: the assignment gesture lives in
+ *   gui/templates/requirements/reqTcBulkAssign.html (bulk) and
+ *   reqTcAssign.html (single test case), and the move/reorder gesture in
+ *   reqTreeReorder.html.
+ *
+ *   Legacy deep links (GET) are answered with a 302 to the modern screen; the
+ *   read is deliberately NOT replayed, because it was never authorized. A
+ *   write verb is refused with 405 and a pointer to the modern endpoints.
+ */
+
 require_once('../../config.inc.php');
 require_once('common.php');
-testlinkInitPage($db);
 
+$db = new database(DB_TYPE);
+doDBConnect($db);
 
-$root_node=isset($_REQUEST['root_node']) ? intval($_REQUEST['root_node']): null;
-$node=isset($_REQUEST['node']) ? intval($_REQUEST['node']) : $root_node;
-$filter_node=isset($_REQUEST['filter_node']) ? intval($_REQUEST['filter_node']) : null;
+// Legacy testlinkInitPage() contract: an anonymous visitor is bounced to the
+// login screen. checkSessionValid()'s own redirect is used (rather than a
+// hand-rolled header()) because it walks up from dirname(SCRIPT_FILENAME)
+// until it finds login.php - a relative 'login.php' would resolve against
+// /lib/ajax/ and 404.
+if (!checkSessionValid($db)) {
+    exit;  // unreachable: the call above already redirected
+}
 
-$show_children=isset($_REQUEST['show_children']) ? intval($_REQUEST['show_children']) : 1;
-$operation=isset($_REQUEST['operation']) ? $_REQUEST['operation']: 'manage';
+$method = strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET');
 
-// for debug - file_put_contents('d:\request.txt', serialize($_REQUEST));
-$nodes = display_children($db,$root_node,$node,$filter_node,$show_children,$operation);
-echo json_encode($nodes);
+if ($method !== 'GET' && $method !== 'HEAD') {
+    tLog('BFF shim: refused ' . $method . ' on the retired legacy coverage-tree loader - '
+        . 'read it from GET /api/reqcoveragetree/index.php?action=init|children|coverage instead (Refs #1765).',
+        'WARNING');
+    http_response_code(405);
+    header('Content-Type: application/json; charset=utf-8');
+    header('X-Content-Type-Options: nosniff');
+    echo json_encode(array(
+        'status' => 'error',
+        'code' => 'method_not_allowed',
+        'message' => 'The legacy coverage tree loader was retired; '
+            . 'use GET /api/reqcoveragetree/index.php?action=init|children|coverage',
+    ));
+    exit;
+}
 
-/*
+$q = $_GET;
 
-*/
-function display_children($dbHandler,$root_node,$parent,$filter_node,
-                          $show_children=ON,$operation='manage') 
-{             
-  $tables = tlObjectWithDB::getDBTables(array('requirements','nodes_hierarchy','node_types','req_specs'));
-	$cfg = config_get('req_cfg');
-	$forbidden_parent['testproject'] = 'none';
-	$forbidden_parent['requirement'] = 'testproject';
-	$forbidden_parent['requirement_spec'] = 'requirement_spec';
-	if($cfg->child_requirements_mgmt)
-	{
-		$forbidden_parent['requirement_spec'] = 'none';
-	} 
-    
-  switch($operation)
-  {
+$target = '/gui/templates/requirements/reqCoverageTree.html';
 
-  	case 'print':
-  		$js_function = array('testproject' => 'TPROJECT_PTP',
-  		'requirement_spec' =>'TPROJECT_PRS', 'requirement' => 'TPROJECT_PRS');
-  		break;
-  	
-  	case 'manage':
-  	default:
-  		$js_function = array('testproject' => 'EP','requirement_spec' =>'ERS', 'requirement' => 'ER');
-  		break; 
-  }
-    
-  $nodes = null;
-  $filter_node_type = $show_children ? '' : ",'requirement'";
-  $sql = " SELECT NHA.*, NT.description AS node_type, RSPEC.doc_id " . 
-         " FROM {$tables['nodes_hierarchy']} NHA JOIN {$tables['node_types']}  NT " .
-         " ON NHA.node_type_id=NT.id " .
-         " AND NT.description NOT IN " . 
-         " ('testcase','testsuite','testcase_version','testplan','requirement_spec_revision' {$filter_node_type}) " .
-         " LEFT OUTER JOIN {$tables['req_specs']} RSPEC " .
-         " ON RSPEC.id = NHA.id " . 
-         " WHERE NHA.parent_id = " . intval($parent);
-    
-  // file_put_contents('/tmp/getrequirementnodes.php.txt', $sql);                            
-  if(!is_null($filter_node) && $filter_node > 0 && $parent == $root_node)
-  {
-    $sql .= " AND NHA.id = " . intval($filter_node);  
-  }
-  $sql .= " ORDER BY NHA.node_order ";    
+$params = array();
+// root_node was the test project id of the tree; node was the expanded node,
+// which carries no meaning for the modern screen (it expands client side).
+foreach (array('tproject_id', 'root_node') as $k) {
+    if (isset($q[$k]) && intval($q[$k]) > 0) {
+        $params['tproject_id'] = intval($q[$k]);
+        break;
+    }
+}
 
-  $nodeSet = $dbHandler->get_recordset($sql);
-	if(!is_null($nodeSet)) 
-	{
-    $sql =  " SELECT DISTINCT req_doc_id AS doc_id,NHA.id" .
-            " FROM {$tables['requirements']} REQ JOIN {$tables['nodes_hierarchy']} NHA ON NHA.id = REQ.id  " .
-            " JOIN {$tables['nodes_hierarchy']}  NHB ON NHA.parent_id = NHB.id " . 
-            " JOIN {$tables['node_types']} NT ON NT.id = NHA.node_type_id " .
-            " WHERE NHB.id = " . intval($parent) . " AND NT.description = 'requirement'";
-    $requirements = $dbHandler->fetchRowsIntoMap($sql,'id');
+if (!empty($params)) {
+    $target .= '?' . http_build_query($params);
+}
 
-	  $treeMgr = new tree($dbHandler);
-	  $ntypes = $treeMgr->get_available_node_types();
-		$peerTypes = array('target' => $ntypes['requirement'], 'container' => $ntypes['requirement_spec']); 
-	  foreach($nodeSet as $key => $row)
-	  {
-	    $path['text'] = htmlspecialchars($row['name']);                                  
-	    $path['id'] = $row['id'];                                                           
-        
-      // this attribute/property is used on custom code on drag and drop
-	    $path['position'] = $row['node_order'];                                                   
-      $path['leaf'] = false;
- 	    $path['cls'] = 'folder';
- 	        
- 	    $path['testlink_node_type']	= $row['node_type'];		                                 
-	    $path['testlink_node_name'] = $path['text']; // already htmlspecialchars() done
-
-      $path['forbidden_parent'] = 'none';
-      switch($row['node_type'])
-      {
-        case 'testproject':
-          $path['href'] = "javascript:EP({$path['id']})";
-          $path['forbidden_parent'] = $forbidden_parent[$row['node_type']];
-	      break;
-
-        case 'requirement_spec':
-          $req_list = array();
-	        $treeMgr->getAllItemsID($row['id'],$req_list,$peerTypes);
-
-	        $path['href'] = "javascript:" . $js_function[$row['node_type']]. "({$path['id']})";
-	        $path['text'] = htmlspecialchars($row['doc_id'] . ":") . $path['text'];
-          $path['forbidden_parent'] = $forbidden_parent[$row['node_type']];
-   	      if(!is_null($req_list))
-	        {
-            $item_qty = count($req_list);
-	        	$path['text'] .= " ({$item_qty})";   
-	        }
-	      break;
-
-        case 'requirement':
-          $path['href'] = "javascript:" . $js_function[$row['node_type']]. "({$path['id']})";
-	        $path['text'] = htmlspecialchars($requirements[$row['id']]['doc_id'] . ":") . $path['text'];
-	        $path['leaf']	= true;
-          $path['forbidden_parent'] = $forbidden_parent[$row['node_type']];
-	      break;
-      }
-
-      $nodes[] = $path;                                                                        
-    }	// foreach	
-  }
-	return $nodes;                                                                             
-}                                                                                           
+header('Location: ' . $target);
+exit;
