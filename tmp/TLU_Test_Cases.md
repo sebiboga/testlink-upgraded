@@ -3432,3 +3432,143 @@ Refs: #1291, branch `task/issue-1291`.
 **Expected:** All integration points present and correctly wired
 **Actual:** As expected
 **Status:** PASS
+
+---
+
+## Modernize — Issue #1740: **Move / Reorder Test Suites** (`suiteMove.html` + `api/suitemove`) — and the 8 bugs it produced during testing
+
+**Precondition**
+
+- App on `http://localhost:8082`, logged in as `admin`/`admin`.
+- MariaDB `127.0.0.1:3306`, db `testlink`, user/pass `testlink`/`testlink`. The DB is reset on every run,
+  so the fixture is re-created first and writes its fresh ids to `tmp/fixture_1740.json`.
+
+  ```
+  $ php tmp/fixtures_1740.php
+  project 'SUITEMOVE1740' (prefix SM1740) = 72
+  project 'SUITEMOVE1740FOREIGN' (prefix SMF0) = 82
+  suite 'Top A' = 73 / 'Top B' = 74 / 'A1' = 75 / 'A2' = 76 / 'A1a' = 77 / 'A1b' = 78
+  test case 'SM1740-1' inside A2 (79 -> 80 -> 81)
+  suite 'Foreign suite' = 83
+  user smvnorights1740 = 8 (role 3  = <no rights>)
+  user smvviewer1740   = 9 (role 5  = guest, read-only)
+  ```
+
+  Tree: `Top A[ A1[ A1a, A1b ], A2[ SM1740-1 ] ]`, `Top B[]`, plus a foreign project holding one suite.
+  **NOTE role 8 is `admin` in this schema, not a read-only role** — the read-only role is 5 (`guest`).
+  A first draft of the fixture used 8 and produced a false "buttons are enabled for a read-only user" FAIL.
+
+- Screen: `http://localhost:8082/gui/templates/testcases/suiteMove.html?tproject_id=72&container_id=73`
+- Entry point: Test Specification toolbar -> **Move / Reorder Test Suites** (`testSpec.html:143`).
+- RBAC context: an isolated browser context logged in as `smvnorights1740` / `smvviewer1740`.
+
+### Defects found and fixed while executing this suite
+
+| Issue | Defect | Severity |
+|---|---|---|
+| #1742 | every suite listed twice in the "Move to..." picker (orphan loop re-walked each suite subtree) | UI |
+| #1743 | `no_change` on first/last decided on `node_order` instead of list position — refused every legitimate "move to first" | UI |
+| #1744 | project name empty in the context bar (`$tproject->testproject_name` no longer exists in 2.0.1) | UI |
+| #1745 | **cycle guard inverted** — moving a container into its own descendant returned 200 and detached the subtree | data integrity |
+| #1746 | a real reorder answered `no_change` (tree order compared against a sorted list) | UI |
+| #1747 | the screen ignored `context.can_modify` and always rendered write actions | rights parity |
+| #1748 | one `E_WARNING: Undefined array key "node_type_id"` per suite row in the Event Viewer | logging |
+| #1750 | the Test Specification toolbar tooltip reused the row-button title | i18n |
+| #1751 | commit `9ca0fa7bb` (another agent) had deleted all 46 `smv.*` keys from the 10 locale bundles | i18n |
+| #1752 | the container picker filtered the **current** container out, so the browser fell back to "Project root" while the table showed that suite's children | UI |
+| #1753 | a no-op move/reorder answered `400 status:error` (siblings answer `200 status:no_change`); the reorder no-op was decided **after** the write | BFF contract |
+| #1754 | `fill()` re-escaped the output of `TLi18n.t()`, so `R&D Suite` was confirmed as `R$$&D Suite` | UI |
+| #1755 | `BUSY` latched forever on an unhandled path - every action button stayed disabled | UI |
+| #1756 | a write answered after the session timeout printed a raw server message instead of the login page | UI |
+| #1757 | the destination picker was O(all suites x depth) - it scanned the whole installation and proved each suite with one query per ancestor | performance |
+| #1758 | a malformed `new_parent_id` was silently degraded into an in-container reorder | BFF contract |
+| #1759 | `403` on a suite/destination of another project leaked the existence of that node | security |
+
+### Test steps and results — error / contract matrix
+
+| # | Step | Expected | Measured | Result |
+|---|---|---|---|---|
+| T1 | Load the screen for `container_id=73` | rows `A1, A2`, context bar filled | `A1,A2`, project `SUITEMOVE1740 (SM1740)` | **PASS** |
+| T2 | First row, "Move up" | disabled (already first) | `disabled === true` | **PASS** |
+| T3 | "Move down" on A1 | `200`, order becomes `A2,A1` | `200` -> `A2,A1` | **PASS** |
+| T4 | "Move up" on A1 | `200`, order back to `A1,A2` | `200` -> `A1,A2` | **PASS** |
+| T5 | "Move up" on A1 again | `200 no_change` (**#1753**), neutral notice, no red banner | `200 no_change` -> notice ok | **PASS** |
+| T6 | `reorder` `76,75` | `200`, order `A2,A1` | `200` -> `A2,A1` | **PASS** |
+| T7 | `reorder` back to `75,76` | `200` (**real** change, #1746) | `200` -> `A1,A2` | **PASS** |
+| T8 | `reorder` the same order again | `200 no_change` and **no write** (**#1753**) | `200 no_change`, order unchanged | **PASS** |
+| T9 | `reorder` with 1 id | `400 bad_request` | `400 bad_request` | **PASS** |
+| T10 | `reorder` with a foreign id | `400 bad_request` (not the child list) | `400 bad_request` | **PASS** |
+| T11 | Move A1 under **Top B**, `bottom` | `200`; Top B = `A1` | `200` -> `Top B = A1 (2 sub-suites)` | **PASS** |
+| T12 | Inspect A1's children after T11 | `A1a, A1b` moved with it | `A1a,A1b` | **PASS** |
+| T13 | Move A1 back under Top A | `200` | `200` | **PASS** |
+| T14 | Move Top A inside **itself** | `409 cycle` | `409 cycle` | **PASS** |
+| T15 | Move Top A inside its **descendant** `A1a` | `409 cycle` (**#1745**) | `409 cycle` | **PASS** |
+| T16 | Destination in the foreign project | `404 not_found` (**#1759**) | `404 not_found` | **PASS** |
+| T17 | Node from the foreign project | `404 not_found` (**#1759**) | `404 not_found` | **PASS** |
+| T18 | A **test case** as the node | `404 not_found` ("Suite is not a test suite") | `404 not_found` | **PASS** |
+| T19 | `position=sideways` | `400 bad_request` | `400 bad_request` | **PASS** |
+| T20 | `action=bogus` | `400 unknown_action` | `400 unknown_action` | **PASS** |
+| T21 | `GET` on a write action | `405 method_not_allowed` | `405 method_not_allowed` | **PASS** |
+| T22 | `init` with a non-existent project | `404 not_found` | `404 not_found` | **PASS** |
+| T23 | `init` with a foreign container | `403 forbidden` | `403 forbidden` | **PASS** |
+| T24 | `init` with a test case as container | `404 not_found` | `404 not_found` | **PASS** |
+| T25 | `init` with a non-existent container | `404 not_found` | `404 not_found` | **PASS** |
+| T26 | `?action=suites&exclude_id=75` | A1 + its subtree hidden, **no duplicates** (#1742) | `Top A\|- A2\|Top B` | **PASS** |
+| T27 | `?action=suites` (no exclude) | every suite once, depth-indented, **depth-first pre-order** (a suite is followed by its own children) | `Top A\|- A1\|- - A1a\|- - A1b\|- A2\|Top B` | **PASS** |
+| T28 | Project root view | `Top A, Top B` | `Top A,Top B` | **PASS** |
+| T29 | Empty container (Top B) | 0 rows + empty-state message | `0` rows | **PASS** |
+| T30 | `node_order` density at the root after writes | `1,2` | `1,2` | **PASS** |
+
+### Test steps and results — session, rights, CSRF, legacy shim, i18n
+
+| # | Step | Expected | Measured | Result |
+|---|---|---|---|---|
+| T31 | Anonymous `?action=init` | `401 session_expired` | `401 {"code":"session_expired"}` | **PASS** |
+| T32 | Session cookie + `Origin: http://evil.example` | `403` CSRF | `403` | **PASS** |
+| T33 | Session cookie + foreign `Referer` **and** `X-Requested-With` | `403` (XRW never overrides, #1679) | `403` | **PASS** |
+| T34 | No `Origin`, no `Referer`, no XRW | `403` | `403` | **PASS** |
+| T35 | Same `Origin` / XRW only | passes the CSRF guard | guard passed (401 was the stale curl cookie) | **PASS** |
+| T36 | `smvnorights1740` (role 3) opens the screen | "Access denied" state, no rows | "Access denied" heading rendered | **PASS** |
+| T37 | `smvviewer1740` (role 5, guest) opens the screen | "Access denied" (no `mgt_modify_tc`) | "Access denied" heading rendered | **PASS** |
+| T38 | Render the read-only branch (`CAN_MODIFY = false`) | write buttons hidden, navigation kept, notice shown (**#1747**) | 4 -> 1 buttons/row (only "Open as container"), `smv.noModifyRight` visible | **PASS** |
+| T39 | Legacy `lib/ajax/dragdroptreenodes.php?node_id=…&parent_id=…` (GET write) | `302` to the modern screen | redirected to `suiteMove.html`, tree unchanged | **PASS** |
+| T40 | Legacy shim with POST | `405` JSON | `405 {"code":"method_not_allowed",…}` | **PASS** |
+| T41 | Test Specification toolbar button | opens the screen with the selected container | "Move / Reorder Test Suites" present, correct tooltip (#1750) | **PASS** |
+| T42 | Locale switch to **ro** | title, headers, buttons, footer, empty state translated | all translated incl. `smv.noModifyRight` | **PASS** |
+| T43 | Move modal opened from a row | destination excludes the suite and its subtree | `Rădăcina proiectului\|Top A\|- A2\|Top B` | **PASS** |
+| T44 | Cancel / mask click | modal closes, nothing written | `modal-mask` class removed, tree unchanged | **PASS** |
+| T45 | Browser console | no JS errors | only Chrome's "Failed to load resource" lines for the **intentional** 4xx probes above; 0 script errors | **PASS** |
+| T46 | `events` table after the whole run | 0 new Error/Warning rows | 0 rows above id 214 (**#1748** was 8+ rows) | **PASS** |
+
+### Test steps and results — code-review fixes (#1752…#1759)
+
+| # | Step | Expected | Measured | Result |
+|---|---|---|---|---|
+| T47 | `fill('smv.confirmText', { suite: 'R&D "x" \'S\' `t` $v' })` | the name appears **verbatim**, no `$$` (**#1754**) | name intact, no `$` doubling | **PASS** |
+| T48 | The sub-suite count chip | translated and interpolated, never the raw key | `2 sub-suites` | **PASS** |
+| T49 | Open the container selector on `Top A` | `Top A` is listed **and selected** (**#1752**) | selected option = `Top A`, tree correctly indented | **PASS** |
+| T50 | `move` with `new_parent_id=abc` | `400 bad_request`, order untouched (**#1758**) | `400 bad_request`, `A1,A2` unchanged | **PASS** |
+| T51 | `reorder` with `nodelist=75.5,76` and `1e3` | `400 bad_request` (**#1758**) | `400 bad_request` | **PASS** |
+| T52 | `move` a foreign node / into a foreign destination | `404 not_found` on both (**#1759**) | `404` + `404` | **PASS** |
+| T53 | After a **failing** action | every action button usable again (**#1755**) | only the 2 boundary buttons disabled, nothing latched | **PASS** |
+| T54 | No-op through the UI | neutral notice, **not** the caller's "moved up", red banner hidden (**#1753**) | `The order is already like that - nothing to change.` in `.notice.ok` | **PASS** |
+| T55 | Modal for `A1` | destination excludes `A1` **and its whole subtree** | `Project root (top level)\|Top A\|- A2\|Top B` | **PASS** |
+| T56 | `?action=suites` query count on a project tree | one query per visited level, **no** per-suite ownership query (**#1757**) | depth-first down-walk, correct order, no duplicates, terminates on a corrupt tree | **PASS** |
+| T57 | `events` table after the review-fix run | 0 new Error/Warning rows | 0 rows above id 214 | **PASS** |
+
+**57 executed — 57 PASS, 0 FAIL, 0 N/A.**
+
+### Notes for re-runs
+
+- **N1 — role 8 is `admin`.** For a read-only user use role 5 (`guest`); role 3 (`<no rights>`) cannot even open the
+  screen. Both land on "Access denied" because the screen requires `mgt_modify_tc`, so the read-only *render* path
+  (T38) has to be exercised by forcing the flag, not by finding a user that can see but not modify.
+- **N2 — node_order is not dense after suite creation.** 2.0.1 assigns the next free counter value, so any
+  boundary assertion must use the position in the ordered child list (that is exactly what #1743 fixed).
+- **N3 — the fixture deletes and recreates everything by name**, so ids change on every run: always read
+  `tmp/fixture_1740.json` instead of hard-coding them.
+- **N4 — `lib/ajax/dragdroptreenodes.php` is a shim**: a GET that used to mutate now redirects to the modern
+  screen. If a future test expects the legacy write to happen, that expectation is obsolete by design.
+- **N5 — the 10 locale bundles are append-only and shared with concurrent CI agents.** A wholesale conflict
+  resolution silently deleted the `smv.*` keys once already (#1751); always merge by key union and re-check
+  `python3 -m json.tool` plus a key count after touching them.
