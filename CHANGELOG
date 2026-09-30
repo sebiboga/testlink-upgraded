@@ -6621,6 +6621,73 @@ Changes:
   no-rights callers could enumerate project/node ids via 403-vs-404; `?action[]=x` emitted a PHP 8
   `Array to string conversion` warning; and a foreign `node_id` could suppress a real collision.
 
+### Screen — Move/Copy Test Cases to another Test Suite `containerMoveTC` (Refs #1724)
+- Modernizes the last legacy-only feature slice still missing from 2.0.1: the four actions of
+  `lib/testcases/containerEdit.php` + `gui/templates/dashio/testcases/containerMoveTC.tpl`
+  (`move_testcases_viewer`, `do_move_tcase_set`, `do_copy_tcase_set`, `do_copy_tcase_set_ghost`) -
+  a popup TestLink launches from inside a test-case/suite frame, never an ASIDE row of its own. With
+  this entry the modernization ledger has **0 TODO screens** (every ASIDE entry maps to a modern
+  `.html` + BFF).
+- New screen `gui/templates/testcases/containerMoveTC.html` (Dashio: teal header + dark toolbar with
+  the project / source-suite context and the TLi18n locale switcher, a Destination card with the
+  dotted `gen_combo_test_suites()` list where the **source suite is a disabled option**, the
+  Copy Keywords / Copy Requirement Assignments pair plus the hint that a Move ignores both, a Test
+  Cases card with Select all / Clear selection, a live counter and one row per case carrying
+  `#PREFIX-N`, name, summary and the Status / Importance / Execution labels produced by
+  `getConfigAndLabels()` (the same source the legacy screen read at `containerEdit.php:1030-1040`),
+  Move / Copy / Copy as Ghost Steps behind a Bootstrap confirm modal, and loading / green result /
+  red error / red access-denied / empty-suite states).
+- BFF `api/tcmovecopy/index.php` (`GET ?action=init&tproject_id=&suite_id=`,
+  `POST ?action=move|copy|copy_ghost`): session auth + `bffEnforceSession` + `bffSameOriginGuard`,
+  `mgt_modify_tc` on the **owning** project, the source suite proven to be a `testsuite` node of it,
+  the destination proven to be a `testsuite` of the **same** project, **every submitted id proven to
+  be a test case of the source suite**, destination != source, writes POST-only, 400/401/403/404/
+  405/409 with stable machine codes the screen maps to its own i18n key. `$actions->containerMoveTC`
+  registered in `lib/functions/common.php`; the four legacy actions are intercepted in
+  `lib/testcases/containerEdit.php` right after `$args->action = $action;` (the interception cannot
+  live inside `init_args()`: it needs the ids that function resolves, while `$action` is only known
+  after the submit-button loop) and 302-redirect to the modern screen carrying the old selection
+  (`objectIDs[]` or `objectID`), the destination (`containerID`) and the intent (`pending_action`)
+  behind an explicit "nothing has been changed yet" notice. Every other action of that controller is
+  untouched.
+- Legacy parity kept: the three write intents, the disabled source suite, both copy flags, the
+  dotted suite list, the per-case label columns and the empty-suite message. Hardened beyond it -
+  see the security note below.
+- i18n `tmvc.*` (50) + `footers.containerMoveTC` in all 10 bundles, **appended** (a first
+  `sort_keys=True` attempt rewrote ~2400 unrelated lines and was reverted - the bundles are shared
+  with the concurrent CI agents).
+- 3 defects found by the mandatory browser pass, all fixed in `1ffd36bf6`: the repo vendors
+  **Bootstrap 3.4.1**, not 5, so the BS5 `new bootstrap.Modal()` threw `ReferenceError: bootstrap is
+  not defined` and the confirm dialog never opened; the success banner was rendered *before* the
+  post-write reload and `load()` clears the boxes, so every successful move/copy was silently
+  swallowed; and `http_build_query()` encodes the selection as `tcase_ids[0]`, so the
+  `'[?&]tcase_ids[]='` regex never matched and a legacy deep link lost its whole selection (now
+  `URLSearchParams`).
+- 7 class-API traps documented in the docs page for the next screen, each of which produced a
+  blank-bodied 500 first: there is **no** `getDBTables()` global (use `tlObjectWithDB::getDBTables()`);
+  `config_get('testproject_options')` returns the config **key name as a string** (use
+  `testproject::getOptions()`); `testcase::get_by_id($id, $version_id, $filters, $options)` takes **no
+  `$db`**; its rows use `id` (the tcversion id), `importance` (**not** `priority`), `testsuite_id`
+  (**not** `parent_id`), `is_open` (**not** `open`) - a wrong key returns empty/0 **silently**;
+  `fetchFirstRowSingleColumn()` needs its column argument; there is **no** `tlLog()` function; and
+  there is no locale key for "N test cases moved", so - matching `api/tcbulkop`, the comparable
+  modern screen - the write paths add no `events` audit row (that would need new `$TLS_...` keys in
+  all 19 server locales).
+- Verified by 44 numbered cases in `tmp/TLU_Test_Cases.md` (Suite 1724), 44/44 PASS, plus the browser
+  matrix (move / copy / ghost / empty / denied / error / RO locale / legacy deep link), console
+  clean and the Event Viewer clean (0 new Error/Warning rows; the only `log_level=2` rows name
+  `Command line code`, i.e. this run's own DB probes). Docs
+  `docs/Modernize-Move-Copy-Test-Cases-containerMoveTC.md` + wiki page + 8 screenshots.
+
+### KEY BUGFIX (security) — the three legacy move/copy actions were cross-site-postable GET forms that never checked rights nor ownership (Refs #1724)
+- `lib/testcases/containerEdit.php` submitted `do_move_tcase_set` / `do_copy_tcase_set` /
+  `do_copy_tcase_set_ghost` as plain forms that read `$_REQUEST` (so a GET mutated), called no
+  `hasRight()` for them and never proved the submitted `objectID` / `objectIDs[]` belonged to the
+  suite on screen. Any authenticated session could therefore relink a test case of **any** test
+  project into an arbitrary suite, and any third-party page could make a logged-in user post it.
+  They are now session-guarded 302 shims onto the BFF, which enforces `mgt_modify_tc` on the owning
+  project, proves every id and requires POST + same-origin.
+
 ### Gap closed — Requirement Spec Management: the legacy requirements filter panel was missing entirely (Fixes #1025)
 - 1.9.20's Requirement Specification Management screen shipped `inc_filter_panel.tpl`, driven by
   `tlRequirementFilterControl` (lib/functions/tlRequirementFilterControl.class.php), and the server

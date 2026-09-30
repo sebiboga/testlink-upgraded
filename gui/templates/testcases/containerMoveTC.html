@@ -166,6 +166,7 @@ var ctx = {
   denied: false,
   pending: null
 };
+var cmTrigger = null;
 
 var ACTION_LABEL = { move: 'move', copy: 'copy', copy_ghost: 'copyGhost' };
 
@@ -259,13 +260,28 @@ $(function () {
     $(this).closest('tr').toggleClass('selected', this.checked);
     syncButtons();
   });
-  $('#btnMove').on('click', function () { ask('move'); });
-  $('#btnCopy').on('click', function () { ask('copy'); });
-  $('#btnGhost').on('click', function () { ask('copy_ghost'); });
+  $('#btnMove').on('click', function () { cmTrigger = this; ask('move'); });
+  $('#btnCopy').on('click', function () { cmTrigger = this; ask('copy'); });
+  $('#btnGhost').on('click', function () { cmTrigger = this; ask('copy_ghost'); });
   $('#cmOk').on('click', function () {
     var action = ctx.pending;
     $('#confirmModal').modal('hide');
     if (action) run(action);
+  });
+  // Bootstrap 3 focuses the modal element itself on show() and sets
+  // aria-hidden="true" on it at the start of hide(). If the focus is still
+  // inside the modal at that moment the browser blocks the aria-hidden and
+  // logs an a11y warning, so blur the focused element in hide.bs.modal (which
+  // fires before aria-hidden) and park the focus on a control that always
+  // exists once the modal is gone.
+  $('#confirmModal').on('hide.bs.modal', function () {
+    var ae = document.activeElement;
+    if (ae && ae !== document.body && $.contains(this, ae)) ae.blur();
+  });
+  $('#confirmModal').on('hidden.bs.modal', function () {
+    var t = (cmTrigger && document.body.contains(cmTrigger) && !cmTrigger.disabled)
+      ? cmTrigger : document.getElementById('btnRefresh');
+    if (t) t.focus();
   });
 });
 

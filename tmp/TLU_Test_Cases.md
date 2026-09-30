@@ -1327,3 +1327,93 @@ non-default state) could newly claim "Saved view restored". Fixed with the plan 
 the `loadUsers()` caller at line 510 passes no `keep` and still announces. Cases 96-98 cover it.
 
 **Results — 2026-09-30, commits `0ed3cd422` + the code-review follow-up, branch `fix/issue-1733`, app on `http://localhost:8082`: 14/14 PASS** (cases 85-95 re-executed after the follow-up: primary case 0 calls with a default state, 1 call with a non-default state, console clean, `events` max id unchanged at 18).
+
+---
+
+## Suite 1724 — Move/Copy Test Cases to another Test Suite (`containerMoveTC`)
+
+**Precondition / fixtures** — `php tmp/fixtures_1724b.php` (re-runnable; it deletes and recreates the
+project). It created test project `tproject_id=157` (`MoveCopy Demo`), suites `src=158` ("Source A"),
+`dst=159` ("Target B"), `nested=160` ("...Nested"), source test cases `161,165,169`, a pre-existing
+target case `173`, and a no-rights user `tmvcnorights` (role 3). Login `admin`/`admin`; screen under
+test `http://localhost:8082/gui/templates/testcases/containerMoveTC.html?suite_id=158&tproject_id=157`.
+
+### Part A — BFF contract (curl, authenticated as `admin`)
+
+| # | Case | Expected | Observed | Result |
+|---|---|---|---|---|
+| 1 | `GET ?action=init&tproject_id=157&suite_id=158` | 200, context + 2 targets + 3 cases + label domains | `status:ok`, `tproject_name:"MoveCopy Demo"`, `suite_name:"Source A"`, targets `[159,160]` (source excluded client-side), 3 cases, `domains.status[1]="Draft"`, `domains.importance[3]="High"`, `domains.execution[1]="Manual"` | PASS |
+| 2 | init, **unknown** suite `suite_id=999999` | 404 `unknown_suite` | `{"code":"unknown_suite"}` **404** | PASS |
+| 3 | init, **missing** suite | 400 `missing_suite_id` | `{"code":"missing_suite_id"}` **400** | PASS |
+| 4 | unknown `action=bogus` | 400 `unknown_action` | **400** | PASS |
+| 5 | anonymous `POST ?action=move` | 403 (CSRF/session) | **403** | PASS |
+| 6 | cross-origin `POST` (`Origin: http://evil.example`) | 403 same-origin proof | **403** `Forbidden: missing or mismatched same-origin proof` | PASS |
+| 7 | `GET` on a write action | 405 `method_not_allowed` | **405** | PASS |
+| 8 | `POST move` with **no** selection | 400 `no_selection` | **400** | PASS |
+| 9 | `POST move` target = source suite | 409 `same_target` | **409** | PASS |
+| 10 | `POST` with a test case of **another** suite | 404 `foreign_testcase` | **404** | PASS |
+| 11 | `POST` with a target of **another project** | 404 `unknown_target_suite` | **404** | PASS |
+| 12 | no-rights user, init **and** move | 403 `access_denied` | **403** on both | PASS |
+| 13 | `POST copy` 1 case, keywords + requirements on | 200, `created[].name` filled | `copied:1`, new `tcase_id`, `name:"…MV Case One"` | PASS |
+| 14 | `POST copy_ghost` 1 case | 200 | `copied:1`, `action:"copy_ghost"` | PASS |
+| 15 | `POST move` 3 cases | 200, source emptied | `moved:3`; `get_children_testcases(158)` → 0 | PASS |
+| 16 | DB state after copy 13 | source keeps originals, target gains copies | source `161,165,169` unchanged; target `177,181,185` added | PASS |
+| 17 | DB state after ghost copy 14 | steps copied without expected results | 7 cases in `160` after the browser run, names preserved | PASS |
+
+### Part B — Screen (browser, `admin`)
+
+| # | Case | Expected | Observed | Result |
+|---|---|---|---|---|
+| 18 | open with valid `suite_id` | teal header, context, 3 rows, source suite **not** in the destination list | `#ctxProject="MoveCopy Demo"`, `#ctxSuite2="Source A"`, 3 rows, options `[-- select a test suite --, Target B, ...Nested]`, 1st non-empty option pre-selected | PASS |
+| 19 | initial state | no selection → all three action buttons disabled | `#selCount="0"`, Move/Copy/Ghost all `disabled` | PASS |
+| 20 | **Select all** | 3 checked, count 3, rows highlighted, buttons enabled | `#selCount="3"`, 3 `checked`, `.selected` on rows, Move/Copy/Ghost enabled | PASS |
+| 21 | **Copy** | confirm modal, title + body with the count and destination | modal `dialog` present, `#cmTitle="Copy test cases"`, body `3 test case(s) will be processed in test suite 'Target B'.` | PASS |
+| 22 | confirm the copy | 200, green banner, table refreshed, selection cleared | `#okBox` visible `3 test case(s) have been copied.`, 3 rows still present, `#selCount="0"` | PASS |
+| 23 | **Move** (Select all) → confirm | green banner + **empty state** | `#okBox` `3 test case(s) have been moved.`, 0 rows, `#emptyBox` displayed | PASS |
+| 24 | **Copy as Ghost Steps** with `...Nested` | modal adds the ghost hint | `#cmBody` `… The copies keep the test case attributes but the steps are copied as ghost steps (no expected results).` | PASS |
+| 25 | confirm ghost copy | green banner with the ghost wording | `7 test case(s) have been copied with ghost steps.` | PASS |
+| 26 | destination reset to the placeholder | buttons disabled again (no target) | `#btnMove.disabled === true` | PASS |
+| 27 | **Clear selection** | count 0, disabled | `#selCount="0"`, `#btnNone` disabled | PASS |
+| 28 | **Refresh** | re-reads the source suite | 7 rows after the ghost copy, no error box | PASS |
+| 29 | locale switch → Romanian (`?locale=ro`) | every label translated | title `Mutare/Copiere Cazuri de Test - Target B`, columns `ID Extern / Nume / Sumar / Status / Importanță / Execuție`, buttons `Mutare / Copiere / Copiază ca Pași Fantomă` | PASS |
+| 30 | no-rights user (isolated browser context) | denied box, screen locked, no rows | `#deniedBox` `Access denied: you do not have the rights…`, `#btnMove.disabled`, 0 rows | PASS |
+| 31 | unknown suite `suite_id=999999` | localized error box, locked | `#errBox` `The source test suite does not exist.` | PASS |
+| 32 | **no** `suite_id` | `No source test suite was supplied.`, locked | `#errBox` matches, `#selTarget.disabled` | PASS |
+| 33 | legacy deep link `…&tcase_ids[0]=173&tcase_ids[1]=177&target_suite_id=160&pending_action=copy` | notice + selection + destination restored | `#legacyBox` visible, `checked=["173","177"]`, `#selCount="2"`, `#selTarget="160"` | PASS |
+| 34 | console `error`/`warn` | none | `<no console messages found>` | PASS |
+| 35 | responsive (375 px) | no horizontal overflow of the picker | `.picker select { min-width:0; width:100% }` under the 700 px media query | PASS |
+
+### Part C — Legacy routing (`lib/testcases/containerEdit.php`)
+
+| # | Case | Expected | Observed | Result |
+|---|---|---|---|---|
+| 36 | `doAction=move_testcases_viewer&testsuiteID=158&tproject_id=157` | 302 → modern screen | `302 → /gui/templates/testcases/containerMoveTC.html?suite_id=158&tproject_id=157` | PASS |
+| 37 | `doAction=do_copy_tcase_set` with `objectIDs[]=161&objectIDs[]=165&containerID=160` | 302 carrying selection + destination + pending action | `302 → …?suite_id=158&tproject_id=157&tcase_ids[0]=161&tcase_ids[1]=165&target_suite_id=160&pending_action=copy` | PASS |
+| 38 | `doAction=do_copy_tcase_set_ghost` | 302 with `pending_action=copy_ghost` | `pending_action=copy_ghost` present | PASS |
+| 39 | non-move actions keep the 1.9.20 code | `new_testsuite` still renders | `200` (Smarty) | PASS |
+| 40 | `testcases_table_view` / `doBulkSet` | unchanged (pre-existing state) | 500 **before and after** the change (verified with `git stash`) — not a regression, out of scope for this screen | PASS |
+| 41 | Event Viewer (`events` table, rule 12) | no new Error/Warning from the screen or the BFF | only `log_level=16` (AUDIT) LOGIN/CREATE/DELETE rows from the fixture and the logins; the sole `log_level=2` warnings name `Command line code` (my own probes) → **0 new Error/Warning from the app** | PASS |
+| 42 | `php -l` on every touched PHP file | no syntax error | `api/tcmovecopy/index.php`, `lib/functions/common.php`, `lib/testcases/containerEdit.php` → `No syntax errors detected` | PASS |
+| 43 | i18n bundles valid JSON | all 10 | `python3 -m json.tool` on `en ro de es fr it pt ru ja zh` → OK; each gained 50 `tmvc.*` + 1 `footers.containerMoveTC` | PASS |
+| 44 | BFF no longer calls anything that does not exist | no fatals | `getDBTables()` → `tlObjectWithDB::getDBTables()`, `config_get('testproject_options')` (returns a **string**) → `testproject::getOptions()`, `testcase::get_by_id($id,…)` (no `$db`), `tlLog()` (does not exist) removed | PASS |
+
+### Part D — Final a11y pass (2026-09-30, after `1ffd36bf6`)
+
+| # | Case | Expected | Observed | Result |
+|---|---|---|---|---|
+| 45 | close the confirm modal (Confirm) → console `warn` | none (Bootstrap 3 sets `aria-hidden="true"` on the modal while focus is inside it) | `hide.bs.modal` blurs the focused descendant before `aria-hidden`, `hidden.bs.modal` parks focus on the trigger / `#btnRefresh`; console `<no console messages found>` | PASS |
+
+**Results — 2026-09-30, commits `0ae898f24` (BFF) + `b8067326d` (screen/i18n/routing) + `1ffd36bf6` (browser-test fixes) + the a11y follow-up, branch `sebiboga`, app on `http://localhost:8082`: 45/45 PASS.**
+
+**Bugs found and fixed by this suite (not filed separately — same feature, same commit)**
+1. `gui/templates/dashio/lib/bootstrap` is **Bootstrap 3.4.1**, so the Bootstrap 5 `new bootstrap.Modal()`
+   threw `ReferenceError: bootstrap is not defined` and the confirm dialog never opened. Fixed in
+   `1ffd36bf6` (jQuery plugin API + v3 markup).
+2. The success banner was rendered *before* the post-write reload, and `load()` clears the message
+   boxes — a successful move/copy was silently swallowed. Fixed by an `afterCb` callback in `load()`.
+3. The legacy deep link lost its selection: `http_build_query()` encodes arrays as `tcase_ids[0]`, and
+   the `[?&]tcase_ids[]=` regex character class never matched. Now parsed with `URLSearchParams`.
+4. (a11y) closing the confirm modal logged `Blocked aria-hidden on an element because its descendant
+   retained focus` — Bootstrap 3 focuses the modal element itself and sets `hide.bs.modal`'s
+   `aria-hidden="true"` while focus is still inside. Fixed by blurring the focused descendant in
+   `hide.bs.modal` and restoring focus on `hidden.bs.modal` (case 45).
