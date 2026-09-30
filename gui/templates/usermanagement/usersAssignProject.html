@@ -716,8 +716,19 @@ function notifyRestoredState() {
   var st = assignTbl.state.loaded();
   if (!st) return;
   var dfltLen = (paginationCfg.lengthMenu && paginationCfg.lengthMenu[0] && paginationCfg.lengthMenu[0][0]) || 20;
-  var isDefault = !st.search && st.length === dfltLen && st.start === 0 &&
-    String(st.order) === '[[1,"asc"]]';
+  // Issue #1733: DataTables 1.13.7 always materialises a `search` OBJECT in the
+  // stored state ({search:'',smart:true,...}) even when the box is empty, so
+  // `!st.search` is a constant false and classified the plain default view as
+  // "restored" - a misleading toast on every single revisit. Compare the search
+  // STRING instead. Same reason makes the order comparison a JSON one: st.order
+  // is an ARRAY of [col,dir] pairs, so String([[1,'asc']]) is "1,asc" and never
+  // equals '[[1,"asc"]]'. Same correction as the sibling plan screen
+  // (usersAssignPlan.html:1042-1053).
+  var searchStr = (st.search && typeof st.search === 'object')
+    ? String(st.search.search || '')
+    : String(st.search || '');
+  var isDefault = !searchStr && st.length === dfltLen && st.start === 0 &&
+    JSON.stringify(st.order) === '[[1,"asc"]]';
   if (isDefault) return;
   restoredStateNotified = true;
   toast(TLi18n.t('assign.viewStateRestored'), 'ok');
