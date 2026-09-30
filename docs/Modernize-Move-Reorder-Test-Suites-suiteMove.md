@@ -65,7 +65,7 @@ Contract: `401` anonymous, `403` no right / CSRF, `404` unknown or foreign node 
 | #1756 | a write after the session timeout printed a raw server string instead of the login page |
 | #1757 | the picker was O(all suites × depth) across the whole installation |
 | #1758 | a malformed `new_parent_id` was silently degraded into an in-container reorder |
-| #1759 | `403` on a foreign suite leaked that node's existence (now `404`) |
+| #1759 | `403` on a foreign suite leaked that node's existence (now `404`) — see [Bugfix-Issue-1759](Bugfix-Issue-1759-SuiteMove-403-Leaks-Foreign-Suite) |
 
 ## Verification
 
