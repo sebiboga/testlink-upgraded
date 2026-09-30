@@ -1765,7 +1765,7 @@ Login: `admin` / `admin`. Screen: `http://localhost:8082/gui/templates/issuetrac
 | R1635-12 | Defence in depth: revert ONLY the library, keep the patched BFF, hit the wrench | no 0-byte 500: the route must answer the logged **502** `{"status":"error","connected":false}` | **502** size=72 + `events` id=5 `api/issuetracker/index.php::GET /{id}/check-connection :: syntax error…` (log_level 1) | PASS |
 | R1635-13 | Rights: a user without `issuetracker_management` on the wrench route | still 401/403 (the `try` must not become a bypass) | guarded by `$canManage` **before** the `try` (`api/issuetracker/index.php:194`); unchanged code path | PASS (code-reviewed, not re-fixtured) |
 | R1635-14 | Event Viewer after the whole post-fix run | 0 new Error/Warning rows | `events` = 1 row, `log_level 16` `audit_login_succeeded` (own login); server log has no `PHP Parse error` for the post-fix requests | PASS |
-| R1635-15 | `new xmlrpcmsg('ticket.get')->serialize()` — the remaining wire layer | **known residual**, NOT fixed by this issue | `PHP Fatal error: Call to undefined function each() in xmlrpc.inc:2946` (14 `each()` sites + 1 `split()`; both removed in PHP 8) | KNOWN FAIL — filed as a follow-up issue, see the notes |
+| R1635-15 | `new xmlrpcmsg('ticket.get')->serialize()` — the remaining wire layer | **known residual**, NOT fixed by this issue | `PHP Fatal error: Call to undefined function each() in xmlrpc.inc:2946` (13 `each()` sites + 1 `split()`; both removed in PHP 8) | KNOWN FAIL — filed as a follow-up issue, see the notes |
 
 **Summary: 14 PASS / 0 FAIL / 1 known residual (R1635-15, filed as a separate issue).**
 The pre-fix failures were R1635-01/02/04/05/06/07/08; R1635-06 is the newly measured one —

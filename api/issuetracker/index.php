@@ -173,10 +173,19 @@ if ($method === 'GET' && ($segments[0] ?? '') === 'cfg-template' && empty($segme
         // require_once() then loads the file through the same include_path
         // stream_resolve just validated.
         if (stream_resolve_include_path($iname . '.class.php') !== false) {
-            if (!class_exists($iname, false)) {
-                require_once($iname . '.class.php');
+            try {
+                // Issue #1635: same reason as the check-connection routes - the
+                // autoloaded include can raise a Throwable (e.g. a vendored
+                // library pulled in at file scope), which must degrade to the
+                // structured interface_missing error instead of a 0-byte 500.
+                if (!class_exists($iname, false)) {
+                    require_once($iname . '.class.php');
+                }
+                out(['status' => 'ok', 'type' => $type, 'template' => $iname::getCfgTemplate()]);
+            } catch (\Throwable $e) {
+                tLog('api/issuetracker/index.php::GET /cfg-template :: ' . $e->getMessage(), 'ERROR');
+                out(['status' => 'error', 'code' => 'interface_missing', 'iface' => $iname]);
             }
-            out(['status' => 'ok', 'type' => $type, 'template' => $iname::getCfgTemplate()]);
         }
         out(['status' => 'error', 'code' => 'interface_missing', 'iface' => $iname]);
     }

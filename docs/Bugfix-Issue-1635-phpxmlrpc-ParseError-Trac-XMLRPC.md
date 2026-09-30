@@ -97,14 +97,29 @@ screen imports, and its failures are compile-time fatals that produce no `events
    assignment `=& new` emulated; behaviour-preserving.
 2. `third_party/phpxmlrpc/lib/xmlrpc.inc` — renamed the 4 PHP-4-style constructors to
    `__construct` (one explanatory comment each).
-3. `api/issuetracker/index.php` — **defence in depth**: the autoloading
-   `class_exists($impl)` probe sat **outside** the `try` of both check-connection routes
-   (`:202`, `:263`), so a broken implementation file escaped as an unattributable
-   0-byte 500. It now sits **inside** the `try`, so any future unloadable interface
-   degrades to the route's already-implemented
-   `502 {"status":"error","connected":false}` **plus a `tLog()` Event Viewer ERROR row**.
-   Measured with the library reverted and the BFF patched: `502`, size 72, and
-   `events` id=5 `api/issuetracker/index.php::GET /{id}/check-connection :: syntax error…`.
+3. `api/issuetracker/index.php` + `lib/functions/tlIssueTracker.class.php` —
+   **defence in depth**, so that a *future* unloadable implementation file degrades
+   instead of blanking a screen:
+   * the autoloading `class_exists($impl)` probe sat **outside** the `try` of both
+     check-connection routes (`:202`, `:263`) — it now sits **inside**, so the route
+     answers its existing `502 {"status":"error","connected":false}` **plus a `tLog()`
+     Event Viewer ERROR row**;
+   * the same include in the `GET /cfg-template` branch (`:175`) is wrapped in a
+     `try` that answers the structured `interface_missing` code;
+   * `tlIssueTracker::getAll()` (`:646`) already degraded an *unknown* type to
+     "environment not OK" (issue #1617), but the `@class_exists($impl)` probe itself
+     raises the `ParseError` of a broken file — `@` cannot suppress a `Throwable` — so
+     the whole listing still died. The `if/else` block is now inside a
+     `try { … } catch (\Throwable $e)` that degrades that single row and logs it.
+
+   Measured with the library **reverted again** (fault injection) and the patched
+   BFF/class in place — nothing is a 0-byte 500 any more:
+
+   | route | library broken + patched guards |
+   |---|---|
+   | `GET /api/issuetracker/index.php` (grid) | `200`, the Trac row is still **listed** |
+   | `GET /api/issuetracker/index.php/{id}/check-connection` | `502 {"status":"error","connected":false}` + `events` ERROR row |
+   | `GET /api/issuetracker/index.php/cfg-template?type=19` | `200 {"status":"error","code":"interface_missing","iface":"tracxmlrpcInterface"}` + `events` ERROR row |
 
 Rejected alternatives: fixing line 554 only (the file still cannot compile);
 replacing `xmlrpc.inc` with a modern `phpxmlrpc` 4.x release (a third-party version bump
@@ -136,7 +151,7 @@ PHP Fatal error: Uncaught Error: Call to undefined function each() in .../xmlrpc
 #0 xmlrpcval->serialize()  #1 xmlrpcmsg->createPayload()
 ```
 
-14 `each()` sites (`xmlrpcval::serialize/serializeval/structeach/getval/scalarval/scalartyp`,
+13 `each()` sites (`xmlrpcval::serialize/serializeval/structeach/getval/scalarval/scalartyp`,
 `php_xmlrpc_decode`, `php_xmlrpc_encode`, `xmlrpc_client::send`…) plus
 `xmlrpc.inc:2277 split("\r?\n", …)` in `parseResponseHeaders()`. Both were removed from
 PHP (`each()` in 8.0, `split()` in 7.0), so a real `ticket.get` round-trip still fatals
@@ -158,6 +173,7 @@ nothing listens, and the check still says "Connection OK"). That false positive 
 | file | change |
 |---|---|
 | `third_party/phpxmlrpc/lib/xmlrpc.inc` | 47 × `=& new` → `= new`; 4 constructors → `__construct` |
-| `api/issuetracker/index.php` | autoloading `class_exists($impl)` moved inside the `try` (2 routes) |
+| `api/issuetracker/index.php` | autoloading `class_exists($impl)` moved inside the `try` (2 check-connection routes) + the `cfg-template` include wrapped in a `try` |
+| `lib/functions/tlIssueTracker.class.php` | `getAll()`'s per-row `checkEnv` guard wrapped in `try/catch(\Throwable)` so one broken implementation file cannot blank the grid |
 | `tmp/TLU_Test_Cases.md` | Suite 1635 (15 checks) |
 | `CHANGELOG` | one line under *KEY BUGFIX / COMPATIBILITY EFFORTS* |

@@ -2693,10 +2693,16 @@ KEY BUGFIX / COMPATIBILITY EFFORTS (selection)
   constructors, so `new xmlrpc_client($url)` silently returned an uninitialised object
   (measured `path=NULL server=NULL port=0`; after the fix `path='/trac/xmlrpc' server='127.0.0.1'
   port=9`). Fix: all 47 references dropped (object handles make `= new` equivalent) and the 4
-  constructors renamed to `__construct`; plus defence in depth in `api/issuetracker/index.php`,
-  where the autoloading `class_exists($impl)` probe sat **outside** the `try` and let the
-  ParseError escape - it now degrades to the route's existing logged 502 + Event Viewer ERROR
-  row (measured: library reverted, BFF patched -> 502 + `events` row 5). Regression suite 1635
+  constructors renamed to `__construct`; plus defence in depth at the three places that
+  autoload an implementation class: in `api/issuetracker/index.php` the `class_exists($impl)`
+  probe sat **outside** the `try` of both check-connection routes (it now sits inside -> the
+  route's existing logged 502 + Event Viewer ERROR row) and the `cfg-template` include got its
+  own `try` (-> the structured `interface_missing` code), and in `tlIssueTracker::getAll()` the
+  `@class_exists($impl)` probe of the per-row `checkEnv` guard is now inside a
+  `try/catch(\Throwable)` that degrades that single row (the `@` cannot suppress a Throwable,
+  so a broken file still blanked the whole grid). Measured with the library reverted again as a
+  fault injection: grid `200` with the row still listed, check-connection `502`, cfg-template
+  `200 interface_missing`, 3 Event Viewer ERROR rows - no 0-byte 500 on any of them. Regression suite 1635
   in `tmp/TLU_Test_Cases.md`: 14 PASS / 0 FAIL / 1 known residual - the wire layer below the
   client object still uses the removed `each()` (14 sites) and `split()` (1 site), so a real
   `ticket.get` round-trip still fatals; that port, plus the fact that

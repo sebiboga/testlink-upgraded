@@ -848,15 +848,15 @@ $cp1252_to_xmlent =
 		*/
 		var $return_type = 'xmlrpcvals';
 
+		// Issue #1635: PHP 8 only recognises __construct(); a method named after
+		// the class is never called, so new xmlrpc_client() used to return an
+		// uninitialised object (path/server/port never parsed from the URL).
 		/**
 		* @param string $path either the complete server URL or the PATH part of the xmlrc server URL, e.g. /xmlrpc/server.php
 		* @param string $server the server name / ip address
 		* @param integer $port the port the server is listening on, defaults to 80 or 443 depending on protocol used
 		* @param string $method the http protocol variant: defaults to 'http', 'https' and 'http11' can be used if CURL is installed
 		*/
-		// Issue #1635: PHP 8 only recognises __construct(); a method named after
-		// the class is never called, so new xmlrpc_client() used to return an
-		// uninitialised object (path/server/port never parsed from the URL).
 		function __construct($path, $server='', $port='', $method='')
 		{
 			// allow user to specify all params in $path

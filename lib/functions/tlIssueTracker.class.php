@@ -643,16 +643,32 @@ class tlIssueTracker extends tlObject
            // checkEnv can satisfy the `$impl::checkEnv()` call below: a private
            // or non-static declaration would raise an Error and re-introduce
            // the whole-listing fatal this guard exists to prevent.
-           if( is_null($impl) || !@class_exists($impl) || !is_callable([$impl, 'checkEnv']) )
+           // Issue #1635: class_exists()/is_callable()/checkEnv() can all raise a
+           // Throwable that the @ above cannot see - a class file that pulls in a
+           // broken vendored library at FILE SCOPE dies with a compile-time
+           // ParseError (tracxmlrpcInterface.class.php:30 ->
+           // third_party/phpxmlrpc/lib/xmlrpc.inc did exactly that on PHP 8), and
+           // that used to kill the whole LISTING with a 0-byte 500, blanking
+           // every row. Degrade that single row to "environment not OK" instead.
+           try
+           {
+             if( is_null($impl) || !@class_exists($impl) || !is_callable([$impl, 'checkEnv']) )
+             {
+               $item['env_check_ok'] = false;
+               $item['env_check_msg'] = '';
+             }
+             else
+             {
+               $dummy = $impl::checkEnv();
+               $item['env_check_ok'] = $dummy['status'];
+               $item['env_check_msg'] = $dummy['msg'];
+             }
+           }
+           catch(\Throwable $e)
            {
              $item['env_check_ok'] = false;
              $item['env_check_msg'] = '';
-           }
-           else
-           {
-             $dummy = $impl::checkEnv();
-             $item['env_check_ok'] = $dummy['status'];
-             $item['env_check_msg'] = $dummy['msg'];
+             tLog(__METHOD__ . ' [' . $impl . '] ' . $e->getMessage(), 'ERROR');
            }
         }
 
