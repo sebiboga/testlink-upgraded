@@ -17,6 +17,25 @@ Every screen of the application was ported one-by-one in a screen-compare
 kept for backward compatibility and is progressively retired as each modern
 screen reaches full parity.
 
+- [FEATURE GAP] - #1037: the modern `tcView.html` showed the platforms of a test case version
+  as read-only chips and dropped the two interactive legs of the legacy include
+  `gui/templates/dashio/testcases/include/platforms.inc.tpl` (rendered per version by
+  `tcView_viewer.tpl:496-511`): the Platform Management link on the label, the per-platform
+  unassign icon with its `remove_plat_msgbox` confirmation, and the `free_platforms[]`
+  multi-select with its Add button. `api/testcases/index.php` already had
+  `add_platform` / `remove_platform` actions and `platformFreeList()` (Refs #915) but the
+  `view` action never returned `platformsFree`, so the viewer could not even render the
+  select. BFF: `platformsProject` is now resolved once before the version loop and reused,
+  each version carries `platformsFree` (project platforms with `enable_on_design=1` minus the
+  ones already linked, per `testcase::getFreePlatforms()`), the `grants` map gained
+  `platform_management` (gate of `$gsmarty_href_platformsView`) and the payload carries
+  `platformsMgmtUrl`. Screen: label link, ✕ + confirm modal and Add modal with the free
+  platforms, gated exactly like the legacy `platRW`, re-reading the payload after each write.
+  13 new i18n keys in all 10 bundles, texts ported from the legacy `locale/<L>/strings.txt`.
+  Verified: Suite 1037 in `tmp/TLU_Test_Cases.md` (15/15 PASS), `php -l` + `node --check`
+  clean, all 10 bundles `json.tool` valid, live en + de, 0 new Error/Warning rows in `events`.
+  (Refs #1037)
+
 - [FEATURE GAP] - #1034: the modern `reqOverview.html` dropped the legacy grouping by Requirement
   Specification and the whole ExtJS grid toolbar. Legacy `lib/requirements/reqOverview.php:282`
   called `$matrix->setGroupByColumnName($labels['req_spec_short'])` and `:289-294` enabled
