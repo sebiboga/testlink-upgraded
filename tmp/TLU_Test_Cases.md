@@ -1537,229 +1537,56 @@ $ diff <(post-fix reorder body, CSRF normalised) <(pre-fix reorder body, CSRF no
 
 ---
 
-## Task — Issue #1037: platforms display in tcView.html (gap vs legacy)
+## Suite 1620 — Task, Issue #1620: expired session on the INITIAL load of Assign Test Project Roles (gap vs legacy `lib/usermanagement/usersAssign.php:23`)
 
-Ports the three legs of the legacy include `gui/templates/dashio/testcases/include/platforms.inc.tpl`
-(rendered per version by `tcView_viewer.tpl:496-511`) into the modern viewer: the
-Platform Management link on the label, per-platform unassign with the legacy
-`remove_plat_msgbox` confirm, and the free-platform multi-select + Add.
+**Precondition / fixture** (freshly imported DB had no test project at all, so the assignment
+form could not be reached):
 
-### Precondition / fixture
-
-`tmp/fixtures_1037.sql` (freshly imported DB has 0 rows in `nodes_hierarchy`,
-`tcversions` and `platforms`):
-
-```
-tproject 900001 "TLU1037 Project" (prefix TLU1037)
-  suite 900002 > tcase 900003 > tcver 900004 (v1) / 900005 (v2)
-  platform 900006 "Linux"    enable_on_design=1   linked to v1
-  platform 900007 "Win 11"   enable_on_design=1   free
-  platform 900008 "MAC OS X" enable_on_design=0   must never be offered
+```sql
+INSERT INTO testprojects (id,notes,color,active,prefix,is_public,api_key)
+  VALUES (2,'issue-1620 fixture','#9BD',1,'ISS1620',1,'a1620aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'),
+         (3,'issue-1620 fixture 2','#9BD',1,'ISS1620B',1,'b1620bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb');
+INSERT INTO nodes_hierarchy (id,name,parent_id,node_type_id,node_order) VALUES
+  (2,'Issue 1620 Project',0,1,1),(3,'Issue 1620 Project B',0,1,2);
+INSERT INTO users (id,login,password,role_id,email,first,last,cookie_string)
+  VALUES (2,'tester1620',MD5('x'),7,'t1620@example.com','Test','User1620','cookie1620abc');
 ```
 
-Log in as `admin`/`admin`, open
-`http://localhost:8082/gui/templates/testcases/tcView.html?tcase_id=900003`.
+Session ageing (`config.inc.php:301` `$tlCfg->sessionInactivityTimeout = 9900` **minutes**, so
+real idling is not testable): age the stored timestamp of the newest session file, then act.
+After a bounce the login mints a NEW `PHPSESSID`, so re-read the newest file before each ageing.
 
-### Cases
-
-| # | Step | Expected | Observed | Result |
-|---|------|----------|----------|--------|
-| 1 | Load the viewer (admin, v1 linked to Linux) | `Platforms` label is a link to Platform Management | `isLink:true`, `href=/gui/templates/platforms/platformsView.html?tproject_id=900001`, `title="Open Platform Management"` | PASS |
-| 2 | Inspect v1 chips | `Linux` chip + ✕ button | `chip-x onclick="confirmRemovePlatform(900004,900006,900009)"` | PASS |
-| 3 | Inspect v2 chips | `None`, no ✕, `+ Add` | `None`, `hasX:false`, `addBtn:true` | PASS |
-| 4 | Click `+ Add` on v1 | Modal lists the free platforms only | options `["Win 11"]` — `Linux` (already linked) and `MAC OS X` (`enable_on_design=0`) excluded | PASS |
-| 5 | Select `Win 11`, click Add | Toast, chip appears, DB row created, Add button disappears | toast `Platform(s) added to this test case version`; chip `Win 11` present; `testcase_platforms` → `(900010,900003,900004,900007)`; free list empty → no Add button | PASS |
-| 6 | Click ✕ on `Linux` | Legacy confirm wording with `%i` = platform name | `Remove Platform` / `Do you want to remove all executions linked to Linux?` | PASS |
-| 7 | Confirm removal | Toast, chip gone, DB row deleted | toast `Platform removed from this test case version`; chip gone; `(900009,…)` deleted | PASS |
-| 8 | Freeze v1 (`UPDATE tcversions SET is_open=0 WHERE id=900004`) and reload | platRW=0: no ✕, no Add; management link still shown (legacy renders it unconditionally) | `frozen:true, hasX:false, addBtn:false, mgmtLink:true` | PASS |
-| 9 | Un-freeze v1 | ✕ and Add come back | identical to case 2/3 | PASS |
-| 10 | Switch locale to German (`&locale=de`) and click ✕ | German legacy wording | `Plattform entfernen` / `Möchten Sie alle mit Win 11 verknüpften Ausführungen entfernen?` | PASS |
-| 11 | All 10 bundles carry the 13 new keys | `python3 -m json.tool` valid + key present | 10/10 bundles `+13 keys`, all valid | PASS |
-| 12 | Regression — `enable_on_design=0` never offered | `MAC OS X` absent from every free list | absent for v1 and v2 | PASS |
-| 13 | Regression — no Error/Warning events created | `events` table unchanged | only the 2 pre-existing `audit_login_succeeded` LOGIN rows (log_level 16) | PASS |
-| 14 | Regression — browser console | no errors/warnings | `<no console messages found>` | PASS |
-| 15 | Regression — `tmp/php_server.log` | no PHP error/warning | `grep -iE "error|warning|fatal|notice"` over 371 lines → no match | PASS |
-
-**15 PASS / 0 FAIL.**
-
-### Defect this suite found (fixed in `929618c9f`)
-
-`platApiPost()` initially posted to `/api/testcases/index.php` without `?action=`.
-The BFF is query-routed, so the request fell through to the catch-all
-`api/testcases/index.php:2874` → HTTP 400 `{"status":"error","message":"Bad request"}`
-and assign always failed (network request `reqid=119` captured as proof). Note that the
-sibling BFF `api/requirements/index.php` used by the requirements modal of the same screen
-IS path-routed, so copying that call shape does not work for `api/testcases/index.php`.
-
-### Screenshots
-
-* `docs/screenshots/issue-1037-tcview-platforms-before.png` — read-only chips, no link/✕/Add
-* `docs/screenshots/issue-1037-tcview-platforms-after.png` — full panel
-* `docs/screenshots/issue-1037-tcview-platforms-remove-confirm.png` — legacy confirm box
-
-### Code-review remediation round (post #1037 review) — cases 14-24
-
-Fixture reset to a deterministic baseline (`tmp/fixtures_1037.sql` is now idempotent and
-restores exactly this state):
-
-```
-v1 (900004, open, NOT executed): Linux      (link 900009)   free: Win 11
-v2 (900005, open, EXECUTED):     Win 11     (link 900012)   free: Linux
-executions 900011 on v2 (platform 900006)
-role 8 (admin) has mgt_modify_tc + testproject_edit_executed_testcases(39)
-role 3 = read-only user tlu1037norights, only mgt_view_tc(6)
+```bash
+SF=$(sudo ls -t /var/lib/php/sessions/ | head -1)
+sudo sed -i "s/lastActivity|i:[0-9]*/lastActivity|i:$(( $(date +%s) - 700000 ))/" /var/lib/php/sessions/$SF
 ```
 
-| # | Step | Expected | Observed | Result |
-|---|------|----------|----------|--------|
-| 14 | **REGRESSION (review MAJOR):** open `tcView.html?tcase_id=900003&tcversion_id=900004` (v1 = NOT the latest), click `+ Add`, select `Win 11`, Add | The toolbar must STAY on v1 — `render()` picks `currentVersion` from `data.requestedTcversionId`, so the refresh must carry `tcversion_id` | Before fix: re-fetch without `tcversion_id` → `requestedTcversionId=0`, `currentVersionVersion=2`, `currentVersionTcversionId=900005` (Edit Version / Print / Export would retarget to v2). After fix: `requestedTcversionId=900004`, `currentVersion.version=1`, `currentVersion.tcversion_id=900004`, 1 version card, chips `[Linux, Win 11]` | PASS |
-| 15 | Same page, ✕ on the new chip | Confirmation modal names the right platform (name resolved from `p.tcplat_link`, not `p.id`) | `confirmRemovePlatform(900004,900011)`; modal `Remove Platform` / `Do you want to remove all executions linked to Win 11?`; modal state `{tcversionId:900004, tcplatLinkId:900011}` (no `platformId` any more) | PASS |
-| 16 | Force a stale link: `$('#rmPlatModal').data('tcplatLinkId', 999999); doRemovePlatform();` | Server rejection is surfaced verbatim and the modal stays open for a retry | toast `Platform link #999999 is no longer assigned to this test case version`; modal `display:flex`; chips unchanged `[Linux, Win 11]` | PASS |
-| 17 | Valid remove after the failed attempt | Toast + chip gone + Add button back (Win 11 free again) | toast `Platform removed from this test case version`; v1 chips `[Linux]`; `currentVersion.tcversion_id=900004` still v1 | PASS |
-| 18 | BFF `remove_platform` with a link id that belongs to ANOTHER version (`tcversion_id=900005` + link `900009`) | 404, nothing deleted (legacy `deletePlatformsByLink` silently no-op'ed and raised an E_WARNING) | `404 {"message":"Platform link #900009 is no longer assigned to this test case version"}`; link 900009 intact | PASS |
-| 19 | BFF `remove_platform` / `add_platform` as the read-only user | 403 on both writes | `403 {"message":"Requires permission: modify test cases"}` twice; DB unchanged | PASS |
-| 20 | Read-only user viewing the test case | Chips without ✕, no `+ Add`, no Platform Management link | `grants platform_management=0 platform_view=0`; v1 `[Linux]` and v2 `[Win 11]` with `canAssignPlatforms=false`, `hasX:false`, `addBtn:false`, `mgmtLink:absent` | PASS |
-| 21 | **REGRESSION (pre-existing BFF bug found here):** version 2 has an execution row | `has_been_executed=true` and the executed branch of `canAssignPlatforms` must evaluate | Before fix: `has_been_executed=false` for BOTH versions because `get_by_id(..., access_key='tcversion_id')` returns a 0-indexed array → the query ran `tcversion_id IN (0,1)`. After fix: admin `v2 executed=True canAssign=True`, read-only `v2 executed=True canAssign=False` | PASS |
-| 22 | `DELETE FROM role_rights WHERE role_id=8 AND right_id=39` (revoke `testproject_edit_executed_testcases`), reload | Executed v2 loses ✕/Add (`canAssignPlatforms=false`) and the BFF refuses the write with 403 | `v2 executed=True canAssign=False`, `v1 canAssign=True`; `add_platform` on v2 → `403 Platform assignment is not allowed on this version (frozen, executed without exec-edit right, or no edit right)`; right restored afterwards | PASS |
-| 23 | Frozen version (`UPDATE tcversions SET is_open=0 WHERE id=900005`) | BFF refuses the write | `403 Platform assignment is not allowed on this version (frozen, executed without exec-edit right, or no edit right)`; `is_open=1` restored | PASS |
-| 24 | **Event Viewer / PHP log after the whole remediation round** | No new Error/Warning | `events` MAX(id) unchanged (10) across bogus + valid removes; `tmp/php_server.log` has no error/warning/fatal lines; browser console: no error/warn messages. Event 10 (E_WARNING `foreach() argument must be of type array\|object, null given`, `testcase.class.php:9885`) was produced by the PRE-FIX silent no-op and is now unreachable from the modern path — filed as a separate `bug` issue | PASS |
+Login: `admin` / `admin`. Screen under test:
+`http://localhost:8082/gui/templates/usermanagement/usersAssignProject.html?tproject_id=2`
+(reachable in the shell via ASIDE → User Management → Assign Test Project Roles).
 
-**Totals for #1037: 24 cases, 24 PASS, 0 FAIL.**
-
-## Modernize — Issue #1740: **Move / Reorder Test Suites** (`suiteMove.html` + `api/suitemove`) — and the 8 bugs it produced during testing
-
-**Precondition**
-
-- App on `http://localhost:8082`, logged in as `admin`/`admin`.
-- MariaDB `127.0.0.1:3306`, db `testlink`, user/pass `testlink`/`testlink`. The DB is reset on every run,
-  so the fixture is re-created first and writes its fresh ids to `tmp/fixture_1740.json`.
-
-  ```
-  $ php tmp/fixtures_1740.php
-  project 'SUITEMOVE1740' (prefix SM1740) = 72
-  project 'SUITEMOVE1740FOREIGN' (prefix SMF0) = 82
-  suite 'Top A' = 73 / 'Top B' = 74 / 'A1' = 75 / 'A2' = 76 / 'A1a' = 77 / 'A1b' = 78
-  test case 'SM1740-1' inside A2 (79 -> 80 -> 81)
-  suite 'Foreign suite' = 83
-  user smvnorights1740 = 8 (role 3  = <no rights>)
-  user smvviewer1740   = 9 (role 5  = guest, read-only)
-  ```
-
-  Tree: `Top A[ A1[ A1a, A1b ], A2[ SM1740-1 ] ]`, `Top B[]`, plus a foreign project holding one suite.
-  **NOTE role 8 is `admin` in this schema, not a read-only role** — the read-only role is 5 (`guest`).
-  A first draft of the fixture used 8 and produced a false "buttons are enabled for a read-only user" FAIL.
-
-- Screen: `http://localhost:8082/gui/templates/testcases/suiteMove.html?tproject_id=72&container_id=73`
-- Entry point: Test Specification toolbar -> **Move / Reorder Test Suites** (`testSpec.html:143`).
-- RBAC context: an isolated browser context logged in as `smvnorights1740` / `smvviewer1740`.
-
-### Defects found and fixed while executing this suite
-
-| Issue | Defect | Severity |
-|---|---|---|
-| #1742 | every suite listed twice in the "Move to..." picker (orphan loop re-walked each suite subtree) | UI |
-| #1743 | `no_change` on first/last decided on `node_order` instead of list position — refused every legitimate "move to first" | UI |
-| #1744 | project name empty in the context bar (`$tproject->testproject_name` no longer exists in 2.0.1) | UI |
-| #1745 | **cycle guard inverted** — moving a container into its own descendant returned 200 and detached the subtree | data integrity |
-| #1746 | a real reorder answered `no_change` (tree order compared against a sorted list) | UI |
-| #1747 | the screen ignored `context.can_modify` and always rendered write actions | rights parity |
-| #1748 | one `E_WARNING: Undefined array key "node_type_id"` per suite row in the Event Viewer | logging |
-| #1750 | the Test Specification toolbar tooltip reused the row-button title | i18n |
-| #1751 | commit `9ca0fa7bb` (another agent) had deleted all 46 `smv.*` keys from the 10 locale bundles | i18n |
-| #1752 | the container picker filtered the **current** container out, so the browser fell back to "Project root" while the table showed that suite's children | UI |
-| #1753 | a no-op move/reorder answered `400 status:error` (siblings answer `200 status:no_change`); the reorder no-op was decided **after** the write | BFF contract |
-| #1754 | `fill()` re-escaped the output of `TLi18n.t()`, so `R&D Suite` was confirmed as `R$$&D Suite` | UI |
-| #1755 | `BUSY` latched forever on an unhandled path - every action button stayed disabled | UI |
-| #1756 | a write answered after the session timeout printed a raw server message instead of the login page | UI |
-| #1757 | the destination picker was O(all suites x depth) - it scanned the whole installation and proved each suite with one query per ancestor | performance |
-| #1758 | a malformed `new_parent_id` was silently degraded into an in-container reorder | BFF contract |
-| #1759 | `403` on a suite/destination of another project leaked the existence of that node | security |
-
-### Test steps and results — error / contract matrix
-
-| # | Step | Expected | Measured | Result |
+| # | Steps | Expected behavior | Observed | Result |
 |---|---|---|---|---|
-| T1 | Load the screen for `container_id=73` | rows `A1, A2`, context bar filled | `A1,A2`, project `SUITEMOVE1740 (SM1740)` | **PASS** |
-| T2 | First row, "Move up" | disabled (already first) | `disabled === true` | **PASS** |
-| T3 | "Move down" on A1 | `200`, order becomes `A2,A1` | `200` -> `A2,A1` | **PASS** |
-| T4 | "Move up" on A1 | `200`, order back to `A1,A2` | `200` -> `A1,A2` | **PASS** |
-| T5 | "Move up" on A1 again | `200 no_change` (**#1753**), neutral notice, no red banner | `200 no_change` -> notice ok | **PASS** |
-| T6 | `reorder` `76,75` | `200`, order `A2,A1` | `200` -> `A2,A1` | **PASS** |
-| T7 | `reorder` back to `75,76` | `200` (**real** change, #1746) | `200` -> `A1,A2` | **PASS** |
-| T8 | `reorder` the same order again | `200 no_change` and **no write** (**#1753**) | `200 no_change`, order unchanged | **PASS** |
-| T9 | `reorder` with 1 id | `400 bad_request` | `400 bad_request` | **PASS** |
-| T10 | `reorder` with a foreign id | `400 bad_request` (not the child list) | `400 bad_request` | **PASS** |
-| T11 | Move A1 under **Top B**, `bottom` | `200`; Top B = `A1` | `200` -> `Top B = A1 (2 sub-suites)` | **PASS** |
-| T12 | Inspect A1's children after T11 | `A1a, A1b` moved with it | `A1a,A1b` | **PASS** |
-| T13 | Move A1 back under Top A | `200` | `200` | **PASS** |
-| T14 | Move Top A inside **itself** | `409 cycle` | `409 cycle` | **PASS** |
-| T15 | Move Top A inside its **descendant** `A1a` | `409 cycle` (**#1745**) | `409 cycle` | **PASS** |
-| T16 | Destination in the foreign project | `404 not_found` (**#1759**) | `404 not_found` | **PASS** |
-| T17 | Node from the foreign project | `404 not_found` (**#1759**) | `404 not_found` | **PASS** |
-| T18 | A **test case** as the node | `404 not_found` ("Suite is not a test suite") | `404 not_found` | **PASS** |
-| T19 | `position=sideways` | `400 bad_request` | `400 bad_request` | **PASS** |
-| T20 | `action=bogus` | `400 unknown_action` | `400 unknown_action` | **PASS** |
-| T21 | `GET` on a write action | `405 method_not_allowed` | `405 method_not_allowed` | **PASS** |
-| T22 | `init` with a non-existent project | `404 not_found` | `404 not_found` | **PASS** |
-| T23 | `init` with a foreign container | `403 forbidden` | `403 forbidden` | **PASS** |
-| T24 | `init` with a test case as container | `404 not_found` | `404 not_found` | **PASS** |
-| T25 | `init` with a non-existent container | `404 not_found` | `404 not_found` | **PASS** |
-| T26 | `?action=suites&exclude_id=75` | A1 + its subtree hidden, **no duplicates** (#1742) | `Top A\|- A2\|Top B` | **PASS** |
-| T27 | `?action=suites` (no exclude) | every suite once, depth-indented, **depth-first pre-order** (a suite is followed by its own children) | `Top A\|- A1\|- - A1a\|- - A1b\|- A2\|Top B` | **PASS** |
-| T28 | Project root view | `Top A, Top B` | `Top A,Top B` | **PASS** |
-| T29 | Empty container (Top B) | 0 rows + empty-state message | `0` rows | **PASS** |
-| T30 | `node_order` density at the root after writes | `1,2` | `1,2` | **PASS** |
+| T1620-01 | Fresh session, open `?tproject_id=2` | grid renders: 2 rows (admin + tester1620), combo populated with the projects, toolbar visible, Save disabled, footer "2 users" | 2 rows, combo 3 options `value="2"`, toolbar `flex`, 4 tabs, Save disabled, footer "2 users" | PASS |
+| T1620-02 | Age the session, reload the screen (`ignoreCache`) | Network: `GET /api/roles/index.php/meta/tproject-roles?tproject_id=2` → **401** `{"code":"session_expired"}` | exactly that (trace `6abd0972dcdc2545503446`, 0.0045 s) | PASS |
+| T1620-03 | Same aged-session reload — **the bug** | legacy behaviour: the user is bounced to `login.php?note=expired&destination=<screen URL>` carrying the localized "Session expired. Please log in again." box | **before the fix**: URL unchanged, toolbar still `flex`, combo EMPTY, `#emptyMsg` = "Select a test project above to manage role assignments.", no toast, Save permanently disabled → dead screen. **after the fix**: URL = `http://localhost:8082/login.php?note=expired&destination=%2Fgui%2Ftemplates%2Fusermanagement%2FusersAssignProject.html%3Ftproject_id%3D2` and the a11y tree shows "Session expired. Please log in again." | PASS (post-fix) / FAIL (pre-fix) |
+| T1620-04 | Age the session while the screen is loaded, then **switch the test project** (`#projectSelect` → "Issue 1620 Project B") | bounce to `login.php?note=expired` (`loadUsers()` path) | bounced, same destination | PASS |
+| T1620-05 | Age the session after editing a role (Save enabled), then click **Save Changes** | bounce to `login.php?note=expired` (write path) | bounced, same destination | PASS |
+| T1620-06 | In-page: `sessionExpired({status:403, responseText:'{"message":"no_permissions_for_action"}'})` and `sessionExpired({status:500, responseText:'boom'})` | both `false`, no toast, no redirect — a 403/500 must never be mistaken for an expiry | both `false`, no side effects | PASS |
+| T1620-07 | Stub `$.getJSON` to reject with 403, then `loadProjects(2)` | `#denyBox` shown ("You do not have enough rights…"), `#emptyMsg` hidden, toolbar+tabs hidden, no redirect | `#denyBox` `block`, `#emptyMsg` none, toolbar/tabs `none`, combo disabled, toast empty | PASS |
+| T1620-08 | Healthy page, select the empty combo value (`""`) + `change` | grid cleared, `#emptyMsg` shown, toolbar untouched (the new disabled-combo guard must not swallow this) | 0 rows, `#emptyMsg` `block`, toolbar `flex` | PASS |
+| T1620-09 | Call `showSessionExpired()`, then dispatch `change` on the now-disabled combo with `$.getJSON` wrapped in a counter | **0** requests issued; page stays fully neutral (combo disabled+empty, tabs/toolbar hidden, all 3 message boxes hidden, Save disabled, footer empty) | 0 requests; combo disabled, tabs/toolbar `none`, empty/disabled/deny boxes `none`, Save disabled, footer `""` | PASS |
+| T1620-10 | Console + server log audit after the whole run | 0 browser errors/warnings, 0 new PHP Warning/Notice/Fatal, no new Error/Warning row in Event Viewer | console: no messages; `grep -icE "PHP (Warning\|Notice\|Fatal\|Deprecated)" logs/userlog0.log logs/userlog1.log` → 0 / 0; newest `events` rows are `log_level 16` `audit_login_succeeded` (own logins) | PASS |
+| T1620-11 | Deactivate both fixture projects (`active=0`), reload → `showDisabled()` branch | toolbar hidden, `#disabledMsg` visible | NOT reachable: admin's global role keeps the projects in the combo (3 options), so `r.projects.length == 0` was never produced. Branch is untouched code | NOT EXERCISED (documented) |
 
-### Test steps and results — session, rights, CSRF, legacy shim, i18n
+**Summary: 10 PASS / 0 FAIL / 1 not exercisable with the available fixture.** The only failing
+case was T1620-03 before commit `4a165cb1f`, which is the gap this issue describes.
 
-| # | Step | Expected | Measured | Result |
-|---|---|---|---|---|
-| T31 | Anonymous `?action=init` | `401 session_expired` | `401 {"code":"session_expired"}` | **PASS** |
-| T32 | Session cookie + `Origin: http://evil.example` | `403` CSRF | `403` | **PASS** |
-| T33 | Session cookie + foreign `Referer` **and** `X-Requested-With` | `403` (XRW never overrides, #1679) | `403` | **PASS** |
-| T34 | No `Origin`, no `Referer`, no XRW | `403` | `403` | **PASS** |
-| T35 | Same `Origin` / XRW only | passes the CSRF guard | guard passed (401 was the stale curl cookie) | **PASS** |
-| T36 | `smvnorights1740` (role 3) opens the screen | "Access denied" state, no rows | "Access denied" heading rendered | **PASS** |
-| T37 | `smvviewer1740` (role 5, guest) opens the screen | "Access denied" (no `mgt_modify_tc`) | "Access denied" heading rendered | **PASS** |
-| T38 | Render the read-only branch (`CAN_MODIFY = false`) | write buttons hidden, navigation kept, notice shown (**#1747**) | 4 -> 1 buttons/row (only "Open as container"), `smv.noModifyRight` visible | **PASS** |
-| T39 | Legacy `lib/ajax/dragdroptreenodes.php?node_id=…&parent_id=…` (GET write) | `302` to the modern screen | redirected to `suiteMove.html`, tree unchanged | **PASS** |
-| T40 | Legacy shim with POST | `405` JSON | `405 {"code":"method_not_allowed",…}` | **PASS** |
-| T41 | Test Specification toolbar button | opens the screen with the selected container | "Move / Reorder Test Suites" present, correct tooltip (#1750) | **PASS** |
-| T42 | Locale switch to **ro** | title, headers, buttons, footer, empty state translated | all translated incl. `smv.noModifyRight` | **PASS** |
-| T43 | Move modal opened from a row | destination excludes the suite and its subtree | `Rădăcina proiectului\|Top A\|- A2\|Top B` | **PASS** |
-| T44 | Cancel / mask click | modal closes, nothing written | `modal-mask` class removed, tree unchanged | **PASS** |
-| T45 | Browser console | no JS errors | only Chrome's "Failed to load resource" lines for the **intentional** 4xx probes above; 0 script errors | **PASS** |
-| T46 | `events` table after the whole run | 0 new Error/Warning rows | 0 rows above id 214 (**#1748** was 8+ rows) | **PASS** |
+### Notes for future runs
 
-### Test steps and results — code-review fixes (#1752…#1759)
-
-| # | Step | Expected | Measured | Result |
-|---|---|---|---|---|
-| T47 | `fill('smv.confirmText', { suite: 'R&D "x" \'S\' `t` $v' })` | the name appears **verbatim**, no `$$` (**#1754**) | name intact, no `$` doubling | **PASS** |
-| T48 | The sub-suite count chip | translated and interpolated, never the raw key | `2 sub-suites` | **PASS** |
-| T49 | Open the container selector on `Top A` | `Top A` is listed **and selected** (**#1752**) | selected option = `Top A`, tree correctly indented | **PASS** |
-| T50 | `move` with `new_parent_id=abc` | `400 bad_request`, order untouched (**#1758**) | `400 bad_request`, `A1,A2` unchanged | **PASS** |
-| T51 | `reorder` with `nodelist=75.5,76` and `1e3` | `400 bad_request` (**#1758**) | `400 bad_request` | **PASS** |
-| T52 | `move` a foreign node / into a foreign destination | `404 not_found` on both (**#1759**) | `404` + `404` | **PASS** |
-| T53 | After a **failing** action | every action button usable again (**#1755**) | only the 2 boundary buttons disabled, nothing latched | **PASS** |
-| T54 | No-op through the UI | neutral notice, **not** the caller's "moved up", red banner hidden (**#1753**) | `The order is already like that - nothing to change.` in `.notice.ok` | **PASS** |
-| T55 | Modal for `A1` | destination excludes `A1` **and its whole subtree** | `Project root (top level)\|Top A\|- A2\|Top B` | **PASS** |
-| T56 | `?action=suites` query count on a project tree | one query per visited level, **no** per-suite ownership query (**#1757**) | depth-first down-walk, correct order, no duplicates, terminates on a corrupt tree | **PASS** |
-| T57 | `events` table after the review-fix run | 0 new Error/Warning rows | 0 rows above id 214 | **PASS** |
-
-**57 executed — 57 PASS, 0 FAIL, 0 N/A.**
-
-### Notes for re-runs
-
-- **N1 — role 8 is `admin`.** For a read-only user use role 5 (`guest`); role 3 (`<no rights>`) cannot even open the
-  screen. Both land on "Access denied" because the screen requires `mgt_modify_tc`, so the read-only *render* path
-  (T38) has to be exercised by forcing the flag, not by finding a user that can see but not modify.
-- **N2 — node_order is not dense after suite creation.** 2.0.1 assigns the next free counter value, so any
-  boundary assertion must use the position in the ordered child list (that is exactly what #1743 fixed).
-- **N3 — the fixture deletes and recreates everything by name**, so ids change on every run: always read
-  `tmp/fixture_1740.json` instead of hard-coding them.
-- **N4 — `lib/ajax/dragdroptreenodes.php` is a shim**: a GET that used to mutate now redirects to the modern
-  screen. If a future test expects the legacy write to happen, that expectation is obsolete by design.
-- **N5 — the 10 locale bundles are append-only and shared with concurrent CI agents.** A wholesale conflict
-  resolution silently deleted the `smv.*` keys once already (#1751); always merge by key union and re-check
-  `python3 -m json.tool` plus a key count after touching them.
+- `$tlCfg->log_level = 'ERROR'` (`config.inc.php:336`) suppresses the `bffEnforceSession()`
+  INFO trail, so a 401 leaves **no** server-log line — use the Network-panel status plus the
+  JSON body as evidence.
+- The Dashio shell (`index.php`) calls only `doSessionStart()`, never `checkSessionValid()`, so
+  a shell tab left open past the timeout still renders its menu and any aside link loads a
+  screen that must bounce by itself — that is why the client-side handling exists at all.

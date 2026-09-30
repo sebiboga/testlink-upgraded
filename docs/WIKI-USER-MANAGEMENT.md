@@ -431,6 +431,36 @@ Test project roles control what a user can do **within a specific test project**
 - For public projects, any user with a valid global role can participate unless explicitly denied
 - For private projects, users must be explicitly assigned a role
 
+### Expired Session (issues #1614 / #1620)
+
+Legacy opened this screen through `usersAssign.php:23 testlinkInitPage(...)`, which ran
+`checkSessionValid()` **before** the first render, so a session idle past
+`config_get("sessionInactivityTimeout")` minutes never painted the assignment form — it went
+straight to `login.php?note=expired&destination=…`, carrying the localized *“Session expired.
+Please log in again.”* box.
+
+The modern screen reproduces that behaviour on **every** request it makes:
+
+| request | on `401 {"code":"session_expired"}` |
+|---|---|
+| `GET /api/roles/index.php/meta/tproject-roles` (first request of the page) | error toast + bounce to the login page |
+| project switch (`loadUsers`) | same |
+| **Save Changes** (`saveAssignments`) | same |
+
+Between the toast and the redirect the page is put in the legacy *“nothing to act on”* state: the
+tab bar, the toolbar and the grid are hidden, the **Test Project** combo is emptied and disabled,
+Save is disabled and the footer is cleared — no misleading *“Select a test project above…”* box is
+shown and no dead control can be clicked. A **403** is unaffected: it still shows the *“You do not
+have enough rights…”* deny box. The helper keys on the HTTP status, so an *absent* session
+(`401 {"message":"Not authenticated"}`, no `code` key) is handled too.
+
+Because the Dashio shell never refreshes the session timer, this is the normal fate of a shell tab
+left open past the timeout — every aside link into a modern screen bounces by itself.
+
+![session expired bounce](screenshots/issue-1620-usersAssignProject-session-expired.png)
+
+Details: [Task-Issue-1620-Assign-Project-Roles-Initial-Load-Session-Expired.md](Task-Issue-1620-Assign-Project-Roles-Initial-Load-Session-Expired.md)
+
 ---
 
 ## 4. Assign Test Plan Roles
