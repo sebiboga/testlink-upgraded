@@ -5762,5 +5762,9 @@
   "smv.stErrorMsg": "Не удалось загрузить дерево тестовых наборов.",
   "footers.suiteMove": "TestLink 2.0.1 - Переместить / отсортировать тестовые наборы",
   "smv.noModifyRight": "Вы можете видеть этот порядок, но не можете его изменить.",
-  "smv.stNoChangeMsg": "Порядок уже такой - менять нечего."
+  "smv.stNoChangeMsg": "Порядок уже такой - менять нечего.",
+  "tcview.tplanUsage": "Использование в тест-планах",
+  "tcview.tplanUsagePlan": "Тест-план",
+  "tcview.tplanUsagePlatform": "Платформа",
+  "tcview.gotoExecute": "Перейти к выполнению"
 }

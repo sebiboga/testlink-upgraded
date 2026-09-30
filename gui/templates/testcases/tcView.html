@@ -247,7 +247,7 @@ function loadView() {
     showError(TLi18n.t('tcview.errNoId'));
     return;
   }
-  $.get('/api/testcases/index.php', { action: 'view', tcase_id: tcaseId, tcversion_id: tcversionId })
+  $.get('/api/testcases/index.php', { action: 'view', tcase_id: tcaseId, tcversion_id: tcversionId, editOnExec: execEditMode ? 1 : 0 })
     .done(function (r) {
       $('#loadingBox').hide();
       if (r.status !== 'ok') { showError(r.message || TLi18n.t('tcview.errLoad')); return; }
@@ -562,8 +562,61 @@ function renderVersion(v) {
     }
   }
 
+  // Test Plan usage (issue #1038) - modern port of legacy
+  // gui/templates/dashio/testcases/include/quickexec.inc.tpl as included per
+  // version panel by tcView_viewer.tpl:599-605 ("editOnExec" excluded there;
+  // the BFF already returns enabled=false in that mode).
+  h += renderTplanUsage(v);
+
   h += '</div></div>';
   return $(h);
+}
+
+/* ============ Test Plan usage (issue #1038) ============
+   Legacy table: columns [Version | Test Plan (+ execute link) | Platform],
+   one row per (version, plan, platform) link, platform column only when the
+   test project has platforms ($gui->platforms != null in quickexec.inc.tpl).
+   The legacy anchor went to frmWorkArea.php?feature=executeTest
+   (tcView_viewer.tpl:53); the modern resolution of that route is
+   gui/templates/execute/execTest.html (lib/general/frmWorkArea.php:42) and it
+   must carry the plan id of the row, otherwise the shortcut opens whatever
+   plan happens to be in the session. */
+function renderTplanUsage(v) {
+  var tu = (data && data.tplanUsage) ? data.tplanUsage : null;
+  if (!tu || !tu.enabled || !tu.rows || !tu.rows.length) { return ''; }
+  var vid = parseInt(v.tcversion_id, 10) || 0;
+  var rows = tu.rows.filter(function (r) {
+    return parseInt(r.tcversion_id, 10) === vid;
+  });
+  if (!rows.length) { return ''; }
+  var withPlatform = Object.keys(data.platformsProject || {}).length > 0;
+  var h = '<div class="field-label"><i class="fa fa-clipboard-list"></i> '
+    + esc(TLi18n.t('tcview.tplanUsage')) + '</div>';
+  h += '<table class="steps"><thead><tr>';
+  h += '<th style="width:60px;">' + esc(TLi18n.t('tcview.version')) + '</th>';
+  h += '<th>' + esc(TLi18n.t('tcview.tplanUsagePlan')) + '</th>';
+  if (withPlatform) {
+    h += '<th>' + esc(TLi18n.t('tcview.tplanUsagePlatform')) + '</th>';
+  }
+  h += '</tr></thead><tbody>';
+  rows.forEach(function (r) {
+    var tpid = parseInt(r.testplan_id, 10) || 0;
+    var href = '/gui/templates/execute/execTest.html?feature=executeTest'
+      + '&tproject_id=' + (data.tproject ? parseInt(data.tproject.id, 10) : 0)
+      + '&tplan_id=' + tpid;
+    h += '<tr><td class="step-num">' + esc(r.version) + '</td><td>'
+      + esc(r.tplan_name)
+      + ' <a href="' + esc(href) + '" target="_blank" rel="noopener"'
+      + ' title="' + esc(TLi18n.t('tcview.gotoExecute')) + '">'
+      + '<i class="fa fa-play" style="color:#2d8e88;"></i></a></td>';
+    if (withPlatform) {
+      h += '<td>' + (parseInt(r.platform_id, 10) > 0
+        ? esc(r.platform_name || ('#' + r.platform_id)) : '') + '</td>';
+    }
+    h += '</tr>';
+  });
+  h += '</tbody></table>';
+  return h;
 }
 
 function metaItem(label, value) {
@@ -696,7 +749,7 @@ function platApiPost(action, body, cb) {
    retarget the whole toolbar (Edit Version / Print / Export / Add to Test Plan)
    to the LATEST version instead of the one the user opened. */
 function platRefreshMain() {
-  var req = { action: 'view', tcase_id: parseInt(data.tcase.id, 10) };
+  var req = { action: 'view', tcase_id: parseInt(data.tcase.id, 10), editOnExec: execEditMode ? 1 : 0 };
   var rid = parseInt((data && data.requestedTcversionId) || 0, 10);
   if (rid > 0) { req.tcversion_id = rid; }
   $.get('/api/testcases/index.php', req)

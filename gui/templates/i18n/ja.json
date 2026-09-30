@@ -5762,5 +5762,9 @@
   "smv.stErrorMsg": "テストスイートツリーを読み込めませんでした。",
   "footers.suiteMove": "TestLink 2.0.1 - テストスイートの移動／並べ替え",
   "smv.noModifyRight": "この順序は表示できますが、変更することはできません。",
-  "smv.stNoChangeMsg": "すでにこの順序です - 変更する内容はありません。"
+  "smv.stNoChangeMsg": "すでにこの順序です - 変更する内容はありません。",
+  "tcview.tplanUsage": "テストプランでの使用状況",
+  "tcview.tplanUsagePlan": "テストプラン",
+  "tcview.tplanUsagePlatform": "プラットフォーム",
+  "tcview.gotoExecute": "実行へ移動"
 }

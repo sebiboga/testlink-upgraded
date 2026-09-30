@@ -5766,5 +5766,9 @@
   "smv.stErrorMsg": "Arborele suitelor de test nu a putut fi încărcat.",
   "footers.suiteMove": "TestLink 2.0.1 - Mută / reordonează suite de test",
   "smv.noModifyRight": "Puteți vedea această ordine, dar nu o puteți modifica.",
-  "smv.stNoChangeMsg": "Ordinea este deja asa - nu este nimic de schimbat."
+  "smv.stNoChangeMsg": "Ordinea este deja asa - nu este nimic de schimbat.",
+  "tcview.tplanUsage": "Utilizare în planurile de test",
+  "tcview.tplanUsagePlan": "Plan de test",
+  "tcview.tplanUsagePlatform": "Platformă",
+  "tcview.gotoExecute": "Mergi la Execuție"
 }

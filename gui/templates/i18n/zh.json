@@ -5742,5 +5742,9 @@
   "smv.stErrorMsg": "无法加载测试套件树。",
   "footers.suiteMove": "TestLink 2.0.1 - 移动 / 重新排序测试套件",
   "smv.noModifyRight": "您可以查看此顺序，但不能更改。",
-  "smv.stNoChangeMsg": "顺序已经如此 - 无需更改。"
+  "smv.stNoChangeMsg": "顺序已经如此 - 无需更改。",
+  "tcview.tplanUsage": "测试计划使用情况",
+  "tcview.tplanUsagePlan": "测试计划",
+  "tcview.tplanUsagePlatform": "平台",
+  "tcview.gotoExecute": "转到执行"
 }

@@ -959,6 +959,52 @@ if ($action === 'view') {
         // relations not available
     }
 
+    // Issue #1038: "Test Plan usage" (legacy quickexec.inc.tpl) - one row per
+    // (tcversion, test plan, platform) link of THIS test case, exactly what
+    // testcase::get_linked_versions() (lib/functions/testcase.class.php:1706)
+    // returns for the viewer with default filters (exec_status=ALL,
+    // active_status=ALL -> no extra WHERE condition). The legacy SQL joins
+    // testplan_tcversions TTC + nodes_hierarchy NHB (plan name) and filters
+    // NH.parent_id = <tcase id>; the platform name is resolved here instead of
+    // through $gui->platforms so the client can decide whether to render the
+    // Platform column (legacy: only when the project has platforms).
+    $tplanUsageRows = [];
+    $specCfg = config_get('spec_cfg');
+    // legacy gate (tcView_viewer.tpl:599): config switch AND not editOnExec
+    $tplanUsageEnabled = (is_null($specCfg) || !property_exists($specCfg, 'show_tplan_usage')
+        || intval($specCfg->show_tplan_usage) === 1)
+        && (getIntParam('editOnExec') !== 1);
+    if ($tplanUsageEnabled) {
+        try {
+            $tuTables = tlObjectWithDB::getDBTables(
+                array('testplan_tcversions', 'tcversions', 'nodes_hierarchy', 'platforms'));
+            $tuSql = " SELECT TTC.tcversion_id, TCV.version, TTC.testplan_id, " .
+                     "        NHT.name AS tplan_name, TTC.platform_id, PL.name AS platform_name " .
+                     " FROM {$tuTables['testplan_tcversions']} TTC " .
+                     " JOIN {$tuTables['nodes_hierarchy']} NH ON NH.id = TTC.tcversion_id " .
+                     " JOIN {$tuTables['tcversions']} TCV ON TCV.id = TTC.tcversion_id " .
+                     " JOIN {$tuTables['nodes_hierarchy']} NHT ON NHT.id = TTC.testplan_id " .
+                     " LEFT JOIN {$tuTables['platforms']} PL ON PL.id = TTC.platform_id " .
+                     " WHERE NH.parent_id = {$tcaseId} " .
+                     " ORDER BY TCV.version, NHT.name";
+            $tuRes = $db->get_recordset($tuSql);
+            if (!is_null($tuRes)) {
+                foreach ($tuRes as $tu) {
+                    $tplanUsageRows[] = [
+                        'tcversion_id' => intval($tu['tcversion_id']),
+                        'version' => intval($tu['version']),
+                        'testplan_id' => intval($tu['testplan_id']),
+                        'tplan_name' => strval($tu['tplan_name']),
+                        'platform_id' => intval($tu['platform_id']),
+                        'platform_name' => strval($tu['platform_name'] ?? ''),
+                    ];
+                }
+            }
+        } catch (Exception $e) {
+            $tplanUsageRows = [];
+        }
+    }
+
     // test plans available on this project (for "Add to test plan" button)
     $hasTestPlans = false;
     $tpTables = tlObjectWithDB::getDBTables(array('nodes_hierarchy', 'testplans'));
@@ -1019,6 +1065,13 @@ if ($action === 'view') {
         'relations' => $relations,
         'grants' => $grants,
         'hasTestPlans' => $hasTestPlans,
+        // Issue #1038: legacy quickexec.inc.tpl data. 'enabled' is FALSE when
+        // spec_cfg->show_tplan_usage is off or the viewer runs inside the
+        // Set Results popup (legacy show_mode == 'editOnExec').
+        'tplanUsage' => [
+            'enabled' => $tplanUsageEnabled,
+            'rows' => $tplanUsageRows,
+        ],
         'requestedTcversionId' => $tcversionId,
     ]);
 }

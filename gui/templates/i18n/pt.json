@@ -5762,5 +5762,9 @@
   "smv.stErrorMsg": "Não foi possível carregar a árvore de suites de teste.",
   "footers.suiteMove": "TestLink 2.0.1 - Mover / reordenar suites de teste",
   "smv.noModifyRight": "Você pode ver esta ordem mas não pode alterá-la.",
-  "smv.stNoChangeMsg": "A ordem já é essa - não há nada a alterar."
+  "smv.stNoChangeMsg": "A ordem já é essa - não há nada a alterar.",
+  "tcview.tplanUsage": "Uso em planos de teste",
+  "tcview.tplanUsagePlan": "Plano de teste",
+  "tcview.tplanUsagePlatform": "Plataforma",
+  "tcview.gotoExecute": "Ir para Execução"
 }

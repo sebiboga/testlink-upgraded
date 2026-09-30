@@ -5756,5 +5756,9 @@
   "smv.stErrorMsg": "L'arborescence des suites de tests n'a pas pu être chargée.",
   "footers.suiteMove": "TestLink 2.0.1 - Déplacer / réordonner les suites de tests",
   "smv.noModifyRight": "Vous pouvez voir cet ordre mais vous ne pouvez pas le modifier.",
-  "smv.stNoChangeMsg": "L'ordre est déjà ainsi - il n'y a rien à changer."
+  "smv.stNoChangeMsg": "L'ordre est déjà ainsi - il n'y a rien à changer.",
+  "tcview.tplanUsage": "Utilisation dans les plans de test",
+  "tcview.tplanUsagePlan": "Plan de test",
+  "tcview.tplanUsagePlatform": "Plateforme",
+  "tcview.gotoExecute": "Aller à Exécuter"
 }
