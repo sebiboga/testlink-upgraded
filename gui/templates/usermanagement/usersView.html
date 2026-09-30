@@ -224,6 +224,8 @@ var canViewEvents = false;
 var defaultRoleID = 0;
 var collapsedGroups = {};
 var showTechCols = false;
+var sessionDead = false;
+var redirectTimer = null;
 
 function esc(s) { var d = document.createElement('div'); d.appendChild(document.createTextNode(s)); return d.innerHTML; }
 
@@ -264,7 +266,12 @@ $(function() {
 // assign-project / assign-plan) only render when their grant is 'yes',
 // exactly like the legacy menu.inc.tpl.
 function loadGrants(ctx) {
+  // Issue #1760: never touch the screen again once the session is known dead.
+  if (sessionDead) { return; }
   $.getJSON(API + '/meta/grants', function(r) {
+    // A request already in flight when the 401 landed must not repaint the
+    // neutralised screen from a response the dead session can no longer own.
+    if (sessionDead) { return; }
     var g = r.grants || {};
     if (g.user_mgmt !== 'yes') {
       showNoAccess();
@@ -279,6 +286,10 @@ function loadGrants(ctx) {
     // reset-password action (usersEdit.tpl:169-178 parity).
     loadMeta(function() { loadUsers(); });
   }).fail(function(xhr) {
+    // Issue #1760: this is the FIRST request of the screen - the one legacy guarded
+    // pre-render through testlinkInitPage() -> checkSessionValid(). A stale session must
+    // bounce to login.php?note=expired, NOT be reported as a missing mgt_users right.
+    if (sessionExpired(xhr)) { return; }
     if (xhr && xhr.status === 403) { showNoAccess(); return; }
     showNoAccess();
   });
@@ -288,6 +299,74 @@ function showNoAccess() {
   $('#tabsBar').hide();
   $('#mainLayout').hide();
   $('#denyBox').show();
+}
+
+// Legacy parity: checkSessionValid() (lib/functions/common.php:281-310), run by
+// testlinkInitPage() on every legacy page, bounced a session idle for longer than
+// config_get("sessionInactivityTimeout") minutes to
+// login.php?note=expired&destination=<this screen>, with the localized
+// "Session expired. Please log in again." box the modern login screen already renders for
+// that note (gui/templates/auth/login.html:145-155). Legacy redirected BEFORE the first
+// render (usersView.php testlinkInitPage), so no form was ever painted against a dead
+// session. The BFF cannot redirect, so it answers 401 {"code":"session_expired"}
+// (bffEnforceSession, api/users/index.php:37 - added by this issue - and
+// api/roles/index.php:40) and the screen performs the bounce here, on EVERY request path it
+// makes, so a stale tab can neither read the user catalog nor create/update/delete users
+// (issue #1760). Mirrors usersAssignProject.html:325-364 / usersAssignPlan.html:579-613.
+//
+// The STATUS is the primary signal, not the body: an entirely absent session answers 401
+// {"status":"error","message":"Not authenticated"} with NO "code" key at all
+// (api/users/index.php:27), so a code-only test would let that 401 fall through into the
+// "you do not have the mgt_users right" deny box - a rights problem that does not exist.
+// The body code stays as a second trigger for a non-401 transport carrying the payload.
+function sessionExpired(xhr) {
+  if (!xhr) return false;
+  var code = '';
+  try { code = (JSON.parse(xhr.responseText) || {}).code || ''; } catch (e) {}
+  if (xhr.status !== 401 && code !== 'session_expired') return false;
+  showSessionExpired();
+  toast(TLi18n.t('auth.sessionExpired'), true);
+  // Legacy redirected the TOP window ("top.location"), and the Dashio shell loads content
+  // screens inside an iframe - redirecting only this window would leave the stale shell and
+  // its menu on screen (staticPage.html:96 pattern).
+  var dest = window.location.pathname + window.location.search;
+  var target = window.location.origin + '/login.php?note=expired&destination=' +
+               encodeURIComponent(dest);
+  // Two requests can 401 in the same tick (loadGrants fires loadMeta, which fires loadUsers,
+  // while the grid Refresh button may already be in flight): re-arm ONE timer instead of
+  // stacking two navigations (usersAssignProject.html:355-358).
+  clearTimeout(redirectTimer);
+  redirectTimer = setTimeout(function() {
+    try { if (window.self !== window.top) { window.top.location.href = target; }
+          else { window.location.href = target; } } catch (e) { window.location.href = target; }
+  }, 600);
+  return true;
+}
+
+// Issue #1760: terminal "session is gone" state, same shape as showNoAccess(): every
+// interactive control is dropped so nothing on the page can issue another request against the
+// dead session, and none of the empty/deny boxes is shown - a deny box would read as "you do
+// not have the mgt_users right" and send the user chasing a configuration problem they do not
+// have. Deliberately hides the tab bar too: legacy redirected before the menu could be
+// clicked, and every one of those links loads a screen that would now 401 the same way.
+function showSessionExpired() {
+  sessionDead = true;
+  $('#demoBanner').hide();
+  $('#tabsBar').hide();
+  $('#mainLayout').hide();
+  $('#denyBox').hide();
+  $('#userModal').modal('hide');
+  $('#gridToolbarInfo').empty();
+  $('#footerText').empty();
+  if (table) { table.destroy(); table = null; }
+  $('#usersTable tbody').empty();
+  // Drop the cached model too, not just the rows: a later renderTable() would otherwise
+  // resurrect the previous session's user catalog over the neutralised screen.
+  allItems = [];
+  roleMap = {};
+  localeMap = [];
+  authMeta = null;
+  canViewEvents = false;
 }
 
 function renderTabs(ctx, g) {
@@ -319,7 +398,9 @@ function gotoExport() {
 }
 
 function loadMeta(cb) {
+  if (sessionDead) { return; }
   $.getJSON(API + '/meta/roles', function(r) {
+    if (sessionDead) { return; }
     var sel = $('#editRole');
     sel.empty();
     // Legacy parity: usersEdit.tpl:240-243 preselects $tlCfg->default_roleid
@@ -330,20 +411,28 @@ function loadMeta(cb) {
       roleMap[role.id] = role.name;
       sel.append('<option value="' + role.id + '">' + esc(role.name) + '</option>');
     });
+  }).fail(function(xhr) {
+    // Issue #1760: a 401 must bounce, never leave the create-modal role combo silently
+    // empty over a dead session.
+    if (sessionExpired(xhr)) { return; }
   });
   $.getJSON(API + '/meta/locales', function(r) {
+    if (sessionDead) { return; }
     localeMap = r.items;
     var sel = $('#editLocale');
     sel.empty();
     $.each(r.items, function(i, loc) {
       sel.append('<option value="' + loc.code + '">' + loc.name + '</option>');
     });
+  }).fail(function(xhr) {
+    if (sessionExpired(xhr)) { return; }
   });
   // Legacy parity: usersEdit.php:440-451 auth_method_opt = "Default
   // (configured desc)" as first option (value '') + one option per
   // authentication domain key (DB/LDAP). noExpDateUsers hides the
   // expiration date field for those logins (usersEdit.php:462-466).
   $.getJSON(API + '/meta/authentication', function(r) {
+    if (sessionDead) { return; }
     authMeta = r;
     var sel = $('#editAuth');
     sel.empty();
@@ -362,7 +451,13 @@ function loadMeta(cb) {
     applyDemoMode();
     // cb() on .always(), not only success, so a /meta/authentication failure
     // still renders the user table (reset icon just degrades to hidden).
-  }).always(function() { if (typeof cb === 'function') { cb(); } });
+  }).fail(function(xhr) {
+    if (sessionExpired(xhr)) { return; }
+  }).always(function() {
+    // Issue #1760: never kick off the user-list load from a dead session.
+    if (sessionDead) { return; }
+    if (typeof cb === 'function') { cb(); }
+  });
 }
 
 // demoMode read-only gating. Mirrors legacy usersEdit.tpl:312-355: with
@@ -384,12 +479,16 @@ function applyDemoModal() {
 }
 
 function loadUsers() {
+  if (sessionDead) { return; }
   $.getJSON(API, function(r) {
+    if (sessionDead) { return; }
     allItems = r.items;
     renderTable(allItems);
     var visible = allItems.filter(function(u) { return u.active != 2; }).length;
     $('#footerText').text(TLi18n.t('user.usersCount', {n: visible}) + ' | ' + TLi18n.t('common.generatedOn') + ' ' + new Date().toLocaleString());
   }).fail(function(xhr) {
+    // Issue #1760: never leave an interactive toolbar over a stale empty grid.
+    if (sessionExpired(xhr)) { return; }
     if (xhr && xhr.status === 403) { showNoAccess(); return; }
   });
 }
@@ -572,6 +671,7 @@ function presetRole(value) {
 }
 
 function showCreateModal() {
+  if (sessionDead) { return; }
   $('#modalTitle').text(TLi18n.t('user.createUser'));
   $('#editUserId').val('');
   $('#btnEventHistory').hide();
@@ -596,7 +696,9 @@ function showCreateModal() {
 }
 
 function editUser(id) {
+  if (sessionDead) { return; }
   $.getJSON(API + '/' + id, function(r) {
+    if (sessionDead) { return; }
     var u = r.item;
     $('#modalTitle').text(TLi18n.t('user.editUser') + ': ' + u.login);
     $('#editUserId').val(u.id);
@@ -624,6 +726,9 @@ function editUser(id) {
     applyDemoModal();
     $('#btnEventHistory').toggle(canViewEvents);
     $('#userModal').modal('show');
+  }).fail(function(xhr) {
+    // Issue #1760: without this the modal simply never opens over a dead session.
+    if (sessionExpired(xhr)) { return; }
   });
 }
 
@@ -643,12 +748,15 @@ function showEventHistory() {
 // the login does not exist.
 function manageUser() {
   var login = $('#manageLogin').val().trim();
-  if (!login) return false;
+  if (!login || sessionDead) return false;
   $.getJSON(API + '?login=' + encodeURIComponent(login), function(r) {
+    if (sessionDead) { return; }
     if (r.status === 'ok' && r.item) {
       editUser(r.item.id);
     }
   }).fail(function(xhr) {
+    // Issue #1760: a 401 is NOT "this login does not exist" - never alert that.
+    if (sessionExpired(xhr)) { return; }
     var msg;
     try {
       var j = JSON.parse(xhr.responseText);
@@ -676,6 +784,7 @@ function canResetPassword(u) {
 }
 
 function resetPassword(id) {
+  if (sessionDead) { return; }
   var u = null;
   $.each(allItems, function(i, x) {
     if (x.id === id) { u = x; return false; }
@@ -701,6 +810,9 @@ function resetPassword(id) {
       alert(msg);
     },
     error: function(xhr) {
+      // Issue #1760: a dead session wrote nothing - the legacy page had bounced long
+      // before, so never report "the password reset failed" for a 401.
+      if (sessionExpired(xhr)) { return; }
       var msg = TLi18n.t('user.resetFailed');
       var code = '';
       try {
@@ -730,6 +842,7 @@ function canGenerateApiKey() {
 }
 
 function generateApiKey(id) {
+  if (sessionDead) { return; }
   var u = null;
   $.each(allItems, function(i, x) {
     if (x.id === id) { u = x; return false; }
@@ -751,6 +864,7 @@ function generateApiKey(id) {
       alert(msg);
     },
     error: function(xhr) {
+      if (sessionExpired(xhr)) { return; }
       var msg = TLi18n.t('user.apiKeyFailed');
       var code = '';
       try {
@@ -771,6 +885,7 @@ function generateApiKey(id) {
 }
 
 function saveUser() {
+  if (sessionDead) { return; }
   var id = $('#editUserId').val();
   var data = {
     login: $('#editLogin').val().trim(),
@@ -821,6 +936,8 @@ function saveUser() {
       toast(userFeedback(r && r.feedback_key, data.login), false);
     },
     error: function(xhr) {
+      // Issue #1760: the user was NOT saved - a dead session committed nothing.
+      if (sessionExpired(xhr)) { return; }
       var msg = TLi18n.t('user.error.save');
       var code = '';
       try {
@@ -839,6 +956,7 @@ function saveUser() {
 }
 
 function deleteUser(id) {
+  if (sessionDead) { return; }
   var u = null;
   $.each(allItems, function(i, x) {
     if (x.id === id) { u = x; return false; }
@@ -852,6 +970,8 @@ function deleteUser(id) {
       toast(userFeedback(r && r.feedback_key, login), false);
     },
     error: function(xhr) {
+      // Issue #1760: the user was NOT deleted - a dead session committed nothing.
+      if (sessionExpired(xhr)) { return; }
       var msg = TLi18n.t('user.error.delete');
       var code = '';
       try {
@@ -868,6 +988,7 @@ function deleteUser(id) {
 }
 
 function toggleActive(id, active) {
+  if (sessionDead) { return; }
   var u = null;
   $.each(allItems, function(i, x) {
     if (x.id === id) { u = x; return false; }
@@ -884,6 +1005,8 @@ function toggleActive(id, active) {
       toast(userFeedback(r && r.feedback_key, login), false);
     },
     error: function(xhr) {
+      // Issue #1760: the user was NOT enabled/disabled - a dead session committed nothing.
+      if (sessionExpired(xhr)) { return; }
       var msg = TLi18n.t('user.error.save');
       var code = '';
       try {

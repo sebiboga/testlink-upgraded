@@ -29,6 +29,23 @@ if (!$userId || $userId <= 0) {
     exit;
 }
 
+// Legacy parity: usersView.php / usersEdit.php / usersExport.php / usersAssign.php all
+// start with testlinkInitPage() -> checkSessionValid() (lib/functions/common.php:531-533,
+// 281-310), which bounced a session idle longer than
+// config_get("sessionInactivityTimeout") minutes to login.php?note=expired&destination=<this
+// screen> BEFORE the first render and before any commit. doSessionStart() alone does not
+// enforce that window, so without this call a tab left open past the timeout kept listing the
+// user catalog AND kept writing users: measured on this repo, a session aged to now-700000 s
+// (window = 9900 min = 594000 s) still answered
+//   GET  /api/users/index.php            -> 200 with the full user list
+//   POST /api/users/index.php (create)   -> 200 and the row was really written
+// while the sibling Roles BFF already refused the same stale session with 401
+// session_expired (api/roles/index.php:40, issue #1614). Placed after the userID gate and
+// before the mgt_users right check and any route dispatch, so it covers EVERY route of this
+// BFF - the four /meta/* reads, the list, ?login=, /{id}, POST, PUT, DELETE,
+// reset-password and generate-apikey (issue #1760).
+bffEnforceSession($db);
+
 $user = tlUser::getByID($db, $userId);
 if (is_null($user)) {
     http_response_code(401);
