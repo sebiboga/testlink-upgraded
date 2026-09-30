@@ -440,12 +440,22 @@ function suitMoveAllSuites(&$db, $tprojectId, $excludeId = 0)
             $walk(intval($r['id']), 0, 0);
         }
     }
+    // Suites whose parent is NOT a suite nor the project root (broken tree
+    // data) are surfaced too, so they can never become unreachable. Parent ids
+    // that are themselves a suite are skipped: those subtrees were already
+    // emitted by the recursive walk above (walking them again duplicated every
+    // suite of the project).
     foreach ($byParent as $parentId => $children) {
-        if ($parentId > 0 && count($children) > 0) {
-            // A suite whose parent is not itself a suite (broken tree data) is
-            // still surfaced at depth 0 so it can never become unreachable.
-            $walk($parentId, 0, 0);
+        if ($parentId <= 0 || count($children) == 0) {
+            continue;
         }
+        $pInfo = suitMoveNodeInfo($db, $parentId);
+        $pType = is_null($pInfo) ? 0 : intval($pInfo['node_type_id']);
+        if ($pType == suitMoveNodeTypeTestsuite($db) ||
+            $pType == suitMoveNodeTypeTestproject($db)) {
+            continue;
+        }
+        $walk($parentId, 0, 0);
     }
 
     return $flat;
