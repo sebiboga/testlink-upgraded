@@ -301,12 +301,19 @@ function suitMoveChain(&$db, $nodeId)
  *
  * Refs #1759: "resolved from a caller-supplied id" only holds for the PROJECT
  * id; the CONTAINER itself is always looked up in the tree, so a container of
- * another project is necessarily reached. Every such answer is therefore 404
- * with the message of a non-existent id - the caller must not be able to tell
- * "exists elsewhere" from "does not exist". The single remaining 403 of this
- * function is the genuine insufficient-rights one.
+ * another project is necessarily reached. Every answer about a caller-supplied
+ * node id is therefore 404 with the message of a non-existent id - the caller
+ * must not be able to tell "exists elsewhere" from "does not exist", nor what
+ * kind of node it is. The remaining 403s are only about a project the caller
+ * itself named (insufficient rights) or about the session's own context.
+ *
+ * @param bool $leakGuard true when the effective project below was derived
+ *                        from a node id the CALLER supplied (or the caller
+ *                        named no project at all). A refusal on such a
+ *                        request must be a 404: the 403 would otherwise be
+ *                        the oracle that node id exists somewhere.
  */
-function suitMoveProject(&$db, &$user, $requestedId, $containerId = 0)
+function suitMoveProject(&$db, &$user, $requestedId, $containerId = 0, $leakGuard = false)
 {
     $tprojectId = intval($requestedId);
 
@@ -316,16 +323,19 @@ function suitMoveProject(&$db, &$user, $requestedId, $containerId = 0)
             out(array('status' => 'error', 'code' => 'not_found',
                       'message' => 'Container not found'), 404);
         }
-        // Only a test suite or the project root may host test suites.
+        // Only a test suite or the project root may host test suites. The
+        // message is the same as for a non-existent id on purpose: naming the
+        // node type would turn this into a "does this id exist at all and what
+        // is it" oracle over every nodes_hierarchy id of the installation.
         if (intval($info['node_type_id']) != suitMoveNodeTypeTestsuite($db) &&
             intval($info['node_type_id']) != suitMoveNodeTypeTestproject($db)) {
             out(array('status' => 'error', 'code' => 'not_found',
-                      'message' => 'Container is not a test suite'), 404);
+                      'message' => 'Container not found'), 404);
         }
         $owner = intval($info['testproject_id']);
         if ($owner <= 0) {
             out(array('status' => 'error', 'code' => 'not_found',
-                      'message' => 'Container has no owning test project'), 404);
+                      'message' => 'Container not found'), 404);
         }
         // The container's real owner always wins and a request naming a
         // different project is refused instead of being silently retargeted.
@@ -335,13 +345,22 @@ function suitMoveProject(&$db, &$user, $requestedId, $containerId = 0)
         // 403 here answered "this id is a real test suite that lives in
         // another project" to a caller who only has rights on the project it
         // named - one 403 per existing suite is enough to enumerate the suite
-        // ids of any project of the installation. The moved node (:653) and
-        // the destination (:745) already answered 404 for the same reason;
-        // this was the last ownership check still answering 403.
+        // ids of any project of the installation. The moved node and the
+        // destination of the move action already answered 404 for the same
+        // reason; this was the last ownership check still answering 403.
         if (intval($requestedId) > 0 && intval($requestedId) !== $owner) {
             out(array('status' => 'error', 'code' => 'not_found',
                       'message' => 'Container not found'), 404);
         }
+        // Naming no project at all is the same leak with one more step: the
+        // container's owner is used as the project, and the rights check below
+        // then answers 403 for the very id the oracle is probing.
+        //
+        // Note that $leakGuard is NOT armed when the caller named a project and
+        // this container belongs to it: there the rights check is about the
+        // caller's OWN project and its 403 is correct, informative and leaks
+        // nothing (the caller named that project itself).
+        $leakGuard = (intval($requestedId) <= 0);
         $tprojectId = $owner;
     }
 
@@ -355,12 +374,19 @@ function suitMoveProject(&$db, &$user, $requestedId, $containerId = 0)
 
     $tprojectMgr = new testproject($db);
     $tproject = $tprojectMgr->get_by_id($tprojectId);
-    if (is_null($tproject)) {
-        out(array('status' => 'error', 'code' => 'not_found',
-                  'message' => 'Test project not found'), 404);
-    }
-
-    if (!$user->hasRight($db, 'mgt_modify_tc', $tprojectId)) {
+    /* Refs #1759: a project id the caller NAMED is the caller's own business -
+       answering 403 for "exists but not yours" and 404 for "does not exist"
+       makes the project id an existence oracle, so the refusal is uniform and
+       existence is no longer observable. A caller that does have rights still
+       gets its 200 below. */
+    if (is_null($tproject) || !$user->hasRight($db, 'mgt_modify_tc', $tprojectId)) {
+        if ($leakGuard) {
+            /* The project in play was derived from a caller-supplied node id,
+               so 403 here would confirm that node id exists somewhere. Same
+               answer as a node id that exists nowhere. */
+            out(array('status' => 'error', 'code' => 'not_found',
+                      'message' => 'Container not found'), 404);
+        }
         out(array('status' => 'error', 'code' => 'forbidden',
                   'message' => 'Insufficient rights on this test project'), 403);
     }
@@ -571,6 +597,8 @@ switch ($action) {
         $requestedId = getInt('tproject_id', 0);
         $containerId = getInt('container_id', 0);
 
+        /* Refs #1759: \$containerId is a caller-supplied node id; the resolver
+           arms its own leak guard for the "no test project named" case. */
         list($tprojectId, $tproject) = suitMoveProject($db, $user, $requestedId, $containerId);
 
         $T = suitMoveTables();
@@ -673,7 +701,11 @@ switch ($action) {
                       'message' => 'Suite has no owning test project'), 404);
         }
 
-        list($tprojectId, $tproject) = suitMoveProject($db, $user, $owner, 0);
+        /* Refs #1759: \$owner was derived from the caller-supplied node_id, so
+           a request that named no test project would otherwise answer 403 for
+           the very id it is probing. */
+        list($tprojectId, $tproject) =
+            suitMoveProject($db, $user, $owner, 0, intval($tprojectId) <= 0);
         $nodeInfo = suitMoveRequireSuite($db, $nodeId, $tprojectId, 'Suite');
 
         $oldParentId = intval($nodeInfo['parent_id']);
@@ -854,7 +886,10 @@ switch ($action) {
                       'message' => 'The node list contains duplicates'), 400);
         }
 
-        list($tprojectId, $tproject) = suitMoveProject($db, $user, $tprojectId, $containerId);
+        /* Refs #1759: same reason as the init action - the resolver arms its
+           own leak guard when no test project was named. */
+        list($tprojectId, $tproject) =
+            suitMoveProject($db, $user, $tprojectId, $containerId);
 
         $current = suitMoveChildren($db, $containerId, $tprojectId);
         // Two different orders are needed: the TREE order (to prove the write
