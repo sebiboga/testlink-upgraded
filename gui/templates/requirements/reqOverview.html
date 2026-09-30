@@ -7,6 +7,7 @@
 <title>Requirements Overview</title>
 <link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
 <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/rowgroup/1.4.1/css/rowGroup.dataTables.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <style>
 * { box-sizing: border-box; }
@@ -32,6 +33,18 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
 .notes { padding: 0 24px 20px; color: #777; font-size: 12px; }
 .footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
 .info-line { color: #aaa; font-size: 12px; margin-left: auto; }
+/* Grid toolbar (legacy exttable.class.php:96-124 showToolbar) */
+.grid-toolbar { background: #2c2f38; padding: 8px 24px; display: flex; gap: 8px; align-items: center; border-top: 1px solid #3a3d47; }
+.tbtn { display: inline-flex; align-items: center; gap: 6px; background: #3a3d47; color: #fff; border: none; border-radius: 4px; padding: 6px 12px; font-size: 12px; cursor: pointer; }
+.tbtn:hover { background: #4ECDC4; color: #fff; }
+.tbtn i { color: #4ECDC4; }
+.tbtn:hover i { color: #fff; }
+.tbtn.active { background: #4ECDC4; color: #fff; }
+.tbtn.active i { color: #fff; }
+/* Group header rows (legacy groupTextTpl '{text} (N Items)', exttable.class.php:591) */
+table.dataTable tbody tr.dtrg-group td { background: #e9f5f3; font-weight: 700; color: #2b6f69; cursor: pointer; padding: 8px 14px; font-size: 12px; }
+table.dataTable tbody tr.dtrg-group td i { margin-right: 6px; color: #4ECDC4; }
+table.dataTable tbody tr.dtrg-group td .gcount { font-weight: 400; color: #6aa; font-size: 11px; margin-left: 6px; }
 </style>
 </head>
 <body>
@@ -40,8 +53,18 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
 
 <div class="toolbar">
   <label class="switch-label"><input type="checkbox" id="allVersions"> <span data-i18n="ro.showAllVersionsBtn">Show all versions</span></label>
-  <button class="btn-teal" onclick="loadOverview()"><i class="fa fa-refresh"></i> <span data-i18n="common.refresh">Refresh</span></button>
   <span class="info-line" id="infoLine"></span>
+</div>
+
+<!-- Legacy grid toolbar parity: lib/requirements/reqOverview.php:289-294
+     (showToolbar, toolbarExpandCollapseGroupsButton, toolbarShowAllColumnsButton,
+     toolbarRefreshButton, showGroupItemsCount) + exttable.class.php:104/109/119 -->
+<div class="toolbar grid-toolbar" id="gridToolbar">
+  <button type="button" class="tbtn" id="btnGroupToggle"><i class="fa fa-chevron-down"></i> <span data-i18n="ro.grid.expandCollapseGroups">Expand/Collapse Groups</span></button>
+  <button type="button" class="tbtn" id="btnShowAllCols"><i class="fa fa-columns"></i> <span data-i18n="ro.grid.showAllColumns">Show all Columns</span></button>
+  <button type="button" class="tbtn" id="btnRefresh"><i class="fa fa-refresh"></i> <span data-i18n="common.refresh">Refresh</span></button>
+  <span style="flex:1"></span>
+  <span id="gridToolbarInfo" style="color:#8a8f99;font-size:12px;"></span>
 </div>
 
 <div class="table-wrap" id="tableWrap" style="display:none;">
@@ -65,6 +88,7 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap.min.js"></script>
+<script src="https://cdn.datatables.net/rowgroup/1.4.1/js/dataTables.rowGroup.min.js"></script>
 <script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
 <script>
 var API = '/api/requirements/index.php';
@@ -75,6 +99,12 @@ var table = null;
 // param wins; when omitted the server falls back to $_SESSION['all_versions'].
 // After the first explicit toggle every subsequent call sends the param again.
 var explicitAllVersions = null;
+// Legacy grid grouping state (lib/requirements/reqOverview.php:282 setGroupByColumnName,
+// exttable.class.php:588 hideGroupedColumn=true -> the grouped column is hidden by
+// default and only revealed by the toolbarShowAllColumnsButton).
+var collapsedGroups = {};
+var showGroupedCol = false;
+var GRID_SPEC_COL = 'spec_path';
 
 $(function() {
   var p = new URLSearchParams(window.location.search);
@@ -91,6 +121,19 @@ $(function() {
   $('#allVersions').on('change', function() {
     explicitAllVersions = $(this).is(':checked');
     loadOverview();
+  });
+  $('#btnRefresh').on('click', function() { loadOverview(); });
+  $('#btnGroupToggle').on('click', toggleGroups);
+  $('#btnShowAllCols').on('click', function() {
+    showGroupedCol = !showGroupedCol;
+    applyGroupedColState();
+  });
+  // Single group expand/collapse on click of a group header row (legacy ExtJS
+  // group header toggle).
+  $(document).on('click', '#reqTable tbody tr.dtrg-group', function() {
+    var key = decodeURIComponent($(this).attr('data-key') || '');
+    if (collapsedGroups[key]) { delete collapsedGroups[key]; } else { collapsedGroups[key] = true; }
+    if (table) table.draw(false);
   });
 });
 
@@ -128,6 +171,7 @@ function renderTable(items) {
   }
   $('#emptyState').hide();
   $('#notesBlock').show();
+  $('#tableWrap').show();
 
   // build columns dynamically depending on cfg flags and linked custom fields
   var cols = [
@@ -157,19 +201,21 @@ function renderTable(items) {
     var created = fmtTs(it.creation_ts_raw);
     var modified = it.modified_never ? TLi18n.t('ro.never')
       : fmtTs(it.modification_ts_raw) + ' (' + escapeHtml(it.modifier || '') + ')';
-    var row = [
-      escapeHtml(it.spec_path),
-      '<i class="fa fa-edit action-btn" title="' + TLi18n.t('ro.openReq') + '" onclick="openReq(' +
+    var row = {
+      // raw value: the grouping key and the visible column text are escaped
+      // on render, so the group header text matches the column content
+      spec_path: it.spec_path,
+      display_title: '<i class="fa fa-edit action-btn" title="' + TLi18n.t('ro.openReq') + '" onclick="openReq(' +
         it.req_id + ',' + it.version_id + ')"></i>' +
         '<a href="javascript:void(0)" onclick="openReq(' + it.req_id + ',' + it.version_id + ')">' +
         escapeHtml(it.display_title) + '</a>',
-      '[v' + it.version + 'r' + it.revision + ']',
-      escapeHtml(created) + ' (' + escapeHtml(it.author || '') + ')',
-      modified,
-      it.frozen
+      version_tag: '[v' + it.version + 'r' + it.revision + ']',
+      created_on: escapeHtml(created) + ' (' + escapeHtml(it.author || '') + ')',
+      modified_on: modified,
+      frozen: it.frozen
         ? '<span class="badge-frozen">' + TLi18n.t('common.yes') + '</span>'
         : '<span class="badge-open">' + TLi18n.t('common.no') + '</span>'
-    ];
+    };
     if (META.expected_coverage_management) {
       var cov;
       if (it.coverage_pct !== null && it.coverage_pct !== undefined) {
@@ -179,29 +225,104 @@ function renderTable(items) {
       } else {
         cov = TLi18n.t('ro.notApplicable') + ' (' + (it.coverage_qty || 0) + '/0)';
       }
-      row.push(cov);
+      row.coverage = cov;
     }
-    row.push(escapeHtml((META.type_labels[it.type] || '')));
-    row.push(escapeHtml((META.status_labels[it.status] || '')));
-    if (META.relations_enabled) row.push(it.relations_qty);
+    row.type = escapeHtml((META.type_labels[it.type] || ''));
+    row.status = escapeHtml((META.status_labels[it.status] || ''));
+    row.relations = it.relations_qty;
     $.each(META.cfields || [], function(j, cf) {
       var v = (it.cfields && it.cfields[cf.name] !== undefined) ? String(it.cfields[cf.name]) : '';
-      row.push('<span style="white-space:normal;word-break:break-word;">' + escapeHtml(v) + '</span>');
+      row['cf:' + cf.name] = '<span style="white-space:normal;word-break:break-word;">' + escapeHtml(v) + '</span>';
     });
     rows.push(row);
   });
 
-  // default sort: coverage desc when available, else status desc (same as legacy)
+  // column descriptors; the header labels are rendered in <thead> (kept with
+  // their data-i18n attributes so the locale switcher keeps working)
+  var columns = [];
+  $.each(cols, function(i, c) {
+    columns.push({
+      data: c.key,
+      // legacy hides the grouped column (exttable.class.php:55 hideGroupedColumn)
+      visible: c.key === GRID_SPEC_COL ? showGroupedCol : true,
+      render: c.key === GRID_SPEC_COL ? escapeHtml : undefined
+    });
+  });
+
+  // default sort: spec path asc (group order, as the legacy ExtJS grid orders
+  // groups) then coverage desc when available, else status desc (reqOverview.php:286-288)
   var covIdx = cols.findIndex(function(c) { return c.key === 'coverage'; });
   var orderIdx = covIdx >= 0 ? covIdx : cols.findIndex(function(c) { return c.key === 'status'; });
 
   table = $('#reqTable').DataTable({
     data: rows,
-    order: [[orderIdx, 'desc']],
+    columns: columns,
+    order: [[0, 'asc'], [orderIdx, 'desc']],
+    // Legacy parity: rows are grouped per Requirement Specification path
+    // (reqOverview.php:282) with a collapsible header showing the item count
+    // (exttable.class.php:591 groupTextTpl '{text} (N Items)').
+    rowGroup: {
+      dataSrc: GRID_SPEC_COL,
+      startRender: function (rows, group) {
+        var isCollapsed = !!collapsedGroups[group];
+        rows.nodes().each(function (r) { r.style.display = isCollapsed ? 'none' : ''; });
+        var n = rows.count();
+        var cnt = TLi18n.t('ro.grid.groupItem', {count: n});
+        if (n !== 1) { cnt = TLi18n.t('ro.grid.groupItems', {count: n}); }
+        return $('<tr/>').attr('data-key', encodeURIComponent(group))
+          .append($('<td/>').append(
+            $('<i/>').addClass('fa ' + (isCollapsed ? 'fa-chevron-right' : 'fa-chevron-down')),
+            ' ' + escapeHtml(group) + '<span class="gcount">' + cnt + '</span>'
+          ));
+      }
+    },
     pageLength: 25,
     lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, 'All']],
     columnDefs: [{targets: '_all', defaultContent: ''}]
   });
+  applyGroupedColState();
+  updateGroupToggleBtn();
+}
+
+// toolbarShowAllColumnsButton: shows/hides the grouped column
+// (exttable.class.php:109 + hideGroupedColumn=true at exttable.class.php:55).
+function applyGroupedColState() {
+  if (!table) return;
+  table.column(0).visible(showGroupedCol);
+  var $btn = $('#btnShowAllCols').toggleClass('active', showGroupedCol);
+  $btn.find('span').text(showGroupedCol
+    ? TLi18n.t('ro.grid.hideGroupedColumn')
+    : TLi18n.t('ro.grid.showAllColumns'));
+}
+
+function allGroupKeys() {
+  var keys = {};
+  if (!table) return keys;
+  var d = table.rows().data().toArray();
+  $.each(d, function(i, r) { keys[r[GRID_SPEC_COL]] = true; });
+  return keys;
+}
+
+function updateGroupToggleBtn() {
+  $('#btnGroupToggle').toggleClass('active', Object.keys(collapsedGroups).length > 0);
+}
+
+function expandAllGroups() {
+  collapsedGroups = {};
+  if (table) table.draw(false);
+  updateGroupToggleBtn();
+  $('#gridToolbarInfo').text(TLi18n.t('ro.grid.groupsExpanded'));
+}
+
+function collapseAllGroups() {
+  collapsedGroups = allGroupKeys();
+  if (table) table.draw(false);
+  updateGroupToggleBtn();
+  $('#gridToolbarInfo').text(TLi18n.t('ro.grid.groupsCollapsed'));
+}
+
+function toggleGroups() {
+  if (Object.keys(collapsedGroups).length > 0) { expandAllGroups(); } else { collapseAllGroups(); }
 }
 
 function openReq(reqId, versionId) {
