@@ -71,6 +71,60 @@ foreach ($a_actions as $the_key => $the_val) {
   }
 }
 $args->action = $action;
+// Refs #1724: Move/Copy Test Cases is modernized. The four legacy actions
+// that rendered gui/templates/dashio/testcases/containerMoveTC.tpl are
+// intercepted here and redirected to the modern Dashio screen, which talks
+// to api/tcmovecopy. This runs AFTER init_args() resolved testsuiteID /
+// tprojectID and AFTER testlinkInitPage() above (so the session is
+// authenticated) but BEFORE the switch that executed the move/copy - the
+// legacy write actions were plain GET-submitted forms with no rights check
+// and no proof that the submitted ids belonged to the source suite.
+//   move_testcases_viewer    -> open the modern screen (no ids yet)
+//   do_move_tcase_set        -> open it with the selection + destination
+//   do_copy_tcase_set        -> idem, copy pending
+//   do_copy_tcase_set_ghost  -> idem, copy as ghost steps pending
+// Only these four actions are taken; every other action of this controller
+// (test suite editing, test case editing, bulk set, deletes, uploads) is
+// untouched and keeps running the 1.9.20 code below.
+$tmvc_modern_actions = array(
+  'move_testcases_viewer' => '',
+  'do_move_tcase_set' => 'move',
+  'do_copy_tcase_set' => 'copy',
+  'do_copy_tcase_set_ghost' => 'copy_ghost',
+);
+if( $action !== null && isset($tmvc_modern_actions[$action]) ) {
+  $tmvc_source = intval($args->testsuiteID ? $args->testsuiteID : $args->objectID);
+  $tmvc_q = array('suite_id' => $tmvc_source);
+  if( intval($args->tprojectID) > 0 ) {
+    $tmvc_q['tproject_id'] = intval($args->tprojectID);
+  }
+
+  // The legacy forms posted the selection either as objectIDs[] or as
+  // objectID; both must survive the redirect as the modern selection.
+  $tmvc_ids = array();
+  if( isset($_REQUEST['objectIDs']) && is_array($_REQUEST['objectIDs']) ) {
+    foreach( $_REQUEST['objectIDs'] as $tmvc_id ) {
+      $tmvc_id = intval($tmvc_id);
+      if( $tmvc_id > 0 ) { $tmvc_ids[] = $tmvc_id; }
+    }
+  } else if( intval($args->objectID) > 0 && $action != 'move_testcases_viewer' ) {
+    $tmvc_ids[] = intval($args->objectID);
+  }
+  if( count($tmvc_ids) > 0 ) {
+    $tmvc_q['tcase_ids'] = $tmvc_ids;
+  }
+  if( intval($args->containerID) > 0 ) {
+    $tmvc_q['target_suite_id'] = intval($args->containerID);
+  }
+  if( $tmvc_modern_actions[$action] !== '' ) {
+    $tmvc_q['pending_action'] = $tmvc_modern_actions[$action];
+  }
+
+  $tmvc_url = '/gui/templates/testcases/containerMoveTC.html?' . http_build_query($tmvc_q);
+  header('Location: ' . $tmvc_url);
+  exit;
+}
+
 
 $smarty->assign('level', $level);
 $smarty->assign('page_title',lang_get('container_title_' . $level));

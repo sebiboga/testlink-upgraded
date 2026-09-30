@@ -2077,6 +2077,19 @@ function getActions(&$gui,$baseURL) {
   // controller is now a session-guarded redirect to this page.
   $actions->tcAutoExec = "/gui/templates/testcases/tcAutoExec.html?{$ctx}";
 
+  // Refs #1724: Move/Copy Test Cases to another Test Suite - modern home of
+  // the legacy popup gui/templates/dashio/testcases/containerMoveTC.tpl
+  // (served by lib/testcases/containerEdit.php: move_testcases_viewer,
+  // do_move_tcase_set, do_copy_tcase_set, do_copy_tcase_set_ghost). The
+  // legacy controller is now a session-guarded 302 shim to this page, which
+  // talks to api/tcmovecopy: every write re-proves mgt_modify_tc on the
+  // OWNING test project and that each submitted id is a test case of the
+  // addressed source suite, which the legacy GET forms did not do.
+  $actions->containerMoveTC = null;
+  if ($tproject_id > 0 && !empty($_SESSION['userID'])) {
+    $actions->containerMoveTC = "/gui/templates/testcases/containerMoveTC.html?{$ctx}";
+  }
+
   // Add/Remove Test Cases modernized screen (Dashio standalone page) - Refs #593
   if ($tplan_id > 0) {
     $actions->planAddTC = "/gui/templates/plans/planAddTCView.html?{$ctx}";

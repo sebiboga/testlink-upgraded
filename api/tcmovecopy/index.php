@@ -300,8 +300,31 @@ if ($action === 'init') {
     // on property access).
     $tprojOpts = $tprojectMgr->getOptions($owning);
 
+    // Label domains come from the same sources the legacy screen used
+    // (containerEdit.php:1030-1040) so the modern table shows the very same
+    // localized Status / Importance / Execution labels.
+    $stLbl = getConfigAndLabels('testCaseStatus', 'code');
+    $imLbl = getConfigAndLabels('execution_type', 'code');
+    $domains = array(
+        'status' => array(0 => ''),
+        'importance' => array(
+            0 => '',
+            HIGH => lang_get('high_importance'),
+            MEDIUM => lang_get('medium_importance'),
+            LOW => lang_get('low_importance'),
+        ),
+        'execution' => array(0 => ''),
+    );
+    foreach ($stLbl['lbl'] as $code => $label) {
+        $domains['status'][(int)$code] = $label;
+    }
+    foreach ($imLbl['lbl'] as $code => $label) {
+        $domains['execution'][(int)$code] = $label;
+    }
+
     tmvc_out(array(
         'status' => 'ok',
+        'domains' => $domains,
         'context' => array(
             'tproject_id' => $owning,
             'tproject_name' => $tp['name'],

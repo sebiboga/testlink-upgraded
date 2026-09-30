@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title data-i18n="tmvc.title">Move/Copy Test Cases</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.header .sub { font-size: 13px; font-weight: 400; opacity: .9; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 8px 20px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-teal:disabled { background: #9adbd7; cursor: not-allowed; }
+.btn-dark { background: #3a3d46; color: #eee; border: none; padding: 8px 20px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-dark:hover { background: #4a4e59; }
+.btn-dark:disabled { background: #5a5d66; color: #8b8d93; cursor: not-allowed; }
+.btn-red { background: #e6605e; color: #fff; border: none; padding: 8px 20px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-red:hover { background: #d24f4d; }
+.btn-red:disabled { background: #eda3a2; cursor: not-allowed; }
+.btn-link-teal { background: none; border: none; color: #2d8e88; cursor: pointer; font-size: 12px; font-weight: 700; padding: 2px 6px; }
+.btn-link-teal:hover { text-decoration: underline; }
+.btn-link-teal:disabled { color: #b6b6b6; cursor: not-allowed; text-decoration: none; }
+.card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px 0; overflow: hidden; }
+.card-head { background: #22242a; color: #fff; padding: 11px 20px; font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.card-head .spacer { flex: 1; }
+.card-body { padding: 18px 22px; }
+.msgbox { margin: 12px 24px 0; border-radius: 6px; padding: 10px 14px; font-size: 13px; display: none; }
+.msgbox.err { background: #fdecea; border: 1px solid #f5c6cb; color: #b94a48; }
+.msgbox.denied { background: #fdecea; border: 1px solid #f5c6cb; color: #b94a48; }
+.msgbox.ok { background: #eefaf9; border: 1px solid #bfe5e2; color: #2d8e88; }
+.msgbox.info { background: #f0f0f0; border: 1px solid #e0e0e0; color: #555; }
+.picker { display: flex; gap: 18px; align-items: flex-end; flex-wrap: wrap; }
+.picker .field { display: flex; flex-direction: column; gap: 4px; }
+.picker .field label { font-size: 12px; font-weight: 700; color: #22242a; }
+.picker select { padding: 7px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; min-width: 320px; background: #fff; }
+.opts { display: flex; gap: 22px; flex-wrap: wrap; margin-top: 14px; }
+.opts label { font-size: 13px; color: #22242a; }
+.opts input[type=checkbox] { margin-right: 7px; }
+.hint { color: #888; font-size: 12px; margin-top: 10px; }
+table.grid { width: 100%; border-collapse: collapse; }
+table.grid th { background: #f7f7f7; color: #22242a; font-size: 12px; text-transform: uppercase; letter-spacing: .5px; text-align: left; padding: 9px 12px; border-bottom: 2px solid #e2e2e2; }
+table.grid td { font-size: 13px; padding: 8px 12px; border-bottom: 1px solid #f0f0f0; color: #333; vertical-align: top; }
+table.grid tr.selected td { background: #f0fbfa; }
+table.grid td.num { color: #888; white-space: nowrap; }
+.chip { display: inline-block; padding: 1px 9px; border-radius: 10px; font-size: 11px; background: #eefaf9; color: #2d8e88; white-space: nowrap; }
+.chip.imp { background: #fdf3e3; color: #b5761b; }
+.empty { padding: 28px 22px; color: #888; font-size: 13px; text-align: center; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); max-width: 60%; }
+.toast.err { background: #e6605e; }
+.loading-overlay { position: fixed; inset: 0; background: rgba(255,255,255,.75); display: none; align-items: center; justify-content: center; font-size: 15px; color: #555; z-index: 9998; }
+@media (max-width: 700px) { .picker select { min-width: 0; width: 100%; } .picker { width: 100%; } }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <i class="fa fa-right-left"></i>
+  <span data-i18n="tmvc.title">Move/Copy Test Cases</span>
+  <span class="sub" id="ctxSuite"></span>
+</div>
+
+<div class="toolbar">
+  <span class="ctx"><span data-i18n="tmvc.testProject">Test Project</span>: <b id="ctxProject">-</b></span>
+  <span class="ctx"><span data-i18n="tmvc.sourceSuite">Source Test Suite</span>: <b id="ctxSuite2">-</b></span>
+  <span style="flex:1"></span>
+  <span id="localeSwitcher"></span>
+</div>
+
+<div class="msgbox info" id="legacyBox"></div>
+<div class="msgbox err" id="errBox"></div>
+<div class="msgbox denied" id="deniedBox"></div>
+<div class="msgbox ok" id="okBox"></div>
+
+<div class="card" id="pickerCard">
+  <div class="card-head"><i class="fa fa-location-arrow"></i> <span data-i18n="tmvc.targetSuite">Destination Test Suite</span></div>
+  <div class="card-body">
+    <div class="picker">
+      <div class="field">
+        <label for="selTarget" data-i18n="tmvc.selectTarget">Select the destination test suite</label>
+        <select id="selTarget"></select>
+      </div>
+    </div>
+    <div class="opts" id="copyOpts">
+      <label><input type="checkbox" id="chkKeywords" checked> <span data-i18n="tmvc.copyKeywords">Copy Keywords</span></label>
+      <label><input type="checkbox" id="chkRequirements" checked> <span data-i18n="tmvc.copyRequirements">Copy Requirement Assignments</span></label>
+    </div>
+    <div class="hint" data-i18n="tmvc.moveHint">The copy options apply to Copy and Copy as Ghost Steps only; a Move relinks the original test cases.</div>
+  </div>
+</div>
+
+<div class="card" id="listCard">
+  <div class="card-head">
+    <i class="fa fa-list-check"></i>
+    <span data-i18n="tmvc.testCases">Test Cases</span>
+    <span class="chip" id="selCount">0</span>
+    <span class="spacer"></span>
+    <button class="btn-link-teal" id="btnAll" data-i18n="tmvc.selectAll">Select all</button>
+    <button class="btn-link-teal" id="btnNone" data-i18n="tmvc.clearSelection">Clear selection</button>
+  </div>
+  <div class="card-body" style="padding:0">
+    <table class="grid" id="tcTable">
+      <thead>
+        <tr>
+          <th style="width:34px"></th>
+          <th style="width:70px" data-i18n="tmvc.externalId">External ID</th>
+          <th data-i18n="tmvc.name">Name</th>
+          <th data-i18n="tmvc.summary">Summary</th>
+          <th style="width:150px" data-i18n="tmvc.status">Status</th>
+          <th style="width:100px" data-i18n="tmvc.importance">Importance</th>
+          <th style="width:120px" data-i18n="tmvc.executionType">Execution</th>
+        </tr>
+      </thead>
+      <tbody id="tcBody"></tbody>
+    </table>
+    <div class="empty" id="emptyBox" style="display:none" data-i18n="tmvc.noCases">This test suite has no test cases to move or copy.</div>
+  </div>
+  <div class="card-body" style="border-top:1px solid #eee; display:flex; gap:12px; flex-wrap:wrap">
+    <button class="btn-teal" id="btnMove"><i class="fa fa-share"></i> <span data-i18n="tmvc.move">Move</span></button>
+    <button class="btn-dark" id="btnCopy"><i class="fa fa-copy"></i> <span data-i18n="tmvc.copy">Copy</span></button>
+    <button class="btn-dark" id="btnGhost"><i class="fa fa-clone"></i> <span data-i18n="tmvc.copyGhost">Copy as Ghost Steps</span></button>
+    <button class="btn-link-teal" id="btnRefresh"><i class="fa fa-rotate"></i> <span data-i18n="tmvc.refresh">Refresh</span></button>
+  </div>
+</div>
+
+<div class="footer"><span data-i18n="footers.containerMoveTC">TestLink 2.0.1 - Move/Copy Test Cases</span></div>
+
+<div class="loading-overlay" id="loadingOverlay"><i class="fa fa-spinner fa-spin"></i> <span id="loadingText" data-i18n="tmvc.loading">Loading...</span></div>
+<div class="toast" id="toast"></div>
+
+<div class="modal fade" id="confirmModal" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" role="document">
+    <div class="modal-content">
+      <div class="modal-header" style="background:#22242a; color:#fff">
+        <h5 class="modal-title" id="cmTitle">-</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body" id="cmBody" style="font-size:13px; color:#333"></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-dark" data-bs-dismiss="modal" id="cmCancel" data-i18n="tmvc.cancel">Cancel</button>
+        <button type="button" class="btn btn-teal" id="cmOk" data-i18n="tmvc.confirm">Confirm</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var ctx = {
+  suiteId: parseInt(qs('suite_id') || '0', 10),
+  tprojectId: parseInt(qs('tproject_id') || '0', 10),
+  legacyAction: qs('pending_action') || '',
+  legacyTarget: parseInt(qs('target_suite_id') || '0', 10),
+  legacyCases: qsAll('tcase_ids[]'),
+  bffUrl: '/api/tcmovecopy/',
+  info: null,
+  denied: false,
+  pending: null
+};
+
+var ACTION_LABEL = { move: 'move', copy: 'copy', copy_ghost: 'copyGhost' };
+
+function qs(name) {
+  var m = new RegExp('[?&]' + name + '=([^&]*)').exec(window.location.search);
+  return m ? decodeURIComponent(m[1].replace(/\+/g, ' ')) : '';
+}
+
+function qsAll(name) {
+  var out = [], rx = new RegExp('[?&]' + name + '=([^&]*)', 'g'), m;
+  while ((m = rx.exec(window.location.search)) !== null) {
+    var v = parseInt(decodeURIComponent(m[1]), 10);
+    if (v > 0) out.push(v);
+  }
+  return out;
+}
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function label(map, code) {
+  if (!map) return '';
+  var k = String(parseInt(code, 10) || 0);
+  return Object.prototype.hasOwnProperty.call(map, k) ? map[k] : k;
+}
+
+function toast(msg, isErr) {
+  var $t = $('#toast').text(msg).toggleClass('err', !!isErr).show();
+  clearTimeout($t.data('tm'));
+  $t.data('tm', setTimeout(function () { $t.hide(); }, 4000));
+}
+
+// Every BFF error code gets its own key; anything unmapped falls back to the
+// generic one so an unknown code never shows a raw slug to the user.
+function errMessage(code, serverMsg, fallbackKey) {
+  var map = {
+    session_expired: 'tmvc.errSession',
+    access_denied: 'tmvc.accessDenied',
+    missing_suite_id: 'tmvc.errMissingSuite',
+    unknown_suite: 'tmvc.errUnknownSuite',
+    unknown_target_suite: 'tmvc.errUnknownTarget',
+    foreign_testcase: 'tmvc.errForeign',
+    no_selection: 'tmvc.errNoSelection',
+    same_target: 'tmvc.errSameTarget',
+    method_not_allowed: 'tmvc.errMethod',
+    move_failed: 'tmvc.errMoveFailed',
+    copy_failed: 'tmvc.errCopyFailed',
+    unknown_action: 'tmvc.errUnknownAction'
+  };
+  var key = map[code] || fallbackKey || 'tmvc.errGeneric';
+  return TLi18n.t(key);
+}
+
+function selectedIds() {
+  return $('input.tmvcChk:checked').map(function () { return parseInt(this.value, 10); }).get();
+}
+
+function syncButtons() {
+  var n = selectedIds().length;
+  var hasTarget = $('#selTarget').val() !== '';
+  $('#selCount').text(n);
+  $('#btnAll').prop('disabled', $('#tcBody tr').length === 0);
+  $('#btnNone').prop('disabled', n === 0);
+  $('#btnMove').prop('disabled', ctx.denied || n === 0 || !hasTarget);
+  $('#btnCopy').prop('disabled', ctx.denied || n === 0 || !hasTarget);
+  $('#btnGhost').prop('disabled', ctx.denied || n === 0 || !hasTarget);
+}
+
+$(function () {
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    boot();
+  });
+
+  $('#btnAll').on('click', function () { $('input.tmvcChk').prop('checked', true).trigger('change'); });
+  $('#btnNone').on('click', function () { $('input.tmvcChk').prop('checked', false).trigger('change'); });
+  $('#btnRefresh').on('click', function () { load(); });
+  $('#selTarget').on('change', syncButtons);
+  $('#tcBody').on('change', 'input.tmvcChk', function () {
+    $(this).closest('tr').toggleClass('selected', this.checked);
+    syncButtons();
+  });
+  $('#btnMove').on('click', function () { ask('move'); });
+  $('#btnCopy').on('click', function () { ask('copy'); });
+  $('#btnGhost').on('click', function () { ask('copy_ghost'); });
+  $('#cmOk').on('click', function () {
+    var action = ctx.pending;
+    bootstrap.Modal.getInstance(document.getElementById('confirmModal')).hide();
+    if (action) run(action);
+  });
+});
+
+function boot() {
+  if (ctx.suiteId < 1) {
+    showErr(TLi18n.t('tmvc.errMissingSuite'));
+    lock();
+    return;
+  }
+  if (ctx.legacyAction) {
+    $('#legacyBox').html('<i class="fa fa-info-circle"></i> ' + esc(TLi18n.t('tmvc.legacyNotice')))
+      .show();
+    if (ctx.legacyCases.length) {
+      $('input.tmvcChk').each(function () {
+        if (ctx.legacyCases.indexOf(parseInt(this.value, 10)) >= 0) {
+          this.checked = true;
+          $(this).closest('tr').addClass('selected');
+        }
+      });
+    }
+  }
+  load();
+}
+
+function load() {
+  $('#errBox, #okBox').hide();
+  $('#loadingOverlay').show();
+  var params = { action: 'init', suite_id: ctx.suiteId };
+  if (ctx.tprojectId) params.tproject_id = ctx.tprojectId;
+
+  $.get(ctx.bffUrl, params)
+    .done(function (r) {
+      if (r.status !== 'ok') { showErr(r.message || TLi18n.t('tmvc.errLoad')); lock(); return; }
+      ctx.info = r;
+      ctx.tprojectId = r.context.tproject_id;
+      render();
+    })
+    .fail(function (xhr) {
+      var r = null;
+      try { r = JSON.parse(xhr.responseText); } catch (e) {}
+      if (r && r.code === 'access_denied') { showDenied(); lock(); return; }
+      showErr(errMessage(r && r.code, r && r.message, 'tmvc.errLoad'));
+      lock();
+    })
+    .always(function () { $('#loadingOverlay').hide(); });
+}
+
+function render() {
+  var c = ctx.info.context;
+  var dom = ctx.info.domains || {};
+  document.title = TLi18n.t('tmvc.title') + ' - ' + c.suite_name;
+  $('#ctxProject').text(c.tproject_name);
+  $('#ctxSuite2').text(c.suite_name);
+  $('#ctxSuite').text(c.suite_name);
+
+  var $sel = $('#selTarget').empty();
+  $('<option></option>').attr('value', '').text(TLi18n.t('tmvc.selectTargetPlaceholder')).appendTo($sel);
+  (ctx.info.targets || []).forEach(function (t) {
+    var $o = $('<option></option>').attr('value', t.id).text(t.name);
+    if (parseInt(t.id, 10) === c.suite_id) $o.prop('disabled', true);
+    $o.appendTo($sel);
+  });
+  // A legacy deep link may pre-select the destination it was going to use.
+  var wanted = ctx.legacyTarget || 0;
+  if (!wanted && ctx.info.targets && ctx.info.targets.length) {
+    wanted = ctx.info.targets.filter(function (t) { return parseInt(t.id, 10) !== c.suite_id; })[0];
+    wanted = wanted ? wanted.id : 0;
+  }
+  if (wanted) $sel.val(String(wanted));
+
+  var rows = ctx.info.testcases || [];
+  var $b = $('#tcBody').empty();
+  rows.forEach(function (t) {
+    var $tr = $('<tr></tr>').attr('data-id', t.tcase_id);
+    $tr.append($('<td></td>').append(
+      $('<input type="checkbox" class="tmvcChk">').attr('value', t.tcase_id)));
+    $tr.append($('<td class="num"></td>').text('#' + t.tcprefix + '-' + t.tcexternalid));
+    $tr.append($('<td></td>').text(t.tcname));
+    $tr.append($('<td></td>').text(t.summary));
+    $tr.append($('<td></td>').append($('<span class="chip"></span>').text(label(dom.status, t.status))));
+    $tr.append($('<td></td>').append($('<span class="chip imp"></span>').text(label(dom.importance, t.importance))));
+    $tr.append($('<td></td>').text(label(dom.execution, t.execution_type)));
+    $b.append($tr);
+  });
+
+  var isEmpty = rows.length === 0;
+  $('#tcTable').toggle(!isEmpty);
+  $('#emptyBox').toggle(isEmpty);
+
+  if (ctx.legacyAction && ACTION_LABEL[ctx.legacyAction]) {
+    $('#btn' + ({ move: 'Move', copy: 'Copy', copy_ghost: 'Ghost' })[ctx.legacyAction])
+      .addClass('pulse');
+  }
+  syncButtons();
+  if (!isEmpty && ctx.legacyCases.length) { syncButtons(); }
+}
+
+function showErr(msg) { $('#errBox').html('<i class="fa fa-exclamation-triangle"></i> ' + esc(msg)).show(); }
+function showOk(msg) { $('#okBox').html('<i class="fa fa-check-circle"></i> ' + esc(msg)).show(); }
+function showDenied() {
+  ctx.denied = true;
+  $('#deniedBox').html('<i class="fa fa-lock"></i> ' + esc(TLi18n.t('tmvc.accessDenied'))).show();
+}
+
+function lock() {
+  $('#selTarget, #chkKeywords, #chkRequirements').prop('disabled', true);
+  syncButtons();
+}
+
+function ask(action) {
+  var ids = selectedIds();
+  if (!ids.length) { showErr(TLi18n.t('tmvc.errNoSelection')); return; }
+  var target = parseInt($('#selTarget').val(), 10);
+  if (!target) { showErr(TLi18n.t('tmvc.errNoTarget')); return; }
+  if (target === ctx.suiteId) { showErr(TLi18n.t('tmvc.errSameTarget')); return; }
+
+  var targetName = $('#selTarget option:selected').text();
+  ctx.pending = action;
+  $('#cmTitle').text(TLi18n.t('tmvc.confirm' + (ACTION_LABEL[action].charAt(0).toUpperCase() + ACTION_LABEL[action].slice(1))));
+  $('#cmBody').html(
+    '<p>' + esc(TLi18n.t('tmvc.confirmBody', { n: ids.length, suite: targetName })) + '</p>' +
+    (action === 'copy_ghost'
+      ? '<div class="msgbox info" style="display:block; margin:10px 0 0"><i class="fa fa-clone"></i> ' +
+        esc(TLi18n.t('tmvc.ghostHint')) + '</div>'
+      : ''));
+  new bootstrap.Modal(document.getElementById('confirmModal')).show();
+}
+
+function run(action) {
+  $('#errBox, #okBox').hide();
+  $('#loadingOverlay').show();
+  var params = {
+    action: action,
+    suite_id: ctx.suiteId,
+    target_suite_id: parseInt($('#selTarget').val(), 10),
+    tcase_ids: selectedIds()
+  };
+  if (action === 'copy' || action === 'copy_ghost') {
+    params.copy_keywords = $('#chkKeywords').is(':checked') ? 1 : 0;
+    params.copy_requirements = $('#chkRequirements').is(':checked') ? 1 : 0;
+  }
+
+  $.ajax({ url: ctx.bffUrl, method: 'POST', data: params, dataType: 'json' })
+    .done(function (r) {
+      if (r.status !== 'ok') { showErr(errMessage(r.code, r.message)); return; }
+      var n = (action === 'move') ? r.moved : r.copied;
+      showOk(TLi18n.t(action === 'move' ? 'tmvc.moveDone' : (action === 'copy_ghost' ? 'tmvc.copyGhostDone' : 'tmvc.copyDone'), { n: n }));
+      ctx.legacyCases = [];
+      load();
+    })
+    .fail(function (xhr) {
+      var r = null;
+      try { r = JSON.parse(xhr.responseText); } catch (e) {}
+      if (r && r.code === 'access_denied') { showDenied(); lock(); return; }
+      showErr(errMessage(r && r.code, r && r.message));
+    })
+    .always(function () { $('#loadingOverlay').hide(); });
+}
+</script>
+</body>
+</html>
