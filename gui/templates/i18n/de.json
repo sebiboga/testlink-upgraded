@@ -5823,5 +5823,6 @@
   "covt.chip.reqsOn": "Anforderungen aktiviert",
   "covt.chip.reqsOff": "Anforderungen deaktiviert",
   "covt.chip.mgrOn": "Schnittstelle aktiv",
-  "covt.chip.mgrOff": "Schnittstelle aus"
+  "covt.chip.mgrOff": "Schnittstelle aus",
+  "covt.coverageFail": "Die Abdeckung konnte nicht geladen werden."
 }

@@ -111,28 +111,13 @@ set_exception_handler(function ($e) {
 });
 
 $T = tlObjectWithDB::getDBTables(array(
-    'nodes_hierarchy', 'node_types', 'req_specs', 'requirements',
+    'nodes_hierarchy', 'req_specs', 'requirements',
     'req_versions', 'req_coverage', 'testprojects', 'tcversions'));
 
 const NODE_TESTPROJECT = 1;
 const NODE_REQ_SPEC = 6;
 const NODE_REQUIREMENT = 7;
 const NODE_REQ_VERSION = 8;
-
-/** node_types.id => description for the ids this screen cares about. */
-function nodeTypes($db)
-{
-    static $map = null;
-    if (!is_null($map)) { return $map; }
-    $map = array();
-    $sql = "SELECT id, description FROM {$GLOBALS['T']['node_types']} WHERE id IN ("
-        . NODE_TESTPROJECT . ',' . NODE_REQ_SPEC . ',' . NODE_REQUIREMENT . ')';
-    $rs = $GLOBALS['db']->exec_query($sql);
-    while ($row = $GLOBALS['db']->fetch_array($rs)) {
-        $map[intval($row['id'])] = $row['description'];
-    }
-    return $map;
-}
 
 /** Node row (id, name, node_type_id) or null. */
 function loadNode($db, $id)
@@ -142,7 +127,7 @@ function loadNode($db, $id)
         . " FROM {$T['nodes_hierarchy']} WHERE id = " . intval($id);
     $rs = $db->exec_query($sql);
     $row = $db->fetch_array($rs);
-    // fetch_array() answers an EMPTY ARRAY (not null) when the rowset is empty,
+    // fetch_array() answers FALSE when the rowset is empty,
     // so an unknown id has to be detected with empty() as well.
     if (is_null($row) || empty($row)) { return null; }
     return $row;
@@ -177,7 +162,9 @@ function owningProjectId($db, $nodeId)
                 $sql = "SELECT testproject_id FROM {$T['req_specs']} WHERE id = " . intval($node['id']);
                 $rs = $db->exec_query($sql);
                 $row = $db->fetch_array($rs);
-                return is_null($row) ? 0 : intval($row['testproject_id']);
+                // fetch_array() answers FALSE on an exhausted rowset, so an
+                // empty() check is what keeps the events table clean.
+                return empty($row) ? 0 : intval($row['testproject_id']);
             case NODE_REQUIREMENT:
             case NODE_REQ_VERSION:
                 $id = intval($node['parent_id']);
@@ -310,7 +297,7 @@ function childRequirementsMgmtEnabled()
  * $projectId is used only to keep the result set project scoped; ownership of
  * $parentId has already been proven by the caller.
  */
-function children($db, $parentId, $projectId)
+function children($db, $parentId)
 {
     $T = $GLOBALS['T'];
     $items = array();
@@ -377,6 +364,9 @@ if (is_null($user)) {
         'message' => 'Not authenticated'));
 }
 
+// A tab left open past the inactivity timeout must stop reading data.
+bffEnforceSession($db);
+
 if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] !== 'GET') {
     failOut(405, 'Method not allowed', 'method_not_allowed');
 }
@@ -391,12 +381,11 @@ $action = preg_replace('/[^a-z_]/', '', $action);
  * resolved, so a foreign or non-existent id answers the same 403 and the
  * endpoint is not a test-project existence oracle (#1697).
  */
-function gateProject($db, $userId, $tprojectId)
+function gateProject($db, $user, $tprojectId)
 {
     if ($tprojectId <= 0) {
         failOut(400, 'Missing or invalid tproject_id', 'invalid_tproject_id');
     }
-    $user = tlUser::getByID($db, $userId);
     // hasRight() may answer the string "yes" - normalize to a real bool.
     $view = $user->hasRight($db, 'mgt_view_req', $tprojectId) ? true : false;
     $modify = $user->hasRight($db, 'mgt_modify_req', $tprojectId) ? true : false;
@@ -409,7 +398,10 @@ function gateProject($db, $userId, $tprojectId)
 
 if ($action === 'projects') {
     $tprojMgr = new testproject($db);
-    $rows = $tprojMgr->get_all(array('id' => 'ASC', 'name' => 'ASC'));
+    // NB: testproject::get_all() only honours filters['active'] - the sort keys
+    // would be silently ignored, and without 'active' a deleted/disabled test
+    // project would be offered in the switcher.
+    $rows = $tprojMgr->get_all(array('active' => 1));
     $list = array();
     foreach ((array)$rows as $row) {
         if (!isset($row['id'])) { continue; }
@@ -429,7 +421,7 @@ if ($action === 'projects') {
 }
 
 $tprojectId = isset($_GET['tproject_id']) ? intval($_GET['tproject_id']) : 0;
-$rights = gateProject($db, $userId, $tprojectId);
+$rights = gateProject($db, $user, $tprojectId);
 
 if ($action === 'init') {
     $project = loadProject($db, $tprojectId);
@@ -441,7 +433,7 @@ if ($action === 'init') {
             'requirements_disabled');
     }
 
-    $nodes = children($db, $tprojectId, $tprojectId);
+    $nodes = children($db, $tprojectId);
     $hasContainers = false;
     $specCount = 0;
     $reqCount = 0;
@@ -492,19 +484,21 @@ if ($action === 'children') {
     if (is_null($node)) {
         failOut(404, 'Unknown node', 'unknown_node');
     }
+    // Ownership FIRST, then the type gate, and both failures answer the same
+    // 404: a 400 "unsupported node type" would tell a caller with rights on
+    // one project whether an arbitrary node id exists elsewhere.
+    if (owningProjectId($db, $nodeId) !== $tprojectId) {
+        failOut(404, 'Unknown node', 'unknown_node');
+    }
     $typeId = intval($node['node_type_id']);
     if ($typeId !== NODE_TESTPROJECT && $typeId !== NODE_REQ_SPEC) {
-        failOut(400, 'Unsupported node type for the coverage tree',
-            'unsupported_node_type');
-    }
-    if (owningProjectId($db, $nodeId) !== $tprojectId) {
         failOut(404, 'Unknown node', 'unknown_node');
     }
     out(array(
         'status' => 'ok',
         'action' => 'children',
         'node_id' => $nodeId,
-        'nodes' => children($db, $nodeId, $tprojectId),
+        'nodes' => children($db, $nodeId),
     ));
 }
 
@@ -519,6 +513,15 @@ if ($action === 'coverage') {
     }
     if (owningProjectId($db, $reqId) !== $tprojectId) {
         failOut(404, 'Unknown requirement', 'unknown_requirement');
+    }
+
+    // The coverage answer carries TEST CASE names, human ids and versions, so
+    // a requirement-only right is not enough: mgt_view_req does not imply
+    // mgt_view_tc (the right groups are independent, roles.inc.php).
+    if (!$user->hasRight($db, 'mgt_view_tc', $tprojectId)
+        && !$user->hasRight($db, 'mgt_modify_tc', $tprojectId)) {
+        failOut(403, 'You do not have permission to read test cases',
+            'no_right_tc_view');
     }
 
     // NB: 2.0.1 has NO `testcase` table - the test case NAME lives in

@@ -5809,5 +5809,6 @@
   "covt.chip.reqsOn": "需求已启用",
   "covt.chip.reqsOff": "需求已禁用",
   "covt.chip.mgrOn": "集成已启用",
-  "covt.chip.mgrOff": "集成已关闭"
+  "covt.chip.mgrOff": "集成已关闭",
+  "covt.coverageFail": "无法加载该需求��覆盖率。"
 }

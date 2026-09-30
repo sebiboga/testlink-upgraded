@@ -5833,5 +5833,6 @@
   "covt.chip.reqsOn": "Cerințe activate",
   "covt.chip.reqsOff": "Cerințe dezactivate",
   "covt.chip.mgrOn": "Integrare activă",
-  "covt.chip.mgrOff": "Integrare dezactivată"
+  "covt.chip.mgrOff": "Integrare dezactivată",
+  "covt.coverageFail": "Acoperirea acestei cerințe nu a putut fi încărcată."
 }

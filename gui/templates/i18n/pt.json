@@ -5829,5 +5829,6 @@
   "covt.chip.reqsOn": "Requisitos habilitados",
   "covt.chip.reqsOff": "Requisitos desabilitados",
   "covt.chip.mgrOn": "Integração habilitada",
-  "covt.chip.mgrOff": "Integração desabilitada"
+  "covt.chip.mgrOff": "Integração desabilitada",
+  "covt.coverageFail": "Não foi possível carregar a cobertura deste requisito."
 }

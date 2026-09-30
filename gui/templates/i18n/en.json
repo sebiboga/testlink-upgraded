@@ -5839,5 +5839,6 @@
   "covt.chip.reqsOn": "Requirements enabled",
   "covt.chip.reqsOff": "Requirements disabled",
   "covt.chip.mgrOn": "Integration enabled",
-  "covt.chip.mgrOff": "Integration off"
+  "covt.chip.mgrOff": "Integration off",
+  "covt.coverageFail": "The coverage of this requirement could not be loaded."
 }
