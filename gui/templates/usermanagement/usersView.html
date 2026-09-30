@@ -324,6 +324,12 @@ function sessionExpired(xhr) {
   var code = '';
   try { code = (JSON.parse(xhr.responseText) || {}).code || ''; } catch (e) {}
   if (xhr.status !== 401 && code !== 'session_expired') return false;
+  // Idempotent: this screen fires up to five requests on load (meta/grants, meta/roles,
+  // meta/locales, meta/authentication, the user list), so several 401s can land in the
+  // same tick. The first one already neutralised the page and armed the bounce timer;
+  // later ones must still answer TRUE (so the caller returns instead of falling into its
+  // own error branch) but must not re-show the toast or stack a second navigation.
+  if (sessionDead) { return true; }
   showSessionExpired();
   toast(TLi18n.t('auth.sessionExpired'), true);
   // Legacy redirected the TOP window ("top.location"), and the Dashio shell loads content
@@ -797,6 +803,9 @@ function resetPassword(id) {
     contentType: 'application/json',
     data: '{}',
     success: function(r) {
+      // Issue #1760: a sibling request already found the session dead - a response
+      // that raced the bounce must not touch the neutralised screen.
+      if (sessionDead) { return; }
       var msg;
       if (r && r.status === 'ok') {
         if (r.passwordOnScreen && r.newPassword) {
@@ -855,6 +864,9 @@ function generateApiKey(id) {
     contentType: 'application/json',
     data: '{}',
     success: function(r) {
+      // Issue #1760: a sibling request already found the session dead - a response
+      // that raced the bounce must not touch the neutralised screen.
+      if (sessionDead) { return; }
       var msg;
       if (r && r.status === 'ok') {
         msg = TLi18n.t('user.apiKeySent');
@@ -929,6 +941,9 @@ function saveUser() {
     url: url, type: type,
     contentType: 'application/json', data: JSON.stringify(data),
     success: function(r) {
+      // Issue #1760: a sibling request already found the session dead - a response
+      // that raced the bounce must not touch the neutralised screen.
+      if (sessionDead) { return; }
       $('#userModal').modal('hide');
       loadUsers();
       // Legacy parity: usersEdit.php renders user_feedback / 
@@ -966,6 +981,9 @@ function deleteUser(id) {
   $.ajax({
     url: API + '/' + id, type: 'DELETE',
     success: function(r) {
+      // Issue #1760: a sibling request already found the session dead - a response
+      // that raced the bounce must not touch the neutralised screen.
+      if (sessionDead) { return; }
       loadUsers();
       toast(userFeedback(r && r.feedback_key, login), false);
     },
@@ -1001,6 +1019,9 @@ function toggleActive(id, active) {
     contentType: 'application/json',
     data: JSON.stringify({active: active}),
     success: function(r) {
+      // Issue #1760: a sibling request already found the session dead - a response
+      // that raced the bounce must not touch the neutralised screen.
+      if (sessionDead) { return; }
       loadUsers();
       toast(userFeedback(r && r.feedback_key, login), false);
     },
