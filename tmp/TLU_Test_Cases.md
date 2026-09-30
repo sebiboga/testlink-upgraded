@@ -1327,3 +1327,36 @@ non-default state) could newly claim "Saved view restored". Fixed with the plan 
 the `loadUsers()` caller at line 510 passes no `keep` and still announces. Cases 96-98 cover it.
 
 **Results — 2026-09-30, commits `0ed3cd422` + the code-review follow-up, branch `fix/issue-1733`, app on `http://localhost:8082`: 14/14 PASS** (cases 85-95 re-executed after the follow-up: primary case 0 calls with a default state, 1 call with a non-default state, console clean, `events` max id unchanged at 18).
+
+## Task — Issue #1641: config-driven `usersAssign` pagination (`enabled` + `lengthMenu`) in `usersAssignPlan.html`
+
+**Preconditions**
+- `php tmp/fixtures_1641.php` → test project `TQ1641` (id **7**), test plan `TQ1641-P1` (id **8**), 25 Tester users `tlu1641_01..25`.
+- Plus 2 global-role-3 users (no rights) so the `<no rights>` rows exist — a *public* project with only global-Tester users yields **zero** of them, leaving the authorized-only filter unobservable:
+  `tlu1641_nr1` (uid 27), `tlu1641_nr2` (uid 28), `role_id=3`. Total 28 users with admin.
+- App on `http://localhost:8082`, logged in `admin`/`admin`; screen `gui/templates/usermanagement/usersAssignPlan.html?tproject_id=7&tplan_id=8`.
+- Config toggled **per case** in `config.inc.php:665-666` (shipped values: `enabled = true`, `length = '[20, 40, 60, -1], [20, 40, 60, "All"]'`). `config.inc.php` is restored afterwards and never committed.
+- DataTables saved state is cleared (`localStorage` key `DataTables_assignTable_…`) before any case that asserts a page length, otherwise `stateSave` legitimately restores the previous run's length.
+
+**Steps / expected / actual**
+
+| # | Case | Expected | Actual (measured) | R |
+|---|---|---|---|---|
+| 1 | `GET /meta/tplan-roles?tproject_id=7&tplan_id=8` | payload carries the pagination block | `pagination: {enabled:true, lengthMenu:[[20,40,60,-1],[20,40,60,"All"]]}`; `tproject-roles` sibling returns the identical block | PASS |
+| 2 | default config, screen load | DataTable with 20/40/60/All, 2 pages, search box, sortable headers | menu values `["20","40","60","-1"]`, labels `["20","40","60","All"]`, info `Showing 1 to 20 of 28 entries`, search → `1 of 1 (filtered from 28 total entries)`, 5/5 headers sortable | PASS |
+| 3 | `length = '[10, 30, -1], [10, 30, "All"]'`, state cleared | menu **and** page length follow the config | BFF `[[10,30,-1],[10,30,"All"]]`; menu `["10","30","-1"]`; `pageLength 10`; info `Showing 1 to 10 of 28 entries` | PASS |
+| 4 | same custom config with a previously saved 20-row page | `stateSave` restores the *user's* length (legacy `DataTables.inc.tpl:100-104` parity) | `pageLen 20`, info `Showing 1 to 20 of 28 entries` | PASS |
+| 5 | custom `length`, fresh state | **no** "saved view restored" toast on the screen's own default view | `restoredStateNotified: false` (would have been `true` with the hard-coded `st.length === 20` baseline) | PASS |
+| 6 | **`enabled = false`** — the core gap | **bare table**: no DataTable, no wrapper, no search, no length menu, no paging, no sortable headers; **all rows in the DOM** | `isDataTable:false`; no `#assignTable_wrapper`; no `input[type=search]`; no `.dataTables_length` / `.dataTables_paginate` / `.dataTables_info`; all 6 headers `sorting:false`; `domRows: 28` | PASS |
+| 7 | disabled → change a role and Save | grid fully functional; the write persists | uid 2 → role 9, Save → toast `User Roles updated`; re-read payload → `roleID: 9`; Save re-disabled | PASS |
+| 8 | disabled → authorized-only filter ticked | `<no rights>` rows hidden (legacy `display:none` mechanism, since there is no DataTable pipeline) | 28 rows → 26 visible, hidden uids exactly `[27,28]`, footer `28 users — 2 unauthorized user(s) hidden`; untick → 28 visible; still no DataTable created | PASS |
+| 9 | enabled → authorized-only filter ticked | filters through the DataTables pipeline | info `Showing 1 to 20 of 26 entries (filtered from 28 total entries)`, footer `28 users — 2 unauthorized…`; untick → `28 entries` | PASS |
+| 10 | disabled → bulk "Do" (`applyBulkRole`) | rebuild takes the plain path, no DataTable error, every non-admin row marked changed **with its badge** | `applyBulkRole` guards `keep` on `if (assignDt)` → `keep` stays `null`; rebuild completes, `assignDt` stays `null`, `isDataTable:false`, 28 rows, **27 changed rows + 27 `.changed-badge`** (the 28th is the admin row, skipped by legacy `set_combo_group`), Save enabled |
+| 10b | **defect found by case 10 and fixed**: with pagination disabled there is no DataTables `createdRow` hook, so the `changed` class + `common.modified` badge were **missing** in the plain-table mode | the marker must survive the disabled branch | first measurement of case 10 gave `changedRows: 0` with `saveDisabled: false` — the rows were changed but nothing on screen said so. Fixed in the row-build loop (`!paginationCfg.enabled && !u.isAdmin && u.changed` → `rowClass += ' changed'` + badge in the Login cell); re-measured `changedRows: 27`, `badges: 27` | PASS |
+| 10c | enabled → the same bulk "Do" (no double badge from the new markup branch) | DataTables' `createdRow` still owns the marker when a DataTable exists | `isDataTable:true`, 20 rows in DOM, 19 changed, **19 badges, 0 cells with >1 badge** | PASS |
+| 11 | config restored + `config_db.inc.php` never staged | no config change committed | `git diff --stat config.inc.php` → empty | PASS |
+| 12 | syntax gates before browser work | PHP + JS clean | `php -l api/roles/index.php` → clean; all 6 extracted inline `<script>` blocks → `node --check` → `JS SYNTAX OK` | PASS |
+| 13 | i18n | no new user-facing string, no bundle edit | the only label is the pre-existing `assign.all`; `git status` shows no `gui/templates/i18n/*.json` modified | PASS |
+| 14 | console + Event Viewer (rule 12) | no new Error/Warning | browser console **0** error/warn; `select … from events where log_level in ('ERROR','WARNING')` → **0 rows** | PASS |
+
+**Results — 2026-09-30, commits `fa2cece23` + the case-10b follow-up, branch `task/issue-1641`, app on `http://localhost:8082`: 16/16 PASS.**
