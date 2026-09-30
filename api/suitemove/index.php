@@ -730,15 +730,18 @@ switch ($action) {
         }
 
         // Cycle guard: a suite cannot become its own descendant, which would
-        // detach the whole subtree from the project root. The legacy endpoint
-        // had no such check at all.
+        // detach the whole subtree from the project root (and make the subtree
+        // unreachable for every later request, since ownership is proved by
+        // walking parent_id up to the project node). The DESTINATION's
+        // ancestor chain is the one that must be walked - the moved node's own
+        // chain only ever contains its ancestors and can never contain the
+        // destination. The legacy endpoint had no such check at all.
         if ($newParentId == $nodeId) {
             out(array('status' => 'error', 'code' => 'cycle',
                       'message' => 'A suite cannot be moved inside itself'), 409);
         }
-        $chain = suitMoveChain($db, $nodeId);
-        foreach ($chain as $anc) {
-            if (intval($anc['id']) === intval($newParentId)) {
+        foreach (suitMoveChain($db, $newParentId) as $anc) {
+            if (intval($anc['id']) === intval($nodeId)) {
                 out(array('status' => 'error', 'code' => 'cycle',
                           'message' => 'A suite cannot be moved inside one of its own sub-suites'), 409);
             }
