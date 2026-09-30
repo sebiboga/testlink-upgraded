@@ -323,12 +323,21 @@ function assignFeedback(feedbackKey) {
 // "Session expired. Please log in again." box the modern login screen already
 // renders for that note (gui/templates/auth/login.html:145-155). The BFF cannot
 // redirect, so it answers 401 {"code":"session_expired"} (issue #1614) and the
-// screen performs the bounce here - both on the initial user list load and on a
-// Save, so a stale tab can neither read the user list nor write role changes.
+// screen performs the bounce here - on EVERY request path the screen makes: the
+// first one (loadProjects, the meta/tproject-roles call that the legacy page
+// guarded pre-render through testlinkInitPage), the user list load and a Save -
+// so a stale tab can neither read the user list nor write role changes.
 function sessionExpired(xhr) {
   var code = '';
   try { code = (JSON.parse(xhr.responseText) || {}).code || ''; } catch (e) {}
   if (xhr.status !== 401 && code !== 'session_expired') return false;
+  // Legacy never painted an assignment form for a stale session at all - it was
+  // already redirecting before the first render (usersAssign.php:23 ->
+  // common.php:295-308). Put the page in that same "nothing to act on" state
+  // before the bounce, so the 600 ms spent on the redirect cannot leave a live
+  // toolbar / project combo / Save button on screen that can never act (issue
+  // #1620).
+  showSessionExpired();
   toast(TLi18n.t('auth.sessionExpired'), 'err');
   // Legacy redirected the TOP window ("top.location"), and the Dashio shell
   // loads content screens inside an iframe - redirecting only this window would
@@ -341,6 +350,32 @@ function sessionExpired(xhr) {
           else { window.location.href = target; } } catch (e) { window.location.href = target; }
   }, 600);
   return true;
+}
+
+// Issue #1620: terminal "session is gone" state. Same shape as showNoAccess() /
+// showDisabled() - every interactive control of the screen is dropped, so nothing
+// on the page can issue another request against the dead session, and none of the
+// empty-state boxes (which would read as "pick a test project" / "no rights" and
+// send the user chasing a configuration problem) is shown. Deliberately hides the
+// tab bar too: legacy redirected before the menu could be clicked and every one of
+// those links loads a screen that would now 401 the same way.
+function showSessionExpired() {
+  $('#demoBanner').hide();
+  $('#tabsBar').hide();
+  $('.toolbar').hide();
+  $('#projectSelect').empty().prop('disabled', true);
+  if ($.fn.DataTable && $.fn.DataTable.isDataTable('#assignTable')) {
+    $('#assignTable').DataTable().destroy();
+  }
+  assignTbl = null;
+  currentItems = [];
+  $('#assignTable').hide();
+  $('#emptyMsg').hide();
+  $('#disabledMsg').hide();
+  $('#denyBox').hide();
+  $('#demoNote').hide();
+  $('#saveBtn').prop('disabled', true);
+  $('#footerText').empty();
 }
 
 $(function() {
@@ -390,11 +425,25 @@ function loadProjects(selectedId) {
       loadUsers(pid);
     })
     .fail(function(xhr) {
+      // Issue #1620: this is the FIRST request the page makes - the one legacy
+      // guarded pre-render through testlinkInitPage() -> checkSessionValid(). A
+      // session idle past sessionInactivityTimeout answers 401
+      // {"code":"session_expired"} (bffEnforceSession, api/roles/index.php:40),
+      // so it must bounce to login.php?note=expired exactly like the loadUsers()
+      // and saveAssignments() paths do - never the generic empty-state box, which
+      // read "Select a test project above to manage role assignments." over a
+      // screen that can never load anything again.
+      if (sessionExpired(xhr)) { return; }
       if (xhr.status === 403) { showNoAccess(); }
       else { $('#emptyMsg').show(); }
     });
   $('#projectSelect').on('change', function() {
     var pid = $(this).val();
+    // Issue #1620: showSessionExpired() empties and disables the combo, but guard
+    // anyway - a stale context must never re-arm a request against the dead
+    // session (and a combo emptied while a previous load is still in flight would
+    // otherwise fire this handler with an empty value and wipe the grid).
+    if ($(this).prop('disabled')) { return; }
     if (pid) loadUsers(pid);
     else {
       // Issue #1707 review: the authz toggle redraws the grid, so an emptied
