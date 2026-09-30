@@ -8015,3 +8015,44 @@ Changes:
   silent swallow, a false "write failed" message, or an armed delete-confirm dialog. Status-keyed,
   so the code-less `401 Not authenticated` of an absent session is handled too; 403 handling and
   all `200` paths unchanged. (Fixes #1760)
+
+### Screen — Requirement Coverage Tree navigator `reqCoverageTree` (Refs #1765)
+- `gui/templates/requirements/reqCoverageTree.html`: Dashio lazy tree `test project → specification →
+  #1699 container → requirement`, each specification (and container) showing a live
+  `x / y covered` count, plus a coverage panel per requirement (test case name, external id,
+  versions, active/`closed by execution` status, deep link into the test case), coverage summary
+  tiles, an *Only uncovered requirements* filter, and toolbar links into Assign test cases /
+  Specification management / Move-reorder. i18n `covt.*` (67 keys) + `footers.reqCoverageTree`
+  in all 10 bundles.
+- `api/reqcoveragetree/index.php`: `init` / `children` / `coverage` / `projects`, session auth +
+  `bffSameOriginGuard` + `bffEnforceSession`; `mgt_view_req|mgt_modify_req` on the addressed
+  project checked **before** the project is resolved; every node id proven to live inside that
+  project; `coverage` additionally requires `mgt_view_tc|mgt_modify_tc` because it returns test
+  case names and ids. 400/401/403/404/405 with stable machine codes.
+- `lib/ajax/getreqcoveragenodes.php` — the 1.9.20 ExtJS loader behind the drag-drop **source** tree
+  of test-case/keyword/requirement assignment — is now a non-mutating session-guarded shim (302 to
+  the modern screen, 405 for write verbs). It only ever checked the session, never a right, so any
+  authenticated user could read the doc_ids/titles of ANY project (sibling bug #1696, still open).
+- **Bug filed and fixed — #1766:** a #1699 container could never be expanded (the ownership proof
+  treated every `node_type_id = 1` node as a project root, so the container never matched the
+  addressed project and answered `404 unknown_node`), and the container's requirements were missing
+  from the specification count, the per-node chips, the coverage percentage and the totals.
+- **Defects fixed during testing:** a coverage click issued two requests and could render duplicated
+  rows; *Collapse all* did not collapse and an expanded specification always showed the collapsed
+  icon (a hoisted-but-unassigned `open`); the requirement doc id rendered as `CVT-CVT-1`;
+  a `403` showed the generic server-error card (jQuery routes 4xx to `error`, losing the machine
+  code); `fa-plussquare` / `fa-file-text-o` render nothing in Font Awesome 6; the toolbar links kept
+  the previous `tproject_id` after a project switch; a `403`/`404` hid the project switcher, leaving
+  a dead end.
+- **Mandatory code review (subagent): 4 BLOCKER + 12 MINOR, all fixed** — the test-case right on
+  `coverage`, `bffEnforceSession()`, the stale `tproject_id` in the toolbar links, the recoverable
+  403/404 state, plus stale `children` answers after a switch, a node-existence oracle in the
+  type gate, `fetch_array()` warnings, inactive projects in the switcher, duplicated clicks, a
+  broken "open specification" link on containers and the dead-code cleanup. Suite 1765 = 50/50.
+
+### KEY BUGFIX — Requirement Coverage Tree BFF: `fetch_array()` answers `false`, so a count query logged an Event Viewer warning (Fixes #1766 follow-up)
+- `activeCoverageCount()` dereferenced the result of `$db->fetch_array()` with an `is_null()` check;
+  an exhausted rowset answers **false**, which produced `Trying to access array offset on false`
+  (`log_level=2`). The coverage row read also used `$row['tc_external_id']` / `['name']` /
+  `['version']` without a guard, producing `Undefined array key "external_id"`. Both are now
+  `empty()` / `isset()` guarded; exercising every action leaves the `events` table empty. (Refs #1765)
