@@ -239,7 +239,11 @@ function suitMoveNodeInfo(&$db, $nodeId)
 function suitMoveOwningProject(&$db, $node)
 {
     $T = suitMoveTables();
-    if (intval($node['node_type_id']) == suitMoveNodeTypeTestproject($db)) {
+    /* isset() (not a bare read) so a projection that forgot node_type_id can
+       never turn into a stream of E_WARNINGs in the Event Viewer; a missing
+       type simply means "not a project root", which is the correct reading. */
+    $nodeType = isset($node['node_type_id']) ? intval($node['node_type_id']) : 0;
+    if ($nodeType == suitMoveNodeTypeTestproject($db)) {
         return intval($node['id']);
     }
 
@@ -422,7 +426,8 @@ function suitMoveAllSuites(&$db, $tprojectId, $excludeId = 0)
     $ntProject = suitMoveNodeTypeTestproject($db);
 
     $rows = $db->get_recordset(
-        "SELECT id, name, parent_id, node_order FROM {$T['nodes_hierarchy']}" .
+        "SELECT id, name, parent_id, node_type_id, node_order" .
+        " FROM {$T['nodes_hierarchy']}" .
         " WHERE node_type_id = {$ntSuite}" .
         " ORDER BY node_order, id");
 
