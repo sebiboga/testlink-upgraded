@@ -428,7 +428,14 @@ if ($method === 'POST' && isset($segments[0]) && $segments[0] === 'import') {
 
     if ($result != tl::OK) {
         http_response_code(422);
-        out(['status' => 'error', 'message' => 'Wrong keywords file', 'error_code' => 'WRONG_FORMAT']);
+        // Refs #1784: publish the report here too. The XML arm now fills it (an
+        // unreadable document yields rows/imported/skipped = 0 and no row errors),
+        // and api/keywordsxml/index.php already answered the same condition with
+        // these fields - without them this route's answer was the only one whose
+        // shape the client could not read.
+        out(['status' => 'error', 'message' => 'Wrong keywords file', 'error_code' => 'WRONG_FORMAT',
+             'imported' => $stats['imported'], 'skipped' => $stats['skipped'],
+             'rows' => $stats['rows'], 'errors' => importErrorRows($stats['errors'])]);
     }
 
     if ($stats['imported'] <= 0) {
