@@ -8110,3 +8110,22 @@ Changes:
 - Verified **byte-identical** behaviour against the pre-port library (with `each()`/`split()`
   reconstructed as a polyfill) over 60+ observables, plus a live TCP round trip: a valid
   `methodCall` goes out, `set-cookie` is captured and the struct response decodes. (Refs #1764)
+
+### Key bugfix (data integrity) — `api/platforms` DELETE removed a platform that was still linked to a test plan, orphaning the link (Fixes #1637)
+- `DELETE /api/platforms/index.php/{id}` asked `tlPlatform::getAll()` for the platform's
+  `linked_count`, but `getAll()` merges its own defaults — `enable_on_execution => true` and
+  `is_open => true` are WHERE-clause filters. So any platform with `is_open = 0` **or**
+  `enable_on_execution = 0` was absent from the returned set, `$linked` stayed `0`, the
+  `DELETE_BLOCKED` 422 guard was skipped and the platform was deleted, leaving an orphan
+  `testplan_platforms` row. Only the `is_open=1 / enable_on_execution=1` combination was
+  protected — and silently: HTTP `200 {"status":"ok"}`, no Event Viewer row.
+- **Fix** (`api/platforms/index.php`, DELETE route): pass `'enable_on_design' => null,
+  'enable_on_execution' => null, 'is_open' => null` to `getAll()`, exactly the option set the list
+  route in the same file already used, so the guard sees the project's unfiltered platform set. The
+  guard now also **fails closed** (`500 DELETE_CHECK_FAILED`) instead of reading "row absent" as
+  "not linked". Legacy parity: the 1.9.20 rule is the platform's testplan usage, not its
+  open/closed flags (`warning_cannot_delete_platform`).
+- **Verified**: all 4 (is_open × enable_on_execution) combinations now answer
+  `422 DELETE_BLOCKED`; unlinked platforms still delete with `200`; cross-project and unknown ids
+  still `404`; a project with no testplans still `200`; zero orphan rows; `GET` and `DELETE` now
+  agree by construction; Event Viewer shows no new Error/Warning row. Suite `T1637`, 14/14 PASS.

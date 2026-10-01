@@ -1945,44 +1945,65 @@ fail `php -l`; TestLink never loads them, so they do not affect the app.
 
 ---
 
-## Suite 1613 — Task, Issue #1613: session test-project preselection in Assign Test Project Roles (`usersAssignProject.html`)
+## T1637 — Regression: Issue #1637 — platform DELETE guard bypassed for `is_open=0` / `enable_on_execution=0`
 
-**Feature under test** — legacy parity with `lib/usermanagement/usersAssign.php:307-316`
-(`getTestProjectEffectiveRoles()`): when the request carries **no** `tproject_id`, the
-selected test project must fall back **first to the session project**
-(`$_SESSION['testprojectID']`, written by the navBar project combo) and only then to the
-first combo entry — `usersAssign.tpl:174-179` rendered that entry `selected`.
-Ported in this run: `api/roles/index.php:821` now serializes `sessionTprojectID` in the
-`GET /meta/tproject-roles` payload, and `usersAssignProject.html:445` resolves the initial
-selection as *valid URL param → valid session project → `projects[0].id`*.
+**Precondition** (fresh DB, `testprojects` empty on this run — ids 9xxx chosen to stay clear):
 
-**Precondition / fixtures** (the DB is freshly imported on every run — `testprojects` had 0 rows):
-* Login `admin`/`admin` (global role 8, holds `user_role_assignment`).
-* Test project **1 = "Analyzer public project"** (`APUB`, `is_public=1`).
-* Test project **2 = "Analyzer private project"** (`APRIV`, `is_public=0`).
-* Combo order comes from `getAssignableProjects()` → `ORDER BY name ASC`, i.e.
-  `projects[0]` is project **2** (private) — deliberately *different* from project 1, so
-  "fell back to the first entry" and "honoured the session" are distinguishable.
+```sql
+INSERT INTO testprojects (id,prefix,active,...) VALUES (9001,'T1637',1,'repro 1637',...),
+                                                          (9002,'T1637B',1,'other proj',...),
+                                                          (9003,'T1637C',1,'no tplans',...);
+INSERT INTO nodes_hierarchy (id,name,parent_id,node_type_id,node_order) VALUES (9001,'P1637',0,1,0),(9003,'P1637C',0,1,0);
+INSERT INTO testplans (id,testproject_id,...) VALUES (9001,9001,'tplan',...),(9002,9001,'tplan2',...);
+-- all four (is_open x enable_on_execution) combinations, LINKED
+INSERT INTO platforms (id,testproject_id,name,notes,enable_on_design,enable_on_execution,is_open) VALUES
+ (9001,9001,'L_OPEN_EXEC',    'x',1,1,1),(9002,9001,'L_OPEN_NOEXEC','x',1,0,1),
+ (9003,9001,'L_CLOSED_EXEC',  'x',1,1,0),(9004,9001,'L_CLOSED_NOEXEC','x',1,0,0),
+ (9005,9001,'U_OPEN_EXEC',    'x',1,1,1),(9006,9001,'U_CLOSED_EXEC','x',1,1,0),
+ (9010,9002,'OTHER_PROJ',     'x',1,1,0),(9020,9003,'NOTPLANS_CLOSED','x',1,1,0),(9021,9003,'NOTPLANS_OPEN','x',1,1,1);
+INSERT INTO testplan_platforms (testplan_id,platform_id,active) VALUES (9001,9001,1),(9001,9002,1),(9001,9003,1),(9001,9004,1),(9002,9004,1);
+```
+
+**Repro steps (pre-fix)**
+
+```bash
+curl -c jar -X POST http://localhost:8082/api/auth/login -H 'Origin: http://localhost:8082' \
+     -H 'Content-Type: application/json' -d '{"login":"admin","password":"admin"}'
+curl -b jar -X DELETE -H 'Origin: http://localhost:8082' \
+     "http://localhost:8082/api/platforms/index.php/9003?tproject_id=9001"   # is_open=0, LINKED
+```
+Note: the login body key is `login` (not `username`), and `bffSameOriginGuard()` (`api/_guard.php:102`)
+rejects a POST/DELETE without a same-origin `Origin`.
+
+**Observed pre-fix** — `200 {"status":"ok"}`, `platforms` row gone, `testplan_platforms` row left
+behind as an orphan. Only the `is_open=1 AND enable_on_execution=1` platform was protected.
+
+**Expected post-fix** — `422 {"error_code":"DELETE_BLOCKED"}` for **any** platform with
+`linked_count > 0`, whatever the flags; unlinked platforms still delete with `200`.
 
 | # | Case | Steps | Expected | Result |
 |---|---|---|---|---|
-| 1613.1 | **Gap repro (pre-fix)** | session project = 1 → open `/gui/templates/usermanagement/usersAssignProject.html` (no query string) | legacy selects 1; 2.0.1 at `ecb826d16` selected `projects[0]` = **2** | **FAIL reproduced** (`comboValue:"2"`, `comboText:"Analyzer private project"`); screenshot `docs/screenshots/issue-1613-before-session-project-ignored.png` |
-| 1613.2 | BFF payload (pre-fix) | `GET /api/roles/index.php/meta/tproject-roles?tproject_id=0` | `sessionTprojectID` exposed | **FAIL reproduced** — keys were `[status,items,roles,projects,isPublic,demoMode,roleColouring,pagination]`; `sessionTprojectID` undefined although `$sessionTprojectID` already existed at `api/roles/index.php:377` |
-| 1613.3 | **Fix — no param, session = 1** | session project = 1 → open the screen **with no query string** | combo = 1 "Analyzer public project", grid renders project 1 | **PASS** (`comboValue:"1"`, 1 row); screenshot `docs/screenshots/issue-1613-after-session-project-selected.png` |
-| 1613.4 | BFF payload (post-fix) | same GET as 1613.2 | `sessionTprojectID` present and equal to the session project | **PASS** (`sessionTprojectID: 1`, key present in `apiKeys`) |
-| 1613.5 | No param, session = 2 | set navBar project to 2 → open with no query string | combo = 2 (session honoured, here it coincides with `projects[0]`) | **PASS** (`sessionTprojectID: 2`, `comboValue:"2"`) |
-| 1613.6 | Explicit param wins | session = 1 → open `?tproject_id=2&tplan_id=0` | combo = 2 (URL beats session) | **PASS** (`comboValue:"2"`) |
-| 1613.7 | Invalid param | session = 1 → open `?tproject_id=999&tplan_id=0` | 999 not in the assignable combo → fall back to the session project 1, never to a phantom 999 | **PASS** (`comboValue:"1"`) |
-| 1613.8 | Resolution matrix (unit, exact `loadProjects()` expression replayed in-page against the real `/meta/tproject-roles` payload shape) | `{no param,session 1}`→1, `{no param,session 2}`→2, `{no param,session 0}`→2, `{no param,session key absent}`→2, `{no param,session 99 not assignable}`→2, `{param 2,session 1}`→2, `{param 999,session 1}`→1 | every row matches the legacy 3-source precedence; no option value that does not exist can be selected | **PASS** (7/7 as tabulated) |
-| 1613.9 | Syntax gate | `php -l api/roles/index.php`; extracted inline `<script>` → `node --check` | no syntax errors | **PASS** ("No syntax errors detected", JS syntax OK) |
-| 1613.10 | Regression — sibling role screens | open `usersAssignPlan.html` and `rolesView.html` | no console errors/warnings | **PASS** (0 error/warn console messages on both) |
-| 1613.11 | Event Viewer | `select … from events where log_level in (1,2,3)` after the whole run | no new Error/Warning entries | **PASS** (0 rows) |
+| 1637.1 | Syntax gate on the patched file | `php -l api/platforms/index.php` | No syntax errors | **PASS** |
+| 1637.2 | Reported repro — linked platform, `is_open=0`, `enable_on_execution=1` | `DELETE /9003?tproject_id=9001` | `422 DELETE_BLOCKED` | **PASS** (was `200`) |
+| 1637.3 | linked, `is_open=0`, `enable_on_execution=0` (worst case) | `DELETE /9004` | `422 DELETE_BLOCKED` | **PASS** (was `200`) |
+| 1637.4 | linked, `is_open=1`, `enable_on_execution=0` | `DELETE /9002` | `422 DELETE_BLOCKED` | **PASS** (was `200`) |
+| 1637.5 | linked, `is_open=1`, `enable_on_execution=1` (the only case that worked) | `DELETE /9001` | `422 DELETE_BLOCKED` | **PASS** (no regression) |
+| 1637.6 | **Not over-blocked**: unlinked + open | `DELETE /9005` | `200 {"status":"ok"}` | **PASS** |
+| 1637.7 | **Not over-blocked**: unlinked + closed | `DELETE /9006` | `200 {"status":"ok"}` | **PASS** |
+| 1637.8 | Guard message/contract unchanged | inspect the 422 body of 1637.2 | `"… is being used! You cannot remove it now. You must first remove it from the testplans using it"` + `error_code: DELETE_BLOCKED`, byte-identical to pre-fix | **PASS** |
+| 1637.9 | Cross-project platform cannot be deleted | `DELETE /9010?tproject_id=9001` (9010 belongs to 9002) | `404 Platform not found` — no auth regression | **PASS** |
+| 1637.10 | Unknown platform id | `DELETE /999999?tproject_id=9001` | `404`, no 500 | **PASS** |
+| 1637.11 | Project with **no test plans at all** — the guard iterates an empty list | `DELETE /9020`, `/9021` with `tproject_id=9003` | `200 {"status":"ok"}` for both, no 500 | **PASS** |
+| 1637.12 | **Primary symptom** — no orphan `testplan_platforms` row survives | `SELECT tp.*, IF(p.id IS NULL,'*** ORPHAN ***','ok') FROM testplan_platforms tp LEFT JOIN platforms p ON p.id=tp.platform_id` | every row `ok`, 0 orphans | **PASS** (2 orphans pre-fix) |
+| 1637.13 | Multi-testplan counting intact | `linked_count` for 9004 (linked to testplans 9001 **and** 9002) | `linked_count: 2`, `deletable: false`, both links still present after the 422 | **PASS** |
+| 1637.14 | GET and DELETE agree by construction | `GET /?tproject_id=9001` vs the four DELETEs | every `deletable:false` platform answers `422`; the `deletable:true` ones answer `200` | **PASS** (they disagreed pre-fix) |
+| 1637.15 | Fail-closed branch is syntactically live but unreachable | `grep -n "DELETE_CHECK_FAILED" api/platforms/index.php` + cases 1637.2-1637.11 | branch present, no case reaches it, no case 500s | **PASS** |
+| 1637.16 | Event Viewer clean | `SELECT id,log_level,source,... FROM events WHERE fired_at > UNIX_TIMESTAMP()-3600` | only the `log_level 16` login audit row; **no Error/Warning/Notice** | **PASS** |
+| 1637.17 | Modernized screen unaffected | `gui/templates/platforms/platformsView.html?tproject_id=9001` in Chrome, admin/admin | table renders 4 rows ("Platform Management(4)"), delete button disabled on every linked row, no console error | **PASS** |
 
-Suite total: **9 PASS / 2 FAIL-reproduced** (1613.1 + 1613.2 are the pre-fix gap repro,
-green after the fix; all other cases were green throughout).
+Suite total: **17/17 PASS**. Commit `716d96587`, branch `fix/issue-1637`.
 
-**Not covered / remaining**: the "assignable list empty" branch (1613.f in the
-investigation) still needs a second, non-privileged user holding a project role on only
-one of the two projects — not created in this run for time budget reasons; that branch is
-untouched by this change (it short-circuits at `if (!r.projects || !r.projects.length)`
-*before* the resolution code) and was already covered by issue #1621's suite.
+**Not covered / remaining**: `tlPlatform::delete()` (`lib/functions/tlPlatform.class.php:193`) is still a
+bare `DELETE FROM platforms WHERE id=…` with no cascade, so a link that is *already* orphaned by some
+other path stays orphaned — the guard prevents new damage but does not clean up old damage. Repairing
+pre-existing orphans is a data-migration concern, not a bug in this route.
