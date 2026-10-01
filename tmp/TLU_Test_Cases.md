@@ -2076,3 +2076,26 @@ automatically.
 | 1767.R8 | Shim — modern fetch | `GET gettestcasesummary.php?tcase_id=` with `Sec-Fetch-Dest: empty`, `Accept: */*`, no `X-Requested-With` | 405 pointing at the BFF | **PASS** |
 | 1767.R9 | Shim — real browser navigation | same with `Sec-Fetch-Dest: document`, `Accept: text/html` | 302 to the modern popup | **PASS** |
 | 1767.R10 | i18n key | `tcsum.showSummary` present in all 10 bundles | valid JSON, key resolves | **PASS** |
+
+## 1612. Task — Implement dynamic localized role-column header in Assign Test Project Roles
+
+**Precondition**
+- Two public test projects exist: `ALPHA-1612 Project`, `BRAVO-1612 Project` (fixture `tmp/fixtures_1612.php`).
+- User `admin/admin` logged in with rights to assign test project roles.
+
+**Steps**
+1. Open `gui/templates/usermanagement/usersAssignProject.html?tproject_id=1`.
+2. Verify the 4th column header (role column) reads `Test Project Role (ALPHA-1612 Project)`.
+3. Change the Test Project combo to `BRAVO-1612 Project`. Verify the header becomes `Test Project Role (BRAVO-1612 Project)`.
+4. Open the page with deep link `?tproject_id=2`. Verify the header reads `Test Project Role (BRAVO-1612 Project)`.
+5. Clear the combo to the placeholder (`-- select project --`). Verify the header becomes `Test Project Role` (no project name).
+6. Switch locale to `de` (`?tproject_id=1&locale=de`). Verify the header reads `Testprojekt Rolle (ALPHA-1612 Project)`.
+7. (Escaping) Verify project names with `&` and `<` are correctly escaped in the caption text (no double-escaping).
+
+**Expected behavior**
+The role column header is dynamic and localized (`header.projectRoleHeading`) and follows the selected test project name, mirroring legacy `th_roles_testproject ($my_feature_name|escape)`.
+
+**Actual result (PASS)**
+Header follows the combo selection, uses the localized key for the half, and project names are HTML-escaped once. Bare label shown when no project is selected. Confirmed in headless Chrome.
+
+**Status**: PASS
