@@ -1565,7 +1565,7 @@ function setPublicStatus($id,$status)
     return ($semiHits === 0 && $commaHits > 0) ? ',' : $delim;
   }
 
-/**
+  /**
    * @param $testproject_id
    * @param $fileName
    * @param array $stats [ref] optional per-row import report (see #1784)
@@ -1588,7 +1588,7 @@ function setPublicStatus($id,$status)
     return $this->importKeywordsFromSimpleXML($testproject_id,$simpleXMLObj,$stats);
   }
 
-/**
+  /**
    * Refs #1784: same optional per-row report as importKeywordsFromCSV() - the
    * shape is kept identical on purpose (rows / imported / skipped / errors[] with
    * the same IMPORT_KEYWORD_ERRORS_MAX cap) so both arms of the Keyword
@@ -1607,7 +1607,11 @@ function setPublicStatus($id,$status)
    * @param $testproject_id
    * @param $simpleXMLObj
    * @param array $stats [ref] optional import report, see importKeywordsFromCSV()
-   * @return integer tl::OK when the document was read, tlKeyword::E_WRONGFORMAT otherwise
+   * @return integer tl::OK when the document was read into a non-empty root node,
+   *                tlKeyword::E_WRONGFORMAT when it could not be read (unchanged
+   *                1.9.20 predicate at the !$simpleXMLObj test below: an EMPTY
+   *                <keywords/> casts to false, so a root carrying no child at all
+   *                is still reported as an unreadable file)
    */
   function importKeywordsFromSimpleXML($testproject_id,$simpleXMLObj,&$stats = null)
   {
