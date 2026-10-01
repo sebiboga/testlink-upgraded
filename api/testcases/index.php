@@ -1066,30 +1066,17 @@ if ($action === 'view') {
     }
 
     // which versions have been executed (drives warnings, like legacy)
-    // NOTE: testcase::get_by_id() with access_key='tcversion_id' returns a
-    // 0-indexed array whose rows do NOT carry tcversion_id (only 'id'), so the
-    // ids must be read from the rows — using array_keys() here queried
-    // "tcversion_id IN (0,1)" and left has_been_executed (and therefore the
-    // executed branch of canAssignPlatforms) permanently false.
-    $executedSet = [];
-    $tcvIds = [];
-    foreach ((array)$versionsRaw as $vrKey => $vrRow) {
-        $tcvIds[] = intval($vrRow['id'] ?? $vrKey);
-    }
-    $tcvIds = array_values(array_filter(array_unique($tcvIds), function ($id) {
-        return $id > 0;
-    }));
-    if (count($tcvIds) > 0) {
-        $execTable = tlObjectWithDB::getDBTables(array('executions'));
-        $rs = $db->get_recordset(
-            "SELECT DISTINCT tcversion_id FROM {$execTable['executions']} " .
-            "WHERE tcversion_id IN (" . implode(',', $tcvIds) . ")");
-        if (!is_null($rs)) {
-            foreach ($rs as $r) {
-                $executedSet[intval($r['tcversion_id'])] = 1;
-            }
-        }
-    }
+    // Issue #1041: delegated to tcVersionExecutedSet(), which reproduces the
+    // legacy get_versions_status_quo() attribution (version NUMBER, not the
+    // execution's own node id). Two defects are fixed by that:
+    //  - the ids must come from the rows: testcase::get_by_id() with
+    //    access_key='tcversion_id' returns a 0-indexed array whose rows do NOT
+    //    carry tcversion_id (only 'id'), so array_keys() queried
+    //    "tcversion_id IN (0,1)" and left has_been_executed permanently false.
+    //  - the status quo must cover ALL versions of the test case (legacy calls
+    //    get_versions_status_quo($tc_id) with no filter), not only the single
+    //    version $versionsRaw was narrowed down to by ?tcversion_id.
+    $executedSet = tcVersionExecutedSet($db, $tcaseId);
 
     // latest version number must be computed over ALL versions,
     // even when the payload was filtered to a single requested version
@@ -1753,6 +1740,89 @@ function versionHasExecutions($dbHandler, $tcversionId) {
 }
 
 /**
+ * Per-version-node "has been executed" attribution, faithful to the legacy
+ * testcase::get_versions_status_quo() (lib/functions/testcase.class.php:3057).
+ *
+ * The legacy map is keyed by tcversion_id and its 'executed' flag is NOT
+ * "an executions row points at this node": when
+ * executions.tcversion_number differs from that node's tcversions.version the
+ * execution is attributed to the node whose VERSION NUMBER equals
+ * tcversion_number (testcase.class.php:3102-3116), the number being resolved
+ * through a version-number -> node-id map built over ALL versions of the test
+ * case (testcase.class.php:3075-3082, called without tcversion_id nor
+ * testplan_id from testcase.class.php:1091, so every version and every plan is
+ * considered). When the two agree (the normal case) the execution's own node is
+ * flagged; when tcversion_number is NULL nothing is flagged at all.
+ *
+ * That flag is what tcView.tpl:113-115 turns into $hasBeenExecuted, which gates
+ * the EXECUTED marker (:228), the downloadOnlyAfterExec attachment gate
+ * (:192-193, :314) and tcViewViewer.inc.tpl:90-96.
+ *
+ * Issue #1041: the modern payload used
+ * "SELECT DISTINCT tcversion_id FROM executions WHERE tcversion_id IN (...)",
+ * which flags the execution's own node and ignores tcversion_number entirely —
+ * on a renumbered version the badge/banners land on the wrong version card.
+ *
+ * @return array map tcversion_id => 1, for the executed versions of $tcaseId
+ */
+function tcVersionExecutedSet($dbHandler, $tcaseId) {
+    $tables = tlObjectWithDB::getDBTables(
+        array('nodes_hierarchy', 'tcversions', 'executions'));
+
+    // version number -> node id, over ALL versions of the test case
+    $vrs = $dbHandler->get_recordset(
+        " SELECT TCV.id, TCV.version FROM {$tables['nodes_hierarchy']} NH" .
+        " JOIN {$tables['tcversions']} TCV ON TCV.id = NH.id" .
+        " WHERE NH.parent_id = " . intval($tcaseId));
+    $idByNumber = [];
+    $nodeIds = [];
+    if (!is_null($vrs)) {
+        foreach ($vrs as $vr) {
+            $vid = intval($vr['id']);
+            if ($vid <= 0) {
+                continue;
+            }
+            $nodeIds[] = $vid;
+            $idByNumber[intval($vr['version'])] = $vid;
+        }
+    }
+    $nodeIds = array_values(array_unique($nodeIds));
+    if (!count($nodeIds)) {
+        return [];
+    }
+
+    // executions of every version node of this test case, over all test plans
+    $ers = $dbHandler->get_recordset(
+        " SELECT DISTINCT E.tcversion_id, E.tcversion_number, TCV.version" .
+        " FROM {$tables['executions']} E" .
+        " JOIN {$tables['tcversions']} TCV ON TCV.id = E.tcversion_id" .
+        " WHERE E.tcversion_id IN (" . implode(',', $nodeIds) . ")");
+    $executed = [];
+    if (is_null($ers)) {
+        return $executed;
+    }
+    foreach ($ers as $er) {
+        $target = null;
+        $number = is_null($er['tcversion_number'])
+            ? null : intval($er['tcversion_number']);
+        if ($number !== intval($er['version'])) {
+            // legacy: only an execution that carries a version number and whose
+            // number differs from the node's version gets remapped by number;
+            // an unmappable number leaves the flag unset
+            if (!is_null($number) && isset($idByNumber[$number])) {
+                $target = $idByNumber[$number];
+            }
+        } else {
+            $target = intval($er['tcversion_id']);
+        }
+        if (!is_null($target) && $target > 0) {
+            $executed[$target] = 1;
+        }
+    }
+    return $executed;
+}
+
+/**
  * Resolve a tcversion id for a given test case id (defaults to the latest
  * version). Used by the add/remove platform write actions.
  */
@@ -2289,18 +2359,10 @@ if ($action === 'version_list') {
         " ORDER BY TCV.version ASC");
     $versions = [];
     if (!is_null($rows)) {
-        $executedSet = [];
-        if (count($rows) > 0) {
-            $execRs = $db->get_recordset(
-                " SELECT DISTINCT tcversion_id FROM {$vTables['executions']} " .
-                " WHERE tcversion_id IN (" .
-                implode(',', array_map('intval', array_column($rows, 'tcversion_id'))) . ")");
-            if (!is_null($execRs)) {
-                foreach ($execRs as $ex) {
-                    $executedSet[intval($ex['tcversion_id'])] = 1;
-                }
-            }
-        }
+        // Issue #1041: same legacy get_versions_status_quo() attribution as
+        // action=view — keyed by version node id, resolved through the
+        // execution's version NUMBER when the two disagree.
+        $executedSet = tcVersionExecutedSet($db, $tcaseId);
         foreach ($rows as $r) {
             $vid = intval($r['tcversion_id']);
             $versions[] = [
