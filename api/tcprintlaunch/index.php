@@ -63,8 +63,10 @@ header('X-Content-Type-Options: nosniff');
 
 const TCPRINTLAUNCH_USER_APIKEY_LEN = 32;
 
-function out($data, $code = 200) {
-    http_response_code($code);
+function out($data, $code = null) {
+    if (!is_null($code)) {
+        http_response_code($code);
+    }
     echo json_encode($data);
     exit;
 }

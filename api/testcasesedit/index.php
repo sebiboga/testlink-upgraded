@@ -58,8 +58,10 @@ $segments = array_values(array_filter(explode('/', $path)));
 
 $action = $_GET['action'] ?? ($segments[0] ?? null);
 
-function out($data, $code = 200) {
-    http_response_code($code);
+function out($data, $code = null) {
+    if (!is_null($code)) {
+        http_response_code($code);
+    }
     echo json_encode($data);
     exit;
 }

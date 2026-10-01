@@ -2296,76 +2296,58 @@ including the renumbered one where they previously disagreed (C3/C6 were
 ### Status
 PASS — `d05417318` (BFF). No screen/i18n change required.
 
----
+## Suite 1776 — Regression — Issue #1776: `out($data, $code = 200)` reset the HTTP status of every error branch
 
-## Suite 1648 — Regression — Issue #1648: `api/tcassignments/rows` HTTP 500 with an EMPTY body (`TypeError array_keys on null`, index.php:348) when the project has no assignments
+**Precondition** — app on `http://localhost:8082`, DB `testlink@127.0.0.1`, login `admin/admin`.
+The suite creates its own fixture (test project `9001`, test plan `95001` + the matching
+`nodes_hierarchy` rows) so the 200 success paths are reachable on a fresh import.
 
-### Precondition
+**Repro (pre-fix)** — every branch of the form `http_response_code(N); out([...]);` in the
+14 affected endpoints answered **HTTP 200** with an error body:
 
-* Fresh DB import (`select count(*) from testprojects;` → `0`, `… testplans;` → `0`).
-* `php -S 127.0.0.1:8082 -t <repo root>`.
-* `admin/admin`; session cookie jar from `POST /api/auth/index.php/login`.
-* **C1 — empty-plan project** (the reported case): `POST /api/projects/index.php`
-  `{"name":"Issue1648 Project","prefix":"I1648"}` → project id 1, **0 test plans**.
-* **C2 — populated project** (so the non-NULL row branch is exercised too):
-  `php tmp/fixtures_1648.php` → project `I1648B` id 2, platform `Win10` id 1,
-  plan `Plan B` id 3, TC `I64B-1` id 5 / tcversion id 6, open build `Build B` id 1,
-  `user_assignments` row (type 1, feature_id 1, user_id 1, build_id 1).
+```
+$ curl -s -b jar -H 'Referer: http://localhost:8082/' -w 'HTTP=%{http_code}\n' \
+    'http://localhost:8082/api/tcassignments/index.php/rows'
+HTTP=200   {"status":"error","message":"tproject_id is required"}
+```
 
-### Steps to reproduce (pre-fix) and expected post-fix behaviour
+**Expected post-fix** — the status code the caller asked for; convention-B callers
+(`out([...], <code>)`) unchanged; success paths still 200 with their payload; 401 guards
+still 401; no new Error/Warning in the Event Viewer.
 
-| # | Step | Expected (post-fix) | Pre-fix result |
+**Actual result: 34 PASS / 0 FAIL** — `bash tmp/verify_1776.sh`
+
+| group | case | expected | measured |
 |---|---|---|---|
-| 1 | `GET /api/tcassignments/index.php/rows?tproject_id=1&tplan_id=0&show_all_users=0&show_closed_builds=0` | HTTP 200, body `groups: []` + real `statusKeys` | **HTTP 500, 0 bytes** (`TypeError array_keys(): Argument #1 ($array) must be of type array, null given … :348`) |
-| 2 | `GET …/rows` (no `tproject_id`) | body `tproject_id is required` | same body (HTTP status wrong, see #1776) |
-| 3 | `GET …/rows?tproject_id=99999` | body `Test project not found` | same body (HTTP status wrong, see #1776) |
-| 4 | `GET …/rows?tproject_id=1` without cookie | HTTP 401 `Not authenticated` | identical |
-| 5 | `GET …/rows?tproject_id=2&tplan_id=0` | HTTP 200, 1 group (`Plan B`), 1 row | HTTP 200 identical |
-| 6 | `…&tplan_id=3` / `&show_all_users=1` / `&show_closed_builds=1` / `&build_id=1` / `&show_inactive_tplans=1&user_id=1` | `groups=1 rows=1 statusKeys=7` each | identical |
-| 7 | `POST …/quick_result {"tproject_id":2,"tplan_id":3,"platform_id":1,"build_id":1,"tcversion_id":6,"result":"passed"}` | `{"status":"ok","data":{"result":"passed","tcversion_id":6}}` | identical |
-| 8 | `gui/templates/execute/tcAssignments.html?tproject_id=1` in the browser | empty state "No test cases assigned.", footer "0 assignment(s)", console clean | rows request `[500]`, console `Failed to load resource: … 500` ×1, blank table area |
-| 9 | `gui/templates/execute/tcAssignments.html?tproject_id=2` in the browser | one row: Plan B / Build B / Suite 1648 / I64B-1 (v1) / Win10 / Medium / Passed, quick-result buttons live | identical |
-| 10 | `select max(id) from events` around 3 repeats of step 1 | delta 0 | pre-fix each request added one `log_level=2` `E_WARNING Undefined variable $statusCodes` row |
+| A (fixed) | `tcassignments/rows` no `tproject_id` | 400 | 400 ✓ |
+| A | `tcassignments/rows?tproject_id=99999` | 404 | 404 ✓ |
+| A | `tcassignments/unknownroute` | 404 | 404 ✓ |
+| A | `tcassignments/init` no `tproject_id` | 400 | 400 ✓ |
+| A | `execassignment/unknownroute` | 404 | 404 ✓ |
+| A | `execassignment/init` no plan context | 400 | 400 ✓ |
+| A | `execassignment/items` unknown plan | 404 | 404 ✓ |
+| A | `execassignment/items` fixture plan, no assign right | 403 | 403 ✓ |
+| A | `tcunassignall?action=unknown` | 404 | 404 ✓ |
+| A | `tcunassignall?action=info` invalid build id | 400 | 400 ✓ |
+| A | `tcstepsreorder/unknownroute` no `tcversion_id` | 400 | 400 ✓ |
+| B (no regression) | `tcassign2tplan/unknownroute` | 404 | 404 ✓ |
+| B | `tcassign2tplan/init` missing context | 400 | 400 ✓ |
+| B | `testcasesedit/unknownroute` | 404 | 404 ✓ |
+| B | `tcbulkop/unknownaction` | 404 | 404 ✓ |
+| B | `execassignmentcopy/unknownroute` | 404 | 404 ✓ |
+| guard | `tcassignments/rows` without cookie | 401 | 401 ✓ |
+| success | `tcassignments/init?tproject_id=9001` | 200 + `{"status":"ok"}` | 200 ✓ |
+| success | `tcreorder/init` (fixture context) | 200 | 200 ✓ |
+| hygiene | Event Viewer: new Error/Warning rows | 0 | 0 ✓ |
+| hygiene | `php -l` on all 14 patched files | clean | 14× clean ✓ |
 
-### Actual result observed — **PASS** (all 10 steps)
-
-* Step 1: `HTTP=200 bytes=205`,
-  `{"status":"ok","data":{"groups":[],"priorityEnabled":true,"showAllUsers":false,"showClosedBuilds":false,"glueChar":"-","statusKeys":["failed","blocked","passed","not_run","not_available","unknown","all"]}}`
-  — was `HTTP=500 bytes=0`.
-* Steps 2–4: bodies unchanged (`tproject_id is required`, `Test project not found`,
-  `Not authenticated` → 401).
-* Step 5: `HTTP=200 bytes=595`, `groups: 1 tplan: [3] tplan_name: ['Plan B'] rows: 1`,
-  row0 `{"user_id":1,"build_id":1,"build_name":"Build B","suite_path":"Suite 1648","testcase_id":5,"tcversion_id":6,"prefix":"I64B","name":"I64B-1","version":1,"platform_id":1,"platform_name":"Win10","priority_level":"medium","status_key":"not_run","days_since":0,"can_exec":true}`,
-  `statusKeys` = the same 7 keys.
-* Step 6: all 5 parameter variants `HTTP=200 groups=1 rows=1 statusKeys=7`.
-* Step 7: `{"status":"ok","data":{"result":"passed","tcversion_id":6}}` → step 9 renders the
-  row with status **Passed**, so the write path feeds the read path correctly.
-* Step 8: network `[200]` for `/rows`, console `<no console messages found>` (errors **and**
-  warnings), DOM shows `No test cases assigned.` + `0 assignment(s)`.
-  Screenshots: `docs/screenshots/issue-1648-tcassignments-rows-500-before.png`,
-  `docs/screenshots/issue-1648-tcassignments-rows-500-after.png`.
-* Step 10: `events max id before=7 after=7 (delta=0)`; `count(*) where log_level < 16` stays
-  `2` — those two rows are the pre-fix warnings written at 13:50:24 (curl) and 13:50:42 (browser).
-* `php -l api/tcassignments/index.php` → *No syntax errors detected*.
-
-### Root cause (one line)
-
-`$statusCodes = $resultsCfg['status_code'];` was assigned **inside** the
-`if (!is_null($rs))` block (api/tcassignments/index.php:240) but consumed **outside** it
-(`:348 'statusKeys' => array_keys($statusCodes)`) — with no assignments `get_assigned_to_user()`
-returns NULL, so `array_keys(null)` raised a PHP 8 `TypeError` → uncaught → HTTP 500, 0 bytes.
-Introduced by `023e60cedb` (Refs #660, 2026-08-24, `git blame -L 346,349`).
-
-### Fix
-
-Move the read above the guard and cast defensively:
-`$statusCodes = (array)($resultsCfg['status_code'] ?? []);` — commit `b17faa89e`.
-Chosen over the reporter's `is_array(…) ? array_keys(…) : []` because that would ship
-`statusKeys: []` in exactly the empty case where the client still needs the legend data.
-
-### Notes
-
-* Step 2/3 answer HTTP 200 instead of 400/404 — **pre-existing, unrelated, not fixed here**:
-  `out($data, $code = 200)` overwrites the status code set by the callers. Filed as #1776.
-* No i18n / frontend change was needed; `gui/templates/execute/tcAssignments.html` never
-  referenced `statusKeys` by name, so no locale bundle was touched.
+**Notes**
+* The single Event Viewer row the matrix produced is
+  `E_WARNING Undefined array key "tplan" — lib/functions/tlUser.class.php:962`, produced by the
+  403 rights branch. That is the already-filed **#1775**, not a regression of #1776; the script
+  counts those rows separately and reports them.
+* `api/tcassignments/index.php/rows` **cannot** return 200 on a fresh install: it fatals before
+  reaching `out()` with `TypeError: array_keys(): Argument #1 must be of type array, null given`
+  at `api/tcassignments/index.php:350` → HTTP 500 with an EMPTY body. Pre-existing, unrelated to
+  this fix, filed as **#1777**.
+* `/init` of the same endpoint is used as the success-path probe instead.

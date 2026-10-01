@@ -150,9 +150,11 @@ function suitMoveProjectPrefix(&$db, $tprojectId)
     return '';
 }
 
-function out($data, $code = 200)
+function out($data, $code = null)
 {
-    http_response_code($code);
+    if (!is_null($code)) {
+        http_response_code($code);
+    }
     echo json_encode($data);
     exit;
 }

@@ -88,9 +88,11 @@ if (is_null($user)) {
               'message' => 'User not found'), 401);
 }
 
-function out($data, $code = 200)
+function out($data, $code = null)
 {
-    http_response_code($code);
+    if (!is_null($code)) {
+        http_response_code($code);
+    }
     echo json_encode($data);
     exit;
 }

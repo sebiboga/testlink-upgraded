@@ -119,8 +119,10 @@ require_once(__DIR__ . '/../_guard.php');
 header('Content-Type: application/json; charset=utf-8');
 header('X-Content-Type-Options: nosniff');
 
-function out($data, $code = 200) {
-    http_response_code($code);
+function out($data, $code = null) {
+    if (!is_null($code)) {
+        http_response_code($code);
+    }
     echo json_encode($data);
     exit;
 }

@@ -79,8 +79,8 @@ register_shutdown_function('lvShutdownGuard');
 $db = new database(DB_TYPE);
 doDBConnect($db);
 
-function lvOut($data, $code = 200) {
-    if (!headers_sent()) {
+function lvOut($data, $code = null) {
+    if (!is_null($code) && !headers_sent()) {
         http_response_code($code);
     }
     echo json_encode($data);

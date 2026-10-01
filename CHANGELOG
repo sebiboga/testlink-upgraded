@@ -8410,3 +8410,20 @@ Changes:
   proven by planting one and reading it back. The query now **allow-lists** the two kinds of row the
   tree can render (`testsuite`, `testcase`), so a node type nobody thought of cannot leak; the suite
   plants one node of each of the six hidden types and proves none comes back.
+
+### KEY BUGFIX — 14 BFF helpers: `out($data, $code = 200)` reset the HTTP status, so every error branch answered HTTP 200 (Fixes #1776)
+
+The `out()`-family helpers in `api/execassignment`, `execassignmentcopy`, `ltx`, `logviewer`,
+`suitemove`, `tcassign2tplan`, `tcassignments`, `tcbulkop`, `tcprintlaunch`, `tcreorder`,
+`tcstepsreorder`, `tcsummary`, `tcunassignall`, `testcasesedit` set `http_response_code($code)`
+unconditionally, so the `$code = 200` default silently overwrote the status the caller had
+already set one line earlier. Every `http_response_code(N); out([...]);` branch of those
+endpoints — 25 of them (`execassignment` 13, `tcassignments` 11, `tcassign2tplan` 1, plus the
+`logviewer` DB-error 500 — answered **HTTP 200 with an error body**: validation failures,
+unknown routes and rights denials were indistinguishable from successes for `fetch`
+(`res.ok`), DataTables ajax error handling and any monitoring keyed on the status line.
+The helper now only sets the status when a code is passed explicitly
+(`out($data, $code = null)` + `if (!is_null($code))`), which is the guard
+`api/tcassigned/index.php` and `api/keywordsxml/index.php` already shipped. The 37 callers
+that pass the code as the second argument are unaffected; success responses stay 200.
+Regression suite: `bash tmp/verify_1776.sh` (34 PASS / 0 FAIL).

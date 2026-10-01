@@ -61,8 +61,10 @@ $path = '/' . trim($path, '/');
 $method = $_SERVER['REQUEST_METHOD'];
 $segments = array_values(array_filter(explode('/', $path)));
 
-function out($data, $code = 200) {
-    http_response_code($code);
+function out($data, $code = null) {
+    if (!is_null($code)) {
+        http_response_code($code);
+    }
     echo json_encode($data);
     exit;
 }
