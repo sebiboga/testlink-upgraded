@@ -12,14 +12,13 @@
  *   - download a single attachment streamed with the legacy XSS-safe
  *     SVG handling
  *
- * Rights (same as legacy screens): attachments feature enabled
- * (config_get("attachments")->enabled on every attachmentupload.php /
- * attachmentdelete.php / attachmentdownload.php checkRights).
- *
- * Refs #1647: ?action=delete additionally requires the caller to hold a
- * visibility right on the OWNING object (api/_attachauth.php), fail closed -
- * a user with no right at all used to delete any attachment of any test
- * project.
+ * Rights: attachments feature enabled (config_get("attachments")->enabled on
+ * every attachmentupload.php / attachmentdelete.php / attachmentdownload.php
+ * checkRights) AND - Refs #1768 - object-level authorization: the caller must
+ * hold the visibility right of the object that OWNS the attachment set
+ * (api/_attachauth.php::attAuthCheckOwner()). The public share-link download
+ * (lnl.php ?type=file, 32/64 char API key) is instead bound to the owning
+ * entity by bffAttachBindObjectKey() below.
  */
 
 require_once(__DIR__ . '/../../config.inc.php');
@@ -30,6 +29,8 @@ doSessionStart();
 require_once(__DIR__ . '/../_guard.php');
 require_once(__DIR__ . '/../_attachauth.php');
 bffSameOriginGuard();
+
+require_once(__DIR__ . '/../_attachauth.php');
 
 $db = new database(DB_TYPE);
 doDBConnect($db);
@@ -194,11 +195,24 @@ if ($action === 'download') {
     // Anonymous object-key downloads: the key must belong to the entity the
     // attachment belongs to (Refs #1541, fail-closed hardening vs the legacy
     // hippie "any entity with this key" check).
-    if ($isAnonFromKey && !bffAttachBindObjectKey($db, $attachInfo, $publicApikey)) {
-        http_response_code(403);
-        echo json_encode(['status' => 'error',
-                          'message' => 'API key not bound to attachment owner']);
-        exit;
+    if ($isAnonFromKey) {
+        if (!bffAttachBindObjectKey($db, $attachInfo, $publicApikey)) {
+            http_response_code(403);
+            echo json_encode(['status' => 'error',
+                              'message' => 'API key not bound to attachment owner']);
+            exit;
+        }
+    } else {
+        // Session / user-API-key callers: the attachment belongs to SOME
+        // object, and that object's visibility right is required (Refs #1768).
+        // Without it any authenticated user could read every attachment.
+        if (!attAuthCheckOwner($db, $user, strval($attachInfo['fk_table'] ?? ''),
+                              intval($attachInfo['fk_id'] ?? 0))) {
+            http_response_code(403);
+            echo json_encode(['status' => 'error',
+                              'message' => 'Forbidden: no rights on the attachment owner']);
+            exit;
+        }
     }
     $content = $fileRepo->getAttachmentContent($id, $attachInfo);
     if (is_null($content) || $content === '') {
@@ -284,6 +298,12 @@ if ($action === 'list') {
         strval($_GET['table'] ?? ($_POST['table'] ?? '')),
         intval($_GET['id'] ?? ($_POST['id'] ?? 0))
     );
+    // Refs #1768: visibility right on the OWNING object. checkFk() above only
+    // proves the table is whitelisted, which is not a permission.
+    if (!attAuthCheckOwner($db, $user, $fkTable, $fkId)) {
+        bffOut(['status' => 'error',
+                'message' => 'Forbidden: no rights on the attachment owner'], 403);
+    }
     $stdTableUsedAsFolder = str_replace(DB_TABLE_PREFIX, '', $fkTable);
     $attTables = tlObjectWithDB::getDBTables(array('attachments'));
     $rows = $db->get_recordset(
@@ -307,6 +327,14 @@ if ($action === 'upload') {
         strval($_POST['table'] ?? ''),
         intval($_POST['id'] ?? 0)
     );
+    // Refs #1768: the write half of the hole. Same owner resolution as list,
+    // evaluated against the object named in the request BEFORE any file is
+    // stored, but with the modify right of that owner ($forWrite = true): a
+    // read-only grant must not be enough to write a file into the object.
+    if (!attAuthCheckOwner($db, $user, $fkTable, $fkId, true)) {
+        bffOut(['status' => 'error',
+                'message' => 'Forbidden: no rights to upload here'], 403);
+    }
     $title = trim(strval($_POST['title'] ?? ''));
     $opt = null;
     if ($fkTable === 'executions') {

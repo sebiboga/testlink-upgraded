@@ -1,53 +1,57 @@
 <?php
 /**
- * Shared object-level authorization for the attachment BFF endpoints
- * (api/attachments/index.php, api/attachmentsdelete/index.php).
+ * Shared object-level authorization for the attachment BFF
+ * (api/attachments/index.php).
  *
- * Why this file exists - issue #1647:
- * both endpoints PROVED that the attachment belongs to the object the caller
- * named (table + fk_id match, or the legacy session allow-list), but neither
- * ever asked whether the CALLER MAY TOUCH that object. A user holding no right
- * at all (global role <no rights>, no user_testproject_roles row) could read
- * the attachment metadata and delete any attachment of any test project:
+ * WHY: the attachment API only knew session authentication. `checkFk()`
+ * validated that `table` is one of the whitelisted tables TestLink stores
+ * attachments for and that the id is positive - that is an input check, not a
+ * permission. Measured consequence (issue #1768): an authenticated user with
+ * the global `<no rights>` role (users.role_id = 3, zero rows in role_rights,
+ * no user_testproject_roles row) could
+ *   - GET  ?action=list&table=testprojects&id=<any>      -> 200 + metadata
+ *   - POST ?action=upload table=testprojects&id=<any>    -> 200, row created
+ *   - GET  ?action=download&id=<any>                     -> 200 + file bytes
+ * i.e. read and WRITE files on every object of the installation.
  *
- *   POST /api/attachmentsdelete/index.php?action=delete&id=<A>&table=<t>&fk_id=<id>
- *   -> 200 {"status":"ok","deleted_id":<A>}
+ * THE GATE: resolve the OWNING object of the attachment set (never the session
+ * context, so a forged table/id pair cannot gate rights against a project the
+ * user may see) and require the visibility right that the legacy screen showing
+ * those attachments already required:
  *
- * Ownership is not authorization: table/fk_id are caller supplied and are only
- * compared against the stored row.
+ *   executions                                -> testplan_execute | exec_ro_access
+ *                                               | exec_edit_notes   (on the plan)
+ *   testplans / builds                        -> testplan_execute | testplan_planning
+ *                                               | testplan_create_build | testplan_metrics
+ *   testprojects                              -> mgt_view_tc | mgt_modify_tc
+ *                                               | mgt_view_req | mgt_modify_req
+ *                                               | mgt_modify_product | testproject_metrics_dashboard
+ *                                               (the grant set api/projectinfo and the
+ *                                                dashboard already expose)
+ *   nodes_hierarchy / testsuites / testcases / -> mgt_view_tc | mgt_modify_tc
+ *   tcversions / tcsteps                        (legacy suite viewer / containerEdit)
+ *   execution_tcsteps                          -> same as executions (the row
+ *                                               points at its execution)
+ *   req_specs / requirement_specs /            -> mgt_view_req | mgt_modify_req
+ *   requirements / req_versions                  | req_tcase_link_management | monitor_requirement
+ *                                                (legacy reqView.php / requirement_spec_mgr)
  *
- * What this helper does:
- *   1. derives the TEST PROJECT that owns the attachment entity (every fk_table
- *      the two endpoints accept, plus the node walk used by nodes_hierarchy);
- *   2. maps that entity to the TestLink rights that grant visibility on it
- *      (this fork's right names - mgt_view_tc / mgt_view_req / mgt_view_key /
- *      cfield_view / testplan_* - NOT the upstream testcase_view naming);
- *   3. requires the CURRENT USER to hold at least one of them, through
- *      tlUser::hasRight(), which since #1763 also enforces the private-project
- *      rule (no user_testproject_roles row + private project + non admin = no
- *      access).
+ * For action=upload the read-only entries of each set are replaced by their
+ * modify counterpart (attAuthOwnerAllowed($forWrite = true)).
  *
- * FAIL CLOSED: when the owning test project cannot be derived - unknown table,
- * slimmed schema, deleted owner row - the DELETE is refused. The only
- * exceptions are the two owners that are genuinely project-less by design,
- * node type 13 (platform) and 14 (user), which are judged on the GLOBAL right
- * set. An unknown fk_table, an empty right list, or an undeducible owner
- * therefore never means "allowed".
+ * tlUser::hasRight() itself already refuses a private test project the user
+ * holds no role on (tlUser.class.php:935-944, Refs #1763), and admin keeps the
+ * legacy exception, so this helper inherits both behaviours instead of
+ * re-implementing them.
  *
- * The fail-closed rule is not cosmetic. tlUser::hasRight() only evaluates the
- * private-project rule when the test project id is > 0 (tlUser.class.php:886),
- * so judging a derived owner against the GLOBAL right set would silently skip
- * that guard and re-open the #1763 hole for every owner whose project id is not
- * derivable (a global mgt_view_req role 4/6/7/9 account would delete
- * attachments of a private project it has no role on).
+ * FAIL CLOSED: any owner that cannot be resolved (unknown table, deleted
+ * object, broken hierarchy) is denied, never allowed.
  *
- * Rationale for using the VISIBILITY right rather than a manage right: legacy
- * attachmentdelete.php had no right check at all, and every screen that offers
- * the delete popup (suiteView / testSpec / reqSpecView / reqView / execTest /
- * projectInfoView / attachmentUpload) is itself already gated on the manage
- * right, so the popup is not reachable without it. The visibility right here is
- * the missing server-side floor that stops a rights-less account from
- * destroying data through a hand-crafted call.
+ * The public share-link download path (lnl.php ?type=file, Refs #1541) is NOT
+ * routed through here: it authenticates with a 64-char OBJECT key, which is
+ * already bound to the owning entity by bffAttachBindObjectKey() in
+ * api/attachments/index.php. A 32-char key is a USER key and resolves to that
+ * user, whose rights are then evaluated here exactly like a session login.
  */
 
 if (count(get_included_files()) === 1) {
@@ -55,278 +59,434 @@ if (count(get_included_files()) === 1) {
     exit;
 }
 
-/**
- * Prefixed physical table name. tlObject::getDBTables() is deliberately NOT
- * used for the lookups below: it THROWS for any name outside its own fixed list
- * (object.class.php:328) and 'latest_req_version' is not on it - it is a view
- * (object.class.php:349 getDBViews()). One unguarded call is an uncaught
- * Exception and therefore a 500 with an empty body. DB_TABLE_PREFIX is exactly
- * what getDBTables() would have concatenated.
- *
- * @return string
- */
-function attAuthTbl($name) {
-    return DB_TABLE_PREFIX . $name;
-}
-
-/**
- * @return int first integer value of the first row, 0 when nothing was found
- */
-function attAuthFirstInt(&$db, $sql) {
-    $rows = $db->get_recordset($sql);
-    if (is_array($rows) && isset($rows[0])) {
-        return intval(reset($rows[0]));
-    }
-    return 0;
-}
-
-/**
- * Walk nodes_hierarchy up to the testproject root (node_types id 1), like
- * arOwnerProjectId() of api/requirements/index.php:2249.
- *
- * @return int test project id, 0 when not derivable
- */
-function attAuthNodeProjectId(&$db, $nodeId) {
-    static $projectType = null;
-    if (is_null($projectType)) {
-        $nt = attAuthTbl('node_types');
-        $rows = $db->get_recordset("SELECT id FROM {$nt} " .
-            "WHERE description = 'testproject' LIMIT 1");
-        $projectType = (is_array($rows) && isset($rows[0]))
-            ? intval($rows[0]['id']) : 1;
-    }
-    $nh = attAuthTbl('nodes_hierarchy');
-    $cursor = intval($nodeId);
-    $guard = 0;
-    while ($cursor > 0 && $guard++ < 200) {
-        $row = $db->get_recordset(
-            "SELECT parent_id,node_type_id FROM {$nh} " .
-            "WHERE id = {$cursor} LIMIT 1");
-        if (!is_array($row) || !isset($row[0])) {
-            break;
+if (!function_exists('attAuthNodeTypes')) {
+    /**
+     * node_type_id map of the 2.0.1 `node_types` table (testproject, testsuite,
+     * testcase, testcase_version, testcase_step, requirement_spec, requirement,
+     * requirement_version). Resolved from the DB like every other BFF does
+     * (api/suitemove/index.php:83-100, api/tcreorder/index.php:88-100) and
+     * backed by the ids shipped in
+     * install/sql/mysql/testlink_create_default_data.sql:12-20, so a fork that
+     * renumbered the table still works. Cached per request.
+     *
+     * @return array map description => node_type_id
+     */
+    function attAuthNodeTypes(&$db)
+    {
+        static $types = null;
+        if (!is_null($types)) {
+            return $types;
         }
-        if (intval($row[0]['node_type_id']) === $projectType) {
-            return $cursor;
-        }
-        $cursor = intval($row[0]['parent_id']);
-    }
-    return 0;
-}
-
-/**
- * Test project of the entity that owns the attachment.
- *
- * @return int test project id, 0 when it cannot be derived
- */
-function attAuthOwnerProjectId(&$db, $table, $fkId) {
-    $table = strval($table);
-    $fkId = intval($fkId);
-    if ($fkId <= 0) {
-        return 0;
-    }
-    $plans = attAuthTbl('testplans');
-
-    if ($table === 'nodes_hierarchy') {
-        return attAuthNodeProjectId($db, $fkId);
-    }
-    if ($table === 'testprojects') {
-        return $fkId;
-    }
-    if ($table === 'testplans') {
-        return attAuthFirstInt($db, "SELECT testproject_id FROM {$plans} " .
-            "WHERE id = {$fkId} LIMIT 1");
-    }
-    if ($table === 'builds') {
-        $builds = attAuthTbl('builds');
-        return attAuthFirstInt($db, "SELECT testproject_id FROM {$builds} " .
-            "WHERE id = {$fkId} LIMIT 1");
-    }
-    if ($table === 'executions') {
-        $execs = attAuthTbl('executions');
-        $planId = attAuthFirstInt($db,
-            "SELECT testplan_id FROM {$execs} WHERE id = {$fkId} LIMIT 1");
-        if ($planId <= 0) {
-            return 0;
-        }
-        return attAuthFirstInt($db,
-            "SELECT testproject_id FROM {$plans} WHERE id = {$planId} LIMIT 1");
-    }
-    if ($table === 'execution_tcsteps') {
-        $ets = attAuthTbl('execution_tcsteps');
-        $execId = attAuthFirstInt($db,
-            "SELECT execution_id FROM {$ets} WHERE id = {$fkId} LIMIT 1");
-        return ($execId > 0)
-            ? attAuthOwnerProjectId($db, 'executions', $execId) : 0;
-    }
-    if ($table === 'req_specs' || $table === 'requirement_specs') {
-        $specs = attAuthTbl('req_specs');
-        return attAuthFirstInt($db,
-            "SELECT testproject_id FROM {$specs} WHERE id = {$fkId} LIMIT 1");
-    }
-    if ($table === 'requirements') {
-        $reqs = attAuthTbl('requirements');
-        $srsId = attAuthFirstInt($db,
-            "SELECT srs_id FROM {$reqs} WHERE id = {$fkId} LIMIT 1");
-        return ($srsId > 0) ? attAuthOwnerProjectId($db, 'req_specs', $srsId) : 0;
-    }
-    if ($table === 'req_versions') {
-        // A requirement VERSION is also a nodes_hierarchy row (node_type_id 8,
-        // requirement_version) whose parent is the requirement node, so the
-        // plain parent walk resolves it - and unlike latest_req_version
-        // (a GROUP-BY-max VIEW, so it only knows the NEWEST version id of each
-        // requirement) it also resolves the OLD versions the reqView version
-        // selector can attach to.
-        return attAuthNodeProjectId($db, $fkId);
-    }
-    if ($table === 'keywords') {
-        $kw = attAuthTbl('keywords');
-        return attAuthFirstInt($db,
-            "SELECT testproject_id FROM {$kw} WHERE id = {$fkId} LIMIT 1");
-    }
-    if ($table === 'cfields' || $table === 'custom_fields') {
-        // a custom field may belong to several projects; any one the user can
-        // see is enough.
-        $cftp = attAuthTbl('cfield_testprojects');
-        $rows = $db->get_recordset("SELECT testproject_id FROM {$cftp} " .
-            "WHERE field_id = {$fkId} LIMIT 1");
-        if (is_array($rows) && isset($rows[0])) {
-            return intval($rows[0]['testproject_id']);
-        }
-        return 0;
-    }
-    if ($table === 'tcversions') {
-        // this fork's tcversions has no testcase_id; the reachable link is
-        // testplan_tcversions -> test plan -> project.
-        $ptv = attAuthTbl('testplan_tcversions');
+        $types = array(
+            'testproject' => 1, 'testsuite' => 2, 'testcase' => 3,
+            'testcase_version' => 4, 'testplan' => 5,
+            'requirement_spec' => 6, 'requirement' => 7,
+            'requirement_version' => 8, 'testcase_step' => 9,
+        );
+        $tables = tlObjectWithDB::getDBTables(array('node_types'));
         $rows = $db->get_recordset(
-            "SELECT t.testproject_id FROM {$ptv} pv " .
-            "INNER JOIN {$plans} t ON t.id = pv.testplan_id " .
-            "WHERE pv.tcversion_id = {$fkId} LIMIT 1");
-        if (is_array($rows) && isset($rows[0])) {
-            return intval($rows[0]['testproject_id']);
+            "SELECT id, description FROM {$tables['node_types']}");
+        if (!is_null($rows)) {
+            foreach ($rows as $row) {
+                $descr = strval($row['description']);
+                if (isset($types[$descr])) {
+                    $types[$descr] = intval($row['id']);
+                }
+            }
+        }
+        return $types;
+    }
+}
+
+if (!function_exists('attAuthFirstRow')) {
+    /** @return array|null first row or null (never false). */
+    function attAuthFirstRow(&$db, $sql)
+    {
+        $rows = $db->get_recordset($sql);
+        if (is_null($rows) || count($rows) === 0) {
+            return null;
+        }
+        return $rows[0];
+    }
+}
+
+if (!function_exists('attAuthNode')) {
+    /** @return array|null nodes_hierarchy row (id, parent_id, node_type_id). */
+    function attAuthNode(&$db, $nodeId)
+    {
+        $tables = tlObjectWithDB::getDBTables(array('nodes_hierarchy'));
+        return attAuthFirstRow($db,
+            "SELECT id, parent_id, node_type_id FROM {$tables['nodes_hierarchy']} " .
+            "WHERE id = " . intval($nodeId) . " LIMIT 1");
+    }
+}
+
+if (!function_exists('attAuthProjectOfNode')) {
+    /**
+     * Walk up nodes_hierarchy to the tree root (node_type_id = testproject),
+     * which carries the same id as testprojects.id. Returns 0 when the walk
+     * dead-ends - the caller then denies.
+     */
+    function attAuthProjectOfNode(&$db, $nodeId)
+    {
+        $types = attAuthNodeTypes($db);
+        $seen = array();
+        $nodeId = intval($nodeId);
+        while ($nodeId > 0 && !isset($seen[$nodeId])) {
+            $seen[$nodeId] = 1;
+            $node = attAuthNode($db, $nodeId);
+            if (is_null($node)) {
+                return 0;
+            }
+            if (intval($node['node_type_id']) === $types['testproject']) {
+                return intval($node['id']);
+            }
+            $nodeId = intval($node['parent_id']);
         }
         return 0;
     }
-    return 0;
 }
 
-/**
- * node_types.id of a nodes_hierarchy row, 0 when the row is gone.
- *
- * @return int
- */
-function attAuthNodeTypeId(&$db, $nodeId) {
-    return attAuthFirstInt($db, "SELECT node_type_id FROM " .
-        attAuthTbl('nodes_hierarchy') . " WHERE id = " . intval($nodeId) . " LIMIT 1");
-}
-
-/**
- * Rights that grant visibility on the owning entity. The node type decides for
- * nodes_hierarchy, which holds EVERY container kind (testproject 1, testsuite
- * 2, testcase 3, build 12, testplan 5, requirement_spec 6 ...).
- *
- * @return array right names; empty means "unknown owner - deny"
- */
-function attAuthOwnerRights(&$db, $table, $fkId) {
-    $table = strval($table);
-    switch ($table) {
-        case 'nodes_hierarchy':
-            $nt = attAuthNodeTypeId($db, $fkId);
-            if ($nt === 5) {            // testplan
-                return array('mgt_view_tc', 'testplan_planning', 'testplan_metrics');
-            }
-            if ($nt === 1) {            // testproject
-                return array('mgt_view_tc', 'mgt_view_req', 'mgt_view_key');
-            }
-            if ($nt === 6 || $nt === 7 || $nt === 8 || $nt === 10 || $nt === 11) {
-                return array('mgt_view_req');
-            }
-            if ($nt === 13) {           // platform
-                return array('platform_view');
-            }
-            if ($nt === 14) {           // user
-                return array('mgt_users');
-            }
-            return array('mgt_view_tc'); // 2 testsuite, 3 testcase,
-                                     // 4 testcase_version, 9 testcase_step, 12 build
-        case 'testprojects':
-            return array('mgt_view_tc', 'mgt_view_req', 'mgt_view_key');
-        case 'testplans':
-            return array('mgt_view_tc', 'testplan_planning', 'testplan_metrics',
-                         'testplan_execute');
-        case 'builds':
-            return array('mgt_view_tc', 'testplan_create_build');
-        case 'executions':
-        case 'execution_tcsteps':
-        case 'tcsteps':
-            return array('mgt_view_tc', 'testplan_execute', 'exec_ro_access');
-        case 'tcversions':
-        case 'testcases':
-            return array('mgt_view_tc');
-        case 'req_specs':
-        case 'requirement_specs':
-        case 'req_versions':
-        case 'requirements':
-            return array('mgt_view_req');
-        case 'keywords':
-            return array('mgt_view_key');
-        case 'cfields':
-        case 'custom_fields':
-            return array('cfield_view');
-        default:
-            // Unknown owner: stay fail closed (no rights -> no access).
-            return array();
+if (!function_exists('attAuthReqSpecProject')) {
+    /** Requirement -> its req spec -> the test project of that spec. */
+    function attAuthReqSpecProject(&$db, $reqSpecId)
+    {
+        $tables = tlObjectWithDB::getDBTables(array('req_specs'));
+        $row = attAuthFirstRow($db,
+            "SELECT testproject_id FROM {$tables['req_specs']} WHERE id = " .
+            intval($reqSpecId) . " LIMIT 1");
+        return is_null($row) ? 0 : intval($row['testproject_id']);
     }
 }
 
-/**
- * THE gate used by both attachment endpoints.
- *
- * @return bool true when the user may act on the owner of the attachment
- */
-function attAuthOwnerAllowed(&$db, $user, $table, $fkId) {
-    if (is_null($user)) {
-        return false;
+if (!function_exists('attAuthResolveContext')) {
+    /**
+     * Resolve the object that owns an attachment set.
+     *
+     * @param string $fkTable fk_table of the attachment set (prefix stripped)
+     * @param int    $fkId    id of the owning object
+     *
+     * @return array ['domain' => 'exec'|'plan'|'project'|'tc'|'req',
+     *                'tproject_id' => int, 'tplan_id' => int]
+     *               or ['domain' => '', ...] when the owner cannot be resolved.
+     */
+    function attAuthResolveContext(&$db, $fkTable, $fkId)
+    {
+        $types = attAuthNodeTypes($db);
+        $fkTable = strval($fkTable);
+        $fkId = intval($fkId);
+        $ctx = array('domain' => '', 'tproject_id' => 0, 'tplan_id' => 0);
+
+        if ($fkId <= 0) {
+            return $ctx;
+        }
+
+        $tables = tlObjectWithDB::getDBTables(
+            array('testplans', 'builds', 'executions', 'requirements',
+                  'testprojects', 'execution_tcsteps'));
+
+        switch ($fkTable) {
+            case 'testprojects':
+                // the project IS the owner; prove the row exists
+                $row = attAuthFirstRow($db,
+                    "SELECT id FROM {$tables['testprojects']} WHERE id = {$fkId} LIMIT 1");
+                if (is_null($row)) {
+                    return $ctx;
+                }
+                $ctx = array('domain' => 'project', 'tproject_id' => $fkId,
+                             'tplan_id' => 0);
+                break;
+
+            case 'testplans':
+                $row = attAuthFirstRow($db,
+                    "SELECT testproject_id FROM {$tables['testplans']} " .
+                    "WHERE id = {$fkId} LIMIT 1");
+                if (is_null($row)) {
+                    return $ctx;
+                }
+                $ctx = array('domain' => 'plan',
+                             'tproject_id' => intval($row['testproject_id']),
+                             'tplan_id' => $fkId);
+                break;
+
+            case 'builds':
+                $row = attAuthFirstRow($db,
+                    "SELECT testproject_id FROM {$tables['builds']} " .
+                    "WHERE id = {$fkId} LIMIT 1");
+                if (is_null($row)) {
+                    return $ctx;
+                }
+                $ctx = array('domain' => 'plan',
+                             'tproject_id' => intval($row['testproject_id']),
+                             'tplan_id' => 0);
+                break;
+
+            case 'executions':
+                $row = attAuthFirstRow($db,
+                    "SELECT testplan_id FROM {$tables['executions']} " .
+                    "WHERE id = {$fkId} LIMIT 1");
+                if (is_null($row)) {
+                    return $ctx;
+                }
+                $tplanId = intval($row['testplan_id']);
+                $prs = attAuthFirstRow($db,
+                    "SELECT testproject_id FROM {$tables['testplans']} " .
+                    "WHERE id = {$tplanId} LIMIT 1");
+                if (is_null($prs)) {
+                    return $ctx;
+                }
+                $ctx = array('domain' => 'exec',
+                             'tproject_id' => intval($prs['testproject_id']),
+                             'tplan_id' => $tplanId);
+                break;
+
+            case 'execution_tcsteps':
+                // lib/functions/exec.inc.php:226 stores the attachments of the
+                // PREVIOUS run of a step under fk_table = execution_tcsteps
+                // (api/execsetresults/index.php:745-747 lists them and hands out
+                // the download_url). The row points at its execution, hence at
+                // that execution's test plan.
+                $row = attAuthFirstRow($db,
+                    "SELECT execution_id FROM {$tables['execution_tcsteps']} " .
+                    "WHERE id = {$fkId} LIMIT 1");
+                if (is_null($row)) {
+                    return $ctx;
+                }
+                $er = attAuthFirstRow($db,
+                    "SELECT testplan_id FROM {$tables['executions']} " .
+                    "WHERE id = " . intval($row['execution_id']) . " LIMIT 1");
+                if (is_null($er)) {
+                    return $ctx;
+                }
+                $tplanId = intval($er['testplan_id']);
+                $prs = attAuthFirstRow($db,
+                    "SELECT testproject_id FROM {$tables['testplans']} " .
+                    "WHERE id = {$tplanId} LIMIT 1");
+                if (is_null($prs)) {
+                    return $ctx;
+                }
+                $ctx = array('domain' => 'exec',
+                             'tproject_id' => intval($prs['testproject_id']),
+                             'tplan_id' => $tplanId);
+                break;
+
+            case 'nodes_hierarchy':
+            case 'testsuites':
+            case 'testcases':
+                // a hierarchy node owns its attachment set; the project is the
+                // tree root (legacy containerEdit/testSpec resolve it the same
+                // way, see api/suiteview owningProjectOf()). Project / suite /
+                // test case nodes are design-time (tc right set); the
+                // requirement nodes 6/7/8 that share the table are requirement
+                // management, so they take the req right set.
+                $node = attAuthNode($db, $fkId);
+                if (is_null($node)) {
+                    return $ctx;
+                }
+                $nodeType = intval($node['node_type_id']);
+                $isReqNode = in_array($nodeType,
+                    array($types['requirement_spec'], $types['requirement'],
+                          $types['requirement_version']), true);
+                $ctx = array('domain' => $isReqNode ? 'req' : 'tc',
+                             'tproject_id' => attAuthProjectOfNode($db, $fkId),
+                             'tplan_id' => 0);
+                break;
+
+            case 'tcversions':
+                // 2.0.1 schema: a test case version is a nodes_hierarchy node
+                // (node_type_id = testcase_version) whose id IS tcversions.id.
+                $node = attAuthNode($db, $fkId);
+                if (is_null($node) ||
+                    intval($node['node_type_id']) !== $types['testcase_version']) {
+                    return $ctx;
+                }
+                $ctx = array('domain' => 'tc',
+                             'tproject_id' => attAuthProjectOfNode($db, $fkId),
+                             'tplan_id' => 0);
+                break;
+
+            case 'tcsteps':
+                // same node tree: testcase_step node -> testcase_version node
+                $node = attAuthNode($db, $fkId);
+                if (is_null($node) ||
+                    intval($node['node_type_id']) !== $types['testcase_step']) {
+                    return $ctx;
+                }
+                $ctx = array('domain' => 'tc',
+                             'tproject_id' => attAuthProjectOfNode($db, $fkId),
+                             'tplan_id' => 0);
+                break;
+
+            case 'req_specs':
+            case 'requirement_specs':
+                $ctx = array('domain' => 'req',
+                             'tproject_id' => attAuthReqSpecProject($db, $fkId),
+                             'tplan_id' => 0);
+                break;
+
+            case 'requirements':
+                $row = attAuthFirstRow($db,
+                    "SELECT srs_id FROM {$tables['requirements']} " .
+                    "WHERE id = {$fkId} LIMIT 1");
+                if (is_null($row)) {
+                    return $ctx;
+                }
+                $ctx = array('domain' => 'req',
+                             'tproject_id' => attAuthReqSpecProject(
+                                 $db, $row['srs_id']),
+                             'tplan_id' => 0);
+                break;
+
+            case 'req_versions':
+                // requirement_mgr.class.php:68 binds requirement attachments to
+                // req_versions; the version node (node_type_id =
+                // requirement_version) hangs off the requirement node.
+                $node = attAuthNode($db, $fkId);
+                if (is_null($node) ||
+                    intval($node['node_type_id']) !== $types['requirement_version']) {
+                    return $ctx;
+                }
+                $reqRow = attAuthFirstRow($db,
+                    "SELECT srs_id FROM {$tables['requirements']} " .
+                    "WHERE id = " . intval($node['parent_id']) . " LIMIT 1");
+                if (is_null($reqRow)) {
+                    return $ctx;
+                }
+                $ctx = array('domain' => 'req',
+                             'tproject_id' => attAuthReqSpecProject(
+                                 $db, $reqRow['srs_id']),
+                             'tplan_id' => 0);
+                break;
+
+            default:
+                // unknown fk_table: no opinion -> deny (fail closed)
+                return $ctx;
+        }
+
+        if ($ctx['tproject_id'] <= 0) {
+            // owner could not be resolved to a project: fail closed
+            $ctx['domain'] = '';
+        }
+        return $ctx;
     }
-    $rights = attAuthOwnerRights($db, $table, $fkId);
-    if (count($rights) === 0) {
-        return false;
-    }
-    $tprojectId = attAuthOwnerProjectId($db, $table, $fkId);
-    if ($tprojectId <= 0 && !attAuthIsProjectlessOwner($db, $table, $fkId)) {
-        // FAIL CLOSED. hasRight($db,$right) without a project id skips the
-        // private-project guard entirely (tlUser.class.php:886), so falling
-        // back to the global right set here would hand a globally privileged
-        // account (built-in roles 4/6/7/9 all hold mgt_view_req / mgt_view_tc)
-        // attachments of a PRIVATE project it has no role on. Refuse instead.
-        return false;
-    }
-    foreach ($rights as $right) {
-        // With a derivable project the right is judged on that project: tlUser
-        // merges global + project role rights and enforces the private-project
-        // rule. The two project-less owners (platform, user) are judged on the
-        // global set, which is what a project-less owner means anyway.
-        $ok = ($tprojectId > 0)
-            ? $user->hasRight($db, $right, $tprojectId)
-            : $user->hasRight($db, $right);
-        if ($ok) {
-            return true;
+}
+
+if (!function_exists('attAuthOwnerAllowed')) {
+    /**
+     * The gate for an attachment set.
+     *
+     * READ (list / download) accepts the visibility right that the legacy screen
+     * showing those attachments already required. WRITE (upload) does NOT: a
+     * read-only grant (exec_ro_access, mgt_view_tc, mgt_view_req,
+     * testproject_metrics_dashboard) must not authorize writing a file into the
+     * object, so the write set is the modify counterpart of each domain - the
+     * rights the legacy upload screens themselves required
+     * (containerEdit.php mgt_modify_tc, reqEdit.php mgt_modify_req,
+     * execSetResults.php exec_edit_notes, planEdit.php testplan_planning).
+     *
+     * @param object $user     tlUser of the caller
+     * @param array  $ctx      attAuthResolveContext() result
+     * @param bool   $forWrite true for action=upload
+     *
+     * @return bool true when the caller may read (or write) this object's
+     *              attachments. Unknown domain / unresolvable owner => false.
+     */
+    function attAuthOwnerAllowed(&$db, $user, $ctx, $forWrite = false)
+    {
+        $domain = strval($ctx['domain'] ?? '');
+        $tprojectId = intval($ctx['tproject_id'] ?? 0);
+        $tplanId = intval($ctx['tplan_id'] ?? 0);
+        if ($domain === '' || $tprojectId <= 0 || is_null($user)) {
+            return false;
+        }
+
+        // any of the listed rights, evaluated at the right scope
+        $anyOf = function ($rights, $withPlan) use ($db, $user, $tprojectId,
+                                                    $tplanId) {
+            foreach ($rights as $right) {
+                // $getAccess = true: the TEST PLAN accessibility flag has to
+                // be filled, exactly like every other plan-scoped check in the
+                // repo (api/execute/index.php:379, api/execsetresults/index.php:102
+                // - both filter the plan through getAccessibleTestPlans() first).
+                // Measured: with $getAccess left false, tlUser.class.php:962
+                // reads the never-set $accessPublic['tplan'] -> "Undefined array
+                // key \"tplan\"" E_WARNING x N per call in the Event Viewer AND
+                // `null == 0` makes it return false, i.e. EVERY user without a
+                // user_testplan_roles row - admin included - would be refused.
+                // (the latent tlUser bug is filed separately).
+                if ($withPlan) {
+                    if ($user->hasRight($db, $right, $tprojectId, $tplanId,
+                                        true)) {
+                        return true;
+                    }
+                } else if ($user->hasRight($db, $right, $tprojectId)) {
+                    return true;
+                }
+            }
+            return false;
+        };
+
+        switch ($domain) {
+            case 'exec':
+                if ($forWrite) {
+                    return $anyOf(array('testplan_execute', 'exec_edit_notes'),
+                                  true);
+                }
+                return $anyOf(array('testplan_execute', 'exec_ro_access',
+                                    'exec_edit_notes'), true);
+
+            case 'plan':
+                if ($forWrite) {
+                    return $anyOf(array('testplan_planning',
+                                        'testplan_create_build'), true);
+                }
+                return $anyOf(array('testplan_execute', 'testplan_planning',
+                                    'testplan_create_build',
+                                    'testplan_metrics'), true);
+
+            case 'project':
+                if ($forWrite) {
+                    return $anyOf(array('mgt_modify_tc', 'mgt_modify_req',
+                                        'mgt_modify_product'), false);
+                }
+                return $anyOf(array('mgt_view_tc', 'mgt_modify_tc',
+                                    'mgt_view_req', 'mgt_modify_req',
+                                    'mgt_modify_product',
+                                    'testproject_metrics_dashboard'), false);
+
+            case 'tc':
+                if ($forWrite) {
+                    return $anyOf(array('mgt_modify_tc'), false);
+                }
+                return $anyOf(array('mgt_view_tc', 'mgt_modify_tc'), false);
+
+            case 'req':
+                if ($forWrite) {
+                    return $anyOf(array('mgt_modify_req'), false);
+                }
+                return $anyOf(array('mgt_view_req', 'mgt_modify_req',
+                                    'req_tcase_link_management',
+                                    'monitor_requirement'), false);
+
+            default:
+                return false;
         }
     }
-    return false;
 }
 
-/**
- * The only owners that are project-less BY DESIGN and may therefore be judged
- * on the global right set: node type 13 (platform) and 14 (user). Every other
- * node type hangs under a test project.
- *
- * @return bool
- */
-function attAuthIsProjectlessOwner(&$db, $table, $fkId) {
-    if ($table !== 'nodes_hierarchy') {
-        return false;
+if (!function_exists('attAuthCheckOwner')) {
+    /**
+     * Convenience wrapper: resolve + gate in one call.
+     *
+     * @param string $fkTable  fk_table of the attachment set
+     * @param int    $fkId     id of the owning object
+     * @param bool   $forWrite true when the caller wants to WRITE (upload)
+     *
+     * @return bool
+     */
+    function attAuthCheckOwner(&$db, $user, $fkTable, $fkId, $forWrite = false)
+    {
+        $ctx = attAuthResolveContext($db, $fkTable, $fkId);
+        return attAuthOwnerAllowed($db, $user, $ctx, $forWrite);
     }
-    $nt = attAuthNodeTypeId($db, $fkId);
-    return ($nt === 13 || $nt === 14);
 }

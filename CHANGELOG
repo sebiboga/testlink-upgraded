@@ -1642,6 +1642,33 @@ MAJOR AREAS
   ownership proof - it is now a non-mutating session-guarded shim (browser 302, XHR fragment).
   Wired through $actions->suiteMove + a toolbar button on the modern Test Specification.
   i18n smv.* (47) + footers.suiteMove in all 10 bundles.
+- [KEY BUGFIX - SECURITY] - #1768: `api/attachments/index.php` gated `list`, `upload` and `download` on
+  nothing but a session (`checkFk()` only proves that `table` is one of the whitelisted tables and that
+  `id > 0` - an input check, not a permission), so ANY authenticated user could enumerate, download and
+  write the attachments of ANY object: measured live as a user with the global `<no rights>` role
+  (role_id 3, zero `role_rights` rows, no `user_testproject_roles` row) - `?action=list&table=testprojects&id=12`
+  200 + full metadata, `?action=upload table=testprojects&id=12` 200 with a row CREATED (and audit-logged
+  as a legitimate CREATE), `?action=download&id=N` 200 + the file bytes, and the same through the
+  `apikey` share-link parameter with a USER script_key. Fix: new shared gate `api/_attachauth.php` -
+  `attAuthResolveContext()` walks the OWNER of the attachment set (never the session context, so a forged
+  table/id pair cannot gate rights against a project the user may see) for all 13 supported `fk_table`
+  values (`testprojects`, `testplans`, `builds`, `executions`, `execution_tcsteps`, `nodes_hierarchy`,
+  `testsuites`, `testcases`, `tcversions`, `tcsteps`, `req_specs`, `requirement_specs`, `requirements`,
+  `req_versions`; requirement nodes that share `nodes_hierarchy` route to the requirement right set),
+  and `attAuthOwnerAllowed()` requires the visibility right the legacy screen showing those attachments
+  already required (`testplan_execute`/`exec_ro_access`/`exec_edit_notes` for executions,
+  `testplan_execute`/`testplan_planning`/`testplan_create_build`/`testplan_metrics` for plans and builds,
+  `mgt_view_tc`/`mgt_modify_tc` for design-time objects, `mgt_view_req`/`mgt_modify_req`/`
+  `req_tcase_link_management`/`monitor_requirement` for requirements); `upload` additionally requires the
+  MODIFY counterpart (`$forWrite`), so a read-only grant can no longer write a file into an object it may
+  read. Fail-closed: an owner that cannot be resolved is denied. `tlUser::hasRight()` is reused, so its
+  private-project rule (Refs #1763) and the legacy admin exception apply unchanged. The public share-link
+  download (64-char OBJECT key, Refs #1541) keeps its existing `bffAttachBindObjectKey()` binding and is
+  byte-identical before/after (measured), while a 32-char USER key now resolves to that user and is judged
+  by that user's rights. `delete` is untouched - it is the still-open #1647. Verified: 59-case regression
+  suite 1768 all PASS (9 fk_tables refused for the no-rights user, admin unaffected on all 9,
+  `execution_tcsteps` resolved, read-vs-write split, 8 share-link/key cases, input validation and CSRF
+  unchanged, `php -l` clean, Event Viewer 0 new ERROR/WARNING). (Fixes #1768)
 - [KEY BUGFIX - DATA INTEGRITY] - #1745: the suiteMove cycle guard was **inverted**, so moving a
   container into its own descendant answered 200 and DETACHED the whole subtree from the
   specification tree (the moved container kept its children but lost its ancestor chain).
