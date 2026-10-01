@@ -149,9 +149,11 @@ $(function () {
     $('#collapseAllBtn').off('click').on('click', function () { setAll(false); });
     $('#casesBtn').off('click').on('click', function () {
       SHOW_CASES = SHOW_CASES ? 0 : 1;
-      CACHE = {};
-      EXPANDED = {};
       $('#casesBtnLabel').text(SHOW_CASES ? t('tcpt.hideCases') : t('tcpt.showCases'));
+      // Refs #1772: resetTree() both drops the stale rows/expand flags and
+      // writes the new gesture to the query string, so a reload (or the Back
+      // button) shows the state that is on screen.
+      resetTree();
       load(true);
     });
     $('#closeBtn').off('click').on('click', function () { window.close(); });
@@ -371,6 +373,10 @@ function handleError(payload, xhr) {
 
 /* --------------------------------------------------------------- filter --- */
 function applyFilter(nodeId) {
+  // Refs #1772: the filter is a URL gesture too - publish it before the load so
+  // the address bar always matches the tree, and re-publish it (with the
+  // parameter dropped) on the paths where the pick turns out to be invalid.
+  resetTree();
   if (!nodeId) {
     showMsg(true, '');
     load(true);
@@ -388,6 +394,7 @@ function applyFilter(nodeId) {
         FILTER_NODE = 0;
         $('#filterSel').val('');
         showMsg(false, t('tcpt.filterInvalid'));
+        resetTree();
         load(true);
         return;
       }
@@ -400,6 +407,7 @@ function applyFilter(nodeId) {
       FILTER_NODE = 0;
       $('#filterSel').val('');
       showMsg(false, t('tcpt.filterInvalid'));
+      resetTree();
       load(true);
     }
   });
