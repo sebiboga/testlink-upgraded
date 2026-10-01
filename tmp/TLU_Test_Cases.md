@@ -2295,3 +2295,98 @@ including the renumbered one where they previously disagreed (C3/C6 were
 
 ### Status
 PASS — `d05417318` (BFF). No screen/i18n change required.
+
+## Suite 1611 — Task / Issue #1611: rights-gated tab bar in the user & role management area
+
+**Feature gap** — legacy `gui/templates/dashio/usermanagement/tabsmenu.tpl:38-79` rendered
+each of the four tabs of the user/role-management area **only** when the matching
+`getGrantsForUserMgmt()` flag was `yes` (fed by `lib/usermanagement/usersAssign.php:119`,
+helper at `lib/functions/users.inc.php:419-460`):
+
+| tab | legacy gate |
+|---|---|
+| User Management | `$grants->user_mgmt` (`mgt_users`) |
+| Role Management | `$grants->role_mgmt` (`role_management`) |
+| Assign Test Project Roles | `$grants->tproject_user_role_assignment` |
+| Assign Test Plan Roles | `$grants->tplan_user_role_assignment` |
+
+In 2.0.1 the tab array was duplicated verbatim in `usersAssignProject.html`,
+`usersAssignPlan.html` and `rolesView.html` with **no** grant check, so a `leader`
+(no `mgt_users`, no `role_management`) was offered User Management and Role Management and
+was bounced by the deny box on click. Only `usersView.html` gated correctly.
+
+**Precondition** — `php tmp/fixtures_1611.php` (re-runnable). Creates test project `101`
+(+ its `nodes_hierarchy` row), test plan `1` (+ its row), `user_testproject_roles` for all
+three users, and three users covering the three distinct rights combinations:
+
+| user | role | rights | `getGrantsForUserMgmt(·,101,-1)` |
+|---|---|---|---|
+| `leaderu` / admin | 9 `leader` | `testplan_user_role_assignment`, `user_role_assignment` | `user_mgmt=no, role_mgmt=no, tproject=yes, tplan=yes` |
+| `planonly` / admin | 20 (created) | `testplan_user_role_assignment` ONLY | `user_mgmt=no, role_mgmt=no, tproject=no, tplan=yes` |
+| `admin` / admin | 8 `admin` | all | all four `yes` |
+
+**Steps** — `python3 tmp/suite_1611.py` (runner for F1..F4, A1..A4, B1..B4, G1..G2,
+T-*, L-*, E1 = 29 checks). It (a) asserts the BFF `grants` payload over HTTP for two
+sessions, (b) drives headless Chrome through **chromedriver** to read the **rendered**
+`#tabsBar` of all four screens for each user, and (c) re-checks the `events` table.
+The tab bar is built client-side, so the served HTML contains an empty
+`<div class="tabs-bar" id="tabsBar"></div>` — asserting on the raw response would be
+vacuous, hence the real DOM.
+
+| # | Case | Expected | Actual | Result |
+|---|---|---|---|---|
+| F1–F4 | fixture sanity (project, plan, `leaderu` on role 9, role 9 has neither `mgt_users` nor `role_management`) | all present | as expected | **PASS** |
+| A1 | `leaderu` HTTP session resolves `meta/tproject-roles` | 200 `ok` | 200 | **PASS** |
+| A2–A4 | browser sessions for `leaderu` / `planonly` / `admin` | 200 | 200 | **PASS** |
+| B1 | `meta/tproject-roles` carries the legacy grants (`leaderu`) | `{no,no,yes,yes}` | `{no,no,yes,yes}` | **PASS** |
+| B2 | `meta/tplan-roles` carries the same grants (`leaderu`) | `{no,no,yes,yes}` | `{no,no,yes,yes}` | **PASS** |
+| B3 | same payload for `admin` | all four `yes` | all four `yes` | **PASS** |
+| B4 | grants computed with legacy's argument shape `(tproject_id, -1)` | identical to `getGrantsForUserMgmt()` | identical | **PASS** |
+| G1 | `/api/users/meta/grants` **still** 403 for `leaderu` (gate unchanged) | 403 `mgt_users` | 403 `mgt_users` | **PASS** |
+| G2 | `/api/roles/meta/grants` **still** 403 for `leaderu` (gate unchanged) | 403 `role_management` | 403 `role_management` | **PASS** |
+| T-usersView | `leaderu` → `usersView.html` | deny box, bar hidden | hidden, *"You do not have the rights required to manage users (mgt_users right required)."* | **PASS** |
+| T-rolesView | `leaderu` → `rolesView.html` | no assign tab offered | only `Role Management`, then hidden by `showNoAccess()` | **PASS** |
+| T-usersAssignProject | `leaderu` → `usersAssignProject.html` | **exactly the 2 legacy tabs**, project one active | `["Assign Test Project Roles"(active), "Assign Test Plan Roles"]` | **PASS** |
+| T-usersAssignPlan | `leaderu` → `usersAssignPlan.html` | **exactly the 2 legacy tabs**, plan one active | `["Assign Test Project Roles", "Assign Test Plan Roles"(active)]` | **PASS** |
+| T-usersAssignProject | `planonly` → project tab kept (documented deviation) + plan tab only | `[project(active), plan]` | `[project(active), plan]`, grants `{tproject:no, tplan:yes}` | **PASS** |
+| T-usersAssignPlan | `planonly` → only the plan tab | `["Assign Test Plan Roles"]` | `["Assign Test Plan Roles"]` | **PASS** |
+| T-admin-\* (4) | `admin` → all four screens | all 4 tabs, correct active one | 4 tabs, correct active on each screen | **PASS** |
+| L-\* (4) | every rendered tab href keeps `tproject_id` / `tplan_id` | context preserved | preserved on all 16 hrefs | **PASS** |
+| E1 | Event Viewer / `events` table | no new rows from the 3 assignment reads | `176 -> 176` | **PASS** |
+
+**TOTAL 29 checks: 29 PASS / 0 FAIL** (`python3 tmp/suite_1611.py`, exit 0).
+
+### Manual browser pass (chrome-devtools MCP)
+
+* `leaderu` → `usersAssignPlan.html?tproject_id=101&tplan_id=1` — bar shows
+  **2** tabs; project combo `[101]`, plan combo `[1]`, grid 2 rows, footer *"2 users"*.
+  Screenshot: `docs/screenshots/issue-1611-leaderu-two-tabs.png`.
+* `leaderu` → `usersView.html` — deny box *"You do not have the rights required to manage
+  users (mgt_users right required)."*, `#tabsBar` `display:none`.
+* `leaderu` → `rolesView.html` — `#tabsBar` `display:none` (screen 403 `role_management`).
+* `admin` → `usersAssignProject.html` — 4 tabs, grid 2 rows. `usersAssignPlan.html` — 4 tabs,
+  grid 2 rows. `rolesView.html` — 4 tabs, roles grid 9 rows. `usersView.html` — 4 tabs, users
+  grid 4 rows.
+* **i18n** — locale combo switched to *Română* on the rewired screen re-renders the bar through
+  the helper with localized labels:
+  `["Gestionare Utilizatori","Gestionare Roluri","Atribuire Roluri Proiect","Atribuire Roluri Plan"]`.
+  All 10 bundles (`de/en/es/fr/it/ja/pt/ro/ru/zh.json`) already carried the 4 `tab.*` keys —
+  verified programmatically, so **no new i18n key was required**.
+* Console: no errors/warnings as `admin`; as `leaderu` on `rolesView` only the 3 expected
+  `403 (Forbidden)` resource errors of the pre-existing deny path.
+
+### Gates
+
+* `php -l api/roles/index.php` → no syntax errors.
+* `node --check gui/templates/usermanagement/usermgmt-tabs.js` → OK; every inline `<script>`
+  block of the four screens extracted and `node --check`ed → OK.
+* No route gate added, removed or changed — `api/roles/index.php` is additive only
+  (`'grants' =>` on two `out()` envelopes).
+
+### Status
+
+**PASS** — `8631a2307` on `task/issue-1611`. One pre-existing defect found while testing and
+filed separately as **#1778** (`E_WARNING Undefined array key "tplan"`,
+`lib/functions/tlUser.class.php:960`) — measured to be present before this change
+(`events` 137 → 137 across a `meta/tproject-roles` GET, 138 → 138 across a direct
+`getGrantsForUserMgmt()` call).
