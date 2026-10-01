@@ -194,7 +194,10 @@ function renderError(r, status) {
     failState('danger', 'fa fa-lock', 'adel.stDisabled', 'adel.errDisabled', code);
   } else if (code === 'ATTACHMENT_NOT_FOUND') {
     failState('danger', 'fa fa-question-circle', 'adel.stNotFound', 'adel.errNotFound', code);
-  } else if (code === 'ATTACHMENT_NOT_ALLOWED') {
+  } else if (code === 'ATTACHMENT_NOT_ALLOWED' || code === 'NO_RIGHT') {
+    // Refs #1647: NO_RIGHT is the object-level authorization answer - the user
+    // may not touch the object that owns the attachment. Same "not allowed"
+    // state, so it reuses the existing translated keys (no new i18n strings).
     failState('danger', 'fa fa-user-lock', 'adel.stNotAllowed', 'adel.errNotAllowed', code);
   } else if (code === 'INVALID_ID') {
     failState('danger', 'fa fa-ban', 'adel.stNoId', 'adel.errNoId', code);
@@ -222,7 +225,7 @@ function doDelete() {
     .done(function (r) {
       if (r.status !== 'ok') {
         $('#btnDelete').prop('disabled', false);
-        if (r.code === 'ATTACHMENT_NOT_ALLOWED') {
+        if (r.code === 'ATTACHMENT_NOT_ALLOWED' || r.code === 'NO_RIGHT') {
           failState('danger', 'fa fa-user-lock', 'adel.stNotAllowed', 'adel.errNotAllowed', r.code, true);
         } else {
           failState('danger', 'fa fa-exclamation-triangle', 'adel.stError', 'adel.errDelete', r.code, true);

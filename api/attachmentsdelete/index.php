@@ -27,9 +27,16 @@
  * enough to remove an attachment of any object. Here the delete requires an
  * authenticated session, an explicit POST behind bffSameOriginGuard() and an
  * id that matches the object in the URL (or the session allow-list).
- * NOT a rights check: like the legacy page it does not verify that the user may
- * touch the owning object - that gap is shared with api/attachments and tracked
- * in the follow-up filed with this commit.
+ *
+ * Refs #1647 (rights gate): ownership is not authorization. table/fk_id are
+ * caller supplied and only compared against the stored row, and the session
+ * allow-list is a "have I just seen it" cache, not a grant - so until this fix
+ * ANY authenticated user, including one with the <no rights> global role,
+ * could delete any attachment of any object. bffAdLoad() now additionally
+ * derives the owning test project from the STORED row and requires the caller
+ * to hold a visibility right on it (api/_attachauth.php, shared with
+ * api/attachments/index.php). Fail closed: an owner whose project cannot be
+ * derived is judged on the global right set only.
  *
  * JSON contract:
  *   GET  ?action=init&id=N[&table=T][&fk_id=M] -> attachment + owner context
@@ -44,6 +51,7 @@ require_once('common.php');
 doSessionStart();
 
 require_once(__DIR__ . '/../_guard.php');
+require_once(__DIR__ . '/../_attachauth.php');
 bffSameOriginGuard();
 
 $db = new database(DB_TYPE);
@@ -219,9 +227,10 @@ function bffAdOwnerLabel($db, $attachInfo) {
  * Read + validate the target. Returns the attachment row on success, exits
  * with the proper JSON status otherwise.
  *
+ * @param tlUser $currentUser
  * @return array
  */
-function bffAdLoad($db) {
+function bffAdLoad($db, $currentUser) {
     if (!bffAdEnabled()) {
         bffAdOut([
             'status' => 'error',
@@ -273,6 +282,18 @@ function bffAdLoad($db) {
         ], 403);
     }
 
+    // Refs #1647: ownership proof passed, now the authorization question -
+    // "may this user touch the OWNING object?". The gate always uses the values
+    // read from the row, never the caller supplied ones.
+    if (!attAuthOwnerAllowed($db, $currentUser, $realTable,
+                             intval($info['fk_id'] ?? 0))) {
+        bffAdOut([
+            'status' => 'error',
+            'code'   => 'NO_RIGHT',
+            'message' => 'No permission on the object that owns this attachment',
+        ], 403);
+    }
+
     return $info;
 }
 
@@ -284,7 +305,7 @@ if ($action === 'init') {
             'message' => 'init is a GET action',
         ], 405);
     }
-    $info = bffAdLoad($db);
+    $info = bffAdLoad($db, $currentUser);
     $realTable = str_replace(DB_TABLE_PREFIX, '', strval($info['fk_table'] ?? ''));
     bffAdOut([
         'status' => 'ok',
@@ -315,7 +336,7 @@ if ($action === 'delete') {
             'message' => 'delete requires POST',
         ], 405);
     }
-    $info = bffAdLoad($db);
+    $info = bffAdLoad($db, $currentUser);
     $id = intval($info['id']);
     $title = strval($info['title'] ?? '');
     try {

@@ -15,6 +15,11 @@
  * Rights (same as legacy screens): attachments feature enabled
  * (config_get("attachments")->enabled on every attachmentupload.php /
  * attachmentdelete.php / attachmentdownload.php checkRights).
+ *
+ * Refs #1647: ?action=delete additionally requires the caller to hold a
+ * visibility right on the OWNING object (api/_attachauth.php), fail closed -
+ * a user with no right at all used to delete any attachment of any test
+ * project.
  */
 
 require_once(__DIR__ . '/../../config.inc.php');
@@ -23,6 +28,7 @@ require_once('common.php');
 doSessionStart();
 
 require_once(__DIR__ . '/../_guard.php');
+require_once(__DIR__ . '/../_attachauth.php');
 bffSameOriginGuard();
 
 $db = new database(DB_TYPE);
@@ -390,6 +396,15 @@ if ($action === 'delete') {
     if (is_null($rows) || count($rows) === 0) {
         bffOut(['status' => 'error',
                 'message' => 'Attachment not found for this object'], 404);
+    }
+    // Refs #1647: the fk_table/fk_id match above proves OWNERSHIP, not
+    // permission. Derive the owning test project from the stored row and
+    // require a visibility right on it (shared gate with
+    // api/attachmentsdelete/index.php) before deleting anything.
+    if (!attAuthOwnerAllowed($db, $user, $stdTableUsedAsFolder, $fkId)) {
+        bffOut(['status' => 'error', 'code' => 'NO_RIGHT',
+                'message' => 'No permission on the object that owns this attachment'],
+               403);
     }
     $delInfo = deleteAttachment($db, $fileId, false);
     if (!$delInfo) {
