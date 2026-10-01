@@ -2678,3 +2678,67 @@ Screenshots: `docs/screenshots/issue-1780-reqmonitors-list.png`,
 
 `tmp/suite_1780.php` → **48/48 PASS**. Event Viewer: 0 new `log_level IN (1,2)` rows. Suite appended
 per rule 9; docs mirror + wiki page + CHANGELOG line + ledger DONE row land with this screen.
+
+## Suite 1666 — Regression — Issue #1666: `api/keywordsxml` XML round-trip import wrongly rejected with 400 `wrong_keywords_file`
+
+**Bug** — an XML keywords import that touches only keywords which **already exist** updates
+nothing in the count, and `api/keywordsxml/index.php` used the keyword **COUNT DELTA** as a
+proxy for "rows read" (`$stats['rows'] = max(0,$after-$before)`), so a valid file was
+refused with `400 wrong_keywords_file` — "Wrong keywords file - the format could not be
+read" — blocking the advertised export → import merge workflow.
+
+**Precondition** — `php tmp/fixtures_1666.php` (re-runnable) creates test project `1666`
+(+ `nodes_hierarchy`, + admin `user_testproject_roles`) with keywords `alpha` / `beta`.
+
+**Repro steps (pre-fix)** — `php tmp/suite_1666.php`, case `D1`:
+export the project's own keywords (`?action=export&type=iSerializationToXML`) and
+POST that byte-identical file back to `?action=import&type=iSerializationToXML`.
+
+**Expected post-fix** — `200 {"status":"ok","rows":2,"imported":0,"skipped":2,
+"errors":[{"row":1,"code":"ALREADY_EXISTS",…},{"row":2,"code":"ALREADY_EXISTS",…}]}`.
+
+**Actual results (measured)**
+
+| Case | Check | pre-fix | post-fix |
+|---|---|---|---|
+| A0 | session `POST /api/auth/index.php/login` | PASS | PASS |
+| D1a/b | export of an existing set answers 200 and is a `<keywords>` document | PASS | PASS |
+| **D1c–i** | **re-import of its own export: 200, rows=2, skipped=2, imported=0, `ALREADY_EXISTS` per row, no `code`** | **FAIL (400 `wrong_keywords_file`, rows=0, errors=[])** | **PASS** |
+| D1j | keyword count unchanged | PASS | PASS |
+| D2a–c | all-**new** XML still imports (count growth must not regress) | PASS | PASS |
+| D3a–c | re-import of an existing keyword is idempotent, nothing duplicated | **FAIL (400)** | PASS |
+| D4a–c | `<keywords></keywords>` (no child) still refused, `wrong_keywords_file`, rows=0 | PASS | PASS |
+| D5a/b | non-XML garbage still refused | PASS | PASS |
+| D6a/b | wrong root element still refused, `result=-16` | PASS | PASS |
+| D7a/b | `<keyword>` without `name` still refused **and** the row is now named `WRONG_FORMAT` row 1 | FAIL (no row detail) | PASS |
+| D8a–d | CSV all-duplicate keeps #1605 semantics: 400 `NO_KEYWORDS_IMPORTED`, rows=2 (header not a row), skipped=2 | PASS | PASS |
+| D8e/f | partial CSV import still 200, imported=1/skipped=1 | PASS | PASS |
+| D9a/b/c | unknown project 404, `tproject_id=0` 400, GET on import 405 | PASS | PASS |
+| D10a/b | export arm unaffected | PASS | PASS |
+
+**Suite totals** — pre-fix **28 passed / 9 failed**, post-fix **37 passed / 0 failed**
+(`php tmp/suite_1666.php`; the 9 pre-fix failures are exactly D1c–i, D3a and D7b).
+Every "nothing was read" guard (D4/D5/D6) and the whole CSV arm (D8) behave identically
+before and after — the fix changes only the false rejection.
+
+**Browser pass (headless Chrome, admin/admin, `keywordsExport.html?tproject_id=1`)**
+
+| Case | Check | Result |
+|---|---|---|
+| Export tab → Export (XML) → Import tab → upload the same file | dialog shows `Imported 0 of 5 rows; 5 row(s) were rejected` + one `A keyword with this name already exists.` line per row | **PASS** |
+| same flow on pre-fix `api/keywordsxml/index.php` | red box `Wrong keywords file - the format could not be read.` and **no** row detail | PASS (bug reproduced) |
+| console | 0 error / 0 warning | **PASS** |
+| Event Viewer (`events`) | only `log_level=16` audit rows from keyword creation — **0 Error/Warning** | **PASS** |
+
+Screenshots: `docs/screenshots/issue-1666-before-wrong-keywords-file.png`,
+`…-xml-roundtrip-import.png`.
+
+**Defects found while testing this issue — filed, NOT fixed here** (per ISSUES.md §4):
+
+1. **#1783** — a keyword import never *updates* an existing keyword, XML **and** CSV
+   (`tlKeyword::writeToDB()` returns `E_NAMEALREADYEXISTS` before its own `UPDATE`
+   branch). The dialog hint "Existing keywords with the same name are updated" is
+   therefore not implemented. Needs a product decision, so left open.
+2. **#1784** — a malformed **last** `<keyword>` turns a successful XML import into
+   `400 wrong_keywords_file` although earlier rows were already written
+   (`importKeywordsFromSimpleXML()` returns the *last* row's verdict for the whole file).
