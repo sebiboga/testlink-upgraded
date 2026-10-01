@@ -2538,3 +2538,143 @@ caller-supplied, so `?tproject_id=<own project>&container_id=<container of an un
 still answers the informative 403 and keeps the same enumeration oracle (reproduced by the
 `R20`/`R22`-shaped cases above). Suite 1759 `M12`/`M12c` still pass unchanged, so that gap is
 reported separately rather than folded into this change.
+
+---
+
+## Suite 1780 — Requirement Monitors popup `reqMonitors` (Ref #1780, bug #1781)
+
+The 1.9.20 "Monitor set" lightbox was a **Smarty include** with no controller of its own:
+`gui/templates/dashio/requirements/reqMonitors.tpl` (+ the tl-classic twin), pulled in by
+`reqViewVersions.tpl:437` under `{if $gui->grants->monitor_req == "yes"}`, whose single-column
+DataTable auto-loaded `lib/ajax/requirements/getreqmonitors.php` — 26 lines, `testlinkInitPage()`
+(session check only) and `intval($_REQUEST['item_id'])` straight into
+`requirement_mgr::getReqMonitors()`, with no right and no project scope.
+
+Modern twin: `gui/templates/requirements/reqMonitors.html` + `api/reqmonitors/index.php`.
+Harness: `tmp/suite_1780.php` (48 checks, self-contained: it logs in over HTTP with real cookies).
+Fixture: `tmp/fixtures_1780.php` — projects **MON1** (prefix MN80, reqspec RSMON80) and **MON2**
+(prefix MN81, foreign), requirements `REQ-MON-1` (monitored by `admin` + `monuser`),
+`REQ-MON-2` (nobody), `REQ-MON-3` (admin only, version **frozen**), `REQ-MON-F` (in MON2), plus
+users `monuser` and `monnorights` (role 3, `default_testproject_id = 0`).
+
+> Trap for the next run: **`tlUser::create()` is an empty stub in 2.0.1** — `tlUser.class.php:258`
+> is `function create() { }`. Fixture users must be INSERTed into `users` directly
+> (the `tmp/fixtures_1570.php` pattern), otherwise the fixture dies on
+> `Undefined constant "ROLE_NONE"`.
+
+### A — Authentication
+
+| # | Check | Expected | Result |
+|---|---|---|---|
+| A1 | admin `?action=init&req_id=7` | `200` | **PASS** |
+| A2 | anonymous, no cookie | `401 not_authenticated` | **PASS** |
+
+### B — Happy paths
+
+| # | Check | Expected | Result |
+|---|---|---|---|
+| B1 | `status` | `ok` | **PASS** |
+| B2 | `context.req_id` echoes the request | matches | **PASS** |
+| B3 | `req_doc_id` | `REQ-MON-1` (name lives in `nodes_hierarchy`, `requirements` has no `name` column) | **PASS** |
+| B4 | `tproject_id` is the **owning** project, derived `requirements.srs_id -> req_specs.testproject_id` | `MON1`, not the session project | **PASS** |
+| B5 | `prefix` | `MN80` | **PASS** |
+| B6 | `total` | `2` | **PASS** |
+| B7 | the caller's own row carries `is_me: true` | yes | **PASS** |
+| B8 | second row | `monuser` | **PASS** |
+| B9 | `is_monitoring` | `1` for a monitor | **PASS** |
+| B10 | `grant.monitor` (legacy `monitor_requirement`) | `true` | **PASS** |
+| B11 | latest `req_versions` row resolved | `has_version 1`, `version 1` | **PASS** |
+| B12 | `is_open` | `1` | **PASS** |
+| B13 | `REQ-MON-3` (version frozen by the fixture) | `is_open 0` | **PASS** |
+| B14 | `REQ-MON-3` monitor count | `1` | **PASS** |
+| B15 | `REQ-MON-2`, nobody monitoring | `200` + `monitors: []` + `total 0` | **PASS** |
+| B16 | `is_monitoring` when not monitoring | `0` | **PASS** |
+| B17 | rows sorted by login | alphabetical (the legacy DataTable had no `order`, so MySQL returned them by `user_id`) | **PASS** |
+
+### C — Parameter / verb contract
+
+| # | Check | Expected | Result |
+|---|---|---|---|
+| C1/C2 | `req_id=0` | `400 invalid_requirement` | **PASS** |
+| C3 | `req_id=-5` | `400` | **PASS** |
+| C4 | `req_id=abc` | `400` | **PASS** |
+| C5/C6 | `req_id=99999999`, authorized caller | `404 requirement_not_found` | **PASS** |
+| C7/C8 | correct requirement + **wrong** asserted `tproject_id` | `404 project_mismatch` | **PASS** |
+| C9 | correct requirement + correct asserted project | `200` | **PASS** |
+| C10 | `?action=bogus` | `400 unknown_action` | **PASS** |
+| C11 | `POST` on `init` | `405 wrong_method` | **PASS** |
+| C12 | `HEAD` on `init` | `200` — a link checker must not be told "wrong method" (found while testing; same contract as `api/tcsummary`, Refs #1767) | **PASS** |
+
+### D — Authorization (the reason the endpoint had to be retired)
+
+| # | Check | Expected | Result |
+|---|---|---|---|
+| D1/D2 | `monnorights` on a **real** requirement | `403 no_right` | **PASS** |
+| D3 | `monnorights` on a **foreign-project** requirement | `403` | **PASS** |
+| D4 | `monnorights` on a **bogus** id | `403` too — otherwise 403-vs-404 is an id oracle (bug **#1781**, fixed in the same run; without the fix this row FAILS with `404`) | **PASS** |
+| D5 | admin on a bogus id | still the truthful `404` | **PASS** |
+| D6 | denied payload | contains no monitor login | **PASS** |
+
+### E — Legacy endpoint retired
+
+| # | Check | Expected | Result |
+|---|---|---|---|
+| E1 | legacy GET | `302` | **PASS** |
+| E2 | `Location` | `…/requirements/reqMonitors.html?req_id=7&tproject_id=1` | **PASS** |
+| E3 | legacy GET with `X-Requested-With` (the legacy DataTable) | `405 retired_endpoint` naming the popup, never data | **PASS** |
+| E4 | legacy POST | `405 wrong_method` naming `GET /api/reqmonitors/index.php?action=init` | **PASS** |
+| E5 | legacy GET with `Accept: application/json` | the string `monuser` never appears | **PASS** |
+| — | legacy GET anonymous | `checkSessionValid()`'s own `top.location.href='../../../login.php?note=expired&destination=…'` JS redirect, i.e. the legacy `testlinkInitPage()` contract (verified by curl, body inspected) | **PASS** |
+
+### F — Screen, wiring, i18n
+
+| # | Check | Expected | Result |
+|---|---|---|---|
+| F1 | `gui/templates/requirements/reqMonitors.html` exists and uses `data-i18n` | yes | **PASS** |
+| F2 | `$actions->reqMonitors` in `lib/functions/common.php` | present | **PASS** |
+| F3/F4 | `reqView.html` entry point | `openMonitorSet()` → `requirements/reqMonitors.html?req_id=` | **PASS** |
+| F5 | the legacy Smarty template still calls the endpoint (informational — it is why the shim cannot be deleted) | yes | **PASS** |
+| F6 | all 24 `reqmon.*` + `footers.reqMonitors` keys in **all 10** bundles, **flat**, and **no nested `reqmon`/`footers` object** | 0 missing | **PASS** |
+
+> **F6 exists because of a real defect found in the browser.** The keys were first written as a
+> *nested* `{"reqmon": {...}}` object plus a nested `footers.reqMonitors`. `TLi18n` resolves
+> `data-i18n="reqmon.title"` against the **flat** key `reqmon.title` — every other bundle uses the
+> flat convention (125 `footers.*` keys and **no** nested `footers` object), so the first browser pass
+> rendered the literal strings `reqmon.title`, `REQMON.MONITORCOUNTBADGE`, `footers.reqMonitors` in
+> all 10 locales while the BFF data was perfect. Flattened and re-verified; the key-count diff
+> (5954 → 5977) proves no existing key was disturbed.
+
+### Browser pass (headless Chrome, admin + a real `monnorights` login)
+
+| Case | Check | Result |
+|---|---|---|
+| `req_id=7` | teal header, dark toolbar, context card (`REQ-MON-1`, `VERSION 1`, `OPEN`, test project `MON1`, monitor count 2, your login), `Monitor set` table with the `admin` row marked **YOU**, `2 MONITORING` + `YOU ARE MONITORING THIS REQUIREMENT` badges | **PASS** |
+| `req_id=9` | empty state `No users are monitoring this requirement.`, `0 MONITORING`, 0 rows | **PASS** |
+| `req_id=999999` | `Requirement not found` card + visible `requirement_not_found` | **PASS** |
+| `req_id=0` | `Error` card + `No requirement was selected.` + `invalid_requirement` | **PASS** |
+| `req_id=7` as `monnorights` (isolated browser context, real login) | `Access Denied` card + `no_right`, no monitor data | **PASS** |
+| `req_id=7&locale=ro` | `Monitori cerință`, `Reîmprospătează`, `VERSIUNEA 1`, `DESCHISĂ`, `DUMNEAVOASTRĂ`, `2 MONITORIZEAZĂ`, footer `TestLink 2.0.1 - Monitori cerință` | **PASS** |
+| Refresh button | reloads, 2 rows, button re-enabled (request token drops stale responses) | **PASS** |
+| *Open requirement* | opens `reqView.html?req_id=7&tproject_id=1` in a new tab | **PASS** |
+| `reqView.html?id=7` | *Monitor set* toolbar button **visible** (gated on `grant.monitor_req`) next to the start/stop-monitor toggle | **PASS** |
+| console | 0 error / 0 warning on both screens | **PASS** |
+
+Screenshots: `docs/screenshots/issue-1780-reqmonitors-list.png`,
+`…-notfound.png`, `…-denied.png`, `…-ro.png`, `…-reqview-monitorset-button.png`.
+
+### Defects found and fixed this run
+
+1. **#1781 (bug)** — the 403/404 split let a caller with no requirement right enumerate requirement
+   ids: `needTprojectIdForReq()` exited `404` on the missing-requirement branch *before* any right
+   could be checked, because a missing requirement has no owning project to authorize against.
+   Fixed with `canViewAnyRequirement()` (global role + every `tprojectRoles` entry), so a caller who
+   may read nothing gets `403` for both. Verified by `D4` vs `D5`.
+2. **`HEAD` answered `405 wrong_method`** on `?action=init` — a link checker or crawler gets told the
+   endpoint does not exist. Now `GET` and `HEAD` both read the same payload (`C12`).
+3. **i18n keys written nested** instead of flat, so the screen rendered raw key names in all 10
+   locales (see the F6 note). Flattened, verified live.
+
+### Status
+
+`tmp/suite_1780.php` → **48/48 PASS**. Event Viewer: 0 new `log_level IN (1,2)` rows. Suite appended
+per rule 9; docs mirror + wiki page + CHANGELOG line + ledger DONE row land with this screen.
