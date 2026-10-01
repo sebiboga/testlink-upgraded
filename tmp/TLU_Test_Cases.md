@@ -2681,6 +2681,7 @@ per rule 9; docs mirror + wiki page + CHANGELOG line + ledger DONE row land with
 
 ---
 
+
 ## Suite 1042 — Task / Issue #1042: attachment download link + delete + inline-image toggles in tcView.html (gap vs legacy `attachments.inc.tpl`)
 
 **Precondition**
@@ -2739,3 +2740,43 @@ legacy affordance of `attachments.inc.tpl` is back.
    `api/attachmentsdelete/index.php:270` breaks the Attachment Delete popup for every user.
 
 Screenshot: `docs/screenshots/issue-1042-tcview-attachment-download.png`.
+
+## Suite 1610 — Task / Issue #1610: config-driven Test Project combo order in Assign Test Project Roles
+
+**Precondition** — fixture `tmp/fixtures_1610.sql`: three test projects whose **prefix order is the reverse of their name order**, so a wrong sort is unmissable in the DOM:
+
+| id | name | prefix | is_public |
+|---|---|---|---|
+| 101 | Alpha Project | ZZ-ALPHA | 1 |
+| 102 | Bravo Private Project | MM-BRAVO | 1 |
+| 103 | Charlie Project | AA-CHARLIE | 1 |
+
+Config under test: `config.inc.php:789` `$tlCfg->gui->tprojects_combo_order_by = 'ORDER BY TPROJ.prefix ASC'` (shipped default). Harness: `tmp/verify_1610.php` (loads the production `api/_tprojectorder.php`, never a copy). Entry point: `gui/templates/usermanagement/usersAssignProject.html?tproject_id=101&tplan_id=0`, login `admin/admin`.
+
+**Expected** — the Test Project combo lists projects in the order the **installation config** dictates (prefix ASC by default), like every other project combo in the app (navBar, requirements, user forms); legacy `usersAssign.php:278` behaviour. Option labels stay the bare project name (`usersAssign.tpl:177`). A broken/hostile config must never produce an SQL error or an empty combo — it falls back to the pre-#1610 `ORDER BY name ASC`.
+
+**Steps & results**
+
+| # | Step | Expected | Actual | Result |
+|---|---|---|---|---|
+| 1 | `php tmp/verify_1610.php` — config value used verbatim | `ORDER BY TPROJ.prefix ASC` | `[ORDER BY TPROJ.prefix ASC]` | **PASS** |
+| 2 | validator accepts `ORDER BY TPROJ.prefix ASC` / `ORDER BY nodes_hierarchy.id DESC` / `ORDER BY name` / `ORDER BY  TPROJ.prefix  ASC` / `order by  nhtproj.name asc` / `ORDER BY TPROJ.prefix ASC, NHTPROJ.name DESC` / `ORDER BY U.id DESC, UTR.role_id ASC` | verbatim | all verbatim | **PASS** |
+| 3 | validator rejects `''`, `'   '`, `ORDER_BY nodes_hierarchy.id DESC` (the config.inc.php:788 example typo), `ORDER BY prefix; DROP TABLE nodes_hierarchy`, `ORDER BY (SELECT 1)`, `ORDER BY NOPE.col`, `SELECT 1`, `ORDER BY TPROJ.prefix ASC -- x` | `ORDER BY name ASC` | all `ORDER BY name ASC` | **PASS** |
+| 4 | live screen: open `usersAssignProject.html?tproject_id=101&tplan_id=0`, read `#projectSelect` | prefix order `Charlie(AA-) → Bravo(MM-) → Alpha(ZZ-)` | `["-- select project --","103|Charlie Project","102|Bravo Private Project","101|Alpha Project"]` | **PASS** |
+| 5 | `GET /api/roles/meta/tproject-roles?tproject_id=101` | `projects` in configured order + the effective clause | `[{103},{102},{101}]`, `tprojectsComboOrderBy:"ORDER BY TPROJ.prefix ASC"` | **PASS** |
+| 6 | `GET /api/roles/meta/tplan-roles?tproject_id=101&tplan_id=0` | `status ok`, same configured order (last hardcoded literal removed) | `ok`, `[103,102,101]` | **PASS** |
+| 7 | regression: pick `102` (private project) in the combo | grid loads, dynamic heading names the project | 1 row (`admin`), heading `Test Project Role (Bravo Private Project)` | **PASS** |
+| 8 | `config = 'ORDER BY TPROJ.prefix DESC'` (via `$GLOBALS['tlCfg']->gui->…`, what `config_get('gui')` reads) | combo reverses | `101,102,103` | **PASS** |
+| 9 | `config = 'ORDER BY nodes_hierarchy.id DESC'` (documented alternative, rewritten to `NHTPROJ`) | combo reverses | `103,102,101` | **PASS** |
+| 10 | `config = 'ORDER BY prefix; DROP TABLE nodes_hierarchy'` | fallback to safe order, **no** SQL error, **no** data loss | `101,102,103`, no exception | **PASS** |
+| 11 | `config = 'ORDER BY TPROJ.no_such_column'` (valid syntax, wrong column — BFF/XHR so `exec_query` throws) | fallback, combo still complete | `101,102,103` | **PASS** |
+| 12 | `config = 'ORDER BY TPROJ'` (bare table name, indistinguishable from a bare column) | fallback, combo still complete | `101,102,103` | **PASS** |
+| 13 | `config = '  '` (blank) | fallback to safe order | `101,102,103` | **PASS** |
+| 14 | `$extraOpt = ['order_by' => 'ORDER BY NOPE.col']` cannot override the validated clause | still the configured order, 3 projects | `103,102,101`, 3 projects | **PASS** |
+| 15 | hygiene | `php -l` clean, no bundle touched, no console error, no new Event Viewer Error/Warning | `php -l` clean both files; `git diff` touches no `gui/templates/i18n/*.json`; console 0/0; `events` = 1 row (login audit only) | **PASS** |
+
+**Suite result: 15/15 PASS** (harness: 24/24 internal checks). Harness cases 11-12 deliberately log one DATABASE ERROR row each into `events` as the proof that the fallback path is real; those rows were deleted afterwards, so the Event Viewer only reflects genuine screen usage.
+
+**Not covered / out of scope** — the legacy plan combo (`usersAssign.php:343-378`) applies no combo-order config, so `usersAssignPlan.html`/`getAssignablePlans()` are intentionally unchanged; i18n untouched because the port adds no new user-facing string.
+
+**Screenshot** — `docs/screenshots/issue-1610-tproject-combo-prefix-order.png`

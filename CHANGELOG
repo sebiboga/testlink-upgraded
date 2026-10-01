@@ -17,6 +17,30 @@ Every screen of the application was ported one-by-one in a screen-compare
 kept for backward compatibility and is progressively retired as each modern
 screen reaches full parity.
 
+- [FEATURE GAP] - #1610: the Test Project combo of Assign Test Project Roles ignored
+  `$tlCfg->gui->tprojects_combo_order_by` - the ONE config line every other project combo in
+  TestLink honours (navBar, requirements, user forms; legacy `usersAssign.php:276-278`,
+  `lib/general/navBar.php:106`, `lib/functions/common.php:1681`,
+  `lib/functions/users.inc.php:48`, `lib/requirements/reqView.php:276`,
+  `api/navbar/index.php:96`, `api/requirements/index.php:384`) - because the roles BFF hardcoded
+  `'ORDER BY name ASC'` in `getAssignableProjects()` and in the `meta/tplan-roles` read, so on an
+  installation with categorised prefixes (`P1-`, `P2-`, ...) this one screen silently re-sorted
+  alphabetically while the rest of the app stayed prefix-ordered. New shared include
+  `api/_tprojectorder.php` (same pattern as `api/_guard.php`) validates the configured clause and
+  runs the query through it, because `testproject.class.php:631` pastes the value verbatim into SQL
+  - legacy trusted the hand-edited config file, a BFF must not: `ORDER BY <col>[.<alias>] [ASC|DESC]`
+  only, qualifiers limited to the aliases the query defines (`TPROJ`, `NHTPROJ`, `U`, `UTR` +
+  `nodes_hierarchy`, which the manager rewrites), anything else falling back to the pre-#1610
+  `ORDER BY name ASC`, with a one-shot retry if the configured order throws or matches nothing so a
+  bad config can never empty the combo. `meta/tproject-roles` now also ships
+  `tprojectsComboOrderBy` (the effective clause). The option LABEL stays the bare project name
+  (`usersAssign.tpl:177` renders `{$f.name|escape}` only), so no screen change and no new i18n key
+  were needed - all 10 locale bundles untouched. Verified: Suite 1610 15/15 PASS plus a 24-check
+  harness (`tmp/verify_1610.php`) that loads the production helper and simulates other config
+  values through `$GLOBALS['tlCfg']` (what `config_get('gui')` reads); live combo measured
+  `Charlie(AA-) / Bravo(MM-) / Alpha(ZZ-)` where it previously showed name order; console clean,
+  Event Viewer unchanged.
+
 - [FEATURE GAP] - #1611: the four-tab bar of the user & role management area was rendered
   unconditionally by `usersAssignProject.html`, `usersAssignPlan.html` and `rolesView.html`,
   so a user holding neither `mgt_users` nor `role_management` (global role 9 `leader`) was
