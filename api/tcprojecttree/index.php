@@ -143,11 +143,20 @@ define('NODE_TYPE_TESTSUITE',  2);
 define('NODE_TYPE_TESTCASE',   3);
 
 /**
- * node_types descriptions the legacy loader excluded from the tree:
- * testcase_version (4), testplan (5), requirement_spec (6),
- * requirement_version (8).
+ * The tree only ever renders two kinds of row, so the children query ALLOWS
+ * exactly those instead of listing what to hide.
+ *
+ * The legacy loader excluded by DESCRIPTION
+ * (lib/ajax/gettprojectnodes.php:96-97, pre-#1770):
+ *   testcase_version (4), testplan (5), requirement_spec (6), requirement (7).
+ * Refs #1774: an exclusion list is a denylist, and this one was wrong - 8
+ * (requirement_version) was written instead of 7 (requirement), so a
+ * requirement row came back to callers holding only mgt_view_tc. An allow-list
+ * cannot leak a node type nobody thought of (a testcase_step, 9, was the next
+ * one that got through).
  */
-$excludedWhere = '(4, 5, 6, 8)';
+define('NODE_TYPE_TESTCASE_STEP', 9);
+$treeRowsWhere = ' IN (' . NODE_TYPE_TESTSUITE . ', ' . NODE_TYPE_TESTCASE . ')';
 
 $method = isset($_SERVER['REQUEST_METHOD']) ? strtoupper($_SERVER['REQUEST_METHOD']) : 'GET';
 $action = isset($_REQUEST['action']) ? trim((string)$_REQUEST['action']) : 'init';
@@ -412,15 +421,16 @@ function nodeLinks($type, $id, $tproject_id)
  */
 function nodeChildren($parentId, $rootId, $withCases, $filterNode, $showCaseIds, $prefix)
 {
-    global $db, $excludedWhere;
+    global $db, $treeRowsWhere;
 
     $pid = intval($parentId);
     $rootId = intval($rootId);
 
+    // Refs #1774: allow-list, never a denylist.
     $sql = 'SELECT NH.id, NH.parent_id, NH.node_type_id, NH.name, NH.node_order' .
            ' FROM nodes_hierarchy NH' .
            ' WHERE NH.parent_id = ' . $pid .
-           '   AND NH.node_type_id NOT IN ' . $excludedWhere;
+           '   AND NH.node_type_id' . $treeRowsWhere;
     if (!$withCases) {
         $sql .= ' AND NH.node_type_id <> ' . NODE_TYPE_TESTCASE;
     }
