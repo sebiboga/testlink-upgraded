@@ -340,13 +340,35 @@ if ($method === 'DELETE' && isset($segments[0]) && ctype_digit($segments[0])) {
     needOwnedPlatform($mgr, $id, $tproject_id);
 
     $p = $mgr->getPlatform($id);
-    $all = $mgr->getAll(['include_linked_count' => true]);
+    // Refs #1637: getAll() merges its own defaults, and enable_on_execution=1 /
+    // is_open=1 are WHERE-clause FILTERS. Looking the target platform up in that
+    // filtered set silently skipped this guard for every platform with is_open=0
+    // or enable_on_execution=0 (deleted anyway, orphaning testplan_platforms).
+    // Pass null for all three, exactly like the list route at line 132, so the
+    // guard sees the project's unfiltered platform set.
+    $all = $mgr->getAll(['include_linked_count' => true,
+                         'enable_on_design'    => null,
+                         'enable_on_execution' => null,
+                         'is_open'             => null]);
     $linked = 0;
+    $found = false;
     foreach ((array)$all as $row) {
         if (intval($row['id']) == $id) {
             $linked = intval($row['linked_count']);
+            $found = true;
             break;
         }
+    }
+    // Fail CLOSED: this is an integrity control, so a missing row must never be
+    // read as "not linked". Unreachable today (needOwnedPlatform() above proves
+    // the platform exists and belongs to this project, and the unfiltered query
+    // above can only omit it if getAll()'s contract ever changes again - the
+    // exact way #1637 happened).
+    if (!$found) {
+        http_response_code(500);
+        out(['status' => 'error',
+             'message' => 'Platform usage could not be determined, delete refused',
+             'error_code' => 'DELETE_CHECK_FAILED']);
     }
     if ($linked > 0) {
         http_response_code(422);
