@@ -61,6 +61,16 @@ table.steps tbody tr:nth-child(even) { background: #fafafa; }
 .kv-table td:first-child { font-weight: 700; color: #555; width: 240px; }
 .att-item, .req-item, .rel-item { font-size: 13px; color: #333; padding: 5px 0; border-bottom: 1px dashed #eee; }
 .att-item i, .req-item i, .rel-item i { color: #4ECDC4; margin-right: 8px; }
+.rel-table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 4px 0 2px; }
+.rel-table th { text-align: left; font-size: 12px; color: #6c757d; border-bottom: 2px solid #eee; padding: 6px 8px; }
+.rel-table td { padding: 6px 8px; border-bottom: 1px dashed #eee; vertical-align: middle; }
+.rel-add-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 6px 0 10px; }
+.rel-type-sel { max-width: 220px; }
+.rel-dest { max-width: 200px; }
+.rel-del { background: none; border: none; color: #dc3545; cursor: pointer; font-size: 14px; padding: 2px 4px; }
+.rel-del:hover { color: #a71d2a; }
+.rel-warn { color: #f0ad4e; cursor: help; }
+.relations-block { margin-top: 18px; }
 .none-text { color: #999; font-style: italic; font-size: 13px; }
 .section { margin-top: 6px; }
 .footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
@@ -121,11 +131,6 @@ table.steps tbody tr:nth-child(even) { background: #fafafa; }
 
 <div id="versionsWrap"></div>
 
-<div class="version-card section" id="relationsCard" style="display:none;">
-  <div class="vc-head"><h2><i class="fa fa-diagram-project"></i> <span data-i18n="tcview.relations">Relations with other test cases</span></h2></div>
-  <div class="vc-body" id="relationsBody"></div>
-</div>
-
 <div class="footer">
   <span data-i18n="tcview.footer">TestLink 2.0.1 - Test Case Viewer (read-only). Editing operations are available in the Test Specification.</span>
 </div>
@@ -176,6 +181,19 @@ table.steps tbody tr:nth-child(even) { background: #fafafa; }
     <div class="modal-foot">
       <button class="btn-dark btn-sm" onclick="$('#rmPlatModal').hide()"><span data-i18n="tspec.cancel">Cancel</span></button>
       <button class="btn-red btn-sm" onclick="doRemovePlatform()"><i class="fa fa-trash"></i> <span data-i18n="tcview.platformRemoveBtn">Remove</span></button>
+    </div>
+  </div>
+</div>
+
+<!-- delete relation confirmation (legacy relations.inc.tpl
+     relation_delete_confirmation() -> Ext.Msg.confirm) -->
+<div class="modal-overlay" id="relDelModal">
+  <div class="modal-box" style="width:440px;max-width:96vw;">
+    <div class="modal-head"><i class="fa fa-trash"></i> <span data-i18n="tcview.deleteRelMsgboxTitle">Delete relation</span></div>
+    <div class="modal-body"><p id="relDelMsg" style="margin:0;font-size:13px;color:#333;"></p></div>
+    <div class="modal-foot">
+      <button class="btn-dark btn-sm" onclick="$('#relDelModal').hide()"><span data-i18n="tspec.cancel">Cancel</span></button>
+      <button class="btn-red btn-sm" onclick="doDeleteRelation()"><i class="fa fa-trash"></i> <span data-i18n="tcview.relationDelete">Delete</span></button>
     </div>
   </div>
 </div>
@@ -323,8 +341,6 @@ function render() {
   var wrap = $('#versionsWrap');
   wrap.empty();
   data.versions.forEach(function (v) { wrap.append(renderVersion(v)); });
-
-  renderRelations();
 }
 
 function canEditCurrent() {
@@ -591,6 +607,11 @@ function renderVersion(v) {
   // gui/templates/dashio/testcases/tcView_viewer.tpl:561-588 which includes
   // gui/templates/dashio/include/showScriptsTable.inc.tpl with can_delete=true.
   h += renderCodeTracker(v);
+
+  // Relations (issue #1040) - modern port of legacy
+  // gui/templates/dashio/testcases/include/relations.inc.tpl as included once
+  // per version panel by tcView_viewer.tpl:590-596.
+  h += renderRelations(v);
 
   h += '</div></div>';
   return $(h);
@@ -890,9 +911,17 @@ function platApiPost(action, body, cb) {
     method: 'POST', contentType: 'application/json',
     data: JSON.stringify(body)
   }).done(function (d) { cb(d); }).fail(function (xhr) {
-    var msg = null;
-    try { msg = JSON.parse(xhr.responseText).message || null; } catch (e) {}
-    cb(msg ? { status: 'error', message: msg } : null);
+    // forward the WHOLE body, not just `message`: the relations endpoints
+    // answer 4xx with a feedback_code + feedback_arg that relFeedback() needs
+    // to render the legacy add_relation_feedback_msg sentence.
+    var body = null;
+    try { body = JSON.parse(xhr.responseText); } catch (e) {}
+    if (body && typeof body === 'object') {
+      if (!body.status) { body.status = 'error'; }
+      cb(body);
+      return;
+    }
+    cb(body ? { status: 'error', message: String(body) } : null);
   });
 }
 
@@ -916,17 +945,184 @@ function platRefreshMain() {
     });
 }
 
-function renderRelations() {
-  if (!data.relations || !data.relations.length) return;
-  var h = '';
-  data.relations.forEach(function (rel) {
-    h += '<div class="rel-item"><i class="fa fa-link"></i>'
-      + esc(rel.is_source ? rel.type : rel.type)
-      + ': ' + esc(rel.related_tcase_name || ('#' + rel.related_tcase_id))
-      + '</div>';
+/* ============ Relations (issue #1040) ============
+   Legacy gui/templates/dashio/testcases/include/relations.inc.tpl, included
+   once per test case VERSION panel by tcView_viewer.tpl:590-596 (gated by
+   $show_relations and $args_edit_enabled). Reproduced element for element:
+
+     header "Relations (N)"        - only when edit_enabled AND
+                                     (is_latest OR !addTCVRelationsOnlyOnLatestTCVersion)
+     "New relation: <this TCVersion>" row - only when the version is NOT frozen
+     table columns                - "# / Type" | "Test Case" | "Set by" | (icon)
+     row                          - {id} / {type_localized},
+                                     link {fullExternalID}: {name} [Version N],
+                                     author with the "created {ts} by {author}" title,
+                                     delete icon when canDel, else a warning icon
+                                     whose title is the legacy cannotDelMsg reason.
+
+   The legacy labels ("is parent of", "blocks", ...) are resolved SERVER side
+   from config testcase_cfg->relations->type_labels (there is no relation_type
+   table in TestLink) and arrive in `rel.type`. */
+function renderRelations(v) {
+  var cfg = data.relationsConfig || {};
+  if (!cfg.enabled) { return ''; }
+  var vid = parseInt(v.tcversion_id, 10) || 0;
+  var set = (data.relationsByVersion && data.relationsByVersion[vid]) || [];
+  var canEdit = !!cfg.editEnabled;
+  // legacy $canWork = is_latest || addTCVRelationsOnlyOnLatestTCVersion == 0
+  var canWork = !!v.is_latest || !cfg.onlyOnLatest;
+  if (!canEdit || !canWork) { return ''; }
+
+  var h = '<div class="section relations-block">';
+  h += '<div class="field-label"><i class="fa fa-diagram-project"></i> '
+    + esc(TLi18n.t('tcview.relations')) + ' (' + set.length + ')</div>';
+
+  // "New relation:" form - hidden on a frozen version (frozen_version == 'no')
+  if (v.is_open && cfg.domain && cfg.domain.items && Object.keys(cfg.domain.items).length) {
+    h += '<div class="rel-add-row">';
+    h += '<span class="bold">' + esc(TLi18n.t('tcview.newRelation')) + ':</span> ';
+    h += esc(TLi18n.t('tcview.thisTcversion'));
+    h += ' <select id="relType_' + vid + '" class="form-control2 rel-type-sel">';
+    Object.keys(cfg.domain.items).forEach(function (k) {
+      h += '<option value="' + esc(k) + '"'
+        + (k === cfg.domain.selected ? ' selected' : '') + '>'
+        + esc(cfg.domain.items[k]) + '</option>';
+    });
+    h += '</select>';
+    h += ' <input type="text" id="relDest_' + vid + '" class="form-control2 rel-dest" maxlength="64"'
+      + ' placeholder="' + esc(TLi18n.t('tcview.tcaseRelationHint')) + '"'
+      + ' title="' + esc(TLi18n.t('tcview.tcaseRelationHelp')) + '"'
+      + ' onclick="this.value=\'\'" />';
+    h += ' <button type="button" class="btn btn-sm btn-teal" onclick="doAddRelation(' + vid + ')">'
+      + '<i class="fa fa-plus"></i> ' + esc(TLi18n.t('tcview.relAddBtn')) + '</button>';
+    h += '</div>';
+  }
+
+  if (set.length) {
+    h += '<table class="rel-table"><thead><tr>'
+      + '<th style="width:170px;">' + esc(TLi18n.t('tcview.relIdType')) + '</th>'
+      + '<th>' + esc(TLi18n.t('tcview.testCase')) + '</th>'
+      + '<th style="width:150px;">' + esc(TLi18n.t('tcview.relSetBy')) + '</th>'
+      + '<th style="width:36px;"></th>'
+      + '</tr></thead><tbody>';
+    set.forEach(function (r) {
+      var createdTitle = TLi18n.t('tcview.relCreatedBy', { ts: r.creation_ts, who: r.author });
+      var target = '/gui/templates/testcases/tcView.html?tcase_id=' + parseInt(r.related_tcase_id, 10)
+        + '&tcversion_id=' + parseInt(r.related_tcversion_id, 10)
+        + '&tproject_id=' + parseInt(data.tproject.id, 10);
+      h += '<tr>';
+      h += '<td class="bold"><nobr>' + parseInt(r.id, 10) + ' / ' + esc(r.type) + '</nobr></td>';
+      h += '<td><a href="' + esc(target) + '" target="_blank">'
+        + esc(r.related_tcase_external_id) + ': ' + esc(r.related_tcase_name)
+        + ' [' + esc(TLi18n.t('tcview.version')) + ' ' + parseInt(r.related_version, 10) + ']</a></td>';
+      h += '<td><nobr><span title="' + esc(createdTitle) + '">' + esc(r.author) + '</span></nobr></td>';
+      h += '<td style="text-align:center;">';
+      if (r.can_delete) {
+        h += '<button type="button" class="rel-del" title="'
+          + esc(TLi18n.t('tcview.imgTitleDeleteRelation')) + '"'
+          + ' onclick="confirmDeleteRelation(' + parseInt(r.id, 10) + ')">'
+          + '<i class="fa fa-trash-o"></i></button>';
+      } else {
+        // legacy $cannotDelMsg ('' when simply not allowed to edit)
+        h += '<span class="rel-warn" title="' + esc(relCannotDeleteMsg(r.cannot_delete_reason)) + '">'
+          + '<i class="fa fa-warning"></i></span>';
+      }
+      h += '</td></tr>';
+    });
+    h += '</tbody></table>';
+  }
+  h += '</div>';
+  return h;
+}
+
+/* The BFF answers with the LEGACY lang keys (snake_case, the ones the legacy
+   controller would have passed to lang_get()); they are mapped here to the
+   camelCase TLi18n bundle keys. Unknown codes fall through to TLi18n.t(), which
+   echoes the key - visible but never silent. */
+var REL_I18N = {
+  relation_added: 'tcview.relationAdded',
+  related_tcase_not_open: 'tcview.relatedTcaseNotOpen',
+  relation_already_exists: 'tcview.relationAlreadyExists',
+  testcase_doesnot_exists: 'tcview.tcaseDoesnotExists',
+  can_not_edit_frozen_tc: 'tcview.canNotEditFrozenTc',
+  can_not_delete_a_frozen_relation: 'tcview.canNotDeleteAFrozenRelation',
+  can_not_delete_relation_tcversion_frozen: 'tcview.canNotDeleteRelationTcversionFrozen',
+  can_not_delete_relation_related_tcversion_frozen: 'tcview.canNotDeleteRelationRelatedTcversionFrozen',
+  can_not_delete_relation_because_this_is_not_the_latest: 'tcview.canNotDeleteRelationBecauseThisIsNotTheLatest',
+  tcase_relation_hint: 'tcview.tcaseRelationHint'
+};
+function relKey(code) { return REL_I18N[code] || ('tcview.' + code); }
+
+/* legacy cannotDelMsg chain (relations.inc.tpl): empty string when the user may
+   not edit at all, otherwise the first matching reason. */
+function relCannotDeleteMsg(reason) {
+  if (!reason) { return ''; }
+  return TLi18n.t(relKey(reason));
+}
+
+/* legacy relation_delete_confirmation() -> Ext.Msg.confirm(delete_rel_msgbox_title,
+   delete_rel_msgbox_msg with %i = relation id) -> delete_relation(). */
+function confirmDeleteRelation(relationId) {
+  var $m = $('#relDelModal');
+  $m.data('relationId', parseInt(relationId, 10) || 0);
+  var msg = String(TLi18n.t('tcview.deleteRelMsgboxMsg'))
+    .replace('%i', function () { return String(parseInt(relationId, 10) || 0); });
+  $('#relDelMsg').text(msg);
+  $m.css('display', 'flex');
+}
+
+function doDeleteRelation() {
+  if (!data || !data.tcase) { return; }
+  var $m = $('#relDelModal');
+  var relId = parseInt($m.data('relationId'), 10) || 0;
+  if (relId <= 0) { $m.hide(); return; }
+  platApiPost('delete_relation', {
+    tcase_id: parseInt(data.tcase.id, 10),
+    tcversion_id: parseInt(currentVersion ? currentVersion.tcversion_id : 0, 10),
+    relation_id: relId
+  }, function (d) {
+    if (!d || d.status !== 'ok') {
+      toast(relFeedback(d) || TLi18n.t('tcview.relDeleteFailed'), true);
+      return;
+    }
+    $m.hide();
+    toast(TLi18n.t('tcview.relDeleteDone'));
+    platRefreshMain();
   });
-  $('#relationsBody').html(h);
-  $('#relationsCard').show();
+}
+
+/* legacy doAddRelation() -> add_relation_feedback_msg, rendered as the info
+   line of the relations block. The BFF answers feedback_code + feedback_arg
+   instead of a ready sentence (several legacy lang keys are missing from the
+   en_US locale build). */
+function relFeedback(d) {
+  if (!d || !d.feedback_code) { return null; }
+  var s = String(TLi18n.t(relKey(d.feedback_code)));
+  var arg = (d.feedback_arg === undefined || d.feedback_arg === null) ? '' : String(d.feedback_arg);
+  return s.replace('%s', function () { return arg; });
+}
+
+function doAddRelation(tcversionId) {
+  if (!data || !data.tcase) { return; }
+  var vid = parseInt(tcversionId, 10) || 0;
+  var typed = String($('#relDest_' + vid).val() || '').replace(/ /g, '');
+  if (typed === '') {
+    toast(TLi18n.t('tcview.tcaseRelationHint'), true);
+    return;
+  }
+  platApiPost('add_relation', {
+    tcase_id: parseInt(data.tcase.id, 10),
+    tcversion_id: vid,
+    relation_type: String($('#relType_' + vid).val() || ''),
+    relation_destination_tcase: typed
+  }, function (d) {
+    if (!d || d.status !== 'ok') {
+      toast(relFeedback(d) || TLi18n.t('tcview.relAddFailed'), true);
+      return;
+    }
+    toast(relFeedback(d) || TLi18n.t('tcview.relAddDone'));
+    platRefreshMain();
+  });
 }
 
 function fmtDate(ts) {

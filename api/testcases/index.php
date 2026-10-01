@@ -172,6 +172,228 @@ function tcViewScripts($db, $tcversionId, $cts) {
 }
 
 /**
+ * Issue #1040: test case relation labels.
+ *
+ * IMPORTANT (the bug this issue is about): TestLink has NO `relation_type`
+ * reference table. `testcase_relations.relation_type` is a bare smallint code
+ * and its meaning lives in the CONFIG array
+ * testcase_cfg->relations->type_labels (code => ['source'=>lang key,
+ * 'destination'=>lang key]) - exactly what legacy
+ * testcase::getRelationLabels() (lib/functions/testcase.class.php:8091-8098)
+ * reads. Anything that JOINs a `relation_type` table throws
+ * "ERROR 1146 (42S02): Table 'testlink.relation_type' doesn't exist".
+ *
+ * Returned shape is the same pair-of-lang-keys map legacy getRelationLabels()
+ * produces, but the values are already localized through lang_get() the way
+ * legacy init_labels() does.
+ *
+ * @return array<int, array{source:string, destination:string}>|null
+ *         null when relations are disabled by config, [] when enabled but
+ *         nothing is configured (legacy: getRelationTypeDomainForHTMLSelect()
+ *         would then produce an empty combo).
+ */
+function tcRelationLabels() {
+    $tcCfg = config_get('testcase_cfg');
+    if (!isset($tcCfg->relations) || empty($tcCfg->relations->enable)) {
+        return null;
+    }
+    if (!isset($tcCfg->relations->type_labels)) {
+        return [];
+    }
+    $raw = $tcCfg->relations->type_labels;
+    $raw = is_object($raw) ? (array)$raw : (array)$raw;
+    $labels = [];
+    foreach ($raw as $code => $pair) {
+        $pair = (array)$pair;
+        if (!isset($pair['source']) || !isset($pair['destination'])) {
+            continue;
+        }
+        $labels[intval($code)] = [
+            'source' => strval(lang_get(strval($pair['source']))),
+            'destination' => strval(lang_get(strval($pair['destination']))),
+        ];
+    }
+    return $labels;
+}
+
+/**
+ * Issue #1040: the "New relation:" type combo of the legacy viewer.
+ *
+ * Legacy testcase::getRelationTypeDomainForHTMLSelect()
+ * (lib/functions/testcase.class.php:8252-8281): one item per configured type,
+ * suffixed _source / _destination, the _destination item omitted when both
+ * labels are identical ("equal relation"), and `3_source` preselected
+ * (TL_REL_TYPE_RELATED) when available, else the LAST item.
+ *
+ * @return array{items: array<string,string>, selected: string|null}
+ */
+function tcRelationTypeDomain(array $labels) {
+    $items = [];
+    foreach ($labels as $code => $lab) {
+        $items[$code . '_source'] = $lab['source'];
+        if ($lab['source'] !== $lab['destination']) {
+            $items[$code . '_destination'] = $lab['destination'];
+        }
+    }
+    $selected = null;
+    if (isset($items['3_source'])) {
+        $selected = '3_source';
+    } elseif (count($items)) {
+        $keys = array_keys($items);
+        $selected = strval(end($keys));
+    }
+    return ['items' => $items, 'selected' => $selected];
+}
+
+/**
+ * Issue #1040: relations of ONE test case version.
+ *
+ * Legacy testcase::getTCVersionRelations()
+ * (lib/functions/testcase.class.php:7960-8040). Key points reproduced here:
+ *  - source_id / destination_id hold **tcversion ids**, so the join goes
+ *    through nodes_hierarchy to reach the owning test case ids;
+ *  - rows whose relation_type is not configured are silently dropped
+ *    (legacy `in_array($rel['relation_type'], $label_keys)`);
+ *  - the label shown depends on which side THIS version is on: 'source' when
+ *    this version is source_id, else 'destination';
+ *  - ORDER BY id ASC.
+ *
+ * $ctx carries the data needed for the delete gate of relations.inc.tpl:
+ *   prefix, glue, isLatestVersion, frozenVersion (this version is_open == 0)
+ *   and editEnabled ($args_edit_enabled of the legacy template).
+ *
+ * @return array<int, array<string,mixed>> list of relation rows for rendering
+ */
+function tcVersionRelations($dbHandler, $tcversionId, array $labels, array $ctx) {
+    if ($tcversionId <= 0 || !count($labels)) {
+        return [];
+    }
+    $tbl = tlObjectWithDB::getDBTables(array('testcase_relations', 'nodes_hierarchy',
+                                             'tcversions'));
+    try {
+        $rs = $dbHandler->get_recordset(
+            " SELECT TR.id, TR.source_id, TR.destination_id, TR.relation_type, " .
+            "        TR.link_status, TR.author_id, TR.creation_ts, " .
+            "        NHD.parent_id AS tcase_destination, " .
+            "        NHD.name AS tcase_destination_name, " .
+            "        NHD.id AS tcase_destination_tcversion, " .
+            "        TVD.version AS tcase_destination_version, " .
+            "        TVD.tc_external_id AS tcase_destination_extid, " .
+            "        TVD.active AS tcase_destination_active, " .
+            "        NHS.parent_id AS tcase_source, " .
+            "        NHS.name AS tcase_source_name, " .
+            "        NHS.id AS tcase_source_tcversion, " .
+            "        TVS.version AS tcase_source_version, " .
+            "        TVS.tc_external_id AS tcase_source_extid, " .
+            "        TVS.active AS tcase_source_active " .
+            " FROM {$tbl['testcase_relations']} TR " .
+            " JOIN {$tbl['nodes_hierarchy']} AS NHD ON NHD.id = TR.destination_id " .
+            " JOIN {$tbl['nodes_hierarchy']} AS NHS ON NHS.id = TR.source_id " .
+            " JOIN {$tbl['tcversions']} AS TVD ON TVD.id = NHD.id " .
+            " JOIN {$tbl['tcversions']} AS TVS ON TVS.id = NHS.id " .
+            " WHERE TR.source_id = " . intval($tcversionId) .
+            "    OR TR.destination_id = " . intval($tcversionId) .
+            " ORDER BY TR.id ASC");
+    } catch (Exception $e) {
+        tLog(__METHOD__ . ' tcversion ' . intval($tcversionId) . ': ' . $e->getMessage(), 'ERROR');
+        return [];
+    }
+    if (is_null($rs)) {
+        return [];
+    }
+
+    // display names come from the caller-provided users map, built exactly like
+    // the author/updater map of the versions payload
+    $usersMap = (array)($ctx['usersMap'] ?? []);
+
+    $prefix = strval($ctx['prefix'] ?? '');
+    $glue = strval($ctx['glue'] ?? '');
+    $isLatest = !empty($ctx['isLatestVersion']);
+    $frozen = !empty($ctx['frozenVersion']);
+    $editEnabled = !empty($ctx['editEnabled']);
+    // legacy relations.inc.tpl only shows the "Relations (N)" header when the
+    // version can be worked on at all: is_latest OR
+    // addTCVRelationsOnlyOnLatestTCVersion == 0
+    $canWork = $isLatest
+        || intval(config_get('testcase_cfg')->addTCVRelationsOnlyOnLatestTCVersion ?? 0) === 0;
+
+    $out = [];
+    foreach ($rs as $rr) {
+        $relTypeId = intval($rr['relation_type']);
+        // legacy: relation types not present in type_labels are NOT displayed
+        if (!isset($labels[$relTypeId])) {
+            continue;
+        }
+        $isSource = intval($rr['source_id']) === intval($tcversionId);
+        // NHD.parent_id / NHS.parent_id are aliased as tcase_destination /
+        // tcase_source in the SELECT above: the node id is the tcversion id,
+        // its parent_id the owning test case id (legacy getTCVersionRelations
+        // reads the same NHTCV_S/NHTCV_D parent_id aliases).
+        $relatedTcaseId = intval($rr[$isSource ? 'tcase_destination' : 'tcase_source']);
+        $relatedTcversionId = intval($rr[$isSource ? 'tcase_destination_tcversion'
+                                                 : 'tcase_source_tcversion']);
+        $relatedName = strval($rr[$isSource ? 'tcase_destination_name' : 'tcase_source_name']);
+        $relatedVersion = intval($rr[$isSource ? 'tcase_destination_version'
+                                               : 'tcase_source_version']);
+        $relatedExtId = intval($rr[$isSource ? 'tcase_destination_extid'
+                                             : 'tcase_source_extid']);
+        // legacy related_tcase.is_open: the related test case is open when its
+        // LATEST version is open (get_by_id(..., LATEST_VERSION)->is_open)
+        $relatedActive = intval($rr[$isSource ? 'tcase_destination_active'
+                                              : 'tcase_source_active']);
+        $relatedIsOpen = $relatedActive > 0;
+        $linkStatus = intval($rr['link_status']);
+        $authorId = intval($rr['author_id'] ?? 0);
+
+        // legacy canDel = edit_enabled && frozen_version == 'no' &&
+        //                related_tcase.is_open && link_status == OPEN
+        $canDelete = $editEnabled && !$frozen && $relatedIsOpen
+            && $linkStatus === LINK_TC_RELATION_OPEN;
+        // legacy relations.inc.tpl picks the tooltip of the warning icon
+        // ($cannotDelMsg) in this exact order
+        $reason = '';
+        if (!$canDelete) {
+            if (!$editEnabled) {
+                $reason = '';
+            } elseif ($linkStatus !== LINK_TC_RELATION_OPEN) {
+                $reason = 'can_not_delete_a_frozen_relation';
+            } elseif (!$relatedIsOpen) {
+                $reason = 'can_not_delete_relation_related_tcversion_frozen';
+            } elseif ($frozen) {
+                $reason = 'can_not_delete_relation_tcversion_frozen';
+            } elseif (!$isLatest) {
+                $reason = 'can_not_delete_relation_because_this_is_not_the_latest';
+            } else {
+                $reason = 'can_not_delete_a_frozen_relation';
+            }
+        }
+
+        $out[] = [
+            'id' => intval($rr['id']),
+            'relation_type' => $relTypeId,
+            'type' => strval($labels[$relTypeId][$isSource ? 'source' : 'destination']),
+            'type_source' => strval($labels[$relTypeId]['source']),
+            'type_destination' => strval($labels[$relTypeId]['destination']),
+            'is_source' => $isSource,
+            'link_status' => $linkStatus,
+            'author_id' => $authorId,
+            'author' => ($authorId > 0 && isset($usersMap[$authorId]))
+                ? strval($usersMap[$authorId]) : '',
+            'creation_ts' => strval($rr['creation_ts'] ?? ''),
+            'related_tcase_id' => $relatedTcaseId,
+            'related_tcversion_id' => $relatedTcversionId,
+            'related_tcase_name' => $relatedName,
+            'related_tcase_external_id' => $prefix . $glue . $relatedExtId,
+            'related_version' => $relatedVersion,
+            'related_is_open' => $relatedIsOpen,
+            'can_delete' => $canDelete,
+            'cannot_delete_reason' => $reason,
+        ];
+    }
+    return $out;
+}
+
+/**
  * "Code management" target of the viewer block.
  *
  * Legacy used $gui->cts->cfg->uriview (tcView_viewer.tpl:567). The modern
@@ -1069,40 +1291,77 @@ if ($action === 'view') {
         }
     }
 
-    // relations between test cases.
-    // NOTE: testcase::getRelations() dies on a DB error in this environment
-    // (it re-resolves the prefix with a NULL project), so query directly.
+    // Issue #1040: relations between test case VERSIONS.
+    //
+    // The previous implementation JOINed a `relation_type` table that does not
+    // exist in TestLink (the relation type is a bare smallint code in
+    // testcase_relations.relation_type, resolved through the CONFIG array
+    // testcase_cfg->relations->type_labels) AND filtered on the test CASE id
+    // while testcase_relations holds tcversion ids. The SQL therefore always
+    // raised "Table 'testlink.relation_type' doesn't exist", the catch
+    // swallowed it and `relations` was always [] — so the relations card in
+    // tcView.html never rendered.
+    //
+    // Mirrors legacy testcase::getTCVersionRelations()
+    // (lib/functions/testcase.class.php:7960-8040) + relations.inc.tpl.
+    // Relation sets are PER VERSION (legacy testcase.class.php:1171-1173 for
+    // the current version and :1241-1246 for every other version), exposed
+    // keyed by tcversion_id; `relations` stays flat for the version being
+    // requested so older clients keep working.
+    $relationLabels = tcRelationLabels();
+    // legacy relations.inc.tpl only exposes the "New relation:" form and the
+    // delete icons when $args_edit_enabled=1, which tcView_viewer.tpl:96-123
+    // derives from (mgt_modify_tc) AND NOT read_only. The Set Results popup
+    // (show_mode == 'editOnExec') is the read-only case here, exactly like the
+    // quickexec / Test Plan usage gate at tcView_viewer.tpl:599.
+    // NOTE: $grants is only (re)built later in this block, so the right is read
+    // directly here instead of from the payload field.
+    $relationsEditEnabled = !is_null($relationLabels)
+        && $user->hasRight($db, 'mgt_modify_tc', $tprojectId)
+        && (getIntParam('editOnExec') !== 1);
+    $relationsConfig = [
+        'enabled' => !is_null($relationLabels),
+        'domain' => is_null($relationLabels)
+            ? ['items' => [], 'selected' => null]
+            : tcRelationTypeDomain($relationLabels),
+        'editEnabled' => $relationsEditEnabled,
+        // legacy $tlCfg->testcase_cfg->addTCVRelationsOnlyOnLatestTCVersion
+        // (missing from this cfg build -> legacy default 0)
+        'onlyOnLatest' => intval(
+            config_get('testcase_cfg')->addTCVRelationsOnlyOnLatestTCVersion ?? 0) === 1,
+    ];
+    $relationsByVersion = [];
     $relations = [];
-    try {
-        $relTables = tlObjectWithDB::getDBTables(
-            array('testcase_relations', 'relation_type', 'nodes_hierarchy'));
-        $relSql = " SELECT TR.id, TR.source_id, TR.destination_id, " .
-                  "        TR.relation_type, TR.link_status, RT.description " .
-                  " FROM {$relTables['testcase_relations']} TR " .
-                  " JOIN {$relTables['relation_type']} RT ON RT.id = TR.relation_type " .
-                  " WHERE TR.source_id = {$tcaseId} OR TR.destination_id = {$tcaseId}";
-        $relRows = $db->get_recordset($relSql);
-        if (!is_null($relRows)) {
-            foreach ($relRows as $rr) {
-                $otherId = intval($rr['source_id']) === $tcaseId
-                    ? intval($rr['destination_id']) : intval($rr['source_id']);
-                $otherName = '';
-                $nr = $db->fetchFirstRow(
-                    "SELECT name FROM {$relTables['nodes_hierarchy']} WHERE id = {$otherId}");
-                if (!is_null($nr) && isset($nr['name'])) {
-                    $otherName = $nr['name'];
-                }
-                $relations[] = [
-                    'id' => intval($rr['id']),
-                    'type' => strval($rr['description']),
-                    'is_source' => intval($rr['source_id']) === $tcaseId,
-                    'related_tcase_id' => $otherId,
-                    'related_tcase_name' => $otherName,
-                ];
+    $currentRequestedVersion = intval($tcversionId);
+    if ($currentRequestedVersion <= 0 && count($versions)) {
+        // legacy getTCVersionRelations() is always called with the version the
+        // viewer was opened on; archiveData-style opens default to LATEST
+        $currentRequestedVersion = intval($versions[0]['tcversion_id']);
+    }
+    if (!is_null($relationLabels)) {
+        foreach ($versions as $vRow) {
+            $vid = intval($vRow['tcversion_id']);
+            // same gate as the platform chips: edit right + not frozen +
+            // (executed versions need the exec-edit right/config)
+            $canEdit = $relationsEditEnabled && canAssignPlatforms(
+                $user, $db, $tprojectId, intval($vRow['is_open'] ?? 1),
+                !empty($vRow['has_been_executed']));
+            $set = tcVersionRelations($db, $vid, $relationLabels, [
+                'prefix' => $prefix,
+                'glue' => $glue,
+                'isLatestVersion' => !empty($vRow['is_latest']),
+                'frozenVersion' => intval($vRow['is_open'] ?? 1) === 0,
+                'editEnabled' => $canEdit,
+                'usersMap' => $usersMap,
+            ]);
+            $relationsByVersion[$vid] = $set;
+            if ($vid === $currentRequestedVersion) {
+                $relations = $set;
             }
         }
-    } catch (Exception $e) {
-        // relations not available
+        if (!count($relations) && isset($relationsByVersion[$currentRequestedVersion])) {
+            $relations = $relationsByVersion[$currentRequestedVersion];
+        }
     }
 
     // Issue #1038: "Test Plan usage" (legacy quickexec.inc.tpl) - one row per
@@ -1209,6 +1468,8 @@ if ($action === 'view') {
         'testPriorityEnabled' => tprojectOpt($opt, 'testPriorityEnabled'),
         'automationEnabled' => tprojectOpt($opt, 'automationEnabled'),
         'relations' => $relations,
+        'relationsByVersion' => $relationsByVersion,
+        'relationsConfig' => $relationsConfig,
         'grants' => $grants,
         'hasTestPlans' => $hasTestPlans,
         // Issue #1038: legacy quickexec.inc.tpl data. 'enabled' is FALSE when
@@ -2595,6 +2856,181 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action !== '') {
             'platformsEditable' => canAssignPlatforms($user, $db, $tprojectId,
                 intval($pRow['is_open'] ?? 1), versionHasExecutions($db, $tcversionId)),
         ]);
+    }
+
+    // -----------------------------------------------------------------------
+    // Issue #1040: POST ?action=add_relation
+    //   {tcase_id, tcversion_id, relation_type, relation_destination_tcase}
+    // Legacy lib/testcases/tcEdit.php doAction=doAddRelation
+    // -> testcaseCommands::doAddRelation (lib/testcases/testcaseCommands.class.php:1278)
+    // -> testcase::addRelation (lib/functions/testcase.class.php:8184).
+    //
+    // The typed value is resolved with testcase::getInternalID()
+    // (testcase.class.php:3399) exactly like tcEdit.php:448-458: spaces are
+    // stripped, a bare number is looked up inside the current project and a
+    // "PREFIX-ID" is looked up project-wide. The "destination" side of the type
+    // combo swaps source and destination, again like doAddRelation.
+    //
+    // Feedback is returned as a CODE + argument, not as a finished sentence:
+    // legacy sprintf()s lang_get($ret['msg']) with the typed value and several
+    // of those lang keys are missing from this 2.0.1 locale build (en_US), so
+    // the client formats them through TLi18n instead.
+    // -----------------------------------------------------------------------
+    if ($action === 'add_relation') {
+        $tcaseId = intval($body['tcase_id'] ?? 0);
+        if ($tcaseId <= 0) {
+            jout(['status' => 'error', 'message' => 'Missing test case id'], 400);
+        }
+        $tprojectId = $checkWrite($tcaseId);
+
+        if (is_null(tcRelationLabels())) {
+            jout(['status' => 'error',
+                  'message' => 'Test case relations are disabled on this installation'], 403);
+        }
+
+        // the requested version must exist, belong to this test case and be
+        // editable: relations.inc.tpl hides the form when frozen_version != no
+        $relTables = tlObjectWithDB::getDBTables(
+            array('nodes_hierarchy', 'tcversions', 'testcase_relations'));
+        $srcVersion = $db->fetchFirstRow(
+            " SELECT TV.id, TV.is_open, NH.parent_id " .
+            " FROM {$relTables['tcversions']} TV " .
+            " JOIN {$relTables['nodes_hierarchy']} NH ON NH.id = TV.id " .
+            " WHERE TV.id = " . intval($body['tcversion_id'] ?? 0));
+        // NB: database::fetchFirstRow() returns FALSE (not NULL) when the
+        // recordset is empty (fetch_array() -> false at EOF), so an
+        // is_null()-only test would silently pass and use a bogus version.
+        if (!is_array($srcVersion) || intval($srcVersion['parent_id'] ?? 0) !== $tcaseId) {
+            jout(['status' => 'error',
+                  'message' => 'Test case version not found'], 404);
+        }
+        $srcTcversionId = intval($srcVersion['id']);
+        if (intval($srcVersion['is_open'] ?? 1) === 0) {
+            jout(['status' => 'error',
+                  'message' => 'This test case version is frozen and can not be edited',
+                  'feedback_code' => 'can_not_edit_frozen_tc'], 403);
+        }
+
+        // relation_type must be one of the offered combo values, otherwise an
+        // arbitrary (or non-existent) relation code would be inserted
+        $domain = tcRelationTypeDomain(tcRelationLabels());
+        $relTypeKey = strval($body['relation_type'] ?? '');
+        if (!isset($domain['items'][$relTypeKey])) {
+            jout(['status' => 'error',
+                  'message' => 'Invalid relation type: ' . $relTypeKey], 400);
+        }
+        $relTypeInfo = explode('_', $relTypeKey);
+        $relTypeId = intval($relTypeInfo[0]);
+
+        // legacy tcEdit.php:448-451
+        $typed = str_replace(' ', '', strval($body['relation_destination_tcase'] ?? ''));
+        if ($typed === '') {
+            jout(['status' => 'error',
+                  'message' => 'Missing target test case',
+                  'feedback_code' => 'tcase_relation_hint'], 400);
+        }
+        $destId = 0;
+        try {
+            // numeric -> scoped to the current project, prefixed -> global,
+            // exactly the tcEdit.php:453-455 rule
+            $getOpt = array('tproject_id' => null, 'output' => 'map');
+            if (is_numeric($typed)) {
+                $getOpt['tproject_id'] = $tprojectId;
+            }
+            $dest = $tcaseMgr->getInternalID($typed, $getOpt);
+            $destId = is_null($dest) ? 0 : intval($dest['id'] ?? 0);
+        } catch (Throwable $e) {
+            $destId = 0;
+        }
+        if ($destId <= 0) {
+            jout(['status' => 'error',
+                  'message' => 'Test case not found',
+                  'feedback_code' => 'testcase_doesnot_exists',
+                  'feedback_arg' => $typed], 422);
+        }
+
+        // doAddRelation: "<type>_destination" means the CURRENT test case is
+        // the destination, so the sides swap
+        $sourceId = $tcaseId;
+        $destinationId = $destId;
+        if (isset($relTypeInfo[1]) && $relTypeInfo[1] === 'destination') {
+            $sourceId = $destId;
+            $destinationId = $tcaseId;
+        }
+
+        try {
+            $ret = $tcaseMgr->addRelation($sourceId, $destinationId, $relTypeId, $userId);
+        } catch (Throwable $e) {
+            jout(['status' => 'error',
+                  'message' => 'Error adding new relation: ' . $e->getMessage()], 500);
+        }
+        $ok = !empty($ret['status_ok']);
+        $code = strval($ret['msg'] ?? 'relation_added');
+        jout([
+            'status' => $ok ? 'ok' : 'error',
+            'message' => $ok ? 'Relation added' : 'Relation not added',
+            'feedback_code' => $code,
+            'feedback_arg' => $typed,
+            'source_tcase_id' => $sourceId,
+            'destination_tcase_id' => $destinationId,
+            'relation_type' => $relTypeId,
+            'source_tcversion_id' => $srcTcversionId,
+        ], $ok ? 200 : 422);
+    }
+
+    // -----------------------------------------------------------------------
+    // Issue #1040: POST ?action=delete_relation {tcase_id, tcversion_id, relation_id}
+    // Legacy lib/testcases/tcEdit.php doAction=doDeleteRelation
+    // -> testcaseCommands::doDeleteRelation (lib/testcases/testcaseCommands.class.php:1315)
+    // -> testcase::deleteRelationByID (lib/functions/testcase.class.php:8243).
+    //
+    // The relation row is re-read before deleting: the caller-supplied
+    // relation_id must really touch one of the versions of THIS test case,
+    // otherwise the endpoint would delete an arbitrary relation of the
+    // installation (the legacy controller was only reachable through a form
+    // that carried the ids of the test case being viewed).
+    // -----------------------------------------------------------------------
+    if ($action === 'delete_relation') {
+        $tcaseId = intval($body['tcase_id'] ?? 0);
+        if ($tcaseId <= 0) {
+            jout(['status' => 'error', 'message' => 'Missing test case id'], 400);
+        }
+        $tprojectId = $checkWrite($tcaseId);
+
+        $relId = intval($body['relation_id'] ?? 0);
+        if ($relId <= 0) {
+            jout(['status' => 'error', 'message' => 'Missing relation id'], 400);
+        }
+        $delTables = tlObjectWithDB::getDBTables(
+            array('testcase_relations', 'nodes_hierarchy'));
+        $own = $db->fetchFirstRow(
+            " SELECT TR.id, TR.link_status " .
+            " FROM {$delTables['testcase_relations']} TR " .
+            " JOIN {$delTables['nodes_hierarchy']} NHS ON NHS.id = TR.source_id " .
+            " JOIN {$delTables['nodes_hierarchy']} NHD ON NHD.id = TR.destination_id " .
+            " WHERE TR.id = " . $relId .
+            "   AND (NHS.parent_id = " . $tcaseId . " OR NHD.parent_id = " . $tcaseId . ")");
+        // fetchFirstRow() answers FALSE (not NULL) on an empty recordset
+        if (!is_array($own) || !isset($own['id'])) {
+            jout(['status' => 'error',
+                  'message' => 'Relation #' . $relId
+                    . ' does not belong to this test case'], 404);
+        }
+        // legacy canDel gate (relations.inc.tpl): the relation must be open,
+        // a frozen one (LINK_TC_RELATION_CLOSED_BY_NEW_TCVERSION) is kept
+        if (intval($own['link_status'] ?? 1) !== LINK_TC_RELATION_OPEN) {
+            jout(['status' => 'error',
+                  'message' => 'A frozen relation can not be deleted',
+                  'feedback_code' => 'can_not_delete_a_frozen_relation'], 409);
+        }
+
+        try {
+            $tcaseMgr->deleteRelationByID($relId);
+        } catch (Throwable $e) {
+            jout(['status' => 'error',
+                  'message' => 'Relation could not be deleted: ' . $e->getMessage()], 500);
+        }
+        jout(['status' => 'ok', 'message' => 'Relation deleted', 'relation_id' => $relId]);
     }
 
     // POST ?action=suite_create {parent_id,name}
