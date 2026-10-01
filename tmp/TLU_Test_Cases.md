@@ -2742,3 +2742,21 @@ Screenshots: `docs/screenshots/issue-1666-before-wrong-keywords-file.png`,
 2. **#1784** — a malformed **last** `<keyword>` turns a successful XML import into
    `400 wrong_keywords_file` although earlier rows were already written
    (`importKeywordsFromSimpleXML()` returns the *last* row's verdict for the whole file).
+
+### Addendum — second import entry point (found by code review of this fix)
+
+The code review of #1666 measured the **same** count-delta proxy still live on
+`POST api/keywords/index.php/import` (`api/keywords/index.php:421-424` pre-fix): a round trip of the project's
+own export answered `422 {"code":"EMPTY_FILE","message":"The keywords file has no data rows","rows":0}` — the same
+defect in a worse disguise than #1666's `wrong_keywords_file`. The issue report had claimed this route was
+unaffected; that claim was corrected. No screen posts to this route today (`keywordsView.html` opens the
+`keywordsExport.html` popup), so it was latent. Fixed by the same two-line change.
+
+| Case | Check | pre-fix | post-fix |
+|---|---|---|---|
+| D11a | `api/keywords/index.php/import` (XML, own export) does NOT answer `EMPTY_FILE` | **FAIL** (`EMPTY_FILE`, rows=0) | **PASS** (`NO_KEYWORDS_IMPORTED`) |
+| D11b | rows = the keywords in the file | **FAIL** (0) | **PASS** (4) |
+| D11c | skipped = 4 | **FAIL** (absent) | **PASS** (4) |
+| D11d | row errors name each keyword (`ALREADY_EXISTS`) | **FAIL** (`errors:[]`) | **PASS** |
+
+Suite totals after the addendum: pre-fix **28 passed / 13 failed**, post-fix **41 passed / 0 failed**.
