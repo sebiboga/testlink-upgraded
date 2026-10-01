@@ -45,6 +45,31 @@ screen reaches full parity.
   `node --check` + `json.tool` on all 10 bundles, console clean, Event Viewer `log_level=16`
   only. (Refs #1040)
 
+- [FEATURE GAP] - #1041: the "has been executed" flag of a test case version was computed
+  by node id only, so on a renumbered version the `EXECUTED` badge, the executed warning
+  banners and the edit/platform gates landed on the **wrong version card**. Legacy
+  `testcase::get_versions_status_quo()` (`lib/functions/testcase.class.php:3057-3119`) does
+  not flag the node an execution points at: when `executions.tcversion_number` differs from
+  that node's `tcversions.version` it attributes the execution to the node whose **version
+  NUMBER** equals `tcversion_number` (`:3102-3116`), the number being resolved through a
+  version-number -> node-id map built over **all** versions of the test case and **all** test
+  plans (`:3075-3089`, called as `get_versions_status_quo($tc_id)` with no filter from
+  `:1091`). The modern payload instead asked `SELECT DISTINCT tcversion_id FROM executions
+  WHERE tcversion_id IN (...)`, which flags the execution's own node and never looks at
+  `tcversion_number`; the original report's `array_keys()` symptom had already been repaired
+  by `4f549b24f`, but the number-based remapping had not. Measured against a live legacy call:
+  for an execution stored on the v1 node with `tcversion_number=2`, legacy answers
+  `{v1:false, v2:true}` while the modern payload answered `{v1:true, v2:false}` — which also
+  mis-gated `canEditCurrent()` (`tcView.html:349`), `canAssignPlatforms()`
+  (`api/testcases/index.php:1167`), the relations `canEdit` (`:1348`) and the `(✓ executed)`
+  marker of the `testSpec.html` version dropdown. Fix: one shared helper
+  `tcVersionExecutedSet()` reproducing the legacy attribution loop, called by both
+  `action=view` and `action=version_list`; the `?tcversion_id=` filter no longer narrows the
+  status quo, matching legacy. Verified: Suite 1041 in `tmp/TLU_Test_Cases.md` 14/14 PASS
+  against live legacy-vs-modern diffs, EXECUTED badge browser-confirmed on v2 of the
+  renumbered case, regression `tmp/verify_1038.sh` 21/21 PASS, console clean, Event Viewer
+  `log_level=16` only. (Refs #1041)
+
 - [FEATURE GAP] - #1039: Test Case Viewer lost the legacy Code Management / CTS block.
   `tcView_viewer.tpl:561-588` rendered, per version panel, a bold "Code management" link to
   `$cts->cfg->uriview`, a "Link Existent Test Script" button

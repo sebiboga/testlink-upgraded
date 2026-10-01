@@ -2211,3 +2211,87 @@ prefixes, empty-suite message, "Showing only …", the info strip, and every sta
 ### Status
 PASS — `c842f3bf9` (BFF), `b84337607` (screen + i18n + shim + wiring), `28643031e` (#1771),
 `7397d3249` (#1772), `a9c3a0abe` (#1773).
+
+---
+
+## Suite 1041 — Task / Issue #1041: `has_been_executed` attribution in tcView.html (gap vs legacy status quo)
+
+**Precondition** — run `php tmp/fixtures_1041.php`. It is re-runnable and creates private
+project `SM1041` (suite `Suite 1041`, plan `Plan 1041`) with three two-version test cases
+authored by `admin` (role 8):
+
+| case | data | legacy `get_versions_status_quo()` truth |
+|---|---|---|
+| `SM1041EXEC`   | execution on the **v1 node**, `tcversion_number = 1` | v1 executed, v2 not |
+| `SM1041NONE`   | no execution at all | neither executed |
+| `SM1041NUMBER` | execution on the **v1 node** but `tcversion_number = 2` | **v1 not executed, v2 executed** |
+
+`SM1041NUMBER` is the legacy discriminator: the execution row points at the v1 node, so any
+implementation that keys off `executions.tcversion_id` alone puts the flag on v1, while the
+legacy loop (`lib/functions/testcase.class.php:3102-3116`) resolves the recorded **version
+NUMBER** and flags v2.
+
+**Steps** — `python3 tmp/suite_1041.py` (runner for C1..C14; it calls the legacy
+`testcase::get_versions_status_quo()` live through `tmp/verify_1041.php`, then compares it
+with `action=view` and `action=version_list` over HTTP as `admin/admin`).
+
+| # | Case | Expected | Actual | Result |
+|---|---|---|---|---|
+| C1 | `action=view` on `SM1041EXEC` | `{1:true, 2:false}` — equals legacy | `{1:true, 2:false}` | **PASS** |
+| C2 | `action=view` on `SM1041NONE` | `{1:false, 2:false}` — equals legacy | `{1:false, 2:false}` | **PASS** |
+| C3 | `action=view` on `SM1041NUMBER` | `{1:false, 2:true}` — equals legacy | `{1:false, 2:true}` | **PASS** |
+| C4 | `action=version_list` on `SM1041EXEC` | equals legacy | `{1:true, 2:false}` | **PASS** |
+| C5 | `action=version_list` on `SM1041NONE` | equals legacy | `{1:false, 2:false}` | **PASS** |
+| C6 | `action=version_list` on `SM1041NUMBER` | equals legacy | `{1:false, 2:true}` | **PASS** |
+| C7 | the flagged version of `SM1041NUMBER` | `[2]` — the node whose version NUMBER is 2 | `[2]` | **PASS** |
+| C8 | `action=view&tcversion_id=<v1 of SM1041EXEC>` | `has_been_executed` true — legacy builds the status quo over ALL versions | `true` | **PASS** |
+| C9 | `action=view&tcversion_id=<v2 of SM1041EXEC>` | `has_been_executed` false | `false` | **PASS** |
+| C10 | `is_latest` under the same two filters | `[false, true]` | `[false, true]` | **PASS** |
+| C11 | `action=view&tcase_id=999999` | still an error | HTTP 404 / `status:error` | **PASS** |
+| C12 | `action=view` with no session | still refused | 401/403 | **PASS** |
+| C13 | `action=version_list` grants block | 4 keys intact | all 4 present | **PASS** |
+| C14 | all i18n bundles still parse | no parse error (no key added/removed) | 10/10 valid | **PASS** |
+
+### Results — 14/14 PASS
+
+`action=view` and `action=version_list` now agree with the legacy status quo on every case,
+including the renumbered one where they previously disagreed (C3/C6 were
+`{1:true, 2:false}` before the fix).
+
+### Browser pass (admin, project SM1041)
+
+* `tcView.html?tcase_id=45` (`SM1041NUMBER`) — **EXECUTED badge on the "Version 2 LATEST"
+  card**, Version 1 clean. Warning banner reads *"This version has been executed and can not
+  be edited."* Screenshot: `docs/screenshots/issue-1041-executed-badge-legacy-attribution.png`.
+  Pre-fix the badge was on Version 1.
+* `tcView.html?tcase_id=37` (`SM1041EXEC`) — EXECUTED badge on Version 1 only.
+* `tcView.html?tcase_id=37&tcversion_id=<v1>` — opening the executed version directly raises
+  the executed banner and hides the Edit button (`canEditCurrent()`, `testcase_cfg->canEditExecuted=0`).
+* `tcView.html?tcase_id=41` (`SM1041NONE`) — no EXECUTED badge on either version, no banner.
+* `action=version_list` for `SM1041NUMBER` — dropdown labels render `v1` / `v2 (✓ executed)`,
+  which is what `testSpec.html:955-960` builds.
+* Console: no errors, no warnings.
+
+### Regression
+
+* `bash tmp/verify_1038.sh` (Test Case Viewer / Test Plan usage section) — **21 PASS / 0 FAIL**.
+* `bash tmp/verify_1759.sh` (Suite move/reorder, a different API) — first run failed 22 with
+  `session_expired` because the fresh DB has no `SM1759*` fixtures; after
+  `php tmp/fixtures_1759.php` it is **28 passed / 0 failed**, confirming the earlier failures
+  were missing fixtures, not a regression.
+* Event Viewer: `log_level=16` audit rows only from this work — no new ERROR/WARNING from
+  `api/testcases/index.php`. (Two `ERROR ON exec_query()` rows, ids 2 and 9, are from my own
+  first draft of the fixture generator hitting a non-existent `nodes_hierarchy.testcase_id`
+  and `testplan_tcversions.execution_type` column; the generator was corrected.)
+* `php -l api/testcases/index.php` → no syntax errors. No frontend or i18n change was needed:
+  the flag already drove `badge-executed`, the `tcview.executedCanEdit` / `tcview.executedNoEdit`
+  banners and `canEditCurrent()` — only the attribution behind them was wrong.
+
+### Defects found and fixed during this run
+
+| Issue | Symptom | Root cause | Fix |
+|---|---|---|---|
+| #1041 | EXECUTED badge, executed banners, `canEditCurrent()`, `canAssignPlatforms()`, relations `canEdit` and the `testSpec.html` `(✓ executed)` marker all resolved to the wrong version on a renumbered version | modern payload keyed the flag off `executions.tcversion_id` only; legacy `get_versions_status_quo()` attributes by `executions.tcversion_number` when it differs from the node's `tcversions.version` | shared `tcVersionExecutedSet()` reproducing the legacy loop, used by both `action=view` and `action=version_list` |
+
+### Status
+PASS — `d05417318` (BFF). No screen/i18n change required.
