@@ -1625,6 +1625,30 @@ MAJOR AREAS
   installation and proved each one by walking its ancestors (one query per ancestor) - O(all
   suites x depth) queries on every init/suites call. Now a project-root down-walk where the walk
   itself proves ownership (same shape as tcreoSuitesOf()).
+- [KEY BUGFIX - SECURITY] - #1647: the attachment endpoints proved OWNERSHIP but never asked AUTHORIZATION.
+  `api/attachmentsdelete` (modern Attachment Delete popup) and `api/attachments?action=delete` accepted a
+  caller-supplied `(table, fk_id)` that was only *compared* against the stored row, plus the legacy
+  `s_lastAttachmentInfos` allow-list - a "have I just listed it" cache, not a grant - plus the install-wide
+  `config_get('attachments')->enabled` flag, which is identical for every user. `$currentUser` was fetched at
+  `api/attachmentsdelete/index.php:84` and never used in any decision, so ANY authenticated user, including one
+  with the built-in `<no rights>` role and an empty global right set, could read and DELETE any attachment of
+  any object; `(table, fk_id)` came for free from the ungated `?action=list`, so no id guessing was needed.
+  New shared gate `api/_attachauth.php` derives the owning TEST PROJECT for every `fk_table` the endpoints
+  accept (`nodes_hierarchy` parent walk, `testplans`/`builds`/`executions`/`execution_tcsteps`,
+  `req_specs`/`requirements`/`req_versions`, `keywords`, `cfields`, `tcversions`) and requires the caller to hold
+  a visibility right on it through `tlUser::hasRight()` - using the values read FROM THE ROW, never the caller
+  supplied ones. FAIL CLOSED: an owner whose project cannot be derived is judged on the global right set only
+  (`hasRight(...,0)` skips the private-project guard), an unknown `fk_table` maps to an empty right list and is
+  denied. The gate sits after the ownership proof in the shared `bffAdLoad()`, so it also closes the `?action=init`
+  metadata oracle; `gui/templates/attachments/attachmentDelete.html` maps the new `NO_RIGHT` code onto the
+  existing translated "Not allowed" state, so no new i18n keys. The right names in the report
+  (`testcase_view`/`testplan_view`/`mgt_view_build`) do not exist in this schema (`mgt_view_tc`/`mgt_view_req`/
+  `mgt_view_key`/`cfield_view`/`testplan_*`) and would have denied every user including admin; a manage right was
+  rejected as redundant (every popup caller is already gated on it); gating `?action=list`/`?action=download` was
+  deferred as a separate change (the download path is the public share-link route of #1541). Verified 10/10 -
+  zero-right account 403 on both endpoints and both owner kinds, admin unaffected, a globally privileged user
+  still works on a public project and is refused on a private one (#1763 rule), `events` free of Error/Warning.
+  Refs #1647
 - [KEY BUGFIX - SECURITY] - #1763: `tlUser::hasRight()` only evaluated the private-test-project flag when its
   5th argument `$getAccess` was true, so all ~100 three-argument `hasRight($db,$right,$tprojectId)` call sites in
   the modern `api/**` BFF layer left `$accessPublic` null and the guard was dead code: a user with no row in
