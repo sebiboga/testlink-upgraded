@@ -2390,3 +2390,54 @@ filed separately as **#1778** (`E_WARNING Undefined array key "tplan"`,
 `lib/functions/tlUser.class.php:960`) — measured to be present before this change
 (`events` 137 → 137 across a `meta/tproject-roles` GET, 138 → 138 across a direct
 `getGrantsForUserMgmt()` call).
+**Notes**
+* The single Event Viewer row the matrix produced is
+  `E_WARNING Undefined array key "tplan" — lib/functions/tlUser.class.php:962`, produced by the
+  403 rights branch. That is the already-filed **#1775**, not a regression of #1776; the script
+  counts those rows separately and reports them.
+* `api/tcassignments/index.php/rows` **cannot** return 200 on a fresh install: it fatals before
+  reaching `out()` with `TypeError: array_keys(): Argument #1 must be of type array, null given`
+  at `api/tcassignments/index.php:350` → HTTP 500 with an EMPTY body. Pre-existing, unrelated to
+  this fix, filed as **#1777**.
+* `/init` of the same endpoint is used as the success-path probe instead.
+## Regression — Issue #1769 + #1775: `tlUser::hasRight()` denied a plan-scoped right on every 3-argument call, admin included
+
+One defect, two issues, one line (`lib/functions/tlUser.class.php:962`). Automated harness:
+`tmp/verify_1775.php` (16 checks) + `tmp/verify_1775_guarded.php`. Fixture: `tmp/fixtures_1770.php`
+(tproject `5221` TREE1, test plan `5223`); users `tlv_hasplan` (role 7, holds a plan role),
+`tlv_noplan` (role 7, no plan role), `admin` (role 8, no plan role row by design). Right under test:
+`testplan_execute` (a real product-level right held by roles 7 and 9 — a project-level right is
+subtracted before the plan branch and could not detect the flag at all).
+
+| # | Case | Expected | Result |
+|---|------|----------|--------|
+| 1 | plan-role user, PUBLIC plan, 3-arg `hasRight` | `'yes'` | PASS |
+| 2 | same call | 0 E_WARNING/E_NOTICE | PASS |
+| 3 | no-plan-role user, PUBLIC plan, 3-arg — **the #1769 regression** | `'yes'`, not `false` | PASS |
+| 4 | same call | 0 warnings (was 1 per call) | PASS |
+| 5 | **admin**, PUBLIC plan, 3-arg — no plan-role row, so the same line denied admin | `'yes'`, not `false` (was 403) | PASS |
+| 6 | same call | 0 warnings | PASS |
+| 7 | no-plan-role user, **PRIVATE** plan, `$getAccess = true` | `false` — guard still bites | PASS |
+| 8 | same call | 0 warnings | PASS |
+| 9 | plan-role user, PRIVATE plan, `$getAccess = true` | `'yes'` (else-branch not taken) | PASS |
+| 10 | same call | 0 warnings | PASS |
+| 11 | no-plan-role user, PUBLIC plan, `$getAccess = true` | `'yes'` (flag says public) | PASS |
+| 12 | same call | 0 warnings | PASS |
+| 13 | `$getAccess = true` but no plan in context | 0 warnings (key never filled) | PASS |
+| 14 | project-only shape, no plan | 0 warnings, unaffected | PASS |
+| 15 | 50 consecutive plan-scoped 3-arg calls | **0** rows added to `events` | PASS |
+| 16 | `events` after the run | 0 rows matching `Undefined array key …tplan…` | PASS |
+| 17 | dedicated guard probe (`verify_1775_guarded.php`) | `GUARD PRESERVED` for the 29 `$getAccess = true` call sites | PASS |
+
+**Negative control — the suite must be able to fail.** With the fix reverted, exactly the four predicted
+checks fail: case 3 and case 5 return `false` (the 403 #1769 measured on
+`api/attachments?action=list&table=executions`) and cases 4 and 6 each report 1 warning. All other checks
+still pass, because the `$getAccess = true` path was never broken. Restored, the suite returns 16/16.
+
+**Harness bug found and fixed while writing this suite.** The first version used
+`intval($db->fetchFirstRow(...))` to read a row id. `fetchFirstRow()` returns an associative **array**,
+and `intval()` on an array is `1`, so *every* fixture user silently resolved to **admin (id 1)** and the
+fixture's `UPDATE … SET role_id = 7 WHERE id = 1` overwrote the admin account. Two lessons, both now
+encoded in the harness: read scalars out of the row explicitly (`scalar()`), and make `ensureUser()`
+abort if a fixture user resolves to id ≤ 1 or does not materialise with the expected login and role.
+The admin account was restored to role_id 8.

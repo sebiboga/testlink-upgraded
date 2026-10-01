@@ -8452,3 +8452,28 @@ was not one of the 25 broken sites — it is aligned here only to remove the tra
 callers. Endpoints whose `out()` takes no `$code` at all (`mainpage`, `plans`, `results`,
 `suiteview`, `users`, `requirements`, `testcases`, …) never touch the status line and are not
 affected. Regression suite: `bash tmp/verify_1776.sh` (34 PASS / 0 FAIL).
+### KEY BUGFIX (access control) — `tlUser::hasRight()` denied a plan-scoped right on EVERY 3-argument call, admin included (Fixes #1769, Fixes #1775)
+- One line, `lib/functions/tlUser.class.php:962`, reported twice and fixed once: #1769 and #1775 are
+  the same defect.
+- **What was wrong.** The private-TEST-PLAN guard read `$accessPublic['tplan']`, but that key is only
+  ever filled when the caller opts in with the 5th argument `$getAccess === true`. Since **#1763** made
+  `$accessPublic` unconditionally an array on a 3-argument call - the shape all 763 `hasRight()` call
+  sites use, 100+ of them under `api/` - the old `!is_null($accessPublic)` test stopped short-circuiting
+  and the branch went live for callers that never requested the flag. Two consequences:
+  1. `E_WARNING Undefined array key "tplan"` on every such call: **51 identical Event Viewer rows from
+     a single login**, drowning every real warning.
+  2. **A rights denial, not a harmless notice.** PHP evaluates `null == 0` as **TRUE**, so the branch
+     returned `false` for every user holding no `user_testplan_roles` row for that plan - **including
+     admin**, which has no plan-role row either. #1769 measured `admin` going `200 -> 403` on
+     `api/attachments?action=list&table=executions`. #1775 classified this as "no security impact,
+     null == 0 is false"; that premise is wrong and the fix below treats it as an access-control defect.
+- **The fix.** Guard the KEY with `isset()`, exactly as the sibling TEST PROJECT read at `:942` already
+  does, so the branch is dead unless the caller actually asked for the plan accessibility flag.
+  3-argument calls regain their pre-#1763 semantics; the 29 call sites that pass `$getAccess = true`
+  keep the guard in full.
+- **Verified** (`tmp/verify_1775.php`, 16 checks; `tmp/verify_1775_guarded.php`): plan-role user and
+  no-plan-role user and admin all granted on a public plan via the 3-argument shape with **0 warnings**;
+  a **private** plan still denies for the `$getAccess = true` callers (`GUARD PRESERVED`); 50 consecutive
+  plan-scoped 3-argument calls add **0** rows to `events`. The suite was re-run with the fix reverted and
+  fails exactly the 4 predicted checks (`false` + 1 warning each for the no-plan-role user and for admin),
+  so it genuinely detects the defect rather than passing vacuously.

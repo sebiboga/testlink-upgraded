@@ -959,9 +959,31 @@ class tlUser extends tlDBObject {
         propagateRights($allRights,$g_propRights_product,$testPlanRights);
         $allRights = $testPlanRights;
       } else {
-        if(!is_null($accessPublic) && $accessPublic['tplan'] == 0) {
-          return false;      
-        }  
+        // Refs #1775 / #1769: the 'tplan' key is only filled when the caller opted
+        // in with $getAccess === true (see the $getAccess block above), but since
+        // #1763 $accessPublic is ALWAYS an array on a 3-argument call - the shape
+        // every BFF under api/ uses - so `!is_null($accessPublic)` no longer
+        // short-circuits and this branch became live for callers that never asked
+        // for the plan flag. Two defects in one line:
+        //
+        //   1. E_WARNING "Undefined array key \"tplan\"" on EVERY such call -
+        //      51 identical rows in `events` from a single login.
+        //   2. NOT a harmless notice: PHP evaluates `null == 0` as TRUE, so the
+        //      branch returned FALSE and denied the requested right to every user
+        //      holding no user_testplan_roles row for that plan - admin included,
+        //      since an admin has no plan-role row either. #1769 measured admin
+        //      going 200 -> 403 on api/attachments?action=list&table=executions.
+        //      #1775 downplayed this as "no security impact"; that was wrong.
+        //
+        // The fix is the same guard the sibling TEST PROJECT read above already
+        // uses: isset() on the KEY, so the branch is dead unless the caller
+        // actually requested the plan accessibility flag. That preserves the
+        // pre-#1763 semantics for the 3-argument call shape, keeps the guard
+        // fully effective for the $getAccess === true callers it was written
+        // for (a private plan still denies), and logs nothing.
+        if(isset($accessPublic['tplan']) && $accessPublic['tplan'] == 0) {
+          return false;
+        }
       }
     }
 
