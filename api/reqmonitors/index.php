@@ -142,7 +142,10 @@ function needTprojectIdForReq($reqId)
 }
 
 if ($action === 'init') {
-    if ($method !== 'GET') {
+    // GET and HEAD both read the same payload and write nothing; a HEAD is what
+    // a link checker or a crawler sends, so it must not be told "wrong method"
+    // (same contract as api/tcsummary, Refs #1767).
+    if ($method !== 'GET' && $method !== 'HEAD') {
         failOut(405, 'This action only accepts GET', 'wrong_method');
     }
     $reqId = intval(param('req_id', 0));
