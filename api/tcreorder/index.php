@@ -47,7 +47,9 @@
  *     localized toolbar label, exactly as containerEdit.php:614 did.
  *
  * Status contract: 401 anon / 403 no-right (+ CSRF) / 400 bad param /
- * 404 unknown-or-foreign node / container / project / 405 non-GET on write.
+ * 404 unknown-or-foreign node / container (one opaque answer, whatever the
+ *     reason). 403 test project unknown OR no rights - one opaque answer too.
+ * 405 non-GET on write.
  */
 
 require_once(__DIR__ . '/../../config.inc.php');
@@ -193,50 +195,86 @@ function getStr($key, $default = '')
 }
 
 /**
+ * The ONE opaque answer for "this container is not available to you".
+ *
+ * A container that does not exist, a container of the wrong node type, an
+ * orphaned container and a container belonging to a project the caller has no
+ * rights on must be indistinguishable. Otherwise the endpoint is an existence +
+ * ownership oracle over the whole nodes_hierarchy id space: any authenticated
+ * session could sweep container ids and learn which ones exist and which project
+ * owns them, WITHOUT holding any right (issue #1761). Every such branch routes
+ * through this function so the answers cannot drift apart.
+ */
+function tcreoNoSuchContainer()
+{
+    out(array('status' => 'error', 'code' => 'not_found',
+              'message' => 'Container not found'), 404);
+}
+
+/**
  * Resolve + authorize the test project of the reorder screen.
  *
  * The project is ALWAYS re-derived from the addressed container when one is
  * given, so a caller can never present project A's rights while mutating
  * project B's tree.
+ *
+ * ORDERING IS THE SECURITY PROPERTY (issue #1761): every answer that could
+ * distinguish "not yours" from "not there" - the cross-project refusal AND the
+ * rights refusal - is the same opaque 404, and both are decided from the node
+ * id the CALLER supplied. The guard is armed whenever a container id was
+ * supplied, not only when the caller also named a project: a caller holding no
+ * rights anywhere must not learn that an id exists either, and that is the case
+ * that actually matters. Do not move a 403 in front of them, and do not
+ * reintroduce a message that names the container, its node type or its owner.
  */
 function tcreoProject(&$db, &$user, $requestedId, $containerId = 0)
 {
     $tprojectId = intval($requestedId);
+    $leakGuard = false;
 
     if ($containerId > 0) {
         $info = tcreoNodeInfo($db, $containerId);
         if (is_null($info)) {
-            out(array('status' => 'error', 'code' => 'not_found',
-                      'message' => 'Container not found'), 404);
+            tcreoNoSuchContainer();
         }
         // Only a test suite (or the project root itself) may host test cases.
+        // The message is the same as for an id that exists nowhere, on purpose:
+        // naming the node type would turn this into a "does this id exist at all
+        // and what is it" oracle over every nodes_hierarchy id of the install.
         if (intval($info['node_type_id']) != tcreoNodeTypeTestsuite($db) &&
             intval($info['node_type_id']) != tcreoNodeTypeTestproject($db)) {
-            out(array('status' => 'error', 'code' => 'not_found',
-                      'message' => 'Container is not a test suite'), 404);
+            tcreoNoSuchContainer();
         }
         // tcreoOwningProject() walks parent_id to the node_type 1 root. If that
-        // walk cannot prove ownership it returns 0, and the container must be
-        // treated as orphaned - never assumed to belong to its own parent,
-        // which would produce a rights check against the wrong project (and a
-        // misleading 403 instead of an honest 404).
+        // walk cannot prove ownership it returns 0 and the container is orphaned:
+        // never assume it belongs to its own parent, which would check rights
+        // against the wrong project. tcreoNodeInfo() already resolved the owner,
+        // so this costs no extra query.
         $owner = intval($info['testproject_id']);
         if ($owner <= 0) {
-            out(array('status' => 'error', 'code' => 'not_found',
-                      'message' => 'Container has no owning test project'), 404);
+            tcreoNoSuchContainer();
         }
-        if ($owner > 0) {
-            // The container's real owner always wins, and a request that names a
-            // different project is refused outright instead of being silently
-            // retargeted: the screen must never mutate a tree the UI is not
-            // showing (a rights check alone would let an admin unknowingly
-            // reorder another project's test cases).
-            if (intval($requestedId) > 0 && intval($requestedId) !== $owner) {
-                out(array('status' => 'error', 'code' => 'forbidden',
-                          'message' => 'Container belongs to another test project'), 403);
-            }
-            $tprojectId = $owner;
+
+        // The container's real owner always wins and a request naming a
+        // different project is refused instead of being silently retargeted -
+        // a rights check alone would let an admin unknowingly reorder another
+        // project's test cases. The refusal is 404 with the very same message as
+        // an id that exists nowhere, NOT 403: the container id came from the
+        // caller, so a 403 here would confirm that this id is a real test suite
+        // living in another project, which is exactly the oracle #1761 is about
+        // (it used to answer 403 BEFORE any right was checked, so the oracle was
+        // open to a session holding no right at all).
+        if (intval($requestedId) > 0 && intval($requestedId) !== $owner) {
+            tcreoNoSuchContainer();
         }
+        // A container id was supplied, so EVERY refusal below is opaque: a 403
+        // would confirm that this id is a real test suite of a project the
+        // caller may not even be allowed to look at. This is armed whether or
+        // not the caller named a project, because naming project A does not
+        // entitle anybody to A's structure: a user with no rights on A at all
+        // could otherwise sweep container ids and learn A's tree.
+        $leakGuard = true;
+        $tprojectId = $owner;
     }
 
     if ($tprojectId <= 0) {
@@ -249,12 +287,19 @@ function tcreoProject(&$db, &$user, $requestedId, $containerId = 0)
 
     $tprojectMgr = new testproject($db);
     $tproject = $tprojectMgr->get_by_id($tprojectId);
-    if (is_null($tproject)) {
-        out(array('status' => 'error', 'code' => 'not_found',
-                  'message' => 'Test project not found'), 404);
-    }
-
-    if (!$user->hasRight($db, 'mgt_modify_tc', $tprojectId)) {
+    /* Refs #1761: a project id the CALLER named is the caller's own business, so
+       the refusal is uniform - 403 whether the project does not exist or exists
+       without the right. Answering 404 for "does not exist" next to 403 for
+       "exists but not yours" would make the PROJECT id an existence oracle (the
+       same rule as #1759 case M21). A caller that does hold the right still gets
+       its 200 below. */
+    if (is_null($tproject) || !$user->hasRight($db, 'mgt_modify_tc', $tprojectId)) {
+        if ($leakGuard) {
+            /* The project in play was derived from a caller-supplied node id, so
+               403 here would confirm that node id exists somewhere. Same answer
+               as a node id that exists nowhere. */
+            tcreoNoSuchContainer();
+        }
         out(array('status' => 'error', 'code' => 'forbidden',
                   'message' => 'Insufficient rights on this test project'), 403);
     }
@@ -323,6 +368,14 @@ function tcreoOwningProject(&$db, $node)
 /**
  * Prove a node is a TEST CASE living directly under the given container of the
  * given project. Returns the node row or answers 404.
+ *
+ * $nodeId is CALLER-SUPPLIED and this runs after the project was authorized, so
+ * every failure answers the same 404: distinguishing "no such node" from "not a
+ * test case" from "lives in another container" from "owned by another project"
+ * would let a caller entitled on ONE project map the node type and the owning
+ * project of every id in nodes_hierarchy by brute force - the same oracle as
+ * #1761, reached through node_id instead of container_id. Do not split these
+ * messages apart again.
  */
 function tcreoRequireChildTestcase(&$db, $nodeId, $containerId, $tprojectId)
 {
@@ -333,16 +386,15 @@ function tcreoRequireChildTestcase(&$db, $nodeId, $containerId, $tprojectId)
     }
     if (intval($info['node_type_id']) != tcreoNodeTypeTestcase($db)) {
         out(array('status' => 'error', 'code' => 'not_found',
-                  'message' => 'Node is not a test case'), 404);
+                  'message' => 'Node not found'), 404);
     }
     if (intval($info['parent_id']) != intval($containerId)) {
         out(array('status' => 'error', 'code' => 'not_found',
-                  'message' => 'Node does not belong to this container'), 404);
+                  'message' => 'Node not found'), 404);
     }
-    $owner = intval($info['testproject_id']);
-    if ($owner !== intval($tprojectId)) {
+    if (intval($info['testproject_id']) !== intval($tprojectId)) {
         out(array('status' => 'error', 'code' => 'not_found',
-                  'message' => 'Node belongs to another test project'), 404);
+                  'message' => 'Node not found'), 404);
     }
     return $info;
 }
@@ -352,6 +404,10 @@ function tcreoContainerChildren(&$db, $containerId, $tprojectId)
 {
     $T = tcreoTables();
     $container = tcreoNodeInfo($db, $containerId);
+    // Same uniformity as tcreoRequireChildTestcase(), and for the same reason:
+    // container_id is caller-supplied. tcreoProject() has already proven all of
+    // this by the time we get here, so these are defence in depth - keep them
+    // indistinguishable anyway.
     if (is_null($container)) {
         out(array('status' => 'error', 'code' => 'not_found',
                   'message' => 'Container not found'), 404);
@@ -359,12 +415,11 @@ function tcreoContainerChildren(&$db, $containerId, $tprojectId)
     if (intval($container['node_type_id']) != tcreoNodeTypeTestsuite($db) &&
         intval($container['node_type_id']) != tcreoNodeTypeTestproject($db)) {
         out(array('status' => 'error', 'code' => 'not_found',
-                  'message' => 'Container is not a test suite'), 404);
+                  'message' => 'Container not found'), 404);
     }
-    $owner = intval($container['testproject_id']);
-    if ($owner !== intval($tprojectId)) {
+    if (intval($container['testproject_id']) !== intval($tprojectId)) {
         out(array('status' => 'error', 'code' => 'not_found',
-                  'message' => 'Container belongs to another test project'), 404);
+                  'message' => 'Container not found'), 404);
     }
 
     // 2.0.1: a test case NODE id is the test case id, and its external id
@@ -608,8 +663,12 @@ if ($action === 'move') {
         }
         $idx = array_search($nodeId, $ids, true);
         if ($idx === false) {
+            // Unreachable in practice: tcreoRequireChildTestcase() above already
+            // proved the node is a test case of this container, which is exactly
+            // what $children holds. Kept identical to its message anyway - this
+            // is the same caller-supplied node_id surface as #1761.
             out(array('status' => 'error', 'code' => 'not_found',
-                      'message' => 'Node does not belong to this container'), 404);
+                      'message' => 'Node not found'), 404);
         }
         $swap = ($position === 'up') ? $idx - 1 : $idx + 1;
         if ($swap < 0 || $swap >= count($ids)) {

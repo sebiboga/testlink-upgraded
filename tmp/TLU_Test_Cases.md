@@ -2441,3 +2441,100 @@ fixture's `UPDATE … SET role_id = 7 WHERE id = 1` overwrote the admin account.
 encoded in the harness: read scalars out of the row explicitly (`scalar()`), and make `ensureUser()`
 abort if a fixture user resolves to id ≤ 1 or does not materialise with the expected login and role.
 The admin account was restored to role_id 8.
+
+## Regression — Issue #1761 + #1762: `tcreorder` / `tcstepsreorder` `403` responses leaked the existence and ownership of foreign objects
+
+**Precondition** (fixture is idempotent, recreates itself)
+```bash
+php tmp/fixtures_1761.php     # 2 projects, 4 users, 2 containers + test cases + steps each
+php tmp/verify_1761.php       # the 95-case matrix
+```
+Fixture data: private test projects `OR1761A=5297` (prefix `O1A`) and `OR1761B=5298` (prefix `O1B`);
+project A holds `OR1761A1=5299` (tcase 5300 → tcversion 5301, steps 5302/5303/5304) and
+`OR1761A2=5310`; project B holds `OR1761B1=5321` (tcase 5322 → 5323, tcase 5327 → 5328) and
+`OR1761B2`. Users: `sm1761a` (Test Designer on A, `mgt_view_tc` + `mgt_modify_tc` + `mgt_view_key`),
+`sm1761norights` (role *no rights*, **no** `user_testproject_roles`), `sm1761view` (project role with
+**only** `mgt_view_tc` + `mgt_view_key`), `sm1761designer` (global role **4 = Test Designer**, the
+default non-admin role, **no** `user_testproject_roles` row at all), `admin`.
+
+**Repro steps (pre-fix)** — no project rights of any kind needed, only a valid session:
+1. `POST /api/auth/login` as `sm1761norights` → `{"status":"ok"}`.
+2. `GET /api/tcreorder/index.php?action=init&tproject_id=5297&container_id=<suite of B>` →
+   `403 {"code":"forbidden","message":"Container belongs to another test project"}`.
+3. `GET /api/tcreorder/index.php?action=init&tproject_id=5297&container_id=999999` →
+   `404 {"code":"not_found","message":"Container not found"}`.
+4. The two bodies differ, so any authenticated user could **enumerate which suite ids exist in any
+   project** and learn the `nodes_hierarchy` node type of any id.
+5. `GET /api/tcstepsreorder/index.php?action=init&tcversion_id=<version of B>` →
+   `403 … "Test case version belongs to another test project"`, same oracle (init/move/reorder/normalize).
+
+**Expected post-fix behavior** — every caller-supplied id that is not available to the caller
+answers one single opaque 404, **byte-identical** to the answer for a non-existent id, whatever the
+real reason (missing / wrong node type / orphan / foreign project / no rights). Only the project-level
+`init` on an id the caller may not even resolve keeps the informative 403 (and that 403 is itself the
+same for a non-existent project). Legitimate callers are unaffected.
+
+**Actual result (post-fix, 95/95 PASS; pre-fix the same suite scores 45 PASS / 50 FAIL)**
+| Group | Case | Expected | Result |
+|---|---|---|---|
+| tcreorder, `sm1761a` | R1–R3 own project / own container / absent container | 200 / 200 / 404 | **PASS** |
+| | R4–R5 init at a **FOREIGN** container, with and without `tproject_id` | 404 `Container not found` | **PASS** |
+| | R6–R7 foreign container == absent container, status **and** body bytes | identical | **PASS** |
+| | R8 own-project **test case** passed as `container_id` == absent | identical | **PASS** |
+| | R9 `tproject_id` of another project == non-existent project | identical 403 | **PASS** |
+| | R10–R13 sort / reorder / move at a foreign container | 404 `Container not found` | **PASS** |
+| | R14 foreign `node_id` == absent `node_id` (move) | identical | **PASS** |
+| | R15 own **suite** passed as `node_id` == absent (no type oracle) | identical | **PASS** |
+| | R16 **real** reorder write on the own container | 200, `node_order` really rewritten | **PASS** |
+| | R16b project B `node_order` untouched | unchanged | **PASS** |
+| | R18 `container_id=0` (project root) | 200 | **PASS** |
+| tcreorder, no rights | R19–R20 container of an **unentitled** project == absent | identical 404 | **PASS** |
+| | R21–R23 own-project / foreign / no-`tproject_id` variants | identical 404 | **PASS** |
+| tcreorder, view-only | R25 own container (holds `mgt_view_tc` only) | opaque 404 (see note) | **PASS** |
+| | R26 foreign container == absent (status + bytes) | identical | **PASS** |
+| tcstepsreorder, `sm1761a` | S1–S3 own version / absent version / `versions` list | 200 / 404 / 200 | **PASS** |
+| | S2, S7–S9 FOREIGN version via **init / move / reorder / normalize** | 404 `Test case version not found` | **PASS** |
+| | S4–S5, S11–S13 foreign == absent, status **and** body bytes | identical | **PASS** |
+| | S10 own-project **test case** passed as `tcversion_id` == absent | identical | **PASS** |
+| | S15b–S16 **real** reorder write renumbers `tcsteps.step_number` | 200, reversed in the DB | **PASS** |
+| | S17–S18 fixture order restored / project B order untouched | unchanged | **PASS** |
+| | S19–S21 `versions` action: absent project == other project == non-existent | identical 403 | **PASS** |
+| | S19d/S21d/S21e **`versions` as `sm1761designer`** (global role 4) — see the review note below | identical 403 | **PASS** |
+| | S19r/S21r the same project axis on `tcreorder` as `sm1761designer` | identical 403 | **PASS** |
+| tcstepsreorder, no rights | S22 own-project version | opaque 404 | **PASS** |
+| | S23–S24 foreign / foreign reorder == absent | identical | **PASS** |
+| tcstepsreorder, view-only | S25 **read** own version still works | 200 | **PASS** |
+| | S26 **write** own version | opaque 404 (see note) | **PASS** |
+| | S27 foreign version == absent | identical | **PASS** |
+| admin | A1–A3 own container / own version / absent version | 200 / 200 / 404 | **PASS** |
+| contract | C1 foreign `Origin` on a **write** refused · C1b a GET is not CSRF-gated by design | 403 · 200 | **PASS** |
+| | C2 POST without `Origin` refused · C4 POST on `init` | 403 · 405 | **PASS** |
+| | C3/C3b/C5/C5b unknown action over GET (POST-only gate) / over POST | 405 / 400 `unknown_action` | **PASS** |
+| | V1 `SELECT COUNT(*) FROM events WHERE log_level IN (1,2)` | no **new** row | **PASS** |
+
+**Found by the mandatory code review (rule 16) — a second, pre-existing leak in the same file.**
+`?action=versions` resolves a *project*, not a node id, and its rights gate trusted
+`tlUser::hasRight()`. That method does **not** deny an id that resolves to nothing: it falls through to
+the GLOBAL role and answers *yes*. So for a user with the default global role of a Test Designer
+(`role_id = 4`) and no `user_testproject_roles` row, the gate refused an **existing** private project
+with `403` but let `424242` through to `tsroVersions()`, which answered `404 Test project not found` —
+a live test-project existence oracle, sweepable over the whole `testprojects` id space, on the *project*
+axis. The sibling `tcreoProject()` was already immune because it checks the project row itself. Fixed
+by having `tsroVersions()` answer the same `403` for a project that does not exist, and the first run
+of this suite could NOT have caught it: all three original fixture users had global role *no rights*,
+so `hasRight(right, 424242)` was false for them too and the absent/forbidden pair collapsed onto one
+answer. `sm1761designer` was added for exactly that reason; `S21d`/`S21e` fail with `403 vs 404` when
+only `api/tcstepsreorder` is reverted, and `S19r`/`S21r` pin the same axis on `tcreorder`.
+
+**Note on the view-only caller.** `mgt_modify_tc` is absent while `mgt_view_tc` is present, so the
+refusal is a *rights* answer, not an existence answer. It is still normalized to the opaque 404
+because the leak guard is armed whenever the caller supplies a container / version id: the same rule
+then also covers the `no rights` caller, which is the case that actually matters. The cost is one
+"not found" card instead of "access denied" for a user who can only read, on a screen that is linked
+for modifiers anyway.
+
+**Follow-up filed as #1779.** `api/suitemove` (#1759) arms its leak guard only when the project id itself is
+caller-supplied, so `?tproject_id=<own project>&container_id=<container of an unentitled project>`
+still answers the informative 403 and keeps the same enumeration oracle (reproduced by the
+`R20`/`R22`-shaped cases above). Suite 1759 `M12`/`M12c` still pass unchanged, so that gap is
+reported separately rather than folded into this change.

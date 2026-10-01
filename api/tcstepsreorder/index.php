@@ -190,12 +190,32 @@ function tsroTables()
 }
 
 /**
+ * The ONE opaque answer for "this test case version is not available to you".
+ *
+ * A version id that does not resolve and a version belonging to a project the
+ * caller has no rights on must be byte-identical, otherwise the endpoint is an
+ * existence + ownership oracle over the tcversion_id space: any authenticated
+ * session could sweep version ids and learn which exist, which project owns them
+ * and whether they are executed - with no right at all (issue #1762). Routed
+ * through one function so the two answers cannot drift apart.
+ */
+function tsroNoSuchVersion()
+{
+    out(array('status' => 'error', 'code' => 'not_found',
+              'message' => 'Test case version not found'), 404);
+}
+
+/**
  * Resolve a test case version node: its row, its test case (parent) and the
  * test project that owns the whole chain.
  *
  * The owning project is PROVED by walking parent_id upwards to the node_type 1
  * root - it is never taken from the request - so a caller cannot present
  * project A's rights while mutating project B's version.
+ *
+ * Every failure here answers the SAME opaque 404, because this resolution runs
+ * before any right is known: a caller must not be able to tell a wrong node type
+ * or an orphaned test case from an id that was never there.
  */
 function tsroVersion(&$db, $tcverId)
 {
@@ -208,8 +228,7 @@ function tsroVersion(&$db, $tcverId)
         " FROM {$T['nodes_hierarchy']} NH" .
         " WHERE NH.id = {$tcverId} AND NH.node_type_id = {$n['testcase_version']}");
     if (is_null($row) || count($row) == 0) {
-        out(array('status' => 'error', 'code' => 'not_found',
-                  'message' => 'Test case version not found'), 404);
+        tsroNoSuchVersion();
     }
     $version = $row[0];
 
@@ -219,15 +238,13 @@ function tsroVersion(&$db, $tcverId)
         " WHERE id = " . intval($version['parent_id']) .
         " AND node_type_id = {$n['testcase']}");
     if (is_null($tcaseRow) || count($tcaseRow) == 0) {
-        out(array('status' => 'error', 'code' => 'not_found',
-                  'message' => 'Test case of this version not found'), 404);
+        tsroNoSuchVersion();
     }
     $tcase = $tcaseRow[0];
 
     $tprojectId = tsroOwningProject($db, $tcase);
     if ($tprojectId <= 0) {
-        out(array('status' => 'error', 'code' => 'not_found',
-                  'message' => 'Test case has no owning test project'), 404);
+        tsroNoSuchVersion();
     }
 
     return array($version, $tcase, $tprojectId);
@@ -483,14 +500,6 @@ function tsroWriteResult(&$db, $tcverId, $before, $extra = array())
 }
 
 /**
- * Resolve + authorize the screen context.
- *
- * $right is what the caller needs: 'mgt_view_tc' for the read, 'mgt_modify_tc'
- * for a write. The test project named in the request is never trusted: it must
- * either be 0 or exactly the owning project, otherwise 403 - silently
- * retargeting would let an admin unknowingly reorder another project's steps.
- */
-/**
  * Has this version ever been executed?
  *
  * testcase::set_step_number() is the very write the Test Case Editor performs,
@@ -523,18 +532,45 @@ function tsroMayWrite(&$db, &$user, $tprojectId, $tcverId)
     return intval($cfg->canEditExecuted ?? 0) > 0;
 }
 
+/**
+ * Resolve + authorize the screen context.
+ *
+ * $right is what the caller needs: 'mgt_view_tc' for the read, 'mgt_modify_tc'
+ * for a write. The test project named in the request is never trusted: it must
+ * either be 0 or exactly the owning project - silently retargeting would let an
+ * admin unknowingly reorder another project's steps.
+ *
+ * ORDERING IS THE SECURITY PROPERTY (issue #1762): the cross-project refusal
+ * comes first, and the rights refusal that follows is the SAME opaque 404, so
+ * neither can be told apart from a version that simply is not there. Both are
+ * decided from the tcversion_id the CALLER supplied, which is why a view-only
+ * user of their own version is refused with the opaque 404 too. Do not give
+ * either of them a 403 or a message of its own.
+ */
+
 function tsroContext(&$db, &$user, $tcverId, $requestedProject, $right)
 {
     list($version, $tcase, $tprojectId) = tsroVersion($db, $tcverId);
 
+    // The caller names the project, so a mismatch is refused instead of being
+    // silently retargeted (an admin must not unknowingly reorder another
+    // project's steps). The refusal is 404 with the very same message as a
+    // tcversion_id that exists nowhere, NOT 403: the version id came from the
+    // caller, so a 403 would confirm that this id is a real test case version
+    // owned by another project. Before #1762 this check ran FIRST, before any
+    // right was consulted, so the oracle was open to a session with no rights.
     if (intval($requestedProject) > 0 && intval($requestedProject) !== $tprojectId) {
-        out(array('status' => 'error', 'code' => 'forbidden',
-                  'message' => 'Test case version belongs to another test project'), 403);
+        tsroNoSuchVersion();
     }
 
+    /* The version id is caller-supplied, so the rights refusal is opaque too -
+       a 403 would confirm that the probed id exists somewhere. Uniform with the
+       mismatch above and with a version that is not there at all. A caller that
+       does hold the right still gets its 200; a caller naming no project at all
+       is refused the same way, since the project was derived from the probed
+       version id. */
     if (!$user->hasRight($db, $right, $tprojectId)) {
-        out(array('status' => 'error', 'code' => 'forbidden',
-                  'message' => 'Insufficient rights on this test project'), 403);
+        tsroNoSuchVersion();
     }
 
     // An executed version is protected by the Test Case Editor's own rule, and
@@ -580,8 +616,16 @@ function tsroVersions(&$db, $requestedProject)
         " WHERE NH.id = " . intval($tprojectId) .
         " AND NH.node_type_id = {$n['testproject']}");
     if (is_null($projRow) || count($projRow) == 0) {
-        out(array('status' => 'error', 'code' => 'not_found',
-                  'message' => 'Test project not found'), 404);
+        // Refs #1761/#1762. `versions` resolves a PROJECT, not a node id, so this
+        // is the project-level branch where the informative 403 is legitimate --
+        // but it has to be the SAME 403 the caller's missing rights answer, or the
+        // pair becomes a test-project existence oracle. `tlUser::hasRight()` does
+        // NOT deny an id that resolves to nothing: for a non-existent project it
+        // falls through to the GLOBAL role and answers 'yes', so the gate above
+        // let 999999 through to a 404 while an existing private project without a
+        // role row was refused with 403. Answer 403 for both, like tcreoProject().
+        out(array('status' => 'error', 'code' => 'forbidden',
+                  'message' => 'Insufficient rights on this test project'), 403);
     }
 
     $tprojectMgr = new testproject($db);

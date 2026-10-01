@@ -8477,3 +8477,50 @@ affected. Regression suite: `bash tmp/verify_1776.sh` (34 PASS / 0 FAIL).
   plan-scoped 3-argument calls add **0** rows to `events`. The suite was re-run with the fix reverted and
   fails exactly the 4 predicted checks (`false` + 1 warning each for the no-plan-role user and for admin),
   so it genuinely detects the defect rather than passing vacuously.
+
+### KEY BUGFIX (security) — the two reorder BFFs answered `403` for a foreign container / test case version, so ANY logged-in user could enumerate the node tree of EVERY test project (Fixes #1761, Fixes #1762)
+- **The leak needed no rights at all.** `nodes_hierarchy` ids are global across all test projects, and
+  both endpoints resolved the caller-supplied id to its OWNING project and compared that owner against
+  the requested project *before* asking whether the caller had any right on the owner
+  (`api/tcreorder` `tcreoProject()`, `api/tcstepsreorder` `tsroContext()`). So a valid session with
+  zero rights anywhere could tell three cases apart per id: **does not exist** (`404 Container not found`),
+  **exists and is foreign** (`403 … belongs to another test project`), and — via the distinct wording —
+  **exists but is not a container / is an orphan / is a different node type**. That is an existence
+  oracle *and* an ownership-membership oracle over the whole `nodes_hierarchy` id space, sweepable
+  without a single test-project grant. `api/tcstepsreorder` leaked it on all four entry points that
+  authorize through `tsroContext()`: the read (`mgt_view_tc`) and the three writes (`mgt_modify_tc`).
+- **The fix.** Every refusal caused by a caller-supplied object id is now ONE opaque HTTP 404,
+  **byte-identical** to the answer for a non-existent id, whatever the real reason — missing, wrong
+  `node_type`, orphan, foreign project, or the caller simply has no rights. New single-source helpers
+  `tcreoNoSuchContainer()` and `tsroNoSuchVersion()` are the only ways those branches answer.
+  Three follow-on collapses were required to make the `node_id` axis un-bypassable:
+  `tcreoRequireChildTestcase()` (4 branches), `tcreoContainerChildren()` (3 branches) and the
+  move-boundary `array_search` straggler all now emit the same `Node not found` / `Container not found`
+  body as the absent case. The project-level `init` (no object id) legitimately keeps an informative
+  403, and that 403 is now itself identical for a non-existent project.
+- **Deliberate trade-off.** A view-only user of their OWN project is refused with the opaque 404 rather
+  than "access denied", because the guard is armed whenever a container / version id is supplied rather
+  than only when the caller also named a project. The narrower rule leaks: a caller holding nothing
+  anywhere must not learn that an id exists either, and that is the case that actually matters (the first
+  version of the fix shipped this gap and the suite caught it, cases R20/R22). The cost is one
+  "not found" card for a user who can only read, on a screen that is linked for modifiers anyway.
+- **A second, pre-existing leak found by the mandatory code review (rule 16) in the same file.**
+  `?action=versions` resolves a *project*, not a node id, and trusted `tlUser::hasRight()` — which does
+  **not** deny an id that resolves to nothing: it falls through to the GLOBAL role and answers *yes*.
+  So for a default global Test Designer (`role_id = 4`) with no `user_testproject_roles` row, the gate
+  refused an **existing** private project with `403` while letting `424242` through to
+  `tsroVersions()`, which answered `404 Test project not found` — a live test-project existence oracle
+  over the whole `testprojects` id space. The sibling `tcreoProject()` was already immune because it
+  checks the project row itself. Fixed by having `tsroVersions()` answer the same 403 for a project that
+  does not exist.
+- **Verified** (`tmp/fixtures_1761.php` + `tmp/verify_1761.php`, **95/95 PASS**; 0 new
+  ERROR/WARNING rows in `events`). The suite was re-run with each file reverted and fails exactly the
+  predicted checks (`45 PASS / 50 FAIL` on pre-fix code, and `403 vs 404` on the new project-axis cases
+  when only `api/tcstepsreorder` is reverted), so it genuinely detects the defect rather than passing
+  vacuously. A `sm1761designer` user (global role 4) was added to the fixture for the project axis
+  because an all-global-role-3 fixture provably makes that case vacuous — `hasRight(right, 424242)` is
+  false for such users, so absent and forbidden collapse onto one answer.
+- **Follow-up filed, NOT fixed here: #1779** — `api/suitemove` arms its #1759 leak guard only when the
+  *project* id is caller-supplied, so `?tproject_id=<any>&container_id=<container of an unentitled
+  project>` still answers `403` while an absent container answers `404`. Confirmed with curl, not
+  inferred. Suite 1759 rows `M12`/`M12c` pin today's behaviour and would need updating with that fix.
