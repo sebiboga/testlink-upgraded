@@ -321,9 +321,11 @@ switch ($action) {
         $before = keywordCount($db, $tproject_id);
         $stats = array('rows' => 0, 'imported' => 0, 'skipped' => 0, 'errors' => array());
         if ($type === 'iSerializationToXML') {
-            // Refs #1666: $stats carries the real per-row report of the XML arm
-            // (rows / imported / skipped / errors[]), the same shape the CSV arm
-            // reports since #1605.
+            // Refs #1784: same per-row report out-param as the CSV arm. The XML
+            // importer used to return one scalar verdict that the LAST <keyword>
+            // decided, so a malformed row turned a readable file into a 400
+            // wrong_keywords_file (rows before it were committed anyway) and the
+            // offending row was never named.
             $result = $tproject->importKeywordsFromXMLFile($tproject_id, $tmpFile, $stats);
         } else {
             // Refs #1605: the out-param gives the dialog the real per-row
@@ -336,7 +338,7 @@ switch ($action) {
         }
 
         // Captured BEFORE the guard below overwrites it: "the file was readable"
-        // is what decides whether an empty/fully-rejected CSV is a row problem
+        // is what decides whether an empty/fully-rejected file is a row problem
         // or a genuinely unreadable file.
         $fileWasReadable = ($result == tl::OK);
 
@@ -345,16 +347,8 @@ switch ($action) {
             // importKeywordsFromCSV() returns tl::OK as soon as fopen() on the
             // temp file succeeds, so a non-CSV file is "imported" with zero rows
             // and the screen would report success. Nothing landed => wrong file.
-            //
-            // Refs #1666: the XML arm used to be judged by the keyword COUNT
-            // DELTA ($after === $before) for both arms, which cannot see an
-            // import that updates rows in place: re-importing the project's own
-            // export leaves the count flat, so a valid file was rejected as
-            // 'wrong_keywords_file'. The XML arm is now gated on the rows the
-            // importer actually reported ($stats['rows'] - a <keywords/> document
-            // without a single <keyword> child), so only a file that yielded
-            // nothing at all is refused. The CSV arm keeps its own signal
-            // (unchanged semantics, #1605).
+            // Refs #1784: same for XML, which now returns tl::OK as soon as the
+            // document parsed and its root node was <keywords>.
             $result = tl::ERROR;
         }
 
@@ -363,16 +357,13 @@ switch ($action) {
             // when the file was perfectly readable and every row was rejected
             // for a named reason. Name the actual outcome so the dialog can say
             // whether the file was empty, or every row failed. Gated on
-            // $fileWasReadable so an unreadable file (fopen() failed) keeps the
-            // legacy code, which is the accurate one there. XML keeps the legacy
-            // code on purpose: this branch is reached for a document without any
-            // usable <keyword> row (empty document, parse failure, or a row-level
-            // rejection that the legacy $status still folds into the file verdict
-            // - see #1784), and EMPTY_FILE / NO_KEYWORDS_IMPORTED would both be
-            // wrong there. Rows that were read but only skipped are NOT an error
-            // for XML: they travel back in the 200 payload below.
+            // $fileWasReadable so an unreadable file (fopen() failed / XML that
+            // does not parse / wrong root node) keeps the legacy code, which is
+            // the accurate one there.
+            // Refs #1784: the XML arm is no longer excluded - it publishes the
+            // same per-row report, so it can be judged by the same rules.
             $code = 'wrong_keywords_file';
-            if ($type !== 'iSerializationToXML' && $fileWasReadable) {
+            if ($fileWasReadable) {
                 $code = ($stats['rows'] > 0) ? 'NO_KEYWORDS_IMPORTED' : 'EMPTY_FILE';
             }
             out(array(

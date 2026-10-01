@@ -1565,10 +1565,10 @@ function setPublicStatus($id,$status)
     return ($semiHits === 0 && $commaHits > 0) ? ',' : $delim;
   }
 
-  /**
+/**
    * @param $testproject_id
    * @param $fileName
-   * @param array $stats [ref] optional import report, see importKeywordsFromCSV()
+   * @param array $stats [ref] optional per-row import report (see #1784)
    */
   function importKeywordsFromXMLFile($testproject_id,$fileName,&$stats = null)
   {
@@ -1580,35 +1580,34 @@ function setPublicStatus($id,$status)
   /**
    * @param $testproject_id
    * @param $xmlString
-    */
-  function importKeywordsFromXML($testproject_id,$xmlString)
+   * @param array $stats [ref] optional per-row import report (see #1784)
+   */
+  function importKeywordsFromXML($testproject_id,$xmlString,&$stats = null)
   {
     $simpleXMLObj = simplexml_load_string($xmlString);
-    return $this->importKeywordsFromSimpleXML($testproject_id,$simpleXMLObj);
+    return $this->importKeywordsFromSimpleXML($testproject_id,$simpleXMLObj,$stats);
   }
 
-  /**
-   * Refs #1666: the XML arm of the keyword import now reports the same per-row
-   * outcome as importKeywordsFromCSV() ($stats, see its doc block), because the
-   * caller (api/keywordsxml/index.php) had no row-level signal and used the
-   * keyword COUNT DELTA as a stand-in for "rows read": a merge that only touches
-   * keywords which already exist leaves the count flat, so a perfectly valid file
-   * was reported as 'wrong_keywords_file'.
+/**
+   * Refs #1784: same optional per-row report as importKeywordsFromCSV() - the
+   * shape is kept identical on purpose (rows / imported / skipped / errors[] with
+   * the same IMPORT_KEYWORD_ERRORS_MAX cap) so both arms of the Keyword
+   * Export/Import dialog answer with one vocabulary.
    *
-   * The counts are driven by the real per-row results. tlKeyword::writeToDB()
-   * returns tlKeyword::E_NAMEALREADYEXISTS for a name that is already in the
-   * project and, because its UPDATE branch sits behind 'if ($result >= tl::OK)',
-   * writes nothing at all - so such a row is counted as skipped (with the row
-   * error the dialog already knows how to render), exactly like the CSV arm,
-   * instead of being counted as an imported row.
-   *
-   * The legacy return value and the legacy $status semantics are UNCHANGED, so the
-   * other callers (importKeywordsFromXML(), lib/testcases/tcImport.php,
-   * lib/testcases/tcCreateFromIssue.php) keep behaving exactly as in 1.9.20.
+   * The FILE verdict is no longer decided by the LAST row: $rowCode holds the
+   * per-row result, $status only carries the document-level one (unparsable file
+   * or wrong root node). A single malformed <keyword> used to reassign $status
+   * and therefore answer "the file could not be read" for a document that was
+   * read perfectly - while the rows before it were already committed, and the
+   * bad row was never named. That made the same file import successfully or
+   * fail purely depending on ROW ORDER, and made the (failing) retry
+   * non-idempotent. Now a rejected row is reported through $stats instead of
+   * failing the file.
    *
    * @param $testproject_id
    * @param $simpleXMLObj
    * @param array $stats [ref] optional import report, see importKeywordsFromCSV()
+   * @return integer tl::OK when the document was read, tlKeyword::E_WRONGFORMAT otherwise
    */
   function importKeywordsFromSimpleXML($testproject_id,$simpleXMLObj,&$stats = null)
   {
@@ -1622,7 +1621,7 @@ function setPublicStatus($id,$status)
     {
       $status = tlKeyword::E_WRONGFORMAT;
     }
-  
+
     if( ($status == tl::OK) && $simpleXMLObj->keyword )
     {
       $rowNo = 0;
@@ -1631,38 +1630,26 @@ function setPublicStatus($id,$status)
         $rowNo++;
         $kw = new tlKeyword();
         $kw->initialize(null,$testproject_id,NULL,NULL);
-        $status = tlKeyword::E_WRONGFORMAT;
         if ($report) {
           $stats['rows']++;
         }
-        if ($kw->readFromSimpleXML($keyword) >= tl::OK)
+        $rowCode = $kw->readFromSimpleXML($keyword);
+        if ($rowCode >= tl::OK)
         {
-          $status = tl::OK;
           $rowCode = $kw->writeToDB($this->db);
-          if ($rowCode >= tl::OK)
-          {
-            logAuditEvent(TLS("audit_keyword_created",$kw->name),"CREATE",$kw->dbID,"keywords");
-            if ($report) {
-              $stats['imported']++;
-            }
-          } elseif ($report) {
-            $stats['skipped']++;
-            if (count($stats['errors']) < IMPORT_KEYWORD_ERRORS_MAX) {
-              $stats['errors'][] = array(
-                'row' => $rowNo,
-                'code' => intval($rowCode),
-                'name' => (string)$kw->name,
-              );
-            }
+        }
+        if ($rowCode >= tl::OK)
+        {
+          logAuditEvent(TLS("audit_keyword_created",$kw->name),"CREATE",$kw->dbID,"keywords");
+          if ($report) {
+            $stats['imported']++;
           }
         } elseif ($report) {
           $stats['skipped']++;
           if (count($stats['errors']) < IMPORT_KEYWORD_ERRORS_MAX) {
             $stats['errors'][] = array(
               'row' => $rowNo,
-              // readFromSimpleXML() NULLs the name before it can fail, so it is
-              // empty here whatever the row carried.
-              'code' => intval(tlKeyword::E_WRONGFORMAT),
+              'code' => intval($rowCode),
               'name' => (string)$kw->name,
             );
           }

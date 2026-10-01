@@ -418,13 +418,10 @@ if ($method === 'POST' && isset($segments[0]) && $segments[0] === 'import') {
     if ($type === 'csv') {
         $result = $tproject_mgr->importKeywordsFromCSV($tproject_id, $dest, ';', $stats);
     } else {
-        // Refs #1666: this arm used to count the keywords the project GAINED and
-        // report that as the number of rows read, so re-importing an export in
-        // which every keyword already exists (an update-in-place merge, the
-        // count stays flat) was answered 422 EMPTY_FILE - "the file has no data
-        // rows" - for a file full of them. The XML importer now hands back the
-        // same per-row report as the CSV arm, so both arms are judged on what
-        // they actually read.
+        // Refs #1784: the XML importer takes the same per-row report, so this
+        // route no longer has to guess it from the keyword count delta (which
+        // could not see a rejected row) and no longer fails the whole file when
+        // one <keyword> is malformed.
         $result = $tproject_mgr->importKeywordsFromXMLFile($tproject_id, $dest, $stats);
     }
     @unlink($dest);
