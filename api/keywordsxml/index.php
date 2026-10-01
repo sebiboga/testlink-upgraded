@@ -321,7 +321,12 @@ switch ($action) {
         $before = keywordCount($db, $tproject_id);
         $stats = array('rows' => 0, 'imported' => 0, 'skipped' => 0, 'errors' => array());
         if ($type === 'iSerializationToXML') {
-            $result = $tproject->importKeywordsFromXMLFile($tproject_id, $tmpFile);
+            // Refs #1784: same per-row report out-param as the CSV arm. The XML
+            // importer used to return one scalar verdict that the LAST <keyword>
+            // decided, so a malformed row turned a readable file into a 400
+            // wrong_keywords_file (rows before it were committed anyway) and the
+            // offending row was never named.
+            $result = $tproject->importKeywordsFromXMLFile($tproject_id, $tmpFile, $stats);
         } else {
             // Refs #1605: the out-param gives the dialog the real per-row
             // report (imported / skipped / errors[]) instead of a bare "ok".
@@ -332,13 +337,8 @@ switch ($action) {
             @unlink($tmpFile);
         }
 
-        if ($type === 'iSerializationToXML') {
-            $stats['rows'] = max(0, $after - $before);
-            $stats['imported'] = $stats['rows'];
-        }
-
         // Captured BEFORE the guard below overwrites it: "the file was readable"
-        // is what decides whether an empty/fully-rejected CSV is a row problem
+        // is what decides whether an empty/fully-rejected file is a row problem
         // or a genuinely unreadable file.
         $fileWasReadable = ($result == tl::OK);
 
@@ -346,6 +346,8 @@ switch ($action) {
             // importKeywordsFromCSV() returns tl::OK as soon as fopen() on the
             // temp file succeeds, so a non-CSV file is "imported" with zero rows
             // and the screen would report success. Nothing landed => wrong file.
+            // Refs #1784: same for XML, which now returns tl::OK as soon as the
+            // document parsed and its root node was <keywords>.
             $result = tl::ERROR;
         }
 
@@ -354,11 +356,13 @@ switch ($action) {
             // when the file was perfectly readable and every row was rejected
             // for a named reason. Name the actual outcome so the dialog can say
             // whether the file was empty, or every row failed. Gated on
-            // $fileWasReadable so an unreadable file (fopen() failed) keeps the
-            // legacy code, which is the accurate one there. XML keeps the legacy
-            // code on purpose - see the note in the import arm above.
+            // $fileWasReadable so an unreadable file (fopen() failed / XML that
+            // does not parse / wrong root node) keeps the legacy code, which is
+            // the accurate one there.
+            // Refs #1784: the XML arm is no longer excluded - it publishes the
+            // same per-row report, so it can be judged by the same rules.
             $code = 'wrong_keywords_file';
-            if ($type !== 'iSerializationToXML' && $fileWasReadable) {
+            if ($fileWasReadable) {
                 $code = ($stats['rows'] > 0) ? 'NO_KEYWORDS_IMPORTED' : 'EMPTY_FILE';
             }
             out(array(

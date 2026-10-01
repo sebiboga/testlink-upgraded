@@ -1565,53 +1565,94 @@ function setPublicStatus($id,$status)
     return ($semiHits === 0 && $commaHits > 0) ? ',' : $delim;
   }
 
-  /**
+/**
    * @param $testproject_id
    * @param $fileName
-    */
-  function importKeywordsFromXMLFile($testproject_id,$fileName)
+   * @param array $stats [ref] optional per-row import report (see #1784)
+   */
+  function importKeywordsFromXMLFile($testproject_id,$fileName,&$stats = null)
   {
     $simpleXMLObj = @$this->simplexml_load_file_helper($fileName);
-    return $this->importKeywordsFromSimpleXML($testproject_id,$simpleXMLObj);
+    return $this->importKeywordsFromSimpleXML($testproject_id,$simpleXMLObj,$stats);
   }
 
 
   /**
    * @param $testproject_id
    * @param $xmlString
-    */
-  function importKeywordsFromXML($testproject_id,$xmlString)
+   * @param array $stats [ref] optional per-row import report (see #1784)
+   */
+  function importKeywordsFromXML($testproject_id,$xmlString,&$stats = null)
   {
     $simpleXMLObj = simplexml_load_string($xmlString);
-    return $this->importKeywordsFromSimpleXML($testproject_id,$simpleXMLObj);
+    return $this->importKeywordsFromSimpleXML($testproject_id,$simpleXMLObj,$stats);
   }
 
-  /**
+/**
+   * Refs #1784: same optional per-row report as importKeywordsFromCSV() - the
+   * shape is kept identical on purpose (rows / imported / skipped / errors[] with
+   * the same IMPORT_KEYWORD_ERRORS_MAX cap) so both arms of the Keyword
+   * Export/Import dialog answer with one vocabulary.
+   *
+   * The FILE verdict is no longer decided by the LAST row: $rowCode holds the
+   * per-row result, $status only carries the document-level one (unparsable file
+   * or wrong root node). A single malformed <keyword> used to reassign $status
+   * and therefore answer "the file could not be read" for a document that was
+   * read perfectly - while the rows before it were already committed, and the
+   * bad row was never named. That made the same file import successfully or
+   * fail purely depending on ROW ORDER, and made the (failing) retry
+   * non-idempotent. Now a rejected row is reported through $stats instead of
+   * failing the file.
+   *
    * @param $testproject_id
    * @param $simpleXMLObj
-    */
-  function importKeywordsFromSimpleXML($testproject_id,$simpleXMLObj)
+   * @param array $stats [ref] optional import report, see importKeywordsFromCSV()
+   * @return integer tl::OK when the document was read, tlKeyword::E_WRONGFORMAT otherwise
+   */
+  function importKeywordsFromSimpleXML($testproject_id,$simpleXMLObj,&$stats = null)
   {
+    if (!is_null($stats)) {
+      $stats = array('rows'=>0,'imported'=>0,'skipped'=>0,'errors'=>array());
+    }
+    $report = !is_null($stats);
+
     $status = tl::OK;
     if(!$simpleXMLObj || $simpleXMLObj->getName() != 'keywords')
     {
       $status = tlKeyword::E_WRONGFORMAT;
     }
-  
+
     if( ($status == tl::OK) && $simpleXMLObj->keyword )
     {
+      $rowNo = 0;
       foreach($simpleXMLObj->keyword as $keyword)
       {
+        $rowNo++;
         $kw = new tlKeyword();
         $kw->initialize(null,$testproject_id,NULL,NULL);
-        $status = tlKeyword::E_WRONGFORMAT;
-        if ($kw->readFromSimpleXML($keyword) >= tl::OK)
+        if ($report) {
+          $stats['rows']++;
+        }
+        $rowCode = $kw->readFromSimpleXML($keyword);
+        if ($rowCode >= tl::OK)
         {
-          $status = tl::OK;
-          if ($kw->writeToDB($this->db) >= tl::OK)
-          {
-            logAuditEvent(TLS("audit_keyword_created",$kw->name),"CREATE",$kw->dbID,"keywords");
-          }  
+          $rowCode = $kw->writeToDB($this->db);
+        }
+        if ($rowCode >= tl::OK)
+        {
+          logAuditEvent(TLS("audit_keyword_created",$kw->name),"CREATE",$kw->dbID,"keywords");
+          if ($report) {
+            $stats['imported']++;
+          }
+        } elseif ($report) {
+          $stats['skipped']++;
+          if (count($stats['errors']) < IMPORT_KEYWORD_ERRORS_MAX) {
+            $stats['errors'][] = array(
+              'row' => $rowNo,
+              'code' => intval($rowCode),
+              'name' => (string)$kw->name,
+            );
+          }
         }
       }
     }

@@ -418,10 +418,11 @@ if ($method === 'POST' && isset($segments[0]) && $segments[0] === 'import') {
     if ($type === 'csv') {
         $result = $tproject_mgr->importKeywordsFromCSV($tproject_id, $dest, ';', $stats);
     } else {
-        $before = keywordCountFor($db, $tproject_id);
-        $result = $tproject_mgr->importKeywordsFromXMLFile($tproject_id, $dest);
-        $stats['rows'] = max(0, keywordCountFor($db, $tproject_id) - $before);
-        $stats['imported'] = $stats['rows'];
+        // Refs #1784: the XML importer takes the same per-row report, so this
+        // route no longer has to guess it from the keyword count delta (which
+        // could not see a rejected row) and no longer fails the whole file when
+        // one <keyword> is malformed.
+        $result = $tproject_mgr->importKeywordsFromXMLFile($tproject_id, $dest, $stats);
     }
     @unlink($dest);
 
