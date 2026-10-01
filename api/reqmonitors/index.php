@@ -69,6 +69,37 @@ function param($key, $default = 0)
     return array_key_exists($key, $_REQUEST) ? $_REQUEST[$key] : $default;
 }
 
+/**
+ * Does the caller hold mgt_view_req / mgt_modify_req on ANY test project?
+ *
+ * Exists to close the cross-project existence oracle that the ownership walk
+ * would otherwise open (the #1697 lesson from api/reqspectreelist): the owning
+ * project of a requirement can only be learned by resolving the requirement, so
+ * a caller without the right would get 403 for a real id and 404 for a bogus one
+ * and could enumerate the requirement ids of the whole installation. When the
+ * caller cannot read requirements anywhere, both answers are 403 no_right.
+ */
+function canViewAnyRequirement($user)
+{
+    global $db;
+    // Global right first (an admin has no user_testproject_roles row at all but
+    // holds every right globally - roles.inc.php:318 / testproject.class.php:575
+    // rely on the same exception).
+    if ($user->hasRight($db, 'mgt_view_req', 0) ||
+        $user->hasRight($db, 'mgt_modify_req', 0)) {
+        return true;
+    }
+    foreach ((array)$user->tprojectRoles as $tid => $role) {
+        $pid = intval($tid);
+        if ($pid <= 0 || is_null($role)) { continue; }
+        if ($user->hasRight($db, 'mgt_view_req', $pid) ||
+            $user->hasRight($db, 'mgt_modify_req', $pid)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 function needTprojectIdForReq($reqId)
 {
     global $db, $reqMgr, $user;
@@ -78,6 +109,12 @@ function needTprojectIdForReq($reqId)
     }
     $rows = $db->get_recordset('SELECT srs_id FROM requirements WHERE id = ' . $rid);
     if (!$rows || !$rows[0]) {
+        // No requirement, no owning project, so no right to check. A caller who
+        // cannot read requirements anywhere gets the SAME 403 as the
+        // unauthorized-but-real case, otherwise this branch is an id oracle.
+        if (!canViewAnyRequirement($user)) {
+            failOut(403, 'You are not authorized to view requirements', 'no_right');
+        }
         failOut(404, 'Requirement not found', 'requirement_not_found');
     }
     $srsId = intval($rows[0]['srs_id']);
