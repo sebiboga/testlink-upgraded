@@ -5824,5 +5824,17 @@
   "covt.chip.reqsOff": "Requisiti disabilitati",
   "covt.chip.mgrOn": "Integrazione attiva",
   "covt.chip.mgrOff": "Integrazione disattivata",
-  "covt.coverageFail": "Impossibile caricare la copertura di questo requisito."
+  "covt.coverageFail": "Impossibile caricare la copertura di questo requisito.",
+  "tcview.ctsCodeMgmt": "Gestione del codice",
+  "tcview.ctsLinkToCts": "Collega script di test esistente",
+  "tcview.ctsScriptsTitle": "Script di test rilevanti",
+  "tcview.ctsProjectKey": "Chiave del progetto",
+  "tcview.ctsRepoName": "Nome del repository",
+  "tcview.ctsBranchName": "Nome del branch",
+  "tcview.ctsNone": "Nessuno script di test collegato a questa versione",
+  "tcview.ctsDeleteTitle": "Elimina collegamento script di test",
+  "tcview.ctsDeleteMsg": "Eliminare davvero questo collegamento di script dal database TestLink? (Nome script di test %i)",
+  "tcview.ctsDelete": "elimina collegamento script di test da TestLink",
+  "tcview.ctsDeleteFailed": "Errore durante l'eliminazione del collegamento dello script",
+  "tcview.ctsDeleted": "Il collegamento dello script di test è stato eliminato con successo!"
 }

@@ -5834,5 +5834,17 @@
   "covt.chip.reqsOff": "Cerințe dezactivate",
   "covt.chip.mgrOn": "Integrare activă",
   "covt.chip.mgrOff": "Integrare dezactivată",
-  "covt.coverageFail": "Acoperirea acestei cerințe nu a putut fi încărcată."
+  "covt.coverageFail": "Acoperirea acestei cerințe nu a putut fi încărcată.",
+  "tcview.ctsCodeMgmt": "Management cod",
+  "tcview.ctsLinkToCts": "Link existent Test Script",
+  "tcview.ctsScriptsTitle": "Scripturi de test relevante",
+  "tcview.ctsProjectKey": "Cheie Proiect",
+  "tcview.ctsRepoName": "Nume Repository",
+  "tcview.ctsBranchName": "Nume Branch",
+  "tcview.ctsNone": "Niciun script de test asociat acestei versiuni",
+  "tcview.ctsDeleteTitle": "Sterge link script de test",
+  "tcview.ctsDeleteMsg": "Sterg cu adevarat acest link de script din baza de date TestLink? (Nume script de test %i)",
+  "tcview.ctsDelete": "sterge link script de test din TestLink",
+  "tcview.ctsDeleteFailed": "Eroare la stergerea linkului de script",
+  "tcview.ctsDeleted": "Linkul de script de test a fost sters cu succes!"
 }

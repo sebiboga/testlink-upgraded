@@ -5830,5 +5830,17 @@
   "covt.chip.reqsOff": "Требования отключены",
   "covt.chip.mgrOn": "Интеграция включена",
   "covt.chip.mgrOff": "Интеграция отключена",
-  "covt.coverageFail": "Не удалось загрузить покрытие этого требования."
+  "covt.coverageFail": "Не удалось загрузить покрытие этого требования.",
+  "tcview.ctsCodeMgmt": "Управление кодом",
+  "tcview.ctsLinkToCts": "Связать существующий тестовый скрипт",
+  "tcview.ctsScriptsTitle": "Релевантные тестовые скрипты",
+  "tcview.ctsProjectKey": "Ключ проекта",
+  "tcview.ctsRepoName": "Имя репозитория",
+  "tcview.ctsBranchName": "Имя ветки",
+  "tcview.ctsNone": "С этим версией не связан тестовый скрипт",
+  "tcview.ctsDeleteTitle": "Удалить связь тестового скрипта",
+  "tcview.ctsDeleteMsg": "Действительно удалить эту связь скрипта из базы данных TestLink? (Имя тестового скрипта %i)",
+  "tcview.ctsDelete": "удалить связь скрипта из TestLink",
+  "tcview.ctsDeleteFailed": "Ошибка удаления связи скрипта",
+  "tcview.ctsDeleted": "Связь тестового скрипта успешно удалена!"
 }

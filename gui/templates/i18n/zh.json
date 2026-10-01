@@ -5810,5 +5810,17 @@
   "covt.chip.reqsOff": "需求已禁用",
   "covt.chip.mgrOn": "集成已启用",
   "covt.chip.mgrOff": "集成已关闭",
-  "covt.coverageFail": "无法加载该需求的覆盖率。"
+  "covt.coverageFail": "无法加载该需求的覆盖率。",
+  "tcview.ctsCodeMgmt": "代码管理",
+  "tcview.ctsLinkToCts": "链接已有测试脚本",
+  "tcview.ctsScriptsTitle": "相关测试脚本",
+  "tcview.ctsProjectKey": "项目键",
+  "tcview.ctsRepoName": "仓库名称",
+  "tcview.ctsBranchName": "分支名称",
+  "tcview.ctsNone": "此版本未链接测试脚本",
+  "tcview.ctsDeleteTitle": "删除测试脚本链接",
+  "tcview.ctsDeleteMsg": "确定要从 TestLink 数据库中删除此脚本链接吗？(测试脚本名称 %i)",
+  "tcview.ctsDelete": "从 TestLink 删除脚本链接",
+  "tcview.ctsDeleteFailed": "删除脚本链接时出错",
+  "tcview.ctsDeleted": "测试脚本链接已成功删除。"
 }

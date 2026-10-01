@@ -5824,5 +5824,17 @@
   "covt.chip.reqsOff": "Anforderungen deaktiviert",
   "covt.chip.mgrOn": "Schnittstelle aktiv",
   "covt.chip.mgrOff": "Schnittstelle aus",
-  "covt.coverageFail": "Die Abdeckung konnte nicht geladen werden."
+  "covt.coverageFail": "Die Abdeckung konnte nicht geladen werden.",
+  "tcview.ctsCodeMgmt": "Code-Verwaltung",
+  "tcview.ctsLinkToCts": "Vorhandenes Testskript verknüpfen",
+  "tcview.ctsScriptsTitle": "Relevante Testskripte",
+  "tcview.ctsProjectKey": "Projektschlüssel",
+  "tcview.ctsRepoName": "Repository-Name",
+  "tcview.ctsBranchName": "Branch-Name",
+  "tcview.ctsNone": "Kein Testskript mit dieser Version verknüpft",
+  "tcview.ctsDeleteTitle": "Testskript-Verknüpfung löschen",
+  "tcview.ctsDeleteMsg": "Diese Testskript-Verknüpfung wirklich aus der TestLink-Datenbank löschen? (Testskriptname %i)",
+  "tcview.ctsDelete": "Testskript-Verknüpfung aus TestLink löschen",
+  "tcview.ctsDeleteFailed": "Fehler beim Löschen der Skriptverknüpfung",
+  "tcview.ctsDeleted": "Die Testskript-Verknüpfung wurde erfolgreich gelöscht!"
 }

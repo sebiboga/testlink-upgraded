@@ -5840,5 +5840,17 @@
   "covt.chip.reqsOff": "Requirements disabled",
   "covt.chip.mgrOn": "Integration enabled",
   "covt.chip.mgrOff": "Integration off",
-  "covt.coverageFail": "The coverage of this requirement could not be loaded."
+  "covt.coverageFail": "The coverage of this requirement could not be loaded.",
+  "tcview.ctsCodeMgmt": "Code management",
+  "tcview.ctsLinkToCts": "Link Existent Test Script",
+  "tcview.ctsScriptsTitle": "Relevant test scripts",
+  "tcview.ctsProjectKey": "Project Key",
+  "tcview.ctsRepoName": "Repository Name",
+  "tcview.ctsBranchName": "Branch Name",
+  "tcview.ctsNone": "No test script linked to this version",
+  "tcview.ctsDeleteTitle": "Delete test script link",
+  "tcview.ctsDeleteMsg": "Really delete this script link from TestLink Database? (Test Script Name %i)",
+  "tcview.ctsDelete": "delete script link from TestLink",
+  "tcview.ctsDeleteFailed": "Error deleting script link",
+  "tcview.ctsDeleted": "The test script link was successfully deleted!"
 }

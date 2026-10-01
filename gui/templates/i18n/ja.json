@@ -5830,5 +5830,17 @@
   "covt.chip.reqsOff": "要件が無効",
   "covt.chip.mgrOn": "連携が有効",
   "covt.chip.mgrOff": "連携が無効",
-  "covt.coverageFail": "この要件のカバレッジを読み込めませんでした。"
+  "covt.coverageFail": "この要件のカバレッジを読み込めませんでした。",
+  "tcview.ctsCodeMgmt": "コード管理",
+  "tcview.ctsLinkToCts": "既存テストスクリプトのリンク",
+  "tcview.ctsScriptsTitle": "関連するテストスクリプト",
+  "tcview.ctsProjectKey": "プロジェクトキー",
+  "tcview.ctsRepoName": "リポジトリ名",
+  "tcview.ctsBranchName": "ブランチ名",
+  "tcview.ctsNone": "このバージョンにはリンクされたテストスクリプトがありません",
+  "tcview.ctsDeleteTitle": "テストスクリプトのリンクを削除",
+  "tcview.ctsDeleteMsg": "TestLink データベースからこのスクリプトリンクを本当に削除しますか? (テストスクリプト名 %i)",
+  "tcview.ctsDelete": "TestLink からスクリプトリンクを削除",
+  "tcview.ctsDeleteFailed": "スクリプトリンクの削除中にエラーが発生しました",
+  "tcview.ctsDeleted": "テストスクリプトのリンクが正常に削除されました。"
 }

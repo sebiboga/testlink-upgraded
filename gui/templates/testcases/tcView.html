@@ -195,6 +195,19 @@ table.steps tbody tr:nth-child(even) { background: #fafafa; }
   </div>
 </div>
 
+<!-- delete test-script link confirmation (legacy showScriptsTable.inc.tpl:41-43
+     -> delete_confirmation(), inc_del_onclick.tpl:29) -->
+<div class="modal-overlay" id="delScriptModal">
+  <div class="modal-box" style="width:460px;max-width:96vw;">
+    <div class="modal-head"><i class="fa fa-trash-alt"></i> <span data-i18n="tcview.ctsDeleteTitle">Delete test script link</span></div>
+    <div class="modal-body"><p id="delScriptMsg" style="margin:0;font-size:13px;color:#333;"></p></div>
+    <div class="modal-foot">
+      <button class="btn-dark btn-sm" onclick="$('#delScriptModal').hide()"><span data-i18n="tspec.cancel">Cancel</span></button>
+      <button class="btn-red btn-sm" onclick="doDeleteScript()"><i class="fa fa-trash-alt"></i> <span data-i18n="tcview.platformRemoveBtn">Delete</span></button>
+    </div>
+  </div>
+</div>
+
 <script src="/gui/templates/i18n/i18n.js"></script>
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
@@ -568,6 +581,11 @@ function renderVersion(v) {
   // the BFF already returns enabled=false in that mode).
   h += renderTplanUsage(v);
 
+  // Code management / CTS block (issue #1039) - modern port of legacy
+  // gui/templates/dashio/testcases/tcView_viewer.tpl:561-588 which includes
+  // gui/templates/dashio/include/showScriptsTable.inc.tpl with can_delete=true.
+  h += renderCodeTracker(v);
+
   h += '</div></div>';
   return $(h);
 }
@@ -641,6 +659,135 @@ function platformMgmtLabelHtml() {
       + ' <i class="fa fa-external-link"></i></a>';
   }
   return label;
+}
+
+/* ============ Code management / test script links (issue #1039) ============
+   Legacy twin: gui/templates/dashio/testcases/tcView_viewer.tpl:561-588
+     - gate              {if $gui->codeTrackerEnabled}  -> data.codeTrackerEnabled
+     - "Code management" <a href="{$gui->cts->cfg->uriview}" target="_blank" class="bold">
+                          -> data.ctsViewUrl
+     - link button       open_script_add_window(tproject_id,null,tcversion_id,'link')
+                          -> scriptEdit.html (gui/javascript/testlink_library.js:642)
+     - scripts table     include showScriptsTable.inc.tpl with
+                          scripts_map=$gui->scripts[$tcversion_id], can_delete=true
+                          columns: caption_scripttable | cts_project_key |
+                                   cts_repo_name | cts_branch_name | [trash icon]
+   The trash icon calls deleteScript() (testlink_library.js:822) which reached
+   scriptDelete.php; that controller is a 302 shim to scriptEdit.html since
+   #1574, and the DELETE itself now lives in api/tcscripts/index.php?action=unlink
+   on the same composite script id, so we post there directly. */
+function renderCodeTracker(v) {
+  if (!data || !data.codeTrackerEnabled) { return ''; }
+  var vid = parseInt(v.tcversion_id, 10) || 0;
+  var h = '<div class="field-label"><i class="fa fa-code"></i> ';
+  if (data.ctsViewUrl) {
+    h += '<a href="' + esc(data.ctsViewUrl) + '" target="_blank" rel="noopener" class="bold" title="'
+      + esc(TLi18n.t('tcview.ctsCodeMgmt')) + '">' + esc(TLi18n.t('tcview.ctsCodeMgmt'))
+      + ' <i class="fa fa-external-link"></i></a>';
+  } else {
+    h += esc(TLi18n.t('tcview.ctsCodeMgmt'));
+  }
+  if (data.canModifyScripts) {
+    h += ' <a href="javascript:openScriptAddWindow(' + vid + ')" style="text-decoration:none;"'
+      + ' title="' + esc(TLi18n.t('tcview.ctsLinkToCts')) + '">'
+      + '<i class="fa fa-file"></i></a>';
+  }
+  h += '</div>';
+
+  var scripts = v.scripts || [];
+  if (!scripts.length) {
+    h += '<span class="none-text">' + esc(TLi18n.t('tcview.ctsNone')) + '</span>';
+    return h;
+  }
+
+  h += '<table class="steps"><thead><tr>';
+  h += '<th>' + esc(TLi18n.t('tcview.ctsScriptsTitle')) + '</th>';
+  h += '<th>' + esc(TLi18n.t('tcview.ctsProjectKey')) + '</th>';
+  h += '<th>' + esc(TLi18n.t('tcview.ctsRepoName')) + '</th>';
+  h += '<th>' + esc(TLi18n.t('tcview.ctsBranchName')) + '</th>';
+  if (data.canModifyScripts) { h += '<th style="width:34px;"></th>'; }
+  h += '</tr></thead><tbody>';
+  scripts.forEach(function (s, idx) {
+    h += '<tr>';
+    if (s.view_url) {
+      h += '<td><a href="' + esc(s.view_url) + '" target="_blank" rel="noopener">'
+        + esc(s.link_label) + '</a></td>';
+    } else {
+      h += '<td>' + esc(s.link_label) + '</td>';
+    }
+    h += '<td>' + esc(s.project_key) + '</td>';
+    h += '<td>' + esc(s.repository_name) + '</td>';
+    h += '<td>' + esc(s.branch_name || '') + '</td>';
+    if (data.canModifyScripts) {
+      // only the ROW INDEX reaches the handler; the script id is resolved from
+      // the payload, so quotes in a path can never break the onclick.
+      h += '<td class="clickable_icon"><span class="clickable" style="border:none;"'
+        + ' title="' + esc(TLi18n.t('tcview.ctsDelete')) + '"'
+        + ' onclick="confirmDeleteScript(' + vid + ',' + idx + ')">'
+        + '<i class="fa fa-trash-alt"></i></span></td>';
+    }
+    h += '</tr>';
+  });
+  h += '</tbody></table>';
+  return h;
+}
+
+/* legacy open_script_add_window(tproject_id, null, tcversion_id, 'link')
+   (tcView_viewer.tpl:569) -> modernized popup (Refs #1574) */
+function openScriptAddWindow(tcversionId) {
+  if (!data || !data.tproject) { return; }
+  var url = '/gui/templates/testcases/scriptEdit.html?user_action=link'
+    + '&tproject_id=' + encodeURIComponent(data.tproject.id)
+    + '&tcversion_id=' + encodeURIComponent(tcversionId);
+  window.open(url, 'script_edit', 'width=760,height=640,resizable=yes,dependent=yes');
+}
+
+/* legacy delete_confirmation(<tproject>:<tcversion>-<script_id>,
+   title, msg, deleteScript) - showScriptsTable.inc.tpl:41-43 + inc_del_onclick.tpl:29.
+   The %i placeholder is replaced by a FUNCTION so a "$&"-like sequence inside a
+   code path is never treated as a substitution pattern (same trick as the
+   platform confirm box above). */
+function confirmDeleteScript(tcversionId, idx) {
+  var v = findPlatformVersion(tcversionId);
+  var script = (v && v.scripts) ? v.scripts[idx] : null;
+  if (!script) { return; }
+  var label = script.link_label || script.script_id || '';
+  var msg = String(TLi18n.t('tcview.ctsDeleteMsg')).replace('%i', function () { return label; });
+  $('#delScriptMsg').text(msg);
+  $('#delScriptModal').data('tcversionId', parseInt(tcversionId, 10) || 0)
+    .data('scriptId', script.script_id)
+    .css('display', 'flex');
+}
+
+function doDeleteScript() {
+  var $m = $('#delScriptModal');
+  var tcversionId = parseInt($m.data('tcversionId'), 10) || 0;
+  var scriptId = $m.data('scriptId');
+  if (!scriptId) { $m.hide(); return; }
+  // api/tcscripts/index.php?action=unlink - legacy composite id contract
+  // (scriptDelete.php initEnv(): explode('&&', script_id)).
+  $.ajax({
+    url: '/api/tcscripts/index.php?action=unlink',
+    method: 'POST',
+    contentType: 'application/json',
+    data: JSON.stringify({
+      tproject_id: data && data.tproject ? data.tproject.id : 0,
+      tcversion_id: tcversionId,
+      script_id: scriptId
+    })
+  }).done(function (d) {
+    if (!d || d.status !== 'ok') {
+      toast((d && d.message) ? d.message : TLi18n.t('tcview.ctsDeleteFailed'), true);
+      return;
+    }
+    $m.hide();
+    toast(d.message || TLi18n.t('tcview.ctsDeleted'));
+    var v = findPlatformVersion(tcversionId);
+    if (v) { v.scripts = (v.scripts || []).filter(function (s) { return s.script_id !== scriptId; }); }
+    render();
+  }).fail(function () {
+    toast(TLi18n.t('tcview.ctsDeleteFailed'), true);
+  });
 }
 
 function findPlatformVersion(tcversionId) {
