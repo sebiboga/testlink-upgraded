@@ -5844,6 +5844,7 @@
   "tcview.ctsDeleteFailed": "Ошибка удаления связи скрипта",
   "tcview.ctsDeleted": "Связь тестового скрипта успешно удалена!",
   "tcsum.title": "Сводка тест-кейса",
+  "tcsum.showSummary": "Показать сводку",
   "tcsum.tproject": "Тестовый проект",
   "tcsum.tcase": "Тест-кейс",
   "tcsum.prefix": "Префикс",

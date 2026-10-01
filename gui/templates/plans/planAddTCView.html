@@ -399,8 +399,12 @@ function renderContainer(){
     var $tr=$('<tr'+(isLinked?' class="linked-row"':'')+'>').html(
         '<td>'+(isLinked?'':'<input type="checkbox" class="addchk" data-tc="'+it.tc_id+'">')+'</td>'+
         '<td><span class="tc-name">'+esc(it.name)+'</span><span class="ext-id">'+esc(it.full_external_id)+'</span>'
-          +'<button class="sum-btn" data-tc="'+it.tc_id+'" title="'+esc(TLi18n.t('tcsum.openTestCase'))+'">'
-          +'<i class="fa fa-file-text-o"></i></button><br>'+statusPill+newerWarn+'</td>'+
+          // aria-label, not title: an icon-only button needs the accessible
+          // name to SAY what it opens (review finding).
+          +'<button type="button" class="sum-btn" data-tc="'+it.tc_id
+          +'" aria-label="'+esc(TLi18n.t('tcsum.showSummary'))
+          +'" title="'+esc(TLi18n.t('tcsum.showSummary'))+'">'
+          +'<i class="fa fa-file-text-o" aria-hidden="true"></i></button><br>'+statusPill+newerWarn+'</td>'+
         '<td>'+(isLinked?'':vsel)+'</td>'+
         '<td>'+(isLinked?'':platCell)+'</td>'+
         '<td>'+ordInput+'</td>'+

@@ -20,6 +20,7 @@ require_once('common.php');
 $db = new database(DB_TYPE);
 doDBConnect($db);
 
+
 $tprojMgr = new testproject($db);
 $tplanMgr = new testplan($db);
 $tsuiteMgr = new testsuite($db);
@@ -115,10 +116,36 @@ list($idEmpty, $idEmptyV1) = $makeTcase('TS1767 Empty Summary', '');
 echo "tcase empty=$idEmpty v1=$idEmptyV1\n";
 
 list($idTwo, $idTwoV1) = $makeTcase('TS1767 Two Versions', 'summary of version one');
-$ret2 = $tcaseMgr->create($idTwo, 'TS1767 Two Versions',
-    'summary of version TWO - the newer one', '', mkSteps(1), $userId, '',
-    testcase::DEFAULT_ORDER, testcase::AUTOMATIC_ID, TESTCASE_EXECUTION_TYPE_MANUAL);
-$idTwoV2 = intval($ret2['tcversion_id'] ?? 0);
+$TB = tlObjectWithDB::getDBTables();
+// A genuine SECOND VERSION of the same test case.
+// testcase::create($tcase_id, ...) does NOT do that - it adds a second
+// test case NODE (node_type 3) with the same name, which is a different
+// object and never exercises the latest-version path. update() only edits in
+// place. In 2.0.1 new versions are produced exclusively by the XML/CSV
+// importer, which is too heavy for a fixture, so mirror what it writes: a
+// second version node (node_type 4) under the test case node plus its
+// tcversions row. get_last_version_info() resolves versions by walking the
+// nodes_hierarchy children of the test case id. Neither nodes_hierarchy.id
+// nor tcversions.id is AUTO_INCREMENT in 2.0.1, so ids are allocated here.
+// A version node shares one id space with every other node kind
+// (nodes_hierarchy.id is the PK for suites, cases, versions and steps alike),
+// so the id must be allocated from nodes_hierarchy, not from tcversions.
+$idTwoV2 = intval($db->fetchFirstRow("SELECT MAX(id)+1 AS n FROM {$TB['nodes_hierarchy']}")['n']);
+$db->exec_query("INSERT INTO {$TB['nodes_hierarchy']} (parent_id,node_type_id,name,node_order) "
+  // node_order must differ from v1's: nodes_hierarchy has a UNIQUE
+  // (parent_id,node_order) index.
+  . "VALUES ({$idTwo},4,'',1)");
+$idTwoV2 = intval($db->insert_id($TB['nodes_hierarchy']));
+$db->exec_query(
+    "INSERT INTO {$TB['tcversions']} (id,tc_external_id,version,layout,status,"
+  . "summary,preconditions,importance,author_id,creation_ts,updater_id,"
+  . "modification_ts,active,is_open,execution_type,estimated_exec_duration) "
+  . "SELECT {$idTwoV2},tc_external_id,2,layout,status,"
+  . "'summary of version TWO - the newer one',preconditions,importance,"
+  . "author_id,creation_ts,{$userId},NOW(),active,is_open,execution_type,"
+  . "estimated_exec_duration FROM {$TB['tcversions']} WHERE id = {$idTwoV1}");
+// The latest_tcase_version* tables are legacy caches that get_last_version_info()
+// does not consult (it walks the version nodes directly), so they are left alone.
 echo "tcase two=$idTwo v1=$idTwoV1 v2=$idTwoV2\n";
 
 // foreign-project test case

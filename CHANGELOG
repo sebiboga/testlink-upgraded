@@ -8125,21 +8125,47 @@ Changes:
   reconstructed as a polyfill) over 60+ observables, plus a live TCP round trip: a valid
   `methodCall` goes out, `set-cookie` is captured and the struct response decodes. (Refs #1764)
 
-### Key bugfix (data integrity) — `api/platforms` DELETE removed a platform that was still linked to a test plan, orphaning the link (Fixes #1637)
-- `DELETE /api/platforms/index.php/{id}` asked `tlPlatform::getAll()` for the platform's
-  `linked_count`, but `getAll()` merges its own defaults — `enable_on_execution => true` and
-  `is_open => true` are WHERE-clause filters. So any platform with `is_open = 0` **or**
-  `enable_on_execution = 0` was absent from the returned set, `$linked` stayed `0`, the
-  `DELETE_BLOCKED` 422 guard was skipped and the platform was deleted, leaving an orphan
-  `testplan_platforms` row. Only the `is_open=1 / enable_on_execution=1` combination was
-  protected — and silently: HTTP `200 {"status":"ok"}`, no Event Viewer row.
-- **Fix** (`api/platforms/index.php`, DELETE route): pass `'enable_on_design' => null,
-  'enable_on_execution' => null, 'is_open' => null` to `getAll()`, exactly the option set the list
-  route in the same file already used, so the guard sees the project's unfiltered platform set. The
-  guard now also **fails closed** (`500 DELETE_CHECK_FAILED`) instead of reading "row absent" as
-  "not linked". Legacy parity: the 1.9.20 rule is the platform's testplan usage, not its
-  open/closed flags (`warning_cannot_delete_platform`).
-- **Verified**: all 4 (is_open × enable_on_execution) combinations now answer
-  `422 DELETE_BLOCKED`; unlinked platforms still delete with `200`; cross-project and unknown ids
-  still `404`; a project with no testplans still `200`; zero orphan rows; `GET` and `DELETE` now
-  agree by construction; Event Viewer shows no new Error/Warning row. Suite `T1637`, 14/14 PASS.
+### Screen — Test Case Summary `tcSummary` (Refs #1767)
+- Modernizes the last legacy-only read-only slice: `lib/ajax/gettestcasesummary.php`, the ExtJS
+  `tTip()` tooltip backend of the 1.9.20 Add/Remove Test Cases workframe
+  (`gui/templates/dashio/plan/planAddTC_m1.tpl:58`, `planAddTCJS.inc.tpl`). New screen
+  `gui/templates/testcases/tcSummary.html` (Dashio: teal header + dark toolbar with
+  Refresh / Open test case / Close, context card with test project, prefix, `#PREFIX-N` chip,
+  version chip, `latest version` chip and suite path, summary card, TLi18n locale switcher).
+- **KEY BUGFIX (security)** — the legacy endpoint performed **no authorization check at all**:
+  `testlinkInitPage()` only validated the session and `tcase_id` came straight from `$_REQUEST`,
+  so any authenticated user could read the summary of a test case of **any** test project (same
+  class as #1696 / #1679). It also echoed the stored RichEdit blob **raw** into the caller DOM
+  where the tooltip injected it as HTML (stored XSS), and dereferenced the nullable results of
+  `testcase::get_last_version_info()` / `get_by_id()` unguarded.
+- New BFF `api/tcsummary/index.php` (`GET|HEAD ?action=summary&tcase_id=N[&tcversion_id=V][&tproject_id=P]`):
+  session auth + `bffSameOriginGuard`, the **owning** project proven by walking `nodes_hierarchy`
+  up from the test case node, `mgt_view_tc` enforced on it, the requested version proven to belong
+  to that test case, `tproject_id` treated as a client-side assertion (mismatch → 404), strict
+  positive ids and stable 400/401/403/404/405/500 codes. The summary is returned as **data** and
+  the screen renders it as escaped plain text (block tags collapsed to newlines, entities decoded
+  once), so the XSS sink is gone.
+- `lib/ajax/gettestcasesummary.php` is now a session-guarded launcher: a browser navigation 302s to
+  the modern popup with `tcase_id` / `tcversion_id` / context preserved, an XHR or crawler gets 405
+  pointing at the BFF, an anonymous caller still bounces to
+  `login.php?note=expired&destination=...` (legacy `testlinkInitPage()` contract). Wired via
+  `$actions->tcSummary` in `lib/functions/common.php`.
+- The summary affordance is **restored** in `gui/templates/plans/planAddTCView.html`, which had
+  dropped the feature entirely: a per-row button (with an `aria-label`) opens the popup for the
+  version selected in that row (or the newest active one). It is also wired into the modern Test
+  Case Viewer, `gui/templates/testcases/tcView.html`, as one **Show summary** button per version
+  card, so `$actions->tcSummary` has live consumers.
+- **Mandatory code review (subagent) found no security hole in the read path** but 4 should-fix
+  items, all fixed: the BFF resolved the version **before** the rights check, which let any
+  authenticated user tell an existing test case node from a missing one and probe for valid
+  version ids (now the version is resolved only after `mgt_view_tc`, and a not-entitled caller with
+  no asserted project gets one opaque 404); the icon-only button's accessible name said "Open test
+  case" instead of "Show summary" (wrong key + no `aria-label`); `footers.tcSummary` never rendered
+  because it was appended **after** `TLi18n.apply()` (now static markup); the shim has **three**
+  live ExtJS tooltip callers, not two (`tl-classic/plan/planAddTC_m1.tpl` was missed) and, because
+  Ext 3.4 sends `X-Requested-With`, they now get an empty tooltip by design - the Dashio workframe
+  gets the summary through its own button instead, and the docblock says so. Also fixed: the shim
+  now also honours the inactivity window and detects modern XHR via `Sec-Fetch-Dest`/`Accept`, the
+  BFF sends `Cache-Control: no-store`, and the "Stored source" blob is a real collapsed `<details>`.
+- i18n: `tcsum.*` (27 keys) + `footers.tcSummary` in **all 10** locale bundles with real
+  translations; `python3 -m json.tool` validated.

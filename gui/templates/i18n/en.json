@@ -5854,6 +5854,7 @@
   "tcview.ctsDeleteFailed": "Error deleting script link",
   "tcview.ctsDeleted": "The test script link was successfully deleted!",
   "tcsum.title": "Test Case Summary",
+  "tcsum.showSummary": "Show summary",
   "tcsum.tproject": "Test project",
   "tcsum.tcase": "Test case",
   "tcsum.prefix": "Prefix",

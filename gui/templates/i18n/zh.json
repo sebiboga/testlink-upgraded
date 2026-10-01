@@ -5824,6 +5824,7 @@
   "tcview.ctsDeleteFailed": "删除脚本链接时出错",
   "tcview.ctsDeleted": "测试脚本链接已成功删除。",
   "tcsum.title": "测试用例摘要",
+  "tcsum.showSummary": "显示摘要",
   "tcsum.tproject": "测试项目",
   "tcsum.tcase": "测试用例",
   "tcsum.prefix": "前缀",

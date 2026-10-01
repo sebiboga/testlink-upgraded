@@ -5838,6 +5838,7 @@
   "tcview.ctsDeleteFailed": "Error al eliminar el enlace de script",
   "tcview.ctsDeleted": "¡El enlace de script de prueba se ha eliminado correctamente!",
   "tcsum.title": "Resumen del caso de prueba",
+  "tcsum.showSummary": "Mostrar resumen",
   "tcsum.tproject": "Proyecto de pruebas",
   "tcsum.tcase": "Caso de prueba",
   "tcsum.prefix": "Prefijo",

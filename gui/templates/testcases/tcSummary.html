@@ -52,9 +52,12 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
   padding: 16px 18px; font-size: 14px; color: #333; min-height: 90px; line-height: 1.65;
   white-space: pre-wrap; word-break: break-word; }
 #summaryBox.empty { color: #999; font-style: italic; }
-#summaryBox .raw { display: block; margin-top: 12px; font-size: 11px; color: #999;
-  font-style: normal; white-space: pre-wrap; word-break: break-all;
-  border-top: 1px dashed #ddd; padding-top: 10px; }
+#summaryBox .raw { display: block; margin-top: 12px; }
+#summaryBox .raw > summary { font-size: 11px; color: #999; cursor: pointer;
+  text-transform: uppercase; letter-spacing: .04em; }
+#summaryBox .raw > pre { white-space: pre-wrap; word-break: break-word; font-size: 11px;
+  color: #777; background: #f7f7f7; border-left: 3px solid #ddd; padding: 8px 10px;
+  margin: 8px 0 0; }
 
 .msg-card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08);
   padding: 34px; text-align: center; }
@@ -144,7 +147,7 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
   </div>
 </div>
 
-<div class="footer" id="footerText"></div>
+<div class="footer"><span id="footerText" data-i18n="footers.tcSummary"></span><span id="localeSwitcher"></span></div>
 <div id="toast" class="toast"></div>
 
 <script src="/gui/templates/i18n/i18n.js"></script>
@@ -251,9 +254,11 @@ function render(d) {
   if (d.summary_empty || txt === '') {
     $('#summaryBox').addClass('empty').text(TLi18n.t('tcsum.emptySummary'));
   } else {
-    $('#summaryBox').removeClass('empty')
-      .html(esc(txt) + '<span class="raw">' +
-            esc(TLi18n.t('tcsum.rawStored') + ': ' + d.summary) + '</span>');
+    // The stored blob goes into a <details> (escaped text inside <pre>), so it
+    // is genuinely collapsed instead of dumping the raw markup into the card.
+    $('#summaryBox').removeClass('empty').html(esc(txt) +
+      '<details class="raw"><summary>' + esc(TLi18n.t('tcsum.rawStored')) +
+      '</summary><pre>' + esc(d.summary) + '</pre></details>');
   }
 
   $('#btnOpenTc').show();
@@ -276,7 +281,7 @@ function load() {
       if (r && r.status === 'ok') { render(r); return; }
       var code = (r && r.code) || 'server_error';
       var st = CODE_STATE[code] || CODE_STATE['server_error'];
-      showState(st[0], st[1], null, st[2], code);
+      showState(st[0], st[1], '', st[2], code);
     })
     .fail(function (xhr) {
       var body = xhr.responseJSON || {};
@@ -290,7 +295,7 @@ function load() {
       }
       var st = CODE_STATE[code] || (xhr.status === 403
         ? CODE_STATE['no_right'] : CODE_STATE['server_error']);
-      showState(st[0], st[1], null, st[2], code);
+      showState(st[0], st[1], '', st[2], code);
     });
 }
 
@@ -302,9 +307,9 @@ $(function () {
 
   TLi18n.load(function () {
     TLi18n.apply();
-    TLi18n.initLocaleSwitcher('#footerText');
-    $('#footerText').append(
-      '<span data-i18n="footers.tcSummary"></span>');
+    // footers.tcSummary lives in the STATIC footer markup: appending it here
+    // ran after TLi18n.apply() and left the span empty (found in review).
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
 
     $('#btnRefresh').on('click', load);
     $('#btnClose').on('click', function () {

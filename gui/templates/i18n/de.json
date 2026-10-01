@@ -5838,6 +5838,7 @@
   "tcview.ctsDeleteFailed": "Fehler beim Löschen der Skriptverknüpfung",
   "tcview.ctsDeleted": "Die Testskript-Verknüpfung wurde erfolgreich gelöscht!",
   "tcsum.title": "Testfall-Zusammenfassung",
+  "tcsum.showSummary": "Zusammenfassung anzeigen",
   "tcsum.tproject": "Testprojekt",
   "tcsum.tcase": "Testfall",
   "tcsum.prefix": "Präfix",

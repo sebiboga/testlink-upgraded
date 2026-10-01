@@ -5844,6 +5844,7 @@
   "tcview.ctsDeleteFailed": "Erro ao eliminar a ligação de script",
   "tcview.ctsDeleted": "A ligação de script de teste foi eliminada com sucesso!",
   "tcsum.title": "Resumo do caso de teste",
+  "tcsum.showSummary": "Mostrar resumo",
   "tcsum.tproject": "Projeto de teste",
   "tcsum.tcase": "Caso de teste",
   "tcsum.prefix": "Prefixo",

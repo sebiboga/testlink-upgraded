@@ -2132,7 +2132,10 @@ function getActions(&$gui,$baseURL) {
   // modern popup talks to api/tcsummary, which proves the OWNING project by
   // walking nodes_hierarchy and enforces mgt_view_tc on it. tcase_id is
   // appended by the caller because it addresses one test case; the screen is
-  // also reachable standalone from the modern Test Case Viewer.
+  // also reachable from the modern Test Case Viewer (one button per version
+  // card, gui/templates/testcases/tcView.html openSummaryPopup()). Both
+  // callers build the URL themselves because they know the test case id, which
+  // this context entry cannot.
   $actions->tcSummary = "/gui/templates/testcases/tcSummary.html?{$ctx}";
 
   $actions->fullTextSearch = "/gui/templates/search/searchAdvancedView.html?{$ctx}";

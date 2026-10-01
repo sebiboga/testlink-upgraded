@@ -466,14 +466,20 @@ function renderVersion(v) {
   // The button sits inside the per-version card, so the version id is passed
   // explicitly: with several versions the popup must re-order the version the
   // user clicked on, not the "current" one.
+  var vsteps = parseInt(v.tcversion_id, 10) || 0;
+  h += '<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">';
   if (canReorderSteps) {
-    var vsteps = parseInt(v.tcversion_id, 10) || 0;
-    h += '<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">'
-      + '<button class="btn btn-sm btn-teal" onclick="openStepReorder(' + vsteps + ')"'
+    h += '<button class="btn btn-sm btn-teal" onclick="openStepReorder(' + vsteps + ')"'
       + (v.steps.length ? '' : ' disabled title="' + esc(TLi18n.t('tcsr.empty')) + '"') + '>'
-      + '<i class="fa fa-list-ol"></i> ' + esc(TLi18n.t('tcsr.title')) + '</button>'
-      + '</div>';
+      + '<i class="fa fa-list-ol"></i> ' + esc(TLi18n.t('tcsr.title')) + '</button>';
   }
+  // Test Case Summary popup (Refs #1767): one button per version card, so the
+  // popup always shows the version the user is looking at.
+  if (vsteps > 0) {
+    h += '<button class="btn btn-sm btn-teal" onclick="openSummaryPopup(' + vsteps + ')">'
+      + '<i class="fa fa-file-text-o"></i> ' + esc(TLi18n.t('tcsum.showSummary')) + '</button>';
+  }
+  h += '</div>';
 
   // keywords
   h += '<div class="field-label">' + esc(TLi18n.t('tcview.keywords')) + '</div>';
@@ -953,6 +959,17 @@ function openStepReorder(tcversion_id) {
     + '&tcversion_id=' + vid
     + '&tplan_id=' + (parseInt(qs('tplan_id') || '0', 10) || 0);
   window.open(url, 'tcstepreorder_dialog', 'width=1040,height=680,resizable=yes,scrollbars=yes');
+}
+
+// Test Case Summary popup (Refs #1767) - the modern reader for the RichEdit
+// summary, with mgt_view_tc proved on the OWNING project by api/tcsummary.
+function openSummaryPopup(tcversion_id) {
+  if (!data) { return; }
+  var vid = parseInt(tcversion_id, 10) || 0;
+  if (vid <= 0) { return; }
+  var url = '/gui/templates/testcases/tcSummary.html?tcase_id=' + data.tcase.id
+    + '&tproject_id=' + data.tproject.id + '&tcversion_id=' + vid;
+  window.open(url, 'tcsummary_dialog', 'width=760,height=560,resizable=yes,scrollbars=yes');
 }
 
 // tcversion_id is optional: the per-version cards pass their own id, the

@@ -5848,6 +5848,7 @@
   "tcview.ctsDeleteFailed": "Eroare la stergerea linkului de script",
   "tcview.ctsDeleted": "Linkul de script de test a fost sters cu succes!",
   "tcsum.title": "Sumarul Cazului de Test",
+  "tcsum.showSummary": "Arată sumarul",
   "tcsum.tproject": "Proiect de test",
   "tcsum.tcase": "Caz de test",
   "tcsum.prefix": "Prefix",

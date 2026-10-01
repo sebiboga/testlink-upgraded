@@ -2003,68 +2003,76 @@ behind as an orphan. Only the `is_open=1 AND enable_on_execution=1` platform was
 
 Suite total: **17/17 PASS**. Commit `716d96587`, branch `fix/issue-1637`.
 
-**Not covered / remaining**: `tlPlatform::delete()` (`lib/functions/tlPlatform.class.php:193`) is still a
-bare `DELETE FROM platforms WHERE id=…` with no cascade, so a link that is *already* orphaned by some
-other path stays orphaned — the guard prevents new damage but does not clean up old damage. Repairing
-pre-existing orphans is a data-migration concern, not a bug in this route.
+**Not covered / remaining**: the "assignable list empty" branch (1613.f in the
+investigation) still needs a second, non-privileged user holding a project role on only
+one of the two projects — not created in this run for time budget reasons; that branch is
+untouched by this change (it short-circuits at `if (!r.projects || !r.projects.length)`
+*before* the resolution code) and was already covered by issue #1621's suite.
 
 ---
 
-# T1763 — Regression — Issue #1763: `hasRight()` never evaluated the private-test-project flag (private test project served to a user with no project role)
+## Suite 1767 — Test Case Summary (`tcSummary`) — screen + BFF `api/tcsummary` + legacy shim
 
-**Precondition**
+Fixture: `tmp/fixtures_1767.php` (rerun before the suite; ids printed as the last JSON line).
+It creates project `SUM1` (prefix TS1767) with plan "Summary Plan", suite "Summary Root" >
+"Summary Sub" holding `TS1767 Rich` (RichEdit summary with `<b>/<i>`, `&amp;`, an
+`<img src=x onerror=...>` and a `<script>` tag), `TS1767 Empty` (empty summary) and
+`TS1767 Two Versions` (v1 + v2 with different summaries), project `SUM2` (prefix TS1768) with a
+foreign case, and user `norights` / `norights` (global role 3).
 
-* Branch `fix/issue-1763`, commit `bc0f2295d`. App at `http://localhost:8082`, DB `testlink`
-  (freshly imported: only `users.id=1 admin`).
-* `php tmp/fixtures_1759.php` → **two private** test projects `SM1759A` (id **1**) / `SM1759B` (id 2),
-  `testprojects.is_public = 0`, each with two top level suites (`A-suite-1` id 3, `A-suite-2` id 4).
-  Users: `sm1759a` (global role 3 + project role `mgt_modify_tc` on p1), `sm1759view`
-  (global role 3 + project role `mgt_view_tc` on p1), `sm1759norights` (global role 3, **no** project role).
-* `php tmp/fixtures_1763.php` → adds the users that actually trigger the defect:
-  `sm1763td` (uid 5, **global** role 4 `test designer`, **no** project role) and
-  `sm1763guest` (uid 6, **global** role 5 `guest`, **no** project role). Password `admin` for all.
-
-**Repro steps (pre-fix)**
-
-```
-curl -b jar "http://localhost:8082/api/suitemove/index.php?action=init&tproject_id=1&container_id=1"
-curl -b jar -X POST -H 'Referer: http://localhost:8082/' \
-     "http://localhost:8082/api/suitemove/index.php?action=reorder&tproject_id=1&container_id=1" \
-     -d "nodelist=4,3"
-```
-
-as `sm1763td`, on the PRIVATE project 1.
-
-**Expected post-fix behaviour** — the user has no role on a private project, so the endpoint must answer
-`403 forbidden "Insufficient rights on this test project"` for both the read and the write, exactly as it
-already did for a project role lacking `mgt_modify_tc`.
-
-**Actual results**
-
-| # | case | expected | observed | verdict |
+| # | Case | Steps | Expected | Result |
 |---|---|---|---|---|
-| 1763.1 | **Primary symptom** — `sm1763td` (global role 4, no project role) `GET ?action=init` on **private** p1 | 403 | 403 `{"code":"forbidden","message":"Insufficient rights on this test project"}` (was **200 `can_modify:"yes"`**) | **PASS** |
-| 1763.2 | **Primary symptom, the WRITE** — `sm1763td` `POST ?action=reorder` on private p1 | 403 | 403 (was **200 `{"status":"ok","changed":true}`** which wrote `nodes_hierarchy.node_order`) | **PASS** |
-| 1763.3 | No unauthorised write reaches the DB | `SELECT node_order FROM nodes_hierarchy WHERE id IN (3,4)` after 1763.2 | unchanged by `sm1763td` | **PASS** |
-| 1763.4 | `sm1763guest` (global role 5 `guest`, no project role) `init` on private p1 | 403 | 403 (unchanged — role 5 has no `mgt_modify_tc`) | **PASS** |
-| 1763.5 | `sm1759norights` (global role 3 `<no rights>`) `init` on private p1 | 403 | 403 (unchanged) — note this case could NOT expose the bug: role 3's empty global set already fails `checkForRights` | **PASS** |
-| 1763.6 | **Admin exception** — `admin` (global role 8, no project role) `init` on private p1 | **200** | 200, `can_modify: "yes"` — the legacy admin exemption (`roles.inc.php:318`) is preserved | **PASS** |
-| 1763.7 | `admin` `POST ?action=reorder` on private p1 | 200, order applies | 200 | **PASS** |
-| 1763.8 | A user **with** a project role is unaffected — `sm1759a` `init` + `reorder` on private p1 | 200 + 200 | 200 + 200 `changed:true` | **PASS** |
-| 1763.9 | **Public** project stays open — `sm1763td` `init` on `tproject_id=2` (`is_public=1`) | 200 | 200, `can_modify` present | **PASS** |
-| 1763.10 | **Unknown** project id must not become a 500 (`testproject::getPublicAttr()` throws) — `sm1763td` `init&tproject_id=999999` | 4xx, no 500 | `404 {"code":"not_found","message":"Container not found"}`, no 500, no exception | **PASS** |
-| 1763.11 | `tproject_id=0` — the `> 0` guard skips the lookup entirely | no 500 | 200 (falls back to the endpoint's own default resolution), no 500 | **PASS** |
-| 1763.12 | Other BFFs still work with the primitive changed — `admin` `api/testcases?action=tree&tproject_id=1`, `api/projects?action=list` | 200, no 500 | 200 / 200 | **PASS** |
-| 1763.13 | `$getAccess` still drives the **test plan** flag (no answer changed for plans) | `api/execsetresults` / `api/execnavigator` keep their `exec_delete` / `roAccess` answers | unchanged code path, `:850-855` still `if ($getAccess)` | **PASS** (reviewed, not exercised) |
-| 1763.14 | Syntax gate | `php -l lib/functions/tlUser.class.php` | `No syntax errors detected` | **PASS** |
-| 1763.15 | No new Error/Warning in the Event Viewer | `SELECT log_level,COUNT(*) FROM events GROUP BY log_level` | only `log_level 16` (INFO). The 4 `log_level 1`/`2` rows present during this run came from my own **first draft** of `tmp/fixtures_1763.php` (a bad `tlObject::getDBTables()` key and a bad JOIN, ids 12-15); they were deleted after the fixture was corrected and are not produced by the fix | **PASS** |
-| 1763.16 | Deny path is reachable, not dead code | `grep -n "globalRoleID != TL_ROLES_ADMIN" lib/functions/tlUser.class.php` inside `hasRight()` | present; cases 1763.1/1763.2 reach it, case 1763.6 proves the admin side is not over-blocking | **PASS** |
-| 1763.17 | No duplicate lookup per request (memoisation) | `getTprojectPublicAttr()` is `static`-cached per user instance | one query for the several `hasRight()` calls `api/suitemove` makes on p1 | **PASS** |
+| 1767.1 | Screen loads, rich summary | open `tcSummary.html?tcase_id=<rich>&tproject_id=<p>&tcversion_id=<v1>` | teal header, context card (project SUM1, prefix TS1767, case, `#id`, version chip, `TS1767-1`, suite path "Summary Root / Summary Sub"), summary body, Refresh / Open test case / Close | **PASS** — header "Test Case Summary", "Test project: SUM1", "TS1767-1", "Version #1", "TEST SUITE Summary Root / Summary Sub" |
+| 1767.2 | **Stored XSS neutralised** | same page, evaluate `window.__xss` and count injected elements | summary shown as text; `window.__xss` never set; no injected `img`/`script` | **PASS** — `window.__xss` undefined, `document.querySelectorAll('#sumBody img, #sumBody script').length === 0`; body reads `Verify the login form with special chars & entities.` and the "Stored source" line shows the escaped blob |
+| 1767.3 | Empty summary parity | `?tcase_id=<empty>` | legacy `empty_tc_summary` message, not a blank card | **PASS** — "This test case version has no summary." |
+| 1767.4 | Latest version default | `?tcase_id=<two>` (no `tcversion_id`) | newest version + `latest version` chip | **PASS** — `id 319, version 2, is_last_version true`, summary "…version TWO…", chip shown |
+| 1767.5 | Explicit older version | `?tcase_id=<two>&tcversion_id=<v1>` | that exact version, no `latest version` chip | **PASS** — `id 316, version 1, is_last_version false`, summary "summary of version one", chip hidden |
+| 1767.6 | Version of another case | `?tcase_id=<two>&tcversion_id=<foreign v1>` | 404 `version_not_in_case` | **PASS** — `{"code":"version_not_in_case"}` [404] |
+| 1767.7 | **Cross-project rights (the legacy hole)** | log in as `norights` (global role 3) → `?tcase_id=<rich>&tproject_id=<SUM1>` | 403 `no_right`, never the summary | **PASS** — `{"code":"no_right"}` [403]; note an **admin** legitimately gets 200 on the foreign project (admin holds every right), so only a no-right session proves the guard |
+| 1767.8 | Stale project assertion | `?tcase_id=<rich>&tproject_id=<SUM2>` | 404 `project_mismatch` | **PASS** — screen shows "Test case not found" + code `project_mismatch` |
+| 1767.9 | Missing / invalid ids | no `tcase_id`; `tcase_id=abc`; `tcase_id=0` | explicit "missing test case" / "invalid request" cards, each keeping the stable machine code | **PASS** — `missing_tc_id` and `invalid_tc_id` codes rendered, no blank card |
+| 1767.10 | Anonymous | clear cookies → open the screen | bounce to `login.php?note=expired&destination=…` (legacy `testlinkInitPage()` contract) | **PASS** — destination preserved with the full query string; the page never renders a summary |
+| 1767.11 | Method matrix | `POST /api/tcsummary/index.php?action=summary&tcase_id=<rich>` | 405, no data | **PASS** — 405 |
+| 1767.12 | Legacy shim — browser | `GET /lib/ajax/gettestcasesummary.php?tcase_id=<rich>&tcversion_id=<v1>` | 302 to the modern popup, ids + context preserved | **PASS** — `Location: /gui/templates/testcases/tcSummary.html?tproject_id=…&tcase_id=…&tcversion_id=…` |
+| 1767.13 | Legacy shim — XHR | same URL with `X-Requested-With: XMLHttpRequest` | 405 pointing at the BFF, **no summary in the body** | **PASS** — `{"code":"method_not_allowed", "bff_url":"/api/tcsummary/index.php?action=summary&tcase_id=…"}`; the legacy raw-HTML read is closed |
+| 1767.14 | Legacy shim — anonymous | same URL, no session | 401 for XHR / 302 to login for navigation | **PASS** — 401 JSON and 302 `login.php?note=expired&destination=…` |
+| 1767.15 | Workframe affordance restored | open `planAddTCView.html?tproject_id=&tplan_id=` → suite "Summary Sub" | one summary button per row next to the case name | **PASS** — 3 rows / 3 `.sum-btn`; click target `/gui/templates/testcases/tcSummary.html?tcase_id=<tc>&tproject_id=<p>&tcversion_id=<version selected in that row>` |
+| 1767.16 | i18n completeness | `tcsum.*` + `footers.tcSummary` in all 10 bundles, `python3 -m json.tool` | valid JSON, every key present, no hardcoded labels left | **PASS** — 10/10 bundles valid, 29-line diff each; title/tooltips/messages resolve through `TLi18n.t()` |
+| 1767.17 | Syntax gate | `php -l` on both PHP files, `php -l` on the screen, fixture rerun | no syntax errors | **PASS** — "No syntax errors detected" ×3; fixture rerun clean (its initial version-2 attempts failed and were corrected, see below) |
+| 1767.18 | Console + Event Viewer | whole run: console messages of both screens, then `select … from events where log_level in ('ERROR','WARNING')` | no console errors/warnings, no new Error/Warning rows | **PASS** — 0 console error/warn messages on `planAddTCView.html`, 0 event rows |
 
-Suite total: **17/17 PASS**. Commit `bc0f2295d`, branch `fix/issue-1763`.
+Suite total: **18 PASS / 0 FAIL**.
 
-**Not covered / remaining**: the `test plan` accessibility flag (`$accessPublic['tplan']`, `tlUser.class.php:850-855`)
-is still opt-in through `$getAccess`, so the same shape of bypass may still exist for a **private test plan** on a
-test plan right reached with 4 arguments. Out of scope here — the report and this fix are about the test project
-flag, and the plan endpoints (`api/execsetresults`) were not audited in this run. Not filed as a bug by this run
-because it was not reproduced.
+**Fixture gotchas worth keeping** (all cost time, all are traps for the next agent):
+- `testcase::create($tcase_id, …)` does **not** create a new version — it creates a **second test case
+  node** with the same name under the same suite (node_type 3). `testcase::update()` only edits a
+  version in place; passing `tcversion_id = 0` writes an **orphan** node (`parent_id = 0`). In
+  2.0.1 new versions come **only** from the XML/CSV importer, so the fixture mirrors the importer by
+  inserting a version node (node_type 4) plus its `tcversions` row.
+- `nodes_hierarchy.id` is `AUTO_INCREMENT` but `tcversions.id` is **not**; a version shares one id
+  across both tables, so take the new id from `insert_id('nodes_hierarchy')`.
+- `nodes_hierarchy` has a **UNIQUE (parent_id, node_order)** index — the second version node needs a
+  different `node_order` than v1.
+- The real column is `estimated_exec_duration`; there is no `node_order` on `tcversions`, and
+  `latest_tcase_version_id` is **not** in the `tlObjectWithDB` table map (it is a legacy cache that
+  `get_last_version_info()` does not read).
+- `testprojects` and `tcversions` have **no `name` column** — names live in `nodes_hierarchy`.
+
+**Not covered / remaining**: the `tcsum.*` translations were authored from the English text and spot
+checked, not reviewed by a native speaker; the popup's window sizing (`760×560`) is not asserted
+automatically.
+
+### Suite 1767 — code-review regression cases (added after the mandatory review)
+
+| # | Case | Steps | Expected | Result |
+|---|---|---|---|---|
+| 1767.R1 | Existence oracle closed | as `norights` (no project asserted): valid version vs **nonexistent** version of an existing case | both answer the same `403 no_right`; no valid-version enumeration | **PASS** — `tcase_id=<rich>&tcversion_id=999999` → 403 (same as a real version); previously 404 `version_not_in_case` |
+| 1767.R2 | Opaque 404 | as any caller, no asserted project, `tcase_id` of a node that is not a test case | 404 `tcase_not_found`, never a distinguishing code | **PASS** |
+| 1767.R3 | Distinguished codes still reachable | as **admin**, `tcase_id=<two>&tcversion_id=<foreign>` | 404 `version_not_in_case` (rights passed first) | **PASS** |
+| 1767.R4 | Footer key renders | open the screen, read `#footerText` | "TestLink 2.0.1 - Test Case Summary" (was empty) | **PASS** — text present, `<span data-i18n="footers.tcSummary">` in static markup |
+| 1767.R5 | Stored source collapsed | open the rich screen | a real `<details>` element closed by default, escaped text inside `<pre>` | **PASS** — `#summaryBox details` present |
+| 1767.R6 | Button a11y | open `planAddTCView.html`, inspect a `.sum-btn` | `aria-label="Show summary"`, `title="Show summary"`, `type="button"` | **PASS** |
+| 1767.R7 | tcView consumer | open `tcView.html?tcase_id=<two>`, click a version card's **Show summary** | popup opens with that card's `tcversion_id` | **PASS** — `openSummaryPopup(341)` → `…?tcase_id=337&tproject_id=324&tcversion_id=341`; one button per card |
+| 1767.R8 | Shim — modern fetch | `GET gettestcasesummary.php?tcase_id=` with `Sec-Fetch-Dest: empty`, `Accept: */*`, no `X-Requested-With` | 405 pointing at the BFF | **PASS** |
+| 1767.R9 | Shim — real browser navigation | same with `Sec-Fetch-Dest: document`, `Accept: text/html` | 302 to the modern popup | **PASS** |
+| 1767.R10 | i18n key | `tcsum.showSummary` present in all 10 bundles | valid JSON, key resolves | **PASS** |

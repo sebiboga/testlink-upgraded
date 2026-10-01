@@ -63,6 +63,7 @@ doSessionStart();
 
 header('Content-Type: application/json; charset=utf-8');
 header('X-Content-Type-Options: nosniff');
+header('Cache-Control: no-store, no-cache, must-revalidate');
 
 $db = new database(DB_TYPE);
 doDBConnect($db);
@@ -237,6 +238,19 @@ function tcsumProjectName(&$db, $tprojectId)
  *
  * @return array the tcversions row (id, name, summary, version, ...)
  */
+/**
+ * Every "this does not exist for you" case answers the SAME opaque 404, so a
+ * caller that is not entitled to the resource cannot distinguish a missing
+ * test case from one it is simply not allowed to see (the #1697 oracle class).
+ * The distinct codes (project_not_found, project_mismatch, version_not_in_case)
+ * are only ever reached AFTER the rights check has already passed.
+ */
+function tcsumOpaqueNotFound()
+{
+    out(array('status' => 'error', 'code' => 'tcase_not_found',
+              'message' => 'Test case not found'), 404);
+}
+
 function tcsumVersion(&$db, $tcaseId, $tcversionId)
 {
     $T = tcsumTables();
@@ -324,30 +338,29 @@ try {
         " FROM {$T['nodes_hierarchy']}" .
         " WHERE id = {$tcaseId} AND node_type_id = {$n['testcase']}");
     if (is_null($tcaseRow) || count($tcaseRow) == 0) {
-        out(array('status' => 'error', 'code' => 'tcase_not_found',
-                  'message' => 'Test case not found'), 404);
+        tcsumOpaqueNotFound();
     }
     $tcase = $tcaseRow[0];
 
-    // 2. The version actually addressed (last version when none was given).
-    $version = tcsumVersion($db, $tcaseId, $tcversionId);
-
-    // 3. The OWNING test project, proved by the parent chain - never trusted
+    // 2. The OWNING test project, proved by the parent chain - never trusted
     //    from the request.
     $tprojectId = tcsumOwningProject($db, $tcase);
     if ($tprojectId <= 0) {
-        out(array('status' => 'error', 'code' => 'project_not_found',
-                  'message' => 'Test case has no owning test project'), 404);
+        tcsumOpaqueNotFound();
     }
 
-    // 4. Rights on the OWNING project (legacy had none at all).
+    // 3. Rights on the OWNING project (legacy had none at all). This MUST come
+    //    before the version lookup: resolving the version first would let any
+    //    authenticated user - including one with no right anywhere - tell an
+    //    existing test case node from a missing one (404 version_not_in_case
+    //    vs 404 tcase_not_found) and enumerate the whole installation.
     if (!$user->hasRight($db, 'mgt_view_tc', $tprojectId)) {
         out(array('status' => 'error', 'code' => 'no_right',
                   'message' => 'You do not have rights on this test project'),
             403);
     }
 
-    // 5. Optional client-side project assertion: a deep link that still points
+    // 4. Optional client-side project assertion: a deep link that still points
     //    at the old project is refused instead of silently answering with the
     //    new project's data.
     if ($assertedTprojectId !== null && $assertedTprojectId !== $tprojectId) {
@@ -355,6 +368,11 @@ try {
                   'message' => 'The test case does not belong to that test project'),
             404);
     }
+
+    // 5. The version actually addressed (last version when none was given).
+    //    Only now that the caller is entitled to this test case, so the answer
+    //    cannot be used as a probe.
+    $version = tcsumVersion($db, $tcaseId, $tcversionId);
 
     list($tprojectName, $prefix) = tcsumProjectName($db, $tprojectId);
     if ($tprojectName === '') {

@@ -36,9 +36,17 @@
 //      and the result was dereferenced unconditionally ($tcase['summary']),
 //      which is a PHP 8 warning plus an empty tooltip.
 //
-// Contract preserved for the still-live caller (gui/templates/dashio/plan/
-// planAddTC_m1.tpl and planAddTCJS.inc.tpl, the only two files in the tree
-// that still reference this endpoint): a browser navigation is answered with a
+// WHAT CHANGED FOR THE THREE LEGACY CALLERS, stated plainly:
+// gui/templates/dashio/plan/planAddTC_m1.tpl, planAddTCJS.inc.tpl and
+// gui/templates/tl-classic/plan/planAddTC_m1.tpl still build an Ext.ToolTip
+// whose autoLoad points at this file. Ext 3.4 sends X-Requested-With by
+// default (useDefaultXhrHeader), so they now receive the 405 JSON branch and
+// their tooltip is EMPTY. That is intentional: it is the only way to close the
+// no-rights-check read and the raw-HTML echo for those frames as well, and the
+// Dashio workframe - the one actually shipped in 2.0.1 - gets the summary back
+// through its own per-row button (gui/templates/plans/planAddTCView.html).
+//
+// Contract kept for everything else: a browser navigation is answered with a
 // 302 to the modern popup carrying the same tcase_id / tcversion_id; anything
 // else (an XHR / a crawler / a REST client) is refused with 405, because the
 // modern BFF is the only sanctioned reader now. Anonymous callers keep the
@@ -51,7 +59,9 @@ require_once('common.php');
 $base = isset($_SESSION['basehref']) ? $_SESSION['basehref'] : '/';
 
 // Anonymous: legacy testlinkInitPage() contract (destination preserved).
-if (empty($_SESSION['userID']) || intval($_SESSION['userID']) <= 0) {
+$tcsumInactive = isset($_SESSION['expires_on'])
+              && intval($_SESSION['expires_on']) < time();
+if (empty($_SESSION['userID']) || intval($_SESSION['userID']) <= 0 || $tcsumInactive) {
     $dest = 'lib/ajax/gettestcasesummary.php';
     if (isset($_SERVER['QUERY_STRING'])) {
         $dest .= '?' . $_SERVER['QUERY_STRING'];
@@ -71,9 +81,33 @@ if (empty($_SESSION['userID']) || intval($_SESSION['userID']) <= 0) {
     exit;
 }
 
+/**
+ * True when this is NOT a top-level browser navigation: an XHR/fetch
+ * (X-Requested-With on older clients, Sec-Fetch-Dest on modern ones) or a
+ * client that does not accept HTML. A plain address-bar / window.open()
+ * navigation has Sec-Fetch-Dest: document and an Accept list containing
+ * text/html.
+ */
+function tcsummary_isNavigation()
+{
+    if (isset($_SERVER['HTTP_X_REQUESTED_WITH'])
+        && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) !== 'compatibility') {
+        return false;
+    }
+    $dest = strtolower($_SERVER['HTTP_SEC_FETCH_DEST'] ?? '');
+    if ($dest !== '' && $dest !== 'document' && $dest !== 'iframe') {
+        return false;
+    }
+    $accept = strtolower($_SERVER['HTTP_ACCEPT'] ?? '');
+    if ($accept !== '' && strpos($accept, 'text/html') === false
+        && strpos($accept, 'application/xhtml') === false) {
+        return false;
+    }
+    return strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET';
+}
+
 // Non-navigational request: the modern BFF replaces this endpoint.
-if (isset($_SERVER['HTTP_X_REQUESTED_WITH'])
-    || strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'GET') {
+if (!tcsummary_isNavigation()) {
     http_response_code(405);
     header('Content-Type: application/json; charset=utf-8');
     header('X-Content-Type-Options: nosniff');
