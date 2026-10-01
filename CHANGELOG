@@ -7216,6 +7216,43 @@ Changes:
 - Docs: `docs/Bugfix-Issue-1679-bffSameOriginGuard-Origin-Before-XRW.md` + wiki page
   *Bugfix-Issue-1679-bffSameOriginGuard-Origin-Before-XRW*.
 
+### Gap closed — Assign Test Project Roles: the role column header was static and never named the test project (Fixes #1612)
+- `gui/templates/usermanagement/usersAssignProject.html:106` rendered a static
+  `<th data-i18n="assign.assignedRole">Assigned Role</th>`. Legacy
+  `gui/templates/dashio/usermanagement/usersAssign.tpl:213-219` rendered the SAME
+  `<th>` as `{lang_get s="th_roles_$featureVerbose"} ({$my_feature_name|escape})`
+  with `$featureVerbose = $gui->featureType` (`testproject` here) and
+  `$my_feature_name` assigned inside the combo loop for the SELECTED option
+  (`usersAssign.tpl:176-180`) — i.e. a dynamic, localized caption naming the test
+  project the grid actually applies to. The legacy `th_roles_testproject`
+  translations (present in every shipped `locale/*/strings.txt`) were dead in 2.0.1:
+  `grep -rn th_roles gui/templates/i18n/*.json` returned 0 hits across all 10 bundles.
+- The `<th>` is now `id="projectRoleHeading"` with no `data-i18n` (the helper owns the
+  cell, so `TLi18n.apply()` cannot stamp the static string back over it), fed by a
+  `projectNameById` map rebuilt from the very same `r.projects` payload that fills the
+  combo `<option>` labels — so the map and the labels can never disagree.
+  `updateProjectRoleHeading()` composes `TLi18n.t('header.projectRoleHeading')` with
+  `' (' + name + ')'`, falling back to the bare localized label when no project is
+  resolved (never `Test Project Role ()`). The name is injected RAW into `.text()`,
+  which is precisely `{$my_feature_name|escape}` (Smarty escapes, then writes markup);
+  calling `esc()` on top would double-escape, so a project named `A&B <draft>` renders
+  as the literal `A&amp;B &lt;draft&gt;` — the #1644 double-escape lesson, re-applied.
+- Wired synchronously on `loadProjects()` (BEFORE the request leaves, so the previous
+  project's name cannot linger through the in-flight window), on the combo `change`
+  handler including the cleared-placeholder branch, on `loadUsers()` (before the async
+  row load), and in all three neutralisation paths — `showDisabled()`, `showNoAccess()`,
+  `showSessionExpired()` — which legacy also reached without rendering a table at all
+  (`usersAssign.tpl:142` → `:295`). Identical helper shape to the sibling plan screen's
+  `updatePlanRoleHeading()` (issue #1644), so both assignment screens read the same way.
+- New i18n key `header.projectRoleHeading` in ALL 10 bundles, seeded from each locale's
+  own `$TLS_th_roles_testproject` (`de` Testprojekt Rolle, `fr` Rôle de projet,
+  `it` Ruoli in Test Project, `ja` テストプロジェクトでの役割, `ru` Роль в тест-проекте,
+  `zh` 测试产品角色, …); `ro_RO` ships no `th_roles_*` entry at all, so `ro` mirrors the
+  wording pattern of the existing `ro` `header.planRoleHeading`
+  (`Rol în Proiectul de Test`). No BFF change — `meta/tproject-roles` already returned
+  `projects[{id,name}]`; the name was simply never read outside the option text.
+  Verified in-browser: default load, in-page combo switch, deep link, cleared combo,
+  `showSessionExpired()`, `de` locale and a hostile `A&B <draft>` name all correct.
 ### Gap closed — Assign Test Plan Roles: the legacy role column was not sortable (Fixes #1670)
 - `gui/templates/usermanagement/usersAssignPlan.html`: the `Plan Role Override`
   column carried `orderable: false` in `renderUsersTable()`'s `columnDefs`, so the
