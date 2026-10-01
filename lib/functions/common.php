@@ -2124,6 +2124,17 @@ function getActions(&$gui,$baseURL) {
     $actions->planNav = "/gui/templates/plans/planNav.html?testproject_id={$tproject_id}";
   }
 
+  // Test Case Summary viewer (modernized lib/ajax/gettestcasesummary.php) -
+  // Refs #1767. The legacy endpoint was the ExtJS tooltip backend of the
+  // Add/Remove Test Cases workframe and had NO rights check at all: any
+  // authenticated user could read the summary of a test case of ANY test
+  // project, and the RichEdit blob was echoed raw into the caller DOM. The
+  // modern popup talks to api/tcsummary, which proves the OWNING project by
+  // walking nodes_hierarchy and enforces mgt_view_tc on it. tcase_id is
+  // appended by the caller because it addresses one test case; the screen is
+  // also reachable standalone from the modern Test Case Viewer.
+  $actions->tcSummary = "/gui/templates/testcases/tcSummary.html?{$ctx}";
+
   $actions->fullTextSearch = "/gui/templates/search/searchAdvancedView.html?{$ctx}";
 
   // MD/XML Test Case Import modernized screen

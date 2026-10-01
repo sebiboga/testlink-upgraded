@@ -38,6 +38,14 @@ table.tcs td { padding: 7px 10px; font-size: 13px; border-bottom: 1px solid #f1f
 tr.linked-row td { background: #f3fbfa; }
 .tc-name { font-weight: 700; color: #2d8e88; }
 .ext-id { color: #999; font-size: 11px; margin-left: 6px; }
+/* Summary affordance restored in #1767: 1.9.20 showed the hovered case's
+   summary in an ExtJS tooltip backed by lib/ajax/gettestcasesummary.php,
+   which had no rights check and echoed the summary raw. The Dashio
+   workframe had dropped it; this button opens the rights-checked modern
+   popup instead. */
+.sum-btn { background: none; border: 1px solid #cfd4d8; color: #556; border-radius: 3px;
+  font-size: 11px; line-height: 1; padding: 3px 5px; margin-left: 6px; cursor: pointer; vertical-align: middle; }
+.sum-btn:hover { border-color: #4ECDC4; color: #1d6f69; }
 .newest-warn { color: #d38b0c; font-size: 11px; margin-left: 6px; }
 .chip { display: inline-flex; align-items: center; gap: 5px; background: #fff; border: 1px solid #bfe5e2; border-radius: 12px; padding: 1px 8px; margin: 1px 4px 1px 0; font-size: 12px; white-space: nowrap; }
 .chip.executed { border-color: #eec1bf; background: #fdf4f3; }
@@ -170,7 +178,34 @@ $(function(){
   $('#suiteTree').on('click','li[data-suite]',function(){ openSuite(parseInt(this.getAttribute('data-suite'),10)); });
   $('#btnSave').on('click', doSave);
   $('#btnReorder').on('click', doReorder);
+  // Refs #1767 - open the modern Test Case Summary popup for a row. The
+  // version shown is the one selected in that row when the suite is not
+  // linked yet, otherwise the newest active one, so the popup mirrors what
+  // the legacy tooltip showed for that row.
+  $('#tcTable').on('click', '.sum-btn', function(){
+    var tcId = parseInt(this.getAttribute('data-tc'), 10);
+    if (!tcId) { return; }
+    var $vsel = $('select.vsel[data-tc="' + tcId + '"]');
+    var vselVal = $vsel.length ? parseInt($vsel.val(), 10) : 0;
+    var tvId = vselVal || newestVersionId(tcId);
+    var u = '/gui/templates/testcases/tcSummary.html?tcase_id=' + tcId +
+          '&tproject_id=' + tprojectId + (tvId ? '&tcversion_id=' + tvId : '');
+    window.open(u, 'tcSummary', 'width=760,height=560,scrollbars=yes');
+  });
 });
+
+/** Newest active version id of a rendered row, for the #1767 summary popup. */
+function newestVersionId(tcId){
+  var it = (CONTAINER && CONTAINER.items ? CONTAINER.items : []).filter(function(x){
+    return x.tc_id === tcId;
+  })[0];
+  if (!it) { return 0; }
+  var best = 0, bestVer = -1;
+  (it.versions || []).forEach(function(v){
+    if (v.active == 1 && v.version > bestVer) { bestVer = v.version; best = v.tcversion_id; }
+  });
+  return best;
+}
 
 function boot(){
   $.getJSON(API + '/planaddtc/init?tproject_id=' + tprojectId)
@@ -363,7 +398,9 @@ function renderContainer(){
 
     var $tr=$('<tr'+(isLinked?' class="linked-row"':'')+'>').html(
         '<td>'+(isLinked?'':'<input type="checkbox" class="addchk" data-tc="'+it.tc_id+'">')+'</td>'+
-        '<td><span class="tc-name">'+esc(it.name)+'</span><span class="ext-id">'+esc(it.full_external_id)+'</span><br>'+statusPill+newerWarn+'</td>'+
+        '<td><span class="tc-name">'+esc(it.name)+'</span><span class="ext-id">'+esc(it.full_external_id)+'</span>'
+          +'<button class="sum-btn" data-tc="'+it.tc_id+'" title="'+esc(TLi18n.t('tcsum.openTestCase'))+'">'
+          +'<i class="fa fa-file-text-o"></i></button><br>'+statusPill+newerWarn+'</td>'+
         '<td>'+(isLinked?'':vsel)+'</td>'+
         '<td>'+(isLinked?'':platCell)+'</td>'+
         '<td>'+ordInput+'</td>'+

@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Test Case Summary</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px;
+  font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span { font-size: 13px; font-weight: 400; opacity: .85; margin-left: 12px; }
+
+.toolbar { background: #22242a; padding: 10px 24px; display: flex; gap: 10px;
+  align-items: center; flex-wrap: wrap; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px;
+  border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-teal:disabled { opacity: .45; cursor: not-allowed; }
+.btn-ghost { background: none; border: 1px solid #555; color: #ddd; padding: 6px 14px;
+  border-radius: 4px; cursor: pointer; font-size: 13px; }
+.btn-ghost:hover { border-color: #4ECDC4; color: #4ECDC4; }
+.btn-ghost:disabled { opacity: .45; cursor: not-allowed; }
+
+.section { padding: 20px 24px 24px; max-width: 1040px; }
+.card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08);
+  margin-bottom: 18px; }
+.card > .card-h { background: #22242a; color: #fff; padding: 10px 16px; font-size: 14px;
+  font-weight: 700; border-radius: 8px 8px 0 0; display: flex; align-items: center;
+  gap: 8px; flex-wrap: wrap; }
+.card > .card-h .spacer { flex: 1 1 auto; }
+.card > .card-b { padding: 16px; }
+
+.kv { display: flex; flex-wrap: wrap; gap: 10px 30px; }
+.kv div { font-size: 13px; color: #555; }
+.kv div b { color: #22242a; display: block; font-size: 11px; text-transform: uppercase;
+  letter-spacing: .5px; color: #888; }
+
+.chip { display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 9px;
+  border-radius: 10px; background: #eef1f2; color: #556; }
+.chip.teal { background: #d8f3f0; color: #1d6f69; }
+.chip.dark { background: #22242a; color: #fff; }
+.chip.warn { background: #fdf3d8; color: #8a6d1f; }
+
+#summaryBox { background: #f7f7f7; border: 1px solid #e2e2e2; border-radius: 6px;
+  padding: 16px 18px; font-size: 14px; color: #333; min-height: 90px; line-height: 1.65;
+  white-space: pre-wrap; word-break: break-word; }
+#summaryBox.empty { color: #999; font-style: italic; }
+#summaryBox .raw { display: block; margin-top: 12px; font-size: 11px; color: #999;
+  font-style: normal; white-space: pre-wrap; word-break: break-all;
+  border-top: 1px dashed #ddd; padding-top: 10px; }
+
+.msg-card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08);
+  padding: 34px; text-align: center; }
+.msg-card .ico { font-size: 34px; margin-bottom: 12px; }
+.msg-card .t { font-size: 16px; font-weight: 700; color: #22242a; margin-bottom: 6px; }
+.msg-card .m { font-size: 13px; color: #777; }
+.msg-card .code { display: inline-block; margin-top: 10px; font-family: monospace;
+  font-size: 11px; color: #888; background: #f4f4f4; padding: 3px 8px; border-radius: 3px; }
+
+.loading { text-align: center; padding: 60px 0; color: #888; font-size: 14px; }
+
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd;
+  background: #fff; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff;
+  padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; }
+.toast.err { background: #e6605e; }
+</style>
+</head>
+<body>
+<div class="header">
+  <i class="fa fa-file-text-o"></i>
+  <span data-i18n="tcsum.title">Test Case Summary</span>
+</div>
+
+<div class="toolbar">
+  <span class="ctx">
+    <span data-i18n="tcsum.tproject">Test project</span>:
+    <b id="tbProject">-</b>
+    &nbsp;|&nbsp;
+    <span data-i18n="tcsum.tcase">Test case</span>:
+    <b id="tbTcase">-</b>
+  </span>
+  <span style="flex:1 1 auto"></span>
+  <button id="btnRefresh" class="btn-ghost"><i class="fa fa-refresh"></i>
+    <span data-i18n="common.refresh">Refresh</span></button>
+  <button id="btnOpenTc" class="btn-ghost" style="display:none">
+    <i class="fa fa-external-link"></i>
+    <span data-i18n="tcsum.openTestCase">Open test case</span></button>
+  <button id="btnClose" class="btn-ghost"><i class="fa fa-times"></i>
+    <span data-i18n="common.close">Close</span></button>
+</div>
+
+<div class="section">
+  <div id="loading" class="loading">
+    <i class="fa fa-spinner fa-spin"></i>
+    <span data-i18n="common.loading">Loading...</span>
+  </div>
+
+  <div id="stateCard" class="msg-card" style="display:none">
+    <div class="ico"><i class="fa fa-exclamation-triangle"></i></div>
+    <div class="t" id="stateTitle"></div>
+    <div class="m" id="stateMsg"></div>
+    <div><span class="code" id="stateCode"></span></div>
+  </div>
+
+  <div id="content" style="display:none">
+    <div class="card">
+      <div class="card-h">
+        <i class="fa fa-sitemap"></i>
+        <span data-i18n="tcsum.context">Context</span>
+        <span class="spacer"></span>
+        <span class="chip teal" id="chipExtId">-</span>
+        <span class="chip" id="chipVersion">-</span>
+        <span class="chip warn" id="chipLast" style="display:none"
+              data-i18n="tcsum.lastVersion">latest version</span>
+      </div>
+      <div class="card-b">
+        <div class="kv">
+          <div><b data-i18n="tcsum.tproject">Test project</b><span id="kvProject">-</span></div>
+          <div><b data-i18n="tcsum.prefix">Prefix</b><span id="kvPrefix">-</span></div>
+          <div><b data-i18n="tcsum.tcase">Test case</b><span id="kvTcase">-</span></div>
+          <div><b data-i18n="tcsum.version">Version</b><span id="kvVersion">-</span></div>
+          <div><b data-i18n="tcsum.suite">Test suite</b><span id="kvSuite">-</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-h">
+        <i class="fa fa-align-left"></i>
+        <span data-i18n="tcsum.summaryHeading">Summary</span>
+      </div>
+      <div class="card-b">
+        <div id="summaryBox" class="empty"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="footer" id="footerText"></div>
+<div id="toast" class="toast"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script>
+var TCASE_ID = 0;
+var TCVERSION_ID = null;
+var TPROJECT_ID = null;
+var LAST = null;
+
+function esc(s) {
+  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function toast(msg, kind) {
+  var t = $('#toast');
+  t.text(msg).toggleClass('err', kind === 'err').show();
+  clearTimeout(t.data('to'));
+  t.data('to', setTimeout(function () { t.hide(); }, 3000));
+}
+
+/**
+ * Render a stored RichEdit summary as PLAIN TEXT.
+ *
+ * The legacy endpoint (lib/ajax/gettestcasesummary.php) echoed this blob raw
+ * into the ExtJS tooltip, so any markup an author had ever saved in a summary
+ * executed in every viewer's browser. Nothing is injected here: the tags are
+ * stripped, the entities are decoded once for readability and every remaining
+ * character goes through esc() before it reaches the DOM.
+ *
+ * The <p>..</p> -> <br> shaping of the legacy tooltip is reproduced on the NEWLINE
+ * the block tags collapse to, which is why the result is written into a
+ * white-space:pre-wrap box rather than a plain div.
+ */
+function summaryToText(html) {
+  var s = String(html == null ? '' : html);
+  s = s.replace(/<\s*br\s*\/?\s*>/gi, '\n');
+  s = s.replace(/<\/\s*(p|div|li|tr|h[1-6])\s*>/gi, '\n');
+  s = s.replace(/<\s*(p|div|li|tr|h[1-6])[^>]*>/gi, '\n');
+  s = s.replace(/<[^>]*>/g, '');
+  var d = document.createElement('textarea');
+  d.innerHTML = s;
+  s = d.value;
+  return s.replace(/\r/g, '').replace(/\n{3,}/g, '\n\n').trim();
+}
+
+function showState(icon, titleKey, titleFallback, msgKey, code) {
+  $('#loading').hide();
+  $('#content').hide();
+  var $c = $('#stateCard').show();
+  $c.find('.ico').html('<i class="' + icon + '"></i>');
+  $('#stateTitle').text(TLi18n.has(titleKey) ? TLi18n.t(titleKey) : titleFallback);
+  $('#stateMsg').text(msgKey ? TLi18n.t(msgKey) : '');
+  $('#stateCode').text(code || '');
+  $('#tbProject').text('-');
+  $('#tbTcase').text('-');
+  $('#btnOpenTc').hide();
+}
+
+function requestUrl() {
+  var u = new URLSearchParams();
+  u.set('action', 'summary');
+  u.set('tcase_id', String(TCASE_ID));
+  if (TCVERSION_ID) { u.set('tcversion_id', String(TCVERSION_ID)); }
+  if (TPROJECT_ID) { u.set('tproject_id', String(TPROJECT_ID)); }
+  return '/api/tcsummary/index.php?' + u.toString();
+}
+
+/** Map a stable BFF machine code to a localized state card. */
+var CODE_STATE = {
+  'invalid_tcase_id':        ['fa fa-question-circle', 'tcsum.errBadRequest', 'tcsum.errBadRequestMsg'],
+  'invalid_tcversion_id':    ['fa fa-question-circle', 'tcsum.errBadRequest', 'tcsum.errBadRequestMsg'],
+  'invalid_tproject_id':     ['fa fa-question-circle', 'tcsum.errBadRequest', 'tcsum.errBadRequestMsg'],
+  'unknown_action':          ['fa fa-question-circle', 'tcsum.errBadRequest', 'tcsum.errBadRequestMsg'],
+  'method_not_allowed':      ['fa fa-question-circle', 'tcsum.errBadRequest', 'tcsum.errBadRequestMsg'],
+  'not_authenticated':       ['fa fa-user-slash',        'tcsum.errNoSession',     'tcsum.errNoSessionMsg'],
+  'session_expired':         ['fa fa-user-slash',        'tcsum.errNoSession',     'tcsum.errNoSessionMsg'],
+  'no_right':                ['fa fa-lock',              'tcsum.errDenied',        'tcsum.errDeniedMsg'],
+  'tcase_not_found':         ['fa fa-magnifying-glass',  'tcsum.errNotFound',      'tcsum.errNotFoundMsg'],
+  'version_not_in_case':     ['fa fa-magnifying-glass',  'tcsum.errNotFound',      'tcsum.errNotFoundMsg'],
+  'project_not_found':       ['fa fa-magnifying-glass',  'tcsum.errNotFound',      'tcsum.errNotFoundMsg'],
+  'project_mismatch':        ['fa fa-magnifying-glass',  'tcsum.errNotFound',      'tcsum.errNotFoundMsg'],
+  'server_error':            ['fa fa-exclamation-triangle', 'tcsum.errServer',      'tcsum.errServerMsg']
+};
+
+function render(d) {
+  LAST = d;
+  var tc = d.testcase || {}, v = d.version || {}, tp = d.testproject || {};
+  var extId = (tp.prefix || '') + '-' + (v.tc_external_id || 0);
+
+  $('#tbProject').text(tp.name || '-');
+  $('#tbTcase').text(tc.name || ('#' + tc.id));
+  $('#kvProject').text(tp.name || '-');
+  $('#kvPrefix').text(tp.prefix || '-');
+  $('#kvTcase').text((tc.name || '-') + '  (#' + tc.id + ')');
+  $('#kvVersion').text('#' + v.version);
+  $('#kvSuite').text(d.suite_path ? d.suite_path : TLi18n.t('tcsum.noSuite'));
+  $('#chipExtId').text(extId);
+  $('#chipVersion').text(TLi18n.t('tcsum.versionChip', { version: v.version }));
+  $('#chipLast').toggle(!!d.is_last_version);
+
+  var txt = summaryToText(d.summary);
+  if (d.summary_empty || txt === '') {
+    $('#summaryBox').addClass('empty').text(TLi18n.t('tcsum.emptySummary'));
+  } else {
+    $('#summaryBox').removeClass('empty')
+      .html(esc(txt) + '<span class="raw">' +
+            esc(TLi18n.t('tcsum.rawStored') + ': ' + d.summary) + '</span>');
+  }
+
+  $('#btnOpenTc').show();
+  $('#loading').hide();
+  $('#stateCard').hide();
+  $('#content').show();
+}
+
+function load() {
+  if (!TCASE_ID) {
+    showState('fa fa-question-circle', 'tcsum.errNoId', 'Missing test case',
+      'tcsum.errNoIdMsg', '');
+    return;
+  }
+  $('#loading').show();
+  $('#content').hide();
+  $('#stateCard').hide();
+  $.getJSON(requestUrl())
+    .done(function (r) {
+      if (r && r.status === 'ok') { render(r); return; }
+      var code = (r && r.code) || 'server_error';
+      var st = CODE_STATE[code] || CODE_STATE['server_error'];
+      showState(st[0], st[1], null, st[2], code);
+    })
+    .fail(function (xhr) {
+      var body = xhr.responseJSON || {};
+      var code = body.code || ('http_' + xhr.status);
+      if (xhr.status === 401 || code === 'session_expired' || code === 'not_authenticated') {
+        // Same contract as every other modernized screen: the session is gone,
+        // so send the user to the login screen instead of showing a dead card.
+        window.location.href = '/login.php?note=expired&destination=' +
+          encodeURIComponent(window.location.pathname + window.location.search);
+        return;
+      }
+      var st = CODE_STATE[code] || (xhr.status === 403
+        ? CODE_STATE['no_right'] : CODE_STATE['server_error']);
+      showState(st[0], st[1], null, st[2], code);
+    });
+}
+
+$(function () {
+  var p = new URLSearchParams(window.location.search);
+  TCASE_ID = parseInt(p.get('tcase_id') || 0, 10) || 0;
+  TCVERSION_ID = parseInt(p.get('tcversion_id') || 0, 10) || null;
+  TPROJECT_ID = parseInt(p.get('tproject_id') || 0, 10) || null;
+
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#footerText');
+    $('#footerText').append(
+      '<span data-i18n="footers.tcSummary"></span>');
+
+    $('#btnRefresh').on('click', load);
+    $('#btnClose').on('click', function () {
+      try { window.close(); } catch (e) { /* opener-less popup */ }
+    });
+    $('#btnOpenTc').on('click', function () {
+      if (!LAST) { return; }
+      var u = '/gui/templates/testcases/tcView.html?tcase_id=' + TCASE_ID +
+              '&tproject_id=' + (LAST.testproject ? LAST.testproject.id : 0);
+      window.open(u, '_blank');
+    });
+
+    load();
+  });
+});
+</script>
+</body>
+</html>
