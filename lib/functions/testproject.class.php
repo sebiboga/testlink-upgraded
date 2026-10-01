@@ -1568,11 +1568,12 @@ function setPublicStatus($id,$status)
   /**
    * @param $testproject_id
    * @param $fileName
-    */
-  function importKeywordsFromXMLFile($testproject_id,$fileName)
+   * @param array $stats [ref] optional import report, see importKeywordsFromCSV()
+   */
+  function importKeywordsFromXMLFile($testproject_id,$fileName,&$stats = null)
   {
     $simpleXMLObj = @$this->simplexml_load_file_helper($fileName);
-    return $this->importKeywordsFromSimpleXML($testproject_id,$simpleXMLObj);
+    return $this->importKeywordsFromSimpleXML($testproject_id,$simpleXMLObj,$stats);
   }
 
 
@@ -1587,11 +1588,35 @@ function setPublicStatus($id,$status)
   }
 
   /**
+   * Refs #1666: the XML arm of the keyword import now reports the same per-row
+   * outcome as importKeywordsFromCSV() ($stats, see its doc block), because the
+   * caller (api/keywordsxml/index.php) had no row-level signal and used the
+   * keyword COUNT DELTA as a stand-in for "rows read": a merge that only touches
+   * keywords which already exist leaves the count flat, so a perfectly valid file
+   * was reported as 'wrong_keywords_file'.
+   *
+   * The counts are driven by the real per-row results. tlKeyword::writeToDB()
+   * returns tlKeyword::E_NAMEALREADYEXISTS for a name that is already in the
+   * project and, because its UPDATE branch sits behind 'if ($result >= tl::OK)',
+   * writes nothing at all - so such a row is counted as skipped (with the row
+   * error the dialog already knows how to render), exactly like the CSV arm,
+   * instead of being counted as an imported row.
+   *
+   * The legacy return value and the legacy $status semantics are UNCHANGED, so the
+   * other callers (importKeywordsFromXML(), lib/testcases/tcImport.php,
+   * lib/testcases/tcCreateFromIssue.php) keep behaving exactly as in 1.9.20.
+   *
    * @param $testproject_id
    * @param $simpleXMLObj
-    */
-  function importKeywordsFromSimpleXML($testproject_id,$simpleXMLObj)
+   * @param array $stats [ref] optional import report, see importKeywordsFromCSV()
+   */
+  function importKeywordsFromSimpleXML($testproject_id,$simpleXMLObj,&$stats = null)
   {
+    if (!is_null($stats)) {
+      $stats = array('rows'=>0,'imported'=>0,'skipped'=>0,'errors'=>array());
+    }
+    $report = !is_null($stats);
+
     $status = tl::OK;
     if(!$simpleXMLObj || $simpleXMLObj->getName() != 'keywords')
     {
@@ -1600,18 +1625,45 @@ function setPublicStatus($id,$status)
   
     if( ($status == tl::OK) && $simpleXMLObj->keyword )
     {
+      $rowNo = 0;
       foreach($simpleXMLObj->keyword as $keyword)
       {
+        $rowNo++;
         $kw = new tlKeyword();
         $kw->initialize(null,$testproject_id,NULL,NULL);
         $status = tlKeyword::E_WRONGFORMAT;
+        if ($report) {
+          $stats['rows']++;
+        }
         if ($kw->readFromSimpleXML($keyword) >= tl::OK)
         {
           $status = tl::OK;
-          if ($kw->writeToDB($this->db) >= tl::OK)
+          $rowCode = $kw->writeToDB($this->db);
+          if ($rowCode >= tl::OK)
           {
             logAuditEvent(TLS("audit_keyword_created",$kw->name),"CREATE",$kw->dbID,"keywords");
-          }  
+            if ($report) {
+              $stats['imported']++;
+            }
+          } elseif ($report) {
+            $stats['skipped']++;
+            if (count($stats['errors']) < IMPORT_KEYWORD_ERRORS_MAX) {
+              $stats['errors'][] = array(
+                'row' => $rowNo,
+                'code' => intval($rowCode),
+                'name' => (string)$kw->name,
+              );
+            }
+          }
+        } elseif ($report) {
+          $stats['skipped']++;
+          if (count($stats['errors']) < IMPORT_KEYWORD_ERRORS_MAX) {
+            $stats['errors'][] = array(
+              'row' => $rowNo,
+              'code' => (int)tlKeyword::E_WRONGFORMAT,
+              'name' => '',
+            );
+          }
         }
       }
     }
