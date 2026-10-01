@@ -1637,15 +1637,21 @@ MAJOR AREAS
   accept (`nodes_hierarchy` parent walk, `testplans`/`builds`/`executions`/`execution_tcsteps`,
   `req_specs`/`requirements`/`req_versions`, `keywords`, `cfields`, `tcversions`) and requires the caller to hold
   a visibility right on it through `tlUser::hasRight()` - using the values read FROM THE ROW, never the caller
-  supplied ones. FAIL CLOSED: an owner whose project cannot be derived is judged on the global right set only
-  (`hasRight(...,0)` skips the private-project guard), an unknown `fk_table` maps to an empty right list and is
-  denied. The gate sits after the ownership proof in the shared `bffAdLoad()`, so it also closes the `?action=init`
+  supplied ones. FAIL CLOSED: an owner whose project cannot be derived is DENIED (only node types 13 platform / 14 user are
+  project-less by design) because `hasRight($db,$right,0)` skips the private-project guard
+  (`tlUser.class.php:886`) and would hand a globally privileged account the attachments of a private project it
+  has no role on - a live bypass of #1763 caught in code review; an unknown `fk_table` maps to an empty right list
+  and is denied. A requirement VERSION resolves through the parent walk, not through `latest_req_version` (a
+  `GROUP BY max()` view that only knows the newest version of each requirement). The gate runs BEFORE the
+  ownership proof so `ATTACHMENT_NOT_ALLOWED` vs `NO_RIGHT` can no longer be used to enumerate which object owns
+  a guessed attachment id. The gate sits after the ownership proof in the shared `bffAdLoad()`, so it also closes the `?action=init`
   metadata oracle; `gui/templates/attachments/attachmentDelete.html` maps the new `NO_RIGHT` code onto the
   existing translated "Not allowed" state, so no new i18n keys. The right names in the report
   (`testcase_view`/`testplan_view`/`mgt_view_build`) do not exist in this schema (`mgt_view_tc`/`mgt_view_req`/
   `mgt_view_key`/`cfield_view`/`testplan_*`) and would have denied every user including admin; a manage right was
   rejected as redundant (every popup caller is already gated on it); gating `?action=list`/`?action=download` was
-  deferred as a separate change (the download path is the public share-link route of #1541). Verified 10/10 -
+  measured and deferred as a separate change (the download path is the public share-link route of #1541), now
+  tracked in #1768. Verified 10/10 -
   zero-right account 403 on both endpoints and both owner kinds, admin unaffected, a globally privileged user
   still works on a public project and is refused on a private one (#1763 rule), `events` free of Error/Warning.
   Refs #1647

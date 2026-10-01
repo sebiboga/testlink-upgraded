@@ -260,12 +260,27 @@ function bffAdLoad($db, $currentUser) {
         ], 404);
     }
 
+    // Refs #1647: the AUTHORIZATION question is asked FIRST, on the values read
+    // from the row and never the caller supplied ones. Running it before the
+    // ownership proof matters for privacy too: ATTACHMENT_NOT_ALLOWED vs
+    // NO_RIGHT would otherwise let any caller enumerate, for a guessed
+    // attachment id, WHICH object owns it. Same ordering as the
+    // tcSummary existence-oracle fix (2c766babe).
+    $realTable = str_replace(DB_TABLE_PREFIX, '', strval($info['fk_table'] ?? ''));
+    if (!attAuthOwnerAllowed($db, $currentUser, $realTable,
+                             intval($info['fk_id'] ?? 0))) {
+        bffAdOut([
+            'status' => 'error',
+            'code'   => 'NO_RIGHT',
+            'message' => 'No permission on the object that owns this attachment',
+        ], 403);
+    }
+
     // Ownership proof: either the caller states the owning object and it
     // matches, or the id is in the session allow-list filled by the
     // attachments list (legacy checkAttachmentID()).
     $givenTable = trim(strval($_GET['table'] ?? ($_POST['table'] ?? '')));
     $givenFkId = intval($_GET['fk_id'] ?? ($_POST['fk_id'] ?? 0));
-    $realTable = str_replace(DB_TABLE_PREFIX, '', strval($info['fk_table'] ?? ''));
     $allowed = false;
     if ($givenTable !== '' && $givenFkId > 0) {
         $allowed = ($givenTable === $realTable &&
@@ -279,18 +294,6 @@ function bffAdLoad($db, $currentUser) {
             'status' => 'error',
             'code'   => 'ATTACHMENT_NOT_ALLOWED',
             'message' => 'Attachment does not belong to the object in context',
-        ], 403);
-    }
-
-    // Refs #1647: ownership proof passed, now the authorization question -
-    // "may this user touch the OWNING object?". The gate always uses the values
-    // read from the row, never the caller supplied ones.
-    if (!attAuthOwnerAllowed($db, $currentUser, $realTable,
-                             intval($info['fk_id'] ?? 0))) {
-        bffAdOut([
-            'status' => 'error',
-            'code'   => 'NO_RIGHT',
-            'message' => 'No permission on the object that owns this attachment',
         ], 403);
     }
 

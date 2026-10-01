@@ -398,13 +398,16 @@ if ($action === 'delete') {
                 'message' => 'Attachment not found for this object'], 404);
     }
     // Refs #1647: the fk_table/fk_id match above proves OWNERSHIP, not
-    // permission. Derive the owning test project from the stored row and
-    // require a visibility right on it (shared gate with
-    // api/attachmentsdelete/index.php) before deleting anything.
+    // permission. Require a visibility right on the owning object before
+    // deleting anything (shared gate with api/attachmentsdelete/index.php).
+    // checkFk() whitelisted the table and the SELECT above proved this exact
+    // (fk_table, fk_id) pair is the stored one, so $stdTableUsedAsFolder /
+    // $fkId ARE the owner's values here.
+    // No 'message' on purpose: reqSpecView.html / reqView.html show
+    // r.message in a toast and would render this English string untranslated;
+    // omitting it lets them fall back to their own localized key.
     if (!attAuthOwnerAllowed($db, $user, $stdTableUsedAsFolder, $fkId)) {
-        bffOut(['status' => 'error', 'code' => 'NO_RIGHT',
-                'message' => 'No permission on the object that owns this attachment'],
-               403);
+        bffOut(['status' => 'error', 'code' => 'NO_RIGHT'], 403);
     }
     $delInfo = deleteAttachment($db, $fileId, false);
     if (!$delInfo) {

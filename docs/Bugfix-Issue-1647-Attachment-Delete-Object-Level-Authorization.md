@@ -61,15 +61,20 @@ New shared gate **`api/_attachauth.php`**, required by both endpoints:
    `req_specs` / `requirement_specs`, `requirements` (→ `srs_id`), `req_versions`
    (→ `latest_req_version.req_id`), `keywords`, `cfields` / `custom_fields`
    (→ `cfield_testprojects`), `tcversions` (→ `testplan_tcversions`). Returns `0`
-   when not derivable.
+   when not derivable. A requirement **version** is resolved through the plain
+   parent walk, not through `latest_req_version` — that is a `GROUP BY max()`
+   view, so it only knows the newest version id of each requirement, while
+   `reqView`'s version selector can attach to older ones.
 4. `attAuthOwnerRights()` + `attAuthOwnerAllowed()` — map the owner to this
    fork's right names and require the caller to hold one through
    `tlUser::hasRight()`. For `nodes_hierarchy` the **node type** decides, because
    that table holds every container kind (1 testproject, 2 testsuite, 3 testcase,
    5 testplan, 6 requirement_spec, 12 build …).
 
-The gate is placed after the ownership proof and always uses the values read
-**from the row**, never the caller supplied ones. `api/attachments/index.php`
+The gate is placed **before** the ownership proof (so `ATTACHMENT_NOT_ALLOWED`
+can no longer tell a caller which object owns a guessed attachment id — same
+ordering as the `tcSummary` existence-oracle fix, `2c766babe`) and always uses
+the values read **from the row**, never the caller supplied ones. `api/attachments/index.php`
 gets the same check; `gui/templates/attachments/attachmentDelete.html` maps the
 new `NO_RIGHT` code onto the existing translated "Not allowed" state
 (`adel.stNotAllowed` / `adel.errNotAllowed`) — no new i18n keys, no translation gap.
@@ -78,9 +83,14 @@ new `NO_RIGHT` code onto the existing translated "Not allowed" state
 
 * project derivable → the right is judged on that project (global + project role
   rights merged, private-project rule enforced since #1763);
-* project **not** derivable → the right is judged against the **global** right
-  set only, because `tlUser::hasRight($db, $right, 0)` skips the private-project
-  guard (`if ($testprojectID > 0)`, `tlUser.class.php:886`);
+* project **not** derivable → **denied**, except for the two owners that are
+  project-less by design (node type 13 platform, 14 user), which are judged on
+  the global right set. This is not cosmetic: `tlUser::hasRight($db, $right, 0)`
+  skips the private-project guard (`if ($testprojectID > 0)`,
+  `tlUser.class.php:886`), so a global fallback would hand a globally privileged
+  account (built-in roles 4/6/7/9 all hold `mgt_view_req` / `mgt_view_tc`)
+  attachments of a **private** project it has no role on — a live bypass of the
+  #1763 rule, caught in code review;
 * **unknown** `fk_table` → empty right list → denied.
 
 An unknown owner therefore never means "allowed", and an admin (global role 8,
@@ -134,8 +144,9 @@ accounts `lowpriv` (`role_id=3` = `<no rights>`, **0** `role_rights` rows) and
 
 ## Known limitation
 
-`?action=list` and `?action=download` remain ungated. `download` is the legacy
-public share-link route of #1541 and deliberately binds the 64-char object key to
-the owning entity; `list` is the id oracle named in the original report. With the
-delete gated, neither is needed to destroy data, so closing them belongs in its
-own change.
+`?action=list`, `?action=upload` and `?action=download` remain ungated. They
+were **measured** during this run (a no-rights account got `200` on all three and
+the upload created a row) and are tracked in **#1768**. `download` is the legacy
+public share-link route of #1541 and deliberately binds the 64-char object key
+to the owning entity, so closing it needs its own blast-radius analysis. With
+`delete` gated, no attachment can be destroyed without a right.
