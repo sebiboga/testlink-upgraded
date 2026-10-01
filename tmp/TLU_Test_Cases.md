@@ -2099,3 +2099,81 @@ The role column header is dynamic and localized (`header.projectRoleHeading`) an
 Header follows the combo selection, uses the localized key for the half, and project names are HTML-escaped once. Bare label shown when no project is selected. Confirmed in headless Chrome.
 
 **Status**: PASS
+
+## Regression — Issue #1647: attachment delete has no object-level authorization
+
+**Precondition** (fresh import has no attachments and only `admin`):
+```sql
+-- owner project + nodes (testproject 10 / testsuite 11 / testcase 12)
+INSERT INTO testprojects (id,notes,color,active,option_reqs,option_priority,option_automation,prefix,tc_counter,is_public,api_key)
+ VALUES (10,'fixture','#000',1,1,0,0,'TP',1,1,'tp10aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
+INSERT INTO nodes_hierarchy (id,name,parent_id,node_type_id,node_order) VALUES
+ (10,'SecProject',NULL,1,1),(11,'SecSuite',10,2,1),(12,'SecCase',11,3,1);
+-- accounts: the ATTACKER has NO rights at all, the CONTROL user has global rights
+INSERT INTO users (id,login,password,role_id,email,first,last,locale,active,cookie_string,auth_method)
+ VALUES (10,'lowpriv',(SELECT password FROM users WHERE id=1),3,'l@l.test','L','P','en_GB',1,'cookie_lowpriv_0001',''),
+        (11,'designer',(SELECT password FROM users WHERE id=1),4,'d@d.test','D','S','en_GB',1,'cookie_designer_0001','');
+INSERT INTO attachments (id,fk_id,fk_table,title,description,file_name,file_path,file_size,file_type,content)
+ VALUES (1,10,'testprojects','secret-owner-file.txt','f','secret.txt','1_secret.txt',12,'text/plain','SECRET-PAYLOAD'),
+        (3,12,'nodes_hierarchy','tc-node-file.txt','f','tc.txt','3_tc.txt',12,'text/plain','SECRET-PAYLOAD');
+```
+`auth_method` MUST be `''`: `tlUser::isPasswordMgtExternal()` (tlUser.class.php:212-230) looks the value up in
+`config_get('authentication')->domain`, an unknown value like `'LOCAL'` returns `true` and **every** login fails
+with `auth.badUserPasswd`. Also `DB_TABLE_PREFIX` is `''` on this install — the tables are `attachments`, `users`, …
+
+**Repro (pre-fix, all three answered `200` and DELETED the row)**
+```bash
+curl -s -c /tmp/cj -X POST http://localhost:8082/api/auth/login -H 'X-Requested-With: XMLHttpRequest' \
+  --data-urlencode 'login=lowpriv' --data-urlencode 'password=admin'
+curl -s -b /tmp/cj -X POST "http://localhost:8082/api/attachmentsdelete/index.php?action=delete&id=1&table=testprojects&fk_id=10"
+curl -s -b /tmp/cj -X POST "http://localhost:8082/api/attachments/index.php?action=delete" --data 'table=testprojects&id=10&file_id=1'
+```
+
+**Expected post-fix** — `403 {"code":"NO_RIGHT"}` and the attachment row untouched for the rights-less account;
+every pre-existing legitimate flow unchanged.
+
+| # | Case | Steps | Expected | Result |
+|---|---|---|---|---|
+| 1647.1 | Delete, rights-less account | `lowpriv` → `attachmentsdelete?action=delete&id=1&table=testprojects&fk_id=10` | 403 `NO_RIGHT`, row survives | **PASS** — pre-fix `200 {"deleted_id":1}` |
+| 1647.2 | Metadata oracle | `lowpriv` → `attachmentsdelete?action=init&id=1&table=testprojects&fk_id=10` | 403 `NO_RIGHT`, no `owner_label` leak | **PASS** — pre-fix `200` with `owner_label:"SecProject #10"` |
+| 1647.3 | Sibling endpoint | `lowpriv` → `api/attachments?action=delete` `table=testprojects&id=10&file_id=1` | 403 `NO_RIGHT`, row survives | **PASS** — pre-fix `200 {"deleted_id":1}` |
+| 1647.4 | Test-case owner | `lowpriv` → `api/attachments?action=delete` `table=nodes_hierarchy&id=12&file_id=3` | 403 `NO_RIGHT`, row survives | **PASS** |
+| 1647.5 | Admin, project owner | `admin` → `attachmentsdelete?action=delete&id=1&table=testprojects&fk_id=10` | 200 + `deleted_id` | **PASS** — no regression |
+| 1647.6 | Admin, test-case owner | `admin` → `attachmentsdelete?action=delete&id=3&table=nodes_hierarchy&fk_id=12` | 200 + `deleted_id` | **PASS** — no regression |
+| 1647.7 | Privileged user, PUBLIC project | `designer` (global `mgt_view_tc`), no `user_testproject_roles`, `is_public=1` | 200 — legacy visibility preserved | **PASS** — gate must not over-block |
+| 1647.8 | Privileged user, PRIVATE project | same user, `UPDATE testprojects SET is_public=0 WHERE id=10` | 403 `NO_RIGHT` (private-project rule, #1763) | **PASS** |
+| 1647.9 | UI error state | `NO_RIGHT` reaches `gui/templates/attachments/attachmentDelete.html` | "Not allowed / This attachment does not belong to the object in context" state, code shown | **PASS** — `renderError()` line 197 and `doDelete()` line 228 both map `NO_RIGHT`, reusing existing `adel.*` keys |
+| 1647.10 | Event Viewer | `select log_level,count(*) from events group by log_level` | no Error/Warning row | **PASS** — only `16` (INFO audit), `log_level in (12,14,15,17)` → 0 rows |
+
+Suite total: **10 PASS / 0 FAIL**.
+
+**Implementation traps worth keeping**
+- `tlObject::getDBTables()` **throws** `Exception("Wrong table name(s) for getDBTables() detected!")`
+  (`lib/functions/object.class.php:328`) for any name outside its own list, and its list has **no**
+  `latest_req_version` / `node_types`. One unguarded call = `500` with an **empty body**. Use
+  `DB_TABLE_PREFIX . $name` directly (that is all `getDBTables()` does anyway).
+- The `hasRight()` right names differ from upstream: this schema has `mgt_view_tc` / `mgt_view_req` /
+  `mgt_view_key` / `cfield_view` / `testplan_*`, **not** `testcase_view` / `testplan_view` / `mgt_view_build`.
+- `tlUser::hasRight($db, $right, 0)` (no project id) silently skips the private-project guard
+  (`if ($testprojectID > 0)`, tlUser.class.php:886) and falls back to the GLOBAL right set — which is the
+  intended fail-closed path, but it means "no derivable project" must not be treated as "allowed".
+- `nodes_hierarchy` holds every container kind, so the **node type** (not the table) decides which right
+  grants visibility: 1 testproject, 2 testsuite, 3 testcase, 5 testplan, 6 requirement_spec, 12 build.
+
+**Not covered / remaining**: `?action=list` and `?action=download` are still ungated (the list is the id
+oracle named in the issue; `download` is the legacy public share-link route of #1541 and deliberately binds
+the object key to the owner). Gating them is a separate change with a bigger blast radius — worth a follow-up
+issue rather than being smuggled into this fix.
+
+### Suite 1647.R — code-review regression cases (added after the mandatory review)
+
+| # | Case | Steps | Expected | Result |
+|---|---|---|---|---|
+| 1647.R1 | **Fail closed** on an underivable owner | `lowpriv` / `designer` against an owner whose test project cannot be derived (e.g. a `tcversions` row not linked to any plan, or a deleted owner row) | 403 `NO_RIGHT`, never the global-right fallback | **PASS** — `attAuthOwnerAllowed()` returns false when `attAuthOwnerProjectId() <= 0` unless the owner is node type 13/14; the pre-review version answered `hasRight($right, 0)` and thereby skipped the #1763 private-project guard |
+| 1647.R2 | `req_versions` of a NON-latest version | attachment on an old requirement version of a **private** project, `designer` (global `mgt_view_req`) | 403 `NO_RIGHT` | **PASS** — resolves via the `nodes_hierarchy` parent walk; `latest_req_version` is a `GROUP BY max()` view and would have returned no row for an old version |
+| 1647.R3 | Owner oracle closed | as any caller, guessing attachment ids with different `(table, fk_id)` | one identical 403 `NO_RIGHT`, never a mix of `NO_RIGHT` / `ATTACHMENT_NOT_ALLOWED` that would name the owner | **PASS** — the gate runs before the ownership proof |
+| 1647.R4 | Untranslated message removed | as a no-rights caller on `api/attachments?action=delete` | JSON carries `code` but **no** `message`, so `reqSpecView.html` / `reqView.html` fall back to their localized key | **PASS** — body is `{"status":"error","code":"NO_RIGHT"}` |
+| 1647.R5 | Dead code removed | `grep attAuthHasColumn api/_attachauth.php` | no hits (the function was never called) | **PASS** — deleted; `node_types` goes through `attAuthTbl()` too |
+| 1647.R6 | Follow-up filed for the ungated siblings | `?action=list` / `?action=upload` / `?action=download` still ungated | a tracked bug issue, never a silent deferral | **PASS** — filed as **#1768** with the measured 200s |
+
+Suite total: **6 PASS / 0 FAIL**.
