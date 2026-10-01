@@ -12,6 +12,7 @@ require_once('users.inc.php');
 doSessionStart();
 
 require_once(__DIR__ . '/../_guard.php');
+require_once(__DIR__ . '/../_tprojectorder.php');
 bffSameOriginGuard();
 
 
@@ -115,15 +116,20 @@ function denyAssignRights(&$currentUser, $right) {
     out(['status' => 'error', 'message' => 'no_permissions_for_action', 'right' => $right]);
 }
 
+
 // Legacy parity: lib/usermanagement/usersAssign.php:273-305
 // getTestProjectEffectiveRoles(). The Test Project combo lists ONLY projects
 // whose caller effective role holds user_role_assignment OR
 // testproject_user_role_assignment. A project whose effective role lacks both
 // is hidden even if the user can otherwise access it.
+// Legacy parity (issue #1610): the ORDER BY is the configured one
+// (usersAssign.php:276-278) via tprojectsAccessibleOrdered(), not the hardcoded
+// 'ORDER BY name ASC' this BFF shipped with - see api/_tprojectorder.php. The
+// option LABEL stays the bare project name: usersAssign.tpl:177 renders
+// {$f.name|escape} only, even though the legacy row carried the prefix.
 function getAssignableProjects(&$db, $userId) {
     $tprojectMgr = new testproject($db);
-    $projects = $tprojectMgr->get_accessible_for_user($userId,
-        ['output' => 'map_of_map_full', 'order_by' => 'ORDER BY name ASC']);
+    $projects = tprojectsAccessibleOrdered($tprojectMgr, $userId, 'map_of_map_full');
     $roleCache = [];
     $opts = [];
     if ($projects) {
@@ -822,12 +828,18 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'meta' && isset
     // rendered that entry `selected`. The screen needs the session project in the
     // payload to reproduce that precedence on a direct/bookmarked URL with no
     // tproject_id param - without it the combo falls back to projects[0], which is
-    // ordered by NAME and therefore not the user's current context (issue #1613).
+    // the first entry in the CONFIGURED combo order and therefore not necessarily
+    // the user's current context (issue #1613).
     // $sessionTprojectID is already intval()'d at :377 and 0 when the session has
     // no project, which the screen treats as "absent".
     out(['status' => 'ok', 'items' => $items, 'roles' => $roleOpts, 'projects' => $projectOpts, 'isPublic' => $isPublic,
          'demoMode' => (bool)config_get('demoMode'),
          'roleColouring' => $colourCtx['enabled'],
+         // Legacy parity (issue #1610): the ORDER BY that produced `projects`.
+         // Exposed so the client can re-order/annotate the combo without guessing
+         // the installation's tprojects_combo_order_by, and so a support question
+         // ("why is my combo sorted like this?") is answerable from one payload.
+         'tprojectsComboOrderBy' => tprojectsComboOrderBy(),
          'pagination' => getUsersAssignPaginationConfig(),
          'sessionTprojectID' => $sessionTprojectID,
          // Legacy parity (issue #1611): usersAssign.php:119 fed the shared tab
@@ -941,7 +953,11 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'meta' && isset
         $roleOpts[] = ['id' => intval($r->dbID), 'name' => $r->getDisplayName()];
     }
 
-    $projects = $tprojectMgr->get_accessible_for_user($userId, ['output' => 'map_of_map', 'order_by' => 'ORDER BY name ASC']);
+    // Legacy parity (issue #1610): the sibling tplan-roles read also hardcoded
+    // 'ORDER BY name ASC'. It only builds an id -> name lookup here, but honouring
+    // the same config keeps one rule for every list this BFF returns and removes
+    // the last hardcoded literal.
+    $projects = tprojectsAccessibleOrdered($tprojectMgr, $userId, 'map_of_map');
     $projectOpts = [];
     if ($projects) {
         foreach ($projects as $pId => $p) {
