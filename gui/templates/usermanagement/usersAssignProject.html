@@ -439,10 +439,20 @@ function loadProjects(selectedId) {
         showDisabled();
         return;
       }
-      // Legacy parity: usersAssign.php:307-316. Only projects present in the
-      // filtered combo can be selected; otherwise fall back to the first one.
+      // Legacy parity: usersAssign.php:307-316 (getTestProjectEffectiveRoles()).
+      // When the request carries NO featureID the selected test project falls back
+      // FIRST to the session project ($argsObj->testprojectID, i.e.
+      // $_SESSION[testprojectID] written by the navBar project combo) and only then
+      // to the first combo entry; usersAssign.tpl:174-179 rendered that combo entry
+      // `selected`. Mirror the exact three-step resolution so a direct/bookmarked
+      // URL (no tproject_id param) opens on the user's current context instead of
+      // silently landing on projects[0] - which then becomes the Save target.
       var ids = $.map(r.projects, function(p) { return String(p.id); });
-      var pid = (selectedId && $.inArray(String(selectedId), ids) !== -1) ? selectedId : r.projects[0].id;
+      var pid = r.projects[0].id;
+      var sessionId = (r.sessionTprojectID != null && String(r.sessionTprojectID) !== '')
+        ? String(r.sessionTprojectID) : '';
+      if (sessionId && $.inArray(sessionId, ids) !== -1) { pid = sessionId; }
+      if (selectedId && $.inArray(String(selectedId), ids) !== -1) { pid = String(selectedId); }
       sel.val(pid);
       loadUsers(pid);
     })
