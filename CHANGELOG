@@ -141,6 +141,30 @@ screen reaches full parity.
   bundles JSON-valid, 0 console errors, 0 new ERROR/WARNING rows in `events`. The identical defect on
   the project twin is tracked separately as #1609. (Fixes #1643)
 
+- [FEATURE GAP] - #1613: the modern Assign Test Project Roles screen lost the legacy session-project
+  preselection, so opening it by a direct/bookmarked URL (no `tproject_id`) silently loaded the
+  ALPHABETICALLY FIRST assignable test project instead of the one in the user's session - and that
+  project then became the target of the Save PUT. Legacy
+  `lib/usermanagement/usersAssign.php:307-316` (deleted in `ab387af72`,
+  `getTestProjectEffectiveRoles()`) resolved the selection as *featureID from the request → else
+  `$argsObj->testprojectID` (= `$_SESSION['testprojectID']`, written by the navBar project combo) →
+  else `current($features)`*, and `usersAssign.tpl:174-179` rendered that entry `selected`. The
+  2.0.1 port (`usersAssignProject.html:445`) resolved only *URL param → `projects[0].id`*; the BFF
+  never serialized the session project either (`$sessionTprojectID` existed at
+  `api/roles/index.php:377` but was only consumed internally for the rights check at `:381`), so the
+  session source was dropped on both halves of the round trip. Measured on a fresh DB with two
+  fixtures (1 "Analyzer public project" = session project, 2 "Analyzer private project" =
+  `projects[0]` by `ORDER BY name ASC`): pre-fix the combo read `"2:Analyzer private project"`.
+  Restored: `GET /api/roles/index.php/meta/tproject-roles` now returns `sessionTprojectID`, and
+  `loadProjects()` resolves the initial selection as *valid `tproject_id` URL param → valid
+  `sessionTprojectID` → `r.projects[0].id`*, each candidate guarded by membership in the filtered
+  combo so a stale/unknown id can never be selected (an explicit param still wins over the session,
+  matching legacy's `if (!$argsObj->featureID)`). No new i18n keys - the fix changes which project
+  is preselected, not any label. Verified: 11-case suite `Suite 1613` in
+  `tmp/TLU_Test_Cases.md` (9 PASS + 2 FAIL-reproduced pre-fix, green after), `php -l` and
+  `node --check` clean, regression pass on `usersAssignPlan.html` + `rolesView.html` with 0 console
+  errors, and 0 new ERROR/WARNING rows in `events`. (Fixes #1613)
+
 - [FEATURE GAP] - #1644: the modern Assign Test Plan Roles screen had replaced the legacy
   *context-aware* role-column caption with a static one. Legacy `usersAssign.tpl:216-218` (deleted in
   `ab387af72`) rendered `<th>{lang_get s="th_roles_$featureVerbose"} ({$my_feature_name|escape})</th>`,

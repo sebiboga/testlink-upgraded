@@ -1945,27 +1945,44 @@ fail `php -l`; TestLink never loads them, so they do not affect the app.
 
 ---
 
-## Task — Issue #1039: code-tracker / test-script links section in tcView.html
+## Suite 1613 — Task, Issue #1613: session test-project preselection in Assign Test Project Roles (`usersAssignProject.html`)
 
-**Precondition** — `tmp/fixtures_1038.sql` (project 1 `TP1`, test case 5, tcversions 6/7) then
-`tmp/fixtures_1039.sql` (codetrackers row 1 type `200` = github, `testproject_codetracker`
-link, `testprojects.code_tracker_enabled = 1`, two `testcase_script_links` rows on tcversion 6:
-one with `branch_name` only, one with `commit_id`). Log in as `admin/admin`.
+**Feature under test** — legacy parity with `lib/usermanagement/usersAssign.php:307-316`
+(`getTestProjectEffectiveRoles()`): when the request carries **no** `tproject_id`, the
+selected test project must fall back **first to the session project**
+(`$_SESSION['testprojectID']`, written by the navBar project combo) and only then to the
+first combo entry — `usersAssign.tpl:174-179` rendered that entry `selected`.
+Ported in this run: `api/roles/index.php:821` now serializes `sessionTprojectID` in the
+`GET /meta/tproject-roles` payload, and `usersAssignProject.html:445` resolves the initial
+selection as *valid URL param → valid session project → `projects[0].id`*.
 
-| # | Step | Expected | Actual |
-|---|---|---|---|
-| 1 | `GET /api/testcases/index.php?action=view&tcase_id=5&tcversion_id=6` | payload carries `codeTrackerEnabled`, `ctsViewUrl`, `ctsName`, `canModifyScripts`, per-version `scripts[]` | **PASS** — `{e:true,u:"https://github.com/",n:"Fixture GitHub Tracker",m:"yes"}`, 2 scripts on version 6 |
-| 2 | Before the fix, same request | keys absent | **PASS (gap reproduced)** — `codeTrackerEnabled/scripts/cts` all `undefined` |
-| 3 | Open `tcView.html?tcase_id=5&tcversion_id=6` | a `CODE MANAGEMENT` field-label appears | **PASS** — label list ends `… TEST PLAN USAGE, CODE MANAGEMENT` |
-| 4 | Inspect that label | bold `Code management` link, `target=_blank`, title `Code management` | **PASS** — `href="https://github.com/"`, `target="_blank"`, `title="Code management"` |
-| 5 | Hover the fa-file icon next to the label | it links to `javascript:openScriptAddWindow(6)` (legacy `open_script_add_window(…, 'link')`) | **PASS** — `javascript:openScriptAddWindow(6)`, 1 icon present |
-| 6 | Inspect the scripts table header | `Relevant test scripts | Project Key | Repository Name | Branch Name | <trash col>` — the 4 columns + delete col of `showScriptsTable.inc.tpl:26-33` | **PASS** — exact match, 5th column present because `canModifyScripts` |
-| 7 | Inspect the 2 rows | `code_path` rendered as a code-view link; branch when no commit, commit when present (`codeTrackerInterface::buildViewCodeURL:291-315`) | **PASS** — `…/commit/1a2b3c4d5e6f7a8b` (commit row) and `…/blob/main/tests/legacy/tcView_viewer.tpl` (branch row); project key / repo / branch cells populated |
-| 8 | Click the trash icon on row 0 | `Ext`-style confirm box `Really delete this script link from TestLink Database? (Test Script Name scripts/login.py)` | **PASS** — `#delScriptModal` `display:flex`, `%i` replaced by the code path |
-| 9 | Confirm the delete, then re-query `GET /api/tcscripts/index.php?action=list&tcversion_id=6` | row removed from `testcase_script_links` and from the screen | **PASS** — before `[…login.py, …tcView_viewer.tpl]` → after `[…tcView_viewer.tpl]`, modal hidden, table re-rendered |
-| 10 | Set `testprojects.code_tracker_enabled = 0` and reload | the whole CTS block disappears (legacy `{if $gui->codeTrackerEnabled}`) | **PASS** — gate honoured, `renderCodeTracker()` returns `''` |
-| 11 | Switch locale to `ro` | the confirm message is Romanian, not an English placeholder | **PASS** — `Sterg cu adevarat acest link de script din baza de date TestLink? (Nume script de test %i)` |
-| 12 | `python3 -m json.tool` on all 10 i18n bundles; `node --check` on the extracted inline script | all valid | **PASS** — `JSON_ALL_OK`, `JS SYNTAX OK` |
-| 13 | Event Viewer after the whole run | no new Error/Warning entries from `api/testcases` or `api/tcscripts` | **PASS** — no `tLog(..., 'ERROR')` fired; both endpoints answered 200 |
+**Precondition / fixtures** (the DB is freshly imported on every run — `testprojects` had 0 rows):
+* Login `admin`/`admin` (global role 8, holds `user_role_assignment`).
+* Test project **1 = "Analyzer public project"** (`APUB`, `is_public=1`).
+* Test project **2 = "Analyzer private project"** (`APRIV`, `is_public=0`).
+* Combo order comes from `getAssignableProjects()` → `ORDER BY name ASC`, i.e.
+  `projects[0]` is project **2** (private) — deliberately *different* from project 1, so
+  "fell back to the first entry" and "honoured the session" are distinguishable.
 
-**Result: 13/13 PASS.**
+| # | Case | Steps | Expected | Result |
+|---|---|---|---|---|
+| 1613.1 | **Gap repro (pre-fix)** | session project = 1 → open `/gui/templates/usermanagement/usersAssignProject.html` (no query string) | legacy selects 1; 2.0.1 at `ecb826d16` selected `projects[0]` = **2** | **FAIL reproduced** (`comboValue:"2"`, `comboText:"Analyzer private project"`); screenshot `docs/screenshots/issue-1613-before-session-project-ignored.png` |
+| 1613.2 | BFF payload (pre-fix) | `GET /api/roles/index.php/meta/tproject-roles?tproject_id=0` | `sessionTprojectID` exposed | **FAIL reproduced** — keys were `[status,items,roles,projects,isPublic,demoMode,roleColouring,pagination]`; `sessionTprojectID` undefined although `$sessionTprojectID` already existed at `api/roles/index.php:377` |
+| 1613.3 | **Fix — no param, session = 1** | session project = 1 → open the screen **with no query string** | combo = 1 "Analyzer public project", grid renders project 1 | **PASS** (`comboValue:"1"`, 1 row); screenshot `docs/screenshots/issue-1613-after-session-project-selected.png` |
+| 1613.4 | BFF payload (post-fix) | same GET as 1613.2 | `sessionTprojectID` present and equal to the session project | **PASS** (`sessionTprojectID: 1`, key present in `apiKeys`) |
+| 1613.5 | No param, session = 2 | set navBar project to 2 → open with no query string | combo = 2 (session honoured, here it coincides with `projects[0]`) | **PASS** (`sessionTprojectID: 2`, `comboValue:"2"`) |
+| 1613.6 | Explicit param wins | session = 1 → open `?tproject_id=2&tplan_id=0` | combo = 2 (URL beats session) | **PASS** (`comboValue:"2"`) |
+| 1613.7 | Invalid param | session = 1 → open `?tproject_id=999&tplan_id=0` | 999 not in the assignable combo → fall back to the session project 1, never to a phantom 999 | **PASS** (`comboValue:"1"`) |
+| 1613.8 | Resolution matrix (unit, exact `loadProjects()` expression replayed in-page against the real `/meta/tproject-roles` payload shape) | `{no param,session 1}`→1, `{no param,session 2}`→2, `{no param,session 0}`→2, `{no param,session key absent}`→2, `{no param,session 99 not assignable}`→2, `{param 2,session 1}`→2, `{param 999,session 1}`→1 | every row matches the legacy 3-source precedence; no option value that does not exist can be selected | **PASS** (7/7 as tabulated) |
+| 1613.9 | Syntax gate | `php -l api/roles/index.php`; extracted inline `<script>` → `node --check` | no syntax errors | **PASS** ("No syntax errors detected", JS syntax OK) |
+| 1613.10 | Regression — sibling role screens | open `usersAssignPlan.html` and `rolesView.html` | no console errors/warnings | **PASS** (0 error/warn console messages on both) |
+| 1613.11 | Event Viewer | `select … from events where log_level in (1,2,3)` after the whole run | no new Error/Warning entries | **PASS** (0 rows) |
+
+Suite total: **9 PASS / 2 FAIL-reproduced** (1613.1 + 1613.2 are the pre-fix gap repro,
+green after the fix; all other cases were green throughout).
+
+**Not covered / remaining**: the "assignable list empty" branch (1613.f in the
+investigation) still needs a second, non-privileged user holding a project role on only
+one of the two projects — not created in this run for time budget reasons; that branch is
+untouched by this change (it short-circuits at `if (!r.projects || !r.projects.length)`
+*before* the resolution code) and was already covered by issue #1621's suite.

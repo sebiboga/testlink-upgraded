@@ -810,14 +810,26 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'meta' && isset
         }
     }
 
-    // Legacy parity: usersAssign.tpl:286-292 - in demoMode the assign form's
+// Legacy parity: usersAssign.tpl:286-292 - in demoMode the assign form's
     // Save button is replaced by the localized warn_demo note. The UI needs the
     // demo state up front so it can render that note instead of the button
     // (issue #932); mirror of the demoMode block fed by GET /roles (line 364).
+    //
+    // Legacy parity: usersAssign.php:307-316 (getTestProjectEffectiveRoles()).
+    // When the request carries NO featureID the controller preselects the SESSION
+    // project ($argsObj->testprojectID == $_SESSION['testprojectID'], written by the
+    // navBar project combo) and only then the first combo entry; usersAssign.tpl:174-179
+    // rendered that entry `selected`. The screen needs the session project in the
+    // payload to reproduce that precedence on a direct/bookmarked URL with no
+    // tproject_id param - without it the combo falls back to projects[0], which is
+    // ordered by NAME and therefore not the user's current context (issue #1613).
+    // $sessionTprojectID is already intval()'d at :377 and 0 when the session has
+    // no project, which the screen treats as "absent".
     out(['status' => 'ok', 'items' => $items, 'roles' => $roleOpts, 'projects' => $projectOpts, 'isPublic' => $isPublic,
          'demoMode' => (bool)config_get('demoMode'),
          'roleColouring' => $colourCtx['enabled'],
-         'pagination' => getUsersAssignPaginationConfig()]);
+         'pagination' => getUsersAssignPaginationConfig(),
+         'sessionTprojectID' => $sessionTprojectID]);
 }
 
 // Route: PUT /roles/tproject-roles - update test project role assignments
