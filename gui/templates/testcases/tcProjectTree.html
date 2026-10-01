@@ -128,6 +128,10 @@ var PROJECTS = [];
 // ExtJS tree it replaces (the loader answered one level per request).
 var CACHE = {};
 var EXPANDED = {};
+// Refs #1773: sticky flag behind "Expand all". A suite discovered while the
+// walk is running has to keep being expanded, otherwise the button stops at the
+// first level. Cleared by "Collapse all" and by a manual twisty click.
+var EXPAND_ALL = false;
 var GRANT = { view: false, modify: false };
 // The context of the last successful init, so a tree re-render never has to
 // re-derive it from the DOM.
@@ -177,6 +181,7 @@ $(function () {
 function resetTree() {
   CACHE = {};
   EXPANDED = {};
+  EXPAND_ALL = false;
   try {
     var u = new URL(location.href);
     u.searchParams.set('tproject_id', String(TPROJECT_ID));
@@ -550,6 +555,9 @@ function bindTree() {
     // an EXPANDED['undefined'] entry.
     if (!k) { return; }
     k = String(k);
+    // Refs #1773: a manual twisty click hands control back to the user, so the
+    // recursive "Expand all" walk must not re-open what was just folded.
+    EXPAND_ALL = false;
     if (EXPANDED[k]) { delete EXPANDED[k]; }
     else { EXPANDED[k] = true; }
     if (EXPANDED[k] && !isLoaded(k)) { loadChildren(parseInt(k.slice(1), 10) || 0); }
@@ -562,8 +570,25 @@ function bindTree() {
   });
 }
 
+// Refs #1773: the recursive half of "Expand all". Every SUITE row that becomes
+// visible is flagged expanded and fetched, so the walk reaches the leaves instead
+// of stopping at the top level. Rows that are already in CACHE are walked from
+// there, otherwise re-pressing the button after "Collapse all" would find every
+// suite loaded and never descend.
+function expandInto(children) {
+  (children || []).forEach(function (n) {
+    if (n.node_type !== 'testsuite') { return; }
+    var ck = 's' + n.id;
+    EXPANDED[ck] = true;
+    if (!isLoaded(ck)) { loadChildren(n.id); return; }
+    var cached = CACHE[ck];
+    if (cached && cached.children) { expandInto(cached.children); }
+  });
+}
+
 function setAll(open) {
   if (DEAD) { return; }
+  EXPAND_ALL = !!open;
   EXPANDED['p' + TPROJECT_ID] = open;
   // The per-suite flags have to be cleared too: EXPANDED outlives the render, so
   // leaving them set made "Collapse all" only fold the root and the whole tree
@@ -572,11 +597,7 @@ function setAll(open) {
     if (k.charAt(0) === 's' && !open) { delete EXPANDED[k]; }
   });
   if (open) {
-    TOP.forEach(function (n) {
-      if (n.node_type !== 'testsuite') { return; }
-      EXPANDED['s' + n.id] = true;
-      if (!isLoaded('s' + n.id)) { loadChildren(n.id); }
-    });
+    expandInto(TOP);
   }
   renderTree();
 }
@@ -599,6 +620,10 @@ function loadChildren(suiteId) {
     success: function (r) {
       if (r && r.status === 'ok') {
         CACHE[k] = { loading: false, loaded: true, children: r.children || [] };
+        // Refs #1773: keep the "Expand all" walk going into the level that has
+        // just been discovered - the suites that were not known when the button
+        // was pressed.
+        if (EXPAND_ALL) { expandInto(r.children); }
       } else {
         CACHE[k] = { loading: false, loaded: true, children: [], error: (r && r.code) || 'load_error' };
       }
