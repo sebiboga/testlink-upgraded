@@ -5937,5 +5937,34 @@
   "tcview.canNotDeleteAFrozenRelation": "Vous ne pouvez pas supprimer une relation figée",
   "tcview.canNotDeleteRelationTcversionFrozen": "Vous ne pouvez pas supprimer une relation dune version figée du cas de test",
   "tcview.canNotDeleteRelationRelatedTcversionFrozen": "Vous ne pouvez pas supprimer la relation car la version liée du cas de test est figée",
-  "tcview.canNotDeleteRelationBecauseThisIsNotTheLatest": "Vous ne pouvez supprimer les relations que de la dernière version du cas de test"
+  "tcview.canNotDeleteRelationBecauseThisIsNotTheLatest": "Vous ne pouvez supprimer les relations que de la dernière version du cas de test",
+  "reqmon": {
+    "title": "Moniteurs de exigence",
+    "subtitle": "utilisateurs suivant cette exigence",
+    "openRequirement": "Ouvrir l'exigence",
+    "monitorSetHeading": "Ensemble des moniteurs",
+    "loginColumn": "Identifiant",
+    "noMonitors": "Aucun utilisateur ne surveille cette exigence.",
+    "monitorRightHint": "Vous ne disposez pas du droit Surveiller les exigences sur ce projet de test ; la liste est limitée par TestLink.",
+    "accessDeniedTitle": "Accès refusé",
+    "accessDeniedMsg": "Vous n'êtes pas autorisé à consulter les exigences de ce projet de test.",
+    "notFoundTitle": "Exigence introuvable",
+    "notFoundMsg": "L'exigence n'existe pas ou appartient à un autre projet de test.",
+    "missingId": "Aucune exigence n'a été sélectionnée.",
+    "requirement": "Exigence",
+    "versionLabel": "Version {version}",
+    "version": "Version",
+    "noVersion": "sans version",
+    "open": "Ouverte",
+    "frozen": "Gelée",
+    "monitorCount": "Utilisateurs surveillant",
+    "monitorCountBadge": "{count} surveillent",
+    "monitoringBadge": "Vous surveillez cette exigence",
+    "currentUser": "Votre identifiant",
+    "you": "vous",
+    "openRequirementSet": "Ensemble des moniteurs"
+  },
+  "footers": {
+    "reqMonitors": "TestLink 2.0.1 - Moniteurs d'exigence"
+  }
 }

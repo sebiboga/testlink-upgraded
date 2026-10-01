@@ -93,6 +93,14 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; }
   <button id="freezeBtn" class="btn-ghost" style="display:none;"><i class="fa fa-snowflake"></i> <span data-i18n="reqv.freeze">Freeze this version</span></button>
   <button id="unfreezeBtn" class="btn-ghost" style="display:none;"><i class="fa fa-sun"></i> <span data-i18n="reqv.unfreeze">Unfreeze this version</span></button>
   <button id="monitorBtn" class="btn-ghost" style="display:none;"></button>
+  <!-- Refs #1780: the legacy "Monitor set" lightbox (dashio/requirements/
+       reqMonitors.tpl) was a Smarty include of reqViewVersions.tpl backed by
+       lib/ajax/requirements/getreqmonitors.php. It is now the standalone Dashio
+       popup gui/templates/requirements/reqMonitors.html (api/reqmonitors), which
+       enforces mgt_view_req/mgt_modify_req on the OWNING test project. Shown
+       only with the monitor_requirement grant, exactly like the legacy
+       {$gui->grants->monitor_req == "yes"} include. -->
+  <button id="monitorsBtn" class="btn-ghost" style="display:none;"><i class="fa fa-users"></i> <span data-i18n="reqmon.openRequirementSet">Monitor set</span></button>
   <button id="cmpBtn" class="btn-ghost" style="display:none;" onclick="openCompare()"><i class="fa fa-code-compare"></i> <span data-i18n="reqv.compareVersions">Compare versions</span></button>
   <button class="btn-ghost" onclick="openPrint()"><i class="fa fa-print"></i> <span data-i18n="reqv.print">Print</span></button>
   <button id="directLinkBtn" class="btn-ghost" onclick="toggleDirectLink()"><i class="fa fa-link"></i> <span data-i18n="reqv.directLink">Direct link</span></button>
@@ -528,6 +536,11 @@ function renderOverview(r) {
     mBtn.html('<i class="fa ' + (META._monitoring ? 'fa-bell-slash' : 'fa-bell') + '"></i> ' + label);
     mBtn.toggleClass('active', META._monitoring);
     mBtn.off('click').on('click', function() { toggleMonitor(); });
+    // Refs #1780: entry point of the standalone Monitor set popup. Always shown
+    // when the legacy include was shown (grant.monitor_req), whether or not
+    // anybody monitors the requirement - the empty state is information too.
+    $('#monitorsBtn').toggle(!!(r.grant && r.grant.monitor_req))
+      .off('click').on('click', openMonitorSet);
   } else {
     mBtn.hide();
   }
@@ -1331,6 +1344,17 @@ function openTC(tcId) {
   var w = Math.floor(window.innerWidth * 0.85), h = Math.floor(window.innerHeight * 0.85);
   window.open('/gui/templates/testcases/tcView.html?tcase_id=' + tcId + '&tproject_id=' + TPROJECT_ID,
     'tcview_' + tcId, 'width=' + w + ',height=' + h + ',resizable=yes,scrollbars=yes');
+}
+
+// Refs #1780: the modern "Monitor set" popup (modern twin of the legacy
+// dashio/requirements/reqMonitors.tpl lightbox + getreqmonitors.php reader).
+function openMonitorSet() {
+  var w = Math.floor(window.innerWidth * 0.55), h = Math.floor(window.innerHeight * 0.6);
+  if (w < 480) { w = 480; }
+  if (h < 380) { h = 380; }
+  window.open('/gui/templates/requirements/reqMonitors.html?req_id=' + REQ_ID
+    + '&tproject_id=' + TPROJECT_ID, 'req_monitors_' + REQ_ID,
+    'width=' + w + ',height=' + h + ',resizable=yes,scrollbars=yes');
 }
 
 function openReq(reqId, versionId) {

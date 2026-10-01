@@ -5943,5 +5943,34 @@
   "tcview.canNotDeleteAFrozenRelation": "凍結された関係は削除できません",
   "tcview.canNotDeleteRelationTcversionFrozen": "凍結されたテストケースバージョンの関係は削除できません",
   "tcview.canNotDeleteRelationRelatedTcversionFrozen": "関連するテストケースバージョンが凍結されているため関係を削除できません",
-  "tcview.canNotDeleteRelationBecauseThisIsNotTheLatest": "関係は最新のテストケースバージョンのもののみ削除できます"
+  "tcview.canNotDeleteRelationBecauseThisIsNotTheLatest": "関係は最新のテストケースバージョンのもののみ削除できます",
+  "reqmon": {
+    "title": "要件モニター",
+    "subtitle": "この要件をフォローしているユーザー",
+    "openRequirement": "要件を開く",
+    "monitorSetHeading": "モニター集合",
+    "loginColumn": "ログイン",
+    "noMonitors": "この要件を監視しているユーザーはいません。",
+    "monitorRightHint": "このテストプロジェクトには「要件を監視」権限がありません。リストは TestLink 側の制限です。",
+    "accessDeniedTitle": "アクセス拒否",
+    "accessDeniedMsg": "このテストプロジェクトの要件を表示する権限がありません。",
+    "notFoundTitle": "要件が見つかりません",
+    "notFoundMsg": "要件が存在しないか、別のテストプロジェクトに属しています。",
+    "missingId": "要件が選択されていません。",
+    "requirement": "要件",
+    "versionLabel": "バージョン {version}",
+    "version": "バージョン",
+    "noVersion": "バージョンなし",
+    "open": "オープン",
+    "frozen": "凍結",
+    "monitorCount": "監視中のユーザー",
+    "monitorCountBadge": "{count} 人が監視",
+    "monitoringBadge": "あなたはこの要件を監視しています",
+    "currentUser": "あなたのログイン",
+    "you": "自分",
+    "openRequirementSet": "モニター集合"
+  },
+  "footers": {
+    "reqMonitors": "TestLink 2.0.1 - 要件モニター"
+  }
 }

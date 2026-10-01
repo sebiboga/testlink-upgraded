@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Requirement Monitors</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+
+.header {
+  background: #4ECDC4; color: #fff; padding: 14px 24px;
+  font-size: 20px; font-weight: 700; letter-spacing: 1px;
+}
+.header span.sub { font-size: 13px; font-weight: 400; opacity: .85; margin-left: 12px; }
+
+.toolbar {
+  background: #22242a; padding: 10px 24px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+}
+.toolbar .tbtn {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: #33363f; color: #fff; border: none; border-radius: 4px;
+  padding: 7px 12px; font-size: 12px; cursor: pointer; text-decoration: none;
+}
+.toolbar .tbtn:hover { background: #454955; color: #fff; text-decoration: none; }
+.toolbar .tbtn:disabled { background: #2a2c33; color: #777; cursor: not-allowed; }
+.toolbar .tbtn i { color: #4ECDC4; }
+.toolbar .tbtn:disabled i { color: #666; }
+
+.card {
+  background: #fff; border-radius: 8px; margin: 20px 24px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.08); overflow: hidden;
+}
+.card-head {
+  padding: 14px 24px; border-bottom: 1px solid #eee; display: flex;
+  align-items: center; gap: 10px; flex-wrap: wrap;
+}
+.card-head h3 { margin: 0; font-size: 16px; color: #22242a; }
+.card-body { padding: 6px 24px 18px; }
+
+table.ctx { width: 100%; border-collapse: collapse; }
+table.ctx th {
+  color: #555; font-weight: 600; width: 220px; font-size: 12px;
+  text-align: left; padding: 8px 12px 8px 0; vertical-align: top;
+}
+table.ctx td { color: #333; font-size: 13px; padding: 8px 0; word-break: break-word; }
+
+.badge {
+  display: inline-block; padding: 2px 10px; border-radius: 3px;
+  font-size: 11px; font-weight: 700; color: #fff; text-transform: uppercase; letter-spacing: .5px;
+}
+.badge-teal { background: #4ECDC4; color: #1d3b3a; }
+.badge-grey { background: #8a8a8a; }
+.badge-green { background: #3fb950; }
+.badge-red { background: #e6605e; }
+.badge-purple { background: #9b59b6; }
+
+#monitorsTable { width: 100%; border-collapse: collapse; margin-top: 4px; }
+#monitorsTable th {
+  background: #f6f7f9; color: #555; font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .6px;
+  text-align: left; padding: 9px 12px; border-bottom: 1px solid #e6e9ee;
+}
+#monitorsTable td { font-size: 13px; color: #333; padding: 9px 12px; border-bottom: 1px solid #f1f3f5; }
+#monitorsTable tr.me td { background: #f0fbfa; font-weight: 700; }
+.login-cell { display: flex; align-items: center; gap: 8px; }
+.login-cell i { color: #4ECDC4; }
+
+.empty-row { color: #8a8a8a; font-style: italic; font-size: 13px; padding: 12px 4px; }
+.hint { color: #8a8a8a; font-size: 12px; margin: 10px 0 0; }
+
+.state-box {
+  background: #fff; border-radius: 8px; margin: 20px 24px; padding: 28px 32px; text-align: center;
+}
+.state-box i { font-size: 34px; margin-bottom: 10px; display: block; }
+.state-box h3 { margin: 0 0 8px; font-size: 18px; color: #22242a; }
+.state-box p { margin: 0; font-size: 14px; color: #777; }
+.state-code { display: inline-block; margin-top: 12px; font-family: 'Courier New', monospace;
+  font-size: 11px; color: #999; }
+.state-denied { border: 1px solid #f0d0d0; border-left: 4px solid #e6605e; }
+.state-denied i { color: #e6605e; }
+.state-error { border: 1px solid #f0d0d0; border-left: 4px solid #e6605e; }
+.state-error i { color: #e6605e; }
+.state-notfound { border: 1px solid #f3e6c8; border-left: 4px solid #f0ad4e; }
+.state-notfound i { color: #f0ad4e; }
+
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span data-i18n="reqmon.title">Requirement Monitors</span>
+  <span class="sub" data-i18n="reqmon.subtitle">users following this requirement</span>
+  <div id="localeSwitcher" style="float:right;"></div>
+</div>
+
+<div class="toolbar">
+  <button type="button" class="tbtn" id="btnRefresh"><i class="fa fa-sync"></i> <span data-i18n="common.refresh">Refresh</span></button>
+  <button type="button" class="tbtn" id="btnOpenReq"><i class="fa fa-file-text-o"></i> <span data-i18n="reqmon.openRequirement">Open requirement</span></button>
+  <button type="button" class="tbtn" id="btnClose"><i class="fa fa-times"></i> <span data-i18n="common.close">Close</span></button>
+</div>
+
+<div class="card" id="ctxCard" style="display:none;">
+  <div class="card-head">
+    <h3 id="ctxTitle"></h3>
+    <span id="docIdBadge" class="badge badge-teal"></span>
+    <span id="versionBadge" class="badge badge-grey"></span>
+    <span id="openBadge" class="badge badge-green"></span>
+  </div>
+  <div class="card-body">
+    <table class="ctx"><tbody id="ctxBody"></tbody></table>
+  </div>
+</div>
+
+<div class="card" id="monCard" style="display:none;">
+  <div class="card-head">
+    <h3 data-i18n="reqmon.monitorSetHeading">Monitor set</h3>
+    <span id="totalBadge" class="badge badge-purple"></span>
+    <span id="meBadge" class="badge badge-teal" style="display:none;"></span>
+  </div>
+  <div class="card-body">
+    <table id="monitorsTable">
+      <thead><tr><th data-i18n="reqmon.loginColumn">Login</th></tr></thead>
+      <tbody id="monitorsBody"></tbody>
+    </table>
+    <div id="emptyMonitors" class="empty-row" style="display:none;" data-i18n="reqmon.noMonitors">No users are monitoring this requirement.</div>
+    <p id="grantHint" class="hint" style="display:none;" data-i18n="reqmon.monitorRightHint">You do not hold the Monitor Requirement right on this test project; the list below is limited by TestLink itself.</p>
+  </div>
+</div>
+
+<div class="state-box state-denied" id="accessDenied" style="display:none;">
+  <i class="fa fa-lock"></i>
+  <h3 data-i18n="reqmon.accessDeniedTitle">Access Denied</h3>
+  <p data-i18n="reqmon.accessDeniedMsg">You are not authorized to view requirements of this test project.</p>
+  <span class="state-code" id="deniedCode"></span>
+</div>
+
+<div class="state-box state-notfound" id="notFound" style="display:none;">
+  <i class="fa fa-search-minus"></i>
+  <h3 data-i18n="reqmon.notFoundTitle">Requirement not found</h3>
+  <p data-i18n="reqmon.notFoundMsg">The requirement does not exist or belongs to a different test project.</p>
+  <span class="state-code" id="notFoundCode"></span>
+</div>
+
+<div class="state-box state-error" id="loadError" style="display:none;">
+  <i class="fa fa-exclamation-triangle"></i>
+  <h3 data-i18n="common.error">Error</h3>
+  <p id="loadErrorMsg"></p>
+  <span class="state-code" id="loadErrorCode"></span>
+</div>
+
+<div class="footer"><span data-i18n="footers.reqMonitors">TestLink 2.0.1 - Requirement Monitors</span></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script>
+function esc(s) {
+  return s == null ? '' : String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+var API = '/api/reqmonitors/index.php';
+var qs = new URLSearchParams(window.location.search);
+var reqId = qs.get('req_id') || qs.get('item_id') || '';
+var tprojectId = qs.get('tproject_id') || '';
+
+$(function() {
+  $('#btnClose').on('click', function() { window.close(); });
+  $('#btnRefresh').on('click', function() { load(); });
+  $('#btnOpenReq').on('click', function() {
+    if (!ctxData || !ctxData.tproject_id) { return; }
+    window.open('/gui/templates/requirements/reqView.html?req_id='
+      + encodeURIComponent(ctxData.req_id) + '&tproject_id='
+      + encodeURIComponent(ctxData.tproject_id), '_blank');
+  });
+
+  TLi18n.load(function() {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    if (!reqId || !/^\d+$/.test(String(reqId)) || parseInt(reqId, 10) <= 0) {
+      showState('#loadError');
+      $('#loadErrorMsg').text(TLi18n.t('reqmon.missingId'));
+      $('#loadErrorCode').text('invalid_requirement');
+      return;
+    }
+    load();
+  });
+});
+
+var ctxData = null;
+
+function showState(sel) {
+  $('#ctxCard').hide();
+  $('#monCard').hide();
+  $('#accessDenied').hide();
+  $('#notFound').hide();
+  $('#loadError').hide();
+  if (sel) { $(sel).show(); }
+}
+
+var LOAD_TOKEN = 0;
+function load() {
+  var myToken = ++LOAD_TOKEN;
+  var q = '?action=init&req_id=' + encodeURIComponent(reqId);
+  if (tprojectId) { q += '&tproject_id=' + encodeURIComponent(tprojectId); }
+  $('#btnRefresh').prop('disabled', true);
+  $.ajax({ url: API + q, dataType: 'json' })
+    .done(function(d) {
+      if (myToken !== LOAD_TOKEN) { return; }
+      if (!d || d.status !== 'ok') {
+        showState('#loadError');
+        $('#loadErrorMsg').text(TLi18n.t('common.errorLoading'));
+        $('#loadErrorCode').text((d && d.code) ? d.code : 'server_error');
+        return;
+      }
+      render(d);
+    })
+    .fail(function(xhr) {
+      if (myToken !== LOAD_TOKEN) { return; }
+      var code = '';
+      try { var p = JSON.parse(xhr.responseText); code = (p && p.code) ? p.code : ''; } catch (e) {}
+      if (xhr.status === 403) {
+        showState('#accessDenied');
+        $('#deniedCode').text(code);
+      } else if (xhr.status === 404) {
+        showState('#notFound');
+        $('#notFoundCode').text(code);
+      } else if (xhr.status === 401) {
+        window.location.href = '/login.php?note=expired';
+      } else {
+        showState('#loadError');
+        var msg = null;
+        try { msg = JSON.parse(xhr.responseText).message; } catch (e) {}
+        $('#loadErrorMsg').text(msg || TLi18n.t('common.errorLoading'));
+        $('#loadErrorCode').text(code);
+      }
+    })
+    .always(function() {
+      if (myToken === LOAD_TOKEN) { $('#btnRefresh').prop('disabled', false); }
+    });
+}
+
+function row(labelKey, value) {
+  return '<tr><th>' + esc(TLi18n.t(labelKey)) + '</th><td>' + esc(value) + '</td></tr>';
+}
+
+function render(d) {
+  ctxData = d.context;
+  var c = d.context;
+
+  $('#ctxTitle').text(c.req_doc_id ? (c.req_doc_id + ': ' + c.req_title) : (c.req_title || ''));
+  $('#docIdBadge').text(c.req_doc_id || '-');
+  $('#versionBadge').toggle(c.has_version === 1)
+    .text(TLi18n.t('reqmon.versionLabel', { version: c.version }));
+  $('#openBadge').text(c.is_open === 1 ? TLi18n.t('reqmon.open') : TLi18n.t('reqmon.frozen'))
+    .attr('class', 'badge ' + (c.is_open === 1 ? 'badge-green' : 'badge-grey'));
+
+  var html = '';
+  html += row('reqmon.requirement', (c.req_doc_id || '') + ' ' + (c.req_title || ''));
+  html += row('logv.testProject', c.tproject_name || '');
+  html += row('logv.version', c.has_version === 1 ? String(c.version) : TLi18n.t('reqmon.noVersion'));
+  html += row('reqmon.monitorCount', String(d.total));
+  html += row('reqmon.currentUser', c.user_login || '');
+  $('#ctxBody').html(html);
+
+  var body = '';
+  (d.monitors || []).forEach(function(m) {
+    body += '<tr' + (m.is_me ? ' class="me"' : '') + '>' +
+      '<td><div class="login-cell"><i class="fa fa-user"></i><span>' + esc(m.login) + '</span>' +
+      (m.is_me ? ' <span class="badge badge-teal">' + esc(TLi18n.t('reqmon.you')) + '</span>' : '') +
+      '</div></td></tr>';
+  });
+  $('#monitorsBody').html(body);
+  $('#emptyMonitors').toggle((d.monitors || []).length === 0);
+
+  $('#totalBadge').text(TLi18n.t('reqmon.monitorCountBadge', { count: d.total }));
+  $('#meBadge').toggle(d.is_monitoring === 1).text(TLi18n.t('reqmon.monitoringBadge'));
+  $('#grantHint').toggle(!(d.grant && d.grant.monitor));
+  $('#btnOpenReq').prop('disabled', !c.tproject_id);
+
+  showState('');
+  $('#ctxCard').show();
+  $('#monCard').show();
+}
+</script>
+</body>
+</html>

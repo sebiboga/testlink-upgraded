@@ -5943,5 +5943,34 @@
   "tcview.canNotDeleteAFrozenRelation": "Não é possível excluir uma relação congelada",
   "tcview.canNotDeleteRelationTcversionFrozen": "Não é possível excluir uma relação de uma versão congelada do caso de teste",
   "tcview.canNotDeleteRelationRelatedTcversionFrozen": "Não é possível excluir a relação porque a versão relacionada do caso de teste está congelada",
-  "tcview.canNotDeleteRelationBecauseThisIsNotTheLatest": "Só é possível excluir relações da versão mais recente do caso de teste"
+  "tcview.canNotDeleteRelationBecauseThisIsNotTheLatest": "Só é possível excluir relações da versão mais recente do caso de teste",
+  "reqmon": {
+    "title": "Monitores de requisito",
+    "subtitle": "utilizadores a seguir este requisito",
+    "openRequirement": "Abrir requisito",
+    "monitorSetHeading": "Conjunto de monitores",
+    "loginColumn": "Login",
+    "noMonitors": "Nenhum utilizador monitoriza este requisito.",
+    "monitorRightHint": "Não tem o direito Monitorizar requisito neste projeto de teste; a lista está limitada pelo TestLink.",
+    "accessDeniedTitle": "Acesso negado",
+    "accessDeniedMsg": "Não está autorizado a ver os requisitos deste projeto de teste.",
+    "notFoundTitle": "Requisito não encontrado",
+    "notFoundMsg": "O requisito não existe ou pertence a outro projeto de teste.",
+    "missingId": "Não foi selecionado nenhum requisito.",
+    "requirement": "Requisito",
+    "versionLabel": "Versão {version}",
+    "version": "Versão",
+    "noVersion": "sem versão",
+    "open": "Aberto",
+    "frozen": "Congelado",
+    "monitorCount": "Utilizadores que monitorizam",
+    "monitorCountBadge": "{count} monitorizam",
+    "monitoringBadge": "Está a monitorizar este requisito",
+    "currentUser": "O seu login",
+    "you": "você",
+    "openRequirementSet": "Conjunto de monitores"
+  },
+  "footers": {
+    "reqMonitors": "TestLink 2.0.1 - Monitores de requisito"
+  }
 }

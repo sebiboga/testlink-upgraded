@@ -5953,5 +5953,34 @@
   "tcview.canNotDeleteAFrozenRelation": "You can not delete a frozen relation",
   "tcview.canNotDeleteRelationTcversionFrozen": "You can not delete a relation of a frozen test case version",
   "tcview.canNotDeleteRelationRelatedTcversionFrozen": "You can not delete a relation because the related test case version is frozen",
-  "tcview.canNotDeleteRelationBecauseThisIsNotTheLatest": "You can only delete relations of the latest test case version"
+  "tcview.canNotDeleteRelationBecauseThisIsNotTheLatest": "You can only delete relations of the latest test case version",
+  "reqmon": {
+    "title": "Requirement Monitors",
+    "subtitle": "users following this requirement",
+    "openRequirement": "Open requirement",
+    "monitorSetHeading": "Monitor set",
+    "loginColumn": "Login",
+    "noMonitors": "No users are monitoring this requirement.",
+    "monitorRightHint": "You do not hold the Monitor Requirement right on this test project; the list below is limited by TestLink itself.",
+    "accessDeniedTitle": "Access Denied",
+    "accessDeniedMsg": "You are not authorized to view requirements of this test project.",
+    "notFoundTitle": "Requirement not found",
+    "notFoundMsg": "The requirement does not exist or belongs to a different test project.",
+    "missingId": "No requirement was selected.",
+    "requirement": "Requirement",
+    "versionLabel": "Version {version}",
+    "version": "Version",
+    "noVersion": "no version",
+    "open": "Open",
+    "frozen": "Frozen",
+    "monitorCount": "Users monitoring",
+    "monitorCountBadge": "{count} monitoring",
+    "monitoringBadge": "You are monitoring this requirement",
+    "currentUser": "Your login",
+    "you": "you",
+    "openRequirementSet": "Monitor set"
+  },
+  "footers": {
+    "reqMonitors": "TestLink 2.0.1 - Requirement Monitors"
+  }
 }

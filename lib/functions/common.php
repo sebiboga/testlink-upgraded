@@ -1977,6 +1977,18 @@ function getActions(&$gui,$baseURL) {
   // are enforced by the BFF on every route; the legacy controller
   // lib/reqmgrsystems/reqMgrSystemView.php keeps the same checks.
   $actions->reqMgrSystemView = "/gui/templates/reqmgrsystems/reqMgrSystemView.html?{$ctx}";
+  // Requirement Monitors popup modernized screen (Dashio standalone page) -
+  // Refs #1780. Replaces the legacy "Monitor set" lightbox
+  // gui/templates/dashio/requirements/reqMonitors.tpl, which was a single-column
+  // DataTable auto-loading lib/ajax/requirements/getreqmonitors.php. That
+  // endpoint checked the SESSION only (testlinkInitPage) and read item_id
+  // straight out of $_REQUEST, so any authenticated user could enumerate the
+  // logins of the users monitoring a requirement of ANY test project. The legacy
+  // include itself was gated on monitor_requirement; the new BFF additionally
+  // enforces mgt_view_req OR mgt_modify_req on the OWNING test project, derived
+  // from requirements.srs_id -> req_specs.testproject_id, so the list can no
+  // longer leak across projects.
+  $actions->reqMonitors = "/gui/templates/requirements/reqMonitors.html?{$ctx}";
   // Requirement Management System EDITOR modernized screen (Dashio standalone
   // page) - Refs #1727. The list screen (#980) only inlined create/edit as a
   // modal; the legacy controller lib/reqmgrsystems/reqMgrSystemEdit.php (+ its

@@ -5943,5 +5943,34 @@
   "tcview.canNotDeleteAFrozenRelation": "Нельзя удалить замороженную связь",
   "tcview.canNotDeleteRelationTcversionFrozen": "Нельзя удалить связь замороженной версии тест-кейса",
   "tcview.canNotDeleteRelationRelatedTcversionFrozen": "Нельзя удалить связь, так как связанная версия тест-кейса заморожена",
-  "tcview.canNotDeleteRelationBecauseThisIsNotTheLatest": "Связи можно удалять только у последней версии тест-кейса"
+  "tcview.canNotDeleteRelationBecauseThisIsNotTheLatest": "Связи можно удалять только у последней версии тест-кейса",
+  "reqmon": {
+    "title": "Мониторы требования",
+    "subtitle": "пользователи, следящие за требованием",
+    "openRequirement": "Открыть требование",
+    "monitorSetHeading": "Набор мониторов",
+    "loginColumn": "Логин",
+    "noMonitors": "Ни один пользователь не отслеживает это требование.",
+    "monitorRightHint": "У вас нет права «Отслеживать требования» в этом тест-проекте; список ограничен самим TestLink.",
+    "accessDeniedTitle": "Доступ запрещён",
+    "accessDeniedMsg": "Вы не авторизованы просматривать требования этого тест-проекта.",
+    "notFoundTitle": "Требование не найдено",
+    "notFoundMsg": "Требование не существует или принадлежит другому тест-проекту.",
+    "missingId": "Требование не выбрано.",
+    "requirement": "Требование",
+    "versionLabel": "Версия {version}",
+    "version": "Версия",
+    "noVersion": "без версии",
+    "open": "Открыто",
+    "frozen": "Заморожено",
+    "monitorCount": "Пользователей отслеживает",
+    "monitorCountBadge": "{count} отслеживают",
+    "monitoringBadge": "Вы отслеживаете это требование",
+    "currentUser": "Ваш логин",
+    "you": "вы",
+    "openRequirementSet": "Набор мониторов"
+  },
+  "footers": {
+    "reqMonitors": "TestLink 2.0.1 - Мониторы требования"
+  }
 }
