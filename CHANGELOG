@@ -1625,6 +1625,20 @@ MAJOR AREAS
   installation and proved each one by walking its ancestors (one query per ancestor) - O(all
   suites x depth) queries on every init/suites call. Now a project-root down-walk where the walk
   itself proves ownership (same shape as tcreoSuitesOf()).
+- [KEY BUGFIX - SECURITY] - #1763: `tlUser::hasRight()` only evaluated the private-test-project flag when its
+  5th argument `$getAccess` was true, so all ~100 three-argument `hasRight($db,$right,$tprojectId)` call sites in
+  the modern `api/**` BFF layer left `$accessPublic` null and the guard was dead code: a user with no row in
+  `user_testproject_roles` was judged on their GLOBAL rights alone, and every non-admin built-in role holds
+  `mgt_view_tc`/`mgt_modify_tc` globally (4 test designer, 5 guest, 6 senior tester, 7 tester, 9 leader). Such a
+  user was therefore served a PRIVATE test project it has no role on - measured on `api/suitemove`, which answered
+  `200` with `can_modify:"yes"` and whose `?action=reorder` WROTE `nodes_hierarchy.node_order`. The flag is now
+  driven by the test project id actually passed instead of the opt-in argument (`$getAccess` keeps its meaning for
+  the test plan flag, so no caller changes its answer about plans), the denial carries the legacy ADMIN exception
+  (`roles.inc.php:318`, `testproject.class.php:575`, `tlUser.class.php:1055` - an admin holds no project role row
+  either and must keep reaching every private project), and `is_public` is read through a new memoised
+  `getTprojectPublicAttr()` that swallows `testproject::getPublicAttr()`'s "Test Project ID does not exist!"
+  exception so a client-supplied unknown id keeps its 403/404 instead of becoming a 500. Fixing the primitive
+  closes all 100+ call sites at once; patching them one by one was rejected as unverifiable in one pass.
 - [KEY BUGFIX] - #1754: the suiteMove screen re-escaped the output of TLi18n.t(), so a suite named
   "R&D Suite" was confirmed as "R$$&D Suite" (TLi18n interpolates with a replacer function, so the
   extra String.replace() pass re-escaped the value).
