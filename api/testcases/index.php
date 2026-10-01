@@ -59,6 +59,144 @@ function tprojectOpt($opt, $key) {
     return false;
 }
 
+// ---------------------------------------------------------------------------
+// Issue #1039: Code Tracker / test-script links for the viewer.
+//
+// Legacy equivalent (TestLink 1.9.20):
+//   * gate      gui/templates/dashio/testcases/tcView_viewer.tpl:561
+//               {if $gui->codeTrackerEnabled}  <- testproject::isCodeTrackerEnabled()
+//   * tracker   lib/testcases/scriptAdd.php:getCodeTracker() -> tlCodeTracker::getLinkedTo()
+//               + $cts->cfg->uriview / $cts->getEnterCodeURL()
+//   * rows      lib/functions/testcase.class.php:8678 getScriptsForTestCaseVersion()
+//               (keyed project_key . '&&' . repository_name . '&&' . code_path,
+//                link built by codeTrackerInterface::buildViewCodeLink())
+//   * render    gui/templates/dashio/include/showScriptsTable.inc.tpl (can_delete=true)
+// ---------------------------------------------------------------------------
+
+/**
+ * Resolve the code tracker linked to a test project.
+ *
+ * Mirrors legacy testproject::isCodeTrackerEnabled() +
+ * scriptAdd.php:getCodeTracker(): the block only appears when the project has
+ * code_tracker_enabled AND a tracker row is actually linked.
+ *
+ * @return array {enabled:bool, cts:object|null, cfg:stdClass|null, trackerName:string}
+ */
+function tcViewCodeTracker($db, $tprojectMgr, $tprojectId) {
+    $res = ['enabled' => false, 'cts' => null, 'cfg' => null, 'trackerName' => ''];
+    if ($tprojectId <= 0) {
+        return $res;
+    }
+    if (intval($tprojectMgr->isCodeTrackerEnabled($tprojectId)) !== 1) {
+        return $res;
+    }
+    try {
+        $ctMgr = new tlCodeTracker($db);
+        $linked = $ctMgr->getLinkedTo($tprojectId);
+        if (is_null($linked)) {
+            return $res;
+        }
+        $row = $ctMgr->getByID($linked['codetracker_id']);
+        if (is_null($row)) {
+            return $res;
+        }
+        $impl = isset($row['implementation']) ? (string)$row['implementation'] : '';
+        if ($impl !== '' && class_exists($impl)) {
+            $cts = new $impl($row['type'], $row['cfg'], $row['name']);
+            if ($cts instanceof codeTrackerInterface) {
+                $res['cts'] = $cts;
+                $res['cfg'] = $cts->cfg;
+            }
+        }
+        $res['enabled'] = true;
+        $res['trackerName'] = (string)$row['name'];
+    } catch (Exception $e) {
+        tLog(__METHOD__ . ' ' . $e->getMessage(), 'ERROR');
+    }
+    return $res;
+}
+
+/**
+ * Linked test scripts for one test case version.
+ *
+ * Legacy twin: testcase::getScriptsForTestCaseVersion()
+ * (lib/functions/testcase.class.php:8678-8729). Rows are keyed by the
+ * composite script id (project_key && repository_name && code_path) because
+ * testcase_script_links has no surrogate key; the delete affordance of
+ * showScriptsTable.inc.tpl relies on exactly that id, so we keep it verbatim.
+ *
+ * @return array list of {script_id, project_key, repository_name, code_path,
+ *                        branch_name, commit_id, link_label, view_url}
+ */
+function tcViewScripts($db, $tcversionId, $cts) {
+    if ($tcversionId <= 0 || is_null($cts)) {
+        return [];
+    }
+    try {
+        $tbl = tlObjectWithDB::getDBTables(['testcase_script_links']);
+        $rs = $db->get_recordset(
+            " SELECT * FROM `{$tbl['testcase_script_links']}` " .
+            " WHERE tcversion_id = " . intval($tcversionId) .
+            " ORDER BY repository_name, code_path");
+    } catch (Exception $e) {
+        tLog(__METHOD__ . ' ' . $e->getMessage(), 'ERROR');
+        return [];
+    }
+    if (is_null($rs)) {
+        return [];
+    }
+    $out = [];
+    foreach ($rs as $s) {
+        $viewUrl = '';
+        try {
+            $viewUrl = (string)$cts->buildViewCodeURL(
+                $s['project_key'], $s['repository_name'], $s['code_path'],
+                $s['branch_name'] !== null && $s['branch_name'] !== '' ? $s['branch_name'] : null,
+                $s['commit_id'] !== null && $s['commit_id'] !== '' ? $s['commit_id'] : null);
+        } catch (Exception $e) {
+            $viewUrl = '';
+        }
+        $out[] = [
+            'script_id' => (string)$s['project_key'] . '&&' . (string)$s['repository_name']
+                . '&&' . (string)$s['code_path'],
+            'project_key' => (string)$s['project_key'],
+            'repository_name' => (string)$s['repository_name'],
+            'code_path' => (string)$s['code_path'],
+            'branch_name' => (string)$s['branch_name'],
+            'commit_id' => (string)$s['commit_id'],
+            'link_label' => ltrim((string)$s['code_path'], '/'),
+            'view_url' => $viewUrl,
+        ];
+    }
+    return $out;
+}
+
+/**
+ * "Code management" target of the viewer block.
+ *
+ * Legacy used $gui->cts->cfg->uriview (tcView_viewer.tpl:567). The modern
+ * tracker interfaces do not always define uriview, so we fall back to
+ * getEnterCodeURL() (legacy scriptAdd.php:getCodeTracker() does the same for
+ * its "create script" link) and finally to an empty string, which makes the
+ * front-end drop the link instead of rendering a dead anchor.
+ */
+function tcViewCtsUrl($cts) {
+    if (is_null($cts)) {
+        return '';
+    }
+    if (isset($cts->cfg) && is_object($cts->cfg) && !empty($cts->cfg->uriview)) {
+        return (string)$cts->cfg->uriview;
+    }
+    try {
+        if (method_exists($cts, 'getEnterCodeURL')) {
+            return (string)$cts->getEnterCodeURL();
+        }
+    } catch (Exception $e) {
+        tLog(__METHOD__ . ' ' . $e->getMessage(), 'ERROR');
+    }
+    return '';
+}
+
 /**
  * Config-driven "required" flag for the estimated execution duration field
  * (config.inc.php: $tlCfg->testcase_cfg->estimated_execution_duration->required).
@@ -654,6 +792,12 @@ if ($action === 'view') {
     $glue = config_get('testcase_cfg')->glue_character;
     $prefix = $tprojectMgr->getTestCasePrefix($tprojectId);
 
+    // Issue #1039: the legacy "Code Management / CTS" block is gated on
+    // testproject::isCodeTrackerEnabled() + a linked tracker row
+    // (tcView_viewer.tpl:561, scriptAdd.php:getCodeTracker()). Resolved once
+    // here so every version panel of the response can carry its script links.
+    $ctsInfo = tcViewCodeTracker($db, $tprojectMgr, $tprojectId);
+
     // full path (as string) + parent testsuite.
     // NOTE: built from our own parent chain - tree_manager::get_path() /
     // get_full_path_verbose() proved unreliable here.
@@ -882,6 +1026,8 @@ if ($action === 'view') {
             'platformsFree' => $platformsFree,
             'customFields' => $customFields,
             'attachments' => $attachments,
+            // Issue #1039: legacy $gui->scripts[$tcversion_id] (testcase.class.php:8678)
+            'scripts' => $ctsInfo['enabled'] ? tcViewScripts($db, $tcvx, $ctsInfo['cts']) : [],
         ];
     }
 
@@ -1072,6 +1218,15 @@ if ($action === 'view') {
             'enabled' => $tplanUsageEnabled,
             'rows' => $tplanUsageRows,
         ],
+        // Issue #1039: modern port of the legacy Code Management / CTS block
+        // (tcView_viewer.tpl:561-588). 'enabled' replaces $gui->codeTrackerEnabled,
+        // 'viewUrl' replaces $gui->cts->cfg->uriview (the "Code management" link)
+        // and 'canModify' mirrors the showScriptsTable.inc.tpl can_delete flag
+        // (deleteScript() -> scriptDelete.php::checkRights -> mgt_modify_tc).
+        'codeTrackerEnabled' => $ctsInfo['enabled'],
+        'ctsViewUrl' => tcViewCtsUrl($ctsInfo['cts']),
+        'ctsName' => $ctsInfo['trackerName'],
+        'canModifyScripts' => $user->hasRight($db, 'mgt_modify_tc', $tprojectId),
         'requestedTcversionId' => $tcversionId,
     ]);
 }
