@@ -17,6 +17,34 @@ Every screen of the application was ported one-by-one in a screen-compare
 kept for backward compatibility and is progressively retired as each modern
 screen reaches full parity.
 
+- [FEATURE GAP] - #1040: the modern Test Case Viewer rendered **no relations at all** and had
+  **no way to add or delete one**. `api/testcases/index.php` joined a table that does not exist
+  in TestLink (`LEFT JOIN relation_type RT ON TR.relation_type = RT.id` -> `ERROR 1146`,
+  relation_type is a bare smallint whose meaning lives in the config array
+  `testcase_cfg->relations->type_labels`, `config.inc.php:1331`), filtered on the **test case**
+  id although `testcase_relations.source_id`/`destination_id` hold **tcversion** ids, and hid the
+  `ERROR 1146` inside a silent `catch`, so `relations` was always `[]`; `renderRelations()` was
+  called once for the whole screen instead of once per version panel and returned early on an
+  empty list. Ported the legacy `relations.inc.tpl` block: BFF helpers `tcRelationLabels()`,
+  `tcRelationTypeDomain()` and `tcVersionRelations()` (twin of `testcase::getRelationLabels()`,
+  `getRelationTypeDomainForHTMLSelect()`, `getTCVersionRelations()`) with side-aware labels
+  ("is child of" when we are the destination), the unconfigured-type drop, per-version
+  `relationsByVersion` + `relationsConfig` (`editEnabled`, `onlyOnLatest`), and the two write
+  actions `add_relation` / `delete_relation` (`testcaseCommands::doAddRelation()` /
+  `doDeleteRelation()`, incl. `getInternalID()` scoping, source/destination swap, frozen guards
+  and a relation-ownership check); `tcView.html` gained the per-version section with the type
+  combo, the `PREFIX-ID` box, the `# / Type | Test Case | Set by | icon` table, the delete/warning
+  icons with their legacy reasons and the `Really delete relation #%i?` modal, plus 26 i18n keys
+  in all 10 locales; `platApiPost()`'s `.fail()` handler was fixed because it discarded
+  `feedback_code`/`feedback_arg` and therefore showed a generic error instead of the legacy
+  `add_relation_feedback_msg` sentence. Legacy quirks preserved on purpose: `addRelation()`'s
+  duplicate check is a no-op (`relationExits()` gets unmapped args,
+  `testcase.class.php:8206-8211`), and non-latest versions show no section at all while
+  `addTCVRelationsOnlyOnLatestTCVersion` is TRUE. Verified: Suite 1040 in
+  `tmp/TLU_Test_Cases.md` 34/34 PASS (34 rows, incl. the pre-fix baseline), `php -l` +
+  `node --check` + `json.tool` on all 10 bundles, console clean, Event Viewer `log_level=16`
+  only. (Refs #1040)
+
 - [FEATURE GAP] - #1039: Test Case Viewer lost the legacy Code Management / CTS block.
   `tcView_viewer.tpl:561-588` rendered, per version panel, a bold "Code management" link to
   `$cts->cfg->uriview`, a "Link Existent Test Script" button

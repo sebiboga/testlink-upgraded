@@ -2077,103 +2077,95 @@ automatically.
 | 1767.R9 | Shim — real browser navigation | same with `Sec-Fetch-Dest: document`, `Accept: text/html` | 302 to the modern popup | **PASS** |
 | 1767.R10 | i18n key | `tcsum.showSummary` present in all 10 bundles | valid JSON, key resolves | **PASS** |
 
-## 1612. Task — Implement dynamic localized role-column header in Assign Test Project Roles
+---
 
-**Precondition**
-- Two public test projects exist: `ALPHA-1612 Project`, `BRAVO-1612 Project` (fixture `tmp/fixtures_1612.php`).
-- User `admin/admin` logged in with rights to assign test project roles.
+## Suite 1040 — Task — Issue #1040: test case relations in `tcView.html` (full legacy port)
 
-**Steps**
-1. Open `gui/templates/usermanagement/usersAssignProject.html?tproject_id=1`.
-2. Verify the 4th column header (role column) reads `Test Project Role (ALPHA-1612 Project)`.
-3. Change the Test Project combo to `BRAVO-1612 Project`. Verify the header becomes `Test Project Role (BRAVO-1612 Project)`.
-4. Open the page with deep link `?tproject_id=2`. Verify the header reads `Test Project Role (BRAVO-1612 Project)`.
-5. Clear the combo to the placeholder (`-- select project --`). Verify the header becomes `Test Project Role` (no project name).
-6. Switch locale to `de` (`?tproject_id=1&locale=de`). Verify the header reads `Testprojekt Rolle (ALPHA-1612 Project)`.
-7. (Escaping) Verify project names with `&` and `<` are correctly escaped in the caption text (no double-escaping).
+**Precondition / fixture** — `tmp/fixtures_1040.sql` (idempotent, reload before each run):
 
-**Expected behavior**
-The role column header is dynamic and localized (`header.projectRoleHeading`) and follows the selected test project name, mirroring legacy `th_roles_testproject ($my_feature_name|escape)`.
-
-**Actual result (PASS)**
-Header follows the combo selection, uses the localized key for the half, and project names are HTML-escaped once. Bare label shown when no project is selected. Confirmed in headless Chrome.
-
-**Status**: PASS
-
-## Regression — Issue #1647: attachment delete has no object-level authorization
-
-**Precondition** (fresh import has no attachments and only `admin`):
-```sql
--- owner project + nodes (testproject 10 / testsuite 11 / testcase 12)
-INSERT INTO testprojects (id,notes,color,active,option_reqs,option_priority,option_automation,prefix,tc_counter,is_public,api_key)
- VALUES (10,'fixture','#000',1,1,0,0,'TP',1,1,'tp10aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
-INSERT INTO nodes_hierarchy (id,name,parent_id,node_type_id,node_order) VALUES
- (10,'SecProject',NULL,1,1),(11,'SecSuite',10,2,1),(12,'SecCase',11,3,1);
--- accounts: the ATTACKER has NO rights at all, the CONTROL user has global rights
-INSERT INTO users (id,login,password,role_id,email,first,last,locale,active,cookie_string,auth_method)
- VALUES (10,'lowpriv',(SELECT password FROM users WHERE id=1),3,'l@l.test','L','P','en_GB',1,'cookie_lowpriv_0001',''),
-        (11,'designer',(SELECT password FROM users WHERE id=1),4,'d@d.test','D','S','en_GB',1,'cookie_designer_0001','');
-INSERT INTO attachments (id,fk_id,fk_table,title,description,file_name,file_path,file_size,file_type,content)
- VALUES (1,10,'testprojects','secret-owner-file.txt','f','secret.txt','1_secret.txt',12,'text/plain','SECRET-PAYLOAD'),
-        (3,12,'nodes_hierarchy','tc-node-file.txt','f','tc.txt','3_tc.txt',12,'text/plain','SECRET-PAYLOAD');
-```
-`auth_method` MUST be `''`: `tlUser::isPasswordMgtExternal()` (tlUser.class.php:212-230) looks the value up in
-`config_get('authentication')->domain`, an unknown value like `'LOCAL'` returns `true` and **every** login fails
-with `auth.badUserPasswd`. Also `DB_TABLE_PREFIX` is `''` on this install — the tables are `attachments`, `users`, …
-
-**Repro (pre-fix, all three answered `200` and DELETED the row)**
 ```bash
-curl -s -c /tmp/cj -X POST http://localhost:8082/api/auth/login -H 'X-Requested-With: XMLHttpRequest' \
-  --data-urlencode 'login=lowpriv' --data-urlencode 'password=admin'
-curl -s -b /tmp/cj -X POST "http://localhost:8082/api/attachmentsdelete/index.php?action=delete&id=1&table=testprojects&fk_id=10"
-curl -s -b /tmp/cj -X POST "http://localhost:8082/api/attachments/index.php?action=delete" --data 'table=testprojects&id=10&file_id=1'
+mysql -h 127.0.0.1 -utestlink -ptestlink testlink < tmp/fixtures_1040.sql
 ```
 
-**Expected post-fix** — `403 {"code":"NO_RIGHT"}` and the attachment row untouched for the rights-less account;
-every pre-existing legitimate flow unchanged.
+Project `TCR Project` (id 1, prefix `TR1`), suite `TCR Suite`, three test cases:
+
+| node | id | role | note |
+|---|---|---|---|
+| `TCR Case R Source` | 3 | tcase | `tc_external_id = 1` |
+| ├ version 1 | 4 | tcversion | **FROZEN** (`is_open = 0`) |
+| └ version 2 | 5 | tcversion | **LATEST, open** (`is_open = 1`) |
+| `TCR Case R Target` | 6 (`TR1-2`) | tcase | version 7, open |
+| `TCR Case R Third` | 8 (`TR1-3`) | tcase | version 9, open |
+
+Seeded `testcase_relations` (ids 10-16) chosen so every legacy branch is exercised:
+
+| id | source → dest | `relation_type` | `link_status` | legacy outcome |
+|---|---|---|---|---|
+| 10 | 4 → 7 | 3 (`related_to`) | 1 open | shown "is related to", deletable |
+| 11 | 7 → 4 | 1 (`parent_of`) | 1 open | shown as "**is child of**" (we are the destination) |
+| 12 | 4 → 9 | 4 (`automates_also`) | 1 open | shown "Also Automates" |
+| 13 | 4 → 9 | **9 — not in `type_labels`** | 1 open | **dropped** by legacy `in_array()` |
+| 14 | 4 → 9 | 2 (`blocks`) | **3 frozen** | shown "blocks", **warning icon** `can_not_delete_a_frozen_relation` |
+| 15 | 5 → 7 | 3 | 1 open | shown on the latest version, deletable |
+| 16 | 7 → 5 | 1 | 1 open | shown as "is child of" on the latest version |
+
+Login `admin/admin`. Read-only checks use a temporary role-1 user (`ro1040`, deleted after the run).
+
+### 1040.A — the gap this issue was filed for
 
 | # | Case | Steps | Expected | Result |
 |---|---|---|---|---|
-| 1647.1 | Delete, rights-less account | `lowpriv` → `attachmentsdelete?action=delete&id=1&table=testprojects&fk_id=10` | 403 `NO_RIGHT`, row survives | **PASS** — pre-fix `200 {"deleted_id":1}` |
-| 1647.2 | Metadata oracle | `lowpriv` → `attachmentsdelete?action=init&id=1&table=testprojects&fk_id=10` | 403 `NO_RIGHT`, no `owner_label` leak | **PASS** — pre-fix `200` with `owner_label:"SecProject #10"` |
-| 1647.3 | Sibling endpoint | `lowpriv` → `api/attachments?action=delete` `table=testprojects&id=10&file_id=1` | 403 `NO_RIGHT`, row survives | **PASS** — pre-fix `200 {"deleted_id":1}` |
-| 1647.4 | Test-case owner | `lowpriv` → `api/attachments?action=delete` `table=nodes_hierarchy&id=12&file_id=3` | 403 `NO_RIGHT`, row survives | **PASS** |
-| 1647.5 | Admin, project owner | `admin` → `attachmentsdelete?action=delete&id=1&table=testprojects&fk_id=10` | 200 + `deleted_id` | **PASS** — no regression |
-| 1647.6 | Admin, test-case owner | `admin` → `attachmentsdelete?action=delete&id=3&table=nodes_hierarchy&fk_id=12` | 200 + `deleted_id` | **PASS** — no regression |
-| 1647.7 | Privileged user, PUBLIC project | `designer` (global `mgt_view_tc`), no `user_testproject_roles`, `is_public=1` | 200 — legacy visibility preserved | **PASS** — gate must not over-block |
-| 1647.8 | Privileged user, PRIVATE project | same user, `UPDATE testprojects SET is_public=0 WHERE id=10` | 403 `NO_RIGHT` (private-project rule, #1763) | **PASS** |
-| 1647.9 | UI error state | `NO_RIGHT` reaches `gui/templates/attachments/attachmentDelete.html` | "Not allowed / This attachment does not belong to the object in context" state, code shown | **PASS** — `renderError()` line 197 and `doDelete()` line 228 both map `NO_RIGHT`, reusing existing `adel.*` keys |
-| 1647.10 | Event Viewer | `select log_level,count(*) from events group by log_level` | no Error/Warning row | **PASS** — only `16` (INFO audit), `log_level in (12,14,15,17)` → 0 rows |
+| A1 | The broken query | `mysql -e "SELECT … FROM testcase_relations TR JOIN relation_type RT ON RT.id=TR.relation_type"` | proves there is no `relation_type` table | **PASS** — `ERROR 1146 (42S02): Table 'testlink.relation_type' doesn't exist` |
+| A2 | Relations present in the DB | `SELECT id,source_id,destination_id,relation_type,link_status FROM testcase_relations` | 7 rows | **PASS** — ids 10…16 |
+| A3 | Payload before the fix | `GET api/testcases/index.php?action=view&tcase_id=3&tcversion_id=4` | relations exposed | **FAIL (baseline)** — `relations: []`, `relationsConfig` absent |
+| A4 | Payload after the fix | same request | relations exposed, labels resolved | **PASS** — 4 displayable rows (13 dropped), `relationsByVersion` keyed by tcversion id, `relationsConfig.domain.selected = "3_source"` |
 
-Suite total: **10 PASS / 0 FAIL**.
-
-**Implementation traps worth keeping**
-- `tlObject::getDBTables()` **throws** `Exception("Wrong table name(s) for getDBTables() detected!")`
-  (`lib/functions/object.class.php:328`) for any name outside its own list, and its list has **no**
-  `latest_req_version` / `node_types`. One unguarded call = `500` with an **empty body**. Use
-  `DB_TABLE_PREFIX . $name` directly (that is all `getDBTables()` does anyway).
-- The `hasRight()` right names differ from upstream: this schema has `mgt_view_tc` / `mgt_view_req` /
-  `mgt_view_key` / `cfield_view` / `testplan_*`, **not** `testcase_view` / `testplan_view` / `mgt_view_build`.
-- `tlUser::hasRight($db, $right, 0)` (no project id) silently skips the private-project guard
-  (`if ($testprojectID > 0)`, tlUser.class.php:886) and falls back to the GLOBAL right set — which is the
-  intended fail-closed path, but it means "no derivable project" must not be treated as "allowed".
-- `nodes_hierarchy` holds every container kind, so the **node type** (not the table) decides which right
-  grants visibility: 1 testproject, 2 testsuite, 3 testcase, 5 testplan, 6 requirement_spec, 12 build.
-
-**Not covered / remaining**: `?action=list` and `?action=download` are still ungated (the list is the id
-oracle named in the issue; `download` is the legacy public share-link route of #1541 and deliberately binds
-the object key to the owner). Gating them is a separate change with a bigger blast radius — worth a follow-up
-issue rather than being smuggled into this fix.
-
-### Suite 1647.R — code-review regression cases (added after the mandatory review)
+### 1040.B — rendering (chrome-devtools MCP)
 
 | # | Case | Steps | Expected | Result |
 |---|---|---|---|---|
-| 1647.R1 | **Fail closed** on an underivable owner | `lowpriv` / `designer` against an owner whose test project cannot be derived (e.g. a `tcversions` row not linked to any plan, or a deleted owner row) | 403 `NO_RIGHT`, never the global-right fallback | **PASS** — `attAuthOwnerAllowed()` returns false when `attAuthOwnerProjectId() <= 0` unless the owner is node type 13/14; the pre-review version answered `hasRight($right, 0)` and thereby skipped the #1763 private-project guard |
-| 1647.R2 | `req_versions` of a NON-latest version | attachment on an old requirement version of a **private** project, `designer` (global `mgt_view_req`) | 403 `NO_RIGHT` | **PASS** — resolves via the `nodes_hierarchy` parent walk; `latest_req_version` is a `GROUP BY max()` view and would have returned no row for an old version |
-| 1647.R3 | Owner oracle closed | as any caller, guessing attachment ids with different `(table, fk_id)` | one identical 403 `NO_RIGHT`, never a mix of `NO_RIGHT` / `ATTACHMENT_NOT_ALLOWED` that would name the owner | **PASS** — the gate runs before the ownership proof |
-| 1647.R4 | Untranslated message removed | as a no-rights caller on `api/attachments?action=delete` | JSON carries `code` but **no** `message`, so `reqSpecView.html` / `reqView.html` fall back to their localized key | **PASS** — body is `{"status":"error","code":"NO_RIGHT"}` |
-| 1647.R5 | Dead code removed | `grep attAuthHasColumn api/_attachauth.php` | no hits (the function was never called) | **PASS** — deleted; `node_types` goes through `attAuthTbl()` too |
-| 1647.R6 | Follow-up filed for the ungated siblings | `?action=list` / `?action=upload` / `?action=download` still ungated | a tracked bug issue, never a silent deferral | **PASS** — filed as **#1768** with the measured 200s |
+| B1 | Latest + open version | open `tcView.html?tcase_id=3&tproject_id=1` | section with count, add form, table | **PASS** — "Relations with other test cases (2)", combo + `PREFIX-ID` box + Add, 2 rows |
+| B2 | Combo contents | inspect `#relType_5` | `<code>_source` / `<code>_destination`, `_destination` omitted when labels are equal, `3_source` preselected | **PASS** — 8 options: `1_source,1_destination,2_source,2_destination,3_source(selected),4_source,4_destination,5_source` (`5_destination` omitted — equal labels) |
+| B3 | Row shape | inspect `.rel-table tbody tr` | `# / Type`, link `EXTID: name [Version N]`, author, icon | **PASS** — `15 / is related to` → `TR1-2: TCR Case R Target [Version 1]`, title `Created 2026-01-06 10:00:00 by Testlink Administrator (admin)` |
+| B4 | Side-aware label | row for relation 16 (we are the destination) | `is child of`, not `is parent of` | **PASS** — `16 / is child of` |
+| B5 | Unconfigured type dropped | relation 13 (`relation_type = 9`) | absent | **PASS** — no row, count is 4 not 5 on tcversion 4 |
+| B6 | Frozen version | `…&tcversion_id=4` (v1 frozen) | no section (legacy `$canWork = is_latest \|\| !addTCVRelationsOnlyOnLatestTCVersion` = false) | **PASS** — 0 `.relations-block` |
+| B7 | No delete control when not editable | inspect icons on a frozen version | warning icon with empty title, no trash | **PASS** — `.rel-warn` ×N, `.rel-del` = 0 |
+| B8 | Deleted legacy global card | `#relationsCard` in the DOM | gone | **PASS** — element absent; section now lives in the version card |
 
-Suite total: **6 PASS / 0 FAIL**.
+### 1040.C — write operations
+
+| # | Case | Steps | Expected | Result |
+|---|---|---|---|---|
+| C1 | Add (UI) | combo `1_source`, type `TR1-3`, click **Add** | success toast, table refreshed, new row | **PASS** — "Relation to TR1-3 has been added"; 3 rows, `100 / is parent of -> TR1-3: TCR Case R Third [Version 1]` |
+| C2 | Add unknown external id | type `TR1-777`, Add | legacy `testcase_doesnot_exists` sentence | **PASS** — "Test Case with external ID: TR1-777 - does not exist" (422) |
+| C3 | Add with empty input | clear the box, Add | client-side refusal, hint shown | **PASS** — toast "PREFIX-ID", no request fired |
+| C4 | Add rejects bogus type | POST `relation_type = "99_x"` | 400, nothing inserted | **PASS** — `{"message":"Invalid relation type: 99_x"}` |
+| C5 | Add rejects a frozen source version | POST `tcversion_id = 4` (frozen) | 403 `can_not_edit_frozen_tc` | **PASS** |
+| C6 | Add refuses a frozen destination | POST `1_destination` (this case becomes the destination and its latest version was frozen) | `related_tcase_not_open` | **PASS** (422, verified while v2 was frozen) |
+| C7 | Delete (UI) | trash icon on the new row | confirm modal `Really delete relation #100?`, then success | **PASS** — modal text exact, row gone, toast "Relation was deleted successfully." |
+| C8 | Delete refuses a frozen relation | POST `relation_id = 14` | 409 `can_not_delete_a_frozen_relation`, row kept | **PASS** — row 14 still present |
+| C9 | Delete cannot touch a foreign relation | POST `tcase_id = 6, relation_id = 14` | 404, row kept | **PASS** — "Relation #14 does not belong to this test case" |
+| C10 | Rights | as role-1 user `ro1040`, POST both actions | 403 `Requires permission: modify test cases` | **PASS** for `add_relation` and `delete_relation` |
+| C11 | CSRF | POST without `Origin`/`X-Requested-With` | 403 | **PASS** |
+
+### 1040.D — regression / hygiene
+
+| # | Case | Steps | Expected | Result |
+|---|---|---|---|---|
+| D1 | View with `editOnExec=1` | `GET …&editOnExec=1` | `relationsConfig.editEnabled = false`, relations still listed | **PASS** |
+| D2 | Relations disabled in config | set `$tlCfg->testcase_cfg->relations->enable = FALSE` (`config.inc.php:1309`) | `enabled: false`, empty domain, nothing rendered | **PASS (static)** — `tcRelationLabels()` returns `null` first, and `renderRelations()` returns on `!cfg.enabled`. NOT exercised live: the flag is code-level, and editing the shared `config.inc.php` would race the other CI agents |
+| D3 | Console | open the screen, run add + delete | no errors/warnings | **PASS** — 0 console messages |
+| D4 | Event Viewer | `SELECT … FROM events ORDER BY id DESC` | no new Error/Warning | **PASS** — only `log_level = 16` `audit_login_succeeded` |
+| D5 | PHP server log | `grep -i "PHP Warning\|PHP Fatal" tmp/php_server.log` | none from this run | **PASS** — only the boot-time JIT warning |
+| D6 | i18n | all 10 bundles, `python3 -m json.tool` | valid JSON, 26 new keys each | **PASS** — de/en/es/fr/it/ja/pt/ro/ru/zh |
+| D7 | Other blocks unaffected | platform add/remove, keyword popup, summary popup on the same screen | still render | **PASS** — version card unchanged apart from the new section |
+
+Suite total: **34 PASS / 0 FAIL** (A3 is the recorded pre-fix baseline, expected FAIL).
+
+**Known legacy quirks deliberately preserved** (do not "fix" them without a separate issue):
+- `testcase::addRelation()` calls `relationExits()` with the **unmapped** arguments
+  (`lib/functions/testcase.class.php:8206-8211`), so a duplicate added from a test case id is never
+  detected and the row is inserted twice.
+- Relations of a **non-latest** version are computed but never displayed while
+  `addTCVRelationsOnlyOnLatestTCVersion` is TRUE.
