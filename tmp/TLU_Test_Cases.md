@@ -2007,3 +2007,64 @@ Suite total: **17/17 PASS**. Commit `716d96587`, branch `fix/issue-1637`.
 bare `DELETE FROM platforms WHERE id=…` with no cascade, so a link that is *already* orphaned by some
 other path stays orphaned — the guard prevents new damage but does not clean up old damage. Repairing
 pre-existing orphans is a data-migration concern, not a bug in this route.
+
+---
+
+# T1763 — Regression — Issue #1763: `hasRight()` never evaluated the private-test-project flag (private test project served to a user with no project role)
+
+**Precondition**
+
+* Branch `fix/issue-1763`, commit `bc0f2295d`. App at `http://localhost:8082`, DB `testlink`
+  (freshly imported: only `users.id=1 admin`).
+* `php tmp/fixtures_1759.php` → **two private** test projects `SM1759A` (id **1**) / `SM1759B` (id 2),
+  `testprojects.is_public = 0`, each with two top level suites (`A-suite-1` id 3, `A-suite-2` id 4).
+  Users: `sm1759a` (global role 3 + project role `mgt_modify_tc` on p1), `sm1759view`
+  (global role 3 + project role `mgt_view_tc` on p1), `sm1759norights` (global role 3, **no** project role).
+* `php tmp/fixtures_1763.php` → adds the users that actually trigger the defect:
+  `sm1763td` (uid 5, **global** role 4 `test designer`, **no** project role) and
+  `sm1763guest` (uid 6, **global** role 5 `guest`, **no** project role). Password `admin` for all.
+
+**Repro steps (pre-fix)**
+
+```
+curl -b jar "http://localhost:8082/api/suitemove/index.php?action=init&tproject_id=1&container_id=1"
+curl -b jar -X POST -H 'Referer: http://localhost:8082/' \
+     "http://localhost:8082/api/suitemove/index.php?action=reorder&tproject_id=1&container_id=1" \
+     -d "nodelist=4,3"
+```
+
+as `sm1763td`, on the PRIVATE project 1.
+
+**Expected post-fix behaviour** — the user has no role on a private project, so the endpoint must answer
+`403 forbidden "Insufficient rights on this test project"` for both the read and the write, exactly as it
+already did for a project role lacking `mgt_modify_tc`.
+
+**Actual results**
+
+| # | case | expected | observed | verdict |
+|---|---|---|---|---|
+| 1763.1 | **Primary symptom** — `sm1763td` (global role 4, no project role) `GET ?action=init` on **private** p1 | 403 | 403 `{"code":"forbidden","message":"Insufficient rights on this test project"}` (was **200 `can_modify:"yes"`**) | **PASS** |
+| 1763.2 | **Primary symptom, the WRITE** — `sm1763td` `POST ?action=reorder` on private p1 | 403 | 403 (was **200 `{"status":"ok","changed":true}`** which wrote `nodes_hierarchy.node_order`) | **PASS** |
+| 1763.3 | No unauthorised write reaches the DB | `SELECT node_order FROM nodes_hierarchy WHERE id IN (3,4)` after 1763.2 | unchanged by `sm1763td` | **PASS** |
+| 1763.4 | `sm1763guest` (global role 5 `guest`, no project role) `init` on private p1 | 403 | 403 (unchanged — role 5 has no `mgt_modify_tc`) | **PASS** |
+| 1763.5 | `sm1759norights` (global role 3 `<no rights>`) `init` on private p1 | 403 | 403 (unchanged) — note this case could NOT expose the bug: role 3's empty global set already fails `checkForRights` | **PASS** |
+| 1763.6 | **Admin exception** — `admin` (global role 8, no project role) `init` on private p1 | **200** | 200, `can_modify: "yes"` — the legacy admin exemption (`roles.inc.php:318`) is preserved | **PASS** |
+| 1763.7 | `admin` `POST ?action=reorder` on private p1 | 200, order applies | 200 | **PASS** |
+| 1763.8 | A user **with** a project role is unaffected — `sm1759a` `init` + `reorder` on private p1 | 200 + 200 | 200 + 200 `changed:true` | **PASS** |
+| 1763.9 | **Public** project stays open — `sm1763td` `init` on `tproject_id=2` (`is_public=1`) | 200 | 200, `can_modify` present | **PASS** |
+| 1763.10 | **Unknown** project id must not become a 500 (`testproject::getPublicAttr()` throws) — `sm1763td` `init&tproject_id=999999` | 4xx, no 500 | `404 {"code":"not_found","message":"Container not found"}`, no 500, no exception | **PASS** |
+| 1763.11 | `tproject_id=0` — the `> 0` guard skips the lookup entirely | no 500 | 200 (falls back to the endpoint's own default resolution), no 500 | **PASS** |
+| 1763.12 | Other BFFs still work with the primitive changed — `admin` `api/testcases?action=tree&tproject_id=1`, `api/projects?action=list` | 200, no 500 | 200 / 200 | **PASS** |
+| 1763.13 | `$getAccess` still drives the **test plan** flag (no answer changed for plans) | `api/execsetresults` / `api/execnavigator` keep their `exec_delete` / `roAccess` answers | unchanged code path, `:850-855` still `if ($getAccess)` | **PASS** (reviewed, not exercised) |
+| 1763.14 | Syntax gate | `php -l lib/functions/tlUser.class.php` | `No syntax errors detected` | **PASS** |
+| 1763.15 | No new Error/Warning in the Event Viewer | `SELECT log_level,COUNT(*) FROM events GROUP BY log_level` | only `log_level 16` (INFO). The 4 `log_level 1`/`2` rows present during this run came from my own **first draft** of `tmp/fixtures_1763.php` (a bad `tlObject::getDBTables()` key and a bad JOIN, ids 12-15); they were deleted after the fixture was corrected and are not produced by the fix | **PASS** |
+| 1763.16 | Deny path is reachable, not dead code | `grep -n "globalRoleID != TL_ROLES_ADMIN" lib/functions/tlUser.class.php` inside `hasRight()` | present; cases 1763.1/1763.2 reach it, case 1763.6 proves the admin side is not over-blocking | **PASS** |
+| 1763.17 | No duplicate lookup per request (memoisation) | `getTprojectPublicAttr()` is `static`-cached per user instance | one query for the several `hasRight()` calls `api/suitemove` makes on p1 | **PASS** |
+
+Suite total: **17/17 PASS**. Commit `bc0f2295d`, branch `fix/issue-1763`.
+
+**Not covered / remaining**: the `test plan` accessibility flag (`$accessPublic['tplan']`, `tlUser.class.php:850-855`)
+is still opt-in through `$getAccess`, so the same shape of bypass may still exist for a **private test plan** on a
+test plan right reached with 4 arguments. Out of scope here — the report and this fix are about the test project
+flag, and the plan endpoints (`api/execsetresults`) were not audited in this run. Not filed as a bug by this run
+because it was not reproduced.
