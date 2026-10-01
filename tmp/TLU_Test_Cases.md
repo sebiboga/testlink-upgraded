@@ -2143,3 +2143,71 @@ callers are unaffected; the public share-link download keeps working.
 
 **Status**: PASS — fix `5aeea9d7f` on `fix/issue-1768`. `delete` is intentionally still ungated
 (tracked by #1647); the latent `hasRight()` bug found while testing is #1769.
+
+## Suite 1770 — Modernize: Test Case Tree Navigator (`tcProjectTree`) — screen + BFF `api/tcprojecttree` + legacy shim
+
+**Tracking**: #1770 · **Bugs raised and fixed in the same run**: #1771, #1772, #1773
+**Screens / files**: `gui/templates/testcases/tcProjectTree.html`, `api/tcprojecttree/index.php`,
+`lib/ajax/gettprojectnodes.php` (retired shim), `lib/functions/common.php` (`$actions->tcProjectTree`),
+`gui/templates/i18n/*.json` (10 bundles, 46 keys each).
+
+### Setup
+
+```
+php tmp/fixtures_1770.php       # re-runnable; drops + recreates TREE1 / TREE2 and treenorights
+python3 tmp/suite_1770.py       # 125 checks, stdlib only, no external deps
+```
+
+Fixture shape (test project **TREE1**, prefix `TR1770`):
+
+| Node | Content |
+|---|---|
+| `Tree Root` (3) | 1 direct test case + nested `Tree Sub` (2 cases) + nested `Tree Empty` (0) |
+| `Tree <script>window.__xss=1;</script>Y` (0) | XSS probe: a suite name that looks like markup |
+| `Tree Rich` (1) | one test case with **two** versions (`tc_external_id` 4 and 12345) |
+| test project **TREE2** (prefix `TR1771`) | foreign project: its suite/case ids must never resolve under TREE1 |
+
+Users: `admin` (role 8), `treenorights` (role 3, no project role → the 403 path).
+The suite discovers every node id **through the API**, so it survives a fixture re-run.
+
+### Results — 125/125 PASS
+
+| Area | Cases | Result |
+|---|---|---|
+| Auth | admin login, role-3 login | **PASS** |
+| `projects` | 200, both fixture projects, session project flagged `is_current` | **PASS** |
+| `init` | context (project, prefix, user), counters 5 suites / 4 cases, `show_tcases`, `filter_node`, `treemenu_show_testcase_id`, `grant{view,modify}`, project node + its 3 top-level suites with recursive `tcase_qty` | **PASS** |
+| `children` | node echo, suite+case mix under `Tree Root`, `tcase_qty`, all three `open_url` kinds (`open_testproject` / `open_testsuite` / `open_testcase`), nested suites emitted once | **PASS** |
+| **#1771** | a test case with two versions resolves `tc_external_id = 12345` (the **latest** version), label `TR177012345:TR1770 Rich Case` | **PASS** |
+| XSS | answer is `application/json` + `nosniff`; a suite named `<script>…` round-trips as **data** and the browser renders `window.__xss === undefined` with 0 injected `<script>` nodes | **PASS** |
+| `show_tcases` | `0` drops every test-case row, `1` brings it back | **PASS** |
+| `filter` | root suite → `Tree Root (3)`, nested suite accepted → `Tree Sub (2)`; `filter_node` narrows the **root** children only (legacy rule) and is ignored below the root | **PASS** |
+| Ownership | a foreign **suite**, foreign **test case**, foreign `filter_node` and a foreign `node_id` under TREE1 all fail; the same node is reachable in its own project | **PASS** |
+| Validation | `missing_tproject`, `invalid_tproject` (0 / `abc` / `-5` / `61abc`), `tproject_not_found`, `missing_node`, `invalid_node` (0 / `abc`), `node_not_found`, `invalid_show_tcases` (7), `invalid_filter_node`, `unknown_action` | **PASS** |
+| Methods | `POST` / `DELETE` → 405 `wrong_method` | **PASS** |
+| **Rights** | role-3 user: `projects` = `[]`, and `init` / `children` / `filter` → 403 `no_right`, **including for a non-existent project** (fails closed, no existence oracle) | **PASS** |
+| Anonymous | all four actions → 401 `not_authenticated` (also for a missing project) | **PASS** |
+| Legacy shim | GET/HEAD → 302 to the modern screen; `root_node`→`tproject_id`; `filter_node` + `show_tcases` preserved; no project id → bare screen; POST → 405 pointing at the new API; anonymous → no tree data + login bounce; source contains no SQL and no legacy loader function | **PASS** |
+| Wiring | `$actions->tcProjectTree` registered, screen file present | **PASS** |
+| i18n | 10 bundles, identical 46-key sets (`tcpt.*` + `footers.tcProjectTree`), every key non-empty, all placeholders (`{suites} {cases} {name} {id}`) preserved, every key the screen uses exists, no hardcoded user-visible English in JS strings | **PASS** |
+| Event Viewer | `events` readable, no new Error/Warning row produced by the screen | **PASS** |
+
+### Browser pass (admin, TREE1)
+
+Expand all · Collapse all · Hide/Show test cases · Refresh · project switcher (TREE1→TREE2) ·
+FOCUS A TEST SUITE (Whole test project / Tree Root / Tree Rich / invalid pick) · every twisty ·
+all 8 open buttons · the three toolbar links · Close. Verified: counts per row, external-id
+prefixes, empty-suite message, "Showing only …", the info strip, and every state card
+(no project / not found / bad request / denied). Console: no errors, no warnings.
+
+### Defects found and fixed during this run
+
+| Issue | Symptom | Root cause | Fix |
+|---|---|---|---|
+| #1771 | every `tc_external_id` was empty | a test case **version** node hangs off the test case, never off the suite — the legacy query needed its third join for that reason | join suite→case→version and pin `MAX(version node id)` |
+| #1772 | Hide/Show and the suite focus were lost on reload | `resetTree()` (which writes the URL) was only called from the project switcher | call it in the toggle handler and on every `applyFilter` path |
+| #1773 | "Expand all" stopped after the first level | only suites already known to the client were flagged | sticky `EXPAND_ALL` mode + `expandInto()` that walks cached and freshly loaded rows; cleared by Collapse all and by a manual twisty click |
+
+### Status
+PASS — `c842f3bf9` (BFF), `b84337607` (screen + i18n + shim + wiring), `28643031e` (#1771),
+`7397d3249` (#1772), `a9c3a0abe` (#1773).

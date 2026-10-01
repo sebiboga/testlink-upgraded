@@ -8309,3 +8309,55 @@ Changes:
   BFF sends `Cache-Control: no-store`, and the "Stored source" blob is a real collapsed `<details>`.
 - i18n: `tcsum.*` (27 keys) + `footers.tcSummary` in **all 10** locale bundles with real
   translations; `python3 -m json.tool` validated.
+
+### Screen — Test Case Tree Navigator `tcProjectTree` (Refs #1770)
+- Modernizes the last unauthorized test case tree loader, `lib/ajax/gettprojectnodes.php`, which
+  answered the children of ONE expanded ExtJS node for the LEFT FRAME of the 1.9.20 work areas
+  "add/remove test cases" (`planAddTC_m1.tpl`), "update test plan TC assignments" (`planUpdateTC.tpl`),
+  "test urgency" (`planUrgency.tpl`) and "execution assignment" (`tc_exec_assignment.tpl`). It ran
+  `testlinkInitPage()` - a SESSION check only - and then built the `project -> suite -> test case`
+  JSON straight out of `root_node` / `node` / `filter_node` read from `$_REQUEST`, with no rights
+  check and no project scope: **any** authenticated user, including one with no test case right,
+  could read the suite names, test case names and `tc_external_id`s of **any** test project by
+  sending arbitrary ids. The file also walked out of the test specification (it filtered on
+  `parent_id` alone) and recursed once per suite level with an unbounded `parent_id IN (...)` list.
+  Same class as #1696 (`getrequirementnodes.php`) and #1765 (`getreqcoveragenodes.php`).
+- New Dashio screen `gui/templates/testcases/tcProjectTree.html` backed by the read-only BFF
+  `api/tcprojecttree/index.php` (`GET ?action=projects|init|children|filter`): lazy-loaded
+  project -> suite -> test case tree with a **readable-project switcher** (the legacy frame always
+  used the session project and had none), live recursive case counts, a "Name (n)" folder label, the
+  `treemenu_show_testcase_id` external-id column, the `show_tcases` and `filter_node` gestures, deep
+  links per row (project info / test specification / test case viewer), and the six state cards.
+- The BFF checks `mgt_view_tc|mgt_modify_tc` on the ADDRESSED project **before** resolving it, so an
+  unauthorized caller gets the same `403 no_right` for a real and a bogus project id (#1697 pattern),
+  and `needOwnedNode()` proves every requested node id to live under that project root before a
+  single name is returned - a foreign suite or test case answers `404 node_not_found`, the same as
+  a non-existent id. Legacy `filter_node` semantics are reproduced exactly: the filter narrows the
+  ROOT children only (`parent == root_node`, `gettprojectnodes.php:99`).
+- The legacy endpoint is kept as a **non-mutating** session-guarded shim: GET/HEAD answer `302` to
+  the modern screen (carrying `root_node` -> `tproject_id`, `filter_node`, `show_tcases`; the read is
+  deliberately not replayed because it was never authorized), a write verb answers `405` pointing at
+  the new API. It had no live caller left: the work-area frames render the tree server-side through
+  `inc_refreshTreeWithFilters.tpl` and nothing instantiates `tlTestCaseFilterControl` any more, the
+  same retirement #1660 did for `lib/ajax/dragdroptprojectnodes.php`.
+- `tcpt.*` (45 keys) + `footers.tcProjectTree` in all 10 TLi18n bundles and a new
+  `$actions->tcProjectTree` in `lib/functions/common.php`. Suite 1770: **128 checks PASS**
+  (`tmp/suite_1770.py`), 0 new Event Viewer Error/Warning rows, 0 console messages.
+- **#1771** - `tc_external_id` came back empty for every test case: a test case VERSION node hangs off
+  the **test case**, never off the suite (the legacy query needed its third join for exactly that),
+  so the suite-level version filter matched nothing. The BFF now joins suite -> case -> version and
+  pins `MAX(version node id)`, which also removes the legacy `SELECT DISTINCT` ambiguity about which
+  version supplies the id.
+- **#1772** - the Hide/Show test cases toggle and the suite focus changed the tree but never reached
+  the address bar, so a reload silently reverted them (`resetTree()` was only called by the project
+  switcher). Both gestures are now URL state and survive a reload.
+- **#1773** - "Expand all" stopped after the first level, because only the suites already known to
+  the client were flagged. A sticky mode plus `expandInto()` now walks cached and freshly loaded rows
+  to the leaves; "Collapse all" and a manual twisty click switch it off again.
+- **#1774** (security, found by the code review) - the children query excluded node types with a
+  hand-typed denylist `(4, 5, 6, 8)` where the legacy loader excluded by DESCRIPTION
+  `testcase_version, testplan, requirement_spec, requirement` = `4, 5, 6, 7`. A `requirement` row
+  (7) hung under a test project was therefore returned to callers holding only `mgt_view_tc` -
+  proven by planting one and reading it back. The query now **allow-lists** the two kinds of row the
+  tree can render (`testsuite`, `testcase`), so a node type nobody thought of cannot leak; the suite
+  plants one node of each of the six hidden types and proves none comes back.
