@@ -44,14 +44,34 @@ owner right check for `tcversions` (`api/_attachauth.php:295-307`).
   (frozen versions are download-only too, `tcView.tpl:317`); `attCanDelete(v)` ANDs it with the
   modern write gate (`mgt_modify_tc`, `is_open`, `canEditExecuted`) — 1.9.20 got that gate
   implicitly from the edit screen, the modern viewer has to state it;
-* `attLinkText(a)` = the empty-title rule; `renderAttachments(v)` = the legacy row: paperclip +
+* `attLinkText(a)` = the empty-title rule (`access_icon` is legacy-theme `<img>` markup, so the
+  paperclip stands in and the file name becomes the link text); `renderAttachments(v)` = the legacy row: paperclip +
   bold `target=_blank` download anchor + `file_name (N bytes, type) date` italic meta + eye and
   ghost toggles for images + delete button + inline-image container, or the disabled notice;
-* `toggleAttImage(id)`, `toggleAttGhost(id)`, `confirmDeleteAttachment(id)` +
+* `toggleAttImage(id)`, `toggleAttGhost(id)`, `confirmDeleteAttachment(id, tcversionId)` +
   `doDeleteAttachment()` (legacy `delete_confirmation()` → `deleteAttachment_onClick()`), with
   the `#attDelModal` confirm dialog built exactly like the existing `#relDelModal`.
 
-### Blocker found on the way: attachment delete always 403
+### Review fixes (subagent code review, commit 2)
+
+* **MAJOR — delete used the wrong version.** `renderVersion()` runs once per version card, but
+  `confirmDeleteAttachment()` resolved `tcversion_id` from the global `currentVersion`, so a trash
+  click in a *non-opened* version's panel posted the wrong `fk_id` and the BFF ownership proof
+  answered 404. The version id now travels with the click
+  (`confirmDeleteAttachment(<attId>, <tcversionId>)`), the dialog resolves the file name from
+  that version, and the confirm button is disabled during the request (no double POST).
+* **MINOR** — the ghost marker is now the verbatim `inlineString` from the BFF
+  (`[tlInlineImage]{id}[/tlInlineImage]`, `tlAttachment::getInfo()`) instead of being rebuilt in
+  JS; the disabled notice now also prints the legacy `$gsmarty_attachments->disabled_msg`
+  (the FS-repository failure reason, `lib/functions/common.php:569-584`); the two `is_image`
+  branches were merged; the `show_icon` comment now describes what the code actually renders.
+* Regression proof for the MAJOR fix: with two versions loaded and `currentVersion = 7`, deleting
+  the first row of the **version_6** panel removed only `fixture.png` from version 6
+  (`#version_6` → `["notes.txt"]`) while `#version_7` kept both rows
+  (`["Fixture screenshot","notes.txt"]`), toast `Attachment deleted.`, modal closed, confirm
+  button re-enabled. Before the fix this click posted `id=7` and would have 404'd.
+
+## Blocker found on the way: attachment delete always 403
 
 `api/attachments/index.php` called `attAuthOwnerAllowed($db, $user, $table, $fkId)`, but that
 function's third parameter is the `attAuthResolveContext()` **array**

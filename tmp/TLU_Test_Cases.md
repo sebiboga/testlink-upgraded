@@ -2721,6 +2721,9 @@ per rule 9; docs mirror + wiki page + CHANGELOG line + ledger DONE row land with
 | A18 | regression: rest of the viewer | version cards, steps table, toolbar (9 buttons), relations/tplan blocks, i18n — unchanged | **PASS** |
 | A19 | Event Viewer / `events` | no new Error/Warning rows from the app | **PASS** (0 rows; the 11 rows seen mid-run were `E_WARNING` from the first version of my own throwaway fixture script, deleted with its rewrite) |
 | A20 | browser console | no errors | **PASS** |
+| A21 | second version loaded (`currentVersion` = 7), delete the first row of the **version_6** panel | the panel's own `tcversion_id` is posted, only that row disappears, the other version untouched, modal closed, confirm button re-enabled | **PASS** (onclick `confirmDeleteAttachment(17, 6)`; `#version_6` → `["notes.txt"]`, `#version_7` unchanged; pre-fix this posted `id=7` → 404) |
+| A22 | ghost marker source | `[tlInlineImage]15[/tlInlineImage]` straight from the BFF `inlineString`, `null` for the non-image row | **PASS** |
+| A23 | `attachmentsDisabledMsg` set | notice prints `Attachments disabled` **plus** the repository reason | **PASS** |
 
 **Actual result** — 20/20 PASS. The feature is fully working: the attachment is downloadable,
 images can be previewed inline, files can be deleted (with the legacy freeze rules) and every

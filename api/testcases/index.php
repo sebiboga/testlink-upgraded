@@ -1210,6 +1210,11 @@ if ($action === 'view') {
                         'file_size' => intval($ai['file_size']),
                         'file_type' => $attType,
                         'is_image' => (strpos($attType, 'image/') !== false),
+                        // legacy marker, verbatim tlAttachment::getInfo()
+                        // (lib/functions/tlAttachment.class.php:264-267):
+                        // "[tlInlineImage]{id}[/tlInlineImage]" for images, NULL else
+                        'inlineString' => (strpos($attType, 'image/') !== false)
+                            ? "[tlInlineImage]{$attId}[/tlInlineImage]" : null,
                         'date_added' => isset($ai['date_added']) ? (string)$ai['date_added'] : '',
                         'download_url' => '/api/attachments/index.php?action=download&id='
                             . $attId,
@@ -1500,6 +1505,11 @@ if ($action === 'view') {
         // - emptyTitleMode / accessString: action_on_display_empty_title and
         //   access_string (attachments.inc.tpl:78-86, config.inc.php:1568-1578).
         'attachmentsEnabled' => (bool)config_get('attachments')->enabled,
+        // legacy attachments.inc.tpl:55-59 prints $gsmarty_attachments->disabled_msg
+        // under the notice; that string is the FS-repository failure reason filled by
+        // checkAttachmentsAvailability() (lib/functions/common.php:569-584).
+        'attachmentsDisabledMsg' => strval(
+            config_get('attachments')->disabled_msg ?? ''),
         'attachmentsMaxSize' => defined('TL_REPOSITORY_MAXFILESIZE')
             ? intval(TL_REPOSITORY_MAXFILESIZE) : 0,
         'downloadOnlyAfterExec' => intval($tcaseCfg->downloadOnlyAfterExec ?? 0) === 1,

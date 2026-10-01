@@ -220,7 +220,7 @@ table.steps tbody tr:nth-child(even) { background: #fafafa; }
     </div>
     <div class="modal-foot">
       <button class="btn-dark btn-sm" onclick="$('#attDelModal').hide()"><span data-i18n="tspec.cancel">Cancel</span></button>
-      <button class="btn-red btn-sm" onclick="doDeleteAttachment()"><i class="fa fa-trash"></i> <span data-i18n="common.delete">Delete</span></button>
+      <button class="btn-red btn-sm" id="attDelConfirm" onclick="doDeleteAttachment()"><i class="fa fa-trash"></i> <span data-i18n="common.delete">Delete</span></button>
     </div>
   </div>
 </div>
@@ -401,10 +401,12 @@ function attCanDelete(v) {
   return true;
 }
 
-/* Legacy attachments.inc.tpl:78-86: empty title -> access_icon when
-   action_on_display_empty_title == 'show_icon' (the modern stand-in for the
-   image icon is the paperclip glyph, which is always drawn), else the
-   configured access_string ("[*]"). */
+/* Legacy attachments.inc.tpl:78-86: with an empty title the link text is
+   $tlCfg->attachments->access_icon when action_on_display_empty_title ==
+   'show_icon', else the configured access_string ("[*]"). access_icon is a raw
+   <img> markup of the legacy theme; this screen always draws the Font Awesome
+   paperclip instead, so for 'show_icon' the file name is shown as the text of
+   the link - the clickable target and the tooltip are identical either way. */
 function attLinkText(a) {
   if (a.title && String(a.title).length) return String(a.title);
   if (data.attachmentsEmptyTitleMode === 'show_label' && data.attachmentsAccessString) {
@@ -416,8 +418,13 @@ function attLinkText(a) {
 function renderAttachments(v) {
   var h = '';
   if (!data.attachmentsEnabled) {
-    return '<div class="att-disabled-msg"><i class="fa fa-ban"></i> '
-      + esc(TLi18n.t('tcview.attachmentsDisabled')) + '</div>';
+    var notice = '<div class="att-disabled-msg"><i class="fa fa-ban"></i> '
+      + esc(TLi18n.t('tcview.attachmentsDisabled'));
+    // legacy :57 - {$gsmarty_attachments->disabled_msg}, the repository reason
+    if (data.attachmentsDisabledMsg) {
+      notice += '<br>' + esc(data.attachmentsDisabledMsg);
+    }
+    return notice + '</div>';
   }
   if (!v.attachments || !v.attachments.length) {
     return '<span class="none-text">' + esc(TLi18n.t('tcview.none')) + '</span>';
@@ -438,25 +445,28 @@ function renderAttachments(v) {
     if (a.file_type) meta += ', ' + esc(a.file_type);
     meta += ') ' + esc(a.date_added || '');
     h += ' - <span class="att-meta">' + meta + '</span>';
-    // legacy :91-95 - eye icon -> inline image in inline_img_container_{id}
     if (a.is_image) {
+      // legacy :91-95 - eye icon -> inline image in inline_img_container_{id}
       h += ' <button type="button" class="att-btn" title="'
         + esc(TLi18n.t('tcview.displayInline')) + '"'
         + ' onclick="toggleAttImage(' + id + ')"><i class="fa fa-eye"></i></button>';
-    }
-    // legacy :98-101 - ghost icon toggles the inlineString marker
-    if (a.is_image) {
+      // legacy :98-101 - ghost icon toggles the inlineString marker, verbatim from
+      // the BFF (tlAttachment::getInfo() -> "[tlInlineImage]{id}[/tlInlineImage]")
       h += ' <button type="button" class="att-btn" title="'
         + esc(TLi18n.t('tcview.displayInlineString')) + '"'
         + ' onclick="toggleAttGhost(' + id + ')"><i class="fa fa-search"></i></button>';
       h += '<div class="att-ghost" id="attGhost_' + id + '">'
-        + esc(String(a.title || '') + ' [tlInlineImage]' + id + '[/tlInlineImage]') + '</div>';
+        + esc(a.inlineString || ('[tlInlineImage]' + id + '[/tlInlineImage]')) + '</div>';
     }
     // legacy :104-110 - delete link, hidden when $attach_downloadOnly
     if (canDel) {
+      // the version id of THIS panel must travel with the click: renderVersion()
+      // runs once per version, so resolving it from the global currentVersion
+      // would post the wrong (fk_id) and the BFF ownership proof would 404.
       h += ' <button type="button" class="att-del" title="'
         + esc(TLi18n.t('tcview.altDeleteAttachment')) + '"'
-        + ' onclick="confirmDeleteAttachment(' + id + ')"><i class="fa fa-trash-o"></i></button>';
+        + ' onclick="confirmDeleteAttachment(' + id + ', '
+        + (parseInt(v.tcversion_id, 10) || 0) + ')"><i class="fa fa-trash-o"></i></button>';
     }
     h += '<div id="attImg_' + id + '"></div>';
     h += '</div>';
@@ -483,18 +493,26 @@ function toggleAttGhost(id) {
 
 /* legacy delete_confirmation(id, file_name, del_msgbox_title,
    warning_delete_attachment) -> deleteAttachment_onClick() */
-function confirmDeleteAttachment(attId) {
+function confirmDeleteAttachment(attId, tcversionId) {
   var id = parseInt(attId, 10) || 0;
-  var v = currentVersion;
+  var vid = parseInt(tcversionId, 10) || 0;
+  // fall back to the opened version when the caller did not pass one
+  if (vid <= 0 && currentVersion) { vid = parseInt(currentVersion.tcversion_id, 10) || 0; }
   var fileName = '';
+  // search the version the button belongs to, not the opened one
+  var v = null;
+  for (var i = 0; i < data.versions.length; i++) {
+    if (parseInt(data.versions[i].tcversion_id, 10) === vid) { v = data.versions[i]; break; }
+  }
   if (v && v.attachments) {
     v.attachments.forEach(function (a) {
       if (parseInt(a.id, 10) === id) { fileName = String(a.file_name || ''); }
     });
   }
   var $m = $('#attDelModal');
-  $m.data('attId', id).data('tcversionId', parseInt(v ? v.tcversion_id : 0, 10) || 0);
+  $m.data('attId', id).data('tcversionId', vid);
   $('#attDelName').text(fileName);
+  $m.removeData('busy');
   $m.css('display', 'flex');
 }
 
@@ -503,7 +521,13 @@ function doDeleteAttachment() {
   var attId = parseInt($m.data('attId'), 10) || 0;
   var tcvId = parseInt($m.data('tcversionId'), 10) || 0;
   if (attId <= 0 || tcvId <= 0) { $m.hide(); return; }
+  // a double click must not fire two deletes (same guard as attachmentUpload.html)
+  if ($m.data('busy')) { return; }
+  $m.data('busy', true);
+  $('#attDelConfirm').prop('disabled', true);
   var done = function (d) {
+    $m.removeData('busy');
+    $('#attDelConfirm').prop('disabled', false);
     if (!d || d.status !== 'ok') {
       // the BFF error strings are English server-side (api/attachments
       // deliberately omits `message` on NO_RIGHT), so never render them:
