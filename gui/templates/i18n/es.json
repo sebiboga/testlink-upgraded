@@ -5962,5 +5962,10 @@
   "tcview.canNotDeleteAFrozenRelation": "No puede eliminar una relación congelada",
   "tcview.canNotDeleteRelationTcversionFrozen": "No puede eliminar una relación de una versión congelada del caso de prueba",
   "tcview.canNotDeleteRelationRelatedTcversionFrozen": "No puede eliminar la relación porque la versión relacionada del caso de prueba está congelada",
-  "tcview.canNotDeleteRelationBecauseThisIsNotTheLatest": "Solo puede eliminar relaciones de la última versión del caso de prueba"
+  "tcview.canNotDeleteRelationBecauseThisIsNotTheLatest": "Solo puede eliminar relaciones de la última versión del caso de prueba",
+  "tcview.attDeleteMsg": "¿Seguro que quieres eliminar este archivo adjunto?",
+  "tcview.displayInline": "Mostrar en línea",
+  "tcview.displayInlineString": "Mostrar la cadena fantasma en línea",
+  "tcview.altDeleteAttachment": "Pulsa aquí para borrar este Archivo Adjunto",
+  "tcview.attachmentsDisabled": "Archivos adjuntos deshabilitados"
 }

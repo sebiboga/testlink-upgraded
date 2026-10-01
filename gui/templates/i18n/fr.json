@@ -5962,5 +5962,10 @@
   "tcview.canNotDeleteAFrozenRelation": "Vous ne pouvez pas supprimer une relation figée",
   "tcview.canNotDeleteRelationTcversionFrozen": "Vous ne pouvez pas supprimer une relation dune version figée du cas de test",
   "tcview.canNotDeleteRelationRelatedTcversionFrozen": "Vous ne pouvez pas supprimer la relation car la version liée du cas de test est figée",
-  "tcview.canNotDeleteRelationBecauseThisIsNotTheLatest": "Vous ne pouvez supprimer les relations que de la dernière version du cas de test"
+  "tcview.canNotDeleteRelationBecauseThisIsNotTheLatest": "Vous ne pouvez supprimer les relations que de la dernière version du cas de test",
+  "tcview.attDeleteMsg": "Êtes-vous sûr de vouloir supprimer cette pièce-jointe ?",
+  "tcview.displayInline": "Afficher en ligne",
+  "tcview.displayInlineString": "Afficher en ligne la chaine de caractères ghost",
+  "tcview.altDeleteAttachment": "Cliquer ici pour supprimer la pièce-jointe",
+  "tcview.attachmentsDisabled": "Fonctionnalité de pièce-jointe désactivée"
 }

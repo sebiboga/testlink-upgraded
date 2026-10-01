@@ -1188,19 +1188,31 @@ if ($action === 'view') {
             // no custom fields available - keep empty
         }
 
-        // attachments of this version
+        // attachments of this version. Issue #1042: legacy
+        // attachments.inc.tpl:89 wrapped every row title in a download anchor
+        // (`lib/attachments/attachmentdownload.php?id=N`) and :91/:98 gated the
+        // eye / ghost inline-image toggles on is_image. The modern row was
+        // metadata only, so the file could be listed but never downloaded.
+        // download_url points at the api/attachments BFF (same field api/
+        // suiteview and api/projectinfo already send); is_image mirrors legacy
+        // tlAttachment.class.php:262 (`strpos($file_type,'image/') !== false`).
         $attachments = [];
         if (function_exists('getAttachmentInfosFrom')) {
             $attMap = getAttachmentInfosFrom($tcaseMgr, $tcvx);
             if (!is_null($attMap)) {
                 foreach ($attMap as $ai) {
+                    $attId = intval($ai['id']);
+                    $attType = isset($ai['file_type']) ? (string)$ai['file_type'] : '';
                     $attachments[] = [
-                        'id' => intval($ai['id']),
+                        'id' => $attId,
                         'title' => $ai['title'],
                         'file_name' => $ai['file_name'],
                         'file_size' => intval($ai['file_size']),
-                        'file_type' => isset($ai['file_type']) ? $ai['file_type'] : '',
+                        'file_type' => $attType,
+                        'is_image' => (strpos($attType, 'image/') !== false),
                         'date_added' => isset($ai['date_added']) ? (string)$ai['date_added'] : '',
+                        'download_url' => '/api/attachments/index.php?action=download&id='
+                            . $attId,
                     ];
                 }
             }
@@ -1476,6 +1488,25 @@ if ($action === 'view') {
         'ctsName' => $ctsInfo['trackerName'],
         'canModifyScripts' => $user->hasRight($db, 'mgt_modify_tc', $tprojectId),
         'requestedTcversionId' => $tcversionId,
+        // Issue #1042: legacy attachments.inc.tpl environment for this screen.
+        // - enabled: the {$gsmarty_attachments->enabled} FALSE branch that
+        //   renders the "attachment feature disabled" notice (include/
+        //   attachments.inc.tpl:55-59).
+        // - maxSize: $gui->import_limit, the MAX_FILE_SIZE the legacy upload
+        //   form posted (attachments.inc.tpl:151).
+        // - downloadOnlyAfterExec: $tlCfg->testcase_cfg->downloadOnlyAfterExec,
+        //   the driver of $bDownloadOnly / $downloadOnly (tcView.tpl:190-196
+        //   and :309-318) which hides the per-file delete link.
+        // - emptyTitleMode / accessString: action_on_display_empty_title and
+        //   access_string (attachments.inc.tpl:78-86, config.inc.php:1568-1578).
+        'attachmentsEnabled' => (bool)config_get('attachments')->enabled,
+        'attachmentsMaxSize' => defined('TL_REPOSITORY_MAXFILESIZE')
+            ? intval(TL_REPOSITORY_MAXFILESIZE) : 0,
+        'downloadOnlyAfterExec' => intval($tcaseCfg->downloadOnlyAfterExec ?? 0) === 1,
+        'attachmentsEmptyTitleMode' => strval(
+            config_get('attachments')->action_on_display_empty_title ?? ''),
+        'attachmentsAccessString' => strval(
+            config_get('attachments')->access_string ?? ''),
     ]);
 }
 

@@ -61,6 +61,17 @@ table.steps tbody tr:nth-child(even) { background: #fafafa; }
 .kv-table td:first-child { font-weight: 700; color: #555; width: 240px; }
 .att-item, .req-item, .rel-item { font-size: 13px; color: #333; padding: 5px 0; border-bottom: 1px dashed #eee; }
 .att-item i, .req-item i, .rel-item i { color: #4ECDC4; margin-right: 8px; }
+/* Issue #1042: legacy attachments.inc.tpl:89 download anchor (bold, teal) */
+.att-item .att-dl-link { color: #2d8e88; font-weight: 700; text-decoration: none; }
+.att-item .att-dl-link:hover { text-decoration: underline; }
+.att-item .att-meta { color: #999; font-size: 11px; font-style: italic; }
+.att-item .att-btn { background: none; border: none; color: #2d8e88; cursor: pointer; font-size: 12px; padding: 0 2px; }
+.att-item .att-btn:hover { color: #1a7f79; }
+.att-item .att-del { background: none; border: none; color: #dc3545; cursor: pointer; font-size: 12px; padding: 0 2px; }
+.att-item .att-del:hover { color: #a71d2a; }
+.att-item .att-ghost { display: none; background: #f6f6f6; border: 1px dashed #ddd; color: #666; font-size: 11px; padding: 4px 8px; margin: 4px 0 2px 24px; }
+.att-item .att-inline-img { max-width: 320px; max-height: 240px; margin: 6px 0 2px 24px; border: 1px solid #eee; border-radius: 4px; }
+.att-disabled-msg { color: #b94a48; background: #fdecea; border: 1px solid #f5c6cb; border-radius: 6px; padding: 8px 12px; font-size: 12.5px; margin: 4px 0 2px; }
 .rel-table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 4px 0 2px; }
 .rel-table th { text-align: left; font-size: 12px; color: #6c757d; border-bottom: 2px solid #eee; padding: 6px 8px; }
 .rel-table td { padding: 6px 8px; border-bottom: 1px dashed #eee; vertical-align: middle; }
@@ -194,6 +205,22 @@ table.steps tbody tr:nth-child(even) { background: #fafafa; }
     <div class="modal-foot">
       <button class="btn-dark btn-sm" onclick="$('#relDelModal').hide()"><span data-i18n="tspec.cancel">Cancel</span></button>
       <button class="btn-red btn-sm" onclick="doDeleteRelation()"><i class="fa fa-trash"></i> <span data-i18n="tcview.relationDelete">Delete</span></button>
+    </div>
+  </div>
+</div>
+
+<!-- delete attachment (Issue #1042 - legacy delete_confirmation() / 
+     deleteAttachment_onClick() from include/inc_del_onclick.tpl) -->
+<div class="modal-overlay" id="attDelModal">
+  <div class="modal-box" style="width:440px;max-width:96vw;">
+    <div class="modal-head"><i class="fa fa-trash"></i> <span data-i18n="adel.confirmTitle">Delete attachment</span></div>
+    <div class="modal-body">
+      <p id="attDelMsg" style="margin:0 0 8px;font-size:13px;color:#333;" data-i18n="tcview.attDeleteMsg">Are you sure you want to delete this attachment?</p>
+      <p style="margin:0;font-size:13px;font-weight:700;color:#22242a;" id="attDelName"></p>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-dark btn-sm" onclick="$('#attDelModal').hide()"><span data-i18n="tspec.cancel">Cancel</span></button>
+      <button class="btn-red btn-sm" onclick="doDeleteAttachment()"><i class="fa fa-trash"></i> <span data-i18n="common.delete">Delete</span></button>
     </div>
   </div>
 </div>
@@ -348,6 +375,152 @@ function canEditCurrent() {
   if (!currentVersion.is_open) return false;
   if (currentVersion.has_been_executed && !data.canEditExecuted) return false;
   return true;
+}
+
+/* ---- attachments (Issue #1042) -------------------------------------------
+   Legacy: include/attachments.inc.tpl + tcView.tpl:190-196 / :309-318.
+
+   $bDownloadOnly (current version) = hasBeenExecuted &&
+   testcase_cfg->downloadOnlyAfterExec; the per-old-version $downloadOnly is
+   that OR a frozen version. It hides the per-file delete link; the download
+   anchor is ALWAYS rendered. BFF mirrors this with downloadOnlyAfterExec.
+   The modern screen additionally requires the write grant the legacy screen
+   got implicitly from being reachable (mgt_modify_tc), so a read-only viewer
+   cannot delete. */
+function attDownloadOnly(v) {
+  if (!v) return true;
+  if (!v.is_open) return true;
+  if (v.has_been_executed && data.downloadOnlyAfterExec) return true;
+  return false;
+}
+
+function attCanDelete(v) {
+  if (!data.grants.mgt_modify_tc) return false;
+  if (attDownloadOnly(v)) return false;
+  if (v.has_been_executed && !data.canEditExecuted) return false;
+  return true;
+}
+
+/* Legacy attachments.inc.tpl:78-86: empty title -> access_icon when
+   action_on_display_empty_title == 'show_icon' (the modern stand-in for the
+   image icon is the paperclip glyph, which is always drawn), else the
+   configured access_string ("[*]"). */
+function attLinkText(a) {
+  if (a.title && String(a.title).length) return String(a.title);
+  if (data.attachmentsEmptyTitleMode === 'show_label' && data.attachmentsAccessString) {
+    return data.attachmentsAccessString;
+  }
+  return String(a.file_name || '');
+}
+
+function renderAttachments(v) {
+  var h = '';
+  if (!data.attachmentsEnabled) {
+    return '<div class="att-disabled-msg"><i class="fa fa-ban"></i> '
+      + esc(TLi18n.t('tcview.attachmentsDisabled')) + '</div>';
+  }
+  if (!v.attachments || !v.attachments.length) {
+    return '<span class="none-text">' + esc(TLi18n.t('tcview.none')) + '</span>';
+  }
+  var canDel = attCanDelete(v);
+  v.attachments.forEach(function (a) {
+    var id = parseInt(a.id, 10) || 0;
+    var url = a.download_url || ('/api/attachments/index.php?action=download&id=' + id);
+    h += '<div class="att-item">';
+    // legacy :89 - <a href="...attachmentdownload.php?id=N" target="_blank"
+    // class="bold" title="click_to_get_attachment">
+    h += '<i class="fa fa-paperclip"></i>'
+      + '<a class="att-dl-link" href="' + esc(url) + '" target="_blank" rel="noopener"'
+      + ' title="' + esc(TLi18n.t('suvw.clickToDownload')) + '">'
+      + esc(attLinkText(a)) + '</a>';
+    // legacy :96 - "- file_name (N bytes, file_type) date_added"
+    var meta = '(' + esc(a.file_name) + ', ' + parseInt(a.file_size, 10) + ' bytes';
+    if (a.file_type) meta += ', ' + esc(a.file_type);
+    meta += ') ' + esc(a.date_added || '');
+    h += ' - <span class="att-meta">' + meta + '</span>';
+    // legacy :91-95 - eye icon -> inline image in inline_img_container_{id}
+    if (a.is_image) {
+      h += ' <button type="button" class="att-btn" title="'
+        + esc(TLi18n.t('tcview.displayInline')) + '"'
+        + ' onclick="toggleAttImage(' + id + ')"><i class="fa fa-eye"></i></button>';
+    }
+    // legacy :98-101 - ghost icon toggles the inlineString marker
+    if (a.is_image) {
+      h += ' <button type="button" class="att-btn" title="'
+        + esc(TLi18n.t('tcview.displayInlineString')) + '"'
+        + ' onclick="toggleAttGhost(' + id + ')"><i class="fa fa-search"></i></button>';
+      h += '<div class="att-ghost" id="attGhost_' + id + '">'
+        + esc(String(a.title || '') + ' [tlInlineImage]' + id + '[/tlInlineImage]') + '</div>';
+    }
+    // legacy :104-110 - delete link, hidden when $attach_downloadOnly
+    if (canDel) {
+      h += ' <button type="button" class="att-del" title="'
+        + esc(TLi18n.t('tcview.altDeleteAttachment')) + '"'
+        + ' onclick="confirmDeleteAttachment(' + id + ')"><i class="fa fa-trash-o"></i></button>';
+    }
+    h += '<div id="attImg_' + id + '"></div>';
+    h += '</div>';
+  });
+  return h;
+}
+
+/* legacy toogleImageURL('inline_img_container_{id}', id) */
+function toggleAttImage(id) {
+  var $box = $('#attImg_' + id);
+  if (!$box.length) return;
+  if ($box.data('shown')) {
+    $box.empty().removeData('shown');
+    return;
+  }
+  $box.html('<img class="att-inline-img" alt="" src="/api/attachments/index.php?action=download&id='
+    + encodeURIComponent(id) + '">').data('shown', true);
+}
+
+/* legacy showHideByClass('span','ghost_' + id) */
+function toggleAttGhost(id) {
+  $('#attGhost_' + id).toggle();
+}
+
+/* legacy delete_confirmation(id, file_name, del_msgbox_title,
+   warning_delete_attachment) -> deleteAttachment_onClick() */
+function confirmDeleteAttachment(attId) {
+  var id = parseInt(attId, 10) || 0;
+  var v = currentVersion;
+  var fileName = '';
+  if (v && v.attachments) {
+    v.attachments.forEach(function (a) {
+      if (parseInt(a.id, 10) === id) { fileName = String(a.file_name || ''); }
+    });
+  }
+  var $m = $('#attDelModal');
+  $m.data('attId', id).data('tcversionId', parseInt(v ? v.tcversion_id : 0, 10) || 0);
+  $('#attDelName').text(fileName);
+  $m.css('display', 'flex');
+}
+
+function doDeleteAttachment() {
+  var $m = $('#attDelModal');
+  var attId = parseInt($m.data('attId'), 10) || 0;
+  var tcvId = parseInt($m.data('tcversionId'), 10) || 0;
+  if (attId <= 0 || tcvId <= 0) { $m.hide(); return; }
+  var done = function (d) {
+    if (!d || d.status !== 'ok') {
+      toast((d && d.message) ? d.message : TLi18n.t('suvw.deleteFail'), true);
+      return;
+    }
+    $m.hide();
+    toast(TLi18n.t('suvw.deleteOk'));
+    platRefreshMain();
+  };
+  $.ajax({
+    url: '/api/attachments/index.php?action=delete',
+    method: 'POST', contentType: 'application/json',
+    data: JSON.stringify({ table: 'tcversions', id: tcvId, file_id: attId })
+  }).done(done).fail(function (xhr) {
+    var body = null;
+    try { body = JSON.parse(xhr.responseText); } catch (e) {}
+    done(body);
+  });
 }
 
 function renderActions() {
@@ -569,17 +742,12 @@ function renderVersion(v) {
     h += '</table>';
   }
 
-  // attachments
+  // attachments (Issue #1042 - full port of legacy attachments.inc.tpl:
+  // download anchor, inline-image + ghost toggles, delete link gated on
+  // $bDownloadOnly, "N bytes, type, date" metadata, empty-title rule and the
+  // feature-disabled notice).
   h += '<div class="field-label">' + esc(TLi18n.t('tcview.attachments')) + '</div>';
-  if (v.attachments.length) {
-    v.attachments.forEach(function (a) {
-      h += '<div class="att-item"><i class="fa fa-paperclip"></i>' + esc(a.title || a.file_name)
-        + ' <span style="color:#999;font-size:11px;">(' + esc(a.file_name) + ', '
-        + Math.round(a.file_size / 1024) + ' KB)</span></div>';
-    });
-  } else {
-    h += '<span class="none-text">' + esc(TLi18n.t('tcview.none')) + '</span>';
-  }
+  h += renderAttachments(v);
 
   // requirements
   if (data.requirementsEnabled && data.grants.mgt_view_req) {

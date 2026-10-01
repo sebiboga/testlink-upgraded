@@ -5948,5 +5948,10 @@
   "tcview.canNotDeleteAFrozenRelation": "无法删除已冻结的关系",
   "tcview.canNotDeleteRelationTcversionFrozen": "无法删除已冻结测试用例版本的关系",
   "tcview.canNotDeleteRelationRelatedTcversionFrozen": "无法删除该关系, 因为关联的测试用例版本已冻结",
-  "tcview.canNotDeleteRelationBecauseThisIsNotTheLatest": "只能删除最新测试用例版本的关系"
+  "tcview.canNotDeleteRelationBecauseThisIsNotTheLatest": "只能删除最新测试用例版本的关系",
+  "tcview.attDeleteMsg": "确定要删除此附件吗？",
+  "tcview.displayInline": "显示内嵌",
+  "tcview.displayInlineString": "显示内嵌 ghost 字符",
+  "tcview.altDeleteAttachment": "单击这里删除附件",
+  "tcview.attachmentsDisabled": "禁用附件"
 }

@@ -5962,5 +5962,10 @@
   "tcview.canNotDeleteAFrozenRelation": "Sie können keine eingefrorene Beziehung löschen",
   "tcview.canNotDeleteRelationTcversionFrozen": "Sie können keine Beziehung einer eingefrorenen Testfall-Version löschen",
   "tcview.canNotDeleteRelationRelatedTcversionFrozen": "Sie können keine Beziehung löschen, da die verknüpfte Testfall-Version eingefroren ist",
-  "tcview.canNotDeleteRelationBecauseThisIsNotTheLatest": "Beziehungen können nur für die neueste Testfall-Version gelöscht werden"
+  "tcview.canNotDeleteRelationBecauseThisIsNotTheLatest": "Beziehungen können nur für die neueste Testfall-Version gelöscht werden",
+  "tcview.attDeleteMsg": "Möchten Sie den Anhang wirklich löschen?",
+  "tcview.displayInline": "Inline anzeigen",
+  "tcview.displayInlineString": "Inline-Ghost-Zeichenkette anzeigen",
+  "tcview.altDeleteAttachment": "Klicken Sie hier, um den Anhang zu löschen",
+  "tcview.attachmentsDisabled": "Anhänge deaktiviert"
 }

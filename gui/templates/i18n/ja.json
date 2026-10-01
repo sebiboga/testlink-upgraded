@@ -5968,5 +5968,10 @@
   "tcview.canNotDeleteAFrozenRelation": "凍結された関係は削除できません",
   "tcview.canNotDeleteRelationTcversionFrozen": "凍結されたテストケースバージョンの関係は削除できません",
   "tcview.canNotDeleteRelationRelatedTcversionFrozen": "関連するテストケースバージョンが凍結されているため関係を削除できません",
-  "tcview.canNotDeleteRelationBecauseThisIsNotTheLatest": "関係は最新のテストケースバージョンのもののみ削除できます"
+  "tcview.canNotDeleteRelationBecauseThisIsNotTheLatest": "関係は最新のテストケースバージョンのもののみ削除できます",
+  "tcview.attDeleteMsg": "この添付ファイルを削除してもよろしいですか?",
+  "tcview.displayInline": "添付ファイルを表示",
+  "tcview.displayInlineString": "インラインghost文字列を表示",
+  "tcview.altDeleteAttachment": "この添付ファイルを削除",
+  "tcview.attachmentsDisabled": "添付ファイル禁止"
 }

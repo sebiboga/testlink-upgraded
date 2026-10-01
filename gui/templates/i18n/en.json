@@ -5978,5 +5978,10 @@
   "tcview.canNotDeleteAFrozenRelation": "You can not delete a frozen relation",
   "tcview.canNotDeleteRelationTcversionFrozen": "You can not delete a relation of a frozen test case version",
   "tcview.canNotDeleteRelationRelatedTcversionFrozen": "You can not delete a relation because the related test case version is frozen",
-  "tcview.canNotDeleteRelationBecauseThisIsNotTheLatest": "You can only delete relations of the latest test case version"
+  "tcview.canNotDeleteRelationBecauseThisIsNotTheLatest": "You can only delete relations of the latest test case version",
+  "tcview.attDeleteMsg": "Are you sure you want to delete this attachment?",
+  "tcview.displayInline": "Display inline",
+  "tcview.displayInlineString": "Display inline ghost string",
+  "tcview.altDeleteAttachment": "Click here to delete this attachment",
+  "tcview.attachmentsDisabled": "Attachments disabled"
 }

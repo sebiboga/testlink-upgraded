@@ -5972,5 +5972,10 @@
   "tcview.canNotDeleteAFrozenRelation": "Nu puteți șterge o relație înghețată",
   "tcview.canNotDeleteRelationTcversionFrozen": "Nu puteți șterge o relație a unei versiuni înghețate a cazului de test",
   "tcview.canNotDeleteRelationRelatedTcversionFrozen": "Nu puteți șterge o relație deoarece versiunea asociată a cazului de test este înghețată",
-  "tcview.canNotDeleteRelationBecauseThisIsNotTheLatest": "Puteți șterge relații doar pentru cea mai recentă versiune a cazului de test"
+  "tcview.canNotDeleteRelationBecauseThisIsNotTheLatest": "Puteți șterge relații doar pentru cea mai recentă versiune a cazului de test",
+  "tcview.attDeleteMsg": "Sigur doriți să ștergeți acest fișier atașat?",
+  "tcview.displayInline": "Afișare inline",
+  "tcview.displayInlineString": "Afișare inline a textului ghost",
+  "tcview.altDeleteAttachment": "Click aici pentru a șterge acest fișier atașat",
+  "tcview.attachmentsDisabled": "Fișierele atașate sunt dezactivate"
 }

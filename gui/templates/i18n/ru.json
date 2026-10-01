@@ -5968,5 +5968,10 @@
   "tcview.canNotDeleteAFrozenRelation": "Нельзя удалить замороженную связь",
   "tcview.canNotDeleteRelationTcversionFrozen": "Нельзя удалить связь замороженной версии тест-кейса",
   "tcview.canNotDeleteRelationRelatedTcversionFrozen": "Нельзя удалить связь, так как связанная версия тест-кейса заморожена",
-  "tcview.canNotDeleteRelationBecauseThisIsNotTheLatest": "Связи можно удалять только у последней версии тест-кейса"
+  "tcview.canNotDeleteRelationBecauseThisIsNotTheLatest": "Связи можно удалять только у последней версии тест-кейса",
+  "tcview.attDeleteMsg": "Вы действительно хотите удалить этот файл?",
+  "tcview.displayInline": "Показать встроенно",
+  "tcview.displayInlineString": "Показать встроенную ghost-строку",
+  "tcview.altDeleteAttachment": "Удалить прикрепленный файл",
+  "tcview.attachmentsDisabled": "Вложения отключены"
 }
