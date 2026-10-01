@@ -3,7 +3,7 @@
 **Issue:** [#1666](https://github.com/sebiboga/testlink-upgraded/issues/1666) — *api/keywordsxml: an XML round-trip import of already-existing keywords is wrongly rejected with 400 wrong_keywords_file*
 **Branch:** `fix/issue-1666`
 **Affected screen:** Keyword Export / Import (`gui/templates/keywords/keywordsExport.html`) + BFF `api/keywordsxml/index.php`; model `lib/functions/testproject.class.php`
-**Regression suite:** `tmp/TLU_Test_Cases.md` → **Suite 1666** — pre-fix 28/37, post-fix **37/37 PASS** (`php tmp/suite_1666.php`, fixture `php tmp/fixtures_1666.php`)
+**Regression suite:** `tmp/TLU_Test_Cases.md` → **Suite 1666** — pre-fix 28/41, post-fix **41/41 PASS** (`php tmp/suite_1666.php`, fixture `php tmp/fixtures_1666.php`)
 
 ---
 
@@ -113,10 +113,20 @@ if ($result == tl::OK && $stats['imported'] <= 0
   (see §6, filed as **#1783**): it changes behaviour for `keywordsedit`, `tcImport` and
   `tcCreateFromIssue`, and it needs a product decision.
 
-**Blast radius** — the XML arm of `POST api/keywordsxml/index.php?action=import` only.
-The CSV arm keeps its own signal and its `NO_KEYWORDS_IMPORTED` / `EMPTY_FILE` codes,
-byte for byte. The legacy return value of `importKeywordsFromSimpleXML()` is unchanged,
-so its other callers (`importKeywordsFromXML()`, `lib/testcases/tcImport.php`,
+**Blast radius** — the XML arm of **both** keyword-import entry points. The issue
+report claimed `api/keywords/index.php` was unaffected ("no guard at all until #1605");
+a code review of this fix measured otherwise and the claim was corrected: that route
+carried the **same** count-delta proxy (old `api/keywords/index.php:421-424`) and
+answered `422 EMPTY_FILE` — *"The keywords file has no data rows"* — for a 4-row round
+trip, i.e. the same defect in a worse disguise. Both are fixed by the same two-line
+change (`importKeywordsFromXMLFile()` now hands back `$stats`). No screen posts to
+`api/keywords/index.php/import` today (`keywordsView.html` opens the
+`keywordsExport.html` popup), so this was a latent, not a visible, regression.
+
+The CSV arms of both routes keep their own signals and their `NO_KEYWORDS_IMPORTED` /
+`EMPTY_FILE` codes, byte for byte. The legacy return value of
+`importKeywordsFromSimpleXML()` is unchanged, so its other callers
+(`importKeywordsFromXML()`, `lib/testcases/tcImport.php`,
 `lib/testcases/tcCreateFromIssue.php`) behave exactly as in 1.9.20.
 
 **No client change and no i18n change were needed**: `keywordsExport.html:360-364`
@@ -165,5 +175,6 @@ Console: 0 errors, 0 warnings. Event Viewer: 0 new Error/Warning rows.
 |---|---|
 | `lib/functions/testproject.class.php` | `importKeywordsFromSimpleXML()` reports its per-row outcome; `importKeywordsFromXMLFile()` forwards `$stats` |
 | `api/keywordsxml/index.php` | count-delta proxy deleted; XML arm gated on the reported rows |
+| `api/keywords/index.php` | same count-delta proxy removed from the second import route (found by code review) |
 
 Commit: `fix(keywordsxml): report the XML import's real row outcome instead of the keyword count`

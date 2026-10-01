@@ -1660,8 +1660,10 @@ function setPublicStatus($id,$status)
           if (count($stats['errors']) < IMPORT_KEYWORD_ERRORS_MAX) {
             $stats['errors'][] = array(
               'row' => $rowNo,
-              'code' => (int)tlKeyword::E_WRONGFORMAT,
-              'name' => '',
+              // readFromSimpleXML() NULLs the name before it can fail, so it is
+              // empty here whatever the row carried.
+              'code' => intval(tlKeyword::E_WRONGFORMAT),
+              'name' => (string)$kw->name,
             );
           }
         }

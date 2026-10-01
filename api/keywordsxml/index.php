@@ -365,8 +365,12 @@ switch ($action) {
             // whether the file was empty, or every row failed. Gated on
             // $fileWasReadable so an unreadable file (fopen() failed) keeps the
             // legacy code, which is the accurate one there. XML keeps the legacy
-            // code on purpose - it is the only XML failure mode that reaches this
-            // branch (a document without <keyword> children), see the guard above.
+            // code on purpose: this branch is reached for a document without any
+            // usable <keyword> row (empty document, parse failure, or a row-level
+            // rejection that the legacy $status still folds into the file verdict
+            // - see #1784), and EMPTY_FILE / NO_KEYWORDS_IMPORTED would both be
+            // wrong there. Rows that were read but only skipped are NOT an error
+            // for XML: they travel back in the 200 payload below.
             $code = 'wrong_keywords_file';
             if ($type !== 'iSerializationToXML' && $fileWasReadable) {
                 $code = ($stats['rows'] > 0) ? 'NO_KEYWORDS_IMPORTED' : 'EMPTY_FILE';
