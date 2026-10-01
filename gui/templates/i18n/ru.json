@@ -1278,6 +1278,7 @@
   "header.metricsDashboardSub": "обзор прогресса выполнения",
   "header.planManage": "Управление тест-планами",
   "header.planManageSub": "создание, активация и управление тест-планами этого проекта",
+  "header.projectRoleHeading": "Роль в тест-проекте",
   "header.planRoleHeading": "Роль в тест-плане",
   "header.platManage": "Управление Платформами",
   "header.platManageSub": "создание, редактирование и удаление платформ для этого тестового проекта",

@@ -1278,6 +1278,7 @@
   "header.metricsDashboardSub": "执行进度概览",
   "header.planManage": "测试计划管理",
   "header.planManageSub": "创建、激活并管理本测试项目的测试计划",
+  "header.projectRoleHeading": "测试产品角色",
   "header.planRoleHeading": "测试计划角色",
   "header.platManage": "平台管理",
   "header.platManageSub": "为该测试项目创建、编辑和删除平台",

@@ -1278,6 +1278,7 @@
   "header.metricsDashboardSub": "Überblick über den Ausführungsfortschritt",
   "header.planManage": "Testplan-Verwaltung",
   "header.planManageSub": "Testpläne dieses Testprojekts erstellen, aktivieren und verwalten",
+  "header.projectRoleHeading": "Testprojekt Rolle",
   "header.planRoleHeading": "Testplan Rolle",
   "header.platManage": "Plattformverwaltung",
   "header.platManageSub": "Plattformen für dieses Testprojekt erstellen, bearbeiten und löschen",

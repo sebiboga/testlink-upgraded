@@ -1278,6 +1278,7 @@
   "header.metricsDashboardSub": "実行進捗の概要",
   "header.planManage": "テスト計画管理",
   "header.planManageSub": "このテストプロジェクトのテスト計画を作成・有効化・管理します",
+  "header.projectRoleHeading": "テストプロジェクトでの役割",
   "header.planRoleHeading": "テスト計画での役割",
   "header.platManage": "プラットフォーム管理",
   "header.platManageSub": "このテストプロジェクトのプラットフォームを作成・編集・削除します",

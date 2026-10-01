@@ -1278,6 +1278,7 @@
   "header.metricsDashboardSub": "execution progress overview",
   "header.planManage": "Test Plan Management",
   "header.planManageSub": "create, activate and manage the test plans of this test project",
+  "header.projectRoleHeading": "Test Project Role",
   "header.planRoleHeading": "Test Plan Role",
   "header.platManage": "Platform Management",
   "header.platManageSub": "create, edit and delete platforms for this test project",

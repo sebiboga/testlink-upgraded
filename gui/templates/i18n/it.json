@@ -1278,6 +1278,7 @@
   "header.metricsDashboardSub": "panoramica dell'avanzamento di esecuzione",
   "header.planManage": "Gestione Piani di Test",
   "header.planManageSub": "crea, attiva e gestisce i piani di test di questo progetto",
+  "header.projectRoleHeading": "Ruoli in Test Project",
   "header.planRoleHeading": "Ruolo in Test Plan",
   "header.platManage": "Gestione Piattaforme",
   "header.platManageSub": "crea, modifica ed elimina piattaforme per questo progetto di test",

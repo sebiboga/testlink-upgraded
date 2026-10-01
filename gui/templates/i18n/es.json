@@ -1278,6 +1278,7 @@
   "header.metricsDashboardSub": "resumen del progreso de ejecución",
   "header.planManage": "Gestión de Planes de Pruebas",
   "header.planManageSub": "crear, activar y gestionar los planes de pruebas de este proyecto",
+  "header.projectRoleHeading": "Rol para el Proyecto de Pruebas",
   "header.planRoleHeading": "Rol para el Plan de Pruebas",
   "header.platManage": "Gestión de Plataformas",
   "header.platManageSub": "crear, editar y eliminar plataformas para este proyecto de prueba",

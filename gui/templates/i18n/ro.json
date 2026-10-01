@@ -1278,6 +1278,7 @@
   "header.metricsDashboardSub": "privire generală asupra progresului execuției",
   "header.planManage": "Management Planuri de Test",
   "header.planManageSub": "creează, activează și gestionează planurile de test ale acestui proiect de test",
+  "header.projectRoleHeading": "Rol în Proiectul de Test",
   "header.planRoleHeading": "Rol în Planul de Test",
   "header.platManage": "Gestionare Platforme",
   "header.platManageSub": "creează, editează și șterge platforme pentru acest proiect de test",

@@ -103,7 +103,16 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
         <th style="width:40px">#</th>
         <th data-i18n="user.login">Login</th>
         <th data-i18n="user.fullName">Name</th>
-        <th style="width:220px;" data-i18n="assign.assignedRole">Assigned Role</th>
+        <!-- Issue #1612: legacy usersAssign.tpl:213-219 rendered this caption as
+             {lang_get s="th_roles_testproject"} ({$my_feature_name|escape}), i.e.
+             "Test Project Role (<selected project>)". It is deliberately NOT a
+             data-i18n cell: updateProjectRoleHeading() owns it and stamps the
+             localized half plus the selected project's name on every context
+             change (same contract as the sibling plan screen's
+             #planRoleHeading / updatePlanRoleHeading(), issue #1644). Keeping
+             data-i18n here would let TLi18n.apply() overwrite the caption with
+             the static assign.assignedRole string after the helper stamped it. -->
+        <th style="width:220px;" id="projectRoleHeading">Test Project Role</th>
         <!-- Issue #1707: hidden authorized/1 unauthorized marker column consumed
              by the show_only_authorized_users filter. -->
         <th class="authz-col"></th>
@@ -262,6 +271,41 @@ function esc(s) {
     .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
+// ---------------------------------------------------------------------------
+// Issue #1612 - dynamic localized role-column header.
+// Legacy parity: usersAssign.tpl:213-219 rendered the role column header as
+//   {lang_get s="th_roles_$featureVerbose"} ({$my_feature_name|escape})
+// with $featureVerbose = $gui->featureType ("testproject" here) and
+// $my_feature_name assigned INSIDE the combo loop, only for the selected option
+// (usersAssign.tpl:176-180). The caption therefore named the feature the grid
+// actually applies to, in the active UI language. The modern screen shipped a
+// static assign.assignedRole ("Assigned Role") and left the legacy
+// th_roles_testproject translations dead in all 10 bundles.
+//
+// The localized half is the new header.projectRoleHeading bundle key, seeded
+// from each locale's own $TLS_th_roles_testproject (locale/*/strings.txt); the
+// name half is composed here. Identical contract - and identical helper shape -
+// as the sibling plan screen's updatePlanRoleHeading() (issue #1644).
+//
+// project id (string) -> project name, rebuilt per loadProjects() call from the
+// very same r.projects payload that fills the combo, so the caption and the
+// <option> labels can never disagree.
+var projectNameById = {};
+function updateProjectRoleHeading() {
+  var label = TLi18n.t('header.projectRoleHeading');
+  var projectName = (currentProject == null) ? '' : (projectNameById[String(currentProject)] || '');
+  // The project name goes in RAW and .text() does the escaping - that is
+  // precisely {$my_feature_name|escape}: Smarty escapes the interpolated value
+  // and then writes it into the <th> as markup, so the browser shows the
+  // characters. Calling esc() on top of .text() would double-escape and a
+  // project named "A&B <draft>" would render as the literal text
+  // "A&amp;B &lt;draft&gt;" (measured on the plan screen's first implementation
+  // of this helper - see issue #1644 comments).
+  // With no project resolved the caption falls back to the BARE localized
+  // label, never "Test Project Role ()".
+  $('#projectRoleHeading').text(projectName ? label + ' (' + projectName + ')' : label);
+}
+
 // Legacy parity: the legacy template was SHARED between the test-project and
 // the test-plan contexts, so usersAssign.tpl:242 - "{$user->login}
 // ({$user->firstName} {$user->lastName})" - governed this grid too: the
@@ -386,6 +430,11 @@ function showSessionExpired() {
   currentItems = [];
   roleChoices = {};
   changedMap = {};
+  // Issue #1612: drop the caption's project name together with the context it
+  // described - the grid is hidden below, but a stale name must never survive
+  // into the DOM snapshot (or a later re-show) of a neutralised screen.
+  currentProject = null;
+  updateProjectRoleHeading();
   $('#assignTable').hide();
   $('#emptyMsg').hide();
   $('#disabledMsg').hide();
@@ -420,6 +469,13 @@ $(function() {
 function loadProjects(selectedId) {
   // Issue #1620: never touch the screen again once the session is known dead.
   if (sessionDead) { return; }
+  // Issue #1612: drop the previous project's name from the column caption
+  // SYNCHRONOUSLY, before the request leaves. Doing it only inside the success
+  // callback below would leave the caption naming the PREVIOUS project for the
+  // whole in-flight window, which is exactly the confusion the caption exists
+  // to remove (legacy could not have that gap: it re-rendered the page).
+  currentProject = null;
+  updateProjectRoleHeading();
   $.getJSON(API + '/meta/tproject-roles?tproject_id=' + (selectedId || 0))
     .done(function(r) {
       // A request that was already in flight when the 401 landed must not repaint
@@ -428,8 +484,14 @@ function loadProjects(selectedId) {
       var sel = $('#projectSelect');
       sel.empty();
       sel.append('<option value="">' + TLi18n.t('assign.selectProject') + '</option>');
+      // Issue #1612: rebuild the id -> name map for THIS payload before anything
+      // reads it, so a reload can never leave the previous project's name in the
+      // column caption. The combo below is filled from this very same
+      // r.projects payload, so the map and the <option> labels can never disagree.
+      projectNameById = {};
       $.each(r.projects, function(i, p) {
         sel.append('<option value="' + esc(p.id) + '">' + esc(p.name) + '</option>');
+        projectNameById[String(p.id)] = p.name;
       });
       roles = r.roles || [];
       buildBulkSelect();
@@ -483,6 +545,10 @@ function loadProjects(selectedId) {
       // would resurrect the previous project's cached rows over this empty state.
       if (assignTbl) { assignTbl.destroy(); assignTbl = null; }
       currentItems = [];
+      // Issue #1612: clearing the combo leaves no project, so the caption falls
+      // back to the bare localized label instead of naming the deselected one.
+      currentProject = null;
+      updateProjectRoleHeading();
       $('#assignBody').empty(); $('#emptyMsg').show();
     }
   });
@@ -529,6 +595,10 @@ function showDisabled() {
   $('#saveBtn').prop('disabled', true);
   $('#demoNote').hide();
   $('#footerText').empty();
+  // Issue #1612: legacy rendered no table at all in this state (usersAssign.tpl:142
+  // -> :295), so the caption must not name any project either.
+  currentProject = null;
+  updateProjectRoleHeading();
 }
 
 // Legacy parity: usersAssign.php:23 checkRights() denial -> localized
@@ -547,6 +617,10 @@ function showNoAccess() {
   $('#denyBox').show();
   $('#saveBtn').prop('disabled', true);
   $('#footerText').empty();
+  // Issue #1612: same reasoning as showDisabled() - legacy rendered no table in
+  // the not_enough_rights state, so no project name may linger in the caption.
+  currentProject = null;
+  updateProjectRoleHeading();
 }
 
 function loadUsers(pid) {
@@ -568,6 +642,11 @@ function loadUsers(pid) {
     restoredStateNotified = false;
   }
   currentProject = pid;
+  // Issue #1612: the caption follows the project the moment the context changes,
+  // not when its users arrive - the grid below is emptied/rebuilt asynchronously,
+  // so deferring this would leave the previous project's name on screen for a
+  // beat (same reasoning as loadPlans() on the plan screen, issue #1644).
+  updateProjectRoleHeading();
   $('#saveBtn').prop('disabled', true);
   $.getJSON(API + '/meta/tproject-roles?tproject_id=' + pid, function(r) {
     if (sessionDead) { return; }
