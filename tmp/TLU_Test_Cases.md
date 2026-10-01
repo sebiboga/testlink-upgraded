@@ -1942,3 +1942,30 @@ Suite total: **12/12 PASS** (`php tmp/verify_1764.php` → "31 passed, 0 failed"
 is proven against a fixture endpoint speaking the same wire format, not against Trac's
 XmlRpcPlugin. `xmlrpcs.inc` (server side, 24 `=& new`) and `xmlrpc_wrappers.inc` (7) still
 fail `php -l`; TestLink never loads them, so they do not affect the app.
+
+---
+
+## Task — Issue #1039: code-tracker / test-script links section in tcView.html
+
+**Precondition** — `tmp/fixtures_1038.sql` (project 1 `TP1`, test case 5, tcversions 6/7) then
+`tmp/fixtures_1039.sql` (codetrackers row 1 type `200` = github, `testproject_codetracker`
+link, `testprojects.code_tracker_enabled = 1`, two `testcase_script_links` rows on tcversion 6:
+one with `branch_name` only, one with `commit_id`). Log in as `admin/admin`.
+
+| # | Step | Expected | Actual |
+|---|---|---|---|
+| 1 | `GET /api/testcases/index.php?action=view&tcase_id=5&tcversion_id=6` | payload carries `codeTrackerEnabled`, `ctsViewUrl`, `ctsName`, `canModifyScripts`, per-version `scripts[]` | **PASS** — `{e:true,u:"https://github.com/",n:"Fixture GitHub Tracker",m:"yes"}`, 2 scripts on version 6 |
+| 2 | Before the fix, same request | keys absent | **PASS (gap reproduced)** — `codeTrackerEnabled/scripts/cts` all `undefined` |
+| 3 | Open `tcView.html?tcase_id=5&tcversion_id=6` | a `CODE MANAGEMENT` field-label appears | **PASS** — label list ends `… TEST PLAN USAGE, CODE MANAGEMENT` |
+| 4 | Inspect that label | bold `Code management` link, `target=_blank`, title `Code management` | **PASS** — `href="https://github.com/"`, `target="_blank"`, `title="Code management"` |
+| 5 | Hover the fa-file icon next to the label | it links to `javascript:openScriptAddWindow(6)` (legacy `open_script_add_window(…, 'link')`) | **PASS** — `javascript:openScriptAddWindow(6)`, 1 icon present |
+| 6 | Inspect the scripts table header | `Relevant test scripts | Project Key | Repository Name | Branch Name | <trash col>` — the 4 columns + delete col of `showScriptsTable.inc.tpl:26-33` | **PASS** — exact match, 5th column present because `canModifyScripts` |
+| 7 | Inspect the 2 rows | `code_path` rendered as a code-view link; branch when no commit, commit when present (`codeTrackerInterface::buildViewCodeURL:291-315`) | **PASS** — `…/commit/1a2b3c4d5e6f7a8b` (commit row) and `…/blob/main/tests/legacy/tcView_viewer.tpl` (branch row); project key / repo / branch cells populated |
+| 8 | Click the trash icon on row 0 | `Ext`-style confirm box `Really delete this script link from TestLink Database? (Test Script Name scripts/login.py)` | **PASS** — `#delScriptModal` `display:flex`, `%i` replaced by the code path |
+| 9 | Confirm the delete, then re-query `GET /api/tcscripts/index.php?action=list&tcversion_id=6` | row removed from `testcase_script_links` and from the screen | **PASS** — before `[…login.py, …tcView_viewer.tpl]` → after `[…tcView_viewer.tpl]`, modal hidden, table re-rendered |
+| 10 | Set `testprojects.code_tracker_enabled = 0` and reload | the whole CTS block disappears (legacy `{if $gui->codeTrackerEnabled}`) | **PASS** — gate honoured, `renderCodeTracker()` returns `''` |
+| 11 | Switch locale to `ro` | the confirm message is Romanian, not an English placeholder | **PASS** — `Sterg cu adevarat acest link de script din baza de date TestLink? (Nume script de test %i)` |
+| 12 | `python3 -m json.tool` on all 10 i18n bundles; `node --check` on the extracted inline script | all valid | **PASS** — `JSON_ALL_OK`, `JS SYNTAX OK` |
+| 13 | Event Viewer after the whole run | no new Error/Warning entries from `api/testcases` or `api/tcscripts` | **PASS** — no `tLog(..., 'ERROR')` fired; both endpoints answered 200 |
+
+**Result: 13/13 PASS.**
