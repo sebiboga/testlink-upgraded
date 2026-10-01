@@ -2337,7 +2337,7 @@ still 401; no new Error/Warning in the Event Viewer.
 | B | `execassignmentcopy/unknownroute` | 404 | 404 ✓ |
 | guard | `tcassignments/rows` without cookie | 401 | 401 ✓ |
 | success | `tcassignments/init?tproject_id=9001` | 200 + `{"status":"ok"}` | 200 ✓ |
-| success | `tcreorder/init` (fixture context) | 200 | 200 ✓ |
+| success |  `tcreorder/init?tproject_id=9001` (fixture project) | 200 | 200 ✓ |
 | hygiene | Event Viewer: new Error/Warning rows | 0 | 0 ✓ |
 | hygiene | `php -l` on all 14 patched files | clean | 14× clean ✓ |
 

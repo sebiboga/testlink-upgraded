@@ -8418,12 +8418,16 @@ The `out()`-family helpers in `api/execassignment`, `execassignmentcopy`, `ltx`,
 `tcstepsreorder`, `tcsummary`, `tcunassignall`, `testcasesedit` set `http_response_code($code)`
 unconditionally, so the `$code = 200` default silently overwrote the status the caller had
 already set one line earlier. Every `http_response_code(N); out([...]);` branch of those
-endpoints — 25 of them (`execassignment` 13, `tcassignments` 11, `tcassign2tplan` 1, plus the
-`logviewer` DB-error 500 — answered **HTTP 200 with an error body**: validation failures,
-unknown routes and rights denials were indistinguishable from successes for `fetch`
-(`res.ok`), DataTables ajax error handling and any monitoring keyed on the status line.
-The helper now only sets the status when a code is passed explicitly
-(`out($data, $code = null)` + `if (!is_null($code))`), which is the guard
-`api/tcassigned/index.php` and `api/keywordsxml/index.php` already shipped. The 37 callers
-that pass the code as the second argument are unaffected; success responses stay 200.
-Regression suite: `bash tmp/verify_1776.sh` (34 PASS / 0 FAIL).
+endpoints — **25 live sites** (`execassignment` 13, `tcassignments` 11, `tcassign2tplan` 1) —
+answered **HTTP 200 with an error body**: validation failures, unknown routes and rights
+denials were indistinguishable from successes for `fetch` (`res.ok`), DataTables ajax error
+handling and any monitoring keyed on the status line. The helper now only sets the status when
+a code is passed explicitly (`out($data, $code = null)` + `if (!is_null($code))`), the guard
+`api/keywordsxml/index.php:86` already shipped. The 154 call sites that pass the code as the
+second argument are unaffected, success responses stay 200, and the 401 session guards (which
+never reach `out()`) are unaffected. `api/logviewer/index.php:82` carried the same latent
+signature; its DB-error 500 branch at `:332-337` happens to pass `, 500)` explicitly, so it
+was not one of the 25 broken sites — it is aligned here only to remove the trap for future
+callers. Endpoints whose `out()` takes no `$code` at all (`mainpage`, `plans`, `results`,
+`suiteview`, `users`, `requirements`, `testcases`, …) never touch the status line and are not
+affected. Regression suite: `bash tmp/verify_1776.sh` (34 PASS / 0 FAIL).

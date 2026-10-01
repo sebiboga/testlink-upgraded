@@ -79,7 +79,7 @@ if [ "$st" = "401" ]; then echo "PASS  no cookie -> 401  [401]"; PASS=$((PASS+1)
 else echo "FAIL  no cookie  got [$st] want [401]"; FAIL=$((FAIL+1)); fi
 
 echo "--- success paths must stay 200 with a real payload ---"
-g "tcreorder          init (fixture ctx) -> 200"        200 "$H/api/tcreorder/index.php/init" 
+g "tcreorder          init (fixture project) -> 200"   200 "$H/api/tcreorder/index.php/init?tproject_id=9001" 
 st=$(curl -s -b $CK -H 'Referer: http://localhost:8082/' -o /tmp/s1776.txt -w '%{http_code}' \
      "$H/api/tcassignments/index.php/init?tproject_id=9001")
 body=$(head -c 60 /tmp/s1776.txt)
