@@ -1701,6 +1701,30 @@ MAJOR AREAS
   a plain GET with no `mgt_modify_tc` check, no ownership proof of the moved or the destination
   node and no same-origin check - any bookmark, crawler or cross-site <img> hit re-parented a test
   suite. Retired as a non-mutating shim (Refs #1740).
+- [KEY BUGFIX] - #1648: `GET /api/tcassignments/index.php/rows` answered **HTTP 500 with a 0-byte
+  body** (`TypeError: array_keys(): Argument #1 ($array) must be of type array, null given` at
+  `api/tcassignments/index.php:348` pre-fix) on every request without assignments - i.e. on the modernized
+  **My Test Case Assignments** screen for any test project that has no test plan, which is every
+  freshly imported installation. The value was assigned *inside* the row-building guard
+  (`$statusCodes = $resultsCfg['status_code'];` at `:240` pre-fix) but consumed *outside* it
+  (`'statusKeys' => array_keys($statusCodes)` at `:348` pre-fix); both lines came from the same commit
+  `023e60cedb` (Refs #660), and the bug was invisible because the only consumer sits on the
+  success payload. `get_assigned_to_user()` returns NULL for "no assignments" (legacy parity), so
+  the guard skipped the assignment and `array_keys(null)` killed the request; PHP additionally
+  emitted `Undefined variable $statusCodes` first, writing one spurious `log_level=2` Event Viewer
+  warning per failed load. Fix: hoist the read above the guard with a defensive cast
+  (`$statusCodes = (array)($resultsCfg['status_code'] ?? []);`), which also keeps the documented
+  `statusKeys` payload field complete in the empty case - the issue's suggested
+  `is_array(...) ? array_keys(...) : []` at `:348` was rejected because it silently empties that
+  field. No frontend/i18n change (`statusKeys` currently has no consumer in `gui/`; the screen maps
+  each row's `status_key` through its own `statusLabel()` map). Verified: empty-plan project now
+  `HTTP=200` with `groups: []` + all 7 status keys (`all` is the filter sentinel among them),
+  populated-project payload byte-identical, 401/403/404/validation bodies unchanged, `quick_result`
+  unaffected, Event Viewer delta 0 across 3 repeats, browser console clean and the screen now
+  renders its "No test cases assigned." empty state. Pre-existing defect found while testing and
+  filed separately: #1776 - `out($data, $code = 200)`
+  in 13 BFF endpoints overwrites the caller's `http_response_code()`, so every error branch answers
+  HTTP 200 with an error body. (Fixes #1648)
 - [KEY BUGFIX] - #1757: the suiteMove destination picker selected every test-suite row of the whole
   installation and proved each one by walking its ancestors (one query per ancestor) - O(all
   suites x depth) queries on every init/suites call. Now a project-root down-walk where the walk
