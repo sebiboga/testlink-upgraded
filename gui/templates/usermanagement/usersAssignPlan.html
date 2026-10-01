@@ -183,6 +183,7 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 <div class="footer"><span data-i18n="footers.usersAssignPlan">TestLink 2.0.1 - Assign Test Plan Roles</span></div>
 
 <script src="/gui/templates/i18n/i18n.js"></script>
+<script src="usermgmt-tabs.js"></script>
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
@@ -192,6 +193,10 @@ var API = '/api/roles/index.php';
 var currentProject = null;
 var currentPlan = null;
 var roles = [];
+// Issue #1611: tab-bar context + the legacy getGrantsForUserMgmt() flags delivered
+// with the meta/tplan-roles payload (null until that first call resolves).
+var tabCtx = '';
+var tabGrants = null;
 // Legacy parity: usersAssign.php:TL_ROLES_ADMIN == 8. assignUsers.tpl:259-271
 // ($removeRole) never offers the "admin" role as an assignable option for a
 // test plan - UNLESS it is the user's current (explicit, non-inherited) plan
@@ -619,17 +624,15 @@ TLi18n.load(function() {
   var tp = params.get('tproject_id');
   var tpid = params.get('tplan_id');
   var ctx = 'tproject_id=' + encodeURIComponent(tp || '0') + '&tplan_id=' + encodeURIComponent(tpid || '0');
-  var tabs = [
-    { label: TLi18n.t('tab.userManagement'), url: 'usersView.html?' + ctx },
-    { label: TLi18n.t('tab.roleManagement'), url: 'rolesView.html?' + ctx },
-    { label: TLi18n.t('tab.assignProjectRoles'), url: 'usersAssignProject.html?' + ctx },
-    { label: TLi18n.t('tab.assignPlanRoles'), url: 'usersAssignPlan.html?' + ctx, active: true }
-  ];
-  var html = '';
-  $.each(tabs, function(i, t) {
-    html += '<a href="' + t.url + '"' + (t.active ? ' class="active"' : '') + '>' + t.label + '</a>';
-  });
-  $('#tabsBar').html(html);
+  // Issue #1611: the tab bar used to be a static four-element array with no grant
+  // check, so this screen offered User Management / Role Management to users who
+  // hold neither mgt_users nor role_management. Legacy gated each tab on
+  // getGrantsForUserMgmt() (usersAssign.php:119 -> tabsmenu.tpl:38-79); the flags
+  // now ride along with the assignment payload this screen already loads (api/
+  // roles/index.php meta/tplan-roles `grants`), and the shared helper draws exactly
+  // the tabs legacy drew.
+  tabCtx = ctx;
+  renderTabs(null);
   // Issue #1644: seed the role-override column caption with the bare localized
   // label right after TLi18n.apply() so the <th> is never empty while the plan
   // combo is still loading; loadPlans() adds the "(<plan>)" part below.
@@ -637,8 +640,18 @@ TLi18n.load(function() {
   loadProjects(tp, tpid);
 });
 
+// Issue #1611: same helper/gating as the sibling project screen
+// (usersAssignProject.html) - one definition of the legacy tab contract, applied
+// from whichever payload the screen happens to load.
+function renderTabs(grants) {
+  if (grants) { tabGrants = grants; }
+  TLUmgmtTabs.render({ active: 'assignPlanRoles', ctx: tabCtx, grants: tabGrants });
+}
+
 function loadProjects(selectedId, selectedPlanId) {
   $.getJSON(API + '/meta/tplan-roles?tproject_id=0&tplan_id=0', function(r) {
+    // Issue #1611: refresh the legacy grants with the payload the combos came from.
+    renderTabs(r.grants);
     var sel = $('#projectSelect');
     sel.append('<option value="">' + TLi18n.t('assign.selectProject') + '</option>');
     $.each(r.projects, function(i, p) {
@@ -800,6 +813,10 @@ function loadPlans(pid, selectedPlanId) {
   // from this response as soon as the project context resolves.
   renderAccessIcon('#planAccessIcon', null);
   $.getJSON(API + '/meta/tplan-roles?tproject_id=' + pid + '&tplan_id=0', function(r) {
+    // Issue #1611: the grants are project-scoped (usersAssign.php:119 passes the
+    // requested testprojectID), so re-evaluate the tab bar for the newly selected
+    // project - legacy rebuilt $gui->grants on every render for the same reason.
+    renderTabs(r.grants);
     var sel = $('#planSelect');
     sel.html('<option value="">' + TLi18n.t('assign.selectPlan') + '</option>');
     // Issue #1643: project access-type indicator (public/private), from the
@@ -1194,6 +1211,8 @@ function loadUsers(pid, planId) {
   updatePlanRoleHeading();
   $('#saveBtn').prop('disabled', true);
   $.getJSON(API + '/meta/tplan-roles?tproject_id=' + pid + '&tplan_id=' + planId, function(r) {
+    // Issue #1611: keep the tab bar in step with the project-scoped grants.
+    renderTabs(r.grants);
     // A suppressed state (showPlanDisabled - no assignable plan, issue #1631) is
     // lifted here, once a real plan context really loaded: doing it before the
     // request would flash the toolbar on a load that ends in a 403/deny box.

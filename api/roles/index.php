@@ -829,7 +829,21 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'meta' && isset
          'demoMode' => (bool)config_get('demoMode'),
          'roleColouring' => $colourCtx['enabled'],
          'pagination' => getUsersAssignPaginationConfig(),
-         'sessionTprojectID' => $sessionTprojectID]);
+         'sessionTprojectID' => $sessionTprojectID,
+         // Legacy parity (issue #1611): usersAssign.php:119 fed the shared tab
+         // menu ($gui->grants = getGrantsForUserMgmt($db,$args->user,
+         // $target->testprojectID,-1)) which gates every one of the four tabs of
+         // gui/templates/dashio/usermanagement/tabsmenu.tpl:38-79. This route is
+         // reachable by the union usersAssign.php:201-240 checkRights() accepts -
+         // which is DELIBERATELY wider than role_management (issue #924) - so
+         // neither /users/meta/grants (gated on mgt_users) nor /roles/meta/grants
+         // (falls through to the role_management catch-all at line 402) is
+         // readable by e.g. a `leader` holding only user_role_assignment +
+         // testplan_user_role_assignment. Shipping the same flags here is what
+         // lets the assign screen render only the tabs legacy rendered.
+         // Argument shape mirrors usersAssign.php:119 exactly: the REQUESTED
+         // project and a -1 plan scope, never the session context.
+         'grants' => getGrantsForUserMgmt($db, $currentUser, $tproject_id, -1)]);
 }
 
 // Route: PUT /roles/tproject-roles - update test project role assignments
@@ -1033,7 +1047,12 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'meta' && isset
          // ->length. The tproject sibling route already ships this block
          // (line 820); without it here the modern plan screen had no channel for
          // the config and hard-coded [20,40,60,-1] (usersAssignPlan.html:935-936).
-         'pagination' => getUsersAssignPaginationConfig()]);
+         'pagination' => getUsersAssignPaginationConfig(),
+         // Legacy parity (issue #1611): same block as the tproject-roles read
+         // above (usersAssign.php:119 + tabsmenu.tpl:38-79) - the shared legacy tab
+         // menu was rendered by BOTH assignment contexts from one $gui->grants,
+         // computed with the requested project and a -1 plan scope.
+         'grants' => getGrantsForUserMgmt($db, $currentUser, $tproject_id, -1)]);
 }
 
 // Route: PUT /roles/tplan-roles - update test plan role assignments

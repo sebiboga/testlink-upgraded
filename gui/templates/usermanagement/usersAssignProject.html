@@ -149,9 +149,14 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap.min.js"></script>
 <script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script src="usermgmt-tabs.js"></script>
 <script>
 var API = '/api/roles/index.php';
 var currentProject = null;
+// Issue #1611: tab-bar context + the legacy getGrantsForUserMgmt() flags delivered
+// with the meta/tproject-roles payload (null until that first call resolves).
+var tabCtx = '';
+var tabGrants = null;
 var roles = [];
 var NO_RIGHTS_ROLE_ID = 3;
 // Legacy parity: usersAssign.php:TL_ROLES_ADMIN == 8. The legacy template
@@ -448,23 +453,32 @@ $(function() {
   var params = new URLSearchParams(window.location.search);
   var tp = params.get('tproject_id');
   var ctx = 'tproject_id=' + encodeURIComponent(tp || '0') + '&tplan_id=' + encodeURIComponent(params.get('tplan_id') || '0');
+  // Issue #1611: the tab bar used to be a static four-element array with no grant
+  // check, so this screen offered User Management / Role Management to users who
+  // hold neither mgt_users nor role_management. Legacy gated each tab on
+  // getGrantsForUserMgmt() (usersAssign.php:119 -> tabsmenu.tpl:38-79); the flags
+  // now ride along with the assignment payload this screen already loads (api/
+  // roles/index.php meta/tproject-roles `grants`), and the shared helper draws
+  // exactly the tabs legacy drew.
+  tabCtx = ctx;
+  renderTabs(null);
   TLi18n.load(function() {
     TLi18n.apply();
     TLi18n.initLocaleSwitcher('#localeSwitcher');
-    var tabs = [
-      { label: TLi18n.t('tab.userManagement'), url: 'usersView.html?' + ctx },
-      { label: TLi18n.t('tab.roleManagement'), url: 'rolesView.html?' + ctx },
-      { label: TLi18n.t('tab.assignProjectRoles'), url: 'usersAssignProject.html?' + ctx, active: true },
-      { label: TLi18n.t('tab.assignPlanRoles'), url: 'usersAssignPlan.html?' + ctx }
-    ];
-    var html = '';
-    $.each(tabs, function(i, t) {
-      html += '<a href="' + t.url + '"' + (t.active ? ' class="active"' : '') + '>' + t.label + '</a>';
-    });
-    $('#tabsBar').html(html);
+    renderTabs(null);
     loadProjects(tp);
   });
 });
+
+// Issue #1611: draws the shared user/role-management tab bar, gated on the legacy
+// getGrantsForUserMgmt() flags. Called once up-front (no grants yet => only this
+// screen's own tab, so the bar never flashes links the user may not use) and again
+// whenever the assignment payload refreshes the flags - including after a project
+// combo change, which re-evaluates the project-scoped grants server-side.
+function renderTabs(grants) {
+  if (grants) { tabGrants = grants; }
+  TLUmgmtTabs.render({ active: 'assignProjectRoles', ctx: tabCtx, grants: tabGrants });
+}
 
 function loadProjects(selectedId) {
   // Issue #1620: never touch the screen again once the session is known dead.
@@ -481,6 +495,9 @@ function loadProjects(selectedId) {
       // A request that was already in flight when the 401 landed must not repaint
       // the neutralised state from a response the dead session can no longer own.
       if (sessionDead) { return; }
+      // Issue #1611: the legacy tab menu was rebuilt from $gui->grants on every
+      // render, so refresh the flags with the same payload the grid came from.
+      renderTabs(r.grants);
       var sel = $('#projectSelect');
       sel.empty();
       sel.append('<option value="">' + TLi18n.t('assign.selectProject') + '</option>');

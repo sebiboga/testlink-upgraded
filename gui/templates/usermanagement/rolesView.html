@@ -160,8 +160,13 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
 <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap.min.js"></script>
 <script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script src="usermgmt-tabs.js"></script>
 <script>
 var API = '/api/roles/index.php';
+// Issue #1611: tab-bar context + the legacy getGrantsForUserMgmt() flags delivered
+// with the /meta/grants payload (null until that call resolves).
+var tabCtx = '';
+var tabGrants = null;
 var table = null;
 var rightsMap = {};
 var allRights = [];
@@ -200,25 +205,30 @@ function roleFeedback(feedbackKey, name) {
 $(function() {
   var p = new URLSearchParams(window.location.search);
   var ctx = 'tproject_id=' + encodeURIComponent(p.get('tproject_id') || '0') + '&tplan_id=' + encodeURIComponent(p.get('tplan_id') || '0');
+  // Issue #1611: the tab bar was a static four-element array with no grant check,
+  // so this screen offered the two assign tabs to a user who holds neither
+  // testproject_user_role_assignment nor testplan_user_role_assignment. Legacy
+  // gated every tab on getGrantsForUserMgmt() (usersAssign.php:119 ->
+  // tabsmenu.tpl:38-79); the flags arrive with the /meta/grants payload this
+  // screen already loads and the shared helper applies the gate.
+  tabCtx = ctx;
   TLi18n.load(function() {
     TLi18n.apply();
     TLi18n.initLocaleSwitcher('#localeSwitcher');
-    var tabs = [
-      { label: TLi18n.t('tab.userManagement'), url: 'usersView.html?' + ctx },
-      { label: TLi18n.t('tab.roleManagement'), url: 'rolesView.html?' + ctx, active: true },
-      { label: TLi18n.t('tab.assignProjectRoles'), url: 'usersAssignProject.html?' + ctx },
-      { label: TLi18n.t('tab.assignPlanRoles'), url: 'usersAssignPlan.html?' + ctx }
-    ];
-    var html = '';
-    $.each(tabs, function(i, t) {
-      html += '<a href="' + t.url + '"' + (t.active ? ' class="active"' : '') + '>' + t.label + '</a>';
-    });
-    $('#tabsBar').html(html);
+    renderTabs(null);
     loadGrants();
     loadMeta();
     loadRoles();
   });
 });
+
+// Issue #1611: one shared definition of the legacy tab contract
+// (gui/templates/usermanagement/usermgmt-tabs.js), gated on the same
+// getGrantsForUserMgmt() flags the sibling screens use.
+function renderTabs(grants) {
+  if (grants) { tabGrants = grants; }
+  TLUmgmtTabs.render({ active: 'roleManagement', ctx: tabCtx, grants: tabGrants });
+}
 
 // Legacy parity: lib/usermanagement/rolesEdit.php:259-260 grants are built by
 // getGrantsForUserMgmt() + a separate mgt_view_events flag that gates the
@@ -228,6 +238,7 @@ function loadGrants() {
   $.getJSON(API + '/meta/grants', function(r) {
     if (sessionDead) { return; }
     canViewEvents = (r.grants && r.grants.mgt_view_events === 'yes');
+    renderTabs(r.grants);
   }).fail(function(xhr) {
     if (sessionExpired(xhr)) { return; }
     if (xhr && xhr.status === 403) { showNoAccess(); return; }
