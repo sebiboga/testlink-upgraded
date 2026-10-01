@@ -2679,104 +2679,66 @@ Screenshots: `docs/screenshots/issue-1780-reqmonitors-list.png`,
 `tmp/suite_1780.php` → **48/48 PASS**. Event Viewer: 0 new `log_level IN (1,2)` rows. Suite appended
 per rule 9; docs mirror + wiki page + CHANGELOG line + ledger DONE row land with this screen.
 
----
+## Suite 1666 — Regression — Issue #1666: `api/keywordsxml` XML round-trip import wrongly rejected with 400 `wrong_keywords_file`
 
+**Bug** — an XML keywords import that touches only keywords which **already exist** updates
+nothing in the count, and `api/keywordsxml/index.php` used the keyword **COUNT DELTA** as a
+proxy for "rows read" (`$stats['rows'] = max(0,$after-$before)`), so a valid file was
+refused with `400 wrong_keywords_file` — "Wrong keywords file - the format could not be
+read" — blocking the advertised export → import merge workflow.
 
-## Suite 1042 — Task / Issue #1042: attachment download link + delete + inline-image toggles in tcView.html (gap vs legacy `attachments.inc.tpl`)
+**Precondition** — `php tmp/fixtures_1666.php` (re-runnable) creates test project `1666`
+(+ `nodes_hierarchy`, + admin `user_testproject_roles`) with keywords `alpha` / `beta`.
 
-**Precondition**
+**Repro steps (pre-fix)** — `php tmp/suite_1666.php`, case `D1`:
+export the project's own keywords (`?action=export&type=iSerializationToXML`) and
+POST that byte-identical file back to `?action=import&type=iSerializationToXML`.
 
-* DB freshly imported. Load `tmp/fixtures_1038.sql` (test project 1, suite, test case 5,
-  version 6) and then `php tmp/fixtures_1042.php 6`, which inserts the two #1042 attachments
-  through `tlAttachmentRepository::insertAttachment()` exactly like the legacy
-  `attachmentupload.php` (the FS repository stores the bytes on disk, so a plain SQL row is NOT
-  enough — the download endpoint streams `file_path`):
-  * `fixture.png` — `image/png`, 89 bytes, **title** `Fixture screenshot` (image row: eye + ghost
-    toggles),
-  * `notes.txt` — `text/plain`, 43 bytes, **empty title** (the `action_on_display_empty_title`
-    row).
-* Log in `admin/admin`, open
-  `http://localhost:8082/gui/templates/testcases/tcView.html?tproject_id=1&tcase_id=5&tcversion_id=6`.
+**Expected post-fix** — `200 {"status":"ok","rows":2,"imported":0,"skipped":2,
+"errors":[{"row":1,"code":"ALREADY_EXISTS",…},{"row":2,"code":"ALREADY_EXISTS",…}]}`.
 
-**Steps and expected behaviour**
+**Actual results (measured)**
 
-| # | Step | Expected | Result |
+| Case | Check | pre-fix | post-fix |
 |---|---|---|---|
-| A1 | open the screen | version card renders, attachment section lists both files | **PASS** |
-| A2 | inspect each `.att-item` | one `<a class="att-dl-link">` per row, `target=_blank`, tooltip `Click to get attachment`, `href=/api/attachments/index.php?action=download&id=N` | **PASS** (`href` ids 11/12 → real rows) |
-| A3 | `GET …?action=download&id=<notes.txt>` | `200`, `Content-Type: text/plain`, `Content-Disposition: inline; filename="notes.txt"`, body `Issue 1042 fixture: plain text attachment.` | **PASS** |
-| A4 | `GET …?action=download&id=<fixture.png>` | `200`, `Content-Type: image/png`, 89 bytes | **PASS** |
-| A5 | click the eye button of the image row | `<img class="att-inline-img" src="…action=download&id=N">` appears below the row; clicking again removes it | **PASS** (second toggle → `innerHTML === ""`) |
-| A6 | click the ghost (magnifier) button | `[tlInlineImage]N[/tlInlineImage]` line becomes visible / hidden | **PASS** (`display: block`) |
-| A7 | metadata line of both rows | `file_name (N bytes, file_type) date_added` — not `N KB` | **PASS** (`(notes.txt, 43 bytes, text/plain) 2026-09-06 10:05:00`) |
-| A8 | click the trash of `notes.txt` | confirm dialog opens, shows the file name, modal title `Delete attachment` | **PASS** |
-| A9 | confirm | POST `action=delete` (`table=tcversions`, `id=6`, `file_id`) → `200`, row disappears after re-render, modal closes, toast `Attachment deleted.` | **PASS** |
-| A10 | delete pre-fix regression probe | the same POST **before** the fix answered `403 {"code":"NO_RIGHT"}` for admin (`attAuthOwnerAllowed()` called with `(table,id)` instead of the ctx array) | **PASS** (blocker fixed, see docs) |
-| A11 | frozen version (`is_open = 0`) | `attDownloadOnly=true`, **no** delete button in the HTML, download link still present | **PASS** |
-| A12 | executed version + `downloadOnlyAfterExec` (TRUE in this install) | no delete button | **PASS** |
-| A13 | `attachmentsEnabled = false` | `Attachments disabled` notice replaces the list | **PASS** |
-| A14 | empty title, `action_on_display_empty_title='show_label'` | link text `[*]`; with `'show_icon'` → the file name | **PASS** |
-| A15 | version without attachments | `None` | **PASS** |
-| A16 | all 10 i18n bundles | the 5 new `tcview.*` keys present, JSON valid | **PASS** (`python3 -m json.tool` ×10) |
-| A17 | syntax gates | `php -l api/testcases/index.php`, `php -l api/attachments/index.php`, `node --check` on the extracted screen script | **PASS** |
-| A18 | regression: rest of the viewer | version cards, steps table, toolbar (9 buttons), relations/tplan blocks, i18n — unchanged | **PASS** |
-| A19 | Event Viewer / `events` | no new Error/Warning rows from the app | **PASS** (0 rows; the 11 rows seen mid-run were `E_WARNING` from the first version of my own throwaway fixture script, deleted with its rewrite) |
-| A20 | browser console | no errors | **PASS** |
-| A21 | second version loaded (`currentVersion` = 7), delete the first row of the **version_6** panel | the panel's own `tcversion_id` is posted, only that row disappears, the other version untouched, modal closed, confirm button re-enabled | **PASS** (onclick `confirmDeleteAttachment(17, 6)`; `#version_6` → `["notes.txt"]`, `#version_7` unchanged; pre-fix this posted `id=7` → 404) |
-| A22 | ghost marker source | `[tlInlineImage]15[/tlInlineImage]` straight from the BFF `inlineString`, `null` for the non-image row | **PASS** |
-| A23 | `attachmentsDisabledMsg` set | notice prints `Attachments disabled` **plus** the repository reason | **PASS** |
+| A0 | session `POST /api/auth/index.php/login` | PASS | PASS |
+| D1a/b | export of an existing set answers 200 and is a `<keywords>` document | PASS | PASS |
+| **D1c–i** | **re-import of its own export: 200, rows=2, skipped=2, imported=0, `ALREADY_EXISTS` per row, no `code`** | **FAIL (400 `wrong_keywords_file`, rows=0, errors=[])** | **PASS** |
+| D1j | keyword count unchanged | PASS | PASS |
+| D2a–c | all-**new** XML still imports (count growth must not regress) | PASS | PASS |
+| D3a–c | re-import of an existing keyword is idempotent, nothing duplicated | **FAIL (400)** | PASS |
+| D4a–c | `<keywords></keywords>` (no child) still refused, `wrong_keywords_file`, rows=0 | PASS | PASS |
+| D5a/b | non-XML garbage still refused | PASS | PASS |
+| D6a/b | wrong root element still refused, `result=-16` | PASS | PASS |
+| D7a/b | `<keyword>` without `name` still refused **and** the row is now named `WRONG_FORMAT` row 1 | FAIL (no row detail) | PASS |
+| D8a–d | CSV all-duplicate keeps #1605 semantics: 400 `NO_KEYWORDS_IMPORTED`, rows=2 (header not a row), skipped=2 | PASS | PASS |
+| D8e/f | partial CSV import still 200, imported=1/skipped=1 | PASS | PASS |
+| D9a/b/c | unknown project 404, `tproject_id=0` 400, GET on import 405 | PASS | PASS |
+| D10a/b | export arm unaffected | PASS | PASS |
 
-**Actual result** — 20/20 PASS. The feature is fully working: the attachment is downloadable,
-images can be previewed inline, files can be deleted (with the legacy freeze rules) and every
-legacy affordance of `attachments.inc.tpl` is back.
+**Suite totals** — pre-fix **28 passed / 9 failed**, post-fix **37 passed / 0 failed**
+(`php tmp/suite_1666.php`; the 9 pre-fix failures are exactly D1c–i, D3a and D7b).
+Every "nothing was read" guard (D4/D5/D6) and the whole CSV arm (D8) behave identically
+before and after — the fix changes only the false rejection.
 
-**Defects found and fixed this run**
+**Browser pass (headless Chrome, admin/admin, `keywordsExport.html?tproject_id=1`)**
 
-1. **BLOCKER (part of #1042)** — `api/attachments/index.php` passed `(table, id)` to
-   `attAuthOwnerAllowed()`, whose 3rd parameter is the `attAuthResolveContext()` array
-   (`api/_attachauth.php:394`): the gate always denied, so **every** attachment delete answered
-   `403 NO_RIGHT`, admin included. Fixed via `attAuthCheckOwner(..., $forWrite = true)`.
-2. **#1782 (bug, filed)** — the identical wrong-argument call in
-   `api/attachmentsdelete/index.php:270` breaks the Attachment Delete popup for every user.
+| Case | Check | Result |
+|---|---|---|
+| Export tab → Export (XML) → Import tab → upload the same file | dialog shows `Imported 0 of 5 rows; 5 row(s) were rejected` + one `A keyword with this name already exists.` line per row | **PASS** |
+| same flow on pre-fix `api/keywordsxml/index.php` | red box `Wrong keywords file - the format could not be read.` and **no** row detail | PASS (bug reproduced) |
+| console | 0 error / 0 warning | **PASS** |
+| Event Viewer (`events`) | only `log_level=16` audit rows from keyword creation — **0 Error/Warning** | **PASS** |
 
-Screenshot: `docs/screenshots/issue-1042-tcview-attachment-download.png`.
+Screenshots: `docs/screenshots/issue-1666-before-wrong-keywords-file.png`,
+`…-xml-roundtrip-import.png`.
 
-## Suite 1610 — Task / Issue #1610: config-driven Test Project combo order in Assign Test Project Roles
+**Defects found while testing this issue — filed, NOT fixed here** (per ISSUES.md §4):
 
-**Precondition** — fixture `tmp/fixtures_1610.sql`: three test projects whose **prefix order is the reverse of their name order**, so a wrong sort is unmissable in the DOM:
-
-| id | name | prefix | is_public |
-|---|---|---|---|
-| 101 | Alpha Project | ZZ-ALPHA | 1 |
-| 102 | Bravo Private Project | MM-BRAVO | 1 |
-| 103 | Charlie Project | AA-CHARLIE | 1 |
-
-Config under test: `config.inc.php:789` `$tlCfg->gui->tprojects_combo_order_by = 'ORDER BY TPROJ.prefix ASC'` (shipped default). Harness: `tmp/verify_1610.php` (loads the production `api/_tprojectorder.php`, never a copy). Entry point: `gui/templates/usermanagement/usersAssignProject.html?tproject_id=101&tplan_id=0`, login `admin/admin`.
-
-**Expected** — the Test Project combo lists projects in the order the **installation config** dictates (prefix ASC by default), like every other project combo in the app (navBar, requirements, user forms); legacy `usersAssign.php:278` behaviour. Option labels stay the bare project name (`usersAssign.tpl:177`). A broken/hostile config must never produce an SQL error or an empty combo — it falls back to the pre-#1610 `ORDER BY name ASC`.
-
-**Steps & results**
-
-| # | Step | Expected | Actual | Result |
-|---|---|---|---|---|
-| 1 | `php tmp/verify_1610.php` — config value used verbatim | `ORDER BY TPROJ.prefix ASC` | `[ORDER BY TPROJ.prefix ASC]` | **PASS** |
-| 2 | validator accepts `ORDER BY TPROJ.prefix ASC` / `ORDER BY nodes_hierarchy.id DESC` / `ORDER BY name` / `ORDER BY  TPROJ.prefix  ASC` / `order by  nhtproj.name asc` / `ORDER BY TPROJ.prefix ASC, NHTPROJ.name DESC` / `ORDER BY U.id DESC, UTR.role_id ASC` | verbatim | all verbatim | **PASS** |
-| 3 | validator rejects `''`, `'   '`, `ORDER_BY nodes_hierarchy.id DESC` (the config.inc.php:788 example typo), `ORDER BY prefix; DROP TABLE nodes_hierarchy`, `ORDER BY (SELECT 1)`, `ORDER BY NOPE.col`, `SELECT 1`, `ORDER BY TPROJ.prefix ASC -- x` | `ORDER BY name ASC` | all `ORDER BY name ASC` | **PASS** |
-| 4 | live screen: open `usersAssignProject.html?tproject_id=101&tplan_id=0`, read `#projectSelect` | prefix order `Charlie(AA-) → Bravo(MM-) → Alpha(ZZ-)` | `["-- select project --","103|Charlie Project","102|Bravo Private Project","101|Alpha Project"]` | **PASS** |
-| 5 | `GET /api/roles/meta/tproject-roles?tproject_id=101` | `projects` in configured order + the effective clause | `[{103},{102},{101}]`, `tprojectsComboOrderBy:"ORDER BY TPROJ.prefix ASC"` | **PASS** |
-| 6 | `GET /api/roles/meta/tplan-roles?tproject_id=101&tplan_id=0` | `status ok`, same configured order (last hardcoded literal removed) | `ok`, `[103,102,101]` | **PASS** |
-| 7 | regression: pick `102` (private project) in the combo | grid loads, dynamic heading names the project | 1 row (`admin`), heading `Test Project Role (Bravo Private Project)` | **PASS** |
-| 8 | `config = 'ORDER BY TPROJ.prefix DESC'` (via `$GLOBALS['tlCfg']->gui->…`, what `config_get('gui')` reads) | combo reverses | `101,102,103` | **PASS** |
-| 9 | `config = 'ORDER BY nodes_hierarchy.id DESC'` (documented alternative, rewritten to `NHTPROJ`) | combo reverses | `103,102,101` | **PASS** |
-| 10 | `config = 'ORDER BY prefix; DROP TABLE nodes_hierarchy'` | fallback to safe order, **no** SQL error, **no** data loss | `101,102,103`, no exception | **PASS** |
-| 11 | `config = 'ORDER BY TPROJ.no_such_column'` (valid syntax, wrong column — BFF/XHR so `exec_query` throws) | fallback, combo still complete | `101,102,103` | **PASS** |
-| 12 | `config = 'ORDER BY TPROJ'` (bare table name, indistinguishable from a bare column) | fallback, combo still complete | `101,102,103` | **PASS** |
-| 13 | `config = '  '` (blank) | fallback to safe order | `101,102,103` | **PASS** |
-| 14 | `$extraOpt = ['order_by' => 'ORDER BY NOPE.col']` cannot override the validated clause | still the configured order, 3 projects | `103,102,101`, 3 projects | **PASS** |
-| 15 | hygiene | `php -l` clean, no bundle touched, no console error, no new Event Viewer Error/Warning | `php -l` clean both files; `git diff` touches no `gui/templates/i18n/*.json`; console 0/0; `events` = 1 row (login audit only) | **PASS** |
-
-**Suite result: 15/15 PASS** (harness: 24/24 internal checks). Harness cases 11-12 deliberately log one DATABASE ERROR row each into `events` as the proof that the fallback path is real; those rows were deleted afterwards, so the Event Viewer only reflects genuine screen usage.
-
-**Not covered / out of scope** — the legacy plan combo (`usersAssign.php:343-378`) applies no combo-order config, so `usersAssignPlan.html`/`getAssignablePlans()` are intentionally unchanged; i18n untouched because the port adds no new user-facing string.
-
-**Screenshot** — `docs/screenshots/issue-1610-tproject-combo-prefix-order.png`
+1. **#1783** — a keyword import never *updates* an existing keyword, XML **and** CSV
+   (`tlKeyword::writeToDB()` returns `E_NAMEALREADYEXISTS` before its own `UPDATE`
+   branch). The dialog hint "Existing keywords with the same name are updated" is
+   therefore not implemented. Needs a product decision, so left open.
+2. **#1784** — a malformed **last** `<keyword>` turns a successful XML import into
+   `400 wrong_keywords_file` although earlier rows were already written
+   (`importKeywordsFromSimpleXML()` returns the *last* row's verdict for the whole file).
