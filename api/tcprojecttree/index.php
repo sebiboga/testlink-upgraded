@@ -342,13 +342,19 @@ function suiteCaseCounts($parentId)
 }
 
 /**
- * Latest-version tc_external_id per test case node of the displayed level.
+ * Latest-version tc_external_id per test case of the displayed level.
  *
  * The legacy SELECT was "SELECT DISTINCT tc_external_id, NHA.parent_id ...
  * WHERE NHB.parent_id = <parent> AND NHA.node_type_id = 4" consumed by
  * fetchRowsIntoMap(..., 'parent_id'), i.e. the FIRST row per test case - which
  * MariaDB is free to pick from any of its versions. This resolves the highest
  * version id per test case, so the label is deterministic.
+ *
+ * Note the two-level join, which is what the legacy query's THIRD join did and
+ * what its $external[$row['id']] lookup needed: a test case VERSION node hangs
+ * off the TEST CASE node (parent_id = test case id), never off the suite, so the
+ * suite id has to reach the version through the test case. Filtering the version
+ * nodes on the displayed parent alone matches nothing (Refs #1771).
  */
 function latestExternalIds($parentId)
 {
@@ -358,14 +364,16 @@ function latestExternalIds($parentId)
         return array();
     }
     $rows = $db->get_recordset(
-        'SELECT V.parent_id AS tcase_id, TCV.tc_external_id' .
-        ' FROM tcversions TCV' .
-        ' JOIN nodes_hierarchy V ON V.id = TCV.id' .
+        'SELECT TC.id AS tcase_id, TCV.tc_external_id' .
+        ' FROM nodes_hierarchy TC' .
+        ' JOIN nodes_hierarchy V ON V.parent_id = TC.id' .
         '   AND V.node_type_id = ' . (NODE_TYPE_TESTCASE + 1) .
-        ' WHERE V.parent_id = ' . $pid .
-        '   AND V.id = (SELECT MAX(V2.id) FROM tcversions TCV2' .
-        '                 JOIN nodes_hierarchy V2 ON V2.id = TCV2.id' .
-        '                WHERE V2.parent_id = V.parent_id)');
+        ' JOIN tcversions TCV ON TCV.id = V.id' .
+        ' WHERE TC.parent_id = ' . $pid .
+        '   AND TC.node_type_id = ' . NODE_TYPE_TESTCASE .
+        '   AND V.id = (SELECT MAX(V2.id) FROM nodes_hierarchy V2' .
+        '                WHERE V2.parent_id = TC.id' .
+        '                  AND V2.node_type_id = ' . (NODE_TYPE_TESTCASE + 1) . ')');
 
     $out = array();
     foreach (($rows ? $rows : array()) as $r) {
