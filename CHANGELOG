@@ -38,6 +38,33 @@ screen reaches full parity.
   Found while testing and filed, not fixed here: **#1778** (pre-existing
   `E_WARNING Undefined array key "tplan"`, `lib/functions/tlUser.class.php:960`).
 
+- [FEATURE GAP] - #1042: the modern Test Case Viewer listed a version's attachments as plain
+  text (`<div class="att-item">` + paperclip icon + `(file_name, N KB)`), with no `<a href>` and
+  no use of the attachment id the BFF already sent - the file was listed but NOT downloadable -
+  and the whole rest of the legacy attachment block was gone too (delete link, inline-image eye
+  toggle, ghost/inline-string toggle, `N bytes, type, date` metadata, empty-title
+  `access_string` rule, "attachment feature disabled" notice). Ported
+  `gui/templates/dashio/include/attachments.inc.tpl` for this screen: `api/testcases/index.php`
+  now sends `download_url` (same field `api/suiteview` already sends) + `is_image` per row and
+  `attachmentsEnabled` / `attachmentsMaxSize` / `downloadOnlyAfterExec` /
+  `attachmentsEmptyTitleMode` / `attachmentsAccessString` at the root;
+  `gui/templates/testcases/tcView.html` renders the bold `target=_blank` download anchor, the
+  eye/ghost toggles for images, the metadata line and - gated on the legacy `$bDownloadOnly`
+  rule ANDed with the modern `mgt_modify_tc` write gate - the per-row delete button with the
+  legacy `delete_confirmation()` modal; 5 new `tcview.*` keys in all 10 locales (existing
+  equivalent keys such as `suvw.clickToDownload` are reused instead of duplicated). Legacy
+  tcView rendered NO upload form (it never passes `attach_show_upload_btn`), so none was added.
+  While porting it, a blocker was found and fixed: `api/attachments/index.php` passed
+  `(table, id)` to `attAuthOwnerAllowed()`, whose 3rd parameter is the `attAuthResolveContext()`
+  ARRAY (`api/_attachauth.php:394`) - the gate therefore always denied and every attachment
+  delete answered `403 NO_RIGHT`, admin included (measured); now routed through
+  `attAuthCheckOwner(..., true)`, so a read-only grant can no longer delete either. The same
+  wrong call in `api/attachmentsdelete/index.php:270` (Attachment Delete popup) is filed as
+  #1782. Verified: Suite 1042 in `tmp/TLU_Test_Cases.md` PASS (download 200 + correct bytes /
+  Content-Disposition, image + ghost toggles, delete round-trip, frozen + executed +
+  disabled + empty-title gates), `php -l` + `node --check` + `json.tool` on all 10 bundles,
+  console clean, Event Viewer no new Error/Warning. (Refs #1042)
+
 - [FEATURE GAP] - #1040: the modern Test Case Viewer rendered **no relations at all** and had
   **no way to add or delete one**. `api/testcases/index.php` joined a table that does not exist
   in TestLink (`LEFT JOIN relation_type RT ON TR.relation_type = RT.id` -> `ERROR 1146`,

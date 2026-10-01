@@ -2678,3 +2678,61 @@ Screenshots: `docs/screenshots/issue-1780-reqmonitors-list.png`,
 
 `tmp/suite_1780.php` → **48/48 PASS**. Event Viewer: 0 new `log_level IN (1,2)` rows. Suite appended
 per rule 9; docs mirror + wiki page + CHANGELOG line + ledger DONE row land with this screen.
+
+---
+
+## Suite 1042 — Task / Issue #1042: attachment download link + delete + inline-image toggles in tcView.html (gap vs legacy `attachments.inc.tpl`)
+
+**Precondition**
+
+* DB freshly imported. Load `tmp/fixtures_1038.sql` (test project 1, suite, test case 5,
+  version 6) and then `php tmp/fixtures_1042.php 6`, which inserts the two #1042 attachments
+  through `tlAttachmentRepository::insertAttachment()` exactly like the legacy
+  `attachmentupload.php` (the FS repository stores the bytes on disk, so a plain SQL row is NOT
+  enough — the download endpoint streams `file_path`):
+  * `fixture.png` — `image/png`, 89 bytes, **title** `Fixture screenshot` (image row: eye + ghost
+    toggles),
+  * `notes.txt` — `text/plain`, 43 bytes, **empty title** (the `action_on_display_empty_title`
+    row).
+* Log in `admin/admin`, open
+  `http://localhost:8082/gui/templates/testcases/tcView.html?tproject_id=1&tcase_id=5&tcversion_id=6`.
+
+**Steps and expected behaviour**
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| A1 | open the screen | version card renders, attachment section lists both files | **PASS** |
+| A2 | inspect each `.att-item` | one `<a class="att-dl-link">` per row, `target=_blank`, tooltip `Click to get attachment`, `href=/api/attachments/index.php?action=download&id=N` | **PASS** (`href` ids 11/12 → real rows) |
+| A3 | `GET …?action=download&id=<notes.txt>` | `200`, `Content-Type: text/plain`, `Content-Disposition: inline; filename="notes.txt"`, body `Issue 1042 fixture: plain text attachment.` | **PASS** |
+| A4 | `GET …?action=download&id=<fixture.png>` | `200`, `Content-Type: image/png`, 89 bytes | **PASS** |
+| A5 | click the eye button of the image row | `<img class="att-inline-img" src="…action=download&id=N">` appears below the row; clicking again removes it | **PASS** (second toggle → `innerHTML === ""`) |
+| A6 | click the ghost (magnifier) button | `[tlInlineImage]N[/tlInlineImage]` line becomes visible / hidden | **PASS** (`display: block`) |
+| A7 | metadata line of both rows | `file_name (N bytes, file_type) date_added` — not `N KB` | **PASS** (`(notes.txt, 43 bytes, text/plain) 2026-09-06 10:05:00`) |
+| A8 | click the trash of `notes.txt` | confirm dialog opens, shows the file name, modal title `Delete attachment` | **PASS** |
+| A9 | confirm | POST `action=delete` (`table=tcversions`, `id=6`, `file_id`) → `200`, row disappears after re-render, modal closes, toast `Attachment deleted.` | **PASS** |
+| A10 | delete pre-fix regression probe | the same POST **before** the fix answered `403 {"code":"NO_RIGHT"}` for admin (`attAuthOwnerAllowed()` called with `(table,id)` instead of the ctx array) | **PASS** (blocker fixed, see docs) |
+| A11 | frozen version (`is_open = 0`) | `attDownloadOnly=true`, **no** delete button in the HTML, download link still present | **PASS** |
+| A12 | executed version + `downloadOnlyAfterExec` (TRUE in this install) | no delete button | **PASS** |
+| A13 | `attachmentsEnabled = false` | `Attachments disabled` notice replaces the list | **PASS** |
+| A14 | empty title, `action_on_display_empty_title='show_label'` | link text `[*]`; with `'show_icon'` → the file name | **PASS** |
+| A15 | version without attachments | `None` | **PASS** |
+| A16 | all 10 i18n bundles | the 5 new `tcview.*` keys present, JSON valid | **PASS** (`python3 -m json.tool` ×10) |
+| A17 | syntax gates | `php -l api/testcases/index.php`, `php -l api/attachments/index.php`, `node --check` on the extracted screen script | **PASS** |
+| A18 | regression: rest of the viewer | version cards, steps table, toolbar (9 buttons), relations/tplan blocks, i18n — unchanged | **PASS** |
+| A19 | Event Viewer / `events` | no new Error/Warning rows from the app | **PASS** (0 rows; the 11 rows seen mid-run were `E_WARNING` from the first version of my own throwaway fixture script, deleted with its rewrite) |
+| A20 | browser console | no errors | **PASS** |
+
+**Actual result** — 20/20 PASS. The feature is fully working: the attachment is downloadable,
+images can be previewed inline, files can be deleted (with the legacy freeze rules) and every
+legacy affordance of `attachments.inc.tpl` is back.
+
+**Defects found and fixed this run**
+
+1. **BLOCKER (part of #1042)** — `api/attachments/index.php` passed `(table, id)` to
+   `attAuthOwnerAllowed()`, whose 3rd parameter is the `attAuthResolveContext()` array
+   (`api/_attachauth.php:394`): the gate always denied, so **every** attachment delete answered
+   `403 NO_RIGHT`, admin included. Fixed via `attAuthCheckOwner(..., $forWrite = true)`.
+2. **#1782 (bug, filed)** — the identical wrong-argument call in
+   `api/attachmentsdelete/index.php:270` breaks the Attachment Delete popup for every user.
+
+Screenshot: `docs/screenshots/issue-1042-tcview-attachment-download.png`.

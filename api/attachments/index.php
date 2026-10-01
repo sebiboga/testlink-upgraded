@@ -426,15 +426,33 @@ if ($action === 'delete') {
                 'message' => 'Attachment not found for this object'], 404);
     }
     // Refs #1647: the fk_table/fk_id match above proves OWNERSHIP, not
-    // permission. Require a visibility right on the owning object before
-    // deleting anything (shared gate with api/attachmentsdelete/index.php).
+    // permission. Require a right on the owning object before deleting
+    // anything.
     // checkFk() whitelisted the table and the SELECT above proved this exact
     // (fk_table, fk_id) pair is the stored one, so $stdTableUsedAsFolder /
     // $fkId ARE the owner's values here.
+    //
+    // Refs #1042 FIX (blocker): this used to call
+    // attAuthOwnerAllowed($db, $user, $stdTableUsedAsFolder, $fkId), but that
+    // function's 3rd parameter is the attAuthResolveContext() ARRAY
+    // (api/_attachauth.php:394-396), not the table name. A string was passed,
+    // so $ctx['domain'] resolved to '' and the gate returned false for EVERY
+    // user and EVERY fk_table: measured 403 {"code":"NO_RIGHT"} for admin on
+    // tcversions, i.e. deleting an attachment through this endpoint was
+    // impossible - the legacy delete link (include/attachments.inc.tpl:104-110)
+    // could not be ported. attAuthCheckOwner() is the documented wrapper that
+    // resolves the context first.
+    //
+    // $forWrite = true: a read-only grant (mgt_view_tc, mgt_view_req,
+    // exec_ro_access, testproject_metrics_dashboard) must not delete a file -
+    // the same rule upload already applies above, and the right the legacy
+    // screens required to expose their delete link (containerEdit.php /
+    // reqEdit.php mgt_modify_*, execSetResults.php exec_edit_notes).
+    //
     // No 'message' on purpose: reqSpecView.html / reqView.html show
     // r.message in a toast and would render this English string untranslated;
     // omitting it lets them fall back to their own localized key.
-    if (!attAuthOwnerAllowed($db, $user, $stdTableUsedAsFolder, $fkId)) {
+    if (!attAuthCheckOwner($db, $user, $stdTableUsedAsFolder, $fkId, true)) {
         bffOut(['status' => 'error', 'code' => 'NO_RIGHT'], 403);
     }
     $delInfo = deleteAttachment($db, $fileId, false);

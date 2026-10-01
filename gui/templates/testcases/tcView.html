@@ -505,17 +505,29 @@ function doDeleteAttachment() {
   if (attId <= 0 || tcvId <= 0) { $m.hide(); return; }
   var done = function (d) {
     if (!d || d.status !== 'ok') {
-      toast((d && d.message) ? d.message : TLi18n.t('suvw.deleteFail'), true);
+      // the BFF error strings are English server-side (api/attachments
+      // deliberately omits `message` on NO_RIGHT), so never render them:
+      // show the localized message and keep the detail in the console.
+      if (d && d.message) { console.warn('attachment delete failed:', d); }
+      toast(TLi18n.t('suvw.deleteFail'), true);
       return;
     }
     $m.hide();
     toast(TLi18n.t('suvw.deleteOk'));
     platRefreshMain();
   };
+  // api/attachments reads $_POST (like every other screen calling it:
+  // reqView.html / reqSpecView.html / attachmentUpload.html all use FormData),
+  // so the payload must be multipart/form-encoded, not JSON.
+  var fd = new FormData();
+  fd.append('action', 'delete');
+  fd.append('table', 'tcversions');
+  fd.append('id', String(tcvId));
+  fd.append('file_id', String(attId));
   $.ajax({
-    url: '/api/attachments/index.php?action=delete',
-    method: 'POST', contentType: 'application/json',
-    data: JSON.stringify({ table: 'tcversions', id: tcvId, file_id: attId })
+    url: '/api/attachments/index.php',
+    method: 'POST', data: fd,
+    processData: false, contentType: false, dataType: 'json'
   }).done(done).fail(function (xhr) {
     var body = null;
     try { body = JSON.parse(xhr.responseText); } catch (e) {}
