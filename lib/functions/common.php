@@ -2271,6 +2271,21 @@ function getActions(&$gui,$baseURL) {
   // coverage). Read-only: assignment lives in reqTcBulkAssign.html /
   // reqTcAssign.html and the move/reorder gesture in reqTreeReorder.html.
   $actions->reqCoverageTree = "/gui/templates/requirements/reqCoverageTree.html?{$ctx}";
+  // Test Case Tree navigator (Dashio standalone page) - Refs #1770. Replaces the
+  // 1.9.20 test-case tree frame built by
+  // lib/functions/tlTestCaseFilterControl.class.php (the LEFT FRAME of the
+  // add/remove test cases, update test plan TC assignments, test urgency and
+  // execution assignment work areas) and its lazy loader
+  // lib/ajax/gettprojectnodes.php, which stayed live over HTTP with NO rights
+  // check and no project scope - any authenticated user could walk any test
+  // project's suite names, test case names and tc_external_ids (same class as
+  // bugs #1696 / #1765). The modern screen is backed by api/tcprojecttree,
+  // which checks mgt_view_tc / mgt_modify_tc on the addressed project BEFORE
+  // resolving it, proves every node id to live under that project root and keeps
+  // the legacy show_tcases / filter_node gestures. Read-only: the reorder
+  // gesture lives in tcReorder.html (Refs #1660) and move/copy in
+  // containerMoveTC.html (Refs #1724).
+  $actions->tcProjectTree = "/gui/templates/testcases/tcProjectTree.html?{$ctx}";
   // Direct-link resolver modernized screen (Dashio standalone page) - Refs
   // #1532. Replaces the legacy linkto.php deep-link gateway for
   // linkto.php?tprojectPrefix=<prefix>&item=req&id=<doc_id>; the browser-facing

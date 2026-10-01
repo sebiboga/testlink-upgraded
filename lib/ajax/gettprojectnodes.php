@@ -1,221 +1,118 @@
 <?php
-/** 
-*   TestLink Open Source Project - http://testlink.sourceforge.net/
-* 
-*   @version  $Id: gettprojectnodes.php,v 1.22 2010/10/10 14:47:57 franciscom Exp $
-*   @author   Francisco Mancardi
-* 
-*   **** IMPORTANT *****   
-*   Created using Ext JS example code
-*
-*   Is the tree loader, will be called via AJAX.
-*   Ext JS automatically will pass $_REQUEST['node']   
-*   Other arguments will be added by TL php code that needs the tree.
-*   
-*   This tree is used to navigate Test Project, and is used in following feature:
-*
-*   - Create test suites, test cases on test project
-*   - Assign keywords to test cases
-*   - Assign requirements to test cases
-*
-*   EXT-JS - Important:
-*   Custom keys can be added, and will be access on EXT-JS code using
-*   public property 'attributes' of object of Class Ext.tree.TreeNode 
-*   
-*
-* @internal revisions
-* @since 1.9.10
-*
-*/
+/**
+ * TestLink Open Source Project - http://testlink.sourceforge.net/
+ * This script is distributed under the GNU General Public License 2 or later.
+ *
+ * @filesource gettprojectnodes.php
+ *
+ * @internal Refs #1770 - legacy TEST CASE tree lazy loader. It was the server
+ *   side of the ExtJS tree built by
+ *   lib/functions/tlTestCaseFilterControl.class.php (the LEFT FRAME of the 1.9.20
+ *   work areas "add/remove test cases" planAddTC_m1.tpl, "update test plan TC
+ *   assignments" planUpdateTC.tpl, "test urgency" planUrgency.tpl and
+ *   "execution assignment" tc_exec_assignment.tpl) and answered the children of
+ *   ONE expanded node:
+ *     ?root_node=<tproject_id>[&node=<parent id>][&filter_node=<id>]
+ *     [&show_tcases=<0|1>][&tcprefix=<P>][&operation=manage|print]
+ *   Each row was an ExtJS tree node (text / id / leaf / cls / position /
+ *   testlink_node_type / testlink_node_name / forbidden_parent /
+ *   href=javascript:EP|ETS|ET) built from
+ *   `SELECT ... FROM nodes_hierarchy WHERE parent_id = <parent>`, with a
+ *   recursive test case count appended to every folder label ("Name (n)") and
+ *   the latest version's tc_external_id prefixed to every test case label when
+ *   cfg treemenu_show_testcase_id is on.
+ *
+ *   It is retired here because it was never authorized:
+ *
+ *   1. It performed NO rights check at all - only testlinkInitPage(), i.e. a
+ *      SESSION check. Any authenticated user, including one with no test case
+ *      right, could read the suite names, test case names and tc_external_ids of
+ *      ANY test project by sending an arbitrary root_node / node / filter_node
+ *      id. Same class of bug as #1696 (getrequirementnodes.php) and #1765
+ *      (getreqcoveragenodes.php).
+ *   2. It had no project scope and no node-type gate: display_children() filtered
+ *      on `parent_id` only, so the walk escaped the test specification entirely.
+ *   3. Its SQL was driven by ids read out of $_REQUEST, and the deep label text
+ *      was handed to ExtJS as HTML (the htmlspecialchars() call was the only
+ *      thing between a suite name and the caller DOM).
+ *   4. getAllTCasesID() recursed once per suite level with an unbounded
+ *      `parent_id IN (...)` list built by string concatenation.
+ *
+ *   The equivalent authorized surface is the modern Test Case Tree navigator
+ *   (gui/templates/testcases/tcProjectTree.html) backed by api/tcprojecttree,
+ *   which checks mgt_view_tc / mgt_modify_tc on the ADDRESSED project BEFORE
+ *   resolving it, proves every node id to live under that project root, keeps the
+ *   legacy node-type exclusions and the show_tcases / filter_node gestures, and
+ *   returns the names as DATA (the modern screen escapes them itself). It is
+ *   READ-ONLY on purpose: the reorder gesture lives in
+ *   gui/templates/testcases/tcReorder.html (api/tcreorder, Refs #1660) and the
+ *   move/copy gesture in gui/templates/testcases/containerMoveTC.html
+ *   (api/tcmovecopy, Refs #1724) - the legacy drag-and-drop source
+ *   lib/ajax/dragdroptprojectnodes.php is a non-mutating shim.
+ *
+ *   Legacy deep links (GET) are answered with a 302 to the modern screen; the
+ *   read is deliberately NOT replayed, because it was never authorized. A write
+ *   verb is refused with 405 and a pointer to the modern endpoints.
+ */
+
 require_once('../../config.inc.php');
 require_once('common.php');
-testlinkInitPage($db);
 
-$root_node = isset($_REQUEST['root_node']) ? intval($_REQUEST['root_node']): null;
-$node = isset($_REQUEST['node']) ? intval($_REQUEST['node']) : $root_node;
-$filter_node = isset($_REQUEST['filter_node']) ? intval($_REQUEST['filter_node']) : null;
-$show_tcases = isset($_REQUEST['show_tcases']) ? intval($_REQUEST['show_tcases']) : 1;
+$db = new database(DB_TYPE);
+doDBConnect($db);
 
-$tcprefix = isset($_REQUEST['tcprefix']) ? $_REQUEST['tcprefix'] : '';
-$operation = isset($_REQUEST['operation']) ? $_REQUEST['operation']: 'manage';
-
-$helpText = array();
-$helpText['testproject'] = isset($_REQUEST['tprojectHelp']) ? $_REQUEST['tprojectHelp'] : '';
-$helpText['testsuite'] = isset($_REQUEST['tsuiteHelp']) ? $_REQUEST['tsuiteHelp'] : '';
-$nodes = display_children($db,$root_node,$node,$filter_node,$tcprefix,$show_tcases,$operation,$helpText);
-echo json_encode($nodes);
-
-/**
- *
- *
- */
-/**
- * Build the argument list for a tree node's javascript: href.
- *
- * ETS() and ET() take the test project id as their first argument; EP() and
- * the TPROJECT_PT* print handlers take only the node id.
- */
-function buildNodeJSArgs($jsFunction,$nodeID,$tprojectID)
-{
-  static $needsTProjectID = array('ETS' => true, 'ET' => true);
-
-  return isset($needsTProjectID[$jsFunction])
-         ? "(" . intval($tprojectID) . ",{$nodeID})"
-         : "({$nodeID})";
+// Legacy testlinkInitPage() contract: an anonymous visitor is bounced to the
+// login screen. checkSessionValid()'s own redirect is used (rather than a
+// hand-rolled header()) because it walks up from dirname(SCRIPT_FILENAME)
+// until it finds login.php - a relative 'login.php' would resolve against
+// /lib/ajax/ and 404.
+if (!checkSessionValid($db)) {
+    exit;  // unreachable: the call above already redirected
 }
 
-function display_children($dbHandler,$root_node,$parent,$filter_node,
-                          $tcprefix,$show_tcases = 1,$operation = 'manage',$helpText=array())
-{
-  static $showTestCaseID;
-    
-  $tables = tlObjectWithDB::getDBTables(array('tcversions','nodes_hierarchy','node_types'));
-  
-  $forbidden_parent = array('testproject' => 'none','testcase' => 'testproject', 'testsuite' => 'none');
-  $external = '';
-  $nodes = null;
-  $filter_node_type = $show_tcases ? '' : ",'testcase'";
-        
-  switch($operation)
-  {
-    case 'print':
-      $js_function = array('testproject' => 'TPROJECT_PTP',
-                           'testsuite' =>'TPROJECT_PTS', 'testcase' => 'TPROJECT_PTS');
-    break;
-        
-    case 'manage':
-    default:
-      $js_function = array('testproject' => 'EP','testsuite' =>'ETS', 'testcase' => 'ET');
-    break;  
-  }
-    
-  $sql = " SELECT NHA.*, NT.description AS node_type " . 
-         " FROM {$tables['nodes_hierarchy']} NHA, {$tables['node_types']} NT " .
-         " WHERE NHA.node_type_id = NT.id " .
-         " AND parent_id = " . intval($parent) .
-         " AND NT.description NOT IN " .
-         " ('testcase_version','testplan','requirement_spec','requirement'{$filter_node_type}) ";
+$method = strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET');
 
-  if(!is_null($filter_node) && $filter_node > 0 && $parent == $root_node)
-  {
-    $sql .=" AND NHA.id = " . intval($filter_node);  
-  }
-  $sql .= " ORDER BY NHA.node_order ";    
-    
-    
-  $nodeSet = $dbHandler->get_recordset($sql);
-       
-  if($show_tcases) {  
-    // Get external id, used on test case nodes   
-    $sql =  " SELECT DISTINCT tc_external_id,NHA.parent_id " .
-            " FROM {$tables['tcversions']} TCV " .
-            " JOIN {$tables['nodes_hierarchy']} NHA  ON NHA.id = TCV.id  " .
-            " JOIN {$tables['nodes_hierarchy']} NHB ON NHA.parent_id = NHB.id " . 
-            " WHERE NHB.parent_id = " . intval($parent) . " AND NHA.node_type_id = 4"; 
-    $external = $dbHandler->fetchRowsIntoMap($sql,'parent_id');
-  }
-    
-  if(!is_null($nodeSet)) {
-    foreach($nodeSet as $key => $row) {
-      $path['text'] = htmlspecialchars($row['name']);
-      $path['id'] = $row['id'];                                                           
-      
-      // this attribute/property is used on custom code on drag and drop
-      $path['position'] = $row['node_order'];                                                   
-      $path['leaf'] = false;
-      $path['cls'] = 'folder';
+if ($method !== 'GET' && $method !== 'HEAD') {
+    tLog('BFF shim: refused ' . $method . ' on the retired legacy test-case tree loader - '
+        . 'read it from GET /api/tcprojecttree/index.php?action=init|children|projects instead (Refs #1770).',
+        'WARNING');
+    http_response_code(405);
+    header('Content-Type: application/json; charset=utf-8');
+    header('X-Content-Type-Options: nosniff');
+    echo json_encode(array(
+        'status' => 'error',
+        'code' => 'method_not_allowed',
+        'message' => 'The legacy test case tree loader was retired; '
+            . 'use GET /api/tcprojecttree/index.php?action=init|children|projects',
+    ));
+    exit;
+}
 
-      // customs key will be accessed using node.attributes.[key name]
-      $path['testlink_node_type'] = $row['node_type'];
-      $path['testlink_node_name'] = $path['text']; // already htmlspecialchars() done
-      $path['forbidden_parent'] = 'none';
+$q = $_GET;
 
-      $tcase_qty = null;
-      switch($row['node_type'])
-      {
-        case 'testproject':
-          // at least on Test Specification seems that we do not execute this piece of code.
-          $path['href'] = "javascript:EP({$path['id']})";
-          $path['forbidden_parent'] = $forbidden_parent[$row['node_type']];
+$target = '/gui/templates/testcases/tcProjectTree.html';
+
+$params = array();
+// root_node was the test project id of the tree; node was the expanded node,
+// which carries no meaning for the modern screen (it expands client side).
+foreach (array('tproject_id', 'root_node') as $k) {
+    if (isset($q[$k]) && intval($q[$k]) > 0) {
+        $params['tproject_id'] = intval($q[$k]);
         break;
-              
-        case 'testsuite':
-          $items = array();
-          getAllTCasesID($row['id'],$items);
-          $tcase_qty = sizeof($items);
-
-          $path['href'] = "javascript:" . $js_function[$row['node_type']] .
-                          buildNodeJSArgs($js_function[$row['node_type']],$path['id'],$root_node);
-          $path['forbidden_parent'] = $forbidden_parent[$row['node_type']];
-        break;
-
-        case 'testcase':
-          $path['href'] = "javascript:" . $js_function[$row['node_type']] .
-                          buildNodeJSArgs($js_function[$row['node_type']],$path['id'],$root_node);
-          $path['forbidden_parent'] = $forbidden_parent[$row['node_type']];
-          if(is_null($showTestCaseID))
-          {
-            $showTestCaseID = config_get('treemenu_show_testcase_id');
-          }
-          if($showTestCaseID)
-          {
-            $path['text'] = htmlspecialchars($tcprefix . $external[$row['id']]['tc_external_id'] . ":") . $path['text'];
-          }
-          $path['leaf'] = true;
-        break;
-      }
-         
-      if(!is_null($tcase_qty))
-      {
-        $path['text'] .= " ({$tcase_qty})";   
-      }
-
-      switch($row['node_type'])
-      {
-        case 'testproject':
-        case 'testsuite':
-          if( isset($helpText[$row['node_type']]) )
-          {
-            $path['text'] = '<span title="' . $helpText[$row['node_type']] . '">' . $path['text'] . '</span>';
-          }  
-        break;
-      }
-
-      $nodes[] = $path;                                                                        
     }
-  }
-  return $nodes;                                                                             
+}
+// filter_node and show_tcases are real gestures on the modern screen too
+// (legacy filter_node narrowed the ROOT children to one node).
+if (isset($q['filter_node']) && intval($q['filter_node']) > 0) {
+    $params['filter_node'] = intval($q['filter_node']);
+}
+if (isset($q['show_tcases']) && $q['show_tcases'] !== '' && intval($q['show_tcases']) >= 0) {
+    $params['show_tcases'] = intval($q['show_tcases']) ? 1 : 0;
 }
 
-
-/**
- *
- */
-function getAllTCasesID($idList,&$tcIDs) {
-
-  global $db;  // I'm sorry for the global coupling
-  $tcNodeTypeID = 3;
-  $tsuiteNodeTypeID = 2;
-
-  $tbl = DB_TABLE_PREFIX . 'nodes_hierarchy';
-  $sql = " SELECT id,node_type_id FROM $tbl 
-           WHERE parent_id IN ($idList)
-           AND node_type_id IN (3,2) "; 
-    
-  $result = $db->exec_query($sql);
-  if ($result) {
-      $suiteIDs = array();
-      while($row = $db->fetch_array($result)) {
-        if ($row['node_type_id'] == $tcNodeTypeID) {
-            $tcIDs[] = $row['id'];
-        } else {
-          $suiteIDs[] = $row['id'];
-        }
-      }
-      if (sizeof($suiteIDs)) {
-        $suiteIDs  = implode(",",$suiteIDs);
-        getAllTCasesID($suiteIDs,$tcIDs);
-      }
-   }  
+if (!empty($params)) {
+    $target .= '?' . http_build_query($params);
 }
 
+header('Location: ' . $target);
+exit;
