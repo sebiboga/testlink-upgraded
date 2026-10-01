@@ -17,6 +17,18 @@ Every screen of the application was ported one-by-one in a screen-compare
 kept for backward compatibility and is progressively retired as each modern
 screen reaches full parity.
 
+- [FEATURE GAP] - #1039: Test Case Viewer lost the legacy Code Management / CTS block.
+  `tcView_viewer.tpl:561-588` rendered, per version panel, a bold "Code management" link to
+  `$cts->cfg->uriview`, a "Link Existent Test Script" button
+  (`open_script_add_window(tproject_id,null,tcversion_id,'link')`) and the
+  `showScriptsTable.inc.tpl` list of linked test scripts with per-row delete icons.
+  BFF: `api/testcases/index.php?action=view` now returns `codeTrackerEnabled`, `ctsViewUrl`,
+  `ctsName`, `canModifyScripts` and per-version `scripts[]` via `tcViewCodeTracker()`,
+  `tcViewScripts()` and `tcViewCtsUrl()`. Screen: `gui/templates/testcases/tcView.html` renders
+  the block with the 4 legacy columns and a `#delScriptModal` that posts the composite
+  `project_key&&repository&&code_path` id to `api/tcscripts/index.php?action=unlink` (the modern
+  `scriptDelete.php` replacement). i18n: 12 new `tcview.cts*` keys in all 10 locale bundles.
+  Verified: 13/13 browser + API cases (see issue #1039). Refs #1039
 - [FEATURE GAP] - #1038: the modern `tcView.html` dropped the whole "Test Case version Test Plan
   Assignment" block of the legacy viewer (`tcView_viewer.tpl:599-605` -> `include/quickexec.inc.tpl`),
   so nothing in the modern UI or API could answer "which test plans is this version linked to?" -
