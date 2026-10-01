@@ -2739,3 +2739,62 @@ legacy affordance of `attachments.inc.tpl` is back.
    `api/attachmentsdelete/index.php:270` breaks the Attachment Delete popup for every user.
 
 Screenshot: `docs/screenshots/issue-1042-tcview-attachment-download.png`.
+
+---
+
+## Regression — Issue #1784: `api/keywordsxml` — a malformed LAST `<keyword>` turned a successful XML import into `400 wrong_keywords_file`
+
+**Preconditions**
+
+* App on `http://localhost:8082`, logged in as `admin`/`admin`.
+* A test project exists. The CI database is freshly imported (no projects), so create the fixture through
+  the BFF — `POST /api/projects/index.php?action=create {"name":"KWBugRepro","prefix":"KWB","description":"fixture for issue 1784","public":"public"}`
+  → `{"success":true,"id":1}` ⇒ **`tproject_id=1`** (this is what `tmp/verify_1784.sh` does).
+* All POSTs to the BFF need the same-origin proof header: `-H "Origin: http://localhost:8082"`, otherwise
+  `403 Forbidden: missing or mismatched same-origin proof (CSRF protection)` before any of this runs.
+
+**Repro steps (pre-fix)**
+
+1. `printf '<keywords>\n  <keyword name="delta"><notes>d</notes></keyword>\n  <keyword><notes>no name</notes></keyword>\n</keywords>\n' > repro_good_last.xml`
+2. `curl -b c.jar -H "Origin: http://localhost:8082" -X POST -F tproject_id=1 -F type=iSerializationToXML -F "uploadedFile=@repro_good_last.xml" "http://localhost:8082/api/keywordsxml/index.php?action=import"`
+3. `mysql … -e "SELECT id,keyword FROM keywords WHERE testproject_id=1;"`
+4. Repeat the identical upload with the two rows swapped (malformed first).
+
+**Expected post-fix behaviour**
+
+* A row-level rejection is reported, never fatal: `200 {"imported":1,"skipped":1,"rows":2,"errors":[{"row":2,"code":"WRONG_FORMAT","name":""}]}`,
+  the dialog says "Imported 1 of 2 rows; 1 row(s) were rejected" + the row detail, and the outcome no longer
+  depends on row order.
+* A file that cannot be read at all (parse failure / wrong root node) still answers `400 wrong_keywords_file`.
+
+**Actual results — measured after the fix** (script: `bash tmp/verify_1784.sh`)
+
+| # | case | expected | measured | verdict |
+|---|---|---|---|---|
+| 1 | valid row 1 + malformed row **last** (the reported file) | `200 imported:1 skipped:1 rows:2 errors:[row 2]` | `200 {"imported":1,"skipped":1,"rows":2,"errors":[{"row":2,"code":"WRONG_FORMAT","name":""}]}` — pre-fix: `400 wrong_keywords_file result:-16` | **PASS** |
+| 2 | malformed row 1 + valid row last (same bytes, other order) | same answer as #1 | `200 {"imported":1,"skipped":1,"rows":2,"errors":[{"row":1,…}]}` | **PASS** |
+| 3 | retry of case 1 (`delta` now exists) | never a bare `wrong_keywords_file`; both rows named | `400 NO_KEYWORDS_IMPORTED imported:0 skipped:2 rows:2 errors:[{row:1,ALREADY_EXISTS,delta},{row:2,WRONG_FORMAT,""}]` | **PASS** |
+| 4 | every row rejected (2 nameless `<keyword>`) | `400 NO_KEYWORDS_IMPORTED` + full row list | `400 {"code":"NO_KEYWORDS_IMPORTED","skipped":2,"rows":2,"errors":[row 1, row 2]}` | **PASS** |
+| 5 | `not xml at all` | `400 wrong_keywords_file result:-16` (unchanged) | unchanged | **PASS** |
+| 6 | `<notkeywords><keyword name="x"/></notkeywords>` | `400 wrong_keywords_file result:-16` (unchanged) | unchanged | **PASS** |
+| 7 | `<keywords></keywords>` (empty root) | documented legacy baseline | `400 wrong_keywords_file result:-16` — pre-existing (an empty `SimpleXMLElement` is falsy, so the legacy `!$simpleXMLObj` guard fires); measured identical pre-fix, **deliberately unchanged** | **PASS** (baseline) |
+| 8 | all rows valid | `200 imported:N skipped:0` (no behaviour change) | `200 {"imported":2,"skipped":0,"rows":2,"errors":[]}` | **PASS** |
+| 9 | CSV arm, valid file | unchanged | `200 {"imported":1,"skipped":0,"rows":1,"errors":[]}` | **PASS** |
+| 10 | CSV arm, every row rejected | `400 NO_KEYWORDS_IMPORTED` + row list | `400 … skipped:2 rows:2 errors:[ALREADY_EXISTS, EMPTY_NAME]` | **PASS** |
+| 11 | CSV arm, mixed | `200 imported:1 skipped:1` | `200 {"imported":1,"skipped":1,"rows":2,…}` | **PASS** |
+| 12 | sibling route `POST /api/keywords/index.php/import` (`type=xml`), reported file | row detail published, not a bare `WRONG_FORMAT` | `422 {"error_code":"NO_KEYWORDS_IMPORTED","rows":2,"skipped":2,"errors":[{row:1,ALREADY_EXISTS,delta},{row:2,WRONG_FORMAT,""}]}` — pre-fix: `422 WRONG_FORMAT`, no detail | **PASS** |
+| 13 | sibling route, `not xml at all` | `422 WRONG_FORMAT` (unchanged) | unchanged | **PASS** |
+| 14 | database | each valid keyword created exactly once, no junk rows | `delta`(5) `delta2`(6) `onlybad`(7) `ok1`(8) `ok2`(9) `ok3`(10) `ok4`(11) — 1 row per valid input row | **PASS** |
+| 15 | dialog UI, partial file (chrome-devtools) | "Imported 1 of 2 rows; 1 row(s) were rejected" + row 2 named + project count 8 → 9 | exactly that (`docs/screenshots/issue-1784-keywords-xml-partial-import.png`) | **PASS** |
+| 16 | dialog UI, every row rejected | "No keyword was imported - every row was rejected" + both rows named | exactly that (`docs/screenshots/issue-1784-keywords-xml-all-rejected.png`) | **PASS** |
+| 17 | syntax gates | `php -l` on the 3 touched files | clean ×3 | **PASS** |
+| 18 | i18n | no hardcoded user-facing string added, all 10 bundles untouched | no i18n file modified (the dialog already renders `errors[]` and maps `WRONG_FORMAT` → `kwxml.wrongFile`) | **PASS** |
+| 19 | Event Viewer / `events` | no new Error/Warning | 14 rows after 15 imports incl. 3 malformed, **all `log_level` 16** (audit) | **PASS** |
+| 20 | browser console | no unexpected error | 1 entry: the intentional `400` of case 16 (the all-rejected answer) | **PASS** |
+
+**Actual result** — 20/20 PASS (19 fixed/verified + 1 documented pre-existing baseline, case 7).
+The API half is also executable: `bash tmp/verify_1784.sh` creates its own fixture project and runs
+15 case groups / **18 assertions** — measured **18 PASS / 0 FAIL**.
+
+**Files** — `lib/functions/testproject.class.php` (`importKeywordsFromSimpleXML()` + both wrappers),
+`api/keywordsxml/index.php`, `api/keywords/index.php`. No client/JS and no locale bundle changed.

@@ -128,6 +128,18 @@ import model: the first parsed row is skipped when it matches the localized expo
 `docs/Bugfix-Issue-1616-Keyword-CSV-Import-Header-Row.md`
 (wiki: *Bugfix-Issue-1616-Keyword-CSV-Import-Header-Row*). Suite 1616 13/13 PASS.
 
+**#1784** — an XML keywords file whose **last** `<keyword>` was malformed answered
+`400 wrong_keywords_file` ("the format could not be read") although the rows before it were
+already committed, and the same file content imported fine when the bad row came first:
+`testproject::importKeywordsFromSimpleXML()` reused its file-level `$status` as the per-row
+verdict inside the loop, so the **last** row decided the whole file. The XML arm now takes the
+same optional by-ref `$stats` report as the CSV arm (a rejected row is reported, not fatal),
+both import BFFs publish it instead of back-computing it from the keyword-count delta, and a
+genuinely unreadable file (parse failure / wrong root node) still answers `wrong_keywords_file`.
+Details: `docs/Bugfix-Issue-1784-Keyword-XML-Import-Last-Row-Order.md`
+(wiki: *Bugfix-Issue-1784-Keyword-XML-Import-Last-Row-Order*). Suite 1784 20/20 PASS
+(`bash tmp/verify_1784.sh` 18/18 PASS).
+
 ## 8. Wiring
 
 * `$actions->keywordsExport` in `lib/functions/common.php`.
