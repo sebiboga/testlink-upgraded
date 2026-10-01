@@ -229,6 +229,12 @@ if ($method === 'GET' && count($segments) === 1 && $segments[0] === 'rows') {
     $rs = $tcaseMgr->get_assigned_to_user($filterUserId, $tproject_id,
         $tplanParam, ['mode' => 'full_path'], $filters);
 
+    // status code map is needed by the payload below even when there is no
+    // assignment to build rows from ($rs === NULL, e.g. project without
+    // test plans): keep the read OUTSIDE the is_null() guard so
+    // array_keys() never receives null (issue #1648)
+    $statusCodes = (array)($resultsCfg['status_code'] ?? []);
+
     $groups = [];
     if (!is_null($rs)) {
         $tables = tlObjectWithDB::getDBTables(['nodes_hierarchy']);
@@ -237,7 +243,6 @@ if ($method === 'GET' && count($segments) === 1 && $segments[0] === 'rows') {
             "SELECT name,id FROM {$tables['nodes_hierarchy']} " .
             "WHERE id IN (" . implode(',', $tplanIds) . ")", 'id');
 
-    $statusCodes = $resultsCfg['status_code'];
     $tplanMgrTmp = new testplan($db);
 
     foreach ($rs as $tplan_id => $tcaseSet) {
