@@ -798,6 +798,52 @@ class tlUser extends tlDBObject {
 
 
   /**
+   * Read testprojects.is_public for hasRight()'s accessibility guard.
+   *
+   * Refs #1763. Two deliberate differences from testproject::getPublicAttr()
+   * (lib/functions/testproject.class.php:3833):
+   *
+   * 1. It must NOT throw for a non-existent id. testproject::getPublicAttr()
+   *    throws Exception("Test Project ID does not exist!") and hasRight() is
+   *    called with client supplied ids from ~100 modern BFF sites, so a plain
+   *    call would turn today's clean 403/404 into an uncaught-exception 500. An
+   *    unknown project returns null, which the caller reads as "no accessibility
+   *    flag available" and therefore leaves today's rights answer alone - the
+   *    endpoint's own existence check stays the owner of the unknown-id case.
+   *
+   * 2. It is memoised per user instance. One request routinely evaluates many
+   *    rights on the same project (api/suitemove reads 'can_modify' for four
+   *    different right names), and each hasRight() used to issue its own query.
+   *
+   * @return int|null is_public (1 public, 0 private), or null when the id does
+   *                     not resolve to a test project.
+   */
+  private function getTprojectPublicAttr(&$db, $tprojectId)
+  {
+    static $cache = array();
+
+    $id = intval($tprojectId);
+    if ($id <= 0) {
+      return null;
+    }
+    if (array_key_exists($id, $cache)) {
+      return $cache[$id];
+    }
+
+    $isPublic = null;
+    try {
+      $mgr = new testproject($db);
+      $isPublic = $mgr->getPublicAttr($id);
+    } catch (Exception $e) {
+      // Unknown test project: no flag, no opinion (see note 1 above).
+      $isPublic = null;
+    }
+
+    $cache[$id] = $isPublic;
+    return $isPublic;
+  }
+
+  /**
    * check right on effective role for user, using test project and test plan,
    * means that check right on effective role.
    *
@@ -822,13 +868,26 @@ class tlUser extends tlDBObject {
     }
 
     $accessPublic = null;
-    if ($getAccess) {
-      if($testprojectID > 0) {
-        $mgr = new testproject($db);
-        $accessPublic['tproject'] = $mgr->getPublicAttr($testprojectID);
-        unset($mgr);
-      }  
+    // Refs #1763: the TEST PROJECT accessibility flag is no longer opt-in. It used
+    // to be filled only when the caller passed $getAccess === true, so every 3
+    // argument hasRight($db,$right,$tprojectId) - which is what every modern BFF
+    // under api/ does (100+ call sites) - left $accessPublic null, the private
+    // project guard below was dead code, and a user with NO row in
+    // user_testproject_roles was judged on their GLOBAL rights alone. Any
+    // non-admin built-in role holds mgt_view_tc/mgt_modify_tc globally (role 4
+    // test designer, 5 guest, 6 senior tester, 7 tester, 9 leader), so such a
+    // user was handed a private test project it has no role on: api/suitemove
+    // answered 200 with can_modify:"yes" and its ?action=reorder WROTE
+    // nodes_hierarchy.node_order (measured, see the issue).
+    //
+    // The flag is therefore driven by the id that was actually passed, not by the
+    // opt-in argument. $getAccess keeps its meaning for the TEST PLAN flag below,
+    // so no caller changes its answer about plans.
+    if($testprojectID > 0) {
+      $accessPublic['tproject'] = $this->getTprojectPublicAttr($db, $testprojectID);
+    }
 
+    if ($getAccess) {
       if($testPlanID > 0) {
         $mgr = new testplan($db);
         $accessPublic['tplan'] = $mgr->getPublicAttr($testPlanID);
@@ -873,9 +932,17 @@ class tlUser extends tlDBObject {
         return false;
       }  
     } else {
-      if(!is_null($accessPublic) && $accessPublic['tproject'] == 0) {
-        return false;      
-      }  
+      // Refs #1763: private test project + no project role = no access, for the
+      // same reason tlUser::getAccessibleTestPlans() drops such a test plan
+      // (tlUser.class.php:1053-1063). The admin exception is legacy parity, not a
+      // new policy: roles.inc.php:318 and testproject.class.php:575 both gate the
+      // same "private" rule on globalRoleID != TL_ROLES_ADMIN, because an admin
+      // holds no user_testproject_roles row either and must still reach every
+      // private project.
+      if(isset($accessPublic['tproject']) && intval($accessPublic['tproject']) === 0
+         && $this->globalRoleID != TL_ROLES_ADMIN) {
+        return false;
+      }
     }
 
     if( $testPlanID > 0) {
