@@ -212,6 +212,7 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
 <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap.min.js"></script>
 <script src="https://cdn.datatables.net/rowgroup/1.4.1/js/dataTables.rowGroup.min.js"></script>
 <script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script src="usermgmt-tabs.js"></script>
 <script>
 var API = '/api/users/index.php';
 var table = null;
@@ -375,24 +376,13 @@ function showSessionExpired() {
   canViewEvents = false;
 }
 
+// Issue #1611: this screen already gated its bar on the same
+// getGrantsForUserMgmt() flags (it is the reference implementation the other
+// three screens now share). The four-way table itself moved into
+// gui/templates/usermanagement/usermgmt-tabs.js so the whole area has ONE
+// definition of the legacy contract; the behaviour here is unchanged.
 function renderTabs(ctx, g) {
-  var tabs = [
-    { label: TLi18n.t('tab.userManagement'), url: 'usersView.html?' + ctx, active: true }
-  ];
-  if (g.role_mgmt === 'yes') {
-    tabs.push({ label: TLi18n.t('tab.roleManagement'), url: 'rolesView.html?' + ctx });
-  }
-  if (g.tproject_user_role_assignment === 'yes') {
-    tabs.push({ label: TLi18n.t('tab.assignProjectRoles'), url: 'usersAssignProject.html?' + ctx });
-  }
-  if (g.tplan_user_role_assignment === 'yes') {
-    tabs.push({ label: TLi18n.t('tab.assignPlanRoles'), url: 'usersAssignPlan.html?' + ctx });
-  }
-  var html = '';
-  $.each(tabs, function(i, t) {
-    html += '<a href="' + t.url + '"' + (t.active ? ' class="active"' : '') + '>' + t.label + '</a>';
-  });
-  $('#tabsBar').html(html);
+  TLUmgmtTabs.render({ active: 'userManagement', ctx: ctx, grants: g });
 }
 
 // User Management Export switched to the modernized Dashio screen (Refs #920);
