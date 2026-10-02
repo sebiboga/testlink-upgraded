@@ -35,6 +35,7 @@ The modern login is a single-page Dashio-styled form:
 | **Fields** | User ID + Password (localized placeholders) |
 | **Action** | "SIGN IN" button |
 | **OAuth row** | Optional provider buttons (shown only when configured) |
+| **Demo banner** | Teal "this is a DEMO site" notice, only when `demoMode` is ON (#1047) |
 | **Footer** | "New user?" / "Lost password?" links + "Secure login" note |
 
 No iframes, no Smarty rendering for login — `login.php` serves the static page, which loads
@@ -86,6 +87,39 @@ manages passwords externally or demo mode is on (same gate as legacy `external_p
 
 ---
 
+## Demo mode notice
+
+When the site runs in demo mode (`$tlCfg->demoMode = ON;` in `custom_config.inc.php`),
+the login card shows a teal **"This is a DEMO site"** banner above the form, ported from
+the legacy `login-model-marcobiedermann.tpl` block that rendered `{$labels.demo_usage}`:
+
+```
+{if $tlCfg->demoMode}
+  <div class="grid__container">{$labels.demo_usage}</div>
+{/if}
+```
+
+![Login screen with the demo-mode notice](issue-1047-demo-notice.png)
+
+| Item | Value |
+|------|-------|
+| Trigger | `GET /api/auth/config` → `"demoMode": true` (`api/auth/index.php`, `config_get('demoMode')`) |
+| Element | `#demoUsageBox` in `gui/templates/auth/login.html`, class `alert-box alert-demo` |
+| Position | After the error/info notes, before the login fields (legacy order: note → demo banner → form) |
+| Content | 4 lines — DEMO/RESPECT warning, re-install notice, data-deletion notice, "support our work" |
+| Styling | Teal `#e2f7f5` with a 4 px `#4ECDC4` left border; the 4th line is bold |
+| i18n key | `auth.demoUsage`, translated in **all 10** bundles, injected with `data-i18n-html` so the legacy `<br>` / `<b>` markup survives |
+
+The banner is independent from the error/info boxes: a redirect note and the demo banner
+are both visible at the same time, as in legacy.
+
+![Demo notice together with the "Session expired" note](issue-1047-demo-notice-with-note.png)
+
+Demo mode also hides the **Lost password?** link (same `demoMode` flag, legacy parity) —
+so a demo instance shows the warning banner and no password-recovery path at all.
+Implemented in
+[#1047](https://github.com/sebiboga/testlink-upgraded/issues/1047).
+
 ## 5. OAuth
 
 When OAuth servers are configured and enabled, the login card shows a row of provider
@@ -125,4 +159,4 @@ All labels, placeholders, links and messages use client-side `TLi18n` keys under
 
 ---
 
-_TestLink 2.0.1 · Login/Logout screen · Refs #775_
+_TestLink 2.0.1 · Login/Logout screen · Refs #775, #1047 (demo-mode notice)_

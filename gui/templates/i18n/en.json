@@ -139,6 +139,7 @@
   "auth.badUserPasswd": "Invalid login or password.",
   "auth.btnAddUserData": "Sign up",
   "auth.btnSend": "Send",
+  "auth.demoUsage": "This is a DEMO site, use it with RESPECT.<br>The site is re-installed at random intervals WITHOUT warning.<br>All data is deleted on every install.<br><b>If you find TestLink useful, please consider supporting our work.</b>",
   "auth.edition": "TestLink Sign In",
   "auth.email": "Email",
   "auth.firstLogin": "First login detected. Welcome!",

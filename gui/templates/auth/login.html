@@ -40,6 +40,12 @@ body {
 }
 .alert-danger { background: #fbdddd; color: #a42525; border: 1px solid #f5b7b7; }
 .alert-info { background: #d9eefb; color: #1a5276; border: 1px solid #b6d9f2; }
+.alert-demo {
+  background: #e2f7f5; color: #14524e; border: 1px solid #a7e2dc;
+  border-left: 4px solid #4ECDC4; font-size: 12px; line-height: 1.45;
+}
+.alert-demo .fa { margin-right: 4px; }
+.alert-demo b { color: #0d3f3b; }
 .btn-theme { background: #4ECDC4; color: #fff; font-weight: 700; letter-spacing: .5px; }
 .btn-theme:hover { background: #3dbdb5; color: #fff; }
 .divider { border-top: 1px solid #eee; margin: 18px 0; }
@@ -71,6 +77,16 @@ body {
     <div class="login-wrap">
       <div class="alert-box alert-danger" id="errorBox" style="display:none;"></div>
       <div class="alert-box alert-info" id="infoBox" style="display:none;"></div>
+
+      <!-- demoMode notice: legacy login-model-marcobiedermann.tpl:29-34 rendered
+           {$labels.demo_usage} above the form whenever $tlCfg->demoMode is ON. Refs #1047.
+           The inline English text is the fallback used when the locale bundle cannot be
+           loaded; #revealDemoNotice() strips data-i18n-html in that case so TLi18n cannot
+           replace it with the bare key. -->
+      <div class="alert-box alert-demo" id="demoUsageBox" role="status" aria-live="polite"
+           style="display:none;">
+        <i class="fa fa-info-circle" aria-hidden="true"></i><span data-i18n-html="auth.demoUsage">This is a DEMO site, use it with RESPECT.</span>
+      </div>
 
       <input type="text" id="tl_login" name="tl_login" class="form-control"
              data-i18n-placeholder="auth.loginName" autofocus required>
@@ -139,6 +155,44 @@ $(function () {
     $('#errorBox').hide();
   }
 
+  // demoMode notice (legacy login-model-marcobiedermann.tpl:29-34): the "DEMO
+  // site" banner sits above the form, after the error/info notes, so a redirect
+  // note such as "Session expired" stays readable on top. Refs #1047.
+  //
+  // demoModeFlag stays null until GET /api/auth/config answers, and the reveal is
+  // retried from the TLi18n.load() callback because the two requests race. If the
+  // locale bundle could not be loaded at all, TLi18n.apply() substitutes the bare key
+  // ("auth.demoUsage") for every missing translation, so the marker is stripped and the
+  // banner falls back to the inline English text - a demo instance must still be
+  // flagged, and a raw key must never reach the screen.
+  var demoModeFlag = null;
+  var demoRevealTimer = null;
+
+  // `stalled` is set by the deadline timer, so a locale-bundle request that never
+  // settles cannot re-arm the timer in a loop.
+  function revealDemoNotice(stalled) {
+    if (demoModeFlag !== true) return;
+    if (!stalled) {
+      // Still in flight: the TLi18n.load() callback below calls us again once it
+      // settles. The deadline covers a request that never settles at all.
+      if (!TLi18n.isLoaded()) {
+        if (demoRevealTimer === null) {
+          demoRevealTimer = setTimeout(function () { revealDemoNotice(true); }, 1500);
+        }
+        return;
+      }
+      if (TLi18n.has('auth.demoUsage')) {
+        $('#demoUsageBox').show();
+        return;
+      }
+    }
+    // No translation available (key missing, bundle unreachable or stalled): drop
+    // the marker so TLi18n can never replace the fallback with the bare key, and
+    // show the inline English text - a demo instance must never go unflagged.
+    $('#demoUsageBox').find('[data-i18n-html]').removeAttr('data-i18n-html');
+    $('#demoUsageBox').show();
+  }
+
   TLi18n.load(function () {
     TLi18n.apply();
 
@@ -153,6 +207,8 @@ $(function () {
     if (note && noteMsg[note]) {
       showInfo(noteMsg[note]);
     }
+
+    revealDemoNotice();
   });
 
   // Load public config: self-signup, lost-password, OAuth buttons.
@@ -165,6 +221,9 @@ $(function () {
     if (c.pwdMaxLen > 0) {
       $('#tl_password').attr('maxlength', c.pwdMaxLen);
     }
+
+    demoModeFlag = !!c.demoMode;
+    revealDemoNotice();
 
     // Sign-up link is always shown, regardless of the self-signup config, so
     // users always have a visible path to the registration screen. The href is

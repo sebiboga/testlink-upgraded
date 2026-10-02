@@ -3872,68 +3872,67 @@ Result: **55/55 passed**. Event Viewer after the sweep: **0 Error/Warning** entr
 - **Review BLOCKER (fixed in `65ef1ad28`)** — `download_url` carried no `disposition` and the stream defaulted to *inline*: the Download button did not download, and a `text/html` attachment would have executed in the app origin (stored XSS). Fixed by failing closed (missing ⇒ `attachment`, whitelist, inline allowlist, CSP sandbox on inline).
 - **Review MAJOR (fixed in `65ef1ad28`)** — the popup had no entry point (4 list templates still linked the legacy controller); `getImageURL()`/`toogleImageURL()` broke sub-directory installs; attachment bytes were cacheable by a shared cache (`Pragma: public`); "Open in new tab" silently saved anything the stream refuses to render.
 
----
+## Task — Issue #1047: `demoMode` "demo usage" notice on `login.html`
 
-## Regression — Issue #1683: reqTreeReorder.html confirm dialog must be the Dashio Bootstrap 3 modal, never a native `alert()`
+**Precondition**
 
-**Precondition / environment**
+- TestLink at `http://localhost:8082` (PHP built-in server, docroot = repo root).
+- Toggle demo mode **off** (default: `config.inc.php:2088` `$tlCfg->demoMode = OFF;`):
+  `rm -f custom_config.inc.php`
+- Toggle demo mode **on** (gitignored file, never committed):
+  `printf '<?php\n$tlCfg->demoMode = ON;\n' > custom_config.inc.php`
+- Read-only helper: `curl -s http://localhost:8082/api/auth/config`
+- Login credentials `admin` / `admin` (used only in the regression case).
 
-* App: `http://localhost:8082` (PHP built-in server, docroot = repo root), commit `47ae21765`
-  (== `origin/sebiboga`), work branch `fix/issue-1683`.
-* DB: MariaDB `127.0.0.1:3306/testlink`, user/pass `testlink`. Freshly imported, so
-  `tmp/fixtures_1681.php` allocates low ids: `tproject=1 specA=2 specB=4 reqs=6,8,10`.
-  Prepare with `php tmp/fixtures_1681.php`.
-* Browser: headless Chrome via chrome-devtools MCP. Login `admin`/`admin`.
-* Entry point: `http://localhost:8082/gui/templates/requirements/reqTreeReorder.html?tproject_id=1&req_spec_id=2`
-  (ids 13/14 in the original report; 1/2 on a fresh database).
+**Steps / Expected / Actual**
 
-**Pre-fix symptom (the defect #1683 described, reproduced on `dcd23815a`)**
+| # | Steps | Expected | Actual |
+|---|-------|----------|--------|
+| 1047-1 | `demoMode = ON`; `GET /api/auth/config` | `"demoMode":true` in the JSON | PASS — `{"status":"ok","config":{…,"demoMode":true,…}}` |
+| 1047-2 | `demoMode = ON`; open `http://localhost:8082/login.php` | Teal banner above the form with the 4 legacy `demo_usage` lines | PASS — a11y snapshot shows "This is a DEMO site, use it with RESPECT." + 3 `<br>`-separated lines, last one bold |
+| 1047-3 | `demoMode = ON`; inspect the banner's markup | `<br>`/`<b>` from the legacy label survive; text comes from i18n, not hardcoded | PASS — element `#demoUsageBox.alert-box.alert-demo > span[data-i18n-html=auth.demoUsage]`, 3 `LineBreak` nodes in the a11y tree |
+| 1047-4 | `demoMode = ON`; open `login.php?locale=ro` | Banner translated into Romanian | PASS — "Acesta este un site DEMO, folosiți-l cu RESPECT." + 3 more lines; page title also `Autentificare TestLink` |
+| 1047-5 | `demoMode = ON`; open `login.php?note=expired` | Info note **and** demo banner visible together (legacy kept `$gui->note` + banner simultaneously) | PASS — snapshot shows "Session expired. Please log in again." above the 4 demo lines |
+| 1047-6 | `rm custom_config.inc.php` (demoMode OFF); reload `login.php` | No demo banner at all | PASS — no demo text in the snapshot; page identical to the pre-change markup |
+| 1047-7 | `demoMode = OFF`; check the **Lost password?** link | Link visible again (it shares the `demoMode` flag) — proves no regression on the existing consumer of the flag | PASS — "Lost password? Lost password?" link present in snapshot (hidden in cases 1047-2…5, as in legacy) |
+| 1047-8 | `demoMode = OFF`; log in with `admin`/`admin` | Redirect to `index.php?caller=login` | PASS — browser landed on `http://localhost:8082/index.php?caller=login` |
+| 1047-9 | `demoMode = ON`; check the browser Network panel | `GET /api/auth/config` 200, i18n bundle 200, no new console errors | PASS — `/api/auth/config` **200**, `/gui/templates/i18n/en.json` **200**; only the pre-existing anonymous `/api/userinfo/index.php` **401** locale probe (unrelated, present before the change) |
+| 1047-10 | Gates: `node --check` on the extracted inline script, `php -l login.php`, `python3 -m json.tool` on all 10 bundles | All clean; `auth.demoUsage` present in every bundle | PASS — `JS SYNTAX OK`, `No syntax errors detected`, 10/10 bundles valid, 10/10 contain the key, `auth.*` coverage 40→41 in each |
+| 1047-11 | Event Viewer check: `select count(*) from events where log_level>0;` | No new ERROR(1)/WARNING(2) rows | PASS — `1` row, `log_level=16` (AUDIT) `audit_login_succeeded` from case 1047-8; zero ERROR/WARNING |
 
-Clicking *Move requirement* or *Apply order* raised a **native, unstyled,
-untranslatable `alert()`** instead of the Dashio confirm dialog. Cause: the screen
-was written against the Bootstrap 4/5 API while the Dashio bundle is **Bootstrap
-3.4.1** — `var BSS = null` was declared and never assigned, so the guard
-`if (BSS && BSS.Modal) new BSS.Modal(el).show()` was *always* false and the
-`else { alert(...) }` fallback ran on every confirm. The markup was v4/v5 too
-(`btn-close`, `data-bs-dismiss`, `modal-dialog-centered`), so even a correct
-constructor would have produced a dialog with no working close button.
+**Result: 11/11 PASS.**
 
-**Expected post-fix behavior**
+**Notes**
 
-Both destructive actions (move a requirement to another specification, save a new
-order) show the Dashio confirm modal; the modal gates the write (Cancel writes
-nothing, OK writes); if Bootstrap JS were missing entirely, the fallback is
-`window.confirm(...)`, which still gates — never a silent write, never `alert()`.
+- Legacy parity: `gui/templates/dashio/login/login-model-marcobiedermann.tpl:29-34`
+  (`{if $tlCfg->demoMode} … {$labels.demo_usage} … {/if}`) above the form;
+  `login.php:367-383` serves `gui/templates/auth/login.html` via `readfile()`, so that
+  Smarty block was dead code on the normal path.
+- `api/auth/index.php` already exposed `demoMode`; only the rendering was missing.
+- `de_DE`, `it_IT`, `ro_RO`, `ru_RU` ship **no** `$TLS_demo_usage` in their legacy
+  `locale/*/strings.txt`, so legacy fell back to English there — the new i18n key is
+  translated for all 10 bundles instead.
+- Screenshots: `docs/screenshots/issue-1047-demo-notice.png`,
+  `docs/screenshots/issue-1047-demo-notice-with-note.png`.
 
-**Steps and results — executed on `47ae21765`**
+### Code-review follow-up (AGENTS.md rule 16) — suite 1047, review round 1
 
-| # | step | expected | measured | result |
-|---|---|---|---|---|
-| 1 | `head -c 60 gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js` | Bootstrap 3.4.1 | `/*!  Bootstrap v3.4.1 (https://getbootstrap.com/)` | PASS |
-| 2 | `grep -rn 'new BSS.Modal\|data-bs-dismiss\|btn-close' gui/templates/*/*.html` on this screen | no hits | no functional hits (the only `BSS` hit is `reqTreeReorder.html:534`, a comment) | PASS |
-| 3 | open the screen with `tproject_id=1&req_spec_id=2` | 3 rows `TR1-1..TR1-3`, toolbar live | rendered, context tiles populated (`TR1-SPEC-A`, revision 1, 3 requirements, modified by `admin`) | PASS |
-| 4 | click *Select* on `TR1-3`, target spec = `TR1-SPEC-B`, click *Move requirement* | Dashio modal, no native `alert()` | `confirmModal.className = "modal fade in"`, `display:block`, `opacity:1`, `z-index:1050`, `.modal-backdrop` present at `opacity 0.5`, title `Move the requirement`, body `Move requirement TR1-3 to TR1-SPEC-B - Specification B (0)?`, OK label `Move requirement`; **no JS dialog raised at any point** | PASS |
-| 5 | inspect the close button | BS3 shape `button.close[data-dismiss=modal]` | `<button type="button" class="close" data-dismiss="modal" aria-label="Close">×</button>` | PASS |
-| 6 | click *Down* on row 1, then *Apply order* | Dashio modal with the apply text | `className = "modal fade in"`, title `Apply the new order`, body `The new order of the specification will be saved.`, OK `Apply order`, backdrop `0.5` | PASS |
-| 7 | on the open dialog click *Cancel* | modal hidden, **nothing written** | `display:none`, no `.modal-backdrop`; DB order unchanged | PASS |
-| 8 | re-do the reorder, click the OK button | write lands | rows `["TR1-1","TR1-2"]` → `["TR1-2","TR1-1"]` after Down; banner `.msg.ok` = `The new order was saved.` | PASS |
-| 9 | verify the move in the DB | `TR1-3` now belongs to `TR1-SPEC-B` | `select r.id,r.req_doc_id,r.srs_id,s.doc_id from requirements r join req_specs s on s.id=r.srs_id` → `10 TR1-3 4 TR1-SPEC-B` (was `srs_id 2`) | PASS |
-| 10 | browser console during the whole pass | no errors from the screen | clean (one 400 observed only from a hand-made probe without the CSRF token, not app output) | PASS |
-| 11 | Event Viewer / `events` table | no new Error/Warning | `select log_level,count(*) from events group by log_level` → only `log_level=16` (2 audit rows: fixture project creation + login). **Zero** rows at level 1 (ERROR) / 2 (WARNING) | PASS |
-| 12 | fallback when Bootstrap JS is absent (static review of `confirmBox()`, `reqTreeReorder.html:524-541`) | still gated, no silent write | `if ($.fn && $.fn.modal) { $(el).modal('show'); } else { if (window.confirm(title+'\n\n'+body)) { onOk(); } }` | PASS |
+Review findings raised and how each was resolved (all re-measured in the browser
+after the fix; the screen was re-tested from scratch):
 
-**Overall: 12/12 PASS.** #1683's fix is present on the default branch (`f790f7241`)
-and verified error-free; no code change was required.
+| # | Finding | Fix | Re-verification |
+|---|---------|-----|-----------------|
+| 1047-R1 | **MAJOR** — the inline English fallback never survived: `TLi18n.apply()` overwrites every `data-i18n-html` element with the bare key when the bundle cannot be loaded (`i18n.js:196-199` + `t()` returning the key), so a demo instance could display the literal text `auth.demoUsage`. | `revealDemoNotice()` now waits for `TLi18n.isLoaded()`, and when the key is still absent it strips `data-i18n-html` before showing the inline English text. Added a 1.5 s deadline so a *stalled* (never-settling) bundle request cannot leave the banner hidden forever. | i18n bundle blocked via `initScript` XHR patch: `i18nLoaded:false`, `markerStripped:true`, `boxDisplay:"block"`, text `"This is a DEMO site, use it with RESPECT."`, `showsBareKey:false` — and after 2.2 s the same values (no timer loop, `disp:"block"`). PASS |
+| 1047-R2 | **MAJOR** — the banner was not announced: it is revealed after load, so screen readers saw nothing (repo convention: `role="alert"`/`role="status"` on JS-revealed boxes, e.g. `platformsExport.html:77`, `ltxDirectLink.html:188-206`). | `role="status" aria-live="polite"` on `#demoUsageBox` (`polite`, not `alert`: it is information, not an error). | a11y snapshot now exposes `status atomic live="polite" relevant="additions text"` wrapping the 4 demo lines. PASS |
+| 1047-R3 | **MAJOR** — the new `auth.demoUsage` values for de/es/fr/it/pt used HTML entities (`&aacute;`) while every other key in those bundles uses native UTF-8 (the only entity key of 41), a latent trap for a future switch to `data-i18n`. | Rewrote all five as native UTF-8 (`úsala`, `reinstalará`, `ré-installé`, `unregelmäßigen`, `DEMONSTRAÇÃO`, …). | `?locale=es` with demoMode ON: `br:3`, `b:1`, `literalEntity:false`, text `Esto es una DEMO, úsala con RESPETO.…` — identical rendering, single-pass entity decode verified (no double escaping). PASS |
+| 1047-R4 | **MINOR** — layout shift / English flash: `$.getJSON('/api/auth/config')` runs outside `TLi18n.load()`, so the box could pop in with the English fallback on a non-en locale and then swap text. | Caught by the real race during re-testing: with an `isLoaded()`-only guard the **Romanian** page rendered the English fallback (`br:0, b:0`) because the config callback ran first. Fixed by gating on `isLoaded()` and re-arming the reveal from the `TLi18n.load()` callback. | `?locale=ro` with demoMode ON after the fix: `markerPresent:true`, `br:3`, `b:1`, text `Acesta este un site DEMO, folosiți-l cu RESPECT.…`. PASS |
+| 1047-R5 | **MINOR** — CHANGELOG claimed `+30/-1` (measured `+29/-0`) and overstated "verbatim" for the `es` value. | Both corrected; the entry now also documents the a11y attributes, the reveal/fallback contract, the contrast ratio and the 1.5 s deadline. | `git diff --numstat` for the two code areas = `69 0`. PASS |
+| 1047-R6 | **MINOR** — the docs mirror had been regenerated from the wiki clone and silently dropped still-true content (`note=first`, `note=lost`, the `external_password_mgmt` half of the lost-password gate, `Prerequisite: none`). | `git checkout docs/WIKI-LOGIN.md` and hand-inserted only the new "Demo mode notice" section + layout row + footer ref. | All 4 items present again (`docs/WIKI-LOGIN.md:10,65,66,85`); diff is `35` additions / `1` deletion (the deleted line is the old `Refs #775_` footer). PASS |
+| 1047-R7 | **MINOR** — screenshots were untracked, and rule 9's staged-numstat gate needed re-checking after the commit. | `git add docs/screenshots/issue-1047-demo-notice*.png`; post-commit re-check with `git diff --numstat HEAD~1 HEAD -- tmp/TLU_Test_Cases.md`. | See the closing comment on issue #1047. PASS |
 
-**Bugs found while testing (rule 11)**
-
-- **#1796 (`bug`, filed)** — the repo-wide grep the #1683 report asked for turned up
-  three screens that still carry **dead Bootstrap 4/5 CSS classes** on a BS3 bundle:
-  `documentation.html:82` (`modal-dialog modal-xl modal-dialog-centered` → measured
-  `width: 600px`, `margin-top: 30px`: the View dialog is BS3-default-width and
-  top-aligned), `reqTcAssign.html:167` and `reqTcBulkAssign.html:134`
-  (`modal-dialog-centered` → centring-only). Cosmetic — the dialogs are driven
-  correctly with `$(el).modal('show'|'hide')` and their `button.close[data-dismiss]`
-  works — so left for a separate run per FIX-ISSUE.md §4 ("file it, never expand
-  this run's scope"). Not fixed in this run.
-
+Regression after the review fixes — full suite re-run, all still PASS:
+`demoMode` ON (`?locale=en` banner + `role=status` live region), ON + `?note=expired` (note and
+banner together), ON + `?locale=ro`, ON + `?locale=es`, ON with the i18n bundle blocked (English
+fallback, no raw key), OFF (banner `display:none`, marker untouched, **Lost password?** link
+visible again), plus `node --check` on the inline script and `python3 -m json.tool` on all 10
+bundles. **Result: 11/11 + 7/7 review follow-up = PASS.**

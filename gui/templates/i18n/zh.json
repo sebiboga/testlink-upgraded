@@ -139,6 +139,7 @@
   "auth.badUserPasswd": "用户名或密码无效。",
   "auth.btnAddUserData": "Sign up",
   "auth.btnSend": "Send",
+  "auth.demoUsage": "这是一个演示网站，请尊重它。<br>网站将在没有警告的情况下在随机时间被重新安装。<br>所有的数据将在每次安装后被删除。<br><b>如果您觉得 TestLink 很有用，请考虑支持我们的工作。</b>",
   "auth.edition": "TestLink 登录",
   "auth.email": "Email",
   "auth.firstLogin": "检测到首次登录，欢迎！",

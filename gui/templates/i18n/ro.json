@@ -139,6 +139,7 @@
   "auth.badUserPasswd": "Nume de utilizator sau parolă incorecte.",
   "auth.btnAddUserData": "Înregistrează-te",
   "auth.btnSend": "Trimite",
+  "auth.demoUsage": "Acesta este un site DEMO, folosiți-l cu RESPECT.<br>Site-ul este reinstalat la intervale neregulate FĂRĂ avertisment.<br>Toate datele sunt șterse la fiecare instalare.<br><b>Dacă TestLink vi se pare util, vă rugăm să susțineți munca noastră.</b>",
   "auth.edition": "Autentificare TestLink",
   "auth.email": "E-mail",
   "auth.firstLogin": "Prima autentificare detectată. Bine ați venit!",
