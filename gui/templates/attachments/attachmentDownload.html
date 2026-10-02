@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Attachment Download</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; font-size: 13px; }
+.header { background: #4ECDC4; color: #fff; padding: 12px 24px; font-size: 19px; font-weight: 700; letter-spacing: 1px; display: flex; align-items: center; gap: 12px; }
+.header .sub { font-size: 13px; font-weight: 400; opacity: .85; word-break: break-all; }
+.toolbar { background: #22242a; padding: 10px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-dark { background: #3a3d46; color: #eee; border: none; padding: 7px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-dark:hover { background: #4a4e59; }
+.btn-red { background: #e6605e; color: #fff; border: none; padding: 7px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-red:hover { background: #d34f4d; }
+.btn-sm { padding: 4px 10px; font-size: 12px; }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.main { max-width: 760px; margin: 20px auto; padding: 0 16px; }
+.card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin-bottom: 16px; overflow: hidden; }
+.card-head { background: #22242a; color: #fff; padding: 11px 20px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.card-head h2 { font-size: 15px; font-weight: 700; margin: 0; flex: 1; }
+.card-body { padding: 16px 20px; }
+.kv { display: flex; gap: 10px; padding: 5px 0; border-bottom: 1px solid #f0f0f0; font-size: 13px; }
+.kv:last-child { border-bottom: none; }
+.kv .k { color: #888; width: 150px; flex-shrink: 0; }
+.kv .v { color: #333; font-weight: 600; word-break: break-all; }
+.kv .v a { color: #2d8e88; }
+.badge { display: inline-block; padding: 2px 9px; border-radius: 10px; font-size: 11px; font-weight: 700; letter-spacing: .5px; }
+.badge.img { background: #d8f5f2; color: #1d6f69; }
+.badge.svg { background: #fdecea; color: #a5342f; }
+.badge.doc { background: #e8e8ee; color: #555; }
+.preview-wrap { text-align: center; background: repeating-conic-gradient(#f6f6f6 0% 25%, #fff 0% 50%) 50% / 18px 18px; border-radius: 6px; padding: 14px; }
+.preview-wrap img { max-width: 100%; max-height: 340px; box-shadow: 0 1px 6px rgba(0,0,0,.18); }
+.preview-meta { text-align: center; color: #888; font-size: 11px; margin-top: 10px; }
+.warn { background: #fff8e1; border: 1px solid #f2d98c; color: #8a6d1a; border-radius: 6px; padding: 12px 14px; font-size: 13px; text-align: left; }
+.warn i { margin-right: 6px; }
+.state { text-align: center; padding: 34px 20px; color: #777; }
+.state .ico { font-size: 40px; color: #ccc; margin-bottom: 12px; }
+.state.danger .ico { color: #e6605e; }
+.state.warn .ico { color: #e0a33a; }
+.state.ok .ico { color: #4ECDC4; }
+.state h3 { font-size: 15px; font-weight: 700; color: #333; margin: 0 0 6px; }
+.state p { margin: 0; font-size: 13px; }
+.state .code { display: inline-block; margin-top: 10px; font-family: monospace; font-size: 11px; color: #999; }
+.actions { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
+.actions .left { margin-right: auto; }
+.loading { color: #999; padding: 10px 0; text-align: center; }
+.footer { text-align: center; color: #aaa; font-size: 12px; padding: 14px 0 20px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <i class="fa fa-download"></i>
+  <span data-i18n="adl.title">Attachment Download</span>
+  <span class="sub" id="attLabel"></span>
+</div>
+<div class="toolbar">
+  <span class="ctx"><span data-i18n="adl.object">Object</span>: <b id="ownerLabel">-</b></span>
+  <span id="localeSwitcher"></span>
+  <button class="btn-dark btn-sm" id="btnRefresh" style="margin-left:auto;" onclick="load()"><i class="fa fa-refresh"></i> <span data-i18n="common.refresh">Refresh</span></button>
+</div>
+
+<div class="main">
+  <div class="card">
+    <div class="card-head"><h2><span data-i18n="adl.attachmentInfo">Attachment</span></h2></div>
+    <div class="card-body" id="infoBox"><div class="loading"><i class="fa fa-spinner fa-spin"></i></div></div>
+  </div>
+
+  <div class="card" id="previewCard" style="display:none;">
+    <div class="card-head"><h2><span data-i18n="adl.preview">Preview</span></h2></div>
+    <div class="card-body" id="previewBox"></div>
+  </div>
+
+  <div class="card" id="actionCard" style="display:none;">
+    <div class="card-body">
+      <div class="actions">
+        <button class="btn-dark left" onclick="closePopup()"><i class="fa fa-times"></i> <span data-i18n="common.close">Close</span></button>
+        <button class="btn-dark" id="btnOpen" onclick="openInline()"><i class="fa fa-eye"></i> <span data-i18n="adl.openInline">Open in new tab</span></button>
+        <a class="btn-teal" id="btnDownload" href="#" download><i class="fa fa-download"></i> <span data-i18n="adl.download">Download</span></a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="footer"><span data-i18n="footers.attachmentDownload">TestLink 2.0.1 - Attachments</span></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script>
+var API = '/api/attachmentsdownload/index.php';
+var ATTID = 0;
+var DATA = null;
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function closePopup() {
+  try {
+    if (!window.opener || window.opener.closed) {
+      if (window.history.length > 1) { window.history.back(); return; }
+      window.location.href = '/index.php';
+      return;
+    }
+    window.close();
+  } catch (e) { /* ignore */ }
+}
+
+function stateBox(kind, ico, title, text, code) {
+  var h = '<div class="state ' + kind + '"><div class="ico"><i class="fa ' + ico + '"></i></div>' +
+          '<h3>' + esc(title) + '</h3><p>' + esc(text) + '</p>';
+  if (code) { h += '<div class="code">' + esc(code) + '</div>'; }
+  h += '</div>';
+  return h;
+}
+
+function kv(k, v) {
+  return '<div class="kv"><div class="k">' + esc(k) + '</div><div class="v">' + v + '</div></div>';
+}
+
+function hideAll() {
+  $('#actionCard').hide();
+  $('#previewCard').hide();
+  $('#infoBox').html('');
+  $('#attLabel').text('');
+  $('#ownerLabel').text('-');
+}
+
+function failState(kind, ico, titleKey, textKey, code) {
+  hideAll();
+  $('#infoBox').html(stateBox(kind, ico, TLi18n.t(titleKey), TLi18n.t(textKey), code));
+}
+
+function badge(a) {
+  if (a.is_svg) {
+    return '<span class="badge svg">' + esc(TLi18n.t('adl.badgeSvg')) + '</span>';
+  }
+  if (a.is_image) {
+    return '<span class="badge img">' + esc(TLi18n.t('adl.badgeImage')) + '</span>';
+  }
+  return '<span class="badge doc">' + esc(TLi18n.t('adl.badgeFile')) + '</span>';
+}
+
+function renderPreview(a) {
+  var box = $('#previewBox');
+  if (a.is_svg) {
+    // legacy parity: an SVG whose payload is not XSS_StringScriptSafe() is
+    // served with an `attachment` disposition, so it can NOT be previewed in
+    // the app origin - the BFF enforces it, the screen says so.
+    box.html(stateBox('warn', 'fa fa-shield-alt', TLi18n.t('adl.svgTitle'), TLi18n.t('adl.svgText'), a.file_name || ''));
+    $('#previewCard').show();
+    return;
+  }
+  if (a.can_preview && a.preview_url) {
+    box.html('<div class="preview-wrap"><img id="previewImg" alt=""></div>' +
+             '<div class="preview-meta">' + esc(a.file_name || '') + ' &middot; ' +
+             esc(a.file_size_human || '') + '</div>');
+    $('#previewImg').attr('src', a.preview_url);
+    $('#previewCard').show();
+    return;
+  }
+  box.html(stateBox('', 'fa fa-file-o', TLi18n.t('adl.noPreviewTitle'), TLi18n.t('adl.noPreviewText'), a.file_type || ''));
+  $('#previewCard').show();
+}
+
+function load() {
+  $('#actionCard').hide();
+  $('#previewCard').hide();
+  $('#infoBox').html('<div class="loading"><i class="fa fa-spinner fa-spin"></i> <span data-i18n="adl.loading">Loading…</span></div>');
+  TLi18n.apply();
+  if (ATTID <= 0) {
+    failState('danger', 'fa fa-ban', 'adl.stNoId', 'adl.errNoId', 'ADL-00');
+    return;
+  }
+  $.getJSON(API + '?action=init&id=' + encodeURIComponent(ATTID))
+    .done(function (r) {
+      if (r.status !== 'ok') { renderError(r); return; }
+      var a = r.attachment;
+      DATA = a;
+      $('#attLabel').text(' ' + (a.file_name || a.title || ''));
+      $('#ownerLabel').text(a.owner ? (a.owner.label || (a.owner.table + ' #' + a.owner.id)) : '-');
+
+      var h = '';
+      h += kv(TLi18n.t('adl.fTitle'), esc(a.title || '-'));
+      h += kv(TLi18n.t('adl.fFileName'), esc(a.file_name || '-'));
+      h += kv(TLi18n.t('adl.fType'), esc(a.file_type || '-') + ' &middot; ' +
+              esc(a.file_size_human || a.file_size || '-') + ' ' + badge(a));
+      h += kv(TLi18n.t('adl.fAdded'), esc(a.date_added || '-'));
+      if (a.description) {
+        h += kv(TLi18n.t('adl.fDescription'), esc(a.description));
+      }
+      h += kv(TLi18n.t('adl.fOwner'),
+              esc(a.owner ? (a.owner.label || (a.owner.table + ' #' + a.owner.id)) : '-') +
+              (a.context && a.context.testproject
+                ? ' <span class="badge doc">' + esc(a.context.testproject) + '</span>' : '') +
+              (a.context && a.context.testplan
+                ? ' <span class="badge doc">' + esc(a.context.testplan) + '</span>' : ''));
+      $('#infoBox').html(h);
+
+      renderPreview(a);
+
+      $('#btnDownload').attr('href', a.download_url);
+      // the stream endpoint answers with Content-Disposition, so the browser
+      // honours the stored file name without a `download` attribute hint
+      $('#btnDownload').removeAttr('download');
+      $('#actionCard').show();
+    })
+    .fail(function (xhr) { renderError(xhr.responseJSON || {}, xhr.status); });
+}
+
+function openInline() {
+  if (!DATA) { return; }
+  var url = DATA.preview_url || DATA.download_url;
+  window.open(url, '_blank', 'noopener');
+}
+
+function renderError(r, status) {
+  var code = r.code || '';
+  if (code === 'session_expired' || code === 'NOT_AUTHENTICATED') {
+    window.location.href = '/login.php?note=expired';
+    return;
+  }
+  if (!code && (status === 401 || status === 0)) {
+    window.location.href = '/login.php?note=expired';
+    return;
+  }
+  if (code === 'ATTACHMENTS_DISABLED') {
+    failState('danger', 'fa fa-lock', 'adl.stDisabled', 'adl.errDisabled', code);
+  } else if (code === 'ATTACHMENT_NOT_FOUND') {
+    failState('danger', 'fa fa-question-circle', 'adl.stNotFound', 'adl.errNotFound', code);
+  } else if (code === 'FORBIDDEN' || code === 'NO_RIGHT' || code === 'ATTACHMENT_NOT_ALLOWED') {
+    failState('danger', 'fa fa-user-lock', 'adl.stNotAllowed', 'adl.errNotAllowed', code);
+  } else if (code === 'INVALID_ATTACHMENT_ID' || code === 'INVALID_ID') {
+    failState('danger', 'fa fa-ban', 'adl.stNoId', 'adl.errNoId', code);
+  } else if (code === 'INVALID_TOKEN') {
+    failState('danger', 'fa fa-key', 'adl.stToken', 'adl.errToken', code);
+  } else if (code === 'ATTACHMENT_EMPTY') {
+    failState('danger', 'fa fa-file-o', 'adl.stEmpty', 'adl.errEmpty', code);
+  } else if (!code && status === 403) {
+    failState('danger', 'fa fa-shield-alt', 'adl.stBlocked', 'adl.errBlocked', '403');
+  } else if (!code) {
+    failState('danger', 'fa fa-plug', 'adl.stSession', 'adl.errSession', '');
+  } else {
+    failState('danger', 'fa fa-exclamation-triangle', 'adl.stError', 'adl.errGeneric', code);
+  }
+}
+
+$(function () {
+  var p = new URLSearchParams(window.location.search);
+  ATTID = parseInt(p.get('id') || '0', 10);
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    document.title = TLi18n.t('adl.title');
+    load();
+  });
+});
+</script>
+</body>
+</html>
