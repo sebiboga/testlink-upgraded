@@ -3871,3 +3871,76 @@ Result: **55/55 passed**. Event Viewer after the sweep: **0 Error/Warning** entr
 - **#1795 (`bug`, filed)** — the legacy `lib/attachments/attachmentdownload.php` authorized nothing but `config_get('attachments')->enabled`: `checkRights()` was defined but never passed to `testlinkInitPage()` (`lib/functions/common.php:538-542`), so **any authenticated user — including `role_id = 3` — could stream any attachment of the installation by enumerating `?id=`**. Read-side twin of #1768. Fixed for 2.0.1 by the BFF + 302 shim in this issue; the 1.9.20-style file stays vulnerable until the shim ships.
 - **Review BLOCKER (fixed in `65ef1ad28`)** — `download_url` carried no `disposition` and the stream defaulted to *inline*: the Download button did not download, and a `text/html` attachment would have executed in the app origin (stored XSS). Fixed by failing closed (missing ⇒ `attachment`, whitelist, inline allowlist, CSP sandbox on inline).
 - **Review MAJOR (fixed in `65ef1ad28`)** — the popup had no entry point (4 list templates still linked the legacy controller); `getImageURL()`/`toogleImageURL()` broke sub-directory installs; attachment bytes were cacheable by a shared cache (`Pragma: public`); "Open in new tab" silently saved anything the stream refuses to render.
+---
+
+## Task — Issue #1288: document the first computer bug (9 September 1947)
+
+**Precondition** — repo checkout on `task/issue-1288`; wiki clone `tmp/wiki-repo/` with a
+reachable authenticated origin; app at `http://localhost:8082` (login `admin/admin`) for the
+Event Viewer illustration; no DB fixture needed (documentation-only change).
+
+**Scope** — issue #1288 (*"Add in documentation of TestLink upgraded about first bug ever found
+on Sept 9, 1947"*), the newest open `task` issue that is not a `Delete legacy …` cleanup. The
+deliverable is documentation: a wiki page + cross-links + `docs/` mirror + CHANGELOG. No screen,
+BFF, DB or i18n change is in scope (declared in the CHANGELOG entry).
+
+### A. Gap measurement (before)
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| A1 | `grep -rniE "1947\|Mark II\|moth\|Hopper" docs/ tmp/wiki-repo/*.md README.md CHANGELOG --include=*.md` | corpus tells the story | **0 hits in 1277 files** — gap confirmed |
+| A2 | Read `tmp/wiki-repo/Ce-este-TestLink.md` §Istoric | history documented | starts at "Lansat: 2004 - SourceForge", nothing before it |
+| A3 | `grep -rniE "first bug" …` | no confusion with a modern screen bug | 2 hits, both `"first bug found in-browser"` in `Fix-Test-Plans-Modernized.md` (unrelated) |
+
+### B. Wiki page (`tmp/wiki-repo/Prima-Bug-Istorica.md`)
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| B1 | Page exists, Romanian (wiki language) | 1 H1 + TOC + numbered sections | PASS (198 lines, 9 numbered `##` sections + `## Cuprins`) |
+| B2 | Content covers the incident | date, machine, team, log entry, cause, retest | PASS (§1 timeline table, §2 log, §3 diagnosis, §4 QA relevance) |
+| B3 | Accuracy guard | does not claim "the very first defect ever" | PASS (§1 *Notă de corectitudine*, §5 Edison/`buggy`/`glitch`) |
+| B4 | Product tie-in | connects history to 2.0.1 | PASS (§6 Mark II ↔ 2.0.1 table, §7 chronology to 2.0.1, §8 5-step "log a real bug in TestLink") |
+| B5 | Sources | verifiable references | PASS (§9 Wikipedia ×3, Smithsonian NMAH, Computer History Museum) |
+| B6 | Internal links | every `](Page)` resolves to a file in the wiki clone | PASS **6/6** (`Home`, `Ce-este-TestLink`, `Event-Viewer`, `Gestionarea-Bug-urilor-si-Problema`, `Utilizatori-și-Roluri`, `Bug-Severity`) |
+| B7 | TOC anchors | every `](#…)` matches a heading slug | PASS **9/9** |
+| B8 | Image | references a committed file | PASS (`issue-1288-eventviewer-audit-trail.png`, PNG 1113×1164, 122 551 B, `file` verified) |
+| B9 | Rendered page (chrome-devtools MCP) | GitHub renders 9 sections + tables + image | PASS — page 200, all 9 permalinks present, `img.naturalWidth = 1113` (not a broken image) |
+
+### C. Cross-links
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| C1 | `Ce-este-TestLink.md` §Istoric | new first entry + link | PASS (lines 17-20, live page shows 2 anchors to `Prima-Bug-Istorica`: 1 content + 1 sidebar) |
+| C2 | `Home.md` index | page listed, count corrected | PASS (`32 Pagini`, item **32.**, live HTTP 200, HTML contains `wiki/Prima-Bug-Istorica`) |
+| C3 | `Home.md` Features Coverage | coverage row | PASS (row `Istoric / Originele termenului *bug*`) |
+| C4 | `README.md` §Documentation | "History & fun" bullet → wiki page + `docs/` twin | PASS (lines 177-179) |
+
+### D. `docs/` mirror (`docs/first-bug-1947.md`)
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| D1 | English twin of the wiki page | 9 sections, same order | PASS (**9/9** 1:1, wiki has the extra `## Cuprins`) |
+| D2 | Rule 6 — no image lines | 0 `![` lines | PASS (**0**) |
+| D3 | Table inventory parity | same tables | PASS (**28** table rows wiki vs **28** docs) |
+| D4 | Balanced code fences | no broken markdown | PASS (0 fences in both files) |
+
+### E. CHANGELOG (rule 22)
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| E1 | Entry inside the 2.0.1 block | one line, issue reference | PASS (`CHANGELOG:20-41`, `- [TASK] - #1288:`, tag from the existing vocabulary) |
+| E2 | Content | gap + what landed + no-code-change declaration | PASS |
+
+### F. Hygiene
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| F1 | Event Viewer (`gui/templates/eventviewer/eventviewer.html`) as admin | no new Error/Warning | PASS — DEBUG 0 / INFO 0 / **WARNING 0 (0%)** / **ERROR 0 (0%)** / AUDIT 1 (100%) / L18N 0; the single row is my own login |
+| F2 | Repo commit + push | branch `task/issue-1288` only | PASS (`9ae34e585`, `git push origin HEAD:task/issue-1288`) |
+| F3 | Wiki commit + push | `master` on `sebiboga/testlink-upgraded.wiki` | PASS (`2453e52`, `e92bec3..2453e52 master -> master` after `git pull --rebase`) |
+| F4 | `tmp/TLU_Test_Cases.md` append-only | additions only | PASS (this suite appended with `>>`; `git diff --cached --numstat` gate run before committing) |
+| F5 | No pull request created, nothing merged by me | — | PASS (branch pushed only; CI lands it) |
+
+**Actual result — 27/27 PASS.** No product defect was discovered while testing this task
+(documentation-only change, no runtime code path touched), so no `bug` issue was filed
+(rule 11 not triggered).
