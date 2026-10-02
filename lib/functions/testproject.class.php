@@ -1434,22 +1434,62 @@ function setPublicStatus($id,$status)
         $kw->initialize(null,$testproject_id,NULL,NULL);
         $rowCode = $kw->readFromCSV(implode($delim,$data), $delim);
         if ($rowCode >= tl::OK) {
-          $rowCode = $kw->writeToDB($this->db);
-        }
-        if ($rowCode >= tl::OK)
-        {
-          logAuditEvent(TLS("audit_keyword_created",$kw->name),"CREATE",$kw->dbID,"keywords");
-          if ($report) {
-            $stats['imported']++;
+          // Refs #1783: perform upsert on import - update if exists, create if not
+          $exists = tlKeyword::doesKeywordExist($this->db, $kw->name, $testproject_id);
+          if ($exists['status'] == tlKeyword::E_NAMEALREADYEXISTS && $exists['kwID']) {
+            $kwExisting = new tlKeyword($exists['kwID']);
+            $kwExisting->readFromDB($this->db);
+            $kwExisting->name = $kw->name;
+            $kwExisting->notes = $kw->notes;
+            $kwExisting->testprojectID = $testproject_id;
+            $rowCode = $kwExisting->writeToDB($this->db);
+            if ($rowCode >= tl::OK) {
+              logAuditEvent(TLS("audit_keyword_saved", $kwExisting->name), "SAVE", $kwExisting->dbID, "keywords");
+              if ($report) {
+                $stats['imported']++;
+              }
+            } else {
+              if ($report) {
+                $stats['skipped']++;
+                if (count($stats['errors']) < IMPORT_KEYWORD_ERRORS_MAX) {
+                  $stats['errors'][] = array(
+                    'row' => $rowNo,
+                    'code' => intval($rowCode),
+                    'name' => (string)$kwExisting->name,
+                  );
+                }
+              }
+            }
+          } else {
+            $rowCode = $kw->writeToDB($this->db);
+            if ($rowCode >= tl::OK) {
+              logAuditEvent(TLS("audit_keyword_created", $kw->name), "CREATE", $kw->dbID, "keywords");
+              if ($report) {
+                $stats['imported']++;
+              }
+            } else {
+              if ($report) {
+                $stats['skipped']++;
+                if (count($stats['errors']) < IMPORT_KEYWORD_ERRORS_MAX) {
+                  $stats['errors'][] = array(
+                    'row' => $rowNo,
+                    'code' => intval($rowCode),
+                    'name' => (string)$kw->name,
+                  );
+                }
+              }
+            }
           }
-        } elseif ($report) {
-          $stats['skipped']++;
-          if (count($stats['errors']) < IMPORT_KEYWORD_ERRORS_MAX) {
-            $stats['errors'][] = array(
-              'row' => $rowNo,
-              'code' => intval($rowCode),
-              'name' => (string)$kw->name,
-            );
+        } else {
+          if ($report) {
+            $stats['skipped']++;
+            if (count($stats['errors']) < IMPORT_KEYWORD_ERRORS_MAX) {
+              $stats['errors'][] = array(
+                'row' => $rowNo,
+                'code' => intval($rowCode),
+                'name' => (string)$kw->name,
+              );
+            }
           }
         }
       }
@@ -1640,22 +1680,62 @@ function setPublicStatus($id,$status)
         $rowCode = $kw->readFromSimpleXML($keyword);
         if ($rowCode >= tl::OK)
         {
-          $rowCode = $kw->writeToDB($this->db);
-        }
-        if ($rowCode >= tl::OK)
-        {
-          logAuditEvent(TLS("audit_keyword_created",$kw->name),"CREATE",$kw->dbID,"keywords");
-          if ($report) {
-            $stats['imported']++;
+          // Refs #1783: perform upsert on import - update if exists, create if not
+          $exists = tlKeyword::doesKeywordExist($this->db, $kw->name, $testproject_id);
+          if ($exists['status'] == tlKeyword::E_NAMEALREADYEXISTS && $exists['kwID']) {
+            $kwExisting = new tlKeyword($exists['kwID']);
+            $kwExisting->readFromDB($this->db);
+            $kwExisting->name = $kw->name;
+            $kwExisting->notes = $kw->notes;
+            $kwExisting->testprojectID = $testproject_id;
+            $rowCode = $kwExisting->writeToDB($this->db);
+            if ($rowCode >= tl::OK) {
+              logAuditEvent(TLS("audit_keyword_saved", $kwExisting->name), "SAVE", $kwExisting->dbID, "keywords");
+              if ($report) {
+                $stats['imported']++;
+              }
+            } else {
+              if ($report) {
+                $stats['skipped']++;
+                if (count($stats['errors']) < IMPORT_KEYWORD_ERRORS_MAX) {
+                  $stats['errors'][] = array(
+                    'row' => $rowNo,
+                    'code' => intval($rowCode),
+                    'name' => (string)$kwExisting->name,
+                  );
+                }
+              }
+            }
+          } else {
+            $rowCode = $kw->writeToDB($this->db);
+            if ($rowCode >= tl::OK) {
+              logAuditEvent(TLS("audit_keyword_created", $kw->name), "CREATE", $kw->dbID, "keywords");
+              if ($report) {
+                $stats['imported']++;
+              }
+            } else {
+              if ($report) {
+                $stats['skipped']++;
+                if (count($stats['errors']) < IMPORT_KEYWORD_ERRORS_MAX) {
+                  $stats['errors'][] = array(
+                    'row' => $rowNo,
+                    'code' => intval($rowCode),
+                    'name' => (string)$kw->name,
+                  );
+                }
+              }
+            }
           }
-        } elseif ($report) {
-          $stats['skipped']++;
-          if (count($stats['errors']) < IMPORT_KEYWORD_ERRORS_MAX) {
-            $stats['errors'][] = array(
-              'row' => $rowNo,
-              'code' => intval($rowCode),
-              'name' => (string)$kw->name,
-            );
+        } else {
+          if ($report) {
+            $stats['skipped']++;
+            if (count($stats['errors']) < IMPORT_KEYWORD_ERRORS_MAX) {
+              $stats['errors'][] = array(
+                'row' => $rowNo,
+                'code' => intval($rowCode),
+                'name' => (string)$kw->name,
+              );
+            }
           }
         }
       }
