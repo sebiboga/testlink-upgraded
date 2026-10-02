@@ -139,6 +139,7 @@
   "auth.badUserPasswd": "Usuário ou senha inválidos.",
   "auth.btnAddUserData": "Sign up",
   "auth.btnSend": "Send",
+  "auth.demoUsage": "Este servidor é uma DEMONSTRAÇÃO, use-o com RESPEITO.<br>O servidor será reinstalado SEM AVISOS em datas aleatórias.<br>Toda a informação será apagada em cada instalação.<br><b>Se você acha o TestLink útil, considere apoiar o nosso trabalho.</b>",
   "auth.edition": "Login TestLink",
   "auth.email": "Email",
   "auth.firstLogin": "Primeiro login detectado. Bem-vindo!",

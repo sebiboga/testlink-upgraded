@@ -48,6 +48,37 @@ screen reaches full parity.
   `footers.attachmentDownload` keys in all 10 locale bundles. Suite 1794 55/55 PASS, Event Viewer
   clean. (Refs #1794, Fixes #1795)
 
+- [FEATURE GAP] - #1047: the modern **Login** screen (`gui/templates/auth/login.html`) rendered
+  **no demo-mode notice at all**. Legacy 1.9.20 rendered `{$labels.demo_usage}` above the login
+  form whenever `$tlCfg->demoMode` was ON - `gui/templates/dashio/login/login-model-marcobiedermann.tpl:29-34`
+  (`{if $tlCfg->demoMode} <div class="grid__container">{$labels.demo_usage}</div> {/if}`, label
+  `$TLS_demo_usage` at `locale/*/strings.txt`) - but `login.php:367-383` serves the modern page
+  with `readfile()`, so that Smarty block was dead code on the normal path and a visitor of a
+  throw-away demo instance had no indication of it: with `demoMode = ON` the served page mentioned
+  "demo" only in two JS source comments (measured). `api/auth/index.php` already returned the flag
+  (`GET /api/auth/config` -> `"demoMode": true`), and the modern page consumed it in exactly one
+  place - the lost-password gate - so only the rendering was missing. Fix (2 areas): new
+  `#demoUsageBox` in `gui/templates/auth/login.html`, a teal Dashio `alert-box alert-demo`
+  (`#e2f7f5` with a 4 px `#4ECDC4` left border, `#14524e` text = 8.04:1, WCAG AAA) placed after
+  the error/info notes and before the login fields, i.e. the legacy order (note -> demo banner ->
+  form), carrying `role="status" aria-live="polite"` so the post-load reveal is announced; it ships
+  `display:none` and is revealed from a `revealDemoNotice()` helper that waits for the locale
+  bundle to settle (so the banner never flashes English on a non-en locale and never shifts the
+  form), and if the bundle is unreachable or stalled (1.5 s deadline) it strips `data-i18n-html`
+  and shows the inline English fallback instead - a demo instance is never left unflagged and the
+  bare key `auth.demoUsage` can never reach the screen. Text is injected with
+  `data-i18n-html="auth.demoUsage"` so the label's `<br>`/`<b>` markup survives. One key in
+  **all 10** locale bundles (41/41 `auth.*` each), native UTF-8 like every other key in those
+  bundles (no HTML entities, so switching the marker to `data-i18n` cannot break it): pt/ja
+  verbatim from the legacy strings file, en with the legacy typo `randmon` fixed and its unclosed
+  `<b>` closed, es/fr adapted (`zh_CN` ships no markup upstream at all, so the 4-line structure was
+  restored), and de/it/ro/ru hand-translated because those legacy `strings.txt` files define
+  **no** `demo_usage` and silently fell back to English. The banner is independent of the
+  error/info boxes (legacy showed note and banner together), and demo mode still hides the
+  Lost-password link (same flag), so banner + no password-recovery path is the legacy demo screen.
+  Suite 1047 11/11 PASS (`demoMode` ON/OFF, `?note=expired`, `?locale=ro`/`es`, i18n-bundle-blocked
+  fallback, login round-trip, Event Viewer `log_level IN (1,2)` = 0). (Refs #1047)
+
 - [FEATURE GAP] - #1295: the modern Requirement Export screen
   (gui/templates/requirements/reqExport.html) had dropped the legacy 50-character budget of the
   "Export file name" field. Legacy enforced it exclusively in the template -

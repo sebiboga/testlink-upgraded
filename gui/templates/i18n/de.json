@@ -139,6 +139,7 @@
   "auth.badUserPasswd": "Ungültiger Benutzername oder ungültiges Passwort.",
   "auth.btnAddUserData": "Sign up",
   "auth.btnSend": "Send",
+  "auth.demoUsage": "Dies ist eine DEMO-Seite, benutzen Sie sie mit RESPEKT.<br>Die Seite wird in unregelmäßigen Abständen OHNE Vorankündigung neu installiert.<br>Alle Daten werden bei jeder Installation gelöscht.<br><b>Wenn Ihnen TestLink nützlich erscheint, unterstützen Sie bitte unsere Arbeit.</b>",
   "auth.edition": "TestLink Anmeldung",
   "auth.email": "Email",
   "auth.firstLogin": "Erste Anmeldung erkannt. Willkommen!",

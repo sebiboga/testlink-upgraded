@@ -139,6 +139,7 @@
   "auth.badUserPasswd": "Utente o password non validi.",
   "auth.btnAddUserData": "Sign up",
   "auth.btnSend": "Send",
+  "auth.demoUsage": "Questa è una DEMO, usala con RISPETTO.<br>Il sito viene reinstallato a intervalli irregolari SENZA avviso.<br>Tutti i dati vengono eliminati a ogni installazione.<br><b>Se TestLink ti risulta utile, valuta la possibilità di sostenere il nostro lavoro.</b>",
   "auth.edition": "Accesso TestLink",
   "auth.email": "Email",
   "auth.firstLogin": "Primo accesso rilevato. Benvenuto!",

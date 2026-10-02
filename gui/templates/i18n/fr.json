@@ -139,6 +139,7 @@
   "auth.badUserPasswd": "Identifiant ou mot de passe invalide.",
   "auth.btnAddUserData": "Sign up",
   "auth.btnSend": "Send",
+  "auth.demoUsage": "Ceci est un site de DÉMONSTRATION, utilisez-le avec RESPECT.<br />Le site est ré-installé périodiquement SANS avertissement.<br />Toutes les données sont supprimées à chaque installation.<br /><b>Si vous trouvez TestLink utile, pensez à soutenir notre travail.</b>",
   "auth.edition": "Connexion TestLink",
   "auth.email": "Email",
   "auth.firstLogin": "Première connexion détectée. Bienvenue !",

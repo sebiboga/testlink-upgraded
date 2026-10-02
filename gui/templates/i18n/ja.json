@@ -139,6 +139,7 @@
   "auth.badUserPasswd": "ログイン名またはパスワードが無効です。",
   "auth.btnAddUserData": "Sign up",
   "auth.btnSend": "Send",
+  "auth.demoUsage": "これはデモサイトです。その点を考慮の上、ご利用下さい。<br>サイトは予告無しに、不規則な間隔で再インストールされます。<br>インストールのたびにすべてのデータが削除されます。<br><b>TestLink がお役に立つようであれば、私たちの作業のご支援ください。</b>",
   "auth.edition": "TestLink サインイン",
   "auth.email": "Email",
   "auth.firstLogin": "初回サインインです。ようこそ!",
