@@ -1891,7 +1891,8 @@ function toggleShowHide(oid,display_type) {
 function getImageURL(file_id)
 {
 
-  return '<img src="lib/attachments/attachmentdownload.php?id=' + file_id + '"/>';
+  return '<img src="/api/attachmentsdownload/index.php?action=download&disposition=inline&id=' +
+         encodeURIComponent(file_id) + '"/>';
 }
 
 
@@ -1907,7 +1908,8 @@ function toogleImageURL(img_container_oid,file_id)
   } 
   else
   {
-    return '<img src="lib/attachments/attachmentdownload.php?id=' + file_id + '"/>';
+    return '<img src="/api/attachmentsdownload/index.php?action=download&disposition=inline&id=' +
+         encodeURIComponent(file_id) + '"/>';
   } 
 }
 

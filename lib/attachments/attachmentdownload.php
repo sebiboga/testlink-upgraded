@@ -1,176 +1,70 @@
 <?php
 /**
- * TestLink Open Source Project - http://testlink.sourceforge.net/ 
- * This script is distributed under the GNU General Public License 2 or later. 
- *
- * Downloads the attachment by a given id
+ * TestLink Open Source Project - http://testlink.sourceforge.net/
+ * This script is distributed under the GNU General Public License 2 or later.
  *
  * @filesource attachmentdownload.php
  *
+ * 2.0.1 shim - Refs #1794: the legacy attachment download controller was
+ * replaced by the modern popup gui/templates/attachments/attachmentDownload.html
+ * + the BFF api/attachmentsdownload/index.php.
+ *
+ * WHY a redirect and not a deletion: this controller is still the src of every
+ * inline attachment image that TestLink PRINTS - lib/functions/print.inc.php
+ * (5 call sites), lib/functions/testcase.class.php:8396,
+ * lib/functions/testsuite.class.php:1721 and
+ * lib/functions/requirement_mgr.class.php:4060 all build
+ * `lib/attachments/attachmentdownload.php?id=<id>[&skipCheck=<sha256>]`, and
+ * gui/javascript/testlink_library.js getImageURL()/toogleImageURL() did too
+ * (those two now point straight at the BFF). A 302 keeps every one of those
+ * rendered documents working while moving the byte stream behind the BFF.
+ *
+ * SECURITY: the legacy page authorized NOTHING except
+ * config_get('attachments')->enabled, so ANY authenticated user could stream
+ * ANY attachment of the installation by guessing its id - measured and fixed in
+ * Refs #1794 (the BFF resolves the owner from the STORED fk_table/fk_id row
+ * and gates it with api/_attachauth.php, same right sets as the upload/delete
+ * legs; cf. bug #1768 for the identical hole on the read side of the upload
+ * API). The `skipCheck` token is now compared with hash_equals() and a mismatch
+ * is an explicit 403 instead of a bare 404 page.
+ *
+ * The apikey (API) mode is NOT dropped: `?apikey=` requests are forwarded to
+ * api/attachments/index.php?action=download, which implements the key check
+ * (test plan / object key) that this file used to do inline.
  */
-@ob_end_clean();
+
 require_once('../../config.inc.php');
 require_once('../functions/common.php');
 require_once('../functions/attachments.inc.php');
 
-// This way can be called without _SESSION, 
-// this is useful for reports
-// testlinkInitPage($db,false,true);
-// But it seems is creating this CVE https://nvd.nist.gov/vuln/detail/CVE-2022-35195
-//
-// Using proposed fix by user danzone on mantis.testlink.org
+// Session guard, exactly like the legacy testlinkInitPage($db): an anonymous
+// deep link must land on the login screen, never on the bytes.
 testlinkInitPage($db);
 
+$id = intval($_REQUEST['id'] ?? $_REQUEST['attachment_id'] ?? 0);
+$skipCheck = trim(strval($_REQUEST['skipCheck'] ?? ''));
+$apikey = trim(strval($_REQUEST['apikey'] ?? ''));
 
-$args = init_args($db);
-if ($args->id) {
-  $fileRepo = tlAttachmentRepository::create($db);
-  $attachInfo = $fileRepo->getAttachmentInfo($args->id);
+$base = str_replace('\\', '', strval($_SESSION['basehref'] ?? ''));
+if ($base === '') {
+    $base = '/';
+}
+$base = rtrim($base, '/');
 
-  if ($attachInfo) {
-    switch ($args->opmode) {
-      case 'API':
-        // want to check if apikey provided is right 
-        // for attachment context
-        // - test project api key:
-        //   is needed to get attachments for:
-        //   test specifications
-        //
-        // - test plan api key:
-        //   is needed to get attacments for:
-        //   test case executions
-        //   test specifications  ( access to parent data - OK!)
-        //   
-        // What kind of attachments I've got ?
-        $doIt = false;
-        $attContext = $attachInfo['fk_table'];
-        switch ($attContext) {
-          case 'executions':
-            // check apikey
-            // 1. has to be a test plan key
-            // 2. execution must belong to the test plan.
-            $item = getEntityByAPIKey($db,$args->apikey,'testplan');
-            if (!is_null($item)) {
-              $tables = tlObjectWithDB::getDBTables(array('executions'));
-              $sql = "SELECT testplan_id FROM {$tables['executions']} " .
-                     "WHERE id = " . intval($attachInfo['fk_id']);
-
-              $rs = $db->get_recordset($sql);
-              if (!is_null($rs)) {
-                if($rs['0']['testplan_id'] == $item['id']) {
-                  // GOOD !
-                  $doIt = true;
-                }  
-              }       
-            }  
-          break;
-        }
-      break;
-      
-      case 'GUI':
-      default:   
-        $doIt = true;
-      break;
+if ($apikey !== '') {
+    // API mode: keep the legacy key semantics on the modern endpoint.
+    $url = $base . '/api/attachments/index.php?action=download&id=' . $id;
+    if ($id > 0) {
+        $url .= '&apikey=' . urlencode($apikey);
     }
-
-
-    if ($doIt) {
-      $content = '';
-      $getContent = true;
-      if( $args->opmode !== 'API' && $args->skipCheck !== 0 
-          && $args->skipCheck !== false) {
-        if( $args->skipCheck != hash('sha256',$attachInfo['file_name']) ) {
-          $getContent = false;
-        }  
-      }  
-
-      if ($getContent) {
-        $content = $fileRepo->getAttachmentContent($args->id,
-                                                   $attachInfo);
-      }  
-
-      if ($content != "") {
-
-        // try to fight XSS in SVG
-        global $g_repositoryType;
-        $doEncode = ($g_repositoryType == TL_REPOSITORY_TYPE_DB);
-        if ($doEncode) {
-          $content = base64_decode($content);
-        }
-
-        $what2do = "Content-Disposition: inline;";
-        // is SVG?
-        if (strripos($content, "<!DOCTYPE svg") !== FALSE
-            || strripos($content, "<svg") !== FALSE) {
-          if (!XSS_StringScriptSafe($content)) {
-            $what2do = "Content-Disposition: attachment;";
-          }
-        }
-
-        @ob_end_clean();
-        header('Pragma: public');
-        header("Cache-Control: ");
-        if (!(isset($_SERVER["HTTPS"]) && $_SERVER["HTTPS"] == "on" && preg_match("/MSIE/",$_SERVER["HTTP_USER_AGENT"]))) { 
-          header('Pragma: no-cache');
-        }
-        header('Content-Type: '. $attachInfo['file_type']);
-        header('Content-Length: '.$attachInfo['file_size']);
-        
-        header( $what2do . 
-                " filename=\"{$attachInfo['file_name']}\"");
-        header("Content-Description: Download Data");
-
-        echo $content;
-        exit();
-      }      
-    }  
-  }
+} else {
+    // GUI mode: an inline image / a browser download.
+    $url = $base . '/api/attachmentsdownload/index.php?action=download'
+        . '&disposition=inline&id=' . $id;
+    if ($skipCheck !== '') {
+        $url .= '&token=' . urlencode($skipCheck);
+    }
 }
 
-$smarty = new TLSmarty();
-$smarty->assign('gui',$args);
-$smarty->display('attachment404.tpl');
-
-/**
- * @return object returns the arguments for the page
- */
-function init_args(&$dbHandler)
-{
-  // id (attachments.id) of the attachment to be downloaded
-  $iParams = array('id' => array(tlInputParameter::INT_N),
-                   'apikey' => array(tlInputParameter::STRING_N,64),  
-                   'skipCheck' => array(tlInputParameter::STRING_N,1,64));
-  
-  $args = new stdClass();
-  G_PARAMS($iParams,$args);
-
-  $args->light = 'green';
-  $args->opmode = 'GUI';
-  if( is_null($args->skipCheck) || $args->skipCheck === 0 )
-  {
-    $args->skipCheck = false;
-  }  
-
-  // var_dump($args->skipCheck);die();
-  // using apikey lenght to understand apikey type
-  // 32 => user api key
-  // other => test project or test plan
-  $args->apikey = trim($args->apikey);
-  $apikeyLenght = strlen($args->apikey);
-  if($apikeyLenght > 0)
-  {
-    $args->opmode = 'API';
-    $args->skipCheck = true;
-  } 
-  return $args;
-}
-
-/**
- * @param $db resource the database connection handle
- * @param $user the current active user
- * @return boolean returns true if the page can be accessed
- */
-function checkRights(&$db,&$user)
-{
-  return (config_get("attachments")->enabled);
-}
+header('Location: ' . $url);
+exit;

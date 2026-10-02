@@ -1965,6 +1965,16 @@ function getActions(&$gui,$baseURL) {
   // the object in context. The legacy rights gate
   // (config_get('attachments')->enabled) lives in api/attachmentsdelete.
   $actions->attachmentDelete = "/gui/templates/attachments/attachmentDelete.html?{$ctx}";
+  // Attachment Download popup + stream, modernized in Refs #1794. The legacy
+  // controller lib/attachments/attachmentdownload.php (+ dashio/attachments/
+  // attachment404.tpl) streamed the raw bytes with NO authorization beyond
+  // "attachments enabled" - any authenticated user could read any attachment
+  // by guessing its id, and a failure answered a bare legacy 404 page. The
+  // popup gui/templates/attachments/attachmentDownload.html now shows the
+  // metadata / owner context and links to the authorized stream; the owner is
+  // resolved from the STORED fk_table/fk_id row and gated with the shared
+  // api/_attachauth.php right sets (Refs #1768 parity).
+  $actions->attachmentDownload = "/gui/templates/attachments/attachmentDownload.html?{$ctx}";
   $actions->platformsView = "/gui/templates/platforms/platformsView.html?{$ctx}";
   $actions->platformsExport = "/gui/templates/platforms/platformsExport.html?{$ctx}";
   // Import Platforms screen - Refs #1632. Replaces lib/platforms/platformsImport.php
