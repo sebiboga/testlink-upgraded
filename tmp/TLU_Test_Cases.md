@@ -868,3 +868,122 @@ php -l lib/codetrackerintegration/codeTrackerInterface.class.php \
  && mysql -h 127.0.0.1 -utestlink -ptestlink -B testlink \
       -e "SELECT id,log_level,LEFT(description,200) FROM events ORDER BY id DESC LIMIT 3"
 ```
+
+---
+
+## Regression — Issue #1682: `api/reqtreereorder` `?action=reorder` accepted a DUPLICATE requirement id in `nodes_order` and corrupted the specification order
+
+**Precondition / fixture** — `php tmp/fixtures_1681.php` → `tproject=1` (TREE1681), `req_spec_id=2`
+(TR1-SPEC-A) with requirements `6` (TR1-1), `8` (TR1-2), `10` (TR1-3); `req_spec_id=4` empty.
+All fixture users use password `admin`. Baseline `nodes_hierarchy.node_order`: `6=0, 8=1, 10=2`.
+
+**Session** — 2.0.1 does NOT authenticate on `POST /index.php` (it answers 200 and re-`location.href`s to
+`/login.php`). The working login is `POST /login.php` with `tl_login` / `tl_password`. Writes additionally
+require `Origin: http://localhost:8082` (`bffSameOriginGuard`).
+
+**Endpoint** — `POST /api/reqtreereorder/index.php?action=reorder`
+`{"tproject_id":1,"req_spec_id":2,"nodes_order":[...]}`
+
+**Repro steps (pre-fix)** — revert only the duplicate probe at `api/reqtreereorder/index.php:506` from
+`isset($seen[$nid])` to `isset($order[$nid])`, `php -l` clean, then POST `nodes_order:[6,6,10]`.
+
+**Expected post-fix behaviour** — `400` / `code: invalid_nodes_order` / *"Duplicate requirement id in
+nodes_order"*, and **no write at all**. The legitimate reorder of the same three requirements must still
+succeed.
+
+### API matrix (`curl`, cookie from the login step above)
+
+| # | `nodes_order` sent | Expected | Observed | Result |
+|---|---|---|---|---|
+| 1 | `[6,6,10]` — the reported payload (dup first) | 400 `invalid_nodes_order` *Duplicate* | 400, nothing written | **PASS** |
+| 2 | `[10,6,6]` — dup in the middle | 400 `invalid_nodes_order` *Duplicate* | 400, nothing written | **PASS** |
+| 3 | `[6,8,8]` — dup last | 400 `invalid_nodes_order` *Duplicate* | 400, nothing written | **PASS** |
+| 4 | `[6,6,6]` — same id three times | 400 `invalid_nodes_order` *Duplicate* | 400, nothing written | **PASS** |
+| 5 | `["6",6,"6"]` — same value, mixed JSON types | 400 *Duplicate* (gate keyed on the **normalised int**) | 400 *Duplicate* | **PASS** |
+| 6 | `[0,6,8]` | 400 *Invalid requirement id* | 400 | **PASS** |
+| 7 | `[-3,6,8]` | 400 *Invalid requirement id* | 400 | **PASS** |
+| 8 | `["6","8","10"]` — numeric strings | accepted (intval normalisation), `no_change` | 200 `no_change` | **PASS** |
+| 9 | `[6,8]` — incomplete | 400 `incomplete_nodes_order` (*3 expected, 2 received*) | 400 | **PASS** |
+| 10 | `[6,8,999]` — foreign id | 400 `foreign_requirement` | 400 | **PASS** |
+| 11 | `"6,8,10"` — string, not an array | 400 `invalid_nodes_order` | 400 | **PASS** |
+| 12 | `[8,10,6]` — **valid** | 200 `ok`, `reordered:3`, DB → `8=0,10=1,6=2` | as expected | **PASS** |
+| 13 | `[8,10,6]` again | 200 `no_change`, no write | as expected | **PASS** |
+| 14 | `GET ?action=reorder` | 405 `wrong_method` | 405 | **PASS** |
+| 15 | valid POST, **no cookie** | 401 `not_authenticated` | 401 | **PASS** |
+| 16 | valid POST as `tr1681norights` (role 3) | 403 `no_right` (`?action=init` also 403) | 403 | **PASS** |
+| 17 | valid POST **without `Origin`** | 403 same-origin proof | 403 | **PASS** |
+| 18 | `[6.9,8.2,10.1]` — floats | `intval()` truncates; the resulting set is complete & distinct, so the write is legitimate | 200 `ok`, DB → `6=0, 8=1, 10=2` (no corruption) | **PASS** |
+| 19 | `[6.9,6.9,10]` — duplicate expressed as floats | 400 *Duplicate requirement id* (the set is keyed on the truncated int) | 400 *Duplicate* | **PASS** |
+| 20 | `[[6],[8],[10]]` — nested arrays (`intval()` of a non-empty array is `1`) | rejected, **no write**; the message is imprecise (says "Duplicate" instead of "must be an array of ids") — filed as a MINOR observation, not fixed | 400 *Duplicate requirement id* | **PASS** |
+| 21 | `[6,8,99999999999999999999]` — int larger than `PHP_INT_MAX` | saturates, then caught by the membership gate | 400 `foreign_requirement` | **PASS** |
+| 22 | `[6,true,null]` — booleans / null | `intval(null) = 0` rejected by the `$nid <= 0` test | 400 *Invalid requirement id* | **PASS** |
+
+`22 passed, 0 failed`.
+
+**No remaining single-call corruption path** (proved by reading `:497` → every entry becomes a positive int;
+`:506` → `$seen` is keyed on that normalised int, so no JSON type can bypass it; `:526-533` → every id must be
+a member of `array_flip($currentIds)`; `:534` → `count($order) === count($currentIds)` with `$order` a set of
+distinct ints and `$currentIds` distinct over the `requirements` PK, so equal cardinality ⇒ set equality ⇒ each
+requirement is written exactly once with `node_order = 0..n-1`; `failOut()` `exit`s, so all nine rejection
+points precede the write loop).
+
+**No-partial-write assertion** — after cases 1–11 and 14–17 and 19–22 (20 rejected calls in total), `SELECT id,node_order FROM nodes_hierarchy
+WHERE id IN (6,8,10)` still held the case-12 result (`8=0, 10=1, 6=2`). No rejected call wrote anything.
+
+**The pre-fix gate was wrong in BOTH directions** (found by code review, then measured) — replaying the
+pre-fix loop over all 175 distinct-id permutations of the specs `{1,2,3}` `{1,2,3,4}` `{1,2,3,4,5}` `{6,8,10}`
+`{6,8,10,12}` (identity order excluded):
+
+| Harness | pre-fix loop | post-fix loop |
+|---|---|---|
+| permutations tested | 175 | 175 |
+| **false REJECTIONS** of a legal reorder | **122** | **0** |
+| **false ACCEPTANCES** of a duplicate id | 0 (for these specs) / **yes** for the reported payload (case 1) | **0** |
+
+Example: spec `{1,2,3}` submitted `[2,3,1]` — pre-fix, by the 3rd iteration `$order = [2,3]` (keys `0,1`), so
+`isset($order[1])` is `true` and a **perfectly legal reorder is refused** with "Duplicate requirement id";
+post-fix it is accepted. The #1681 fixture uses ids `6 / 8 / 10`, all larger than the 3-element list, so this
+false positive is invisible on that dataset — which is why only the corruption half was reported. The `$seen`
+fix cures both.
+
+**Pre-fix proof of the corruption** — with the buggy probe restored, case 1 answered
+`200 {"status":"ok","reordered":3}` and left `6=1` (written twice, idx 1 then 2), `8=1` (**never written**,
+stale value), `10=2` → two requirements on `node_order = 1` with `node_order = 0` empty. `"reordered":3`
+counted the submitted *entries*, not distinct requirements, which is why the corruption was invisible to the
+client.
+
+### Browser cases — chrome-devtools MCP (`reqTreeReorder.html?tproject_id=1&req_spec_id=2`, `admin`)
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| B1 | open the screen | 3 rows `TR1-2 / TR1-3 / TR1-1` (state left by case 12), spec picker `TR1-SPEC-A (3)` + `TR1-SPEC-B (0)` | **PASS** |
+| B2 | row-button **Up** on row 3 | tbody becomes `TR1-2, TR1-1, TR1-3`; "Unsaved changes" chip shown; `#applyBtn.disabled === false` | **PASS** |
+| B3 | **Apply order** | Bootstrap `#confirmModal` ("Apply the new order"), **not** a native `alert()` (#1683) | **PASS** |
+| B4 | confirm in the modal | DB → `8=0, 6=1, 10=2` (the submitted `[8,6,10]` accepted) | **PASS** |
+| B5 | console | 0 errors (1 pre-existing `aria-hidden` focus warning from the Bootstrap 3.4.1 modal focus trap) | **PASS** |
+| B6 | `events` with `log_level IN (1,2)` | `COUNT(*) = 0` | **PASS** |
+
+### Residual risk (documented, NOT fixed — out of scope, pre-existing)
+
+* `:514` (`orderedRequirements()` read) and `:550-554` (N `UPDATE`s) are **not** wrapped in a transaction —
+  the DB driver has none. Two concurrent authenticated reorders of the SAME specification can interleave and
+  re-create the duplicate-`node_order` corruption this suite is about. Legacy had the same exposure, so there
+  is no parity regression; a separate issue should cover it.
+* `:534` / `:557` / `:559` use `count($order)` where `count($seen)` would state the set invariant directly.
+  Equivalent today; left unchanged to keep the diff minimal.
+* Nested arrays (`[[6],[8],[10]]`, case 20) get "Duplicate requirement id" instead of "must be an array of
+  ids", because `intval()` of a non-empty array is `1`. Safe — rejected, no write — only the message is
+  imprecise.
+
+### Regression
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| R1 | `php -l api/reqtreereorder/index.php` | no syntax errors | **PASS** |
+| R1b | `grep -n 'isset(\$order\[\$nid\])' <(git show 2c7fa2446^:api/reqtreereorder/index.php)` | pre-fix probe at line **461**; `$nid <= 0` test at **457** — the two line refs quoted in `CHANGELOG` / `docs/` | **PASS** |
+| R2 | `grep -rn 'isset(\$order\[\$' api/` | only `api/reqreorder/index.php:196`, where `$order[$nid] = …` really does key by id → that endpoint is **not** affected | **PASS** |
+| R3 | callers of this `?action=reorder` (`reqTreeReorder.html:498`) send `ITEMS.map(x => x.id)`, unique by construction | the hole was only reachable by a direct API caller, not by any screen | **PASS** |
+| R4 | `api/reqtreereorder/index.php` byte-identical to `sebiboga` after the temporary pre-fix revert | `git diff` empty | **PASS** |
+
+**Screenshot** — `docs/screenshots/issue-1682-reqtreereorder-duplicate-rejected.png` (screen after the
+verified reorder round-trip).
