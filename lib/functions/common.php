@@ -507,9 +507,14 @@ function initProject(&$db,$hash_user_sel) {
     $tplan_data = $_SESSION['currentUser']->getAccessibleTestPlans($db,$tproject_id);
   }
   
-  if(!is_null($tplan_data) && is_array($tplan_data))
+  if(!is_null($tplan_data) && is_array($tplan_data) && count($tplan_data) > 0)
   {
-    $tplan_data = $tplan_data[0];
+    // reset(), NOT [0]: tlUser::getAccessibleTestPlans() returns a LIST only
+    // when it runs its array_values() normalization, and that normalization is
+    // guarded by 'globalRoleID != TL_ROLES_ADMIN' - for an admin the id-keyed
+    // map (output=mapfull) is returned untouched, so [0] raised
+    // "Undefined array key 0" and then set a NULL session test plan.
+    $tplan_data = reset($tplan_data);
     setSessionTestPlan($tplan_data);
   }
   
