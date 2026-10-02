@@ -322,8 +322,15 @@ function suitMoveChain(&$db, $nodeId)
  *                        such a request must be a 404: the 403 would
  *                        otherwise be the oracle that node id exists
  *                        somewhere.
+ * @param string $leakMessage the opaque message of that 404. It MUST be the
+ *                        very message the CALLING ACTION already answers for
+ *                        a node id that exists nowhere, otherwise the status
+ *                        is opaque but the body still tells "exists" from
+ *                        "does not exist" - the move action says "Suite not
+ *                        found" (Ref #1779).
  */
-function suitMoveProject(&$db, &$user, $requestedId, $containerId = 0, $leakGuard = false)
+function suitMoveProject(&$db, &$user, $requestedId, $containerId = 0, $leakGuard = false,
+                        $leakMessage = 'Container not found')
 {
     $tprojectId = intval($requestedId);
 
@@ -401,9 +408,11 @@ function suitMoveProject(&$db, &$user, $requestedId, $containerId = 0, $leakGuar
         if ($leakGuard) {
             /* The project in play was derived from a caller-supplied node id,
                so 403 here would confirm that node id exists somewhere. Same
-               answer as a node id that exists nowhere. */
+               answer - status AND message - as a node id that exists nowhere
+               (Refs #1779: the message is the one the calling action uses for
+               an absent id, otherwise the body still tells them apart). */
             out(array('status' => 'error', 'code' => 'not_found',
-                      'message' => 'Container not found'), 404);
+                      'message' => $leakMessage), 404);
         }
         out(array('status' => 'error', 'code' => 'forbidden',
                   'message' => 'Insufficient rights on this test project'), 403);
@@ -726,9 +735,11 @@ switch ($action) {
            Refs #1779: \$owner is ALWAYS derived from the caller-supplied
            node_id here (node_id is mandatory in this action), so the guard is
            unconditional - naming that project as well must not turn the node id
-           back into an existence oracle. */
+           back into an existence oracle. The opaque message is this action's
+           own "Suite not found" (the answer of line 706 for an id that exists
+           nowhere), so status AND body stay indistinguishable. */
         list($tprojectId, $tproject) =
-            suitMoveProject($db, $user, $owner, 0, true);
+            suitMoveProject($db, $user, $owner, 0, true, 'Suite not found');
         $nodeInfo = suitMoveRequireSuite($db, $nodeId, $tprojectId, 'Suite');
 
         $oldParentId = intval($nodeInfo['parent_id']);
