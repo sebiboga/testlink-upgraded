@@ -99,6 +99,40 @@ function resolveBuild(&$db, $b) {
     ];
 }
 
+/**
+ * Reject a build addressed through a test plan of ANOTHER project.
+ *
+ * resolveBuild() derives the owning project from build.testproject_id, so the
+ * authorization below it is always checked against the build's real project -
+ * that part was never wrong. What was missing is the scope check: every
+ * GET/PUT/DELETE /{id} route accepted a tplan_id and then silently ignored it.
+ * The permission was therefore right while the ADDRESS was not, so a stale or
+ * mis-scoped page (a row action carrying a build_id from a different project,
+ * a bookmark, a hand-typed URL) could read, rename or DELETE a build of
+ * another project and have the result shown inside this plan's context.
+ *
+ * The plan is resolved first, so a foreign or non-existent tplan_id can never
+ * be used as an existence oracle, and the failure is a plain 404 - identical
+ * to a build that does not exist, so the route leaks nothing.
+ */
+function assertBuildInTplan(&$db, $b, $tplanId) {
+    $tplanId = intval($tplanId);
+    if ($tplanId <= 0) {
+        return; // not addressed by plan: the build's own project governs
+    }
+    $tp = new testplan($db);
+    $plan = $tp->get_by_id($tplanId);
+    if (is_null($plan)) {
+        http_response_code(404);
+        out(['status' => 'error', 'message' => 'Invalid Test Plan ID']);
+    }
+    if (intval($plan['testproject_id']) !== intval($b['testproject_id'] ?? 0)) {
+        http_response_code(404);
+        out(['status' => 'error', 'message' => 'Build not found',
+             'error_code' => 'build_not_found']);
+    }
+}
+
 /** Project display name for audit entries - resolved from ctx, not session. */
 function tprojectName(&$tp, $tprojectId) {
     $info = $tp->tree_manager->get_node_hierarchy_info(intval($tprojectId));
@@ -172,6 +206,15 @@ function buildCfieldDefs(&$buildMgr, $tprojectId, $buildId = 0) {
         $typeId = intval($cf['type'] ?? 0);
         $value = isset($cf['value']) ? (string)$cf['value'] : null;
         $default = isset($cf['default_value']) ? (string)$cf['default_value'] : '';
+        // A date/datetime CF is stored as a UNIX timestamp (cfield_mgr
+        // mktime()s it in _build_cfield), but an <input type="date"> needs
+        // ISO - handing the raw epoch to the DOM produced an unusable
+        // control, so it is converted here, server side, in the ONE place
+        // that knows the storage format.
+        if (($typeId === 8 || $typeId === 10) && $value !== null
+            && $value !== '' && ctype_digit((string)$value)) {
+            $value = epochToIsoDate((int)$value, $typeId === 10);
+        }
         $out[] = [
             'field_id'   => intval($fieldId),
             'name'       => (string)($cf['name'] ?? ''),
@@ -188,17 +231,88 @@ function buildCfieldDefs(&$buildMgr, $tprojectId, $buildId = 0) {
     return $out;
 }
 
+/** Timestamp -> ISO 'Y-m-d' (or 'Y-m-d H:i:s'), the shape the HTML date
+ *  inputs and the BFF payload both speak. Returns '' for an unusable stamp
+ *  instead of a bogus date. */
+function epochToIsoDate($epoch, $withTime = false) {
+    if ($epoch <= 0) {
+        return '';
+    }
+    $iso = gmdate($withTime ? 'Y-m-d H:i:s' : 'Y-m-d', intval($epoch));
+    return ($iso === '1970-01-01' || $iso === '1970-01-01 00:00:00') ? '' : $iso;
+}
+
+/**
+ * ISO 'Y-m-d' -> the session locale's date format, which is what
+ * cfield_mgr::_build_cfield() parses (it calls
+ * split_localized_date($value['input'], $date_format) with the locale
+ * format, `%` stripped: 'd/m/Y' for en_GB, 'm/d/Y' for en_US, ...).
+ *
+ * The client always speaks ISO, so the locale-dependent half of the date
+ * round trip lives HERE, server side - otherwise the same stored build date
+ * silently became a different day for every locale. A value that is already
+ * in the locale format is passed through untouched, so a caller that still
+ * submits the legacy shape keeps working.
+ */
+function isoToLocaleDate($iso, $withTime = false) {
+    if ($iso === '' || $iso === null) {
+        return '';
+    }
+    $iso = trim((string)$iso);
+    if (!preg_match('/^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?$/', $iso, $m)) {
+        return $iso; // not ISO -> hand it to split_localized_date() as-is
+    }
+    $fmt = cfLocaleDateFormat();
+    if ($withTime && !isset($m[4])) {
+        $m[4] = '00';
+        $m[5] = '00';
+        $m[6] = '00';
+    }
+    // strftime()/IntlDateFormatter with %d/%m/%Y would be locale-independent
+    // here anyway; the token substitution keeps this free of the PHP 8.1
+    // strftime() deprecation so no Warning reaches the Event Viewer.
+    return strtr($fmt, [
+        'd' => $m[3],
+        'm' => $m[2],
+        'Y' => $m[1],
+        'y' => substr($m[1], 2, 2),
+        'H' => $m[4] ?? '00',
+        'i' => $m[5] ?? '00',
+        's' => $m[6] ?? '00',
+    ]);
+}
+
+/** The current session locale's date format with the `%` markers stripped -
+ *  exactly what cfield_mgr::_build_cfield() builds for itself. */
+function cfLocaleDateFormat() {
+    $cfg = config_get('locales_date_format');
+    $locale = isset($_SESSION['locale']) ? $_SESSION['locale'] : 'en_GB';
+    if (!isset($cfg[$locale])) {
+        $locale = 'en_GB';
+    }
+    return str_replace('%', '', $cfg[$locale]);
+}
+
 /**
  * Persist submitted build custom fields, legacy-parity.
  *
- * cfield_mgr::design_values_to_db() parses a $_REQUEST-shaped hash whose
- * keys are `custom_field_<type_id>_<field_id>` (and, for a date field,
+ * cfield_mgr::design_values_to_db() parses a $_REQUEST-shaped hash whose keys
+ * are `custom_field_<type_id>_<field_id>` (and, for a date field,
  * `custom_field_8_<field_id>_input`) - "carved in the stone" per
- * cfield_mgr::_build_cfield(). We only ever build those keys ourselves,
- * from the field ids the SERVER resolved, so a submitted key can never name
- * a field outside this project; unknown ids are dropped.
+ * cfield_mgr::_build_cfield(). We only ever build those keys ourselves, from
+ * the field ids the SERVER resolved, so a submitted key can never name a field
+ * outside this project; unknown ids are dropped.
  *
- * @return int number of fields actually written
+ * NOTE this is a FULL REPLACEMENT of the build's design values, which is the
+ * legacy behaviour: design_values_to_db() writes EVERY field of the passed
+ * $cfMap, the hash only supplies their values, so a field the caller omitted
+ * is stored as ''. That is exactly what the 1.9.20 form did (an HTML form
+ * always submits every input, so clearing a field cleared its value). Every
+ * field of the map is therefore given an explicit entry below, which keeps the
+ * date/datetime branches on their array path instead of relying on the
+ * string-to-array normalization that was added to _build_cfield().
+ *
+ * @return int number of fields written (== count($cfMap) when non-empty)
  */
 function saveBuildCfields(&$buildMgr, $body, $cfMap, $buildId) {
     if (is_null($cfMap) || count($cfMap) == 0) {
@@ -210,19 +324,23 @@ function saveBuildCfields(&$buildMgr, $body, $cfMap, $buildId) {
     foreach ($cfMap as $fieldId => $cf) {
         $fieldId = intval($fieldId);
         $typeId  = intval($cf['type'] ?? 0);
-        if (!array_key_exists($fieldId, $in)) {
-            continue; // not submitted -> leave the stored value alone
-        }
-        $val = $in[$fieldId];
+        $val = array_key_exists($fieldId, $in) ? $in[$fieldId] : '';
         $prefix = 'custom_field_' . $typeId . '_' . $fieldId;
         if (in_array($typeId, [5, 7], true)) {           // checkbox / multiselection
-            $vals = is_array($val) ? array_map('strval', $val) : [(string)$val];
+            $vals = is_array($val) ? array_map('strval', $val) : (($val === '') ? [] : [(string)$val]);
             $vals = array_values(array_filter($vals, function ($v) { return $v !== ''; }));
-            // _build_cfield joins a multi-valued hash entry with '|'; the
-            // class does the same when it stores, so keep the raw list.
+            // _build_cfield() implodes a multi-valued entry with '|', exactly as
+            // the legacy form's repeated inputs arrived, so pass the list on.
             $hash[$prefix] = $vals;
-        } elseif ($typeId === 8) {                        // date
-            $hash[$prefix . '_input'] = is_array($val) ? (string)($val['input'] ?? '') : (string)$val;
+        } elseif ($typeId === 8 || $typeId === 10) {     // date / datetime
+            $isDateTime = ($typeId === 10);
+            $val = is_array($val) ? (string)($val['input'] ?? '') : (string)$val;
+            $hash[$prefix . '_input'] = isoToLocaleDate($val, $isDateTime);
+            if ($isDateTime) {
+                $hash[$prefix . '_hour']   = '0';
+                $hash[$prefix . '_minute'] = '0';
+                $hash[$prefix . '_second'] = '0';
+            }
         } else {
             $hash[$prefix] = is_array($val) ? '' : (string)$val;
         }
@@ -231,7 +349,7 @@ function saveBuildCfields(&$buildMgr, $body, $cfMap, $buildId) {
         return 0;
     }
     $buildMgr->cfield_mgr->design_values_to_db($hash, intval($buildId), $cfMap, null, 'build');
-    return count($hash);
+    return count($cfMap);
 }
 
 $tplanMgr = new testplan($db);
@@ -358,12 +476,18 @@ if ($method === 'GET' && count($segments) === 0) {
         'status' => 'ok',
         'tplan' => ['id' => $tplanId, 'name' => $ctx['tplan_name'],
                     'tproject_id' => $ctx['tproject_id']],
+        'tproject_name' => tprojectName($tplanMgr, $ctx['tproject_id']),
         'builds' => $items,
         'source_builds' => $srcItems,
         'exec_status_options' => $execStatusOptions,
         'other_plans_count' => $siblingPlans,
         'rights' => [
             'canManage' => true,
+            // Legacy buildEdit.tpl:53 gated the "Show event history" button on
+            // mgt_view_events, which api/eventviewer also enforces on every
+            // read. The flag was missing from this payload, so the button
+            // could never be offered.
+            'canViewEvents' => (bool)$user->hasRight($db, 'mgt_view_events'),
             'canDeleteExec' => canDeleteExec($user, $db, $ctx['tproject_id']),
         ],
     ]);
@@ -377,6 +501,7 @@ if ($method === 'GET' && count($segments) === 1 && ctype_digit($segments[0])) {
         out(['status' => 'error', 'message' => 'Build not found']);
     }
     $ctx = resolveBuild($db, $b);
+    assertBuildInTplan($db, $b, $_GET['tplan_id'] ?? 0);
     if (!canManage($user, $db, $ctx['tproject_id'])) {
         http_response_code(403);
         out(['status' => 'error', 'message' => 'Insufficient rights']);
@@ -561,6 +686,7 @@ if ($method === 'POST' && count($segments) === 2 && ctype_digit($segments[0])
         out(['status' => 'error', 'message' => 'Build not found']);
     }
     $ctx = resolveBuild($db, $b);
+    assertBuildInTplan($db, $b, $_GET['tplan_id'] ?? 0);
     if (!canManage($user, $db, $ctx['tproject_id'])) {
         http_response_code(403);
         out(['status' => 'error', 'message' => 'Insufficient rights']);
@@ -668,6 +794,9 @@ if ($method === 'PUT' && count($segments) === 1 && ctype_digit($segments[0])) {
         out(['status' => 'error', 'message' => 'Build not found']);
     }
     $ctx = resolveBuild($db, $b);
+    // PUT addresses the plan in the JSON body (the legacy form posted it),
+    // so the scope check reads the body first and falls back to the query.
+    assertBuildInTplan($db, $b, $body['tplan_id'] ?? ($_GET['tplan_id'] ?? 0));
     if (!canManage($user, $db, $ctx['tproject_id'])) {
         http_response_code(403);
         out(['status' => 'error', 'message' => 'Insufficient rights']);
@@ -749,6 +878,7 @@ if ($method === 'DELETE' && count($segments) === 1 && ctype_digit($segments[0]))
         out(['status' => 'error', 'message' => 'Build not found']);
     }
     $ctx = resolveBuild($db, $b);
+    assertBuildInTplan($db, $b, $_GET['tplan_id'] ?? 0);
     if (!canManage($user, $db, $ctx['tproject_id'])) {
         http_response_code(403);
         out(['status' => 'error', 'message' => 'Insufficient rights']);

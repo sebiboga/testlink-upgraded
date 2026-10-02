@@ -1958,6 +1958,26 @@ function name_is_unique($id,$name)
       foreach($cfield as $field_id => $type_and_value) {
         $value = $type_and_value['cf_value'];
         $verbose_type=trim($this->custom_field_types[$type_and_value['type_id']]);
+
+        // date/datetime arrive as ONE hash key per part
+        // (custom_field_<type>_<id>_input / _hour / _minute / _second) and are
+        // therefore read back as a map below. A field that is defined in
+        // $cf_map but ABSENT from the submitted $hash never goes through that
+        // per-part merge, so it still carries the '' initializer from the
+        // first loop above. On PHP 7 reading $value['input'] on that string
+        // silently yielded its first character; on PHP 8 it is a fatal
+        // "Cannot access offset of type string on string".
+        //
+        // The legacy buildEdit/TestSpec forms always submitted every input, so
+        // the case never arose there; every JSON/API caller that submits a
+        // PARTIAL hash (only some of the project's custom fields) hit it.
+        // Normalizing to [] routes it into the existing empty branch below,
+        // which is the correct "nothing was submitted" result.
+        if (($verbose_type === 'date' || $verbose_type === 'datetime')
+            && !is_array($value)) {
+          $value = array();
+        }
+
         switch ($verbose_type) {
           case 'multiselection list':
           case 'checkbox':
