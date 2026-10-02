@@ -2081,7 +2081,35 @@ MAJOR AREAS
   **44 PASS / 13 FAIL** reverted, 0 new `events` rows. Known, NOT fixed, no leak: a JSON request body
   leaves `$_REQUEST` empty so the unusable-destination guard is bypassed and the move degrades to an
   in-container reorder. See `docs/Bugfix-Issue-1790-SuiteMove-Move-Path-404-Message-Oracle.md`.
-- [KEY BUGFIX] - #1718: the legacy **Test Cases not run on any Platform** controller
+- [KEY BUGFIX] - #1791: `getCustomFieldsValues()` was removed from the build class during the 2.0.1
+  modernization (custom fields come from the REST BFF now, out of `cfield_build_design_values` /
+  `cfield_testplan_design_values` via `cfield_mgr`), but two of its three legacy callers were never
+  migrated, so both answered **HTTP 500 with a 0-byte body**:
+  `lib/plan/planView.php:75` (`Call to undefined method testplan::getCustomFieldsValues()` - note
+  `testplan` does NOT extend `build`, it extends `tlObjectWithAttachments`, so the message names
+  `testplan::`) and `lib/plan/buildView.php:94` (`... build::getCustomFieldsValues()`). The third
+  caller was already shimmed in #1787. **Why it survived**: the call sat behind `if ($hasCF)` in both
+  controllers, so the screens only died once the ACTIVE test project had a design-time custom field
+  linked - without one they render fine, which is why the stock fixture has a testplan-design field
+  but no build-design one. **Fix**: both controllers became the same redirect-only shim #1787
+  established (405 for anything but GET/HEAD placed before any state change, session check,
+  `window.location.replace` to the modernized screen). Nothing is dropped: both screens were already
+  modernized (#1723 for the build view) and the 2.0.1 aside menu already points at them
+  (`common.php:2193` / `:2220`), so the legacy files were reachable only from a stale bookmark or the
+  retired Smarty templates; every capability was audited present in `planView.html` /
+  `buildsView.html`, each enforcing rights in its own BFF. The build-view custom-field columns were
+  computed by the legacy controller but never rendered by `buildView.tpl`; the plan-view column IS
+  rendered today. Preserved deliberately: legacy `planView.php` read the project from
+  `$_SESSION['testprojectID']` and ignored `?tproject_id=` (it passes `$initProject = FALSE`, so it
+  never refreshed the session either) - the shim forwards the query param and falls back to the
+  session when it is absent. Verified by `tmp/fixtures_1791.php` (its own isolated project / plan /
+  build / custom field / user) + `tmp/verify_1791.php`: **32/32 PASS** fixed, **15 PASS / 17 FAIL**
+  reverted, 0 new `events` rows AND 0 new `PHP Fatal error` lines in the dev server's stderr (the
+  latter is the assertion that matters here - a PHP fatal never reaches `events`). Known, NOT fixed,
+  pre-existing: `api/builds` `resolveTplan()` answers 404 before `canManage()` answers 403, so a
+  no-rights user separates an existing from a non-existent plan (`api/plans` is clean); and
+  `testplan::getViewActions()` still names the shimmed `lib/plan/planView.php`. See
+  `docs/Bugfix-Issue-1791-SuiteView-Build-View-Custom-Fields-Fatal.md`.- [KEY BUGFIX] - #1718: the legacy **Test Cases not run on any Platform** controller
   (`lib/results/tcNotRunAnyPlatform.php`) could not run and answered HTTP 500 with a 0-byte body on
   every request. It has FOUR independent hard failures, all measured: (1) `:16`
   `require_once('results.class.php')` names a file that does not exist

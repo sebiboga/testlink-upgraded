@@ -3322,3 +3322,73 @@ All users share password `admin`. Run from the repo root; the app is on
 | R3 | `python3 -m json.tool` on all 10 i18n bundles | 10 × OK | **PASS** |
 | R4 | built-in roles holding `req_tcase_link_management` (4, 6, 8, 9) all hold `mgt_modify_tc` too, so the added `mgt_modify_tc` condition of `canLinkReqs()` cannot hide the icon for any stock role | verified in SQL | **PASS** |
 | R5 | admin browser pass (B11) — every other block of the screen (steps, keywords, platforms, relations, attachments) still renders | no regression | **PASS** |
+
+## Suite #1791 — PHP 8 fatal `getCustomFieldsValues()` in `planView.php` / `buildView.php`
+
+**Files:** `tmp/fixtures_1791.php` (fixture) · `tmp/verify_1791.php` (suite)
+**Screens:** Test Plan Management · Builds & Releases · **BFF:** `api/plans/` `api/builds/`
+**Run:** `php tmp/fixtures_1791.php && php tmp/verify_1791.php` (the suite re-runs the fixture itself)
+**Result: 32/32 PASS. With both legacy controllers restored: 15 PASS / 17 FAIL.**
+
+### Fixture
+
+Its own isolated world, because the stock fixture cannot reach the defect: it has a
+**testplan-design** custom field on tp1/tp11 but **no build-design** one, so the `buildView.php`
+fatal is unreachable with it (the call sits behind `if ($hasCF)` in both controllers).
+
+| object | name / value |
+|---|---|
+| test project | prefix `T1791` (created via `testproject::create()`) |
+| test plan | `T1791-PLAN` (public) |
+| build | `T1791-BUILD` (project-scoped since #503/#834 — `builds.testplan_id` is gone) |
+| custom field | `T1791_role`, enabled on node types **5 = testplan** and **12 = build** (`tree::get_available_node_types()` decodes those; 4/5 are NOT the ids) |
+| user | `t1791a` / `admin`, global role 8 + project role 10 |
+
+The fixture **asserts** it reached the buggy branch (`testplan=1 build=1`) and exits non-zero if not,
+so the suite can never silently pass against a fixture that hides the bug.
+
+### Two non-obvious reproduction steps (both pinned by the suite)
+
+1. **The session must be pointed at the fixture project first.** Legacy `planView.php` reads the
+   project from `$_SESSION['testprojectID']` (`init_args()`), **ignores `?tproject_id=`**, and calls
+   `testlinkInitPage($db,false,false)` — `$initProject = FALSE`, so it never refreshes that session
+   value from the URL either. It must be set through a page that passes `$initProject = TRUE`
+   (the suite uses `lib/results/resultsNavigator.php?tproject_id=…`). `default_testproject_id` on the
+   user does **not** help: `common.php:initProject()` reads `$_REQUEST`, not the users table.
+2. **`buildView.php` throws** unless the URL carries a real `tplan_id` (pre-fix `initEnv()`:
+   `"Abort Test Plan ID == 0"` / `"Invalid Test Plan ID"`).
+
+### Rows
+
+| # | what it pins |
+|---|---|
+| 1-6 | each legacy URL answers 200, redirects to the right modernized page, and carries the id |
+| 7-10 | the redirect target is a REAL screen (200, and not another redirect) — no dead link |
+| 11-13 | `api/plans/` and `api/builds/` answer 200 and the fixture build is visible to the screen |
+| 14-15 | `POST` → **405** on both shims (a shim can never smuggle a write past the BFF) |
+| 16-17 | no session → login bounce, and NOT the modernized screen |
+| 18-19 | **no `->getCustomFieldsValues(` CALL anywhere** in `lib/ api/ gui/` (the syntax check is what makes this real — a comment saying "removed `getCustomFieldsValues()`" must not satisfy it), and the method is defined nowhere in `lib/` |
+| 20-26 | input hygiene: `tproject_id=abc`, `tproject_id[]=1`, `tplan_id=-1`, `tplan_id[]=1`, `tplan_id=999999`, no params at all — none may fatal |
+| 27 | a second `tproject_id` cannot inject script |
+| 28-31 | **a no-rights user**: shim still 200 (leaks nothing), `api/plans/` → **403**, the page is a static shell carrying no project name |
+| 32 | **0 new `PHP Fatal error` lines in the dev server's stderr** + 0 new `events` rows |
+
+### Traps this suite had to work around
+
+* **`events` proves nothing here.** A PHP fatal is never written to `events`, so the events delta
+  passed even in the fully reverted run. Row 32 therefore counts `PHP Fatal error` in the dev server's
+  own stderr (`tmp/php_server.log`, which is the running server's fd 2) — that assertion is what
+  actually catches this defect class, and it does fail when reverted.
+* **The page shell never contains its query parameter.** `planView.html` reads `?tproject_id=` in
+  JavaScript, so asserting the id appears in the HTML body fails even when the page is fine. Assert
+  status + `isFatal()` instead.
+* **The anonymous bounce is a JavaScript redirect with HTTP 200**, not a 302
+  (`common.php:redirect()`), so "no session" can only be asserted on the body content.
+* **`opcache.revalidate_freq=2`** on the dev server: after reverting/restoring a PHP file, wait ~5s
+  before re-running, or you read a stale cached version and wrongly conclude the fix does not work.
+  This produced one false negative during development.
+* **`build::create()`'s signature is `($tplan_id, $name, …)`**, not an object; for object input use
+  `createFromObject()` with `tplan_id`. Builds are project-scoped since #503/#834.
+* Column names in this schema: `testplans.testproject_id` (**not** `tproject_id`), `builds.testproject_id`,
+  no `builds.testplan_id`, `users` has `active` (**not** `deleted`), custom-field definitions live in
+  `custom_fields` while the project link lives in `cfield_testprojects`.

@@ -1,201 +1,88 @@
 <?php
 /**
- * TestLink Open Source Project - http://testlink.sourceforge.net/ 
- * This script is distributed under the GNU General Public License 2 or later. 
+ * TestLink Open Source Project - http://testlink.sourceforge.net/
+ * This script is distributed under the GNU General Public License 2 or later.
  *
- * @filesource	planView.php
+ * @filesource  planView.php
  *
+ * Test Plan Management listing - MODERNIZED (Dashio standalone page) - Refs #1791
+ *
+ * The legacy renderer (planView.php + gui/templates/dashio/plan/planView.tpl) has
+ * been replaced by:
+ *
+ *   gui/templates/plans/planView.html   the screen
+ *   api/plans/index.php                 the BFF (GET /, GET /{id}, POST /,
+ *                                       PUT /{id}, DELETE /{id})
+ *
+ * The 2.0.1 aside menu already points at the new screen
+ * (lib/functions/common.php:2193 sets
+ * $actions->planView = "/gui/templates/plans/planView.html?{$ctx}"), so this
+ * controller was reachable only from a stale bookmark, a wiki link or the
+ * buttons of the retired legacy planEdit.tpl.
+ *
+ * It was kept only as a fatal error: the legacy renderer called
+ * getCustomFieldsValues() on a testplan instance for every listed test plan, and
+ * that method no longer exists in 2.0.1 (custom fields are served today by the
+ * REST BFF from cfield_testplan_design_values via cfield_mgr). The call sat
+ * behind `if ($hasCF)`, so the listing only died once the ACTIVE test project
+ * had a design-time custom field linked - which is why it survived the
+ * modernization unnoticed:
+ *   PHP Fatal error: Uncaught Error: Call to undefined method
+ *   testplan::getCustomFieldsValues() in lib/plan/planView.php:75
+ * (testplan does NOT extend build - it extends tlObjectWithAttachments - so the
+ * fatal names testplan::; the sibling buildView.php:94 names build::.)
+ *
+ * This was a READ-ONLY listing: it rendered no form of its own and posted
+ * nothing. Every action it offered (create, edit, delete, setActive/inactivate,
+ * export, import, assignRoles, gotoExecute) was a LINK built from
+ * testplan::getViewActions(), and every one of those targets still exists in
+ * 2.0.1 - planEdit.php (which also still handles its own delete through
+ * do_action=do_delete), planExport.php, planImport.php, usersAssignPlan.php,
+ * execTest.php. All of them are modernized screens whose own BFF re-checks
+ * mgt_testplan_create, so nothing a user could do here is lost by redirecting.
+ * Verified screen by screen against planView.html.
  */
 require_once('../../config.inc.php');
 require_once("common.php");
-require_once("date_api.php");
-
 testlinkInitPage($db,false,false);
 
-$templateCfg = templateConfiguration();
-$args = init_args();
-$gui = initializeGui($db,$args);
-
-if ($args->tproject_id && checkRights($db,$args->user,$args->tproject_id)) {
-  $tproject_mgr = new testproject($db);
-  $gui->tplans = $args->user->getAccessibleTestPlans($db,$args->tproject_id,null,
-                                                     array('output' =>'mapfull', 'active' => null));
-  $gui->drawPlatformQtyColumn = false;
-  
-  if( !is_null($gui->tplans) && count($gui->tplans) > 0 )
-  {
-    // do this test project has platform definitions ?
-    $tplan_mgr = new testplan($db);
-    $tplan_mgr->platform_mgr->setTestProjectID($args->tproject_id);
-    $dummy = $tplan_mgr->platform_mgr->testProjectCount();
-    $gui->drawPlatformQtyColumn = $dummy[$args->tproject_id]['platform_qty'] > 0;
-
-    $tplanSet = array_keys($gui->tplans);
-    $dummy = $tplan_mgr->count_testcases($tplanSet,null,array('output' => 'groupByTestPlan'));
-    $buildQty = $tplan_mgr->get_builds($tplanSet,null,null,array('getCount' => true));
-    $rightSet = array('testplan_user_role_assignment');
-
-    // To create the CF columns we need to get the linked CF
-    $availableCF = (array)$tplan_mgr->get_linked_cfields_at_design(current($tplanSet),$gui->tproject_id);
-    $hasCF = count($availableCF);
-    $gui->cfieldsColumns = null; 
-    $gui->cfieldsType = null;
-    $initCFCol = true;
-    
-    // get CF used to configure HIDE COLS
-    // We want different configurations for different test projects
-    // then will do two steps algorithm
-    // 1. get test project prefix PPFX
-    // 2. look for TL_TPLANVIEW_HIDECOL_PPFX
-    // 3. if found proceed
-    // 4. else look for TL_TPLANVIEW_HIDECOL
-    //  
-    $ppfx = $tproject_mgr->getTestCasePrefix($gui->tproject_id);
-    $suffixSet = ['_' . $ppfx, ''];     
-    foreach($suffixSet as $suf) {
-      $gopt['name'] = 'TL_TPLANVIEW_HIDECOL' . $suf;
-      $col2hideCF = $tplan_mgr->cfield_mgr->get_linked_to_testproject($gui->tproject_id,null,$gopt);
-     
-      if ($col2hideCF != null) {
-        $col2hideCF = current($col2hideCF);
-        $col2hide = array_flip(explode('|',$col2hideCF['possible_values']));
-        $col2hide[$gopt['name']] = '';
-        break; 
-      }
-    }
-
-
-
-    $localeDateFormat = config_get('locales_date_format');
-    $localeDateFormat = $localeDateFormat[$args->user->locale];
-    
-    foreach($tplanSet as $idk) {
-      // ---------------------------------------------------------------------------------------------  
-      if ($hasCF) {
-        $cfields = (array)$tplan_mgr->getCustomFieldsValues($idk,$gui->tproject_id);        
-        foreach ($cfields as $cfd) {
-          if ($initCFCol) {
-            if (!isset($col2hide[$cfd['name']])) {
-              $gui->cfieldsColumns[] = $cfd['label'];
-              $gui->cfieldsType[] = $cfd['type'];
-            }
-          }
-          $gui->tplans[$idk][$cfd['label']] = ['value' => $cfd['value'], 'data-order' => $cfd['value']];
-
-          if ($cfd['type'] == 'date') {
-            $gui->tplans[$idk][$cfd['label']]['data-order'] = locateDateToISO($cfd['value'], $localeDateFormat);
-          }          
-        }  
-        $initCFCol = false;
-      }
-      // ---------------------------------------------------------------------------------------------  
-
-      //echo '<pre>';var_dump($gui->tplans);echo "</pre>";
-      $gui->tplans[$idk]['tcase_qty'] = isset($dummy[$idk]['qty']) ? intval($dummy[$idk]['qty']) : 0;
-
-
-      $gui->tplans[$idk]['tcase_qty'] = isset($dummy[$idk]['qty']) ? intval($dummy[$idk]['qty']) : 0;
-      $gui->tplans[$idk]['build_qty'] = isset($buildQty[$idk]['build_qty']) ? intval($buildQty[$idk]['build_qty']) : 0;
-      if( $gui->drawPlatformQtyColumn )
-      {
-        $plat = $tplan_mgr->getPlatforms($idk);
-        $gui->tplans[$idk]['platform_qty'] = is_null($plat) ? 0 : count($plat);
-      }
-
-
-      // Get rights for each test plan
-      foreach($rightSet as $target)
-      {
-        // DEV NOTE - CRITIC
-        // I've made a theorically good performance choice to 
-        // assign to $roleObj a reference to different roleObj
-        // UNFORTUNATELLY this choice was responsible to destroy point object
-        // since second LOOP
-        $roleObj = null;
-        if($gui->tplans[$idk]['has_role'] > 0)
-        {
-          $roleObj = $args->user->tplanRoles[$gui->tplans[$idk]['has_role']];
-        }  
-        else if (!is_null($args->user->tprojectRoles) && 
-                 isset($args->user->tprojectRoles[$args->tproject_id]) )
-        {
-          $roleObj = $args->user->tprojectRoles[$args->tproject_id];
-        }  
-
-        if(is_null($roleObj))
-        {
-          $roleObj = $args->user->globalRole;
-        }  
-        $gui->tplans[$idk]['rights'][$target] = $roleObj->hasRight($target);  
-      }  
-    }    
-    unset($tplan_mgr);  
-  }
-  unset($tproject_mgr);  
+// Nothing here is state-changing: refuse anything but a safe read so this
+// file can never be used to smuggle a write past the BFF's checks.
+if (isset($_SERVER['REQUEST_METHOD']) && !in_array(strtoupper($_SERVER['REQUEST_METHOD']), array('GET','HEAD'), true)) {
+  http_response_code(405);
+  header('Allow: GET, HEAD');
+  exit('Method Not Allowed');
 }
 
-$smarty = new TLSmarty();
-$smarty->assign('gui',$gui);
-$smarty->display($templateCfg->template_dir . $templateCfg->default_template);
-
-
-/**
- * init_args
- *
- */
-function init_args()
-{
-    $args = new stdClass();
-    $args->tproject_id = isset($_SESSION['testprojectID']) ? intval($_SESSION['testprojectID']) : 0 ;
-    $args->tproject_name = isset($_SESSION['testprojectName']) ? trim($_SESSION['testprojectName']) : '' ;
-
-    $args->user = $_SESSION['currentUser'];
-    return $args;
+if (empty($_SESSION['userID'])) {
+  $dest = 'planView.php' . (isset($_SERVER['QUERY_STRING']) && $_SERVER['QUERY_STRING'] !== ''
+      ? '?' . $_SERVER['QUERY_STRING'] : '');
+  redirect('login.php?note=expired&destination=' . urlencode($dest));
 }
 
-function initializeGui(&$dbHandler,$argsObj)
-{
-  $gui = new stdClass();
-  $gui->tproject_id = $argsObj->tproject_id;
-  $gui->tplans = null;
-  $gui->user_feedback = '';
-  $gui->grants = new stdClass();
-  $gui->grants->testplan_create = $argsObj->user->hasRight($dbHandler,"mgt_testplan_create",$argsObj->tproject_id);
-
-  // $_SESSION['testprojectName'] isn't set on every navigation path that
-  // can reach this page, so fall back to a real DB lookup rather than
-  // showing a blank project name (same fix as issue #445).
-  $tproject_name = $argsObj->tproject_name;
-  if ($tproject_name == '') {
-    $tproject_name = testproject::getName($dbHandler, $argsObj->tproject_id);
-  }
-  $gui->main_descr = lang_get('testplan_title_tp_management'). " - " .
-                     lang_get('testproject') . ' ' . $tproject_name;
-  $cfg = getWebEditorCfg('testplan');
-  $gui->editorType = $cfg['type'];
-
-  // planView.tpl builds Create/Delete/Edit/Export/Import/Execute links and
-  // the form action entirely from $gui->actions. Without it every one of
-  // those renders as an empty URL, so e.g. the "Create" button just
-  // re-submits back to this same listing page, which has no do_action
-  // handling of its own (real creation happens in planEdit.php).
-  $actionsCtx = new stdClass();
-  $actionsCtx->tproject_id = $argsObj->tproject_id;
-  $actionsCtx->tplan_id = isset($_SESSION['testplanID']) ? intval($_SESSION['testplanID']) : 0;
-  $tplan_mgr = new testplan($dbHandler);
-  $gui->actions = $tplan_mgr->getViewActions($actionsCtx);
-
-  $gui->doViewReload = false;
-
-  return $gui;
+// The legacy controller took the test project from $_SESSION['testprojectID']
+// (init_args()) and IGNORED ?tproject_id= completely - and because it called
+// testlinkInitPage($db,false,false), it never even refreshed that session value
+// from the URL. So the old behaviour of a bookmark WITHOUT the parameter was
+// "show the session's active project". The modernized page reads tproject_id
+// from the query string (gui/templates/plans/planView.html:179), so the session
+// value is forwarded here as the fallback to keep that case working; an
+// explicit ?tproject_id= still wins, which is what the URL always meant.
+$tproject_id = isset($_REQUEST['tproject_id']) ? intval($_REQUEST['tproject_id']) : 0;
+if ($tproject_id <= 0) {
+    $tproject_id = isset($_SESSION['testprojectID']) ? intval($_SESSION['testprojectID']) : 0;
 }
 
+$target = '/gui/templates/plans/planView.html?tproject_id=' . $tproject_id;
 
-/**
- * checkRights
- *
- */
-function checkRights(&$db,&$user,$tproject_id)
-{
-  return $user->hasRight($db,'mgt_testplan_create',$tproject_id);
-}
+// redirect() builds "$level.href='...'", so $level must be a LOCATION OBJECT,
+// never a method: 'window.location.replace' would emit
+// window.location.replace.href='...' (an expando on the function object) and the
+// browser would stay on a blank page. The replace() semantics are wanted here
+// (a legacy bookmark should not stay in the history), so they are emitted here.
+$safeTarget = addslashes($target);
+echo "<html><head></head><body>";
+echo "<script type='text/javascript'>";
+echo "window.location.replace('$safeTarget');";
+echo "</script></body></html>";
+exit;
