@@ -132,6 +132,108 @@ function isoDateOrNull($body, $key = 'release_date') {
     return [$v, null];
 }
 
+/* ------------------------------------------------------------------ */
+/* Build custom fields (legacy buildEdit.php / buildEdit.tpl)          */
+/*                                                                     */
+/* The 1.9.20 Build Create/Edit form rendered the project's build      */
+/* design custom fields:                                                */
+/*   - buildEdit.php initializeGui() -> buildMgr->html_custom_field_    */
+/*     inputs($build_id, $tproject_id, 'design', '', $_REQUEST)        */
+/*   - buildEdit.tpl: {foreach $gui->cfields} <tr><th>{$cf.label}     */
+/*     </th><td>{$cf.input}</td></tr>                                  */
+/*   - doCreate()/doUpdate() persisted them with                      */
+/*     cfield_mgr->design_values_to_db($_REQUEST, $buildID, $cf_map,  */
+/*     null, 'build')  -> table cfield_build_design_values            */
+/* The modern inline Create/Edit modal of buildsView.html never grew   */
+/* the CF block, so build custom fields were silently DROPPED: the     */
+/* definitions were neither shown nor written. These helpers restore   */
+/* the parity: /cfields returns them as DATA (never as HTML, so no      */
+/* injected markup can reach the DOM) and saveBuildCfields() writes     */
+/* them back with the legacy hash key format.                           */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Custom-field definitions of a test project, with the current value for
+ * an optional build. Returns [] when the project has none.
+ *
+ * build::get_linked_cfields_at_design() passes $id=0 as NULL internally, so
+ * create mode (build_id absent) returns the definitions with no value and
+ * the client shows default_value instead.
+ */
+function buildCfieldDefs(&$buildMgr, $tprojectId, $buildId = 0) {
+    $cfMap = $buildMgr->get_linked_cfields_at_design(
+        intval($buildId) > 0 ? intval($buildId) : 0, intval($tprojectId));
+    $out = [];
+    $types = [0 => 'string', 1 => 'numeric', 2 => 'float', 4 => 'email',
+              5 => 'checkbox', 6 => 'list', 7 => 'multiselection list',
+              8 => 'date', 9 => 'radio', 10 => 'datetime',
+              20 => 'text area', 500 => 'script', 501 => 'server'];
+    foreach ((array)$cfMap as $fieldId => $cf) {
+        $typeId = intval($cf['type'] ?? 0);
+        $value = isset($cf['value']) ? (string)$cf['value'] : null;
+        $default = isset($cf['default_value']) ? (string)$cf['default_value'] : '';
+        $out[] = [
+            'field_id'   => intval($fieldId),
+            'name'       => (string)($cf['name'] ?? ''),
+            'label'      => (string)($cf['label'] ?? ($cf['name'] ?? '')),
+            'type'       => $typeId,
+            'type_label' => $types[$typeId] ?? 'string',
+            'required'   => !empty($cf['values_required']) ? 1 : 0,
+            'possible_values' => (string)($cf['possible_values'] ?? ''),
+            'default_value'   => $default,
+            'value'      => ($value === null || $value === '') ? $default : $value,
+            'has_value'  => ($value === null) ? 0 : 1,
+        ];
+    }
+    return $out;
+}
+
+/**
+ * Persist submitted build custom fields, legacy-parity.
+ *
+ * cfield_mgr::design_values_to_db() parses a $_REQUEST-shaped hash whose
+ * keys are `custom_field_<type_id>_<field_id>` (and, for a date field,
+ * `custom_field_8_<field_id>_input`) - "carved in the stone" per
+ * cfield_mgr::_build_cfield(). We only ever build those keys ourselves,
+ * from the field ids the SERVER resolved, so a submitted key can never name
+ * a field outside this project; unknown ids are dropped.
+ *
+ * @return int number of fields actually written
+ */
+function saveBuildCfields(&$buildMgr, $body, $cfMap, $buildId) {
+    if (is_null($cfMap) || count($cfMap) == 0) {
+        return 0;
+    }
+    $in = isset($body['cfields']) && is_array($body['cfields'])
+        ? $body['cfields'] : [];
+    $hash = [];
+    foreach ($cfMap as $fieldId => $cf) {
+        $fieldId = intval($fieldId);
+        $typeId  = intval($cf['type'] ?? 0);
+        if (!array_key_exists($fieldId, $in)) {
+            continue; // not submitted -> leave the stored value alone
+        }
+        $val = $in[$fieldId];
+        $prefix = 'custom_field_' . $typeId . '_' . $fieldId;
+        if (in_array($typeId, [5, 7], true)) {           // checkbox / multiselection
+            $vals = is_array($val) ? array_map('strval', $val) : [(string)$val];
+            $vals = array_values(array_filter($vals, function ($v) { return $v !== ''; }));
+            // _build_cfield joins a multi-valued hash entry with '|'; the
+            // class does the same when it stores, so keep the raw list.
+            $hash[$prefix] = $vals;
+        } elseif ($typeId === 8) {                        // date
+            $hash[$prefix . '_input'] = is_array($val) ? (string)($val['input'] ?? '') : (string)$val;
+        } else {
+            $hash[$prefix] = is_array($val) ? '' : (string)$val;
+        }
+    }
+    if (count($hash) == 0) {
+        return 0;
+    }
+    $buildMgr->cfield_mgr->design_values_to_db($hash, intval($buildId), $cfMap, null, 'build');
+    return count($hash);
+}
+
 $tplanMgr = new testplan($db);
 $buildMgr = new build($db);
 
@@ -300,10 +402,51 @@ if ($method === 'GET' && count($segments) === 1 && ctype_digit($segments[0])) {
     ]);
 }
 
+// GET /cfields?tplan_id=N[&build_id=M]  -> build design custom fields
+// The Build Create/Edit form needs the project's build design custom fields
+// as DATA (legacy buildEdit.tpl rendered html_custom_field_inputs()). The
+// owning project is proven BEFORE the build is resolved, so a foreign or
+// bogus tplan_id cannot be used as an existence oracle, and a build_id that
+// does not belong to the addressed project is a 404, never a silent read of
+// another project's values.
+if ($method === 'GET' && count($segments) === 1 && $segments[0] === 'cfields') {
+    $tplanId = intval($_GET['tplan_id'] ?? 0);
+    if ($tplanId <= 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid test plan id',
+             'error_code' => 'no_tplan']);
+    }
+    $ctx = resolveTplan($db, $tplanId);
+    if (!canManage($user, $db, $ctx['tproject_id'])) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'Insufficient rights',
+             'error_code' => 'no_right']);
+    }
+    $buildId = intval($_GET['build_id'] ?? 0);
+    if ($buildId > 0) {
+        $b = $buildMgr->get_by_id($buildId);
+        if (!$b) {
+            http_response_code(404);
+            out(['status' => 'error', 'message' => 'Build not found',
+                 'error_code' => 'build_not_found']);
+        }
+        $bctx = resolveBuild($db, $b);
+        if (intval($bctx['tproject_id']) !== intval($ctx['tproject_id'])) {
+            http_response_code(404);
+            out(['status' => 'error', 'message' => 'Build not found',
+                 'error_code' => 'build_not_found']);
+        }
+        $buildId = intval($b['id']);
+    }
+    out([
+        'status' => 'ok',
+        'cfields' => buildCfieldDefs($buildMgr, $ctx['tproject_id'], $buildId),
+    ]);
+}
+
 /* ------------------------------------------------------------------ */
 /* POST routes                                                         */
 /* ------------------------------------------------------------------ */
-
 // POST /  -> create (legacy do_create incl. copy options)
 if ($method === 'POST' && count($segments) === 0) {
     $body = getBody();
@@ -375,6 +518,11 @@ if ($method === 'POST' && count($segments) === 0) {
         out(['status' => 'error', 'message' => 'cannot_add_build']);
     }
 
+    // Legacy do_create: design custom fields are written right after the
+    // build row exists and BEFORE closed_on_date is stamped.
+    $cfMap = $buildMgr->get_linked_cfields_at_design($buildID, $ctx['tproject_id']);
+    $cfWritten = saveBuildCfields($buildMgr, $body, $cfMap, $buildID);
+
     // Legacy do_create: closing a build stamps closed_on_date.
     if (!$isOpen) {
         $buildMgr->setClosedOnDate($buildID, date('Y-m-d'));
@@ -399,7 +547,7 @@ if ($method === 'POST' && count($segments) === 0) {
         tprojectName($tp, $ctx['tproject_id']), $ctx['tplan_name'], $name),
         'CREATE', $buildID, 'builds');
 
-    out(['status' => 'ok', 'id' => intval($buildID)]);
+    out(['status' => 'ok', 'id' => intval($buildID), 'cfields_written' => $cfWritten]);
 }
 
 // POST /{id}/flags -> active/open toggles (legacy setActive/setInactive/open/close)
@@ -560,6 +708,12 @@ if ($method === 'PUT' && count($segments) === 1 && ctype_digit($segments[0])) {
         http_response_code(500);
         out(['status' => 'error', 'message' => 'cannot_update_build']);
     }
+
+    // Legacy do_update: design custom fields are persisted after build::update()
+    // and before closed_on_date is re-stamped.
+    $cfMap = $buildMgr->get_linked_cfields_at_design($buildId, $ctx['tproject_id']);
+    $cfWritten = saveBuildCfields($buildMgr, $body, $cfMap, $buildId);
+
     // Legacy do_update semantics: build::update() unconditionally resets
     // closed_on_date to NULL (latent behavior of the class), so we must
     // restore/adjust afterwards:
@@ -578,10 +732,10 @@ if ($method === 'PUT' && count($segments) === 1 && ctype_digit($segments[0])) {
     }
 
     logAuditEvent(TLS('audit_build_saved',
-        tprojectName($tp, $ctx['tproject_id']), $ctx['tproject_name'], $name),
+        tprojectName($tp, $ctx['tproject_id']), $ctx['tplan_name'], $name),
         'SAVE', $buildId, 'builds');
 
-    out(['status' => 'ok']);
+    out(['status' => 'ok', 'cfields_written' => $cfWritten]);
 }
 
 /* ------------------------------------------------------------------ */
