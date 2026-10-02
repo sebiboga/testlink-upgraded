@@ -1162,6 +1162,15 @@ if ($action === 'view') {
             $user, $db, $tprojectId,
             intval($vr['is_open'] ?? 1), isset($executedSet[$tcvx]));
 
+        // Issue #1045: legacy $reqLinkingEnabled of
+        // gui/templates/dashio/testcases/tcView_viewer.tpl:516-524, which gates
+        // the link/unlink icon on the Requirements label. Computed per version
+        // (the legacy flag lives inside the per-version panel) - see
+        // canLinkReqs() for the condition matrix.
+        $versionReqLinking = canLinkReqs(
+            $user, $db, $tprojectId,
+            intval($vr['is_open'] ?? 1), isset($executedSet[$tcvx]));
+
         // Free (still assignable) platforms for THIS version — the
         // "free_platforms[]" multi-select of legacy platforms.inc.tpl, fed by
         // testcase::getFreePlatforms() (testcase.class.php:9813): project
@@ -1259,6 +1268,8 @@ if ($action === 'view') {
             'platforms' => $platforms,
             'canAssignPlatforms' => $versionCanAssign,
             'platformsFree' => $platformsFree,
+            // Issue #1045: legacy $reqLinkingEnabled (tcView_viewer.tpl:516-524).
+            'reqLinkingEnabled' => $versionReqLinking,
             'customFields' => $customFields,
             'attachments' => $attachments,
             // Issue #1039: legacy $gui->scripts[$tcversion_id] (testcase.class.php:8678)
@@ -1266,19 +1277,37 @@ if ($action === 'view') {
         ];
     }
 
-    // requirements coverage (only when enabled + right to view)
+    // Requirements coverage.
+    //
+    // Issue #1045: the gate was an AND on `mgt_view_req`, so a user holding only
+    // `req_tcase_link_management` (the role that lets them LINK requirements to
+    // this test case) got an empty map and the whole legacy Requirements section
+    // disappeared. Legacy
+    // gui/templates/dashio/testcases/tcView_viewer.tpl:513-515 is an OR:
+    //     requirementsEnabled && (view_req_rights == "yes" ||
+    //                             req_tcase_link_management)
+    // with $gui->view_req_rights = the mgt_view_req right
+    // (lib/functions/testcase.class.php:7387). Reproduced verbatim.
     $requirements = [];
     $opt = $tprojectMgr->getOptions($tprojectId);
     $opt = is_null($opt) ? new stdClass() : $opt;
     $canViewReq = tprojectOpt($opt, 'requirementsEnabled')
-        && $user->hasRight($db, 'mgt_view_req', $tprojectId);
+        && ($user->hasRight($db, 'mgt_view_req', $tprojectId)
+            || $user->hasRight($db, 'req_tcase_link_management', $tprojectId));
     if ($canViewReq) {
         try {
             // NOTE: requirement_mgr::get_all_for_tcase() does not expose the
             // linked version, so resolve coverage directly.
+            //
+            // Issue #1045: RC.req_version_id is projected too — the legacy list
+            // line is a clickable "edit" icon calling
+            // openLinkedReqVersionWindow(req_id, req_version_id, tproject_id)
+            // (tcView_viewer.tpl:544-547), i.e. the linked requirement VERSION,
+            // not just its version number. Without the id the modern screen can
+            // only print "(Version 2)" and cannot open the right version.
             $rqTables = tlObjectWithDB::getDBTables(
                 array('requirements', 'req_versions', 'req_coverage', 'req_specs', 'nodes_hierarchy'));
-            $rqSql = " SELECT RC.tcversion_id, REQ.id, REQ.req_doc_id, " .
+            $rqSql = " SELECT RC.tcversion_id, RC.req_version_id, REQ.id, REQ.req_doc_id, " .
                      "        NHA.name AS title, NHB.name AS req_spec_title, " .
                      "        RV.version " .
                      " FROM {$rqTables['req_coverage']} RC " .
@@ -1292,6 +1321,7 @@ if ($action === 'view') {
                 foreach ($rqRows as $rq) {
                     $requirements[intval($rq['tcversion_id'])][] = [
                         'id' => intval($rq['id']),
+                        'req_version_id' => intval($rq['req_version_id'] ?? 0),
                         'req_doc_id' => strval($rq['req_doc_id']),
                         'title' => strval($rq['title']),
                         'version' => intval($rq['version'] ?? 1),
@@ -1544,6 +1574,12 @@ if ($action === 'view') {
         // platforms.inc.tpl puts on the "Platforms:" label.
         'platformsMgmtUrl' => '/gui/templates/platforms/platformsView.html'
             . '?tproject_id=' . $tprojectId,
+        // Issue #1045: modern twin of the legacy $hrefReqSpecMgmt that
+        // tcView_viewer.tpl:31-32 builds as
+        // "lib/general/frmWorkArea.php?feature=reqSpecMgmt" and puts on the
+        // "Requirements" label (tpl:529-531).
+        'reqSpecMgmtUrl' => '/gui/templates/requirements/reqSpecMgmt.html'
+            . '?tproject_id=' . $tprojectId,
         'requirements' => $requirements,
         'requirementsEnabled' => tprojectOpt($opt, 'requirementsEnabled'),
         'testPriorityEnabled' => tprojectOpt($opt, 'testPriorityEnabled'),
@@ -1732,6 +1768,44 @@ function canAssignPlatforms($user, $dbHandler, $tprojId, $isOpen, $executed) {
             return true;
         }
         return false;
+    }
+    return true;
+}
+
+/**
+ * Whether requirement links of a version may be changed: the legacy
+ * $reqLinkingEnabled of gui/templates/dashio/testcases/tcView_viewer.tpl:516-524
+ *
+ *     reqLinkingEnabled = req_tcase_link_management
+ *                         && $args_frozen_version == "no"
+ *                         && $edit_enabled == 1
+ *     if (testcase_cfg->reqLinkingDisabledAfterExec == 1
+ *         && $has_been_executed == 1
+ *         && testcase_cfg->can_edit_executed == 0)
+ *         reqLinkingEnabled = 0
+ *
+ * $edit_enabled (gui/templates/dashio/testcases/include/tcViewViewer.inc.tpl:83-122)
+ * needs $args_can_do->edit == "yes" - which testcase::getShowViewerActions()
+ * (lib/functions/testcase.class.php:4939-4971) only answers "yes" when
+ * mgt_modify_tc is granted (all rights default to "no" in the show_mode
+ * "editDisabled" branch, testcase.class.php:7463-7466) - and it stays 0 on an
+ * executed version unless can_edit_executed is on. The last legacy clause is
+ * then already implied by that executed check, which is why it is not repeated
+ * here; the comment is kept so the port stays traceable to tpl:521-524.
+ */
+function canLinkReqs($user, $dbHandler, $tprojId, $isOpen, $executed)
+{
+    if (!$user->hasRight($dbHandler, 'req_tcase_link_management', $tprojId)) {
+        return false;
+    }
+    if (!$user->hasRight($dbHandler, 'mgt_modify_tc', $tprojId)) {
+        return false;   // no $edit_enabled -> no $reqLinkingEnabled (tpl:517-519)
+    }
+    if (intval($isOpen) === 0) {
+        return false;   // frozen version: $args_frozen_version == "no" required
+    }
+    if ($executed && intval(config_get('testcase_cfg')->canEditExecuted ?? 0) <= 0) {
+        return false;   // $edit_enabled == 0 on executed versions (tpl:101-103)
     }
     return true;
 }

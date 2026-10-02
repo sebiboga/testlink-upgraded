@@ -6130,5 +6130,8 @@
   "bedit.msg.saved": "Сборка сохранена.",
   "bedit.msg.created": "Сборка создана.",
   "footers.buildEdit": "TestLink 2.0.1 - Сборка",
-  "bv.createBuildFullScreen": "Создать сборку (полный экран)"
+  "bv.createBuildFullScreen": "Создать сборку (полный экран)",
+  "tcview.linkUnlinkReqs": "Связать / Отвязать требования",
+  "tcview.openLinkedReqTitle": "Открыть версию связанного требования",
+  "tcview.reqSpecMgmtTitle": "Открыть управление спецификациями требований"
 }

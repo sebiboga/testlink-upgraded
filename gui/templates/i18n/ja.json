@@ -6130,5 +6130,8 @@
   "bedit.msg.saved": "ビルドを保存しました。",
   "bedit.msg.created": "ビルドを作成しました。",
   "footers.buildEdit": "TestLink 2.0.1 - ビルド",
-  "bv.createBuildFullScreen": "ビルドを作成（フルスクリーン）"
+  "bv.createBuildFullScreen": "ビルドを作成（フルスクリーン）",
+  "tcview.linkUnlinkReqs": "要件の割り当て / 解除",
+  "tcview.openLinkedReqTitle": "リンクされた要件のバージョンを開く",
+  "tcview.reqSpecMgmtTitle": "要件仕様の管理を開く"
 }

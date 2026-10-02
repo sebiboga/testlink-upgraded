@@ -6124,5 +6124,8 @@
   "bedit.msg.saved": "La build a ete enregistree.",
   "bedit.msg.created": "La build a ete creee.",
   "footers.buildEdit": "TestLink 2.0.1 - Build",
-  "bv.createBuildFullScreen": "Creer la Build (ecran complet)"
+  "bv.createBuildFullScreen": "Creer la Build (ecran complet)",
+  "tcview.linkUnlinkReqs": "Lier / Délier les exigences",
+  "tcview.openLinkedReqTitle": "Ouvrir la version de l'exigence liée",
+  "tcview.reqSpecMgmtTitle": "Ouvrir la Gestion des Spécifications des Exigences"
 }

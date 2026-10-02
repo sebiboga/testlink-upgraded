@@ -6110,5 +6110,8 @@
   "bedit.msg.saved": "构建已保存。",
   "bedit.msg.created": "构建已创建。",
   "footers.buildEdit": "TestLink 2.0.1 - 构建",
-  "bv.createBuildFullScreen": "创建构建（整屏）"
+  "bv.createBuildFullScreen": "创建构建（整屏）",
+  "tcview.linkUnlinkReqs": "关联 / 取消关联需求",
+  "tcview.openLinkedReqTitle": "打开所关联需求的版本",
+  "tcview.reqSpecMgmtTitle": "打开需求规格管理"
 }

@@ -69,6 +69,11 @@ table.steps tbody tr:nth-child(even) { background: #fafafa; }
 .kv-table td:first-child { font-weight: 700; color: #555; width: 240px; }
 .att-item, .req-item, .rel-item { font-size: 13px; color: #333; padding: 5px 0; border-bottom: 1px dashed #eee; }
 .att-item i, .req-item i, .rel-item i { color: #4ECDC4; margin-right: 8px; }
+ /* Issue #1045: legacy "open linked requirement version" icon
+    (tcView_viewer.tpl:544-547 openLinkedReqVersionWindow). */
+ .req-item .req-open { color: #2d8e88; text-decoration: none; }
+ .req-item .req-open:hover { text-decoration: underline; }
+ .req-item .req-open i { color: #2d8e88; margin-right: 4px; }
 /* Issue #1042: legacy attachments.inc.tpl:89 download anchor (bold, teal) */
 .att-item .att-dl-link { color: #2d8e88; font-weight: 700; text-decoration: none; }
 .att-item .att-dl-link:hover { text-decoration: underline; }
@@ -671,7 +676,12 @@ function renderActions() {
   $('#btnEdit').toggle(canEditCurrent());
   $('#btnAdd2Tplan').toggle(!!data.grants.mgt_modify_tc && !!data.hasTestPlans);
   $('#btnBulk').toggle(!!data.grants.mgt_modify_tc);
-  $('#btnAssignReqs').toggle(!!data.requirementsEnabled && !!data.grants.req_tcase_link_management && !!currentVersion.is_latest);
+  // Issue #1045: the legacy link/unlock icon of the Requirements label is gated on
+  // $reqLinkingEnabled (tcView_viewer.tpl:517-524) AND isTheLatest (tpl:530) - both
+  // are per-version, so the gate is the BFF's per-version reqLinkingEnabled of the
+  // CURRENT version. The old test (grants.req_tcase_link_management alone) ignored
+  // frozen / executed versions and reqLinkingDisabledAfterExec.
+  $('#btnAssignReqs').toggle(!!data.requirementsEnabled && !!currentVersion.reqLinkingEnabled && !!currentVersion.is_latest);
   if (data.versions.length > 1) {
     $('#btnCompare').show();
   }
@@ -1110,13 +1120,33 @@ function renderVersion(v) {
   h += '<div class="field-label">' + esc(TLi18n.t('tcview.attachments')) + '</div>';
   h += renderAttachments(v);
 
-  // requirements
-  if (data.requirementsEnabled && data.grants.mgt_view_req) {
-    h += '<div class="field-label">' + esc(TLi18n.t('tcview.requirements')) + '</div>';
+  // Requirements (issue #1045) - full port of legacy
+  // gui/templates/dashio/testcases/tcView_viewer.tpl:513-556:
+  //   * the section shows for mgt_view_req OR req_tcase_link_management (legacy
+  //     line 513-515 is an OR; the previous modern code ANDed mgt_view_req only,
+  //     so a linker-only role saw nothing at all),
+  //   * the label links to Requirement Specification Management ($hrefReqSpecMgmt,
+  //     tpl:31-32 / 529-531),
+  //   * the link/unlock icon (openReqWindow of tpl:530-535) shows on the LATEST
+  //     version only, when the BFF's per-version reqLinkingEnabled (port of
+  //     $reqLinkingEnabled, tpl:516-524) is true; it opens the assign dialog,
+  //     the modern twin of openReqWindow(),
+  //   * every linked requirement is one row "spec : doc_id (Version N) : title"
+  //     preceded by an icon that opens THAT requirement VERSION
+  //     (openLinkedReqVersionWindow of tpl:544-547 -> reqView.html).
+  if (data.requirementsEnabled && canSeeRequirements()) {
+    h += '<div class="field-label">' + reqSpecMgmtLabelHtml() + '</div>';
     var reqs = data.requirements[v.tcversion_id] || [];
+    if (v.reqLinkingEnabled && v.is_latest) {
+      h += ' <button type="button" class="btn btn-sm btn-teal"'
+        + ' title="' + esc(TLi18n.t('tcview.linkUnlinkReqs')) + '"'
+        + ' onclick="openAssignReqs()"><i class="fa fa-bookmark"></i> '
+        + esc(TLi18n.t('tcview.linkUnlinkReqs')) + '</button>';
+    }
     if (reqs.length) {
       reqs.forEach(function (rq) {
         h += '<div class="req-item"><i class="fa fa-bookmark"></i>'
+          + reqOpenIconHtml(rq)
           + esc(rq.req_spec_title ? rq.req_spec_title + ' : ' : '')
           + esc(rq.req_doc_id) + ' (' + esc(TLi18n.t('tcview.versionShort')) + ' ' + rq.version + ') : '
           + esc(rq.title) + '</div>';
@@ -1215,6 +1245,55 @@ function platformMgmtLabelHtml() {
       + ' <i class="fa fa-external-link"></i></a>';
   }
   return label;
+}
+
+/* ============ Requirements (issue #1045) ============
+   Modern port of gui/templates/dashio/testcases/tcView_viewer.tpl:513-556
+   (+ include/tcViewViewer.inc.tpl:543-586, the tl-classic twin). */
+
+/* Legacy tcView_viewer.tpl:513-515 shows the section when
+   $gui->view_req_rights == "yes" OR $gui->req_tcase_link_management
+   ($gui->view_req_rights IS the mgt_view_req right,
+   lib/functions/testcase.class.php:7387). The gate used to be the single right
+   mgt_view_req, so a user who may only LINK requirements to this test case
+   (the req_tcase_link_management role) saw no section at all. */
+function canSeeRequirements() {
+  var g = (data && data.grants) ? data.grants : {};
+  return !!(g.mgt_view_req || g.req_tcase_link_management);
+}
+
+/* Legacy tpl:529-531 puts a link to Requirement Specification Management on the
+   "Requirements" label ($hrefReqSpecMgmt, tpl:31-32); the modern equivalent of
+   that frmWorkArea target is the BFF's reqSpecMgmtUrl. */
+function reqSpecMgmtLabelHtml() {
+  var label = esc(TLi18n.t('tcview.requirements'));
+  if (data.reqSpecMgmtUrl) {
+    return '<a href="' + esc(data.reqSpecMgmtUrl) + '" target="_blank" rel="noopener" title="'
+      + esc(TLi18n.t('tcview.reqSpecMgmtTitle')) + '">' + label
+      + ' <i class="fa fa-external-link"></i></a>';
+  }
+  return label;
+}
+
+/* Legacy tpl:544-547: the row starts with a clickable "edit" icon calling
+   openLinkedReqVersionWindow(req_id, req_version_id, tproject_id), which opens
+   lib/requirements/reqView.php?showReqSpecTitle=1&requirement_id=..&req_version_id=..
+   (gui/javascript/testlink_library.js:1049-1061). reqView.html accepts the very
+   same query parameters (it reads `id`/`requirement_id` and `req_version_id`).
+   Without a version id the link would silently open the LATEST version, so no
+   anchor is rendered at all in that case - the row text stays readable. */
+function reqOpenIconHtml(rq) {
+  var rid = parseInt(rq.req_version_id, 10) || 0;
+  var reqId = parseInt(rq.id, 10) || 0;
+  if (!rid || !reqId) {
+    return '';
+  }
+  var url = '/gui/templates/requirements/reqView.html'
+    + '?showReqSpecTitle=1&id=' + encodeURIComponent(reqId)
+    + '&req_version_id=' + encodeURIComponent(rid)
+    + '&tproject_id=' + encodeURIComponent(data.tproject.id);
+  return '<a class="req-open" href="' + esc(url) + '" target="_blank" rel="noopener" title="'
+    + esc(TLi18n.t('tcview.openLinkedReqTitle')) + '"><i class="fa fa-pencil"></i></a> ';
 }
 
 /* ============ Code management / test script links (issue #1039) ============

@@ -6134,5 +6134,8 @@
   "bedit.msg.saved": "Buildul a fost salvat.",
   "bedit.msg.created": "Buildul a fost creat.",
   "footers.buildEdit": "TestLink 2.0.1 - Build",
-  "bv.createBuildFullScreen": "Creare Build (ecran complet)"
+  "bv.createBuildFullScreen": "Creare Build (ecran complet)",
+  "tcview.linkUnlinkReqs": "Asociază / Dezasociază cerințe",
+  "tcview.openLinkedReqTitle": "Deschide versiunea cerinței asociate",
+  "tcview.reqSpecMgmtTitle": "Deschide Managementul Specificațiilor de Cerințe"
 }

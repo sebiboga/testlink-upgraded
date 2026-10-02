@@ -6124,5 +6124,8 @@
   "bedit.msg.saved": "La build e stata salvata.",
   "bedit.msg.created": "La build e stata creata.",
   "footers.buildEdit": "TestLink 2.0.1 - Build",
-  "bv.createBuildFullScreen": "Crea Build (schermata intera)"
+  "bv.createBuildFullScreen": "Crea Build (schermata intera)",
+  "tcview.linkUnlinkReqs": "Associa / Dissocia requisiti",
+  "tcview.openLinkedReqTitle": "Apri la versione del requisito collegato",
+  "tcview.reqSpecMgmtTitle": "Apri la Gestione delle Specifiche dei Requisiti"
 }
