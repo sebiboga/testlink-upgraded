@@ -37,14 +37,24 @@ modern UI (Dashio Bootstrap admin template) with a PHP REST BFF layer.
 7. **Update the GitHub Wiki.** Push the same documentation to
    `sebiboga/testlink-upgraded.wiki` (local clone: `tmp/wiki-repo/`). The wiki
    clone is SHARED with concurrent CI agents — if a push is rejected:
-   `git pull --rebase origin master` and retry.
+   `git pull --rebase origin master` and retry. NEVER regenerate a page from a
+   stale read of it: `git pull --rebase` FIRST, then edit only your own section.
 
 8. **Test the new screen.** Exercise every button, form, modal, permission path
    and error state in the browser before considering the screen done.
 
 9. **Write Test Cases.** Mandatory per modernized screen — appended to
    `tmp/TLU_Test_Cases.md` (local md file for now), one numbered suite per screen,
-   then executed and results recorded.
+   then executed and results recorded. **APPEND-ONLY — this file is shared by all
+   concurrent agents and lives under the git-ignored `tmp/` (`.gitignore:47`), so
+   no CI gate can see a clobber: never regenerate the file from your own copy,
+   append with `>>`, and before committing verify
+   `git diff --numstat -- tmp/TLU_Test_Cases.md` shows **0 deletions** (additions
+   only) and that the suites of other issues are still present
+   (`grep -cE "Issue #<n>" tmp/TLU_Test_Cases.md` for yours, and
+   `grep -c "^## Regression" tmp/TLU_Test_Cases.md` must not drop). A full-file
+   rewrite already destroyed two suites this way (#1701 lost in `ce093fa54`,
+   #1740 lost in `a2df484a8`) — see issue #1793.
 
 10. **Screenshots in the GitHub Wiki.** Every wiki page update includes current
     screenshots of the modernized screen (normal states + key interactions).
@@ -102,6 +112,9 @@ modern UI (Dashio Bootstrap admin template) with a PHP REST BFF layer.
     every push; NEVER force-push or manually merge/delete `fix/*` branches or
     agent PRs unless cleaning up after a confirmed failure; do not close issues
     that have an open agent PR.
+    Shared artifacts: `tmp/TLU_Test_Cases.md` (rule 9) and `tmp/wiki-repo/` (rule 7)
+    are written by several agents at once — always append/merge, never overwrite
+    from a stale in-memory copy.
 
 19. **One tracking issue per screen — created FIRST.** The VERY FIRST action of
     any modernization session (before exploring the codebase or writing a line)
