@@ -116,14 +116,25 @@ else bad "suite sections collapsed (= $SUITES, expected >= 19)"; fi
 
 # --- 4. the clobber guard itself (see ai/AGENTS.md rule 9) ------------------------
 if [ "$IN_REPO" -eq 1 ]; then
-  PARENT="$(git rev-parse HEAD~1 2>/dev/null || true)"
-  if [ -n "$PARENT" ] && git cat-file -e "$PARENT":tmp/TLU_Test_Cases.md 2>/dev/null; then
+  # Compare against the MERGE BASE with the default branch, not HEAD~1: the
+  # invariant that matters is "nothing that existed before this work can be
+  # missing", while HEAD~1 only sees the previous commit and would also flag a
+  # legitimate correction of a suite section added by this same branch.
+  BASE_REF=""
+  for CAND in origin/sebiboga origin/main origin/master; do
+    MB="$(git merge-base HEAD "$CAND" 2>/dev/null || true)"
+    if [ -n "$MB" ] && git cat-file -e "$MB":tmp/TLU_Test_Cases.md 2>/dev/null; then BASE_REF="$MB"; break; fi
+  done
+  [ -n "$BASE_REF" ] || BASE_REF="$(git rev-parse HEAD~1 2>/dev/null || true)"
+  if [ -n "$BASE_REF" ] && git cat-file -e "$BASE_REF":tmp/TLU_Test_Cases.md 2>/dev/null; then
     TMP_OLD="$(mktemp)" || exit 2
-    git show "$PARENT":tmp/TLU_Test_Cases.md > "$TMP_OLD"
+    git show "$BASE_REF":tmp/TLU_Test_Cases.md > "$TMP_OLD"
     DEL="$(diff "$TMP_OLD" "$FILE" 2>/dev/null | grep -c '^<' || true)"; DEL="${DEL:-0}"
-    check "last commit on the suite file deletes nothing" 0 "$DEL"
+    INS="$(diff "$TMP_OLD" "$FILE" 2>/dev/null | grep -c '^>' || true)"; INS="${INS:-0}"
+    echo "        baseline: $BASE_REF - $INS inserted, $DEL deleted line(s)"
+    check "nothing lost since the merge-base with the default branch" 0 "$DEL"
   else
-    skip "no parent commit touching the suite file to diff against"
+    skip "no baseline commit carrying tmp/TLU_Test_Cases.md to diff against"
   fi
 else
   skip "not inside a git repository — deletion gate unavailable"

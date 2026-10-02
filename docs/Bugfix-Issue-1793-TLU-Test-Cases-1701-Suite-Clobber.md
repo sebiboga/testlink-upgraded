@@ -147,20 +147,30 @@ $ bash tmp/verify_1793.sh
 G1793 result: 8 PASS / 0 FAIL      # exit 0
 ```
 
-**Negative controls** — two, because "the #1701 suite is gone" is only half the
-risk:
+**Negative controls** — three, because "the #1701 suite is gone" is only part of
+the risk, and a gate that cannot run must not report success:
 
 | control | doctored copy | result |
 |---|---|---|
-| NC1 — the original bug, the whole `#1701` block removed | `sed '/^## Regression — Issue #1701:/,/^## Regression — Issue #1793:/d'` | **3 PASS / 6 FAIL, exit 1** |
-| NC3 — a **newer** suite lost, only `#1740` removed | `sed '3438,3575d'` | **7 PASS / 2 FAIL, exit 1** |
+| NC1 — the original bug, the whole `#1701` block removed | `sed '/^## Regression — Issue #1701:/,/^## Regression — Issue #1793:/d'` on `git show HEAD:…` | **4 PASS / 5 FAIL, exit 1** |
+| NC3 — a **newer** suite lost, only `#1740` removed | `sed '3438,3575d'` on the tracked file | **7 PASS / 2 FAIL, exit 1** |
+| NC4 — harness run **outside** a git clone | `cd /tmp && bash …/tmp/verify_1793.sh <copy>` | **7 PASS / 2 FAIL, exit 1** (with `--allow-skip`: 7 PASS / 0 FAIL, exit 0) |
 
 NC3 exists because the first version of the cross-check took its baseline only
 from `47905e3e8` and matched the issue number anywhere in the text: a *later*
 suite could vanish and the harness still reported 8 PASS / 0 FAIL — exactly the
 false negative a clobber would use. The cross-check now takes the union of
 `47905e3e8` and the last commit that touched the file (45 suite references) and
-matches the suite **heading**, not a prose mention.
+matches the suite **heading**, not a prose mention. NC4 exists because the
+cross-checks used to `skip()` silently whenever they could not run (below the
+repo root, outside a clone); an unavailable cross-check is now a FAIL unless
+`--allow-skip` is passed explicitly.
+
+The deletion gate itself compares against the **merge-base with the default
+branch**, not `HEAD~1`: the invariant that matters is "nothing that existed
+before this work can be missing", whereas `HEAD~1` only sees the previous commit
+and would also flag a legitimate correction of a suite section that this branch
+added itself.
 
 ## Alternatives rejected
 
