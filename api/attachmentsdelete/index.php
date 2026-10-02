@@ -267,8 +267,8 @@ function bffAdLoad($db, $currentUser) {
     // attachment id, WHICH object owns it. Same ordering as the
     // tcSummary existence-oracle fix (2c766babe).
     $realTable = str_replace(DB_TABLE_PREFIX, '', strval($info['fk_table'] ?? ''));
-    if (!attAuthOwnerAllowed($db, $currentUser, $realTable,
-                             intval($info['fk_id'] ?? 0))) {
+    if (!attAuthCheckOwner($db, $currentUser, $realTable,
+                           intval($info['fk_id'] ?? 0), true)) {
         bffAdOut([
             'status' => 'error',
             'code'   => 'NO_RIGHT',
