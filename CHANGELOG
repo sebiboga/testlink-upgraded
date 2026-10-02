@@ -728,6 +728,32 @@ screen reaches full parity.
   reformatted away. 26/26 test cases PASS (23 functional + 3 from the code review), console and Event Viewer
   clean. (Refs #1787)
 
+- [KEY BUGFIX] - #1683: `reqTreeReorder.html` fell back to a **native `alert()`** for EVERY confirm dialog
+  (Move requirement / Apply order), because the screen was written against the **Bootstrap 4/5** modal API while
+  the Dashio bundle is **Bootstrap 3.4.1** (version banner on `gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js:2`, file loaded at
+  `reqTreeReorder.html:160`). `var BSS = null` was declared and never assigned, so the guard
+  `if (BSS && BSS.Modal) new BSS.Modal(el).show()` was *always* false and `else { alert(title + '\n\n' + body); }`
+  ran on every action - a blocking, unstyled, **untranslatable** dialog (the text was concatenated by hand and
+  never passed through `TLi18n`). The markup was v4/v5 too (`btn-close`, `data-bs-dismiss`,
+  `modal-dialog-centered`), so even a correct constructor would have produced a dialog with no working close
+  button; the OK handler additionally fell back to `el.style.display = 'none'` on a `.modal.fade` element, which
+  would have fought the real plugin's own display management on the next open. Fix (`f790f7241`): markup to the
+  BS3 idiom the other modernized screens already use (`button.close` + `data-dismiss` + `&times;`,
+  `modal-dialog modal-sm`), the dialog driven with `$(el).modal('show'|'hide')`, the dead `BSS` global and its
+  construction branch deleted (a `null` global can never again silently select a fallback), and the JS-less
+  fallback changed from `alert()` to `window.confirm(...)` so a missing Bootstrap JS still gates the write instead
+  of degrading into a silent one - "just call `onOk()`" was rejected. Blast radius: **1 file, 1 screen, 2
+  destructive actions**, purely client-side, no `api/` code and no data-integrity exposure. This run found the
+  fix already on `origin/sebiboga` and verified it end-to-end rather than re-doing it: Move and Apply dialogs are
+  real BS3 modals (`class="modal fade in"` + `.modal-backdrop` at `opacity 0.5`, no DevTools JS dialog raised),
+  the close button is `<button class="close" data-dismiss="modal">&times;</button>`, Cancel hides the modal and
+  writes nothing, OK persists (`TR1-3` moved `srs_id 2 -> 4`; order saved, banner "The new order was saved."),
+  console clean, Event Viewer `log_level IN (1,2)` = 0. Regression suite 1683: **12/12 PASS**. Also filed
+  **#1796** from the repo-wide grep the report asked for: three screens still carry **dead** BS4/5 *CSS* classes
+  (`documentation.html:82` `modal-xl modal-dialog-centered` - measured `width: 600px`, `margin-top: 30px`;
+  `reqTcAssign.html:167` and `reqTcBulkAssign.html:134` `modal-dialog-centered`), which BS3 ignores silently -
+  cosmetic, filed not fixed per FIX-ISSUE.md section 4. (Fixes #1683)
+
 - [KEY BUGFIX - DATA INTEGRITY] - #1682: `api/reqtreereorder` `?action=reorder` accepted a **DUPLICATE**
   requirement id in `nodes_order` and corrupted the specification order. The submitted order was built as a
   **positional list** (`$order[] = $nid;`, `api/reqtreereorder/index.php:511`) but the duplicate gate probed it
