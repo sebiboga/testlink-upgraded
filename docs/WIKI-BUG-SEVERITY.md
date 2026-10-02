@@ -207,3 +207,7 @@ reset-to-defaults, 401/403 gates, i18n completeness, Event Viewer clean).
 - `tmp/wiki-repo/images/bugseverity-*.png` — screenshots
 - `docs/screenshots/bugseverity-*.png` — docs-mirror screenshots
 - `tmp/fixtures_1291.php` — demo fixture (project SEVPROJ, priority enabled)
+## See Also
+
+- [Bug Severity Guide (Documentation Hub)](/gui/templates/documentation/bugSeverity.html)
+- [Severity Configuration (per-project)](/gui/templates/projects/severityConfig.html)

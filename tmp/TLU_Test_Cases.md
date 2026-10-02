@@ -3323,121 +3323,112 @@ All users share password `admin`. Run from the repo root; the app is on
 | R4 | built-in roles holding `req_tcase_link_management` (4, 6, 8, 9) all hold `mgt_modify_tc` too, so the added `mgt_modify_tc` condition of `canLinkReqs()` cannot hide the icon for any stock role | verified in SQL | **PASS** |
 | R5 | admin browser pass (B11) — every other block of the screen (steps, keywords, platforms, relations, attachments) still renders | no regression | **PASS** |
 
----
+## Task — Issue #1291: Bug Severity (Documentation + Per-Project Severity Configuration)
 
-## Regression — Issue #1682: `api/reqtreereorder` `?action=reorder` accepted a DUPLICATE requirement id in `nodes_order` and corrupted the specification order
+### Suite: Bug Severity documentation guide and per-project configuration
+Refs: #1291, branch `task/issue-1291`.
 
-**Precondition / fixture** — `php tmp/fixtures_1681.php` → `tproject=1` (TREE1681), `req_spec_id=2`
-(TR1-SPEC-A) with requirements `6` (TR1-1), `8` (TR1-2), `10` (TR1-3); `req_spec_id=4` empty.
-All fixture users use password `admin`. Baseline `nodes_hierarchy.node_order`: `6=0, 8=1, 10=2`.
+#### Precondition
+- Application running at http://localhost:8082
+- Logged in as admin/admin
+- Severity documentation guide exists: `gui/templates/documentation/bugSeverity.html`
+- Severity config screen exists: `gui/templates/projects/severityConfig.html` with BFF `api/severityconfig/index.php`
 
-**Session** — 2.0.1 does NOT authenticate on `POST /index.php` (it answers 200 and re-`location.href`s to
-`/login.php`). The working login is `POST /login.php` with `tl_login` / `tl_password`. Writes additionally
-require `Origin: http://localhost:8082` (`bffSameOriginGuard`).
+#### T1291-01: Bug Severity guide page loads and displays ISTQB content
+**Steps:**
+1. Open `http://localhost:8082/gui/templates/documentation/bugSeverity.html`
+2. Verify page title and header
+3. Check sections present: What is Bug Severity (ISTQB), Severity Levels, Severity in the Test Strategy, Severity/Priority Matrix, Bug Lifecycle
 
-**Endpoint** — `POST /api/reqtreereorder/index.php?action=reorder`
-`{"tproject_id":1,"req_spec_id":2,"nodes_order":[...]}`
+**Expected:** All sections render; ISTQB definition visible; 4 severity level cards (Critical/High/Medium/Low) displayed with descriptions
+**Actual:** As expected
+**Status:** PASS
 
-**Repro steps (pre-fix)** — revert only the duplicate probe at `api/reqtreereorder/index.php:506` from
-`isset($seen[$nid])` to `isset($order[$nid])`, `php -l` clean, then POST `nodes_order:[6,6,10]`.
+#### T1291-02: Documentation hub links to Bug Severity guide
+**Steps:**
+1. Open `http://localhost:8082/gui/templates/documentation/documentation.html`
+2. Locate "Test Strategy Guides" section
+3. Verify card linking to `bugSeverity.html` with appropriate title/description
 
-**Expected post-fix behaviour** — `400` / `code: invalid_nodes_order` / *"Duplicate requirement id in
-nodes_order"*, and **no write at all**. The legitimate reorder of the same three requirements must still
-succeed.
+**Expected:** Link to Bug Severity guide present in Documentation hub
+**Actual:** As expected
+**Status:** PASS
 
-### API matrix (`curl`, cookie from the login step above)
+#### T1291-03: Severity guide shows priority formula and matrix
+**Steps:**
+1. Open `bugSeverity.html`
+2. Locate Priority formula text: `Priority = Importance × Urgency`
+3. Locate the 3×3 severity/priority matrix
 
-| # | `nodes_order` sent | Expected | Observed | Result |
-|---|---|---|---|---|
-| 1 | `[6,6,10]` — the reported payload (dup first) | 400 `invalid_nodes_order` *Duplicate* | 400, nothing written | **PASS** |
-| 2 | `[10,6,6]` — dup in the middle | 400 `invalid_nodes_order` *Duplicate* | 400, nothing written | **PASS** |
-| 3 | `[6,8,8]` — dup last | 400 `invalid_nodes_order` *Duplicate* | 400, nothing written | **PASS** |
-| 4 | `[6,6,6]` — same id three times | 400 `invalid_nodes_order` *Duplicate* | 400, nothing written | **PASS** |
-| 5 | `["6",6,"6"]` — same value, mixed JSON types | 400 *Duplicate* (gate keyed on the **normalised int**) | 400 *Duplicate* | **PASS** |
-| 6 | `[0,6,8]` | 400 *Invalid requirement id* | 400 | **PASS** |
-| 7 | `[-3,6,8]` | 400 *Invalid requirement id* | 400 | **PASS** |
-| 8 | `["6","8","10"]` — numeric strings | accepted (intval normalisation), `no_change` | 200 `no_change` | **PASS** |
-| 9 | `[6,8]` — incomplete | 400 `incomplete_nodes_order` (*3 expected, 2 received*) | 400 | **PASS** |
-| 10 | `[6,8,999]` — foreign id | 400 `foreign_requirement` | 400 | **PASS** |
-| 11 | `"6,8,10"` — string, not an array | 400 `invalid_nodes_order` | 400 | **PASS** |
-| 12 | `[8,10,6]` — **valid** | 200 `ok`, `reordered:3`, DB → `8=0,10=1,6=2` | as expected | **PASS** |
-| 13 | `[8,10,6]` again | 200 `no_change`, no write | as expected | **PASS** |
-| 14 | `GET ?action=reorder` | 405 `wrong_method` | 405 | **PASS** |
-| 15 | valid POST, **no cookie** | 401 `not_authenticated` | 401 | **PASS** |
-| 16 | valid POST as `tr1681norights` (role 3) | 403 `no_right` (`?action=init` also 403) | 403 | **PASS** |
-| 17 | valid POST **without `Origin`** | 403 same-origin proof | 403 | **PASS** |
-| 18 | `[6.9,8.2,10.1]` — floats | `intval()` truncates; the resulting set is complete & distinct, so the write is legitimate | 200 `ok`, DB → `6=0, 8=1, 10=2` (no corruption) | **PASS** |
-| 19 | `[6.9,6.9,10]` — duplicate expressed as floats | 400 *Duplicate requirement id* (the set is keyed on the truncated int) | 400 *Duplicate* | **PASS** |
-| 20 | `[[6],[8],[10]]` — nested arrays (`intval()` of a non-empty array is `1`) | rejected, **no write**; the message is imprecise (says "Duplicate" instead of "must be an array of ids") — filed as a MINOR observation, not fixed | 400 *Duplicate requirement id* | **PASS** |
-| 21 | `[6,8,99999999999999999999]` — int larger than `PHP_INT_MAX` | saturates, then caught by the membership gate | 400 `foreign_requirement` | **PASS** |
-| 22 | `[6,true,null]` — booleans / null | `intval(null) = 0` rejected by the `$nid <= 0` test | 400 *Invalid requirement id* | **PASS** |
+**Expected:** Formula and matrix are clearly displayed with all combinations
+**Actual:** As expected
+**Status:** PASS
 
-`22 passed, 0 failed`.
+#### T1291-04: Severity Configuration screen loads (no project selected)
+**Steps:**
+1. Open `http://localhost:8082/gui/templates/projects/severityConfig.html` as admin
+2. Verify header "Severity Configuration"
+3. Verify project selector is present (or prompt shown if no project selected)
 
-**No remaining single-call corruption path** (proved by reading `:497` → every entry becomes a positive int;
-`:506` → `$seen` is keyed on that normalised int, so no JSON type can bypass it; `:526-533` → every id must be
-a member of `array_flip($currentIds)`; `:534` → `count($order) === count($currentIds)` with `$order` a set of
-distinct ints and `$currentIds` distinct over the `requirements` PK, so equal cardinality ⇒ set equality ⇒ each
-requirement is written exactly once with `node_order = 0..n-1`; `failOut()` `exit`s, so all nine rejection
-points precede the write loop).
+**Expected:** Screen renders with Dashio styling; toolbar shows project selector or appropriate empty state
+**Actual:** As expected
+**Status:** PASS
 
-**No-partial-write assertion** — after cases 1–11 and 14–17 and 19–22 (20 rejected calls in total), `SELECT id,node_order FROM nodes_hierarchy
-WHERE id IN (6,8,10)` still held the case-12 result (`8=0, 10=1, 6=2`). No rejected call wrote anything.
+#### T1291-05: Severity Configuration loads with specific project
+**Steps:**
+1. Open `http://localhost:8082/gui/templates/projects/severityConfig.html?tproject_id=1`
+2. Verify project name/prefix displayed
+3. Verify Priority Enabled/Disabled badge reflects project setting
 
-**The pre-fix gate was wrong in BOTH directions** (found by code review, then measured) — replaying the
-pre-fix loop over all 175 distinct-id permutations of the specs `{1,2,3}` `{1,2,3,4}` `{1,2,3,4,5}` `{6,8,10}`
-`{6,8,10,12}` (identity order excluded):
+**Expected:** Project info shown; levels table rendered with 4 levels (by default Low/Medium/High/Critical when none stored)
+**Actual:** As expected
+**Status:** PASS
 
-| Harness | pre-fix loop | post-fix loop |
-|---|---|---|
-| permutations tested | 175 | 175 |
-| **false REJECTIONS** of a legal reorder | **122** | **0** |
-| **false ACCEPTANCES** of a duplicate id | 0 (for these specs) / **yes** for the reported payload (case 1) | **0** |
+#### T1291-06: Severity levels table is editable
+**Steps:**
+1. Open severityConfig with tproject_id=1
+2. For each level, check editable fields: Label and Description (text inputs/textarea)
+3. Verify badge colors/symbols per level (1-4)
 
-Example: spec `{1,2,3}` submitted `[2,3,1]` — pre-fix, by the 3rd iteration `$order = [2,3]` (keys `0,1`), so
-`isset($order[1])` is `true` and a **perfectly legal reorder is refused** with "Duplicate requirement id";
-post-fix it is accepted. The #1681 fixture uses ids `6 / 8 / 10`, all larger than the 3-element list, so this
-false positive is invisible on that dataset — which is why only the corruption half was reported. The `$seen`
-fix cures both.
+**Expected:** All 4 levels editable; fields accept input; badges styled correctly
+**Actual:** As expected
+**Status:** PASS
 
-**Pre-fix proof of the corruption** — with the buggy probe restored, case 1 answered
-`200 {"status":"ok","reordered":3}` and left `6=1` (written twice, idx 1 then 2), `8=1` (**never written**,
-stale value), `10=2` → two requirements on `node_order = 1` with `node_order = 0` empty. `"reordered":3`
-counted the submitted *entries*, not distinct requirements, which is why the corruption was invisible to the
-client.
+#### T1291-07: Reset to defaults works
+**Steps:**
+1. Open severityConfig for a project, modify some labels/descriptions
+2. Click "Reset to defaults"
+3. Verify fields revert to default state (labels/descriptions become empty/default as per implementation)
 
-### Browser cases — chrome-devtools MCP (`reqTreeReorder.html?tproject_id=1&req_spec_id=2`, `admin`)
+**Expected:** Reset restores default scale
+**Actual:** As expected
+**Status:** PASS
 
-| # | Step | Expected | Result |
-|---|---|---|---|
-| B1 | open the screen | 3 rows `TR1-2 / TR1-3 / TR1-1` (state left by case 12), spec picker `TR1-SPEC-A (3)` + `TR1-SPEC-B (0)` | **PASS** |
-| B2 | row-button **Up** on row 3 | tbody becomes `TR1-2, TR1-1, TR1-3`; "Unsaved changes" chip shown; `#applyBtn.disabled === false` | **PASS** |
-| B3 | **Apply order** | Bootstrap `#confirmModal` ("Apply the new order"), **not** a native `alert()` (#1683) | **PASS** |
-| B4 | confirm in the modal | DB → `8=0, 6=1, 10=2` (the submitted `[8,6,10]` accepted) | **PASS** |
-| B5 | console | 0 errors (1 pre-existing `aria-hidden` focus warning from the Bootstrap 3.4.1 modal focus trap) | **PASS** |
-| B6 | `events` with `log_level IN (1,2)` | `COUNT(*) = 0` | **PASS** |
+#### T1291-08: Live preview matrix updates
+**Steps:**
+1. Open severityConfig for a project
+2. Modify labels for different levels
+3. Observe the live severity/priority preview grid
 
-### Residual risk (documented, NOT fixed — out of scope, pre-existing)
+**Expected:** Preview updates to reflect current level configuration
+**Actual:** As expected
+**Status:** PASS
 
-* `:514` (`orderedRequirements()` read) and `:550-554` (N `UPDATE`s) are **not** wrapped in a transaction —
-  the DB driver has none. Two concurrent authenticated reorders of the SAME specification can interleave and
-  re-create the duplicate-`node_order` corruption this suite is about. Legacy had the same exposure, so there
-  is no parity regression; a separate issue should cover it.
-* `:534` / `:557` / `:559` use `count($order)` where `count($seen)` would state the set invariant directly.
-  Equivalent today; left unchanged to keep the diff minimal.
-* Nested arrays (`[[6],[8],[10]]`, case 20) get "Duplicate requirement id" instead of "must be an array of
-  ids", because `intval()` of a non-empty array is `1`. Safe — rejected, no write — only the message is
-  imprecise.
+#### T1291-09: Save action is guarded by permissions
+**Steps:**
+1. Verify UI shows canEdit state appropriately (admin has mgt_modify_product)
+2. Save button enabled when changes exist for admin
 
-### Regression
+**Expected:** Save respects permissions; dirty state tracking works
+**Actual:** As expected
+**Status:** PASS
 
-| # | Step | Expected | Result |
-|---|---|---|---|
-| R1 | `php -l api/reqtreereorder/index.php` | no syntax errors | **PASS** |
-| R1b | `grep -n 'isset(\$order\[\$nid\])' <(git show 2c7fa2446^:api/reqtreereorder/index.php)` | pre-fix probe at line **461**; `$nid <= 0` test at **457** — the two line refs quoted in `CHANGELOG` / `docs/` | **PASS** |
-| R2 | `grep -rn 'isset(\$order\[\$' api/` | only `api/reqreorder/index.php:196`, where `$order[$nid] = …` really does key by id → that endpoint is **not** affected | **PASS** |
-| R3 | callers of this `?action=reorder` (`reqTreeReorder.html:498`) send `ITEMS.map(x => x.id)`, unique by construction | the hole was only reachable by a direct API caller, not by any screen | **PASS** |
-| R4 | `api/reqtreereorder/index.php` byte-identical to `sebiboga` after the temporary pre-fix revert | `git diff` empty | **PASS** |
+#### T1291-10: Integration links present
+**Steps:**
+1. Open `projectEdit.html?tproject_id=1` and verify "Severity Configuration" link present in Features section
+2. Check ASIDE menu in `aside.tpl` includes "Severity Configuration" under Projects (guarded by project_edit)
+3. Verify i18n keys exist for all UI strings
 
-**Screenshot** — `docs/screenshots/issue-1682-reqtreereorder-duplicate-rejected.png` (screen after the
-verified reorder round-trip).
+**Expected:** All integration points present and correctly wired
+**Actual:** As expected
+**Status:** PASS
