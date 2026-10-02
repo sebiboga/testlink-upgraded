@@ -2945,3 +2945,94 @@ is correct behaviour, not a defect):
 | 10 | Save round trip | `user_testplan_roles` → `1681 → 6`; Save re-disabled; `isDirty()=false` | PASS |
 
 Console after the full matrix: **no error/warn messages.** Fixture restored to the documented baseline afterwards.
+
+---
+
+## Task — Issue #1037: platforms display in tcView.html (gap vs legacy)
+
+Ports the three legs of the legacy include `gui/templates/dashio/testcases/include/platforms.inc.tpl`
+(rendered per version by `tcView_viewer.tpl:496-511`) into the modern viewer: the
+Platform Management link on the label, per-platform unassign with the legacy
+`remove_plat_msgbox` confirm, and the free-platform multi-select + Add.
+
+### Precondition / fixture
+
+`tmp/fixtures_1037.sql` (freshly imported DB has 0 rows in `nodes_hierarchy`,
+`tcversions` and `platforms`):
+
+```
+tproject 900001 "TLU1037 Project" (prefix TLU1037)
+  suite 900002 > tcase 900003 > tcver 900004 (v1) / 900005 (v2)
+  platform 900006 "Linux"    enable_on_design=1   linked to v1
+  platform 900007 "Win 11"   enable_on_design=1   free
+  platform 900008 "MAC OS X" enable_on_design=0   must never be offered
+```
+
+Log in as `admin`/`admin`, open
+`http://localhost:8082/gui/templates/testcases/tcView.html?tcase_id=900003`.
+
+### Cases
+
+| # | Step | Expected | Observed | Result |
+|---|------|----------|----------|--------|
+| 1 | Load the viewer (admin, v1 linked to Linux) | `Platforms` label is a link to Platform Management | `isLink:true`, `href=/gui/templates/platforms/platformsView.html?tproject_id=900001`, `title="Open Platform Management"` | PASS |
+| 2 | Inspect v1 chips | `Linux` chip + ✕ button | `chip-x onclick="confirmRemovePlatform(900004,900006,900009)"` | PASS |
+| 3 | Inspect v2 chips | `None`, no ✕, `+ Add` | `None`, `hasX:false`, `addBtn:true` | PASS |
+| 4 | Click `+ Add` on v1 | Modal lists the free platforms only | options `["Win 11"]` — `Linux` (already linked) and `MAC OS X` (`enable_on_design=0`) excluded | PASS |
+| 5 | Select `Win 11`, click Add | Toast, chip appears, DB row created, Add button disappears | toast `Platform(s) added to this test case version`; chip `Win 11` present; `testcase_platforms` → `(900010,900003,900004,900007)`; free list empty → no Add button | PASS |
+| 6 | Click ✕ on `Linux` | Legacy confirm wording with `%i` = platform name | `Remove Platform` / `Do you want to remove all executions linked to Linux?` | PASS |
+| 7 | Confirm removal | Toast, chip gone, DB row deleted | toast `Platform removed from this test case version`; chip gone; `(900009,…)` deleted | PASS |
+| 8 | Freeze v1 (`UPDATE tcversions SET is_open=0 WHERE id=900004`) and reload | platRW=0: no ✕, no Add; management link still shown (legacy renders it unconditionally) | `frozen:true, hasX:false, addBtn:false, mgmtLink:true` | PASS |
+| 9 | Un-freeze v1 | ✕ and Add come back | identical to case 2/3 | PASS |
+| 10 | Switch locale to German (`&locale=de`) and click ✕ | German legacy wording | `Plattform entfernen` / `Möchten Sie alle mit Win 11 verknüpften Ausführungen entfernen?` | PASS |
+| 11 | All 10 bundles carry the 13 new keys | `python3 -m json.tool` valid + key present | 10/10 bundles `+13 keys`, all valid | PASS |
+| 12 | Regression — `enable_on_design=0` never offered | `MAC OS X` absent from every free list | absent for v1 and v2 | PASS |
+| 13 | Regression — no Error/Warning events created | `events` table unchanged | only the 2 pre-existing `audit_login_succeeded` LOGIN rows (log_level 16) | PASS |
+| 14 | Regression — browser console | no errors/warnings | `<no console messages found>` | PASS |
+| 15 | Regression — `tmp/php_server.log` | no PHP error/warning | `grep -iE "error|warning|fatal|notice"` over 371 lines → no match | PASS |
+
+**15 PASS / 0 FAIL.**
+
+### Defect this suite found (fixed in `929618c9f`)
+
+`platApiPost()` initially posted to `/api/testcases/index.php` without `?action=`.
+The BFF is query-routed, so the request fell through to the catch-all
+`api/testcases/index.php:2874` → HTTP 400 `{"status":"error","message":"Bad request"}`
+and assign always failed (network request `reqid=119` captured as proof). Note that the
+sibling BFF `api/requirements/index.php` used by the requirements modal of the same screen
+IS path-routed, so copying that call shape does not work for `api/testcases/index.php`.
+
+### Screenshots
+
+* `docs/screenshots/issue-1037-tcview-platforms-before.png` — read-only chips, no link/✕/Add
+* `docs/screenshots/issue-1037-tcview-platforms-after.png` — full panel
+* `docs/screenshots/issue-1037-tcview-platforms-remove-confirm.png` — legacy confirm box
+
+### Code-review remediation round (post #1037 review) — cases 14-24
+
+Fixture reset to a deterministic baseline (`tmp/fixtures_1037.sql` is now idempotent and
+restores exactly this state):
+
+```
+v1 (900004, open, NOT executed): Linux      (link 900009)   free: Win 11
+v2 (900005, open, EXECUTED):     Win 11     (link 900012)   free: Linux
+executions 900011 on v2 (platform 900006)
+role 8 (admin) has mgt_modify_tc + testproject_edit_executed_testcases(39)
+role 3 = read-only user tlu1037norights, only mgt_view_tc(6)
+```
+
+| # | Step | Expected | Observed | Result |
+|---|------|----------|----------|--------|
+| 14 | **REGRESSION (review MAJOR):** open `tcView.html?tcase_id=900003&tcversion_id=900004` (v1 = NOT the latest), click `+ Add`, select `Win 11`, Add | The toolbar must STAY on v1 — `render()` picks `currentVersion` from `data.requestedTcversionId`, so the refresh must carry `tcversion_id` | Before fix: re-fetch without `tcversion_id` → `requestedTcversionId=0`, `currentVersionVersion=2`, `currentVersionTcversionId=900005` (Edit Version / Print / Export would retarget to v2). After fix: `requestedTcversionId=900004`, `currentVersion.version=1`, `currentVersion.tcversion_id=900004`, 1 version card, chips `[Linux, Win 11]` | PASS |
+| 15 | Same page, ✕ on the new chip | Confirmation modal names the right platform (name resolved from `p.tcplat_link`, not `p.id`) | `confirmRemovePlatform(900004,900011)`; modal `Remove Platform` / `Do you want to remove all executions linked to Win 11?`; modal state `{tcversionId:900004, tcplatLinkId:900011}` (no `platformId` any more) | PASS |
+| 16 | Force a stale link: `$('#rmPlatModal').data('tcplatLinkId', 999999); doRemovePlatform();` | Server rejection is surfaced verbatim and the modal stays open for a retry | toast `Platform link #999999 is no longer assigned to this test case version`; modal `display:flex`; chips unchanged `[Linux, Win 11]` | PASS |
+| 17 | Valid remove after the failed attempt | Toast + chip gone + Add button back (Win 11 free again) | toast `Platform removed from this test case version`; v1 chips `[Linux]`; `currentVersion.tcversion_id=900004` still v1 | PASS |
+| 18 | BFF `remove_platform` with a link id that belongs to ANOTHER version (`tcversion_id=900005` + link `900009`) | 404, nothing deleted (legacy `deletePlatformsByLink` silently no-op'ed and raised an E_WARNING) | `404 {"message":"Platform link #900009 is no longer assigned to this test case version"}`; link 900009 intact | PASS |
+| 19 | BFF `remove_platform` / `add_platform` as the read-only user | 403 on both writes | `403 {"message":"Requires permission: modify test cases"}` twice; DB unchanged | PASS |
+| 20 | Read-only user viewing the test case | Chips without ✕, no `+ Add`, no Platform Management link | `grants platform_management=0 platform_view=0`; v1 `[Linux]` and v2 `[Win 11]` with `canAssignPlatforms=false`, `hasX:false`, `addBtn:false`, `mgmtLink:absent` | PASS |
+| 21 | **REGRESSION (pre-existing BFF bug found here):** version 2 has an execution row | `has_been_executed=true` and the executed branch of `canAssignPlatforms` must evaluate | Before fix: `has_been_executed=false` for BOTH versions because `get_by_id(..., access_key='tcversion_id')` returns a 0-indexed array → the query ran `tcversion_id IN (0,1)`. After fix: admin `v2 executed=True canAssign=True`, read-only `v2 executed=True canAssign=False` | PASS |
+| 22 | `DELETE FROM role_rights WHERE role_id=8 AND right_id=39` (revoke `testproject_edit_executed_testcases`), reload | Executed v2 loses ✕/Add (`canAssignPlatforms=false`) and the BFF refuses the write with 403 | `v2 executed=True canAssign=False`, `v1 canAssign=True`; `add_platform` on v2 → `403 Platform assignment is not allowed on this version (frozen, executed without exec-edit right, or no edit right)`; right restored afterwards | PASS |
+| 23 | Frozen version (`UPDATE tcversions SET is_open=0 WHERE id=900005`) | BFF refuses the write | `403 Platform assignment is not allowed on this version (frozen, executed without exec-edit right, or no edit right)`; `is_open=1` restored | PASS |
+| 24 | **Event Viewer / PHP log after the whole remediation round** | No new Error/Warning | `events` MAX(id) unchanged (10) across bogus + valid removes; `tmp/php_server.log` has no error/warning/fatal lines; browser console: no error/warn messages. Event 10 (E_WARNING `foreach() argument must be of type array\|object, null given`, `testcase.class.php:9885`) was produced by the PRE-FIX silent no-op and is now unreachable from the modern path — filed as a separate `bug` issue | PASS |
+
+**Totals for #1037: 24 cases, 24 PASS, 0 FAIL.**
