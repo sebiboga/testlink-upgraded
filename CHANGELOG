@@ -8682,3 +8682,23 @@ authorized `POST /api/tcstepsreorder/index.php` (`bffSameOriginGuard` + `bffEnfo
 `mgt_modify_tc` on the owning project + strict step-ownership proof). Regression suite
 `tmp/verify_1673.php` = 29/29 PASS, and it fails 7 cases (including a DB-level corruption assert)
 on the pre-fix code. See `docs/Bugfix-Issue-1673-stepReorder-Unauthenticated-CSRF-Step-Reorder.md`.
+### KEY BUGFIX — Assign Test Plan Roles: the 2nd change of a row's role `<select>` threw `TypeError: Cannot read properties of undefined (reading 'row')`, leaving a stale Save button and a stale cell cache (Fixes #1680)
+
+`gui/templates/usermanagement/usersAssignPlan.html` `onRoleChange()` re-synced the
+DataTables cell cache with `assignDt.cell(tr, 4).data(...)`, passing the **jQuery
+wrapper** `$(sel).closest('tr')`. DataTables 1.13.7 only takes its exact, index-based
+row-selector path when the selector carries a `nodeName`
+(`jquery.dataTables.js:8116`); a jQuery wrapper falls through to the generic catch-all,
+which re-resolves the row by a strict node-identity scan of `aoData[..].nTr`
+(`dt.js:8165-8179`). A miss there makes `rows()`/`cells()` return an **empty** API
+instance, and the following `cell().data()` dereferences `this[0].row` on it →
+`Uncaught TypeError: Cannot read properties of undefined (reading 'row')`
+(`jquery.dataTables.min.js:4:66727`). The exception escaped the handler, so the row
+highlight, the *Modified* badge and `$('#saveBtn').prop('disabled', !isDirty())` were
+never applied and the cached cell survived the next paging/search/sort re-draw stale.
+The call site now passes the DOM node (`tr[0]`) plus a `tr.length` guard, and only the
+best-effort cell refresh is wrapped in `try/catch` — the `users` model stays the source
+of truth for the Save payload, so a refresh that cannot be applied must never abort the
+save-state update (a stale Save button is the worse failure). No BFF, i18n or schema
+change. Verified against the 9-case regression matrix, including a full Save round trip
+(`user_testplan_roles.role_id` persisted) and a clean Event Viewer.
