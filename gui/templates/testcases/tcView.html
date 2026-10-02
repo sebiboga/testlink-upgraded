@@ -103,6 +103,13 @@ table.steps tbody tr:nth-child(even) { background: #fafafa; }
 .modal-foot { padding: 14px 18px; text-align: right; display: flex; gap: 10px; justify-content: flex-end; }
 .btn-red { background: #e6605e; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
 .btn-red:hover { background: #d35552; }
+/* Issue #1044: legacy groupBtn operation fieldsets (tcView_viewer.tpl:143-316) */
+.ops-panels { background: #2b2e35; border-top: 1px solid #3a3d46; padding: 10px 24px 14px 24px; display: flex; gap: 18px; flex-wrap: wrap; }
+.ops-panels fieldset { border: 1px solid #454954; border-radius: 6px; padding: 8px 14px 12px 14px; margin: 0; }
+.ops-panels legend { color: #4ECDC4; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; width: auto; border: 0; padding: 0 6px; }
+.ops-panels button { margin: 4px 6px 0 0; }
+.modal-warn { background: #5a3a1a; color: #ffcf8f; border-radius: 4px; padding: 8px 10px; margin-bottom: 10px; display: none; }
+.modal-warn.show { display: block; }
 .reqassign-spec-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
 .reqassign-label { font-size: 12px; font-weight: 700; color: #444; }
 .notice-reqassign { background: #eefaf9; border: 1px solid #bfe5e2; color: #2d8e88; border-radius: 6px; padding: 8px 12px; font-size: 12px; margin-top: 10px; }
@@ -142,6 +149,55 @@ table.steps tbody tr:nth-child(even) { background: #fafafa; }
     <button class="btn-dark" id="btnAssignReqs" style="display:none;" onclick="openAssignReqs()"><i class="fa fa-bookmark"></i> <span data-i18n="tcview.assignRequirements">Assign Requirements</span></button>
     <!-- Issue #1043: legacy {$tlIMGTags.toggle_direct_link} (tcView.tpl:131) -->
     <button class="btn-dark" id="btnDirectLink" onclick="toggleDirectLink()"><i class="fa fa-link"></i> <span data-i18n="tcview.directLink">Direct link</span></button>
+    <!-- Issue #1044: legacy cog icon that shows/hides the operations panels
+         (tcView.tpl:136-141 toogleShowHide(tcView_viewer_tcase_control_panel_*)) -->
+    <button class="btn-dark" id="btnOpsToggle" style="display:none;" onclick="toggleOpsPanels()" data-i18n-title="tcview.toggleOperationsTitle"><i class="fa fa-cog"></i> <span data-i18n="tcview.operations">Operations</span></button>
+  </div>
+</div>
+
+<!-- Issue #1044: the two legacy operations fieldsets, rendered as a Dashio
+     panel strip below the toolbar and toggled by the cog button, exactly like
+     the collapsible groupBtn blocks of tcView_viewer.tpl:143-316. -->
+<div class="ops-panels" id="opsPanels" style="display:none;">
+  <fieldset class="groupBtn" id="panelTcOps">
+    <legend><i class="fa fa-cubes"></i> <span data-i18n="tcview.testcaseOperations">Test Case Operations</span></legend>
+    <button class="btn-dark btn-sm" id="btnNewSibling" style="display:none;" onclick="openNewSibling()" data-i18n-title="tcview.hintNewSibling"><i class="fa fa-plus"></i> <span data-i18n="tcview.newSibling">New Sibling</span></button>
+    <button class="btn-dark btn-sm" id="btnMoveCopy" style="display:none;" onclick="openMoveCopy()"><i class="fa fa-arrows-alt"></i> <span data-i18n="tcview.moveCopy">Move / Copy</span></button>
+    <button class="btn-red btn-sm" id="btnDeleteTc" style="display:none;" onclick="askDeleteTc()"><i class="fa fa-trash"></i> <span data-i18n="tcview.deleteTestCase">Delete Test Case</span></button>
+  </fieldset>
+  <fieldset class="groupBtn" id="panelTcvOps">
+    <legend><i class="fa fa-layer-group"></i> <span data-i18n="tcview.testcaseVersionOperations">Test Case Version Operations</span></legend>
+    <button class="btn-dark btn-sm" id="btnNewVersion" style="display:none;" onclick="doNewVersion('this')" data-i18n-title="tcview.hintNewVersion"><i class="fa fa-file-circle-plus"></i> <span data-i18n="tcview.newVersion">New Version</span></button>
+    <button class="btn-dark btn-sm" id="btnNewVersionLatest" style="display:none;" onclick="doNewVersion('latest')" data-i18n-title="tcview.hintNewVersionLatest"><i class="fa fa-file-circle-plus"></i> <span data-i18n="tcview.newVersionFromLatest">New Version From Latest</span></button>
+    <button class="btn-dark btn-sm" id="btnFreeze" style="display:none;" onclick="doFreeze()"><i class="fa fa-snowflake"></i> <span id="btnFreezeLbl" data-i18n="tcview.freezeVersion">Freeze Version</span></button>
+    <button class="btn-red btn-sm" id="btnDeleteVersion" style="display:none;" onclick="askDeleteVersion()"><i class="fa fa-trash-alt"></i> <span data-i18n="tcview.deleteThisVersion">Delete This Version</span></button>
+  </fieldset>
+</div>
+
+<!-- Issue #1044: confirm dialogs. Legacy opened the tcDelete.tpl page
+     (testcaseCommands::delete()/doDelete(), tcEdit.php:151-184) with
+     title_del_tc / delete_linked / delete_linked_and_exec warnings. -->
+<div class="modal-overlay" id="deleteTcModal">
+  <div class="modal-box" style="width:520px;max-width:96vw;">
+    <h3><span data-i18n="tcview.deleteTestCase">Delete Test Case</span></h3>
+    <div class="modal-warn" id="delTcWarn"></div>
+    <p id="delTcBody"></p>
+    <div class="modal-actions">
+      <button class="btn-dark btn-sm" onclick="$('#deleteTcModal').hide()"><span data-i18n="tspec.cancel">Cancel</span></button>
+      <button class="btn-red btn-sm" id="delTcConfirm" onclick="doDeleteTc()"><i class="fa fa-trash"></i> <span data-i18n="common.delete">Delete</span></button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="deleteVerModal">
+  <div class="modal-box" style="width:520px;max-width:96vw;">
+    <h3><span data-i18n="tcview.deleteThisVersion">Delete This Version</span></h3>
+    <div class="modal-warn" id="delVerWarn"></div>
+    <p id="delVerBody"></p>
+    <div class="modal-actions">
+      <button class="btn-dark btn-sm" onclick="$('#deleteVerModal').hide()"><span data-i18n="tspec.cancel">Cancel</span></button>
+      <button class="btn-red btn-sm" id="delVerConfirm" onclick="doDeleteVersion()"><i class="fa fa-trash"></i> <span data-i18n="common.delete">Delete</span></button>
+    </div>
   </div>
 </div>
 
@@ -619,6 +675,215 @@ function renderActions() {
   if (data.versions.length > 1) {
     $('#btnCompare').show();
   }
+  renderOpsPanels();
+}
+
+// Issue #1044: the two legacy operations fieldsets
+// (gui/templates/dashio/testcases/tcView_viewer.tpl:143-316).
+//
+// The gate matrix is NOT re-derived here: api/testcases/index.php ships the
+// server-computed `canDo` map (port of testcase::getShowViewerActions(),
+// lib/functions/testcase.class.php:4939-4971). Legacy conditions reproduced
+// verbatim:
+//   Panel A is rendered only when show_mode != 'editOnExec' and
+//   tcase_operations_enabled == yes (tpl:146-149) - i.e. exactly when the
+//   show_mode is the default design mode.
+//   new_tc          -> args_new_sibling == yes          (tpl:159)
+//   move_copy_tc    -> can_do->copy AND args_can_move_copy (tpl:170-178);
+//                      args_can_move_copy is hardcoded "yes" in tcView.tpl:152,
+//                      so it degrades to can_do->copy.
+//   delete_tc       -> can_do->delete_testcase AND
+//                      args_can_delete_testcase ("yes", tcView.tpl:153) AND
+//                      $delete_enabled, which testcaseCommands::delete() clears
+//                      when the TC has executions and the user lacks
+//                      testproject_delete_executed_testcases (class.php:530-539)
+//   Panel B:
+//   do_create_new_version[_from_latest] -> can_do->create_new_version AND
+//                      args_read_only != yes (tpl:253-271); legacy renders
+//                      'this' or 'latest' according to
+//                      gui->new_version_source, both are offered here.
+//   freeze/unfreeze -> show_mode != editOnExec AND can_do->freeze (tpl:273-289)
+//   delete_tc_version -> (not frozen OR can_do->delete_frozen_tcversion) AND
+//                      can_do->delete_version AND args_can_delete_version,
+//                      the latter being "yes" only when the TC has other
+//                      versions (tcView.tpl:118-122).
+function renderOpsPanels() {
+  var cd = data.canDo || {};
+  var yes = function (k) { return cd[k] === 'yes'; };
+  var g = data.grants || {};
+  var notEditOnExec = !execEditMode;
+  var hasOthers = data.versions.length > 1;
+  var v = currentVersion;
+
+  // Panel A - test case operations
+  var showA = notEditOnExec && yes('edit');
+  $('#panelTcOps').toggle(showA);
+  $('#btnNewSibling').toggle(showA);
+  $('#btnMoveCopy').toggle(showA && yes('copy') && !!g.testplan_planning);
+  // legacy $delete_enabled: executed test cases cannot be deleted without
+  // testproject_delete_executed_testcases (testcaseCommands::delete()).
+  var deleteEnabled = !currentVersion.has_been_executed
+    || !!g.testproject_delete_executed_testcases;
+  $('#btnDeleteTc').toggle(showA && yes('delete_testcase') && deleteEnabled);
+
+  // Panel B - test case version operations
+  var showB = yes('create_new_version') || yes('freeze') || yes('delete_version');
+  $('#panelTcvOps').toggle(showB);
+  $('#btnNewVersion').toggle(yes('create_new_version'));
+  $('#btnNewVersionLatest').toggle(yes('create_new_version') && hasOthers);
+  // freeze is hidden in editOnExec (tpl:275) and only offered on an open
+  // version when freezing / on a frozen one when unfreezing.
+  $('#btnFreeze').toggle(notEditOnExec && yes('freeze'));
+  $('#btnFreezeLbl').text(TLi18n.t(v.is_open ? 'tcview.freezeVersion' : 'tcview.unfreezeVersion'));
+  $('#btnFreeze i').attr('class', v.is_open ? 'fa fa-snowflake' : 'fa fa-sun');
+  var canDelVer = yes('delete_version') && hasOthers
+    && (v.is_open || cd.delete_frozen_tcversion === 'yes');
+  $('#btnDeleteVersion').toggle(!!canDelVer);
+
+  $('#btnOpsToggle').toggle(showA || showB);
+}
+
+function toggleOpsPanels() {
+  var $p = $('#opsPanels');
+  $p.toggle();
+}
+
+// Issue #1044: "New Sibling" - legacy new_tc posted doAction=create with
+// containerID = the owning test suite (tcView_viewer.tpl:159-165). The modern
+// create form is the testSpec.html screen, which accepts exactly that pair of
+// deep-link params (testSpec.html:621-627 documents the shim).
+function openNewSibling() {
+  var url = '/gui/templates/testcases/testSpec.html?tproject_id=' + data.tproject.id
+    + '&containerID=' + data.testsuite.id + '&create=1';
+  window.open(url, '_blank', 'width=1280,height=820,resizable=yes,scrollbars=yes');
+}
+
+// Issue #1044: "Move / Copy" - legacy move_copy_tc (tcView_viewer.tpl:170-178)
+// opened tcMove.tpl: target suite combo + "copy as ghost steps" + optional
+// copy of keywords / requirements. api/tcmovecopy (and its modern screen
+// containerMoveTC.html) is the port of that very form, so the viewer just
+// hands it the single test case to act on.
+function openMoveCopy() {
+  var url = '/gui/templates/testcases/containerMoveTC.html?tproject_id=' + data.tproject.id
+    + '&suite_id=' + data.testsuite.id + '&tcase_ids[]=' + data.tcase.id;
+  window.open(url, '_blank', 'width=1100,height=760,resizable=yes,scrollbars=yes');
+}
+
+function doNewVersion(source) {
+  var body = {
+    tcase_id: data.tcase.id,
+    tcversion_id: currentVersion.tcversion_id,
+    tproject_id: data.tproject.id,
+    source: source
+  };
+  $.ajax({ url: '/api/testcasesedit/index.php?action=create_version', method: 'POST',
+    contentType: 'application/json', dataType: 'json', data: JSON.stringify(body) })
+    .done(function (r) {
+      if (r.status !== 'ok') { toast(r.message || TLi18n.t('tcview.errOp'), true); return; }
+      toast(TLi18n.t('tcview.newVersionCreated'));
+      window.location.href = '/gui/templates/testcases/tcView.html?tcase_id=' + data.tcase.id
+        + '&tproject_id=' + data.tproject.id
+        + '&tcversion_id=' + r.tcversion_id;
+    })
+    .fail(function (xhr) { opsFail(xhr, 'tcview.errNewVersion'); });
+}
+
+function doFreeze() {
+  var isOpen = currentVersion.is_open;
+  var body = {
+    tcase_id: data.tcase.id,
+    tcversion_id: currentVersion.tcversion_id,
+    tproject_id: data.tproject.id,
+    is_open: isOpen ? 0 : 1
+  };
+  $.ajax({ url: '/api/testcasesedit/index.php?action=set_is_open', method: 'POST',
+    contentType: 'application/json', dataType: 'json', data: JSON.stringify(body) })
+    .done(function (r) {
+      if (r.status !== 'ok') { toast(r.message || TLi18n.t('tcview.errOp'), true); return; }
+      toast(TLi18n.t(isOpen ? 'tcview.versionFrozen' : 'tcview.versionUnfrozen'));
+      reloadView();
+    })
+    .fail(function (xhr) { opsFail(xhr, 'tcview.errFreeze'); });
+}
+
+// Legacy tcDelete.tpl header text (testcaseCommands::delete(),
+// testcaseCommands.class.php:533-537 and tcEdit.php:167-176):
+// a warning naming every test plan the version is linked to / executed on.
+function linkedWarning() {
+  if (!currentVersion.has_been_executed) { return ''; }
+  return TLi18n.t('tcview.deleteExecutedWarning');
+}
+
+function askDeleteTc() {
+  var $w = $('#delTcWarn');
+  $w.text(linkedWarning()).toggleClass('show', !!linkedWarning());
+  $('#delTcBody').text(TLi18n.t('tcview.confirmDeleteTc', {
+    name: data.tcase.name,
+    ext: data.fullExternalId,
+    versions: data.versions.length
+  }));
+  $('#deleteTcModal').show();
+}
+
+function askDeleteVersion() {
+  var $w = $('#delVerWarn');
+  $w.text(linkedWarning()).toggleClass('show', !!linkedWarning());
+  $('#delVerBody').text(TLi18n.t('tcview.confirmDeleteVersion', {
+    name: data.tcase.name,
+    version: currentVersion.version
+  }));
+  $('#deleteVerModal').show();
+}
+
+function doDelete(scope) {
+  var all = scope === 'all';
+  var $box = all ? $('#deleteTcModal') : $('#deleteVerModal');
+  var $btn = all ? $('#delTcConfirm') : $('#delVerConfirm');
+  $box.find('button').prop('disabled', true);
+  $.ajax({
+    url: '/api/testcasesedit/index.php?action=delete', method: 'POST',
+    contentType: 'application/json', dataType: 'json',
+    data: JSON.stringify({
+      tcase_id: data.tcase.id,
+      tcversion_id: currentVersion.tcversion_id,
+      tproject_id: data.tproject.id,
+      scope: all ? 'all' : 'single'
+    })
+  }).done(function (r) {
+    if (r.status !== 'ok') { toast(r.message || TLi18n.t('tcview.errOp'), true); return; }
+    $box.hide();
+    toast(TLi18n.t(all ? 'tcview.tcDeleted' : 'tcview.versionDeleted'));
+    if (all) {
+      window.location.href = '/gui/templates/testcases/testSpec.html?tproject_id=' + data.tproject.id;
+    } else {
+      reloadView();
+    }
+  }).fail(function (xhr) {
+    opsFail(xhr, all ? 'tcview.errDeleteTc' : 'tcview.errDeleteVersion');
+  }).always(function () {
+    $box.find('button').prop('disabled', false);
+  });
+}
+
+function doDeleteTc() { doDelete('all'); }
+function doDeleteVersion() { doDelete('single'); }
+
+function opsFail(xhr, fallbackKey) {
+  var msg = TLi18n.t(fallbackKey);
+  try {
+    var r = JSON.parse(xhr.responseText);
+    msg = r.message || msg;
+  } catch (e) {}
+  toast(msg, true);
+}
+
+function reloadView() {
+  $.get('/api/testcases/index.php', {
+    action: 'view', tcase_id: data.tcase.id,
+    tcversion_id: currentVersion.tcversion_id, editOnExec: execEditMode ? 1 : 0
+  }).done(function (r) {
+    if (r.status === 'ok') { data = r; render(); }
+  }).fail(function () { toast(TLi18n.t('tcview.errLoad'), true); });
 }
 
 function renderBanners() {
