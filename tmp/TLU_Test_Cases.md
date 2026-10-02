@@ -3871,3 +3871,69 @@ Result: **55/55 passed**. Event Viewer after the sweep: **0 Error/Warning** entr
 - **#1795 (`bug`, filed)** — the legacy `lib/attachments/attachmentdownload.php` authorized nothing but `config_get('attachments')->enabled`: `checkRights()` was defined but never passed to `testlinkInitPage()` (`lib/functions/common.php:538-542`), so **any authenticated user — including `role_id = 3` — could stream any attachment of the installation by enumerating `?id=`**. Read-side twin of #1768. Fixed for 2.0.1 by the BFF + 302 shim in this issue; the 1.9.20-style file stays vulnerable until the shim ships.
 - **Review BLOCKER (fixed in `65ef1ad28`)** — `download_url` carried no `disposition` and the stream defaulted to *inline*: the Download button did not download, and a `text/html` attachment would have executed in the app origin (stored XSS). Fixed by failing closed (missing ⇒ `attachment`, whitelist, inline allowlist, CSP sandbox on inline).
 - **Review MAJOR (fixed in `65ef1ad28`)** — the popup had no entry point (4 list templates still linked the legacy controller); `getImageURL()`/`toogleImageURL()` broke sub-directory installs; attachment bytes were cacheable by a shared cache (`Pragma: public`); "Open in new tab" silently saved anything the stream refuses to render.
+
+---
+
+## Regression — Issue #1683: reqTreeReorder.html confirm dialog must be the Dashio Bootstrap 3 modal, never a native `alert()`
+
+**Precondition / environment**
+
+* App: `http://localhost:8082` (PHP built-in server, docroot = repo root), commit `47ae21765`
+  (== `origin/sebiboga`), work branch `fix/issue-1683`.
+* DB: MariaDB `127.0.0.1:3306/testlink`, user/pass `testlink`. Freshly imported, so
+  `tmp/fixtures_1681.php` allocates low ids: `tproject=1 specA=2 specB=4 reqs=6,8,10`.
+  Prepare with `php tmp/fixtures_1681.php`.
+* Browser: headless Chrome via chrome-devtools MCP. Login `admin`/`admin`.
+* Entry point: `http://localhost:8082/gui/templates/requirements/reqTreeReorder.html?tproject_id=1&req_spec_id=2`
+  (ids 13/14 in the original report; 1/2 on a fresh database).
+
+**Pre-fix symptom (the defect #1683 described, reproduced on `dcd23815a`)**
+
+Clicking *Move requirement* or *Apply order* raised a **native, unstyled,
+untranslatable `alert()`** instead of the Dashio confirm dialog. Cause: the screen
+was written against the Bootstrap 4/5 API while the Dashio bundle is **Bootstrap
+3.4.1** — `var BSS = null` was declared and never assigned, so the guard
+`if (BSS && BSS.Modal) new BSS.Modal(el).show()` was *always* false and the
+`else { alert(...) }` fallback ran on every confirm. The markup was v4/v5 too
+(`btn-close`, `data-bs-dismiss`, `modal-dialog-centered`), so even a correct
+constructor would have produced a dialog with no working close button.
+
+**Expected post-fix behavior**
+
+Both destructive actions (move a requirement to another specification, save a new
+order) show the Dashio confirm modal; the modal gates the write (Cancel writes
+nothing, OK writes); if Bootstrap JS were missing entirely, the fallback is
+`window.confirm(...)`, which still gates — never a silent write, never `alert()`.
+
+**Steps and results — executed on `47ae21765`**
+
+| # | step | expected | measured | result |
+|---|---|---|---|---|
+| 1 | `head -c 60 gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js` | Bootstrap 3.4.1 | `/*!  Bootstrap v3.4.1 (https://getbootstrap.com/)` | PASS |
+| 2 | `grep -rn 'new BSS.Modal\|data-bs-dismiss\|btn-close' gui/templates/*/*.html` on this screen | no hits | no functional hits (the only `BSS` hit is `reqTreeReorder.html:534`, a comment) | PASS |
+| 3 | open the screen with `tproject_id=1&req_spec_id=2` | 3 rows `TR1-1..TR1-3`, toolbar live | rendered, context tiles populated (`TR1-SPEC-A`, revision 1, 3 requirements, modified by `admin`) | PASS |
+| 4 | click *Select* on `TR1-3`, target spec = `TR1-SPEC-B`, click *Move requirement* | Dashio modal, no native `alert()` | `confirmModal.className = "modal fade in"`, `display:block`, `opacity:1`, `z-index:1050`, `.modal-backdrop` present at `opacity 0.5`, title `Move the requirement`, body `Move requirement TR1-3 to TR1-SPEC-B - Specification B (0)?`, OK label `Move requirement`; **no JS dialog raised at any point** | PASS |
+| 5 | inspect the close button | BS3 shape `button.close[data-dismiss=modal]` | `<button type="button" class="close" data-dismiss="modal" aria-label="Close">×</button>` | PASS |
+| 6 | click *Down* on row 1, then *Apply order* | Dashio modal with the apply text | `className = "modal fade in"`, title `Apply the new order`, body `The new order of the specification will be saved.`, OK `Apply order`, backdrop `0.5` | PASS |
+| 7 | on the open dialog click *Cancel* | modal hidden, **nothing written** | `display:none`, no `.modal-backdrop`; DB order unchanged | PASS |
+| 8 | re-do the reorder, click the OK button | write lands | rows `["TR1-1","TR1-2"]` → `["TR1-2","TR1-1"]` after Down; banner `.msg.ok` = `The new order was saved.` | PASS |
+| 9 | verify the move in the DB | `TR1-3` now belongs to `TR1-SPEC-B` | `select r.id,r.req_doc_id,r.srs_id,s.doc_id from requirements r join req_specs s on s.id=r.srs_id` → `10 TR1-3 4 TR1-SPEC-B` (was `srs_id 2`) | PASS |
+| 10 | browser console during the whole pass | no errors from the screen | clean (one 400 observed only from a hand-made probe without the CSRF token, not app output) | PASS |
+| 11 | Event Viewer / `events` table | no new Error/Warning | `select log_level,count(*) from events group by log_level` → only `log_level=16` (2 audit rows: fixture project creation + login). **Zero** rows at level 1 (ERROR) / 2 (WARNING) | PASS |
+| 12 | fallback when Bootstrap JS is absent (static review of `confirmBox()`, `reqTreeReorder.html:524-541`) | still gated, no silent write | `if ($.fn && $.fn.modal) { $(el).modal('show'); } else { if (window.confirm(title+'\n\n'+body)) { onOk(); } }` | PASS |
+
+**Overall: 12/12 PASS.** #1683's fix is present on the default branch (`f790f7241`)
+and verified error-free; no code change was required.
+
+**Bugs found while testing (rule 11)**
+
+- **#1796 (`bug`, filed)** — the repo-wide grep the #1683 report asked for turned up
+  three screens that still carry **dead Bootstrap 4/5 CSS classes** on a BS3 bundle:
+  `documentation.html:82` (`modal-dialog modal-xl modal-dialog-centered` → measured
+  `width: 600px`, `margin-top: 30px`: the View dialog is BS3-default-width and
+  top-aligned), `reqTcAssign.html:167` and `reqTcBulkAssign.html:134`
+  (`modal-dialog-centered` → centring-only). Cosmetic — the dialogs are driven
+  correctly with `$(el).modal('show'|'hide')` and their `button.close[data-dismiss]`
+  works — so left for a separate run per FIX-ISSUE.md §4 ("file it, never expand
+  this run's scope"). Not fixed in this run.
+
