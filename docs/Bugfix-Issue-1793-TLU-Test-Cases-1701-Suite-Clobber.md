@@ -104,6 +104,35 @@ $ diff <(git show HEAD~1:tmp/TLU_Test_Cases.md | grep '^## Regression') \
 > ## Regression — Issue #1701: …               # only the restoration changed
 ```
 
+## Regression suite
+
+`bash tmp/verify_1793.sh` (exit 0 = PASS) — see the suite
+`## Regression — Issue #1793` in `tmp/TLU_Test_Cases.md`. It reads the **tracked**
+suite file (`git show HEAD:tmp/TLU_Test_Cases.md`), not the working copy, and
+asserts 8 invariants: the #1701 heading, its R1–R7 measured rows, its PASS
+verdicts, its 1.9.20 target line, "no suite lost vs `47905e3e8`", balanced
+markdown fences, a non-truncated tail, and — when run on the repo — that the last
+commit touching the suite file deleted nothing.
+
+```console
+$ bash tmp/verify_1793.sh
+  PASS  Issue #1701 heading present (= 1)
+  PASS  Issue #1701 measured rows R1-R7 intact (= 7)
+  PASS  Issue #1701 records a PASS verdict (= 7)
+  PASS  Issue #1701 keeps its 1.9.20 target (= 1)
+  PASS  no suite lost vs 47905e3e8 (= 0)
+  PASS  markdown fences balanced (= 0)
+  PASS  file does not end mid-block (last line non-blank)
+  PASS  last commit on the suite file deletes nothing (= 0)
+G1793 result: 8 PASS / 0 FAIL      # exit 0
+```
+
+**Negative control.** Run against a deliberately clobbered copy
+(`sed '/^## Regression — Issue #1701:/,$d'`) it reports **1 PASS / 6 FAIL, exit
+1**, with the four #1701 checks and the `47905e3e8` cross-check flipping to FAIL
+while the file-shaped check (fence balance) still passes — the gate measures the
+loss, not the format.
+
 ## Alternatives rejected
 
 * **Re-generate the whole file from a merged history** — this is the exact
@@ -123,6 +152,7 @@ $ diff <(git show HEAD~1:tmp/TLU_Test_Cases.md | grep '^## Regression') \
 |---|---|
 | `tmp/TLU_Test_Cases.md` | append-only: the `## Regression — Issue #1701` suite restored verbatim (+99/-0) |
 | `ai/AGENTS.md` | rules 7, 9, 18 hardened against the clobber (15 insertions / 2 deletions — the two deletions are rule sentences being *extended*) |
+| `tmp/verify_1793.sh` | the regression gate for this bug (new; checks the tracked suite file, never deletes its input) |
 
 No application code, no API endpoint, no locale bundle and no DB schema was
 touched, so no Event Viewer / `events` entry can be produced by this change.

@@ -3671,3 +3671,81 @@ empty-`__METHOD__` trap in `api/scriptedit/index.php:123`,
 `api/codetracker/index.php:428,472,552`, `api/tcscripts/index.php:119`; those are
 separate issues, not fixed here. `issueTrackerInterface.class.php:237-238` looks
 similar but is `.` concatenation, not interpolation, and is safe.
+
+## Regression — Issue #1793: the `Issue #1701` suite was destroyed by a concurrent-agent full-file rewrite of `tmp/TLU_Test_Cases.md`
+
+**Precondition.** Fresh clone of `sebiboga`, nothing special — this defect is
+purely in the **tracked suite file** itself, so no DB, no browser and no
+application request is involved. Branch `fix/issue-1793` (from `2f108e321`).
+
+**Harness.** `bash tmp/verify_1793.sh` (exit 0 = all PASS). It reads the
+**tracked** content (`git show HEAD:tmp/TLU_Test_Cases.md`) by default, not the
+working copy, because the whole failure mode is a working copy that silently
+diverges from what was committed. Pass a path as `$1` to check an arbitrary
+copy — that is how the negative control below is run; the script never deletes
+the path you hand it (see G10).
+
+**The defect.** `tmp/TLU_Test_Cases.md` is the single shared append-target of
+every concurrent agent (rule 9 of `ai/AGENTS.md`) and it lives under a
+**git-ignored** directory (`.gitignore:47` = `tmp/`). Two consequences: `git add`
+refuses the path, so the file is force-added by every agent; and because it is
+ignored, **no CI gate and no review diff covers it**. The agent working on issue
+#1740 built its copy by re-serialising a **stale read** of the file (its base
+predated the #1701 block) and wrote the file wholesale instead of appending —
+commit `ce093fa54`, `129 insertions(+), 92 deletions(-)`, one hunk
+`@@ -1626,103 +1626,140 @@`. The #1701 block fell inside the removed span. The
+same mechanism had already destroyed the #1740 suite one commit later
+(`a2df484a8`).
+
+**Repro steps (pre-fix, exactly as reported).**
+
+```bash
+git show origin/sebiboga:tmp/TLU_Test_Cases.md | grep -c "Issue #1701"   # -> 0
+git log --oneline origin/sebiboga -S"Issue #1701" -- tmp/TLU_Test_Cases.md
+```
+
+**Expected post-fix behaviour.** The #1701 suite is present again, byte-identical
+to its recovery commit `47905e3e8`, sitting at the END of the file; every other
+suite survives; and the commit that carries the restore shows **0 deletions** so
+the restore itself cannot become the next clobber.
+
+| # | Check | Expected | Measured (post-fix) | Result |
+|---|---|---|---|---|
+| G1 | `git show HEAD:tmp/TLU_Test_Cases.md \| grep -c "Issue #1701"` | `1` | `1` | **PASS** |
+| G2 | restored block byte-identical to `47905e3e8:1631-1728` | no diff | `tail -99 \| sed '1d' \| diff - <(git show 47905e3e8:… \| sed -n '1631,1728p')` → empty | **PASS** |
+| G3 | `git diff --numstat -- tmp/TLU_Test_Cases.md` | `0` deletions | `99	0	tmp/TLU_Test_Cases.md` | **PASS** |
+| G4 | both suites coexist: `grep -cE "Issue #1701\|Issue #1740"` | `2` | `2` | **PASS** |
+| G5 | heading inventory delta vs `HEAD~1` | only the #1701 line added | `diff` → `17a18 > ## Regression — Issue #1701: …` | **PASS** |
+| G6 | markdown fences balanced (whole file) | even | `62` → `64` (the restored ` ```php ` / ` ``` ` pair) → even | **PASS** |
+| G7 | restored suite still describes the code on this branch | matches | `lib/issuetrackerintegration/issueTrackerInterface.class.php:222-223` uses `{$this->cfg->dbhost}` (curly), and `api/issuetracker/index.php:239,286` log `api/issuetracker/index.php::GET /{id}/check-connection ::` / `::POST /test-connection ::` — the #1701 fix is intact, so the restored contract is live, not historical | **PASS** |
+| G8 | full harness on the tracked content | exit 0 | `8 PASS / 0 FAIL`, exit `0` | **PASS** |
+| G9 | Event Viewer / `events` table | no new Error/Warning | `SELECT COUNT(*), SUM(log_level>=2) FROM events;` → `0` rows; no application code touched | **PASS** |
+| G10 | harness must not destroy the file it inspects | path handed in stays on disk | `bash tmp/verify_1793.sh <copy>` → `8 PASS / 0 FAIL`, copy still 3673 lines afterwards (the first revision of this harness ended with an unconditional `rm -f "$FILE"` and DELETED `tmp/TLU_Test_Cases.md` when a path was passed — caught immediately, file restored from HEAD, script now removes only its own `mktemp` files) | **PASS** |
+
+**Result: 10/10 PASS, harness exit 0.**
+
+**Negative control — the harness really detects the loss.** Re-running the same
+harness against a deliberately clobbered copy
+(`git show HEAD:tmp/TLU_Test_Cases.md | sed '/^## Regression — Issue #1701:/,$d'`)
+gives **1 PASS / 6 FAIL, exit 1**: G1 (heading), the R1–R7 rows, the PASS
+verdicts, the 1.9.20 target line and the "no suite lost vs `47905e3e8`"
+cross-check all flip to FAIL, while the file-shaped checks (fence balance) still
+pass — proving the gate measures the loss, not the file format.
+
+**Prevention shipped with the fix** (so this cannot silently recur):
+`ai/AGENTS.md` rule 9 is now **APPEND-ONLY** with the 0-deletions gate
+(`git diff --numstat` + `grep -cE "Issue #<n>"` + `grep -c "^## Regression"` must
+not drop) and cites both destroyed suites by commit hash; rule 7 forbids
+regenerating a wiki page from a stale read (the second shared artifact, hit by
+`a2df484a8`); rule 18 names both shared artifacts explicitly.
+
+**Notes / out of scope.**
+- Moving the suite file out of the git-ignored `tmp/` into a tracked path would
+  remove the ignore problem but break the reference contract of every
+  `Refs #<n>` suite and every agent currently in flight — deliberately left as a
+  documented follow-up rather than done inside a bug fix.
+- A CI workflow asserting "0 deletions" would not fire reliably on a git-ignored
+  path, and rule 18 forbids fighting the five existing workflows; the obligation
+  is therefore agent-side, in the rulebook.
+- No application code, API endpoint, locale bundle or DB schema was touched, so
+  this change cannot produce an Event Viewer entry.
