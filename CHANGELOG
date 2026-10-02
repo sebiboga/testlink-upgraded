@@ -2280,6 +2280,13 @@ MAJOR AREAS
 - [TESTING] - 186 numbered regression test-case suites in tmp/TLU_Test_Cases.md
   (13.4k lines, 3672 PASS results), executed and recorded per run. Event Viewer
   clean after each run.
+- [TESTING] - #1793: restored the Issue #1701 regression suite (issue-tracker
+  connection-check diagnostics) from tmp/TLU_Test_Cases.md, which a concurrent
+  agent's full-file rewrite (ce093fa54, 129+/92-) had silently deleted from the
+  git-ignored shared suite file - the same clobber had also destroyed #1740 in
+  a2df484a8. Appended verbatim (+99/-0) and made the obligation explicit in
+  ai/AGENTS.md: rule 9 append-only with a 0-deletions gate, rule 7 never
+  regenerate a wiki page from a stale read, rule 18 names both shared artifacts.
 - [WIKI / DOCS] - Full GitHub Wiki (361 pages) + docs/ mirror, per-screen
   modernization docs, 168 bugfix write-ups, MODERNIZATION-STATUS.md and
   SCREEN-COMPARE-STATUS.md trackers.
