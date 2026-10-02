@@ -297,7 +297,11 @@ if ($action !== 'results') {
 require_once(__DIR__ . '/../../lib/search/searchCommands.class.php');
 
 // Feed legacy initArgs() through $_REQUEST exactly like the old form POST.
-$criteriaKeys = array_keys($tcCriteria) + array_keys($tsCriteria);
+// NOTE: `+` on two list arrays is a UNION keyed by the integer positions,
+// so it silently DROPPED every key of $tsCriteria (ts_title/ts_summary were
+// never forced on, and searchTestSuites() was never even invoked). Use
+// array_merge for the concatenation.
+$criteriaKeys = array_merge(array_keys($tcCriteria), array_keys($tsCriteria));
 if ($reqEnabled) {
     $criteriaKeys = array_merge($criteriaKeys,
         array('rs_title', 'rs_scope', 'rq_doc_id', 'rq_title', 'rq_scope'));
