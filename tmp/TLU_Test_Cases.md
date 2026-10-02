@@ -2809,3 +2809,47 @@ The API half is also executable: `bash tmp/verify_1784.sh` creates its own fixtu
 
 **Notes.** Fix ensures upsert semantics on import (update if exists by name, create if not), matching UI hint "Existing keywords with the same name are updated; new ones are created." The core `tlKeyword` class behavior unchanged to preserve duplicate-prevention for non-import flows.
 
+
+## 1785 — Modernize Full-Text Search (lib/search/searchMgmt.php)
+
+**Precondition.** `admin`/`admin` on `http://localhost:8082`; DB freshly imported; fixture
+`php tmp/fixtures_1785.php` run (SFM1 = requirements ENABLED, prefix SFM; SFM2 = foreign project,
+prefix SFX; `sfm1785norights`/`admin` = role without `mgt_view_tc`). Log in with
+`bash tmp/login_curl.sh /tmp/ck_a.txt`. Screen: `gui/templates/search/searchMgmt.html`;
+BFF: `api/searchmgmt/index.php`.
+
+| # | Action | Expected | Observed | Status |
+|---|---|---|---|---|
+| 1 | `GET ?action=init&tproject_id=59` as admin | `200`, `context.tproject_name=SFM1`, `reqEnabled=true`, criteria groups for tc/ts/rs/rq, `keywords=[smoke]`, `grants.mgt_view_tc=true` | as expected (criteria map = BFF `tcID…`/`rqDocId…` labels) | PASS |
+| 2 | `?action=results&tproject_id=59&target=password` | 1 test case (SFM-1) + 1 requirement (SFM-R1), `count=2` | `tc 1 ts 0 rs 0 rq 1 count 2` | PASS |
+| 3 | `target=Suite` | test-suite block with 2 suites ("Login Regression Suite", "Checkout Wizard Suite") | `ts 2` | PASS |
+| 4 | `target=Sprint Specification` | requirement-spec block with the spec | `rs 1` | PASS |
+| 5 | `target="login password"` OR | matches any word, `count=3` | `count 3` | PASS |
+| 6 | same target with `and_or=and` | only rows containing both words, `count=2` | `count 2` | PASS |
+| 7 | `target=Suite&ts_title=0` | suite narrowing removes title matches (0 suites) | `ts 0 count 0` | PASS |
+| 8 | empty `target=` (no refinement) | `400 {"code":"need_criteria"}` (never every test case) | `400 need_criteria` | PASS |
+| 9 | `target=zzz_no_match` | `200`, `warning=no_records_found`, `count=0` | as expected + no-records notice in UI | PASS |
+| 10 | `target=Foreign` on SFM1 | SFM2 (foreign project) rows never leak | `count 0 names []` | PASS |
+| 11 | `target=XSS` | test case `XSS <script>window.__sfmxss=1;</script> probe` is rendered escaped | `window.__sfmxss` undefined; cell innerHTML shows `&lt;script&gt;` | PASS |
+| 12 | `target=<script>alert(1)</script>` | safe `200`, no match, no reflection | `200 count 0` | PASS |
+| 13 | `target=o'brien` (apostrophe) | safe `200 no_records_found` (was a 500 + backtrace leak pre-fix) | `200 no_records_found` | PASS |
+| 14 | `action=init&tproject_id=999999` | `404 {"code":"tproject_not_found"}` | `404` | PASS |
+| 15 | `POST` with same-origin Origin | `405` (screen is read-only) | `405` | PASS |
+| 16 | same calls as `sfm1785norights` | `403 {"code":"forbidden"}` before any project data; `audit_security_user_right_missing` event | `403` init+results; audit row in `events` | PASS |
+| 17 | requires-disabled project (SFM3, id 93) `init` | `reqEnabled=false`, req criteria groups empty, screen hides them + chip "Requirements disabled" | as expected | PASS |
+| 18 | empty test project (SFM3) `results` | `200 warning=empty_testproject`; UI shows the "no test cases yet" notice | as expected | PASS |
+| 19 | legacy shim `lib/search/searchMgmt.php?target=password` without cookie | `200` login page; with cookie `302` → `searchMgmt.html?...&target=password` | `200` / `302 …&target=password` | PASS |
+| 20 | `?target=password` hand-off | screen pre-fills the box and auto-runs the search | `2 match(es)` shown automatically | PASS |
+| 21 | locale switcher → Română | persisted locale, all labels translated from `ro.json` | header "Căutare în text complet", footer/errors Romanian | PASS |
+| 22 | Event Viewer / `events` after all searches | no new Error/Warning (`log_level` 2) from searchMgmt | 0 new rows after 3 searches (E_NOTICE by-ref bug fixed) | PASS |
+| 23 | browser console | no unexpected error | 0 console messages | PASS |
+| 24 | syntax gates | `php -l` on BFF + shim, `python3 -m json.tool` on all 10 bundles | clean ×12 | PASS |
+
+**Actual result — 24/24 PASS.** BFF defect fixes verified: `array_keys()+` union dropping `ts_title`/`ts_summary`
+(bug: suites never returned), `initSchema()` ordering, double-escaped target (apostrophe 500), `need_criteria`
+unreachable (empty search returned the whole project), and the `get_full_path_verbose()` by-ref E_NOTICE
+(warning Event Viewer entry). Code review (rule 16) returned **no blockers**.
+
+**Files** — `api/searchmgmt/index.php`, `gui/templates/search/searchMgmt.html`,
+`gui/templates/i18n/{en,ro,de,es,fr,it,pt,ja,ru,zh}.json`, `lib/search/searchMgmt.php`,
+`lib/functions/common.php` (`$actions->searchMgmt`). Screenshots in `docs/1785-searchmgmt-*.png`.

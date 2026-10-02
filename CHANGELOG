@@ -578,6 +578,24 @@ screen reaches full parity.
   reuses `user.fullName`). Regression suite 1676: 20/20 PASS (9 client cases on the shipped helper +
   11 live BFF cases over 3 formats) and 11/11 browser cases; console and Event Viewer clean. (Fixes #1676)
 
+- [SCREEN] - #1785: the **Full-Text Search** one-box screen (`lib/search/searchMgmt.php`) is
+  modernized. Legacy 1.9.20 reached it only from the navBar magnifier, which POSTed one free-text
+  `target` term and then force-enabled every search dimension (test cases id/title/summary/
+  preconditions/steps/expected results, test suites title/summary, and - when requirements are on -
+  spec title/scope and requirement doc-id/title/scope) across the current test project. The new
+  standalone Dashio screen `gui/templates/search/searchMgmt.html` + BFF `api/searchmgmt/index.php`
+  keep that exact engine (`lib/search/searchCommands.class.php`) and add a superset: AND/OR,
+  per-area criteria checkboxes that can narrow the search, optional keyword/created-by/edited-by
+  refinements, and four result tables (test cases, suites, req specs, requirements) linking to the
+  modern detail screens. Legacy `lib/search/searchMgmt.php` is now a session-guarded 302 shim so the
+  navBar form and old deep links resolve; `$actions->searchMgmt` was added to `common.php`; 72
+  `sfm.*` + `footers.searchMgmt` keys in all 10 locale bundles. BFF defects found and fixed while
+  testing: `array_keys()+` silently dropped the test-suite criteria (`ts_title`/`ts_summary`),
+  `initSchema()` ordered after the searches (500 + backtrace leak), double-escaped target (apostrophe
+  500), `need_criteria` unreachable so an empty search returned the whole project, and a
+  `get_full_path_verbose()` by-reference E_NOTICE (warning Event Viewer entry). 24/24 test cases
+  PASS; console and Event Viewer clean. (Refs #1785)
+
 - [SCREEN] - #1717: the **Test Cases Not Run on Any Platform** report is modernized. Legacy 1.9.20
   kept `lib/results/tcNotRunAnyPlatform.php` plus its dashio and classic templates, but the
   controller could never run: `require_once('results.class.php')` names a class that no longer
