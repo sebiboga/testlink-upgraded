@@ -231,6 +231,25 @@ function rscNodeInfo($db, $nodeId)
 /**
  * Does the caller hold `right` on the given test project?
  */
+/**
+ * Refs #1799. Can $pid be used as the DESTINATION test project of this screen?
+ * Same rule as ?action=projects: the row must exist in testprojects and be
+ * active. Used to repair a stale ?tproject_id= (a bookmark, or the legacy
+ * reqSpecEdit.php shim, which passes the SESSION id that may name a project
+ * deleted since) instead of answering with an empty, unusable screen.
+ */
+function rscIsWritableProject($db, $pid)
+{
+    if ($pid <= 0) {
+        return false;
+    }
+    $row = $db->get_recordset('SELECT active FROM testprojects WHERE id = ' . intval($pid));
+    if (!is_array($row) || !isset($row[0])) {
+        return false;
+    }
+    return intval($row[0]['active']) === 1;
+}
+
 function rscHasRight($db, $user, $right, $tprojectId)
 {
     if ($tprojectId <= 0) {
@@ -515,7 +534,9 @@ if ($action === 'copy') {
         rscResolveSource($db, $user, $reqSpecId, $asserted);
 
     // Destination project: explicit, or the project that owns the source.
-    $tprojectId = ($asserted > 0) ? $asserted : $ownerProject;
+    // Refs #1799: an explicit id that is not a usable destination project (gone,
+    // inactive) is repaired to the owner instead of failing the whole copy.
+    $tprojectId = ($asserted > 0 && rscIsWritableProject($db, $asserted)) ? $asserted : $ownerProject;
     rscRequireCopyRights($db, $user, $tprojectId);
 
     // The destination must not be the source itself nor one of its descendants.
@@ -595,7 +616,18 @@ if ($tprojectRaw !== null && $tprojectRaw !== '' && !is_array($tprojectRaw)) {
 
 list($specMgr, $spec, $ownerProject) = rscResolveSource($db, $user, $reqSpecId, $asserted);
 
-$tprojectId = ($asserted > 0) ? $asserted : $ownerProject;
+// Refs #1799. A ?tproject_id= naming a project that no longer exists (deleted
+// since the link was built, or the SESSION id handed over by the legacy
+// reqSpecEdit.php shim) used to be taken at face value: the API then reported
+// that ghost project as the destination, listed ZERO containers for it, and the
+// screen came up with an empty destination selector and a disabled Copy button
+// even though the caller had every right on the project that really owns the
+// specification. An unusable project id is repaired to the owner; a REAL project
+// the caller may not write into still gets its 403 below.
+$requestedProject = ($asserted > 0) ? $asserted : 0;
+$tprojectId = ($requestedProject > 0 && rscIsWritableProject($db, $requestedProject))
+                ? $requestedProject
+                : $ownerProject;
 rscRequireCopyRights($db, $user, $tprojectId);
 
 $destinations = rscDestinationList($db, $tprojectId, $reqSpecId);
@@ -650,6 +682,8 @@ out(array(
     ),
     'default_project_id' => intval($tprojectId),
     'destinations'  => $destinations,
+    // non-zero when ?tproject_id= was unusable and the owner was used instead
+    'tproject_fallback_from' => ($requestedProject !== $tprojectId) ? $requestedProject : 0,
     'rights'        => array(
         'view'   => rscHasRight($db, $user, 'mgt_view_req', $tprojectId),
         'modify' => rscHasRight($db, $user, 'mgt_modify_req', $tprojectId),

@@ -75,7 +75,7 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 
 <div class="state denied" id="stDenied">
   <h2 data-i18n="rsc.errDenied">Access denied</h2>
-  <p data-i18n="rsc.errDeniedHint">Copying a requirement specification needs the mgt_view_req and mgt_modify_req rights on the destination test project.</p>
+  <p id="deniedText" data-i18n="rsc.errDeniedHint">Copying a requirement specification needs the mgt_view_req and mgt_modify_req rights on the destination test project.</p>
   <p><span data-i18n="rsc.machineCode">Machine code</span>: <code id="deniedCode"></code></p>
 </div>
 
@@ -146,6 +146,7 @@ var API = '/api/reqspeccopy/index.php';
 var SPEC_ID = 0;
 var TPROJECT_ID = 0;
 var LAST_NEW_ID = 0;
+var LEGACY_INTENT = '';
 
 function esc(s) {
   return String(s === null || s === undefined ? '' : s)
@@ -153,11 +154,18 @@ function esc(s) {
     .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
-function hideAll() {
+// Refs #1797. keepMsg: doCopy() refreshes the destination list right after a
+// successful copy so the new specification shows up in the tree - but that
+// refresh used to run hideAll(), which also hid the success box the copy had
+// just written. The user saw the list grow and NO confirmation at all, and the
+// screen looked exactly as before the click. The refresh now preserves it.
+function hideAll(keepMsg) {
   $('#stLoading, #stDenied, #stNotFound, #stInvalid, #stServer').hide();
   $('#srcCard, #dstCard').hide();
   $('#openNewLink').hide();
-  $('#msg').hide().removeClass('ok err');
+  if (!keepMsg) {
+    $('#msg').hide().removeClass('ok err');
+  }
 }
 
 function showMsg(ok, text, html) {
@@ -167,11 +175,22 @@ function showMsg(ok, text, html) {
   $m.show();
 }
 
+// Refs #1797. Each state card owns an explicit <p id="XText"> and <code id="XCode">.
+// The first version searched the card for "the first <p> without a <code>", which
+// is the ACCESS-DENIED HINT on #stDenied - so every error card ended up showing the
+// "needs mgt_view_req / mgt_modify_req" explanation with an EMPTY machine code,
+// whatever the server had actually answered (a 404 reported itself as a 403).
 function showState(id, code, text) {
   hideAll();
   $('#' + id).show();
-  if (code) { $('#' + id).find('code').text(code); }
-  if (text) { $('#' + id).find('p').not(':has(code)').first().text(text); }
+  // stNotFound -> notFound, stDenied -> denied: the markup ids are camelCase,
+  // so only the FIRST letter may be lowered.
+  var camel = id.replace(/^st/, '');
+  var base = camel.charAt(0).toLowerCase() + camel.slice(1);
+  if (code) { $('#' + base + 'Code').text(code); }
+  // stDenied keeps its localized explanation: the BFF's 403 message is a generic
+  // "Forbidden", the hint tells the user WHICH rights are missing.
+  if (text && base !== 'denied') { $('#' + base + 'Text').text(text); }
   $('#specLine').text('');
   $('#infoLine').text('');
 }
@@ -185,13 +204,15 @@ $(function () {
   var p = new URLSearchParams(window.location.search);
   SPEC_ID = parseInt(p.get('req_spec_id') || p.get('id') || 0, 10);
   TPROJECT_ID = parseInt(p.get('tproject_id') || 0, 10);
+  // Refs #1799: read here (module scope), raised at the END of load(). Kept in a
+  // global because load() also runs on Refresh and on a project change.
+  LEGACY_INTENT = p.get('legacy_intent') || '';
   TLi18n.load(function () {
     TLi18n.apply();
     TLi18n.initLocaleSwitcher('#localeSwitcher');
     $('#refreshBtn').off('click').on('click', function () { load(); });
     $('#copyBtn').off('click').on('click', doCopy);
     $('#backLink, #cancelLink, #closeLink').attr('href', backUrl());
-    if (p.get('legacy_intent')) { showMsg(false, TLi18n.t('rsc.legacyNotice')); }
     $('#projectSel').off('change').on('change', function () {
       TPROJECT_ID = parseInt($(this).val() || 0, 10);
       load();
@@ -215,15 +236,15 @@ function loadProjects() {
   return $.getJSON(API + '?action=projects');
 }
 
-function load() {
-  hideAll();
+function load(keepMsg) {
+  hideAll(keepMsg);
   $('#stLoading').show();
   $('#specLine').text('');
   var url = API + '?action=init&req_spec_id=' + SPEC_ID;
   if (TPROJECT_ID > 0) { url += '&tproject_id=' + TPROJECT_ID; }
   $.getJSON(url).done(function (r) {
     if (!r || r.status !== 'ok') { renderError({ responseJSON: r }); return; }
-    hideAll();
+    hideAll(keepMsg);
     TPROJECT_ID = r.default_project_id || TPROJECT_ID;
     var s = r.source || {}, d = r.destination || {};
     $('#specLine').text((s.doc_id || '') + ' — ' + (s.title || ''));
@@ -237,6 +258,7 @@ function load() {
     $('#srcReqCount').text(s.total_req + ' ' + TLi18n.t('rsc.reqUnit'));
     $('#srcScope').text(stripHtml(s.scope || ''));
     $('#srcCard').show();
+    if (r.tproject_fallback_from) { TPROJECT_ID = r.destination.tproject_id; }
     renderDestinations(r.destinations || []);
     loadProjects().done(function (pr) {
       var list = (pr && pr.status === 'ok') ? (pr.projects || []) : [];
@@ -255,6 +277,15 @@ function load() {
       }
     });
     $('#dstCard').show();
+    // keepMsg: put back the two things hideAll() deliberately spared the box but
+    // still reset - the "Open the copy" shortcut has to stay visible.
+    if (keepMsg) {
+      $('#msg').show();
+      if (LAST_NEW_ID > 0) { $('#openNewLink').show(); }
+    }
+    // Refs #1799. Raised HERE, inside the done() handler: raised synchronously it
+    // was wiped again by this handler's own hideAll().
+    if (LEGACY_INTENT) { showMsg(false, TLi18n.t('rsc.legacyNotice')); }
   }).fail(function (xhr) { renderError(xhr); });
 }
 
@@ -314,13 +345,13 @@ function doCopy() {
         LAST_NEW_ID + '&tproject_id=' + (r.tproject_id || TPROJECT_ID)).show();
     }
     showMsg(true, html, true);
-    load();
+    load(true);
   }).fail(function (xhr) {
     $('#copyBtn').prop('disabled', false);
     var body = null;
     try { body = JSON.parse(xhr.responseText); } catch (e) { body = null; }
     if (xhr.status === 403) {
-      showState('stDenied', (body && body.code) || 'forbidden', body && body.message);
+      showState('stDenied', (body && body.code) || 'forbidden');
       return;
     }
     if (xhr.status === 404) {
@@ -343,7 +374,7 @@ function renderError(xhr) {
     window.location.href = '/login.php?note=expired';
     return;
   }
-  if (status === 403) { showState('stDenied', code, msg); return; }
+  if (status === 403) { showState('stDenied', code); return; }
   if (status === 404) { showState('stNotFound', code, msg); return; }
   if (status === 400) { showState('stInvalid', code, msg); return; }
   showState('stServer', code, msg);
