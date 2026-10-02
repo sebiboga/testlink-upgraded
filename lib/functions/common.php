@@ -2286,6 +2286,21 @@ function getActions(&$gui,$baseURL) {
 
   // Modernized screens (Dashio standalone pages)
   $actions->reqSpecMgmt = "/gui/templates/requirements/reqSpecMgmt.html?{$ctx}";
+  // Requirement Specification Copy popup (Dashio standalone page) - Refs #1797.
+  // Replaces the `copy` / `doCopy` actions of lib/requirements/reqSpecEdit.php,
+  // which rendered gui/templates/dashio/requirements/reqSpecCopy.tpl. That
+  // controller checked its rights against the SESSION context only, while
+  // `containerID` / `tproject_id` came straight out of the POST body, so a
+  // copy could be aimed at any node of any test project; it also offered the
+  // source specification as its own destination, and its target_position
+  // (top / bottom) radio pair was dead UI - doCopy() called copy_to() with 4
+  // arguments and never read it. The modern screen is backed by
+  // api/reqspeccopy, which enforces mgt_view_req + mgt_modify_req on the
+  // destination project, mgt_view_req on the project that OWNS the source,
+  // proves the destination node to be a test project / requirement
+  // specification of that project, refuses a destination inside the source
+  // subtree, and honours the position.
+  $actions->reqSpecCopy = "/gui/templates/requirements/reqSpecCopy.html?{$ctx}";
   // Requirement Specification Tree navigator (Dashio standalone page) - Refs
   // #1695. Replaces lib/requirements/reqSpecListTree.php, the 84-line legacy
   // frame that built an ExtJS tree (test project -> specification -> requirement

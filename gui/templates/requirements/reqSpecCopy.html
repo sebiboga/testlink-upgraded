@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title data-i18n="rsc.title">Copy Requirement Specification</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; color: #444; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; color: #0d3f3c; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 7px; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-teal:disabled { opacity: .45; cursor: not-allowed; }
+.btn-ghost { background: transparent; color: #ccc; border: 1px solid #555; padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; gap: 7px; text-decoration: none; }
+.btn-ghost:hover { border-color: #4ECDC4; color: #4ECDC4; text-decoration: none; }
+.sep { flex: 1; }
+.card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px 0; overflow: hidden; }
+.card-title { background: #f7f7f7; padding: 10px 18px; font-size: 13px; font-weight: 700; color: #22242a; border-bottom: 1px solid #e5e5e5; display: flex; align-items: center; gap: 8px; }
+.card-body { padding: 16px 18px; font-size: 13px; }
+.id-chip { background: #22242a; color: #4ECDC4; padding: 3px 10px; border-radius: 3px; font-weight: 700; font-size: 13px; }
+.badge { display: inline-block; padding: 2px 9px; border-radius: 10px; font-size: 11px; font-weight: 700; background: #e8f8f2; color: #1d7a4f; border: 1px solid #b8e6d3; }
+.badge.grey { background: #eee; color: #555; border-color: #ddd; }
+.badge.warn { background: #fff5e6; color: #a35b00; border-color: #f3d7a8; }
+.kv { display: grid; grid-template-columns: 190px 1fr; row-gap: 8px; column-gap: 12px; }
+.kv .k { color: #777; font-weight: 600; }
+.kv .v { color: #22242a; word-break: break-word; }
+.scope { background: #fafafa; border: 1px solid #eee; border-radius: 4px; padding: 10px 12px; white-space: pre-wrap; max-height: 140px; overflow: auto; color: #555; }
+.opt-line { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 8px 0; }
+.opt-line label { font-weight: 600; color: #22242a; }
+.opt-line select { min-width: 420px; padding: 7px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; background: #fff; }
+.opt-line input[type=radio] { width: 16px; height: 16px; }
+.actions { display: flex; gap: 10px; flex-wrap: wrap; padding: 14px 18px; border-top: 1px solid #eee; }
+.msg { display: none; margin: 12px 24px 0; padding: 10px 16px; border-radius: 5px; font-size: 13px; }
+.msg.ok { display: block; background: #e8f8f2; border: 1px solid #b8e6d3; color: #1d7a4f; }
+.msg.ok a { color: #1d7a4f; font-weight: 700; }
+.msg.err { display: block; background: #fdecea; border: 1px solid #f5c6cb; color: #b94a48; }
+.state { display: none; margin: 16px 24px 0; padding: 24px; background: #fff; border-radius: 8px; border-left: 4px solid #e74c3c; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+.state h2 { font-size: 16px; margin: 0 0 8px; color: #22242a; }
+.state p { margin: 4px 0; font-size: 13px; color: #666; }
+.state code { background: #f4f4f4; padding: 1px 6px; border-radius: 3px; font-size: 12px; }
+.state.load { border-left-color: #4ECDC4; }
+.state.denied { border-left-color: #e67e22; }
+.empty-state { padding: 26px; text-align: center; color: #888; font-size: 13px; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+</style>
+</head>
+<body>
+
+<div class="header"><i class="fa fa-clone"></i> <span data-i18n="rsc.title">Copy Requirement Specification</span>
+  <span class="sub" data-i18n="rsc.headerSub">copy a requirement specification into another container</span>
+  <span id="specLine" class="id-chip" style="margin-left:14px;background:#1c7a94;color:#fff;"></span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="toolbar">
+  <button class="btn-teal" id="refreshBtn"><i class="fa fa-refresh"></i> <span data-i18n="common.refresh">Refresh</span></button>
+  <a class="btn-ghost" id="backLink" href="#" target="_blank"><i class="fa fa-arrow-left"></i> <span data-i18n="rsc.back">Back to Specification Viewer</span></a>
+  <a class="btn-ghost" id="openNewLink" href="#" target="_blank" style="display:none;"><i class="fa fa-external-link"></i> <span data-i18n="rsc.openNew">Open the copy</span></a>
+  <a class="btn-ghost" href="/gui/templates/requirements/reqSpecMgmt.html" target="_blank"><i class="fa fa-sitemap"></i> <span data-i18n="rsv.openInMgmt">Open in Spec Management</span></a>
+  <a class="btn-ghost" id="closeLink" href="#"><i class="fa fa-times"></i> <span data-i18n="common.close">Close</span></a>
+  <span class="sep"></span>
+  <span class="ctx" id="infoLine"></span>
+</div>
+
+<div class="msg" id="msg"></div>
+
+<div class="state load" id="stLoading"><h2 data-i18n="common.loading">Loading</h2></div>
+
+<div class="state denied" id="stDenied">
+  <h2 data-i18n="rsc.errDenied">Access denied</h2>
+  <p data-i18n="rsc.errDeniedHint">Copying a requirement specification needs the mgt_view_req and mgt_modify_req rights on the destination test project.</p>
+  <p><span data-i18n="rsc.machineCode">Machine code</span>: <code id="deniedCode"></code></p>
+</div>
+
+<div class="state" id="stNotFound">
+  <h2 data-i18n="rsc.errNotFound">Requirement specification not found</h2>
+  <p id="notFoundText"></p>
+  <p><span data-i18n="rsc.machineCode">Machine code</span>: <code id="notFoundCode"></code></p>
+</div>
+
+<div class="state" id="stInvalid">
+  <h2 data-i18n="rsc.errInvalid">The request was invalid</h2>
+  <p id="invalidText"></p>
+  <p><span data-i18n="rsc.machineCode">Machine code</span>: <code id="invalidCode"></code></p>
+</div>
+
+<div class="state" id="stServer">
+  <h2 data-i18n="rsc.errServer">The server could not complete the request</h2>
+  <p id="serverText"></p>
+  <p><span data-i18n="rsc.machineCode">Machine code</span>: <code id="serverCode"></code></p>
+</div>
+
+<div class="card" id="srcCard" style="display:none;">
+  <div class="card-title"><i class="fa fa-file-text-o"></i> <span data-i18n="rsc.sourceTitle">Source specification</span></div>
+  <div class="card-body">
+    <div class="kv">
+      <span class="k" data-i18n="rsc.docId">Document ID</span><span class="v" id="srcDocId">-</span>
+      <span class="k" data-i18n="rsc.reqSpecTitle">Title</span><span class="v" id="srcTitle">-</span>
+      <span class="k" data-i18n="rsc.testProject">Test project</span><span class="v" id="srcProject">-</span>
+      <span class="k" data-i18n="rsc.prefix">Prefix</span><span class="v" id="srcPrefix">-</span>
+      <span class="k" data-i18n="rsc.author">Author</span><span class="v" id="srcAuthor">-</span>
+      <span class="k" data-i18n="rsc.reqCount">Requirements</span><span class="v" id="srcReqCount">-</span>
+      <span class="k" data-i18n="rsc.scope">Scope</span><span class="v"><div class="scope" id="srcScope">-</div></span>
+    </div>
+  </div>
+</div>
+
+<div class="card" id="dstCard" style="display:none;">
+  <div class="card-title"><i class="fa fa-bullseye"></i> <span data-i18n="rsc.destTitle">Destination</span></div>
+  <div class="card-body">
+    <div class="opt-line">
+      <label for="projectSel" data-i18n="rsc.destProject">Destination test project</label>
+      <select id="projectSel"></select>
+      <span class="badge warn" data-i18n="rsc.crossProjectHint">The copy can be aimed at another test project</span>
+    </div>
+    <div class="opt-line">
+      <label for="containerSel" data-i18n="rsc.chooseTarget">Destination container</label>
+      <select id="containerSel"></select>
+    </div>
+    <div class="opt-line">
+      <label data-i18n="rsc.position">Position</label>
+      <span><input type="radio" name="target_position" id="posTop" value="top" checked> <label for="posTop" data-i18n="rsc.positionTop">Top of the container</label></span>
+      <span><input type="radio" name="target_position" id="posBottom" value="bottom"> <label for="posBottom" data-i18n="rsc.positionBottom">Bottom of the container</label></span>
+    </div>
+    <div class="empty-state" id="noTargets" style="display:none;" data-i18n="rsc.noTargets">No destination is available in this test project.</div>
+  </div>
+  <div class="actions">
+    <button class="btn-teal" id="copyBtn"><i class="fa fa-clone"></i> <span data-i18n="rsc.copy">Copy</span></button>
+    <a class="btn-ghost" id="cancelLink" href="#"><i class="fa fa-times"></i> <span data-i18n="common.cancel">Cancel</span></a>
+  </div>
+</div>
+
+<div class="footer" id="footerText"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script>
+var API = '/api/reqspeccopy/index.php';
+var SPEC_ID = 0;
+var TPROJECT_ID = 0;
+var LAST_NEW_ID = 0;
+
+function esc(s) {
+  return String(s === null || s === undefined ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function hideAll() {
+  $('#stLoading, #stDenied, #stNotFound, #stInvalid, #stServer').hide();
+  $('#srcCard, #dstCard').hide();
+  $('#openNewLink').hide();
+  $('#msg').hide().removeClass('ok err');
+}
+
+function showMsg(ok, text, html) {
+  var $m = $('#msg');
+  $m.removeClass('ok err').addClass(ok ? 'ok' : 'err');
+  if (html) { $m.html(text); } else { $m.text(text); }
+  $m.show();
+}
+
+function showState(id, code, text) {
+  hideAll();
+  $('#' + id).show();
+  if (code) { $('#' + id).find('code').text(code); }
+  if (text) { $('#' + id).find('p').not(':has(code)').first().text(text); }
+  $('#specLine').text('');
+  $('#infoLine').text('');
+}
+
+function setFooter() {
+  $('#footerText').text('TestLink 2.0.1 - ' + TLi18n.t('rsc.title') + ' | ' +
+    TLi18n.t('common.generatedOn') + ' ' + new Date().toLocaleString());
+}
+
+$(function () {
+  var p = new URLSearchParams(window.location.search);
+  SPEC_ID = parseInt(p.get('req_spec_id') || p.get('id') || 0, 10);
+  TPROJECT_ID = parseInt(p.get('tproject_id') || 0, 10);
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    $('#refreshBtn').off('click').on('click', function () { load(); });
+    $('#copyBtn').off('click').on('click', doCopy);
+    $('#backLink, #cancelLink, #closeLink').attr('href', backUrl());
+    if (p.get('legacy_intent')) { showMsg(false, TLi18n.t('rsc.legacyNotice')); }
+    $('#projectSel').off('change').on('change', function () {
+      TPROJECT_ID = parseInt($(this).val() || 0, 10);
+      load();
+    });
+    setFooter();
+    if (!SPEC_ID) {
+      showState('stInvalid', 'invalid_req_spec_id', TLi18n.t('rsc.errMissingId'));
+      return;
+    }
+    load();
+  });
+});
+
+function backUrl() {
+  var u = '/gui/templates/requirements/reqSpecView.html?id=' + SPEC_ID;
+  if (TPROJECT_ID > 0) { u += '&tproject_id=' + TPROJECT_ID; }
+  return u;
+}
+
+function loadProjects() {
+  return $.getJSON(API + '?action=projects');
+}
+
+function load() {
+  hideAll();
+  $('#stLoading').show();
+  $('#specLine').text('');
+  var url = API + '?action=init&req_spec_id=' + SPEC_ID;
+  if (TPROJECT_ID > 0) { url += '&tproject_id=' + TPROJECT_ID; }
+  $.getJSON(url).done(function (r) {
+    if (!r || r.status !== 'ok') { renderError({ responseJSON: r }); return; }
+    hideAll();
+    TPROJECT_ID = r.default_project_id || TPROJECT_ID;
+    var s = r.source || {}, d = r.destination || {};
+    $('#specLine').text((s.doc_id || '') + ' — ' + (s.title || ''));
+    $('#infoLine').html('<b>' + esc(s.doc_id) + '</b> · #' + SPEC_ID);
+    $('#backLink, #cancelLink, #closeLink').attr('href', backUrl());
+    $('#srcDocId').text(s.doc_id || '-');
+    $('#srcTitle').text(s.title || '-');
+    $('#srcProject').text(s.tproject_name || ('#' + s.tproject_id));
+    $('#srcPrefix').text(d.prefix || '-');
+    $('#srcAuthor').text(s.author || '-');
+    $('#srcReqCount').text(s.total_req + ' ' + TLi18n.t('rsc.reqUnit'));
+    $('#srcScope').text(stripHtml(s.scope || ''));
+    $('#srcCard').show();
+    renderDestinations(r.destinations || []);
+    loadProjects().done(function (pr) {
+      var list = (pr && pr.status === 'ok') ? (pr.projects || []) : [];
+      var $sel = $('#projectSel').empty();
+      if (!list.length) {
+        $sel.append($('<option value="0"></option>').text(TLi18n.t('rsc.noProjects')));
+        $sel.prop('disabled', true);
+      } else {
+        list.forEach(function (p2) {
+          $sel.append($('<option></option>').attr('value', p2.id).text(p2.name));
+        });
+        if (!$sel.find('option[value="' + TPROJECT_ID + '"]').length) {
+          TPROJECT_ID = parseInt(list[0].id, 10);
+        }
+        $sel.val(String(TPROJECT_ID));
+      }
+    });
+    $('#dstCard').show();
+  }).fail(function (xhr) { renderError(xhr); });
+}
+
+function stripHtml(s) {
+  var d = document.createElement('div');
+  d.innerHTML = String(s || '');
+  d.querySelectorAll('br').forEach(function (b) { b.replaceWith('\n'); });
+  d.querySelectorAll('p,div,li,tr,h1,h2,h3,h4,h5,h6').forEach(function (b) { b.append('\n'); });
+  return (d.textContent || '').replace(/\n{3,}/g, '\n\n').trim();
+}
+
+function renderDestinations(list) {
+  var $sel = $('#containerSel').empty();
+  list.forEach(function (d) {
+    var pad = d.depth ? '\\u00a0\\u00a0\\u00a0\\u00a0\\u00a0'.repeat(d.depth) + '\\u2514\\u2500 ' : '';
+    var label = pad + (d.is_project ? d.name : d.name) + (d.is_project ? '' : '');
+    $sel.append($('<option></option>').attr('value', d.id).text(label));
+  });
+  if (!list.length) {
+    $sel.prop('disabled', true);
+    $('#noTargets').show();
+    $('#copyBtn').prop('disabled', true);
+  } else {
+    $sel.prop('disabled', false);
+    $('#noTargets').hide();
+    $('#copyBtn').prop('disabled', false);
+  }
+}
+
+function doCopy() {
+  var container = parseInt($('#containerSel').val() || 0, 10);
+  if (!container) {
+    showMsg(false, TLi18n.t('rsc.errNoTarget'));
+    return;
+  }
+  var position = $('input[name=target_position]:checked').val() || 'top';
+  $('#copyBtn').prop('disabled', true);
+  $.ajax({
+    url: API + '?action=copy',
+    method: 'POST',
+    dataType: 'json',
+    data: {
+      req_spec_id: SPEC_ID,
+      container_id: container,
+      tproject_id: TPROJECT_ID,
+      target_position: position
+    }
+  }).done(function (r) {
+    if (!r || r.status !== 'ok') { renderError({ responseJSON: r }); return; }
+    LAST_NEW_ID = r.new ? r.new.id : 0;
+    var html = esc(r.message || TLi18n.t('rsc.copyDone'));
+    if (LAST_NEW_ID > 0) {
+      html += ' <a href="/gui/templates/requirements/reqSpecView.html?id=' + LAST_NEW_ID +
+        '&tproject_id=' + (r.tproject_id || TPROJECT_ID) + '" target="_blank">' +
+        esc(TLi18n.t('rsc.openNew')) + '</a>';
+      $('#openNewLink').attr('href', '/gui/templates/requirements/reqSpecView.html?id=' +
+        LAST_NEW_ID + '&tproject_id=' + (r.tproject_id || TPROJECT_ID)).show();
+    }
+    showMsg(true, html, true);
+    load();
+  }).fail(function (xhr) {
+    $('#copyBtn').prop('disabled', false);
+    var body = null;
+    try { body = JSON.parse(xhr.responseText); } catch (e) { body = null; }
+    if (xhr.status === 403) {
+      showState('stDenied', (body && body.code) || 'forbidden', body && body.message);
+      return;
+    }
+    if (xhr.status === 404) {
+      showState('stNotFound', (body && body.code) || 'not_found', body && body.message);
+      return;
+    }
+    showMsg(false, (body && body.message) || TLi18n.t('rsc.errCopy'));
+  });
+}
+
+function renderError(xhr) {
+  var body = xhr.responseJSON || null;
+  if (!body && xhr.responseText) {
+    try { body = JSON.parse(xhr.responseText); } catch (e) { body = null; }
+  }
+  var status = xhr.status || (body && body.status) || 0;
+  var code = (body && body.code) ? body.code : 'http_' + status;
+  var msg = (body && body.message) ? body.message : TLi18n.t('rsc.errLoad');
+  if (status === 401) {
+    window.location.href = '/login.php?note=expired';
+    return;
+  }
+  if (status === 403) { showState('stDenied', code, msg); return; }
+  if (status === 404) { showState('stNotFound', code, msg); return; }
+  if (status === 400) { showState('stInvalid', code, msg); return; }
+  showState('stServer', code, msg);
+}
+</script>
+</body>
+</html>

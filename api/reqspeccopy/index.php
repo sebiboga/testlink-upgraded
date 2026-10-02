@@ -444,9 +444,33 @@ function rscApplyTargetPosition($db, $containerId, $newSpecId, $position)
 
 /* ------------------------------------------------------------------ routing */
 
-$allowed = array('init', 'copy');
+$allowed = array('init', 'copy', 'projects');
 if (!in_array($action, $allowed, true)) {
     failOut(400, 'Unknown action', 'unknown_action');
+}
+
+/* ---- GET ?action=projects : the destination test projects ---------------- */
+
+if ($action === 'projects') {
+    if ($method !== 'GET' && $method !== 'HEAD') {
+        header('Allow: GET, HEAD');
+        failOut(405, 'This action accepts GET only', 'method_not_allowed');
+    }
+    $rows = $db->get_recordset(
+        'SELECT NH.id, NH.name FROM nodes_hierarchy NH
+          WHERE NH.node_type_id = ' . RSC_NODE_TESTPROJECT . '
+          ORDER BY NH.name ASC');
+    $projects = array();
+    foreach ((array)$rows as $r) {
+        $pid = intval($r['id']);
+        // Both rights are required to be a destination: the screen copies
+        // INTO the target project, which is a modify action over there.
+        if (rscHasRight($db, $user, 'mgt_view_req', $pid) &&
+            rscHasRight($db, $user, 'mgt_modify_req', $pid)) {
+            $projects[] = array('id' => $pid, 'name' => (string)$r['name']);
+        }
+    }
+    out(array('status' => 'ok', 'projects' => $projects));
 }
 
 /* ---- POST targets -------------------------------------------------------- */

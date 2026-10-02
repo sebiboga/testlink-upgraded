@@ -122,6 +122,7 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; }
     <span class="ctx"><b data-i18n="rsv.reqOperations">Requirement Operations</b></span>
     <a class="btn-ghost" id="createTcLink" href="#" target="_blank"><i class="fa fa-clipboard-check"></i> <span data-i18n="rctc.toolbarLink">Create Test Cases</span></a>
     <a class="btn-ghost" id="copyReqsLink" href="#" target="_blank"><i class="fa fa-copy"></i> <span data-i18n="rsv.copyReqs">Copy Requirements</span></a>
+  <a class="btn-ghost" id="copySpecLink" href="#" target="_blank"><i class="fa fa-clone"></i> <span data-i18n="rsc.title">Copy Requirement Specification</span></a>
     <a class="btn-ghost" id="bulkMonLink" href="#" target="_blank"><i class="fa fa-bell-o"></i> <span data-i18n="rsv.bulkMon">Bulk Monitoring</span></a>
   </span>
   <a class="btn-ghost" id="reorderLink" href="#" target="_blank"><i class="fa fa-list-ol"></i> <span data-i18n="reqro.toolbarLink">Reorder requirements</span></a>
@@ -599,6 +600,13 @@ function showHideActions(r) {
   // and Bulk-Monitoring URLs (reqSpecView.tpl:59-70) map onto the modern
   // reqCopy.html / reqBulkMon.html screens.
   $('#copyReqsLink').attr('href', '/gui/templates/requirements/reqCopy.html?id=' +
+    SPEC_ID + '&tproject_id=' + TPROJECT_ID);
+  // Refs #1797 - the legacy reqSpecView.tpl "Copy Req. Spec" button pointed at
+  // reqSpecEdit.php?doAction=copy (reqSpecView.tpl:52). That action is now a
+  // 302 shim, so the modern popup is linked directly. Visibility mirrors
+  // Copy Requirements (always shown; api/reqspeccopy is the authority and
+  // answers 403 when mgt_view_req / mgt_modify_req are missing).
+  $('#copySpecLink').attr('href', '/gui/templates/requirements/reqSpecCopy.html?req_spec_id=' +
     SPEC_ID + '&tproject_id=' + TPROJECT_ID);
   $('#bulkMonLink').attr('href', '/gui/templates/requirements/reqBulkMon.html?id=' +
     SPEC_ID + '&tproject_id=' + TPROJECT_ID);

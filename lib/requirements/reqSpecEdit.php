@@ -53,6 +53,30 @@ $commandMgr->setAuditContext($auditContext);
 $pFn = $args->doAction;
 $op = null;
 
+// Refs #1797. The `copy` / `doCopy` actions are modernized. They rendered the
+// Smarty screen gui/templates/dashio/requirements/reqSpecCopy.tpl, and their
+// write was an unguarded plain POST: checkRights() (bottom of this file) only
+// sees the SESSION context, while `containerID` and `tproject_id` were read
+// straight out of the request body, so a copy could be aimed at any node of any
+// test project. The screen offered the source specification as its own
+// destination, and the target_position (top / bottom) radio pair was dead UI -
+// doCopy() called copy_to() with four arguments and never read it.
+//
+// Both actions now bounce to the modern Dashio popup
+// gui/templates/requirements/reqSpecCopy.html (backed by api/reqspeccopy,
+// which enforces mgt_view_req + mgt_modify_req on the destination project and
+// mgt_view_req on the project owning the source, proves the destination node,
+// refuses a destination inside the source subtree and honours the position).
+// The submitted POST's write is deliberately NOT executed any more: the old URL
+// answers "nothing has been copied yet" and carries the original intent over as
+// ?legacy_intent= so the popup can say so. Every OTHER action of this controller
+// is untouched.
+if(is_string($pFn) && ($pFn === 'copy' || $pFn === 'doCopy'))
+{
+  reqSpecEditRedirectToModernSpecCopy($args);
+  // unreachable: the helper always redirects and exits.
+}
+
 // Refs #1736: method_exists() is NOT a whitelist of requestable actions. It also
 // matches the internal helpers of reqSpecCommands (24 method_exists-visible members,
 // only 18 of them GUI actions), and the dispatch below calls whatever it matched with
@@ -83,6 +107,35 @@ else
 
 renderGui($args,$gui,$op,$templateCfg,$editorCfg);
 
+
+/**
+ * Refs #1797 - bounce the legacy requirement-specification copy to the modern
+ * screen. Nothing is copied here; the write now belongs to the BFF.
+ *
+ * The Location is ROOT-RELATIVE on purpose: the same bug in the #1536 shims
+ * (a $basehref-prefixed target) turned the redirect into a 404.
+ */
+function reqSpecEditRedirectToModernSpecCopy($args)
+{
+  $specId = intval($args->req_spec_id);
+  if($specId <= 0)
+  {
+    tLog('reqSpecEdit.php: doAction=' . $args->doAction .
+         ' was requested without a req_spec_id - nothing has been copied.', 'ERROR');
+    header('Location: /gui/templates/requirements/reqSpecView.html');
+    exit();
+  }
+
+  $ctx = 'req_spec_id=' . $specId;
+  if(intval($args->tproject_id) > 0)
+  {
+    $ctx .= '&tproject_id=' . intval($args->tproject_id);
+  }
+  $ctx .= '&legacy_intent=' . rawurlencode((string)$args->doAction);
+
+  header('Location: /gui/templates/requirements/reqSpecCopy.html?' . $ctx);
+  exit();
+}
 
 /**
  * Drop a non-scalar $_REQUEST['doAction'] before R_PARAMS() can choke on it.
