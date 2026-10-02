@@ -4019,3 +4019,73 @@ the *grid* route, not only the connection check, died with the same ParseError.
 - `tmp/php_server.log` is the stderr of the `php -S` process and is the only place the ParseError
   surfaces: a fatal is never routed through `tLog()`, so the Event Viewer stays empty (measured:
   `events` = 1 row after 2 × HTTP 500).
+
+---
+
+## Regression — Issue #1796: dead Bootstrap 4/5 modal classes on 3 modernized screens (dialogs not centred, documentation viewer 600px)
+
+**Precondition:** TestLink 2.0.1 at `http://localhost:8082`, session `admin`/`admin`,
+headless Chrome (any viewport — the results below are from 1440x900, 1024x600, 780x437 and
+500x420), Bootstrap **3.4.1** bundle (`gui/templates/dashio/lib/bootstrap/`).
+
+**Pre-fix symptom (reproduced):**
+`documentation.html:82` carried `class="modal-dialog modal-xl modal-dialog-centered"`,
+`reqTcAssign.html:167` and `reqTcBulkAssign.html:134` carried
+`class="modal-dialog modal-dialog-centered" style="max-width:520px;"`. Neither
+`modal-xl` nor `modal-dialog-centered` exists in Bootstrap 3 (it only knows
+`.modal-dialog` 600px, `.modal-sm` 300px, `.modal-lg` 900px), so the dialogs silently
+fell back to BS3 defaults: 600px wide, `margin-top:30px`, top-aligned.
+
+**Repro steps (pre-fix)**
+
+| # | Screen / entry point | Action |
+|---|---|---|
+| R1796-1 | `gui/templates/documentation/documentation.html` | click **View** on any PDF card |
+| R1796-2 | `gui/templates/requirements/reqTcAssign.html` | trigger a destructive action → confirm dialog |
+| R1796-3 | `gui/templates/requirements/reqTcBulkAssign.html` | trigger a destructive action → confirm dialog |
+
+Measurement recipe (paste in the page console, works on both a fresh DB and a populated one):
+
+```js
+const m=document.querySelector('#pdfModal'),c=document.querySelector('#pdfModal .modal-content'),
+      mr=m.getBoundingClientRect(),cr=c.getBoundingClientRect();
+console.log({cls:c.parentElement.className,w:Math.round(cr.width),
+             hGap:[Math.round(cr.left-mr.left),Math.round(mr.right-cr.right)],
+             vGap:[Math.round(cr.top-mr.top),Math.round(mr.bottom-cr.bottom)],
+             overflow:cr.bottom>mr.bottom});
+```
+
+**Expected post-fix behaviour** — dialogs keep their intended size (1140px for the PDF
+viewer, 520px for the confirm dialogs), are centred horizontally **and** vertically,
+never overflow the viewport, and behave exactly as before (show/hide/dismiss/i18n).
+
+**Actual result observed (post-fix, measured)**
+
+| # | Case | Measured | Verdict |
+|---|---|---|---|
+| R1796-1 | `documentation.html` **View**, 1440x900 | `w=1140` (exp. 1140), `hGap=[143,143]`, `vGap=[54,54]`, no overflow, `embed` present | PASS (pre-fix: `w=600`, `vGap=[30,78]`) |
+| R1796-2 | `documentation.html` **View**, 1024x600 | `w=989` (exp. `min(1140, dialogW-20)=989`), `hGap=[10,10]`, `vGap=[29,29]`, no overflow | PASS |
+| R1796-3 | `documentation.html` **View**, 780x437 (short window) | `w=745`, `hGap=[10,10]`, `vGap=[29,29]`, `overflow=false` | PASS (pre-fix: 600px and content bottom `451.6` in a 437px viewport — overflowed) |
+| R1796-4 | `documentation.html` **View** → close (×) | `modal class="modal fade"`, `#pdfBody embed` removed by the `hidden.bs.modal` handler | PASS |
+| R1796-5 | `documentation.html` **View** → reopen | dialog re-opens at 1140px, centred | PASS |
+| R1796-6 | `reqTcAssign.html` confirm dialog, 1440x900 | `w=520`, `hGap=[460,460]`, `vGap=[362,362]` | PASS (pre-fix: `vGap=[30,694]`, `contentLeft 420 / contentRight 500`) |
+| R1796-7 | `reqTcBulkAssign.html` confirm dialog, 1440x900 | `w=520`, `hGap=[460,460]`, `vGap=[362,362]` | PASS |
+| R1796-8 | `reqTcBulkAssign.html` confirm dialog, 500x420 (narrow) | `w=480` (exp. `min(520, dialogW-20)=480`), `hGap=[10,10]`, `vGap=[122,122]`, no overflow | PASS (pre-fix: hard 520px, overflowed a 500px window) |
+| R1796-9 | confirm dialog interactions (both screens) | Cancel → `modal fade`; OK → `modal fade` + callback ran exactly once; `.close` (×) → `modal fade` | PASS |
+| R1796-10 | i18n | `#pdfTitle` renders `User Manual` from `doc.view`; `common.cancel` still translated. **No i18n bundle touched** (`git diff --name-only` lists only the 3 HTML files) | PASS |
+| R1796-11 | the grep #1683 asked for | `grep -rn 'modal-dialog-centered\|modal-xl\|new BSS.Modal\|data-bs-dismiss' gui/templates/*/*.html` → **no hits** (before the fix: 3) | PASS |
+| R1796-12 | no collateral damage on other dialogs | `grep -rc 'modal-dialog modal-sm\|modal-dialog modal-lg' gui/templates/*/*.html` → still **25** occurrences (`.modal-sm`/`.modal-lg` are real BS3 classes, untouched) | PASS |
+| R1796-13 | console | no errors/warnings on any of the 3 screens | PASS |
+| R1796-14 | Event Viewer (`events` table) | 1 row only — the `audit_login_succeeded` INFO row; **no new Error/Warning** | PASS |
+| R1796-15 | narrow-screen regression of the flex trick | the width must live on `.modal-content`; putting it on the flex `.modal-dialog` collapses the box to its text width (measured 302px on `documentation.html`, 0 gutter when only `margin:auto` is used) | PASS (guard rail documented in the code comments) |
+
+**Result: 15/15 PASS.** The fix is layout-only: three `<div class="modal-dialog">`
+attribute cleanups plus three scoped CSS rules
+(`#pdfModal .modal-dialog`/`.modal-content`, `#confirmModal .modal-dialog`/`.modal-content`),
+one responsive `max-height` on `#pdfModal .modal-body`. No PHP, no BFF endpoint, no
+i18n key, no shared stylesheet — so no other screen can regress from it.
+
+**Files changed by the fix**
+* `gui/templates/documentation/documentation.html`
+* `gui/templates/requirements/reqTcAssign.html`
+* `gui/templates/requirements/reqTcBulkAssign.html`

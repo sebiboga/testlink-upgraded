@@ -806,6 +806,32 @@ screen reaches full parity.
   `reqTcAssign.html:167` and `reqTcBulkAssign.html:134` `modal-dialog-centered`), which BS3 ignores silently -
   cosmetic, filed not fixed per FIX-ISSUE.md section 4. (Fixes #1683)
 
+- [KEY BUGFIX] - #1796: three modernized screens carried **dead Bootstrap 4/5 modal classes**, so their dialogs
+  silently lost their intended size and were never centred - the cosmetic residue of the #1683 fix.
+  `documentation.html:82` shipped `class="modal-dialog modal-xl modal-dialog-centered"` and
+  `reqTcAssign.html:167` / `reqTcBulkAssign.html:134` shipped
+  `class="modal-dialog modal-dialog-centered" style="max-width:520px;"`, but the Dashio bundle is
+  **Bootstrap 3.4.1**, which knows only `.modal-dialog` (600px), `.modal-sm` (300px) and `.modal-lg` (900px) and
+  ships **no** `modal-xl` and **no** `modal-dialog-centered` rule - Bootstrap 3 ignores unknown class names without a
+  console warning, an Event Viewer row or an HTTP signal, which is exactly why this went unnoticed. Measured before
+  the fix: the *View* dialog of the Documentation screen rendered **600px** wide (instead of the intended BS4
+  `modal-xl` 1140px) at `margin-top:30px` (`vGap [30,78]` at 1440x900, and at a 780x437 window the 80vh embed made
+  the dialog overflow the bottom of the viewport by 15px); both confirm dialogs sat at `vGap [30,694]`.
+  Fix (`904b0d88f` + `ed647bf89`): drop the dead tokens and express the intent with BS3-legal, per-screen scoped
+  rules - `display:flex; align-items:center; justify-content:center; min-height:calc(100% - 20px); width:auto;
+  margin:10px auto` on `.modal-dialog` and an explicit `width` + `max-width:calc(100% - 20px)` on `.modal-content`
+  (the flex *item*, which would otherwise shrink to its text), plus a `max-height:calc(100vh - 130px)` cap on
+  `#pdfModal .modal-body` so the 80vh embed can never push the dialog past the fold and eat the centring slack.
+  Rejected: upgrading the bundle to BS4/5 (every modal/DataTable/`$.modal()` call site on ~30 modernized screens is
+  BS3), adding BS4/5 class shims to the shared Dashio CSS (would re-introduce the dead names that #1683's grep hunts)
+  and JS positioning on `show.bs.modal`. Blast radius: **3 HTML files, 0 PHP, 0 BFF endpoints, 0 i18n keys, 0 shared
+  stylesheets** - layout only. After: `documentation.html` viewer `1140px` centred (`vGap [54,54]`, and it degrades
+  to `min(1140, window-20)` on narrow windows), both confirm dialogs `520px` centred (`hGap [460,460]`,
+  `vGap [362,362]`), Cancel/OK/x still dismiss and still fire their callback exactly once, the repo-wide
+  `modal-xl|modal-dialog-centered|new BSS.Modal|data-bs-dismiss` grep is now empty while the 25 legitimate
+  `.modal-sm`/`.modal-lg` usages are untouched, console clean, Event Viewer `log_level IN (1,2)` = 0.
+  Regression suite 1796: **15/15 PASS**. (Fixes #1796)
+
 - [KEY BUGFIX - DATA INTEGRITY] - #1682: `api/reqtreereorder` `?action=reorder` accepted a **DUPLICATE**
   requirement id in `nodes_order` and corrupted the specification order. The submitted order was built as a
   **positional list** (`$order[] = $nid;`, `api/reqtreereorder/index.php:511`) but the duplicate gate probed it
