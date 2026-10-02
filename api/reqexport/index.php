@@ -95,6 +95,77 @@ function sanitizeAttachments($value) {
 }
 
 /**
+ * Legacy input dimensions for the export file name field.
+ *
+ * The legacy Smarty template (gui/templates/dashio/requirements/reqExport.tpl
+ * :65-69) loaded gui/templates/conf/input_dimensions.conf with
+ * {config_load file="input_dimensions.conf" section=$cfg_section} and rendered
+ *
+ *     maxlength="{#FILENAME_MAXLEN#}" ... size="{#FILENAME_SIZE#}"
+ *
+ * FILENAME_MAXLEN / FILENAME_SIZE are global values in that file (50/50), i.e.
+ * they sit OUTSIDE any [section] block, so the legacy substitution never
+ * depended on the section name. That browser-side maxlength was the ONLY
+ * enforcement point of the limit: legacy reqExport.php::doExport() passes
+ * $_REQUEST['export_filename'] straight through to the
+ * Content-Disposition header, so any HTTP client bypassing the browser could
+ * emit an unbounded header.
+ *
+ * Read here with the same safe-parsing pattern already used in
+ * api/reqtcassign/index.php (scopeShortTruncate(), reading
+ * SCOPE_SHORT_TRUNCATE) so a changed input_dimensions.conf propagates to the
+ * modern screen instead of being hardcoded in the HTML.
+ */
+function filenameDimensions() {
+    static $cached = null;
+    if (!is_null($cached)) {
+        return $cached;
+    }
+    $cached = array('maxlen' => 50, 'size' => 50);
+    $conf = __DIR__ . '/../../gui/templates/conf/input_dimensions.conf';
+    if (is_readable($conf)) {
+        $lines = @file($conf, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        if (is_array($lines)) {
+            foreach ($lines as $line) {
+                if (preg_match('/^\s*FILENAME_MAXLEN\s*=\s*(\d+)/', $line, $m)) {
+                    $n = intval($m[1]);
+                    if ($n > 0) { $cached['maxlen'] = $n; }
+                    break;
+                }
+            }
+            foreach ($lines as $line) {
+                if (preg_match('/^\s*FILENAME_SIZE\s*=\s*(\d+)/', $line, $m)) {
+                    $n = intval($m[1]);
+                    if ($n > 0) { $cached['size'] = $n; }
+                    break;
+                }
+            }
+        }
+    }
+    return $cached;
+}
+
+/**
+ * Clamp the requested export file name to the legacy FILENAME_MAXLEN.
+ * Legacy enforced this only through the template maxlength attribute; here it
+ * is enforced again on the server (defence in depth, no behaviour change for
+ * users who stay inside the limit). Multi-byte aware, so a name made of
+ * accented characters is never cut in the middle of a character.
+ */
+function clampExportFilename($name, $maxlen) {
+    $name = (string)$name;
+    if ($maxlen <= 0 || strlen($name) <= $maxlen) {
+        return $name;
+    }
+    $out = substr($name, 0, $maxlen);
+    // do not leave a broken UTF-8 sequence at the end
+    while (strlen($out) > 0 && !preg_match('//u', $out)) {
+        $out = substr($out, 0, -1);
+    }
+    return $out;
+}
+
+/**
  * Build the default export filename exactly like legacy initializeGui():
  *   tree   -> all-req.xml
  *   branch -> <title>-req-spec.xml
@@ -196,6 +267,8 @@ if (($_GET['action'] ?? '') === 'options') {
         $tproject_name = (string)testproject::getName($db, $tproject_id);
     }
 
+    $dims = filenameDimensions();
+
     out(array(
         'status' => 'ok',
         'tproject' => array('id' => $tproject_id, 'name' => $tproject_name),
@@ -204,6 +277,9 @@ if (($_GET['action'] ?? '') === 'options') {
         'req_spec_title' => $specTitle,
         'types' => array('XML' => 'XML'),
         'filename' => defaultExportFilename($scope, $specTitle),
+        // legacy template input dimensions for the export file name field
+        'filename_maxlen' => $dims['maxlen'],
+        'filename_size' => $dims['size'],
         'rights' => array(
             'mgt_view_req' => $user->hasRight($db, 'mgt_view_req', $tproject_id) ? 1 : 0,
         ),
@@ -287,6 +363,11 @@ if (($_POST['action'] ?? '') === 'export') {
         if ($requestedName === '') {
             $requestedName = $defaultName;
         }
+        // legacy limited the field to FILENAME_MAXLEN (template maxlength);
+        // re-apply the same cap server-side, since a direct HTTP call bypasses
+        // the browser attribute that legacy relied upon
+        $dims = filenameDimensions();
+        $requestedName = clampExportFilename($requestedName, $dims['maxlen']);
         // replace blank on name with _ (safe download header value)
         $requestedName = str_replace(' ', '_', $requestedName);
         $headerFilename = str_replace(["\r", "\n", '"'], '', basename($requestedName));
