@@ -5973,5 +5973,8 @@
   "tcview.displayInline": "Показать встроенно",
   "tcview.displayInlineString": "Показать встроенную ghost-строку",
   "tcview.altDeleteAttachment": "Удалить прикрепленный файл",
-  "tcview.attachmentsDisabled": "Вложения отключены"
+  "tcview.attachmentsDisabled": "Вложения отключены",
+  "tcview.directLink": "Прямая ссылка",
+  "tcview.copyLink": "Копировать",
+  "tcview.directLinkCopied": "Прямая ссылка скопирована в буфер обмена"
 }

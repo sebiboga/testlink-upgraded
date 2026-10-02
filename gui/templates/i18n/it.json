@@ -5967,5 +5967,8 @@
   "tcview.displayInline": "Visualizza in linea",
   "tcview.displayInlineString": "Visualizza la stringa ghost in linea",
   "tcview.altDeleteAttachment": "Click here to delete this attachment",
-  "tcview.attachmentsDisabled": "allegati disabilitati"
+  "tcview.attachmentsDisabled": "allegati disabilitati",
+  "tcview.directLink": "Link diretto",
+  "tcview.copyLink": "Copia",
+  "tcview.directLinkCopied": "Link diretto copiato negli appunti"
 }

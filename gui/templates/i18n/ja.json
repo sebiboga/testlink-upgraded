@@ -5973,5 +5973,8 @@
   "tcview.displayInline": "添付ファイルを表示",
   "tcview.displayInlineString": "インラインghost文字列を表示",
   "tcview.altDeleteAttachment": "この添付ファイルを削除",
-  "tcview.attachmentsDisabled": "添付ファイル禁止"
+  "tcview.attachmentsDisabled": "添付ファイル禁止",
+  "tcview.directLink": "ダイレクトリンク",
+  "tcview.copyLink": "コピー",
+  "tcview.directLinkCopied": "ダイレクトリンクをクリップボードにコピーしました"
 }

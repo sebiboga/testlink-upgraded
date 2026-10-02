@@ -5983,5 +5983,8 @@
   "tcview.displayInline": "Display inline",
   "tcview.displayInlineString": "Display inline ghost string",
   "tcview.altDeleteAttachment": "Click here to delete this attachment",
-  "tcview.attachmentsDisabled": "Attachments disabled"
+  "tcview.attachmentsDisabled": "Attachments disabled",
+  "tcview.directLink": "Direct link",
+  "tcview.copyLink": "Copy",
+  "tcview.directLinkCopied": "Direct link copied to clipboard"
 }

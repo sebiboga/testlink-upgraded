@@ -22,6 +22,14 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 .btn-dark { background: #3a3d46; color: #eee; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
 .btn-dark:hover { background: #4a4e59; }
 .btn-sm { padding: 5px 12px; font-size: 12px; }
+/* Issue #1043: modern twin of the legacy {$tlIMGTags.toggle_direct_link}
+   (gui/templates/dashio/testcases/tcView.tpl:131) and its hidden
+   'div.direct_link' panel (tcView.tpl:145). CSS copied from the Requirement
+   Viewer direct-link bar (gui/templates/requirements/reqView.html:48-52). */
+.direct-link-bar { background: #1c1e24; color: #ccc; border-bottom: 1px solid #333; padding: 10px 24px; font-size: 12px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.direct-link-bar a { color: #4ECDC4; word-break: break-all; }
+.direct-link-bar .btn-copy { background: transparent; color: #4ECDC4; border: 1px solid #2d8e88; padding: 3px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; display: inline-flex; align-items: center; gap: 6px; }
+.direct-link-bar .btn-copy:hover { background: #2d8e88; color: #fff; }
 .warnbox { margin: 12px 24px 0; background: #fdecea; border: 1px solid #f5c6cb; color: #b94a48; border-radius: 6px; padding: 10px 14px; font-size: 13px; display: none; }
 .infobox { margin: 12px 24px 0; background: #eefaf9; border: 1px solid #bfe5e2; color: #2d8e88; border-radius: 6px; padding: 10px 14px; font-size: 13px; display: none; }
 .errorbox { margin: 24px; background: #fff; border-left: 5px solid #e6605e; border-radius: 8px; padding: 26px; text-align: center; color: #888; font-size: 14px; box-shadow: 0 1px 4px rgba(0,0,0,.08); display: none; }
@@ -103,7 +111,7 @@ table.steps tbody tr:nth-child(even) { background: #fafafa; }
 .count-pill-req { color: #888; font-weight: 400; font-size: 11px; }
 .form-control2 { border: 1px solid #ccc; border-radius: 5px; padding: 6px 10px; font-size: 13px; }
 @media print {
-  .header, .toolbar, .footer, .actions-bar, .toast { display: none !important; }
+  .header, .toolbar, .footer, .actions-bar, .toast, .direct-link-bar { display: none !important; }
   body { background: #fff; }
   .version-card { box-shadow: none; margin: 0 0 12px; page-break-inside: avoid; }
 }
@@ -132,7 +140,15 @@ table.steps tbody tr:nth-child(even) { background: #fafafa; }
     <button class="btn-dark" onclick="openTcPrint()"><i class="fa fa-print"></i> <span data-i18n="tcview.print">Print</span></button>
     <button class="btn-dark" onclick="openTestScripts()"><i class="fa fa-code"></i> <span data-i18n="tcview.testScripts">Test Scripts</span></button>
     <button class="btn-dark" id="btnAssignReqs" style="display:none;" onclick="openAssignReqs()"><i class="fa fa-bookmark"></i> <span data-i18n="tcview.assignRequirements">Assign Requirements</span></button>
+    <!-- Issue #1043: legacy {$tlIMGTags.toggle_direct_link} (tcView.tpl:131) -->
+    <button class="btn-dark" id="btnDirectLink" onclick="toggleDirectLink()"><i class="fa fa-link"></i> <span data-i18n="tcview.directLink">Direct link</span></button>
   </div>
+</div>
+
+<div class="direct-link-bar" id="directLinkBox" style="display:none;">
+  <i class="fa fa-link"></i>
+  <a href="#" id="dlLink" target="_blank" rel="noopener"></a>
+  <button class="btn-copy" id="dlCopy" onclick="copyDirectLink()"><i class="fa fa-copy"></i> <span data-i18n="tcview.copyLink">Copy</span></button>
 </div>
 
 <div class="warnbox" id="warnBox"></div>
@@ -263,6 +279,8 @@ var data = null;
 var currentVersion = null;
 var canManageKeywords = false;
 var canReorderSteps = false;
+// Issue #1043: $gui->direct_link from the legacy viewer header (tcView.tpl:145)
+var directLink = '';
 
 // Refs #1479: this viewer was opened from the Set Results popup (pencil icon,
 // edit-on-execution). We forward the editor's save notification to our own
@@ -361,6 +379,14 @@ function render() {
       currentVersion = data.versions[i];
     }
   }
+
+  // Issue #1043: legacy <div class="direct_link"><a href="{$gui->direct_link}">
+  directLink = data.direct_link || ('/gui/templates/links/directLink.html'
+    + '?tprojectPrefix=' + encodeURIComponent(data.prefix || '')
+    + '&item=testcase&id=' + encodeURIComponent(data.fullExternalId || '')
+    + '&tproject_id=' + encodeURIComponent(data.tproject.id));
+  $('#dlLink').attr('href', directLink).text(directLink);
+  $('#directLinkBox').hide();
 
   renderActions();
   renderBanners();
@@ -557,6 +583,32 @@ function doDeleteAttachment() {
     try { body = JSON.parse(xhr.responseText); } catch (e) {}
     done(body);
   });
+}
+
+// Issue #1043: legacy showHideByClass('div','direct_link') on the
+// toggle_direct_link icon (lib/functions/tlsmarty.inc.php:318-321).
+function toggleDirectLink() {
+  var $box = $('#directLinkBox');
+  if ($box.is(':visible')) { $box.hide(); return; }
+  $('#dlLink').attr('href', directLink).text(directLink);
+  $box.show();
+}
+
+function copyDirectLink() {
+  var done = function() { toast(TLi18n.t('tcview.directLinkCopied')); };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(directLink).then(done).catch(function() { legacyCopy(done); });
+  } else {
+    legacyCopy(done);
+  }
+}
+
+function legacyCopy(done) {
+  var ta = $('<textarea>').val(directLink).css({ position: 'fixed', opacity: 0 }).appendTo('body');
+  ta.select();
+  try { document.execCommand('copy'); } catch (e) {}
+  ta.remove();
+  done();
 }
 
 function renderActions() {

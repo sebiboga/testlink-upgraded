@@ -1458,6 +1458,21 @@ if ($action === 'view') {
         'prefix' => $prefix,
         'glue' => $glue,
         'fullExternalId' => $prefix . $glue . intval($first['tc_external_id'] ?? 0),
+        // Issue #1043: the $gui->direct_link the legacy viewer header used to
+        // toggle (tcView.tpl:145, built by testcaseCommands.class.php:1215 ->
+        // testcase::buildDirectWebLink(), testcase.class.php:5692).
+        //
+        // Legacy emitted  <basehref>linkto.php?tprojectPrefix=PFX&item=testcase&id=PFX-N
+        // but linkto.php drops the user into the LEGACY inner-frame shell. In
+        // 2.0.1 the deep-link gateway is gui/templates/links/directLink.html
+        // (backed by api/directlink/index.php, "item=testcase" ->
+        // api/directlink/index.php:295-341), exactly like item=req does from
+        // api/requirements/index.php:825. Same params, same external identity.
+        'direct_link' => '/gui/templates/links/directLink.html'
+            . '?tprojectPrefix=' . urlencode($prefix)
+            . '&item=testcase&id=' . urlencode($prefix . $glue
+                . intval($first['tc_external_id'] ?? 0))
+            . '&tproject_id=' . $tprojectId,
         'path' => $pathString,
         'versions' => $versions,
         'platformsProject' => $projectPlatformsMap,

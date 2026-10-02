@@ -62,6 +62,20 @@ screen reaches full parity.
   Found while testing and filed, not fixed here: **#1778** (pre-existing
   `E_WARNING Undefined array key "tplan"`, `lib/functions/tlUser.class.php:960`).
 
+- [FEATURE GAP] - #1043: the modern Test Case Viewer dropped the legacy viewer-header
+  **direct link** affordance - the `{$tlIMGTags.toggle_direct_link}` fa-link icon and its hidden
+  `div.direct_link` panel holding `{$gui->direct_link}`
+  (`gui/templates/dashio/testcases/tcView.tpl:131,145`, built by
+  `lib/testcases/testcaseCommands.class.php:1215` ->
+  `lib/functions/testcase.class.php:5692 buildDirectWebLink()`), so the modern screen had no way
+  to show, copy or share the permanent link of a test case (all inputs were already in the
+  payload, only the assembled link was missing). `api/testcases/index.php` `action=view` now emits
+  `direct_link` and `tcView.html` got the toggle button + permalink bar with a Copy button
+  (`tcview.directLink` / `tcview.copyLink` / `tcview.directLinkCopied` in all 10 locales). The link
+  targets the 2.0.1 deep-link gateway `gui/templates/links/directLink.html` (same parameter set as
+  legacy `linkto.php?tprojectPrefix=PFX&item=testcase&id=PFX-N`, same target the Requirement
+  Viewer uses for `item=req`) so it lands on the modern viewer instead of the legacy shell.
+
 - [FEATURE GAP] - #1042: the modern Test Case Viewer listed a version's attachments as plain
   text (`<div class="att-item">` + paperclip icon + `(file_name, N KB)`), with no `<a href>` and
   no use of the attachment id the BFF already sent - the file was listed but NOT downloadable -

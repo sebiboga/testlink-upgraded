@@ -5967,5 +5967,8 @@
   "tcview.displayInline": "Inline anzeigen",
   "tcview.displayInlineString": "Inline-Ghost-Zeichenkette anzeigen",
   "tcview.altDeleteAttachment": "Klicken Sie hier, um den Anhang zu löschen",
-  "tcview.attachmentsDisabled": "Anhänge deaktiviert"
+  "tcview.attachmentsDisabled": "Anhänge deaktiviert",
+  "tcview.directLink": "Direktlink",
+  "tcview.copyLink": "Kopieren",
+  "tcview.directLinkCopied": "Direktlink in die Zwischenablage kopiert"
 }
