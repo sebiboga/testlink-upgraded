@@ -6204,5 +6204,10 @@
   "rsc.copyDone": "La copia è stata creata.",
   "rsc.machineCode": "Codice macchina",
   "footers.reqSpecCopy": "TestLink 2.0.1 - Copia specifica dei requisiti",
-  "rsc.legacyNotice": "Questa schermata sostituisce la vecchia azione di copia. Non è stato ancora copiato nulla: scegli una destinazione e premi Copia."
+  "rsc.legacyNotice": "Questa schermata sostituisce la vecchia azione di copia. Non è stato ancora copiato nulla: scegli una destinazione e premi Copia.",
+  "auth.ssoInProgress": "Signing you in automatically…",
+  "auth.ssoFailed": "Single sign-on failed. Please contact your administrator.",
+  "auth.ssoUnavailable": "Single sign-on is not available or not configured properly.",
+  "auth.ssoDisabled": "Single sign-on was disabled for this login.",
+  "auth.ssoSkipped": "Single sign-on skipped; please sign in manually."
 }

@@ -204,7 +204,7 @@ function doSSOClientCertificate(&$dbHandler,$apache_mod_ssl_env,$authCfg=null)
 {
   global $g_tlLogger;
 
-  $ret = array('status' => tl::ERROR, 'msg' => null, 'checkedBy' => __FUNCTION_);
+  $ret = array('status' => tl::ERROR, 'msg' => null, 'checkedBy' => __FUNCTION__);
   if( !isset($apache_mod_ssl_env['SSL_PROTOCOL']) )
   {
     return $ret; 
@@ -430,7 +430,9 @@ function doSessionSetUp(&$dbHandler,&$userObj) {
 
   $ckObj = new stdClass();
   $ckObj->name = config_get('auth_cookie');
-  $ckObj->value = $user->getSecurityCookie();
+  // The parameter is $userObj; the legacy code read a never-defined $user here,
+  // which is an E_WARNING + fatal on the whole WEBSERVER_VAR SSO handshake.
+  $ckObj->value = $userObj->getSecurityCookie();
   $ckObj->expire = $expireOnBrowserClose = false;
   tlSetCookie($ckObj);
 

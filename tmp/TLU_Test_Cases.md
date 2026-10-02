@@ -4350,3 +4350,26 @@ Environment: `http://localhost:8082`, DB `testlink`, admin cookie `/tmp/c1797.tx
 | 23 | No regression from the review fixes | Full happy path, both positions, empty position, browser reload, footer, locale | Screen renders and copies | **PASS** — after removing the dead `setFooter()` (review NIT 2) the page initially threw `ReferenceError: setFooter is not defined` and rendered an **empty** container list; caught immediately in the browser and fixed, then re-verified: 6 destinations, `#srcCard` visible, footer localized, console clean |
 
 **Suite 1801 addendum: 8/8 PASS** (Suite 1801 total: 23 cases, 23/23).
+
+## Task — Issue #1048: Implement SSO auto-login (SSO_enabled) + ssodisable bypass in login.html (gap vs legacy)
+
+### Suite: 1048 — SSO auto-login
+Precondition: the app is running at http://localhost:8082; config.inc.php has `$tlCfg->authentication['SSO_enabled'] = true`, `SSO_method = 'WEBSERVER_VAR'`, `SSO_uid_field = 'REMOTE_USER'`, `SSO_user_target_dbfield = 'email'` and a test user `sso1048@example.com` (active) exists. The SSO path runs server-side (Apache passes REMOTE_USER) — the browser auto-attempt to `/api/auth/sso` happens on page load when no `note` and no `ssodisable`.
+
+Steps:
+1. Visit `http://localhost:8082/gui/templates/auth/login.html` directly (no `note`, no `ssodisable`). With SSO enabled and no environment identity passed by the HTTP server, the BFF `/api/auth/sso` returns a soft failure → the page falls back to the interactive login form and the SSO progress banner hides.
+2. Add `?ssodisable` to the URL → the hidden `ssodisable` field is set and the auto-attempt to `/api/auth/sso` is skipped; interactive form remains visible.
+3. With SSO enabled, attempt an interactive login while `ssodisable` is present: the server response's `destination` must include `&ssodisable=1` (propagated redirect) so the flag is not lost after login.
+4. Normal login without `ssodisable` still works when credentials are valid (regression).
+5. `/api/auth/config` returns `ssoEnabled`, `ssoMethod`, `ssoOnly`.
+
+Expected:
+1. Fallback to form, no crash, no infinite redirect loop.
+2. No automatic SSO POST; banner never shows.
+3. Destination contains `&ssodisable=1`.
+4. Login succeeds and redirects to the app.
+5. JSON contains the three SSO fields.
+
+Actual: all as above in BFF checks; UI fallback/parity matches legacy.
+
+PASS/FAIL: PASS

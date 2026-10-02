@@ -78,6 +78,15 @@ body {
       <div class="alert-box alert-danger" id="errorBox" style="display:none;"></div>
       <div class="alert-box alert-info" id="infoBox" style="display:none;"></div>
 
+      <!-- SSO auto-login state (legacy login.php:99-115): while the handshake to
+           /api/auth/sso is running the form is replaced by a progress notice, so a
+           SSO-only installation never shows a password form it must not accept. Refs #1048. -->
+      <div class="alert-box alert-info" id="ssoBox" role="status" aria-live="polite"
+           style="display:none; text-align:center;">
+        <i class="fa fa-spinner fa-spin" aria-hidden="true"></i>
+        <span id="ssoBoxText" data-i18n="auth.ssoInProgress">Signing you in automatically…</span>
+      </div>
+
       <!-- demoMode notice: legacy login-model-marcobiedermann.tpl:29-34 rendered
            {$labels.demo_usage} above the form whenever $tlCfg->demoMode is ON. Refs #1047.
            The inline English text is the fallback used when the locale bundle cannot be
@@ -130,6 +139,10 @@ body {
     </div>
     <input type="hidden" id="destination" name="destination" value="">
     <input type="hidden" id="reqURI" name="reqURI" value="">
+    <!-- ssodisable (legacy getSSODisable(), lib/functions/common.php:1562): the mere
+         PRESENCE of the param disables SSO for this login. Carried through the form so
+         the flag survives the post-login redirect. Refs #1048. -->
+    <input type="hidden" id="ssodisable" name="ssodisable" value="">
   </form>
 </div>
 
@@ -146,6 +159,16 @@ $(function () {
   $('#destination').val(qs.get('destination') || '');
   $('#reqURI').val(qs.get('reqURI') || '');
 
+  // ?ssodisable (any value, incl. the bare `?ssodisable` legacy index.php:56 emits)
+  // forces the interactive form and is forwarded to the BFF on login so the flag is
+  // not lost after the post-login redirect. Refs #1048.
+  var ssoDisable = qs.has('ssodisable');
+  $('#ssodisable').val(ssoDisable ? '1' : '');
+
+  function showInfo(msg) {
+    $('#infoBox').text(msg).show();
+    $('#errorBox').hide();
+  }
   function showError(msg) {
     $('#errorBox').text(msg).show();
     $('#infoBox').hide();
@@ -153,6 +176,20 @@ $(function () {
   function showInfo(msg) {
     $('#infoBox').text(msg).show();
     $('#errorBox').hide();
+    $('#ssoBox').hide();
+  }
+  function showError(msg) {
+    $('#errorBox').text(msg).show();
+    $('#infoBox').hide();
+    $('#ssoBox').hide();
+  }
+  function showSSO() {
+    $('#ssoBox').show();
+    $('#errorBox').hide();
+    $('#infoBox').hide();
+  }
+  function hideSSO() {
+    $('#ssoBox').hide();
   }
 
   // demoMode notice (legacy login-model-marcobiedermann.tpl:29-34): the "DEMO
@@ -211,9 +248,16 @@ $(function () {
     revealDemoNotice();
   });
 
+var ssoMethod = '';
+  var ssoOnly = false;
+
   // Load public config: self-signup, lost-password, OAuth buttons.
   $.getJSON('/api/auth/config', function (cfg) {
     var c = cfg.config || {};
+
+    ssoEnabledFlag = !!c.ssoEnabled;
+    ssoMethod = c.ssoMethod || '';
+    ssoOnly = !!c.ssoOnly;
 
     if (c.loginDisabled) {
       showError(TLi18n.t('auth.loginDisabled'));
@@ -259,6 +303,49 @@ $(function () {
         $('#oauthRow').append($a);
       });
     }
+
+    // SSO auto-login (legacy login.php:99-115). When SSO_enabled and no note
+    // is present, the server never drew the form — the modern page must do the
+    // same handshake and fall back to the form only on failure.
+    // Do NOT attempt SSO when ssodisable is set.
+    if (ssoEnabledFlag && !ssoDisable && !note) {
+      // Hide the interactive form fields while attempting SSO.
+      $('#tl_login, #tl_password, #tl_login_btn, .divider, .oauth-row').hide();
+      showSSO();
+      $.post('/api/auth/sso', {
+        note: note,
+        destination: $('#destination').val(),
+        reqURI: $('#reqURI').val(),
+        ssodisable: $('#ssodisable').val()
+      }).done(function (res) {
+        if (res.success) {
+          var dest = res.destination || '';
+          if (dest && /^\/[^\/]/.test(dest) && !/[:\x00-\x1f\x7f\\@]/.test(dest)) {
+            window.location.href = dest;
+          } else {
+            window.location.href = '/index.php?caller=login';
+          }
+          return;
+        }
+        // If skipped (ssodisable/note) or failure, show the interactive form.
+        hideSSO();
+        $('#tl_login, #tl_password, #tl_login_btn, .divider, .oauth-row').show();
+        if (res.reason) {
+          var known = {
+            'auth.ssoFailed': TLi18n.t('auth.ssoFailed'),
+            'auth.ssoUnavailable': TLi18n.t('auth.ssoUnavailable'),
+            'auth.ssoDisabled': TLi18n.t('auth.ssoDisabled'),
+            'auth.ssoSkipped': TLi18n.t('auth.ssoSkipped')
+          };
+          // res.reason may be a raw localized string from the server (TLS object cast)
+          showInfo(known[res.reason] || res.reason);
+        }
+      }).fail(function () {
+        hideSSO();
+        $('#tl_login, #tl_password, #tl_login_btn, .divider, .oauth-row').show();
+        showError(TLi18n.t('auth.networkError'));
+      });
+    }
   }).fail(function () {
     // Config load failed — still allow the basic login form to work.
   });
@@ -276,7 +363,8 @@ $(function () {
       login: login,
       password: pwd,
       destination: $('#destination').val(),
-      reqURI: $('#reqURI').val()
+      reqURI: $('#reqURI').val(),
+      ssodisable: $('#ssodisable').val()
     }).done(function (res) {
       if (res.success) {
         var dest = res.destination || '';
