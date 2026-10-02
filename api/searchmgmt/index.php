@@ -175,11 +175,12 @@ if (!$user->hasRight($db, 'mgt_view_tc', $tprojectId)) {
 
 $tproject_mgr = new testproject($db);
 $project = $tproject_mgr->get_by_id($tprojectId);
-if (is_null($project)) {
+if (is_null($project) || !is_array($project)) {
     fail(404, 'tproject_not_found');
 }
+$projectName = isset($project['name']) ? (string)$project['name'] : '';
 
-$glue = $tproject_mgr->getCSVGlue();
+$glue = config_get('testcase_cfg')->glue_character;
 $prefix = $tproject_mgr->getTestCasePrefix($tprojectId) . $glue;
 
 // The criteria dimensions legacy searchMgmt.php force-enabled. They are NOT
@@ -198,7 +199,9 @@ $tsCriteria = array(
     'ts_title' => 'tsTitle',
     'ts_summary' => 'tsSummary',
 );
-$reqEnabled = (int)$tproject_mgr->getOption('reqs') > 0;
+$projectOptions = $tproject_mgr->getOptions($tprojectId);
+$projectOptions = is_null($projectOptions) ? new stdClass() : $projectOptions;
+$reqEnabled = !empty($projectOptions->requirementsEnabled);
 
 // ---------------------------------------------------------------------------
 // action=init
@@ -207,25 +210,41 @@ if ($action === 'init') {
     $keywords = array();
     $cfTc = array();
     $cfReq = array();
-    if ($tproject_mgr->cfield_mgr !== null) {
-        $keywords = $tproject_mgr->getKeywords();
-        $cfTc = (array)$tproject_mgr->cfield_mgr->get_cfields(
-            array('enabled' => 1, 'scope' => 'testcase'));
-        $cfReq = (array)$tproject_mgr->cfield_mgr->get_cfields(
-            array('enabled' => 1, 'scope' => 'requirement'));
+    $kwSet = $tproject_mgr->getKeywords($tprojectId);
+    if (!is_null($kwSet)) {
+        foreach ($kwSet as $kwo) {
+            $keywords[] = $kwo;
+        }
+    }
+    // custom fields LINKED AT DESIGN TIME and enabled (same source as
+    // api/search/index.php:104 and the legacy searchGUI criteria form)
+    $designCf = $tproject_mgr->cfield_mgr->get_linked_cfields_at_design(
+        $tprojectId, cfield_mgr::ENABLED, null, 'testcase');
+    if (!is_null($designCf)) {
+        foreach ($designCf as $cf_id => $cf) {
+            $cfTc[$cf_id] = $cf;
+        }
+    }
+    if ($reqEnabled) {
+        $designCfReq = $tproject_mgr->cfield_mgr->get_linked_cfields_at_design(
+            $tprojectId, cfield_mgr::ENABLED, null, 'requirement');
+        if (!is_null($designCfReq)) {
+            foreach ($designCfReq as $cf_id => $cf) {
+                $cfReq[$cf_id] = $cf;
+            }
+        }
     }
 
     $out = array(
         'status' => 'ok',
         'context' => array(
             'tproject_id' => $tprojectId,
-            'tproject_name' => $project->name,
+            'tproject_name' => $projectName,
             'tcase_prefix' => $tproject_mgr->getTestCasePrefix($tprojectId),
             'tcasePrefix' => $prefix,
             'reqEnabled' => (bool)$reqEnabled,
             'max_target_length' => 200,
-        ),
-        // forced-by-legacy dimensions, grouped per result area
+        ),        // forced-by-legacy dimensions, grouped per result area
         'criteria' => array(
             'testcases' => $tcCriteria,
             'testsuites' => $tsCriteria,
@@ -244,27 +263,24 @@ if ($action === 'init') {
         ),
     );
 
-    foreach ((array)$keywords as $kw) {
-        $kw = (array)$kw;
+    foreach ($keywords as $kwo) {
         $out['keywords'][] = array(
-            'id' => intval($kw['keyword_id'] ?? $kw['id'] ?? 0),
-            'name' => (string)($kw['name'] ?? ''),
+            'id' => intval($kwo->dbID),
+            'name' => (string)$kwo->name,
         );
     }
-    foreach ($cfTc as $cf) {
-        $cf = (array)$cf;
+    foreach ($cfTc as $cf_id => $cf) {
         $out['custom_fields']['testcase'][] = array(
-            'id' => intval($cf['cfield_id'] ?? 0),
-            'name' => (string)($cf['cfname'] ?? ''),
-            'type' => (string)($cf['cf_type'] ?? ''),
+            'id' => intval($cf_id),
+            'name' => (string)($cf['label'] ?? ''),
+            'type' => intval($cf['type'] ?? 0),
         );
     }
-    foreach ($cfReq as $cf) {
-        $cf = (array)$cf;
+    foreach ($cfReq as $cf_id => $cf) {
         $out['custom_fields']['requirement'][] = array(
-            'id' => intval($cf['cfield_id'] ?? 0),
-            'name' => (string)($cf['cfname'] ?? ''),
-            'type' => (string)($cf['cf_type'] ?? ''),
+            'id' => intval($cf_id),
+            'name' => (string)($cf['label'] ?? ''),
+            'type' => intval($cf['type'] ?? 0),
         );
     }
 
@@ -286,11 +302,12 @@ if ($reqEnabled) {
     $criteriaKeys = array_merge($criteriaKeys,
         array('rs_title', 'rs_scope', 'rq_doc_id', 'rq_title', 'rq_scope'));
 }
+// searchMgmt.php force-enabled every dimension above, so `oneCheck` was
+// always true there. The modern screen ALSO lets the caller narrow the set,
+// so absent means "on" (legacy default) and an explicit ?crit=0 turns one
+// off - a pure superset of the 1.9.20 behaviour.
 foreach ($criteriaKeys as $k) {
-    unset($_REQUEST[$k]);
-    if (gp($k) === '1') {
-        $_REQUEST[$k] = '1';
-    }
+    $_REQUEST[$k] = (gp($k, '1') === '1') ? '1' : '0';
 }
 
 // searchMgmt.php strips slashes off the whole request before R_PARAMS.
@@ -298,19 +315,37 @@ $_REQUEST['target'] = str_replace('\\', '', gp('target'));
 if (strlen($_REQUEST['target']) > 200) {
     $_REQUEST['target'] = substr($_REQUEST['target'], 0, 200);
 }
-$_REQUEST['and_or'] = (gp('and_or') === 'and') ? 'and' : 'or';
-$_REQUEST['created_by'] = gp('created_by');
-$_REQUEST['edited_by'] = gp('edited_by');
-foreach (array('creation_date_from', 'creation_date_to',
-               'modification_date_from', 'modification_date_to') as $k) {
-    $_REQUEST[$k] = gp($k);
+// Refinements are forwarded ONLY when the caller really sent them: the
+// legacy $strIn/$numIn buckets are exactly what `oneValueOK` scans, and a
+// fabricated '0' string satisfies `trim($v) != ''` in PHP, so always setting
+// them made `need_criteria` unreachable and an empty search silently
+// returned EVERY test case of the project.
+$refinements = array(
+    'and_or' => null, 'created_by' => null, 'edited_by' => null,
+    'creation_date_from' => null, 'creation_date_to' => null,
+    'modification_date_from' => null, 'modification_date_to' => null,
+    'keyword_id' => 'int', 'custom_field_id' => 'int',
+    'custom_field_value' => null, 'tcWKFStatus' => 'int', 'reqStatus' => 'char1',
+);
+foreach ($refinements as $k => $cast) {
+    if (!isset($_GET[$k])) {
+        continue;
+    }
+    if ($cast === 'int') {
+        $_REQUEST[$k] = intval(gp($k, '0'));
+    } elseif ($cast === 'char1') {
+        // requirement status is letter-coded (D/R/W/...) and legacy R_PARAMS
+        // caps it to one character
+        $_REQUEST[$k] = substr(gp($k), 0, 1);
+    } else {
+        $_REQUEST[$k] = gp($k);
+    }
 }
-$_REQUEST['keyword_id'] = intval(gp('keyword_id', '0'));
-$_REQUEST['custom_field_id'] = intval(gp('custom_field_id', '0'));
-$_REQUEST['custom_field_value'] = gp('custom_field_value');
-$_REQUEST['tcWKFStatus'] = intval(gp('tcWKFStatus', '0'));
-// requirement status is letter-coded (D/R/W/...) and legacy R_PARAMS caps it
-$_REQUEST['reqStatus'] = substr(gp('reqStatus'), 0, 1);
+// `and_or` is INTERPOLATED into every LIKE clause ("$args->and_or RSRV.name
+// LIKE ..."), so it must always be present - an absent value yields SQL with
+// no operator. It is deliberately NOT used to gate the search (see
+// $hasRefinement below) because it also lives in the legacy $strIn bucket.
+$_REQUEST['and_or'] = isset($_GET['and_or']) && gp('and_or') === 'and' ? 'and' : 'or';
 $_REQUEST['doAction'] = 'doSearch';
 $_REQUEST['tproject_id'] = $tprojectId;
 $_REQUEST['caller'] = 'searchMgmt';
@@ -338,11 +373,37 @@ $ts = preg_replace('/ {2,}/', ' ', trim((string)$args->target));
 foreach (explode(' ', (string)$ts) as $val) {
     $val = trim($val);
     if ($val !== '') {
-        $targetSet[] = $db->prepare_string($val);
+        // NOT $db->prepare_string() here: searchCommands*() escapes every term
+        // again when it builds its LIKE clause, so escaping twice turns a
+        // legit apostrophe (`o'brien`) into invalid SQL - a raw MariaDB error
+        // backtrace (leaking server paths) instead of a result.
+        $targetSet[] = $val;
     }
 }
 $canUseTarget = count($targetSet) > 0;
-if (!$canUseTarget && !$args->oneValueOK) {
+
+// The legacy `oneValueOK` cannot be used here: it scans the $strIn bucket,
+// which now always holds `and_or` (needed for the SQL), so it is true for
+// EVERY request and an empty search would return the whole project. Decide
+// the guard from what the caller ACTUALLY sent instead - legacy
+// searchMgmt.php merely showed the form again for an empty target.
+$hasRefinement = false;
+foreach (array('created_by', 'edited_by', 'creation_date_from', 'creation_date_to',
+               'modification_date_from', 'modification_date_to',
+               'custom_field_value') as $k) {
+    if (isset($_GET[$k]) && trim((string)$_GET[$k]) !== '') {
+        $hasRefinement = true;
+    }
+}
+foreach (array('keyword_id', 'custom_field_id', 'tcWKFStatus') as $k) {
+    if (isset($_GET[$k]) && intval($_GET[$k]) > 0) {
+        $hasRefinement = true;
+    }
+}
+if (isset($_GET['reqStatus']) && trim((string)$_GET['reqStatus']) !== '') {
+    $hasRefinement = true;
+}
+if (!$canUseTarget && !$hasRefinement) {
     fail(400, 'need_criteria');
 }
 
@@ -357,6 +418,12 @@ if ($args->custom_field_id > 0) {
         $req_cf_id = intval($args->custom_field_id);
     }
 }
+
+// initSchema() populates $this->views / $this->tables, which searchReqSpec()
+// and friends interpolate into their SQL - it MUST run before the searches
+// (same order as api/search/index.php).
+$cmdMgr->initSchema();
+$treeMgr = $tproject_mgr->tree_manager;
 
 $emptyTestProject = true;
 
@@ -386,8 +453,6 @@ if (!is_null($tcaseSet) && count($tcaseSet) > 0) {
     $mapTC = (array)$cmdMgr->searchTestCases($tcaseSet, $targetSet, $canUseTarget, $tc_cf_id);
 }
 
-$cmdMgr->initSchema();
-$treeMgr = $tproject_mgr->tree_manager;
 $pathOptions = array('output_format' => 'path_as_string');
 
 $tcRows = array();
@@ -459,11 +524,11 @@ out(array(
     'warning' => $warning,
     'count' => $total,
     'target' => (string)$args->target,
-    'and_or' => (string)$args->and_or,
+    'and_or' => isset($args->and_or) ? (string)$args->and_or : '',
     'testcases' => $tcRows,
     'testsuites' => $tsRows,
     'reqspecs' => $rsRows,
     'requirements' => $rqRows,
     'tcasePrefix' => $prefix,
-    'project' => array('id' => $tprojectId, 'name' => $project->name),
+    'project' => array('id' => $tprojectId, 'name' => $projectName),
 ));
