@@ -36,11 +36,17 @@ function one($db, $sql)
 
 $A = one($db, "SELECT id AS v FROM nodes_hierarchy WHERE node_type_id=1 AND name='OR1761A'");
 $B = one($db, "SELECT id AS v FROM nodes_hierarchy WHERE node_type_id=1 AND name='OR1761B'");
-$SA1 = one($db, "SELECT id AS v FROM nodes_hierarchy WHERE node_type_id=2 AND name='A-suite-1'");
-$SA2 = one($db, "SELECT id AS v FROM nodes_hierarchy WHERE node_type_id=2 AND name='A-suite-2'");
-$SB1 = one($db, "SELECT id AS v FROM nodes_hierarchy WHERE node_type_id=2 AND name='B-suite-1'");
-$TCA11 = one($db, "SELECT id AS v FROM nodes_hierarchy WHERE node_type_id=3 AND name='A-tc-1-1'");
-$TCB11 = one($db, "SELECT id AS v FROM nodes_hierarchy WHERE node_type_id=3 AND name='B-tc-1-1'");
+// Suite and test case names are NOT unique across fixtures: tmp/fixtures_1759.php
+// also creates 'A-suite-1', 'B-suite-1' and friends. A bare name lookup returns
+// whichever row the index hands back first, so this harness silently tested the
+// 1759 fixture's suites and reported four confusing FAILs (R1/R2/A1 answering
+// "Container not found", R16 seeing one child instead of two). Every child lookup
+// is therefore scoped to THIS fixture's project.
+$SA1 = one($db, "SELECT id AS v FROM nodes_hierarchy WHERE node_type_id=2 AND parent_id=$A AND name='A-suite-1'");
+$SA2 = one($db, "SELECT id AS v FROM nodes_hierarchy WHERE node_type_id=2 AND parent_id=$A AND name='A-suite-2'");
+$SB1 = one($db, "SELECT id AS v FROM nodes_hierarchy WHERE node_type_id=2 AND parent_id=$B AND name='B-suite-1'");
+$TCA11 = one($db, "SELECT id AS v FROM nodes_hierarchy WHERE node_type_id=3 AND parent_id=$SA1 AND name='A-tc-1-1'");
+$TCB11 = one($db, "SELECT id AS v FROM nodes_hierarchy WHERE node_type_id=3 AND parent_id=$SB1 AND name='B-tc-1-1'");
 // Version nodes (type 4) and step nodes (type 9) carry an EMPTY name, so they are
 // resolved through parent_id only - a name lookup silently finds nothing.
 $VCA11 = one($db, "SELECT id AS v FROM nodes_hierarchy WHERE node_type_id=4 AND parent_id=$TCA11 ORDER BY id LIMIT 1");

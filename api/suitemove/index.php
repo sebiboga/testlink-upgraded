@@ -579,13 +579,26 @@ function suitMoveRequireSuite(&$db, $nodeId, $tprojectId, $label = 'Node')
         out(array('status' => 'error', 'code' => 'not_found',
                   'message' => $label . ' not found'), 404);
     }
+    /* Refs #1790. All three refusals answer the ONE absent-node answer above:
+       a node of the wrong type, and a node owned by another project, must not be
+       distinguishable from an id that exists nowhere, or the caller-supplied id
+       becomes an oracle for existence, ownership and node type.
+
+       The wrong-type branch is LIVE for `move`, not defence in depth: `move`
+       proves existence and ownership before calling this, but never the node
+       type, so `node_id` naming a project root or a test case of an ENTITLED
+       project reaches it. Before this fix that branch answered "Suite is not a
+       test suite", i.e. the node axis leaked node types the same way the
+       destination axis did. The ownership branch below it is defence in depth
+       (`move` has already matched the owner, and `reorder` proves the list is
+       the exact child set first). */
     if (intval($info['node_type_id']) != suitMoveNodeTypeTestsuite($db)) {
         out(array('status' => 'error', 'code' => 'not_found',
-                  'message' => $label . ' is not a test suite'), 404);
+                  'message' => $label . ' not found'), 404);
     }
     if (intval($info['testproject_id']) !== intval($tprojectId)) {
         out(array('status' => 'error', 'code' => 'not_found',
-                  'message' => $label . ' belongs to another test project'), 404);
+                  'message' => $label . ' not found'), 404);
     }
     return $info;
 }
@@ -717,16 +730,21 @@ switch ($action) {
             out(array('status' => 'error', 'code' => 'not_found',
                       'message' => 'Suite not found'), 404);
         }
+        // Refs #1790. An orphaned node and a node owned by another project are
+        // answered with this action's own absent-id answer, NOT with a wording of
+        // their own: the node_id came from the caller, so any difference in the
+        // message turns the move path into an existence + ownership oracle over
+        // the whole nodes_hierarchy id space. Both are also 404 rather than 403,
+        // because a 403 tells a caller who has rights on project A that node N
+        // really exists inside another project B.
         $owner = intval($nodeInfo['testproject_id']);
         if ($owner <= 0) {
             out(array('status' => 'error', 'code' => 'not_found',
-                      'message' => 'Suite has no owning test project'), 404);
+                      'message' => 'Suite not found'), 404);
         }
         if ($tprojectId > 0 && $tprojectId !== $owner) {
-            /* 404, not 403: a 403 would tell a caller who has rights on project
-               A that node N exists inside another project B. */
             out(array('status' => 'error', 'code' => 'not_found',
-                      'message' => 'Suite has no owning test project'), 404);
+                      'message' => 'Suite not found'), 404);
         }
 
         /* Refs #1759: \$owner was derived from the caller-supplied node_id, so
@@ -736,8 +754,8 @@ switch ($action) {
            node_id here (node_id is mandatory in this action), so the guard is
            unconditional - naming that project as well must not turn the node id
            back into an existence oracle. The opaque message is this action's
-           own "Suite not found" (the answer of line 706 for an id that exists
-           nowhere), so status AND body stay indistinguishable. */
+           own "Suite not found" - the very answer the absent-node branch above
+           gives - so status AND body stay indistinguishable. */
         list($tprojectId, $tproject) =
             suitMoveProject($db, $user, $owner, 0, true, 'Suite not found');
         $nodeInfo = suitMoveRequireSuite($db, $nodeId, $tprojectId, 'Suite');
@@ -782,7 +800,16 @@ switch ($action) {
             /* getInt() maps "abc"/"-1" to 0, so an explicitly supplied but
                unusable destination must be refused HERE: falling back to the
                old parent would silently turn it into an in-container reorder. */
-            $rawDest = trim((string)($_REQUEST['new_parent_id'] ?? ''));
+            $rawDest = $_REQUEST['new_parent_id'] ?? '';
+            if (is_array($rawDest)) {
+                // Refs #1790 follow-up: a cast of an ARRAY raised
+                // "Array to string conversion" and wrote an E_WARNING row into
+                // `events` on every such request, reachable by ANY logged-in
+                // user. Answer the same 400 without the notice.
+                out(array('status' => 'error', 'code' => 'bad_request',
+                          'message' => 'Invalid destination test suite'), 400);
+            }
+            $rawDest = trim((string)$rawDest);
             if ($rawDest !== '' && !preg_match('/^\d+$/', $rawDest)) {
                 out(array('status' => 'error', 'code' => 'bad_request',
                           'message' => 'Invalid destination test suite'), 400);
@@ -819,17 +846,22 @@ switch ($action) {
             out(array('status' => 'error', 'code' => 'not_found',
                       'message' => 'Destination not found'), 404);
         }
+        // Refs #1790. All three destination refusals below answer the ONE
+        // absent-destination answer above, so the new_parent_id the caller
+        // supplied cannot be probed for existence, ownership or NODE TYPE. The
+        // wrong-type branch used to answer 400 "Destination is not a test
+        // suite", which both named the node type of an arbitrary id (even one
+        // in a project the caller has no rights on) and split the status, so
+        // the status alone was enough to tell a test case apart from an id that
+        // exists nowhere.
         $isProjectRoot = intval($parentInfo['node_type_id']) == suitMoveNodeTypeTestproject($db);
         if (!$isProjectRoot && intval($parentInfo['node_type_id']) != suitMoveNodeTypeTestsuite($db)) {
-            out(array('status' => 'error', 'code' => 'bad_request',
-                      'message' => 'Destination is not a test suite'), 400);
+            out(array('status' => 'error', 'code' => 'not_found',
+                      'message' => 'Destination not found'), 404);
         }
         if (intval(suitMoveOwningProject($db, $parentInfo)) !== intval($tprojectId)) {
-            /* 404 for the same existence-leak reason as the moved node: a 403
-               here tells the caller that the destination id exists inside a
-               project they have no rights on. */
             out(array('status' => 'error', 'code' => 'not_found',
-                      'message' => 'Destination has no owning test project'), 404);
+                      'message' => 'Destination not found'), 404);
         }
 
         // Cycle guard: a suite cannot become its own descendant, which would

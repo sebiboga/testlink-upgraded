@@ -89,6 +89,33 @@ $sA2 = makeSuite($db, $suiteMgr, $idA, 'A-suite-2');
 $sB1 = makeSuite($db, $suiteMgr, $idB, 'B-suite-1');
 $sB2 = makeSuite($db, $suiteMgr, $idB, 'B-suite-2');
 
+// ---- one TEST CASE per project (Refs #1790) --------------------------------
+// #1790 needs a non-suite node id to prove that a `new_parent_id` of the wrong
+// node TYPE is not distinguishable from an id that exists nowhere. Until this
+// existed the fixture held suites only, so the wrong-type branch could not be
+// exercised with this fixture at all - the case had to be probed with another
+// suite's fixture. A test case under a SUITE does not appear in any container's
+// suite child list, so every suite-level assertion of the #1759 / #1779
+// harnesses is unaffected.
+$tcMgr = new testcase($db);
+function makeTestcase($db, $tcMgr, $suiteId, $title)
+{
+    $step = new stdClass();
+    $step->step_number = 1;
+    $step->actions = "Do the one action of $title";
+    $step->expected_results = "Expected result of step 1";
+    $step->execution_type = TESTCASE_EXECUTION_TYPE_MANUAL;
+    $ret = $tcMgr->create($suiteId, $title, "summary of $title", '',
+        array($step), 1, '', testcase::DEFAULT_ORDER, testcase::AUTOMATIC_ID,
+        TESTCASE_EXECUTION_TYPE_MANUAL);
+    if (empty($ret['status_ok']) || intval($ret['id'] ?? 0) <= 0) {
+        die("testcase $title create failed: " . json_encode($ret) . "\n");
+    }
+    return intval($ret['id']);
+}
+$tcA = makeTestcase($db, $tcMgr, $sA1, 'A-case-1');
+$tcB = makeTestcase($db, $tcMgr, $sB1, 'B-case-1');
+
 // ---- the project role granted on project A ONLY ----------------------------
 $db->exec_query("INSERT INTO roles (description) VALUES ('SM1759 editor A')");
 $roleId = intval($db->insert_id());
@@ -138,6 +165,7 @@ $db->exec_query("INSERT INTO user_testproject_roles (user_id, testproject_id, ro
 
 echo "DONE tprojectA=$idA tprojectB=$idB\n";
 echo "  suiteA1=$sA1 suiteA2=$sA2 suiteB1=$sB1 suiteB2=$sB2\n";
+echo "  testcaseA=$tcA testcaseB=$tcB (Refs #1790, wrong-node-type axis)\n";
 echo "  user sm1759a=$uid (role $roleId: mgt_modify_tc on project $idA only)\n";
 echo "  user sm1759norights=$uidNo (role 3 <no rights>)\n";
 echo "  user sm1759view=$uidV (role $roleView: mgt_view_tc only, on project $idA)\n";

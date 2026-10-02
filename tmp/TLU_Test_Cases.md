@@ -3190,3 +3190,72 @@ Bugs found by this suite and filed separately:
   CF is defined but not submitted (`$value['input']` on a string).
 - **#1789** — `E_WARNING Undefined array key 0` in `common.php:512` for admins
   (`getAccessibleTestPlans()` only `array_values()`s for non-admins).
+
+## Regression — Issue #1790: the `suitemove` move path still split its 404s by message, keeping ids and node types enumerable
+
+Found by the mandatory code review of #1779, pre-existing, not introduced by #1779.
+
+**Precondition**
+```bash
+php tmp/fixtures_1759.php   # extended by this run with one test case per project
+php tmp/verify_1790.php     # the 50-case matrix (PHP: the shell harnesses of this
+                            # lane need the `mysql` client, absent here)
+```
+Fixture: projects `SM1759A` / `SM1759B`; `A-suite-1`, `A-suite-2`, `B-suite-1`, `B-suite-2`;
+**`A-case-1` and `B-case-1`** (ids are allocated fresh on every fixture run - the ledger
+references them by name on purpose) — added by this run, because the fixture held suites
+only and the wrong-node-type branch therefore could not be exercised with it at all. Users:
+`sm1759a` (`mgt_modify_tc` on project A only), `sm1759norights` (no project role),
+`sm1759view` (`mgt_view_tc` only), `admin`.
+
+**Repro (pre-fix, `sm1759a`)** — the caller needs rights on *some* project, unlike #1779:
+| request | before | after |
+|---|---|---|
+| `node_id=<suite of project B>` | `404 Suite has no owning test project` | `404 Suite not found` |
+| `node_id=999999` | `404 Suite not found` | `404 Suite not found` |
+| `new_parent_id=<test case, own project>` | **`400` `Destination is not a test suite`** | `404 Destination not found` |
+| `new_parent_id=<test case, foreign project>` | **`400` `Destination is not a test suite`** | `404 Destination not found` |
+| `new_parent_id=<root of foreign project>` | `404 Destination has no owning test project` | `404 Destination not found` |
+| `new_parent_id=999999` | `404 Destination not found` | `404 Destination not found` |
+
+The wrong-type branch was the worst of them: it named the **node type** of an arbitrary id (even
+one in a project the caller has no rights on) *and* split the status, so the status alone told a
+test case apart from an id that exists nowhere.
+
+**Actual result (post-fix 50/50 PASS; pre-fix the same suite scores 42 PASS / 8 FAIL).**
+**Superseded by the review pass below: 57/57 fixed, 44 PASS / 13 FAIL pre-fix** — the 5 extra
+pre-fix failures are the node-axis wrong-type rows N10-N15, which the review showed are a LIVE leak
+the issue did not list.
+| Case | Property | Result |
+|---|---|---|
+| N1–N3 | foreign `node_id` == absent `node_id`, status **and body bytes** | **PASS** |
+| N4–N6 | the same pair with **no** `tproject_id` named at all | **PASS** |
+| N7–N9 | same pair as `sm1759norights` | **PASS** |
+| D1–D7 | own / foreign test case and foreign project root as `new_parent_id` all == the absent destination, body bytes | **PASS** |
+| D8 | all four destination refusals byte-identical | **PASS** |
+| D9–D10 | norights: refused at the node, never naming the destination type | **PASS** |
+| D11–D14 | view-only write == the absent-node answer for that same user | **PASS** |
+| L1–L8 | **real** moves into a suite, onto the project root, `top`/`bottom`, plus the DB `parent_id` after each and a restore | **PASS** |
+| C1–C5 | `init` own/absent, in-container reorder write, project-root reorder and back | **PASS** |
+| K1, K1b, K2, K3 | invalid position `400`, omitted position defaults to `bottom` (`404`, *not* `400`), missing `node_id` `400`, `move` over GET `405` | **PASS** |
+| V1 | no new ERROR/WARNING row in `events` | **PASS** |
+
+**Also collapsed, defence in depth.** `suitMoveRequireSuite()` had three wordings of its own
+(`Node not found` / `Node is not a test suite` / `Node belongs to another test project`); the last
+**WRONG, corrected by the mandatory review:** it claimed the wrong-type branch is unreachable because
+`move` proves all three properties. `move` proves existence and ownership but **never the node type**,
+so the branch is live for `move` and pre-fix it leaked the node type on the **node** axis too. The
+review also found 9 of the 50 assertions vacuous (`sameBytes()` reported an unconditional status
+`ok()` and compared two possibly-empty bodies), hence rows N10-N15 plus the array-parameter rows K4/K5.
+The ownership branch is genuine defence in depth (`move` has already matched the owner, `reorder`
+proves the list is the exact child set first). Original text:
+the list is the exact child set first), but a word of their own is one refactor away from being
+reachable again. All three now answer the single absent-node wording.
+
+**Harness bug found while writing this suite — it also affected the #1761 harness.** Both
+`tmp/fixtures_1759.php` and `tmp/fixtures_1761.php` create suites named `A-suite-1` / `B-suite-1`,
+and both harnesses resolved them by bare name, so each took whichever row the index returned first.
+After both fixtures were loaded, `tmp/verify_1761.php` reported four baffling FAILs (R1/R2/A1
+`Container not found`, R16 "only 1 child") — it was silently testing the **1759** fixture's suites.
+Every child lookup in both harnesses is now scoped by `parent_id` to its own project; #1761 is back
+to 95/95 and neither harness depends on which fixture was loaded last.

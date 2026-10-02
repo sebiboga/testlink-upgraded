@@ -2036,6 +2036,31 @@ MAJOR AREAS
   no node id from the caller, keep their informative `403`. Accepted trade-off, same as #1761: a
   view-only user of its own project that names a container now gets the opaque 404 (rows M12 of
   `tmp/verify_1759.sh` were updated accordingly); the screen already renders it as "not found".
+- [KEY BUGFIX - SECURITY] - #1790: the `move` path of the suiteMove BFF still split its refusals by
+  MESSAGE, so a caller-supplied `node_id` / `new_parent_id` stayed an oracle for existence,
+  ownership and **node type** - the last defect of the #1759/#1779 family on this endpoint.
+  Measured: a `new_parent_id` naming a **test case** answered `400 bad_request "Destination is not a
+  test suite"` (naming the node type of an arbitrary id, even in a project the caller has no rights
+  on, and splitting the status), while an absent id answered `404 not_found "Destination not found"`
+  and a foreign-project root answered `"Destination has no owning test project"`; on the node axis a
+  foreign suite answered `"Suite has no owning test project"` against `"Suite not found"` for an
+  absent id. Every refusal now answers the ONE absent-id answer of its axis (`404 "Suite not found"` /
+  `404 "Destination not found"`), the wrong-type branch included - it changed status 400 -> 404,
+  because the status alone was part of the oracle. `suitMoveRequireSuite()`'s three wordings were
+  collapsed onto the same answer. **The wrong-type branch there is LIVE, not defence in depth** (the
+  code comment said otherwise and was corrected): `move` proves existence and ownership before
+  calling it but never the node type, so `node_id` naming a project root or a test case of an
+  ENTITLED project reached it and pre-fix answered "Suite is not a test suite" - a node-TYPE leak the
+  issue did not even list. Severity stays below #1779: these refusals run after rights on the moved
+  node's project are proven. Found by the mandatory review of this fix, in the same block: an
+  `new_parent_id`/`node_id` supplied as an **array** was cast with `(string)` and wrote an
+  `E_WARNING Array to string conversion` row into `events` on every request - reachable by any
+  logged-in user (rule 12) - now an explicit `is_array()` guard answering the same `400`. Verified by
+  `tmp/fixtures_1759.php` (extended with one test case per project, the fixture held suites only, so
+  the wrong-type branch was not reachable with it) + `tmp/verify_1790.php`: **57/57 PASS** fixed,
+  **44 PASS / 13 FAIL** reverted, 0 new `events` rows. Known, NOT fixed, no leak: a JSON request body
+  leaves `$_REQUEST` empty so the unusable-destination guard is bypassed and the move degrades to an
+  in-container reorder. See `docs/Bugfix-Issue-1790-SuiteMove-Move-Path-404-Message-Oracle.md`.
 - [KEY BUGFIX] - #1718: the legacy **Test Cases not run on any Platform** controller
   (`lib/results/tcNotRunAnyPlatform.php`) could not run and answered HTTP 500 with a 0-byte body on
   every request. It has FOUR independent hard failures, all measured: (1) `:16`
