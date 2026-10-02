@@ -1486,3 +1486,41 @@ bundles. **Result: 11/11 + 7/7 review follow-up = PASS.**
 | 11 | `bash ai/verify_i18n_coverage.sh` before commit | key-set gate passes across all 9 non-en bundles | PASS — 9/9 bundles, 0 missing (`ccn.*` + `footers.configCheck`) |
 
 **Result: 11/11 PASS.**
+
+### Suite 1801 addendum — findings of the mandatory re-review of the fix commit (all PASS)
+
+| # | Case | Steps | Expected | Actual |
+|---|------|-------|----------|--------|
+| 16 | **MAJOR: a `copy_to()` failure keeps its HTTP 409** | The failure path returns a JSON body; the client must not degrade it into a generic server card | HTTP 409 + `{status:error, code, partial}` | **PASS by code** — `http_response_code(409)` restored before `out()`; the review had caught that replacing `failOut(409,…)` with a bare `out()` turned every copy failure into HTTP 200 |
+| 17 | **MAJOR: `partial` is the id that actually committed** | Inspect the failure path | `partial` = `$op['id']` | **PASS by code** — the first cut read `$newSpecId`, which does not exist in that scope, so `partial` was permanently 0 (verified by the reviewer under PHP 8.3); `$op['id']` is the committed top-level spec |
+| 18 | **MAJOR: one failed copy no longer bricks the popup** | Stub `$.ajax` so the copy resolves **asynchronously** with a 409 error body, then read the button state | Copy re-enabled, the form stays on screen | **PASS** — `#copyBtn.disabled === false`, `#srcCard` still visible. Note: a **synchronous** stub reports `disabled === true`, which is a stub artifact (real jQuery `.done()` callbacks always run after the `prop('disabled', true)` line) |
+| 19 | `target_position=` (explicitly empty) follows the advertised default | `POST …&target_position=` | `top` | **PASS** — `new.position = top`, HTTP 200 |
+| 20 | Server-locale `copy_to()` sentence is not used as a machine code, nor logged raw | Inspect the failure path | Stable `code`, text in `message`, control characters stripped before `tLog` | **PASS by code** — `warning_duplicated_req_spec_doc_id → duplicate_doc_id`, `error_creating_req_spec`, `error_updating_req_spec`, default `copy_failed`; `preg_replace('/[\r\n\t]+/', ' ', …)` before the log (the sentence can embed the user-controlled specification title) |
+| 21 | A container that holds only the new copy is normalised | Copy into an empty container | `node_order = 1` | **PASS by code** — the early return used to leave the source's inherited order (e.g. 7) in place |
+| 22 | `loadProjects()` failure no longer leaves a stale container list | Inspect `loadProjects()` | `.fail()` renders the error | **PASS by code** |
+| 23 | No regression from the review fixes | Full happy path, both positions, empty position, browser reload, footer, locale | Screen renders and copies | **PASS** — after removing the dead `setFooter()` (review NIT 2) the page initially threw `ReferenceError: setFooter is not defined` and rendered an **empty** container list; caught immediately in the browser and fixed, then re-verified: 6 destinations, `#srcCard` visible, footer localized, console clean |
+
+**Suite 1801 addendum: 8/8 PASS** (Suite 1801 total: 23 cases, 23/23).
+
+## Task — Issue #1048: Implement SSO auto-login (SSO_enabled) + ssodisable bypass in login.html (gap vs legacy)
+
+### Suite: 1048 — SSO auto-login
+Precondition: the app is running at http://localhost:8082; config.inc.php has `$tlCfg->authentication['SSO_enabled'] = true`, `SSO_method = 'WEBSERVER_VAR'`, `SSO_uid_field = 'REMOTE_USER'`, `SSO_user_target_dbfield = 'email'` and a test user `sso1048@example.com` (active) exists. The SSO path runs server-side (Apache passes REMOTE_USER) — the browser auto-attempt to `/api/auth/sso` happens on page load when no `note` and no `ssodisable`.
+
+Steps:
+1. Visit `http://localhost:8082/gui/templates/auth/login.html` directly (no `note`, no `ssodisable`). With SSO enabled and no environment identity passed by the HTTP server, the BFF `/api/auth/sso` returns a soft failure → the page falls back to the interactive login form and the SSO progress banner hides.
+2. Add `?ssodisable` to the URL → the hidden `ssodisable` field is set and the auto-attempt to `/api/auth/sso` is skipped; interactive form remains visible.
+3. With SSO enabled, attempt an interactive login while `ssodisable` is present: the server response's `destination` must include `&ssodisable=1` (propagated redirect) so the flag is not lost after login.
+4. Normal login without `ssodisable` still works when credentials are valid (regression).
+5. `/api/auth/config` returns `ssoEnabled`, `ssoMethod`, `ssoOnly`.
+
+Expected:
+1. Fallback to form, no crash, no infinite redirect loop.
+2. No automatic SSO POST; banner never shows.
+3. Destination contains `&ssodisable=1`.
+4. Login succeeds and redirects to the app.
+5. JSON contains the three SSO fields.
+
+Actual: all as above in BFF checks; UI fallback/parity matches legacy.
+
+PASS/FAIL: PASS
