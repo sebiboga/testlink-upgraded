@@ -6148,6 +6148,7 @@
   "adl.svgText": "Dieses SVG kann Skriptcode enthalten, daher liefert TestLink es immer als Download aus und rendert es nicht in der Anwendung. Speichern und in einem Betrachter offnen.",
   "adl.noPreviewTitle": "Keine Vorschau verfuegbar",
   "adl.noPreviewText": "Nur Bilder werden direkt angezeigt. Zum Speichern Herunterladen benutzen.",
+  "adl.noInlineHint": "Dieser Dateityp wird nie inline angezeigt - bitte Herunterladen benutzen.",
   "adl.stNoId": "Kein Anhang ausgewaehlt",
   "adl.errNoId": "Der Link enthaelt keine gueltige Anhang-ID. Oeffnen Sie den Anhang aus seiner Liste.",
   "adl.stDisabled": "Anhaenge sind deaktiviert",

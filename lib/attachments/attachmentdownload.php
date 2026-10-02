@@ -21,8 +21,8 @@
  *
  * SECURITY: the legacy page authorized NOTHING except
  * config_get('attachments')->enabled, so ANY authenticated user could stream
- * ANY attachment of the installation by guessing its id - measured and fixed in
- * Refs #1794 (the BFF resolves the owner from the STORED fk_table/fk_id row
+ * ANY attachment of the installation by guessing its id - filed as bug #1795,
+ * fixed in Refs #1794 (the BFF resolves the owner from the STORED fk_table/fk_id row
  * and gates it with api/_attachauth.php, same right sets as the upload/delete
  * legs; cf. bug #1768 for the identical hole on the read side of the upload
  * API). The `skipCheck` token is now compared with hash_equals() and a mismatch
@@ -45,7 +45,7 @@ $id = intval($_REQUEST['id'] ?? $_REQUEST['attachment_id'] ?? 0);
 $skipCheck = trim(strval($_REQUEST['skipCheck'] ?? ''));
 $apikey = trim(strval($_REQUEST['apikey'] ?? ''));
 
-$base = str_replace('\\', '', strval($_SESSION['basehref'] ?? ''));
+$base = strval($_SESSION['basehref'] ?? '');
 if ($base === '') {
     $base = '/';
 }

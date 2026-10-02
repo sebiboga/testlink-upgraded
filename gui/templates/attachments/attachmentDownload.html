@@ -16,14 +16,11 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 .toolbar { background: #22242a; padding: 10px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
 .toolbar .ctx { color: #aaa; font-size: 12px; }
 .toolbar .ctx b { color: #fff; }
-.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; display: inline-block; text-decoration: none; }
 .btn-teal:hover { background: #3dbdb5; }
 .btn-dark { background: #3a3d46; color: #eee; border: none; padding: 7px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
 .btn-dark:hover { background: #4a4e59; }
-.btn-red { background: #e6605e; color: #fff; border: none; padding: 7px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
-.btn-red:hover { background: #d34f4d; }
 .btn-sm { padding: 4px 10px; font-size: 12px; }
-.btn:disabled { opacity: .5; cursor: not-allowed; }
 .main { max-width: 760px; margin: 20px auto; padding: 0 16px; }
 .card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin-bottom: 16px; overflow: hidden; }
 .card-head { background: #22242a; color: #fff; padding: 11px 20px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
@@ -33,7 +30,6 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 .kv:last-child { border-bottom: none; }
 .kv .k { color: #888; width: 150px; flex-shrink: 0; }
 .kv .v { color: #333; font-weight: 600; word-break: break-all; }
-.kv .v a { color: #2d8e88; }
 .badge { display: inline-block; padding: 2px 9px; border-radius: 10px; font-size: 11px; font-weight: 700; letter-spacing: .5px; }
 .badge.img { background: #d8f5f2; color: #1d6f69; }
 .badge.svg { background: #fdecea; color: #a5342f; }
@@ -41,13 +37,10 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 .preview-wrap { text-align: center; background: repeating-conic-gradient(#f6f6f6 0% 25%, #fff 0% 50%) 50% / 18px 18px; border-radius: 6px; padding: 14px; }
 .preview-wrap img { max-width: 100%; max-height: 340px; box-shadow: 0 1px 6px rgba(0,0,0,.18); }
 .preview-meta { text-align: center; color: #888; font-size: 11px; margin-top: 10px; }
-.warn { background: #fff8e1; border: 1px solid #f2d98c; color: #8a6d1a; border-radius: 6px; padding: 12px 14px; font-size: 13px; text-align: left; }
-.warn i { margin-right: 6px; }
 .state { text-align: center; padding: 34px 20px; color: #777; }
 .state .ico { font-size: 40px; color: #ccc; margin-bottom: 12px; }
 .state.danger .ico { color: #e6605e; }
 .state.warn .ico { color: #e0a33a; }
-.state.ok .ico { color: #4ECDC4; }
 .state h3 { font-size: 15px; font-weight: 700; color: #333; margin: 0 0 6px; }
 .state p { margin: 0; font-size: 13px; }
 .state .code { display: inline-block; margin-top: 10px; font-family: monospace; font-size: 11px; color: #999; }
@@ -67,26 +60,27 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 <div class="toolbar">
   <span class="ctx"><span data-i18n="adl.object">Object</span>: <b id="ownerLabel">-</b></span>
   <span id="localeSwitcher"></span>
-  <button class="btn-dark btn-sm" id="btnRefresh" style="margin-left:auto;" onclick="load()"><i class="fa fa-refresh"></i> <span data-i18n="common.refresh">Refresh</span></button>
+  <button class="btn-teal btn-sm" id="btnRefresh" style="margin-left:auto;" onclick="load()"><i class="fa fa-refresh"></i> <span data-i18n="common.refresh">Refresh</span></button>
+  <button class="btn-dark btn-sm" onclick="closePopup()"><i class="fa fa-times"></i> <span data-i18n="common.close">Close</span></button>
 </div>
 
 <div class="main">
   <div class="card">
     <div class="card-head"><h2><span data-i18n="adl.attachmentInfo">Attachment</span></h2></div>
-    <div class="card-body" id="infoBox"><div class="loading"><i class="fa fa-spinner fa-spin"></i></div></div>
+    <div class="card-body" id="infoBox" aria-live="polite"><div class="loading"><i class="fa fa-spinner fa-spin"></i></div></div>
   </div>
 
   <div class="card" id="previewCard" style="display:none;">
     <div class="card-head"><h2><span data-i18n="adl.preview">Preview</span></h2></div>
-    <div class="card-body" id="previewBox"></div>
+    <div class="card-body" id="previewBox" aria-live="polite"></div>
   </div>
 
   <div class="card" id="actionCard" style="display:none;">
     <div class="card-body">
       <div class="actions">
-        <button class="btn-dark left" onclick="closePopup()"><i class="fa fa-times"></i> <span data-i18n="common.close">Close</span></button>
+        <span class="left" id="openHint"></span>
         <button class="btn-dark" id="btnOpen" onclick="openInline()"><i class="fa fa-eye"></i> <span data-i18n="adl.openInline">Open in new tab</span></button>
-        <a class="btn-teal" id="btnDownload" href="#" download><i class="fa fa-download"></i> <span data-i18n="adl.download">Download</span></a>
+        <a class="btn-teal" id="btnDownload" href="#"><i class="fa fa-download"></i> <span data-i18n="adl.download">Download</span></a>
       </div>
     </div>
   </div>
@@ -119,7 +113,7 @@ function closePopup() {
 }
 
 function stateBox(kind, ico, title, text, code) {
-  var h = '<div class="state ' + kind + '"><div class="ico"><i class="fa ' + ico + '"></i></div>' +
+  var h = '<div class="state ' + kind + '"><div class="ico"><i class="fa fa-' + ico + '"></i></div>' +
           '<h3>' + esc(title) + '</h3><p>' + esc(text) + '</p>';
   if (code) { h += '<div class="code">' + esc(code) + '</div>'; }
   h += '</div>';
@@ -132,6 +126,8 @@ function kv(k, v) {
 
 function hideAll() {
   $('#actionCard').hide();
+  $('#btnDownload').attr('href', '#');
+  $('#btnOpen').hide();
   $('#previewCard').hide();
   $('#infoBox').html('');
   $('#attLabel').text('');
@@ -156,22 +152,24 @@ function badge(a) {
 function renderPreview(a) {
   var box = $('#previewBox');
   if (a.is_svg) {
-    // legacy parity: an SVG whose payload is not XSS_StringScriptSafe() is
-    // served with an `attachment` disposition, so it can NOT be previewed in
-    // the app origin - the BFF enforces it, the screen says so.
-    box.html(stateBox('warn', 'fa fa-shield-alt', TLi18n.t('adl.svgTitle'), TLi18n.t('adl.svgText'), a.file_name || ''));
+    // The BFF NEVER previews an SVG: a payload that is not
+    // XSS_StringScriptSafe() is forced to `attachment`, and a safe one would
+    // still be an inline document we do not need to render, so previewing any
+    // SVG here is refused and the screen says so.
+    box.html(stateBox('warn', 'shield-alt', TLi18n.t('adl.svgTitle'), TLi18n.t('adl.svgText'), a.file_name || ''));
     $('#previewCard').show();
     return;
   }
-  if (a.can_preview && a.preview_url) {
-    box.html('<div class="preview-wrap"><img id="previewImg" alt=""></div>' +
+  if (a.preview_url) {
+    box.html('<div class="preview-wrap"><img id="previewImg" alt="' +
+             esc((a.file_name || '') + ' - ' + TLi18n.t('adl.preview')) + '"></div>' +
              '<div class="preview-meta">' + esc(a.file_name || '') + ' &middot; ' +
              esc(a.file_size_human || '') + '</div>');
     $('#previewImg').attr('src', a.preview_url);
     $('#previewCard').show();
     return;
   }
-  box.html(stateBox('', 'fa fa-file-o', TLi18n.t('adl.noPreviewTitle'), TLi18n.t('adl.noPreviewText'), a.file_type || ''));
+  box.html(stateBox('', 'file-o', TLi18n.t('adl.noPreviewTitle'), TLi18n.t('adl.noPreviewText'), a.file_type || ''));
   $('#previewCard').show();
 }
 
@@ -181,7 +179,7 @@ function load() {
   $('#infoBox').html('<div class="loading"><i class="fa fa-spinner fa-spin"></i> <span data-i18n="adl.loading">Loading…</span></div>');
   TLi18n.apply();
   if (ATTID <= 0) {
-    failState('danger', 'fa fa-ban', 'adl.stNoId', 'adl.errNoId', 'ADL-00');
+    failState('danger', 'ban', 'adl.stNoId', 'adl.errNoId', 'ADL-00');
     return;
   }
   $.getJSON(API + '?action=init&id=' + encodeURIComponent(ATTID))
@@ -211,10 +209,14 @@ function load() {
 
       renderPreview(a);
 
+      // download_url is disposition=attachment server side, so the browser
+      // honours the stored file name (a `download` attribute would only rename
+      // it here and breaks nothing - but the header is the single source).
       $('#btnDownload').attr('href', a.download_url);
-      // the stream endpoint answers with Content-Disposition, so the browser
-      // honours the stored file name without a `download` attribute hint
-      $('#btnDownload').removeAttr('download');
+      // "Open in new tab" only exists when the stream will actually RENDER the
+      // file; otherwise it would silently save it instead of opening it.
+      $('#btnOpen').toggle(!!a.can_inline);
+      $('#openHint').text(a.can_inline ? '' : TLi18n.t('adl.noInlineHint'));
       $('#actionCard').show();
     })
     .fail(function (xhr) { renderError(xhr.responseJSON || {}, xhr.status); });
@@ -222,7 +224,8 @@ function load() {
 
 function openInline() {
   if (!DATA) { return; }
-  var url = DATA.preview_url || DATA.download_url;
+  var url = DATA.inline_url || DATA.preview_url;
+  if (!url) { return; }
   window.open(url, '_blank', 'noopener');
 }
 
@@ -237,23 +240,23 @@ function renderError(r, status) {
     return;
   }
   if (code === 'ATTACHMENTS_DISABLED') {
-    failState('danger', 'fa fa-lock', 'adl.stDisabled', 'adl.errDisabled', code);
+    failState('danger', 'lock', 'adl.stDisabled', 'adl.errDisabled', code);
   } else if (code === 'ATTACHMENT_NOT_FOUND') {
-    failState('danger', 'fa fa-question-circle', 'adl.stNotFound', 'adl.errNotFound', code);
+    failState('danger', 'question-circle', 'adl.stNotFound', 'adl.errNotFound', code);
   } else if (code === 'FORBIDDEN' || code === 'NO_RIGHT' || code === 'ATTACHMENT_NOT_ALLOWED') {
-    failState('danger', 'fa fa-user-lock', 'adl.stNotAllowed', 'adl.errNotAllowed', code);
+    failState('danger', 'user-lock', 'adl.stNotAllowed', 'adl.errNotAllowed', code);
   } else if (code === 'INVALID_ATTACHMENT_ID' || code === 'INVALID_ID') {
-    failState('danger', 'fa fa-ban', 'adl.stNoId', 'adl.errNoId', code);
+    failState('danger', 'ban', 'adl.stNoId', 'adl.errNoId', code);
   } else if (code === 'INVALID_TOKEN') {
-    failState('danger', 'fa fa-key', 'adl.stToken', 'adl.errToken', code);
+    failState('danger', 'key', 'adl.stToken', 'adl.errToken', code);
   } else if (code === 'ATTACHMENT_EMPTY') {
-    failState('danger', 'fa fa-file-o', 'adl.stEmpty', 'adl.errEmpty', code);
+    failState('danger', 'file-o', 'adl.stEmpty', 'adl.errEmpty', code);
   } else if (!code && status === 403) {
-    failState('danger', 'fa fa-shield-alt', 'adl.stBlocked', 'adl.errBlocked', '403');
+    failState('danger', 'shield-alt', 'adl.stBlocked', 'adl.errBlocked', '403');
   } else if (!code) {
-    failState('danger', 'fa fa-plug', 'adl.stSession', 'adl.errSession', '');
+    failState('danger', 'plug', 'adl.stSession', 'adl.errSession', '');
   } else {
-    failState('danger', 'fa fa-exclamation-triangle', 'adl.stError', 'adl.errGeneric', code);
+    failState('danger', 'exclamation-triangle', 'adl.stError', 'adl.errGeneric', code);
   }
 }
 

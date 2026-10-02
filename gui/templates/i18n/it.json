@@ -6148,6 +6148,7 @@
   "adl.svgText": "Questo SVG puo contenere script, per questo TestLink lo serve sempre come download invece di renderizzarlo dentro l applicazione. Salvalo e aprilo in un visualizzatore.",
   "adl.noPreviewTitle": "Anteprima non disponibile",
   "adl.noPreviewText": "Solo le immagini vengono mostrate direttamente. Usa Scarica per salvare il file.",
+  "adl.noInlineHint": "Questo tipo di file non viene mai mostrato in linea - usa Scarica.",
   "adl.stNoId": "Nessun allegato selezionato",
   "adl.errNoId": "Il link non contiene un id di allegato valido. Apri l allegato dal suo elenco.",
   "adl.stDisabled": "Gli allegati sono disattivati",

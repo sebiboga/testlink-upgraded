@@ -68,7 +68,7 @@ var warning_delete_attachment = "{lang_get s='warning_delete_attachment'}";
 		{/if}
 
 	  	<tr>
-			<td style="vertical-align:middle;"><a href="lib/attachments/attachmentdownload.php?id={$info.id}" target="_blank" class="bold">
+			<td style="vertical-align:middle;"><a href="{$basehref}gui/templates/attachments/attachmentDownload.html?id={$info.id}" target="_blank" class="bold">
 			{$my_link}</a> - <span class="italic">{$info.file_name|escape} ({$info.file_size|escape} bytes, {$info.file_type|escape}) {localize_date d=$info.date_added|escape}</span>
 				{if !$attach_downloadOnly}
 				<a href="javascript:delete_confirmation({$info.id},'{$info.file_name|escape:'javascript'|escape}',

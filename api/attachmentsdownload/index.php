@@ -9,8 +9,12 @@
  *
  * Legacy behaviour ported:
  *   - testlinkInitPage($db) -> the download required a session (the anonymous
- *     variant is commented out in the legacy file because of CVE-2022-35195),
- *     and checkRights() only asserts config_get('attachments')->enabled.
+ *     variant is commented out in the legacy file because of CVE-2022-35195).
+ *     The legacy file DEFINED checkRights() but never passed it to
+ *     testlinkInitPage() (lib/functions/common.php:538-542), so the gate below is
+ *     NOT legacy parity: keeping it is a deliberate, stricter rule (an
+ *     installation that disabled attachments after storing files used to keep
+ *     serving them), and it is the only 403 that does not concern a right.
  *   - $fileRepo->getAttachmentInfo($id) then getAttachmentContent($id, $info);
  *     when either is empty the page rendered attachment404.tpl.
  *   - DB repository content is base64 decoded ($g_repositoryType ==
@@ -21,10 +25,13 @@
  *   - skipCheck parity: when the caller supplies a check token it must equal
  *     hash('sha256', $attachInfo['file_name']), otherwise no content is served.
  *     The modern screen always receives that token from ?action=init.
- *   - headers: Pragma/Cache-Control/Content-Type/Content-Length/
- *     Content-Disposition/Content-Description, echoed body.
+ *   - headers: Cache-Control: private, no-store (attachment bytes are rights
+ *     gated, so no shared cache may replay them), Content-Type,
+ *     Content-Length, X-Content-Type-Options, Content-Disposition (filename +
+ *     RFC 5987 filename*), Content-Description, plus CSP sandbox +
+ *     X-Frame-Options on the inline branch; echoed body.
  *
- * Hardening vs legacy (all with a bug filed / documented in Refs #1794):
+ * Hardening vs legacy (bug #1795 tracks the read-side hole; Refs #1794 the fix):
  *   - the legacy page authorised NOTHING beyond "attachments enabled": any
  *     authenticated user, including the global <no rights> role, could stream
  *     every attachment of the installation by guessing its id. Here the owner
@@ -42,8 +49,12 @@
  *   GET ?action=download&id=N[&token=T][&disposition=inline|attachment]
  *                                    -> the authorized byte stream
  *   401 anonymous, 403 attachments disabled / not allowed / bad token,
- *   400 bad id or unknown action, 404 unknown attachment or empty content,
- *   405 wrong verb, 500 guarded.
+ *   400 bad id, unknown action or malformed disposition,
+ *   404 unknown attachment or empty content, 405 wrong verb.
+ *   bffSameOriginGuard() is still required at the top (house style for every
+ *   api/<area>/index.php, and it turns a non-GET into 403 instead of 405 before
+ *   this endpoint answers), but on a GET-only endpoint it has nothing to check:
+ *   downloading bytes is not a state change.
  */
 
 require_once(__DIR__ . '/../../config.inc.php');
@@ -71,40 +82,35 @@ function bffDlOut($data, $code = 200)
     exit;
 }
 
-/** Cached column probe (this fork ships a slimmed nodes_hierarchy schema). */
-function bffDlHasColumn($db, $table, $col)
+/**
+ * May this attachment be RENDERED in the app origin?
+ * Attachments are user supplied, so anything that can execute or carry markup
+ * (text/html, application/xhtml+xml, image/svg+xml) is refused: inline it would
+ * be stored XSS with the victim's session. Shared by init() and the stream so
+ * the "Open in new tab" button can never promise what the stream refuses.
+ */
+function bffDlCanInline($fileType, $isImage, $isSvg)
 {
-    static $cache = array();
-    $key = $table . '.' . $col;
-    if (!isset($cache[$key])) {
-        $cache[$key] = false;
-        $rows = $db->get_recordset("SHOW COLUMNS FROM " . $table);
-        if (is_array($rows)) {
-            foreach ($rows as $r) {
-                if (strcasecmp(strval($r['Field'] ?? ''), $col) === 0) {
-                    $cache[$key] = true;
-                    break;
-                }
-            }
-        }
+    if ($isSvg) {
+        return false;
     }
-    return $cache[$key];
-}
-
-/** @return array|null first row or null. */
-function bffDlFirstRow($db, $sql)
-{
-    $rows = $db->get_recordset($sql);
-    if (is_null($rows) || count($rows) === 0) {
-        return null;
+    $lc = strtolower(trim(strval($fileType)));
+    if ($isImage) {
+        return ($lc !== '');
     }
-    return $rows[0];
+    if ($lc === '') {
+        return false;
+    }
+    if ($lc === 'application/pdf' || $lc === 'text/plain') {
+        return true;
+    }
+    return strpos($lc, 'audio/') === 0 || strpos($lc, 'video/') === 0;
 }
 
 /** Human readable file size (legacy attachment lists showed the raw bytes). */
 function bffDlHumanSize($bytes)
 {
-    $bytes = intval($bytes);
+    $bytes = max(0, intval($bytes));
     $units = array('B', 'KB', 'MB', 'GB', 'TB');
     $i = 0;
     $val = floatval($bytes);
@@ -128,10 +134,7 @@ function bffDlHumanSize($bytes)
  */
 function bffDlNodeName($db, $nodeId, $expectedTypeId = 0)
 {
-    $types = attAuthNodeTypes($db);
-    if ($expectedTypeId <= 0) {
-        $expectedTypeId = 0; // any type
-    }
+    // $expectedTypeId 0 = any node type
     $node = attAuthNode($db, $nodeId);
     if (is_null($node)) {
         return '';
@@ -140,7 +143,7 @@ function bffDlNodeName($db, $nodeId, $expectedTypeId = 0)
         return '';
     }
     $t = tlObjectWithDB::getDBTables(array('nodes_hierarchy'));
-    $row = bffDlFirstRow($db, "SELECT name FROM {$t['nodes_hierarchy']} " .
+    $row = attAuthFirstRow($db, "SELECT name FROM {$t['nodes_hierarchy']} " .
         "WHERE id = " . intval($nodeId) . " LIMIT 1");
     return is_null($row) ? '' : strval($row['name'] ?? '');
 }
@@ -152,6 +155,11 @@ function bffDlNodeName($db, $nodeId, $expectedTypeId = 0)
 function bffDlOwnerLabel($db, $attachInfo)
 {
     $fkTable = strval($attachInfo['fk_table'] ?? '');
+// Legacy stores fk_table prefix-stripped (tlAttachmentRepository:567), but
+// normalise anyway so this leg cannot drift from api/attachmentsdelete.
+if (defined('DB_TABLE_PREFIX') && DB_TABLE_PREFIX !== '') {
+    $fkTable = str_replace(DB_TABLE_PREFIX, '', $fkTable);
+}
     $fkId = intval($attachInfo['fk_id'] ?? 0);
     $fallback = ($fkTable !== '' ? $fkTable : '?') . ' #' . $fkId;
     if ($fkId <= 0) {
@@ -171,22 +179,22 @@ function bffDlOwnerLabel($db, $attachInfo)
             $nm = bffDlNodeName($db, $fkId, intval($types['testplan']));
             return ($nm !== '') ? ($fkId . ' - ' . $nm) : $fallback;
         case 'builds':
-            $r = bffDlFirstRow($db, "SELECT name FROM {$t['builds']} " .
+            $r = attAuthFirstRow($db, "SELECT name FROM {$t['builds']} " .
                 "WHERE id = {$fkId} LIMIT 1");
             return is_null($r) ? $fallback
                 : ($fkId . ' - ' . strval($r['name'] ?? ''));
         case 'executions':
-            $r = bffDlFirstRow($db, "SELECT id FROM {$t['executions']} " .
+            $r = attAuthFirstRow($db, "SELECT id FROM {$t['executions']} " .
                 "WHERE id = {$fkId} LIMIT 1");
             return is_null($r) ? $fallback : ('Execution #' . $fkId);
         case 'req_specs':
         case 'requirement_specs':
-            $r = bffDlFirstRow($db, "SELECT doc_id FROM {$t['req_specs']} " .
+            $r = attAuthFirstRow($db, "SELECT doc_id FROM {$t['req_specs']} " .
                 "WHERE id = {$fkId} LIMIT 1");
             return is_null($r) ? $fallback
                 : ($fkId . ' - ' . strval($r['doc_id'] ?? ''));
         case 'requirements':
-            $r = bffDlFirstRow($db, "SELECT req_doc_id FROM {$t['requirements']} " .
+            $r = attAuthFirstRow($db, "SELECT req_doc_id FROM {$t['requirements']} " .
                 "WHERE id = {$fkId} LIMIT 1");
             return is_null($r) ? $fallback
                 : ($fkId . ' - ' . strval($r['req_doc_id'] ?? ''));
@@ -222,7 +230,10 @@ function bffDlToken($attachInfo)
     return hash('sha256', strval($attachInfo['file_name'] ?? ''));
 }
 
-$action = trim(strval($_GET['action'] ?? ''));
+// is_string guard: `?action[]=x` would emit an 'Array to string conversion'
+// warning into the Event Viewer before the 400.
+$rawAction = $_GET['action'] ?? '';
+$action = is_string($rawAction) ? trim($rawAction) : '';
 $method = strtoupper(strval($_SERVER['REQUEST_METHOD'] ?? 'GET'));
 
 if ($method !== 'GET') {
@@ -266,7 +277,7 @@ if ($action === '') {
     $action = 'init';
 }
 
-$id = intval($_GET['id'] ?? $_POST['id'] ?? 0);
+$id = intval($_GET['id'] ?? 0);
 if ($id <= 0) {
     bffDlOut(array(
         'status' => 'error',
@@ -287,6 +298,11 @@ if (!$attachInfo) {
 
 // ---- object level authorization (Refs #1768 parity, fail closed) -----------
 $fkTable = strval($attachInfo['fk_table'] ?? '');
+// Legacy stores fk_table prefix-stripped (tlAttachmentRepository:567), but
+// normalise anyway so this leg cannot drift from api/attachmentsdelete.
+if (defined('DB_TABLE_PREFIX') && DB_TABLE_PREFIX !== '') {
+    $fkTable = str_replace(DB_TABLE_PREFIX, '', $fkTable);
+}
 $fkId = intval($attachInfo['fk_id'] ?? 0);
 $ctx = attAuthResolveContext($db, $fkTable, $fkId);
 if (!attAuthOwnerAllowed($db, $currentUser, $ctx)) {
@@ -305,6 +321,8 @@ if ($action === 'init') {
     $isSvg = (stripos($fileType, 'svg') !== false ||
               strtolower(substr($fileName, -4)) === '.svg');
     $isImage = (stripos($fileType, 'image/') === 0) && !$isSvg;
+    // same allowlist the stream enforces, so inline_url is never a false promise
+    $canInline = bffDlCanInline($fileType, $isImage, $isSvg);
     $ctxNames = bffDlContextNames($db, $ctx);
 
     bffDlOut(array(
@@ -321,15 +339,16 @@ if ($action === 'init') {
             'token'         => $token,
             'is_image'      => $isImage,
             'is_svg'        => $isSvg,
-            'can_preview'   => $isImage,
+            'can_inline'    => $canInline,
             // legacy parity: getAttachmentInfo() flags an inline-capable image
             // with the marker [tlInlineImage]<attachment id>[/tlInlineImage]
             // (NOT base64 - the attachment lists turned it into an <img> whose
             // src pointed back at the download URL with an inline
-            // disposition). preview_url is that URL, so a preview costs no
-            // extra request beyond the one the user asked for.
-            'inline_marker' => strval($attachInfo['inlineString'] ?? ''),
-            'preview_url'   => ($isImage && strval($attachInfo['inlineString'] ?? '') !== '')
+            // disposition). preview_url is that URL, restricted to raster
+            // images: an inline_url for text/html would be stored XSS in our own
+            // origin (attachments are user uploaded), so it is not emitted.
+            'preview_url'   => ($isImage && !$isSvg &&
+                               strval($attachInfo['inlineString'] ?? '') !== '')
                 ? '/api/attachmentsdownload/index.php?action=download&id=' . $id
                   . '&token=' . urlencode($token) . '&disposition=inline'
                 : '',
@@ -345,11 +364,19 @@ if ($action === 'init') {
                 'testproject' => $ctxNames['testproject'],
                 'testplan'    => $ctxNames['testplan'],
             ),
+            // the CTA of the screen: MUST be disposition=attachment. A missing
+            // disposition means `attachment` here (fail closed) - a link built
+            // without it would render a PDF/text/html in a tab instead of saving
+            // the file, and text/html is stored XSS in our own origin.
             'download_url'  => '/api/attachmentsdownload/index.php?action=download&id='
-                               . $id . '&token=' . urlencode($token),
-            'inline_url'    => '/api/attachmentsdownload/index.php?action=download&id='
                                . $id . '&token=' . urlencode($token) .
-                               '&disposition=inline',
+                               '&disposition=attachment',
+            // what "Open in new tab" uses - empty when the stream would refuse
+            // to render it, so the button is never a lie.
+            'inline_url'    => $canInline
+                ? '/api/attachmentsdownload/index.php?action=download&id=' . $id
+                  . '&token=' . urlencode($token) . '&disposition=inline'
+                : '',
         ),
     ));
 }
@@ -385,34 +412,85 @@ if (is_null($content) || $content === '') {
 @ob_end_clean();
 global $g_repositoryType;
 if ($g_repositoryType == TL_REPOSITORY_TYPE_DB) {
-    $content = base64_decode($content);
+    // base64_decode() returns false on a corrupt payload; a false here would
+    // make strlen() a TypeError on PHP 8, so an undecodable row is an error.
+    $decoded = base64_decode($content);
+    if (is_string($decoded)) {
+        $content = $decoded;
+    }
+}
+if (!is_string($content)) {
+    bffDlOut(array(
+        'status' => 'error',
+        'code'   => 'ATTACHMENT_EMPTY',
+        'message' => 'Attachment content could not be decoded',
+    ), 404);
+}
+$safeType = str_replace(array("\r", "\n"), '', $fileType);
+
+// Disposition is a whitelist, and the DEFAULT is `attachment` (fail closed):
+// only an explicit disposition=inline renders in the app origin.
+$reqDisposition = strtolower(trim(strval($_GET['disposition'] ?? '')));
+if ($reqDisposition !== '' &&
+    $reqDisposition !== 'inline' && $reqDisposition !== 'attachment') {
+    bffDlOut(array(
+        'status' => 'error',
+        'code'   => 'INVALID_DISPOSITION',
+        'message' => 'disposition must be inline or attachment',
+    ), 400);
+}
+$wantAttachment = ($reqDisposition !== 'inline');
+
+// Content types that may be rendered inline. Everything else - notably
+// text/html, application/xhtml+xml and image/svg+xml - is served as a download:
+// attachments are user supplied, so an inline text/html would run script in the
+// TestLink origin with the victim's session (nosniff does not help, the type
+// itself is the problem).
+$inlineType = false;
+if (!$wantAttachment) {
+    $lcType = strtolower(trim($safeType));
+    $inlineType = ($lcType !== '' &&
+        (strpos($lcType, 'image/') === 0 ||
+         strpos($lcType, 'audio/') === 0 ||
+         strpos($lcType, 'video/') === 0 ||
+         $lcType === 'application/pdf' ||
+         $lcType === 'text/plain'));
 }
 
-$wantAttachment = (strtolower(trim(strval($_GET['disposition'] ?? ''))) === 'attachment');
 
 // SVG hardening (legacy parity): never render an unsafe SVG in our origin.
 if (strripos($content, "<!DOCTYPE svg") !== false ||
     strripos($content, "<svg") !== false) {
     if (!XSS_StringScriptSafe($content)) {
         $wantAttachment = true;
+        $inlineType = false;
     }
 }
 
-$disposition = $wantAttachment ? 'attachment' : 'inline';
+$disposition = ($wantAttachment || !$inlineType) ? 'attachment' : 'inline';
 
-$safeType = str_replace(array("\r", "\n"), '', $fileType);
-$safeName = str_replace(array("\r", "\n", '"'), '', $fileName);
+// Filename: drop every control byte (header injection + display), keep the
+// printable ones, and add the RFC 5987 form for non-ASCII names.
+$safeName = preg_replace('/[\x00-\x1F\x7F]/', '', $fileName);
+$safeName = str_replace('"', '', $safeName);
+$asciiName = preg_replace('/[^\x20-\x7E]/', '_', $safeName);
 
-header('Pragma: public');
-header('Cache-Control: ');
-if (!(isset($_SERVER["HTTPS"]) && $_SERVER["HTTPS"] == "on" &&
-      preg_match("/MSIE/", $_SERVER["HTTP_USER_AGENT"]))) {
-    header('Pragma: no-cache');
-}
+header('Cache-Control: private, no-store, max-age=0');
 header('Content-Type: ' . ($safeType !== '' ? $safeType : 'application/octet-stream'));
 header('Content-Length: ' . strlen($content));
 header('X-Content-Type-Options: nosniff');
-header('Content-Disposition: ' . $disposition . '; filename="' . $safeName . '"');
+// RFC 6266: one header carrying both forms (a second header() with the same
+// name would be dropped by some clients).
+$cd = 'Content-Disposition: ' . $disposition . '; filename="' . $asciiName . '"';
+if ($safeName !== $asciiName) {
+    $cd .= "; filename*=UTF-8''" . rawurlencode($safeName);
+}
+header($cd);
+if ($disposition === 'inline') {
+    // belt and braces for the inline branch: no script, no plugins, no framing
+    header("Content-Security-Policy: sandbox; default-src 'none'; img-src data:; style-src 'unsafe-inline'; script-src 'none'");
+    header('X-Frame-Options: DENY');
+}
 header('Content-Description: Download Data');
 echo $content;
 exit;

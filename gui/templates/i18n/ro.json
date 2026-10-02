@@ -6158,6 +6158,7 @@
   "adl.svgText": "Acest SVG poate contine script, de aceea TestLink il serveste intotdeauna ca descarcare, fara a-l randa in aplicatie. Salvati-l si deschideti-l intr-un vizualizator.",
   "adl.noPreviewTitle": "Previzualizare indisponibila",
   "adl.noPreviewText": "Doar imaginile sunt previzualizate direct. Folositi Descarca pentru a salva fisierul.",
+  "adl.noInlineHint": "Acest tip de fișier nu este afișat niciodată inline - folosiți Descarcă.",
   "adl.stNoId": "Niciun atasament selectat",
   "adl.errNoId": "Legatura nu contine un id de atasament valid. Deschideti atasamentul din lista sa.",
   "adl.stDisabled": "Atasamentele sunt dezactivate",

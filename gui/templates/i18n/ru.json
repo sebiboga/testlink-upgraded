@@ -6154,6 +6154,7 @@
   "adl.svgText": "Etot SVG mozhet soderzhat skript, poetomu TestLink vsegda otdaet ego kak skachku, a ne rendersit v prilozhenii. Sohranite i otkroyte v prosmotrishchike.",
   "adl.noPreviewTitle": "Prosmotr nedostupen",
   "adl.noPreviewText": "Tolko izobrazheniya pokazyvayutsya na meste. Ispolzuyte Skachat, chtoby sohranit fayl.",
+  "adl.noInlineHint": "Этот тип файла никогда не отображается в браузере - используйте Скачать.",
   "adl.stNoId": "Vlozhenie ne vybrano",
   "adl.errNoId": "Ssylka ne soderzhit korrektnyy id vlozheniya. Otkroyte vlozhenie iz ego spiska.",
   "adl.stDisabled": "Vlozheniya otklyucheny",

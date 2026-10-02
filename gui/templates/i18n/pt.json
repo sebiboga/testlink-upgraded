@@ -6154,6 +6154,7 @@
   "adl.svgText": "Este SVG pode conter script, por isso o TestLink serve-o sempre como transferencia em vez de o renderizar dentro da aplicacao. Guarde-o e abra-o num visualizador.",
   "adl.noPreviewTitle": "Sem pre-visualizacao",
   "adl.noPreviewText": "Apenas as imagens sao mostradas no local. Use Descarregar para guardar o ficheiro.",
+  "adl.noInlineHint": "Este tipo de ficheiro nunca e apresentado em linha - use Transferir.",
   "adl.stNoId": "Nenhum anexo selecionado",
   "adl.errNoId": "A ligacao nao traz um id de anexo valido. Abra o anexo a partir da sua lista.",
   "adl.stDisabled": "Os anexos estao desativados",

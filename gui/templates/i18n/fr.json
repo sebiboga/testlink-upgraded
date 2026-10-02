@@ -6148,6 +6148,7 @@
   "adl.svgText": "Ce SVG peut contenir du script, TestLink le sert donc toujours comme telechargement au lieu de le rendre dans application. Enregistrez-le et ouvrez-le dans une visionneuse.",
   "adl.noPreviewTitle": "Aucun apercu disponible",
   "adl.noPreviewText": "Seules les images sont affichees sur place. Utilisez Telecharger pour enregistrer le fichier.",
+  "adl.noInlineHint": "Ce type de fichier n'est jamais affiché en ligne - utilisez Télécharger.",
   "adl.stNoId": "Aucune piece jointe selectionnee",
   "adl.errNoId": "Le lien ne contient pas d identifiant de piece jointe valide. Ouvrez la piece jointe depuis sa liste.",
   "adl.stDisabled": "Les pieces jointes sont desactivees",

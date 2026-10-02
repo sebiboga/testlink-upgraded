@@ -6148,6 +6148,7 @@
   "adl.svgText": "Este SVG puede contener script, por eso TestLink siempre lo sirve como descarga en lugar de renderizarlo dentro de la aplicacion. Guardelo y abralo en un visor.",
   "adl.noPreviewTitle": "Sin vista previa",
   "adl.noPreviewText": "Solo las imagenes se muestran en linea. Use Descargar para guardar el archivo.",
+  "adl.noInlineHint": "Este tipo de archivo nunca se muestra en linea - usa Descargar.",
   "adl.stNoId": "Ningun adjunto seleccionado",
   "adl.errNoId": "El enlace no lleva un id de adjunto valido. Abra el adjunto desde su lista.",
   "adl.stDisabled": "Los adjuntos estan desactivados",

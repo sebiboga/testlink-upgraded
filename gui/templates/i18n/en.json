@@ -6164,6 +6164,7 @@
   "adl.svgText": "This SVG can carry script, so TestLink always serves it as a download instead of rendering it inside the application. Save it and open it in a viewer.",
   "adl.noPreviewTitle": "No preview available",
   "adl.noPreviewText": "Only images are previewed in place. Use Download to save this file.",
+  "adl.noInlineHint": "This file type is never rendered inline - use Download.",
   "adl.stNoId": "No attachment selected",
   "adl.errNoId": "The link does not carry a valid attachment id. Open the attachment from its list.",
   "adl.stDisabled": "Attachments are disabled",

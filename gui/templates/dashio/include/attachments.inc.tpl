@@ -86,7 +86,7 @@ var warning_delete_attachment = "{lang_get s='warning_delete_attachment'}";
       {/if}
 
         <tr>
-        <td style="vertical-align:middle;"><a href="lib/attachments/attachmentdownload.php?id={$info.id}" target="_blank" class="bold" title="{$labels.click_to_get_attachment}">
+        <td style="vertical-align:middle;"><a href="{$basehref}gui/templates/attachments/attachmentDownload.html?id={$info.id}" target="_blank" class="bold" title="{$labels.click_to_get_attachment}">
         {$my_link}</a> 
         {if $info.is_image} 
           <span style="border:none" title="{$labels.display_inline}" 
