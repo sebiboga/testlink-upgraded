@@ -149,12 +149,24 @@ function filenameDimensions() {
  * Clamp the requested export file name to the legacy FILENAME_MAXLEN.
  * Legacy enforced this only through the template maxlength attribute; here it
  * is enforced again on the server (defence in depth, no behaviour change for
- * users who stay inside the limit). Multi-byte aware, so a name made of
- * accented characters is never cut in the middle of a character.
+ * users who stay inside the limit).
+ *
+ * The budget is counted in CHARACTERS, like the browser maxlength attribute
+ * does, not in bytes: a name of 50 accented characters is accepted by the
+ * legacy field and must not be truncated here. When mbstring is unavailable
+ * the cut falls back to a UTF-8 aware byte loop, so a multi-byte character is
+ * never split in half.
  */
 function clampExportFilename($name, $maxlen) {
     $name = (string)$name;
-    if ($maxlen <= 0 || strlen($name) <= $maxlen) {
+    if ($maxlen <= 0 || $name === '') {
+        return $name;
+    }
+    if (function_exists('mb_strlen') && function_exists('mb_substr')) {
+        return (mb_strlen($name, 'UTF-8') <= $maxlen)
+            ? $name : mb_substr($name, 0, $maxlen, 'UTF-8');
+    }
+    if (strlen($name) <= $maxlen) {
         return $name;
     }
     $out = substr($name, 0, $maxlen);

@@ -2853,3 +2853,65 @@ unreachable (empty search returned the whole project), and the `get_full_path_ve
 **Files** — `api/searchmgmt/index.php`, `gui/templates/search/searchMgmt.html`,
 `gui/templates/i18n/{en,ro,de,es,fr,it,pt,ja,ru,zh}.json`, `lib/search/searchMgmt.php`,
 `lib/functions/common.php` (`$actions->searchMgmt`). Screenshots in `docs/1785-searchmgmt-*.png`.
+
+## Task — Issue #1295: reqExport — port legacy export-filename input dimensions (`FILENAME_MAXLEN`) + server-side clamp
+
+Re-verification of the "nothing missing" audit plus the **one** legacy contract it declined to port.
+Modern screen: `gui/templates/requirements/reqExport.html`; BFF: `api/reqexport/index.php`.
+
+### Preconditions
+
+```bash
+php tmp/fixtures_1295.php --norights
+# → tproject RX1295 id=15, spec SRS-1295 id=16, nested spec SRS-1295B id=18,
+#   requirement REQ-200 id=20, attachments on BOTH req_specs=16 and requirements=20,
+#   plus user rex1295nr (role 3 "<no rights>")
+curl -s -c cj.txt -X POST http://localhost:8082/api/auth/login \
+     -H 'Origin: http://localhost:8082' -H 'Content-Type: application/json' \
+     -d '{"login":"admin","password":"admin"}'
+```
+
+The original audit's fixture had **no attachments**, so its "`exportAttachments` produces byte-identical
+output" proof never exercised the ATTACHMENTS branch. This fixture has real attachments on a spec and on a
+requirement, which is what makes that branch observable.
+
+### Steps and results
+
+| # | Action | Expected | Observed | Verdict |
+|---|---|---|---|---|
+| 1 | `GET ?action=options&scope=branch&tproject_id=15&req_spec_id=16` | legacy filename defaults + the new input dimensions | `{"filename":"RX1295 parent spec-req-spec.xml","filename_maxlen":50,"filename_size":50,"rights":{"mgt_view_req":1}}` | PASS |
+| 2 | Open `reqExport.html?scope=branch&req_spec_id=16&tproject_id=15` | `maxlength`/`size` applied from the API, live limit hint | `maxlength="50" size="50" hint="31 of 50 characters"` | PASS |
+| 3 | Type 66 chars into the file-name field | input stops at the legacy 50-char budget | `typedLen: 50`, hint `50 of 50 characters` | PASS |
+| 4 | Autofill-style bypass (`.value` = 204 chars) + `paste` event | clamped to 50 + red toast | `afterLen: 50`, toast "The export file name is limited to 50 characters", hint `50 of 50 characters` | PASS |
+| 5 | Exactly 50 chars | accepted untouched | `len: 50`, hint `50 of 50 characters` | PASS |
+| 6 | Whitespace-only file name | legacy `warning_empty_filename` | toast "Export file name can not be empty!" (red) | PASS |
+| 7 | End-to-end POST from the browser, `branch` + attachments, 204-char name | 50-char download name, attachment content included | `status 200`, `Content-Disposition` name length **50**, 1 `<attachment>` node, **1390 bytes** (= legacy byte count) | PASS |
+| 8 | Locale switcher → Română | new keys translated from `ro.json` | hint `50 din 50 caractere`, toast `Numele fișierului de export este limitat la 50 caractere`, label `Nume fișier export` | PASS |
+| 9 | Regression matrix: 3 scopes × attachments off/on, modern vs **legacy** `reqExport.php?doAction=doExport` | byte-identical XML | `tree off 1022 B / on 1390 B`, `branch off 1022 B / on 1390 B`, `items off 471 B / on 839 B` — all `cmp` clean, attachment nodes 0/0 and 1/1 | PASS |
+| 10 | Same matrix with a 204-char name (clamped server-side) | content unchanged, only the header name is clamped | `cmp` identical to the ≤50-char body in all 6 combinations | PASS |
+| 11 | Header-name edge cases (modern) | never longer than 50 chars, always a safe single path segment | `'' → all-req.xml`, `'   ' → all-req.xml`, `'a b c.xml' → a_b_c.xml`, `'spec/../../etc/passwd' → passwd`, `'na"me.xml' → name.xml`, `80×'ȩ'.xml → 50 chars valid UTF-8` | PASS |
+| 12 | Multi-byte budget (80 × `ȩ`, 2 bytes each) | clamp counts **characters** like the browser `maxlength`, never bytes | header = 50 chars, valid UTF-8 (would have been 25 chars with a byte-based clamp) | PASS |
+| 13 | Rights gate as `rex1295nr` (`hasRight(mgt_view_req)=NULL`, role 3) | 403 on both routes | `GET options → 403 {"message":"No permission"}`, `POST export → 403 {"message":"No permission"}` | PASS |
+| 14 | Event Viewer / `events` after the whole matrix + fixture | no new Error/Warning | `select count(*) from events where log_level in (1,2,3,4)` → **0** (two CLI-only warnings caused by the fixture itself were fixed and re-verified) | PASS |
+| 15 | Browser console | no unexpected error | 0 error messages | PASS |
+| 16 | Syntax gates | `php -l` on BFF + fixture, `python3 -m json.tool` on all 10 bundles | clean ×12 | PASS |
+
+**Actual result — 16/16 PASS.**
+
+### Findings
+
+- **The audit's parity conclusion is CONFIRMED** on the point it under-evidenced: with real attachments,
+  `exportAttachments=1` is honoured identically by legacy and modern (1 `<attachment>` node, byte-identical
+  XML in all 3 scopes). The CSV dropdown gap does not exist — `requirement_spec_mgr::$export_file_types`
+  is `array("XML" => "XML")`, so the legacy UI offered XML only too.
+- **The gap that was real**: the legacy 50-char filename budget existed *only* as
+  `maxlength="{#FILENAME_MAXLEN#}"` in the template (`gui/templates/dashio/requirements/reqExport.tpl:67`).
+  The modern screen had no limit at all, and neither back-end capped the value (legacy relies on the
+  browser attribute alone — a direct HTTP call put all 204 characters into `Content-Disposition`).
+  Now enforced in the HTML, in JS (paste/drop/autofill bypass) and again in the BFF.
+
+**Files** — `api/reqexport/index.php` (`filenameDimensions()`, `clampExportFilename()`,
+`filename_maxlen`/`filename_size` in the options payload, clamp in the export route),
+`gui/templates/requirements/reqExport.html` (`updateLimitHint()`, `trimToMaxlen()`,
+`filenameLimitHint`, live hint, paste/drop guard), `gui/templates/i18n/*.json` (2 keys × 10 locales),
+`tmp/fixtures_1295.php`. Screenshot: `docs/screenshots/issue-1295-reqexport-filename-limit.png`.

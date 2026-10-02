@@ -17,6 +17,32 @@ Every screen of the application was ported one-by-one in a screen-compare
 kept for backward compatibility and is progressively retired as each modern
 screen reaches full parity.
 
+- [FEATURE GAP] - #1295: the modern Requirement Export screen
+  (gui/templates/requirements/reqExport.html) had dropped the legacy 50-character budget of the
+  "Export file name" field. Legacy enforced it exclusively in the template -
+  `gui/templates/dashio/requirements/reqExport.tpl:67-68` rendered
+  `maxlength="{#FILENAME_MAXLEN#}" ... size="{#FILENAME_SIZE#}"` from
+  `gui/templates/conf/input_dimensions.conf:22-23` - and both back-ends pass the value straight
+  through to `Content-Disposition`, so the browser attribute was the ONLY limit: any direct HTTP
+  call put an unbounded name into the response header, and through the modern UI a user could type
+  or autofill an arbitrarily long name whose download then silently failed on clients with a path
+  length limit. The contract is now ported end to end and read from the same config file instead
+  of being hardcoded, following the in-repo precedent of `api/reqtcassign/index.php:463-486`
+  (`scopeShortTruncate()` -> `SCOPE_SHORT_TRUNCATE`): `api/reqexport/index.php` gained
+  `filenameDimensions()` (safe default 50/50) and `clampExportFilename()` (counts CHARACTERS like
+  the browser attribute, UTF-8 safe), `?action=options` returns `filename_maxlen` /
+  `filename_size` and `?action=export` re-applies the cap before building the header. The screen
+  applies `maxlength`/`size` from the API response, shows a live budget hint and adds a
+  paste/drop/autofill guard (a plain `maxlength` never fires on those paths). i18n
+  `reqexp.filenameLimit` + `reqexp.errFilenameTooLong` in all 10 locale bundles. The rest of the
+  parity audit in the issue was independently re-verified: with a fixture carrying REAL attachments
+  (tmp/fixtures_1295.php - the audit's fixture had none, so `exportAttachments` was never actually
+  exercised) legacy and modern output are byte-identical in all 3 scopes with and without the
+  flag, and the CSV dropdown "gap" does not exist because `requirement_spec_mgr::$export_file_types`
+  is `array("XML" => "XML")` - the legacy UI offered XML only too. Suite 1295 16/16 PASS,
+  rights gate re-checked (403 both routes for a `<no rights>` user), Event Viewer clean.
+  (Refs #1295)
+
 - [FEATURE GAP] - #1610: the Test Project combo of Assign Test Project Roles ignored
   `$tlCfg->gui->tprojects_combo_order_by` - the ONE config line every other project combo in
   TestLink honours (navBar, requirements, user forms; legacy `usersAssign.php:276-278`,
