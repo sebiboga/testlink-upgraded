@@ -461,7 +461,11 @@ $pathOptions = array('output_format' => 'path_as_string');
 
 $tcRows = array();
 if (count($mapTC) > 0) {
-    $pathInfo = $treeMgr->get_full_path_verbose(array_keys($mapTC), $pathOptions);
+    // get_full_path_verbose() takes its first argument BY REFERENCE, so a
+    // function return (array_keys(...)) is an E_NOTICE and a warning Event
+    // Viewer entry on every search - bind it to a variable first.
+    $tcIds = array_keys($mapTC);
+    $pathInfo = $treeMgr->get_full_path_verbose($tcIds, $pathOptions);
     foreach ($mapTC as $rec) {
         $rec = (array)$rec;
         $tcid = intval($rec['testcase_id'] ?? 0);
@@ -500,7 +504,8 @@ foreach ($mapRS as $rec) {
 
 $rqRows = array();
 if (count($mapRQ) > 0) {
-    $reqPathInfo = $treeMgr->get_full_path_verbose(array_keys($mapRQ), $pathOptions);
+    $rqIds = array_keys($mapRQ);
+    $reqPathInfo = $treeMgr->get_full_path_verbose($rqIds, $pathOptions);
     foreach ($mapRQ as $rid => $rec) {
         $rec = (array)$rec;
         // searchReq()'s SELECT returns no version/revision - do not fake them
