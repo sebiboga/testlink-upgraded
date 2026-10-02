@@ -79,6 +79,7 @@ if (!is_dir($repoDir)) { mkdir($repoDir, 0777, true); }
 file_put_contents($repoDir . '/spec-note.txt', "ISSUE-1295 spec attachment payload\n");
 file_put_contents($repoDir . '/req-note.txt', "ISSUE-1295 requirement attachment payload\n");
 
+$userTables = tlObjectWithDB::getDBTables(array('users'));
 $attTables = tlObjectWithDB::getDBTables(array('attachments'));
 $db->exec_query("DELETE FROM {$attTables['attachments']} "
     . "WHERE fk_table IN ('req_specs','requirements') "
@@ -99,8 +100,29 @@ foreach ($targets as $t) {
     if (!$op->statusOK) {
         die("insertAttachment FAILED {$table}/{$fkId}: " . valToString($op->msg) . "\n");
     }
-    echo "attachment {$table}={$fkId} id={$op->id}\n";
+    // insertAttachment() returns a stdClass carrying statusOK/msg only - the
+    // attachment row id is not part of the contract, so report it via the
+    // repository listing instead of reading a non-existent property
+    $stored = tlAttachmentRepository::create($db)->getAttachmentInfosFor($fkId, $table);
+    $storedId = (is_array($stored) && count($stored) > 0 && isset($stored[0]['id'])) ? $stored[0]['id'] : '?';
+    echo "attachment {$table}={$fkId} id={$storedId} file={$file}\n";
 }
 
 echo "DONE\n";
 echo "TPROJECT=$idP\nSPEC_A=$idSpecA\nSPEC_B=$idSpecB\nREQ=$idReq\n";
+// ---- optional: a "<no rights>" user for the rights-gate regression --------
+// Usage: php tmp/fixtures_1295.php --norights
+if (in_array('--norights', $argv)) {
+    $login = 'rex1295nr';
+    $rs = $db->get_recordset("SELECT id FROM {$userTables['users']} WHERE login = '{$login}'");
+    if ($rs) {
+        echo "norights user already present id={$rs[0]['id']}\n";
+    } else {
+        $hash = password_hash('admin', PASSWORD_DEFAULT);
+        $ins = "INSERT INTO {$userTables['users']} "
+             . "(login, password, role_id, email, first, last, locale, active, auth_method) "
+             . "VALUES ('{$login}', '{$hash}', 3, 'nr@example.org', 'No', 'Rights', 'en_GB', 1, 'sql')";
+        $db->exec_query($ins);
+        echo "norights user created login={$login} role_id=3\n";
+    }
+}

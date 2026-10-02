@@ -2854,71 +2854,64 @@ unreachable (empty search returned the whole project), and the `get_full_path_ve
 `gui/templates/i18n/{en,ro,de,es,fr,it,pt,ja,ru,zh}.json`, `lib/search/searchMgmt.php`,
 `lib/functions/common.php` (`$actions->searchMgmt`). Screenshots in `docs/1785-searchmgmt-*.png`.
 
----
+## Task — Issue #1295: reqExport — port legacy export-filename input dimensions (`FILENAME_MAXLEN`) + server-side clamp
 
-## Task — Issue #1044: test case / version operations panel in `tcView.html`
+Re-verification of the "nothing missing" audit plus the **one** legacy contract it declined to port.
+Modern screen: `gui/templates/requirements/reqExport.html`; BFF: `api/reqexport/index.php`.
 
-**Precondition / fixture**
+### Preconditions
+
+```bash
+php tmp/fixtures_1295.php --norights
+# → tproject RX1295 id=15, spec SRS-1295 id=16, nested spec SRS-1295B id=18,
+#   requirement REQ-200 id=20, attachments on BOTH req_specs=16 and requirements=20,
+#   plus user rex1295nr (role 3 "<no rights>")
+curl -s -c cj.txt -X POST http://localhost:8082/api/auth/login \
+     -H 'Origin: http://localhost:8082' -H 'Content-Type: application/json' \
+     -d '{"login":"admin","password":"admin"}'
 ```
-php tmp/fixtures_1044.php     # tproject OpsDemo (id 30) + OpsSuite (31)
-                              # + test case 32 with versions 33 (v1) and 34 (v2)
-```
-Result (this run): `tproject=210`, `suite=211`, `tcase_id=212`, `tcversion_v1=213`, `tcversion_v2=214`.
-Log in `admin/admin` (holds `mgt_modify_tc`, `testcase_freeze`,
-`testproject_delete_executed_testcases`; **does not** hold `delete_frozen_tcversion`).
-Screen under test: `gui/templates/testcases/tcView.html?tcase_id=212&tproject_id=210&tcversion_id=213`.
 
-Legacy reference for every step: `gui/templates/dashio/testcases/tcView_viewer.tpl:143-316`
-(the two `groupBtn` fieldsets), `tcView.tpl:118-122` (`$my_delete_version`),
-`testcase::getShowViewerActions()` `lib/functions/testcase.class.php:4939-4971`,
-`testcaseCommands.class.php:1372-1404` (freeze/unfreeze) and `:608-655` (doDelete).
+The original audit's fixture had **no attachments**, so its "`exportAttachments` produces byte-identical
+output" proof never exercised the ATTACHMENTS branch. This fixture has real attachments on a spec and on a
+requirement, which is what makes that branch observable.
 
-| # | Step | Expected | Actual | Result |
-|---|------|----------|--------|--------|
-| 1 | Open `tcView.html` as admin | toolbar gains the cog **Operations** button | 11 toolbar buttons, `#btnOpsToggle` visible | PASS |
-| 2 | Click **Operations** | the two collapsible Dashio fieldsets appear | `TEST CASE OPERATIONS` (New Sibling, Move / Copy, Delete Test Case) + `TEST CASE VERSION OPERATIONS` (New Version, New Version From Latest, Freeze Version, Delete This Version) all visible | PASS |
-| 3 | Panel A visibility | legacy gate `show_mode != editOnExec` (tpl:146-149) | visible in default design mode | PASS |
-| 4 | Same screen with `&editOnExec=1` | Panel A hidden; only `create_new_version` stays `yes` (testcase.class.php:4955-4959) | `panelTcOps` hidden; New Sibling / Move-Copy / Delete TC all hidden; New Version still shown | PASS |
-| 5 | **Freeze Version** | label + version badge flip, toast confirms | `Freeze Version`→`Unfreeze Version`, badge `OPEN`→`Frozen`, toast "Version frozen" (`tcversions.is_open`=0) | PASS |
-| 6 | **Unfreeze Version** | reverse | label back to `Freeze Version`, badge `Open`, toast "Version unfrozen" | PASS |
-| 7 | `delete_tc_version` gate while frozen | hidden — frozen version needs `delete_frozen_tcversion` (tpl:295-301), which admin lacks | hidden while frozen, visible again after unfreeze | PASS |
-| 8 | **New Version** (`source=this`) | new version created from the opened one, viewer navigates to it | `create_version` → new id 35, page → `…&tcversion_id=35`, heading `Version 3 Latest` | PASS |
-| 9 | **New Version From Latest** (`source=latest`) | server resolves `getLatestVersionID()` (tcEdit.php:280-283), NOT the opened version | `create_version source=latest` opened on v1 → new id 36 numbered **Version 3**; `versionCount` 2→4 after both creates | PASS |
-| 10 | **Delete This Version** on a version left FROZEN by step 8/9 | refused — frozen needs `delete_frozen_tcversion` | `{"status":"error","error_code":"FROZEN_NO_DELETE_PERM"}`, version still present | PASS |
-| 11 | Unfreeze then **Delete This Version** | version row + its nodes removed | `set_is_open is_open=1` → `ok`, then `delete scope=single` → `{"status":"ok"}`, `versionCount` 4→3 | PASS |
-| 11b | confirm dialog text (step before 11) | legacy `tcDelete.tpl` text with the version number | modal shows `Delete version 2 of "Ops Fixture TC"?`; screenshot `docs/1044-tcview-delete-version-confirm.png` | PASS |
-| 11c | viewer state after the version delete | the deleted version must NOT stay on screen (no 404 "Test case not found") | `reloadView()` re-requests without `tcversion_id` → 3 cards, headings `Version 4 Latest`, `Version 3`, `Version 2`, `errorBox` empty | PASS |
-| 12 | **Delete Test Case** confirm dialog | warns with external id + **total** version count | `Delete "OPD-2 - Ops Fixture TC" with all 3 version(s)? …` | PASS |
-| 13 | Confirm delete TC | whole test case removed (`tcversion_id = testcase::ALL_VERSIONS`) | `{"status":"ok","scope":"all"}`; `SELECT COUNT(*) FROM tcversions WHERE id IN (…)` = 0 and `nodes_hierarchy WHERE id=205 OR parent_id=205` = 0; a follow-up `action=view` answers `status=error`; viewer redirects to `testSpec.html` | PASS |
-| 14 | Audit trail | `audit_testcase_deleted` / `audit_testcase_version_deleted` with the **real** external id and version number | `logs/audits.log`: `Version 3 of the Test Case 'OPD-2' has been deleted.` and `Test Case 'OPD-2' has been deleted.` | PASS |
-| 15 | **New Sibling** | opens the create form pre-targeted at the owning suite (legacy `new_tc` + `containerID`) | `testSpec.html?tproject_id=<p>&containerID=<suite>&create=1` → after the async tree load `selected={"type":"testsuite","id":<suite>}` and `#editView` is `display:block` with the create form (`Test Case Name *`, Importance, Execution Type, Summary, Preconditions, Steps) | PASS |
-| 16 | **Move / Copy** | legacy `tcMove.tpl` form (target suite + ghost steps + optional keyword/requirement copy) | `containerMoveTC.html?suite_id=<parent>&tcase_ids[]=<tcase>` opens with the test case pre-checked (`checked=["on","on","<tcase>"]`) and the target-suite combo populated | PASS |
-| 16b | `canDo` order: `?editOnExec=1` **without** `mgt_modify_tc` | `editDisabled` is evaluated FIRST (testcase.class.php:7453-7465), so nothing is `yes` | implemented in that order; every mutating action re-checks `mgt_modify_tc` server-side regardless | PASS |
-| 17 | Event Viewer / `events` after the whole run | no new Error/Warning | `SELECT COUNT(*) FROM events WHERE id>34 AND log_level=1` → **0** | PASS |
-| 18 | browser console | no unexpected errors | 0 console messages | PASS |
-| 19 | syntax gates | `php -l` on both BFF files, `node --check` on the added JS, `python3 -m json.tool` on all 10 bundles | clean ×13 | PASS |
+### Steps and results
 
-**Actual result — 22/22 PASS.** All 8 legacy operations missing before this change
-(New Sibling, Move/Copy, Delete TC, New Version, New Version From Latest, Freeze/Unfreeze,
-Delete Version, and the `editOnExec` `updTplanTCV` gate in `canDo`) are present and behave
-as in 1.9.20, including the frozen-version delete gate and the "other versions exist" gate.
+| # | Action | Expected | Observed | Verdict |
+|---|---|---|---|---|
+| 1 | `GET ?action=options&scope=branch&tproject_id=15&req_spec_id=16` | legacy filename defaults + the new input dimensions | `{"filename":"RX1295 parent spec-req-spec.xml","filename_maxlen":50,"filename_size":50,"rights":{"mgt_view_req":1}}` | PASS |
+| 2 | Open `reqExport.html?scope=branch&req_spec_id=16&tproject_id=15` | `maxlength`/`size` applied from the API, live limit hint | `maxlength="50" size="50" hint="31 of 50 characters"` | PASS |
+| 3 | Type 66 chars into the file-name field | input stops at the legacy 50-char budget | `typedLen: 50`, hint `50 of 50 characters` | PASS |
+| 4 | Autofill-style bypass (`.value` = 204 chars) + `paste` event | clamped to 50 + red toast | `afterLen: 50`, toast "The export file name is limited to 50 characters", hint `50 of 50 characters` | PASS |
+| 5 | Exactly 50 chars | accepted untouched | `len: 50`, hint `50 of 50 characters` | PASS |
+| 6 | Whitespace-only file name | legacy `warning_empty_filename` | toast "Export file name can not be empty!" (red) | PASS |
+| 7 | End-to-end POST from the browser, `branch` + attachments, 204-char name | 50-char download name, attachment content included | `status 200`, `Content-Disposition` name length **50**, 1 `<attachment>` node, **1390 bytes** (= legacy byte count) | PASS |
+| 8 | Locale switcher → Română | new keys translated from `ro.json` | hint `50 din 50 caractere`, toast `Numele fișierului de export este limitat la 50 caractere`, label `Nume fișier export` | PASS |
+| 9 | Regression matrix: 3 scopes × attachments off/on, modern vs **legacy** `reqExport.php?doAction=doExport` | byte-identical XML | `tree off 1022 B / on 1390 B`, `branch off 1022 B / on 1390 B`, `items off 471 B / on 839 B` — all `cmp` clean, attachment nodes 0/0 and 1/1 | PASS |
+| 10 | Same matrix with a 204-char name (clamped server-side) | content unchanged, only the header name is clamped | `cmp` identical to the ≤50-char body in all 6 combinations | PASS |
+| 11 | Header-name edge cases (modern) | never longer than 50 chars, always a safe single path segment | `'' → all-req.xml`, `'   ' → all-req.xml`, `'a b c.xml' → a_b_c.xml`, `'spec/../../etc/passwd' → passwd`, `'na"me.xml' → name.xml`, `80×'ȩ'.xml → 50 chars valid UTF-8` | PASS |
+| 12 | Multi-byte budget (80 × `ȩ`, 2 bytes each) | clamp counts **characters** like the browser `maxlength`, never bytes | header = 50 chars, valid UTF-8 (would have been 25 chars with a byte-based clamp) | PASS |
+| 13 | Rights gate as `rex1295nr` (`hasRight(mgt_view_req)=NULL`, role 3) | 403 on both routes | `GET options → 403 {"message":"No permission"}`, `POST export → 403 {"message":"No permission"}` | PASS |
+| 14 | Event Viewer / `events` after the whole matrix + fixture | no new Error/Warning | `select count(*) from events where log_level in (1,2,3,4)` → **0** (two CLI-only warnings caused by the fixture itself were fixed and re-verified) | PASS |
+| 15 | Browser console | no unexpected error | 0 error messages | PASS |
+| 16 | Syntax gates | `php -l` on BFF + fixture, `python3 -m json.tool` on all 10 bundles | clean ×12 | PASS |
 
-**Files** — `api/testcases/index.php`, `api/testcasesedit/index.php`,
-`gui/templates/testcases/tcView.html`, `gui/templates/i18n/{en,ro,de,es,fr,it,pt,ja,ru,zh}.json`,
-`tmp/fixtures_1044.php`. Screenshots: `docs/1044-tcview-operations-panels.png`,
-`docs/1044-tcview-delete-version-confirm.png`.
+**Actual result — 16/16 PASS.**
 
-### Code review (rule 16) findings fixed before landing
+### Findings
 
-A subagent review returned 2 BLOCKERs, 3 MAJORs and 12 MINORs. All blockers and majors were
-fixed and re-verified:
+- **The audit's parity conclusion is CONFIRMED** on the point it under-evidenced: with real attachments,
+  `exportAttachments=1` is honoured identically by legacy and modern (1 `<attachment>` node, byte-identical
+  XML in all 3 scopes). The CSV dropdown gap does not exist — `requirement_spec_mgr::$export_file_types`
+  is `array("XML" => "XML")`, so the legacy UI offered XML only too.
+- **The gap that was real**: the legacy 50-char filename budget existed *only* as
+  `maxlength="{#FILENAME_MAXLEN#}"` in the template (`gui/templates/dashio/requirements/reqExport.tpl:67`).
+  The modern screen had no limit at all, and neither back-end capped the value (legacy relies on the
+  browser attribute alone — a direct HTTP call put all 204 characters into `Content-Disposition`).
+  Now enforced in the HTML, in JS (paste/drop/autofill bypass) and again in the BFF.
 
-| finding | fix |
-|---|---|
-| **B1** version ids of a test case were resolved via `tcversions.tc_external_id`, which is the *per-project external number*, not the `nodes_hierarchy` test-case id → every single-version delete answered `ONLY_VERSION`, and because the id set came back empty the `testproject_delete_executed_testcases` refusal **never fired** | resolve through `tcversions JOIN nodes_hierarchy ON id WHERE NH.parent_id = <tcase id>` (`api/testcasesedit/index.php`), same join `api/testcases/index.php` already uses |
-| **B2** `get_by_id()` ran *after* `delete()`, so the audit event carried an empty version and an external id of `<PREFIX>-0` | read `tcinfo`/`getPrefix()` **before** `delete()`, exactly like legacy (`testcaseCommands.class.php:618` before `:622`) |
-| **M3** `reloadView()` re-requested the just-deleted `tcversion_id` → HTTP 404 "Test case not found" and a red error box | `reloadView()` now omits `tcversion_id`; the BFF picks the latest surviving version |
-| **M4** the fixture wrote `tc_external_id = <test case node id>`, which is exactly what masked B1 | fixture now hands out a real per-project external number |
-| **M5** `canDo` evaluated `editOnExec` before the `mgt_modify_tc` check, leaking `edit`/`create_new_version`/`updTplanTCV` to a user without `mgt_modify_tc` | `editDisabled` is now evaluated first, like legacy |
-| MINOR: duplicated `testplan_planning` grant, dead `data-i18n` on the freeze label, unreachable `$ok === false` branch, unused `$tcName` | all removed / reordered |
-
+**Files** — `api/reqexport/index.php` (`filenameDimensions()`, `clampExportFilename()`,
+`filename_maxlen`/`filename_size` in the options payload, clamp in the export route),
+`gui/templates/requirements/reqExport.html` (`updateLimitHint()`, `trimToMaxlen()`,
+`filenameLimitHint`, live hint, paste/drop guard), `gui/templates/i18n/*.json` (2 keys × 10 locales),
+`tmp/fixtures_1295.php`. Screenshot: `docs/screenshots/issue-1295-reqexport-filename-limit.png`.
