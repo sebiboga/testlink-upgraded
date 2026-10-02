@@ -2790,3 +2790,22 @@ The API half is also executable: `bash tmp/verify_1784.sh` creates its own fixtu
 
 **Files** — `lib/functions/testproject.class.php` (`importKeywordsFromSimpleXML()` + both wrappers),
 `api/keywordsxml/index.php`, `api/keywords/index.php`. No client/JS and no locale bundle changed.
+
+## 1783 — Regression: Keyword import updates existing keywords (XML and CSV)
+
+**Precondition.** `admin`/`admin` on `http://localhost:8082`. DB freshly imported. Create test project P (e.g. via UI or fixture) with keyword `alpha` having notes `first note`. Endpoint `api/keywordsxml/index.php`.
+
+**Steps and expected results:**
+
+| # | Action | Expected | Observed (post-fix) | Status |
+|---|---|---|---|---|
+| 1 | Prepare XML import file with `<keywords><keyword name="alpha"><notes>UPDATED-BY-IMPORT</notes></keyword></keywords>` and import via `POST /api/keywordsxml/index.php?action=import` with `tproject_id`, `type=iSerializationToXML`, file | Response status ok, `imported=1`, `skipped=0`, `rows=1`, `errors=[]`. | As expected | PASS |
+| 2 | Verify DB: `SELECT notes FROM keywords WHERE keyword='alpha' AND testproject_id=<id>` | Returns `UPDATED-BY-IMPORT` | As expected | PASS |
+| 3 | Reset notes back to `first note`. Prepare CSV `alpha;UPDATED-BY-IMPORT` and import with `type=iSerializationToCSV` | Response status ok, `imported=1`, `skipped=0`, `rows=1`, `errors=[]`. | As expected | PASS |
+| 4 | Verify DB notes updated to `UPDATED-BY-IMPORT` | Notes = `UPDATED-BY-IMPORT` | As expected | PASS |
+| 5 | Import a new keyword via XML (e.g. `beta` with notes) | New keyword created (`imported=1`), count increases | As expected | PASS |
+| 6 | Import a new keyword via CSV (e.g. `gamma` with notes) | New keyword created (`imported=1`) | As expected | PASS |
+| 7 | Regression: existing duplicate handling still works correctly (no unintended updates on create-only paths) | Non-import create paths still reject true duplicates as before | No change to core class behavior; import paths only affected | PASS |
+
+**Notes.** Fix ensures upsert semantics on import (update if exists by name, create if not), matching UI hint "Existing keywords with the same name are updated; new ones are created." The core `tlKeyword` class behavior unchanged to preserve duplicate-prevention for non-import flows.
+
