@@ -687,6 +687,16 @@ switch ($action) {
         if (!$user->hasRight($db, 'mgt_modify_tc', $tprojId)) {
             out(['status' => 'error', 'message' => 'No permission'], 403);
         }
+        // Issue #1044: legacy "New Version From Latest" (tcView_viewer.tpl:264-270
+        // -> tcEdit.php:280-283 do_create_new_version_from_latest) ignored the
+        // opened version and cloned getLatestVersionID($tcase_id) instead. The
+        // server does the same resolution so the client cannot drift.
+        if (strval(getParam('source', 'this')) === 'latest') {
+            $ltcv = $tcaseMgr->getLatestVersionID($tcaseId);
+            if (intval($ltcv) > 0) {
+                $tcverId = intval($ltcv);
+            }
+        }
         $ret = $tcaseMgr->create_new_version($tcaseId, intval($user->dbID ?? $userId), $tcverId);
         $newTcv = is_array($ret) ? intval($ret['id'] ?? 0) : intval($ret);
         if ($newTcv <= 0) {
@@ -700,6 +710,130 @@ switch ($action) {
         $tcaseMgr->setIsOpen($tcaseId, $tcverId, $freezeSrc ? 0 : 1);
         out(['status' => 'ok', 'tcversion_id' => $newTcv, 'tcase_id' => $tcaseId,
              'message' => 'New version created']);
+        break;
+
+    // Issue #1044: Freeze / Unfreeze a version. Port of
+    // testcaseCommands::freeze()/unfreeze() -> setIsOpen()
+    // (lib/testcases/testcaseCommands.class.php:1372-1404), i.e. the legacy
+    // tcView_viewer.tpl:271-289 freeze / unfreeze_this_tcversion submit, which
+    // posted doAction=freeze|unfreeze to lib/testcases/tcEdit.php.
+    // Right gate: legacy $args_can_do->freeze (testcase.class.php:7479-7481).
+    case 'set_is_open':
+        if ($method !== 'POST') { out(['status' => 'error', 'message' => 'Method not allowed'], 405); }
+        list($tcaseMgr, $tprojectMgr, $tcaseId, $tcverId, $tprojId, $versionData, $chain) =
+            resolveContext($db, $tcaseMgr, $tprojectMgr,
+                intval(getParam('tcase_id', 0)),
+                intval(getParam('tcversion_id', 0)),
+                intval(getParam('tproject_id', 0)));
+        if (!$user->hasRight($db, 'mgt_modify_tc', $tprojId)
+            || !$user->hasRight($db, 'testcase_freeze', $tprojId)) {
+            out(['status' => 'error', 'message' => 'No permission'], 403);
+        }
+        $isOpen = intval(getParam('is_open', 0)) === 1 ? 1 : 0;
+        // freeze() sets isOpen=0, unfreeze() sets isOpen=1 (class.php:1372-1388)
+        $tcaseMgr->setIsOpen(null, $tcverId, $isOpen);
+        $tcaseMgr->update_last_modified($tcverId, intval($user->dbID ?? $userId));
+        out(['status' => 'ok', 'tcase_id' => $tcaseId, 'tcversion_id' => $tcverId,
+             'is_open' => $isOpen,
+             'message' => $isOpen ? 'Version unfrozen' : 'Version frozen']);
+        break;
+
+    // Issue #1044: Delete a whole test case (all versions) or a single version.
+    // Port of testcaseCommands::doDelete() (testcaseCommands.class.php:608-655)
+    // -> testcaseMgr->delete($tcase_id,$tcversion_id), reached from the legacy
+    // delete_tc / delete_tc_version submits of tcView_viewer.tpl:176-183 and
+    // :295-301 through tcDelete.tpl.
+    //  - scope 'all'    -> tcversion_id = testcase::ALL_VERSIONS (legacy
+    //                     delete_tc: deletes every version + executions).
+    //  - scope 'single' -> deletes only the given version (legacy
+    //                     delete_tc_version, tcEdit.php:151-184).
+    case 'delete':
+        if ($method !== 'POST') { out(['status' => 'error', 'message' => 'Method not allowed'], 405); }
+        list($tcaseMgr, $tprojectMgr, $tcaseId, $tcverId, $tprojId, $versionData, $chain) =
+            resolveContext($db, $tcaseMgr, $tprojectMgr,
+                intval(getParam('tcase_id', 0)),
+                intval(getParam('tcversion_id', 0)),
+                intval(getParam('tproject_id', 0)));
+        if (!$user->hasRight($db, 'mgt_modify_tc', $tprojId)) {
+            out(['status' => 'error', 'message' => 'No permission'], 403);
+        }
+        $scope = strval(getParam('scope', 'single')) === 'all' ? 'all' : 'single';
+        if ($scope === 'single' && $tcverId <= 0) {
+            out(['status' => 'error', 'message' => 'tcversion_id is required',
+                 'error_code' => 'MISSING_VERSION'], 400);
+        }
+        // Legacy testcaseCommands::delete(): when the TC (or version) has
+        // executions and the user lacks testproject_delete_executed_testcases,
+        // delete_enabled is switched off and the confirmation is refused
+        // (testcaseCommands.class.php:530-539). Enforced server side too.
+        $execTable = tlObjectWithDB::getDBTables(array('executions'));
+        $execWhere = ($scope === 'all')
+            ? " tcase_id = {$tcaseId} "
+            : " tcversion_id = {$tcverId} ";
+        $execRow = $db->fetchFirstRow("SELECT COUNT(*) AS c FROM {$execTable['executions']} WHERE {$execWhere}");
+        $hasExecs = (!is_null($execRow) && intval($execRow['c'] ?? 0) > 0);
+        if ($hasExecs && !$user->hasRight($db, 'testproject_delete_executed_testcases', $tprojId)) {
+            out(['status' => 'error',
+                 'message' => 'This test case has executions: deleting it requires special permission',
+                 'error_code' => 'EXECUTED_NO_DELETE_PERM'], 403);
+        }
+        // Legacy delete_tc_version gate (tcView_viewer.tpl:295-301): a FROZEN
+        // version can only be deleted holding delete_frozen_tcversion.
+        if ($scope === 'single' && isset($versionData['is_open'])
+            && intval($versionData['is_open']) === 0
+            && !$user->hasRight($db, 'delete_frozen_tcversion', $tprojId)) {
+            out(['status' => 'error',
+                 'message' => 'Deleting a frozen version requires special permission',
+                 'error_code' => 'FROZEN_NO_DELETE_PERM'], 403);
+        }
+        // A single-version delete is pointless when it is the only version:
+        // legacy set $args_can_delete_version = "yes" only when other versions
+        // exist (tcView.tpl:118-122).
+        $tcvTable = tlObjectWithDB::getDBTables(array('tcversions'));
+        $cntRow = $db->fetchFirstRow("SELECT COUNT(*) AS c FROM {$tcvTable['tcversions']}"
+            . " WHERE tcase_id = {$tcaseId}");
+        $versionCount = intval($cntRow['c'] ?? 0);
+        if ($scope === 'single' && $versionCount < 2) {
+            out(['status' => 'error',
+                 'message' => 'This is the only version: use "Delete Test Case" instead',
+                 'error_code' => 'ONLY_VERSION'], 400);
+        }
+        $targetVersion = ($scope === 'all') ? testcase::ALL_VERSIONS : $tcverId;
+        try {
+            $ok = $tcaseMgr->delete($tcaseId, $targetVersion);
+        } catch (Throwable $e) {
+            out(['status' => 'error', 'message' => $e->getMessage()], 500);
+        }
+        if ($ok === false || $ok === null || $ok === '') {
+            out(['status' => 'error', 'message' => strval($ok['msg'] ?? 'Delete failed')], 400);
+        }
+        // audit trail, exactly like legacy doDelete()
+        // (testcaseCommands.class.php:634-649)
+        $tcinfo = $tcaseMgr->get_by_id($tcaseId, ($scope === 'all') ? null : $tcverId);
+        $tcName = strval($tcinfo[0]['name'] ?? '');
+        try {
+            list($prefix, $root) = $tcaseMgr->getPrefix($tcaseId, $tprojId);
+            $glue = config_get('testcase_cfg')->glue_character;
+            $externalId = $prefix . $glue . intval($tcinfo[0]['tc_external_id'] ?? 0);
+        } catch (Throwable $e) {
+            $externalId = '';
+        }
+        if (is_null($tcinfo) || count($tcinfo) === 0) {
+            $tcinfo = [];
+        }
+        if (function_exists('logAuditEvent')) {
+            if ($scope === 'all') {
+                logAuditEvent(TLS("audit_testcase_deleted", $externalId),
+                    "DELETE", $tcaseId, "testcases");
+            } else {
+                logAuditEvent(TLS("audit_testcase_version_deleted",
+                        strval($tcinfo[0]['version'] ?? ''), $externalId),
+                    "DELETE", $tcaseId, "testcases");
+            }
+        }
+        out(['status' => 'ok', 'tcase_id' => $tcaseId, 'tcversion_id' => $tcverId,
+             'scope' => $scope, 'deleted' => true,
+             'message' => ($scope === 'all') ? 'Test case deleted' : 'Test case version deleted']);
         break;
 
     default:

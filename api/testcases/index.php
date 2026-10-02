@@ -1441,9 +1441,56 @@ if ($action === 'view') {
                    // accepts platform_management OR platform_view, and
                    // platforms.inc.tpl rendered the link unconditionally, so
                    // BOTH rights are exposed and the client ORs them.
-                   'platform_management', 'platform_view') as $gk) {
+                   'platform_management', 'platform_view',
+                   // Issue #1044: grants the legacy tcView_viewer.tpl:143-316
+                   // operations panels use as gates. tcView needs them to
+                   // decide which of New Sibling / Move-Copy / Delete TC /
+                   // New Version / Freeze / Delete Version to render.
+                   //  - delete_frozen_tcversion: legacy delete_tc_version gate
+                   //     (tpl:295-301) - a frozen version may only be deleted
+                   //     with this right.
+                   //  - testproject_delete_executed_testcases: legacy
+                   //     testcaseCommands::delete() sets delete_enabled=0 when
+                   //     the TC has executions and this right is missing
+                   //     (testcaseCommands.class.php:533-538).
+                   //  - testplan_planning: legacy args_can_move_copy gate for
+                   //     the Move/Copy button (tpl:170-178).
+                   'delete_frozen_tcversion',
+                   'testproject_delete_executed_testcases',
+                   'testplan_planning') as $gk) {
         $grants[$gk] = $user->hasRight($db, $gk, $tprojectId) ? 1 : 0;
     }
+
+    // Issue #1044: fine-grained "can I do this action" map, server side, an exact
+    // port of testcase::getShowViewerActions() (lib/functions/testcase.class.php
+    // :4939-4971) as consumed by gui/templates/dashio/testcases/
+    // tcView_viewer.tpl:143-316. Keeping it here (instead of re-deriving the
+    // matrix in JS) means the modern toolbar renders the same buttons legacy
+    // rendered for the same user/mode.
+    $viewerActions = array('edit' => 'no', 'delete_testcase' => 'no',
+        'delete_version' => 'no', 'deactivate' => 'no',
+        'create_new_version' => 'no', 'export' => 'no', 'move' => 'no',
+        'copy' => 'no', 'add2tplan' => 'no', 'freeze' => 'no',
+        'updTplanTCV' => 'no');
+    if (getIntParam('editOnExec') === 1) {
+        // legacy show_mode == 'editOnExec': only edit / create_new_version /
+        // updTplanTCV (testcase.class.php:4955-4959)
+        $viewerActions['edit'] = 'yes';
+        $viewerActions['create_new_version'] = 'yes';
+        $viewerActions['updTplanTCV'] = 'yes';
+    } elseif (!$grants['mgt_modify_tc']) {
+        // legacy show_mode == 'editDisabled' (testcase.class.php:7463-7466):
+        // nothing is enabled at all.
+    } else {
+        foreach ($viewerActions as $k => $ign) {
+            $viewerActions[$k] = 'yes';
+        }
+    }
+    // two rights are read straight off the user object by legacy, overwriting
+    // the default 'yes' (testcase.class.php:7479-7487)
+    $viewerActions['freeze'] = $grants['testcase_freeze'] ? 'yes' : 'no';
+    $viewerActions['delete_frozen_tcversion'] =
+        $grants['delete_frozen_tcversion'] ? 'yes' : 'no';
 
     out([
         'status' => 'ok',
@@ -1490,6 +1537,9 @@ if ($action === 'view') {
         'relationsByVersion' => $relationsByVersion,
         'relationsConfig' => $relationsConfig,
         'grants' => $grants,
+        // Issue #1044: fine-grained per-action gates of the two legacy
+        // operations panels (getShowViewerActions port, see above).
+        'canDo' => $viewerActions,
         'hasTestPlans' => $hasTestPlans,
         // Issue #1038: legacy quickexec.inc.tpl data. 'enabled' is FALSE when
         // spec_cfg->show_tplan_usage is off or the viewer runs inside the
