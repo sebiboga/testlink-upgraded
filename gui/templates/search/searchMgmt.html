@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Full-Text Search</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; color: #0d3f3c; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-teal:disabled { background: #9ad9d4; cursor: not-allowed; }
+.btn-red { background: #e6605e; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-red:hover { background: #d04e4c; }
+.btn-dark { background: #3a3d45; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-dark:hover { background: #4a4e57; }
+.panel { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 20px 24px 0; }
+.panel-head { padding: 14px 20px; border-bottom: 1px solid #eee; font-size: 15px; font-weight: 700; color: #22242a; display: flex; align-items: center; gap: 10px; }
+.panel-head .count { font-weight: 400; color: #888; font-size: 13px; }
+.notice { margin: 12px 20px 0; background: #eefaf9; border: 1px solid #bfe5e2; color: #2d8e88; border-radius: 6px; padding: 10px 14px; font-size: 12px; }
+.notice.warn { background: #fff4e5; border-color: #ffd8a8; color: #b06a00; }
+.notice.err { background: #fdecec; border-color: #f5bcbc; color: #c0392b; }
+.form-body { padding: 16px 20px 6px; }
+.form-group label { font-size: 12px; font-weight: 600; color: #444; display: block; margin-bottom: 4px; }
+.form-control { font-size: 13px; height: 34px; }
+.input-group-text { font-size: 12px; background: #eefaf9; color: #2d8e88; border-color: #ccc; }
+.radios { display: flex; gap: 18px; align-items: center; font-size: 13px; color: #444; }
+.radios label { font-weight: 400; display: inline-flex; align-items: center; gap: 5px; cursor: pointer; }
+.crit-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 4px 18px; padding: 12px 20px; }
+.crit-group { border: 1px solid #e6e6e6; border-radius: 6px; padding: 10px 12px; background: #fbfbfb; }
+.crit-group h4 { font-size: 12px; font-weight: 700; color: #2d8e88; margin: 0 0 6px; text-transform: uppercase; letter-spacing: .5px; }
+.crit-group label { font-size: 12px; color: #444; display: flex; align-items: center; gap: 6px; margin-bottom: 3px; cursor: pointer; }
+.refine-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px 22px; padding: 4px 20px 16px; }
+.actions { padding: 0 20px 18px; display: flex; gap: 10px; align-items: center; }
+.results-wrap { padding: 8px 20px 20px; }
+table.grid { background: #fff; border-radius: 6px; width: 100%; border-collapse: collapse; }
+table.grid thead th { background: #22242a; color: #fff; font-size: 12px; padding: 8px 12px; text-align: left; }
+table.grid tbody td { padding: 7px 12px; font-size: 13px; border-top: 1px solid #eee; vertical-align: top; }
+table.grid tbody tr:nth-child(even) { background: #fafafa; }
+.rowlink { color: #2d8e88; font-weight: 700; text-decoration: none; }
+.rowlink:hover { text-decoration: underline; }
+.res-block { margin-bottom: 20px; }
+.res-block h3 { font-size: 14px; color: #22242a; margin: 14px 0 6px; }
+.res-block h3 .n { color: #888; font-weight: 400; font-size: 12px; margin-left: 6px; }
+.state { margin: 20px 24px 0; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 26px; text-align: center; color: #666; }
+.state.err { color: #c0392b; }
+.state h2 { font-size: 17px; margin: 0 0 6px; color: #22242a; }
+.state.err h2 { color: #c0392b; }
+.state .code { font-family: monospace; font-size: 11px; color: #999; margin-top: 8px; }
+#toast { display: none; position: fixed; right: 24px; bottom: 24px; background: #2d8e88; color: #fff; padding: 11px 18px; border-radius: 6px; font-size: 13px; z-index: 99; }
+#toast.err { background: #c0392b; }
+.footer { margin: 22px 24px 30px; color: #999; font-size: 12px; text-align: center; }
+.muted { color: #999; font-size: 12px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span data-i18n="sfm.header">Full-Text Search</span>
+  <span class="sub"><span data-i18n="sfm.inProject">in test project</span> <b id="tprojectName">-</b></span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="toolbar">
+  <span class="ctx"><span data-i18n="sfm.testProject">Test Project</span>: <b id="tprojectName2">-</b></span>
+  <span class="ctx" id="prefixCtx"><span data-i18n="sfm.prefix">Prefix</span>: <b id="tcasePrefix">-</b></span>
+  <span class="ctx" id="reqChip"></span>
+  <span style="flex:1"></span>
+  <button class="btn-dark" id="btnRefresh" onclick="refresh()"><i class="fa fa-refresh"></i> <span data-i18n="common.refresh">Refresh</span></button>
+  <button class="btn-dark" id="btnAdvanced" onclick="openAdvanced()"><i class="fa fa-sliders"></i> <span data-i18n="sfm.advanced">Open Advanced Search</span></button>
+  <button class="btn-red" id="btnBack" onclick="goBack()"><i class="fa fa-arrow-left"></i> <span data-i18n="sfm.backToSearch">Back to Search Test Cases</span></button>
+</div>
+
+<div class="state" id="stateBox" style="display:none;">
+  <h2 id="stateTitle"></h2>
+  <div id="stateMsg"></div>
+  <div class="code" id="stateCode"></div>
+</div>
+
+<div id="main" style="display:none;">
+  <div class="panel">
+    <div class="panel-head"><i class="fa fa-search" style="color:#4ECDC4"></i> <span data-i18n="sfm.searchCaption">Full-text search</span></div>
+    <div class="form-body">
+      <div class="form-group">
+        <label for="target" data-i18n="sfm.target">Search for</label>
+        <div class="input-group">
+          <span class="input-group-text"><i class="fa fa-font"></i></span>
+          <input type="text" class="form-control" id="target" maxlength="200" autocomplete="off"
+                 data-i18n-attr="placeholder:sfm.targetPlaceholder:Type one or more words, e.g. login password">
+        </div>
+        <div class="radios" style="margin-top:8px;">
+          <label><input type="radio" name="and_or" value="or" checked> <span data-i18n="sfm.matchAny">any word (OR)</span></label>
+          <label><input type="radio" name="and_or" value="and"> <span data-i18n="sfm.matchAll">all words (AND)</span></label>
+        </div>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn-teal" id="btnSearch" onclick="runSearch()"><i class="fa fa-search"></i> <span data-i18n="sfm.search">Search</span></button>
+      <button class="btn-red" id="btnClear" onclick="clearAll()"><i class="fa fa-eraser"></i> <span data-i18n="common.reset">Reset</span></button>
+      <span class="muted" id="searchInfo"></span>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head"><i class="fa fa-list-check" style="color:#4ECDC4"></i> <span data-i18n="sfm.criteriaCaption">Searched fields</span></div>
+    <div class="notice">
+      <i class="fa fa-info-circle"></i>
+      <span data-i18n="sfm.criteriaHint">The legacy full-text search always searched every field below. Uncheck a field to narrow the search.</span>
+    </div>
+    <div class="crit-grid" id="critGrid"></div>
+    <div class="panel-head" style="border-top:1px solid #eee;"><i class="fa fa-filter" style="color:#4ECDC4"></i> <span data-i18n="sfm.refineCaption">Refinements (optional)</span></div>
+    <div class="refine-grid">
+      <div class="form-group">
+        <label for="keywordSel" data-i18n="sfm.keyword">Keyword</label>
+        <select class="form-control" id="keywordSel"><option value="0"></option></select>
+      </div>
+      <div class="form-group">
+        <label for="createdBy" data-i18n="sfm.createdBy">Created by</label>
+        <input type="text" class="form-control" id="createdBy" maxlength="50">
+      </div>
+      <div class="form-group">
+        <label for="editedBy" data-i18n="sfm.editedBy">Edited by</label>
+        <input type="text" class="form-control" id="editedBy" maxlength="50">
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" id="resultsPanel" style="display:none;">
+    <div class="panel-head"><i class="fa fa-list" style="color:#4ECDC4"></i> <span data-i18n="sfm.resultsCaption">Results</span> <span class="count" id="resCount"></span></div>
+    <div class="results-wrap" id="resultsWrap"></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<div class="footer"><span data-i18n="footers.searchMgmt">TestLink 2.0.1 - Full-Text Search</span></div>
+
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script>
+var API = '/api/searchmgmt/index.php';
+var tprojectId = 0;
+var ctx = null;
+var lastResults = null;
+var p = null;
+
+$(function () {
+  p = new URLSearchParams(window.location.search);
+  tprojectId = parseInt(p.get('tproject_id') || '0', 10);
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    loadContext();
+  });
+  $('#target').on('keydown', function (e) {
+    if (e.key === 'Enter' || e.keyCode === 13) { e.preventDefault(); runSearch(); }
+  });
+});
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function toast(msg, isErr) {
+  var $t = $('#toast').text(msg).toggleClass('err', !!isErr).show();
+  clearTimeout($t.data('tm'));
+  $t.data('tm', setTimeout(function () { $t.hide(); }, 3500));
+}
+
+function showState(titleKey, msgKey, code, isErr) {
+  $('#main').hide();
+  $('#stateBox').show().toggleClass('err', !!isErr);
+  $('#stateTitle').text(TLi18n.t(titleKey));
+  $('#stateMsg').text(TLi18n.t(msgKey));
+  $('#stateCode').text(code || '');
+}
+
+function busy(on) {
+  $('#btnSearch').prop('disabled', !!on);
+  $('#btnSearch').find('span').text(TLi18n.t(on ? 'sfm.searching' : 'sfm.search'));
+  if (on) { $('#searchInfo').text(TLi18n.t('sfm.searching')); }
+}
+
+/** Map a BFF machine code to a localized message key. */
+function errKey(code) {
+  var m = {
+    'need_criteria': 'sfm.needCriteria',
+    'need_checkbox': 'sfm.needCheckbox',
+    'forbidden': 'sfm.denied',
+    'tproject_not_found': 'sfm.notFound',
+    'invalid_tproject': 'sfm.invalidProject',
+    'not_authenticated': 'sfm.sessionExpired',
+    'session_expired': 'sfm.sessionExpired',
+    'method_not_allowed': 'sfm.methodNotAllowed',
+    'unknown_action': 'sfm.unknownAction'
+  };
+  return m[code] || 'sfm.serverError';
+}
+
+function handleFail(xhr) {
+  var code = '';
+  var body = null;
+  try { body = JSON.parse(xhr.responseText); } catch (e) { body = null; }
+  if (body && body.code) { code = body.code; }
+  if (xhr.status === 401) {
+    window.location.href = '/login.php?note=expired';
+    return;
+  }
+  if (xhr.status === 403) {
+    showState('sfm.stateDenied', errKey(code || 'forbidden'), code || 'forbidden', true);
+    return;
+  }
+  if (xhr.status === 404) {
+    showState('sfm.stateNotFound', errKey(code), code, true);
+    return;
+  }
+  if (xhr.status === 400 || xhr.status === 405) {
+    $('#resultsPanel').hide();
+    toast(TLi18n.t(errKey(code)), true);
+    $('#searchInfo').text(TLi18n.t(errKey(code)));
+    return;
+  }
+  showState('sfm.stateError', 'sfm.serverError', code || ('HTTP ' + xhr.status), true);
+}
+
+function loadContext() {
+  busy(true);
+  $.getJSON(API + '?action=init&tproject_id=' + tprojectId)
+    .done(function (r) {
+      if (r.status !== 'ok') { showState('sfm.stateError', 'sfm.serverError', '', true); return; }
+      ctx = r;
+      $('#stateBox').hide();
+      $('#main').show();
+      var c = r.context;
+      $('#tprojectName').text(c.tproject_name || '-');
+      $('#tprojectName2').text(c.tproject_name || '-');
+      $('#tcasePrefix').text(c.tcasePrefix || '-');
+      document.title = (c.tproject_name || '') + ' - ' + TLi18n.t('sfm.header');
+      $('#target').attr('maxlength', c.max_target_length || 200);
+      $('#reqChip').html(c.reqEnabled
+        ? '<span style="color:#8ee7e2"><i class="fa fa-check-circle"></i> ' + esc(TLi18n.t('sfm.requirementsEnabled')) + '</span>'
+        : '<span style="color:#9aa0a6"><i class="fa fa-minus-circle"></i> ' + esc(TLi18n.t('sfm.requirementsDisabled')) + '</span>');
+      $('#keywordSel').find('option:gt(0)').remove();
+      (r.keywords || []).forEach(function (k) {
+        $('#keywordSel').append($('<option>').val(k.id).text(k.name));
+      });
+      $('#keywordSel option[value="0"]').text(TLi18n.t('sfm.anyKeyword'));
+      renderCriteria(r.criteria || {}, !!c.reqEnabled);
+      busy(false);
+      // navBar hand-off: ?target=... runs the search straight away
+      var pre = p.get('target');
+      if (pre !== null && $.trim(pre) !== '') {
+        $('#target').val(pre);
+        runSearch();
+      }
+    })
+    .fail(handleFail);
+}
+
+function critList(map, prefix) {
+  var out = [];
+  Object.keys(map || {}).forEach(function (key) {
+    out.push({ key: key, label: TLi18n.t('sfm.field' + map[key]) });
+  });
+  return out;
+}
+
+function renderCriteria(criteria, reqEnabled) {
+  var groups = [
+    { id: 'gTC', title: TLi18n.t('sfm.grpTestCases'), items: critList(criteria.testcases) },
+    { id: 'gTS', title: TLi18n.t('sfm.grpTestSuites'), items: critList(criteria.testsuites) }
+  ];
+  if (reqEnabled) {
+    groups.push({ id: 'gRS', title: TLi18n.t('sfm.grpReqSpecs'), items: critList(criteria.reqspecs) });
+    groups.push({ id: 'gRQ', title: TLi18n.t('sfm.grpRequirements'), items: critList(criteria.requirements) });
+  }
+  var html = '';
+  groups.forEach(function (g) {
+    html += '<div class="crit-group"><h4>' + esc(g.title) + '</h4>';
+    g.items.forEach(function (it) {
+      // legacy parity: searchMgmt.php force-enabled every dimension, so the
+      // boxes start CHECKED and unchecking one narrows the search
+      html += '<label><input type="checkbox" class="crit" data-key="' + esc(it.key) + '" checked> '
+        + esc(it.label) + '</label>';
+    });
+    html += '</div>';
+  });
+  $('#critGrid').html(html);
+}
+
+function collectParams() {
+  var q = new URLSearchParams();
+  q.set('action', 'results');
+  q.set('tproject_id', String(tprojectId));
+  q.set('target', $('#target').val());
+  q.set('and_or', $('input[name="and_or"]:checked').val() || 'or');
+  $('.crit').each(function () {
+    q.set($(this).data('key'), this.checked ? '1' : '0');
+  });
+  var kw = parseInt($('#keywordSel').val() || '0', 10);
+  if (kw > 0) { q.set('keyword_id', String(kw)); }
+  if ($.trim($('#createdBy').val()) !== '') { q.set('created_by', $('#createdBy').val()); }
+  if ($.trim($('#editedBy').val()) !== '') { q.set('edited_by', $('#editedBy').val()); }
+  return q;
+}
+
+function runSearch() {
+  var anyCrit = $('.crit:checked').length > 0;
+  if (!anyCrit) {
+    toast(TLi18n.t('sfm.needCheckbox'), true);
+    return;
+  }
+  busy(true);
+  $.getJSON(API + '?' + collectParams().toString())
+    .done(function (r) {
+      busy(false);
+      if (r.status !== 'ok') { toast(TLi18n.t('sfm.serverError'), true); return; }
+      lastResults = r;
+      $('#searchInfo').text(TLi18n.t('sfm.searched'));
+      renderResults(r);
+    })
+    .fail(function (xhr) { busy(false); handleFail(xhr); });
+}
+
+function block(titleKey, rows, cols, countKey) {
+  if (!rows || rows.length === 0) { return ''; }
+  var h = '<div class="res-block"><h3>' + esc(TLi18n.t(titleKey))
+    + '<span class="n">' + esc(TLi18n.t('sfm.matches', { n: rows.length })) + '</span></h3>';
+  h += '<table class="grid"><thead><tr>';
+  cols.forEach(function (c) { h += '<th>' + esc(TLi18n.t(c.key)) + '</th>'; });
+  h += '</tr></thead><tbody>';
+  rows.forEach(function (r) {
+    h += '<tr>';
+    cols.forEach(function (c) { h += '<td>' + (c.cell(r)) + '</td>'; });
+    h += '</tr>';
+  });
+  h += '</tbody></table></div>';
+  return h;
+}
+
+function renderResults(r) {
+  var wrap = '';
+  if (r.warning === 'empty_testproject') {
+    wrap = '<div class="notice warn"><i class="fa fa-exclamation-triangle"></i> <b>'
+      + esc(TLi18n.t('sfm.emptyProject')) + '</b><br>' + esc(TLi18n.t('sfm.emptyProjectHint')) + '</div>';
+    $('#resultsPanel').show();
+    $('#resCount').text('');
+    $('#resultsWrap').html(wrap);
+    return;
+  }
+  if (r.warning === 'no_records_found' || r.count === 0) {
+    wrap = '<div class="notice"><i class="fa fa-info-circle"></i> <b>'
+      + esc(TLi18n.t('sfm.noRecords')) + '</b><br>' + esc(TLi18n.t('sfm.noRecordsHint')) + '</div>';
+  }
+  var q = new URLSearchParams();
+  q.set('tproject_id', String(tprojectId));
+
+  wrap += block('sfm.resTestCases', r.testcases, [
+    { key: 'sfm.colId', cell: function (x) {
+        return '<a class="rowlink" target="_blank" href="/gui/templates/testcases/tcView.html?tcase_id='
+          + x.testcase_id + '&tproject_id=' + tprojectId + '">' + esc(x.full_external_id) + '</a>';
+      } },
+    { key: 'sfm.colTitle', cell: function (x) { return esc(x.name); } },
+    { key: 'sfm.colSummary', cell: function (x) { return esc(x.summary); } },
+    { key: 'sfm.colPath', cell: function (x) { return esc(x.path); } }
+  ]);
+  wrap += block('sfm.resTestSuites', r.testsuites, [
+    { key: 'sfm.colTitle', cell: function (x) {
+        return '<a class="rowlink" target="_blank" href="/gui/templates/testcases/suiteView.html?tsuite_id='
+          + x.id + '&tproject_id=' + tprojectId + '">' + esc(x.name) + '</a>';
+      } },
+    { key: 'sfm.colDetails', cell: function (x) { return esc(x.details); } }
+  ]);
+  wrap += block('sfm.resReqSpecs', r.reqspecs, [
+    { key: 'sfm.colTitle', cell: function (x) {
+        return '<a class="rowlink" target="_blank" href="/gui/templates/requirements/reqSpecView.html?reqspec_id='
+          + x.req_spec_id + '&tproject_id=' + tprojectId + '">' + esc(x.name) + '</a>';
+      } },
+    { key: 'sfm.colScope', cell: function (x) { return esc(x.scope); } }
+  ]);
+  wrap += block('sfm.resRequirements', r.requirements, [
+    { key: 'sfm.colDocId', cell: function (x) { return esc(x.req_doc_id); } },
+    { key: 'sfm.colTitle', cell: function (x) {
+        return '<a class="rowlink" target="_blank" href="/gui/templates/requirements/reqView.html?req_id='
+          + x.req_id + '&tproject_id=' + tprojectId + '">' + esc(x.name) + '</a>';
+      } },
+    { key: 'sfm.colScope', cell: function (x) { return esc(x.scope); } },
+    { key: 'sfm.colPath', cell: function (x) { return esc(x.path); } }
+  ]);
+
+  $('#resultsPanel').show();
+  $('#resCount').text(TLi18n.t('sfm.matches', { n: r.count }));
+  $('#resultsWrap').html(wrap);
+}
+
+function clearAll() {
+  $('#target').val('');
+  $('#keywordSel').val('0');
+  $('#createdBy').val('');
+  $('#editedBy').val('');
+  $('.crit').prop('checked', true);
+  $('input[name="and_or"][value="or"]').prop('checked', true);
+  $('#resultsPanel').hide();
+  $('#searchInfo').text('');
+}
+
+function refresh() {
+  if (ctx) {
+    var keep = $('#target').val();
+    var andOr = $('input[name="and_or"]:checked').val();
+    loadContext();
+    $('#target').val(keep);
+    $('input[name="and_or"][value="' + andOr + '"]').prop('checked', true);
+  } else {
+    loadContext();
+  }
+}
+
+function openAdvanced() {
+  window.location.href = '/gui/templates/search/searchAdvancedView.html?tproject_id=' + tprojectId;
+}
+
+function goBack() {
+  window.location.href = '/gui/templates/search/searchView.html?tproject_id=' + tprojectId;
+}
+</script>
+</body>
+</html>
