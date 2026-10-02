@@ -4089,3 +4089,221 @@ i18n key, no shared stylesheet — so no other screen can regress from it.
 * `gui/templates/documentation/documentation.html`
 * `gui/templates/requirements/reqTcAssign.html`
 * `gui/templates/requirements/reqTcBulkAssign.html`
+
+---
+
+## Suite 1797 - Copy Requirement Specification (Dashio popup) - Issue #1797
+
+**Screen under test:** `gui/templates/requirements/reqSpecCopy.html`
+**BFF:** `api/reqspeccopy/index.php` (`init`, `copy`, `projects`)
+**Fixture:** `tmp/fixtures_1797.php` (gitignored, rerunnable)
+**Date:** 2026-10-02
+
+### Environment / credentials
+| Item | Value |
+|---|---|
+| App | `http://localhost:8082` |
+| DB | `testlink/testlink/testlink` @ `127.0.0.1:3306` |
+| Admin | `admin` / `admin` (all rights) |
+| Limited user | `norights1797` (role 3, no requirement rights) |
+| Cookies | admin `/tmp/c1797.txt`, no-rights `/tmp/n1797.txt` |
+
+### Fixture data (as created by the final run)
+| Id | Node |
+|---|---|
+| 143 | test project `RSCCOPY1797` (prefix RSC1) |
+| 144 | **source** specification `RS-MAIN` "Main Specification" |
+| 146 | child specification `Child Specification` under 144 |
+| 148 | "Destination Specification" (sibling of 144) |
+| 150 | requirement in 144; 152 in 146; 154 in 148 |
+| 156 | test project `RSCFOREIGN1797` |
+| 157 | "Foreign Specification" under 156 |
+| 1 | **orphan** `nodes_hierarchy` test-project row, no `testprojects` row (bug #1798) |
+
+---
+
+### TC-1797-01 - Screen loads with the source specification
+| | |
+|---|---|
+| Precondition | logged in as `admin` |
+| Steps | open `/gui/templates/requirements/reqSpecCopy.html?req_spec_id=144&tproject_id=143` |
+| Expected | title "Copy Requirement Specification", subtitle, spec line `RS-MAIN - Main Specification`, source card (doc id, title, test project, prefix, author, requirement count, scope), destination card, Copy enabled, footer |
+| Actual | **PASS** - all fields populated, requirement count "1 requirement(s)", scope rendered as plain text, Copy enabled, footer `TestLink 2.0.1 - Copy Requirement Specification | Generated on ...` |
+
+### TC-1797-02 - Source subtree is NOT offered as a destination
+| | |
+|---|---|
+| Steps | same as TC-01, read the destination container selector |
+| Expected | the source specification (144) and its child (146) are absent; only the project root and other specifications are listed |
+| Actual | **PASS** - options were `143 RSCCOPY1797`, `148 Destination Specification`. Neither 144 nor 146 offered |
+
+### TC-1797-03 - Copy into a specification, position = bottom
+| | |
+|---|---|
+| Steps | container = 148, position = bottom, press Copy |
+| Expected | success message with the legacy wording, "Open the copy" link, new specification in the list, Copy button usable again |
+| Actual | **PASS** (after fix) - message `A copy of Req. Spec (DOCID:RS-MAIN - Main Specification) has been done (DOCID:RS-MAIN [1])` + "Open the copy"; new nodes 159/161 (spec + child) appear nested under 148. **First run FAILED - see bug #1799 (the message was wiped by its own refresh)** |
+
+### TC-1797-04 - Copy into the project root, position = top
+| | |
+|---|---|
+| Steps | container = 143 (project root), position = top, press Copy |
+| Expected | the new specification is the FIRST child of the project root |
+| Actual | **PASS** - order `167 Main Specification`, `169 Child Specification`, `148 Destination Specification`, ... so the copy is first |
+
+### TC-1797-05 - Cross-project copy
+| | |
+|---|---|
+| Steps | destination project = `RSCFOREIGN1797` (156), container list reloads to `156 / 157 Foreign Specification`, pick 157, position = bottom, Copy |
+| Expected | destination test project switcher reloads the container list; copy succeeds with a doc_id free of the `[n]` index (that project owns no `RS-MAIN`) |
+| Actual | **PASS** - `... has been done (DOCID:RS-MAIN)`, success box visible |
+
+### TC-1797-06 - Empty destination list disables Copy
+| | |
+|---|---|
+| Steps | force an empty destination list, read the Copy button and the hint |
+| Expected | hint "No destination is available in this test project." shown, Copy **disabled** |
+| Actual | **PASS** - hint `display:block`, `copyBtn.disabled === true` |
+
+### TC-1797-07 - Unknown specification id -> 404 card
+| | |
+|---|---|
+| Steps | open `?req_spec_id=999999&tproject_id=143` |
+| Expected | "Requirement specification not found" card + the BFF message + machine code `req_spec_not_found` |
+| Actual | **PASS** (after fix, bug #1799) - card title, message and `req_spec_not_found` all correct. **First run FAILED: showed the access-denied hint with an empty machine code** |
+
+### TC-1797-08 - Missing specification id -> 400 card
+| | |
+|---|---|
+| Steps | open `/gui/templates/requirements/reqSpecCopy.html` with no id |
+| Expected | "The request was invalid" card, message "No specification id was given (req_spec_id).", machine code `invalid_req_spec_id` |
+| Actual | **PASS** - all three elements correct |
+
+### TC-1797-09 - Anonymous request -> 401 / redirect to login
+| | |
+|---|---|
+| Steps | `GET /api/reqspeccopy/index.php?action=init&req_spec_id=144` with no session cookie |
+| Expected | HTTP 401 |
+| Actual | **PASS** - HTTP 401; the screen redirects to `/login.php?note=expired` |
+
+### TC-1797-10 - Cross-origin POST is refused (CSRF)
+| | |
+|---|---|
+| Steps | `POST /api/reqspeccopy/index.php?action=copy` without `Origin`/`Referer` |
+| Expected | refused, no write |
+| Actual | **PASS** - `Forbidden: missing or mismatched same-origin proof (CSRF protection)` |
+
+### TC-1797-11 - User without requirement rights -> 403
+| | |
+|---|---|
+| Steps | as `norights1797`: `action=init`, `action=copy`, `action=projects` |
+| Expected | 403 `no_right` on init and copy; `projects` returns an empty list (200) |
+| Actual | **PASS** - `{"status":"error",...,"code":"no_right"}` on init and copy, `{"status":"ok","projects":[]}` |
+
+### TC-1797-12 - Destination inside the source subtree is refused
+| | |
+|---|---|
+| Steps | `container_id=144` (the source itself) and `container_id=146` (its child) |
+| Expected | HTTP 400 `destination_inside_source` |
+| Actual | **PASS** - 400, and the screen never offers either id |
+
+### TC-1797-13 - Foreign destination container is refused
+| | |
+|---|---|
+| Steps | `tproject_id=143&container_id=157` (node of the other project) |
+| Expected | HTTP 400 `invalid_destination` |
+| Actual | **PASS** - `Destination container belongs to another test project` |
+
+### TC-1797-14 - Orphan test-project node is not offered
+| | |
+|---|---|
+| Steps | read the destination project selector on the instance that still holds orphan node 1 |
+| Expected | only real, active projects |
+| Actual | **PASS** (after fix, bug #1798) - `[(143, RSCCOPY1797), (156, RSCFOREIGN1797)]`. **First run listed the orphan twice**, and picking it always died with 400 |
+
+### TC-1797-15 - Wrong method -> 405
+| | |
+|---|---|
+| Steps | `GET ?action=copy`, `POST ?action=projects` |
+| Expected | 405 `method_not_allowed` with `Allow:` header |
+| Actual | **PASS** - both 405; `Allow: POST` / `Allow: GET, HEAD` |
+
+### TC-1797-16 - Unknown action -> 400
+| | |
+|---|---|
+| Steps | `GET ?action=nope` |
+| Expected | 400 `unknown_action` |
+| Actual | **PASS** |
+
+### TC-1797-17 - Legacy `?doAction=copy` / `?doAction=doCopy` redirect
+| | |
+|---|---|
+| Steps | `GET /lib/requirements/reqSpecEdit.php?doAction=copy&req_spec_id=144` and the same with `doAction=doCopy&containerID=148` |
+| Expected | 302 to `reqSpecCopy.html?req_spec_id=144&...&legacy_intent=<action>`, **no write executed** |
+| Actual | **PASS** - both 302, `legacy_intent=copy` / `legacy_intent=doCopy`; no specification created |
+
+### TC-1797-18 - Legacy redirect without an id
+| | |
+|---|---|
+| Steps | `?doAction=copy` (no `req_spec_id`) |
+| Expected | 302 back to `reqSpecView.html`, one ERROR row in `events` |
+| Actual | **PASS** - 302 to `/gui/templates/requirements/reqSpecView.html`, events row `reqSpecEdit.php: doAction=copy was requested without a req_spec_id - nothing has been copied.` |
+
+### TC-1797-19 - The legacy notice is actually visible
+| | |
+|---|---|
+| Steps | follow the legacy 302 and read the message box |
+| Expected | "This screen replaces the legacy copy action. Nothing has been copied yet - choose a destination and press Copy." |
+| Actual | **PASS** (after fix, bug #1799) - message box `display:block` with the notice, and the destination list is populated. **First run: the notice was never visible (raised before `load()`, then wiped again by the `.done` handler, plus a `ReferenceError`)** |
+
+### TC-1797-20 - Stale `?tproject_id=` is repaired
+| | |
+|---|---|
+| Steps | open the screen with `?req_spec_id=144&tproject_id=95` (95 no longer exists) |
+| Expected | the destination falls back to the project owning the specification, containers load, Copy usable |
+| Actual | **PASS** (after fix, bug #1799) - `destination.tproject_id = 143`, `tproject_fallback_from = 95`, 6 containers, Copy enabled. **First run: 0 containers, empty selector, Copy disabled** |
+
+### TC-1797-21 - Toolbar button on the Requirement Specification Viewer
+| | |
+|---|---|
+| Steps | open `gui/templates/requirements/reqSpecView.html`, read the toolbar |
+| Expected | a "Copy Requirement Specification" button linking to the popup with the current spec and project |
+| Actual | **PASS** - `#copySpecLink` -> `reqSpecCopy.html?req_spec_id=<SPEC>&tproject_id=<PROJECT>`. Before this change 2.0.1 had **no** copy-specification entry point at all (legacy `reqSpecView.tpl:52` linked `reqSpecEdit.php?doAction=copy`, which no modern screen replaced) |
+
+### TC-1797-22 - Every other action of reqSpecEdit.php still works
+| | |
+|---|---|
+| Steps | `GET /lib/requirements/reqSpecEdit.php?req_spec_id=144&doAction=edit` |
+| Expected | the legacy edit screen is still served (HTTP 200) |
+| Actual | **PASS** - 200, the interception only claims `copy` / `doCopy` |
+
+### TC-1797-23 - Locale switch
+| | |
+|---|---|
+| Steps | switch the header locale picker to Romanian, then to German |
+| Expected | every label, the title, the footer and the machine-code labels switch; no raw `rsc.*` key ever reaches the page |
+| Actual | **PASS** - title `Copiază specificația cerințelor`, label `Containerul destinație`, button `Copiază`, footer `TestLink 2.0.1 - Copiază specificația cerințelor`; `TLi18n.has()` true for **every** `[data-i18n]` key on the page (0 missing) |
+
+### TC-1797-24 - Toolbar buttons / links
+| | |
+|---|---|
+| Steps | read every href of the dark toolbar |
+| Expected | Refresh reloads; Back to Specification Viewer / Cancel / Close point at `reqSpecView.html?id=<spec>&tproject_id=<project>`; Open the copy points at the NEW specification |
+| Actual | **PASS** - all hrefs correct, the "Open the copy" shortcut stays visible after the post-copy refresh |
+
+### TC-1797-25 - Event Viewer clean
+| | |
+|---|---|
+| Steps | exercise every path above, then read the newest rows of `events` |
+| Expected | no new Error/Warning rows from this screen |
+| Actual | **PASS** (after fix, bug #1800) - three consecutive legacy shim hits add **0** rows; a denied copy adds one level-1 row. **Before the fix: `Undefined property: tlUser::$id` per denial and `Trying to access array offset on null` per shim hit** |
+
+---
+
+### Result
+**25 / 25 PASS** after the fixes; 6 of the cases failed on the first browser pass and each failure was filed and fixed:
+- bug **#1798** - orphan test-project nodes offered as destinations
+- bug **#1799** - five screen defects (lost confirmation, wrong error card text / no machine code, camelCase id mismatch, stale `?tproject_id=`, invisible legacy notice)
+- bug **#1800** - Event Viewer warnings from the BFF and the shim
+
+All three are closed by the commits of the #1797 branch.
