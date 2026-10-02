@@ -139,6 +139,12 @@ else
 fi
 
 # M12: as a VIEW-ONLY user of project A the genuine rights 403 must survive
+# REFS #1779: M12 changed from 403 to 404 ON PURPOSE. Arming the leak guard on
+# the caller-supplied CONTAINER (not on the absence of a caller-supplied
+# project) makes EVERY refusal about a named container opaque, so a view-only
+# user naming a container of their own project now gets the same 404 as an id
+# that exists nowhere - the accepted trade-off of tcreorder #1761 (case R25).
+# M12b is the case that still carries the informative 403: it names NO node.
 CK3=/tmp/ck1759c.txt; rm -f $CK3
 curl -s -c $CK3 -b $CK3 -X POST -d "tl_login=sm1759view&tl_password=admin" \
      "http://localhost:8082/login.php?action=doLogin" -o /dev/null
@@ -153,8 +159,8 @@ gv(){ # GET-only variant for the third cookie jar
     echo "FAIL  $label  got [$st $code] want [$xs $xc]  body=$body"; FAIL=$((FAIL+1))
   fi
 }
-gv "$B?action=init&tproject_id=$A&container_id=$SA1" "M12  view-only user, container of that project" 403 "forbidden"
-gv "$B?action=init&tproject_id=$A"                 "M12b view-only user, project root"            403 "forbidden"
+gv "$B?action=init&tproject_id=$A&container_id=$SA1" "M12  view-only user, container of that project (404 since #1779)" 404 "not_found"
+gv "$B?action=init&tproject_id=$A"                 "M12b view-only user, project root (no container -> informative 403)" 403 "forbidden"
 # the foreign container must STILL be 404, never 403 - for EVERY caller
 gv "$B?action=init&tproject_id=$A&container_id=$SB1" "M12c view-only user, FOREIGN container"      404 "not_found"
 
