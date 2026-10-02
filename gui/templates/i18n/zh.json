@@ -5953,5 +5953,8 @@
   "tcview.displayInline": "显示内嵌",
   "tcview.displayInlineString": "显示内嵌 ghost 字符",
   "tcview.altDeleteAttachment": "单击这里删除附件",
-  "tcview.attachmentsDisabled": "禁用附件"
+  "tcview.attachmentsDisabled": "禁用附件",
+  "tcview.directLink": "直接链接",
+  "tcview.copyLink": "复制",
+  "tcview.directLinkCopied": "直接链接已复制到剪贴板"
 }

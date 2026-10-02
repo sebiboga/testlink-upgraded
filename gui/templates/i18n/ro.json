@@ -5977,5 +5977,8 @@
   "tcview.displayInline": "Afișare inline",
   "tcview.displayInlineString": "Afișare inline a textului ghost",
   "tcview.altDeleteAttachment": "Click aici pentru a șterge acest fișier atașat",
-  "tcview.attachmentsDisabled": "Fișierele atașate sunt dezactivate"
+  "tcview.attachmentsDisabled": "Fișierele atașate sunt dezactivate",
+  "tcview.directLink": "Link direct",
+  "tcview.copyLink": "Copiază",
+  "tcview.directLinkCopied": "Link direct copiat în clipboard"
 }

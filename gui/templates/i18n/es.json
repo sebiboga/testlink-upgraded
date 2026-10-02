@@ -5967,5 +5967,8 @@
   "tcview.displayInline": "Mostrar en línea",
   "tcview.displayInlineString": "Mostrar la cadena fantasma en línea",
   "tcview.altDeleteAttachment": "Pulsa aquí para borrar este Archivo Adjunto",
-  "tcview.attachmentsDisabled": "Archivos adjuntos deshabilitados"
+  "tcview.attachmentsDisabled": "Archivos adjuntos deshabilitados",
+  "tcview.directLink": "Enlace directo",
+  "tcview.copyLink": "Copiar",
+  "tcview.directLinkCopied": "Enlace directo copiado al portapapeles"
 }

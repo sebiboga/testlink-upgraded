@@ -2790,3 +2790,40 @@ The API half is also executable: `bash tmp/verify_1784.sh` creates its own fixtu
 
 **Files** — `lib/functions/testproject.class.php` (`importKeywordsFromSimpleXML()` + both wrappers),
 `api/keywordsxml/index.php`, `api/keywords/index.php`. No client/JS and no locale bundle changed.
+
+---
+
+## Suite 1043 — Task — Issue #1043: direct-link display in tcView.html (gap vs legacy)
+
+**Feature under test** — the legacy viewer header's `toggle_direct_link` icon and its hidden
+`div.direct_link` panel (`gui/templates/dashio/testcases/tcView.tpl:131,145`), i.e. a "Direct
+link" button + permalink bar (anchor + Copy) in the modern `tcView.html`, backed by a new
+`direct_link` field of `GET /api/testcases/index.php?action=view`.
+
+**Precondition** — fixture `tmp/fixtures_1043.sql` (fresh DB each run):
+`mysql -h 127.0.0.1 -utestlink -ptestlink testlink < tmp/fixtures_1043.sql`
+→ `tproject_id=1 (prefix DL1)`, `suite_id=2`, `tcase_id=3`, `tcversion_id=4/5` (2 versions).
+Login `admin/admin` at `http://localhost:8082/index.php`.
+
+| # | Case | Expected | Actual | Result |
+|---|------|----------|--------|--------|
+| 1 | Load `tcView.html?tcase_id=3` | viewer renders, header id chip `DL1-1`, 2 version cards | title `DL Case A - Test Case Viewer`, `extId=DL1-1`, `versionCards=2` | **PASS** |
+| 2 | Actions bar | a `Direct link` button (fa-link, label from i18n) is present and visible | `btnVisible=true`, `btnLabel="Direct link"` | **PASS** |
+| 3 | Panel starts hidden | `directLinkBox` display `none` (legacy `style='display:none'`) | `boxHidden=true` | **PASS** |
+| 4 | BFF payload | `action=view` returns `direct_link` with the legacy parameter set | `/gui/templates/links/directLink.html?tprojectPrefix=DL1&item=testcase&id=DL1-1&tproject_id=1` | **PASS** |
+| 5 | Toggle open | click → panel visible, anchor text = permalink, `target=_blank` | `display:flex`, text + href identical, `target="_blank"` | **PASS** |
+| 6 | Toggle close | click again → panel hidden | `display:none` | **PASS** |
+| 7 | Copy button | clipboard write → toast "Direct link copied to clipboard" | toast `display:block`, text `Direct link copied to clipboard` | **PASS** |
+| 8 | Permalink resolves | the gateway resolves `item=testcase&id=DL1-1` to the modern viewer | `GET /api/directlink/index.php?action=resolve&…` → `200 {"status":"ok","tcase_id":3,"external_id":"DL1-1","href":"/gui/templates/testcases/tcView.html?tcase_id=3&tproject_id=1"}` | **PASS** |
+| 9 | Anonymous permalink | unauthenticated visitor is sent to the login, like legacy `linkto.php` | gateway `401` → `directLink.html` redirects to `/index.php` → `login.php` | **PASS** |
+| 10 | Syntax gates | `php -l api/testcases/index.php`, i18n JSON parse, JS parse | `No syntax errors detected`; all 10 bundles `python3 -m json.tool` valid; JS executed in-browser without error | **PASS** |
+| 11 | Browser console | no error/warning | 0 error, 0 warning | **PASS** |
+| 12 | Event Viewer / `events` | no new Error/Warning from the change | see closure comment (measured `log_level` histogram) | **PASS** |
+| 13 | i18n completeness | every new label translated in all 10 bundles | `tcview.directLink`/`copyLink`/`directLinkCopied` present in de,en,es,fr,it,ja,pt,ro,ru,zh | **PASS** |
+| 14 | Print view | the permalink bar is hidden when printing (document unchanged) | `@media print` hides `.direct-link-bar` together with `.actions-bar` | **PASS** |
+
+**Actual result** — 14/14 PASS.
+
+**Files** — `api/testcases/index.php` (`action=view` → `direct_link`),
+`gui/templates/testcases/tcView.html` (button, bar, `toggleDirectLink()`, `copyDirectLink()`),
+`gui/templates/i18n/*.json` (3 keys × 10 locales), `tmp/fixtures_1043.sql`.

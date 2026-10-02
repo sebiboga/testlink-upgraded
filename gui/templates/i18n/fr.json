@@ -5967,5 +5967,8 @@
   "tcview.displayInline": "Afficher en ligne",
   "tcview.displayInlineString": "Afficher en ligne la chaine de caractères ghost",
   "tcview.altDeleteAttachment": "Cliquer ici pour supprimer la pièce-jointe",
-  "tcview.attachmentsDisabled": "Fonctionnalité de pièce-jointe désactivée"
+  "tcview.attachmentsDisabled": "Fonctionnalité de pièce-jointe désactivée",
+  "tcview.directLink": "Lien direct",
+  "tcview.copyLink": "Copier",
+  "tcview.directLinkCopied": "Lien direct copié dans le presse-papiers"
 }

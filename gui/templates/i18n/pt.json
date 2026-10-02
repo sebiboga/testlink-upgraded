@@ -5973,5 +5973,8 @@
   "tcview.displayInline": "Mostrar em linha",
   "tcview.displayInlineString": "Mostrar em linha texto fantasma",
   "tcview.altDeleteAttachment": "Clique aqui para apagar este anexo",
-  "tcview.attachmentsDisabled": "Anexo desativado"
+  "tcview.attachmentsDisabled": "Anexo desativado",
+  "tcview.directLink": "Ligação direta",
+  "tcview.copyLink": "Copiar",
+  "tcview.directLinkCopied": "Ligação direta copiada para a área de transferência"
 }
