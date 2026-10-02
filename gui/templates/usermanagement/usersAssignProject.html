@@ -36,6 +36,17 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 .authz-filter { display: inline-flex; align-items: center; gap: 6px; color: #aaa; font-size: 13px; cursor: pointer; user-select: none; }
 .authz-filter input[type=checkbox] { width: 15px; height: 15px; cursor: pointer; accent-color: #4ECDC4; }
 .authz-filter:hover { color: #4ECDC4; }
+/* Issue #1609: access-type indicator next to the Test Project label,
+   replacing the legacy $imgSet public/private/vorsicht icon rendered by
+   usersAssign.tpl:159-162 (sibling of the #1643 block in
+   usersAssignPlan.html:30-40). Legacy: public=fa-globe, private=fa-lock,
+   vorsicht=fa-exclamation-triangle (tlsmarty.inc.php getImageSet()); the
+   title attribute carries the localized access_* tooltip. */
+.access-icon { display: inline-flex; align-items: center; font-size: 14px; margin-left: 6px; cursor: help; }
+.access-icon:empty { display: none; }
+.access-icon.access-public { color: #4ECDC4; }
+.access-icon.access-private { color: #f0ad4e; }
+.access-icon.access-vorsicht { color: #e6605e; }
 /* Issue #1707: the marker column must never render. DataTables removes the
    cells of a visible:false column from the DOM, but during init and in the
    pagination-disabled fallback there is no DataTables at all - hide it here. */
@@ -73,6 +84,12 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 
 <div class="toolbar">
   <label style="color:#aaa;font-size:13px;margin-right:4px;" data-i18n="assign.testProject">Test Project:</label>
+  <!-- Legacy parity (issue #1609): usersAssign.tpl:159-162 rendered
+       {$labels.TestProject}{$gui->accessTypeImg} - the public/private (or
+       'vorsicht') icon the controller built at usersAssign.php:129-135 for the
+       SELECTED project. Rebuilt from the resolved accessType of the
+       tproject-roles payload (see renderAccessIcon()). -->
+  <span id="projectAccessIcon" class="access-icon"></span>
   <select id="projectSelect" style="font-size:13px;padding:5px 10px;border-radius:4px;border:1px solid #555;background:#333;color:#fff;min-width:250px;"></select>
   <span style="flex:1"></span>
   <!-- Legacy parity: usersAssign.tpl:189-206. Bulk "Set roles to <role>" selector
@@ -296,6 +313,42 @@ function esc(s) {
 // very same r.projects payload that fills the combo, so the caption and the
 // <option> labels can never disagree.
 var projectNameById = {};
+
+// ---------------------------------------------------------------------------
+// Issue #1609 - public/private access-type indicator next to the Test Project
+// label. Legacy parity (usersAssign.php:129-135, deleted in ab387af72): the
+// controller built
+//   <span title="lang_get('access_' . $accessKey)">$imgSet[$accessKey]</span>
+// for the SELECTED project - 'public'/'private' from the assignable set's
+// is_public, 'vorsicht' when the selected id was not in that set, and NO icon
+// at all when the assignable set was empty (usersAssign.tpl:159-162 echoed it
+// right after the TestProject label). Icons (tlsmarty.inc.php getImageSet()):
+// public=fa-globe, private=fa-lock, vorsicht=fa-exclamation-triangle; the
+// tooltips are the localized $TLS_access_public / $TLS_access_private strings,
+// already bundled as assign.accessPublic / assign.accessPrivate /
+// assign.accessVorsicht (used by the sibling plan screen, issue #1643).
+//
+// The BFF resolves the legacy decision server-side in `accessType`
+// (api/roles/index.php, meta/tproject-roles): 1 = public, 0 = private,
+// -1 = vorsicht, null = nothing selected / assignable set empty. That is what
+// renderAccessIcon() maps; the client must NOT re-derive the legacy rules, or
+// a requested-but-not-assignable project would silently read as public/private.
+function renderAccessIcon(isPublic) {
+  var $el = $('#projectAccessIcon');
+  if (isPublic === null || typeof isPublic === 'undefined') {
+    $el.removeClass('access-public access-private access-vorsicht').removeAttr('title').removeAttr('aria-label').empty();
+    return;
+  }
+  var v = String(isPublic), fa, cls, key;
+  if (v === '1') { fa = 'fa-globe'; cls = 'access-public'; key = 'assign.accessPublic'; }
+  else if (v === '0') { fa = 'fa-lock'; cls = 'access-private'; key = 'assign.accessPrivate'; }
+  else { fa = 'fa-exclamation-triangle'; cls = 'access-vorsicht'; key = 'assign.accessVorsicht'; }
+  $el.removeClass('access-public access-private access-vorsicht').addClass(cls)
+     .attr('title', TLi18n.t(key))
+     .attr('aria-label', TLi18n.t(key))
+     .html('<i class="fa ' + fa + '" aria-hidden="true"></i>');
+}
+
 function updateProjectRoleHeading() {
   var label = TLi18n.t('header.projectRoleHeading');
   var projectName = (currentProject == null) ? '' : (projectNameById[String(currentProject)] || '');
@@ -445,6 +498,9 @@ function showSessionExpired() {
   $('#disabledMsg').hide();
   $('#denyBox').hide();
   $('#demoNote').hide();
+  // Issue #1609: the access-type icon describes a project context that no longer
+  // exists - it must not survive the neutralise next to a disabled combo.
+  renderAccessIcon(null);
   $('#saveBtn').prop('disabled', true);
   $('#footerText').empty();
 }
@@ -490,6 +546,11 @@ function loadProjects(selectedId) {
   // to remove (legacy could not have that gap: it re-rendered the page).
   currentProject = null;
   updateProjectRoleHeading();
+  // Issue #1609: same reasoning for the access-type icon - it describes the
+  // PREVIOUS project until the payload below resolves the next one, so it is
+  // cleared here rather than left lying next to a combo that is being rebuilt.
+  projectAccessById = {};
+  renderAccessIcon(null);
   $.getJSON(API + '/meta/tproject-roles?tproject_id=' + (selectedId || 0))
     .done(function(r) {
       // A request that was already in flight when the 401 landed must not repaint
@@ -506,9 +567,15 @@ function loadProjects(selectedId) {
       // column caption. The combo below is filled from this very same
       // r.projects payload, so the map and the <option> labels can never disagree.
       projectNameById = {};
+      // Issue #1609: same contract for the access-type map - rebuilt from THIS
+      // payload, so the icon can never describe a project the combo no longer
+      // lists (and so the combo change handler below has a value to show
+      // synchronously, without waiting for loadUsers() to come back).
+      projectAccessById = {};
       $.each(r.projects, function(i, p) {
         sel.append('<option value="' + esc(p.id) + '">' + esc(p.name) + '</option>');
         projectNameById[String(p.id)] = p.name;
+        projectAccessById[String(p.id)] = (p.isPublic === 0 || p.isPublic === '0') ? 0 : 1;
       });
       roles = r.roles || [];
       buildBulkSelect();
@@ -533,6 +600,12 @@ function loadProjects(selectedId) {
       if (sessionId && $.inArray(sessionId, ids) !== -1) { pid = sessionId; }
       if (selectedId && $.inArray(String(selectedId), ids) !== -1) { pid = String(selectedId); }
       sel.val(pid);
+      // Issue #1609: paint the indicator from the resolved project immediately,
+      // from the combo's own isPublic (api/roles/index.php getAssignableProjects()),
+      // so it never lags the selection by a round-trip. loadUsers() below then
+      // re-renders it from the server-resolved `accessType` (which also covers
+      // the legacy 'vorsicht' case for a selected id outside the assignable set).
+      renderAccessIcon(projectAccessById[String(pid)] !== undefined ? projectAccessById[String(pid)] : -1);
       loadUsers(pid);
     })
     .fail(function(xhr) {
@@ -555,6 +628,12 @@ function loadProjects(selectedId) {
     // otherwise fire this handler with an empty value and wipe the grid).
     if ($(this).prop('disabled')) { return; }
     var pid = $(this).val();
+    // Issue #1609: switch the indicator SYNCHRONOUSLY, before the request. Legacy
+    // re-rendered the page per change, so the icon could never describe the
+    // previously selected project; leaving it to loadUsers() would show the old
+    // project's lock/globe next to the new project's name for the whole in-flight
+    // window - on the one field that decides how every role is interpreted.
+    renderAccessIcon(pid ? (projectAccessById[String(pid)] !== undefined ? projectAccessById[String(pid)] : -1) : null);
     if (pid) loadUsers(pid);
     else {
       // Issue #1707 review: the authz toggle redraws the grid, so an emptied
@@ -616,6 +695,9 @@ function showDisabled() {
   // -> :295), so the caption must not name any project either.
   currentProject = null;
   updateProjectRoleHeading();
+  // Issue #1609: legacy left $gui->accessTypeImg empty when the assignable set
+  // was empty (usersAssign.php:121-126) - so no icon in this state either.
+  renderAccessIcon(null);
 }
 
 // Legacy parity: usersAssign.php:23 checkRights() denial -> localized
@@ -638,6 +720,8 @@ function showNoAccess() {
   // the not_enough_rights state, so no project name may linger in the caption.
   currentProject = null;
   updateProjectRoleHeading();
+  // Issue #1609: same as showDisabled() - no project context, no access icon.
+  renderAccessIcon(null);
 }
 
 function loadUsers(pid) {
@@ -667,6 +751,11 @@ function loadUsers(pid) {
   $('#saveBtn').prop('disabled', true);
   $.getJSON(API + '/meta/tproject-roles?tproject_id=' + pid, function(r) {
     if (sessionDead) { return; }
+    // Issue #1609: the server-resolved legacy decision for the SELECTED project
+    // (api/roles/index.php: accessType = 1 public / 0 private / -1 vorsicht /
+    // null = none or empty assignable set) is authoritative here - it is the only
+    // value that also knows whether the id is inside the assignable set.
+    renderAccessIcon(r.accessType === undefined ? null : r.accessType);
     roles = r.roles || roles;
     paginationCfg = r.pagination || { enabled: true, lengthMenu: [[20, 40, 60, -1], [20, 40, 60, 'All']] };
     buildBulkSelect();

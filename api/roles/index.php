@@ -140,7 +140,17 @@ function getAssignableProjects(&$db, $userId) {
             }
             $role = $roleCache[$effRoleId];
             if ($role && ($role->hasRight('user_role_assignment') || $role->hasRight('testproject_user_role_assignment'))) {
-                $opts[] = ['id' => intval($pid), 'name' => $p['name'] ?? ''];
+                // Legacy parity (issue #1609): usersAssign.php:129-135 picked the
+                // public/private icon from $gui->features[$id]['is_public'] - and
+                // $gui->features IS this assignable set (getTestProjectEffectiveRoles(),
+                // usersAssign.php:285-305). Ship is_public per option so the toolbar
+                // indicator can follow the combo: the selected project's access type
+                // is then known from the very payload that filled the combo, with no
+                // extra round-trip per change (and with no window where the icon still
+                // describes the previously selected project). map_of_map_full selects
+                // TPROJ.* (testproject.class.php:561), so is_public is already here.
+                $opts[] = ['id' => intval($pid), 'name' => $p['name'] ?? '',
+                           'isPublic' => isset($p['is_public']) ? intval($p['is_public']) : 1];
             }
         }
     }
@@ -832,7 +842,31 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'meta' && isset
     // the user's current context (issue #1613).
     // $sessionTprojectID is already intval()'d at :377 and 0 when the session has
     // no project, which the screen treats as "absent".
+    // Legacy parity (issue #1609): usersAssign.php:129-135 rendered the access-type
+    // icon for the SELECTED project: 'public'/'private' read from the assignable
+    // set's is_public ($gui->features[$gui->featureID]['is_public'], and
+    // $gui->features IS $projectOpts here - getTestProjectEffectiveRoles(),
+    // usersAssign.php:285-305), 'vorsicht' when the selected id was NOT in that set
+    // (legacy kept the requested featureID regardless - usersAssign.php:307-315),
+    // and NO icon at all when the set is empty ($gui->accessTypeImg stayed '').
+    // Resolve that decision server-side so the client mirrors it instead of
+    // re-deriving the legacy rules. null = nothing to show yet, 1 = public,
+    // 0 = private, -1 = vorsicht.
+    $accessType = null;
+    if (count($projectOpts) > 0 && $tproject_id) {
+        $accessType = -1;
+        foreach ($projectOpts as $po) {
+            if (intval($po['id']) === $tproject_id) {
+                $accessType = isset($po['isPublic']) ? intval($po['isPublic']) : 1;
+                break;
+            }
+        }
+    }
+
     out(['status' => 'ok', 'items' => $items, 'roles' => $roleOpts, 'projects' => $projectOpts, 'isPublic' => $isPublic,
+         // Legacy parity (issue #1609): resolved access-type indicator state for
+         // the SELECTED project - see the usersAssign.php:129-135 port above.
+         'accessType' => $accessType,
          'demoMode' => (bool)config_get('demoMode'),
          'roleColouring' => $colourCtx['enabled'],
          // Legacy parity (issue #1610): the ORDER BY that produced `projects`.

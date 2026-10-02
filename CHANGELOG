@@ -7439,6 +7439,41 @@ Changes:
 - Docs: `docs/Bugfix-Issue-1679-bffSameOriginGuard-Origin-Before-XRW.md` + wiki page
   *Bugfix-Issue-1679-bffSameOriginGuard-Origin-Before-XRW*.
 
+### Gap closed — Assign Test Project Roles: the legacy public/private access-type indicator was missing (Fixes #1609)
+- The sibling **plan** screen got this indicator under #1643, but the **project** screen never did:
+  `gui/templates/usermanagement/usersAssignProject.html` rendered `<label data-i18n="assign.testProject">Test Project:</label>`
+  followed straight by `<select id="projectSelect">`, and the string `access`/`isPublic` appeared nowhere in the
+  file. Legacy `gui/templates/dashio/usermanagement/usersAssign.tpl:159-162` echoed
+  `{$labels.TestProject}{$gui->accessTypeImg}` — the icon the controller built at
+  `lib/usermanagement/usersAssign.php:129-135` (deleted in `ab387af72`): `public`/`private` from the ASSIGNABLE
+  SET's `is_public` (`$gui->features` = `getTestProjectEffectiveRoles()`, usersAssign.php:285-305), `vorsicht`
+  when the selected id was not in that set (legacy kept the requested `featureID` regardless,
+  usersAssign.php:307-315), and NO icon at all when the set was empty (`$gui->accessTypeImg` stayed `''`).
+  Icons (`lib/functions/tlsmarty.inc.php:379,451`): `fa-globe` / `fa-lock` / `fa-exclamation-triangle`, wrapped
+  in `<span title="lang_get('access_<key>')">`. A manager could not tell whether the roles they were about to
+  overwrite lived on a public or a private project — on a private one every non-admin collapses to `<no rights>`
+  (`getTprojectEffectiveRoleMap()`, api/roles/index.php:215-232).
+- BFF (`api/roles/index.php`): `getAssignableProjects()` now emits per-option `isPublic` (the
+  `map_of_map_full` projection already selects `TPROJ.*`, testproject.class.php:561), so the indicator follows
+  the combo with no extra round-trip; and `GET /meta/tproject-roles` returns a RESOLVED tri-state `accessType`
+  (`1` public, `0` private, `-1` `vorsicht`, `null` = nothing selected or empty assignable set) — additive, the
+  existing `isPublic` field and every other key are untouched. The client must not re-derive that rule: `isPublic`
+  alone comes from `get_by_id()` and would report a requested-but-not-assignable project as public/private where
+  legacy showed `vorsicht`.
+- Screen: `.access-icon` CSS states + `<span id="projectAccessIcon">` between the label and the combo (where
+  legacy put it), `renderAccessIcon()` mapping the tri-state to the Dashio icon + localized tooltip (teal globe /
+  amber lock / red triangle, mirroring the #1643 block in `usersAssignPlan.html:30-40`), wired at five points:
+  cleared synchronously in `loadProjects()` before the request, rebuilt from the combo payload and painted right
+  after `sel.val(pid)`, repainted synchronously on the combo `change` (so the icon can never describe the
+  previously selected project while a request is in flight), refreshed from the authoritative `accessType` in
+  `loadUsers()`, and cleared in `showSessionExpired()` / `showDisabled()` / `showNoAccess()`.
+- No new i18n keys: `assign.accessPublic` / `assign.accessPrivate` / `assign.accessVorsicht` already ship in all
+  10 bundles from #1643, with wording identical to legacy `$TLS_access_public` / `$TLS_access_private`
+  (`locale/*/strings.txt`); a locale switch re-navigates (`i18n.js:249-253`), so the tooltip re-renders too.
+  Verified in-browser: private lock, public globe, synchronous flip on combo change (2→1→2), cleared combo,
+  `vorsicht` for an out-of-set id, `showSessionExpired()`, deep link without `tproject_id` (session precedence),
+  `ro` locale tooltip — 10-case suite in `tmp/TLU_Test_Cases.md` (10 PASS), `php -l`/`node --check` clean, no
+  console errors, 0 new ERROR/WARNING rows in `events`.
 ### Gap closed — Assign Test Project Roles: the role column header was static and never named the test project (Fixes #1612)
 - `gui/templates/usermanagement/usersAssignProject.html:106` rendered a static
   `<th data-i18n="assign.assignedRole">Assigned Role</th>`. Legacy

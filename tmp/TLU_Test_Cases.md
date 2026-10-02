@@ -2827,3 +2827,101 @@ Login `admin/admin` at `http://localhost:8082/index.php`.
 **Files** — `api/testcases/index.php` (`action=view` → `direct_link`),
 `gui/templates/testcases/tcView.html` (button, bar, `toggleDirectLink()`, `copyDirectLink()`),
 `gui/templates/i18n/*.json` (3 keys × 10 locales), `tmp/fixtures_1043.sql`.
+
+| Group | Case | Expected | Result |
+|---|---|---|---|
+| shim, admin | L1/L1b authenticated GET → `302` + `Location:` at the modern screen | 302 | **PASS** |
+| | L2 legacy bookmark (`stepSeq` only, no version id) → 302, `tproject_id` forwarded | 302 | **PASS** |
+| | L3 `stepSeq` **not** forwarded to the modern screen (no silent replay) | absent | **PASS** |
+| | L4 `POST`/`PUT`/`PATCH`/`DELETE` | 405 `method_not_allowed` | **PASS** |
+| | L5 `POST` with the exact CSRF headers the legacy caller used | 405 | **PASS** |
+| | L6 `HEAD` treated as a read | 302 | **PASS** |
+| shim, anonymous | L7/L7b GET is not a 302 and is bounced to login | bounce | **PASS** |
+| | L8 POST bounced to login, never a 405 or a write (see note) | bounce | **PASS** |
+| | L9 GET carrying `stepSeq` reaches neither a 302 nor the JSON map | neither | **PASS** |
+| shim, no rights | L10 `<no rights>` GET → only the redirect, no `stepSeq` | 302 | **PASS** |
+| | L11 `<no rights>` POST | 405 | **PASS** |
+| | L12 the exact pre-fix attack returns no renumbering map | no map | **PASS** |
+| SQLi sink | L13 injected `stepSeq` value reaches neither the parameter name nor the payload | clean | **PASS** |
+| | L14 injected `stepSeq` over POST | 405 | **PASS** |
+| | L15 injected `tproject_id` dropped, not reflected | absent | **PASS** |
+| **DB-level** | **M1 `tcsteps.step_number` byte-unchanged after every hostile request** | `6=1,7=2,8=3` | **PASS** |
+| replacement BFF | B1 admin reads its own version | 200 | **PASS** |
+| | B2/B3 `<no rights>` on a real version → opaque `404`, **byte-identical** to an absent id | 404 | **PASS** |
+| | B4 `<no rights>` write on a real version → opaque `404` | 404 | **PASS** |
+| | B5 anonymous POST past the CSRF gate → `401 session_expired` | 401 | **PASS** |
+| | B6 cross-origin `POST` with a forged `X-Requested-With` hint | 403 | **PASS** |
+| Event Viewer | E1 no new **ERROR** row | delta 0 | **PASS** |
+| | E2 all 9 new WARNING rows are the deliberate 405 refusal trail | 0 stray | **PASS** |
+
+**Why `M1` is the load-bearing case.** An HTTP assertion alone cannot prove the fix: pre-fix the
+endpoint *answers* with a plausible JSON map. `M1` therefore reads `tcsteps.step_number` out of the
+database after the hostile requests, and the reversing request is issued **last** so a successful
+attack leaves `6=3,7=2,8=1` and cannot be masked by a trailing benign write. Negative control
+(`git show db4d056ba:lib/ajax/stepReorder.php > lib/ajax/stepReorder.php`, run, restore):
+
+```
+FAIL  L11 <no rights> POST is refused   got [200 ] want [405 method_not_allowed] body={"6":1,"7":2,"8":3}
+FAIL  L12 the pre-fix attack answers no JSON renumbering map   body={"8":1,"7":2,"6":3}
+FAIL  M1 tcsteps.step_number unchanged   before=[6=1,7=2,8=3] after=[6=3,7=2,8=1]
+FAIL  E1 no new ERROR row in events      delta=2
+===== 22 passed, 7 failed =====
+```
+
+**Note on `L8` — a measured, harmless ordering consequence, not a defect.** `checkSessionValid()`
+runs *before* the `405` gate in the shim, so an **anonymous** `POST` receives the legacy
+`200` + `top.location.href='…/login.php?note=expired'` bounce rather than the shim's JSON `405`.
+The JSON contract is therefore only observable for an authenticated caller. Nothing is written either
+way, so there is no CSRF and no authz exposure; it is recorded rather than "fixed" because changing
+the order would alter the legacy bounce every other retired shim also relies on.
+
+**Corrected claims from the original report.** (a) The endpoint was **not** reachable anonymously —
+`testlinkInitPage($db)` calls `checkSessionValid()` (`lib/functions/common.php:554-556`); the defect
+is missing *authorization*, not a missing session check. (b) There is no
+`tLog(... DEBUG_MODE ...)` tail; line 38 is `file_put_contents('/var/testlink/logs/stepReorder.log', …)`
+on a hardcoded path. (c) The replacement BFF answers an **opaque `404`**, not `403`, for a
+`<no rights>` caller — deliberate, hardened in #1762 so a caller-supplied `tcversion_id` is not an
+existence oracle (`api/tcstepsreorder/index.php:551-583`). Suite #1761 (`tmp/verify_1761.php`,
+95/95 PASS) covers the BFF side; this suite covers the retired endpoint it replaced.
+
+---
+
+## Suite: Task — Issue #1609: public/private access-type indicator on Assign Test Project Roles
+
+**Precondition** — freshly imported DB (no test projects), so the fixtures below are created first;
+app on `http://localhost:8082`, login `admin/admin`:
+
+```sql
+INSERT INTO testprojects (id,prefix,is_public,active,api_key,notes)
+ VALUES (1,'MM-PUB',1,1,'k1pub',''),(2,'MM-PRI',0,1,'k2pri','');
+INSERT INTO nodes_hierarchy (id,name,parent_id,node_type_id,node_order)
+ VALUES (1,'Public Alpha Project',NULL,1,1),(2,'Private Bravo Project',NULL,1,2);
+```
+
+Project **1 = public** (`is_public=1`), project **2 = private** (`is_public=0`).
+Legacy reference: `usersAssign.php:129-135` + `usersAssign.tpl:159-162` (`ab387af72^`).
+
+| # | Step | Expected | Actual | Result |
+|---|---|---|---|---|
+| 1 | Open `gui/templates/usermanagement/usersAssignProject.html?tproject_id=2&tplan_id=0` | amber `fa-lock` icon between the `Test Project` label and the combo; tooltip `Private - User need specific role assignment` | `class="access-icon access-private"`, `<i class="fa fa-lock">`, `title="Private - User need specific role assignment"` | **PASS** |
+| 2 | Same URL with `?tproject_id=1` | teal `fa-globe` icon, tooltip `Public` | `class="access-icon access-public"`, `title="Public"` | **PASS** |
+| 3 | Select project 1 in the combo, sample the DOM **synchronously** (before the XHR resolves) | icon already switched — it can never describe the previously selected project | `access-public` / `Public` immediately, and unchanged after the response | **PASS** |
+| 4 | Switch back to project 2 | lock returns, caption follows (`Test Project Role (Private Bravo Project)`) | `access-private`, caption correct | **PASS** |
+| 5 | Select the `-- select project --` placeholder | icon disappears entirely (legacy: no context, no icon) | `class="access-icon"`, `innerHTML=""`, `title=null` | **PASS** |
+| 6 | `GET /api/roles/index.php/meta/tproject-roles?tproject_id=99` (id outside the assignable set) | `accessType = -1` → red `fa-exclamation-triangle`, tooltip `Attention internal error` | API `-1`; `renderAccessIcon(-1)` → `access-vorsicht`, `fa-exclamation-triangle` | **PASS** |
+| 7 | Call `showSessionExpired()` (dead-session neutralise) | icon cleared with the rest of the context | `class="access-icon"`, `innerHTML=""` | **PASS** |
+| 8 | Open the screen with **no** `tproject_id` | session-project precedence (#1613) — lands on the session project with a correct icon | project 2 selected, `access-private`, grid renders 1 row | **PASS** |
+| 9 | Same screen with `&locale=ro` | Romanian tooltip, no English leak | `title="Privat - utilizatorul necesită o atribuire de rol specifică"`, label `Proiect:` | **PASS** |
+| 10 | `GET /meta/tproject-roles?tproject_id=0/1/2/99` — BFF contract | `null` / `1` / `0` / `-1`, and every pre-existing payload key intact | exactly that; `projects` now carries `isPublic` per option | **PASS** |
+
+**Automated part** — `tmp/verify_1609.sh` (14 checks: BFF tri-state, additive payload, per-project
+`isPublic`, indicator markup/CSS/helper/wiring, all-10-bundle key presence, legacy wording):
+
+```
+$ BASE=http://localhost:8082 CK=/tmp/tlck.txt bash tmp/verify_1609.sh
+... 14 passed, 0 failed =====
+```
+
+**No side effects** — 0 console errors/warnings on the screen; Event Viewer `events` table holds
+3 rows after the whole run, all `log_level=16` LOGIN audit rows from the test logins —
+**0 ERROR, 0 WARNING**.
