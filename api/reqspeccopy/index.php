@@ -466,6 +466,14 @@ function rscApplyTargetPosition($db, $containerId, $newSpecId, $position)
         }
     }
     if (count($siblings) === 0) {
+        // The container holds only the copy. Its inherited node_order (the
+        // SOURCE's) is out of the 1..n range everything else assumes, so
+        // normalise it instead of returning with a hole in the sequence.
+        if (!$db->exec_query('UPDATE nodes_hierarchy SET node_order = 1 WHERE id = ' .
+                             intval($newSpecId))) {
+            tLog('api/reqspeccopy: could not normalise the node_order of node ' .
+                 intval($newSpecId), 'ERROR');
+        }
         return;
     }
     usort($siblings, function ($a, $b) {
@@ -575,7 +583,7 @@ if ($action === 'copy') {
     // omits the parameter got the opposite of the documented behaviour.
     $position = strtolower(trim((string)rscParam('target_position', 'top')));
     if ($position === '') {
-        $position = 'bottom';
+        $position = 'top';
     }
     if ($position !== 'top' && $position !== 'bottom') {
         failOut(400, 'target_position must be top or bottom', 'invalid_target_position');
@@ -590,7 +598,7 @@ if ($action === 'copy') {
     $tprojectId = ($asserted > 0 && rscIsWritableProject($db, $asserted)) ? $asserted : $ownerProject;
     // Refs #1801: same check on the final value as in init().
     if (!rscIsWritableProject($db, $tprojectId)) {
-        failOut(404, 'The test project that owns this specification no longer exists',
+        failOut(404, 'The test project that owns this specification is no longer available',
                 'project_not_found');
     }
     rscRequireCopyRights($db, $user, $tprojectId);
@@ -624,15 +632,40 @@ if ($action === 'copy') {
         // transactional (the parent spec plus every child copied before the
         // failure are already committed), the partial id is returned too, so the
         // user can reach and remove what did land.
-        $reason = (isset($op['msg']) && $op['msg'] !== '' && $op['msg'] !== 'ok')
-                    ? (string)$op['msg'] : 'copy_failed';
+        $text = (isset($op['msg']) && $op['msg'] !== '' && $op['msg'] !== 'ok')
+                    ? (string)$op['msg'] : '';
+        // $op['msg'] comes from check_main_data() through lang_get(), so it is a
+        // SERVER-locale sentence that can embed the specification title - it is
+        // NOT a machine code and it must never reach the log unfiltered (a title
+        // may contain newlines: log forging). Map it to a stable code and keep the
+        // text in `message`, which the client renders with .text().
+        $codeMap = array(
+            'warning_duplicated_req_spec_doc_id' => 'duplicate_doc_id',
+            'error_creating_req_spec'             => 'error_creating_req_spec',
+            'error_updating_req_spec'             => 'error_updating_req_spec',
+        );
+        $code = 'copy_failed';
+        foreach ($codeMap as $needle => $stable) {
+            if (strpos($text, $needle) !== false) {
+                $code = $stable;
+                break;
+            }
+        }
+        // The partial id is $op['id'] - copy_to() leaves it pointing at the
+        // top-level specification it already committed. $newSpecId does not exist
+        // in this scope at all (the first cut of this block read it, so `partial`
+        // was permanently 0).
+        $partial = (isset($op['id']) && intval($op['id']) > 0) ? intval($op['id']) : 0;
         tLog('api/reqspeccopy: copy_to() failed for req spec ' . intval($reqSpecId) .
-             ' into container ' . intval($containerId) . ' - ' . $reason, 'ERROR');
+             ' into container ' . intval($containerId) . ' - ' . $code .
+             ' (partial ' . $partial . ') ' .
+             preg_replace('/[\r\n\t]+/', ' ', $text), 'ERROR');
+        http_response_code(409);
         out(array(
             'status'  => 'error',
-            'message' => 'The copy could not be completed',
-            'code'    => $reason,
-            'partial' => isset($newSpecId) ? intval($newSpecId) : 0,
+            'message' => ($text !== '') ? $text : 'The copy could not be completed',
+            'code'    => $code,
+            'partial' => $partial,
         ));
         exit;
     }
@@ -708,7 +741,7 @@ $tprojectId = ($requestedProject > 0 && rscIsWritableProject($db, $requestedProj
 // - so a source specification living under one would have been copied into an
 // orphan project. The FINAL value is asserted now.
 if (!rscIsWritableProject($db, $tprojectId)) {
-    failOut(404, 'The test project that owns this specification no longer exists',
+    failOut(404, 'The test project that owns this specification is no longer available',
             'project_not_found');
 }
 rscRequireCopyRights($db, $user, $tprojectId);
