@@ -1924,6 +1924,22 @@ MAJOR AREAS
   the refusal for a project the caller NAMED is uniformly 403 so a project id is not an existence
   oracle either. The informative 403 for a caller without `mgt_modify_tc` on its OWN project is
   untouched.
+- [KEY BUGFIX - SECURITY] - #1779: the suiteMove BFF still leaked the existence and ownership of the
+  `nodes_hierarchy` ids of an UNENTITLED test project to a session holding **no project right at
+  all**: `suitMoveProject()` armed its #1759 leak guard on the *absence* of a caller-supplied
+  `tproject_id` instead of on the *presence* of a caller-supplied `container_id`/`node_id`, so
+  `?action=init&tproject_id=1&container_id=<id>` answered `403 forbidden "Insufficient rights on this
+  test project"` for a real suite (or project root) of project 1 while an id that exists nowhere
+  answered `404 not_found "Container not found"` - one sweep of `container_id` enumerated a project
+  the caller may not even look at. Measured on all three paths that address a node (`init`, `reorder`,
+  `move`). The guard is now armed from the caller-supplied node id, exactly as `tcreoProject()`
+  (`api/tcreorder`, #1761) already did, and the opaque answer reuses **the message the calling action
+  already returns for an absent id** (`"Suite not found"` for `move`, `"Container not found"` for
+  `init`/`reorder`) - otherwise status-only opacity still told the two apart (found by row R13 of the
+  new matrix). Unchanged on purpose: a request naming **no** node, and `?action=suites`, which takes
+  no node id from the caller, keep their informative `403`. Accepted trade-off, same as #1761: a
+  view-only user of its own project that names a container now gets the opaque 404 (rows M12 of
+  `tmp/verify_1759.sh` were updated accordingly); the screen already renders it as "not found".
 - [KEY BUGFIX] - #1718: the legacy **Test Cases not run on any Platform** controller
   (`lib/results/tcNotRunAnyPlatform.php`) could not run and answered HTTP 500 with a 0-byte body on
   every request. It has FOUR independent hard failures, all measured: (1) `:16`
