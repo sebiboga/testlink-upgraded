@@ -76,7 +76,17 @@ doDBConnect($db);
 
 function out($data)
 {
-    echo json_encode($data);
+    // Refs #1801: TestLink databases routinely hold latin1/latin-2 titles and
+    // scopes, and a bare json_encode() of one returns FALSE - an EMPTY body with
+    // HTTP 200, which the client can only render as "http_200" on the
+    // server-error card. JSON_INVALID_UTF8_SUBSTITUTE keeps the answer a valid
+    // JSON document (the convention already used by 5 other api/*/index.php).
+    $json = json_encode($data, JSON_INVALID_UTF8_SUBSTITUTE | JSON_UNESCAPED_UNICODE);
+    if ($json === false) {
+        $json = '{"status":"error","message":"The response could not be encoded",' .
+                '"code":"encode_failed"}';
+    }
+    echo $json;
     exit;
 }
 
@@ -424,40 +434,78 @@ function rscResolveContainer($db, $containerId, $tprojectId)
  */
 function rscApplyTargetPosition($db, $containerId, $newSpecId, $position)
 {
+    // Refs #1801. Two defects found by the mandatory code review, both
+    // reproduced live:
+    //
+    // 1. The siblings were collected as bare ids and then `sort()`ed NUMERICALLY,
+    //    i.e. by ID, while node_order is the real sort key everywhere
+    //    (tree::get_subtree -> "ORDER BY node_order,id", api/reqspec's
+    //    childSpecIds(), reqSpecView's Reorder specifications). Those two orders
+    //    genuinely diverge: api/reqspec lets a user drag specifications into any
+    //    order and copy_to() inserts a copy with the SOURCE's node_order. On
+    //    project 143 the API answered depth-1 children in node_order order as
+    //    [167, 148] while 148 < 167 - so ANY copy renumbered them [148=1, 167=2]
+    //    and silently reversed the arrangement the user had made, rewriting rows
+    //    that are none of the copy's business. Sorted by (node_order, id) now.
+    // 2. Only node_type_id IN (1,6) were renumbered, but a requirement
+    //    specification container also holds node_type_id=4 requirement children;
+    //    leaving them alone made the new spec tie with a requirement on the same
+    //    (parent_id, node_order) pair, so "top" could render in the middle. EVERY
+    //    child of the container is renumbered now, exactly like
+    //    api/reqtreereorder.
     $rows = $db->get_recordset(
-        'SELECT NH.id
+        'SELECT NH.id, NH.node_order
            FROM nodes_hierarchy NH
           WHERE NH.parent_id = ' . intval($containerId) .
-          ' AND NH.node_type_id IN (' . RSC_NODE_TESTPROJECT . ',' . RSC_NODE_REQ_SPEC . ')');
+          ' ORDER BY NH.node_order ASC, NH.id ASC');
     $siblings = array();
     foreach ((array)$rows as $r) {
         $id = intval($r['id']);
         if ($id !== intval($newSpecId)) {
-            $siblings[] = $id;
+            $siblings[] = array('id' => $id, 'node_order' => intval($r['node_order']));
         }
     }
     if (count($siblings) === 0) {
         return;
     }
-    sort($siblings, SORT_NUMERIC);
+    usort($siblings, function ($a, $b) {
+        if ($a['node_order'] === $b['node_order']) {
+            return ($a['id'] < $b['id']) ? -1 : (($a['id'] > $b['id']) ? 1 : 0);
+        }
+        return ($a['node_order'] < $b['node_order']) ? -1 : 1;
+    });
 
     if ($position === 'top') {
-        array_unshift($siblings, intval($newSpecId));
+        array_unshift($siblings, array('id' => intval($newSpecId), 'node_order' => -1));
     } else {
-        $siblings[] = intval($newSpecId);
+        $siblings[] = array('id' => intval($newSpecId), 'node_order' => PHP_INT_MAX);
     }
 
     // phase 1 - parked far above every real order, so no intermediate state can
     // collide with a sibling that has not been moved yet
     $park = 1000000;
     for ($i = 0; $i < count($siblings); $i++) {
-        $db->exec_query('UPDATE nodes_hierarchy SET node_order = ' . ($park + $i) .
-                        ' WHERE id = ' . intval($siblings[$i]));
+        // exec_query() returns the ADOdb result object on success and throws for an
+        // XHR caller on failure (database.class.php), so test it for truthiness -
+        // NOT against tl::OK, which is what the first cut of this check did and
+        // which turned every successful copy into a bogus 409.
+        if (!$db->exec_query('UPDATE nodes_hierarchy SET node_order = ' . ($park + $i) .
+                             ' WHERE id = ' . intval($siblings[$i]['id']))) {
+            tLog('api/reqspeccopy: phase 1 renumbering failed on node ' .
+                 intval($siblings[$i]['id']), 'ERROR');
+            failOut(409, 'The copy was created but its position could not be stored',
+                    'position_write_failed');
+        }
     }
     // phase 2 - final 1..n
     for ($i = 0; $i < count($siblings); $i++) {
-        $db->exec_query('UPDATE nodes_hierarchy SET node_order = ' . ($i + 1) .
-                        ' WHERE id = ' . intval($siblings[$i]));
+        if (!$db->exec_query('UPDATE nodes_hierarchy SET node_order = ' . ($i + 1) .
+                             ' WHERE id = ' . intval($siblings[$i]['id']))) {
+            tLog('api/reqspeccopy: phase 2 renumbering failed on node ' .
+                 intval($siblings[$i]['id']), 'ERROR');
+            failOut(409, 'The copy was created but its position could not be stored',
+                    'position_write_failed');
+        }
     }
 }
 
@@ -522,7 +570,10 @@ if ($action === 'copy') {
         $asserted = intval($tprojectRaw);
     }
 
-    $position = strtolower(trim((string)rscParam('target_position', 'bottom')));
+    // Refs #1801: the default was `bottom` while init advertises
+    // default_position=top and legacy checked the "top" radio, so a client that
+    // omits the parameter got the opposite of the documented behaviour.
+    $position = strtolower(trim((string)rscParam('target_position', 'top')));
     if ($position === '') {
         $position = 'bottom';
     }
@@ -537,6 +588,11 @@ if ($action === 'copy') {
     // Refs #1799: an explicit id that is not a usable destination project (gone,
     // inactive) is repaired to the owner instead of failing the whole copy.
     $tprojectId = ($asserted > 0 && rscIsWritableProject($db, $asserted)) ? $asserted : $ownerProject;
+    // Refs #1801: same check on the final value as in init().
+    if (!rscIsWritableProject($db, $tprojectId)) {
+        failOut(404, 'The test project that owns this specification no longer exists',
+                'project_not_found');
+    }
     rscRequireCopyRights($db, $user, $tprojectId);
 
     // The destination must not be the source itself nor one of its descendants.
@@ -559,8 +615,26 @@ if ($action === 'copy') {
     $op = $specMgr->copy_to($reqSpecId, $containerId, $tprojectId, $userId);
 
     if (empty($op['status_ok'])) {
-        failOut(409, 'The copy could not be completed',
-            isset($op['msg']) && $op['msg'] !== 'ok' ? 'copy_failed' : 'copy_failed');
+        // Refs #1801: $op['msg'] IS the actionable reason
+        // (warning_duplicated_req_spec_doc_id, error_creating_req_spec, ...) and
+        // was discarded behind a ternary whose two arms were both 'copy_failed'.
+        // It is not necessarily localized (copy_to() builds it with lang_get()
+        // from the 19 server locales, not the client-side bundles), so it is
+        // returned as a stable code AND logged - and because copy_to() is NOT
+        // transactional (the parent spec plus every child copied before the
+        // failure are already committed), the partial id is returned too, so the
+        // user can reach and remove what did land.
+        $reason = (isset($op['msg']) && $op['msg'] !== '' && $op['msg'] !== 'ok')
+                    ? (string)$op['msg'] : 'copy_failed';
+        tLog('api/reqspeccopy: copy_to() failed for req spec ' . intval($reqSpecId) .
+             ' into container ' . intval($containerId) . ' - ' . $reason, 'ERROR');
+        out(array(
+            'status'  => 'error',
+            'message' => 'The copy could not be completed',
+            'code'    => $reason,
+            'partial' => isset($newSpecId) ? intval($newSpecId) : 0,
+        ));
+        exit;
     }
 
     $newId = intval($op['id']);
@@ -628,6 +702,15 @@ $requestedProject = ($asserted > 0) ? $asserted : 0;
 $tprojectId = ($requestedProject > 0 && rscIsWritableProject($db, $requestedProject))
                 ? $requestedProject
                 : $ownerProject;
+// Refs #1801: rscIsWritableProject() only guarded $asserted. The FALLBACK value
+// (the project owning the source) was never re-checked, and per #1798 an orphan
+// node_type_id=1 row with no testprojects row really does exist on this instance
+// - so a source specification living under one would have been copied into an
+// orphan project. The FINAL value is asserted now.
+if (!rscIsWritableProject($db, $tprojectId)) {
+    failOut(404, 'The test project that owns this specification no longer exists',
+            'project_not_found');
+}
 rscRequireCopyRights($db, $user, $tprojectId);
 
 $destinations = rscDestinationList($db, $tprojectId, $reqSpecId);
@@ -684,10 +767,14 @@ out(array(
     'destinations'  => $destinations,
     // non-zero when ?tproject_id= was unusable and the owner was used instead
     'tproject_fallback_from' => ($requestedProject !== $tprojectId) ? $requestedProject : 0,
+    // Refs #1801: rscRequireCopyRights() above already exited unless BOTH rights
+    // hold, so these were three hardcoded trues. Still reported - the client reads
+    // can_copy - but now actually measured.
     'rights'        => array(
-        'view'   => rscHasRight($db, $user, 'mgt_view_req', $tprojectId),
-        'modify' => rscHasRight($db, $user, 'mgt_modify_req', $tprojectId),
-        'can_copy' => true,
+        'view'     => rscHasRight($db, $user, 'mgt_view_req', $tprojectId),
+        'modify'   => rscHasRight($db, $user, 'mgt_modify_req', $tprojectId),
+        'can_copy' => rscHasRight($db, $user, 'mgt_view_req', $tprojectId) &&
+                      rscHasRight($db, $user, 'mgt_modify_req', $tprojectId),
     ),
     'default_position' => 'top',
 ));

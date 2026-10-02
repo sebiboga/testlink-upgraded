@@ -14,11 +14,11 @@ requirement-specification **copy popup**, the last un-ported `reqSpecEdit.php` a
 
 Two things made it worth doing on its own:
 
-1. **The capability had been silently dropped in 2.0.1.** The legacy
-   `gui/templates/dashio/requirements/reqSpecView.tpl:52` rendered a *Copy Req. Spec*
-   button pointing at `reqSpecEdit.php?doAction=copy`. No modern screen replaced it, so
-   after the modernization the modern Requirement Specification Viewer had **no
-   copy-specification entry point at all**.
+1. **The capability had no entry point at all.** Both legacy viewer templates only
+   *assigned* `{$req_spec_copy_url}` (`dashio:53`, `tl-classic:50`) and never used it,
+   and `reqSpecViewButtons.inc.tpl` has no copy-spec button — the popup was reachable
+   by URL only, already in 1.9.20. 2.0.1 kept no modern replacement, so the modern
+   Requirement Specification Viewer now finally gets a real toolbar button.
 2. **The legacy write was unsafe.** `reqSpecEdit.php` runs `checkRights()` against the
    **SESSION** context only, while `containerID` and `tproject_id` came straight out of
    the request body — a copy could be aimed at any node of any test project. It also
@@ -88,3 +88,22 @@ Event Viewer clean — three consecutive shim hits add **0** rows.
 - `docs/screenshots/issue-1797-reqspeccopy-notfound.png` — the 404 card + machine code
 - `docs/screenshots/issue-1797-reqspeccopy-legacy-notice.png` — the `?legacy_intent=` notice
 - `docs/screenshots/issue-1797-reqspeccopy-locale-ro.png` — Romanian
+
+## Mandatory code review and the follow-up fixes (#1801, #1802, #1803)
+
+The review found **no exploitable authorization hole** in the BFF (rights are enforced on the
+destination project and on the project owning the source, the destination node is *proved* to
+belong to the addressed project, source-subtree destinations are refused, and the id-resolution
+order avoids a pre-authorization existence oracle). It did find three real defects, all fixed and
+re-verified here — Suite 1801 = 15/15 PASS.
+
+| Issue | Defect | Fix |
+|-------|--------|-----|
+| [#1801](https://github.com/sebiboga/testlink-upgraded/issues/1801) | `rscApplyTargetPosition()` renumbered the destination's children **sorted by `id`**, not by `node_order` — every copy silently reversed an arrangement the user had made by dragging; and it skipped requirement children, so the new spec could tie with a requirement on the same `(parent_id, node_order)` | collect every child with its `node_order`, order by `(node_order ASC, id ASC)`, renumber in two collision-free phases, actually check the `exec_query()` result (409 `position_write_failed`), default position `top` |
+| [#1802](https://github.com/sebiboga/testlink-upgraded/issues/1802) | **stored XSS** — the scope was rendered through `document.createElement('div').innerHTML`, which is *not* an inert sink (`window.__xss === true` with a planted `<img onerror>`); plus the real `copy_to()` failure reason discarded behind a two-armed `copy_failed` ternary, the `legacy_intent` notice overwriting the success confirmation, `json_encode()` returning an empty HTTP 200 for non-UTF-8 titles, the container selection snapping back to the project root, and `footers.reqSpecCopy` never rendered | `DOMParser` + `body.textContent` (the approach `searchView.html` / `reqSpecView.html` already use), surface `$op['msg']` and the committed `partial` id, notice only while `LAST_NEW_ID === 0`, `JSON_INVALID_UTF8_SUBSTITUTE`, preserve/reload the selection, render the footer from its i18n key |
+| [#1803](https://github.com/sebiboga/testlink-upgraded/issues/1803) | `requirement_spec_mgr::copy_to()` ran `$sdx <= count($subtree)` — one element past the end — so `$elem['node_type_id']` on `null` raised an `E_WARNING` row **on every recursive copy** (also affects reqSpecTreeCopy and the plan-level copies) | off-by-one fixed; 0 new `events` rows for a recursive copy of a specification with a child specification and requirements |
+
+Live proof of the #1801 fix: with `node_order` seeded to disagree with `id`
+(`232`=1, `228`=2), a **bottom** copy yielded `232:1  228:2  new:3` and a **top** copy yielded
+`new:1  232:2  228:3  …` — the arrangement survives. Copying into a specification that already
+holds a requirement renumbered the requirement too (`spec:1  spec:2  spec:3  requirement:4`).

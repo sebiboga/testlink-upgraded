@@ -137,7 +137,7 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
   </div>
 </div>
 
-<div class="footer" id="footerText"></div>
+<div class="footer" id="footerText" data-i18n="footers.reqSpecCopy">TestLink 2.0.1 - Copy Requirement Specification</div>
 
 <script src="/gui/templates/i18n/i18n.js"></script>
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
@@ -196,8 +196,10 @@ function showState(id, code, text) {
 }
 
 function setFooter() {
-  $('#footerText').text('TestLink 2.0.1 - ' + TLi18n.t('rsc.title') + ' | ' +
-    TLi18n.t('common.generatedOn') + ' ' + new Date().toLocaleString());
+  // Refs #1801: the footer text was rebuilt in JS while footers.reqSpecCopy had
+  // been added to all 10 bundles and never used. The key now drives it, exactly
+  // like every other modern screen; TLi18n.apply() fills it in.
+  $('#footerText').attr('data-i18n', 'footers.reqSpecCopy');
 }
 
 $(function () {
@@ -258,7 +260,7 @@ function load(keepMsg) {
     $('#srcReqCount').text(s.total_req + ' ' + TLi18n.t('rsc.reqUnit'));
     $('#srcScope').text(stripHtml(s.scope || ''));
     $('#srcCard').show();
-    if (r.tproject_fallback_from) { TPROJECT_ID = r.destination.tproject_id; }
+    if (r.tproject_fallback_from && r.destination) { TPROJECT_ID = r.destination.tproject_id; }
     renderDestinations(r.destinations || []);
     loadProjects().done(function (pr) {
       var list = (pr && pr.status === 'ok') ? (pr.projects || []) : [];
@@ -272,6 +274,10 @@ function load(keepMsg) {
         });
         if (!$sel.find('option[value="' + TPROJECT_ID + '"]').length) {
           TPROJECT_ID = parseInt(list[0].id, 10);
+          // Refs #1801: the container list still belonged to the previous
+          // project, so reload instead of leaving a stale one under a new
+          // project name (the next Copy then 400s with invalid_destination).
+          return load();
         }
         $sel.val(String(TPROJECT_ID));
       }
@@ -285,25 +291,45 @@ function load(keepMsg) {
     }
     // Refs #1799. Raised HERE, inside the done() handler: raised synchronously it
     // was wiped again by this handler's own hideAll().
-    if (LEGACY_INTENT) { showMsg(false, TLi18n.t('rsc.legacyNotice')); }
+    // Refs #1801: raised on EVERY load, including the refresh that follows a
+    // successful copy - so a user who arrived through the legacy URL got the red
+    // "nothing has been copied yet" box in place of the green confirmation. Only
+    // while no copy of this visit has happened.
+    if (LEGACY_INTENT && LAST_NEW_ID === 0) {
+      showMsg(false, TLi18n.t('rsc.legacyNotice'));
+    }
   }).fail(function (xhr) { renderError(xhr); });
 }
 
+// Refs #1801. This used `document.createElement('div').innerHTML = scope`, and a
+// DETACHED div is NOT an inert sink: the review planted <img src=x onerror=...> in
+// a scope and window.__xss came back true, so any user with mgt_modify_req could run
+// script in the session of every user (admin included) who opens this popup.
+// DOMParser builds an INERT document - no image is fetched, no handler runs - and
+// this is the same rendering the other modern screens already use
+// (searchView.html / searchReqSpec.html / reqSpecView.html all render scope with
+// .text()).
 function stripHtml(s) {
-  var d = document.createElement('div');
-  d.innerHTML = String(s || '');
-  d.querySelectorAll('br').forEach(function (b) { b.replaceWith('\n'); });
-  d.querySelectorAll('p,div,li,tr,h1,h2,h3,h4,h5,h6').forEach(function (b) { b.append('\n'); });
-  return (d.textContent || '').replace(/\n{3,}/g, '\n\n').trim();
+  var doc = new DOMParser().parseFromString(String(s || ''), 'text/html');
+  doc.querySelectorAll('br').forEach(function (b) { b.replaceWith('\n'); });
+  doc.querySelectorAll('p,div,li,tr,h1,h2,h3,h4,h5,h6').forEach(function (b) { b.append('\n'); });
+  return (doc.body.textContent || '').replace(/\n{3,}/g, '\n\n').trim();
 }
 
 function renderDestinations(list) {
+  // Refs #1801: renderDestinations() emptied and re-appended without restoring the
+  // previous value, so the post-copy refresh snapped the selector back to the
+  // project root - a second Copy then landed in the wrong container.
+  var previous = $('#containerSel').val();
   var $sel = $('#containerSel').empty();
   list.forEach(function (d) {
     var pad = d.depth ? '\\u00a0\\u00a0\\u00a0\\u00a0\\u00a0'.repeat(d.depth) + '\\u2514\\u2500 ' : '';
-    var label = pad + (d.is_project ? d.name : d.name) + (d.is_project ? '' : '');
+    var label = pad + d.name;
     $sel.append($('<option></option>').attr('value', d.id).text(label));
   });
+  if (previous && $sel.find('option[value="' + previous + '"]').length) {
+    $sel.val(previous);
+  }
   if (!list.length) {
     $sel.prop('disabled', true);
     $('#noTargets').show();
@@ -367,8 +393,8 @@ function renderError(xhr) {
   if (!body && xhr.responseText) {
     try { body = JSON.parse(xhr.responseText); } catch (e) { body = null; }
   }
-  var status = xhr.status || (body && body.status) || 0;
-  var code = (body && body.code) ? body.code : 'http_' + status;
+  var status = parseInt(xhr.status, 10) || 0;
+  var code = (body && body.code) ? body.code : 'http_' + (status || 'error');
   var msg = (body && body.message) ? body.message : TLi18n.t('rsc.errLoad');
   if (status === 401) {
     window.location.href = '/login.php?note=expired';

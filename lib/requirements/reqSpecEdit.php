@@ -132,8 +132,12 @@ function reqSpecEditRedirectToModernSpecCopy($args)
   $specId = intval($args->req_spec_id);
   if($specId <= 0)
   {
+    // Refs #1801: INFO, not ERROR - this is a crafted/empty query string, not a
+    // failure, and the sibling helper below (#1736/#1731) deliberately uses INFO
+    // so that a crafted request cannot write an Error/Warning row into the Event
+    // Viewer.
     tLog('reqSpecEdit.php: doAction=' . $args->doAction .
-         ' was requested without a req_spec_id - nothing has been copied.', 'ERROR');
+         ' was requested without a req_spec_id - nothing has been copied.', 'INFO');
     header('Location: /gui/templates/requirements/reqSpecView.html');
     exit();
   }

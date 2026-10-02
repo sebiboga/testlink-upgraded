@@ -2287,6 +2287,11 @@ function getActions(&$gui,$baseURL) {
   // Modernized screens (Dashio standalone pages)
   $actions->reqSpecMgmt = "/gui/templates/requirements/reqSpecMgmt.html?{$ctx}";
   // Requirement Specification Copy popup (Dashio standalone page) - Refs #1797.
+  // NOTE on the history: both legacy reqSpecView templates only ASSIGNED
+  // {$req_spec_copy_url} (dashio:53 / tl-classic:50) and never used it, and
+  // reqSpecViewButtons.inc.tpl has no copy-spec button - so this popup was
+  // unreachable from the 1.9.20 viewer as well. Reachable via the URL and,
+  // since #1797, from the modern viewer's toolbar.
   // Replaces the `copy` / `doCopy` actions of lib/requirements/reqSpecEdit.php,
   // which rendered gui/templates/dashio/requirements/reqSpecCopy.tpl. That
   // controller checked its rights against the SESSION context only, while

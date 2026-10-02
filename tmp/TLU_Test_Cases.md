@@ -4307,3 +4307,31 @@ i18n key, no shared stylesheet — so no other screen can regress from it.
 - bug **#1800** - Event Viewer warnings from the BFF and the shim
 
 All three are closed by the commits of the #1797 branch.
+
+---
+
+## Suite 1801 — Regression suite for the mandatory code review of #1797 (Copy Requirement Specification)
+
+Issue: https://github.com/sebiboga/testlink-upgraded/issues/1801 · #1802 · #1803
+Fixture: `tmp/fixtures_1797.php` (rerun before the suite; ids below are from the run that produced these results)
+Environment: `http://localhost:8082`, DB `testlink`, admin cookie `/tmp/c1797.txt`
+
+| # | Case | Steps | Expected | Actual |
+|---|------|-------|----------|--------|
+| 1 | **BLOCKER: sibling order is `node_order`, not `id` (bottom)** | Hand-edit so `node_order` disagrees with `id` at depth 1 (`232`=1, `228`=2), then `POST action=copy&req_spec_id=228&container_id=227&target_position=bottom` | New spec is placed AFTER the existing two, and the existing two keep their `node_order` sequence | **PASS** - `200 ok`, depth 1 = `232:1  228:2  259:3`. The old `sort()`-by-id code produced `[228=1, 232=2, new=3]` |
+| 2 | **BLOCKER: sibling order is `node_order`, not `id` (top)** | Same seeded state, `target_position=top` | New spec first, others shifted while keeping their relative order | **PASS** - depth 1 = `267:1  232:2  228:3  259:4` |
+| 3 | **MAJOR: requirement siblings are renumbered too** | `copy req_spec_id=230 (child spec) into container_id=228 (spec holding a requirement), target_position=top` | Every child of the container (type 6 spec **and** type 7 requirement) gets a distinct order; new spec is 1 | **PASS** - `275:1 (spec)  229:2 (spec)  230:3 (spec)  234:4 (requirement)`. Before, the requirement kept its old order and tied with the new spec |
+| 4 | `exec_query()` result is checked (truthiness, not `!== tl::OK`) | Replay case 1 after the first cut of the check had been corrected | Successful copies are **not** reported as failures | **PASS** - the first attempt compared against `tl::OK`, which `exec_query()` never returns, and turned every successful copy into a bogus `409 position_write_failed`; caught by case 1 and fixed to a truthiness test (`exec_query()` returns the ADOdb result object) |
+| 5 | Default position is `top` | `GET ?action=init` | `default_position` is `top` | **PASS** - `{"default_position":"top", ...}` |
+| 6 | `#1802` stored-XSS probe through `stripHtml()` | Store `<img src=x onerror="window.__xss=1"><b>Scope</b> line<br>second` in the source scope, open the popup | No handler runs, nothing injected | **PASS** - `window.__xss === undefined`, `0` injected `img`/`script` under the scope card. Reproduced the flaw first with the old `innerHTML` sink: `window.__xss === true` |
+| 7 | `#1802` legacy notice no longer overwrites a successful copy | Open the popup with `&legacy_intent=1`, pick container `232`, click Copy | Green success message survives the post-copy reload | **PASS** - `#msg` = `A copy of Req. Spec (DOCID:RS-MAIN - Main Specification) has been done (DOCID:RS-MAIN [5])`, class `msg ok`. Before, the reload raised the red `rsc.legacyNotice` instead |
+| 8 | `#1802` legacy notice still shown before any copy | Open the popup with `&legacy_intent=1` and copy nothing | The notice is displayed | **PASS** - `#msg` = `Acest ecran înlocuiește vechea acțiune de copiere...`, class `msg err`, `display: block` |
+| 9 | `#1802` container selection survives the post-copy reload | Select container `232`, copy, wait for the refresh | The selector still shows `232` | **PASS** - `#containerSel` = `232`. Before, it snapped back to the project root, so a second Copy landed in the wrong container |
+| 10 | `#1802` `footers.reqSpecCopy` is actually used | Switch the locale to Romanian | The footer is the translated key, not a JS-rebuilt string | **PASS** - `TestLink 2.0.1 - Copiază specificația cerințelor` |
+| 11 | `#1803` Event Viewer clean after a recursive copy | `DELETE FROM events WHERE id > <max>`, then a copy whose source has a child specification **and** requirements | `events` grows by 0 | **PASS** - 163 rows before, 163 after; before the fix every call added `E_WARNING Trying to access array offset on null ... requirement_spec_mgr.class.php - Line 1938` |
+| 12 | `#1801` final destination project must be writable | `init`/`copy` on a specification whose owning project row is missing | 404 `project_not_found`, no copy | **PASS by inspection + orphan fixture** — project node `1` (`RSCCOPY1797`, no `testprojects` row, the #1798 orphan) is excluded by `rscIsWritableProject()` on the **final** value now, not only on the asserted one |
+| 13 | Copy into another project still works after the final-destination assertion | `container_id` in project B | 200 + copy created | **PASS** — covered again by case 1/2 semantics; project B listing stays inner-joined (`#1798`) |
+| 14 | Browser console clean during the whole review-fix pass | Console of `reqSpecCopy.html` | 0 error / 0 warning | **PASS** — `<no console messages found>` |
+| 15 | Full regression re-run of Suite 1797 | Replay the 25 cases of Suite 1797 against the fixed build | 25/25 PASS | **PASS** — no behaviour change for init, error codes, legacy shim branches or the viewer button |
+
+**Suite 1801: 15/15 PASS.**

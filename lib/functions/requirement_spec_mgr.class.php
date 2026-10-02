@@ -1931,7 +1931,13 @@ function get_requirement_child_by_id_req($id){
   			// is still better.
   			//
 			  $loop2do = count($subtree);
-  			for($sdx=0; $sdx <= $loop2do; $sdx++) {
+  			// Refs #1803: `<=` walked ONE element past the end of the array:
+  			// $loop2do is count($subtree), so $subtree[count] is null and
+  			// `&$subtree[$sdx]` + `$elem['node_type_id']` raised
+  			// "Trying to access array offset on null" on line 1938 - an
+  			// E_WARNING row in the Event Viewer on EVERY recursive spec copy
+  			// (copy_to() is shared with reqSpecTreeCopy / plan-level copies).
+  			for($sdx=0; $sdx < $loop2do; $sdx++) {
 		  		$elem = &$subtree[$sdx];
 				  $the_parent_id = isset($parent_decode[$elem['parent_id']]) ? $parent_decode[$elem['parent_id']] : null;
 
