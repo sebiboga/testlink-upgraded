@@ -2152,6 +2152,11 @@ function getActions(&$gui,$baseURL) {
 
   $actions->fullTextSearch = "/gui/templates/search/searchAdvancedView.html?{$ctx}";
 
+  // Full-Text Search one-box screen (modernized lib/search/searchMgmt.php,
+  // Refs #1785). The legacy navBar fullTextSearch form POSTs to the
+  // searchMgmt.php shim, which redirects here forwarding the target term.
+  $actions->searchMgmt = "/gui/templates/search/searchMgmt.html?{$ctx}";
+
   // MD/XML Test Case Import modernized screen
   $actions->tcImport = "/gui/templates/testcases/tcImport.html?{$ctx}";
 
