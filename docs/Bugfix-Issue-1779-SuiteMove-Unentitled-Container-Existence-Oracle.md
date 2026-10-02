@@ -19,18 +19,19 @@ The same split existed on the two write paths — `POST ?action=reorder&tproject
 and `POST ?action=move&tproject_id=1&node_id=3` — and on the project-root container
 (`container_id=1`). One sweep of `container_id` therefore enumerated **every suite and project-root
 id of a test project the caller may not even look at**, with zero privileges. This is the twin of
-[#1761](Bugfix-Issue-1761-Tcreorder-Tcstepsreorder-Cross-Project-Existence-Oracle.md), closed on
+[#1761](https://github.com/sebiboga/testlink-upgraded/issues/1761), closed on
 `api/tcreorder` but never closed on `api/suitemove`.
 
 ## Root cause chain
 
-1. `api/suitemove/index.php` — `case 'init'` (`:615-619`), `case 'reorder'` (`:911-913`) and
-   `case 'move'` (`:724-732`) all hand the **caller-supplied** `container_id` / `node_id` to the
-   shared resolver `suitMoveProject(&$db, &$user, $requestedId, $containerId, $leakGuard)` (`:325`).
+1. `api/suitemove/index.php` — `case 'init'` (`:615-619`), `case 'reorder'` (`:922-926`) and
+   `case 'move'` (`:733-742`) all hand the **caller-supplied** `container_id` / `node_id` to the
+   shared resolver `suitMoveProject(&$db, &$user, $requestedId, $containerId, $leakGuard,
+   $leakMessage)` (`:332`).
 2. Inside the resolver the container **is** looked up unconditionally (`:329-360`): unknown id,
    wrong node type and orphaned node all answer the opaque `404 not_found "Container not found"`,
    and a `tproject_id` that disagrees with the container's real owner also answers `404` (`:361-363`).
-   At that point `$tprojectId = $owner` (`:381`) — the project in play came from the caller's node id.
+   At that point `$tprojectId = $owner` (`:389`) — the project in play came from the caller's node id.
 3. **The defect:** the guard meant *"this refusal must be opaque"* was armed on the **inverse**
    predicate,
 
@@ -40,10 +41,10 @@ id of a test project the caller may not even look at**, with zero privileges. Th
    ```
 
    so as soon as the caller also named `tproject_id`, the flag was `false`.
-4. The rights check (`:407-416`) therefore took the informative branch and answered
+4. The rights check (`:407-417`) therefore took the informative branch and answered
    `403 forbidden "Insufficient rights on this test project"` — **the oracle**.
 5. `case 'move'` passed the flag **explicitly** with the same wrong predicate
-   (`suitMoveProject($db, $user, $owner, 0, intval($tprojectId) <= 0)`), so `node_id` had the
+   (`suitMoveProject($db, $user, $owner, 0, intval($tprojectId) <= 0)`, pre-fix `:735-736`), so `node_id` had the
    identical split.
 
 ### Why it breaks NOW
@@ -60,7 +61,7 @@ nothing”*) were the wrong argument: naming project A does not entitle anybody 
 ### 1. arm the guard on the caller-supplied node id (`20f14eeef`)
 
 ```php
-  // api/suitemove/index.php:381 (after)
+  // api/suitemove/index.php:388 (after)
   $leakGuard = ($containerId > 0);
   $tprojectId = $owner;
 ```
@@ -68,7 +69,7 @@ nothing”*) were the wrong argument: naming project A does not entitle anybody 
 ### 2. the `move` path always derives the project from the caller's `node_id` (`20f14eeef`)
 
 ```php
-  // api/suitemove/index.php:731-732 (after)
+  // api/suitemove/index.php:741-742 (after)
   list($tprojectId, $tproject) =
       suitMoveProject($db, $user, $owner, 0, true);
 ```
@@ -77,7 +78,7 @@ nothing”*) were the wrong argument: naming project A does not entitle anybody 
 
 Status-only opacity was **not** enough, and row **R13** of the new matrix caught it:
 `case 'move'` answers `"Suite not found"` for a `node_id` that exists nowhere
-(`suitMoveNodeInfo()` null branch), so a guard that answered `"Container not found"` still told
+(`suitMoveNodeInfo()` null branch, `:718`), so a guard that answered `"Container not found"` still told
 *exists* from *does-not-exist* at the message level:
 
 ```
@@ -86,11 +87,11 @@ POST ?action=move&tproject_id=1&node_id=999999   -> 404 {"message":"Suite not fo
 ```
 
 ```php
-  // api/suitemove/index.php:325-326 (after)
+  // api/suitemove/index.php:332-333 (after)
   function suitMoveProject(&$db, &$user, $requestedId, $containerId = 0, $leakGuard = false,
                           $leakMessage = 'Container not found')
   ...
-  // api/suitemove/index.php:409-417 (after)
+  // api/suitemove/index.php:412-417 (after)
           if ($leakGuard) {
               out(array('status' => 'error', 'code' => 'not_found',
                         'message' => $leakMessage), 404);
@@ -168,3 +169,31 @@ Suite `Regression — Issue #1779` in `tmp/TLU_Test_Cases.md`: **28 PASS / 0 FAI
   unentitled-project variant).
 * #1761 / #1762 — the same oracle class on `api/tcreorder` / `api/tcstepsreorder` (fixed; their
   `tcreoProject()` is the reference implementation followed here).
+
+## Code review round (subagent over `25d6d8f97..HEAD`)
+
+**Verdict: SHIP** — "the fix itself is correct, minimal, uniform with `tcreoProject()`, regression-free
+for every user who had a working screen, and needs no i18n work".
+
+Applied from the review:
+
+* **MAJOR-in-spirit (test quality):** row **R11** of `tmp/verify_1779.sh` was **vacuous** — it
+  compared `container_id=$A` (the project root) against itself, because the substitution always
+  replaced `$SA1`, which that request does not contain. The spec tuple now carries the id to swap
+  per row and the row **fails** if the substitution did not actually change the request. The row is
+  meaningful now: `container_id=1` and `container_id=999999` really are compared byte for byte.
+* stale header comment above `M12` in `tmp/verify_1759.sh` reworded (it still announced that the
+  genuine `403` survives, directly above the row that now expects `404`);
+* the `file:line` citations in this page re-verified against the post-fix file (they drifted by ~7
+  lines because of the new docblock); the dangling link to a non-existent #1761 page replaced by the
+  issue URL; the `tmp/TLU_Test_Cases.md` pointer to this page corrected to the real file name.
+
+**Reported as a NEW `bug` issue instead of fixed here** (pre-existing, needs rights on *some* project,
+and expanding this run's scope is forbidden by `ai/FIX-ISSUE.md` §4):
+
+* `api/suitemove/index.php:723` and `:729` answer `"Suite has no owning test project"` for an existing
+  suite of a foreign project, while an id that exists nowhere answers `"Suite not found"` — the same
+  message-level oracle on the `move` path as F1 below;
+* `api/suitemove/index.php:820/824/832` — the `new_parent_id` (destination) checks answer
+  `"Destination not found"` / `"Destination is not a test suite"` / `"Destination has no owning test
+  project"`; the middle one additionally leaks the node type across projects.

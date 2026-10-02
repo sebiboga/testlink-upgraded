@@ -92,16 +92,20 @@ raw(){ # GET params go in the query string (see req)
     curl -s -b "$1" -H "Origin: http://localhost:8082" -X "$2" -d "$3" "$B"
   fi
 }
-for spec in "GET|action=init&tproject_id=$A&container_id=$SA1|R10 init unentitled suite == absent suite" \
-            "GET|action=init&tproject_id=$A&container_id=$A|R11 init unentitled root == absent id" \
-            "POST|action=reorder&tproject_id=$A&container_id=$SA1&nodelist=$SA1,$SA2|R12 reorder unentitled == absent" \
-            "POST|action=move&tproject_id=$A&node_id=$SA1&position=down|R13 move unentitled node == absent node"; do
-  m=${spec%%|*}; rest=${spec#*|}; q=${rest%%|*}; label=${rest##*|}
-  x=$(raw $CKNR "$m" "$q"); y=$(raw $CKNR "$m" "${q//$SA1/$ABSENT}")
-  if [ "$x" = "$y" ] && [ -n "$x" ]; then
+# The 4th field is the id to swap for the absent one. It MUST be spelled out per
+# row: the first version of this matrix substituted $SA1 everywhere, so the R11
+# request (which addresses the PROJECT ROOT $A) was compared with itself and the
+# row was vacuously green - a test that cannot fail is not evidence.
+for spec in "GET|action=init&tproject_id=$A&container_id=$SA1|$SA1|R10 init unentitled suite == absent suite" \
+            "GET|action=init&tproject_id=$A&container_id=$A|$A|R11 init unentitled root == absent id" \
+            "POST|action=reorder&tproject_id=$A&container_id=$SA1&nodelist=$SA1,$SA2|$SA1|R12 reorder unentitled == absent" \
+            "POST|action=move&tproject_id=$A&node_id=$SA1&position=down|$SA1|R13 move unentitled node == absent node"; do
+  m=${spec%%|*}; r1=${spec#*|}; q=${r1%%|*}; r2=${r1#*|}; tok=${r2%%|*}; label=${r2##*|}
+  x=$(raw $CKNR "$m" "$q"); y=$(raw $CKNR "$m" "${q//$tok/$ABSENT}")
+  if [ -n "$x" ] && [ "$x" = "$y" ] && [ "$q" != "${q//$tok/$ABSENT}" ]; then
     echo "PASS  $label  (=$x)"; PASS=$((PASS+1))
   else
-    echo "FAIL  $label  [$x] vs [$y]"; FAIL=$((FAIL+1))
+    echo "FAIL  $label  [$x] vs [$y] (request unchanged by the substitution?)"; FAIL=$((FAIL+1))
   fi
 done
 

@@ -3108,5 +3108,5 @@ keeps it as well.
 
 **Files** — `api/suitemove/index.php` (`suitMoveProject()` + the `move` call site),
 `tmp/verify_1779.sh` (this matrix), `tmp/verify_1759.sh` (rows `M12`/`M12b`/`M12c` updated).
-**Docs** — `docs/issue-1779-suitemove-unentitled-container-oracle.md`, wiki page
-`Issue 1779 - suitemove unentitled container oracle.md`.
+**Docs** — `docs/Bugfix-Issue-1779-SuiteMove-Unentitled-Container-Existence-Oracle.md`, mirrored in
+the GitHub Wiki under the same file name.

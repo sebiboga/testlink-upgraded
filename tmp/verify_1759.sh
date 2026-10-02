@@ -138,7 +138,8 @@ else
   echo "FAIL  M14 events ERROR/WARNING rows $WBASE -> $W"; FAIL=$((FAIL+1))
 fi
 
-# M12: as a VIEW-ONLY user of project A the genuine rights 403 must survive
+# M12: as a VIEW-ONLY user of project A. M12b (NO container) keeps the genuine
+# rights 403; M12 (WITH a container) is now the opaque 404 - see below.
 # REFS #1779: M12 changed from 403 to 404 ON PURPOSE. Arming the leak guard on
 # the caller-supplied CONTAINER (not on the absence of a caller-supplied
 # project) makes EVERY refusal about a named container opaque, so a view-only
