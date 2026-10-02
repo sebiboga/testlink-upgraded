@@ -2216,6 +2216,15 @@ function getActions(&$gui,$baseURL) {
   $actions->buildNew = "/gui/templates/plans/buildsView.html?{$ctx}";
 
   if ($tplan_id >0) {
+    // Build Create/Edit modernized screen (Dashio standalone page) - Refs #1787.
+    // Replaces the legacy plan/buildEdit.php renderer. The screen is
+    // plan-scoped (the build's owning project is resolved through the plan),
+    // so it lives inside the tplan_id guard. The BFF (api/builds) re-checks
+    // the legacy right testplan_create_build on every route and additionally
+    // resolves the project through the test plan, so a forged tplan_id from
+    // another project can never reach another project's builds or design
+    // custom fields.
+    $actions->buildEdit = "/gui/templates/plans/buildEdit.html?{$ctx}";
     // Assign Platforms to Test Plan modernized screen (Dashio standalone page) - Refs #603
     $actions->platformAssign = "/gui/templates/platforms/platformsAssign.html?{$ctx}";
     // Test Plan Milestones modernized screen (Dashio standalone page) - Refs #647.

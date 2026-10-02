@@ -63,6 +63,7 @@ table.dataTable tbody td { padding: 8px 14px; font-size: 13px; vertical-align: m
   <span class="ctx"><span data-i18n="bv.testPlan">Test Plan</span>: <b id="tplanName">-</b></span>
   <span style="flex:1"></span>
   <button class="btn-teal" id="btnCreate"><i class="fa fa-plus"></i> <span data-i18n="bv.createBuild">Create Build</span></button>
+  <button class="btn-teal" id="btnCreateFull" style="background:#3dbdb5;"><i class="fa fa-file-lines"></i> <span data-i18n="bv.createBuildFullScreen">Create Build (full screen)</span></button>
 </div>
 
 <div class="section">
@@ -220,6 +221,9 @@ $(function () {
   });
 
   $('#btnCreate').on('click', openCreate);
+  $('#btnCreateFull').on('click', function () {
+    location.href = 'buildEdit.html?tplan_id=' + tplanId;
+  });
 });
 
 function esc(s) {
@@ -272,6 +276,7 @@ function load() {
       document.title = r.tplan.name + ' - ' + TLi18n.t('bv.header');
 
       $('#btnCreate').toggle(canManage);
+      $('#btnCreateFull').toggle(canManage && tplanId > 0);
 
       fillCopyOptions(r.source_builds, r.exec_status_options);
       render(r.builds);

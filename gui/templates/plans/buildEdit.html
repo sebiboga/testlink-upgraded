@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title data-i18n="bedit.title">Build</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; color: #0d3f3c; opacity: 1; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-teal:disabled { opacity: .45; cursor: not-allowed; }
+.btn-dark { background: #353b48; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-dark:hover { background: #2c313a; }
+.btn-red { background: #e6605e; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-red:hover { background: #c53f3d; }
+.section { padding: 20px 24px 4px; }
+.card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 18px 20px; margin: 0 24px 16px; }
+.card h3 { font-size: 15px; font-weight: 700; color: #22242a; margin: 0 0 14px; }
+.form-label { display: block; font-size: 12px; font-weight: 700; color: #353b48; margin-bottom: 4px; }
+.form-control, .form-control:focus { font-size: 13px; }
+.req { color: #e6605e; }
+.chk-row label { font-weight: 400; font-size: 13px; color: #333; margin-left: 6px; cursor: pointer; }
+.hint { font-size: 11px; color: #888; margin-top: 3px; }
+.copy-block { background: #f7f9f9; border: 1px solid #e3e8e8; border-radius: 6px; padding: 12px 14px; margin-top: 10px; }
+.empty, .errbox, .okbox { border-radius: 6px; padding: 14px 16px; font-size: 13px; }
+.empty { background: #fff; color: #888; text-align: center; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 0 24px; }
+.errbox { background: #fdecec; border: 1px solid #f5c6c6; color: #a12a28; }
+.okbox { background: #eaf7f4; border: 1px solid #b6e2dc; color: #22756e; }
+.state-card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 20px 24px; padding: 26px; text-align: center; }
+.state-card h2 { font-size: 17px; font-weight: 700; color: #22242a; margin: 0 0 8px; }
+.state-card p { font-size: 13px; color: #666; margin: 0 0 12px; }
+.state-card .code { font-family: monospace; font-size: 12px; color: #999; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
+.actions { display: flex; gap: 10px; justify-content: flex-end; padding: 4px 24px 20px; }
+.cf-value-list { display: flex; flex-wrap: wrap; gap: 14px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span data-i18n="bedit.header">Build</span>
+  <span class="sub" id="opDescr"></span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="toolbar">
+  <span class="ctx"><span data-i18n="bedit.testProject">Test Project</span>: <b id="tprojectName">-</b></span>
+  <span class="ctx"><span data-i18n="bedit.testPlan">Test Plan</span>: <b id="tplanName">-</b></span>
+  <span style="flex:1"></span>
+  <button class="btn-dark" id="btnReload" title="reload"><i class="fa fa-rotate-right"></i> <span data-i18n="bedit.reload">Refresh</span></button>
+  <button class="btn-dark" id="btnBack"><i class="fa fa-list"></i> <span data-i18n="bedit.back">Back to Builds &amp; Releases</span></button>
+  <button class="btn-dark" id="btnClose"><i class="fa fa-times"></i> <span data-i18n="bedit.close">Close</span></button>
+  <button class="btn-dark" id="btnHistory" style="display:none;" title="event history"><i class="fa fa-history"></i> <span data-i18n="bedit.showEventHistory">Show event history</span></button>
+</div>
+
+<div id="stateBox"></div>
+
+<div id="formArea" style="display:none;">
+  <div class="card">
+    <h3><i class="fa fa-cube" style="color:#2d8e88;"></i> <span data-i18n="bedit.buildSection">Build</span></h3>
+    <div class="form-group" style="margin-bottom:12px;">
+      <label class="form-label" for="fName"><span data-i18n="bedit.enterBuild">Build name</span> <span class="req">*</span></label>
+      <input type="text" class="form-control" id="fName" maxlength="100" autocomplete="off">
+      <div class="hint" data-i18n="bedit.nameHint">must be unique within this test project</div>
+    </div>
+    <div class="form-group" style="margin-bottom:12px;">
+      <label class="form-label" for="fNotes" data-i18n="bedit.enterBuildNotes">Build notes</label>
+      <textarea class="form-control" id="fNotes" rows="4"></textarea>
+    </div>
+    <div class="row">
+      <div class="col-sm-6">
+        <div class="form-group chk-row">
+          <label><input type="checkbox" id="fActive" checked> <span data-i18n="bedit.active">Active</span></label>
+          <div class="hint" data-i18n="bedit.activeHint">an inactive build is hidden from the execution screens but keeps its results</div>
+        </div>
+      </div>
+      <div class="col-sm-6">
+        <div class="form-group chk-row">
+          <label><input type="checkbox" id="fOpen" checked> <span data-i18n="bedit.open">Open</span></label>
+          <div class="hint" id="closureHint" data-i18n="bedit.closedOnHint">clearing this stamps the closure date of the build</div>
+        </div>
+      </div>
+    </div>
+    <div class="form-group" style="margin-bottom:4px;max-width:280px;">
+      <label class="form-label" for="fReleaseDate" data-i18n="bedit.releaseDate">Release date</label>
+      <input type="date" class="form-control" id="fReleaseDate">
+    </div>
+    <div id="cfArea" style="display:none;">
+      <hr style="border-color:#e3e8e8;">
+      <h3 style="margin-top:4px;"><i class="fa fa-sliders-h" style="color:#2d8e88;"></i> <span data-i18n="bedit.cfSection">Custom fields</span></h3>
+      <div id="cfFields"></div>
+    </div>
+  </div>
+
+  <div class="card" id="copyCard">
+    <h3><i class="fa fa-clone" style="color:#2d8e88;"></i> <span data-i18n="bedit.copySection">Copy options</span></h3>
+    <div class="form-group chk-row">
+      <label><input type="checkbox" id="fCopyAssignments"> <span data-i18n="bedit.copyTesterAssignments">Copy tester assignments</span></label>
+    </div>
+    <div class="copy-block" id="srcBlock" style="display:none;">
+      <div class="form-group" style="margin-bottom:10px;">
+        <label class="form-label" for="fSourceBuild" data-i18n="bedit.assignmentSourceBuild">Source build for the assignments</label>
+        <select class="form-control" id="fSourceBuild"></select>
+        <div class="hint" data-i18n="bedit.sourceBuildHint">the number in brackets is the amount of existing assignments on that build</div>
+      </div>
+      <div class="form-group" style="margin-bottom:4px;">
+        <label class="form-label" for="fExecStatus" data-i18n="bedit.withExecStatus">Only with execution status</label>
+        <select class="form-control" id="fExecStatus" multiple size="4"></select>
+        <div class="hint" data-i18n="bedit.execStatusHint">leave every option unselected to copy the assignments of all statuses</div>
+      </div>
+    </div>
+    <div class="form-group chk-row" id="allPlansRow" style="margin-top:12px;display:none;">
+      <label><input type="checkbox" id="fCopyAllPlans"> <span data-i18n="bedit.copyToAllPlans">Copy this build to all other active test plans of the project</span></label>
+      <div class="hint" id="allPlansHint"></div>
+    </div>
+  </div>
+
+  <div id="feedback"></div>
+  <p style="font-size:12px;color:#888;padding:0 24px;" data-i18n="bedit.buildsDescription">A build represents a particular version of the product under test.</p>
+</div>
+
+<div class="actions" id="actions" style="display:none;">
+  <button class="btn-red" id="btnCancel" data-i18n="bedit.cancel">Cancel</button>
+  <button class="btn-teal" id="btnSave"><i class="fa fa-floppy-disk"></i> <span id="saveLabel"></span></button>
+</div>
+
+<div class="footer" id="footerInfo"></div>
+<div class="footer"><span data-i18n="footers.buildEdit">TestLink 2.0.1 - Build</span></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.9/purify.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/builds/index.php';
+var tplanId = 0;
+var buildId = 0;
+var ctxData = null;
+var cfDefs = [];
+var saving = false;
+
+$(function () {
+  var p = new URLSearchParams(window.location.search);
+  tplanId = parseInt(p.get('tplan_id') || '0', 10);
+  buildId = parseInt(p.get('build_id') || '0', 10);
+
+  $('#btnReload').on('click', load);
+  $('#btnBack').on('click', function () { location.href = 'buildsView.html?tplan_id=' + tplanId; });
+  $('#btnClose').on('click', function () { window.close(); });
+  $('#btnCancel').on('click', function () { location.href = 'buildsView.html?tplan_id=' + tplanId; });
+  $('#btnSave').on('click', save);
+  $('#btnHistory').on('click', openHistory);
+  $('#fOpen').on('change', function () { $('#closureHint').toggle(!$(this).is(':checked')); });
+  $('#fCopyAssignments').on('change', function () {
+    var on = $(this).is(':checked') && $('#fSourceBuild option').length > 0;
+    $('#srcBlock').toggle(on);
+    if (on && !$('#fExecStatus option').length) { loadContext(); }
+  });
+
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    load();
+  });
+});
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+/** Machine code + localized text of a BFF error payload. */
+function errText(r, fallbackKey) {
+  var map = {
+    warning_duplicate_build: 'bedit.msg.duplicateName',
+    invalid_release_date: 'bedit.msg.invalidReleaseDate',
+    cannot_delete_build: 'bedit.msg.cannotDelete',
+    cannot_add_build: 'bedit.msg.cannotAdd',
+    cannot_update_build: 'bedit.msg.cannotUpdate',
+    empty_field_no: 'bedit.msg.emptyName',
+    'Insufficient rights': 'common.forbidden',
+    'Invalid test plan id': 'bedit.msg.noTplan',
+    'Invalid source build': 'bedit.msg.badSourceBuild',
+    'Build not found': 'bedit.msg.buildNotFound'
+  };
+  var key = map[r.message] || fallbackKey || null;
+  var txt = key ? TLi18n.t(key) : (r.message || TLi18n.t('common.error'));
+  if (r.detail && (key === 'bedit.msg.duplicateName')) { txt += ': ' + r.detail; }
+  return txt;
+}
+
+/** Terminal state card; every card keeps the stable machine code visible. */
+function stateCard(titleKey, msgHtml, code) {
+  $('#formArea, #actions, #stateBox').hide().addBack();
+  $('#formArea').hide();
+  $('#actions').hide();
+  $('#stateBox').show().html(
+    '<div class="state-card"><h2 data-i18n="' + esc(titleKey) + '"></h2>' +
+    '<p>' + msgHtml + '</p>' +
+    (code ? '<div class="code">' + esc(code) + '</div>' : '') + '</div>');
+  TLi18n.apply($('#stateBox')[0]);
+}
+
+function sessionExpired() {
+  location.href = '/login.php?note=expired&destination=' + encodeURIComponent(location.pathname + location.search);
+}
+
+function load() {
+  if (tplanId <= 0) {
+    stateCard('bedit.noPlan', TLi18n.t('bedit.noPlanMsg'), 'no_tplan');
+    return;
+  }
+  $('#stateBox, #formArea, #actions').hide();
+  $.getJSON(API + '/?tplan_id=' + tplanId)
+    .done(function (r) {
+      if (r.status !== 'ok') { stateCard('common.error', esc(r.message || ''), r.error_code || 'error'); return; }
+      ctxData = r;
+      if (!r.rights || !r.rights.canManage) {
+        stateCard('common.forbidden', TLi18n.t('bedit.noRight'), 'no_right');
+        return;
+      }
+      $('#tprojectName').text(r.tproject_name || (r.tplan ? ('#' + r.tplan.tproject_id) : '-'));
+      $('#tplanName').text((r.tplan && r.tplan.name) || '-');
+      $('#opDescr').text(buildId > 0 ? TLi18n.t('bedit.editTitle') : TLi18n.t('bedit.createTitle'));
+      $('#saveLabel').text(buildId > 0 ? TLi18n.t('bedit.btnSave') : TLi18n.t('bedit.btnCreate'));
+      $('#footerInfo').text(TLi18n.t('bedit.footerInfo', { tplan: (r.tplan && r.tplan.name) || '-' }));
+
+      var src = r.source_builds || [];
+      var opts = [];
+      for (var i = 0; i < src.length; i++) {
+        if (buildId > 0 && src[i].id === buildId) { continue; }
+        opts.push('<option value="' + src[i].id + '">' + esc(src[i].name) + ' (' + src[i].assignments + ')</option>');
+      }
+      $('#fSourceBuild').html(opts.join(''));
+
+      var st = r.exec_status_options || [];
+      $('#fExecStatus').html(st.map(function (o) {
+        return '<option value="' + esc(o.code) + '">' + esc(o.label) + '</option>';
+      }).join(''));
+
+      // "Copy to all test plans" is a create-only option (legacy enable_copy
+      // is 1 only for create / do_create).
+      if (buildId <= 0 && (r.other_plans_count || 0) > 0) {
+        $('#allPlansRow').show();
+        $('#allPlansHint').text(TLi18n.t('bedit.allPlansHint', { n: r.other_plans_count }));
+      } else {
+        $('#allPlansRow').hide();
+      }
+
+      $('#btnHistory').toggle(buildId > 0 && (r.rights.canViewEvents || false));
+      $('#formArea, #actions').show();
+      if (buildId > 0) { loadBuild(); } else { resetCreate(); }
+      loadCfields();
+    })
+    .fail(function (xhr) {
+      if (xhr.status === 401) { sessionExpired(); return; }
+      var r = {};
+      try { r = JSON.parse(xhr.responseText); } catch (e) {}
+      if (xhr.status === 403) { stateCard('common.forbidden', esc(TLi18n.t('bedit.noRight')), r.error_code || 'no_right'); return; }
+      stateCard('common.error', esc(errText(r)), r.error_code || ('http_' + xhr.status));
+    });
+}
+
+/** Test project display name: the BFF list response is plan-scoped, so it
+ *  carries the project name alongside the plan. */
+function tprojectLabel() {
+  if (ctxData && ctxData.tplan && ctxData.tplan.tproject_id) {
+    return ctxData.tproject_name || ('#' + ctxData.tplan.tproject_id);
+  }
+  return '-';
+}
+
+function resetCreate() {
+  $('#fName').val('').prop('disabled', false);
+  $('#fNotes').val('');
+  $('#fActive').prop('checked', true);
+  $('#fOpen').prop('checked', true);
+  $('#closureHint').hide();
+  $('#fReleaseDate').val('');
+  $('#fCopyAssignments, #fCopyAllPlans').prop('checked', false);
+  $('#srcBlock').hide();
+  $('#feedback').html('');
+}
+
+function loadBuild() {
+  $.getJSON(API + '/' + buildId)
+    .done(function (r) {
+      if (r.status !== 'ok' || !r.build) {
+        stateCard('bedit.notFound', esc(TLi18n.t('bedit.buildNotFoundMsg')), 'build_not_found');
+        return;
+      }
+      var b = r.build;
+      $('#fName').val(b.name);
+      $('#fNotes').val(b.notes);
+      $('#fActive').prop('checked', b.active === 1);
+      $('#fOpen').prop('checked', b.is_open === 1);
+      $('#closureHint').toggle(b.is_open !== 1);
+      $('#fReleaseDate').val(b.release_date || '');
+      $('#fCopyAssignments, #fCopyAllPlans').prop('checked', false);
+      $('#srcBlock').hide();
+      $('#feedback').html('');
+    })
+    .fail(function (xhr) {
+      if (xhr.status === 401) { sessionExpired(); return; }
+      var r = {};
+      try { r = JSON.parse(xhr.responseText); } catch (e) {}
+      if (xhr.status === 403) { stateCard('common.forbidden', esc(TLi18n.t('bedit.noRight')), r.error_code || 'no_right'); return; }
+      if (xhr.status === 404) { stateCard('bedit.notFound', esc(TLi18n.t('bedit.buildNotFoundMsg')), 'build_not_found'); return; }
+      stateCard('common.error', esc(errText(r)), 'http_' + xhr.status);
+    });
+}
+
+/* ------------------------------------------------------------------ */
+/* Build design custom fields (restored parity, Refs #1787)            */
+/* ------------------------------------------------------------------ */
+function loadCfields() {
+  var url = API + '/cfields?tplan_id=' + tplanId + (buildId > 0 ? '&build_id=' + buildId : '');
+  $.getJSON(url)
+    .done(function (r) {
+      if (r.status !== 'ok') { $('#cfArea').hide(); return; }
+      cfDefs = r.cfields || [];
+      if (!cfDefs.length) { $('#cfArea').hide(); return; }
+      $('#cfArea').show();
+      var html = [];
+      for (var i = 0; i < cfDefs.length; i++) { html.push(cfInput(cfDefs[i])); }
+      $('#cfFields').html(html.join(''));
+    })
+    .fail(function () { $('#cfArea').hide(); });
+}
+
+/** One custom field input. Everything is rendered from the server payload
+ *  through esc(); a custom field label / possible value is free text and can
+ *  never inject markup. */
+function cfInput(cf) {
+  var id = 'cf_' + cf.field_id;
+  var val = (cf.value == null) ? '' : String(cf.value);
+  var req = cf.required ? ' <span class="req">*</span>' : '';
+  var lbl = '<label class="form-label" for="' + id + '">' + esc(cf.label) + req + '</label>';
+  var input = '';
+
+  if (cf.type_label === 'checkbox' || cf.type_label === 'list'
+      || cf.type_label === 'radio' || cf.type_label === 'multiselection list') {
+    var pv = String(cf.possible_values || '').split('|').filter(function (x) { return x !== ''; });
+    var multi = (cf.type_label === 'checkbox' || cf.type_label === 'multiselection list');
+    var sel = val === '' ? [] : val.split('|');
+    var opts = pv.map(function (o) {
+      var on = sel.indexOf(o) >= 0 ? ' selected' : '';
+      return '<option value="' + esc(o) + '"' + on + '>' + esc(o) + '</option>';
+    }).join('');
+    if (multi) {
+      input = '<select class="form-control" id="' + id + '" data-cf="' + cf.field_id
+            + '" data-cf-type="' + cf.type + '" data-cf-multi="1" multiple size="3"'
+            + (pv.length > 6 ? '' : '') + '>' + opts + '</select>';
+    } else {
+      input = '<select class="form-control" id="' + id + '" data-cf="' + cf.field_id
+            + '" data-cf-type="' + cf.type + '">' + opts + '</select>';
+    }
+  } else if (cf.type_label === 'text area') {
+    input = '<textarea class="form-control" id="' + id + '" data-cf="' + cf.field_id
+          + '" data-cf-type="' + cf.type + '" rows="3">' + esc(val) + '</textarea>';
+  } else {
+    var itype = (cf.type_label === 'numeric' || cf.type_label === 'float') ? 'number'
+              : (cf.type_label === 'email' ? 'email' : (cf.type_label === 'date' ? 'date' : 'text'));
+    var dval = (cf.type_label === 'date' && val && !/^\d{4}-\d{2}-\d{2}$/.test(val)) ? '' : val;
+    input = '<input type="' + itype + '" class="form-control" id="' + id + '" data-cf="'
+          + cf.field_id + '" data-cf-type="' + cf.type + '" value="' + esc(dval) + '">';
+  }
+  return '<div class="form-group" style="margin-bottom:12px;">' + lbl + input + '</div>';
+}
+
+/** Collect the CF inputs into the `cfields` payload the BFF expects. */
+function collectCfields() {
+  var out = {};
+  if (!cfDefs.length) { return out; }
+  $('#cfFields [data-cf]').each(function () {
+    var fid = parseInt(this.getAttribute('data-cf'), 10);
+    var type = parseInt(this.getAttribute('data-cf-type'), 10);
+    var el = this;
+    if (type === 5 || type === 7) {
+      out[fid] = Array.prototype.slice.call(el.selectedOptions || []).map(function (o) { return o.value; });
+    } else {
+      out[fid] = $(el).val();
+    }
+  });
+  return out;
+}
+
+function save() {
+  if (saving) { return; }
+  var name = String($('#fName').val() || '').replace(/^\s+|\s+$/g, '');
+  if (name === '') {
+    $('#feedback').html('<div class="errbox">' + esc(TLi18n.t('bedit.msg.emptyName')) + '</div>');
+    $('#fName').focus();
+    return;
+  }
+  var body = {
+    tplan_id: tplanId,
+    name: name,
+    notes: $('#fNotes').val(),
+    active: $('#fActive').is(':checked') ? 1 : 0,
+    open: $('#fOpen').is(':checked') ? 1 : 0,
+    release_date: $('#fReleaseDate').val() || '',
+    cfields: collectCfields()
+  };
+  if (buildId > 0) {
+    body.build_id = buildId;
+  } else {
+    if ($('#fCopyAssignments').is(':checked')) {
+      body.copy_tester_assignments = 1;
+      body.source_build_id = parseInt($('#fSourceBuild').val() || '0', 10);
+      var picked = $('#fExecStatus').val();
+      if (picked && picked.length) { body.exec_status_filter = picked; }
+    }
+    if ($('#fCopyAllPlans').is(':checked')) { body.copy_to_all_tplans = 1; }
+  }
+
+  saving = true;
+  $('#btnSave').prop('disabled', true);
+  var req = buildId > 0
+    ? $.ajax({ url: API + '/' + buildId, method: 'PUT', contentType: 'application/json', data: JSON.stringify(body) })
+    : $.ajax({ url: API + '/', method: 'POST', contentType: 'application/json', data: JSON.stringify(body) });
+
+  req.done(function (r) {
+    saving = false;
+    if (r.status !== 'ok') { fail(r); return; }
+    if (buildId > 0) {
+      $('#feedback').html('<div class="okbox">' + esc(TLi18n.t('bedit.msg.saved')) + '</div>');
+      loadCfields();
+    } else {
+      buildId = parseInt(r.id || '0', 10);
+      $('#feedback').html('<div class="okbox">' + esc(TLi18n.t('bedit.msg.created')) + '</div>');
+      location.href = 'buildsView.html?tplan_id=' + tplanId + '&created=' + buildId;
+    }
+  }).fail(function (xhr) {
+    saving = false;
+    $('#btnSave').prop('disabled', false);
+    if (xhr.status === 401) { sessionExpired(); return; }
+    var r = {};
+    try { r = JSON.parse(xhr.responseText); } catch (e) {}
+    fail(r, xhr.status);
+  });
+
+  function fail(r, status) {
+    var code = r.error_code || (status ? ('http_' + status) : 'error');
+    $('#feedback').html('<div class="errbox">' + esc(errText(r, 'bedit.msg.cannotSave'))
+      + '<div class="code">' + esc(code) + '</div></div>');
+  }
+}
+
+function openHistory() {
+  var tprojectId = (ctxData && ctxData.tplan) ? ctxData.tplan.tproject_id : 0;
+  location.href = '/gui/templates/eventviewer/eventviewer.html?objectId=' + buildId
+    + '&objectType=builds&tproject_id=' + tprojectId;
+}
+</script>
+</body>
+</html>
