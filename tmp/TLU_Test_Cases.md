@@ -2854,64 +2854,94 @@ unreachable (empty search returned the whole project), and the `get_full_path_ve
 `gui/templates/i18n/{en,ro,de,es,fr,it,pt,ja,ru,zh}.json`, `lib/search/searchMgmt.php`,
 `lib/functions/common.php` (`$actions->searchMgmt`). Screenshots in `docs/1785-searchmgmt-*.png`.
 
-## Task — Issue #1295: reqExport — port legacy export-filename input dimensions (`FILENAME_MAXLEN`) + server-side clamp
+---
 
-Re-verification of the "nothing missing" audit plus the **one** legacy contract it declined to port.
-Modern screen: `gui/templates/requirements/reqExport.html`; BFF: `api/reqexport/index.php`.
+## Regression — Issue #1680: `usersAssignPlan.html` `onRoleChange` threw `TypeError: Cannot read properties of undefined (reading 'row')` on the 2nd change of the same row
 
-### Preconditions
+**Precondition / fixture**
 
-```bash
-php tmp/fixtures_1295.php --norights
-# → tproject RX1295 id=15, spec SRS-1295 id=16, nested spec SRS-1295B id=18,
-#   requirement REQ-200 id=20, attachments on BOTH req_specs=16 and requirements=20,
-#   plus user rex1295nr (role 3 "<no rights>")
-curl -s -c cj.txt -X POST http://localhost:8082/api/auth/login \
-     -H 'Origin: http://localhost:8082' -H 'Content-Type: application/json' \
-     -d '{"login":"admin","password":"admin"}'
-```
+* App `http://localhost:8082`, login `admin` / `admin` (global admin, role 8).
+* Fresh DB — create (see `tmp/fixtures_1680.sql`):
+  * test project **#1680**: `nodes_hierarchy` row `(1680,'Issue 1680 Repro Project',0,1,1680)` **and** `testprojects` row `(1680,…)`
+    (⚠ the project NAME lives in `nodes_hierarchy` — `testproject.class.php:551` selects `NHTPROJ.name`; without the
+    `nodes_hierarchy` row the project combo is empty and the screen shows `assign.rolesForPlansDisabled`).
+  * test plan **#1680** (`testplans.testproject_id=1680`, `active=1`, `is_public=1`).
+  * users **#1681 `tina.tester`** (global role 7, explicit plan role **5** = guest) and **#1682 `tom.tester`** (global role 7, explicit plan role **4** = test designer), via `user_testplan_roles`.
+* Screen: `http://localhost:8082/gui/templates/usermanagement/usersAssignPlan.html?tproject_id=1680&tplan_id=1680`
+* Grid renders 3 rows (`data-uid` = `1` = admin, `1681`, `1682`), `assignDt` live, `paginationCfg.enabled = true`.
 
-The original audit's fixture had **no attachments**, so its "`exportAttachments` produces byte-identical
-output" proof never exercised the ATTACHMENTS branch. This fixture has real attachments on a spec and on a
-requirement, which is what makes that branch observable.
+**Repro steps (pre-fix)** — change the *Plan Role Override* `<select>` of row **1681** to `6` (step 3), then change the
+**same row's** select again (step 4). Pre-fix the second change raised
+`Uncaught TypeError: Cannot read properties of undefined (reading 'row')` with stack
+`jquery.dataTables.min.js:4:66727 ← jquery.dataTables.min.js:4:53720 ← onRoleChange (usersAssignPlan.html:1334)`,
+which aborted `onRoleChange()` **before** `$('#saveBtn').prop('disabled', !isDirty())` — so the Save button kept the
+state of the previous change (stays enabled when `isDirty()` is `false`, stays disabled when it should be enabled)
+and the DataTables cell cache was left stale (a paging/search/sort re-draw resurrects the previous option).
 
-### Steps and results
+**Mechanism proven** (minified frame de-minified): `cell().data()` does `var n = this[0]; … n[0].row` — the throw is
+`n === []`, i.e. `assignDt.cell(tr, 4)` returned an **empty API instance**. `assignDt.cell($('<tr>'), 4).data('zz')`
+reproduces the byte-identical message on demand. Root cause: `tr` was the **jQuery wrapper**, and DataTables 1.13.7's
+`__row_selector` takes its exact node path only `if (sel.nodeName)` (`jquery.dataTables.js:8116`); a wrapper falls
+into the generic `$(nodes).filter(sel)` identity catch-all (`dt.js:8165-8179`), which can and does yield no row.
 
-| # | Action | Expected | Observed | Verdict |
-|---|---|---|---|---|
-| 1 | `GET ?action=options&scope=branch&tproject_id=15&req_spec_id=16` | legacy filename defaults + the new input dimensions | `{"filename":"RX1295 parent spec-req-spec.xml","filename_maxlen":50,"filename_size":50,"rights":{"mgt_view_req":1}}` | PASS |
-| 2 | Open `reqExport.html?scope=branch&req_spec_id=16&tproject_id=15` | `maxlength`/`size` applied from the API, live limit hint | `maxlength="50" size="50" hint="31 of 50 characters"` | PASS |
-| 3 | Type 66 chars into the file-name field | input stops at the legacy 50-char budget | `typedLen: 50`, hint `50 of 50 characters` | PASS |
-| 4 | Autofill-style bypass (`.value` = 204 chars) + `paste` event | clamped to 50 + red toast | `afterLen: 50`, toast "The export file name is limited to 50 characters", hint `50 of 50 characters` | PASS |
-| 5 | Exactly 50 chars | accepted untouched | `len: 50`, hint `50 of 50 characters` | PASS |
-| 6 | Whitespace-only file name | legacy `warning_empty_filename` | toast "Export file name can not be empty!" (red) | PASS |
-| 7 | End-to-end POST from the browser, `branch` + attachments, 204-char name | 50-char download name, attachment content included | `status 200`, `Content-Disposition` name length **50**, 1 `<attachment>` node, **1390 bytes** (= legacy byte count) | PASS |
-| 8 | Locale switcher → Română | new keys translated from `ro.json` | hint `50 din 50 caractere`, toast `Numele fișierului de export este limitat la 50 caractere`, label `Nume fișier export` | PASS |
-| 9 | Regression matrix: 3 scopes × attachments off/on, modern vs **legacy** `reqExport.php?doAction=doExport` | byte-identical XML | `tree off 1022 B / on 1390 B`, `branch off 1022 B / on 1390 B`, `items off 471 B / on 839 B` — all `cmp` clean, attachment nodes 0/0 and 1/1 | PASS |
-| 10 | Same matrix with a 204-char name (clamped server-side) | content unchanged, only the header name is clamped | `cmp` identical to the ≤50-char body in all 6 combinations | PASS |
-| 11 | Header-name edge cases (modern) | never longer than 50 chars, always a safe single path segment | `'' → all-req.xml`, `'   ' → all-req.xml`, `'a b c.xml' → a_b_c.xml`, `'spec/../../etc/passwd' → passwd`, `'na"me.xml' → name.xml`, `80×'ȩ'.xml → 50 chars valid UTF-8` | PASS |
-| 12 | Multi-byte budget (80 × `ȩ`, 2 bytes each) | clamp counts **characters** like the browser `maxlength`, never bytes | header = 50 chars, valid UTF-8 (would have been 25 chars with a byte-based clamp) | PASS |
-| 13 | Rights gate as `rex1295nr` (`hasRight(mgt_view_req)=NULL`, role 3) | 403 on both routes | `GET options → 403 {"message":"No permission"}`, `POST export → 403 {"message":"No permission"}` | PASS |
-| 14 | Event Viewer / `events` after the whole matrix + fixture | no new Error/Warning | `select count(*) from events where log_level in (1,2,3,4)` → **0** (two CLI-only warnings caused by the fixture itself were fixed and re-verified) | PASS |
-| 15 | Browser console | no unexpected error | 0 error messages | PASS |
-| 16 | Syntax gates | `php -l` on BFF + fixture, `python3 -m json.tool` on all 10 bundles | clean ×12 | PASS |
+**Expected post-fix** — `tr[0]` (the DOM node) is passed instead, so DataTables resolves the row through the row index
+it stamped on the node; every change updates highlight + *Modified* badge + Save state + cell cache, with no console error.
 
-**Actual result — 16/16 PASS.**
+| # | Case | Step | Expected | Observed | Result |
+|---|---|---|---|---|---|
+| 1 | first change on a non-admin row | set row 1681 `5 → 6` | row highlighted, *Modified* badge, **Save enabled** | `dirty=true`, `saveDisabled=false`, badge present | PASS |
+| 2 | **second change of the same row** (the reported TypeError case) | set row 1681 `6 → 7` | no console error, Save state still correct | `saveDisabled === !isDirty()`, **0 console messages** | PASS |
+| 3 | change back to the original value | set row 1681 `7 → 5` | **Save disabled**, badge gone, class gone | `saveDisabled=true`, `dirty=false`, no badge, no `changed` class | PASS |
+| 4 | change on a second row | set row 1682 `4 → 6` | Save enabled, both rows tracked | `saveDisabled=false`, badge on 1682 only | PASS |
+| 5 | sort re-draw | `assignDt.order([[4,'desc']]).draw(false)` then `[[1,'asc']]` | chosen options survive (cell cache re-synced) | `1681:4` before/after both sorts; `modelRoleVal=4` | PASS |
+| 5b | search re-draw | `assignDt.search('tina').draw(false)` then clear | chosen option survives | `1681:4` during search and after clearing | PASS |
+| 6 | bulk "Do" rebuilds the grid, then a per-row change | bulk role `7` → "Do", then change row 1681 | grid rebuilt, per-row change still updates Save | `bulkVals=[1:0,1681:7,1682:7]`, `saveDisabled=false`, badge present | PASS |
+| 7 | admin row (locked select) | change row 1's select on a clean grid | never dirty, Save stays disabled | `select.disabled=true`, `dirty=false`, `saveDisabled=true` | PASS |
+| 8 | pagination disabled | `paginationCfg.enabled=false; renderUsersTable()` then change row 1681 | **no DataTable**, handler still works, no exception | `assignDt === null`, `saveDisabled=false`, badge present | PASS |
+| 9 | Event Viewer / `events` | after the whole matrix | no new Error/Warning rows | `events` holds only the 2 `audit_login_succeeded` rows (`log_level=16`) | PASS |
+| 10 | Save round trip (regression of the write path) | change row 1681 `→ 6`, click `#saveBtn` | `user_testplan_roles.role_id` persisted, Save re-disabled, `isDirty()=false` | `user_testplan_roles` → `1681 → 6`; `saveDisabled=true`; `dirty=false` | PASS |
+| 11 | syntax gate | inline `<script>` block parsed | clean | `new Function(<inline script>)` → **syntax OK for 1 inline script block(s)** | PASS |
 
-### Findings
+**Actual result — 11/11 PASS** (cases 1-11; the 9-case matrix of the investigation comment plus the Save round trip and the
+syntax gate). Browser console after the whole matrix: **no messages at all** (`chrome-devtools_list_console_messages
+types=[error,warn]` → `<no console messages found>`) — the pre-fix `TypeError` is gone.
 
-- **The audit's parity conclusion is CONFIRMED** on the point it under-evidenced: with real attachments,
-  `exportAttachments=1` is honoured identically by legacy and modern (1 `<attachment>` node, byte-identical
-  XML in all 3 scopes). The CSV dropdown gap does not exist — `requirement_spec_mgr::$export_file_types`
-  is `array("XML" => "XML")`, so the legacy UI offered XML only too.
-- **The gap that was real**: the legacy 50-char filename budget existed *only* as
-  `maxlength="{#FILENAME_MAXLEN#}"` in the template (`gui/templates/dashio/requirements/reqExport.tpl:67`).
-  The modern screen had no limit at all, and neither back-end capped the value (legacy relies on the
-  browser attribute alone — a direct HTTP call put all 204 characters into `Content-Disposition`).
-  Now enforced in the HTML, in JS (paste/drop/autofill bypass) and again in the BFF.
+**Files** — `gui/templates/usermanagement/usersAssignPlan.html` (`onRoleChange`, cell re-sync), `CHANGELOG`,
+`tmp/fixtures_1680.sql`, `docs/Bugfix-Issue-1680-usersAssignPlan-onRoleChange-TypeError.md`.
 
-**Files** — `api/reqexport/index.php` (`filenameDimensions()`, `clampExportFilename()`,
-`filename_maxlen`/`filename_size` in the options payload, clamp in the export route),
-`gui/templates/requirements/reqExport.html` (`updateLimitHint()`, `trimToMaxlen()`,
-`filenameLimitHint`, live hint, paste/drop guard), `gui/templates/i18n/*.json` (2 keys × 10 locales),
-`tmp/fixtures_1295.php`. Screenshot: `docs/screenshots/issue-1295-reqexport-filename-limit.png`.
+**Code review (AGENTS.md rule 16) outcome** — a review subagent was run over the full diff
+(`gui/templates/usermanagement/usersAssignPlan.html` + `CHANGELOG`). **No BLOCKERs.** Two findings were applied:
+
+* **MAJOR — inaccurate library line citation.** The inline comment cited `jquery.dataTables.js:8116` for
+  `if ( sel.nodeName )`; verified against the unminified 1.13.7 source the guard is at **`:8121`**
+  (`grep -n "if ( sel.nodeName )" dt-full.js` → `8121`). Corrected, and the filename normalised to
+  `jquery.dataTables.js` everywhere (the catch-all at `:8165-8179` and the `cells()` row+column branch at
+  `:9095-9110` were already correct and are unchanged).
+* **MINOR — the defensive `catch` swallowed the error with no telemetry.** The modernized screens already use
+  `console.warn` on defensive paths (`reqSpecListTree.html:195`, `tcProjectTree.html:213`,
+  `tcView.html:561`), so the catch now emits `console.warn('[usersAssignPlan] cell cache resync skipped:', e)`.
+  It still cannot abort the save-state update — that is the whole point of the guard.
+* **Sibling parity confirmed by grep:** `git grep -n '\.cell('` over `gui/templates lib api` returns exactly
+  **one** application call site — `usersAssignPlan.html:1348`. `usersAssignProject.html` has **no** `cell()`
+  usage (its hits in other files are vendored FullCalendar, unrelated). No parity fix needed.
+* **i18n:** no user-facing string touched → no locale bundle edited, nothing to validate.
+
+**Re-verification after the review edits** (fixture reset to the documented baseline `1681→5`, `1682→4` first,
+because an earlier Save round-trip had persisted `1681→6` — with a dirty fixture the expectations invert, which
+is correct behaviour, not a defect):
+
+| # | Case | Result |
+|---|---|---|
+| 0 | fixture precondition (grid `1:0,1681:5,1682:4`, `isDirty()=false`, Save disabled) | PASS |
+| 1 | first change on a non-admin row | PASS |
+| 2 | **second change of the same row** (the reported TypeError case) | PASS |
+| 3 | change back to the original value | PASS |
+| 4 | change on a second row | PASS |
+| 5 | sort + search re-draw preserve both chosen options | PASS (`1681:4`, `1682:6` survive every redraw) |
+| 6 | bulk "Do" rebuilds the grid, then a per-row change | PASS |
+| 7 | admin row (locked select) never dirty | PASS |
+| 8 | pagination disabled → no DataTable, handler still works | PASS |
+| 9 | Event Viewer: `select count(*) from events where log_level in (1,2,3)` | **0** rows | PASS |
+| 10 | Save round trip | `user_testplan_roles` → `1681 → 6`; Save re-disabled; `isDirty()=false` | PASS |
+
+Console after the full matrix: **no error/warn messages.** Fixture restored to the documented baseline afterwards.

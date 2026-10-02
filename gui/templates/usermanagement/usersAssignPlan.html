@@ -1334,15 +1334,16 @@ function onRoleChange(sel, uid, origRoleId) {
   // Issue #1680: the row MUST be handed over as the DOM NODE, not as the jQuery
   // wrapper built two lines above. DataTables 1.13.7's row selector only takes
   // its exact, index-based path when the selector has a `nodeName`
-  // (jquery.dataTables.js:8116 "if ( sel.nodeName )"); a jQuery object falls
-  // through to the generic catch-all, which re-resolves the row by scanning
-  // aoData[..].nTr for a strict node-identity match (dt.js:8165-8179). When that
-  // match misses, rows()/cells() return an EMPTY API instance and the following
-  // cell().data() dereferences `this[0].row` on it ->
+  // (jquery.dataTables.js __row_selector, :8121 "if ( sel.nodeName )"); a jQuery
+  // object falls through to the generic catch-all, which re-resolves the row by
+  // scanning aoData[..].nTr for a strict node-identity match
+  // (jquery.dataTables.js:8165-8179). When that match misses, rows()/cells()
+  // return an EMPTY API instance and the following cell().data() dereferences
+  // `this[0].row` on it ->
   // "TypeError: Cannot read properties of undefined (reading 'row')"
-  // (dt.min.js:4:66727), which aborted the rest of this handler: the row
-  // highlight, the Modified badge and the Save-button state below were never
-  // applied and the cached cell was left stale.
+  // (jquery.dataTables.min.js:4:66727), which aborted the rest of this handler:
+  // the row highlight, the Modified badge and the Save-button state below were
+  // never applied and the cached cell was left stale.
   if (assignDt && tr.length) {
     try {
       assignDt.cell(tr[0], 4).data(buildSelectHtml(u), false);
@@ -1351,6 +1352,7 @@ function onRoleChange(sel, uid, origRoleId) {
       // the `users` model, which stays the source of truth for the Save payload.
       // A refresh that cannot be applied must NEVER abort the save-state update
       // below - a stale Save button is the worse of the two failure modes.
+      console.warn('[usersAssignPlan] cell cache resync skipped:', e);
     }
   }
   if (demoMode) { $('#saveBtn').prop('disabled', true); return; }
