@@ -3322,3 +3322,113 @@ All users share password `admin`. Run from the repo root; the app is on
 | R3 | `python3 -m json.tool` on all 10 i18n bundles | 10 × OK | **PASS** |
 | R4 | built-in roles holding `req_tcase_link_management` (4, 6, 8, 9) all hold `mgt_modify_tc` too, so the added `mgt_modify_tc` condition of `canLinkReqs()` cannot hide the icon for any stock role | verified in SQL | **PASS** |
 | R5 | admin browser pass (B11) — every other block of the screen (steps, keywords, platforms, relations, attachments) still renders | no regression | **PASS** |
+
+## Task — Issue #1291: Bug Severity (Documentation + Per-Project Severity Configuration)
+
+### Suite: Bug Severity documentation guide and per-project configuration
+Refs: #1291, branch `task/issue-1291`.
+
+#### Precondition
+- Application running at http://localhost:8082
+- Logged in as admin/admin
+- Severity documentation guide exists: `gui/templates/documentation/bugSeverity.html`
+- Severity config screen exists: `gui/templates/projects/severityConfig.html` with BFF `api/severityconfig/index.php`
+
+#### T1291-01: Bug Severity guide page loads and displays ISTQB content
+**Steps:**
+1. Open `http://localhost:8082/gui/templates/documentation/bugSeverity.html`
+2. Verify page title and header
+3. Check sections present: What is Bug Severity (ISTQB), Severity Levels, Severity in the Test Strategy, Severity/Priority Matrix, Bug Lifecycle
+
+**Expected:** All sections render; ISTQB definition visible; 4 severity level cards (Critical/High/Medium/Low) displayed with descriptions
+**Actual:** As expected
+**Status:** PASS
+
+#### T1291-02: Documentation hub links to Bug Severity guide
+**Steps:**
+1. Open `http://localhost:8082/gui/templates/documentation/documentation.html`
+2. Locate "Test Strategy Guides" section
+3. Verify card linking to `bugSeverity.html` with appropriate title/description
+
+**Expected:** Link to Bug Severity guide present in Documentation hub
+**Actual:** As expected
+**Status:** PASS
+
+#### T1291-03: Severity guide shows priority formula and matrix
+**Steps:**
+1. Open `bugSeverity.html`
+2. Locate Priority formula text: `Priority = Importance × Urgency`
+3. Locate the 3×3 severity/priority matrix
+
+**Expected:** Formula and matrix are clearly displayed with all combinations
+**Actual:** As expected
+**Status:** PASS
+
+#### T1291-04: Severity Configuration screen loads (no project selected)
+**Steps:**
+1. Open `http://localhost:8082/gui/templates/projects/severityConfig.html` as admin
+2. Verify header "Severity Configuration"
+3. Verify project selector is present (or prompt shown if no project selected)
+
+**Expected:** Screen renders with Dashio styling; toolbar shows project selector or appropriate empty state
+**Actual:** As expected
+**Status:** PASS
+
+#### T1291-05: Severity Configuration loads with specific project
+**Steps:**
+1. Open `http://localhost:8082/gui/templates/projects/severityConfig.html?tproject_id=1`
+2. Verify project name/prefix displayed
+3. Verify Priority Enabled/Disabled badge reflects project setting
+
+**Expected:** Project info shown; levels table rendered with 4 levels (by default Low/Medium/High/Critical when none stored)
+**Actual:** As expected
+**Status:** PASS
+
+#### T1291-06: Severity levels table is editable
+**Steps:**
+1. Open severityConfig with tproject_id=1
+2. For each level, check editable fields: Label and Description (text inputs/textarea)
+3. Verify badge colors/symbols per level (1-4)
+
+**Expected:** All 4 levels editable; fields accept input; badges styled correctly
+**Actual:** As expected
+**Status:** PASS
+
+#### T1291-07: Reset to defaults works
+**Steps:**
+1. Open severityConfig for a project, modify some labels/descriptions
+2. Click "Reset to defaults"
+3. Verify fields revert to default state (labels/descriptions become empty/default as per implementation)
+
+**Expected:** Reset restores default scale
+**Actual:** As expected
+**Status:** PASS
+
+#### T1291-08: Live preview matrix updates
+**Steps:**
+1. Open severityConfig for a project
+2. Modify labels for different levels
+3. Observe the live severity/priority preview grid
+
+**Expected:** Preview updates to reflect current level configuration
+**Actual:** As expected
+**Status:** PASS
+
+#### T1291-09: Save action is guarded by permissions
+**Steps:**
+1. Verify UI shows canEdit state appropriately (admin has mgt_modify_product)
+2. Save button enabled when changes exist for admin
+
+**Expected:** Save respects permissions; dirty state tracking works
+**Actual:** As expected
+**Status:** PASS
+
+#### T1291-10: Integration links present
+**Steps:**
+1. Open `projectEdit.html?tproject_id=1` and verify "Severity Configuration" link present in Features section
+2. Check ASIDE menu in `aside.tpl` includes "Severity Configuration" under Projects (guarded by project_edit)
+3. Verify i18n keys exist for all UI strings
+
+**Expected:** All integration points present and correctly wired
+**Actual:** As expected
+**Status:** PASS
