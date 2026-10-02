@@ -179,8 +179,64 @@ function loginPageConfig(&$db) {
             'pwdMaxLen' => (int)config_get('loginPagePasswordMaxLenght'),
             'demoMode' => (bool)config_get('demoMode'),
             'ssoEnabled' => !empty($authCfg['SSO_enabled']),
+            // Which handshake the server will run. Only CLIENT_CERTIFICATE and
+            // WEBSERVER_VAR are implemented (legacy login.php:104-112); any
+            // other value (or an unset one) means legacy would attempt nothing
+            // and just render the form, so the modern page must do the same.
+            'ssoMethod' => (isset($authCfg['SSO_method']) && $authCfg['SSO_method'] !== '')
+                              ? (string)$authCfg['SSO_method'] : '',
+            'ssoOnly' => !empty($authCfg['sso_only']),
         ),
     );
+}
+
+/**
+ * Post-login destination for the auto-login paths (interactive + SSO), mirroring
+ * legacy authorizePostProcessing() (login.php:437-455).
+ *
+ * Legacy builds:  index.php?caller=login&viewer=<v>[&ssodisable=1][&reqURI=…]
+ * The ssodisable flag is carried over on purpose: getSSODisable()
+ * (lib/functions/common.php:1562) is re-read on the next page load by
+ * index.php:137 / api/navbar/index.php:75 / logout.php:53, so dropping it here
+ * would push the user straight back into SSO on the very next session expiry -
+ * exactly the loop `?ssodisable=1` exists to break (login.php:449).
+ */
+function postLoginRedirect($body) {
+    $ad = '';
+    // Same semantics as getSSODisable(): the mere PRESENCE of the flag disables
+    // SSO, so only forward it when the caller explicitly asks for it.
+    if (!empty($body['ssodisable'])) {
+        $ad = '&ssodisable=1';
+    }
+    $reqURI = isset($body['reqURI']) ? trim((string)$body['reqURI']) : '';
+    if ($reqURI !== '') {
+        $ad .= '&reqURI=' . urlencode($reqURI);
+    }
+    return '/index.php?caller=login&viewer=' . urlencode('web') . $ad;
+}
+
+/**
+ * Run the configured SSO handshake, mirroring legacy login.php:99-115.
+ *
+ * The identity always comes from the server environment ($_SERVER[…], i.e.
+ * SSL_CLIENT_S_DN_Email / REMOTE_USER set by Apache+mod_ssl or Shibboleth) and
+ * NEVER from the request body/headers, so it cannot be forged from a browser
+ * (a `Remote-User:` header would arrive as HTTP_REMOTE_USER).
+ *
+ * @return array the legacy $op map: status/msg (plus 'reason' for the client).
+ */
+function runSSOHandshake(&$db, $authCfg) {
+    $method = isset($authCfg['SSO_method']) ? $authCfg['SSO_method'] : '';
+    switch ($method) {
+        case 'CLIENT_CERTIFICATE':
+            return doSSOClientCertificate($db, $_SERVER, $authCfg);
+        case 'WEBSERVER_VAR':
+            return doSSOWebServerVar($db, $authCfg);
+        default:
+            // Nothing configured (or an unknown method): legacy left $op = null
+            // and simply drew the login form.
+            return array('status' => tl::ERROR, 'msg' => null, 'reason' => 'auth.ssoUnavailable');
+    }
 }
 
 // Route: GET /api/auth/config - public data for the login form
@@ -241,12 +297,69 @@ if ($method === 'POST' && isset($segments[0]) && $segments[0] === 'login') {
         out(array(
             'status' => 'ok',
             'success' => true,
-            'destination' => $destination,
+            'destination' => $destination !== '' ? $destination : postLoginRedirect($body),
         ));
     }
 
     $note = is_null($op['msg']) ? 'auth.badUserPasswd' : $op['msg'];
     out(array('status' => 'error', 'success' => false, 'reason' => $note));
+}
+
+// Route: POST /api/auth/sso - Single Sign On auto-login (mirrors legacy
+// login.php:99-115 + authorizePostProcessing()).
+//
+// The modern login screen calls this when $tlCfg->authentication['SSO_enabled']
+// is on and no `note` is pending, so the user never has to type a password.
+// `?ssodisable` in the request body bypasses the handshake and forces the
+// interactive form (legacy getSSODisable(), common.php:1562).
+if ($method === 'POST' && isset($segments[0]) && $segments[0] === 'sso') {
+    $body = getBody();
+    $authCfg = config_get('authentication');
+
+    // Bypass requested: hand the page back its form, mirroring legacy where
+    // $doAuthPostProcess stays false and renderLoginScreen() draws the form.
+    if (!empty($body['ssodisable']) || empty($authCfg['SSO_enabled'])) {
+        out(array('status' => 'ok', 'success' => false, 'skipped' => true,
+                  'reason' => 'auth.ssoDisabled'));
+    }
+
+    // Wrong schema must BLOCK any login action, same as /api/auth/login.
+    $schemaOK = checkSchemaVersion($db);
+    if ($schemaOK['status'] < tl::OK) {
+        out(array('status' => 'error', 'success' => false, 'skipped' => false,
+                  'reason' => isset($schemaOK['msg']) ? $schemaOK['msg'] : 'auth.schemaBlocked'));
+    }
+
+    // A note (session expired, logout, …) means the user was explicitly sent
+    // here by the app: legacy skipped SSO when $args->note was not empty
+    // (login.php:99) so the message stays readable.
+    if (trim((string)($body['note'] ?? '')) !== '') {
+        out(array('status' => 'ok', 'success' => false, 'skipped' => true,
+                  'reason' => 'auth.ssoSkipped'));
+    }
+
+    doSessionStart(true);
+    $op = runSSOHandshake($db, $authCfg);
+
+    if ($op['status'] === tl::OK) {
+        logAuditEvent(TLS("audit_login_succeeded", $_SESSION['currentUser']->login,
+                          $_SERVER['REMOTE_ADDR']),
+            "LOGIN", $_SESSION['currentUser']->dbID, "users");
+        if (function_exists('session_regenerate_id') && session_status() === PHP_SESSION_ACTIVE) {
+            session_regenerate_id(true);
+        }
+        out(array('status' => 'ok', 'success' => true, 'skipped' => false,
+                  'destination' => postLoginRedirect($body)));
+    }
+
+    // Legacy drew the login form with $gui->note = $op['msg'] on failure
+    // (authorizePostProcessing). Never leak internals: a null msg (the silent
+    // failure of doSSOWebServerVar) becomes a generic, i18n-mapped reason.
+    // $op['msg'] can be a TLS() object (doSSOWebServerVar builds its messages
+    // that way) - cast it, json_encode() would otherwise emit a raw object and
+    // the client could never map it to a label.
+    $reason = (is_null($op['msg']) || $op['msg'] === '') ? 'auth.ssoFailed' : (string)$op['msg'];
+    out(array('status' => 'error', 'success' => false, 'skipped' => false, 'reason' => $reason));
 }
 
 // Route: POST /api/auth/signup - self registration (mirrors firstLogin.php)

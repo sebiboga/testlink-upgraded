@@ -6214,5 +6214,10 @@
   "rsc.copyDone": "Copia a fost creată.",
   "rsc.machineCode": "Cod mașină",
   "footers.reqSpecCopy": "TestLink 2.0.1 - Copiază specificația cerințelor",
-  "rsc.legacyNotice": "Acest ecran înlocuiește vechea acțiune de copiere. Nu s-a copiat încă nimic - alegeți o destinație și apăsați Copiază."
+  "rsc.legacyNotice": "Acest ecran înlocuiește vechea acțiune de copiere. Nu s-a copiat încă nimic - alegeți o destinație și apăsați Copiază.",
+  "auth.ssoInProgress": "Signing you in automatically…",
+  "auth.ssoFailed": "Single sign-on failed. Please contact your administrator.",
+  "auth.ssoUnavailable": "Single sign-on is not available or not configured properly.",
+  "auth.ssoDisabled": "Single sign-on was disabled for this login.",
+  "auth.ssoSkipped": "Single sign-on skipped; please sign in manually."
 }

@@ -195,12 +195,12 @@ function showState(id, code, text) {
   $('#infoLine').text('');
 }
 
-function setFooter() {
-  // Refs #1801: the footer text was rebuilt in JS while footers.reqSpecCopy had
-  // been added to all 10 bundles and never used. The key now drives it, exactly
-  // like every other modern screen; TLi18n.apply() fills it in.
-  $('#footerText').attr('data-i18n', 'footers.reqSpecCopy');
-}
+// The footer is driven by data-i18n="footers.reqSpecCopy" in the markup plus
+// TLi18n.apply(). It used to be rebuilt here in JS - which never used the key
+// added to all 10 bundles, and only ran AFTER apply(), so it could not localize
+// anything. NIT from the #1801 review: the old JS string also carried a
+// `common.generatedOn` timestamp; footers.reqSpecCopy is the shared string every
+// other modern screen uses, so the stamp is intentionally gone.
 
 $(function () {
   var p = new URLSearchParams(window.location.search);
@@ -219,7 +219,6 @@ $(function () {
       TPROJECT_ID = parseInt($(this).val() || 0, 10);
       load();
     });
-    setFooter();
     if (!SPEC_ID) {
       showState('stInvalid', 'invalid_req_spec_id', TLi18n.t('rsc.errMissingId'));
       return;
@@ -235,7 +234,12 @@ function backUrl() {
 }
 
 function loadProjects() {
-  return $.getJSON(API + '?action=projects');
+  return $.getJSON(API + '?action=projects')
+    .fail(function (xhr) {
+      // Without this the stale container list stayed on screen under the new
+      // project name and the next Copy failed with invalid_destination, silently.
+      renderError({ status: xhr.status, responseText: xhr.responseText });
+    });
 }
 
 function load(keepMsg) {
@@ -360,7 +364,14 @@ function doCopy() {
       target_position: position
     }
   }).done(function (r) {
-    if (!r || r.status !== 'ok') { renderError({ responseJSON: r }); return; }
+    if (!r || r.status !== 'ok') {
+      // The BFF reports copy_to() failures as 409 + a JSON body, so they arrive
+      // HERE, not in .fail() - re-enable Copy, or one failed copy bricks the
+      // popup until a manual reload.
+      $('#copyBtn').prop('disabled', false);
+      renderError({ responseJSON: r });
+      return;
+    }
     LAST_NEW_ID = r.new ? r.new.id : 0;
     var html = esc(r.message || TLi18n.t('rsc.copyDone'));
     if (LAST_NEW_ID > 0) {
