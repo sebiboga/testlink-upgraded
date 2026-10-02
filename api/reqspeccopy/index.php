@@ -270,7 +270,7 @@ function rscRequireCopyRights($db, $user, $tprojectId)
         if (!rscHasRight($db, $user, 'mgt_view_req', 0) &&
             !rscHasRight($db, $user, 'mgt_modify_req', 0)) {
             tLog('api/reqspeccopy: mgt_view_req + mgt_modify_req missing on test project ' .
-                 intval($tprojectId) . ' for user ' . intval($user->id), 'ERROR');
+                 intval($tprojectId) . ' for user ' . $user->login, 'ERROR');
         }
         failOut(403, 'mgt_view_req + mgt_modify_req are required on the destination ' .
                      'test project', 'no_right');
@@ -318,7 +318,7 @@ function rscResolveSource($db, $user, $reqSpecId, $assertedProjectId)
     // Reading the source always needs mgt_view_req on its owning project.
     if (!rscHasRight($db, $user, 'mgt_view_req', $ownerProject)) {
         tLog('api/reqspeccopy: mgt_view_req missing on test project ' . $ownerProject .
-             ' for user ' . intval($user->id), 'ERROR');
+             ' for user ' . $user->login, 'ERROR');
         failOut(403, 'mgt_view_req is required on the test project that owns the ' .
                      'source specification', 'no_right');
     }

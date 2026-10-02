@@ -38,21 +38,16 @@ $templateCfg = templateConfiguration();
 reqSpecEditDropShapedAction();
 
 $args = init_args();
-$commandMgr = new reqSpecCommands($db,$args->tproject_id);
-$gui = initialize_gui($db,$args,$req_cfg,$commandMgr);
 
-$context = new stdClass();
-$context->tproject_id = $args->tproject_id;
-checkRights($db,$args->user,$context);
-
-
-$auditContext = new stdClass();
-$auditContext->tproject = $args->tproject_name;
-$commandMgr->setAuditContext($auditContext);
-
-$pFn = $args->doAction;
-$op = null;
-
+// Refs #1799. The shim below sits BEFORE `new reqSpecCommands()` /
+// `initialize_gui()` on purpose: both walk the SESSION test project, and a
+// session whose project was deleted since (a stale bookmark, or the very link
+// this screen is replacing) makes them raise
+// "E_WARNING - Trying to access array offset on null" in
+// requirement_spec_mgr / reqSpecCommands - a warning row per request for an
+// action that was never going to render anything. The modern screen does its
+// own rights checks; the legacy GUI is not needed to redirect away from it.
+//
 // Refs #1797. The `copy` / `doCopy` actions are modernized. They rendered the
 // Smarty screen gui/templates/dashio/requirements/reqSpecCopy.tpl, and their
 // write was an unguarded plain POST: checkRights() (bottom of this file) only
@@ -71,11 +66,28 @@ $op = null;
 // answers "nothing has been copied yet" and carries the original intent over as
 // ?legacy_intent= so the popup can say so. Every OTHER action of this controller
 // is untouched.
-if(is_string($pFn) && ($pFn === 'copy' || $pFn === 'doCopy'))
+$doAction = $args->doAction;
+if(is_string($doAction) && ($doAction === 'copy' || $doAction === 'doCopy'))
 {
   reqSpecEditRedirectToModernSpecCopy($args);
   // unreachable: the helper always redirects and exits.
 }
+
+$commandMgr = new reqSpecCommands($db,$args->tproject_id);
+$gui = initialize_gui($db,$args,$req_cfg,$commandMgr);
+
+$context = new stdClass();
+$context->tproject_id = $args->tproject_id;
+checkRights($db,$args->user,$context);
+
+
+$auditContext = new stdClass();
+$auditContext->tproject = $args->tproject_name;
+$commandMgr->setAuditContext($auditContext);
+
+$pFn = $args->doAction;
+$op = null;
+
 
 // Refs #1736: method_exists() is NOT a whitelist of requestable actions. It also
 // matches the internal helpers of reqSpecCommands (24 method_exists-visible members,
