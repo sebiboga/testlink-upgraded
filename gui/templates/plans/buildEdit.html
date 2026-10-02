@@ -87,6 +87,7 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
         <div class="form-group chk-row">
           <label><input type="checkbox" id="fOpen" checked> <span data-i18n="bedit.open">Open</span></label>
           <div class="hint" id="closureHint" data-i18n="bedit.closedOnHint">clearing this stamps the closure date of the build</div>
+          <div class="hint" id="closureDate"></div>
         </div>
       </div>
     </div>
@@ -201,9 +202,7 @@ function errText(r, fallbackKey) {
 
 /** Terminal state card; every card keeps the stable machine code visible. */
 function stateCard(titleKey, msgHtml, code) {
-  $('#formArea, #actions, #stateBox').hide().addBack();
-  $('#formArea').hide();
-  $('#actions').hide();
+  $('#formArea, #actions').hide();
   $('#stateBox').show().html(
     '<div class="state-card"><h2 data-i18n="' + esc(titleKey) + '"></h2>' +
     '<p>' + msgHtml + '</p>' +
@@ -271,15 +270,6 @@ function load() {
     });
 }
 
-/** Test project display name: the BFF list response is plan-scoped, so it
- *  carries the project name alongside the plan. */
-function tprojectLabel() {
-  if (ctxData && ctxData.tplan && ctxData.tplan.tproject_id) {
-    return ctxData.tproject_name || ('#' + ctxData.tplan.tproject_id);
-  }
-  return '-';
-}
-
 function resetCreate() {
   $('#fName').val('').prop('disabled', false);
   $('#fNotes').val('');
@@ -293,7 +283,10 @@ function resetCreate() {
 }
 
 function loadBuild() {
-  $.getJSON(API + '/' + buildId)
+  /* tplan_id travels WITH the build id: the BFF rejects a build addressed
+     through a plan of another project (the ADDRESS must match the right), so a
+     stale or mis-scoped page gets a 404 instead of another project's build. */
+  $.getJSON(API + '/' + buildId + '?tplan_id=' + tplanId)
     .done(function (r) {
       if (r.status !== 'ok' || !r.build) {
         stateCard('bedit.notFound', esc(TLi18n.t('bedit.buildNotFoundMsg')), 'build_not_found');
@@ -304,6 +297,10 @@ function loadBuild() {
       $('#fNotes').val(b.notes);
       $('#fActive').prop('checked', b.active === 1);
       $('#fOpen').prop('checked', b.is_open === 1);
+      /* Legacy buildEdit.tpl printed the closure date beside the Open checkbox;
+       * the API returns it but nothing rendered it. */
+      $('#closureDate').text(b.is_open === 1 || !b.closed_on_date ? ''
+        : TLi18n.t('bedit.closedOnValue', {date: b.closed_on_date}));
       $('#closureHint').toggle(b.is_open !== 1);
       $('#fReleaseDate').val(b.release_date || '');
       $('#fCopyAssignments, #fCopyAllPlans').prop('checked', false);
@@ -370,8 +367,16 @@ function cfInput(cf) {
           + '" data-cf-type="' + cf.type + '" rows="3">' + esc(val) + '</textarea>';
   } else {
     var itype = (cf.type_label === 'numeric' || cf.type_label === 'float') ? 'number'
-              : (cf.type_label === 'email' ? 'email' : (cf.type_label === 'date' ? 'date' : 'text'));
-    var dval = (cf.type_label === 'date' && val && !/^\d{4}-\d{2}-\d{2}$/.test(val)) ? '' : val;
+              : (cf.type_label === 'email' ? 'email'
+              : (cf.type_label === 'date' ? 'date'
+              : (cf.type_label === 'datetime' ? 'datetime-local' : 'text')));
+    /* date/datetime arrive as ISO ('Y-m-d' / 'Y-m-d H:i:s' - the BFF owns the
+       conversion from the stored mktime stamp); anything else is not a usable
+       value for the control and is left empty instead of half-filled. */
+    var isoOnly = cf.type_label === 'date' ? /^\d{4}-\d{2}-\d{2}$/
+                : (cf.type_label === 'datetime' ? /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(:\d{2})?$/ : null);
+    var dval = (isoOnly && val && !isoOnly.test(val)) ? '' : val;
+    if (dval && isoOnly) { dval = String(dval).replace(' ', 'T').slice(0, 16); }
     input = '<input type="' + itype + '" class="form-control" id="' + id + '" data-cf="'
           + cf.field_id + '" data-cf-type="' + cf.type + '" value="' + esc(dval) + '">';
   }
@@ -434,6 +439,7 @@ function save() {
     saving = false;
     if (r.status !== 'ok') { fail(r); return; }
     if (buildId > 0) {
+      $('#btnSave').prop('disabled', false);
       $('#feedback').html('<div class="okbox">' + esc(TLi18n.t('bedit.msg.saved')) + '</div>');
       loadCfields();
     } else {

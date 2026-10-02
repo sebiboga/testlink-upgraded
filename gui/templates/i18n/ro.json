@@ -6105,6 +6105,7 @@
   "bedit.activeHint": "un build inactiv este ascuns de ecranele de executie dar pastreaza rezultatele",
   "bedit.open": "Deschis",
   "bedit.closedOnHint": "debifarea marcheaza data inchiderii buildului",
+  "bedit.closedOnValue": "Închis la: {date}",
   "bedit.releaseDate": "Data lansarii",
   "bedit.cfSection": "Campuri personalizate",
   "bedit.copySection": "Optiuni de copiere",

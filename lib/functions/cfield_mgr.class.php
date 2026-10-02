@@ -1971,11 +1971,13 @@ function name_is_unique($id,$name)
         // The legacy buildEdit/TestSpec forms always submitted every input, so
         // the case never arose there; every JSON/API caller that submits a
         // PARTIAL hash (only some of the project's custom fields) hit it.
-        // Normalizing to [] routes it into the existing empty branch below,
-        // which is the correct "nothing was submitted" result.
+        // Normalizing to a fully-keyed empty array (and NOT to []) is what
+        // makes this silent: the date branch below reads $value['input'], so
+        // [] alone would trade the fatal for
+        // "Undefined array key \"input\"" - still Event Viewer noise.
         if (($verbose_type === 'date' || $verbose_type === 'datetime')
             && !is_array($value)) {
-          $value = array();
+          $value = array('input' => '', 'hour' => '0', 'minute' => '0', 'second' => '0');
         }
 
         switch ($verbose_type) {

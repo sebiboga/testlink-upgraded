@@ -6101,6 +6101,7 @@
   "bedit.activeHint": "неактивная сборка скрыта с экранов выполнения, но сохраняет результаты",
   "bedit.open": "Открыта",
   "bedit.closedOnHint": "снятие отметки фиксирует дату закрытия сборки",
+  "bedit.closedOnValue": "Закрыт: {date}",
   "bedit.releaseDate": "Дата релиза",
   "bedit.cfSection": "Пользовательские поля",
   "bedit.copySection": "Параметры копирования",

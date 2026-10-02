@@ -6101,6 +6101,7 @@
   "bedit.activeHint": "無効なビルドは実行画面には表示されませんが、結果は保持されます",
   "bedit.open": "オープン",
   "bedit.closedOnHint": "チェックを外すとビルドの終了日付が記録されます",
+  "bedit.closedOnValue": "閉鎖日: {date}",
   "bedit.releaseDate": "リリース日",
   "bedit.cfSection": "カスタムフィールド",
   "bedit.copySection": "コピーオプション",

@@ -54,4 +54,14 @@ if ($build_id > 0) {
   $target .= '&build_id=' . $build_id;
 }
 
-redirect($target, 'window.location.replace');
+// redirect() builds "$level.href='...'", so $level must be a LOCATION OBJECT,
+// never a method: 'window.location.replace' would emit
+// window.location.replace.href='...' (an expando on the function object) and the
+// browser would stay on a blank page. The replace() semantics are wanted here
+// (a legacy bookmark should not stay in the history), so they are emitted here.
+$safeTarget = addslashes($target);
+echo "<html><head></head><body>";
+echo "<script type='text/javascript'>";
+echo "window.location.replace('$safeTarget');";
+echo "</script></body></html>";
+exit;

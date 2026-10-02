@@ -604,6 +604,102 @@ screen reaches full parity.
   reuses `user.fullName`). Regression suite 1676: 20/20 PASS (9 client cases on the shipped helper +
   11 live BFF cases over 3 formats) and 11/11 browser cases; console and Event Viewer clean. (Fixes #1676)
 
+- [SCREEN] - #1787: the **Build Create/Edit** screen (`lib/plan/buildEdit.php`, 769 lines) is
+  modernized as the standalone Dashio page `gui/templates/plans/buildEdit.html`, backed by
+  `api/builds/index.php` (`GET /`, `GET /{id}`, `GET /cfields`, `POST /`, `PUT /{id}`,
+  `POST /{id}/flags`, `DELETE /{id}`); `lib/plan/buildEdit.php` is now a redirect-only shim
+  (769 -> 66 lines) that preserves `tplan_id`/`build_id` (and the legacy `buildID` alias) and refuses
+  anything but GET/HEAD, so it can never smuggle a write past the BFF's checks.
+  Full 1.9.20 parity: build name (trimmed, required, unique per project), notes, Active/Open
+  with the `closed_on_date` stamp, release date validated as a real calendar date, **copy tester
+  assignments** (source build select with the assignment count in brackets + the "Only with
+  execution status" multi-select), **copy to all other active test plans** (create-only, exactly
+  like the legacy `enable_copy`, with the sibling-plan count in the hint), Show event history
+  gated on `mgt_view_events` (legacy `buildEdit.tpl:53`), Refresh / Back / Close, locale
+  switcher. **The real feature gap this closes**: legacy `buildEdit.tpl:78-80` rendered the test
+  project's build **design custom fields** (`{foreach $gui->cfields}`) and `doCreate()`/`doUpdate()`
+  persisted them with `cfield_mgr->design_values_to_db($_REQUEST, $buildID, $cf_map, null,
+  'build')`, but the modern inline Create/Edit modal of `buildsView.html` never grew the CF block
+  and the BFF ignored them entirely - so build custom fields were a **silent drop on both halves**:
+  the definitions were neither shown nor written. New `GET /api/builds/index.php/cfields?tplan_id=N
+  [&build_id=M]` returns them as **DATA** (never HTML, so a free-text CF label/possible value can
+  never inject markup; the owning project is proven BEFORE the build is resolved, and a build
+  outside the addressed project is a 404, never a silent read of another project's values), and
+  `POST /` + `PUT /{id}` rebuild the legacy `custom_field_<type>_<id>` hash from the field ids **the
+  server resolved**, so a submitted key can never name a field outside the project. BFF defects
+  found and fixed while testing: (a) a date CF is stored as a UNIX timestamp (`mktime` in
+  `_build_cfield`) but the write path fed ISO straight into `split_localized_date()`, which parses
+  the **session locale** format (`d/m/Y` for en_GB, `m/d/Y` for en_US, `d.m.Y` for de_DE, ...) -
+  so the same ISO input was stored as a **different calendar day per locale** (measured:
+  `2026-11-15` became **2021-05-18** under en_GB); the client keeps speaking ISO and the server now
+  owns the locale conversion (`epochToIsoDate()` / `isoToLocaleDate()`), verified round trip
+  identical for en_GB/en_US/ja_JP/de_DE. (b) `design_values_to_db()` writes **every** field of the
+  passed `$cfMap` (the hash only supplies values), so a partial `PUT` silently cleared the rest
+  while `cfields_written` reported the submitted count - the full-replacement legacy semantics are
+  now explicit and the reported count matches what was written. (c) `GET/PUT/DELETE /{id}` and
+  `/{id}/flags` accepted a `tplan_id` and then **ignored** it (`resolveBuild()` derives the project
+  from `build.testproject_id`, so the RIGHT was checked correctly but the ADDRESS was not) - a
+  stale or mis-scoped page could rename or **DELETE** a build of another project and see the result
+  inside this plan's context (measured: cross-project `DELETE` returned 200 and deleted the build);
+  now a build addressed through a foreign plan is a 404. (d) `rights.canViewEvents`
+  (`mgt_view_events`) was never in the payload, so the event history button could not show.
+  Seven more defects were found by the mandatory code review of the finished screen: (e) the CF timestamp was
+  read back with `gmdate()` although `_build_cfield()` stores it with `mktime()` (LOCAL
+  midnight), which agreed by accident on the UTC CI host and silently returned the **previous
+  day** on every east-of-UTC install (measured with `TZ=Europe/Bucharest`: a typed
+  `2026-11-15` was stored as `1794693600` and read back as **2026-11-14**; same for
+  `Asia/Tokyo`) - `date()` reads it back identically in every zone probed; (f) the screen
+  addressed its own build with `GET /{id}` **without** `tplan_id`, so the cross-project check
+  above did not apply to the screen's own prefill; (g) a **datetime (type 10)** CF rendered as
+  a plain text box and the write path pinned `custom_field_10_<id>_hour/_minute/_second` to `0`,
+  silently reducing it to midnight - it now renders `<input type="datetime-local">` and the
+  submitted time of day reaches the stamp.
+  `lib/plan/buildEdit.php` also no longer fatals with `Call to undefined method
+  build::getCustomFieldsValues()` (a method removed in 2.0.1 but still called at
+  `buildView.php:94`, `planView.php:75`). Four of the review findings were **blockers or data loss**: (h)
+  the shim's `redirect($target, 'window.location.replace')` built `window.location.replace.href='...'`
+  (`redirect()` concatenates `$level . '.href'`), i.e. it assigned an expando to the function object and the
+  bookmark landed on a **blank page** - the replacement is now emitted directly; (i) `saveBuildCfields()` ran on
+  every `PUT` and `design_values_to_db()` writes **every** field of `$cfMap`, so an **inline rename from
+  `buildsView.html`** (which sends no `cfields` key) silently **wiped every build custom field** while
+  answering `cfields_written: N` - the write is now gated on the key being present, which keeps full
+  replacement for the full-screen editor and leaves the table's modal alone; (j) `POST /{id}/flags` read
+  `tplan_id` only from the **query**, while `buildsView.html` sends it in the **JSON body**, so the
+  Active/Open toggles were not covered by the new scope check; (k) the audit string read `$ctx['tplan_name']`
+  on a `resolveBuild()` context that has no such key, logging `Undefined array key` and an empty plan name on
+  **every build save** (measured `E_WARNING` in the Event Viewer) - and `required` was read from a
+  non-existent `values_required` column instead of `cfield_testprojects.required`, so the red mandatory `*` could
+  never appear; an unchecked checkbox/multiselection also stored NULL through `$value[0]` on an empty array
+  (`E_WARNING` + two deprecations), and the #1788 fatal fix itself had turned the fatal into
+  `Undefined array key "input"` - all fixed. i18n: 51 `bedit.*` +
+  `bv.createBuildFullScreen` + `footers.buildEdit` in **all 10** bundles, appended as text so each
+  bundle's existing formatting/ordering is untouched and a concurrent CI agent is never
+  reformatted away. 26/26 test cases PASS (23 functional + 3 from the code review), console and Event Viewer
+  clean. (Refs #1787)
+
+- [KEY BUGFIX] - #1788: a **PHP 8 fatal** on every partial custom-field write.
+  `cfield_mgr::_build_cfield()` seeds each field of `$cf_map` with a **string** (`'cf_value' => ''`)
+  and only fields present in the submitted hash get their real (per-part, array) value, so a **date
+  (type 8) or datetime (type 10) CF that is defined but not submitted** reached
+  `if (($value['input'] == 0) || ($value['input'] == ''))` at `lib/functions/cfield_mgr.class.php:1975`
+  as `$value === ''` - harmless on PHP 7 (first character), a fatal
+  `TypeError: Cannot access offset of type string on string` on PHP 8. The 1.9.20 form never hit it
+  because an HTML form always submits every input, so **every JSON/API caller submitting a partial
+  hash** did - measured through an ordinary Create Build where the user filled in only some fields:
+  the build row was created, then the CF write died with HTTP 500. Normalizing to `[]` just before
+  the switch routes the field into the existing empty branch (`'' -> ''`), the correct "nothing was
+  submitted" result. (Fixes #1788)
+
+- [KEY BUGFIX] - #1789: `E_WARNING: Undefined array key 0` in `lib/functions/common.php:512` on
+  ordinary **admin** GUI page loads (Event Viewer `log_level=2`, 3 rows per affected load).
+  `tlUser::getAccessibleTestPlans()` returns a LIST only when it runs its `array_values()`
+  normalization, and that normalization sits inside
+  `if ($this->globalRoleID != TL_ROLES_ADMIN && ...)` - so for a global admin the id-keyed map
+  (`output=mapfull`) is returned untouched, the fallback at `common.php:512` indexed
+  `$tplan_data[0]`, warned, and then called `setSessionTestPlan(null)`. `reset()` reads the first
+  element of either shape and `count()` guards the empty case, so the call site no longer depends
+  on the admin branch above. (Fixes #1789)
+
 - [SCREEN] - #1785: the **Full-Text Search** one-box screen (`lib/search/searchMgmt.php`) is
   modernized. Legacy 1.9.20 reached it only from the navBar magnifier, which POSTed one free-text
   `target` term and then force-enabled every search dimension (test cases id/title/summary/

@@ -6081,6 +6081,7 @@
   "bedit.activeHint": "未启用的构建在执行页面中隐藏，但保留其结果",
   "bedit.open": "打开",
   "bedit.closedOnHint": "取消勾选将记录构建的关闭日期",
+  "bedit.closedOnValue": "关闭日期：{date}",
   "bedit.releaseDate": "发布日期",
   "bedit.cfSection": "自定义字段",
   "bedit.copySection": "复制选项",

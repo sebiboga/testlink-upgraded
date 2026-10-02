@@ -6111,6 +6111,7 @@
   "bedit.activeHint": "an inactive build is hidden from the execution screens but keeps its results",
   "bedit.open": "Open",
   "bedit.closedOnHint": "clearing this stamps the closure date of the build",
+  "bedit.closedOnValue": "Closed on: {date}",
   "bedit.releaseDate": "Release date",
   "bedit.cfSection": "Custom fields",
   "bedit.copySection": "Copy options",

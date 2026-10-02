@@ -221,7 +221,7 @@ function buildCfieldDefs(&$buildMgr, $tprojectId, $buildId = 0) {
             'label'      => (string)($cf['label'] ?? ($cf['name'] ?? '')),
             'type'       => $typeId,
             'type_label' => $types[$typeId] ?? 'string',
-            'required'   => !empty($cf['values_required']) ? 1 : 0,
+            'required'   => !empty($cf['required']) ? 1 : 0,   // cfield_testprojects.required
             'possible_values' => (string)($cf['possible_values'] ?? ''),
             'default_value'   => $default,
             'value'      => ($value === null || $value === '') ? $default : $value,
@@ -233,12 +233,18 @@ function buildCfieldDefs(&$buildMgr, $tprojectId, $buildId = 0) {
 
 /** Timestamp -> ISO 'Y-m-d' (or 'Y-m-d H:i:s'), the shape the HTML date
  *  inputs and the BFF payload both speak. Returns '' for an unusable stamp
- *  instead of a bogus date. */
+ *  instead of a bogus date.
+ *
+ *  date() and NOT gmdate(): the stamp was produced by cfield_mgr's mktime(),
+ *  which is local-midnight in the SERVER timezone, so the only format that can
+ *  read it back as the same calendar day is the local one. gmdate() agreed by
+ *  accident on a UTC host and silently shifted the day by the UTC offset on
+ *  every non-UTC install (e.g. Europe/Bucharest, UTC+2/+3). */
 function epochToIsoDate($epoch, $withTime = false) {
     if ($epoch <= 0) {
         return '';
     }
-    $iso = gmdate($withTime ? 'Y-m-d H:i:s' : 'Y-m-d', intval($epoch));
+    $iso = date($withTime ? 'Y-m-d H:i:s' : 'Y-m-d', intval($epoch));
     return ($iso === '1970-01-01' || $iso === '1970-01-01 00:00:00') ? '' : $iso;
 }
 
@@ -312,15 +318,26 @@ function cfLocaleDateFormat() {
  * date/datetime branches on their array path instead of relying on the
  * string-to-array normalization that was added to _build_cfield().
  *
- * @return int number of fields written (== count($cfMap) when non-empty)
+ * @return int number of FIELDS actually written (not count($cfMap): an
+ *                unchecked checkbox/multiselection field is deliberately skipped)
  */
 function saveBuildCfields(&$buildMgr, $body, $cfMap, $buildId) {
     if (is_null($cfMap) || count($cfMap) == 0) {
         return 0;
     }
-    $in = isset($body['cfields']) && is_array($body['cfields'])
-        ? $body['cfields'] : [];
+    /* The key's PRESENCE decides, not its content: a caller that sends no
+     * 'cfields' at all is not editing custom fields. The legacy full-screen
+     * form always submitted every input, so full replacement was right for it -
+     * but the inline Edit modal of buildsView.html sends only name/notes/
+     * release_date/active/open, and design_values_to_db() writes EVERY field of
+     * $cfMap, so treating that as "clear all" silently wiped the custom fields
+     * of a build renamed from the table. */
+    if (!array_key_exists('cfields', $body) || !is_array($body['cfields'])) {
+        return 0;
+    }
+    $in = $body['cfields'];
     $hash = [];
+    $written = 0;
     foreach ($cfMap as $fieldId => $cf) {
         $fieldId = intval($fieldId);
         $typeId  = intval($cf['type'] ?? 0);
@@ -329,27 +346,53 @@ function saveBuildCfields(&$buildMgr, $body, $cfMap, $buildId) {
         if (in_array($typeId, [5, 7], true)) {           // checkbox / multiselection
             $vals = is_array($val) ? array_map('strval', $val) : (($val === '') ? [] : [(string)$val]);
             $vals = array_values(array_filter($vals, function ($v) { return $v !== ''; }));
+            /* Nothing selected: skip the key entirely so _build_cfield() keeps
+             * its '' initializer. Passing [] instead makes it read $value[0] on
+             * an empty array (E_WARNING "Undefined array key 0") and store NULL,
+             * which then trips tlStringLen(null)/prepare_string(null) deprecations
+             * downstream - reachable from the plain "nothing ticked" state of a
+             * checkbox/multiselection field. Legacy never saw it: an unticked
+             * HTML form simply submits nothing. */
+            if (empty($vals)) {
+                continue;
+            }
             // _build_cfield() implodes a multi-valued entry with '|', exactly as
             // the legacy form's repeated inputs arrived, so pass the list on.
             $hash[$prefix] = $vals;
+            $written++;
         } elseif ($typeId === 8 || $typeId === 10) {     // date / datetime
             $isDateTime = ($typeId === 10);
             $val = is_array($val) ? (string)($val['input'] ?? '') : (string)$val;
             $hash[$prefix . '_input'] = isoToLocaleDate($val, $isDateTime);
+            $written++;
             if ($isDateTime) {
-                $hash[$prefix . '_hour']   = '0';
-                $hash[$prefix . '_minute'] = '0';
-                $hash[$prefix . '_second'] = '0';
+                /* The locale format carries the DAY only, so the time of day
+                 * has to travel in its own three legacy keys
+                 * (custom_field_10_<id>_hour/_minute/_second, which
+                 * _build_cfield() mktime()s into the stamp). They used to be
+                 * pinned to 0, which silently reduced a datetime custom field
+                 * to midnight; a <input type="datetime-local"> submits
+                 * 'YYYY-MM-DDTHH:MM'. */
+                $hour = '0'; $minute = '0'; $second = '0';
+                if (preg_match('/^\d{4}-\d{2}-\d{2}[ T](\d{2}):(\d{2})(?::(\d{2}))?$/', trim((string)$val), $tm)) {
+                    $hour = $tm[1]; $minute = $tm[2]; $second = isset($tm[3]) ? $tm[3] : '0';
+                }
+                $hash[$prefix . '_hour']   = $hour;
+                $hash[$prefix . '_minute'] = $minute;
+                $hash[$prefix . '_second'] = $second;
             }
         } else {
             $hash[$prefix] = is_array($val) ? '' : (string)$val;
+            $written++;
         }
     }
     if (count($hash) == 0) {
         return 0;
     }
     $buildMgr->cfield_mgr->design_values_to_db($hash, intval($buildId), $cfMap, null, 'build');
-    return count($cfMap);
+    // count($hash) would be wrong (a datetime is 4 keys for one field) and
+    // count($cfMap) would over-report the fields deliberately skipped above.
+    return $written;
 }
 
 $tplanMgr = new testplan($db);
@@ -669,7 +712,7 @@ if ($method === 'POST' && count($segments) === 0) {
     }
 
     logAuditEvent(TLS('audit_build_created',
-        tprojectName($tp, $ctx['tproject_id']), $ctx['tplan_name'], $name),
+        tprojectName($tp, $ctx['tproject_id']), $ctx['tproject_name'], $name),
         'CREATE', $buildID, 'builds');
 
     out(['status' => 'ok', 'id' => intval($buildID), 'cfields_written' => $cfWritten]);
@@ -686,7 +729,11 @@ if ($method === 'POST' && count($segments) === 2 && ctype_digit($segments[0])
         out(['status' => 'error', 'message' => 'Build not found']);
     }
     $ctx = resolveBuild($db, $b);
-    assertBuildInTplan($db, $b, $_GET['tplan_id'] ?? 0);
+    // BODY first: buildsView.html sends tplan_id inside the JSON body for this
+    // route (as it does for PUT), so a query-only read left the Active/Open
+    // toggles of the table unprotected. The query is kept as the legacy-form
+    // fallback; the check itself must never be side-stepped by picking one.
+    assertBuildInTplan($db, $b, $body['tplan_id'] ?? ($_GET['tplan_id'] ?? 0));
     if (!canManage($user, $db, $ctx['tproject_id'])) {
         http_response_code(403);
         out(['status' => 'error', 'message' => 'Insufficient rights']);
@@ -861,7 +908,7 @@ if ($method === 'PUT' && count($segments) === 1 && ctype_digit($segments[0])) {
     }
 
     logAuditEvent(TLS('audit_build_saved',
-        tprojectName($tp, $ctx['tproject_id']), $ctx['tplan_name'], $name),
+        tprojectName($tp, $ctx['tproject_id']), $ctx['tproject_name'], $name),
         'SAVE', $buildId, 'builds');
 
     out(['status' => 'ok', 'cfields_written' => $cfWritten]);

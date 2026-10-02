@@ -6095,6 +6095,7 @@
   "bedit.activeHint": "ein inaktiver Build wird auf den Ausfuehrungsseiten ausgeblendet, behaelt aber seine Ergebnisse",
   "bedit.open": "Offen",
   "bedit.closedOnHint": "das Entfernen setzt das Abschlussdatum des Builds",
+  "bedit.closedOnValue": "Geschlossen am: {date}",
   "bedit.releaseDate": "Release Datum",
   "bedit.cfSection": "Benutzerdefinierte Felder",
   "bedit.copySection": "Kopieroptionen",

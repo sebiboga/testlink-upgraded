@@ -6095,6 +6095,7 @@
   "bedit.activeHint": "una build inattiva e nascosta dalle schermate di esecuzione ma conserva i risultati",
   "bedit.open": "Aperto",
   "bedit.closedOnHint": "deselezionare registra la data di chiusura della build",
+  "bedit.closedOnValue": "Chiuso il: {date}",
   "bedit.releaseDate": "Data di rilascio",
   "bedit.cfSection": "Campi personalizzati",
   "bedit.copySection": "Opzioni di copia",

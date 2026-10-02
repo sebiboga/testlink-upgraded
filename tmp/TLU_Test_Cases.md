@@ -3110,3 +3110,83 @@ keeps it as well.
 `tmp/verify_1779.sh` (this matrix), `tmp/verify_1759.sh` (rows `M12`/`M12b`/`M12c` updated).
 **Docs** — `docs/Bugfix-Issue-1779-SuiteMove-Unentitled-Container-Existence-Oracle.md`, mirrored in
 the GitHub Wiki under the same file name.
+
+## 1787 — Modernize Build Create/Edit (lib/plan/buildEdit.php → gui/templates/plans/buildEdit.html)
+
+Legacy controller: `lib/plan/buildEdit.php` (769 lines) +
+`gui/templates/dashio/plan/buildEdit.tpl`. Legacy template rendered
+`{foreach $gui->cfields}` (build DESIGN custom fields) and
+`doCreate()`/`doUpdate()` persisted them with
+`cfield_mgr->design_values_to_db($_REQUEST, $buildID, $cf_map, null, 'build')`.
+
+Modern: `gui/templates/plans/buildEdit.html` (Dashio standalone) +
+`api/builds/index.php` (`GET /`, `GET /{id}`, `GET /cfields`, `POST /`,
+`PUT /{id}`, `POST /{id}/flags`, `DELETE /{id}`).
+`lib/plan/buildEdit.php` is now a redirect-only shim (68 lines).
+
+### Fixture
+
+```
+test project 1  "CF Demo Project" (prefix CFD)
+test plan     2  "CF Demo Plan"
+test plan     5  "Second Plan"      (copy-to-all-plans target)
+test project 3  "Other Project"     (cross-project isolation probe)
+test plan     4  "Other Plan"
+user          2  "nobuild" role_id 7 (tester) on project 1
+               -> role 7 has NO testplan_create_build (only 6/8/9 do)
+
+build design custom fields linked to project 1 (6 fields, 6 distinct types):
+  1 bld_env     Build Environment   string
+  5 bld_ci2     CI Pipeline         list            nightly|release|hotfix
+  6 bld_notes2  Release Notes       text area
+  7 bld_ship2   Ship Date           date
+  8 bld_tags2   Build Tags          multiselection  smoke|regression|sanity
+  9 bld_num2    Effort (days)       numeric
+```
+
+| # | Step | Expected | Observed | Result |
+|---|------|----------|----------|--------|
+| 1 | `GET /api/builds/index.php/cfields?tplan_id=2` (create mode) | 200 + the 6 definitions, no values | 200; all 6 with `type_label` string / list / text area / date / multiselection list / numeric; `has_value=0` | PASS |
+| 2 | Open `buildEdit.html?tplan_id=2` (create) | header `Create Build`, button `Create`, plan + project resolved, no `build_id` | `#opDescr`=Create Build, `#saveLabel`=Create, `#tprojectName`=CF Demo Project, `#tplanName`=CF Demo Plan | PASS |
+| 3 | Copy options block | source build select carries the assignment count in brackets; exec-status multi-select localized; "Copy to all test plans" is create-only with the sibling-plan count | `#fSourceBuild`=`["Partial CF Build (0)","Regression Build 1.0 (0)"]`; `#fExecStatus`=`[Not Run,Passed,Failed,Blocked]`; `#allPlansHint`="this build will be created in 1 other test plan(s) of the project" | PASS |
+| 4 | Toggle "Copy tester assignments" on/off | `#srcBlock` shows while on, hides when off | shown on check, hidden on uncheck | PASS |
+| 5 | Create with ALL 6 CF values + release date | 200, `cfields_written` == the map size, redirect to `buildsView.html&created=<id>` | `{"status":"ok","id":11,"cfields_written":6}`; `cfield_build_design_values` rows for node_id 11 = `production / release / Full regression pass / 1794700800 / regression / 3` | PASS |
+| 6 | Open `buildEdit.html?tplan_id=2&build_id=<id>` (edit) | `Edit Build` / `Save`, every field + all 6 CF values prefilled, "Copy to all test plans" row hidden (legacy `enable_copy` is create-only), event-history button shown | `#opDescr`=Edit Build, `#saveLabel`=Save, `#allPlansRow`=hidden, `#btnHistory`=visible, CF prefill `1=production,5=release,6=Full regression pass,7=2026-11-15,8=regression,9=3` | PASS |
+| 7 | Edit + save through the UI | 200 `saved`, DB updated | toast `The build has been saved.`; `notes`/`release_date=2026-12-24` and all 6 CF values persisted | PASS |
+| 8 | **Date round trip — the locale trap.** Send ISO `2026-11-15` under 4 session locales | the SAME calendar day every time | en_GB / en_US / ja_JP / de_DE all read back `2026-11-15` (stored epoch `1794700800`). BEFORE the fix ISO went straight into `split_localized_date()`, which parses the SESSION LOCALE format (`d/m/Y` for en_GB, `m/d/Y` for en_US): en_GB stored `1621296000` = **2021-05-18** — a silent 5-year corruption | PASS (after fix) |
+| 9 | **PHP 8 fatal (#1788).** Create a build sending only SOME CF fields while the project has a date CF | 200, no fatal, date field stored as `''` | BEFORE: `500 Uncaught TypeError: Cannot access offset of type string on string in cfield_mgr.class.php:1975`. AFTER: `200`, `cfields_written=2`, field 7 = `""` | PASS (after fix #1788) |
+| 10 | Partial `PUT` semantics | full replacement, as legacy (an HTML form always submits every input) — a field the caller omitted is stored `''`; `cfields_written` must match what was written | `PUT {1:'ONLY-ENV'}` → `cfields_written=6`, all 6 written, others `""`. (Before the fix the count said 1 while 6 fields were changed) | PASS (after fix) |
+| 11 | `GET /cfields` with a `build_id` from ANOTHER project (`tplan_id=4` of project 3, build of project 1) | 404, identical to a nonexistent build | `404 {"message":"Build not found","error_code":"build_not_found"}` | PASS |
+| 12 | **Cross-project IDOR (found by this suite).** `GET /{id}`, `PUT /{id}`, `POST /{id}/flags`, `DELETE /{id}` with `tplan_id=4` (foreign project) | 404 | BEFORE: all four returned **200** and the foreign `DELETE` **actually deleted the build**. AFTER: all four 404. `resolveBuild()` derives the project from `build.testproject_id`, so the RIGHT was correct but the ADDRESS was ignored — a stale/mis-scoped page could rename or delete another project's build | PASS (after fix) |
+| 13 | Same routes with the LEGITIMATE `tplan_id=2` | still 200 (the scope check must not break normal use) | `ok_get` 200, `ok_put` 200 `cfields_written=6`, `ok_flags` 200 | PASS |
+| 14 | Legit `PUT` addressing the plan in the **body** (not the query) | 200 | 200; the scope check reads the body first, falling back to the query | PASS |
+| 15 | Error paths: `tplan_id=0` / `tplan_id=9999` / `build_id=999999` / `POST /cfields` | 400 / 404 / 404 / 404 | `400 no_tplan`, `404 Invalid Test Plan ID`, `404 build_not_found`, `404 Unknown route` | PASS |
+| 16 | Validation: empty name / duplicate name / impossible release date | 400 / 409 / 400 with the legacy machine codes | `400 empty_field_no`, `409 warning_duplicate_build` + `detail`, `400 invalid_release_date` | PASS |
+| 17 | **CSRF.** `POST /api/builds/index.php/` with no `Origin`/`Referer`/`X-Requested-With` | 403, nothing written | `403 {"message":"Forbidden: missing or mismatched same-origin proof (CSRF protection)"}` | PASS |
+| 18 | **Permission.** as `nobuild` (role 7, no `testplan_create_build`): list / cfields / create / delete | 403 on all four + a localized state card, form never shown | all four `403 Insufficient rights`; `#stateBox h2`=Insufficient rights, `p`=You do not have the right to create or edit builds of this test project., `.code`=`no_right`, `#formArea`=hidden | PASS |
+| 19 | `lib/plan/buildEdit.php?tplan_id=2&build_id=<id>` | a **real browser navigation** to the modern screen, no fatal | `php -l` clean; **observed in Chrome**: navigating to the legacy URL lands on `/gui/templates/plans/buildEdit.html?tplan_id=2&build_id=11` with the build prefilled. `buildID=11` is aliased to `build_id`. BEFORE: `Call to undefined method build::getCustomFieldsValues()` (removed in 2.0.1; still called at `buildView.php:94`, `planView.php:75`). AFTER a first fix attempt the shim still did NOT navigate - `redirect($target, 'window.location.replace')` builds `$level . '.href'`, i.e. `window.location.replace.href='...'`, an expando on the function object (see case 23d) | PASS |
+| 20 | `lib/plan/buildEdit.php` with POST/PUT/DELETE | 405, so the shim can never smuggle a write past the BFF checks | `405 Method Not Allowed`, `Allow: GET, HEAD` | PASS |
+| 21 | i18n | every key the screen uses exists in ALL 10 bundles | 42 keys resolved; `de/en/es/fr/it/ja/pt/ro/ru/zh` each contain all of them (+51 `bedit.*`, `bv.createBuildFullScreen`, `footers.buildEdit` appended per bundle, all valid JSON, no key removed) | PASS |
+| 22 | Locale switcher on the screen | re-renders translated | header/labels/buttons/cards follow the selected locale | PASS |
+| 23a | **Non-UTC host (found by code review).** `epochToIsoDate()` used `gmdate()` while `_build_cfield()` stores with `mktime()` (LOCAL midnight) | same calendar day on any server timezone | `TZ=Europe/Bucharest` typed `2026-11-15` -> stored `1794693600` -> `gmdate` read back **2026-11-14** (day lost); same for `Asia/Tokyo` and every east-of-UTC host, and the CI host is UTC so no test could ever catch it. `date()` reads back `2026-11-15` in all four zones probed | PASS (after fix) |
+| 23b | **Screen addressed its own build without the plan** | `loadBuild()` must send `tplan_id` so the BFF's cross-project check applies | the page called `GET /api/builds/index.php/11` with no plan, so a mis-scoped/stale page bypassed the new scope check the BFF enforces. Fixed; network log now shows `GET /api/builds/index.php/11?tplan_id=2` -> 200, page still prefills all 6 CF values (date `2027-01-31`) | PASS (after fix) |
+| 23c | **Datetime (type 10) CF.** The fixture has no type-10 field, so `cfInput()` was driven directly with a synthetic definition | `<input type="datetime-local">` carrying the time, and the submitted time must reach the DB | BEFORE: rendered a plain text box, and the write path pinned `custom_field_10_<id>_hour/_minute/_second` to `0`, so a datetime silently became midnight. AFTER: `value="2026-11-15T14:35"` for the stored `2026-11-15 14:35:07`; a non-ISO stored epoch is rejected to empty (never half-filled); the server captures `14:35` / `14:35:07` and defaults to `0:0:0` for a date-only submit | PASS (after fix) |
+| 23d | **The shim never navigated (BLOCKER, found by code review).** `redirect($url, $level)` emits `"$level.href='$url';"` | `$level` must be a LOCATION OBJECT, never a method | with `'window.location.replace'` the page emitted `window.location.replace.href='...'`, which assigns an expando to the function object and **navigates nowhere** - the shim's whole purpose (a legacy bookmark landing on the modern screen instead of a fatal) failed silently. The `replace()` is now emitted directly; verified in Chrome: `lib/plan/buildEdit.php?tplan_id=2&build_id=11` -> lands on `buildEdit.html?tplan_id=2&build_id=11`, prefilled | PASS (after fix) |
+| 23e | **Inline rename wiped every custom field (BLOCKER, DATA LOSS, found by code review).** `PUT /{id}` from the table's Edit modal (`buildsView.html:437-446` sends only name/notes/release_date/active/open) | renaming a build from the table must not touch its custom fields | `saveBuildCfields()` ran on every `PUT` and `design_values_to_db()` writes **every** field of `$cfMap` (empty when the key is absent), so a plain rename cleared all 6 fields while answering `cfields_written: 6`. Measured: before `{1:'copy-env',5:'hotfix',6:'…',7:'2027-02-14',8:'smoke',9:'5'}` -> after rename **all empty**. Fixed: the write is gated on the key being present. AFTER: `{"status":"ok","cfields_written":0}` and all 6 values intact; the full-screen editor still performs full replacement (`cfields_written` = the fields it sent) | PASS (after fix) |
+| 23f | **Flags scope check read the wrong place (found by code review).** `POST /{id}/flags` with `tplan_id` in the **JSON body** (what `buildsView.html:393` sends) | foreign plan -> 404 | BEFORE: `200` (the route read `$_GET` only, so the check silently no-opped). AFTER: body foreign -> `404`, body legit -> `200`, query foreign -> `404`, GET `/{id}` still query-scoped -> foreign `404` / legit `200` | PASS (after fix) |
+| 23g | **The audit string warned on every save.** `$ctx['tplan_name']` on a `resolveBuild()` context (which returns `tproject_id`/`tproject_name` only) | no `Undefined array key`, non-empty plan name in the audit line | BEFORE: `E_WARNING Undefined array key "tplan_name" - api/builds/index.php - Line 881` + `Test Plan '' - Build '…' was saved` on EVERY create/update/delete. AFTER: 0 new warnings over a 10-request sweep of all seven routes. (The same blanket rename initially broke the list route's `$ctx['tplan_name']`, which comes from `resolveTplan()` and IS valid - caught by the very sweep and reverted) | PASS (after fix) |
+| 23h | **`required` read a non-existent column.** `cfield_testprojects` has `required`/`required_on_design`/`required_on_execution`; `values_required` exists nowhere in the repo | the red mandatory `*` must be able to appear | BEFORE: always `0` (dead). AFTER: `required` in the payload - with `cfield_testprojects.required=1` on field 8 the API reports `required: 1`; all other fields report `0`. Fixture restored to `0` afterwards | PASS (after fix) |
+| 23i | **Empty checkbox/multiselection stored NULL and logged 3 diagnostics.** Client sends `[]` for "nothing ticked" | the field is written as `''`, no PHP diagnostics | BEFORE: `$hash[$prefix] = []` -> `$value[0]` on an empty array (`E_WARNING Undefined array key 0`) -> NULL -> `iconv_strlen(): Passing null` + `prepare_string(null)` deprecations. Reachable from the DEFAULT state of the new form. AFTER: the key is skipped so `_build_cfield`'s `''` initializer applies; `PUT` with `{"8":[]}` answers `{"status":"ok","cfields_written":5}` and the row holds no NULL | PASS (after fix) |
+| 23j | **#1788's fix traded a fatal for a warning.** Normalizing to `[]` left `$value['input']` undefined on the next line | silence | `_build_cfield()` now seeds `array('input'=>'','hour'=>'0','minute'=>'0','second'=>'0')`, so the empty branch is reached with no diagnostic | PASS (after fix) |
+| 23k | Screen NITs fixed: Save stayed disabled after a successful **edit** save (a second correction was impossible without a reload); `closed_on_date` was returned by the API and never rendered although legacy printed "Closed on date" beside the Open checkbox (now `bedit.closedOnValue` in all 10 bundles, filled on load); dead `tprojectLabel()`, a no-op `addBack()`/`? : ''` and an unread `data-cf-multi` removed | each fixed, no behaviour lost | after a successful edit save `btnSave.disabled === false` and a second save renames the build (`Third Save Works`); `node --check` clean; all 10 bundles valid JSON with the new key | PASS (after fix) |
+| 23 | Event Viewer / PHP log after the whole round | no new Error/Warning | 3 × `E_WARNING Undefined array key 0 (common.php:512)` found during the round → filed as #1789 and fixed with `reset()`; after the fix, **0** new warnings across repeated cross-project navigation | PASS (after fix #1789) |
+
+**Totals for #1787: 35 cases, 35 PASS, 0 FAIL** (23 functional + 12 found by the
+mandatory code review, 2 of them blockers: a shim that never navigated and an inline
+rename that silently wiped every build custom field).
+
+Bugs found by this suite and filed separately:
+- **#1788** — PHP 8 fatal in `cfield_mgr::_build_cfield()` when a date/datetime
+  CF is defined but not submitted (`$value['input']` on a string).
+- **#1789** — `E_WARNING Undefined array key 0` in `common.php:512` for admins
+  (`getAccessibleTestPlans()` only `array_values()`s for non-admins).
