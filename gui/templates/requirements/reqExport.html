@@ -63,6 +63,7 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
     <div class="form-group">
       <label for="exportFilename" data-i18n="reqexp.exportFilename">Export file name</label>
       <input type="text" class="form-control" id="exportFilename" required>
+      <div class="hint" id="filenameLimitHint"></div>
       <div class="hint" data-i18n="reqexp.scope">Export scope</div>
     </div>
     <div class="form-group">
@@ -101,6 +102,8 @@ var ctx = {
   tprojectId: 0,
   reqSpecId: 0,
   scope: 'items',
+  filenameMaxlen: 0,
+  filenameSize: 0,
   info: null
 };
 
@@ -152,10 +155,39 @@ $(function () {
   });
   $('#btnExport').on('click', doExport);
   $('#btnBack').on('click', goBack);
+  $('#exportFilename').on('input', updateLimitHint);
   $('#exportFilename').on('keydown', function (e) {
     if (e.key === 'Enter') { e.preventDefault(); doExport(); }
   });
+  // legacy limited the field with maxlength="{#FILENAME_MAXLEN#}"; some paths
+  // (paste via context menu, drag&drop, autofill) bypass the HTML attribute,
+  // so enforce the same budget in the key handler as well
+  $('#exportFilename').on('paste drop', function () {
+    var self = this;
+    setTimeout(function () { trimToMaxlen(self); }, 0);
+  });
 });
+
+function trimToMaxlen(input) {
+  var max = ctx.filenameMaxlen;
+  if (!max || !input) { return; }
+  var v = input.value || '';
+  if (v.length > max) {
+    input.value = v.substring(0, max);
+    toast(TLi18n.t('reqexp.errFilenameTooLong', { max: max }), true);
+    updateLimitHint();
+  }
+}
+
+function updateLimitHint() {
+  var max = ctx.filenameMaxlen;
+  var input = $('#exportFilename');
+  if (!max) { $('#filenameLimitHint').text(''); return; }
+  input.attr('maxlength', max);
+  if (ctx.filenameSize) { input.attr('size', ctx.filenameSize); }
+  var used = (input.val() || '').length;
+  $('#filenameLimitHint').text(TLi18n.t('reqexp.filenameLimit', { used: used, max: max }));
+}
 
 function loadOptions() {
   var params = { action: 'options', tproject_id: ctx.tprojectId, scope: ctx.scope };
@@ -167,6 +199,8 @@ function loadOptions() {
       ctx.tprojectId = r.tproject.id;
       ctx.reqSpecId = r.req_spec_id;
       ctx.scope = r.scope;
+      ctx.filenameMaxlen = parseInt(r.filename_maxlen || 0, 10) || 0;
+      ctx.filenameSize = parseInt(r.filename_size || 0, 10) || 0;
       renderContext();
     })
     .fail(function (xhr) {
@@ -183,6 +217,7 @@ function renderContext() {
   if (ctx.scope === 'tree') title = TLi18n.t('reqexp.reqSpec') + ': ' + title;
   $('#specTitle').text(title);
   $('#exportFilename').val(ctx.info.filename || 'all-req.xml');
+  updateLimitHint();
   $('.hint[data-i18n="reqexp.scope"]').text(scopeTitle(ctx.scope));
   if (ctx.info.rights && ctx.info.rights.mgt_view_req) {
     $('#btnExport').prop('disabled', false);
@@ -192,6 +227,8 @@ function renderContext() {
 }
 
 function doExport() {
+  trimToMaxlen($('#exportFilename')[0]);
+  updateLimitHint();
   var fn = ($('#exportFilename').val() || '').trim();
   if (!fn) { toast(TLi18n.t('reqexp.errEmptyFilename'), true); $('#exportFilename').focus(); return; }
 
