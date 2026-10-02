@@ -3762,3 +3762,112 @@ and `## Task` sections.
   in the rulebook, and enforced locally by `tmp/verify_1793.sh`.
 - No application code, API endpoint, locale bundle or DB schema was touched, so
   this change cannot produce an Event Viewer entry.
+## Modernize — Issue #1794: **Attachment Download** (`attachmentDownload.html` + `api/attachmentsdownload`) — and the security bug it exposed
+
+Env: `http://localhost:8082`, `admin/admin`, fixtures from `tmp/fixtures_1794.php`
+(project 7, plan 8, suite 9, tc 10, tcversion 11, execution 2, attachments PNG 6,
+TXT 7, SVG 8, PDF 9, execution PNG 10; no-rights user `adl1794guest`).
+Result: **55/55 passed**. Event Viewer after the sweep: **0 Error/Warning** entries.
+
+### A. Entry points and wiring
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| A1 | Open the popup with `?id=6` | metadata card + preview + actions | PASS |
+| A2 | Open with no `?id=` | `ADL-00` state, Refresh + Close, no action card | PASS |
+| A3 | `?id=0` / `?id=abc` | same "no id" state, no request fired for `abc` | PASS |
+| A4 | Legacy list link (Dashio + tl-classic, 4 templates) | opens `gui/templates/attachments/attachmentDownload.html?id=N` in a new tab | PASS |
+| A5 | Eye toggle in the same list (`toogleImageURL`) | inline `<img>` through the BFF with `fRoot` (sub-directory safe) | PASS |
+| A6 | `getImageURL()` / `toogleImageURL()` source | use `fRoot + api/attachmentsdownload/…` | PASS |
+| A7 | `$actions->attachmentDownload` in `lib/functions/common.php` | resolves to the popup URL | PASS |
+
+### B. Metadata (`action=init`)
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| B1 | PNG id 6 | title, file name, `image/png`, human size, added date, description, owner + project chip | PASS |
+| B2 | Owner of a tcversion attachment | `10 - ADL test case`, project chip `ADL1794` | PASS |
+| B3 | PDF id 9 | plan chip present (`tplan` name from `nodes_hierarchy`) | PASS |
+| B4 | `is_svg` / `is_image` flags | true for the SVG, true only for the PNG | PASS |
+| B5 | `can_inline` | png/txt/pdf true; svg false; html-like types false | PASS |
+| B6 | `preview_url` | only for raster images; empty for txt/pdf/svg | PASS |
+| B7 | `inline_url` | present only when `can_inline`, always `disposition=inline` | PASS |
+| B8 | `download_url` | always `disposition=attachment`, carries the `hash_equals` token | PASS |
+| B9 | `token` | `sha256(file_name)`, stable across calls, differs per file | PASS |
+| B10 | Unknown id 9999 | `ATTACHMENT_NOT_FOUND`, 404 | PASS |
+| B11 | Non-numeric id | `INVALID_ATTACHMENT_ID`, 400 | PASS |
+
+### C. Byte stream (`action=download`)
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| C1 | PNG, `disposition=inline` | 200, `image/png`, `Content-Disposition: inline`, CSP sandbox + `X-Frame-Options: DENY` | PASS |
+| C2 | PNG, no disposition | 200, `Content-Disposition: attachment` (fail closed) | PASS |
+| C3 | TXT `disposition=inline` | `text/plain` rendered inline (verified in a new tab) | PASS |
+| C4 | PDF `disposition=inline` | `application/pdf`, inline | PASS |
+| C5 | SVG `disposition=inline` | forced to `attachment` (payload is not `XSS_StringScriptSafe`) | PASS |
+| C6 | SVG safe payload | not rendered inline either (`can_inline=false` for any SVG) | PASS |
+| C7 | `disposition=bogus` | `400 INVALID_DISPOSITION` | PASS |
+| C8 | `text/html` attachment | would be forced to `attachment` (allowlist, stored-XSS guard) | PASS |
+| C9 | Caching headers | `Cache-Control: private, no-store, max-age=0`, no `Pragma: public` | PASS |
+| C10 | Filename with control bytes / non-ASCII | control bytes stripped, `filename*` RFC 5987 form added | PASS |
+| C11 | `X-Content-Type-Options: nosniff` on stream and JSON | present | PASS |
+| C12 | `Content-Length` | equals the real byte count (`strlen`), not the stored size | PASS |
+| C13 | Download button click | browser performs a download (`net::ERR_ABORTED` + `Content-Disposition: attachment`) | PASS |
+| C14 | "Open in new tab" | opens the inline tab for txt/pdf/png; hidden with a hint for svg/html | PASS |
+
+### D. Security and rights
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| D1 | No session | `401 NOT_AUTHENTICATED` | PASS |
+| D2 | Page without a session | redirects to `login.php?note=expired` | PASS |
+| D3 | `role_id = 3` user, id 6 | `403 FORBIDDEN`, screen shows "Access denied" | PASS |
+| D4 | Anonymous legacy URL | legacy JS redirect to `login.php?note=expired&destination=…`, no bytes | PASS |
+| D5 | No-rights user, legacy URL | 302 to the BFF, which answers 403 | PASS |
+| D6 | Wrong token | `403 INVALID_TOKEN` (`hash_equals`) | PASS |
+| D7 | Attachments of another project | `403` (owner resolved from the **stored** `fk_table`/`fk_id`) | PASS |
+| D8 | `fk_table` normalisation | prefix-stripped like `api/attachmentsdelete` | PASS |
+| D9 | Unknown owner (`fk_table` not resolvable) | fail closed, `403` | PASS |
+
+### E. Legacy deep links and the shim
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| E1 | `lib/attachments/attachmentdownload.php?id=6` (session) | 302 to the BFF with `disposition=inline`, bytes served | PASS |
+| E2 | `?id=6&skipCheck=<sha256(file_name)>` | 302 with the token forwarded, stream served | PASS |
+| E3 | `?id=6&skipCheck=<wrong>` | 403 `INVALID_TOKEN` | PASS |
+| E4 | `?id=<n>&apikey=<k>` | forwarded to `api/attachments/index.php?action=download` (API mode preserved) | PASS |
+| E5 | All 8 print/img call sites (`print.inc.php` x5, `testcase.class.php:8396`, `testsuite.class.php:1721`, `requirement_mgr.class.php:4060`) | still resolve through the shim | PASS |
+| E6 | Unknown id through the shim | BFF answers 400/404 JSON instead of `attachment404.tpl` (accepted deviation) | PASS |
+
+### F. UI, i18n and states
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| F1 | SVG (id 8) | "Preview blocked for safety" state + `SVG` badge + inline hint | PASS |
+| F2 | TXT (id 7) | "No preview available" state + `FILE` badge | PASS |
+| F3 | PNG (id 6) | image preview, natural size 8x8, meaningful `alt` | PASS |
+| F4 | Error states (`FORBIDDEN`, not found, bad token, empty) | Refresh **and** Close both available (Close lives in the toolbar) | PASS |
+| F5 | Refresh | re-runs `init` in place | PASS |
+| F6 | Close | `window.close()` when opened as a popup, otherwise `history.back()` | PASS |
+| F7 | Locale switcher (16 locales offered) | title, header, labels, footer re-render | PASS |
+| F8 | Romanian | title `Descarcare atasament`, `Obiect`, `Atasament`, `Descarca` | PASS |
+| F9 | `adl.*` keys | present in **all 10** bundles (39 keys each), all files valid JSON | PASS |
+| F10 | Dead CSS / dead payload | `.btn-red`, `.warn`, `.state.ok`, `.kv .v a`, `.btn:disabled`, `can_preview`, `inline_marker` removed | PASS |
+| F11 | Console | no errors/warnings on any state | PASS |
+
+### G. Event Viewer and hygiene
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| G1 | Sweep all 10 attachment ids as admin and as the no-rights user | no new Error/Warning | PASS (0 rows with `log_level<=2`) |
+| G2 | 5 stale rows from my own pre-fix runs | diagnosed (unknown column `testprojects.name`, `Undefined array key "nodes_hierarchy"`) and removed | PASS |
+| G3 | `php -l` on the 3 PHP files, `node --check` on the screen JS and the library | clean | PASS |
+| G4 | Backup DB after the run | `.sql.gz` written | PASS |
+
+### Bugs found while testing (rule 11: each has its own commit)
+
+- **#1795 (`bug`, filed)** — the legacy `lib/attachments/attachmentdownload.php` authorized nothing but `config_get('attachments')->enabled`: `checkRights()` was defined but never passed to `testlinkInitPage()` (`lib/functions/common.php:538-542`), so **any authenticated user — including `role_id = 3` — could stream any attachment of the installation by enumerating `?id=`**. Read-side twin of #1768. Fixed for 2.0.1 by the BFF + 302 shim in this issue; the 1.9.20-style file stays vulnerable until the shim ships.
+- **Review BLOCKER (fixed in `65ef1ad28`)** — `download_url` carried no `disposition` and the stream defaulted to *inline*: the Download button did not download, and a `text/html` attachment would have executed in the app origin (stored XSS). Fixed by failing closed (missing ⇒ `attachment`, whitelist, inline allowlist, CSP sandbox on inline).
+- **Review MAJOR (fixed in `65ef1ad28`)** — the popup had no entry point (4 list templates still linked the legacy controller); `getImageURL()`/`toogleImageURL()` broke sub-directory installs; attachment bytes were cacheable by a shared cache (`Pragma: public`); "Open in new tab" silently saved anything the stream refuses to render.

@@ -17,6 +17,37 @@ Every screen of the application was ported one-by-one in a screen-compare
 kept for backward compatibility and is progressively retired as each modern
 screen reaches full parity.
 
+- [MODERNIZED SCREEN] - #1794: **Attachment Download** (`lib/attachments/attachmentdownload.php` ->
+  `gui/templates/attachments/attachmentDownload.html` + `api/attachmentsdownload/index.php`) - and bug
+  **#1795** (the legacy controller authorized nothing but `config_get('attachments')->enabled`).
+  `checkRights()` was defined in the file but never passed to `testlinkInitPage()`
+  (`lib/functions/common.php:538-542`), so the only gate was a global installation switch and
+  `$args->id` is a sequential `attachments.id`: ANY authenticated user - a global `<no rights>`
+  role (`role_id = 3`, zero `role_rights` rows) included - could stream the FULL BYTES of every
+  attachment of the installation by enumerating `?id=`, i.e. test case, requirement, test plan and
+  execution attachments (defect evidence, specifications) of projects they hold no role on, because
+  `is_public` was never consulted either. That is the read-side twin of #1768
+  (`api/attachments/index.php`). The stream now lives in the BFF, which resolves the owner from the
+  **STORED** `fk_table`/`fk_id` and gates it with the shared right sets of `api/_attachauth.php`
+  (`mgt_view_tc`/`mgt_modify_tc`, `mgt_view_req`/`mgt_modify_req`, `testplan_*`), failing closed on
+  an unresolvable owner, compares the legacy `skipCheck` token with `hash_equals()`, and only
+  renders a file in the app origin for `image|audio|video|application/pdf|text/plain` - an SVG is
+  always a download (`XSS_StringScriptSafe()` parity), and a missing `disposition` now means
+  `attachment`, so the Download button really downloads instead of rendering a `text/html`
+  attachment as stored XSS; the inline branch additionally carries `CSP: sandbox` +
+  `X-Frame-Options: DENY`, and the rights-gated bytes are sent `Cache-Control: private, no-store`
+  (legacy sent `Pragma: public`). The legacy controller survives only as a session-guarded 302 shim,
+  because all 8 print/img call sites (`print.inc.php` x5, `testcase.class.php:8396`,
+  `testsuite.class.php:1721`, `requirement_mgr.class.php:4060`) and the 4 Dashio/tl-classic
+  attachment lists used it; the 4 lists now open the modern popup, while the eye toggle and
+  `getImageURL()`/`toogleImageURL()` stream inline through the BFF (`fRoot`-relative, so
+  sub-directory installs work). Screen: Dashio popup with the attachment metadata card (title,
+  file name, type + human size, upload date, description, owner with project/plan context chips),
+  an in-place preview for raster images, localized states for SVG-blocked / no-preview / not-found /
+  access-denied / bad-token / attachments-disabled, a locale switcher, and 39 `adl.*` +
+  `footers.attachmentDownload` keys in all 10 locale bundles. Suite 1794 55/55 PASS, Event Viewer
+  clean. (Refs #1794, Fixes #1795)
+
 - [FEATURE GAP] - #1295: the modern Requirement Export screen
   (gui/templates/requirements/reqExport.html) had dropped the legacy 50-character budget of the
   "Export file name" field. Legacy enforced it exclusively in the template -
