@@ -307,13 +307,21 @@ function suitMoveChain(&$db, $nodeId)
  * node id is therefore 404 with the message of a non-existent id - the caller
  * must not be able to tell "exists elsewhere" from "does not exist", nor what
  * kind of node it is. The remaining 403s are only about a project the caller
- * itself named (insufficient rights) or about the session's own context.
+ * addressed on its own, without naming any node - insufficient rights, or the
+ * session's own context.
+ *
+ * Refs #1779: the project in play is derived from the caller's node id
+ * whenever a container is addressed, so the refusal must be opaque even when
+ * the caller ALSO named that project - naming project A does not entitle
+ * anybody to A's structure, and a 403 next to the 404 of an id that exists
+ * nowhere is a per-id existence oracle open to a session holding no right at
+ * all. Same rule as tcreoProject() (api/tcreorder, #1761).
  *
  * @param bool $leakGuard true when the effective project below was derived
- *                        from a node id the CALLER supplied (or the caller
- *                        named no project at all). A refusal on such a
- *                        request must be a 404: the 403 would otherwise be
- *                        the oracle that node id exists somewhere.
+ *                        from a node id the CALLER supplied. A refusal on
+ *                        such a request must be a 404: the 403 would
+ *                        otherwise be the oracle that node id exists
+ *                        somewhere.
  */
 function suitMoveProject(&$db, &$user, $requestedId, $containerId = 0, $leakGuard = false)
 {
@@ -354,15 +362,23 @@ function suitMoveProject(&$db, &$user, $requestedId, $containerId = 0, $leakGuar
             out(array('status' => 'error', 'code' => 'not_found',
                       'message' => 'Container not found'), 404);
         }
-        // Naming no project at all is the same leak with one more step: the
-        // container's owner is used as the project, and the rights check below
-        // then answers 403 for the very id the oracle is probing.
+        // The project in play is now the container's owner, i.e. it was derived
+        // from a node id the CALLER supplied, so every refusal from here on has
+        // to be the opaque 404 of a node id that exists nowhere - also when the
+        // caller named that very project itself.
         //
-        // Note that $leakGuard is NOT armed when the caller named a project and
-        // this container belongs to it: there the rights check is about the
-        // caller's OWN project and its 403 is correct, informative and leaks
-        // nothing (the caller named that project itself).
-        $leakGuard = (intval($requestedId) <= 0);
+        // Refs #1779: the guard used to be armed on the INVERSE predicate
+        // ($requestedId <= 0), which left the node id of an unentitled project
+        // probe-able to a session holding no right at all: naming project A and
+        // a container of A answered 403 forbidden while an absent container
+        // answered 404 not_found, so one sweep of container_id enumerated
+        // every suite and project root of a project the caller may not even
+        // look at. Naming project A does not entitle anybody to A's structure.
+        // Accepted trade-off, identical to tcreorder #1761 case R25: a
+        // view-only user of their OWN project who names a container now gets
+        // the opaque 404 too; a request naming no container keeps its
+        // informative 403 below.
+        $leakGuard = ($containerId > 0);
         $tprojectId = $owner;
     }
 
@@ -599,8 +615,9 @@ switch ($action) {
         $requestedId = getInt('tproject_id', 0);
         $containerId = getInt('container_id', 0);
 
-        /* Refs #1759: \$containerId is a caller-supplied node id; the resolver
-           arms its own leak guard for the "no test project named" case. */
+        /* Refs #1759: \$containerId is a caller-supplied node id, so the
+           resolver arms its leak guard from the CONTAINER and every refusal
+           about it is the opaque 404 (Refs #1779). */
         list($tprojectId, $tproject) = suitMoveProject($db, $user, $requestedId, $containerId);
 
         $T = suitMoveTables();
@@ -705,9 +722,13 @@ switch ($action) {
 
         /* Refs #1759: \$owner was derived from the caller-supplied node_id, so
            a request that named no test project would otherwise answer 403 for
-           the very id it is probing. */
+           the very id it is probing.
+           Refs #1779: \$owner is ALWAYS derived from the caller-supplied
+           node_id here (node_id is mandatory in this action), so the guard is
+           unconditional - naming that project as well must not turn the node id
+           back into an existence oracle. */
         list($tprojectId, $tproject) =
-            suitMoveProject($db, $user, $owner, 0, intval($tprojectId) <= 0);
+            suitMoveProject($db, $user, $owner, 0, true);
         $nodeInfo = suitMoveRequireSuite($db, $nodeId, $tprojectId, 'Suite');
 
         $oldParentId = intval($nodeInfo['parent_id']);
@@ -888,8 +909,8 @@ switch ($action) {
                       'message' => 'The node list contains duplicates'), 400);
         }
 
-        /* Refs #1759: same reason as the init action - the resolver arms its
-           own leak guard when no test project was named. */
+        /* Refs #1759/#1779: same reason as the init action - the resolver
+           arms its own leak guard from the caller-supplied container id. */
         list($tprojectId, $tproject) =
             suitMoveProject($db, $user, $tprojectId, $containerId);
 
