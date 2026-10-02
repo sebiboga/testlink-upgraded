@@ -3259,3 +3259,66 @@ After both fixtures were loaded, `tmp/verify_1761.php` reported four baffling FA
 `Container not found`, R16 "only 1 child") — it was silently testing the **1759** fixture's suites.
 Every child lookup in both harnesses is now scoped by `parent_id` to its own project; #1761 is back
 to 95/95 and neither harness depends on which fixture was loaded last.
+
+---
+
+## Task — Issue #1045: `tcView.html` Requirements section rights (linker-only role saw nothing)
+
+**Precondition** — `php tmp/fixtures_1045.php` (idempotent). Three PRIVATE projects with
+identical content (suite → 1 test case → 1 open version; 1 requirement spec with
+`REQ-*-1` on its **version 2** and `REQ-*-2` on version 1; two `req_coverage` rows on that
+test case version), differing only in the project role of the user:
+
+| project | user | role rights | legacy expectation |
+|---|---|---|---|
+| `REQ1045L` | `rl1045` | `mgt_view_tc`, `mgt_modify_tc`, `keyword_assignment`, `req_tcase_link_management` (NO `mgt_view_req`) | section IS rendered (tpl:513-515 OR) |
+| `REQ1045V` | `rv1045` | `mgt_view_tc`, `mgt_modify_tc`, `keyword_assignment`, `mgt_view_req` | section IS rendered |
+| `REQ1045N` | `rn1045` | `mgt_view_tc`, `mgt_modify_tc`, `keyword_assignment` only | section is HIDDEN |
+
+All users share password `admin`. Run from the repo root; the app is on
+`http://localhost:8082`.
+
+### API matrix — `php tmp/verify_1045.php`
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| A1 | `action=view` as `rl1045` on its test case | HTTP 200, `status ok` | **PASS** |
+| A2 | — `requirements[tcversion]` | 2 rows (the legacy linker role must see the list) | **PASS** |
+| A3 | — every row | carries `req_version_id > 0` (tpl:544-547 needs the linked version) | **PASS** |
+| A4 | — `versions[0].reqLinkingEnabled` | `true` (tpl:517-519) | **PASS** |
+| A5 | — `reqSpecMgmtUrl` | `/gui/templates/requirements/reqSpecMgmt.html?tproject_id=<id>` | **PASS** |
+| A6 | `action=view` as `rv1045` | HTTP 200, 2 rows, every row with `req_version_id > 0` | **PASS** |
+| A7 | — `versions[0].reqLinkingEnabled` | `false` (no `req_tcase_link_management` → no link icon, tpl:517) | **PASS** |
+| A8 | `action=view` as `rn1045` | HTTP 200, `requirements` empty | **PASS** |
+| A9 | — `versions[0].reqLinkingEnabled` / `reqSpecMgmtUrl` | `false` / present (label link is unconditional in legacy) | **PASS** |
+| A10 | client gate `canSeeRequirements()` == legacy OR for all three roles | matches the delivered rows | **PASS** |
+| A11 | `events` rows with `log_level IN (1,2)` before / after the whole run | unchanged | **PASS** |
+
+`19 passed, 0 failed`.
+
+### Browser cases — chrome-devtools MCP
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| B1 | log in `rl1045`, open `tcView.html?tcase_id=<L.tcase>&tproject_id=<L.project>` | Requirements section visible although `mgt_view_req = 0` | **PASS** |
+| B2 | — DOM of the section | rows `Spec 1045L : REQ-1045L-1 (ver. 2) : First requirement` and `…REQ-1045L-2 (ver. 1) : Second requirement` (legacy `spec : doc_id (Version N) : title`) | **PASS** |
+| B3 | — label | anchor to `/gui/templates/requirements/reqSpecMgmt.html?tproject_id=<L.project>` with tooltip "Open Requirement Specification Management" | **PASS** |
+| B4 | — section action | `Link / Unlink Requirements` button present on the latest version (legacy `$reqLinkingEnabled` icon) | **PASS** |
+| B5 | — toolbar | "Assign Requirements" button visible for `rl1045` | **PASS** |
+| B6 | — per-row pencil | `/gui/templates/requirements/reqView.html?showReqSpecTitle=1&id=19&req_version_id=23&tproject_id=12` (twin of `openLinkedReqVersionWindow`) | **PASS** |
+| B7 | click that pencil | reqView opens on **version 2** of REQ-1045L-1 (`REQ_ID=19`, `VERSION_ID=23`, `EXPLICIT_VERSION=true`); the target itself refuses with "No permission", exactly as legacy `lib/requirements/reqView.php:261-266` (`rightsAnd = mgt_view_req`) does for a linker-only user | **PASS** (legacy-faithful) |
+| B8 | log in `rv1045`, open its test case | section + rows + pencil links visible | **PASS** |
+| B9 | — | NO `Link / Unlink` button, toolbar "Assign Requirements" **hidden** (no linking right) | **PASS** |
+| B10 | log in `rn1045` | NO Requirements label, 0 `.req-item`, 0 `.req-open`, toolbar hidden | **PASS** |
+| B11 | log in `admin`, open `REQ1045N` (cross-role control) | full block: rows, pencils, label link, `Link / Unlink Requirements`, toolbar button | **PASS** |
+| B12 | console of B11 | no errors / warnings | **PASS** |
+
+### Regression
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| R1 | `php -l api/testcases/index.php` | no syntax errors | **PASS** |
+| R2 | `node --check` on the 5 `<script>` blocks of `tcView.html` | JS OK | **PASS** |
+| R3 | `python3 -m json.tool` on all 10 i18n bundles | 10 × OK | **PASS** |
+| R4 | built-in roles holding `req_tcase_link_management` (4, 6, 8, 9) all hold `mgt_modify_tc` too, so the added `mgt_modify_tc` condition of `canLinkReqs()` cannot hide the icon for any stock role | verified in SQL | **PASS** |
+| R5 | admin browser pass (B11) — every other block of the screen (steps, keywords, platforms, relations, attachments) still renders | no regression | **PASS** |

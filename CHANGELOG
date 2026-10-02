@@ -182,6 +182,26 @@ screen reaches full parity.
   renumbered case, regression `tmp/verify_1038.sh` 21/21 PASS, console clean, Event Viewer
   `log_level=16` only. (Refs #1041)
 
+- [FEATURE GAP] - #1045: Test Case Viewer showed the Requirements section only to roles holding
+  `mgt_view_req`. Legacy `tcView_viewer.tpl:513-515` renders it when
+  `requirementsEnabled && (view_req_rights == "yes" || req_tcase_link_management)`, so a user whose
+  role is exactly "may link requirements to test cases" (`req_tcase_link_management`, no
+  `mgt_view_req`) saw NO linked requirements at all - and neither did the legacy link/unlock icon
+  (`$reqLinkingEnabled`, tpl:516-524) or the per-row "open linked requirement version" affordance
+  (`openLinkedReqVersionWindow`, tpl:544-547) exist, because the modern payload carried no
+  `req_version_id` and no per-version linking flag. BFF `api/testcases/index.php`: the coverage gate
+  became the legacy OR, `RC.req_version_id` is now projected next to the version number, a new
+  `canLinkReqs()` ports `$reqLinkingEnabled` (needs `req_tcase_link_management` +
+  `can_do->edit == yes` i.e. `mgt_modify_tc`, a non-frozen version and `can_edit_executed` on
+  executed versions) and ships per-version `reqLinkingEnabled`, plus `reqSpecMgmtUrl` (the modern
+  twin of `$hrefReqSpecMgmt`, tpl:31-32). Screen `gui/templates/testcases/tcView.html`: the section
+  gate is the OR, the label links to Requirement Specification Management, the latest version gets
+  the Link/Unlink button (opening the assign dialog, the twin of `openReqWindow()`) and every row
+  gets a pencil anchor to `reqView.html` of THAT requirement version; the toolbar "Assign
+  Requirements" button now uses the same per-version flag instead of the bare right. i18n:
+  `tcview.linkUnlinkReqs`, `tcview.openLinkedReqTitle`, `tcview.reqSpecMgmtTitle` in all 10 locale
+  bundles. Verified: `tmp/verify_1045.php` 19/19 PASS over 3 roles (linker / req-viewer / no
+  requirement right) + 4 browser paths, console clean, 0 new Event Viewer rows. Refs #1045
 - [FEATURE GAP] - #1039: Test Case Viewer lost the legacy Code Management / CTS block.
   `tcView_viewer.tpl:561-588` rendered, per version panel, a bold "Code management" link to
   `$cts->cfg->uriview`, a "Link Existent Test Script" button
