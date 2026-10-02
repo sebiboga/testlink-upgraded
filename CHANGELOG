@@ -8577,3 +8577,15 @@ affected. Regression suite: `bash tmp/verify_1776.sh` (34 PASS / 0 FAIL).
   *project* id is caller-supplied, so `?tproject_id=<any>&container_id=<container of an unentitled
   project>` still answers `403` while an absent container answers `404`. Confirmed with curl, not
   inferred. Suite 1759 rows `M12`/`M12c` pin today's behaviour and would need updating with that fix.
+### KEY BUGFIX (security) — `lib/ajax/stepReorder.php` renumbered `tcsteps.step_number` for ANY logged-in caller (role *no rights* included) over a plain GET, CSRF-able, and interpolated the step ids into the UPDATE unescaped (Fixes #1673)
+
+The 1.9.20 orphan behind the never-shipped TableDnD step drag-and-drop performed
+`// No authorization checks`, read `$_REQUEST` (a GET mutated state, no token) and handed the
+caller-supplied ids straight to `testcase::set_step_number()` — the same SQL-injection sink now
+proven by `tsroRequireOwnSteps()` in the modern BFF. The endpoint is retired: `GET`/`HEAD` `302`
+to the modern **Reorder Test Case Steps** screen (the mutation is deliberately *not* replayed),
+every write verb is `405`, and the Event Viewer trails each refusal. Replacement write path is the
+authorized `POST /api/tcstepsreorder/index.php` (`bffSameOriginGuard` + `bffEnforceSession` +
+`mgt_modify_tc` on the owning project + strict step-ownership proof). Regression suite
+`tmp/verify_1673.php` = 29/29 PASS, and it fails 7 cases (including a DB-level corruption assert)
+on the pre-fix code. See `docs/Bugfix-Issue-1673-stepReorder-Unauthenticated-CSRF-Step-Reorder.md`.

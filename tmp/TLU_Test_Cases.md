@@ -2790,3 +2790,101 @@ The API half is also executable: `bash tmp/verify_1784.sh` creates its own fixtu
 
 **Files** — `lib/functions/testproject.class.php` (`importKeywordsFromSimpleXML()` + both wrappers),
 `api/keywordsxml/index.php`, `api/keywords/index.php`. No client/JS and no locale bundle changed.
+
+---
+
+## Regression — Issue #1673: `lib/ajax/stepReorder.php` — unauthenticated / CSRF-able step re-ordering endpoint (1.9.20 legacy)
+
+**Precondition** (fixture is idempotent; reuses the #1761 projects and users)
+```bash
+php tmp/fixtures_1761.php     # 2 projects, 4 users, suites + test cases + steps
+php tmp/verify_1673.php       # the 29-case matrix below
+```
+Fixture ids resolved by the script itself (printed on the first line of output): private test
+projects `OR1761A` / `OR1761B`; test case `A-tc-1-1` → `tcversion` + ≥2 `testcase_step` children.
+Users: `sm1761a` (Test Designer on A), `sm1761norights` (role *no rights*, no
+`user_testproject_roles`), `sm1761view` (project role with only `mgt_view_tc`), `admin`.
+Cookie jars are written to `tmp/ck1673-*`, never `/tmp`.
+
+**Repro steps (pre-fix, `db4d056ba`)**
+1. `POST /api/auth/login` (or `POST /login.php?action=doLogin`) as **`sm1761norights`** — the
+   account whose role is literally `<no rights>`.
+2. Plain **`GET`** `/lib/ajax/stepReorder.php?tproject_id=<A>&tcase_id=<tc>&tcversion_id=<ver>&stepSeq=<id2>%26<id1>%26<id3>`
+   — no `X-Requested-With`, no `Origin`, no token, i.e. exactly what an `<img src>` in a mail or a
+   cross-site page would send.
+3. The response is `200` and the renumbering map comes straight back:
+   `{"8":1,"7":2,"6":3}`.
+4. `SELECT id, step_number FROM tcsteps` shows `6=3, 7=2, 8=1` — **the write happened**. The
+   `events` table shows `UPDATE tcsteps SET step_number = 1 WHERE id = 2,1,3,4`, because
+   `testcase::set_step_number()` (`lib/functions/testcase.class.php:6065`) interpolates the
+   caller-supplied id **unquoted and unescaped** — the same sink is a SQL-injection point.
+5. Repeat with `POST`. Same result: `$_REQUEST` (`lib/ajax/stepReorder.php:49`) makes any verb a
+   write verb.
+
+**Expected post-fix behavior**
+- `GET`/`HEAD` → `302` to `gui/templates/testcases/tcStepReorder.html` (forwarding only
+  `tproject_id` / `tcversion_id`; `stepSeq` is **not** replayed — it was never authorized).
+- `POST` / `PUT` / `PATCH` / `DELETE` → `405 {"code":"method_not_allowed"}` + a WARNING row in the
+  Event Viewer as the trail.
+- Anonymous → bounced to `login.php?note=expired`, nothing written.
+- The replacement write path is `POST /api/tcstepsreorder/index.php`, which requires
+  `bffSameOriginGuard()` + `bffEnforceSession()` + `mgt_modify_tc` on the **owning** project and
+  proves every submitted id to be a `testcase_step` of the addressed version.
+
+**Actual result (post-fix, 29/29 PASS; pre-fix the same suite scores 22 PASS / 7 FAIL)**
+
+| Group | Case | Expected | Result |
+|---|---|---|---|
+| shim, admin | L1/L1b authenticated GET → `302` + `Location:` at the modern screen | 302 | **PASS** |
+| | L2 legacy bookmark (`stepSeq` only, no version id) → 302, `tproject_id` forwarded | 302 | **PASS** |
+| | L3 `stepSeq` **not** forwarded to the modern screen (no silent replay) | absent | **PASS** |
+| | L4 `POST`/`PUT`/`PATCH`/`DELETE` | 405 `method_not_allowed` | **PASS** |
+| | L5 `POST` with the exact CSRF headers the legacy caller used | 405 | **PASS** |
+| | L6 `HEAD` treated as a read | 302 | **PASS** |
+| shim, anonymous | L7/L7b GET is not a 302 and is bounced to login | bounce | **PASS** |
+| | L8 POST bounced to login, never a 405 or a write (see note) | bounce | **PASS** |
+| | L9 GET carrying `stepSeq` reaches neither a 302 nor the JSON map | neither | **PASS** |
+| shim, no rights | L10 `<no rights>` GET → only the redirect, no `stepSeq` | 302 | **PASS** |
+| | L11 `<no rights>` POST | 405 | **PASS** |
+| | L12 the exact pre-fix attack returns no renumbering map | no map | **PASS** |
+| SQLi sink | L13 injected `stepSeq` value reaches neither the parameter name nor the payload | clean | **PASS** |
+| | L14 injected `stepSeq` over POST | 405 | **PASS** |
+| | L15 injected `tproject_id` dropped, not reflected | absent | **PASS** |
+| **DB-level** | **M1 `tcsteps.step_number` byte-unchanged after every hostile request** | `6=1,7=2,8=3` | **PASS** |
+| replacement BFF | B1 admin reads its own version | 200 | **PASS** |
+| | B2/B3 `<no rights>` on a real version → opaque `404`, **byte-identical** to an absent id | 404 | **PASS** |
+| | B4 `<no rights>` write on a real version → opaque `404` | 404 | **PASS** |
+| | B5 anonymous POST past the CSRF gate → `401 session_expired` | 401 | **PASS** |
+| | B6 cross-origin `POST` with a forged `X-Requested-With` hint | 403 | **PASS** |
+| Event Viewer | E1 no new **ERROR** row | delta 0 | **PASS** |
+| | E2 all 9 new WARNING rows are the deliberate 405 refusal trail | 0 stray | **PASS** |
+
+**Why `M1` is the load-bearing case.** An HTTP assertion alone cannot prove the fix: pre-fix the
+endpoint *answers* with a plausible JSON map. `M1` therefore reads `tcsteps.step_number` out of the
+database after the hostile requests, and the reversing request is issued **last** so a successful
+attack leaves `6=3,7=2,8=1` and cannot be masked by a trailing benign write. Negative control
+(`git show db4d056ba:lib/ajax/stepReorder.php > lib/ajax/stepReorder.php`, run, restore):
+
+```
+FAIL  L11 <no rights> POST is refused   got [200 ] want [405 method_not_allowed] body={"6":1,"7":2,"8":3}
+FAIL  L12 the pre-fix attack answers no JSON renumbering map   body={"8":1,"7":2,"6":3}
+FAIL  M1 tcsteps.step_number unchanged   before=[6=1,7=2,8=3] after=[6=3,7=2,8=1]
+FAIL  E1 no new ERROR row in events      delta=2
+===== 22 passed, 7 failed =====
+```
+
+**Note on `L8` — a measured, harmless ordering consequence, not a defect.** `checkSessionValid()`
+runs *before* the `405` gate in the shim, so an **anonymous** `POST` receives the legacy
+`200` + `top.location.href='…/login.php?note=expired'` bounce rather than the shim's JSON `405`.
+The JSON contract is therefore only observable for an authenticated caller. Nothing is written either
+way, so there is no CSRF and no authz exposure; it is recorded rather than "fixed" because changing
+the order would alter the legacy bounce every other retired shim also relies on.
+
+**Corrected claims from the original report.** (a) The endpoint was **not** reachable anonymously —
+`testlinkInitPage($db)` calls `checkSessionValid()` (`lib/functions/common.php:554-556`); the defect
+is missing *authorization*, not a missing session check. (b) There is no
+`tLog(... DEBUG_MODE ...)` tail; line 38 is `file_put_contents('/var/testlink/logs/stepReorder.log', …)`
+on a hardcoded path. (c) The replacement BFF answers an **opaque `404`**, not `403`, for a
+`<no rights>` caller — deliberate, hardened in #1762 so a caller-supplied `tcversion_id` is not an
+existence oracle (`api/tcstepsreorder/index.php:551-583`). Suite #1761 (`tmp/verify_1761.php`,
+95/95 PASS) covers the BFF side; this suite covers the retired endpoint it replaced.
