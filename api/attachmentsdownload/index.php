@@ -116,6 +116,36 @@ function bffDlHumanSize($bytes)
 }
 
 /**
+ * Name of a test project / test plan.
+ *
+ * SCHEMA NOTE (this fork): testprojects and testplans have NO `name` column -
+ * every container label lives in nodes_hierarchy (testproject = node_type_id 1,
+ * testplan = node_type_id 5), exactly like api/_attachauth.php resolves the
+ * owning project. Querying testprojects.name kills the request with a DB access
+ * error page, so the label MUST come from the node tree.
+ *
+ * @return string '' when the node does not exist or the type does not match
+ */
+function bffDlNodeName($db, $nodeId, $expectedTypeId = 0)
+{
+    $types = attAuthNodeTypes($db);
+    if ($expectedTypeId <= 0) {
+        $expectedTypeId = 0; // any type
+    }
+    $node = attAuthNode($db, $nodeId);
+    if (is_null($node)) {
+        return '';
+    }
+    if ($expectedTypeId > 0 && intval($node['node_type_id']) !== $expectedTypeId) {
+        return '';
+    }
+    $t = tlObjectWithDB::getDBTables(array('nodes_hierarchy'));
+    $row = bffDlFirstRow($db, "SELECT name FROM {$t['nodes_hierarchy']} " .
+        "WHERE id = " . intval($nodeId) . " LIMIT 1");
+    return is_null($row) ? '' : strval($row['name'] ?? '');
+}
+
+/**
  * Human label of the object owning the attachment set. Unknown / unresolvable
  * owners fall back to '<table> #<id>' - the popup always states the owner.
  */
@@ -128,20 +158,18 @@ function bffDlOwnerLabel($db, $attachInfo)
         return $fallback;
     }
     $t = tlObjectWithDB::getDBTables(
-        array('testprojects', 'testplans', 'builds', 'executions',
-              'nodes_hierarchy', 'req_specs', 'requirements'));
+        array('builds', 'executions', 'req_specs', 'requirements'));
+    $types = attAuthNodeTypes($db);
 
     switch ($fkTable) {
         case 'testprojects':
-            $r = bffDlFirstRow($db, "SELECT name FROM {$t['testprojects']} " .
-                "WHERE id = {$fkId} LIMIT 1");
-            return is_null($r) ? $fallback
-                : ($fkId . ' - ' . strval($r['name'] ?? ''));
+            // no testprojects.name in 2.0.1: the label is the tree root node
+            $nm = bffDlNodeName($db, $fkId, intval($types['testproject']));
+            return ($nm !== '') ? ($fkId . ' - ' . $nm) : $fallback;
         case 'testplans':
-            $r = bffDlFirstRow($db, "SELECT name FROM {$t['testplans']} " .
-                "WHERE id = {$fkId} LIMIT 1");
-            return is_null($r) ? $fallback
-                : ($fkId . ' - ' . strval($r['name'] ?? ''));
+            // no testplans.name either: the plan label is node_type_id 5
+            $nm = bffDlNodeName($db, $fkId, intval($types['testplan']));
+            return ($nm !== '') ? ($fkId . ' - ' . $nm) : $fallback;
         case 'builds':
             $r = bffDlFirstRow($db, "SELECT name FROM {$t['builds']} " .
                 "WHERE id = {$fkId} LIMIT 1");
@@ -163,16 +191,10 @@ function bffDlOwnerLabel($db, $attachInfo)
             return is_null($r) ? $fallback
                 : ($fkId . ' - ' . strval($r['req_doc_id'] ?? ''));
         default:
-            // nodes_hierarchy and everything else holds its label in `name`
-            if (bffDlHasColumn($db, 'nodes_hierarchy', 'name')) {
-                $r = bffDlFirstRow($db, "SELECT name FROM {$t['nodes_hierarchy']} " .
-                    "WHERE id = {$fkId} LIMIT 1");
-                if (!is_null($r)) {
-                    $nm = trim(strval($r['name'] ?? ''));
-                    return $fkId . ($nm !== '' ? ' - ' . $nm : '');
-                }
-            }
-            return $fallback;
+            // nodes_hierarchy (suite / test case / version / step / ...) and any
+            // other container holds its label in the node tree.
+            $nm = bffDlNodeName($db, $fkId, 0);
+            return ($nm !== '') ? ($fkId . ' - ' . $nm) : $fallback;
     }
 }
 
@@ -181,21 +203,15 @@ function bffDlContextNames($db, $ctx)
 {
     $tprojectId = intval($ctx['tproject_id'] ?? 0);
     $tplanId = intval($ctx['tplan_id'] ?? 0);
-    $t = tlObjectWithDB::getDBTables(array('testprojects', 'testplans'));
+    $types = attAuthNodeTypes($db);
     $names = array('testproject' => '', 'testplan' => '');
     if ($tprojectId > 0) {
-        $r = bffDlFirstRow($db, "SELECT name FROM {$t['testprojects']} " .
-            "WHERE id = {$tprojectId} LIMIT 1");
-        if (!is_null($r)) {
-            $names['testproject'] = strval($r['name'] ?? '');
-        }
+        $names['testproject'] = bffDlNodeName($db, $tprojectId,
+            intval($types['testproject']));
     }
     if ($tplanId > 0) {
-        $r = bffDlFirstRow($db, "SELECT name FROM {$t['testplans']} " .
-            "WHERE id = {$tplanId} LIMIT 1");
-        if (!is_null($r)) {
-            $names['testplan'] = strval($r['name'] ?? '');
-        }
+        $names['testplan'] = bffDlNodeName($db, $tplanId,
+            intval($types['testplan']));
     }
     return $names;
 }
@@ -306,6 +322,17 @@ if ($action === 'init') {
             'is_image'      => $isImage,
             'is_svg'        => $isSvg,
             'can_preview'   => $isImage,
+            // legacy parity: getAttachmentInfo() flags an inline-capable image
+            // with the marker [tlInlineImage]<attachment id>[/tlInlineImage]
+            // (NOT base64 - the attachment lists turned it into an <img> whose
+            // src pointed back at the download URL with an inline
+            // disposition). preview_url is that URL, so a preview costs no
+            // extra request beyond the one the user asked for.
+            'inline_marker' => strval($attachInfo['inlineString'] ?? ''),
+            'preview_url'   => ($isImage && strval($attachInfo['inlineString'] ?? '') !== '')
+                ? '/api/attachmentsdownload/index.php?action=download&id=' . $id
+                  . '&token=' . urlencode($token) . '&disposition=inline'
+                : '',
             'owner'         => array(
                 'table'   => $fkTable,
                 'id'      => $fkId,
