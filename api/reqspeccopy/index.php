@@ -113,7 +113,7 @@ $user = tlUser::getByID($db, $userId);
 if (is_null($user)) {
     http_response_code(401);
     out(array('status' => 'error', 'code' => 'not_authenticated',
-        'message' => 'User found'));
+        'message' => 'User not found'));
 }
 
 bffEnforceSession($db);
@@ -456,9 +456,19 @@ if ($action === 'projects') {
         header('Allow: GET, HEAD');
         failOut(405, 'This action accepts GET only', 'method_not_allowed');
     }
+    // Refs #1798. The INNER JOIN on testprojects is NOT cosmetic: TestLink keeps
+    // the test-project NAME in nodes_hierarchy and the PROJECT ROW in
+    // testprojects, and the two can drift - testproject::delete() is able to
+    // leave a node_type_id=1 nodes_hierarchy row behind with no testprojects
+    // row (reproduced on this instance: orphan node 1). rscResolveContainer()
+    // proves a destination against testprojects, so an orphan was accepted by
+    // nothing: the selector offered it and every pick of it died with 400
+    // invalid_destination. List exactly what can actually be written into.
+    // active=1 is dropped as well - an inactive project cannot be worked on.
     $rows = $db->get_recordset(
         'SELECT NH.id, NH.name FROM nodes_hierarchy NH
-          WHERE NH.node_type_id = ' . RSC_NODE_TESTPROJECT . '
+           INNER JOIN testprojects TP ON TP.id = NH.id
+          WHERE NH.node_type_id = ' . RSC_NODE_TESTPROJECT . ' AND TP.active = 1
           ORDER BY NH.name ASC');
     $projects = array();
     foreach ((array)$rows as $r) {
