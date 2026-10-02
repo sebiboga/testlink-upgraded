@@ -1081,13 +1081,22 @@ if ($action === 'view') {
     // latest version number must be computed over ALL versions,
     // even when the payload was filtered to a single requested version
     $latestVersionNumber = 0;
+    $totalVersionNumber = 0;
     $tvTables = tlObjectWithDB::getDBTables(array('nodes_hierarchy', 'tcversions'));
     $lvRow = $db->fetchFirstRow(
-        " SELECT MAX(TCV.version) AS vmax FROM {$tvTables['tcversions']} TCV " .
+        " SELECT MAX(TCV.version) AS vmax, COUNT(*) AS cnt FROM {$tvTables['tcversions']} TCV " .
         " JOIN {$tvTables['nodes_hierarchy']} NH ON NH.id = TCV.id " .
         " WHERE NH.parent_id = {$tcaseId}");
     if (!is_null($lvRow) && isset($lvRow['vmax'])) {
         $latestVersionNumber = intval($lvRow['vmax']);
+    }
+    // Issue #1044: total number of versions of the test case, regardless of
+    // which one ?tcversion_id selected. Legacy sets $args_can_delete_version
+    // (the "Delete This Version" gate) from testcase_other_versions, i.e. it is
+    // true whenever the test case has versions besides the opened one
+    // (gui/templates/dashio/testcases/tcView.tpl:118-122).
+    if (!is_null($lvRow) && isset($lvRow['cnt'])) {
+        $totalVersionNumber = intval($lvRow['cnt']);
     }
 
     // Platforms of the owning project — resolved ONCE, then reused for the
@@ -1453,11 +1462,11 @@ if ($action === 'view') {
                    //     testcaseCommands::delete() sets delete_enabled=0 when
                    //     the TC has executions and this right is missing
                    //     (testcaseCommands.class.php:533-538).
-                   //  - testplan_planning: legacy args_can_move_copy gate for
-                   //     the Move/Copy button (tpl:170-178).
+                   // ('testplan_planning' is already in the list above and is
+                   //  what legacy can_do->copy is derived from on the
+                   //  Move/Copy button, tpl:170-178.)
                    'delete_frozen_tcversion',
-                   'testproject_delete_executed_testcases',
-                   'testplan_planning') as $gk) {
+                   'testproject_delete_executed_testcases') as $gk) {
         $grants[$gk] = $user->hasRight($db, $gk, $tprojectId) ? 1 : 0;
     }
 
@@ -1472,15 +1481,16 @@ if ($action === 'view') {
         'create_new_version' => 'no', 'export' => 'no', 'move' => 'no',
         'copy' => 'no', 'add2tplan' => 'no', 'freeze' => 'no',
         'updTplanTCV' => 'no');
-    if (getIntParam('editOnExec') === 1) {
+    if (!$grants['mgt_modify_tc']) {
+        // legacy show_mode == 'editDisabled' (testcase.class.php:7463-7466):
+        // nothing is enabled at all. Checked FIRST, before editOnExec, exactly
+        // as legacy does (testcase.class.php:7453-7465).
+    } elseif (getIntParam('editOnExec') === 1) {
         // legacy show_mode == 'editOnExec': only edit / create_new_version /
         // updTplanTCV (testcase.class.php:4955-4959)
         $viewerActions['edit'] = 'yes';
         $viewerActions['create_new_version'] = 'yes';
         $viewerActions['updTplanTCV'] = 'yes';
-    } elseif (!$grants['mgt_modify_tc']) {
-        // legacy show_mode == 'editDisabled' (testcase.class.php:7463-7466):
-        // nothing is enabled at all.
     } else {
         foreach ($viewerActions as $k => $ign) {
             $viewerActions[$k] = 'yes';
@@ -1522,6 +1532,11 @@ if ($action === 'view') {
             . '&tproject_id=' . $tprojectId,
         'path' => $pathString,
         'versions' => $versions,
+        // Issue #1044: total number of versions of this test case (ALL of them,
+        // not just the one ?tcversion_id selected) - drives the legacy
+        // $args_can_delete_version gate of the "Delete This Version" button
+        // (gui/templates/dashio/testcases/tcView.tpl:118-122).
+        'versionCount' => $totalVersionNumber,
         'platformsProject' => $projectPlatformsMap,
         // Issue #1037: modern twin of the legacy
         // $gsmarty_href_platformsView link (lib/functions/tlsmarty.inc.php:291,

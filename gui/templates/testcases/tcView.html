@@ -169,7 +169,7 @@ table.steps tbody tr:nth-child(even) { background: #fafafa; }
     <legend><i class="fa fa-layer-group"></i> <span data-i18n="tcview.testcaseVersionOperations">Test Case Version Operations</span></legend>
     <button class="btn-dark btn-sm" id="btnNewVersion" style="display:none;" onclick="doNewVersion('this')" data-i18n-title="tcview.hintNewVersion"><i class="fa fa-file-circle-plus"></i> <span data-i18n="tcview.newVersion">New Version</span></button>
     <button class="btn-dark btn-sm" id="btnNewVersionLatest" style="display:none;" onclick="doNewVersion('latest')" data-i18n-title="tcview.hintNewVersionLatest"><i class="fa fa-file-circle-plus"></i> <span data-i18n="tcview.newVersionFromLatest">New Version From Latest</span></button>
-    <button class="btn-dark btn-sm" id="btnFreeze" style="display:none;" onclick="doFreeze()"><i class="fa fa-snowflake"></i> <span id="btnFreezeLbl" data-i18n="tcview.freezeVersion">Freeze Version</span></button>
+    <button class="btn-dark btn-sm" id="btnFreeze" style="display:none;" onclick="doFreeze()"><i class="fa fa-snowflake"></i> <span id="btnFreezeLbl">Freeze Version</span></button>
     <button class="btn-red btn-sm" id="btnDeleteVersion" style="display:none;" onclick="askDeleteVersion()"><i class="fa fa-trash-alt"></i> <span data-i18n="tcview.deleteThisVersion">Delete This Version</span></button>
   </fieldset>
 </div>
@@ -712,7 +712,10 @@ function renderOpsPanels() {
   var yes = function (k) { return cd[k] === 'yes'; };
   var g = data.grants || {};
   var notEditOnExec = !execEditMode;
-  var hasOthers = data.versions.length > 1;
+  // Legacy $args_can_delete_version / "other versions exist" (tcView.tpl:118-122)
+  // counts EVERY version of the test case, not only the versions the payload
+  // was filtered to by ?tcversion_id - hence versionCount, not versions.length.
+  var hasOthers = (parseInt(data.versionCount, 10) || data.versions.length) > 1;
   var v = currentVersion;
 
   // Panel A - test case operations
@@ -820,7 +823,9 @@ function askDeleteTc() {
   $('#delTcBody').text(TLi18n.t('tcview.confirmDeleteTc', {
     name: data.tcase.name,
     ext: data.fullExternalId,
-    versions: data.versions.length
+    // all versions of the test case, not only the ones the payload was
+    // filtered to by ?tcversion_id
+    versions: parseInt(data.versionCount, 10) || data.versions.length
   }));
   $('#deleteTcModal').show();
 }
@@ -877,10 +882,13 @@ function opsFail(xhr, fallbackKey) {
   toast(msg, true);
 }
 
+// Issue #1044: Move/Copy. After a successful delete the opened version may be
+// gone, so this reload deliberately drops tcversion_id and lets the BFF pick
+// the latest surviving version (re-requesting the deleted id answers 404
+// "Test case not found" and would leave the dead version on screen).
 function reloadView() {
   $.get('/api/testcases/index.php', {
-    action: 'view', tcase_id: data.tcase.id,
-    tcversion_id: currentVersion.tcversion_id, editOnExec: execEditMode ? 1 : 0
+    action: 'view', tcase_id: data.tcase.id, editOnExec: execEditMode ? 1 : 0
   }).done(function (r) {
     if (r.status === 'ok') { data = r; render(); }
   }).fail(function () { toast(TLi18n.t('tcview.errLoad'), true); });

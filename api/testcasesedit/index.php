@@ -766,12 +766,36 @@ switch ($action) {
         // executions and the user lacks testproject_delete_executed_testcases,
         // delete_enabled is switched off and the confirmation is refused
         // (testcaseCommands.class.php:530-539). Enforced server side too.
+        //
+        // Version ids of a test case come from the HIERARCHY, not from
+        // tcversions.tc_external_id: that column is the per-project external
+        // number handed out by generateTestCaseNumber()
+        // (lib/functions/testcase.class.php:727) and has nothing to do with the
+        // nodes_hierarchy id the rest of the API addresses a test case by. The
+        // authoritative link is tcversions.id JOIN nodes_hierarchy.parent_id,
+        // exactly as api/testcases/index.php counts versions.
+        // `executions` carries `tcversion_id` only (no tcase_id), so "does this
+        // test case have executions" is answered over that same id set - the
+        // set legacy get_versions_status_quo() aggregates.
         $execTable = tlObjectWithDB::getDBTables(array('executions'));
-        $execWhere = ($scope === 'all')
-            ? " tcase_id = {$tcaseId} "
-            : " tcversion_id = {$tcverId} ";
-        $execRow = $db->fetchFirstRow("SELECT COUNT(*) AS c FROM {$execTable['executions']} WHERE {$execWhere}");
-        $hasExecs = (!is_null($execRow) && intval($execRow['c'] ?? 0) > 0);
+        $hvTables = tlObjectWithDB::getDBTables(array('tcversions', 'nodes_hierarchy'));
+        $tcaseVersionRows = $db->get_recordset(
+            " SELECT TCV.id, TCV.version FROM {$hvTables['tcversions']} TCV " .
+            " JOIN {$hvTables['nodes_hierarchy']} NH ON NH.id = TCV.id " .
+            " WHERE NH.parent_id = " . intval($tcaseId) . " ORDER BY TCV.version ASC");
+        $tcaseVersionIds = [];
+        $tcaseVersionRows = is_null($tcaseVersionRows) ? [] : $tcaseVersionRows;
+        foreach ($tcaseVersionRows as $vrow) {
+            $tcaseVersionIds[] = intval($vrow['id']);
+        }
+        $versionCount = count($tcaseVersionIds);
+        $hasExecs = false;
+        if (count($tcaseVersionIds)) {
+            $execRow = $db->fetchFirstRow(
+                " SELECT COUNT(*) AS c FROM {$execTable['executions']} "
+                . " WHERE tcversion_id IN (" . implode(',', $tcaseVersionIds) . ") ");
+            $hasExecs = (!is_null($execRow) && intval($execRow['c'] ?? 0) > 0);
+        }
         if ($hasExecs && !$user->hasRight($db, 'testproject_delete_executed_testcases', $tprojId)) {
             out(['status' => 'error',
                  'message' => 'This test case has executions: deleting it requires special permission',
@@ -789,45 +813,43 @@ switch ($action) {
         // A single-version delete is pointless when it is the only version:
         // legacy set $args_can_delete_version = "yes" only when other versions
         // exist (tcView.tpl:118-122).
-        $tcvTable = tlObjectWithDB::getDBTables(array('tcversions'));
-        $cntRow = $db->fetchFirstRow("SELECT COUNT(*) AS c FROM {$tcvTable['tcversions']}"
-            . " WHERE tcase_id = {$tcaseId}");
-        $versionCount = intval($cntRow['c'] ?? 0);
         if ($scope === 'single' && $versionCount < 2) {
             out(['status' => 'error',
                  'message' => 'This is the only version: use "Delete Test Case" instead',
                  'error_code' => 'ONLY_VERSION'], 400);
         }
-        $targetVersion = ($scope === 'all') ? testcase::ALL_VERSIONS : $tcverId;
-        try {
-            $ok = $tcaseMgr->delete($tcaseId, $targetVersion);
-        } catch (Throwable $e) {
-            out(['status' => 'error', 'message' => $e->getMessage()], 500);
-        }
-        if ($ok === false || $ok === null || $ok === '') {
-            out(['status' => 'error', 'message' => strval($ok['msg'] ?? 'Delete failed')], 400);
-        }
-        // audit trail, exactly like legacy doDelete()
-        // (testcaseCommands.class.php:634-649)
+
+        // Audit payload MUST be read BEFORE the delete: legacy doDelete() reads
+        // tcinfo first (testcaseCommands.class.php:618) and only then deletes
+        // (:622). Reading it afterwards yields an empty row and an external id
+        // of "<PREFIX>-0".
         $tcinfo = $tcaseMgr->get_by_id($tcaseId, ($scope === 'all') ? null : $tcverId);
-        $tcName = strval($tcinfo[0]['name'] ?? '');
+        $tcinfoRow = (is_array($tcinfo) && count($tcinfo) > 0) ? $tcinfo[0] : [];
+        $externalId = '';
         try {
             list($prefix, $root) = $tcaseMgr->getPrefix($tcaseId, $tprojId);
             $glue = config_get('testcase_cfg')->glue_character;
-            $externalId = $prefix . $glue . intval($tcinfo[0]['tc_external_id'] ?? 0);
+            $externalId = $prefix . $glue . intval($tcinfoRow['tc_external_id'] ?? 0);
         } catch (Throwable $e) {
             $externalId = '';
         }
-        if (is_null($tcinfo) || count($tcinfo) === 0) {
-            $tcinfo = [];
+        $auditVersion = strval($tcinfoRow['version'] ?? '');
+
+        try {
+            $tcaseMgr->delete($tcaseId, ($scope === 'all') ? testcase::ALL_VERSIONS : $tcverId);
+        } catch (Throwable $e) {
+            out(['status' => 'error',
+                 'message' => 'Delete failed: ' . strval($e->getMessage())], 500);
         }
+        // audit trail, exactly like legacy doDelete()
+        // (testcaseCommands.class.php:634-649)
         if (function_exists('logAuditEvent')) {
             if ($scope === 'all') {
                 logAuditEvent(TLS("audit_testcase_deleted", $externalId),
                     "DELETE", $tcaseId, "testcases");
             } else {
                 logAuditEvent(TLS("audit_testcase_version_deleted",
-                        strval($tcinfo[0]['version'] ?? ''), $externalId),
+                        $auditVersion, $externalId),
                     "DELETE", $tcaseId, "testcases");
             }
         }

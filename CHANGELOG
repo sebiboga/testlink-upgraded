@@ -17,6 +17,32 @@ Every screen of the application was ported one-by-one in a screen-compare
 kept for backward compatibility and is progressively retired as each modern
 screen reaches full parity.
 
+- [FEATURE GAP] - #1044: the modern Test Case Viewer (`gui/templates/testcases/tcView.html`)
+  exposed only 7 of the 13 buttons the legacy operations panel offered, so 8 core test-case
+  lifecycle actions were unreachable from the modern screen: New Sibling, Move/Copy, Delete
+  Test Case, New Version, New Version From Latest, Freeze/Unfreeze Version, Delete This Version
+  and the `editOnExec` "Update Test Plan link" gate. Legacy rendered them as two collapsible
+  `groupBtn` fieldsets (`gui/templates/dashio/testcases/tcView_viewer.tpl:143-316`) behind the
+  header cog icon (`tcView.tpl:136-141`), which the modern toolbar did not have at all. Ported
+  the whole panel: a Dashio operations strip under the toolbar toggled by a new cog button,
+  `api/testcases/index.php` now ships the fine-grained per-action gate map as `canDo` - a server
+  side port of `testcase::getShowViewerActions()` (`lib/functions/testcase.class.php:4939-4971`)
+  incl. the `editOnExec` / `editDisabled` modes and the `testcase_freeze` /
+  `delete_frozen_tcversion` right overrides (`:7479-7487`) - plus the three grants the panels
+  gate on and `versionCount` (the total version count, which drives the legacy
+  `$args_can_delete_version` rule of "other versions must exist", `tcView.tpl:118-122`).
+  `api/testcasesedit/index.php` gains two actions: `set_is_open` (freeze/unfreeze, port of
+  `testcaseCommands::setIsOpen()`, `:1372-1404`) and `delete` with `scope=all|single`
+  (port of `testcaseCommands::doDelete()` -> `testcaseMgr->delete()`,
+  `:608-655`, incl. `testcase::ALL_VERSIONS` for a whole-test-case delete, the executed-without
+  -`testproject_delete_executed_testcases` refusal, the frozen-version refusal and the
+  `audit_testcase_deleted` / `audit_testcase_version_deleted` events); `create_version` also
+  accepts `source=latest` (port of `do_create_new_version_from_latest`, `tcEdit.php:280-283`).
+  New Sibling and Move/Copy reuse the modern twins of the legacy `tcEdit.php` create form and of
+  `tcMove.tpl` (`testSpec.html?...&create=1`, `containerMoveTC.html?...&tcase_ids[]=`) instead of
+  bouncing through legacy pages. 28 new i18n keys in all 10 locale bundles.
+  Verified: Suite #1044 22/22 PASS (after the code review in ai/AGENTS.md rule 16 fixed 2 BLOCKERs + 3 MAJORs: version ids of a test case must be resolved via `nodes_hierarchy.parent_id`, NOT `tcversions.tc_external_id`; the audit payload must be read BEFORE `delete()`; and `reloadView()` must not re-request a deleted `tcversion_id`).
+
 - [FEATURE GAP] - #1610: the Test Project combo of Assign Test Project Roles ignored
   `$tlCfg->gui->tprojects_combo_order_by` - the ONE config line every other project combo in
   TestLink honours (navBar, requirements, user forms; legacy `usersAssign.php:276-278`,
