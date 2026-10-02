@@ -17,6 +17,27 @@ Every screen of the application was ported one-by-one in a screen-compare
 kept for backward compatibility and is progressively retired as each modern
 screen reaches full parity.
 
+- [TASK] - #1288: **The first computer bug (9 September 1947) is now documented.** The corpus
+  never explained where the word *bug* that names this product's whole category comes from: the
+  `Istoric` section of the wiki landing page (`tmp/wiki-repo/Ce-este-TestLink.md`) started at
+  "Lansat: 2004 - SourceForge" and `grep -rniE "1947|Mark II|moth|Hopper" docs/ tmp/wiki-repo/*.md
+  README.md CHANGELOG --include=*.md` returned **0 hits in 1277 markdown files**. New wiki page
+  **[Prima Bug din Istorie](https://github.com/sebiboga/testlink-upgraded/wiki/Prima-Bug-Istorica)**
+  (9 sections, Romanian, the wiki language) tells the incident - the moth taped into the Harvard
+  Mark II operating log by Grace Hopper's team - and, more importantly for QA, what came *after*
+  the moth: isolation to a single relay, verification of every screw, a screw not tightened to
+  ground as the actual cause, ~69 hours to full return to service - i.e. observe -> document ->
+  diagnose -> repair -> retest, the discipline TestLink implements today. It also states the
+  nuance the issue title glosses over: the word predates the moth (Edison, ~1878; *buggy*,
+  *glitch*), so the page claims only the **first documented** computer bug. Sections map the era to
+  2.0.1 (punched cards -> `api/**` BFF, paper operating log -> `events` table behind the Event
+  Viewer, hardware bug -> custom fields + execution status) and end with a 5-step "how to log a
+  real bug in TestLink" recipe. Cross-linked: `Ce-este-TestLink.md` history section (new first
+  entry), `Home.md` index (item 32 + the page-count heading corrected `31 Pagini` -> `32 Pagini`) and
+  the Features Coverage table; English mirror without image lines at `docs/first-bug-1947.md`.
+  Illustration: Event Viewer screenshot (the mark-II log book's descendant) committed to the wiki
+  as `issue-1288-eventviewer-audit-trail.png`. No screen, BFF, DB or i18n change. (Refs #1288)
+
 - [MODERNIZED SCREEN] - #1794: **Attachment Download** (`lib/attachments/attachmentdownload.php` ->
   `gui/templates/attachments/attachmentDownload.html` + `api/attachmentsdownload/index.php`) - and bug
   **#1795** (the legacy controller authorized nothing but `config_get('attachments')->enabled`).

@@ -176,6 +176,9 @@ Screens covered:
 - [User Management](https://github.com/sebiboga/testlink-upgraded/wiki/Gestionarea-Utilizatorilor-si-Rolurilor-Nou) — Users, roles, assignments + BFF API reference
 - [Custom Fields](https://github.com/sebiboga/testlink-upgraded/wiki/Campuri-Personalizate) — Define/assign fields, edit modal, BFF API (docs also in `docs/WIKI-CUSTOM-FIELDS.md`)
 
+History & fun:
+- [The First Computer Bug — 9 September 1947](https://github.com/sebiboga/testlink-upgraded/wiki/Prima-Bug-Istorica) — the moth in the Harvard Mark II, where the word *bug* comes from (also in `docs/first-bug-1947.md`, Refs #1288)
+
 ## Legacy Information (1.9.x)
 
 For the original TestLink 1.9.x documentation, see the sections below.
