@@ -61,7 +61,7 @@
 
 require_once(__DIR__ . '/../../config.inc.php');
 require_once(__DIR__ . '/../../config_db.inc.php');
-require_once(__DIR__ . '/../common.php');
+require_once('common.php');
 
 doSessionStart();
 require_once(__DIR__ . '/../_guard.php');
@@ -186,14 +186,13 @@ function rscOwningProject($db, $nodeId)
     $id = intval($nodeId);
     $guard = 0;
     while ($id > 0 && $guard < 64) {
-        $row = $db->exec_query(
+        $r = $db->fetchFirstRow(
             'SELECT NH.parent_id, NH.node_type_id
                FROM nodes_hierarchy NH
               WHERE NH.id = ' . $id);
-        if (!$row || ($row->num_rows !== 1)) {
+        if (!is_array($r)) {
             return 0;
         }
-        $r = $row->fetch_row();
         if (intval($r['node_type_id']) === RSC_NODE_TESTPROJECT) {
             return $id;
         }
@@ -212,15 +211,13 @@ function rscNodeInfo($db, $nodeId)
     if ($id <= 0) {
         return null;
     }
-    $row = $db->exec_query(
-        'SELECT NH.id, NH.parent_id, NH.node_order, NH.node_type_id, NHF.name
+    $r = $db->fetchFirstRow(
+        'SELECT NH.id, NH.parent_id, NH.node_order, NH.node_type_id, NH.name
            FROM nodes_hierarchy NH
-           INNER JOIN node_hierarchy NHF ON NHF.id = NH.id
           WHERE NH.id = ' . $id);
-    if (!$row || ($row->num_rows !== 1)) {
+    if (!is_array($r)) {
         return null;
     }
-    $r = $row->fetch_row();
     return array(
         'id'           => intval($r['id']),
         'parent_id'    => intval($r['parent_id']),
@@ -279,22 +276,22 @@ function rscResolveSource($db, $user, $reqSpecId, $assertedProjectId)
         rscRequireCopyRights($db, $user, $assertedProjectId);
     }
 
-    $spec = $specMgr->get_by_id($reqSpecId);
-    if (empty($spec) || intval($spec['id']) !== $reqSpecId) {
-        // Only an entitled caller may learn whether the id exists; an
-        // unentitled one gets an opaque 404 (same shape as api/reqspectreelist).
-        if ($assertedProjectId <= 0) {
-            foreach (array('mgt_view_req', 'mgt_modify_req') as $r) {
-                if (rscHasRight($db, $user, $r, 0)) {
-                    $assertedProjectId = 0;
-                    break;
-                }
-            }
-        }
+    // Refs #1797. requirement_spec_mgr::get_by_id() runs an unguarded JOIN, so
+    // an id that is not a specification node makes it raise a DB Access Error -
+    // which the shared handler answers as HTTP 200 with a server-path backtrace
+    // in the body (verified: ?action=init&req_spec_id=999999). Prove the node
+    // exists AND is a specification before dereferencing it.
+    $node = rscNodeInfo($db, $reqSpecId);
+    if (is_null($node) || $node['node_type_id'] !== RSC_NODE_REQ_SPEC) {
         failOut(404, 'Requirement specification not found', 'req_spec_not_found');
     }
 
-    $ownerProject = rscOwningProject($db, $reqSpecId);
+    $spec = $specMgr->get_by_id($reqSpecId);
+    if (empty($spec) || intval($spec['id']) !== $reqSpecId) {
+        failOut(404, 'Requirement specification not found', 'req_spec_not_found');
+    }
+
+    $ownerProject = $node['tproject_id'];
     if ($ownerProject <= 0) {
         failOut(404, 'Requirement specification not found', 'req_spec_not_found');
     }
@@ -320,16 +317,15 @@ function rscResolveSource($db, $user, $reqSpecId, $assertedProjectId)
  */
 function rscDestinationList($db, $tprojectId, $sourceSpecId)
 {
-    $rows = $db->exec_query(
-        'SELECT NH.id, NH.parent_id, NH.node_order, NH.node_type_id, NHF.name
+    $rows = $db->get_recordset(
+        'SELECT NH.id, NH.parent_id, NH.node_order, NH.node_type_id, NH.name
            FROM nodes_hierarchy NH
-           INNER JOIN node_hierarchy NHF ON NHF.id = NH.id
           WHERE NH.node_type_id IN (' . RSC_NODE_TESTPROJECT . ',' . RSC_NODE_REQ_SPEC . ')
           ORDER BY NH.node_type_id ASC, NH.node_order ASC, NH.id ASC');
 
     $byId = array();
     $children = array();
-    while ($rows && ($r = $rows->fetch_row())) {
+    foreach ((array)$rows as $r) {
         $id = intval($r['id']);
         $byId[$id] = array(
             'id'           => $id,
@@ -341,16 +337,11 @@ function rscDestinationList($db, $tprojectId, $sourceSpecId)
         $children[$byId[$id]['parent_id']][] = $id;
     }
 
-    // Every ancestor of the source is off limits (it would duplicate a subtree
-    // into itself).
-    $blocked = array();
-    $walk = intval($sourceSpecId);
-    $guard = 0;
-    while ($walk > 0 && isset($byId[$walk]) && $guard < 64) {
-        $blocked[$walk] = true;
-        $walk = $byId[$walk]['parent_id'];
-        $guard++;
-    }
+    // The source specification itself is off limits - it is the root of the
+    // subtree that must not be duplicated into itself, so the walk below never
+    // descends into it. Its ANCESTORS (including the test project root) stay in
+    // the list: they are legitimate destinations.
+    $blocked = array(intval($sourceSpecId) => true);
 
     $out = array();
     $stack = array(array($tprojectId, 0));
@@ -405,21 +396,22 @@ function rscResolveContainer($db, $containerId, $tprojectId)
 /**
  * Honour `target_position`, which the legacy radio pair never did.
  *
- * nodes_hierarchy carries a UNIQUE (parent_id, node_order) index, so the
- * renumbering is done in two phases: everything is first moved into a negative
- * range (which cannot collide with the positives), then into its final 1..n
- * position. Reassignment happens in a transaction so a failure cannot leave a
- * half-renumbered sibling list behind.
+ * nodes_hierarchy carries the `pid_m_nodeorder` index on
+ * (parent_id, node_order), so the renumbering is done in two phases: every
+ * sibling is first parked far above every real order value (node_order is
+ * `int unsigned`, so a negative parking range is not available), then moved
+ * into its final 1..n position. Doing it in this order means no intermediate
+ * state can make two siblings share a (parent_id, node_order) pair.
  */
 function rscApplyTargetPosition($db, $containerId, $newSpecId, $position)
 {
-    $rows = $db->exec_query(
+    $rows = $db->get_recordset(
         'SELECT NH.id
            FROM nodes_hierarchy NH
           WHERE NH.parent_id = ' . intval($containerId) .
           ' AND NH.node_type_id IN (' . RSC_NODE_TESTPROJECT . ',' . RSC_NODE_REQ_SPEC . ')');
     $siblings = array();
-    while ($rows && ($r = $rows->fetch_row())) {
+    foreach ((array)$rows as $r) {
         $id = intval($r['id']);
         if ($id !== intval($newSpecId)) {
             $siblings[] = $id;
@@ -436,10 +428,11 @@ function rscApplyTargetPosition($db, $containerId, $newSpecId, $position)
         $siblings[] = intval($newSpecId);
     }
 
-    $db->startTransaction();
-    // phase 1 - negative, collision free
+    // phase 1 - parked far above every real order, so no intermediate state can
+    // collide with a sibling that has not been moved yet
+    $park = 1000000;
     for ($i = 0; $i < count($siblings); $i++) {
-        $db->exec_query('UPDATE nodes_hierarchy SET node_order = -' . ($i + 1) .
+        $db->exec_query('UPDATE nodes_hierarchy SET node_order = ' . ($park + $i) .
                         ' WHERE id = ' . intval($siblings[$i]));
     }
     // phase 2 - final 1..n
@@ -447,7 +440,6 @@ function rscApplyTargetPosition($db, $containerId, $newSpecId, $position)
         $db->exec_query('UPDATE nodes_hierarchy SET node_order = ' . ($i + 1) .
                         ' WHERE id = ' . intval($siblings[$i]));
     }
-    $db->commit();
 }
 
 /* ------------------------------------------------------------------ routing */
@@ -490,9 +482,6 @@ if ($action === 'copy') {
 
     // Destination project: explicit, or the project that owns the source.
     $tprojectId = ($asserted > 0) ? $asserted : $ownerProject;
-    if ($asserted <= 0) {
-        rscRequireCopyRights($db, $user, $tprojectId);
-    }
     rscRequireCopyRights($db, $user, $tprojectId);
 
     // The destination must not be the source itself nor one of its descendants.
@@ -510,11 +499,6 @@ if ($action === 'copy') {
         }
         $walk = $info['parent_id'];
         $guard++;
-    }
-
-    if (intval($spec['total_req'] ?? 0) === 0) {
-        // informational only - an empty specification is a legal copy
-        $wasEmpty = true;
     }
 
     $op = $specMgr->copy_to($reqSpecId, $containerId, $tprojectId, $userId);
@@ -585,8 +569,13 @@ $destinations = rscDestinationList($db, $tprojectId, $reqSpecId);
 $tprojMgr = new testproject($db);
 $tpInfo = $tprojMgr->get_by_id($tprojectId);
 $prefix = '';
-if (is_array($tpInfo)) {
-    $prefix = isset($tpInfo['prefix']) ? $tpInfo['prefix'] : '';
+// Refs #1797. `testprojects` in 2.0.1 carries NO `name` column - the project
+// name lives in nodes_hierarchy.name, so it is read from there.
+$tpNode = rscNodeInfo($db, $tprojectId);
+$tpName = (is_array($tpNode) && $tpNode['node_type_id'] === RSC_NODE_TESTPROJECT)
+              ? $tpNode['name'] : '';
+if (is_array($tpInfo) && isset($tpInfo['prefix'])) {
+    $prefix = $tpInfo['prefix'];
 }
 
 $authorName = '';
@@ -598,11 +587,9 @@ if (!empty($spec['author_id'])) {
 }
 
 $reqCount = 0;
-$cntRow = $db->exec_query(
-    'SELECT COUNT(*) AS c FROM requirements WHERE req_spec_id = ' . $reqSpecId .
-    ' AND testproject_id = ' . intval($tprojectId));
-if ($cntRow && ($cntRow->num_rows > 0)) {
-    $cr = $cntRow->fetch_row();
+$cr = $db->fetchFirstRow(
+    'SELECT COUNT(*) AS c FROM requirements WHERE srs_id = ' . $reqSpecId);
+if (is_array($cr)) {
     $reqCount = intval($cr['c']);
 }
 if (isset($spec['total_req']) && intval($spec['total_req']) > 0) {
@@ -620,12 +607,11 @@ out(array(
         'total_req'         => $reqCount,
         'author'            => $authorName,
         'tproject_id'       => intval($ownerProject),
-        'tproject_name'     => is_array($tpInfo) && $ownerProject === $tprojectId
-                                  ? $tpInfo['name'] : '',
+        'tproject_name'     => ($ownerProject === $tprojectId) ? $tpName : '',
     ),
     'destination' => array(
         'tproject_id'   => intval($tprojectId),
-        'tproject_name' => is_array($tpInfo) ? $tpInfo['name'] : '',
+        'tproject_name' => $tpName,
         'prefix'        => $prefix,
     ),
     'default_project_id' => intval($tprojectId),
