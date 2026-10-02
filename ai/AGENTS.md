@@ -49,10 +49,13 @@ modern UI (Dashio Bootstrap admin template) with a PHP REST BFF layer.
    concurrent agents and lives under the git-ignored `tmp/` (`.gitignore:47`), so
    no CI gate can see a clobber: never regenerate the file from your own copy,
    append with `>>`, and before committing verify
-   `git diff --numstat -- tmp/TLU_Test_Cases.md` shows **0 deletions** (additions
-   only) and that the suites of other issues are still present
-   (`grep -cE "Issue #<n>" tmp/TLU_Test_Cases.md` for yours, and
-   `grep -c "^## Regression" tmp/TLU_Test_Cases.md` must not drop). A full-file
+   `git diff --cached --numstat -- tmp/TLU_Test_Cases.md` shows **0 deletions**
+   (additions only). `git diff --numstat` CANNOT be used for that gate: the file
+   has to be staged with `-f`, and once staged the worktree-vs-index diff is
+   empty, so the check would pass even on a clobber; after committing re-check
+   with `git diff --numstat HEAD~1 HEAD -- tmp/TLU_Test_Cases.md`. Also verify
+   the suites of other issues survived (`grep -cE "Issue #<n>"` for yours, and
+   `grep -cE "^## (Regression|Suite|Task|Modernize) "` must not drop). A full-file
    rewrite already destroyed two suites this way (#1701 lost in `ce093fa54`,
    #1740 lost in `a2df484a8`) — see issue #1793.
 

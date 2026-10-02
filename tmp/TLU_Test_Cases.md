@@ -3676,76 +3676,88 @@ similar but is `.` concatenation, not interpolation, and is safe.
 
 **Precondition.** Fresh clone of `sebiboga`, nothing special — this defect is
 purely in the **tracked suite file** itself, so no DB, no browser and no
-application request is involved. Branch `fix/issue-1793` (from `2f108e321`).
+application request is involved. Branch `fix/issue-1793`, based on `2f108e321`.
 
-**Harness.** `bash tmp/verify_1793.sh` (exit 0 = all PASS). It reads the
-**tracked** content (`git show HEAD:tmp/TLU_Test_Cases.md`) by default, not the
+**Harness.** `bash tmp/verify_1793.sh` (exit 0 = all PASS). With no argument it
+reads the **tracked** content (`git show HEAD:tmp/TLU_Test_Cases.md`), not the
 working copy, because the whole failure mode is a working copy that silently
-diverges from what was committed. Pass a path as `$1` to check an arbitrary
-copy — that is how the negative control below is run; the script never deletes
-the path you hand it (see G10).
+diverges from what was committed. Pass a path as `$1` to check an arbitrary copy
+(that is how the negative controls below are run); the script never modifies or
+deletes the path it is given — it only removes the `mktemp` files it creates
+itself (see G10).
 
 **The defect.** `tmp/TLU_Test_Cases.md` is the single shared append-target of
 every concurrent agent (rule 9 of `ai/AGENTS.md`) and it lives under a
-**git-ignored** directory (`.gitignore:47` = `tmp/`). Two consequences: `git add`
-refuses the path, so the file is force-added by every agent; and because it is
-ignored, **no CI gate and no review diff covers it**. The agent working on issue
-#1740 built its copy by re-serialising a **stale read** of the file (its base
-predated the #1701 block) and wrote the file wholesale instead of appending —
-commit `ce093fa54`, `129 insertions(+), 92 deletions(-)`, one hunk
-`@@ -1626,103 +1626,140 @@`. The #1701 block fell inside the removed span. The
-same mechanism had already destroyed the #1740 suite one commit later
+**git-ignored** directory (`.gitignore:47` = `tmp/`), so `git add` refuses the
+path and every agent force-adds it with `-f`. The file **is** tracked (it is
+ignored only for *new* paths), so a review diff does cover it — but **no CI job
+asserts anything about it**, which is why the clobber shipped unnoticed. The
+agent working on issue #1740 built its copy by re-serialising a **stale read** of
+the file (its base predated the #1701 block) and wrote the file wholesale
+instead of appending: commit `ce093fa54`, `129 insertions(+), 92 deletions(-)`,
+one hunk `@@ -1626,103 +1626,140 @@`. The #1701 block fell inside the removed
+span. The same mechanism had already destroyed the #1740 suite one commit later
 (`a2df484a8`).
 
 **Repro steps (pre-fix, exactly as reported).**
 
 ```bash
-git show origin/sebiboga:tmp/TLU_Test_Cases.md | grep -c "Issue #1701"   # -> 0
+git show origin/sebiboga:tmp/TLU_Test_Cases.md | grep -c "Issue #1701" || true   # -> 0
 git log --oneline origin/sebiboga -S"Issue #1701" -- tmp/TLU_Test_Cases.md
 ```
 
 **Expected post-fix behaviour.** The #1701 suite is present again, byte-identical
-to its recovery commit `47905e3e8`, sitting at the END of the file; every other
-suite survives; and the commit that carries the restore shows **0 deletions** so
-the restore itself cannot become the next clobber.
+to its recovery commit `47905e3e8`, appended at the END of the file; every other
+suite survives; and every commit of the branch that carries the restore shows
+**0 deletions**, so the restore itself cannot become the next clobber.
 
-| # | Check | Expected | Measured (post-fix) | Result |
+All rows below are measured on the branch tip (`fix/issue-1793`), not on an
+intermediate commit:
+
+| # | Check | Expected | Measured (tip) | Result |
 |---|---|---|---|---|
-| G1 | `git show HEAD:tmp/TLU_Test_Cases.md \| grep -c "Issue #1701"` | `1` | `1` | **PASS** |
-| G2 | restored block byte-identical to `47905e3e8:1631-1728` | no diff | `tail -99 \| sed '1d' \| diff - <(git show 47905e3e8:… \| sed -n '1631,1728p')` → empty | **PASS** |
-| G3 | `git diff --numstat -- tmp/TLU_Test_Cases.md` | `0` deletions | `99	0	tmp/TLU_Test_Cases.md` | **PASS** |
-| G4 | both suites coexist: `grep -cE "Issue #1701\|Issue #1740"` | `2` | `2` | **PASS** |
-| G5 | heading inventory delta vs `HEAD~1` | only the #1701 line added | `diff` → `17a18 > ## Regression — Issue #1701: …` | **PASS** |
-| G6 | markdown fences balanced (whole file) | even | `62` → `64` (the restored ` ```php ` / ` ``` ` pair) → even | **PASS** |
-| G7 | restored suite still describes the code on this branch | matches | `lib/issuetrackerintegration/issueTrackerInterface.class.php:222-223` uses `{$this->cfg->dbhost}` (curly), and `api/issuetracker/index.php:239,286` log `api/issuetracker/index.php::GET /{id}/check-connection ::` / `::POST /test-connection ::` — the #1701 fix is intact, so the restored contract is live, not historical | **PASS** |
-| G8 | full harness on the tracked content | exit 0 | `8 PASS / 0 FAIL`, exit `0` | **PASS** |
-| G9 | Event Viewer / `events` table | no new Error/Warning | `SELECT COUNT(*), SUM(log_level>=2) FROM events;` → `0` rows; no application code touched | **PASS** |
-| G10 | harness must not destroy the file it inspects | path handed in stays on disk | `bash tmp/verify_1793.sh <copy>` → `8 PASS / 0 FAIL`, copy still 3673 lines afterwards (the first revision of this harness ended with an unconditional `rm -f "$FILE"` and DELETED `tmp/TLU_Test_Cases.md` when a path was passed — caught immediately, file restored from HEAD, script now removes only its own `mktemp` files) | **PASS** |
+| G1 | suite heading restored | `1` | `grep -cE "^## Regression — Issue #1701:" tmp/TLU_Test_Cases.md` = `1` (the raw string `Issue #1701` now occurs `8` times, the rest being the prose of this very suite) | **PASS** |
+| G2 | restored block byte-identical to `47905e3e8:1631-1728` | no diff | `sed -n '3576,3673p' tmp/TLU_Test_Cases.md \| diff - <(git show 47905e3e8:tmp/TLU_Test_Cases.md \| sed -n '1631,1728p')` → empty, at lines 3576–3673 | **PASS** |
+| G3 | the suite file only ever grew | `0` deletions | `git diff --numstat origin/sebiboga...fix/issue-1793 -- tmp/TLU_Test_Cases.md` → second column `0`; `git diff --numstat HEAD~1 HEAD` after each commit → `0` | **PASS** |
+| G4 | both damaged suites coexist | `2` headings | `grep -cE "^## (Modernize\|Regression) . Issue #(1701\|1740)"` = `2` | **PASS** |
+| G5 | no heading lost | only additions | `diff <(git show origin/sebiboga:… \| grep '^## ') <(grep '^## ' tmp/TLU_Test_Cases.md)` → `47a48,49`, i.e. exactly the #1701 and #1793 headings and nothing removed | **PASS** |
+| G6 | markdown fences balanced | even | `62` on `origin/sebiboga` → `66` on the tip (the restored ` ```php ` / ` ``` ` pair plus this suite's ` ```bash ` / ` ``` ` pair) → even | **PASS** |
+| G7 | restored suite still describes the code on this branch | matches | `lib/issuetrackerintegration/issueTrackerInterface.class.php:231-232` interpolates `{$this->cfg->dbhost}` (curly braces — the #1701 fix), and `api/issuetracker/index.php:239,286` log `api/issuetracker/index.php::GET /{id}/check-connection ::` / `::POST /test-connection ::` — so the restored contract is live, not historical | **PASS** |
+| G8 | full harness on the tracked content | exit 0 | `8 PASS / 0 FAIL`, exit `0` (`45` suite references checked against two baselines) | **PASS** |
+| G9 | Event Viewer / `events` table | no new Error/Warning | `SELECT COUNT(*) FROM events;` → `0` rows; no application code touched | **PASS** |
+| G10 | harness must not destroy the file it inspects | the path given stays on disk | `bash tmp/verify_1793.sh <copy>` → `8 PASS / 0 FAIL`, copy still on disk afterwards. The first revision of this harness ended with an unconditional `rm -f "$FILE"` and DELETED `tmp/TLU_Test_Cases.md` when a path was passed — caught immediately, file restored from HEAD, script now removes only its own `mktemp` files and has an `EXIT/INT/TERM` trap | **PASS** |
 
 **Result: 10/10 PASS, harness exit 0.**
 
-**Negative control — the harness really detects the loss.** Re-running the same
-harness against a deliberately clobbered copy
-(`git show HEAD:tmp/TLU_Test_Cases.md | sed '/^## Regression — Issue #1701:/,$d'`)
-gives **1 PASS / 6 FAIL, exit 1**: G1 (heading), the R1–R7 rows, the PASS
-verdicts, the 1.9.20 target line and the "no suite lost vs `47905e3e8`"
-cross-check all flip to FAIL, while the file-shaped checks (fence balance) still
-pass — proving the gate measures the loss, not the file format.
+**Negative controls — the harness really detects a loss, both old and new.**
+
+| control | doctored copy | result |
+|---|---|---|
+| NC1 — the original bug: the whole `#1701` block removed | `sed '/^## Regression — Issue #1701:/,/^## Regression — Issue #1793:/d'` | **3 PASS / 6 FAIL, exit 1** — the heading, the R1–R7 rows, the PASS verdicts, the 1.9.20 target line, the baseline cross-check and the deletion gate all flip to FAIL; only the file-shaped checks (fence balance, suite count, "input still on disk") stay green |
+| NC3 — a **newer** suite lost: only the `#1740` block removed | `sed '3438,3575d'` | **7 PASS / 2 FAIL, exit 1** — the heading-scoped baseline cross-check reports `suite #1740 … is missing` and the deletion gate reports `138` deleted lines. This control is what forced the cross-check to match suite **headings** instead of any prose mention, and to take its baseline from the last commit touching the file rather than only from `47905e3e8` |
 
 **Prevention shipped with the fix** (so this cannot silently recur):
-`ai/AGENTS.md` rule 9 is now **APPEND-ONLY** with the 0-deletions gate
-(`git diff --numstat` + `grep -cE "Issue #<n>"` + `grep -c "^## Regression"` must
-not drop) and cites both destroyed suites by commit hash; rule 7 forbids
-regenerating a wiki page from a stale read (the second shared artifact, hit by
-`a2df484a8`); rule 18 names both shared artifacts explicitly.
+`ai/AGENTS.md` rule 9 is now **APPEND-ONLY** and its gate is
+`git diff --cached --numstat -- tmp/TLU_Test_Cases.md` = **0 deletions** —
+`git diff --numstat` is explicitly called out as unusable, because the file must
+be staged with `-f` and a staged worktree-vs-index diff is empty (it would pass
+even on a clobber); after committing the rule requires
+`git diff --numstat HEAD~1 HEAD -- tmp/TLU_Test_Cases.md`. The same gate is now
+in `ai/FIX-ISSUE.md` §5 and `ai/IMPLEMENT-TASK.md` §5 — the two rulebooks whose
+runs actually produced `ce093fa54` and `a2df484a8`. Rule 7 forbids regenerating a
+wiki page from a stale read (the second shared artifact, hit by `a2df484a8`),
+rule 18 names both shared artifacts, and rule 9's inventory gate counts
+`^## (Regression|Suite|Task|Modernize) ` because the file also holds `## Suite`
+and `## Task` sections.
 
 **Notes / out of scope.**
 - Moving the suite file out of the git-ignored `tmp/` into a tracked path would
   remove the ignore problem but break the reference contract of every
   `Refs #<n>` suite and every agent currently in flight — deliberately left as a
   documented follow-up rather than done inside a bug fix.
-- A CI workflow asserting "0 deletions" would not fire reliably on a git-ignored
-  path, and rule 18 forbids fighting the five existing workflows; the obligation
-  is therefore agent-side, in the rulebook.
+- A CI workflow asserting "0 deletions" would have to track the file anyway
+  (`tmp/` is ignored, so path filters on it are unreliable), and rule 18 forbids
+  fighting the five existing workflows; the obligation is therefore agent-side,
+  in the rulebook, and enforced locally by `tmp/verify_1793.sh`.
 - No application code, API endpoint, locale bundle or DB schema was touched, so
   this change cannot produce an Event Viewer entry.

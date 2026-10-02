@@ -61,9 +61,18 @@ follow ALL rules in ai/AGENTS.md (they apply to every run).
 
 ## 5. Regression test case (mandatory)
 
-- Append a numbered suite entry to `tmp/TLU_Test_Cases.md`:
+- Append a numbered suite entry to `tmp/TLU_Test_Cases.md`, headed
   `Regression — Issue #<n>: <short title>`, containing precondition, repro steps
   (pre-fix), expected post-fix behavior, and the actual result you observed.
+  **APPEND-ONLY** — the file is shared by all concurrent agents and is
+  git-ignored (`tmp/`), so `git add` needs `-f` and no CI gate can see a
+  clobber: append with `>>`, never regenerate it from your own copy, and before
+  committing verify `git diff --cached --numstat -- tmp/TLU_Test_Cases.md` shows
+  **0 deletions** (`git diff --numstat` cannot be used: once the file is staged
+  that diff is empty — after committing re-check with
+  `git diff --numstat HEAD~1 HEAD -- tmp/TLU_Test_Cases.md`). A full-file rewrite
+  by a concurrent agent destroyed the #1701 and #1740 suites this way — issue
+  #1793.
 - Execute it and record PASS/FAIL honestly.
 
 ## 6. Document the fix — the HOW, not just the WHAT
