@@ -56,6 +56,7 @@ same message cases as the legacy `checkSchemaVersion()`) and **Security Notes**
 | **Installation manual** | `docs/testlink_installation_manual.pdf` |
 | **README** | repo root `README` |
 | **CHANGELOG** | repo root `CHANGELOG` |
+| **Forum** | `http://forum.testlink.org` — BFF `links.forum` (#1285) |
 
 ## 4. Data flow
 
@@ -146,3 +147,51 @@ The caption is **not** hardcoded in the HTML: the BFF sends an i18n `key` per vi
 See `tmp/TLU_Test_Cases.md` — **Task — Issue #1286** (8 cases, all PASS): payload
 parity with legacy, 4 rendered cards, `target`/`rel`, `ro` localization, 10-bundle i18n
 completeness, degenerate/hostile payloads, console + Event Viewer clean.
+
+## 8. Community forum link — #1285
+
+### 8.1 What legacy did
+
+The legacy installer landing page offered the TestLink community forum **twice**
+(`install/index.php:25` defines `$forum_url = 'forum.testlink.org'`):
+
+* inline in the migration notice — `:45`
+  *"Please read Section on README file or go to http://forum.testlink.org
+  (Forum: TestLink 1.9.4 and greater News,changes, etc)"*
+* as a standalone link beside the manual / README / CHANGELOG links — `:49-50`
+  *"You are welcome to visit our forum to browse or discuss."*
+
+Modernization ported the doc links (manual, README, CHANGELOG) but not the forum,
+so the Actions box offered four buttons and the migration notice said nothing about
+the forum — a user following the modern screen could no longer reach the support forum.
+
+### 8.2 What the modern screen does now
+
+* `api/install/index.php` serves `'forum' => 'http://forum.testlink.org'` in the `links`
+  payload — the URL lives server-side, the front-end never hardcodes it.
+* `renderActions()` appends a 5th action button **Forum** (`fa-comments`, `.action-btn blue`)
+  after CHANGELOG, mirroring legacy `:49-50`. It is guarded by
+  `if (r.links && r.links.forum)`, so a payload from an older BFF degrades to the previous
+  four buttons instead of rendering a dead link.
+* `renderForumNotice()` writes the forum sentence into `#upgradeForum` **inside the upgrade
+  panel**, i.e. exactly when a schema migration is pending — the modern equivalent of the
+  legacy `:45` notice sentence. It is never shown when the schema is up to date.
+* Both anchors are built with jQuery `.attr()` (no concatenated HTML), carry
+  `target="_blank" rel="noopener noreferrer"` and expose the URL as `title`.
+* i18n: `install.forum` (label) and `install.forumHint` (the legacy parenthetical) in all
+  10 bundles — `+2` lines each, nothing removed.
+
+### 8.3 Files
+
+| File | Purpose |
+|------|---------|
+| `api/install/index.php` | `links.forum` in the status payload |
+| `gui/templates/install/installView.html` | `renderForumNotice()`, `#upgradeForum` markup, the Forum action button |
+| `gui/templates/i18n/*.json` (10 bundles) | `install.forum`, `install.forumHint` |
+
+### 8.4 Regression suite
+
+See `tmp/TLU_Test_Cases.md` — **Task — Issue #1285** (9 cases, all PASS): button
+rendered, href/target/rel, `links.forum` in the BFF payload, forum sentence inside the
+upgrade panel (and hidden again when the schema is OK), localisation in ro/ja/en,
+10-bundle key completeness, `node --check` / `php -l` / console / Event Viewer clean.

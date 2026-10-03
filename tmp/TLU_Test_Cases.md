@@ -4677,3 +4677,36 @@ Steps / expected / actual:
    Actual: 0 rows — PASS.
 
 PASS/FAIL: PASS (9/9)
+
+## Task — Issue #1285: forum link in install/installView.html (gap vs legacy)
+
+**Precondition** — TestLink 2.0.1 running at http://localhost:8082, logged in as
+admin/admin, DB schema at latest version (freshly imported `testlink` DB), working tree
+at commit 4e429c963 on branch `task/issue-1285`.
+
+**Legacy reference** — install/index.php:25 (`$forum_url = 'forum.testlink.org'`),
+:45 (forum named inside the migration notice), :49-50 (standalone forum link beside the
+manual / README / CHANGELOG links).
+
+**Steps & results**
+
+| # | Step | Expected | Actual | Result |
+|---|------|----------|--------|--------|
+| 1 | Open http://localhost:8082/gui/templates/install/installView.html | Actions box lists the legacy forum link next to manual / README / CHANGELOG | Actions box shows 5 buttons: Open installer wizard, Installation manual, README, CHANGELOG, **Forum** | PASS |
+| 2 | Inspect the Forum button href / target / rel (DOM read via DevTools) | href = the forum URL from the BFF, `target=_blank`, `rel="noopener noreferrer"` | href=`http://forum.testlink.org`, target=`_blank`, rel=`noopener noreferrer`, class `action-btn blue`, icon `fa-comments` | PASS |
+| 3 | GET /api/install/index.php with a logged-in session and read `links` | `links.forum` exposed by the BFF, no URL hardcoded in the front-end | `linkKeys: ["installer","manual","readme","changelog","forum"]`, `links.forum = http://forum.testlink.org` | PASS |
+| 4 | Force an upgrade state (re-render `renderStatus()` with `schemaStatus:'upgrade'`, i.e. what the DB reports when a migration is pending) | Upgrade panel shows the message **plus** the forum sentence with a clickable forum link (legacy :45) | Panel innerText: `Upgrade Required / You need to upgrade your TestLink database… / Forum (Forum: TestLink 1.9.4 and greater - news, changes, etc.)`; anchor href `http://forum.testlink.org`, target `_blank`, rel `noopener noreferrer`, title = URL | PASS |
+| 5 | Re-render with the real (schema OK) payload | Upgrade panel hidden, so the forum sentence is not shown | Panel `display:none` again (`restoredHidden: true`) | PASS |
+| 6 | Load the screen with `?locale=ro_RO`, `?locale=ja_JP`, `?locale=en_GB` | Forum label + hint localised, no raw key | ro → `Forum / (Forum: TestLink 1.9.4 si mai noi - noutati, modificari etc.)`; ja → `フォーラム / (フォーラム: TestLink 1.9.4 以降のお知らせ、変更点など)`; button label follows the locale | PASS |
+| 7 | Fetch all 10 locale bundles client-side and read `install.forum` / `install.forumHint` | Both keys present and translated in every bundle | en/ro/de/fr/it/uk-forum=Forum, es=`Foro`, pt=`Fórum`, ja=`フォーラム`, ru=`Форум`, zh=`论坛`; all 10 hints localised | PASS |
+| 8 | `python3 -m json.tool gui/templates/i18n/*.json` | 10/10 valid | 10/10 valid; `git diff --numstat` = 2 insertions / 0 deletions per bundle (no key loss) | PASS |
+| 9 | `node --check` on the screen's inline script + `php -l api/install/index.php`; browser console; Event Viewer / `events` table | No syntax error, no console error/warning, no new Error/Warning event | `JS SYNTAX OK`; `No syntax errors detected`; console: *no console messages found*; `SELECT COUNT(*),SUM(log_level>=2) FROM events` → 1 row total, log_level 16 (audit login succeeded) — no new Error/Warning | PASS |
+
+**Screenshots**
+- `docs/screenshots/issue-1285-install-forum-link.png` — Actions box with the new Forum button
+- `docs/screenshots/issue-1285-install-forum-notice.png` — forum sentence inside the upgrade/migration panel
+
+**Note on scope** — legacy offered the forum twice, so the port covers both places (button
+next to the doc links and the sentence inside the migration notice), not just the button.
+
+PASS/FAIL: PASS (9/9)
