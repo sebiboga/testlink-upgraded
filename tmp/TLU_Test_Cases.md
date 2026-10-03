@@ -5000,64 +5000,117 @@ it is why H1 is not listed under discriminating coverage above.
 
 ### Result: PASS
 
-## Task — Issue #1050: Honor `user_self_signup` config for the sign-up link on login.html (gap vs legacy)
+## Regression — Issue #1686: reqTreeReorder.html "Back to specification management" link must never be a dead self-reload and must match its label
 
-### Precondition
-- Application running at http://localhost:8082 (PHP built-in server, docroot = repo root), DB `testlink` on 127.0.0.1:3306
-- `user_self_signup` / `demoMode` / `authentication['domain']['DB']['allowPasswordManagement']` are file-based settings
-  (`config.inc.php`, no DB row). Flag matrix exercised by appending a temporary
-  `@include_once('tmp/tl_test_flags.php');` line at the end of `config.inc.php`
-  (`tmp/tl_test_flags.php` is under the git-ignored `tmp/`), **reverted after the run**:
-  ```php
-  <?php
-  $tlCfg->user_self_signup = FALSE;              // matrix rows A, D, E
-  $tlCfg->user_self_signup = TRUE;               // matrix rows B, C
-  $tlCfg->demoMode = TRUE;                       // matrix rows C, D
-  $tlCfg->authentication['domain']['DB']['allowPasswordManagement'] = false; // matrix row E
-  ```
-- Baseline / control: `git stash`-free default config (`user_self_signup = TRUE`, demoMode off, DB password management allowed) → `GET /api/auth/index.php/config` returns `selfSignup:true`.
+**Precondition**
 
-### Steps
-1. Set `user_self_signup = FALSE` (plus the extra flag of the row under test), hard-reload `http://localhost:8082/login.php?nocache=<n>`.
-2. Read `GET /api/auth/index.php/config` — confirm `config.selfSignup` is `false`.
-3. Evaluate in the page: visibility (`offsetParent !== null`) + `getAttribute('href')` of
-   `#tl_sign_up`, `#tl_lost_password`, `#lostSep`, `#registrationRow`, plus the row's text.
-4. Repeat for rows B, C, D, E of the matrix below.
-5. Row B (default config): click the "New user? Create account" link and confirm the
-   registration **form** is rendered at `/gui/templates/auth/firstLogin.html`
-   (6 inputs: User ID / First Name / Last Name / Email / Password / Repeat password).
-6. Row A: with the link hidden, `GET /gui/templates/auth/firstLogin.html` still answers
-   "self-registration is disabled on this site" (server-side enforcement, `api/auth/index.php:368`) —
-   the point of the fix is that the entry point is no longer advertised.
-7. Regression: `login.php?note=expired` still shows the info note, the login fields and the
-   registration row; log in with `admin/admin` → lands on `/index.php?caller=login&viewer=web`.
-8. Event Viewer: `select log_level, count(*) from events group by log_level;` → no new
-   Error/Warning rows; browser console free of errors.
+App running at `http://localhost:8082` (PHP built-in server, docroot = repo root);
+MariaDB `127.0.0.1:3306/testlink`; login `admin`/`admin`. The DB is re-imported empty on
+every run, so recreate the fixtures (a bare `testprojects` row is NOT enough —
+`testproject::get_by_id()` in `lib/functions/testproject.class.php:345` joins
+`nodes_hierarchy` and requires `node_type_id = 1`):
 
-### Expected behavior (legacy parity)
-`login-model-marcobiedermann.tpl` (the template `config.inc.php:2125` actually selects):
-- line 76 `{if $gui->user_self_signup}` gates **only** `#tl_sign_up` — no sign-up link when `user_self_signup = FALSE`.
-- line 82 gates `#tl_lost_password` **independently** on `external_password_mgmt eq 0 && demoMode eq 0`.
-- No dangling separator; nothing at all when both links are suppressed.
+```sql
+INSERT INTO testprojects (id,prefix,api_key) VALUES (13,'TR1686','k1686aaaa'),(14,'TR1686B','k1686bbbb');
+INSERT INTO req_specs (id,testproject_id,doc_id) VALUES (16,13,'1686-SPEC1'),(17,14,'1686-SPEC2');
+INSERT INTO requirements (id,srs_id,req_doc_id) VALUES (100,16,'1686-R1'),(101,16,'1686-R2');
+INSERT INTO nodes_hierarchy (id,parent_id,node_type_id,name,node_order) VALUES
+  (13,0,1,'Reorder Project A',1),(14,0,1,'Reorder Project B',2),
+  (16,13,6,'Repro Spec A',1),(17,14,6,'Repro Spec B',1),
+  (100,16,7,'First requirement',1),(101,16,7,'Second requirement',2);
+-- node_type_id: 1 = testproject, 6 = requirement spec, 7 = requirement
+```
 
-| # | `selfSignup` | `demoMode` | `externalPasswordMgmt` | `#tl_sign_up` | `#tl_lost_password` | `#lostSep` | `#registrationRow` |
-|---|---|---|---|---|---|---|---|
-| A | false | false | false | hidden | visible | hidden | visible |
-| B | true | false | false | visible | visible | visible | visible |
-| C | true | true | false | visible | hidden | hidden | visible |
-| D | false | true | false | hidden | hidden | hidden | hidden |
-| E | false | false | true | hidden | hidden | hidden | hidden |
+Screen under test: `gui/templates/requirements/reqTreeReorder.html`
+(`#backLink` markup at line 77, `buildBackLink()` at 181-186, called at 189).
 
-### Actual result
-All 5 matrix rows PASS (values above are the values measured in the browser):
-- A `signUpVisible:false, lostPwdVisible:true, sepVisible:false, rowVisible:true`, row text `Lost password?`
-- B `signUpVisible:true, lostPwdVisible:true, sepVisible:true`, hrefs `/gui/templates/auth/firstLogin.html` + `/gui/templates/auth/lostPassword.html` (unchanged vs. pre-fix), row text `New user? Create account | Lost password?`
-- C `signUpVisible:true, lostPwdVisible:false, sepVisible:false`, row text `New user? Create account`
-- D `signUpVisible:false, lostPwdVisible:false, sepVisible:false, rowVisible:false`
-- E `signUpVisible:false, lostPwdVisible:false, sepVisible:false, rowVisible:false` (lost href left at `#`, never navigable)
-- Step 5: click through → full sign-up form rendered (no refusal screen) — PASS
-- Step 6: direct visit with `selfSignup:false` → "self-registration is disabled on this site" (unchanged server behavior) — PASS
-- Step 7: `?note=expired` note rendered, login row visible, `admin/admin` → `/index.php?caller=login&viewer=web` — PASS
-- Step 8: `events` table holds only the audit row `log_level=16, activity=LOGIN` (the successful login of this run) — 0 Error/Warning rows; Chrome console: no errors — PASS
+### TC-1686-01 Back link target is a real page in the STATIC markup (pre-JS)
 
-### Result: PASS
+- Repro: `curl -s "http://localhost:8082/gui/templates/requirements/reqTreeReorder.html" | grep -o 'id="backLink"[^>]*'`
+- Pre-fix: `id="backLink" href="#" target="_blank"` — a self-reload, plus a new tab for a *back* link.
+- Expected post-fix: `id="backLink" href="/gui/templates/requirements/reqSpecMgmt.html"` — a real
+  destination, valid before any JS runs (survives a total JS failure).
+- Actual: `id="backLink" href="/gui/templates/requirements/reqSpecMgmt.html"` — **PASS**
+
+### TC-1686-02 Back link has no `target="_blank"`
+
+- Repro: same `curl`, then `grep -c _blank`.
+- Expected post-fix: `0`.
+- Actual: `0` — **PASS** (the click in TC-1686-05 navigates in place, one tab, no new page).
+
+### TC-1686-03 Error / no-rights state: href is NOT a self-reload
+
+- Repro: open
+  `…/gui/templates/requirements/reqTreeReorder.html?tproject_id=13&req_spec_id=16`
+  with the spec absent from `nodes_hierarchy` so `?action=init` answers 404
+  ("The requirement specification or requirement was not found in this test project.").
+  A right-less user reaches the same state via the 403 branch.
+- Pre-fix: `href="…/reqTreeReorder.html?tproject_id=13&req_spec_id=16#"` — clicking it reloaded
+  the forbidden page in the same tab, because the only href assignment lived in the
+  `success:` handler of the `$.ajax` call, which never runs on 403/404.
+- Expected post-fix: `href=/gui/templates/requirements/reqSpecMgmt.html?tproject_id=13`,
+  `target=null`; toolbar inert (`applyDisabled=true`, drag hint hidden).
+- Actual: `{"href":"/gui/templates/requirements/reqSpecMgmt.html?tproject_id=13","target":null,
+  "applyDisabled":true,"dragHintVisible":"none"}` — **PASS**
+
+### TC-1686-04 Success state: href points at the MANAGEMENT screen, matching its label
+
+- Repro: add the `nodes_hierarchy` spec rows so `?action=init&tproject_id=13&req_spec_id=16`
+  returns 200, then read `#backLink`.
+- Pre-fix: href was rewritten to `reqSpecView.html?id=<SPEC_ID>&tproject_id=<TP>` — the
+  specification VIEWER — while the label said "Back to specification management".
+- Expected post-fix: href contains `reqSpecMgmt.html` and NOT `reqSpecView.html`.
+- Actual: `{"href":"/gui/templates/requirements/reqSpecMgmt.html?tproject_id=13",
+  "href_points_at_viewer":false,"rows":2,"rowsDraggable":["true","true"],"applyDisabled":false}` — **PASS**
+
+### TC-1686-05 Back link navigates in place to the management screen
+
+- Repro: `document.querySelector('#backLink').click()` on the success state.
+- Expected post-fix: same tab lands on `reqSpecMgmt.html?tproject_id=13`.
+- Actual: `Page navigated to http://localhost:8082/gui/templates/requirements/reqSpecMgmt.html?tproject_id=13`
+  — **PASS**
+
+### TC-1686-06 The dropped "open this specification" target survived (spec chip)
+
+- Repro: on `…?tproject_id=14&req_spec_id=17` click `#specChip`.
+- Expected post-fix: the viewer is still reachable, in a new tab, from the spec document
+  chip in the Context card (it moved there instead of being mislabelled on the back link).
+- Actual: `data-href=/gui/templates/requirements/reqSpecView.html?id=17&tproject_id=14`, and a
+  new page opened at exactly that URL — **PASS**
+
+### TC-1686-07 Second test project: `tproject_id` follows the URL, never hardcoded
+
+- Repro: open `…/reqTreeReorder.html?tproject_id=14&req_spec_id=17` and read `#backLink`.
+- Expected post-fix: `tproject_id=14` in both the back link and the chip.
+- Actual: `{"href":"/gui/templates/requirements/reqSpecMgmt.html?tproject_id=14",
+  "chipHref":"/gui/templates/requirements/reqSpecView.html?id=17&tproject_id=14",
+  "uses_wrong_project":false}` — **PASS**
+
+### TC-1686-08 No project in context: still a live escape hatch, no fatal
+
+- Repro: open `…/reqTreeReorder.html?req_spec_id=16` with **no** `tproject_id`.
+- Expected post-fix: `buildBackLink()` falls back to `reqSpecMgmt.html` (never `'#'`); the
+  target renders `Test Project: -` and its API answers a clean 400 — no PHP fatal, no blank page.
+- Actual: `{"href":"/gui/templates/requirements/reqSpecMgmt.html","state":"No test project in
+  context. Open this screen from a test project."}`, target shows `Test Project: -`,
+  `/api/reqspec/index.php?action=options&tproject_id=0` → `400`, console has only the two
+  expected failed-resource lines (400 + 404) and no uncaught JS error — **PASS**
+  (accepted degradation, not a defect: both entry points, `reqSpecMgmt.html:954` and `:964`,
+  always pass `tproject_id`).
+
+### TC-1686-09 Event Viewer: no new Error/Warning rows
+
+- Repro: `select id,log_level,source,left(description,120) from events order by id desc limit 12;`
+  after running TC-1686-01..08.
+- Expected post-fix: no Error/Warning rows attributable to this screen.
+- Actual: 1 row total — `log_level=16, source=GUI, description='audit_login_succeeded'`
+  (the login audit). **Zero** Error/Warning rows — **PASS**
+
+### Result: PASS (9/9)
+
+**Note on scope:** when this suite was written, both defects were already fixed in the code by
+commit `983c9179c` ("fix(reqtreereorder): back link was a dead self-reload on the error path
+(Refs #1681)"), an ancestor of the default branch. The issue was left OPEN, so this suite
+pins the verified behaviour rather than a code change. It is a real guard: any future edit
+that re-introduces a `'#'`, a `target="_blank"`, or a dependency of the href on the
+`$.ajax` success handler will fail TC-1686-01/02/03.
