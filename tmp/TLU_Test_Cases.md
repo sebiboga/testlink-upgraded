@@ -2132,6 +2132,87 @@ mysql -h 127.0.0.1 -utestlink -ptestlink testlink < tmp/fixtures_1040.sql
 
 Project `TCR Project` (id 1, prefix `TR1`), suite `TCR Suite`, three test cases:
 
+| node | id | role | note |
+|---|---|---|---|
+| `TCR Case R Source` | 3 | tcase | `tc_external_id = 1` |
+| ├ version 1 | 4 | tcversion | **FROZEN** (`is_open = 0`) |
+| └ version 2 | 5 | tcversion | **LATEST, open** (`is_open = 1`) |
+| `TCR Case R Target` | 6 (`TR1-2`) | tcase | version 7, open |
+| `TCR Case R Third` | 8 (`TR1-3`) | tcase | version 9, open |
+
+Seeded `testcase_relations` (ids 10-16) chosen so every legacy branch is exercised:
+
+| id | source → dest | `relation_type` | `link_status` | legacy outcome |
+|---|---|---|---|---|
+| 10 | 4 → 7 | 3 (`related_to`) | 1 open | shown "is related to", deletable |
+| 11 | 7 → 4 | 1 (`parent_of`) | 1 open | shown as "**is child of**" (we are the destination) |
+| 12 | 4 → 9 | 4 (`automates_also`) | 1 open | shown "Also Automates" |
+| 13 | 4 → 9 | **9 — not in `type_labels`** | 1 open | **dropped** by legacy `in_array()` |
+| 14 | 4 → 9 | 2 (`blocks`) | **3 frozen** | shown "blocks", **warning icon** `can_not_delete_a_frozen_relation` |
+| 15 | 5 → 7 | 3 | 1 open | shown on the latest version, deletable |
+| 16 | 7 → 5 | 1 | 1 open | shown as "is child of" on the latest version |
+
+Login `admin/admin`. Read-only checks use a temporary role-1 user (`ro1040`, deleted after the run).
+
+### 1040.A — the gap this issue was filed for
+
+| # | Case | Steps | Expected | Result |
+|---|---|---|---|---|
+| A1 | The broken query | `mysql -e "SELECT … FROM testcase_relations TR JOIN relation_type RT ON RT.id=TR.relation_type"` | proves there is no `relation_type` table | **PASS** — `ERROR 1146 (42S02): Table 'testlink.relation_type' doesn't exist` |
+| A2 | Relations present in the DB | `SELECT id,source_id,destination_id,relation_type,link_status FROM testcase_relations` | 7 rows | **PASS** — ids 10…16 |
+| A3 | Payload before the fix | `GET api/testcases/index.php?action=view&tcase_id=3&tcversion_id=4` | relations exposed | **FAIL (baseline)** — `relations: []`, `relationsConfig` absent |
+| A4 | Payload after the fix | same request | relations exposed, labels resolved | **PASS** — 4 displayable rows (13 dropped), `relationsByVersion` keyed by tcversion id, `relationsConfig.domain.selected = "3_source"` |
+
+### 1040.B — rendering (chrome-devtools MCP)
+
+| # | Case | Steps | Expected | Result |
+|---|---|---|---|---|
+| B1 | Latest + open version | open `tcView.html?tcase_id=3&tproject_id=1` | section with count, add form, table | **PASS** — "Relations with other test cases (2)", combo + `PREFIX-ID` box + Add, 2 rows |
+| B2 | Combo contents | inspect `#relType_5` | `<code>_source` / `<code>_destination`, `_destination` omitted when labels are equal, `3_source` preselected | **PASS** — 8 options: `1_source,1_destination,2_source,2_destination,3_source(selected),4_source,4_destination,5_source` (`5_destination` omitted — equal labels) |
+| B3 | Row shape | inspect `.rel-table tbody tr` | `# / Type`, link `EXTID: name [Version N]`, author, icon | **PASS** — `15 / is related to` → `TR1-2: TCR Case R Target [Version 1]`, title `Created 2026-01-06 10:00:00 by Testlink Administrator (admin)` |
+| B4 | Side-aware label | row for relation 16 (we are the destination) | `is child of`, not `is parent of` | **PASS** — `16 / is child of` |
+| B5 | Unconfigured type dropped | relation 13 (`relation_type = 9`) | absent | **PASS** — no row, count is 4 not 5 on tcversion 4 |
+| B6 | Frozen version | `…&tcversion_id=4` (v1 frozen) | no section (legacy `$canWork = is_latest \|\| !addTCVRelationsOnlyOnLatestTCVersion` = false) | **PASS** — 0 `.relations-block` |
+| B7 | No delete control when not editable | inspect icons on a frozen version | warning icon with empty title, no trash | **PASS** — `.rel-warn` ×N, `.rel-del` = 0 |
+| B8 | Deleted legacy global card | `#relationsCard` in the DOM | gone | **PASS** — element absent; section now lives in the version card |
+
+### 1040.C — write operations
+
+| # | Case | Steps | Expected | Result |
+|---|---|---|---|---|
+| C1 | Add (UI) | combo `1_source`, type `TR1-3`, click **Add** | success toast, table refreshed, new row | **PASS** — "Relation to TR1-3 has been added"; 3 rows, `100 / is parent of -> TR1-3: TCR Case R Third [Version 1]` |
+| C2 | Add unknown external id | type `TR1-777`, Add | legacy `testcase_doesnot_exists` sentence | **PASS** — "Test Case with external ID: TR1-777 - does not exist" (422) |
+| C3 | Add with empty input | clear the box, Add | client-side refusal, hint shown | **PASS** — toast "PREFIX-ID", no request fired |
+| C4 | Add rejects bogus type | POST `relation_type = "99_x"` | 400, nothing inserted | **PASS** — `{"message":"Invalid relation type: 99_x"}` |
+| C5 | Add rejects a frozen source version | POST `tcversion_id = 4` (frozen) | 403 `can_not_edit_frozen_tc` | **PASS** |
+| C6 | Add refuses a frozen destination | POST `1_destination` (this case becomes the destination and its latest version was frozen) | `related_tcase_not_open` | **PASS** (422, verified while v2 was frozen) |
+| C7 | Delete (UI) | trash icon on the new row | confirm modal `Really delete relation #100?`, then success | **PASS** — modal text exact, row gone, toast "Relation was deleted successfully." |
+| C8 | Delete refuses a frozen relation | POST `relation_id = 14` | 409 `can_not_delete_a_frozen_relation`, row kept | **PASS** — row 14 still present |
+| C9 | Delete cannot touch a foreign relation | POST `tcase_id = 6, relation_id = 14` | 404, row kept | **PASS** — "Relation #14 does not belong to this test case" |
+| C10 | Rights | as role-1 user `ro1040`, POST both actions | 403 `Requires permission: modify test cases` | **PASS** for `add_relation` and `delete_relation` |
+| C11 | CSRF | POST without `Origin`/`X-Requested-With` | 403 | **PASS** |
+
+### 1040.D — regression / hygiene
+
+| # | Case | Steps | Expected | Result |
+|---|---|---|---|---|
+| D1 | View with `editOnExec=1` | `GET …&editOnExec=1` | `relationsConfig.editEnabled = false`, relations still listed | **PASS** |
+| D2 | Relations disabled in config | set `$tlCfg->testcase_cfg->relations->enable = FALSE` (`config.inc.php:1309`) | `enabled: false`, empty domain, nothing rendered | **PASS (static)** — `tcRelationLabels()` returns `null` first, and `renderRelations()` returns on `!cfg.enabled`. NOT exercised live: the flag is code-level, and editing the shared `config.inc.php` would race the other CI agents |
+| D3 | Console | open the screen, run add + delete | no errors/warnings | **PASS** — 0 console messages |
+| D4 | Event Viewer | `SELECT … FROM events ORDER BY id DESC` | no new Error/Warning | **PASS** — only `log_level = 16` `audit_login_succeeded` |
+| D5 | PHP server log | `grep -i "PHP Warning\|PHP Fatal" tmp/php_server.log` | none from this run | **PASS** — only the boot-time JIT warning |
+| D6 | i18n | all 10 bundles, `python3 -m json.tool` | valid JSON, 26 new keys each | **PASS** — de/en/es/fr/it/ja/pt/ro/ru/zh |
+| D7 | Other blocks unaffected | platform add/remove, keyword popup, summary popup on the same screen | still render | **PASS** — version card unchanged apart from the new section |
+
+Suite total: **34 PASS / 0 FAIL** (A3 is the recorded pre-fix baseline, expected FAIL).
+
+**Known legacy quirks deliberately preserved** (do not "fix" them without a separate issue):
+- `testcase::addRelation()` calls `relationExits()` with the **unmapped** arguments
+  (`lib/functions/testcase.class.php:8206-8211`), so a duplicate added from a test case id is never
+  detected and the row is inserted twice.
+- Relations of a **non-latest** version are computed but never displayed while
+  `addTCVRelationsOnlyOnLatestTCVersion` is TRUE.
+
 **Status**: PASS
 
 ## Regression — Issue #1768: `api/attachments` list / upload / download had no object-level authorization
