@@ -5061,3 +5061,94 @@ Regression re-checked after the hardening: healthy FS dir → green `badge ok`, 
 `php -l` OK; `json.tool` valid on all 10 bundles; Event Viewer clean (`select log_level,
 count(*) from events group by log_level` → `16 3`, audit rows only); console clean.
 ### Result: PASS (7/7 hardening items, regression intact)
+
+## Regression — Issue #1808: getExecNotes.php execution-notes disclosure + stored RichEdit XSS
+
+**Precondition**
+
+- Fresh DB: the run arrives with `SELECT COUNT(*) FROM testprojects` = 0, so rebuild the fixture:
+  `php tmp/fixtures_1808.php`. It creates
+  - project A (`nodes_hierarchy.id=1`, `prefix SECA`) with plan A (`testplans.id=10`);
+    `executions.id=1` -> plan A, notes = the stored-XSS payload
+    `SECRET-A-NOTES <img src=x onerror=alert(1)></p><script>alert(document.cookie)</script>`
+  - project B (`nodes_hierarchy.id=2`, `prefix SECB`) with plan B (`testplans.id=11`);
+    `executions.id=2` -> plan B, notes `SECRET-B-NOTES only project B may read this`
+  - users `secguest`/`secguest` (**role 3 `<no rights>`**), `secprojB`/`secprojB`
+    (global role 0 + `user_testproject_roles` -> role 81 holding only `exec_ro_access`
+    (right id 49) on **project B only**), plus the built-in `admin`.
+- App reachable at `http://localhost:8082`.
+
+**Repro (pre-fix) — what the issue described**
+
+1. Log in as `secguest` (role 3, no rights at all).
+2. `GET /lib/execute/getExecNotes.php?readonly=1&exec_id=1` -> the notes of an execution in a test
+   project the user has no role, grant or assignment in, were rendered.
+3. Walk `?exec_id=1..N` -> every note in the installation can be dumped.
+4. `?exec_id=999999` -> `Undefined index: 0` E_WARNING then a fatal 500
+   (`$map[0]['notes']` dereferenced with no guard).
+5. The stored `<img src=x onerror=alert(1)>` / `<script>` blob was handed to the web editor, i.e. it
+   executed with the app origin's privileges.
+6. Residual half found while investigating: the BFF's own
+   `GET /api/execnotesreadonly/index.php?action=fragment&exec_id=1` answered a request carrying
+   `Origin: http://evil.example` with **200 + the fragment**, while the shim that emits the very same
+   bytes answered the same request **403** — the `innerHTML`-sink requirement was enforced on only one
+   of the two entry points (`bffSameOriginGuard()` returns immediately for GET, so it never ran).
+
+**Expected post-fix behavior**
+
+1. A user with no right on the OWNING test project is refused with a 404 that is **byte-identical**
+   to the answer for a non-existent execution (no existence oracle, no note bytes).
+2. A user granted on the owning project still reads the note; a user granted on *another* project is
+   refused.
+3. A stored RichEdit/HTML payload reaches the DOM as **text**, never as markup.
+4. An unknown / zero / negative / non-numeric `exec_id` is rejected with no PHP warning and no 500.
+5. No session -> 401; a write verb -> 405; plain browser navigation -> 302 to the modern screen.
+6. The `action=fragment` route (the `innerHTML` sink) answers **403** for a foreign or unparseable
+   `Origin`/`Referer`, and still answers **200** for a same-origin `$.ajax` (XRW with neither header).
+
+**Actual result — PASS**
+
+Driven by `bash tmp/verify_1808.sh` (fixture + real `curl` sessions; groups 1-8 are the pre-existing
+matrix, group 9 is the same-origin gate added by this fix).
+
+| Group | Request (as) | Expected | Measured |
+|---|---|---|---|
+| 1.1 | `secguest` -> shim `exec_id=1` (project A) | refused | **404** `exec_not_found` |
+| 1.2 | `secguest` -> shim `exec_id=2` (project B) | refused | **404** `exec_not_found` |
+| 1.3 | `secguest` -> BFF `view&exec_id=1` | refused | **404** `exec_not_found` |
+| 2.1 | `secprojB` -> shim `exec_id=2` (**its own** project B) | allowed | **200** `SECRET-B-NOTES …` |
+| 2.2 | `secprojB` -> shim `exec_id=1` (project A) | refused | **404** `exec_not_found` |
+| 2.3 | `secprojB` -> BFF `view&exec_id=1` | refused | **404** `exec_not_found` |
+| 3.1 | `admin` -> shim `exec_id=1` | allowed, plain text | **200** `SECRET-A-NOTES\nalert(document.cookie)` in `<pre>` |
+| 3.2 | `admin` -> BFF `view&exec_id=1` | allowed | **200** `"notes":"SECRET-A-NOTES\nalert(document.cookie)"` |
+| 4.1 | `secguest` -> `exec_id=999999` | no warning, no 500 | **404** `exec_not_found` |
+| 4.2/4.3/4.4 | `exec_id=0` / `-5` / `abc` | rejected | **400** + empty escaped fragment |
+| 5.1 | **no session** -> `exec_id=1` | refused | **401** `not_authenticated` |
+| 6.1 | `secguest`, `Origin: http://evil.example` -> shim | refused | **403** `cross_origin` |
+| 7.1 | `admin` **POST** to the read-only controller | refused | **405** `method_not_allowed` |
+| 8 | `admin` plain browser navigation | 302 | **302** -> `gui/templates/execute/execNotesReadonly.html?exec_id=1` |
+| 9.1 | BFF `fragment`, XRW, **no** Origin/Referer (the 5 legacy `url2load()` shape) | allowed | **200** |
+| 9.2 | BFF `fragment`, same-origin `Referer` | allowed | **200** |
+| 9.3 | BFF `fragment`, same-origin `Origin` (default-port normalisation) | allowed | **200** |
+| 9.4 | BFF `fragment`, `Origin: http://evil.example` | refused | **403** `cross_origin` (was **200**) |
+| 9.5 | BFF `fragment`, `Origin: file:///tmp/x.html` | refused | **403** `unparseable_origin` (was **200**) |
+| 9.6 | BFF `fragment`, `Origin: null` + XRW | refused (XRW must not override, #1679) | **403** `unparseable_origin` |
+| 9.7 | BFF `fragment`, no XRW and no Origin/Referer | refused | **403** `cross_origin` (was **200**) |
+| 9.8 | BFF `view` + foreign `Origin` | unchanged (JSON, no CORS, out of scope) | **200** |
+
+Group 9 result line from the suite: `same-origin gate: PASS=8 FAIL=0`.
+
+Browser verification (headless Chrome, `admin`, `exec_id=1`):
+`notesChildNodes = ["TEXT:…"]`, `injectedElements (img,script,iframe,svg,object,embed) = 0`,
+`notesBoxInnerHTML = "SECRET-A-NOTES\nalert(document.cookie)"`, **zero console messages**.
+
+No-regression proof: the status codes of groups 1-8 were captured before the change
+(`/tmp/opencode/v1808_c.txt`) and after (`/tmp/opencode/v1808_after.txt`) and compared
+programmatically — all 15 identical (`1.1 404→404  1.2 404→404  1.3 404→404  2.1 200→200
+2.2 404→404  2.3 404→404  3.1 200→200  3.2 200→200  4.1 404→404  4.2 400→400  4.3 400→400
+4.4 400→400  5.1 401→401  6.1 403→403  7.1 405→405  8 302→302`).
+
+Event Viewer / `events` table after the whole post-fix run: **76 rows, every one either
+`audit_login_succeeded` or the intentional `BFF: user N refused execution notes … no right` AUDIT
+line** (`api/execnotesreadonly/index.php:170`, logged as `AUDIT` and not `WARNING` on purpose) —
+**zero new Error/Warning entries**.
