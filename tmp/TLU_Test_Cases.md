@@ -5152,3 +5152,40 @@ Event Viewer / `events` table after the whole post-fix run: **76 rows, every one
 `audit_login_succeeded` or the intentional `BFF: user N refused execution notes … no right` AUDIT
 line** (`api/execnotesreadonly/index.php:170`, logged as `AUDIT` and not `WARNING` on purpose) —
 **zero new Error/Warning entries**.
+
+
+### Group 10 — parameter normalisation / edge cases (added after the mandatory code review)
+
+The subagent review of the fix found that `?action[]=fragment` and `?exec_id[]=1` reached a plain
+`(string)` cast, which emits **"Array to string conversion"** as an E_WARNING — and
+`watchPHPErrors()` (`lib/functions/logger.class.php:1483`) writes that into the **events table**.
+It fired **unauthenticated**, because the parameter parse runs before the session check, so any
+anonymous caller could add a Warning to the Event Viewer. Both parameters are now `is_scalar()`-guarded
+and a non-scalar is refused on the existing invalid-parameter path with no warning.
+
+| Group | Request (as `admin`) | Expected | Measured |
+|---|---|---|---|
+| 10.1 | `?action[]=fragment&exec_id=1` | 400, no warning | **400 `unknown_action`** |
+| 10.2 | `?action=fragment&exec_id[]=1` | 400, no warning | **400 `invalid_exec_id`** |
+| 10.3 | `action=FRAGMENT` (case) | 400, must not reach the sink | **400 `unknown_action`** |
+| 10.4 | `action=fragment%20` (trailing space, trimmed) + foreign `Origin` | gate still fires | **403 `cross_origin`** |
+| 10.5 | `action=fragment%00` (NUL, trimmed) + foreign `Origin` | gate still fires | **403 `cross_origin`** |
+| 10.6 | same-origin `Origin` + **foreign** `Referer` on the BFF | BFF passes (returns on the first match) | **200** |
+| 10.7 | the **same** request on the shim | shim is stricter → refuse | **403 `cross_origin`** |
+| 10.8 | `events` rows matching `Array to string conversion` | **delta 0** | **0** (pre-existing count unchanged, 1 -> 1) |
+
+Groups 10.6/10.7 pin the one combination where the two entry points legitimately differ: a
+same-origin `Origin` paired with a foreign `Referer`. It is not exploitable — a cross-origin browser
+always presents a foreign `Origin` first, and a matching `Origin` already means the caller is
+same-origin — and the shim, which runs **first**, is the stricter one, so the effective verdict never
+changes. The docblock and the CHANGELOG were corrected: they claimed the two were "IDENTICAL", which
+was false.
+
+After the review fixes the full suite is **16 PASS / 0 FAIL** across groups 9 and 10, and groups 1-8
+still answer `404,404,404,200,404,404,200,200,404,400,400,400,401,403,405` + `302` — byte-identical
+to the pre-fix baseline. `events` gained no Error/Warning row from this endpoint.
+
+**Accepted, not applied (cosmetic, MINOR):** the new gate runs after `api/execnotesreadonly/index.php`
+opens the database (lines 54/62-63), so a request destined for 403 still costs a DB connect. Moving
+the `action` parse above the `exec.inc.php` require would reorder the documented verb-check sequence for
+a cosmetic gain, so it was deliberately left alone and recorded here instead.
