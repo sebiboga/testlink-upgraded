@@ -242,6 +242,13 @@ function install_check_bts_connection($db)
                 continue;
             }
             $iface = new $impl($item['type'], $item['cfg'], $item['name']);
+            // NOTE: issueTrackerInterface::__construct() (:60-77) already calls
+            // $this->connect() once, so this is the SECOND connect of the same
+            // object. That is deliberate legacy parity: $g_bugInterface was built
+            // by tlIssueTracker::getInterfaceObject() (same constructor) and
+            // checkForBTSConnection() then called connect() on it again. Keeping
+            // it means a tracker that is down is detected by exactly the same
+            // code path (and produces the same tLog() row) as in 1.9.20.
             if (!$iface->connect()) {
                 $ret['failed'][] = $name !== '' ? $name : ('#' . $id);
             }

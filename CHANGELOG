@@ -111,6 +111,27 @@ screen reaches full parity.
   entries are dropped while an empty list hides the section. Docs in `docs/Install-Upgrade-Modernized.md`
   §7 + wiki page of the same name. Test suite: Task #1286, 8/8 PASS. (Refs #1286)
 
+- [TASK] - #1282: **The Install / Upgrade screen warns again when the Bug Tracking System cannot
+  be reached.** Legacy `getSecurityNotes()` (`lib/functions/configCheck.php:273-275`) called
+  `checkForBTSConnection()` (`:340-350`) and appended `bts_connection_problems`, but the modern
+  BFF ported only the install-dir / LDAP / admin-password / e-mail / repository notes, so an
+  unreachable BTS produced no warning at all. `api/install/index.php` now has
+  `install_check_bts_connection()`, which connects every tracker **linked to at least one test
+  project** - the project-scoped contexts in which legacy `$g_bugInterface` would have been
+  non-null - through `connect()` (not `isConnected()`), guarded by `class_exists()` +
+  `try/catch (\Throwable)` like `api/issuetracker/index.php`, and publishes a `bts` block
+  `{checked,configured,linked,failed,status_ok}` plus a `bts_connection` note whose client
+  rendering names the failing trackers through the new i18n key
+  `install.btsConnectionProblems` (all 10 bundles). Two defects fixed on the way:
+  `issueTrackerInterface::connect()` used `is_null($this->cfg->dbhost)` on a `json_decode()`
+  `stdClass`, logging an E_WARNING per check on PHP 8 (6 `events` rows measured) - now the
+  equivalent `isset()` guard; and `securityCodes` was shorter than `securityNotes` (the 4
+  e-mail notes pushed no code), mislabelling every note for API consumers. `installView.html`
+  additionally falls back to the server string for an empty localized note and renders legacy
+  `<br />` tags as real line breaks (still XSS-safe via `.text()`). Docs in
+  `docs/Install-Upgrade-Modernized.md` §10 + wiki page of the same name. Test suite:
+  Task #1282, 11/11 PASS. (Refs #1282)
+
 - [TASK] - #1288: **The first computer bug (9 September 1947) is now documented.** The corpus
   never explained where the word *bug* that names this product's whole category comes from: the
   `Istoric` section of the wiki landing page (`tmp/wiki-repo/Ce-este-TestLink.md`) started at

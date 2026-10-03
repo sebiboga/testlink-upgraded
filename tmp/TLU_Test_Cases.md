@@ -5189,3 +5189,68 @@ to the pre-fix baseline. `events` gained no Error/Warning row from this endpoint
 opens the database (lines 54/62-63), so a request destined for 403 still costs a DB connect. Moving
 the `action` parse above the `exec.inc.php` require would reorder the documented verb-check sequence for
 a cosmetic gain, so it was deliberately left alone and recorded here instead.
+
+## Task — Issue #1282: Implement BTS-connection security check in install/installView.html (gap vs legacy)
+
+### Precondition
+- Application running at http://localhost:8082 (PHP built-in server, docroot = repo root), DB `testlink` imported, logged in as `admin/admin`.
+- Legacy reference: `lib/functions/configCheck.php:251-330` (`getSecurityNotes()`), `:273-275` (the check that was missing), `:340-350` (`checkForBTSConnection()`); gated string `locale/en_US/strings.txt:2582` (`bts_connection_problems`).
+- Fixtures created for this run (a test project must exist, otherwise no tracker is ever "linked"):
+  ```sql
+  INSERT INTO nodes_hierarchy (id,name,parent_id,node_type_id,node_order) VALUES
+    (9001,'TLU BTS Fixture Project 1',0,1,1),(9002,'TLU BTS Fixture Project 2',0,1,2),(9003,'TLU BTS Fixture Project 3',0,1,3);
+  INSERT INTO testprojects (id,notes,color,active,option_reqs,option_priority,option_automation,options,prefix,tc_counter,is_public,issue_tracker_enabled,code_tracker_enabled,reqmgr_integration_enabled,api_key) VALUES
+    (9001,'','#9BD',1,0,0,0,'','TPUA',0,1,1,0,0,'tlu9001btsfixturekey0000000000'),
+    (9002,'','#9BD',1,0,0,0,'','TPUB',0,1,1,0,0,'tlu9002btsfixturekey0000000000'),
+    (9003,'','#9BD',1,0,0,0,'','TPUC',0,1,1,0,0,'tlu9003btsfixturekey0000000000');
+  ```
+- Tracker types used: `2` = `bugzilla/db` → `issueTrackerInterface::connect()` returns **false** (unreachable, the legacy symptom); `24` = `mantis/rest` → the session-backed double from #1560 whose `connect()` returns **true**; `99` = a type that is not a key of `tlIssueTracker::$systems` (issue #1617 path).
+- Helper used for every step:
+  ```bash
+  C=/tmp/ck.txt
+  curl -s -c $C -b $C -H 'X-Requested-With: XMLHttpRequest' -H 'Referer: http://localhost:8082/' \
+       http://localhost:8082/api/install/index.php
+  ```
+
+### Steps
+1. No tracker at all: `DELETE FROM testproject_issuetracker; DELETE FROM issuetrackers;` — read `bts` + `securityCodes` + the three array lengths.
+2. Tracker configured but **not** linked: `INSERT INTO issuetrackers VALUES (9001,'TLU Not Linked',2,'<issuetracker/>');`
+3. Tracker linked to a project and reachable: add `issuetrackers(9002,'TLU Reachable',24,…)` + `testproject_issuetracker(9001,9002)`.
+4. Tracker linked and **unreachable**: add `issuetrackers(9003,'TLU Down',2,…)` + `testproject_issuetracker(9002,9003)`.
+5. Tracker linked with an **unknown type 99**: add `issuetrackers(9004,'TLU UnknownType',99,…)` + `testproject_issuetracker(9003,9004)`.
+6. **DISTINCT** check: 3 projects linked to the *same* tracker — `DELETE FROM testproject_issuetracker; INSERT … (9001,9003),(9002,9003),(9003,9003);`
+7. Browser: `http://localhost:8082/gui/templates/install/installView.html` with only the failing tracker linked — read the Security Notes panel.
+8. Switch the locale to Romanian on the same failing state and re-read the note.
+9. Event Viewer: `SELECT log_level,count(*) FROM events GROUP BY log_level;` after the whole run, plus `SELECT count(*) FROM events WHERE log_level<>16;`
+10. Gates: `php -l api/install/index.php`, `php -l lib/issuetrackerintegration/issueTrackerInterface.class.php`, `node --check` on the extracted inline script of `installView.html`, `python3 -m json.tool` on all 10 locale bundles.
+11. Legacy wording parity: compare `securityNotes[last]` with `locale/en_US/strings.txt:2582`.
+
+### Expected behavior
+- Step 1/2 → NO BTS note (a tracker linked to no project can never be the project-scoped `$g_bugInterface` legacy tested, so legacy would not warn either — and no pointless outbound connect is made on every page load).
+- Step 3 → NO note (reachable BTS).
+- Step 4 → note `Connection to your Bug Tracking System has failed: TLU Down. …`, `securityCodes` gains `bts_connection`, `bts.failed = ["TLU Down"]`.
+- Step 5 → the unknown-type tracker is listed in `bts.failed` and **must not** crash the request (issue #1617 returns a NULL implementation).
+- Step 6 → the tracker is connected/reported **once** (`linked: 1`).
+- Step 7 → the note is the last bullet of the Security Notes panel (legacy order, `configCheck.php:273-275` runs before `:275-282`).
+- Step 8 → the note follows the UI locale (re-composed client-side from `securityNoteItems`).
+- Step 9 → **0** Error/Warning rows (the feature must not add Event Viewer noise).
+- Step 11 → server string identical to legacy `bts_connection_problems`.
+
+### Actual result
+- PASS (1/1 no tracker): `status_ok=True configured=0 linked=0 failed=[] note=no aligned=OK`.
+- PASS (2/2 configured NOT linked): `status_ok=True configured=1 linked=0 failed=[] note=no aligned=OK` — legacy parity by design.
+- PASS (3/3 reachable): `status_ok=True configured=2 linked=1 failed=[] note=no aligned=OK`.
+- PASS (4/4 unreachable): `status_ok=False configured=3 linked=2 failed=["TLU Down"] note=YES aligned=OK`.
+- PASS (5/5 unknown type 99): `status_ok=False failed=["TLU Down","TLU UnknownType"] note=YES aligned=OK` — degraded to "failed", no 0-byte 500.
+- PASS (6/6 DISTINCT): `status_ok=False linked=1 failed=["TLU Down"]` — one connect per tracker, not per link.
+- PASS (7/7 browser EN): panel shows 8 bullets, last = `Connection to your Bug Tracking System has failed: TLU Down. Please check your configuration. Be careful, this problem will degrade TestLink performance.` Screenshot `docs/screenshots/issue-1282-bts-connection-note.png`.
+- PASS (8/8 browser RO): `Conectarea la sistemul tau de urmarire a defectelor a esuat: TLU Down. Verifica-ti configuratia. Fii atent, aceasta problema va degrada performantele TestLink.` Screenshot `docs/screenshots/issue-1282-bts-note-ro.png`.
+- PASS (9/9 event viewer): `select log_level,count(*) from events group by log_level` → `16 2` only; `select count(*) from events where log_level<>16` → **0**. Browser console: no error/warn messages.
+- PASS (10/10 gates): `php -l api/install/index.php` OK; `php -l lib/issuetrackerintegration/issueTrackerInterface.class.php` OK; `node --check` on the extracted inline `<script>` OK; `python3 -m json.tool` valid on all 10 locale bundles; `git diff --numstat gui/templates/i18n/` = 1 line added per bundle.
+- PASS (11/11 legacy wording): `securityNotes[last] = "Connection to your Bug Tracking System has failed:<br />\n Please check your configuration.<br />\n Be careful this problem will degrade TestLink performance."` — byte-identical to `locale/en_US/strings.txt:2582-2584`.
+
+### Two defects found and fixed by this suite
+1. `issueTrackerInterface::connect()` used `is_null($this->cfg->dbhost)` on a `stdClass` built by `json_decode()`; a cfg without `<dbhost>` raised **6 E_WARNING rows** in `events` (`Undefined property: stdClass::$dbhost … Line 202`) while running steps 4-6. Fixed with the equivalent `!isset(...)` guard.
+2. `securityCodes` was SHORTER than `securityNotes` (the 4 email notes pushed no code), so zipping the arrays attached every code to the wrong note. The 4 notes now push `email_config` and both parallel arrays are padded when they drift.
+
+### Result: PASS (11/11 steps)

@@ -266,3 +266,123 @@ directory `chmod 555`, or a non-existent path.
 See `tmp/TLU_Test_Cases.md` — **Task — Issue #1283** (7/7 PASS): healthy FS dir (green badge,
 no note), not-writable dir, missing dir, healthy-state regression, ro localisation, DB type
 (no check), Event Viewer / console / `php -l` / `node --check` / `json.tool` gates.
+
+## 10. Bug Tracking System connection security check — #1282
+
+### 10.1 The gap
+
+Legacy `getSecurityNotes()` (`lib/functions/configCheck.php:251-330`) — rendered by
+`login.php:230`, `lib/functions/common.php:1787` and `mainPage.php:184` — checked the Bug
+Tracking System connectivity right after the install-dir / LDAP / default-password notes:
+
+```php
+// configCheck.php:273-275 (inside getSecurityNotes())
+if (!checkForBTSConnection()) {
+  $securityNotes[] = lang_get("bts_connection_problems");
+}
+
+// configCheck.php:340-350
+function checkForBTSConnection()
+{
+  global $g_bugInterface;
+  $status_ok = true;
+  if($g_bugInterface && !$g_bugInterface->connect()) { $status_ok = false; }
+  return $status_ok;
+}
+```
+
+The gated string ships in every locale (`locale/en_US/strings.txt:2582-2584`):
+*"Connection to your Bug Tracking System has failed … Be careful this problem will degrade
+TestLink performance."*
+
+`api/install/index.php` had ported only the install-dir, LDAP / default-admin-password,
+e-mail-config and attachments-repository checks, so **an installation whose Bug Tracking
+System was unreachable showed no warning at all on the Install / Upgrade screen** — exactly
+the degradation legacy warned about.
+
+### 10.2 What the modern screen does now
+
+* `install_check_bts_connection($db)` in `api/install/index.php` ports
+  `checkForBTSConnection()`. The subtlety is the *scope*: `$g_bugInterface` is
+  **project-scoped** (built by `tlIssueTracker::getInterfaceObject($tprojectID)`,
+  `tlIssueTracker.class.php:745-786`), and the Install / Upgrade screen has no test-project
+  context, so there is no literal `$g_bugInterface` to test. The faithful analog is every
+  tracker **linked to at least one test project** — precisely the contexts in which legacy
+  would have had a non-null `$g_bugInterface`. A tracker configured but linked to no project
+  can never be anybody's active BTS, so it is skipped (no false positive, and no pointless
+  outbound connect on every page load).
+* The check calls **`connect()`**, not `isConnected()` — legacy semantics: `connect()` is what
+  actually opens the DB / SOAP / REST / socket handle, `isConnected()` only reports a cached
+  flag.
+* Instantiation follows the established pattern of `api/issuetracker/index.php:212-243`
+  (`getByID()['implementation']` + `new $impl(...)` inside `try/catch (\Throwable)` with a
+  `class_exists()` probe), NOT `tlIssueTracker::getInterfaceObject()`, which only catches
+  `Exception` and `echo`s raw HTML on failure (`tlIssueTracker.class.php:781-784`) — that
+  would corrupt the JSON response. An unknown/unloadable implementation (issues #1617 /
+  #1635) degrades to "connection failed" instead of a 0-byte 500.
+* A top-level `bts` block publishes `{checked, configured, linked, failed[], status_ok}`:
+  `configured` = rows in `issuetrackers`, `linked` = distinct trackers joined with
+  `testproject_issuetracker` (`DISTINCT`: 3 projects on one tracker connect it once),
+  `failed` = the names that could not connect.
+* On failure the legacy string is appended to `securityNotes` (unchanged wording) with the
+  code `bts_connection`, and `securityNoteItems` carries
+  `{code, key: install.btsConnectionProblems, params: {trackers}}` so the front-end can name
+  the failing trackers **and** follow the active UI language. The note is inserted before the
+  repository note, matching legacy `getSecurityNotes()` ordering (`:273-275` before `:275-282`).
+* i18n: `install.btsConnectionProblems` with a `{trackers}` placeholder, in all 10 locale
+  bundles (`+1` line each).
+
+Reproduce a failing state without a real bug tracker: insert an `issuetrackers` row of type
+`2` (`bugzilla/db`) whose `cfg` has no `<dbhost>`, and link it to a test project through
+`testproject_issuetracker`. `issueTrackerInterface::connect()` then returns `false` — the
+legacy symptom. Type `24` (`mantis/rest`, the session double from #1560) is the
+reachable control.
+
+### 10.3 Two defects fixed on the way
+
+1. **`issueTrackerInterface::connect()` logged an E_WARNING per check on PHP 8.**
+   `is_null($this->cfg->dbhost)` runs on a `stdClass` produced by `json_decode()` of the
+   tracker cfg XML (`setCfg()`, `:165`); a cfg that omits `<dbhost>` leaves the property
+   **absent**, and `is_null()` on an absent property raises *"Undefined property:
+   stdClass::$dbhost"* (`issueTrackerInterface.class.php:202`) before it can answer — 6
+   `events` rows measured while verifying this issue. Replaced with the exactly equivalent
+   `!isset($this->cfg->dbhost) || !isset($this->cfg->dbuser)` (`isset()` is true for neither a
+   missing nor a null property, so the return value is unchanged). This also de-noises the
+   pre-existing `api/issuetracker/index.php` connection checks, which had the same latent
+   hazard.
+2. **`securityCodes` was shorter than `securityNotes`.** The four e-mail-config notes pushed
+   no code, so any API consumer zipping the two arrays attached every code to the wrong note
+   (measured: `notes=8 codes=5`, the `bts_connection` code landed on an e-mail parameter).
+   The four notes now push `email_config`, and — like `securityNoteItems` — `$securityCodes`
+   is padded with `'unknown'` if the two arrays ever drift again.
+
+### 10.4 Front-end hardening
+
+`gui/templates/install/installView.html` needed no structural change (the generic
+`securityNoteItems` renderer already handles any keyed note), but two robustness fixes landed
+in the same loop:
+
+* an **empty** localized string now falls back to the server string instead of producing a
+  blank bullet (the guard used to sit inside the `.text()` argument);
+* the server-side fallback is a legacy multi-line message containing literal `<br />` tags.
+  The `<li>` is filled with `.text()` to stay XSS-safe, so those tags were displayed
+  verbatim; they are now converted into real line breaks (`white-space: pre-line`),
+  **still through `.text()`**, so no HTML is ever injected from the BFF.
+
+### 10.5 Files
+
+| File | Purpose |
+|------|---------|
+| `api/install/index.php` | `install_check_bts_connection()`, `bts` block, `bts_connection` note, `securityCodes` alignment |
+| `lib/issuetrackerintegration/issueTrackerInterface.class.php` | `isset()` guard in `connect()` (no more E_WARNING) |
+| `gui/templates/install/installView.html` | localized note rendering, safe `<br>` fallback |
+| `gui/templates/i18n/*.json` (10 bundles) | `install.btsConnectionProblems` |
+| `docs/screenshots/issue-1282-bts-connection-note.png` | Security Notes panel with the BTS warning (en) |
+| `docs/screenshots/issue-1282-bts-note-ro.png` | same note localized to Romanian |
+
+### 10.6 Regression suite
+
+See `tmp/TLU_Test_Cases.md` — **Task — Issue #1282** (11/11 PASS): no tracker, tracker not
+linked, reachable tracker, unreachable tracker, unknown tracker type, `DISTINCT` linking,
+browser rendering (en + ro), Event Viewer (0 Error/Warning rows), syntax/JSON gates and
+legacy-wording parity.

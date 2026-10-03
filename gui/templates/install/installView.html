@@ -258,7 +258,7 @@ function renderStatus(r) {
       // stay XSS-safe, so the tags have to be turned into real line breaks
       // instead of being shown verbatim.
       var li = $('<li>');
-      if (String(text).indexOf('<br') !== -1) {
+      if (/<br/i.test(String(text))) {
         li.css('white-space', 'pre-line');
         text = String(text).replace(/<br\s*\/?>/gi, '\n');
       }
