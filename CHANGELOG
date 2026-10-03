@@ -780,6 +780,33 @@ screen reaches full parity.
   reformatted away. 26/26 test cases PASS (23 functional + 3 from the code review), console and Event Viewer
   clean. (Refs #1787)
 
+- [KEY BUGFIX - DATA INTEGRITY] - #1684: `reqTreeReorder.html` - the per-row **Up / Down / To top / To bottom**
+  buttons reordered the **SELECTED** requirement instead of the row whose button was clicked, silently corrupting
+  the pending order that **Apply** then writes to the database. Root cause was a shared-state collision, not a
+  missing argument: `PICKED` (`reqTreeReorder.html:168` pre-fix / `:173` now, "requirement id chosen in the Move card") did double duty
+  as the move-card selection **and** as the implicit row resolver - `btn()` (`:283-285` pre-fix) forwarded only the direction,
+  dropping the row index `i` that the enclosing `ITEMS.forEach(function (it, i))` loop supplied, and `nudge()`
+  (`:289-291` pre-fix) recovered the row with `ITEMS.findIndex(function (x) { return x.id === PICKED; })`. The smell is
+  provable from the source alone: `applyRowState()` (`:225-228` pre-fix / `:256-259` now) already disabled
+  the controls **per row**
+  (`i === 0` for up/top, `i === n - 1` for down/bottom), so the markup advertised row-scoped controls while the
+  handler was selection-scoped. Two silent variants, both reproduced: select row 2 + **To top** on row 3 gave
+  `TR1-3, TR1-1, TR1-2` instead of `TR1-2, TR1-1, TR1-3` (and **Apply** persisted exactly that wrong order), and
+  select row 1 + **Up** on row 3 changed nothing at all because `j < 0` bailed out with no message. Measured as
+  0 console errors/warnings and **0 XHRs** during the faulty clicks, so the BFF was never in the fault path - the
+  `api/reqtreereorder/index.php` reorder endpoint (`?action=reorder`, wired at `reqTreeReorder.html:169`) needed no
+  change. Fix (commit `f60e8965d`, landed with the #1681
+  screen series and verified + closed by this run): `btn(icon, label, dir, idx)` binds the row it is rendered for
+  and calls `nudge(idx, dir)`; `nudge(i, dir)` works purely on that bounds-validated index, and the `PICKED`
+  lookup plus the "first enabled button" fallback are **deleted**, making the invariant a property of the
+  signature - a reorder control can no longer reach the selection. Safe because every reorder ends in `render()`,
+  which rebuilds all handlers with fresh indices. 1 file, +10/-14. Regression suite 1684: **9/9 PASS**, including
+  the Apply -> `nodes_hierarchy.node_order` round trip that now stores the **clicked** row's order. A DOM-vs-handler
+  mismatch grep is documented on the wiki page for the next screen that mixes per-row controls with a shared
+  selection. Filed, not fixed (#1804): the disabled controls are `<span class="rm dis">` rather than real
+  `<button disabled>`, so they lack `aria-disabled` semantics, `pointer-events:none` and a "why" tooltip.
+  (Fixes #1684)
+
 - [KEY BUGFIX] - #1683: `reqTreeReorder.html` fell back to a **native `alert()`** for EVERY confirm dialog
   (Move requirement / Apply order), because the screen was written against the **Bootstrap 4/5** modal API while
   the Dashio bundle is **Bootstrap 3.4.1** (version banner on `gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js:2`, file loaded at
