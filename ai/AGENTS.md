@@ -48,16 +48,27 @@ modern UI (Dashio Bootstrap admin template) with a PHP REST BFF layer.
    then executed and results recorded. **APPEND-ONLY — this file is shared by all
    concurrent agents and lives under the git-ignored `tmp/` (`.gitignore:47`), so
    no CI gate can see a clobber: never regenerate the file from your own copy,
-   append with `>>`, and before committing verify
-   `git diff --cached --numstat -- tmp/TLU_Test_Cases.md` shows **0 deletions**
-   (additions only). `git diff --numstat` CANNOT be used for that gate: the file
-   has to be staged with `-f`, and once staged the worktree-vs-index diff is
-   empty, so the check would pass even on a clobber; after committing re-check
-   with `git diff --numstat HEAD~1 HEAD -- tmp/TLU_Test_Cases.md`. Also verify
-   the suites of other issues survived (`grep -cE "Issue #<n>"` for yours, and
-   `grep -cE "^## (Regression|Suite|Task|Modernize) "` must not drop). A full-file
-   rewrite already destroyed two suites this way (#1701 lost in `ce093fa54`,
-   #1740 lost in `a2df484a8`) — see issue #1793.
+   append with `>>`, and before committing run the gate:
+
+   ```bash
+   TLU_REQUIRE_SUITE="Issue #<n>" bash ai/verify_test_suites.sh
+   ```
+
+   It compares the suite file against the **merge-base with `origin/<default>`**
+   and fails if any suite heading present in the base is **missing** (a set
+   difference over the `^## (Regression|Suite|Task|Modernize) ` headings), if a
+   line was removed, if a suite heading was left without a body, or if your own
+   suite is absent. The three checks that used to stand here are structurally
+   blind to the loss and must not be used as the gate:
+   `git diff --cached --numstat` is empty by construction once the file is staged
+   with `-f`; `git diff --numstat HEAD~1 HEAD` sees only the previous commit, so
+   a suite lost in an EARLIER commit of the branch (which is how the loss enters —
+   a rebase resolution) is invisible; and `grep -cE "^## (Regression|Suite|Task|Modernize) "`
+   is a COUNT, not a set — a clobber that deletes one suite while the run adds two
+   of its own passes it (measured: 55 → 56 suites with one suite gone). Keep the
+   numstat checks as extra evidence, never as the gate. A full-file rewrite has
+   destroyed three suites this way (#1701 lost in `ce093fa54`, #1740 lost in
+   `a2df484a8`, `Issue #1048` lost in `966a7997d`) — see issues #1793 and #1805.
 
 10. **Screenshots in the GitHub Wiki.** Every wiki page update includes current
     screenshots of the modernized screen (normal states + key interactions).
