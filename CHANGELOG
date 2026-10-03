@@ -2464,6 +2464,24 @@ MAJOR AREAS
   a2df484a8. Appended verbatim (+99/-0) and made the obligation explicit in
   ai/AGENTS.md: rule 9 append-only with a 0-deletions gate, rule 7 never
   regenerate a wiki page from a stale read, rule 18 names both shared artifacts.
+- [TESTING] - #1805: added `ai/verify_test_suites.sh`, the first gate that can
+  actually detect a lost suite in the shared, git-ignored suite file. The three
+  checks the rulebooks mandated are structurally blind to it: `git diff --cached
+  --numstat` is empty by construction once the file is staged with `-f`;
+  `git diff --numstat HEAD~1 HEAD` is a per-commit property and the loss enters
+  in an *earlier* commit (the rebase resolution), measured `4 0` on a file that
+  had lost 23 lines; and `grep -cE "^## (Regression|Suite|Task|Modernize) " must
+  not drop` is a COUNT, not a set - measured 55 -> 56 suites while one suite was
+  deleted (the check #1805 itself proposed is also blind). The new gate compares
+  against the **merge-base with origin/<default>** with a set difference over the
+  suite headings, plus deletions vs the base, header-only/truncated suite blocks,
+  balanced code fences and the run's own suite (`TLU_REQUIRE_SUITE`); an
+  unrunnable check is a FAIL unless `--allow-skip`. Mandated by `ai/AGENTS.md`
+  rule 9, `ai/FIX-ISSUE.md` §5 and `ai/IMPLEMENT-TASK.md` §5. Third occurrence
+  of the class (`#1701` in `ce093fa54`, `#1740` in `a2df484a8`, `Issue #1048` in
+  `966a7997d`) - the #1048 data loss itself was already repaired by `966a7997d`;
+  what remained open was the absence of any gate that could see it. Suite
+  `Regression — Issue #1805` 9/9 PASS; Event Viewer clean (0 rows).
 - [WIKI / DOCS] - Full GitHub Wiki (361 pages) + docs/ mirror, per-screen
   modernization docs, 168 bugfix write-ups, MODERNIZATION-STATUS.md and
   SCREEN-COMPARE-STATUS.md trackers.
