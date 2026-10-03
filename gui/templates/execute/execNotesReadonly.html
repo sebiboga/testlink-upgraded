@@ -155,6 +155,12 @@ function loadNotes() {
   $('#loading').show();
   $('#content').hide();
 
+  // Fail closed: every non-ok path below returns without touching this button,
+  // so it must start disabled and is enabled only once the BFF has confirmed the
+  // note AND the edit right. Otherwise a 404 / 403 / 401 / missing-id page would
+  // still offer "Open editable notes" and launch execNotes.html?exec_id=<bad id>.
+  $('#btnEdit').prop('disabled', true).removeAttr('title');
+
   if (!EXEC_ID) {
     showState('warn', 'fa fa-question-circle', 'enro.missingIdTitle', 'enro.missingIdMsg', 'invalid_exec_id');
     return;
@@ -164,6 +170,8 @@ function loadNotes() {
     .done(function (r) {
       if (r.status !== 'ok') { showState('err', 'fa fa-exclamation-triangle', 'enro.errorTitle', 'enro.errorMsg', r.code); return; }
       var x = r.execution || {};
+      // can_edit is a ROOT-level field, not a sibling of the execution fields.
+      var canEdit = r.can_edit === true;
       $('#ctxExec').text('#' + (x.id || EXEC_ID));
       $('#mbTestCase').text(x.testcase_name || '-');
       if (x.testcase_external_id) {
@@ -183,8 +191,8 @@ function loadNotes() {
       // inserted as text nodes, so a stored payload cannot execute here either.
       $('#notesBox').text(notes ? notes : TLi18n.t('enro.noNotes')).toggleClass('empty', !notes);
 
-      $('#btnEdit').prop('disabled', !x.can_edit);
-      $('#btnEdit').attr('title', x.can_edit ? '' : TLi18n.t('enro.cannotEdit'));
+      $('#btnEdit').prop('disabled', !canEdit);
+      $('#btnEdit').attr('title', canEdit ? '' : TLi18n.t('enro.cannotEdit'));
 
       $('#loading').hide();
       $('#content').show();

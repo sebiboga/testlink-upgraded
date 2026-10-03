@@ -144,9 +144,13 @@ $readGrant = $user->hasRight($db, 'exec_ro_access', $tprojectId, $tplanId)
     || $user->hasRight($db, 'testplan_execute', $tprojectId, $tplanId);
 
 if (!$readGrant) {
+    // AUDIT, not WARNING: a refused read is a security-relevant event worth
+    // recording, but logging it as a WARNING would make every denied user show up
+    // in the Event Viewer as a new Warning (rule: the Event Viewer must stay free
+    // of new Error/Warning entries from ordinary use).
     tLog('BFF: user ' . intval($userId) . ' refused execution notes for execution ' .
          $execId . ' (testproject ' . $tprojectId . ', testplan ' . $tplanId . ') - no right',
-         'WARNING');
+         'AUDIT');
     fail(403, 'no_right', 'You do not have rights on this execution');
 }
 
