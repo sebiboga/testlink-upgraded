@@ -2523,6 +2523,10 @@ function getActions(&$gui,$baseURL) {
     // Refs #1807). Standalone Dashio page fed by api/execnotesreadonly, which
     // authorizes the OWNING test project and flattens the stored RichEdit blob
     // to escaped plain text. Deep-link with exec_id=<execution id>.
+    // Still an UNWIRED action on purpose: with no exec_id the screen can only
+    // render a "pick an execution" state, so an ASIDE entry would be a dead end
+    // until the BFF grows an execution-picker route. Its consumers today are the
+    // legacy shim's 302 and the screen's own deep link.
     $actions->execNotesReadonly =
       "/gui/templates/execute/execNotesReadonly.html?{$ctx}";
     // Bug Add / Link popup (modernized lib/execute/bugAdd.php, Refs #1560).

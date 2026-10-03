@@ -9255,4 +9255,72 @@ modernized `platformsView.html` screen still renders with every linked row's del
 Suite `T1637` in `tmp/TLU_Test_Cases.md` — 17/17 PASS. Restored from branch `fix/issue-1637`
 (`716d96587` code, `8ac6cc966` suite + this entry, `e255cb5f7` `docs/` mirror); the code, the suite
 and the `docs/` page had already reached `sebiboga`, only this CHANGELOG entry was still missing.
+### Screen — Execution Notes, read-only viewer `execNotesReadonly` (Refs #1807)
+- Screen: `gui/templates/execute/execNotesReadonly.html`, a standalone Dashio page
+  (`gui/templates/execute/execNotesReadonly.html?exec_id=<execution id>`) backed by the new
+  BFF `api/execnotesreadonly/index.php` with two safe-GET routes: `?action=view` (JSON payload
+  for the screen) and `?action=fragment` (escaped `text/html` for the legacy `url2load()`
+  call sites). Replaces `lib/execute/getExecNotes.php` +
+  `gui/templates/dashio/execute/getExecNotes.tpl`. The note is never shown without its
+  context: test case + `#PREFIX-N` chip, suite, plan, project, build, platform, status badge
+  and execution timestamp. The stored RichEdit blob is flattened server-side to PLAIN TEXT
+  (`<br>` and block ends become newlines, everything else stripped, entities decoded once) and
+  lands in the page via `textContent`, so a stored payload cannot execute. "Open editable
+  notes" is enabled only when the BFF reports `can_edit`, and the button fails closed on every
+  non-ok state (missing id / 401 / 403 / 404 / 400) so it can never launch
+  `execNotes.html?exec_id=<bad id>`. Right enforced on the OWNING test project, resolved by
+  walking `executions -> testplans -> testproject` and never from a client-supplied id
+  (`exec_ro_access` / `exec_edit_notes` / `testplan_execute`, identical to `api/execnotes`), and
+  the executed tcversion is proved to live in that same project by walking
+  `nodes_hierarchy.parent_id` to the `node_type_id = 1` root - both fail CLOSED with 404
+  rather than fall back to the session project or show a foreign test case name. 29 `enro.*`
+  keys in all ten `gui/templates/i18n/*.json` bundles. Canonical action
+  `$actions->execNotesReadonly` in `lib/functions/common.php`. No ASIDE entry: with no
+  `exec_id` the screen can only render a "pick an execution" state, so a menu link would be a
+  dead end - the screen is deep-linked instead.
+- KEY BUGFIX (security) - #1808: the legacy `getExecNotes.php` authorized NOTHING beyond
+  "a session exists" (`testlinkInitPage()` was never called, so no right and no ownership
+  were checked) and handed a bare `?exec_id=` straight to the view: any authenticated user,
+  role 3 `<no rights>` included, could read the notes of ANY execution on ANY test project by
+  enumerating `?exec_id=`. It also dereferenced `$map[0]['notes']` with no guard (E_WARNING +
+  fatal 500 on an unknown id) and rendered the stored RichEdit blob through the web editor, a
+  stored payload executing with the app origin's privileges. The controller is now a
+  non-mutating shim preserving the legacy contract - 401 with no session, 405 for a write
+  verb, 400 for a bad id, 302 to the modern screen for a browser navigation, and 200
+  `text/html` from the BFF for the XHR fragment - and the fragment branch additionally
+  requires a SAME-ORIGIN caller, because the four legacy call sites (`dashio`/`tl-classic`
+  `execSetResultsUtils`, `execSetResultsJS`, `execHistory`) assign the answer into
+  `innerHTML`; `Origin`/`Referer` are validated authoritatively and the `X-Requested-With`
+  hint never overrides a foreign `Origin` (issue #1679). The shim `require`s the BFF
+  IN-PROCESS rather than proxying it over HTTP, because the fragment must keep the same
+  session cookie, status codes and body and a nested self-request is not available (the dev
+  server is single-threaded, so it deadlocks into a 502). Also fixed while exercising the
+  screen in the browser (commit `774abca0f`): the success handler aliased the payload with
+  `var x = r.execution || {}` while `can_edit` is a ROOT-level field, so "Open editable
+  notes" was permanently disabled; the edit button stayed clickable in every non-ok state;
+  and a refused read was logged at WARNING, so every denied user added a new Warning to the
+  Event Viewer (now AUDIT). Verified: role-3 `norights1807` gets `403 no_right` on BOTH the
+  modern and the legacy-fragment path with no note leaked; stored `<img onerror>` payload
+  lands as inert text (`window.__enro_xss` undefined, 0 child elements in the notes box);
+  Event Viewer shows no new Error/Warning rows. The mandatory code review (subagent) then reported **no blockers** and **2 MAJOR**
+items, both fixed: (a) the 403-vs-404 split was an **existence oracle** - any
+authenticated user could enumerate `?exec_id=` and learn which executions exist across
+every test project, the same ruling as #1792 - so "no right" now answers byte-identically
+to "no such execution" and the client's Access-denied card is kept only as a safety net;
+(b) the BOM strip used a `/u` `preg_replace()` that returns **NULL** for invalid UTF-8
+(a Latin-1 byte, a truncated sequence - exactly what a 1.9.20 database carries), and that
+NULL blanked the whole note, so the screen claimed "No execution notes recorded." for an
+execution that had notes; the strip is now byte-mode and `json_encode` carries
+`JSON_INVALID_UTF8_SUBSTITUTE` (without the flag the same payload encoded to **0 bytes**).
+Also from the review: the verb check moved ABOVE `bffSameOriginGuard()` so the documented
+405 is reachable for every caller instead of being swallowed as 403; `fail()` renamed
+`enro_fail()` because this file is co-included by the shim; the shim's two same-origin
+refusals now answer a JSON machine code (`cross_origin` / `unparseable_origin`) instead
+of an empty page; both file headers corrected from "4 legacy call sites" to the real
+**5** (six files carry the line, `tl-classic/.../execSetResultsJS.inc.tpl` does not exist);
+the audit join moved below the tcversion proof; the ownership walk now asserts the first
+node is `node_type_id = 3`; the status class is validated and `removeClass()` no longer
+strips the badge box's own classes. Suite `Issue #1807` in
+  `tmp/TLU_Test_Cases.md` - 34/34 PASS.
+
 - [KEY BUGFIX] - #1685: `reqTreeReorder.html` — drag-and-drop reordering did not show the "Unsaved changes" chip (asymmetry with button path); fixed by calling `markDirty()` after render in the drop handler. Verified: chip appears on drop, clears on Apply/Discard, Apply persists order. No API change.

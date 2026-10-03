@@ -4,11 +4,16 @@
  *
  * Replaces the legacy read-only Execution Notes page
  * (lib/execute/getExecNotes.php + gui/templates/dashio/execute/getExecNotes.tpl),
- * which is still loaded as an AJAX fragment by 4 legacy call sites:
- *   gui/templates/{dashio,tl-classic}/execute/include/execSetResultsUtils.inc.tpl
- *   gui/templates/{dashio,tl-classic}/execute/include/execSetResultsJS.inc.tpl
- *   gui/templates/{dashio,tl-classic}/execute/execHistory.tpl
+ * which is still loaded as an AJAX fragment by 5 legacy call sites:
+ *   gui/templates/dashio/execute/include/execSetResultsUtils.inc.tpl
+ *   gui/templates/dashio/execute/include/execSetResultsJS.inc.tpl
+ *   gui/templates/dashio/execute/execHistory.tpl
+ *   gui/templates/tl-classic/execute/include/execSetResultsUtils.inc.tpl
+ *   gui/templates/tl-classic/execute/execSetResults.tpl
+ *   gui/templates/tl-classic/execute/execHistory.tpl
  * all as `url2load=fRoot+'lib/execute/getExecNotes.php?readonly=1&exec_id=' + exec_id`.
+ * (Six files carry the line; `tl-classic/execute/include/execSetResultsJS.inc.tpl`
+ * does not exist, so the count of DISTINCT call sites is 5.)
  *
  * Routes (both safe verbs only - this endpoint NEVER writes):
  *   GET|HEAD ?action=view&exec_id=N     -> JSON payload for the modern screen
@@ -37,26 +42,52 @@ require_once('common.php');
 doSessionStart();
 
 require_once(__DIR__ . '/../_guard.php');
+
+// The verb check is deliberately BEFORE bffSameOriginGuard(): this endpoint has
+// no write path at all, so the guard protects nothing here, while running first
+// it would swallow the documented 405 and answer 403 for every plain POST. Order
+// matters only for the code a caller sees, not for safety.
+enro_require_safe_verb();
+
 bffSameOriginGuard();
 
 require_once(__DIR__ . '/../../lib/functions/exec.inc.php');
 
 // nodes_hierarchy.node_type_id literals (2.0.1 dropped the TLO_* constants):
 // 1 = test project root, 3 = test case, 4 = test case version.
-define('ENRO_NODE_TESTPROJECT', 1);
+if (!defined('ENRO_NODE_TESTPROJECT')) {
+    define('ENRO_NODE_TESTPROJECT', 1);
+}
 
 $db = new database(DB_TYPE);
 doDBConnect($db);
 
 header('X-Content-Type-Options: nosniff');
 
-$method = strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET');
+/**
+ * Refuse every write verb explicitly, so a POST here can never be mistaken for a
+ * supported action (and so the 405/Allow contract holds for every caller).
+ */
+function enro_require_safe_verb() {
+    $method = strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET');
+    if ($method !== 'GET' && $method !== 'HEAD') {
+        header('Allow: GET, HEAD');
+        http_response_code(405);
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(array(
+            'status' => 'error',
+            'code' => 'method_not_allowed',
+            'message' => 'This endpoint is read-only; use GET',
+        ));
+        exit;
+    }
+}
 
 /**
  * Stable machine-coded JSON failure. The modern screen keys its state cards off
  * `code`, never off the English message, so the message can be reworded freely.
  */
-function fail($status, $code, $message) {
+function enro_fail($status, $code, $message) {
     if (!headers_sent()) {
         header('Content-Type: application/json; charset=utf-8');
         header('X-Content-Type-Options: nosniff');
@@ -71,57 +102,45 @@ function fail($status, $code, $message) {
     exit;
 }
 
-if ($method !== 'GET' && $method !== 'HEAD') {
-    http_response_code(405);
-    header('Content-Type: application/json; charset=utf-8');
-    header('Allow: GET, HEAD');
-    echo json_encode(array(
-        'status' => 'error',
-        'code' => 'method_not_allowed',
-        'message' => 'This endpoint is read-only; use GET',
-    ));
-    exit;
-}
-
 $action = trim((string)($_GET['action'] ?? 'view'));
 if ($action === '') {
     $action = 'view';
 }
 if ($action !== 'view' && $action !== 'fragment') {
-    fail(400, 'unknown_action', 'Unknown action');
+    enro_fail(400, 'unknown_action', 'Unknown action');
 }
 
 $userId = $_SESSION['userID'] ?? null;
 if (!$userId || intval($userId) <= 0) {
-    fail(401, 'not_authenticated', 'Not authenticated');
+    enro_fail(401, 'not_authenticated', 'Not authenticated');
 }
 
 $user = tlUser::getByID($db, $userId);
 if (is_null($user)) {
-    fail(401, 'not_authenticated', 'Not authenticated');
+    enro_fail(401, 'not_authenticated', 'Not authenticated');
 }
 
 // Enforces the legacy session inactivity window (same note as every other BFF).
-// Runs BEFORE the object is resolved so a stale session cannot be used as a
-// read oracle.
+// Runs after the user row is resolved but BEFORE any execution data is touched, so
+// a stale session cannot be used as a read oracle.
 if (function_exists('bffEnforceSession')) {
     bffEnforceSession($db);
 }
 
 $execIdRaw = trim((string)($_GET['exec_id'] ?? ''));
 if ($execIdRaw === '' || !preg_match('/^[0-9]+$/', $execIdRaw) || intval($execIdRaw) <= 0) {
-    fail(400, 'invalid_exec_id', 'A positive exec_id is required');
+    enro_fail(400, 'invalid_exec_id', 'A positive exec_id is required');
 }
 $execId = intval($execIdRaw);
 
 // ---------------------------------------------------------------------------
 // Resolve the execution and PROVE the owning test plan + test project.
 // ---------------------------------------------------------------------------
-$tables = tlObjectWithDB::getDBTables(array('executions', 'testplans'));
+$tables = tlObjectWithDB::getDBTables('testplans');
 
 $rs = get_execution($db, $execId);
 if (!$rs || count($rs) === 0) {
-    fail(404, 'exec_not_found', 'Execution not found');
+    enro_fail(404, 'exec_not_found', 'Execution not found');
 }
 $row = $rs[0];
 
@@ -133,7 +152,7 @@ if (!$tpRs || count($tpRs) === 0) {
     // An execution whose plan vanished cannot be authorized - fail closed
     // instead of falling back to the SESSION project (that would be a
     // confused-deputy read).
-    fail(404, 'exec_not_found', 'Execution not found');
+    enro_fail(404, 'exec_not_found', 'Execution not found');
 }
 $tprojectId = intval($tpRs[0]['testproject_id']);
 
@@ -151,7 +170,13 @@ if (!$readGrant) {
     tLog('BFF: user ' . intval($userId) . ' refused execution notes for execution ' .
          $execId . ' (testproject ' . $tprojectId . ', testplan ' . $tplanId . ') - no right',
          'AUDIT');
-    fail(403, 'no_right', 'You do not have rights on this execution');
+    // BYTE-IDENTICAL to the not-found answer on purpose. Answering 403 here while
+    // answering 404 for a missing execution is an existence oracle: any
+    // authenticated user, role 3 `<no rights>` included, could enumerate
+    // ?exec_id=1..N and learn WHICH executions exist across every test project.
+    // Same ruling as issue #1792 (api/builds did exactly this on tplan_id), so the
+    // two refusals are collapsed into one opaque answer.
+    enro_fail(404, 'exec_not_found', 'Execution not found');
 }
 
 // ---------------------------------------------------------------------------
@@ -177,7 +202,15 @@ function enro_notes_to_text($html) {
     // would surface the raw markup of a doubly-escaped note.
     $s = html_entity_decode($s, ENT_QUOTES | ENT_HTML5, 'UTF-8');
     // Strip a zero-width / BOM prefix that RichEdit sometimes stores.
-    $s = preg_replace('/^[\x{FEFF}\x{200B}]+/u', '', $s);
+    // Deliberately BYTE-mode, no /u: preg_replace() returns NULL when the subject
+    // is not valid UTF-8 (a Latin-1 byte or a truncated sequence, which is exactly
+    // what a 1.9.20 database carries), and that NULL used to propagate into
+    // trim() below - so a note that DOES exist rendered as "No execution notes
+    // recorded.".
+    $bom = preg_replace('/^(\xEF\xBB\xBF|\xE2\x80\x8B)+/', '', $s);
+    if ($bom !== null) {
+        $s = $bom;
+    }
     // Collapse 3+ blank lines and trim trailing space per line.
     $s = preg_replace("/[ \t]+\n/", "\n", $s);
     $s = preg_replace("/\n{3,}/", "\n\n", $s);
@@ -205,18 +238,22 @@ if ($action === 'fragment') {
 // ---------------------------------------------------------------------------
 // Branch: view - the JSON payload for the modern Dashio screen.
 // ---------------------------------------------------------------------------
-$audit = get_execution($db, $execId, array('output' => 'audit'));
-$auditRow = ($audit && count($audit) > 0) ? $audit[0] : array();
-
 // Prove the executed test case version really lives in the execution's own test
-// project before its name is exposed next to the notes.
+// project BEFORE the audit join: the join is the expensive query, and on the
+// fail-closed 404 path it would be pure waste.
 $nhTables = tlObjectWithDB::getDBTables('nodes_hierarchy');
 $tcNode = enro_tc_node($db, intval($row['tcversion_id']), $nhTables, $tprojectId);
 if (is_null($tcNode)) {
-    fail(404, 'exec_not_found', 'Execution not found');
+    enro_fail(404, 'exec_not_found', 'Execution not found');
 }
 
+$audit = get_execution($db, $execId, array('output' => 'audit'));
+$auditRow = ($audit && count($audit) > 0) ? $audit[0] : array();
+
 header('Content-Type: application/json; charset=utf-8');
+// JSON_INVALID_UTF8_SUBSTITUTE so one bad byte cannot make json_encode() return
+// false, which would print an EMPTY body and degrade the screen to a generic
+// http_200 card.
 echo json_encode(array(
     'status' => 'ok',
     'execution' => array(
@@ -245,7 +282,7 @@ echo json_encode(array(
     // hasRight() answers the string 'yes'/'' in 2.0.1 - normalise to a bool
     // so the client can use it as a truthy value without guessing the literal.
     'can_edit' => ($user->hasRight($db, 'exec_edit_notes', $tprojectId, $tplanId) === 'yes'),
-));
+), JSON_INVALID_UTF8_SUBSTITUTE);
 
 /**
  * Resolve the test case node behind an executed test case version and PROVE it
@@ -292,7 +329,14 @@ function enro_tc_node($db, $tcversionId, $tables, $tprojectId) {
         $n     = $node[0];
         $ntype = intval($n['node_type_id']);
         if ($ntype === 3) {
-            $tcaseName = (string)$n['name'];
+            // The FIRST node walked is the version's parent and MUST be a test
+            // case: a parent_id pointing at a suite would otherwise answer 200
+            // with an empty testcase_name.
+            if ($cursor === $tcaseId && $tcaseName === '') {
+                $tcaseName = (string)$n['name'];
+            } else {
+                return null;
+            }
         } elseif ($ntype === 2) {
             $suiteName = (string)$n['name'];
         } elseif ($ntype === ENRO_NODE_TESTPROJECT) {

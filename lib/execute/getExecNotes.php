@@ -12,9 +12,14 @@
  *
  * Why this file still exists: four legacy templates load its output as an AJAX
  * fragment and assign it into innerHTML
- *   gui/templates/{dashio,tl-classic}/execute/include/execSetResultsUtils.inc.tpl
- *   gui/templates/{dashio,tl-classic}/execute/include/execSetResultsJS.inc.tpl
- *   gui/templates/{dashio,tl-classic}/execute/execHistory.tpl
+ *   gui/templates/dashio/execute/include/execSetResultsUtils.inc.tpl
+ *   gui/templates/dashio/execute/include/execSetResultsJS.inc.tpl
+ *   gui/templates/dashio/execute/execHistory.tpl
+ *   gui/templates/tl-classic/execute/include/execSetResultsUtils.inc.tpl
+ *   gui/templates/tl-classic/execute/execSetResults.tpl
+ *   gui/templates/tl-classic/execute/execHistory.tpl
+ * (six files carry the line; `tl-classic/execute/include/execSetResultsJS.inc.tpl`
+ * does not exist, so the count of DISTINCT call sites is 5)
  * all as `url2load = fRoot + 'lib/execute/getExecNotes.php?readonly=1&exec_id=' + exec_id`,
  * so the FRAGMENT contract has to keep answering. The fragment is now produced by
  * the BFF, with the same authorization the modern screen uses, instead of by the
@@ -37,6 +42,9 @@
  *   - XHR / fragment     -> 200 text/html fragment produced by the BFF, and ONLY
  *                           for a same-origin caller, because the legacy call
  *                           sites assign the answer into innerHTML
+ *   - cross-origin XHR   -> 403 (the BFF answers 404 for BOTH "no such execution"
+ *                           and "no right", so this file must not turn the two
+ *                           into distinguishable answers)
  *   - browser navigation -> 302 to the modern screen
  *
  * The shim NEVER reads or writes a note itself: every byte of content comes from
@@ -117,17 +125,33 @@ foreach (array('HTTP_ORIGIN', 'HTTP_REFERER') as $hdr) {
     }
     $parts = parse_url($val);
     if (empty($parts['host'])) {
-        http_response_code(403);
-        exit;
+        enro_forbid('unparseable_origin');
     }
     $authority = strtolower($parts['host']);
     if (!empty($parts['port'])) {
         $authority .= ':' . $parts['port'];
     }
     if (bffStripDefaultPort($authority, $defaultPort) !== $hostKey) {
-        http_response_code(403);
-        exit;
+        enro_forbid('cross_origin');
     }
+}
+
+/**
+ * A same-origin refusal. Emits a JSON body with a machine code so a caller can
+ * tell "foreign Origin" from "unparseable Origin" instead of parsing an empty
+ * 200-shaped page, and so the refusal can never be confused with the BFF's own
+ * answers.
+ */
+function enro_forbid($code) {
+    http_response_code(403);
+    header('Content-Type: application/json; charset=utf-8');
+    header('X-Content-Type-Options: nosniff');
+    echo json_encode(array(
+        'status' => 'error',
+        'code' => $code,
+        'message' => 'Forbidden: same-origin required',
+    ));
+    exit;
 }
 
 // Run the BFF IN-PROCESS rather than proxying it over HTTP: the fragment has to

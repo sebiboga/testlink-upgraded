@@ -182,8 +182,13 @@ function loadNotes() {
       $('#mbProject').text(x.testproject_name || '-');
       $('#mbBuild').text(x.build_name || '-');
       $('#mbPlatform').text(x.platform_name || '-');
+      // status_char is a DB value, so it is validated before it becomes a class
+      // name; removeClass() with no argument would also strip the box's own
+      // padding/radius classes, hence the explicit list.
       var st = $('#mbStatus').text(statusLabel(x.status_char));
-      if (x.status_char) { st.removeClass().addClass('badge-' + x.status_char); }
+      var sc = /^[a-zA-Z]$/.test(x.status_char || '') ? x.status_char : '';
+      st.removeClass('badge-p badge-f badge-b');
+      if (sc) { st.addClass('badge-' + sc); }
       $('#mbTs').text(x.execution_ts || '-');
 
       var notes = x.notes || '';

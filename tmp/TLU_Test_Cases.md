@@ -5048,10 +5048,12 @@ recreated per run): test project 35 `ENRO1807`, test plan 36 `ENRO Plan`, build 
 | 6 | `GET ?action=view&exec_id=abc` | 400 `invalid_exec_id` | PASS |
 | 7 | `GET ?action=bogus&exec_id=9` | 400 `unknown_action` | PASS |
 | 8 | anonymous `GET ?action=view` | 401 `not_authenticated` | PASS |
-| 9 | `POST` | 405, `Allow: GET, HEAD` | PASS |
-| 10 | role-3 user, `GET ?action=view&exec_id=9` | 403 `no_right` | PASS |
-| 11 | role-3 user, legacy fragment path | 403, note NOT leaked | PASS — `leaked:false` |
-| 12 | execution whose tcversion lives in another project | 404 (fail closed) | PASS — `enro_tc_node()` walks `parent_id` to the root and compares it with the owning project |
+| 9 | plain `POST`, no Origin/Referer/XRW | 405, `Allow: GET, HEAD` | PASS after the code review moved the verb check **above** `bffSameOriginGuard()`, which had been swallowing it as 403 |
+| 10 | role-3 user, `GET ?action=view&exec_id=9` | 404 `exec_not_found` — byte-identical to a missing execution | PASS after the code review closed the 403/404 existence oracle (the #1792 class): the two refusals are now one opaque answer |
+| 11 | role-3 user, legacy fragment path | 404, note NOT leaked | PASS — `leaked:false` |
+| 12 | role-3 user, `exec_id=999999` vs `exec_id=9` | the two answers must be **identical**, so no existence oracle | PASS — both `404 {"status":"error","code":"exec_not_found","message":"Execution not found"}` |
+| 13 | execution whose tcversion lives in another project | 404 (fail closed) | PASS — `enro_tc_node()` walks `parent_id` to the root and compares it with the owning project, and the first node walked must be `node_type_id = 3` |
+| 14 | note stored as invalid UTF-8 (Latin-1 byte) | the note must NOT read as empty | PASS after the code review: the byte-mode BOM strip replaced a `/u` `preg_replace()` that returned **NULL** for invalid UTF-8 and blanked the whole note; `json_encode` now uses `JSON_INVALID_UTF8_SUBSTITUTE` (without the flag the same payload encoded to **0 bytes**) |
 
 ### Legacy shim — `lib/execute/getExecNotes.php`
 
@@ -5059,7 +5061,7 @@ recreated per run): test project 35 `ENRO1807`, test plan 36 `ENRO Plan`, build 
 |---|------|----------|--------|
 | 13 | browser navigation `?readonly=1&exec_id=9` | 302 → `execNotesReadonly.html?exec_id=9` | PASS |
 | 14 | XHR (legacy `url2load`) `exec_id=9` | 200 `text/html`, escaped `<pre>` | PASS |
-| 15 | XHR with foreign `Origin` | 403 (fragment goes into `innerHTML`) | PASS |
+| 15 | XHR with foreign `Origin` | 403 + a JSON machine code (the fragment goes into `innerHTML`) | PASS — `{"status":"error","code":"cross_origin",...}`, added by the code review so a refusal is never an empty 200-shaped page |
 | 16 | XHR with same-origin `Origin` | 200 | PASS |
 | 17 | no session | 401 | PASS |
 | 18 | `POST` | 405 | PASS |
@@ -5076,7 +5078,7 @@ recreated per run): test project 35 `ENRO1807`, test plan 36 `ENRO Plan`, build 
 | 24 | load `?exec_id=11` | `window.__enro_xss` undefined, `#notesBox` has 0 child elements | PASS |
 | 25 | load with **no** `exec_id` | "No execution selected" card; edit button disabled | PASS after fix `774abca0f` |
 | 26 | load `?exec_id=999999` | "Execution not found" card; edit button disabled | PASS after fix `774abca0f` |
-| 27 | load `?exec_id=9` as role-3 user | "Access denied" card; edit button disabled | PASS |
+| 27 | load `?exec_id=9` as role-3 user | opaque "Execution not found" card; edit button disabled | PASS — the BFF answers the same 404 as for a missing row, so the screen cannot tell the two apart. The 403 "Access denied" card is kept in the client as a permanent safety net for a future grant split. |
 | 28 | locale switch → Romanian | every chrome label translated, note text untouched | PASS |
 | 29 | all 10 locale bundles | parse as JSON and carry the 29 `enro.*` keys | PASS |
 | 30 | Event Viewer after the whole run | no new Error/Warning entries | PASS — only AUDIT rows (level 16) for the deliberate refusals |
@@ -5085,6 +5087,17 @@ recreated per run): test project 35 `ENRO1807`, test plan 36 `ENRO Plan`, build 
 - #1808 filed (`bug`): the legacy controller authorized nothing beyond a session,
   dereferenced `$map[0]` unguarded and rendered the stored RichEdit blob as
   markup. Fixed by this branch.
+- The mandatory **code review** (subagent) reported no blockers and 2 MAJOR items,
+  both fixed and both now regression cases 9-15 above: the 403-vs-404 existence
+  oracle (same class as #1792) and the silent note-erasure on invalid UTF-8.
+  It also confirmed SQL injection clean (every interpolated id is `intval()`ed or
+  regex-validated), XSS clean (the note reaches the DOM only via `.text()`, the
+  fragment only through `htmlspecialchars`), the shim unable to smuggle a write
+  (`$_GET['action']`/`exec_id` unconditionally overwritten, no write SQL anywhere),
+  and `doSessionStart()` idempotent under the double call.
+- The review corrected a claim in both file headers: there are **5** distinct
+  legacy call sites (six files carry the line; `tl-classic/.../execSetResultsJS.inc.tpl`
+  does not exist), not 4.
 - No ASIDE entry was added: with no `exec_id` the screen can only render a
   "pick an execution" state, so a menu link would be a dead end. The screen is
   deep-linked instead (`$actions->execNotesReadonly`); an execution-picker route
