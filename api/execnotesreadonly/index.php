@@ -102,12 +102,106 @@ function enro_fail($status, $code, $message) {
     exit;
 }
 
+/**
+ * Require a same-origin caller for action=fragment (Refs #1808).
+ *
+ * Semantics are deliberately IDENTICAL to the private check in
+ * lib/execute/getExecNotes.php:96-121, so the two entry points that emit this
+ * fragment cannot disagree:
+ *
+ *   - a PRESENT Origin OR Referer is AUTHORITATIVE: unparseable (file://, a
+ *     malformed host, a "null" origin) or foreign -> 403 outright, and the XRW
+ *     hint NEVER overrides it (same ruling as issue #1679). Without this, any
+ *     client could add X-Requested-With to a cross-origin request and pass;
+ *   - NEITHER header present -> fall back to the browser's own same-origin
+ *     marker for this very call, which is what a same-origin page's $.ajax /
+ *     $.getJSON sets. A same-origin GET sends neither header by default, so
+ *     without this fallback the 5 legacy url2load() call sites would break;
+ *   - anything else -> 403.
+ *
+ * Default-port normalisation matches api/_guard.php:110-121: Origin/Referer omit
+ * the scheme default port while HTTP_HOST keeps it, so Host "localhost:80" and
+ * Origin "http://localhost" are the same origin. Only the DEFAULT port is ever
+ * stripped, so a real mismatch (Origin :80 vs Host :8082) is still rejected.
+ */
+function enro_require_same_origin_fragment() {
+    $https = strtolower(trim((string)($_SERVER['HTTPS'] ?? '')));
+    $defaultPort = ':' . (($https !== '' && $https !== 'off') ? '443' : '80');
+    $hostKey = bffStripDefaultPort(bffAuthority($_SERVER['HTTP_HOST'] ?? ''), $defaultPort);
+
+    foreach (array('HTTP_ORIGIN', 'HTTP_REFERER') as $hdr) {
+        $val = trim((string)($_SERVER[$hdr] ?? ''));
+        if ($val === '') {
+            continue;
+        }
+        $parts = parse_url($val);
+        if (empty($parts['host'])) {
+            enro_forbid_origin('unparseable_origin');
+        }
+        $authority = strtolower($parts['host']);
+        if (!empty($parts['port'])) {
+            $authority .= ':' . $parts['port'];
+        }
+        if ($hostKey !== '' &&
+            strcasecmp(bffStripDefaultPort($authority, $defaultPort), $hostKey) === 0) {
+            return;   // proven same-origin by the authoritative header
+        }
+        enro_forbid_origin('cross_origin');
+    }
+
+    // Reached only when the browser sent neither Origin nor Referer.
+    $xrw = trim((string)($_SERVER['HTTP_X_REQUESTED_WITH'] ?? ''));
+    if (strcasecmp($xrw, 'XMLHttpRequest') === 0) {
+        return;
+    }
+
+    enro_forbid_origin('cross_origin');
+}
+
+/**
+ * Same-origin refusal with a machine code, so a caller can tell a foreign Origin
+ * from an unparseable one, and so the refusal can never be mistaken for the BFF's
+ * own answers (which use the enro_fail() envelope).
+ */
+function enro_forbid_origin($code) {
+    http_response_code(403);
+    header('Content-Type: application/json; charset=utf-8');
+    header('X-Content-Type-Options: nosniff');
+    header('Cache-Control: private, no-store');
+    echo json_encode(array(
+        'status' => 'error',
+        'code' => $code,
+        'message' => 'Forbidden: same-origin required',
+    ));
+    exit;
+}
+
 $action = trim((string)($_GET['action'] ?? 'view'));
 if ($action === '') {
     $action = 'view';
 }
 if ($action !== 'view' && $action !== 'fragment') {
     enro_fail(400, 'unknown_action', 'Unknown action');
+}
+
+// Same-origin requirement for the innerHTML-sink route ONLY (Refs #1808).
+// Runs BEFORE the user row is resolved so a foreign caller learns nothing at all,
+// and deliberately before bffEnforceSession() so it cannot be used to keep a stale
+// session alive.
+//
+// Rationale: action=fragment is a PUBLIC route that emits an HTML fragment built
+// for innerHTML (5 legacy url2load() call sites). bffSameOriginGuard() above is a
+// WRITE-VERB guard and returns immediately for GET/HEAD, so on this read-only
+// endpoint it never ran - the requirement was enforced only inside the shim
+// lib/execute/getExecNotes.php, i.e. only for callers that happened to use that
+// URL, while this route produced the SAME bytes with no check at all.
+//
+// action=view is deliberately NOT gated: it is JSON, its only caller is the
+// same-origin $.getJSON at gui/templates/execute/execNotesReadonly.html:169, and
+// the endpoint sends no Access-Control-Allow-Origin, so it is already unreadable
+// cross-origin.
+if ($action === 'fragment') {
+    enro_require_same_origin_fragment();
 }
 
 $userId = $_SESSION['userID'] ?? null;

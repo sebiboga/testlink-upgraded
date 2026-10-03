@@ -17,6 +17,31 @@ Every screen of the application was ported one-by-one in a screen-compare
 kept for backward compatibility and is progressively retired as each modern
 screen reaches full parity.
 
+- [KEY BUGFIX] (security) - #1808: **the read-only Execution Notes fragment is now same-origin on
+  BOTH of the entry points that produce it.** The #1807 fix had closed the IDOR and the stored
+  RichEdit XSS, but `api/execnotesreadonly/index.php` exposes `?action=fragment` as a public route
+  whose whole purpose is the legacy `url2load()` contract, and that fragment is assigned into
+  `innerHTML` by 5 legacy templates. Its same-origin requirement lived ONLY inside the shim
+  `lib/execute/getExecNotes.php`, so the same request against the BFF's own documented fragment
+  route answered **200 + the notes** with `Origin: http://evil.example` while the shim answered 403
+  for byte-identical output - the security property depended on which URL a caller happened to use.
+  Root cause: `bffSameOriginGuard()` (`api/_guard.php:102-106`) returns immediately for
+  GET/HEAD/OPTIONS, so on this read-only endpoint - where `enro_require_safe_verb()` has already
+  restricted the verb set - it was structurally unreachable. New `enro_require_same_origin_fragment()`
+  in the BFF applies the same semantics the shim already used, scoped to `action=fragment` only: a
+  PRESENT `Origin`/`Referer` is authoritative (unparseable -> 403 `unparseable_origin`, foreign ->
+  403 `cross_origin`, and the `X-Requested-With` hint never overrides it, issue #1679), neither
+  header -> the XRW fallback that a same-origin `$.ajax` sends, otherwise 403. It runs before the
+  user row is resolved and before `bffEnforceSession()`, so a foreign caller learns nothing and
+  cannot keep a stale session alive. `action=view` is deliberately NOT gated: it is JSON, its only
+  caller is the same-origin `$.getJSON` in `execNotesReadonly.html:169`, and the endpoint sends no
+  `Access-Control-Allow-Origin`. Verified: the 8-case origin matrix passes 8/8, and all 15 status
+  codes of the pre-existing rights / id-validation / no-session / POST / 302 probes are byte-for-byte
+  unchanged (captured before and after); in headless Chrome the stored
+  `<img src=x onerror=alert(1)>` + `<script>` payload arrives as ONE text node with 0 injected
+  elements and no console errors; `events` gained no Error/Warning row (refusals are logged AUDIT).
+  Suite `Issue #1808` in `tmp/TLU_Test_Cases.md`.
+
 - [TASK] - #1283: **The Install / Upgrade screen now warns about a missing or read-only attachments
   directory again.** Legacy `getSecurityNotes()` ended with an FS-repository branch
   (`lib/functions/configCheck.php:275-282`) that called `checkForRepositoryDir()` (`:368-390`) —
