@@ -1314,6 +1314,8 @@
   "install.configPresent": "Fișier de configurare prezent",
   "install.dbReachable": "Bază de date accesibilă",
   "install.dbSchemaVersion": "Versiune schemă DB",
+  "install.forum": "Forum",
+  "install.forumHint": "(Forum: TestLink 1.9.4 si mai noi - noutati, modificari etc.)",
   "install.gdOk": "Biblioteca GD (grafice)",
   "install.header": "Instalare / Upgrade",
   "install.headerSub": "starea instalării și a schemei",

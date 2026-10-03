@@ -1314,6 +1314,8 @@
   "install.configPresent": "Config file present",
   "install.dbReachable": "Database reachable",
   "install.dbSchemaVersion": "DB schema version",
+  "install.forum": "Forum",
+  "install.forumHint": "(Forum: TestLink 1.9.4 and greater - news, changes, etc.)",
   "install.gdOk": "GD library (charts)",
   "install.header": "Install / Upgrade",
   "install.headerSub": "installation and schema status",

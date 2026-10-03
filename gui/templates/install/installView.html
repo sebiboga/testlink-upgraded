@@ -73,6 +73,7 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 <div id="upgradePanel" class="panel" style="display:none;">
   <h4><i class="fa fa-exclamation-triangle" style="color:#e74c3c;margin-right:6px;"></i><span data-i18n="install.upgradeNeeded">Upgrade Required</span></h4>
   <div class="msg" id="upgradeMsg"></div>
+  <div class="msg" id="upgradeForum" style="margin-top:8px;"></div>
 </div>
 
 <div id="securityPanel" class="panel" style="display:none;">
@@ -113,6 +114,22 @@ $(document).on('click', '#refreshBtn', function() { loadStatus(true); });
 
 function esc(s) {
   return $('<div>').text(s == null ? '' : String(s)).html();
+}
+
+// Legacy install/index.php:45 carried the forum reference inside the migration
+// notice itself ("... read README file or go to <forum> (Forum: TestLink 1.9.4 and
+// greater News, changes, etc)"). The modern upgrade panel owns that notice, so the
+// forum sentence is rendered here as a real link, next to the notice message.
+function renderForumNotice(r) {
+  var forumUrl = r && r.links ? r.links.forum : null;
+  var box = $('#upgradeForum').empty();
+  if (!forumUrl) { return; }
+  box.append(
+    $('<a>').attr('href', forumUrl).attr('target', '_blank')
+      .attr('rel', 'noopener noreferrer').attr('title', forumUrl)
+      .text(TLi18n.t('install.forum'))
+  );
+  box.append(' ' + esc(TLi18n.t('install.forumHint')));
 }
 
 function card(label, value, small) {
@@ -171,6 +188,7 @@ function renderStatus(r) {
       msg = TLi18n.t('install.msgUnknown', {v: r.schemaVersion, l: r.latestDbVersion});
     }
     $('#upgradeMsg').text(msg);
+    renderForumNotice(r);
     $('#upgradePanel').show();
   } else {
     $('#upgradePanel').hide();
@@ -226,6 +244,11 @@ function renderActions(r) {
   box.append('<a class="action-btn blue" href="' + esc(r.links.manual) + '" target="_blank" rel="noopener"><i class="fa fa-book"></i> ' + TLi18n.t('install.manual') + '</a>');
   box.append('<a class="action-btn dark" href="' + esc(r.links.readme) + '" target="_blank" rel="noopener"><i class="fa fa-file-text"></i> ' + TLi18n.t('install.readme') + '</a>');
   box.append('<a class="action-btn dark" href="' + esc(r.links.changelog) + '" target="_blank" rel="noopener"><i class="fa fa-history"></i> ' + TLi18n.t('install.changelog') + '</a>');
+  // Legacy install/index.php:49-50: "You are welcome to visit our forum to browse
+  // or discuss", offered next to the manual / README / CHANGELOG links.
+  if (r.links && r.links.forum) {
+    box.append('<a class="action-btn blue" href="' + esc(r.links.forum) + '" target="_blank" rel="noopener noreferrer"><i class="fa fa-comments"></i> ' + TLi18n.t('install.forum') + '</a>');
+  }
 }
 </script>
 </body>

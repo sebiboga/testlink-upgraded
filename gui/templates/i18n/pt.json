@@ -1314,6 +1314,8 @@
   "install.configPresent": "Arquivo de configuração presente",
   "install.dbReachable": "Banco de dados acessível",
   "install.dbSchemaVersion": "Versão do esquema BD",
+  "install.forum": "Fórum",
+  "install.forumHint": "(Fórum: TestLink 1.9.4 e posteriores - novidades, mudanças etc.)",
   "install.gdOk": "Biblioteca GD (gráficos)",
   "install.header": "Instalação / Atualização",
   "install.headerSub": "estado da instalação e do esquema",

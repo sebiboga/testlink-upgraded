@@ -1314,6 +1314,8 @@
   "install.configPresent": "Файл конфигурации присутствует",
   "install.dbReachable": "База данных доступна",
   "install.dbSchemaVersion": "Версия схемы БД",
+  "install.forum": "Форум",
+  "install.forumHint": "(Форум: TestLink 1.9.4 и новее - новости, изменения и т.д.)",
   "install.gdOk": "Библиотека GD (графики)",
   "install.header": "Установка / Обновление",
   "install.headerSub": "состояние установки и схемы",

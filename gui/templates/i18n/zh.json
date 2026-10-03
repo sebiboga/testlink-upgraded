@@ -1314,6 +1314,8 @@
   "install.configPresent": "配置文件存在",
   "install.dbReachable": "数据库可访问",
   "install.dbSchemaVersion": "数据库结构版本",
+  "install.forum": "论坛",
+  "install.forumHint": "(论坛：TestLink 1.9.4 及更高版本 - 新闻、变更等)",
   "install.gdOk": "GD 库（图表）",
   "install.header": "安装 / 升级",
   "install.headerSub": "安装与数据库结构状态",

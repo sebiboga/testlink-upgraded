@@ -202,6 +202,11 @@ echo json_encode(array(
         'manual'    => '/docs/testlink_installation_manual.pdf',
         'readme'    => '/README.md',
         'changelog' => '/CHANGELOG',
+        // Legacy install/index.php:25 ($forum_url) offered the community forum
+        // twice: inline in the migration notice (:45) and next to the manual /
+        // README / CHANGELOG links (:49-50). Served from the BFF so the URL is
+        // not hardcoded in the front-end.
+        'forum'     => 'http://forum.testlink.org',
     ),
     'videos' => install_community_videos(),
 ));
