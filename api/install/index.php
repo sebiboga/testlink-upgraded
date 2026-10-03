@@ -90,6 +90,22 @@ function install_community_videos()
     );
 }
 
+function install_check_email_config()
+{
+    $common[] = lang_get('check_email_config');
+    $msg = null;
+    $idx = 1;
+    $key2get = array('tl_admin_email', 'from_email', 'return_path_email', 'smtp_host');
+
+    foreach ($key2get as $cfg_key) {
+        $cfg_param = config_get($cfg_key);
+        if (trim($cfg_param) == '' || strpos($cfg_param, 'not_configured') > 0) {
+            $msg[$idx++] = $cfg_key;
+        }
+    }
+    return is_null($msg) ? null : array_merge($common, array_slice($msg, 0));
+}
+
 function install_schema_status($db, &$dbSchemaVersion, &$schemaMsg)
 {
     $latest = defined('TL_LATEST_DB_VERSION') ? TL_LATEST_DB_VERSION : 'DB 2.0.0';
@@ -172,6 +188,14 @@ if (isset($authCfg['method']) && $authCfg['method'] == 'LDAP') {
     if ($dflt === true) {
         $securityNotes[] = lang_get('sec_note_admin_default_pwd');
         $securityCodes[] = 'admin_pwd';
+    }
+}
+
+// Email configuration security check
+$emailMsgs = install_check_email_config();
+if (!is_null($emailMsgs)) {
+    foreach ($emailMsgs as $detail) {
+        $securityNotes[] = $detail;
     }
 }
 

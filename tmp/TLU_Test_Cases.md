@@ -4976,3 +4976,26 @@ it is why H1 is not listed under discriminating coverage above.
 
 **Screenshots (wiki/docs)**
 - `1792-builds-opaque.png` — the Builds & Releases screen for an entitled admin after the fix
+
+## Task — Issue #1284: Implement email-config security check in install/installView.html (gap vs legacy)
+
+### Precondition
+- Application running at http://localhost:8082 with database configured
+- Default config has email settings as 'not_configured' values (as in current config.inc.php)
+- Authenticated as admin
+
+### Steps
+1. Navigate to install/installView.html via the UI
+2. Observe the Security Notes panel
+3. Verify API /api/install/index.php returns securityNotes including email config warnings
+4. Check that all 4 email keys (tl_admin_email, from_email, return_path_email, smtp_host) are flagged when not configured
+
+### Expected behavior
+- Security Notes panel displays the email configuration warning: "Check following parameters of email feature:" followed by each unconfigured email key
+- Matches legacy behavior from lib/functions/configCheck.php checkEmailConfig()
+- No regression to existing security notes (install dir, admin default pwd still appear)
+
+### Actual result
+- PASS - All email config warnings appear correctly in Security Notes panel as returned by the API
+
+### Result: PASS
