@@ -117,6 +117,31 @@ sent, so the pre-fix 200 was **not** a readable cross-origin disclosure and noth
 — the invariant was broken, not the confidentiality of that one route. What changed is that the
 `innerHTML`-sink requirement now holds regardless of which of the two URLs a caller uses.
 
+### Code review findings applied
+
+The mandatory subagent review returned **no blockers** and 5 minor items. Applied:
+
+1. **`?action[]=fragment` / `?exec_id[]=1` wrote an E_WARNING into the Event Viewer.** A bare
+   `(string)` cast on an array emits *"Array to string conversion"*, and
+   `watchPHPErrors()` (`lib/functions/logger.class.php:1483`) routes that into the `events` table —
+   **unauthenticated**, since the parameter parse runs before the session check. Both parameters are
+   now `is_scalar()`-guarded. A non-scalar is refused outright rather than coerced to `''`: `''`
+   falls through to the `if ($action === '') { $action = 'view'; }` default and would silently serve
+   the view payload for a malformed parameter. *That regression was introduced by the first attempt
+   and caught by the new group-10 test, which measured `200` with the note body before the
+   correction.* The repo-wide pattern (~12 remaining call sites) is filed as **#1810**.
+2. **`enro_forbid_origin()` gained the `headers_sent()` guard** its siblings `enro_fail()` and
+   `bffRejectForbidden()` already have, so a refusal can never degrade into a `200` should the
+   bootstrap ever emit output first.
+3. **The "IDENTICAL to the shim" claim was false** and has been corrected. The shim requires *every*
+   present header to match; the gate returns on the first match, matching the shared guard at
+   `api/_guard.php:126-145`. The only divergent combination is a same-origin `Origin` paired with a
+   foreign `Referer` — measured on both endpoints as group 10.6/10.7 — where the shim runs first and
+   is the stricter one, so the effective verdict never changes and no legacy call site can break.
+
+Accepted but **not** applied: the gate runs after the DB connect, so a request destined for `403`
+still costs one. Reordering it would disturb the documented verb-check sequence for a cosmetic gain.
+
 **Verified** — the 8-case origin matrix passes 8/8, and all 15 status codes of the pre-existing
 rights / id-validation / no-session / POST / 302 probes are unchanged (captured before and after the
 change and diffed programmatically). In headless Chrome the stored
