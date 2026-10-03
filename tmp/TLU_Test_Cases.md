@@ -5026,91 +5026,66 @@ Screen under test: `gui/templates/requirements/reqTreeReorder.html`
 
 ### TC-1686-01 Back link target is a real page in the STATIC markup (pre-JS)
 
-- Repro: `curl -s "http://localhost:8082/gui/templates/requirements/reqTreeReorder.html" | grep -o 'id="backLink"[^>]*'`
-- Pre-fix: `id="backLink" href="#" target="_blank"` — a self-reload, plus a new tab for a *back* link.
-- Expected post-fix: `id="backLink" href="/gui/templates/requirements/reqSpecMgmt.html"` — a real
-  destination, valid before any JS runs (survives a total JS failure).
-- Actual: `id="backLink" href="/gui/templates/requirements/reqSpecMgmt.html"` — **PASS**
+### Result: PASS
 
-### TC-1686-02 Back link has no `target="_blank"`
+## Modernize — Issue #1807: read-only Execution Notes viewer (`gui/templates/execute/execNotesReadonly.html`)
 
-- Repro: same `curl`, then `grep -c _blank`.
-- Expected post-fix: `0`.
-- Actual: `0` — **PASS** (the click in TC-1686-05 navigates in place, one tab, no new page).
+Environment: `http://localhost:8082`, `admin/admin`, plus a role-3 `<no rights>`
+user `norights1807`. Fixture `tmp/fixtures_1807.php` (transient — the DB is
+recreated per run): test project 35 `ENRO1807`, test plan 36 `ENRO Plan`, build 8
+`ENRO Build 1`, platform 5 `Linux`; executions **9** (RichEdit notes),
+**10** (no notes), **11** (stored XSS payload), **12** (plain notes).
 
-### TC-1686-03 Error / no-rights state: href is NOT a self-reload
+### BFF — `api/execnotesreadonly/index.php`
 
-- Repro: open
-  `…/gui/templates/requirements/reqTreeReorder.html?tproject_id=13&req_spec_id=16`
-  with the spec absent from `nodes_hierarchy` so `?action=init` answers 404
-  ("The requirement specification or requirement was not found in this test project.").
-  A right-less user reaches the same state via the 403 branch.
-- Pre-fix: `href="…/reqTreeReorder.html?tproject_id=13&req_spec_id=16#"` — clicking it reloaded
-  the forbidden page in the same tab, because the only href assignment lived in the
-  `success:` handler of the `$.ajax` call, which never runs on 403/404.
-- Expected post-fix: `href=/gui/templates/requirements/reqSpecMgmt.html?tproject_id=13`,
-  `target=null`; toolbar inert (`applyDisabled=true`, drag hint hidden).
-- Actual: `{"href":"/gui/templates/requirements/reqSpecMgmt.html?tproject_id=13","target":null,
-  "applyDisabled":true,"dragHintVisible":"none"}` — **PASS**
+| # | Case | Expected | Result |
+|---|------|----------|--------|
+| 1 | `GET ?action=view&exec_id=9` (rich note) | 200, notes flattened to plain text, full context | PASS — `Step one passed.\nRetried after a "flaky" DNS & it worked.\nThird block with bold text.` |
+| 2 | `GET ?action=view&exec_id=10` (empty) | 200, `notes_empty: true`, `notes: ""` | PASS |
+| 3 | `GET ?action=view&exec_id=12` (plain) | 200, note returned verbatim | PASS |
+| 4 | `GET ?action=view&exec_id=11` (stored XSS) | 200, payload inert text | PASS — no `<img>`/`<script>` survives flattening |
+| 5 | `GET ?action=view&exec_id=999999` | 404 `exec_not_found` | PASS |
+| 6 | `GET ?action=view&exec_id=abc` | 400 `invalid_exec_id` | PASS |
+| 7 | `GET ?action=bogus&exec_id=9` | 400 `unknown_action` | PASS |
+| 8 | anonymous `GET ?action=view` | 401 `not_authenticated` | PASS |
+| 9 | `POST` | 405, `Allow: GET, HEAD` | PASS |
+| 10 | role-3 user, `GET ?action=view&exec_id=9` | 403 `no_right` | PASS |
+| 11 | role-3 user, legacy fragment path | 403, note NOT leaked | PASS — `leaked:false` |
+| 12 | execution whose tcversion lives in another project | 404 (fail closed) | PASS — `enro_tc_node()` walks `parent_id` to the root and compares it with the owning project |
 
-### TC-1686-04 Success state: href points at the MANAGEMENT screen, matching its label
+### Legacy shim — `lib/execute/getExecNotes.php`
 
-- Repro: add the `nodes_hierarchy` spec rows so `?action=init&tproject_id=13&req_spec_id=16`
-  returns 200, then read `#backLink`.
-- Pre-fix: href was rewritten to `reqSpecView.html?id=<SPEC_ID>&tproject_id=<TP>` — the
-  specification VIEWER — while the label said "Back to specification management".
-- Expected post-fix: href contains `reqSpecMgmt.html` and NOT `reqSpecView.html`.
-- Actual: `{"href":"/gui/templates/requirements/reqSpecMgmt.html?tproject_id=13",
-  "href_points_at_viewer":false,"rows":2,"rowsDraggable":["true","true"],"applyDisabled":false}` — **PASS**
+| # | Case | Expected | Result |
+|---|------|----------|--------|
+| 13 | browser navigation `?readonly=1&exec_id=9` | 302 → `execNotesReadonly.html?exec_id=9` | PASS |
+| 14 | XHR (legacy `url2load`) `exec_id=9` | 200 `text/html`, escaped `<pre>` | PASS |
+| 15 | XHR with foreign `Origin` | 403 (fragment goes into `innerHTML`) | PASS |
+| 16 | XHR with same-origin `Origin` | 200 | PASS |
+| 17 | no session | 401 | PASS |
+| 18 | `POST` | 405 | PASS |
+| 19 | `?exec_id=abc` | 400 + empty escaped fragment | PASS |
+| 20 | XHR `?exec_id=999999` | 404 | PASS |
+| 21 | XHR `exec_id=11` (XSS) | payload escaped, inert | PASS — `<pre>hello\nwindow.__enro_xss = 1;</pre>` |
 
-### TC-1686-05 Back link navigates in place to the management screen
+### Screen — `gui/templates/execute/execNotesReadonly.html`
 
-- Repro: `document.querySelector('#backLink').click()` on the success state.
-- Expected post-fix: same tab lands on `reqSpecMgmt.html?tproject_id=13`.
-- Actual: `Page navigated to http://localhost:8082/gui/templates/requirements/reqSpecMgmt.html?tproject_id=13`
-  — **PASS**
+| # | Case | Expected | Result |
+|---|------|----------|--------|
+| 22 | load `?exec_id=9` as admin | context grid + note rendered; "Open editable notes" ENABLED | PASS after fix `774abca0f` (was disabled: `can_edit` was read off `r.execution`) |
+| 23 | load `?exec_id=10` | "No execution notes recorded." | PASS |
+| 24 | load `?exec_id=11` | `window.__enro_xss` undefined, `#notesBox` has 0 child elements | PASS |
+| 25 | load with **no** `exec_id` | "No execution selected" card; edit button disabled | PASS after fix `774abca0f` |
+| 26 | load `?exec_id=999999` | "Execution not found" card; edit button disabled | PASS after fix `774abca0f` |
+| 27 | load `?exec_id=9` as role-3 user | "Access denied" card; edit button disabled | PASS |
+| 28 | locale switch → Romanian | every chrome label translated, note text untouched | PASS |
+| 29 | all 10 locale bundles | parse as JSON and carry the 29 `enro.*` keys | PASS |
+| 30 | Event Viewer after the whole run | no new Error/Warning entries | PASS — only AUDIT rows (level 16) for the deliberate refusals |
 
-### TC-1686-06 The dropped "open this specification" target survived (spec chip)
-
-- Repro: on `…?tproject_id=14&req_spec_id=17` click `#specChip`.
-- Expected post-fix: the viewer is still reachable, in a new tab, from the spec document
-  chip in the Context card (it moved there instead of being mislabelled on the back link).
-- Actual: `data-href=/gui/templates/requirements/reqSpecView.html?id=17&tproject_id=14`, and a
-  new page opened at exactly that URL — **PASS**
-
-### TC-1686-07 Second test project: `tproject_id` follows the URL, never hardcoded
-
-- Repro: open `…/reqTreeReorder.html?tproject_id=14&req_spec_id=17` and read `#backLink`.
-- Expected post-fix: `tproject_id=14` in both the back link and the chip.
-- Actual: `{"href":"/gui/templates/requirements/reqSpecMgmt.html?tproject_id=14",
-  "chipHref":"/gui/templates/requirements/reqSpecView.html?id=17&tproject_id=14",
-  "uses_wrong_project":false}` — **PASS**
-
-### TC-1686-08 No project in context: still a live escape hatch, no fatal
-
-- Repro: open `…/reqTreeReorder.html?req_spec_id=16` with **no** `tproject_id`.
-- Expected post-fix: `buildBackLink()` falls back to `reqSpecMgmt.html` (never `'#'`); the
-  target renders `Test Project: -` and its API answers a clean 400 — no PHP fatal, no blank page.
-- Actual: `{"href":"/gui/templates/requirements/reqSpecMgmt.html","state":"No test project in
-  context. Open this screen from a test project."}`, target shows `Test Project: -`,
-  `/api/reqspec/index.php?action=options&tproject_id=0` → `400`, console has only the two
-  expected failed-resource lines (400 + 404) and no uncaught JS error — **PASS**
-  (accepted degradation, not a defect: both entry points, `reqSpecMgmt.html:954` and `:964`,
-  always pass `tproject_id`).
-
-### TC-1686-09 Event Viewer: no new Error/Warning rows
-
-- Repro: `select id,log_level,source,left(description,120) from events order by id desc limit 12;`
-  after running TC-1686-01..08.
-- Expected post-fix: no Error/Warning rows attributable to this screen.
-- Actual: 1 row total — `log_level=16, source=GUI, description='audit_login_succeeded'`
-  (the login audit). **Zero** Error/Warning rows — **PASS**
-
-### Result: PASS (9/9)
-
-**Note on scope:** when this suite was written, both defects were already fixed in the code by
-commit `983c9179c` ("fix(reqtreereorder): back link was a dead self-reload on the error path
-(Refs #1681)"), an ancestor of the default branch. The issue was left OPEN, so this suite
-pins the verified behaviour rather than a code change. It is a real guard: any future edit
-that re-introduces a `'#'`, a `target="_blank"`, or a dependency of the href on the
-`$.ajax` success handler will fail TC-1686-01/02/03.
+### Findings
+- #1808 filed (`bug`): the legacy controller authorized nothing beyond a session,
+  dereferenced `$map[0]` unguarded and rendered the stored RichEdit blob as
+  markup. Fixed by this branch.
+- No ASIDE entry was added: with no `exec_id` the screen can only render a
+  "pick an execution" state, so a menu link would be a dead end. The screen is
+  deep-linked instead (`$actions->execNotesReadonly`); an execution-picker route
+  is a follow-up.
