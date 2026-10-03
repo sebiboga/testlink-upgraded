@@ -10,13 +10,16 @@
  *   - checkSchemaVersion()  -> schemaStatus + dbSchemaVersion + messages
  *   - checkForInstallDir()  -> is the installer still reachable (security note)
  *   - checkForAdminDefaultPwd() -> default admin password warning
+ *   - checkForRepositoryDir() -> FS attachments repository dir exists + writable
+ *     warning (configCheck.php:368-390, called from getSecurityNotes() at
+ *     configCheck.php:275-282) — ported in #1283
  *   - install_community_videos() -> the curated YouTube walkthroughs that the
  *     legacy landing page hardcoded in install/index.php:52-58 (#1286)
  *   - links.forum -> the community forum legacy offered twice on the same
  *     landing page (install/index.php:45 and :49-50) (#1285)
  * The full install wizard (pre-DB, pre-session) intentionally stays legacy.
  *
- * Refs #797, #1286, #1285.
+ * Refs #797, #1286, #1285, #1283.
  */
 require_once(__DIR__ . '/../../config.inc.php');
 require_once('common.php');
@@ -88,6 +91,43 @@ function install_community_videos()
         array('id' => '6s48WGuX2WE', 'key' => 'install.videoWalkthrough',
               'url' => 'https://www.youtube.com/watch?v=6s48WGuX2WE'),
     );
+}
+
+/**
+ * Filesystem (FS) attachments repository check.
+ *
+ * Legacy source: lib/functions/configCheck.php:368-390 (checkForRepositoryDir),
+ * driven by getSecurityNotes() at :275-282 — only when repositoryType ==
+ * TL_REPOSITORY_TYPE_FS. Message wording and the is_dir()/is_writable() logic
+ * are kept identical to legacy so server-side consumers see the same text.
+ *
+ * @return array {msg, status_ok, exists, writable}
+ */
+function install_check_repository_dir($the_dir)
+{
+    clearstatcache();
+
+    $ret['msg'] = lang_get('attachments_dir') . " " . $the_dir . " ";
+    $ret['status_ok'] = false;
+    $ret['exists'] = false;
+    $ret['writable'] = false;
+
+    if (is_dir($the_dir)) {
+        $ret['exists'] = true;
+        $ret['msg'] .= lang_get('exists') . ' ';
+        $ret['status_ok'] = (is_writable($the_dir)) ? true : false;
+        $ret['writable'] = $ret['status_ok'];
+
+        if ($ret['status_ok']) {
+            $ret['msg'] .= lang_get('directory_is_writable');
+        } else {
+            $ret['msg'] .= lang_get('but_directory_is_not_writable');
+        }
+    } else {
+        $ret['msg'] .= lang_get('does_not_exist');
+    }
+
+    return $ret;
 }
 
 function install_check_email_config()
@@ -173,21 +213,28 @@ if ($dbReachable) {
 
 $securityNotes = array();
 $securityCodes = array();
+// Parallel to $securityNotes: per-note localization hint ({code, key, params}).
+// A null entry means "no client-side key for this note" -> the front-end falls
+// back to the server-rendered string, so existing consumers are unaffected.
+$securityNoteItems = array();
 if (install_install_dir_present()) {
     $securityNotes[] = lang_get('sec_note_remove_install_dir');
     $securityCodes[] = 'install_dir';
+    $securityNoteItems[] = null;
 }
 $authCfg = config_get('authentication');
 if (isset($authCfg['method']) && $authCfg['method'] == 'LDAP') {
     if (!extension_loaded('ldap')) {
         $securityNotes[] = lang_get('ldap_extension_not_loaded');
         $securityCodes[] = 'ldap';
+        $securityNoteItems[] = null;
     }
 } elseif ($dbReachable) {
     $dflt = install_default_admin_pwd($db);
     if ($dflt === true) {
         $securityNotes[] = lang_get('sec_note_admin_default_pwd');
         $securityCodes[] = 'admin_pwd';
+        $securityNoteItems[] = null;
     }
 }
 
@@ -196,6 +243,42 @@ $emailMsgs = install_check_email_config();
 if (!is_null($emailMsgs)) {
     foreach ($emailMsgs as $detail) {
         $securityNotes[] = $detail;
+        $securityNoteItems[] = null;
+    }
+}
+
+/**
+ * Attachments repository check (legacy getSecurityNotes(), configCheck.php:275-282).
+ * Only performed for the filesystem repository type, exactly like legacy.
+ */
+$repositoryType = config_get('repositoryType');
+$repositoryPath = config_get('repositoryPath');
+$repositoryDir = array(
+    'type'      => $repositoryType,
+    'typeCode'  => (defined('TL_REPOSITORY_TYPE_DB') && $repositoryType == TL_REPOSITORY_TYPE_DB) ? 'db' : 'fs',
+    'path'      => $repositoryPath,
+    'checked'   => false,
+    'status_ok' => null,
+    'exists'    => null,
+    'writable'  => null,
+    'msg'       => null,
+);
+if (defined('TL_REPOSITORY_TYPE_FS') && $repositoryType == TL_REPOSITORY_TYPE_FS) {
+    $repositoryDir['checked'] = true;
+    $repoCheck = install_check_repository_dir($repositoryPath);
+    $repositoryDir['status_ok'] = (bool) $repoCheck['status_ok'];
+    $repositoryDir['exists'] = (bool) $repoCheck['exists'];
+    $repositoryDir['writable'] = (bool) $repoCheck['writable'];
+    $repositoryDir['msg'] = $repoCheck['msg'];
+
+    if (!$repositoryDir['status_ok']) {
+        $securityNotes[] = $repoCheck['msg'];
+        $securityCodes[] = 'repository_dir';
+        $securityNoteItems[] = array(
+            'code' => 'repository_dir',
+            'key'  => $repositoryDir['exists'] ? 'install.repoDirNotWritable' : 'install.repoDirMissing',
+            'params' => array('path' => $repositoryPath),
+        );
     }
 }
 
@@ -221,6 +304,8 @@ echo json_encode(array(
     'installDirPresent' => install_install_dir_present(),
     'securityNotes' => $securityNotes,
     'securityCodes' => $securityCodes,
+    'securityNoteItems' => $securityNoteItems,
+    'repository' => $repositoryDir,
     'gdOk' => $gdOk,
     'whoami' => isset($_SESSION['userID']) ? intval($_SESSION['userID']) : 0,
     'links' => array(

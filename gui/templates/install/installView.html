@@ -141,6 +141,40 @@ function card(label, value, small) {
     .append('<div class="value' + (small ? ' small' : '') + '">' + esc(value) + '</div>');
 }
 
+// Attachments repository cards (legacy getSecurityNotes() -> checkForRepositoryDir,
+// lib/functions/configCheck.php:275-282 + :368-390). Legacy only evaluated the
+// directory for the filesystem repository type, so the dir-state card is replaced
+// by an explicit "not checked" note for the DB type instead of inventing a state.
+function renderRepositoryCards(grid, r) {
+  var repo = (r && r.repository) ? r.repository : null;
+  if (!repo) { return; }
+
+  var typeLabel = TLi18n.t(repo.typeCode === 'db' ? 'install.repoTypeDb' : 'install.repoTypeFs');
+  grid.append(card(TLi18n.t('install.repository'), typeLabel));
+
+  var badgeCls = 'unknown', badgeKey = 'install.repoDirNotChecked', params = {};
+  if (repo.checked) {
+    params = { path: repo.path == null ? '' : repo.path };
+    if (repo.status_ok) {
+      badgeCls = 'ok';
+      badgeKey = 'install.repoDirOk';
+    } else if (repo.exists) {
+      badgeCls = 'manual';
+      badgeKey = 'install.repoDirNotWritable';
+    } else {
+      badgeCls = 'upgrade';
+      badgeKey = 'install.repoDirMissing';
+    }
+  }
+  grid.append(
+    $('<div class="card">')
+      .append('<div class="icon"><i class="fa fa-folder-open"></i></div>')
+      .append('<div class="label">' + esc(TLi18n.t('install.repository')) + '</div>')
+      .append('<div class="value small"><span class="badge ' + badgeCls + '">' +
+              esc(TLi18n.t(badgeKey, params)) + '</span></div>')
+  );
+}
+
 function loadStatus(clearFeedback) {
   $.getJSON(API, function(r) {
     if (clearFeedback) showFeedback('', '');
@@ -179,6 +213,8 @@ function renderStatus(r) {
   var gdCard = card(TLi18n.t('install.gdOk'), r.gdOk ? TLi18n.t('install.yes') : TLi18n.t('install.no'));
   grid.append(gdCard);
 
+  renderRepositoryCards(grid, r);
+
   if (r.schemaStatus && r.schemaStatus !== 'ok') {
     var msgKey = 'install.msgUndetermined';
     if (r.schemaMsg === 'upgrade') msgKey = 'install.msgUpgrade';
@@ -200,8 +236,15 @@ function renderStatus(r) {
   if (r.securityNotes && r.securityNotes.length > 0) {
     $('#securityPanel').show();
     var ul = $('#securityList').empty();
+    // Notes that legacy produced as a localized message composed of a prefix +
+    // the configured path (the attachments repository note) are re-composed here
+    // through their i18n key, so they follow the active UI language; every other
+    // note falls back to the server-rendered string.
+    var items = Array.isArray(r.securityNoteItems) ? r.securityNoteItems : [];
     $.each(r.securityNotes, function(i, n) {
-      ul.append($('<li>').text(n));
+      var it = items[i];
+      var text = (it && it.key) ? TLi18n.t(it.key, it.params || {}) : n;
+      ul.append($('<li>').text(text == null || text === '' ? n : text));
     });
   } else {
     $('#securityPanel').hide();
