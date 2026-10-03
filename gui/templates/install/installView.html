@@ -124,6 +124,8 @@ function renderForumNotice(r) {
   var forumUrl = r && r.links ? r.links.forum : null;
   var box = $('#upgradeForum').empty();
   if (!forumUrl) { return; }
+  forumUrl = String(forumUrl);
+  if (!/^https?:\/\//i.test(forumUrl)) { return; }
   box.append(
     $('<a>').attr('href', forumUrl).attr('target', '_blank')
       .attr('rel', 'noopener noreferrer').attr('title', forumUrl)
@@ -191,6 +193,7 @@ function renderStatus(r) {
     renderForumNotice(r);
     $('#upgradePanel').show();
   } else {
+    $('#upgradeForum').empty();
     $('#upgradePanel').hide();
   }
 
@@ -246,8 +249,16 @@ function renderActions(r) {
   box.append('<a class="action-btn dark" href="' + esc(r.links.changelog) + '" target="_blank" rel="noopener"><i class="fa fa-history"></i> ' + TLi18n.t('install.changelog') + '</a>');
   // Legacy install/index.php:49-50: "You are welcome to visit our forum to browse
   // or discuss", offered next to the manual / README / CHANGELOG links.
-  if (r.links && r.links.forum) {
-    box.append('<a class="action-btn blue" href="' + esc(r.links.forum) + '" target="_blank" rel="noopener noreferrer"><i class="fa fa-comments"></i> ' + TLi18n.t('install.forum') + '</a>');
+  // Built with .attr() (not concatenated HTML) and restricted to http(s), so a
+  // hostile or malformed links.forum can never inject an attribute nor a
+  // javascript: URL - same defensive pattern as renderVideos() above.
+  var forumUrl = r.links && r.links.forum ? String(r.links.forum) : '';
+  if (/^https?:\/\//i.test(forumUrl)) {
+    box.append(
+      $('<a class="action-btn blue">').attr('href', forumUrl).attr('target', '_blank')
+        .attr('rel', 'noopener noreferrer').attr('title', forumUrl)
+        .append('<i class="fa fa-comments"></i> ' + esc(TLi18n.t('install.forum')))
+    );
   }
 }
 </script>

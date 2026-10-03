@@ -12,9 +12,11 @@
  *   - checkForAdminDefaultPwd() -> default admin password warning
  *   - install_community_videos() -> the curated YouTube walkthroughs that the
  *     legacy landing page hardcoded in install/index.php:52-58 (#1286)
+ *   - links.forum -> the community forum legacy offered twice on the same
+ *     landing page (install/index.php:45 and :49-50) (#1285)
  * The full install wizard (pre-DB, pre-session) intentionally stays legacy.
  *
- * Refs #797, #1286.
+ * Refs #797, #1286, #1285.
  */
 require_once(__DIR__ . '/../../config.inc.php');
 require_once('common.php');

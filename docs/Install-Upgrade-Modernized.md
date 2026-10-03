@@ -176,8 +176,10 @@ the forum — a user following the modern screen could no longer reach the suppo
 * `renderForumNotice()` writes the forum sentence into `#upgradeForum` **inside the upgrade
   panel**, i.e. exactly when a schema migration is pending — the modern equivalent of the
   legacy `:45` notice sentence. It is never shown when the schema is up to date.
-* Both anchors are built with jQuery `.attr()` (no concatenated HTML), carry
-  `target="_blank" rel="noopener noreferrer"` and expose the URL as `title`.
+* Both anchors are built with jQuery `.attr()` (no concatenated HTML), restricted to
+  `http(s)` by a regex allow-list (a malformed `links.forum` injects neither an attribute nor a
+  `javascript:` URL), carry `target="_blank" rel="noopener noreferrer"` and expose the URL as
+  `title`. The notice is cleared again when the schema returns to OK.
 * i18n: `install.forum` (label) and `install.forumHint` (the legacy parenthetical) in all
   10 bundles — `+2` lines each, nothing removed.
 

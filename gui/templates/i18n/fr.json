@@ -1315,7 +1315,7 @@
   "install.dbReachable": "Base de données accessible",
   "install.dbSchemaVersion": "Version du schéma BD",
   "install.forum": "Forum",
-  "install.forumHint": "(Forum : TestLink 1.9.4 et versions suivantes - nouveautés, changements, etc.)",
+  "install.forumHint": "(TestLink 1.9.4 et versions suivantes - nouveautés, changements, etc.)",
   "install.gdOk": "Bibliothèque GD (graphiques)",
   "install.header": "Installation / Mise à niveau",
   "install.headerSub": "état de l'installation et du schéma",

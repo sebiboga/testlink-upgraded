@@ -1315,7 +1315,7 @@
   "install.dbReachable": "データベース接続可",
   "install.dbSchemaVersion": "DBスキーマバージョン",
   "install.forum": "フォーラム",
-  "install.forumHint": "(フォーラム: TestLink 1.9.4 以降のお知らせ、変更点など)",
+  "install.forumHint": "(TestLink 1.9.4 以降のお知らせ、変更点など)",
   "install.gdOk": "GDライブラリ（チャート）",
   "install.header": "インストール / アップグレード",
   "install.headerSub": "インストールとスキーマの状態",
