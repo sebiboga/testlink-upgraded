@@ -4729,3 +4729,20 @@ PASS/FAIL (addendum): PASS (7/7)
 renders `Forum (TestLink 1.9.4 and greater - news, changes, etc.)` (10/10 bundles reworded,
 parentheses restored, still valid JSON), matching legacy `:45` where the anchor and the
 parenthetical were two different things.
+
+## Regression Suite 1806 - Execution History popup (execHistory)
+
+### Precondition
+- Project 'WALK' (id 3) exists with test plan 'WALK-Plan' (id 4); test case 'Walk Me' id 1/PREFIX1-WM-1 present
+- Login as admin/admin
+
+### Test Cases
+| ID | Action | Expected Result | PASS/FAIL |
+|---|---|---|---|
+| 1 | Direct navigation: gui/templates/execute/execHistory.html?tcase_id=1&tproject_id=3 | Screen loads, header shows "Execution History", API call ?action=history returns 200 | TBD |
+| 2 | With onlyActiveTestPlans=1: append &onlyActiveTestPlans=1 | URL honored, history filtered (no errors in console) | TBD |
+| 3 | Anonymous access to lib/execute/execHistory.php redirects to login (destination preserved) | Redirects to login.php with destination containing execHistory.html | TBD |
+| 4 | JS caller openExecHistoryWindow(1, 0, 3) opens popup targeting modern HTML | Popup URL is gui/templates/execute/execHistory.html?tcase_id=1&tproject_id=3 | TBD |
+| 5 | Browser console - no JS errors on load | Clean console | TBD |
+| 6 | Event Viewer - no new ERROR/WARNING rows after test | No new errors | TBD |
+
