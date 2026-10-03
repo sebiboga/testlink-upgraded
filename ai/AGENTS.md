@@ -56,9 +56,8 @@ modern UI (Dashio Bootstrap admin template) with a PHP REST BFF layer.
 
    It compares the suite file against the **merge-base with `origin/<default>`**
    and fails if any suite heading present in the base is **missing** (a set
-   difference over the `^## (Regression|Suite|Task|Modernize) ` headings), if a
-   line was removed, if a suite heading was left without a body, or if your own
-   suite is absent. The three checks that used to stand here are structurally
+   difference over the `^## ` suite headings), if a line was removed, if a suite
+   heading was left without a body, or if your own suite heading is absent. The three checks that used to stand here are structurally
    blind to the loss and must not be used as the gate:
    `git diff --cached --numstat` is empty by construction once the file is staged
    with `-f`; `git diff --numstat HEAD~1 HEAD` sees only the previous commit, so

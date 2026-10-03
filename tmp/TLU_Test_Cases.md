@@ -4579,7 +4579,25 @@ No exception raised in any case.
 drives the two fixes that review applied to `renderVideos()` — the `Array.isArray`
 guard on `r.videos` and the `TLi18n.t(v.key) || v.key || v.id` caption fallback.
 
-PASS/FAIL: PASS (9/9)
+10. **Code-review regression: a check that could not run must not report a PASS.**
+   a) Unreadable candidate: `cp tmp/TLU_Test_Cases.md /tmp/nc.md && chmod 000 /tmp/nc.md &&
+      bash ai/verify_test_suites.sh /tmp/nc.md`
+   Expected: immediate FAIL, exit 1, with **no** PASS line (a `grep` that cannot read the
+   file returns an empty count, which `$(( 0 % 2 ))` would otherwise score as "even").
+   Actual: `FAIL candidate is readable and non-empty (/tmp/nc.md)`,
+   0 PASS / 1 FAIL, exit 1 — PASS.
+   b) Tracked file absent from the worktree (sparse checkout): the index fallback must
+   write its scratch copy and report the weak baseline, never declare healthy suites LOST.
+   Expected: candidate resolved, baseline reported as unverifiable, exit 1.
+   Actual: `suite file: /tmp/tmp.XXXX/tmp/TLU_Test_Cases.md`, 4 structural PASS,
+   `FAIL baseline fell back to the root commit 9382d7a …`, exit 1 — PASS.
+   c) Unknown option: `bash ai/verify_test_suites.sh --bogus` → `unknown option: --bogus`,
+   exit 1 (a typo must not be read as a file path) — PASS.
+   d) Invoked from `ai/` instead of the repo root (`cd ai && bash verify_test_suites.sh`):
+   the suite path is resolved against the repository toplevel, so the run still works —
+   6 PASS / 0 FAIL / 1 SKIP, exit 0 — PASS.
+
+PASS/FAIL: PASS (10/10)
 
 ## Regression — Issue #1805: `ai/verify_test_suites.sh` sees the suite loss that the mandated gates cannot
 
@@ -4597,50 +4615,61 @@ Steps / expected / actual:
 2. `TLU_REQUIRE_SUITE="Issue #1048" bash ai/verify_test_suites.sh` on the clean tree.
    Expected: 6 PASS / 0 FAIL, exit 0 — the suite reported lost in #1805 is present and
    the merge-base comparison finds nothing missing.
-   Actual: `baseline: <short-sha> (55 suites) -> candidate: 55 suites`,
-   6 PASS / 0 FAIL / 0 SKIP, exit 0 — PASS.
+   Actual: `baseline: dea6f4bea (59) -> candidate: 60 suites` (every `## ` heading in the
+   file is a suite: 60 of 60, measured), 7 PASS / 0 FAIL / 0 SKIP, exit 0 — PASS.
 
 3. **The bug itself** — copy the suite file, delete the `#1048` suite block, run the
    gate on the copy:
    `awk '/^## Task — Issue #1048: Implement SSO auto-login/{s=1} s&&/^## /&&!/1048/{s=0} !s' tmp/TLU_Test_Cases.md > /tmp/r2.md && TLU_REQUIRE_SUITE="Issue #1048" bash ai/verify_test_suites.sh /tmp/r2.md`
-   Expected: FAIL, exit 1, naming the lost suite.
+   Expected: FAIL, exit 1, naming the lost suite AND reporting the run's own required
+   suite as absent (`TLU_REQUIRE_SUITE` is matched against suite HEADINGS only — matching
+   the whole file would pass here, because `Issue #1048` also occurs in this suite's prose).
    Actual: `FAIL no suite lost vs merge-base with origin/sebiboga (1 lost)` +
-   `LOST: ## Task — Issue #1048: …` + `FAIL no line removed … (= 23)` + recovery hint,
-   3 PASS / 3 FAIL, exit 1 — PASS.
+   `LOST: ## Task — Issue #1048: …` + `FAIL no line removed … (= 23)` +
+   `FAIL own suite heading present (Issue #1048)` + recovery hint,
+   4 PASS / 3 FAIL / 0 SKIP, exit 1 — PASS.
 
-4. **The count check is not a set** — delete suite A and append suite B in the same
-   candidate (heading count stays 55):
-   `awk '/^## Task — Issue #1286: YouTube/{s=1} s&&/^## /&&!/1286/{s=0} !s' … > /tmp/r3.md; printf '\n## Regression — Issue #8888: …\n' >> /tmp/r3.md; bash ai/verify_test_suites.sh /tmp/r3.md`
-   Expected: FAIL — the count is unchanged, so only a set difference can catch this.
-   Measured: the count gate mandated before this fix reports "55 -> 55, fine";
-   the new gate exits 1 with `LOST: ## Task — Issue #1286: …`.
-   Actual: 3 PASS / 2 FAIL / 1 SKIP, exit 1 — PASS.
+4. **The count check is not a set** — delete suite A and append suite B (with a body, so
+   only the merge-base checks can fire) in the same candidate — the heading count stays
+   flat, 60 -> 60:
+   `awk '/^## Task — Issue #1286: YouTube/{s=1} s&&/^## /&&!/1286/{s=0} !s' … > /tmp/r3.md; printf '\n## Regression — Issue #8888: appended while another suite vanished\n\n- a\n- b\n' >> /tmp/r3.md; TLU_REQUIRE_SUITE="Issue #8888" bash ai/verify_test_suites.sh /tmp/r3.md`
+   Expected: FAIL — the count is unchanged (60 -> 60), so only a set difference can catch
+   this; the appended suite's own check must still PASS.
+   Measured: the count gate mandated before this fix reports "60 -> 60, fine"; the new gate
+   exits 1 with `LOST: ## Task — Issue #1286: …`.
+   Actual: `FAIL no suite lost … (1 lost)`, `FAIL no line removed … (= 113)`,
+   `PASS own suite heading present (Issue #8888)` — 5 PASS / 2 FAIL / 0 SKIP, exit 1 — PASS.
 
 5. **No false positive on the normal flow** — append a well-formed suite only.
-   Expected: 6 PASS / 0 FAIL, exit 0.
-   Actual: `baseline: … (55 suites) -> candidate: 56 suites`, all green, exit 0 — PASS.
+   Expected: all green, exit 0.
+   Actual: `baseline: … (59) -> candidate: 60 suites`, 7 PASS / 0 FAIL / 0 SKIP, exit 0 — PASS.
 
 6. **A gate that cannot run must not report success** — run it outside a git clone,
    then with `--allow-skip`.
    Expected: FAIL / exit 1 by default (an unverified gate is not a pass); exit 0 with
    an explicit SKIP line only under `--allow-skip`.
-   Actual: outside a clone → `FAIL cannot compute a merge-base: not inside a git clone`,
-   exit 1; with `--allow-skip` → `3 PASS / 0 FAIL / 1 SKIP`, exit 0. In a clone with no
-   `origin/*` refs → `FAIL no baseline for tmp/TLU_Test_Cases.md …`, exit 1 — PASS.
+   Actual: outside a clone → `FAIL cannot compute a baseline: not inside a git clone`,
+   4 PASS / 1 FAIL, exit 1; with `--allow-skip` → 4 PASS / 0 FAIL / 1 SKIP, exit 0. In a
+   clone whose root commit holds the file but with no `origin/*` refs → the root commit is
+   a baseline that cannot support the claim, so it is reported, not silently accepted:
+   `FAIL baseline fell back to the root commit e3f5897 … so 'no suite lost' cannot be
+   verified`, 4 PASS / 1 FAIL, exit 1 — PASS.
 
 7. **The header-only signature** — append a suite *heading* with no body.
    Expected: FAIL — in the real #1805 event git auto-took upstream for the heading
    while the body was never restored, so the heading survived with an empty block.
-   Actual: `FAIL every suite heading has a body (1 header-only/truncated blocks)` +
-   `TRUNC: ## Task — Issue #7777: header survived, body lost [0 non-blank lines]`,
-   exit 1 — PASS.
+   The threshold is body == 0, the true signature: a body-count "quality" threshold would
+   fire on legitimately terse suites, i.e. a false positive on a gate agents must run.
+   Actual: `FAIL no suite heading left without a body (= 1)` +
+   `EMPTY: ## Task — Issue #7777: header survived, body lost`, 6 PASS / 1 FAIL, exit 1 — PASS.
 
 8. Re-run step 2 after the suite is appended (`TLU_REQUIRE_SUITE="Issue #1805"`).
-   Expected: every invariant green, exit 0 — own suite present (6 checks, so 6 PASS:
-   the `own suite` check replaces the `--allow-skip` skip seen in steps 4/6, it does
-   not add an invariant), nothing lost vs the merge-base.
-   Actual: `baseline: … (55 suites) -> candidate: 56 suites`, 6 PASS / 0 FAIL / 0 SKIP,
-   exit 0 — PASS.
+   Expected: every invariant green, exit 0 — own suite heading present, nothing lost vs
+   the merge-base.
+   Actual: `baseline: … (59) -> candidate: 60 suites`, 7 PASS / 0 FAIL / 0 SKIP, exit 0 — PASS.
+   (7 checks: readable/non-empty, headings present, fences balanced, no bodyless heading,
+   no suite lost, no line removed, own suite heading. When `TLU_REQUIRE_SUITE` is unset the
+   last one is a visible SKIP, never a PASS.)
 
 9. Event Viewer / `events` table (`SELECT COUNT(*) FROM events;`) — this change touches
    no application code, API endpoint, template, i18n bundle or DB row.

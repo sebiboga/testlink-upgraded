@@ -80,33 +80,58 @@ default branch, not `HEAD~1`") but never turned it into a runnable check.
 
 A tracked, read-only gate next to the rulebooks that mandate it. It compares the
 candidate suite file against the **merge-base with `origin/<default>`**
-(`origin/HEAD`, then the root commit, as fallbacks) and checks six invariants:
+(`origin/HEAD` as a second try; the root commit is *not* used as a baseline —
+see "an unrunnable check is a FAIL") and checks seven invariants:
 
 | # | invariant | catches |
 |---|---|---|
-| 1 | candidate still contains suite headings | truncated / empty file |
-| 2 | markdown code fences balanced | a block cut mid-block |
-| 3 | no header-only suite block (≥3 non-blank body lines; shortest real suite has 6) | the #1805 auto-resolution signature: heading kept, body never restored |
-| 4 | **no suite lost vs the merge-base** — set difference over the `^## (Regression\|Suite\|Task\|Modernize) ` headings | the reported defect, and grow-by-two/delete-by-one clobbers a count misses |
-| 5 | no line removed vs the merge-base | a loss introduced in an *earlier* commit of the branch (invisible to `HEAD~1`) |
-| 6 | the run's own suite is present (`TLU_REQUIRE_SUITE="Issue #<n>"`) | the agent forgetting its own suite |
+| 1 | candidate is readable and non-empty | an unreadable/truncated candidate must stop the run, not be scored on empty output |
+| 2 | candidate still contains suite headings | truncated / empty file |
+| 3 | markdown code fences balanced (count > 0 and even) | a block cut mid-block |
+| 4 | no suite heading left **without a body** (body == 0) | the #1805 auto-resolution signature: heading kept, body never restored |
+| 5 | **no suite lost vs the merge-base** — set difference over the `^## ` suite headings | the reported defect, and delete-one/append-two clobbers a count misses |
+| 6 | no line removed vs the merge-base | a loss introduced in an *earlier* commit of the branch (invisible to `HEAD~1`) |
+| 7 | the run's own suite **heading** is present (`TLU_REQUIRE_SUITE="Issue #<n>"`) | the agent forgetting its own suite |
+
+Two pattern details that a first draft got wrong and code review caught:
+
+* **`H='^## '`, not `H='^## (Regression|Suite|Task|Modernize) '`.** All 60 `## `
+  headings in the tracked file are suites, but four do not use those prefixes
+  (`## T1637 — Regression: …`, `## 1783 — Regression: …`,
+  `## 1785 — Modernize …`, `## 1787 — Modernize …`), so the narrow pattern
+  silently ignored them — four suites whose loss check 6 would still catch, but
+  not check 5. Matching the heading level is the safer default here: the
+  consequence of a false positive is a conservative FAIL, the consequence of a
+  false negative is a lost suite.
+* **`TLU_REQUIRE_SUITE` is matched against headings, case-insensitively.**
+  A whole-file `grep -F` is a proven false negative — the issue number also occurs
+  in prose, so the gate reported `own suite present` on a candidate from which
+  that very suite had been deleted — and three real headings spell it lowercase
+  (`## Suite 1644 — … (issue #1644)`), a proven false positive.
 
 Usage — `bash ai/verify_test_suites.sh [--allow-skip] [<candidate-file>]`.
 
 Two deliberate design points:
 
-* **An unrunnable check is a FAIL, never a silent PASS.** Outside a clone, or in
-  a clone with no `origin/*` refs, checks 4–6 report FAIL and exit 1; only an
-  explicit `--allow-skip` downgrades them to a visible `SKIP` with exit 0. A gate
-  that cannot run must never be able to report success.
+* **An unrunnable check is a FAIL, never a silent PASS.** Outside a clone, checks
+  5–7 report FAIL and exit 1; only an explicit `--allow-skip` downgrades them to a
+  visible `SKIP` with exit 0. The same applies to a *weak* baseline: when neither
+  `origin/<default>` nor `origin/HEAD` is reachable, the root commit cannot
+  support the claim "nothing that existed before this run is missing" (it only
+  contains the suites from repository start), so it is reported as unverifiable
+  rather than silently accepted — a first draft used it as a silent fallback and a
+  review reproduced three healthy suites being declared LOST off it. For the same
+  reason each command substitution is status-checked: an empty result from a
+  *failed* `grep`/`diff`/`comm` is not evidence of zero.
 * **It lives in `ai/`, not `tmp/`.** The 22 sibling harnesses
-  (`tmp/verify_*.sh`) sit under the *git-ignored* `tmp/` and survive only because
-  they were force-added — the very ignore rule that makes this bug possible would
-  also make the fix vanish. `ai/verify_test_suites.sh` is tracked by an ordinary
+  (`tmp/verify_*.sh` — 28 of them) sit under the *git-ignored* `tmp/` and survive
+  only because they were force-added — the very ignore rule that makes this bug
+  possible would also make the fix vanish. `ai/verify_test_suites.sh` is tracked by an ordinary
   `git add` and cannot be lost that way.
 
-The script only **reads** (`git show`, `cat`, `awk`, `diff`); it never writes,
-moves or deletes the suite file.
+The script never writes, moves or deletes the suite file or anything in the
+repository; it only creates and removes scratch directories under `$TMPDIR`
+(cleaned up by an `EXIT`/`INT`/`TERM` trap) while resolving the baseline.
 
 ### Rulebook changes (3 files, prose only)
 
@@ -118,32 +143,46 @@ edited in one commit so they cannot drift. Hardening only `ai/AGENTS.md` would
 have left the hole open in the two rulebooks whose runs actually produce the
 clobber (the conclusion #1793 reached).
 
+Review note: the first version of the `ai/FIX-ISSUE.md` edit *added* the new
+bullet while leaving the old "verify `git diff --cached --numstat` shows 0
+deletions" sentence in place immediately above it, so that rulebook alone still
+mandated the blind gate and contradicted itself. The old sentence was replaced,
+as in the other two files.
+
 ### Verification
 
 ```console
 $ bash -n ai/verify_test_suites.sh                       # syntax OK, no output
 $ TLU_REQUIRE_SUITE="Issue #1048" bash ai/verify_test_suites.sh
 suite file: tmp/TLU_Test_Cases.md
+  PASS  candidate is readable and non-empty
   PASS  candidate contains suite headings
   PASS  markdown code fences balanced (= 72)
-  PASS  every suite heading has a body (0 header-only blocks)
-baseline: dea6f4bea (55 suites) -> candidate: 55 suites
+  PASS  no suite heading left without a body (= 0)
+baseline: dea6f4bea (59) -> candidate: 60 suites
   PASS  no suite lost vs merge-base with origin/sebiboga (= 0)
-  PASS  no line removed from the suite file vs merge-base (= 0)
-  PASS  own suite present (Issue #1048)
-G1805 result: 6 PASS / 0 FAIL / 0 SKIP          # exit 0
+  PASS  no line removed from the suite file vs merge-base with origin/sebiboga (= 0)
+  PASS  own suite heading present (Issue #1048)
+G1805 result: 7 PASS / 0 FAIL / 0 SKIP          # exit 0
 ```
 
 Negative controls — a gate that only ever passes proves nothing:
 
+All commands below run `bash ai/verify_test_suites.sh [<candidate>]`; the counts
+are the verbatim final lines of each run.
+
 | control | doctored candidate | result |
 |---|---|---|
-| NC1 — the reported defect, the whole `#1048` block removed | `awk '/^## Task — Issue #1048: …/{s=1} s&&/^## /&&!/1048/{s=0} !s'` | **3 PASS / 3 FAIL, exit 1**, prints `LOST: ## Task — Issue #1048: …` and a recovery hint |
-| NC2 — **a different** suite removed while another is appended, heading count 55 → 55 | `#1286` block removed, `## Regression — Issue #8888` appended | **3 PASS / 2 FAIL / 1 SKIP, exit 1**, prints `LOST: ## Task — Issue #1286: …` — the count gate reports "fine" on this file |
-| NC3 — normal flow: append one well-formed suite | `56 suites` | **6 PASS / 0 FAIL, exit 0** |
-| NC4 — run outside a git clone | `cd /tmp && bash …/verify_test_suites.sh t.md` | **3 PASS / 1 FAIL, exit 1**; with `--allow-skip` → 3 PASS / 0 FAIL / **1 SKIP**, exit 0 |
-| NC5 — clone with no `origin/*` refs | `git init` + one commit | **3 PASS / 1 FAIL, exit 1** — `no baseline for tmp/TLU_Test_Cases.md` |
-| NC6 — a suite heading appended with no body (the #1805 signature) | `## Task — Issue #7777: header survived, body lost` | **4 PASS / 1 FAIL, exit 1** — `TRUNC: … [0 non-blank lines]` |
+| NC1 — the reported defect, the whole `#1048` block removed, `TLU_REQUIRE_SUITE="Issue #1048"` | `awk '/^## Task — Issue #1048: …/{s=1} s&&/^## /&&!/1048/{s=0} !s'` | **4 PASS / 3 FAIL, exit 1** — `LOST: ## Task — Issue #1048: …`, `no line removed … (= 23)`, `own suite heading present` FAIL, recovery hint |
+| NC2 — **a different** suite removed while another is appended (with a body), heading count **60 → 60** | `#1286` block removed, `## Regression — Issue #8888` appended, `TLU_REQUIRE_SUITE="Issue #8888"` | **5 PASS / 2 FAIL, exit 1** — `LOST: ## Task — Issue #1286: …`, `no line removed … (= 113)`, own-suite PASS — the count gate reports "fine" on this file |
+| NC3 — normal flow: append one well-formed suite, `TLU_REQUIRE_SUITE="Issue #8888"` | `60 suites` | **7 PASS / 0 FAIL, exit 0** |
+| NC4 — run outside a git clone | `cd /tmp && bash …/verify_test_suites.sh t.md` | **4 PASS / 1 FAIL, exit 1**; with `--allow-skip` → 4 PASS / 0 FAIL / **1 SKIP**, exit 0 |
+| NC5 — clone whose root commit holds the file but with no `origin/*` refs | `git init` + one commit | **4 PASS / 1 FAIL, exit 1** — `baseline fell back to the root commit … so 'no suite lost' cannot be verified` |
+| NC6 — a suite heading appended with no body (the #1805 signature), `TLU_REQUIRE_SUITE="Issue #7777"` | `## Task — Issue #7777: header survived, body lost` | **6 PASS / 1 FAIL, exit 1** — `EMPTY: ## Task — Issue #7777: …` |
+| NC7 — unreadable candidate (`chmod 000`) | — | **0 PASS / 1 FAIL, exit 1** — a `grep` that cannot read the file returns an empty count, which must not be scored as "zero problems" |
+| NC8 — tracked file absent from the worktree (sparse checkout) | `git rm --cached` + delete | **4 PASS / 1 FAIL, exit 1** — the index fallback resolves, the weak baseline is reported; a first draft wrote the scratch copy into a non-existent directory and then "verified" a file it never wrote |
+| NC9 — unknown option `--bogus` | — | `unknown option: --bogus`, exit 1 — a typo must not be read as a candidate path |
+| NC10 — invoked from `ai/` instead of the repo root | — | **6 PASS / 0 FAIL / 1 SKIP, exit 0** — the suite path is resolved against the repository toplevel |
 
 Event Viewer: `SELECT COUNT(*) FROM events;` → **0 rows**, unchanged. Nothing in
 this change reaches PHP at all.
@@ -151,12 +190,15 @@ this change reaches PHP at all.
 ## Regression suite
 
 `## Regression — Issue #1805: ai/verify_test_suites.sh sees the suite loss that the
-mandated gates cannot` in `tmp/TLU_Test_Cases.md` — 9 steps covering the syntax
+mandated gates cannot` in `tmp/TLU_Test_Cases.md` — 10 steps covering the syntax
 gate, the clean tree, the original loss, the count-is-not-a-set control, the
 append-only false-positive control, the three unrunnable-gate controls, the
-header-only signature, the post-append re-run and the `events` table.
-**9/9 PASS.** Appended with `>>` (68 insertions / 0 deletions, verified before
-staging and again with `git diff --numstat HEAD~1 HEAD` after committing).
+header-only signature, the post-append re-run and the `events` table, plus the
+four controls that code review added (unreadable candidate, index fallback, unknown
+option, invocation from `ai/`). **10/10 PASS.** Appended with `>>` — **97
+insertions / 0 deletions** against `dea6f4bea`, verified with
+`git diff --numstat dea6f4bea -- tmp/TLU_Test_Cases.md` and, after committing,
+with `git diff --numstat HEAD~1 HEAD`.
 
 ## Alternatives rejected
 
@@ -164,10 +206,16 @@ staging and again with `git diff --numstat HEAD~1 HEAD` after committing).
   1/1 present at `dea6f4bea`. Nothing to restore.
 * **Add the count check the report proposes** — measured blind (row 3 of the
   blind-gates table). Rejected on evidence, not on preference.
-* **A sixth CI workflow failing on deletions in the file** — rejected by rule 18
-  (do not fight the five workflows) *and* it cannot work: the path is
-  git-ignored, so a `paths:`-scoped trigger is unreliable there. Same reasoning as
-  #1793; the obligation stays agent-side, but now has a runnable implementation.
+* **A sixth CI workflow running the gate** — rejected **on rule 18** (do not
+  fight the five existing workflows), and noted as the natural follow-up: the
+  suite file *is* tracked (`git ls-tree origin/sebiboga tmp/TLU_Test_Cases.md` →
+  a blob), and `.gitignore` does not affect path filters on tracked paths, so an
+  unconditional `on: push` step running `bash ai/verify_test_suites.sh` would work
+  today and none of the five workflows does (they only mention the file in their
+  agent prompts). A first draft of this page rejected the option on the claim
+  that a git-ignored path cannot drive a `paths:` filter; that premise was wrong
+  and is corrected here. Server-side enforcement is the real answer to a bug that
+  has now recurred three times, but it is a workflow change, not a bug fix.
 * **Move the suite file out of `tmp/` to a tracked path** — removes the root
   ignore problem, but breaks the reference contract of every existing
   `Refs #<n>` suite and every in-flight agent. Recorded as a follow-up (already
@@ -181,11 +229,11 @@ staging and again with `git diff --numstat HEAD~1 HEAD` after committing).
 
 | File | Change |
 |---|---|
-| `ai/verify_test_suites.sh` | **new**, executable, read-only — the merge-base gate (+246/-0) |
+| `ai/verify_test_suites.sh` | **new**, executable — the merge-base gate (+281/-0 vs dea6f4bea, after the review fixes) |
 | `ai/AGENTS.md` | rule 9: the ineffective checks replaced by the script, with the measured reason each is blind |
 | `ai/FIX-ISSUE.md` | §5: same |
 | `ai/IMPLEMENT-TASK.md` | §5: same |
-| `tmp/TLU_Test_Cases.md` | append-only: the `## Regression — Issue #1805` suite (+68/-0) |
+| `tmp/TLU_Test_Cases.md` | append-only: the `## Regression — Issue #1805` suite (+97/-0 vs `dea6f4bea`) |
 | `CHANGELOG` | one `[TESTING]` line under 2.0.1 |
 | `docs/Bugfix-Issue-1805-…md` + the wiki page of the same name | this document |
 

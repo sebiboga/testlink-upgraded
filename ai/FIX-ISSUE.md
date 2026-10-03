@@ -66,13 +66,10 @@ follow ALL rules in ai/AGENTS.md (they apply to every run).
   (pre-fix), expected post-fix behavior, and the actual result you observed.
   **APPEND-ONLY** — the file is shared by all concurrent agents and is
   git-ignored (`tmp/`), so `git add` needs `-f` and no CI gate can see a
-  clobber: append with `>>`, never regenerate it from your own copy, and before
-  committing verify `git diff --cached --numstat -- tmp/TLU_Test_Cases.md` shows
-  **0 deletions** (`git diff --numstat` cannot be used: once the file is staged
-  that diff is empty — after committing re-check with
-  `git diff --numstat HEAD~1 HEAD -- tmp/TLU_Test_Cases.md`). A full-file rewrite
-  by a concurrent agent destroyed the #1701 and #1740 suites this way — issue
-  #1793.
+  clobber: append with `>>`, never regenerate it from your own copy, and run the
+  gate below before committing. A full-file rewrite by a concurrent agent
+  destroyed the #1701, #1740 and Issue #1048 suites this way — issues #1793 and
+  #1805.
 - **Run the gate before committing:**
 
   ```bash
@@ -81,14 +78,14 @@ follow ALL rules in ai/AGENTS.md (they apply to every run).
 
   It compares the suite file against the **merge-base with `origin/<default>`**
   and fails if any suite heading present in the base is **missing** (a set
-  difference over the `^## (Regression|Suite|Task|Modernize) ` headings), if a
-  line was removed, if a suite heading was left without a body, or if your own
-  suite is absent. The three checks that used to stand here are structurally
-  blind to the loss and must not be used as the gate:
-  `git diff --cached --numstat` is empty by construction once the file is staged
-  with `-f`; `git diff --numstat HEAD~1 HEAD` sees only the previous commit, so
-  a suite lost in an EARLIER commit of the branch (which is how the loss enters —
-  a rebase resolution) is invisible; and `grep -cE "^## (Regression|Suite|Task|Modernize) "`
+  difference over the `^## ` suite headings), if a line was removed, if a suite
+  heading was left without a body, or if your own suite heading is absent. The
+  three checks that used to stand here are structurally blind to the loss and
+  must not be used as the gate: `git diff --cached --numstat` is empty by
+  construction once the file is staged with `-f`;
+  `git diff --numstat HEAD~1 HEAD` sees only the previous commit, so a suite lost
+  in an EARLIER commit of the branch (which is how the loss enters — a rebase
+  resolution) is invisible; and `grep -cE "^## (Regression|Suite|Task|Modernize) "`
   is a COUNT, not a set — a clobber that deletes one suite while the run adds two
   of its own passes it (measured: 55 → 56 suites with one suite gone). Keep the
   numstat checks as extra evidence, never as the gate. A full-file rewrite has
