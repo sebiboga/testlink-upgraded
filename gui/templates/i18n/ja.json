@@ -1550,6 +1550,7 @@
   "install.repoTypeDb": "データベース",
   "install.repoTypeFs": "ファイルシステム",
   "install.repository": "添付ファイルリポジトリ",
+  "install.repositoryDir": "添付ディレクトリ",
   "install.schemaState": "スキーマ状態",
   "install.securityNotes": "セキュリティ通知",
   "install.stateManual": "手動アップグレード",

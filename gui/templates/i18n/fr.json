@@ -1550,6 +1550,7 @@
   "install.repoTypeDb": "Base de donnees",
   "install.repoTypeFs": "Systeme de fichiers",
   "install.repository": "Depot des pieces jointes",
+  "install.repositoryDir": "Repertoire des pieces jointes",
   "install.schemaState": "État du schéma",
   "install.securityNotes": "Notes de sécurité",
   "install.stateManual": "Mise à niveau manuelle",

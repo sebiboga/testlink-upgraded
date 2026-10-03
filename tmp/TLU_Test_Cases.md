@@ -5040,3 +5040,24 @@ it is why H1 is not listed under discriminating coverage above.
 - Gates: `php -l api/install/index.php` OK; `node --check` on the extracted inline script OK; `python3 -m json.tool` valid on all 10 locale bundles.
 
 ### Result: PASS (7/7 steps)
+
+### Post-review hardening addendum — Issue #1283 (code-review findings closed)
+
+Added after a subagent code review of commit `086d0d92a`; re-executed the affected paths.
+
+| # | Finding | Fix | Measured after fix |
+|---|---------|-----|--------------------|
+| H1 | MAJOR — `json_encode()` returns `false` on an invalid-UTF-8 configured repository path and the endpoint answered **HTTP 200 with an empty body**, killing the whole screen silently | `json_encode($payload, JSON_INVALID_UTF8_SUBSTITUTE)` + `json_last_error()` guard returning a real `500` JSON error (`api/install/index.php`) | server started with `TESTLINK_UPLOAD_AREA=$'/tmp/tlu_caf\xe9'` → `HTTP=200 bytes=1626`, `repository.path = "/tmp/tlu_caf\ufffd"`, note + `securityNoteItems[last].params.path` intact (before the fix: 0 bytes) |
+| H2 | MINOR — documented "fall back to the server string" never fired: `TLi18n.t()` returns the raw key for an unknown key | `TLi18n.has(key)` guard on both the security note and the badge (`installView.html`) | injected a payload with `securityNoteItems[last].key='install.keyDoesNotExist'` → list item reads `SERVER STRING fallback` (was `install.keyDoesNotExist`) |
+| H3 | MINOR — both new cards were labelled "ATTACHMENTS REPOSITORY" | new key `install.repositoryDir` in all 10 bundles, used as the second card's label | labels are now `["…","Attachments repository","Attachments directory"]` |
+| H4 | NIT — "exists but not writable" reused the schema-state `manual` class (red) | `.badge.warn` (orange, already in the stylesheet) | injected not-writable payload → `badge warn :: The attachments directory /tmp/x exists but is not writable.` |
+| H5 | MINOR — three parallel note arrays that could drift and shift texts | `count($securityNotes) !== count($securityNoteItems)` → hints dropped, server strings rendered | healthy payload 6 notes / 6 items aligned; probe with 1 note / 1 item renders correctly |
+| H6 | NIT — `is_dir()` TypeError on a non-string config value; empty path produced a sentence with a hole | `(string)` cast in `install_check_repository_dir()`; `'/'` placeholder in `params.path` | `php -l` clean, DB-type probe renders `Attachments directory` + `unknown` badge |
+| H7 | NIT — docs cited `mainPage.php:184` / `common.php:1787`, which hold no security notes | corrected to `login.php:230` and `lib/functions/common.php:1853-1858`, and the gap explicitly scoped to the modernized screen (legacy login/main page still emit the note) | docs + wiki updated |
+
+Regression re-checked after the hardening: healthy FS dir → green `badge ok`, no repository note,
+6 security notes unchanged; DB type → no `repository_dir` code, `unknown` badge; missing
+`repository` field (older BFF) → 0 extra cards, no exception; `node --check` OK;
+`php -l` OK; `json.tool` valid on all 10 bundles; Event Viewer clean (`select log_level,
+count(*) from events group by log_level` → `16 3`, audit rows only); console clean.
+### Result: PASS (7/7 hardening items, regression intact)

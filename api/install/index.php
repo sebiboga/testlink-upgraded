@@ -100,12 +100,22 @@ function install_community_videos()
  * driven by getSecurityNotes() at :275-282 — only when repositoryType ==
  * TL_REPOSITORY_TYPE_FS. Message wording and the is_dir()/is_writable() logic
  * are kept identical to legacy so server-side consumers see the same text.
+ * The legacy function is still live elsewhere (login/dashboard, see
+ * lib/functions/common.php:583), so a change here must be mirrored there too.
+ *
+ * Point-in-time snapshot: `exists` and `writable` come from two syscalls, so a
+ * directory removed in between is reported as "exists but not writable". The
+ * note is informational only, exactly as in legacy.
  *
  * @return array {msg, status_ok, exists, writable}
  */
 function install_check_repository_dir($the_dir)
 {
     clearstatcache();
+
+    // config.inc.php always yields a string here, but a hand-edited config must
+    // not be able to turn the check into a TypeError (is_dir() requires a string).
+    $the_dir = (string) $the_dir;
 
     $ret['msg'] = lang_get('attachments_dir') . " " . $the_dir . " ";
     $ret['status_ok'] = false;
@@ -290,7 +300,15 @@ $configPresent = install_is_config_present();
 // GD / extensions used by reports (mirrors installCheck checks)
 $gdOk = (extension_loaded('gd') && function_exists('imagepng'));
 
-echo json_encode(array(
+// $securityNoteItems is index-parallel to $securityNotes: the front-end pairs
+// them by index, so a mismatch would shift every following note onto the wrong
+// text. Cheap safety net: if the two ever drift, drop the hints entirely and
+// let the front-end render the server strings.
+if (count($securityNotes) !== count($securityNoteItems)) {
+    $securityNoteItems = array_fill(0, count($securityNotes), null);
+}
+
+$payload = array(
     'status' => 'ok',
     'installed' => ($configPresent && $dbReachable && $schema['status'] == 'ok'),
     'configPresent' => $configPresent,
@@ -319,5 +337,21 @@ echo json_encode(array(
         // not hardcoded in the front-end.
         'forum'     => 'http://forum.testlink.org',
     ),
-    'videos' => install_community_videos(),
-));
+'videos' => install_community_videos(),
+);
+
+// A configured repository path is arbitrary text: on a legacy/latin-1 install it
+// can be invalid UTF-8, and json_encode() would then return false and emit an
+// EMPTY 200 response (killing the whole screen with no error anywhere).
+// JSON_INVALID_UTF8_SUBSTITUTE keeps the JSON valid; the json_last_error()
+// guard below turns any remaining encoding failure into a real JSON error.
+$body = json_encode($payload, JSON_INVALID_UTF8_SUBSTITUTE);
+if ($body === false || json_last_error() !== JSON_ERROR_NONE) {
+    http_response_code(500);
+    echo json_encode(array(
+        'status' => 'error',
+        'message' => 'Unable to serialize the installation status payload',
+    ));
+    exit;
+}
+echo $body;

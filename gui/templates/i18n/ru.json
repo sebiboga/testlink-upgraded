@@ -1550,6 +1550,7 @@
   "install.repoTypeDb": "База данных",
   "install.repoTypeFs": "Файловая система",
   "install.repository": "Хранилище вложений",
+  "install.repositoryDir": "Каталог вложений",
   "install.schemaState": "Состояние схемы",
   "install.securityNotes": "Замечания по безопасности",
   "install.stateManual": "Ручное обновление",

@@ -1550,6 +1550,7 @@
   "install.repoTypeDb": "Baza de date",
   "install.repoTypeFs": "Sistem de fisiere",
   "install.repository": "Depozit atasuri",
+  "install.repositoryDir": "Directorul pentru atasuri",
   "install.schemaState": "Stare schemă",
   "install.securityNotes": "Note de securitate",
   "install.stateManual": "Upgrade manual",
