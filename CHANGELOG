@@ -17,6 +17,21 @@ Every screen of the application was ported one-by-one in a screen-compare
 kept for backward compatibility and is progressively retired as each modern
 screen reaches full parity.
 
+- [TASK] - #1286: **The four user-contributed YouTube walkthroughs are back on the Install / Upgrade
+  screen.** Legacy `install/index.php:52-58` carried a curated "Some user contributed videos (You
+  Tube)" block - Installation of "TestLink" & Creating project (`NOvTWZvc2x8`), TestLink Test
+  Management Tool Tutorial (`P2zWScVjuag`), Introduction to TestLink (`7xH1LKQU1TA`) and TestLink
+  Walkthrough (`6s48WGuX2WE`) - and modernization dropped it entirely (no section, no BFF data
+  source), so adopting users could no longer reach the installation walkthroughs. `api/install/
+  index.php` now serves them from the new `install_community_videos()` as a top-level `videos`
+  JSON array of `{id, key, url}` next to `links`, and `gui/templates/install/installView.html`
+  renders a Dashio "Community Videos" card grid after "Actions" via `renderVideos()`. Captions are
+  resolved client-side from i18n keys, so the block is translated in all 10 bundles (7 new
+  `install.video*`/`install.videos*` keys each); links now use `target="_blank"
+  rel="noopener noreferrer"` instead of legacy's no-op `target="#"`, and non-https/urlless/null
+  entries are dropped while an empty list hides the section. Docs in `docs/Install-Upgrade-Modernized.md`
+  §7 + wiki page of the same name. Test suite: Task #1286, 8/8 PASS. (Refs #1286)
+
 - [TASK] - #1288: **The first computer bug (9 September 1947) is now documented.** The corpus
   never explained where the word *bug* that names this product's whole category comes from: the
   `Istoric` section of the wiki landing page (`tmp/wiki-repo/Ce-este-TestLink.md`) started at

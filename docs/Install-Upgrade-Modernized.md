@@ -86,3 +86,63 @@ same message cases as the legacy `checkSchemaVersion()`) and **Security Notes**
 ## 6. Regression suite
 
 See `tmp/TLU_Test_Cases.md` — **Suite 797 — Install/Upgrade status screen (#797)**.
+---
+
+## 7. Community videos (contributor walkthroughs) — #1286
+
+The legacy install landing page (`install/index.php:52-58`) carried a curated block,
+"Some user contributed videos (You Tube)", with four walkthroughs contributed by
+TestLink users. That block was **dropped** during modernization — the screen had no
+videos section and the BFF had no data source for it. It is now ported back.
+
+### 7.1 What the screen shows
+
+A third section, **Community Videos**, after **Actions** (the legacy order had the
+video block right above the "New installation" call to action):
+
+| # | Caption | Video |
+|---|---------|-------|
+| 1 | Installation of "TestLink" & Creating project | `NOvTWZvc2x8` |
+| 2 | TestLink Test Management Tool Tutorial | `P2zWScVjuag` |
+| 3 | Introduction to TestLink | `7xH1LKQU1TA` |
+| 4 | TestLink Walkthrough | `6s48WGuX2WE` |
+
+Each card is an `<a>` with a dark play-button tile, the localized caption and a
+"YouTube" source line, styled like the other Dashio cards (white, `0 1px 4px` shadow,
+red left border, teal on hover).
+
+### 7.2 How it works
+
+| Step | Description |
+|------|-------------|
+| 1 | `install_community_videos()` in `api/install/index.php` returns the four `{id, key, url}` entries — the server-side single source of truth |
+| 2 | They are exposed as the top-level JSON key `videos`, next to the existing `links` object |
+| 3 | `renderVideos(r)` in `installView.html` renders `#videos`; `#videosSection` / `#videosHint` stay hidden until the payload has entries |
+
+The caption is **not** hardcoded in the HTML: the BFF sends an i18n `key` per video
+(`install.videoInstallProject`, `install.videoTestManagementTool`,
+`install.videoIntroduction`, `install.videoWalkthrough`) and the client resolves it with
+`TLi18n.t()`, so the block is localized in all 10 bundles like every other label.
+
+### 7.3 Deliberate deviations from legacy
+
+| Legacy | 2.0.1 | Why |
+|--------|-------|-----|
+| `<a … target="#">` | `target="_blank" rel="noopener noreferrer"` | `target="#"` was a no-op that also handed `window.opener` to YouTube |
+| titles inline in the PHP file | i18n keys + 10 bundles | mandatory i18n (rule 3) |
+| plain `<a>` + `<br>` list | Dashio card grid, responsive | look & feel (rule 5) |
+| no guard | non-`https` URLs, entries without `url`, and `null` entries are dropped; empty list hides the section | the screen must not render a hostile href or an empty shell |
+
+### 7.4 Files
+
+| File | Purpose |
+|------|---------|
+| `api/install/index.php` | `install_community_videos()` + the `videos` JSON key |
+| `gui/templates/install/installView.html` | `.videos`/`.video-card` CSS, the `#videosSection`/`#videosHint`/`#videos` markup, `renderVideos()` |
+| `gui/templates/i18n/*.json` (10 bundles) | `install.videosTitle`, `install.videosHint`, `install.videoSource` + the 4 caption keys |
+
+### 7.5 Regression suite
+
+See `tmp/TLU_Test_Cases.md` — **Task — Issue #1286** (8 cases, all PASS): payload
+parity with legacy, 4 rendered cards, `target`/`rel`, `ro` localization, 10-bundle i18n
+completeness, degenerate/hostile payloads, console + Event Viewer clean.

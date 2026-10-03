@@ -4396,3 +4396,144 @@ A reorder control can only ever act on the row it lives in, whatever is selected
 | 9 | Event Viewer / `events` table | no new Error/Warning | 2 rows only — `id 1 CREATE` (fixture) + `id 2 LOGIN`, both `log_level 16` audit. No error/warning row created | **PASS** |
 
 **Regression — Issue #1684: 9/9 PASS.** Pre-fix, cases 1, 2 and 7 all FAIL (wrong row reordered / silent no-op, and the wrong order written to `nodes_hierarchy`).
+
+PASS/FAIL: PASS
+
+## Task — Issue #1048: Implement SSO auto-login (SSO_enabled) + ssodisable bypass in login.html (gap vs legacy)
+
+### Suite: 1048 — SSO auto-login
+Precondition: the app is running at http://localhost:8082; config.inc.php has `$tlCfg->authentication['SSO_enabled'] = true`, `SSO_method = 'WEBSERVER_VAR'`, `SSO_uid_field = 'REMOTE_USER'`, `SSO_user_target_dbfield = 'email'` and a test user `sso1048@example.com` (active) exists. The SSO path runs server-side (Apache passes REMOTE_USER) — the browser auto-attempt to `/api/auth/sso` happens on page load when no `note` and no `ssodisable`.
+
+Steps:
+1. Visit `http://localhost:8082/gui/templates/auth/login.html` directly (no `note`, no `ssodisable`). With SSO enabled and no environment identity passed by the HTTP server, the BFF `/api/auth/sso` returns a soft failure → the page falls back to the interactive login form and the SSO progress banner hides.
+2. Add `?ssodisable` to the URL → the hidden `ssodisable` field is set and the auto-attempt to `/api/auth/sso` is skipped; interactive form remains visible.
+3. With SSO enabled, attempt an interactive login while `ssodisable` is present: the server response's `destination` must include `&ssodisable=1` (propagated redirect) so the flag is not lost after login.
+4. Normal login without `ssodisable` still works when credentials are valid (regression).
+5. `/api/auth/config` returns `ssoEnabled`, `ssoMethod`, `ssoOnly`.
+
+Expected:
+1. Fallback to form, no crash, no infinite redirect loop.
+2. No automatic SSO POST; banner never shows.
+3. Destination contains `&ssodisable=1`.
+4. Login succeeds and redirects to the app.
+5. JSON contains the three SSO fields.
+
+Actual: all as above in BFF checks; UI fallback/parity matches legacy.
+
+PASS/FAIL: PASS
+
+## Task — Issue #1286: YouTube contributor-video links in install/installView.html
+
+Precondition: TestLink 2.0.1 running at http://localhost:8082, logged in as admin/admin,
+database `testlink` (schema DB 2.0.0). Entry point:
+`http://localhost:8082/gui/templates/install/installView.html`.
+
+### TC-1286-1 — Legacy baseline: the four videos exist in the legacy landing page
+1. `grep -n "youtube" install/index.php`
+2. Read lines 52-58.
+
+Expected: the "Some user contributed videos (You Tube)" heading with 4 links, video IDs
+NOvTWZvc2x8, P2zWScVjuag, 7xH1LKQU1TA, 6s48WGuX2WE.
+
+Actual: 4 hits on lines 54, 55, 56, 57 — matching the four IDs above. PASS
+
+### TC-1286-2 — BFF serves the videos payload
+1. `curl -s -b <session> http://localhost:8082/api/install/index.php`
+2. Inspect the `videos` key.
+
+Expected: 4 entries, each `{id, key, url}`, ids matching the legacy ones, `url` absolute
+https YouTube links.
+
+Actual: 4 entries —
+NOvTWZvc2x8 / install.videoInstallProject / https://www.youtube.com/watch?v=NOvTWZvc2x8
+P2zWScVjuag / install.videoTestManagementTool / https://www.youtube.com/watch?v=P2zWScVjuag
+7xH1LKQU1TA / install.videoIntroduction / https://www.youtube.com/watch?v=7xH1LKQU1TA
+6s48WGuX2WE / install.videoWalkthrough / https://www.youtube.com/watch?v=6s48WGuX2WE
+PASS
+
+### TC-1286-3 — Screen renders the "Community Videos" section with 4 cards
+1. Open `http://localhost:8082/gui/templates/install/installView.html` (EN).
+2. Read `#videosSection`, `#videosHint`, `#videos`.
+
+Expected: section visible (not `display:none`), heading "Community Videos", 4
+`.video-card` anchors with the legacy captions and URLs.
+
+Actual: `sectionVisible: block`, `hintVisible: block`, `count: 4`; captions
+'Installation of "TestLink" & Creating project', "TestLink Test Management Tool Tutorial",
+"Introduction to TestLink", "TestLink Walkthrough"; hrefs byte-identical to legacy. PASS
+
+### TC-1286-4 — Links open safely in a new tab
+1. Read `target` / `rel` of each `#videos a`.
+
+Expected: `target="_blank"` and `rel` containing `noopener` (legacy used the no-op
+`target="#"`, which also leaked `window.opener`).
+
+Actual: all 4 anchors `target="_blank"`, `rel="noopener noreferrer"`. PASS
+
+### TC-1286-5 — Section localized (ro)
+1. Open `?locale=ro`.
+2. Read the heading, hint and the 4 captions.
+
+Expected: Romanian strings from `ro.json`, same 4 hrefs.
+
+Actual: heading "Video-uri din comunitate"; hint "Ghiduri video contribuite de utilizatori
+TestLink - se deschid pe YouTube într-o filă nouă."; captions 'Instalarea "TestLink" și
+crearea unui proiect', "Tutorial - TestLink Test Management Tool", "Introducere în
+TestLink", "Prezentare TestLink (walkthrough)"; hrefs unchanged. PASS
+
+### TC-1286-6 — i18n completeness across all bundles
+1. `for f in gui/templates/i18n/*.json; do python3 -m json.tool "$f" >/dev/null; done`
+2. Count `install.video*` keys per bundle and cross-check the 4 `key` values used by the BFF.
+
+Expected: 10/10 bundles valid JSON, 7 new keys each, no missing/empty value, no BFF key
+unresolved.
+
+Actual: 10/10 valid; `en 7, ro 7, de 7, fr 7, es 7, it 7, pt 7, ru 7, ja 7, zh 7`;
+`BFF keys missing from en.json: []`; `missing=[] empty=[]` for every locale. PASS
+
+### TC-1286-7 — Degenerate / hostile payloads do not break the screen
+1. In the live page call `renderStatus()` with (a) `videos: []`, (b) `videos` containing
+   `javascript:alert(1)`, an entry with no `url`, `http://evil.tld/x` and `null`,
+   (c) an entry whose `key` does not exist in the bundle.
+
+Expected: (a) whole section hidden, 0 cards, no empty shell; (b) only the
+`https://www.youtube.com/...` entry rendered — non-https schemes dropped; (c) section
+renders with the raw key as caption (visible fallback) instead of a blank card.
+
+Actual: (a) `visible: none, cards: 0`; (b) `visible: block, cards: 1`,
+hrefs `["https://www.youtube.com/watch?v=NOvTWZvc2x8"]`; (c) `visible: block`,
+`cap: "install.doesNotExist"`. PASS
+
+### TC-1286-8 — No regressions: console clean, Event Viewer clean
+1. `list_console_messages(types=[error,warn])` on the screen.
+2. `SELECT * FROM events ORDER BY id DESC LIMIT 6`.
+3. Reload and re-check the status cards / upgrade panel / security panel / actions.
+
+Expected: no console errors, no new Error/Warning rows in `events`, previous panels still
+render (7 status cards, security notes, 4 action buttons).
+
+Actual: "no console messages found"; `events` holds only the 2 `log_level 16`
+`audit_login_succeeded` LOGIN rows, no Error/Warning; sections render
+`["Installation Status", "Actions", "Community Videos"]` and the 4 action buttons are
+intact. PASS
+
+PASS/FAIL: PASS (8/8)
+
+### TC-1286-9 — Code-review hardening: non-array payload + caption fallback chain
+1. In the live page call `renderStatus()` with `videos: "not-an-array"` (a string), with
+   the `videos` key absent, with an entry carrying only `{id, url}` (no `key`), and with
+   an entry carrying only `{url}` (no `key`, no `id`).
+
+Expected: non-array and absent payloads hide the section (must not throw on
+`.forEach` of a string); a `key`-less entry falls back to its `id`; a payload with no
+identifying field at all still renders the card (URL kept in the `title` attribute).
+
+Actual: `nonArray {visible:"none", cards:0}`; `absent {visible:"none", cards:0}`;
+`noKey {visible:"block", cap:"NOvTWZvc2x8"}`; `noKeyNoId {visible:"block", cap:""}`.
+No exception raised in any case.
+
+**Note** — TC-1286-9 was added by the mandatory pre-commit code review (rule 16): it
+drives the two fixes that review applied to `renderVideos()` — the `Array.isArray`
+guard on `r.videos` and the `TLi18n.t(v.key) || v.key || v.id` caption fallback.
+
+PASS/FAIL: PASS (9/9)

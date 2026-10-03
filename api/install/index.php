@@ -10,9 +10,11 @@
  *   - checkSchemaVersion()  -> schemaStatus + dbSchemaVersion + messages
  *   - checkForInstallDir()  -> is the installer still reachable (security note)
  *   - checkForAdminDefaultPwd() -> default admin password warning
+ *   - install_community_videos() -> the curated YouTube walkthroughs that the
+ *     legacy landing page hardcoded in install/index.php:52-58 (#1286)
  * The full install wizard (pre-DB, pre-session) intentionally stays legacy.
  *
- * Refs #797.
+ * Refs #797, #1286.
  */
 require_once(__DIR__ . '/../../config.inc.php');
 require_once('common.php');
@@ -62,6 +64,28 @@ function install_default_admin_pwd($db)
         return null;
     }
     return false;
+}
+
+/**
+ * Curated walkthrough videos contributed by TestLink users.
+ *
+ * Legacy source: install/index.php:52-58 ("Some user contributed videos (You Tube)").
+ * They are served from the BFF (not hardcoded in the HTML) so the list has a single
+ * source of truth and can be localized on the client like every other label.
+ * `key` is the i18n key of the caption; `url` is always an absolute https link.
+ */
+function install_community_videos()
+{
+    return array(
+        array('id' => 'NOvTWZvc2x8', 'key' => 'install.videoInstallProject',
+              'url' => 'https://www.youtube.com/watch?v=NOvTWZvc2x8'),
+        array('id' => 'P2zWScVjuag', 'key' => 'install.videoTestManagementTool',
+              'url' => 'https://www.youtube.com/watch?v=P2zWScVjuag'),
+        array('id' => '7xH1LKQU1TA', 'key' => 'install.videoIntroduction',
+              'url' => 'https://www.youtube.com/watch?v=7xH1LKQU1TA'),
+        array('id' => '6s48WGuX2WE', 'key' => 'install.videoWalkthrough',
+              'url' => 'https://www.youtube.com/watch?v=6s48WGuX2WE'),
+    );
 }
 
 function install_schema_status($db, &$dbSchemaVersion, &$schemaMsg)
@@ -179,4 +203,5 @@ echo json_encode(array(
         'readme'    => '/README.md',
         'changelog' => '/CHANGELOG',
     ),
+    'videos' => install_community_videos(),
 ));
