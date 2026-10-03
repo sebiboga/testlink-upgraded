@@ -154,6 +154,11 @@ var resTbl = null;
 $(function () {
   var p = new URLSearchParams(window.location.search);
   tprojectId = parseInt(p.get('tproject_id') || '0', 10);
+  // Legacy deep-link parity: the 1.9.20 popup accepted onlyActiveTestPlans=1
+  // (see openExecHistoryWindow); reflect it on the filter checkbox.
+  if (p.get('onlyActiveTestPlans') === '1' || p.get('only_active_test_plans') === '1') {
+    $('#onlyActiveTestPlans').prop('checked', true);
+  }
   TLi18n.load(function () {
     TLi18n.apply();
     TLi18n.initLocaleSwitcher('#localeSwitcher');
