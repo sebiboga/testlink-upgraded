@@ -4350,3 +4350,49 @@ Environment: `http://localhost:8082`, DB `testlink`, admin cookie `/tmp/c1797.tx
 | 23 | No regression from the review fixes | Full happy path, both positions, empty position, browser reload, footer, locale | Screen renders and copies | **PASS** — after removing the dead `setFooter()` (review NIT 2) the page initially threw `ReferenceError: setFooter is not defined` and rendered an **empty** container list; caught immediately in the browser and fixed, then re-verified: 6 destinations, `#srcCard` visible, footer localized, console clean |
 
 **Suite 1801 addendum: 8/8 PASS** (Suite 1801 total: 23 cases, 23/23).
+
+---
+
+## Regression — Issue #1684: reqTreeReorder.html — the Up/Down/To top/To bottom row buttons reordered the SELECTED requirement, not their own row
+
+**Screen:** `gui/templates/requirements/reqTreeReorder.html`
+**Fix under test:** `f60e8965d` — *"row reorder buttons act on their OWN row, not on the selected one (Refs #1681)"* (already on the default branch; this run verifies it and closes the issue).
+**Date of run:** 2026-10-03
+
+### Precondition
+
+```bash
+php tmp/fixtures_1681.php
+# -> tproject=1, specs TR1-SPEC-A(2) / TR1-SPEC-B(4), reqs TR1-1(6) TR1-2(8) TR1-3(10)
+# force spec 2 into the order the report needs: TR1-1, TR1-3, TR1-2
+mysql -h 127.0.0.1 -utestlink -ptestlink testlink -e \
+  "UPDATE nodes_hierarchy SET node_order=0 WHERE id=6;
+   UPDATE nodes_hierarchy SET node_order=1 WHERE id=10;
+   UPDATE nodes_hierarchy SET node_order=2 WHERE id=8;"
+# login admin/admin, open:
+# http://localhost:8082/gui/templates/requirements/reqTreeReorder.html?tproject_id=1&req_spec_id=2
+```
+
+**Pre-fix repro (verified against `git show f60e8965d^:…/reqTreeReorder.html`):** click **Select** on row 2 (`TR1-3`), then **To top** on row 3 (`TR1-2`) →
+observed `TR1-3, TR1-1, TR1-2` (the *selected* row jumped to the top, row 3 untouched) instead of `TR1-2, TR1-1, TR1-3`.
+Second variant: **Select** row 1 then **Up** on row 3 → order unchanged (silent no-op). Both silent: **0 console errors/warnings**, 0 XHRs fired.
+
+### Expected post-fix behaviour
+
+A reorder control can only ever act on the row it lives in, whatever is selected; the `Move a requirement` selection survives a reorder; `Apply` persists the clicked row's new order.
+
+### Actual result
+
+| # | Case | Expected | Actual | Verdict |
+|---|------|----------|--------|---------|
+| 1 | **Reported repro** — select row 2, **To top** on row 3 | `TR1-2, TR1-1, TR1-3` | `TR1-2, TR1-1, TR1-3` | **PASS** |
+| 2 | **Silent-no-op variant** — select row 1, **Up** on row 3 | `TR1-1, TR1-2, TR1-3` | `TR1-1, TR1-2, TR1-3` | **PASS** |
+| 3 | **No selection** — **Down** on row 1 | `TR1-3, TR1-1, TR1-2` | `TR1-3, TR1-1, TR1-2` | **PASS** |
+| 4 | **Bottom** on row 1 of 3 | `TR1-3, TR1-2, TR1-1` | `TR1-3, TR1-2, TR1-1` | **PASS** |
+| 5 | Boundary controls disabled per row | `up`/`top` on row 1 `.dis`; `down` on last `.dis` | all three `true` | **PASS** |
+| 6 | Selection survives a reorder | `#selBox` + `.sel` highlight keep the picked requirement | `#selBox` = `TR1-3 Third requirement`, `tr.sel .rdid` = `TR1-3` | **PASS** |
+| 7 | Reorder → **Apply** → confirm (`#cmOk`) → DB | `nodes_hierarchy` = the UI order | UI `TR1-2, TR1-1, TR1-3`; DB `0=TR1-2 1=TR1-1 2=TR1-3`; dirty chip cleared to `none` | **PASS** |
+| 8 | Browser console clean | 0 error / 0 warning | `<no console messages found>` (error+warn filter) | **PASS** |
+| 9 | Event Viewer / `events` table | no new Error/Warning | 2 rows only — `id 1 CREATE` (fixture) + `id 2 LOGIN`, both `log_level 16` audit. No error/warning row created | **PASS** |
+
+**Regression — Issue #1684: 9/9 PASS.** Pre-fix, cases 1, 2 and 7 all FAIL (wrong row reordered / silent no-op, and the wrong order written to `nodes_hierarchy`).
