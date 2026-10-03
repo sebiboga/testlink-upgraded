@@ -4850,3 +4850,115 @@ PASS - login_info banner renders on modern login page when configured
 - execHistory_popup.png — modern popup showing executions table (PASSED/FAILED/BLOCKED)
 - execHistory_details.png — details expanded showing execution notes
 - execHistory_onlyactive.png — URL with onlyActiveTestPlans=1 + checkbox checked
+
+## Regression — Issue #1792: `api/builds` answered 403/404 on `tplan_id`, so any user could enumerate every test plan id
+
+Env: `http://localhost:8082`, MariaDB `testlink` (freshly imported), fixture `php tmp/fixtures_1792.php`
+— private project **9018** (`prefix T1792`, `is_public=0`), test plan **9019** (`T1792-PLAN`),
+build **1** (`T1792-BUILD`), user **`sm1792norights`** (`role_id = 3`, `<no rights>`, no
+`user_testproject_roles` row). The fixture asserts its own premise before printing its ids:
+`no-rights user canManage(9018) = false` and `plan 9019 resolves as a testplan node: yes` — without
+both, the oracle cannot show.
+
+Harness: `php tmp/verify_1792.php` → **67 passed, 0 failed**.
+Negative control: with `api/builds/index.php` stashed to its pre-fix state the same harness reports
+**45 passed, 22 failed** — the suite detects the defect rather than merely describing the new code.
+
+> **Reproducing by hand:** this endpoint is PATH-routed (`$segments = explode('/', $path)`,
+> `api/builds/index.php:63`) and its body is JSON (`getBody()` = `json_decode(php://input)`, `:52`).
+> Posting `tplan_id=..&name=..` as form data — as the issue's repro commands do — answers a uniform
+> `400 {"message":"Invalid test plan id"}` for **every** id and makes the bug look absent. Login is
+> `POST /login.php` with `tl_login` / `tl_password`.
+
+### A. The oracle is closed — the `tplan_id` axis (pre-fix: 403 vs 404)
+
+| # | Route | `tplan_id` **exists** (9019) pre-fix | **absent** (999999) pre-fix | Post-fix, both | Result |
+|---|---|---|---|---|---|
+| A1 | `GET /?tplan_id=` | **403** `Insufficient rights` | **404** `Invalid Test Plan ID` | **404** `Invalid Test Plan ID` | PASS |
+| A2 | `GET /cfields?tplan_id=` | **403** `Insufficient rights` + `no_right` | **404** `Invalid Test Plan ID` | **404** `Invalid Test Plan ID` | PASS |
+| A3 | `POST /` body `{"tplan_id":…}` | **403** `Insufficient rights` | **404** `Invalid Test Plan ID` | **404** `Invalid Test Plan ID` | PASS |
+| A4 | `PUT /{id}` body `{"tplan_id":…}` | **403** `Insufficient rights` | **404** `Invalid Test Plan ID` | **404** `Build not found` | PASS |
+| A5 | `POST /{id}/flags` body | **403** `Insufficient rights` | **404** `Invalid Test Plan ID` | **404** `Build not found` | PASS |
+| A6 | `DELETE /{id}?tplan_id=` | **403** `Insufficient rights` | **404** `Invalid Test Plan ID` | **404** `Build not found` | PASS |
+
+Every pair is compared on **status AND body**, and each refusal is additionally checked not to echo the
+probed id back. A4/A5 were **not** in the issue report: `assertBuildInTplan()` carried the same 404/403
+inversion as `resolveTplan()`.
+
+### B. The oracle is closed — the `build_id` axis (the defect the report said was already clean)
+
+| # | Route | build **exists** (1) pre-fix | **absent** (999999) pre-fix | Post-fix, both | Result |
+|---|---|---|---|---|---|
+| B1 | `GET /{id}` | **403** `Insufficient rights` | **404** `Build not found` | **404** `Build not found` | PASS |
+| B2 | `PUT /{id}` | **403** | **404** `Build not found` | identical | PASS |
+| B3 | `POST /{id}/flags` | **403** | **404** `Build not found` | identical | PASS |
+| B4 | `DELETE /{id}` | **403** | **404** `Build not found` | identical | PASS |
+
+The issue's `Suggested fix` told the implementer to "mirror what `build_id` already does at
+`:115`-`:130`" — but `:115` claimed the two refusals were already identical when they were not, so
+following that instruction verbatim would have copied the defect. Both axes are fixed by collapsing
+the family rather than the axis.
+
+### C. No over-blocking — an entitled caller keeps the whole surface (`admin`)
+
+| # | Action | Expected | Result |
+|---|---|---|---|
+| C1 | `GET /?tplan_id=9019` | 200 + plan context | PASS — `{"tplan":{"id":9019,"name":"T1792-PLAN"},"tproject_name":"T1792 project - issue #1792"}` |
+| C2 | `GET /cfields?tplan_id=9019` | 200 | PASS — `{"status":"ok","cfields":[]}` |
+| C3 | `POST /` create | 200 + a real build id | PASS — `{"status":"ok","id":…}` |
+| C4 | `GET /1` | 200 + the build row | PASS |
+| C5 | `POST /1/flags` | 200 | PASS — `{"status":"ok"}` |
+| C6 | `PUT /1` rename | 200 | PASS — `{"status":"ok","cfields_written":0}` |
+| C7 | `DELETE /{id}` | 200 | PASS — the surface is complete, not merely readable |
+| C8 | `GET /?tplan_id=999999` as admin | **honest 404** retained | PASS — `Invalid Test Plan ID` |
+| C9 | `GET /999999` as admin | **honest 404** retained | PASS — `Build not found` |
+
+C8/C9 are the ones that prove this is a permission gate and **not** a blanket denial: an entitled
+caller addressing an id that genuinely is not there still receives a truthful 404.
+
+### D. The one deliberate exception — the session-scoped list keeps its 403
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| D1 | `GET /?tplan_id=0` as a session with no project | 400 `No active test project`, **not** the opaque 404 | PASS |
+| D2 | `GET /?tplan_id=0` as admin (project-submenu screen) | 200 | PASS |
+
+`tplan_id=0` resolves its project from `$_SESSION['testprojectID']`, not from the caller, so its 403
+conceals nothing and stays informative. Asserted explicitly so the exception cannot silently become a
+second opaque family.
+
+### E. Input hygiene — no PHP diagnostic, and no oracle re-introduced by a malformed id
+
+| # | Input | Expected | Result |
+|---|---|---|---|
+| E1 | `?tplan_id=abc`, `tplan_id[]=1`, `tplan_id=-1`, `tplan_id=0`, omitted, `1e999`, `99999999999` | no 5xx, no `Warning:`/`Notice:`/`Deprecated:`/`Fatal` in the body | PASS (all 7 × both callers) |
+| E2 | `abc` / `-1` / `1e999` / `0` (all `intval()` to 0) as a no-rights caller | all ONE answer, the session branch — discloses nothing about plan existence | PASS |
+| E3 | `1` / `7` / `9019` (exists) / `999999` (absent) / `99999999999` / `4294967296` as a no-rights caller | **all ONE answer** — existing, absent and out-of-range indistinguishable | PASS |
+| E4 | malformed POST bodies: `{"tplan_id":"abc",…}`, `{"name":""}`, `not json at all`, `[]` | no fatal | PASS |
+
+E2/E3 are the subtle ones: a value that is not a *positive* integer is not addressed by plan at all and
+legitimately takes the session branch, so E3 — the positive group, the only one whose answer could
+depend on whether a row exists — is the assertion that actually guards the fix.
+
+### F. Browser (chrome-devtools MCP), entitled session
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| F1 | Login `admin/admin`, open `gui/templates/plans/buildsView.html?tproject_id=9018` | screen renders, no console error | PASS |
+| F2 | `fetch /api/builds/?tplan_id=9019` from the page | 200, both fixture builds listed, `rights.canManage = true` | PASS |
+| F3 | `GET /1`, `POST /1/flags`, `GET /cfields?…&build_id=1`, `POST /` (create) via the page's own origin | 200 on all four | PASS (`id:7` created) |
+| F4 | Browser console after F1–F3 | **0** error / warning messages | PASS |
+
+### G. Event Viewer
+
+| # | Check | Expected | Result |
+|---|---|---|---|
+| G1 | `SELECT COUNT(*) FROM events WHERE log_level IN (1,2)` before vs after the whole matrix | unchanged | PASS — **0** new ERROR/WARNING |
+
+Event Viewer stays clean because the oracle was a clean status-code split, never an error path — which
+is also why it was invisible to log-based monitoring for the whole time it existed.
+
+**Total: 67/67 PASS** (`php tmp/verify_1792.php`), of which 22 fail against the unpatched file.
+
+**Screenshots (wiki/docs)**
+- `1792-builds-opaque.png` — the Builds & Releases screen for an entitled admin after the fix
