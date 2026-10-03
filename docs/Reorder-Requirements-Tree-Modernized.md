@@ -106,7 +106,7 @@ shim, syntax/JSON checks, Event Viewer). Bugs found while testing, each filed wi
 | #1683 | native `alert()` instead of the Dashio/Bootstrap modal |
 | #1684 | row buttons reordered the wrong row |
 | #1685 | drag-and-drop did not mark the form dirty |
-| #1686 | the back link lost its parameters on the error/success paths |
+| #1686 | the back link lost its parameters on the error/success paths — fixed in `983c9179c`, re-verified 9/9 and closed ([details](Bugfix-Issue-1686-reqtreereorder-Back-Link-Dead-Self-Reload.md)) |
 | #1687 | *Modified by* was hardcoded to `admin` |
 | #1688 | the denied (403/404) state still had live controls |
 | #1689 | read-only users saw drag handles, grips and hints |
