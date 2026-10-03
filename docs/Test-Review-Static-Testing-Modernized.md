@@ -70,6 +70,18 @@ Every transition writes an event: `REVIEW_REQUEST`, `REVIEW_APPROVE`,
 - Test suite: `Task — Issue #1279` in `tmp/TLU_Test_Cases.md` — 9/9 curl steps +
   browser create/decide PASS.
 
+## Security hardening (object-level authorization)
+
+`POST ?action=create` originally trusted the client-supplied `entity_title`,
+`entity_doc_id` and `version_id`, so a user with manage rights on project A
+could open a review against an entity of project B and the `decide` path would
+then write project B's entity status. `reviewFindEntity()` now resolves the
+entity **inside** the target test project and the insertion uses only the
+DB-derived title/doc-id/latest version; the reviewer must be an assignable
+member of the project. Verified: a spoofed `entity_title`/`entity_doc_id`/
+`version_id` is ignored, a foreign/unknown entity returns 404 and an
+unknown reviewer returns 400.
+
 ## Defect found and fixed during the run
 
 The requirement entity listing originally joined `req_versions.id =

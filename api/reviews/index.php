@@ -169,6 +169,73 @@ function reviewCanDecide($user, $db, $row) {
     return ($user->hasRight($db, $right, intval($row['testproject_id'])) === 'yes');
 }
 
+/**
+ * Resolve an entity of the given type inside the test project and return its
+ * authoritative (title, doc_id, version_id, version) tuple, or null when the
+ * entity does not belong to that project. Critically, the client-supplied
+ * title/doc-id/version are NEVER trusted: without this check a user with
+ * manage rights on project A could open (and later decide) a review against an
+ * entity of project B, and the decide path would then write project B's entity
+ * status (object-level authorization defect).
+ */
+function reviewFindEntity($db, $tprojectMgr, $tpid, $entityType, $entityId) {
+    $tpid = intval($tpid);
+    $entityId = intval($entityId);
+    if ($tpid <= 0 || $entityId <= 0) { return null; }
+    if ($entityType === 'tcase') {
+        $tcIds = array();
+        $tprojectMgr->get_all_testcases_id($tpid, $tcIds);
+        $tcIds = array_values(array_unique(array_map('intval', (array)$tcIds)));
+        if (!in_array($entityId, $tcIds, true)) { return null; }
+        $t = tlObjectWithDB::getDBTables(array('nodes_hierarchy', 'tcversions'));
+        $sql = " SELECT NHT.id AS entity_id, NHT.name AS title, " .
+               " TCV.id AS version_id, TCV.version AS version, " .
+               " TCV.tc_external_id AS external_id " .
+               " FROM {$t['nodes_hierarchy']} NHT " .
+               " JOIN {$t['nodes_hierarchy']} NHV ON NHV.parent_id = NHT.id " .
+               " JOIN {$t['tcversions']} TCV ON TCV.id = NHV.id " .
+               " JOIN (SELECT NHV2.parent_id AS pid, MAX(TCV2.version) AS mv " .
+               "       FROM {$t['nodes_hierarchy']} NHV2 " .
+               "       JOIN {$t['tcversions']} TCV2 ON TCV2.id = NHV2.id " .
+               "       GROUP BY NHV2.parent_id) LV " .
+               "   ON LV.pid = NHT.id AND LV.mv = TCV.version " .
+               " WHERE NHT.id = {$entityId}";
+        $r = $db->fetchFirstRow($sql);
+        if (!$r || !is_array($r)) { return null; }
+        return array(
+            'entity_id' => (int)$r['entity_id'],
+            'version_id' => (int)$r['version_id'],
+            'title' => (string)$r['title'],
+            'doc_id' => (string)($r['external_id'] ?? ''),
+            'version' => (int)$r['version'],
+        );
+    }
+    $t = tlObjectWithDB::getDBTables(
+        array('requirements', 'req_specs', 'nodes_hierarchy', 'req_versions'));
+    $sql = " SELECT R.id AS entity_id, NH.name AS title, R.req_doc_id AS doc_id, " .
+           " RV.id AS version_id, RV.version AS version " .
+           " FROM {$t['requirements']} R " .
+           " JOIN {$t['req_specs']} RS ON RS.id = R.srs_id " .
+           " JOIN {$t['nodes_hierarchy']} NH ON NH.id = R.id " .
+           " JOIN {$t['nodes_hierarchy']} NHV ON NHV.parent_id = R.id " .
+           " JOIN {$t['req_versions']} RV ON RV.id = NHV.id " .
+           " JOIN (SELECT NHV2.parent_id AS pid, MAX(RV2.version) AS mv " .
+           "       FROM {$t['nodes_hierarchy']} NHV2 " .
+           "       JOIN {$t['req_versions']} RV2 ON RV2.id = NHV2.id " .
+           "       GROUP BY NHV2.parent_id) LV " .
+           "   ON LV.pid = R.id AND LV.mv = RV.version " .
+           " WHERE R.id = {$entityId} AND RS.testproject_id = {$tpid}";
+    $r = $db->fetchFirstRow($sql);
+    if (!$r || !is_array($r)) { return null; }
+    return array(
+        'entity_id' => (int)$r['entity_id'],
+        'version_id' => (int)$r['version_id'],
+        'title' => (string)$r['title'],
+        'doc_id' => (string)$r['doc_id'],
+        'version' => (int)$r['version'],
+    );
+}
+
 /** Map a raw review row to the JSON payload. */
 function reviewRow($row) {
     return array(
@@ -434,16 +501,37 @@ switch ($method) {
                 exit;
             }
             $comments = reviewField($body, 'comments', 2000);
-            $title = reviewField($body, 'entity_title', 255);
-            $docId = reviewField($body, 'entity_doc_id', 64);
-            if ($title === '') { $title = reviewField($body, 'title', 255); }
 
-            // snapshot the title/doc-id + version from the live DB so the list
-            // stays meaningful even before/after the entity changes
             $projectMgr = $tprojectMgr->get_by_id($tpid);
             if (is_null($projectMgr)) {
                 http_response_code(404);
                 echo json_encode(array('status' => 'error', 'message' => 'Test project not found'));
+                exit;
+            }
+
+            // Authoritative entity lookup (object-level authorization): the
+            // client-supplied title/doc-id/version are IGNORED and the entity
+            // must resolve inside $tpid.
+            $entity = reviewFindEntity($db, $tprojectMgr, $tpid, $entityType, $entityId);
+            if ($entity === null) {
+                http_response_code(404);
+                echo json_encode(array('status' => 'error',
+                    'message' => 'Entity not found in this test project'));
+                exit;
+            }
+            $versionId = (int)$entity['version_id'];
+            $title = (string)$entity['title'];
+            $docId = (string)$entity['doc_id'];
+
+            // Reviewer must be an assignable member of the test project.
+            $allowedReviewer = false;
+            foreach ((array)reviewCandidates($db, $tpid) as $cand) {
+                if (intval($cand['id']) === $reviewerId) { $allowedReviewer = true; break; }
+            }
+            if (!$allowedReviewer) {
+                http_response_code(400);
+                echo json_encode(array('status' => 'error',
+                    'message' => 'Reviewer is not a member of this test project'));
                 exit;
             }
 

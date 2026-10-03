@@ -5341,3 +5341,10 @@ Defect fixed during the run: requirement entity listing originally joined
 requirement node, so requirements returned empty. Fixed to
 `nodes_hierarchy(parent_id = requirements.id) JOIN req_versions ON req_versions.id = child.id`,
 returning the latest version (verified id 8 -> version node 9).
+
+### Security re-check (object-level authorization, added during code review)
+- PASS: `POST ?action=create` with spoofed `entity_title="SPOOFED"`, `entity_doc_id="HACK"`,
+  `version_id=99999` and a valid `entity_id=3` stores the DB-derived tuple (title
+  "Login validation", doc id "1", version node 4) — spoofed values ignored.
+- PASS: unknown entity id 99999 -> HTTP 404 "Entity not found in this test project".
+- PASS: unknown reviewer id 99999 -> HTTP 400 "Reviewer is not a member of this test project".
