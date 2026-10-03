@@ -1546,6 +1546,7 @@
   "install.repoDirMissing": "The attachments directory {path} does not exist.",
   "install.repoDirNotChecked": "The attachments directory check only applies to the filesystem repository type.",
   "install.repoDirNotWritable": "The attachments directory {path} exists but is not writable.",
+  "install.btsConnectionProblems": "Connection to your Bug Tracking System has failed: {trackers}. Please check your configuration. Be careful, this problem will degrade TestLink performance.",
   "install.repoDirOk": "The attachments directory {path} exists and is writable.",
   "install.repoTypeDb": "Database",
   "install.repoTypeFs": "Filesystem",

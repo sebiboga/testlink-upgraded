@@ -1546,6 +1546,7 @@
   "install.repoDirMissing": "添付ディレクトリ {path} は存在しません。",
   "install.repoDirNotChecked": "添付ディレクトリのチェックはファイルシステムのリポジトリにのみ適用されます。",
   "install.repoDirNotWritable": "添付ディレクトリ {path} は存在しますが、書き込みできません。",
+  "install.btsConnectionProblems": "バグトラッキングシステムへの接続に失敗しました: {trackers}。設定を確認してください。この問題は TestLink のパフォーマンスを低下させます。",
   "install.repoDirOk": "添付ディレクトリ {path} は存在し、書き込み可能です。",
   "install.repoTypeDb": "データベース",
   "install.repoTypeFs": "ファイルシステム",

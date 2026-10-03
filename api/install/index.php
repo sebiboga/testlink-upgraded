@@ -17,9 +17,11 @@
  *     legacy landing page hardcoded in install/index.php:52-58 (#1286)
  *   - links.forum -> the community forum legacy offered twice on the same
  *     landing page (install/index.php:45 and :49-50) (#1285)
+ *   - checkForBTSConnection() -> Bug Tracking System connectivity security note
+ *     (configCheck.php:273-275, :340-350), ported in #1282
  * The full install wizard (pre-DB, pre-session) intentionally stays legacy.
  *
- * Refs #797, #1286, #1285, #1283.
+ * Refs #797, #1286, #1285, #1283, #1282.
  */
 require_once(__DIR__ . '/../../config.inc.php');
 require_once('common.php');
@@ -156,6 +158,103 @@ function install_check_email_config()
     return is_null($msg) ? null : array_merge($common, array_slice($msg, 0));
 }
 
+/**
+ * Bug Tracking System connectivity check — legacy checkForBTSConnection().
+ *
+ * Legacy (lib/functions/configCheck.php:340-350, driven by getSecurityNotes() at
+ * :273-275) tested the PROJECT-SCOPED global $g_bugInterface:
+ *
+ *     global $g_bugInterface;
+ *     $status_ok = true;
+ *     if ($g_bugInterface && !$g_bugInterface->connect()) { $status_ok = false; }
+ *
+ * install/installView.html has no test-project context, so there is no
+ * "$g_bugInterface" to test: the faithful analog is every tracker that can
+ * actually BE somebody's active BTS, i.e. one linked to at least one test
+ * project (that is exactly the set tlIssueTracker::getInterfaceObject() would
+ * have built an $g_bugInterface for). A tracker configured but linked to no
+ * project is never the active one, so legacy would not have warned about it and
+ * we neither do — which also keeps the screen free of pointless outbound
+ * connects on every load.
+ *
+ * Deliberately NOT tlIssueTracker::getInterfaceObject(): it only catches
+ * Exception (not Throwable) and echoes raw HTML on failure
+ * (tlIssueTracker.class.php:781-784), which would corrupt the JSON response.
+ * We mirror api/issuetracker/index.php:212-243 instead — getByID() for the
+ * implementation name, then a guarded `new $impl(...)`.
+ *
+ * Legacy calls connect() (not isConnected()): connect() is what actually opens
+ * the DB/soap/socket handle, isConnected() only reports a cached flag.
+ *
+ * @return array {checked, configured, linked, failed[], status_ok}
+ */
+function install_check_bts_connection($db)
+{
+    $ret = array(
+        'checked'    => false,
+        'configured' => 0,
+        'linked'     => 0,
+        'failed'     => array(),
+        'status_ok'  => true,
+    );
+    if (!$db || !method_exists($db, 'fetchRowsIntoMap')) {
+        return $ret;
+    }
+    $prefix = defined('DB_TABLE_PREFIX') ? DB_TABLE_PREFIX : '';
+    $itTable = $prefix . 'issuetrackers';
+    $linkTable = $prefix . 'testproject_issuetracker';
+
+    $all = @$db->fetchRowsIntoMap("SELECT id FROM {$itTable}", 'id');
+    $ret['configured'] = is_array($all) ? count($all) : 0;
+
+    // DISTINCT: a tracker linked to several projects must be connected once.
+    $linked = @$db->fetchRowsIntoMap(
+        "SELECT DISTINCT ITRK.id AS id, ITRK.name AS name " .
+        " FROM {$linkTable} TPIT " .
+        " JOIN {$itTable} ITRK ON ITRK.id = TPIT.issuetracker_id " .
+        " ORDER BY ITRK.id",
+        'id');
+    if (!is_array($linked) || empty($linked)) {
+        return $ret;
+    }
+    $ret['checked'] = true;
+    $ret['linked'] = count($linked);
+
+    $mgr = new tlIssueTracker($db);
+    foreach ($linked as $row) {
+        $id = intval($row['id']);
+        $name = isset($row['name']) ? trim((string) $row['name']) : '';
+        try {
+            $item = $mgr->getByID($id);
+            // getImplementationForType() returns NULL for a type that is not a
+            // key of tlIssueTracker::$systems (issue #1617): treat it exactly like
+            // a failed connection instead of instantiating the string "Interface".
+            $impl = $item ? $item['implementation'] : null;
+            if (empty($impl)) {
+                $ret['failed'][] = $name !== '' ? $name : ('#' . $id);
+                continue;
+            }
+            // class_exists() with autoloading LOADS the interface file and can
+            // raise a Throwable on a broken vendored library (issue #1635) — it
+            // must degrade to "connection failed", never a 0-byte 500.
+            if (!class_exists($impl)) {
+                $ret['failed'][] = $name !== '' ? $name : ('#' . $id);
+                continue;
+            }
+            $iface = new $impl($item['type'], $item['cfg'], $item['name']);
+            if (!$iface->connect()) {
+                $ret['failed'][] = $name !== '' ? $name : ('#' . $id);
+            }
+        } catch (\Throwable $e) {
+            // Network/DNS/parse failure, unknown type, unloadable class — all of
+            // them mean the same thing for the user: the BTS is not usable.
+            $ret['failed'][] = $name !== '' ? $name : ('#' . $id);
+        }
+    }
+    $ret['status_ok'] = empty($ret['failed']);
+    return $ret;
+}
+
 function install_schema_status($db, &$dbSchemaVersion, &$schemaMsg)
 {
     $latest = defined('TL_LATEST_DB_VERSION') ? TL_LATEST_DB_VERSION : 'DB 2.0.0';
@@ -253,8 +352,30 @@ $emailMsgs = install_check_email_config();
 if (!is_null($emailMsgs)) {
     foreach ($emailMsgs as $detail) {
         $securityNotes[] = $detail;
+        // The code was missing here, which left $securityCodes SHORTER than
+        // $securityNotes: an API consumer zipping the two arrays got every code
+        // attached to the wrong note (the 4 email notes pushed nothing). Fixed
+        // here because the new BTS note is diagnosed by its code and a
+        // mis-aligned array would mislabel it too.
+        $securityCodes[] = 'email_config';
         $securityNoteItems[] = null;
     }
+}
+
+/**
+ * BTS connection security check (legacy getSecurityNotes(), configCheck.php:273-275).
+ * Placed here on purpose: legacy runs it BEFORE the attachments-repository check
+ * (:275-282), and the order is what a user reads in the note list.
+ */
+$bts = install_check_bts_connection($db);
+if ($bts['checked'] && !$bts['status_ok']) {
+    $securityNotes[] = lang_get('bts_connection_problems');
+    $securityCodes[] = 'bts_connection';
+    $securityNoteItems[] = array(
+        'code' => 'bts_connection',
+        'key'  => 'install.btsConnectionProblems',
+        'params' => array('trackers' => implode(', ', $bts['failed'])),
+    );
 }
 
 /**
@@ -308,6 +429,13 @@ if (count($securityNotes) !== count($securityNoteItems)) {
     $securityNoteItems = array_fill(0, count($securityNotes), null);
 }
 
+// Same contract for $securityCodes (API consumers pair it with $securityNotes
+// by index). A note without a code (e.g. checkForExtensions() in legacy, which
+// this BFF does not port) becomes 'unknown' instead of shifting the rest.
+if (count($securityNotes) !== count($securityCodes)) {
+    $securityCodes = array_fill(0, count($securityNotes), 'unknown');
+}
+
 $payload = array(
     'status' => 'ok',
     'installed' => ($configPresent && $dbReachable && $schema['status'] == 'ok'),
@@ -324,6 +452,7 @@ $payload = array(
     'securityCodes' => $securityCodes,
     'securityNoteItems' => $securityNoteItems,
     'repository' => $repositoryDir,
+    'bts' => $bts,
     'gdOk' => $gdOk,
     'whoami' => isset($_SESSION['userID']) ? intval($_SESSION['userID']) : 0,
     'links' => array(

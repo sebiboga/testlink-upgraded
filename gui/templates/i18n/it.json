@@ -1546,6 +1546,7 @@
   "install.repoDirMissing": "La directory degli allegati {path} non esiste.",
   "install.repoDirNotChecked": "Il controllo della directory degli allegati vale solo per il tipo di repository File system.",
   "install.repoDirNotWritable": "La directory degli allegati {path} esiste ma non e scrivibile.",
+  "install.btsConnectionProblems": "La connessione al tuo sistema di tracciamento dei bug e fallita: {trackers}. Controlla la configurazione. Attenzione, questo problema degraderà le prestazioni di TestLink.",
   "install.repoDirOk": "La directory degli allegati {path} esiste ed e scrivibile.",
   "install.repoTypeDb": "Database",
   "install.repoTypeFs": "File system",

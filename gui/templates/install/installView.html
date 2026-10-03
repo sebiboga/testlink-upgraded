@@ -242,16 +242,28 @@ function renderStatus(r) {
     $('#securityPanel').show();
     var ul = $('#securityList').empty();
     // Notes that legacy produced as a localized message composed of a prefix +
-    // the configured path (the attachments repository note) are re-composed here
-    // through their i18n key, so they follow the active UI language; every other
-    // note falls back to the server-rendered string.
+    // the configured path (the attachments repository note) or of a prefix +
+    // the failing tracker names (the BTS connection note, configCheck.php:273-275)
+    // are re-composed here through their i18n key, so they follow the active UI
+    // language; every other note falls back to the server-rendered string.
     var items = Array.isArray(r.securityNoteItems) ? r.securityNoteItems : [];
     $.each(r.securityNotes, function(i, n) {
       var it = items[i];
       // TLi18n.t() returns the raw key for an unknown key, so has() guards the
       // localized branch and the server string is used when a bundle is behind.
       var text = (it && it.key && TLi18n.has(it.key)) ? TLi18n.t(it.key, it.params || {}) : n;
-      ul.append($('<li>').text(text == null || text === '' ? n : text));
+      if (text == null || text === '') { text = n; }
+      // Server-side strings are legacy multi-line messages built with literal
+      // <br /> tags (locale/*/strings.txt). The <li> is filled with .text() to
+      // stay XSS-safe, so the tags have to be turned into real line breaks
+      // instead of being shown verbatim.
+      var li = $('<li>');
+      if (String(text).indexOf('<br') !== -1) {
+        li.css('white-space', 'pre-line');
+        text = String(text).replace(/<br\s*\/?>/gi, '\n');
+      }
+      li.text(text);
+      ul.append(li);
     });
   } else {
     $('#securityPanel').hide();

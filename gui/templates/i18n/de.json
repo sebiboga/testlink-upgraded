@@ -1546,6 +1546,7 @@
   "install.repoDirMissing": "Das Anhangsverzeichnis {path} existiert nicht.",
   "install.repoDirNotChecked": "Die Pruefung des Anhangsverzeichnisses gilt nur fuer den Repository-Typ Dateisystem.",
   "install.repoDirNotWritable": "Das Anhangsverzeichnis {path} existiert, ist aber nicht beschreibbar.",
+  "install.btsConnectionProblems": "Die Verbindung zu deinem Bug Tracking System ist fehlgeschlagen: {trackers}. Bitte pruefe deine Konfiguration. Achtung, dieses Problem wird die TestLink-Leistung beeintraechtigen.",
   "install.repoDirOk": "Das Anhangsverzeichnis {path} existiert und ist beschreibbar.",
   "install.repoTypeDb": "Datenbank",
   "install.repoTypeFs": "Dateisystem",

@@ -1546,6 +1546,7 @@
   "install.repoDirMissing": "Le repertoire des pieces jointes {path} n'existe pas.",
   "install.repoDirNotChecked": "La verification du repertoire des pieces jointes ne concerne que le type de depot Systeme de fichiers.",
   "install.repoDirNotWritable": "Le repertoire des pieces jointes {path} existe mais n'est pas accessible en ecriture.",
+  "install.btsConnectionProblems": "La connexion a votre systeme de suivi des bogues a echoue : {trackers}. Verifiez votre configuration. Attention, ce probleme degradera les performances de TestLink.",
   "install.repoDirOk": "Le repertoire des pieces jointes {path} existe et est accessible en ecriture.",
   "install.repoTypeDb": "Base de donnees",
   "install.repoTypeFs": "Systeme de fichiers",

@@ -199,7 +199,17 @@ abstract class issueTrackerInterface
    **/
   function connect()
   {
-    if (is_null($this->cfg->dbhost) || is_null($this->cfg->dbuser))
+    // Issue #1282: isset() instead of is_null($this->cfg->dbhost). $this->cfg is a
+    // stdClass built by json_decode() of the tracker cfg XML
+    // (setCfg(), :165), so a cfg that omits <dbhost>/<dbuser> leaves the
+    // property ABSENT — and on PHP 8 is_null() on an absent property raises
+    // "Undefined property: stdClass::$dbhost" (E_WARNING) before it can answer.
+    // That warning was logged into the events table on every check: 6 rows
+    // measured while verifying the installView BTS security note, which now
+    // calls connect() on every page load of that screen. isset() is exactly
+    // equivalent for the return value (true property-but-null also yields true
+    // for !isset) and never warns.
+    if (!isset($this->cfg->dbhost) || !isset($this->cfg->dbuser))
     {
       return false;
     }

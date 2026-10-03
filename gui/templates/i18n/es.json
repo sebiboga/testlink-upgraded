@@ -1546,6 +1546,7 @@
   "install.repoDirMissing": "El directorio de adjuntos {path} no existe.",
   "install.repoDirNotChecked": "La comprobacion del directorio de adjuntos solo se aplica al tipo de repositorio Sistema de archivos.",
   "install.repoDirNotWritable": "El directorio de adjuntos {path} existe pero no se puede escribir.",
+  "install.btsConnectionProblems": "La conexion con tu sistema de seguimiento de errores ha fallado: {trackers}. Comprueba tu configuracion. Ten en cuenta que este problema degradara el rendimiento de TestLink.",
   "install.repoDirOk": "El directorio de adjuntos {path} existe y se puede escribir.",
   "install.repoTypeDb": "Base de datos",
   "install.repoTypeFs": "Sistema de archivos",

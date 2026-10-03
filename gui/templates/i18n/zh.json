@@ -1546,6 +1546,7 @@
   "install.repoDirMissing": "附件目录 {path} 不存在。",
   "install.repoDirNotChecked": "附件目录检查仅适用于文件系统类型的附件库。",
   "install.repoDirNotWritable": "附件目录 {path} 存在但不可写。",
+  "install.btsConnectionProblems": "连接到您的缺陷跟踪系统失败：{trackers}。请检查您的配置。请注意，此问题会降低 TestLink 的性能。",
   "install.repoDirOk": "附件目录 {path} 存在且可写。",
   "install.repoTypeDb": "数据库",
   "install.repoTypeFs": "文件系统",

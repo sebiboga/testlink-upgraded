@@ -1546,6 +1546,7 @@
   "install.repoDirMissing": "Directorul pentru atasuri {path} nu exista.",
   "install.repoDirNotChecked": "Verificarea directorului pentru atasuri se aplica doar tipului de depozit Sistem de fisiere.",
   "install.repoDirNotWritable": "Directorul pentru atasuri {path} exista dar nu este inscriptibil.",
+  "install.btsConnectionProblems": "Conectarea la sistemul tau de urmarire a defectelor a esuat: {trackers}. Verifica-ti configuratia. Fii atent, aceasta problema va degrada performantele TestLink.",
   "install.repoDirOk": "Directorul pentru atasuri {path} exista si este inscriptibil.",
   "install.repoTypeDb": "Baza de date",
   "install.repoTypeFs": "Sistem de fisiere",

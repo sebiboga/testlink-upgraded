@@ -1546,6 +1546,7 @@
   "install.repoDirMissing": "O diretorio de anexos {path} nao existe.",
   "install.repoDirNotChecked": "A verificacao do diretorio de anexos aplica-se apenas ao tipo de repositorio Sistema de arquivos.",
   "install.repoDirNotWritable": "O diretorio de anexos {path} existe mas nao e gravavel.",
+  "install.btsConnectionProblems": "A conexao ao seu sistema de rastreamento de erros falhou: {trackers}. Verifique a sua configuracao. Atencao, este problema ira degradar o desempenho do TestLink.",
   "install.repoDirOk": "O diretorio de anexos {path} existe e e gravavel.",
   "install.repoTypeDb": "Banco de dados",
   "install.repoTypeFs": "Sistema de arquivos",
