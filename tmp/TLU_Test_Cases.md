@@ -5000,105 +5000,43 @@ it is why H1 is not listed under discriminating coverage above.
 
 ### Result: PASS
 
-## Regression — Issue #1686: reqTreeReorder.html "Back to specification management" link must never be a dead self-reload and must match its label
+## Task — Issue #1283: Implement repository-directory security check in install/installView.html (gap vs legacy)
 
-**Precondition**
+### Precondition
+- Application running at http://localhost:8082 (PHP built-in server, docroot = repo root), DB `testlink` imported, logged in as `admin/admin`.
+- Default config: `repositoryType = TL_REPOSITORY_TYPE_FS` (2), `repositoryPath = <docroot>/upload_area/` (exists, writable) — override for the failing cases via `TESTLINK_UPLOAD_AREA` (`config.inc.php:1615-1619`).
+- Fixtures created for this run:
+  - `mkdir /tmp/tlu_missing_dir_test && chmod 555 /tmp/tlu_missing_dir_test`  (exists, NOT writable)
+  - `/tmp/tlu_no_such_dir_at_all` (does NOT exist)
+- The built-in server must be restarted with the env var: `TESTLINK_UPLOAD_AREA=<dir> php -S 127.0.0.1:8082 -t .`
 
-App running at `http://localhost:8082` (PHP built-in server, docroot = repo root);
-MariaDB `127.0.0.1:3306/testlink`; login `admin`/`admin`. The DB is re-imported empty on
-every run, so recreate the fixtures (a bare `testprojects` row is NOT enough —
-`testproject::get_by_id()` in `lib/functions/testproject.class.php:345` joins
-`nodes_hierarchy` and requires `node_type_id = 1`):
+### Steps
+1. With the DEFAULT server (no env var), open `http://localhost:8082/gui/templates/install/installView.html`.
+2. Read the Installation Status grid: the two "ATTACHMENTS REPOSITORY" cards.
+3. Read the Security Notes panel list items.
+4. Restart the server with `TESTLINK_UPLOAD_AREA=/tmp/tlu_missing_dir_test` (exists, not writable), reload the screen (click Refresh), read both the badge and the Security Notes list.
+5. Restart the server with `TESTLINK_UPLOAD_AREA=/tmp/tlu_no_such_dir_at_all` (missing), reload, read badge + notes.
+6. Restart the server with the DEFAULT env, reload, and repeat step 2/3 (regression: the healthy state must stay silent).
+7. Verify `curl -s -b <cookie> -H 'Origin: http://localhost:8082' /api/install/index.php`: compare `securityNotes[last]`, `securityCodes[last]` and `securityNoteItems[last]` against the legacy wording.
+8. Switch the locale to Romanian on the failing (not writable) configuration and re-read the note + badge text.
+9. Temporarily set `$g_repositoryType = TL_REPOSITORY_TYPE_DB` in `config.inc.php:1605`, reload, confirm NO repository note is produced (legacy only checks FS), then restore the line to FS.
+10. Check the browser console for errors/warnings and the `events` table for new Error/Warning rows (`select log_level, count(*) from events group by log_level`).
 
-```sql
-INSERT INTO testprojects (id,prefix,api_key) VALUES (13,'TR1686','k1686aaaa'),(14,'TR1686B','k1686bbbb');
-INSERT INTO req_specs (id,testproject_id,doc_id) VALUES (16,13,'1686-SPEC1'),(17,14,'1686-SPEC2');
-INSERT INTO requirements (id,srs_id,req_doc_id) VALUES (100,16,'1686-R1'),(101,16,'1686-R2');
-INSERT INTO nodes_hierarchy (id,parent_id,node_type_id,name,node_order) VALUES
-  (13,0,1,'Reorder Project A',1),(14,0,1,'Reorder Project B',2),
-  (16,13,6,'Repro Spec A',1),(17,14,6,'Repro Spec B',1),
-  (100,16,7,'First requirement',1),(101,16,7,'Second requirement',2);
--- node_type_id: 1 = testproject, 6 = requirement spec, 7 = requirement
-```
+### Expected behavior
+- FS + directory exists + writable → green badge "The attachments directory <path> exists and is writable." and NO security note (legacy only notes on failure, `configCheck.php:279-281`).
+- FS + exists + not writable → note "The attachments directory <path> exists but is not writable." (server string mirrors legacy `directory for attachments: <path> exists The directory is not writable!`), badge red, `securityCodes` gains `repository_dir`.
+- FS + missing → note "The attachments directory <path> does not exist.", badge red, `securityCodes` gains `repository_dir`.
+- DB repository type → no directory check, badge shows the explicit "check only applies to the filesystem repository type" state.
+- The note follows the active UI locale (it is re-composed on the client from `securityNoteItems`, not from the English-only server string).
 
-Screen under test: `gui/templates/requirements/reqTreeReorder.html`
-(`#backLink` markup at line 77, `buildBackLink()` at 181-186, called at 189).
+### Actual result
+- PASS (1/1 healthy): badges `["OK","The attachments directory /…/upload_area/ exists and is writable."]`; 6 security notes, none about the attachments dir — legacy parity.
+- PASS (2/2 not writable): API `securityNotes[last]="directory for attachments: /tmp/tlu_missing_dir_test exists The directory is not writable!"`, `securityCodes=[install_dir, admin_pwd, repository_dir]`, `securityNoteItems[last]={"code":"repository_dir","key":"install.repoDirNotWritable","params":{"path":"/tmp/tlu_missing_dir_test"}}`; UI badge + note both "The attachments directory /tmp/tlu_missing_dir_test exists but is not writable." (screenshot `docs/screenshots/issue-1283-repository-dir-not-writable.png`).
+- PASS (3/3 missing): API msg `directory for attachments: /tmp/tlu_no_such_dir_at_all does not exist`, `key=install.repoDirMissing`; UI note "The attachments directory /tmp/tlu_no_such_dir_at_all does not exist."
+- PASS (4/4 regression healthy state): green badge, no new note, existing notes unchanged (install dir, admin default pwd, e-mail keys).
+- PASS (5/5 localization): locale `ro` → "Directorul pentru atasuri /tmp/tlu_missing_dir_test exista dar nu este inscriptibil." in both the Security Notes list and the badge.
+- PASS (6/6 DB type): `repository={"type":1,"typeCode":"db","checked":false,…}`, `securityCodes=[install_dir, admin_pwd]` (no `repository_dir`), UI badge "The attachments directory check only applies to the filesystem repository type." — `config.inc.php:1605` restored to FS afterwards (`git diff config.inc.php` empty).
+- PASS (7/7 event viewer): `select log_level, count(*) from events group by log_level` → `16 3` only (audit_login_succeeded); no Error/Warning rows. Browser console: no error/warn messages on the screen.
+- Gates: `php -l api/install/index.php` OK; `node --check` on the extracted inline script OK; `python3 -m json.tool` valid on all 10 locale bundles.
 
-### TC-1686-01 Back link target is a real page in the STATIC markup (pre-JS)
-
-### Result: PASS
-
-## Modernize — Issue #1807: read-only Execution Notes viewer (`gui/templates/execute/execNotesReadonly.html`)
-
-Environment: `http://localhost:8082`, `admin/admin`, plus a role-3 `<no rights>`
-user `norights1807`. Fixture `tmp/fixtures_1807.php` (transient — the DB is
-recreated per run): test project 35 `ENRO1807`, test plan 36 `ENRO Plan`, build 8
-`ENRO Build 1`, platform 5 `Linux`; executions **9** (RichEdit notes),
-**10** (no notes), **11** (stored XSS payload), **12** (plain notes).
-
-### BFF — `api/execnotesreadonly/index.php`
-
-| # | Case | Expected | Result |
-|---|------|----------|--------|
-| 1 | `GET ?action=view&exec_id=9` (rich note) | 200, notes flattened to plain text, full context | PASS — `Step one passed.\nRetried after a "flaky" DNS & it worked.\nThird block with bold text.` |
-| 2 | `GET ?action=view&exec_id=10` (empty) | 200, `notes_empty: true`, `notes: ""` | PASS |
-| 3 | `GET ?action=view&exec_id=12` (plain) | 200, note returned verbatim | PASS |
-| 4 | `GET ?action=view&exec_id=11` (stored XSS) | 200, payload inert text | PASS — no `<img>`/`<script>` survives flattening |
-| 5 | `GET ?action=view&exec_id=999999` | 404 `exec_not_found` | PASS |
-| 6 | `GET ?action=view&exec_id=abc` | 400 `invalid_exec_id` | PASS |
-| 7 | `GET ?action=bogus&exec_id=9` | 400 `unknown_action` | PASS |
-| 8 | anonymous `GET ?action=view` | 401 `not_authenticated` | PASS |
-| 9 | plain `POST`, no Origin/Referer/XRW | 405, `Allow: GET, HEAD` | PASS after the code review moved the verb check **above** `bffSameOriginGuard()`, which had been swallowing it as 403 |
-| 10 | role-3 user, `GET ?action=view&exec_id=9` | 404 `exec_not_found` — byte-identical to a missing execution | PASS after the code review closed the 403/404 existence oracle (the #1792 class): the two refusals are now one opaque answer |
-| 11 | role-3 user, legacy fragment path | 404, note NOT leaked | PASS — `leaked:false` |
-| 12 | role-3 user, `exec_id=999999` vs `exec_id=9` | the two answers must be **identical**, so no existence oracle | PASS — both `404 {"status":"error","code":"exec_not_found","message":"Execution not found"}` |
-| 13 | execution whose tcversion lives in another project | 404 (fail closed) | PASS — `enro_tc_node()` walks `parent_id` to the root and compares it with the owning project, and the first node walked must be `node_type_id = 3` |
-| 14 | note stored as invalid UTF-8 (Latin-1 byte) | the note must NOT read as empty | PASS after the code review: the byte-mode BOM strip replaced a `/u` `preg_replace()` that returned **NULL** for invalid UTF-8 and blanked the whole note; `json_encode` now uses `JSON_INVALID_UTF8_SUBSTITUTE` (without the flag the same payload encoded to **0 bytes**) |
-
-### Legacy shim — `lib/execute/getExecNotes.php`
-
-| # | Case | Expected | Result |
-|---|------|----------|--------|
-| 13 | browser navigation `?readonly=1&exec_id=9` | 302 → `execNotesReadonly.html?exec_id=9` | PASS |
-| 14 | XHR (legacy `url2load`) `exec_id=9` | 200 `text/html`, escaped `<pre>` | PASS |
-| 15 | XHR with foreign `Origin` | 403 + a JSON machine code (the fragment goes into `innerHTML`) | PASS — `{"status":"error","code":"cross_origin",...}`, added by the code review so a refusal is never an empty 200-shaped page |
-| 16 | XHR with same-origin `Origin` | 200 | PASS |
-| 17 | no session | 401 | PASS |
-| 18 | `POST` | 405 | PASS |
-| 19 | `?exec_id=abc` | 400 + empty escaped fragment | PASS |
-| 20 | XHR `?exec_id=999999` | 404 | PASS |
-| 21 | XHR `exec_id=11` (XSS) | payload escaped, inert | PASS — `<pre>hello\nwindow.__enro_xss = 1;</pre>` |
-
-### Screen — `gui/templates/execute/execNotesReadonly.html`
-
-| # | Case | Expected | Result |
-|---|------|----------|--------|
-| 22 | load `?exec_id=9` as admin | context grid + note rendered; "Open editable notes" ENABLED | PASS after fix `774abca0f` (was disabled: `can_edit` was read off `r.execution`) |
-| 23 | load `?exec_id=10` | "No execution notes recorded." | PASS |
-| 24 | load `?exec_id=11` | `window.__enro_xss` undefined, `#notesBox` has 0 child elements | PASS |
-| 25 | load with **no** `exec_id` | "No execution selected" card; edit button disabled | PASS after fix `774abca0f` |
-| 26 | load `?exec_id=999999` | "Execution not found" card; edit button disabled | PASS after fix `774abca0f` |
-| 27 | load `?exec_id=9` as role-3 user | opaque "Execution not found" card; edit button disabled | PASS — the BFF answers the same 404 as for a missing row, so the screen cannot tell the two apart. The 403 "Access denied" card is kept in the client as a permanent safety net for a future grant split. |
-| 28 | locale switch → Romanian | every chrome label translated, note text untouched | PASS |
-| 29 | all 10 locale bundles | parse as JSON and carry the 29 `enro.*` keys | PASS |
-| 30 | Event Viewer after the whole run | no new Error/Warning entries | PASS — only AUDIT rows (level 16) for the deliberate refusals |
-
-### Findings
-- #1808 filed (`bug`): the legacy controller authorized nothing beyond a session,
-  dereferenced `$map[0]` unguarded and rendered the stored RichEdit blob as
-  markup. Fixed by this branch.
-- The mandatory **code review** (subagent) reported no blockers and 2 MAJOR items,
-  both fixed and both now regression cases 9-15 above: the 403-vs-404 existence
-  oracle (same class as #1792) and the silent note-erasure on invalid UTF-8.
-  It also confirmed SQL injection clean (every interpolated id is `intval()`ed or
-  regex-validated), XSS clean (the note reaches the DOM only via `.text()`, the
-  fragment only through `htmlspecialchars`), the shim unable to smuggle a write
-  (`$_GET['action']`/`exec_id` unconditionally overwritten, no write SQL anywhere),
-  and `doSessionStart()` idempotent under the double call.
-- The review corrected a claim in both file headers: there are **5** distinct
-  legacy call sites (six files carry the line; `tl-classic/.../execSetResultsJS.inc.tpl`
-  does not exist), not 4.
-- No ASIDE entry was added: with no `exec_id` the screen can only render a
-  "pick an execution" state, so a menu link would be a dead end. The screen is
-  deep-linked instead (`$actions->execNotesReadonly`); an execution-picker route
-  is a follow-up.
+### Result: PASS (7/7 steps)

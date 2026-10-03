@@ -197,3 +197,70 @@ See `tmp/TLU_Test_Cases.md` — **Task — Issue #1285** (9 cases, all PASS): bu
 rendered, href/target/rel, `links.forum` in the BFF payload, forum sentence inside the
 upgrade panel (and hidden again when the schema is OK), localisation in ro/ja/en,
 10-bundle key completeness, `node --check` / `php -l` / console / Event Viewer clean.
+
+## 9. Attachments-repository (FS) security check — #1283
+
+### 9.1 The gap
+
+Legacy `getSecurityNotes()` (`lib/functions/configCheck.php:250-300`) ended with the
+attachments repository check (`:275-282`):
+
+```php
+if ($repository['type'] == TL_REPOSITORY_TYPE_FS) {
+  $ret = checkForRepositoryDir($repository['path']);
+  if (!$ret['status_ok']) { $securityNotes[] = $ret['msg']; }
+}
+```
+
+`checkForRepositoryDir()` (`:368-390`) is a `is_dir()` + `is_writable()` test that composes
+the note out of localized fragments: `directory for attachments: <path> does not exist` /
+`… exists The directory is not writable!`. The note was displayed on `login.php:230`,
+`mainPage.php:184` and `common.php:1787`.
+
+Modernization ported the install-dir / LDAP / default-admin-password / e-mail-config notes
+into `api/install/index.php`, but never the FS branch — an installation whose attachments
+directory was missing or read-only showed **no** warning on the Install / Upgrade screen,
+although every attachment upload would fail.
+
+### 9.2 What the modern screen does now
+
+* `install_check_repository_dir()` in `api/install/index.php` mirrors `configCheck.php:368-390`
+  line by line (same `lang_get()` fragments, same `clearstatcache()` / `is_dir()` /
+  `is_writable()` logic) and additionally returns `exists` / `writable` for the front-end badge.
+* It runs **only** when `config_get('repositoryType') == TL_REPOSITORY_TYPE_FS`, exactly like
+  legacy. The result is published as a top-level `repository` block:
+  `{type, typeCode, path, checked, status_ok, exists, writable, msg}`.
+* On failure the legacy string is appended to `securityNotes` (unchanged wording, so any other
+  consumer of the payload sees the legacy text) and the code `repository_dir` to `securityCodes`.
+* `securityNoteItems` — a new array parallel to `securityNotes` — carries `{code, key, params}`
+  for the notes whose text must follow the UI language (here `install.repoDirMissing` /
+  `install.repoDirNotWritable` with `{path}`), `null` for every pre-existing note, which keeps
+  their current server-rendered strings. `installView.html` re-composes the note with
+  `TLi18n.t(key, params)` and falls back to the server string if the key is missing.
+* Two **ATTACHMENTS REPOSITORY** cards in the Installation Status grid: the repository type
+  (`Filesystem` / `Database`) and the directory state badge — green `repoDirOk`, red
+  `repoDirNotWritable` / `repoDirMissing`, and an explicit `repoDirNotChecked` state for the DB
+  type (legacy evaluates the directory only for FS). Values are injected with `esc()` and the
+  badge class comes from a fixed allow-list, so a path can never inject markup.
+* i18n: `install.repository`, `install.repoTypeFs`, `install.repoTypeDb`, `install.repoDirOk`,
+  `install.repoDirMissing`, `install.repoDirNotWritable`, `install.repoDirNotChecked` in all
+  10 locale bundles (`+7` lines each).
+
+Reproduce a failing state without editing the repository: the built-in server honours
+`TESTLINK_UPLOAD_AREA` (`config.inc.php:1615-1619`), e.g.
+`TESTLINK_UPLOAD_AREA=/tmp/tlu_missing_dir_test php -S 127.0.0.1:8082 -t .` with that
+directory `chmod 555`, or a non-existent path.
+
+### 9.3 Files
+
+| File | Purpose |
+|------|---------|
+| `api/install/index.php` | `install_check_repository_dir()`, `repository` block, `repository_dir` note, `securityNoteItems` |
+| `gui/templates/install/installView.html` | `renderRepositoryCards()`, localized security-note rendering |
+| `gui/templates/i18n/*.json` (10 bundles) | `install.repository`, `install.repoType*`, `install.repoDir*` |
+
+### 9.4 Regression suite
+
+See `tmp/TLU_Test_Cases.md` — **Task — Issue #1283** (7/7 PASS): healthy FS dir (green badge,
+no note), not-writable dir, missing dir, healthy-state regression, ro localisation, DB type
+(no check), Event Viewer / console / `php -l` / `node --check` / `json.tool` gates.
