@@ -43,7 +43,7 @@ function load_notes(panel,exec_id)
 <div class="workBack">
   {if !isset($gui->warning_msg) || $gui->warning_msg == ''}
 
-    <form name="execHistory" id="execHistory" action="lib/execute/execHistory.php">
+    <form name="execHistory" id="execHistory" action="/gui/templates/execute/execHistory.html">
       <input type="hidden" name="tcase_id" id="tcase_id" value="{$gui->tcase_id}">
       {$labels.display_only_active_test_plans}
       <input type="checkbox"

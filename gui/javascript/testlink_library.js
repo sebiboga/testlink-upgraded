@@ -1724,7 +1724,7 @@ function openPrintPreview(type, id, child_id, revision, print_action) {
 
 
 function openExecHistoryWindow(tc_id,tplan_check,tproject_id) {
-  var url = "lib/execute/execHistory.php?tcase_id=" + tc_id;
+  var url = "gui/templates/execute/execHistory.html?tcase_id=" + tc_id;
 
   var width = getCookie("execHistoryPopupWidth");
   var height = getCookie("execHistoryPopupHeight");
