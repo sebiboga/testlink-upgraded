@@ -1,70 +1,142 @@
 <?php
 /**
- * TestLink Open Source Project - http://testlink.sourceforge.net/ 
- * This script is distributed under the GNU General Public License 2 or later. 
+ * TestLink Open Source Project - http://testlink.sourceforge.net/
  *
- * @filesource	getExecNotes.php
+ * @filesource  getExecNotes.php
+ * @package     TestLink
  *
- * @internal revisions
- * @since 1.9.14
+ * LEGACY READ-ONLY EXECUTION NOTES VIEWER - REDIRECT SHIM (Refs #1807)
  *
+ * The screen itself is modernized: gui/templates/execute/execNotesReadonly.html
+ * backed by api/execnotesreadonly/index.php.
  *
+ * Why this file still exists: four legacy templates load its output as an AJAX
+ * fragment and assign it into innerHTML
+ *   gui/templates/{dashio,tl-classic}/execute/include/execSetResultsUtils.inc.tpl
+ *   gui/templates/{dashio,tl-classic}/execute/include/execSetResultsJS.inc.tpl
+ *   gui/templates/{dashio,tl-classic}/execute/execHistory.tpl
+ * all as `url2load = fRoot + 'lib/execute/getExecNotes.php?readonly=1&exec_id=' + exec_id`,
+ * so the FRAGMENT contract has to keep answering. The fragment is now produced by
+ * the BFF, with the same authorization the modern screen uses, instead of by the
+ * old controller.
+ *
+ * SECURITY (Refs #1807) - this controller used to be an UNAUTHORIZED-BY-RIGHT
+ * READ: it called only testlinkInitPage($db) (a session, NO right, NO ownership),
+ * took a bare $args->exec_id and handed get_execution() straight to the view, so
+ * ANY authenticated user - `<no rights>` role 3 included - could read the notes of
+ * ANY execution on ANY test project by enumerating ?exec_id=. It also
+ * dereferenced $map[0]['notes'] with no guard (E_WARNING + fatal 500 on an unknown
+ * id) and rendered the stored RichEdit blob through the web editor, i.e. a stored
+ * payload executing with the app origin's privileges. All of that now lives in the
+ * BFF, which authorizes the OWNING test project.
+ *
+ * Contract preserved for callers:
+ *   - no session         -> 401 (legacy testlinkInitPage redirected to login)
+ *   - write verb         -> 405 (this view has never written anything)
+ *   - bad / missing id   -> 400 with an empty escaped fragment
+ *   - XHR / fragment     -> 200 text/html fragment produced by the BFF, and ONLY
+ *                           for a same-origin caller, because the legacy call
+ *                           sites assign the answer into innerHTML
+ *   - browser navigation -> 302 to the modern screen
+ *
+ * The shim NEVER reads or writes a note itself: every byte of content comes from
+ * api/execnotesreadonly/index.php?action=fragment.
  */
 require_once('../../config.inc.php');
 require_once('common.php');
-require_once("web_editor.php");
-require_once('exec.inc.php');
 
-$webeditorCfg = getWebEditorCfg('execution');
-require_once(require_web_editor($webeditorCfg['type']));
+doSessionStart();
 
+require_once(__DIR__ . '/../../api/_guard.php');
 
-testlinkInitPage($db);
-$templateCfg = templateConfiguration();
+$method = strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET');
 
-$tcase_mgr = new testcase($db);
-$args = init_args();
-
-$webeditorCfg = getWebEditorCfg('display_execution_notes');
-$map = get_execution($db,$args->exec_id);
-$notesContent = $map[0]['notes'];
-
-$readonly = $args->readonly > 0 ? 'readonly="readonly"' : ''; 
-$smarty = new TLSmarty();
-$smarty->assign('notes',$notesContent);
-$smarty->assign('webeditorCfg',$webeditorCfg);
-$smarty->assign('webeditorType',$webeditorCfg['type']);
-$smarty->assign('readonly',$readonly);
-$smarty->assign('editor_instance','exec_notes_' . $args->exec_id);
-$smarty->display($templateCfg->template_dir . $templateCfg->default_template);
-
-
-
-function createExecNotesWebEditor($id,$basehref,$editorCfg,$content=null)
-{
-    // Important Notice:
-    //
-    // When using tinymce or none as web editor, we need to set rows and cols
-    // to appropriate values, to avoid an ugly ui.
-    // null => use default values defined on editor class file
-    //
-    // Rows and Cols values are useless for FCKeditor.
-    //
-    $of=web_editor("exec_notes_$id",$basehref,$editorCfg) ;
-    $of->Value = $content;
-    $editor=$of->CreateHTML(10,60);         
-    unset($of);
-    return $editor;
+// Legacy testlinkInitPage() contract: no session, no data.
+if (empty($_SESSION['userID']) || intval($_SESSION['userID']) <= 0) {
+    http_response_code(401);
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode(array(
+        'status' => 'error',
+        'code' => 'not_authenticated',
+        'message' => 'Not authenticated',
+    ));
+    exit;
 }
 
-
-
-function init_args()
-{
-    $iParams = array("exec_id" => array(tlInputParameter::INT_N),
-                     "readonly" => array(tlInputParameter::INT_N));
-	$args = new stdClass();
-	R_PARAMS($iParams,$args);
-    return $args; 
+// This view has never written anything; refuse the write verbs explicitly so a
+// POST here can never be mistaken for a supported action.
+if ($method !== 'GET' && $method !== 'HEAD') {
+    header('Allow: GET, HEAD');
+    http_response_code(405);
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode(array(
+        'status' => 'error',
+        'code' => 'method_not_allowed',
+        'message' => 'This view is read-only; use GET',
+    ));
+    exit;
 }
-?>
+
+$execId = isset($_GET['exec_id']) ? trim((string)$_GET['exec_id']) : '';
+if ($execId === '' || !preg_match('/^[0-9]+$/', $execId) || intval($execId) <= 0) {
+    http_response_code(400);
+    header('Content-Type: text/html; charset=utf-8');
+    header('X-Content-Type-Options: nosniff');
+    echo '<pre class="execnotes-readonly-fragment"></pre>';
+    exit;
+}
+
+// Browser navigation: hand over to the modern screen, exactly like every other
+// converted legacy controller does.
+if (strcasecmp(trim((string)($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '')), 'XMLHttpRequest') !== 0) {
+    $basehref = isset($_SESSION['basehref']) ? $_SESSION['basehref'] : '/';
+    header('Location: ' . $basehref .
+           'gui/templates/execute/execNotesReadonly.html?exec_id=' . intval($execId), true, 302);
+    exit;
+}
+
+// ---------------------------------------------------------------------------
+// Fragment branch. The answer lands in the innerHTML of a panel on the caller's
+// page, so only a genuinely same-origin caller may fetch it.
+//
+// The XRW hint is the browser's own same-origin marker for this very call (the
+// legacy callers use $.ajax) and is the baseline proof, because a same-origin
+// GET sends neither Origin nor Referer. A PRESENT Origin/Referer is still
+// validated authoritatively: unparseable or foreign -> 403 outright, and the
+// XRW hint never overrides it (issue #1679).
+// ---------------------------------------------------------------------------
+$requestHost = bffAuthority($_SERVER['HTTP_HOST'] ?? '');
+$https = strtolower(trim((string)($_SERVER['HTTPS'] ?? '')));
+$defaultPort = ':' . (($https !== '' && $https !== 'off') ? '443' : '80');
+$hostKey = bffStripDefaultPort($requestHost, $defaultPort);
+
+foreach (array('HTTP_ORIGIN', 'HTTP_REFERER') as $hdr) {
+    $val = trim((string)($_SERVER[$hdr] ?? ''));
+    if ($val === '') {
+        continue;
+    }
+    $parts = parse_url($val);
+    if (empty($parts['host'])) {
+        http_response_code(403);
+        exit;
+    }
+    $authority = strtolower($parts['host']);
+    if (!empty($parts['port'])) {
+        $authority .= ':' . $parts['port'];
+    }
+    if (bffStripDefaultPort($authority, $defaultPort) !== $hostKey) {
+        http_response_code(403);
+        exit;
+    }
+}
+
+// Run the BFF IN-PROCESS rather than proxying it over HTTP: the fragment has to
+// keep the same session cookie, status codes and body as the modern screen, and
+// a nested self-request is not available (the dev server is single threaded, so
+// it would deadlock into a 502). config.inc.php has already put lib/functions on
+// the include path, and every require below is require_once, so the BFF's own
+// bootstrap collapses onto the one already done here.
+$_GET['action'] = 'fragment';
+$_GET['exec_id'] = intval($execId);
+require __DIR__ . '/../../api/execnotesreadonly/index.php';
+exit;
