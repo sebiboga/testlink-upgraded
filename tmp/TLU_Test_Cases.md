@@ -4580,3 +4580,71 @@ drives the two fixes that review applied to `renderVideos()` — the `Array.isAr
 guard on `r.videos` and the `TLi18n.t(v.key) || v.key || v.id` caption fallback.
 
 PASS/FAIL: PASS (9/9)
+
+## Regression — Issue #1805: `ai/verify_test_suites.sh` sees the suite loss that the mandated gates cannot
+
+Precondition: repo clone at the default-branch head, TestLink not needed (the defect is
+in the *verification procedure*, not in the product); `git fetch origin` has been run.
+Entry point: `bash ai/verify_test_suites.sh`. Refs #1805 (follow-up to #1793; suites
+already lost in `ce093fa54` / `a2df484a8` / `966a7997d`).
+
+Steps / expected / actual:
+
+1. `bash -n ai/verify_test_suites.sh`
+   Expected: no output (syntax OK).
+   Actual: no output — PASS.
+
+2. `TLU_REQUIRE_SUITE="Issue #1048" bash ai/verify_test_suites.sh` on the clean tree.
+   Expected: 6 PASS / 0 FAIL, exit 0 — the suite reported lost in #1805 is present and
+   the merge-base comparison finds nothing missing.
+   Actual: `baseline: <short-sha> (55 suites) -> candidate: 55 suites`,
+   6 PASS / 0 FAIL / 0 SKIP, exit 0 — PASS.
+
+3. **The bug itself** — copy the suite file, delete the `#1048` suite block, run the
+   gate on the copy:
+   `awk '/^## Task — Issue #1048: Implement SSO auto-login/{s=1} s&&/^## /&&!/1048/{s=0} !s' tmp/TLU_Test_Cases.md > /tmp/r2.md && TLU_REQUIRE_SUITE="Issue #1048" bash ai/verify_test_suites.sh /tmp/r2.md`
+   Expected: FAIL, exit 1, naming the lost suite.
+   Actual: `FAIL no suite lost vs merge-base with origin/sebiboga (1 lost)` +
+   `LOST: ## Task — Issue #1048: …` + `FAIL no line removed … (= 23)` + recovery hint,
+   3 PASS / 3 FAIL, exit 1 — PASS.
+
+4. **The count check is not a set** — delete suite A and append suite B in the same
+   candidate (heading count stays 55):
+   `awk '/^## Task — Issue #1286: YouTube/{s=1} s&&/^## /&&!/1286/{s=0} !s' … > /tmp/r3.md; printf '\n## Regression — Issue #8888: …\n' >> /tmp/r3.md; bash ai/verify_test_suites.sh /tmp/r3.md`
+   Expected: FAIL — the count is unchanged, so only a set difference can catch this.
+   Measured: the count gate mandated before this fix reports "55 -> 55, fine";
+   the new gate exits 1 with `LOST: ## Task — Issue #1286: …`.
+   Actual: 3 PASS / 2 FAIL / 1 SKIP, exit 1 — PASS.
+
+5. **No false positive on the normal flow** — append a well-formed suite only.
+   Expected: 6 PASS / 0 FAIL, exit 0.
+   Actual: `baseline: … (55 suites) -> candidate: 56 suites`, all green, exit 0 — PASS.
+
+6. **A gate that cannot run must not report success** — run it outside a git clone,
+   then with `--allow-skip`.
+   Expected: FAIL / exit 1 by default (an unverified gate is not a pass); exit 0 with
+   an explicit SKIP line only under `--allow-skip`.
+   Actual: outside a clone → `FAIL cannot compute a merge-base: not inside a git clone`,
+   exit 1; with `--allow-skip` → `3 PASS / 0 FAIL / 1 SKIP`, exit 0. In a clone with no
+   `origin/*` refs → `FAIL no baseline for tmp/TLU_Test_Cases.md …`, exit 1 — PASS.
+
+7. **The header-only signature** — append a suite *heading* with no body.
+   Expected: FAIL — in the real #1805 event git auto-took upstream for the heading
+   while the body was never restored, so the heading survived with an empty block.
+   Actual: `FAIL every suite heading has a body (1 header-only/truncated blocks)` +
+   `TRUNC: ## Task — Issue #7777: header survived, body lost [0 non-blank lines]`,
+   exit 1 — PASS.
+
+8. Re-run step 2 after the suite is appended (`TLU_REQUIRE_SUITE="Issue #1805"`).
+   Expected: every invariant green, exit 0 — own suite present (6 checks, so 6 PASS:
+   the `own suite` check replaces the `--allow-skip` skip seen in steps 4/6, it does
+   not add an invariant), nothing lost vs the merge-base.
+   Actual: `baseline: … (55 suites) -> candidate: 56 suites`, 6 PASS / 0 FAIL / 0 SKIP,
+   exit 0 — PASS.
+
+9. Event Viewer / `events` table (`SELECT COUNT(*) FROM events;`) — this change touches
+   no application code, API endpoint, template, i18n bundle or DB row.
+   Expected: 0 rows, unchanged.
+   Actual: 0 rows — PASS.
+
+PASS/FAIL: PASS (9/9)
