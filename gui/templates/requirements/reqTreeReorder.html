@@ -49,10 +49,10 @@ table.ord tr.pick td { background: #e8f8f2; }
 td.pos { width: 46px; text-align: center; color: #999; font-weight: 700; font-size: 12px; }
 td.rdid { width: 130px; font-weight: 700; color: #22242a; }
 td.act { width: 250px; white-space: nowrap; }
-.rm { display: inline-block; color: #888; font-size: 11px; border: 1px solid #ddd; border-radius: 4px; padding: 3px 7px; margin-right: 4px; cursor: pointer; background: #fafafa; }
+.rm { display: inline-block; color: #888; font-size: 11px; border: 1px solid #ddd; border-radius: 4px; padding: 3px 7px; margin-right: 4px; cursor: pointer; background: #fafafa; font-family: inherit; font-weight: inherit; line-height: inherit; text-align: center; }
 .rm:hover { color: #4ECDC4; border-color: #4ECDC4; }
-.rm.dis { opacity: .35; cursor: not-allowed; }
-.rm.dis:hover { color: #888; border-color: #ddd; }
+.rm.dis, .rm:disabled { opacity: .35; cursor: not-allowed; pointer-events: none; }
+.rm.dis:hover, .rm:disabled:hover { color: #888; border-color: #ddd; }
 .grip { color: #bbb; cursor: grab; }
 .pickbtn { background: #4ECDC4; color: #fff; border: none; border-radius: 4px; padding: 3px 10px; font-size: 11px; font-weight: 700; cursor: pointer; }
 .pickbtn.on { background: #22242a; }
@@ -290,10 +290,15 @@ function render() {
     tr.append($('<td class="rdid"></td>').text(it.req_doc_id));
     tr.append($('<td class="ttl"></td>').text(it.title || ''));
     var act = $('<td class="act"></td>');
-    act.append(btn('fa-arrow-up', t('reqtr.moveUp'), 'up', i));
-    act.append(btn('fa-arrow-down', t('reqtr.moveDown'), 'down', i));
-    act.append(btn('fa-chevron-up', t('reqtr.moveTop'), 'top', i));
-    act.append(btn('fa-chevron-down', t('reqtr.moveBottom'), 'bottom', i));
+    var nItems = ITEMS.length;
+    var disUp = !GRANT.modify || (i === 0);
+    var disDown = !GRANT.modify || (i === nItems - 1);
+    var disTop = disUp;
+    var disBottom = disDown;
+    act.append(btn('fa-arrow-up', t('reqtr.moveUp'), 'up', i, disUp, i, nItems));
+    act.append(btn('fa-arrow-down', t('reqtr.moveDown'), 'down', i, disDown, i, nItems));
+    act.append(btn('fa-chevron-up', t('reqtr.moveTop'), 'top', i, disTop, i, nItems));
+    act.append(btn('fa-chevron-down', t('reqtr.moveBottom'), 'bottom', i, disBottom, i, nItems));
     var pick = $('<button class="pickbtn' + (it.id === PICKED ? ' on' : '') + '"><i class="fa fa-hand-pointer-o"></i> ' + t('reqtr.select') + '</button>');
     pick.on('click', function () { PICKED = (PICKED === it.id) ? 0 : it.id; renderSel(); render(); });
     act.append(pick);
@@ -321,11 +326,24 @@ function render() {
   applyRowState();
 }
 
-function btn(icon, label, dir, idx) {
-  var b = $('<span class="rm" data-mv="' + dir + '"><i class="fa ' + icon + '"></i> ' + label + '</span>');
+function btn(icon, label, dir, idx, isDisabled, rowIndex, totalRows) {
+  var b = $('<button type="button" class="rm" data-mv="' + dir + '"><i class="fa ' + icon + '"></i> ' + label + '</button>');
   // The row index is bound per button: a reorder control must always act on
   // the row it lives in, never on the currently selected requirement.
   b.on('click', function () { nudge(idx, dir); });
+  if (isDisabled) {
+    var title = '';
+    if ((dir === 'up' || dir === 'top') && rowIndex === 0) {
+      title = t('reqtr.alreadyFirst') || 'Already the first requirement';
+    }
+    if ((dir === 'down' || dir === 'bottom') && rowIndex === totalRows - 1) {
+      title = t('reqtr.alreadyLast') || 'Already the last requirement';
+    }
+    if (title) {
+      b.attr('title', title);
+    }
+    b.attr('aria-disabled', 'true');
+  }
   return b;
 }
 
