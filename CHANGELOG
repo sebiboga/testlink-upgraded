@@ -28,7 +28,11 @@ screen reaches full parity.
   Root cause: `bffSameOriginGuard()` (`api/_guard.php:102-106`) returns immediately for
   GET/HEAD/OPTIONS, so on this read-only endpoint - where `enro_require_safe_verb()` has already
   restricted the verb set - it was structurally unreachable. New `enro_require_same_origin_fragment()`
-  in the BFF applies the same semantics the shim already used, scoped to `action=fragment` only: a
+  in the BFF follows the shared guard's semantics (`api/_guard.php:126-145`, which the shim mirrors
+  and is slightly STRICTER than - it requires EVERY present header to match while this one returns on
+  the first match; the only divergent combination is a same-origin `Origin` paired with a foreign
+  `Referer`, where the shim runs first and is the stricter one, so the effective verdict never changes
+  and no legacy call site can break), scoped to `action=fragment` only: a
   PRESENT `Origin`/`Referer` is authoritative (unparseable -> 403 `unparseable_origin`, foreign ->
   403 `cross_origin`, and the `X-Requested-With` hint never overrides it, issue #1679), neither
   header -> the XRW fallback that a same-origin `$.ajax` sends, otherwise 403. It runs before the
@@ -40,7 +44,15 @@ screen reaches full parity.
   unchanged (captured before and after); in headless Chrome the stored
   `<img src=x onerror=alert(1)>` + `<script>` payload arrives as ONE text node with 0 injected
   elements and no console errors; `events` gained no Error/Warning row (refusals are logged AUDIT).
-  Suite `Issue #1808` in `tmp/TLU_Test_Cases.md`.
+  Also from the mandatory code review (subagent, **no blockers**): `?action[]=fragment` and
+  `?exec_id[]=1` reached the `(string)` cast and emitted "Array to string conversion" as an E_WARNING -
+  which `watchPHPErrors()` (`lib/functions/logger.class.php:1483`) writes into the EVENTS TABLE, and
+  **unauthenticated**, because the parse runs before the session check, so any anonymous caller could
+  add a Warning to the Event Viewer; both parameters are now `is_scalar()`-guarded and a non-scalar is
+  normalised onto the invalid-parameter path (400) with no warning. The new refusal helper also gained
+  the `headers_sent()` guard its siblings `enro_fail()` / `bffRejectForbidden()` have, so a refusal can
+  never degrade into a 200 should the bootstrap ever emit output first. Suite `Issue #1808` in
+  `tmp/TLU_Test_Cases.md`.
 
 - [TASK] - #1283: **The Install / Upgrade screen now warns about a missing or read-only attachments
   directory again.** Legacy `getSecurityNotes()` ended with an FS-repository branch

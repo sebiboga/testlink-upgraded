@@ -105,9 +105,16 @@ function enro_fail($status, $code, $message) {
 /**
  * Require a same-origin caller for action=fragment (Refs #1808).
  *
- * Semantics are deliberately IDENTICAL to the private check in
- * lib/execute/getExecNotes.php:96-121, so the two entry points that emit this
- * fragment cannot disagree:
+ * Semantics follow the shared guard api/_guard.php:126-145
+ * (bffSameOriginGuard), which the private check in lib/execute/getExecNotes.php
+ * mirrors and is SLIGHTLY STRICTER than - it requires EVERY present header to
+ * match, while this function (and bffSameOriginGuard) returns on the first
+ * match. The only combination where the two answers differ is a same-origin
+ * `Origin` paired with a FOREIGN `Referer`, and there the shim - which runs
+ * first and `require`s this file - is the stricter one, so the effective verdict
+ * never changes and the 5 legacy call sites cannot break. Not exploitable
+ * either way: a cross-origin browser always presents a foreign `Origin` first,
+ * and a matching `Origin` already means the caller is same-origin.
  *
  *   - a PRESENT Origin OR Referer is AUTHORITATIVE: unparseable (file://, a
  *     malformed host, a "null" origin) or foreign -> 403 outright, and the XRW
@@ -164,10 +171,16 @@ function enro_require_same_origin_fragment() {
  * own answers (which use the enro_fail() envelope).
  */
 function enro_forbid_origin($code) {
-    http_response_code(403);
-    header('Content-Type: application/json; charset=utf-8');
-    header('X-Content-Type-Options: nosniff');
-    header('Cache-Control: private, no-store');
+    // headers_sent() guard, exactly like enro_fail() and bffRejectForbidden():
+    // without it a refusal that follows any bootstrap output would ship as a 200
+    // with a "Cannot modify header information" warning - a security refusal
+    // reported to the caller as success.
+    if (!headers_sent()) {
+        http_response_code(403);
+        header('Content-Type: application/json; charset=utf-8');
+        header('X-Content-Type-Options: nosniff');
+        header('Cache-Control: private, no-store');
+    }
     echo json_encode(array(
         'status' => 'error',
         'code' => $code,
@@ -176,7 +189,21 @@ function enro_forbid_origin($code) {
     exit;
 }
 
-$action = trim((string)($_GET['action'] ?? 'view'));
+// is_scalar() first (Refs #1808): `?action[]=fragment` would otherwise reach the
+// (string) cast, which emits "Array to string conversion" as an E_WARNING - and
+// watchPHPErrors() (lib/functions/logger.class.php:1483) writes that into the
+// EVENTS TABLE. It fired UNAUTHENTICATED, because this line runs before the
+// session check, so any anonymous caller could add a Warning to the Event Viewer.
+//
+// A non-scalar action is refused outright rather than normalised: coercing it to
+// '' would fall through to the `if ($action === '') $action = 'view';` default
+// below and silently SERVE THE VIEW PAYLOAD for a malformed parameter, where the
+// plain (string) cast used to land on the 400 unknown_action path.
+$actionArg = $_GET['action'] ?? 'view';
+if (!is_scalar($actionArg)) {
+    enro_fail(400, 'unknown_action', 'Unknown action');
+}
+$action = trim((string)$actionArg);
 if ($action === '') {
     $action = 'view';
 }
@@ -221,7 +248,12 @@ if (function_exists('bffEnforceSession')) {
     bffEnforceSession($db);
 }
 
-$execIdRaw = trim((string)($_GET['exec_id'] ?? ''));
+// Same is_scalar() guard, same reasoning, as for $action above (Refs #1808).
+$execIdArg = $_GET['exec_id'] ?? '';
+if (!is_scalar($execIdArg)) {
+    enro_fail(400, 'invalid_exec_id', 'A positive exec_id is required');
+}
+$execIdRaw = trim((string)$execIdArg);
 if ($execIdRaw === '' || !preg_match('/^[0-9]+$/', $execIdRaw) || intval($execIdRaw) <= 0) {
     enro_fail(400, 'invalid_exec_id', 'A positive exec_id is required');
 }
