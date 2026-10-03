@@ -5254,3 +5254,24 @@ a cosmetic gain, so it was deliberately left alone and recorded here instead.
 2. `securityCodes` was SHORTER than `securityNotes` (the 4 email notes pushed no code), so zipping the arrays attached every code to the wrong note. The 4 notes now push `email_config` and both parallel arrays are padded when they drift.
 
 ### Result: PASS (11/11 steps)
+## Task — Issue #1075: printReqSpec: effective default print options are OFF in modern, legacy generates the document with ALL options ON (behavioral gap)
+
+**Precondition**
+- Logged in as admin/admin
+- Test project exists (e.g. TPU Project, tproject_id 1012) with or without req specs/reqs
+- Modern printReqSpec.html loads via http://localhost:8082/gui/templates/requirements/printReqSpec.html?tproject_id=1012
+
+**Steps to exercise the new feature**
+1. Navigate to printReqSpec.html for the test project
+2. Wait for init to load (print_init API call)
+3. Verify all checkboxes in Document structure (toc, headerNumbering) are checked
+4. Verify all 14 checkboxes in Requirement specification content are checked (req_spec_scope, req_spec_author, req_spec_overwritten_count_reqs, req_spec_type, req_spec_cf, req_scope, req_author, req_status, req_type, req_cf, req_relations, req_linked_tcs, req_coverage, displayVersion)
+5. Click a requirement specification node in the tree (or Print whole project) - document opens in new tab with all params = y
+
+**Expected behavior**
+All 16 print options are checked by default, matching legacy effective default (complete document with all sections by default).
+
+**Actual result observed**
+All 16 print options are checked by default after fix. When generating document, all query params are y. Behavior matches legacy.
+
+PASS

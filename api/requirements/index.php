@@ -1889,24 +1889,24 @@ if ($action === 'print_init') {
     // print options: exact copy of printDocOptions class (doc + reqSpec sets),
     // labels are i18n keys resolved client side (opt_<value> naming as legacy)
     $docOptions = [
-        ['value' => 'toc',            'checked' => false],
-        ['value' => 'headerNumbering','checked' => false],
+        ['value' => 'toc',            'checked' => true],
+        ['value' => 'headerNumbering','checked' => true],
     ];
     $reqSpecOptions = [
         ['value' => 'req_spec_scope',                 'checked' => true],
-        ['value' => 'req_spec_author',                'checked' => false],
-        ['value' => 'req_spec_overwritten_count_reqs','checked' => false],
-        ['value' => 'req_spec_type',                  'checked' => false],
-        ['value' => 'req_spec_cf',                    'checked' => false],
+        ['value' => 'req_spec_author',                'checked' => true],
+        ['value' => 'req_spec_overwritten_count_reqs','checked' => true],
+        ['value' => 'req_spec_type',                  'checked' => true],
+        ['value' => 'req_spec_cf',                    'checked' => true],
         ['value' => 'req_scope',                      'checked' => true],
-        ['value' => 'req_author',                     'checked' => false],
-        ['value' => 'req_status',                     'checked' => false],
-        ['value' => 'req_type',                       'checked' => false],
-        ['value' => 'req_cf',                         'checked' => false],
-        ['value' => 'req_relations',                  'checked' => false],
-        ['value' => 'req_linked_tcs',                 'checked' => false],
-        ['value' => 'req_coverage',                   'checked' => false],
-        ['value' => 'displayVersion',                 'checked' => false],
+        ['value' => 'req_author',                     'checked' => true],
+        ['value' => 'req_status',                     'checked' => true],
+        ['value' => 'req_type',                       'checked' => true],
+        ['value' => 'req_cf',                         'checked' => true],
+        ['value' => 'req_relations',                  'checked' => true],
+        ['value' => 'req_linked_tcs',                 'checked' => true],
+        ['value' => 'req_coverage',                   'checked' => true],
+        ['value' => 'displayVersion',                 'checked' => true],
     ];
 
     $formats = [
