@@ -1550,6 +1550,7 @@
   "install.repoTypeDb": "Database",
   "install.repoTypeFs": "Filesystem",
   "install.repository": "Attachments repository",
+  "install.repositoryDir": "Attachments directory",
   "install.schemaState": "Schema state",
   "install.securityNotes": "Security Notes",
   "install.stateManual": "Manual upgrade",

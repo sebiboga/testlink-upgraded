@@ -214,8 +214,10 @@ if ($repository['type'] == TL_REPOSITORY_TYPE_FS) {
 
 `checkForRepositoryDir()` (`:368-390`) is a `is_dir()` + `is_writable()` test that composes
 the note out of localized fragments: `directory for attachments: <path> does not exist` /
-`… exists The directory is not writable!`. The note was displayed on `login.php:230`,
-`mainPage.php:184` and `common.php:1787`.
+`… exists The directory is not writable!`. The note was displayed by the legacy login page
+(`login.php:230`) and by the main page (`lib/functions/common.php:1853-1858`, gated by
+`config_get('config_check_warning_frequence')`), so the gap of this issue is scoped to the
+**modernized Install / Upgrade screen**, which had no equivalent check at all.
 
 Modernization ported the install-dir / LDAP / default-admin-password / e-mail-config notes
 into `api/install/index.php`, but never the FS branch — an installation whose attachments

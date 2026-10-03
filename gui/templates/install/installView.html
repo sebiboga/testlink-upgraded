@@ -152,26 +152,31 @@ function renderRepositoryCards(grid, r) {
   var typeLabel = TLi18n.t(repo.typeCode === 'db' ? 'install.repoTypeDb' : 'install.repoTypeFs');
   grid.append(card(TLi18n.t('install.repository'), typeLabel));
 
+  // Path may be empty (hand-edited config): show a placeholder instead of a
+  // sentence with a hole in it.
+  var path = repo.path == null || repo.path === '' ? '/' : String(repo.path);
   var badgeCls = 'unknown', badgeKey = 'install.repoDirNotChecked', params = {};
   if (repo.checked) {
-    params = { path: repo.path == null ? '' : repo.path };
+    params = { path: path };
     if (repo.status_ok) {
       badgeCls = 'ok';
       badgeKey = 'install.repoDirOk';
     } else if (repo.exists) {
-      badgeCls = 'manual';
+      badgeCls = 'warn';
       badgeKey = 'install.repoDirNotWritable';
     } else {
       badgeCls = 'upgrade';
       badgeKey = 'install.repoDirMissing';
     }
   }
+  // TLi18n.t() returns the raw key when a bundle lacks it, so probe has() first.
+  var badgeText = TLi18n.has(badgeKey) ? TLi18n.t(badgeKey, params) : path;
   grid.append(
     $('<div class="card">')
       .append('<div class="icon"><i class="fa fa-folder-open"></i></div>')
-      .append('<div class="label">' + esc(TLi18n.t('install.repository')) + '</div>')
+      .append('<div class="label">' + esc(TLi18n.t('install.repositoryDir')) + '</div>')
       .append('<div class="value small"><span class="badge ' + badgeCls + '">' +
-              esc(TLi18n.t(badgeKey, params)) + '</span></div>')
+              esc(badgeText) + '</span></div>')
   );
 }
 
@@ -243,7 +248,9 @@ function renderStatus(r) {
     var items = Array.isArray(r.securityNoteItems) ? r.securityNoteItems : [];
     $.each(r.securityNotes, function(i, n) {
       var it = items[i];
-      var text = (it && it.key) ? TLi18n.t(it.key, it.params || {}) : n;
+      // TLi18n.t() returns the raw key for an unknown key, so has() guards the
+      // localized branch and the server string is used when a bundle is behind.
+      var text = (it && it.key && TLi18n.has(it.key)) ? TLi18n.t(it.key, it.params || {}) : n;
       ul.append($('<li>').text(text == null || text === '' ? n : text));
     });
   } else {

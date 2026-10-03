@@ -1550,6 +1550,7 @@
   "install.repoTypeDb": "Datenbank",
   "install.repoTypeFs": "Dateisystem",
   "install.repository": "Anhangs-Repository",
+  "install.repositoryDir": "Anhangsverzeichnis",
   "install.schemaState": "Schema-Status",
   "install.securityNotes": "Sicherheitshinweise",
   "install.stateManual": "Manuelles Upgrade",

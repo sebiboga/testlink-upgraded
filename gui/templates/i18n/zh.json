@@ -1550,6 +1550,7 @@
   "install.repoTypeDb": "数据库",
   "install.repoTypeFs": "文件系统",
   "install.repository": "附件库",
+  "install.repositoryDir": "附件目录",
   "install.schemaState": "结构状态",
   "install.securityNotes": "安全提示",
   "install.stateManual": "手动升级",
