@@ -8,7 +8,7 @@ TestLink Open Source Project - http://testlink.sourceforge.net/
 
 {$cfViewAction="lib/cfields/cfieldsView.php"}
 
-{$cfCreateAction="lib/cfields/cfieldsEdit.php?do_action=create"}
+{$cfCreateAction="{$actions->cfieldsEdit}&do_action=create"}
 
 {$cfImportAction="lib/cfields/cfieldsImport.php?goback_url="}
 {$importCfieldsAction="$basehref$cfImportAction$basehref$cfViewAction"}
@@ -51,7 +51,7 @@ TestLink Open Source Project - http://testlink.sourceforge.net/
     <tbody>
     {foreach key=cf_id item=cf_def from=$gui->cf_map}
       <tr>
-      <td width="10%" class="bold"><a href="lib/cfields/cfieldsEdit.php?do_action=edit&cfield_id={$cf_def.id}"
+      <td width="10%" class="bold"><a href="{$actions->cfieldsEdit}&do_action=edit&cfield_id={$cf_def.id}"
                           title="{$labels.manage_cfield}">{$cf_def.name|escape}</a></td>
       <td width="10%">{$cf_def.label|escape}</td>
       <td width="5%">{$gui->cf_types[$cf_def.type]}</td>

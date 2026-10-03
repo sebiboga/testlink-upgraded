@@ -47,7 +47,7 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
 <div class="header"><span data-i18n="header.customFields">Custom Fields</span> <span data-i18n="header.customFieldsSub" style="font-size:13px;font-weight:400;opacity:.8;margin-left:12px;">manage custom fields for test cases, requirements, and plans</span><span id="localeSwitcher" style="float:right;"></span></div>
 
 <div class="toolbar">
-  <button id="btnCreate" class="btn-teal" onclick="showCreateModal()"><i class="fa fa-plus"></i> <span data-i18n="cf.createCustomField">Create Custom Field</span></button>
+  <button id="btnCreate" class="btn-teal" onclick="openEditor('create', 0)"><i class="fa fa-plus"></i> <span data-i18n="cf.createCustomField">Create Custom Field</span></button>
   <button class="btn-ghost" onclick="location='/gui/templates/cfields/cfieldsExchange.html#export'"><i class="fa fa-download"></i> <span data-i18n="cfx.btnExport">Export</span></button>
   <button id="btnUpload" class="btn-ghost" onclick="location='/gui/templates/cfields/cfieldsExchange.html#import'"><i class="fa fa-upload"></i> <span data-i18n="cfx.btnUpload">Upload File</span></button>
   <span style="flex:1"></span>
@@ -197,6 +197,9 @@ function applyShowOnExecVis() {
 $(function() {
   var p = new URLSearchParams(window.location.search);
   var ctx = 'tproject_id=' + (p.get('tproject_id') || 0) + '&tplan_id=' + (p.get('tplan_id') || 0);
+  /* Refs #1812: read by openEditor() when handing Create/Edit to the
+     deep-linkable Custom Field Editor popup. */
+  var TPROJECT_ID = parseInt(p.get('tproject_id') || '0', 10);
   TLi18n.load(function() {
     TLi18n.apply();
     TLi18n.initLocaleSwitcher('#localeSwitcher');
@@ -265,7 +268,12 @@ function renderTable(items) {
     if (cf.enable_on_testplan_design) available.push(TLi18n.t('cf.testplanDesign'));
     var actions = '';
     if (editEnabled) {
-      actions = '<i class="fa fa-edit action-btn" title="Edit" onclick="editCf(' + cf.id + ')"></i>' +
+      /* Refs #1812: Edit now opens the deep-linkable Custom Field Editor popup
+         (gui/templates/cfields/cfieldsEdit.html + api/cfieldsedit) instead of
+         the inline modal below, which keeps the full legacy editor behaviour
+         (per-area enable_on/show_on, the is_used() type lock, create-and-assign).
+         The inline modal and editCf() are kept for the XML import path. */
+      actions = '<i class="fa fa-edit action-btn" title="Edit" onclick="openEditor(\'edit\',' + cf.id + ')"></i>' +
                 '<i class="fa fa-trash action-btn danger" title="Delete" data-delete-id="' + cf.id + '" data-delete-name="' + escAttr(cf.name) + '"></i>';
     }
     rows.push([
@@ -290,8 +298,19 @@ function renderTable(items) {
   });
 }
 
+/** Refs #1812: hand the Create/Edit job to the modern editor popup. */
+var EDITOR_URL = '/gui/templates/cfields/cfieldsEdit.html';
+function openEditor(mode, cfId) {
+  if (!editEnabled) return;
+  window.location.href = EDITOR_URL + '?do_action=' + mode +
+    '&cfield_id=' + (cfId || 0) + '&tproject_id=' + (TPROJECT_ID || 0);
+}
+
 function showCreateModal() {
   if (!editEnabled) return;
+  openEditor('create', 0);
+  return;
+  /* eslint-disable no-unreachable -- kept for the XML import path */
   $('#modalTitle').text(TLi18n.t('cf.createCustomField'));
   $('#editCfId').val('');
   $('#editLabel').val('');

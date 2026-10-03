@@ -52,7 +52,7 @@ Purpose: management Custom fields assignment to a test project
       	{foreach key=cf_id item=cf from=$gui->linkedCF}
       	<tr>
       		<td class="clickable_icon"><input type="checkbox" id="assigned_cfield{$cf.id}" name="checkedCF[{$cf.id}]" /></td>
-   		   	<td class="bold"><a href="lib/cfields/cfieldsEdit.php?do_action=edit&amp;cfield_id={$cf.id}"
+   		   	<td class="bold"><a href="{$actions->cfieldsEdit}&amp;do_action=edit&amp;cfield_id={$cf.id}"
    		   	                    title="{$labels.manage_cfield}">{$cf.name|escape}</a></td>
       		<td class="bold">{$cf.label|escape}</td>
       		<td class="bold">{$gui->cf_available_types[$cf.type]|escape}</td>
@@ -141,7 +141,7 @@ Purpose: management Custom fields assignment to a test project
       	{foreach key=cf_id item=cf from=$gui->other_cf}
       	<tr>
       		<td class="clickable_icon"> <input type="checkbox" id="free_cfield{$cf.id}" name="checkedCF[{$cf.id}]" /></td>
-      		<td class="bold"><a href="lib/cfields/cfieldsEdit.php?do_action=edit&amp;cfield_id={$cf.id}"
+      		<td class="bold"><a href="{$actions->cfieldsEdit}&amp;do_action=edit&amp;cfield_id={$cf.id}"
    		   	                    title="{$labels.manage_cfield}">{$cf.name|escape}</a></td>
       		<td class="bold">{$cf.label|escape}</td>
       		<td class="bold">{$gui->cf_available_types[$cf.type]|escape}</td>

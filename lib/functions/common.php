@@ -1941,6 +1941,12 @@ function getActions(&$gui,$baseURL) {
   $actions->cfAssignment = "/gui/templates/cfields/cfieldsAssignView.html?{$ctx}";
   $actions->cfieldsView = "/gui/templates/cfields/cfieldsView.html?{$ctx}";
   $actions->cfieldsExchange = "/gui/templates/cfields/cfieldsExchange.html?{$ctx}";
+  // Custom Field Editor (create / edit / delete of a definition), modernized in
+  // Refs #1812. Legacy controller lib/cfields/cfieldsEdit.php (+ cfieldsEdit.tpl
+  // + cfieldsEditJS.tpl, 505 lines) is now a session-guarded 302 shim onto this
+  // deep-linkable popup; the legacy checkRights() (cfield_management) is
+  // enforced by api/cfieldsedit on every route.
+  $actions->cfieldsEdit = "/gui/templates/cfields/cfieldsEdit.html?{$ctx}";
 
   $actions->keywordsView = "/gui/templates/keywords/keywordsView.html?{$ctx}";
   // Keyword create/edit/create-and-link dialog, modernized in Refs #1599.
