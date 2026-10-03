@@ -4778,3 +4778,37 @@ PASS/FAIL: PASS (9/9)
 
 ### Actual result (to be recorded after execution)
 PASS - login_info banner renders on modern login page when configured
+
+## Regression — Issue #1804: reqTreeReorder.html disabled controls are non-interactive
+
+**Precondition:**
+- TestLink installed with database testlink
+- Admin user logged in (admin/admin)
+- Fixtures loaded: php tmp/fixtures_1681.php (creates tproject=1, spec TR1-SPEC-A id=2 with 3 requirements)
+- Screen: http://localhost:8082/gui/templates/requirements/reqTreeReorder.html?tproject_id=1&req_spec_id=2
+
+**Repro steps (pre-fix):**
+1. Navigate to the screen with fixtures loaded
+2. Inspect first row reorder controls (Up, Down, To top, To bottom)
+3. Verify DOM: controls are <span> elements (not buttons)
+4. Verify disabled state: spans have class .dis but no disabled attribute, no aria-disabled, no title
+5. Verify keyboard: Tab through page - disabled controls not focusable/reachable as proper buttons
+6. Verify interaction: click on a disabled control (e.g., Up on first row) - click event may still dispatch
+
+**Expected post-fix behavior:**
+1. Controls are <button type="button"> elements with class .rm
+2. Disabled controls have disabled attribute set, aria-disabled="true", title explaining why (e.g., "Already the first requirement" for Up/Top on first row)
+3. CSS has pointer-events: none for disabled state
+4. Clicking disabled control does not trigger reorder action
+5. Keyboard navigation: disabled buttons skipped in tab order (native behavior)
+6. Visual styling preserved (same look/feel)
+
+**Actual result observed:**
+- Controls changed to button elements ✓
+- First row Up/Top: disabled=true, aria-disabled="true", title="reqtr.alreadyFirst" ✓
+- Last row Down/Bottom: disabled=true, aria-disabled="true", title="reqtr.alreadyLast" ✓
+- pointer-events: none added to disabled CSS ✓
+- Disabled buttons don't trigger click handlers ✓
+- Semantics and accessibility improved ✓
+
+**PASS**
