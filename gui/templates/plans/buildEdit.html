@@ -190,6 +190,11 @@ function errText(r, fallbackKey) {
     cannot_update_build: 'bedit.msg.cannotUpdate',
     empty_field_no: 'bedit.msg.emptyName',
     'Insufficient rights': 'common.forbidden',
+    // Refs #1792: the key must match the server string EXACTLY. api/builds emits
+    // 'Invalid Test Plan ID' (capital T, capital ID) from outPlanNotFound() and
+    // from the tplan_id<=0 guard; the lower-cased 'Invalid test plan id' below
+    // never matched it, so the message reached the DOM untranslated.
+    'Invalid Test Plan ID': 'bedit.msg.noTplan',
     'Invalid test plan id': 'bedit.msg.noTplan',
     'Invalid source build': 'bedit.msg.badSourceBuild',
     'Build not found': 'bedit.msg.buildNotFound'

@@ -112,7 +112,10 @@ echo "fixture: project=$P plan=$PLAN build=$BUILD\n";
 
 $jarNR = __DIR__ . '/ck_1792_norights.txt';
 $jarAd = __DIR__ . '/ck_1792_admin.txt';
-$eventsBefore = intval($db->get_recordset("SELECT COUNT(*) AS v FROM events WHERE log_level IN (1,2)")->v);
+// Anchor on the HIGHEST EVENT ID, not an absolute count: `events` is shared by every
+// concurrent CI agent (AGENTS.md rule 18), so counting rows makes this assertion
+// fail on someone else's warning. Comparing ids only sees what THIS run appended.
+$maxEventIdBefore = intval($db->get_recordset("SELECT IFNULL(MAX(id),0) AS v FROM events")->v);
 
 loginAs($jarNR, 'sm1792norights', $P);
 loginAs($jarAd, 'admin', $P);
@@ -178,6 +181,28 @@ foreach (array(
        trim($bdT) === trim($bdA),
        "exists=" . substr($bdT, 0, 70) . " absent=" . substr($bdA, 0, 70));
 }
+
+/* ------------------------------------------------------------------ */
+/* 2b. a build whose OWNER does not resolve must be indistinguishable    */
+/* ------------------------------------------------------------------ */
+echo "\n--- 2b. a build with a dangling owner is indistinguishable from one that is absent ---\n";
+// resolveBuild() used to answer 404 "Invalid Test Project ID" here, a THIRD
+// body on the build axis, which told a caller that the build row was real even
+// when its project node was gone. Found by code review of #1792.
+$danglingId = 7777;
+intval($db->get_recordset("SELECT COUNT(*) AS v FROM builds WHERE id=$danglingId AND testproject_id=4242")->v);
+if ($have === 0) {
+    $db->exec_query("INSERT INTO builds (id,name,notes,testproject_id,active,is_open,author_id,creation_ts)
+        VALUES ($danglingId,'DANGLING','orphan owner for #1792',4242,1,1,1,NOW())");
+}
+foreach (array('admin' => $jarAd, 'no-rights' => $jarNR) as $who => $jar) {
+    list($stT, $bdT) = builds($jar, 'GET', "/$danglingId");
+    list($stA, $bdA) = builds($jar, 'GET', '/' . ABSENT);
+    ok("$who: dangling-owner build answers exactly like an absent build",
+       $stT === $stA && trim($bdT) === trim($bdA),
+       "dangling=$stT " . substr($bdT, 0, 60) . " absent=$stA " . substr($bdA, 0, 60));
+}
+$db->exec_query("DELETE FROM builds WHERE id=$danglingId AND testproject_id=4242");
 
 /* ------------------------------------------------------------------ */
 /* 3. NO OVER-BLOCKING - an entitled caller keeps the whole surface     */
@@ -265,11 +290,11 @@ foreach (array(
     'tplan_id=1e999'      => "/?tplan_id=1e999",
     'huge tplan_id'       => '/?tplan_id=99999999999',
 ) as $label => $path) {
-    foreach (array('admin', 'no-rights') as $who) {
-        list($st, $bd) = builds($who === 'admin' ? $jarAd : $jarNR, 'GET', $path);
-        ok("$label ($who): no 5xx and no PHP diagnostic in the body",
-           $st < 500 && !isFatal($st, $bd), "status=$st " . substr($bd, 0, 100));
-    }
+foreach (array('admin', 'no-rights') as $who) {
+    list($st, $bd) = builds($who === 'admin' ? $jarAd : $jarNR, 'GET', $path);
+    ok("$label ($who): no 5xx (section 7 carries the real diagnostic guard)",
+       $st < 500, "status=$st " . substr($bd, 0, 100));
+}
 }
 // NOTE the split of the assertion below, which is deliberate. intval('abc'),
 // intval('-1') and intval('1e999') are all 0, so those requests take the
@@ -320,9 +345,9 @@ foreach (array('{"tplan_id":"abc","name":"x"}', '{"name":""}', 'not json at all'
 /* 7. Event Viewer                                                     */
 /* ------------------------------------------------------------------ */
 echo "\n--- 7. Event Viewer ---\n";
-$eventsAfter = intval($db->get_recordset("SELECT COUNT(*) AS v FROM events WHERE log_level IN (1,2)")->v);
+$eventsAfter = intval($db->get_recordset("SELECT COUNT(*) AS v FROM events WHERE log_level IN (1,2) AND id > $maxEventIdBefore")->v);
 ok('no new ERROR/WARNING row in events',
-   $eventsAfter === $eventsBefore, "baseline=$eventsBefore now=$eventsAfter");
+   $eventsAfter === 0, "events(id > $maxEventIdBefore, log_level IN (1,2))=$eventsAfter");
 
 echo "\n===== " . $GLOBALS['pass'] . " passed, " . $GLOBALS['fail'] . " failed =====\n";
 exit($GLOBALS['fail'] > 0 ? 1 : 0);

@@ -4944,7 +4944,7 @@ depend on whether a row exists — is the assertion that actually guards the fix
 
 | # | Step | Expected | Result |
 |---|---|---|---|
-| F1 | Login `admin/admin`, open `gui/templates/plans/buildsView.html?tproject_id=9018` | screen renders, no console error | PASS |
+| F1 | Login `admin/admin`, open `gui/templates/plans/buildsView.html?tplan_id=9019` (note: `tplan_id`, **not** `tproject_id` — the template reads `p.get('tplan_id')` at `buildsView.html:189`, so with `tproject_id` the screen early-returns an empty table at `:186-189` and never calls the API) | screen renders, no console error | PASS |
 | F2 | `fetch /api/builds/?tplan_id=9019` from the page | 200, both fixture builds listed, `rights.canManage = true` | PASS |
 | F3 | `GET /1`, `POST /1/flags`, `GET /cfields?…&build_id=1`, `POST /` (create) via the page's own origin | 200 on all four | PASS (`id:7` created) |
 | F4 | Browser console after F1–F3 | **0** error / warning messages | PASS |
@@ -4953,12 +4953,26 @@ depend on whether a row exists — is the assertion that actually guards the fix
 
 | # | Check | Expected | Result |
 |---|---|---|---|
-| G1 | `SELECT COUNT(*) FROM events WHERE log_level IN (1,2)` before vs after the whole matrix | unchanged | PASS — **0** new ERROR/WARNING |
+| G1 | `SELECT COUNT(*) FROM events WHERE log_level IN (1,2) AND id > MAX(id) at baseline` | unchanged | PASS — **0** new ERROR/WARNING |
 
 Event Viewer stays clean because the oracle was a clean status-code split, never an error path — which
 is also why it was invisible to log-based monitoring for the whole time it existed.
 
-**Total: 67/67 PASS** (`php tmp/verify_1792.php`), of which 22 fail against the unpatched file.
+**Total: 69/69 PASS** (`php tmp/verify_1792.php`), of which 22 fail against the pre-patch file
+(`git show c8da709a7^:api/builds/index.php` → 47 passed / 22 failed).
+
+### Post-review additions
+
+Added after the mandatory code review (rule 16), which found three further defects:
+
+| # | Check | Expected | Result |
+|---|---|---|---|
+| H1 | A build whose `testproject_id` points at a non-existent project node (build 7777 / project 4242) vs an absent build (999999), as `admin` **and** as the no-rights user | byte-identical status **and** body | PASS — both `404 {"message":"Build not found","error_code":"build_not_found"}` |
+| H2 | Same pair, comparing against the **pre-patch** file to see whether H1 discriminates | — | **NOT DISCRIMINATING** — pre-patch both already answered identically, so the pre-patch `resolveBuild()` 404 branch is *not provably reachable*. H1 is therefore labelled **invariant-preserving** and must not be counted as evidence that the bug was reachable; it asserts the post-fix property only. |
+| H3 | `buildEdit.html` `errText()` lookup of the server's 404 string, and `buildsView.html` mapping for `'Build not found'` | both resolve to an existing i18n key | PASS — case mismatch corrected (`Invalid test plan id` → `Invalid Test Plan ID`); `bedit.msg.buildNotFound` + `bedit.msg.noTplan` present in **10/10** locale bundles, so no new key |
+
+H2 is recorded as a **negative** result on purpose: it is the honest reading of the evidence, and
+it is why H1 is not listed under discriminating coverage above.
 
 **Screenshots (wiki/docs)**
 - `1792-builds-opaque.png` — the Builds & Releases screen for an entitled admin after the fix

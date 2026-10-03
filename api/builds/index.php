@@ -150,14 +150,29 @@ function resolveTplan(&$db, $tplanId) {
  * Resolve context for a build row. Builds are scoped to the Test Project
  * (issue #503), so authorization derives from the build's testproject_id
  * rather than a (now ambiguous) owning test plan.
+ *
+ * FAILS THROUGH THE FAMILY, NOT WITH ITS OWN MESSAGE (Refs #1792): this used to
+ * answer `404 "Invalid Test Project ID"` when build.testproject_id pointed at a
+ * project node that no longer resolves, which on the build_id axis made a build
+ * with a DANGLING owner distinguishable from one that is simply absent - the same
+ * existence oracle the rest of the fix removes, one level down. So a build whose
+ * owner cannot be resolved is now indistinguishable from one that is not there,
+ * and the caller picks the family: outBuildNotFound() from the build-addressed
+ * routes, outPlanNotFound() from the tplan_id=0 project-scoped list (whose
+ * "Invalid Test Project ID" is about a project, not a build - see :513).
+ *
+ * @param string $onUnresolvable 'build' | 'plan' - which opaque answer to use
+ * @return array|null context, or null when the owner does not resolve
  */
-function resolveBuild(&$db, $b) {
+function resolveBuild(&$db, $b, $onUnresolvable = 'build') {
     $tprojectId = intval($b['testproject_id'] ?? 0);
     $tp = new testproject($db);
     $info = $tp->tree_manager->get_node_hierarchy_info($tprojectId);
     if (is_null($info)) {
-        http_response_code(404);
-        out(['status' => 'error', 'message' => 'Invalid Test Project ID']);
+        if ($onUnresolvable === 'plan') {
+            outPlanNotFound();
+        }
+        outBuildNotFound();
     }
     return [
         'tproject_id' => $tprojectId,

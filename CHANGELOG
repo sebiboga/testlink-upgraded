@@ -2165,12 +2165,17 @@ MAJOR AREAS
   express the split. "Absent", "belongs to another project" and "you may not manage it" are now
   byte-identical, so no route can distinguish them. The `tplan_id=0` project-scoped list deliberately
   KEEPS its 403 - its project comes from `$_SESSION['testprojectID']`, not from the caller, so nothing
-  is concealed. No new user-visible string and no new i18n key: every message is one the endpoint
-  already emitted on its 404 path, and `buildEdit.html:314-315` already keys its not-found state off
-  `error_code: build_not_found`. Verified: no over-blocking - `admin` still gets 200 + the plan context
-  on all six legs and still gets an honest 404 for a genuinely absent plan; 67/67 regression assertions
-  PASS (`tmp/verify_1792.php`, which fails 22 of them without the patch), Event Viewer 0 new
-  ERROR/WARNING, `php -l` clean. (Fixes #1792)
+  is concealed. `resolveBuild()` no longer emits a THIRD body ("Invalid Test Project ID") when a
+  build's owner no longer resolves - it fails through the caller's family. Code review also found
+  two client defects this exposed: `buildEdit.html`'s `errText()` keyed `'Invalid test plan id'`
+  while the server emits `'Invalid Test Plan ID'` (case-sensitive, so it never matched and the raw
+  English reached the DOM), and `buildsView.html` had no mapping for `'Build not found'` at all;
+  both now map to keys that already exist in all 10 locale bundles, so no new i18n key was needed.
+  Verified: no over-blocking - `admin` still gets 200 + the plan context on all six legs and still
+  gets an honest 404 for a genuinely absent plan; 69/69 regression assertions PASS
+  (`tmp/verify_1792.php`, which fails 22 of them against the pre-patch file), Event Viewer 0 new
+  ERROR/WARNING, `php -l` clean. Residual: a timing side channel survives, and the dangling-owner
+  branch was not provably reachable pre-patch (documented in docs/). (Fixes #1792)
 - [KEY BUGFIX - SECURITY] - #1768: `api/attachments/index.php` gated `list`, `upload` and `download` on
   nothing but a session (`checkFk()` only proves that `table` is one of the whitelisted tables and that
   `id > 0` - an input check, not a permission), so ANY authenticated user could enumerate, download and
