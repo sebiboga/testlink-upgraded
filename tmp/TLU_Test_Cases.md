@@ -5283,3 +5283,61 @@ a cosmetic gain, so it was deliberately left alone and recorded here instead.
 ### Notes
 - Fix already present: specHeader() selects V.author_id, U.login AS author_login; UI uses ctx.author_login with fallbacks
 - Live count (COUNT from requirements) correctly used; denormalized total_req from revisions intentionally unused as per issue rationale
+
+## Task — Issue #1279: Test review / static-testing workflow (ISTQB #1054)
+
+### Precondition
+- TestLink 2.0.1 at http://localhost:8082, admin/admin logged in.
+- Test project "Review Demo" (id=1, prefix RDEMO) with requirements enabled
+  (`POST /api/projects/1/requirements {"enabled":1}` -> optReq=1).
+- Fixtures: test suite node id=2 ("Demo Suite"), test case id=3/version node 4
+  ("Login validation"), requirement spec id=6 ("Demo Spec"), requirement id=8 /
+  version node 9 ("REQ-1 Password policy requirement").
+- BFF `api/reviews/index.php` present; `tc_reviews` in `getDBTables()` whitelist
+  (`lib/functions/object.class.php`); menu entry in `api/aside/index.php` section 7b.
+
+### Steps to exercise the new feature
+1. GET `?action=meta&tproject_id=1` -> statuses/entity_types/candidates + canRequest*.
+2. GET `?action=list&tproject_id=1` -> items + status counts + tproject_name.
+3. GET `?action=entities&tproject_id=1&entity_type=tcase` and `...=requirement`.
+4. POST `?action=create` for a tcase and a requirement review.
+5. POST `?action=decide` with `approved` on the requirement review.
+6. POST `?action=decide` with `rejected` on the tcase review.
+7. Browser: open `/gui/templates/reviews/reviews.html?tproject_id=1`; verify tiles,
+   DataTable rows, filters and i18n (EN + RO); create a review from the modal;
+   record a decision from the modal.
+8. Verify entity status sync: `req_versions.status` -> F on approve; `tcversions.status`
+   -> 4 on reject; -> 7 on approve.
+9. Verify ASIDE menu entry "Review" (section 7b) resolves to reviews.html.
+10. Event Viewer / `events` table: no new Error/Warning rows from the screen.
+
+### Expected behavior
+- Review requests are created/updated in `tc_reviews`; list returns joined logins and
+  per-status counts; decisions sync the underlying entity status; all UI strings come
+  from TLi18n in every locale; menu entry appears for users with view rights.
+
+### Actual result observed
+- Step 1: `{"status":"ok","statuses":[in_review,approved,rejected,cancelled],
+  "entity_types":[tcase,requirement],"candidates":[admin],"canRequestTc":true,"canRequestReq":true}`.
+- Step 2: `tproject_name":"Review Demo"`, items + counts correct.
+- Step 3 tcase: `[{entity_id:3,version_id:4,title:"Login validation",...}]`;
+  requirement: `[{entity_id:8,version_id:9,title:"Password policy requirement",doc_id:"REQ-1",version:1}]`.
+- Step 4: `{"status":"ok","id":1/2,"message":"Review requested"}`.
+- Step 5: requirement review -> approved; DB `req_versions.status` id 9 = **F**.
+- Step 6: tcase review -> rejected; DB `tcversions.status` id 4 = **4** (rework).
+- Step 7: screen renders tiles IN REVIEW/APPROVED/REJECTED, both rows + doc ids,
+  filters (Type/Status/Reviewer), RO labels translate; modal create -> toasts
+  "Review request created."; modal approve -> "Review decision recorded." and counts
+  move to APPROVED 2 / REJECTED 1. Screenshot `docs/screenshots/issue-1279-reviews.png`.
+- Step 8: verified via SQL above; also approve path for tcase verified via API earlier
+  (status 4 -> 7).
+- Step 9: `api/aside/index.php?action=init` returns `Review` href
+  `/gui/templates/reviews/reviews.html?tproject_id=1&tplan_id=0`.
+- Step 10: no error/warning from reviews API in `events`.
+
+### Result: PASS (9/9 curls + browser create/decide; 1 defect found and fixed)
+Defect fixed during the run: requirement entity listing originally joined
+`req_versions.id = requirements.id`; in 2.0.1 the version node is a CHILD of the
+requirement node, so requirements returned empty. Fixed to
+`nodes_hierarchy(parent_id = requirements.id) JOIN req_versions ON req_versions.id = child.id`,
+returning the latest version (verified id 8 -> version node 9).

@@ -822,6 +822,17 @@ screen reaches full parity.
   reuses `user.fullName`). Regression suite 1676: 20/20 PASS (9 client cases on the shipped helper +
   11 live BFF cases over 3 formats) and 11/11 browser cases; console and Event Viewer clean. (Fixes #1676)
 
+- [SCREEN] - #1279: the **Test Review / static-testing workflow** (ISTQB #1054) is modernized as the
+  standalone Dashio page `gui/templates/reviews/reviews.html`, backed by the new BFF
+  `api/reviews/index.php` (`GET ?action=meta|candidates|list|entities`, `POST ?action=create|decide`;
+  session auth, mgt_view_tc/mgt_view_req to read and mgt_modify_tc/mgt_modify_req to request/decide,
+  lazy `tc_reviews` schema, AUDIT REVIEW_REQUEST/REVIEW_APPROVE/REVIEW_REJECT events). It reviews BOTH
+  test cases and requirements, records the decision and syncs the underlying entity status (test case
+  approved=Final 7 / rejected=Rework 4; requirement approved=F / rejected=W). The ASIDE menu gains a
+  "Review" entry (section 7b) and `lib/functions/object.class.php` whitelists `tc_reviews`. i18n
+  `review.*` (54 keys) in all 10 locales. Verified via curl + browser create/decide; test suite 9/9 +
+  browser PASS. (Refs #1279)
+
 - [SCREEN] - #1787: the **Build Create/Edit** screen (`lib/plan/buildEdit.php`, 769 lines) is
   modernized as the standalone Dashio page `gui/templates/plans/buildEdit.html`, backed by
   `api/builds/index.php` (`GET /`, `GET /{id}`, `GET /cfields`, `POST /`, `PUT /{id}`,

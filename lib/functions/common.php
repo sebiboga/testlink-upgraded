@@ -2038,6 +2038,13 @@ function getActions(&$gui,$baseURL) {
   // Refs #1280. Right (mgt_view_req / mgt_modify_req) enforced by the BFF on
   // every route; aside visibility gated by aside.tpl via menuGrants.
   $actions->qualityObjectives = "/gui/templates/requirements/qualityObjectives.html?{$ctx}";
+  // Test Review / Static-testing Workflow (Dashio standalone page) - Refs #1279.
+  // Net-new ISTQB static-testing module (no legacy twin): gives test cases and
+  // requirements a peer-review lifecycle (reviewer + comments + decision) and a
+  // pending-review dashboard. Rights (mgt_view_tc / mgt_view_req for reads,
+  // mgt_modify_tc / mgt_modify_req for writes) are enforced by the BFF
+  // api/reviews on every route.
+  $actions->reviews = "/gui/templates/reviews/reviews.html?{$ctx}";
   // Non-Functional Requirements per-type management (Dashio standalone page) -
   // Refs #1462. Rights (mgt_view_req / mgt_modify_req) enforced by the BFF
   // api/nfr on every route; aside visibility gated by aside.tpl via menuGrants.

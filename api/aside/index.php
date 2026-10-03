@@ -531,6 +531,27 @@ if ($show('tests_design')) {
     }
 }
 
+// 7b. Test Review Workflow -------------------------------------------------
+// ISTQB static testing (Refs #1279): peer review of test cases & requirements.
+// Net-new module with no legacy menu twin; shown when the user may view test
+// cases or requirements. Label reuses the existing localized "Review" string
+// (TLS_req_status_review) so no new server-side string key is required.
+if ($gm('view_tc') === 'yes' || $gm('reqs_view') === 'yes' ||
+    $gm('modify_tc') === 'yes') {
+    $sections[] = array(
+        'key' => 'reviews',
+        'label' => lang_get('req_status_review'),
+        'icon' => 'fas fa-clipboard-check',
+        'single' => true,
+        'items' => array(array(
+            'id' => 'reviews',
+            'label' => lang_get('req_status_review'),
+            'href' => (string)$u('reviews'),
+            'icon' => 'fas fa-clipboard-check',
+        )),
+    );
+}
+
 // 8. Test Plan -------------------------------------------------------------
 if ($show('plans')) {
     $items = array();

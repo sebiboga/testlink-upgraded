@@ -469,6 +469,33 @@ CREATE TABLE /*prefix*/tcversions (
 ) DEFAULT CHARSET=utf8;
 
 
+# ---------------------------------------------------------------------------
+# Test Review / static-testing workflow (Refs #1279). Net-new ISTQB module:
+# peer review of test cases and requirements with reviewer + comments.
+# ---------------------------------------------------------------------------
+CREATE TABLE /*prefix*/tc_reviews (
+  `id` int(10) unsigned NOT NULL auto_increment,
+  `testproject_id` int(10) unsigned NOT NULL default '0',
+  `entity_type` varchar(16) NOT NULL default 'tcase',
+  `entity_id` int(10) unsigned NOT NULL default '0',
+  `version_id` int(10) unsigned NOT NULL default '0',
+  `entity_title` varchar(255) NOT NULL default '',
+  `entity_doc_id` varchar(64) NOT NULL default '',
+  `review_status` varchar(16) NOT NULL default 'in_review',
+  `requested_by` int(10) unsigned default NULL,
+  `reviewer_id` int(10) unsigned default NULL,
+  `comments` text,
+  `decision_comment` text,
+  `decided_by` int(10) unsigned default NULL,
+  `creation_ts` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `decision_ts` datetime default NULL,
+  PRIMARY KEY  (`id`),
+  KEY `idx_review_tproject` (`testproject_id`,`review_status`),
+  KEY `idx_review_entity` (`entity_type`,`entity_id`),
+  KEY `idx_review_reviewer` (`reviewer_id`)
+) DEFAULT CHARSET=utf8;
+
+
 CREATE TABLE /*prefix*/tcsteps (
   id int(10) unsigned NOT NULL,
   step_number INT NOT NULL DEFAULT '1',

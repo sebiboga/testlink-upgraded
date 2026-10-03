@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Test Review Workflow</title>
+<!--
+  Test Review / Static-testing Workflow screen (Refs #1279, ISTQB #1054).
+  Dashio standalone page backed by api/reviews. Gives test cases and
+  requirements a peer-review lifecycle: request a review, assign a reviewer,
+  approve/reject with comments, and track what is pending in one dashboard.
+-->
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; color: #0d3f3c; margin-left: 12px; }
+.tiles { display: flex; gap: 16px; padding: 18px 24px 0; flex-wrap: wrap; }
+.tile { flex: 0 0 180px; background: #fff; border-radius: 8px; padding: 14px 18px; box-shadow: 0 1px 4px rgba(0,0,0,.08); border-left: 5px solid #4ECDC4; cursor: pointer; }
+.tile .num { font-size: 26px; font-weight: 700; color: #22242a; }
+.tile .lbl { font-size: 12px; color: #777; text-transform: uppercase; letter-spacing: .5px; }
+.tile.pending { border-left-color: #e6b34d; }
+.tile.approved { border-left-color: #4ECDC4; }
+.tile.rejected { border-left-color: #e05c5c; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.toolbar label { color: #bbb; font-size: 12px; margin: 0 4px 0 8px; }
+.toolbar select { background: #2f323a; color: #eee; border: 1px solid #444; border-radius: 4px; padding: 5px 8px; font-size: 12px; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-dark { background: #2f323a; color: #eee; border: 1px solid #444; padding: 7px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+.btn-dark:hover { background: #3a3e48; }
+.table-wrap { padding: 20px 24px; }
+.table-wrap table { background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.08); width: 100%; }
+table.dataTable thead th { background: #22242a; color: #fff; font-size: 13px; padding: 10px 14px; }
+table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: middle; }
+.badge-status { padding: 2px 9px; border-radius: 3px; font-size: 11px; font-weight: 700; color: #fff; }
+.badge-in_review { background: #e6b34d; }
+.badge-approved { background: #4ECDC4; }
+.badge-rejected { background: #e05c5c; }
+.badge-cancelled { background: #999; }
+.badge-type { background: #2f323a; color: #ddd; padding: 2px 8px; border-radius: 3px; font-size: 11px; }
+.action-btn { cursor: pointer; border: none; background: none; padding: 0; margin-right: 10px; font-size: 14px; color: #4ECDC4; }
+.action-btn:hover { color: #2d8e88; }
+.action-btn.approve { color: #3aa89f; }
+.action-btn.reject { color: #e05c5c; }
+.action-btn.reject:hover { color: #b44444; }
+.title-link { color: #22242a; text-decoration: none; font-weight: 600; }
+.title-link:hover { color: #3dbdb5; text-decoration: underline; }
+.docid { color: #888; font-size: 11px; margin-right: 6px; }
+.empty-state { padding: 40px; text-align: center; color: #888; font-size: 14px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+.dataTables_wrapper .dataTables_paginate .paginate_button.current { background: #4ECDC4 !important; color: #fff !important; border: none !important; }
+.dataTables_wrapper .dataTables_filter input { border: 1px solid #ddd; border-radius: 4px; padding: 4px 8px; }
+.modal-content { border-radius: 8px; }
+.modal-header { background: #22242a; color: #fff; border-radius: 8px 8px 0 0; }
+.modal-header .close { color: #fff; opacity: .8; }
+.modal-title { font-size: 15px; font-weight: 700; }
+.form-row { margin-bottom: 12px; }
+.form-row label { display: block; font-size: 12px; color: #555; margin-bottom: 4px; font-weight: 600; }
+.form-row select, .form-row textarea { width: 100%; border: 1px solid #ddd; border-radius: 4px; padding: 7px 9px; font-size: 13px; }
+.form-row textarea { resize: vertical; min-height: 70px; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 18px; border-radius: 6px; font-size: 13px; z-index: 2000; display: none; }
+.toast.err { background: #e05c5c; }
+.toast.ok { background: #3aa89f; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span data-i18n="review.title">Test Review Workflow</span>
+  <span class="sub" data-i18n="review.subtitle">static-testing / peer review of test cases and requirements</span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="tiles">
+  <div class="tile pending" onclick="filterStatus('in_review')">
+    <div class="num" id="tileInReview">0</div>
+    <div class="lbl" data-i18n="review.tileInReview">In review</div>
+  </div>
+  <div class="tile approved" onclick="filterStatus('approved')">
+    <div class="num" id="tileApproved">0</div>
+    <div class="lbl" data-i18n="review.tileApproved">Approved</div>
+  </div>
+  <div class="tile rejected" onclick="filterStatus('rejected')">
+    <div class="num" id="tileRejected">0</div>
+    <div class="lbl" data-i18n="review.tileRejected">Rejected</div>
+  </div>
+</div>
+
+<div class="toolbar">
+  <button class="btn-teal" id="btnNew" onclick="openNewModal()"><i class="fa fa-plus"></i> <span data-i18n="review.newRequest">New Review Request</span></button>
+  <button class="btn-dark" onclick="loadData()"><i class="fa fa-refresh"></i> <span data-i18n="review.refresh">Refresh</span></button>
+  <span style="flex:1"></span>
+  <label data-i18n="review.filterType">Type</label>
+  <select id="fType" onchange="loadData()">
+    <option value="" data-i18n="review.allTypes">All types</option>
+    <option value="tcase" data-i18n="review.typeTcase">Test Case</option>
+    <option value="requirement" data-i18n="review.typeRequirement">Requirement</option>
+  </select>
+  <label data-i18n="review.filterStatus">Status</label>
+  <select id="fStatus" onchange="loadData()">
+    <option value="" data-i18n="review.allStatuses">All statuses</option>
+    <option value="in_review" data-i18n="review.statusInReview">In review</option>
+    <option value="approved" data-i18n="review.statusApproved">Approved</option>
+    <option value="rejected" data-i18n="review.statusRejected">Rejected</option>
+  </select>
+  <label data-i18n="review.filterReviewer">Reviewer</label>
+  <select id="fReviewer" onchange="loadData()"></select>
+  <span id="projectInfo" style="color:#aaa;font-size:12px;"></span>
+</div>
+
+<div class="table-wrap">
+  <div id="emptyState" class="empty-state" style="display:none;" data-i18n="review.noItems">There are no review requests for the current filters.</div>
+  <table id="reviewTable" class="display" style="width:100%">
+    <thead>
+      <tr>
+        <th data-i18n="review.colEntity">Entity</th>
+        <th data-i18n="review.colType">Type</th>
+        <th data-i18n="review.colStatus">Status</th>
+        <th data-i18n="review.colReviewer">Reviewer</th>
+        <th data-i18n="review.colRequester">Requested By</th>
+        <th data-i18n="review.colCreated">Created</th>
+        <th style="width:130px" data-i18n="review.colActions">Actions</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<div class="footer" id="footerText"></div>
+<div class="footer"><span data-i18n="review.footer">TestLink 2.0.1 - Test Review Workflow</span></div>
+
+<!-- New review request modal -->
+<div class="modal fade" id="newModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" data-i18n="review.modalNewTitle">New Review Request</h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-row">
+          <label data-i18n="review.entityType">Entity Type</label>
+          <select id="nEntityType" onchange="loadEntities()">
+            <option value="tcase" data-i18n="review.typeTcase">Test Case</option>
+            <option value="requirement" data-i18n="review.typeRequirement">Requirement</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label data-i18n="review.entity">Entity</label>
+          <select id="nEntity"><option value=""></option></select>
+        </div>
+        <div class="form-row">
+          <label data-i18n="review.reviewer">Reviewer</label>
+          <select id="nReviewer"><option value=""></option></select>
+        </div>
+        <div class="form-row">
+          <label data-i18n="review.comments">Comments</label>
+          <textarea id="nComments" maxlength="2000"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal" data-i18n="common.cancel">Cancel</button>
+        <button type="button" class="btn-teal" onclick="createReview()" data-i18n="review.create">Create</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Decision modal -->
+<div class="modal fade" id="decisionModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="decisionTitle" data-i18n="review.modalDecisionTitle">Review Decision</h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p id="decisionEntity" style="font-size:13px;color:#555;"></p>
+        <p id="decisionExisting" style="font-size:13px;color:#333;white-space:pre-wrap;"></p>
+        <div class="form-row">
+          <label data-i18n="review.decisionComments">Review Comments</label>
+          <textarea id="dComments" maxlength="2000"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal" data-i18n="common.cancel">Cancel</button>
+        <button type="button" class="btn btn-sm" style="background:#e05c5c;color:#fff;" onclick="decide('rejected')" data-i18n="review.reject">Reject</button>
+        <button type="button" class="btn btn-sm" style="background:#4ECDC4;color:#fff;" onclick="decide('approved')" data-i18n="review.approve">Approve</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Details modal (read-only) -->
+<div class="modal fade" id="detailsModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" data-i18n="review.detailsTitle">Review Details</h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body" id="detailsBody"></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal" data-i18n="common.cancel">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/reviews/index.php';
+var table = null;
+var allItems = [];
+var meta = { candidates: [], canRequestTc: false, canRequestReq: false };
+var tprojectId = 0;
+var decisionId = 0;
+
+function esc(s) {
+  return $('<div>').text(s == null ? '' : String(s)).html()
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function toast(msg, kind) {
+  var el = $('#toast').removeClass('ok err').addClass(kind || 'ok').text(msg).fadeIn(150);
+  setTimeout(function() { el.fadeOut(300); }, 2600);
+}
+
+function typeLabel(t) { return TLi18n.t(t === 'requirement' ? 'review.typeRequirement' : 'review.typeTcase'); }
+function statusLabel(s) {
+  var map = {
+    in_review: 'review.statusInReview',
+    approved: 'review.statusApproved',
+    rejected: 'review.statusRejected',
+    cancelled: 'review.statusCancelled'
+  };
+  return TLi18n.t(map[s] || s);
+}
+
+$(function() {
+  var p = new URLSearchParams(window.location.search);
+  tprojectId = parseInt(p.get('tproject_id') || p.get('tprojectId') || 0, 10);
+  TLi18n.load(function() {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    loadMeta();
+  });
+});
+
+function renderReviewerFilter() {
+  var sel = $('#fReviewer').empty();
+  sel.append($('<option>').attr('value', '').text(TLi18n.t('review.allReviewers')));
+  $.each(meta.candidates || [], function(i, u) {
+    sel.append($('<option>').attr('value', u.id).text(u.login + (u.name ? ' (' + u.name + ')' : '')));
+  });
+}
+
+function loadMeta() {
+  $.getJSON(API + '?action=meta&tproject_id=' + tprojectId, function(r) {
+    meta = r;
+    renderReviewerFilter();
+    if (!meta.canRequestTc && !meta.canRequestReq) { $('#btnNew').hide(); }
+    loadData();
+  }).fail(function(xhr) { showFail(xhr, 'review.msg.loadError'); });
+}
+
+function loadData() {
+  var url = API + '?action=list&tproject_id=' + tprojectId;
+  var ft = $('#fType').val(); if (ft) { url += '&entity_type=' + encodeURIComponent(ft); }
+  var fs = $('#fStatus').val(); if (fs) { url += '&status=' + encodeURIComponent(fs); }
+  var fr = $('#fReviewer').val(); if (fr) { url += '&reviewer_id=' + encodeURIComponent(fr); }
+  $.getJSON(url, function(r) {
+    allItems = r.items || [];
+    tprojectId = r.tproject_id || tprojectId;
+    var c = r.counts || {};
+    $('#tileInReview').text(c.in_review || 0);
+    $('#tileApproved').text(c.approved || 0);
+    $('#tileRejected').text(c.rejected || 0);
+    $('#projectInfo').text(r.tproject_name || '');
+    if (allItems.length === 0) {
+      if (table) { table.destroy(); table = null; $('#reviewTable tbody').empty(); }
+      $('#reviewTable').hide();
+      $('#emptyState').show();
+    } else {
+      $('#emptyState').hide();
+      $('#reviewTable').show();
+      renderTable(allItems, r.canModerate);
+    }
+    $('#footerText').text(TLi18n.t('review.count', {n: allItems.length}) + ' | ' +
+      TLi18n.t('common.generatedOn') + ' ' + new Date().toLocaleString());
+  }).fail(function(xhr) { showFail(xhr, 'review.msg.loadError'); });
+}
+
+function buildRow(it, canModerate) {
+  var pending = it.review_status === 'in_review';
+  var entityCell = '<span class="docid">' + esc(it.entity_doc_id) + '</span>' +
+    '<a class="title-link" href="javascript:void(0)" onclick="openDetails(' + it.id + ')">' +
+    esc(it.entity_title) + '</a>';
+  var statusCell = '<span class="badge-status badge-' + esc(it.review_status) + '">' +
+    esc(statusLabel(it.review_status)) + '</span>';
+  var actions = '<button class="action-btn" onclick="openDetails(' + it.id + ')" title="' +
+    esc(TLi18n.t('review.viewDetails')) + '"><i class="fa fa-eye"></i></button>';
+  if (pending) {
+    actions += '<button class="action-btn approve" onclick="openDecision(' + it.id + ')" title="' +
+      esc(TLi18n.t('review.decide')) + '"><i class="fa fa-gavel"></i></button>';
+  }
+  return {
+    id: it.id,
+    entity: entityCell,
+    type: '<span class="badge-type">' + esc(typeLabel(it.entity_type)) + '</span>',
+    status: statusCell,
+    reviewer: esc(it.reviewer_login),
+    requester: esc(it.requester_login),
+    created: String(it.creation_ts || ''),
+    createdDisplay: esc(it.creation_ts || ''),
+    actions: actions
+  };
+}
+
+function renderTable(items, canModerate) {
+  if (table) { table.destroy(); $('#reviewTable tbody').empty(); }
+  var rows = $.map(items, function(it) { return [buildRow(it, canModerate)]; });
+  table = $('#reviewTable').DataTable({
+    data: rows,
+    columns: [
+      {data: 'entity'},
+      {data: 'type'},
+      {data: 'status'},
+      {data: 'reviewer'},
+      {data: 'requester'},
+      {data: 'created', render: function(d, type, row) {
+        return type === 'display' ? row.createdDisplay : row.created;
+      }},
+      {data: 'actions'}
+    ],
+    columnDefs: [{orderable: false, targets: 6}],
+    order: [[5, 'desc']],
+    pageLength: 25,
+    language: {
+      search: '', searchPlaceholder: TLi18n.t('common.search'),
+      emptyTable: TLi18n.t('common.none'), zeroRecords: TLi18n.t('common.none')
+    }
+  });
+}
+
+function findItem(id) {
+  for (var i = 0; i < allItems.length; i++) { if (allItems[i].id === id) { return allItems[i]; } }
+  return null;
+}
+
+function openDetails(id) {
+  var it = findItem(id);
+  if (!it) { return; }
+  var html = '';
+  html += '<div class="form-row"><label>' + esc(TLi18n.t('review.entity')) + '</label><div>' +
+          '<span class="docid">' + esc(it.entity_doc_id) + '</span>' + esc(it.entity_title) + '</div></div>';
+  html += '<div class="form-row"><label>' + esc(TLi18n.t('review.colType')) + '</label><div>' + esc(typeLabel(it.entity_type)) + '</div></div>';
+  html += '<div class="form-row"><label>' + esc(TLi18n.t('review.colStatus')) + '</label><div>' + esc(statusLabel(it.review_status)) + '</div></div>';
+  html += '<div class="form-row"><label>' + esc(TLi18n.t('review.colReviewer')) + '</label><div>' + esc(it.reviewer_login) + '</div></div>';
+  html += '<div class="form-row"><label>' + esc(TLi18n.t('review.colRequester')) + '</label><div>' + esc(it.requester_login) + '</div></div>';
+  if (it.comments) {
+    html += '<div class="form-row"><label>' + esc(TLi18n.t('review.comments')) + '</label><div style="white-space:pre-wrap;">' + esc(it.comments) + '</div></div>';
+  }
+  if (it.decision_comment) {
+    html += '<div class="form-row"><label>' + esc(TLi18n.t('review.decisionComments')) + '</label><div style="white-space:pre-wrap;">' + esc(it.decision_comment) + '</div></div>';
+    html += '<div class="form-row"><label>' + esc(TLi18n.t('review.decidedBy')) + '</label><div>' + esc(it.decider_login) + ' — ' + esc(it.decision_ts || '') + '</div></div>';
+  }
+  $('#detailsBody').html(html);
+  $('#detailsModal').modal('show');
+}
+
+function openNewModal() {
+  $('#nEntityType').val('tcase');
+  $('#nComments').val('');
+  $('#nEntity').empty();
+  var rev = $('#nReviewer').empty();
+  rev.append($('<option>').attr('value', '').text('-- ' + TLi18n.t('review.selectReviewer') + ' --'));
+  $.each(meta.candidates || [], function(i, u) {
+    rev.append($('<option>').attr('value', u.id).text(u.login + (u.name ? ' (' + u.name + ')' : '')));
+  });
+  loadEntities();
+  $('#newModal').modal('show');
+}
+
+function loadEntities() {
+  var et = $('#nEntityType').val();
+  var sel = $('#nEntity').empty();
+  sel.append($('<option>').attr('value', '').text(TLi18n.t('review.loading')));
+  $.getJSON(API + '?action=entities&tproject_id=' + tprojectId + '&entity_type=' + et, function(r) {
+    sel.empty();
+    sel.append($('<option>').attr('value', '').text('-- ' + TLi18n.t('review.selectEntity') + ' --'));
+    $.each(r.entities || [], function(i, e) {
+      sel.append($('<option>')
+        .attr('value', e.entity_id)
+        .attr('data-version', e.version_id)
+        .attr('data-title', e.title)
+        .attr('data-doc', e.doc_id)
+        .text((e.doc_id ? e.doc_id + ' ' : '') + e.title));
+    });
+  }).fail(function(xhr) { showFail(xhr, 'review.msg.loadError'); });
+}
+
+function createReview() {
+  var opt = $('#nEntity').find('option:selected');
+  var entityId = parseInt($('#nEntity').val() || 0, 10);
+  var reviewerId = parseInt($('#nReviewer').val() || 0, 10);
+  if (entityId <= 0) { toast(TLi18n.t('review.msg.selectEntity'), 'err'); return; }
+  if (reviewerId <= 0) { toast(TLi18n.t('review.msg.selectReviewer'), 'err'); return; }
+  $.ajax({
+    url: API + '?action=create', type: 'POST', contentType: 'application/json',
+    data: JSON.stringify({
+      tproject_id: tprojectId,
+      entity_type: $('#nEntityType').val(),
+      entity_id: entityId,
+      version_id: parseInt(opt.attr('data-version') || 0, 10),
+      entity_title: opt.attr('data-title') || '',
+      entity_doc_id: opt.attr('data-doc') || '',
+      reviewer_id: reviewerId,
+      comments: $('#nComments').val()
+    }),
+    success: function() {
+      $('#newModal').modal('hide');
+      toast(TLi18n.t('review.msg.createOk'), 'ok');
+      loadData();
+    },
+    error: function(xhr) { showFail(xhr, 'review.msg.createError'); }
+  });
+}
+
+function openDecision(id) {
+  var it = findItem(id);
+  if (!it) { return; }
+  decisionId = id;
+  $('#decisionEntity').html('<b>' + esc(typeLabel(it.entity_type)) + ':</b> ' +
+    (it.entity_doc_id ? '<span class="docid">' + esc(it.entity_doc_id) + '</span>' : '') + esc(it.entity_title));
+  $('#decisionExisting').text(it.comments ? TLi18n.t('review.requestComments') + ': ' + it.comments : '');
+  $('#dComments').val('');
+  $('#decisionModal').modal('show');
+}
+
+function decide(decision) {
+  $.ajax({
+    url: API + '?action=decide', type: 'POST', contentType: 'application/json',
+    data: JSON.stringify({ id: decisionId, decision: decision, comments: $('#dComments').val() }),
+    success: function() {
+      $('#decisionModal').modal('hide');
+      toast(TLi18n.t('review.msg.decisionOk'), 'ok');
+      loadData();
+    },
+    error: function(xhr) { showFail(xhr, 'review.msg.decisionError'); }
+  });
+}
+
+function filterStatus(s) {
+  $('#fStatus').val(s);
+  loadData();
+}
+
+function showFail(xhr, key) {
+  var msg = TLi18n.t(key);
+  try { msg = JSON.parse(xhr.responseText).message || msg; } catch (e) {}
+  toast(msg, 'err');
+}
+</script>
+</body>
+</html>
