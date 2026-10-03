@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Execution Notes (read-only)</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+
+.header {
+  background: #4ECDC4; color: #fff; padding: 14px 24px;
+  font-size: 20px; font-weight: 700; letter-spacing: 1px;
+}
+.header span { font-size: 13px; font-weight: 400; opacity: .85; margin-left: 12px; }
+
+.toolbar {
+  background: #22242a; padding: 12px 24px; display: flex; gap: 10px;
+  align-items: center; flex-wrap: wrap;
+}
+.toolbar .ctx { color: #aaa; font-size: 12px; margin-right: auto; }
+.toolbar .ctx b { color: #fff; }
+
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-teal[disabled] { background: #6f8f8c; cursor: not-allowed; }
+.btn-dark { background: transparent; color: #ddd; border: 1px solid #555; padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+.btn-dark:hover { border-color: #4ECDC4; color: #4ECDC4; }
+
+.wrap { padding: 22px 24px; max-width: 1000px; margin: 0 auto; }
+
+.meta { background: #fff; border-radius: 8px; padding: 16px 20px; margin-bottom: 18px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+.meta .row { display: flex; flex-wrap: wrap; gap: 8px 28px; }
+.meta .field { font-size: 13px; color: #555; }
+.meta .field b { color: #22242a; margin-right: 5px; }
+.chip { display: inline-block; background: #eefaf9; color: #2d8e88; border: 1px solid #bfe5e2; border-radius: 10px; padding: 0 8px; font-size: 11px; font-weight: 600; margin-left: 6px; }
+.chip.grey { background: #f0f0f0; color: #666; border-color: #ddd; }
+.badge-p { background: #dff5d8; color: #2f7a1f; border: 1px solid #a9dc96; }
+.badge-f { background: #fbe0e0; color: #b02a2a; border: 1px solid #efa3a3; }
+.badge-b { background: #fff3cd; color: #8a6100; border: 1px solid #ecd48a; }
+
+.card { background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+.card h3 { margin: 0 0 14px; font-size: 15px; color: #22242a; }
+
+.notes-box {
+  background: #f7f7f7; border: 1px solid #e2e2e2; border-radius: 6px;
+  padding: 14px 16px; font-size: 14px; color: #333; min-height: 90px;
+  line-height: 1.6; white-space: pre-wrap; word-break: break-word;
+}
+.notes-box.empty { color: #999; font-style: italic; }
+
+.state {
+  background: #fff; border-radius: 8px; padding: 40px 32px; text-align: center;
+  box-shadow: 0 1px 4px rgba(0,0,0,.08);
+}
+.state i { font-size: 34px; margin-bottom: 10px; display: block; }
+.state h3 { margin: 0 0 8px; font-size: 18px; color: #22242a; }
+.state p { margin: 0 0 6px; font-size: 14px; color: #777; }
+.state .code { font-family: monospace; font-size: 12px; color: #999; }
+.state.err { border-left: 4px solid #e6605e; }
+.state.err i { color: #e6605e; }
+.state.warn { border-left: 4px solid #e6a23c; }
+.state.warn i { color: #e6a23c; }
+
+.loading { text-align: center; padding: 60px 0; color: #888; font-size: 14px; }
+
+.footer { text-align: center; color: #999; font-size: 12px; padding: 18px 24px 28px; }
+</style>
+</head>
+<body>
+<div class="header">
+  <i class="fa fa-file-text-o"></i>
+  <span data-i18n="enro.title">Execution Notes</span>
+  <span class="chip grey" data-i18n="enro.readOnlyChip">read-only</span>
+</div>
+
+<div class="toolbar">
+  <span class="ctx">
+    <span data-i18n="enro.executionLabel">Execution</span> <b id="ctxExec">#-</b>
+  </span>
+  <span id="localeSwitcher"></span>
+  <button id="btnRefresh" class="btn-dark"><i class="fa fa-refresh"></i> <span data-i18n="common.refresh">Refresh</span></button>
+  <button id="btnEdit" class="btn-dark"><i class="fa fa-pencil"></i> <span data-i18n="enro.openEditable">Open editable notes</span></button>
+  <button id="btnClose" class="btn-dark"><i class="fa fa-times"></i> <span data-i18n="common.close">Close</span></button>
+</div>
+
+<div class="wrap">
+  <div id="loading" class="loading"><i class="fa fa-spinner fa-spin"></i> <span data-i18n="common.loading">Loading...</span></div>
+
+  <div id="content" style="display:none">
+    <div class="meta">
+      <div class="row">
+        <span class="field"><b data-i18n="enro.testCase">Test case</b><span id="mbTestCase">-</span></span>
+        <span class="field"><b data-i18n="enro.testSuite">Test suite</b><span id="mbSuite">-</span></span>
+        <span class="field"><b data-i18n="enro.testPlan">Test plan</b><span id="mbTestPlan">-</span></span>
+        <span class="field"><b data-i18n="enro.testProject">Test project</b><span id="mbProject">-</span></span>
+        <span class="field"><b data-i18n="enro.build">Build</b><span id="mbBuild">-</span></span>
+        <span class="field"><b data-i18n="enro.platform">Platform</b><span id="mbPlatform">-</span></span>
+        <span class="field"><b data-i18n="enro.status">Status</b><span id="mbStatus">-</span></span>
+        <span class="field"><b data-i18n="enro.executedOn">Executed on</b><span id="mbTs">-</span></span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3><i class="fa fa-sticky-note-o"></i> <span data-i18n="enro.notesHeading">Execution notes</span></h3>
+      <div id="notesBox" class="notes-box"></div>
+      <p style="margin:12px 0 0;font-size:12px;color:#999" data-i18n="enro.plainTextHint">
+        Notes are shown as plain text: any formatting stored by a rich text editor is removed.
+      </p>
+    </div>
+  </div>
+</div>
+
+<div id="stateCard" style="display:none"></div>
+
+<div class="footer"><span id="footerText" data-i18n="footers.execNotesReadonly">TestLink 2.0.1</span></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script>
+var EXEC_ID = 0;
+
+function esc(s) {
+  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function statusLabel(ch) {
+  var map = { p: 'execprint.statusPassed', f: 'execprint.statusFailed', b: 'execprint.statusBlocked' };
+  return map[ch] ? TLi18n.t(map[ch]) : (ch || '-');
+}
+
+/**
+ * Every non-happy branch of the BFF gets its own card. The machine code from the
+ * answer stays visible so a report can quote it; the message is only shown when
+ * the bundle has no localized text for that code.
+ */
+function showState(kind, icon, titleKey, msgKey, code) {
+  $('#loading').hide();
+  $('#content').hide();
+  var html = '<div class="wrap"><div class="state ' + kind + '">' +
+    '<i class="fa ' + icon + '"></i>' +
+    '<h3>' + esc(TLi18n.t(titleKey)) + '</h3>' +
+    '<p>' + esc(msgKey ? TLi18n.t(msgKey) : '') + '</p>' +
+    '<p class="code">' + esc(code || '') + '</p>' +
+    '</div></div>';
+  $('#stateCard').html(html).show();
+}
+
+function loadNotes() {
+  $('#stateCard').hide().empty();
+  $('#loading').show();
+  $('#content').hide();
+
+  if (!EXEC_ID) {
+    showState('warn', 'fa fa-question-circle', 'enro.missingIdTitle', 'enro.missingIdMsg', 'invalid_exec_id');
+    return;
+  }
+
+  $.getJSON('/api/execnotesreadonly/index.php?action=view&exec_id=' + encodeURIComponent(EXEC_ID))
+    .done(function (r) {
+      if (r.status !== 'ok') { showState('err', 'fa fa-exclamation-triangle', 'enro.errorTitle', 'enro.errorMsg', r.code); return; }
+      var x = r.execution || {};
+      $('#ctxExec').text('#' + (x.id || EXEC_ID));
+      $('#mbTestCase').text(x.testcase_name || '-');
+      if (x.testcase_external_id) {
+        $('#mbTestCase').append('<span class="chip">#' + esc(x.testcase_external_id) + '</span>');
+      }
+      $('#mbSuite').text(x.testcase_suite || '-');
+      $('#mbTestPlan').text(x.testplan_name || '-');
+      $('#mbProject').text(x.testproject_name || '-');
+      $('#mbBuild').text(x.build_name || '-');
+      $('#mbPlatform').text(x.platform_name || '-');
+      var st = $('#mbStatus').text(statusLabel(x.status_char));
+      if (x.status_char) { st.removeClass().addClass('badge-' + x.status_char); }
+      $('#mbTs').text(x.execution_ts || '-');
+
+      var notes = x.notes || '';
+      // .text() never parses markup: the notes are DATA from the BFF and are
+      // inserted as text nodes, so a stored payload cannot execute here either.
+      $('#notesBox').text(notes ? notes : TLi18n.t('enro.noNotes')).toggleClass('empty', !notes);
+
+      $('#btnEdit').prop('disabled', !x.can_edit);
+      $('#btnEdit').attr('title', x.can_edit ? '' : TLi18n.t('enro.cannotEdit'));
+
+      $('#loading').hide();
+      $('#content').show();
+    })
+    .fail(function (xhr) {
+      var body = (xhr && xhr.responseJSON) ? xhr.responseJSON : {};
+      var code = body.code || ('http_' + (xhr ? xhr.status : 0));
+      if (xhr && xhr.status === 401 && body.code === 'session_expired') {
+        window.location.href = '/login.php?note=expired&destination=' +
+          encodeURIComponent(window.location.pathname + window.location.search);
+        return;
+      }
+      if (xhr && xhr.status === 401) {
+        showState('warn', 'fa fa-lock', 'enro.sessionExpiredTitle', 'enro.sessionExpiredMsg', code);
+        return;
+      }
+      if (xhr && xhr.status === 403) {
+        showState('err', 'fa fa-lock', 'enro.accessDeniedTitle', 'enro.accessDeniedMsg', code);
+        return;
+      }
+      if (xhr && xhr.status === 404) {
+        showState('warn', 'fa fa-search', 'enro.notFoundTitle', 'enro.notFoundMsg', code);
+        return;
+      }
+      if (xhr && xhr.status === 400) {
+        showState('warn', 'fa fa-question-circle', 'enro.badRequestTitle', 'enro.badRequestMsg', code);
+        return;
+      }
+      showState('err', 'fa fa-exclamation-triangle', 'enro.errorTitle', 'enro.errorMsg', code);
+    });
+}
+
+$(function () {
+  var p = new URLSearchParams(window.location.search);
+  EXEC_ID = parseInt(p.get('exec_id') || 0, 10) || 0;
+
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+
+    $('#btnRefresh').on('click', loadNotes);
+    $('#btnEdit').on('click', function () {
+      window.open('/gui/templates/execute/execNotes.html?exec_id=' + encodeURIComponent(EXEC_ID),
+        'execNotesEdit', 'width=900,height=620');
+    });
+    $('#btnClose').on('click', function () { window.close(); });
+
+    loadNotes();
+  });
+});
+</script>
+</body>
+</html>
