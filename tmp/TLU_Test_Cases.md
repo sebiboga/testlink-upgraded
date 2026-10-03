@@ -2003,6 +2003,49 @@ behind as an orphan. Only the `is_open=1 AND enable_on_execution=1` platform was
 
 Suite total: **17/17 PASS**. Commit `716d96587`, branch `fix/issue-1637`.
 
+**Not covered / remaining**: `tlPlatform::delete()` (`lib/functions/tlPlatform.class.php:193`) is still a
+bare `DELETE FROM platforms WHERE id=…` with no cascade, so a link that is *already* orphaned by some
+other path stays orphaned — the guard prevents new damage but does not clean up old damage. Repairing
+pre-existing orphans is a data-migration concern, not a bug in this route.
+
+---
+
+## Suite 1613 — Task, Issue #1613: session test-project preselection in Assign Test Project Roles (`usersAssignProject.html`)
+
+**Feature under test** — legacy parity with `lib/usermanagement/usersAssign.php:307-316`
+(`getTestProjectEffectiveRoles()`): when the request carries **no** `tproject_id`, the
+selected test project must fall back **first to the session project**
+(`$_SESSION['testprojectID']`, written by the navBar project combo) and only then to the
+first combo entry — `usersAssign.tpl:174-179` rendered that entry `selected`.
+Ported in this run: `api/roles/index.php:821` now serializes `sessionTprojectID` in the
+`GET /meta/tproject-roles` payload, and `usersAssignProject.html:445` resolves the initial
+selection as *valid URL param → valid session project → `projects[0].id`*.
+
+**Precondition / fixtures** (the DB is freshly imported on every run — `testprojects` had 0 rows):
+* Login `admin`/`admin` (global role 8, holds `user_role_assignment`).
+* Test project **1 = "Analyzer public project"** (`APUB`, `is_public=1`).
+* Test project **2 = "Analyzer private project"** (`APRIV`, `is_public=0`).
+* Combo order comes from `getAssignableProjects()` → `ORDER BY name ASC`, i.e.
+  `projects[0]` is project **2** (private) — deliberately *different* from project 1, so
+  "fell back to the first entry" and "honoured the session" are distinguishable.
+
+| # | Case | Steps | Expected | Result |
+|---|---|---|---|---|
+| 1613.1 | **Gap repro (pre-fix)** | session project = 1 → open `/gui/templates/usermanagement/usersAssignProject.html` (no query string) | legacy selects 1; 2.0.1 at `ecb826d16` selected `projects[0]` = **2** | **FAIL reproduced** (`comboValue:"2"`, `comboText:"Analyzer private project"`); screenshot `docs/screenshots/issue-1613-before-session-project-ignored.png` |
+| 1613.2 | BFF payload (pre-fix) | `GET /api/roles/index.php/meta/tproject-roles?tproject_id=0` | `sessionTprojectID` exposed | **FAIL reproduced** — keys were `[status,items,roles,projects,isPublic,demoMode,roleColouring,pagination]`; `sessionTprojectID` undefined although `$sessionTprojectID` already existed at `api/roles/index.php:377` |
+| 1613.3 | **Fix — no param, session = 1** | session project = 1 → open the screen **with no query string** | combo = 1 "Analyzer public project", grid renders project 1 | **PASS** (`comboValue:"1"`, 1 row); screenshot `docs/screenshots/issue-1613-after-session-project-selected.png` |
+| 1613.4 | BFF payload (post-fix) | same GET as 1613.2 | `sessionTprojectID` present and equal to the session project | **PASS** (`sessionTprojectID: 1`, key present in `apiKeys`) |
+| 1613.5 | No param, session = 2 | set navBar project to 2 → open with no query string | combo = 2 (session honoured, here it coincides with `projects[0]`) | **PASS** (`sessionTprojectID: 2`, `comboValue:"2"`) |
+| 1613.6 | Explicit param wins | session = 1 → open `?tproject_id=2&tplan_id=0` | combo = 2 (URL beats session) | **PASS** (`comboValue:"2"`) |
+| 1613.7 | Invalid param | session = 1 → open `?tproject_id=999&tplan_id=0` | 999 not in the assignable combo → fall back to the session project 1, never to a phantom 999 | **PASS** (`comboValue:"1"`) |
+| 1613.8 | Resolution matrix (unit, exact `loadProjects()` expression replayed in-page against the real `/meta/tproject-roles` payload shape) | `{no param,session 1}`→1, `{no param,session 2}`→2, `{no param,session 0}`→2, `{no param,session key absent}`→2, `{no param,session 99 not assignable}`→2, `{param 2,session 1}`→2, `{param 999,session 1}`→1 | every row matches the legacy 3-source precedence; no option value that does not exist can be selected | **PASS** (7/7 as tabulated) |
+| 1613.9 | Syntax gate | `php -l api/roles/index.php`; extracted inline `<script>` → `node --check` | no syntax errors | **PASS** ("No syntax errors detected", JS syntax OK) |
+| 1613.10 | Regression — sibling role screens | open `usersAssignPlan.html` and `rolesView.html` | no console errors/warnings | **PASS** (0 error/warn console messages on both) |
+| 1613.11 | Event Viewer | `select … from events where log_level in (1,2,3)` after the whole run | no new Error/Warning entries | **PASS** (0 rows) |
+
+Suite total: **9 PASS / 2 FAIL-reproduced** (1613.1 + 1613.2 are the pre-fix gap repro,
+green after the fix; all other cases were green throughout).
+
 **Not covered / remaining**: the "assignable list empty" branch (1613.f in the
 investigation) still needs a second, non-privileged user holding a project role on only
 one of the two projects — not created in this run for time budget reasons; that branch is

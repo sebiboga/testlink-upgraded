@@ -9133,3 +9133,41 @@ Found by the mandatory code review of #1797. `api/reqspeccopy/index.php` :: `rsc
 The subtree loop ran `$sdx <= count($subtree)`, one element past the end, so `$elem = &$subtree[$sdx]` and `$elem['node_type_id']` on `null` raised `Trying to access array offset on null` (line 1938) — an Event Viewer warning row on **every** recursive specification copy (also hit by reqSpecTreeCopy and the plan-level copies). Off-by-one fixed; verified 0 new `events` rows for a copy whose source has a child specification and requirements. Suite 1801 = 15/15 PASS.
 
 **Review pass on the three fixes above** (mandatory re-review of the fix commit): **no blocker**, verdict *safe to merge*, and the two MAJORs it did find — introduced by the fix commit itself — are closed: the `copy_to()` failure path had lost its HTTP **409** (`failOut` replaced by a bare `out()` turned every failure into HTTP 200, and since the body arrived in the client's `.done()` branch the form stayed disabled and the popup was effectively bricked until a manual reload — the button is now re-enabled in that branch and the 409 restored), and `partial` read `$newSpecId`, which does not exist in that scope, so it was permanently 0; it is now `$op['id']`, the specification `copy_to()` actually committed. Also closed: the server-locale `copy_to()` sentence is mapped to a stable machine code (`duplicate_doc_id` / `error_creating_req_spec` / `error_updating_req_spec`) with the text kept in `message` and control characters stripped before `tLog` (the sentence embeds the user-controlled title — log forging), an explicitly empty `target_position` now follows the advertised `top` default, a container holding only the new copy is normalised to `node_order = 1`, `loadProjects()` gained the missing `.fail()` so a failed project list no longer leaves another project's containers on screen, and the dead `setFooter()` (it only re-set an attribute `TLi18n.apply()` had already applied, and it ran *after* it) is gone — the footer is driven by `data-i18n="footers.reqSpecCopy"` alone. Suite 1801 grown to 23/23 PASS.
+
+### KEY BUGFIX (data integrity) — `api/platforms` DELETE removed a platform that was still linked to a test plan, orphaning the link (Fixes #1637)
+
+`DELETE /api/platforms/index.php/{id}?tproject_id=N` asked `tlPlatform::getAll()` for the platform's
+`linked_count`, but `getAll()` merges **its own** defaults over the caller's options
+(`lib/functions/tlPlatform.class.php:277-283`) and two of those defaults are WHERE-clause **filters**:
+`enable_on_execution => true` becomes `AND enable_on_execution = 1` and `is_open => true` becomes
+`AND is_open = 1`; only an explicit `null` disables one (`:292-301`). So any platform with
+`is_open = 0` **or** `enable_on_execution = 0` was simply **absent** from the returned set, the lookup
+loop ended with `$linked = 0`, the `if ($linked > 0)` guard was never reached and
+`tlPlatform::delete()` — a bare `DELETE FROM platforms WHERE id = …`, no cascade — ran anyway,
+leaving a permanent orphan `testplan_platforms` row. Only the `is_open=1 / enable_on_execution=1`
+combination was ever protected, and the failure was silent: HTTP `200 {"status":"ok"}`, no Event Viewer
+row. The list route in the same file (`:132`) already passed the three `null` overrides, so `GET`
+reported `deletable:false` for exactly the platforms `DELETE` happily removed — the two routes
+contradicted each other about the same platform in the same second. Root cause is a BFF regression
+rather than a legacy defect: 1.9.20 `platformsDelete.php` derived the rule from the platform's testplan
+usage (`warning_cannot_delete_platform`), which no display flag can defeat; the rewrite reused a
+*display* query as an *integrity guard*.
+
+**Fix** (`api/platforms/index.php`, DELETE route): pass `'enable_on_design' => null,
+'enable_on_execution' => null, 'is_open' => null` to `getAll()` — byte-for-byte the option set the list
+route already used, so `GET` and `DELETE` now agree by construction. The guard additionally **fails
+closed** (`500 DELETE_CHECK_FAILED`) instead of reading "row absent" as "not linked", removing the
+exact fail-open assumption that caused the bug. No new SQL, no change to the shared legacy class, no
+change to the other three `getAll()` callers (`lib/functions/specview.php:1421`,
+`lib/functions/testproject.class.php:3129`, `lib/functions/tlPlatform.class.php:601`), and the `422`
+body is byte-identical, so no i18n key and no frontend change were needed.
+
+**Verified**: all 4 (`is_open × enable_on_execution`) combinations now answer `422 DELETE_BLOCKED`;
+unlinked platforms still delete with `200` (not over-blocked); cross-project and unknown ids still
+`404`; a project with no test plans still `200` (empty guard set does not 500); multi-testplan counting
+intact (`linked_count: 2`, both links preserved after the `422`); **0 orphan `testplan_platforms` rows**
+after a full run (pre-fix: 2); `php -l` clean; Event Viewer shows no new Error/Warning/Notice row; the
+modernized `platformsView.html` screen still renders with every linked row's delete control disabled.
+Suite `T1637` in `tmp/TLU_Test_Cases.md` — 17/17 PASS. Restored from branch `fix/issue-1637`
+(`716d96587` code, `8ac6cc966` suite + this entry, `e255cb5f7` `docs/` mirror); the code, the suite
+and the `docs/` page had already reached `sebiboga`, only this CHANGELOG entry was still missing.
