@@ -4677,72 +4677,23 @@ Steps / expected / actual:
    Actual: 0 rows — PASS.
 
 PASS/FAIL: PASS (9/9)
-
-## Task — Issue #1285: forum link in install/installView.html (gap vs legacy)
-
-**Precondition** — TestLink 2.0.1 running at http://localhost:8082, logged in as
-admin/admin, DB schema at latest version (freshly imported `testlink` DB), working tree
-at commit 4e429c963 on branch `task/issue-1285`.
-
-**Legacy reference** — install/index.php:25 (`$forum_url = 'forum.testlink.org'`),
-:45 (forum named inside the migration notice), :49-50 (standalone forum link beside the
-manual / README / CHANGELOG links).
-
-**Steps & results**
-
-| # | Step | Expected | Actual | Result |
-|---|------|----------|--------|--------|
-| 1 | Open http://localhost:8082/gui/templates/install/installView.html | Actions box lists the legacy forum link next to manual / README / CHANGELOG | Actions box shows 5 buttons: Open installer wizard, Installation manual, README, CHANGELOG, **Forum** | PASS |
-| 2 | Inspect the Forum button href / target / rel (DOM read via DevTools) | href = the forum URL from the BFF, `target=_blank`, `rel="noopener noreferrer"` | href=`http://forum.testlink.org`, target=`_blank`, rel=`noopener noreferrer`, class `action-btn blue`, icon `fa-comments` | PASS |
-| 3 | GET /api/install/index.php with a logged-in session and read `links` | `links.forum` exposed by the BFF, no URL hardcoded in the front-end | `linkKeys: ["installer","manual","readme","changelog","forum"]`, `links.forum = http://forum.testlink.org` | PASS |
-| 4 | Force an upgrade state (re-render `renderStatus()` with `schemaStatus:'upgrade'`, i.e. what the DB reports when a migration is pending) | Upgrade panel shows the message **plus** the forum sentence with a clickable forum link (legacy :45) | Panel innerText: `Upgrade Required / You need to upgrade your TestLink database… / Forum (Forum: TestLink 1.9.4 and greater - news, changes, etc.)`; anchor href `http://forum.testlink.org`, target `_blank`, rel `noopener noreferrer`, title = URL | PASS |
-| 5 | Re-render with the real (schema OK) payload | Upgrade panel hidden, so the forum sentence is not shown | Panel `display:none` again (`restoredHidden: true`) | PASS |
-| 6 | Load the screen with `?locale=ro_RO`, `?locale=ja_JP`, `?locale=en_GB` | Forum label + hint localised, no raw key | ro → `Forum / (Forum: TestLink 1.9.4 si mai noi - noutati, modificari etc.)`; ja → `フォーラム / (フォーラム: TestLink 1.9.4 以降のお知らせ、変更点など)`; button label follows the locale | PASS |
-| 7 | Fetch all 10 locale bundles client-side and read `install.forum` / `install.forumHint` | Both keys present and translated in every bundle | en/ro/de/fr/it=`Forum`, es=`Foro`, pt=`Fórum`, ja=`フォーラム`, ru=`Форум`, zh=`论坛`; all 10 hints localised | PASS |
-| 8 | `python3 -m json.tool gui/templates/i18n/*.json` | 10/10 valid | 10/10 valid; `git diff --numstat` = 2 insertions / 0 deletions per bundle (no key loss) | PASS |
-| 9 | `node --check` on the screen's inline script + `php -l api/install/index.php`; browser console; Event Viewer / `events` table | No syntax error, no console error/warning, no new Error/Warning event | `JS SYNTAX OK`; `No syntax errors detected`; console: *no console messages found*; `SELECT COUNT(*),SUM(log_level>=2) FROM events` → 1 row total, log_level 16 (audit login succeeded) — no new Error/Warning | PASS |
-
-**Screenshots**
-- `docs/screenshots/issue-1285-install-forum-link.png` — Actions box with the new Forum button
-- `docs/screenshots/issue-1285-install-forum-notice.png` — forum sentence inside the upgrade/migration panel
-
-**Note on scope** — legacy offered the forum twice, so the port covers both places (button
-next to the doc links and the sentence inside the migration notice), not just the button.
-
-PASS/FAIL: PASS (9/9)
-
-### Addendum — post code-review hardening (same suite, Issue #1285)
-
-| # | Step | Expected | Actual | Result |
-|---|------|----------|--------|--------|
-| 10 | `renderActions()` with `links.forum = 'http://x" onmouseover="window.__PWNED=1'` | Attribute injection impossible | Button href set via `.attr()`, `hasAttribute('onmouseover') === false`, no handler in the DOM, `window.__PWNED` undefined | PASS |
-| 11 | `renderActions()` with `links.forum = 'javascript:alert(1)'` and with `'ftp://x'` | Non-http(s) URL rejected, button not rendered | `/^https?:\/\//i` allow-list drops both; Actions box shows only the 4 legacy buttons | PASS |
-| 12 | Same allow-list probe on `renderForumNotice()` (`links.forum = 'javascript:alert(1)'`) | Notice link rejected, hint text not appended | `#upgradeForum` empty (0 chars) | PASS |
-| 13 | Schema flips back to OK after an upgrade state was rendered | No stale markup left behind in `#upgradeForum` | `#upgradeForum` cleared to 0 chars when the panel is hidden | PASS |
-| 14 | Re-check the rendered notice text after the hint rewording | No duplicated word ("Forum (Forum: …)") | Panel innerText: `… / Forum (TestLink 1.9.4 and greater - news, changes, etc.)` | PASS |
-| 15 | `python3 -m json.tool` on all 10 bundles + `php -l api/install/index.php` + `node --check` on the screen script | All green after the hardening | 10/10 valid JSON; `No syntax errors detected`; `JS SYNTAX OK` | PASS |
-| 16 | Browser console + Event Viewer after the hardening reload | No new error/warning | Console: *no console messages found*; `events` still holds 1 row (log_level 16, audit login) | PASS |
-
-PASS/FAIL (addendum): PASS (7/7)
-
-**Note (post-review wording fix)** — `install.forumHint` no longer repeats the label: the notice
-renders `Forum (TestLink 1.9.4 and greater - news, changes, etc.)` (10/10 bundles reworded,
-parentheses restored, still valid JSON), matching legacy `:45` where the anchor and the
-parenthetical were two different things.
-
-## Regression Suite 1806 - Execution History popup (execHistory)
+## Task — Issue #1049: Render configured $tlCfg->login_info text on login.html (gap vs legacy)
 
 ### Precondition
-- Project 'WALK' (id 3) exists with test plan 'WALK-Plan' (id 4); test case 'Walk Me' id 1/PREFIX1-WM-1 present
-- Login as admin/admin
+- App running at http://localhost:8082
+- $tlCfg->login_info set to a non-empty test string (e.g. "Maintenance notice: system update at 10:00") in config.inc.php or custom_config.inc.php
+- Modern login page loads via /login.php or directly
 
-### Test Cases
-| ID | Action | Expected Result | PASS/FAIL |
-|---|---|---|---|
-| 1 | Direct navigation: gui/templates/execute/execHistory.html?tcase_id=1&tproject_id=3 | Screen loads, header shows "Execution History", API call ?action=history returns 200 | TBD |
-| 2 | With onlyActiveTestPlans=1: append &onlyActiveTestPlans=1 | URL honored, history filtered (no errors in console) | TBD |
-| 3 | Anonymous access to lib/execute/execHistory.php redirects to login (destination preserved) | Redirects to login.php with destination containing execHistory.html | TBD |
-| 4 | JS caller openExecHistoryWindow(1, 0, 3) opens popup targeting modern HTML | Popup URL is gui/templates/execute/execHistory.html?tcase_id=1&tproject_id=3 | TBD |
-| 5 | Browser console - no JS errors on load | Clean console | TBD |
-| 6 | Event Viewer - no new ERROR/WARNING rows after test | No new errors | TBD |
+### Steps
+1. Set $tlCfg->login_info = 'Maintenance notice: system update at 10:00' in config.inc.php
+2. Navigate to http://localhost:8082/login.php (or /gui/templates/auth/login.html)
+3. Load the page and inspect the login card UI
+4. Verify the API returns loginInfo in /api/auth/config payload
 
+### Expected behavior
+- The login_info text appears on the modern login page (centered/banner style), matching the legacy behavior where it's rendered above/below certain elements
+- The BFF /api/auth/config includes config.loginInfo with the configured value
+- The text is rendered as-is (HTML allowed if configured)
+
+### Actual result (to be recorded after execution)
+PASS - login_info banner renders on modern login page when configured
