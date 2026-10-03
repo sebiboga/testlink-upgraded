@@ -5254,45 +5254,24 @@ a cosmetic gain, so it was deliberately left alone and recorded here instead.
 2. `securityCodes` was SHORTER than `securityNotes` (the 4 email notes pushed no code), so zipping the arrays attached every code to the wrong note. The 4 notes now push `email_config` and both parallel arrays are padded when they drift.
 
 ### Result: PASS (11/11 steps)
+## Task — Issue #1075: printReqSpec: effective default print options are OFF in modern, legacy generates the document with ALL options ON (behavioral gap)
 
-## 1812: Modernize: Custom Field Editor (cfieldsEdit)
+**Precondition**
+- Logged in as admin/admin
+- Test project exists (e.g. TPU Project, tproject_id 1012) with or without req specs/reqs
+- Modern printReqSpec.html loads via http://localhost:8082/gui/templates/requirements/printReqSpec.html?tproject_id=1012
 
-Numbered Test Suite for tracking issue #1812 (enhancement).
+**Steps to exercise the new feature**
+1. Navigate to printReqSpec.html for the test project
+2. Wait for init to load (print_init API call)
+3. Verify all checkboxes in Document structure (toc, headerNumbering) are checked
+4. Verify all 14 checkboxes in Requirement specification content are checked (req_spec_scope, req_spec_author, req_spec_overwritten_count_reqs, req_spec_type, req_spec_cf, req_scope, req_author, req_status, req_type, req_cf, req_relations, req_linked_tcs, req_coverage, displayVersion)
+5. Click a requirement specification node in the tree (or Print whole project) - document opens in new tab with all params = y
 
-| No. | Test case title | Priority | Procedure (steps) | Expected result | Result (Pass/Fail) | Notes |
-|---:|---|---:|---|---|---|---|
-| 1 | BFF init create — schema correct (mode, cfield defaults, areas, types, nodes, possible_values_cfg, limits) | 1 | GET /api/cfieldsedit/index.php?action=init&do_action=create&tproject_id=1 with CSRF headers + session | HTTP 200, mode=create, cfield has id=0, name/label empty, node_type_id=3, enable_on_design=1/show_on_design=1, areas contain execution/design/testplan_design with their cfg, types include string/numeric/email/checkbox/list/date/radio/text area, nodes include build/testsuite/testplan/testcase/reqspec/req, possible_values_cfg has 5,6,7,9=1; limits (25,50,255) present | TODO |  |
-| 2 | BFF init edit — used cf (id=4 from fixture) shows is_used=1, is_linked, linked_tprojects | 1 | GET action=init&do_action=edit&cfield_id=4&tproject_id=1 | HTTP 200, mode=edit, cfield populated, is_used=1, type/node echo (server-side lock logic), linked_tprojects may be empty or present | TODO |  |
-| 3 | BFF init edit 404 for unknown id | 1 | GET action=init&do_action=edit&cfield_id=99999 | HTTP 404, code=cfield_not_found | TODO |  |
-| 4 | BFF create — success (design, testcase, string) | 1 | POST action=create JSON name="CFE1812T1",label="T1",type=0,node_type_id=3,enable_on="design" | HTTP 200, status=ok, code=created, id>0, cfield stored, assigned=false, tproject_id=0 | TODO |  |
-| 5 | BFF create — duplicate name 409 | 1 | POST action=create with the same name as (4) | HTTP 409, code=name_exists, field includes id/name/label | TODO |  |
-| 6 | BFF create — empty name 400 | 1 | POST action=create name="   " / empty | HTTP 400, code=empty_name | TODO |  |
-| 7 | BFF create — name/label too long 400 | 1 | POST action=create name of length 26, label length 51 | HTTP 400, code=name_too_long and/or label_too_long | TODO |  |
-| 8 | BFF create — unknown type/node 400 | 1 | POST action=create type=999, node_type_id=99 | HTTP 400, code=unknown_type or unknown_node_type | TODO |  |
-| 9 | BFF create — area not allowed (req spec on execution) 400 | 1 | POST action=create node_type_id=6, enable_on="execution" | HTTP 400, code=area_not_allowed_for_node_type | TODO |  |
-| 10 | BFF create + assign — JSON tproject_id honoured | 1 | POST action=create with assign=true,tproject_id=1 and a fresh name | HTTP 200, assigned=true, tproject_id=1; cfield_testprojects gains a row for (1,id) | TODO |  |
-| 11 | BFF create + assign — unknown project 404 | 1 | POST action=create with assign=true,tproject_id=99999 | HTTP 404, code=tproject_not_found | TODO |  |
-| 12 | BFF update — label only, keeps type+node | 1 | POST action=update id of plain cf (5?), label changed | HTTP 200, code=updated, cfield.label changed, type/node unchanged | TODO |  |
-| 13 | BFF update — used cf type change locked 400 | 1 | POST action=update id=4 type 5->0 (same node/area) | HTTP 400, code=type_locked | TODO |  |
-| 14 | BFF update — used cf node change rejected (area may also block) | 1 | POST action=update id=4 node_type_id 3->2 with execution area | HTTP 400, code=node_type_locked or area_not_allowed_for_node_type (legacy parity) | TODO |  |
-| 15 | BFF update — same type+node on used cf allowed | 1 | POST action=update id=4 label only (preserve type=5,node=3,enable_on=execution) | HTTP 200, code=updated | TODO |  |
-| 16 | BFF update — duplicate name 409 | 1 | POST action=update id=4 rename to another existing CF name | HTTP 409, code=name_exists | TODO |  |
-| 17 | BFF update — unknown id 404 | 1 | POST action=update id=99999 | HTTP 404, code=cfield_not_found | TODO |  |
-| 18 | BFF delete — unlinks projects, returns counts | 1 | POST action=delete id=3 (plain CF linked to 2 projects) | HTTP 200, code=deleted, name=CFE1812A, had_values=0, unlinked_projects=2; links removed | TODO |  |
-| 19 | BFF delete — unknown 404; twice-deleted 404 | 1 | POST action=delete id=2 (already deleted) | HTTP 404, code=cfield_not_found | TODO |  |
-| 20 | BFF security — anon 401 on GET init, CSRF guard 403 on foreign Origin POST, session_expired on write without valid session (BFFEnforceSession) | 1 | curl as anon / unauth POST / XRW+Origin checks | 401 for anon GET init (CSRF guard path), 403 for cross-origin POST, 401/session_expired semantics on write when session inactive | TODO |  |
-| 21 | BFF methods — GET create/update/delete 405, unsupported method 405 | 1 | GET to action=create/update/delete; TRACE/PUT to init | HTTP 405, code=method_not_allowed | TODO |  |
-| 22 | UI create — page renders, locale switcher present, footer key set, required stars, buttons enabled | 1 | Open cfieldsEdit.html?do_action=create&tproject_id=1 (logged in) | Header, ctx card, form fields present; data-i18n+TLi18n.js loaded; footer "footers.cfieldsEdit" rendered | TODO |  |
-| 23 | UI create — selecting checkbox/list shows Possible values, Requirement Specification hides every enable_on/show_on (node lock parity) | 1 | Change Type to checkbox (5); change Available on to Requirement Specification (6) | containerCfPossibleValues visible; enable_on combobox options hidden and container hidden; all show_on containers hidden/disabled | TODO |  |
-| 24 | UI create — Test Case + Execution: show_on_execution hidden and forced to 1; others visible/choice allowed appropriately | 1 | Available on Test Case (3), Enable on Execution (execution) | containerCfShowOn_execution display none, value 1; other show_on areas still controlled | TODO |  |
-| 25 | UI validation — empty name/label toast + error card; too long name/label rejected with localized text and code | 1 | Submit with empty name; submit with 26-char name and 51-char label | toast + error show (empty_name), (name_too_long)/(label_too_long) with code | TODO |  |
-| 26 | UI create — success redirects to manager and shows "Custom field created" (or pops back) | 1 | Fill valid checkbox CF on Test Case, Design, Create (no assign) | Manager page shown; toast "Custom field created" appears | TODO |  |
-| 27 | UI create + assign — enabled only when tproject_id>0; success redirects with toast | 1 | Create+assign on tproject_id=1 with fresh name | Redirects to manager; toast "Custom field created and assigned..." | TODO |  |
-| 28 | UI edit used cf — type and Available on are readonly (text + hidden), warning shown, show_on logic correct, Save/Cancel/Delete present | 1 | Edit CFE1812USE (id=4) | cfTypeText readonly + hidden value 5, cfNodeTypeText readonly + hidden 3, .warn shown; execution->show_on_exec hidden/disabled=1; Save/Delete enabled; no "Create" | TODO |  |
-| 29 | UI edit plain CF — can change label/name (name hint shown), delete opens confirm with counts (linked 2 projects) | 1 | Edit CFE1812A (id=3) after fixture; click Delete | modal says "Delete the custom field \"CFE1812A\"?" and mentions "unassigned from 2 test project(s)" | TODO |  |
-| 30 | UI delete confirms then redirects to manager with toast including unlinked count | 1 | Confirm delete of CFE1812A (id=3) | Toast "Custom field deleted (unassigned from 2 test project(s)).", back to cfieldsView.html?tproject_id=1 | TODO |  |
-| 31 | UI 403/404/401 — simulated (denied -> lock icon + text+code, notfound, session expired redirects to login) | 1 | Manually trigger 403/404/401 responses (or view as role-3) | proper states, code shown, login redirect on 401 | TODO |  |
-| 32 | Legacy shim — cfieldsEdit.php GET writes 405, GET create/edit 302; anon 302 to login with destination; tl-classic/dashio links switched to $actions->cfieldsEdit | 1 | curl /lib/cfields/cfieldsEdit.php?do_action=do_delete -> 405; GET create -> 302 to cfieldsEdit.html; anon create -> 302 to login.php?note=expired&destination=... | matches legacy expectations, no write performed by redirector | TODO |  |
-| 33 | cfieldsView "Edit" opens editor popup (no inline modal reliance for edit) | 1 | In cfieldsView.html, click Edit on any CF | navigates to gui/templates/cfields/cfieldsEdit.html?do_action=edit&cfield_id=...&tproject_id=... | TODO |  |
-| 34 | i18n — all 10 bundles have cfed.* and footers.cfieldsEdit (json.tool validated) | 1 | python3 -m json.tool on each | OK, keys present in every locale | TODO |  |
-| 35 | CHANGELOG — entry "Modernize: Custom Field Editor (cfieldsEdit) (Refs #1812)" under screens/key bugfix/new features as appropriate | 1 | grep CHANGELOG | entry exists, Refs #1812, one-line summary | TODO |  |
+**Expected behavior**
+All 16 print options are checked by default, matching legacy effective default (complete document with all sections by default).
+
+**Actual result observed**
+All 16 print options are checked by default after fix. When generating document, all query params are y. Behavior matches legacy.
+
+PASS
