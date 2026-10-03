@@ -4999,3 +4999,65 @@ it is why H1 is not listed under discriminating coverage above.
 - PASS - All email config warnings appear correctly in Security Notes panel as returned by the API
 
 ### Result: PASS
+
+## Task — Issue #1050: Honor `user_self_signup` config for the sign-up link on login.html (gap vs legacy)
+
+### Precondition
+- Application running at http://localhost:8082 (PHP built-in server, docroot = repo root), DB `testlink` on 127.0.0.1:3306
+- `user_self_signup` / `demoMode` / `authentication['domain']['DB']['allowPasswordManagement']` are file-based settings
+  (`config.inc.php`, no DB row). Flag matrix exercised by appending a temporary
+  `@include_once('tmp/tl_test_flags.php');` line at the end of `config.inc.php`
+  (`tmp/tl_test_flags.php` is under the git-ignored `tmp/`), **reverted after the run**:
+  ```php
+  <?php
+  $tlCfg->user_self_signup = FALSE;              // matrix rows A, D, E
+  $tlCfg->user_self_signup = TRUE;               // matrix rows B, C
+  $tlCfg->demoMode = TRUE;                       // matrix rows C, D
+  $tlCfg->authentication['domain']['DB']['allowPasswordManagement'] = false; // matrix row E
+  ```
+- Baseline / control: `git stash`-free default config (`user_self_signup = TRUE`, demoMode off, DB password management allowed) → `GET /api/auth/index.php/config` returns `selfSignup:true`.
+
+### Steps
+1. Set `user_self_signup = FALSE` (plus the extra flag of the row under test), hard-reload `http://localhost:8082/login.php?nocache=<n>`.
+2. Read `GET /api/auth/index.php/config` — confirm `config.selfSignup` is `false`.
+3. Evaluate in the page: visibility (`offsetParent !== null`) + `getAttribute('href')` of
+   `#tl_sign_up`, `#tl_lost_password`, `#lostSep`, `#registrationRow`, plus the row's text.
+4. Repeat for rows B, C, D, E of the matrix below.
+5. Row B (default config): click the "New user? Create account" link and confirm the
+   registration **form** is rendered at `/gui/templates/auth/firstLogin.html`
+   (6 inputs: User ID / First Name / Last Name / Email / Password / Repeat password).
+6. Row A: with the link hidden, `GET /gui/templates/auth/firstLogin.html` still answers
+   "self-registration is disabled on this site" (server-side enforcement, `api/auth/index.php:368`) —
+   the point of the fix is that the entry point is no longer advertised.
+7. Regression: `login.php?note=expired` still shows the info note, the login fields and the
+   registration row; log in with `admin/admin` → lands on `/index.php?caller=login&viewer=web`.
+8. Event Viewer: `select log_level, count(*) from events group by log_level;` → no new
+   Error/Warning rows; browser console free of errors.
+
+### Expected behavior (legacy parity)
+`login-model-marcobiedermann.tpl` (the template `config.inc.php:2125` actually selects):
+- line 76 `{if $gui->user_self_signup}` gates **only** `#tl_sign_up` — no sign-up link when `user_self_signup = FALSE`.
+- line 82 gates `#tl_lost_password` **independently** on `external_password_mgmt eq 0 && demoMode eq 0`.
+- No dangling separator; nothing at all when both links are suppressed.
+
+| # | `selfSignup` | `demoMode` | `externalPasswordMgmt` | `#tl_sign_up` | `#tl_lost_password` | `#lostSep` | `#registrationRow` |
+|---|---|---|---|---|---|---|---|
+| A | false | false | false | hidden | visible | hidden | visible |
+| B | true | false | false | visible | visible | visible | visible |
+| C | true | true | false | visible | hidden | hidden | visible |
+| D | false | true | false | hidden | hidden | hidden | hidden |
+| E | false | false | true | hidden | hidden | hidden | hidden |
+
+### Actual result
+All 5 matrix rows PASS (values above are the values measured in the browser):
+- A `signUpVisible:false, lostPwdVisible:true, sepVisible:false, rowVisible:true`, row text `Lost password?`
+- B `signUpVisible:true, lostPwdVisible:true, sepVisible:true`, hrefs `/gui/templates/auth/firstLogin.html` + `/gui/templates/auth/lostPassword.html` (unchanged vs. pre-fix), row text `New user? Create account | Lost password?`
+- C `signUpVisible:true, lostPwdVisible:false, sepVisible:false`, row text `New user? Create account`
+- D `signUpVisible:false, lostPwdVisible:false, sepVisible:false, rowVisible:false`
+- E `signUpVisible:false, lostPwdVisible:false, sepVisible:false, rowVisible:false` (lost href left at `#`, never navigable)
+- Step 5: click through → full sign-up form rendered (no refusal screen) — PASS
+- Step 6: direct visit with `selfSignup:false` → "self-registration is disabled on this site" (unchanged server behavior) — PASS
+- Step 7: `?note=expired` note rendered, login row visible, `admin/admin` → `/index.php?caller=login&viewer=web` — PASS
+- Step 8: `events` table holds only the audit row `log_level=16, activity=LOGIN` (the successful login of this run) — 0 Error/Warning rows; Chrome console: no errors — PASS
+
+### Result: PASS

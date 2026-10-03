@@ -120,7 +120,7 @@ body {
 
       <div class="registration" id="registrationRow" style="display:none;">
         <a id="tl_sign_up" href="#"><span data-i18n="auth.newUserQ">New user?</span></a>
-        <span id="lostSep" style="margin:0 10px;color:#ccc;">|</span>
+        <span id="lostSep" style="display:none; margin:0 10px;color:#ccc;">|</span>
         <a id="tl_lost_password" href="#"><span data-i18n="auth.lostPasswordQ">Lost password?</span></a>
       </div>
 
@@ -287,25 +287,50 @@ var ssoMethod = '';
     revealDemoNotice();
     revealLoginInfo();
 
-    // Sign-up link is always shown, regardless of the self-signup config, so
-    // users always have a visible path to the registration screen. The href is
-    // absolute: login.html is also served via readfile() at /login.php, where
-    // a relative href would resolve to /firstLogin.html (404). Refs #1338.
-    $('#tl_sign_up').attr('href', '/gui/templates/auth/firstLogin.html');
+    // Sign-up link: rendered ONLY when self-registration is enabled, exactly as
+    // legacy gated it (login-model-marcobiedermann.tpl:76 — the template that
+    // config.inc.php:2125 actually selects). While user_self_signup = FALSE the
+    // flag already reaches this page (api/auth/index.php:175) but was ignored,
+    // so the page advertised a registration entry point that leads to a dead-end
+    // refusal screen (api/auth/index.php:368 / legacy firstLogin.php:23).
+    // Refs #1050.
+    var showSignUp = !!c.selfSignup;
+    if (showSignUp) {
+      // Absolute href: login.html is also served via readfile() at /login.php,
+      // where a relative href would resolve to /firstLogin.html (404). Refs #1338.
+      $('#tl_sign_up').attr('href', '/gui/templates/auth/firstLogin.html');
+    } else {
+      $('#tl_sign_up').hide();
+    }
 
-    // Lost-password link: independent of self-signup; only hidden when the
-    // auth method manages passwords externally or in demo mode.
+    // Lost-password link: independent of self-signup — legacy keeps it outside
+    // the user_self_signup block (login-model-marcobiedermann.tpl:82); it is
+    // hidden only when the auth method manages passwords externally or in demo
+    // mode.
     var showLost = (!c.externalPasswordMgmt && !c.demoMode);
     if (showLost) {
       // Absolute href for the same reason as the sign-up link (see above).
       $('#tl_lost_password').attr('href', '/gui/templates/auth/lostPassword.html');
     } else {
       $('#tl_lost_password').hide();
+    }
+
+    // Separator only when BOTH links are on screen: legacy emits a plain gap,
+    // never a dangling "|" (the sole "&nbsp;" separators sit inside the links'
+    // own markup). Also re-hides it, which the lost-password branch did before.
+    if (showSignUp && showLost) {
+      $('#lostSep').show();
+    } else {
       $('#lostSep').hide();
     }
-    // The registration footer (with the Sign Up link) is always shown so the
-    // path to registration stays visible regardless of the self-signup config.
-    $('.registration, #registrationRow').show();
+
+    // The row ships hidden so nothing flashes before the config arrives; reveal
+    // it only when there is at least one link to show. A failed config request
+    // (.fail below) therefore leaves the footer hidden — fail-closed, matching
+    // the server, which refuses the signup POST anyway.
+    if (showSignUp || showLost) {
+      $('#registrationRow').show();
+    }
 
     if (c.oauth && c.oauth.length) {
       $('#oauthRow').show();

@@ -81,9 +81,19 @@ The links carry **absolute** hrefs (`/gui/templates/auth/firstLogin.html` and
 `/gui/templates/auth/login.html` and `readfile()`-ed at `/login.php`. A relative href would
 resolve against `/` in the latter context and 404 (`/firstLogin.html`). Fixed in #1338.
 
-These links always render; the lost-password link is hidden only when the authentication method
-manages passwords externally or demo mode is on (same gate as legacy `external_password_mgmt` /
-`demoMode`).
+Each link is gated by its own flag, as in the legacy template
+`login-model-marcobiedermann.tpl` (the one `config.inc.php` selects):
+
+- **New user? Create account** renders only when `user_self_signup` is enabled
+  (`$tlCfg->user_self_signup = TRUE;`); the flag arrives as `config.selfSignup` from
+  `GET /api/auth/config`. With self-registration off the link is not advertised at all, instead of
+  leading to the "self-registration is disabled on this site" refusal screen — see
+  [Task #1050](Task-Issue-1050-Login-Signup-Link-SelfSignup-Gate.md).
+- **Lost password?** is independent of self-signup and is hidden only when the authentication
+  method manages passwords externally or demo mode is on (same gate as legacy
+  `external_password_mgmt` / `demoMode`).
+- The `|` separator only appears when both links are visible, and the whole footer row stays
+  hidden when neither is.
 
 ---
 

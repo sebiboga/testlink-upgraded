@@ -17,6 +17,22 @@ Every screen of the application was ported one-by-one in a screen-compare
 kept for backward compatibility and is progressively retired as each modern
 screen reaches full parity.
 
+- [TASK] - #1050: **The login card honors `user_self_signup` again — the "New user?" link is hidden when
+  self-registration is disabled.** The modern page received the flag from its own BFF
+  (`api/auth/index.php:142,175` -> `config.selfSignup`) and ignored it, force-showing the
+  registration row, so an instance with `$tlCfg->user_self_signup = FALSE` advertised a registration
+  entry point that dead-ends on "self-registration is disabled on this site"
+  (`api/auth/index.php:368`). `gui/templates/auth/login.html` now gates `#tl_sign_up` on
+  `c.selfSignup` (legacy `login-model-marcobiedermann.tpl:76`, the template `config.inc.php:2125`
+  selects), keeps the lost-password link on its own independent gate
+  (`externalPasswordMgmt` / `demoMode`, tpl line 82) and renders the `|` separator plus the row only
+  when at least one link survives — the legacy footer (legacy leaves its then-empty wrapper paragraph in
+  place; spacing-only difference). The absolute href required by #1338
+  and the server-side refusal (`api/auth/index.php:368` <-> legacy `firstLogin.php:23`) are
+  unchanged, so this is presentation-only. No new strings -> no i18n change. Docs:
+  `docs/Task-Issue-1050-Login-Signup-Link-SelfSignup-Gate.md` + wiki page of the same name. Test
+  suite: Task #1050, 5/5 visibility-matrix rows + regressions PASS. (Refs #1050)
+
 - [TASK] - #1285: **The TestLink community forum link is back on the Install / Upgrade screen.**
   Legacy `install/index.php:25` defined `$forum_url = 'forum.testlink.org'` and used it twice: inside
   the migration notice (`:45` "read README file or go to <forum> (Forum: TestLink 1.9.4 and greater
