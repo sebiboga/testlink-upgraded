@@ -186,6 +186,7 @@ function loginPageConfig(&$db) {
             'ssoMethod' => (isset($authCfg['SSO_method']) && $authCfg['SSO_method'] !== '')
                               ? (string)$authCfg['SSO_method'] : '',
             'ssoOnly' => !empty($authCfg['sso_only']),
+            'loginInfo' => (string)($tlCfg->login_info ?? ''),
         ),
     );
 }

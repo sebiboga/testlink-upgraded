@@ -96,6 +96,11 @@ body {
            style="display:none;">
         <i class="fa fa-info-circle" aria-hidden="true"></i><span data-i18n-html="auth.demoUsage">This is a DEMO site, use it with RESPECT.</span>
       </div>
+      <div class="alert-box" id="loginInfoBox" role="status" aria-live="polite"
+           style="display:none; background:#f7f7f7; border:1px solid #e5e5e5; color:#333; text-align:center; font-size:13px;">
+        <span id="loginInfoText"></span>
+      </div>
+
 
       <input type="text" id="tl_login" name="tl_login" class="form-control"
              data-i18n-placeholder="auth.loginName" autofocus required>
@@ -207,6 +212,17 @@ $(function () {
 
   // `stalled` is set by the deadline timer, so a locale-bundle request that never
   // settles cannot re-arm the timer in a loop.
+
+  function revealLoginInfo() {
+    var info = (window.loginConfig && window.loginConfig.loginInfo) || '';
+    if (info) {
+      $('#loginInfoText').html(info);
+      $('#loginInfoBox').show();
+    } else {
+      $('#loginInfoBox').hide();
+    }
+  }
+
   function revealDemoNotice(stalled) {
     if (demoModeFlag !== true) return;
     if (!stalled) {
@@ -254,6 +270,7 @@ var ssoMethod = '';
   // Load public config: self-signup, lost-password, OAuth buttons.
   $.getJSON('/api/auth/config', function (cfg) {
     var c = cfg.config || {};
+    window.loginConfig = c;
 
     ssoEnabledFlag = !!c.ssoEnabled;
     ssoMethod = c.ssoMethod || '';
@@ -268,6 +285,7 @@ var ssoMethod = '';
 
     demoModeFlag = !!c.demoMode;
     revealDemoNotice();
+    revealLoginInfo();
 
     // Sign-up link is always shown, regardless of the self-signup config, so
     // users always have a visible path to the registration screen. The href is
