@@ -5254,3 +5254,32 @@ a cosmetic gain, so it was deliberately left alone and recorded here instead.
 2. `securityCodes` was SHORTER than `securityNotes` (the 4 email notes pushed no code), so zipping the arrays attached every code to the wrong note. The 4 notes now push `email_config` and both parallel arrays are padded when they drift.
 
 ### Result: PASS (11/11 steps)
+
+## Regression — Issue #1687: reqTreeReorder.html - Modified by and live requirement counts
+
+### Precondition
+- TestLink 2.0.1 at http://localhost:8082
+- Admin/admin logged in
+- Fixtures loaded (fixtures_1681.php): tproject 12 (TREE1681), req specs 13 (TR1-SPEC-A) with 3 requirements (17,19,21), spec 15 (TR1-SPEC-B) empty
+
+### Repro steps (original issue)
+1. Navigate to /gui/templates/requirements/reqTreeReorder.html?tproject_id=12&req_spec_id=13
+2. Observe Context card tiles: Test project, Revision, Requirements, Modified by
+
+### Expected post-fix behavior
+- Modified by tile displays the login of the spec revision author (e.g., "admin") rather than a hardcoded "-"
+- Requirements tile displays the actual/live requirement count (e.g., "3" for spec 13) - derived from actual requirements rows, not stale denormalized total_req
+- Spec dropdown shows live counts like "(3)", "(0)"
+
+### Actual result observed (verified)
+- Modified by shows "admin" (author_login from latest revision joined with users)
+- Requirements shows "3" (live count from requirements table)
+- Dropdown shows TR1-SPEC-A (3), TR1-SPEC-B (0) - live counts
+- API returns correct context with author_id and author_login
+
+### Test execution
+- [PASS] Manual verification via browser and API inspection
+
+### Notes
+- Fix already present: specHeader() selects V.author_id, U.login AS author_login; UI uses ctx.author_login with fallbacks
+- Live count (COUNT from requirements) correctly used; denormalized total_req from revisions intentionally unused as per issue rationale
