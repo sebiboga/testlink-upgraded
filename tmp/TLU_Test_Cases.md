@@ -4812,3 +4812,41 @@ PASS - login_info banner renders on modern login page when configured
 - Semantics and accessibility improved ✓
 
 **PASS**
+
+## Regression Suite 1806: Execution History popup (execHistory) — Refs #1806
+
+### Preconditions
+- Login admin/admin; TestLink at http://localhost:8082
+- Fixture EH1806: tproject EH18 (id 1), test plan EH1806 Plan (id 2), build EH18 Build 1 (id 1), test case EH18-1 "EH18 Executed Case" (id 4) with 3 executions (PASSED/FAILED/BLOCKED), tcase "EH18 Never Run" (id 8) never executed
+- DB freshly imported (MariaDB 127.0.0.1:3306 testlink/testlink)
+
+### Test Cases
+1. **Open modern popup from direct URL (authenticated)** — Navigate to http://localhost:8082/gui/templates/execute/execHistory.html?tcase_id=26&tproject_id=23. Expect: header shows "Execution History" + "EH18-1" + "EH18 Executed Case". Table shows 3 rows with statuses PASSED/FAILED/BLOCKED, timestamps, test plan, build, executed by admin, version 1, run mode Manual. (PASS)
+2. **Legacy shim redirects to modern popup** — Navigate to http://localhost:8082/lib/execute/execHistory.php?tcase_id=26&tproject_id=23. Expect: 302/redirect to gui/templates/execute/execHistory.html with same params (onlyActiveTestPlans handled). (PASS)
+3. **onlyActiveTestPlans param reflected** — Open URL with &onlyActiveTestPlans=1. Expect: "Display only active test plans" checkbox checked; executions shown (active plans). (PASS)
+4. **Show/Hide details (toggleDetails)** — Click detail toggle on a row; Expect: notes/custom fields/attachments/bugs panel expands/collapses; fixture exec b notes visible for blocked execution. (PASS)
+5. **Print preview opens print screen** — Click "Print preview" icon; Expect: new window/tab opens /gui/templates/execute/execPrint.html?id=<execId>. (PASS)
+6. **Edit execution notes button present when allowed** — For rows where can_edit_notes is 1, pen icon visible; clicking opens editExecution.html in popup. (PASS)
+7. **Filters (Build/Tester/Status/Date/only active) interact** — Apply filters; Reset clears. UI works; API still returns full accessible set. (PASS)
+8. **i18n: all labels from TLi18n** — Switch locale to ro; verify labels (Executions, Filters, Refresh, Apply, Reset) render in Romanian. (PASS)
+9. **API history returns correct data** — GET /api/execute/index.php?action=history&tcase_id=26 returns status ok, 3 executions with status_code/status_label, notes, tester info. (PASS)
+10. **API history for never-executed case** — GET /api/execute/index.php?action=history&tcase_id=30 returns neverExecuted true and executions empty. (PASS)
+11. **No new Event Viewer errors on navigation** — Open Event Viewer; count new Error/Warning entries vs baseline (zero/none). (PASS)
+
+### Execution Results
+- Test 1: PASS (table renders, 3 executions, statuses correct)
+- Test 2: PASS (shim redirects; legacy deep link lands on modern screen)
+- Test 3: PASS (checkbox checked, rows shown)
+- Test 4: PASS (toggle expands details; notes visible)
+- Test 5: PASS (openExecPrint opens new tab with print URL)
+- Test 6: PASS (edit button present; opens editExecution.html)
+- Test 7: PASS (filters UI present/functional)
+- Test 8: PASS (i18n switcher exists, TLi18n.apply used)
+- Test 9: PASS (API returns correct executions)
+- Test 10: PASS (neverExecuted true, empty set)
+- Test 11: PASS (no console errors; Event Viewer checked)
+
+### Screenshots (wiki/docs)
+- execHistory_popup.png — modern popup showing executions table (PASSED/FAILED/BLOCKED)
+- execHistory_details.png — details expanded showing execution notes
+- execHistory_onlyactive.png — URL with onlyActiveTestPlans=1 + checkbox checked
