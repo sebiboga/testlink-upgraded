@@ -9207,3 +9207,4 @@ modernized `platformsView.html` screen still renders with every linked row's del
 Suite `T1637` in `tmp/TLU_Test_Cases.md` — 17/17 PASS. Restored from branch `fix/issue-1637`
 (`716d96587` code, `8ac6cc966` suite + this entry, `e255cb5f7` `docs/` mirror); the code, the suite
 and the `docs/` page had already reached `sebiboga`, only this CHANGELOG entry was still missing.
+- [KEY BUGFIX] - #1685: `reqTreeReorder.html` — drag-and-drop reordering did not show the "Unsaved changes" chip (asymmetry with button path); fixed by calling `markDirty()` after render in the drop handler. Verified: chip appears on drop, clears on Apply/Discard, Apply persists order. No API change.
