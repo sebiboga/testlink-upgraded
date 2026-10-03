@@ -2144,6 +2144,33 @@ MAJOR AREAS
   ownership proof - it is now a non-mutating session-guarded shim (browser 302, XHR fragment).
   Wired through $actions->suiteMove + a toolbar button on the modern Test Specification.
   i18n smv.* (47) + footers.suiteMove in all 10 bundles.
+- [KEY BUGFIX - SECURITY] - #1792: `api/builds/index.php` resolved the addressed test plan BEFORE it
+  checked rights, so a user with **no rights at all** (role_id 3) got a different status for a plan
+  that EXISTS than for one that does not - and the status alone therefore enumerated every test plan
+  id in the installation. `resolveTplan()` (`:67`) answered `404 "Invalid Test Plan ID"` for an absent
+  id while `canManage()` (`:142`) answered `403 "Insufficient rights"` for a present one, and the 403
+  was reachable only when the row was there. Measured live on a fresh DB (private project 9018, plan
+  9019, build 1, user `sm1792norights`): the 403/404 split existed on **six** route families
+  (`GET /`, `GET /cfields`, `POST /`, `PUT /{id}`, `POST /{id}/flags`, `DELETE /{id}`) - two more than
+  reported, because `assertBuildInTplan()` carried the same inversion - and the `build_id` axis split
+  too (`GET /{id}`: 403 vs `404 "Build not found"`), contradicting the code comment at `:115` that
+  claimed it was already clean. Fix: **collapse** rather than reorder. These routes derive the owning
+  project FROM the addressed row, so - unlike `api/plans/index.php:127-131`, which can ask
+  `canManage()` about a project the caller named - there is nothing to check rights against before the
+  lookup, and reordering is not available. Two helpers now carry every refusal of each family:
+  `outPlanNotFound()` (`404 "Invalid Test Plan ID"`) for the plan-addressed routes and
+  `outBuildNotFound()` (`404 "Build not found"` + `error_code: build_not_found`) for the
+  build-addressed ones, wired into all 7 handlers plus `resolveTplan()` and `assertBuildInTplan()`;
+  `resolveTplanGated()` fuses `resolveTplan()` + `canManage()` so the three plan routes can no longer
+  express the split. "Absent", "belongs to another project" and "you may not manage it" are now
+  byte-identical, so no route can distinguish them. The `tplan_id=0` project-scoped list deliberately
+  KEEPS its 403 - its project comes from `$_SESSION['testprojectID']`, not from the caller, so nothing
+  is concealed. No new user-visible string and no new i18n key: every message is one the endpoint
+  already emitted on its 404 path, and `buildEdit.html:314-315` already keys its not-found state off
+  `error_code: build_not_found`. Verified: no over-blocking - `admin` still gets 200 + the plan context
+  on all six legs and still gets an honest 404 for a genuinely absent plan; 67/67 regression assertions
+  PASS (`tmp/verify_1792.php`, which fails 22 of them without the patch), Event Viewer 0 new
+  ERROR/WARNING, `php -l` clean. (Fixes #1792)
 - [KEY BUGFIX - SECURITY] - #1768: `api/attachments/index.php` gated `list`, `upload` and `download` on
   nothing but a session (`checkFk()` only proves that `table` is one of the whitelisted tables and that
   `id > 0` - an input check, not a permission), so ANY authenticated user could enumerate, download and

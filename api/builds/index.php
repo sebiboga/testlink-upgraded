@@ -12,6 +12,21 @@
  * Rights (same as legacy screens):
  *   everything -> testplan_create_build (buildView.php checkRights rightsAnd)
  *   delete with existing executions additionally requires exec_delete
+ *
+ * Refusals are OPAQUE, in two families (Refs #1792). This endpoint derives the
+ * owning project FROM the addressed id, so it cannot ask "may you touch this
+ * project?" before it has looked the id up - and answering 403 for an id that is
+ * there and 404 for one that is not turns every route into an existence oracle.
+ * Therefore:
+ *   plan-addressed  (GET /, GET /cfields, POST /)     -> 404 "Invalid Test Plan ID"
+ *   build-addressed (GET /{id}, PUT /{id}, POST /{id}/flags, DELETE /{id})
+ *                                                    -> 404 "Build not found"
+ * "absent", "belongs to another project" and "you may not manage it" all leave
+ * through one helper each (outPlanNotFound() / outBuildNotFound()), so the status
+ * AND the body are identical in all three cases. The one deliberate exception is
+ * the tplan_id=0 project-scoped list, which takes its project from the SESSION
+ * and keeps its 403: the caller cannot learn anything from it that they did not
+ * already know.
  */
 
 require_once(__DIR__ . '/../../config.inc.php');
@@ -60,6 +75,58 @@ function needTplanId() {
     return $id;
 }
 
+/* ------------------------------------------------------------------ */
+/* Opaque refusals (Refs #1792)                                        */
+/* ------------------------------------------------------------------ */
+
+/**
+ * THE opaque answer of the PLAN-addressed family (`GET /`, `GET /cfields`,
+ * `POST /`). Byte-identical to what resolveTplan() answers for an id that is
+ * simply not there.
+ *
+ * WHY one helper, used for BOTH "no such plan" and "not your plan": these
+ * routes take no tproject_id of their own - the project is read OUT of the plan
+ * row - so unlike api/plans/index.php:127-131 (which can ask canManage() about
+ * a project the caller named, and so may honestly answer 403 before it resolves
+ * anything) there is no way to answer "you may not touch this" without first
+ * learning whether the row exists. Answering 404 for an existing plan and 403
+ * for an absent one therefore handed every logged-in user a plan-id oracle:
+ * walking tplan_id upwards painted the whole set of test plans of the
+ * installation (measured 403 vs 404 across six route families).
+ *
+ * The status is 404, not 403, because the 403 branch is only ever reachable
+ * when the row IS there - keeping 403 for it is the bug. A caller who legitimately
+ * needs to know "you lack rights" is answered on the routes where the project is
+ * caller-supplied (api/plans) or session-derived (the tplan_id=0 project-scoped
+ * list below), where nothing is being concealed.
+ *
+ * The message is the string this endpoint ALREADY emitted on the 404 path, so
+ * no new user-visible text and no new i18n key is introduced.
+ */
+function outPlanNotFound() {
+    http_response_code(404);
+    out(['status' => 'error', 'message' => 'Invalid Test Plan ID']);
+}
+
+/**
+ * THE opaque answer of the BUILD-addressed family (`GET /{id}`, `PUT /{id}`,
+ * `POST /{id}/flags`, `DELETE /{id}`): one status and one body for "no such
+ * build", "that build belongs to another project" and "you may not manage that
+ * build's project".
+ *
+ * The build-addressed routes previously answered 403 "Insufficient rights" for
+ * the last case, which split the status against the 404 "Build not found" of the
+ * first two - i.e. the same oracle on the build_id axis, and the same inversion
+ * on the tplan_id axis through assertBuildInTplan(). The `error_code` matches
+ * what gui/templates/plans/buildEdit.html:315 already keys its "not found" state
+ * off, and that template keeps its separate 403 branch for every other endpoint.
+ */
+function outBuildNotFound() {
+    http_response_code(404);
+    out(['status' => 'error', 'message' => 'Build not found',
+         'error_code' => 'build_not_found']);
+}
+
 /**
  * Resolve the test plan context exactly like legacy initEnv(): plan must be
  * a testplan node; tproject_id comes from its parent.
@@ -69,8 +136,7 @@ function resolveTplan(&$db, $tplanId) {
     $info = $tplanMgr->tree_manager->get_node_hierarchy_info(
         $tplanId, null, array('nodeType' => 'testplan'));
     if (is_null($info)) {
-        http_response_code(404);
-        out(['status' => 'error', 'message' => 'Invalid Test Plan ID']);
+        outPlanNotFound();
     }
     return [
         'tplan_mgr' => $tplanMgr,
@@ -111,9 +177,16 @@ function resolveBuild(&$db, $b) {
  * a bookmark, a hand-typed URL) could read, rename or DELETE a build of
  * another project and have the result shown inside this plan's context.
  *
- * The plan is resolved first, so a foreign or non-existent tplan_id can never
- * be used as an existence oracle, and the failure is a plain 404 - identical
- * to a build that does not exist, so the route leaks nothing.
+ * SCOPE CHECK, NOT AN ORACLE (Refs #1792): this paragraph used to claim that a
+ * foreign or non-existent tplan_id "can never be used as an existence oracle"
+ * because the plan is resolved before the failure is raised. That was not what
+ * the code did. Both refusals of THIS function are fine on their own - they are
+ * now the same outBuildNotFound() - but the caller-supplied canManage() check
+ * that runs right after it answered 403 for an existing plan and 404 for an
+ * absent one, so the status alone still enumerated test plan ids through
+ * PUT /{id}, POST /{id}/flags and DELETE /{id}. Every build-addressed route now
+ * ends in outBuildNotFound(), so "absent", "foreign" and "not yours" are one
+ * answer on every axis.
  */
 function assertBuildInTplan(&$db, $b, $tplanId) {
     $tplanId = intval($tplanId);
@@ -123,13 +196,10 @@ function assertBuildInTplan(&$db, $b, $tplanId) {
     $tp = new testplan($db);
     $plan = $tp->get_by_id($tplanId);
     if (is_null($plan)) {
-        http_response_code(404);
-        out(['status' => 'error', 'message' => 'Invalid Test Plan ID']);
+        outBuildNotFound();
     }
     if (intval($plan['testproject_id']) !== intval($b['testproject_id'] ?? 0)) {
-        http_response_code(404);
-        out(['status' => 'error', 'message' => 'Build not found',
-             'error_code' => 'build_not_found']);
+        outBuildNotFound();
     }
 }
 
@@ -145,6 +215,25 @@ function canManage(&$user, &$db, $tprojectId) {
 
 function canDeleteExec(&$user, &$db, $tprojectId) {
     return (bool)$user->hasRight($db, 'exec_delete', $tprojectId);
+}
+
+/**
+ * resolveTplan() + canManage() as ONE opaque step (Refs #1792).
+ *
+ * Used by every route whose address is a tplan_id. resolveTplan() answers 404
+ * when the row is absent and canManage() answered 403 when it was present but
+ * the caller is not entitled - so the status alone revealed which test plan ids
+ * exist. Both refusals now leave through outPlanNotFound() and are therefore
+ * byte-identical.
+ *
+ * @return array the resolveTplan() context
+ */
+function resolveTplanGated(&$db, &$user, $tplanId) {
+    $ctx = resolveTplan($db, $tplanId);
+    if (!canManage($user, $db, $ctx['tproject_id'])) {
+        outPlanNotFound();
+    }
+    return $ctx;
 }
 
 /** Trim a string body field. */
@@ -410,7 +499,7 @@ if ($method === 'GET' && count($segments) === 0) {
     // (tplan_id=0 -> "Builds & Releases" under the project submenu).
     $tplanId = intval($_GET['tplan_id'] ?? ($_POST['tplan_id'] ?? 0));
     if ($tplanId > 0) {
-        $ctx = resolveTplan($db, $tplanId);
+        $ctx = resolveTplanGated($db, $user, $tplanId);
     } else {
         // Project-scoped list: resolve the project from the active session
         // (legacy buildEdit fallback, common.php:testprojectID key), clip the
@@ -431,10 +520,15 @@ if ($method === 'GET' && count($segments) === 0) {
             'tplan_name' => $pinfo['name'],
             'tproject_id' => $tproject_id,
         ];
-    }
-    if (!canManage($user, $db, $ctx['tproject_id'])) {
-        http_response_code(403);
-        out(['status' => 'error', 'message' => 'Insufficient rights']);
+        // Refs #1792: this branch KEEPS its 403. The project comes from the
+        // SESSION, not from a caller-supplied id, so the caller cannot learn
+        // anything they did not already know and the refusal stays informative.
+        // Only the tplan_id>0 branch above had to become opaque, because there
+        // the project is read out of the very row whose existence is secret.
+        if (!canManage($user, $db, $ctx['tproject_id'])) {
+            http_response_code(403);
+            out(['status' => 'error', 'message' => 'Insufficient rights']);
+        }
     }
 
     // Source-build selector data (legacy init_source_build_selector):
@@ -540,14 +634,12 @@ if ($method === 'GET' && count($segments) === 0) {
 if ($method === 'GET' && count($segments) === 1 && ctype_digit($segments[0])) {
     $b = $buildMgr->get_by_id(intval($segments[0]));
     if (!$b) { // build::get_by_id returns bool(false) when missing
-        http_response_code(404);
-        out(['status' => 'error', 'message' => 'Build not found']);
+        outBuildNotFound();
     }
     $ctx = resolveBuild($db, $b);
     assertBuildInTplan($db, $b, $_GET['tplan_id'] ?? 0);
     if (!canManage($user, $db, $ctx['tproject_id'])) {
-        http_response_code(403);
-        out(['status' => 'error', 'message' => 'Insufficient rights']);
+        outBuildNotFound(); // Refs #1792: opaque, same as "no such build"
     }
     out([
         'status' => 'ok',
@@ -584,25 +676,16 @@ if ($method === 'GET' && count($segments) === 1 && $segments[0] === 'cfields') {
         out(['status' => 'error', 'message' => 'Invalid test plan id',
              'error_code' => 'no_tplan']);
     }
-    $ctx = resolveTplan($db, $tplanId);
-    if (!canManage($user, $db, $ctx['tproject_id'])) {
-        http_response_code(403);
-        out(['status' => 'error', 'message' => 'Insufficient rights',
-             'error_code' => 'no_right']);
-    }
+    $ctx = resolveTplanGated($db, $user, $tplanId);
     $buildId = intval($_GET['build_id'] ?? 0);
     if ($buildId > 0) {
         $b = $buildMgr->get_by_id($buildId);
         if (!$b) {
-            http_response_code(404);
-            out(['status' => 'error', 'message' => 'Build not found',
-                 'error_code' => 'build_not_found']);
+            outBuildNotFound();
         }
         $bctx = resolveBuild($db, $b);
         if (intval($bctx['tproject_id']) !== intval($ctx['tproject_id'])) {
-            http_response_code(404);
-            out(['status' => 'error', 'message' => 'Build not found',
-                 'error_code' => 'build_not_found']);
+            outBuildNotFound();
         }
         $buildId = intval($b['id']);
     }
@@ -623,11 +706,7 @@ if ($method === 'POST' && count($segments) === 0) {
         http_response_code(400);
         out(['status' => 'error', 'message' => 'Invalid test plan id']);
     }
-    $ctx = resolveTplan($db, $tplanId);
-    if (!canManage($user, $db, $ctx['tproject_id'])) {
-        http_response_code(403);
-        out(['status' => 'error', 'message' => 'Insufficient rights']);
-    }
+    $ctx = resolveTplanGated($db, $user, $tplanId);
     $tp = $ctx['tplan_mgr'];
 
     $name = strField($body, 'name');
@@ -725,8 +804,7 @@ if ($method === 'POST' && count($segments) === 2 && ctype_digit($segments[0])
     $body = getBody();
     $b = $buildMgr->get_by_id($buildId);
     if (!$b) { // build::get_by_id returns bool(false) when missing
-        http_response_code(404);
-        out(['status' => 'error', 'message' => 'Build not found']);
+        outBuildNotFound();
     }
     $ctx = resolveBuild($db, $b);
     // BODY first: buildsView.html sends tplan_id inside the JSON body for this
@@ -735,8 +813,7 @@ if ($method === 'POST' && count($segments) === 2 && ctype_digit($segments[0])
     // fallback; the check itself must never be side-stepped by picking one.
     assertBuildInTplan($db, $b, $body['tplan_id'] ?? ($_GET['tplan_id'] ?? 0));
     if (!canManage($user, $db, $ctx['tproject_id'])) {
-        http_response_code(403);
-        out(['status' => 'error', 'message' => 'Insufficient rights']);
+        outBuildNotFound(); // Refs #1792: opaque, same as "no such build"
     }
     if (!array_key_exists('active', $body) && !array_key_exists('open', $body)) {
         http_response_code(400);
@@ -837,16 +914,14 @@ if ($method === 'PUT' && count($segments) === 1 && ctype_digit($segments[0])) {
     $body = getBody();
     $b = $buildMgr->get_by_id($buildId);
     if (!$b) { // build::get_by_id returns bool(false) when missing
-        http_response_code(404);
-        out(['status' => 'error', 'message' => 'Build not found']);
+        outBuildNotFound();
     }
     $ctx = resolveBuild($db, $b);
     // PUT addresses the plan in the JSON body (the legacy form posted it),
     // so the scope check reads the body first and falls back to the query.
     assertBuildInTplan($db, $b, $body['tplan_id'] ?? ($_GET['tplan_id'] ?? 0));
     if (!canManage($user, $db, $ctx['tproject_id'])) {
-        http_response_code(403);
-        out(['status' => 'error', 'message' => 'Insufficient rights']);
+        outBuildNotFound(); // Refs #1792: opaque, same as "no such build"
     }
     $tp = new testplan($db);
     $ctx['tplan_mgr'] = $tp;
@@ -921,14 +996,12 @@ if ($method === 'DELETE' && count($segments) === 1 && ctype_digit($segments[0]))
     $buildId = intval($segments[0]);
     $b = $buildMgr->get_by_id($buildId);
     if (!$b) { // build::get_by_id returns bool(false) when missing
-        http_response_code(404);
-        out(['status' => 'error', 'message' => 'Build not found']);
+        outBuildNotFound();
     }
     $ctx = resolveBuild($db, $b);
     assertBuildInTplan($db, $b, $_GET['tplan_id'] ?? 0);
     if (!canManage($user, $db, $ctx['tproject_id'])) {
-        http_response_code(403);
-        out(['status' => 'error', 'message' => 'Insufficient rights']);
+        outBuildNotFound(); // Refs #1792: opaque, same as "no such build"
     }
 
     // Legacy doDelete(): executions on this build require exec_delete right.
