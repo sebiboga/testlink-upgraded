@@ -337,16 +337,56 @@ function getSecurityNotes(&$db)
  *         false else
  * @author franciscom 
  **/
-function checkForBTSConnection()
+function checkForBTSConnection($db = null)
 {
-  
-  global $g_bugInterface;
   $status_ok = true;
-  if($g_bugInterface && !$g_bugInterface->connect())
-  {  
-    $status_ok = false;
+  global $g_bugInterface;
+  if (isset($g_bugInterface) && !is_null($g_bugInterface) && is_object($g_bugInterface)) {
+    if (!$g_bugInterface->connect()) {
+      $status_ok = false;
+    }
+    return $status_ok;
   }
-  return $status_ok; 
+
+  if (!$db || !method_exists($db, 'fetchRowsIntoMap')) {
+    return true;
+  }
+
+  $prefix = defined('DB_TABLE_PREFIX') ? DB_TABLE_PREFIX : '';
+  $itTable = $prefix . 'issuetrackers';
+  $linkTable = $prefix . 'testproject_issuetracker';
+
+  $linked = @$db->fetchRowsIntoMap(
+    "SELECT DISTINCT ITRK.id AS id, ITRK.name AS name " .
+    " FROM {$linkTable} TPIT " .
+    " JOIN {$itTable} ITRK ON ITRK.id = TPIT.issuetracker_id " .
+    " ORDER BY ITRK.id",
+    'id');
+  if (!is_array($linked) || empty($linked)) {
+    return true;
+  }
+
+  $mgr = new tlIssueTracker($db);
+  foreach ($linked as $row) {
+    $id = intval($row['id']);
+    try {
+      $item = $mgr->getByID($id);
+      $impl = $item ? $item['implementation'] : null;
+      if (empty($impl)) {
+        return false;
+      }
+      if (!class_exists($impl)) {
+        return false;
+      }
+      $iface = new $impl($item['type'], $item['cfg'], $item['name']);
+      if (!$iface->connect()) {
+        return false;
+      }
+    } catch (\Throwable $e) {
+      return false;
+    }
+  }
+  return true;
 }
 
 /** 
