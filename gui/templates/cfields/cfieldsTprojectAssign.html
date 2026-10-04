@@ -421,8 +421,13 @@ function doAssign() {
       url: API + '?action=assign', type: 'POST', dataType: 'json',
       contentType: 'application/json',
       data: JSON.stringify({ tproject_id: TPROJECT_ID, ids: ids })
-    }).done(function() {
-      toast(t('cfpa.msg.assigned'), true);
+    }).done(function(r) {
+      /* BFF returns {count}; without it TLi18n printed the raw {count}
+         placeholder (issue #1819). release() FIRST: omitting it left busy=true
+         for the rest of the page's life and every later button - including
+         Save display attributes - became a silent no-op (issue #1818). */
+      toast(t('cfpa.msg.assigned', { count: intOf(r.count) }), true);
+      release();
       load();
     }).fail(function(xhr) { writeError(xhr, 'cfpa.state.failed'); });
   });
@@ -449,8 +454,9 @@ $('#confirmOk').on('click', function() {
       url: API + '?action=unassign', type: 'POST', dataType: 'json',
       contentType: 'application/json',
       data: JSON.stringify({ tproject_id: TPROJECT_ID, ids: ids })
-    }).done(function() {
-      toast(t('cfpa.msg.unassigned'), true);
+    }).done(function(r) {
+      toast(t('cfpa.msg.unassigned', { count: intOf(r.count) }), true);
+      release();
       load();
     }).fail(function(xhr) { writeError(xhr, 'cfpa.state.failed'); });
   });
