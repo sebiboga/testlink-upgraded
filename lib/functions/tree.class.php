@@ -870,20 +870,15 @@ class tree extends tlObject
    */  
   function _get_subtree($node_id,&$node_list,$filters = null, $options = null)
   {
-    static $my;
-    if(!$my)
-    {
-      $my['filters'] = array('exclude_children_of' => null,'exclude_branches' => null,
+    $my = array();
+    $defaultsFilters = array('exclude_children_of' => null,'exclude_branches' => null,
                              'additionalWhereClause' => '', 'family' => null);
-                                 
-      $my['options'] = array('order_cfg' => array("type" =>'spec_order'),
+    $defaultsOptions = array('order_cfg' => array("type" =>'spec_order'),
                              'output' => 'full', 'key_type' => 'std',
                              'addJoin' => '', 'addFields' => '');
-  
-    }
 
-    $my['filters'] = array_merge($my['filters'], (array)$filters);
-    $my['options'] = array_merge($my['options'], (array)$options);
+    $my['filters'] = array_merge($defaultsFilters, (array)$filters);
+    $my['options'] = array_merge($defaultsOptions, (array)$options);
        
     switch($my['options']['order_cfg']['type'])
     {
@@ -1052,7 +1047,7 @@ class tree extends tlObject
         if( !isset($my['filters']['exclude_children_of'][$nodeTypeName]) && 
             !isset($my['filters']['exclude_branches'][$row['id']]) )
         {
-          $this->_get_subtree($row['id'],$node_list,$filters,$options);
+          $this->_get_subtree($row['id'],$node_list,$my['filters'],$my['options']);
         }
         }
       }
