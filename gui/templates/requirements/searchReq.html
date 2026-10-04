@@ -7,6 +7,7 @@
 <title>Search Requirements</title>
 <link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
 <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/rowgroup/1.4.1/css/rowGroup.dataTables.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <style>
 * { box-sizing: border-box; }
@@ -40,6 +41,23 @@ table.dataTable tbody td { padding: 8px 14px; font-size: 13px; vertical-align: m
 .path-cell { color: #555; max-width: 300px; }
 .ver-link { color: #2d8e88; text-decoration: none; margin-right: 8px; white-space: nowrap; }
 .ver-link:hover { text-decoration: underline; }
+/* Refs #1079 - legacy grid toolbar parity: lib/requirements/reqSearch.php:174-178
+     (showToolbar=true, toolbarRefreshButton=false, toolbarShowAllColumnsButton=false,
+     storeTableState=false) -> only the expand/collapse-groups button of
+     gui/javascript/ext_extensions.js:184-199 is rendered. */
+.grid-toolbar { background: #2c2f38; padding: 8px 24px; display: flex; gap: 8px; align-items: center; border-top: 1px solid #3a3d47; margin: 0 24px; border-radius: 6px; }
+.tbtn { display: inline-flex; align-items: center; gap: 6px; background: #3a3d47; color: #fff; border: none; border-radius: 4px; padding: 6px 12px; font-size: 12px; cursor: pointer; }
+.tbtn:hover { background: #4ECDC4; color: #fff; }
+.tbtn i { color: #4ECDC4; }
+.tbtn:hover i { color: #fff; }
+.tbtn.active { background: #4ECDC4; color: #fff; }
+.tbtn.active i { color: #fff; }
+.toolbar-info { color: #8a8f99; font-size: 12px; margin-left: auto; }
+/* Group header rows: legacy groupTextTpl '{text} ({rs.length} Item[s])'
+   (lib/functions/exttable.class.php:591) rendered as a collapsible ExtJS group. */
+table.dataTable tbody tr.dtrg-group td { background: #e9f5f3; font-weight: 700; color: #2b6f69; cursor: pointer; padding: 8px 14px; font-size: 12px; }
+table.dataTable tbody tr.dtrg-group td i { margin-right: 6px; color: #4ECDC4; }
+table.dataTable tbody tr.dtrg-group td .gcount { font-weight: 400; color: #6aa; font-size: 11px; margin-left: 6px; }
 .icon-btn { background: none; border: none; cursor: pointer; font-size: 14px; padding: 2px 5px; color: #4ECDC4; }
 .icon-btn:hover { color: #3dbdb5; }
 .warnbox { margin: 12px 24px 0; background: #fdecea; border: 1px solid #f5c6cb; color: #b94a48; border-radius: 6px; padding: 10px 14px; font-size: 13px; display: none; }
@@ -152,6 +170,16 @@ table.dataTable tbody td { padding: 8px 14px; font-size: 13px; vertical-align: m
   <h2><span data-i18n="reqsearch.results">Search results</span><span class="count" id="matchCount"></span></h2>
 </div>
 <div class="empty" id="noResults" data-i18n="reqsearch.noResults">No requirements match the given criteria.</div>
+
+<!-- Refs #1079 - legacy ExtGrid toolbar parity. lib/requirements/reqSearch.php:174-178
+     enables the toolbar but disables the refresh, show-all-columns and
+     default-state buttons, so only 'expand/collapse groups' remains
+     (gui/javascript/ext_extensions.js:184-199). -->
+<div class="grid-toolbar" id="gridToolbar" style="display:none">
+  <button type="button" class="tbtn" id="btnGroupToggle"><i class="fa fa-chevron-down"></i> <span data-i18n="reqsearch.expandCollapseGroups">Expand/Collapse Groups</span></button>
+  <span class="toolbar-info" id="gridToolbarInfo"></span>
+</div>
+
 <div class="table-wrap" id="resultsWrap" style="display:none">
   <table id="resTable" class="display" style="width:100%">
     <thead>
@@ -173,6 +201,7 @@ table.dataTable tbody td { padding: 8px 14px; font-size: 13px; vertical-align: m
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap.min.js"></script>
+<script src="https://cdn.datatables.net/rowgroup/1.4.1/js/dataTables.rowGroup.min.js"></script>
 <script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
 <script>
 var API = '/api/requirements/index.php';
@@ -181,6 +210,15 @@ var tplanId = 0;
 var ctx = null;
 var resTbl = null;
 var tcasePrefix = '';   // project TC prefix incl. glue char, e.g. 'TL-'
+// Refs #1079 - legacy grid grouping state. lib/requirements/reqSearch.php:170
+// calls setGroupByColumnName('req_spec'): rows are grouped by the requirement
+// specification path. exttable.class.php:55 hideGroupedColumn=true hides the
+// grouped column; the path is then shown only by the group header.
+var GRID_SPEC_COL = 'path';
+var SPEC_COL_IDX = 0;
+var collapsedGroups = Object.create(null);
+// guard for the deferred group-order re-apply (see pinGroupOrder)
+var reordering = false;
 
 $(function () {
   var p = new URLSearchParams(window.location.search);
@@ -189,6 +227,7 @@ $(function () {
   TLi18n.load(function () {
     TLi18n.apply();
     TLi18n.initLocaleSwitcher('#localeSwitcher');
+    $('#btnGroupToggle').on('click', toggleGroups);
     loadContext(p);
   });
 });
@@ -358,6 +397,7 @@ function destroyTable() {
     '<th style="width:44%">' + esc(TLi18n.t('reqsearch.colRequirement')) + '</th>' +
     '<th>' + esc(TLi18n.t('reqsearch.colVersions')) + '</th>' +
     '</tr></thead><tbody></tbody></table>');
+  $('#gridToolbarInfo').text('');
 }
 
 function renderResults(r) {
@@ -370,12 +410,17 @@ function renderResults(r) {
 
   if (!r.results || r.results.length === 0) {
     $('#resultsWrap').hide();
+    $('#gridToolbar').hide();
     $('#noResults').toggle(!r.too_wide);
+    // legacy renders NO grid at all when the search finds nothing
+    // (reqSearch.php:127 buildExtTable() returns null) - drop the stale one
+    destroyTable();
     $('#footerInfo').text('');
     return;
   }
   $('#noResults').hide();
   $('#resultsWrap').show();
+  $('#gridToolbar').show();
   destroyTable();
 
   var rows = r.results.map(function (row) {
@@ -399,18 +444,160 @@ function renderResults(r) {
         esc(TLi18n.t('reqsearch.versionTag')) + m.version + '.' + m.revision + '</a>';
     }).join('');
 
-    return [path, reqLabel, vers];
+    // RowGroup needs the raw path on the row object: path / requirement /
+    // versions, so the grouped column stays sortable and the requirement label
+    // keeps its markup.
+    return {
+      path: row.path,
+      requirement: reqLabel,
+      reqSort: (row.req_doc_id + ':' + row.name),
+      versions: vers
+    };
   });
 
   resTbl = $('#resTable').DataTable({
     destroy: true,
     data: rows,
+    columns: [
+      {
+        data: 'path',
+        // legacy hides the grouped column (exttable.class.php:55
+        // hideGroupedColumn=true, reqSearch.php:177 disables the button that
+        // would reveal it) - the spec path is shown by the group header
+        visible: false,
+        render: { display: function (d) { return '<span class="path-cell">' + esc(d) + '</span>'; } }
+      },
+      {
+        // the raw 'DOC-ID:name' text is the sort value (the legacy ExtJS grid
+        // sorts on the column value, not on the rendered cell - exttable
+        // renders only the edit link), the display value carries the markup
+        data: 'reqSort',
+        render: function (d, t, row) { return row.requirement; }
+      },
+      { data: 'versions', orderable: false }
+    ],
+    // default sort of the legacy grid: requirement column, descending
+    // (reqSearch.php:171-172 setSortByColumnName + sortDirection='DESC')
+    order: [[1, 'desc']],
+    // Legacy parity: rows are grouped per Requirement Specification path
+    // (reqSearch.php:170) with a collapsible header showing the item count
+    // (exttable.class.php:591 groupTextTpl '{text} (N Item[s])').
+    rowGroup: {
+      dataSrc: GRID_SPEC_COL,
+      startRender: function (groupRows, group) {
+        var isCollapsed = isGroupCollapsed(group);
+        groupRows.nodes().each(function (r) { r.style.display = isCollapsed ? 'none' : ''; });
+        var n = groupRows.count();
+        var cnt = TLi18n.t('reqsearch.groupItem', {count: n});
+        if (n !== 1) { cnt = TLi18n.t('reqsearch.groupItems', {count: n}); }
+        // span the group band over the columns that are actually visible: the
+        // grouped column is hidden by default, like in the legacy grid
+        var visibleCols = $('#resTable thead th').filter(function () {
+          return $(this).css('display') !== 'none';
+        }).length;
+        var $tr = $('<tr/>').addClass('dtrg-group').attr('data-key', encodeURIComponent(group))
+          .on('click', function () { toggleGroup(group); });
+        return $tr.append($('<td/>').attr('colspan', visibleCols).append(
+          $('<i/>').addClass('fa ' + (isCollapsed ? 'fa-chevron-right' : 'fa-chevron-down')),
+          ' ' + esc(group) + '<span class="gcount">' + cnt + '</span>'
+        ));
+      }
+    },
     language: { search: '', searchPlaceholder: TLi18n.t('common.search') },
-    columnDefs: [
-      { targets: 2, orderable: false }
-    ]
+    drawCallback: function () { pinGroupOrder(this); }
   });
+  pruneCollapsedGroups();
+  updateGroupToggleBtn();
+  // the initial draw happens INSIDE the DataTable() constructor, i.e. before
+  // resTbl is assigned - pinGroupOrder() could not run there, so run it once
+  // now that the table reference exists
+  pinGroupOrder();
   $('#footerInfo').text(TLi18n.t('reqsearch.matchCount', {n: r.row_qty}));
+}
+
+// hasOwnProperty based: a requirement spec named e.g. 'toString' must not inherit
+// Object.prototype members (the legacy grid has no such edge case).
+function isGroupCollapsed(key) {
+  return Object.prototype.hasOwnProperty.call(collapsedGroups, key);
+}
+
+function allGroupKeys() {
+  var keys = Object.create(null);
+  if (!resTbl) { return keys; }
+  var data = resTbl.rows().data().toArray();
+  $.each(data, function (i, row) { keys[row[GRID_SPEC_COL]] = true; });
+  return keys;
+}
+
+// the grid is rebuilt on every search; drop collapse state of groups that no
+// longer exist in the current result set
+function pruneCollapsedGroups() {
+  var keys = allGroupKeys();
+  $.each(Object.keys(collapsedGroups), function (i, k) {
+    if (!Object.prototype.hasOwnProperty.call(keys, k)) { delete collapsedGroups[k]; }
+  });
+}
+
+function updateGroupToggleBtn() {
+  $('#btnGroupToggle').toggleClass('active', anyGroupCollapsed());
+}
+
+// decide from the live data, never from the (prunable) state map alone
+function anyGroupCollapsed() {
+  var keys = allGroupKeys();
+  var any = false;
+  $.each(Object.keys(keys), function (i, k) {
+    if (Object.prototype.hasOwnProperty.call(collapsedGroups, k)) { any = true; return false; }
+  });
+  return any;
+}
+
+// DataTables RowGroup merges only contiguous runs, so the group column must stay
+// the primary sort criterion even when the user sorts by another column
+// (Ext.data.Store.sortOnGroupField). order.dt fires *during* a draw: re-drawing
+// synchronously there would rebuild the tbody while it is being written, so the
+// re-apply is deferred one tick.
+function pinGroupOrder(settings) {
+  if (!resTbl || reordering) { return; }
+  // ignore events of a previous instance (the grid is destroyed and rebuilt on
+  // every search, and its initial draw fires order.dt)
+  var cur = resTbl.settings()[0];
+  if (settings && cur && settings !== cur) { return; }
+  var o = resTbl.order();
+  if (o.length && o[0][0] === SPEC_COL_IDX) { return; }
+  reordering = true;
+  setTimeout(function () {
+    resTbl.order([[SPEC_COL_IDX, 'asc']].concat(o)).draw(false);
+    reordering = false;
+  }, 0);
+}
+
+function toggleGroup(key) {
+  if (isGroupCollapsed(key)) {
+    delete collapsedGroups[key];
+  } else {
+    collapsedGroups[key] = true;
+  }
+  if (resTbl) { resTbl.draw(false); }
+  updateGroupToggleBtn();
+}
+
+function expandAllGroups() {
+  collapsedGroups = Object.create(null);
+  if (resTbl) { resTbl.draw(false); }
+  updateGroupToggleBtn();
+  $('#gridToolbarInfo').text(TLi18n.t('reqsearch.groupsExpanded'));
+}
+
+function collapseAllGroups() {
+  collapsedGroups = allGroupKeys();
+  if (resTbl) { resTbl.draw(false); }
+  updateGroupToggleBtn();
+  $('#gridToolbarInfo').text(TLi18n.t('reqsearch.groupsCollapsed'));
+}
+
+function toggleGroups() {
+  if (anyGroupCollapsed()) { expandAllGroups(); } else { collapseAllGroups(); }
 }
 
 // same targets as the legacy JS helpers openLinkedReqWindow() /
@@ -433,8 +620,10 @@ function resetForm() {
   $('#warnBox').hide();
   $('#resultsHead').hide();
   $('#resultsWrap').hide();
+  $('#gridToolbar').hide();
   $('#noResults').hide();
   destroyTable();
+  collapsedGroups = Object.create(null);
   $('.panel').find('input[type=text],input[type=number],input[type=date],textarea').val('');
   $('#tcid').val(tcasePrefix);
   $('#reqStatus').val('');
