@@ -6446,5 +6446,6 @@
   "usergrid.roleId": "ID Rol",
   "usergrid.showAllColumns": "Afișează toate coloanele",
   "usergrid.userId": "ID Utilizator",
-  "version": "Versiune"
+  "version": "Versiune",
+  "cfpa.err.already_assigned": "Acele câmpuri personalizate sunt deja atribuite acestui proiect de test."
 }

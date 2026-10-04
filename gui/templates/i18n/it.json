@@ -6436,5 +6436,6 @@
   "usergrid.roleId": "ID Ruolo",
   "usergrid.showAllColumns": "Mostra tutte le colonne",
   "usergrid.userId": "ID Utente",
-  "version": "Versione"
+  "version": "Versione",
+  "cfpa.err.already_assigned": "Quei campi personalizzati sono già assegnati a questo progetto di test."
 }

@@ -6452,5 +6452,6 @@
   "usergrid.roleId": "Role ID",
   "usergrid.showAllColumns": "Show all Columns",
   "usergrid.userId": "User ID",
-  "version": "Version"
+  "version": "Version",
+  "cfpa.err.already_assigned": "Those custom fields are already assigned to this test project."
 }

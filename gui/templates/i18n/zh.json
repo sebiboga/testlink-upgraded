@@ -6422,5 +6422,6 @@
   "usergrid.roleId": "角色 ID",
   "usergrid.showAllColumns": "显示所有列",
   "usergrid.userId": "用户 ID",
-  "version": "版本"
+  "version": "版本",
+  "cfpa.err.already_assigned": "这些自定义字段已分配给该测试项目。"
 }

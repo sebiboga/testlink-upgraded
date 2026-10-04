@@ -336,9 +336,19 @@ if ($action === 'assign' || $action === 'unassign') {
     }
 
     if ($action === 'assign') {
-        $cfield_mgr->link_to_testproject($tprojectId, $ids);
-        logAuditEvent(count($ids) . ' custom field(s) assigned to test project '
+        // link_to_testproject() issues an unconditional INSERT and
+        // cfield_testprojects has PK (field_id,testproject_id), so a duplicate
+        // assign blew up with a raw DB Access Error page served as HTTP 200.
+        // Mirror the unassign guard: only attach what is not attached HERE.
+        $new = cfpaSanitizeIds($ids, array_diff($allIds, $linkedIds));
+        if (!$new) {
+            cfpaFail(409, 'already_assigned',
+                     'All submitted custom fields are already assigned to this test project');
+        }
+        $cfield_mgr->link_to_testproject($tprojectId, $new);
+        logAuditEvent(count($new) . ' custom field(s) assigned to test project '
                       . $tprojectId, 'ASSIGN', $tprojectId, 'testprojects');
+        $ids = $new;
     } else {
         // Unassign may only detach fields that are really attached HERE, or a
         // crafted id would remove the link row of another project.

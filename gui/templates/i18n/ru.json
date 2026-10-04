@@ -6442,5 +6442,6 @@
   "usergrid.roleId": "ID роли",
   "usergrid.showAllColumns": "Показать все столбцы",
   "usergrid.userId": "ID пользователя",
-  "version": "Версия"
+  "version": "Версия",
+  "cfpa.err.already_assigned": "Эти пользовательские поля уже назначены данному тестовому проекту."
 }
