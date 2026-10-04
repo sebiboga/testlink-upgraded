@@ -6635,5 +6635,14 @@
   "risk.step3": "3 - 可能",
   "risk.step4": "4 - 很可能",
   "risk.step5": "5 - 几乎必然",
-  "footers.riskCoverage": "TestLink 2.0.1 - 基于风险的测试"
+  "footers.riskCoverage": "TestLink 2.0.1 - 基于风险的测试",
+  "rb.expandAllGroups": "Expand all groups",
+  "rb.collapseAllGroups": "Collapse all groups",
+  "rb.showAllColumns": "Show all columns",
+  "rb.resetFilters": "Reset Filters",
+  "rb.refresh": "Refresh",
+  "rb.resetState": "Reset to default state",
+  "rb.multiSort": "Multi sort",
+  "rb.groupItem": "({count} item)",
+  "rb.groupItems": "({count} items)"
 }

@@ -6655,5 +6655,14 @@
   "risk.step3": "3 - あり得る",
   "risk.step4": "4 - おそらく",
   "risk.step5": "5 - ほぼ確実",
-  "footers.riskCoverage": "TestLink 2.0.1 - リスクベースのテスト"
+  "footers.riskCoverage": "TestLink 2.0.1 - リスクベースのテスト",
+  "rb.expandAllGroups": "Expand all groups",
+  "rb.collapseAllGroups": "Collapse all groups",
+  "rb.showAllColumns": "Show all columns",
+  "rb.resetFilters": "Reset Filters",
+  "rb.refresh": "Refresh",
+  "rb.resetState": "Reset to default state",
+  "rb.multiSort": "Multi sort",
+  "rb.groupItem": "({count} item)",
+  "rb.groupItems": "({count} items)"
 }

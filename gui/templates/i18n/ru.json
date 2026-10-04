@@ -6655,5 +6655,14 @@
   "risk.step3": "3 - возможно",
   "risk.step4": "4 - вероятно",
   "risk.step5": "5 - почти наверняка",
-  "footers.riskCoverage": "TestLink 2.0.1 - Тестирование на основе рисков"
+  "footers.riskCoverage": "TestLink 2.0.1 - Тестирование на основе рисков",
+  "rb.expandAllGroups": "Expand all groups",
+  "rb.collapseAllGroups": "Collapse all groups",
+  "rb.showAllColumns": "Show all columns",
+  "rb.resetFilters": "Reset Filters",
+  "rb.refresh": "Refresh",
+  "rb.resetState": "Reset to default state",
+  "rb.multiSort": "Multi sort",
+  "rb.groupItem": "({count} item)",
+  "rb.groupItems": "({count} items)"
 }

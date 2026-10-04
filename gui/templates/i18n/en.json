@@ -6665,5 +6665,14 @@
   "risk.step3": "3 - possible",
   "risk.step4": "4 - probable",
   "risk.step5": "5 - almost certain",
-  "footers.riskCoverage": "TestLink 2.0.1 - Risk-Based Testing"
+  "footers.riskCoverage": "TestLink 2.0.1 - Risk-Based Testing",
+  "rb.expandAllGroups": "Expand all groups",
+  "rb.collapseAllGroups": "Collapse all groups",
+  "rb.showAllColumns": "Show all columns",
+  "rb.resetFilters": "Reset Filters",
+  "rb.refresh": "Refresh",
+  "rb.resetState": "Reset to default state",
+  "rb.multiSort": "Multi sort",
+  "rb.groupItem": "({count} item)",
+  "rb.groupItems": "({count} items)"
 }

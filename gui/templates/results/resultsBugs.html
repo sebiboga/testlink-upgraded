@@ -54,6 +54,16 @@ td.bugcell { max-width: 400px; word-break: break-word; white-space: normal; }
 @keyframes spin { from { transform: rotate(0deg);} to { transform: rotate(360deg);} }
 .dataTables_wrapper .dataTables_filter input { border: 1px solid #ccc; border-radius: 4px; padding: 4px 8px; font-size: 12px; }
 .dataTables_wrapper .dataTables_length select { border: 1px solid #ccc; border-radius: 4px; padding: 4px; font-size: 12px; }
+.tbtn { background: #2c2f36; color: #ddd; border: 1px solid #3c404a; border-radius: 4px; padding: 5px 12px; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+.tbtn:hover { background: #383c45; color: #fff; }
+.col-filter { width: 100%; min-width: 60px; font-size: 12px; padding: 4px 6px; border: 1px solid #ccc; border-radius: 3px; }
+tr.dtrg-group td { background: #e9f5f3; font-weight: 700; color: #2b6f69; padding: 8px 12px; }
+tr.dtrg-group td i { margin-right: 8px; color: #2d8e88; }
+tr.dtrg-group td:hover { background: #dcefec; }
+tr.dtrg-group .gcount { font-weight: 400; color: #6aa; font-size: 11px; margin-left: 5px; }
+#gridToolbar { padding: 10px 20px; background: #fff; border-bottom: 1px solid #eee; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+#gridToolbar .spacer { flex: 1; }
+table.flat tfoot td { padding: 5px 8px; background: #f7f7f7; }
 </style>
 </head>
 <body>
@@ -91,10 +101,14 @@ td.bugcell { max-width: 400px; word-break: break-word; white-space: normal; }
 <script src="/gui/templates/i18n/i18n.js"></script>
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script src="https://cdn.datatables.net/rowgroup/1.4.1/js/dataTables.rowGroup.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
 <script>
 var tproject_id = parseInt(new URLSearchParams(window.location.search).get('tproject_id')) || 0;
 var tplan_id = parseInt(new URLSearchParams(window.location.search).get('tplan_id')) || 0;
+var collapsedGroups = Object.create(null);
+var defaultOrder;
+var tableRef=null;
 
 function esc(s) {
   if (!s) return '';
@@ -173,7 +187,8 @@ function loadData() {
         { title: t('title_test_case_title', 'Test Case'), data: null, className: 'tccell', orderable: true,
           render: function(data, type, row) {
             return '<span style="font-weight:600;color:#33363f;">' + esc(row.full_external_id) + ':</span> ' + esc(row.name);
-          }
+          },
+          createdCell: function(td, cellData, rowData, row, col) {},
         },
         { title: t('title_test_case_bugs', 'Bugs'), data: 'bugs', className: 'bugcell', orderable: false,
           render: function(data) { return renderBugLinks(data); }
@@ -185,10 +200,22 @@ function loadData() {
         '<div class="section-head">' +
         '<i class="fa fa-table"></i> ' + t('rb.header', 'Results by Issues') +
         '<span class="bmeta">' + t('rb.tcCount', 'Test cases') + ': ' + d.total_cases_with_bugs + '</span>' +
-        '</div><div class="section-body"><table id="dtResults" class="flat" style="width:100%"></table></div></div>';
+        '</div><div class="section-body">' +
+        '<div id="gridToolbar">' +
+        '<button class="tbtn" id="btnExpandAll"><i class="fa fa-plus-square"></i> ' + t('rb.expandAllGroups','Expand all groups') + '</button>' +
+        '<button class="tbtn" id="btnCollapseAll"><i class="fa fa-minus-square"></i> ' + t('rb.collapseAllGroups','Collapse all groups') + '</button>' +
+        '<button class="tbtn" id="btnShowCols"><i class="fa fa-columns"></i> ' + t('rb.showAllColumns','Show all columns') + '</button>' +
+        '<button class="tbtn" id="btnResetFilters"><i class="fa fa-filter-circle-xmark"></i> ' + t('rb.resetFilters','Reset Filters') + '</button>' +
+        '<button class="tbtn" id="btnResetState"><i class="fa fa-rotate-left"></i> ' + t('rb.resetState','Reset to default state') + '</button>' +
+        '<button class="tbtn" id="btnRefresh"><i class="fa fa-rotate"></i> ' + t('rb.refresh','Refresh') + '</button>' +
+        '<span class="spacer"></span>' +
+        '</div>' +
+        '<table id="dtResults" class="flat" style="width:100%"><tfoot><tr><td></td><td></td><td></td></tr></tfoot></table></div></div>';
       $('#reportArea').html(tableHtml);
 
-      $('#dtResults').DataTable({
+      collapsedGroups = Object.create(null);
+      var grouped = true;
+      var tableOpt = {
         data: d.rows,
         columns: cols,
         order: [[0, 'asc'], [1, 'asc']],
@@ -200,7 +227,82 @@ function loadData() {
           paginate: { previous: t('common.prev', 'Previous'), next: t('common.next', 'Next') },
           emptyTable: t('rb.noLinkedBugs', 'No linked bugs found for this report.')
         }
+      };
+      if (grouped) {
+        tableOpt.rowGroup = {
+          dataSrc: 'tsuite_name',
+          startRender: function (rowsInGroup, group) {
+            var isCollapsed = !!collapsedGroups[group];
+            rowsInGroup.nodes().each(function (n) { n.style.display = isCollapsed ? 'none' : ''; });
+            var n = rowsInGroup.count();
+            var cnt = (n > 1 ? t('rb.groupItems', '({count} items)') : t('rb.groupItem', '({count} item)')).replace('{count}', n);
+            return $('<tr/>').attr('data-key', encodeURIComponent(group))
+              .append($('<td/>').attr('colspan', 3).append(
+                $('<i/>').addClass('fa ' + (isCollapsed ? 'fa-chevron-right' : 'fa-chevron-down')),
+                ' ' + esc(group) + '<span class="gcount">' + esc(cnt) + '</span>'
+              ));
+          }
+        };
+        tableOpt.order = [[0, 'asc'], [1, 'asc']];
+      }
+      defaultOrder = tableOpt.order.slice();
+      tableRef = $('#dtResults').DataTable(tableOpt);
+
+      // column filters
+      var $tfrow = $('#dtResults tfoot tr');
+      tableRef.columns().every(function (idx) {
+        var $th = $('#dtResults thead th').eq(idx);
+        var label = (($th.text() || '').trim() || (idx+1));
+        if (idx === 2) {
+          $('<td/>').appendTo($tfrow);
+          return;
+        }
+        var $input = $('<input type="text" class="col-filter" data-col="' + idx + '" placeholder="' + esc(label) + '" />');
+        var $td = $('<td/>').append($input).appendTo($tfrow);
+        $input.on('keyup change', function () {
+          tableRef.column(idx).search(this.value).draw();
+          updateReset();
+        });
       });
+      function anyFilterActive() {
+        var any = false;
+        tableRef.columns().every(function () { if (this.search() !== '') { any = true; } });
+        return any;
+      }
+      function updateReset() { $('#btnResetFilters').toggle(anyFilterActive()); }
+      function clearAllFilters() {
+        tableRef.columns().every(function () { this.search(''); });
+        $('#dtResults tfoot .col-filter').val('');
+        tableRef.draw();
+        updateReset();
+      }
+      $(tableRef.table().container()).off('click.rbgrp').on('click.rbgrp', 'tr.dtrg-group', function () {
+        var key = decodeURIComponent($(this).attr('data-key') || '');
+        if (key === '') return;
+        collapsedGroups[key] = !collapsedGroups[key];
+        tableRef.draw(false);
+      });
+      $('#btnExpandAll').off('click').on('click', function () {
+        collapsedGroups = Object.create(null);
+        tableRef.draw(false);
+      });
+      $('#btnCollapseAll').off('click').on('click', function () {
+        tableRef.rows({page:'all'}).data().each(function (r) {
+          var k = r.tsuite_name;
+          if (k !== undefined && k !== null) collapsedGroups[k] = true;
+        });
+        tableRef.draw(false);
+      });
+      $('#btnResetFilters').off('click').on('click', clearAllFilters);
+      $('#btnResetState').off('click').on('click', function () {
+        clearAllFilters();
+        collapsedGroups = Object.create(null);
+        tableRef.order(defaultOrder).draw();
+        toast(t('md.defaultStateRestored','Default state restored'));
+      });
+      $('#btnRefresh').off('click').on('click', loadData);
+      $('#btnShowCols').off('click').on('click', function () { /* fixed cols */ });
+      updateReset();
 
       toast(t('common.loaded', 'Loaded'));
 
