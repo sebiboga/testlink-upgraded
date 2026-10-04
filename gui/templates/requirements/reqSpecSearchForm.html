@@ -52,86 +52,86 @@ textarea.form-control { height: auto; min-height: 68px; }
 <body>
 
 <div class="header">
-  <span data-i18n="rsf.header">Search Requirement Specifications</span>
-  <span class="sub"><span data-i18n="rsf.subInProject">in test project</span> <b id="hdrProject">-</b></span>
+  <span data-i18n="rssf.header">Search Requirement Specifications</span>
+  <span class="sub"><span data-i18n="rssf.subInProject">in test project</span> <b id="hdrProject">-</b></span>
   <span id="localeSwitcher" style="float:right;"></span>
 </div>
 
 <div class="toolbar">
-  <span class="ctx"><span data-i18n="rsf.testProject">Test Project</span>: <b id="tbProject">-</b></span>
+  <span class="ctx"><span data-i18n="rssf.testProject">Test Project</span>: <b id="tbProject">-</b></span>
   <span style="flex:1"></span>
-  <button class="btn-teal" id="btnFind" onclick="doSearch()"><i class="fa fa-search"></i> <span data-i18n="rsf.find">Find</span></button>
-  <button class="btn-ghost" id="btnResults" onclick="openResults()"><i class="fa fa-list"></i> <span data-i18n="rsf.openResults">Open search results</span></button>
-  <button class="btn-ghost" onclick="refresh()"><i class="fa fa-rotate"></i> <span data-i18n="rsf.refresh">Refresh</span></button>
-  <button class="btn-ghost" onclick="resetForm()"><i class="fa fa-eraser"></i> <span data-i18n="rsf.reset">Reset</span></button>
-  <button class="btn-ghost" onclick="backToSearch()"><i class="fa fa-arrow-left"></i> <span data-i18n="rsf.backToSearch">Back to Search Test Cases</span></button>
-  <button class="btn-ghost" onclick="closeWindow()"><i class="fa fa-times"></i> <span data-i18n="rsf.close">Close</span></button>
+  <button class="btn-teal" id="btnFind" onclick="doSearch()"><i class="fa fa-search"></i> <span data-i18n="rssf.find">Find</span></button>
+  <button class="btn-ghost" id="btnResults" onclick="openResults()"><i class="fa fa-list"></i> <span data-i18n="rssf.openResults">Open search results</span></button>
+  <button class="btn-ghost" onclick="refresh()"><i class="fa fa-rotate"></i> <span data-i18n="rssf.refresh">Refresh</span></button>
+  <button class="btn-ghost" onclick="resetForm()"><i class="fa fa-eraser"></i> <span data-i18n="rssf.reset">Reset</span></button>
+  <button class="btn-ghost" onclick="backToSearch()"><i class="fa fa-arrow-left"></i> <span data-i18n="rssf.backToSearch">Back to Search Test Cases</span></button>
+  <button class="btn-ghost" onclick="closeWindow()"><i class="fa fa-times"></i> <span data-i18n="rssf.close">Close</span></button>
 </div>
 
 <div class="panel" id="ctxPanel" style="display:none">
-  <div class="panel-head" data-i18n="rsf.contextCaption">Context</div>
+  <div class="panel-head" data-i18n="rssf.contextCaption">Context</div>
   <div class="meta">
-    <div><div class="row-l" data-i18n="rsf.testProject">Test Project</div><div class="row-v" id="mProject">-</div></div>
-    <div><div class="row-l" data-i18n="rsf.prefix">Prefix</div><div class="row-v" id="mPrefix">-</div></div>
-    <div><div class="row-l" data-i18n="rsf.user">User</div><div class="row-v" id="mUser">-</div></div>
-    <div><div class="row-l" data-i18n="rsf.requirements">Requirements</div><div class="row-v"><span class="chip" id="mReqs">-</span></div></div>
-    <div><div class="row-l" data-i18n="rsf.reqSpecs">Requirement Specifications</div><div class="row-v"><span class="chip" id="mSpecs">-</span></div></div>
-    <div><div class="row-l" data-i18n="rsf.resultCap">Maximum results shown</div><div class="row-v" id="mCap">-</div></div>
-    <div><div class="row-l" data-i18n="rsf.customFields">Custom fields</div><div class="row-v" id="mCf">-</div></div>
+    <div><div class="row-l" data-i18n="rssf.testProject">Test Project</div><div class="row-v" id="mProject">-</div></div>
+    <div><div class="row-l" data-i18n="rssf.prefix">Prefix</div><div class="row-v" id="mPrefix">-</div></div>
+    <div><div class="row-l" data-i18n="rssf.user">User</div><div class="row-v" id="mUser">-</div></div>
+    <div><div class="row-l" data-i18n="rssf.requirements">Requirements</div><div class="row-v"><span class="chip" id="mReqs">-</span></div></div>
+    <div><div class="row-l" data-i18n="rssf.reqSpecs">Requirement Specifications</div><div class="row-v"><span class="chip" id="mSpecs">-</span></div></div>
+    <div><div class="row-l" data-i18n="rssf.resultCap">Maximum results shown</div><div class="row-v" id="mCap">-</div></div>
+    <div><div class="row-l" data-i18n="rssf.customFields">Custom fields</div><div class="row-v" id="mCf">-</div></div>
   </div>
 </div>
 
 <div class="panel" id="formPanel" style="display:none">
-  <div class="panel-head" data-i18n="rsf.criteriaCaption">Search criteria</div>
+  <div class="panel-head" data-i18n="rssf.criteriaCaption">Search criteria</div>
   <div class="notice">
     <i class="fa fa-info-circle"></i>
-    <span data-i18n="rsf.filterModeAnd">All criteria are combined with a logical AND.</span>
+    <span data-i18n="rssf.filterModeAnd">All criteria are combined with a logical AND.</span>
     <span id="noticeProject"></span>
   </div>
   <div class="form-grid">
     <div class="form-group" id="grpDocId" style="display:none">
-      <label for="doc_id" data-i18n="rsf.docId">Doc ID</label>
+      <label for="doc_id" data-i18n="rssf.docId">Doc ID</label>
       <input type="text" class="form-control" id="doc_id" maxlength="32">
     </div>
     <div class="form-group">
-      <label for="name" data-i18n="rsf.title">Title</label>
+      <label for="name" data-i18n="rssf.title">Title</label>
       <input type="text" class="form-control" id="name" maxlength="100">
     </div>
     <div class="form-group">
-      <label for="reqSpecType" data-i18n="rsf.type">Type</label>
+      <label for="reqSpecType" data-i18n="rssf.type">Type</label>
       <select class="form-control" id="reqSpecType"></select>
     </div>
     <div class="form-group" style="grid-column: span 2;">
-      <label for="scope" data-i18n="rsf.scope">Scope</label>
+      <label for="scope" data-i18n="rssf.scope">Scope</label>
       <textarea class="form-control" id="scope" rows="3"></textarea>
     </div>
     <div class="form-group">
-      <label for="log_message" data-i18n="rsf.logMessage">Log message</label>
+      <label for="log_message" data-i18n="rssf.logMessage">Log message</label>
       <input type="text" class="form-control" id="log_message" maxlength="200">
     </div>
     <div class="form-group" id="grpCustomField" style="display:none">
-      <label for="custom_field_id" data-i18n="rsf.customField">Custom field</label>
+      <label for="custom_field_id" data-i18n="rssf.customField">Custom field</label>
       <select class="form-control" id="custom_field_id"></select>
     </div>
     <div class="form-group" id="grpCustomFieldValue" style="display:none">
-      <label for="custom_field_value" data-i18n="rsf.customFieldValue">Custom field value</label>
+      <label for="custom_field_value" data-i18n="rssf.customFieldValue">Custom field value</label>
       <input type="text" class="form-control" id="custom_field_value" maxlength="100">
     </div>
   </div>
   <div class="actions">
-    <button class="btn-teal" onclick="doSearch()"><i class="fa fa-search"></i> <span data-i18n="rsf.find">Find</span></button>
-    <button class="btn-red" onclick="resetForm()"><span data-i18n="rsf.reset">Reset</span></button>
-    <span class="hint" data-i18n="rsf.findHint">Find opens the Search Requirement Specifications results screen with these criteria.</span>
+    <button class="btn-teal" onclick="doSearch()"><i class="fa fa-search"></i> <span data-i18n="rssf.find">Find</span></button>
+    <button class="btn-red" onclick="resetForm()"><span data-i18n="rssf.reset">Reset</span></button>
+    <span class="hint" data-i18n="rssf.findHint">Find opens the Search Requirement Specifications results screen with these criteria.</span>
   </div>
 </div>
 
-<div class="state" id="stLoading"><div class="st-title" data-i18n="rsf.loading">Loading search criteria...</div></div>
-<div class="state err" id="stDenied"><div class="st-title" data-i18n="rsf.deniedTitle">Access denied</div><div class="st-body" data-i18n="rsf.deniedBody">You are not authorized to view requirement specifications of this test project.</div><div class="st-code" id="codeDenied"></div></div>
-<div class="state err" id="stNotFound"><div class="st-title" data-i18n="rsf.notFoundTitle">Test project not found</div><div class="st-body" data-i18n="rsf.notFoundBody">The test project in this link does not exist any more.</div><div class="st-code" id="codeNotFound"></div></div>
-<div class="state err" id="stBad"><div class="st-title" data-i18n="rsf.badRequestTitle">Invalid request</div><div class="st-body" data-i18n="rsf.badRequestBody">This screen was called without a valid test project.</div><div class="st-code" id="codeBad"></div></div>
-<div class="state err" id="stServer"><div class="st-title" data-i18n="rsf.serverErrorTitle">Server error</div><div class="st-body" data-i18n="rsf.serverErrorBody">The search criteria could not be loaded. Please try again.</div><div class="st-code" id="codeServer"></div></div>
-<div class="state warn" id="stReqsDisabled"><div class="st-title" data-i18n="rsf.reqsDisabledTitle">Requirements are disabled for this test project</div><div class="st-body" data-i18n="rsf.reqsDisabledBody">Enable Requirements in the test project options to search requirement specifications.</div><div class="st-code" id="codeReqsDisabled"></div></div>
-<div class="state warn" id="stNoSpecs"><div class="st-title" data-i18n="rsf.noSpecsTitle">No requirement specification</div><div class="st-body" data-i18n="rsf.noSpecsBody">This test project has no requirement specification yet, so the Doc ID filter is hidden and a search cannot match anything.</div><div class="st-code" id="codeNoSpecs"></div></div>
+<div class="state" id="stLoading"><div class="st-title" data-i18n="rssf.loading">Loading search criteria...</div></div>
+<div class="state err" id="stDenied"><div class="st-title" data-i18n="rssf.deniedTitle">Access denied</div><div class="st-body" data-i18n="rssf.deniedBody">You are not authorized to view requirement specifications of this test project.</div><div class="st-code" id="codeDenied"></div></div>
+<div class="state err" id="stNotFound"><div class="st-title" data-i18n="rssf.notFoundTitle">Test project not found</div><div class="st-body" data-i18n="rssf.notFoundBody">The test project in this link does not exist any more.</div><div class="st-code" id="codeNotFound"></div></div>
+<div class="state err" id="stBad"><div class="st-title" data-i18n="rssf.badRequestTitle">Invalid request</div><div class="st-body" data-i18n="rssf.badRequestBody">This screen was called without a valid test project.</div><div class="st-code" id="codeBad"></div></div>
+<div class="state err" id="stServer"><div class="st-title" data-i18n="rssf.serverErrorTitle">Server error</div><div class="st-body" data-i18n="rssf.serverErrorBody">The search criteria could not be loaded. Please try again.</div><div class="st-code" id="codeServer"></div></div>
+<div class="state warn" id="stReqsDisabled"><div class="st-title" data-i18n="rssf.reqsDisabledTitle">Requirements are disabled for this test project</div><div class="st-body" data-i18n="rssf.reqsDisabledBody">Enable Requirements in the test project options to search requirement specifications.</div><div class="st-code" id="codeReqsDisabled"></div></div>
+<div class="state warn" id="stNoSpecs"><div class="st-title" data-i18n="rssf.noSpecsTitle">No requirement specification</div><div class="st-body" data-i18n="rssf.noSpecsBody">This test project has no requirement specification yet, so the Doc ID filter is hidden and a search cannot match anything.</div><div class="st-code" id="codeNoSpecs"></div></div>
 
 <div class="footer" id="footerInfo"></div>
 <div class="footer"><span data-i18n="footers.reqSpecSearchForm">TestLink 2.0.1 - Search Requirement Specifications</span></div>
@@ -164,7 +164,7 @@ function esc(s) {
     .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
-function t(key, vars) { return TLi18n.t('rsf.' + key, vars); }
+function t(key, vars) { return TLi18n.t('rssf.' + key, vars); }
 
 function toast(msg, isErr) {
   var $t = $('#toast').text(msg).toggleClass('err', !!isErr).show();
@@ -248,7 +248,7 @@ function renderContext(r) {
   $('#mSpecs').html(specChip);
 
   $('#ctxPanel').show();
-  $('#footerInfo').text(TLi18n.t('rsf.projectScope', {n: c.tproject_name}));
+  $('#footerInfo').text(TLi18n.t('rssf.projectScope', {n: c.tproject_name}));
 }
 
 function renderForm(r) {
