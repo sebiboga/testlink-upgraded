@@ -5627,179 +5627,41 @@ which `showState()` hides), which is exactly why the first suite did not catch i
   otherwise the page silently succeeds as `admin` and the case looks like a false PASS. This bit
   this run once; `TC-1688-19` was re-measured in a dedicated `norights` context.
 
-## Modernize — Issue #1816: cfieldsTprojectAssign (Custom Fields -> Test Project)
+## Task — Issue #1278: Test Closure module (lessons learned, closure report, plan freeze)
 
-**Screen.** `gui/templates/cfields/cfieldsTprojectAssign.html` (Dashio, standalone HTML+JS) backed by
-`api/cfieldstproject/index.php` (session-based PHP REST BFF, JSON I/O).
+**Precondition**
+- App running at `http://localhost:8082`, logged in as `admin`/`admin`.
+- Fixture (freshly imported DB, so recreated every run — see `tmp/fixtures_1278.md`):
+  project `CLOS-TP-Project` id 9001, test plan `CLOS Test Plan` id 9005, 2 test cases assigned
+  (`testplan_tcversions` 90051/90052), 1 execution with status `p` (passed).
+- Screen: `/gui/templates/plans/testClosure.html?tplan_id=9005&tproject_id=9001`.
 
-**Fixture.** `php tmp/fixtures_1816.php` -> `tproject_main=7`, `tproject_other=8`,
-cfields `16` plain string, `17` execution-only, `18` requirement-spec, `19` test-plan, `20` assigned to
-project 8 only; users `cfp1816mgr` (global role 3 = no rights, project role **Admin on 7 only**),
-`cfp1816none` (no rights anywhere), `admin` (global admin).
+**Steps and expected behaviour**
 
-**Baseline this suite had to defend.** The legacy 1.9.20 controller allowed a project-role manager on
-project A to read/assign/unassign/save project B whenever the global role was `testproject_manager` or
-higher (roles 5/9/10 only - role 7/3 leaked), never validated that a submitted `cfield_id` existed,
-never verified the addressed project existed, and performed every state change on a `GET`. The BFF
-closes all four: project-scoped `cfield_management` on **every** route including the switcher, `cfpaSanitizeIds()`
-intersection, `get_node_hierarchy_info()` existence check, `POST`-only writes + same-origin CSRF proof.
-
-### Setup
-| Step | Action | Expected |
-|---|---|---|
-| S1 | `php tmp/fixtures_1816.php` | prints the ids above |
-| S2 | login `admin`/`admin`, land on any screen so the session carries a test project | session has `TESTLINK1920_PROJ_ID_USER_ID_*` |
-| S3 | open `/gui/templates/cfields/cfieldsTprojectAssign.html?tproject_id=7` | two Dashio cards render |
-
-### BFF contract
-| Case | Probe | Measured | Verdict |
+| # | Step | Expected | Result |
 |---|---|---|---|
-| TC-1816-01 | anonymous `GET ?action=init&tproject_id=7` | `401` + JSON `status:error` | PASS |
-| TC-1816-02 | `GET ?action=init&tproject_id=7` as admin | `200`, `counts.linked=2`, `counts.available=3`, both tables + `locations` present | PASS |
-| TC-1816-03 | `GET ?action=projects` as admin | `200`, `[{id:7,"CFP Main","CFPM"},{id:8,"CFP Other","CFPO"}]`, `count:2` | PASS |
-| TC-1816-04 | `GET ?action=assign` (wrong verb) | `405` `method_not_allowed` | PASS |
-| TC-1816-05 | `GET ?action=init&tproject_id=4242` (nonexistent project) | `404 tproject_not_found`, **no** DB Access Error page | PASS |
-| TC-1816-06 | `POST ?action=assign` with no session and no `Origin` | `403` CSRF, no write | PASS |
-| TC-1816-07 | `POST ?action=assign`, `Origin: https://evil.example` | `403` CSRF, no write | PASS |
-| TC-1816-08 | `POST ?action=assign` matching `Origin`, valid body | `200 {"count":N}` | PASS |
+| 1 | `GET ?action=summary&tplan_id=9005` | 200; `rights.canWrite=true`; metrics `total_assigned=2`, `total_executed=1`, `passed=1`, `executed_pct=50`, `passed_pct=50` | PASS |
+| 2 | Load the screen in the browser | Header/tiles render localized labels; lessons DataTable shows the empty state; `closureBanner` = "open" | PASS |
+| 3 | `POST ?action=lesson_save` with `title="  "` | HTTP 400 `closure.msg.titleRequired` (no row created) | PASS |
+| 4 | Add Lesson Learned via the modal (category / title / description) | Toast "Lesson learned created", new row in the DataTable, Lessons tile +1, `events` row AUDIT `CLOSURE_LESSON_CREATE` | PASS |
+| 5 | Edit that lesson and delete it | Row updates / disappears; AUDIT `CLOSURE_LESSON_SAVE` / `CLOSURE_LESSON_DELETE` | PASS |
+| 6 | Category filter = "What went well" (and a category with no rows) | Table shows only the matching rows / the empty state | PASS |
+| 7 | Tick 3 checklist items, set archive ref + summary, Save Closure Data | Values survive a reload; AUDIT `CLOSURE_SAVE` | PASS |
+| 8 | Click "Close Test Plan" | Banner turns red "CLOSED … Closed by admin", button becomes "Reopen", print report contains "Test Closure Report" | PASS |
+| 9 | **Freeze proof:** add an extra `failed` execution in the DB, re-read `summary` | `metrics` (live) = 2 executed / 1 failed, `report_metrics` (frozen snapshot) stays 1 executed / 0 failed | PASS |
+| 10 | `POST ?action=lesson_save` while closed | HTTP 409 `closure_frozen`; screen disables "Add Lesson Learned" and hides the row edit/delete buttons | PASS |
+| 11 | Click "Reopen Test Plan" | Banner green "open", snapshot cleared (`report_metrics` follows live), buttons enabled again | PASS |
+| 12 | Print view (`window.print()` CSS) | `#printArea` prints outcome table, checklist, lessons-learned table, summary and closure state; the screen chrome is hidden | PASS |
+| 13 | `events` table after the whole run | No new ERROR/WARNING entry; only AUDIT rows from the feature | PASS |
+| 14 | i18n bundles | `closure.*` keys present in all 10 bundles; `python3 -m json.tool` clean | PASS |
 
-### Rights matrix
-| Case | Probe | Measured | Verdict |
-|---|---|---|---|
-| TC-1816-09 | `cfp1816mgr` -> `?action=init&tproject_id=7` (owns it) | `200` | PASS |
-| TC-1816-10 | `cfp1816mgr` -> `?action=init&tproject_id=8` (foreign) | `403 no_right` | PASS |
-| TC-1816-11 | `cfp1816mgr` -> `?action=projects` | `count:1` - **project 8 filtered out of the switcher** | PASS |
-| TC-1816-12 | `cfp1816mgr` -> `POST assign/unassign/save` on `tproject_id:8` | all three `403 no_right`; `cfield_testprojects` unchanged | PASS |
-| TC-1816-13 | `cfp1816none` -> `?action=init&tproject_id=7` | `403 no_right` | PASS |
-| TC-1816-14 | `cfp1816none` -> `?action=projects` | `200 {"projects":[],"count":0}` | PASS |
-| TC-1816-15 | `admin` -> `?action=init&tproject_id=8` | `200`, `linked` contains field `20` | PASS |
-
-### Input validation
-| Case | Probe | Measured | Verdict |
-|---|---|---|---|
-| TC-1816-16 | `assign` `ids:[9999]` (no such cfield) | `400 unknown_cfield` | PASS |
-| TC-1816-17 | `assign` `ids:["abc"]` | `400 unknown_cfield` | PASS |
-| TC-1816-18 | `assign` `ids:[]` | `400 nothing_selected` | PASS |
-| TC-1816-19 | `unassign` of a field not linked here (`ids:[17]` while linked=`16`) | `400 unknown_cfield`, link row of the **other** project untouched | PASS |
-| TC-1816-20 | `assign` a field already linked here (`ids:[17]` twice) | `409 already_assigned` — **regression guard for #1822** | PASS |
-| TC-1816-21 | `assign` mixed `ids:[17,19]` with `17` already linked | `200 {"count":1}` — only `19` attached | PASS |
-| TC-1816-22 | `save` rows `[{id:9999}]` | `400`, no write | PASS |
-
-### Screen behaviour (chrome-devtools MCP, live app)
-| Case | Probe | Measured | Verdict |
-|---|---|---|---|
-| TC-1816-23 | initial render | header `Custom Fields — Test Project`, project switcher `CFP Main (CFPM)` / `CFP Other (CFPO)`, linked card badge `2`, available card badge `3` | PASS |
-| TC-1816-24 | both tables | every column present: NAME, LABEL, TYPE, AVAILABLE ON, DISPLAY ORDER, LOCATION, ACTIVE, REQUIRED, MONITORABLE | PASS |
-| TC-1816-25 | `Location` cell | `<select>` only for design-time test-case fields; `—` for the execution-only field (`17`) — matches tpl:91-98 | PASS |
-| TC-1816-26 | nothing ticked | `Assign` and `Unassign` both `disabled:true` | PASS |
-| TC-1816-27 | **Check/uncheck all**, linked table | all 3 rows `checked:true`, master `checked:true`/`indeterminate:false`, `#selLinked` `(3)`, `Unassign` enabled — **regression guard for #1821** | PASS |
-| TC-1816-28 | **Check/uncheck all** again | all cleared, `Unassign` `disabled:true` | PASS |
-| TC-1816-29 | tick 1 of 3 rows | master `indeterminate:true` | PASS |
-| TC-1816-30 | **Check/uncheck all**, available table | all rows ticked, `#selAvailable` `(2)`, `Assign` enabled | PASS |
-| TC-1816-31 | **Assign** (1 row) | toast `1 custom field(s) assigned.` — interpolated, **not** `{count}` (regression guard for #1819); linked `4 -> 5`, available `2 -> 1` | PASS |
-| TC-1816-32 | **Refresh** / **Back** buttons **immediately after** that Assign | both `disabled:false` — **regression guard for #1818** | PASS |
-| TC-1816-33 | change DISPLAY ORDER `-> 5`, LOCATION `-> After Summary`, tick REQUIRED, tick MONITORABLE, **Save** | toast `3 change(s) saved.`; after reload `order=5`, location index `5`, `required=true`, `monitorable=true` | PASS |
-| TC-1816-34 | DB cross-check of TC-1816-33 | `cfield_testprojects` row `18|7|5|...|1|0|...|1` — matches the UI exactly | PASS |
-| TC-1816-35 | **Unassign** with 1 row ticked | modal shows, title `Unassign custom fields`, body `Unassign 1 selected custom field(s) from this test project?` | PASS |
-| TC-1816-36 | **Cancel** in that modal | modal hidden, linked count unchanged, available count unchanged — no partial write | PASS |
-| TC-1816-37 | **Unassign** -> **confirm** | toast `1 custom field(s) unassigned.`, linked `-1`, available `+1` | PASS |
-| TC-1816-38 | toolbar state after the unassign | `Refresh:false`, `Back:false`, `btnSave:false` | PASS |
-| TC-1816-39 | DataTables length selector `40` | `#linkedTable_info` `Showing 1 to 3 of 3 entries` | PASS |
-| TC-1816-40 | click the NAME header twice | row order reverses both times | PASS |
-| TC-1816-41 | locale switcher -> Romanian | full reload with `?locale=ro`; toolbar `Reîmprospătare` / `Înapoi la Câmpuri personalizate` / `Salvează atributele de afișare`; header `Proiect de test: CFP Main`; column heads `NUME`/`ETICHETĂ`/`LOCAȚIE`/`OBLIGATORIU`/`MONITORIZABIL`; checkbox tooltip `Selectează / deselectează tot` | PASS |
-| TC-1816-42 | console after the whole pass | **0** errors (was 5 `invalidateSearch` TypeErrors before #1821) | PASS |
-| TC-1816-43 | legacy URL `/lib/cfields/cfieldsTprojectAssign.php`, session | `302` -> `cfieldsTprojectAssign.html?tproject_id=7` (session project carried over) | PASS |
-| TC-1816-43b | same URL, **no session** | `302` -> `login.php?note=expired&destination=...` — the shim never leaks the target project | PASS |
-| TC-1816-44 | legacy `do_action=assign` write on the old URL | `302` to the modern screen, **no write** — the shim never reaches the old controller, so the GET-mutates-state hole is unreachable | PASS |
-| TC-1816-45 | `gui/templates/cfields/cfieldsView.html` -> *Assign to Test Project* | lands on the new screen with the current project | PASS |
-| TC-1816-46 | `/api/cfieldstproject/index.php?action=projects` in a **fresh** session (regression guard for #1817) | `200` JSON with the project list — never the empty `500` | PASS |
-| TC-1816-47 | Event Viewer after the whole pass | `SELECT COUNT(*) FROM events WHERE activity='LOCALIZATION'` for the `audit_cfield_*` keys -> **0** — regression guard for #1820 | PASS |
-| TC-1816-48 | Event Viewer error levels after the whole pass | `SELECT COUNT(*) FROM events WHERE log_level<=4` -> **0** | PASS |
-
-### Test execution
-- [PASS] TC-1816-01 .. TC-1816-48 (+ TC-1816-43b) — 49/49 PASS (chrome-devtools MCP + `curl` matrix + direct SQL cross-checks, live app)
-- [PASS] `php -l` on `api/cfieldstproject/index.php`
-- [PASS] `node --check` on the extracted `<script>` body of `cfieldsTprojectAssign.html`
-- [PASS] `python3 -m json.tool` on all 10 `gui/templates/i18n/*.json`
-- [PASS] `php -l` on all 19 `locale/*/strings.txt` touched by #1820, except the pre-existing
-  `fr_FR` parse error (present at HEAD, unrelated — that file is not loaded as PHP)
-
-### Notes
-- **Bugs this suite found and fixed** (each filed with `--label bug` and fixed in its own commit):
-  - **#1817** `testproject::get_list()` does not exist -> `GET ?action=projects` answered HTTP 500 with an
-    **empty body**. Only reproducible with a session carrying a test project, which is exactly why a bare
-    `curl` login looked like a 200. `TC-1816-46` guards it.
-  - **#1818** `guard()` set `busy=true` but only `saveAll()` released it, so after one Assign **every**
-    button became a silent no-op — the dangerous part being that a discarded **Save** leaves the edited
-    values in the inputs and so looks identical to a successful one. `TC-1816-32/38` guard it.
-  - **#1819** the assign/unassign toast printed the raw `{count}` placeholder; `saveAll` was unaffected
-    because it passed the params, which is what made it easy to miss. `TC-1816-31/37` guard it.
-  - **#1820** `audit_cfield_location_changed` (15/19 locales) and `audit_cfield_monitorable_on/_off`
-    (15/19, key built from a variable so grep misses it) -> two `LOCALIZATION` warnings per save.
-    `TC-1816-47` guards it.
-  - **#1821** `toggleAll()` called `invalidateSearch()` on an object that has no such method in
-    DataTables 1.13.7, throwing **before** the rows were ticked — *Check/uncheck all* was completely
-    dead. `TC-1816-27/28/30` guard it.
-  - **#1822** `link_to_testproject()` does an unconditional `INSERT` against PK
-    `(field_id,testproject_id)`, so a duplicate assign served a **DB Access Error HTML page as HTTP 200**.
-    `TC-1816-20/21` guard it.
-- **Pre-existing, reported not fixed** — **#1823**: `ro_RO` and most other locales lack the node-type
-  (`testcase`/`testplan`/`requirement`/`requirement_spec`) and custom-field location labels
-  (`before_summary` is in only 5/19 locales, `hide_because_is_used_as_variable` in 4/19). The BFF calls
-  `lang_get()` correctly and falls back to `en_GB` as designed, so this is missing translation *data*,
-  not a screen defect — authoring ~8 keys x 14 locales is a translation task, not a screen fix.
-- **Assertion style that caught the real bugs.** TC-1816-27/28/30 and TC-1816-31/32 assert the resulting
-  *state* (`checked`, `indeterminate`, the `(n)` counter, `disabled`) rather than "did it not crash".
-  Every one of #1818/#1819/#1821 *looked* fine on click — the master checkbox still flipped natively in
-  #1821 — and would have passed an eyeball check.
-- **Session caveat.** Run TC-1816-09..TC-1816-22 against per-role cookie jars (`curl -c/-b`), not in the
-  admin browser context: a shared context silently answers every rights case as `admin`.
-
-## Regression — Issue #1816 (addendum): the save route wrote a `location` the screen could not have produced, found by the mandatory code review
-
-The review that closes out screen #1816 reported no BLOCKER and exactly one MINOR. It is recorded here
-rather than folded silently into the suite above, because the first half of it is the more interesting
-half: **the change counter and the write disagreed.**
-
-### The defect
-
-`POST ?action=save` validated the submitted location in the wrong place:
-
-```php
-$v = intval($row['location']);
-if (isset($locationCodes[$v]) && intval($linkedRaw[$id]['location'] ?? 0) != $v) {
-    $changed['location']++;          // <- membership tested HERE
-}
-$location[$id] = $v;                 // <- ...and the WRITE happened unconditionally
-```
-
-`cfield_mgr::setDisplayLocation()` just does `intval()` and an `UPDATE`, so the membership test
-gated only the *count*, never the *write*. A crafted `{"rows":[{"id":16,"location":99}]}` answered
-`{"changed":{"location":0}}` — a truthful "nothing changed" — **and persisted `99` anyway**.
-
-A second half was missing entirely: `supports_location`. The UI renders a LOCATION dropdown only for
-design-time test case fields (`node_description === 'testcase' && enable_on_execution == 0`, tpl:91-98),
-so `{"rows":[{"id":17,"location":5}]}` could set a location on the **execution-only** field, which has
-no dropdown at all.
-
-| Case | Probe | Measured | Verdict |
-|---|---|---|---|
-| TC-1816-49 | `save` `{"id":16,"location":6}` — valid code, design-time field | `200 {"changed":{"location":1}}`, DB `16 -> 6` | PASS |
-| TC-1816-50 | `save` `{"id":16,"location":99}` — code outside `cfield_mgr::$locations['testcase']` | `200 {"changed":{"location":0}}`, DB **still `6`** — ignored, and the count no longer lies about it | PASS |
-| TC-1816-51 | `save` `{"id":17,"location":5}` — valid code, **execution-only** field (no dropdown in the UI) | `200 {"changed":{"location":0}}`, DB **still `1`** | PASS |
-| TC-1816-52 | browser: dropdown on field `16` -> `Before Summary` (code 3) -> Save | toast `1 change(s) saved.`, reloaded `loc_16 === "3"`, DB `16 -> 3` | PASS |
-| TC-1816-53 | browser: execution-only field `17` still renders `—`, **no** `#loc_17` element | `document.getElementById('loc_17') === null` | PASS |
-| TC-1816-54 | `php -l api/cfieldstproject/index.php` after the edit | no syntax errors | PASS |
-| TC-1816-55 | `SELECT COUNT(*) FROM events WHERE id > <max> AND log_level<=4` after the whole addendum | **0** | PASS |
-
-### Test execution
-- [PASS] TC-1816-49 .. TC-1816-55 — 7/7 PASS (live DB assertions + browser)
-- [PASS] `php -l` clean; 0 new Event Viewer error rows
-
-### Notes
-- The general lesson, and the reason this addendum exists rather than a one-line edit: **a validator
-  that only guards a counter is not a validator.** The same shape — compute the check, use a different
-  variable for the effect — is worth grepping for in the other 100+ BFFs, where a mismatch between
-  "what I counted" and "what I wrote" is silent by construction.
-- `supportsLocation` is now derived in the BFF from the same two conditions `locationSelect()` uses on
-  the client, so the server cannot be talked into a write the UI does not offer.
+**Bugs found and fixed while executing this suite**
+- `executions` has no `testplan_tcversion_id` and `execution_bugs` has no `testplan_id` — the first
+  metrics SQL threw a DB access error (fixed: filter on `executions.testplan_id`, reach bugs through
+  `execution_bugs.execution_id`).
+- `executions.status` stores the legacy short codes (`p/f/b/i/n`), not `passed/failed/...` — added an
+  explicit map (0 passed → 1 passed).
+- `lesson_category` was created as `VARCHAR(16)`, too narrow for `needs_improvement` (18 chars) —
+  widened to `VARCHAR(32)` with an idempotent migration.
+- The category filter was read AFTER the `<option>` list was rebuilt, which reset the select value.
+- The API returned `closure_msg.*` keys while the bundles use `closure.msg.*` → raw key shown in the toast.

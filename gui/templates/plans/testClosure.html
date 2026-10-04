@@ -233,8 +233,11 @@ $(function() {
   tplanId = parseInt(p.get('tplan_id') || p.get('tplanId') || 0, 10);
   TLi18n.load(function() {
     TLi18n.apply();
-    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    // the checklist rows are generated after the first apply(), so the
+    // data-i18n labels on them need a second pass.
     buildChecklist();
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
     loadAll();
   });
 });
@@ -297,13 +300,13 @@ function loadSummary() {
 }
 
 function applyRights() {
-  var w = canWrite && !closure.frozen;
-  $('#btnNew').prop('disabled', !canWrite);
+  // A frozen (closed) plan locks the lessons-learned register: the button is
+  // disabled and the BFF independently answers 409 (closure_frozen).
+  $('#btnNew').prop('disabled', !canWrite || closure.frozen);
   $('#btnClose').prop('disabled', !canWrite);
   $('#btnSaveClosure').prop('disabled', !canWrite);
   $.each(CHECKLIST_ITEMS, function(i, k) { $('#chk_' + k).prop('disabled', !canWrite); });
   $('#cArchiveRef, #cSummary').prop('disabled', !canWrite);
-  void w;
 }
 
 function renderCategoryFilter() {
@@ -321,8 +324,10 @@ function loadLessons() {
     lessons = r.items || [];
     categories = r.categories || categories;
     if (r.closure_status === 'closed') { closure.frozen = true; }
-    renderCategoryFilter();
+    // read the filter BEFORE rebuilding the <option> list: emptying the select
+    // resets its value to the first option and would silently drop the filter.
     var fc = $('#fCategory').val();
+    renderCategoryFilter();
     if (fc) { lessons = lessons.filter(function(x) { return x.lesson_category === fc; }); }
     if (lessons.length === 0) {
       if (table) { table.destroy(); table = null; $('#lessonTable tbody').empty(); }
@@ -338,10 +343,13 @@ function loadLessons() {
 }
 
 function buildRow(it) {
-  var acts = '<button class="action-btn" onclick="openLessonModal(' + it.id + ')" title="' +
-    esc(TLi18n.t('common.edit')) + '"><i class="fa fa-pen"></i></button>' +
-    '<button class="action-btn del" onclick="deleteLesson(' + it.id + ')" title="' +
-    esc(TLi18n.t('common.delete')) + '"><i class="fa fa-trash"></i></button>';
+  var acts = '';
+  if (!closure.frozen) {
+    acts += '<button class="action-btn" onclick="openLessonModal(' + it.id + ')" title="' +
+      esc(TLi18n.t('common.edit')) + '"><i class="fa fa-pen"></i></button>' +
+      '<button class="action-btn del" onclick="deleteLesson(' + it.id + ')" title="' +
+      esc(TLi18n.t('common.delete')) + '"><i class="fa fa-trash"></i></button>';
+  }
   return {
     category: '<span class="badge-cat ' + esc(it.lesson_category) + '">' + esc(catLabel(it.lesson_category)) + '</span>',
     title: esc(it.title),
