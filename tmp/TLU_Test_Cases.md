@@ -5754,3 +5754,52 @@ intersection, `get_node_hierarchy_info()` existence check, `POST`-only writes + 
   #1821 — and would have passed an eyeball check.
 - **Session caveat.** Run TC-1816-09..TC-1816-22 against per-role cookie jars (`curl -c/-b`), not in the
   admin browser context: a shared context silently answers every rights case as `admin`.
+
+## Regression — Issue #1816 (addendum): the save route wrote a `location` the screen could not have produced, found by the mandatory code review
+
+The review that closes out screen #1816 reported no BLOCKER and exactly one MINOR. It is recorded here
+rather than folded silently into the suite above, because the first half of it is the more interesting
+half: **the change counter and the write disagreed.**
+
+### The defect
+
+`POST ?action=save` validated the submitted location in the wrong place:
+
+```php
+$v = intval($row['location']);
+if (isset($locationCodes[$v]) && intval($linkedRaw[$id]['location'] ?? 0) != $v) {
+    $changed['location']++;          // <- membership tested HERE
+}
+$location[$id] = $v;                 // <- ...and the WRITE happened unconditionally
+```
+
+`cfield_mgr::setDisplayLocation()` just does `intval()` and an `UPDATE`, so the membership test
+gated only the *count*, never the *write*. A crafted `{"rows":[{"id":16,"location":99}]}` answered
+`{"changed":{"location":0}}` — a truthful "nothing changed" — **and persisted `99` anyway**.
+
+A second half was missing entirely: `supports_location`. The UI renders a LOCATION dropdown only for
+design-time test case fields (`node_description === 'testcase' && enable_on_execution == 0`, tpl:91-98),
+so `{"rows":[{"id":17,"location":5}]}` could set a location on the **execution-only** field, which has
+no dropdown at all.
+
+| Case | Probe | Measured | Verdict |
+|---|---|---|---|
+| TC-1816-49 | `save` `{"id":16,"location":6}` — valid code, design-time field | `200 {"changed":{"location":1}}`, DB `16 -> 6` | PASS |
+| TC-1816-50 | `save` `{"id":16,"location":99}` — code outside `cfield_mgr::$locations['testcase']` | `200 {"changed":{"location":0}}`, DB **still `6`** — ignored, and the count no longer lies about it | PASS |
+| TC-1816-51 | `save` `{"id":17,"location":5}` — valid code, **execution-only** field (no dropdown in the UI) | `200 {"changed":{"location":0}}`, DB **still `1`** | PASS |
+| TC-1816-52 | browser: dropdown on field `16` -> `Before Summary` (code 3) -> Save | toast `1 change(s) saved.`, reloaded `loc_16 === "3"`, DB `16 -> 3` | PASS |
+| TC-1816-53 | browser: execution-only field `17` still renders `—`, **no** `#loc_17` element | `document.getElementById('loc_17') === null` | PASS |
+| TC-1816-54 | `php -l api/cfieldstproject/index.php` after the edit | no syntax errors | PASS |
+| TC-1816-55 | `SELECT COUNT(*) FROM events WHERE id > <max> AND log_level<=4` after the whole addendum | **0** | PASS |
+
+### Test execution
+- [PASS] TC-1816-49 .. TC-1816-55 — 7/7 PASS (live DB assertions + browser)
+- [PASS] `php -l` clean; 0 new Event Viewer error rows
+
+### Notes
+- The general lesson, and the reason this addendum exists rather than a one-line edit: **a validator
+  that only guards a counter is not a validator.** The same shape — compute the check, use a different
+  variable for the effect — is worth grepping for in the other 100+ BFFs, where a mismatch between
+  "what I counted" and "what I wrote" is silent by construction.
+- `supportsLocation` is now derived in the BFF from the same two conditions `locationSelect()` uses on
+  the client, so the server cannot be talked into a write the UI does not offer.
