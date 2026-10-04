@@ -6284,3 +6284,34 @@ mysql -h 127.0.0.1 -utestlink -ptestlink testlink < tmp/fixtures_1081.sql
 # http://localhost:8082/gui/templates/requirements/searchReqSpec.html?tproject_id=9081&locale=en
 ```
 - [PASS] Merge-base gate: `TLU_REQUIRE_SUITE="Issue #1835" bash ai/verify_test_suites.sh`
+
+## Task — Issue #1269: resultsBugs per-TC Execution-History + Test-Case-Design icons (gap vs legacy)
+
+**Precondition** — fresh DB. `php tmp/fixtures_1269.php` creates
+tproject `RB1269` (prefix RB, issue_tracker_enabled=1, mantis/db tracker on a local
+`mantis_bug_table`), test plan `RB Plan`, open build, 3 test cases in 2 suites and
+3 executions: RB-1 login broken -> bug 101 (open), RB-2 reset mail missing -> bugs 101
++ 102 (102 resolved), RB-3 no bug here -> no linked bug.
+Log in `admin/admin`; open
+`http://localhost:8082/gui/templates/results/resultsBugs.html?tproject_id=<p>&tplan_id=<plan>`
+(the p/plan ids are printed by the fixture: `DONE tproject=… testplan=…`).
+
+| # | Steps | Expected | Actual |
+|---|---|---|---|
+| 1 | Load the report for the fixture plan (type = Latest Generation) | 2 rows, summary cards Open 1 / Resolved 1 / Total 2 / TCs with Bugs 2, 2 suite groups | PASS — cards `1 / 1 / 2 / 2`, groups "RB Suite A (1 item)", "RB Suite B (1 item)" |
+| 2 | Inspect the Test Case cell of every row | Each cell carries 2 icon links (history + design) before `PREFIX-id: name`, i.e. legacy `resultsBugs.php:89-96` parity | PASS — `link "Execution history"`, `link "Test case design"` in both rows |
+| 3 | Read the `href` of the history icon | `/gui/templates/execute/execHistory.html?tcase_id=<tc_id>&tproject_id=<p>` (never `tproject_id=undefined`, the legacy helper's bug) | PASS — `execHistory.html?tcase_id=112&tproject_id=109` / `tcase_id=116` |
+| 4 | Read the `href` of the design icon | `/gui/templates/testcases/tcEdit.html?tcase_id=<tc_id>&tproject_id=<p>` | PASS — `tcEdit.html?tcase_id=112&tproject_id=109` / `tcase_id=116` |
+| 5 | Hover each icon | Localized tooltip from i18n (`rb.executionHistory`, `rb.testCaseDesign`), not a hardcoded string | PASS — `description="Execution history"`, `description="Test case design"` |
+| 6 | Click the history icon of row 1 | Popup `execHistory.html?tcase_id=112&tproject_id=109` opens with the TC data and its executions | PASS — popup title `RB-1 - Execution History`, `Executions(1)`, row `RB Plan / RB Build 1 / FAILED / v1 / Manual` |
+| 7 | Click the design icon of row 1 | Popup `tcEdit.html?tcase_id=112&tproject_id=109` opens on the design of that exact TC | PASS — `Edit Test Case - login broken`, heading `Edit Test Case  RB-1:1:login broken` |
+| 8 | Read the Test Case cell text | `RB-1: login broken` / `RB-2: reset mail missing` — the NAME is present | PASS (was `RB-1:` with an empty name before this change: the renderer read `row.name`, the BFF emits `tc_name`) |
+| 9 | Switch the toolbar select to "All Executions" | Same rows/icons, yellow "all executions" hint banner, no console error | PASS — 2 rows, both icon pairs present, hint shown |
+| 10 | Sort by the Test Case column and type in its footer filter | Icons do not leak into the compared/filtered text | PASS — column filter `login` narrows to 1 row; ascending/descending order RB-1, RB-2 works |
+| 11 | Regression: collapse/expand groups, Reset Filters, Reset to default state, Refresh | No error, groups keep working, no `undefined` in cells | PASS — all 5 toolbar buttons behave, toast shown, cells stable |
+| 12 | Check the browser console and the Event Viewer (`events` table) | No new Error(1)/Warning(2) entries | PASS — 0 console errors/warnings; new `events` rows are all `log_level=16` (audit) from the fixture + login |
+
+**Result: 12/12 PASS** (browser-verified 2026-10-04, admin/admin).
+
+**Known separate defect found while testing this feature** (not part of #1269, not fixed here):
+the *Bugs* column puts the tracker's HTML fragment into `href` — filed as **#1837**.

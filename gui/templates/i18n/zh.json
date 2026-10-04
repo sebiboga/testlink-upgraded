@@ -6675,5 +6675,7 @@
   "usergrid.roleId": "角色 ID",
   "usergrid.showAllColumns": "显示所有列",
   "usergrid.userId": "用户 ID",
-  "version": "版本"
+  "version": "版本",
+  "rb.executionHistory": "执行历史",
+  "rb.testCaseDesign": "测试用例设计"
 }

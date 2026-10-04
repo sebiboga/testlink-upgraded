@@ -148,6 +148,56 @@ text: *"This report shows all bugs linked to test cases during execution."*). Th
 | `gui/templates/results/resultsBugs.html` | Standalone HTML+JS+CSS screen (~230 lines) |
 | `api/reports/index.php` | BFF API — `results_bugs` action (lines ~3820–3971) |
 | `lib/general/asideMenu.php` | ASIDE link switch for `link_report_total_bugs` / `link_report_total_bugs_all_exec` |
-| `gui/templates/i18n/*.json` | i18n locale bundles (14 `rb.*` keys per bundle, incl. `rb.infoReport` — Refs #1271) |
+| `gui/templates/i18n/*.json` | i18n locale bundles (16 `rb.*` keys per bundle, incl. `rb.infoReport` — Refs #1271 and `rb.executionHistory` / `rb.testCaseDesign` — Refs #1269) |
 | `lib/results/resultsBugs.php` | Legacy controller (still exists but no longer linked from ASIDE) |
 | `tmp/fixtures_1271.php` | Reproducible fixture: RB1271 project/plan, 2 executions with linked bugs via local mantisdb tracker |
+| `tmp/fixtures_1269.php` | Reproducible fixture for the TC icon pair: RB1269 project/plan, 3 executions, 2 with linked bugs (Refs #1269) |
+
+---
+
+## 10. Per-Test-Case Execution-History + Design Icons (Refs #1269)
+
+### Legacy behavior
+`lib/results/resultsBugs.php:89-96` — for every test case that carries at least one linked bug
+the controller built the Test Case cell as **two icon links** prepended to `PREFIX-id: name`:
+
+```php
+$exec_history_link = "<a href=\"javascript:openExecHistoryWindow({$tc_id});\">" .
+                     "<img title=\"" . $l18n['execution_history'] . "\" src=\"{$img['history']}\" /></a> ";
+$edit_link = "<a href=\"javascript:openTCEditWindow({$tc_id});\">" .
+             "<img title=\"" . $l18n['design'] . "\" src=\"{$img['edit']}\" /></a> ";
+```
+
+with the labels initialized at `lib/results/resultsBugs.php:73`. The row was therefore clickable
+twice: the execution history of that test case and its design.
+
+### Modern behavior (before)
+`gui/templates/results/resultsBugs.html` rendered the Test Case column as inert plain text — the
+BFF already shipped `tc_id` on every row (`api/reports/index.php`, `rows[].tc_id`) and the JS
+never used it, so a user could not reach the execution history or the design of a test case with bugs.
+
+### The fix
+* New `tcCell(row)` in `gui/templates/results/resultsBugs.html` renders the pair with the Dashio
+  icon set (`fa-clock-rotate-left`, `fa-pen-to-square`, teal `#4ECDC4`) followed by
+  `PREFIX-id: name`, matching the sibling modernized report `resultsMatrix.html:346-360`.
+* Targets (both already modernized screens):
+  * `/gui/templates/execute/execHistory.html?tcase_id=<tc_id>&tproject_id=<project>` — popup `history_popup` (900x650)
+  * `/gui/templates/testcases/tcEdit.html?tcase_id=<tc_id>&tproject_id=<project>` — popup `tcEdit_<tc_id>` (900x700), contract from `tplanWithCF.html:128`
+  * The legacy window helpers (`gui/javascript/testlink_library.js:1726` / `:913`) do not exist in
+    the modern shell, and `openExecHistoryWindow()` concatenated `&tproject_id=` + an **undeclared**
+    variable (→ `tproject_id=undefined`, documented at `tcNotRunAnyPlatform.html:139-144`), so both
+    popups are addressed directly and `tproject_id` is always sent.
+* The renderer branches on `type !== 'display'`: the icons exist only in the display cell, so
+  DataTables sorting and the column filter keep working on the plain text.
+* Legacy dead markup `"<!-- 0000000001 -->"` (zero-padded `external_id` as an HTML comment) is
+  intentionally **not** ported; the value is still delivered as `rows[].external_id`.
+* i18n: `rb.executionHistory` + `rb.testCaseDesign` in **all 10** locale bundles.
+* **Bonus fix**: the old renderer read `row.name`, but the BFF emits `tc_name` — the test case
+  name was rendered as an empty string (`RB-1:`). `tcCell()` reads `row.tc_name || row.name`.
+
+### Verified
+12/12 test cases PASS (suite `## Task — Issue #1269` in `tmp/TLU_Test_Cases.md`), fixture
+`tmp/fixtures_1269.php` (project `RB1269`, plan `RB Plan`, 3 executions, local `mantis_bug_table`
+so the DB-API tracker resolves links and resolved state without any remote service).
+History popup shows `RB-1 - Execution History` / `Executions(1)`; design popup shows
+`Edit Test Case - login broken`. No new Error/Warning entries in the Event Viewer.

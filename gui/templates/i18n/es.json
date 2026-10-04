@@ -6689,5 +6689,7 @@
   "usergrid.roleId": "ID de Rol",
   "usergrid.showAllColumns": "Mostrar todas las columnas",
   "usergrid.userId": "ID de Usuario",
-  "version": "Versión"
+  "version": "Versión",
+  "rb.executionHistory": "Historial de ejecuciones",
+  "rb.testCaseDesign": "Diseño del caso de prueba"
 }

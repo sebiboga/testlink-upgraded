@@ -6695,5 +6695,7 @@
   "usergrid.roleId": "ID роли",
   "usergrid.showAllColumns": "Показать все столбцы",
   "usergrid.userId": "ID пользователя",
-  "version": "Версия"
+  "version": "Версия",
+  "rb.executionHistory": "История выполнений",
+  "rb.testCaseDesign": "Проектирование тест-кейса"
 }

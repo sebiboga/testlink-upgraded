@@ -6705,5 +6705,7 @@
   "usergrid.roleId": "Role ID",
   "usergrid.showAllColumns": "Show all Columns",
   "usergrid.userId": "User ID",
-  "version": "Version"
+  "version": "Version",
+  "rb.executionHistory": "Execution history",
+  "rb.testCaseDesign": "Test case design"
 }

@@ -38,6 +38,9 @@ table.flat td { padding: 5px 10px; border-bottom: 1px solid #eee; vertical-align
 table.flat tr:hover td { background: #f4fbfa; }
 td.suitecell { color: #667; font-size: 11px; max-width: 200px; word-break: break-word; }
 td.tccell { white-space: nowrap; }
+td.tccell .tcicons { display: inline-flex; gap: 5px; margin-right: 4px; vertical-align: middle; }
+td.tccell .tcico { color: #4ECDC4; text-decoration: none; font-size: 12px; }
+td.tccell .tcico:hover { color: #2d8e88; }
 td.bugcell { max-width: 400px; word-break: break-word; white-space: normal; }
 .bug-link { display: inline-block; margin: 1px 0; color: #4ECDC4; text-decoration: none; font-size: 11px; }
 .bug-link:hover { text-decoration: underline; color: #3dbdb5; }
@@ -182,11 +185,50 @@ function loadData() {
                '<i class="fa fa-info-circle" style="margin-right:5px;"></i>' + t('rb.hintAllExec', 'Showing all executions with bugs. Some test cases may appear multiple times.') + '</div>';
       }
 
-      var cols = [
+      // Test Case cell — port of the legacy icon pair built by
+// lib/results/resultsBugs.php:89-96 (openExecHistoryWindow + openTCEditWindow,
+// titles $l18n['execution_history'] / $l18n['design']).
+//
+// The legacy window helpers (gui/javascript/testlink_library.js:1726 / :913)
+// do NOT exist in the modern shell, and openExecHistoryWindow() concatenates
+// `&tproject_id=` + an undeclared variable, i.e. `undefined` (same finding
+// documented at gui/templates/results/tcNotRunAnyPlatform.html:139-144), so
+// both popups are addressed directly here — same URLs and same window contract
+// as the already-modernized sibling report resultsMatrix.html:346-360 and
+// tplanWithCF.html:128.
+//
+// The legacy "<!-- 0000000001 -->" external_id comment is dead markup for the
+// browser and is NOT ported; the id itself is still in the row (row.external_id).
+function tcCell(row) {
+  var tcId = row.tc_id;
+  var name = row.tc_name || row.name || '';
+  var prefix = '<span class="tcicons">';
+  var out = prefix;
+  if (tcId !== undefined && tcId !== null && tcId !== '') {
+    var histUrl = '/gui/templates/execute/execHistory.html?tcase_id=' +
+      encodeURIComponent(tcId) + '&tproject_id=' + encodeURIComponent(tproject_id);
+    var editUrl = '/gui/templates/testcases/tcEdit.html?tcase_id=' +
+      encodeURIComponent(tcId) + '&tproject_id=' + encodeURIComponent(tproject_id);
+    out += '<a class="tcico" href="' + esc(histUrl) + '" title="' +
+      esc(t('rb.executionHistory', 'Execution history')) +
+      '" onclick="window.open(this.href,\'history_popup\',\'width=900,height=650,left=100,top=100,resizable=yes,scrollbars=yes\');return false;">' +
+      '<i class="fas fa-clock-rotate-left"></i></a>';
+    out += '<a class="tcico" href="' + esc(editUrl) + '" title="' +
+      esc(t('rb.testCaseDesign', 'Test case design')) +
+      '" onclick="window.open(this.href,\'tcEdit_' + esc(String(tcId)) +
+      '\',\'width=900,height=700\');return false;">' +
+      '<i class="fas fa-pen-to-square"></i></a>';
+  }
+  out += '</span><span style="font-weight:600;color:#33363f;">' + esc(row.full_external_id) + ':</span> ' + esc(name);
+  return out;
+}
+
+var cols = [
         { title: t('title_test_suite_name', 'Test Suite'), data: 'tsuite_name', className: 'suitecell', orderable: true },
         { title: t('title_test_case_title', 'Test Case'), data: null, className: 'tccell', orderable: true,
           render: function(data, type, row) {
-            return '<span style="font-weight:600;color:#33363f;">' + esc(row.full_external_id) + ':</span> ' + esc(row.name);
+            if (type !== 'display') return esc(row.full_external_id) + ': ' + (row.tc_name || '');
+            return tcCell(row);
           },
           createdCell: function(td, cellData, rowData, row, col) {},
         },

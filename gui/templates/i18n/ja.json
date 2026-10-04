@@ -6695,5 +6695,7 @@
   "usergrid.roleId": "ロールID",
   "usergrid.showAllColumns": "全ての列を表示",
   "usergrid.userId": "ユーザーID",
-  "version": "バージョン"
+  "version": "バージョン",
+  "rb.executionHistory": "実行履歴",
+  "rb.testCaseDesign": "テストケース設計"
 }
