@@ -5851,3 +5851,56 @@ BFF: `api/reqspecsearchform/index.php` (`GET|HEAD ?action=init&tproject_id=N…`
   `log_level 2` WARNINGs (2 × `mgt_view_req missing` from the `limited` user, 2 × `BFF shim:
   refused POST`) and the `log_level 16` audit logins → PASS
 - browser console on the screen → no errors, no warnings → PASS
+
+## Regression — Issue #1690: reqTreeReorder back link must carry the user's OWN test project
+
+**Preconditions**
+
+* App up on `http://localhost:8082` (PHP built-in server, docroot = repo root), login `admin` / `admin`.
+* Fixtures loaded — `mysql -h 127.0.0.1 -utestlink -ptestlink testlink < tmp/fixtures_1690.sql`.
+  A fresh run DB has **0** test projects, and one project is not enough: the defect is only visible when
+  the project the screen is opened on is NOT the id that was hardcoded. The fixture therefore creates:
+
+  | id | kind | belongs to |
+  |---|---|---|
+  | 13 | test project `TL` | — the project the screen was developed against (the hardcoded id) |
+  | 60 | test project `ALT` | — a second project; the issue's own repro ids |
+  | 21 | req spec `SRS-A` | project 13 |
+  | 61 | req spec `SRS-B` | project 60 |
+
+  plus requirements `9011/9012` in spec 21 and `9061/9062/9063` in spec 61 (each with a `req_versions`
+  row behind a `node_type_id = 8` node), and requirement-spec revisions for both specs.
+* Branch under test: `fix/issue-1690`, commit `d66f0feb7`.
+
+**Symptom (pre-fix, reproduced)**
+
+`gui/templates/requirements/reqTreeReorder.html` is a **static** file served to every project, so an id
+baked into its markup is only right for the project it was developed on. Open the screen with
+`tproject_id=60` and *Back to specification management* pointed at **`tproject_id=13`** — clicking it
+landed on `"Project 13 - Requirement Specification Management"`, a completely unrelated project.
+
+**Expected (post-fix)**
+
+`#backLink` always carries the test project the user is actually working in — on the success path, on the
+403/404 path, and on the missing-context path — and never an id belonging to another project.
+
+**Cases**
+
+| # | Case | Input | Expected `#backLink` href | Result |
+|---|---|---|---|---|
+| 1 | success path, in-project | `?tproject_id=60&req_spec_id=61` | `…/reqSpecMgmt.html?tproject_id=60`, target `200`, header *Project 60*, 3 rows, chip `SRS-B` | PASS |
+| 2 | 404 path (spec of another project) | `?tproject_id=60&req_spec_id=21`, **referrer says 13** | `…?tproject_id=60` — URL wins, `apiStatus 404`, `stateCode req_spec_not_found`, Apply disabled | PASS |
+| 3 | URL must win over the referrer (old hardcoded id) | `?tproject_id=13&req_spec_id=21`, **referrer says 60** | `…?tproject_id=13` (2 rows, chip `SRS-A`) | PASS |
+| 4 | **the fix** — no project in the URL | `reqTreeReorder.html` clicked from `reqSpecMgmt.html?tproject_id=60` | `…?tproject_id=60` (state `MISSING_TPROJECT`) — pre-fix this was the id-less dead end | PASS |
+| 5 | referrer without a project | clicked from `reqSpecMgmt.html` (no params) | id-less `…/reqSpecMgmt.html` (last resort unchanged) | PASS |
+| 6 | cross-origin referrer must never be trusted | clicked from `http://127.0.0.1:8082/…?tproject_id=60` (different origin, same app) | id-less; guard unit-check in-page: `https://evil.example.com/x?tproject_id=99 → 0`, `127.0.0.1 → 0`, same-origin → `60` | PASS |
+| 7 | non-numeric project param | `?tproject_id=abc` (`TPROJECT_ID === NaN`) + referrer project 60 | `…?tproject_id=60` — `NaN` does not win, referrer takes over | PASS |
+| 8 | the screen still works, the link is inert | project 60 / spec 61: click ↓ on row 1 → *Apply order* → *OK* | *"The new order was saved."*; `nodes_hierarchy.node_order` 1,2,3 → 0,1,2 (id 9062 first); back link still `?tproject_id=60` | PASS |
+| 9 | Event Viewer / console | after all of the above | `events` holds only the `log_level 16` `audit_login_succeeded` row — **no Error/Warning**; browser console empty | PASS |
+
+**Gates for this suite**
+
+- `node --check` on the screen's extracted inline `<script>` → PASS
+- `git diff` empty after restoring the file the pre-fix measurement temporarily swapped in → PASS
+- `TLU_REQUIRE_SUITE="Issue #1690" bash ai/verify_test_suites.sh` → PASS (see the comment on the issue)
+- no i18n key added, no backend/DB change — the fix is one function plus its last-resort helper
