@@ -17,6 +17,33 @@ Every screen of the application was ported one-by-one in a screen-compare
 kept for backward compatibility and is progressively retired as each modern
 screen reaches full parity.
 
+- [FEATURE GAP CLOSED] - #1078: the legacy **custom-field filter on Search Requirements now
+  actually filters.** Legacy rendered a "Custom field" select built from the design-scope
+  requirement CFs plus a "Custom Field Value" textbox
+  (`gui/templates/dashio/requirements/reqSearchForm.tpl:168-186`); the option value was the
+  numeric cfield id (`{foreach from=$gui->design_cf key=cf_id ...}`, map produced by
+  `get_linked_cfields_at_design()` with the default access key `'id'`, see
+  `lib/requirements/reqSearchForm.php:51-57`), and
+  `lib/requirements/reqSearch.php:196-199 + 351-365` turned the pair into
+  `JOIN cfield_design_values CFD ON CFD.node_id = REQV.id` +
+  `AND CFD.field_id = {$id} AND CFD.value like '%{$value}%'` on BOTH branches of the search
+  UNION. The modern screen rendered the same control but the filter was inert, for TWO
+  independent reasons: (1) `buildMeta()` (`api/requirements/index.php:287-325`) serialized each
+  CF as `{name,label,type,verbose_type}` with no numeric `id`, so
+  `searchReq.html` emitted `<option value="undefined">`, `parseInt()` returned NaN and
+  `custom_field_id` was never sent at all; (2) `GET /search` did not read `custom_field_value`
+  into `$args`, so `reqBuildSearchSql()` degraded the predicate to `CFD.value like '%%'`
+  ("has any value for that field"). Fix: `buildMeta()` now emits `'id' => intval($cf['id'])`,
+  `custom_field_value` is back in `$strnull` (legacy parity), and both
+  `searchReq.html` / `searchReqSpec.html` skip a CF whose id is missing instead of rendering
+  `value="undefined"`. Measured before -> after on a fixture with 3 requirements
+  (`high` / `medium` / none): `value=high` went from 2 rows (both CF-carrying requirements) to
+  **1 row**, `value=medium` from 2 to **1**, `value=zzz` shows the "no results" panel, an empty
+  value keeps the legacy `like '%%'` semantics (2 rows) and a value without a field stays inert
+  (3 rows) - identical to legacy. No new i18n keys: `reqsearch.customField` /
+  `reqsearch.customFieldValue` were already translated in all 10 locale bundles.
+  Regression suite "Task — Issue #1078" appended to `tmp/TLU_Test_Cases.md`. (Refs #1078)
+
 - [FEATURE GAP CLOSED] - #1077: the legacy **"Test Case ID" filter (search requirements by the
   test case they are linked to) is back** on the modern Search Requirements screen
   (`gui/templates/requirements/searchReq.html`). Legacy rendered the control at

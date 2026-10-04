@@ -191,8 +191,19 @@ function loadContext() {
         $('#grpCustomFieldValue').show();
         $('#custom_field_id').append('<option value="0">&nbsp;</option>');
         $.each(r.customFields, function (i, cf) {
-          $('#custom_field_id').append('<option value="' + cf.id + '">' + esc(cf.label) + '</option>');
+          // Refs #1078: numeric cfield id as option value (legacy
+          // reqSpecSearchForm.php:37 / reqSpecSearchForm.tpl). Never render
+          // value="undefined" - parseInt() would be NaN and the filter would
+          // be silently dropped.
+          var cfId = parseInt(cf.id, 10);
+          if (!(cfId > 0)) { return; }
+          $('#custom_field_id').append('<option value="' + cfId + '">' + esc(cf.label) + '</option>');
         });
+        // never leave the filter rows visible when nothing selectable was rendered
+        if ($('#custom_field_id option').length <= 1) {
+          $('#grpCustomField').hide();
+          $('#grpCustomFieldValue').hide();
+        }
       }
 
       // prefill from URL params (deep link support)

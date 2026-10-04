@@ -308,6 +308,17 @@ function buildMeta($tproject_id) {
     $cfields = [];
     foreach ($cfMap as $name => $cf) {
         $cfields[] = [
+            // Refs #1078: the numeric cfield id must reach the client. Legacy
+            // built the Search Requirements "Custom field" select with
+            // {foreach from=$gui->design_cf key=cf_id ...}
+            // (gui/templates/dashio/requirements/reqSearchForm.tpl:173) - the
+            // map key produced by the DEFAULT access key 'id', so the option
+            // value WAS the cfield id. get_linked_cfields_at_design() selects
+            // CF.*, so the id is already in the row; it only has to be emitted.
+            // Without it the client rendered value="undefined", parseInt()
+            // returned NaN and GET /search never received custom_field_id, so
+            // the whole filter was silently dropped.
+            'id' => intval($cf['id']),
             'name' => $name,
             'label' => htmlentities($cf['label'], ENT_QUOTES, $charsetCfg),
             'type' => intval($cf['type']),
@@ -2755,7 +2766,14 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'search') {
 
     $args = new stdClass();
 
+    // Refs #1078: 'custom_field_value' must be read here - legacy lists it in
+    // $strnull (lib/requirements/reqSearch.php:196-199). Without it
+    // reqBuildSearchSql() fell back to '' and the custom-field predicate
+    // degenerated to "CFD.value like '%%'" (any value for that field).
+    // 'targetRequirement' is kept for the same reason: legacy carries it in
+    // the very same list (no consumer in reqBuildSearchSql(), kept for parity).
     $strnull = ['requirement_document_id', 'name', 'scope', 'reqStatus',
+                'custom_field_value', 'targetRequirement',
                 'version', 'tcid', 'reqType', 'relation_type',
                 'creation_date_from', 'creation_date_to', 'log_message',
                 'modification_date_from', 'modification_date_to'];

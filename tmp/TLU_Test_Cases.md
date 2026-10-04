@@ -5704,3 +5704,65 @@ the `(n)` counter and the Assign/Unassign enablement follow, and no console erro
 - `data-group="linked"` / `data-group="available"` and the ids `chkAllLinked` /
   `chkAllAvailable`, `btnAssign`, `btnUnassign` are the stable selectors for this screen; use them
   instead of the a11y-tree labels, which change with the surrounding badges.
+
+---
+
+## Task — Issue #1078: working custom-field filter in searchReq
+
+**Precondition / fixture** (recreate with `tmp/fixtures_1078.sql`, freshly imported DB has no
+project data):
+project `CF1078 Project` (id 9001, prefix `CF1`), requirement spec `DOC-1` (id 9005), and three
+requirements — 9002 "REQ-1 has severity" (CF `Req Severity` = `high`), 9003 "REQ-2 no cf value"
+(no CF value), 9004 "REQ-3 medium severity" (CF = `medium`). Custom field id **9101**, name
+`req_severity`, label `Req Severity`, type 6, `show_on_design=1`, `enable_on_design=1`, linked
+via `cfield_testprojects`(9001) + `cfield_node_types`(9101, node_type 7 = requirement).
+Values live on the **version** nodes (`cfield_design_values.node_id` = `req_versions.id`
+9102/9103/9104) — this is what `reqBuildSearchSql()` joins on
+(`CFD.node_id = REQV.id`, legacy `reqSearch.php:356`).
+Gotcha when re-seeding: `requirements.req_doc_id` has a UNIQUE key, so each requirement needs its
+own doc id (`REQ-1`/`REQ-2`/`REQ-3`) or the script aborts with `ERROR 1062`.
+
+| # | Steps | Expected | Result |
+|---|---|---|---|
+| TC-1078-01 | Login admin/admin, open `gui/templates/requirements/searchReq.html?tproject_id=9001` | "Custom field" + "Value contains" rows visible (`design_scope_custom_fields` true); select holds the blank option and one "Req Severity" entry | PASS |
+| TC-1078-02 | Inspect `#custom_field_id` option values | `["0|", "9101\|Req Severity"]` — the option value is the **numeric cfield id** | PASS (was `["0|","undefined\|Req Severity"]` before the fix) |
+| TC-1078-03 | Custom field = `Req Severity`, Value contains = `high`, **Find** | Match count **1**; result grid holds only `REQ-1:REQ-1 has severity` | PASS |
+| TC-1078-04 | Same with Value contains = `medium` | Match count **1**; only `REQ-3:REQ-3 medium severity` | PASS |
+| TC-1078-05 | Same with Value contains = *(empty)* | Match count **2** (REQ-1 + REQ-3) — legacy `like '%%'` = "carries any value for this field" | PASS |
+| TC-1078-06 | Same with Value contains = `zzz` | Match count **0**; `#resultsWrap` hidden and the "no results" panel shown | PASS |
+| TC-1078-07 | Custom field = *(none)*, Value contains = `high`, Find | Match count **3** — the value is inert without a field, exactly as legacy guards everything with `custom_field_id > 0` | PASS |
+| TC-1078-08 | **Reset** button | Custom field back to the blank option, Value contains emptied, grid cleared | PASS |
+| TC-1078-09 | Capture the wire request of TC-1078-03 by wrapping `$.getJSON` inside the frame | `/api/requirements/index.php/search?tproject_id=9001&custom_field_value=high&custom_field_id=9101` — i.e. `custom_field_id` is now actually sent | PASS (before the fix the param was absent entirely) |
+| TC-1078-10 | BFF matrix via curl: `custom_field_id=9101` with `high` / `medium` / `` / `zzz` | `row_qty` 1 / 1 / 2 / 0; control without CF params 3; `custom_field_value` alone 3 | PASS |
+| TC-1078-11 | Deep link `searchReq.html?tproject_id=9001&custom_field_id=9101&custom_field_value=high`, **Find** | URL prefill selects the CF option by its numeric id and reproduces the 1-row result | PASS |
+| TC-1078-12 | Open `gui/templates/requirements/searchReqSpec.html` for the same project | Its Custom field select renders numeric option values too (that route already emitted `id`; only the client guard was added) | PASS |
+| TC-1078-13 | Console across TC-1078-02..12 (`list_console_messages`, types error+warn) | No console messages | PASS |
+| TC-1078-14 | Event Viewer / `events` table after the pass | No new Error/Warning row | PASS |
+
+### Test execution
+- [PASS] TC-1078-01 .. TC-1078-14 — 14/14 PASS (chrome-devtools MCP, live app at :8082; TC-1078-02 and TC-1078-09 are the two that actually reproduce the reported gap and now pass)
+- [PASS] No `gui/templates/i18n/*.json` bundle touched — the fix adds no user-facing string
+  (`reqsearch.customField` / `reqsearch.customFieldValue` already exist in all 10 bundles)
+- [PASS] Merge-base gate: `TLU_REQUIRE_SUITE="Issue #1078" bash ai/verify_test_suites.sh`
+
+### Notes
+- Two independent defects had to be fixed: the missing numeric `id` in the `/search-context`
+  payload, **and** `custom_field_value` missing from the `$strnull` list of `GET /search`
+  (which silently degraded the predicate to `like '%%'`). Fixing only the first one still
+  returns every requirement that carries a value for the field.
+- Reading `#resTable tbody tr` right after a 0-match search returns stale rows: `renderResults()`
+  hides `#resultsWrap` and shows `#noResults` but leaves the old `<tbody>` in the DOM. Assert on
+  `#matchCount` + panel visibility instead (TC-1078-06).
+
+### Addendum — execution detail for TC-1078-11/12/14 (appended, nothing above rewritten)
+- TC-1078-08 (Reset) is invoked through the screen's own `resetForm()` (`searchReq.html:426-440`,
+  wired by `onclick` on both Reset buttons, no element id). Measured: `custom_field_id`
+  `9101` → `0`, `custom_field_value` `high` → `''`, `#resultsHead` hidden.
+- TC-1078-12: the spec-scoped CF filter is only rendered when the project HAS a
+  requirement_spec CF. A second field **9102 / "Spec Kind"** (`cfield_node_types`(9102, node_type
+  6)) was added to the fixture for this case. Measured: group visible,
+  options `["0|", "9102|Spec Kind"]`, `9102` + `functional` → `Matches: 1`, row
+  `DOC-1:REQSPEC DOC-1 rev. 1`. So `searchReqSpec` needed no server-side change (its route
+  already emitted `id`) and still works with the new client guard.
+- TC-1078-14: `SELECT COUNT(*) FROM events WHERE log_level<>16;` → **0**. Only the two
+  `audit_login_succeeded` level-16 INFO rows exist.

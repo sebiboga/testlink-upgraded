@@ -78,3 +78,110 @@ All 10 bundles re-validated with `python3 -m json.tool`.
 
 Also: Event Viewer `events` table — only the `LOGIN` audit row, **no new Error/Warning**;
 browser console — no errors or warnings; `php -l` clean on both files.
+
+---
+
+# Task — Issue #1078: working custom-field filter on Search Requirements
+
+**Status:** ✅ Implemented & verified (branch `task/issue-1078`)
+**Issue:** [#1078](https://github.com/sebiboga/testlink-upgraded/issues/1078)
+
+## The gap
+
+Legacy TestLink 1.9.20 offered a **"Custom field"** select + **"Custom Field Value"** textbox on
+the Search Requirements form:
+
+- `lib/requirements/reqSearchForm.php:51-57` — `$gui->design_cf = get_linked_cfields_at_design($tpid, 1, null, 'requirement')`
+  with the **default access key `'id'`**, so the map was keyed by numeric cfield id.
+- `gui/templates/dashio/requirements/reqSearchForm.tpl:168-186` —
+  `{foreach from=$gui->design_cf key=cf_id item=cf}<option value="{$cf_id}">{$cf.label|escape}</option>`,
+  i.e. **the option value was the cfield id**.
+- `lib/requirements/reqSearch.php:196-199 + 351-365` — `custom_field_value` is in `$strnull`, and
+  when `custom_field_id > 0` both branches of the search UNION get
+
+  ```sql
+  JOIN cfield_design_values CFD ON CFD.node_id = REQV.id   -- and REQR.id on the revision branch
+  AND CFD.field_id = <id> AND CFD.value like '%<value>%'
+  ```
+
+The modern screen rendered the same two controls, but the filter could **never** filter. Two
+independent defects:
+
+1. `api/requirements/index.php:287-325 buildMeta()` serialized each custom field as
+   `{name,label,type,verbose_type}` — **no numeric `id`** (the id was in the row all along:
+   `get_linked_cfields_at_design()` selects `CF.*`). `searchReq.html` therefore rendered
+   `<option value="undefined">`, `parseInt()` → `NaN`, so `custom_field_id` was **never sent**.
+2. `GET /search` did not read `custom_field_value` into `$args` (missing from `$strnull`), so
+   `reqBuildSearchSql()` fell back to `''` and the predicate degenerated to
+   `CFD.value like '%%'` — "carries **any** value for this field".
+
+Measured before the fix (fixture: 3 requirements, CF `Req Severity` with `high` / `medium` / none):
+
+| request | before | after |
+|---|---|---|
+| `custom_field_id=9101&custom_field_value=high` | 2 rows (REQ-1 **and** REQ-3) | **1 row** (REQ-1) |
+| `custom_field_id=9101&custom_field_value=medium` | 2 rows | **1 row** (REQ-3) |
+| `custom_field_id=9101&custom_field_value=` | 2 rows | 2 rows (legacy `like '%%'`) |
+| `custom_field_id=9101&custom_field_value=zzz` | 0 rows | 0 rows, "no results" panel |
+| from the UI (`cf.id` undefined → param dropped) | 3 rows — filter inert | see below |
+
+## Implementation
+
+### 1. `api/requirements/index.php` — `buildMeta()` emits the numeric id
+
+```php
+'id' => intval($cf['id']),   // legacy: {foreach from=$gui->design_cf key=cf_id ...}
+```
+
+Additive: the other 4 consumers of `buildMeta()` only read `$cf['type']` / `$cf['name']` / `count()`.
+
+### 2. `api/requirements/index.php` — `GET /search` reads `custom_field_value`
+
+`custom_field_value` (and legacy's `targetRequirement`) added back to `$strnull`, mirroring
+`lib/requirements/reqSearch.php:196-199`. `reqBuildSearchSql()` already carried the legacy JOIN +
+`field_id` / `like` predicates for **both** the `ver` and the `rev` branch of the UNION — only the
+parameter plumbing was missing.
+
+### 3. `gui/templates/requirements/searchReq.html` + `searchReqSpec.html` — client guard
+
+```js
+var cfId = parseInt(cf.id, 10);
+if (!(cfId > 0)) { return; }          // never render value="undefined"
+$('#custom_field_id').append('<option value="' + cfId + '">' + esc(cf.label) + '</option>');
+```
+
+Note: `prepare_string()` escapes quotes but **not** LIKE wildcards, so a value of `%` or
+`_` in "Value contains" is interpreted as a wildcard. That is unchanged legacy behaviour
+(`lib/requirements/reqSearch.php:353` uses the same helper) — not a regression from this fix.
+
+`searchReqSpec` was **not** broken server-side — its route (`api/requirements/index.php:2062-2071`)
+already emitted `id` from the map key — but it got the same guard.
+
+### 4. i18n
+
+**No new keys.** `reqsearch.customField` ("Custom field") and `reqsearch.customFieldValue`
+("Value contains") were already translated in all 10 modern locale bundles.
+
+## Verification (14-case suite "Task — Issue #1078")
+
+Browser, admin, project `CF1:CF1078 Project`:
+
+| Custom field | Value contains | match count | rows |
+|---|---|---|---|
+| Req Severity (9101) | `high` | 1 | `REQ-1:REQ-1 has severity` |
+| Req Severity (9101) | `medium` | 1 | `REQ-3:REQ-3 medium severity` |
+| Req Severity (9101) | *(empty)* | 2 | legacy `like '%%'` |
+| Req Severity (9101) | `zzz` | 0 | "no results" panel |
+| *(none)* | `high` | 3 | value inert without a field |
+| deep link `?custom_field_id=9101&custom_field_value=high` | — | 1 | URL prefill works |
+| Reset | — | — | select → `0`, value cleared |
+
+Captured wire request after the fix:
+`/api/requirements/index.php/search?tproject_id=9001&custom_field_value=high&custom_field_id=9101`
+(before the fix `custom_field_id` was absent from the request entirely).
+
+`searchReqSpec` re-checked with a spec-scoped CF 9102 "Spec Kind": options `["0|", "9102|Spec Kind"]`,
+filter `functional` → `Matches: 1`. Event Viewer: `SELECT COUNT(*) FROM events WHERE log_level<>16` → **0**.
+Browser console: no errors or warnings. `php -l` + `node --check` clean on all touched files.
+
+(Screenshot: `docs/screenshots/issue-1078-searchReq-customfield-filter.png`.)

@@ -257,8 +257,21 @@ function loadContext(p) {
         $('#grpCustomFieldValue').show();
         $('#custom_field_id').append('<option value="0">&nbsp;</option>');
         $.each(r.custom_fields, function (i, cf) {
-          $('#custom_field_id').append('<option value="' + cf.id + '">' + esc(cf.label) + '</option>');
+          // Refs #1078: the option value is the numeric cfield id (legacy
+          // {foreach from=$gui->design_cf key=cf_id ...}, reqSearchForm.tpl:173).
+          // The server sends it in meta.cfields[].id; guard anyway so a
+          // malformed payload can never render value="undefined" - parseInt()
+          // of that is NaN and the filter would be dropped silently again.
+          var cfId = parseInt(cf.id, 10);
+          if (!(cfId > 0)) { return; }
+          $('#custom_field_id').append('<option value="' + cfId + '">' + esc(cf.label) + '</option>');
         });
+        // a payload whose custom fields carry no usable id must not leave the
+        // two filter rows visible with nothing to select
+        if ($('#custom_field_id option').length <= 1) {
+          $('#grpCustomField').hide();
+          $('#grpCustomFieldValue').hide();
+        }
       }
 
       // prefill from URL params (deep link support)
