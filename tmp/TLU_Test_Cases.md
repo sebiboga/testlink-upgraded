@@ -5825,3 +5825,69 @@ BFF: `api/reqspecsearchform/index.php` (`GET|HEAD ?action=init&tproject_id=N…`
   `log_level 2` WARNINGs (2 × `mgt_view_req missing` from the `limited` user, 2 × `BFF shim:
   refused POST`) and the `log_level 16` audit logins → PASS
 - browser console on the screen → no errors, no warnings → PASS
+
+## Regression — Issue #1824: reqTreeReorder affordances stay live while a save/move request is in flight
+
+**Precondition**
+
+- App at `http://localhost:8082` (PHP built-in server, docroot = repo root), login `admin` / `admin`.
+- Dataset (fresh DB per run): `php tmp/fixtures_1681.php` → `tproject=1` (TREE1681 / prefix TR1),
+  `specA=2` (TR1-SPEC-A, 3 requirements), `specB=4` (TR1-SPEC-B, empty), plus the permission-path
+  users `tr1681readonly` (view-only role) and `tr1681norights` (role 3, no rights).
+- Entry point (mandatory): the screen must be opened **inside the shell iframe** —
+  `document.getElementById('mainframe').src = '/gui/templates/requirements/reqTreeReorder.html?tproject_id=1&req_spec_id=2'`.
+  A top-level tab navigation of the same URL bounces to `login.php?note=expired` on this build.
+- Instrumented probe used for every in-flight case (make the window observable and provable):
+  wrap `contentWindow.jQuery.ajax` to count `dispatch` / `complete` for `?action=reorder` / `?action=move`,
+  trigger the action and read the DOM **in the same synchronous tick as the click** (jQuery returns
+  before the response, so the read is inside the window). Assert `dispatched:1, completed:0, BUSY:true`
+  together with every snapshot — a snapshot without that triple is not evidence.
+
+**Repro (pre-fix)**
+
+1. Load the screen as admin; baseline rows 6 / 8 / 10: `draggable="true"`, grip on every row,
+   arrows disabled by position only (`[[T,F,T,F],[F,F,F,F],[F,T,F,T]]`), toolbar enabled.
+2. Click **Up** on the last row → `Unsaved changes` chip appears.
+3. Click **Apply order** → confirm modal → **OK**.
+4. Read the state inside the request window:
+   `BUSY:true`, `drag ["true","true","true"]`, `dragover` defaultPrevented = true,
+   enabled arrows per row `[2,4,2]`, toolbar `applyBtn/moveBtn/discardBtn = true`.
+   → **the rows still advertise drag & drop and still show live arrow buttons while the request is in flight.**
+5. Prove they are inert: click an enabled arrow → `ITEMS` unchanged (`6,10,8` → `6,10,8`);
+   dispatch a real `DragEvent('drop')` → `ITEMS` unchanged.
+   → **dead affordances**, and `dragstart` still adds `.dragging` (OS drag ghost appears).
+6. Same after a **Move requirement** (select a row, target `TR1-SPEC-B`, confirm).
+
+**Expected post-fix**
+
+The affordances disappear for the whole duration of the request, exactly like `.rm` / Apply /
+Discard / Move already do, and come back when it settles (ok **and** error).
+
+**Actual result — FIXED, all 14 cases PASS (measured 2026-10-04, commit `fix/issue-1824`)**
+
+| # | case | measured | verdict |
+|---|---|---|---|
+| 1 | idle baseline (admin, 3 rows) | `drag ["true","true","true"]`, grip visible, arrows `[[T,F,T,F],[F,F,F,F],[F,T,F,T]]`, toolbar enabled | PASS |
+| 2 | mid-Apply in flight | `BUSY:true` + `dispatched:1/completed:0`; `drag ["false","false","false"]`, grip `display:none`, enabled arrows `[0,0,0]`, toolbar disabled | PASS |
+| 3 | mid-Move in flight | same, on `?action=move` | PASS |
+| 4 | after Apply resolves OK | order reloaded from the server `8,6,10`, drag restored, grip visible, arrows position-only, dirty chip `none`, toolbar enabled | PASS |
+| 5 | after Apply fails (forced HTTP 500) | `BUSY:false`, `.msg.err` "forced 500", drag restored, grip visible, toolbar enabled | PASS |
+| 6 | `dragstart` + `drop` while BUSY | `dragstart` defaultPrevented, `.dragging` **not** applied, `ITEMS` unchanged | PASS |
+| 7 | `dragover` while BUSY / while idle | defaultPrevented `false` / `true` — the drop-target painting now follows the guard | PASS |
+| 8 | arrow click while BUSY | `ITEMS` unchanged (still refused by `nudge()`) | PASS |
+| 9 | arrow click while idle | `8,10,6` → `8,6,10` + dirty chip | PASS |
+| 10 | real drop while idle | → `10,8,6` + dirty chip, `.dragging` ghost fired | PASS |
+| 11 | read-only user `tr1681readonly` | ro-banner shown, drag hint hidden, `drag ["false","false"]`, no grip, arrows disabled, toolbar disabled | PASS |
+| 12 | no-rights user `tr1681norights` | `DEAD:true`, state card `no_right`, 3 cards hidden, toolbar disabled, no ro-banner | PASS |
+| 13 | DEAD mid-session (rows on screen, later `init` 404) | `DEAD:true`, state card shown, rows survive but `drag ["false"]`, pick button + toolbar disabled | PASS |
+| 14 | persistence end-to-end | `nodes_hierarchy` `node_order` for `parent_id=2,node_type_id=7` = **8, 6, 10** (matches the screen); move path lands on `SPEC_ID=4` with "The requirement was moved." | PASS |
+
+**Gates for this suite**
+
+- `node --check` on the screen's extracted inline script → PASS
+- no i18n key added (no new user-facing string in the fix) → all 10 locale bundles untouched
+- browser console: no new errors → PASS (one pre-existing 404 for `dashio-template/img/favicon.png`,
+  present before the change as well)
+- Event Viewer / `events`: 4 rows only — 1 `CREATE` (fixture) + 3 `LOGIN` audit (`log_level 16`);
+  **no Error/Warning** → PASS
+- `TLU_REQUIRE_SUITE="Issue #1824" bash ai/verify_test_suites.sh` → PASS
