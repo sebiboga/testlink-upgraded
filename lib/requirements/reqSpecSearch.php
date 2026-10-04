@@ -91,6 +91,16 @@ if ($wantsJson) {
 // modern screen would have received.
 $_REQUEST = strings_stripSlashes($_REQUEST);
 
+// A repeated parameter arrives as an ARRAY (?doc_id[]=x). Casting it to string
+// raises "Array to string conversion" (an E_WARNING row in the Event Viewer) and
+// would forward the literal "Array" as a criterion. Drop those keys instead.
+function shimScalar($src, $key)
+{
+    if (!isset($src[$key]) || !is_scalar($src[$key])) { return null; }
+    $v = trim((string)$src[$key]);
+    return $v === '' ? null : $v;
+}
+
 $q = array();
 
 // The legacy controller used the SESSION project only.
@@ -98,8 +108,9 @@ $tprojectId = isset($_SESSION['testprojectID']) ? intval($_SESSION['testprojectI
 if ($tprojectId > 0) {
     $q['tproject_id'] = $tprojectId;
 }
-if (isset($_REQUEST['tplan_id']) && intval($_REQUEST['tplan_id']) > 0) {
-    $q['tplan_id'] = intval($_REQUEST['tplan_id']);
+$rawTplan = shimScalar($_REQUEST, 'tplan_id');
+if ($rawTplan !== null && preg_match('/^[0-9]+$/', $rawTplan) === 1 && intval($rawTplan) > 0) {
+    $q['tplan_id'] = intval($rawTplan);
 }
 
 $map = array(
@@ -111,14 +122,12 @@ $map = array(
     'custom_field_value'      => 'custom_field_value',
 );
 foreach ($map as $legacyKey => $modernKey) {
-    if (isset($_REQUEST[$legacyKey]) && trim((string)$_REQUEST[$legacyKey]) !== '') {
-        $q[$modernKey] = trim((string)$_REQUEST[$legacyKey]);
-    }
+    $v = shimScalar($_REQUEST, $legacyKey);
+    if ($v !== null) { $q[$modernKey] = $v; }
 }
-if (isset($_REQUEST['custom_field_id']) &&
-    preg_match('/^[0-9]+$/', trim((string)$_REQUEST['custom_field_id'])) === 1 &&
-    intval(trim((string)$_REQUEST['custom_field_id'])) > 0) {
-    $q['custom_field_id'] = intval(trim((string)$_REQUEST['custom_field_id']));
+$rawCfId = shimScalar($_REQUEST, 'custom_field_id');
+if ($rawCfId !== null && preg_match('/^[0-9]+$/', $rawCfId) === 1 && intval($rawCfId) > 0) {
+    $q['custom_field_id'] = intval($rawCfId);
 }
 
 // A deep link that carried criteria means "run this search", not "show me the

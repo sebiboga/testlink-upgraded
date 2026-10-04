@@ -6554,5 +6554,6 @@
   "rssf.anyField": "任意字段",
   "rssf.emptyCriteria": "未输入任何条件：是否打开无过滤的结果页面？",
   "rssf.projectScope": "搜索范围：{n}",
-  "footers.reqSpecSearchForm": "TestLink 2.0.1 - 搜索需求规格"
+  "footers.reqSpecSearchForm": "TestLink 2.0.1 - 搜索需求规格",
+  "rssf.criteria": "搜索条件表单"
 }

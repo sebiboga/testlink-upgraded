@@ -6574,5 +6574,6 @@
   "rssf.anyField": "すべてのフィールド",
   "rssf.emptyCriteria": "検索条件が未入力です。絞り込みなしで結果画面を開きますか？",
   "rssf.projectScope": "検索範囲: {n}",
-  "footers.reqSpecSearchForm": "TestLink 2.0.1 - 要件仕様書を検索"
+  "footers.reqSpecSearchForm": "TestLink 2.0.1 - 要件仕様書を検索",
+  "rssf.criteria": "検索条件フォーム"
 }

@@ -90,10 +90,21 @@ if ($wantsJson) {
 $criteriaKeys = array('doc_id', 'name', 'reqSpecType', 'scope', 'log_message',
     'custom_field_id', 'custom_field_value', 'tplan_id');
 
+// A repeated parameter arrives as an ARRAY (?doc_id[]=x). Casting it to string
+// raises "Array to string conversion" (an E_WARNING row in the Event Viewer) and
+// would forward the literal "Array" as a criterion. Drop those keys instead.
+function shimScalar($src, $key)
+{
+    if (!isset($src[$key]) || !is_scalar($src[$key])) { return null; }
+    $v = trim((string)$src[$key]);
+    return $v === '' ? null : $v;
+}
+
 $q = array();
 $tprojectId = 0;
-if (isset($_REQUEST['tproject_id']) && preg_match('/^[0-9]+$/', trim((string)$_REQUEST['tproject_id']))) {
-    $tprojectId = intval(trim((string)$_REQUEST['tproject_id']));
+$rawTp = shimScalar($_REQUEST, 'tproject_id');
+if ($rawTp !== null && preg_match('/^[0-9]+$/', $rawTp) === 1) {
+    $tprojectId = intval($rawTp);
 }
 if ($tprojectId <= 0 && isset($_SESSION['testprojectID'])) {
     $tprojectId = intval($_SESSION['testprojectID']);
@@ -101,16 +112,16 @@ if ($tprojectId <= 0 && isset($_SESSION['testprojectID'])) {
 if ($tprojectId > 0) {
     $q['tproject_id'] = $tprojectId;
 }
-if (isset($_REQUEST['tplan_id']) && intval($_REQUEST['tplan_id']) > 0) {
-    $q['tplan_id'] = intval($_REQUEST['tplan_id']);
+$rawTplan = shimScalar($_REQUEST, 'tplan_id');
+if ($rawTplan !== null && preg_match('/^[0-9]+$/', $rawTplan) === 1 && intval($rawTplan) > 0) {
+    $q['tplan_id'] = intval($rawTplan);
 }
 // Any criteria the bookmark carried is preserved, so the reader lands on a
 // pre-filled form instead of an empty one.
 foreach ($criteriaKeys as $k) {
     if ($k === 'tplan_id') { continue; }
-    if (isset($_REQUEST[$k]) && trim((string)$_REQUEST[$k]) !== '') {
-        $q[$k] = trim((string)$_REQUEST[$k]);
-    }
+    $v = shimScalar($_REQUEST, $k);
+    if ($v !== null) { $q[$k] = $v; }
 }
 
 $url = '/gui/templates/requirements/reqSpecSearchForm.html';

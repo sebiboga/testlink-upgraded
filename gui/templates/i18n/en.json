@@ -6584,5 +6584,6 @@
   "rssf.anyField": "Any field",
   "rssf.emptyCriteria": "No criteria entered: open the results screen with no filter?",
   "rssf.projectScope": "Search scope: {n}",
-  "footers.reqSpecSearchForm": "TestLink 2.0.1 - Search Requirement Specifications"
+  "footers.reqSpecSearchForm": "TestLink 2.0.1 - Search Requirement Specifications",
+  "rssf.criteria": "Criteria form"
 }

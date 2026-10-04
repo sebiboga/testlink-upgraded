@@ -6578,5 +6578,6 @@
   "rssf.anyField": "Orice camp",
   "rssf.emptyCriteria": "Nu ai introdus criterii: deschizi ecranul rezultatelor fara filtru?",
   "rssf.projectScope": "Domeniu de cautare: {n}",
-  "footers.reqSpecSearchForm": "TestLink 2.0.1 - Cautare specificatii de cerinte"
+  "footers.reqSpecSearchForm": "TestLink 2.0.1 - Cautare specificatii de cerinte",
+  "rssf.criteria": "Formular criterii"
 }

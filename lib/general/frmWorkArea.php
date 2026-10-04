@@ -29,6 +29,9 @@ $feature_map = array(
   'searchTc'          => 'gui/templates/search/searchView.html',
   'searchReq'         => 'gui/templates/requirements/searchReq.html',
   'searchReqSpec'     => 'gui/templates/requirements/searchReqSpec.html',
+  // Requirement Specification Search FORM (Refs #1825) - same pattern as the
+  // results screen above: it is the criteria page the shim redirects to.
+  'reqSpecSearchForm' => 'gui/templates/requirements/reqSpecSearchForm.html',
   'printTestSpec'     => 'gui/templates/testcases/printTestSpec.html',
   'printReqSpec'      => 'gui/templates/requirements/printReqSpec.html',
   'keywordsAssign'    => 'gui/templates/keywords/keywordsAssign.html',

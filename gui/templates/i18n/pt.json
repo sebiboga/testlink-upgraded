@@ -6574,5 +6574,6 @@
   "rssf.anyField": "Qualquer campo",
   "rssf.emptyCriteria": "Nenhum critério indicado: abrir o ecrã de resultados sem filtro?",
   "rssf.projectScope": "Âmbito de pesquisa: {n}",
-  "footers.reqSpecSearchForm": "TestLink 2.0.1 - Pesquisar especificações de requisitos"
+  "footers.reqSpecSearchForm": "TestLink 2.0.1 - Pesquisar especificações de requisitos",
+  "rssf.criteria": "Formulário de critérios"
 }

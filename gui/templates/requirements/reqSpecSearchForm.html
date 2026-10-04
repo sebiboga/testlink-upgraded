@@ -276,6 +276,12 @@ function renderContext(r) {
 }
 
 function renderForm(r) {
+  // Refresh rebuilds the two selects from scratch, which would throw away a
+  // choice the reader had just made (and which the URL does not carry until a
+  // search runs). Snapshot them and restore after the rebuild.
+  var keepType = $('#reqSpecType').val();
+  var keepCf = $('#custom_field_id').val();
+
   $('#reqSpecType').empty();
   $('#reqSpecType').append('<option value="notype">' + esc(t('anyType')) + '</option>');
   $.each(r.types, function (i, ty) {
@@ -308,10 +314,16 @@ function renderForm(r) {
   if (k.scope) { $('#scope').val(k.scope); }
   if (k.log_message) { $('#log_message').val(k.log_message); }
   if (k.custom_field_value) { $('#custom_field_value').val(k.custom_field_value); }
+  // The server echo wins when it carries a value (deep link / first load);
+  // otherwise the choice that survived the rebuild is put back.
   if (k.reqSpecType) { $('#reqSpecType').val(k.reqSpecType); }
+  else if (keepType) { $('#reqSpecType').val(keepType); }
   if (k.custom_field_id > 0) {
     $('#custom_field_id').val(String(k.custom_field_id));
     $('#grpCustomFieldValue').show();
+  } else if (keepCf) {
+    $('#custom_field_id').val(keepCf);
+    if (parseInt(keepCf, 10) > 0) { $('#grpCustomFieldValue').show(); }
   }
 
   $('#formPanel').show();

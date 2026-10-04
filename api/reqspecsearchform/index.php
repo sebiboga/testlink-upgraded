@@ -63,7 +63,17 @@ set_exception_handler(function ($e) {
 });
 
 $method = isset($_SERVER['REQUEST_METHOD']) ? strtoupper($_SERVER['REQUEST_METHOD']) : 'GET';
-$action = isset($_REQUEST['action']) ? trim((string)$_REQUEST['action']) : 'init';
+$action = 'init';
+if (isset($_REQUEST['action'])) {
+    // ?action[]=x is an array, not a name: reject it instead of raising an
+    // "Array to string conversion" warning (see crit() below).
+    if (!is_scalar($_REQUEST['action'])) {
+        tLog('non-scalar value for action - Requirement Specification Search '
+            . 'Form refused', 'WARNING');
+        failOut(400, 'Invalid value for action', 'invalid_parameter');
+    }
+    $action = trim((string)$_REQUEST['action']);
+}
 
 if ($action !== 'init') {
     failOut(400, 'Unknown action', 'unknown_action');
@@ -96,7 +106,15 @@ bffEnforceSession($db);
 // the criteria of the project it names. Explicit param wins, session is the
 // fallback (the legacy page always used the session project and had no way to
 // move without hand-editing the URL).
-$rawTp = isset($_REQUEST['tproject_id']) ? trim((string)$_REQUEST['tproject_id']) : '';
+$rawTp = '';
+if (isset($_REQUEST['tproject_id'])) {
+    if (!is_scalar($_REQUEST['tproject_id'])) {
+        tLog('non-scalar value for tproject_id - Requirement Specification Search '
+            . 'Form refused', 'WARNING');
+        failOut(400, 'Invalid value for tproject_id', 'invalid_parameter');
+    }
+    $rawTp = trim((string)$_REQUEST['tproject_id']);
+}
 if ($rawTp === '') {
     $tprojectId = isset($_SESSION['testprojectID']) ? intval($_SESSION['testprojectID']) : 0;
 } elseif (preg_match('/^[0-9]+$/', $rawTp) !== 1) {
@@ -111,7 +129,9 @@ if ($tprojectId <= 0) {
 // --- rights ------------------------------------------------------------------
 // Checked on the ADDRESSED project BEFORE it is resolved, so a caller without
 // the right cannot turn this into a test-project existence oracle (#1697 lesson).
-// mgt_modify_req implies mgt_view_req (roles.inc.php), so an author passes too.
+// Both rights are tested because propagateRights() (lib/functions/roles.inc.php)
+// copies global project rights wholesale - it establishes no modify->view
+// implication of its own - and a requirement AUTHOR must reach this page too.
 if (!($user->hasRight($db, 'mgt_view_req', $tprojectId) ||
       $user->hasRight($db, 'mgt_modify_req', $tprojectId))) {
     tLog('mgt_view_req missing on test project ' . $tprojectId
@@ -170,6 +190,16 @@ $maxQty = isset($reqCfg->search->max_qty_for_display)
 function crit($key, $max)
 {
     if (!isset($_REQUEST[$key])) { return ''; }
+    // A repeated parameter arrives as an ARRAY (?scope[]=x). Casting it to
+    // string raises "Array to string conversion" (an E_WARNING row in the Event
+    // Viewer) and pollutes the criterion with the literal "Array", which the
+    // results screen would then feed into a LIKE '%Array%' filter. Reject the
+    // request instead - same contract as api/reqmonitors/index.php param().
+    if (!is_scalar($_REQUEST[$key])) {
+        tLog('non-scalar value for criterion ' . $key . ' - Requirement '
+            . 'Specification Search Form refused', 'WARNING');
+        failOut(400, 'Invalid value for ' . $key, 'invalid_parameter');
+    }
     $v = trim((string)$_REQUEST[$key]);
     if ($v === '') { return ''; }
     if (strlen($v) > $max) { $v = substr($v, 0, $max); }
@@ -184,9 +214,16 @@ foreach ($types as $t) {
 if (!$knownType) { $rawType = ''; }
 
 $rawCfId = 0;
-if (isset($_REQUEST['custom_field_id']) &&
-    preg_match('/^[0-9]+$/', trim((string)$_REQUEST['custom_field_id'])) === 1) {
-    $rawCfId = intval(trim((string)$_REQUEST['custom_field_id']));
+if (isset($_REQUEST['custom_field_id'])) {
+    if (!is_scalar($_REQUEST['custom_field_id'])) {
+        tLog('non-scalar value for custom_field_id - Requirement Specification '
+            . 'Search Form refused', 'WARNING');
+        failOut(400, 'Invalid value for custom_field_id', 'invalid_parameter');
+    }
+    $rawCf = trim((string)$_REQUEST['custom_field_id']);
+    if (preg_match('/^[0-9]+$/', $rawCf) === 1) {
+        $rawCfId = intval($rawCf);
+    }
 }
 $knownCf = false;
 foreach ($customFields as $cf) {
@@ -221,9 +258,5 @@ out(array(
         'log_message'        => crit('log_message', 2000),
         'custom_field_id'    => $rawCfId,
         'custom_field_value' => crit('custom_field_value', 2000),
-    ),
-    'grant' => array(
-        'view'   => (bool)$user->hasRight($db, 'mgt_view_req', $tprojectId),
-        'modify' => (bool)$user->hasRight($db, 'mgt_modify_req', $tprojectId),
     ),
 ));

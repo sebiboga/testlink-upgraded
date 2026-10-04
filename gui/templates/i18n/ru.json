@@ -6574,5 +6574,6 @@
   "rssf.anyField": "Любое поле",
   "rssf.emptyCriteria": "Критерии не заданы: открыть экран результатов без фильтра?",
   "rssf.projectScope": "Область поиска: {n}",
-  "footers.reqSpecSearchForm": "TestLink 2.0.1 - Поиск спецификаций требований"
+  "footers.reqSpecSearchForm": "TestLink 2.0.1 - Поиск спецификаций требований",
+  "rssf.criteria": "Форма критериев"
 }
