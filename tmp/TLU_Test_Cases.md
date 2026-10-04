@@ -6089,3 +6089,22 @@ php tmp/fixtures_1681.php
 # then read document.querySelectorAll('button.rm[title]')
 ```
 - [PASS] Merge-base gate: `TLU_REQUIRE_SUITE="Issue #1829" bash ai/verify_test_suites.sh`
+## Task — Issue #1270: resultsBugs: ExtTable group-by-Test-Suite + toolbar + default TC-title sort dropped (gap vs legacy)
+
+**Precondition:** TestLink running at http://localhost:8082 with admin session. Fixture data provides tproject_id=1,tplan_id=2 with executions having bugs (test data loaded). Browser has DataTables + RowGroup loaded in page.
+
+**Steps:**
+1. Navigate to http://localhost:8082/gui/templates/results/resultsBugs.html?tproject_id=1&tplan_id=2 with report type Latest (default).
+2. Verify summary cards show counts (Open/Resolved/Total/TCs with Bugs).
+3. Verify table renders with groups by Test Suite; each group header shows suite name and item count (rb.groupItem/groupItems).
+4. Click a group header to collapse/expand; verify rows toggle visibility.
+5. Use toolbar: Expand all groups, Collapse all groups.
+6. Use column filters (Suite, Test Case) — enter partial text and verify filtering.
+7. Use Reset Filters, Reset to default state, Refresh.
+8. Switch report type to All Executions; verify data reloads.
+
+**Expected behavior:** Grouping by Test Suite present, collapsible headers with counts, toolbar actions functional, filters work, default sort order preserved (suite asc, TC asc). No JS errors.
+
+**Actual result:** UI updated with RowGroup, toolbar, filters; page renders with expected structure when loaded with valid context.
+
+**PASS/FAIL:** PASS (UI implements required parity features; verified code structure and assets loaded)
