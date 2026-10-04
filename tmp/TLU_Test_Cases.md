@@ -6315,3 +6315,50 @@ Log in `admin/admin`; open
 
 **Known separate defect found while testing this feature** (not part of #1269, not fixed here):
 the *Bugs* column puts the tracker's HTML fragment into `href` — filed as **#1837**.
+
+## Regression — Issue #1837: `resultsBugs.html` Bugs column rendered the tracker HTML fragment as href (dead percent-encoded link, measured HTTP 404)
+
+**Precondition** (the DB is re-imported every run, so recreate the fixture):
+`php tmp/fixtures_1269.php` → project `RB1269` (id 1, `issue_tracker_enabled=1`, tracker `MantisFixture1269`
+mantis/db type 4, `uriview=http://mantis.local/view_bug.php?bug_id=`), plan `RB Plan` (id 2), build `RB Build 1`,
+2 suites / 3 TCs / 3 executions, local `mantis_bug_table` rows `101` (status 10 = new) and `102` (status 80 =
+resolved). Login `admin/admin`.
+
+**Repro steps (pre-fix)**
+1. Open `http://localhost:8082/gui/templates/results/resultsBugs.html?tproject_id=1&tplan_id=2`
+   (type = *Latest Generation*).
+2. Take the accessibility snapshot / inspect any anchor in the *Bugs* column.
+3. `fetch()` the anchor's `href` from the page context.
+4. `fetch('/api/reports/index.php?action=results_bugs&tproject_id=1&tplan_id=2&type=0')`.
+
+**Expected post-fix behaviour**
+* The snapshot reports `link " 101" url="http://mantis.local/view_bug.php?bug_id=101"` — the tracker bug page,
+  not an escaped HTML fragment.
+* The payload carries `bugs[].url` = the bare tracker URL, while `bugs[].link` stays the legacy HTML fragment
+  (unchanged, for HTML consumers).
+* Resolved bugs keep the `.bug-link.resolved` styling; no URL that is not `http(s)://` / `//host` / `/path` may
+  ever reach `href` (anything else renders as plain text).
+* No new console error, no new Error/Warning row in `events`.
+
+**Actual results — measured on this run**
+
+| # | Check | Result |
+|---|-------|--------|
+| PRE-FIX 1 | a11y snapshot, bug 101 | `url="http://localhost:8082/gui/templates/results/%3Cdiv%20%20title=%22Access%20issue%20tracking%20system%22…%3C/a%3E%3C/div%3E"` — **FAIL** |
+| PRE-FIX 2 | `fetch(anchor.href)` | `status: 404`, body `404 Not Found` (the percent-encoded fragment as path) — **FAIL**, and the same for all 3 bug links (101, 101, 102) |
+| PRE-FIX 3 | payload | `bugs[0] = {bug_id:101, link:"<div title=\"Access issue tracking system\" style=\"…background: #ffa0a0;\"><a href='http://mantis.local/view_bug.php?bug_id=101' …>…</a></div>", is_resolved:false, build_name:"RB Build 1"}` — the usable URL existed inside `link`, the renderer misused it — **FAIL** |
+| POST-FIX 1 | a11y snapshot / DOM | `href="http://mantis.local/view_bug.php?bug_id=101"` (×2) and `…bug_id=102`, `class="bug-link resolved"`, `rel="noopener"` — **PASS** |
+| POST-FIX 2 | payload `type=0` | `rows[0].bugs[0].url = "http://mantis.local/view_bug.php?bug_id=101"`, `rows[1].bugs[1].url = "…bug_id=102"`; `rows[0].bugs[0].link` still the HTML fragment — **PASS** |
+| POST-FIX 3 | `type=1` (*All Executions*, driven through the UI select) | payload `rows=2`; rendered hrefs `…bug_id=101`, `…bug_id=101`, `…bug_id=102` — **PASS** |
+| POST-FIX 4 | client guard (`safeHttpUrl` + `renderBugLinks` extracted and run in node, 11 inputs) | `http://`, `https://`, `//host`, `/path` → live href; `javascript:`, `data:`, HTML fragment, missing/empty `url` → `<span class="bug-link">`, no href — **PASS** |
+| POST-FIX 5 | PHP helper matrix (real interface / no `buildViewBugURL` / throwing / empty / legacy error string / double-quoted+entity href / id with space) | correct URL in the first three, `''` in the two empty cases, `https://x/y?a=1&b=2` decoded, `…bug_id=ABC+1` (legacy `urlencode()` semantics) — **PASS** |
+| POST-FIX 6 | console | only the pre-existing advisory `A form field element should have an id or name attribute` (count 3); 0 errors — **PASS** |
+| POST-FIX 7 | Event Viewer (`events` table) | 5 rows, all `log_level=16` (audit/info), no Error/Warning — **PASS** |
+| POST-FIX 8 | regression `action=by_status` + `gui/templates/results/resultsByStatus.html` (echoes the fragment as HTML on purpose) | `status:"ok"`, screen renders — **PASS** |
+| POST-FIX 9 | legacy untouched | `git diff --stat` for the fix = `api/reports/index.php +36`, `gui/templates/results/resultsBugs.html +22/-3`; `lib/functions/exec.inc.php` and `lib/results/resultsBugs.php` unchanged — **PASS** |
+| POST-FIX 10 | syntax gate | `php -l api/reports/index.php` → OK; inline `<script>` extracted → `node --check` → OK — **PASS** |
+
+**Known limitation (reported, not fixed here)**: `chrome-devtools_take_screenshot` timed out twice for this page
+(MCP `-32001`), so no image is attached to the wiki page; the a11y-snapshot + DOM measurements above stand as the
+evidence. The same `link_to_bts`-into-`href` antipattern exists in `gui/templates/execute/bugDelete.html:250-251`
+(feed from `api/bugdelete/index.php:137`) and is filed as a separate bug — out of scope for #1837.
