@@ -1947,6 +1947,13 @@ function getActions(&$gui,$baseURL) {
   // deep-linkable popup; the legacy checkRights() (cfield_management) is
   // enforced by api/cfieldsedit on every route.
   $actions->cfieldsEdit = "/gui/templates/cfields/cfieldsEdit.html?{$ctx}";
+  // Custom field assignment to a test project (attach / detach / re-order /
+  // display location / the three booleans), modernized in Refs #1816. Legacy
+  // controller lib/cfields/cfieldsTprojectAssign.php (+ .tpl, 270 lines) is now
+  // a session-guarded 302 shim onto this screen; api/cfieldstproject enforces
+  // cfield_management on the ADDRESSED project (the legacy checkRights() had no
+  // project scope at all) and proves every submitted custom field id.
+  $actions->cfieldsTprojectAssign = "/gui/templates/cfields/cfieldsTprojectAssign.html?{$ctx}";
 
   $actions->keywordsView = "/gui/templates/keywords/keywordsView.html?{$ctx}";
   // Keyword create/edit/create-and-link dialog, modernized in Refs #1599.

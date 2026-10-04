@@ -50,6 +50,7 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
   <button id="btnCreate" class="btn-teal" onclick="openEditor('create', 0)"><i class="fa fa-plus"></i> <span data-i18n="cf.createCustomField">Create Custom Field</span></button>
   <button class="btn-ghost" onclick="location='/gui/templates/cfields/cfieldsExchange.html#export'"><i class="fa fa-download"></i> <span data-i18n="cfx.btnExport">Export</span></button>
   <button id="btnUpload" class="btn-ghost" onclick="location='/gui/templates/cfields/cfieldsExchange.html#import'"><i class="fa fa-upload"></i> <span data-i18n="cfx.btnUpload">Upload File</span></button>
+  <button id="btnAssignTproject" class="btn-ghost" onclick="openTprojectAssign()"><i class="fa fa-link"></i> <span data-i18n="cfpa.assignToProject">Assign to Test Project</span></button>
   <span style="flex:1"></span>
   <span id="footerInfo" style="color:#aaa;font-size:12px;"></span>
 </div>
@@ -243,7 +244,7 @@ function loadCfields() {
   $.getJSON(API, function(r) {
     allItems = r.items;
     if (r.can_manage === 0) {
-      $('#btnCreate, #btnUpload').hide();
+      $('#btnCreate, #btnUpload, #btnAssignTproject').hide();
       editEnabled = false;
       $('#footerInfo').text(TLi18n.t('cf.msg.readOnly'));
     }
@@ -304,6 +305,19 @@ function openEditor(mode, cfId) {
   if (!editEnabled) return;
   window.location.href = EDITOR_URL + '?do_action=' + mode +
     '&cfield_id=' + (cfId || 0) + '&tproject_id=' + (TPROJECT_ID || 0);
+}
+
+/* Refs #1816: the legacy "Custom Fields - Test Project" screen
+   (lib/cfields/cfieldsTprojectAssign.php) had no live entry point left at all
+   - the only reference in the tree was the dead tl-classic mainPageLeft.tpl -
+   so this button is what makes gui/templates/cfields/cfieldsTprojectAssign.html
+   reachable. It needs no cfield_management right of its own: the BFF enforces
+   the right on the addressed project and renders its own denied state. */
+function openTprojectAssign() {
+  var p = new URLSearchParams(window.location.search);
+  window.location.href = '/gui/templates/cfields/cfieldsTprojectAssign.html?tproject_id=' +
+    (TPROJECT_ID || parseInt(p.get('tproject_id') || '0', 10) || 0) +
+    (p.get('locale') ? '&locale=' + encodeURIComponent(p.get('locale')) : '');
 }
 
 function showCreateModal() {
