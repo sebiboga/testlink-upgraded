@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title data-i18n="prsm.title">Requirement Specifications</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; color: #0d3f3c; opacity: 1; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-dark { background: #22242a; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-dark:hover { background: #33363e; }
+.section { padding: 20px 24px 4px; }
+.section h2 { font-size: 15px; font-weight: 700; color: #22242a; margin: 0; }
+.section p.hint { color: #999; font-size: 12px; margin: 6px 0 0; }
+
+/* counter tiles */
+.tiles { display: flex; gap: 16px; padding: 14px 24px 4px; flex-wrap: wrap; }
+.tile { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); flex: 1 1 180px; min-width: 180px; padding: 16px 18px; display: flex; align-items: center; gap: 14px; }
+.tile .ic { width: 44px; height: 44px; border-radius: 8px; background: #4ECDC4; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 19px; flex: 0 0 auto; }
+.tile.alt .ic { background: #22242a; }
+.tile .v { font-size: 24px; font-weight: 700; color: #22242a; line-height: 1.1; }
+.tile .l { font-size: 12px; color: #888; font-weight: 600; text-transform: uppercase; letter-spacing: .4px; }
+
+/* action cards */
+.acts { display: flex; gap: 16px; padding: 14px 24px 4px; flex-wrap: wrap; }
+.act { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); flex: 1 1 260px; min-width: 250px; padding: 16px 18px; display: flex; flex-direction: column; }
+.act .ic { width: 40px; height: 40px; border-radius: 8px; background: #4ECDC4; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 17px; margin-bottom: 10px; }
+.act .t1 { font-size: 14px; font-weight: 700; color: #22242a; }
+.act .t2 { font-size: 12px; color: #888; margin: 4px 0 12px; flex: 1; }
+.act .btn-teal, .act .btn-dark { text-align: center; text-decoration: none; display: block; }
+.act.locked { background: #f7f7f7; box-shadow: none; border: 1px dashed #d5d5d5; }
+.act.locked .ic { background: #cfcfcf; }
+.act.locked .t1 { color: #999; }
+
+.warn-box { background:#fdeaea; color:#b45452; border:1px solid #f3cccc; border-radius: 4px; padding: 10px 14px; font-size: 13px; margin: 16px 24px 0; display:none; }
+.note-box { background:#fff8e1; color:#8a6d1f; border:1px solid #f0e0b0; border-radius: 4px; padding: 10px 14px; font-size: 13px; margin: 16px 24px 0; display:none; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 22px; }
+.loading-overlay { position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(34,36,42,.55); color:#fff; display:none; align-items:center; justify-content:center; font-size:15px; z-index:10000; }
+.loading-overlay i { margin-right: 10px; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.toast.err { background: #e6605e; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span data-i18n="prsm.title">Requirement Specifications</span>
+  <span id="projectSub" class="sub"></span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="toolbar">
+  <span class="ctx"><span data-i18n="prsm.project">Test project</span>: <b id="ctxProject">-</b></span>
+  <span style="flex:1"></span>
+  <button class="btn-dark" id="btnReload" onclick="load()"><i class="fa fa-arrows-rotate"></i> <span data-i18n="prsm.reload">Refresh</span></button>
+</div>
+
+<div class="loading-overlay" id="loading"><i class="fa fa-spinner fa-spin"></i> <span data-i18n="prsm.loading">Loading…</span></div>
+<div class="warn-box" id="warnBox"></div>
+<div class="note-box" id="noteBox"></div>
+
+<div class="section">
+  <h2 data-i18n="prsm.contentTitle">Content</h2>
+  <p class="hint" data-i18n="prsm.contentHint">What this test project currently holds in its requirement specification tree.</p>
+</div>
+<div class="tiles" id="tiles"></div>
+
+<div class="section">
+  <h2 data-i18n="prsm.actionsTitle">Actions</h2>
+  <p class="hint" id="actsHint" data-i18n="prsm.actionsHint">Each action opens the matching screen for the test project above.</p>
+</div>
+<div class="acts" id="acts"></div>
+
+<div class="footer" id="footerLine"></div>
+<div class="toast" id="toast"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script>
+var API = '/api/projectreqspecmgmt/index.php';
+var DATA = null;
+
+function esc(v) {
+  return String(v == null ? '' : v)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function t(k, vars) { return TLi18n.t(k, vars); }
+
+function busy(on) { $('#loading').css('display', on ? 'flex' : 'none'); }
+
+function toast(msg, isErr) {
+  var $t = $('#toast');
+  $t.text(msg).toggleClass('err', !!isErr).stop(true, true).fadeIn(160);
+  window.setTimeout(function () { $t.fadeOut(320); }, 3600);
+}
+
+function showError(msg) {
+  $('#warnBox').text(msg).show();
+  $('#noteBox').hide();
+}
+
+function tprojectIdFromUrl() {
+  var m = /[?&]tproject_id=(\d+)/.exec(window.location.search);
+  return m ? parseInt(m[1], 10) : 0;
+}
+
+// Legacy title was: lang_get('testproject') TITLE_SEP name TITLE_SEP
+// lang_get('title_req_spec') - i.e. "Test project > <name> > Requirement
+// Specification". Reproduced here as the header sub-line so the context is
+// readable at a glance instead of being a single run-on h1.
+function renderHeader(d) {
+  var name = d.context.tproject_name || '';
+  $('#projectSub').text(
+    t('prsm.sub', { project: t('prsm.project'), name: name, title: t('prsm.title') })
+  );
+  $('#ctxProject').text(name || '-');
+}
+
+function renderTiles(d) {
+  var items = [
+    ['fa-folder-tree', 'prsm.specifications', d.qty.specifications, false],
+    ['fa-list-check', 'prsm.requirements', d.qty.requirements, true]
+  ];
+  $('#tiles').html(items.map(function (it) {
+    return '<div class="tile' + (it[3] ? ' alt' : '') + '">' +
+      '<div class="ic"><i class="fa ' + it[0] + '"></i></div>' +
+      '<div><div class="v">' + esc(it[2]) + '</div>' +
+      '<div class="l">' + esc(t(it[1])) + '</div></div></div>';
+  }).join(''));
+}
+
+// The legacy template simply did not render a button the user was not allowed
+// to press ({if $gui->grants->modify} ... {/if}). Here the card is kept and
+// rendered locked instead, so the screen does not silently change shape with
+// the role - but it is NOT clickable, exactly like the missing button was.
+var CARD_ORDER = ['create', 'reorder', 'import', 'export'];
+
+var CARD_TEXT = {
+  create:  ['prsm.actCreate',  'prsm.actCreateDesc',  'fa-plus'],
+  reorder: ['prsm.actReorder', 'prsm.actReorderDesc', 'fa-sort-amount-down'],
+  import:  ['prsm.actImport',  'prsm.actImportDesc',  'fa-upload'],
+  export:  ['prsm.actExport',  'prsm.actExportDesc',  'fa-download']
+};
+
+function renderActs(d) {
+  $('#acts').html(CARD_ORDER.map(function (key) {
+    var a = d.actions[key];
+    var txt = CARD_TEXT[key];
+    var head = '<div class="ic"><i class="fa ' + txt[2] + '"></i></div>' +
+      '<div class="t1">' + esc(t(txt[0])) + '</div>' +
+      '<div class="t2">' + esc(t(txt[1])) + '</div>';
+    if (!a) {
+      return '<div class="act locked">' + head +
+        '<button class="btn-dark" disabled><i class="fa fa-lock"></i> ' +
+        esc(t('prsm.noRight')) + '</button></div>';
+    }
+    return '<div class="act">' + head +
+      '<a class="btn-teal" href="' + esc(a.url) + '">' +
+      '<i class="fa ' + txt[2] + '"></i> ' + esc(t(a.label)) + '</a></div>';
+  }).join(''));
+}
+
+function renderNote(d) {
+  if (d.requirements_enabled) {
+    $('#noteBox').hide();
+    return;
+  }
+  $('#noteBox').html('<i class="fa fa-triangle-exclamation"></i> ' +
+    esc(t('prsm.reqsDisabled'))).show();
+}
+
+function load() {
+  busy(true);
+  $('#warnBox').hide();
+  var q = { action: 'init' };
+  var tid = tprojectIdFromUrl();
+  if (tid > 0) { q.tproject_id = tid; }
+
+  $.ajax({ url: API, method: 'GET', data: q, dataType: 'json' })
+    .done(function (d) {
+      if (!d || d.status !== 'ok') {
+        showError(t('prsm.errLoad', { msg: (d && d.message) || '?' }));
+        return;
+      }
+      DATA = d;
+      renderHeader(d);
+      renderTiles(d);
+      renderActs(d);
+      renderNote(d);
+      $('#footerLine').text(t('footers.projectReqSpecMgmt'));
+    })
+    .fail(function (xhr) {
+      var d = xhr.responseJSON || {};
+      if (xhr.status === 401) {
+        showError(t('prsm.errSession'));
+        return;
+      }
+      if (xhr.status === 403) {
+        showError(t('prsm.errNoRight'));
+        return;
+      }
+      showError(t('prsm.errLoad', { msg: d.message || ('HTTP ' + xhr.status) }));
+    })
+    .always(function () { busy(false); });
+}
+
+TLi18n.load(function () {
+  TLi18n.apply();
+  TLi18n.initLocaleSwitcher('#localeSwitcher');
+  load();
+});
+</script>
+</body>
+</html>
