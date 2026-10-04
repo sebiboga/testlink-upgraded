@@ -175,29 +175,36 @@ var SPECS = [];
 var GRANT = { view: false, modify: false };
 var BUSY = false;
 
-// Build the back target from the URL params SYNCHRONOUSLY, before any API
-// call: the escape hatch must work on the error path, and this template is a
-// static file so no server-side value can be baked in. Refs #1690.
+// Build the back target from the URL params, or - when they carry none - from
+// the same-origin referrer, SYNCHRONOUSLY and before any API call: the escape
+// hatch must work on the error path, and this template is a static file so no
+// server-side value can be baked in. It always targets the specification
+// MANAGEMENT screen (the label's own words) and never '#'. Refs #1690.
 function buildBackLink() {
   // The project the user actually opened THIS page with always wins - it is the
   // only source that cannot be stale. A NaN tproject_id (?tproject_id=abc)
   // fails the >0 test and therefore falls through to the referrer, which is the
   // right answer instead of the id-less screen.
   var tp = TPROJECT_ID > 0 ? TPROJECT_ID : referrerTprojectId();
-  $('#backLink').attr('href', tp > 0
-    ? '/gui/templates/requirements/reqSpecMgmt.html?tproject_id=' + tp
-    : '/gui/templates/requirements/reqSpecMgmt.html');
+  // Only REFINED, never replaced: the id-less target already in the markup is the
+  // last resort, and keeping the literal in one place is deliberate - a second
+  // copy of a project-less href is how a project-less id ended up baked in once.
+  if (tp > 0) {
+    $('#backLink').attr('href',
+      '/gui/templates/requirements/reqSpecMgmt.html?tproject_id=' + tp);
+  }
 }
 
-// Last resort when the URL carries no project (load() then paints
-// MISSING_TPROJECT). The id-less reqSpecMgmt.html is a dead end of its own: it
-// reads the project from the URL only and has NO project selector, so it
-// renders "Test Project: -" with every dropdown empty and the user cannot
-// recover. When this screen was reached from a test project, that project's
-// tproject_id is the honest "back" target - so read it out of the referrer.
-// Same-origin ONLY: a foreign referrer could name any project, and pointing the
-// escape hatch at another project is exactly the bug #1690 was filed for. No
-// usable referrer leaves the id-less href in place, i.e. the previous behaviour.
+// Last resort when the URL carries no USABLE project (load() then paints
+// MISSING_TPROJECT). The id-less reqSpecMgmt.html - the target left in the
+// markup - is a dead end of its own: it reads the project from the URL only and
+// has NO project selector, so it renders "Test Project: -" with every dropdown
+// empty and the user cannot recover. When this screen was reached from a test
+// project, that project's tproject_id is the honest "back" target - so read it
+// out of the referrer. Same-origin ONLY: a foreign referrer could name any
+// project, and pointing the escape hatch at another project is exactly the bug
+// #1690 was filed for. No usable referrer leaves the markup's href in place,
+// i.e. the previous behaviour.
 function referrerTprojectId() {
   var ref = document.referrer;
   if (!ref) { return 0; }
@@ -492,9 +499,6 @@ function load(keepMsg) {
       } else {
         chip.removeAttr('data-href');
       }
-      // The back link always points at the specification MANAGEMENT screen, which
-      // matches its label and is valid even before this script runs. Only refine
-      // it here; never fall back to '#' (a self-reload of a forbidden page).
       ITEMS = (r.requirements || []).map(function (x) {
         return { id: x.id, req_doc_id: x.req_doc_id, title: x.title,
                  status: x.status, type: x.type, version: x.version };

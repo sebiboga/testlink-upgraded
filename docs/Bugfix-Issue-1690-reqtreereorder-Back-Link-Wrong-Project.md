@@ -32,8 +32,8 @@ Two defects, one control.
 | Hop | Location | What was wrong |
 |---|---|---|
 | 1 | `reqTreeReorder.html:166` | `TPROJECT_ID = parseInt(q.get('tproject_id') \|\| '0', 10)` → `0` (and `NaN` for `?tproject_id=abc`) when the URL carries no project |
-| 2 | `reqTreeReorder.html:181-186` (pre-fix shape) | `buildBackLink()` had nothing to put in the href, so it fell back to the id-less `reqSpecMgmt.html` |
-| 3 | `reqTreeReorder.html:441-444` | `load()` bails out on the *same* condition → `MISSING_TPROJECT`, so this is not a hypothetical state: it is exactly the state that fallback is written for |
+| 2 | `reqTreeReorder.html:181-186` (pre-fix shape, `1ba5015e7`) | `buildBackLink()` had nothing to put in the href, so it fell back to the id-less `reqSpecMgmt.html` |
+| 3 | `reqTreeReorder.html:471-473` | `load()` bails out on the *same* condition → `MISSING_TPROJECT`, so this is not a hypothetical state: it is exactly the state that fallback is written for |
 | 4 | `reqSpecMgmt.html:495` → `:518` | the target loads with `tproject_id=0`; `action=options&tproject_id=0` returns nothing and no project can be chosen |
 
 Both requirements were again conflated: *valid destination* (not a self-loop, not a foreign project) was
@@ -61,7 +61,7 @@ closure step, plus the verification that would have exposed hop 2.
   precisely what #1690 was filed for, so the guard is conservative: *no usable same-origin referrer →
   the id-less link stays, i.e. the previous behaviour*.
 * **Everything else untouched:** still synchronous, still inside the existing `$(function(){ … })` at
-  DOM-ready (`:188-189`), still **before** `TLi18n.load()` and before `load()`'s `init` call, so no API
+  DOM-ready (`:218-219`), still **before** `TLi18n.load()` and before `load()`'s `init` call, so no API
   outcome can degrade the link. No new i18n key, no backend change, no schema change.
 
 ### Alternatives rejected
