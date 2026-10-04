@@ -4567,3 +4567,4 @@ $TLS_simplexml_load_file_wrapper_error = "このテキストをTestLink管理者
 // ----- issue #1563: after_title / after_preconditions location labels missing from this bundle -----
 $TLS_after_title = 'タイトルの後';
 $TLS_after_preconditions = '前提条件の後';
+$TLS_title_test_closure = "テストクロージング"; // "Test Closure" (Refs #1278)

@@ -175,7 +175,4 @@ $TLS_req_docid_length_exceeded = 'Lungimea ID-ului documentului cerinței depă�
 $TLS_after_title = 'După titlu';
 $TLS_after_preconditions = 'După precondiții';
 $TLS_link_report_not_run_on_any_platform = "Cazuri de test neexecutate pe nicio platformă";
-
-$TLS_audit_cfield_location_changed = "Custom field locations were saved on Test Project '{%1}'";
-$TLS_audit_cfield_monitorable_on = "Custom field '{%1}' was set MONITORABLE on Test Project '{%2}'";
-$TLS_audit_cfield_monitorable_off = "Custom field '{%1}' was set NOT MONITORABLE on Test Project '{%2}'";
+$TLS_title_test_closure = "Închiderea testării"; // "Test Closure" (Refs #1278)

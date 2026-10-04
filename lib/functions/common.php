@@ -2052,6 +2052,12 @@ function getActions(&$gui,$baseURL) {
   // mgt_modify_tc / mgt_modify_req for writes) are enforced by the BFF
   // api/reviews on every route.
   $actions->reviews = "/gui/templates/reviews/reviews.html?{$ctx}";
+  // Test Closure (Dashio standalone page) - Refs #1278.
+  // Net-new ISTQB closure-phase module (no legacy twin): lessons learned,
+  // closure checklist/summary/archive reference, a printable closure report and
+  // the closure state that freezes the plan outcome. Read/write rights are
+  // enforced by the BFF api/testclosure on every route.
+  $actions->testClosure = "/gui/templates/plans/testClosure.html?{$ctx}";
   // Non-Functional Requirements per-type management (Dashio standalone page) -
   // Refs #1462. Rights (mgt_view_req / mgt_modify_req) enforced by the BFF
   // api/nfr on every route; aside visibility gated by aside.tpl via menuGrants.

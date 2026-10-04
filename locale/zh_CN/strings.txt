@@ -4166,3 +4166,4 @@ $TLS_simplexml_load_file_wrapper_error = "请将此文本提供给您的TestLink
 // ----- issue #1563: after_title / after_preconditions location labels missing from this bundle -----
 $TLS_after_title = '标题之后';
 $TLS_after_preconditions = '前提条件之后';
+$TLS_title_test_closure = "测试结束"; // "Test Closure" (Refs #1278)

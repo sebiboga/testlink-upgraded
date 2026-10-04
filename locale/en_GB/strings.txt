@@ -4225,3 +4225,4 @@ $TLS_simplexml_load_file_wrapper_error = "Please give this text to your TestLink
 // ----- issue #1563: after_title / after_preconditions location labels missing from this bundle -----
 $TLS_after_title = 'After Title';
 $TLS_after_preconditions = 'After Preconditions';
+$TLS_title_test_closure = "Test Closure"; // "Test Closure" (Refs #1278)

@@ -4252,3 +4252,4 @@ $TLS_executed_me_and_also = 'é executado em conjunto com';
 
 // Added for TestLink 2.0.1 - issue #653: key was missing from every bundle
 $TLS_error_self_signup_disabled = 'O registo automático de novos utilizadores está desativado. Contacte o administrador do site.';
+$TLS_title_test_closure = "Encerramento de testes"; // "Test Closure" (Refs #1278)

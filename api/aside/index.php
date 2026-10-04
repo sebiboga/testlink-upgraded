@@ -552,6 +552,28 @@ if ($gm('view_tc') === 'yes' || $gm('reqs_view') === 'yes' ||
     );
 }
 
+// 7c. Test Closure ---------------------------------------------------------
+// ISTQB closure phase (Refs #1278): lessons learned + closure checklist +
+// printable closure report + the closure state that freezes plan results.
+// Net-new module with no legacy menu twin; plan-scoped, so it needs an active
+// test plan. Rights are enforced server-side by api/testclosure.
+if ($tplan_id > 0 && $u('testClosure') !== null &&
+    ($gm('testplan_planning') === 'yes' || $gm('exec_testcases') === 'yes' ||
+     $gm('exec_ro_access') === 'yes')) {
+    $sections[] = array(
+        'key' => 'testClosure',
+        'label' => lang_get('title_test_closure'),
+        'icon' => 'fas fa-clipboard-check',
+        'single' => true,
+        'items' => array(array(
+            'id' => 'testClosure',
+            'label' => lang_get('title_test_closure'),
+            'href' => (string)$u('testClosure'),
+            'icon' => 'fas fa-clipboard-check',
+        )),
+    );
+}
+
 // 8. Test Plan -------------------------------------------------------------
 if ($show('plans')) {
     $items = array();
