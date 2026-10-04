@@ -17,6 +17,18 @@ Every screen of the application was ported one-by-one in a screen-compare
 kept for backward compatibility and is progressively retired as each modern
 screen reaches full parity.
 
+- [NEW FEATURE] - #1277 (ISTQB #1054): **Risk-Based Testing** module implemented from scratch -
+  new BFF `api/riskcoverage/index.php` + new Dashio screen
+  `gui/templates/results/riskCoverage.html`, reachable from Metrics & Reports
+  (`risk_coverage` report entry, `cfg/reports.cfg.php` + `api/resultsnav/index.php:164`).
+  Adds the ISTQB likelihood(1-5) x impact(1-5) risk model on test cases (score 1..25, levels
+  low/medium/high in a lazily created `tc_risk` table), a **requirement risk-coverage view**
+  (covered / not tested / uncovered requirements against max+avg+residual risk), an editable
+  **test case risk register** with a live 5x5 risk matrix modal, and **metrics grouped by risk
+  level with a risk-level filter**. Unrated test cases fall back to the 1.9.20 importance x
+  urgency proxy. i18n: 74 `risk.*` keys in all 10 client bundles + `link_report_risk_coverage`
+  in all 19 locale strings files. AUDIT events emitted on every rating save.
+
 - [FEATURE GAP CLOSED] - #1078: the legacy **custom-field filter on Search Requirements now
   actually filters.** Legacy rendered a "Custom field" select built from the design-scope
   requirement CFs plus a "Custom Field Value" textbox

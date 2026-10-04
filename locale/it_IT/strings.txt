@@ -2434,3 +2434,4 @@ $TLS_after_title = 'Dopo il titolo';
 $TLS_after_preconditions = 'Dopo le precondizioni';
 ?>
 $TLS_title_test_closure = "Chiusura dei test"; // "Test Closure" (Refs #1278)
+$TLS_link_report_risk_coverage = "Test basato sul rischio";

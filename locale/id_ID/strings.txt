@@ -2903,3 +2903,4 @@ $TLS_req_title_length_exceeded = 'Panjang judul persyaratan melebihi batas';
 $TLS_req_docid_length_exceeded = 'Panjang ID dokumen persyaratan melebihi batas';
 
 $TLS_title_test_closure = "Penutupan Pengujian"; // "Test Closure" (Refs #1278)
+$TLS_link_report_risk_coverage = "Pengujian Berbasis Risiko";

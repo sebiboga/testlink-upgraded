@@ -2459,3 +2459,4 @@ $TLS_req_title_length_exceeded = '요구사항 제목 길이 초과';
 $TLS_req_docid_length_exceeded = '요구사항 문서 ID 길이 초과';
 
 $TLS_title_test_closure = "테스트 종료"; // "Test Closure" (Refs #1278)
+$TLS_link_report_risk_coverage = "Risk-Based Testing";

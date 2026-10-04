@@ -4568,3 +4568,4 @@ $TLS_simplexml_load_file_wrapper_error = "このテキストをTestLink管理者
 $TLS_after_title = 'タイトルの後';
 $TLS_after_preconditions = '前提条件の後';
 $TLS_title_test_closure = "テストクロージング"; // "Test Closure" (Refs #1278)
+$TLS_link_report_risk_coverage = "リスクベースのテスト";

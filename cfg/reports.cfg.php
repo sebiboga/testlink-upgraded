@@ -221,6 +221,16 @@ $tlCfg->reports_list['uncovered_testcases'] = array(
 	'format' => 'format_html'
 );
 
+// Refs #1277 - Risk-Based Testing (likelihood x impact + risk-coverage view),
+// modernized: gui/templates/results/riskCoverage.html + api/riskcoverage.
+$tlCfg->reports_list['risk_coverage'] = array( 
+	'title' => 'link_report_risk_coverage',
+	'url' => 'gui/templates/results/riskCoverage.html',
+	'enabled' => 'all',
+	'directLink' => '',
+	'format' => 'format_html'
+);
+
 $tlCfg->reports_list['list_problems'] = array( 
 	'title' => 'link_report_total_bugs',
 	'url' => 'lib/results/resultsBugs.php?type=0',
