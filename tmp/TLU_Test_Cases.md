@@ -5771,3 +5771,29 @@ scripted `#applyBtn` click fires **no request** until `#cmOk` is clicked.
   `log_level 16` INFO/audit rows: 1 fixture CREATE, 2 `audit_login_failed` from wrong-password
   attempts, 2 `audit_login_succeeded`) → PASS
 - browser console on the screen → no errors or warnings → PASS
+
+## Task — Issue #1277: Risk-Based Testing (likelihood x impact, risk-coverage view, metrics by risk level)
+
+**Precondition** — freshly imported DB (schema only, 0 rows). Fixture
+`tmp/fixtures_1277.php` creates test project `Risk Demo` (prefix RSK, requirements
+enabled), requirement spec `Risk SRS` with 3 requirements (RISK-1 Checkout / RISK-2
+Login / RISK-3 Invoice export, the last with NO covering test case), suite `Risk Suite`
+with 4 test cases, plan `Risk Plan`, build `Risk Build`, plan assignments and 2
+executions (checkout = passed, profile = failed; login and search not run).
+
+| # | Steps | Expected | Actual | Result |
+|---|---|---|---|---|
+| 1 | `curl -c jar -d '{"login":"admin","password":"admin"}' /api/auth/login`, then `GET /api/riskcoverage/index.php?action=init&tproject_id=<P>&tplan_id=<PL>` | 200 + context: project/plan names, rights (`canViewReq/canViewTc/canViewMetrics/canEdit` all true for admin), `thresholds {low_max:5, medium_max:11}`, `levels [high, medium, low, unrated]` | exact match | PASS |
+| 2 | `GET ?action=projects` / `?action=plans&tproject_id=<P>` | only projects the user may read; plan list of the project | `[{id,name,prefix}]` + `[{id:53/54,name}]` | PASS |
+| 3 | `POST /api/auth/login` ratings 5x5, 3x3, 2x2 on the checkout/login/profile versions, then `GET ?action=coverage&tproject_id=<P>&tplan_id=<PL>` | RISK-1 2 TCs 2 executed 100% covered, max 25; RISK-2 1 TC 0 executed, residual 9 = medium; RISK-3 0 TCs uncovered; summary `{total_reqs:3, uncovered:1, covered:1, not_tested:1}` | exact match | PASS |
+| 4 | `GET ?action=register&tproject_id=<P>&tplan_id=<PL>` | distribution `{high,medium,low,unrated}`; unrated case carries the 1.9.20 importance proxy, rated ones score = L x I | `{high:1, medium:1, low:1, unrated:1}`; unrated row `score 0, proxy 1, importance 3` | PASS |
+| 5 | `GET ?action=metrics&tproject_id=<P>&tplan_id=<PL>&level=high` | only the high group, with executed/passed/failed/blocked + `exec_pct`/`pass_rate` | `[{level:high, total:1, executed:1, passed:1, exec_pct:100, pass_rate:100}]` | PASS |
+| 6 | Browser: `/gui/templates/results/riskCoverage.html?tproject_id=<P>&tplan_id=<PL>` (admin/admin), tab 1 | Requirement Risk Coverage table renders 3 rows with the pills Status (Covered / Not tested / Uncovered) and Risk level, threshold hint filled in (`Low 1-5 / Medium up to 11 / High above`), empty-state box hidden | rows RISK-1/2/3 present, hint filled, `emptyVisible=false` | PASS |
+| 7 | Browser: tab 2 → "Rate" on the unrated search case → change likelihood/impact | modal shows the case name/suite/importance, selects prefilled, live computed score + 5x5 matrix with the chosen cell outlined | `1: RSK High Risk Checkout`, `likelihood 5`, `impact 5`, computed `25 High` + 5x5 matrix | PASS |
+| 8 | Browser: in the modal set likelihood 4 / impact 2 → Save | AUDIT event, toast "Risk rating saved", row re-rendered with the new score and the distribution cards re-counted | toast shown, row `4 / 2 / 8 / Medium`, cards `HIGH=0 MEDIUM=2 LOW=1 NOT RATED=1`, `events` row `RISK_SAVE ... likelihood 4 x impact 2 = score 8` | PASS |
+| 9 | Browser: tab 3 → "Filter by risk level" = Medium | metrics group table and the "test cases in view" table both restricted to that level | groups `[Medium \| 2 \| 1 \| 50% \| 1 \| 0 \| 0 \| 100%]`, items = the 2 medium cases only | PASS |
+| 10 | `GET /gui/templates/results/resultsNavigator.html?tproject_id=<P>&tplan_id=<PL>` (Metrics & Reports) | the new `risk_coverage` report is listed and opens the modern screen with the context query | `[('risk_coverage', 'Risk-Based Testing', '/gui/templates/results/riskCoverage.html?tplan_id=54&tproject_id=53')]` | PASS |
+| 11 | Locale switcher on the screen (Romanian, German, Russian, Chinese) | every label/level/threshold string comes from the bundle, no raw key and no raw HTML entity | labels translated, `&times;` gone from the header | PASS |
+| 12 | Negative paths: `GET ?action=register` with no session / POST without Origin+XRW / POST `likelihood:9` / `GET ?action=tc_risk&tc_id=999999` / `GET ?action=bogus` | 401, 403, 400 range message, 404, 400 | `401`, `403`, `Likelihood and impact must be between 1 and 5`, `Test case version not found`, `Unknown action` | PASS |
+| 13 | `SELECT log_level, count(*) FROM events GROUP BY log_level` | only INFO(2) + AUDIT(16); no Error/Warning/Fatal and no LOCALIZATION rows | `{2: 13, 16: 18}`, LOCALIZATION = 0 (after adding `link_report_risk_coverage` to all 19 locale files) | PASS |
+| 14 | i18n bundles: `git diff --numstat gui/templates/i18n/` | 74 `risk.*` keys appended to every bundle, **no line removed** in any of the 10 files | `75 1` per file (the single deletion is the previous last line re-terminated by a newline), all bundles pass `python3 -m json.tool` | PASS |
