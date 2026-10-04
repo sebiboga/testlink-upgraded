@@ -5552,3 +5552,77 @@ is rejected with `ERROR 1406 Data too long`; use `'R'`.
   run fixed the bug inside its own branch, documented it in the issue **body**, and never ran
   `gh issue close`. What was lost was the closure step, not the code. Same situation as #1686.
 - Sibling #1686/#1687 from the same #1681 browser-testing pass were closed the same way.
+
+## Regression — Issue #1688 (addendum): residual DEAD-state hole in the row controls, found by code review
+
+### Precondition
+Same as `## Regression — Issue #1688` above: fixtures tproject 13 / spec 16 (`RS1`) with
+requirements 20 (`REQ1`) and 21 (`REQ2`), `admin`/`admin` (role_id 8, has `mgt_modify_req`).
+
+### Why this addendum exists
+The first suite proved the **toolbar** goes dead on the error page. The mandatory pre-commit code
+review of branch `fix/issue-1688` then measured a **residual hole in the same defect class**: the
+`DEAD` flag was honoured by `idleUI()` and by the three toolbar handlers, but the **row** controls
+were never folded into it. `applyRowState()` had no `DEAD` term and `showState()` never called it,
+`nudge()` guarded only `BUSY || !GRANT.modify`, the `.pickbtn` handler had no guard at all, and the
+drop handler guarded `!GRANT.modify || BUSY` without `DEAD`.
+
+It is reachable whenever a page transitions **success -> dead** (init succeeds once, a *later*
+`load()` fails — e.g. picking a specification that then 404s). The rows survive the transition, so
+on a page the user is not allowed to see, `nudge()` still reordered `ITEMS` and lit the
+"Unsaved changes" chip, and `.pickbtn` still armed a Move that could then never be submitted. The
+toolbar was dead, the state underneath it was not. Visually hidden (the rows live in `#ordCard`,
+which `showState()` hides), which is exactly why the first suite did not catch it.
+
+### Repro steps (pre-fix, measured)
+1. Log in as `admin`, open `reqTreeReorder.html?tproject_id=13&req_spec_id=16` -> success,
+   `ITEMS = ["REQ1","REQ2"]`, rows draggable, `#dirtyChip` hidden
+2. Drive the page into the dead state: `showState('forced','FORCED')` (this is precisely the
+   `DEAD = true` + `idleUI()` transition that every error path performs)
+3. Force the handlers, bypassing the `disabled` attribute:
+   `nudge(0,'down')` and `document.querySelector('#ordBody tr .pickbtn').click()`
+4. Observe pre-fix: `ITEMS` becomes `["REQ2","REQ1"]`, `#dirtyChip` turns visible, `PICKED` becomes
+   `20` — while the toolbar is correctly disabled
+
+### Expected post-fix behavior
+- Every row control folds `DEAD` into its disabled state: `.rm`, `[data-mv]`, `.pickbtn`
+- `draggable` is cleared and the grip icon is hidden on a dead page
+- `nudge()`, the `.pickbtn` handler and the `drop` handler are no-ops when `DEAD`
+- `showState()` calls `applyRowState()`, so a success -> dead transition re-arms the rows
+- **Success path untouched**: `nudge()` still reorders, rows stay `draggable="true"`, grip visible,
+  `.pickbtn` enabled, only the boundary buttons (top row Up/To top, bottom row Down/To bottom)
+  disabled as before
+
+### Actual result observed (verified on `fix/issue-1688`)
+| Case | Probe | Measured | Verdict |
+|---|---|---|---|
+| TC-1688-12 | Success path (pre-transition) as `admin` | `DEAD:false`, `draggable:["true","true"]`, `grip` display `["inline","inline"]`, `.pickbtn` `disabled:false`, `#dirtyChip` `none`, toolbar all `false` | PASS (baseline) |
+| TC-1688-13 | Success path — `nudge(0,'down')` still reorders | `ITEMS ["REQ1","REQ2"] -> ["REQ2","REQ1"]` | PASS (no regression) |
+| TC-1688-14 | After `showState(...)`: row `draggable` | `"false"` on every row | PASS |
+| TC-1688-15 | After `showState(...)`: grip icon `display` | `"none"` on every row | PASS |
+| TC-1688-16 | After `showState(...)`: `.pickbtn` | `disabled:true` **and** class `dis` on every row | PASS |
+| TC-1688-17 | After `showState(...)`: `[data-mv]` / `.rm` | every button `disabled:true` | PASS |
+| TC-1688-18 | After `showState(...)`: `nudge(0,'down')` + `nudge(0,'top')` + `.pickbtn.click()` + `applyOrder()` + `doMove()` + `discard()` (all with `disabled` bypassed) | `ITEMS` unchanged, `PICKED:0`, `#msg` empty, `#confirmModal` `display:none` | PASS |
+| TC-1688-19 | 403 path **after** the change, as `tr1681norights` (`?tproject_id=13&req_spec_id=16`) | `DEAD:true`, code `no_right`, all 6 toolbar controls `disabled:true`, `#refreshBtn:false`, `roBanner` hidden, `dragHint` hidden, cards `none`/`none`/`none` + `state:block`, handlers + real click produce no message and no modal | PASS |
+| TC-1688-20 | 405 path (`showState('x','HTTP_405')`) | `DEAD:true`, `#applyBtn` `disabled:true` | PASS |
+| TC-1688-21 | Event Viewer / `events` after the whole pass | `SELECT COUNT(*) FROM events WHERE log_level IN (0,1,2)` -> **0** | PASS |
+
+### Test execution
+- [PASS] TC-1688-12 .. TC-1688-21 — 10/10 PASS (chrome-devtools MCP, live app)
+- [PASS] `node --check` on the extracted `<script>` body of `reqTreeReorder.html` after the edit
+- [PASS] Merge-base gate: `TLU_REQUIRE_SUITE="Issue #1688" bash ai/verify_test_suites.sh`
+
+### Notes
+- Code change in `gui/templates/requirements/reqTreeReorder.html` (+13 −5), all in the same class:
+  - `applyRowState()` — `DEAD` added to the `.rm` condition and to the `[data-mv]` `dis`
+    computation; new `DEAD` term for `.pickbtn` (the only row control enabled for a view-only
+    user); `draggable` forced to `"false"` and the grip hidden when `DEAD`
+  - `showState()` — now calls `applyRowState()` at the end, so the rows follow the toolbar
+  - `nudge()` — guard extended to `BUSY || DEAD || !GRANT.modify`
+  - the `.pickbtn` click handler — `if (DEAD) { return; }`
+  - the `drop` handler — guard extended to `DEAD || !GRANT.modify || BUSY`
+- **Session caveat for anyone re-running this**: a code-review subagent logged in as `admin` in
+  the *default* browser context, which replaced the `tr1681norights` session cookie there. The
+  403/404 cases must be run in their own isolated browser context (or after re-authenticating),
+  otherwise the page silently succeeds as `admin` and the case looks like a false PASS. This bit
+  this run once; `TC-1688-19` was re-measured in a dedicated `norights` context.

@@ -225,6 +225,10 @@ function showState(text, code) {
   $('#stateCard').css('display', 'block');
   $('#ctxCard,#moveCard,#ordCard').css('display', 'none');
   idleUI();
+  // The rows survive a DEAD transition (init succeeded once, a later load failed),
+  // so their buttons must go down with the toolbar - not only be hidden with the
+  // card that contains them.
+  applyRowState();
 }
 
 function hideState() {
@@ -249,16 +253,24 @@ function applyRowState() {
   var n = ITEMS.length;
   ITEMS.forEach(function (it, i) {
     var $r = $('#ordBody tr').eq(i);
-    $r.find('.rm').prop('disabled', BUSY || !GRANT.modify);
+    $r.find('.rm').prop('disabled', BUSY || DEAD || !GRANT.modify);
     $r.find('[data-mv]').each(function () {
       var d = $(this).data('mv');
-      var dis = !GRANT.modify;
+      var dis = DEAD || !GRANT.modify;
       if (d === 'up' && i === 0) { dis = true; }
       if (d === 'down' && i === n - 1) { dis = true; }
       if (d === 'top' && i === 0) { dis = true; }
       if (d === 'bottom' && i === n - 1) { dis = true; }
       $(this).toggleClass('dis', dis).prop('disabled', dis);
     });
+    // The Select button is the only row control that is enabled for a view-only
+    // user, so it needs its own DEAD term: on the error page it must not be able
+    // to arm a Move that can then never be submitted.
+    $r.find('.pickbtn').prop('disabled', DEAD).toggleClass('dis', DEAD);
+    // Same for the drag affordance: render() already refuses to set draggable on a
+    // dead page, but the attribute survives from the last successful render.
+    $r.attr('draggable', DEAD ? 'false' : 'true');
+    $r.find('.grip').toggle(!DEAD);
   });
 }
 
@@ -300,7 +312,10 @@ function render() {
     act.append(btn('fa-chevron-up', t('reqtr.moveTop'), 'top', i, disTop, i, nItems));
     act.append(btn('fa-chevron-down', t('reqtr.moveBottom'), 'bottom', i, disBottom, i, nItems));
     var pick = $('<button class="pickbtn' + (it.id === PICKED ? ' on' : '') + '"><i class="fa fa-hand-pointer-o"></i> ' + t('reqtr.select') + '</button>');
-    pick.on('click', function () { PICKED = (PICKED === it.id) ? 0 : it.id; renderSel(); render(); });
+    pick.on('click', function () {
+      if (DEAD) { return; }
+      PICKED = (PICKED === it.id) ? 0 : it.id; renderSel(); render();
+    });
     act.append(pick);
     tr.append(act);
     tr.on('dragstart', function (e) {
@@ -311,7 +326,7 @@ function render() {
     tr.on('dragover', function (e) { e.preventDefault(); });
     tr.on('drop', function (e) {
       e.preventDefault();
-      if (!GRANT.modify || BUSY) { return; }
+      if (DEAD || !GRANT.modify || BUSY) { return; }
       var from = parseInt(e.originalEvent.dataTransfer.getData('text/plain') || '-1', 10);
       if (from < 0 || from === i) { return; }
       var mv = ITEMS.splice(from, 1)[0];
@@ -348,7 +363,7 @@ function btn(icon, label, dir, idx, isDisabled, rowIndex, totalRows) {
 }
 
 function nudge(i, dir) {
-  if (BUSY || !GRANT.modify) { return; }
+  if (BUSY || DEAD || !GRANT.modify) { return; }
   if (i < 0 || i >= ITEMS.length) { return; }
   var j = i;
   if (dir === 'up') { j = i - 1; } else if (dir === 'down') { j = i + 1; }
