@@ -270,7 +270,15 @@ function getSecurityNotes(&$db)
   }
 
   
-  if (!checkForBTSConnection()) {
+  // Issue #1811: the DB handle MUST be handed over. checkForBTSConnection()
+  // (configCheck.php:340) falls back to the issuetrackers x
+  // testproject_issuetracker join only when it gets one, and returns
+  // "connection OK" unconditionally without it - which is what made the
+  // bts_connection_problems note unreachable from every legacy caller
+  // (login.php:230, initUserEnv() at common.php:1858). $g_bugInterface, the
+  // project-scoped global 1.9.20 relied on, no longer exists in the tree, so
+  // the DB handle is the only thing that can drive this check.
+  if (!checkForBTSConnection($db)) {
     $securityNotes[] = lang_get("bts_connection_problems");
   }
     
