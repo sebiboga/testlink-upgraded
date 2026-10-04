@@ -3857,3 +3857,4 @@ $TLS_href_nfr_maintainability = "NFR: Maintainability"; // "NFR: Maintainability
 $TLS_href_nfr_requirements = "Wymagania niefunkcjonalne"; // "Non-Functional Requirements" (Refs #1462)
 
 $TLS_title_test_closure = "Zamknięcie testów"; // "Test Closure" (Refs #1278)
+$TLS_link_report_risk_coverage = "Testowanie oparte na ryzyku";

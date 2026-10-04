@@ -17,31 +17,17 @@ Every screen of the application was ported one-by-one in a screen-compare
 kept for backward compatibility and is progressively retired as each modern
 screen reaches full parity.
 
-- [MODERNIZED SCREEN] - #1825: **Requirement Specification Search Form** (the standalone criteria
-  page, `lib/requirements/reqSpecSearchForm.php` + `gui/templates/dashio/requirements/
-  reqSpecSearchForm.tpl` -> `gui/templates/requirements/reqSpecSearchForm.html` +
-  `api/reqspecsearchform/index.php`), with its still-legacy target
-  `lib/requirements/reqSpecSearch.php` retired in the same pass (-> 302 shim onto the already-modern
-  `searchReqSpec.html`, whose `auto_search=1` hand-off and new "Criteria form" button make the two
-  entry points reach each other). The seven legacy criteria (Doc ID, Title, Type, Scope, Log message,
-  Custom field, Custom field value) are preserved one-to-one; the criteria domain still comes from
-  `config_get('req_spec_cfg')->type_labels` and the custom-field list from
-  `cfield_mgr::get_linked_cfields_at_design(..., 'requirement_spec')`, the Doc ID filter is still
-  offered only when `testproject::GET_NOT_EMPTY_REQSPEC` is non-empty, all criteria are combined with
-  a logical AND, and an empty form asks before handing the results screen a filter-less search.
-  Authorization is the security fix both legacy controllers needed: they authorized **nothing but the
-  session** - the test project came from `$_SESSION['testprojectID']` and every criterion from the
-  request, so ANY authenticated user (a global `<no rights>` role included) could list the design-time
-  custom fields of, and run a search across, a project they hold no requirement right on. The BFF now
-  enforces `mgt_view_req` OR `mgt_modify_req` on the **ADDRESSED** project *before* resolving it, so
-  the endpoint is not even a test-project existence oracle (same lesson as #1696/#1765/#1770/#1697),
-  answers `401/403/404/405/400` with stable machine codes, rejects a repeated (`?scope[]=x`) parameter
-  with `400 invalid_parameter` instead of casting it to the literal `"Array"` (bug **#1826**), and
-  echoes the criteria trimmed and length-capped so the deep-linkable page can pre-fill itself - which
-  it initially did NOT (bug **#1827**). 50 new i18n keys (`rssf.*` + `footers.reqSpecSearchForm`,
-  translated in all 10 bundles; `rsf.*` was already taken by Reorder Requirements) in en/ro/de/es/fr/
-  it/pt/ru/ja/zh. 23-case regression suite appended to `tmp/TLU_Test_Cases.md` (77 suites, none
-  lost). (Refs #1825, #1826, #1827)
+- [NEW FEATURE] - #1277 (ISTQB #1054): **Risk-Based Testing** module implemented from scratch -
+  new BFF `api/riskcoverage/index.php` + new Dashio screen
+  `gui/templates/results/riskCoverage.html`, reachable from Metrics & Reports
+  (`risk_coverage` report entry, `cfg/reports.cfg.php` + `api/resultsnav/index.php:164`).
+  Adds the ISTQB likelihood(1-5) x impact(1-5) risk model on test cases (score 1..25, levels
+  low/medium/high in a lazily created `tc_risk` table), a **requirement risk-coverage view**
+  (covered / not tested / uncovered requirements against max+avg+residual risk), an editable
+  **test case risk register** with a live 5x5 risk matrix modal, and **metrics grouped by risk
+  level with a risk-level filter**. Unrated test cases fall back to the 1.9.20 importance x
+  urgency proxy. i18n: 74 `risk.*` keys in all 10 client bundles + `link_report_risk_coverage`
+  in all 19 locale strings files. AUDIT events emitted on every rating save.
 
 - [FEATURE GAP CLOSED] - #1078: the legacy **custom-field filter on Search Requirements now
   actually filters.** Legacy rendered a "Custom field" select built from the design-scope

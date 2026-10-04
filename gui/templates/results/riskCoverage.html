@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Risk-Based Testing</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; color: #0d3f3c; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.toolbar select { background: #2c2f37; color: #fff; border: 1px solid #444; border-radius: 4px; padding: 4px 6px; font-size: 12px; }
+.tabs { background: #fff; border-bottom: 1px solid #ddd; padding: 0 24px; display: flex; gap: 4px; }
+.tabs button { background: #eceff1; border: 1px solid #d5d8dc; border-bottom: none; padding: 9px 18px; font-size: 13px; cursor: pointer; border-radius: 6px 6px 0 0; color: #55606b; }
+.tabs button.active { background: #4ECDC4; color: #fff; font-weight: 700; }
+.warnbox { margin: 12px 24px 0; background: #fdecea; border: 1px solid #f5c6cb; color: #b94a48; border-radius: 6px; padding: 10px 14px; font-size: 13px; display: none; }
+.section { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px 0; overflow: hidden; }
+.section-head { padding: 13px 20px; border-bottom: 1px solid #eee; font-size: 15px; font-weight: 700; color: #22242a; display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.section-head i { color: #4ECDC4; }
+.section-head .bmeta { font-size: 12px; font-weight: 400; color: #667; margin-left: auto; }
+.section-body { padding: 10px 20px 14px; overflow-x: auto; }
+.cards { display: flex; gap: 12px; flex-wrap: wrap; margin: 16px 24px 0; }
+.card-risk { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 14px 18px; min-width: 150px; flex: 1; }
+.card-risk .lbl { font-size: 11px; color: #7b8794; text-transform: uppercase; letter-spacing: .5px; }
+.card-risk .val { font-size: 26px; font-weight: 700; color: #22242a; }
+.card-risk.high .val { color: #e6605e; }
+.card-risk.medium .val { color: #f0a202; }
+.card-risk.low .val { color: #20a39e; }
+table.flat { width: 100%; border-collapse: collapse; font-size: 12px; }
+table.flat th { background: #22242a; color: #fff; padding: 7px 10px; text-align: left; white-space: nowrap; font-size: 11.5px; }
+table.flat td { padding: 5px 10px; border-bottom: 1px solid #eee; vertical-align: top; }
+table.flat tr:hover td { background: #f4fbfa; }
+.pill { display: inline-block; padding: 2px 9px; border-radius: 10px; font-size: 11px; font-weight: 700; color: #fff; }
+.pill.high { background: #e6605e; } .pill.medium { background: #f0a202; }
+.pill.low { background: #20a39e; } .pill.unrated { background: #9aa4b0; }
+.tclink { color: #0b7285; cursor: pointer; text-decoration: none; }
+.tclink:hover { text-decoration: underline; }
+.btnrisk { background: #4ECDC4; color: #fff; border: none; border-radius: 4px; padding: 3px 10px; font-size: 11.5px; cursor: pointer; }
+.btnrisk:disabled { background: #b9c2cc; cursor: not-allowed; }
+.empty { background: #fff; border-radius: 8px; padding: 30px; text-align: center; color: #888; font-size: 14px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px; }
+.empty i { font-size: 34px; color: #4ECDC4; display: block; margin-bottom: 10px; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+.footer p.info { margin: 6px 0 0; font-style: italic; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.toast.err { background: #e6605e; }
+.spin { text-align: center; color: #888; font-size: 13px; padding: 40px 24px; }
+.modalbox { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 9998; align-items: center; justify-content: center; }
+.modalbox.show { display: flex; }
+.modalwin { background: #fff; border-radius: 8px; width: 520px; max-width: 94vw; overflow: hidden; }
+.modalhead { background: #22242a; color: #fff; padding: 12px 18px; font-size: 15px; font-weight: 700; }
+.modalbody { padding: 18px; font-size: 13px; }
+.modalfoot { padding: 12px 18px; border-top: 1px solid #eee; text-align: right; background: #fafafa; }
+.modalfoot button { margin-left: 8px; border-radius: 4px; padding: 6px 16px; font-size: 13px; cursor: pointer; border: 1px solid #ccc; background: #fff; }
+.modalfoot button.primary { background: #4ECDC4; border-color: #4ECDC4; color: #fff; font-weight: 700; }
+.fld { margin-bottom: 14px; }
+.fld label { display: block; font-size: 12px; color: #55606b; margin-bottom: 4px; }
+.fld select { width: 100%; padding: 6px 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; }
+.matrix { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 6px; }
+.matrix td { border: 1px solid #eee; text-align: center; padding: 3px; }
+.matrix td.h { background: #fdecea; color: #b94a48; font-weight: 700; }
+.matrix td.m { background: #fff5e0; color: #a8790a; font-weight: 700; }
+.matrix td.l { background: #e6f7f5; color: #17807c; font-weight: 700; }
+.matrix td.u { background: #f6f7f8; color: #9aa4b0; }
+.dataTables_wrapper .dataTables_filter input { border: 1px solid #ccc; border-radius: 4px; padding: 4px 8px; font-size: 12px; }
+.dataTables_wrapper .dataTables_length select { border: 1px solid #ccc; border-radius: 4px; padding: 4px; font-size: 12px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <i class="fa fa-shield-halved" style="margin-right:8px;"></i>
+  <span data-i18n="risk.header">Risk-Based Testing</span>
+  <span class="sub"><span data-i18n="risk.subtitle">likelihood x impact, coverage and metrics by risk level</span></span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="toolbar">
+  <span class="ctx"><span data-i18n="risk.testProject">Test Project</span>: <b id="tprojectName">-</b></span>
+  <select id="selProject"></select>
+  <span class="ctx"><span data-i18n="risk.testPlan">Test Plan</span>: <b id="tplanName">-</b></span>
+  <select id="selPlan"><option value="0">-</option></select>
+  <span style="flex:1"></span>
+  <span class="ctx"><span data-i18n="risk.filterByLevel">Filter by risk level</span>:</span>
+  <select id="selLevel"></select>
+  <span id="thHint" style="color:#7b8794;font-size:11.5px;"></span>
+</div>
+
+<div class="tabs">
+  <button id="tabCoverage" class="active" onclick="switchTab('coverage')"><i class="fa fa-diagram-project"></i> <span data-i18n="risk.tabCoverage">Requirement Risk Coverage</span></button>
+  <button id="tabRegister" onclick="switchTab('register')"><i class="fa fa-list-check"></i> <span data-i18n="risk.tabRegister">Test Case Risk Register</span></button>
+  <button id="tabMetrics" onclick="switchTab('metrics')"><i class="fa fa-chart-simple"></i> <span data-i18n="risk.tabMetrics">Metrics by Risk Level</span></button>
+</div>
+
+<div class="warnbox" id="warnBox"></div>
+<div class="cards" id="cards"></div>
+<div id="loadingBox" class="spin"><i class="fa fa-circle-notch"></i><br><span data-i18n="common.loading">Loading...</span></div>
+<div id="panelCoverage" class="panel"></div>
+<div id="panelRegister" class="panel" style="display:none"></div>
+<div id="panelMetrics" class="panel" style="display:none"></div>
+
+<div class="empty" id="emptyBox" style="display:none;"></div>
+
+<div class="footer">
+  <p class="info" id="matrixNote"></p>
+</div>
+<div class="footer"><span data-i18n="footers.riskCoverage">TestLink 2.0.1 - Risk-Based Testing</span></div>
+<div class="toast" id="toast"></div>
+
+<div class="modalbox" id="riskModal">
+  <div class="modalwin">
+    <div class="modalhead"><i class="fa fa-shield-halved"></i> <span data-i18n="risk.editTitle">Edit risk rating</span></div>
+    <div class="modalbody">
+      <div id="riskTcName" style="font-weight:700;margin-bottom:4px;"></div>
+      <div id="riskTcMeta" style="color:#7b8794;font-size:12px;margin-bottom:14px;"></div>
+      <div class="fld">
+        <label data-i18n="risk.likelihood">Likelihood of failure (1 rare - 5 almost certain)</label>
+        <select id="selLikelihood"></select>
+      </div>
+      <div class="fld">
+        <label data-i18n="risk.impact">Impact if it fails (1 negligible - 5 severe)</label>
+        <select id="selImpact"></select>
+      </div>
+      <div class="fld">
+        <label data-i18n="risk.computed">Computed risk</label>
+        <div id="riskComputed"></div>
+      </div>
+    </div>
+    <div class="modalfoot">
+      <button onclick="closeRiskModal()"><span data-i18n="common.cancel">Cancel</span></button>
+      <button class="primary" id="btnSaveRisk" onclick="saveRisk()"><span data-i18n="common.save">Save</span></button>
+    </div>
+  </div>
+</div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script>
+var qs = new URLSearchParams(window.location.search);
+var tproject_id = parseInt(qs.get('tproject_id')) || 0;
+var tplan_id = parseInt(qs.get('tplan_id')) || 0;
+var ctx = null;
+var levelFilter = '';
+var currentTab = 'coverage';
+var editingTc = 0;
+var dtCoverage = null, dtRegister = null, dtMetrics = null;
+
+function esc(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function t(key, fallback) {
+  var v = TLi18n.t(key);
+  return (v && v !== key) ? v : (fallback || key);
+}
+function toast(msg, isErr) {
+  var $t = $('#toast').text(msg).show();
+  if (isErr) $t.addClass('err'); else $t.removeClass('err');
+  setTimeout(function(){ $t.fadeOut(300); }, 3000);
+}
+function levelPill(level) {
+  return '<span class="pill ' + esc(level) + '">' + t('risk.level.' + level, level) + '</span>';
+}
+function openTCaseWindow(tcId) {
+  window.open('/gui/templates/testcases/tcView.html?tcase_id=' + tcId, 'tcviewer',
+    'width=1000,height=700,scrollbars=yes,resizable=yes');
+}
+function execLabel(st) {
+  var m = { 'p':'risk.execPassed', 'f':'risk.execFailed', 'b':'risk.execBlocked', 'n':'risk.execNotRun' };
+  return t(m[st] || 'risk.execNotRun', st);
+}
+function dtLang() {
+  return {
+    search: t('common.filter', 'Filter') + ':',
+    lengthMenu: t('common.showEntries', 'Show') + ' _MENU_ ' + t('common.entries', 'entries'),
+    info: t('common.pageInfo', 'Showing _START_ to _END_ of _TOTAL_ entries'),
+    paginate: { previous: t('common.prev', 'Previous'), next: t('common.next', 'Next') },
+    emptyTable: t('risk.noRows', 'No rows')
+  };
+}
+
+function switchTab(tab) {
+  currentTab = tab;
+  $('#tabCoverage').toggleClass('active', tab === 'coverage');
+  $('#tabRegister').toggleClass('active', tab === 'register');
+  $('#tabMetrics').toggleClass('active', tab === 'metrics');
+  $('#panelCoverage').toggle(tab === 'coverage');
+  $('#panelRegister').toggle(tab === 'register');
+  $('#panelMetrics').toggle(tab === 'metrics');
+  if (tab === 'coverage') { loadCoverage(); }
+  else if (tab === 'register') { loadRegister(); }
+  else { loadMetrics(); }
+}
+
+/* ------------------------------------------------------------- risk modal */
+
+function buildSelect(el, from, to, zeroLabel) {
+  var h = '';
+  if (zeroLabel !== undefined && zeroLabel !== null) {
+    h += '<option value="0">' + esc(zeroLabel) + '</option>';
+  }
+  for (var i = from; i <= to; i++) {
+    h += '<option value="' + i + '">' + i + ' - ' + esc(t('risk.step' + i, ['1 - rare','2 - unlikely','3 - possible','4 - probable','5 - almost certain'][i-1])) + '</option>';
+  }
+  $(el).html(h);
+}
+
+function openRiskModal(tcversionId) {
+  editingTc = tcversionId;
+  $('#riskModal').addClass('show');
+  $('#riskTcName').text(t('common.loading', 'Loading...'));
+  $.ajax({
+    url: '/api/riskcoverage/index.php',
+    data: { action: 'tc_risk', tc_id: tcversionId },
+    dataType: 'json',
+    success: function(d) {
+      if (d.status === 'error') { $('#warnBox').text(d.message).show(); closeRiskModal(); return; }
+      $('#riskTcName').text(d.testcase.external_id + ': ' + d.testcase.name);
+      $('#riskTcMeta').text(d.testcase.suite_name + ' - ' + t('risk.importanceProxy', '1.9.20 importance proxy') + ': ' + d.testcase.importance);
+      $('#selLikelihood').val(d.risk ? d.risk.likelihood : 3);
+      $('#selImpact').val(d.risk ? d.risk.impact : 3);
+      $('#btnSaveRisk').prop('disabled', d.canEdit !== true);
+      if (d.canEdit !== true) {
+        $('#btnSaveRisk').after('<span style="color:#b94a48;font-size:12px;margin-left:8px;">' + esc(t('risk.noEditRight', 'You do not have permission to edit test cases')) + '</span>');
+      }
+      renderComputed();
+    },
+    error: function() { toast(t('common.errorLoading', 'Error loading data'), true); closeRiskModal(); }
+  });
+}
+function closeRiskModal() { $('#riskModal').removeClass('show'); editingTc = 0; }
+function renderComputed() {
+  var l = parseInt($('#selLikelihood').val()) || 0;
+  var i = parseInt($('#selImpact').val()) || 0;
+  if (l < 1 || i < 1) { $('#riskComputed').html(''); return; }
+  var score = l * i, level = 'low';
+  if (score > ctx.thresholds.medium_max) { level = 'high'; }
+  else if (score > ctx.thresholds.low_max) { level = 'medium'; }
+  $('#riskComputed').html('<span style="font-size:20px;font-weight:700;">' + score + '</span> ' +
+    levelPill(level) + '<div style="margin-top:8px;font-size:11px;color:#7b8794;">' +
+    '<table class="matrix"><tr><td></td>' +
+    '<td class="u">1</td><td class="u">2</td><td class="u">3</td><td class="u">4</td><td class="u">5</td></tr>' +
+    [1,2,3,4,5].map(function(r) {
+      return '<tr><td class="u">' + r + '</td>' + [1,2,3,4,5].map(function(c) {
+        var s = r * c, cls = 'l';
+        if (s > ctx.thresholds.medium_max) { cls = 'h'; } else if (s > ctx.thresholds.low_max) { cls = 'm'; }
+        if (r === l && c === i) { return '<td class="' + cls + '" style="outline:2px solid #22242a;">' + s + '</td>'; }
+        return '<td class="' + cls + '">' + s + '</td>';
+      }).join('') + '</tr>';
+    }).join('') + '</table></div>');
+}
+function saveRisk() {
+  if (!editingTc) { return; }
+  $.ajax({
+    url: '/api/riskcoverage/index.php',
+    type: 'POST',
+    contentType: 'application/json',
+    data: JSON.stringify({ action: 'save_tc_risk', tc_id: editingTc,
+      likelihood: parseInt($('#selLikelihood').val()), impact: parseInt($('#selImpact').val()) }),
+    dataType: 'json',
+    success: function(d) {
+      if (d.status === 'error') { toast(d.message, true); return; }
+      toast(t('risk.saved', 'Risk rating saved'));
+      closeRiskModal();
+      if (currentTab === 'register') { loadRegister(); }
+      else { loadMetrics(); }
+      loadCards();
+    },
+    error: function() { toast(t('common.errorSaving', 'Error saving'), true); }
+  });
+}
+
+/* --------------------------------------------------------------- loaders */
+
+function get(action, extra, cb) {
+  $('#loadingBox').show();
+  $.ajax({
+    url: '/api/riskcoverage/index.php',
+    data: $.extend({ action: action, tproject_id: tproject_id, tplan_id: tplan_id }, extra || {}),
+    dataType: 'json',
+    success: function(d) { $('#loadingBox').hide(); cb(d); },
+    error: function() { $('#loadingBox').hide(); toast(t('common.errorLoading', 'Error loading data'), true); }
+  });
+}
+
+function loadCards() {
+  get('register', {}, function(d) {
+    if (d.status === 'error') { return; }
+    var dist = d.distribution || {};
+    var cards = [
+      { cls: 'high', lbl: t('risk.level.high', 'High'), val: dist.high || 0 },
+      { cls: 'medium', lbl: t('risk.level.medium', 'Medium'), val: dist.medium || 0 },
+      { cls: 'low', lbl: t('risk.level.low', 'Low'), val: dist.low || 0 },
+      { cls: '', lbl: t('risk.level.unrated', 'Not rated'), val: dist.unrated || 0 }
+    ];
+    $('#cards').html(cards.map(function(c) {
+      return '<div class="card-risk ' + c.cls + '"><div class="lbl">' + esc(c.lbl) +
+        '</div><div class="val">' + c.val + '</div></div>';
+    }).join(''));
+  });
+}
+
+function loadCoverage() {
+  get('coverage', {}, function(d) {
+    if (d.status === 'error') {
+      if (!ctx.canViewReq) { showEmpty('fa fa-lock', t('risk.noReqRight', 'No permission to view requirements')); }
+      else { $('#warnBox').text(d.message).show(); }
+      return;
+    }
+    if (!(d.items || []).length) { showEmpty('fa fa-check-circle', t('risk.noReqs', 'There are no Requirements in this test project')); }
+    var s = d.summary || {};
+    var html = '<div class="section"><div class="section-head"><i class="fa fa-diagram-project"></i> ' +
+      t('risk.tabCoverage', 'Requirement Risk Coverage') +
+      '<span class="bmeta">' + esc(t('risk.totalReqs', 'Requirements')) + ': ' + (s.total_reqs || 0) +
+      ' | ' + esc(t('risk.covered', 'Covered')) + ': ' + (s.covered || 0) +
+      ' | ' + esc(t('risk.notTested', 'Not tested')) + ': ' + (s.not_tested || 0) +
+      ' | ' + esc(t('risk.uncovered', 'Uncovered')) + ': ' + (s.uncovered || 0) + '</span></div>' +
+      '<div class="section-body"><table id="dtCoverage" class="flat" style="width:100%"></table></div></div>';
+    $('#panelCoverage').html(html);
+    if ((d.items || []).length) { $('#emptyBox').hide(); }
+    if (dtCoverage) { dtCoverage.destroy(); }
+    dtCoverage = $('#dtCoverage').DataTable({
+      data: d.items || [],
+      columns: [
+        { title: t('risk.reqDocId', 'Req. ID'), data: 'req_doc_id' },
+        { title: t('risk.requirement', 'Requirement'), data: 'name', render: function(v) { return esc(v === '' ? '-' : v); } },
+        { title: t('risk.coveringTcs', 'Covering TCs'), data: 'total_tcs' },
+        { title: t('risk.executedTcs', 'Executed'), data: 'executed_tcs' },
+        { title: t('risk.coveragePct', 'Coverage %'), data: 'coverage_pct', render: function(v) { return v + '%'; } },
+        { title: t('risk.coverageStatus', 'Status'), data: 'coverage_status', render: function(v) {
+            var m = { covered: 'risk.stCovered', not_tested: 'risk.stNotTested', uncovered: 'risk.stUncovered' };
+            var cls = v === 'covered' ? 'low' : (v === 'uncovered' ? 'high' : 'medium');
+            return '<span class="pill ' + cls + '">' + esc(t(m[v] || 'risk.stUncovered', v)) + '</span>'; } },
+        { title: t('risk.riskLevel', 'Risk level'), data: 'risk_level', render: function(v, ty, row) {
+            return levelPill(row.coverage_status === 'covered' ? 'low' : (row.residual_level || v)); } },
+        { title: t('risk.maxRisk', 'Max risk'), data: 'max_risk' },
+        { title: t('risk.avgRisk', 'Avg risk'), data: 'avg_risk' },
+        { title: t('risk.residualRisk', 'Residual risk'), data: 'residual_risk' },
+        { title: t('risk.unratedTcs', 'Unrated TCs'), data: 'unrated_tcs' }
+      ],
+      order: [[7, 'desc']],
+      pageLength: 25,
+      language: dtLang()
+    });
+  });
+}
+
+function loadRegister() {
+  get('register', {}, function(d) {
+    if (d.status === 'error') {
+      if (!ctx.canViewTc) { showEmpty('fa fa-lock', t('risk.noTcRight', 'No permission to view test cases')); }
+      else { $('#warnBox').text(d.message).show(); }
+      return;
+    }
+    if (!(d.items || []).length) { showEmpty('fa fa-inbox', t('risk.noTestCases', 'There are no Test Cases in this selection')); }
+    var canEdit = ctx.canEdit === true;
+    var html = '<div class="section"><div class="section-head"><i class="fa fa-list-check"></i> ' +
+      t('risk.tabRegister', 'Test Case Risk Register') +
+      '<span class="bmeta">' + esc(t('risk.rateHint', 'Likelihood x impact on a 1..5 scale; unrated cases fall back to the 1.9.20 importance proxy')) + '</span></div>' +
+      '<div class="section-body"><table id="dtRegister" class="flat" style="width:100%"></table></div></div>';
+    $('#panelRegister').html(html);
+    if ((d.items || []).length) { $('#emptyBox').hide(); }
+    if (dtRegister) { dtRegister.destroy(); }
+    dtRegister = $('#dtRegister').DataTable({
+      data: d.items || [],
+      columns: [
+        { title: t('testsuite', 'Test Suite'), data: 'suite_name' },
+        { title: t('testcase', 'Test Case'), data: null, render: function(v, ty, row) {
+            return '<span style="font-weight:600;color:#33363f;">' + esc(row.external_id) + '</span>: ' +
+              '<a class="tclink" onclick="openTCaseWindow(' + row.tc_id + ')">' + esc(row.name) + '</a>'; } },
+        { title: t('risk.rated', 'Rated'), data: 'rated', render: function(v) { return v ? '&#10003;' : '&#8211;'; } },
+        { title: t('risk.likelihoodShort', 'Likelihood'), data: 'likelihood' },
+        { title: t('risk.impact', 'Impact'), data: 'impact' },
+        { title: t('risk.score', 'Score'), data: 'score' },
+        { title: t('risk.levelCol', 'Level'), data: 'level', render: function(v, ty, row) {
+            return levelPill(v) + (row.rated ? '' : ' <span style="font-size:10px;color:#9aa4b0;">(' + esc(t('risk.proxyScore', 'proxy')) + ' ' + row.proxy_score + ')</span>'); } },
+        { title: t('risk.execStatus', 'Execution'), data: 'exec_status', render: function(v) { return esc(execLabel(v)); } },
+        { title: '', data: null, orderable: false, render: function(v, ty, row) {
+            return '<button class="btnrisk" ' + (canEdit ? '' : 'disabled') +
+              ' onclick="openRiskModal(' + row.tcversion_id + ')">' + esc(t('risk.rate', 'Rate')) + '</button>'; } }
+      ],
+      order: [[6, 'desc']],
+      pageLength: 25,
+      language: dtLang()
+    });
+  });
+}
+
+function loadMetrics() {
+  get('metrics', { level: levelFilter }, function(d) {
+    if (d.status === 'error') {
+      if (!ctx.canViewMetrics) { showEmpty('fa fa-lock', t('risk.noMetricsRight', 'No permission on test plan metrics')); }
+      else { $('#warnBox').text(d.message).show(); }
+      return;
+    }
+    if (!(d.items || []).length) { showEmpty('fa fa-inbox', t('risk.noPlanTcs', 'No test cases assigned to the selected test plan')); }
+    var tot = d.total || {};
+    var html = '<div class="section"><div class="section-head"><i class="fa fa-chart-simple"></i> ' +
+      t('risk.tabMetrics', 'Metrics by Risk Level') +
+      '<span class="bmeta">' + esc(t('risk.filteredBy', 'Filter')) + ': ' +
+      esc(levelFilter === '' || levelFilter === 'all' ? t('risk.allLevels', 'All levels') : t('risk.level.' + levelFilter, levelFilter)) + '</span></div>' +
+      '<div class="section-body"><table id="dtMetrics" class="flat" style="width:100%"></table></div></div>' +
+      '<div class="section"><div class="section-head"><i class="fa fa-list"></i> ' +
+      t('risk.testCasesInView', 'Test cases in view') + '</div><div class="section-body">' +
+      '<table id="dtMetricsItems" class="flat" style="width:100%"></table></div></div>';
+    $('#panelMetrics').html(html);
+    if ((d.items || []).length) { $('#emptyBox').hide(); }
+    if (dtMetrics) { dtMetrics.destroy(); }
+    if (dtMetricsItemsDT) { dtMetricsItemsDT.destroy(); }
+    dtMetrics = $('#dtMetrics').DataTable({
+      data: d.groups || [],
+      columns: [
+        { title: t('risk.levelCol', 'Level'), data: 'level', render: function(v) { return levelPill(v); } },
+        { title: t('risk.totalTcs', 'Test cases'), data: 'total' },
+        { title: t('risk.executedTcs', 'Executed'), data: 'executed' },
+        { title: t('risk.execPct', 'Executed %'), data: 'exec_pct', render: function(v) { return v + '%'; } },
+        { title: t('risk.passed', 'Passed'), data: 'passed' },
+        { title: t('risk.failed', 'Failed'), data: 'failed' },
+        { title: t('risk.blocked', 'Blocked'), data: 'blocked' },
+        { title: t('risk.passRate', 'Pass rate'), data: 'pass_rate', render: function(v) { return v + '%'; } }
+      ],
+      order: [[1, 'desc']],
+      pageLength: 25,
+      language: dtLang()
+    });
+    dtMetricsItemsDT = $('#dtMetricsItems').DataTable({
+      data: d.items || [],
+      columns: [
+        { title: t('testcase', 'Test Case'), data: null, render: function(v, ty, row) {
+            return '<span style="font-weight:600;color:#33363f;">' + esc(row.external_id) + '</span>: ' +
+              '<a class="tclink" onclick="openTCaseWindow(' + row.tc_id + ')">' + esc(row.name) + '</a>'; } },
+        { title: t('risk.levelCol', 'Level'), data: 'level', render: function(v) { return levelPill(v); } },
+        { title: t('risk.score', 'Score'), data: 'score' },
+        { title: t('risk.execStatus', 'Execution'), data: 'exec_status', render: function(v) { return esc(execLabel(v)); } }
+      ],
+      order: [[2, 'desc']],
+      pageLength: 25,
+      language: dtLang()
+    });
+  });
+}
+var dtMetricsItemsDT = null;
+
+function showEmpty(icon, txt) {
+  $('#emptyBox').html('<i class="' + icon + '"></i>' + esc(txt)).show();
+  if (dtCoverage) { dtCoverage.destroy(); dtCoverage = null; }
+  if (dtRegister) { dtRegister.destroy(); dtRegister = null; }
+  if (dtMetrics) { dtMetrics.destroy(); dtMetrics = null; }
+  if (dtMetricsItemsDT) { dtMetricsItemsDT.destroy(); dtMetricsItemsDT = null; }
+}
+
+/* ------------------------------------------------------------------ init */
+
+function loadInit() {
+  $('#loadingBox').show();
+  $.ajax({
+    url: '/api/riskcoverage/index.php',
+    data: { action: 'init', tproject_id: tproject_id, tplan_id: tplan_id },
+    dataType: 'json',
+    success: function(d) {
+      if (d.status === 'error') { $('#loadingBox').hide(); $('#warnBox').text(d.message).show(); return; }
+      ctx = d;
+      if (!tproject_id) { tproject_id = d.tproject_id; }
+      tplan_id = d.tplan_id;
+      $('#tprojectName').text(d.tproject_name);
+      $('#tplanName').text(d.tplan_name === '' ? '-' : d.tplan_name);
+      // the threshold strings carry {L} / {M} placeholders for the server side
+      // boundaries (risk.thresholds, risk.matrixNote)
+      var ph = function (key, fallback) {
+        return t(key, fallback).replace(/\{L\}/g, d.thresholds.low_max)
+          .replace(/\{M\}/g, d.thresholds.medium_max);
+      };
+      $('#thHint').text(ph('risk.thresholds', 'Low 1-' + d.thresholds.low_max + ' / Medium up to ' + d.thresholds.medium_max + ' / High above'));
+      $('#matrixNote').text(ph('risk.matrixNote', 'Risk score = likelihood x impact (1..5 each). Level: 1-' + d.thresholds.low_max + ' low, up to ' + d.thresholds.medium_max + ' medium, above high. Unrated test cases fall back to the 1.9.20 importance x urgency proxy.'));
+      buildSelect('#selLikelihood', 1, 5, null);
+      buildSelect('#selImpact', 1, 5, null);
+      var lv = '<option value="">' + esc(t('risk.allLevels', 'All levels')) + '</option>' +
+        ['high','medium','low','unrated'].map(function(l) {
+          return '<option value="' + l + '">' + esc(t('risk.level.' + l, l)) + '</option>'; }).join('');
+      $('#selLevel').html(lv);
+      $('#selLevel').on('change', function() { levelFilter = $(this).val(); if (currentTab === 'metrics') { loadMetrics(); } });
+      loadSelectors(d);
+      loadCards();
+      switchTab(currentTab);
+    },
+    error: function() { $('#loadingBox').hide(); toast(t('common.errorLoading', 'Error loading data'), true); }
+  });
+}
+
+function loadSelectors(d) {
+  $.getJSON('/api/riskcoverage/index.php', { action: 'projects' }, function(p) {
+    if (p.status !== 'ok') { return; }
+    $('#selProject').html(p.projects.map(function(x) {
+      return '<option value="' + x.id + '"' + (x.id === tproject_id ? ' selected' : '') + '>' + esc(x.name) + '</option>';
+    }).join('')).on('change', function() {
+      window.location.href = 'riskCoverage.html?tproject_id=' + $(this).val();
+    });
+  });
+  $.getJSON('/api/riskcoverage/index.php', { action: 'plans', tproject_id: tproject_id }, function(p) {
+    if (p.status !== 'ok') { return; }
+    var h = '<option value="0">' + esc(t('risk.allPlans', 'All plans')) + '</option>';
+    h += p.plans.map(function(x) {
+      return '<option value="' + x.id + '"' + (x.id === tplan_id ? ' selected' : '') + '>' + esc(x.name) + '</option>';
+    }).join('');
+    $('#selPlan').html(h).on('change', function() {
+      window.location.href = 'riskCoverage.html?tproject_id=' + tproject_id + '&tplan_id=' + $(this).val();
+    });
+  });
+}
+
+$('#selLikelihood, #selImpact').on('change', renderComputed);
+
+$(function() {
+  TLi18n.load(function() {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    loadInit();
+  });
+});
+</script>
+</body>
+</html>

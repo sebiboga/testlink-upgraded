@@ -2830,3 +2830,4 @@ $TLS_after_title = 'После заголовка';
 $TLS_after_preconditions = 'После предварительных условий';
 ?>
 $TLS_title_test_closure = "Закрытие тестирования"; // "Test Closure" (Refs #1278)
+$TLS_link_report_risk_coverage = "Тестирование на основе рисков";

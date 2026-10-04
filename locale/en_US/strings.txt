@@ -3899,3 +3899,4 @@ $TLS_simplexml_load_file_wrapper_error = "Please give this text to your TestLink
 $TLS_after_title = 'After Title';
 $TLS_after_preconditions = 'After Preconditions';
 $TLS_title_test_closure = "Test Closure"; // "Test Closure" (Refs #1278)
+$TLS_link_report_risk_coverage = "Risk-Based Testing";

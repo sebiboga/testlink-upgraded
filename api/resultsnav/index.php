@@ -162,6 +162,7 @@ $bff = function ($action) use ($db, $user) {
             'charts_basic' => 'gui/templates/results/charts.html',
             'results_requirements' => 'gui/templates/results/resultsRequirements.html',
             'uncovered_testcases' => 'gui/templates/results/uncoveredTestCases.html',
+            'risk_coverage' => 'gui/templates/results/riskCoverage.html',
             'list_problems' => 'gui/templates/results/resultsBugs.html',
             'issues_all_exec' => 'gui/templates/results/resultsBugs.html',
             'tcases_with_cf' => 'gui/templates/results/tcasesWithCF.html',
