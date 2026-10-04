@@ -3499,6 +3499,8 @@
   "reqspecsearch.type": "Tip",
   "reqspecsearch.warnTooWide": "Prea multe rezultate, va rugam rafinati criteriile de cautare.",
   "reqtr.actions": "Acțiuni",
+  "reqtr.alreadyFirst": "Deja este prima cerință",
+  "reqtr.alreadyLast": "Deja este ultima cerință",
   "reqtr.applyOrder": "Aplică ordinea",
   "reqtr.backToMgmt": "Înapoi la gestionarea specificațiilor",
   "reqtr.context": "Context",

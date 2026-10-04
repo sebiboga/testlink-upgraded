@@ -3499,6 +3499,8 @@
   "reqspecsearch.type": "类型",
   "reqspecsearch.warnTooWide": "结果过多，请细化搜索条件。",
   "reqtr.actions": "操作",
+  "reqtr.alreadyFirst": "已经是第一个需求",
+  "reqtr.alreadyLast": "已经是最后一个需求",
   "reqtr.applyOrder": "应用排序",
   "reqtr.backToMgmt": "返回规格管理",
   "reqtr.context": "上下文",

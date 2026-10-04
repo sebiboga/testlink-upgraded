@@ -3499,6 +3499,8 @@
   "reqspecsearch.type": "Type",
   "reqspecsearch.warnTooWide": "Too many results, please refine the search criteria.",
   "reqtr.actions": "Actions",
+  "reqtr.alreadyFirst": "Already the first requirement",
+  "reqtr.alreadyLast": "Already the last requirement",
   "reqtr.applyOrder": "Apply order",
   "reqtr.backToMgmt": "Back to specification management",
   "reqtr.context": "Context",

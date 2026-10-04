@@ -3499,6 +3499,8 @@
   "reqspecsearch.type": "タイプ",
   "reqspecsearch.warnTooWide": "結果が多すぎます。検索条件を絞り込んでください。",
   "reqtr.actions": "操作",
+  "reqtr.alreadyFirst": "すでに最初の要件です",
+  "reqtr.alreadyLast": "すでに最後の要件です",
   "reqtr.applyOrder": "順を適用",
   "reqtr.backToMgmt": "要件スペット管理へ戻る",
   "reqtr.context": "コンテキスト",

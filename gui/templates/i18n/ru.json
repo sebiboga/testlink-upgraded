@@ -3499,6 +3499,8 @@
   "reqspecsearch.type": "Тип",
   "reqspecsearch.warnTooWide": "Слишком много результатов, уточните критерии поиска.",
   "reqtr.actions": "Действия",
+  "reqtr.alreadyFirst": "Уже первое требование",
+  "reqtr.alreadyLast": "Уже последнее требование",
   "reqtr.applyOrder": "Применить порядок",
   "reqtr.backToMgmt": "Назад к управлению спецификациями",
   "reqtr.context": "Контекст",

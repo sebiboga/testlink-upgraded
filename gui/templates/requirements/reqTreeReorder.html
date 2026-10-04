@@ -403,6 +403,21 @@ function render() {
   applyRowState();
 }
 
+// TLi18n.t() echoes the KEY for a bundle entry that does not exist
+// (gui/templates/i18n/i18n.js:175), so a plain `t(key) || 'English literal'`
+// never falls through: it renders the raw key and the literal stays dead code.
+// has() is the module's own existence check - when the active bundle lacks the
+// entry the tooltip is omitted instead of leaking the key or an untranslated
+// string. Refs #1829.
+function edgeTitle(key) {
+  if (!TLi18n.has(key)) { return ''; }
+  var v = t(key);
+  // has() is hasOwnProperty, t() is `_strings[key] || key`: an entry present but
+  // blank (there are such entries in the bundles) still resolves to the KEY, so
+  // guard the value too - that is the leak this helper exists to prevent.
+  return (v && v !== key) ? v : '';
+}
+
 function btn(icon, label, dir, idx, isDisabled, rowIndex, totalRows) {
   var b = $('<button type="button" class="rm" data-mv="' + dir + '"><i class="fa ' + icon + '"></i> ' + label + '</button>');
   // The row index is bound per button: a reorder control must always act on
@@ -411,10 +426,10 @@ function btn(icon, label, dir, idx, isDisabled, rowIndex, totalRows) {
   if (isDisabled) {
     var title = '';
     if ((dir === 'up' || dir === 'top') && rowIndex === 0) {
-      title = t('reqtr.alreadyFirst') || 'Already the first requirement';
+      title = edgeTitle('reqtr.alreadyFirst');
     }
     if ((dir === 'down' || dir === 'bottom') && rowIndex === totalRows - 1) {
-      title = t('reqtr.alreadyLast') || 'Already the last requirement';
+      title = edgeTitle('reqtr.alreadyLast');
     }
     if (title) {
       b.attr('title', title);

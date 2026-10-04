@@ -3493,6 +3493,8 @@
   "reqspecsearch.type": "Typ",
   "reqspecsearch.warnTooWide": "Zu viele Ergebnisse, bitte Suchkriterien eingrenzen.",
   "reqtr.actions": "Aktionen",
+  "reqtr.alreadyFirst": "Bereits die erste Anforderung",
+  "reqtr.alreadyLast": "Bereits die letzte Anforderung",
   "reqtr.applyOrder": "Reihenfolge übernehmen",
   "reqtr.backToMgmt": "Zurück zur Spezifikationsverwaltung",
   "reqtr.context": "Kontext",

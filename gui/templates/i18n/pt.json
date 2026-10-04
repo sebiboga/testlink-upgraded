@@ -3499,6 +3499,8 @@
   "reqspecsearch.type": "Tipo",
   "reqspecsearch.warnTooWide": "Resultados demais, refine os critérios de pesquisa.",
   "reqtr.actions": "Ações",
+  "reqtr.alreadyFirst": "Já é o primeiro requisito",
+  "reqtr.alreadyLast": "Já é o último requisito",
   "reqtr.applyOrder": "Aplicar ordem",
   "reqtr.backToMgmt": "Voltar à gestão de especificações",
   "reqtr.context": "Contexto",
