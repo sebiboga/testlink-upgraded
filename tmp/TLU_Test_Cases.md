@@ -6511,3 +6511,41 @@ fields without `|escape`. Cases:
 | TC-1888-09 | `doCreate` with `target_date=x/" autofocus onfocus="alert(1)` | HTTP 200; rendered `value="x/&quot; autofocus onfocus=&quot;alert(1)"`; quotes contained, no attribute breakout | PASS |
 | TC-1888-10 | `php -l lib/plan/planMilestonesCommands.class.php` | No syntax errors detected | PASS |
 | TC-1888-11 | `doCreate` with delimiter-less `target_date=aaaaaa` | HTTP 500, 0 bytes — pre-existing `split_localized_date()` `explode(null)` ValueError, filed as #1889 (out of scope) | DOCUMENTED |
+| 1 | Load the report for the fixture plan (type = Latest Generation) | 2 rows, summary cards Open 1 / Resolved 1 / Total 2 / TCs with Bugs 2, 2 suite groups | PASS — cards `1 / 1 / 2 / 2`, groups "RB Suite A (1 item)", "RB Suite B (1 item)" |
+| 2 | Inspect the Test Case cell of every row | Each cell carries 2 icon links (history + design) before `PREFIX-id: name`, i.e. legacy `resultsBugs.php:89-96` parity | PASS — `link "Execution history"`, `link "Test case design"` in both rows |
+| 3 | Read the `href` of the history icon | `/gui/templates/execute/execHistory.html?tcase_id=<tc_id>&tproject_id=<p>` (never `tproject_id=undefined`, the legacy helper's bug) | PASS — `execHistory.html?tcase_id=112&tproject_id=109` / `tcase_id=116` |
+| 4 | Read the `href` of the design icon | `/gui/templates/testcases/tcEdit.html?tcase_id=<tc_id>&tproject_id=<p>` | PASS — `tcEdit.html?tcase_id=112&tproject_id=109` / `tcase_id=116` |
+| 5 | Hover each icon | Localized tooltip from i18n (`rb.executionHistory`, `rb.testCaseDesign`), not a hardcoded string | PASS — `description="Execution history"`, `description="Test case design"` |
+| 6 | Click the history icon of row 1 | Popup `execHistory.html?tcase_id=112&tproject_id=109` opens with the TC data and its executions | PASS — popup title `RB-1 - Execution History`, `Executions(1)`, row `RB Plan / RB Build 1 / FAILED / v1 / Manual` |
+| 7 | Click the design icon of row 1 | Popup `tcEdit.html?tcase_id=112&tproject_id=109` opens on the design of that exact TC | PASS — `Edit Test Case - login broken`, heading `Edit Test Case  RB-1:1:login broken` |
+| 8 | Read the Test Case cell text | `RB-1: login broken` / `RB-2: reset mail missing` — the NAME is present | PASS (was `RB-1:` with an empty name before this change: the renderer read `row.name`, the BFF emits `tc_name`) |
+| 9 | Switch the toolbar select to "All Executions" | Same rows/icons, yellow "all executions" hint banner, no console error | PASS — 2 rows, both icon pairs present, hint shown |
+| 10 | Sort by the Test Case column and type in its footer filter | Icons do not leak into the compared/filtered text | PASS — column filter `login` narrows to 1 row; ascending/descending order RB-1, RB-2 works |
+| 11 | Regression: collapse/expand groups, Reset Filters, Reset to default state, Refresh | No error, groups keep working, no `undefined` in cells | PASS — all 5 toolbar buttons behave, toast shown, cells stable |
+| 12 | Check the browser console and the Event Viewer (`events` table) | No new Error(1)/Warning(2) entries | PASS — 0 console errors/warnings; new `events` rows are all `log_level=16` (audit) from the fixture + login |
+
+**Result: 12/12 PASS** (browser-verified 2026-10-04, admin/admin).
+
+**Known separate defect found while testing this feature** (not part of #1269, not fixed here):
+the *Bugs* column puts the tracker's HTML fragment into `href` — filed as **#1837**.
+
+## Regression — Issue #1693: tree::_get_subtree() static state causes cross-call contamination
+
+### Precondition
+- Fixture: php tmp/fixtures_1607.php (creates TQ1607 with req specs)
+- Verify with tmp/verify_leak5.php (pristine 0:13, contaminate with rspec, after bare → must equal pristine)
+
+### Steps
+1. Run php tmp/fixtures_1607.php (ensure data exists)
+2. Run php tmp/verify_leak5.php and capture output
+
+### Expected
+Call 0 and Call 2 return same count (13); Call 1 returns rspec set (2). No contamination.
+
+### Actual (post-fix)
+0:13, 1:2, 2:13 — PASS
+
+### Notes
+- Fix: removed static $my in tree::_get_subtree(), initialize per call, pass merged context in recursion. Refs #1693.
+
+PASS
