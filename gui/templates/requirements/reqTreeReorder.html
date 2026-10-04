@@ -250,9 +250,12 @@ function idleUI() {
 }
 
 // Single source of truth for the drag affordance. render() and applyRowState()
-// both write `draggable`, so the predicate must live in ONE place and must mirror
-// the drop() guard: a row that is draggable while drop() returns early is an
-// affordance that silently does nothing. Refs #1689.
+// both write `draggable`, so the predicate must live in ONE place and must cover
+// the drop() guard's rights + DEAD terms: a row that is draggable while drop()
+// returns early is an affordance that silently does nothing. BUSY is the guard's
+// third term and is deliberately NOT mirrored here - it is transient (the rows
+// are rebuilt by applyRowState() on both busy edges) and not part of #1689.
+// Refs #1689.
 function canDrag() {
   return !DEAD && !!GRANT.modify;
 }
