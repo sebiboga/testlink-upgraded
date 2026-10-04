@@ -5627,41 +5627,80 @@ which `showState()` hides), which is exactly why the first suite did not catch i
   otherwise the page silently succeeds as `admin` and the case looks like a false PASS. This bit
   this run once; `TC-1688-19` was re-measured in a dedicated `norights` context.
 
-## Task — Issue #1278: Test Closure module (lessons learned, closure report, plan freeze)
+## Regression — Issue #1821: cfieldsTprojectAssign.html 'Check / uncheck all' is dead
 
-**Precondition**
-- App running at `http://localhost:8082`, logged in as `admin`/`admin`.
-- Fixture (freshly imported DB, so recreated every run — see `tmp/fixtures_1278.md`):
-  project `CLOS-TP-Project` id 9001, test plan `CLOS Test Plan` id 9005, 2 test cases assigned
-  (`testplan_tcversions` 90051/90052), 1 execution with status `p` (passed).
-- Screen: `/gui/templates/plans/testClosure.html?tplan_id=9005&tproject_id=9001`.
+**Precondition** — the freshly imported DB contains **no** test projects at all
+(`select id from testprojects` → empty), so both tables render empty and the master checkbox
+has nothing to act on. A fixture is mandatory:
 
-**Steps and expected behaviour**
+```bash
+php tmp/fixtures_1821.php     # tproject 'CFA 1821' (prefix CFA1)
+                              #   linked   : CFA1821L1 (string, design), CFA1821L2 (checkbox, design)
+                              #   available: CFA1821A1, CFA1821A2
+```
 
-| # | Step | Expected | Result |
+Log in `admin/admin`, then open
+`http://localhost:8082/gui/templates/cfields/cfieldsTprojectAssign.html?tproject_id=<id>`.
+
+**NOTE on the fixture** — `cfield_mgr::link_to_testproject($tproject_id, $cfield_ids)`
+(`lib/functions/cfield_mgr.class.php:1064`) takes the project id **first**. Passing the field
+id first silently links the wrong field and additionally raises
+`E_WARNING Trying to access array offset on null - in lib/functions/cfield_mgr.class.php - Line 1085`
+(line 1085 does `$cf[$field_id]['name']` on a key that is not there). That warning is an
+artefact of a badly-called fixture, **not** a product defect: the screen's own Assign button
+performs the same assignment through the BFF and logs level-16 INFO only.
+
+### Pre-fix behaviour (replayed live in the page against the real DataTable instances)
+
+Both spellings of the removed call throw, and the method exists on **no** receiver in 1.13.7:
+
+```
+dtLinked.rows().every(function(r){ r.invalidateSearch(); });
+  -> TypeError: r.invalidateSearch is not a function
+dtLinked.rows().toArray()[0].invalidateSearch();
+  -> TypeError: dtLinked.rows(...).toArray(...)[0].invalidateSearch is not a function
+
+jQuery.fn.dataTable.version                                       = "1.13.7"
+typeof dtLinked.row(0).invalidateSearch                           = "undefined"
+typeof dtLinked.rows().invalidateSearch                           = "undefined"
+```
+
+Because the throw preceded `$rows.each()`, nothing ticked and `syncSelState()` never ran —
+the header checkbox was a complete no-op, one console `TypeError` per click, no XHR issued
+(nothing server-side to call).
+
+**Expected post-fix** — the master checkbox ticks/unticks every rendered row of its own table,
+the `(n)` counter and the Assign/Unassign enablement follow, and no console error appears.
+
+| # | Step | Expected / observed | Result |
 |---|---|---|---|
-| 1 | `GET ?action=summary&tplan_id=9005` | 200; `rights.canWrite=true`; metrics `total_assigned=2`, `total_executed=1`, `passed=1`, `executed_pct=50`, `passed_pct=50` | PASS |
-| 2 | Load the screen in the browser | Header/tiles render localized labels; lessons DataTable shows the empty state; `closureBanner` = "open" | PASS |
-| 3 | `POST ?action=lesson_save` with `title="  "` | HTTP 400 `closure.msg.titleRequired` (no row created) | PASS |
-| 4 | Add Lesson Learned via the modal (category / title / description) | Toast "Lesson learned created", new row in the DataTable, Lessons tile +1, `events` row AUDIT `CLOSURE_LESSON_CREATE` | PASS |
-| 5 | Edit that lesson and delete it | Row updates / disappears; AUDIT `CLOSURE_LESSON_SAVE` / `CLOSURE_LESSON_DELETE` | PASS |
-| 6 | Category filter = "What went well" (and a category with no rows) | Table shows only the matching rows / the empty state | PASS |
-| 7 | Tick 3 checklist items, set archive ref + summary, Save Closure Data | Values survive a reload; AUDIT `CLOSURE_SAVE` | PASS |
-| 8 | Click "Close Test Plan" | Banner turns red "CLOSED … Closed by admin", button becomes "Reopen", print report contains "Test Closure Report" | PASS |
-| 9 | **Freeze proof:** add an extra `failed` execution in the DB, re-read `summary` | `metrics` (live) = 2 executed / 1 failed, `report_metrics` (frozen snapshot) stays 1 executed / 0 failed | PASS |
-| 10 | `POST ?action=lesson_save` while closed | HTTP 409 `closure_frozen`; screen disables "Add Lesson Learned" and hides the row edit/delete buttons | PASS |
-| 11 | Click "Reopen Test Plan" | Banner green "open", snapshot cleared (`report_metrics` follows live), buttons enabled again | PASS |
-| 12 | Print view (`window.print()` CSS) | `#printArea` prints outcome table, checklist, lessons-learned table, summary and closure state; the screen chrome is hidden | PASS |
-| 13 | `events` table after the whole run | No new ERROR/WARNING entry; only AUDIT rows from the feature | PASS |
-| 14 | i18n bundles | `closure.*` keys present in all 10 bundles; `python3 -m json.tool` clean | PASS |
+| TC-1821-01 | Load the screen with the fixture | Both tables render: linked `2 rows`, available `2 rows`; `btnUnassign` + `btnAssign` both `disabled`; selection counters absent/empty | PASS |
+| TC-1821-02 | Probe the DataTables instance for the removed method | `typeof dtLinked.row(0).invalidateSearch === "undefined"`, `typeof dtLinked.rows().invalidateSearch === "undefined"`, `jQuery.fn.dataTable.version === "1.13.7"` — confirms the call had no valid receiver in any wrapper | PASS |
+| TC-1821-03 | Replay the pre-fix line live | `dtLinked.rows().every(r => r.invalidateSearch())` → `TypeError`; `dtLinked.rows().toArray()[0].invalidateSearch()` → `TypeError` | PASS (bug reproduced) |
+| TC-1821-04 | **Check all** on the linked table (`#chkAllLinked`) | `linked: 2 rows, 2 checked`; button label `Unassign (2)`; `btnUnassign` → `enabled`; `btnAssign` stays `disabled` | PASS |
+| TC-1821-05 | **Uncheck all** on the linked table | `linked: 2 rows, 0 checked`; `btnUnassign` → `disabled`; `btnAssign` stays `disabled` | PASS |
+| TC-1821-06 | **Check all** on the available table (`#chkAllAvailable`) | `available: 2 rows, 2 checked`; button label `Assign (2)`; `btnAssign` → `enabled`; the linked table is untouched (0 checked) — the two masters are independent | PASS |
+| TC-1821-07 | **Uncheck all** on the available table | `available: 2 rows, 0 checked`; `btnAssign` → `disabled` | PASS |
+| TC-1821-08 | Both masters in one pass, then both cleared | check → `linked 2/2` + `available 2/2`, `btnUnassign=enabled`, `btnAssign=enabled`, labels `Unassign (2)` / `Assign (2)`; uncheck → back to `0/0` and both `disabled` | PASS |
+| TC-1821-09 | **Redraw edge case** — after checking all, force a DataTables redraw: `dtLinked.order([[1,'asc']]).draw(false)` | Selection and `btnUnassign=enabled` **survive** the sort — nothing is lost by dropping `invalidateSearch()` (the stated motive of the removed call) | PASS |
+| TC-1821-10 | Console across TC-1821-04..09 | `list_console_messages` filtered to `error`+`warn` → **no console messages found** (pre-fix this was one `TypeError` per click) | PASS |
+| TC-1821-11 | **End-to-end**: check all on Available → `Assign (2)` → click | fields migrate to the linked table (linked badge `2`→`4`, available badge `2`→`0`, empty state *"Every custom field is already assigned to this test project."*), toast `3 custom field(s) assigned.`; no error | PASS |
+| TC-1821-12 | Event Viewer / `events` after the whole pass | `SELECT COUNT(*) FROM events WHERE log_level<>16` adds **no** new row; the UI Assign path logs level-16 INFO only (ids 6,7,8). The single stale level-2 row (id 3, 06:35:57) is the bad-argument-order fixture artefact described above, produced before the fixture was corrected and not reproducible with the corrected call | PASS |
 
-**Bugs found and fixed while executing this suite**
-- `executions` has no `testplan_tcversion_id` and `execution_bugs` has no `testplan_id` — the first
-  metrics SQL threw a DB access error (fixed: filter on `executions.testplan_id`, reach bugs through
-  `execution_bugs.execution_id`).
-- `executions.status` stores the legacy short codes (`p/f/b/i/n`), not `passed/failed/...` — added an
-  explicit map (0 passed → 1 passed).
-- `lesson_category` was created as `VARCHAR(16)`, too narrow for `needs_improvement` (18 chars) —
-  widened to `VARCHAR(32)` with an idempotent migration.
-- The category filter was read AFTER the `<option>` list was rebuilt, which reset the select value.
-- The API returned `closure_msg.*` keys while the bundles use `closure.msg.*` → raw key shown in the toast.
+### Test execution
+- [PASS] TC-1821-01 .. TC-1821-12 — 12/12 PASS (chrome-devtools MCP, live app at :8082)
+- [PASS] TC-1821-03 re-confirms the reported symptom is genuinely reproducible (not a stale-report artefact)
+- [PASS] No `gui/templates/i18n/*.json` bundle touched by this fix — the fix removes code and adds no user-facing string, so there is no JSON to validate
+- [PASS] Merge-base gate: `TLU_REQUIRE_SUITE="Issue #1821" bash ai/verify_test_suites.sh`
+
+### Notes
+- The two fix commits (`0df8f57f7`, `d9969d57a`) were already on `origin/sebiboga` when this run
+  started; the issue was left open without a suite, a docs page or a verification trail. This
+  suite, the fixture, `docs/` and the wiki entry are what this run adds.
+- The earlier comment on the issue states `invalidateSearch()` exists on the Row API instance in
+  1.13.7. **That is incorrect** — measured `undefined` (TC-1821-02). It was renamed to
+  `row.invalidate('search')` in DataTables 1.11. This is why the fix removes the call instead of
+  relocating it, and why relocating it to `rows()` or to the Row node did not work.
+- `data-group="linked"` / `data-group="available"` and the ids `chkAllLinked` /
+  `chkAllAvailable`, `btnAssign`, `btnUnassign` are the stable selectors for this screen; use them
+  instead of the a11y-tree labels, which change with the surrounding badges.
