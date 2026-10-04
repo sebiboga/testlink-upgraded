@@ -87,3 +87,22 @@ every case measures the resulting state: `checked`, `indeterminate`, the `(n)` s
 `96596c8a9` (BFF) → `d4e40daeb` (screen) → `382ead932` (i18n ×10 + wiring + shim) →
 `9a743b67f` (#1817) → `3128139a4` (#1818 + #1819) → `36121574a` (#1820) →
 `0df8f57f7` + `d9969d57a` (#1821) → `c7532c787` (#1822) → `7c4702796` + `48dab1612` (suite + fixture).
+
+## Mandatory code review
+
+A review subagent over the landed diff reported **no BLOCKER** — authorization/IDOR, CSRF/session,
+XSS, legacy parity and i18n all verified clean — and exactly **one MINOR**, fixed in `cadb3ccd1`:
+
+`POST ?action=save` tested the submitted `location` against the valid codes when counting the
+change, but assigned `$location[$id] = $v` **unconditionally**. `setDisplayLocation()` just does
+`intval()` and an `UPDATE`, so the membership test gated the counter and not the write: a crafted
+`{"rows":[{"id":16,"location":99}]}` answered `{"changed":{"location":0}}` — a truthful "nothing
+changed" — and persisted `99` anyway.
+
+A second half was missing entirely: `supports_location`. The UI renders a LOCATION dropdown only for
+design-time test case fields, so a crafted row could set a location on the **execution-only** field,
+which has no dropdown at all. The server now derives the same two conditions the client uses.
+
+**Lesson worth grepping the other BFFs for:** a validator that only guards a counter is not a
+validator — "what I counted" and "what I wrote" were different variables, and a mismatch between them
+is silent by construction. Guarded by suite `Regression — Issue #1816 (addendum)`, TC-1816-49..55.
