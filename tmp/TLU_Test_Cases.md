@@ -5772,124 +5772,28 @@ scripted `#applyBtn` click fires **no request** until `#cmOk` is clicked.
   attempts, 2 `audit_login_succeeded`) → PASS
 - browser console on the screen → no errors or warnings → PASS
 
-## Issue #1825 — Requirement Specification Search Form (`gui/templates/requirements/reqSpecSearchForm.html`)
+## Task — Issue #1277: Risk-Based Testing (likelihood x impact, risk-coverage view, metrics by risk level)
 
-Standalone criteria page that replaces `lib/requirements/reqSpecSearchForm.php` and hands its
-criteria to the already-modern `searchReqSpec.html` (results) via `auto_search=1`.
-BFF: `api/reqspecsearchform/index.php` (`GET|HEAD ?action=init&tproject_id=N…`).
+**Precondition** — freshly imported DB (schema only, 0 rows). Fixture
+`tmp/fixtures_1277.php` creates test project `Risk Demo` (prefix RSK, requirements
+enabled), requirement spec `Risk SRS` with 3 requirements (RISK-1 Checkout / RISK-2
+Login / RISK-3 Invoice export, the last with NO covering test case), suite `Risk Suite`
+with 4 test cases, plan `Risk Plan`, build `Risk Build`, plan assignments and 2
+executions (checkout = passed, profile = failed; login and search not run).
 
-**Fixtures** (fresh DB, recreated per run)
-
-- `TL-DEMO` (id 1, requirements enabled): req specs `TL-REQ-1` "First requirement spec" (type 1,
-  scope "Functional scope of the login feature") and `TL-REQ-2` "Second requirement spec" (type 2);
-  `TL-REQ-1` carries two `requirements` rows so `GET_NOT_EMPTY_REQSPEC` is non-empty; one
-  design-time custom field "Importance" linked at `requirement_spec` scope.
-- `TL-NOREQ` (id 2): requirements **disabled**.
-- `TL-EMPTY` (id 3): requirements enabled but **no** requirement specification.
-- user `limited` (guest role): holds neither `mgt_view_req` nor `mgt_modify_req`.
-
-| # | Case | Steps | Expected | Result |
-|---|------|-------|----------|--------|
-| 1 | admin happy path | login `admin`, open `reqSpecSearchForm.html?tproject_id=1` | context card: TL-DEMO / prefix / admin / Enabled / Yes / 200 / 1 CF; criteria card visible; no state banner | PASS — chips `Enabled`/`Yes`, `mReqs=Enabled`, `mSpecs=Yes`, `visible:[]` |
-| 2 | criteria domain from config | same page | Type = Any type/Section/URS/SRS; Custom field = Any field/Importance | PASS — 4 type options + "Importance" |
-| 3 | Find → results handoff | Doc ID `TL-REQ-1`, Title `First`, click Find | lands on `searchReqSpec.html?tproject_id=1&doc_id=TL-REQ-1&name=First&auto_search=1`, 1 match | PASS — `Matches: 1`, row `TL-REQ-1:First requirement spec rev. 1` |
-| 4 | empty criteria warns first | Reset, then Find | `confirm()` before navigating; accept → filter-less search, both specs | PASS — dialog shown; after accept `Matches: 2` (both rows) |
-| 5 | Reset | fill Doc ID + Title, click Reset | every criterion back to its default, CF value group hidden | PASS — `doc:"", name:"", type:"notype", cf:"0", cfGrp:"none"` |
-| 6 | Refresh | type junk into Doc ID, click Refresh | form re-read from the server echo of the URL criteria (junk discarded) | PASS — `TL-REQ-1`/`First` restored |
-| 7 | deep-link pre-fill (bug fixed this run) | open `?tproject_id=1&doc_id=TL-REQ-9&name=Deep&reqSpecType=2&scope=login&log_message=fixture` | every criterion pre-filled from the BFF echo | PASS — all 5 values + `type=2` (before the fix: all blank) |
-| 8 | deep-link custom field | open `?custom_field_id=1&custom_field_value=High` | CF = Importance, value = High, value group revealed | PASS — `cf:"1", cfVal:"High", cfGroup:"block"` |
-| 9 | criteria length-capped server-side | `/init&doc_id=` 400×A, `name=` 4000×B | 200, echo trimmed to the cap | PASS — `docLen:255`, `nameLen:255` |
-| 10 | requirements disabled | open `?tproject_id=2` | `requirements_disabled` banner + chip "Disabled", no criteria card | PASS — `visible:["stReqsDisabled"]`, `mReqs=Disabled` |
-| 11 | no requirement specification | open `?tproject_id=3` | `no_req_specs` banner, Doc ID filter **hidden** (legacy `GET_NOT_EMPTY_REQSPEC`) | PASS — `grpDocId:"none"`, `visible:["stNoSpecs"]` |
-| 12 | no right → 403 | login `limited`, open `?tproject_id=1` | `Access denied` state, code `403 no_right`, no project data | PASS — `visible:["stDenied"]`, code `403 no_right` |
-| 13 | unknown project → 404 | `/init&tproject_id=9999` | `404 tproject_not_found` | PASS |
-| 14 | malformed / missing / zero id → 400 | `tproject_id=abc`, absent, `0` | `400 invalid_tproject` in all three | PASS |
-| 15 | wrong method → 405 | `POST /init` | `405 wrong_method`, `Allow: GET, HEAD` | PASS |
-| 16 | unknown action → 400 | `?action=bogus` | `400 unknown_action` | PASS |
-| 17 | anonymous → 401 | `/init` with no session | `401 not_authenticated` | PASS |
-| 18 | legacy form retired | navigate to `lib/requirements/reqSpecSearchForm.php?tproject_id=1&doc_id=TL-REQ-9&name=Deep` | 302 → modern screen, criteria preserved and pre-filled | PASS — landed on `reqSpecSearchForm.html?…doc_id=TL-REQ-9&name=Deep`, fields filled |
-| 19 | legacy results retired | navigate to `lib/requirements/reqSpecSearch.php?requirement_document_id=TL-REQ-1&name=First&coverage=1` | 302 → `searchReqSpec.html?doc_id=TL-REQ-1&name=First&auto_search=1`, search already run, `coverage` dropped | PASS — `Matches: 1`, `docField:"TL-REQ-1"` |
-| 20 | shims refuse a write verb / an XHR | `POST` both shims; `fetch()` (Sec-Fetch-Dest `empty`) | `405 wrong_method` / `405 retired_endpoint` JSON, never a login body to parse | PASS — both codes on both shims |
-| 21 | shims stay anonymous-safe | both shims with no cookie | legacy `login.php?note=expired` bounce, no project data | PASS — JS redirect body, no data |
-| 22 | results → form round trip | on the results screen, click "Criteria form" | 302-free navigation back to the form with the filled criteria only | PASS — landed on `reqSpecSearchForm.html?tproject_id=1` |
-| 23 | Back / Close | click "Back to Search Test Cases"; `Close` on the form | `/gui/templates/search/searchView.html?tproject_id=1`; Close closes the window or returns to the opener | PASS — Back landed on `searchView.html` |
-
-**Gates for this suite**
-
-- `php -l` on `api/reqspecsearchform/index.php`, both legacy shims and `lib/functions/common.php` → PASS
-- `node --check` on the screen's extracted inline script → PASS
-- `python3 -m json.tool` on all 10 locale bundles after the 50-key (`rssf.*` + footer) insert → PASS
-- i18n: `rsf.*` was **already taken** by Reorder Requirements, so the form uses `rssf.*`;
-  all 49 keys + `footers.reqSpecSearchForm` exist in en/ro/de/es/fr/it/pt/ru/ja/zh → PASS
-- Event Viewer / `events`: **0** unexpected rows during the run — only the intentional
-  `log_level 2` WARNINGs (2 × `mgt_view_req missing` from the `limited` user, 2 × `BFF shim:
-  refused POST`) and the `log_level 16` audit logins → PASS
-- browser console on the screen → no errors, no warnings → PASS
-
-## Regression — Issue #1824: reqTreeReorder affordances stay live while a save/move request is in flight
-
-**Precondition**
-
-- App at `http://localhost:8082` (PHP built-in server, docroot = repo root), login `admin` / `admin`.
-- Dataset (fresh DB per run): `php tmp/fixtures_1681.php` → `tproject=1` (TREE1681 / prefix TR1),
-  `specA=2` (TR1-SPEC-A, 3 requirements), `specB=4` (TR1-SPEC-B, empty), plus the permission-path
-  users `tr1681readonly` (view-only role) and `tr1681norights` (role 3, no rights).
-- Entry point (mandatory): the screen must be opened **inside the shell iframe** —
-  `document.getElementById('mainframe').src = '/gui/templates/requirements/reqTreeReorder.html?tproject_id=1&req_spec_id=2'`.
-  A top-level tab navigation of the same URL bounces to `login.php?note=expired` on this build.
-- Instrumented probe used for every in-flight case (make the window observable and provable):
-  wrap `contentWindow.jQuery.ajax` to count `dispatch` / `complete` for `?action=reorder` / `?action=move`,
-  trigger the action and read the DOM **in the same synchronous tick as the click** (jQuery returns
-  before the response, so the read is inside the window). Assert `dispatched:1, completed:0, BUSY:true`
-  together with every snapshot — a snapshot without that triple is not evidence.
-
-**Repro (pre-fix)**
-
-1. Load the screen as admin; baseline rows 6 / 8 / 10: `draggable="true"`, grip on every row,
-   arrows disabled by position only (`[[T,F,T,F],[F,F,F,F],[F,T,F,T]]`), toolbar enabled.
-2. Click **Up** on the last row → `Unsaved changes` chip appears.
-3. Click **Apply order** → confirm modal → **OK**.
-4. Read the state inside the request window:
-   `BUSY:true`, `drag ["true","true","true"]`, `dragover` defaultPrevented = true,
-   enabled arrows per row `[2,4,2]`, toolbar `applyBtn/moveBtn/discardBtn = true`.
-   → **the rows still advertise drag & drop and still show live arrow buttons while the request is in flight.**
-5. Prove they are inert: click an enabled arrow → `ITEMS` unchanged (`6,10,8` → `6,10,8`);
-   dispatch a real `DragEvent('drop')` → `ITEMS` unchanged.
-   → **dead affordances**, and `dragstart` still adds `.dragging` (OS drag ghost appears).
-6. Same after a **Move requirement** (select a row, target `TR1-SPEC-B`, confirm).
-
-**Expected post-fix**
-
-The affordances disappear for the whole duration of the request, exactly like `.rm` / Apply /
-Discard / Move already do, and come back when it settles (ok **and** error).
-
-**Actual result — FIXED, all 16 cases PASS (measured 2026-10-04, commit `fix/issue-1824`)**
-
-| # | case | measured | verdict |
-|---|---|---|---|
-| 1 | idle baseline (admin, 3 rows) | `drag ["true","true","true"]`, grip visible, arrows `[[T,F,T,F],[F,F,F,F],[F,T,F,T]]`, toolbar enabled | PASS |
-| 2 | mid-Apply in flight | `BUSY:true` + `dispatched:1/completed:0`; `drag ["false","false","false"]`, grip `display:none`, enabled arrows `[0,0,0]`, toolbar disabled | PASS |
-| 3 | mid-Move in flight | same, on `?action=move` | PASS |
-| 4 | after Apply resolves OK | order reloaded from the server `8,6,10`, drag restored, grip visible, arrows position-only, dirty chip `none`, toolbar enabled | PASS |
-| 5 | after Apply fails (forced HTTP 500) | `BUSY:false`, `.msg.err` "forced 500", drag restored, grip visible, toolbar enabled | PASS |
-| 6 | `dragstart` + `drop` while BUSY | `dragstart` defaultPrevented, `.dragging` **not** applied, `ITEMS` unchanged | PASS |
-| 7 | `dragover` while BUSY / while idle | defaultPrevented `false` / `true` — the drop-target painting now follows the guard | PASS |
-| 8 | arrow click while BUSY | `ITEMS` unchanged (still refused by `nudge()`) | PASS |
-| 9 | arrow click while idle | `8,10,6` → `8,6,10` + dirty chip | PASS |
-| 10 | real drop while idle | → `10,8,6` + dirty chip, `.dragging` ghost fired | PASS |
-| 11 | read-only user `tr1681readonly` | ro-banner shown, drag hint hidden, `drag ["false","false"]`, no grip, arrows disabled, toolbar disabled | PASS |
-| 12 | no-rights user `tr1681norights` | `DEAD:true`, state card `no_right`, 3 cards hidden, toolbar disabled, no ro-banner | PASS |
-| 13 | DEAD mid-session (rows on screen, later `init` 404) | `DEAD:true`, state card shown, rows survive but `drag ["false"]`, pick button + toolbar disabled | PASS |
-| 14 | persistence end-to-end | `nodes_hierarchy` `node_order` for `parent_id=2,node_type_id=7` = **8, 6, 10** (matches the screen); move path lands on `SPEC_ID=4` with "The requirement was moved." | PASS |
-| 15 | **`render()` while BUSY must not destroy the grip** (regression found by the mandatory code review of the first version of this patch, then fixed) | idle: grips in DOM `[1,1]` `display:inline`; mid-flight `[1,1]` `display:none`; after clicking **Select** while busy (Select calls `render()`) still `[1,1]`; after the **error** edge `[1,1]` `display:inline` again | PASS |
-| 16 | drag hint follows the guard (also from the review) | shown idle -> **hidden** mid-flight -> shown after the settle; read-only user: still hidden, grips in DOM `[0,0]` (#1689 measurement preserved) | PASS |
-
-**Gates for this suite**
-
-- `node --check` on the screen's extracted inline script → PASS
-- no i18n key added (no new user-facing string in the fix) → all 10 locale bundles untouched
-- browser console: no new errors → PASS (one pre-existing 404 for `dashio-template/img/favicon.png`,
-  present before the change as well)
-- Event Viewer / `events`: 4 rows only — 1 `CREATE` (fixture) + 3 `LOGIN` audit (`log_level 16`);
-  **no Error/Warning** → PASS
-- `TLU_REQUIRE_SUITE="Issue #1824" bash ai/verify_test_suites.sh` → **7 PASS / 0 FAIL**
+| # | Steps | Expected | Actual | Result |
+|---|---|---|---|---|
+| 1 | `curl -c jar -d '{"login":"admin","password":"admin"}' /api/auth/login`, then `GET /api/riskcoverage/index.php?action=init&tproject_id=<P>&tplan_id=<PL>` | 200 + context: project/plan names, rights (`canViewReq/canViewTc/canViewMetrics/canEdit` all true for admin), `thresholds {low_max:5, medium_max:11}`, `levels [high, medium, low, unrated]` | exact match | PASS |
+| 2 | `GET ?action=projects` / `?action=plans&tproject_id=<P>` | only projects the user may read; plan list of the project | `[{id,name,prefix}]` + `[{id:53/54,name}]` | PASS |
+| 3 | `POST /api/auth/login` ratings 5x5, 3x3, 2x2 on the checkout/login/profile versions, then `GET ?action=coverage&tproject_id=<P>&tplan_id=<PL>` | RISK-1 2 TCs 2 executed 100% covered, max 25; RISK-2 1 TC 0 executed, residual 9 = medium; RISK-3 0 TCs uncovered; summary `{total_reqs:3, uncovered:1, covered:1, not_tested:1}` | exact match | PASS |
+| 4 | `GET ?action=register&tproject_id=<P>&tplan_id=<PL>` | distribution `{high,medium,low,unrated}`; unrated case carries the 1.9.20 importance proxy, rated ones score = L x I | `{high:1, medium:1, low:1, unrated:1}`; unrated row `score 0, proxy 1, importance 3` | PASS |
+| 5 | `GET ?action=metrics&tproject_id=<P>&tplan_id=<PL>&level=high` | only the high group, with executed/passed/failed/blocked + `exec_pct`/`pass_rate` | `[{level:high, total:1, executed:1, passed:1, exec_pct:100, pass_rate:100}]` | PASS |
+| 6 | Browser: `/gui/templates/results/riskCoverage.html?tproject_id=<P>&tplan_id=<PL>` (admin/admin), tab 1 | Requirement Risk Coverage table renders 3 rows with the pills Status (Covered / Not tested / Uncovered) and Risk level, threshold hint filled in (`Low 1-5 / Medium up to 11 / High above`), empty-state box hidden | rows RISK-1/2/3 present, hint filled, `emptyVisible=false` | PASS |
+| 7 | Browser: tab 2 → "Rate" on the unrated search case → change likelihood/impact | modal shows the case name/suite/importance, selects prefilled, live computed score + 5x5 matrix with the chosen cell outlined | `1: RSK High Risk Checkout`, `likelihood 5`, `impact 5`, computed `25 High` + 5x5 matrix | PASS |
+| 8 | Browser: in the modal set likelihood 4 / impact 2 → Save | AUDIT event, toast "Risk rating saved", row re-rendered with the new score and the distribution cards re-counted | toast shown, row `4 / 2 / 8 / Medium`, cards `HIGH=0 MEDIUM=2 LOW=1 NOT RATED=1`, `events` row `RISK_SAVE ... likelihood 4 x impact 2 = score 8` | PASS |
+| 9 | Browser: tab 3 → "Filter by risk level" = Medium | metrics group table and the "test cases in view" table both restricted to that level | groups `[Medium \| 2 \| 1 \| 50% \| 1 \| 0 \| 0 \| 100%]`, items = the 2 medium cases only | PASS |
+| 10 | `GET /gui/templates/results/resultsNavigator.html?tproject_id=<P>&tplan_id=<PL>` (Metrics & Reports) | the new `risk_coverage` report is listed and opens the modern screen with the context query | `[('risk_coverage', 'Risk-Based Testing', '/gui/templates/results/riskCoverage.html?tplan_id=54&tproject_id=53')]` | PASS |
+| 11 | Locale switcher on the screen (Romanian, German, Russian, Chinese) | every label/level/threshold string comes from the bundle, no raw key and no raw HTML entity | labels translated, `&times;` gone from the header | PASS |
+| 12 | Negative paths: `GET ?action=register` with no session / POST without Origin+XRW / POST `likelihood:9` / `GET ?action=tc_risk&tc_id=999999` / `GET ?action=bogus` | 401, 403, 400 range message, 404, 400 | `401`, `403`, `Likelihood and impact must be between 1 and 5`, `Test case version not found`, `Unknown action` | PASS |
+| 13 | `SELECT log_level, count(*) FROM events GROUP BY log_level` | only INFO(2) + AUDIT(16); no Error/Warning/Fatal and no LOCALIZATION rows | `{2: 13, 16: 18}`, LOCALIZATION = 0 (after adding `link_report_risk_coverage` to all 19 locale files) | PASS |
+| 14 | i18n bundles: `git diff --numstat gui/templates/i18n/` | 74 `risk.*` keys appended to every bundle, **no line removed** in any of the 10 files | `75 1` per file (the single deletion is the previous last line re-terminated by a newline), all bundles pass `python3 -m json.tool` | PASS |
