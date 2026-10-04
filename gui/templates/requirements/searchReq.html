@@ -68,9 +68,17 @@ table.dataTable tbody td { padding: 8px 14px; font-size: 13px; vertical-align: m
   <div class="notice">
     <i class="fa fa-info-circle"></i>
     <span data-i18n="reqsearch.filterModeAnd">All criteria are combined with a logical AND.</span><br>
-    <span id="importantNotice"></span>
+    <span id="importantNotice"></span><br>
+    <span data-i18n="search.prefixIgnored">The test project prefix in the "Test Case ID" field is ignored during the search.</span>
   </div>
   <div class="form-grid">
+    <div class="form-group" id="grpTcid">
+      <label for="tcid" data-i18n="search.tcid">Test Case ID</label>
+      <div class="input-group">
+        <span class="input-group-text" id="tcidPrefixAddon">-</span>
+        <input type="text" class="form-control" id="tcid" maxlength="100">
+      </div>
+    </div>
     <div class="form-group" id="grpDocId" style="display:none">
       <label for="requirement_document_id" data-i18n="reqsearch.docId">Doc ID</label>
       <input type="text" class="form-control" id="requirement_document_id" maxlength="32">
@@ -172,6 +180,7 @@ var tprojectId = 0;
 var tplanId = 0;
 var ctx = null;
 var resTbl = null;
+var tcasePrefix = '';   // project TC prefix incl. glue char, e.g. 'TL-'
 
 $(function () {
   var p = new URLSearchParams(window.location.search);
@@ -206,6 +215,14 @@ function loadContext(p) {
       $('#tprojectName2').text(cname);
       document.title = cname + ' - ' + TLi18n.t('reqsearch.header');
       $('#importantNotice').text(TLi18n.t('reqsearch.searchingIn', {tproject: cname}));
+
+      // 'Test Case ID' field (legacy reqSearchForm.tpl:157-161): the prefix
+      // (project prefix + glue char) is shown as an addon and used as the
+      // default value. Leaving it untouched means "do not filter by test
+      // case" - see legacy reqSearch.php:368.
+      tcasePrefix = (r.context && r.context.tcase_prefix) ? r.context.tcase_prefix : '';
+      $('#tcidPrefixAddon').text(tcasePrefix || '-');
+      if (tcasePrefix) { $('#tcid').val(tcasePrefix); }
 
       // status domain comes localized from the server (same source as legacy)
       $('#reqStatus').append('<option value="">' + esc(TLi18n.t('reqsearch.anyStatus')) + '</option>');
@@ -245,7 +262,7 @@ function loadContext(p) {
       }
 
       // prefill from URL params (deep link support)
-      ['requirement_document_id','name','scope','reqStatus','reqType','version',
+      ['tcid','requirement_document_id','name','scope','reqStatus','reqType','version',
        'coverage','relation_type','custom_field_id','custom_field_value',
        'log_message','creation_date_from','creation_date_to',
        'modification_date_from','modification_date_to'].forEach(function (k) {
@@ -267,6 +284,11 @@ function doSearch() {
   $('#warnBox').hide();
   var q = new URLSearchParams();
   q.set('tproject_id', tprojectId);
+
+  // linked-test-case filter: the value is sent only when it differs from the
+  // untouched prefix, otherwise every requirement of the project would match
+  var tcid = $.trim($('#tcid').val());
+  if (tcid !== '' && tcid !== tcasePrefix) q.set('tcid', tcid);
 
   // text criteria -> LIKE '%value%' on server side
   ['requirement_document_id','name','scope','log_message','custom_field_value'].forEach(function (k) {
@@ -401,6 +423,7 @@ function resetForm() {
   $('#noResults').hide();
   destroyTable();
   $('.panel').find('input[type=text],input[type=number],input[type=date],textarea').val('');
+  $('#tcid').val(tcasePrefix);
   $('#reqStatus').val('');
   $('#reqType').val('');
   $('#relation_type').val('');

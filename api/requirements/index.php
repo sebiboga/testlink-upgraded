@@ -2954,9 +2954,33 @@ function reqBuildSearchSql(&$dbHandler, &$argsObj) {
         $filter['rev']['custom_field'] = $filter['ver']['custom_field'];
     }
 
-    if ($argsObj->tcid != "" && !is_null($argsObj->tcid)) {
+    // Refs #1077: legacy guard (lib/requirements/reqSearch.php:368) - the
+    // 'Test Case ID' field is pre-filled with the project TC prefix
+    // (reqSearch.php:44-45: prefix . glue_character) and an UNCHANGED value
+    // means "do not filter", otherwise a bare prefix like 'SR-' would be
+    // searched as external id and silently return zero rows.
+    $tpidForPrefix = intval($argsObj->tprojectID);
+    $projectPrefix = '';
+    if ($tpidForPrefix > 0) {
+        $prefixMgr = new testproject($dbHandler);
+        $projectPrefix = trim($prefixMgr->getTestCasePrefix($tpidForPrefix)
+            . config_get('testcase_cfg')->glue_character);
+    }
+
+    if ($argsObj->tcid != "" && !is_null($argsObj->tcid)
+        && strcmp(trim($argsObj->tcid), $projectPrefix) != 0) {
         // search for reqs linked to this testcase (by external id)
-        $tcid = trim(str_replace(config_get('testcase_cfg')->glue_character, "", $argsObj->tcid));
+        // legacy (reqSearch.php:371) removes the WHOLE project prefix
+        // (prefix + glue_character) from the entered value; if nothing was
+        // removed, fall back to dropping just the glue character so both
+        // 'SR-42' and '42' (and a stray trailing '42-') resolve to '42'.
+        $rawTcid = trim($argsObj->tcid);
+        $glueChar = config_get('testcase_cfg')->glue_character;
+        $tcid = ($projectPrefix !== '') ? str_replace($projectPrefix, '', $rawTcid) : $rawTcid;
+        if ($tcid === $rawTcid && $glueChar !== '') {
+            $tcid = str_replace($glueChar, '', $rawTcid);
+        }
+        $tcid = trim($tcid);
         $tcid = $dbHandler->prepare_string($tcid);
         if ($tcid != '') {
             $filter['ver']['tcid'] = " AND TCV.tc_external_id = '{$tcid}' ";

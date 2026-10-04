@@ -5415,3 +5415,52 @@ test plan 8, issue tracker 9003.
 replaced by `gui/templates/mainpage/mainPage.html`; the modern Home screen has no
 config-check banner. Filed as **#1814** (enhancement). Unrelated pre-existing PHP 8.2
 `E_DEPRECATED` dynamic-property notices → **#1815**.
+
+## Task — Issue #1077: 'Test Case ID' (search-by-linked-testcase) filter in searchReq.html
+
+**Precondition / fixture (DB freshly imported each run — recreate before executing)**
+```sql
+INSERT INTO testprojects (id, prefix, option_reqs, active, notes, tc_counter) VALUES (1,'TL',1,1,'gap test',0);
+INSERT INTO nodes_hierarchy (id,name,parent_id,node_type_id,node_order) VALUES (1,'TL Gap Project',0,1,1);
+INSERT INTO req_specs (id, testproject_id, doc_id) VALUES (1000,1,'RS-1');
+INSERT INTO nodes_hierarchy (id,name,parent_id,node_type_id,node_order) VALUES (1000,'Requirement Specification 1',1,6,1);
+INSERT INTO requirements (id, srs_id, req_doc_id) VALUES (2000,1000,'1001');
+INSERT INTO nodes_hierarchy (id,name,parent_id,node_type_id,node_order) VALUES (2000,'Linked Requirement',1,7,1);
+INSERT INTO req_versions (id,version,revision,scope,status,type,active,is_open,expected_coverage,author_id) VALUES (2001,1,1,'req scope','V','1',1,1,100,1);
+INSERT INTO nodes_hierarchy (id,name,parent_id,node_type_id,node_order) VALUES (2001,'Requirement v1.1',2000,8,1);
+INSERT INTO nodes_hierarchy (id,name,parent_id,node_type_id,node_order) VALUES (3000,'Login accepts valid user',1,3,1);
+INSERT INTO tcversions (id, tc_external_id, version, layout, status, summary, preconditions, importance, author_id, active, is_open, execution_type)
+  VALUES (3000,42,1,1,2,'Login accepts valid user','',2,1,1,1,1);
+INSERT INTO nodes_hierarchy (id,name,parent_id,node_type_id,node_order) VALUES (3001,'Login accepts valid user v1',3000,4,1);
+INSERT INTO tcsteps (id, step_number, actions, expected_results, active, execution_type) VALUES (3001,1,'do login','',1,1);
+-- the requirement <-> test case link the filter must find
+INSERT INTO req_coverage (req_id, req_version_id, testcase_id, tcversion_id, link_status, is_active, author_id) VALUES (2000,2001,3000,3000,1,1,1);
+```
+NOTE: `latest_req_version` / `latest_req_version_id` are **views** (ERROR 1471) — do not insert into them.
+Log in `http://localhost:8082` as `admin/admin`, open
+`http://localhost:8082/gui/templates/requirements/searchReq.html?tproject_id=1`.
+
+| # | Steps | Expected | Actual | Result |
+|---|---|---|---|---|
+| 1 | Open the modern searchReq screen | A "Test Case ID" field exists as first control, with the project prefix `TL-` shown as addon and prefilled in the input | label `Test Case ID`, `#tcidPrefixAddon` = `TL-`, `#tcid` value `TL-` | PASS |
+| 2 | Notice area | Explains that the project prefix in the Test Case ID field is ignored | "The test project prefix in the 'Test Case ID' field is ignored during the search." (i18n `search.prefixIgnored`) | PASS |
+| 3 | Click Find with the field left at its default `TL-` | Whole-project result set (no filter); network request must NOT carry `tcid` | `Match count: 1`, request `search?tproject_id=1` (no `tcid`) | PASS |
+| 4 | Type `42`, click Find | Only requirements linked through `req_coverage` to the TC with `tc_external_id = 42` | `Match count: 1` → `1001:Linked Requirement v1.1`, request `…&tcid=42` | PASS |
+| 5 | Type `TL-42` (prefix kept), click Find | Same result as step 4 — the prefix is stripped | `Match count: 1`, request `…&tcid=TL-42` | PASS |
+| 6 | Type `999` (TC with no link), click Find | Zero rows + "No requirements match the given criteria."; results table hidden | `Match count: 0`, `noResults` visible, `resultsWrap` hidden | PASS |
+| 7 | Deep link: open `searchReq.html?tproject_id=1&tcid=TL-999` | Field is prefilled from the URL and Find uses it | field = `TL-999`, `Match count: 0` | PASS |
+| 8 | Type `42`, add Name `ZZZ-no-match`, Find → then Name `Linked` | AND semantics preserved: 0 rows, then 1 row | 0, then 1 | PASS |
+| 9 | Click Reset | Field back to the prefix default `TL-`, other criteria cleared, results hidden | `tcid` = `TL-`, `name` = empty, `resultsHead` display:none | PASS |
+| 10 | BFF regression matrix (same session, `fetch`): `tcid`=42 / TL-42 / 42- / 999 / TL- / empty | 1 / 1 / 1 / 0 / no-filter / no-filter | 1 / 1 / 1 / 0 / 1 (all reqs) / 1 | PASS |
+| 11 | Event Viewer / `events` table after the run | No new Error/Warning entry | only the `LOGIN` audit row (log_level 16) | PASS |
+| 12 | Browser console during the whole flow | No errors/warnings | `<no console messages found>` | PASS |
+
+**How to re-run the BFF matrix in one shot** (devtools console on any logged-in page):
+```js
+const g = async (q) => (await (await fetch('/api/requirements/index.php/search?tproject_id=1&'+q)).json()).row_qty;
+// g('tcid=42')=1, g('tcid=TL-42')=1, g('tcid=42-')=1, g('tcid=999')=0, g('tcid=TL-')=1 (no filter), g('')=1
+```
+
+**Files** — `api/requirements/index.php` (legacy prefix guard + whole-prefix strip),
+`gui/templates/requirements/searchReq.html` (new field, prefix addon, wiring, deep link, reset),
+i18n: reused existing `search.tcid` / `search.prefixIgnored` (present in all 10 bundles).
