@@ -249,6 +249,14 @@ function idleUI() {
   if (!DEAD && !GRANT.modify) { $('#specSel').prop('disabled', false); }
 }
 
+// Single source of truth for the drag affordance. render() and applyRowState()
+// both write `draggable`, so the predicate must live in ONE place and must mirror
+// the drop() guard: a row that is draggable while drop() returns early is an
+// affordance that silently does nothing. Refs #1689.
+function canDrag() {
+  return !DEAD && !!GRANT.modify;
+}
+
 function applyRowState() {
   var n = ITEMS.length;
   ITEMS.forEach(function (it, i) {
@@ -267,10 +275,11 @@ function applyRowState() {
     // user, so it needs its own DEAD term: on the error page it must not be able
     // to arm a Move that can then never be submitted.
     $r.find('.pickbtn').prop('disabled', DEAD).toggleClass('dis', DEAD);
-    // Same for the drag affordance: render() already refuses to set draggable on a
-    // dead page, but the attribute survives from the last successful render.
-    $r.attr('draggable', DEAD ? 'false' : 'true');
-    $r.find('.grip').toggle(!DEAD);
+    // The affordance follows the same predicate as render() (see canDrag): the
+    // drop handler ignores the gesture without modify rights, so a draggable row
+    // would promise a reorder that never happens.
+    $r.attr('draggable', canDrag() ? 'true' : 'false');
+    $r.find('.grip').toggle(canDrag());
   });
 }
 
@@ -290,11 +299,11 @@ function render() {
     // No draggable rows without modify rights: the drop handler ignores the
     // gesture, so a draggable row would be an affordance that does nothing.
     var tr = $('<tr></tr>');
-    if (GRANT.modify && !DEAD) { tr.attr('draggable', 'true'); }
+    if (canDrag()) { tr.attr('draggable', 'true'); }
     tr.attr('data-id', it.id);
     tr.toggleClass('sel', it.id === PICKED);
     var gripCell = $('<td></td>');
-    if (GRANT.modify && !DEAD) {
+    if (canDrag()) {
       gripCell.append($('<span class="grip" title="' + t('reqtr.dragHint') + '"><i class="fa fa-grip-vertical"></i></span>'));
     }
     tr.append(gripCell);
