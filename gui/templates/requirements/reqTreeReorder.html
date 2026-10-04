@@ -251,13 +251,13 @@ function idleUI() {
 
 // Single source of truth for the drag affordance. render() and applyRowState()
 // both write `draggable`, so the predicate must live in ONE place and must cover
-// the drop() guard's rights + DEAD terms: a row that is draggable while drop()
-// returns early is an affordance that silently does nothing. BUSY is the guard's
-// third term and is deliberately NOT mirrored here - it is transient (the rows
-// are rebuilt by applyRowState() on both busy edges) and not part of #1689.
-// Refs #1689.
+// EVERY term of the drop() guard (DEAD, rights, BUSY): a row that is draggable
+// while drop() returns early is an affordance that silently does nothing. BUSY
+// is transient, but both busy edges already re-run applyRowState()
+// (sendOrder/sendMove), so mirroring it here costs nothing and removes the
+// in-flight drag ghost. Refs #1689, #1824.
 function canDrag() {
-  return !DEAD && !!GRANT.modify;
+  return !DEAD && !BUSY && !!GRANT.modify;
 }
 
 function applyRowState() {
@@ -265,9 +265,15 @@ function applyRowState() {
   ITEMS.forEach(function (it, i) {
     var $r = $('#ordBody tr').eq(i);
     $r.find('.rm').prop('disabled', BUSY || DEAD || !GRANT.modify);
+    // The capability term (DEAD / rights / BUSY) is written ONCE, above, for every
+    // .rm control - the arrow buttons are .rm too (see btn()). This loop owns only
+    // the second, row-local question: is THIS direction available on THIS row. It
+    // must never re-derive the capability term, otherwise the weaker copy wins and
+    // re-enables the arrows during a save while drop()/nudge() keep refusing on BUSY.
+    // Refs #1824.
     $r.find('[data-mv]').each(function () {
       var d = $(this).data('mv');
-      var dis = DEAD || !GRANT.modify;
+      var dis = !canDrag();
       if (d === 'up' && i === 0) { dis = true; }
       if (d === 'down' && i === n - 1) { dis = true; }
       if (d === 'top' && i === 0) { dis = true; }
@@ -331,11 +337,16 @@ function render() {
     act.append(pick);
     tr.append(act);
     tr.on('dragstart', function (e) {
+      // Same predicate as the affordance: never start a drag that drop() would
+      // refuse (no rights / error page / a save in flight). Refs #1824.
+      if (!canDrag()) { e.preventDefault(); return; }
       tr.addClass('dragging');
       e.originalEvent.dataTransfer.setData('text/plain', String(i));
     });
     tr.on('dragend', function () { tr.removeClass('dragging'); applyRowState(); });
-    tr.on('dragover', function (e) { e.preventDefault(); });
+    // preventDefault() is what paints the row as a legal drop target, so it must
+    // not run while drop() would return early. Refs #1824.
+    tr.on('dragover', function (e) { if (canDrag()) { e.preventDefault(); } });
     tr.on('drop', function (e) {
       e.preventDefault();
       if (DEAD || !GRANT.modify || BUSY) { return; }

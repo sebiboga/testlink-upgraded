@@ -1085,6 +1085,29 @@ screen reaches full parity.
   still persisting (`action=init` serverOrder `[8,6,10]`), and both #1688 DEAD paths - including the
   success -> dead transition with surviving rows - still forcing `draggable=false`. 0 new Event Viewer rows.
   (Fixes #1689)
+- [KEY BUGFIX] - #1824: `reqTreeReorder.html` kept **both reordering affordances live while an Apply/Move
+  request was in flight**, although every handler refused on `BUSY`. Same defect class as #1689 (a capability
+  predicate written per control and left to drift), pre-existing - the two weaker copies are byte-identical
+  before `4c8b3a62b` and were deliberately left out of that commit. Root cause, two hops:
+  (1) `canDrag()` (`:259-261`) mirrored only `DEAD` + rights, so `draggable` (`:290`, `:311`), the grip (`:291`,
+  `:315`) and the `dragover` `preventDefault()` (`:349`, the call that paints a row as a legal drop target)
+  kept advertising a gesture the `drop` guard (`:341`) refused; (2) the arrow buttons are created as
+  `class="rm" data-mv` (`btn()`, `:357`), so the `.rm` write at `:267` correctly disabled them on
+  `BUSY || DEAD || !GRANT.modify` and the very next loop over the SAME elements re-derived the capability term
+  without `BUSY` (`:270` `var dis = DEAD || !GRANT.modify;`) and wrote the weaker value back - which is why
+  within one loop `.rm` went dark during a save while Up/Down/To top/To bottom lit up again. Measured
+  mid-flight with the DOM read in the same tick as the confirm click (`BUSY:true, dispatched:1, completed:0`):
+  `draggable` `["true","true","true"]` -> `["false","false","false"]`, enabled arrows per row `[2,4,2]` -> `[0,0,0]`,
+  grip `display:none`, `dragover` `defaultPrevented true` -> `false` while idle still yields `true`; the same
+  holds on `?action=move`, and the affordances return on both the success and the error edge. Fix: `canDrag()`
+  now carries the guard's third term (`!DEAD && !BUSY && !!GRANT.modify`) and the `[data-mv]` loop derives its
+  capability term from it (`var dis = !canDrag();`), so the loop owns only the position term it exists for and
+  can no longer overwrite the stronger writer; `dragstart` also guards itself instead of trusting the browser
+  to refuse a `draggable="false"` row. Reordering itself is unchanged (arrow click and a real drop still
+  reorder locally and raise the *Unsaved changes* chip), the read-only / no-rights / dead paths are untouched,
+  `.pickbtn` stays BUSY-open on purpose (it only arms a Move, and `doMove()` refuses), the order still persists
+  (`nodes_hierarchy.node_order` = 8, 6, 10) and 0 new Event Viewer rows. Regression suite 1824: **14/14 PASS**.
+  The entangled `#refreshBtn` -> `load()` stale-response race is filed separately. (Fixes #1824)
 - [KEY BUGFIX - DATA INTEGRITY] - #1682: `api/reqtreereorder` `?action=reorder` accepted a **DUPLICATE**
   requirement id in `nodes_order` and corrupted the specification order. The submitted order was built as a
   **positional list** (`$order[] = $nid;`, `api/reqtreereorder/index.php:511`) but the duplicate gate probed it
