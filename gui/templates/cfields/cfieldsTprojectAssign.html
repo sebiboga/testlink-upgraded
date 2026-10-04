@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Custom Fields &mdash; Test Project</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; opacity: .8; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-red { background: #e6605e; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-red:hover { background: #d04e4c; }
+.btn-ghost { background: transparent; color: #ccc; border: 1px solid #555; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; gap: 7px; }
+.btn-ghost:hover { border-color: #4ECDC4; color: #4ECDC4; }
+.btn-ghost[disabled] { opacity: .4; cursor: not-allowed; }
+.toolbar label { color: #ccc; font-size: 12px; font-weight: 600; margin: 0; }
+.toolbar select { background: #2c2f36; color: #fff; border: 1px solid #555; border-radius: 4px; padding: 6px 10px; font-size: 13px; max-width: 320px; }
+.wrap { padding: 20px 24px; }
+.card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin-bottom: 20px; overflow: hidden; }
+.card-head { background: #22242a; color: #fff; padding: 10px 16px; font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+.card-head .count { background: #4ECDC4; color: #fff; border-radius: 10px; padding: 1px 9px; font-size: 11px; }
+.card-head .hint { font-weight: 400; font-size: 12px; opacity: .75; }
+.card-body { padding: 0; }
+table.dataTable { width: 100% !important; border-collapse: collapse; }
+table.dataTable thead th { background: #f7f7f7; color: #333; font-size: 12px; font-weight: 700; padding: 10px 12px; border-bottom: 2px solid #4ECDC4; text-transform: uppercase; }
+table.dataTable tbody td { padding: 9px 12px; font-size: 13px; border-bottom: 1px solid #eee; vertical-align: middle; }
+table.dataTable tbody tr:hover td { background: #f7fdfd; }
+.cf-link { color: #2d8e88; text-decoration: none; font-weight: 700; }
+.cf-link:hover { text-decoration: underline; }
+.card-foot { padding: 12px 16px; border-top: 1px solid #eee; display: flex; gap: 10px; align-items: center; }
+.chk { width: 16px; height: 16px; cursor: pointer; }
+.order-input { width: 64px; padding: 4px 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; }
+.loc-select { padding: 4px 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; max-width: 190px; }
+.badge { padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 700; }
+.badge-yes { background: #4ECDC4; color: #fff; }
+.badge-no { background: #b9b9b9; color: #fff; }
+.chip { display: inline-block; background: #eef7f7; color: #2d8e88; border-radius: 10px; padding: 2px 10px; font-size: 11px; font-weight: 700; }
+.state { background: #fff; border-radius: 8px; padding: 26px 24px; box-shadow: 0 1px 4px rgba(0,0,0,.08); text-align: center; color: #555; }
+.state h3 { color: #22242a; font-size: 16px; margin-bottom: 8px; }
+.state .code { font-family: monospace; font-size: 12px; color: #999; margin-top: 10px; }
+.state.danger { border-left: 4px solid #e6605e; }
+.state.warn { border-left: 4px solid #f0ad4e; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); max-width: 460px; }
+.toast.ok { background: #4ECDC4; }
+.toast.err { background: #e6605e; }
+.empty { padding: 26px; text-align: center; color: #999; font-size: 13px; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
+.dataTables_wrapper .dataTables_paginate .paginate_button.current { background: #4ECDC4 !important; color: #fff !important; border: none !important; }
+.modal-content { border-radius: 8px; }
+.modal-header { background: #22242a; color: #fff; border-radius: 8px 8px 0 0; }
+.modal-header .close, .modal-header .close span { color: #fff; opacity: .8; }
+.selcount { color: #4ECDC4; font-weight: 700; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span data-i18n="cfpa.title">Custom Fields &mdash; Test Project</span>
+  <span class="sub" id="hdrProject"></span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="toolbar">
+  <label for="projectSelect" data-i18n="cfpa.testProject">Test project</label>
+  <select id="projectSelect" onchange="switchProject(this.value)"></select>
+  <button class="btn-ghost" onclick="reload()"><i class="fa fa-refresh"></i> <span data-i18n="cfpa.refresh">Refresh</span></button>
+  <button class="btn-ghost" onclick="location='/gui/templates/cfields/cfieldsView.html'"><i class="fa fa-arrow-left"></i> <span data-i18n="cfpa.backToManager">Back to Custom Fields</span></button>
+  <span style="flex:1"></span>
+  <button id="btnSave" class="btn-teal" onclick="saveAll()"><i class="fa fa-save"></i> <span data-i18n="cfpa.saveDisplayAttrs">Save display attributes</span></button>
+</div>
+
+<div class="wrap" id="wrap"></div>
+
+<div class="footer"><span id="footerText"></span></div>
+<div class="toast" id="toast"></div>
+
+<!-- Bootstrap confirm dialog (legacy cfieldsTprojectAssign.tpl had no delete
+     confirm: the buttons submitted immediately). Bootstrap 3 is vendored, so
+     the jQuery modal API is used, not window.bootstrap. -->
+<div class="modal fade" id="confirmModal" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+        <h4 class="modal-title" id="confirmTitle"></h4>
+      </div>
+      <div class="modal-body" id="confirmBody"></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-default" data-dismiss="modal" id="confirmCancel" data-i18n="common.cancel">Cancel</button>
+        <button type="button" class="btn btn-danger" id="confirmOk" data-i18n="cfpa.unassign">Unassign</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/cfieldstproject/index.php';
+var CF_EDIT = '/gui/templates/cfields/cfieldsEdit.html';
+var TPROJECT_ID = 0;
+var STATE = { linked: [], available: [], locations: [], projects: [], limits: {} };
+var dtLinked = null, dtAvailable = null, pending = null, busy = false;
+
+function t(key, params) { return TLi18n.t(key, params || {}); }
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+function escAttr(s) { return esc(s); }
+function intOf(v) { var n = parseInt(v, 10); return isNaN(n) ? 0 : n; }
+
+/* ----------------------------------------------------------------- boot */
+$(function() {
+  var p = new URLSearchParams(window.location.search);
+  TPROJECT_ID = intOf(p.get('tproject_id') || '0');
+  TLi18n.load(function() {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    $('#footerText').text(t('footers.cfieldsTprojectAssign'));
+    loadProjects();
+  });
+});
+
+function qs() {
+  var p = new URLSearchParams(window.location.search);
+  return 'tproject_id=' + TPROJECT_ID + '&locale=' + encodeURIComponent(p.get('locale') || '');
+}
+function localeOf() {
+  return new URLSearchParams(window.location.search).get('locale') || '';
+}
+
+/* --------------------------------------------------------------- states */
+function showState(kind, titleKey, msgKey, machineCode) {
+  if (dtLinked) { dtLinked.destroy(); dtLinked = null; }
+  if (dtAvailable) { dtAvailable.destroy(); dtAvailable = null; }
+  $('#hdrProject').text('');
+  $('#wrap').html(
+    '<div class="state ' + kind + '">' +
+      '<h3>' + esc(t(titleKey)) + '</h3>' +
+      '<div>' + esc(t(msgKey)) + '</div>' +
+      (machineCode ? '<div class="code">' + esc(machineCode) + '</div>' : '') +
+    '</div>');
+  $('#btnSave').prop('disabled', true);
+}
+
+function toast(msg, ok) {
+  var $t = $('#toast');
+  $t.text(msg).removeClass('ok err').addClass(ok ? 'ok' : 'err').fadeIn(180);
+  clearTimeout(toast._h);
+  toast._h = setTimeout(function() { $t.fadeOut(260); }, 4200);
+}
+
+/* A non-2xx $.getJSON never reaches .done(), so the localized message was
+   lost on exactly the paths that need it most. Both error handlers therefore
+   parse xhr.responseText themselves. */
+function handleFail(xhr, fallbackKey) {
+  var payload = null;
+  try { payload = JSON.parse(xhr.responseText); } catch (e) { payload = null; }
+  var code = payload && payload.code ? payload.code : 'http_' + xhr.status;
+  var key = 'cfpa.err.' + code;
+  var msg = TLi18n.has(key) ? t(key) : t(fallbackKey);
+  if (xhr.status === 401) {
+    showState('danger', 'cfpa.state.expired', 'cfpa.state.expiredMsg', code);
+    return;
+  }
+  showState('danger', 'cfpa.state.failed', key, code);
+}
+
+function loadProjects() {
+  $.ajax({ url: API + '?action=projects', dataType: 'json', cache: false })
+    .done(function(r) {
+      STATE.projects = r.projects || [];
+      var $sel = $('#projectSelect');
+      $sel.empty();
+      if (!STATE.projects.length) {
+        $sel.append('<option value="">-</option>').prop('disabled', true);
+      } else {
+        STATE.projects.forEach(function(p) {
+          var label = p.name + (p.prefix ? ' (' + p.prefix + ')' : '');
+          $sel.append($('<option>').val(p.id).text(label));
+        });
+        if (!TPROJECT_ID) { TPROJECT_ID = STATE.projects[0].id; }
+        $sel.val(String(TPROJECT_ID));
+      }
+      load();
+    })
+    .fail(function(xhr) { handleFail(xhr, 'cfpa.state.failed'); });
+}
+
+function reload() {
+  $('#wrap').html('<div class="state"><h3>' + esc(t('cfpa.loading')) + '</h3></div>');
+  load();
+}
+
+function switchProject(id) {
+  var v = intOf(id);
+  if (v <= 0 || v === TPROJECT_ID) { return; }
+  TPROJECT_ID = v;
+  history.replaceState(null, '', '?tproject_id=' + v + (localeOf() ? '&locale=' + encodeURIComponent(localeOf()) : ''));
+  reload();
+}
+
+function load() {
+  if (TPROJECT_ID <= 0) {
+    showState('warn', 'cfpa.state.noProject', 'cfpa.state.noProjectMsg', 'missing_tproject_id');
+    return;
+  }
+  $.ajax({ url: API + '?action=init&' + qs(), dataType: 'json', cache: false })
+    .done(function(r) {
+      STATE.linked = r.linked || [];
+      STATE.available = r.available || [];
+      STATE.locations = r.locations || [];
+      STATE.limits = r.limits || {};
+      render(r);
+    })
+    .fail(function(xhr) { handleFail(xhr, 'cfpa.state.failed'); });
+}
+
+/* --------------------------------------------------------------- render */
+function render(r) {
+  if (dtLinked) { dtLinked.destroy(); dtLinked = null; }
+  if (dtAvailable) { dtAvailable.destroy(); dtAvailable = null; }
+  $('#hdrProject').text(t('cfpa.testProject') + ': ' + r.tproject.name);
+  $('#btnSave').prop('disabled', !STATE.linked.length);
+
+  var html = '';
+
+  /* ---- assigned custom fields (legacy tpl:46-142) ---- */
+  html += '<div class="card"><div class="card-head">' +
+    '<i class="fa fa-link"></i><span>' + esc(t('cfpa.assignedTitle')) + '</span>' +
+    '<span class="count">' + STATE.linked.length + '</span>' +
+    '<span class="hint">' + esc(t('cfpa.assignedHint')) + '</span></div>';
+  if (STATE.linked.length) {
+    html += '<div class="card-body"><table id="linkedTable" class="display" style="width:100%">' +
+      '<thead><tr>' +
+        '<th style="width:34px"><input type="checkbox" class="chk" id="chkAllLinked" title="' + escAttr(t('cfpa.checkUncheckAll')) + '" onclick="toggleAll(\'linked\', this.checked)"></th>' +
+        '<th>' + esc(t('cfpa.name')) + '</th>' +
+        '<th>' + esc(t('cfpa.label')) + '</th>' +
+        '<th>' + esc(t('cfpa.type')) + '</th>' +
+        '<th>' + esc(t('cfpa.availableOn')) + '</th>' +
+        '<th>' + esc(t('cfpa.displayOrder')) + '</th>' +
+        '<th>' + esc(t('cfpa.location')) + '</th>' +
+        '<th class="text-center">' + esc(t('cfpa.active')) + '</th>' +
+        '<th class="text-center">' + esc(t('cfpa.required')) + '</th>' +
+        '<th class="text-center">' + esc(t('cfpa.monitorable')) + '</th>' +
+      '</tr></thead><tbody>';
+    STATE.linked.forEach(function(cf) {
+      html += '<tr data-id="' + cf.id + '">' +
+        '<td><input type="checkbox" class="chk rowchk" data-group="linked" id="linked_cf_' + cf.id + '" ' +
+          'name="linked_cf_' + cf.id + '" onclick="markSel()"></td>' +
+        '<td><a class="cf-link" target="_blank" href="' + escAttr(CF_EDIT + '?do_action=edit&cfield_id=' + cf.id +
+          '&tproject_id=' + TPROJECT_ID) + '" title="' + escAttr(t('cfpa.manageField')) + '">' + esc(cf.name) + '</a></td>' +
+        '<td>' + esc(cf.label) + '</td>' +
+        '<td>' + esc(cf.type_label) + '</td>' +
+        '<td>' + esc(cf.node_label) + '</td>' +
+        '<td><input type="text" class="order-input" id="order_' + cf.id + '" maxlength="' +
+          (STATE.limits.display_order_maxlen || 5) + '" value="' + intOf(cf.display_order) + '"></td>' +
+        '<td>' + locationSelect(cf) + '</td>' +
+        '<td class="text-center"><input type="checkbox" class="chk boolchk" data-group="linked" data-id="' + cf.id + '" data-attr="active"' +
+          (cf.active ? ' checked' : '') + '></td>' +
+        '<td class="text-center"><input type="checkbox" class="chk boolchk" data-group="linked" data-id="' + cf.id + '" data-attr="required"' +
+          (cf.required ? ' checked' : '') + '></td>' +
+        '<td class="text-center"><input type="checkbox" class="chk boolchk" data-group="linked" data-id="' + cf.id + '" data-attr="monitorable"' +
+          (cf.monitorable ? ' checked' : '') + '></td>' +
+      '</tr>';
+    });
+    html += '</tbody></table></div>';
+    html += '<div class="card-foot">' +
+      '<button class="btn-red" id="btnUnassign" onclick="doUnassign()"><i class="fa fa-chain-broken"></i> <span data-i18n="cfpa.unassign">Unassign</span> <span class="selcount" id="selLinked"></span></button>' +
+      '<span class="hint" style="color:#888;font-size:12px">' + esc(t('cfpa.saveHint')) + '</span>' +
+      '</div>';
+  } else {
+    html += '<div class="empty">' + esc(t('cfpa.noAssigned')) + '</div>';
+  }
+  html += '</div>';
+
+  /* ---- available (free) custom fields (legacy tpl:145-193) ---- */
+  html += '<div class="card"><div class="card-head">' +
+    '<i class="fa fa-plus-square"></i><span>' + esc(t('cfpa.availableTitle')) + '</span>' +
+    '<span class="count">' + STATE.available.length + '</span>' +
+    '<span class="hint">' + esc(t('cfpa.availableHint')) + '</span></div>';
+  if (STATE.available.length) {
+    html += '<div class="card-body"><table id="availableTable" class="display" style="width:100%">' +
+      '<thead><tr>' +
+        '<th style="width:34px"><input type="checkbox" class="chk" id="chkAllAvailable" title="' + escAttr(t('cfpa.checkUncheckAll')) + '" onclick="toggleAll(\'available\', this.checked)"></th>' +
+        '<th>' + esc(t('cfpa.name')) + '</th>' +
+        '<th>' + esc(t('cfpa.label')) + '</th>' +
+        '<th>' + esc(t('cfpa.type')) + '</th>' +
+        '<th>' + esc(t('cfpa.availableOn')) + '</th>' +
+      '</tr></thead><tbody>';
+    STATE.available.forEach(function(cf) {
+      html += '<tr>' +
+        '<td><input type="checkbox" class="chk rowchk" data-group="available" id="available_cf_' + cf.id + '" ' +
+          'name="available_cf_' + cf.id + '" onclick="markSel()"></td>' +
+        '<td><a class="cf-link" target="_blank" href="' + escAttr(CF_EDIT + '?do_action=edit&cfield_id=' + cf.id +
+          '&tproject_id=' + TPROJECT_ID) + '" title="' + escAttr(t('cfpa.manageField')) + '">' + esc(cf.name) + '</a></td>' +
+        '<td>' + esc(cf.label) + '</td>' +
+        '<td>' + esc(cf.type_label) + '</td>' +
+        '<td>' + esc(cf.node_label) + '</td>' +
+      '</tr>';
+    });
+    html += '</tbody></table></div>';
+    html += '<div class="card-foot">' +
+      '<button class="btn-teal" id="btnAssign" onclick="doAssign()"><i class="fa fa-link"></i> <span data-i18n="cfpa.assign">Assign</span> <span class="selcount" id="selAvailable"></span></button>' +
+      '</div>';
+  } else {
+    html += '<div class="empty">' + esc(t('cfpa.noAvailable')) + '</div>';
+  }
+  html += '</div>';
+
+  $('#wrap').html(html);
+
+  /* DataTables: pagination length from cfg.inc.php [cfieldsTprojectAssign] */
+  var pageLen = [[20, 40, 60, -1], [20, 40, 60, t('cfpa.all')]];
+  if ($.fn.dataTable.isDataTable('#linkedTable')) { $('#linkedTable').DataTable().destroy(); }
+  if ($.fn.dataTable.isDataTable('#availableTable')) { $('#availableTable').DataTable().destroy(); }
+  if (STATE.linked.length) {
+    dtLinked = $('#linkedTable').DataTable({
+      pageLength: 20, lengthMenu: pageLen, searching: false,
+      order: [[5, 'asc']], columnDefs: [{ targets: [0, 5, 6, 7, 8, 9], orderable: false }]
+    });
+  }
+  if (STATE.available.length) {
+    dtAvailable = $('#availableTable').DataTable({
+      pageLength: 20, lengthMenu: pageLen, searching: false,
+      order: [[1, 'asc']], columnDefs: [{ targets: [0], orderable: false }]
+    });
+  }
+  syncSelState();
+}
+
+/* The location dropdown only exists for design-time test case fields; the
+   legacy template printed &nbsp; for everything else (tpl:91-98). */
+function locationSelect(cf) {
+  if (!cf.supports_location) { return '<span style="color:#bbb">&mdash;</span>'; }
+  var out = '<select class="loc-select" id="loc_' + cf.id + '">';
+  STATE.locations.forEach(function(l) {
+    out += '<option value="' + l.code + '"' + (intOf(cf.location) === l.code ? ' selected' : '') + '>' + esc(l.label) + '</option>';
+  });
+  out += '</select>';
+  return out;
+}
+
+/* ------------------------------------------------------------ selection */
+function toggleAll(group, on) {
+  var $rows = $('.rowchk[data-group="' + group + '"]');
+  if (dtLinked && group === 'linked') { dtLinked.rows({ search: 'applied' }).invalidateSearch(); }
+  $rows.each(function() { this.checked = on; });
+  syncSelState();
+}
+
+function selectedIds(group) {
+  var ids = [];
+  $('.rowchk[data-group="' + group + '"]:checked').each(function() {
+    ids.push(intOf(this.id.replace(/^[a-z_]+/, '')));
+  });
+  return ids;
+}
+
+function markSel() { syncSelState(); }
+
+function syncSelState() {
+  var l = selectedIds('linked').length;
+  var a = selectedIds('available').length;
+  $('#selLinked').text(l ? '(' + l + ')' : '');
+  $('#selAvailable').text(a ? '(' + a + ')' : '');
+  $('#btnUnassign').prop('disabled', l === 0);
+  $('#btnAssign').prop('disabled', a === 0);
+  var allL = $('.rowchk[data-group="linked"]');
+  $('#chkAllLinked').prop('checked', allL.length > 0 && allL.filter(':checked').length === allL.length)
+    .prop('indeterminate', l > 0 && l < allL.length);
+  var allA = $('.rowchk[data-group="available"]');
+  $('#chkAllAvailable').prop('checked', allA.length > 0 && allA.filter(':checked').length === allA.length)
+    .prop('indeterminate', a > 0 && a < allA.length);
+}
+
+/* ---------------------------------------------------------------- writes */
+function guard(fn) {
+  if (busy) { return; }
+  busy = true;
+  $('.toolbar button').prop('disabled', true);
+  fn();
+}
+
+function release() {
+  busy = false;
+  $('.toolbar button').prop('disabled', false);
+  $('#btnSave').prop('disabled', !STATE.linked.length);
+  syncSelState();
+}
+
+function writeError(xhr, fallbackKey) {
+  var payload = null;
+  try { payload = JSON.parse(xhr.responseText); } catch (e) { payload = null; }
+  var code = payload && payload.code ? payload.code : 'http_' + xhr.status;
+  var key = 'cfpa.err.' + code;
+  if (!TLi18n.has(key)) { key = fallbackKey; }
+  toast(t(key), false);
+  release();
+  if (xhr.status === 401) { showState('danger', 'cfpa.state.expired', 'cfpa.state.expiredMsg', code); }
+}
+
+function doAssign() {
+  var ids = selectedIds('available');
+  if (!ids.length) { toast(t('cfpa.err.nothing_selected'), false); return; }
+  guard(function() {
+    $.ajax({
+      url: API + '?action=assign', type: 'POST', dataType: 'json',
+      contentType: 'application/json',
+      data: JSON.stringify({ tproject_id: TPROJECT_ID, ids: ids })
+    }).done(function() {
+      toast(t('cfpa.msg.assigned'), true);
+      load();
+    }).fail(function(xhr) { writeError(xhr, 'cfpa.state.failed'); });
+  });
+}
+
+function doUnassign() {
+  var ids = selectedIds('linked');
+  if (!ids.length) { toast(t('cfpa.err.nothing_selected'), false); return; }
+  $('#confirmTitle').text(t('cfpa.confirmTitle'));
+  /* Count-based message: the field names stay out of the sentence, so a
+     crafted name cannot rewrite it (stored-XSS shape). */
+  $('#confirmBody').text(t('cfpa.confirmBody', { count: ids.length }));
+  pending = ids;
+  $('#confirmModal').modal('show');
+}
+
+$('#confirmOk').on('click', function() {
+  var ids = pending;
+  pending = null;
+  $('#confirmModal').modal('hide');
+  if (!ids) { return; }
+  guard(function() {
+    $.ajax({
+      url: API + '?action=unassign', type: 'POST', dataType: 'json',
+      contentType: 'application/json',
+      data: JSON.stringify({ tproject_id: TPROJECT_ID, ids: ids })
+    }).done(function() {
+      toast(t('cfpa.msg.unassigned'), true);
+      load();
+    }).fail(function(xhr) { writeError(xhr, 'cfpa.state.failed'); });
+  });
+});
+
+/* doReorder + doBooleanMgmt in one submit (legacy had two buttons:
+   doReorder saved order + location, doBooleanMgmt the three booleans; both
+   read the same table, so one Save keeps both reachable). */
+function saveAll() {
+  var rows = [];
+  STATE.linked.forEach(function(cf) {
+    var row = { id: cf.id };
+    var o = $('#order_' + cf.id);
+    if (o.length) { row.display_order = intOf(o.val()); }
+    var l = $('#loc_' + cf.id);
+    if (l.length) { row.location = intOf(l.val()); }
+    row.active = $('input.boolchk[data-id="' + cf.id + '"][data-attr="active"]').is(':checked') ? 1 : 0;
+    row.required = $('input.boolchk[data-id="' + cf.id + '"][data-attr="required"]').is(':checked') ? 1 : 0;
+    row.monitorable = $('input.boolchk[data-id="' + cf.id + '"][data-attr="monitorable"]').is(':checked') ? 1 : 0;
+    rows.push(row);
+  });
+  if (!rows.length) { toast(t('cfpa.err.nothing_selected'), false); return; }
+  guard(function() {
+    $.ajax({
+      url: API + '?action=save', type: 'POST', dataType: 'json',
+      contentType: 'application/json',
+      data: JSON.stringify({ tproject_id: TPROJECT_ID, rows: rows })
+    }).done(function(r) {
+      var ch = r.changed || {};
+      var n = 0;
+      Object.keys(ch).forEach(function(k) { n += intOf(ch[k]); });
+      toast(n ? t('cfpa.msg.saved', { count: n }) : t('cfpa.msg.noChanges'), n ? true : false);
+      release();
+      load();
+    }).fail(function(xhr) { writeError(xhr, 'cfpa.state.failed'); });
+  });
+}
+</script>
+</body>
+</html>
