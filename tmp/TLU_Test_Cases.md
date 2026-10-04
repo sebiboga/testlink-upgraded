@@ -5626,3 +5626,42 @@ which `showState()` hides), which is exactly why the first suite did not catch i
   403/404 cases must be run in their own isolated browser context (or after re-authenticating),
   otherwise the page silently succeeds as `admin` and the case looks like a false PASS. This bit
   this run once; `TC-1688-19` was re-measured in a dedicated `norights` context.
+
+## Task — Issue #1278: Test Closure module (lessons learned, closure report, plan freeze)
+
+**Precondition**
+- App running at `http://localhost:8082`, logged in as `admin`/`admin`.
+- Fixture (freshly imported DB, so recreated every run — see `tmp/fixtures_1278.md`):
+  project `CLOS-TP-Project` id 9001, test plan `CLOS Test Plan` id 9005, 2 test cases assigned
+  (`testplan_tcversions` 90051/90052), 1 execution with status `p` (passed).
+- Screen: `/gui/templates/plans/testClosure.html?tplan_id=9005&tproject_id=9001`.
+
+**Steps and expected behaviour**
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 1 | `GET ?action=summary&tplan_id=9005` | 200; `rights.canWrite=true`; metrics `total_assigned=2`, `total_executed=1`, `passed=1`, `executed_pct=50`, `passed_pct=50` | PASS |
+| 2 | Load the screen in the browser | Header/tiles render localized labels; lessons DataTable shows the empty state; `closureBanner` = "open" | PASS |
+| 3 | `POST ?action=lesson_save` with `title="  "` | HTTP 400 `closure.msg.titleRequired` (no row created) | PASS |
+| 4 | Add Lesson Learned via the modal (category / title / description) | Toast "Lesson learned created", new row in the DataTable, Lessons tile +1, `events` row AUDIT `CLOSURE_LESSON_CREATE` | PASS |
+| 5 | Edit that lesson and delete it | Row updates / disappears; AUDIT `CLOSURE_LESSON_SAVE` / `CLOSURE_LESSON_DELETE` | PASS |
+| 6 | Category filter = "What went well" (and a category with no rows) | Table shows only the matching rows / the empty state | PASS |
+| 7 | Tick 3 checklist items, set archive ref + summary, Save Closure Data | Values survive a reload; AUDIT `CLOSURE_SAVE` | PASS |
+| 8 | Click "Close Test Plan" | Banner turns red "CLOSED … Closed by admin", button becomes "Reopen", print report contains "Test Closure Report" | PASS |
+| 9 | **Freeze proof:** add an extra `failed` execution in the DB, re-read `summary` | `metrics` (live) = 2 executed / 1 failed, `report_metrics` (frozen snapshot) stays 1 executed / 0 failed | PASS |
+| 10 | `POST ?action=lesson_save` while closed | HTTP 409 `closure_frozen`; screen disables "Add Lesson Learned" and hides the row edit/delete buttons | PASS |
+| 11 | Click "Reopen Test Plan" | Banner green "open", snapshot cleared (`report_metrics` follows live), buttons enabled again | PASS |
+| 12 | Print view (`window.print()` CSS) | `#printArea` prints outcome table, checklist, lessons-learned table, summary and closure state; the screen chrome is hidden | PASS |
+| 13 | `events` table after the whole run | No new ERROR/WARNING entry; only AUDIT rows from the feature | PASS |
+| 14 | i18n bundles | `closure.*` keys present in all 10 bundles; `python3 -m json.tool` clean | PASS |
+
+**Bugs found and fixed while executing this suite**
+- `executions` has no `testplan_tcversion_id` and `execution_bugs` has no `testplan_id` — the first
+  metrics SQL threw a DB access error (fixed: filter on `executions.testplan_id`, reach bugs through
+  `execution_bugs.execution_id`).
+- `executions.status` stores the legacy short codes (`p/f/b/i/n`), not `passed/failed/...` — added an
+  explicit map (0 passed → 1 passed).
+- `lesson_category` was created as `VARCHAR(16)`, too narrow for `needs_improvement` (18 chars) —
+  widened to `VARCHAR(32)` with an idempotent migration.
+- The category filter was read AFTER the `<option>` list was rebuilt, which reset the select value.
+- The API returned `closure_msg.*` keys while the bundles use `closure.msg.*` → raw key shown in the toast.

@@ -872,6 +872,25 @@ screen reaches full parity.
   `review.*` (54 keys) in all 10 locales. Verified via curl + browser create/decide; test suite 9/9 +
   browser PASS. (Refs #1279)
 
+- [FEATURE] - #1278: the **Test Closure** module (ISTQB closure phase, #1054) is added as the
+  standalone Dashio page `gui/templates/plans/testClosure.html`, backed by the new BFF
+  `api/testclosure/index.php` (`GET ?action=summary|lessons`, `POST ?action=lesson_save|lesson_delete|
+  closure_save|closure_close|closure_reopen`; session auth + same-origin guard, read =
+  testplan_planning/exec_testcases/exec_ro_access, write = testplan_planning/exec_testcases, plan
+  resolved through the plan so a forged tplan_id cannot cross projects). It ports the three ISTQB
+  closure activities onto the test plan: a **lessons-learned register** (5 categories, CRUD, author +
+  timestamp), the **closure checklist** (archive finalized / results frozen / lessons recorded / open
+  issues handed over / stakeholder feedback) with closure summary and archive reference, and a
+  **printable closure report** (outcome metrics, checklist, lessons, summary, closure state) rendered
+  through print CSS. **Closing a test plan freezes it**: `closure_close` snapshots the outcome metrics
+  into `test_closure.metrics_snapshot` so the archived report keeps the numbers as of closure, and
+  lesson writes answer HTTP 409 `closure_frozen` until `closure_reopen` clears the snapshot. Two lazily
+  created tables (`test_closure`, `lessons_learned`) follow the api/reviews pattern, so a freshly
+  imported DB works unchanged; `lib/functions/object.class.php` whitelists both. The ASIDE menu gains a
+  "Test Closure" entry and `$actions->testClosure`; i18n `closure.*` (82 keys) in all 10 client
+  bundles plus `$TLS_title_test_closure` in all 19 server locales. Verified over API + browser.
+  (Refs #1278)
+
 - [SCREEN] - #1787: the **Build Create/Edit** screen (`lib/plan/buildEdit.php`, 769 lines) is
   modernized as the standalone Dashio page `gui/templates/plans/buildEdit.html`, backed by
   `api/builds/index.php` (`GET /`, `GET /{id}`, `GET /cfields`, `POST /`, `PUT /{id}`,

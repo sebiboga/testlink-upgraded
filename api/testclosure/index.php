@@ -106,7 +106,7 @@ function tcEnsureSchema($db) {
         "CREATE TABLE IF NOT EXISTS {$t['lessons_learned']} (" .
         " id INT UNSIGNED NOT NULL AUTO_INCREMENT," .
         " testplan_id INT UNSIGNED NOT NULL DEFAULT 0," .
-        " lesson_category VARCHAR(16) NOT NULL DEFAULT 'improvement'," .
+        " lesson_category VARCHAR(32) NOT NULL DEFAULT 'other'," .
         " title VARCHAR(255) NOT NULL DEFAULT ''," .
         " description TEXT NULL," .
         " author_id INT UNSIGNED NULL," .
@@ -116,6 +116,18 @@ function tcEnsureSchema($db) {
         " KEY idx_ll_tplan (testplan_id)," .
         " KEY idx_ll_cat (testplan_id, lesson_category)" .
         ") ENGINE=InnoDB DEFAULT CHARSET=utf8");
+
+    // lesson_category was created as VARCHAR(16), which is too narrow for the
+    // 'needs_improvement' category (18 chars) and made lesson_save throw a DB
+    // access error. Widen it only when it is still narrow, so re-running this
+    // migration on an already-correct schema is a no-op.
+    $rs = $db->get_recordset("SELECT CHARACTER_MAXIMUM_LENGTH AS len " .
+        "FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() " .
+        "AND TABLE_NAME = '{$t['lessons_learned']}' AND COLUMN_NAME = 'lesson_category'");
+    if (!is_null($rs) && count($rs) > 0 && intval($rs[0]['len']) < 32) {
+        $db->exec_query("ALTER TABLE {$t['lessons_learned']} " .
+                        "MODIFY lesson_category VARCHAR(32) NOT NULL DEFAULT 'other'");
+    }
 }
 
 /** Allowed lesson categories (ISTQB closure: what worked / what didn't / actions). */
@@ -408,8 +420,8 @@ case 'lesson_save': {
     }
     $id = intval($body['id'] ?? 0);
     $title = trim((string)($body['title'] ?? ''));
-    if ($title === '') { tcFail(400, 'closure_msg.titleRequired'); }
-    if (strlen($title) > 255) { tcFail(400, 'closure_msg.titleTooLong'); }
+    if ($title === '') { tcFail(400, 'closure.msg.titleRequired'); }
+    if (strlen($title) > 255) { tcFail(400, 'closure.msg.titleTooLong'); }
     $category = strtolower(trim((string)($body['category'] ?? '')));
     if (!in_array($category, tcCategories(), true)) {
         $category = 'other';
@@ -431,7 +443,7 @@ case 'lesson_save': {
             "description = '" . $db->prepare_string($desc) . "', " .
             "author_id = " . intval($userId) . " WHERE id = " . intval($id));
         tcAudit($db, 'Lesson learned updated: ' . $title, 'CLOSURE_LESSON_SAVE', $id, 'lessons_learned');
-        tcOut(array('status' => 'ok', 'id' => $id, 'message' => 'closure_msg.lessonUpdated'));
+        tcOut(array('status' => 'ok', 'id' => $id, 'message' => 'closure.msg.lessonUpdated'));
     }
     $db->exec_query(
         "INSERT INTO {$lt} (testplan_id, lesson_category, title, description, author_id) VALUES (" .
@@ -439,7 +451,7 @@ case 'lesson_save': {
         $db->prepare_string($title) . "', '" . $db->prepare_string($desc) . "', " . intval($userId) . ")");
     $newId = intval($db->insert_id($lt));
     tcAudit($db, 'Lesson learned created: ' . $title, 'CLOSURE_LESSON_CREATE', $newId, 'lessons_learned');
-    tcOut(array('status' => 'ok', 'id' => $newId, 'message' => 'closure_msg.lessonCreated'));
+    tcOut(array('status' => 'ok', 'id' => $newId, 'message' => 'closure.msg.lessonCreated'));
 }
 
 /* -------------------------------------------------------- lesson_delete */
@@ -460,7 +472,7 @@ case 'lesson_delete': {
     }
     $db->exec_query("DELETE FROM {$lt} WHERE id = " . intval($id));
     tcAudit($db, 'Lesson learned deleted: ' . $rs[0]['title'], 'CLOSURE_LESSON_DELETE', $id, 'lessons_learned');
-    tcOut(array('status' => 'ok', 'message' => 'closure_msg.lessonDeleted'));
+    tcOut(array('status' => 'ok', 'message' => 'closure.msg.lessonDeleted'));
 }
 
 /* -------------------------------------------------------- closure_save */
@@ -489,7 +501,7 @@ case 'closure_save': {
         "updated_by = " . intval($userId) . " WHERE testplan_id = " . intval($ctx['tplan_id']));
     tcAudit($db, 'Test plan closure data saved: ' . $ctx['tplan_name'], 'CLOSURE_SAVE',
             $ctx['tplan_id'], 'test_closure');
-    tcOut(array('status' => 'ok', 'message' => 'closure_msg.closureSaved'));
+    tcOut(array('status' => 'ok', 'message' => 'closure.msg.closureSaved'));
 }
 
 /* -------------------------------------------------------- closure_close */
@@ -497,7 +509,7 @@ case 'closure_close': {
     $body = tcBody();
     $row = tcClosureRow($db, $ctx['tplan_id'], true);
     if ($row['closure_status'] === 'closed') {
-        tcOut(array('status' => 'ok', 'message' => 'closure_msg.alreadyClosed'));
+        tcOut(array('status' => 'ok', 'message' => 'closure.msg.alreadyClosed'));
     }
     // Freeze: snapshot the live outcome metrics so the archived closure report
     // cannot change afterwards (ISTQB "finalize archive").
@@ -511,7 +523,7 @@ case 'closure_close': {
         "updated_by = " . intval($userId) . " WHERE testplan_id = " . intval($ctx['tplan_id']));
     tcAudit($db, 'Test plan CLOSED (results frozen): ' . $ctx['tplan_name'], 'CLOSURE_CLOSE',
             $ctx['tplan_id'], 'test_closure');
-    tcOut(array('status' => 'ok', 'message' => 'closure_msg.planClosed'));
+    tcOut(array('status' => 'ok', 'message' => 'closure.msg.planClosed'));
 }
 
 /* ------------------------------------------------------- closure_reopen */
@@ -525,7 +537,7 @@ case 'closure_reopen': {
         " WHERE testplan_id = " . intval($ctx['tplan_id']));
     tcAudit($db, 'Test plan REOPENED (closure unfrozen): ' . $ctx['tplan_name'], 'CLOSURE_REOPEN',
             $ctx['tplan_id'], 'test_closure');
-    tcOut(array('status' => 'ok', 'message' => 'closure_msg.planReopened'));
+    tcOut(array('status' => 'ok', 'message' => 'closure.msg.planReopened'));
 }
 
 default:
