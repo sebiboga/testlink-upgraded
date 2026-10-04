@@ -3526,6 +3526,7 @@
   "reqspecsearch.formCaption": "Criterii de cautare",
   "reqspecsearch.header": "Cautare specificatii de cerinte",
   "reqspecsearch.inProject": "in proiectul de testare",
+  "reqspecsearch.infoSearch": "Această listă afișează toate specificațiile de cerințe care corespund criteriilor de căutare.\nPuteți deschide o revizie corespunzătoare a specificației de cerință făcând clic pe linkul din dreapta titlului specificației de cerință.\nPentru a deschide întreaga specificație de cerință folosiți pictograma de editare din stânga.",
   "reqspecsearch.logMessage": "Mesaj jurnal",
   "reqspecsearch.matchCount": "Potriviri: {n}",
   "reqspecsearch.noResults": "Nicio specificatie de cerinte nu corespunde criteriilor date.",

@@ -3526,6 +3526,7 @@
   "reqspecsearch.formCaption": "搜索条件",
   "reqspecsearch.header": "搜索需求规格",
   "reqspecsearch.inProject": "在测试项目中",
+  "reqspecsearch.infoSearch": "此列表显示匹配搜索条件的需求规范。\n您可以通过点击需求规范标题右侧的链接打开相匹配的版本/修订版。\n点击左侧的编辑图标打开全部需求规范。",
   "reqspecsearch.logMessage": "日志消息",
   "reqspecsearch.matchCount": "匹配数：{n}",
   "reqspecsearch.noResults": "没有符合给定条件的需求规格。",

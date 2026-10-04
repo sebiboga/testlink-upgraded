@@ -3520,6 +3520,7 @@
   "reqspecsearch.formCaption": "Suchkriterien",
   "reqspecsearch.header": "Anforderungsspezifikationen suchen",
   "reqspecsearch.inProject": "im Testprojekt",
+  "reqspecsearch.infoSearch": "Diese Liste zeigt alle Anforderungsspezifikationen, die den Suchkritieren entsprechen.\nSie können eine übereinstimmende Revision der Anforderungsspezifikation durch Klicken eines Links rechts neben dem Titel der Anforderungsspezifikation öffnen.\nUm die gesamte Anforderungsspezifikation einzusehen benutzen Sie das \"Ändern-Icon\" auf der linken Seite.",
   "reqspecsearch.logMessage": "Protokollnachricht",
   "reqspecsearch.matchCount": "Treffer: {n}",
   "reqspecsearch.noResults": "Keine Anforderungsspezifikationen entsprechen den angegebenen Kriterien.",

@@ -3520,6 +3520,7 @@
   "reqspecsearch.formCaption": "Criterios de búsqueda",
   "reqspecsearch.header": "Buscar especificaciones de requisitos",
   "reqspecsearch.inProject": "en el proyecto de pruebas",
+  "reqspecsearch.infoSearch": "Esta lista muestra todas las especificaciones de requisitos que coinciden con el criterio de búsqueda.\nPuedes abrir una nueva versión/revisión del requisito que coincida pulsando el enlace situado a la derecha del título del requisito.\nPara abrir el requisito completo usa el icono de edición situado a la izquierda.",
   "reqspecsearch.logMessage": "Mensaje de registro",
   "reqspecsearch.matchCount": "Coincidencias: {n}",
   "reqspecsearch.noResults": "Ninguna especificación de requisitos coincide con los criterios indicados.",

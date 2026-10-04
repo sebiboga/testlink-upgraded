@@ -3526,6 +3526,7 @@
   "reqspecsearch.formCaption": "Critérios de pesquisa",
   "reqspecsearch.header": "Pesquisar especificações de requisitos",
   "reqspecsearch.inProject": "no projeto de teste",
+  "reqspecsearch.infoSearch": "Esta lista mostra todas as especificações de requisitos que correspondem ao criterio de pesquisa.\nVocê pode abrir uma revisão correspondente da especificação de requisitos clicando no link à direita do título da especificação de requisitos.\nPara abrir o conjunto da especificação de requisitos use o ícone de edição à esquerda.",
   "reqspecsearch.logMessage": "Mensagem de registro",
   "reqspecsearch.matchCount": "Correspondências: {n}",
   "reqspecsearch.noResults": "Nenhuma especificação de requisitos corresponde aos critérios fornecidos.",

@@ -3526,6 +3526,7 @@
   "reqspecsearch.formCaption": "Search criteria",
   "reqspecsearch.header": "Search Requirement Specifications",
   "reqspecsearch.inProject": "in test project",
+  "reqspecsearch.infoSearch": "This list shows all requirement specifications which match the search criteria.\nYou can open a matching revision of the requirement specification by clicking a link to the right of the requirement specification title.\nTo open the whole requirement specification use the edit icon on the left.",
   "reqspecsearch.logMessage": "Log message",
   "reqspecsearch.matchCount": "Matches: {n}",
   "reqspecsearch.noResults": "No requirement specifications match the given criteria.",

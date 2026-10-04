@@ -3526,6 +3526,7 @@
   "reqspecsearch.formCaption": "検索条件",
   "reqspecsearch.header": "要件仕様の検索",
   "reqspecsearch.inProject": "テストプロジェクト内",
+  "reqspecsearch.infoSearch": "このリストは検索条件に一致するすべての要件定義を表示します。\n要件定義タイトルの右側リンクをクリックすると、一致するリビジョンの要件定義を開くことができます。\nすべての要件定義を開くには、左側の編集アイコンを使用してください。",
   "reqspecsearch.logMessage": "ログメッセージ",
   "reqspecsearch.matchCount": "件数: {n}",
   "reqspecsearch.noResults": "指定した条件に一致する要件仕様はありません。",
