@@ -210,15 +210,15 @@ try {
     // here (not in the browser) so the ids in them are the proven ones.
     $actions = [
         'create' => $canModify
-            ? ['label' => 'btnNewReqSpec', 'url' => $base . 'reqSpecMgmt.html?' . $ctx, 'icon' => 'fa-plus']
+            ? ['label' => 'prsm.btnNewReqSpec', 'url' => $base . 'reqSpecMgmt.html?' . $ctx, 'icon' => 'fa-plus']
             : null,
         'reorder' => $canModify
-            ? ['label' => 'btnReorderReqSpec', 'url' => $base . 'reqSpecMgmt.html?' . $ctx, 'icon' => 'fa-sort-amount-down']
+            ? ['label' => 'prsm.btnReorderReqSpec', 'url' => $base . 'reqSpecMgmt.html?' . $ctx, 'icon' => 'fa-sort-amount-down']
             : null,
         'import' => $canModify
-            ? ['label' => 'btnImport', 'url' => $base . 'reqImport.html?' . $ctx . '&scope=tree', 'icon' => 'fa-upload']
+            ? ['label' => 'prsm.btnImport', 'url' => $base . 'reqImport.html?' . $ctx . '&scope=tree', 'icon' => 'fa-upload']
             : null,
-        'export' => ['label' => 'btnExportAllReqSpec', 'url' => $base . 'reqExport.html?' . $ctx . '&scope=tree', 'icon' => 'fa-download'],
+        'export' => ['label' => 'prsm.btnExportAllReqSpec', 'url' => $base . 'reqExport.html?' . $ctx . '&scope=tree', 'icon' => 'fa-download'],
     ];
 
     echo json_encode([
