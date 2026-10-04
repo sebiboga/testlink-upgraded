@@ -6108,3 +6108,82 @@ php tmp/fixtures_1681.php
 **Actual result:** UI updated with RowGroup, toolbar, filters; page renders with expected structure when loaded with valid context.
 
 **PASS/FAIL:** PASS (UI implements required parity features; verified code structure and assets loaded)
+
+## Regression — Issue #1833: `projectReqSpecMgmt.html` project-scoped Requirement Specification launcher
+
+**Precondition:** TestLink running at http://localhost:8082. Fixture
+`php tmp/fixtures_1833.php` creates the requirements-enabled test project
+**90507** ("RSP Fixture Project", prefix RSP) holding a NESTED specification
+tree — `Functional Specification` (90509) with a child
+`Functional Specification / Checkout` (90510) and one requirement under each
+level (3 requirements total). Log in as `admin/admin`.
+
+**Steps:**
+1. Anonymous: open `/api/projectreqspecmgmt/index.php?action=init` with no
+   session cookie.
+2. Open `http://localhost:8082/gui/templates/requirements/projectReqSpecMgmt.html?tproject_id=90507`
+   as a user WITH `mgt_modify_req`.
+3. Assert the header sub-line reproduces the legacy run-on title as
+   `Test project › RSP Fixture Project › Requirement Specifications`.
+4. Assert the two counter tiles read **2** specifications and **3**
+   requirements (the nested specification and the deep requirement must both be
+   counted — a flat `GROUP BY node_type_id` over `nodes_hierarchy` would report
+   the same numbers only by accident, since it cannot scope to the project).
+5. Assert all four action cards are unlocked and their links resolve HTTP 200:
+   New + Reorder → `reqSpecMgmt.html?tproject_id=90507`,
+   Import → `reqImport.html?...&scope=tree`,
+   Export → `reqExport.html?...&scope=tree`.
+6. Revoke `mgt_modify_req` from the admin role
+   (`DELETE FROM role_rights WHERE role_id=<admin role> AND right_id=<id of
+   description='mgt_modify_req'>`), reload the screen.
+7. Assert exactly **3** cards are `.act.locked` with a disabled button and NO
+   anchor, and **Export is still a live link**.
+8. Revoke `mgt_view_req` too, reload the screen.
+9. Assert the warn box shows the "View/Modify Requirement Specifications" right
+   message, and that **no** tiles or action cards are left rendered from the
+   previous (privileged) load.
+10. Restore both rights; reload and assert the four unlocked cards return.
+11. Open the screen with `?tproject_id=999999` (nonexistent).
+12. Open the screen with **no** `tproject_id` at all, after a destination screen
+    has set the session project.
+13. Click **Refresh**.
+14. Switch the locale through the header switcher (ro / de / ja).
+15. Inspect the console on every state above.
+
+**Expected behavior:**
+- 1: HTTP 401 `session_expired` (no DB connect attempted, no `dbms_msg` leak).
+- 2–5: context line, counters 2/3, four unlocked cards, all targets HTTP 200.
+- 6–7: read-only role keeps Export only — mirroring the legacy template, where
+  New/Reorder/Import sat inside `{if $gui->grants->modify}` and Export did not.
+- 8–9: HTTP 403 `no_right`, one clear localized message, no stale DOM.
+- 10: four unlocked cards again.
+- 11: `tproject_not_found` (404) surfaced as a message; header shows `-`.
+- 12: session fallback resolves the project and renders normally.
+- 13: spinner shows, then hides; counters unchanged.
+- 14: every label, title, card, hint, error and the footer is translated — no
+  raw i18n key echoed anywhere (this is what caught the un-namespaced
+  `btnNewReqSpec` labels the BFF originally returned).
+- 15: zero console errors or warnings.
+
+**Actual result:** PASS. 1 confirmed by curl (401). 2–5 confirmed in-browser:
+sub-line `Test project › RSP Fixture Project › Requirement Specifications`,
+tiles 2/3, all four links HTTP 200. 6–7 confirmed: 3 `.act.locked` with
+`disabled=true` and no anchor, Export still linking to `reqExport.html`. 8–9
+confirmed: warn box "You need the 'View/Modify Requirement Specifications' right
+on this test project.", `tiles: 0, acts: 0`, spinner cleared. 10 confirmed after
+restoring both rights (grants `can_view/can_modify` true, all four present). 11
+confirmed: "The launcher could not be loaded: Test project not found.", ctx `-`.
+12 confirmed: renders 2/3 with no `tproject_id` in the URL. 13 confirmed:
+spinner `flex` → `none`, 2 tiles retained. 14 confirmed by fetching ro/de/ja
+bundles and asserting real translations for `prsm.title` / `prsm.actCreate` /
+`prsm.noRight` / `footers.projectReqSpecMgmt` with no undefined key. 15
+confirmed: zero console messages.
+
+**RESUME**
+
+```bash
+php tmp/fixtures_1833.php
+# http://localhost:8082/gui/templates/requirements/projectReqSpecMgmt.html?tproject_id=90507
+# rights matrix: read /tmp/rr1833 for the mgt_modify_req / mgt_view_req right ids
+```
+- [PASS] Merge-base gate: `TLU_REQUIRE_SUITE="Issue #1833" bash ai/verify_test_suites.sh`

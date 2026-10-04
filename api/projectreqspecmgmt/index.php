@@ -165,7 +165,11 @@ try {
     if (!$canModify && !$canView) {
         $event = new stdClass();
         $event->message = 'Access denied to projectReqSpecMgmt (tproject=' . $tprojectId . ')';
-        $event->logLevel = 'SECURITY';
+        // logger.class.php only knows DEBUG/INFO/WARNING/ERROR/AUDIT/L18N;
+        // there is no SECURITY level, so passing one raises
+        // "Undefined array key" (logging.inc.php:105) on every denial.
+        // Every other BFF audits an access denial as AUDIT.
+        $event->logLevel = 'AUDIT';
         $event->source = 'GUI';
         $event->objectID = $tprojectId;
         $event->objectType = 'testprojects';
