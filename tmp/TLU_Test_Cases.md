@@ -5705,64 +5705,69 @@ the `(n)` counter and the Assign/Unassign enablement follow, and no console erro
   `chkAllAvailable`, `btnAssign`, `btnUnassign` are the stable selectors for this screen; use them
   instead of the a11y-tree labels, which change with the surrounding badges.
 
----
+## Regression — Issue #1689: reqTreeReorder.html — read-only rows were still `draggable="true"` and every drop was silently ignored
 
-## Task — Issue #1078: working custom-field filter in searchReq
+**Precondition / fixture**
 
-**Precondition / fixture** (recreate with `tmp/fixtures_1078.sql`, freshly imported DB has no
-project data):
-project `CF1078 Project` (id 9001, prefix `CF1`), requirement spec `DOC-1` (id 9005), and three
-requirements — 9002 "REQ-1 has severity" (CF `Req Severity` = `high`), 9003 "REQ-2 no cf value"
-(no CF value), 9004 "REQ-3 medium severity" (CF = `medium`). Custom field id **9101**, name
-`req_severity`, label `Req Severity`, type 6, `show_on_design=1`, `enable_on_design=1`, linked
-via `cfield_testprojects`(9001) + `cfield_node_types`(9101, node_type 7 = requirement).
-Values live on the **version** nodes (`cfield_design_values.node_id` = `req_versions.id`
-9102/9103/9104) — this is what `reqBuildSearchSql()` joins on
-(`CFD.node_id = REQV.id`, legacy `reqSearch.php:356`).
-Gotcha when re-seeding: `requirements.req_doc_id` has a UNIQUE key, so each requirement needs its
-own doc id (`REQ-1`/`REQ-2`/`REQ-3`) or the script aborts with `ERROR 1062`.
+```
+php tmp/fixtures_1681.php     # -> tproject=1 TREE1681, specA=2, reqs 6/8/10, view-only role 10
+# the fixture generates a random password, so pin one:
+H=$(php -r 'echo password_hash("ro1689pass", PASSWORD_DEFAULT);')
+mysql -h 127.0.0.1 -utestlink -ptestlink testlink \
+  -e "UPDATE users SET password='$H' WHERE login='tr1681readonly';"
+```
 
-| # | Steps | Expected | Result |
-|---|---|---|---|
-| TC-1078-01 | Login admin/admin, open `gui/templates/requirements/searchReq.html?tproject_id=9001` | "Custom field" + "Value contains" rows visible (`design_scope_custom_fields` true); select holds the blank option and one "Req Severity" entry | PASS |
-| TC-1078-02 | Inspect `#custom_field_id` option values | `["0|", "9101\|Req Severity"]` — the option value is the **numeric cfield id** | PASS (was `["0|","undefined\|Req Severity"]` before the fix) |
-| TC-1078-03 | Custom field = `Req Severity`, Value contains = `high`, **Find** | Match count **1**; result grid holds only `REQ-1:REQ-1 has severity` | PASS |
-| TC-1078-04 | Same with Value contains = `medium` | Match count **1**; only `REQ-3:REQ-3 medium severity` | PASS |
-| TC-1078-05 | Same with Value contains = *(empty)* | Match count **2** (REQ-1 + REQ-3) — legacy `like '%%'` = "carries any value for this field" | PASS |
-| TC-1078-06 | Same with Value contains = `zzz` | Match count **0**; `#resultsWrap` hidden and the "no results" panel shown | PASS |
-| TC-1078-07 | Custom field = *(none)*, Value contains = `high`, Find | Match count **3** — the value is inert without a field, exactly as legacy guards everything with `custom_field_id > 0` | PASS |
-| TC-1078-08 | **Reset** button | Custom field back to the blank option, Value contains emptied, grid cleared | PASS |
-| TC-1078-09 | Capture the wire request of TC-1078-03 by wrapping `$.getJSON` inside the frame | `/api/requirements/index.php/search?tproject_id=9001&custom_field_value=high&custom_field_id=9101` — i.e. `custom_field_id` is now actually sent | PASS (before the fix the param was absent entirely) |
-| TC-1078-10 | BFF matrix via curl: `custom_field_id=9101` with `high` / `medium` / `` / `zzz` | `row_qty` 1 / 1 / 2 / 0; control without CF params 3; `custom_field_value` alone 3 | PASS |
-| TC-1078-11 | Deep link `searchReq.html?tproject_id=9001&custom_field_id=9101&custom_field_value=high`, **Find** | URL prefill selects the CF option by its numeric id and reproduces the 1-row result | PASS |
-| TC-1078-12 | Open `gui/templates/requirements/searchReqSpec.html` for the same project | Its Custom field select renders numeric option values too (that route already emitted `id`; only the client guard was added) | PASS |
-| TC-1078-13 | Console across TC-1078-02..12 (`list_console_messages`, types error+warn) | No console messages | PASS |
-| TC-1078-14 | Event Viewer / `events` table after the pass | No new Error/Warning row | PASS |
+Two accounts are needed: `tr1681readonly` / `ro1689pass` (has `mgt_view_req`, **not**
+`mgt_modify_req`) and `admin` / `admin` (full rights). Both open
+`/gui/templates/requirements/reqTreeReorder.html?tproject_id=1&req_spec_id=2`.
 
-### Test execution
-- [PASS] TC-1078-01 .. TC-1078-14 — 14/14 PASS (chrome-devtools MCP, live app at :8082; TC-1078-02 and TC-1078-09 are the two that actually reproduce the reported gap and now pass)
-- [PASS] No `gui/templates/i18n/*.json` bundle touched — the fix adds no user-facing string
-  (`reqsearch.customField` / `reqsearch.customFieldValue` already exist in all 10 bundles)
-- [PASS] Merge-base gate: `TLU_REQUIRE_SUITE="Issue #1078" bash ai/verify_test_suites.sh`
+**Root cause this suite guards**
 
-### Notes
-- Two independent defects had to be fixed: the missing numeric `id` in the `/search-context`
-  payload, **and** `custom_field_value` missing from the `$strnull` list of `GET /search`
-  (which silently degraded the predicate to `like '%%'`). Fixing only the first one still
-  returns every requirement that carries a value for the field.
-- Reading `#resTable tbody tr` right after a 0-match search returns stale rows: `renderResults()`
-  hides `#resultsWrap` and shows `#noResults` but leaves the old `<tbody>` in the DOM. Assert on
-  `#matchCount` + panel visibility instead (TC-1078-06).
+Two functions write the `draggable` attribute and they used *different* predicates. `render()`
+gated it on `GRANT.modify && !DEAD`, but `render()` ends by calling `applyRowState()`, which
+re-set `draggable="true"` from a `DEAD`-only predicate — and the `drop` handler discards the
+gesture without modify rights. Introduced by `13b53dd94` (the #1688 fix), which folded `DEAD`
+into the row controls but dropped the rights term; its non-regression had only been measured for
+a user *with* modify rights. `canDrag()` is now the single source of truth.
 
-### Addendum — execution detail for TC-1078-11/12/14 (appended, nothing above rewritten)
-- TC-1078-08 (Reset) is invoked through the screen's own `resetForm()` (`searchReq.html:426-440`,
-  wired by `onclick` on both Reset buttons, no element id). Measured: `custom_field_id`
-  `9101` → `0`, `custom_field_value` `high` → `''`, `#resultsHead` hidden.
-- TC-1078-12: the spec-scoped CF filter is only rendered when the project HAS a
-  requirement_spec CF. A second field **9102 / "Spec Kind"** (`cfield_node_types`(9102, node_type
-  6)) was added to the fixture for this case. Measured: group visible,
-  options `["0|", "9102|Spec Kind"]`, `9102` + `functional` → `Matches: 1`, row
-  `DOC-1:REQSPEC DOC-1 rev. 1`. So `searchReqSpec` needed no server-side change (its route
-  already emitted `id`) and still works with the new client guard.
-- TC-1078-14: `SELECT COUNT(*) FROM events WHERE log_level<>16;` → **0**. Only the two
-  `audit_login_succeeded` level-16 INFO rows exist.
+**How to drive a drag headlessly** (HTML5 DnD cannot be clicked): dispatch the real event
+sequence with a stub `DataTransfer`.
+
+```js
+const rows = () => [...document.querySelectorAll('#ordBody tr')];
+const dt = new DataTransfer();
+rows()[0].dispatchEvent(new DragEvent('dragstart',  {bubbles:true, dataTransfer:dt}));
+rows()[2].dispatchEvent(new DragEvent('dragover',  {bubbles:true, cancelable:true, dataTransfer:dt}));
+rows()[2].dispatchEvent(new DragEvent('drop',      {bubbles:true, cancelable:true, dataTransfer:dt}));
+rows()[0].dispatchEvent(new DragEvent('dragend',   {bubbles:true, dataTransfer:dt}));
+```
+
+Two measurement traps that produced false readings while writing this suite: the "Unsaved
+changes" chip is toggled via **inline `display`** (`markDirty()`), not a `show` class — assert
+`getComputedStyle(#dirtyChip).display`; and `applyOrder()` opens a Bootstrap confirm modal, so a
+scripted `#applyBtn` click fires **no request** until `#cmOk` is clicked.
+
+| # | Case | Steps | Expected | Result |
+|---|---|---|---|---|
+| 1 | view-only: rows not draggable | login `tr1681readonly`, open the screen, read `#ordBody tr` attributes | `draggable` is `"false"` on **3/3** rows | PASS — `["false","false","false"]` (was `["true","true","true"]`) |
+| 2 | view-only: no drag affordance in the chrome | same page, read the toolbar | hint hidden, `#ordBody .grip` count 0, read-only banner shown | PASS — `hintVisible:false`, `grips:0`, banner shown |
+| 3 | view-only: a drag changes nothing | same page, run the drag sequence above (row 0 → row 2) | order identical, no "Unsaved changes" chip, no XHR to `?action=reorder` | PASS — `["6","8","10"]` → `["6","8","10"]`, chip stays hidden, 0 reorder requests |
+| 4 | view-only: controls unchanged | same page | all `.rm` buttons disabled, Apply disabled, each `.pickbtn` enabled (by design — selecting a row is read-only) | PASS — `rmDisabled:true`, `applyDisabled:true`, `pickEnabled:true` |
+| 5 | modify: affordance present | login `admin`, open the screen | `draggable="true"` on all rows, **3** grips visible, hint visible, banner hidden | PASS — `["true","true","true"]`, `grips:3`, hint visible |
+| 6 | modify: drag + Apply persists | drag row 0 → row 2, `#applyBtn`, then `#cmOk` | order becomes `["8","6","10"]`, chip appears then clears, and the new order survives the reload — verify against the API, **not** `nodes_hierarchy.id` | PASS — `action=init` returned `serverOrder:[8,6,10]` = `TR1-2, TR1-1, TR1-3` |
+| 7 | modify: affordance restored after Apply | continue case 6 after the save completes | `draggable="true"`, 3 grips (the busy transition re-runs `applyRowState()`) | PASS — restored |
+| 8 | modify: Discard restores the saved order | click `[data-mv="bottom"]` on row 0, then `#discardBtn` | order returns to the saved one, chip clears, grip/drag hint come back | PASS — `["8","6","10"]` → `["6","10","8"]` → `["8","6","10"]`, chip `none`, 3 grips |
+| 9 | #1688 non-regression: fresh DEAD page | open with `req_spec_id=999999` | `DEAD` true, 0 rows, 0 grips, hint hidden, banner **not** shown, Apply disabled | PASS — all as expected |
+| 10 | #1688 non-regression: success → dead transition | open a good spec, then force a failing load with rows on screen (3 rows survive) | `draggable` forced to `"false"`, grips present-but-hidden, a drag cannot reorder, banner not shown | PASS — `["false","false","false"]`, grips `display:none`, order unchanged |
+
+**Gates for this suite**
+
+- `node --check` on the screen's extracted inline script → PASS
+- `grep -n "canDrag\|draggable"` on `gui/templates/requirements/reqTreeReorder.html` → the only
+  writers of `draggable` are `render()` and `applyRowState()`, both calling `canDrag()`; no
+  open-coded `GRANT.modify && !DEAD` remains → PASS
+- no i18n bundle touched (no new user-facing string) → PASS
+- Event Viewer / `events`: **0** Error or Warning rows created during the run (only 5
+  `log_level 16` INFO/audit rows: 1 fixture CREATE, 2 `audit_login_failed` from wrong-password
+  attempts, 2 `audit_login_succeeded`) → PASS
+- browser console on the screen → no errors or warnings → PASS
