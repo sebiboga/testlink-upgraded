@@ -7700,6 +7700,34 @@ Changes:
       project tables and added user metrics to the middle section
 
 ## 2.0.1 (in-progress)
+### Custom Fields — Assign to Test Project `cfieldsTprojectAssign` (Refs #1816)
+- New Dashio screen `gui/templates/cfields/cfieldsTprojectAssign.html` + BFF
+  `api/cfieldstproject/index.php` (`GET ?action=init|projects`,
+  `POST ?action=assign|unassign|save`) replacing `lib/cfields/cfieldsTprojectAssign.php`
+  and `gui/templates/dashio/cfields/cfieldsTprojectAssign.tpl`; the legacy controller
+  survives only as a session-guarded 302/405 shim. The screen adds a **readable project
+  switcher** — legacy took the project from the session, so moving between projects
+  required hand-editing the URL.
+- **Security**: the legacy controller authorized a user holding a project role on project A
+  for project **B** (global role `testproject_manager`+ leaked), never proved a submitted
+  `cfield_id` existed, never proved the addressed project existed, and mutated on **GET**.
+  The BFF checks `cfield_management` on the **addressed** project on every route *including
+  the project switcher*, intersects every submitted id with the real field/link sets,
+  404s a nonexistent project, and is POST-only behind a same-origin CSRF proof.
+- 58 `cfpa.*` keys in all 10 i18n bundles; entry button added to `cfieldsView.html`;
+  `$actions->cfieldsTprojectAssign` wired in `lib/functions/common.php`.
+- 6 bugs found by the browser pass, each filed with `--label bug` and fixed separately:
+  **#1817** nonexistent `testproject::get_list()` made `?action=projects` answer an empty
+  HTTP 500 · **#1818** a stuck `busy` flag made every button a silent no-op, and a
+  discarded Save was indistinguishable from a saved one · **#1819** raw `{count}` in the
+  toast · **#1820** two missing `audit_cfield_*` server-locale labels logged a
+  LOCALIZATION warning on every save · **#1821** dead *Check/uncheck all* (an
+  `invalidateSearch()` call on an object without that method) · **#1822** a duplicate
+  assign served a DB Access Error page as HTTP 200.
+- **#1823** filed, not fixed: most server locales lack the node-type and custom-field
+  location labels, so the Location dropdown renders English under `ro_RO` — missing
+  translation data, not a screen defect. Suite `Issue #1816` = 49/49 PASS.
+
 ### Key bugfix — Req. Management System interface instantiation: legacy Requirements screens died with an empty HTTP 500 (Fixes #1629)
 - Key bugfix #1629: `tlReqMgrSystem::getInterfaceObject()` (`lib/functions/tlReqMgrSystem.class.php:646`)
   was the **third and last** unguarded `new` in the class, after `checkConnection()` and the
