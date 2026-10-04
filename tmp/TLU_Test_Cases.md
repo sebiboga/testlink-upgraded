@@ -5771,3 +5771,57 @@ scripted `#applyBtn` click fires **no request** until `#cmOk` is clicked.
   `log_level 16` INFO/audit rows: 1 fixture CREATE, 2 `audit_login_failed` from wrong-password
   attempts, 2 `audit_login_succeeded`) → PASS
 - browser console on the screen → no errors or warnings → PASS
+
+## Issue #1825 — Requirement Specification Search Form (`gui/templates/requirements/reqSpecSearchForm.html`)
+
+Standalone criteria page that replaces `lib/requirements/reqSpecSearchForm.php` and hands its
+criteria to the already-modern `searchReqSpec.html` (results) via `auto_search=1`.
+BFF: `api/reqspecsearchform/index.php` (`GET|HEAD ?action=init&tproject_id=N…`).
+
+**Fixtures** (fresh DB, recreated per run)
+
+- `TL-DEMO` (id 1, requirements enabled): req specs `TL-REQ-1` "First requirement spec" (type 1,
+  scope "Functional scope of the login feature") and `TL-REQ-2` "Second requirement spec" (type 2);
+  `TL-REQ-1` carries two `requirements` rows so `GET_NOT_EMPTY_REQSPEC` is non-empty; one
+  design-time custom field "Importance" linked at `requirement_spec` scope.
+- `TL-NOREQ` (id 2): requirements **disabled**.
+- `TL-EMPTY` (id 3): requirements enabled but **no** requirement specification.
+- user `limited` (guest role): holds neither `mgt_view_req` nor `mgt_modify_req`.
+
+| # | Case | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 1 | admin happy path | login `admin`, open `reqSpecSearchForm.html?tproject_id=1` | context card: TL-DEMO / prefix / admin / Enabled / Yes / 200 / 1 CF; criteria card visible; no state banner | PASS — chips `Enabled`/`Yes`, `mReqs=Enabled`, `mSpecs=Yes`, `visible:[]` |
+| 2 | criteria domain from config | same page | Type = Any type/Section/URS/SRS; Custom field = Any field/Importance | PASS — 4 type options + "Importance" |
+| 3 | Find → results handoff | Doc ID `TL-REQ-1`, Title `First`, click Find | lands on `searchReqSpec.html?tproject_id=1&doc_id=TL-REQ-1&name=First&auto_search=1`, 1 match | PASS — `Matches: 1`, row `TL-REQ-1:First requirement spec rev. 1` |
+| 4 | empty criteria warns first | Reset, then Find | `confirm()` before navigating; accept → filter-less search, both specs | PASS — dialog shown; after accept `Matches: 2` (both rows) |
+| 5 | Reset | fill Doc ID + Title, click Reset | every criterion back to its default, CF value group hidden | PASS — `doc:"", name:"", type:"notype", cf:"0", cfGrp:"none"` |
+| 6 | Refresh | type junk into Doc ID, click Refresh | form re-read from the server echo of the URL criteria (junk discarded) | PASS — `TL-REQ-1`/`First` restored |
+| 7 | deep-link pre-fill (bug fixed this run) | open `?tproject_id=1&doc_id=TL-REQ-9&name=Deep&reqSpecType=2&scope=login&log_message=fixture` | every criterion pre-filled from the BFF echo | PASS — all 5 values + `type=2` (before the fix: all blank) |
+| 8 | deep-link custom field | open `?custom_field_id=1&custom_field_value=High` | CF = Importance, value = High, value group revealed | PASS — `cf:"1", cfVal:"High", cfGroup:"block"` |
+| 9 | criteria length-capped server-side | `/init&doc_id=` 400×A, `name=` 4000×B | 200, echo trimmed to the cap | PASS — `docLen:255`, `nameLen:255` |
+| 10 | requirements disabled | open `?tproject_id=2` | `requirements_disabled` banner + chip "Disabled", no criteria card | PASS — `visible:["stReqsDisabled"]`, `mReqs=Disabled` |
+| 11 | no requirement specification | open `?tproject_id=3` | `no_req_specs` banner, Doc ID filter **hidden** (legacy `GET_NOT_EMPTY_REQSPEC`) | PASS — `grpDocId:"none"`, `visible:["stNoSpecs"]` |
+| 12 | no right → 403 | login `limited`, open `?tproject_id=1` | `Access denied` state, code `403 no_right`, no project data | PASS — `visible:["stDenied"]`, code `403 no_right` |
+| 13 | unknown project → 404 | `/init&tproject_id=9999` | `404 tproject_not_found` | PASS |
+| 14 | malformed / missing / zero id → 400 | `tproject_id=abc`, absent, `0` | `400 invalid_tproject` in all three | PASS |
+| 15 | wrong method → 405 | `POST /init` | `405 wrong_method`, `Allow: GET, HEAD` | PASS |
+| 16 | unknown action → 400 | `?action=bogus` | `400 unknown_action` | PASS |
+| 17 | anonymous → 401 | `/init` with no session | `401 not_authenticated` | PASS |
+| 18 | legacy form retired | navigate to `lib/requirements/reqSpecSearchForm.php?tproject_id=1&doc_id=TL-REQ-9&name=Deep` | 302 → modern screen, criteria preserved and pre-filled | PASS — landed on `reqSpecSearchForm.html?…doc_id=TL-REQ-9&name=Deep`, fields filled |
+| 19 | legacy results retired | navigate to `lib/requirements/reqSpecSearch.php?requirement_document_id=TL-REQ-1&name=First&coverage=1` | 302 → `searchReqSpec.html?doc_id=TL-REQ-1&name=First&auto_search=1`, search already run, `coverage` dropped | PASS — `Matches: 1`, `docField:"TL-REQ-1"` |
+| 20 | shims refuse a write verb / an XHR | `POST` both shims; `fetch()` (Sec-Fetch-Dest `empty`) | `405 wrong_method` / `405 retired_endpoint` JSON, never a login body to parse | PASS — both codes on both shims |
+| 21 | shims stay anonymous-safe | both shims with no cookie | legacy `login.php?note=expired` bounce, no project data | PASS — JS redirect body, no data |
+| 22 | results → form round trip | on the results screen, click "Criteria form" | 302-free navigation back to the form with the filled criteria only | PASS — landed on `reqSpecSearchForm.html?tproject_id=1` |
+| 23 | Back / Close | click "Back to Search Test Cases"; `Close` on the form | `/gui/templates/search/searchView.html?tproject_id=1`; Close closes the window or returns to the opener | PASS — Back landed on `searchView.html` |
+
+**Gates for this suite**
+
+- `php -l` on `api/reqspecsearchform/index.php`, both legacy shims and `lib/functions/common.php` → PASS
+- `node --check` on the screen's extracted inline script → PASS
+- `python3 -m json.tool` on all 10 locale bundles after the 50-key (`rssf.*` + footer) insert → PASS
+- i18n: `rsf.*` was **already taken** by Reorder Requirements, so the form uses `rssf.*`;
+  all 49 keys + `footers.reqSpecSearchForm` exist in en/ro/de/es/fr/it/pt/ru/ja/zh → PASS
+- Event Viewer / `events`: **0** unexpected rows during the run — only the intentional
+  `log_level 2` WARNINGs (2 × `mgt_view_req missing` from the `limited` user, 2 × `BFF shim:
+  refused POST`) and the `log_level 16` audit logins → PASS
+- browser console on the screen → no errors, no warnings → PASS
