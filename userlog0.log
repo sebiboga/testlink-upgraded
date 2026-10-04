@@ -1,0 +1,10 @@
+[>>][6ac19f486bf30688019265][DEFAULT][Standard input code][26/Oct/4 00:35:20]
+	[26/Oct/4 00:35:20][WARNING][<nosession>][GUI]
+		E_WARNING
+Undefined property: stdClass::$log_path - in /home/runner/work/testlink-upgraded/testlink-upgraded/lib/functions/logger.class.php - Line 1213
+[<<][6ac19f486bf30688019265][DEFAULT][Standard input code][26/Oct/4 00:35:20][26/Oct/4 00:35:20][took 0.001207 secs]
+[>>][6ac19f6113cbf965266383][DEFAULT][Standard input code][26/Oct/4 00:35:45]
+	[26/Oct/4 00:35:45][WARNING][<nosession>][GUI]
+		E_WARNING
+Undefined property: stdClass::$log_path - in /home/runner/work/testlink-upgraded/testlink-upgraded/lib/functions/logger.class.php - Line 1213
+[<<][6ac19f6113cbf965266383][DEFAULT][Standard input code][26/Oct/4 00:35:45][26/Oct/4 00:35:45][took 0.001103 secs]
