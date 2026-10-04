@@ -357,7 +357,13 @@ function locationSelect(cf) {
 /* ------------------------------------------------------------ selection */
 function toggleAll(group, on) {
   var $rows = $('.rowchk[data-group="' + group + '"]');
-  if (dtLinked && group === 'linked') { dtLinked.rows({ search: 'applied' }).invalidateSearch(); }
+  if (dtLinked && group === 'linked') {
+    /* invalidateSearch() lives on the Row NODE object, not on the dt.rows()
+       API instance - calling it on the instance threw a TypeError before
+       $rows.each() ever ran, which left Check/uncheck all completely dead
+       (issue #1821). */
+    dtLinked.rows().every(function(r) { r.invalidateSearch(); });
+  }
   $rows.each(function() { this.checked = on; });
   syncSelState();
 }
