@@ -2312,6 +2312,15 @@ function getActions(&$gui,$baseURL) {
 
   // Modernized screens (Dashio standalone pages)
   $actions->reqSpecMgmt = "/gui/templates/requirements/reqSpecMgmt.html?{$ctx}";
+  // PROJECT-scoped Requirement Specification launcher - Refs #1833.
+  // Replaces lib/project/project_req_spec_mgmt.php (46 lines), which showed
+  // "Test project > name > Requirement Specification" plus four gated buttons
+  // (New / Reorder / Import on mgt_modify_req, Export always). Note this is the
+  // PROJECT entry point, distinct from the requirement-module entry point above
+  // ($actions->reqSpecMgmt, already modernized): it was the last project-scoped
+  // legacy controller left in the Requirements area.
+  $actions->projectReqSpecMgmt =
+    "/gui/templates/requirements/projectReqSpecMgmt.html?{$ctx}";
   // Requirement Specification Copy popup (Dashio standalone page) - Refs #1797.
   // NOTE on the history: both legacy reqSpecView templates only ASSIGNED
   // {$req_spec_copy_url} (dashio:53 / tl-classic:50) and never used it, and
