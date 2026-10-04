@@ -1,243 +1,135 @@
 <?php
-
-/** 
+/**
  * TestLink Open Source Project - http://testlink.sourceforge.net/
- * This script is distributed under the GNU General Public License 2 or later. 
+ * This script is distributed under the GNU General Public License 2 or later.
  *
  * @filesource  reqSpecSearch.php
- * @package   TestLink
- * @author    asimon
- * @copyright   2005-2013
- * @link    http://www.teamst.org/index.php
+ * @package     TestLink
+ * @link        http://www.teamst.org/index.php
  *
- * This page presents the search results for requirement specifications.
+ * Requirement Specification SEARCH RESULTS - MODERNIZED (Dashio standalone
+ * page) - Refs #1825
  *
- * @internal revisions
- * @since 1.9.8
+ * The legacy renderer (reqSpecSearch.php + gui/templates/dashio/requirements/
+ * reqSpecSearchResults.tpl) has been replaced by:
  *
+ *   gui/templates/requirements/searchReqSpec.html     the screen
+ *   api/requirements/index.php                        the BFF
+ *                                                      (GET ?action=reqspec-context
+ *                                                       GET ?action=reqspec-search)
+ *
+ * and its form, the also-legacy lib/requirements/reqSpecSearchForm.php, by
+ * gui/templates/requirements/reqSpecSearchForm.html (api/reqspecsearchform).
+ *
+ * Like its sibling this controller authorized NOTHING but the session: the test
+ * project came from $_SESSION['testprojectID'] and every criterion from the
+ * request body, so any authenticated user could run a search across a project
+ * they hold no requirement right on.
+ *
+ * Criteria translation (legacy -> modern), all values preserved verbatim:
+ *   requirement_document_id -> doc_id      (the modern name; same LIKE match on
+ *                                          req_specs_revisions.doc_id)
+ *   name, scope, reqSpecType, log_message, custom_field_value, custom_field_id
+ *                                       -> unchanged
+ *   coverage                 -> DROPPED, deliberately. The legacy ExtJS grid
+ *                                rendered a live "coverage" column and sorted
+ *                                on it, but it was not a filter criterion of the
+ *                                query at all (init_args collects it and nothing
+ *                                ever reads it), so dropping it changes no row.
+ *                                The modern results screen shows the coverage of
+ *                                the requirement specifications it returns.
+ *
+ * This file is a redirect ONLY: it holds no state and runs no legacy code path.
  */
-require_once("../../config.inc.php");
-require_once("common.php");
-require_once('exttable.class.php');
-testlinkInitPage($db);
+require_once('../../config.inc.php');
+require_once('../functions/common.php');
 
-$templateCfg = templateConfiguration();
-$tpl = 'reqSpecSearchResults.tpl';
+$db = new database(DB_TYPE);
+doDBConnect($db);
 
-$tproject_mgr = new testproject($db);
+// Legacy testlinkInitPage() contract (see the sibling shim).
+if (!checkSessionValid($db)) {
+    exit;  // unreachable: the call above already redirected
+}
 
-$req_cfg = config_get('req_cfg');
-$charset = config_get('charset');
+$method = isset($_SERVER['REQUEST_METHOD']) ? strtoupper($_SERVER['REQUEST_METHOD']) : 'GET';
 
-$args = init_args();
+if ($method !== 'GET' && $method !== 'HEAD') {
+    tLog('BFF shim: refused ' . $method . ' on the retired legacy requirement-spec '
+        . 'search results - use GET /api/requirements/index.php?action=reqspec-search '
+        . '(Refs #1825).', 'WARNING');
+    http_response_code(405);
+    header('Allow: GET, HEAD');
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode(array(
+        'status'  => 'error',
+        'code'    => 'wrong_method',
+        'message' => 'This legacy endpoint is retired. Open '
+            . '/gui/templates/requirements/searchReqSpec.html',
+    ));
+    exit;
+}
 
-$commandMgr = new reqSpecCommands($db,$args->tprojectID);
-$gui = $commandMgr->initGuiBean();
+$wantsJson = (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && $_SERVER['HTTP_X_REQUESTED_WITH'] !== '')
+    || (isset($_SERVER['HTTP_SEC_FETCH_DEST']) && $_SERVER['HTTP_SEC_FETCH_DEST'] !== 'document')
+    || stripos((string)($_SERVER['HTTP_ACCEPT'] ?? ''), 'application/json') !== false;
 
-$edit_label = lang_get('requirement_spec');
-$edit_icon = TL_THEME_IMG_DIR . "edit_icon.png";
+if ($wantsJson) {
+    http_response_code(405);
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode(array(
+        'status'  => 'error',
+        'code'    => 'retired_endpoint',
+        'message' => 'This legacy endpoint no longer serves the search results. Open '
+            . '/gui/templates/requirements/searchReqSpec.html',
+    ));
+    exit;
+}
 
-$gui->main_descr = lang_get('caption_search_form_req_spec');
-$gui->warning_msg = '';
-$gui->path_info = null;
-$gui->resultSet = null;
-$gui->tableSet = null;
+// strings_stripSlashes() parity: the legacy controller unslashed the request
+// before trimming, so a Windows-client bookmark arrives with the same values the
+// modern screen would have received.
+$_REQUEST = strings_stripSlashes($_REQUEST);
 
-$itemSet = null;
-if ($args->tprojectID)
-{
-  $tables = tlObjectWithDB::getDBTables(array('cfield_design_values', 'nodes_hierarchy', 
-                        'req_specs','req_specs_revisions'));
-  $filter = null;
-  $join = null;
-  
+$q = array();
 
+// The legacy controller used the SESSION project only.
+$tprojectId = isset($_SESSION['testprojectID']) ? intval($_SESSION['testprojectID']) : 0;
+if ($tprojectId > 0) {
+    $q['tproject_id'] = $tprojectId;
+}
+if (isset($_REQUEST['tplan_id']) && intval($_REQUEST['tplan_id']) > 0) {
+    $q['tplan_id'] = intval($_REQUEST['tplan_id']);
+}
 
-  // we use same approach used on requirements search => search on revisions
-  if ($args->requirement_document_id) {
-    $id=$db->prepare_string($args->requirement_document_id);
-    $filter['by_id'] = " AND RSPECREV.doc_id like '%{$id}%' ";
-  }
-  
-  if ($args->name) {
-    $title=$db->prepare_string($args->name);
-    $filter['by_name'] = " AND NHRSPEC.name like '%{$title}%' ";
-  }
-
-  if ($args->reqSpecType != "notype") {
-    $type=$db->prepare_string($args->reqSpecType);
-    $filter['by_type'] = " AND RSPECREV.type='{$type}' ";
-  }
-  
-  if ($args->scope) {
-    $scope=$db->prepare_string($args->scope);
-    $filter['by_scope'] = " AND RSPECREV.scope like '%{$scope}%' ";
-  }
-
-  if ($args->log_message) {
-    $log_message = $db->prepare_string($args->log_message);
-    $filter['by_log_message'] = " AND RSPECREV.log_message like '%{$log_message}%' ";
-  }
-
-  
-  if($args->custom_field_id > 0) {
-        $args->custom_field_id = $db->prepare_int($args->custom_field_id);
-        $args->custom_field_value = $db->prepare_string($args->custom_field_value);
-        $join['by_custom_field'] = " JOIN {$tables['cfield_design_values']} CFD " .
-                       " ON CFD.node_id=RSPECREV.id ";
-        $filter['by_custom_field'] = " AND CFD.field_id={$args->custom_field_id} " .
-                                     " AND CFD.value like '%{$args->custom_field_value}%' ";
+$map = array(
+    'requirement_document_id' => 'doc_id',
+    'name'                    => 'name',
+    'scope'                   => 'scope',
+    'reqSpecType'             => 'reqSpecType',
+    'log_message'             => 'log_message',
+    'custom_field_value'      => 'custom_field_value',
+);
+foreach ($map as $legacyKey => $modernKey) {
+    if (isset($_REQUEST[$legacyKey]) && trim((string)$_REQUEST[$legacyKey]) !== '') {
+        $q[$modernKey] = trim((string)$_REQUEST[$legacyKey]);
     }
-
-  $sql =  " SELECT NHRSPEC.name, NHRSPEC.id, RSPEC.doc_id, RSPECREV.id AS revision_id, RSPECREV.revision " .
-      " FROM {$tables['req_specs']} RSPEC JOIN {$tables['req_specs_revisions']} RSPECREV " .   
-      " ON RSPEC.id=RSPECREV.parent_id " .
-      " JOIN {$tables['nodes_hierarchy']} NHRSPEC " .
-      " ON NHRSPEC.id = RSPEC.id ";
-
-  if(!is_null($join))
-  {
-    $sql .= implode("",$join);
-  }
-
-  $sql .= " AND RSPEC.testproject_id = {$args->tprojectID} ";
-   
-  if(!is_null($filter))
-  {
-    $sql .= implode("",$filter);
-  }
-
-  $sql .= ' ORDER BY id ASC, revision DESC '; 
-  $itemSet = $db->fetchRowsIntoMap($sql,'id',database::CUMULATIVE);
-  
+}
+if (isset($_REQUEST['custom_field_id']) &&
+    preg_match('/^[0-9]+$/', trim((string)$_REQUEST['custom_field_id'])) === 1 &&
+    intval(trim((string)$_REQUEST['custom_field_id'])) > 0) {
+    $q['custom_field_id'] = intval(trim((string)$_REQUEST['custom_field_id']));
 }
 
-$smarty = new TLSmarty();
-$gui->row_qty=count($itemSet);
-if($gui->row_qty > 0)
-{
-  $gui->resultSet = $itemSet;
-  if($gui->row_qty <= $req_cfg->search->max_qty_for_display)
-  {
-    $req_set=array_keys($itemSet);
-    $options = array('output_format' => 'path_as_string');
-    $gui->path_info=$tproject_mgr->tree_manager->get_full_path_verbose($req_set, $options);
-  }
-  else
-  {
-    $gui->warning_msg=lang_get('too_wide_search_criteria');
-  }
-}
-else
-{
-  $gui->warning_msg=lang_get('no_records_found');
+// A deep link that carried criteria means "run this search", not "show me the
+// form again" - that is exactly what auto_search=1 tells the modern screen.
+if (count($q) > 1) {
+    $q['auto_search'] = '1';
 }
 
-$table = buildExtTable($gui, $charset);
-if (!is_null($table)) {
-  $gui->tableSet[] = $table;
+$url = '/gui/templates/requirements/searchReqSpec.html';
+if (!empty($q)) {
+    $url .= '?' . http_build_query($q);
 }
-
-$gui->pageTitle = $gui->main_descr . " - " . lang_get('match_count') . ": " . $gui->row_qty;
-$smarty->assign('gui',$gui);
-$smarty->display($templateCfg->template_dir . $tpl);
-
-
-function buildExtTable($gui, $charset) 
-{
-  $lbl = array('edit' => 'requirement_spec', 'rev' => 'revision_short','req_spec' => 'req_spec',
-         'revision_tag' => 'revision_tag', 'open_on_new_window' => 'open_on_new_window');
-  $labels = init_labels($lbl);
-  $edit_icon = TL_THEME_IMG_DIR . "edit_icon.png";
-  $table = null;
-
-  // $gui->resultSet - 
-  // key: reqspec_id 
-  // value: array of matches
-  // array
-  // {
-  // [232][0]=>{"name" => "QA","id" => "232","doc_id" => "QA",
-  //           "revision_id" => "251", "revision" => "4"}
-  //      [1]=>{"name" => "QA","id" => "232","doc_id" => "QA",
-  //           "revision_id" => "251", "revision" => "3"}
-  // ...
-  // }
-  //
-  //
-  if(count($gui->resultSet) > 0) 
-  {
-    $matrixData = array();
-    $columns = array();
-    $columns[] = array('title_key' => 'req_spec', 'type' => 'text', 'groupable' => 'false', 
-                       'hideable' => 'false');
-  
-    $key2loop = array_keys($gui->resultSet);
-    foreach($key2loop as $rspec_id)
-    {
-      $rowData = array();
-
-      $itemSet = $gui->resultSet[$rspec_id];
-      $rfx = &$itemSet[0];
-      $path = ($gui->path_info[$rfx['id']]) ? $gui->path_info[$rfx['id']] . " / " : "";
-      $edit_link = "<a href=\"javascript:openLinkedReqSpecWindow(" . $rfx['id'] . ")\">" .
-             "<img title=\"{$labels['edit']}\" src=\"{$edit_icon}\" /></a> ";
-
-      $title = htmlentities($rfx['doc_id'], ENT_QUOTES, $charset) . ":" .
-             htmlentities($rfx['name'], ENT_QUOTES, $charset);
-      $cm = '<a href="javascript:openReqSpecRevisionWindow(%s)" title="' . $labels['open_on_new_window'] .'" >' . 
-          $labels['revision_tag'] . ' </a>'; 
-      // $link = $edit_link;
-      $matches = '';
-      foreach($itemSet as $rx) 
-      {
-        $matches .= sprintf($cm,$rx['revision_id'],$rx['revision']);
-      }
-      $rowData[] = $edit_link . $title . ' ' . $matches;
-      $matrixData[] = $rowData;
-    } 
-      
-    $table = new tlExtTable($columns, $matrixData, 'tl_table_req_spec_search');
-    $table->setSortByColumnName($labels['req_spec']);
-    $table->sortDirection = 'ASC';
-    
-    $table->showToolbar = false;
-    $table->addCustomBehaviour('text', array('render' => 'columnWrap'));
-    $table->storeTableState = false;
-  }
-  return($table);
-}
-
-/*
- function:
-
- args:
-
- returns:
-
- */
-function init_args()
-{
-  $args = new stdClass();
-  $_REQUEST = strings_stripSlashes($_REQUEST);
-
-  $strnull = array('requirement_document_id', 'name', 'scope', 'coverage',
-           'custom_field_value', 'reqSpecType', 'log_message');
-
-  foreach($strnull as $keyvar)
-  {
-    $args->$keyvar = isset($_REQUEST[$keyvar]) ? trim($_REQUEST[$keyvar]) : null;
-    $args->$keyvar = !is_null($args->$keyvar) && strlen($args->$keyvar) > 0 ? trim($args->$keyvar) : null;
-  }
-
-  $int0 = array('custom_field_id');
-  foreach($int0 as $keyvar)
-  {
-    $args->$keyvar = isset($_REQUEST[$keyvar]) ? intval($_REQUEST[$keyvar]) : 0;
-  }
-
-  $args->userID = isset($_SESSION['userID']) ? $_SESSION['userID'] : 0;
-  $args->tprojectID = isset($_SESSION['testprojectID']) ? $_SESSION['testprojectID'] : 0;
-
-  return $args;
-}
-?>
+header('Location: ' . $url, true, 302);
+exit;

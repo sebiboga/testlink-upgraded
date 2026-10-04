@@ -2451,6 +2451,14 @@ function getActions(&$gui,$baseURL) {
   $actions->printTc = "/gui/templates/testcases/tcPrint.html?{$ctx}";
   $actions->searchReq = "/gui/templates/requirements/searchReq.html?{$ctx}";
   $actions->searchReqSpec = "/gui/templates/requirements/searchReqSpec.html?{$ctx}";
+  // Requirement Specification Search FORM modernized screen (Dashio standalone
+  // page) - Refs #1825. Replaces lib/requirements/reqSpecSearchForm.php (the
+  // 1.9.20 page that listed the criteria and POSTed them to
+  // lib/requirements/reqSpecSearch.php). Both legacy controllers are now
+  // session-guarded 302 shims, and the screen hands its criteria to the
+  // already-modern results screen with auto_search=1.
+  $actions->reqSpecSearchForm =
+    "/gui/templates/requirements/reqSpecSearchForm.html?{$ctx}";
 
   // Update Linked Test Case Versions modernized screen (Dashio standalone
   // page) - Refs #619. The legacy planUpdateTC launcher entry is gone (Refs

@@ -60,6 +60,7 @@ table.dataTable tbody td { padding: 8px 14px; font-size: 13px; vertical-align: m
 <div class="toolbar">
   <span class="ctx"><span data-i18n="reqspecsearch.testProject">Test Project</span>: <b id="tprojectName2">-</b></span>
   <span style="flex:1"></span>
+  <button class="btn-teal" id="btnCriteria" onclick="openCriteriaForm()"><i class="fa fa-sliders"></i> <span data-i18n="rssf.openResults">Criteria form</span></button>
   <button class="btn-red" id="btnReset" onclick="resetForm()"><i class="fa fa-eraser"></i> <span data-i18n="reqspecsearch.reset">Reset</span></button>
 </div>
 
@@ -325,6 +326,24 @@ function openReqSpec(reqSpecId) {
 function openReqSpecRevision(revisionId) {
   var url = '/gui/templates/requirements/reqSpecViewRevision.html?revision_id=' + revisionId;
   window.open(url, '_blank', 'width=1024,height=768,resizable=yes,scrollbars=yes');
+}
+
+// Refs #1825: hand the criteria currently on screen over to the standalone
+// Requirement Specification Search Form page, so the two entry points are
+// reachable from each other (the form opens this screen, this screen opens the
+// form). Only the criteria that are actually filled in travel.
+function openCriteriaForm() {
+  var q = new URLSearchParams();
+  q.set('tproject_id', tprojectId);
+  ['doc_id','name','scope','log_message','custom_field_value'].forEach(function (k) {
+    var v = $.trim($('#' + k).val());
+    if (v !== '') { q.set(k, v); }
+  });
+  var tv = $.trim($('#reqSpecType').val());
+  if (tv !== '' && tv !== 'notype') { q.set('reqSpecType', tv); }
+  var cf = parseInt($('#custom_field_id').val() || '0', 10);
+  if (cf > 0) { q.set('custom_field_id', cf); }
+  window.location.href = '/gui/templates/requirements/reqSpecSearchForm.html?' + q.toString();
 }
 
 function resetForm() {
