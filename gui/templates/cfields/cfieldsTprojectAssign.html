@@ -357,13 +357,12 @@ function locationSelect(cf) {
 /* ------------------------------------------------------------ selection */
 function toggleAll(group, on) {
   var $rows = $('.rowchk[data-group="' + group + '"]');
-  if (dtLinked && group === 'linked') {
-    /* invalidateSearch() lives on the Row NODE object, not on the dt.rows()
-       API instance - calling it on the instance threw a TypeError before
-       $rows.each() ever ran, which left Check/uncheck all completely dead
-       (issue #1821). */
-    dtLinked.rows().every(function(r) { r.invalidateSearch(); });
-  }
+  /* No invalidateSearch() here on purpose: it invalidates DataTables' cached
+     search index for a row whose *data* changed, and ticking a checkbox
+     changes no column data. The original call did not even exist on the
+     object it was made on - dt.rows() returns an API instance and the Row
+     node exposes no such method in 1.13.7 - so it threw a TypeError ahead
+     of \$rows.each() and left Check/uncheck all completely dead (#1821). */
   $rows.each(function() { this.checked = on; });
   syncSelState();
 }
