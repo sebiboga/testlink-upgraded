@@ -270,11 +270,18 @@ if ($action === 'projects') {
 
     $tproject_mgr = new testproject($db);
     $rows = array();
-    foreach ((array) $tproject_mgr->get_list() as $p) {
-        $pid = intval($p['id'] ?? $p['testproject_id'] ?? 0);
+    // get_accessible_for_user() keeps private projects the user has no role on
+    // out of the list (tlUser.class.php:1053-1063), so the switcher never
+    // advertises a project the caller cannot reach.
+    foreach ((array) $tproject_mgr->get_accessible_for_user(
+                 intval($userId), array('output' => 'map', 'order_by' => ' ORDER BY name ')
+             ) as $pid => $p) {
+        $pid = intval($pid);
         if ($pid <= 0) { continue; }
         if (!cfpaRequireManage($db, $user, $pid)) { continue; }
-        $rows[] = array('id' => $pid, 'name' => $p['name'] ?? '', 'prefix' => $p['prefix'] ?? '');
+        $rows[] = array('id' => $pid,
+                        'name' => is_array($p) ? ($p['name'] ?? '') : '',
+                        'prefix' => is_array($p) ? ($p['prefix'] ?? '') : '');
     }
     cfpaOut(array('status' => 'ok', 'projects' => $rows, 'count' => count($rows)));
 }
