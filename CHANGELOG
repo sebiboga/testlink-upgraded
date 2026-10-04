@@ -1070,6 +1070,21 @@ screen reaches full parity.
   `.modal-sm`/`.modal-lg` usages are untouched, console clean, Event Viewer `log_level IN (1,2)` = 0.
   Regression suite 1796: **15/15 PASS**. (Fixes #1796)
 
+- [KEY BUGFIX] - #1689: `reqTreeReorder.html` showed a **fully working drag affordance to read-only users** -
+  `draggable="true"` on every row - while every drop was silently discarded. `render()` gated the attribute on
+  `GRANT.modify && !DEAD`, but `render()` ends by calling `applyRowState()`, which re-wrote the same attribute
+  from a weaker `DEAD`-only predicate (`gui/templates/requirements/reqTreeReorder.html:272`, pre-fix), so the
+  weaker copy always won; `dragstart` fired and `dragover` was `defaultPrevented`, so the browser painted a
+  live drop target that the `drop` guard (`:329`, `if (DEAD || !GRANT.modify || BUSY) return;`) then ignored.
+  Introduced by `13b53dd94` (the #1688 fix), which folded `DEAD` into the row controls but dropped the rights
+  term that the #1681 branch had put in `render()` - so #1689 had been fixed and then regressed, and the
+  regression passed review because its non-regression was measured only for a user WITH modify rights. Fix: a
+  single `canDrag()` predicate (`!DEAD && !!GRANT.modify`) that both writers call, so the affordance is derived
+  from the capability the `drop` handler enforces and the next rights term cannot be missed again. Measured:
+  view-only 3/3 rows `draggable=true -> false` (drag now offers no gesture at all), the admin path unchanged and
+  still persisting (`action=init` serverOrder `[8,6,10]`), and both #1688 DEAD paths - including the
+  success -> dead transition with surviving rows - still forcing `draggable=false`. 0 new Event Viewer rows.
+  (Fixes #1689)
 - [KEY BUGFIX - DATA INTEGRITY] - #1682: `api/reqtreereorder` `?action=reorder` accepted a **DUPLICATE**
   requirement id in `nodes_order` and corrupted the specification order. The submitted order was built as a
   **positional list** (`$order[] = $nid;`, `api/reqtreereorder/index.php:511`) but the duplicate gate probed it
