@@ -5464,3 +5464,91 @@ const g = async (q) => (await (await fetch('/api/requirements/index.php/search?t
 **Files** — `api/requirements/index.php` (legacy prefix guard + whole-prefix strip),
 `gui/templates/requirements/searchReq.html` (new field, prefix addon, wiring, deep link, reset),
 i18n: reused existing `search.tcid` / `search.prefixIgnored` (present in all 10 bundles).
+
+## Regression — Issue #1688: reqTreeReorder.html - toolbar stayed live on the 403/404 error page
+
+### Precondition
+- TestLink 2.0.1 at http://localhost:8082 (PHP built-in server, docroot = repo root)
+- MariaDB 127.0.0.1:3306, db `testlink`, user `testlink` / `testlink` (re-imported every run — fixtures recreated by this suite)
+- Fixtures (see "Fixture SQL" below): tproject 13 (prefix TL13), req specs 16 (RS1) and 17 (RS2),
+  requirements 20 (REQ1) and 21 (REQ2) in spec 16, version nodes 20020/20021, spec revisions 30016/30017
+- Users: `admin`/`admin` (role_id 8 = admin -> has mgt_modify_req) and `tr1681norights`/`admin`
+  (role_id 3 = `<no rights>`, no role_rights rows -> hasRight('mgt_view_req',13) === false)
+- Two isolated browser contexts: one logged in as `tr1681norights`, one as `admin`
+
+### Fixture SQL (idempotent re-creation after every DB re-import)
+```sql
+INSERT INTO testprojects (id,notes,color,active,prefix,tc_counter,is_public)
+  VALUES (13,'fixture for #1688','#9BD',1,'TL13',0,1);
+INSERT INTO nodes_hierarchy (id,name,parent_id,node_type_id,node_order) VALUES
+  (13,'TP 13 Fixture',NULL,1,1),(16,'Spec A',13,6,1),(17,'Spec B',13,6,2),
+  (20,'Requirement one',16,7,1),(21,'Requirement two',16,7,2),
+  (20020,'REQ1 v1',20,8,1),(20021,'REQ2 v1',21,8,1);
+INSERT INTO req_specs (id,testproject_id,doc_id) VALUES (16,13,'RS1'),(17,13,'RS2');
+INSERT INTO requirements (id,srs_id,req_doc_id) VALUES (20,16,'REQ1'),(21,16,'REQ2');
+INSERT INTO req_versions (id,version,revision,status,type,active,is_open,expected_coverage,author_id)
+  VALUES (20020,1,1,'V','R',1,1,1,1),(20021,1,1,'V','R',1,1,1,1);
+INSERT INTO req_specs_revisions (parent_id,id,revision,doc_id,name,scope,total_req,status,type,author_id)
+  VALUES (16,30016,1,'RS1','Spec A','scope A',2,1,'R',1),(17,30017,1,'RS2','Spec B','scope B',0,1,'R',1);
+INSERT INTO users (login,password,role_id,email,first,last,locale,active,cookie_string)
+  VALUES ('tr1681norights','<bcrypt of admin>',3,'nr@local','No','Rights','en_GB',1,'tr1681nr1688cookie');
+```
+Note: `req_versions.type` / `req_specs_revisions.type` are 1-char columns in this schema — `'REQ'`
+is rejected with `ERROR 1406 Data too long`; use `'R'`.
+
+### Repro steps (pre-fix, as reported in #1688)
+1. Log in as `tr1681norights` (POST `tl_login=tr1681norights&tl_password=admin&ssodisable=1` to `/login.php`)
+2. Confirm the BFF refuses: `GET /api/reqtreereorder/index.php?action=init&tproject_id=13&req_spec_id=16`
+   -> expect `HTTP 403 {"status":"error","code":"no_right","message":"You are not authorized to view requirements"}`
+3. Open `/gui/templates/requirements/reqTreeReorder.html?tproject_id=13&req_spec_id=16`
+4. Observe: Context / Move / Reorder cards are hidden and the error card reads
+   "You are not authorized to view requirements of this test project." — **but the toolbar above
+   it is still enabled**
+5. Measure: `document.querySelector('#applyBtn').disabled` etc.
+6. Click **Apply order** -> observe the answer **"Nothing to apply"** on a page the user may not even see
+
+### Expected post-fix behavior
+- `window.DEAD === true` on every error path
+- `#applyBtn`, `#moveBtn`, `#discardBtn`, `#specSel`, `#targetSel`, `#posSel` are ALL `disabled === true`
+- `#ctxCard`, `#moveCard`, `#ordCard` hidden; `#stateCard` shown
+- `#roBanner` NOT shown (the read-only banner claims "you may view but not modify", which is the
+  wrong message on a page the user cannot see at all) and `#dragHint` NOT shown
+- `#refreshBtn` stays enabled (retrying is legitimate on an error page)
+- `applyOrder()`, `doMove()`, `discard()` are **no-ops** when `DEAD` — verified by invoking them
+  programmatically (bypassing the `disabled` attribute) AND by a real `.click()`
+- **No** "Nothing to apply" message and **no** confirmation modal on the dead page
+- Success path unchanged: with `GRANT.modify`, all controls enabled, rows `draggable="true"`, cards visible
+
+### Actual result observed (verified on commit 4e7e3a7ca)
+| Case | Probe | Measured | Verdict |
+|---|---|---|---|
+| TC-1688-01 | 403 `no_right`, `?tproject_id=13&req_spec_id=16` as `tr1681norights` — `window.DEAD` | `true` | PASS |
+| TC-1688-02 | 403 — `applyBtn/moveBtn/discardBtn` `.disabled` | `true / true / true` | PASS |
+| TC-1688-03 | 403 — `specSel/targetSel/posSel` `.disabled` | `true / true / true` | PASS |
+| TC-1688-04 | 403 — `#roBanner`.className / `#dragHint` display | `"banner"` (no `show`) / `none` | PASS |
+| TC-1688-05 | 403 — `#refreshBtn`.disabled | `false` (retry stays available — intended) | PASS |
+| TC-1688-06 | 403 — `window.applyOrder(); window.doMove(); window.discard();` (disabled attr bypassed) | `#msg` `display:none`, `text:""`; no exception | PASS |
+| TC-1688-07 | 403 — real `.click()` on `#applyBtn` | `#msg` stays `display:none`; `#confirmModal` `display:none` — **no "Nothing to apply"** | PASS |
+| TC-1688-08 | 404 `tproject_not_found`, `?tproject_id=999&req_spec_id=16` | `DEAD:true`, code `tproject_not_found`, all 6 controls `disabled:true`, `roBanner` hidden, handlers no-op | PASS |
+| TC-1688-09 | `MISSING_TPROJECT`, bare `?req_spec_id=16` | `DEAD:true`, code `MISSING_TPROJECT`, all 6 controls `disabled:true`, `roBanner` hidden | PASS |
+| TC-1688-10 | Success path as `admin`, `?tproject_id=13&req_spec_id=16` | `DEAD:false`, `GRANT:{"view":true,"modify":"yes"}`, `ITEMS:["REQ1","REQ2"]`, `SPECS:["RS1","RS2"]`, all 6 controls `disabled:false`, `#dragHint` `block`, `rowDraggable:["true","true"]`, `#mTproject` "TP 13 Fixture", `#mWho` "admin" — **no regression** | PASS |
+| TC-1688-11 | Event Viewer / `events` after the whole pass | `SELECT COUNT(*) FROM events WHERE log_level IN (0,1,2)` -> **0**; 3 rows total, all `log_level=16` (`audit_login_succeeded`) | PASS |
+
+### Test execution
+- [PASS] TC-1688-01 .. TC-1688-11 — 11/11 PASS (chrome-devtools MCP + `mysql` + `curl` against the live app)
+- [PASS] Merge-base gate: `TLU_REQUIRE_SUITE="Issue #1688" bash ai/verify_test_suites.sh`
+
+### Notes
+- **No code change in this run.** The fix is commit `571760ea4`
+  ("fix(reqtreereorder): disable the whole toolbar on the 403/404 error page (Refs #1681)"),
+  an ancestor of the default branch (`git merge-base --is-ancestor 571760ea4 HEAD` -> YES).
+  Shape: page-level `DEAD` flag (`:165`) kept deliberately **outside** `GRANT` so a 403 can never
+  look like "read-only"; `showState()` sets `DEAD` **and calls `idleUI()`** (`:222`,`:227`) —
+  that missing call was the root cause; `hideState()` clears it (`:231`); `idleUI()` folds `DEAD`
+  into `off` (`:237`), suppresses `#roBanner` (`:240`) and `#dragHint` (`:242`), and gates the
+  `#specSel` read-only re-enable on `!DEAD` (`:245`); the three handlers bail out early
+  (`:458`, `:499`, `:535`) so the state is enforced in code and not only visually.
+- The issue was created at `2026-09-28T05:36:55Z`, the *same second* as the fix commit — the #1681
+  run fixed the bug inside its own branch, documented it in the issue **body**, and never ran
+  `gh issue close`. What was lost was the closure step, not the code. Same situation as #1686.
+- Sibling #1686/#1687 from the same #1681 browser-testing pass were closed the same way.
