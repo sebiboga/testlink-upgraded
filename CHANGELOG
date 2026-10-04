@@ -29,6 +29,28 @@ screen reaches full parity.
   urgency proxy. i18n: 74 `risk.*` keys in all 10 client bundles + `link_report_risk_coverage`
   in all 19 locale strings files. AUDIT events emitted on every rating save.
 
+- [FEATURE GAP CLOSED] - #1079: the **group-by-requirement-specification display of the Search
+  Requirements results** is back. Legacy built an ExtJS grid grouped on the specification path
+  (`lib/requirements/reqSearch.php:170 setGroupByColumnName('req_spec')`), sorted by requirement
+  descending (`:171-172`), with the grouped column hidden
+  (`lib/functions/exttable.class.php:55 hideGroupedColumn=true`, reveal button disabled by
+  `:177`), an item count per collapsible group
+  (`exttable.class.php:591 groupTextTpl '{text} (N Item[s])'`) and a toolbar reduced to the
+  single Expand/Collapse Groups button (`:174-178` -> `gui/javascript/ext_extensions.js:184-199`).
+  The modern screen rendered a flat jQuery DataTable that repeated the path on every row. It now
+  groups the rows with DataTables RowGroup 1.4.1 (`rowGroup.dataSrc:'path'`) - the BFF already
+  returned `path` per row, so **no server change was needed** - with clickable collapsible group
+  headers, per-group item counts, the grouped column hidden, the legacy one-button grid toolbar,
+  the default order `[[spec path asc],[requirement desc]]` with the group key kept as the primary
+  sort criterion (`Ext.data.Store.sortOnGroupField`), collapse-state pruning when a new search
+  returns other groups, and the grid dropped entirely when a search matches nothing
+  (`reqSearch.php:127`). i18n: 5 `reqsearch.*` grouping keys in all 10 client bundles (+5/-0
+  each). Two defects found by its own suite were fixed in the same run: an
+  `orderData:['reqSort','desc']` `sType` TypeError in DataTables 1.13.7 (replaced by
+  `data:'reqSort'` + `render`) and a group-order pin that never fired because the initial draw
+  happens inside the `DataTable()` constructor. Regression suite "Task - Issue #1079" appended to
+  `tmp/TLU_Test_Cases.md`. (Refs #1079)
+
 - [FEATURE GAP CLOSED] - #1078: the legacy **custom-field filter on Search Requirements now
   actually filters.** Legacy rendered a "Custom field" select built from the design-scope
   requirement CFs plus a "Custom Field Value" textbox

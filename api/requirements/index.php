@@ -2816,7 +2816,6 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'search') {
             $options = ['output_format' => 'path_as_string'];
             $pathInfo = $tprojectMgr->tree_manager->get_full_path_verbose($req_set, $options);
 
-            $charset = config_get('charset');
             foreach ($map as $req_id => $itemSet) {
                 $rfx = $itemSet[0];
 
@@ -2841,11 +2840,17 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'search') {
                     $path = is_array($p) ? implode(" / ", $p) : (string)$p;
                 }
 
+                // Refs #1079: raw values, NOT htmlentities()'d. The single
+                // consumer (searchReq.html) escapes every value client side
+                // (esc()), and the specification path is now also used as the
+                // RowGroup grouping key, i.e. rendered as the group header.
+                // Encoding here as well made the browser decode only one layer
+                // and showed "R&amp;D" instead of "R&D".
                 $resultSet[] = [
                     'req_id' => intval($rfx['id']),
-                    'req_doc_id' => htmlentities($rfx['req_doc_id'], ENT_QUOTES, $charset),
-                    'name' => htmlentities($rfx['name'], ENT_QUOTES, $charset),
-                    'path' => htmlentities($path, ENT_QUOTES, $charset),
+                    'req_doc_id' => (string)$rfx['req_doc_id'],
+                    'name' => (string)$rfx['name'],
+                    'path' => $path,
                     'matches' => $matches,
                 ];
             }

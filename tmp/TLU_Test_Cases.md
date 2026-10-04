@@ -5939,3 +5939,75 @@ Login `admin/admin` at `http://localhost:8082/index.php`.
 **Files** — `api/testcases/index.php` (`action=view` → `direct_link`),
 `gui/templates/testcases/tcView.html` (button, bar, `toggleDirectLink()`, `copyDirectLink()`),
 `gui/templates/i18n/*.json` (3 keys × 10 locales), `tmp/fixtures_1043.sql`.
+
+## Task — Issue #1079: Implement group-by-requirement-spec in searchReq results
+
+**Precondition**
+
+- App at `http://localhost:8082/index.php`, login `admin` / `admin` (user_id 1).
+- DB `testlink` on `127.0.0.1:3306` is freshly imported and **empty**
+  (`SELECT COUNT(*) FROM requirements` → `0`), so the fixture is applied first:
+  ```bash
+  mysql -h 127.0.0.1 -utestlink -ptestlink testlink < tmp/fixtures_1079.sql
+  ```
+  It creates test project `9001` (prefix `GB1`, "GB1079 Project") with **two** requirement
+  specifications — `9002 SRS Alpha` (doc_id `SRS-A`) and `9003 SRS Beta` (doc_id `SRS-B`) —
+  and three requirements: `REQ-1` (gamma login req one) and `REQ-2` (gamma login req two)
+  under **SRS Alpha**, `REQ-3` (gamma checkout req three, version 2) under **SRS Beta**.
+  A single search on `Name contains = gamma` therefore matches 3 requirements living under
+  2 different specification paths — the grouping proof of the legacy behaviour
+  (`lib/requirements/reqSearch.php:170 setGroupByColumnName('req_spec')`).
+- Entry point: `http://localhost:8082/gui/templates/requirements/searchReq.html?tproject_id=9001`
+
+**Steps to exercise the new feature / expected / actual**
+
+| # | Step | Expected | Actual |
+|---|---|---|---|
+| 1 | open the screen with `tproject_id=9001`, `Name` = `gamma`, click **Find** | 3 matches listed | PASS — `matchCount = "(Match count: 3)"` |
+| 2 | inspect the result grid rows | one collapsible group header per requirement specification, **not** a flat list | PASS — 3 flat rows before the fix; after: `groupHeaderCount = 2`, headers `SRS Alpha (2 Items)`, `SRS Beta (1 Item)` |
+| 3 | read the group header text | legacy `groupTextTpl '{text} (N Item[s])'` (`lib/functions/exttable.class.php:591`) | PASS — `SRS Alpha(2 Items)` / `SRS Beta(1 Item)` — singular form for 1 item |
+| 4 | check the group order | groups sorted by specification path ascending (`Ext.data.Store.sortOnGroupField`) | PASS — `SRS Alpha` then `SRS Beta`; `DataTable().order() = [[0,"asc"],[1,"desc"]]` |
+| 5 | check the order inside a group | requirement column **descending** (`reqSearch.php:171-172 setSortByColumnName` + `sortDirection='DESC'`) | PASS — inside SRS Alpha: `REQ-2` before `REQ-1`; `REQ-3` alone in SRS Beta |
+| 6 | is the specification path still repeated on every row? | no — legacy hides the grouped column (`exttable.class.php:55 hideGroupedColumn=true`, and `reqSearch.php:177` disables the button that would reveal it) | PASS — `colVisible = [false,true,true]`, path printed only in the group header |
+| 7 | click the `SRS Alpha` group header | that group collapses, its 2 rows hide, the chevron flips, the toolbar button turns active | PASS — only `REQ-3` visible, icon `fa fa-chevron-right`, `btnGroupToggle.active = true`, `collapsedGroups = ["SRS Alpha"]` |
+| 8 | click the same header again | the group re-expands | PASS — 3 rows visible again, icon `fa-chevron-down` |
+| 9 | click the toolbar button **Expand/Collapse Groups** while everything is expanded | collapses **all** groups | PASS — both headers collapsed, 0 visible rows, toolbar info `Groups collapsed` |
+| 10 | click it again | expands all groups | PASS — 3 visible rows, toolbar info `Groups expanded` |
+| 11 | click the toolbar button while only *one* group is collapsed | expands everything (same toggle semantics as `Ext.ux.TableToolbar.last_state`, `gui/javascript/ext_extensions.js:186-198`) | PASS — after collapsing `SRS Alpha` by header click, the toolbar click expanded all groups |
+| 12 | collapse one group, then run a **new** search whose results do not contain that group | no stale collapse state carried over | PASS — searching `Name = checkout` → 1 header (`SRS Beta (1 Item)`, expanded), `collapsedGroups` pruned from `["SRS Alpha"]` to `[]` |
+| 13 | run a search with no match | no grid at all, the "no results" notice shows, the toolbar disappears (legacy `buildExtTable()` returns null, `reqSearch.php:127`) | PASS — `groups = 0`, `toolbar = "none"`, empty notice `No requirements match the given criteria.` |
+| 14 | search again and press **Reset** | results, toolbar and collapse state all cleared, criteria blank | PASS — toolbar + wrap `display:none`, `groups = 0`, `collapsedGroups = 0`, `name` value `""` |
+| 15 | switch the locale to **Romanian** (`?locale=ro`) and repeat steps 2, 3, 9 | all new labels localized, including the singular/plural item count | PASS — `Extinde/Restrânge Grupurile`, `SRS Alpha(2 Elemente)` / `SRS Beta(1 Element)`, `Grupuri restrânse` |
+| 16 | switch the locale to **Chinese** (`?locale=zh`) and repeat steps 2, 3, 9 | all new labels localized | PASS — `展开/折叠分组`, `SRS Alpha(2 项)` / `SRS Beta(1 项)`, `分组已折叠` |
+| 17 | click a requirement link / version tag inside a group | the row still opens `reqView.html` in a new window | PASS — `openReq(req_id)` / `openReqVersion(req_id, version_id)` handlers intact after the switch from array rows to object rows |
+| 18 | check the browser console for the whole interaction set | no errors / warnings | PASS — console clean (`<no console messages found>`); one DataTables `sType` TypeError was found and fixed during this run (see checkpoint 1/3) |
+
+**Gates for this suite**
+
+- `node --check` on the screen's extracted inline `<script>` block → PASS
+- `python3 -m json.tool` on all 10 locale bundles after adding the 5 `reqsearch.*` grouping
+  keys (diff `+5/-0` per bundle, keys inserted in place, no re-sort) → PASS
+- i18n: the 5 new keys exist in **all 10** bundles (`en, de, es, fr, it, ja, pt, ro, ru, zh`) → PASS
+- BFF: **no change needed** — `GET /api/requirements/index.php/search` already returns
+  `path` per row (the `path_as_string` verbose tree path, same source as
+  `reqSearch.php:74-76`), measured:
+  `{"row_qty":3,"results":[…"path":"SRS Alpha"…, …"path":"SRS Alpha"…, …"path":"SRS Beta"…]}` → PASS
+- Event Viewer / `events`: **0** new Error/Warning rows — only the `log_level 16`
+  `audit_login_succeeded` entry, no `log_level >= 2` → PASS
+- `git diff --numstat` on the 10 bundles: 5 insertions / 0 deletions each → PASS
+
+**Addendum after the code review of branch `task/issue-1079`** (fixture extended with
+`REQ-9 gamma zebra req` + `REQ-5 gamma apple req`, both in SRS Alpha → 5 matches,
+4 in SRS Alpha / 1 in SRS Beta; the interleaving is chosen so a group **splits** if the
+group key is not kept as the primary sort criterion):
+
+| # | Step | Expected | Actual |
+|---|---|---|---|
+| 19 | click the **Requirement** column header | the sort changes but the group key stays the primary criterion: `order()[0][0] === 0` and **one** header per specification (never `SRS Alpha / SRS Beta / SRS Alpha`) | PASS — after the click `order() = [[0,"asc"],[1,"desc"]]` then `[[0,"asc"],[1,"asc"]]` on the next click, headers stay `SRS Alpha (4 Items)` + `SRS Beta (1 Item)` |
+| 20 | set the order through the API (`order([[1,'desc']]).draw()`) and read it back | the pin re-applies the group key first | PASS — `[[0,"asc"],[1,"desc"]]`, 2 contiguous headers |
+| 21 | result set larger than the DataTables default page length (5 matches, default `pageLength` is 10 → use 5 to stay under it, then check the paginator) | one single page, and each group header counts **all** its rows, not just the rows of the current page | PASS — `Showing 1 to 5 of 5 entries`, `Previous`/`Next` disabled, `SRS Alpha (4 Items)` + `SRS Beta (1 Item)` (all 4 + 1, not per-page counts) |
+| 22 | collapse a group **after** a user-initiated sort | the group's rows still hide together | PASS — only `REQ-3` (SRS Beta) visible; the delegated `document` handler on `tr.dtrg-group` resolves the key from `data-key` |
+| 23 | re-check the Event Viewer after the review fixes | still no new Error/Warning | PASS — `SELECT COUNT(*) FROM events WHERE log_level >= 2` → `0` |
+| 24 | browser console after the review fixes | clean | PASS — no errors, no warnings |
+| 25 | `php -l api/requirements/index.php`, `node --check` on the screen script, `python3 -m json.tool` on all 10 bundles | all clean | PASS |
+

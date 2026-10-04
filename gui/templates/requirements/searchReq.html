@@ -38,7 +38,6 @@ table.dataTable thead th { background: #22242a; color: #fff; font-size: 13px; pa
 table.dataTable tbody td { padding: 8px 14px; font-size: 13px; vertical-align: middle; }
 .req-link { font-weight: 700; color: #2d8e88; text-decoration: none; }
 .req-link:hover { text-decoration: underline; }
-.path-cell { color: #555; max-width: 300px; }
 .ver-link { color: #2d8e88; text-decoration: none; margin-right: 8px; white-space: nowrap; }
 .ver-link:hover { text-decoration: underline; }
 /* Refs #1079 - legacy grid toolbar parity: lib/requirements/reqSearch.php:174-178
@@ -224,6 +223,15 @@ $(function () {
   var p = new URLSearchParams(window.location.search);
   tprojectId = parseInt(p.get('tproject_id') || '0', 10);
   tplanId = parseInt(p.get('tplan_id') || '0', 10);
+  // single group expand/collapse on click of a group header row (legacy ExtJS
+  // group header toggle, gui/javascript/ext_extensions.js)
+  $(document).on('click', '#resTable tbody tr.dtrg-group', function () {
+    toggleGroup(decodeURIComponent($(this).attr('data-key') || ''));
+  });
+  // keep the group column as the primary sort criterion: DataTables RowGroup
+  // merges only *contiguous* runs, so sorting by another column first would
+  // split one req spec into several group headers
+  $(document).on('order.dt', function (e, settings) { pinGroupOrder(settings); });
   TLi18n.load(function () {
     TLi18n.apply();
     TLi18n.initLocaleSwitcher('#localeSwitcher');
@@ -393,9 +401,9 @@ function destroyTable() {
   // destroy(true) may remove the table node - always restore the shell
   $('#resultsWrap').html(
     '<table id="resTable" class="display" style="width:100%"><thead><tr>' +
-    '<th style="width:26%">' + esc(TLi18n.t('reqsearch.colPath')) + '</th>' +
-    '<th style="width:44%">' + esc(TLi18n.t('reqsearch.colRequirement')) + '</th>' +
-    '<th>' + esc(TLi18n.t('reqsearch.colVersions')) + '</th>' +
+    '<th style="width:26%" data-i18n="reqsearch.colPath">' + esc(TLi18n.t('reqsearch.colPath')) + '</th>' +
+    '<th style="width:44%" data-i18n="reqsearch.colRequirement">' + esc(TLi18n.t('reqsearch.colRequirement')) + '</th>' +
+    '<th data-i18n="reqsearch.colVersions">' + esc(TLi18n.t('reqsearch.colVersions')) + '</th>' +
     '</tr></thead><tbody></tbody></table>');
   $('#gridToolbarInfo').text('');
 }
@@ -424,7 +432,6 @@ function renderResults(r) {
   destroyTable();
 
   var rows = r.results.map(function (row) {
-    var path = '<span class="path-cell">' + esc(row.path) + '</span>';
     var reqLabel = '<button class="icon-btn" title="' + esc(TLi18n.t('reqsearch.edit')) +
         '" onclick="openReq(' + row.req_id + ')"><i class="fas fa-pen-to-square"></i></button> ' +
       '<a class="req-link" href="javascript:void(0)" onclick="openReq(' + row.req_id + ')">' +
@@ -460,12 +467,11 @@ function renderResults(r) {
     data: rows,
     columns: [
       {
-        data: 'path',
         // legacy hides the grouped column (exttable.class.php:55
         // hideGroupedColumn=true, reqSearch.php:177 disables the button that
         // would reveal it) - the spec path is shown by the group header
-        visible: false,
-        render: { display: function (d) { return '<span class="path-cell">' + esc(d) + '</span>'; } }
+        data: 'path',
+        visible: false
       },
       {
         // the raw 'DOC-ID:name' text is the sort value (the legacy ExtJS grid
@@ -479,6 +485,10 @@ function renderResults(r) {
     // default sort of the legacy grid: requirement column, descending
     // (reqSearch.php:171-172 setSortByColumnName + sortDirection='DESC')
     order: [[1, 'desc']],
+    // no paging, like the legacy grid (tlExtTable height=500 + autoHeight);
+    // with paging RowGroup would merge only the rows of the current page and
+    // the group item counts would be per-page instead of per-group
+    pageLength: -1,
     // Legacy parity: rows are grouped per Requirement Specification path
     // (reqSearch.php:170) with a collapsible header showing the item count
     // (exttable.class.php:591 groupTextTpl '{text} (N Item[s])').
@@ -495,8 +505,7 @@ function renderResults(r) {
         var visibleCols = $('#resTable thead th').filter(function () {
           return $(this).css('display') !== 'none';
         }).length;
-        var $tr = $('<tr/>').addClass('dtrg-group').attr('data-key', encodeURIComponent(group))
-          .on('click', function () { toggleGroup(group); });
+        var $tr = $('<tr/>').addClass('dtrg-group').attr('data-key', encodeURIComponent(group));
         return $tr.append($('<td/>').attr('colspan', visibleCols).append(
           $('<i/>').addClass('fa ' + (isCollapsed ? 'fa-chevron-right' : 'fa-chevron-down')),
           ' ' + esc(group) + '<span class="gcount">' + cnt + '</span>'
@@ -504,7 +513,7 @@ function renderResults(r) {
       }
     },
     language: { search: '', searchPlaceholder: TLi18n.t('common.search') },
-    drawCallback: function () { pinGroupOrder(this); }
+    columnDefs: [{ targets: '_all', defaultContent: '' }],
   });
   pruneCollapsedGroups();
   updateGroupToggleBtn();
@@ -556,7 +565,8 @@ function anyGroupCollapsed() {
 // the primary sort criterion even when the user sorts by another column
 // (Ext.data.Store.sortOnGroupField). order.dt fires *during* a draw: re-drawing
 // synchronously there would rebuild the tbody while it is being written, so the
-// re-apply is deferred one tick.
+// re-apply is deferred one tick, and it must be exception-safe: a throw here
+// would leave the reordering guard stuck and permanently disable the pin.
 function pinGroupOrder(settings) {
   if (!resTbl || reordering) { return; }
   // ignore events of a previous instance (the grid is destroyed and rebuilt on
@@ -567,8 +577,13 @@ function pinGroupOrder(settings) {
   if (o.length && o[0][0] === SPEC_COL_IDX) { return; }
   reordering = true;
   setTimeout(function () {
-    resTbl.order([[SPEC_COL_IDX, 'asc']].concat(o)).draw(false);
-    reordering = false;
+    try {
+      // resTbl may have been nulled by destroyTable() between the schedule and
+      // the tick (a new search started in the meantime)
+      if (resTbl) { resTbl.order([[SPEC_COL_IDX, 'asc']].concat(o)).draw(false); }
+    } finally {
+      reordering = false;
+    }
   }, 0);
 }
 
@@ -596,6 +611,10 @@ function collapseAllGroups() {
   $('#gridToolbarInfo').text(TLi18n.t('reqsearch.groupsCollapsed'));
 }
 
+// NOTE: unlike the legacy Ext.ux.TableToolbar, whose last_state flag is
+// independent of clicks on a group header (ext_extensions.js:186-198), this
+// decides from the live state - same behaviour as the already-modernized
+// Requirements Overview grid (reqOverview.html:390-392).
 function toggleGroups() {
   if (anyGroupCollapsed()) { expandAllGroups(); } else { collapseAllGroups(); }
 }
