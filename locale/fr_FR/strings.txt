@@ -3351,6 +3351,10 @@ $TLS_audit_cfield_deactivated = "Le champ personnalisé '{%1}' a été désactiv
 
 $TLS_audit_cfield_required_on = "Le champ personnalisé '{%1}' est REQUIS pour le projet '{%2}'";
 $TLS_audit_cfield_required_off = "Le champ personnalisé '{%1}' est NON-REQUIS pour le projet '{%2}'";
+$TLS_audit_cfield_location_changed = "Custom field locations were saved on Test Project '{%1}'";
+$TLS_audit_cfield_monitorable_on = "Custom field '{%1}' was set MONITORABLE on Test Project '{%2}'";
+$TLS_audit_cfield_monitorable_off = "Custom field '{%1}' was set NOT MONITORABLE on Test Project '{%2}'";
+
 
 $TLS_audit_tcversion_activated = "La fiche de test '{%1}' Version {%2} a été activée";
 $TLS_audit_tcversion_deactivated = "La fiche de test '{%1}' Version {%2} a été désactivée";

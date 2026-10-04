@@ -3567,6 +3567,7 @@ $TLS_audit_cfield_required_off = "自定义字段 '{%1}' 在测试项目 '{%2}' 
 
 $TLS_audit_cfield_monitorable_on = "自定义字段 '{%1}' 在测试项目 '{%2}' 中设置为监测。";
 $TLS_audit_cfield_monitorable_off = "自定义字段 '{%1}' 在测试项目 '{%2}' 中未设置为监测。";
+$TLS_audit_cfield_location_changed = "Custom field locations were saved on Test Project '{%1}'";
 
 
 $TLS_audit_user_apikey_set = "生成 '{%1}' 的 API-Key";

@@ -3749,6 +3749,10 @@ $TLS_audit_cfield_deactivated = "カスタムフィールド '{%1}' は テス�
 
 $TLS_audit_cfield_required_on = "カスタムフィールド '{%1}' はテストプロジェクト '{%2}' で必須に設定されました";
 $TLS_audit_cfield_required_off = "カスタムフィールド '{%1}' はテストプロジェクト '{%2}' で任意に設定されました";
+$TLS_audit_cfield_location_changed = "Custom field locations were saved on Test Project '{%1}'";
+$TLS_audit_cfield_monitorable_on = "Custom field '{%1}' was set MONITORABLE on Test Project '{%2}'";
+$TLS_audit_cfield_monitorable_off = "Custom field '{%1}' was set NOT MONITORABLE on Test Project '{%2}'";
+
 
 $TLS_audit_tcversion_activated = "テストケース '{%1}' バージョン {%2} は有効になりました";
 $TLS_audit_tcversion_deactivated = "テストケース '{%1}' バージョン {%2} は無効になりました";

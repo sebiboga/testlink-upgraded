@@ -4210,6 +4210,9 @@ $TLS_do_not_execute = 'Não executar';
 
 
 $TLS_audit_cfield_location_changed = 'Auditar - A Localização de Campo Personalizado foi Alterada';
+$TLS_audit_cfield_monitorable_on = "Custom field '{%1}' was set MONITORABLE on Test Project '{%2}'";
+$TLS_audit_cfield_monitorable_off = "Custom field '{%1}' was set NOT MONITORABLE on Test Project '{%2}'";
+
 
 // @see const.inc.php
 $TLS_testCaseStatus_hint_obsolete = 'Não executar este Caso de Teste';

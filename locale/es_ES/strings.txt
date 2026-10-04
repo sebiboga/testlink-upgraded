@@ -3430,6 +3430,10 @@ $TLS_audit_all_events_deleted = "El usuario '{%1}' ha eliminado todos los evento
 
 $TLS_audit_cfield_required_on = "El campo personalizado '{%1}' fue marcado como REQUERIDO en el Proyecto de Pruebas '{%2}'";
 $TLS_audit_cfield_required_off = "El campo personalizado '{%1}' fue marcado como NO REQUERIDO en el Proyecto de Pruebas '{%2}'";
+$TLS_audit_cfield_location_changed = "Custom field locations were saved on Test Project '{%1}'";
+$TLS_audit_cfield_monitorable_on = "Custom field '{%1}' was set MONITORABLE on Test Project '{%2}'";
+$TLS_audit_cfield_monitorable_off = "Custom field '{%1}' was set NOT MONITORABLE on Test Project '{%2}'";
+
 $TLS_audit_events_with_level_deleted = "El usuario '{%1}' eliminó los eventos de nivel: {%2}";
 $TLS_audit_security_no_environment = "El uso de '{%1}' requiere el entorno (id del proyecto de pruebas) y no se ha establecido. Cierre forzado";
 

@@ -2292,6 +2292,10 @@ $TLS_audit_cfield_unassigned = "사용자 필드 '{%1}' 가 테스트 프로젝�
 $TLS_audit_cfield_display_order_changed = "테스트 프로젝트 '{%1}' 에서 사용자 필드의 표시순서가 저장 되었습니다.";
 $TLS_audit_cfield_activated = "사용자 필드 '{%1}' 가 테스트 프로젝트 '{%2}' 에서 사용함으로 설정 되었습니다.";
 $TLS_audit_cfield_deactivated = "사용자 필드 '{%1}' 가 테스트 프로젝트 '{%2}' 에서 사용안함으로 설정 되었습니다.";
+$TLS_audit_cfield_location_changed = "Custom field locations were saved on Test Project '{%1}'";
+$TLS_audit_cfield_monitorable_on = "Custom field '{%1}' was set MONITORABLE on Test Project '{%2}'";
+$TLS_audit_cfield_monitorable_off = "Custom field '{%1}' was set NOT MONITORABLE on Test Project '{%2}'";
+
 
 $TLS_audit_user_apikey_set = "'{%1}' 를 위한 API-Key가 생성 되었습니다.";
 $TLS_audit_user_saved = "사용자 '{%1}' 가 저장 되었습니다.";

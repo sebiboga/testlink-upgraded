@@ -2913,6 +2913,10 @@ $TLS_audit_cfield_unassigned = "El Campo Personalizado '{%1}' se desasignó del 
 $TLS_audit_cfield_display_order_changed = "El orden de visualización de campos personalizados del proyecto '{%1}' fué grabado.";
 $TLS_audit_cfield_activated = "El Campo Personalizado '{%1}' se ha activado en el Proyecto '{%2}'";
 $TLS_audit_cfield_deactivated = "El Campo Personalizado '{%1}' se ha desactivado en el Proyecto '{%2}'";
+$TLS_audit_cfield_location_changed = "Custom field locations were saved on Test Project '{%1}'";
+$TLS_audit_cfield_monitorable_on = "Custom field '{%1}' was set MONITORABLE on Test Project '{%2}'";
+$TLS_audit_cfield_monitorable_off = "Custom field '{%1}' was set NOT MONITORABLE on Test Project '{%2}'";
+
 
 $TLS_audit_user_apikey_set = "La API-Key para '{%1}' se ha generado";
 $TLS_audit_user_saved = "El Usuario '{%1}' se ha guardado";

@@ -3258,6 +3258,10 @@ $TLS_audit_cfield_deactivated = "Benutzerdefiniertes Feld wurde deaktiviert";
 
 $TLS_audit_cfield_required_on = "Benutzerdefiniertes Feld '{%1}' wurde gesetzt auf REQUIRED im Test Projekt '{%2}'";
 $TLS_audit_cfield_required_off = "Benutzerdefiniertes Feld '{%1}' was gesetzt auf NOT REQUIRED im Test Projekt '{%2}'";
+$TLS_audit_cfield_location_changed = "Custom field locations were saved on Test Project '{%1}'";
+$TLS_audit_cfield_monitorable_on = "Custom field '{%1}' was set MONITORABLE on Test Project '{%2}'";
+$TLS_audit_cfield_monitorable_off = "Custom field '{%1}' was set NOT MONITORABLE on Test Project '{%2}'";
+
 $TLS_audit_user_apikey_set = "Der API-Key für '{%1}' wurde erzeugt";
 $TLS_audit_user_saved = "Der Benutzer '{%1}' wurde gespeichert";
 $TLS_audit_user_pwd_saved = "Das Passwort für Benutzer '{%1}' wurde gespeichert";

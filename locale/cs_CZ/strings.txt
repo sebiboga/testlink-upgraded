@@ -3459,6 +3459,10 @@ $TLS_audit_cfield_deactivated = "U�ivatelsk� pole '{%1}' bylo deaktivov�no
 
 $TLS_audit_cfield_required_on = "U�ivatelsk� pole '{%1}' bylo nastaveno na PO�ADOVAN� v testovac�m projektu '{%2}'";
 $TLS_audit_cfield_required_off = "U�ivatelsk� pole '{%1}' bylo nastaveno na NEPO�ADOVAN� v testovac�m projektu '{%2}'";
+$TLS_audit_cfield_location_changed = "Custom field locations were saved on Test Project '{%1}'";
+$TLS_audit_cfield_monitorable_on = "Custom field '{%1}' was set MONITORABLE on Test Project '{%2}'";
+$TLS_audit_cfield_monitorable_off = "Custom field '{%1}' was set NOT MONITORABLE on Test Project '{%2}'";
+
 
 
 $TLS_audit_user_apikey_set = "API-kl�c pro '{%1}' byl vygenerov�n";
