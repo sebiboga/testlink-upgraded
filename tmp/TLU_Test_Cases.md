@@ -5348,3 +5348,70 @@ returning the latest version (verified id 8 -> version node 9).
   "Login validation", doc id "1", version node 4) — spoofed values ignored.
 - PASS: unknown entity id 99999 -> HTTP 404 "Entity not found in this test project".
 - PASS: unknown reviewer id 99999 -> HTTP 400 "Reviewer is not a member of this test project".
+
+## Regression — Issue #1811: checkForBTSConnection() is dead code — legacy security notes never warn about a failing Bug Tracking System
+
+**Precondition**
+
+- Freshly imported TestLink at `http://localhost:8082` (PHP built-in server, docroot = repo
+  root), MariaDB `127.0.0.1:3306` db/user/password `testlink`. Login `admin/admin`.
+- Fixture `php tmp/fixtures_1811.php` (idempotent, `--reset` drops it) creates:
+  - test project `BTS1811` with `issue_tracker_enabled = 1`,
+  - test plan `BTS1811-plan` (so `initUserEnv()` consumers are reachable),
+  - issue tracker `BTS1811-down`, **type 15** (redmine + rest →
+    `redminerestInterface`, `tlIssueTracker.class.php:63-64`), `cfg` with
+    `<uribase>http://127.0.0.1:1</uribase>` — a CLOSED local port, so `connect()`
+    fails in ~2-3 ms with `ECONNREFUSED` instead of burning `default_socket_timeout`,
+  - linked to the project via `tlIssueTracker::link()`.
+- Optional (git-ignored) `custom_config.inc.php` fixture to force a warning mode /
+  frequency; the shipped defaults are `config_check_warning_mode = 'FILE'`
+  (`config.inc.php:361`) and `config_check_warning_frequence = 'ONCE_FOR_SESSION'`
+  (`config.inc.php:367`).
+- Harness `php tmp/verify_1811.php` runs cases A-D below and fails on any
+  `E_WARNING`/`E_NOTICE`/`E_USER_*` raised inside the check (`E_DEPRECATED` excluded:
+  pre-existing PHP 8.2 dynamic-property notices, filed as #1815).
+
+**Steps to reproduce (pre-fix)**
+
+1. `php tmp/fixtures_1811.php` — prints the linked tracker, then the four measurements.
+2. Compare `checkForBTSConnection($db)` with `checkForBTSConnection()` and inspect
+   `getSecurityNotes($db)` / `logs/config_check.txt`.
+
+**Pre-fix result (measured on `96bfc55c4`)**
+
+```
+checkForBTSConnection($db) = false  (2 ms)      <- DB fallback works …
+checkForBTSConnection()     = true   (0 ms)      <- … but this is what getSecurityNotes() passes
+getSecurityNotes($db) = array (6 notes, none of them the BTS one)
+RESULT: bts_connection_problems note present = false
+grep -ci "Bug Tracking System has failed" logs/config_check.txt -> 0
+```
+
+**Expected post-fix**
+
+`getSecurityNotes($db)` must contain `$TLS_bts_connection_problems`
+(`locale/en_US/strings.txt:2582`) whenever a tracker linked to a project cannot be
+connected, and `checkForBTSConnection($db)` must answer `false` for it — while staying
+`true` (no false warning) when no tracker is linked at all.
+
+**Actual result observed (post-fix, commit `c5206fd1e`)**
+
+| case | steps | expected | observed | verdict |
+|---|---|---|---|---|
+| A — no tracker linked | `DELETE FROM testproject_issuetracker` then run `tmp/verify_1811.php` case A | `checkForBTSConnection($db) === true`, no BTS note | `true`, no note | PASS |
+| B — linked tracker, connect() fails | relink `BTS1811-down`, run case B | `false`, note present, fast, no new `events` row | `false`, note present, **3 ms**, **0** new event rows | PASS |
+| C — linked tracker with unknown `type` | insert tracker id 9001 `type=98765` + link, run case C | degrades to "failed", **no** PHP warning, no 500 | `false`, **0** new event rows, no diagnostic | PASS |
+| D — shipped default mode `FILE` | run case D (`config_check_warning_mode = 'FILE'`) | note written to `logs/config_check.txt` | file written, `grep -ci` → 1 | PASS |
+| E — `GET /login.php` (anonymous) | clear `events`, load `login.php` | 200, no Error/Warning row | `200` in **0.073 s**, only INFO audit row `log_level=16 activity=LOGIN` | PASS |
+| F — legacy controller, logged in | Chrome as `admin`, `GET /lib/execute/execDashboard.php?tplan_id=8&tproject_id=7` with `config_check_warning_frequence='ALWAYS'`, mode `FILE` | `200`, note in `logs/config_check.txt`, no new Error/Warning from the change | `200` / 3 981 bytes, note present (`grep -c` → 1), **0** events matching `%configCheck%` or `%bts%` | PASS |
+| G — default `ONCE_FOR_SESSION` | same request without the frequency override | notes computed at most once per session | nothing written on the 2nd request (`$_SESSION['getSecurityNotesOnMainPageDone']`), as in 1.9.20 | PASS |
+| H — Event Viewer after the run | `SELECT * FROM events` | no Error/Warning attributable to the change | only 2 rows/request from `execDashboard.php:205-206` (pre-existing, no builds in the fixture) → filed as **#1813** | PASS (no regression) |
+
+**Regression: ALL PASS (8/8 cases).** Fixture row ids used above: test project 7,
+test plan 8, issue tracker 9003.
+
+**Known limitation (documented, not a regression)**: the note is *computed* but not
+*displayed* — `mainPage.tpl:83` is the only legacy renderer and `mainPage.php` was
+replaced by `gui/templates/mainpage/mainPage.html`; the modern Home screen has no
+config-check banner. Filed as **#1814** (enhancement). Unrelated pre-existing PHP 8.2
+`E_DEPRECATED` dynamic-property notices → **#1815**.

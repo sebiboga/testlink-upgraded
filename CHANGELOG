@@ -17,6 +17,20 @@ Every screen of the application was ported one-by-one in a screen-compare
 kept for backward compatibility and is progressively retired as each modern
 screen reaches full parity.
 
+- [KEY BUGFIX] - #1811: **the legacy `bts_connection_problems` security note can fire again.**
+  `getSecurityNotes()` called `checkForBTSConnection()` with no argument, and the function answers
+  "connection OK" unconditionally without a DB handle (`lib/functions/configCheck.php:351-353`),
+  so since `$g_bugInterface` was dropped from the tree the note was unreachable from every caller
+  (`login.php:230`, `initUserEnv()` at `common.php:1858`). A DB-driven fallback already existed
+  inside the function (commit `c21cbedd9`, never documented) but was dead code because the caller
+  refused to pass the handle it already holds. Fix: `checkForBTSConnection($db)` at
+  `lib/functions/configCheck.php:281`. Verified: linked-but-unreachable tracker -> `false` in 3 ms
+  and the note appears in `getSecurityNotes()` and in `logs/config_check.txt` (shipped `FILE` mode);
+  no linked tracker -> still `true`, no false warning; unknown tracker `type` -> degrades to
+  "failed" with zero `events` rows. Discovered while testing and filed separately: #1813
+  (`execDashboard.php:205-206` E_WARNING without builds), #1814 (nothing renders config-check notes
+  any more), #1815 (PHP 8.2 dynamic-property deprecations).
+
 - [KEY BUGFIX] (security) - #1808: **the read-only Execution Notes fragment is now same-origin on
   BOTH of the entry points that produce it.** The #1807 fix had closed the IDOR and the stored
   RichEdit XSS, but `api/execnotesreadonly/index.php` exposes `?action=fragment` as a public route
