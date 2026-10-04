@@ -395,11 +395,19 @@ if ($action === 'save') {
         }
         if (isset($row['location'])) {
             $v = intval($row['location']);
-            if (isset($locationCodes[$v])
-                && intval($linkedRaw[$id]['location'] ?? 0) != $v) {
-                $changed['location']++;
+            /* Only ever write a code the screen can actually produce: one of
+               the eight cfield_mgr::$locations['testcase'] values AND a field
+               that supports a location (design-time test case). Without the
+               second half a crafted row could set a location on, say, an
+               execution-only field, which the UI never offers. */
+            $supportsLocation = ($linkedRaw[$id]['node_description'] ?? '') === 'testcase'
+                                && intval($linkedRaw[$id]['enable_on_execution'] ?? 0) === 0;
+            if (isset($locationCodes[$v]) && $supportsLocation) {
+                if (intval($linkedRaw[$id]['location'] ?? 0) != $v) {
+                    $changed['location']++;
+                }
+                $location[$id] = $v;
             }
-            $location[$id] = $v;
         }
         foreach (array_keys($desired) as $attr) {
             if (isset($row[$attr])) { $desired[$attr][$id] = $row[$attr] ? 1 : 0; }
