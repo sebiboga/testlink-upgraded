@@ -170,6 +170,37 @@ function minutesToHHMMSS($minutes) {
     return sprintf('%02d:%02d:%02d', $hh, $mm, $ss);
 }
 
+// Bare "view bug in the tracker" URL for one issue (Refs #1837).
+//
+// get_bugs_for_exec() (lib/functions/exec.inc.php:449-453) hands back
+// issueTrackerInterface::buildViewBugLink()->link, which is an HTML FRAGMENT
+// ("<div style=background...><a href='URL' ...>label</a></div>"), not a URL -
+// legacy echoed it as HTML (lib/results/resultsBugs.php:204). A screen that
+// builds an <a href> needs the URL on its own, and the interface exposes it
+// separately: issueTrackerInterface::buildViewBugURL() (line 485), which every
+// tracker inherits or overrides.
+//
+// $linkHtml is only a fallback for interfaces that do not provide the URL
+// method (the demo stub mantisrestInterface::buildViewBugLink() returns a bare
+// URL string instead of an object - see
+// lib/issuetrackerintegration/mantisrestInterface.class.php:105-108).
+function bugViewUrl($its, $bugId, $linkHtml = '') {
+    if (is_object($its) && method_exists($its, 'buildViewBugURL')) {
+        try {
+            $url = trim(strval($its->buildViewBugURL($bugId)));
+            if ($url !== '') {
+                return $url;
+            }
+        } catch (Throwable $e) {
+            // Tracker-specific failure: fall through to the fragment below.
+        }
+    }
+    if (is_string($linkHtml) && preg_match('/href=[\'"]([^\'"]+)[\'"]/i', $linkHtml, $m)) {
+        return html_entity_decode($m[1], ENT_QUOTES);
+    }
+    return '';
+}
+
 $tprojectId = intval(getParam('tproject_id', 0));
 $tplanId = intval(getParam('tplan_id', 0));
 $action = getParam('action');
@@ -4036,7 +4067,12 @@ if ($action === 'results_bugs') {
                     }
                     $bugUrls[] = [
                         'bug_id' => $bugId,
+                        // Legacy HTML fragment, kept verbatim for HTML consumers
+                        // (same shape as the by_status action).
                         'link' => $bugInfo['link_to_bts'],
+                        // Bare tracker URL for <a href> consumers - the fragment
+                        // above is HTML and must never be used as a URL (Refs #1837).
+                        'url' => bugViewUrl($its, $bugId, $bugInfo['link_to_bts'] ?? ''),
                         'is_resolved' => (bool)$bugInfo['isResolved'],
                         'build_name' => $bugInfo['build_name'] ?? '',
                     ];

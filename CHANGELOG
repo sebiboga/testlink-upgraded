@@ -7894,6 +7894,15 @@ Changes:
       project tables and added user metrics to the middle section
 
 ## 2.0.1 (in-progress)
+### KEY BUGFIX — Results by Issues: every bug in the Bugs column linked to a dead percent-encoded-HTML URL instead of the tracker bug page (Fixes #1837)
+- `api/reports/index.php` (`action=results_bugs`): new helper `bugViewUrl()` exposes the tracker's
+  **bare** view URL (`issueTrackerInterface::buildViewBugURL()`, with a `method_exists()` +
+  `Throwable` guard and an href-extraction fallback) as a new `bugs[].url` field. The legacy
+  `bugs[].link` HTML fragment (`buildViewBugLink()`) is kept verbatim for HTML consumers.
+- `gui/templates/results/resultsBugs.html`: `renderBugLinks()` builds `href` from `url` behind a
+  `safeHttpUrl()` scheme guard (`http(s)://`, `//host`, `/path`), adds `rel="noopener"`, and
+  degrades to plain text when no usable URL exists — the report's main column (measured: 3/3 bug
+  links resolved to an HTTP 404) is clickable again. No legacy `lib/` file changed.
 ### Requirement Specification launcher (test project) `projectReqSpecMgmt` (Refs #1833)
 - New Dashio screen `gui/templates/requirements/projectReqSpecMgmt.html` + BFF
   `api/projectreqspecmgmt/index.php` (`GET ?action=init[&tproject_id=N]`) replacing the

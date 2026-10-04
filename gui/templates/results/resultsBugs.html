@@ -117,6 +117,17 @@ function esc(s) {
   if (!s) return '';
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
+// Only absolute http(s) and site-relative URLs may become an href - guards
+// against HTML/markup ever being pasted into an attribute (Refs #1837).
+function safeHttpUrl(u) {
+  if (typeof u !== 'string') return '';
+  var s = u.trim();
+  if (s === '') return '';
+  if (/^https?:\/\//i.test(s)) return s;
+  if (/^\/\//.test(s)) return s;
+  if (/^\//.test(s)) return s;
+  return '';
+}
 function toast(msg, isErr) {
   var $t = $('#toast').text(msg).show();
   if (isErr) $t.addClass('err'); else $t.removeClass('err');
@@ -132,8 +143,15 @@ function renderBugLinks(bugs) {
   var html = '';
   bugs.forEach(function(b) {
     var cls = b.is_resolved ? 'bug-link resolved' : 'bug-link';
-    html += '<a href="' + esc(b.link) + '" target="_blank" class="' + cls + '">' +
-            '<i class="fa fa-bug" style="margin-right:2px;"></i>' + esc(b.bug_id) + '</a><br>';
+    var label = '<i class="fa fa-bug" style="margin-right:2px;"></i>' + esc(b.bug_id);
+    // bugs[].link is the tracker HTML fragment (legacy buildViewBugLink) and
+    // bugs[].url is the bare tracker URL - the fragment must never end up in
+    // an href (Refs #1837). Anything that is not http(s)/relative is shown
+    // as plain text instead of a dead link.
+    var href = safeHttpUrl(b.url);
+    html += (href
+      ? '<a href="' + esc(href) + '" target="_blank" rel="noopener" class="' + cls + '">' + label + '</a>'
+      : '<span class="' + cls + '">' + label + '</span>') + '<br>';
   });
   return html;
 }
