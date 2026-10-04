@@ -6208,3 +6208,79 @@ Login `admin/admin`. Screen: `http://localhost:8082/gui/templates/requirements/r
 | 1691-2 | Reorder the spec (move TR1-3 to top) via POST `action=reorder` with all 3 requirement ids in the new order | Returns `{"status":"ok", ... "reordered": 3}` or `no_change` as appropriate, but no 400 error about duplicate ids. The reordered set matches the submitted list. | POST succeeds (no 400). The backend accepts the complete ordered list of distinct requirement ids. | PASS |
 | 1691-3 | Verify the list only shows each requirement once even though multiple version nodes exist (VN.id 7 and 12 for req 6) | Only one row per requirement in the UI/API response. | One row for id 6, one for 8, one for 10. | PASS |
 
+---
+
+## Regression — Issue #1835: `searchReqSpec.html` toolbar rendered the raw key `rssf.criteria` in all 10 locales
+
+**Precondition**
+
+```bash
+# fresh DB every run -> (re)import the fixture that creates tproject 9081
+mysql -h 127.0.0.1 -utestlink -ptestlink testlink < tmp/fixtures_1081.sql
+# app: http://localhost:8082/index.php   login admin/admin
+```
+
+**Repro steps (pre-fix behaviour)**
+
+1. Log in `admin`/`admin` at `http://localhost:8082/index.php`.
+2. Open `http://localhost:8082/gui/templates/requirements/searchReqSpec.html?tproject_id=9081`.
+3. Read the left button of the dark toolbar.
+
+**Result pre-fix** — the raw key was painted as the visible label:
+
+```
+uid=1_9 button " rssf.criteria"      <-- expected "Criteria form"
+uid=1_10 button "  Reset"             <-- sibling button WAS translated
+```
+
+Root cause: `gui/templates/requirements/searchReqSpec.html:69` declares
+`data-i18n="rssf.criteria"`, but the key existed in **0 of the 10** bundles
+(`de,en,es,fr,it,ja,pt,ro,ru,zh`). `gui/templates/i18n/i18n.js:175` is
+`var str = _strings[key] || key;` — a miss returns the key itself — and `apply()`
+(`i18n.js:190-193`) overwrites `textContent` unconditionally, so the inline English
+`Criteria form` in the markup was dead code.
+
+**Expected post-fix** — a localized label in every locale, and never the raw key.
+
+**Test cases executed**
+
+| # | Step | Expected | Actual result |
+|---|---|---|---|
+| 1 | key-coverage script over the 21 distinct `data-i18n` keys of `searchReqSpec.html` vs `en.json` | `MISSING in en.json: []` | PASS — was `MISSING in en.json: ['rssf.criteria']` |
+| 2 | same coverage check against the other 9 bundles (JSON parser, not grep) | key present in 10/10 | PASS — `de,en,es,fr,it,ja,pt,ro,ru,zh` → all `true` (in-page `fetch`) |
+| 3 | `python3 -m json.tool` on all 10 touched bundles | exit 0 for every file | PASS — `JSON OK` × 10 |
+| 4 | a11y snapshot of the toolbar, locale `en` | `button " Criteria form"`, no `rssf.criteria` in the tree | PASS — `uid=5_26 button " Criteria form"` |
+| 5 | repeat with `&locale=ro` | Romanian label, no raw key | PASS — `Formular de criterii`, `rawKeyVisible: false` |
+| 6 | `&locale=de` | German label | PASS — `Kriterienformular`, `rawKeyVisible: false` |
+| 7 | `&locale=fr` | French label | PASS — `Formulaire de critères` |
+| 8 | `&locale=es` | Spanish label | PASS — `Formulario de criterios` |
+| 9 | `&locale=it` | Italian label | PASS — `Modulo criteri` |
+| 10 | `&locale=pt` | Portuguese label | PASS — `Formulário de critérios` |
+| 11 | `&locale=ru` | Russian label | PASS — `Форма критериев` |
+| 12 | `&locale=ja` | Japanese label | PASS — `検索フォーム` |
+| 13 | `&locale=zh` | Chinese label | PASS — `搜索条件表单` |
+| 14 | regression — diff each bundle against `HEAD` (parsed JSON) | exactly 1 key added, 0 removed, 0 modified, +1 line | PASS — 10/10 `added=['rssf.criteria'] removed=[] changed=[] lines +1` |
+| 15 | regression — click the button (`openCriteriaForm()`) | still navigates to the criteria form | PASS — navigated to `…/requirements/reqSpecSearchForm.html?tproject_id=9081` |
+| 16 | regression — authenticated render of the whole screen | header, project name, Type dropdown and the 2 toolbar buttons all translated | PASS — title `Footer Fixture Project - Search Requirement Specifications`, project name + Type options populated from the BFF |
+| 17 | console after the pass | no new error/warning | PASS — 0 console errors on the authenticated page |
+| 18 | `events` table after the pass | no new Error/Warning | PASS — 1 row only, `log_level 16` (AUDIT) `audit_login_succeeded`; 0 Error/Warning |
+
+**Notes**
+
+- The `ro` value is deliberately diacritic-free (`Formular de criterii`): all 48 pre-existing
+  `rssf.*` keys of `ro.json` omit diacritics, and `formular`/`criterii` need none in Romanian.
+  The whole `ro.json` bundle *does* use diacritics elsewhere (3329 of 6697) — the `rssf`
+  namespace is the outlier, and the new key follows the namespace.
+- The locale switcher offers 16 locales but only 10 bundles exist (`cs, fi, id, ko, nl, pl`
+  fall back to `en`). Pre-existing behaviour, out of scope here; the 6 bundle-less locales
+  now render "Criteria form" via the `en` fallback instead of a raw key, so they improve too.
+- The bug was invisible to the Event Viewer and the console: nothing threw — `t()` simply
+  returned its input. Only the rendered DOM and the key-coverage check expose it.
+
+**RESUME**
+
+```bash
+mysql -h 127.0.0.1 -utestlink -ptestlink testlink < tmp/fixtures_1081.sql
+# http://localhost:8082/gui/templates/requirements/searchReqSpec.html?tproject_id=9081&locale=en
+```
+- [PASS] Merge-base gate: `TLU_REQUIRE_SUITE="Issue #1835" bash ai/verify_test_suites.sh`
