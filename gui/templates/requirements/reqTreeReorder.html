@@ -177,12 +177,35 @@ var BUSY = false;
 
 // Build the back target from the URL params SYNCHRONOUSLY, before any API
 // call: the escape hatch must work on the error path, and this template is a
-// static file so no server-side value can be baked in.
+// static file so no server-side value can be baked in. Refs #1690.
 function buildBackLink() {
-  var tp = TPROJECT_ID > 0 ? TPROJECT_ID : 0;
+  // The project the user actually opened THIS page with always wins - it is the
+  // only source that cannot be stale. A NaN tproject_id (?tproject_id=abc)
+  // fails the >0 test and therefore falls through to the referrer, which is the
+  // right answer instead of the id-less screen.
+  var tp = TPROJECT_ID > 0 ? TPROJECT_ID : referrerTprojectId();
   $('#backLink').attr('href', tp > 0
     ? '/gui/templates/requirements/reqSpecMgmt.html?tproject_id=' + tp
     : '/gui/templates/requirements/reqSpecMgmt.html');
+}
+
+// Last resort when the URL carries no project (load() then paints
+// MISSING_TPROJECT). The id-less reqSpecMgmt.html is a dead end of its own: it
+// reads the project from the URL only and has NO project selector, so it
+// renders "Test Project: -" with every dropdown empty and the user cannot
+// recover. When this screen was reached from a test project, that project's
+// tproject_id is the honest "back" target - so read it out of the referrer.
+// Same-origin ONLY: a foreign referrer could name any project, and pointing the
+// escape hatch at another project is exactly the bug #1690 was filed for. No
+// usable referrer leaves the id-less href in place, i.e. the previous behaviour.
+function referrerTprojectId() {
+  var ref = document.referrer;
+  if (!ref) { return 0; }
+  var a = document.createElement('a');
+  a.href = ref;
+  if (a.origin !== window.location.origin) { return 0; }
+  var tp = parseInt(new URLSearchParams(a.search).get('tproject_id') || '0', 10);
+  return tp > 0 ? tp : 0;
 }
 
 $(function () {
