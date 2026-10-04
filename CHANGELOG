@@ -117,6 +117,22 @@ screen reaches full parity.
   with Name, URL prefill, Reset, BFF matrix, Event Viewer clean, console clean).
   Regression suite "Task — Issue #1077" appended to `tmp/TLU_Test_Cases.md`. (Refs #1077)
 
+- [KEY BUGFIX] - #1835: **the Search Requirement Specifications toolbar rendered the raw i18n key
+  `rssf.criteria` instead of a label, in all 10 locales.** `searchReqSpec.html:69` declares
+  `data-i18n="rssf.criteria"` for the *Criteria form* button, but that key was never added to any
+  bundle (0/10 - the `rssf` namespace itself exists with 48 keys; this single key was forgotten by
+  the #1825 modernization). `TLi18n.t()` returns the key itself on a lookup miss
+  (`gui/templates/i18n/i18n.js:175`) and `apply()` overwrites `textContent` unconditionally
+  (`:190-193`), so the inline English `Criteria form` fallback in the markup was dead code and the
+  literal string was painted into the toolbar for every user in every locale. Fix: the missing key
+  added to all 10 bundles (en/de/es/fr/it/ja/pt/ro/ru/zh), inserted alphabetically between
+  `rssf.contextCaption` and `rssf.criteriaCaption` via a line-level insert so the shared bundles
+  keep a 1-line diff; terminology follows each bundle's own sibling `rssf.*` keys, and `ro.json`
+  keeps the namespace's diacritic-free convention. Verified: button reads "Criteria form" (en) and
+  the localized label in all 10 locales with no raw key in the DOM, all 21 keys of the screen
+  resolve, every touched bundle passes `python3 -m json.tool`, +1/-0 per file, the button still
+  navigates to `reqSpecSearchForm.html`, and no new Error/Warning in `events`. (Refs #1835)
+
 - [KEY BUGFIX] - #1811: **the legacy `bts_connection_problems` security note can fire again.**
   `getSecurityNotes()` called `checkForBTSConnection()` with no argument, and the function answers
   "connection OK" unconditionally without a DB handle (`lib/functions/configCheck.php:351-353`),

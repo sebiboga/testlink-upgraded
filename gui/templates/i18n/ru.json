@@ -4290,6 +4290,7 @@
   "rssf.badRequestTitle": "Неверный запрос",
   "rssf.close": "Закрыть",
   "rssf.contextCaption": "Контекст",
+  "rssf.criteria": "Форма критериев",
   "rssf.criteriaCaption": "Критерии поиска",
   "rssf.customField": "Пользовательское поле",
   "rssf.customFieldValue": "Значение пользовательского поля",
