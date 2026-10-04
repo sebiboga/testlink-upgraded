@@ -97,7 +97,9 @@ $specB = addNode($db, $nhTable, $specA, 'requirement_spec', 'Functional Specific
 addNode($db, $nhTable, $specA, 'requirement', 'REQ-001 The cart keeps its contents', $tprojectId);
 addNode($db, $nhTable, $specB, 'requirement', 'REQ-002 The payment is confirmed', $tprojectId);
 
-// A requirement_version node directly under a requirement: it must NOT be
-// counted as a requirement by the BFF counters.
-addNode($db, $nhTable, $specA, 'requirement', 'REQ-003 Has a version node', $tprojectId);
+// A third requirement, to prove the counter reports 3 rather than 2 (a
+// requirement_version node is a DIFFERENT node type and is correctly never
+// counted as a requirement, which is why none is planted here - planting one
+// through this helper would require a version node parented on a requirement).
+addNode($db, $nhTable, $specA, 'requirement', 'REQ-003 The order is confirmed', $tprojectId);
 echo "fixture #1833 ready: project {$tprojectId}, 2 specs, 3 requirements\n";

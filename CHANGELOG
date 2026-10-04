@@ -7853,6 +7853,43 @@ Changes:
       project tables and added user metrics to the middle section
 
 ## 2.0.1 (in-progress)
+### Requirement Specification launcher (test project) `projectReqSpecMgmt` (Refs #1833)
+- New Dashio screen `gui/templates/requirements/projectReqSpecMgmt.html` + BFF
+  `api/projectreqspecmgmt/index.php` (`GET ?action=init[&tproject_id=N]`) replacing the
+  46-line `lib/project/project_req_spec_mgmt.php` +
+  `gui/templates/dashio/requirements/project_req_spec_mgmt.tpl`; the legacy controller is
+  now a session-guarded 302 shim. It was the **last** project-scoped legacy controller
+  left in the Requirements area - the sibling requirement-module entry point
+  (`requirements/reqSpecMgmt.html`) is a different screen and was already modernized.
+- Legacy parity 1:1: `pageAccessCheck` with `rightsOr = [mgt_view_req, mgt_modify_req]`,
+  and the same per-button gating (New / Reorder / Import on `mgt_modify_req`, Export
+  always). A card the user may not use renders **locked** rather than vanishing, so the
+  page does not change shape with the role while staying unclickable.
+- Adds what the legacy screen never had: specification / requirement counter tiles and a
+  warning when Requirements are disabled for the project. The counters read
+  `nodes_hierarchy` once and walk down from the project root in PHP (one query per node
+  would be an N+1 over every requirement in the installation) and never mistake a
+  `requirement_version` node for a requirement.
+- Hardening: the addressed project must exist (404 instead of an empty launcher) and the
+  four action URLs are built **server-side** from validated ids, so the screen cannot be
+  talked into linking to a foreign project.
+- 2.0.1 schema traps found and handled: `testprojects.option_reqs` is a **dead column**
+  (live flags are the serialized `testprojects.options` blob via
+  `testproject::getOptions()`), `testproject::create()` does not apply `$item->options`
+  (you must call `setOptions()` after, as `projectEdit.php` does), and the project name
+  lives in `nodes_hierarchy`, not `testprojects`.
+- 29 `prsm.*` keys + `footers.projectReqSpecMgmt` in **all 10** locale bundles;
+  `$actions->projectReqSpecMgmt` in `lib/functions/common.php`; suite
+  `Issue #1833` (15 steps incl. the full rights matrix) in `tmp/TLU_Test_Cases.md`.
+- Bug found by the mandatory Event Viewer pass and fixed here: the access denial was
+  logged with `logLevel = 'SECURITY'`, a level `logger.class.php` does not define, so it
+  raised `Undefined array key "SECURITY"` and wrote a malformed event on **every** denial;
+  it is now audited as `AUDIT`, like every other BFF. Filed as **#1834**:
+  `requirement_mgr` raises the same class of `foreach()`-on-null E_WARNING (lines 643 and
+  664) whenever a requirement has no versions - pre-existing legacy defect, filed, not
+  fixed here.
+- Docs mirror `docs/modernization/requirements/projectReqSpecMgmt.md` + GitHub Wiki page.
+  Suite: see `tmp/TLU_Test_Cases.md`. Tracking issue #1833, bug #1834.
 ### Custom Fields — Assign to Test Project `cfieldsTprojectAssign` (Refs #1816)
 - New Dashio screen `gui/templates/cfields/cfieldsTprojectAssign.html` + BFF
   `api/cfieldstproject/index.php` (`GET ?action=init|projects`,

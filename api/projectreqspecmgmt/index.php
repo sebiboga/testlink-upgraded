@@ -120,26 +120,6 @@ function nodeTypes($db, $T): array
     return $types;
 }
 
-/** Walk up nodes_hierarchy until the `testproject` node is reached. */
-function projectRootOf($db, $T, int $nodeId): int
-{
-    $ntProject = (int)(nodeTypes($db, $T)['testproject'] ?? 0);
-    $current = (int)$nodeId;
-    $guard = 0;
-    while ($current > 0 && $guard < 64) {
-        $row = firstRow($db, "SELECT id, node_type_id, parent_id FROM {$T['nodes_hierarchy']} WHERE id=" . (int)$current);
-        if (!$row) {
-            return 0;
-        }
-        if ($ntProject > 0 && (int)$row['node_type_id'] === $ntProject) {
-            return (int)$row['id'];
-        }
-        $current = (int)$row['parent_id'];
-        $guard++;
-    }
-    return 0;
-}
-
 try {
     /* ------------------------------------------------------------------ */
     /* GET ?action=init                                                    */
@@ -163,12 +143,12 @@ try {
     $canModify = (bool)$user->hasRight($db, 'mgt_modify_req', $tprojectId);
     $canView = (bool)$user->hasRight($db, 'mgt_view_req', $tprojectId);
     if (!$canModify && !$canView) {
+        // logger.class.php only knows DEBUG/INFO/WARNING/ERROR/AUDIT/L18N -
+        // there is no SECURITY level, so passing one raises "Undefined array
+        // key" (logging.inc.php:105) on every denial. Every other BFF audits a
+        // denied read as AUDIT.
         $event = new stdClass();
         $event->message = 'Access denied to projectReqSpecMgmt (tproject=' . $tprojectId . ')';
-        // logger.class.php only knows DEBUG/INFO/WARNING/ERROR/AUDIT/L18N;
-        // there is no SECURITY level, so passing one raises
-        // "Undefined array key" (logging.inc.php:105) on every denial.
-        // Every other BFF audits an access denial as AUDIT.
         $event->logLevel = 'AUDIT';
         $event->source = 'GUI';
         $event->objectID = $tprojectId;
@@ -196,7 +176,6 @@ try {
     $nt = nodeTypes($db, $T);
     $ntSpec = (int)($nt['requirement_spec'] ?? 0);
     $ntReq = (int)($nt['requirement'] ?? 0);
-    $ntRev = (int)($nt['requirement_version'] ?? 0);
 
     // Counters. nodes_hierarchy has NO project column, so ownership has to be
     // derived from the parent chain. Doing that with one query per node (an
