@@ -203,6 +203,30 @@ function criteriaQuery() {
   return q;
 }
 
+var INIT_KEYS = ['doc_id','name','reqSpecType','scope','log_message',
+                 'custom_field_id','custom_field_value'];
+
+/** Query for the FIRST /init call.
+ *
+ * The controls are still empty when load() runs, so criteriaQuery() would send
+ * an empty form and a deep link such as
+ * reqSpecSearchForm.html?tproject_id=1&doc_id=TL-9 would open BLANK. The
+ * criteria of a bookmark therefore travel with the init request; the BFF trims
+ * and length-caps them and echoes them back, and renderForm() fills the form
+ * from that echo - the pre-filled value is always exactly what the server
+ * accepted, never a client-side copy that could drift.
+ */
+function initQuery() {
+  var q = new URLSearchParams();
+  q.set('tproject_id', tprojectId);
+  var src = new URLSearchParams(window.location.search);
+  for (var i = 0; i < INIT_KEYS.length; i++) {
+    var v = src.get(INIT_KEYS[i]);
+    if (v !== null && $.trim(v) !== '') { q.set(INIT_KEYS[i], v); }
+  }
+  return q;
+}
+
 function doSearch() {
   if (!CTX) { toast(t('serverErrorTitle'), true); return; }
   var q = criteriaQuery();
@@ -320,7 +344,7 @@ function load() {
   }
   $('#btnFind,#btnResults').prop('disabled', true);
 
-  var q = criteriaQuery().toString();
+  var q = initQuery().toString();
   $.getJSON(API + '?action=init&' + q)
     .done(function (r) {
       if (r.status !== 'ok') { toast(t('serverErrorTitle'), true); return; }
