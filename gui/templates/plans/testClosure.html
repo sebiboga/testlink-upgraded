@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Test Closure</title>
+<!--
+  Test Closure screen (Refs #1278, ISTQB closure phase from #1054).
+  Dashio standalone page backed by api/testclosure. TestLink 1.9.20 has no
+  closure twin, so this ports the ISTQB closure activities onto the test plan:
+  lessons-learned register (CRUD), closure checklist + summary + archive
+  reference, a printable closure report summarizing the plan outcome, and the
+  closure state that FREEZES the plan results when closed.
+-->
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; color: #0d3f3c; margin-left: 12px; }
+.tiles { display: flex; gap: 16px; padding: 18px 24px 0; flex-wrap: wrap; }
+.tile { flex: 0 0 150px; background: #fff; border-radius: 8px; padding: 14px 18px; box-shadow: 0 1px 4px rgba(0,0,2,.08); border-left: 5px solid #4ECDC4; }
+.tile .num { font-size: 26px; font-weight: 700; color: #22242a; }
+.tile .lbl { font-size: 12px; color: #777; text-transform: uppercase; letter-spacing: .5px; }
+.tile.pct { border-left-color: #3aa89f; }
+.tile.pass { border-left-color: #2f9e44; }
+.tile.fail { border-left-color: #e05c5c; }
+.tile.bugs { border-left-color: #e6b34d; }
+.tile.lessons { border-left-color: #7a6ad8; }
+.closure-banner { margin: 16px 24px 0; padding: 12px 18px; border-radius: 8px; font-size: 13px; display: none; }
+.closure-banner.open { display: block; background: #eef7f7; border-left: 5px solid #4ECDC4; color: #234; }
+.closure-banner.closed { display: block; background: #fdecec; border-left: 5px solid #e05c5c; color: #5a2222; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 16px; }
+.toolbar label { color: #bbb; font-size: 12px; margin: 0 4px 0 8px; }
+.toolbar select { background: #2f323a; color: #eee; border: 1px solid #444; border-radius: 4px; padding: 5px 8px; font-size: 12px; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-dark { background: #2f323a; color: #eee; border: 1px solid #444; padding: 7px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+.btn-dark:hover { background: #3a3e48; }
+.btn-danger { background: #e05c5c; color: #fff; border: none; padding: 7px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-danger:hover { background: #c94c4c; }
+.btn-teal:disabled, .btn-danger:disabled, .btn-dark:disabled { opacity: .45; cursor: not-allowed; }
+.panel { margin: 20px 24px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 18px 20px; }
+.panel h3 { font-size: 15px; font-weight: 700; color: #22242a; margin: 0 0 14px 0; }
+.panel h3 i { color: #4ECDC4; margin-right: 8px; }
+.table-wrap { padding: 0 24px 20px; }
+table.dataTable thead th { background: #22242a; color: #fff; font-size: 13px; padding: 10px 14px; }
+table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: middle; }
+table.dataTable tbody tr { background: #fff; }
+.badge-cat { padding: 2px 9px; border-radius: 3px; font-size: 11px; font-weight: 700; color: #fff; }
+.badge-cat.worked_well { background: #2f9e44; }
+.badge-cat.needs_improvement { background: #e6b34d; }
+.badge-cat.to_repeat { background: #3aa89f; }
+.badge-cat.to_avoid { background: #e05c5c; }
+.badge-cat.other { background: #2f323a; }
+.badge-state { padding: 2px 9px; border-radius: 3px; font-size: 11px; font-weight: 700; color: #fff; }
+.badge-state.closed { background: #e05c5c; }
+.badge-state.open { background: #3aa89f; }
+.action-btn { cursor: pointer; border: none; background: none; padding: 0; margin-right: 10px; font-size: 14px; color: #4ECDC4; }
+.action-btn:hover { color: #2d8e88; }
+.action-btn.del { color: #e05c5c; }
+.action-btn.del:hover { color: #b44444; }
+.empty-state { padding: 34px; text-align: center; color: #888; font-size: 14px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+.dataTables_wrapper .dataTables_paginate .paginate_button.current { background: #4ECDC4 !important; color: #fff !important; border: none !important; }
+.dataTables_wrapper .dataTables_filter input { border: 1px solid #ddd; border-radius: 4px; padding: 4px 8px; }
+.checklist-row { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #444; margin-bottom: 7px; }
+.checklist-row input { width: 15px; height: 15px; }
+.report-grid { display: flex; gap: 24px; flex-wrap: wrap; }
+.report-grid > div { flex: 1 1 300px; }
+.form-row { margin-bottom: 12px; }
+.form-row label { display: block; font-size: 12px; color: #555; margin-bottom: 4px; font-weight: 600; }
+.form-row input[type=text], .form-row select, .form-row textarea { width: 100%; border: 1px solid #ddd; border-radius: 4px; padding: 7px 9px; font-size: 13px; }
+.form-row textarea { resize: vertical; min-height: 80px; }
+.modal-content { border-radius: 8px; }
+.modal-header { background: #22242a; color: #fff; border-radius: 8px 8px 0 0; }
+.modal-header .close { color: #fff; opacity: .8; }
+.modal-title { font-size: 15px; font-weight: 700; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 18px; border-radius: 6px; font-size: 13px; z-index: 2000; display: none; }
+.toast.err { background: #e05c5c; }
+.toast.ok { background: #3aa89f; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
+/* ------- printable closure report ------- */
+#printArea { display: none; }
+@media print {
+  body { background: #fff; }
+  .header, .tiles, .closure-banner, .toolbar, .panel, .table-wrap, .footer, .toast { display: none !important; }
+  #printArea { display: block; padding: 0; font-family: 'Ruda', sans-serif; color: #111; }
+  #printArea h1 { font-size: 20px; margin: 0 0 4px 0; }
+  #printArea h2 { font-size: 14px; margin: 16px 0 6px 0; border-bottom: 1px solid #999; padding-bottom: 3px; }
+  #printArea table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  #printArea th, #printArea td { border: 1px solid #999; padding: 4px 6px; text-align: left; }
+  #printArea th { background: #eee; }
+  #printArea .meta { font-size: 12px; color: #444; }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span data-i18n="closure.title">Test Closure</span>
+  <span class="sub" data-i18n="closure.subtitle">closure phase: lessons learned, checklist, closure report</span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="closure-banner" id="closureBanner"></div>
+
+<div class="tiles">
+  <div class="tile"><div class="num" id="tileAssigned">0</div><div class="lbl" data-i18n="closure.tileAssigned">Test Cases</div></div>
+  <div class="tile pct"><div class="num" id="tileExec">0%</div><div class="lbl" data-i18n="closure.tileExecuted">Executed</div></div>
+  <div class="tile pass"><div class="num" id="tilePassed">0</div><div class="lbl" data-i18n="closure.tilePassed">Passed</div></div>
+  <div class="tile fail"><div class="num" id="tileFailed">0</div><div class="lbl" data-i18n="closure.tileFailed">Failed</div></div>
+  <div class="tile bugs"><div class="num" id="tileBugs">0</div><div class="lbl" data-i18n="closure.tileBugs">Bugs Linked</div></div>
+  <div class="tile lessons"><div class="num" id="tileLessons">0</div><div class="lbl" data-i18n="closure.tileLessons">Lessons</div></div>
+</div>
+
+<div class="toolbar">
+  <button class="btn-teal" id="btnNew" onclick="openLessonModal(0)"><i class="fa fa-plus"></i> <span data-i18n="closure.newLesson">Add Lesson Learned</span></button>
+  <button class="btn-dark" onclick="loadAll()"><i class="fa fa-refresh"></i> <span data-i18n="common.refresh">Refresh</span></button>
+  <button class="btn-dark" id="btnSaveClosure" onclick="saveClosure()"><i class="fa fa-save"></i> <span data-i18n="closure.saveClosure">Save Closure Data</span></button>
+  <button class="btn-dark" id="btnPrint" onclick="printReport()"><i class="fa fa-print"></i> <span data-i18n="closure.printReport">Closure Report</span></button>
+  <span style="flex:1"></span>
+  <label data-i18n="closure.filterCategory">Category</label>
+  <select id="fCategory" onchange="loadLessons()"><option value="" data-i18n="closure.allCategories">All categories</option></select>
+  <span id="planInfo" style="color:#aaa;font-size:12px;"></span>
+  <button class="btn-danger" id="btnClose" onclick="toggleClosure()"><i class="fa fa-lock"></i> <span id="btnCloseLabel" data-i18n="closure.closePlan">Close Test Plan</span></button>
+</div>
+
+<!-- Lessons learned -->
+<div class="panel">
+  <h3><i class="fa fa-lightbulb"></i><span data-i18n="closure.lessonsTitle">Lessons Learned</span></h3>
+</div>
+<div class="table-wrap">
+  <div id="emptyState" class="empty-state" style="display:none;" data-i18n="closure.noLessons">No lessons learned recorded for this test plan yet.</div>
+  <table id="lessonTable" class="display" style="width:100%">
+    <thead>
+      <tr>
+        <th data-i18n="closure.colCategory">Category</th>
+        <th data-i18n="closure.colTitle">Title</th>
+        <th data-i18n="closure.colDescription">Description</th>
+        <th data-i18n="closure.colAuthor">Author</th>
+        <th data-i18n="closure.colCreated">Recorded</th>
+        <th style="width:110px" data-i18n="common.actions">Actions</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<!-- Closure data -->
+<div class="panel">
+  <h3><i class="fa fa-clipboard-check"></i><span data-i18n="closure.checklistTitle">Closure Checklist</span></h3>
+  <div id="checklistBox"></div>
+  <div class="form-row" style="margin-top:14px;">
+    <label data-i18n="closure.archiveRef">Archive Reference</label>
+    <input type="text" id="cArchiveRef" maxlength="255" data-i18n-placeholder="closure.archiveRefPlaceholder" placeholder="e.g. archive:/testlink/plan-12">
+  </div>
+  <div class="form-row">
+    <label data-i18n="closure.summaryLabel">Closure Summary</label>
+    <textarea id="cSummary" maxlength="4000" data-i18n-placeholder="closure.summaryPlaceholder" placeholder="Outcome of the test plan, decision to close, follow-up actions"></textarea>
+  </div>
+</div>
+
+<!-- Printable closure report -->
+<div id="printArea"></div>
+
+<div class="footer"><span data-i18n="closure.footer">TestLink 2.0.1 - Test Closure</span></div>
+
+<!-- Lesson modal -->
+<div class="modal fade" id="lessonModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="lessonModalTitle" data-i18n="closure.modalNewTitle">Add Lesson Learned</h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-row">
+          <label data-i18n="closure.colCategory">Category</label>
+          <select id="lCategory"></select>
+        </div>
+        <div class="form-row">
+          <label data-i18n="closure.colTitle">Title</label>
+          <input type="text" id="lTitle" maxlength="255" data-i18n-placeholder="closure.titlePlaceholder" placeholder="Short summary of the lesson">
+        </div>
+        <div class="form-row">
+          <label data-i18n="closure.colDescription">Description</label>
+          <textarea id="lDescription" maxlength="5000" data-i18n-placeholder="closure.descPlaceholder" placeholder="What happened, why, and what to do differently"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal" data-i18n="common.cancel">Cancel</button>
+        <button type="button" class="btn-teal" onclick="saveLesson()" data-i18n="common.save">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/testclosure/index.php';
+var CHECKLIST_ITEMS = ['archive_finalized', 'results_frozen', 'lessons_recorded',
+                       'open_issues_handed_over', 'feedback_to_stakeholders'];
+var table = null;
+var lessons = [];
+var categories = [];
+var closure = { status: 'open', frozen: false, checklist: {} };
+var canWrite = false;
+var tplanId = 0;
+var editingId = 0;
+var lastSummary = null;
+
+function esc(s) {
+  return $('<div>').text(s == null ? '' : String(s)).html()
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+function toast(msg, kind) {
+  var el = $('#toast').removeClass('ok err').addClass(kind || 'ok').text(msg).fadeIn(150);
+  setTimeout(function() { el.fadeOut(300); }, 2600);
+}
+function catLabel(c) { return TLi18n.t('closure.cat_' + c); }
+
+$(function() {
+  var p = new URLSearchParams(window.location.search);
+  tplanId = parseInt(p.get('tplan_id') || p.get('tplanId') || 0, 10);
+  TLi18n.load(function() {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    buildChecklist();
+    loadAll();
+  });
+});
+
+function buildChecklist() {
+  var html = '';
+  $.each(CHECKLIST_ITEMS, function(i, k) {
+    html += '<div class="checklist-row"><input type="checkbox" id="chk_' + k + '">' +
+            '<label for="chk_' + k + '" data-i18n="closure.item_' + k + '"></label></div>';
+  });
+  $('#checklistBox').html(html);
+}
+
+function loadAll() {
+  loadSummary();
+  loadLessons();
+}
+
+function loadSummary() {
+  $.getJSON(API + '?action=summary&tplan_id=' + tplanId, function(r) {
+    lastSummary = r;
+    closure = r.closure || closure;
+    canWrite = !!(r.rights && r.rights.canWrite);
+    var m = r.report_metrics || r.metrics || {};
+    $('#tileAssigned').text(m.total_assigned || 0);
+    $('#tileExec').text((m.executed_pct || 0) + '%');
+    $('#tilePassed').text(m.passed || 0);
+    $('#tileFailed').text(m.failed || 0);
+    $('#tileBugs').text(m.open_bugs || 0);
+    $('#tileLessons').text(m.lessons_total || 0);
+    $('#planInfo').text(r.tplan_name || '');
+
+    // closure state banner + toolbar
+    if (closure.frozen) {
+      $('#closureBanner').attr('class', 'closure-banner closed').html(
+        '<i class="fa fa-lock"></i> <b>' + esc(TLi18n.t('closure.frozenBanner')) + '</b> ' +
+        (closure.closed_by_login ? esc(TLi18n.t('closure.closedBy', {u: closure.closed_by_login, d: closure.closed_ts || ''})) : '')
+      );
+      $('#btnClose').removeClass('btn-danger').addClass('btn-teal')
+        .find('i').removeClass('fa-lock').addClass('fa-unlock');
+      $('#btnCloseLabel').text(TLi18n.t('closure.reopenPlan'));
+    } else {
+      $('#closureBanner').attr('class', 'closure-banner open').html(
+        '<i class="fa fa-unlock"></i> ' + esc(TLi18n.t('closure.openBanner')));
+      $('#btnClose').removeClass('btn-teal').addClass('btn-danger')
+        .find('i').removeClass('fa-unlock').addClass('fa-lock');
+      $('#btnCloseLabel').text(TLi18n.t('closure.closePlan'));
+    }
+
+    // checklist + closure fields
+    $.each(CHECKLIST_ITEMS, function(i, k) {
+      $('#chk_' + k).prop('checked', !!closure.checklist[k]);
+    });
+    $('#cArchiveRef').val(closure.archive_ref || '');
+    $('#cSummary').val(closure.summary_text || '');
+
+    applyRights();
+    renderPrintArea(r);
+  }).fail(function(xhr) { showFail(xhr, 'closure.msg.loadError'); });
+}
+
+function applyRights() {
+  var w = canWrite && !closure.frozen;
+  $('#btnNew').prop('disabled', !canWrite);
+  $('#btnClose').prop('disabled', !canWrite);
+  $('#btnSaveClosure').prop('disabled', !canWrite);
+  $.each(CHECKLIST_ITEMS, function(i, k) { $('#chk_' + k).prop('disabled', !canWrite); });
+  $('#cArchiveRef, #cSummary').prop('disabled', !canWrite);
+  void w;
+}
+
+function renderCategoryFilter() {
+  var sel = $('#fCategory').empty();
+  sel.append($('<option>').attr('value', '').text(TLi18n.t('closure.allCategories')));
+  var sel2 = $('#lCategory').empty();
+  $.each(categories, function(i, c) {
+    sel.append($('<option>').attr('value', c).text(catLabel(c)));
+    sel2.append($('<option>').attr('value', c).text(catLabel(c)));
+  });
+}
+
+function loadLessons() {
+  $.getJSON(API + '?action=lessons&tplan_id=' + tplanId, function(r) {
+    lessons = r.items || [];
+    categories = r.categories || categories;
+    if (r.closure_status === 'closed') { closure.frozen = true; }
+    renderCategoryFilter();
+    var fc = $('#fCategory').val();
+    if (fc) { lessons = lessons.filter(function(x) { return x.lesson_category === fc; }); }
+    if (lessons.length === 0) {
+      if (table) { table.destroy(); table = null; $('#lessonTable tbody').empty(); }
+      $('#lessonTable').hide();
+      $('#emptyState').show();
+    } else {
+      $('#emptyState').hide();
+      $('#lessonTable').show();
+      renderTable(lessons);
+    }
+    applyRights();
+  }).fail(function(xhr) { showFail(xhr, 'closure.msg.loadError'); });
+}
+
+function buildRow(it) {
+  var acts = '<button class="action-btn" onclick="openLessonModal(' + it.id + ')" title="' +
+    esc(TLi18n.t('common.edit')) + '"><i class="fa fa-pen"></i></button>' +
+    '<button class="action-btn del" onclick="deleteLesson(' + it.id + ')" title="' +
+    esc(TLi18n.t('common.delete')) + '"><i class="fa fa-trash"></i></button>';
+  return {
+    category: '<span class="badge-cat ' + esc(it.lesson_category) + '">' + esc(catLabel(it.lesson_category)) + '</span>',
+    title: esc(it.title),
+    description: esc(it.description),
+    author: esc(it.author_login),
+    created: String(it.creation_ts || ''),
+    actions: acts
+  };
+}
+
+function renderTable(items) {
+  if (table) { table.destroy(); $('#lessonTable tbody').empty(); }
+  var rows = $.map(items, function(it) { return [buildRow(it)]; });
+  table = $('#lessonTable').DataTable({
+    data: rows,
+    columns: [
+      {data: 'category'},
+      {data: 'title'},
+      {data: 'description'},
+      {data: 'author'},
+      {data: 'created'},
+      {data: 'actions'}
+    ],
+    columnDefs: [{orderable: false, targets: 5}],
+    order: [[4, 'desc']],
+    pageLength: 25,
+    language: {
+      search: '', searchPlaceholder: TLi18n.t('common.search'),
+      emptyTable: TLi18n.t('common.none'), zeroRecords: TLi18n.t('common.none')
+    }
+  });
+}
+
+function openLessonModal(id) {
+  editingId = id || 0;
+  if (editingId > 0) {
+    var it = null;
+    for (var i = 0; i < lessons.length; i++) { if (lessons[i].id === editingId) { it = lessons[i]; } }
+    $('#lessonModalTitle').text(TLi18n.t('closure.modalEditTitle'));
+    $('#lCategory').val(it ? it.lesson_category : 'improvement');
+    $('#lTitle').val(it ? it.title : '');
+    $('#lDescription').val(it ? it.description : '');
+  } else {
+    $('#lessonModalTitle').text(TLi18n.t('closure.modalNewTitle'));
+    $('#lCategory').val('improvement');
+    $('#lTitle').val('');
+    $('#lDescription').val('');
+  }
+  $('#lessonModal').modal('show');
+}
+
+function saveLesson() {
+  var title = $('#lTitle').val();
+  if (!title || !title.replace(/^\s+|\s+$/g, '')) {
+    toast(TLi18n.t('closure.msg.titleRequired'), 'err');
+    return;
+  }
+  $.ajax({
+    url: API + '?action=lesson_save', type: 'POST', contentType: 'application/json',
+    data: JSON.stringify({
+      tplan_id: tplanId, id: editingId,
+      category: $('#lCategory').val(), title: title, description: $('#lDescription').val()
+    }),
+    success: function(r) {
+      $('#lessonModal').modal('hide');
+      toast(TLi18n.t(r.message || 'closure.msg.lessonCreated'), 'ok');
+      loadAll();
+    },
+    error: function(xhr) { showFail(xhr, 'closure.msg.lessonSaveError'); }
+  });
+}
+
+function deleteLesson(id) {
+  if (!confirm(TLi18n.t('closure.confirmDelete'))) { return; }
+  $.ajax({
+    url: API + '?action=lesson_delete', type: 'POST', contentType: 'application/json',
+    data: JSON.stringify({tplan_id: tplanId, id: id}),
+    success: function(r) {
+      toast(TLi18n.t(r.message || 'closure.msg.lessonDeleted'), 'ok');
+      loadAll();
+    },
+    error: function(xhr) { showFail(xhr, 'closure.msg.lessonDeleteError'); }
+  });
+}
+
+function collectChecklist() {
+  var out = {};
+  $.each(CHECKLIST_ITEMS, function(i, k) { out[k] = $('#chk_' + k).is(':checked'); });
+  return out;
+}
+
+function saveClosure() {
+  $.ajax({
+    url: API + '?action=closure_save', type: 'POST', contentType: 'application/json',
+    data: JSON.stringify({
+      tplan_id: tplanId,
+      summary_text: $('#cSummary').val(),
+      archive_ref: $('#cArchiveRef').val(),
+      checklist: collectChecklist()
+    }),
+    success: function(r) {
+      toast(TLi18n.t(r.message || 'closure.msg.closureSaved'), 'ok');
+      loadSummary();
+    },
+    error: function(xhr) { showFail(xhr, 'closure.msg.closureSaveError'); }
+  });
+}
+
+function toggleClosure() {
+  var closing = !closure.frozen;
+  if (closing && !confirm(TLi18n.t('closure.confirmClose'))) { return; }
+  if (!closing && !confirm(TLi18n.t('closure.confirmReopen'))) { return; }
+  $.ajax({
+    url: API + '?action=' + (closing ? 'closure_close' : 'closure_reopen'),
+    type: 'POST', contentType: 'application/json',
+    data: JSON.stringify({tplan_id: tplanId}),
+    success: function(r) {
+      toast(TLi18n.t(r.message || 'closure.msg.planClosed'), 'ok');
+      loadAll();
+    },
+    error: function(xhr) { showFail(xhr, 'closure.msg.closureError'); }
+  });
+}
+
+function renderPrintArea(r) {
+  var m = r.report_metrics || r.metrics || {};
+  var c = r.closure || {};
+  var byCat = m.lessons_by_category || {};
+  var html = '<h1>' + esc(TLi18n.t('closure.reportTitle')) + '</h1>';
+  html += '<div class="meta"><b>' + esc(r.tplan_name || '') + '</b> &mdash; ' +
+    esc(TLi18n.t('closure.generatedOn')) + ' ' + esc(new Date().toLocaleString()) + '</div>';
+  html += '<h2>' + esc(TLi18n.t('closure.reportOutcome')) + '</h2><table><tbody>';
+  html += '<tr><th>' + esc(TLi18n.t('closure.rowAssigned')) + '</th><td>' + (m.total_assigned || 0) + '</td></tr>';
+  html += '<tr><th>' + esc(TLi18n.t('closure.rowExecuted')) + '</th><td>' + (m.total_executed || 0) +
+          ' (' + (m.executed_pct || 0) + '%)</td></tr>';
+  html += '<tr><th>' + esc(TLi18n.t('closure.rowPassed')) + '</th><td>' + (m.passed || 0) +
+          ' (' + (m.passed_pct || 0) + '%)</td></tr>';
+  html += '<tr><th>' + esc(TLi18n.t('closure.rowFailed')) + '</th><td>' + (m.failed || 0) +
+          ' (' + (m.failed_pct || 0) + '%)</td></tr>';
+  html += '<tr><th>' + esc(TLi18n.t('closure.rowBlocked')) + '</th><td>' + (m.blocked || 0) + '</td></tr>';
+  html += '<tr><th>' + esc(TLi18n.t('closure.rowIncomplete')) + '</th><td>' + (m.incomplete || 0) + '</td></tr>';
+  html += '<tr><th>' + esc(TLi18n.t('closure.rowNotRun')) + '</th><td>' + (m.not_run || 0) + '</td></tr>';
+  html += '<tr><th>' + esc(TLi18n.t('closure.rowBugs')) + '</th><td>' + (m.open_bugs || 0) + '</td></tr>';
+  html += '</tbody></table>';
+  html += '<h2>' + esc(TLi18n.t('closure.reportChecklist')) + '</h2><table><tbody>';
+  $.each(CHECKLIST_ITEMS, function(i, k) {
+    html += '<tr><th>' + esc(TLi18n.t('closure.item_' + k)) + '</th><td>' +
+      esc(c.checklist && c.checklist[k] ? TLi18n.t('closure.yes') : TLi18n.t('closure.no')) + '</td></tr>';
+  });
+  html += '</tbody></table>';
+  html += '<h2>' + esc(TLi18n.t('closure.reportArchive')) + '</h2><div>' +
+    (c.archive_ref ? esc(c.archive_ref) : '—') + '</div>';
+  html += '<h2>' + esc(TLi18n.t('closure.reportLessons')) + '</h2><table><tbody>';
+  $.each(categories, function(i, cat) {
+    html += '<tr><th>' + esc(catLabel(cat)) + '</th><td>' + (byCat[cat] || 0) + '</td></tr>';
+  });
+  html += '</tbody></table><table><thead><tr><th>' + esc(TLi18n.t('closure.colCategory')) +
+    '</th><th>' + esc(TLi18n.t('closure.colTitle')) + '</th><th>' + esc(TLi18n.t('closure.colDescription')) +
+    '</th><th>' + esc(TLi18n.t('closure.colAuthor')) + '</th></tr></thead><tbody>';
+  $.each(lessons, function(i, it) {
+    html += '<tr><td>' + esc(catLabel(it.lesson_category)) + '</td><td>' + esc(it.title) +
+      '</td><td>' + esc(it.description) + '</td><td>' + esc(it.author_login) + '</td></tr>';
+  });
+  html += '</tbody></table>';
+  html += '<h2>' + esc(TLi18n.t('closure.reportSummary')) + '</h2><div>' +
+    (c.summary_text ? esc(c.summary_text) : '—') + '</div>';
+  html += '<h2>' + esc(TLi18n.t('closure.reportState')) + '</h2><div>' +
+    esc(c.frozen ? TLi18n.t('closure.stateClosed') : TLi18n.t('closure.stateOpen')) +
+    (c.closed_ts ? ' — ' + esc(c.closed_ts) + (c.closed_by_login ? ' (' + esc(c.closed_by_login) + ')' : '') : '') +
+    '</div>';
+  $('#printArea').html(html);
+}
+
+function printReport() {
+  if (lastSummary) { renderPrintArea(lastSummary); }
+  window.print();
+}
+
+function showFail(xhr, key) {
+  var msg = TLi18n.t(key);
+  try {
+    var raw = JSON.parse(xhr.responseText).message || msg;
+    msg = TLi18n.t(raw);
+  } catch (e) {}
+  toast(msg, 'err');
+}
+</script>
+</body>
+</html>

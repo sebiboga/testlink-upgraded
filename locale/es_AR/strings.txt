@@ -3226,3 +3226,4 @@ $TLS_after_preconditions = 'Después de las precondiciones';
 $TLS_req_title_length_exceeded = 'Título de requisito demasiado largo';
 $TLS_req_docid_length_exceeded = 'Identificador de documento de requisito demasiado largo';
 
+$TLS_title_test_closure = "Cierre de pruebas"; // "Test Closure" (Refs #1278)

@@ -3722,3 +3722,4 @@ $TLS_simplexml_load_file_wrapper_error = "Bitte geben Sie diesen Text an Ihren T
 $TLS_after_title = 'Nach dem Titel';
 $TLS_after_preconditions = 'Nach den Vorbedingungen';
 ?>
+$TLS_title_test_closure = "Testabschluss"; // "Test Closure" (Refs #1278)

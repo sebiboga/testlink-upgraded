@@ -2826,3 +2826,4 @@ $TLS_req_docid_length_exceeded = 'Превышена длина идентифи
 $TLS_after_title = 'После заголовка';
 $TLS_after_preconditions = 'После предварительных условий';
 ?>
+$TLS_title_test_closure = "Закрытие тестирования"; // "Test Closure" (Refs #1278)

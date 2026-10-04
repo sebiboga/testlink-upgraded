@@ -2160,3 +2160,4 @@ $TLS_href_nfr_requirements = "Ei-toiminnalliset vaatimukset"; // "Non-Functional
 $TLS_req_title_length_exceeded = 'Vaatimuksen otsikon pituus ylittyi';
 $TLS_req_docid_length_exceeded = 'Vaatimuksen dokumentti-ID:n pituus ylittyi';
 
+$TLS_title_test_closure = "Testauksen päätös"; // "Test Closure" (Refs #1278)
