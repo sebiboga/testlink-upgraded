@@ -6011,3 +6011,81 @@ group key is not kept as the primary sort criterion):
 | 24 | browser console after the review fixes | clean | PASS — no errors, no warnings |
 | 25 | `php -l api/requirements/index.php`, `node --check` on the screen script, `python3 -m json.tool` on all 10 bundles | all clean | PASS |
 
+
+## Regression — Issue #1829: `reqTreeReorder.html` edge-row Up/Down tooltips leaked the raw i18n KEY
+
+**Precondition**
+
+- App on `http://localhost:8082` (docroot = repo root), TestLink 2.0.1.
+- Credentials: `admin` / `admin` (needs `GRANT.modify`), plus the view-only user
+  `tr1681readonly` / `admin` created by `php tmp/fixtures_1681.php`
+  (`tproject=1`, `req_spec_id=2`, 3 requirements `TR1-1..TR1-3`).
+- Screen: `gui/templates/requirements/reqTreeReorder.html`.
+- Browser: headless Chrome. A row-order change needs 3 requirements, otherwise the
+  screen shows `reqtr.nothing` and no reorder buttons exist at all.
+
+**Repro steps (pre-fix, all verified FAIL)**
+
+1. Login `admin`/`admin`.
+2. Open `http://localhost:8082/gui/templates/requirements/reqTreeReorder.html?tproject_id=1&req_spec_id=2`.
+3. Read the `title` attribute of the disabled **Up** / **To top** buttons of row 1
+   (and **Down** / **To bottom** of the last row).
+4. Repeat on `…&locale=ro_RO` / `&locale=de_DE`.
+5. Cross-check the bundles: `grep -c 'reqtr\.' gui/templates/i18n/*.json` and
+   `python3 -m json.tool <bundle>`.
+
+**Expected (post-fix)**
+
+- Step 3/4 return a **translated sentence**, never `reqtr.alreadyFirst` /
+  `reqtr.alreadyLast`.
+- Both keys are present in all **10** bundles and every bundle is valid JSON.
+- Non-edge rows keep **no** `title` attribute.
+- With a key missing from the active bundle the tooltip is **omitted** — no key
+  may ever reach the DOM.
+
+**Actual result — PRE-fix (measured, FAIL)**
+
+```
+en  : title="reqtr.alreadyFirst" / "reqtr.alreadyLast"   <-- raw KEY, not English
+ro  : title="reqtr.alreadyFirst"  while reqtr.moveUp = "Òn sus"   <-- key leaks in every locale
+TLi18n.has('reqtr.alreadyFirst') === false
+grep -c 'reqtr\.'  -> 53 in all 10 bundles (the two keys absent everywhere)
+```
+
+Root cause: `gui/templates/i18n/i18n.js:175` `var str = _strings[key] || key;` —
+`t()` returns the **key** for a missing entry, so `t('reqtr.alreadyFirst') ||
+'Already the first requirement'` always took the truthy left side and the English
+literal was unreachable dead code.
+
+**Actual result — POST-fix (measured, PASS)**
+
+| # | Case | Expected | Measured | Verdict |
+|---|------|----------|----------|---------|
+| 1 | **en**, row 1 Up + To top | translated tooltip | `Already the first requirement` | PASS |
+| 2 | **en**, last row Down + To bottom | translated tooltip | `Already the last requirement` | PASS |
+| 3 | **ro_RO**, same 4 buttons | Romanian | `Deja este prima cerință` / `Deja este ultima cerință` | PASS |
+| 4 | **de_DE**, same 4 buttons | German | `Bereits die erste/letzte Anforderung` | PASS |
+| 5 | middle row (all 4 buttons) | no `title` | `title: null` × 4 | PASS |
+| 6 | view-only `tr1681readonly` | all disabled, no key leak | all `aria-disabled="true"`, `rawKeyLeak: []` | PASS |
+| 7 | `TLi18n.has()` forced `false` + `render()` | tooltip omitted | `tips: []`, `leak: []`; restoring `has()` brings the 4 tooltips back | PASS |
+| 8 | `t()` forced to echo the key (blank bundle value) | tooltip omitted | `tips: []`, `leak: []` | PASS |
+| 9 | reorder still functional (admin) | order changes, dirty chip appears | `[6,8,10]` →Down→ `[8,6,10]` (chip `true`) →To top→ `[10,8,6]`; `#discardBtn` restores `[6,8,10]` | PASS |
+| 10 | JSON validity of all 10 bundles | valid | `python3 -m json.tool` → OK × 10 | PASS |
+| 11 | Event Viewer / `events` table | no new Error/Warning | 4 rows, all `log_level = 16` (audit: project created + 3 logins); 0 Error/Warning, 0 LOCALIZATION | PASS |
+| 12 | `node --check` on the screen's inline script | OK | OK | PASS |
+
+**Known limitation (fixed elsewhere / filed separately, NOT part of this fix)**
+
+`.rm.dis, .rm:disabled { pointer-events: none; }` (reqTreeReorder.html:54, added by
+`4f074a2b5` for #1804) keeps the disabled edge buttons out of the hover chain, so
+the native tooltip is reachable via the **accessibility tree / DOM `title`** but not
+by hovering with a mouse. Assert on the attribute / a11y tree, not on hover.
+
+**RESUME**
+
+```bash
+php tmp/fixtures_1681.php
+# http://localhost:8082/gui/templates/requirements/reqTreeReorder.html?tproject_id=1&req_spec_id=2
+# then read document.querySelectorAll('button.rm[title]')
+```
+- [PASS] Merge-base gate: `TLU_REQUIRE_SUITE="Issue #1829" bash ai/verify_test_suites.sh`
