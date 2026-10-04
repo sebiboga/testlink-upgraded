@@ -214,6 +214,12 @@ function loadContext() {
           $('#' + k).val(v);
         }
       });
+
+      // Refs #1825: the standalone Requirement Specification Search Form
+      // (gui/templates/requirements/reqSpecSearchForm.html) hands its criteria
+      // over with auto_search=1 so the reader lands on the results directly
+      // instead of having to press Find a second time.
+      if (p.get('auto_search') === '1') { doSearch(); }
     })
     .fail(function (xhr) {
       var msg = TLi18n.t('common.error');
