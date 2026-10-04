@@ -242,8 +242,10 @@ function idleUI() {
   // The read-only banner describes a user who CAN see the screen but must not
   // change it; it must never appear on an error page.
   $('#roBanner').toggleClass('show', !DEAD && !GRANT.modify);
-  // Do not advertise drag & drop to a user who is not allowed to reorder.
-  $('#dragHint').toggle(!DEAD && !!GRANT.modify);
+  // Do not advertise drag & drop to a user who is not allowed to reorder, nor
+  // while a save is in flight - the hint promises the gesture that drop() is
+  // refusing at that moment. Same predicate as the rows themselves.
+  $('#dragHint').toggle(canDrag());
   $('#applyBtn,#moveBtn,#discardBtn').prop('disabled', off);
   $('#targetSel,#posSel,#specSel').prop('disabled', off);
   if (!DEAD && !GRANT.modify) { $('#specSel').prop('disabled', false); }
@@ -265,12 +267,12 @@ function applyRowState() {
   ITEMS.forEach(function (it, i) {
     var $r = $('#ordBody tr').eq(i);
     $r.find('.rm').prop('disabled', BUSY || DEAD || !GRANT.modify);
-    // The capability term (DEAD / rights / BUSY) is written ONCE, above, for every
-    // .rm control - the arrow buttons are .rm too (see btn()). This loop owns only
-    // the second, row-local question: is THIS direction available on THIS row. It
-    // must never re-derive the capability term, otherwise the weaker copy wins and
-    // re-enables the arrows during a save while drop()/nudge() keep refusing on BUSY.
-    // Refs #1824.
+    // The capability term (DEAD / rights / BUSY) comes from canDrag() for BOTH
+    // writers: the .rm write above and this loop below are now the same
+    // expression. This loop exists only for the second, row-local question: is
+    // THIS direction available on THIS row. It must never re-derive the
+    // capability term, otherwise the weaker copy wins and re-enables the arrows
+    // during a save while drop()/nudge() keep refusing on BUSY. Refs #1824.
     $r.find('[data-mv]').each(function () {
       var d = $(this).data('mv');
       var dis = !canDrag();
@@ -312,7 +314,14 @@ function render() {
     tr.attr('data-id', it.id);
     tr.toggleClass('sel', it.id === PICKED);
     var gripCell = $('<td></td>');
-    if (canDrag()) {
+    // The grip is CREATED whenever a later settle could still want it and only
+    // VISIBILITY is owned by applyRowState() - a .find('.grip').toggle() on an
+    // empty set is a no-op, so refusing to create the span while BUSY would drop
+    // the drag handle for good on the error edge (render() is reachable while
+    // BUSY: the Select button and #refreshBtn both call it). Rights and DEAD are
+    // structural and never come back, so there the span is not created at all.
+    // Refs #1689, #1824.
+    if (canDrag() || BUSY) {
       gripCell.append($('<span class="grip" title="' + t('reqtr.dragHint') + '"><i class="fa fa-grip-vertical"></i></span>'));
     }
     tr.append(gripCell);

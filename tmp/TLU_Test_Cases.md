@@ -5863,7 +5863,7 @@ BFF: `api/reqspecsearchform/index.php` (`GET|HEAD ?action=init&tproject_id=N…`
 The affordances disappear for the whole duration of the request, exactly like `.rm` / Apply /
 Discard / Move already do, and come back when it settles (ok **and** error).
 
-**Actual result — FIXED, all 14 cases PASS (measured 2026-10-04, commit `fix/issue-1824`)**
+**Actual result — FIXED, all 16 cases PASS (measured 2026-10-04, commit `fix/issue-1824`)**
 
 | # | case | measured | verdict |
 |---|---|---|---|
@@ -5881,6 +5881,8 @@ Discard / Move already do, and come back when it settles (ok **and** error).
 | 12 | no-rights user `tr1681norights` | `DEAD:true`, state card `no_right`, 3 cards hidden, toolbar disabled, no ro-banner | PASS |
 | 13 | DEAD mid-session (rows on screen, later `init` 404) | `DEAD:true`, state card shown, rows survive but `drag ["false"]`, pick button + toolbar disabled | PASS |
 | 14 | persistence end-to-end | `nodes_hierarchy` `node_order` for `parent_id=2,node_type_id=7` = **8, 6, 10** (matches the screen); move path lands on `SPEC_ID=4` with "The requirement was moved." | PASS |
+| 15 | **`render()` while BUSY must not destroy the grip** (regression found by the mandatory code review of the first version of this patch, then fixed) | idle: grips in DOM `[1,1]` `display:inline`; mid-flight `[1,1]` `display:none`; after clicking **Select** while busy (Select calls `render()`) still `[1,1]`; after the **error** edge `[1,1]` `display:inline` again | PASS |
+| 16 | drag hint follows the guard (also from the review) | shown idle -> **hidden** mid-flight -> shown after the settle; read-only user: still hidden, grips in DOM `[0,0]` (#1689 measurement preserved) | PASS |
 
 **Gates for this suite**
 
@@ -5890,4 +5892,4 @@ Discard / Move already do, and come back when it settles (ok **and** error).
   present before the change as well)
 - Event Viewer / `events`: 4 rows only — 1 `CREATE` (fixture) + 3 `LOGIN` audit (`log_level 16`);
   **no Error/Warning** → PASS
-- `TLU_REQUIRE_SUITE="Issue #1824" bash ai/verify_test_suites.sh` → PASS
+- `TLU_REQUIRE_SUITE="Issue #1824" bash ai/verify_test_suites.sh` → **7 PASS / 0 FAIL**

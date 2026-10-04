@@ -1094,20 +1094,29 @@ screen reaches full parity.
   kept advertising a gesture the `drop` guard (`:341`) refused; (2) the arrow buttons are created as
   `class="rm" data-mv` (`btn()`, `:357`), so the `.rm` write at `:267` correctly disabled them on
   `BUSY || DEAD || !GRANT.modify` and the very next loop over the SAME elements re-derived the capability term
-  without `BUSY` (`:270` `var dis = DEAD || !GRANT.modify;`) and wrote the weaker value back - which is why
+  without `BUSY` (`var dis = DEAD || !GRANT.modify;`) and wrote the weaker value back - which is why
   within one loop `.rm` went dark during a save while Up/Down/To top/To bottom lit up again. Measured
   mid-flight with the DOM read in the same tick as the confirm click (`BUSY:true, dispatched:1, completed:0`):
   `draggable` `["true","true","true"]` -> `["false","false","false"]`, enabled arrows per row `[2,4,2]` -> `[0,0,0]`,
-  grip `display:none`, `dragover` `defaultPrevented true` -> `false` while idle still yields `true`; the same
+  grip `display:none`, drag hint hidden, `dragover` `defaultPrevented true` -> `false` while idle still
+  yields `true`; the same
   holds on `?action=move`, and the affordances return on both the success and the error edge. Fix: `canDrag()`
   now carries the guard's third term (`!DEAD && !BUSY && !!GRANT.modify`) and the `[data-mv]` loop derives its
   capability term from it (`var dis = !canDrag();`), so the loop owns only the position term it exists for and
   can no longer overwrite the stronger writer; `dragstart` also guards itself instead of trusting the browser
   to refuse a `draggable="false"` row. Reordering itself is unchanged (arrow click and a real drop still
-  reorder locally and raise the *Unsaved changes* chip), the read-only / no-rights / dead paths are untouched,
-  `.pickbtn` stays BUSY-open on purpose (it only arms a Move, and `doMove()` refuses), the order still persists
-  (`nodes_hierarchy.node_order` = 8, 6, 10) and 0 new Event Viewer rows. Regression suite 1824: **14/14 PASS**.
-  The entangled `#refreshBtn` -> `load()` stale-response race is filed separately. (Fixes #1824)
+  reorder locally and raise the *Unsaved changes* chip), the read-only / no-rights / dead paths are untouched
+  (a view-only user still gets **zero** grips in the DOM and no drag hint), `.pickbtn` stays BUSY-open on
+  purpose (it only arms a Move, and `doMove()` refuses), the order still persists (`nodes_hierarchy.node_order`
+  matched the screen after an Apply) and 0 new Event Viewer rows. Regression suite 1824: **16/16 PASS**.
+  Two regressions the mandatory code review caught **in the first version of this patch** were closed in the
+  same commit: gating grip *creation* on `canDrag()` made a `render()` under BUSY (reachable from the Select
+  button and from `#refreshBtn`) drop the handle for good, because `applyRowState()`'s restore
+  `$r.find('.grip').toggle()` is a no-op on an empty set - so the span is now created whenever a settle could
+  still want it and visibility alone is owned by `applyRowState()`; and the toolbar drag hint
+  (*"Drag and drop reorders locally until you apply it"*) was still shown during a save, so it now follows
+  `canDrag()` too. The entangled `#refreshBtn` -> `load()` stale-response race is **#1828**; the two
+  hardcoded-English arrow tooltips are **#1829**. (Fixes #1824)
 - [KEY BUGFIX - DATA INTEGRITY] - #1682: `api/reqtreereorder` `?action=reorder` accepted a **DUPLICATE**
   requirement id in `nodes_order` and corrupted the specification order. The submitted order was built as a
   **positional list** (`$order[] = $nid;`, `api/reqtreereorder/index.php:511`) but the duplicate gate probed it
