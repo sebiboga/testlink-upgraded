@@ -120,7 +120,7 @@ function linkedTracker($db, $tproject_id)
         try {
             $cts = new $impl($row['type'], $row['cfg'], $row['name']);
         } catch (Exception $e) {
-            tLog(__METHOD__ . ' ' . $e->getMessage(), 'ERROR');
+            tLog('api/scriptedit/index.php::linkedTracker :: ' . $e->getMessage(), 'ERROR');
         }
     }
     return [$tracker, $cts, null];

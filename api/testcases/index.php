@@ -111,7 +111,7 @@ function tcViewCodeTracker($db, $tprojectMgr, $tprojectId) {
         $res['enabled'] = true;
         $res['trackerName'] = (string)$row['name'];
     } catch (Exception $e) {
-        tLog(__METHOD__ . ' ' . $e->getMessage(), 'ERROR');
+        tLog('api/testcases/index.php::tcViewCodeTracker :: ' . $e->getMessage(), 'ERROR');
     }
     return $res;
 }
@@ -139,7 +139,7 @@ function tcViewScripts($db, $tcversionId, $cts) {
             " WHERE tcversion_id = " . intval($tcversionId) .
             " ORDER BY repository_name, code_path");
     } catch (Exception $e) {
-        tLog(__METHOD__ . ' ' . $e->getMessage(), 'ERROR');
+        tLog('api/testcases/index.php::tcViewScripts :: ' . $e->getMessage(), 'ERROR');
         return [];
     }
     if (is_null($rs)) {
@@ -295,7 +295,7 @@ function tcVersionRelations($dbHandler, $tcversionId, array $labels, array $ctx)
             "    OR TR.destination_id = " . intval($tcversionId) .
             " ORDER BY TR.id ASC");
     } catch (Exception $e) {
-        tLog(__METHOD__ . ' tcversion ' . intval($tcversionId) . ': ' . $e->getMessage(), 'ERROR');
+        tLog('api/testcases/index.php::tcVersionRelations tcversion ' . intval($tcversionId) . ': ' . $e->getMessage(), 'ERROR');
         return [];
     }
     if (is_null($rs)) {
@@ -414,7 +414,7 @@ function tcViewCtsUrl($cts) {
             return (string)$cts->getEnterCodeURL();
         }
     } catch (Exception $e) {
-        tLog(__METHOD__ . ' ' . $e->getMessage(), 'ERROR');
+        tLog('api/testcases/index.php::tcViewCtsUrl :: ' . $e->getMessage(), 'ERROR');
     }
     return '';
 }

@@ -425,7 +425,7 @@ function githubInterfaceFor($mgr, $id) {
         $iface = new $impl($type, $tracker['cfg'], $tracker['name']);
         return [$iface, null];
     } catch (Throwable $e) {
-        tLog(__METHOD__ . ' ' . $e->getMessage(), 'ERROR');
+        tLog('api/codetracker/index.php::githubInterfaceFor :: ' . $e->getMessage(), 'ERROR');
         return [null, $e->getMessage()];
     }
 }
