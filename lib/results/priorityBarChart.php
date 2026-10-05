@@ -1,100 +1,90 @@
 <?php
-//@TODO this file seems not to be in use
-include "../../third_party/charts/charts.php";
+/**
+ * TestLink Open Source Project - http://testlink.sourceforge.net/
+ * This script is distributed under the GNU General Public License 2 or later.
+ *
+ * LEGACY priority bar chart endpoint - SUPERSEDED, Refs #1845.
+ *
+ * In 1.9.20 this file drew a STACKED COLUMN chart image with the vendored
+ * phpchart library: one column per keyword, four series (pass / fail /
+ * blocked / not run) over ALL_TEST_SUITES, ALL_BUILDS and ALL_PLATFORMS, data
+ * from results::getAggregateKeywordResults(). Its own first line said
+ * "@TODO this file seems not to be in use" and it was never reached from any
+ * menu, template or JavaScript.
+ *
+ * On 2.0.1 it could not run at all: BOTH includes are gone
+ * (third_party/charts/charts.php and lib/functions/results.class.php), so the
+ * include was a hard PHP fatal and every caller got HTTP 500 with no body. It
+ * also had no authorization at all - $tplan_id came straight out of
+ * $_REQUEST and was never checked for ownership or for a right, so any
+ * authenticated user could read the per-keyword execution breakdown of ANY
+ * test plan.
+ *
+ * It is now a session-guarded launcher that redirects to the modern screen
+ * (gui/templates/results/priorityBarChart.html) served by
+ * api/prioritybarchart/index.php, which enforces testplan_metrics on the
+ * OWNING test project and test plan and answers a documented JSON contract.
+ * The legacy ?tplan_id= (and ?tproject_id=) parameters are preserved.
+ *
+ * The XHR/crawler branch deliberately refuses instead of redirecting: the old
+ * file was consumed by an <img> tag in some 1.9.20 themes, and a 302 would
+ * hand that caller a Dashio HTML page where it expects PNG pixels.
+ *
+ * @package    TestLink
+ * @filesource priorityBarChart.php
+ */
 
-require_once('../functions/results.class.php');
-require_once('../functions/testplan.class.php');
-
-testlinkInitPage($db);
-$tplan_mgr = new testplan($db);
-$tproject_mgr = new testproject($db);
-
-$tplan_id=$_REQUEST['tplan_id'];
-$tproject_id=$_SESSION['testprojectID'];
-
-$tplan_info = $tplan_mgr->get_by_id($tplan_id);
-$tproject_info = $tproject_mgr->get_by_id($tproject_id);
-
-$re = new results($db, $tplan_mgr, $tproject_info, $tplan_info,
-                  ALL_TEST_SUITES,ALL_BUILDS,ALL_PLATFORMS);
+require_once('../../config.inc.php');
+require_once('common.php');
 
 /**
-* KEYWORDS REPORT
-*/
-$arrDataKeys = $re->getAggregateKeywordResults();
-$i = 0;
-$arrDataKeys2 = null;
-
-if ($arrDataKeys != null) {
-   while ($keywordId = key($arrDataKeys)) {
-      $arr = $arrDataKeys[$keywordId];
-      $arrDataKeys2[$i] = $arr;
-      $i++;
-      next($arrDataKeys);
-   }
+ * Session gate, parity with the legacy testlinkInitPage() call: an anonymous
+ * caller is bounced to the login screen preserving its destination.
+ */
+if (($_SESSION['userID'] ?? 0) <= 0) {
+    $dest = basename(__FILE__) . '?' . (isset($_SERVER['QUERY_STRING'])
+        ? $_SERVER['QUERY_STRING'] : '');
+    header('Location: ../login.php?note=expired&destination=' . urlencode($dest));
+    exit;
 }
 
-
-
-$namesOfKeywordsArray = array();
-$namesOfKeywordsArray[0] = "";
-
-$passArray = array();
-$passArray[0] = "pass";
-
-$failArray = array();
-$failArray[0] = "fail";
-
-$blockedArray = array();
-$blockedArray[0] = "blocked";
-
-$notRunArray = array();
-$notRunArray[0] = "not run";
-
-for ($i = 0 ; $i < sizeOf($arrDataKeys); $i++) {
-	$keywordArr = $arrDataKeys2[$i];
-	$namesOfKeywordsArray[$i + 1] = $keywordArr[0];
-	// $total = $keywordArr[1];
-	$passArray[$i + 1] = $keywordArr[2];
-	$failArray[$i + 1] = $keywordArr[3];
-	$blockedArray[$i + 1] = $keywordArr[4];
-	$notRunArray[$i + 1] = $keywordArr[5];
-	// $percentComplete = $keywordArr[6];
+$tplanId = isset($_GET['tplan_id']) ? intval($_GET['tplan_id']) : 0;
+$tprojectId = isset($_GET['tproject_id']) ? intval($_GET['tproject_id']) : 0;
+if ($tprojectId <= 0) {
+    $tprojectId = intval($_SESSION['testprojectID'] ?? 0);
 }
 
-$chart[ 'chart_data' ] = array ($namesOfKeywordsArray, $passArray,$failArray, $blockedArray,$notRunArray);
+if ($tplanId <= 0) {
+    // Nothing to address: answer a machine-readable error instead of guessing
+    // a plan. The modern screen renders this state itself (pbc.missingContext).
+    header('Content-Type: application/json; charset=utf-8');
+    header('X-Content-Type-Options: nosniff');
+    http_response_code(400);
+    echo json_encode(array('status' => 'error', 'code' => 'invalid_request',
+        'message' => 'missing tplan_id'));
+    exit;
+}
 
-/**
-END NEW STUFF
-*/
+// Browser navigation -> the modern screen. An XHR / <img> caller keeps the
+// hard-fail contract: the legacy answer was a PNG, so handing a 302 to an
+// <img> would render broken pixels instead of an error.
+$accept = strtolower((string)($_SERVER['HTTP_ACCEPT'] ?? ''));
+$isXhr = stripos((string)($_SERVER['HTTP_X_REQUESTED_WITH'] ?? ''), 'XMLHttpRequest') !== false;
+$dest = strtolower((string)($_SERVER['SEC_FETCH_DEST'] ?? ''));
+if ($isXhr || $dest === 'empty' || strpos($accept, 'image/') !== false) {
+    header('Content-Type: application/json; charset=utf-8');
+    header('X-Content-Type-Options: nosniff');
+    http_response_code(405);
+    echo json_encode(array('status' => 'error', 'code' => 'modern_endpoint_only',
+        'message' => 'the chart is served by /api/prioritybarchart/index.php'));
+    exit;
+}
 
+$base = isset($_SESSION['basehref']) ? $_SESSION['basehref'] : '../';
+$url = $base . 'gui/templates/results/priorityBarChart.html?tplan_id=' . $tplanId;
+if ($tprojectId > 0) {
+    $url .= '&tproject_id=' . $tprojectId;
+}
 
-
-$chart[ 'axis_value' ] = array ( 'font'=>"arial", 'bold'=>true, 'size'=>10, 'color'=>"000000", 'alpha'=>50, 'steps'=>6, 'prefix'=>"", 'suffix'=>"", 'decimals'=>0, 'separator'=>"", 'show_min'=>true );
-
-$chart[ 'chart_border' ] = array ( 'color'=>"000000", 'top_thickness'=>0, 'bottom_thickness'=>3, 'left_thickness'=>0, 'right_thickness'=>0 );
-
-// $chart[ 'chart_data' ] = array ( array ( "", "P1", "P2", "P3" ), array ( "pass", 1, 5, 10), array ( "fail", 1, 5, 10), array ("blocked", 1, 5, 10), array ("not run", 1, 5, 10));
-
-
-
-
-
-
-$chart[ 'chart_grid_h' ] = array ( 'alpha'=>20, 'color'=>"000000", 'thickness'=>1, 'type'=>"solid" );
-$chart[ 'chart_grid_v' ] = array ( 'alpha'=>20, 'color'=>"000000", 'thickness'=>1, 'type'=>"dashed" );
-$chart[ 'chart_rect' ] = array ( 'x'=>125, 'y'=>65, 'width'=>250, 'height'=>200, 'positive_color'=>"ffffff", 'negative_color'=>"000000", 'positive_alpha'=>75, 'negative_alpha'=>15 );
-$chart[ 'chart_transition' ] = array ( 'type'=>"drop", 'delay'=>0, 'duration'=>2, 'order'=>"series" );
-$chart[ 'chart_type' ] = "stacked column"; 
-
-$chart[ 'draw' ] = array ( array ( 'transition'=>"slide_up", 'delay'=>1, 'duration'=>.5, 'type'=>"text", 'color'=>"000033", 'alpha'=>15, 'font'=>"arial", 'rotation'=>-90, 'bold'=>true, 'size'=>64, 'x'=>0, 'y'=>295, 'width'=>300, 'height'=>50, 'text'=>"Keywords", 'h_align'=>"right", 'v_align'=>"middle" ),
-                           array ( 'transition'=>"slide_up", 'delay'=>1, 'duration'=>.5, 'type'=>"text", 'color'=>"ffffff", 'alpha'=>40, 'font'=>"arial", 'rotation'=>-90, 'bold'=>true, 'size'=>25, 'x'=>30, 'y'=>300, 'width'=>300, 'height'=>50, 'text'=>"report", 'h_align'=>"right", 'v_align'=>"middle" ) );
-
-$chart[ 'legend_label' ] = array ( 'layout'=>"horizontal", 'font'=>"arial", 'bold'=>true, 'size'=>13, 'color'=>"444466", 'alpha'=>90 ); 
-$chart[ 'legend_rect' ] = array ( 'x'=>125, 'y'=>10, 'width'=>250, 'height'=>10, 'margin'=>5, 'fill_color'=>"ffffff", 'fill_alpha'=>35, 'line_color'=>"000000", 'line_alpha'=>0, 'line_thickness'=>0 ); 
-$chart[ 'legend_transition' ] = array ( 'type'=>"slide_left", 'delay'=>0, 'duration'=>1 );
-
-$chart[ 'series_color' ] = array ("00FF00", "FF0000", "0000FF", "000000");
-
-SendChartData ( $chart );
-?>
+header('Location: ' . $url);
+exit;

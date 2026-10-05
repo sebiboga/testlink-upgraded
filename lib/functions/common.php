@@ -2275,6 +2275,18 @@ function getActions(&$gui,$baseURL) {
     $actions->mileView = "/gui/templates/plans/planMilestones.html?{$ctx}";
     $actions->milestonesView =
       "/gui/templates/plans/planMilestones.html?{$ctx}";
+    // Refs #1845: Priority Bar Chart report (legacy
+    // lib/results/priorityBarChart.php: an orphan PNG endpoint whose two
+    // includes - third_party/charts/charts.php and
+    // lib/functions/results.class.php - no longer exist on 2.0.1, so it
+    // fataled for every caller and checked NO right at all: any authenticated
+    // user could read the per-keyword result breakdown of ANY test plan
+    // through the unvalidated $_REQUEST['tplan_id']). The legacy file is now
+    // a session-guarded shim; the report is the modern screen backed by
+    // api/prioritybarchart, which enforces testplan_metrics on the OWNING
+    // project + plan. Plan-scoped report -> inside the tplan_id guard.
+    $actions->priorityBarChart =
+      "/gui/templates/results/priorityBarChart.html?{$ctx}";
   }
 
   // Refs #609: initialize up-front so aside rendering with no active test

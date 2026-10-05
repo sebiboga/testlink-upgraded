@@ -19,6 +19,8 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 .section { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px 0; overflow: hidden; }
 .section-head { padding: 13px 20px; border-bottom: 1px solid #eee; font-size: 15px; font-weight: 700; color: #22242a; display: flex; align-items: center; gap: 9px; }
 .section-head i { color: #4ECDC4; }
+.sec-link { margin-left: auto; font-size: 12px; font-weight: 600; color: #2d8e88; text-decoration: none; border: 1px solid #4ECDC4; border-radius: 4px; padding: 4px 10px; }
+.sec-link:hover { background: #4ECDC4; color: #fff; }
 .section-body { padding: 16px 20px 20px; display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; }
 .chart-box { flex: 1 1 100%; max-width: 600px; min-width: 320px; }
 .chart-box canvas { width: 100% !important; max-height: 400px; }
@@ -94,6 +96,11 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
     <div class="section-head">
       <i class="fa fa-chart-bar"></i>
       <span data-i18n="charts.resultsByKeyword">Results by Keyword</span>
+      <!-- Refs #1845: the chart above only shows the pixels; the standalone
+           Priority Bar Chart report adds the per-keyword numbers, a totals row
+           and a CSV export (it replaces the dead legacy PNG endpoint). -->
+      <a class="sec-link" id="linkPriorityBarChart" href="#" target="_blank"
+         data-i18n="charts.openPriorityBarChart">Open Priority Bar Chart</a>
     </div>
     <div class="section-body">
       <div class="chart-box" style="max-width:800px;">
@@ -199,6 +206,17 @@ TLi18n.load(function() { TLi18n.apply(); TLi18n.initLocaleSwitcher('#localeSwitc
   }
 
   // ── Load data ──
+  // Refs #1845: the standalone Priority Bar Chart report for the same plan.
+  var $pbc = $('#linkPriorityBarChart');
+  if ($pbc.length) {
+    if (tplan_id) {
+      $pbc.attr('href', '/gui/templates/results/priorityBarChart.html?tplan_id=' + tplan_id
+        + '&tproject_id=' + tproject_id);
+    } else {
+      $pbc.attr('href', '#').css('display', 'none');
+    }
+  }
+
   if (!tplan_id || !tproject_id) {
     document.getElementById('loadingBox').style.display = 'none';
     document.getElementById('warnBox').style.display = 'block';
