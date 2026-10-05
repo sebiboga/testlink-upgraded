@@ -318,10 +318,10 @@ foreach ($keywords as $k) {
 }
 
 $keywordTotal = 0;
-$rsk2 = $db->fetchFirstRowSingleColumn(
-    "SELECT COUNT(*) FROM keywords WHERE testproject_id = " . intval($owningProjectId));
-if (!is_null($rsk2)) {
-    $keywordTotal = intval(reset($rsk2));
+$rsk2 = $db->get_recordset(
+    "SELECT COUNT(*) AS n FROM keywords WHERE testproject_id = " . intval($owningProjectId));
+if (is_array($rsk2) && count($rsk2) > 0) {
+    $keywordTotal = intval($rsk2[0]['n'] ?? 0);
 }
 
 $platformCount = 0;
