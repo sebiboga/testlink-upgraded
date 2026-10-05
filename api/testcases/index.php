@@ -295,7 +295,7 @@ function tcVersionRelations($dbHandler, $tcversionId, array $labels, array $ctx)
             "    OR TR.destination_id = " . intval($tcversionId) .
             " ORDER BY TR.id ASC");
     } catch (Exception $e) {
-        tLog('api/testcases/index.php::tcVersionRelations tcversion ' . intval($tcversionId) . ': ' . $e->getMessage(), 'ERROR');
+        tLog('api/testcases/index.php::tcVersionRelations :: tcversion ' . intval($tcversionId) . ': ' . $e->getMessage(), 'ERROR');
         return [];
     }
     if (is_null($rs)) {
