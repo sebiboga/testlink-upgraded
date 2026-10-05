@@ -772,3 +772,99 @@ localized (`Trecute`/`Nereușite`/`Blocate`/`Neexecutate`, **no** `pbc.*` in any
 
 Screenshots: `docs/screenshots/issue-1845-pbc-report.png`,
 `docs/screenshots/issue-1845-charts-link.png`.
+
+## Regression — Issue #1703: `codeTrackerInterface::connect()` builds `$connection_args` with two-level simple interpolation of a `stdClass` → fatal Error, **zero** Event-Viewer rows
+
+**Precondition.** Freshly imported DB (`testlink` @ 127.0.0.1:3306, `testlink`/`testlink`).
+This defect is in PHP string interpolation and the logging path, so the whole suite is driven
+by a CLI harness that boots the real application (`config.inc.php` + `common.php`), loads the
+**real** `lib/codetrackerintegration/codeTrackerInterface.class.php`, opens a real logger
+transaction and asserts against the **real** `events` table. No browser, no fixture rows.
+
+**Harness (essential — the last paragraph of this block is a trap that fakes a failure).**
+`/tmp/opencode/r1703/drive.php` instantiates a minimal subclass of the abstract base that does
+**not** override `connect()`, i.e. it exercises the inherited base-class method verbatim — the
+real shape of a `db`-API code tracker (`getMyInterface()` at `:156` exists only to return a
+class named by `$cfg->interfacePHP`). Before instantiating it must do:
+
+```php
+global $g_tlLogger;
+$tlDb = new database(DB_TYPE); doDBConnect($tlDb);
+$g_tlLogger->setDB($tlDb);                       // else writeEvent() has no handler
+$g_tlLogger->startTransaction("REPRO1703", "cli-drive.php", 1);   // else tLog() no-ops
+```
+
+cfg used throughout: `<issuetracker><dbtype>mysql</dbtype><dbhost>127.0.0.1</dbhost>
+<dbname>nodb</dbname><dbuser>nodb</dbuser><dbpassword>nodb</dbpassword></issuetracker>`.
+Row counting is `SELECT COUNT(*) FROM events WHERE id > $B` — **never** `MAX(id)_after -
+MAX(id)_before`, which reports the auto-increment gap and doubles the apparent count.
+
+**Repro steps (pre-fix).**
+
+```bash
+cd /home/runner/work/testlink-upgraded/testlink-upgraded
+B=$(mysql -h 127.0.0.1 -utestlink -ptestlink -N -B testlink -e "SELECT COALESCE(MAX(id),0) FROM events")
+php /tmp/opencode/r1703/drive.php
+mysql -h 127.0.0.1 -utestlink -ptestlink -B testlink -e \
+  "SELECT COUNT(*) FROM events WHERE id > $B"
+```
+
+**Expected post-fix behaviour.** `drive.php` completes with `isConnected() = 0` and **no**
+fatal; the count is `1`; and the row's description contains all three connection parameters plus
+the ADODB message.
+
+**Actual result observed.**
+
+*Pre-fix (recorded):*
+```
+FATAL: Error: Object of class stdClass could not be converted to string
+  at .../lib/codetrackerintegration/codeTrackerInterface.class.php:188
+events rows written: 0
+```
+
+*Post-fix:*
+```
+ctor returned normally; isConnected() = 0
+id 12  log_level 1  "Connect to Code Management database fails: (interface: - Host:127.0.0.1
+  - DBName: nodb - User: nodb) 1045 - Access denied for user 'nodb'@'172.18.0.1'
+  (using password: YES)"
+```
+
+| # | case | expectation | result |
+|---|---|---|---|
+| R1 | inherited `connect()`, unreachable DB (**the reported bug**) | no fatal; exactly 1 `events` row, level `1`, with `Host:127.0.0.1`, `DBName:nodb`, `User:nodb` **and** the ADODB code | **PASS** |
+| R2 | same, pre-fix baseline | fatal at `:188`, 0 rows | **FAIL as expected** (this is the reproduction) |
+| R3 | inherited `connect()`, **reachable** DB (`testlink`/`testlink`) | `isConnected() = 1`, no new `events` row | **PASS** |
+| R4 | `dbhost` absent from cfg → early `return false` at `:168-171` | `isConnected() = 0`, `$connection_args` never reached, no warning | **PASS** |
+| R5 | `getMyInterface()` (`:156`) `interfacePHP` round-trip | returns the cfg value verbatim | **PASS** (`'repro1703Interface'`) |
+| R6 | registered REST types unaffected | `stashrestInterface::connect` and `githubrestCodeTrackerInterface::connect` still declared in their own classes; base stays `abstract` | **PASS** |
+| R7 | `php -l lib/codetrackerintegration/codeTrackerInterface.class.php` | clean | **PASS** |
+| R8 | no new Error/Warning rows from R3–R6 | `COUNT(*)` = 0 | **PASS** |
+
+**Extra cases asserted (root-cause guards).**
+
+- **I1** `lang_get('CTS_connect_to_database_fails')` must resolve **before** relying on the newly
+  reachable line, because `:190` had never executed in the app's life and the key is absent from
+  `gui/templates/i18n/*.json`. Measured: `"Connect to Code Management database fails: %s"` →
+  **PASS**, and the fix introduces **no new warning**.
+- **I2** one-level vs two-level interpolation must be asserted separately, because they fail
+  differently and the difference decides the fix: with a `SimpleXMLElement` and a **local**
+  variable (`"$cfg->dbhost"`) the result is correct
+  (`Host:127.0.0.1`); with `"$this->cfg->dbhost"` it is destroyed
+  (`Host:->dbhost`). The second case is the defect → **PASS**.
+- **I3** repo-wide sweep `grep -rnE '"[^"]*\$this->[A-Za-z_]+->[A-Za-z_]+' --include=*.php lib/`
+  must find **no other unbraced two-level interpolation**. After the fix the only remaining
+  unbraced hit is `:203-204`, which is `.` concatenation, not interpolation → **PASS**.
+- **I4** a *successful* connection must log nothing (R3). This is what proves the fix is not
+  merely swallowing the exception.
+
+**How to re-run in one command.**
+
+```bash
+cd /home/runner/work/testlink-upgraded/testlink-upgraded
+php -l lib/codetrackerintegration/codeTrackerInterface.class.php \
+ && php /tmp/opencode/r1703/drive.php \
+ && php /tmp/opencode/r1703/matrix.php \
+ && mysql -h 127.0.0.1 -utestlink -ptestlink -B testlink \
+      -e "SELECT id,log_level,LEFT(description,200) FROM events ORDER BY id DESC LIMIT 3"
+```

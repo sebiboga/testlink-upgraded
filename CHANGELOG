@@ -7999,6 +7999,19 @@ Changes:
   path while the visible cell stays escaped. No BFF change: `api/search/index.php`
   already returns `path` per row. 7 new i18n keys (`sv.grid.*`) in **all 10**
   bundles.
+### KEY BUGFIX — a failed code-tracker database connection produced NO Event Viewer record: `codeTrackerInterface::connect()` built `$connection_args` with two-level simple string interpolation, so PHP interpolated the `stdClass` `$this->cfg` (from `setCfg():147 json_decode(json_encode(...))`) and raised a fatal `Error` one line *before* the `tLog()` (Fixes #1703)
+- `lib/codetrackerintegration/codeTrackerInterface.class.php:188-189` — wrapped the three
+  property reads in `{}` (`"Host:{$this->cfg->dbhost} - "`), identical to the issue-tracker twin
+  already fixed in #1701 (`issueTrackerInterface.class.php:241`). PHP resolves only ONE property
+  level in a non-curly interpolated string, so the old line emitted the literal fragments
+  `Host:->dbhost - DBName: ->dbname - User: ->dbuser` — and because `setCfg():147` makes `cfg` a
+  `stdClass`, stringifying it aborted the statement outright. Post-fix the diagnostic records
+  `Host:127.0.0.1 - DBName: nodb - User: nodb` together with the ADODB message.
+  Blast radius: **2 lines, 1 file** — a repo-wide sweep for unbraced `"$this->X->Y"` found no
+  other unfixed site. Latent, not currently firing: `tlCodeTracker::$systems` registers only
+  `stash` and `github` and both override `connect()`, so no UI route reaches the base method —
+  it is an armed fatal for the next `db`-API tracker / subclass inheriting `connect()`.
+  Regression matrix R1-R8 + guards I1-I4 recorded in `tmp/TLU_Test_Cases.md`.
 ### KEY BUGFIX (i18n) — `gui/templates/i18n/fr.json` missed 26 keys `en.json` defines, so `fr_FR` users saw raw dotted keys (`role.noRights`) on screen (Fixes #1840)
 - `TLi18n.t()` resolves as `_strings[key] || key` (`gui/templates/i18n/i18n.js:165`), so a key missing from the loaded bundle has **no fallback layer**: the module returned the key itself and `apply()` wrote it into `textContent`, overwriting the English literal in the HTML. Added the 26 keys (`rctc.*` 6, `role.*` 6, `ts.*` 4, `rmo.grid.*` 7, `rmo.*` 3) with French translations at their alphabetical position; `{count}` preserved. Key-set diff `fr` vs `en`: 26 -> 0. The ASIDE `Test Strategy`/`Documentation` symptom in the report is a **different** i18n layer (legacy `locale/fr_FR/strings.txt`, filed as #1843); the `de`/`es`/`it` twins and a coverage CI gate were filed as #1844.
 ### Screen — Results by Issues BTS bug decoration `resultsBugs` (Refs #1268)
