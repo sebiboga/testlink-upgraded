@@ -149,6 +149,14 @@ same grep but uses `.` concatenation, not interpolation — safe.
 
 ---
 
+## Evidence — Event Viewer, post-fix
+
+The diagnostic now surfaces in the Event Viewer with host, database, user **and** the
+ADODB message. Pre-fix this screen gained **no row at all** (the fatal aborted the
+statement one line before `tLog()`).
+
+Screenshot (wiki + repo): `docs/screenshots/issue-1703-codetracker-diagnostic-postfix.png`
+
 ## Verification
 
 Same driver, same cfg, same database as the pre-fix run:
