@@ -91,13 +91,23 @@ commit kept < 50% of them):
 
 ```console
 commits touching file: 1069
-DESTRUCTIVE commits:
+REPLACEMENT commits (file still present at the commit, parent >= 20 headings, kept < 50%):
    ('136fc4426', 88, 1, 'testcases: append suite for #1089 (reqMonitorOverview ...)')
    ('30aeecd0d', 595, 1, 'feat(opencode): leftover changes from task-implementation run')
 ```
 
 **2 hits in 1069 commits** — and it surfaced a second, larger, previously
 untracked clobber, filed as [#1851](https://github.com/sebiboga/testlink-upgraded/issues/1851).
+
+A third commit is **not** in the list and must not be: `a572b8c75`
+(`docs(issue-914)`, `0 / -15157`) **deleted** the suite file rather than replacing it.
+It matches a naive "deletions >> additions" filter, and a naive
+`grep -cE '^## '` over a blob that no longer exists returns `0`, so it is easy to
+mis-count as a third replacement. Restoring its pre-image would resurrect a file
+that was removed on purpose, so check 3 requires
+`git cat-file -e <commit>:tmp/TLU_Test_Cases.md` before classifying a commit as a
+replacement. (This distinction was added after a code review caught exactly this
+mis-count.)
 
 ## Fix
 
@@ -116,9 +126,9 @@ $ comm -23 pre.set after.set | wc -l      # 0  (nothing from the lost era still 
 
 **The net loss was 87, not 88**: `## Regression — Issue #1779` survived the clobber
 and was re-appended later, which is why the raw `88 → 1` count overstates it. The
-restore is a *union*, not a replacement, so the **12 suites written after the
+restore is a *union*, not a replacement, so the **13 suites written after the
 clobber** (#1089, #1092, #1268, #1275, #1682, #1696, #1703, #1780, #1839, #1840,
-#1844, #1845) survive it as well.
+#1844, #1845, and this issue's own #1849) survive it as well: 88 + 13 = 101.
 
 ### Part 2 — check 3 of the gate (`fb4701018`)
 
@@ -134,6 +144,13 @@ counts (`ai/verify_test_suites.sh:281-395`).
 Only the **newest** destructive commit is enforced — older ones belong to the
 retired heading scheme (1849-24 in the suite rejects that alternative as a false
 positive generator).
+
+**Contract, stated explicitly** (raised by code review): a suite is identified by
+its **exact `^## ` heading line**, so appending is always allowed while
+*renaming* or reformatting a heading is reported as a loss — a conservative FAIL,
+the same trade-off check 2a already makes. Rule 9 declares the file append-only, so
+a rename is a violation anyway: append a new suite rather than editing an old
+heading. The header of the script and its `--help` now say so.
 
 ```console
 # the same input the old gate accepted, now rejected

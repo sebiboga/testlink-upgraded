@@ -176,7 +176,11 @@ screen reaches full parity.
   moveable merge-base, so a clobber fails from now on even after it has landed. Only the
   NEWEST destructive commit is enforced: the union of every historical heading is 844, 831 of
   which are not losses but a retired `## N. Name (Suite ID: M)` heading scheme, and
-  enforcing them would leave the gate permanently red. The extractor is sanity-checked
+  enforcing them would leave the gate permanently red. The classifier also requires the
+  commit to still CONTAIN the file, because `a572b8c75` (0/-15157) *deleted* it and
+  restoring that pre-image would resurrect a file removed on purpose. A suite is identified
+  by its exact `^## ` heading line, so appending is always allowed while renaming a heading
+  is a conservative FAIL (rule 9 declares the file append-only anyway). The extractor is sanity-checked
   against its own input and reports *unrunnable* rather than PASS when no history is
   readable - the first implementation silently matched nothing and produced a false PASS.
   Regression suite "Regression - Issue #1849" appended to `tmp/TLU_Test_Cases.md`.

@@ -21,16 +21,41 @@
 # heading that existed before this run must still exist afterwards. That is what
 # this script computes.
 #
+# AND, SINCE #1849, A SECOND INVARIANT — a merge-base baseline is MOVABLE, so it
+# cannot see a loss an ancestor already made. Commit 136fc4426, titled "append
+# suite for #1089", was a +12/-6332 REPLACEMENT of the suite file (88 suite
+# headings -> 1) and this gate reported "6 PASS / 0 FAIL / EXIT=0" on the
+# result, because the merge-base carried the damage. Check 3 therefore anchors
+# the baseline to the newest commit that REPLACED the file and requires the
+# candidate to contain that commit's parent's headings — a baseline that cannot
+# move. Only the NEWEST replacement is enforced; older ones belong to the
+# retired '## N. Name (Suite ID: M)' heading scheme and would be unsatisfiable.
+#
+# CONTRACT — a suite is identified by its EXACT '^## ' heading line. Appending is
+# always allowed; RENAMING or reformatting a heading is reported as a loss
+# (conservative FAIL). Rule 9 makes the file append-only, so a rename is a
+# violation anyway: append a new suite instead of editing an old heading.
+#
 # USAGE
 #   bash ai/verify_test_suites.sh [--allow-skip] [<candidate-file>]
 #
 #   <candidate-file>  file to check (default: the working copy of
 #                     tmp/TLU_Test_Cases.md, falling back to the version staged
-#                     in the index). Pass a path to check a saved copy.
+#                     in the index). Pass a path to check a saved copy. It must
+#                     be a real file — process substitution yields a fifo and is
+#                     rejected as unreadable.
 #   --allow-skip      exit 0 when a check cannot run (no git clone / no usable
-#                     baseline / file absent). Without it an unrunnable check
-#                     is a FAIL, so the gate can never report a success it did
-#                     not verify.
+#                     baseline / file absent / no readable history). Without it
+#                     an unrunnable check is a FAIL, so the gate can never
+#                     report a success it did not verify.
+#
+# ENVIRONMENT
+#   TLU_REQUIRE_SUITE      e.g. "Issue #1849" — the suite heading this run must
+#                          have added (checked against the headings only).
+#   TLU_DEFAULT_BRANCH     default branch name; default: origin/HEAD, else
+#                          "sebiboga".
+#   TLU_HIST_MIN_HEADINGS   minimum suite headings a commit's parent must have
+#                          for check 3 to consider it a replacement (default 20).
 #
 # The script never writes, moves or deletes the suite file. It does create and
 # remove scratch directories under $TMPDIR while resolving the baseline.
@@ -38,7 +63,8 @@
 # EXIT: 0 = every invariant PASS, 1 = at least one FAIL.
 #
 # Refs #1805 (follow-up to #1793, #1701 lost in ce093fa54, #1740 lost in
-# a2df484a8, Issue #1048 lost in 966a7997d).
+# a2df484a8, Issue #1048 lost in 966a7997d), #1849 (87 suites lost in 136fc4426).
+#
 
 set -uo pipefail
 
@@ -49,7 +75,7 @@ CANDIDATE=""
 for arg in "$@"; do
   case "$arg" in
     --allow-skip) ALLOW_SKIP=1 ;;
-    -h|--help) sed -n '2,41p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help) sed -n '2,67p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     -*) printf 'unknown option: %s (see --help)\n' "$arg" >&2; exit 1 ;;
     *) CANDIDATE="$arg" ;;
   esac
@@ -356,6 +382,10 @@ else
   for c in $clob_cands; do
     par="$(git rev-parse --verify --quiet "$c^" 2>/dev/null)"
     [ -n "$par" ] || continue
+    # A REPLACEMENT still contains the file. A commit that DELETED it (measured:
+    # a572b8c75, 0/+0/-15157) is not a clobber — restoring its pre-image would
+    # resurrect a file that was removed on purpose, so it must be skipped.
+    git cat-file -e "$c:$SUITE_RELPATH" 2>/dev/null || continue
     git cat-file -e "$par:$SUITE_RELPATH" 2>/dev/null || continue
     hb="$(git show "$par:$SUITE_RELPATH" 2>/dev/null | grep -cE "$H")"
     ha="$(git show "$c:$SUITE_RELPATH" 2>/dev/null | grep -cE "$H")"

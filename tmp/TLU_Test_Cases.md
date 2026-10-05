@@ -7327,7 +7327,8 @@ that merge-base.
 | 1849-4 | `comm -23 <pre-clobber set> <today set> \| wc -l` | 0 | **87** | **FAIL** |
 | 1849-5 | `comm -12 <pre-clobber set> <today set>` | — | 1 (`## Regression — Issue #1779` survived and was re-appended) | INFO — so the net loss is 87, not 88 |
 | 1849-6 | `bash ai/verify_test_suites.sh` on that clobbered file | FAIL (it lost 87 suites) | `baseline: 2db9148b4 (13) -> candidate: 13 suites` / `6 PASS / 0 FAIL / EXIT=0` | **FAIL — the gate blessed the loss** |
-| 1849-7 | scan every commit touching the file for a destructive signature (parent >= 20 headings AND commit kept < 50%) | 1 known clobber | **2** hits in 1069 commits: `136fc4426` (88->1) and `30aeecd0d` (595->1, untracked) | FAIL — filed as #1851 |
+| 1849-7 | scan every commit touching the file for a REPLACEMENT signature (file still present at the commit, parent >= 20 headings AND commit kept < 50%) | 1 known clobber | **2** hits in 1069 commits: `136fc4426` (88->1) and `30aeecd0d` (595->1, untracked) | FAIL — filed as #1851 |
+| 1849-7b | classify `a572b8c75` (0/-15157) the same way | must NOT be a replacement | it **DELETED** the file (`git cat-file -e a572b8c75:tmp/TLU_Test_Cases.md` fails); a naive `grep -cE '^## '` over an absent blob returns 0 and mis-counts it as a third replacement | **FAIL in my first classifier (found by code review) -> check 3 now requires `git cat-file -e <commit>:<path>` before classifying; scan.py prints only 2** |
 | 1849-8 | history-union idea: union of every historical `^## ` heading | 88 | 844, of which **831** are absent for a legitimate reason (the retired `## N. Name (Suite ID: M)` scheme) | REJECTED as a gate baseline — permanently red |
 
 ### Part 2 — fix 1: restore the lost evidence (append-only, deduped on the heading)
@@ -7338,7 +7339,7 @@ that merge-base.
 | 1849-10 | `grep -cE '^## ' tmp/TLU_Test_Cases.md` | 13 + 87 = 100 | **100** | PASS |
 | 1849-11 | `comm -23 <pre-clobber set> <restored set> \| wc -l` | 0 (nothing from the pre-clobber era still missing) | **0** | PASS |
 | 1849-12 | no heading duplicated: `#1779` exists in both sources | exactly 1 occurrence | 100 headings = 13 + 87, dedupe by heading | PASS |
-| 1849-13 | the 12 suites added AFTER the clobber survive the restore | all 12 present (#1089, #1092, #1268, #1275, #1682, #1696, #1703, #1780, #1839, #1840, #1844, #1845) | 100 - 88 = 12 post-clobber suites intact | PASS |
+| 1849-13 | the suites added AFTER the clobber survive the restore | all intact | 101 - 88 = **13** post-clobber suites present (#1089, #1092, #1268, #1275, #1682, #1696, #1703, #1780, #1839, #1840, #1844, #1845, #1849) | PASS |
 | 1849-14 | structural integrity of the merged file | fences balanced, no empty suite | `grep -c '^```'` = **128** (even); "no suite heading left without a body (= 0)" | PASS |
 | 1849-15 | content spot-check of the first and last restored block | byte-identical to `136fc4426^`, not truncated | `#1026` keeps its full `1026-1..1026-8` result table; the last block keeps its `### Expected / ### Actual (post-fix) / PASS` tail | PASS |
 
@@ -7356,13 +7357,17 @@ that merge-base.
 | 1849-23 | re-run after the fix of 1849-22 | the destructive commit IS found | `clobber baseline: a381901e3^ (88 headings) -> 136fc4426 (1 headings)` | PASS |
 | 1849-24 | false-positive control: enforce every historical destructive commit instead of the newest | must NOT be adopted | 30aeecd0d's pre-image holds 595 headings of the retired scheme; enforcing it would demand 831 absent headings | REJECTED by design (only the newest is enforced) |
 | 1849-25 | cost of the new check on a 1069-commit history | no gate should add minutes | `real 0m5.6s` total for the whole gate | PASS |
+| 1849-25b | legitimate APPEND of a dummy suite block to a copy of the file | PASS (no false positive) | `7 PASS / 0 FAIL / 1 SKIP`, EXIT=0 | PASS |
+| 1849-25c | legitimate RENAME of a suite heading on a copy | conservative FAIL, documented contract | `FAIL ... (1 lost)` — a suite is identified by its EXACT `^## ` line; rule 9 declares the file append-only, so a rename is a violation anyway; now stated in the script header and `--help` | PASS (by design) |
 | 1849-26 | `TLU_REQUIRE_SUITE="Issue #1849" bash ai/verify_test_suites.sh` | own suite heading detected | `PASS own suite heading present (Issue #1849)` | PASS |
 
 ### Result
 
-**26 cases: 22 PASS, 1 REJECTED-by-design (1849-24), 1 INFO (1849-5), 1 FAIL that was the bug in
-my own first implementation (1849-22) and is fixed and re-verified by 1849-23, 1 expected FAIL
-(1849-1 measures the offending commit itself).** The primary symptom — a suite file that
+**30 cases: 25 PASS, 1 PASS-by-design (1849-25c), 1 REJECTED-by-design (1849-24), 1 INFO
+(1849-5), 1 expected FAIL (1849-1 measures the offending commit itself), 2 FAILs that were
+bugs in my own first implementation — the silently false-PASSing extractor (1849-22, fixed
+and re-verified by 1849-23) and the `a572b8c75` delete/replace mis-count (1849-7b, found by
+code review and fixed).** The primary symptom — a suite file that
 silently lost 87 suites while the gate reported `6 PASS / 0 FAIL / EXIT=0` — is gone: the
 suites are restored (100 headings) and the same gate input that used to pass now fails with
 the 87 lost headings named. Refs #1849 (follow-up for `30aeecd0d`: #1851).
