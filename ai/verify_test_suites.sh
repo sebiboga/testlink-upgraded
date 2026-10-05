@@ -276,6 +276,130 @@ else
   fi
 fi
 
+# --- 3. history-wide clobber detection (issue #1849) -------------------------
+# Check 2a proves "nothing was lost SINCE the merge-base". It is structurally
+# blind to a loss that is ALREADY INSIDE the merge-base: once a clobbering
+# commit has landed on the default branch, the merge-base carries the damage, so
+# baseline == candidate and the comparison reports nothing missing. Measured on
+# #1849: `6 PASS / 0 FAIL / EXIT=0` on a file that had lost 87 of its 88 suites,
+# because 136fc4426 ("+12/-6332", 88 suite headings -> 1) was an ancestor of the
+# merge-base.
+#
+# This check anchors the baseline to the NEWEST commit that REPLACED the suite
+# file instead of editing it, and requires the candidate to still contain that
+# commit's PARENT suite headings. A whole-file overwrite has an unmistakable
+# signature in --numstat (many deletions, few additions), so it can be located
+# in one pass:
+#
+#     git log --format='C %H' --numstat <range> -- tmp/TLU_Test_Cases.md
+#
+# Only the NEWEST confirmed destructive commit is enforced. Older destructive
+# commits belong to the retired '## N. Name (Suite ID: M)' heading scheme:
+# demanding their headings back would be unsatisfiable and would leave the gate
+# permanently red, which is how gates get ignored. Measured on #1849: the union
+# of EVERY historical heading is 844, of which 831 are not losses at all.
+#
+# Only the newest is enforced, and the file is append-only by rule 9, so the
+# newest destructive commit's pre-image is exactly the set the file must hold.
+if ! in_git_repo; then
+  unrunnable "clobber check: not inside a git clone"
+else
+  HIST_MIN_HEADINGS="${TLU_HIST_MIN_HEADINGS:-20}"
+  db3="${TLU_DEFAULT_BRANCH:-}"
+  if [ -z "$db3" ]; then
+    db3="$(git symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null | sed 's|^origin/||')"
+  fi
+  [ -n "$db3" ] || db3="sebiboga"
+
+  # Raw history of the suite file as `git log` prints it: a "C <sha>" marker line
+  # before each commit's numstat block. Kept in a variable so the parse below can be
+  # sanity-checked against the same input — an extractor that silently yields nothing
+  # would turn this check into a permanent false PASS.
+  hist_raw=""
+  for r in HEAD "origin/$db3"; do
+    git rev-parse --verify --quiet "$r" >/dev/null 2>&1 || continue
+    hist_raw="$hist_raw$(git log --format='C %H' --numstat "$r" -- "$SUITE_RELPATH" 2>/dev/null)
+"
+  done
+  hist_nostat="$(printf '%s\n' "$hist_raw" | grep -c $'^[0-9][0-9]*\t' 2>/dev/null)"
+  hist_nostat="${hist_nostat:-0}"
+
+  # Newest-first, deduplicated shas of every commit that REPLACED the file
+  # (del >= N and add*2 < del). Ordinary suite edits are incremental and do not
+  # match, which is what keeps the candidate list short. Parsed with `read` and
+  # explicit digit guards: awk's field separator cannot serve both the space in
+  # the "C <sha>" marker and the tabs of a numstat line.
+  clob_cands=""
+  if [ "$hist_nostat" -gt 0 ]; then
+    clob_cands="$(printf '%s\n' "$hist_raw" | {
+      sha=""
+      while IFS=$'\t' read -r a b p; do
+        case "$a" in
+          "C "*) sha="${a#C }"; continue ;;
+          "") continue ;;
+          *[!0-9]*) continue ;;
+        esac
+        case "$b" in ''|*[!0-9]*) continue ;; esac
+        if [ "$b" -ge "$HIST_MIN_HEADINGS" ] && [ $((a * 2)) -lt "$b" ]; then
+          printf '%s\n' "$sha"
+        fi
+      done
+    } | awk 'NF && !seen[$0]++')"
+  fi
+
+  hist_head=""
+  hist_parent=""
+  hist_before=0
+  hist_after=0
+  hist_commits="$(git rev-list --count HEAD -- "$SUITE_RELPATH" 2>/dev/null)"
+  hist_commits="${hist_commits:-0}"
+  for c in $clob_cands; do
+    par="$(git rev-parse --verify --quiet "$c^" 2>/dev/null)"
+    [ -n "$par" ] || continue
+    git cat-file -e "$par:$SUITE_RELPATH" 2>/dev/null || continue
+    hb="$(git show "$par:$SUITE_RELPATH" 2>/dev/null | grep -cE "$H")"
+    ha="$(git show "$c:$SUITE_RELPATH" 2>/dev/null | grep -cE "$H")"
+    hb="${hb:-0}"; ha="${ha:-0}"
+    # Confirm with real heading counts, not the numstat heuristic.
+    if [ "$hb" -ge "$HIST_MIN_HEADINGS" ] && [ "$ha" -lt $((hb / 2)) ]; then
+      hist_head="$c"; hist_parent="$par"; hist_before="$hb"; hist_after="$ha"
+      break
+    fi
+  done
+
+  if [ "$hist_nostat" -eq 0 ]; then
+    # No numstat block could be read: either the file has no history here (fresh
+    # shallow clone) or the extractor is broken. Either way this check did not
+    # run, and an unrun check must not be reported as a PASS.
+    unrunnable "clobber check: no suite-file history readable ($SUITE_RELPATH, $hist_commits commits on HEAD)"
+  elif [ -z "$hist_head" ]; then
+    ok "no destructive commit in the suite-file history (nothing to re-append)"
+  else
+    printf 'clobber baseline: %s^ (%s headings) -> %s (%s headings)\n' \
+      "$(git rev-parse --short "$hist_parent")" "$hist_before" \
+      "$(git rev-parse --short "$hist_head")" "$hist_after"
+    htmp="$(new_tmpdir)" || { bad "cannot create a scratch directory"; summary; exit 1; }
+    if ! git show "$hist_parent:$SUITE_RELPATH" > "$htmp/hist.md" 2>/dev/null; then
+      bad "cannot read $hist_parent:$SUITE_RELPATH"
+    else
+      hist_lost="$(comm -23 \
+        <(grep -E "$H" "$htmp/hist.md" | LC_ALL=C sort) \
+        <(grep -E "$H" "$CANDIDATE" | LC_ALL=C sort))"
+      if [ -z "$hist_lost" ]; then
+        ok "no suite lost vs the pre-image of the newest destructive commit $(git rev-parse --short "$hist_head") (= 0)"
+      else
+        hn=$(printf '%s\n' "$hist_lost" | grep -c .)
+        bad "no suite lost vs the pre-image of the newest destructive commit $(git rev-parse --short "$hist_head") ($hn lost)"
+        printf '%s\n' "$hist_lost" | head -20 | sed 's/^/          LOST: /'
+        printf '          that commit replaced the file (%s -> %s headings); APPEND the blocks, never rewrite the file:\n' \
+          "$hist_before" "$hist_after"
+        printf '            git show %s^:%s >> %s\n' \
+          "$(git rev-parse --short "$hist_head")" "$SUITE_RELPATH" "$SUITE_RELPATH"
+      fi
+    fi
+  fi
+fi
+
 summary
 [ "$fail" -eq 0 ] || exit 1
 exit 0
