@@ -120,8 +120,13 @@ function showFeedback(kind, msg) {
 
 $(document).on('click', '#refreshBtn', function() { loadDocs(true); });
 
+// Full HTML escaping incl. " and '. The doc titles/filenames are interpolated into
+// data-pdf/data-title attributes below, so the quote forms must be escaped too -
+// $('<div>').text().html() only covers & < > (Refs #1275).
 function esc(s) {
-  return $('<div>').text(s == null ? '' : String(s)).html();
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 function loadDocs(clearFeedback) {

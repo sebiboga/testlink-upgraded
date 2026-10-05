@@ -3919,6 +3919,24 @@ $TLS_remove_kw_msgbox_msg = "Skutecne smazat kl�cov� slovo %i?";
 $TLS_img_title_remove_keyword = "Klikni pro smaz�n� tohoto kl�cov�ho slova.";
 
 
+// ----- END ------------------------------------------------------------------
+
+$TLS_report_test_automation = 'Report automatizace testů';
+// ----- issue #644: keys restored (accidentally deleted by commit 1c33eb305) -----
+$TLS_executed_me_and_also = 'is executed together with';
+$TLS_remove_plat_msgbox_title = 'Remove Platform';
+$TLS_remove_plat_msgbox_msg = 'Do you want to remove all executions linked to this platform?';
+$TLS_img_title_remove_platform = 'Remove Platform';
+
+// Added for TestLink 2.0.1 - issue #653: key was missing from every bundle
+$TLS_error_self_signup_disabled = 'Samoobslužná registrace nových uživatelů je zakázána. Kontaktujte prosím správce webu.';
+
+// Added for TestLink 2.0.1 - issue #836: simplexml_load_file_wrapper_error missing from most locale bundles
+$TLS_simplexml_load_file_wrapper_error = "Predajte prosim tento text svemu administratorovi TestLink<br> - Nacteni XML selhalo<br>";
+
+// Added for TestLink 2.0.1 - issue #1275: the doc_good_test_case / doc_youtrack_readme keys
+// below were appended from a stale copy of this bundle by commit 7892bb3f4, which silently
+// dropped the #644 / #653 / #836 block restored above. That loss is repaired here (Refs #1275).
 $TLS_doc_good_test_case = 'Good Test Case';
 $TLS_doc_youtrack_readme = 'YouTrack Readme';
 $TLS_href_nfr_performance = "NFR: Performance"; // "NFR: Performance" (Refs #1470)

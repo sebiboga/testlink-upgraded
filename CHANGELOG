@@ -2954,7 +2954,10 @@ System:
 - Install / Upgrade check (install/installView.html) - BFF api/install.
   Schema state, security notes, GD check (#797, #1282-#1287).
 - Documentation hub (documentation/documentation.html) - BFF api/documentation.
-  8 PDF docs + View/Download modal (#764/#1281).
+  8 PDF docs + View/Download modal (#764/#1281/#1275). `good_test_case`
+  (GoodTest.pdf) and `youtrack_readme` restored against the legacy
+  tools/viewer.php allowlist, order-pinned to the legacy sequence; i18n keys
+  repaired after #1281 dropped 8 pre-existing keys from cs_CZ/ro_RO (#1275).
 
 Product:
 - Test Project Management (projectsView.html) - BFF api/projects.

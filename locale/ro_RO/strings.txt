@@ -135,6 +135,9 @@ $TLS_doc_fckeditor_config = 'Configurare FCKEditor';
 $TLS_doc_bug_tracking_howto = 'Ghid urmărire defecte';
 $TLS_doc_good_test_case = 'Caz de testare bun';
 $TLS_doc_youtrack_readme = 'YouTrack Readme';
+// Restored after commit 7892bb3f4 (Refs #1275) dropped it from a stale copy of
+// this bundle; value taken verbatim from 7892bb3f4^ (Refs #1275).
+$TLS_href_print_req = 'Document specificație cerințe';
 $TLS_doc_github_wiki = 'Wiki GitHub (40 pagini)';
 $TLS_current_test_plan = 'Plan de test curent';
 $TLS_testplan_role = 'Rol plan de test ';
