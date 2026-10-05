@@ -563,3 +563,40 @@ and that is correct: the ASIDE is rendered by `lang_get()` from
 The same 26-key gap also exists in `de.json`/`es.json`/`it.json` (identical key
 sets, measured) and different-sized gaps in `ja`/`pt`/`ru` (20), `ro` (6),
 `zh` (40) — none of them touched by this fix.
+
+## Task — Issue #1092: group-by-test-suite results in searchView.html (gap vs legacy)
+
+**Precondition** — MariaDB `testlink` freshly imported; load the idempotent
+fixture `tmp/fixtures_1092.sql` (`mysql -h 127.0.0.1 -utestlink -ptestlink
+testlink < tmp/fixtures_1092.sql`): test project `SRCH1` (`id=1`, prefix `TS1`)
+with `Suite Alpha` (TS1-1, TS1-2, TS1-3) and `Suite Beta` (TS1-4, TS1-5 with 2
+versions). Log in `admin/admin`, open
+`gui/templates/search/searchView.html?tproject_id=1`.
+
+**Steps / expected** (legacy reference: `lib/testcases/tcSearch.php:339-351` —
+`setGroupByColumnName('test_suite')`, `setSortByColumnName('test_case')` +
+`sortDirection='DESC'`, `showToolbar`, `allowMultiSort=false`;
+`exttable.class.php:591` `groupTextTpl '{text} (N Items)'`):
+
+| # | Step | Expected | Result |
+|---|------|----------|--------|
+| T1 | Summary = `Search result grouping`, click *Find* | `(5 matches)`, rows grouped: 2 group headers `Suite Alpha (3 Items)` + `Suite Beta (2 Items)`, 5 data rows | PASS — measured 2 `tr.dtrg-group`, texts `Suite Alpha(3 Items)` / `Suite Beta(2 Items)`, count `(5 matches)` |
+| T2 | Inspect group column | the `Test Suite` column is hidden (legacy `hideGroupedColumn=true`), path only in the header | PASS — `getComputedStyle(thead th[0]).display === 'none'` |
+| T3 | Default order inside each group | test case DESC (TS1-3, TS1-2, TS1-1 then TS1-5, TS1-4) | PASS — row order exactly that |
+| T4 | Click a group header row | only that group collapses/expands, chevron flips, other group untouched | PASS — after click visible data rows 5 → 2 (`Suite Beta` only), keys toggle `{Suite Alpha}` → `{}` → `{Suite Alpha}` |
+| T5 | Toolbar → *Expand/Collapse Groups* | collapses ALL groups (0 visible data rows), info line `Groups collapsed`, button `active`; clicking again expands all (5 rows), info `Groups expanded` | PASS — measured `7 rows: 2 group + 5 none`, then `visible 5`, button class `tbtn active` |
+| T6 | Toolbar → *Show all Columns* / *Hide Test Suite column* | suite column appears/vanishes, button label flips | PASS — label `Hide Test Suite column`, `thead th[0].display = table-cell`; second click restores `none` + `Show all Columns` |
+| T7 | Click the `Version` column header (sort by another column) | groups must NOT split (group column stays primary sort criterion) | PASS — still exactly 2 group headers after sort + after settle |
+| T8 | DataTables filter box = `Beta Export` | group header recounts to `Suite Beta (1 Item)` with 1 row | PASS — rows: `Suite Beta(1 Item)`, `TS1-5 [v2] :: Beta Export` |
+| T9 | Reset filter, *Reset* button | toolbar + table hidden, groups state cleared | PASS — `#gridToolbar` `display:none`, `#resultsWrap` `display:none` |
+| T10 | Console during the whole pass | no error/warning | PASS — `list_console_messages(types=[error,warn])` → `<no console messages found>` |
+
+**Extra check** — the no-CDN fallback path (`$.fn.dataTable.RowGroup` undefined,
+the #799 guard) also renders the group headers: verified by loading the page
+with the rowgroup script blocked → 2 `tr.dtrg-group` rows + working
+Expand/Collapse, before the guard was corrected from `$.fn.dataTable.rowGroup`
+(lower-case `r`, which the CDN plugin never defines) to `$.fn.dataTable.RowGroup`
+as published in `dataTables.rowGroup.min.js`.
+
+**Actual result** — 10/10 PASS. Screenshot:
+`docs/screenshots/1092-searchview-grouped-results.png`.
