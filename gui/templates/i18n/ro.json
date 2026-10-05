@@ -6798,5 +6798,11 @@
   "sv.grid.groupItem": "({count} element)",
   "sv.grid.groupItems": "({count} elemente)",
   "sv.grid.groupsCollapsed": "Grupuri comprimate",
-  "sv.grid.groupsExpanded": "Grupuri extinse"
+  "sv.grid.groupsExpanded": "Grupuri extinse",
+  "role.duplicateRole": "Duplicateaza",
+  "role.editLocked": "Acest rol este definit de sistem si nu poate fi modificat.",
+  "role.error.duplicate": "Eroare la duplicarea rolului",
+  "role.noRights": "Nu ai drepturile necesare pentru a gestiona rolurile (este necesar dreptul role_management).",
+  "role.systemDeleteDenied": "Rolurile de sistem nu pot fi șterse.",
+  "role.warningUsersWillBeReset": "Utilizatorii afectati vor primi rolul"
 }

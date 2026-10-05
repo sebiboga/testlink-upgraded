@@ -17,7 +17,13 @@ modern UI (Dashio Bootstrap admin template) with a PHP REST BFF layer.
    (`gui/templates/i18n/i18n.js`). All labels, titles, placeholders and messages
    get keys in ALL locale bundles (`en.json`, `ro.json`, ...). No hardcoded strings.
    Validate every touched bundle before committing (`python3 -m json.tool <file>`
-   ) — parallel CI agents append keys to the same files.
+   ) — parallel CI agents append keys to the same files. **json.tool only proves
+   well-formedness, never coverage** — a bundle missing a key is valid JSON and
+   `TLi18n` silently renders the raw key (`i18n.js:175`). Run the key-set gate
+   before every commit that touches i18n:
+   `bash ai/verify_i18n_coverage.sh` (exit 1 = a bundle is missing a key `en.json`
+   defines). Parallel agents append to the same files, so the gate must be re-run
+   after the rebase, not only on your own diff.
 
 4. **Investigate the legacy screen first.** Before writing any code, read the
    legacy PHP controller (`lib/...`) and Smarty template

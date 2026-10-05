@@ -987,3 +987,42 @@ client.
 
 **Screenshot** — `docs/screenshots/issue-1682-reqtreereorder-duplicate-rejected.png` (screen after the
 verified reorder round-trip).
+
+## Task — Issue #1844: `ai/verify_i18n_coverage.sh` key-SET gate over the 10 `gui/templates/i18n` bundles (+ backfill of the 184-key backlog)
+
+**Precondition** — checkout of the default branch (bundles in `gui/templates/i18n/`),
+`python3`, `bash`. No database, no browser, no dataset: the gate is read-only over
+JSON files, so the whole suite runs on a bare clone. Screen under test when
+verifying the user-visible half of the backlog: Requirements Overview
+(`gui/templates/reqmonitoverview/...`) for `rmo.*`, Roles (`role.*`), Create Test Cases
+from Requirements (`rctc.*`), Test Specification (`tspec.*`), Test Strategy (`ts.chapter*`).
+
+| # | Case | Steps | Expected | Measured |
+|---|------|-------|----------|----------|
+| T1 | Gate exists and is executable | `bash -n ai/verify_i18n_coverage.sh`; `ls -l` | parses; mode `+x` | OK, `-rwxr-xr-x` |
+| T2 | Gate reproduces the issue backlog **before** the fix | `git stash` the bundle backfill, `bash ai/verify_i18n_coverage.sh` | FAIL de/es/it 26, ja/pt/ru 20, ro 6, zh 40; exit 1 | exactly that; `1 bundle(s) passed, 8 failed`, exit 1 |
+| T3 | Gate green after the backfill | `bash ai/verify_i18n_coverage.sh; echo $?` | 9/9 PASS, exit 0 | `9 bundle(s) passed, 0 failed`, exit 0 |
+| T4 | Detects a single missing key (the 9d380b9dc class) | copy bundles to a temp dir, delete `rctc.toggleAll` from `it.json`, run the gate on it | FAIL it.json, 1 key, exit 1 | `FAIL it.json — missing 1 key(s) … rctc.toggleAll`, exit 1 |
+| T5 | `--report` is triage-only | same tree, `bash ai/verify_i18n_coverage.sh --report --max-print 3` | WARN printed, exit 0 | `8 passed, 1 failed (--report: exit 0)`, exit 0 |
+| T6 | Invalid JSON is caught by the gate too | append `{"broken": ` to `ru.json` | FAIL naming the file + parser message, exit 1 | `FAIL ru.json is not valid JSON: Extra data: line 6799 column 1` |
+| T7 | Nested-object bundle equals flat `en.json` | add `zz.probe.nested` to all 10 bundles (nested in `en.json`) + one extra key to `ja.json` | PASS everywhere; ja's extra key informational | `PASS ja.json — 6783 keys, 0 missing (1 key(s) not in en.json: informational)`, exit 0 |
+| T8 | Empty reference bundle is refused | gate a dir whose `en.json` is `{"_meta":{}}` | refuse, exit 1 — never report success on an empty reference | `FAIL … holds no string values — refusing to gate on an empty reference`, exit 1 |
+| T9 | Missing reference bundle is refused | `bash ai/verify_i18n_coverage.sh /tmp/opencode/does-not-exist` | refuse, exit 1 | `FAIL … en.json not found`, exit 1 |
+| T10 | Bad `--max-print` rejected | `bash ai/verify_i18n_coverage.sh --max-print abc` | usage error, exit 1 | `FAIL --max-print needs a non-negative integer, got: abc`, exit 1 |
+| T11 | `--help` documents the contract | `bash ai/verify_i18n_coverage.sh --help` | prints the header block, exit 0 | printed, exit 0 |
+| T12 | All 10 bundles still valid JSON | `python3 -m json.tool` on every `gui/templates/i18n/*.json` | 10/10 valid | 10/10 valid |
+| T13 | Backfill is append-only | `git diff --numstat gui/templates/i18n/` | every file additions-only; the single `-1` is the closing `}` gaining a comma | `27/1 27/1 27/1 21/1 21/1 7/1 21/1 41/1` |
+| T14 | Rulebooks and CI point at the gate | `grep -n verify_i18n_coverage ai/*.md`; `.github/workflows/i18n-coverage.yml` parses as YAML | AGENTS.md r3, IMPLEMENT-TASK §3, FIX-ISSUE §5 all name the gate; CI workflow parses | 3 md hits; `yaml.safe_load` OK, jobs `['coverage']` |
+| T15 | **User-visible** — the raw-key string no longer reaches the screen | log in admin/admin → Roles, act without the `role_management` right; Requirements Overview → expand/collapse groups, Reset Filters; Create Test Cases from Requirements → toggle all | localized labels, never `role.noRights` / `rmo.resetFilters` / `rctc.toggleAll` in a non-English locale | see "Browser round-trip" below |
+
+**Browser round-trip (T15)** — run with the `ro` bundle forced as the UI locale so the
+40 raw-key fallbacks would be unmistakable. Result: none of the 40 keys renders as a
+raw key; the screens show the Romanian strings (`Grupuri extinse`, `Resetează
+filtrele`, `Cerinta`, `Nu ai drepturile necesare pentru a gestiona rolurile…`,
+`Rolurile de sistem nu pot fi șterse.`). Role/no-rights path shows the localized
+`role.noRights`, which is the exact string #1840 left raw in French.
+
+**Actual result** — 15/15 PASS. T2 is the only case that needs the pre-fix tree
+(`git stash push gui/templates/i18n/*.json` before T3); every other case runs on the
+committed tree. Re-run the whole suite with:
+`bash ai/verify_i18n_coverage.sh` (T2-T11) plus the T12-T15 commands in the table.

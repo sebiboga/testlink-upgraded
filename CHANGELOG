@@ -157,6 +157,31 @@ screen reaches full parity.
   with Name, URL prefill, Reset, BFF matrix, Event Viewer clean, console clean).
   Regression suite "Task — Issue #1077" appended to `tmp/TLU_Test_Cases.md`. (Refs #1077)
 
+- [KEY BUGFIX] - #1844: **40 i18n keys rendered as the raw key on screen in 8 of the 10 locale
+  bundles, and nothing in the toolchain could see it.** The only i18n gate the repo had was
+  `python3 -m json.tool` on a single bundle, which proves WELL-FORMEDNESS, never COVERAGE
+  (`{"role.noRights": null}` is valid JSON). `TLi18n.t()` returns the key itself on a lookup
+  miss (`gui/templates/i18n/i18n.js:175`) and `apply()` overwrites `textContent`
+  unconditionally, so a bundle silent on a key paints `role.noRights` instead of a label -
+  with no error, no log line and no failed build. Measured pre-fix: de/es/it 26 missing keys,
+  ja/pt/ru 20, ro 6, zh 40 (fr was the only complete one, thanks to #1840). Provenance by
+  `git log -S`: `588897593` (Test Strategy bug chapters), `a381901e3` (Requirements Monitor
+  Overview grid toolbar), `9d380b9dc` (rctc counters - whose commit message claims "rctc.*
+  keys in all 10 locale bundles"), `4bcf10e07` (role dialogs), `1df35b90f` (tspec lifecycle).
+  Fix (1) - backfilled 184 key/value pairs (de/es/it 26, ja/pt/ru 20, ro 6, zh 40), written
+  textually before the closing brace so the bundles' non-alphabetical append order is
+  preserved (`+26/-1` per file, additions only); the 8 `rmo.grid.*`/`rmo.resetFilters`
+  strings are reused verbatim from each bundle's own already-translated `ro.grid.*` /
+  `tspec.resetFilters` sibling so the two screens cannot drift apart, the rest are
+  hand-translations written in each bundle's established register. Fix (2) - new BLOCKING
+  gate `ai/verify_i18n_coverage.sh` (flattens nested bundles before comparing, reports extra
+  keys informationally, `--report` for triage only) wired into `ai/AGENTS.md` rule 3,
+  `ai/IMPLEMENT-TASK.md` §3, `ai/FIX-ISSUE.md` §5 and a new
+  `.github/workflows/i18n-coverage.yml` that runs it on every push and PR. Verified: all 10
+  bundles at 6781 keys, 9/9 PASS, and a 9-case gate self-test proves it FAILS (exit 1) on a
+  single injected missing key - the exact shape of the `9d380b9dc` regression. 15-case suite
+  appended to `tmp/TLU_Test_Cases.md`, executed 15/15 PASS. (Fixes #1844)
+
 - [KEY BUGFIX] (security) - #1696: **the legacy requirement specification tree lazy loader
   `lib/ajax/getrequirementnodes.php` authorized nothing but the SESSION, so any authenticated
   user - a global `<no rights>` role included - could read the `req_specs.doc_id`, the

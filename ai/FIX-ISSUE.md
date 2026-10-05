@@ -52,8 +52,10 @@ follow ALL rules in ai/AGENTS.md (they apply to every run).
   new Error/Warning entries.
 - If you touched any i18n JSON bundle (`gui/templates/i18n/*.json`), validate
   every touched file before committing:
-  `python3 -m json.tool <file> > /dev/null` — invalid JSON must never reach a
-  commit or a PR (parallel agents append keys to the same bundles).
+  `python3 -m json.tool <file> > /dev/null` AND `bash ai/verify_i18n_coverage.sh`
+  — invalid JSON must never reach a commit or a PR (parallel agents append keys to
+  the same bundles). json.tool cannot see a bundle that is valid JSON but silent on
+  a key `en.json` defines; the coverage gate can (#1844).
 - If while testing you discover NEW bugs: log each one as a new GitHub issue
   with symptom, repro steps and root-cause hypothesis — never fix them silently,
   never expand this run's scope. ALWAYS create them with the `bug` label

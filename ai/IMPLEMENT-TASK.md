@@ -56,7 +56,10 @@ following the Dashio patterns of already-modernized screens.
   add keys to ALL locale bundles, no hardcoded text.
 - Follow the Dashio patterns of previously modernized screens.
 - Validate every touched i18n JSON bundle before committing:
-  `python3 -m json.tool <file> > /dev/null`
+  `python3 -m json.tool <file> > /dev/null` **and** `bash ai/verify_i18n_coverage.sh`
+  — json.tool proves well-formedness only; the coverage gate proves the key SET is
+  present in all 10 bundles (a bundle that misses a key passes json.tool and renders
+  the raw key on screen). See #1844.
 
 ## 4. Verify the feature works
 

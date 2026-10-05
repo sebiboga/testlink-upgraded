@@ -1,0 +1,58 @@
+name: i18n coverage gate
+
+# Issue #1844. The only i18n gate the toolchain had was `python3 -m json.tool`
+# on a single bundle, which proves WELL-FORMEDNESS and never COVERAGE:
+# `{"role.noRights": null}` is valid JSON. A feature that adds its keys to
+# en.json and forgets the other nine bundles therefore shipped silently, because
+# gui/templates/i18n/i18n.js:175 falls back to the raw key
+#
+#   var str = _strings[key] || key;
+#
+# so the user sees "role.noRights" painted on screen instead of a label — with no
+# error, no log line and no failed build. Measured on this repo before the gate
+# existed: de/es/it 26 missing keys, ja/pt/ru 20, ro 6, zh 40 (#1840 is the
+# French instance). Five commits shipped that drift, including 9d380b9dc whose
+# own message claims "rctc.* keys in all 10 locale bundles".
+#
+# This workflow runs the key-set gate on every push and PR. It is BLOCKING: the
+# only thing that changes the outcome class of that bug class is a non-zero exit
+# (a warning gate would have printed all five commits and exited 0).
+#
+# Rulebook: ai/AGENTS.md rule 3, ai/IMPLEMENT-TASK.md §3, ai/FIX-ISSUE.md §5.
+# Gate script: ai/verify_i18n_coverage.sh.
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: i18n-coverage-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: i18n key-set gate (exit 1 when a bundle misses an en.json key)
+        run: bash ai/verify_i18n_coverage.sh
+
+      - name: every bundle is valid JSON (well-formedness, kept as its own step
+             so an invalid-JSON failure is distinguishable from a coverage failure)
+        run: |
+          status=0
+          for f in gui/templates/i18n/*.json; do
+            if python3 -m json.tool "$f" > /dev/null; then
+              echo "valid: $f"
+            else
+              echo "INVALID JSON: $f"
+              status=1
+            fi
+          done
+          exit $status
