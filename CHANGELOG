@@ -8001,6 +8001,27 @@ Changes:
       project tables and added user metrics to the middle section
 
 ## 2.0.1 (in-progress)
+### Screen — Test Suite Create / Edit / Delete `suiteEdit` (Refs #1852)
+- `gui/templates/testcases/suiteEdit.html` + `api/suiteedit`: one Dashio page for
+  the three legacy modes of `lib/testcases/containerEdit.php` (`new_testsuite` /
+  `add_testsuite` / `edit_testsuite` / `update_testsuite` / `delete_testsuite`,
+  now 302-redirected to it), restoring the test-suite **design custom fields**
+  (`design_values_to_db()`), the keyword assignment and the legacy
+  `delete_executed_testcases` gate that the inline `api/suiteview` modal had
+  silently dropped
+- Every custom-field type is rendered from data only (label, type name and
+  possible values arrive from the API, never from `innerHTML`)
+- Delete mode shows the blast radius (nested suites + deep test cases), the
+  per-case path and link/execution status table, blocks the action with 409
+  `suite_has_executed` when an executed case is found, and only navigates away
+  after the server confirms the write
+- Entry points switched: `suiteView.html` (New Sub-Suite / Edit Suite / Delete
+  Suite), `testSpec.html` (New Test Suite), `common.php` (`$actions->suiteEdit`
+  / `suiteCreate` / `suiteDelete`); 58 i18n keys in all ten bundles
+- Bugs filed while testing: #1853 (`_build_cfield()` treats any
+  `custom_field_*_input` key as a DATE part → `tlStringLen(array)` fatal) and
+  #1854 (`check_string()` answers "forbidden characters" for a string that does
+  not match the pattern)
 ### Gap closed — Search Test Cases: the result grid lost the legacy group-by-Test-Suite ExtTable behaviour (Fixes #1092)
 - `gui/templates/search/searchView.html` rendered the quick-search hits as a FLAT
   DataTable, dropping everything `lib/testcases/tcSearch.php:339-351`
