@@ -463,14 +463,37 @@ function suiteEditPossibleValues($raw)
  *
  * Legacy source: containerEdit.tpl {$cf} <- testsuite::html_table_of_custom_
  * field_inputs($id, $parent_id, 'design', '', $userInput) ->
- * cfield_mgr::get_linked_cfields_at_design($tproject_id, 1, null, 'testsuite')
+ * testsuite::get_linked_cfields_at_design($suite_id, null, null, $tproject_id) ->
+ * cfield_mgr::get_linked_cfields_at_design($tproject_id, CF_ENABLED, null,
+ * 'testsuite', $suite_id, 'id')
  */
-function suiteEditCfDefs($tsuiteMgr, $tprojectId, $suiteId = 0)
+function suiteEditCfDefs($tsuiteMgr, $db, $tprojectId, $suiteId = 0)
 {
-    $cfMap = $tsuiteMgr->cfield_mgr->get_linked_cfields_at_design(
-        intval($tprojectId), 1, null, 'testsuite');
+    /* testsuite::get_linked_cfields_at_design($suiteId, $parentId) is the
+       legacy entry point and it is the ONLY overload that also LEFT JOINs the
+       stored design values (the raw cfield_mgr one takes the values as a 5th
+       $node_id argument); without it every field came back as has_value=0. */
+    $cfMap = $tsuiteMgr->get_linked_cfields_at_design(
+        intval($suiteId), null, null, intval($tprojectId));
     if (is_null($cfMap)) {
         return array();
+    }
+    /* Stored values are read with ONE explicit query instead of the legacy
+       LEFT JOIN's `CFDV.value AS value`: with the join alone the numeric
+       field came back has_value=0 / value='' even though the row
+       (field_id, node_id, value) was present in cfield_design_values, so a
+       numeric design value silently vanished from the edit form. */
+    $stored = array();
+    if (intval($suiteId) > 0) {
+        $DT = tlObjectWithDB::getDBTables(array('cfield_design_values'));
+        $rows = $db->get_recordset(
+            "SELECT field_id, value FROM {$DT['cfield_design_values']}" .
+            " WHERE node_id = " . intval($suiteId));
+        if (!is_null($rows)) {
+            foreach ($rows as $r) {
+                $stored[intval($r['field_id'])] = (string)$r['value'];
+            }
+        }
     }
     $types = array(0 => 'string', 1 => 'numeric', 2 => 'float', 4 => 'email',
                    5 => 'checkbox', 6 => 'list', 7 => 'multiselection list',
@@ -480,8 +503,8 @@ function suiteEditCfDefs($tsuiteMgr, $tprojectId, $suiteId = 0)
     foreach ((array)$cfMap as $fieldId => $cf) {
         $fieldId = intval($fieldId);
         $typeId = intval($cf['type'] ?? 0);
-        $hasValue = array_key_exists('value', $cf) && $cf['value'] !== null;
-        $value = $hasValue ? (string)$cf['value'] : null;
+        $hasValue = array_key_exists($fieldId, $stored);
+        $value = $hasValue ? $stored[$fieldId] : null;
         $default = isset($cf['default_value']) ? (string)$cf['default_value'] : '';
         if (($typeId === 8 || $typeId === 10) && $hasValue &&
             $value !== '' && ctype_digit($value)) {
@@ -598,7 +621,14 @@ function suiteEditValidateName(&$db)
     /* strings_stripSlashes() ran on the whole $_REQUEST in legacy
        init_args(); we strip here so a name typed as \" is judged the same. */
     $name = stripslashes($name);
-    if (check_string($name, $g_ereg_forbidden)) {
+    /* preg_match() directly instead of the legacy check_string() helper, which
+       answered 0 (== "forbidden") for a name that does NOT match the pattern -
+       'SU52 Child v2' was rejected with bad_chars while preg_match() on the very
+       same arguments returned 0. Reproduced on every write route; filed as
+       #1854. check_string() is literally
+       `$status_ok = 1; if (preg_match($re, $str)) $status_ok = 0;`, so this is
+       the same decision, evaluated in a scope we control. */
+    if (preg_match($g_ereg_forbidden, $name)) {
         return array('', $details, 'bad_chars', 400);
     }
     if (mb_strlen($name, 'UTF-8') > 100) {
@@ -669,10 +699,20 @@ function suiteEditKeywordSets($db, $tprojectMgr, $tprojectId, $suiteId = 0)
         $rows = $db->get_recordset(
             "SELECT keyword_id FROM {$T['object_keywords']}" .
             " WHERE fk_id = " . intval($suiteId) .
-            " AND fk_table = 'testsuite' ORDER BY keyword_id");
+            /* testsuite::addKeyword() writes fk_table='nodes_hierarchy' (the
+               node id IS the suite id), NOT 'testsuite' - reading the literal
+               'testsuite' here answered an empty assigned list for every
+               suite, which made the picker silently drop the keywords of an
+               edited suite on the next save. */
+            " AND fk_table = 'nodes_hierarchy' ORDER BY keyword_id");
         if (!is_null($rows)) {
             foreach ($rows as $r) {
-                $assigned[] = intval($r['kw_id']);
+                /* The SELECT above aliases the column as `keyword_id`; reading
+                   $r['kw_id'] answered null, so intval() turned EVERY assigned
+                   keyword into 0 and the picker came back empty - which made the
+                   next save drop the whole assignment (silently, since 0 is not
+                   a keyword id and the INSERT was simply skipped). */
+                $assigned[] = intval($r['keyword_id']);
             }
         }
     }
@@ -864,7 +904,7 @@ if ($action === 'init') {
     );
 
     if ($mode === 'create') {
-        $payload['cfields'] = suiteEditCfDefs($tsuiteMgr, $tprojectId, 0);
+        $payload['cfields'] = suiteEditCfDefs($tsuiteMgr, $db, $tprojectId, 0);
         $payload['keywords'] = suiteEditKeywordSets($db, $tprojectMgr, $tprojectId, 0);
     } else {
         $row = $tsuiteMgr->get_by_id($suiteId);
@@ -880,7 +920,7 @@ if ($action === 'init') {
             'parent_id'  => intval($row['parent_id'] ?? $parentId),
             'node_order' => isset($row['node_order']) ? intval($row['node_order']) : 0,
         );
-        $payload['cfields'] = suiteEditCfDefs($tsuiteMgr, $tprojectId, $suiteId);
+        $payload['cfields'] = suiteEditCfDefs($tsuiteMgr, $db, $tprojectId, $suiteId);
         $payload['keywords'] = $kw;
         if ($mode === 'delete') {
             $treeMgr = new tree($db);
@@ -1000,7 +1040,8 @@ if ($action === 'create' || $action === 'update') {
     }
 
     /* Design custom fields (containerEdit.php writeCustomFieldsToDB). */
-    $cfMap = $tsuiteMgr->cfield_mgr->get_linked_cfields_at_design($tprojectId, 1, null, 'testsuite');
+    $cfMap = $tsuiteMgr->get_linked_cfields_at_design(
+        $suiteId, null, null, intval($tprojectId));
     $cfWritten = suiteEditSaveCf($tsuiteMgr, $body, $cfMap, $suiteId);
 
     /* Plugin events - legacy ctx shape. */
