@@ -128,6 +128,24 @@ screen reaches full parity.
   with Name, URL prefill, Reset, BFF matrix, Event Viewer clean, console clean).
   Regression suite "Task — Issue #1077" appended to `tmp/TLU_Test_Cases.md`. (Refs #1077)
 
+- [KEY BUGFIX] - #1839: **the entire `fr_FR` locale was dead - every request that resolved a
+  server-side string returned HTTP 500 with a zero-byte body.** `locale/fr_FR/strings.txt:4089`
+  held a single-quoted PHP literal with two bare apostrophes
+  (`$TLS_href_tc_auto_exec = 'Execution de l'automatisation des tests';`); PHP closed the string at
+  the first `l'`, so `lang_api.php:240`'s `require($lang_resource_path)` raised a compile-time
+  fatal, and because `lang_get()` resolves the locale lazily (`lang_api.php:49-58` -> `:283`) the
+  first localized string of a request detonated it. Measured pre-fix:
+  `GET /api/aside/index.php?action=init` -> `500`, 0 bytes, with
+  `PHP Parse error ... unexpected identifier "automatisation" on line 4089` in `tmp/php_server.log`;
+  1 of the 19 bundles failed `php -l`. Introduced by `5cd596219` (#1587), which hand-wrote the
+  French translation for a key added to all 19 bundles - 18 of them happened to elide the
+  apostrophe (`'Ejecucion de la automatizacion de pruebas'`), so only `fr_FR` broke. Fix: the two
+  apostrophes escaped as `\'` in place, matching the escaping the same file already uses at line
+  4129, translation text unchanged. Verified: `php -l` clean on all 19 bundles, `lang_get(...,
+  'fr_FR')` returns `Manuel utilisateur` instead of fatalling, the ASIDE menu goes
+  500/0-bytes -> 200/6686-bytes with 52 French server-side labels, the `en_GB` payload is unchanged,
+  browser console clean, and `events` holds 0 ERROR/WARNING rows. (Refs #1839)
+
 - [KEY BUGFIX] - #1835: **the Search Requirement Specifications toolbar rendered the raw i18n key
   `rssf.criteria` instead of a label, in all 10 locales.** `searchReqSpec.html:69` declares
   `data-i18n="rssf.criteria"` for the *Criteria form* button, but that key was never added to any
