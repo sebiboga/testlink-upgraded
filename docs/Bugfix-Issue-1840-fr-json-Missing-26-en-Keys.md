@@ -158,6 +158,25 @@ Three decisions worth recording:
      missing data. That is the "architectural" branch of the rulebook; the data
      is the defect.
 
+### One string that only *looks* truncated
+
+`role.warningUsersWillBeReset` = `"Affected users will get role"` in `en.json`
+(there is no article and no role name). A code review flagged it as a truncated
+English sentence. It is **not** — it is a deliberate prefix: the screen
+completes it with the role name at
+`gui/templates/usermanagement/rolesView.html:593`
+
+```js
+$('#deleteResetNote').html(TLi18n.t('role.warningUsersWillBeReset')
+                          + ' <b>' + esc(r.replacementRole.name) + '</b>').show();
+```
+
+so the rendered sentence is *"Affected users will get role **Administrator**"*.
+The French translation mirrors that shape exactly — *"Les utilisateurs concernés
+recevront le rôle **Administrateur**"* — which is why the missing article is
+carried over instead of being silently "corrected". Adding a noun in the
+translation would produce a duplicate role name on screen.
+
 ## Verification
 
 | # | Case | Measured |
