@@ -716,5 +716,59 @@ Browser cases (chrome-devtools MCP):
   Chart* link present, visible, correct href; **no console message**;
   screenshot `docs/screenshots/issue-1845-charts-link.png`.
 
+**PASS — 71/71 cases** after the review pass (cases `D13`, `I3`, `I4` added, log in
+`tmp/suite_1845.out`, `exit 0`); the 68/68 headline above is the count at the moment
+the screen was first declared green.
+
+### Bugs found while building and reviewing it (each its own issue + commit)
+
+- **#1846** (`2a48bd9dc`) — the first BFF commit called `fetchFirstRowSingleColumn()`
+  with 1 argument instead of 2 → **every** `action=init` request answered HTTP 500 with
+  an empty body. Fixed with the codebase pattern for aggregates,
+  `get_recordset()` + `(int) $rs[0]['n']`.
+- **#1847** (`60da35938`) — `bar()` composed its label key from the CSS class, so the
+  grey not-executed segment's tooltip rendered the **raw key** `pbc.seriesNot_run` (the
+  bundle key is `pbc.seriesNotRun`, and `TLi18n.t()` resolves `_strings[key] || key`, so
+  it is echoed — the #1840 defect class). Only visible in the DOM, never in the a11y
+  snapshot, which is why it survived the browser pass. The four series are now declared
+  in one `SERIES` map shared with the legend.
+- **#1848** (`0c4a2103c`) — the unknown-failure branch fed the **server message** to
+  `TLi18n.t()`, so any unexpected failure (500, proxy error, a future code) printed an
+  English server string inside an otherwise localized card, while `pbc.serverErrorBody`
+  stayed **dead code**. Now the localized sentence renders, the server string appears as
+  escaped raw detail, the code falls back to `http_<status>`, and `{status}` is
+  interpolated — verified in RO: `(500)`, not `({status})`.
+
+### Mandatory code review (6 findings, all fixed)
+
+1. the order-of-operations comment **contradicted** the code (it claimed the 403 was
+   emitted before anything was revealed while the code answered 404 for an unknown plan
+   first), and the `tproject_id` assertion ran **before** the rights check — an
+   unentitled caller could therefore use `project_mismatch` to learn which project owns
+   a plan id; the assertion now runs after `hasRight()`, the `api/tcsummary` order;
+2. `platform_id = 0` (the "no platform" pseudo-platform) was counted → a plan with no
+   platform reported **1 platform**. Now `platform_id > 0`; regression case **D13**;
+3. the latest-result query carried a `GROUP BY status` + `COUNT(*)` that could only
+   ever return one row per version (`last.mid` is unique) and was not filtered to the
+   plan's version universe;
+4. `$versionIndex` was a verbatim copy of `$planVersions`;
+5. `bar()`'s composed i18n key (#1847);
+6. CSV cells containing the `;` separator were unquoted → now quoted RFC 4180 style
+   (double quotes doubled).
+
+### Cases added by the review pass
+
+- **D13** the default pseudo-platform is not counted (discriminating: fails against the
+  pre-review BFF, which reported `platforms: 1` for a plan with none).
+- **I3** `pbc.serverErrorBody` is reachable (no dead key) and the unknown-code branch
+  never hands the server message to `TLi18n.t()`.
+- **I4** **every** `pbc.*` key carrying a `{placeholder}` is looked up *with* params —
+  this is the check that caught the literal `({status})` leak the moment #1848 made the
+  key reachable.
+
+Browser re-verification after the review fixes: report renders, all four series tooltips
+localized (`Trecute`/`Nereușite`/`Blocate`/`Neexecutate`, **no** `pbc.*` in any
+`title`), `PLATFORME 0`, CSV toast `CSV descărcat.`, **no console message**.
+
 Screenshots: `docs/screenshots/issue-1845-pbc-report.png`,
 `docs/screenshots/issue-1845-charts-link.png`.

@@ -2,7 +2,7 @@
 
 Screen: `gui/templates/results/priorityBarChart.html` ·
 BFF: `api/prioritybarchart/index.php` (`GET|HEAD ?action=init&tplan_id=N[&tproject_id=P]`) ·
-Issue: #1845 · Bug found while building it: #1846
+Issue: #1845 · Bugs found while building/reviewing it: #1846, #1847, #1848
 
 ![Priority Bar Chart](screenshots/issue-1845-pbc-report.png)
 
@@ -132,9 +132,39 @@ client bundles (`en ro de fr es it pt ja ru zh`). Verified by switching the loca
 browser: header, subtitle, legend, the "1 din 2 executate (50%)" progress text, all eight
 table headers and the footer translate, and no raw dotted key ever reaches the DOM.
 
+## Bugs found while building and reviewing it
+
+| # | Defect | Symptom | Fix |
+| --- | --- | --- | --- |
+| **#1846** | `fetchFirstRowSingleColumn()` called with 1 argument instead of 2 in the first BFF commit | every `action=init` request answered **HTTP 500 with an empty body** (`ArgumentCountError`) | the aggregate uses `get_recordset()` + `(int) $rs[0]['n']` |
+| **#1847** | `bar()` composed its label key from the CSS class, so the grey segment's tooltip rendered the raw key `pbc.seriesNot_run` (the bundle key is `pbc.seriesNotRun`, and `TLi18n.t()` has no fallback — the #1840 defect class) | hovering the not-executed segment showed `pbc.seriesNot_run (1)` | the four series are declared in one `SERIES` map, shared with the legend |
+| **#1848** | the unknown-failure branch fed the **server message** to `TLi18n.t()`, so any unexpected failure printed an English server string inside a localized card, and `pbc.serverErrorBody` was dead code | a 500 showed `Server error` / `database error` / `500` in every locale | the localized sentence is rendered, the server string appears as escaped raw detail, `http_<status>` is the code fallback, and `{status}` is interpolated (RO verified: `(500)`, not `({status})`) |
+
+## Mandatory code review
+
+Six findings, all fixed and covered by the suite:
+
+1. **the order-of-operations comment contradicted the code** — it claimed the 403
+   was emitted before anything was revealed while the code answered 404 for an
+   unknown plan first, and the `tproject_id` assertion ran *before* the rights
+   check, so an unentitled caller could use `project_mismatch` to learn which
+   project owns a plan id. The assertion now runs after `hasRight()`, the exact
+   order of `api/tcsummary`;
+2. `platform_id = 0` — TestLink's "no platform" pseudo-platform — was counted, so
+   a plan with no platform reported **1 platform**. Now `platform_id > 0`
+   (regression case `D13`);
+3. the latest-result query carried a `GROUP BY status` + `COUNT(*)` that could
+   only ever return one row per version (`last.mid` is unique) and was not
+   filtered to the plan's version universe;
+4. `$versionIndex` was a verbatim copy of `$planVersions`;
+5. `bar()`'s string-composed i18n key (#1847);
+6. CSV cells containing the `;` separator were not quoted — they are now quoted
+   RFC 4180 style (double quotes doubled), and the export is no longer
+   delimiter-unsafe for a keyword that legally contains a semicolon.
+
 ## Tests
 
-Suite **1845** in `tmp/TLU_Test_Cases.md` — 68 executable cases (`python3
+Suite **1845** in `tmp/TLU_Test_Cases.md` — 71 executable cases (`python3
 tmp/suite_1845.py`, exit 0) covering auth, the aggregate semantics, project isolation, the
 whole 400/401/403/404/405 matrix, all four shim branches, the wiring, the 10 bundles and the
 Event Viewer, plus 9 browser cases (render, refresh, CSV content, RO↔EN, bad request,

@@ -34,7 +34,17 @@ screen reaches full parity.
   plan, each version lands in exactly one bucket decided by its latest execution row, and the
   raw execution-row count is reported separately. i18n: 46 `pbc.*` keys + 1 footer key in all
   10 client bundles. The legacy URL is now a launcher shim (302 for browsers, 405
-  `modern_endpoint_only` for XHR callers). #1846 fixed a fatal in the first BFF commit.
+  `modern_endpoint_only` for XHR callers). **3 bugs filed + fixed** while building and
+  reviewing it: **#1846** the first BFF commit called `fetchFirstRowSingleColumn()` with
+  1 argument instead of 2, so every request answered 500 with an empty body; **#1847**
+  `bar()` composed its label key from the CSS class and the grey segment's tooltip
+  rendered the raw key `pbc.seriesNot_run` (the bundle key is `pbc.seriesNotRun` and
+  `TLi18n.t()` has no fallback); **#1848** the unknown-failure branch fed the BFF message
+  to `TLi18n.t()`, printing an English server string inside a localized card while
+  `pbc.serverErrorBody` stayed dead. The mandatory code review additionally fixed the
+  `tproject_id` assertion running before the rights check (an IDOR probe),
+  `platform_id = 0` counted as a real platform, a redundant `GROUP BY`/`COUNT(*)` in the
+  latest-result query, a duplicated version map and unquoted CSV cells.
 
 - [NEW FEATURE] - #1277 (ISTQB #1054): **Risk-Based Testing** module implemented from scratch -
   new BFF `api/riskcoverage/index.php` + new Dashio screen

@@ -12,7 +12,7 @@ A3     role-3 user -> 403 no_right (the legacy hole, now closed)        PASS  40
 A4     role-3 user with a foreign Origin is still 403, never 200        PASS  403
 == data / semantics ==
 D1     200 ok                                                           PASS  200
-D2     context carries plan + project names                             PASS  {"tplan_id": 160, "tplan_name": "PBC Plan", "tproject_id": 158, "tproject_name": "PBC1", "tcversions": 6, "platforms": 1, "keywords_total": 3, "keywords_shown": 2}
+D2     context carries plan + project names                             PASS  {"tplan_id": 160, "tplan_name": "PBC Plan", "tproject_id": 158, "tproject_name": "PBC1", "tcversions": 6, "platforms": 0, "keywords_total": 3, "keywords_shown": 2}
 D3     6 versions assigned -> context.tcversions == 6                   PASS  6
 D4     only the two keywords used by the plan are plotted               PASS  ['checkout', 'login']
 D5     keywords_total counts the unused keyword too (3) and it is not p PASS  3/2
@@ -21,6 +21,7 @@ D7     login results column counts EXECUTION ROWS (4), not versions (3  PASS  re
 D8     progress percent = executed/total of versions                    PASS  75 / 50
 D9     the four buckets sum up to the keyword total (exact partition)   PASS  {"checkout": 2, "login": 4}
 D10    totals row aggregates the keywords                               PASS  {"total": 6, "passed": 1, "failed": 2, "blocked": 1, "not_run": 2, "results": 5, "executed": 4, "percent": 66.7}
+D13    the default pseudo-platform (platform_id 0) is NOT counted as a  PASS  0
 D11    keywords are sorted alphabetically                               PASS  ['checkout', 'login']
 D12    the asserted tproject_id of the OWNING project is accepted       PASS  200
 == isolation ==
@@ -61,6 +62,8 @@ W5     the legacy shim has NO executable caller left (only doc comments PASS
 W6     the modern screen is reachable from the plan-scoped action list  PASS  
 == i18n ==
 I1     the screen references only declared keys (no raw key in the DOM) PASS  ['pbc.series']
+I3     pbc.serverErrorBody is reachable (no dead key) and the unknown-c PASS  
+I4     every pbc key with a {placeholder} is looked up WITH params      PASS  keys=['pbc.chartAria', 'pbc.executedOf', 'pbc.keywordsOf', 'pbc.seriesTitle', 'pbc.serverErrorBody'] leaking=[]
 I2     every pbc key referenced by the screen is covered by the suite l PASS  []
 I-en   en.json has every key, none empty, braces intact                 PASS  missing=[] empty=[]
 I-ro   ro.json has every key, none empty, braces intact                 PASS  missing=[] empty=[]
@@ -74,6 +77,6 @@ I-ru   ru.json has every key, none empty, braces intact                 PASS  mi
 I-zh   zh.json has every key, none empty, braces intact                 PASS  missing=[] empty=[]
 == event viewer ==
 V1     no WARNING/ERROR event other than the deliberate no_right audit  PASS  rows=0
-V2     the refused right IS audited (log_level 1 with the plan id)      PASS  1	9 | 16	92
+V2     the refused right IS audited (log_level 1 with the plan id)      PASS  1	29 | 16	112
 
-68 cases, 68 PASS, 0 FAIL
+71 cases, 71 PASS, 0 FAIL
