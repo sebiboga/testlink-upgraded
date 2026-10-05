@@ -260,3 +260,92 @@ keeps it as well.
 `tmp/verify_1779.sh` (this matrix), `tmp/verify_1759.sh` (rows `M12`/`M12b`/`M12c` updated).
 **Docs** — `docs/Bugfix-Issue-1779-SuiteMove-Unentitled-Container-Existence-Oracle.md`, mirrored in
 the GitHub Wiki under the same file name.
+
+## Regression — Issue #1839: `locale/fr_FR/strings.txt:4089` unescaped apostrophe — the whole fr_FR locale returned HTTP 500 / zero-byte bodies
+
+**Precondition** — app running at `http://localhost:8082` (`php -S`, docroot = repo root);
+MariaDB `testlink` freshly imported; login `admin`/`admin` (user id `1`);
+`.ci_deadline_epoch` run of 2026-10-05.
+
+### Symptom (pre-fix)
+
+`locale/fr_FR/strings.txt:4089` held a single-quoted PHP literal with two bare
+apostrophes:
+
+```php
+$TLS_href_tc_auto_exec = 'Execution de l'automatisation des tests';
+```
+
+PHP closed the string at the first `l'`, so `lang_api.php:240`'s
+`require($lang_resource_path)` raised a **compile-time fatal**. Because
+`lang_get()` resolves the locale lazily (`lang_api.php:49-58` → `:283`), the
+first server-side localized string of any request detonated it. Measured: the
+ASIDE menu BFF answered **HTTP 500 with a 0-byte body** for an `fr_FR` user —
+not a graceful degradation to English, as the issue body guessed.
+
+### Reproduction steps (pre-fix)
+
+```bash
+# R1 — static
+php -l locale/fr_FR/strings.txt          # -> PHP Parse error ... "automatisation" line 4089
+# R2 — all 19 bundles
+for d in locale/*/; do php -l "$d/strings.txt" >/dev/null 2>&1 || echo "PARSE ERROR: $d"; done
+#     -> PARSE ERROR: locale/fr_FR/      (the only failing bundle)
+# R3 — the load path
+php -r 'require_once("config.inc.php"); require_once("lib/functions/lang_api.php");
+        lang_load("fr_FR"); echo lang_get("doc_user_manual");'      # -> PHP Parse error (fatal)
+# R4 — real HTTP impact
+mysql -h 127.0.0.1 -utestlink -ptestlink testlink -e "update users set locale='fr_FR' where id=1;"
+curl -s -c c.jar -H 'Content-Type: application/json' -H 'Origin: http://localhost:8082' \
+     -d '{"login":"admin","password":"admin"}' http://localhost:8082/api/auth/index.php/login
+curl -s -b c.jar -o aside.json -w "%{http_code}\n" 'http://localhost:8082/api/aside/index.php?action=init'
+#     -> 500     aside.json = 0 bytes
+grep 'PHP Parse error' tmp/php_server.log
+#     -> [500]: GET /api/aside/index.php?action=init - syntax error, unexpected identifier "automatisation"
+# R5 — browser
+#   index.php -> admin/admin -> the aside.html frame never populates (empty menu)
+```
+
+### Expected post-fix behavior
+
+The file parses; `lang_get(..., 'fr_FR')` returns the French text; the ASIDE
+menu answers `200` with a full French JSON tree; every other locale is
+untouched; no new Error/Warning rows in `events`.
+
+### Actual result observed (post-fix)
+
+| ID | Check | Expected | Observed | Verdict |
+|---|---|---|---|---|
+| R1 | `php -l locale/fr_FR/strings.txt` | no syntax errors | `No syntax errors detected` | **PASS** |
+| R2 | `php -l` over all 19 `locale/*/strings.txt` | zero failures | zero failures | **PASS** |
+| R3 | `lang_load('fr_FR')` + `lang_get(...)` | French, no fatal | `doc_user_manual` = `Manuel utilisateur`; `href_tc_auto_exec` = `Execution de l'automatisation des tests` | **PASS** |
+| R3b | locale resolved via `$_SESSION['locale']='fr_FR'` (the real request path) | French | identical French output | **PASS** |
+| R4 | `GET /api/aside/index.php?action=init`, `fr_FR` admin | 200 + French tree | **200, 6686 bytes**, `status: ok`, 52 server-side labels in French (`Tableau de bord`, `Système`, `Moniteur d'événements`, `Gestion des utilisateurs`, `Affectation des droits sur le projet`, …) | **PASS** (was 500 / 0 bytes) |
+| R5 | same request, `en_GB` admin — no regression | 200 + English tree | 200, 6481 bytes, `status: ok`, same 52 labels in English (`Dashboard`, `System`, `Event viewer`, …) | **PASS** |
+| R6 | translated text preserved by the escape | `Execution de l'automatisation des tests` | identical | **PASS** |
+| R7 | browser, `fr_FR` admin | ASIDE menu renders French | `navBar.html?locale=fr_FR` + `aside.html?locale=fr_FR` both load; ASIDE shows `Tableau de bord`, `Système`, `Projets`, `En révision`; nav bar shows `Se déconnecter`; locale `<select>` = `Français` | **PASS** |
+| R8 | browser console | no errors | `<no console messages found>` | **PASS** |
+| R9 | Event Viewer / `events` table | no new Error/Warning | `select count(*) from events where log_level in (1,2)` (`logger.class.php:50-51` `ERROR=1`, `WARNING=2`) = **0**; only `AUDIT(16)=2` and `L18N(32)=30` rows exist | **PASS** |
+| R10 | `tmp/php_server.log` | no new parse errors | exactly **1** `PHP Parse error`, the pre-fix one at `03:17:12`; **0** after the fix | **PASS** |
+
+Screenshot (wiki): `images/1839-fr_FR-aside-menu-after-fix.png` — French ASIDE
+menu + nav bar after the fix.
+
+**Fix** — `locale/fr_FR/strings.txt:4089`, escaped the two apostrophes as `\'`
+in place, matching the escaping the same file already uses at line 4129
+(`$TLS_error_self_signup_disabled = 'L\'auto-inscription …'`). One line, no
+rewording of the translation. Commit `2222419a8`, branch `fix/issue-1839`.
+
+**Regression risk watched** — a scan of every bundle for single-quoted literals
+containing an unescaped `'` returns 86 hits, 85 of which are apostrophes inside
+trailing `//` comments (e.g. `ja_JP:40`) and are harmless (those bundles lint
+clean). No second latent break was shipped under this fix.
+
+**Related (not fixed here)** — issue #1840: `gui/templates/i18n/fr.json` is
+missing 26 of 6716 `en.json` keys, so `Test Strategy` / `Documentation` in the
+ASIDE menu still fall back to English. That is a client-side missing-translation
+gap, unrelated to this parse error.
+
+**Files** — `locale/fr_FR/strings.txt` (1 line).
+**Docs** — `docs/Bugfix-Issue-1839-fr-FR-strings-txt-Parse-Error.md`, mirrored in
+the GitHub Wiki under the same file name.
