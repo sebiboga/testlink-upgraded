@@ -185,8 +185,14 @@ abstract class codeTrackerInterface
     if (!$result['status'])
     {
       $this->dbConnection = null;
-      $connection_args = "(interface: - Host:$this->cfg->dbhost - " . 
-                         "DBName: $this->cfg->dbname - User: $this->cfg->dbuser) "; 
+      // Issue #1703: PHP resolves only ONE property level in a non-curly
+      // interpolated string, so "$this->cfg->dbhost" interpolated $this->cfg
+      // (a stdClass, see setCfg() line 147) and left "->dbhost" as literal
+      // text. Stringifying a stdClass raised a fatal Error here, one line
+      // before the tLog() below, so a failed code-tracker connection
+      // produced no Event-Viewer record at all.
+      $connection_args = "(interface: - Host:{$this->cfg->dbhost} - " .
+                         "DBName: {$this->cfg->dbname} - User: {$this->cfg->dbuser}) "; 
       $msg = sprintf(lang_get('CTS_connect_to_database_fails'),$connection_args);
       tLog($msg  . $result['dbms_msg'], 'ERROR');
     }
