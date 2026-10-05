@@ -150,12 +150,15 @@ if ($tplanId <= 0) {
     pbcFail(400, 'invalid_request', 'Missing or invalid tplan_id');
 }
 
-// The test plan must really exist; ownership is taken from the row itself, never
-// from the caller. Resolved BEFORE the rights check on purpose? No: the plan id
-// is a public sequence, so answering 404 for an unknown id and 403 for a known
-// one is an enumeration oracle. The rights check runs against the plan's own
-// project as soon as the plan is resolved, and every unentitled caller gets the
-// same answer either way - the 403 is emitted before anything else is revealed.
+// Order of operations (identical to api/tcsummary, the reviewed precedent):
+//   1. resolve the plan -> opaque 404 when it does not exist or has no owner
+//   2. check the right on the OWNING project
+//   3. only then honour the client's tproject_id assertion
+// Step 3 after step 2 is deliberate: otherwise an unentitled caller could use
+// project_mismatch as a probe for "this plan id belongs to that project".
+// The residual oracle of step 1 (a missing plan answers 404, an existing one 403)
+// is the shape of every plan-scoped BFF in this tree, because the right can only
+// be evaluated once the owning project is known.
 $tbl = tlObjectWithDB::getDBTables(array('testplans'));
 $planRow = $db->get_recordset(
     "SELECT id, testproject_id FROM {$tbl['testplans']} WHERE id = " . intval($tplanId));
@@ -170,18 +173,18 @@ if ($owningProjectId <= 0) {
     pbcFail(404, 'tplan_not_found', 'Test plan has no owning test project');
 }
 
-// tproject_id is a client-side ASSERTION only: it lets a stale deep link fail
-// loudly instead of silently reporting another project, it never steers the read.
-if ($assertedProjectId > 0 && $assertedProjectId !== $owningProjectId) {
-    pbcFail(404, 'project_mismatch', 'Test plan belongs to another test project');
-}
-
 // Rights: testplan_metrics on the owning project + plan, getAccess = true.
 if (!$user->hasRight($db, 'testplan_metrics', $owningProjectId, $tplanId, true)) {
     tLog('BFF prioritybarchart: user ' . intval($userId) .
          ' has no testplan_metrics right on tproject ' . $owningProjectId .
          ' (tplan ' . $tplanId . ')', 'ERROR');
     pbcFail(403, 'no_right', 'testplan_metrics right required');
+}
+
+// tproject_id is a client-side ASSERTION only: it lets a stale deep link fail
+// loudly instead of silently reporting another project, it never steers the read.
+if ($assertedProjectId > 0 && $assertedProjectId !== $owningProjectId) {
+    pbcFail(404, 'project_mismatch', 'Test plan belongs to another test project');
 }
 
 $planName = testplan::getName($db, $tplanId);
@@ -193,6 +196,7 @@ if (is_null($planName) || trim((string)$planName) === '') {
 // ---------------------------------------------------------------------------
 // Versions assigned to the plan (ALL_TEST_SUITES parity: no suite filter).
 // ---------------------------------------------------------------------------
+// vid => true, the universe of the whole report.
 $planVersions = array();
 $rsv = $db->get_recordset(
     "SELECT DISTINCT tcv.tcversion_id AS vid
@@ -215,18 +219,17 @@ $latestStatus = array();   // vid => 'p' | 'f' | 'b'
 $resultsByVersion = array(); // vid => number of execution rows
 if (count($planVersions) > 0) {
     $rse = $db->get_recordset(
-        "SELECT e.tcversion_id AS vid, e.status AS st, COUNT(*) AS n
+        "SELECT e.tcversion_id AS vid, e.status AS st
            FROM executions e
            JOIN (SELECT tcversion_id, MAX(id) AS mid
                    FROM executions
                   WHERE testplan_id = " . intval($tplanId) . "
                   GROUP BY tcversion_id) last ON last.mid = e.id
-          WHERE e.testplan_id = " . intval($tplanId) . "
-          GROUP BY e.tcversion_id, e.status");
+          WHERE e.testplan_id = " . intval($tplanId));
     if (is_array($rse)) {
         foreach ($rse as $row) {
             $vid = intval($row['vid'] ?? 0);
-            if ($vid <= 0 || isset($latestStatus[$vid])) {
+            if ($vid <= 0 || isset($latestStatus[$vid]) || isset($planVersions[$vid]) === false) {
                 continue;
             }
             $st = strtolower(trim((string)($row['st'] ?? '')));
@@ -254,13 +257,8 @@ if (count($planVersions) > 0) {
 // Per-keyword aggregation. Keywords are the project's own, so a keyword of a
 // foreign project can never appear in this chart.
 // ---------------------------------------------------------------------------
-$versionIndex = array();
-foreach (array_keys($planVersions) as $vid) {
-    $versionIndex[$vid] = true;
-}
-
 $rows = array();
-if (count($versionIndex) > 0) {
+if (count($planVersions) > 0) {
     $rsk = $db->get_recordset(
         "SELECT k.id AS kid, k.keyword AS kw, tk.tcversion_id AS vid
            FROM keywords k
@@ -269,7 +267,7 @@ if (count($versionIndex) > 0) {
     if (is_array($rsk)) {
         foreach ($rsk as $row) {
             $vid = intval($row['vid'] ?? 0);
-            if ($vid <= 0 || !isset($versionIndex[$vid])) {
+            if ($vid <= 0 || !isset($planVersions[$vid])) {
                 continue;
             }
             $kid = intval($row['kid'] ?? 0);
@@ -324,11 +322,13 @@ if (is_array($rsk2) && count($rsk2) > 0) {
     $keywordTotal = intval($rsk2[0]['n'] ?? 0);
 }
 
+// platform_id 0 is TestLink's "no platform" pseudo-platform, so counting it
+// would report "1 platform" for a plan that has none.
 $platformCount = 0;
 $rsp = $db->get_recordset(
     "SELECT COUNT(DISTINCT platform_id) AS n
        FROM testplan_tcversions
-      WHERE testplan_id = " . intval($tplanId));
+      WHERE testplan_id = " . intval($tplanId) . " AND platform_id > 0");
 if (is_array($rsp) && count($rsp) > 0) {
     $platformCount = intval($rsp[0]['n'] ?? 0);
 }
@@ -354,7 +354,7 @@ pbcOut(array(
         'tplan_name' => (string)$planName,
         'tproject_id' => $owningProjectId,
         'tproject_name' => (string)$projectName,
-        'tcversions' => count($versionIndex),
+        'tcversions' => count($planVersions),
         'platforms' => $platformCount,
         'keywords_total' => $keywordTotal,
         'keywords_shown' => count($keywords),

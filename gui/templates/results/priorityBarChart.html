@@ -202,13 +202,18 @@ function toast(msg, kind) {
   toast._h = window.setTimeout(function () { $t.fadeOut(220); }, 3200);
 }
 
+// The four stacked series. Declared explicitly, never composed from the CSS
+// class: 'pbc.series' + 'Not_run' would build a key that exists in no bundle
+// (it is pbc.seriesNotRun) and TLi18n.t() would echo the raw dotted key.
+var SERIES = [
+  ['passed', 'pbc.seriesPassed'],
+  ['failed', 'pbc.seriesFailed'],
+  ['blocked', 'pbc.seriesBlocked'],
+  ['not_run', 'pbc.seriesNotRun']
+];
+
 function renderLegend() {
-  var items = [
-    ['passed', 'pbc.seriesPassed'],
-    ['failed', 'pbc.seriesFailed'],
-    ['blocked', 'pbc.seriesBlocked'],
-    ['not_run', 'pbc.seriesNotRun']
-  ];
+  var items = SERIES;
   var html = '';
   $.each(items, function (i, it) {
     html += '<span><span class="sw sw-' + it[0] + '"></span>'
@@ -219,8 +224,6 @@ function renderLegend() {
 
 function renderChart(data) {
   var html = '';
-  var max = 0;
-  $.each(data.keywords, function (i, k) { max = Math.max(max, parseInt(k.total, 10) || 0); });
   $.each(data.keywords, function (i, k) {
     var total = parseInt(k.total, 10) || 0;
     var pct = total > 0 ? (100 / total) : 0;
@@ -228,23 +231,22 @@ function renderChart(data) {
     html += '<div class="chart-row"><div class="label">' + esc(k.keyword)
          + ' <span class="cnt">' + total + '</span></div>'
          + '<div class="bar" role="img" aria-label="' + label + '">'
-         + bar('passed', k.passed, pct)
-         + bar('failed', k.failed, pct)
-         + bar('blocked', k.blocked, pct)
-         + bar('not_run', k.not_run, pct)
+         + bar(SERIES[0], k.passed, pct)
+         + bar(SERIES[1], k.failed, pct)
+         + bar(SERIES[2], k.blocked, pct)
+         + bar(SERIES[3], k.not_run, pct)
          + '</div><div class="pct">' + esc(TLi18n.t('pbc.executedOf', {
               executed: k.executed, total: total, percent: k.percent })) + '</div></div>';
   });
   $('#chart').html(html);
 }
 
-function bar(cls, value, pctPerUnit) {
+function bar(series, value, pctPerUnit) {
   var v = parseInt(value, 10) || 0;
   if (v <= 0) { return ''; }
-  return '<span class="' + cls + '" style="width:' + (v * pctPerUnit) + '%" title="'
-       + esc(TLi18n.t('pbc.seriesTitle', {
-            series: TLi18n.t('pbc.series' + cls.charAt(0).toUpperCase() + cls.slice(1)),
-            count: v })) + '"></span>';
+  return '<span class="' + series[0] + '" style="width:' + (v * pctPerUnit) + '%" title="'
+       + esc(TLi18n.t('pbc.seriesTitle', { series: TLi18n.t(series[1]), count: v }))
+       + '"></span>';
 }
 
 function badge(cls, value) {
@@ -360,10 +362,16 @@ function exportCsv() {
   var head = [TLi18n.t('pbc.colKeyword'), TLi18n.t('pbc.colTotal'), TLi18n.t('pbc.colPassed'),
     TLi18n.t('pbc.colFailed'), TLi18n.t('pbc.colBlocked'), TLi18n.t('pbc.colNotRun'),
     TLi18n.t('pbc.colResults'), TLi18n.t('pbc.colProgress')];
-  var lines = [head.join(';')];
+  // A keyword may legally contain the ';' separator, so a cell is quoted when it
+  // carries one (double quotes are doubled, per RFC 4180).
+  var cell = function (v) {
+    var t = String(v === null || v === undefined ? '' : v);
+    return /[;"\r\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
+  };
+  var lines = [$.map(head, cell).join(';')];
   var push = function (label, k) {
-    lines.push([label, k.total, k.passed, k.failed, k.blocked, k.not_run,
-      k.results, k.percent + '%'].join(';'));
+    lines.push($.map([label, k.total, k.passed, k.failed, k.blocked, k.not_run,
+      k.results, k.percent + '%'], cell).join(';'));
   };
   $.each(currentData.keywords, function (i, k) { push(k.keyword, k); });
   push(TLi18n.t('pbc.totals'), currentData.totals || {});
