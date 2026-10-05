@@ -600,3 +600,121 @@ as published in `dataTables.rowGroup.min.js`.
 
 **Actual result** — 10/10 PASS. Screenshot:
 `docs/screenshots/1092-searchview-grouped-results.png`.
+## Modernize — Issue #1845: Priority Bar Chart (`gui/templates/results/priorityBarChart.html` + `api/prioritybarchart/index.php`) — resurrecting the orphan `lib/results/priorityBarChart.php`
+
+**Precondition** — TestLink 2.0.1 served from the repo root on
+`http://localhost:8082`, MariaDB `testlink` freshly imported, login
+`admin`/`admin` (+ fixture user `pbcnorights`/`pbcnorights`, role 3).
+Browser = headless Chrome via chrome-devtools MCP. Fixture: `tmp/fixtures_1845.php`
+(prints its own ids on the last line — project `PBC1` + plan *PBC Plan*, plan
+*PBC Empty Plan* with no assigned version, project `PBC2` + plan *PBD Plan*
+holding `foreign-keyword`).
+
+### Symptom (pre-fix)
+
+`lib/results/priorityBarChart.php` was dead code, and dead **loudly**:
+
+1. **Hard fatal for every caller.** The file did
+   `require_once('../../third_party/charts/charts.php')` and
+   `require_once('../functions/results.class.php')`. Neither file exists in
+   2.0.1 — `third_party/charts/` was dropped with the whole phpchart
+   library and `lib/functions/results.class.php` was split up. Opening the
+   endpoint produced an uncaught `Error` → HTTP 500 with an **empty body**.
+2. **No rights check at all (IDOR).** `$tplan_id` was taken raw out of
+   `$_REQUEST`, `testlinkInitPage()` was called but `hasRight()` never was, so
+   *any* authenticated account could read the per-keyword result breakdown of
+   *any* test plan in the installation. `$tproject_id` came from the session
+   and was never compared with the plan's real owner, so the project assertion
+   was decorative.
+3. Its own first line still said `@TODO this file seems not to be in use` —
+   no ASIDE entry, no Smarty template, no JS caller anywhere.
+
+### Reproduction steps (pre-fix)
+
+```bash
+curl -s -o /dev/null -w '%{http_code}\n' -b <admin-cookie> \
+  'http://localhost:8082/lib/results/priorityBarChart.php?tplan_id=<ANY>&tproject_id=<ANY>'
+# 500   (fatal: failed to open stream / class not found, empty body)
+# and with the fixture's role-3 cookie, same 500 for a plan the user may not read.
+```
+
+### Expected post-fix behavior
+
+`gui/templates/results/priorityBarChart.html` renders the keyword results of
+the current plan as stacked pass/fail/blocked/not-run bars plus a DataTable,
+driven by `api/prioritybarchart/index.php` (`action=init&tplan_id=`), with
+i18n in all 10 bundles. Contract: 400 `invalid_request` / 401
+`not_authenticated` / 403 `no_right` / 404 `tplan_not_found`|`project_mismatch`
+/ 405 `method_not_allowed`, JSON `{status,code,message}` + `no-store`. The unit
+counted is the test-case version assigned to the plan (`testplan_tcversions`),
+each version falls in exactly ONE bucket decided by its latest execution row
+(`MAX(executions.id)`), and the raw execution-row count is reported separately.
+The legacy URL must stop fatalling: browsers get a 302 to the modern screen,
+XHR callers a 405 `modern_endpoint_only`, anonymous callers a 302 to
+`login.php?note=expired`, and a request without `tplan_id` a 400 JSON.
+
+### Actual result
+
+**PASS — 68/68 cases** (`python3 tmp/suite_1845.py`, exit 0; full log
+`tmp/suite_1845.out`) plus the browser cases below. Highlights:
+
+- **A1/A2/A3/A4** — admin 200; anonymous 401 `not_authenticated`; the fixture's
+  role-3 user 403 `no_right` for *and* with a foreign `Origin` (the pre-fix IDOR
+  is closed).
+- **D2–D11** — `login` = 4 versions / 2 failed / 1 blocked / 1 not run, i.e. the
+  version whose first execution passed and whose later one failed is counted
+  **failed once** (latest-wins, no double counting), `results` = 4 execution rows
+  vs `executed` = 3 versions, 75 % progress; `checkout` = 2 versions, 50 %;
+  totals 6/1/2/1/2, 5 results, 4 executed, 66.7 %; every bucket sum equals its
+  keyword total; keywords sorted.
+- **D5/X1/X2** — `keywords_total` = 3 (the unused keyword included) but only the
+  2 keywords actually attached to a planned version are plotted; `PBD Plan`
+  reads **its own** `foreign-keyword`, and `PBC1`'s chart never shows it.
+- **X3/X4/X5** — foreign `tproject_id` on a real plan → 404 `project_mismatch`;
+  plan with no assigned version → 200 + zero keywords (empty state, not an empty
+  chart box); no stray execution outside the plan assignment.
+- **C1–C13** — 404 `tplan_not_found`; 400 for `abc`/`0`/`-3`/`1abc`/`1.9`/absent/
+  array/unknown-action; POST without same-origin proof → 403 CSRF; POST **with**
+  a same-origin `Origin` → 405 `method_not_allowed`; HEAD 200; `no-store` +
+  `nosniff` present.
+- **H1–H8** — all four shim branches return the documented answer, and the dead
+  `third_party/charts` / `results.class` includes are gone from executable code
+  while `testlinkInitPage()` still guards the session.
+- **W1–W6** — `$actions->priorityBarChart` exists **inside** the `tplan_id > 0`
+  guard, `gui/templates/results/charts.html` links to the new screen on the
+  *Results by Keyword* section, and the legacy file has **no** executable caller
+  left in the repo (only two explanatory comments name it).
+- **I1–I-zh** — every key the screen references is declared, and all 10 bundles
+  (`en ro de fr es it pt ja ru zh`) contain all 47 new keys, none empty, `{}`
+  placeholders intact, `python3 -m json.tool` clean.
+- **V1/V2** — Event Viewer gained **no** Warning/Error row; the only
+  `log_level=1` entries are the deliberate `BFF prioritybarchart: user 2 has no
+  testplan_metrics right on tproject … (tplan …)` audit rows, same convention as
+  `api/namecheck/checkDuplicateName.php`.
+
+Browser cases (chrome-devtools MCP):
+
+- **B1** `?tplan_id=160&tproject_id=158` — report renders: context strip, 2
+  keyword bars (100 % teal / 75 % mixed), DataTable with the totals row; **no
+  console message at all**; screenshot `docs/screenshots/issue-1845-pbc-report.png`.
+- **B2** Refresh — button re-renders, table rows and context update.
+- **B3** Export CSV — `Blob` download named `priority-bar-chart-<plan>.csv`,
+  toast `CSV downloaded.`; content checked: `Keyword;Total;Passed;Failed;Blocked;Not run;Results;Progress`
+  + one line per keyword + a `Totals;…;66.7%` line (UTF-8 BOM, `;` separator).
+- **B4** Locale switcher `ro` → reload: header, subtitle, legend, `1 din 2
+  executate (50%)`, all 8 table headers and the footer become Romanian; **no raw
+  dotted key appears anywhere**.
+- **B5** No `tplan_id` → `Cerere invalidă` card + the raw code `tplan_id` shown
+  for support, report hidden.
+- **B6** `tproject_id=1` on plan 160 → `Nu a fost găsit` + "belongs to another
+  test project", report hidden.
+- **B7** Real `pbcnorights` login (isolated browser context) → `Access denied —
+  The testplan_metrics right is required on the test project of this test plan.`
+- **B8** Empty plan 191 → `Nimic de reprezentat` + "no keyword of this test
+  project is attached to a test case in this test plan", report hidden.
+- **B9** `charts.html?tplan_id=160&tproject_id=158` — *Deschide Priority Bar
+  Chart* link present, visible, correct href; **no console message**;
+  screenshot `docs/screenshots/issue-1845-charts-link.png`.
+
+Screenshots: `docs/screenshots/issue-1845-pbc-report.png`,
+`docs/screenshots/issue-1845-charts-link.png`.

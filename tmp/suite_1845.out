@@ -1,0 +1,79 @@
+== fixture ==
+F-prj  fixture id present: prj                                          PASS  158
+F-plan fixture id present: plan                                         PASS  160
+F-empty fixture id present: empty                                        PASS  191
+F-foreign fixture id present: foreign                                      PASS  161
+F-fprj fixture id present: fprj                                         PASS  159
+F-run  fixture script exists                                            PASS  
+== auth ==
+A1     admin session reads the report                                   PASS  200
+A2     anonymous -> 401 not_authenticated                               PASS  401 not_authenticated
+A3     role-3 user -> 403 no_right (the legacy hole, now closed)        PASS  403 no_right
+A4     role-3 user with a foreign Origin is still 403, never 200        PASS  403
+== data / semantics ==
+D1     200 ok                                                           PASS  200
+D2     context carries plan + project names                             PASS  {"tplan_id": 160, "tplan_name": "PBC Plan", "tproject_id": 158, "tproject_name": "PBC1", "tcversions": 6, "platforms": 1, "keywords_total": 3, "keywords_shown": 2}
+D3     6 versions assigned -> context.tcversions == 6                   PASS  6
+D4     only the two keywords used by the plan are plotted               PASS  ['checkout', 'login']
+D5     keywords_total counts the unused keyword too (3) and it is not p PASS  3/2
+D6     login bucket: 4 versions, 2 failed (latest-wins flips a passed o PASS  {"keyword_id": 17, "keyword": "login", "total": 4, "passed": 0, "failed": 2, "blocked": 1, "not_run": 1, "results": 4, "executed": 3, "percent": 75}
+D7     login results column counts EXECUTION ROWS (4), not versions (3  PASS  results=4 executed=3
+D8     progress percent = executed/total of versions                    PASS  75 / 50
+D9     the four buckets sum up to the keyword total (exact partition)   PASS  {"checkout": 2, "login": 4}
+D10    totals row aggregates the keywords                               PASS  {"total": 6, "passed": 1, "failed": 2, "blocked": 1, "not_run": 2, "results": 5, "executed": 4, "percent": 66.7}
+D11    keywords are sorted alphabetically                               PASS  ['checkout', 'login']
+D12    the asserted tproject_id of the OWNING project is accepted       PASS  200
+== isolation ==
+X1     the foreign plan reads its OWN project keyword (no cross-project PASS  200 ['foreign-keyword']
+X2     the foreign project's keyword never appears in PBC1's chart      PASS  ['checkout', 'login']
+X3     asserted FOREIGN tproject_id on a real plan -> 404 project_misma PASS  404 project_mismatch
+X4     a plan with no assigned version -> 200 with zero keywords (empty PASS  200 {'tplan_id': 191, 'tplan_name': 'PBC Empty Plan', 'tproject_id': 158, 'tproject_name': 'PBC1', 'tcversions': 0, 'platforms': 0, 'keywords_total': 3, 'keywords_shown': 0}
+X5     fixture sanity: no stray execution outside the plan assignment   PASS  0
+== contract ==
+C1     action=init&tplan_id=99999999 -> 404 tplan_not_found             PASS  404 tplan_not_found
+C2     action=init&tplan_id=abc -> 400 invalid_request                  PASS  400 invalid_request
+C3     action=init&tplan_id=0 -> 400 invalid_request                    PASS  400 invalid_request
+C4     action=init&tplan_id=-3 -> 400 invalid_request                   PASS  400 invalid_request
+C5     action=init&tplan_id=1abc -> 400 invalid_request                 PASS  400 invalid_request
+C6     action=init&tplan_id=1.9 -> 400 invalid_request                  PASS  400 invalid_request
+C7     action=init -> 400 invalid_request                               PASS  400 invalid_request
+C8     action=init&tplan_id[]=5 -> 400 invalid_request                  PASS  400 invalid_request
+C9     action=bogus&tplan_id=160 -> 400 invalid_request                 PASS  400 invalid_request
+C10    POST without any same-origin proof -> 403 CSRF                   PASS  403
+C11    POST with a same-origin Origin -> 405 method_not_allowed         PASS  405 method_not_allowed
+C12    HEAD is a safe verb -> 200                                       PASS  200
+C13    no-store + nosniff headers are sent                              PASS  2
+== legacy shim ==
+H1     browser navigation -> 302 to the modern screen                   PASS  302 Location: http://localhost:8082/gui/templates/results/priorityBarChart.html?tplan_id=160&tproject_id=158
+H2     tproject_id defaults to the session project and is preserved     PASS  302
+H3     anonymous -> 302 to login.php?note=expired (legacy testlinkInitP PASS  302 Location: ../login.php?note=expired&destination=priorityBarChart.php%3Ftplan_id%3D160
+H4     no tplan_id -> 400 invalid_request JSON                          PASS  400 {"status":"error","code":"invalid_request","message":"missin
+H5     XHR caller -> 405 modern_endpoint_only (the legacy answer was a  PASS  405 {"status":"error","code":"modern_endpoint_only","message":"t
+H6     the legacy file no longer includes the dead phpchart library     PASS  
+H7     the legacy file no longer requires the removed results class     PASS  
+H8     the legacy file still guards the session itself                  PASS  
+== wiring ==
+W1     $actions->priorityBarChart points at the modern screen           PASS  
+W2     the action is declared INSIDE the tplan_id > 0 guard (plan-scope PASS  
+W3     the modern Graphical Charts report links to it (live consumer)   PASS  
+W4     no ASIDE / template / JS reference still points at the legacy fi PASS  callers=0
+W5     the legacy shim has NO executable caller left (only doc comments PASS  
+W6     the modern screen is reachable from the plan-scoped action list  PASS  
+== i18n ==
+I1     the screen references only declared keys (no raw key in the DOM) PASS  ['pbc.series']
+I2     every pbc key referenced by the screen is covered by the suite l PASS  []
+I-en   en.json has every key, none empty, braces intact                 PASS  missing=[] empty=[]
+I-ro   ro.json has every key, none empty, braces intact                 PASS  missing=[] empty=[]
+I-de   de.json has every key, none empty, braces intact                 PASS  missing=[] empty=[]
+I-fr   fr.json has every key, none empty, braces intact                 PASS  missing=[] empty=[]
+I-es   es.json has every key, none empty, braces intact                 PASS  missing=[] empty=[]
+I-it   it.json has every key, none empty, braces intact                 PASS  missing=[] empty=[]
+I-pt   pt.json has every key, none empty, braces intact                 PASS  missing=[] empty=[]
+I-ja   ja.json has every key, none empty, braces intact                 PASS  missing=[] empty=[]
+I-ru   ru.json has every key, none empty, braces intact                 PASS  missing=[] empty=[]
+I-zh   zh.json has every key, none empty, braces intact                 PASS  missing=[] empty=[]
+== event viewer ==
+V1     no WARNING/ERROR event other than the deliberate no_right audit  PASS  rows=0
+V2     the refused right IS audited (log_level 1 with the plan id)      PASS  1	9 | 16	92
+
+68 cases, 68 PASS, 0 FAIL

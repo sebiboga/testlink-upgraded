@@ -17,6 +17,25 @@ Every screen of the application was ported one-by-one in a screen-compare
 kept for backward compatibility and is progressively retired as each modern
 screen reaches full parity.
 
+- [MODERNIZED SCREEN] - #1845: **Priority Bar Chart** is no longer a dead endpoint.
+  Legacy `lib/results/priorityBarChart.php` was **unreachable fatal code** on 2.0.1: it
+  required `third_party/charts/charts.php` and `lib/functions/results.class.php`, both gone
+  since the phpchart drop, so every request answered HTTP 500 with an empty body - and it
+  performed **no rights check at all**, so any authenticated user could read the per-keyword
+  result breakdown of any test plan (`$tplan_id` came raw out of `$_REQUEST`, and the
+  `$tproject_id` assertion was never compared with the plan's real owner). New BFF
+  `api/prioritybarchart/index.php` (`action=init`, session + same-origin guarded,
+  `testplan_metrics` right on the **owning** project, owning-plan resolution, 400/401/403/
+  404/405 JSON contract) + new Dashio screen `gui/templates/results/priorityBarChart.html`
+  (stacked pass/failed/blocked/not-run bars per keyword, DataTable, CSV export, localized
+  empty/denied/mismatch/error states) reachable from the *Results by Keyword* section of
+  `gui/templates/results/charts.html` and from `$actions->priorityBarChart`
+  (`lib/functions/common.php`). The unit counted is the test-case version assigned to the
+  plan, each version lands in exactly one bucket decided by its latest execution row, and the
+  raw execution-row count is reported separately. i18n: 46 `pbc.*` keys + 1 footer key in all
+  10 client bundles. The legacy URL is now a launcher shim (302 for browsers, 405
+  `modern_endpoint_only` for XHR callers). #1846 fixed a fatal in the first BFF commit.
+
 - [NEW FEATURE] - #1277 (ISTQB #1054): **Risk-Based Testing** module implemented from scratch -
   new BFF `api/riskcoverage/index.php` + new Dashio screen
   `gui/templates/results/riskCoverage.html`, reachable from Metrics & Reports
