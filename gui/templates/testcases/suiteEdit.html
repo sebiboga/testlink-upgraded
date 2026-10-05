@@ -367,6 +367,12 @@ function modeLabel(m) {
 function cfInput(cf) {
   var id = 'cf_' + cf.field_id;
   var req = cf.required ? ' required' : '';
+  /* The checkbox branch below assigned `cv`, and the multiselection branch
+     READ it - but `var` is function-scoped, so for a multiselection field `cv`
+     was undefined and `cv.length` threw, taking the whole CF block (and the
+     keyword picker with it) down. Computed up front for both shapes. */
+  var cv = (cf.values && cf.values.length) ? cf.values
+         : (cf.value ? String(cf.value).split('|').filter(function (v) { return v !== ''; }) : []);
   var h = '';
   switch (cf.type) {
     case 20: /* text area */
@@ -393,7 +399,6 @@ function cfInput(cf) {
       h += '</div>';
       break;
     case 5: /* checkbox */
-      var cv = (cf.values && cf.values.length) ? cf.values : (cf.value === '1' ? ['1'] : []);
       h = '<div class="checks"><label><input type="checkbox" id="' + id + '" data-cf="' + cf.field_id +
            '" data-type="' + cf.type + '" value="1"' + (cv.length ? ' checked' : '') + '> ' +
            esc(TLi18n.t('sued.cfChecked')) + '</label></div>';
@@ -487,11 +492,21 @@ function renderKws(kws, disabled) {
   }
   $('#kwBlock').show();
   var a = '', s = '';
+  var assigned = kws.assigned || [];
   for (var i = 0; i < kws.available.length; i++) {
     var kw = kws.available[i];
-    var isAssigned = (kws.assigned || []).indexOf(kw.id) >= 0;
+    var isAssigned = assigned.indexOf(kw.id) >= 0;
+    /* Available is never pre-selected (otherwise Save would assign keywords
+       nobody picked); the user selects what to move with the arrows. */
     a += '<option value="' + kw.id + '">' + esc(kw.name) + '</option>';
-    if (isAssigned) { s += '<option value="' + kw.id + '">' + esc(kw.name) + '</option>'; }
+    /* The Assigned options MUST carry `selected`: kwIdsSelected() only counts
+       :selected options, and neither renderKws() nor moveKw() used to set it -
+       so a suite with keywords saved with keywords:[] and every assignment was
+       silently wiped (the exact defect #1852 exists for). Sending the whole
+       Assigned list back makes a Save that does not touch the picker a no-op. */
+    if (isAssigned) {
+      s += '<option value="' + kw.id + '" selected>' + esc(kw.name) + '</option>';
+    }
   }
   $('#kwAvail').html(a);
   $('#kwAssigned').html(s);
@@ -511,7 +526,7 @@ function moveKw(from, to) {
   $(from).find('option:selected').each(function () { opts.push($(this).val() + '|' + $(this).text()); });
   for (var i = 0; i < opts.length; i++) {
     var p = opts[i].split('|');
-    $(to).append($('<option>').attr('value', p[0]).text($('<span>').html(p.slice(1).join('|')).text()));
+    $(to).append($('<option selected>').attr('value', p[0]).text($('<span>').html(p.slice(1).join('|')).text()));
     $(from).find('option[value="' + p[0] + '"]').remove();
   }
 }
@@ -687,6 +702,12 @@ function save() {
     setNotice('ok', fill(TLi18n.t('sued.saved'), {
       name: r.name, cfs: r.cfields_written, kws: r.keywords_written
     }));
+    /* Release the busy state on the SUCCESS path too: `load()` does not touch
+       BUSY, so leaving it true locked every following Save click into a silent
+       `if (BUSY) return;` - the form could be saved exactly once per page load
+       and every later submit vanished without a trace. */
+    BUSY = false;
+    $('#btnSave').removeAttr('disabled');
     load();
   }).fail(function (xhr) {
     BUSY = false;

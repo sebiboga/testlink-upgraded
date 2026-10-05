@@ -429,12 +429,19 @@ function suiteEditIsoToLocale($iso, $withTime = false)
         return $iso; // not ISO -> hand it to split_localized_date() as-is
     }
     $fmt = suiteEditCfDateFormat();
-    if ($withTime && !isset($m[4])) {
-        $m[4] = '00'; $m[5] = '00'; $m[6] = '00';
+    /* A DATE-only value leaves $m[4..6] unset (the time group is optional in the
+       pattern), but strtr() still needs every placeholder the format string
+       contains - reading them blind raised three E_WARNINGs per date CF in the
+       Event Viewer. */
+    $H = isset($m[4]) && $m[4] !== '' ? $m[4] : '00';
+    $i = isset($m[5]) && $m[5] !== '' ? $m[5] : '00';
+    $sec = isset($m[6]) && $m[6] !== '' ? $m[6] : '00';
+    if (!$withTime) {
+        $H = $i = $sec = '00';
     }
     return strtr($fmt, array(
         'd' => $m[3], 'm' => $m[2], 'Y' => $m[1], 'y' => substr($m[1], 2, 2),
-        'H' => $m[4], 'i' => $m[5], 's' => $m[6],
+        'H' => $H, 'i' => $i, 's' => $sec,
     ));
 }
 
@@ -681,6 +688,33 @@ function suiteEditKeywordNames($body)
         }
     }
     return array_values(array_unique($list));
+}
+
+/**
+ * Guard the keyword WRITE path: addKeywords() takes raw keyword ids and inserts
+ * them into object_keywords without checking anything, so an unchecked payload
+ * can attach another project's keywords (or ids that no longer exist) to a
+ * suite. The picker only ever offers the OWNING project's keywords, so anything
+ * else is a client bug or a crafted request - refuse it instead of silently
+ * writing an orphan row.
+ */
+function suiteEditAssertKeywordOwnership($tprojectMgr, $tprojectId, $kwIds)
+{
+    $map = $tprojectMgr->get_keywords_map(intval($tprojectId));
+    $own = array();
+    if (!is_null($map)) {
+        foreach ($map as $id => $name) {
+            $own[intval($id)] = true;
+        }
+    }
+    $foreign = array();
+    foreach ((array)$kwIds as $kid) {
+        $kid = intval($kid);
+        if ($kid > 0 && !isset($own[$kid])) {
+            $foreign[] = $kid;
+        }
+    }
+    return array_values(array_unique($foreign));
 }
 
 /** Keywords of a test project (for the picker) and of one suite (assigned). */
@@ -1032,6 +1066,12 @@ if ($action === 'create' || $action === 'update') {
     $kwNames = suiteEditKeywordNames($body);
     $kwWritten = 0;
     if (!is_null($kwNames)) {
+        $foreignKw = suiteEditAssertKeywordOwnership($tprojectMgr, $tprojectId, $kwNames);
+        if (count($foreignKw) > 0) {
+            out(array('status' => 'error', 'code' => 'keyword_mismatch',
+                      'message' => 'Keyword(s) not part of this test project: '
+                          . implode(', ', $foreignKw)), 400);
+        }
         $tsuiteMgr->deleteKeywords($suiteId);
         if (count($kwNames) > 0) {
             $tsuiteMgr->addKeywords($suiteId, $kwNames);

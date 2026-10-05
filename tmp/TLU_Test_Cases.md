@@ -1101,3 +1101,34 @@ App: `http://localhost:8082`, login `tl_login=admin&tl_password=admin` via
 | 37 | Legacy `containerEdit.php?...&doAction=new_testsuite` | 302 to the new screen, no write | PASS |
 
 **Totals: 36 PASS, 1 SKIPPED (#25), 0 FAIL.**
+
+### G. Browser pass (Chrome MCP, real clicks) — found 4 defects, all fixed in this run
+
+The API matrix above could not see these: every one needs the real DOM, a real
+click and a real reload.
+
+| # | Case | Expected | Before | After | Result |
+|---|---|---|---|---|---|
+| 38 | Open Edit for a suite with a **multiselection** CF | all 8 CF controls render | `Uncaught TypeError: Cannot read properties of undefined (reading 'length')` — `cfInput()` declared `var cv` inside the checkbox branch and the multiselection branch *read* it, so the whole CF block AND the keyword picker never rendered | 8 controls, picker renders | PASS |
+| 39 | Assign a keyword, Save, reload | assignment survives | **`object_keywords` row deleted**: neither `renderKws()` nor `moveKw()` marked the Assigned options `selected`, `kwIdsSelected()` only counts `:selected`, so every save sent `keywords:[]` (1 row -> 0, verified in the DB) | row survives save + reload | PASS |
+| 40 | Save a suite that HAS keywords without touching the picker | the assignment is sent back unchanged | same defect as #39 (silent no-op) | 2 rows before and after | PASS |
+| 41 | Save a suite that has NO keywords | `keywords:[]`, no phantom assignment | Available was pre-selected, so a save would have assigned keywords nobody picked | Available never pre-selected | PASS |
+| 42 | Save **twice** in a row | second save goes through | **`BUSY` was never released on the success path** (`load()` does not touch it), so `if (BUSY) return;` swallowed every later Save click — the form was saveable exactly once per page load, silently | `busy:false`, `save-two` persisted | PASS |
+| 43 | Clear the required CF and Save | client refuses, focus on the field | n/a | `The custom field "Suite Kind" is required.` + focus `cf_2`, nothing posted | PASS |
+| 44 | Create a suite from the browser | 201-ish + URL switches to edit, CFs + keywords stored | n/a | `Browser Made Suite`, 6 CFs, 2 keywords, `?mode=edit&suite_id=100` | PASS |
+| 45 | Delete mode on a suite with an **executed** case | block warning + per-case table + **disabled** Delete | n/a | `linked_and_executed`, button `disabled`, node still in the DB afterwards | PASS |
+| 46 | Delete mode on an **empty** suite | no warning, enabled Delete, confirm modal | n/a | modal -> deleted -> `testSpec.html?notice=…` | PASS |
+| 47 | Legacy `containerEdit.php?...&doAction=edit_testsuite` | 302 with the suite identity | dropped it (`suite_id=0`) because only `testsuiteID`/`objectID` were read, so a direct GET link dead-ended on `invalid_parameter` | `suite_id=93`; `new_testsuite` keeps `container_id=92` | PASS |
+| 48 | Switch locale de -> ro -> ru -> ja | UI strings translate, no raw `sued.*` | n/a | `Test Suite bearbeiten`, `BESCHREIBUNG`, `EIGENE FELDER`, `Speichern`… (CF labels/type names stay English on purpose: they are user/API data) | PASS |
+| 49 | Event Viewer after the whole pass | 0 new Error/Warning | **33 `E_WARNING "Undefined array key 4/5/6" at api/suiteedit/index.php:437`** — `suiteEditIsoToLocale()` read `$m[4..6]` of the optional time group of a DATE-only value | 0 new events over 6 requests | PASS |
+
+### H. Keyword ownership (added after the matrix exposed it)
+
+| # | Case | Expected | Result |
+|---|---|---|---|
+| 50 | POST `keywords:[1,2]` — ids that do not belong to the project | refused, no orphan row | PASS (`400 keyword_mismatch`) |
+| 51 | POST `keywords:[23,24]` — the project's own ids | 200, `keywords_written: 2` | PASS |
+| 52 | DB cross-check of `object_keywords` after #50/#51 | only 23,24, orphans 0 | PASS |
+
+**Browser-pass totals: 15 PASS / 0 FAIL** (cases 38-52).
+**Suite total: 51 PASS, 1 SKIPPED (#25), 0 FAIL.**

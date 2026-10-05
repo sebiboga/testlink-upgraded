@@ -158,8 +158,17 @@ $sued_modern_actions = array(
 );
 if( $action !== null && isset($sued_modern_actions[$action]) ) {
   $sued_mode = $sued_modern_actions[$action];
-  $sued_suite = intval($args->testsuiteID ? $args->testsuiteID : $args->objectID);
-  $sued_parent = intval($args->containerID);
+  // `testsuiteID`/`objectID` are the names the legacy Smarty forms post, but
+  // the modern tree and the 2.0.1 entry points carry the suite as `suite_id`;
+  // without that fallback a direct GET link dead-ended on invalid_parameter.
+  $sued_suite = intval($args->testsuiteID ? $args->testsuiteID :
+                       ($args->objectID ? $args->objectID :
+                        (isset($_REQUEST['suite_id']) ? $_REQUEST['suite_id'] : 0)));
+  // Same for the container: the legacy form posts `containerID`, the modern
+  // entry points `container_id`; a create with no parent addresses the project
+  // root, which the screen resolves from the node.
+  $sued_parent = intval($args->containerID ? $args->containerID :
+                        (isset($_REQUEST['container_id']) ? $_REQUEST['container_id'] : 0));
   if ($sued_mode !== 'create') {
     // edit / delete address the suite itself; keep it as the parent only when
     // it really is a container of another node.

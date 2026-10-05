@@ -8022,6 +8022,19 @@ Changes:
   `custom_field_*_input` key as a DATE part → `tlStringLen(array)` fatal) and
   #1854 (`check_string()` answers "forbidden characters" for a string that does
   not match the pattern)
+- The mandatory **browser pass** (real clicks, real reloads, real DB reads) then
+  fixed 6 defects the API matrix cannot see: the CF block died on a
+  multiselection field (a `var` read out of the checkbox branch, taking the
+  keyword picker with it); **every save wiped the suite's keywords** (the Assigned
+  options were never `selected`, and only `:selected` options are sent); the form
+  was saveable exactly once per page load (`BUSY` was never released on the
+  success path, so later clicks vanished silently); 33 `E_WARNING` per page load
+  from a DATE-only custom field (`$m[4..6]` of the optional time group); the
+  legacy redirect dropped the suite/container identity when it was reached with
+  `suite_id`/`container_id`; and keyword writes were unvalidated, so foreign
+  keyword ids could be attached (`400 keyword_mismatch` now)
+- Test suite: `tmp/TLU_Test_Cases.md` -> `## Issue #1852`, 51 PASS / 1 SKIPPED /
+  0 FAIL, of which 15 cases are the browser pass
 ### Gap closed — Search Test Cases: the result grid lost the legacy group-by-Test-Suite ExtTable behaviour (Fixes #1092)
 - `gui/templates/search/searchView.html` rendered the quick-search hits as a FLAT
   DataTable, dropping everything `lib/testcases/tcSearch.php:339-351`
