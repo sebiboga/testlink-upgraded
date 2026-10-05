@@ -2828,6 +2828,6 @@ $TLS_req_docid_length_exceeded = 'Превышена длина идентифи
 // ----- issue #1563: after_title / after_preconditions location labels missing from this bundle -----
 $TLS_after_title = 'После заголовка';
 $TLS_after_preconditions = 'После предварительных условий';
-?>
 $TLS_title_test_closure = "Закрытие тестирования"; // "Test Closure" (Refs #1278)
 $TLS_link_report_risk_coverage = "Тестирование на основе рисков";
+?>
