@@ -2432,6 +2432,6 @@ $TLS_req_docid_length_exceeded = 'Lunghezza ID documento requisito superata';
 // ----- issue #1563: after_title / after_preconditions location labels missing from this bundle -----
 $TLS_after_title = 'Dopo il titolo';
 $TLS_after_preconditions = 'Dopo le precondizioni';
-?>
 $TLS_title_test_closure = "Chiusura dei test"; // "Test Closure" (Refs #1278)
-$TLS_link_report_risk_coverage = "Test basato sul rischio";
+$TLS_link_report_risk_coverage = "Test basati sui rischi";
+?>
