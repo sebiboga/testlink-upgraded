@@ -183,6 +183,7 @@ if ($action === 'search') {
     $args->preconditions = getParam('preconditions');
     $args->steps = getParam('steps');
     $args->expected_results = getParam('expected_results');
+    $args->jolly = getParam('jolly');
     $args->created_by = getParam('created_by');
     $args->edited_by = getParam('edited_by');
     $args->creation_date_from = getParam('creation_date_from');
@@ -233,23 +234,36 @@ if ($action === 'search') {
         $filter['by_keyword_id'] = " AND KW.keyword_id  = " . $args->keyword_id;
     }
 
-    // plain text fields -> LIKE '%value%', all AND-ed (quick search has no jolly)
-    $likeFields = array('name' => 'NH_TC', 'summary' => 'TCV', 'preconditions' => 'TCV');
-    foreach ($likeFields as $kf => $alias) {
-        if ($args->$kf != "") {
-            $safe = $db->prepare_string($args->$kf);
-            $filter[$kf] = " AND {$alias}.{$kf} like '%{$safe}%' ";
+    // Jolly (free-text OR) search across name/summary/preconditions/steps/expected_results
+    // Mirrors legacy tcSearch.php behavior: OR within group, AND-ed with other filters
+    if ($args->jolly != "") {
+        $safeJolly = $db->prepare_string($args->jolly);
+        $jollyTerms = array();
+        $jollyTerms[] = " NH_TC.name like '%{$safeJolly}%' ";
+        $jollyTerms[] = " TCV.summary like '%{$safeJolly}%' ";
+        $jollyTerms[] = " TCV.preconditions like '%{$safeJolly}%' ";
+        $jollyTerms[] = " TCSTEPS.actions like '%{$safeJolly}%' ";
+        $jollyTerms[] = " TCSTEPS.expected_results like '%{$safeJolly}%' ";
+        $filter['jolly'] = " AND (" . implode(" OR ", $jollyTerms) . ") ";
+    } else {
+        // plain text fields -> LIKE '%value%', all AND-ed
+        $likeFields = array('name' => 'NH_TC', 'summary' => 'TCV', 'preconditions' => 'TCV');
+        foreach ($likeFields as $kf => $alias) {
+            if ($args->$kf != "") {
+                $safe = $db->prepare_string($args->$kf);
+                $filter[$kf] = " AND {$alias}.{$kf} like '%{$safe}%' ";
+            }
         }
-    }
 
-    // steps / expected results live in tcsteps (LEFT JOINed, may be multi-row)
-    if ($args->steps != "") {
-        $safe = $db->prepare_string($args->steps);
-        $filter['by_steps'] = " AND TCSTEPS.actions like '%{$safe}%' ";
-    }
-    if ($args->expected_results != "") {
-        $safe = $db->prepare_string($args->expected_results);
-        $filter['by_expected_results'] = " AND TCSTEPS.expected_results like '%{$safe}%' ";
+        // steps / expected results live in tcsteps (LEFT JOINed, may be multi-row)
+        if ($args->steps != "") {
+            $safe = $db->prepare_string($args->steps);
+            $filter['by_steps'] = " AND TCSTEPS.actions like '%{$safe}%' ";
+        }
+        if ($args->expected_results != "") {
+            $safe = $db->prepare_string($args->expected_results);
+            $filter['by_expected_results'] = " AND TCSTEPS.expected_results like '%{$safe}%' ";
+        }
     }
 
     if ($args->custom_field_id > 0) {

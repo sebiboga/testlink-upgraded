@@ -6697,5 +6697,7 @@
   "usergrid.userId": "ID пользователя",
   "version": "Версия",
   "rb.executionHistory": "История выполнений",
-  "rb.testCaseDesign": "Проектирование тест-кейса"
+  "rb.testCaseDesign": "Проектирование тест-кейса",
+  "search.jolly": "Jolly (OR)",
+  "search.jollyHint": "Значение будет искаться в режиме ИЛИ в заголовке, резюме, предусловиях, шагах, действиях"
 }

@@ -6677,5 +6677,7 @@
   "usergrid.userId": "用户 ID",
   "version": "版本",
   "rb.executionHistory": "执行历史",
-  "rb.testCaseDesign": "测试用例设计"
+  "rb.testCaseDesign": "测试用例设计",
+  "search.jolly": "Jolly (OR)",
+  "search.jollyHint": "根据值、标题、概要、前提条件、步骤、动作模糊搜索"
 }

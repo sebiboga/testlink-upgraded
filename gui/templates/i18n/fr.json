@@ -6691,5 +6691,7 @@
   "usergrid.userId": "ID d'utilisateur",
   "version": "Version",
   "rb.executionHistory": "Historique des exécutions",
-  "rb.testCaseDesign": "Conception du cas de test"
+  "rb.testCaseDesign": "Conception du cas de test",
+  "search.jolly": "Jolly (OR)",
+  "search.jollyHint": "la valeur sera cherchée, comme en mode OR, dans le titre, le résumé, les pré-conditions, les étapes, les actions"
 }
