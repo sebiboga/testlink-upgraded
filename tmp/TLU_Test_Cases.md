@@ -368,121 +368,79 @@ retired shim and the `docs/` mirror were already committed by the 2026-10-01 run
 (`027c26a89`, `d7bf1c25f`). Kept as-is (RESUME rule); this run added the
 verification, the two bug fixes below and every recording artefact.
 
-### A. Authentication / authorization matrix
+**Actual result**
+- (to be recorded after execution)
 
-| # | Case | Expected | Result |
-|---|---|---|---|
-| A1 | anonymous `GET ?action=init&req_id=N` | `401 not_authenticated` | PASS |
-| A1b | anonymous answer body carries no login list | no leak | PASS |
-| A2 | admin `GET ?action=init&req_id=N` | `200 {"status":"ok"}` | PASS |
-| A3 | `monnorights` (role 3) on a real requirement | `403 no_right` | PASS |
-| A3b | A3 body must not contain any monitor login | no leak | PASS |
-| A4 | `monnorights` on a BOGUS id | `403 no_right` — **identical** to A3, so the endpoint is not a requirement-id oracle (the #1697 lesson) | PASS |
+## Regression — Issue #1696: legacy requirement tree loader `lib/ajax/getrequirementnodes.php` retired (IDOR)
 
-### B. Monitor set payload
+**Precondition** (the DB is freshly imported on every run, so fixtures must be recreated).
+The imported database is EMPTY — `testprojects`, `req_specs`, `requirements` and
+`user_testproject_roles` all have 0 rows — so there is no "project B" to leak until you build
+one. This is worth stating explicitly: an IDOR of this shape is invisible in a freshly
+imported DB.
 
-| # | Case | Expected | Result |
-|---|---|---|---|
-| B1 | `REQ-MON-1` (admin + monitor_a + monitor_b) | `total = 3`, logins **alphabetical** (`admin`, `monitor_a`, `monitor_b`) — deliberate improvement over the legacy MySQL order, documented in the docs | PASS |
-| B1b | `is_monitoring` for the caller | `1` (the caller is in the set) | PASS |
-| B1c | context: `req_doc_id`, owning `tproject_id`, latest `version` (2), `has_version`, `grant.monitor` | all populated | PASS |
-| B2 | `REQ-MON-2` (no monitor row) | `total = 0`, `monitors = []`, `is_monitoring = 0` → empty-state row, no fatal | PASS |
-| B3 | requirement with only ONE version | `version = 1`, no fatal | PASS |
-| B4 | `is_me` flag | set on exactly the caller's own row (rendered as the `YOU` badge) | PASS (browser) |
+```sql
+-- 1. two projects, each with one specification; project 1 gets a requirement
+INSERT INTO nodes_hierarchy (id,name,parent_id,node_type_id,node_order) VALUES
+ (1,'Project B (SECRET)',NULL,1,1),      -- node_type_id 1 = testproject
+ (2,'Secret Spec B',1,6,1),              -- 6 = requirement_spec
+ (3,'Secret Requirement B1',2,7,1),      -- 7 = requirement
+ (10,'Project A',NULL,1,2), (11,'Spec A1',10,6,1);
+INSERT INTO req_specs (id,testproject_id,doc_id) VALUES (2,1,'SPEC-B-001'),(11,10,'SPEC-A-001');
+INSERT INTO requirements (id,srs_id,req_doc_id) VALUES (3,2,'REQ-B-001');
+INSERT INTO testprojects (id,color,active,option_reqs,option_priority,option_automation,prefix,tc_counter,is_public)
+ VALUES (1,'#9BD',1,1,1,1,'TPB',0,1);
 
-### S. Security regressions
+-- 2. the attacker: role 3 = '<no rights>'  (roles.id=3). NO grant on ANY project:
+--    user_testproject_roles is intentionally left EMPTY for this user.
+INSERT INTO users (login,password,role_id,email,first,last,locale,active,cookie_string,auth_method)
+ VALUES ('lowpriv','<bcrypt of lowpriv123>',3,'l@e.com','Low','Priv','en_GB',1,'ck-lowpriv','');
+```
 
-| # | Case | Expected | Result |
-|---|---|---|---|
-| S1 | legacy reader `getreqmonitors.php` as an XHR | `405 retired_endpoint`, **no** login list in the body | PASS |
-| S1b | legacy reader with a write verb | `405 wrong_method` + a pointer to the BFF | PASS |
-| S2 | **#1841** `REQ-MON-3`, whose only `req_monitor` row carries the **foreign** `testproject_id` | `total = 0`; pre-fix it answered `total = 1` / `monitor_a` | PASS |
-| S2b | after the scope fix, `REQ-MON-1` still returns its 3 owned monitors | no over-filtering regression | PASS |
-| S3 | `?tproject_id=` of another project for a real requirement | `404 project_mismatch` (client-side assertion, never a wrong-project read) | PASS |
-| S4 | `POST` without a same-origin proof | `403` CSRF (never reaches the dispatch) | PASS |
-| S5 | no-right user cannot use the popup as an existence oracle | A4 | PASS |
-| S6 | anonymous legacy navigation | bounces to `login.php?note=expired` (legacy `testlinkInitPage` contract preserved) | PASS |
+Login the way the browser does (`login.php` posts to the BFF; the POST needs the same-origin
+proof enforced by `api/_guard.php:31-40`):
 
-### C. Status / machine-code matrix
+```bash
+curl -s -c c1696.txt -X POST http://localhost:8082/api/auth/login \
+     -H 'Origin: http://localhost:8082' -d login=lowpriv -d password=lowpriv123
+# -> {"status":"ok","success":true,"destination":"/index.php?caller=login&viewer=web"}
+```
 
-| # | Case | Expected | Result |
-|---|---|---|---|
-| C1-C4 | `req_id=0` / missing / `abc` / `-5` | `400 invalid_requirement` | PASS |
-| C5 | unknown requirement id | `404 requirement_not_found` | PASS |
-| C6 | foreign `tproject_id` / matching `tproject_id` | `404 project_mismatch` / `200` | PASS |
-| C7 | `?action=bogus` | `400 unknown_action` | PASS |
-| C8 | `POST` with a valid origin proof | `405 wrong_method` | PASS |
-| C9 | `POST` without an origin proof | `403` | PASS |
-| C10 | `HEAD` (link checker / crawler) | `200` — a HEAD must not be told "wrong method" (the `api/tcsummary` contract, Refs #1767) | PASS |
-| C11 | headers | `X-Content-Type-Options: nosniff` on every answer | PASS |
-| C12 | headers | `application/json; charset=utf-8` | PASS |
+**Repro steps (pre-fix, all reproduced 1/1)**
+1. `curl -s -b c1696.txt 'http://localhost:8082/lib/ajax/getrequirementnodes.php?mode=reqspec&root_node=1'`
+   → HTTP 200 and the JSON `{"text":"SPEC-B-001:Secret Spec B (1)",…}` — project 1's
+   specification `doc_id` and title, for a user with zero rights on it.
+2. `…?mode=reqspec&root_node=1&node=2` → HTTP 200 `{"text":"REQ-B-001:Secret Requirement B1",…}`
+   — the requirement `req_doc_id` and title.
+3. Walk the hierarchy: `…?node=1`, `?node=2`, `?node=10`, `?node=11` all return 200 payloads,
+   so any `nodes_hierarchy.id` is a usable parent and the whole tree is mappable.
+4. `…?node=2` **without** `root_node` emits `href="javascript:REQ_SPEC_MGMT(,2)"` — a node
+   addressed with an empty project id.
+5. `mysql … -e 'SELECT COUNT(*) FROM events'` → `0`: the leak writes no audit row at all.
 
-### E. Front-end wiring / i18n
+**Expected post-fix behavior**
+`lib/ajax/getrequirementnodes.php` is a non-mutating 302 shim (the shape already used for the
+two sibling loaders of this bug class, `gettprojectnodes.php` Refs #1770 and
+`getreqcoveragenodes.php` Refs #1765): the session contract is preserved, every non-GET/HEAD
+verb is refused with 405 + a `tLog` WARNING, and a legacy GET is redirected to
+`gui/templates/requirements/reqSpecListTree.html`. The unauthorized read is NOT replayed.
 
-| # | Case | Expected | Result |
-|---|---|---|---|
-| E1 | screen serves the monitor table + `reqmon.title` + `footers.reqMonitors` | present | PASS |
-| E2 | **#1842** the *Open requirement* button uses the viewer's canonical `id=` | `reqView.html?id=` present, **no** `reqView.html?req_id=` left (pre-fix the viewer opened with requirement id 0) | PASS |
-| E3 | `TLi18n` locale switcher | rendered | PASS |
-| E4 | all 10 bundles parse and carry all 28 used keys (`reqmon.*`, `logv.testProject`, `logv.version`, `common.refresh/close/error/errorLoading`, `footers.reqMonitors`) | 10 × PASS | PASS |
-| E5 | `lib/functions/common.php` `$actions->reqMonitors` | points at `gui/templates/requirements/reqMonitors.html` | PASS |
-| E6 | `reqView.html` carries the *Monitor set* button (the only entry point — the legacy screen was a Smarty include with no menu row) | present | PASS |
+**Steps and results actually observed after the fix (`18c9680c2`)**
 
-### F. Event Viewer hygiene
-
-| # | Case | Expected | Result |
-|---|---|---|---|
-| F1 | `events` rows with `log_level = 1` (ERROR) | `0` | PASS |
-| F2 | WARNING rows attributable to the BFF/screen | `0` | PASS |
-| F3 | the only WARNING row is the shim's **intentional** audit trail of a refused `POST` on the retired reader (same convention as the #1770/#1765 shims) | acknowledged, documented | PASS |
-| F4 | ERROR/WARNING rows mentioning the requirement reader | `0` | PASS |
-
-### Browser cases (chrome-devtools, headless)
-
-| # | Case | Result |
+| # | step | result |
 |---|---|---|
-| G1 | popup loads for `REQ-MON-1`: teal header, context card (requirement / test project / version 2 / 3 monitors / your login), `VERSION 2` + `OPEN` badges, 3-row monitor set with the `YOU` badge on the caller's row, `3 MONITORING` + `YOU ARE MONITORING THIS REQUIREMENT` chips | PASS |
-| G2 | *Open requirement* opens `reqView.html?id=7&tproject_id=1` with the requirement **loaded** (v2r1 preselected, its own Monitors card) — the #1842 regression | PASS |
-| G3 | the viewer's *Monitor set* button (the wiring of #1780) opens the popup with the right `req_id` + `tproject_id` | PASS |
-| G4 | `REQ-MON-2`: empty monitor set, `0 monitoring`, empty-row message | PASS |
-| G5 | `REQ-MON-3`: `0 monitoring` after the #1841 fix (pre-fix it showed `monitor_a`) | PASS |
-| G6 | `?tproject_id=2` for a project-1 requirement: *Requirement not found* card with the `project_mismatch` machine code visible | PASS |
-| G7 | no `req_id`: red *Error* card, "No requirement was selected." + `invalid_requirement` | PASS |
-| G8 | `monnorights` in an isolated browser context: *Access Denied* card + `no_right`, context card hidden | PASS |
-| G9 | RO locale: "Monitori cerință" / `3 monitorizează` / "dumneavoastră", **zero** raw keys | PASS |
-| G10 | legacy reader in a browser → 302 onto the modern popup | PASS |
-| G11 | console: 0 error / 0 warning messages on the popup | PASS |
+| R1 | anonymous `GET ?mode=reqspec&root_node=1` | HTTP 200, body contains `login.php?note=expired` — **UNCHANGED**, no regression |
+| R2 | `lowpriv` `GET ?mode=reqspec&root_node=1` | HTTP 302 → `/gui/templates/requirements/reqSpecListTree.html?tproject_id=1`; `grep -c 'SPEC-B-001\|REQ-B-001\|Secret'` → **0** (was: full JSON leak) |
+| R3 | `lowpriv` `GET ?node=2` (arbitrary-node probe) | HTTP 302 → `…/reqSpecListTree.html` with no project param; `grep -c` → **0** (was: `REQ-B-001` payload) |
+| R4 | `lowpriv` `POST` / `PUT` / `DELETE` | HTTP 405 + `{"status":"error","code":"method_not_allowed","message":"The legacy requirement specification tree loader was retired; use GET /api/reqspectreelist/index.php?action=init|children|projects"}` for all three, no data |
+| R5 | `admin` `GET ?mode=reqspec&root_node=1&filter_node=2` | HTTP 302 → `…/reqSpecListTree.html?tproject_id=1&filter_node=2` — `filter_node` preserved |
+| R6 | `admin` `GET /api/reqspectreelist/index.php?action=init&tproject_id=1` | HTTP 200 `{"status":"ok","context":{"tproject_id":1,"tproject_name":"Project B (SECRET)",…},"specs":[],"grant":{"view":true,"modify":true}}` — modern tree unaffected |
+| R7 | `lowpriv` `GET /api/reqspectreelist/index.php?action=init&tproject_id=1` | HTTP 403 `{"status":"error","message":"You are not authorized to view requirements","code":"no_right"}` — UNCHANGED |
+| R8 | `admin` `GET /lib/requirements/reqSpecListTree.php?tproject_id=1` | HTTP 302 → `…/gui/templates/requirements/reqSpecListTree.html?tproject_id=1` — UNCHANGED |
+| R9 | `php -l lib/ajax/getrequirementnodes.php` | `No syntax errors detected` |
+| R10 | `SELECT id,log_level,source FROM events` | 3 rows at `log_level` 2 (WARNING) — exactly the R4 refusals; **no Error row** |
 
-### Bugs found and fixed by this suite
-
-| Bug | Symptom | Fix |
-|---|---|---|
-| **#1841** | the BFF proved the owning project but called `getReqMonitors()` **without** `tproject_id` (the helper's default `0` means "no project filter"), so a `req_monitor` row of a **foreign** project was listed | pass the proven `tproject_id` into both reader calls (`c9f1e5401`) |
-| **#1842** | *Open requirement* linked `reqView.html?req_id=`, but the viewer reads `id`/`requirement_id` only → the viewer opened with requirement id 0 | use the viewer's canonical `id=` (`075feec97`) |
-| (hardening) | `doDBConnect()` ran **before** the session gate, so a DB failure could answer an anonymous caller with a raw `dbms_msg` (the #1677 lesson) | connect after the gate (`c9f1e5401`) |
-| (documented, not fixed here) | `searchMgmt.html:395` links the same viewer with `req_id=` — one screen at a time, left for its own run; recorded in **#1842** | — |
-
-Screenshots: `docs/screenshots/issue-1780-reqmonitors-{list,empty,mismatch,ro,denied}.png`.
-Docs mirror: `docs/Modernize-Requirement-Monitors-reqMonitors.md`.
-**Suite 1780: 73 harness cases + 11 browser cases — ALL PASS.**
-
-### Code-review regressions added (mandatory subagent review, Refs #1780)
-
-Review verdict: **no BLOCKER, no security hole** (it independently re-verified the
-owning-project proof, the no-existence-oracle mitigation, the `$_GET`-independent
-SQL integer interpolation, the `esc()`/`.text()` escaping and the `HEAD` contract).
-Four actionable findings were applied:
-
-| # | Finding | Applied fix | Regression case |
-|---|---|---|---|
-| R1 | MAJOR — `needTprojectIdForReq()` declared `global $db, $reqMgr, $user` but read `$tprojMgr` through `$GLOBALS` (mixed style that only survives while the names stay in sync) | `$tprojMgr` added to the `global` list, the `$GLOBALS[...]` hop removed | B1/C6 (full matrix re-run) |
-| R2 | MAJOR — the routing parameter `action` and `param()` read `$_REQUEST`, so a request **body** could influence the routing decision before the method check | both now read `$_GET` only (the sole action is an idempotent `GET`/`HEAD` read) | C8/C9 (POST still 405, POST w/o origin still 403) |
-| R3 | MINOR — the scope-fix comment named the wrong issue (`#1781` instead of `#1841`) | corrected | S2 |
-| R4 | MINOR — the context row built `doc_id + ' ' + title`, leaving a stray space when both were empty | the label is now built from the non-empty parts only | G1 (context row re-checked in the browser) |
-
-NIT accepted without change: `jqf()` in `tmp/verify_1780.sh` uses python `eval()`
-on a locally-built expression; it is test-only code under the git-ignored `tmp/`
-and the input is this app's own API response, so the JSON-path rewrite was judged
-not worth the churn (recorded here so the decision is not silently lost).
-
-After applying the four fixes: **73/73 harness PASS** (re-run), browser verified.
+**Actual result** — PASS 10/10. The IDOR is closed with no regression to the modern
+requirement specification tree (R6/R7), to the legacy frame shim (R8), or to the anonymous
+bounce (R1). The three WARNING rows in the Event Viewer are the intended, self-documenting
+trace of the retirement rather than silent behaviour change.
