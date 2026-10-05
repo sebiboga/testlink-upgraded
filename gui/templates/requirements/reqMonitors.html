@@ -173,7 +173,10 @@ $(function() {
   $('#btnRefresh').on('click', function() { load(); });
   $('#btnOpenReq').on('click', function() {
     if (!ctxData || !ctxData.tproject_id) { return; }
-    window.open('/gui/templates/requirements/reqView.html?req_id='
+    // BUG FIXED HERE (#1842): the Requirement Viewer reads `id` (or
+    // `requirement_id`) - see reqView.html:337 - NOT `req_id`, so the old
+    // `req_id=` deep link opened the viewer with requirement id 0.
+    window.open('/gui/templates/requirements/reqView.html?id='
       + encodeURIComponent(ctxData.req_id) + '&tproject_id='
       + encodeURIComponent(ctxData.tproject_id), '_blank');
   });
