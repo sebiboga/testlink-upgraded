@@ -49,6 +49,33 @@ distinct test cases match, the search refuses to display and warns
 
 ## Results
 
+### Grouped by test suite (legacy ExtTable parity, Fixes #1092)
+
+The legacy grid (`lib/testcases/tcSearch.php:339-351`) grouped the hits per test
+suite, so the modern results table is grouped too:
+
+* every suite path gets a collapsible teal header with its item count
+  (`Suite Alpha (3 Items)`, singular `(1 Item)`) — the legacy
+  `groupTextTpl '{text} (N Items)'` of `exttable.class.php:591`;
+* clicking a header collapses/expands that group; the toolbar button
+  **Expand/Collapse Groups** collapses/expands all of them and reports
+  `Groups collapsed` / `Groups expanded`;
+* the **Test Suite** column is hidden while grouping (legacy
+  `hideGroupedColumn=true`); the toolbar toggle **Show all Columns** /
+  **Hide Test Suite column** brings it back (legacy disabled that button, so the
+  port adds it as a superset);
+* default order is suite path (so groups never split) and **test case
+  descending** inside each group, per legacy `sortDirection='DESC'`; sorting by
+  another column keeps the groups intact;
+* `orderMulti: false` mirrors legacy `allowMultiSort=false`; nothing is stored in
+  `localStorage` (`storeTableState=false` in legacy);
+* the no-CDN fallback table (see #799) renders the same group headers.
+
+No BFF change was needed: `api/search/index.php` already returns `path` per row.
+New i18n keys `sv.grid.*` (7) exist in all 10 bundles.
+Full details: `docs/task-1092-searchview-group-by-test-suite.md`;
+screenshot `docs/screenshots/1092-searchview-grouped-results.png`.
+
 
 DataTable with columns:
 
