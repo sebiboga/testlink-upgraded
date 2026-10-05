@@ -2348,6 +2348,9 @@ function getActions(&$gui,$baseURL) {
   // reqSpecListTree.tpl; the lazy loader it pointed at,
   // lib/ajax/getrequirementnodes.php, did NO rights check at all, so any
   // authenticated user could read the requirement doc_ids/titles of ANY project.
+  // That loader is now RETIRED in place as a session-guarded, non-mutating
+  // 302/405 shim (Refs #1696, commit 18c9680c2) - this screen is the only
+  // reader it was ever meant to serve.
   // The modern screen is backed by api/reqspectreelist, which checks
   // mgt_view_req / mgt_modify_req on the addressed project and proves every
   // node id to a specification of that project. Read-only: the write gesture

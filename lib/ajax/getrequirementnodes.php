@@ -12,14 +12,19 @@
  *   gui/templates/dashio/requirements/reqSpecListTree.tpl (the requirement
  *   navigator frame of the 1.9.20 requirement specification work area), and
  *   answered the children of ONE expanded node:
- *     ?mode=reqspec&root_node=<tproject_id>[&node=<parent id>][&filter_node=<id>]
+ *     ?mode=reqspec|addtc&root_node=<tproject_id>[&node=<parent id>][&filter_node=<id>]
  *     [&show_children=0|1][&operation=manage|print]
  *   Each row was an ExtJS tree node (text / id / position / leaf / cls /
- *   testlink_node_type / testlink_node_name / forbidden_parent /
- *   href=javascript:TPROJECT_REQ_SPEC_MGMT|REQ_SPEC_MGMT|REQ_MGMT) built from
- *   `SELECT ... FROM nodes_hierarchy WHERE parent_id = <parent>`, with
+ *   testlink_node_type / testlink_node_name / forbidden_parent / href) built
+ *   from `SELECT ... FROM nodes_hierarchy WHERE parent_id = <parent>`, with
  *   `req_specs.doc_id` / `requirements.req_doc_id` prefixed to the label and a
  *   recursive requirement count appended to every specification label ("Name (n)").
+ *   The href was chosen from the $fn[operation][mode] table, so the same loader
+ *   also served mode=addtc and operation=print:
+ *     mode=reqspec,  operation=manage -> TPROJECT_REQ_SPEC_MGMT | REQ_SPEC_MGMT | REQ_MGMT
+ *     mode=reqspec,  operation=print  -> TPROJECT_PTP_RS       | TPROJECT_PRS    | openLinkedReqWindow
+ *     mode=addtc,    operation=manage -> EP                    | ERS             | ER
+ *     mode=addtc,    operation=print  -> TPROJECT_PTP          | TPROJECT_PRS    | TPROJECT_PRS
  *
  *   It is retired here because it was never authorized:
  *
@@ -104,8 +109,12 @@ foreach (array('tproject_id', 'root_node') as $k) {
         break;
     }
 }
-// filter_node is a real gesture on the modern screen too: it narrows the
-// project node's children to a single node.
+// filter_node is forwarded so an old bookmark survives the redirect intact.
+// The modern requirement tree does NOT read it (unlike its test-case sibling
+// gui/templates/testcases/tcProjectTree.html:119, which does read filter_node):
+// grep -ri filter_node over gui/templates/requirements/reqSpecListTree.html and
+// api/reqspectreelist/ returns nothing. It is therefore carried as a harmless
+// no-op rather than as a gesture.
 if (isset($q['filter_node']) && intval($q['filter_node']) > 0) {
     $params['filter_node'] = intval($q['filter_node']);
 }

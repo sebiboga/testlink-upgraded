@@ -184,10 +184,10 @@ per session in the other 8. The `rstl.status_*` keys reuse the requirement-statu
 ## 7. Tests
 
 Suite 1695 in `tmp/TLU_Test_Cases.md`: **51 cases, 50 PASS + 1 known FAIL**. The single failure is
-1695-43, which reproduces the legacy read hole and is filed as **#1696**; it is not a failure of
-the modern screen (nothing links to that file any more — it is only kept until #1696 is fixed), and
-all 50 modern-screen / BFF / i18n / wiring / security cases pass. Six cases are regression proofs
-for the defects found during the pass:
+1695-43, which reproduces the legacy read hole and was filed as **#1696**; it is not a failure of
+the modern screen (nothing links to that file any more — it was only kept until #1696 was fixed),
+and all 50 modern-screen / BFF / i18n / wiring / security cases pass. Six cases are regression
+proofs for the defects found during the pass:
 
 * 1695-5 / 1695-24 — the screen's local `t()` wrapper dropped its params bucket, so
   `TLi18n.t()` never interpolated and the chip rendered the raw
@@ -216,9 +216,16 @@ is **no** `ERROR` and **no** `WARNING` entry after 13:58, i.e. the whole browser
 
 * The tree navigator is **read-only**. The write gesture (move / re-parent / reorder) is
   `reqTreeReorder.html` (**#1681**), linked from the toolbar and gated on `mgt_modify_req`.
-* `lib/ajax/getrequirementnodes.php` is dead code but still present and still unprotected — #1696
-  stays open until it is deleted (or locked down if something outside this repository still calls
-  it).
+* ~~`lib/ajax/getrequirementnodes.php` is dead code but still present and still unprotected.~~
+  **RESOLVED by [#1696](https://github.com/sebiboga/testlink-upgraded/issues/1696)**: the loader
+  is now retired in place as a session-guarded, non-mutating 302 shim — non-`GET`/`HEAD` →
+  `405` + a `tLog` WARNING, legacy `GET` → `gui/templates/requirements/reqSpecListTree.html`
+  (`tproject_id` from `tproject_id` or the legacy `root_node`, plus `filter_node`). The file is
+  kept rather than deleted so the still-constructed URL at
+  `lib/functions/tlRequirementFilterControl.class.php:272` resolves instead of 404-ing. See
+  [Bugfix-Issue-1696-Requirement-Tree-Loader-Unauthorized-IDOR.md](Bugfix-Issue-1696-Requirement-Tree-Loader-Unauthorized-IDOR.md).
+  That also retires the `1695-43` known failure noted in §7 above: the legacy read hole the case
+  reproduced no longer exists, so the case now sees the redirect and no requirement payload.
 * The requirement count on each specification is a live count; on a very large specification the
   `children` response can be big, but it is fetched only on the first expand and then cached.
 

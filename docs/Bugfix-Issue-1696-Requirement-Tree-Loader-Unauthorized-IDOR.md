@@ -27,20 +27,21 @@ node to **any** authenticated user. It performed no rights check at all — only
 
 | hop | location | what happens |
 |---|---|---|
-| 1 | `lib/ajax/getrequirementnodes.php:19-21` | `require_once('../../config.inc.php'); require_once('common.php'); testlinkInitPage($db);` — the **one-argument** form. It boots the page and checks the SESSION only. `grep -c "hasRight\|checkRights"` on the pre-fix file → **0**. |
-| 2 | `lib/ajax/getrequirementnodes.php:23-28` | The *scope* of the answer is read straight out of the request: `$root_node`, `$node`, `$filter_node`. Nothing validates that `$node` is a requirement node, and nothing ties `$node` back to `$root_node`. |
-| 3 | `lib/ajax/getrequirementnodes.php:30` | `display_children($db, $root_node, $node, …)` runs before any decision about the caller's rights. |
-| 4 | `lib/ajax/getrequirementnodes.php:32` | `echo json_encode($nodes);` — the payload leaves the process. |
+| 1 | `lib/ajax/getrequirementnodes.php:20-22` | `require_once('../../config.inc.php'); require_once('common.php'); testlinkInitPage($db);` — the **one-argument** form. It boots the page and checks the SESSION only. `grep -c "hasRight\|checkRights"` on the pre-fix file → **0**. |
+| 2 | `lib/ajax/getrequirementnodes.php:25-27` | The *scope* of the answer is read straight out of the request: `$root_node`, `$node`, `$filter_node`. Nothing validates that `$node` is a requirement node, and nothing ties `$node` back to `$root_node`. |
+| 3 | `lib/ajax/getrequirementnodes.php:33` | `display_children($db, $root_node, $node, …)` runs before any decision about the caller's rights. |
+| 4 | `lib/ajax/getrequirementnodes.php:34` | `echo json_encode($nodes);` — the payload leaves the process. |
 | 5 | pre-fix `display_children()` SQL | `… WHERE NHA.parent_id = intval($parent)` **only** (`filter_node` narrows the ROOT children, it does not scope). Any `nodes_hierarchy.id` is a valid parent. |
 | 6 | pre-fix `case 'requirement_spec'` / `case 'requirement'` | `$path['text'] = "{$doc_id}:{$name}"` is built from `req_specs.doc_id` / `requirements.req_doc_id` and the whole row goes to ExtJS. **The doc_id — the identifier that keys the requirement tracker — is disclosed before the name.** |
 
 ### Why it became reachable
 
 1.9.20 only ever reached this file through the `reqSpecListTree` frame, and that frame had
-already done its role check — the loader's own missing check was masked by the frame.
-`lib/requirements/reqSpecListTree.php` became a 302 shim to the modern screen in **Refs #1695**,
-so **the mask was removed while the loader was left in place**: the endpoint became directly
-reachable. The defect itself is legacy 1.9.20 code, not a regression introduced by this cycle.
+already done its role check — so the loader's own missing check was masked *in normal use*. The
+endpoint was nevertheless directly reachable all along and has authorized nothing since 1.9.20:
+this is legacy code, not a regression of this cycle. **Refs #1695** removed even the indirect
+mask by turning `lib/requirements/reqSpecListTree.php` itself into a 302 shim to the modern
+screen, which is what made the hole obvious enough to report.
 
 ## 4. Measured reproduction (pre-fix)
 
@@ -81,11 +82,28 @@ Layer-by-layer:
 ## 5. Blast radius
 
 ```
-$ grep -rn "getrequirementnodes" --include='*.php' --include='*.tpl' --include='*.html' \
+$ grep -rn getrequirementnodes --include='*.php' --include='*.tpl' --include='*.html' \
       --include='*.js' --include='*.md' . | grep -v '^./tmp/' | wc -l
-25      # 1 live reference (tlRequirementFilterControl.class.php:272) + 24 comment/doc mentions
-$ grep -rn "new tlRequirementFilterControl" . | wc -l
-0       # the one live reference is UNREACHABLE dead code
+47      # 18 of those are in code (below), the rest are comments / docs / CHANGELOG history
+
+$ grep -rn getrequirementnodes --include='*.php' --include='*.tpl' --include='*.html' \
+      --include='*.js' . | grep -v '^./tmp/' | grep -v '^./lib/ajax/getrequirementnodes.php' \
+      | cut -d: -f1 | sort | uniq -c | sort -rn
+      4 ./api/reqspectreelist/index.php               (comments)
+      2 ./gui/templates/requirements/reqSpecMgmt.html (comments)
+      2 ./api/reqspec/index.php                      (comments)
+      1 ./lib/functions/tlRequirementFilterControl.class.php  <-- the ONLY URL constructor
+      1 ./lib/requirements/reqSpecListTree.php        (comment)
+      1 ./lib/functions/common.php                   (comment)
+      1 ./lib/ajax/requirements/getreqmonitors.php   (comment)
+      1 ./lib/ajax/gettprojectnodes.php              (comment)
+      1 ./lib/ajax/gettestcasesummary.php            (comment)
+      1 ./lib/ajax/getreqcoveragenodes.php           (comment)
+      1 ./api/tcprojecttree/index.php                (comment)
+      1 ./api/requirements/index.php                 (comment)
+
+$ grep -rn 'new tlRequirementFilterControl' --include='*.php' . | wc -l
+0       # the class is never instantiated -> tlRequirementFilterControl.class.php:272 is DEAD code
 ```
 
 * **Reachable by:** every authenticated user, any role, any project.
@@ -102,8 +120,8 @@ $ grep -rn "new tlRequirementFilterControl" . | wc -l
 
 ## 6. The fix
 
-`lib/ajax/getrequirementnodes.php` is **retired in place as a non-mutating 302 shim**, the exact
-shape its two already-fixed siblings use (`gettprojectnodes.php:57-121`):
+`lib/ajax/getrequirementnodes.php` is **retired in place as a non-mutating 302 shim**, the shape
+its two already-fixed siblings use (`gettprojectnodes.php:57-118`):
 
 1. **Preserve** the legacy `testlinkInitPage()` session contract via
    `doDBConnect()` + `checkSessionValid($db)` — an anonymous visitor is still bounced to
@@ -117,9 +135,14 @@ shape its two already-fixed siblings use (`gettprojectnodes.php:57-121`):
 4. `302` a legacy `GET` to `gui/templates/requirements/reqSpecListTree.html`, carrying
    `tproject_id` from **`tproject_id` or the legacy `root_node`** (first one > 0 wins) plus
    `filter_node` when present, so an old bookmark or the dead
-   `tlRequirementFilterControl.class.php:272` URL still lands on a working screen. The
-   `$_SESSION['basehref']` base is honoured, as on every sibling shim, so a sub-directory
-   installation is not redirected off the document root.
+   `tlRequirementFilterControl.class.php:272` URL still lands on a working screen. `filter_node`
+   is forwarded purely so such a bookmark survives intact: the modern requirement tree does **not**
+   read it (`grep -ri filter_node` over `gui/templates/requirements/reqSpecListTree.html` and
+   `api/reqspectreelist/` → 0 hits), unlike its test-case sibling
+   `gui/templates/testcases/tcProjectTree.html:119`. The `$_SESSION['basehref']` base is honoured
+   (as the *frame* shim `lib/requirements/reqSpecListTree.php:36-38` does), so a sub-directory
+   installation is not redirected off the document root; the two loader siblings hardcode `/gui/…`
+   instead.
 5. The read is deliberately **NOT replayed** — it was never authorized. The modern screen and
    its BFF decide what to reveal, per request, with a real rights check.
 
@@ -139,7 +162,7 @@ shape its two already-fixed siblings use (`gettprojectnodes.php:57-121`):
 | R2 | `<no rights>` `GET ?mode=reqspec&root_node=1` | HTTP 302 → `…/reqSpecListTree.html?tproject_id=1`; `grep -c 'SPEC-B-001\|REQ-B-001\|Secret'` → **0** |
 | R3 | `<no rights>` `GET ?node=2` | HTTP 302 → `…/reqSpecListTree.html`, no project param; leak check → **0** |
 | R4 | `POST` / `PUT` / `DELETE` | HTTP 405 + `method_not_allowed` for all three, no data |
-| R5 | `admin` `GET ?mode=reqspec&root_node=1&filter_node=2` | HTTP 302 → `…?tproject_id=1&filter_node=2` — `filter_node` preserved |
+| R5 | `admin` `GET ?mode=reqspec&root_node=1&filter_node=2` | HTTP 302 → `…?tproject_id=1&filter_node=2` — `filter_node` survives the redirect (the modern screen ignores it, see §6.4) |
 | R6 | `admin` `GET /api/reqspectreelist/index.php?action=init&tproject_id=1` | HTTP 200 `{"status":"ok",…,"grant":{"view":true,"modify":true}}` — modern tree unaffected |
 | R7 | `<no rights>` same endpoint | HTTP 403 `no_right` — **unchanged** |
 | R8 | `GET /lib/requirements/reqSpecListTree.php?tproject_id=1` | HTTP 302 → `…/reqSpecListTree.html?tproject_id=1` — **unchanged** |
