@@ -7947,6 +7947,8 @@ Changes:
       project tables and added user metrics to the middle section
 
 ## 2.0.1 (in-progress)
+### KEY BUGFIX (i18n) — `gui/templates/i18n/fr.json` missed 26 keys `en.json` defines, so `fr_FR` users saw raw dotted keys (`role.noRights`) on screen (Fixes #1840)
+- `TLi18n.t()` resolves as `_strings[key] || key` (`gui/templates/i18n/i18n.js:165`), so a key missing from the loaded bundle has **no fallback layer**: the module returned the key itself and `apply()` wrote it into `textContent`, overwriting the English literal in the HTML. Added the 26 keys (`rctc.*` 6, `role.*` 6, `ts.*` 4, `rmo.grid.*` 7, `rmo.*` 3) with French translations at their alphabetical position; `{count}` preserved. Key-set diff `fr` vs `en`: 26 -> 0. The ASIDE `Test Strategy`/`Documentation` symptom in the report is a **different** i18n layer (legacy `locale/fr_FR/strings.txt`, filed as #1843); the `de`/`es`/`it` twins and a coverage CI gate were filed as #1844.
 ### Screen — Results by Issues BTS bug decoration `resultsBugs` (Refs #1268)
 - `gui/templates/results/resultsBugs.html` rebuilds the legacy per-bug decoration of
   `issueTrackerInterface::buildViewBugLink()` (`lib/issuetrackerintegration/issueTrackerInterface.class.php:352-443`):

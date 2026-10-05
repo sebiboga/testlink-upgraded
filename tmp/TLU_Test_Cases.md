@@ -487,3 +487,79 @@ rows in `execution_bugs`; tracker table `mantis_bug_table` with ids 101(new/10),
 7. Event Viewer / `events` table after the run.
    *Expected:* no new Error/Warning rows.
    *Actual:* **PASS** — no new rows; `php -l api/reports/index.php` clean.
+
+## Regression — Issue #1840: `gui/templates/i18n/fr.json` missing 26 `en.json` keys — `TLi18n.t()` leaked the raw dotted key (`role.noRights`) to `fr_FR` users
+
+**Precondition** — TestLink 2.0.1 on `http://localhost:8082`, MariaDB
+`testlink`, login `admin`/`admin`, `users.locale='fr_FR'` for the `fr` runs.
+Browser = headless Chrome via chrome-devtools MCP.
+
+### Symptom (pre-fix)
+
+`gui/templates/i18n/i18n.js:165` resolves `t(key)` as `_strings[key] || key`,
+so a key that `en.json` defines but `fr.json` does not has **no fallback
+layer**: the module returns the key itself and `apply()` (i18n.js:187) writes it
+into `textContent`, overwriting the English literal the screen author had put
+in the HTML. A `fr_FR` user therefore saw the raw key on screen — verified on
+`rolesView.html`, where `role.noRights` and `role.editLocked` rendered as
+`"role.noRights"` / `"role.editLocked"`.
+
+### Reproduction steps (pre-fix)
+
+```bash
+mysql -h 127.0.0.1 -utestlink -ptestlink testlink \
+  -e "update users set locale='fr_FR' where id=1;"
+# browser -> http://localhost:8082/index.php -> login admin/admin
+#          -> http://localhost:8082/gui/templates/usermanagement/rolesView.html?locale=fr_FR
+# devtools -> evaluate:
+#   ['role.noRights','role.editLocked'].map(k => [k, TLi18n.t(k)])
+```
+
+```bash
+python3 -c "
+import json
+en=json.load(open('gui/templates/i18n/en.json'))
+fr=json.load(open('gui/templates/i18n/fr.json'))
+print(len(en), len(fr), len([k for k in en if k not in fr]))"
+# 6726 6700 26      <- pre-fix
+```
+
+### Expected post-fix behavior
+
+`fr.json` defines all 26 keys (`missing 0`), so at `locale=fr_FR`
+`TLi18n.t(key)` returns the French string for every one of them (never the key),
+the interpolated keys keep their `{count}` placeholder, `locale=en_GB` output
+is unchanged, and the run adds no new Error/Warning row to `events`.
+
+### Actual result
+
+**PASS** — M1 `en 6726 / fr 6726 / missing 0`; M2 `python3 -m json.tool
+gui/templates/i18n/fr.json` exit 0; M3 `git diff --numstat` = `26  0  fr.json`
+with `en.json` absent from the diff (nothing overwritten); M4
+`rmo.grid.groupItem.format(count=3)` → `(3 élément)`,
+`groupItems.format(count=7)` → `(7 éléments)`, in-browser
+`TLi18n.t('rmo.grid.groupItem',{count:4})` → `(4 élément)`; M5 on
+`rolesView.html?locale=fr_FR` the 26-key unresolved probe returned `[]`
+(pre-fix 6/6 raw keys), e.g. `role.duplicateRole`→`Dupliquer`,
+`role.editLocked`→`Ce rôle est défini par le système et ne peut pas être modifié.`,
+`rmo.grid.expandCollapseGroups`→`Déplier / Replier les groupes`,
+`ts.chapterBugLifecycle`→`Cycle de Vie du Bug`; M6 at `locale=en_GB`
+`role.duplicateRole`→`Duplicate`,
+`rmo.grid.expandCollapseGroups`→`Expand/Collapse Groups`,
+`rctc.countInfo`→`Requirements`; M7 fresh logout+login: `events` 32→63 rows but
+`count(distinct description)` unchanged at 32 and the 60 `log_level=32` rows
+still collapse to the same 30 legacy strings, no ERROR-level row, console has
+no errors/warnings (only two pre-existing a11y hints on `rolesView.html`).
+Screenshots: `docs/screenshots/issue-1840-fr-bundle-missing-keys-{before,after}.png`.
+
+### Non-regression note (M7 detail — a DIFFERENT defect, filed separately)
+
+The ASIDE entries `Test Strategy` / `Documentation` stay English after this fix
+and that is correct: the ASIDE is rendered by `lang_get()` from
+`locale/fr_FR/strings.txt`, which lacks 89 of the 2783 `$TLS_*` keys present in
+`locale/en_GB/strings.txt` (including `title_test_strategy` and the whole
+`href_test_strategy_*` family). The Event Viewer says so explicitly:
+`string 'title_test_strategy' is not localized for locale 'fr_FR' - using en_GB`.
+The same 26-key gap also exists in `de.json`/`es.json`/`it.json` (identical key
+sets, measured) and different-sized gaps in `ja`/`pt`/`ru` (20), `ro` (6),
+`zh` (40) — none of them touched by this fix.
