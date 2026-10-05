@@ -6701,5 +6701,15 @@
   "usergrid.userId": "ID Utilizator",
   "version": "Versiune",
   "rb.executionHistory": "Istoricul execuțiilor",
-  "rb.testCaseDesign": "Proiectarea cazului de test"
+  "rb.testCaseDesign": "Proiectarea cazului de test",
+  "rmo.grid.expandCollapseGroups": "Extinde/Comprimă grupuri",
+  "rmo.grid.groupItem": "({count} element)",
+  "rmo.grid.groupItems": "({count} elemente)",
+  "rmo.grid.groupsCollapsed": "Grupuri comprimate",
+  "rmo.grid.groupsExpanded": "Grupuri extinse",
+  "rmo.grid.hideGroupedColumn": "Ascunde coloana grupată",
+  "rmo.grid.showAllColumns": "Afișează toate coloanele",
+  "rmo.resetToDefaultState": "Resetare la starea implicită",
+  "rmo.resetFilters": "Resetează filtrele",
+  "rmo.multiSort": "Sortare multiplă"
 }

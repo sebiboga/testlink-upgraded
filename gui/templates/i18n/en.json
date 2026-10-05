@@ -6707,5 +6707,15 @@
   "usergrid.userId": "User ID",
   "version": "Version",
   "rb.executionHistory": "Execution history",
-  "rb.testCaseDesign": "Test case design"
+  "rb.testCaseDesign": "Test case design",
+  "rmo.grid.expandCollapseGroups": "Expand/Collapse Groups",
+  "rmo.grid.groupItem": "({count} Item)",
+  "rmo.grid.groupItems": "({count} Items)",
+  "rmo.grid.groupsCollapsed": "Groups collapsed",
+  "rmo.grid.groupsExpanded": "Groups expanded",
+  "rmo.grid.hideGroupedColumn": "Hide grouped column",
+  "rmo.grid.showAllColumns": "Show all Columns",
+  "rmo.resetToDefaultState": "Reset to Default State",
+  "rmo.resetFilters": "Reset Filters",
+  "rmo.multiSort": "MultiSort"
 }
