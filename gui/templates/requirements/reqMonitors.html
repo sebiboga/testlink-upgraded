@@ -263,7 +263,8 @@ function render(d) {
     .attr('class', 'badge ' + (c.is_open === 1 ? 'badge-green' : 'badge-grey'));
 
   var html = '';
-  html += row('reqmon.requirement', (c.req_doc_id || '') + ' ' + (c.req_title || ''));
+  html += row('reqmon.requirement',
+    [c.req_doc_id, c.req_title].filter(function(v) { return !!v; }).join(' '));
   html += row('logv.testProject', c.tproject_name || '');
   html += row('logv.version', c.has_version === 1 ? String(c.version) : TLi18n.t('reqmon.noVersion'));
   html += row('reqmon.monitorCount', String(d.total));

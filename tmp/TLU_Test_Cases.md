@@ -350,31 +350,139 @@ gap, unrelated to this parse error.
 **Docs** — `docs/Bugfix-Issue-1839-fr-FR-strings-txt-Parse-Error.md`, mirrored in
 the GitHub Wiki under the same file name.
 
-## Task — Issue #1091: Implement Jolly (free-text OR) search field in searchView.html (gap vs legacy)
+## Modernize — Issue #1780: Requirement Monitors popup (`requirements/reqMonitors.html` + `api/reqmonitors`)
 
-**Precondition**
-- TestLink running at http://localhost:8082 with modern searchView.html
-- Test project 100 SearchFixtures (or any project with test cases) exists; seeded data as in environment
-- Admin/admin logged in
-- BFF api/search/index.php supports `jolly` param (implemented)
+**Precondition** — app at `http://localhost:8082` (`php -S`, docroot = repo root);
+MariaDB `testlink` freshly imported (so the fixture is recreated every run);
+login `admin`/`admin` (user id 1); fixtures: `php tmp/fixtures_1780.php`
+(project `MON` id 1 / prefix `RM1780` with `REQ-MON-1` (2 versions, 3 owned
+monitors), `REQ-MON-2` (no monitor), `REQ-MON-3` (one monitor row carrying the
+**foreign** project id), `REQ-MON-ALT` in project `MON-ALT` id 2, users
+`monitor_a`, `monitor_b`, `monnorights` = role 3 `<no rights>`).
+Harness: `bash tmp/verify_1780.sh` → **73/73 PASS**.
 
-**Steps**
-1. Navigate to `search/searchView.html?tproject_id=<valid_project_id>` (quick Search Test Cases)
-2. Verify Jolly input field is present in the form grid (labeled Jolly (OR) with hint/tooltip)
-3. Enter a single keyword in the Jolly field that appears in different places across test cases (e.g. "load" appears in name/summary/other fields in different TCs) and leave other fields empty
-4. Click Find
-5. Observe search results
-6. Enter another keyword in Jolly that appears only in steps (actions) of some TC and Find
-7. Enter keyword that appears only in expected results and Find
-8. Test with keyword present in preconditions/summary/name
-9. Combine Jolly with another criterion (e.g. Jolly="load" + Status filter) and verify results are AND-ed
-10. Test empty Jolly behavior (clear field, search with other criteria) matches previous behavior
+### RESUME note — this run did NOT rebuild the screen
 
-**Expected behavior**
-- Jolly is a single free-text input that searches across name, summary, preconditions, steps (actions), expected results with OR logic within that group
-- Results include any TC where ANY of those 5 fields contains the jolly term (case-insensitive via LIKE in SQL as legacy did)
-- Other criteria remain AND-ed with the jolly OR group
-- When Jolly is empty, search behavior is unchanged from before (individual field ANDs as implemented)
+The BFF, the screen, the i18n keys, the `$actions->reqMonitors` switch, the
+retired shim and the `docs/` mirror were already committed by the 2026-10-01 run
+(`027c26a89`, `d7bf1c25f`). Kept as-is (RESUME rule); this run added the
+verification, the two bug fixes below and every recording artefact.
 
-**Actual result**
-- (to be recorded after execution)
+### A. Authentication / authorization matrix
+
+| # | Case | Expected | Result |
+|---|---|---|---|
+| A1 | anonymous `GET ?action=init&req_id=N` | `401 not_authenticated` | PASS |
+| A1b | anonymous answer body carries no login list | no leak | PASS |
+| A2 | admin `GET ?action=init&req_id=N` | `200 {"status":"ok"}` | PASS |
+| A3 | `monnorights` (role 3) on a real requirement | `403 no_right` | PASS |
+| A3b | A3 body must not contain any monitor login | no leak | PASS |
+| A4 | `monnorights` on a BOGUS id | `403 no_right` — **identical** to A3, so the endpoint is not a requirement-id oracle (the #1697 lesson) | PASS |
+
+### B. Monitor set payload
+
+| # | Case | Expected | Result |
+|---|---|---|---|
+| B1 | `REQ-MON-1` (admin + monitor_a + monitor_b) | `total = 3`, logins **alphabetical** (`admin`, `monitor_a`, `monitor_b`) — deliberate improvement over the legacy MySQL order, documented in the docs | PASS |
+| B1b | `is_monitoring` for the caller | `1` (the caller is in the set) | PASS |
+| B1c | context: `req_doc_id`, owning `tproject_id`, latest `version` (2), `has_version`, `grant.monitor` | all populated | PASS |
+| B2 | `REQ-MON-2` (no monitor row) | `total = 0`, `monitors = []`, `is_monitoring = 0` → empty-state row, no fatal | PASS |
+| B3 | requirement with only ONE version | `version = 1`, no fatal | PASS |
+| B4 | `is_me` flag | set on exactly the caller's own row (rendered as the `YOU` badge) | PASS (browser) |
+
+### S. Security regressions
+
+| # | Case | Expected | Result |
+|---|---|---|---|
+| S1 | legacy reader `getreqmonitors.php` as an XHR | `405 retired_endpoint`, **no** login list in the body | PASS |
+| S1b | legacy reader with a write verb | `405 wrong_method` + a pointer to the BFF | PASS |
+| S2 | **#1841** `REQ-MON-3`, whose only `req_monitor` row carries the **foreign** `testproject_id` | `total = 0`; pre-fix it answered `total = 1` / `monitor_a` | PASS |
+| S2b | after the scope fix, `REQ-MON-1` still returns its 3 owned monitors | no over-filtering regression | PASS |
+| S3 | `?tproject_id=` of another project for a real requirement | `404 project_mismatch` (client-side assertion, never a wrong-project read) | PASS |
+| S4 | `POST` without a same-origin proof | `403` CSRF (never reaches the dispatch) | PASS |
+| S5 | no-right user cannot use the popup as an existence oracle | A4 | PASS |
+| S6 | anonymous legacy navigation | bounces to `login.php?note=expired` (legacy `testlinkInitPage` contract preserved) | PASS |
+
+### C. Status / machine-code matrix
+
+| # | Case | Expected | Result |
+|---|---|---|---|
+| C1-C4 | `req_id=0` / missing / `abc` / `-5` | `400 invalid_requirement` | PASS |
+| C5 | unknown requirement id | `404 requirement_not_found` | PASS |
+| C6 | foreign `tproject_id` / matching `tproject_id` | `404 project_mismatch` / `200` | PASS |
+| C7 | `?action=bogus` | `400 unknown_action` | PASS |
+| C8 | `POST` with a valid origin proof | `405 wrong_method` | PASS |
+| C9 | `POST` without an origin proof | `403` | PASS |
+| C10 | `HEAD` (link checker / crawler) | `200` — a HEAD must not be told "wrong method" (the `api/tcsummary` contract, Refs #1767) | PASS |
+| C11 | headers | `X-Content-Type-Options: nosniff` on every answer | PASS |
+| C12 | headers | `application/json; charset=utf-8` | PASS |
+
+### E. Front-end wiring / i18n
+
+| # | Case | Expected | Result |
+|---|---|---|---|
+| E1 | screen serves the monitor table + `reqmon.title` + `footers.reqMonitors` | present | PASS |
+| E2 | **#1842** the *Open requirement* button uses the viewer's canonical `id=` | `reqView.html?id=` present, **no** `reqView.html?req_id=` left (pre-fix the viewer opened with requirement id 0) | PASS |
+| E3 | `TLi18n` locale switcher | rendered | PASS |
+| E4 | all 10 bundles parse and carry all 28 used keys (`reqmon.*`, `logv.testProject`, `logv.version`, `common.refresh/close/error/errorLoading`, `footers.reqMonitors`) | 10 × PASS | PASS |
+| E5 | `lib/functions/common.php` `$actions->reqMonitors` | points at `gui/templates/requirements/reqMonitors.html` | PASS |
+| E6 | `reqView.html` carries the *Monitor set* button (the only entry point — the legacy screen was a Smarty include with no menu row) | present | PASS |
+
+### F. Event Viewer hygiene
+
+| # | Case | Expected | Result |
+|---|---|---|---|
+| F1 | `events` rows with `log_level = 1` (ERROR) | `0` | PASS |
+| F2 | WARNING rows attributable to the BFF/screen | `0` | PASS |
+| F3 | the only WARNING row is the shim's **intentional** audit trail of a refused `POST` on the retired reader (same convention as the #1770/#1765 shims) | acknowledged, documented | PASS |
+| F4 | ERROR/WARNING rows mentioning the requirement reader | `0` | PASS |
+
+### Browser cases (chrome-devtools, headless)
+
+| # | Case | Result |
+|---|---|---|
+| G1 | popup loads for `REQ-MON-1`: teal header, context card (requirement / test project / version 2 / 3 monitors / your login), `VERSION 2` + `OPEN` badges, 3-row monitor set with the `YOU` badge on the caller's row, `3 MONITORING` + `YOU ARE MONITORING THIS REQUIREMENT` chips | PASS |
+| G2 | *Open requirement* opens `reqView.html?id=7&tproject_id=1` with the requirement **loaded** (v2r1 preselected, its own Monitors card) — the #1842 regression | PASS |
+| G3 | the viewer's *Monitor set* button (the wiring of #1780) opens the popup with the right `req_id` + `tproject_id` | PASS |
+| G4 | `REQ-MON-2`: empty monitor set, `0 monitoring`, empty-row message | PASS |
+| G5 | `REQ-MON-3`: `0 monitoring` after the #1841 fix (pre-fix it showed `monitor_a`) | PASS |
+| G6 | `?tproject_id=2` for a project-1 requirement: *Requirement not found* card with the `project_mismatch` machine code visible | PASS |
+| G7 | no `req_id`: red *Error* card, "No requirement was selected." + `invalid_requirement` | PASS |
+| G8 | `monnorights` in an isolated browser context: *Access Denied* card + `no_right`, context card hidden | PASS |
+| G9 | RO locale: "Monitori cerință" / `3 monitorizează` / "dumneavoastră", **zero** raw keys | PASS |
+| G10 | legacy reader in a browser → 302 onto the modern popup | PASS |
+| G11 | console: 0 error / 0 warning messages on the popup | PASS |
+
+### Bugs found and fixed by this suite
+
+| Bug | Symptom | Fix |
+|---|---|---|
+| **#1841** | the BFF proved the owning project but called `getReqMonitors()` **without** `tproject_id` (the helper's default `0` means "no project filter"), so a `req_monitor` row of a **foreign** project was listed | pass the proven `tproject_id` into both reader calls (`c9f1e5401`) |
+| **#1842** | *Open requirement* linked `reqView.html?req_id=`, but the viewer reads `id`/`requirement_id` only → the viewer opened with requirement id 0 | use the viewer's canonical `id=` (`075feec97`) |
+| (hardening) | `doDBConnect()` ran **before** the session gate, so a DB failure could answer an anonymous caller with a raw `dbms_msg` (the #1677 lesson) | connect after the gate (`c9f1e5401`) |
+| (documented, not fixed here) | `searchMgmt.html:395` links the same viewer with `req_id=` — one screen at a time, left for its own run; recorded in **#1842** | — |
+
+Screenshots: `docs/screenshots/issue-1780-reqmonitors-{list,empty,mismatch,ro,denied}.png`.
+Docs mirror: `docs/Modernize-Requirement-Monitors-reqMonitors.md`.
+**Suite 1780: 73 harness cases + 11 browser cases — ALL PASS.**
+
+### Code-review regressions added (mandatory subagent review, Refs #1780)
+
+Review verdict: **no BLOCKER, no security hole** (it independently re-verified the
+owning-project proof, the no-existence-oracle mitigation, the `$_GET`-independent
+SQL integer interpolation, the `esc()`/`.text()` escaping and the `HEAD` contract).
+Four actionable findings were applied:
+
+| # | Finding | Applied fix | Regression case |
+|---|---|---|---|
+| R1 | MAJOR — `needTprojectIdForReq()` declared `global $db, $reqMgr, $user` but read `$tprojMgr` through `$GLOBALS` (mixed style that only survives while the names stay in sync) | `$tprojMgr` added to the `global` list, the `$GLOBALS[...]` hop removed | B1/C6 (full matrix re-run) |
+| R2 | MAJOR — the routing parameter `action` and `param()` read `$_REQUEST`, so a request **body** could influence the routing decision before the method check | both now read `$_GET` only (the sole action is an idempotent `GET`/`HEAD` read) | C8/C9 (POST still 405, POST w/o origin still 403) |
+| R3 | MINOR — the scope-fix comment named the wrong issue (`#1781` instead of `#1841`) | corrected | S2 |
+| R4 | MINOR — the context row built `doc_id + ' ' + title`, leaving a stray space when both were empty | the label is now built from the non-empty parts only | G1 (context row re-checked in the browser) |
+
+NIT accepted without change: `jqf()` in `tmp/verify_1780.sh` uses python `eval()`
+on a locally-built expression; it is test-only code under the git-ignored `tmp/`
+and the input is this app's own API response, so the JSON-path rewrite was judged
+not worth the churn (recorded here so the decision is not silently lost).
+
+After applying the four fixes: **73/73 harness PASS** (re-run), browser verified.

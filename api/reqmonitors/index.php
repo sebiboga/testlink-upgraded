@@ -66,11 +66,14 @@ define('NODE_TYPE_REQUIREMENT',      7);
 define('NODE_TYPE_REQUIREMENT_VER',  8);
 
 $method = isset($_SERVER['REQUEST_METHOD']) ? strtoupper($_SERVER['REQUEST_METHOD']) : 'GET';
-$action = isset($_REQUEST['action']) ? trim((string)$_REQUEST['action']) : 'init';
+// Routing + parameters are read from $_GET ONLY (code review, Refs #1780):
+// the sole action is an idempotent GET/HEAD read, so a request BODY must never
+// be able to influence the routing decision before the method check runs.
+$action = isset($_GET['action']) ? trim((string)$_GET['action']) : 'init';
 
 function param($key, $default = 0)
 {
-    return array_key_exists($key, $_REQUEST) ? $_REQUEST[$key] : $default;
+    return array_key_exists($key, $_GET) ? $_GET[$key] : $default;
 }
 
 /**
@@ -106,7 +109,11 @@ function canViewAnyRequirement($user)
 
 function needTprojectIdForReq($reqId)
 {
-    global $db, $reqMgr, $user;
+    // Every symbol this helper touches must be declared: reading $tprojMgr
+    // through $GLOBALS while declaring $db/$reqMgr/$user was a mixed style
+    // that survives only as long as the variable names stay in sync (code
+    // review, Refs #1780).
+    global $db, $reqMgr, $tprojMgr, $user;
     $rid = intval($reqId);
     if ($rid <= 0) {
         failOut(400, 'Invalid requirement id', 'invalid_requirement');
@@ -134,7 +141,7 @@ function needTprojectIdForReq($reqId)
           $user->hasRight($db, 'mgt_modify_req', $tprojId))) {
         failOut(403, 'You are not authorized to view requirements', 'no_right');
     }
-    $tproj = $GLOBALS['tprojMgr']->get_by_id($tprojId);
+    $tproj = $tprojMgr->get_by_id($tprojId);
     if (is_null($tproj)) {
         failOut(404, 'Test project not found', 'tproject_not_found');
     }
@@ -179,7 +186,7 @@ if ($action === 'init') {
         '   AND VN.node_type_id = ' . NODE_TYPE_REQUIREMENT_VER .
         ' ORDER BY VN.id DESC LIMIT 1');
 
-    // BUG FIXED HERE (#1781): the reader MUST be scoped to the OWNING project.
+    // BUG FIXED HERE (#1841): the reader MUST be scoped to the OWNING project.
     // getReqMonitors() defaults to tproject_id = 0, which means "no project
     // filter", and req_monitor is keyed on (req_id, user_id, testproject_id) -
     // so a row carrying a FOREIGN testproject_id for this requirement (a stale
