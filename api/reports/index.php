@@ -184,19 +184,32 @@ function minutesToHHMMSS($minutes) {
 // method (the demo stub mantisrestInterface::buildViewBugLink() returns a bare
 // URL string instead of an object - see
 // lib/issuetrackerintegration/mantisrestInterface.class.php:105-108).
+//
+// The returned value goes into the JSON contract, so it is filtered here with
+// the same allow-list the screen applies before building an href
+// (resultsBugs.html safeHttpUrl()): only http(s), protocol-relative and
+// site-relative URLs are ever published - never markup, javascript: or data:.
 function bugViewUrl($its, $bugId, $linkHtml = '') {
+    $url = '';
     if (is_object($its) && method_exists($its, 'buildViewBugURL')) {
         try {
             $url = trim(strval($its->buildViewBugURL($bugId)));
-            if ($url !== '') {
-                return $url;
-            }
         } catch (Throwable $e) {
             // Tracker-specific failure: fall through to the fragment below.
+            $url = '';
         }
     }
-    if (is_string($linkHtml) && preg_match('/href=[\'"]([^\'"]+)[\'"]/i', $linkHtml, $m)) {
-        return html_entity_decode($m[1], ENT_QUOTES);
+    if ($url === '' && is_string($linkHtml)
+        && preg_match('/href=[\'"]([^\'"]+)[\'"]/i', $linkHtml, $m)) {
+        $url = html_entity_decode($m[1], ENT_QUOTES);
+    }
+
+    $url = trim($url);
+    if ($url === '') {
+        return '';
+    }
+    if (preg_match('~^https?://~i', $url) || preg_match('~^//~', $url) || preg_match('~^/~', $url)) {
+        return $url;
     }
     return '';
 }

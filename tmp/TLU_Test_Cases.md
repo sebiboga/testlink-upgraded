@@ -6356,6 +6356,8 @@ resolved). Login `admin/admin`.
 | POST-FIX 7 | Event Viewer (`events` table) | 5 rows, all `log_level=16` (audit/info), no Error/Warning — **PASS** |
 | POST-FIX 8 | regression `action=by_status` + `gui/templates/results/resultsByStatus.html` (echoes the fragment as HTML on purpose) | `status:"ok"`, screen renders — **PASS** |
 | POST-FIX 9 | legacy untouched | `git diff --stat` for the fix = `api/reports/index.php +36`, `gui/templates/results/resultsBugs.html +22/-3`; `lib/functions/exec.inc.php` and `lib/results/resultsBugs.php` unchanged — **PASS** |
+| POST-FIX 11 | code review finding folded in: server-side allow-list in `bugViewUrl()` (defence in depth for future API consumers) | 9-case PHP matrix: real interface `http://mantis.local/view_bug.php?bug_id=101`; fallback regex same URL; `javascript:alert(1)` from `buildViewBugURL()` → `''`; `data:text/html` href → `''`; junk `TestLink Internal Message…` → `''`; space-padded href → trimmed `https://x/y`; site-relative `/browse/3` kept; `HTTPS://X/Y` kept (client guard is case-insensitive too) — **PASS** |
+| POST-FIX 12 | live re-verification after the hardening commit | payload `bugs[].url` = `…bug_id=101` / `…bug_id=102`, `bugs[].link` still the HTML fragment, DOM anchors `A http://mantis.local/view_bug.php?bug_id=101 bug-link`, `A http://mantis.local/view_bug.php?bug_id=102 bug-link resolved` — **PASS** |
 | POST-FIX 10 | syntax gate | `php -l api/reports/index.php` → OK; inline `<script>` extracted → `node --check` → OK — **PASS** |
 
 **Known limitation (reported, not fixed here)**: `chrome-devtools_take_screenshot` timed out twice for this page

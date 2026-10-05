@@ -43,6 +43,7 @@ The "All Executions" variant shows a warning hint that some test cases may appea
 | PHP template builds HTML table | DataTables jQuery plugin renders the table |
 | Data from `getLTCVNewGeneration()` (type=0) or `getAllExecutionsWithBugs()` (type=1) | Same backend calls via BFF |
 | Bug links via `get_bugs_for_exec()` | Same backend call via BFF |
+| Legacy echoed `link_to_bts` (an **HTML fragment** from `buildViewBugLink()`) straight into the cell | BFF returns that fragment as `bugs[].link` (unchanged, for HTML consumers) **and** the bare tracker URL as `bugs[].url`; the screen anchors on `url` behind a scheme guard — **Fixes #1837** |
 | ExtTable with group-by | DataTable with sorting, pagination, search |
 | `resultsBugs.tpl:70` renders `<p class="italic">{$labels.info_bugs_per_tc_report}</p>` below the table (report description) | Modern footer renders the equivalent italic info paragraph via `rb.infoReport` (`<p class="info">`) next to the generated-on line — **Refs #1271** |
 
@@ -104,7 +105,8 @@ Returns test cases with linked bugs for a test plan.
       "bugs": [
         {
           "bug_id": "BUG-123",
-          "link": "https://bts.example.com/BUG-123",
+          "link": "<div title=\"Access issue tracking system\" style=\"background: #ffa0a0;\"><a href='https://bts.example.com/BUG-123' target='_blank'>BUG-123 : [New issue]</a></div>",
+          "url": "https://bts.example.com/BUG-123",
           "is_resolved": false,
           "build_name": "Build 1"
         }
@@ -201,3 +203,55 @@ never used it, so a user could not reach the execution history or the design of 
 so the DB-API tracker resolves links and resolved state without any remote service).
 History popup shows `RB-1 - Execution History` / `Executions(1)`; design popup shows
 `Edit Test Case - login broken`. No new Error/Warning entries in the Event Viewer.
+
+---
+
+## 11. Bugs Column Links (Fixes #1837)
+
+### Symptom (measured pre-fix)
+Every bug in the *Bugs* column carried an `href` that was the issue tracker's **HTML fragment**,
+percent-encoded and resolved against the current directory, so clicking a bug landed on a TestLink
+**404** (`fetch(anchor.href)` → `status: 404`) — the report's main column was unusable. No console
+error and no Event Viewer row, so the defect was silent.
+
+```
+pre-fix : link " 101" url="http://localhost:8082/gui/templates/results/%3Cdiv%20%20title=%22Access%20issue%20tracking%20system%22…%3C/div%3E"
+post-fix: link " 101" url="http://mantis.local/view_bug.php?bug_id=101"
+```
+
+### Root cause
+1. `issueTrackerInterface::buildViewBugLink()` returns an HTML fragment, not a URL
+   (`issueTrackerInterface.class.php:365` builds the anchor, `:437-442` wraps it in a status-coloured
+   `<div>`); `lib/functions/exec.inc.php:449-453` stores it as `link_to_bts`. Legacy screens echoed it
+   as HTML (`lib/results/resultsBugs.php:204`) — correct there.
+2. `api/reports/index.php` (`action=results_bugs`) copied the fragment into a neutrally named `link`
+   field and exposed **no** URL, so the field looked like one.
+3. `renderBugLinks()` escaped the fragment into `href`.
+
+The bare URL was always available but never left the tracker object:
+`issueTrackerInterface::buildViewBugURL()` (`issueTrackerInterface.class.php:485-488`), inherited or
+overridden by every tracker.
+
+### The fix
+* **BFF** `api/reports/index.php`: new `bugViewUrl($its, $bugId, $linkHtml)` helper returns the bare
+  tracker URL via `buildViewBugURL()` — guarded by `is_object()` + `method_exists()` + `try/catch(Throwable)`
+  — and falls back to extracting the `href` from the fragment, then to `''`. Each bug entry now carries
+  `bugs[].url` next to the untouched `bugs[].link`.
+* **Screen** `gui/templates/results/resultsBugs.html`: new `safeHttpUrl()` accepts only `http://`,
+  `https://`, `//host/…`, `/path`; `renderBugLinks()` anchors on `b.url` through it, adds
+  `rel="noopener"` and degrades to a `<span class="bug-link">` (no href) when no usable URL exists.
+  Resolved styling (`.bug-link.resolved`) is unchanged.
+
+### Verified
+Suite `## Regression — Issue #1837` in `tmp/TLU_Test_Cases.md`; fixture `php tmp/fixtures_1269.php`
+(project `RB1269`, plan `RB Plan`, local `mantis_bug_table`). Live URLs for `type=0` and `type=1`,
+resolved/open styling kept, `bugs[].link` unchanged, 11 client + 7 PHP guard cases, console and Event
+Viewer clean, sibling `resultsByStatus` (which deliberately echoes the fragment as HTML) unaffected.
+
+A code review subagent's BLOCKER findings were checked against the committed code and did not
+reproduce (they described an `ENT_HTML5` decode, a `new URL()` guard and a `$bug['links']`
+shadowing loop, none of which are in this diff). Its one valid suggestion was folded in:
+`bugViewUrl()` applies the same scheme allow-list server-side before publishing `bugs[].url`, so
+the API can never ship `javascript:`/`data:`/markup to a future consumer.
+
+Detail page: [`Bugfix-Issue-1837-resultsBugs-BugLink-Href.md`](Bugfix-Issue-1837-resultsBugs-BugLink-Href.md).
