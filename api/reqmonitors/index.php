@@ -17,9 +17,6 @@ header('Content-Type: application/json; charset=utf-8');
 header('X-Content-Type-Options: nosniff');
 header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 
-$db = new database(DB_TYPE);
-doDBConnect($db);
-
 function out($data) { echo json_encode($data); exit; }
 function failOut($code, $message, $machine = '')
 {
@@ -43,6 +40,13 @@ if ($userId <= 0) {
     out(array('status' => 'error', 'code' => 'not_authenticated',
         'message' => 'Not authenticated'));
 }
+
+// HARDENING (#1677 lesson): the DB is connected AFTER the session gate, never
+// before it. common.php's DB-connect failure path echoes a raw dbms_msg with the
+// host and database name, so connecting first would answer an anonymous caller
+// (or a database-less deployment) with HTTP 200 and the connection details.
+$db = new database(DB_TYPE);
+doDBConnect($db);
 
 $user = tlUser::getByID($db, $userId);
 if (is_null($user)) {
@@ -175,7 +179,17 @@ if ($action === 'init') {
         '   AND VN.node_type_id = ' . NODE_TYPE_REQUIREMENT_VER .
         ' ORDER BY VN.id DESC LIMIT 1');
 
-    $monRaw = $reqMgr->getReqMonitors($reqId, array('output' => 'array'));
+    // BUG FIXED HERE (#1781): the reader MUST be scoped to the OWNING project.
+    // getReqMonitors() defaults to tproject_id = 0, which means "no project
+    // filter", and req_monitor is keyed on (req_id, user_id, testproject_id) -
+    // so a row carrying a FOREIGN testproject_id for this requirement (a stale
+    // or hand-written row, exactly what the #1780 fixture plants on REQ-MON-3)
+    // was returned to the reader even though it does not belong to the
+    // requirement's own project. The legacy reader had the same hole (it never
+    // passed a project at all); the modern BFF closes it by handing the proven
+    // owning project id to the reader.
+    $monOpt = array('output' => 'array', 'tproject_id' => $ctx['tproject_id']);
+    $monRaw = $reqMgr->getReqMonitors($reqId, $monOpt);
     $monitors = array();
     if (!empty($monRaw)) {
         foreach ($monRaw as $m) {
@@ -193,7 +207,8 @@ if ($action === 'init') {
     // expects. Documented in docs/ + the test suite.
     usort($monitors, function ($a, $b) { return strcasecmp($a['login'], $b['login']); });
 
-    $monitorSet = (array)$reqMgr->getReqMonitors($reqId);
+    $monitorSet = (array)$reqMgr->getReqMonitors($reqId,
+        array('output' => 'map', 'tproject_id' => $ctx['tproject_id']));
 
     out(array(
         'status' => 'ok',
