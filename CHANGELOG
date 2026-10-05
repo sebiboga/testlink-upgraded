@@ -157,6 +157,38 @@ screen reaches full parity.
   with Name, URL prefill, Reset, BFF matrix, Event Viewer clean, console clean).
   Regression suite "Task — Issue #1077" appended to `tmp/TLU_Test_Cases.md`. (Refs #1077)
 
+- [KEY BUGFIX] - #1704: **9 BFF catch blocks logged an Event-Viewer row that named no file and
+  no route - and 2 of them named nothing at all.** #1701 fixed the same idiom in
+  `api/issuetracker/index.php` by hand-writing the prefix, but left `tLog(__METHOD__ . ' ' .
+  $e->getMessage(), 'ERROR')` in the sibling BFF scripts. A BFF entry point is a **flat request
+  script** (routing is inline `if ($method === … && $segments[0] === …)` / `switch ($action)`,
+  no class, no controller method), so a `try` in a route body sits at **file scope** - and PHP
+  defines `__METHOD__` there as the **empty string** (`php -r 'echo strlen(__METHOD__);'` at
+  file scope -> `0`; inside a function -> the function name). Measured pre-fix on
+  `api/codetracker/index.php:472` (`POST /test_github`) and `:552`
+  (`POST /{id}/test_connection`): `LENGTH(description)=18`, `HEX(LEFT(description,12))` =
+  `20666F726365642D31373034` (leading `20`, one ASCII space) and the two rows were
+  **byte-identical**, so the two endpoints were indistinguishable during triage. A column-0
+  brace scan over every `api/*/index.php` corrected the issue's scope: **2** sites are at file
+  top level, 7 more are inside functions and logged a non-empty but still file-less
+  `__METHOD__` (`api/codetracker/index.php:428`, `api/scriptedit/index.php:123`,
+  `api/tcscripts/index.php:119`, `api/testcases/index.php:114,142,298,417` - the last four not
+  listed in the issue body), and the 58 `lib/**` hits are inside class methods where
+  `__METHOD__` is correct, so out of scope. Fix: one line per site in the #1701 format
+  `api/<file>::<route-or-function> :: <message>`, with an inline comment at the two file-scope
+  sites naming the footgun (the pre-existing `tcversion <id>` context on the
+  `tcVersionRelations` site is preserved). Post-fix the same forced reproduction writes
+  `api/codetracker/index.php::POST /test_github :: …` (65 bytes) and
+  `::POST /{id}/test_connection :: …` (74 bytes), `HEX` starting `6170692F…`; rejected
+  "keep `__METHOD__`, prepend the file" (still `""` at file scope) and a shared
+  `bffLogError()` helper (new abstraction for 9 calls, larger blast radius). HTTP behaviour is
+  byte-identical before and after (502/400 + the same JSON envelope); `grep -rn
+  'tLog(__METHOD__' --include=*.php api` -> **0 hits**; 11-case regression matrix 11/11 PASS
+  (`Regression — Issue #1704`, gated by `ai/verify_test_suites.sh` 7 PASS / 0 FAIL), browser
+  check: Event Viewer renders the file+route inline, Code Tracker grid loads, **0 console
+  errors/warnings**, no new Warning/Notice rows. Doc:
+  `docs/Bugfix-Issue-1704-BFF-CatchBlocks-Nameless-EventViewer-Rows.md`. (Fixes #1704)
+
 - [KEY BUGFIX] - #1844: **40 i18n keys rendered as the raw key on screen in 8 of the 10 locale
   bundles, and nothing in the toolchain could see it.** The only i18n gate the repo had was
   `python3 -m json.tool` on a single bundle, which proves WELL-FORMEDNESS, never COVERAGE
