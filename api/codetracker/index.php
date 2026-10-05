@@ -469,7 +469,10 @@ if ($method === 'POST' && isset($segments[0]) && $segments[0] === 'test_github')
             'defaultBranch' => ($connected && count($branchList) > 0) ? $branchList[0] : '',
         ]);
     } catch (Exception $e) {
-        tLog(__METHOD__ . ' ' . $e->getMessage(), 'ERROR');
+        // Issue #1704: this catch is at file top level, where PHP defines
+        // __METHOD__ as the empty string -> the row landed in the Event Viewer
+        // as " <message>" with no file and no route. Name file + route.
+        tLog('api/codetracker/index.php::POST /test_github :: ' . $e->getMessage(), 'ERROR');
         http_response_code(502);
         out(['status' => 'error', 'message' => 'Connection test failed']);
     }
@@ -549,7 +552,8 @@ if (($method === 'GET' || $method === 'POST') && isset($segments[0]) && is_numer
                      'connected' => $connected,
                      'message' => $connected ? 'Connection OK' : 'Connection failed (check repository, branch and token)']);
             } catch (Throwable $e) {
-                tLog(__METHOD__ . ' ' . $e->getMessage(), 'ERROR');
+                // Issue #1704: file top level -> __METHOD__ === '' (see above).
+                tLog('api/codetracker/index.php::POST /{id}/test_connection :: ' . $e->getMessage(), 'ERROR');
                 http_response_code(502);
                 out(['status' => 'error', 'connected' => false, 'message' => 'Connection test failed']);
             }
