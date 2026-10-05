@@ -7915,6 +7915,36 @@ Changes:
       project tables and added user metrics to the middle section
 
 ## 2.0.1 (in-progress)
+### Screen — Requirement Monitors popup `reqMonitors` (Refs #1780)
+- Requirement Monitors popup `gui/templates/requirements/reqMonitors.html` + BFF
+  `api/reqmonitors/index.php` (`GET|HEAD ?action=init&req_id=N[&tproject_id=P]`, session auth +
+  `bffSameOriginGuard` + `bffEnforceSession`). Owning test project proven via
+  `requirements.srs_id -> req_specs.testproject_id`; `mgt_view_req` OR `mgt_modify_req`
+  enforced there before any data is returned; `tproject_id` treated as a client-side
+  assertion (404 `project_mismatch`); a caller who cannot read requirements anywhere gets
+  `403 no_right` for a real **and** a bogus id (no existence oracle, the #1697 lesson);
+  stable 400/401/403/404/405 codes with machine codes; `HEAD` answers 200 so a link checker
+  is not told "wrong method"; monitor set returned as data. i18n `reqmon.*` (21) +
+  `footers.reqMonitors` in **all 10** bundles.
+- Legacy `lib/ajax/requirements/getreqmonitors.php` — the **only** reader left in
+  `lib/ajax/requirements/`, which authorized **nothing but a session** and read
+  `$_REQUEST['item_id']` unscoped — is now a non-mutating session-guarded shim (302 to the
+  modern popup, `405 retired_endpoint` for a legacy XHR, `405 wrong_method` for a write verb,
+  anonymous bounce to `login.php?note=expired`). `$actions->reqMonitors` in
+  `lib/functions/common.php`; the modern Requirement Viewer gains the **Monitor set** button
+  that the legacy include never had.
+### KEY BUGFIX — the requirement monitor set leaked users monitoring the requirement in a FOREIGN test project (Fixes #1841)
+- The BFF proved the owning project but called `requirement_mgr::getReqMonitors()` **without**
+  passing it; the helper's default `tproject_id = 0` means *no project filter* and
+  `req_monitor` is keyed on `(req_id, user_id, testproject_id)`, so a row carrying another
+  project's id was listed. Both reader calls now receive the proven owning project id.
+### KEY BUGFIX — the popup's "Open requirement" opened the Requirement Viewer with requirement id 0 (Fixes #1842)
+- `reqMonitors.html` linked `reqView.html?req_id=`, but the viewer reads `id`/`requirement_id`
+  only (`reqView.html:337`); `id=` is the canonical viewer parameter. Sibling occurrence in
+  `searchMgmt.html:395` documented in the same issue, left for that screen's own run.
+- Hardening: `doDBConnect()` moved **after** the session gate (the #1677 lesson).
+- Mandatory code review: no BLOCKER, no security hole; 4 findings applied. Regression
+  `tmp/verify_1780.sh` **73/73 PASS** + 11 browser cases; suite in `tmp/TLU_Test_Cases.md`.
 ### KEY BUGFIX — Results by Issues: every bug in the Bugs column linked to a dead percent-encoded-HTML URL instead of the tracker bug page (Fixes #1837)
 - `api/reports/index.php` (`action=results_bugs`): new helper `bugViewUrl()` exposes the tracker's
   **bare** view URL (`issueTrackerInterface::buildViewBugURL()`, with a `method_exists()` +
