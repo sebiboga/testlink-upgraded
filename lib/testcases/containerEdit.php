@@ -125,6 +125,59 @@ if( $action !== null && isset($tmvc_modern_actions[$action]) ) {
   exit;
 }
 
+/* Refs #1852: Test Suite Create / Edit / Delete moved to
+ * gui/templates/testcases/suiteEdit.html (api/suiteedit). These five legacy
+ * actions are intercepted here for the same reason as the move/copy block
+ * above and run at the same point - after testlinkInitPage() (session
+ * authenticated) and after init_args() resolved testsuiteID / tprojectID, but
+ * BEFORE the write switch below.
+ *   new_testsuite / add_testsuite / edit_testsuite -> mode=create / edit
+ *   update_testsuite                             -> mode=edit (the write)
+ *   delete_testsuite                             -> mode=delete
+ *
+ * Why the legacy path had to go: the four create/edit/update actions render
+ * gui/templates/dashio/testcases/containerNew.tpl + containerEdit.tpl, whose
+ * design custom-field inputs are built by
+ * testsuite::html_table_of_custom_field_inputs() and only reach the database
+ * through writeCustomFieldsToDB() below. Both the modern inline suiteView
+ * modal and those forms had been reduced to name + details only, so the
+ * test-suite DESIGN custom fields were never rendered and never written.
+ * delete_testsuite kept its build_del_testsuite_warning_msg() gate, which
+ * api/suiteedit now enforces server-side through delete_executed_testcases.
+ *
+ * A POST to any of them no longer mutates anything here: the request is
+ * redirected (302) and the browser re-submits nothing, which is exactly the
+ * behaviour every other modernized legacy endpoint in this file already has.
+ */
+$sued_modern_actions = array(
+  'new_testsuite' => 'create',
+  'add_testsuite' => 'create',
+  'edit_testsuite' => 'edit',
+  'update_testsuite' => 'edit',
+  'delete_testsuite' => 'delete',
+);
+if( $action !== null && isset($sued_modern_actions[$action]) ) {
+  $sued_mode = $sued_modern_actions[$action];
+  $sued_suite = intval($args->testsuiteID ? $args->testsuiteID : $args->objectID);
+  $sued_parent = intval($args->containerID);
+  if ($sued_mode !== 'create') {
+    // edit / delete address the suite itself; keep it as the parent only when
+    // it really is a container of another node.
+    $sued_parent = $sued_suite;
+  }
+  $sued_q = array(
+    'mode' => $sued_mode,
+    'container_id' => $sued_parent,
+    'suite_id' => ($sued_mode === 'create') ? 0 : $sued_suite,
+  );
+  if( intval($args->tprojectID) > 0 ) {
+    $sued_q['tproject_id'] = intval($args->tprojectID);
+  }
+  $sued_url = '/gui/templates/testcases/suiteEdit.html?' . http_build_query($sued_q);
+  header('Location: ' . $sued_url);
+  exit;
+}
+
 
 $smarty->assign('level', $level);
 $smarty->assign('page_title',lang_get('container_title_' . $level));

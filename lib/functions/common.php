@@ -2114,6 +2114,29 @@ function getActions(&$gui,$baseURL) {
     $actions->suiteMove = "/gui/templates/testcases/suiteMove.html?{$ctx}";
   }
 
+  // Refs #1852: Test Suite Create / Edit / Delete - modern home of the three
+  // legacy modes of lib/testcases/containerEdit.php
+  // (caller=create|edit|delete -> gui/templates/dashio/testcases/containerNew.tpl
+  // + containerView.tpl), whose $this->tplMgr and $this->containerMgr-less
+  // form rendering had been reduced to a bare name/details modal in
+  // api/suiteview: the test-suite DESIGN custom fields were never rendered and
+  // never saved (design_values_to_db() was never called) and the legacy
+  // delete_executed_testcases gate on removal was absent, so a suite holding
+  // executed test cases could be deleted outright. suiteEdit.html is the one
+  // screen for all three modes; api/suiteedit re-derives the test project from
+  // the node, enforces mgt_modify_tc on the OWNING project and the deletion
+  // right, and the confirm dialog names the nested suites / test cases that
+  // go with the suite.
+  $actions->suiteEdit = null;
+  $actions->suiteCreate = null;
+  $actions->suiteDelete = null;
+  if ($tproject_id > 0 && !empty($_SESSION['userID'])) {
+    $base = "/gui/templates/testcases/suiteEdit.html?{$ctx}";
+    $actions->suiteEdit = $base . "&mode=edit&container_id=0&suite_id=0";
+    $actions->suiteCreate = $base . "&mode=create&container_id={$tproject_id}&suite_id=0";
+    $actions->suiteDelete = $base . "&mode=delete&container_id=0&suite_id=0";
+  }
+
   // Refs #1671: Reorder Test Steps - modern home of the legacy step-reorder
   // endpoint lib/ajax/stepReorder.php, which in 1.9.20 was the only backend of
   // the TableDnD drag-and-drop of the steps of a test case version and had NO

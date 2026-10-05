@@ -1670,10 +1670,13 @@ function askDeleteSuite() {
 function openSuiteCreate() {
   var isSub = selected && selected.type === 'testsuite';
   var parentId = isSub ? selected.id : ctx.tproject_id;
-  $('#suiteModalTitle').text(t(isSub ? 'tspec.newSubSuite' : 'tspec.newSuite'));
-  $('#suiteNameInput').val('');
-  $('#suiteModal').data('mode', 'create').data('parent', parentId).show();
-  $('#suiteNameInput').focus();
+  /* Refs #1852: suite creation has its own screen so the test-suite DESIGN
+   * custom fields and keywords are part of the form - the inline modal below
+   * only ever posted name + details, so every CF value of a new suite was
+   * silently dropped (see api/suiteedit). */
+  window.location.href = '/gui/templates/testcases/suiteEdit.html?mode=create' +
+    '&tproject_id=' + encodeURIComponent(ctx.tproject_id) +
+    '&container_id=' + encodeURIComponent(parentId);
 }
 
 function openSuiteRename() {

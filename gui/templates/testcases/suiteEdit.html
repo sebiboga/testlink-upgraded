@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Test Suite</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; color: #22242a; }
+
+.header {
+  background: #4ECDC4; color: #fff; padding: 14px 24px;
+  font-size: 20px; font-weight: 700; letter-spacing: 1px; display: flex; align-items: center;
+}
+.header .sub { font-size: 13px; font-weight: 400; opacity: .85; margin-left: 12px; }
+.header .spacer { flex: 1; }
+.header button {
+  background: rgba(255,255,255,.18); color: #fff; border: 1px solid rgba(255,255,255,.5);
+  padding: 6px 16px; border-radius: 4px; cursor: pointer; font-size: 13px;
+}
+.header button:hover { background: rgba(255,255,255,.32); }
+
+.wrap { padding: 22px 24px; max-width: 1000px; margin: 0 auto; }
+
+.meta, .card {
+  background: #fff; border-radius: 8px; padding: 18px 20px; margin-bottom: 18px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.08);
+}
+.meta .row { display: flex; flex-wrap: wrap; gap: 8px 28px; }
+.meta .field { font-size: 13px; color: #555; }
+.meta .field b { color: #22242a; margin-right: 5px; }
+
+.card h3 { margin: 0 0 14px; font-size: 15px; color: #22242a; }
+.card h3 .hint { font-weight: 400; font-size: 12px; color: #888; margin-left: 10px; }
+
+.toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 14px; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 8px 18px;
+  border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-teal:disabled { background: #b9e7e3; cursor: not-allowed; }
+.btn-outline { background: #fff; color: #555; border: 1px solid #ccc; padding: 8px 18px;
+  border-radius: 4px; cursor: pointer; font-size: 13px; }
+.btn-outline:hover { background: #f0f0f0; }
+.btn-outline:disabled { color: #bbb; cursor: not-allowed; }
+.btn-red { background: #e6605e; color: #fff; border: none; padding: 8px 18px;
+  border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-red:hover { background: #d24f4d; }
+.btn-red:disabled { background: #f3c3c2; cursor: not-allowed; }
+
+label.fld { display: block; font-size: 12px; font-weight: 600; color: #555;
+  text-transform: uppercase; letter-spacing: .4px; margin: 14px 0 5px; }
+label.fld .req { color: #e6605e; margin-left: 4px; }
+input[type=text], input[type=email], input[type=number], input[type=date],
+input[type=datetime-local], textarea, select {
+  width: 100%; border: 1px solid #ccc; border-radius: 4px; padding: 8px 10px;
+  font-size: 13px; font-family: inherit; background: #fff; color: #22242a;
+}
+input:focus, textarea:focus, select:focus { outline: none; border-color: #4ECDC4; }
+input:disabled, textarea:disabled, select:disabled { background: #f3f3f3; color: #888; }
+textarea { min-height: 90px; resize: vertical; }
+.radios label, .checks label { font-size: 13px; font-weight: 400; text-transform: none;
+  letter-spacing: 0; color: #444; display: inline-block; margin: 4px 18px 4px 0; }
+.hintline { font-size: 12px; color: #888; margin-top: 4px; }
+
+.kw { display: flex; gap: 12px; }
+.kw select { min-height: 140px; }
+.kw .col { flex: 1; }
+.kw .ops { display: flex; align-items: center; gap: 6px; }
+.kw .ops button { width: 34px; height: 34px; border-radius: 4px; border: 1px solid #ccc;
+  background: #fff; cursor: pointer; color: #555; }
+.kw .ops button:hover:not(:disabled) { background: #4ECDC4; color: #fff; border-color: #4ECDC4; }
+.kw .ops button:disabled { color: #ccc; cursor: not-allowed; }
+
+.chip { display: inline-block; background: #eefaf9; color: #2a8f88; border-radius: 10px;
+  padding: 2px 10px; font-size: 11px; font-weight: 600; }
+.chip.warn { background: #fdf1e7; color: #b3651a; }
+.chip.bad { background: #fdecea; color: #a32b28; }
+
+table.warn { width: 100%; border-collapse: collapse; }
+table.warn th { text-align: left; font-size: 12px; text-transform: uppercase;
+  letter-spacing: .5px; color: #6b7280; border-bottom: 2px solid #e5e7eb; padding: 8px 10px; }
+table.warn td { padding: 8px 10px; border-bottom: 1px solid #f0f0f0; font-size: 13px; }
+table.warn tr:hover td { background: #f7fdfd; }
+
+.notice { border-radius: 6px; padding: 11px 14px; font-size: 13px; margin-bottom: 14px; display: none; }
+.notice.ok { display: block; background: #e8f8f6; border: 1px solid #b8e6e2; color: #1f7a73; }
+.notice.err { display: block; background: #fdecea; border: 1px solid #f5c6c3; color: #a32b28; }
+
+.state {
+  background: #fff; border: 1px solid #f0d0d0; border-left: 4px solid #e6605e;
+  border-radius: 8px; margin: 24px; padding: 28px 32px; text-align: center; display: none;
+}
+.state i { font-size: 34px; color: #e6605e; margin-bottom: 10px; }
+.state h3 { margin: 0 0 8px; font-size: 18px; color: #22242a; }
+.state p { margin: 0 0 6px; color: #666; font-size: 13px; }
+
+.danger { border: 1px solid #f5c6c3; background: #fdf6f5; border-radius: 6px; padding: 14px 16px; }
+.danger p { margin: 0 0 10px; font-size: 13px; color: #7a2320; }
+
+.modal-mask { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: none;
+  align-items: center; justify-content: center; z-index: 1000; }
+.modal-mask.show { display: flex; }
+.modal-box { background: #fff; border-radius: 8px; width: 480px; max-width: 92vw;
+  box-shadow: 0 10px 40px rgba(0,0,0,.3); overflow: hidden; }
+.modal-box .m-head { background: #e6605e; color: #fff; padding: 12px 18px; font-weight: 700; font-size: 15px; }
+.modal-box .m-body { padding: 18px; font-size: 13px; color: #444; }
+.modal-box .m-foot { padding: 12px 18px; background: #fafafa; border-top: 1px solid #eee; text-align: right; }
+.modal-box .m-foot button { margin-left: 8px; }
+
+.footer { text-align: center; color: #8a8a8a; font-size: 12px; padding: 6px 0 22px; }
+
+#loading { text-align: center; padding: 30px; color: #888; font-size: 13px; }
+#content { display: none; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span data-i18n="sued.title">Test Suite</span>
+  <span class="sub" id="hSub" data-i18n="sued.subtitle">Test specification</span>
+  <span class="spacer"></span>
+  <span id="localeSwitcher"></span>
+  <button onclick="closeWindow()" data-i18n="common.close">Close</button>
+</div>
+
+<div id="stateBox" class="state">
+  <i class="fa fa-exclamation-triangle"></i>
+  <h3 id="stateTitle">-</h3>
+  <p id="stateMsg"></p>
+  <p id="stateCode" class="hintline"></p>
+  <p><button class="btn-outline" onclick="reload()" data-i18n="common.refresh">Refresh</button></p>
+</div>
+
+<div class="wrap" id="wrap">
+  <div id="loading"><i class="fa fa-spinner fa-spin"></i> <span data-i18n="sued.loading">Loading...</span></div>
+
+  <div id="content">
+    <div class="meta">
+      <div class="row">
+        <span class="field"><b data-i18n="sued.testProject">Test project</b><span id="mbProject">-</span></span>
+        <span class="field"><b data-i18n="sued.prefix">Prefix</b><span id="mbPrefix">-</span></span>
+        <span class="field"><b data-i18n="sued.container">Container</b><span id="mbParent">-</span></span>
+        <span class="field"><b data-i18n="sued.mode">Mode</b><span id="mbMode">-</span></span>
+      </div>
+    </div>
+
+    <div class="notice ok" id="noticeOk"></div>
+    <div class="notice err" id="noticeErr"></div>
+
+    <!-- ============ CREATE / EDIT ============ -->
+    <div id="paneForm" style="display:none">
+      <div class="card">
+        <h3><i class="fa fa-pencil-square-o"></i>
+          <span id="formTitle" data-i18n="sued.formTitle">Test suite</span>
+          <span class="hint" id="formHint"></span>
+        </h3>
+
+        <label class="fld" for="fName"><span data-i18n="sued.name">Name</span><span class="req">*</span></label>
+        <input type="text" id="fName" maxlength="100" autocomplete="off">
+        <div class="hintline" data-i18n="sued.nameHint">The pipe character is not allowed in a test suite name.</div>
+
+        <label class="fld" for="fDetails" data-i18n="sued.details">Details</label>
+        <textarea id="fDetails" rows="5"></textarea>
+
+        <div id="cfBlock"></div>
+
+        <div id="kwBlock" style="display:none">
+          <label class="fld" data-i18n="sued.keywords">Keywords</label>
+          <div class="kw">
+            <div class="col">
+              <div class="hintline" style="margin:0 0 4px" data-i18n="sued.kwAvailable">Available</div>
+              <select id="kwAvail" multiple size="6"></select>
+            </div>
+            <div class="ops">
+              <button type="button" id="kwAdd" title="Add"><i class="fa fa-angle-right"></i></button>
+              <button type="button" id="kwRemove" title="Remove"><i class="fa fa-angle-left"></i></button>
+            </div>
+            <div class="col">
+              <div class="hintline" style="margin:0 0 4px" data-i18n="sued.kwAssigned">Assigned</div>
+              <select id="kwAssigned" multiple size="6"></select>
+            </div>
+          </div>
+        </div>
+
+        <div class="toolbar" style="margin-top:20px">
+          <button class="btn-teal" id="btnSave" onclick="save()" data-i18n="common.save">Save</button>
+          <button class="btn-outline" onclick="goTestSpec()" data-i18n="sued.cancel">Cancel</button>
+          <span class="chip" id="readonlyChip" style="display:none" data-i18n="sued.readonly">You can view this test suite but you cannot change it.</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ DELETE ============ -->
+    <div id="paneDelete" style="display:none">
+      <div class="card">
+        <h3><i class="fa fa-trash"></i>
+          <span data-i18n="sued.deleteTitle">Delete test suite</span>
+          <span class="hint" id="delHint"></span>
+        </h3>
+
+        <div class="danger">
+          <p id="delBlast"></p>
+        </div>
+
+        <div id="delBlocked" class="notice err" style="display:none"></div>
+
+        <div id="delTableWrap" style="display:none">
+          <table class="warn" id="tblWarn">
+            <thead>
+              <tr>
+                <th data-i18n="sued.thTestCase">Test case</th>
+                <th data-i18n="sued.thExecStatus">Link / execution status</th>
+              </tr>
+            </thead>
+            <tbody id="rowsWarn"></tbody>
+          </table>
+          <p id="delNotice" class="hintline"></p>
+        </div>
+
+        <div class="toolbar" style="margin-top:18px">
+          <button class="btn-red" id="btnDelete" onclick="askDelete()" data-i18n="sued.deleteBtn">Delete</button>
+          <button class="btn-outline" onclick="openSuite()" data-i18n="sued.cancel">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-mask" id="mask">
+  <div class="modal-box">
+    <div class="m-head" id="mTitle">-</div>
+    <div class="m-body"><div id="mText"></div></div>
+    <div class="m-foot">
+      <button class="btn-outline" id="mCancel" data-i18n="sued.cancel">Cancel</button>
+      <button class="btn-red" id="mOk" data-i18n="sued.confirm">Delete</button>
+    </div>
+  </div>
+</div>
+
+<div class="footer" id="footerInfo"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script>
+var API = '/api/suiteedit/index.php';
+var MODE = 'edit';
+var TPROJECT_ID = 0;
+var PARENT_ID = 0;
+var SUITE_ID = 0;
+var CTX = null;
+var SUITE = null;
+var CFS = [];
+var KWS = [];
+var BUSY = false;
+
+function qs(k, d) {
+  var p = new URLSearchParams(window.location.search);
+  return p.get(k) === null ? d : p.get(k);
+}
+
+function esc(s) {
+  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+/*
+ * TLi18n.t() (gui/templates/i18n/i18n.js:174) already interpolates with a
+ * REPLACER FUNCTION, so "$&", "$`" or "$'" inside a VALUE survive verbatim.
+ * This wrapper must therefore NOT post-process the result with
+ * String.replace(): doing so mangled a suite named "R&D Suite" in the delete
+ * confirmation.
+ */
+function fill(tpl, map) { return TLi18n.t(tpl, map); }
+
+function setNotice(kind, msg) {
+  $('#noticeOk, #noticeErr').hide();
+  if (kind === 'ok' && msg) { $('#noticeOk').text(msg).show(); }
+  if (kind === 'err' && msg) { $('#noticeErr').text(msg).show(); }
+}
+
+function showState(title, msg, code) {
+  $('#wrap').hide();
+  $('#stateTitle').text(title);
+  $('#stateMsg').text(msg);
+  $('#stateCode').text(code ? '(' + code + ')' : '');
+  $('#stateBox').show();
+}
+
+function isSessionGone(xhr) {
+  var r = (xhr && xhr.responseJSON) ? xhr.responseJSON : {};
+  return !!xhr && (xhr.status === 401 || r.code === 'session_expired');
+}
+
+/* Machine-code -> localized state card. Every branch keeps the raw code
+   visible, exactly like the other modernized screens. */
+function handleFail(xhr) {
+  if (isSessionGone(xhr)) {
+    window.location.href = '/login.php?note=expired';
+    return;
+  }
+  var r = (xhr && xhr.responseJSON) ? xhr.responseJSON : {};
+  var code = r.code || ('http_' + (xhr ? xhr.status : '0'));
+  var t, m;
+  switch (code) {
+    case 'no_right':
+      t = TLi18n.t('sued.stNoRight'); m = TLi18n.t('sued.stNoRightMsg'); break;
+    case 'no_right_delete_exec':
+      t = TLi18n.t('sued.stNoRight'); m = TLi18n.t('sued.stNoRightMsg'); break;
+    case 'suite_has_executed':
+      t = TLi18n.t('sued.stBlocked'); m = TLi18n.t('sued.stBlockedMsg'); break;
+    case 'tproject_not_found':
+    case 'parent_not_found':
+    case 'suite_not_found':
+    case 'project_mismatch':
+      t = TLi18n.t('sued.stNotFound'); m = TLi18n.t('sued.stNotFoundMsg'); break;
+    case 'invalid_parameter':
+    case 'invalid_mode':
+      t = TLi18n.t('sued.stBadRequest'); m = TLi18n.t('sued.stBadRequestMsg'); break;
+    case 'empty_name':
+      t = TLi18n.t('sued.stBadRequest'); m = TLi18n.t('sued.msgEmptyName'); break;
+    case 'bad_chars':
+      t = TLi18n.t('sued.stBadRequest'); m = TLi18n.t('sued.msgBadChars'); break;
+    case 'name_too_long':
+      t = TLi18n.t('sued.stBadRequest'); m = TLi18n.t('sued.msgNameTooLong'); break;
+    default:
+      t = TLi18n.t('sued.stError');
+      m = (r && r.message) ? String(r.message) : TLi18n.t('sued.stErrorMsg');
+  }
+  showState(t, esc(m), code);
+}
+
+function reload() { location.reload(); }
+
+function closeWindow() {
+  try { if (window.opener && !window.opener.closed) { window.close(); return; } } catch (e) {}
+  goTestSpec();
+}
+
+function goTestSpec() {
+  var q = 'tproject_id=' + encodeURIComponent(TPROJECT_ID);
+  window.location.href = '/gui/templates/testcases/testSpec.html?' + q;
+}
+
+/** The modern Test Suite viewer of the suite on screen (delete-mode Cancel). */
+function openSuite() {
+  if (SUITE_ID > 0) {
+    window.location.href = '/gui/templates/testcases/suiteView.html?id=' +
+      encodeURIComponent(SUITE_ID) + '&tproject_id=' + encodeURIComponent(TPROJECT_ID);
+  } else {
+    goTestSpec();
+  }
+}
+
+function modeLabel(m) {
+  if (m === 'create') { return TLi18n.t('sued.modeCreate'); }
+  if (m === 'delete') { return TLi18n.t('sued.modeDelete'); }
+  return TLi18n.t('sued.modeEdit');
+}
+
+/* ------------------------------------------------------------------ *
+ * custom fields - every input shape, rendered from DATA only           *
+ * (the BFF never returns HTML for a label or a possible value)         *
+ * ------------------------------------------------------------------ */
+function cfInput(cf) {
+  var id = 'cf_' + cf.field_id;
+  var req = cf.required ? ' required' : '';
+  var h = '';
+  switch (cf.type) {
+    case 20: /* text area */
+      h = '<textarea id="' + id + '" data-cf="' + cf.field_id + '" data-type="' + cf.type + '"' + req + '>' +
+          esc(cf.value) + '</textarea>';
+      break;
+    case 6:  /* list */
+      h = '<select id="' + id + '" data-cf="' + cf.field_id + '" data-type="' + cf.type + '"' + req + '>';
+      h += '<option value=""></option>';
+      for (var i = 0; i < cf.possible_values.length; i++) {
+        var pv = cf.possible_values[i];
+        h += '<option value="' + esc(pv) + '"' + (pv === cf.value ? ' selected' : '') + '>' + esc(pv) + '</option>';
+      }
+      h += '</select>';
+      break;
+    case 9:  /* radio */
+      h = '<div class="radios">';
+      for (var j = 0; j < cf.possible_values.length; j++) {
+        var rv = cf.possible_values[j];
+        h += '<label><input type="radio" name="cf_' + cf.field_id + '" data-cf="' + cf.field_id +
+             '" data-type="' + cf.type + '" value="' + esc(rv) + '"' +
+             (rv === cf.value ? ' checked' : '') + '> ' + esc(rv) + '</label>';
+      }
+      h += '</div>';
+      break;
+    case 5: /* checkbox */
+      var cv = (cf.values && cf.values.length) ? cf.values : (cf.value === '1' ? ['1'] : []);
+      h = '<div class="checks"><label><input type="checkbox" id="' + id + '" data-cf="' + cf.field_id +
+           '" data-type="' + cf.type + '" value="1"' + (cv.length ? ' checked' : '') + '> ' +
+           esc(TLi18n.t('sued.cfChecked')) + '</label></div>';
+      break;
+    case 7: /* multiselection list */
+      h = '<select id="' + id + '" data-cf="' + cf.field_id + '" data-type="' + cf.type +
+           '" multiple size="4"' + req + '>';
+      for (var k = 0; k < cf.possible_values.length; k++) {
+        var mv = cf.possible_values[k];
+        var sel = false;
+        for (var q = 0; q < cv.length; q++) { if (cv[q] === mv) { sel = true; } }
+        h += '<option value="' + esc(mv) + '"' + (sel ? ' selected' : '') + '>' + esc(mv) + '</option>';
+      }
+      h += '</select>';
+      break;
+    case 8: /* date */
+      h = '<input type="date" id="' + id + '" data-cf="' + cf.field_id + '" data-type="' + cf.type +
+           '" value="' + esc(cf.value) + '"' + req + '>';
+      break;
+    case 10: /* datetime */
+      h = '<input type="datetime-local" id="' + id + '" data-cf="' + cf.field_id +
+           '" data-type="' + cf.type + '" value="' + esc(String(cf.value).replace(' ', 'T')) + '"' + req + '>';
+      break;
+    case 1: case 2: /* numeric / float */
+      h = '<input type="number" id="' + id + '" data-cf="' + cf.field_id + '" data-type="' + cf.type +
+           '" step="any" value="' + esc(cf.value) + '"' + req + '>';
+      break;
+    case 4: /* email */
+      h = '<input type="email" id="' + id + '" data-cf="' + cf.field_id + '" data-type="' + cf.type +
+           '" value="' + esc(cf.value) + '"' + req + '>';
+      break;
+    default: /* 0 string, 500 script, 501 server */
+      h = '<input type="text" id="' + id + '" data-cf="' + cf.field_id + '" data-type="' + cf.type +
+           '" value="' + esc(cf.value) + '"' + req + '>';
+  }
+  return h;
+}
+
+function renderCfs(cfs, disabled) {
+  var block = $('#cfBlock');
+  if (!cfs || cfs.length === 0) {
+    block.html('<div class="hintline" style="margin-top:14px" data-i18n="sued.noCfields">' +
+               'This test project has no test suite custom fields.</div>');
+    TLi18n.apply();
+    return;
+  }
+  var h = '<label class="fld">' + esc(TLi18n.t('sued.customFields')) + '</label>';
+  for (var i = 0; i < cfs.length; i++) {
+    var cf = cfs[i];
+    h += '<label class="fld" for="cf_' + cf.field_id + '">' + esc(cf.label) +
+         (cf.required ? '<span class="req">*</span>' : '') +
+         ' <span class="chip">' + esc(cf.type_label) + '</span></label>';
+    h += cfInput(cf);
+    if (disabled) { h += ''; }
+  }
+  block.html(h);
+  if (disabled) {
+    block.find('input, select, textarea').attr('disabled', 'disabled');
+  }
+}
+
+/** Read every rendered custom field back into the {field_id: value} map. */
+function collectCfs() {
+  var out = {};
+  $('#cfBlock').find('[data-cf]').each(function () {
+    var id = $(this).attr('data-cf');
+    var type = parseInt($(this).attr('data-type'), 10);
+    if (type === 9) { /* radio group */
+      var v = $('#cfBlock').find('input[name="cf_' + id + '"]:checked').val();
+      out[id] = (v === undefined || v === null) ? '' : String(v);
+    } else if (type === 7) { /* multiselection */
+      var vals = [];
+      $(this).find('option:selected').each(function () { vals.push($(this).val()); });
+      out[id] = vals;
+    } else if (type === 5) { /* checkbox */
+      out[id] = $(this).is(':checked') ? ['1'] : [];
+    } else {
+      out[id] = $(this).val() === null ? '' : String($(this).val());
+    }
+  });
+  return out;
+}
+
+/* ------------------------------------------------------------------ *
+ * keywords                                                            *
+ * ------------------------------------------------------------------ */
+function renderKws(kws, disabled) {
+  if (!kws || !kws.available || kws.available.length === 0) {
+    $('#kwBlock').hide();
+    return;
+  }
+  $('#kwBlock').show();
+  var a = '', s = '';
+  for (var i = 0; i < kws.available.length; i++) {
+    var kw = kws.available[i];
+    var isAssigned = (kws.assigned || []).indexOf(kw.id) >= 0;
+    a += '<option value="' + kw.id + '">' + esc(kw.name) + '</option>';
+    if (isAssigned) { s += '<option value="' + kw.id + '">' + esc(kw.name) + '</option>'; }
+  }
+  $('#kwAvail').html(a);
+  $('#kwAssigned').html(s);
+  if (disabled) {
+    $('#kwAvail, #kwAssigned, #kwAdd, #kwRemove').attr('disabled', 'disabled');
+  }
+}
+
+function kwIdsSelected(sel) {
+  var out = [];
+  $(sel).find('option:selected').each(function () { out.push(parseInt($(this).val(), 10)); });
+  return out;
+}
+
+function moveKw(from, to) {
+  var opts = [];
+  $(from).find('option:selected').each(function () { opts.push($(this).val() + '|' + $(this).text()); });
+  for (var i = 0; i < opts.length; i++) {
+    var p = opts[i].split('|');
+    $(to).append($('<option>').attr('value', p[0]).text($('<span>').html(p.slice(1).join('|')).text()));
+    $(from).find('option[value="' + p[0] + '"]').remove();
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * load                                                                *
+ * ------------------------------------------------------------------ */
+function load() {
+  $('#loading').show();
+  $('#content').hide();
+
+  var q = '?action=init&mode=' + encodeURIComponent(MODE) +
+          '&tproject_id=' + encodeURIComponent(TPROJECT_ID) +
+          '&container_id=' + encodeURIComponent(PARENT_ID) +
+          '&suite_id=' + encodeURIComponent(SUITE_ID);
+
+  $.ajax({ url: API + q, dataType: 'json', method: 'GET' })
+    .done(function (r) {
+      if (r.status !== 'ok') { handleFail({ status: 400, responseJSON: r }); return; }
+      CTX = r.context;
+      SUITE = r.suite;
+      CFS = r.cfields || [];
+      KWS = r.keywords || { available: [], assigned: [] };
+      TPROJECT_ID = CTX.tproject_id;
+      PARENT_ID = CTX.parent_id;
+
+      $('#mbProject').text(CTX.tproject_name);
+      $('#mbPrefix').text(CTX.tproject_prefix);
+      $('#mbParent').text(MODE === 'create'
+        ? CTX.parent_name
+        : (CTX.parent_name + ' / ' + (SUITE ? SUITE.name : '')));
+      $('#mbMode').text(modeLabel(MODE));
+      $('#hSub').text(MODE === 'create'
+        ? TLi18n.t('sued.subtitle')
+        : (SUITE ? SUITE.name : TLi18n.t('sued.subtitle')));
+
+      $('#loading').hide();
+      $('#content').show();
+
+      if (MODE === 'delete') { renderDelete(r.delete_preview); }
+      else { renderForm(); }
+    })
+    .fail(function (xhr) { handleFail(xhr); });
+}
+
+function renderForm() {
+  $('#paneDelete').hide();
+  $('#paneForm').show();
+  $('#formTitle').text(MODE === 'create' ? TLi18n.t('sued.newTitle') : TLi18n.t('sued.editTitle'));
+  $('#formHint').text(MODE === 'create'
+    ? TLi18n.t('sued.newHint', { parent: CTX.parent_name })
+    : TLi18n.t('sued.editHint', { name: SUITE ? SUITE.name : '' }));
+
+  $('#fName').val(SUITE ? SUITE.name : '');
+  $('#fDetails').val(SUITE ? SUITE.details : '');
+
+  var ro = !CTX.can_modify;
+  if (ro) {
+    $('#readonlyChip').show();
+    $('#btnSave').attr('disabled', 'disabled');
+  } else {
+    $('#readonlyChip').hide();
+    $('#btnSave').removeAttr('disabled');
+  }
+  $('#fName, #fDetails').attr('disabled', ro ? 'disabled' : false);
+  renderCfs(CFS, ro);
+  renderKws(KWS, ro);
+}
+
+function renderDelete(p) {
+  $('#paneForm').hide();
+  $('#paneDelete').show();
+  p = p || { counters: {}, rows: [], can_delete: true, has_executed: false, sub_suites: 0 };
+  $('#delHint').text(SUITE ? SUITE.name : '');
+  $('#delBlast').text(fill(TLi18n.t('sued.delBlast'), {
+    name: SUITE ? SUITE.name : '',
+    suites: p.sub_suites,
+    cases: p.counters.total || 0
+  }));
+
+  var blocked = !!p.blocked;
+  $('#delBlocked').toggle(blocked).text(blocked
+    ? TLi18n.t('sued.blockedDeleteExec') : '');
+
+  var rows = p.rows || [];
+  $('#delTableWrap').toggle(rows.length > 0);
+  var h = '';
+  for (var i = 0; i < rows.length; i++) {
+    var r = rows[i];
+    var key = 'sued.st_' + r.status;
+    var lbl = TLi18n.t(key);
+    /* The key set is closed and pinned by the suite; a status the bundle does
+       not define would render as the raw key, so fall back explicitly. */
+    if (lbl === key) { lbl = TLi18n.t('sued.st_unknown'); }
+    var cls = (r.status === 'linked_and_executed') ? 'chip bad'
+            : (r.status === 'linked_but_not_executed') ? 'chip warn' : 'chip';
+    h += '<tr><td>' + esc(r.name) + '<div class="hintline">' + esc(r.path) + '</div></td>' +
+         '<td><span class="' + cls + '">' + esc(lbl) + '</span></td></tr>';
+  }
+  $('#rowsWarn').html(h);
+
+  $('#delNotice').text(p.delete_notice ? TLi18n.t('sued.' + p.delete_notice) : '');
+  $('#btnDelete').attr('disabled', (blocked || !CTX.can_modify) ? 'disabled' : false);
+}
+
+/* ------------------------------------------------------------------ *
+ * writes                                                              *
+ * ------------------------------------------------------------------ */
+function save() {
+  if (BUSY) { return; }
+  var name = $('#fName').val();
+  if ($.trim(name) === '') {
+    setNotice('err', TLi18n.t('sued.msgEmptyName'));
+    $('#fName').focus();
+    return;
+  }
+  if (name.indexOf('|') >= 0) {
+    setNotice('err', TLi18n.t('sued.msgBadChars'));
+    $('#fName').focus();
+    return;
+  }
+  if (name.length > 100) {
+    setNotice('err', TLi18n.t('sued.msgNameTooLong'));
+    return;
+  }
+  /* Client-side required check mirrors the legacy validateForm(), so an empty
+     required field is caught before the round trip. */
+  var missing = null;
+  for (var i = 0; i < CFS.length; i++) {
+    if (CFS[i].required && $.trim(String($('#cf_' + CFS[i].field_id).val() || '')) === '') {
+      missing = CFS[i];
+      break;
+    }
+  }
+  if (missing) {
+    setNotice('err', fill(TLi18n.t('sued.msgRequired'), { label: missing.label }));
+    $('#cf_' + missing.field_id).focus();
+    return;
+  }
+
+  BUSY = true;
+  $('#btnSave').attr('disabled', 'disabled');
+
+  var body = {
+    tproject_id: TPROJECT_ID,
+    name: name,
+    details: $('#fDetails').val() || '',
+    cfields: collectCfs()
+  };
+  if (MODE === 'create') { body.parent_id = PARENT_ID; }
+  else { body.suite_id = SUITE_ID; }
+  if ($('#kwBlock').is(':visible')) { body.keywords = kwIdsSelected('#kwAssigned'); }
+
+  var q = '?action=' + (MODE === 'create' ? 'create' : 'update');
+  $.ajax({
+    url: API + q, method: 'POST', dataType: 'json',
+    contentType: 'application/json; charset=utf-8',
+    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+    data: JSON.stringify(body)
+  }).done(function (r) {
+    if (r.status !== 'ok') { BUSY = false; $('#btnSave').removeAttr('disabled');
+      setNotice('err', (r && r.message) ? String(r.message) : TLi18n.t('sued.stErrorMsg')); return; }
+    SUITE_ID = r.id;
+    /* Switch the URL to the persisted identity WITHOUT reloading, so the
+       success message survives - a reload would erase the very notice the
+       user has to read (the #1724 lesson). */
+    MODE = 'edit';
+    var u = new URL(window.location.href);
+    u.searchParams.set('mode', 'edit');
+    u.searchParams.set('suite_id', r.id);
+    u.searchParams.set('container_id', r.parent_id);
+    window.history.replaceState({}, '', u.toString());
+    setNotice('ok', fill(TLi18n.t('sued.saved'), {
+      name: r.name, cfs: r.cfields_written, kws: r.keywords_written
+    }));
+    load();
+  }).fail(function (xhr) {
+    BUSY = false;
+    $('#btnSave').removeAttr('disabled');
+    if (isSessionGone(xhr)) { window.location.href = '/login.php?note=expired'; return; }
+    if (xhr && xhr.status === 403 && xhr.responseJSON &&
+        !xhr.responseJSON.code) {
+      setNotice('err', TLi18n.t('sued.csrfBlocked'));
+      return;
+    }
+    var r = (xhr && xhr.responseJSON) ? xhr.responseJSON : {};
+    var code = r.code || ('http_' + (xhr ? xhr.status : '0'));
+    var msg = null;
+    if (code === 'empty_name') { msg = TLi18n.t('sued.msgEmptyName'); }
+    else if (code === 'bad_chars') { msg = TLi18n.t('sued.msgBadChars'); }
+    else if (code === 'name_too_long') { msg = TLi18n.t('sued.msgNameTooLong'); }
+    else if (r.message) { msg = String(r.message); }
+    else { msg = TLi18n.t('sued.stErrorMsg'); }
+    setNotice('err', msg + ' (' + code + ')');
+  });
+}
+
+function askDelete() {
+  if (BUSY) { return; }
+  var name = SUITE ? SUITE.name : '';
+  $('#mTitle').text(TLi18n.t('sued.confirmTitle'));
+  $('#mText').text(fill(TLi18n.t('sued.confirmText'), { name: name }));
+  $('#mask').addClass('show');
+}
+
+function doDelete() {
+  if (BUSY) { return; }
+  BUSY = true;
+  $('#btnDelete, #mOk').attr('disabled', 'disabled');
+  var body = { tproject_id: TPROJECT_ID, suite_id: SUITE_ID };
+  $.ajax({
+    url: API + '?action=delete', method: 'POST', dataType: 'json',
+    contentType: 'application/json; charset=utf-8',
+    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+    data: JSON.stringify(body)
+  }).done(function (r) {
+    if (r.status !== 'ok') {
+      BUSY = false;
+      $('#btnDelete, #mOk').removeAttr('disabled');
+      $('#mask').removeClass('show');
+      setNotice('err', (r && r.message) ? String(r.message) : TLi18n.t('sued.stErrorMsg'));
+      return;
+    }
+    $('#mask').removeClass('show');
+    var msg = fill(TLi18n.t('sued.deleted'), {
+      name: r.deleted_name, cases: r.deleted_testcases || 0
+    });
+    SUITE_ID = 0;
+    window.location.replace('/gui/templates/testcases/testSpec.html?tproject_id=' +
+      encodeURIComponent(TPROJECT_ID) + '&notice=' + encodeURIComponent(msg));
+  }).fail(function (xhr) {
+    BUSY = false;
+    $('#btnDelete, #mOk').removeAttr('disabled');
+    $('#mask').removeClass('show');
+    if (isSessionGone(xhr)) { window.location.href = '/login.php?note=expired'; return; }
+    if (xhr && xhr.status === 409) {
+      setNotice('err', TLi18n.t('sued.blockedDeleteExec'));
+      load();
+      return;
+    }
+    if (xhr && xhr.status === 403 && xhr.responseJSON && !xhr.responseJSON.code) {
+      setNotice('err', TLi18n.t('sued.csrfBlocked'));
+      return;
+    }
+    var r = (xhr && xhr.responseJSON) ? xhr.responseJSON : {};
+    setNotice('err', ((r && r.message) ? String(r.message) : TLi18n.t('sued.stErrorMsg')) +
+      ' (' + (r.code || 'http_' + (xhr ? xhr.status : 0)) + ')');
+  });
+}
+
+/* ------------------------------------------------------------------ *
+ * boot                                                                *
+ * ------------------------------------------------------------------ */
+$(function () {
+  $('#kwAdd').on('click', function () { moveKw('#kwAvail', '#kwAssigned'); });
+  $('#kwRemove').on('click', function () { moveKw('#kwAssigned', '#kwAvail'); });
+  $('#mCancel').on('click', function () { $('#mask').removeClass('show'); });
+  $('#mOk').on('click', doDelete);
+  $('#mask').on('click', function (e) { if (e.target === this) { $('#mask').removeClass('show'); } });
+  $(document).on('keydown', function (e) { if (e.key === 'Escape') { $('#mask').removeClass('show'); } });
+
+  MODE = String(qs('mode', 'edit')).toLowerCase();
+  if (['create', 'edit', 'delete'].indexOf(MODE) < 0) { MODE = 'edit'; }
+  TPROJECT_ID = parseInt(qs('tproject_id', '0'), 10) || 0;
+  PARENT_ID = parseInt(qs('container_id', '0'), 10) || 0;
+  SUITE_ID = parseInt(qs('suite_id', '0'), 10) || 0;
+
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    $('#footerInfo').text(TLi18n.t('footers.suiteEdit'));
+    document.title = TLi18n.t('sued.title') + ' - ' + TLi18n.t('sued.subtitle');
+    load();
+  });
+});
+</script>
+</body>
+</html>
