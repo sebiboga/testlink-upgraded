@@ -7,6 +7,7 @@
 <title>Requirements Monitor Overview</title>
 <link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
 <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/rowgroup/1.4.1/css/rowGroup.dataTables.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <style>
 * { box-sizing: border-box; }
@@ -26,6 +27,13 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
 .action-btn:hover { color: #2d8e88; }
 .action-btn.on { color: #e6b34d; }
 .action-btn.on:hover { color: #cf9a2e; }
+.tbtn { background:#393e46; color:#fff; border:none; padding:6px 14px; border-radius:4px; cursor:pointer; font-size:12px; font-weight:600; }
+.tbtn:hover { background:#50555f; }
+.tbtn.active { background:#4ECDC4; color:#222; }
+tr.dtrg-group { background:#22242a !important; color:#fff; font-weight:700; }
+tr.dtrg-group td { padding:8px 14px !important; }
+tr.dtrg-group .gcount { margin-left:8px; color:#4ECDC4; font-size:11px; }
+tr.dtrg-group i { margin-right:6px; }
 .title-link { color: #22242a; text-decoration: none; font-weight: 600; }
 .title-link:hover { color: #3dbdb5; text-decoration: underline; }
 .docid { color: #888; font-size: 11px; margin-right: 6px; }
@@ -42,10 +50,16 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
 
 <div class="header"><span data-i18n="header.reqMonitorOverview">Requirements Monitor Overview</span> <span class="sub" data-i18n="header.reqMonitorOverviewSub">subscribe / unsubscribe to requirement change notifications</span><span id="localeSwitcher" style="float:right;"></span></div>
 
-<div class="toolbar">
-  <button class="btn-teal" onclick="loadData()"><i class="fa fa-refresh"></i> <span data-i18n="rmo.refresh">Refresh</span></button>
+<div class="toolbar" id="gridToolbar">
+  <button type="button" class="tbtn btn-teal" onclick="loadData()"><i class="fa fa-refresh"></i> <span data-i18n="rmo.refresh">Refresh</span></button>
+  <button type="button" class="tbtn" id="btnGroupToggle"><i class="fa fa-chevron-down"></i> <span data-i18n="rmo.grid.expandCollapseGroups">Expand/Collapse Groups</span></button>
+  <button type="button" class="tbtn" id="btnShowAllCols"><i class="fa fa-columns"></i> <span data-i18n="rmo.grid.showAllColumns">Show all Columns</span></button>
+  <button type="button" class="tbtn" id="btnResetFilters"><i class="fa fa-filter"></i> <span data-i18n="rmo.resetFilters">Reset Filters</span></button>
+  <button type="button" class="tbtn" id="btnResetState"><i class="fa fa-undo"></i> <span data-i18n="rmo.resetToDefaultState">Reset to Default State</span></button>
+  <button type="button" class="tbtn" id="btnMultiSort"><i class="fa fa-sort-amount-down"></i> <span data-i18n="rmo.multiSort">MultiSort</span></button>
   <span style="flex:1"></span>
   <span id="projectInfo" style="color:#aaa;font-size:12px;"></span>
+  <span id="gridToolbarInfo" style="color:#aaa;font-size:12px;margin-left:12px;"></span>
 </div>
 
 <div class="table-wrap">
@@ -84,6 +98,7 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
 <script src="/gui/templates/i18n/i18n.js"></script>
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/dataTables.rowGroup.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap.min.js"></script>
 <script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
 <script>
@@ -91,6 +106,10 @@ var API = '/api/requirements/index.php';
 var table = null;
 var allItems = [];
 var tprojectId = 0;
+var collapsedGroups = Object.create(null);
+var showGroupedCol = false;
+var SPEC_COL_IDX = 0;
+var reordering = false;
 
 $(function() {
   var p = new URLSearchParams(window.location.search);
@@ -100,6 +119,37 @@ $(function() {
     TLi18n.initLocaleSwitcher('#localeSwitcher');
     loadData();
   });
+  $('#btnGroupToggle').on('click', toggleGroups);
+  $('#btnShowAllCols').on('click', function() {
+    showGroupedCol = !showGroupedCol;
+    applyGroupedColState();
+  });
+  $('#btnResetFilters').on('click', function() {
+    if (table) {
+      table.search('').columns().search('').draw();
+      $('#gridToolbarInfo').text(TLi18n.t('rmo.resetFilters'));
+    }
+  });
+  $('#btnResetState').on('click', function() {
+    collapsedGroups = Object.create(null);
+    showGroupedCol = false;
+    if (table) {
+      table.order([[SPEC_COL_IDX, 'asc']]).pageLength(25).draw(false);
+    }
+    applyGroupedColState();
+    updateGroupToggleBtn();
+    $('#gridToolbarInfo').text(TLi18n.t('rmo.resetToDefaultState'));
+  });
+  $('#btnMultiSort').on('click', function() {
+    $('#gridToolbarInfo').text(TLi18n.t('rmo.multiSort') + ' (' + TLi18n.t('common.info') + ')');
+  });
+  $(document).on('click', '#rmoTable tbody tr.dtrg-group', function() {
+    var key = decodeURIComponent($(this).attr('data-key') || '');
+    if (isGroupCollapsed(key)) { delete collapsedGroups[key]; } else { collapsedGroups[key] = true; }
+    updateGroupToggleBtn();
+    if (table) table.draw(false);
+  });
+  $(document).on('order.dt', function(e, settings) { pinGroupOrder(settings); });
 });
 
 function showError(msg) {
@@ -185,6 +235,74 @@ function buildRowObject(req) {
   };
 }
 
+function isGroupCollapsed(key) {
+  return Object.prototype.hasOwnProperty.call(collapsedGroups, key);
+}
+
+function allGroupKeys() {
+  var keys = Object.create(null);
+  if (!table) return keys;
+  var d = table.rows().data().toArray();
+  $.each(d, function(i, r) { keys[r.specPath] = true; });
+  return keys;
+}
+
+function pruneCollapsedGroups() {
+  var keys = allGroupKeys();
+  $.each(Object.keys(collapsedGroups), function(i, k) {
+    if (!Object.prototype.hasOwnProperty.call(keys, k)) { delete collapsedGroups[k]; }
+  });
+}
+
+function updateGroupToggleBtn() {
+  $('#btnGroupToggle').toggleClass('active', anyGroupCollapsed());
+}
+
+function anyGroupCollapsed() {
+  var keys = allGroupKeys();
+  var any = false;
+  $.each(Object.keys(keys), function(i, k) {
+    if (Object.prototype.hasOwnProperty.call(collapsedGroups, k)) { any = true; return false; }
+  });
+  return any;
+}
+
+function applyGroupedColState() {
+  if (!table) return;
+  table.column(SPEC_COL_IDX).visible(showGroupedCol);
+  var $btn = $('#btnShowAllCols').toggleClass('active', showGroupedCol);
+  $btn.find('span').text(showGroupedCol
+    ? TLi18n.t('rmo.grid.hideGroupedColumn')
+    : TLi18n.t('rmo.grid.showAllColumns'));
+}
+
+function pinGroupOrder(settings) {
+  if (!table || reordering) return;
+  var cur = table.settings()[0];
+  if (settings && cur && settings !== cur) return;
+  var o = table.order();
+  if (o.length && o[0][0] === SPEC_COL_IDX) return;
+  reordering = true;
+  setTimeout(function() {
+    table.order([[SPEC_COL_IDX, 'asc']].concat(o)).draw(false);
+    reordering = false;
+  }, 0);
+}
+
+function toggleGroups() {
+  if (anyGroupCollapsed()) {
+    collapsedGroups = Object.create(null);
+    if (table) table.draw(false);
+    updateGroupToggleBtn();
+    $('#gridToolbarInfo').text(TLi18n.t('rmo.grid.groupsExpanded'));
+  } else {
+    collapsedGroups = allGroupKeys();
+    if (table) table.draw(false);
+    updateGroupToggleBtn();
+    $('#gridToolbarInfo').text(TLi18n.t('rmo.grid.groupsCollapsed'));
+  }
+}
+
 function renderTable(items) {
   if (table) { table.destroy(); $('#rmoTable tbody').empty(); }
   var rows = $.map(items, function(req) { return [buildRowObject(req)]; });
@@ -193,9 +311,9 @@ function renderTable(items) {
     data: rows,
     rowId: 'reqId',
     columns: [
-      {data: 'specPath'},
+      {data: 'specPath', render: function(d) { return d; }},
       {data: 'title'},
-      { // display the localized string, sort/filter on the raw timestamp
+      {
         data: 'created',
         render: function(d, type, row) { return type === 'display' ? d : row.createdTs; }
       },
@@ -207,11 +325,33 @@ function renderTable(items) {
     ],
     order: [[0, 'asc']],
     pageLength: 25,
+    rowGroup: {
+      dataSrc: 'specPath',
+      startRender: function(rows, group) {
+        var isCollapsed = isGroupCollapsed(group);
+        rows.nodes().each(function(r) { r.style.display = isCollapsed ? 'none' : ''; });
+        var n = rows.count();
+        var cnt = TLi18n.t(n === 1 ? 'rmo.grid.groupItem' : 'rmo.grid.groupItems', {count: n});
+        var visibleCols = $('#rmoTable thead th').filter(function() { return $(this).css('display') !== 'none'; }).length;
+        if (visibleCols === 0) visibleCols = 5;
+        return $('<tr/>').attr('data-key', encodeURIComponent(group))
+          .attr('colspan', visibleCols)
+          .append($('<td/>').attr('colspan', visibleCols).append(
+            $('<i/>').addClass('fa ' + (isCollapsed ? 'fa-chevron-right' : 'fa-chevron-down')),
+            ' ' + group + '<span class="gcount">' + cnt + '</span>'
+          ));
+      }
+    },
     language: {
       search: '', searchPlaceholder: TLi18n.t('common.search'),
       emptyTable: TLi18n.t('common.none'), zeroRecords: TLi18n.t('common.none')
     }
   });
+  SPEC_COL_IDX = 0;
+  showGroupedCol = false;
+  applyGroupedColState();
+  pruneCollapsedGroups();
+  updateGroupToggleBtn();
 }
 
 function openReq(id, versionId) {
