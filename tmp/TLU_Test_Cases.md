@@ -185,3 +185,78 @@ log_level | rows
 **FILES** — none for the feature (already on `sebiboga`); this run contributes `tmp/TLU_Test_Cases.md` (suite #1275, git-ignored, `git add -f`).
 
 **Result — measured:** 12/13 checks PASS for #1275 (TC-1275-12 is a PASS for this issue with an unrelated pre-existing defect routed to #1839).
+
+---
+---
+
+## Regression — Issue #1779: `api/suitemove` — a container of an UNENTITLED project still answered `403`, an absent one `404` (id existence oracle)
+
+**Precondition** (fixture is idempotent, recreates itself; reuses the #1759 fixture so both issues
+share one dataset)
+```bash
+php tmp/fixtures_1759.php     # 2 private projects, 3 users, 2 top-level suites each
+bash tmp/verify_1779.sh        # the 28-case matrix added for this issue
+```
+Fixture data (ids as printed by the fixture on a fresh DB): test projects `SM1759A=1` (prefix
+`S9A`) and `SM1759B=2`; project A holds `A-suite-1=3` and `A-suite-2=4`, project B holds
+`B-suite-1=5`, `B-suite-2=6` (ids 1/2 are the project roots). Users: `sm1759a` (project role with
+`mgt_view_tc` + `mgt_modify_tc`, granted on **project A only**), `sm1759view` (project role with
+**only** `mgt_view_tc`, on project A), `sm1759norights` (global role 3 *no rights*, **no**
+`user_testproject_roles` row at all), `admin`. Password of all three: `admin`.
+Absent-id probe = `999999` (exists nowhere).
+
+**Repro steps (pre-fix)** — only a valid session is needed, **no project rights at all**:
+1. `POST /login.php?action=doLogin` with `tl_login=sm1759norights&tl_password=admin`.
+2. `GET /api/suitemove/index.php?action=init&tproject_id=1&container_id=3` →
+   `403 {"status":"error","code":"forbidden","message":"Insufficient rights on this test project"}`.
+3. `GET /api/suitemove/index.php?action=init&tproject_id=1&container_id=999999` →
+   `404 {"status":"error","code":"not_found","message":"Container not found"}`.
+4. The two answers differ ⇒ one sweep of `container_id` enumerates every suite **and** project-root
+   id of a project the caller may not even look at. The same split exists on the two write paths
+   (`action=reorder` with `container_id`, `action=move` with `node_id`).
+5. Control: `GET …?action=init&tproject_id=1` (no container) answered `403` too — so the *project*
+   id itself was NOT an oracle (#1759 M21), the leak was strictly the container/node id.
+
+**Expected post-fix behavior** — the guard is armed on the **presence of a caller-supplied node id**
+(same rule as `tcreoProject()`, #1761), so *every* refusal about a named container or node is the
+opaque `404` whose **message is the one the calling action already uses for an absent id**:
+`"Container not found"` for `init`/`reorder`, `"Suite not found"` for `move`. A request that names
+**no** node keeps its informative `403`, and `case 'suites'` (which takes no node id from the caller)
+keeps it as well.
+
+**Actual result observed** — `bash tmp/verify_1779.sh` → **28 passed, 0 failed**;
+`bash tmp/verify_1759.sh` (rows `M12`/`M12b`/`M12c` updated for this issue) → **29 passed, 0 failed**
+(`M5` runs and PASSes: since #1790 the fixture holds one test case per project).
+
+| # | Step | Expected | Observed | Result |
+|---|------|----------|----------|--------|
+| R1 | as `sm1759norights`, `init&tproject_id=1&container_id=3` | `404 not_found` | `404 {"code":"not_found","message":"Container not found"}` | PASS |
+| R2 | as `sm1759norights`, `init&tproject_id=1&container_id=1` (project root) | `404 not_found` (was `403`) | `404`, same body | PASS |
+| R3 | as `sm1759norights`, `init&tproject_id=1` (**no** container) | informative `403 forbidden` survives | `403 {"code":"forbidden",…}` | PASS |
+| R4 | as `sm1759norights`, `POST action=reorder&tproject_id=1&container_id=3&nodelist=3,4` | `404 not_found` (was `403`) | `404` | PASS |
+| R5 | as `sm1759norights`, `POST action=move&tproject_id=1&node_id=3&position=down` | `404 not_found` (was `403`) | `404` | PASS |
+| R6 | as `sm1759norights`, `POST action=move&node_id=3&position=down` (no project named) | `404` unchanged | `404` | PASS |
+| R7 | as `sm1759norights`, `GET action=suites&tproject_id=1` — takes **no** node id from the caller | informative `403` must survive | `403 forbidden` | PASS |
+| R8/R9 | `init&tproject_id=2` (real other project) vs `init&tproject_id=424242` (absent) | both `403`, byte-identical (#1759 M21) | both `403`, identical | PASS |
+| R10–R13 | byte-equality of an unentitled id vs `999999` for `init` (suite), `init` (root), `reorder`, `move` | identical **bodies**, not only statuses | 4/4 identical; `move` = `{"…","message":"Suite not found"}` on both sides | PASS |
+| R14 | as `sm1759view` (own project, **view only**), `init&tproject_id=1&container_id=3` | `404` — **the accepted trade-off** (tcreorder #1761 case R25) | `404 not_found` | PASS |
+| R15 | as `sm1759view`, `init&tproject_id=1` (no container) | informative `403` kept | `403 forbidden` | PASS |
+| R16 | as `sm1759view`, `init&tproject_id=1&container_id=5` (foreign) | `404` unchanged | `404` | PASS |
+| R17/R18 | as `sm1759a` (modify on A only), `init` of own suite / project root | `200` unchanged | `200`, full payload (`tproject_name":"SM1759A"`, `container`, `suites`, `all_suites`) | PASS |
+| R19 | as `sm1759a`, `init&container_id=5` (suite of B) | `404` unchanged | `404` | PASS |
+| R20/R21 | as `sm1759a`, `suites&tproject_id=1` / `suites&tproject_id=2` | `200` / `403` unchanged | `200` / `403` | PASS |
+| R22–R25 | as `admin`, `POST action=reorder&tproject_id=1&container_id=1&nodelist=4,3` then restore | write path intact, order really changes | `200`, DB order `3,4 -> 4,3`; restore `200`, DB back to `3,4` | PASS |
+| R26/R27 | as `sm1759norights`, refused `reorder` of project B (`tproject_id=2&container_id=2`) | `404` **and** project B untouched | `404`; `node_order` of project B still `5,6` | PASS |
+| R28 | Event Viewer after the whole matrix | no new Error/Warning | `SELECT COUNT(*) FROM events WHERE log_level IN (1,2)` = `0` before and after | PASS |
+
+**Notes / harness traps found while writing this matrix** (both were my own bugs, not app bugs):
+* A curl GET whose parameters are sent as a **body** (`-X GET -d …`) leaves `$_POST` empty on the
+  PHP side, so the endpoint never sees `tproject_id`/`container_id` and answers `400 no_context` —
+  14 rows of the first run failed for that reason. GET parameters must go in the **query string**.
+* Every session needs its **own** cookie jar *and* the assertions must read the same variable the
+  login loop wrote; mixing the two produced 5 × `401 session_expired`.
+
+**Files** — `api/suitemove/index.php` (`suitMoveProject()` + the `move` call site),
+`tmp/verify_1779.sh` (this matrix), `tmp/verify_1759.sh` (rows `M12`/`M12b`/`M12c` updated).
+**Docs** — `docs/Bugfix-Issue-1779-SuiteMove-Unentitled-Container-Existence-Oracle.md`, mirrored in
+the GitHub Wiki under the same file name.
