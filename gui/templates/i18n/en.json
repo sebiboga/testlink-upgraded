@@ -6719,5 +6719,13 @@
   "rmo.resetFilters": "Reset Filters",
   "rmo.multiSort": "MultiSort",
   "search.jolly": "Jolly (OR)",
-  "search.jollyHint": "value will be searched like in OR mode in title,summary,preconditions,steps,actions"
+  "search.jollyHint": "value will be searched like in OR mode in title,summary,preconditions,steps,actions",
+  "rb.accessToBts": "Access issue tracking system",
+  "rb.status_new": "New issue",
+  "rb.status_feedback": "Feedback",
+  "rb.status_acknowledged": "Acknowledged",
+  "rb.status_confirmed": "Confirmed",
+  "rb.status_assigned": "Assigned",
+  "rb.status_resolved": "Resolved issue",
+  "rb.status_closed": "Closed issue"
 }

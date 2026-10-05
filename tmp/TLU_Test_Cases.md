@@ -444,3 +444,46 @@ verb is refused with 405 + a `tLog` WARNING, and a legacy GET is redirected to
 requirement specification tree (R6/R7), to the legacy frame shim (R8), or to the anonymous
 bounce (R1). The three WARNING rows in the Event Viewer are the intended, self-documenting
 trace of the retirement rather than silent behaviour change.
+
+## Task — Issue #1268: resultsBugs BTS status/summary decoration + working bug links
+
+**Precondition** — project `1` (issue_tracker_enabled=1) linked to a `mantisdb`
+tracker (`issuetrackers.id=1`, cfg XML with `uriview`/`dbhost`/`dbuser`/`dbname`),
+plan `1` linked via `testplan_tcversions`, 5 executions in `executions` and 6
+rows in `execution_bugs`; tracker table `mantis_bug_table` with ids 101(new/10),
+102(acknowledged/30), 103(resolved/80), 104(closed/90), 105(assigned/50).
+
+**Steps / Expected / Actual**
+
+1. Open `gui/templates/results/resultsBugs.html?tproject_id=1&tplan_id=1`,
+   switch *Report type* to **All Executions**.
+   *Expected:* every linked bug renders as a clickable BTS link inside a
+   status-coloured box carrying the translated status label and the bug summary.
+   *Actual:* **PASS** — 5 `div.bug-box` rendered:
+   `101 : [New issue] : Login form rejects valid credentials` (bg `#ffa0a0`),
+   `102 : [Acknowledged] : ...` (bg `#ffd850`), `103 : [Resolved issue] : ...`,
+   `104 : [Closed issue] : ...`, `105 : [Assigned] : ...` (bg `#c8c8ff`).
+2. Inspect `a.bug-link` hrefs.
+   *Expected:* bare tracker URL, never markup.
+   *Actual:* **PASS** — all 5 are `http://tracker.local/view.php?id=<n>`
+   (before the fix they were HTML-in-href garbage, see the issue body).
+3. Inspect the box `title` and the resolved/closed boxes' background.
+   *Expected:* title = localized "Access issue tracking system"; statuses the
+   tracker does not colour fall back to the green resolved tint.
+   *Actual:* **PASS** — title present on all 5; 103/104 render the `.resolved`
+   class tint (`#d4edda`) because the fixture `statuscfg` only defines 80/90.
+4. BFF contract check `GET /api/reports/index.php?action=results_bugs&...&type=1`.
+   *Expected:* each bug carries `url`, `status_verbose`, `summary`, `status_color`,
+   `is_resolved` plus the legacy `link` fragment.
+   *Actual:* **PASS** — totals `open=3 resolved=2 total=5 cases=1`; every bug
+   object has the 6 fields; `status_color` is allow-listed (`#ffa0a0`, `#ffd850`).
+5. Non-http tracker URL / missing URL.
+   *Expected:* rendered as plain text (never a dead `href`).
+   *Actual:* **PASS (code path)** — `safeHttpUrl()` returns `''` for markup and
+   the `<span class="bug-link">` branch is taken instead of the `<a>`.
+6. i18n bundles.
+   *Expected:* `rb.accessToBts` + `rb.status_*` in all 10 locales, valid JSON.
+   *Actual:* **PASS** — `python3 -m json.tool` clean on de/en/es/fr/it/ja/pt/ro/ru/zh.
+7. Event Viewer / `events` table after the run.
+   *Expected:* no new Error/Warning rows.
+   *Actual:* **PASS** — no new rows; `php -l api/reports/index.php` clean.

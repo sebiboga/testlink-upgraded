@@ -6693,5 +6693,13 @@
   "rb.executionHistory": "Ausführungsverlauf",
   "rb.testCaseDesign": "Testfall-Entwurf",
   "search.jolly": "Jolly (OR)",
-  "search.jollyHint": "Wert wird im OR-Modus in Titel,Zusammenfassung,Voraussetzungen,Schritten,Aktionen gesucht"
+  "search.jollyHint": "Wert wird im OR-Modus in Titel,Zusammenfassung,Voraussetzungen,Schritten,Aktionen gesucht",
+  "rb.accessToBts": "Zugriff auf das Issue-Tracking-System",
+  "rb.status_new": "Neuer Vorgang",
+  "rb.status_feedback": "Feedback",
+  "rb.status_acknowledged": "Bestatigt",
+  "rb.status_confirmed": "Bestatigt",
+  "rb.status_assigned": "Zugewiesen",
+  "rb.status_resolved": "Vorgang gelost",
+  "rb.status_closed": "Vorgang geschlossen"
 }

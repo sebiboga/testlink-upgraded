@@ -214,6 +214,29 @@ function bugViewUrl($its, $bugId, $linkHtml = '') {
     return '';
 }
 
+// issueTrackerInterface::buildViewBugLink() wraps the <a> in a <div> whose
+// background comes straight from the tracker cfg ($issue->statusColor, set in
+// mantisdbInterface::getIssue() :124-125). That value is published to the JSON
+// contract, so it is filtered here exactly like bugViewUrl() filters the URL:
+// only hex (#rgb / #rrggbb / #rrggbbaa) and a small allow-list of CSS colour
+// keywords is ever published - never markup, url(javascript:...) or
+// expression(...), which would otherwise become a style="..." injection in the
+// browser. Anything else falls back to the resolved/unresolved tint the screen
+// derives from is_resolved (same palette as the Dashio summary cards).
+function bugStatusColor($color, $isResolved = false) {
+    $c = strtolower(trim((string)$color));
+    if (preg_match('/^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/', $c)) {
+        return $c;
+    }
+    $named = ['white', 'black', 'silver', 'gray', 'grey', 'red', 'maroon',
+              'yellow', 'olive', 'lime', 'green', 'aqua', 'teal', 'blue',
+              'navy', 'fuchsia', 'purple', 'orange', 'pink', 'brown'];
+    if (in_array($c, $named, true)) {
+        return $c;
+    }
+    return $isResolved ? '#d4edda' : '#fdecea';
+}
+
 $tprojectId = intval(getParam('tproject_id', 0));
 $tplanId = intval(getParam('tplan_id', 0));
 $action = getParam('action');
@@ -4066,10 +4089,23 @@ if ($action === 'results_bugs') {
 
         $bugUrls = [];
         if ($its) {
-            $bugData = get_bugs_for_exec($db, $its, $execution['exec_id']);
+            // The 4th argument is the ATTRIBUTE LIST itself (get_bugs_for_exec
+            // $raw, lib/functions/exec.inc.php:421 - it forwards it to
+            // buildViewBugLink(), issueTrackerInterface.class.php:451-455, which
+            // copies each named issue property onto the result).
+            // statusVerbose / summary / summaryHTMLString / statusColor are the
+            // decoration legacy printed inside link_to_bts (buildViewBugLink
+            // :379-396 statusHTMLString + summaryHTMLString, :440-442 the
+            // status-coloured <div title="Access issue tracking system">).
+            // The screen rebuilds that decoration client-side so the labels are
+            // translated - the HTML fragment itself stays in 'link' for
+            // consumers that echo it verbatim (Refs #1268).
+            $bugData = get_bugs_for_exec($db, $its, $execution['exec_id'],
+                ['statusVerbose', 'summary', 'summaryHTMLString', 'statusColor']);
             if ($bugData) {
                 foreach ($bugData as $bugId => $bugInfo) {
-                    if ($bugInfo['isResolved']) {
+                    $bugIsResolved = (bool)$bugInfo['isResolved'];
+                    if ($bugIsResolved) {
                         if (!in_array($bugId, $resolvedBugs)) {
                             $resolvedBugs[] = $bugId;
                         }
@@ -4086,7 +4122,16 @@ if ($action === 'results_bugs') {
                         // Bare tracker URL for <a href> consumers - the fragment
                         // above is HTML and must never be used as a URL (Refs #1837).
                         'url' => bugViewUrl($its, $bugId, $bugInfo['link_to_bts'] ?? ''),
-                        'is_resolved' => (bool)$bugInfo['isResolved'],
+                        'is_resolved' => $bugIsResolved,
+                        // Decoration fields (see get_bugs_for_exec 'raw' opt
+                        // above). status_verbose is the tracker status name
+                        // ('new' / 'resolved' / ...), summary the plain bug
+                        // summary and status_color the background the legacy
+                        // <div> used - all three are published as PLAIN TEXT so
+                        // the screen can build the coloured, translated box.
+                        'status_verbose' => (string)($bugInfo['statusVerbose'] ?? ''),
+                        'summary' => trim(strip_tags((string)($bugInfo['summary'] ?? ''))),
+                        'status_color' => bugStatusColor($bugInfo['statusColor'] ?? '', $bugIsResolved),
                         'build_name' => $bugInfo['build_name'] ?? '',
                     ];
                 }

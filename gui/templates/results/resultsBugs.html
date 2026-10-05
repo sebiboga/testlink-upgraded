@@ -42,9 +42,13 @@ td.tccell .tcicons { display: inline-flex; gap: 5px; margin-right: 4px; vertical
 td.tccell .tcico { color: #4ECDC4; text-decoration: none; font-size: 12px; }
 td.tccell .tcico:hover { color: #2d8e88; }
 td.bugcell { max-width: 400px; word-break: break-word; white-space: normal; }
-.bug-link { display: inline-block; margin: 1px 0; color: #4ECDC4; text-decoration: none; font-size: 11px; }
-.bug-link:hover { text-decoration: underline; color: #3dbdb5; }
-.bug-link.resolved { color: #28a745; }
+div.bug-box { display: inline-block; margin: 1px 0; padding: 0 3px; border-radius: 3px; line-height: 1.5; }
+div.bug-box.resolved { background: #d4edda; }
+div.bug-box .bug-status { font-weight: 600; }
+div.bug-box .bug-summary { font-weight: 400; }
+.bug-link { display: inline-block; color: #22242a; text-decoration: none; font-size: 11px; }
+.bug-link:hover { text-decoration: underline; color: #007bff; }
+.bug-link.resolved { color: #1a7f37; }
 .bug-link.resolved:hover { color: #218838; }
 .empty { background: #fff; border-radius: 8px; padding: 30px; text-align: center; color: #888; font-size: 14px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px; }
 .empty i { font-size: 34px; color: #4ECDC4; display: block; margin-bottom: 10px; }
@@ -138,20 +142,45 @@ function t(key, fallback) {
   return (v && v !== key) ? v : (fallback || key);
 }
 
+// Rebuilds the legacy decoration of a linked bug, i.e. exactly what
+// issueTrackerInterface::buildViewBugLink() (lib/issuetrackerintegration/
+// issueTrackerInterface.class.php:352-443) assembles server-side and legacy
+// printed verbatim (lib/results/resultsBugs.php:204, resultsBugs.tpl:111):
+//   <div title="Access issue tracking system" style="display:inline;background:COLOR">
+//     <a href='URL' target='_blank'><b>{id} : </b>[{statusVerbose}] : {summary}</a>
+//   </div>
+// The pieces arrive as PLAIN TEXT from the BFF (bugs[].url / status_verbose /
+// summary / status_color - see api/reports/index.php), so the box, the status
+// label and the summary are escaped here and the status label is translated:
+// bug_id + status + summary are all escaped before they reach the DOM.
 function renderBugLinks(bugs) {
   if (!bugs || bugs.length === 0) return '<em>' + esc(t('rb.noBugs', 'No bugs')) + '</em>';
   var html = '';
   bugs.forEach(function(b) {
     var cls = b.is_resolved ? 'bug-link resolved' : 'bug-link';
-    var label = '<i class="fa fa-bug" style="margin-right:2px;"></i>' + esc(b.bug_id);
-    // bugs[].link is the tracker HTML fragment (legacy buildViewBugLink) and
-    // bugs[].url is the bare tracker URL - the fragment must never end up in
-    // an href (Refs #1837). Anything that is not http(s)/relative is shown
-    // as plain text instead of a dead link.
     var href = safeHttpUrl(b.url);
-    html += (href
-      ? '<a href="' + esc(href) + '" target="_blank" rel="noopener" class="' + cls + '">' + label + '</a>'
-      : '<span class="' + cls + '">' + label + '</span>') + '<br>';
+    var status = String(b.status_verbose || '').trim();
+    var summary = String(b.summary || '').trim();
+
+    var inner = '<b>' + esc(b.bug_id) + ' : </b>'
+              + (status ? '<span class="bug-status">[' + esc(t('rb.status_' + status, status)) + ']</span>' : '')
+              + (summary ? ' : <span class="bug-summary">' + esc(summary) + '</span>' : '');
+
+    var labelled = href
+      ? '<a href="' + esc(href) + '" target="_blank" rel="noopener" class="' + cls + '">' + inner + '</a>'
+      : '<span class="' + cls + '">' + inner + '</span>';
+
+    // Status-coloured box around the link, like the legacy <div>. The colour is
+    // allow-listed server-side (bugStatusColor()); anything unexpected falls
+    // back to the resolved/unresolved tint classes.
+    var bg = /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(String(b.status_color || '').trim())
+      ? String(b.status_color).trim().toLowerCase()
+      : '';
+    var boxCls = 'bug-box' + (b.is_resolved ? ' resolved' : '');
+    var style = bg ? ' style="display:inline;background:' + esc(bg) + ';"' : '';
+    html += '<div class="' + boxCls + '"' + style
+         + ' title="' + esc(t('rb.accessToBts', 'Access issue tracking system')) + '">'
+         + labelled + '</div>';
   });
   return html;
 }

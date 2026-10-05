@@ -6699,5 +6699,13 @@
   "rb.executionHistory": "実行履歴",
   "rb.testCaseDesign": "テストケース設計",
   "search.jolly": "Jolly (または)",
-  "search.jollyHint": "タイトル、要約、前提条件、ステップ、操作で、値は または で検索されます"
+  "search.jollyHint": "タイトル、要約、前提条件、ステップ、操作で、値は または で検索されます",
+  "rb.accessToBts": "IssueTracking systeme he noboru",
+  "rb.status_new": "shinsatsu mondai",
+  "rb.status_feedback": "feedback",
+  "rb.status_acknowledged": "kakunin sumi",
+  "rb.status_confirmed": "kakunin sumi",
+  "rb.status_assigned": "wariate sumi",
+  "rb.status_resolved": "kaiketsu sumi mondai",
+  "rb.status_closed": "shuryo shita mondai"
 }

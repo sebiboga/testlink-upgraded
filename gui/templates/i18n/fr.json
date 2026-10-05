@@ -6693,5 +6693,13 @@
   "rb.executionHistory": "Historique des exécutions",
   "rb.testCaseDesign": "Conception du cas de test",
   "search.jolly": "Jolly (OR)",
-  "search.jollyHint": "la valeur sera cherchée, comme en mode OR, dans le titre, le résumé, les pré-conditions, les étapes, les actions"
+  "search.jollyHint": "la valeur sera cherchée, comme en mode OR, dans le titre, le résumé, les pré-conditions, les étapes, les actions",
+  "rb.accessToBts": "Acces au systeme de suivi des anomalies",
+  "rb.status_new": "Nouvelle anomalie",
+  "rb.status_feedback": "Retour",
+  "rb.status_acknowledged": "Reconnu",
+  "rb.status_confirmed": "Confirme",
+  "rb.status_assigned": "Attribue",
+  "rb.status_resolved": "Anomalie resolue",
+  "rb.status_closed": "Anomalie fermee"
 }

@@ -6693,5 +6693,13 @@
   "rb.executionHistory": "Historial de ejecuciones",
   "rb.testCaseDesign": "Diseño del caso de prueba",
   "search.jolly": "Jolly (OR)",
-  "search.jollyHint": "Se buscará el valor en modo OR en título, resumen, precondiciones, pasos, acciones"
+  "search.jollyHint": "Se buscará el valor en modo OR en título, resumen, precondiciones, pasos, acciones",
+  "rb.accessToBts": "Acceso al sistema de seguimiento de incidencias",
+  "rb.status_new": "Incidencia nueva",
+  "rb.status_feedback": "Comentarios",
+  "rb.status_acknowledged": "Reconocido",
+  "rb.status_confirmed": "Confirmado",
+  "rb.status_assigned": "Asignado",
+  "rb.status_resolved": "Incidencia resuelta",
+  "rb.status_closed": "Incidencia cerrada"
 }

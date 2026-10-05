@@ -7947,6 +7947,15 @@ Changes:
       project tables and added user metrics to the middle section
 
 ## 2.0.1 (in-progress)
+### Screen — Results by Issues BTS bug decoration `resultsBugs` (Refs #1268)
+- `gui/templates/results/resultsBugs.html` rebuilds the legacy per-bug decoration of
+  `issueTrackerInterface::buildViewBugLink()` (`lib/issuetrackerintegration/issueTrackerInterface.class.php:352-443`):
+  working BTS `<a href>` (`buildViewBugURL()`) inside a status-coloured box with the
+  localized status label and the bug summary, instead of the bare bug id / broken
+  HTML-in-href. BFF `api/reports/index.php` `action=results_bugs` now asks
+  `get_bugs_for_exec()` for the `statusVerbose` / `summary` / `statusColor` attributes
+  and publishes them allow-listed (`bugStatusColor()`). i18n `rb.accessToBts` +
+  `rb.status_*` in **all 10** bundles.
 ### Screen — Requirement Monitors popup `reqMonitors` (Refs #1780)
 - Requirement Monitors popup `gui/templates/requirements/reqMonitors.html` + BFF
   `api/reqmonitors/index.php` (`GET|HEAD ?action=init&req_id=N[&tproject_id=P]`, session auth +

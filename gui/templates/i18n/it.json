@@ -6693,5 +6693,13 @@
   "rb.executionHistory": "Cronologia delle esecuzioni",
   "rb.testCaseDesign": "Progettazione del test case",
   "search.jolly": "Jolly (OR)",
-  "search.jollyHint": "Il valore verrà cercato in modalità OR in titolo, riepilogo, prerequisiti, passaggi, azioni"
+  "search.jollyHint": "Il valore verrà cercato in modalità OR in titolo, riepilogo, prerequisiti, passaggi, azioni",
+  "rb.accessToBts": "Accesso al sistema di tracciamento dei problemi",
+  "rb.status_new": "Nuovo problema",
+  "rb.status_feedback": "Riscontro",
+  "rb.status_acknowledged": "Riconosciuto",
+  "rb.status_confirmed": "Confermato",
+  "rb.status_assigned": "Assegnato",
+  "rb.status_resolved": "Problema risolto",
+  "rb.status_closed": "Problema chiuso"
 }

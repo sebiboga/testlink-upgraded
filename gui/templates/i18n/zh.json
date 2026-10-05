@@ -6679,5 +6679,13 @@
   "rb.executionHistory": "执行历史",
   "rb.testCaseDesign": "测试用例设计",
   "search.jolly": "Jolly (OR)",
-  "search.jollyHint": "根据值、标题、概要、前提条件、步骤、动作模糊搜索"
+  "search.jollyHint": "根据值、标题、概要、前提条件、步骤、动作模糊搜索",
+  "rb.accessToBts": "fangwen wenti genzong xitong",
+  "rb.status_new": "xin wenti",
+  "rb.status_feedback": "fankui",
+  "rb.status_acknowledged": "yi queren",
+  "rb.status_confirmed": "yi zhengshi",
+  "rb.status_assigned": "yi fenpei",
+  "rb.status_resolved": "yi jiejue wenti",
+  "rb.status_closed": "yi guanbi wenti"
 }

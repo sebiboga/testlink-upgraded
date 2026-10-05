@@ -6713,5 +6713,13 @@
   "rmo.resetFilters": "Resetează filtrele",
   "rmo.multiSort": "Sortare multiplă",
   "search.jolly": "Jolly (OR)",
-  "search.jollyHint": "Valoarea va fi căutată în mod OR în titlu, sumar, precondiții, pași, acțiuni"
+  "search.jollyHint": "Valoarea va fi căutată în mod OR în titlu, sumar, precondiții, pași, acțiuni",
+  "rb.accessToBts": "Acces la sistemul de urmarire a incidentelor",
+  "rb.status_new": "Incident nou",
+  "rb.status_feedback": "Feedback",
+  "rb.status_acknowledged": "Confirmat",
+  "rb.status_confirmed": "Confirmat",
+  "rb.status_assigned": "Atribuit",
+  "rb.status_resolved": "Incident rezolvat",
+  "rb.status_closed": "Incident inchis"
 }
