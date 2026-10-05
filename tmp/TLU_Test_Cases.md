@@ -1026,3 +1026,78 @@ filtrele`, `Cerinta`, `Nu ai drepturile necesare pentru a gestiona rolurile…`,
 (`git stash push gui/templates/i18n/*.json` before T3); every other case runs on the
 committed tree. Re-run the whole suite with:
 `bash ai/verify_i18n_coverage.sh` (T2-T11) plus the T12-T15 commands in the table.
+
+## Issue #1852 — Test Suite Create / Edit / Delete (`suiteEdit`)
+
+Fixture: `php tmp/fixtures_1852.php` (re-runnable; prints PROJECT / SUITE_* ids).
+App: `http://localhost:8082`, login `tl_login=admin&tl_password=admin` via
+`login.php?action=ajaxlogin`, cookie jar `/tmp/opencode/c.txt`.
+
+### A. Load / context
+
+| # | Case | Expected | Result |
+|---|---|---|---|
+| 1 | `GET ?action=init&mode=edit&tproject_id=P&suite_id=CHILD` | 200, suite + 8 cfields + keyword sets | PASS |
+| 2 | `GET ?action=init&mode=create&tproject_id=P&container_id=CHILD` | 200, empty suite, cfield defaults | PASS |
+| 3 | `GET ?action=init&mode=delete&tproject_id=P&suite_id=CHILD` | 200, `delete_preview` with the per-case table | PASS |
+| 4 | No session | 401 `session_expired` | PASS |
+| 5 | `POST ?action=init` | 405 `wrong_method` | PASS |
+| 6 | `GET ?action=create` | 405 `wrong_method` | PASS |
+| 7 | Foreign-project suite id | 404 `project_mismatch` | PASS |
+| 8 | `tproject_id` of another project | 404 `project_mismatch` | PASS |
+| 9 | POST without `X-Requested-With` (CSRF) | 403, no write | PASS |
+
+### B. Custom fields (the parity gap)
+
+| # | Case | Expected | Result |
+|---|---|---|---|
+| 10 | POST update with values for all 8 fields | 200, `cfields_written = 8` | PASS |
+| 11 | GET init again | every stored value returned (string, numeric, email, checkbox, list, multiselection, date, textarea) | PASS |
+| 12 | Untick the checkbox and save | row deleted from `cfield_design_values`, no NULL, no warning | PASS |
+| 13 | DB cross-check of `cfield_design_values` | exactly the submitted values, no extra rows | PASS |
+| 14 | Suite with no CF project | `sued.noCfields` hint, no crash | PASS |
+| 15 | Required CF left empty | client refuses (`sued.msgRequired`), server `400 empty_name` for the name | PASS |
+
+### C. Keywords
+
+| # | Case | Expected | Result |
+|---|---|---|---|
+| 16 | POST update with `keywords:[k1,k2]` | 200, `keywords_written = 2` | PASS |
+| 17 | GET init | `assigned` = the same ids (**was `[0]` before `a1d43b088`**) | PASS |
+| 18 | Save again without changing keywords | keywords survive (no silent drop) | PASS |
+| 19 | POST with `keywords:[]` | all links removed | PASS |
+| 20 | Keyword of another project | not in the picker; not linkable | PASS |
+
+### D. Delete + the executed-case gate
+
+| # | Case | Expected | Result |
+|---|---|---|---|
+| 21 | Delete a suite holding a linked **and executed** case without the right | 409 `suite_has_executed`, nothing deleted | PASS |
+| 22 | Same preview in the UI | per-case `sued.st_linked_and_executed` row, **no** delete button | PASS |
+| 23 | Delete an empty suite | 200, `deleted_testcases = 0` | PASS |
+| 24 | Delete a suite with nested suites | deep tree removed, `sub_suites` reported in the blast radius | PASS |
+| 25 | Gate with the right granted | 200 (documented; needs a role holding `delete_executed_testcases`) | SKIPPED (fixture role holds it off) |
+| 26 | Cross-project delete attempt | 404 `project_mismatch` | PASS |
+
+### E. Validation
+
+| # | Case | Expected | Result |
+|---|---|---|---|
+| 27 | Empty / whitespace name | 400 `empty_name` | PASS |
+| 28 | Name with `|` | 400 `bad_chars` (**was a false positive on every name before `a1d43b088`**) | PASS |
+| 29 | Name > 100 chars | 400 `name_too_long` | PASS |
+| 30 | Duplicate name | blocked by `create()`'s duplicate policy, message shown | PASS |
+| 31 | Name containing `R&D` (`$&`) in the confirm dialog | rendered verbatim | PASS |
+
+### F. UI / i18n
+
+| # | Case | Expected | Result |
+|---|---|---|---|
+| 32 | Every locale switch (de/es/fr/it/ja/pt/ro/ru/zh/en) | no raw `sued.*` key rendered | PASS |
+| 33 | No `mgt_modify_tc` | read-only banner, inputs disabled, no save | PASS |
+| 34 | XSS probe as a CF label / possible value | inert text | PASS |
+| 35 | Browser console | 0 errors | PASS |
+| 36 | Event Viewer | 0 new Error/Warning rows | PASS |
+| 37 | Legacy `containerEdit.php?...&doAction=new_testsuite` | 302 to the new screen, no write | PASS |
+
+**Totals: 36 PASS, 1 SKIPPED (#25), 0 FAIL.**
