@@ -349,3 +349,32 @@ gap, unrelated to this parse error.
 **Files** — `locale/fr_FR/strings.txt` (1 line).
 **Docs** — `docs/Bugfix-Issue-1839-fr-FR-strings-txt-Parse-Error.md`, mirrored in
 the GitHub Wiki under the same file name.
+
+## Task — Issue #1091: Implement Jolly (free-text OR) search field in searchView.html (gap vs legacy)
+
+**Precondition**
+- TestLink running at http://localhost:8082 with modern searchView.html
+- Test project 100 SearchFixtures (or any project with test cases) exists; seeded data as in environment
+- Admin/admin logged in
+- BFF api/search/index.php supports `jolly` param (implemented)
+
+**Steps**
+1. Navigate to `search/searchView.html?tproject_id=<valid_project_id>` (quick Search Test Cases)
+2. Verify Jolly input field is present in the form grid (labeled Jolly (OR) with hint/tooltip)
+3. Enter a single keyword in the Jolly field that appears in different places across test cases (e.g. "load" appears in name/summary/other fields in different TCs) and leave other fields empty
+4. Click Find
+5. Observe search results
+6. Enter another keyword in Jolly that appears only in steps (actions) of some TC and Find
+7. Enter keyword that appears only in expected results and Find
+8. Test with keyword present in preconditions/summary/name
+9. Combine Jolly with another criterion (e.g. Jolly="load" + Status filter) and verify results are AND-ed
+10. Test empty Jolly behavior (clear field, search with other criteria) matches previous behavior
+
+**Expected behavior**
+- Jolly is a single free-text input that searches across name, summary, preconditions, steps (actions), expected results with OR logic within that group
+- Results include any TC where ANY of those 5 fields contains the jolly term (case-insensitive via LIKE in SQL as legacy did)
+- Other criteria remain AND-ed with the jolly OR group
+- When Jolly is empty, search behavior is unchanged from before (individual field ANDs as implemented)
+
+**Actual result**
+- (to be recorded after execution)
