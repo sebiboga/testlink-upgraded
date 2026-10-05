@@ -1129,43 +1129,67 @@ App: `http://localhost:8082`, login `tl_login=admin&tl_password=admin` via
    - Generated-on footer line is **NOT** visible
    - Match count/footer info is empty (no "N matches" shown)
 
-4. **Return to matched results (no stale state)**
-   - Reset form
-   - Name = `F1093`
-   - Click Find
-   - Generated-on footer line is visible again with an updated timestamp (time advances)
+**Browser-pass totals: 15 PASS / 0 FAIL** (cases 38-52).
+**Suite total: 51 PASS, 1 SKIPPED (#25), 0 FAIL.**
 
-5. **Nonexistent test case ID warning**
-   - Reset form
-   - Test Case ID = `F1-999999` (prefix + large number)
-   - Click Find
-   - Warning "Test case does not exist" (or equivalent) appears
-   - Generated-on footer line is **NOT** visible
+## Regression — Issue #1704: BFF `catch` blocks logged `tLog(__METHOD__ …)` at file top level → nameless Event Viewer rows
 
-6. **Reset clears footer**
-   - After a successful search, click Reset
-   - Generated-on footer line is hidden and its text cleared
-   - Results table/wrapper and toolbars hidden; no warning shown
+**Precondition** (the DB is freshly imported on every run, so fixtures must be recreated):
+- App at `http://localhost:8082` (PHP built-in server, docroot = repo root), login `admin`/`admin`
+  (`POST /api/auth/login` with `Origin: http://localhost:8082`; every non-safe verb needs that
+  same-origin header or `bffSameOriginGuard()` answers 403 — `api/_guard.php`).
+- A code-tracker fixture (its `type` must be the numeric code `200` = github, from
+  `GET /api/codetracker/meta/types`, and its `cfg` must be the **XML** wrapper or
+  `tlCodeTracker::checkXMLCfg` rejects it):
+  ```bash
+  curl -s -b c.jar -X POST -H "Origin: http://localhost:8082" -H "Content-Type: application/json" \
+    -d '{"name":"repro-1704","type":200,
+         "cfg":"<codetracker><repository>https://github.com/sebiboga/testlink-upgraded</repository><branch>main</branch><token>ghp_dummy</token><apibase>https://api.github.com/</apibase></codetracker>"}' \
+    http://localhost:8082/api/codetracker      # -> {"status":"ok","item":{"id":1,…}}
+  ```
+- **Probe (never part of the fix — revert after every run):** both `catch` generations are
+  unreachable naturally, because `isConnected()` only returns a property. Force them with
+  `throw new RuntimeException('forced-1704-repro');` in
+  `lib/codetrackerintegration/githubrestCodeTrackerInterface.class.php` (`isConnected()`, for the
+  two **file-scope** sites) or in `__construct()` (for the **function-scope**
+  `githubInterfaceFor()` site), then `php -l` and restore the file.
 
-7. **Jolly (OR) search produces footer**
-   - Jolly field = `F1093`
-   - Click Find
-   - Results found (2 cases). Generated-on footer line is visible.
+**Repro steps (pre-fix symptom)**
+1. Probe `isConnected()` to throw; `php -l` the interface file.
+2. `curl -s -b c.jar -X POST -H "Origin: http://localhost:8082" http://localhost:8082/api/codetracker/1/test_connection`
+3. `curl -s -b c.jar -X POST -H "Origin: http://localhost:8082" -H "Content-Type: application/json" \
+    -d '{"repository":"https://github.com/sebiboga/testlink-upgraded","token":"ghp_dummy","branch":"main"}' \
+    http://localhost:8082/api/codetracker/test_github`
+4. `mysql -h 127.0.0.1 -utestlink -ptestlink testlink -e "SELECT id,log_level,LENGTH(description),HEX(LEFT(description,12)),description FROM events ORDER BY id DESC LIMIT 2\G"`
 
-8. **Locale label honors UI locale (runtime)**
-   - Change UI locale to `de` (locale switcher or ?locale=de_DE). Run a successful search.
-   - The generated-on label switches to the German string `Generiert von TestLink am` (or the bundle value for `common.generatedBy`) while the timestamp format remains the TestLink locale timestamp format for that session.
-   - Reset/restore to default locale as appropriate.
+**Expected post-fix behaviour**
+- Both requests still answer the code's own error envelope: HTTP **502** with
+  `{"status":"error","connected":false,"message":"Connection test failed"}` (resp. without
+  `connected`) — unchanged status/body.
+- Both `events` rows start with `api/codetracker/index.php::` followed by the route
+  (`POST /test_github`, `POST /{id}/test_connection`), so `HEX(LEFT(description,12))` begins
+  `6170692F636F646574726163…` (`api/codetracker`) and the two rows are **no longer identical**.
+- `grep -rn 'tLog(__METHOD__' --include=*.php api` → **0 hits** (was 9).
+- The Event Viewer screen (`gui/templates/eventviewer/eventviewer.html`) shows the file+route
+  inline in the ERROR rows; the Code Tracker screen loads its grid with no console error.
 
-9. **BFF returns timestamp fields (server-side parity)**
-   - In an authenticated session, call `GET /api/search/index.php?action=search&tproject_id=1&name=F1093`
-   - Response must include `generated_on` (locale-formatted string with time component) and `generated_on_iso` (e.g. `YYYY-MM-DD HH:MM:SS`)
+**Actual result — measured 2026-10-05, PASS**
 
-### Expected
-- All steps behave as described. The footer condition matches legacy exactly: shown only when a search ran and produced no warning; hidden on warnings and after reset/empty results.
+| # | Case | Measured |
+|---|---|---|
+| 1 | pre-fix `POST /{id}/test_connection` | `len=18`, `HEX(LEFT(…,12))=20666F726365642D31373034`, description `[ forced-1704-repro]` |
+| 2 | pre-fix `POST /test_github` | identical byte-for-byte → the two sites were indistinguishable |
+| 3 | post-fix `POST /{id}/test_connection` | `len=74`, `[api/codetracker/index.php::POST /{id}/test_connection :: forced-1704-repro]`, HTTP 502 |
+| 4 | post-fix `POST /test_github` | `len=65`, `[api/codetracker/index.php::POST /test_github :: forced-1704-repro]`, HTTP 502 |
+| 5 | function-scope site (probe in `__construct`) | `[api/codetracker/index.php::githubInterfaceFor :: forced-1704-ctor]`, HTTP 400 |
+| 6 | happy path, no probe, real public repo | `{"status":"ok","connected":true,"branchCount":100,…}`, **no** new `events` row |
+| 7 | `GET /api/codetracker/1/branches` with the probe | existing 502 `Unable to fetch branches…`, no new row |
+| 8 | `grep -rn 'tLog(__METHOD__' --include=*.php api` | 0 hits |
+| 9 | Event Viewer + Code Tracker screens (Chrome) | ERROR rows render with file+route; grid shows the fixture; 0 console errors/warnings |
+| 10 | `php -l` on the 4 touched files | *No syntax errors detected* ×4 |
+| 11 | Event Viewer after the whole pass | only the forced ERROR rows (6 × level 1) + the expected login AUDIT rows — **no** new Warning/Notice |
 
-### Actual
-(leave empty until executed)
-
-### PASS/FAIL
-To be recorded after execution.
+**Reusable checkers** (this run's, kept out of the repo):
+`php /tmp/opencode/toplevel.php $(ls -d api/*/index.php)` — column-0 brace scan that
+separates *file top level* from *inside a top-level function*; `php -r 'echo strlen(__METHOD__);'`
+at file scope prints `0`, which is the whole mechanism of this bug.
