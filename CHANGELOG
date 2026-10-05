@@ -157,6 +157,32 @@ screen reaches full parity.
   with Name, URL prefill, Reset, BFF matrix, Event Viewer clean, console clean).
   Regression suite "Task — Issue #1077" appended to `tmp/TLU_Test_Cases.md`. (Refs #1077)
 
+- [KEY BUGFIX] - #1849: **87 regression suites were destroyed by a whole-file overwrite of
+  `tmp/TLU_Test_Cases.md`, and the gate mandated by rule 9 certified the damage as a PASS.**
+  Commit `136fc4426`, titled "testcases: append suite for #1089", was a `+12 / -6332`
+  *replacement* of the file: 88 suite headings -> 1. Nothing detected it because
+  `ai/verify_test_suites.sh` compares the candidate against the **merge-base** with
+  `origin/<default>` (`ai/verify_test_suites.sh:190-268`), and a clobber that is already an
+  ancestor is invisible to it - measured on the clobbered file:
+  `baseline: 2db9148b4 (13) -> candidate: 13 suites ... 6 PASS / 0 FAIL / EXIT=0` while 87
+  suites (incl. the security regressions #1768 attachment object-level authorization,
+  #1761/#1762 reorder-ID oracles, #1701, #1740, #1048, #1081) were gone. **Fix, two parts:**
+  (1) the 87 lost blocks are re-appended verbatim from the pre-clobber blob `136fc4426^`,
+  append-only and deduped on the `^## ` heading (13 -> 100 headings, 1028 -> 7305 lines);
+  (2) the gate gains **check 3 - "no suite lost vs the pre-image of the newest destructive
+  commit"**, which anchors the baseline to the newest commit that REPLACED the suite file
+  (parent had >= 20 suite headings, the commit kept < 50% of them, located in a single
+  `git log --numstat` pass and then confirmed by real heading counts) instead of to the
+  moveable merge-base, so a clobber fails from now on even after it has landed. Only the
+  NEWEST destructive commit is enforced: the union of every historical heading is 844, 831 of
+  which are not losses but a retired `## N. Name (Suite ID: M)` heading scheme, and
+  enforcing them would leave the gate permanently red. The extractor is sanity-checked
+  against its own input and reports *unrunnable* rather than PASS when no history is
+  readable - the first implementation silently matched nothing and produced a false PASS.
+  Regression suite "Regression - Issue #1849" appended to `tmp/TLU_Test_Cases.md`.
+  Follow-up filed for the earlier, larger, previously untracked clobber `30aeecd0d`
+  (595 -> 1 suite heading), which this check deliberately does not cover. (Refs #1849)
+
 - [KEY BUGFIX] - #1844: **40 i18n keys rendered as the raw key on screen in 8 of the 10 locale
   bundles, and nothing in the toolchain could see it.** The only i18n gate the repo had was
   `python3 -m json.tool` on a single bundle, which proves WELL-FORMEDNESS, never COVERAGE
