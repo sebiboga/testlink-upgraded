@@ -173,15 +173,21 @@ function stateFor(code, httpStatus, rawMessage) {
     method_not_allowed:     { cls: 'warn', title: 'pbc.badRequestTitle', body: 'pbc.badRequestBody' }
   };
   var m = map[code];
+  var detail = '';
   if (!m) {
     m = { cls: 'warn', title: 'pbc.serverErrorTitle', body: 'pbc.serverErrorBody' };
+    // The BFF message is a server-side English string, NOT a bundle key: it must
+    // never be handed to TLi18n.t(), which would echo it verbatim on a localized
+    // screen. It is shown as escaped raw detail under the localized sentence.
     if (rawMessage) {
-      return '<div class="state ' + m.cls + '"><h4>' + esc(TLi18n.t(m.title)) + '</h4><div>'
-           + esc(TLi18n.t(rawMessage, { status: httpStatus })) + '</div></div>';
+      detail = '<div class="code">' + esc(rawMessage) + '</div>';
     }
   }
+  // pbc.serverErrorBody carries a {status} placeholder, so the params are always
+  // passed - calling t() without them would print the literal "{status}".
   return '<div class="state ' + m.cls + '"><h4>' + esc(TLi18n.t(m.title)) + '</h4><div>'
-       + esc(TLi18n.t(m.body)) + '</div><div class="code">' + esc(code) + '</div></div>';
+       + esc(TLi18n.t(m.body, { status: httpStatus })) + '</div>' + detail
+       + '<div class="code">' + esc(code || ('http_' + httpStatus)) + '</div></div>';
 }
 
 function showState(html) {

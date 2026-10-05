@@ -285,6 +285,27 @@ used |= {'pbc.series'}                                          # composed: 'pbc
 used |= set(re.findall(r"'(pbc\.series(?:\.[A-Z][a-zA-Z]*)?)'", html))
 check('I1', 'the screen references only declared keys (no raw key in the DOM)',
       (used - {'pbc.series'}).issubset(set(KEYS)), str(sorted(used - set(KEYS))))
+# the unknown-failure branch must localize its body, never echo the server string
+check('I3', 'pbc.serverErrorBody is reachable (no dead key) and the unknown-code '
+            'branch does NOT feed the server message to TLi18n.t()',
+      'pbc.serverErrorBody' in used and 'TLi18n.t(rawMessage' not in html
+      and 'esc(rawMessage)' in html)
+# Every pbc.* key that CONTAINS a placeholder must be looked up with params:
+# TLi18n.t() prints a literal "{x}" when none are passed (a real leak found here).
+en_pbc = {k: v for k, v in json.load(open('gui/templates/i18n/en.json',
+                                         encoding='utf-8')).items() if k.startswith('pbc.')}
+with_ph = sorted(k for k, v in en_pbc.items() if '{' in str(v))
+# pbc.serverErrorBody is reached through the state map (body: 'pbc.serverErrorBody'),
+# so its call site carries the variable, not the literal - check the single render
+# site of any map body instead.
+leaks = [k for k in with_ph
+         if not re.search(r"TLi18n\.t\('%s'\s*,\s*\{" % re.escape(k), html)
+         and not (k == 'pbc.serverErrorBody'
+                  and re.search(r"body: '%s'" % re.escape(k), html)
+                  and 'TLi18n.t(m.body, { status: httpStatus })' in html)]
+check('I4', 'every pbc key with a {placeholder} is looked up WITH params',
+      not leaks, 'keys=%s leaking=%s' % (with_ph, leaks))
+
 check('I2', 'every pbc key referenced by the screen is covered by the suite list',
       not (set(k for k in KEYS if k.startswith('pbc.')) - used),
       str(sorted(k for k in KEYS if k.startswith('pbc.') and k not in used)))
