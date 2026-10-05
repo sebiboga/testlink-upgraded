@@ -6687,5 +6687,12 @@
   "rb.status_confirmed": "yi zhengshi",
   "rb.status_assigned": "yi fenpei",
   "rb.status_resolved": "yi jiejue wenti",
-  "rb.status_closed": "yi guanbi wenti"
+  "rb.status_closed": "yi guanbi wenti",
+  "sv.grid.expandCollapseGroups": "打开/折叠组",
+  "sv.grid.showAllColumns": "显示所有列",
+  "sv.grid.hideSuiteColumn": "隐藏测试集列",
+  "sv.grid.groupItem": "({count} 项)",
+  "sv.grid.groupItems": "({count} 项)",
+  "sv.grid.groupsCollapsed": "已折叠组",
+  "sv.grid.groupsExpanded": "已展开组"
 }

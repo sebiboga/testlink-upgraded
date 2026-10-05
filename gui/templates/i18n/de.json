@@ -6701,5 +6701,12 @@
   "rb.status_confirmed": "Bestatigt",
   "rb.status_assigned": "Zugewiesen",
   "rb.status_resolved": "Vorgang gelost",
-  "rb.status_closed": "Vorgang geschlossen"
+  "rb.status_closed": "Vorgang geschlossen",
+  "sv.grid.expandCollapseGroups": "Gruppen ein-/ausklappen",
+  "sv.grid.showAllColumns": "Alle Spalten anzeigen",
+  "sv.grid.hideSuiteColumn": "Spalte Test-Suite ausblenden",
+  "sv.grid.groupItem": "({count} Element)",
+  "sv.grid.groupItems": "({count} Elemente)",
+  "sv.grid.groupsCollapsed": "Gruppen eingeklappt",
+  "sv.grid.groupsExpanded": "Gruppen ausgeklappt"
 }

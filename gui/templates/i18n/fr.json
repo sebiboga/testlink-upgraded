@@ -6727,5 +6727,12 @@
   "rb.status_confirmed": "Confirme",
   "rb.status_assigned": "Attribue",
   "rb.status_resolved": "Anomalie resolue",
-  "rb.status_closed": "Anomalie fermee"
+  "rb.status_closed": "Anomalie fermee",
+  "sv.grid.expandCollapseGroups": "Afficher/Masquer les groupes",
+  "sv.grid.showAllColumns": "Afficher toutes les colonnes",
+  "sv.grid.hideSuiteColumn": "Masquer la colonne Suite de Tests",
+  "sv.grid.groupItem": "({count} élément)",
+  "sv.grid.groupItems": "({count} éléments)",
+  "sv.grid.groupsCollapsed": "Groupes masqués",
+  "sv.grid.groupsExpanded": "Groupes affichés"
 }

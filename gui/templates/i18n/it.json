@@ -6701,5 +6701,12 @@
   "rb.status_confirmed": "Confermato",
   "rb.status_assigned": "Assegnato",
   "rb.status_resolved": "Problema risolto",
-  "rb.status_closed": "Problema chiuso"
+  "rb.status_closed": "Problema chiuso",
+  "sv.grid.expandCollapseGroups": "Espandi/Riduci Gruppi",
+  "sv.grid.showAllColumns": "Mostra tutte le colonne",
+  "sv.grid.hideSuiteColumn": "Nascondi colonna Suite di Test",
+  "sv.grid.groupItem": "({count} elemento)",
+  "sv.grid.groupItems": "({count} elementi)",
+  "sv.grid.groupsCollapsed": "Gruppi ridotti",
+  "sv.grid.groupsExpanded": "Gruppi espansi"
 }

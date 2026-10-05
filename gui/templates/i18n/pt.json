@@ -6707,5 +6707,12 @@
   "rb.status_confirmed": "Confirmado",
   "rb.status_assigned": "Atribuido",
   "rb.status_resolved": "Ocorrencia resolvida",
-  "rb.status_closed": "Ocorrencia encerrada"
+  "rb.status_closed": "Ocorrencia encerrada",
+  "sv.grid.expandCollapseGroups": "Expandir/Minimizar Grupos",
+  "sv.grid.showAllColumns": "Mostrar todas as colunas",
+  "sv.grid.hideSuiteColumn": "Ocultar coluna Suite de Testes",
+  "sv.grid.groupItem": "({count} item)",
+  "sv.grid.groupItems": "({count} items)",
+  "sv.grid.groupsCollapsed": "Grupos minimizados",
+  "sv.grid.groupsExpanded": "Grupos expandidos"
 }

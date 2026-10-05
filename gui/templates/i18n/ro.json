@@ -6721,5 +6721,12 @@
   "rb.status_confirmed": "Confirmat",
   "rb.status_assigned": "Atribuit",
   "rb.status_resolved": "Incident rezolvat",
-  "rb.status_closed": "Incident inchis"
+  "rb.status_closed": "Incident inchis",
+  "sv.grid.expandCollapseGroups": "Extinde/Comprimă grupuri",
+  "sv.grid.showAllColumns": "Afișează toate coloanele",
+  "sv.grid.hideSuiteColumn": "Ascunde coloana Suite de Teste",
+  "sv.grid.groupItem": "({count} element)",
+  "sv.grid.groupItems": "({count} elemente)",
+  "sv.grid.groupsCollapsed": "Grupuri comprimate",
+  "sv.grid.groupsExpanded": "Grupuri extinse"
 }

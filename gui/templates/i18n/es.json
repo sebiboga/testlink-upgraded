@@ -6701,5 +6701,12 @@
   "rb.status_confirmed": "Confirmado",
   "rb.status_assigned": "Asignado",
   "rb.status_resolved": "Incidencia resuelta",
-  "rb.status_closed": "Incidencia cerrada"
+  "rb.status_closed": "Incidencia cerrada",
+  "sv.grid.expandCollapseGroups": "Expandir/Recoger Grupos",
+  "sv.grid.showAllColumns": "Mostrar todas las columnas",
+  "sv.grid.hideSuiteColumn": "Ocultar columna Suite de Pruebas",
+  "sv.grid.groupItem": "({count} elemento)",
+  "sv.grid.groupItems": "({count} elementos)",
+  "sv.grid.groupsCollapsed": "Grupos recogidos",
+  "sv.grid.groupsExpanded": "Grupos expandidos"
 }

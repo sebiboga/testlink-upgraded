@@ -6707,5 +6707,12 @@
   "rb.status_confirmed": "kakunin sumi",
   "rb.status_assigned": "wariate sumi",
   "rb.status_resolved": "kaiketsu sumi mondai",
-  "rb.status_closed": "shuryo shita mondai"
+  "rb.status_closed": "shuryo shita mondai",
+  "sv.grid.expandCollapseGroups": "グループの展開/折りたたむ",
+  "sv.grid.showAllColumns": "全ての列を表示",
+  "sv.grid.hideSuiteColumn": "テストスイート列を隠す",
+  "sv.grid.groupItem": "({count} 項目)",
+  "sv.grid.groupItems": "({count} 項目)",
+  "sv.grid.groupsCollapsed": "グループを折りたたみました",
+  "sv.grid.groupsExpanded": "グループを展開しました"
 }

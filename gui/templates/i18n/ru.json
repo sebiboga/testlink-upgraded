@@ -6707,5 +6707,12 @@
   "rb.status_confirmed": "Podtverzhdeno",
   "rb.status_assigned": "Naznacheno",
   "rb.status_resolved": "Oshibka ustranena",
-  "rb.status_closed": "Oshibka zakryta"
+  "rb.status_closed": "Oshibka zakryta",
+  "sv.grid.expandCollapseGroups": "Развернуть/Свернуть группы",
+  "sv.grid.showAllColumns": "Показать все столбцы",
+  "sv.grid.hideSuiteColumn": "Скрыть столбец Тестовый набор",
+  "sv.grid.groupItem": "({count} элемент)",
+  "sv.grid.groupItems": "({count} элементов)",
+  "sv.grid.groupsCollapsed": "Группы свернуты",
+  "sv.grid.groupsExpanded": "Группы развернуты"
 }
