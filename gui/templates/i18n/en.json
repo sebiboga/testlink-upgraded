@@ -6717,5 +6717,7 @@
   "rmo.grid.showAllColumns": "Show all Columns",
   "rmo.resetToDefaultState": "Reset to Default State",
   "rmo.resetFilters": "Reset Filters",
-  "rmo.multiSort": "MultiSort"
+  "rmo.multiSort": "MultiSort",
+  "search.jolly": "Jolly (OR)",
+  "search.jollyHint": "value will be searched like in OR mode in title,summary,preconditions,steps,actions"
 }

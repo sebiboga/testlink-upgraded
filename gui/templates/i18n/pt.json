@@ -6697,5 +6697,7 @@
   "usergrid.userId": "ID de Utilizador",
   "version": "Versão",
   "rb.executionHistory": "Histórico de execuções",
-  "rb.testCaseDesign": "Projeto do caso de teste"
+  "rb.testCaseDesign": "Projeto do caso de teste",
+  "search.jolly": "Jolly (OU)",
+  "search.jollyHint": "o valor será pesquisado tal como em modo OU no título, resumo, pré-condições, passos e ações"
 }

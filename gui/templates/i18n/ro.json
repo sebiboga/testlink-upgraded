@@ -6711,5 +6711,7 @@
   "rmo.grid.showAllColumns": "Afișează toate coloanele",
   "rmo.resetToDefaultState": "Resetare la starea implicită",
   "rmo.resetFilters": "Resetează filtrele",
-  "rmo.multiSort": "Sortare multiplă"
+  "rmo.multiSort": "Sortare multiplă",
+  "search.jolly": "Jolly (OR)",
+  "search.jollyHint": "Valoarea va fi căutată în mod OR în titlu, sumar, precondiții, pași, acțiuni"
 }

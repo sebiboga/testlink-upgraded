@@ -149,6 +149,10 @@ table.dataTable tbody td { padding: 8px 14px; font-size: 13px; vertical-align: m
       <label for="custom_field_value" data-i18n="search.customFieldValue">Custom field value</label>
       <input type="text" class="form-control" id="custom_field_value" maxlength="20">
     </div>
+    <div class="form-group">
+      <label for="jolly" data-i18n="search.jolly">Jolly (OR)</label>
+      <input type="text" class="form-control" id="jolly" maxlength="50" data-i18n-title="search.jollyHint">
+    </div>
     <div class="form-group" id="grpReqDocId" style="display:none">
       <label for="requirement_doc_id" data-i18n="search.requirementDocId" title="">Requirement document ID</label>
       <input type="text" class="form-control" id="requirement_doc_id" maxlength="32">
@@ -317,6 +321,8 @@ function doSearch() {
     var v = $.trim($('#' + k).val());
     if (v !== '') q.set(k, v);
   });
+  var jolly = $.trim($('#jolly').val());
+  if (jolly !== '') q.set('jolly', jolly);
   ['importance','status','keyword_id','custom_field_id'].forEach(function (k) {
     var v = parseInt($('#' + k).val() || '0', 10);
     if (v > 0) q.set(k, v);
