@@ -128,6 +128,38 @@ screen reaches full parity.
   with Name, URL prefill, Reset, BFF matrix, Event Viewer clean, console clean).
   Regression suite "Task — Issue #1077" appended to `tmp/TLU_Test_Cases.md`. (Refs #1077)
 
+- [KEY BUGFIX] (security) - #1696: **the legacy requirement specification tree lazy loader
+  `lib/ajax/getrequirementnodes.php` authorized nothing but the SESSION, so any authenticated
+  user - a global `<no rights>` role included - could read the `req_specs.doc_id`, the
+  requirement titles and the shape of the requirement branch of ANY test project, and walk
+  the whole node hierarchy.** It called only `testlinkInitPage($db)`
+  (`lib/ajax/getrequirementnodes.php:19-21`, zero `hasRight`/`checkRights` in the file),
+  took `root_node` / `node` / `filter_node` straight out of the request (`:23-28`), and
+  filtered its SQL on `parent_id` alone - no project scope, no node-type gate. With only
+  `?node=<id>` (no `root_node`) it even emitted `javascript:REQ_SPEC_MGMT(,2)`, addressing a
+  node with an empty project id. 1.9.20 reached it only through the `reqSpecListTree` frame,
+  whose role check masked the loader's own missing one; that frame became a 302 shim to the
+  modern screen in Refs #1695, so the last mask was removed while the loader was left in
+  place - the endpoint became directly reachable. Measured pre-fix as a role-3 user with an
+  EMPTY `user_testproject_roles`: `?mode=reqspec&root_node=1` -> HTTP 200
+  `SPEC-B-001:Secret Spec B (1)`, `&node=2` -> HTTP 200 `REQ-B-001:Secret Requirement B1`,
+  and `events` stayed at 0 rows, i.e. the disclosure was completely unlogged. The loader is
+  now retired IN PLACE as a non-mutating 302 shim - the exact shape already used for the two
+  siblings of this bug class, `gettprojectnodes.php` (Refs #1770) and
+  `getreqcoveragenodes.php` (Refs #1765): `doDBConnect()` + `checkSessionValid()` keep the
+  legacy anonymous bounce to `login.php?note=expired`, every non-`GET`/`HEAD` verb is refused
+  with `405 method_not_allowed` + a `tLog(…, 'WARNING')` row so the retirement is visible in
+  the Event Viewer, and a legacy `GET` is redirected to
+  `gui/templates/requirements/reqSpecListTree.html` carrying `tproject_id` (from `tproject_id`
+  or the legacy `root_node`) and `filter_node`. The unauthorized read is deliberately NOT
+  replayed. The file is kept rather than deleted because
+  `lib/functions/tlRequirementFilterControl.class.php:272` still builds this URL into its
+  loader (a dead call path - `new tlRequirementFilterControl` has 0 hits repo-wide), so a
+  redirect keeps the old URL resolving instead of 404-ing it. No regression to the modern
+  tree: `api/reqspectreelist/index.php` still answers `200` for a user holding `mgt_view_req`
+  and `403 no_right` for one that does not (`:154-167`). 10-case regression suite appended to
+  `tmp/TLU_Test_Cases.md`, executed 10/10 PASS. (Fixes #1696)
+
 - [KEY BUGFIX] - #1839: **the entire `fr_FR` locale was dead - every request that resolved a
   server-side string returned HTTP 500 with a zero-byte body.** `locale/fr_FR/strings.txt:4089`
   held a single-quoted PHP literal with two bare apostrophes
