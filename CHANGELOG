@@ -7947,6 +7947,29 @@ Changes:
       project tables and added user metrics to the middle section
 
 ## 2.0.1 (in-progress)
+### Gap closed — Search Test Cases: the result grid lost the legacy group-by-Test-Suite ExtTable behaviour (Fixes #1092)
+- `gui/templates/search/searchView.html` rendered the quick-search hits as a FLAT
+  DataTable, dropping everything `lib/testcases/tcSearch.php:339-351`
+  (`buildExtTable`) configured: `setGroupByColumnName('test_suite')` +
+  `setSortByColumnName('test_case')` + `sortDirection='DESC'` +
+  `showToolbar=true` + `allowMultiSort=false`.
+  The rows are now grouped per test-suite path under a collapsible teal header
+  `Suite Alpha (3 Items)` (legacy `groupTextTpl '{text} (N Items)'`,
+  `lib/functions/exttable.class.php:591`) with the new
+  `rowGroup.dataTables` plugin, the grid toolbar returns with the
+  `Expand/Collapse Groups` button (the only button legacy showed for this screen:
+  `toolbarRefreshButton`/`toolbarShowAllColumnsButton` are false in
+  `tcSearch.php:349-350` and `storeTableState=false` suppresses the default-state
+  button, `inc_ext_table.tpl:187-206`), plus a `Show all Columns` /
+  `Hide Test Suite column` toggle for the legacy `hideGroupedColumn=true` state
+  (`exttable.class.php:55`) that legacy could never undo. Default order is
+  suite path asc (RowGroup merges only contiguous runs, so the grouped column must
+  stay the primary sort criterion) then test case **desc**, `orderMulti:false`
+  mirrors `allowMultiSort=false`, and the no-CDN fallback `<tbody>` (#799) carries
+  the same group headers. Result rows became objects so ordering uses the raw
+  path while the visible cell stays escaped. No BFF change: `api/search/index.php`
+  already returns `path` per row. 7 new i18n keys (`sv.grid.*`) in **all 10**
+  bundles.
 ### KEY BUGFIX (i18n) — `gui/templates/i18n/fr.json` missed 26 keys `en.json` defines, so `fr_FR` users saw raw dotted keys (`role.noRights`) on screen (Fixes #1840)
 - `TLi18n.t()` resolves as `_strings[key] || key` (`gui/templates/i18n/i18n.js:165`), so a key missing from the loaded bundle has **no fallback layer**: the module returned the key itself and `apply()` wrote it into `textContent`, overwriting the English literal in the HTML. Added the 26 keys (`rctc.*` 6, `role.*` 6, `ts.*` 4, `rmo.grid.*` 7, `rmo.*` 3) with French translations at their alphabetical position; `{count}` preserved. Key-set diff `fr` vs `en`: 26 -> 0. The ASIDE `Test Strategy`/`Documentation` symptom in the report is a **different** i18n layer (legacy `locale/fr_FR/strings.txt`, filed as #1843); the `de`/`es`/`it` twins and a coverage CI gate were filed as #1844.
 ### Screen — Results by Issues BTS bug decoration `resultsBugs` (Refs #1268)
