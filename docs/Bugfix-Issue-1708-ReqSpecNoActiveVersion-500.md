@@ -13,7 +13,7 @@ empty body** whenever the target test case had **no active version** (all
 `lib/functions/requirement_spec_mgr.class.php:2632` did
 `current($tcMgr->get_last_active_version($tcase_id))`. `get_last_active_version()`
 returns **null** when the test case has no active version
-(`lib/functions/testcase.class.php:6184`), and `current(null)` throws an uncaught
+(`lib/functions/testcase.class.php:6184` init, `:6304` return), and `current(null)` throws an uncaught
 `TypeError` (`Argument #1 ($array) must be of type array, null given`) → fatal → 500.
 On PHP 7 the same line produced the filed E_WARNING ("Trying to access array offset on
 value of type bool") and `$ltcv = 0`, an empty "Assigned" grid.

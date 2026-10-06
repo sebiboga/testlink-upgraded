@@ -183,7 +183,7 @@ screen reaches full parity.
   `arLatestTCVersion()` does not filter `TCV.active`, so every Assign Requirements read of such
   a test case died - `assignReqs.html`, `tcEdit.html`, `testSpec.html`, `tcView.html`.
   Fix: the #1705 precedent - `(array)` cast + `is_array()` guard at
-  `requirement_spec_mgr.class.php:2632`, `$ltcv = 0` fallback -> honest empty grid, HTTP 200.
+  `requirement_spec_mgr.class.php:2639` (the pre-fix line was 2632), `$ltcv = 0` fallback -> honest empty grid, HTTP 200.
   Measured: R1 (bug) 500 -> 200; control/reqtcassign-404/twin/Event-Viewer R2-R7 unchanged.
   Regression suite "Regression - Issue #1708" appended to `tmp/TLU_Test_Cases.md`. (Refs #1708)
 
