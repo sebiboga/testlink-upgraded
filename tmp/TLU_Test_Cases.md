@@ -1466,3 +1466,23 @@ bundles. **Result: 11/11 + 7/7 review follow-up = PASS.**
 | 7 | Browser console during all of the above | no JS errors | PASS — only pre-existing a11y hint ("A form field element should have an id or name attribute") |
 | 8 | `SELECT log_level FROM events` after testing | no new Error/Warning rows (only INFO audits) | PASS — 3 rows, all `log_level=16`, none from this run's testing |
 | 9 | `bash ai/verify_i18n_coverage.sh` | key-set gate passes (no bundle missing `common.generatedBy`) | PASS — 9/9 bundles, 0 missing |
+
+## Suite — Issue #1814: Configuration Check screen + dashboard banner
+
+**Precondition** — fresh DB fixture as produced for #1300+ (install dir present → `install_dir`, default admin pwd → `admin_pwd`, empty email config → five `email_config` notes, **7 notes total**), `TL_WARNING_MODE = FILE`, logged in as admin at http://localhost:8082.
+
+| # | Steps | Expected | Actual |
+|---|-------|----------|--------|
+| 1 | `GET /api/configcheck/index.php?action=init` | `200` `{status:ok, count:7, mode:"FILE", file:".../logs/config_check.txt", appVersion:"2.0.1", legacy_function:"configCheck.php::getSecurityNotes"? }` | PASS — `{status:"ok", notes:7, mode:"FILE", file:".../testlink-upgraded/logs/config_check.txt", appVersion:"2.0.1 [TEST]", user_id:1, legacy_function:"lib/functions/configCheck.php::getSecurityNotes"}` |
+| 2 | Same request as anonymous (no session) | `401 {"status":"error","code":"not_authenticated"}` (session gate before DB connect) | PASS — curl 401 + code; browser redirects to `login.php?note=expired&destination=%2Fgui%2Ftemplates%2Fconf%2FconfigCheck.html` |
+| 3 | `POST`/`PUT` to the BFF | `405` with `Allow: GET, HEAD` | PASS — curl 405, `Allow: GET, HEAD` |
+| 4 | `?action=bogus` | `400 {"code":"unknown_action"}` | PASS — curl 400 + `unknown_action` |
+| 5 | Open `gui/templates/conf/configCheck.html` (en) | title "Configuration Check"; meta strip shows mode FILE, file path, count 7, version; all 7 notes listed with codes; footer "TestLink 2.0.1 - Configuration Check" | PASS — title + meta + 7 notes (`install_dir`, `admin_pwd`, `email_config` x5) |
+| 6 | Locale switch to Română, reload `?locale=ro` | all labels localized (`ccn.*`, `footers.configCheck`), note texts still legacy EN (BFF strings) | PASS — "Verificarea configurației", "Avertismente=7", banner/footer localized |
+| 7 | Refresh button; then Back button | Refresh re-runs the fetch (notes unchanged); Back → `history.back()` (leaves screen) | PASS — refresh re-rendered 7 notes; back returned to dashboard |
+| 8 | `gui/templates/mainpage/mainPage.html` (dashboard) | amber banner after loading: "Configuration check", "7 configuration warnings detected.", "View details" → opens `/gui/templates/conf/configCheck.html` in a new tab | PASS — banner rendered with `{count}`=7 interpolated; link opened screen in `_blank` tab |
+| 9 | Browser console during all of the above | no JS errors | PASS — no console messages on screen or dashboard |
+| 10 | `SELECT log_level FROM events` after testing | no new Error/Warning rows | PASS — 0 new Error/Warning rows |
+| 11 | `bash ai/verify_i18n_coverage.sh` before commit | key-set gate passes across all 9 non-en bundles | PASS — 9/9 bundles, 0 missing (`ccn.*` + `footers.configCheck`) |
+
+**Result: 11/11 PASS.**
