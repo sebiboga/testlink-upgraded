@@ -3344,6 +3344,7 @@ if ($action === 'free_testcases') {
         'rows'              => $rows,
         'warning_msg'       => $warningMsg,
         'elapsed_time'      => round(microtime(true) - $timerOn, 2),
+        'generated_on'      => date('Y-m-d H:i:s'),
     ]);
     exit;
 }
