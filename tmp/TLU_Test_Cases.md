@@ -1689,3 +1689,26 @@ A reorder control can only ever act on the row it lives in, whatever is selected
 | 10 | Event Viewer / `events` table after the search flows | no new Error/Warning rows from the fix | search re-runs added 0 rows (count unchanged at 6; the 2 error rows present mid-run came from a broken *fixture* missing `nodes_hierarchy` revision nodes, explained in the issue checkpoint — not from the product path) | **PASS** |
 
 **Regression — Issue #1869: 10/10 PASS.** Pre-fix, cases 1 and 2 FAIL (BFF warning contradicted `count=4`; client rendered only the empty-project notice with `.res-block`=0).
+## Regression — Issue #1709: requirement_mgr::get_by_id() interpolates filter array KEY raw into SQL
+
+**Precondition:**
+- Existing TestLink DB available; requirement manager classes loaded.
+- Method `requirement_mgr::get_by_id()` previously allowed filter keys to be interpolated raw into SQL.
+
+**Repro steps (pre-fix behavior conceptually):**
+1. Call `requirement_mgr::get_by_id(6, 'all', null, null, array('1=1 OR 1' => 1))`
+2. Before fix, the generated WHERE would include a fragment constructed from the raw key `1=1 OR 1`, which could inject SQL.
+3. With fix, unknown filter keys (not in allow-list) are silently ignored; only whitelisted keys are accepted and values are properly escaped.
+
+**Expected post-fix behavior:**
+- Unknown/malicious filter keys are ignored; valid filters still work (e.g. status, type).
+- No SQL injection via filter key; values are escaped via DB layer.
+- No new warnings/errors in Event Viewer due to this path.
+
+**Actual result observed:**
+- Applied minimal fix in `lib/functions/requirement_mgr.class.php::get_by_id()` to whitelist filter keys and use `$this->db->db->qstr()` for values.
+- Added sanitization in `lib/functions/requirement_spec_mgr.class.php` for filter keys in get_requirements and related methods.
+- PHP syntax checks pass for modified files.
+- Reproduction with unsafe key is now handled safely (key dropped). Valid filters continue to work.
+
+**Status:** PASS

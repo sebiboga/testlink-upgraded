@@ -623,7 +623,15 @@ class requirement_spec_mgr extends tlObjectWithAttachments
 
   // null => do not filter
   $my['filters'] = array('status' => null, 'type' => null);
-  $my['filters'] = array_merge($my['filters'], (array)$filters);
+  $merged = array_merge($my['filters'], (array)$filters);
+  // Sanitize filter keys to prevent SQL injection via raw keys
+  $my['filters'] = array();
+  $allowed_filters = array('status', 'type', 'active', 'is_open');
+  foreach ($merged as $k => $v) {
+    if (in_array($k, $allowed_filters) && !is_null($v) && is_scalar($v)) {
+      $my['filters'][$k] = $v;
+    }
+  }
 
   $rs = null;	
 	$tcase_filter = '';
@@ -2619,7 +2627,14 @@ function get_requirement_child_by_id_req($id){
     // LINK_TC_REQ_CLOSED_BY_EXEC], as api/reqtcassign and api/requirements do.
     // null => do not filter
     $my['filters'] = array('link_status' => 1, 'type' => null);
-    $my['filters'] = array_merge($my['filters'], (array)$filters);
+    $merged = array_merge($my['filters'], (array)$filters);
+    $my['filters'] = array();
+    $allowed_filters = array('link_status', 'type', 'status');
+    foreach ($merged as $k => $v) {
+      if (in_array($k, $allowed_filters) && !is_null($v) && is_scalar($v)) {
+        $my['filters'][$k] = $v;
+      }
+    }
 
 
     // 
@@ -2821,7 +2836,14 @@ function get_requirement_child_by_id_req($id){
 
     // null => do not filter
     $my['filters'] = array('link_status' => 1, 'type' => null);
-    $my['filters'] = array_merge($my['filters'], (array)$filters);
+    $merged = array_merge($my['filters'], (array)$filters);
+    $my['filters'] = array();
+    $allowed_filters = array('link_status', 'type', 'status');
+    foreach ($merged as $k => $v) {
+      if (in_array($k, $allowed_filters) && !is_null($v) && is_scalar($v)) {
+        $my['filters'][$k] = $v;
+      }
+    }
 
 
     // Step 1 - 

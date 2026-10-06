@@ -6152,7 +6152,7 @@ class testcase extends tlObjectWithAttachments {
     $add_filters = ' ';
     foreach($my['filters'] as $field => $value)
     {
-      switch($my['filters'])
+      switch($field)
       {
         case 'version':
         if( !is_null($value) )
@@ -6380,11 +6380,16 @@ class testcase extends tlObjectWithAttachments {
 
     if ( !is_null($filters) )
     {
+      $allowed = array('version', 'status', 'tc_external_id');
       foreach($filters as $key => $value)
       {
-        if( !is_null($value) )
+        if( !is_null($value) && in_array($key, $allowed) )
         {
-          $sql .= " AND TCV.{$key}={$value} "; // Hmmm some problems coming with strings
+          if ($key === 'version') {
+            $sql .= " AND TCV.version = " . intval($value);
+          } else {
+            $sql .= " AND TCV.{$key}=" . $this->db->db->qstr($value);
+          }
         }
       }
     }
