@@ -307,7 +307,9 @@ var reqTable = null;
 
 $(function() {
   var p = new URLSearchParams(window.location.search);
-  SPEC_ID = parseInt(p.get('id') || p.get('req_spec_id') || 0, 10);
+  // #1865: also accept reqspec_id= — the name searchMgmt.html used to emit and
+  // any historical/bookmarked reqspec_id= deep links; id= / req_spec_id= stay primary.
+  SPEC_ID = parseInt(p.get('id') || p.get('req_spec_id') || p.get('reqspec_id') || 0, 10);
   TPROJECT_ID = parseInt(p.get('tproject_id') || 0, 10);
   TLi18n.load(function() {
     TLi18n.apply();
