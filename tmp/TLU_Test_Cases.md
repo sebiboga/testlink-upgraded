@@ -1664,3 +1664,28 @@ A reorder control can only ever act on the row it lives in, whatever is selected
 | 9 | Event Viewer / `events` table | no new Error/Warning | 2 rows only — `id 1 CREATE` (fixture) + `id 2 LOGIN`, both `log_level 16` audit. No error/warning row created | **PASS** |
 
 **Regression — Issue #1684: 9/9 PASS.** Pre-fix, cases 1, 2 and 7 all FAIL (wrong row reordered / silent no-op, and the wrong order written to `nodes_hierarchy`).
+
+## Regression — Issue #1869: searchMgmt.html empty_testproject early-return hides Req.Spec/Requirement results on requirements-only projects
+
+**Precondition** — Fresh DB. `mysql ... < tmp/fixtures_1869.sql` creates project **9106 REQONLY1869** (prefix RO18, serialized `options` blob with `requirementsEnabled=1`, `option_reqs=1`, `tc_counter=0`) with 2 req specs (9206 SPEC Alpha zephyr / 9207 SPEC Beta zephyr) + 2 requirements (9216/9217) matching `zephyr`, and **zero test cases**. `php tmp/fixtures_1869b.php` creates regression companions: **92172 TCCASE1869** (requirements disabled, 1 test case "zephyr login case") and **92173 NOREQ1869** (requirements disabled, 0 test cases). Login admin/admin.
+
+**Pre-fix behavior (reproduced before the fix)** — BFF `GET /api/searchmgmt/index.php?action=results&tproject_id=9106&target=zephyr&...&rs_title=1&rs_scope=1&rq_*=1` returned `{"warning":"empty_testproject","count":4,"testcases":[],"reqspecs":[2 rows],"requirements":[2 rows]}` — self-contradictory payload. Browser `searchMgmt.html?tproject_id=9106&target=zephyr` rendered ONLY the notice "This test project has no test cases yet / Create a test case first, then search again."; `#resultsWrap .res-block` count = **0** (reqspec/requirement rows discarded by the early-return at `searchMgmt.html:352-363`).
+
+**Expected post-fix behavior** — Matching Requirement Specifications and Requirements rows render (legacy full-text search showed them); the empty-project notice appears only when the project truly has nothing to show; `no_records_found` still used when test cases exist but nothing matches.
+
+**Fix** — `api/searchmgmt/index.php`: warning emission gated on `$total` (all dimensions) instead of the TC-only `$emptyTestProject` flag: `if ($total == 0) { $warning = $emptyTestProject ? 'empty_testproject' : 'no_records_found'; }`. No client change required.
+
+| # | Step | Expected | Actual | Result |
+|---|---|---|---|---|
+| 1 | BFF results on 9106 target=zephyr (all criteria incl. rs_*/rq_*) | `warning` empty, `count=4`, `reqspecs`/`requirements` populated | curl: `{status:"ok", warning:"", count:4, tc:0, rs:2, rq:2}` | **PASS** |
+| 2 | Browser `searchMgmt.html?tproject_id=9106&target=zephyr` (auto-run) | Req.Spec + Requirement blocks render; no empty-project notice | Results "4 match(es)"; heading "Requirement specifications 2 match(es)" with SPEC Alpha/Beta zephyr; heading "Requirements 2 match(es)" with REQ-ZR-A1/B1; `.res-block` = 2; console clean | **PASS** |
+| 3 | Req.Spec result hrefs on the same screen (#1865 contract) | `reqSpecView.html?id=<req_spec_id>&tproject_id=` (not `reqspec_id=`) | hrefs `...?id=9206&tproject_id=9106` and `?id=9207&...` | **PASS** |
+| 4 | Open `reqSpecView.html?id=9206&tproject_id=9106` | Spec loads, deleted-banner hidden | `#deletedBanner display:none`; infoLine `#9206 · Revision r1` | **PASS** |
+| 5 | BFF results on 9106 target=qqqnope (no match) | `warning=empty_testproject`, `count=0` (notice path intact) | curl: `{warning:"empty_testproject", count:0}` | **PASS** |
+| 6 | BFF results on 92172 (has TCs) target=zzznomatch | `warning=no_records_found`, `count=0` | curl: `{warning:"no_records_found", count:0, tc:0}` | **PASS** |
+| 7 | BFF results on 92172 target=zephyr | no warning, TC block data present | curl: `{warning:"", count:1, tc:1, name:"zephyr login case"}` | **PASS** |
+| 8 | BFF results on 92173 (reqs disabled, 0 TCs) target=zephyr | `warning=empty_testproject`, empty req arrays | curl: `{warning:"empty_testproject", count:0, rs:0, rq:0}` | **PASS** |
+| 9 | `php -l api/searchmgmt/index.php` | no syntax errors | `No syntax errors detected` | **PASS** |
+| 10 | Event Viewer / `events` table after the search flows | no new Error/Warning rows from the fix | search re-runs added 0 rows (count unchanged at 6; the 2 error rows present mid-run came from a broken *fixture* missing `nodes_hierarchy` revision nodes, explained in the issue checkpoint — not from the product path) | **PASS** |
+
+**Regression — Issue #1869: 10/10 PASS.** Pre-fix, cases 1 and 2 FAIL (BFF warning contradicted `count=4`; client rendered only the empty-project notice with `.res-block`=0).
