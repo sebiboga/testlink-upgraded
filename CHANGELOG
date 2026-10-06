@@ -17,6 +17,31 @@ Every screen of the application was ported one-by-one in a screen-compare
 kept for backward compatibility and is progressively retired as each modern
 screen reaches full parity.
 
+- [KEY BUGFIX] - #1869: **on requirements-only projects (0 test cases) the simple Full-Text
+  Search screen (`searchMgmt.html`) never showed the Req.Spec/Requirement result blocks even
+  though the BFF returned them** — `api/searchmgmt/index.php` emitted
+  `warning=empty_testproject` from a test-case-only flag (`getTestCaseIDSet()`), producing a
+  self-contradictory payload (`warning=empty_testproject` + `count=4` + populated
+  `reqspecs[]`/`requirements[]`), and `searchMgmt.html:352-363`'s early-return on that
+  warning discarded the rows. Legacy `lib/search/search.php:145,156,171` cleared the warning
+  whenever any result table was built, so legacy full-text search DID show reqspec hits on
+  requirements-only projects. Fix (1 file): the BFF warning is now gated on the whole result
+  set — `if ($total == 0) { $warning = $emptyTestProject ? 'empty_testproject' : 'no_records_found'; }`
+  — so `empty_testproject` is only emitted when there is truly nothing to show; no client
+  change was needed (the existing early-return then fires only when `total==0`). The sibling
+  pattern in `api/search/index.php` was left untouched: its consumers show a warnBox
+  *alongside* the rows (no results lost) and it had no symptom. Browser+curl verified on
+  fixture project 9106 (REQONLY1869, requirements-enabled via the serialized
+  `testprojects.options` blob — the legacy `option_reqs` column alone does not flip
+  `reqEnabled` in `getOptions()`): BFF `{warning:"", count:4, rs:2, rq:2}`; browser renders
+  "4 match(es)" with both Req.Spec (hrefs `reqSpecView.html?id=`, #1865 contract intact)
+  and Requirement blocks; regression matrix 7 cases PASS (no-match notice paths,
+  `no_records_found` on projects with TCs, requirements-disabled project, #1865
+  click-through); Event Viewer: 0 new rows from the search flow; `php -l` clean; console
+  clean. Regression suite "Regression — Issue #1869" 10/10 PASS, gate exit 0.
+  Docs: `docs/Bugfix-Issue-1869-SearchMgmt-Empty-Testproject-Hides-ReqSpec-Results.md`.
+  (Refs #1869)
+
 - [KEY BUGFIX] - #1865: **the simple Full-Text Search screen (`searchMgmt.html`) linked every
   Requirement Specification result to `reqSpecView.html?reqspec_id=<id>`, but the viewer only
   resolved `id`/`req_spec_id` (`reqSpecView.html:310`) — `SPEC_ID` stayed 0 and 100% of RS
