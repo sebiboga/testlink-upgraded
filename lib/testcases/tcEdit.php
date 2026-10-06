@@ -324,7 +324,10 @@ function init_args(&$cfgObj,$otName,&$tcaseMgr) {
 
   if( $args->tcversion_id == 0 && $args->tcase_id > 0 ) {
     // get latest active version
-    $nu = key($tcaseMgr->get_last_active_version($args->tcase_id));
+    // get_last_active_version() returns NULL when the test case has no active
+    // version (or does not exist) -> key() would throw a PHP 8 TypeError (#1859)
+    $lastActiveVersion = $tcaseMgr->get_last_active_version($args->tcase_id);
+    $nu = is_array($lastActiveVersion) ? key($lastActiveVersion) : null;
   }
 
 
