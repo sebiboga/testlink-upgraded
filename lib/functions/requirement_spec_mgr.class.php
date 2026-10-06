@@ -2629,8 +2629,15 @@ function get_requirement_child_by_id_req($id){
         " JOIN {$this->views['latest_tcase_version_id']} LTCV " .
         " ON LTCV.tcversion_id = RCOV.tcversion_id ";
     } else {
-      $tcInfo = current($tcMgr->get_last_active_version($tcase_id));
-      $ltcv = intval($tcInfo['tcversion_id']);            
+      // get_last_active_version() returns null when the test case has no
+      // active version at all (testcase.class.php), and current(null) raises
+      // a PHP 8 TypeError (HTTP 500 on the assign-reqs BFF) - on PHP 7 it
+      // yielded false and reading ['tcversion_id'] on it raised
+      // "Trying to access array offset on value of type bool". $ltcv = 0 is
+      // the honest value: no coverage row can be on tcversion 0, so the
+      // assigned grid comes back empty instead of fataling (issue #1708).
+      $tcInfo = current((array)$tcMgr->get_last_active_version($tcase_id));
+      $ltcv = is_array($tcInfo) ? intval($tcInfo['tcversion_id']) : 0;
       $tcversionJoin = " AND RCOV.tcversion_id = " . $ltcv;
     }
 
