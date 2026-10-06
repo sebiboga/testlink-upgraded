@@ -63,6 +63,21 @@ a.assigned-qe { color: #4ECDC4; }
   <div id="loadingBox" class="card" style="text-align:center;color:#7a7a7a;"><span data-i18n="dash.loading">Loading dashboard...</span></div>
   <div id="warnBox" class="card" style="display:none;"><span id="warnMsg" style="color:#e6605e;"></span></div>
 
+  <!-- Refs #1814: config-check security notes (getSecurityNotes()), which every
+       legacy page computed and no 2.0.1 screen rendered. Rendered only when the
+       BFF reports at least one warning; the fetch failure is silent on purpose. -->
+  <div id="cfgCheckBanner" class="card" style="display:none;border-left:4px solid #e6a23c;background:#fffaf0;">
+    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+      <i class="fa fa-exclamation-triangle" style="color:#e6a23c;font-size:18px;"></i>
+      <div style="flex:1;min-width:220px;">
+        <b data-i18n="ccn.bannerTitle">Configuration check</b>
+        <div id="cfgCheckMsg" style="font-size:13px;color:#555;"></div>
+      </div>
+      <a id="cfgCheckLink" href="/gui/templates/conf/configCheck.html" target="_blank" class="btn btn-sm"
+         style="background:#4ECDC4;color:#fff;border:none;text-decoration:none;" data-i18n="ccn.bannerLink">View details</a>
+    </div>
+  </div>
+
   <div id="contentBox" style="display:none;">
     <!-- Execution status pie + table -->
     <div class="card" id="secExec">
@@ -187,8 +202,24 @@ $(function() {
     TLi18n.apply();
     TLi18n.initLocaleSwitcher('#localeSwitcher');
     loadData();
+    loadConfigCheckBanner();
   });
 });
+
+/**
+ * Refs #1814: advisory banner for the config-check security notes. A failure
+ * here must never disturb the dashboard - the banner is additive only.
+ */
+function loadConfigCheckBanner() {
+  $.getJSON('/api/configcheck/index.php?action=init')
+    .done(function(r) {
+      if (r && r.status === 'ok' && (parseInt(r.count, 10) || 0) > 0) {
+        $('#cfgCheckMsg').text(TLi18n.t('ccn.bannerText', { count: r.count }));
+        $('#cfgCheckBanner').show();
+      }
+    })
+    .fail(function() { /* silent: the dashboard must load regardless */ });
+}
 
 function loadData() {
   $.ajax({

@@ -1910,6 +1910,11 @@ function getActions(&$gui,$baseURL) {
   // #1556. Opened in a new window from the Event Viewer row detail; the BFF
   // enforces mgt_view_events and the legacy controller redirects here.
   $actions->eventInfo = "/gui/templates/eventviewer/eventinfo.html?{$ctx}";
+  // Configuration Check / Security Notes (Refs #1814): the notes getSecurityNotes()
+  // computed on every legacy page and no 2.0.1 screen rendered. Reached from the
+  // Dashboard banner; this action exists so any caller can build the deep link
+  // without hardcoding the path.
+  $actions->configCheck = "/gui/templates/conf/configCheck.html?{$ctx}";
   $actions->rolesView = "/gui/templates/usermanagement/rolesView.html?{$ctx}";
 
   $actions->usersAssign = "/gui/templates/usermanagement/usersAssignProject.html?{$ctx}";
