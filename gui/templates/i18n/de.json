@@ -1708,6 +1708,7 @@
   "ftc.elapsedSeconds": "Elapsed seconds",
   "ftc.forProject": "for test project",
   "ftc.header": "Test Cases Not Assigned to Any Test Plan",
+  "ftc.infoReport": "Dieser Report zeigt alle Testfälle, die KEINEM Test Plan dieses Projekts hinzugefügt wurden.",
   "ftc.matchCount": "Match count",
   "ftc.testCases": "test cases",
   "ftc.testProject": "Test Project",

@@ -1708,6 +1708,7 @@
   "ftc.elapsedSeconds": "Elapsed seconds",
   "ftc.forProject": "for test project",
   "ftc.header": "Test Cases Not Assigned to Any Test Plan",
+  "ftc.infoReport": "このレポートは、このプロジェクトのどのテスト計画にも追加されていない全てのテストケースを表示します。",
   "ftc.matchCount": "Match count",
   "ftc.testCases": "test cases",
   "ftc.testProject": "Test Project",

@@ -24,6 +24,7 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 .section-head i { color: #4ECDC4; }
 .section-head .bmeta { font-size: 12px; font-weight: 400; color: #667; margin-left: auto; }
 .section-body { padding: 10px 20px 14px; overflow-x: auto; }
+p.reportinfo { margin: 12px 28px 0; font-style: italic; font-size: 12.5px; color: #556; }
 table.flat { width: 100%; border-collapse: collapse; font-size: 12px; }
 table.flat th { background: #22242a; color: #fff; padding: 7px 10px; text-align: left; white-space: nowrap; font-size: 11.5px; position: sticky; top: 0; z-index: 1; }
 table.flat td { padding: 5px 10px; border-bottom: 1px solid #eee; vertical-align: top; }
@@ -160,7 +161,8 @@ function loadData() {
       var html = '<div class="section"><div class="section-head">' +
         '<i class="fa fa-table"></i> ' + t('ftc.header', 'Test Cases Not Assigned to Any Test Plan') +
         '<span class="bmeta">' + t('ftc.matchCount', 'Match count') + ': ' + d.rows.length + '</span>' +
-        '</div><div class="section-body"><table id="dtResults" class="flat" style="width:100%"></table></div></div>';
+        '</div><div class="section-body"><table id="dtResults" class="flat" style="width:100%"></table></div></div>' +
+        '<p class="info reportinfo">' + esc(t('ftc.infoReport', 'This report shows all test cases that have not been added to ANY test plan of this project.')) + '</p>';
       $('#reportArea').html(html);
       $('#countBadge').text(d.rows.length + ' ' + t('ftc.testCases', 'test cases'));
 

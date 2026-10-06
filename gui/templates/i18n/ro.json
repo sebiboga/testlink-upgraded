@@ -1708,6 +1708,7 @@
   "ftc.elapsedSeconds": "Timpul scurs (secunde)",
   "ftc.forProject": "pentru proiectul de testare",
   "ftc.header": "Cazuri de test neartribuite niciunui plan de testare",
+  "ftc.infoReport": "Acest raport arată toate cazurile de test care nu au fost adăugate la niciun plan de testare al acestui proiect.",
   "ftc.matchCount": "Număr de potriviri",
   "ftc.testCases": "cazuri de test",
   "ftc.testProject": "Proiect de testare",
