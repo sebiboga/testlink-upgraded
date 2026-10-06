@@ -1580,3 +1580,25 @@ suites' unique content survives — `Suite 1681` marker 1/1, `Suite 1608` marker
 
 **PASS/FAIL: PASS** (residual: the 7 `git rebase -X theirs` workflow sites remain for other
 shared files — tracked as a follow-up issue, see #1694 FIX PLAN comment).
+## Regression — Issue #1865: searchMgmt.html Req.Spec result links use reqspec_id= which reqSpecView.html ignores
+
+**Precondition** — fresh DB; `tmp/fixtures_1865.sql` loaded (project 9096 "SearchMgmt RS Fixture" with `testprojects.options` = serialized `{requirementsEnabled:1}`, req specs 9097 "SPEC Alpha zephyr" / 9098 "SPEC Beta zephyr" with revision NODES 9102/9103 `node_type_id=11`, suite 9099 + test case 9100 so the search BFF does not flag `empty_testproject`); logged in as admin at http://localhost:8082; headless Chrome via chrome-devtools MCP. App at http://localhost:8082 (PHP built-in server).
+
+**Pre-fix behavior (reproduced before the fix)** — `searchMgmt.html:387` rendered RS result hrefs as `reqSpecView.html?reqspec_id=9097&tproject_id=9096`; opening that URL showed `getComputedStyle(#deletedBanner).display === 'block'` ("The requirement specification does not exist or has been deleted.") while `reqSpecView.html?id=9097` loaded the same spec.
+
+| # | Steps | Expected (post-fix) | Actual |
+|---|-------|---------------------|--------|
+| 1 | `GET /api/searchmgmt/index.php?action=results&tproject_id=9096&target=zephyr&and_or=or&rs_title=1&rs_scope=1&tc_title=1&tc_summary=1` | `status:ok`, 2 reqspec rows (9097/9098), 1 testcase row, no `empty_testproject` warning | PASS — `{status:ok, warning:"", count:3, reqspecs:[SPEC Alpha zephyr 9097, SPEC Beta zephyr 9098], testcases:[TC Alpha zephyr 9100]}` |
+| 2 | Open `searchMgmt.html?tproject_id=9096&target=zephyr`; read `#resultsWrap a.rowlink` hrefs | RS hrefs use `id=` (not `reqspec_id=`); TC href unchanged `tcView.html?tcase_id=` | PASS — hrefs `/gui/templates/requirements/reqSpecView.html?id=9097&tproject_id=9096` and `?id=9098&...`; TC link `tcView.html?tcase_id=9100&tproject_id=9096` unchanged |
+| 3 | Click the first RS result (opens `target=_blank`) → `reqSpecView.html?id=9097&tproject_id=9096` | Banner hidden (`display:none`); page contains `SPEC Alpha zephyr` + `DOC-A` | PASS — banner `none`, `SPEC Alpha zephyr` + `DOC-A` in `body.innerText` |
+| 4 | Open `reqSpecView.html?id=9097&tproject_id=9096` directly (control) | Spec loads, banner hidden | PASS — banner `none`, spec loaded |
+| 5 | Open `reqSpecView.html?reqspec_id=9097&tproject_id=9096` (old broken URL — now the alias) | Spec loads via the new alias (no deleted-banner) | PASS — banner `none`, spec loaded |
+| 6 | Open `reqSpecView.html?req_spec_id=9098&tproject_id=9096` (pre-existing accepted name) | Spec 9098 loads, banner hidden | PASS — banner `none`, `SPEC Beta zephyr` + `DOC-B` |
+| 7 | Open `reqSpecView.html?tproject_id=9096` (no id param) | Localized "no id" banner still shown (`rsv.noId`) — no false-positive load | PASS — banner `block`, text "The requirement specification does not exist or has been deleted." |
+| 8 | Priority: `reqSpecView.html?reqspec_id=9097&req_spec_id=9098&tproject_id=9096` | `req_spec_id` (higher in the chain) wins → spec 9098 | PASS — code-review measurement: `SPEC_ID=9098`, no shadowing by the alias |
+| 9 | Second RS result click-through (`id=9098`) from searchMgmt | Spec Beta zephyr loads | PASS — same as #6 via DOM href `?id=9098&...` |
+| 10 | `GET /api/reqspec/index.php?action=spec_view&id=9097&tproject_id=9096` (API contract unchanged) | `status:ok` with `spec.title="SPEC Alpha zephyr"` | PASS — `{status:ok, spec:{title:"SPEC Alpha zephyr", doc_id:"DOC-A"}}` |
+| 11 | `SELECT * FROM events WHERE id > 10` after all post-fix requests | 0 new rows (the 4 pre-existing ERROR/WARNING rows fired earlier this run against a broken *fixture draft* — revision node id collision — not the fix) | PASS — 0 new events; post-fix API/browser requests emit nothing |
+| 12 | `php -l` not applicable (HTML+JS screens only); `git diff` scope check | Exactly 2 files changed: `searchMgmt.html` (link param) + `reqSpecView.html` (alias chain); no i18n keys added (no new strings) | PASS — `3401c66a1` touches only those 2 files (+4/−2) |
+
+**Result: 12/12 PASS.** Code review (subagent) verdict: APPROVE — XSS clean (`req_spec_id` is `intval()` at `api/search/index.php:604`, same unescaped-number concat as sibling link builders; `esc()` on anchor text), priority order of accepted params unchanged, no drive-by changes. Sibling dead-link defects discovered and filed separately (NOT fixed in this run): #1866 (`tsuite_id=` → suiteView.html), #1867 (`req_id=` → reqView.html), #1869 (`empty_testproject` early-return hides reqspec/requirement results on requirements-only projects).
