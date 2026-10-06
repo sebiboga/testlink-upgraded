@@ -17,6 +17,28 @@ Every screen of the application was ported one-by-one in a screen-compare
 kept for backward compatibility and is progressively retired as each modern
 screen reaches full parity.
 
+- [KEY BUGFIX] - #1865: **the simple Full-Text Search screen (`searchMgmt.html`) linked every
+  Requirement Specification result to `reqSpecView.html?reqspec_id=<id>`, but the viewer only
+  resolved `id`/`req_spec_id` (`reqSpecView.html:310`) — `SPEC_ID` stayed 0 and 100% of RS
+  results opened the "requirement specification does not exist or has been deleted" banner.**
+  The legacy `openLinkedReqSpecWindow()` (`testlink_library.js:1166`) and every other modern
+  producer emit the documented `id=` contract (`docs/WIKI-REQUIREMENT-SPEC-VIEWER.md`); the
+  simple-search port was written against `reqspec_id` — the legacy PHP argument name of a
+  *different* endpoint (`reqSpecPrint.php`). Fix (`3401c66a1`, 2 files): `searchMgmt.html:387`
+  now emits `id=`, and `reqSpecView.html:310` additionally accepts `reqspec_id=` as a third
+  alias so historical/bookmarked deep links keep working (primary names keep priority —
+  `?reqspec_id=…&req_spec_id=…` resolves to `req_spec_id`). Browser-verified on fixture
+  project 9096 (specs 9097/9098): DOM hrefs now `id=`, click-through loads the spec
+  (`#deletedBanner` `display:none`, title+doc_id present), alias + `req_spec_id=` + `id=`
+  all load, missing-id still shows `rsv.noId`, API `spec_view` contract unchanged, 0 new
+  Event Viewer rows; code-review subagent APPROVE (XSS clean — `req_spec_id` is `intval()` at
+  `api/search/index.php:604`). Regression suite "Regression — Issue #1865" 12/12 PASS, gate
+  exit 0. Three sibling dead-link / empty-project defects found while reproducing were filed,
+  not fixed: **#1866** (`suiteView.html?tsuite_id=` ignored by `suiteView.html:341`),
+  **#1867** (`reqView.html?req_id=` ignored by `reqView.html:337`), **#1869**
+  (`empty_testproject` early-return `searchMgmt.html:352-363` hides reqspec/requirement
+  results on requirements-only projects). (Refs #1865)
+
 - [KEY BUGFIX] - #1859: **legacy `lib/testcases/tcEdit.php` answered HTTP 500 with 0 bytes for any
   deep link without `tcversion_id` when the test case has no active version** (all `tcversions.active = 0`)
   or the id does not exist — `init_args()` ran `$nu = key($tcaseMgr->get_last_active_version($tcase_id))`
