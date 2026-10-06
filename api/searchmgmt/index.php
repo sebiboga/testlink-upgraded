@@ -521,11 +521,16 @@ if (count($mapRQ) > 0) {
 
 $total = count($tcRows) + count($tsRows) + count($rsRows) + count($rqRows);
 
+// Refs #1869: the warning must reflect the WHOLE result set, not the
+// test-case dimension alone. A requirements-only project (0 test cases)
+// that matches reqspec/requirement rows returns count>0 + rows; emitting
+// empty_testproject there made searchMgmt.html's early-return discard them
+// (legacy lib/search/search.php:145,156,171 cleared the warning whenever
+// any result table was built). Warning is therefore only set when there is
+// truly nothing to show.
 $warning = '';
-if ($emptyTestProject) {
-    $warning = 'empty_testproject';
-} elseif ($total == 0) {
-    $warning = 'no_records_found';
+if ($total == 0) {
+    $warning = $emptyTestProject ? 'empty_testproject' : 'no_records_found';
 }
 
 out(array(
