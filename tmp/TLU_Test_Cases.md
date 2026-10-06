@@ -1712,3 +1712,39 @@ Steps / Expected / Actual:
 | 10 | Event Viewer (`events` table) after all steps | No new Error/Warning rows | **PASS** — table holds only 3 INFO audit rows (2× `audit_login_succeeded`, 1× `audit_testproject_created`, all `log_level 16`); zero Error/Warning added by the change |
 
 **Suite 1097: 10/10 PASS**
+## Issue #1809: Execution Notes Picker `execNotesPicker` — screen `gui/templates/execute/execNotesPicker.html` + BFF `api/execnotespicker`
+
+**Fixtures (tmp, git-ignored):** `tmp/fixtures_1809.php` → test project `ENP1809` (id 1, prefix `ENP`), test plan `ENP Plan` (id 2), build `ENP Build 1` (id 1), suite `ENP Suite` (id 3), test cases 4/6 (tcversions 5/7), executions 1–5: 1 passed + note, 2 failed + note containing the stored `<img onerror>` payload probe, 3 blocked + note, 4/5 without notes. Rights user: role 3 `<no rights>` login `enpguest` (project + plan role 3, password hash copied from admin).
+
+### Expected behaviour
+
+The picker lists the executions of the current test plan (which ones carry notes), filters them by "only with notes" and by free text, deep-links the read-only viewer on a row, and refuses anonymous / rightless / unknown-plan callers with the documented contracts (401 `not_authenticated`, byte-identical 404 `plan_not_found`, 400 `no_testplan`/`invalid_tplan`/`unknown_action`, 405 read-only). The ASIDE offers the entry only to users holding one of the three read grants; the read-only viewer without an `exec_id` hands over to the picker.
+
+### Actual result
+
+| # | Case | Expected | Actual | Verdict |
+|---|------|----------|--------|---------|
+| 1 | **Load** `execNotesPicker.html?tplan_id=2` (admin) | meta `ENP1809 / ENP Plan / 5 / 3`, 3 rows (notes-only default), counter `3 / 5`, title `Execution Notes — pick an execution - ENP Plan` | all measured, `#rows tr`=3, `#fltCounter`=`3 / 5` | **PASS** |
+| 2 | **Uncheck** "Only executions with notes" | all 5 executions, counter `5 / 5` | `#rows tr`=5, counter `5 / 5` | **PASS** |
+| 3 | **Text filter** `blocked` (status added to haystack by review fix) | 1 row — `#3` | 1 row, `#3 … Blocked` | **PASS** |
+| 4 | **Text filter** `zzz-no-match` | empty-state row `No execution matches the current filters.` | `0 / 5`, that exact message in `tbody` | **PASS** |
+| 5 | **Open** on execution 3 | `execNotesReadonly.html?exec_id=3`, notes `Blocked by the missing SSO certificate.`, `#ctxExec`=`#3` | measured, edit button enabled for admin | **PASS** |
+| 6 | **XSS probe** (execution 2, stored `<img onerror>` note) | inert escaped text, no element, no global | `#notesBox img`=0, `innerHTML`=`Rich text note with a payload probe:\ntrailing text`, `window.__enp_xss`=undefined | **PASS** |
+| 7 | **Refresh** | spinner → table repaint, exactly **2** picker XHRs (`init`, `executions&with_notes=0`) | network: `action=init` + `action=executions&with_notes=0` only (review fix removed the third round trip) | **PASS** |
+| 8 | **Close** (menu-opened, no `window.opener`) | falls back to history, never a silent no-op | navigated back to `execNotesReadonly.html?exec_id=3` | **PASS** |
+| 9 | **Execution Navigator** link carries context | `?tplan_id=2&tproject_id=1` (review fix) | `#btnNavigator href`=`/gui/templates/execute/execNavigator.html?tplan_id=2&tproject_id=1` | **PASS** |
+| 10 | **Status column** for `n` / unknown chars (review fix) | localized `Not Run` / `Unknown`, `.badge-n` styled | `statusLabel('n')`=`Not Run`, `statusLabel('')`=`Unknown` | **PASS** |
+| 11 | **Unknown plan** `?tplan_id=99999` | card `Test plan not found / plan_not_found`, content hidden | measured `Test plan not found The test plan does not exist or you are not allowed to read it. plan_not_found` | **PASS** |
+| 12 | **No plan in URL** (session fallback) | loads the session's plan (here `ENP Plan`), 3 rows | measured, `#mbPlan`=`ENP Plan` | **PASS** |
+| 13 | **Anonymous** (isolated context) `?tplan_id=2` | card `Session expired / not_authenticated`, content hidden | measured `Session expired Please sign in again to continue. not_authenticated` | **PASS** |
+| 14 | **Role-3 user** (`enpguest`) `?tplan_id=2` | byte-identical `plan_not_found` card (denial ≠ oracle leak) | measured `… plan_not_found` — identical to case 11; `events` row id 5 `BFF: user 2 refused … - no right`, `log_level` 16 (AUDIT), **0 new WARNING/ERROR** | **PASS** |
+| 15 | **ASIDE entry** | admin: item `id=execNotesPicker`, label `Execution notes`, href `?tproject_id=1&tplan_id=2`; `enpguest`: no such item | `/api/aside/index.php?action=init` → admin `hits=[{sec:execution,id:execNotesPicker,…}]`, enpguest `hits=[]` and no `execution` section | **PASS** |
+| 16 | **Viewer hand-off** (readonly without `exec_id`) | `No execution selected … invalid_exec_id` + `Pick an execution` button → picker | button rendered with `enro.pickExecution`, click landed on `execNotesPicker.html`, 3 rows | **PASS** |
+| 17 | **Locale switch** `&locale=ro` | no raw `enp.*`/`enro.*` keys, columns `EXECUȚIE / CAZ DE TEST / STARE / …`, footer, `document.title`=`Note de execuție — alegeți o execuție - ENP Plan`, `html lang=ro` | all measured, raw-key regex over `body.innerText` = 0 hits | **PASS** |
+| 18 | **BFF contracts** (curl, admin session) | anon `401 not_authenticated`; fresh session `400 no_testplan`; `tplan_id=abc` / `tplan_id[]` `400 invalid_tplan`; `action=bogus` `400 unknown_action`; `POST` `405 method_not_allowed`; unknown plan `404 plan_not_found`; `with_notes=maybe` `400 invalid_parameter`; `?action=init&tplan_id=2` `200` with counts 5/3 | all 9 measured, bodies exactly as listed | **PASS** |
+| 19 | **i18n coverage gate** | `bash ai/verify_i18n_coverage.sh` exit 0, all 10 bundles | `9 bundle(s) passed, 0 failed`, 6901 keys each, 36 insertions / **0 deletions** per bundle, `python3 -m json.tool` clean | **PASS** |
+| 20 | **Browser console** | 0 errors/warnings on the picker (admin) | `<no console messages found>`; anon/guest pages show only the deliberate 401/404 XHR responses | **PASS** |
+| 21 | **Event Viewer / `events` table** | no new Error/Warning | 5 rows total, all `log_level` 16: fixture CREATE + 3 LOGIN + the AUDIT refusal; **0 ERROR/WARNING** | **PASS** |
+| 22 | **Code review** (subagent, rule 16) | 4 required code fixes applied before commit | fixed: navigator ctx href, `statusLabel` `n`/unknown + `.badge-n`, `fa-sticky-note-o`→`fa-sticky-note`, single-round-trip load with `handleFail`; CHANGELOG entry added | **PASS** |
+
+**Issue #1809: 22/22 PASS.** Cases 3, 9, 10 and 22 (and the third XHR in 7) FAIL without the code-review fixes applied in commit `9244cbd8d`; case 14 FAIL (raw `plan_not_found` vs denial) without the BFF oracle rule from commit `f714d76cf`.
