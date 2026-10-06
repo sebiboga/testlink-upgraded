@@ -1524,3 +1524,34 @@ Expected:
 Actual: all as above in BFF checks; UI fallback/parity matches legacy.
 
 PASS/FAIL: PASS
+
+## Regression — Issue #1694: CI fallback rebase must not clobber a concurrent agent's suite in this ledger
+
+**Precondition.** Git/CI plumbing only (no app/DB needed). A throwaway git harness:
+`git init --bare origin.git; git symbolic-ref HEAD refs/heads/main`, seeded with the real
+`tmp/TLU_Test_Cases.md` (1526 lines at base) and the guard line
+`tmp/TLU_Test_Cases.md merge=union` in `.gitattributes` (as committed in `15ae8c1bc`).
+Three clones: `seed`, `other`, `agent`.
+
+**Repro steps (pre-fix behaviour, i.e. control WITHOUT `.gitattributes`):**
+1. `other` appends a 45-line "Suite 1681" block to `tmp/TLU_Test_Cases.md`, commits, pushes to `main`.
+2. `agent` is cloned BEFORE that push (stale), branches from the old base, appends its own
+   20-line "Suite 1608" block, commits — this is the CI "leftover changes" commit.
+3. Replay the fallback step: `git rebase -X theirs origin/main`.
+
+**Expected (pre-fix / control):** Suite 1681 lines are silently discarded — measured
+`1681-surviving: 0` (the reported defect).
+
+**Expected (post-fix, `.gitattributes` guard present at upstream):** rebase succeeds and BOTH
+suites' unique content survives — `Suite 1681` marker 1/1, `Suite 1608` marker 1/1, the
+1681 table row AND the 1608 table row both present; synthetic variant keeps 45/45 + 20/20 lines.
+
+**Actual result (executed this run):**
+* control without guard: `1681-surviving: 0`, `1608-surviving: 20` — bug reproduced 1/1;
+* with guard (`15ae8c1bc`): synthetic `1681: 45, 1608: 20` — PASS;
+  realistic (`base=1526 ours=1541 merged=1543`): `1681=1 1608=1`, both table rows present — PASS;
+* agent-only append (no concurrent change) with guard: suite marker + unique line `1/1` — PASS;
+* `git check-attr merge` resolves `union` for the ledger only, `unspecified` elsewhere — PASS.
+
+**PASS/FAIL: PASS** (residual: the 7 `git rebase -X theirs` workflow sites remain for other
+shared files — tracked as a follow-up issue, see #1694 FIX PLAN comment).
