@@ -1524,3 +1524,29 @@ Expected:
 Actual: all as above in BFF checks; UI fallback/parity matches legacy.
 
 PASS/FAIL: PASS
+
+## Task — Issue #1096: Req. Specification result click opens the specific spec (gap vs legacy)
+
+### Suite: 1096 — advanced-search RS result click
+Precondition: app at http://localhost:8082 (admin/admin), DB fixture `tmp/fixtures_1096.sql` loaded —
+project **9096** "ReqSpec Click Fixture Project" (`requirementsEnabled=1`), specs **9097** "SPEC Alpha zephyr"
+(revision node 9197, requirement 9297/9397) and **9098** "SPEC Beta" (revision node 9198), suite **9099**
+"Main Suite" + test case **9100** "FIX96-1 TC zephyr login", keyword `zephyr` present in every row.
+
+Steps / Expected / Actual:
+
+| # | Step | Expected | Actual |
+|---|---|---|---|
+| 1 | Open `/gui/templates/search/searchAdvancedView.html?tproject_id=9096`, enter `zephyr`, click **Find** | All four sections render (TC, Test Suites, Requirement Specifications, Requirements) with a match count | **PASS** — `#matchCount = (4 matches)`, `#secTC` `#secTS` `#secRS` visible, `#secRQ` hidden (no requirement matches `zephyr`), `#warnBox` empty |
+| 2 | Click the row link `SPEC Alpha zephyr [r1]` | New tab opens `reqSpecView.html?id=9097&tproject_id=9096` (legacy `openLinkedReqSpecWindow()` target) | **PASS** — page URL is exactly `…/reqSpecView.html?id=9097&tproject_id=9096`; BEFORE the fix it was `reqSpecMgmt.html?tproject_id=9096` |
+| 3 | Inspect the opened viewer | Spec 9097 renders: no "does not exist" banner, header `#9097 · Revision r1`, identifier `DOC-A` | **PASS** — `getComputedStyle(#deletedBanner).display === 'none'`, body contains `#9097 · Revision r1 … IDENTIFIER DOC-A SPEC Al…` |
+| 4 | Click the second row `SPEC Beta [r1]` | Opens `reqSpecView.html?id=9098&tproject_id=9096` and renders **SPEC Beta** (proves `rsId` — not the project id — drives the URL) | **PASS** — page URL `…?id=9098&tproject_id=9096`, body contains `SPEC Beta` |
+| 5 | Regression — click the Test Case row `FIX96-1 [v1] :: TC zephyr login` | Still opens `tcView.html?tcase_id=9100&tproject_id=9096` (untouched handler) | **PASS** — tab title `TC zephyr login - Test Case Viewer`, path `Main Suite / TC zephyr login` |
+| 6 | Regression — click the Test Suite row `Main Suite` | Still opens `suiteView.html?id=9099&tproject_id=9096` (untouched handler) | **PASS** — tab title `Test Suite Viewer`, URL `…/suiteView.html?id=9099&tproject_id=9096` |
+| 7 | `grep -rn "openReqSpecEdit" gui/templates/` | 0 hits — old handler fully renamed, call site + definition in sync | **PASS** — 0 hits; `grep -c openReqSpecView` → 2 |
+| 8 | `node` parse of the inline `<script>` block of the edited file | Syntax OK | **PASS** — `block 0 OK` |
+| 9 | `bash ai/verify_i18n_coverage.sh` | No missing keys (no user-facing strings added) | **PASS** — 9 bundles × 6864 keys, 0 missing |
+| 10 | Event Viewer (`events` table) after the fix | No new Error/Warning rows | **PASS** — newest rows are `2026-10-06 15:33:44` (E_ERROR/E_WARNING from my first, incomplete fixture, resolved by completing `tmp/fixtures_1096.sql`); zero rows added by the code change |
+| 11 | Browser console on the advanced-search screen | No new errors introduced by this change | **PASS** — only the pre-existing `Uncaught ReferenceError: p is not defined` (deep-link prefill, `searchAdvancedView.html:338-345`), already tracked by open issue **#1856**; not introduced nor fixed here |
+
+**Suite 1096: 11/11 PASS**

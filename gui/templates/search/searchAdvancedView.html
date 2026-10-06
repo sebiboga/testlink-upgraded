@@ -465,7 +465,7 @@ function renderResults(r) {
   });
   renderSimple('secRS', r.reqspecs || [], function (row) {
     var name = row.req_spec_id > 0
-      ? '<a class="plain-link" href="javascript:void(0)" onclick="openReqSpecEdit(' + row.req_spec_id + ')">' +
+      ? '<a class="plain-link" href="javascript:void(0)" onclick="openReqSpecView(' + row.req_spec_id + ')">' +
         esc(row.name) + ' [r' + row.revision + ']</a>'
       : esc(row.name);
     return [name, '<span class="snippet">' + esc(stripHtml(row.scope)) + '</span>'];
@@ -542,8 +542,13 @@ function openTsEdit(tsId) {
   window.open(url, '_blank', 'width=1024,height=768,resizable=yes,scrollbars=yes');
 }
 
-function openReqSpecEdit(rsId) {
-  var url = '/gui/templates/requirements/reqSpecMgmt.html?' + (tprojectId ? 'tproject_id=' + tprojectId : '');
+// Refs #1096 - legacy lib/search/search.php:316 called openLinkedReqSpecWindow()
+// (gui/javascript/testlink_library.js:1156-1166) which opened the SPECIFIC spec
+// detail at reqSpecView.html?id=<req_spec_id>. The previous handler dropped rsId
+// and always loaded the generic reqSpecMgmt grid instead.
+function openReqSpecView(rsId) {
+  var url = '/gui/templates/requirements/reqSpecView.html?id=' + rsId +
+            (tprojectId ? '&tproject_id=' + tprojectId : '');
   window.open(url, '_blank', 'width=1024,height=768,resizable=yes,scrollbars=yes');
 }
 

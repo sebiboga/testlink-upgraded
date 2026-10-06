@@ -54,6 +54,22 @@ screen reaches full parity.
   reset, locale switch, search regression, Event Viewer clean); pre-existing console bug found
   while testing and filed, not fixed: **#1856**.
 
+- [NEW FEATURE] - #1096: **Advanced Search result click on a Requirement Specification now opens
+  THAT specification** (`gui/templates/search/searchAdvancedView.html:468` +
+  `:545-553`). The previous handler `openReqSpecEdit(rsId)` received the spec id from the BFF
+  result row and then ignored it, always loading the generic `reqSpecMgmt.html?tproject_id=…`
+  management grid; the legacy screen opened the specific specification through
+  `openLinkedReqSpecWindow()` (`lib/search/search.php:316` →
+  `gui/javascript/testlink_library.js:1156-1166` → `reqSpecView.html?id=<req_spec_id>`).
+  Renamed the handler to `openReqSpecView()` (it no longer edits anything) and it now builds
+  `reqSpecView.html?id=<rsId>&tproject_id=<tprojectId>`, the same popup shape as the sibling
+  `openTcEdit`/`openTsEdit`/`openReqEdit` handlers. No BFF change was needed (`api/search/index.php:604`
+  already returned `req_spec_id`) and no new i18n keys (no user-facing strings). Verified 11/11 PASS
+  (test suite "Task — Issue #1096" in `tmp/TLU_Test_Cases.md`): each result row opens its own spec,
+  TC/suite links regression-checked, i18n coverage gate green, Event Viewer clean; two defects found
+  while testing were filed separately: **#1865** (`searchMgmt.html` RS links use the unread
+  `reqspec_id=` parameter) and pre-existing **#1856** (console `ReferenceError: p`). (Refs #1096)
+
 - [MODERNIZED SCREEN] - #1845: **Priority Bar Chart** is no longer a dead endpoint.
   Legacy `lib/results/priorityBarChart.php` was **unreachable fatal code** on 2.0.1: it
   required `third_party/charts/charts.php` and `lib/functions/results.class.php`, both gone
