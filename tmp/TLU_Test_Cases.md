@@ -1260,37 +1260,37 @@ and verified error-free; no code change was required.
   this run's scope"). Not fixed in this run.
 
 
-## Task — Issue #1095: Per-group check/uncheck-all toggle in searchAdvancedView (gap vs legacy)
+## Regression — Issue #1708: getReqsOnSpecForLatestTCV() fatal for a test case with no active version
 
-**Precondition**
-- Fresh DB (run-time import), logged in `admin/admin` at `http://localhost:8082`.
-- Test project fixture **id=1 "Toggle Demo"** (prefix `TD`, requirements enabled) created via `gui/templates/projectsView.html` → *+ Create Test Project*.
-- Screen under test: `http://localhost:8082/gui/templates/search/searchAdvancedView.html?tproject_id=1` (requirements-enabled project ⇒ all 4 attribute groups visible).
+**Precondition** (fresh DB each run): `php tmp/fixtures_1708.php` creates tproject
+`FIX1708` (id 1, requirements enabled), spec `FX70-SPEC-A` (id 2, requirements
+FX70-1/FX70-2), suite id 8, test case `TC-NOVER` (id 9, v1 = tcversion 10),
+`req_coverage` row 1 on tcversion 10. Login `admin/admin`, cookie jar from
+`POST /api/auth/login`. Then `UPDATE tcversions SET active=0 WHERE id=10;`
+so the test case has NO active version.
 
-**Gap being tested** — legacy `gui/templates/dashio/search/searchGUI.inc.tpl:59-61,76-78,86-88,97-99` renders one `toggle_all` icon per checkbox group calling `cs_all_checkbox_in_div()` (`gui/javascript/checkboxes.js:244-262`); the modern screen had none (`grep -cE 'toggle-all|checkAll|check-all|checkUncheckAll' → 0` before the fix).
+**Repro steps (pre-fix):**
+1. `GET /api/requirements/assign-reqs?req_spec_id=2&tcase_id=9` (X-Requested-With: XMLHttpRequest).
+2. Observe response and `tmp/php_server.log`.
+3. `SELECT COUNT(*) FROM events;`
 
-**Steps / Expected / Actual**
+**Expected post-fix behavior:** HTTP 200 with `status:"ok"` and `assigned: []`
+(honest empty grid), no `Fatal error` line, `events` count unchanged.
 
-| # | step | expected | measured | result |
-|---|---|---|---|---|
-| 1 | open the screen, inspect the 4 `.check-group` headers | one master checkbox in each header, before the group title | 4 × `input.grp-toggle` (`all_tc`,`all_ts`,`all_rs`,`all_rq`), each inside `.grp-head` next to its `<h4>`; `grep -c 'grp-toggle' → 5` (1 CSS rule + 4 inputs) | PASS |
-| 2 | read the master tooltip (English) | legacy label `check_uncheck_all_checkboxes` = "check/uncheck all" | `#all_tc.title → "Check / uncheck all"`; key `searchAdv.checkUncheckAll` present in all 10 bundles, `bash ai/verify_i18n_coverage.sh → PASS 9/9, 0 missing` | PASS |
-| 3 | initial state on load | all items checked (screen default) ⇒ master checked, not indeterminate | tc 6/6, ts 2/2, rs 2/2, rq 3/3 checked; masters `{checked:true, indeterminate:false}` ×4 | PASS |
-| 4 | uncheck ONE item (`tc_steps`) | master flips to indeterminate | `{checked:false, indeterminate:true}` | PASS |
-| 5 | click the master while indeterminate | all 6 tc items checked, master checked/clean | `itemsOn 6/6, checked:true, indeterminate:false` | PASS |
-| 6 | click the master again (all checked) | check/uncheck-all alternation: everything unchecked | `itemsOn 0/6, checked:false` | PASS |
-| 7 | click the master again (all unchecked) | everything checked | `itemsOn 6/6, checked:true` | PASS |
-| 8 | uncheck the whole Test Suites group via its master, then re-check one item | master reports partial state | after master click `ts 0/2`; after `#ts_title` on → `{checked:false, indeterminate:true}` | PASS |
-| 9 | click *Reset* | all items back to checked AND master state re-synced (no stale indeterminate) | tc 6/6, ts 2/2, rs 2/2, rq 3/3; masters `{checked:true, indeterminate:false}` ×4 | PASS |
-| 10 | masters must never be picked up by the search request | `doSearch()` selectors `[id^=tc_|ts_|rs_|rq_]` / `cbKeys` untouched | master ids `all_tc/all_ts/all_rs/all_rq`; `anyCheckCollision → []` | PASS |
-| 11 | switch locale to **Română** (locale switcher → full reload `?locale=ro`) | titles translated, group headers + masters NOT wiped by `TLi18n.apply()` (textContent write on `[data-i18n]`) | titles `Bifează / debifează tot` ×4, h4s `Cazuri de test / Suites de test / Specificații de cerințe / Cerințe`, still 4 masters; toggling still works after the reload (`partial → indeterminate`, master click → 6/6) | PASS |
-| 12 | regression: click **Find** with `target=demo` | search runs, no JS breakage | warnbox `Test project is empty (no test cases).` (correct for an empty project), all 4 masters still `{checked:true}`; no NEW console errors | PASS |
-| 13 | browser console during the whole pass | no errors introduced by this change | 1 error, `Uncaught ReferenceError: p is not defined` — **pre-existing** deep-link prefill bug in `loadContext()`, filed separately as **#1856** (`bug`), untouched by this task (verified: `git diff` shows no change to that code path) | PASS (no new errors) |
-| 14 | Event Viewer / `events` table | no new Error/Warning entries | `select id,log_level,activity from events` → 2 rows, both `log_level=16` (LOGIN + audit_testproject_created), **zero** rows at error/warning level | PASS |
+**Actual result observed (post-fix, 2026-10-06):**
+- R1 no-active-version GET → `[HTTP 200]` `{"status":"ok",...,"assigned":[],...}`;
+  `tmp/php_server.log` records `[200]: GET /api/requirements/assign-reqs?...`
+  (pre-fix: `Uncaught TypeError: current(): Argument #1 ($array) must be of type
+  array, null given ... requirement_spec_mgr.class.php:2632` → `[500]`, 0 bytes).
+- R2 control (v1 reactivated) → `[HTTP 200]` assigned contains
+  `FX70-1 ... link_id 1` (unchanged from pre-fix control).
+- R3 spec-only `?req_spec_id=2` (no tcase_id) → `[HTTP 200]`, all unassigned.
+- R4 `GET /api/reqtcassign/?action=init&tproject_id=1&tcase_id=9` → clean
+  `[HTTP 404]` `{"message":"Test case has no active version"}` (already-guarded path).
+- R5 `getReqsOnSpecNotLinkedToLatestTCV()` (#1705 twin) untouched, guard at
+  `requirement_spec_mgr.class.php:2763` intact.
+- R6 `php -l lib/functions/requirement_spec_mgr.class.php` → no syntax errors.
+- R7 `events` COUNT 3 → 3; `grep -c "Fatal error" tmp/php_server.log` 1 → 1
+  (only the pre-fix reproduction) — no new Error/Warning.
 
-**Overall: 14/14 PASS.** Screenshots: `docs/screenshots/issue-1095-search-advanced-before.png`,
-`docs/screenshots/issue-1095-search-advanced-after.png`,
-`docs/screenshots/issue-1095-toggle-partial-state.png`.
-
-**Bug found while testing (rule 11):** #1856 (`bug`, filed) — `loadContext()` reads the
-out-of-scope `p`, killing URL prefill; not fixed here (scope discipline per IMPLEMENT-TASK §4).
+**Overall: PASS (R1–R7).**
