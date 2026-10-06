@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title data-i18n="ccn.title">Configuration Check</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+
+.header {
+  background: #4ECDC4; color: #fff; padding: 14px 24px;
+  font-size: 20px; font-weight: 700; letter-spacing: 1px;
+}
+.header span { font-size: 13px; font-weight: 400; opacity: .85; margin-left: 12px; }
+
+.toolbar {
+  background: #22242a; padding: 12px 24px; display: flex; gap: 10px;
+  align-items: center; flex-wrap: wrap;
+}
+.toolbar .ctx { color: #aaa; font-size: 12px; margin-right: auto; }
+.toolbar .ctx b { color: #fff; }
+
+.btn-dark { background: transparent; color: #ddd; border: 1px solid #555; padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+.btn-dark:hover { border-color: #4ECDC4; color: #4ECDC4; }
+
+.wrap { padding: 22px 24px; max-width: 1000px; margin: 0 auto; }
+
+.meta { background: #fff; border-radius: 8px; padding: 16px 20px; margin-bottom: 18px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+.meta .row { display: flex; flex-wrap: wrap; gap: 8px 28px; }
+.meta .field { font-size: 13px; color: #555; }
+.meta .field b { color: #22242a; margin-right: 5px; }
+.chip { display: inline-block; background: #eefaf9; color: #2d8e88; border: 1px solid #bfe5e2; border-radius: 10px; padding: 0 8px; font-size: 11px; font-weight: 600; margin-left: 6px; }
+.chip.grey { background: #f0f0f0; color: #666; border-color: #ddd; }
+.chip.amber { background: #fff3cd; color: #8a6100; border-color: #ecd48a; }
+.chip.green { background: #dff5d8; color: #2f7a1f; border-color: #a9dc96; }
+
+.card { background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin-bottom: 18px; }
+.card h3 { margin: 0 0 12px; font-size: 15px; color: #22242a; }
+
+.note-row {
+  display: flex; gap: 12px; align-items: flex-start;
+  border: 1px solid #f0d9a4; background: #fffaf0; border-radius: 6px;
+  padding: 10px 14px; margin-bottom: 8px;
+}
+.note-row i.fa-triangle-exclamation, .note-row i.fa-exclamation-triangle { color: #e6a23c; margin-top: 3px; }
+.note-row .note-text { font-size: 13px; color: #333; line-height: 1.5; word-break: break-word; }
+.note-row .note-code { font-family: monospace; font-size: 11px; color: #999; margin-left: auto; white-space: nowrap; }
+
+.empty-ok {
+  display: flex; gap: 10px; align-items: center; justify-content: center;
+  background: #f0faf0; border: 1px solid #bfe0bf; border-radius: 6px;
+  padding: 22px; color: #2f7a1f; font-size: 14px; font-weight: 600;
+}
+
+.state {
+  background: #fff; border-radius: 8px; padding: 40px 32px; text-align: center;
+  box-shadow: 0 1px 4px rgba(0,0,0,.08);
+}
+.state i { font-size: 34px; margin-bottom: 10px; display: block; }
+.state h3 { margin: 0 0 8px; font-size: 18px; color: #22242a; }
+.state p { margin: 0 0 6px; font-size: 14px; color: #777; }
+.state .code { font-family: monospace; font-size: 12px; color: #999; }
+.state.err { border-left: 4px solid #e6605e; }
+.state.err i { color: #e6605e; }
+.state.warn { border-left: 4px solid #e6a23c; }
+.state.warn i { color: #e6a23c; }
+
+.loading { text-align: center; padding: 60px 0; color: #888; font-size: 14px; }
+
+.footer { text-align: center; color: #999; font-size: 12px; padding: 18px 24px 28px; }
+</style>
+</head>
+<body>
+<div class="header">
+  <i class="fa fa-shield"></i>
+  <span data-i18n="ccn.title">Configuration Check</span>
+  <span class="chip grey" data-i18n="ccn.headerSub">security notes</span>
+</div>
+
+<div class="toolbar">
+  <span class="ctx">
+    <span data-i18n="ccn.mode">Warning mode</span> <b id="ctxMode">-</b>
+  </span>
+  <span id="localeSwitcher"></span>
+  <button id="btnRefresh" class="btn-dark"><i class="fa fa-refresh"></i> <span data-i18n="common.refresh">Refresh</span></button>
+  <button id="btnBack" class="btn-dark"><i class="fa fa-arrow-left"></i> <span data-i18n="common.back">Back</span></button>
+  <button id="btnClose" class="btn-dark"><i class="fa fa-times"></i> <span data-i18n="common.close">Close</span></button>
+</div>
+
+<div class="wrap">
+  <div id="loading" class="loading"><i class="fa fa-spinner fa-spin"></i> <span data-i18n="common.loading">Loading...</span></div>
+
+  <div id="content" style="display:none">
+    <div class="meta">
+      <div class="row">
+        <span class="field"><b data-i18n="ccn.mode">Warning mode</b><span id="mbMode">-</span></span>
+        <span class="field"><b data-i18n="ccn.file">Destination file</b><span id="mbFile">-</span></span>
+        <span class="field"><b data-i18n="ccn.count">Warnings</b><span id="mbCount">-</span></span>
+        <span class="field"><b data-i18n="ccn.appVersion">TestLink version</b><span id="mbVersion">-</span></span>
+      </div>
+      <p id="modeInfo" style="margin:10px 0 0;font-size:12px;color:#777;"></p>
+      <p id="fileNote" style="margin:4px 0 0;font-size:12px;color:#777;display:none;"></p>
+    </div>
+
+    <div class="card">
+      <h3><i class="fa fa-exclamation-triangle"></i> <span data-i18n="ccn.notesHeading">Configuration warnings</span></h3>
+      <div id="notesBox"></div>
+      <div id="emptyBox" class="empty-ok" style="display:none">
+        <i class="fa fa-check-circle"></i>
+        <span data-i18n="ccn.emptyMsg">No configuration warnings - every check passed.</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="stateCard" style="display:none"></div>
+
+<div class="footer"><span data-i18n="footers.configCheck">TestLink 2.0.1 - Configuration Check</span></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script>
+function esc(s) {
+  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+/**
+ * Every non-happy branch of the BFF gets its own card; the machine code from the
+ * answer stays visible so a report can quote it.
+ */
+function showState(kind, icon, titleKey, msgKey, code) {
+  $('#loading').hide();
+  $('#content').hide();
+  var html = '<div class="wrap"><div class="state ' + kind + '">' +
+    '<i class="fa ' + icon + '"></i>' +
+    '<h3>' + esc(TLi18n.t(titleKey)) + '</h3>' +
+    '<p>' + esc(msgKey ? TLi18n.t(msgKey) : '') + '</p>' +
+    '<p class="code">' + esc(code || '') + '</p>' +
+    '</div></div>';
+  $('#stateCard').html(html).show();
+}
+
+function fillNotes(notes) {
+  // Notes are DATA from the BFF: every field goes in through .text() / esc(),
+  // never through an HTML string built from the message itself.
+  var box = $('#notesBox').empty();
+  (notes || []).forEach(function (n) {
+    var row = $('<div class="note-row"></div>');
+    row.append($('<i class="fa fa-exclamation-triangle"></i>'));
+    row.append($('<div class="note-text"></div>').text(n && n.text ? String(n.text) : ''));
+    row.append($('<div class="note-code"></div>').text(n && n.code ? String(n.code) : ''));
+    box.append(row);
+  });
+}
+
+function load() {
+  $('#stateCard').hide().empty();
+  $('#loading').show();
+  $('#content').hide();
+
+  $.getJSON('/api/configcheck/index.php?action=init')
+    .done(function (r) {
+      if (r.status !== 'ok') {
+        showState('err', 'fa fa-exclamation-triangle', 'ccn.errorTitle', 'ccn.errorMsg', r.code);
+        return;
+      }
+      var count = parseInt(r.count, 10) || 0;
+      var mode = r.mode || '-';
+
+      $('#ctxMode').text(mode);
+      $('#mbMode').text(mode);
+      $('#mbFile').text(r.file ? r.file : TLi18n.t('ccn.fileNone'));
+      $('#mbCount').text(String(count));
+      $('#mbVersion').text(r.appVersion || '-');
+
+      $('#modeInfo').text(TLi18n.t('ccn.modeInfo', { mode: mode }));
+      if (r.file) {
+        $('#fileNote').text(TLi18n.t('ccn.fileNote', { file: r.file })).show();
+      } else {
+        $('#fileNote').hide();
+      }
+
+      fillNotes(r.notes);
+      $('#notesBox').toggle(count > 0);
+      $('#emptyBox').toggle(count === 0);
+
+      $('#loading').hide();
+      $('#content').show();
+    })
+    .fail(function (xhr) {
+      var body = (xhr && xhr.responseJSON) ? xhr.responseJSON : {};
+      var code = body.code || ('http_' + (xhr ? xhr.status : 0));
+      if (xhr && xhr.status === 401) {
+        window.location.href = '/login.php?note=expired&destination=' +
+          encodeURIComponent(window.location.pathname + window.location.search);
+        return;
+      }
+      if (xhr && xhr.status === 403) {
+        showState('err', 'fa fa-lock', 'ccn.accessDeniedTitle', 'ccn.accessDeniedMsg', code);
+        return;
+      }
+      if (xhr && xhr.status === 404) {
+        showState('warn', 'fa fa-search', 'ccn.notFoundTitle', 'ccn.notFoundMsg', code);
+        return;
+      }
+      if (xhr && xhr.status === 400 || (xhr && xhr.status === 405)) {
+        showState('warn', 'fa fa-question-circle', 'ccn.badRequestTitle', 'ccn.badRequestMsg', code);
+        return;
+      }
+      showState('err', 'fa fa-exclamation-triangle', 'ccn.errorTitle', 'ccn.errorMsg', code);
+    });
+}
+
+$(function () {
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+
+    $('#btnRefresh').on('click', load);
+    $('#btnBack').on('click', function () {
+      // Inside the shell this screen is opened from the Dashboard; standalone
+      // (deep link) there is nothing to go back to, so fall back to the shell.
+      if (window.history.length > 1) { window.history.back(); }
+      else { window.location.href = '/index.php'; }
+    });
+    $('#btnClose').on('click', function () {
+      if (window.history.length > 1) { window.history.back(); }
+      else { window.location.href = '/index.php'; }
+    });
+
+    load();
+  });
+});
+</script>
+</body>
+</html>
