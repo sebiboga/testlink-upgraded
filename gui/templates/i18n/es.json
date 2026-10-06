@@ -411,7 +411,7 @@
   "ccn.errorTitle": "Error del servidor",
   "ccn.file": "Archivo de destino",
   "ccn.fileNone": "no se usa en este modo",
-  "ccn.fileNote": "En el modo FILE estas advertencias también se escriben en {file}.",
+  "ccn.fileNote": "Estas advertencias también se escriben en {file}.",
   "ccn.headerSub": "notas de seguridad",
   "ccn.mode": "Modo de advertencia",
   "ccn.modeInfo": "Modo de advertencia configurado: {mode}. Esta pantalla siempre muestra todas las notas, sea cual sea el modo.",

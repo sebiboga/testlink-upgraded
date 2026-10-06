@@ -411,7 +411,7 @@
   "ccn.errorTitle": "Errore del server",
   "ccn.file": "File di destinazione",
   "ccn.fileNone": "non usato in questa modalità",
-  "ccn.fileNote": "In modalità FILE questi avvisi vengono scritti anche in {file}.",
+  "ccn.fileNote": "Questi avvisi vengono scritti anche in {file}.",
   "ccn.headerSub": "note di sicurezza",
   "ccn.mode": "Modalità avviso",
   "ccn.modeInfo": "Modalità avviso configurata: {mode}. Questa schermata elenca sempre tutte le note, qualunque sia la modalità.",

@@ -411,7 +411,7 @@
   "ccn.errorTitle": "Eroare de server",
   "ccn.file": "Fișier destinație",
   "ccn.fileNone": "nefolosit în acest mod",
-  "ccn.fileNote": "În modul FILE aceste avertismente sunt scrise și în {file}.",
+  "ccn.fileNote": "Aceste avertismente sunt scrise și în {file}.",
   "ccn.headerSub": "note de securitate",
   "ccn.mode": "Mod avertisment",
   "ccn.modeInfo": "Mod de avertisment configurat: {mode}. Această pagină afișează întotdeauna toate notele, indiferent de mod.",

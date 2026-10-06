@@ -211,7 +211,8 @@ $(function() {
  * here must never disturb the dashboard - the banner is additive only.
  */
 function loadConfigCheckBanner() {
-  $.getJSON('/api/configcheck/index.php?action=init')
+  var loc = TLi18n.getLocale ? (TLi18n.getLocale() || 'en') : 'en';
+  $.getJSON('/api/configcheck/index.php?action=init&locale=' + encodeURIComponent(loc))
     .done(function(r) {
       if (r && r.status === 'ok' && (parseInt(r.count, 10) || 0) > 0) {
         $('#cfgCheckMsg').text(TLi18n.t('ccn.bannerText', { count: r.count }));

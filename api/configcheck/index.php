@@ -59,6 +59,8 @@ function cc_require_safe_verb() {
         header('Allow: GET, HEAD');
         http_response_code(405);
         header('Content-Type: application/json; charset=utf-8');
+        header('X-Content-Type-Options: nosniff');
+        header('Cache-Control: private, no-store');
         echo json_encode(array(
             'status' => 'error',
             'code' => 'method_not_allowed',
@@ -111,7 +113,16 @@ if (!$userId || intval($userId) <= 0) {
 }
 
 $db = new database(DB_TYPE);
-doDBConnect($db);
+// doDBConnect() never throws and echoes its raw dbms_msg on failure - capture
+// and discard that echo so an authenticated caller never receives DB host/name
+// bytes inside the JSON body (doDBConnect() already tLog()s the failure, so the
+// event trail is preserved). Same inspect-the-result rationale as api/install.
+ob_start();
+$dbConn = doDBConnect($db);
+ob_end_clean();
+if (!is_array($dbConn) || empty($dbConn['status'])) {
+    cc_fail(500, 'db_unavailable', 'Database unavailable');
+}
 
 $user = tlUser::getByID($db, intval($userId));
 if (is_null($user)) {
@@ -121,6 +132,21 @@ if (is_null($user)) {
 // Enforces the legacy session inactivity window (same note as every other BFF).
 if (function_exists('bffEnforceSession')) {
     bffEnforceSession($db);
+}
+
+// The modern screen picks a language through TLi18n ('ro'), independent of
+// $_SESSION['locale'] (which drives the Smarty pages) - without this map the
+// note texts would come back in the session language while the chrome renders
+// in the client one. Same pattern as api/cfields::assignLocale().
+$clientLang = null;
+$localeArg = preg_replace('/[^a-z]/', '', strtolower((string)($_GET['locale'] ?? '')));
+if ($localeArg !== '' && strlen($localeArg) === 2) {
+    foreach (array_keys((array) config_get('locales')) as $code) {
+        if (strpos(strtolower($code), $localeArg) === 0) {
+            $clientLang = $code;
+            break;
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -133,26 +159,30 @@ $notes = array();
 
 try {
     if (checkForInstallDir()) {
-        $notes[] = array('code' => 'install_dir', 'text' => lang_get('sec_note_remove_install_dir'));
+        $notes[] = array('code' => 'install_dir', 'text' => lang_get('sec_note_remove_install_dir', $clientLang));
     }
 
     $authCfg = config_get('authentication');
     $method = (is_array($authCfg) && isset($authCfg['method'])) ? $authCfg['method'] : '';
     if ($method === 'LDAP') {
         if (!checkForLDAPExtension()) {
-            $notes[] = array('code' => 'ldap', 'text' => lang_get('ldap_extension_not_loaded'));
+            $notes[] = array('code' => 'ldap', 'text' => lang_get('ldap_extension_not_loaded', $clientLang));
         }
     } else {
         if (checkForAdminDefaultPwd($db)) {
-            $notes[] = array('code' => 'admin_pwd', 'text' => lang_get('sec_note_admin_default_pwd'));
+            $notes[] = array('code' => 'admin_pwd', 'text' => lang_get('sec_note_admin_default_pwd', $clientLang));
         }
     }
 
     if (!checkForBTSConnection($db)) {
-        $notes[] = array('code' => 'bts_connection', 'text' => lang_get('bts_connection_problems'));
+        $notes[] = array('code' => 'bts_connection', 'text' => lang_get('bts_connection_problems', $clientLang));
     }
 
-    if (defined('TL_REPOSITORY_TYPE_FS') && config_get('repositoryType') === TL_REPOSITORY_TYPE_FS) {
+    // `==` on purpose: TL_REPOSITORY_TYPE_FS is an int constant and a
+    // hand-edited custom_config can carry the numeric string; the strict
+    // compare would silently drop the repository_dir note from the one screen
+    // whose job is to render it (same loose compare as the legacy helper).
+    if (defined('TL_REPOSITORY_TYPE_FS') && config_get('repositoryType') == TL_REPOSITORY_TYPE_FS) {
         $repo = checkForRepositoryDir(config_get('repositoryPath'));
         if (!is_array($repo) || !isset($repo['status_ok']) || !$repo['status_ok']) {
             // The helper's own message is already localized (it sprintf()s the
@@ -177,29 +207,37 @@ try {
         }
     }
 
-    // Appends its own localized messages; there is no code in legacy, so the
-    // whole delta gets one stable code instead of shifting the parallel arrays.
-    $before = count($notes);
+    // Appends its own localized messages (strings or arrays without a code); if
+    // it (or an earlier helper) throws, the catch below keeps the notes already
+    // collected - the normalization loop runs on the final payload either way.
     checkForExtensions($notes);
-    for ($i = $before; $i < count($notes); $i++) {
-        if (!is_array($notes[$i])) {
-            $notes[$i] = array('code' => 'extensions', 'text' => (string)$notes[$i]);
-        } else if (!isset($notes[$i]['code'])) {
-            $notes[$i]['code'] = 'extensions';
-        }
-    }
 } catch (\Throwable $e) {
     // A fatal inside one check must not corrupt the JSON contract (same
     // fail-safe as api/install): report what was collected so far.
     tLog('api/configcheck: check aborted: ' . $e->getMessage(), 'ERROR');
 }
 
+// Normalize whatever checkForExtensions() appended - on the happy path AND on
+// the exception path, so a raw string element can never reach the JSON (the
+// screen reads n.code/n.text). Without this a partial append after a throw
+// would render an empty row while still counting it.
+foreach ($notes as $k => $n) {
+    if (!is_array($n)) {
+        $notes[$k] = array('code' => 'extensions', 'text' => (string)$n);
+    } elseif (!isset($n['code'])) {
+        $notes[$k]['code'] = 'extensions';
+    }
+}
+
 $mode = (string)config_get('config_check_warning_mode');
-$filename = rtrim((string)config_get('log_path'), "/\\") . DIRECTORY_SEPARATOR . 'config_check.txt';
-// config_check.txt is only maintained when the mode is FILE (legacy writes it
-// inside the same switch that drops the notes), so the screen must not promise
-// a destination file in SCREEN/SILENT modes.
-$fileTarget = ($mode === 'FILE') ? $filename : null;
+// Legacy builds the name with no separator (config_check_warning_mode FILE and
+// SILENT share the write inside configCheck.php:320-331); keep the byte-identical
+// expression so the screen shows the same path the file actually lands on.
+$filename = config_get('log_path') . 'config_check.txt';
+// config_check.txt is maintained for BOTH FILE and SILENT (for SILENT it is the
+// only artifact left by the mode gate that nulls the notes), so the screen
+// promises the destination file in exactly those two modes and in no other.
+$fileTarget = ($mode === 'FILE' || $mode === 'SILENT') ? $filename : null;
 
 echo json_encode(array(
     'status' => 'ok',

@@ -411,7 +411,7 @@
   "ccn.errorTitle": "服务器错误",
   "ccn.file": "目标文件",
   "ccn.fileNone": "此模式下不使用",
-  "ccn.fileNote": "在 FILE 模式下，这些警告还会写入 {file}。",
+  "ccn.fileNote": "这些警告还会写入 {file}。",
   "ccn.headerSub": "安全提示",
   "ccn.mode": "警告模式",
   "ccn.modeInfo": "配置的警告模式：{mode}。无论模式如何，此页面始终列出所有提示。",

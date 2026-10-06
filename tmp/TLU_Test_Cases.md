@@ -1473,12 +1473,12 @@ bundles. **Result: 11/11 + 7/7 review follow-up = PASS.**
 
 | # | Steps | Expected | Actual |
 |---|-------|----------|--------|
-| 1 | `GET /api/configcheck/index.php?action=init` | `200` `{status:ok, count:7, mode:"FILE", file:".../logs/config_check.txt", appVersion:"2.0.1", legacy_function:"configCheck.php::getSecurityNotes"? }` | PASS — `{status:"ok", notes:7, mode:"FILE", file:".../testlink-upgraded/logs/config_check.txt", appVersion:"2.0.1 [TEST]", user_id:1, legacy_function:"lib/functions/configCheck.php::getSecurityNotes"}` |
+| 1 | `GET /api/configcheck/index.php?action=init` | `200` `{status:ok, count:7, mode:"FILE", file:".../logs/config_check.txt", appVersion:"2.0.1", legacy_function:"getSecurityNotes"}` | PASS — `{status:"ok", notes:7, mode:"FILE", file:".../testlink-upgraded/logs/config_check.txt", appVersion:"2.0.1 [TEST] ", user_id:1, legacy_function:"getSecurityNotes"}` |
 | 2 | Same request as anonymous (no session) | `401 {"status":"error","code":"not_authenticated"}` (session gate before DB connect) | PASS — curl 401 + code; browser redirects to `login.php?note=expired&destination=%2Fgui%2Ftemplates%2Fconf%2FconfigCheck.html` |
 | 3 | `POST`/`PUT` to the BFF | `405` with `Allow: GET, HEAD` | PASS — curl 405, `Allow: GET, HEAD` |
 | 4 | `?action=bogus` | `400 {"code":"unknown_action"}` | PASS — curl 400 + `unknown_action` |
 | 5 | Open `gui/templates/conf/configCheck.html` (en) | title "Configuration Check"; meta strip shows mode FILE, file path, count 7, version; all 7 notes listed with codes; footer "TestLink 2.0.1 - Configuration Check" | PASS — title + meta + 7 notes (`install_dir`, `admin_pwd`, `email_config` x5) |
-| 6 | Locale switch to Română, reload `?locale=ro` | all labels localized (`ccn.*`, `footers.configCheck`), note texts still legacy EN (BFF strings) | PASS — "Verificarea configurației", "Avertismente=7", banner/footer localized |
+| 6 | Locale switch to Română, reload `?locale=ro` | all labels localized (`ccn.*`, `footers.configCheck`); note texts fall back to EN where `locale/ro_RO/strings.txt` lacks the key (legacy `lang_get` fallback) | PASS — "Verificarea configurației", "Avertismente=7", banner/footer localized; `install_dir`/`admin_pwd` texts EN via `lang_get` fallback (0 hits in `ro_RO/strings.txt`) |
 | 7 | Refresh button; then Back button | Refresh re-runs the fetch (notes unchanged); Back → `history.back()` (leaves screen) | PASS — refresh re-rendered 7 notes; back returned to dashboard |
 | 8 | `gui/templates/mainpage/mainPage.html` (dashboard) | amber banner after loading: "Configuration check", "7 configuration warnings detected.", "View details" → opens `/gui/templates/conf/configCheck.html` in a new tab | PASS — banner rendered with `{count}`=7 interpolated; link opened screen in `_blank` tab |
 | 9 | Browser console during all of the above | no JS errors | PASS — no console messages on screen or dashboard |

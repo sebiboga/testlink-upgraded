@@ -42,7 +42,11 @@ the modern screen always lists every note, whatever the mode.
   not_authenticated` for anonymous). Response:
   `{status:"ok", notes:[{code,text}], count, mode, file, appVersion, user_id,
   legacy_function}`. `legacy_function` documents the `getSecurityNotes()`
-  lineage; `file` only when the mode writes one. `JSON_INVALID_UTF8_SUBSTITUTE`
+  lineage; the optional `locale` short code (house
+  `assignLocale()` pattern from `api/cfields`) localizes the
+  note texts via `lang_get(key, lang)` with the usual
+  `strings.txt` coverage fallback; `file` only when the mode
+  writes one (FILE and the SILENT-only artifact). `JSON_INVALID_UTF8_SUBSTITUTE`
   keeps the payload serializable for any note text.
 
 * **Screen** `gui/templates/conf/configCheck.html` (Dashio shell, standalone,

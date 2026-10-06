@@ -411,7 +411,7 @@
   "ccn.errorTitle": "Erro do servidor",
   "ccn.file": "Ficheiro de destino",
   "ccn.fileNone": "não usado neste modo",
-  "ccn.fileNote": "No modo FILE, estes avisos também são escritos em {file}.",
+  "ccn.fileNote": "Estes avisos também são escritos em {file}.",
   "ccn.headerSub": "notas de segurança",
   "ccn.mode": "Modo de aviso",
   "ccn.modeInfo": "Modo de aviso configurado: {mode}. Este ecrã lista sempre todas as notas, independentemente do modo.",

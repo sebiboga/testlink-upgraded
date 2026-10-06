@@ -411,7 +411,7 @@
   "ccn.errorTitle": "サーバーエラー",
   "ccn.file": "出力先ファイル",
   "ccn.fileNone": "このモードでは未使用",
-  "ccn.fileNote": "FILEモードではこれらの警告も{file}に書き出されます。",
+  "ccn.fileNote": "これらの警告は{file}にも書き出されます。",
   "ccn.headerSub": "セキュリティノート",
   "ccn.mode": "警告モード",
   "ccn.modeInfo": "設定された警告モード: {mode}。この画面はモードに関係なく常にすべてのノートを表示します。",

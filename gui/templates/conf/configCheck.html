@@ -163,7 +163,10 @@ function load() {
   $('#loading').show();
   $('#content').hide();
 
-  $.getJSON('/api/configcheck/index.php?action=init')
+  // `locale` mirrors api/cfields: note texts come from lang_get() and must
+  // follow the client-side pick, not just $_SESSION['locale'].
+  var loc = TLi18n.getLocale ? (TLi18n.getLocale() || 'en') : 'en';
+  $.getJSON('/api/configcheck/index.php?action=init&locale=' + encodeURIComponent(loc))
     .done(function (r) {
       if (r.status !== 'ok') {
         showState('err', 'fa fa-exclamation-triangle', 'ccn.errorTitle', 'ccn.errorMsg', r.code);
@@ -208,7 +211,7 @@ function load() {
         showState('warn', 'fa fa-search', 'ccn.notFoundTitle', 'ccn.notFoundMsg', code);
         return;
       }
-      if (xhr && xhr.status === 400 || (xhr && xhr.status === 405)) {
+      if ((xhr && xhr.status === 400) || (xhr && xhr.status === 405)) {
         showState('warn', 'fa fa-question-circle', 'ccn.badRequestTitle', 'ccn.badRequestMsg', code);
         return;
       }
@@ -229,7 +232,10 @@ $(function () {
       else { window.location.href = '/index.php'; }
     });
     $('#btnClose').on('click', function () {
-      if (window.history.length > 1) { window.history.back(); }
+      // Opened from the Dashboard banner (target=_blank) -> close the tab; a
+      // deep link falls back to history, then the shell.
+      if (window.opener) { window.close(); }
+      else if (window.history.length > 1) { window.history.back(); }
       else { window.location.href = '/index.php'; }
     });
 

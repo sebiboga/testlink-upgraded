@@ -411,7 +411,7 @@
   "ccn.errorTitle": "Serverfehler",
   "ccn.file": "Zieldatei",
   "ccn.fileNone": "in diesem Modus nicht verwendet",
-  "ccn.fileNote": "Im FILE-Modus werden diese Warnungen zusätzlich in {file} geschrieben.",
+  "ccn.fileNote": "Diese Warnungen werden zusätzlich in {file} geschrieben.",
   "ccn.headerSub": "Sicherheitshinweise",
   "ccn.mode": "Warnmodus",
   "ccn.modeInfo": "Konfigurierter Warnmodus: {mode}. Dieser Bildschirm zeigt immer alle Hinweise, unabhängig vom Modus.",
