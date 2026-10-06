@@ -384,7 +384,7 @@ function renderResults(r) {
   ]);
   wrap += block('sfm.resReqSpecs', r.reqspecs, [
     { key: 'sfm.colTitle', cell: function (x) {
-        return '<a class="rowlink" target="_blank" href="/gui/templates/requirements/reqSpecView.html?reqspec_id='
+        return '<a class="rowlink" target="_blank" href="/gui/templates/requirements/reqSpecView.html?id='
           + x.req_spec_id + '&tproject_id=' + tprojectId + '">' + esc(x.name) + '</a>';
       } },
     { key: 'sfm.colScope', cell: function (x) { return esc(x.scope); } }
