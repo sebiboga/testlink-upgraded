@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Execution Notes — pick an execution</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+
+.header {
+  background: #4ECDC4; color: #fff; padding: 14px 24px;
+  font-size: 20px; font-weight: 700; letter-spacing: 1px;
+}
+.header span { font-size: 13px; font-weight: 400; opacity: .85; margin-left: 12px; }
+
+.toolbar {
+  background: #22242a; padding: 12px 24px; display: flex; gap: 10px;
+  align-items: center; flex-wrap: wrap;
+}
+.toolbar .ctx { color: #aaa; font-size: 12px; margin-right: auto; }
+.toolbar .ctx b { color: #fff; }
+
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-dark { background: transparent; color: #ddd; border: 1px solid #555; padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 13px; text-decoration: none; display: inline-block; }
+.btn-dark:hover { border-color: #4ECDC4; color: #4ECDC4; }
+
+.wrap { padding: 22px 24px; max-width: 1150px; margin: 0 auto; }
+
+.meta { background: #fff; border-radius: 8px; padding: 16px 20px; margin-bottom: 18px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+.meta .row { display: flex; flex-wrap: wrap; gap: 8px 28px; }
+.meta .field { font-size: 13px; color: #555; }
+.meta .field b { color: #22242a; margin-right: 5px; }
+
+.filters { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 12px; }
+.filters label { font-size: 13px; color: #444; margin: 0; font-weight: normal; cursor: pointer; }
+.filters input[type=search] {
+  border: 1px solid #ccc; border-radius: 4px; padding: 6px 10px; font-size: 13px; min-width: 240px;
+}
+.filters .counter { margin-left: auto; font-size: 12px; color: #777; }
+
+.card { background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+.card h3 { margin: 0 0 14px; font-size: 15px; color: #22242a; }
+
+table.picker { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.picker th {
+  text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .5px;
+  color: #777; border-bottom: 2px solid #e5e5e5; padding: 8px 10px;
+}
+table.picker td { padding: 9px 10px; border-bottom: 1px solid #eee; color: #333; vertical-align: top; }
+table.picker tr:hover td { background: #f6fbfb; }
+table.picker .tc-name { color: #22242a; font-weight: 600; }
+table.picker .preview { color: #666; font-size: 12px; max-width: 320px; }
+table.picker .preview.none { color: #aaa; font-style: italic; }
+
+.chip { display: inline-block; background: #eefaf9; color: #2d8e88; border: 1px solid #bfe5e2; border-radius: 10px; padding: 0 8px; font-size: 11px; font-weight: 600; margin-right: 6px; }
+.badge-st { display: inline-block; border-radius: 10px; padding: 1px 9px; font-size: 11px; font-weight: 600; border: 1px solid transparent; }
+.badge-p { background: #dff5d8; color: #2f7a1f; border-color: #a9dc96; }
+.badge-f { background: #fbe0e0; color: #b02a2a; border-color: #efa3a3; }
+.badge-b { background: #fff3cd; color: #8a6100; border-color: #ecd48a; }
+.badge-n { background: #eceff1; color: #5f6a72; border-color: #cdd6db; }
+
+.empty-row { text-align: center; color: #999; padding: 28px 10px !important; font-style: italic; }
+
+.state {
+  background: #fff; border-radius: 8px; padding: 40px 32px; text-align: center;
+  box-shadow: 0 1px 4px rgba(0,0,0,.08);
+}
+.state i { font-size: 34px; margin-bottom: 10px; display: block; }
+.state h3 { margin: 0 0 8px; font-size: 18px; color: #22242a; }
+.state p { margin: 0 0 6px; font-size: 14px; color: #777; }
+.state .code { font-family: monospace; font-size: 12px; color: #999; }
+.state.err { border-left: 4px solid #e6605e; }
+.state.err i { color: #e6605e; }
+.state.warn { border-left: 4px solid #e6a23c; }
+.state.warn i { color: #e6a23c; }
+
+.loading { text-align: center; padding: 60px 0; color: #888; font-size: 14px; }
+
+.footer { text-align: center; color: #999; font-size: 12px; padding: 18px 24px 28px; }
+</style>
+</head>
+<body>
+<div class="header">
+  <i class="fa fa-list"></i>
+  <span data-i18n="enp.title">Execution Notes — pick an execution</span>
+</div>
+
+<div class="toolbar">
+  <span class="ctx">
+    <span data-i18n="enp.testPlanLabel">Test plan</span> <b id="ctxPlan">-</b>
+  </span>
+  <span id="localeSwitcher"></span>
+  <button id="btnRefresh" class="btn-dark"><i class="fa fa-refresh"></i> <span data-i18n="common.refresh">Refresh</span></button>
+  <a id="btnNavigator" class="btn-dark" href="/gui/templates/execute/execNavigator.html"><i class="fa fa-sitemap"></i> <span data-i18n="enp.openNavigator">Execution Navigator</span></a>
+  <button id="btnClose" class="btn-dark"><i class="fa fa-times"></i> <span data-i18n="common.close">Close</span></button>
+</div>
+
+<div class="wrap">
+  <div id="loading" class="loading"><i class="fa fa-spinner fa-spin"></i> <span data-i18n="common.loading">Loading...</span></div>
+
+  <div id="content" style="display:none">
+    <div class="meta">
+      <div class="row">
+        <span class="field"><b data-i18n="enp.testProject">Test project</b><span id="mbProject">-</span></span>
+        <span class="field"><b data-i18n="enp.testPlan">Test plan</b><span id="mbPlan">-</span></span>
+        <span class="field"><b data-i18n="enp.totalExecutions">Executions</b><span id="mbTotal">-</span></span>
+        <span class="field"><b data-i18n="enp.withNotes">With notes</b><span id="mbWithNotes">-</span></span>
+      </div>
+    </div>
+
+    <div class="filters">
+      <label>
+        <input type="checkbox" id="fltNotes" checked>
+        <span data-i18n="enp.onlyWithNotes">Only executions with notes</span>
+      </label>
+      <input type="search" id="fltText" data-i18n-placeholder="enp.filterPlaceholder"
+             placeholder="Filter by test case, suite, build…">
+      <span class="counter" id="fltCounter">-</span>
+    </div>
+
+    <div class="card">
+      <h3><i class="fa fa-sticky-note"></i> <span data-i18n="enp.listHeading">Executions of this test plan</span></h3>
+      <table class="picker">
+        <thead>
+          <tr>
+            <th data-i18n="enp.colExecution">Execution</th>
+            <th data-i18n="enp.colTestCase">Test case</th>
+            <th data-i18n="enp.colSuite">Test suite</th>
+            <th data-i18n="enp.colBuild">Build</th>
+            <th data-i18n="enp.colStatus">Status</th>
+            <th data-i18n="enp.colExecutedOn">Executed on</th>
+            <th data-i18n="enp.colNotes">Notes</th>
+            <th data-i18n="enp.colAction">Action</th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div id="stateCard" style="display:none"></div>
+
+<div class="footer"><span id="footerText" data-i18n="footers.execNotesPicker">TestLink 2.0.1</span></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script>
+var CTX = null;        // init payload.context
+var ALL_ROWS = [];     // executions as returned by the BFF
+
+function esc(s) {
+  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function statusLabel(ch) {
+  var map = { p: 'execprint.statusPassed', f: 'execprint.statusFailed',
+              b: 'execprint.statusBlocked', n: 'execprint.statusNotRun' };
+  // Unknown / empty status chars fall back to a localized label too - a bare
+  // machine char ("n", "-") in the Status column is an untranslated string.
+  return map[ch] ? TLi18n.t(map[ch]) : TLi18n.t('execprint.statusUnknown');
+}
+
+function showState(kind, icon, titleKey, msgKey, code) {
+  $('#loading').hide();
+  $('#content').hide();
+  var html = '<div class="wrap"><div class="state ' + kind + '">' +
+    '<i class="fa ' + icon + '"></i>' +
+    '<h3>' + esc(TLi18n.t(titleKey)) + '</h3>' +
+    '<p>' + esc(msgKey ? TLi18n.t(msgKey) : '') + '</p>' +
+    '<p class="code">' + esc(code || '') + '</p>' +
+    '</div></div>';
+  $('#stateCard').html(html).show();
+}
+
+function handleFail(xhr) {
+  var body = (xhr && xhr.responseJSON) ? xhr.responseJSON : {};
+  var code = body.code || ('http_' + (xhr ? xhr.status : 0));
+  if (xhr && xhr.status === 401 && body.code === 'session_expired') {
+    window.location.href = '/login.php?note=expired&destination=' +
+      encodeURIComponent(window.location.pathname + window.location.search);
+    return;
+  }
+  if (xhr && xhr.status === 401) {
+    showState('warn', 'fa fa-lock', 'enp.sessionExpiredTitle', 'enp.sessionExpiredMsg', code);
+    return;
+  }
+  if (xhr && xhr.status === 403) {
+    showState('err', 'fa fa-lock', 'enp.accessDeniedTitle', 'enp.accessDeniedMsg', code);
+    return;
+  }
+  if (xhr && xhr.status === 404) {
+    showState('warn', 'fa fa-search', 'enp.notFoundTitle', 'enp.notFoundMsg', code);
+    return;
+  }
+  if (xhr && xhr.status === 400 && body.code === 'no_testplan') {
+    // Not an error: the user simply has no test plan selected - tell them so.
+    showState('warn', 'fa fa-sitemap', 'enp.noPlanTitle', 'enp.noPlanMsg', code);
+    return;
+  }
+  if (xhr && xhr.status === 400) {
+    showState('warn', 'fa fa-question-circle', 'enp.badRequestTitle', 'enp.badRequestMsg', code);
+    return;
+  }
+  showState('err', 'fa fa-exclamation-triangle', 'enp.errorTitle', 'enp.errorMsg', code);
+}
+
+/** Re-render the table from ALL_ROWS honouring BOTH filters (notes + text). */
+function renderRows() {
+  var onlyNotes = $('#fltNotes').is(':checked');
+  var q = ($('#fltText').val() || '').toLowerCase();
+  var html = '';
+  var shown = 0;
+  for (var i = 0; i < ALL_ROWS.length; i++) {
+    var e = ALL_ROWS[i];
+    if (onlyNotes && !e.has_notes) { continue; }
+    var hay = [e.testcase_name, e.testcase_external_id, e.suite_path,
+               e.build_name, e.platform_name, String(e.id),
+               e.status_char, statusLabel(e.status_char)].join(' ').toLowerCase();
+    if (q && hay.indexOf(q) === -1) { continue; }
+    shown++;
+    var st = /^[a-zA-Z]$/.test(e.status_char || '') ? e.status_char : '';
+    html += '<tr>' +
+      '<td>#' + esc(e.id) + '</td>' +
+      '<td><span class="tc-name">' +
+        (e.testcase_external_id ? '<span class="chip">#' + esc(e.testcase_external_id) + '</span>' : '') +
+        esc(e.testcase_name || '-') + '</span></td>' +
+      '<td>' + esc(e.suite_path || '-') + '</td>' +
+      '<td>' + esc(e.build_name || '-') +
+        (e.platform_name ? '<br><small style="color:#888">' + esc(e.platform_name) + '</small>' : '') +
+      '</td>' +
+      '<td><span class="badge-st badge-' + esc(st) + '">' + esc(statusLabel(e.status_char)) + '</span></td>' +
+      '<td>' + esc(e.execution_ts || '-') + '</td>' +
+      '<td class="preview' + (e.has_notes ? '' : ' none') + '">' +
+        esc(e.has_notes ? (e.notes_preview || '') : TLi18n.t('enp.noNotes')) + '</td>' +
+      '<td><a class="btn-teal" href="' + esc(e.viewer_url) + '">' +
+        '<i class="fa fa-eye"></i> ' + esc(TLi18n.t('enp.open')) + '</a></td>' +
+      '</tr>';
+  }
+  if (shown === 0) {
+    html = '<tr><td colspan="8" class="empty-row">' +
+      esc(TLi18n.t(ALL_ROWS.length === 0 ? 'enp.emptyList' : 'enp.noMatch')) +
+      '</td></tr>';
+  }
+  $('#rows').html(html);
+  $('#fltCounter').text(shown + ' / ' + ALL_ROWS.length);
+}
+
+function loadAll() {
+  $('#stateCard').hide().empty();
+  $('#loading').show();
+  $('#content').hide();
+
+  var p = new URLSearchParams(window.location.search);
+  var tplan = p.get('tplan_id');
+  var qs = (tplan ? '&tplan_id=' + encodeURIComponent(tplan) : '');
+
+  $.getJSON('/api/execnotespicker/index.php?action=init' + qs)
+    .done(function (r) {
+      if (r.status !== 'ok') {
+        showState('err', 'fa fa-exclamation-triangle', 'enp.errorTitle', 'enp.errorMsg', r.code);
+        return;
+      }
+      CTX = r.context || {};
+      document.title = TLi18n.t('enp.title') +
+        (CTX.tplan_name ? ' - ' + CTX.tplan_name : '');
+      // Carry the plan context: execNavigator 400s without tplan_id, so the
+      // static href above is only a pre-load placeholder.
+      if (CTX.tplan_id) {
+        $('#btnNavigator').attr('href', '/gui/templates/execute/execNavigator.html' +
+          '?tplan_id=' + encodeURIComponent(CTX.tplan_id) +
+          '&tproject_id=' + encodeURIComponent(CTX.tproject_id || 0));
+      }
+      $('#ctxPlan').text(CTX.tplan_name || '-');
+      $('#mbProject').text(CTX.tproject_name || '-');
+      $('#mbPlan').text(CTX.tplan_name || '-');
+      $('#mbTotal').text(String(CTX.total_executions != null ? CTX.total_executions : '-'));
+      $('#mbWithNotes').text(String(CTX.with_notes != null ? CTX.with_notes : '-'));
+
+      // ONE round trip: with_notes=0 returns every execution (each row carries
+      // its own has_notes flag), so renderRows() can do the notes-only filter
+      // client-side in both directions.
+      $.getJSON('/api/execnotespicker/index.php?action=executions&with_notes=0' + qs)
+        .done(function (d) {
+          if (d.status !== 'ok') {
+            showState('err', 'fa fa-exclamation-triangle', 'enp.errorTitle', 'enp.errorMsg', d.code);
+            return;
+          }
+          ALL_ROWS = d.executions || [];
+          renderRows();
+          $('#loading').hide();
+          $('#content').show();
+        })
+        .fail(handleFail);
+    })
+    .fail(handleFail);
+}
+
+$(function () {
+  TLi18n.load(function () {
+    TLi18n.apply();
+    document.title = TLi18n.t('enp.title');
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+
+    $('#btnRefresh').on('click', loadAll);
+    $('#btnClose').on('click', function () {
+      // Menu-opened (no opener): window.close() is silently ignored by
+      // browsers, so fall back to the history/home chain like execNavigator.
+      if (window.opener) { window.close(); return; }
+      if (window.history.length > 1) { window.history.back(); return; }
+      window.location.href = '/index.php';
+    });
+    $('#fltNotes').on('change', renderRows);
+    $('#fltText').on('input', renderRows);
+
+    loadAll();
+  });
+});
+</script>
+</body>
+</html>
