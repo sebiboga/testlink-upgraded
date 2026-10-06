@@ -17,6 +17,23 @@ Every screen of the application was ported one-by-one in a screen-compare
 kept for backward compatibility and is progressively retired as each modern
 screen reaches full parity.
 
+- [KEY BUGFIX] - #1859: **legacy `lib/testcases/tcEdit.php` answered HTTP 500 with 0 bytes for any
+  deep link without `tcversion_id` when the test case has no active version** (all `tcversions.active = 0`)
+  or the id does not exist — `init_args()` ran `$nu = key($tcaseMgr->get_last_active_version($tcase_id))`
+  on **every** request (`tcEdit.php:327`), and `get_last_active_version()` returns **null** for a 0-row
+  result (`testcase.class.php:6182` + `database.class.php:666` `fetchRowsIntoMap()` keeps `$items = null`),
+  so `key(null)` was an uncaught PHP 8 `TypeError` (no `events` row, only the server log). The line is
+  dead code inherited from upstream 1.9.18 (`$nu` never read; `tcversion_id` legitimately stays `0` =
+  `testcase::ALL_VERSIONS`). Fix: the #1705/#1708 family pattern — explicit `is_array($lastActiveVersion)`
+  guard before `key()`, null-safe `$nu`. Verified `bash tmp/verify_1859.sh` **PASS=9 FAIL=0**:
+  no-doAction 200, `edit_tc` renders the no-active test case, absent id 200, active control unchanged,
+  deactivate-last-version workflow 200, no new Error events / no new `tcEdit.php:327` TypeError. Regression
+  suite "Regression — Issue #1859" appended to `tmp/TLU_Test_Cases.md` (7/7 PASS), gate exit 0.
+  Four sibling latent defects discovered while testing were filed, not fixed: **#1860** (activate/deactivate
+  /create-version render 500, Smarty `attachments.inc.tpl:106`), **#1861** (`requirement_mgr.class.php:1119`
+  `current()` null), **#1862** (`testcase.class.php:5105` `count(null)` for the edit action on an absent id),
+  **#1863** (4 `E_WARNING` from the `buildDirectWebLink()` `list()` destructure for absent ids). (Refs #1859)
+
 - [NEW FEATURE] - #1095: **check/uncheck-all toggle per checkbox group** in the Advanced Search
   criteria form (`gui/templates/search/searchAdvancedView.html`), porting the legacy
   `toggle_all` icon + `cs_all_checkbox_in_div()` behavior
