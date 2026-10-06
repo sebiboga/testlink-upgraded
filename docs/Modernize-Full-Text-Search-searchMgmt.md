@@ -80,3 +80,19 @@ requirement specifications and requirements).
   302 → `searchMgmt.html?...&target=password` authenticated.
 - 24/24 test cases PASS; browser console clean; Event Viewer unchanged after the
   by-ref fix; `php -l` + `json.tool` clean.
+
+## Post-modernization bugfixes on this screen
+
+- **#1865 (FIXED, `3401c66a1`)** — Requirement Specifications result links were built
+  as `reqSpecView.html?reqspec_id=<id>`, but the viewer only resolved
+  `id`/`req_spec_id` (`reqSpecView.html:310`), so `SPEC_ID` stayed 0 and every RS
+  result opened the deleted-banner. Producer now emits the documented `id=` contract
+  (legacy `openLinkedReqSpecWindow` parity) and the viewer additionally accepts
+  `reqspec_id=` as an alias. See
+  `docs/Bugfix-Issue-1865-SearchMgmt-ReqSpec-Result-Links-Param-Name.md`.
+- **Open siblings (filed, not fixed here):** #1866 (Test Suite results use
+  `suiteView.html?tsuite_id=`, which `suiteView.html` ignores), #1867 (Requirement
+  results use `reqView.html?req_id=`, which `reqView.html` ignores), #1869
+  (`empty_testproject` early-return at `searchMgmt.html:352-363` hides reqspec /
+  requirement result blocks on requirements-only projects even though the BFF
+  returns them).
