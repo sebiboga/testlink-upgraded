@@ -24,7 +24,7 @@ foreach ((array)$tprojMgr->get_by_name('TC Edit 1859') as $row) {
     $oid = intval(is_array($row) ? ($row['id'] ?? 0) : $row);
     if ($oid > 0) {
         echo "deleting old project $oid\n";
-        $tprojMgr->delete($oid, 1);
+        $tprojMgr->delete($oid);
     }
 }
 

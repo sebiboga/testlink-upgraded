@@ -1,7 +1,8 @@
 <?php
-// Repro for suspected sibling bug (issue #1860 candidate): requirement_mgr:1119
+// Repro for sibling bug issue #1861: requirement_mgr:1119
 // current(get_last_active_version()) unguarded -> PHP 8 TypeError when the test
-// case has NO active version. Uses tcase 3 from tmp/fixtures_1859.php.
+// case has NO active version. Uses TC1859-NOACTIVE from tmp/fixtures_1859.php
+// (id resolved by name: ids grow across fixture re-runs).
 require_once('config.inc.php');
 require_once('common.php');
 
@@ -11,7 +12,13 @@ doDBConnect($db);
 $reqSpecMgr = new requirement_spec_mgr($db);
 $reqMgr = new requirement_mgr($db);
 $userId = 1; // admin
-$tprojectId = 1; // 'TC Edit 1859'
+$row = $db->get_recordset("SELECT id FROM nodes_hierarchy WHERE name='TC1859-NOACTIVE' AND node_type_id=3 ORDER BY id DESC LIMIT 1");
+$tcaseId = intval($row[0]['id'] ?? 0);
+if ($tcaseId === 0) {
+  fwrite(STDERR, "FATAL: TC1859-NOACTIVE not found (run php tmp/fixtures_1859.php first)\n");
+  exit(2);
+}
+$tprojectId = 1; // 'TC Edit 1859' (id grows across re-runs; project 1 on a fresh DB)
 
 $docId = 'RS-NOACT' . date('His');
 $spec = $reqSpecMgr->create($tprojectId, $tprojectId, $docId, $docId, 'scope', 2, $userId,
@@ -24,8 +31,8 @@ $r = $reqMgr->create($specId, 'REQ-NOACT', 'requirement for no-active repro', 's
 $reqId = intval($r['id'] ?? 0);
 printf("req=%d\n", $reqId);
 
-echo "calling assign_to_tcase(req=$reqId, tcase=3 (NO active version))...\n";
+echo "calling assign_to_tcase(req=$reqId, tcase=$tcaseId (NO active version))...\n";
 flush();
-$out = $reqMgr->assign_to_tcase($reqId, 3, $userId);
+$out = $reqMgr->assign_to_tcase($reqId, $tcaseId, $userId);
 printf("assign_to_tcase returned: %s\n", var_export($out, true));
 echo "NO FATAL - survived\n";

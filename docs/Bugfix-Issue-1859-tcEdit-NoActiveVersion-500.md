@@ -6,7 +6,7 @@ The legacy controller `lib/testcases/tcEdit.php` answered **HTTP 500 with an emp
 body** — uncaught PHP 8 `TypeError` — for any deep link that reaches it without an
 explicit `tcversion_id` when the target test case has **no active version** (all
 `tcversions.active = 0`) or when the `tcase_id` does not exist. The fatal came from
-`init_args()` at `tcEdit.php:327`, runs on **every** request before any action
+`init_args()` at `tcEdit.php:327`, which runs on **every** request before any action
 dispatch, and wrote no row into the Event Viewer (`events`) — only the server error
 log got a line.
 
@@ -36,10 +36,11 @@ correct, behaviour-preserving outcome.
 
 ## Why this fix
 
-Minimal guard at `lib/testcases/tcEdit.php:325-331`, the same `(array)`/`is_array()`
-family already applied for this exact defect elsewhere:
-`requirement_spec_mgr.class.php:2639` / `:2763` (#1705, #1708), `specview.php:868`,
-`xmlrpc.class.php:6459`.
+Minimal guard at `lib/testcases/tcEdit.php:325-331`, the same null-guard family already
+applied for this exact defect elsewhere: `(array)` casts at
+`requirement_spec_mgr.class.php:2639` / `:2763` (#1705, #1708), `is_null()` guards at
+`specview.php:871` and `xmlrpc.class.php:6461`; `is_array()` matches the precedent at
+`api/reqtcassign/index.php:438`. (Related open issue: #1858.)
 
 ```php
 if( $args->tcversion_id == 0 && $args->tcase_id > 0 ) {
@@ -63,7 +64,7 @@ Alternatives rejected:
 
 ## Files changed
 
-- `lib/testcases/tcEdit.php` (init_args, +3/-1)
+- `lib/testcases/tcEdit.php` (init_args, +4/-1)
 - `CHANGELOG`, `docs/Bugfix-Issue-1859-tcEdit-NoActiveVersion-500.md` (this file)
 - `tmp/TLU_Test_Cases.md` — suite "Regression — Issue #1859" (7/7 PASS)
 - `tmp/fixtures_1859.php`, `tmp/verify_1859.sh` (repro + executable regression),
@@ -93,6 +94,11 @@ lost vs the merge base).
   used for an absent `tcase_id`.
 - **#1863** — 4 `E_WARNING Undefined array key 0..3` per absent-id load from the
   `buildDirectWebLink()` `list()` destructure (`testcase.class.php:5700`).
+- **#1864** — `testcase::addRelation()` (`testcase.class.php:8199-8200`, found in
+  post-fix review): when the source test case has no active version,
+  `get_last_active_version()` returns null, `intval(null)=0` is written into
+  `testcase_relations.source_id` — verified: returns `status_ok=true` + bad row
+  `(source_id=0, destination_id=53)` + 2 `E_WARNING` rows in `events`.
 
 Commits on `fix/issue-1859`: `d1dfc415b` (fix), `de9876bf1` (regression suite),
-+ docs/CHANGELOG commit.
+`a6f1f9a82`+ (docs & CHANGELOG).

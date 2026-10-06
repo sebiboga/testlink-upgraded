@@ -24,15 +24,19 @@ screen reaches full parity.
   result (`testcase.class.php:6182` + `database.class.php:666` `fetchRowsIntoMap()` keeps `$items = null`),
   so `key(null)` was an uncaught PHP 8 `TypeError` (no `events` row, only the server log). The line is
   dead code inherited from upstream 1.9.18 (`$nu` never read; `tcversion_id` legitimately stays `0` =
-  `testcase::ALL_VERSIONS`). Fix: the #1705/#1708 family pattern — explicit `is_array($lastActiveVersion)`
-  guard before `key()`, null-safe `$nu`. Verified `bash tmp/verify_1859.sh` **PASS=9 FAIL=0**:
+  `testcase::ALL_VERSIONS`). Fix: the same null-guard family used for this call at
+  `requirement_spec_mgr.class.php:2639/2763` (`(array)` cast) and `specview.php:871`/`xmlrpc.class.php:6461`
+  (`is_null()`) — an explicit `is_array($lastActiveVersion)` guard before `key()` (matches
+  `api/reqtcassign/index.php:438`), null-safe `$nu`. Verified `bash tmp/verify_1859.sh` **PASS=9 FAIL=0**:
   no-doAction 200, `edit_tc` renders the no-active test case, absent id 200, active control unchanged,
   deactivate-last-version workflow 200, no new Error events / no new `tcEdit.php:327` TypeError. Regression
   suite "Regression — Issue #1859" appended to `tmp/TLU_Test_Cases.md` (7/7 PASS), gate exit 0.
-  Four sibling latent defects discovered while testing were filed, not fixed: **#1860** (activate/deactivate
+  Five sibling latent defects discovered while testing were filed, not fixed: **#1860** (activate/deactivate
   /create-version render 500, Smarty `attachments.inc.tpl:106`), **#1861** (`requirement_mgr.class.php:1119`
   `current()` null), **#1862** (`testcase.class.php:5105` `count(null)` for the edit action on an absent id),
-  **#1863** (4 `E_WARNING` from the `buildDirectWebLink()` `list()` destructure for absent ids). (Refs #1859)
+  **#1863** (4 `E_WARNING` from the `buildDirectWebLink()` `list()` destructure for absent ids),
+  **#1864** (`testcase::addRelation()` writes `source_id=0` into `testcase_relations` when the source has no
+  active version; verified repro in review, `testcase.class.php:8199-8200`). (Refs #1859)
 
 - [NEW FEATURE] - #1095: **check/uncheck-all toggle per checkbox group** in the Advanced Search
   criteria form (`gui/templates/search/searchAdvancedView.html`), porting the legacy
