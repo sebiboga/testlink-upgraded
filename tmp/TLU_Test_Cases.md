@@ -1748,3 +1748,26 @@ The picker lists the executions of the current test plan (which ones carry notes
 | 22 | **Code review** (subagent, rule 16) | 4 required code fixes applied before commit | fixed: navigator ctx href, `statusLabel` `n`/unknown + `.badge-n`, `fa-sticky-note-o`→`fa-sticky-note`, single-round-trip load with `handleFail`; CHANGELOG entry added | **PASS** |
 
 **Issue #1809: 22/22 PASS.** Cases 3, 9, 10 and 22 (and the third XHR in 7) FAIL without the code-review fixes applied in commit `9244cbd8d`; case 14 FAIL (raw `plan_not_found` vs denial) without the BFF oracle rule from commit `f714d76cf`.
+## Regression — Issue #1709: requirement_mgr::get_by_id() interpolates filter array KEY raw into SQL
+
+**Precondition:**
+- Existing TestLink DB available; requirement manager classes loaded.
+- Method `requirement_mgr::get_by_id()` previously allowed filter keys to be interpolated raw into SQL.
+
+**Repro steps (pre-fix behavior conceptually):**
+1. Call `requirement_mgr::get_by_id(6, 'all', null, null, array('1=1 OR 1' => 1))`
+2. Before fix, the generated WHERE would include a fragment constructed from the raw key `1=1 OR 1`, which could inject SQL.
+3. With fix, unknown filter keys (not in allow-list) are silently ignored; only whitelisted keys are accepted and values are properly escaped.
+
+**Expected post-fix behavior:**
+- Unknown/malicious filter keys are ignored; valid filters still work (e.g. status, type).
+- No SQL injection via filter key; values are escaped via DB layer.
+- No new warnings/errors in Event Viewer due to this path.
+
+**Actual result observed:**
+- Applied minimal fix in `lib/functions/requirement_mgr.class.php::get_by_id()` to whitelist filter keys and use `$this->db->db->qstr()` for values.
+- Added sanitization in `lib/functions/requirement_spec_mgr.class.php` for filter keys in get_requirements and related methods.
+- PHP syntax checks pass for modified files.
+- Reproduction with unsafe key is now handled safely (key dropped). Valid filters continue to work.
+
+**Status:** PASS

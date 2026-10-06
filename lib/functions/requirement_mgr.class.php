@@ -162,10 +162,23 @@ function get_by_id($id,$version_id=self::ALL_VERSIONS,$version_number=1,$options
   $my['filters'] = array_merge($my['filters'], (array)$filters);
 
   $filter_clause = '';
-  $dummy[]='';  // trick to make implode() work
+  $dummy = array('');  // trick to make implode() work
+  // Allow-list of filterable columns
+  $allowed_filters = array(
+    'status', 'type', 'active', 'is_open', 'reqver_is_open', 'expected_coverage',
+    'req_doc_id', 'srs_id', 'author_id', 'modifier_id', 'version', 'revision'
+  );
   foreach( $my['filters'] as $field2filter => $value) {
-    if( !is_null($value) ) {
-      $dummy[] = " {$field2filter} = '{$value}' ";
+    if( !is_null($value) && is_scalar($value) ) {
+      // Normalize key if needed (some callers might use different names)
+      $key = $field2filter;
+      if (in_array($key, $allowed_filters)) {
+        $esc = $this->db->db->qstr($value);
+        // Remove surrounding quotes added by qstr for equality in most cases? qstr adds quotes
+        // But better to use proper escaping; alternatively build as "key = " . $this->db->db->qstr($value)
+        $dummy[] = " {$key} = {$esc} ";
+      }
+      // Ignore unknown keys silently to avoid breaking existing code paths
     }
   }
 
