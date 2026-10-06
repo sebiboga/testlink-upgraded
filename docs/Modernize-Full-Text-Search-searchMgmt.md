@@ -90,9 +90,13 @@ requirement specifications and requirements).
   (legacy `openLinkedReqSpecWindow` parity) and the viewer additionally accepts
   `reqspec_id=` as an alias. See
   `docs/Bugfix-Issue-1865-SearchMgmt-ReqSpec-Result-Links-Param-Name.md`.
+- **#1869 (FIXED)** — on requirements-only projects (0 test cases) the Req.Spec /
+  Requirement result blocks never rendered even though the BFF returned them:
+  `api/searchmgmt/index.php` emitted `warning=empty_testproject` from a test-case-only
+  flag, and `searchMgmt.html:352-363`'s early-return on that warning discarded the
+  rows already in the payload. The BFF warning is now gated on the whole result set
+  (`$total == 0`); no client change needed. See
+  `docs/Bugfix-Issue-1869-SearchMgmt-Empty-Testproject-Hides-ReqSpec-Results.md`.
 - **Open siblings (filed, not fixed here):** #1866 (Test Suite results use
   `suiteView.html?tsuite_id=`, which `suiteView.html` ignores), #1867 (Requirement
-  results use `reqView.html?req_id=`, which `reqView.html` ignores), #1869
-  (`empty_testproject` early-return at `searchMgmt.html:352-363` hides reqspec /
-  requirement result blocks on requirements-only projects even though the BFF
-  returns them).
+  results use `reqView.html?req_id=`, which `reqView.html` ignores).
