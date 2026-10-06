@@ -17,6 +17,22 @@ Every screen of the application was ported one-by-one in a screen-compare
 kept for backward compatibility and is progressively retired as each modern
 screen reaches full parity.
 
+- [NEW FEATURE] - #1095: **check/uncheck-all toggle per checkbox group** in the Advanced Search
+  criteria form (`gui/templates/search/searchAdvancedView.html`), porting the legacy
+  `toggle_all` icon + `cs_all_checkbox_in_div()` behavior
+  (`searchGUI.inc.tpl:59-61,76-78,86-88,97-99`, `gui/javascript/checkboxes.js:244`).
+  Each of the four attribute groups (Test Cases / Test Suites / Req. Specification / Requirement)
+  now carries a master checkbox in its header that checks or unchecks every field of that group
+  and mirrors the real group state (checked / **indeterminate** when partial), re-synced on every
+  individual change and after *Reset*; the legacy `mm*Cell` hidden memory inputs are not needed
+  because the modern master is derived from the actual checkboxes (same pattern as
+  `reqTcBulkAssign.html:229-230`). i18n: `searchAdv.checkUncheckAll` added to all 10 client
+  bundles (wired via `data-i18n-title`). No BFF change was required - the search keys
+  (`tc_*`/`ts_*`/`rs_*`/`rq_*`) and `doSearch()` already handled all fields; the master ids use
+  the `all_*` prefix so they are never submitted. Verified 14/14 PASS (toggle, indeterminate,
+  reset, locale switch, search regression, Event Viewer clean); pre-existing console bug found
+  while testing and filed, not fixed: **#1856**.
+
 - [MODERNIZED SCREEN] - #1845: **Priority Bar Chart** is no longer a dead endpoint.
   Legacy `lib/results/priorityBarChart.php` was **unreachable fatal code** on 2.0.1: it
   required `third_party/charts/charts.php` and `lib/functions/results.class.php`, both gone

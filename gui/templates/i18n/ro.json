@@ -4782,6 +4782,7 @@
   "searchAdv.andOrAnd": "ȘI (toți termenii)",
   "searchAdv.andOrOr": "SAU (orice termen)",
   "searchAdv.andOrTitle": "Combinarea termenilor",
+  "searchAdv.checkUncheckAll": "Bifează / debifează tot",
   "searchAdv.colDocId": "ID document",
   "searchAdv.colName": "Nume",
   "searchAdv.details": "Detalii",

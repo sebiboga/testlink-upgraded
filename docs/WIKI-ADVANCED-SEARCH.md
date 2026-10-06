@@ -103,3 +103,35 @@ do this automatically). Note for self-managed MySQL 8 servers with binary
 logging enabled: creating routines additionally needs `SUPER` or
 `log_bin_trust_function_creators=1` (MariaDB used by this project's CI has
 binary logging off).
+## Check / uncheck all per attribute group (issue #1095)
+
+Each of the four attribute groups of the search form now has a **master
+checkbox in its header** (left of the group title) that toggles every field of
+that group in one click — the modern port of the legacy `toggle_all` icon +
+`cs_all_checkbox_in_div()` from `searchGUI.inc.tpl:59-61,76-78,86-88,97-99`.
+
+
+Behavior:
+
+* clicking the master checks **all** fields of its group when at least one is
+  unchecked (including the *indeterminate* state) and unchecks them all when
+  every field is already checked — same alternation as the legacy icon;
+* the master reflects the real group state at all times: **checked** when all
+  fields are on, **indeterminate** when only some are, unchecked when none are.
+  It re-syncs after every individual checkbox change and after *Reset*;
+* the master never reaches the BFF: its ids are `all_tc` / `all_ts` / `all_rs`
+  / `all_rq`, which do not match the `tc_` / `ts_` / `rs_` / `rq_` prefixes
+  `doSearch()` collects, so the submitted search keys are unchanged;
+* the tooltip comes from the new `searchAdv.checkUncheckAll` key, present in
+  all ten locale bundles (`Check / uncheck all`, `Bifează / debifează tot`, ...)
+  and applied through `data-i18n-title`.
+
+
+
+No BFF change was needed — `api/search/index.php` already consumed every
+field flag. Verified 14/14 PASS (test suite *Task — Issue #1095* in
+`tmp/TLU_Test_Cases.md`): toggle/indeterminate/reset matrix, requirements
+enabled project (all four groups), `locale=ro` reload (translations applied,
+headers and masters survive `TLi18n.apply()`), search regression and a clean
+Event Viewer. Pre-existing console error found while testing and filed
+separately as **#1856** (out of scope, not fixed here).

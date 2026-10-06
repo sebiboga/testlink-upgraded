@@ -4772,6 +4772,7 @@
   "searchAdv.andOrAnd": "与（所有词）",
   "searchAdv.andOrOr": "或（任一词）",
   "searchAdv.andOrTitle": "词组合方式",
+  "searchAdv.checkUncheckAll": "全选/取消全选",
   "searchAdv.colDocId": "文档 ID",
   "searchAdv.colName": "名称",
   "searchAdv.details": "详情",

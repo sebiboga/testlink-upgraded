@@ -4772,6 +4772,7 @@
   "searchAdv.andOrAnd": "И (все термины)",
   "searchAdv.andOrOr": "ИЛИ (любой термин)",
   "searchAdv.andOrTitle": "Комбинация терминов",
+  "searchAdv.checkUncheckAll": "Отметить / снять все",
   "searchAdv.colDocId": "ID документа",
   "searchAdv.colName": "Название",
   "searchAdv.details": "Подробности",

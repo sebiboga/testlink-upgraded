@@ -4772,6 +4772,7 @@
   "searchAdv.andOrAnd": "E (todos os termos)",
   "searchAdv.andOrOr": "OU (qualquer termo)",
   "searchAdv.andOrTitle": "Combinação de termos",
+  "searchAdv.checkUncheckAll": "Marcar / desmarcar tudo",
   "searchAdv.colDocId": "ID do documento",
   "searchAdv.colName": "Nome",
   "searchAdv.details": "Detalhes",

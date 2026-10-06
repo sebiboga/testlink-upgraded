@@ -4772,6 +4772,7 @@
   "searchAdv.andOrAnd": "AND（すべての語）",
   "searchAdv.andOrOr": "OR（いずれかの語）",
   "searchAdv.andOrTitle": "検索語の組み合わせ",
+  "searchAdv.checkUncheckAll": "すべてチェック/解除",
   "searchAdv.colDocId": "ドキュメントID",
   "searchAdv.colName": "名前",
   "searchAdv.details": "詳細",

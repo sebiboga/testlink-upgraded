@@ -4788,6 +4788,7 @@
   "searchAdv.andOrAnd": "AND (all terms)",
   "searchAdv.andOrOr": "OR (any term)",
   "searchAdv.andOrTitle": "Term combination",
+  "searchAdv.checkUncheckAll": "Check / uncheck all",
   "searchAdv.colDocId": "Document ID",
   "searchAdv.colName": "Name",
   "searchAdv.details": "Details",

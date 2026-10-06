@@ -29,7 +29,9 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 .form-control { font-size: 13px; height: 34px; }
 .check-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 6px 22px; padding: 12px 20px 4px; }
 .check-group { border: 1px solid #e5e5e5; border-radius: 6px; padding: 10px 12px; }
-.check-group > h4 { font-size: 12px; font-weight: 700; color: #2d8e88; text-transform: uppercase; letter-spacing: .5px; margin: 0 0 6px; }
+.check-group .grp-head { display: flex; align-items: center; gap: 7px; margin: 0 0 6px; }
+.check-group .grp-head > h4 { font-size: 12px; font-weight: 700; color: #2d8e88; text-transform: uppercase; letter-spacing: .5px; margin: 0; }
+.check-group .grp-toggle { width: 14px; height: 14px; margin: 0; cursor: pointer; flex: 0 0 auto; accent-color: #4ECDC4; }
 .check-group label.cb { display: block; font-size: 12.5px; color: #444; font-weight: 400; margin: 3px 0; cursor: pointer; }
 .check-group label.cb input { margin-right: 6px; vertical-align: -2px; }
 .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px 22px; padding: 12px 20px 6px; }
@@ -92,7 +94,11 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
   </div>
   <div class="check-grid">
     <div class="check-group">
-      <h4 data-i18n="searchAdv.grpTestCase">Test Cases</h4>
+      <div class="grp-head">
+        <input type="checkbox" class="grp-toggle" id="all_tc" title="Check / uncheck all"
+               data-i18n-title="searchAdv.checkUncheckAll">
+        <h4 data-i18n="searchAdv.grpTestCase">Test Cases</h4>
+      </div>
       <label class="cb"><input type="checkbox" id="tc_title" value="1" checked><span data-i18n="search.title">Title</span></label>
       <label class="cb"><input type="checkbox" id="tc_summary" value="1" checked><span data-i18n="search.summary">Summary</span></label>
       <label class="cb"><input type="checkbox" id="tc_preconditions" value="1" checked><span data-i18n="search.preconditions">Preconditions</span></label>
@@ -101,17 +107,29 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
       <label class="cb"><input type="checkbox" id="tc_id" value="1" checked><span data-i18n="search.tcid">Test Case ID</span></label>
     </div>
     <div class="check-group">
-      <h4 data-i18n="searchAdv.grpTestSuite">Test Suites</h4>
+      <div class="grp-head">
+        <input type="checkbox" class="grp-toggle" id="all_ts" title="Check / uncheck all"
+               data-i18n-title="searchAdv.checkUncheckAll">
+        <h4 data-i18n="searchAdv.grpTestSuite">Test Suites</h4>
+      </div>
       <label class="cb"><input type="checkbox" id="ts_title" value="1" checked><span data-i18n="search.title">Title</span></label>
       <label class="cb"><input type="checkbox" id="ts_summary" value="1" checked><span data-i18n="searchAdv.details">Details</span></label>
     </div>
     <div class="check-group" id="grpReqSpec" style="display:none">
-      <h4 data-i18n="searchAdv.grpReqSpec">Requirement Specifications</h4>
+      <div class="grp-head">
+        <input type="checkbox" class="grp-toggle" id="all_rs" title="Check / uncheck all"
+               data-i18n-title="searchAdv.checkUncheckAll">
+        <h4 data-i18n="searchAdv.grpReqSpec">Requirement Specifications</h4>
+      </div>
       <label class="cb"><input type="checkbox" id="rs_title" value="1" checked><span data-i18n="search.title">Title</span></label>
       <label class="cb"><input type="checkbox" id="rs_scope" value="1" checked><span data-i18n="searchAdv.scope">Scope</span></label>
     </div>
     <div class="check-group" id="grpReq" style="display:none">
-      <h4 data-i18n="searchAdv.grpRequirement">Requirements</h4>
+      <div class="grp-head">
+        <input type="checkbox" class="grp-toggle" id="all_rq" title="Check / uncheck all"
+               data-i18n-title="searchAdv.checkUncheckAll">
+        <h4 data-i18n="searchAdv.grpRequirement">Requirements</h4>
+      </div>
       <label class="cb"><input type="checkbox" id="rq_title" value="1" checked><span data-i18n="search.title">Title</span></label>
       <label class="cb"><input type="checkbox" id="rq_scope" value="1" checked><span data-i18n="searchAdv.scope">Scope</span></label>
       <label class="cb"><input type="checkbox" id="rq_doc_id" value="1" checked><span data-i18n="search.requirementDocId">Requirement document ID</span></label>
@@ -246,6 +264,7 @@ var ctx = null;
 $(function () {
   var p = new URLSearchParams(window.location.search);
   tprojectId = parseInt(p.get('tproject_id') || '0', 10);
+  initGroupToggles();
   TLi18n.load(function () {
     TLi18n.apply();
     TLi18n.initLocaleSwitcher('#localeSwitcher');
@@ -543,6 +562,50 @@ function resetForm() {
   $('.check-group input[type=checkbox]').prop('checked', true);
   $('#and_or').val('or');
   $('#footerInfo').text('');
+  syncGroupToggles();
+}
+
+// per-group check/uncheck-all toggles in the check-group headers
+// (modern port of legacy cs_all_checkbox_in_div() + mm*Cell memory inputs,
+//  gui/javascript/checkboxes.js:244 — now stateless: the master reflects the
+//  real group state via checked + indeterminate, same pattern as
+//  requirements/reqTcBulkAssign.html:229-230)
+var CHECK_GROUPS = [
+  { master: 'all_tc', prefix: 'tc_' },
+  { master: 'all_ts', prefix: 'ts_' },
+  { master: 'all_rs', prefix: 'rs_' },
+  { master: 'all_rq', prefix: 'rq_' }
+];
+
+function groupItems(prefix) {
+  return $('input[type=checkbox]').filter(function () {
+    return this.id.indexOf(prefix) === 0;
+  });
+}
+
+function syncGroupToggles() {
+  CHECK_GROUPS.forEach(function (g) {
+    var $items = groupItems(g.prefix);
+    var total = $items.length;
+    var sel = $items.filter(':checked').length;
+    $('#' + g.master)
+      .prop('checked', total > 0 && sel === total)
+      .prop('indeterminate', sel > 0 && sel < total);
+  });
+}
+
+function initGroupToggles() {
+  CHECK_GROUPS.forEach(function (g) {
+    var $master = $('#' + g.master);
+    var $items = groupItems(g.prefix);
+    $master.on('change', function () {
+      var on = this.checked;
+      $items.prop('checked', on);
+      syncGroupToggles();
+    });
+    $items.on('change', syncGroupToggles);
+  });
+  syncGroupToggles();
 }
 </script>
 </body>
