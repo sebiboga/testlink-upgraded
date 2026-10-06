@@ -1402,3 +1402,51 @@ banner together), ON + `?locale=ro`, ON + `?locale=es`, ON with the i18n bundle 
 fallback, no raw key), OFF (banner `display:none`, marker untouched, **Lost password?** link
 visible again), plus `node --check` on the inline script and `python3 -m json.tool` on all 10
 bundles. **Result: 11/11 + 7/7 review follow-up = PASS.**
+
+## Regression — Issue #1859: tcEdit.php:327 `key(get_last_active_version())` fatal (HTTP 500) for a test case with no active version
+
+### Test Case 1859-1: no-doAction load of a test case with NO active version
+- **Objective:** Verify the regression URL (`tcEdit.php?tcase_id=N` for a test case whose versions are all `active=0`) answers cleanly instead of fataling
+- **Preconditions:** `php tmp/fixtures_1859.php` (tproject `TC Edit 1859`; `TC1859-NOACTIVE` has its only version deactivated); admin session (cookie jar via `GET /index.php` + `POST /login.php` `tl_login=admin&tl_password=admin`)
+- **Repro steps (pre-fix):** `curl 'http://localhost:8082/lib/testcases/tcEdit.php?tcase_id=<no-active>'` → **HTTP 500, 0 bytes**, `Uncaught TypeError: key(): Argument #1 ($array) must be of type array, null given in lib/testcases/tcEdit.php:327` in `tmp/php_server.log`. No `events` row for the fatal.
+- **Expected (post-fix):** HTTP **200** (empty body — parity with the ACTIVE control `?tcase_id=<active>` which has always answered 200), no new `tcEdit.php:327` TypeError in the server log, no new Error and no new Warning events beyond the documented #1863 absent-id signature.
+- **Actual:** `bash tmp/verify_1859.sh` item A → **PASS (HTTP 200, bytes=0)**; log and events clean. **PASS**
+
+### Test Case 1859-2: edit action (`edit_tc=1`) on a test case with NO active version
+- **Objective:** Verify the editor renders the inactive version instead of a fatal
+- **Preconditions:** same fixture; admin session
+- **Repro steps (pre-fix):** `tcEdit.php?edit_tc=1&tcase_id=<no-active>` → **HTTP 500, 0 bytes**, same `key()` TypeError (edit flow also runs `init_args`).
+- **Expected (post-fix):** HTTP **200** and the editor HTML renders the test-case name (`TC1859-NOACTIVE`).
+- **Actual:** `verify_1859.sh` item B → **PASS (HTTP 200, name found)**. **PASS**
+
+### Test Case 1859-3: absent `tcase_id` no-doAction load
+- **Objective:** Verify a nonexistent id no longer fatals at `tcEdit.php:327`
+- **Steps:** `tcEdit.php?tcase_id=999999`
+- **Expected (post-fix):** HTTP 200, no TypeError. (Known, separately-filed residual: the 4 `Undefined array key` E_WARNINGs from `testcase.class.php:5700` for an absent id — issue **#1863** — and the `count()` **500** when the *edit action* is used for an absent id — issue **#1862**.)
+- **Actual:** `verify_1859.sh` item C → **PASS (HTTP 200)**; the 4 #1863 warnings are the only events. **PASS**
+
+### Test Case 1859-4: control — ACTIVE test case unchanged
+- **Objective:** No behaviour change for the healthy path
+- **Steps:** `tcEdit.php?edit_tc=1&tcase_id=<active>` and `tcEdit.php?tcase_id=<active>`
+- **Expected:** HTTP 200, editor renders `TC1859-ACTIVE`.
+- **Actual:** `verify_1859.sh` items D / D2 → **PASS**. **PASS**
+
+### Test Case 1859-5: deactivate-last-version workflow
+- **Objective:** Reach the no-active state the real way (deactivate the last version) and edit the test case
+- **Steps:** set the active version `active=0` (SQL, emulating what `deactivate_this_tcversion` writes — the URL handler's post-action render is separately broken by #1860); then `tcEdit.php?edit_tc=1&tcase_id=<active>` and the no-doAction URL
+- **Expected:** Both answer HTTP 200; editor still renders the test-case name; no fatal.
+- **Actual:** `verify_1859.sh` items E / E2 → **PASS**. **PASS**
+
+### Test Case 1859-6: Event Viewer + server-log hygiene
+- **Objective:** The fix must not introduce new Error/Warning entries
+- **Steps:** run items 1859-1..5; `mysql ... events` baseline before/after; `tmp/php_server.log` diff
+- **Expected:** 0 new `log_level=1` rows; Warning rows limited to the 4-row #1863 absent-id signature (matrix sends exactly one absent-id request); no new `tcEdit.php:327` TypeError lines.
+- **Actual:** `verify_1859.sh` items F / G → **PASS** (0 errors, only 4× line-5700 warnings from item 3). **PASS**
+
+### Test Case 1859-7: regression gate + harness
+- **Objective:** The executable harness must be deterministic and green
+- **Steps:** `bash tmp/verify_1859.sh` after a fresh `php tmp/fixtures_1859.php`
+- **Expected:** `RESULT: PASS=9 FAIL=0`, exit 0.
+- **Actual:** **PASS=9 FAIL=0** (logged twice — once pre-docs and once after the fresh fixture re-run). **PASS**
+
+**Result: 7/7 PASS.**
