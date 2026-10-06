@@ -61,61 +61,95 @@ harness, one pristine origin per row:
 |---|---|
 | `-X theirs` (the workflow) | **0 — destroyed** |
 | *(default / `ort`)* | 46 — safe |
-| `-X ours` (the fix) | 46 — safe |
+| `-X ours` (the proposed class fix, NOT landed — see below) | 46 — safe |
 | `-X merge` | 46 — safe |
 
-## Fix
+## Fix — what actually landed (`15ae8c1bc`)
 
-`git rebase -X theirs "origin/$BRANCH"` → `git rebase -X ours "origin/$BRANCH"` in all
-**7** sites, each with a comment naming the hazard:
+A single versioned line, new file `.gitattributes`:
 
-* `fix-bug.yml`, `fix-bug-oldest.yml`, `implement-task-oldest.yml`, `implement-task-newest.yml`,
-  `investigate-fix.yml`, `compare-screens.yml`, `modernize.yml` — the six fallback-push steps
-  that target the shared default branch;
-* `modernize.yml`'s agent `PROMPT` text, which was *instructing* agents by hand to use the
-  destructive strategy when a push is rejected.
+```gitattributes
+tmp/TLU_Test_Cases.md merge=union
+```
 
-`-X ours` was chosen over dropping the flag because plain `ort` leaves conflict markers
-inside a 26k-line append-only file — exactly the "content conflict in the middle of its own
-suite" collateral the issue describes for the next agent. It was chosen over a
-`git checkout origin/$BRANCH -- <file>` step because that is larger, stateful, and would not
-protect any *other* shared file added later; fixing the conflict strategy protects the whole
-class. `git add -A` was deliberately left alone (measured non-defective), and
-`compare-screens.yml` already shows the repo's own precedent of an explicit path allow-list
-where one is genuinely needed.
+Why this method:
 
-`-X ours` here does not endanger an agent's actual bug fix: that fix is pushed to the agent's
-own `fix/issue-<n>` branch and landed by `merge-prs.yml`. This step only commits *leftover
-bookkeeping*, and where leftover and branch conflict, the newer branch content is the correct
-winner.
+* **Attributes are read from the working tree during a rebase** — i.e. from the *upstream*
+  checkout (`origin/$BRANCH`) — so once this line sits on the default branch, every future
+  fallback rebase merges the ledger with the builtin `union` driver, whatever `-X` flag the
+  workflow passes. Measured: a running merge driver beats the strategy flag for that path.
+* `union` is a **builtin** driver — it needs no `merge.<name>.driver` config, and git config
+  is the one thing a repo cannot version, which is exactly why `merge=ours` was rejected:
+  measured, the bare attribute is a no-op without `merge.ours.driver` (clobber still happens),
+  and with the config it works but cannot ship (`.git/config` is local to each runner clone).
+* Union semantics fit an append-only ledger: the upstream side is kept verbatim and the
+  replayed side's lines are appended with lines identical to existing content collapsed into
+  their first occurrence — **no unique content from either side is ever lost**. The reported
+  failure mode (an entire concurrent suite silently deleted) becomes impossible; the cosmetic
+  residue of a simultaneous append (shared boilerplate such as blank lines / `### Repro steps`
+  appears once with both table rows) is visible and repairable, not silent.
 
-## Verification
+`git check-attr merge -- tmp/TLU_Test_Cases.md` → `merge: union`; any other path → `unspecified`
+(the rule is scoped to the one file).
 
-The step extracted verbatim from the patched `fix-bug.yml`:
+## Class fix — documented, BLOCKED on token permissions
+
+The root-cause fix at the right layer remains `git rebase -X theirs` → `git rebase -X ours` in
+all **7** sites (`fix-bug`, `fix-bug-oldest`, `implement-task-oldest`, `implement-task-newest`,
+`investigate-fix`, `compare-screens`, `modernize` — the last one also in the agent `PROMPT`
+text). It was prepared, grepped clean (0 `theirs`, 8 `ours`) and YAML-validated (11/11), but
+**cannot be pushed by the CI token** — measured rejection, three runs in a row:
+
+```console
+ ! [remote rejected] HEAD -> fix/issue-1694 (refusing to allow a GitHub App to create or
+   update workflow `.github/workflows/compare-screens.yml` without `workflows` permission)
+```
+
+Exact patch (needs a credential with the `workflows` scope):
+
+```bash
+sed -i 's|git rebase -X theirs "origin/\$BRANCH"|git rebase -X ours "origin/$BRANCH"|' \
+  .github/workflows/{fix-bug,fix-bug-oldest,implement-task-newest,implement-task-oldest,investigate-fix,compare-screens,modernize}.yml
+sed -i 's|git rebase -X theirs origin/<branch>|git rebase -X ours origin/<branch>|' \
+  .github/workflows/modernize.yml     # the agent PROMPT text (~line 238)
+```
+
+Verified on a copy of all 11 workflows: `grep -rn "rebase -X theirs"` → 0 hits,
+`grep -rn "rebase -X ours"` → 8 hits, `yaml.safe_load` → 11/11 OK.
+
+`-X ours` (in a rebase: `ours` = upstream = the newer default branch) was chosen over
+dropping the flag because plain `ort` leaves conflict markers inside a 26k-line append-only
+file, and over a `git checkout origin/$BRANCH -- <file>` step because that is larger, stateful,
+and would not protect any *other* shared file. `git add -A` was deliberately left alone
+(measured non-defective: the staged diff is 100% additions, so the issue's proposed deletion
+guard never fires).
+
+## Verification (measured)
+
+Harness: pristine `origin.git` per scenario, base = the real 1526-line ledger; timeline =
+concurrent agent appends its suite to the default branch while a stale agent leaves its own
+suite as the "leftover" commit, then the fallback runs `git rebase -X theirs origin/main`.
 
 | # | scenario | result |
 |---|---|---|
-| R1 | concurrent agent appended a suite during the run (**the bug**) | **PASS — 46 lines preserved** |
-| R1b | same harness, pre-fix step | reproduces the bug — 0 lines |
-| R2 | no concurrent change, only the run's own leftover | PASS — leftover still committed and pushed |
-| R3 | leftover in a file nobody else touched | PASS |
-| R4 | rebase needed, single attempt | PASS |
-| R5 | push rejected → `fetch` + rebase retry loop | **NOT VERIFIED** — harness reused a mutated origin; result discarded, not claimed |
-| R6 | `--force-with-lease` / `--force` escalation | unchanged code path, not touched |
-| R7 | `yaml.safe_load` on all 11 workflows + `bash -n` on every `run:` block | PASS (11/11, all blocks parse) |
-| R8 | `grep -rn "rebase -X theirs" .github/workflows/` | PASS — 0 hits, 7 `-X ours` sites |
+| R1 | reported bug, **without** the guard (true control) | **bug reproduced** — `1681-surviving: 0` |
+| R1b | reported bug, **with** the guard (synthetic) | **PASS — 45/45 + 20/20 preserved** |
+| R1c | reported bug, **with** the guard (realistic, shared boilerplate) | **PASS — `Suite 1681`=1, `Suite 1608`=1, both table rows, 1526→1543 lines** |
+| R2 | only this run's own leftover (rebase skipped — origin is ancestor — or guarded rebase) | PASS — append lands intact, unique content 1/1 |
+| R3 | other files / other paths | PASS — `git check-attr` resolves `union` for the ledger only |
+| R4–R6 | rebase retry / force-push escalation paths | unchanged (no workflow code landed) |
+| R7 | `.gitattributes` syntax + scope | PASS (`git check-attr` output above) |
+| suite gate | `TLU_REQUIRE_SUITE="Issue #1694" bash ai/verify_test_suites.sh` | PASS — 7/0/0, 24 suites, none lost |
 
 The full suite is in `tmp/TLU_Test_Cases.md` ("Regression — Issue #1694").
 
 ## Residual risk
 
-* **R5 is unverified.** It needs a hermetic origin; the retry loop itself is untouched by the
-  edit and executes the same `-X ours` line on every attempt.
-* If an agent **commits** its own stale replacement of a shared file itself (rather than
-  leaving it uncommitted), the rebase replays that commit — `-X ours` now resolves it towards
-  the branch, so the shared file is protected, but the agent's own append is dropped. A
-  future hardening could re-apply the agent's own suite append on top of the branch version
-  (`git checkout origin/$BRANCH -- <file>` then re-append), as the issue suggests.
-* Each of these steps is paired with `git push --force-with-lease` → `git push --force`
-  (`fix-bug.yml:242-243`), so a rejected normal push escalates to a force push. That path is
-  unchanged and is the reason the fix had to be made where the conflict is decided.
+* The **7 `rebase -X theirs` workflow sites remain live** for every *other* shared file —
+  the class fix is blocked on a `workflows`-scoped credential (tracked as issue **#1868**).
+* Union's dedup collapses lines of the replayed side that are *identical* to existing content
+  (blank lines, repeated boilerplate) into their existing occurrence — unique content always
+  survives, but two suites appended in the same instant share one copy of their boilerplate.
+* The fallback step is still paired with `git push --force-with-lease` → `git push --force`
+  (`fix-bug.yml:242-243`); that escalation path is untouched and is why the class fix must
+  eventually be made where the conflict is decided.
