@@ -1259,3 +1259,38 @@ and verified error-free; no code change was required.
   works — so left for a separate run per FIX-ISSUE.md §4 ("file it, never expand
   this run's scope"). Not fixed in this run.
 
+
+## Regression — Issue #1708: getReqsOnSpecForLatestTCV() fatal for a test case with no active version
+
+**Precondition** (fresh DB each run): `php tmp/fixtures_1708.php` creates tproject
+`FIX1708` (id 1, requirements enabled), spec `FX70-SPEC-A` (id 2, requirements
+FX70-1/FX70-2), suite id 8, test case `TC-NOVER` (id 9, v1 = tcversion 10),
+`req_coverage` row 1 on tcversion 10. Login `admin/admin`, cookie jar from
+`POST /api/auth/login`. Then `UPDATE tcversions SET active=0 WHERE id=10;`
+so the test case has NO active version.
+
+**Repro steps (pre-fix):**
+1. `GET /api/requirements/assign-reqs?req_spec_id=2&tcase_id=9` (X-Requested-With: XMLHttpRequest).
+2. Observe response and `tmp/php_server.log`.
+3. `SELECT COUNT(*) FROM events;`
+
+**Expected post-fix behavior:** HTTP 200 with `status:"ok"` and `assigned: []`
+(honest empty grid), no `Fatal error` line, `events` count unchanged.
+
+**Actual result observed (post-fix, 2026-10-06):**
+- R1 no-active-version GET → `[HTTP 200]` `{"status":"ok",...,"assigned":[],...}`;
+  `tmp/php_server.log` records `[200]: GET /api/requirements/assign-reqs?...`
+  (pre-fix: `Uncaught TypeError: current(): Argument #1 ($array) must be of type
+  array, null given ... requirement_spec_mgr.class.php:2632` → `[500]`, 0 bytes).
+- R2 control (v1 reactivated) → `[HTTP 200]` assigned contains
+  `FX70-1 ... link_id 1` (unchanged from pre-fix control).
+- R3 spec-only `?req_spec_id=2` (no tcase_id) → `[HTTP 200]`, all unassigned.
+- R4 `GET /api/reqtcassign/?action=init&tproject_id=1&tcase_id=9` → clean
+  `[HTTP 404]` `{"message":"Test case has no active version"}` (already-guarded path).
+- R5 `getReqsOnSpecNotLinkedToLatestTCV()` (#1705 twin) untouched, guard at
+  `requirement_spec_mgr.class.php:2763` intact.
+- R6 `php -l lib/functions/requirement_spec_mgr.class.php` → no syntax errors.
+- R7 `events` COUNT 3 → 3; `grep -c "Fatal error" tmp/php_server.log` 1 → 1
+  (only the pre-fix reproduction) — no new Error/Warning.
+
+**Overall: PASS (R1–R7).**
