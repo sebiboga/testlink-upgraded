@@ -260,9 +260,13 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 var API = '/api/search/index.php';
 var tprojectId = 0;
 var ctx = null;
+// Refs #1097 - must be GLOBAL: loadContext() (below) reads the URL params
+// through it. Declaring it inside this ready-closure made loadContext throw
+// "ReferenceError: p is not defined", so the deep-link prefill never ran.
+var p = null;
 
 $(function () {
-  var p = new URLSearchParams(window.location.search);
+  p = new URLSearchParams(window.location.search);
   tprojectId = parseInt(p.get('tproject_id') || '0', 10);
   initGroupToggles();
   TLi18n.load(function () {
@@ -346,6 +350,13 @@ function loadContext() {
       });
       var ao = p.get('and_or');
       if (ao === 'and' || ao === 'or') { $('#and_or').val(ao); }
+
+      // Refs #1097 - legacy forceSearch parity (lib/search/searchMgmt.php:99
+      // + dashio/search/searchGUI.inc.tpl:257-259): when the URL carries a
+      // non-empty search target, the form submitted itself on load. Deep
+      // links (navBar one-box hand-off, bookmarked searches) must land on
+      // results without requiring a manual Find click.
+      if ($.trim(p.get('target') || '') !== '') { doSearch(); }
     })
     .fail(function (xhr) {
       var msg = TLi18n.t('common.error');

@@ -185,3 +185,47 @@ Notes:
   `searchMgmt.html:387` links results with `reqspec_id=`, a parameter
   `reqSpecView.html` never reads) and the pre-existing console error
   `ReferenceError: p is not defined` (**#1856**).
+
+## Deep-link auto-submit from a URL `target` parameter (issue #1097)
+
+When the screen URL carries a search `target` term
+(`searchAdvancedView.html?tproject_id=<id>&target=<term>`), the form now
+**submits itself on load** exactly like legacy
+(`lib/search/searchMgmt.php:99` `forceSearch` →
+`dashio/search/searchGUI.inc.tpl:257-259`): the box is prefilled with the
+term and `doSearch()` runs immediately, so deep links (navBar one-box
+hand-off, bookmarked searches) land straight on results — no manual Find
+click needed.
+
+Before (issue #1097) the deep link was doubly broken:
+
+* `searchAdvancedView.html` scoped `var p = new URLSearchParams(...)` inside
+  the jQuery-ready closure, but the global `loadContext()` reads it — so the
+  URL-prefill block threw `ReferenceError: p is not defined` and **never ran**
+  (the box stayed empty). That separate bug was filed as **#1856** and is
+  closed by this same change.
+* even when the prefill had worked, nothing auto-submitted: `doSearch()`
+  (`:368`) was only reachable through the Find button, unlike the sibling
+  `searchMgmt.html` which already runs its navBar hand-off (`:261-266`).
+
+The fix, `gui/templates/search/searchAdvancedView.html`:
+
+1. `var p = null;` is now declared at **global** scope (the same pattern as
+   `searchMgmt.html:154`); the ready-closure only reassigns it — prefill runs.
+2. right after the URL-prefill block, the legacy forceSearch condition is
+   mirrored verbatim: `if ($.trim(p.get('target') || '') !== '') { doSearch(); }`
+   — a non-empty `target` (after trim) triggers the search automatically.
+
+Notes:
+
+* no BFF change was needed — `api/search/index.php?action=fulltext` already
+  accepts `target` as a plain GET parameter;
+* a deep link **without** `target` keeps the current bare-form behaviour
+  (0 `action=fulltext` requests — exactly legacy, where `forceSearch` was
+  false);
+* verified 10/10 PASS (test suite *Task — Issue #1097* in
+  `tmp/TLU_Test_Cases.md`): deep link auto-runs with the term prefilled, the
+  fulltext request fires with no click, manual Find/Reset still work, the
+  sibling `searchMgmt.html` navBar hand-off still auto-runs, console has zero
+  errors (the `ReferenceError` is gone), i18n coverage gate passes (no new
+  keys), Event Viewer gained no Error/Warning rows.

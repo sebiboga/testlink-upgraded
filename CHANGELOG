@@ -117,6 +117,25 @@ screen reaches full parity.
   while testing were filed separately: **#1865** (`searchMgmt.html` RS links use the unread
   `reqspec_id=` parameter) and pre-existing **#1856** (console `ReferenceError: p`). (Refs #1096)
 
+- [NEW FEATURE] - #1097: **Advanced Search deep links with a URL `target` param now
+  auto-submit on load** (legacy `forceSearch` parity). Legacy
+  `lib/search/searchMgmt.php:99` computed `forceSearch = strlen(trim($args->target)) > 0`
+  and `dashio/search/searchGUI.inc.tpl:257-259` submitted the form on
+  jQuery/onload; the modern `searchAdvancedView.html` only *prefilled* the URL params - and even
+  that was broken, because `var p = new URLSearchParams(...)` was declared inside the
+  jQuery-ready closure while the global `loadContext()` reads it, so the prefill block threw
+  `ReferenceError: p is not defined` (bug **#1856**) and no results ever loaded. Fix (1 file,
+  `gui/templates/search/searchAdvancedView.html`): `p` is now global (`searchMgmt.html:154`
+  pattern) and, right after the URL prefill, `if ($.trim(p.get('target') || '') !== '') { doSearch(); }`
+  mirrors legacy forceSearch exactly - deep links (bookmarked searches, navBar one-box hand-off)
+  land on results with no Find click. No BFF change and no new i18n keys (`action=fulltext`
+  already accepts `target`); a deep link *without* `target` keeps the bare-form behaviour
+  (0 `action=fulltext` requests). Verified in-browser (fixture project 1 "Search Gap Demo",
+  2 TCs): deep link prefills + auto-fires `action=fulltext` + renders 1 match, console zero
+  errors (ReferenceError gone), manual Find/Reset regression OK, sibling `searchMgmt.html`
+  navBar hand-off regression OK, test suite "Task — Issue #1097" 10/10 PASS, i18n coverage
+  gate green, Event Viewer clean. (Refs #1097, Fixes #1856)
+
 - [MODERNIZED SCREEN] - #1845: **Priority Bar Chart** is no longer a dead endpoint.
   Legacy `lib/results/priorityBarChart.php` was **unreachable fatal code** on 2.0.1: it
   required `third_party/charts/charts.php` and `lib/functions/results.class.php`, both gone

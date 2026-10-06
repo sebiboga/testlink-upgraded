@@ -1689,3 +1689,26 @@ A reorder control can only ever act on the row it lives in, whatever is selected
 | 10 | Event Viewer / `events` table after the search flows | no new Error/Warning rows from the fix | search re-runs added 0 rows (count unchanged at 6; the 2 error rows present mid-run came from a broken *fixture* missing `nodes_hierarchy` revision nodes, explained in the issue checkpoint — not from the product path) | **PASS** |
 
 **Regression — Issue #1869: 10/10 PASS.** Pre-fix, cases 1 and 2 FAIL (BFF warning contradicted `count=4`; client rendered only the empty-project notice with `.res-block`=0).
+## Task — Issue #1097: Missing forceSearch auto-submit from URL target param in searchAdvancedView (gap vs legacy)
+
+### Suite: 1097 — advanced-search deep-link auto-submit + URL prefill
+Precondition: app at http://localhost:8082 (admin/admin); DB seeded through the BFF APIs — project **1**
+"Search Gap Demo" (prefix SGD), suite **2** "Smoke Suite", test case **3** "Login with valid credentials"
+(summary mentions *login*), test case **6** "Smoke test - logout". Browser session holding the admin login cookie.
+
+Steps / Expected / Actual:
+
+| # | Step | Expected | Actual |
+|---|---|---|---|
+| 1 | Open `/gui/templates/search/searchAdvancedView.html?tproject_id=1&target=login` (deep link with a `target` term) | Box prefilled with `login` AND the search auto-runs on load (legacy `forceSearch`, `searchGUI.inc.tpl:257-259`) | **PASS** — `#target.value = "login"`, `#matchCount = "(1 matches)"`, `#secTC` visible with 1 row, `#warnBox` empty |
+| 2 | Inspect the network panel of the same load | A `GET /api/search/index.php?action=fulltext&tproject_id=1&target=login&…` request fires **without any click** | **PASS** — req fired after `action=context`, returned 200; BEFORE the fix only `action=context` fired |
+| 3 | Browser console during the deep-link load | Zero errors — in particular NO `ReferenceError: p is not defined` (prefill now runs) | **PASS** — 0 error / 0 warn; BEFORE the fix the console showed `Uncaught ReferenceError: p is not defined` ×1 and `#target.value` was empty (bug **#1856**) |
+| 4 | Open `/gui/templates/search/searchAdvancedView.html?tproject_id=1` (**no** target param) | No auto-search: box empty, results hidden, no `action=fulltext` request | **PASS** — `fulltextRequests = 0`, `#target.value = ""`, `#resultsHead` `display:none` |
+| 5 | On the plain screen type `logout` and click **Find** (manual search) | Results render for the manual path (regression) | **PASS** — `#matchCount = "(1 matches)"`, 1 TC row, header shown |
+| 6 | Click **Reset** on the same screen | All criteria cleared, results hidden (regression) | **PASS** — `#target.value = ""`, `#resultsHead` & `#secTC` hidden, `#footerInfo` empty |
+| 7 | Regression — sibling screen `/gui/templates/search/searchMgmt.html?tproject_id=1&target=smoke` (navBar one-box hand-off) | Still prefixes and auto-runs (searchMgmt.html:261-266 untouched) | **PASS** — `#target.value = "smoke"`, `#resCount = "2 match(es)"` (suite "Smoke Suite" + TC), results tables rendered |
+| 8 | `node --check` on the inline `<script>` block of `searchAdvancedView.html` | Syntax OK | **PASS** — `JS_OK` |
+| 9 | `bash ai/verify_i18n_coverage.sh` | No missing keys (no user-facing strings added) | **PASS** — coverage gate green |
+| 10 | Event Viewer (`events` table) after all steps | No new Error/Warning rows | **PASS** — table holds only 3 INFO audit rows (2× `audit_login_succeeded`, 1× `audit_testproject_created`, all `log_level 16`); zero Error/Warning added by the change |
+
+**Suite 1097: 10/10 PASS**
