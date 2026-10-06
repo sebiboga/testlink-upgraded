@@ -8,3 +8,8 @@ Undefined property: stdClass::$log_path - in /home/runner/work/testlink-upgraded
 		E_WARNING
 Undefined property: stdClass::$log_path - in /home/runner/work/testlink-upgraded/testlink-upgraded/lib/functions/logger.class.php - Line 1213
 [<<][6ac19f6113cbf965266383][DEFAULT][Standard input code][26/Oct/4 00:35:45][26/Oct/4 00:35:45][took 0.001103 secs]
+[>>][6ac5647939af1586638062][DEFAULT][Standard input code][26/Oct/6 21:13:29]
+	[26/Oct/6 21:13:29][WARNING][<nosession>][GUI]
+		E_WARNING
+Undefined property: stdClass::$log_path - in /home/runner/work/testlink-upgraded/testlink-upgraded/lib/functions/logger.class.php - Line 1213
+[<<][6ac5647939af1586638062][DEFAULT][Standard input code][26/Oct/6 21:13:29][26/Oct/6 21:13:29][took 0.001088 secs]
