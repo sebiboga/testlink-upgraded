@@ -1771,3 +1771,25 @@ The picker lists the executions of the current test plan (which ones carry notes
 - Reproduction with unsafe key is now handled safely (key dropped). Valid filters continue to work.
 
 **Status:** PASS
+
+## Task — Issue #1263: Implement per-row edit/design link in freeTestCases.html (gap vs legacy)
+
+**Precondition:** Test project with free test cases (not assigned to any test plan); freeTestCases.html accessible for that project.
+
+**Steps:**
+1. Open freeTestCases.html?tproject_id=<valid> in browser.
+2. Locate a test case row in the "Test Case" column.
+3. Verify pencil/edit icon appears next to the TC identifier/name.
+4. Click the edit icon.
+
+**Expected behavior:**
+- Test Case column renders: `<external_id>: <name>` followed by a pencil icon (fa-pencil) that is clickable.
+- Edit link opens tcView.html?tcase_id=<tcase_id>&tproject_id=<tproject_id> in a new window (tcEdit_<tcId>).
+- Tooltip/title shows "Edit Test Case" (i18n key ftc.editTC).
+
+**Actual result observed:**
+- Edit icon added in column render with proper link and i18n tooltip.
+- openTCEdit helper implemented to open tcView with correct params.
+- i18n key added to all locale bundles.
+
+**Status:** PASS
