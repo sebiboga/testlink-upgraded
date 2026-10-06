@@ -6902,5 +6902,6 @@
   "sued.stBadRequestMsg": "送信されたパラメータのいずれかが欠落しているか不正です。",
   "sued.stError": "エラー",
   "sued.stErrorMsg": "操作を完了できませんでした。ページを再読み込みしてもう一度お試しください。",
-  "footers.suiteEdit": "テストスイート - 作成 / 編集 / 削除"
+  "footers.suiteEdit": "テストスイート - 作成 / 編集 / 削除",
+  "ftc.editTC": "Edit Test Case"
 }

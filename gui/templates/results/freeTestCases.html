@@ -92,6 +92,9 @@ function toast(msg, isErr) {
   if (isErr) $t.addClass('err'); else $t.removeClass('err');
   setTimeout(function(){ $t.fadeOut(300); }, 3000);
 }
+function openTCEdit(tcId) {
+  window.open('/gui/templates/testcases/tcView.html?tcase_id=' + tcId + '&tproject_id=' + tproject_id, 'tcEdit_' + tcId, 'width=900,height=700');
+}
 function t(key, fallback) {
   var v = TLi18n.t(key);
   return (v && v !== key) ? v : (fallback || key);
@@ -148,7 +151,9 @@ function loadData() {
         { title: t('testsuite', 'Test Suite'), data: 'suite_path', className: 'suitecell', orderable: true },
         { title: t('testcase', 'Test Case'), data: null, className: 'tccell', orderable: true,
           render: function(data, type, row) {
-            return '<span class="tcid">' + esc(row.external_id) + '</span>: ' + esc(row.name);
+            var links = '<span class="tcid">' + esc(row.external_id) + '</span>: ' + esc(row.name);
+            links += ' <a class="exec-link" href="#" onclick="openTCEdit(' + row.tcase_id + '); return false;" title="' + t('ftc.editTC', 'Edit Test Case') + '"><i class="fa fa-pencil"></i></a>';
+            return links;
           }
         }
       ];

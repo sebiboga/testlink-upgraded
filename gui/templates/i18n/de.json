@@ -6902,5 +6902,6 @@
   "sued.stBadRequestMsg": "Einer der gesendeten Parameter fehlt oder ist ungueltig.",
   "sued.stError": "Fehler",
   "sued.stErrorMsg": "Der Vorgang konnte nicht abgeschlossen werden. Laden Sie die Seite neu und versuchen Sie es erneut.",
-  "footers.suiteEdit": "Test Suite - Anlegen / Bearbeiten / Loeschen"
+  "footers.suiteEdit": "Test Suite - Anlegen / Bearbeiten / Loeschen",
+  "ftc.editTC": "Edit Test Case"
 }

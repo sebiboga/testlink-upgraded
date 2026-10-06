@@ -6902,5 +6902,6 @@
   "sued.stBadRequestMsg": "Unul din parametrii trimisi lipseste sau este invalid.",
   "sued.stError": "Eroare",
   "sued.stErrorMsg": "Operatiunea nu a putut fi finalizata. Reincarcati pagina si incercati din nou.",
-  "footers.suiteEdit": "Suita de Test - Creeaza / Editeaza / Sterge"
+  "footers.suiteEdit": "Suita de Test - Creeaza / Editeaza / Sterge",
+  "ftc.editTC": "Edit Test Case"
 }

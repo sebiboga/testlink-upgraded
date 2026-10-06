@@ -6902,5 +6902,6 @@
   "sued.stBadRequestMsg": "Um dos parametros enviados esta ausente ou e invalido.",
   "sued.stError": "Erro",
   "sued.stErrorMsg": "Nao foi possivel concluir a operacao. Recarregue a pagina e tente novamente.",
-  "footers.suiteEdit": "Suite de Testes - Criar / Editar / Excluir"
+  "footers.suiteEdit": "Suite de Testes - Criar / Editar / Excluir",
+  "ftc.editTC": "Edit Test Case"
 }

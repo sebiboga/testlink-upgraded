@@ -6902,5 +6902,6 @@
   "sued.stBadRequestMsg": "Falta uno de los parametros enviados o no es valido.",
   "sued.stError": "Error",
   "sued.stErrorMsg": "No se pudo completar la operacion. Recargue la pagina e intentelo de nuevo.",
-  "footers.suiteEdit": "Suite de Pruebas - Crear / Editar / Eliminar"
+  "footers.suiteEdit": "Suite de Pruebas - Crear / Editar / Eliminar",
+  "ftc.editTC": "Edit Test Case"
 }

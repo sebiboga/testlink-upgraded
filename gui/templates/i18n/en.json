@@ -1745,6 +1745,7 @@
   "ftc.forProject": "for test project",
   "ftc.header": "Test Cases Not Assigned to Any Test Plan",
   "ftc.infoReport": "This report shows all test cases that have not been added to ANY test plan of this project.",
+  "ftc.editTC": "Edit Test Case",
   "ftc.matchCount": "Match count",
   "ftc.testCases": "test cases",
   "ftc.testProject": "Test Project",

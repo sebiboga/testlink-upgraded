@@ -6902,5 +6902,6 @@
   "sued.stBadRequestMsg": "提交的参数之一缺失或无效。",
   "sued.stError": "错误",
   "sued.stErrorMsg": "操作无法完成。请重新加载页面后重试。",
-  "footers.suiteEdit": "测试套件 - 新建 / 编辑 / 删除"
+  "footers.suiteEdit": "测试套件 - 新建 / 编辑 / 删除",
+  "ftc.editTC": "Edit Test Case"
 }
