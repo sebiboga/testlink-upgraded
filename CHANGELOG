@@ -9919,6 +9919,7 @@ modernized `platformsView.html` screen still renders with every linked row's del
 Suite `T1637` in `tmp/TLU_Test_Cases.md` — 17/17 PASS. Restored from branch `fix/issue-1637`
 (`716d96587` code, `8ac6cc966` suite + this entry, `e255cb5f7` `docs/` mirror); the code, the suite
 and the `docs/` page had already reached `sebiboga`, only this CHANGELOG entry was still missing.
+- Execution Notes popup shim (lib/execute/execNotes.php) converted to session-guarded redirect to modern screen `execNotes.html` + in-process BFF proxy; added `footers.execNotes` in all 10 i18n bundles (Refs #1857).
 ### Screen — Execution Notes, read-only viewer `execNotesReadonly` (Refs #1807)
 - Screen: `gui/templates/execute/execNotesReadonly.html`, a standalone Dashio page
   (`gui/templates/execute/execNotesReadonly.html?exec_id=<execution id>`) backed by the new

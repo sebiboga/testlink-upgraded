@@ -1568,6 +1568,7 @@
   "footers.eventviewer": "TestLink 2.0.1 - Event Viewer",
   "footers.execDashboard": "TestLink 2.0.1 - 実行ダッシュボード",
   "footers.execNavigatorView": "TestLink 2.0.1 - 実行ナビゲーター",
+  "footers.execNotes": "TestLink 2.0.1 — Execution Notes",
   "footers.execNotesReadonly": "TestLink 2.0.1 — 実行メモ（読み届き）",
   "footers.execPrint": "TestLink 2.0.1 - Print Execution Results",
   "footers.execTaskCopy": "TestLink 2.0.1 - テストタスク割り当てのコピー",

@@ -1568,6 +1568,7 @@
   "footers.eventviewer": "TestLink 2.0.1 - Event Viewer",
   "footers.execDashboard": "TestLink 2.0.1 - Dashboard di esecuzione",
   "footers.execNavigatorView": "TestLink 2.0.1 - Navigatore di esecuzione",
+  "footers.execNotes": "TestLink 2.0.1 — Execution Notes",
   "footers.execNotesReadonly": "TestLink 2.0.1 — Note di esecuzione (sola lettura)",
   "footers.execPrint": "TestLink 2.0.1 - Print Execution Results",
   "footers.execTaskCopy": "TestLink 2.0.1 - Copia assegnazione task di test",

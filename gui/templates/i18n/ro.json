@@ -1568,6 +1568,7 @@
   "footers.eventviewer": "TestLink 2.0.1 - Vizualizator Evenimente",
   "footers.execDashboard": "TestLink 2.0.1 - Tablou de bord execuție",
   "footers.execNavigatorView": "TestLink 2.0.1 - Navigator de execuție",
+  "footers.execNotes": "TestLink 2.0.1 — Execution Notes",
   "footers.execNotesReadonly": "TestLink 2.0.1 — Notiții de execuție (doar citire)",
   "footers.execPrint": "TestLink 2.0.1 - Imprimare Rezultate",
   "footers.execTaskCopy": "TestLink 2.0.1 - Copiere și executare atribuiri",

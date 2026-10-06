@@ -1568,6 +1568,7 @@
   "footers.eventviewer": "TestLink 2.0.1 - Event Viewer",
   "footers.execDashboard": "TestLink 2.0.1 - 执行仪表板",
   "footers.execNavigatorView": "TestLink 2.0.1 - 执行导航器",
+  "footers.execNotes": "TestLink 2.0.1 — Execution Notes",
   "footers.execNotesReadonly": "TestLink 2.0.1 — 执行备注（只读）",
   "footers.execPrint": "TestLink 2.0.1 - Print Execution Results",
   "footers.execTaskCopy": "TestLink 2.0.1 - 复制测试任务分配",

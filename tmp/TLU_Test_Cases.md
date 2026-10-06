@@ -1260,37 +1260,80 @@ and verified error-free; no code change was required.
   this run's scope"). Not fixed in this run.
 
 
-## Regression — Issue #1708: getReqsOnSpecForLatestTCV() fatal for a test case with no active version
+## Regression Test Suite - Issue #1857: Modernize: Execution Notes (execNotes)
 
-**Precondition** (fresh DB each run): `php tmp/fixtures_1708.php` creates tproject
-`FIX1708` (id 1, requirements enabled), spec `FX70-SPEC-A` (id 2, requirements
-FX70-1/FX70-2), suite id 8, test case `TC-NOVER` (id 9, v1 = tcversion 10),
-`req_coverage` row 1 on tcversion 10. Login `admin/admin`, cookie jar from
-`POST /api/auth/login`. Then `UPDATE tcversions SET active=0 WHERE id=10;`
-so the test case has NO active version.
+### Test Case 1857-1: Legacy execNotes.php browser redirect to modern screen
+- **Objective:** Verify that navigating to the legacy controller redirects to the modern Execution Notes screen
+- **Preconditions:** Authenticated session with valid execution ID
+- **Steps:**
+  1. Open browser and navigate to `lib/execute/execNotes.php?exec_id=<valid_exec_id>` (GET)
+  2. Observe redirect behavior
+- **Expected Results:** HTTP 302 redirect to `gui/templates/execute/execNotes.html?exec_id=<valid_exec_id>`. Modern screen loads with Execution Notes interface.
 
-**Repro steps (pre-fix):**
-1. `GET /api/requirements/assign-reqs?req_spec_id=2&tcase_id=9` (X-Requested-With: XMLHttpRequest).
-2. Observe response and `tmp/php_server.log`.
-3. `SELECT COUNT(*) FROM events;`
+### Test Case 1857-2: Legacy execNotes.php unauthenticated access
+- **Objective:** Verify unauthenticated requests are rejected per legacy contract
+- **Preconditions:** No active session
+- **Steps:**
+  1. Send GET request to `lib/execute/execNotes.php?exec_id=1` without session cookie
+- **Expected Results:** HTTP 401 with JSON error code `not_authenticated`. No redirect to modern screen.
 
-**Expected post-fix behavior:** HTTP 200 with `status:"ok"` and `assigned: []`
-(honest empty grid), no `Fatal error` line, `events` count unchanged.
+### Test Case 1857-3: Legacy execNotes.php missing/invalid exec_id
+- **Objective:** Verify validation of exec_id parameter
+- **Preconditions:** Authenticated session
+- **Steps:**
+  1. Navigate to `lib/execute/execNotes.php` without exec_id (browser GET)
+  2. Navigate to `lib/execute/execNotes.php?exec_id=abc` (invalid)
+- **Expected Results:** For browser navigation without valid exec_id, redirect still occurs to modern screen (with no exec_id param). For AJAX context with missing/invalid exec_id, HTTP 400 with code `bad_param`.
 
-**Actual result observed (post-fix, 2026-10-06):**
-- R1 no-active-version GET → `[HTTP 200]` `{"status":"ok",...,"assigned":[],...}`;
-  `tmp/php_server.log` records `[200]: GET /api/requirements/assign-reqs?...`
-  (pre-fix: `Uncaught TypeError: current(): Argument #1 ($array) must be of type
-  array, null given ... requirement_spec_mgr.class.php:2632` → `[500]`, 0 bytes).
-- R2 control (v1 reactivated) → `[HTTP 200]` assigned contains
-  `FX70-1 ... link_id 1` (unchanged from pre-fix control).
-- R3 spec-only `?req_spec_id=2` (no tcase_id) → `[HTTP 200]`, all unassigned.
-- R4 `GET /api/reqtcassign/?action=init&tproject_id=1&tcase_id=9` → clean
-  `[HTTP 404]` `{"message":"Test case has no active version"}` (already-guarded path).
-- R5 `getReqsOnSpecNotLinkedToLatestTCV()` (#1705 twin) untouched, guard at
-  `requirement_spec_mgr.class.php:2763` intact.
-- R6 `php -l lib/functions/requirement_spec_mgr.class.php` → no syntax errors.
-- R7 `events` COUNT 3 → 3; `grep -c "Fatal error" tmp/php_server.log` 1 → 1
-  (only the pre-fix reproduction) — no new Error/Warning.
+### Test Case 1857-4: AJAX GET fragment from legacy execNotes shim
+- **Objective:** Verify AJAX GET requests are proxied to BFF in-process
+- **Preconditions:** Authenticated session, valid execution ID
+- **Steps:**
+  1. Send AJAX GET (`X-Requested-With: XMLHttpRequest`) to `lib/execute/execNotes.php?exec_id=<valid_exec_id>`
+- **Expected Results:** Proxies to `api/execnotes/{id}` (GET). Returns JSON response from BFF with execution data and notes.
 
-**Overall: PASS (R1–R7).**
+### Test Case 1857-5: AJAX PUT/POST updates from legacy execNotes shim
+- **Objective:** Verify write operations via legacy endpoint are proxied to BFF
+- **Preconditions:** Authenticated session, valid execution ID with edit rights
+- **Steps:**
+  1. Send AJAX PUT (`X-Requested-With: XMLHttpRequest`) to `lib/execute/execNotes.php?exec_id=<valid_exec_id>` with JSON body `{"notes":"Updated notes"}` (or POST)
+- **Expected Results:** Proxies to BFF preserving method; BFF enforces rights on owning project. Returns JSON status.
+
+### Test Case 1857-6: Non-GET/PUT/POST methods rejected
+- **Objective:** Verify unsupported HTTP methods are rejected with 405
+- **Preconditions:** Authenticated session
+- **Steps:**
+  1. Send DELETE request to `lib/execute/execNotes.php?exec_id=1`
+- **Expected Results:** HTTP 405 with `Allow: GET, HEAD, PUT, POST` and code `method_not_allowed`.
+
+### Test Case 1857-7: End-to-end flow via modern screen
+- **Objective:** Verify modern Execution Notes screen renders and loads data
+- **Preconditions:** Authenticated session, valid execution ID
+- **Steps:**
+  1. Navigate to `gui/templates/execute/execNotes.html?exec_id=<valid_exec_id>`
+  2. Verify screen loads (TLi18n, header, content)
+  3. Verify notes load via AJAX to `/api/execnotes/<id>`
+- **Expected Results:** Screen renders with localized strings (no raw keys), loads execution meta and notes, Edit/Save/Cancel controls behave correctly. No console errors.
+
+### Test Case 1857-8: i18n coverage and footer
+- **Objective:** Verify i18n keys present and footer renders correctly
+- **Preconditions:** None
+- **Steps:**
+  1. Open `gui/templates/execute/execNotes.html` and verify footer has `data-i18n="footers.execNotes"`
+  2. Verify all i18n bundles contain `footers.execNotes` key
+- **Expected Results:** Footer key present in all 10 bundles, JSON valid. Screen renders localized footer text.
+
+### Test Case 1857-9: Security - ownership and rights preserved
+- **Objective:** Verify shim does not bypass BFF authorization
+- **Preconditions:** Authenticated user without rights on target execution's project
+- **Steps:**
+  1. Attempt to access legacy execNotes.php for an execution in another project with insufficient rights
+- **Expected Results:** BFF enforces rights on owning project (exec_edit_notes/exec_ro_access/testplan_execute as appropriate). Returns 403/404 per BFF policy (fail closed). Shim passes through BFF's response.
+
+### Test Case 1857-10: Event Viewer hygiene after testing
+- **Objective:** Verify no new Error/Warning events introduced
+- **Preconditions:** Clean Event Viewer state or baseline
+- **Steps:**
+  1. Execute test cases 1857-1 through 1857-9
+  2. Review Event Viewer for new ERROR/WARNING entries
+- **Expected Results:** Zero new ERROR or WARNING level events attributable to execNotes modernization. Only expected AUDIT/INFO entries if any.

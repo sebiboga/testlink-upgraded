@@ -3,83 +3,95 @@
  * TestLink Open Source Project - http://testlink.sourceforge.net/ 
  * This script is distributed under the GNU General Public License 2 or later. 
  *
- * Filename $RCSfile: execNotes.php,v $
+ * LEGACY EXECUTION NOTES EDITOR - REDIRECT SHIM (Refs #1857)
  *
- * @version $Revision: 1.6 $
- * @modified $Date: 2009/09/04 19:22:37 $ by $Author: schlundus $
- *
- * Edit an execution note
- *
- * @ TODO schlundus. seems to be no longer used
- *
- * rev: 20080827 - franciscom - BUGID 1692
-**/
+ * The screen itself is modernized: gui/templates/execute/execNotes.html
+ * backed by api/execnotes/index.php.
+ */
 require_once('../../config.inc.php');
 require_once('common.php');
-require_once('exec.inc.php');
-require_once("web_editor.php");
 
-$editorCfg = getWebEditorCfg('execution');
-require_once(require_web_editor($editorCfg['type']));
+doSessionStart();
 
-testlinkInitPage($db);
-$templateCfg = templateConfiguration();
+require_once(__DIR__ . '/../../api/_guard.php');
 
-$args = init_args();
-$owebeditor = web_editor('notes',$_SESSION['basehref'],$editorCfg);
+$method = strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET');
 
-switch ($args->doAction)
-{
-    case 'edit':
-	    break;
-        
-    case 'doUpdate':
-	    doUpdate($db,$args);
-	    break;  
-}
-$map = get_execution($db,$args->exec_id);
-$owebeditor->Value = $map[0]['notes'];
-
-$smarty = new TLSmarty();
-$smarty->assign('notes',$owebeditor->CreateHTML());
-$smarty->assign('editorType',$editorCfg['type']);
-$smarty->display($templateCfg->template_dir . $templateCfg->default_template);
-
-
-/*
-  function: 
-
-  args :
-  
-  returns: 
-
-*/
-function doUpdate(&$dbHandler,&$argsObj)
-{
-    $tables = tlObjectWithDB::getDBTables('executions');
-    $sql = "UPDATE {$tables['executions']} " .
-           " SET notes='" . $dbHandler->prepare_string($argsObj->notes) . "' " .
-           " WHERE id={$argsObj->exec_id} ";
-    $dbHandler->exec_query($sql);     
+// Legacy testlinkInitPage() contract: no session, no data.
+if (empty($_SESSION['userID']) || intval($_SESSION['userID']) <= 0) {
+    http_response_code(401);
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode(array(
+        'status' => 'error',
+        'code' => 'not_authenticated',
+        'message' => 'Not authenticated',
+    ));
+    exit;
 }
 
-
-/*
-  function: 
-
-  args :
-  
-  returns: 
-
-*/
-function init_args()
-{
-    $iParams = array("exec_id" => array(tlInputParameter::INT_N),
-		             "doAction" => array(tlInputParameter::STRING_N,0,100),
-   		             "notes" => array(tlInputParameter::STRING_N));
-	$args = new stdClass();
-    R_PARAMS($iParams,$args);
-    return $args; 
+$execId = isset($_GET['exec_id']) ? trim((string)$_GET['exec_id']) : '';
+if (isset($_REQUEST['exec_id']) && $execId === '') {
+    $execId = trim((string)$_REQUEST['exec_id']);
+}
+$execIdInt = 0;
+if ($execId !== '' && preg_match('/^[0-9]+$/', $execId)) {
+    $execIdInt = intval($execId);
 }
 
-?>
+$isAjax = (strcasecmp(trim((string)($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '')), 'XMLHttpRequest') === 0);
+
+// Browser navigation: hand over to the modern screen
+if (!$isAjax && ($method === 'GET' || $method === 'HEAD')) {
+    $basehref = isset($_SESSION['basehref']) ? $_SESSION['basehref'] : '/';
+    $url = $basehref . 'gui/templates/execute/execNotes.html';
+    if ($execIdInt > 0) {
+        $url .= '?exec_id=' . $execIdInt;
+    }
+    header('Location: ' . $url, true, 302);
+    exit;
+}
+
+// For AJAX requests (legacy callers), forward to the BFF in-process to preserve session
+if ($isAjax && $method === 'GET') {
+    if ($execIdInt <= 0) {
+        http_response_code(400);
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(array(
+            'status' => 'error',
+            'code' => 'bad_param',
+            'message' => 'Missing or invalid exec_id',
+        ));
+        exit;
+    }
+    $_SERVER['PATH_INFO'] = '/' . $execIdInt;
+    $_GET['exec_id'] = $execIdInt;
+    require __DIR__ . '/../../api/execnotes/index.php';
+    exit;
+}
+
+if ($method === 'PUT' || $method === 'POST') {
+    if ($execIdInt <= 0) {
+        http_response_code(400);
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(array(
+            'status' => 'error',
+            'code' => 'bad_param',
+            'message' => 'Missing or invalid exec_id',
+        ));
+        exit;
+    }
+    $_SERVER['PATH_INFO'] = '/' . $execIdInt;
+    $_GET['exec_id'] = $execIdInt;
+    require __DIR__ . '/../../api/execnotes/index.php';
+    exit;
+}
+
+header('Allow: GET, HEAD, PUT, POST');
+http_response_code(405);
+header('Content-Type: application/json; charset=utf-8');
+echo json_encode(array(
+    'status' => 'error',
+    'code' => 'method_not_allowed',
+    'message' => 'Method not allowed',
+));
+exit;
