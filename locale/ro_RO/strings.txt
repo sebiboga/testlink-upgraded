@@ -180,3 +180,4 @@ $TLS_after_preconditions = 'După precondiții';
 $TLS_link_report_not_run_on_any_platform = "Cazuri de test neexecutate pe nicio platformă";
 $TLS_title_test_closure = "Închiderea testării"; // "Test Closure" (Refs #1278)
 $TLS_link_report_risk_coverage = "Testare bazata pe risc";
+$TLS_title_execution_notes = "Note de execuție"; // "Execution notes" (Refs #1809)

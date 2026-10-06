@@ -138,7 +138,7 @@ function statusLabel(ch) {
  * answer stays visible so a report can quote it; the message is only shown when
  * the bundle has no localized text for that code.
  */
-function showState(kind, icon, titleKey, msgKey, code) {
+function showState(kind, icon, titleKey, msgKey, code, extraHtml) {
   $('#loading').hide();
   $('#content').hide();
   var html = '<div class="wrap"><div class="state ' + kind + '">' +
@@ -146,6 +146,7 @@ function showState(kind, icon, titleKey, msgKey, code) {
     '<h3>' + esc(TLi18n.t(titleKey)) + '</h3>' +
     '<p>' + esc(msgKey ? TLi18n.t(msgKey) : '') + '</p>' +
     '<p class="code">' + esc(code || '') + '</p>' +
+    (extraHtml || '') +
     '</div></div>';
   $('#stateCard').html(html).show();
 }
@@ -162,7 +163,12 @@ function loadNotes() {
   $('#btnEdit').prop('disabled', true).removeAttr('title');
 
   if (!EXEC_ID) {
-    showState('warn', 'fa fa-question-circle', 'enro.missingIdTitle', 'enro.missingIdMsg', 'invalid_exec_id');
+    // No exec_id: hand over to the picker (Refs #1809) instead of dead-ending.
+    var pick = '<a class="btn-teal" style="display:inline-block;text-decoration:none;margin-top:6px" ' +
+      'href="/gui/templates/execute/execNotesPicker.html">' +
+      '<i class="fa fa-list"></i> ' + esc(TLi18n.t('enro.pickExecution')) + '</a>';
+    showState('warn', 'fa fa-question-circle', 'enro.missingIdTitle', 'enro.missingIdMsg',
+      'invalid_exec_id', pick);
     return;
   }
 

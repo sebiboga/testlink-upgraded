@@ -3695,6 +3695,18 @@ Execution:
   exnav.* values that had shipped as untranslated English copies in every
   non-EN bundle and added the missing footer key.
 - Execution Notes popup (execNotes.html) - BFF api/execnotes (#1551): standalone
+- Execution Notes Picker (execNotesPicker.html) - BFF api/execnotespicker (#1809):
+  ASIDE-reachable entry point of the read-only notes viewer: lists the executions
+  of the current test plan (which ones carry notes), with an "only with notes"
+  filter, a text filter (case/suite/build/status/id/notes) and a live counter, and
+  deep-links execNotesReadonly.html?exec_id= on the chosen row. Closes the dead
+  end #1807 left behind - the viewer without an exec_id now hands over to this
+  picker instead of rendering a lone card. Rights identical to the viewer
+  (exec_ro_access OR exec_edit_notes OR testplan_execute); unknown and unreadable
+  plans answer byte-identical 404 plan_not_found (#1697/#1792 oracle), refusals
+  audited as AUDIT. enp.* (34) + footers.execNotesPicker + enro.pickExecution in
+  all 10 bundles; canonical action $actions->execNotesPicker (common.php) + ASIDE
+  leaf in section 9 "Test Case Execution".
 - Help popup (showHelp.html) - BFF api/help (#1552): standalone localized help-viewer
   popup replacing the last standalone lib/general/* popup lib/general/show_help.php.
   Legacy parity (18 help topics): the modern screen renders a topic-index sidebar
@@ -10117,3 +10129,5 @@ strips the badge box's own classes. Suite `Issue #1807` in
 - [KEY BUGFIX] - #1829: `reqTreeReorder.html` — the disabled **Up** / **To top** (first row) and **Down** / **To bottom** (last row) buttons showed the raw key `reqtr.alreadyFirst` / `reqtr.alreadyLast` as their `title` attribute, in every locale. Root cause: `TLi18n.t()` returns the KEY itself for a bundle entry that does not exist (`gui/templates/i18n/i18n.js:175`, `var str = _strings[key] || key;`), so the `t(key) || 'Already the first requirement'` fallback could never fire — the key is truthy, so it won and the English literal was unreachable dead code. Fix: the two keys now exist in all 10 locale bundles (`reqtr.alreadyFirst` / `reqtr.alreadyLast`, translated per locale) and `btn()` resolves them through the new `edgeTitle()` helper, which routes the lookup through the module's own `TLi18n.has()` existence check, guards against a present-but-blank value, and omits the attribute instead of leaking a key; the unreachable literals were deleted (hardcoded strings were a rule-3 violation). Measured: `title` = "Already the first/last requirement" (en), "Deja este prima/ultima cerință" (ro), "Bereits die erste/letzte Anforderung" (de); non-edge rows stay `title=null`; with `has()` forced false or `t()` forced to echo the key the tooltip is omitted and no `reqtr.*` string reaches the DOM. Known limitation: `.rm.dis, .rm:disabled { pointer-events: none }` (reqTreeReorder.html:54, from `4f074a2b5`/#1804) keeps the disabled edge buttons out of the hover chain, so the tooltip is reachable through the accessibility tree / DOM `title` but not by mouse hover. No API change.
 2.0.1 / 2026-10-05
 - Refs #1093: searchView.html — add generated-on timestamp footer after successful search results, server-formatted with TestLink locale timestamp (BFF: api/search/index.php returns generated_on/generated_on_iso). Uses existing i18n common.generatedBy.
+2.0.1 / 2026-10-06
+- Refs #1809: execNotesPicker.html + api/execnotespicker — new Execution Notes picker screen; $actions->execNotesPicker + ASIDE section 9 leaf; readonly screen missing-exec_id state now links here; enp.*/enro.pickExecution/footers.execNotesPicker in all 10 bundles.

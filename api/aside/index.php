@@ -627,6 +627,18 @@ if ($show('execution')) {
                          'href' => (string)$u('execDashboard'),
                          'icon' => 'fas fa-tachometer-alt');
     }
+    // Execution Notes picker (Refs #1809): the ASIDE-reachable entry point of
+    // the read-only notes viewer, which without an exec_id could only dead-end.
+    // Same read grant the BFF enforces (exec_ro_access OR exec_edit_notes OR
+    // testplan_execute), so the menu never offers a link the endpoint refuses.
+    if ($u('execNotesPicker') !== null
+        && ($gm('testplan_execute') === 'yes' || $gm('exec_ro_access') === 'yes'
+            || $gm('exec_edit_notes') === 'yes')) {
+        $items[] = array('id' => 'execNotesPicker',
+                         'label' => lang_get('title_execution_notes'),
+                         'href' => (string)$u('execNotesPicker'),
+                         'icon' => 'fas fa-sticky-note');
+    }
     if ($u('executeTest') !== null) {
         $lblEx = ($gm('exec_ro_access') === 'yes')
             ? lang_get('href_exec_ro_access') : lang_get('href_execute_test');

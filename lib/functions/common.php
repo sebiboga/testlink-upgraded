@@ -2609,12 +2609,17 @@ function getActions(&$gui,$baseURL) {
     // Refs #1807). Standalone Dashio page fed by api/execnotesreadonly, which
     // authorizes the OWNING test project and flattens the stored RichEdit blob
     // to escaped plain text. Deep-link with exec_id=<execution id>.
-    // Still an UNWIRED action on purpose: with no exec_id the screen can only
-    // render a "pick an execution" state, so an ASIDE entry would be a dead end
-    // until the BFF grows an execution-picker route. Its consumers today are the
-    // legacy shim's 302 and the screen's own deep link.
+    // Opened WITHOUT exec_id it now hands over to the picker below instead of
+    // dead-ending (Refs #1809).
     $actions->execNotesReadonly =
       "/gui/templates/execute/execNotesReadonly.html?{$ctx}";
+    // Execution Notes PICKER (Refs #1809). Standalone Dashio page fed by
+    // api/execnotespicker: lists the executions of the current test plan (which
+    // of them carry notes) and opens the read-only viewer above on one of them.
+    // This is the ASIDE-reachable entry point the #1807 run deferred - with no
+    // exec_id the viewer alone could only render a dead-end card.
+    $actions->execNotesPicker =
+      "/gui/templates/execute/execNotesPicker.html?{$ctx}";
     // Bug Add / Link popup (modernized lib/execute/bugAdd.php, Refs #1560).
     // Standalone Dashio page fed by api/bugadd; the JS openers
     // (open_bug_add_window / open_bug_note_add_window) append the runtime
