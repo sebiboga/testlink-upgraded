@@ -8097,6 +8097,28 @@ Changes:
       project tables and added user metrics to the middle section
 
 ## 2.0.1 (in-progress)
+### Screen — Configuration Check / Security Notes `configCheck` (Refs #1814)
+- The security notes that legacy computed on every page load
+  (`lib/functions/configCheck.php getSecurityNotes()`) were no longer rendered
+  by any 2.0.1 screen; and in `FILE`/`SILENT` warning modes the legacy helper
+  dropped them after writing them to `log_path/config_check.txt`
+- New read-only BFF `api/configcheck/index.php` (`GET ?action=init`) reuses the
+  SAME legacy helpers in the exact legacy check order (install dir → auth/LDAP
+  → admin default pwd → BTS connection → repository dir → schema → email →
+  extensions), returns every note as `{code,text}` regardless of mode, plus
+  `mode`, destination `file`, `count`, `appVersion` and a `legacy_function`
+  traceability field; session-gated BEFORE the DB connect (401), verb-guarded
+  (405 + Allow), scalar action guard (400), client `locale` maps onto
+  `lang_get` like `api/cfields`
+- New Dashio screen `gui/templates/conf/configCheck.html` (mode/file/count/
+  version meta strip, per-note code chips, "all checks passed" empty state,
+  401/403/404/400/405/500 state cards, Refresh/Back/Close, locale switcher)
+- The Home dashboard (`mainPage.html`) gained an amber advisory banner shown
+  only when the BFF reports warnings, linking to the screen in a new tab
+- `$actions->configCheck` deep link in `lib/functions/common.php`; 23 i18n
+  keys (`ccn.*` + `footers.configCheck`) in all 10 bundles
+- Docs/wiki `Config-Check-Security-Notes-1814.md` + screenshots (Refs #1814)
+
 ### Screen — Test Suite Create / Edit / Delete `suiteEdit` (Refs #1852)
 - `gui/templates/testcases/suiteEdit.html` + `api/suiteedit`: one Dashio page for
   the three legacy modes of `lib/testcases/containerEdit.php` (`new_testsuite` /

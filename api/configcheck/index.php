@@ -157,25 +157,32 @@ if ($localeArg !== '' && strlen($localeArg) === 2) {
 // ---------------------------------------------------------------------------
 $notes = array();
 
+// NOTE (Event Viewer): the note keys above exist in en_GB but in most server
+// locales (ro_RO included) string files do not translate them (#1823-class).
+// The English fallback is the intended presentation, so we pass
+// $bDontFireEvents = true - otherwise lang_get() would log a 'not localized
+// for locale' WARNING row into the Event Viewer on every request that picks a
+// client locale different from the session one.
+
 try {
     if (checkForInstallDir()) {
-        $notes[] = array('code' => 'install_dir', 'text' => lang_get('sec_note_remove_install_dir', $clientLang));
+        $notes[] = array('code' => 'install_dir', 'text' => lang_get('sec_note_remove_install_dir', $clientLang, true));
     }
 
     $authCfg = config_get('authentication');
     $method = (is_array($authCfg) && isset($authCfg['method'])) ? $authCfg['method'] : '';
     if ($method === 'LDAP') {
         if (!checkForLDAPExtension()) {
-            $notes[] = array('code' => 'ldap', 'text' => lang_get('ldap_extension_not_loaded', $clientLang));
+            $notes[] = array('code' => 'ldap', 'text' => lang_get('ldap_extension_not_loaded', $clientLang, true));
         }
     } else {
         if (checkForAdminDefaultPwd($db)) {
-            $notes[] = array('code' => 'admin_pwd', 'text' => lang_get('sec_note_admin_default_pwd', $clientLang));
+            $notes[] = array('code' => 'admin_pwd', 'text' => lang_get('sec_note_admin_default_pwd', $clientLang, true));
         }
     }
 
     if (!checkForBTSConnection($db)) {
-        $notes[] = array('code' => 'bts_connection', 'text' => lang_get('bts_connection_problems', $clientLang));
+        $notes[] = array('code' => 'bts_connection', 'text' => lang_get('bts_connection_problems', $clientLang, true));
     }
 
     // `==` on purpose: TL_REPOSITORY_TYPE_FS is an int constant and a
