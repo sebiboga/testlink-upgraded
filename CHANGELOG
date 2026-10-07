@@ -17,6 +17,24 @@ Every screen of the application was ported one-by-one in a screen-compare
 kept for backward compatibility and is progressively retired as each modern
 screen reaches full parity.
 
+- [KEY BUGFIX] - #1876: **the mandated suite gate `ai/verify_test_suites.sh` check 2b counted a
+  restored EOF newline as "1 line removed", so EVERY append to `tmp/TLU_Test_Cases.md` failed
+  while the baseline is unterminated.** The clobber lineage (#1849/#1851) left the shared suite
+  file without a trailing newline at `origin/sebiboga`; GNU `diff` reports `last-line` vs
+  `last-line\n` as a change (`2c` + `\ No newline at end of file`), so the check's
+  `diff base cand | grep -c '^<'` returned 1 for any legitimate append (measured on the Issue
+  #1686 suite restore: `FAIL no line removed … (= 1) - < existing-but-denied writes.`,
+  `GATE_EXIT=1`). Fix (1 file, +10/-2): normalise the final newline on both sides
+  (`awk '{print}' "$1"`) before the diff — in the check and in its diagnostic re-run.
+  Detection preserved, verified with negative tests: 1 removed baseline line → FAIL (=1) with
+  the line printed, 5 removed → FAIL (=5), append-only → PASS (=0); an intermediate draft that
+  dropped the awk argument emptied both sides and passed unconditionally, caught by the same
+  tests before commit. Checks 2a (heading set-difference, #1805) and 2c untouched. Found while
+  merging stale branch `fix/issue-1686`, which restored the Issue #1686 regression suite
+  (9 cases, `TC-1686-01..09`) clobbered from the default branch — the branch's docs page and
+  screenshot were already on `sebiboga` (`cea77d944`, byte-identical). Gate after fix:
+  7 PASS / 0 FAIL, baseline 44 → 45 suites. (Fixes #1876, Refs #1686)
+
 - [KEY BUGFIX] - #1875: **7 `ftc.*` keys of the modernized Free Test Cases screen
   (`freeTestCases.html`) rendered untranslated English in 8 of the 10 locale bundles.**
   `ftc.allAssigned`, `ftc.elapsedSeconds`, `ftc.forProject`, `ftc.header`, `ftc.matchCount`,
