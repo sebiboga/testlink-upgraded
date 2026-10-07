@@ -148,6 +148,11 @@
 
 <script src="/gui/templates/i18n/i18n.js"></script>
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<!-- Refs #1871 (found while testing): without Dashio's Bootstrap JS the
+     jQuery .modal() bridge is missing — the delete-confirm modal never
+     opened ("$(...).modal is not a function"). Same include as every other
+     modernized screen (cfieldsAssignView, buildEdit, ...). -->
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
 <script>
 var API = '/api/platformedit/index.php';
 var params = new URLSearchParams(window.location.search);
