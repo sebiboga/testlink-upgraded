@@ -8360,6 +8360,33 @@ Changes:
 - Docs/wiki `Modernize-Platforms-Edit-platformsEdit.md` + 9 screenshots
   `docs/screenshots/issue-1871-platformsedit-*.png` (Refs #1871)
 
+### Screen — Custom Field Editor `cfieldsEdit` (Refs #1812)
+- `gui/templates/cfields/cfieldsEdit.html` + `api/cfieldsedit/index.php`: one Dashio
+  page for both legacy modes of `lib/cfields/cfieldsEdit.php` (create + edit + delete),
+  covering every function the modernized list/assign screens had only partially ported:
+  the standalone editor with Name/Label/Type/Available-on/Enable-on/show-on combos,
+  Possible-Values field, name-uniqueness probe, the `is_used()` lock (used fields get a
+  read-only Type + Available-on with a lock badge and a warning banner), enable-on →
+  show-on-execution propagation, "Add and assign", and a delete-confirm modal; legacy
+  `lib/cfields/cfieldsEdit.php` survives as a session-guarded GET-302 / write-405 shim.
+  BFF contract: session + `bffSameOriginGuard` on writes, `cfield_management` on the
+  ADDRESSED test project, `{status,code,message}` JSON, POST-only mutations; measured
+  401 anon / 403 `no_right` (role-3 user) / 404 unknown cfield / 405 bad verb+action /
+  409 `name_exists` / 400 `type_locked` (used field) / 400
+  `area_not_allowed_for_node_type` (req-spec node on execution). A bare `do_action=create`
+  starts a clean form even when `cfield_id` is present (legacy `$query['do_action']`
+  semantics — enter/edit mode needs `do_action=edit&cfield_id=N`).
+- Entry points: `cfieldsView.html` Edit/Create buttons + `$actions->cfieldsEdit` in
+  `lib/functions/common.php`; `cfed.*` + `footers.cfieldsEdit` keys across all 10 bundles
+  (i18n key-set gate PASS: 6959 keys, 0 missing per bundle).
+- Test suite: `tmp/TLU_Test_Cases.md` -> Issue #1812 34/34 PASS (API contract matrix,
+  shim branches, browser cases incl. used-field lock + `ro` locale switch of the dynamic
+  form, wiring/lint, Event Viewer clean — only AUDIT `log_level=16` rows, the serialized
+  `tlMetaStringHelper` in `events.description` is the standard logger format on read).
+- Screenshots `docs/screenshots/issue-1812-cfieldsedit-01-create.png` /
+  `-02-edit-used-locked.png` / `-03-delete-confirm.png` + docs/wiki
+  `Modernize-Custom-Field-Editor-cfieldsEdit.md` (Refs #1812)
+
 ### Screen — Configuration Check / Security Notes `configCheck` (Refs #1814)
 - The security notes that legacy computed on every page load
   (`lib/functions/configCheck.php getSecurityNotes()`) were no longer rendered
