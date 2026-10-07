@@ -47,6 +47,33 @@ td.tccell { white-space: nowrap; }
 .priority-high { background: #f5c6cb; color: #b94a48; }
 .priority-medium { background: #ffecb5; color: #856404; }
 .priority-low { background: #d4edda; color: #155724; }
+#gridToolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; padding: 9px 20px; border-bottom: 1px solid #eee; background: #fafbfc; }
+#gridToolbar .spacer { flex: 1; }
+.tbtn { display: inline-flex; align-items: center; gap: 6px; background: #22242a; color: #fff; border: none; border-radius: 4px; padding: 7px 12px; font-size: 12px; cursor: pointer; }
+.tbtn:hover { background: #33363f; }
+.tbtn i { color: #4ECDC4; }
+table.flat tr.dtrg-group td { background: #e9f5f3; font-weight: 700; color: #2b6f69; cursor: pointer; padding: 7px 10px; border-bottom: 1px solid #d2e6e3; white-space: nowrap; }
+table.flat tr.dtrg-group td i { margin-right: 8px; color: #4ECDC4; }
+table.flat tr.dtrg-group td:hover { background: #dcefec; }
+table.flat tfoot td { padding: 4px 6px; border-bottom: 1px solid #ddd; background: #f7f8fa; }
+table.flat tfoot input.col-filter, table.flat tfoot select.col-filter { width: 100%; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; padding: 4px 6px; font-size: 11.5px; background: #fff; }
+table.flat tfoot input.col-filter:focus, table.flat tfoot select.col-filter:focus { outline: none; border-color: #4ECDC4; box-shadow: 0 0 0 2px rgba(78,205,196,.2); }
+.msortbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 20px; border-bottom: 1px solid #eee; background: #fafbfc; font-size: 12px; }
+.msortbar .ms-label { color: #22242a; font-weight: 700; white-space: nowrap; }
+.msortbar .ms-label i { color: #4ECDC4; margin-right: 4px; }
+.msortbar .ms-hint { color: #889; font-size: 11px; font-style: italic; }
+.msortbar .ms-chip { display: inline-flex; align-items: center; gap: 6px; background: #fff; border: 1px solid #4ECDC4; color: #22242a; border-radius: 14px; padding: 3px 4px 3px 10px; font-size: 11.5px; cursor: pointer; user-select: none; }
+.msortbar .ms-chip:hover { background: #eefaf8; }
+.msortbar .ms-chip.dragging { opacity: .4; }
+.msortbar .ms-chip .ms-dir { font-weight: 700; color: #2ba8a0; }
+.msortbar .ms-chip .ms-x { border: none; background: transparent; color: #e6605e; cursor: pointer; font-size: 12px; line-height: 1; padding: 2px 4px; border-radius: 50%; }
+.msortbar .ms-chip .ms-x:hover { background: #fdecea; }
+.msortbar .ms-clear { background: #22242a; color: #fff; border: none; border-radius: 4px; padding: 4px 9px; font-size: 11px; cursor: pointer; display: none; }
+.msortbar .ms-clear:hover { background: #33363f; }
+.msortbar .ms-clear i { color: #4ECDC4; margin-right: 4px; }
+.msortbar.ms-dragover { background: #eef8f7; outline: 2px dashed #4ECDC4; outline-offset: -2px; }
+thead th[draggable="true"] { cursor: grab; }
+thead th[draggable="true"]:active { cursor: grabbing; }
 </style>
 </head>
 <body>
@@ -82,6 +109,14 @@ td.tccell { white-space: nowrap; }
 <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
 <script>
 var tproject_id = parseInt(new URLSearchParams(window.location.search).get('tproject_id')) || 0;
+
+// ExtTable-parity state (Refs #1262): collapsible groups + multi-column sort
+// chips survive a re-render of the DataTable within one page load.
+var dtRef = null;
+var collapsedGroups = {};
+var multiSort = [];
+var defaultOrder = [[0, 'asc'], [1, 'asc']];
+
 
 function esc(s) {
   if (!s) return '';
@@ -147,10 +182,26 @@ function loadData() {
 
       var showPrio = d.priority_enabled;
 
+      var impRank = { high: 3, medium: 2, low: 1 };
+
       var cols = [
-        { title: t('testsuite', 'Test Suite'), data: 'suite_path', className: 'suitecell', orderable: true },
+        // Test Suite column is the group-by column: hidden by default exactly
+        // like legacy hideGroupedColumn=true (exttable.class.php:55) and
+        // replaced by the collapsible group header.
+        { title: t('testsuite', 'Test Suite'), data: 'suite_path', className: 'suitecell',
+          orderable: true, visible: false,
+          render: function(data, type) {
+            if (type === 'sort' || type === 'type') return String(data || '');
+            return esc(data);
+          }
+        },
         { title: t('testcase', 'Test Case'), data: null, className: 'tccell', orderable: true,
           render: function(data, type, row) {
+            // legacy freeTestCases.php:90 sorts on a zero-padded external id
+            if (type === 'sort' || type === 'type') {
+              return ('0000000000' + row.tc_external_id).slice(-10) + ':' + row.name;
+            }
+            if (type === 'filter') return row.external_id + ' ' + row.name;
             var links = '<span class="tcid">' + esc(row.external_id) + '</span>: ' + esc(row.name);
             links += ' <a class="exec-link" href="#" onclick="openTCEdit(' + row.tcase_id + '); return false;" title="' + t('ftc.editTC', 'Edit Test Case') + '"><i class="fa fa-pencil"></i></a>';
             return links;
@@ -159,23 +210,73 @@ function loadData() {
       ];
       if (showPrio) {
         cols.push({ title: t('search.importance', 'Importance'), data: 'importance', orderable: true,
-          render: function(data) { return priorityBadge(data); }
+          render: function(data, type) {
+            if (type === 'sort' || type === 'type') return impRank[data] || 0;
+            if (type === 'filter') return data || '';
+            return priorityBadge(data);
+          }
         });
       }
+
+      // legacy freeTestCases.php:112-113 — default sort importance|test_case DESC
+      // (groups stay ordered by suite ASC, rows inside a group DESC).
+      defaultOrder = showPrio ? [[0, 'asc'], [2, 'desc']] : [[0, 'asc'], [1, 'desc']];
 
       var html = '<div class="section"><div class="section-head">' +
         '<i class="fa fa-table"></i> ' + t('ftc.header', 'Test Cases Not Assigned to Any Test Plan') +
         '<span class="bmeta">' + t('ftc.matchCount', 'Match count') + ': ' + d.rows.length + '</span>' +
-        '</div><div class="section-body"><table id="dtResults" class="flat" style="width:100%"></table></div></div>' +
+        '</div>' +
+        '<div id="gridToolbar">' +
+        '<button type="button" class="tbtn" id="btnExpandCollapse"><i class="fa fa-layer-group"></i> ' + t('ftc.expandCollapseGroups', 'Expand/Collapse Groups') + '</button>' +
+        '<button type="button" class="tbtn" id="btnShowCols"><i class="fa fa-columns"></i> ' + t('ftc.showAllColumns', 'Show all Columns') + '</button>' +
+        '<button type="button" class="tbtn" id="btnResetState"><i class="fa fa-rotate-left"></i> ' + t('ftc.resetState', 'Reset to Default State') + '</button>' +
+        '<button type="button" class="tbtn" id="btnRefresh"><i class="fa fa-rotate"></i> ' + t('ftc.refresh', 'Refresh') + '</button>' +
+        '<button type="button" class="tbtn" id="btnResetFilters" style="display:none;"><i class="fa fa-filter-circle-xmark"></i> ' + t('ftc.resetFilters', 'Reset Filters') + '</button>' +
+        '<button type="button" class="tbtn" id="btnMultiSort"><i class="fa fa-arrow-down-up-across-line"></i> ' + t('ftc.multiSort', 'MultiSort') + '</button>' +
+        '<span class="spacer"></span>' +
+        '</div>' +
+        '<div class="msortbar" id="msortBar" style="display:none;">' +
+        '<span class="ms-label"><i class="fa fa-arrow-down-up-across-line"></i> ' + t('ftc.multiSort', 'MultiSort') + '</span>' +
+        '<span class="ms-hint">' + t('ftc.multiSortHint', 'Drag column headers here to sort by multiple columns; click a chip to toggle direction, drag chips to reorder, shift+click or X to remove.') + '</span>' +
+        '<span id="msortChips"></span>' +
+        '<button type="button" class="ms-clear" id="msortClear"><i class="fa fa-broom"></i> ' + t('ftc.multiSortClear', 'Clear sorts') + '</button>' +
+        '</div>' +
+        '<div class="section-body"><table id="dtResults" class="flat" style="width:100%"><tfoot id="dtResultsFoot"></tfoot></table></div></div>' +
         '<p class="info reportinfo">' + esc(t('ftc.infoReport', 'This report shows all test cases that have not been added to ANY test plan of this project.')) + '</p>';
       $('#reportArea').html(html);
       $('#countBadge').text(d.rows.length + ' ' + t('ftc.testCases', 'test cases'));
 
-      $('#dtResults').DataTable({
+      if ($.fn.DataTable.isDataTable('#dtResults')) {
+        $('#dtResults').DataTable().destroy();
+      }
+
+      collapsedGroups = {};
+      multiSort = [];
+
+      var tableOpts = {
         data: d.rows,
         columns: cols,
-        order: [[0, 'asc'], [1, 'asc']],
+        order: defaultOrder.slice(),
         pageLength: 25,
+        rowGroup: {
+          dataSrc: 'suite_path',
+          startRender: function(rowsInGroup, group) {
+            var isCollapsed = !!collapsedGroups[group];
+            rowsInGroup.nodes().each(function(n) { n.style.display = isCollapsed ? 'none' : ''; });
+            var n = rowsInGroup.count();
+            var cnt = TLi18n.t(n === 1 ? 'ftc.groupItem' : 'ftc.groupItems', { count: n });
+            var head = TLi18n.t('ftc.groupHeader', {
+              label: t('testsuite', 'Test Suite'),
+              value: String(group),
+              count: cnt
+            });
+            return $('<tr/>').attr('data-key', encodeURIComponent(group))
+              .append($('<td/>').attr('colspan', cols.length).append(
+                $('<i/>').addClass('fa ' + (isCollapsed ? 'fa-chevron-right' : 'fa-chevron-down')),
+                ' ' + esc(head)
+              ));
+          }
+        },
         language: {
           search: t('common.filter', 'Filter') + ':',
           lengthMenu: t('common.showEntries', 'Show') + ' _MENU_ ' + t('common.entries', 'entries'),
@@ -183,7 +284,231 @@ function loadData() {
           paginate: { previous: t('common.prev', 'Previous'), next: t('common.next', 'Next') },
           emptyTable: t('ftc.allAssigned', 'All test cases are assigned to a test plan.')
         }
+      };
+      dtRef = $('#dtResults').DataTable(tableOpts);
+
+      // Per-column filters (legacy Ext.grid.GridFilters parity, Refs #1262):
+      // text inputs for Test Suite / Test Case, a LIST select for Importance
+      // (legacy filter="ListSimpleMatch" + urgency_low/medium/high options,
+      // lib/results/freeTestCases.php:145-146).
+      var $tfrow = $('#dtResultsFoot');
+      dtRef.columns().every(function(idx) {
+        var col = this;
+        var $th = $('#dtResults thead th').eq(idx);
+        var label = (($th.text() || '').trim() || (idx + 1));
+        var $ctl;
+        if (idx === cols.length - 1 && showPrio) {
+          $ctl = $('<select class="col-filter" data-col="' + idx + '"></select>')
+            .append($('<option value=""></option>').text(t('ftc.filterAll', 'All')))
+            .append($('<option value="low"></option>').text(t('search.lowImportance', 'Low')))
+            .append($('<option value="medium"></option>').text(t('search.mediumImportance', 'Medium')))
+            .append($('<option value="high"></option>').text(t('search.highImportance', 'High')));
+          $ctl.on('change', function() {
+            var v = this.value;
+            col.search(v ? '^' + v + '$' : '', true, false).draw();
+            mutateResetVisible();
+          });
+        } else {
+          $ctl = $('<input type="text" class="col-filter" data-col="' + idx + '" placeholder="' +
+            esc(t('ftc.filterCol', 'Filter {col}').replace('{col}', label)) + '" />');
+          $ctl.on('keyup change', function() {
+            col.search(this.value).draw();
+            mutateResetVisible();
+          });
+        }
+        var $td = $('<td/>').append($ctl).appendTo($tfrow);
+        if (!col.visible()) { $td.hide(); }
       });
+
+      function anyFilterActive() {
+        var any = false;
+        dtRef.columns().every(function() { if (this.search() !== '') { any = true; } });
+        return any;
+      }
+      function mutateResetVisible() {
+        $('#btnResetFilters').css('display', anyFilterActive() ? 'inline-flex' : 'none');
+      }
+      function clearAllFilters() {
+        dtRef.columns().every(function() { this.search(''); });
+        $('#dtResultsFoot .col-filter').val('');
+        dtRef.draw();
+        mutateResetVisible();
+      }
+      mutateResetVisible();
+
+      // ---- group collapse/expand (legacy toolbar Expand/Collapse Groups) ----
+      $(dtRef.table().container()).off('click.ftcgrp').on('click.ftcgrp', 'tr.dtrg-group', function() {
+        var key = decodeURIComponent($(this).attr('data-key') || '');
+        if (key === '') { return; }
+        collapsedGroups[key] = !collapsedGroups[key];
+        dtRef.draw(false);
+      });
+
+      $('#btnExpandCollapse').off('click').on('click', function() {
+        var anyCollapsed = false;
+        $.each(collapsedGroups, function(k, v) { if (v) { anyCollapsed = true; } });
+        if (anyCollapsed) {
+          collapsedGroups = {};
+        } else {
+          d.rows.forEach(function(r) { collapsedGroups[r.suite_path] = true; });
+        }
+        dtRef.draw(false);
+      });
+
+      $('#btnShowCols').off('click').on('click', function() {
+        dtRef.columns().visible(true);
+        $('#dtResultsFoot td').show();
+        dtRef.draw(false);
+        toast(t('ftc.showAllColumns', 'Show all Columns'), false);
+      });
+
+      $('#btnResetFilters').off('click').on('click', function() {
+        clearAllFilters();
+        toast(t('ftc.filtersCleared', 'Filters cleared'));
+      });
+
+      $('#btnResetState').off('click').on('click', function() {
+        clearAllFilters();
+        collapsedGroups = {};
+        multiSort = [];
+        renderMultiSortChips();
+        dtRef.column(0).visible(false);
+        $('#dtResultsFoot td').eq(0).hide();
+        dtRef.order(defaultOrder.slice()).draw();
+        toast(t('ftc.defaultStateRestored', 'Default state restored'));
+      });
+
+      $('#btnRefresh').off('click').on('click', function() { loadData(); });
+
+      $('#btnMultiSort').off('click').on('click', function() {
+        var $bar = $('#msortBar');
+        $bar.toggle();
+        $(this).toggleClass('active', $bar.is(':visible'));
+      });
+
+      // ---- MultiSort chips (legacy Ext.ux.ToolbarDroppable parity, Refs #1262) ----
+      function applyMultiSort() {
+        dtRef.order(multiSort.map(function(s) { return [s.col, s.dir]; })).draw();
+      }
+      function renderMultiSortChips() {
+        var $wrap = $('#msortChips').empty();
+        multiSort.forEach(function(s) {
+          var title = (dtRef.column(s.col).header().textContent || '').trim();
+          var $chip = $('<span class="ms-chip" draggable="true" data-col="' + s.col + '"></span>')
+            .attr('title', t('ftc.multiSortToggle', 'Click to toggle ascending/descending; shift+click or X to remove'))
+            .append($('<span class="ms-title"></span>').text(title))
+            .append($('<span class="ms-dir"></span>').text(' ' + (s.dir === 'asc' ? '\u2191' : '\u2193')))
+            .append($('<button type="button" class="ms-x" tabindex="-1"></button>').text('\u00d7')
+              .attr('title', t('ftc.multiSortRemove', 'Remove sort')));
+          $wrap.append($chip);
+        });
+        $('#msortClear').css('display', multiSort.length ? 'inline-block' : 'none');
+      }
+      function addMultiSortCol(col) {
+        if (isNaN(col) || col < 0 || col >= dtRef.columns().count()) { return false; }
+        if (multiSort.some(function(s) { return s.col === col; })) {
+          toast(t('ftc.multiSortDup', 'Column is already in the sort list'), true);
+          return false;
+        }
+        multiSort.push({ col: col, dir: 'desc' });
+        applyMultiSort();
+        renderMultiSortChips();
+        return true;
+      }
+      function removeMultiSortCol(col) {
+        multiSort = multiSort.filter(function(s) { return s.col !== col; });
+        if (multiSort.length === 0) {
+          dtRef.order(defaultOrder.slice()).draw();
+        } else {
+          applyMultiSort();
+        }
+        renderMultiSortChips();
+      }
+
+      dtRef.columns().every(function() {
+        $(this.header()).attr('draggable', 'true').attr('data-col', this.index());
+      });
+
+      $(document).off('dragstart.ftcmsort').on('dragstart.ftcmsort', '#dtResults thead th[draggable="true"]', function(e) {
+        e.originalEvent.dataTransfer.setData('text/plain', 'col:' + $(this).attr('data-col'));
+        e.originalEvent.dataTransfer.effectAllowed = 'copy';
+      });
+
+      var $bar = $('#msortBar');
+      $bar.off('dragover.ftcmsort').on('dragover.ftcmsort', function(e) {
+        var dt = e.originalEvent.dataTransfer;
+        var types = dt && dt.types ? Array.prototype.slice.call(dt.types) : [];
+        if (types.indexOf('text/plain') >= 0) {
+          e.preventDefault();
+          $bar.addClass('ms-dragover');
+        }
+      }).off('dragleave.ftcmsort').on('dragleave.ftcmsort', function() {
+        $bar.removeClass('ms-dragover');
+      }).off('drop.ftcmsort').on('drop.ftcmsort', function(e) {
+        e.preventDefault();
+        $bar.removeClass('ms-dragover');
+        var payload = String(e.originalEvent.dataTransfer.getData('text/plain') || '');
+        if (payload.indexOf('col:') === 0) {
+          addMultiSortCol(parseInt(payload.slice(4), 10));
+        } else if (payload.indexOf('chip:') === 0) {
+          var fromCol = parseInt(payload.slice(5), 10);
+          var targetEl = $(e.originalEvent.target).closest('.ms-chip');
+          var toCol = targetEl.length ? parseInt(targetEl.attr('data-col'), 10) : null;
+          if (toCol === null || toCol === fromCol) { return; }
+          var moving = null;
+          var rest = multiSort.filter(function(s) {
+            if (s.col === fromCol) { moving = s; return false; }
+            return true;
+          });
+          var toIdx = rest.findIndex(function(s) { return s.col === toCol; });
+          if (toIdx === -1 || moving === null) { return; }
+          if (multiSort.findIndex(function(s) { return s.col === fromCol; }) <
+              multiSort.findIndex(function(s) { return s.col === toCol; })) {
+            toIdx += 1;
+          }
+          rest.splice(toIdx, 0, moving);
+          multiSort = rest;
+          applyMultiSort();
+          renderMultiSortChips();
+        }
+      });
+
+      $('#msortChips')
+        .off('click.mschip').on('click.mschip', '.ms-chip', function(e) {
+          if ($(e.target).is('.ms-x')) { return; }
+          if (e.shiftKey) {
+            e.preventDefault();
+            removeMultiSortCol(parseInt($(this).attr('data-col'), 10));
+            return;
+          }
+          var col = parseInt($(this).attr('data-col'), 10);
+          multiSort = multiSort.map(function(s) {
+            return s.col === col ? { col: col, dir: s.dir === 'asc' ? 'desc' : 'asc' } : s;
+          });
+          applyMultiSort();
+          renderMultiSortChips();
+        })
+        .off('click.msx').on('click.msx', '.ms-x', function(e) {
+          e.stopPropagation();
+          removeMultiSortCol(parseInt($(this).closest('.ms-chip').attr('data-col'), 10));
+        })
+        .off('dragstart.msort').on('dragstart.msort', '.ms-chip', function(e) {
+          $(this).addClass('dragging');
+          e.originalEvent.dataTransfer.setData('text/plain', 'chip:' + $(this).attr('data-col'));
+          e.originalEvent.dataTransfer.effectAllowed = 'move';
+        })
+        .off('dragend.msort').on('dragend.msort', '.ms-chip', function() {
+          $(this).removeClass('dragging');
+        });
+
+      $('#msortClear').off('click.msort').on('click.msort', function() {
+        multiSort = [];
+        dtRef.order(defaultOrder.slice()).draw();
+        renderMultiSortChips();
+        toast(t('ftc.multiSortCleared', 'Sort cleared'));
+      });
+
+      renderMultiSortChips();
 
       renderFooter(d);
       toast(t('common.loaded', 'Loaded'));
