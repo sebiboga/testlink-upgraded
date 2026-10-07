@@ -249,14 +249,22 @@ else
     # 2b. Deletions relative to the base. Unlike `git diff --numstat HEAD~1 HEAD`
     #     this compares against the base of the work, so it also catches a loss
     #     that entered an earlier commit of this branch.
-    del="$(diff "$btmp/base.md" "$CANDIDATE" | grep -c '^<')"
+    #
+    #     Both sides are normalised for a missing final newline first (#1876):
+    #     the clobber lineage (#1849/#1851) left the baseline unterminated at
+    #     EOF, and GNU diff reports `last-line` vs `last-line\n` as `2c` — a
+    #     false "line removed" for ANY append. Normalisation keeps real
+    #     deletions visible (a removed line is still removed) and does not
+    #     touch check 2a, the heading set-difference.
+    norm_eof() { awk '{print}' "$1"; }
+    del="$(diff <(norm_eof "$btmp/base.md") <(norm_eof "$CANDIDATE") | grep -c '^<')"
     if [ -z "$del" ]; then
       bad "line comparison against the baseline could not be computed"
     elif [ "$del" -eq 0 ]; then
       ok "no line removed from the suite file vs $base_kind (= 0)"
     else
       bad "no line removed from the suite file vs $base_kind (= $del)"
-      diff "$btmp/base.md" "$CANDIDATE" | grep '^<' | head -20 | sed 's/^/          - /'
+      diff <(norm_eof "$btmp/base.md") <(norm_eof "$CANDIDATE") | grep '^<' | head -20 | sed 's/^/          - /'
     fi
 
     # 2c. The suite this run is obliged to add must be present. Matched against
