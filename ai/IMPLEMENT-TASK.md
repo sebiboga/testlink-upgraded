@@ -136,8 +136,12 @@ following the Dashio patterns of already-modernized screens.
   start. Push it as `task/issue-<n>-<short-slug>`; never push to the default
   branch yourself — the CI workflow does that landing for you.
 - NEVER `git stash`, NEVER force-push to the default branch. If a push of YOUR
-  branch is rejected: `git fetch && git rebase -X theirs origin/<your-branch>`
+  branch is rejected: `git fetch && git rebase -X ours origin/<your-branch>`
   then retry — force-with-lease is allowed only on your own agent branch.
+  `-X ours` (upstream = the live `origin/<your-branch>` = ground truth) resolves
+  conflicts towards the LIVE side; `-X theirs` would replay your stale copy over
+  a concurrent agent's pushed lines and silently destroy them (issues #1694,
+  #1868, #1870).
 - AWARENESS: other CI agents may run concurrently. You are an AI — decide
   your own strategy. Useful check before finishing:
   `gh api repos/$GITHUB_REPOSITORY/actions/workflows/modernize.yml/runs?status=in_progress`
