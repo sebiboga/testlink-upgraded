@@ -86,24 +86,17 @@ class jirasoapInterface extends issueTrackerInterface
 	{
     $step = 1;  // just for debug
 
-		$base = trim($this->cfg->uribase,"/") . '/' ;
-	  if( !property_exists($this->cfg,'uriwsdl') )
-	  {
-      //DEBUG-echo __FUNCTION__ . "::Debug::Step#$step Going To Add uriwsdl <br>";$step++;
-	    $this->cfg->uriwsdl = $base . 'rpc/soap/jirasoapservice-v2?wsdl';
-		}
-		
-	  if( !property_exists($this->cfg,'uriview') )
-	  {
-      //DEBUG-echo __FUNCTION__ . "::Debug::Step#$step Going To Add uriview <br>";$step++;
-	    $this->cfg->uriview = $base . 'browse/';
-		}
-	    
-	  if( !property_exists($this->cfg,'uricreate') )
-	  {
-      //DEBUG-echo __FUNCTION__ . "::Debug::Step#$step Going To Add uricreate <br>";$step++;
-	    $this->cfg->uricreate = $base . 'secure/CreateIssue!default.jspa';
-		}	    
+		$base = trim($this->cfgStr('uribase',''),"/") . '/' ;
+    // Issue #1712: a non-text cfg member (nested stdClass/array after the
+    // setCfg() SimpleXML -> json -> stdClass round-trip) is treated as ABSENT
+    // and the carved-on-the-stone default is built, so getClient() (uriwsdl)
+    // and addIssue() (projectkey) always see a real string
+    // instead of raising an uncatchable Error that escapes catch(Exception).
+    $this->cfg->uriwsdl    = $this->cfgStr('uriwsdl',    $base . 'rpc/soap/jirasoapservice-v2?wsdl');
+    $this->cfg->uriview    = $this->cfgStr('uriview',    $base . 'browse/');
+    $this->cfg->uricreate  = $this->cfgStr('uricreate',  $base . 'secure/CreateIssue!default.jspa');
+
+    $this->cfgCoerceText(array('username','password','projectkey'));
 
 
     if( property_exists($this->cfg,'attributes') )
@@ -202,7 +195,7 @@ class jirasoapInterface extends issueTrackerInterface
     	try
     	{
     		$this->APIClient = $op['client'];
-        $this->authToken = $this->APIClient->login($this->cfg->username, $this->cfg->password);
+        $this->authToken = $this->APIClient->login($this->cfgStr('username',''), $this->cfgStr('password',''));
         $statusSet = $op['client']->getStatuses($this->authToken);
         foreach ($statusSet as $key => $pair)
     	  {

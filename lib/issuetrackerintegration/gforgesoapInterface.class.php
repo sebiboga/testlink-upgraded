@@ -56,21 +56,17 @@ class gforgesoapInterface extends issueTrackerInterface
    **/
   function completeCfg()
   {
-    $base = trim($this->cfg->uribase,"/") . '/' ;
-      if( !property_exists($this->cfg,'uriwsdl') )
-      {
-        $this->cfg->uriwsdl = $base . 'gf/xmlcompatibility/soap5/?wsdl';
-    }
-    
-      if( !property_exists($this->cfg,'uriview') )
-      {
-        $this->cfg->uriview = $base . 'browse/';
-    }
-      
-      if( !property_exists($this->cfg,'uricreate') )
-      {
-        $this->cfg->uricreate = $base . 'gf/';
-    }     
+    $base = trim($this->cfgStr('uribase',''),"/") . '/' ;
+    // Issue #1712: non-text cfg member => treated as ABSENT, carved-on-the-stone
+    // default built. The (string) casts in getClient() (uriwsdl) and
+    // connect() (username/password) then always see a real string, so an
+    // element-valued/empty/repeated XML field can no longer raise an
+    // uncatchable Error that escapes catch(Exception) as a 502.
+    $this->cfg->uriwsdl   = $this->cfgStr('uriwsdl',   $base . 'gf/xmlcompatibility/soap5/?wsdl');
+    $this->cfg->uriview   = $this->cfgStr('uriview',   $base . 'browse/');
+    $this->cfg->uricreate = $this->cfgStr('uricreate', $base . 'gf/');
+
+    $this->cfgCoerceText(array('username','password'));
   }
 
 
@@ -256,7 +252,7 @@ class gforgesoapInterface extends issueTrackerInterface
       try
       {
         $this->APIClient = $op['client'];
-              $this->authToken = $this->APIClient->login((string)$this->cfg->username, (string)$this->cfg->password);
+              $this->authToken = $this->APIClient->login($this->cfgStr('username',''), $this->cfgStr('password',''));
 
               $this->l18n = init_labels($this->labels);
       }

@@ -133,57 +133,6 @@ class bugzillaxmlrpcInterface extends issueTrackerInterface
   }
 
   /**
-   * Issue #1711: read a cfg member that is STRUCTURALLY KNOWN TO BE A STRING.
-   *
-   * setCfg() re-binds $this->cfg to a stdClass, so a non-text cfg field arrives as
-   * something a (string) cast cannot convert and the cast raises an uncatchable
-   * Error: an element-valued field ('<version><x/></version>', but also the far more
-   * common '<platform/>' or '<platform>  </platform>') decodes to a NESTED stdClass,
-   * a repeated field ('<platform>a</platform><platform>b</platform>') decodes to a
-   * PHP array, and a field with attributes decodes to an object. A scalar is
-   * returned byte-identically, so no legitimate configuration is changed; a member
-   * that is never null on this path (see issueTrackerInterface.class.php:165).
-   *
-   * @param string $prop cfg member to read
-   * @param string $default value to use when the member is missing or not a scalar
-   * @return string
-   **/
-  private function cfgStr($prop,$default)
-  {
-    if( !property_exists($this->cfg,$prop) || $this->cfgIsNotText($prop) )
-    {
-      return $default;
-    }
-    return (string)$this->cfg->$prop;
-  }
-
-  /**
-   * Issue #1711: is this cfg member present AND not a plain text value?
-   * A missing member is NOT "not text" - the caller decides what a missing member
-   * means (derived default vs. leave it absent).
-   *
-   * @param string $prop cfg member to test
-   * @return bool
-   **/
-  private function cfgIsNotText($prop)
-  {
-    return property_exists($this->cfg,$prop) && !is_scalar($this->cfg->$prop);
-  }
-
-  /**
-   * Issue #1711: report a cfg member that could not be used, naming the field (and
-   * the tracker, so the row is attributable when several are configured) instead of
-   * letting the reader of the Event Viewer guess which element of the XML is wrong.
-   *
-   * @param string $prop offending cfg member
-   * @param string $action what was done about it
-   **/
-  private function cfgWarn($prop,$action)
-  {
-    tLog(__METHOD__ . " [$this->name] :: cfg field <$prop> is not a text value, $action", 'WARNING');
-  }
-
-  /**
    * useful for testing 
    *
    *
