@@ -1907,3 +1907,27 @@ The picker lists the executions of the current test plan (which ones carry notes
 
 ### Status
 PASS (verified by code review of guarded accesses; regression passes targeted area)
+
+## Regression — Issue #1870: agent rulebooks advise `git rebase -X theirs` on push rejection — stale copy wins over a concurrent agent's pushed lines
+
+**Precondition** — Fresh clone state of `sebiboga/testlink-upgraded` (run: HEAD on `fix/issue-1870-rulebook-rebase-x-ours`, forked from `origin/sebiboga`); git 2.55.0; `github-actions[bot]` identity; no TestLink app/DB fixture needed (rulebook + docs defect — no PHP/UI code involved, Event Viewer n/a). Repro fixture built fresh under `/tmp/opencode/rbh/work`: `base` branch with `shared.txt` = 100 lines; `agentB` (= the live `origin/<your-branch>` after a concurrent push) appends 45 distinguishable lines `101..145`; `staleA`/`staleB` (= the agent's stale local copy) each rewrite `shared.txt` to 46 stale lines `1..46`.
+
+**Pre-fix behavior (reproduced before the fix)** —
+1. `grep -rn "rebase -X theirs" ai/` → **2 hits**: `ai/FIX-ISSUE.md:134` and `ai/IMPLEMENT-TASK.md:139`, both telling the agent to run `git fetch && git rebase -X theirs origin/<your-branch>` after a rejected push.
+2. 2-strategy harness (identical fixture): `git rebase -X theirs agentB` on the stale branch → **exit 0**, `shared.txt` = 46 lines, **live lines kept 0/45** — the concurrent agent's push destroyed, retried push then succeeds silently (fast-forward-looking). Root of the inversion: during a rebase `ours` = the upstream being rebased onto (live `origin/<your-branch>`), `theirs` = the replayed (stale) commit.
+
+**Expected post-fix behavior** — Both rulebook lines advise `git rebase -X ours origin/<your-branch>` (upstream = live = ground truth) with a rationale line explaining why `-X theirs` destroys concurrent work; `grep -rn "rebase -X theirs" ai/` returns 0 hits; the advised strategy measures 45/45 live lines kept on the same harness.
+
+| # | Step | Expected | Actual | Result |
+|---|---|---|---|---|
+| 1 | `grep -rn "rebase -X theirs" ai/` | 0 hits (exit 1) | 0 hits, exit 1 | **PASS** |
+| 2 | `grep -rn "rebase -X ours" ai/` | 2 hits: `ai/FIX-ISSUE.md:134`, `ai/IMPLEMENT-TASK.md:139` | exactly those 2 lines | **PASS** |
+| 3 | Read `ai/FIX-ISSUE.md:133-138` | advice = `-X ours` + why-ours/why-not-theirs rationale + issue refs (#1694/#1868/#1870) | line 134 `git rebase -X ours origin/<your-branch>`; 3 rationale lines appended; force-with-lease caveat intact | **PASS** |
+| 4 | Read `ai/IMPLEMENT-TASK.md:138-143` | byte-identical advice | identical to case 3 | **PASS** |
+| 5 | Harness strategy A: `git rebase -X theirs agentB` on stale branch (pre-fix advice) | reproduces clobber: exit 0, 46 lines, 0/45 live kept | `exit=0 lines=46 live_kept=0/45`, "Successfully rebased" | **PASS** (bug reproduced) |
+| 6 | Harness strategy B: `git rebase -X ours agentB` (post-fix advice) | preserves concurrent work: exit 0, 145 lines, 45/45 | `exit=0 lines=145 live_kept=45/45`, "Successfully rebased" | **PASS** |
+| 7 | Advice sanity: does any other agent-facing file still carry `-X theirs`? | 0 outside `docs/` historical records + `.github/workflows/*` (tracked by #1868/#1872) | `grep -rn "rebase -X theirs" ai/` → 0; remaining hits only in `docs/Bugfix-Issue-1694-*.md` (historical pre-fix quotes/sed patch) and `.github/workflows/*.yml` (8 hits = #1872, out of scope) | **PASS** |
+| 8 | `TLU_REQUIRE_SUITE="Issue #1870" bash ai/verify_test_suites.sh` | gate passes (no suite lost vs merge-base, own suite present) | `G1805 result: 7 PASS / 0 FAIL / 0 SKIP`, exit 0 — "no suite lost vs merge-base with origin/sebiboga (= 0)", "no line removed … (= 0)", "own suite heading present (Issue #1870)", baseline 40d41d62b (36) → candidate 37 suites | **PASS** |
+| 9 | Event Viewer / `events` table | no new Error/Warning rows | n/a — no TestLink PHP/BFF code touched (rulebook + markdown docs only); app not exercised | **PASS** (n/a) |
+
+**Regression — Issue #1870: 9/9 PASS.** Pre-fix, cases 1 and 5 FAIL (2 `-X theirs` advice lines; harness clobber 0/45). Post-fix the advice points at the 45/45 strategy.
