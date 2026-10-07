@@ -1855,3 +1855,28 @@ The picker lists the executions of the current test plan (which ones carry notes
 1. actions->platformEdit defined in common.php pointing to /gui/templates/platforms/platformsEdit.html?{$ctx}
 **Expected:** present and correct.
 **Actual:** wired. PASS
+## Task — Issue #1098: Group-by-test-suite / group-by-req-spec + ExtGrid toolbar in searchAdvancedView results
+
+**Precondition:** database seeded with fixture `tmp/fixtures_1098.php` (project SA1098, id=1: suites Suite Alpha/Beta with 2 test cases each, req specs RQ1098-A/B each with 1 requirement, all matching "Smoke"). Logged in as admin/admin.
+
+**Steps:**
+1. Open `http://localhost:8082/gui/templates/search/searchAdvancedView.html?tproject_id=1`.
+2. Type `Smoke` in Search text, click **Find**.
+3. In the Test Cases section verify the rows are grouped per suite with group headers.
+4. In the Requirements section verify groups per req spec path.
+5. Click a group header (e.g. `Test Suite: Suite Beta (2 Items)`).
+6. Click the **Expand/collapse groups** toolbar button, then **Reset filters**.
+
+**Expected behavior:**
+- TC results show collapsible group headers `Test Suite: <path> (N Item(s))` with per-group counts; RQ results show `Requirement Specification: <path> (N Item(s))`.
+- Clicking a group header toggles visibility of its body rows (collapse = `.collapsed` class + caret rotation).
+- Toolbar **Expand/collapse groups** toggles ALL groups at once; **Reset filters** restores every group expanded.
+- BFF (`action=fulltext`) returns the same row set as before (grouping is a pure rendering layer; no extra columns).
+
+**Actual result observed (chrome-devtools MCP):**
+- TC groups: `Test Suite: Suite Alpha (2 Items)` (2 rows), `Test Suite: Suite Beta (2 Items)` (2 rows); RQ groups: `Requirement Specification: Spec A (Smoke) (1 Item)`, `... Spec B (Smoke) (1 Item)`.
+- Click Beta header → Beta body rows display:none, header `.collapsed`; Alpha body still visible.
+- `expandCollapseAll('secTC')` → both headers collapsed; `resetFilters('secTC')` → both expanded, all bodies `display:table-row`.
+- Browser console 0 errors/warnings; matchCount `(10 matches)` unchanged.
+
+**Status:** PASS
