@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/rowgroup/1.4.1/css/rowGroup.dataTables.min.css">
 <style>
 * { box-sizing: border-box; }
 body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
@@ -107,6 +108,7 @@ thead th[draggable="true"]:active { cursor: grabbing; }
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/rowgroup/1.4.1/js/dataTables.rowGroup.min.js"></script>
 <script>
 var tproject_id = parseInt(new URLSearchParams(window.location.search).get('tproject_id')) || 0;
 
@@ -291,14 +293,17 @@ function loadData() {
       // text inputs for Test Suite / Test Case, a LIST select for Importance
       // (legacy filter="ListSimpleMatch" + urgency_low/medium/high options,
       // lib/results/freeTestCases.php:145-146).
-      var $tfrow = $('#dtResultsFoot');
+      var $tfrow = $('<tr/>').appendTo($('#dtResultsFoot'));
       dtRef.columns().every(function(idx) {
         var col = this;
-        var $th = $('#dtResults thead th').eq(idx);
-        var label = (($th.text() || '').trim() || (idx + 1));
+        // DataTables does NOT create a <thead> cell for a column that is
+        // invisible at init (the grouped Test Suite column), so reading
+        // labels from the header cells would shift by one — use the column
+        // definition title instead (Refs #1262).
+        var label = (cols[idx] && cols[idx].title) || (idx + 1);
         var $ctl;
         if (idx === cols.length - 1 && showPrio) {
-          $ctl = $('<select class="col-filter" data-col="' + idx + '"></select>')
+          $ctl = $('<select class="col-filter" name="colfilter_' + idx + '" data-col="' + idx + '"></select>')
             .append($('<option value=""></option>').text(t('ftc.filterAll', 'All')))
             .append($('<option value="low"></option>').text(t('search.lowImportance', 'Low')))
             .append($('<option value="medium"></option>').text(t('search.mediumImportance', 'Medium')))
@@ -309,7 +314,7 @@ function loadData() {
             mutateResetVisible();
           });
         } else {
-          $ctl = $('<input type="text" class="col-filter" data-col="' + idx + '" placeholder="' +
+          $ctl = $('<input type="text" class="col-filter" name="colfilter_' + idx + '" data-col="' + idx + '" placeholder="' +
             esc(t('ftc.filterCol', 'Filter {col}').replace('{col}', label)) + '" />');
           $ctl.on('keyup change', function() {
             col.search(this.value).draw();

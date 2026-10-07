@@ -265,6 +265,21 @@ screen reaches full parity.
   urgency proxy. i18n: 74 `risk.*` keys in all 10 client bundles + `link_report_risk_coverage`
   in all 19 locale strings files. AUDIT events emitted on every rating save.
 
+- [FEATURE GAP CLOSED] - #1262: the **Free Test Cases report regained full legacy
+  `tlExtTable` presentation** — collapsible **group-by-Test-Suite headers**
+  (`Test Suite: <name> (2 Items)`, grouped column hidden like `hideGroupedColumn=true`,
+  `exttable.class.php:55,591`), the **6-button ExtTable toolbar** (Expand/Collapse Groups,
+  Show all Columns, Reset to Default State, Refresh, Reset Filters, MultiSort),
+  **per-column filters** (text on Test Suite/Test Case, `ListSimpleMatch` **list select**
+  on Importance: All/Low/Medium/High), and the legacy **default sort** (suite ASC +
+  importance DESC, `freeTestCases.php:112-113`). All client-side — the BFF payload already
+  carried `suite_path`/`importance`. Required the RowGroup CDN plugin (missing → the
+  `rowGroup` option was silently ignored), a tfoot label fix (DataTables creates no `<th>`
+  for the init-hidden grouped column) and `ftc.groupItem(s)` de-duplication of parens.
+  i18n: 20 `ftc.*` keys translated in all 10 bundles (the checkpoint had shipped English
+  values everywhere). Verified: 16/16 scripted browser checks, ro locale pass, Event
+  Viewer clean. Out-of-scope gap filed as #1874. Refs #1262
+
 - [FEATURE GAP CLOSED] - #1264: the **report info paragraph of the Free Test Cases
   report** is back. Legacy `gui/templates/dashio/results/freeTestCases.tpl:36` rendered
   `<p class="italic">{$labels.info_tc_not_assigned_to_any_tplan}</p>` below the results

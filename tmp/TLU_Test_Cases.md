@@ -2040,3 +2040,77 @@ Steps / Expected / Actual:
 
 ### Status
 PASS
+
+## Task — Issue #1262: ExtTable parity in freeTestCases.html — group-by-Test-Suite + toolbar + per-column Importance filter + DESC default sort
+
+### Precondition
+- TestLink 2.0.1 at http://localhost:8082 (PHP built-in server), login admin/admin, headless Chrome
+- Fixture `php tmp/fixtures_1262.php` → project FTC1262 (tproject_id printed by the fixture run; 6 on first build, 17 after a rebuild — prefix FTC, testPriorityEnabled=1),
+  suites FTC Suite Alpha / FTC Suite Beta, 4 free test cases (none linked to a test plan):
+  FTC-1 Alpha login (high), FTC-2 Alpha logout (low), FTC-3 Beta import (high), FTC-4 Beta export (medium)
+- Screen: http://localhost:8082/gui/templates/results/freeTestCases.html?tproject_id=<id printed by the fixture> (fixture rebuilt this run:
+  DB is freshly imported per run, original tmp/fixtures_1262.php was lost with tmp/)
+- Legacy reference: lib/results/freeTestCases.php:110-118 + getColumnsDefinition():138-150 +
+  exttable.class.php:50-60,525-537,588-591 + inc_ext_table.tpl toolbar
+
+### Steps / Expected / Actual
+
+1. **Load the screen** — EXPECTED: 2 collapsible group headers in exact legacy format
+   `Test Suite: <name> (N Items)` (`exttable.class.php:591`), Test Suite column hidden
+   (`hideGroupedColumn=true`), rows grouped, Match count 4.
+   ACTUAL: `tr.dtrg-group` = `["Test Suite: FTC Suite Alpha (2 Items)","Test Suite: FTC Suite Beta (2 Items)"]`,
+   thead = `[Test Case, Importance]`, 4 rows. **PASS** (after fix: RowGroup CDN plugin was missing in
+   checkpoint-1 code — silently ignored, 0 group headers; added `rowgroup/1.4.1` CSS+JS).
+2. **Default sort** — EXPECTED: legacy `setSortByColumnName(importance|test_case)` + `sortDirection=DESC`
+   → suite ASC, importance DESC inside each group (High first). ACTUAL: `order = [[0,"asc"],[2,"desc"]]`,
+   visible order FTC-1 high → FTC-2 low / FTC-3 high → FTC-4 medium. **PASS**
+3. **Group collapse by click** — EXPECTED: click group header toggles collapse, chevron flips,
+   sibling group untouched. ACTUAL: 4 rows → 2 rows (chevron-right shown) → 4 rows. **PASS**
+4. **Toolbar: Expand/Collapse Groups** — EXPECTED: toggles all groups (legacy `toolbarExpandCollapseGroupsButton`).
+   ACTUAL: 4 → 0 rows (all collapsed) → 4 rows. **PASS**
+5. **Toolbar: 6 legacy buttons present** — EXPECTED: Expand/Collapse Groups, Show all Columns,
+   Reset to Default State, Refresh, Reset Filters (only when a filter is active), MultiSort
+   (labels from `locale/en_US/strings.txt`). ACTUAL: first 5 + MultiSort render; Reset Filters hidden
+   on clean state, appears after any filter change, disappears after reset. **PASS**
+6. **Per-column Importance LIST filter** — EXPECTED: legacy `filter=ListSimpleMatch` +
+   `filterOptions=[urgency_low,medium,high]` → select All/Low/Medium/High in tfoot; `high`→2 rows,
+   `low`→1 row, All→4. ACTUAL: high=2, low=1, cleared=4 (regex `^value$` on the rank-free value). **PASS**
+7. **Per-column text filters** — EXPECTED: Test Suite + Test Case tfoot inputs with correct
+   `Filter <col>` placeholders (legacy GridFilters parity); `FTC-4` → 1 row.
+   ACTUAL: placeholders `["Filter Test Suite","Filter Test Case",select]`, filter yields 1 row, Reset
+   Filters clears back to 4 and hides itself. **PASS** (after fix: labels were shifted by one because
+   DataTables creates no `<th>` for the init-hidden grouped column — now sourced from `cols[idx].title`)
+8. **Show all Columns** — EXPECTED: reveals the grouped Test Suite column + its filter cell
+   (legacy `toolbarShowAllColumnsButton`). ACTUAL: thead becomes `Test Suite|Test Case|Importance`,
+   tfoot[0] visible. **PASS**
+9. **Reset to Default State** — EXPECTED: clears filters, expands groups, clears multi-sort, re-hides
+   Test Suite column, restores default order (legacy state reset). ACTUAL: back to 2 headers,
+   `order=[[0,"asc"],[2,"desc"]]`, filters cleared, groups expanded. **PASS**
+10. **Refresh** — EXPECTED: ajax reload rebuilds grid + groups without navigation error.
+    ACTUAL: groups before=2 → after refresh=2, toolbar re-bound, no console errors. **PASS**
+11. **Global DataTables search** — EXPECTED: still works alongside column filters (no regression).
+    ACTUAL: `Beta` → 2 rows. **PASS**
+12. **MultiSort (drag column headers)** — EXPECTED: legacy Ext.ux.ToolbarDroppable parity — drag header
+    to bar adds chip DESC, click chip toggles direction, X/shift+click removes, `Clear sorts` restores
+    default order. ACTUAL: drag Test Case → chip `Test Case ↓` + order `[[1,"desc"]]`; click → `↑` +
+    `[[1,"asc"]]`; × → 0 chips + default `[[0,"asc"],[2,"desc"]]`. **PASS**
+13. **i18n pass (rule 3)** — EXPECTED: with `?locale=ro` every new label localized, no raw `ftc.*` keys.
+    ACTUAL (before fix): toolbar read *Expand/Collapse Groups* (English values shipped in all 9 bundles) —
+    the 20 keys translated in de/es/fr/it/ja/pt/ro/ru/zh; after fix: ro shows
+    `Extinde/Restrânge grupurile`, `Afișează toate coloanele`, `Resetează la starea implicită`,
+    `Reîmprospătare`, `Sortare multiplă`, group `Suita de testare: FTC Suite Alpha (2 elemente)`,
+    placeholder `Filtrează Caz de testare`, select `Toate/Scăzută/Medie/Ridicată`; en re-checked. **PASS**
+14. **Gates** — `python3 -m json.tool` on all 10 bundles → OK; `bash ai/verify_i18n_coverage.sh` →
+    9/9 bundles, 6959 keys, 0 missing → **PASS**; `TLU_REQUIRE_SUITE="Issue #1262"
+    bash ai/verify_test_suites.sh` → PASS.
+15. **Event Viewer** — EXPECTED: no new Error/Warning rows. ACTUAL: `SELECT * FROM events` → 5 rows,
+    all `log_level=16` audit entries (LOGIN, project CREATE/DELETE from fixture setup). **PASS**
+16. **A11y/console** — EXPECTED: no new console errors. ACTUAL: 0 JS errors; DevTools form-field issue
+    count 4 → 1 after adding `name="colfilter_N"` (residual = DataTables own search input, pre-existing).
+
+### Known gap found while testing (NOT fixed here, out of #1262 scope — filed separately)
+- Importance cell badges render the raw value (`high/low/medium`) instead of the localized label;
+  legacy showed `lang_get(low/medium/high_importance)` (`lib/results/freeTestCases.php:59-62`).
+
+### Status
+PASS (16/16)
