@@ -27,15 +27,18 @@ bffSameOriginGuard();
 
 header('Content-Type: application/json');
 
-$db = new database(DB_TYPE);
-doDBConnect($db);
-
+// Refs #1871 code review: session gate BEFORE the DB connect (the #1677 /
+// #1780 / #1814 lesson) — a DB failure must never answer an anonymous caller
+// with a raw dbms_msg instead of the 401 JSON contract.
 $userId = $_SESSION['userID'] ?? null;
 if (!$userId || $userId <= 0) {
     http_response_code(401);
     echo json_encode(['status' => 'error', 'message' => 'Not authenticated']);
     exit;
 }
+
+$db = new database(DB_TYPE);
+doDBConnect($db);
 
 $user = tlUser::getByID($db, $userId);
 if (is_null($user)) {
@@ -102,6 +105,15 @@ if ($method === 'GET' && $action === 'init') {
         $info = $db->get_recordset(
             "SELECT testproject_id FROM platforms WHERE id=" . intval($platform_id));
         $tproject_id = intval($info[0]['testproject_id'] ?? 0);
+        if ($tproject_id <= 0) {
+            // Unknown probed platform id: fail closed with the SAME 403 a
+            // known-but-foreign platform gets, otherwise this branch would be
+            // a platform-existence oracle (400 here vs 403/404 there).
+            auditDenied($db, $user, $action);
+            http_response_code(403);
+            out(['status' => 'error', 'message' => 'No permission',
+                 'error_code' => 'NO_RIGHT']);
+        }
     }
     if ($tproject_id <= 0) {
         http_response_code(400);
@@ -109,17 +121,22 @@ if ($method === 'GET' && $action === 'init') {
              'error_code' => 'INVALID_TPROJECT']);
     }
 
-    $tproject = $tproject_mgr->get_by_id($tproject_id);
-    if (!$tproject) {
-        http_response_code(404);
-        out(['status' => 'error', 'message' => 'Test project not found',
-             'error_code' => 'NOT_FOUND']);
-    }
+    // Refs #1871 code review: rights BEFORE the project is resolved — the
+    // #1697 lesson ("403, never 404"): resolving first answered 404 for a
+    // nonexistent id and 403 for an existing project the caller cannot read,
+    // which is a project-existence oracle. With the rights check first,
+    // unknown and foreign projects are indistinguishable (both 403).
     if (!canView($user, $db, $tproject_id)) {
         auditDenied($db, $user, $action);
         http_response_code(403);
         out(['status' => 'error', 'message' => 'No permission',
              'error_code' => 'NO_RIGHT']);
+    }
+    $tproject = $tproject_mgr->get_by_id($tproject_id);
+    if (!$tproject) {
+        http_response_code(404);
+        out(['status' => 'error', 'message' => 'Test project not found',
+             'error_code' => 'NOT_FOUND']);
     }
 
     $mgr = platMgrFor($db, $tproject_id);
@@ -174,6 +191,15 @@ if ($method === 'POST' && $action === 'save') {
     if ($name === '') {
         http_response_code(422);
         out(['status' => 'error', 'message' => 'Empty platform name is not allowed',
+             'error_code' => 'E_NAMELENGTH']);
+    }
+    // platforms.name is varchar(100) (legacy PLATFORM_MAXLEN, the client caps
+    // at maxlength=100 too): enforce it SERVER-side — non-strict MySQL would
+    // truncate silently and strict mode would throw out of update(), which is
+    // not wrapped in try/catch (Refs #1871 code review).
+    if (mb_strlen($name) > 100) {
+        http_response_code(422);
+        out(['status' => 'error', 'message' => 'Platform name exceeds 100 characters',
              'error_code' => 'E_NAMELENGTH']);
     }
 

@@ -47,7 +47,8 @@ HTML/JavaScript screen backed by a session-authenticated PHP BFF.
 | delete linked to a plan | 422 `DELETE_BLOCKED`, localized toast |
 | anonymous session | BFF 401; shim bounces to login |
 | no-rights user (`platform_view` missing) | BFF 403 `NO_RIGHT`; localized permission state card |
-| foreign project/platform ownership | 404 `NOT_FOUND` before any name probe |
+| foreign project/platform ownership | rights checked BEFORE resolution: a restricted caller gets a uniform `403 NO_RIGHT` for unknown and foreign test projects (no existence oracle, the #1697 lesson); a foreign platform inside an addressed project answers `404 NOT_FOUND` before any name probe |
+| name over 100 characters | server-side 422 `E_NAMELENGTH` (`platforms.name` is varchar(100), legacy `PLATFORM_MAXLEN`) |
 | wrong verb (POST init, PUT, unknown action) | 400/405/400 |
 | POST without same-origin proof | 403 CSRF |
 | legacy shim GET (authed) | 302 to modern screen with params |
@@ -67,6 +68,16 @@ each): raw `-4` duplicate code on create, shim accepting POST with a 302,
 stale MODE card after create, and the missing Dashio Bootstrap JS include
 that had left the delete-confirm modal dead (`$(...).modal is not a
 function`).
+
+The mandatory code review then applied three more findings: the session gate
+now runs BEFORE the DB connect (the #1677/#1780/#1814 lesson — a DB failure
+can no longer answer an anonymous caller with a raw `dbms_msg`), `init`
+checks rights BEFORE resolving the test project (uniform `403` for unknown
+and foreign projects — measured with the role-3 user: byte-identical `403`
+for `tproject_id=99999` and `tproject_id=13`), and the name gets a
+server-side 100-character cap. The review's other claims (CSRF, SQL
+injection, XSS in toasts, `out()` status reset, verb contract) were
+disproven by the executed verification matrix.
 
 ## Test suite
 

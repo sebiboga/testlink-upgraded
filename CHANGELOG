@@ -219,6 +219,9 @@ screen reaches full parity.
   GET/HEAD-only 302 shim. Four defects found while testing and fixed in the same run:
   raw `-4` duplicate code on create, the shim answering 302 to POST, a stale MODE card after
   create, and a missing Dashio Bootstrap JS include that left the delete modal dead.
+  Code review additionally moved the session gate before the DB connect, made `init`
+  check rights before resolving the project (uniform 403, no existence oracle) and added
+  a server-side 100-char name cap.
   (Refs #1871)
 
 - [MODERNIZED SCREEN] - #1845: **Priority Bar Chart** is no longer a dead endpoint.
@@ -8315,6 +8318,14 @@ Changes:
   `tmp/fixtures_1871.php` (project PLED1871/foreign PLFOR/plan/platforms/user `plednorights`):
   16 API checks + 19 browser checks + shim/wiring, all PASS; suite gate `TLU_REQUIRE_SUITE=1871`
   7/7. Event Viewer clean (the single WARNING row came from the throwaway fixture itself)
+- Mandatory **code review** (subagent) then applied 3 findings: session gate
+  moved BEFORE the DB connect (#1677/#1780/#1814 - a DB failure can no longer answer an
+  anonymous caller with a raw `dbms_msg`), `init` now checks rights BEFORE resolving the
+  test project (uniform 403 for unknown and foreign projects - the #1697 existence-oracle
+  lesson, measured byte-identical 403 for id 99999 vs 13 with the role-3 user), and a
+  server-side 100-char name cap (varchar(100) / legacy PLATFORM_MAXLEN) -> 422
+  E_NAMELENGTH; the review's other claims (CSRF, SQLi, XSS in toasts, out() status reset,
+  verb contract) were disproven by the executed verification matrix.
 - Docs/wiki `Modernize-Platforms-Edit-platformsEdit.md` + 9 screenshots
   `docs/screenshots/issue-1871-platformsedit-*.png` (Refs #1871)
 
