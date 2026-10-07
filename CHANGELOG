@@ -17,6 +17,20 @@ Every screen of the application was ported one-by-one in a screen-compare
 kept for backward compatibility and is progressively retired as each modern
 screen reaches full parity.
 
+- [KEY BUGFIX] - #1804: **the per-row reorder controls of `reqTreeReorder.html` (Up / Down / To top /
+  To bottom) were non-interactive `<span class="rm dis">` elements, not real `<button disabled>`** —
+  a `<span>` is not focusable and never enters the tab order, `.prop('disabled', …)` in
+  `applyRowState()` is a silent no-op on it, there is no `aria-disabled` for assistive technology,
+  no tooltip saying WHY a control is dead, and (before the fix) no `pointer-events: none`, so a click
+  on a disabled control still dispatched and only `nudge()`'s bounds check stopped it. Fix
+  (`4f074a2b5`, also `dfd74229d` on `fix/issue-1804`): `btn()` now builds `button[type="button"]`
+  with `disabled` + `aria-disabled="true"` + an edge-row `title`, and
+  `.rm.dis, .rm:disabled { …; pointer-events: none }` keeps a dead control out of the pointer chain;
+  the `reqtr.alreadyFirst` / `reqtr.alreadyLast` tooltip keys were later added to all 10 locale
+  bundles and resolved through `TLi18n.has()` by #1829. The issue's regression suite had been lost
+  from `tmp/TLU_Test_Cases.md` by the `136fc4426` full-file clobber and is restored by the merge of
+  `fix/issue-1804`. (Fixes #1804)
+
 - [KEY BUGFIX] - #1712: **eight sibling issue-tracker interfaces (mantissoap, jirasoap, jirarest,
   fogbugzrest, gforgesoap, redminerest, tracxmlrpc, tuleaprest) answered HTTP 502 on
   `POST /api/issuetracker/test-connection`** whenever a structurally-string cfg member came back
@@ -1514,8 +1528,9 @@ screen reaches full parity.
   which rebuilds all handlers with fresh indices. 1 file, +10/-14. Regression suite 1684: **9/9 PASS**, including
   the Apply -> `nodes_hierarchy.node_order` round trip that now stores the **clicked** row's order. A DOM-vs-handler
   mismatch grep is documented on the wiki page for the next screen that mixes per-row controls with a shared
-  selection. Filed, not fixed (#1804): the disabled controls are `<span class="rm dis">` rather than real
-  `<button disabled>`, so they lack `aria-disabled` semantics, `pointer-events:none` and a "why" tooltip.
+  selection. Filed as #1804, later fixed there (see the #1804 entry at the top): the disabled
+  controls were `<span class="rm dis">` rather than real `<button disabled>`, so they lacked
+  `aria-disabled` semantics, `pointer-events:none` and a "why" tooltip.
   (Fixes #1684)
 
 - [KEY BUGFIX] - #1683: `reqTreeReorder.html` fell back to a **native `alert()`** for EVERY confirm dialog
