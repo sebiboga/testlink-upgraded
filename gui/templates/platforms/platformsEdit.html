@@ -270,7 +270,11 @@ function save() {
   }).done(function (r) {
     busy(false);
     flash(t(r.mode === 'created' ? 'pedit.savedCreated' : 'pedit.savedUpdated', { name: name }), false);
+    // Refs #1871 (found while testing): keep the MODE card in sync — mode
+    // flips to 'edit' after a successful create so later saves UPDATE, but
+    // the indicator used to stay on "Create" until a manual refresh.
     platformId = r.id; mode = 'edit'; $('#btnDelete').toggle(canManage);
+    $('#contextMode').text(t('pedit.modeEdit'));
   }).fail(function (xhr) {
     busy(false);
     var r = {}; try { r = JSON.parse(xhr.responseText); } catch (e) {}
