@@ -17,6 +17,22 @@ Every screen of the application was ported one-by-one in a screen-compare
 kept for backward compatibility and is progressively retired as each modern
 screen reaches full parity.
 
+- [KEY BUGFIX] - #1870: **both agent rulebooks told agents to recover a rejected push with
+  `git rebase -X theirs origin/<your-branch>`** (`ai/FIX-ISSUE.md:134`, `ai/IMPLEMENT-TASK.md:139`)
+  — in a rebase `theirs` is the REPLAYED (stale, agent-local) copy, so every overlap with a
+  concurrent agent's push resolved toward the stale side and the retried push shipped the clobber
+  as a clean fast-forward (re-measured this run on the 2-strategy harness: `-X theirs` → 0/45 live
+  lines kept, `-X ours` → 45/45, both exit 0). Same cross-run data-loss class as #1694/#1868,
+  affecting every shared file `.gitattributes merge=union` does not protect (`tmp/wiki-repo/`,
+  `docs/`, the 10 i18n bundles). Fix (2 files, single-token swap + 2-line rationale): both lines now
+  advise `git rebase -X ours` — upstream = the live `origin/<your-branch>` = ground truth. Verified:
+  `grep -rn "rebase -X theirs" ai/` → 0 hits; regression suite `Regression — Issue #1870` PASS;
+  no application code touched (Event Viewer n/a). Docs: `docs/Bugfix-Issue-1870-*.md` +
+  wiki page; the sibling `docs/Bugfix-Issue-1868-*.md` mirror was missing and is now added.
+  Discovered en route: #1868's workflow-side fix never actually landed (8 `-X theirs` sites still
+  live in `.github/workflows/`, its commits exist in no ref despite the auto-close) → filed as
+  **#1872** (`bug`). (Refs #1870)
+
 - [KEY BUGFIX] - #1869: **on requirements-only projects (0 test cases) the simple Full-Text
   Search screen (`searchMgmt.html`) never showed the Req.Spec/Requirement result blocks even
   though the BFF returned them** — `api/searchmgmt/index.php` emitted
