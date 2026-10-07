@@ -2269,6 +2269,28 @@ page reload and keep the form filled.
 |---|-------|--------|
 | 34 | `events` table: 0 new ERROR/WARNING rows from the BFF/shim/testing (only AUDIT `log_level=16` writes; the serialized `tlMetaStringHelper` in `description` is the standard logger format on read, not an error) | **PASS** |
 
+### Code review follow-up (Refs #1873) — applied, re-verified
+
+| # | Case | Result |
+|---|------|--------|
+| 35 | PUT/DELETE verbs on any `cfieldsedit` action (e.g. `-X PUT ?action=create`, `-X DELETE ?action=init`) | HTTP 405 `method_not_allowed` (GET/POST whitelist) | **PASS** |
+| 36 | POST `?action=create` `{"name":["x"],"label":"ok"}` (array payload) | HTTP 400 `empty_name`, no PHP Array-to-string warning, no events rows | **PASS** |
+| 37 | POST `?action=update` `{"id":["9"],...}` (array id) | HTTP 400 `missing_cfield_id` (not `intval()`→9 wrong-target update) | **PASS** |
+| 38 | Global-right + no-project-role user (`cfgmgr`, ephemeral role 10): `init`/assign-create on a private foreign project AND on a nonexistent id | Both answered along the sibling-#1816 convention: existing-but-unreachable → 403 `no_right_on_project` (right checked BEFORE the resolve, no name leak); admin keeps the honest 404 for a genuinely missing id | **PASS** |
+| 39 | `cfieldsEdit.html`: only the "Display on Test Execution" combo is rendered (design/testplan_design show-on combos removed — legacy `cfieldsEdit.tpl:175-179` parity, they were silent no-ops); `label_too_long` toast now shows "(at most 50 characters)" (per-code `max`, not name-max) | **PASS** |
+
+**RESULT — 39/39 PASS.** Bugs found during testing: none outstanding after the
+verification matrix. Design notes worth recording: (a) a bare `do_action=create`
+(or no `do_action`) starts a clean form even if `cfield_id` is present — matches
+legacy `$query['do_action']` semantics (the editor only enters edit mode with
+`do_action=edit&cfield_id=N`), not a bug; (b) delete is POST-only behind the
+same-origin proof (legacy `do_delete` was a GET form); (c) the addressed-project
+right is now asserted BEFORE the resolve (mirroring `cfpaRequireManage()`), so a
+no-right caller uniformly gets 403 over the project scope and the resolve never
+leaks a project name; the residual 404-vs-403 split for a *nonexistent* id only
+remains for callers that already hold the GLOBAL `cfield_management` right — the
+exact envelope of the reviewed sibling `api/cfieldstproject/index.php` (scope
+note of code review #1873: impact is limited to holders of the global right).
 **RESULT — 34/34 PASS.** Bugs found during testing: none outstanding after the
 verification matrix. Design notes worth recording: (a) a bare `do_action=create`
 (or no `do_action`) starts a clean form even if `cfield_id` is present — matches

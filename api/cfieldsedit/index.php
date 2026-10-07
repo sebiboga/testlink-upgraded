@@ -110,6 +110,21 @@ function cfeBody() {
     return $_POST;
 }
 
+/**
+ * Refs #1808/#1810 pattern: a crafted JSON body like {"name":["x"], ...} must
+ * never reach a (string)/intval cast - PHP 8 raises "Array to string
+ * conversion" E_WARNINGs which watchPHPErrors() persists into the events
+ * table, and a non-numeric array intval()'s to 1 (wrong-target writes).
+ */
+function cfeScalar($v, $default = '') {
+    return is_scalar($v) ? $v : $default;
+}
+
+function cfeInt($v, $default = 0) {
+    if (!is_scalar($v)) { return $default; }
+    return is_numeric($v) ? intval($v) : $default;
+}
+
 $db = new database(DB_TYPE);
 doDBConnect($db);
 
@@ -129,11 +144,11 @@ if (!$canManage) {
 }
 
 $method = $_SERVER['REQUEST_METHOD'];
-$action = (string) ($_GET['action'] ?? $_POST['action'] ?? '');
+$action = (string) cfeScalar($_GET['action'] ?? $_POST['action'] ?? '', '');
 if ($action === '') {
     cfeFail(400, 'missing_action', 'No action requested');
 }
-if ($method !== 'GET' && $method !== 'POST' && $method !== 'PUT' && $method !== 'DELETE') {
+if ($method !== 'GET' && $method !== 'POST') {
     cfeFail(405, 'method_not_allowed', 'Unsupported HTTP method: ' . $method);
 }
 if ($method !== 'GET') {
@@ -173,7 +188,7 @@ function cfeRequest2cf(array $in) {
     // IMPORTANT/CRITIC parity with the legacy function: enable_on_* is derived
     // from the single cf_enable_on combo and implies show_on_* for that area.
     $setter = array('design' => 0, 'execution' => 0, 'testplan_design' => 0);
-    $enableOn = isset($cf['enable_on']) ? (string) $cf['enable_on'] : '';
+    $enableOn = (string) cfeScalar($cf['enable_on'] ?? 0, '');
     switch ($enableOn) {
         case 'design':
         case 'execution':
@@ -196,7 +211,7 @@ function cfeValidatePayload(array $in, $cfield_mgr) {
     $cf = cfeRequest2cf($in);
 
     $keys2trim = array('name', 'label', 'possible_values');
-    foreach ($keys2trim as $k) { $cf[$k] = trim((string) $cf[$k]); }
+    foreach ($keys2trim as $k) { $cf[$k] = trim((string) cfeScalar($cf[$k], '')); }
 
     if ($cf['name'] === '') { cfeFail(400, 'empty_name', 'The name cannot be empty'); }
     if ($cf['label'] === '') { cfeFail(400, 'empty_label', 'The label cannot be empty'); }
@@ -214,26 +229,28 @@ function cfeValidatePayload(array $in, $cfield_mgr) {
     }
 
     $types = $cfield_mgr->get_available_types();
-    if (!array_key_exists(intval($cf['type']), $types)) {
-        cfeFail(400, 'unknown_type', 'Unknown custom field type: ' . intval($cf['type']));
+    $typeId = cfeInt(cfeScalar($cf['type'] ?? '', -1));
+    if (!array_key_exists($typeId, $types)) {
+        cfeFail(400, 'unknown_type', 'Unknown custom field type: ' . var_export(cfeScalar($cf['type'] ?? ''), true));
     }
-    $cf['type'] = intval($cf['type']);
+    $cf['type'] = $typeId;
 
     // cfield_mgr::get_allowed_nodes() builds its ids from decode tables, so the
     // values arrive as STRINGS ("3", not 3) - normalise before comparing.
     $allowedNodes = array_map('intval', array_values($cfield_mgr->get_allowed_nodes()));
-    if (!in_array(intval($cf['node_type_id']), $allowedNodes, true)) {
+    $nodeTypeId = cfeInt(cfeScalar($cf['node_type_id'] ?? '', -1));
+    if (!in_array($nodeTypeId, $allowedNodes, true)) {
         cfeFail(400, 'unknown_node_type',
-                'Unknown node type: ' . intval($cf['node_type_id']));
+                'Unknown node type: ' . var_export(cfeScalar($cf['node_type_id'] ?? ''), true));
     }
-    $cf['node_type_id'] = intval($cf['node_type_id']);
+    $cf['node_type_id'] = $nodeTypeId;
 
     // The UI hides / disables everything that does not make sense for the chosen
     // node type (cfieldsEditJS.tpl::configure_cf_attr). Reject it server side
     // too, otherwise a crafted POST can enable a field on an area the node type
     // does not support (the classic "REQ field enabled on execution" nonsense).
-    $area = isset($in['enable_on']) ? (string) $in['enable_on'] : 'design';
-    if (!in_array($area, cfeAreas(), true)) { $area = 'design'; }
+    $area = cfeScalar($in['enable_on'] ?? 'design', 'design');
+    if (!is_string($area) || !in_array($area, cfeAreas(), true)) { $area = 'design'; }
     $enableCfg = $cfield_mgr->get_enable_on_cfg($area);
     if (empty($enableCfg[intval($cf['node_type_id'])])) {
         cfeFail(400, 'area_not_allowed_for_node_type',
@@ -251,12 +268,13 @@ function cfeValidatePayload(array $in, $cfield_mgr) {
 
 /** Enforce the is_used() lock that legacy only applied in the UI. */
 function cfeEnforceTypeLock($cfield_mgr, $cf) {
-    $old = $cfield_mgr->get_by_id(intval($cf['id']));
-    if (is_null($old) || !isset($old[intval($cf['id'])])) {
+    $id = cfeInt($cf['id'] ?? 0);
+    $old = $cfield_mgr->get_by_id($id);
+    if (is_null($old) || !isset($old[$id])) {
         cfeFail(404, 'cfield_not_found', 'Custom field not found');
     }
-    $old = $old[intval($cf['id'])];
-    if (!$cfield_mgr->is_used(intval($cf['id']))) { return $old; }
+    $old = $old[$id];
+    if (!$cfield_mgr->is_used($id)) { return $old; }
     if (intval($old['type']) !== intval($cf['type'])) {
         cfeFail(400, 'type_locked',
                 'The type of a custom field that already holds values cannot be changed');
@@ -295,14 +313,27 @@ function cfeJsonField($cf, $isUsed = 0) {
  * body (which this BFF prefers, so it is read from the parsed body too - reading
  * only $_GET/$_POST silently ignored tproject_id on every JSON write and fell
  * back to the session project).
+ *
+ * Refs #1873 (code review M1/M2): the cfield_management right on the ADDRESSED
+ * project is checked BEFORE the lookup, mirroring cfpaRequireManage()
+ * (api/cfieldstproject/index.php:160-165). A caller with only the GLOBAL right
+ * must not be able to distinguish "this id maps to a project I cannot touch"
+ * (403) from "this id does not exist" (404) - otherwise the endpoint becomes a
+ * project-id ORACLE. tlUser::hasRight() carries the admin exception, so an
+ * admin still gets the honest 404 for a genuinely missing id, and a user with
+ * the per-project right is unaffected.
  */
 function cfeResolveProject($db, $user, $body = array()) {
-    $id = isset($_GET['tproject_id']) ? intval($_GET['tproject_id']) : 0;
-    if ($id <= 0 && isset($body['tproject_id'])) { $id = intval($body['tproject_id']); }
-    if ($id <= 0 && isset($_POST['tproject_id'])) { $id = intval($_POST['tproject_id']); }
+    $id = cfeInt($_GET['tproject_id'] ?? 0);
+    if ($id <= 0 && isset($body['tproject_id'])) { $id = cfeInt($body['tproject_id']); }
+    if ($id <= 0 && isset($_POST['tproject_id'])) { $id = cfeInt($_POST['tproject_id']); }
     if ($id <= 0) { $id = intval($_SESSION['testprojectID'] ?? 0); }
     if ($id <= 0) {
         return array('tproject_id' => 0, 'tproject_name' => '');
+    }
+    if (!$user->hasRight($db, 'cfield_management', $id, null, true)) {
+        cfeFail(403, 'no_right_on_project',
+                'No cfield_management right on the addressed test project');
     }
     $tree = new tree($db);
     $info = $tree->get_node_hierarchy_info($id, null, array('nodeType' => 'testproject'));
@@ -314,11 +345,11 @@ function cfeResolveProject($db, $user, $body = array()) {
 
 /* ------------------------------------------------------------------ GET init */
 if ($action === 'init') {
-    $doAction = (string) ($_GET['do_action'] ?? 'create');
+    $doAction = (string) cfeScalar($_GET['do_action'] ?? 'create', 'create');
     if (!in_array($doAction, array('create', 'edit'), true)) {
         cfeFail(400, 'unknown_do_action', 'Unknown do_action: ' . $doAction);
     }
-    $cfieldId = isset($_GET['cfield_id']) ? intval($_GET['cfield_id']) : 0;
+    $cfieldId = cfeInt($_GET['cfield_id'] ?? 0);
 
     $lang = isset($_SESSION['TL_language']) ? $_SESSION['TL_language'] : 'en_GB';
 
@@ -426,14 +457,11 @@ if ($action === 'create') {
     $tprojectId = 0;
     if ($assign) {
         $proj = cfeResolveProject($db, $user, $in);
+        // cfeResolveProject already answered 403 (foreign/unreachable project)
+        // or 404 (genuinely missing, admin only) before returning a $proj.
         if ($proj['tproject_id'] <= 0) {
             cfeFail(400, 'no_tproject_selected',
                     'Select a test project before assigning the new custom field');
-        }
-        // legacy passed the request tproject_id straight to link_to_testproject()
-        if (!$user->hasRight($db, 'cfield_management', $proj['tproject_id'], null, true)) {
-            cfeFail(403, 'no_right_on_project',
-                    'No cfield_management right on test project "' . $proj['tproject_name'] . '"');
         }
         $tprojectId = $proj['tproject_id'];
     }
@@ -469,7 +497,7 @@ if ($action === 'create') {
 /* ------------------------------------------------------------ POST update */
 if ($action === 'update') {
     $in = cfeBody();
-    $id = isset($in['id']) ? intval($in['id']) : 0;
+    $id = cfeInt($in['id'] ?? 0);
     if ($id <= 0) { cfeFail(400, 'missing_cfield_id', 'No custom field id requested'); }
     $cf = cfeValidatePayload($in, $cfield_mgr);
     $cf['id'] = $id;
@@ -505,7 +533,7 @@ if ($action === 'update') {
 /* ------------------------------------------------------------ POST delete */
 if ($action === 'delete') {
     $in = cfeBody();
-    $id = isset($in['id']) ? intval($in['id']) : 0;
+    $id = cfeInt($in['id'] ?? 0);
     if ($id <= 0) { cfeFail(400, 'missing_cfield_id', 'No custom field id requested'); }
 
     // doDelete() proved the row exists before deleting (cfieldsEdit.php:417-425).

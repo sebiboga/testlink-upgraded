@@ -170,12 +170,23 @@ var ERR_CODE = {
 
 function errText(code, fallbackMsg) {
   var key = ERR_CODE[code] || 'common.error';
-  /* The *too_long messages carry a {max}; CTX.limits is only present once init
-     has answered, so fall back to the compiled-in maxima. */
+  /* The *too_long messages carry a {max} that depends on the field; pick the
+     right limit for the code, not name_maxlen for everything (CTX.limits is
+     only present once init answered, so fall back to compiled-in maxima). */
   var lim = (CTX && CTX.limits) || {};
-  var v = t(key, {
-    max: lim.name_maxlen || lim.label_maxlen || lim.possible_values_maxlen || 255
-  });
+  var maxByCode = {
+    name_too_long: lim.name_maxlen,
+    label_too_long: lim.label_maxlen,
+    possible_values_too_long: lim.possible_values_maxlen
+  };
+  var v;
+  if (Object.prototype.hasOwnProperty.call(maxByCode, code)) {
+    v = t(key, { max: maxByCode[code] || 255 });
+  } else {
+    v = t(key, {
+      max: lim.name_maxlen || lim.label_maxlen || lim.possible_values_maxlen || 255
+    });
+  }
   return (v === key) ? (fallbackMsg || code) : v;
 }
 
@@ -448,16 +459,17 @@ function renderForm() {
   });
   html += '</select><div class="hint">' + esc(t('cfed.enableOnHint')) + '</div></div>';
 
-  /* Show on (one combo per area, cfieldsEditJS.tpl parity) */
-  AREA_KEYS.forEach(function (area) {
-    var on = parseInt(cf['show_on_' + area], 10) === 1;
-    html += '<div class="row" id="containerCfShowOn_' + area + '"><label for="cfShowOn_' +
-      area + '">' + esc(t('cfed.showOnArea', { area: areaLabel(area) })) +
-      '</label><select id="cfShowOn_' + area + '" data-area="' + area + '">' +
-      '<option value="1"' + (on ? ' selected' : '') + '>' + esc(t('common.yes')) + '</option>' +
-      '<option value="0"' + (on ? '' : ' selected') + '>' + esc(t('common.no')) + '</option>' +
-      '</select></div>';
-  });
+  /* Show on (cfieldsEditJS.tpl parity / Refs #1873 m2: the legacy screen
+     rendered ONLY the execution combo - cfieldsEdit.tpl:175-179. show_on_design
+     and show_on_testplan_design are derived server side from enable_on
+     (request2cf()), so exposing them as editable combos was a silent no-op. */
+  var on = parseInt(cf.show_on_execution, 10) === 1;
+  html += '<div class="row" id="containerCfShowOn_execution"><label for="cfShowOn_execution">' +
+    esc(t('cfed.showOnArea', { area: areaLabel('execution') })) +
+    '</label><select id="cfShowOn_execution" data-area="execution">' +
+    '<option value="1"' + (on ? ' selected' : '') + '>' + esc(t('common.yes')) + '</option>' +
+    '<option value="0"' + (on ? '' : ' selected') + '>' + esc(t('common.no')) + '</option>' +
+    '</select></div>';
 
   html += '<div class="actions">';
   if (isEdit) {
