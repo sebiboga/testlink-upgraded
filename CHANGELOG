@@ -8355,6 +8355,16 @@ Changes:
       project tables and added user metrics to the middle section
 
 ## 2.0.1 (in-progress)
+### Key bugfix — `requirement_spec_mgr::get_by_id()` no longer interpolates an EMPTY revision id into SQL (Fixes #1714)
+- `get_by_id()` resolved the latest revision via `get_last_child_info()` and read
+  `$info['id']` unguarded: for a `req_specs` row with no revision (orphan) that
+  raised an E_WARNING, then built `RSPEC_REV.id =   AND RSPEC.id = N` → SQL 1064,
+  so `api/reqspec spec_view` answered HTTP 200 with the legacy HTML backtrace and
+  wrote an ERROR pair to the Event Viewer. A single null/validity guard now
+  returns `null` (the documented "query fails" contract) before any SQL is built,
+  closing the same raw `RSPEC.id = {$id}` interpolation for all 39+5 call sites
+  (Refs #1714). Regression suite `tmp/TLU_Test_Cases.md` (Issue #1714) 4/4 PASS,
+  Event Viewer clean.
 ### Screen — Platform Create/Edit `platformsEdit` (Refs #1871)
 - `gui/templates/platforms/platformsEdit.html` + `api/platformedit/index.php`: one Dashio page
   for both legacy modes of `lib/platforms/platformsEdit.php` (create + edit, now a session-guarded

@@ -209,10 +209,14 @@ only New Req Spec, Event Viewer clean. Screenshots:
 
 ## Deleting / not-found & permissions
 
-* Nonexistent spec (`get_by_id()` fatals on missing ids, Refs #569) is probed
-  with a direct `SELECT testproject_id FROM req_specs WHERE id=N` first; the
-  API answers HTTP 404 and the screen shows **"Failed to load requirement
-  specification: Requirement specification not found"** while hiding the body.
+* Nonexistent spec is probed with a direct `SELECT testproject_id FROM
+  req_specs WHERE id=N` first; the API answers HTTP 404 and the screen shows
+  **"Failed to load requirement specification: Requirement specification not
+  found"** while hiding the body. This covers *orphaned* specs too (a `req_specs`
+  row with no revision): since the #1714 fix, `requirement_spec_mgr::get_by_id()`
+  itself returns `null` when `get_last_child_info()` finds no revision, so no
+  E_WARNING / SQL-1064 pair is ever emitted and the screen degrades to the same
+  clean 404. See `docs/BUGFIX-Issue-1714-reqSpec-get-by-id-empty-revision-sql-1064.md`.
 * Without `mgt_view_req` the API answers HTTP 403 and the screen shows
   **"No permission"**; the Freeze / New Revision buttons are hidden in that
   case.
