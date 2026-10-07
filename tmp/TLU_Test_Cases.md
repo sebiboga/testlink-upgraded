@@ -2040,3 +2040,31 @@ Steps / Expected / Actual:
 
 ### Status
 PASS
+
+## Regression — Issue #1872: CI fallback still rebases with `-X theirs` (stale copy wins) + auto-close fires on local-only commits
+
+**Precondition** — Fresh run of `sebiboga/testlink-upgraded` (2026-10-07, fix-bug run; work branch `fix/issue-1872` forked from `origin/sebiboga` @ `d317f6e1c` = `.ci_before_sha`); git 2.55.0; GitHub App installation token `ghs_…` (`github-actions[bot]`), no `workflows` repository permission. No TestLink app/DB fixture needed (CI YAML defect only — Event Viewer n/a). Harness fixture under `/tmp/opencode/rh`: base = 100-line `shared.txt`; `agentB` appends live lines `101..145`; `stale` rewrites the file to 46 stale lines `1..46`.
+
+**Pre-fix behavior (reproduced before the fix)** —
+1. `grep -rn "rebase -X theirs" .github/workflows/` → **8 hits** (`fix-bug.yml:234`, `fix-bug-oldest.yml:237`, `implement-task-newest.yml:254`, `implement-task-oldest.yml:252`, `investigate-fix.yml:287`, `compare-screens.yml:333`, `modernize.yml:238` PROMPT, `modernize.yml:320`); `grep -rn "rebase -X ours"` → **0**.
+2. `git cat-file -t 7032a542e|219c9be63|65b0257cb` → `fatal` ×3 — #1868's fix commits exist in no ref; the same push that carries them is rejected: `! [remote rejected] … without workflows permission` (re-measured this run).
+3. Auto-close defect: `grep -rn 'BEFORE"..HEAD' .github/workflows/` → 5 hits; the local range `d317f6e1c..HEAD` contains this run's commits while `d317f6e1c..origin/sebiboga` contains 0 (surrogate count on "1872": local 2 vs remote 0) — a rejected push would still have produced non-empty `REFS` and a false "landed" close (as happened to #1868).
+4. Harness: `git rebase -X theirs agentB` on the stale branch → exit 0, `shared.txt` = 46 lines, **live lines 0/45**.
+
+**Expected post-fix behavior** — 0 `-X theirs` / 8 `-X ours` in `.github/workflows/`; auto-close `REFS` computed from `origin/$GITHUB_REF_NAME` after a fetch (5 sites), local `..HEAD` pattern 0 hits; all 11 workflows still parse as YAML; harness `-X ours` keeps 45/45 live lines; push of the workflow commits remains credential-blocked (documented, issue stays OPEN with the exact patch).
+
+| # | Step | Expected | Actual | Result |
+|---|---|---|---|---|
+| 1 | `grep -rn "rebase -X theirs" .github/workflows/` | 0 hits | 0 hits, exit 1 | **PASS** |
+| 2 | `grep -rn "rebase -X ours" .github/workflows/` | 8 hits (7 fallback steps + `modernize.yml:238` PROMPT) | exactly 8 at the expected lines | **PASS** |
+| 3 | `grep -rn 'BEFORE"..HEAD' .github/workflows/` | 0 hits | 0 hits | **PASS** |
+| 4 | `grep -rn '"$BEFORE".."origin/$GITHUB_REF_NAME"' .github/workflows/` | 5 hits + 5 `git fetch origin "$GITHUB_REF_NAME"` guards | 5 REFS lines, 5 fetch guards (fix-bug, fix-bug-oldest, investigate-fix, implement-task-oldest, implement-task-newest) | **PASS** |
+| 5 | YAML gate `yaml.safe_load` over `.github/workflows/*.yml` | 11/11 parse | 11/11 parse | **PASS** |
+| 6 | Harness strategy A: `rebase -X theirs` (pre-fix) | bug reproduces: 46 lines, 0/45 live kept | `strategy=theirs rebase=ok live_lines=0/45 total_lines=46` | **PASS** (bug reproduced) |
+| 7 | Harness strategy B: `rebase -X ours` (post-fix) | keeps concurrent work: 145 lines, 45/45 | `strategy=ours rebase=ok live_lines=45/45 total_lines=145` | **PASS** |
+| 8 | Guard semantics: local vs remote range for `d317f6e1c` | local range ≠ remote range (rejected pushes invisible remotely) | surrogate count "1872": local `d317f6e1c..HEAD` = 2, `d317f6e1c..origin/sebiboga` = 0 → old (local) would close, new (origin) stays open | **PASS** |
+| 9 | Landing attempt: `git push origin HEAD:fix/issue-1872` with the workflow commits | (documented blocker) rejected with `without workflows permission` | `! [remote rejected] … .github/workflows/compare-screens.yml without workflows permission` — same 403 class as #1868; no credential on the machine can push workflow files (SSH: `Permission denied (publickey)`, secrets API: 403, contents API: 403) | **PASS** (blocker reproduced & documented; issue stays OPEN) |
+| 10 | `TLU_REQUIRE_SUITE="Issue #1872" bash ai/verify_test_suites.sh` | gate passes | run after append — recorded in issue closure/findings comment | (recorded below) |
+| 11 | Event Viewer / `events` table | no new Error/Warning rows | n/a — no TestLink PHP/BFF code touched (CI YAML + docs only) | **PASS** (n/a) |
+**Regression — Issue #1872: 11/11 PASS** (case 10: `verify_test_suites.sh` → 7 PASS / 0 FAIL, exit 0). Pre-fix, cases 1, 3, 6, 9 FAIL (8 live `-X theirs` sites; local-only auto-close ranges; harness clobber 0/45; workflow push rejected). Post-fix: all code guards verified in-repo; case 9 stays blocked by the missing `workflows` permission — the fix itself cannot be pushed by any available credential, so the exact patch is published on the issue and **#1872 remains OPEN** until a human/credential with `workflows` permission applies it.
+
