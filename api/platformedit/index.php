@@ -183,15 +183,23 @@ if ($method === 'POST' && $action === 'save') {
     $enExec   = !empty($body['enable_on_execution']) ? 1 : 0;
     $isOpen   = !empty($body['is_open']) ? 1 : 0;
 
+    // On update, prove ownership FIRST so a name probe can never precede the
+    // 404 (no existence oracle); then the duplicate-name pre-check runs for
+    // BOTH create and update (Refs #1871): the create path used to fall
+    // through to tlPlatform::create(), which answers the raw legacy code -4 —
+    // a code the screen cannot localize, so a duplicate name showed the
+    // generic "operation failed" message instead of the localized one.
     if ($platform_id > 0) {
         needOwnedPlatform($mgr, $platform_id, $tproject_id);
-        // guard against renames that duplicate an existing platform name
-        $dupId = $mgr->getID($name);
-        if ($dupId && intval($dupId) != $platform_id) {
-            http_response_code(422);
-            out(['status' => 'error', 'message' => 'Platform name already exists',
-                 'error_code' => 'E_NAMEALREADYEXISTS']);
-        }
+    }
+    $dupId = intval($mgr->getID($name) ?? 0);
+    if ($dupId && $dupId != $platform_id) {
+        http_response_code(422);
+        out(['status' => 'error', 'message' => 'Platform name already exists',
+             'error_code' => 'E_NAMEALREADYEXISTS']);
+    }
+
+    if ($platform_id > 0) {
         $result = $mgr->update($platform_id, $name, $notes, $enDesign, $enExec, $isOpen);
         if ($result == tl::OK) {
             out(['status' => 'ok', 'mode' => 'updated', 'id' => $platform_id]);

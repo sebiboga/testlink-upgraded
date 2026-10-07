@@ -187,12 +187,16 @@ function errorFor(r) {
     NO_RIGHT: 'pedit.errNoRight',
     NOT_FOUND: 'pedit.errNotFound',
     E_NAMEALREADYEXISTS: 'pedit.errNameExists',
+    E_NAMELENGTH: 'pedit.errNameRequired',
     DELETE_BLOCKED: 'pedit.errDeleteBlocked',
     DELETE_CHECK_FAILED: 'pedit.errGeneric',
     METHOD_NOT_ALLOWED: 'pedit.errGeneric',
     UNKNOWN_ACTION: 'pedit.errGeneric',
     INVALID_PARAM: 'pedit.errGeneric'
   };
+  // belt-and-braces: tlPlatform::create() answers the raw legacy code -4
+  // (E_NAMEALREADYEXISTS) — must never surface as an unlocalized generic error
+  if (code === -4 || code === '-4') { code = 'E_NAMEALREADYEXISTS'; }
   if (map[code]) { return t(map[code]); }
   if (r && r.message) { return r.message; }
   return t('pedit.errGeneric');
