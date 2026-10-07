@@ -45,6 +45,15 @@ class tuleaprestInterface extends issueTrackerInterface
         } else {
           // check the tracker ID
           if (property_exists($this->cfg, 'tracker')) {
+            // Issue #1712: this runs BEFORE completeCfg(), so the unguarded
+            // (string) cast had to be guarded HERE - a non-text <tracker>
+            // (element-valued/empty/whitespace-only) decodes to a nested
+            // stdClass and the cast threw the uncatchable "Object of class
+            // stdClass could not be converted to string" out of the constructor.
+            if ($this->cfgIsNotText('tracker')) {
+              $this->cfgWarn('tracker', "using empty string");
+              $this->cfg->tracker = '';
+            }
             $this->trackerID = trim((string) $this->cfg->tracker);
             if ( strlen($this->trackerID) > 0
                  && ! $this->checkTrackerIDSyntax($this->trackerID) ) {
@@ -251,8 +260,12 @@ class tuleaprestInterface extends issueTrackerInterface
          try
          {
 
-             $this->APIClient =  new tuleap((string)trim($this->cfg->uriapi),
-                 (string)trim($this->cfg->username), (string)trim($this->cfg->password));
+             // Issue #1712: read structurally-string members as strings - a
+             // missing <username>/<password> was an E_WARNING on the stdClass
+             // cfg plus a trim(null) deprecation, a non-text one an
+             // uncatchable Error that escaped catch(Exception) as a 502.
+             $this->APIClient =  new tuleap(trim($this->cfgStr('uriapi','')),
+                 trim($this->cfgStr('username','')), trim($this->cfgStr('password','')));
 
              try
              {
@@ -425,26 +438,19 @@ class tuleaprestInterface extends issueTrackerInterface
 
          $base =  $this->URIBase . '/';
 
-         if( !property_exists($this->cfg,'uriapi') )
-         {
-             $this->cfg->uriapi = $base . 'api';
-         }
+         // Issue #1712: a non-text cfg member (nested stdClass/array after the
+         // setCfg() SimpleXML -> json -> stdClass round-trip) is treated as
+         // ABSENT and the carved-on-the-stone default is built, so connect()
+         // (uriapi/username/password are (string)trim()ed there) always
+         // sees a real string instead of an uncatchable TypeError.
+         $ucCreate = ($this->trackerID != "")
+           ? $base . 'plugins/tracker/?tracker=' . $this->trackerID . '&func=new-artifact'
+           : '';
+         $this->cfg->uriapi    = $this->cfgStr('uriapi',    $base . 'api');
+         $this->cfg->uriview   = $this->cfgStr('uriview',   $base . 'plugins/tracker/?aid=');
+         $this->cfg->uricreate = $this->cfgStr('uricreate', $ucCreate);
 
-         if( !property_exists($this->cfg,'uriview') )
-         {
-             $this->cfg->uriview = $base . 'plugins/tracker/?aid=';
-         }
-
-         if( !property_exists($this->cfg,'uricreate') )
-         {
-           if ( $this->trackerID != "" ) {
-             $this->cfg->uricreate = $base . 'plugins/tracker/?tracker='
-               . $this->trackerID . '&func=new-artifact';
-           } else {
-             $this->cfg->uricreate = '';
-           }
-         }
-
+         $this->cfgCoerceText(array('username','password'));
      }
 
      /**

@@ -76,22 +76,16 @@ class jirarestInterface extends issueTrackerInterface
 	 **/
 	function completeCfg()
 	{
-    $base = trim($this->cfg->uribase,"/") . '/'; // be sure no double // at end
+    $base = trim($this->cfgStr('uribase',''),"/") . '/'; // be sure no double // at end
 
-    if( !property_exists($this->cfg,'uriapi') )
-    {
-      $this->cfg->uriapi = $base . 'rest/api/latest/';
-    }
-
-    if( !property_exists($this->cfg,'uriview') )
-    {
-      $this->cfg->uriview = $base . 'browse/';
-    }
-      
-    if( !property_exists($this->cfg,'uricreate') )
-    {
-      $this->cfg->uricreate = $base . '';
-    }
+    // Issue #1712: a non-text cfg member (nested stdClass/array after the
+    // setCfg() SimpleXML -> json -> stdClass round-trip) is treated as ABSENT
+    // and the carved-on-the-stone default is built, so connect() (uriapi)
+    // and buildViewBugURL() (uriview) always see a real string
+    // instead of raising an uncatchable Error that escapes catch(Exception).
+    $this->cfg->uriapi     = $this->cfgStr('uriapi',     $base . 'rest/api/latest/');
+    $this->cfg->uriview    = $this->cfgStr('uriview',    $base . 'browse/');
+    $this->cfg->uricreate  = $this->cfgStr('uricreate',  $base . '');
 
     if( property_exists($this->cfg,'attributes') )
     {
@@ -884,6 +878,16 @@ class jirarestInterface extends issueTrackerInterface
     $status_ok = true;
     if( property_exists($this->cfg, 'projectkey') )
     {
+      // Issue #1712: this runs in the CONSTRUCTOR, before completeCfg(), so the
+      // unguarded (string) cast had to be guarded HERE: a non-text projectkey
+      // (element-valued/empty/whitespace-only) is reported by name and treated
+      // as empty instead of throwing the uncatchable "Object of class stdClass
+      // could not be converted to string" out of the constructor.
+      if( $this->cfgIsNotText('projectkey') )
+      {
+        $this->cfgWarn('projectkey', "using empty string");
+        $this->cfg->projectkey = '';
+      }
       $pk = trim((string)($this->cfg->projectkey));
       if($pk == '')
       {

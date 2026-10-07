@@ -85,7 +85,7 @@ class mantissoapInterface extends issueTrackerInterface
       // OK, we have got WSDL => server is up and we can do SOAP calls, but now we need 
       // to do a simple call with user/password only to understand if we are really connected
       try {
-        $x = $op['client']->mc_enum_status($this->cfg->username,$this->cfg->password);
+        $x = $op['client']->mc_enum_status($this->cfgStr('username',''),$this->cfgStr('password',''));
       } catch (SoapFault $f) {
         $this->connected = false;
         tLog("SOAP Fault: (code: {$f->faultcode}, string: {$f->faultstring})","ERROR");
@@ -299,21 +299,20 @@ class mantissoapInterface extends issueTrackerInterface
    **/
   function completeCfg()
   {
-    $base = trim($this->cfg->uribase,"/") . '/' ;
-    if( !property_exists($this->cfg,'uriwsdl') )
-    {
-      $this->cfg->uriwsdl = $base . 'api/soap/mantisconnect.php?wsdl';
-    }
-    
-    if( !property_exists($this->cfg,'uriview') )
-    {
-      $this->cfg->uriview = $base . 'view.php?id=';
-    }
-      
-    if( !property_exists($this->cfg,'uricreate') )
-    {
-      $this->cfg->uricreate = $base;
-    }     
+    $base = trim($this->cfgStr('uribase',''),"/") . '/' ;
+    // Issue #1712: a non-text cfg member (nested stdClass/array after the
+    // setCfg() SimpleXML -> json -> stdClass round-trip) is treated as ABSENT
+    // and the carved-on-the-stone default is built, so getClient() (uriwsdl)
+    // and the (string) casts in addIssue()/getIssue() always see a
+    // real string instead of raising an uncatchable Error that escapes
+    // catch(Exception)/catch(SoapFault) as a 502.
+    $this->cfg->uriwsdl    = $this->cfgStr('uriwsdl',    $base . 'api/soap/mantisconnect.php?wsdl');
+    $this->cfg->uriview    = $this->cfgStr('uriview',    $base . 'view.php?id=');
+    $this->cfg->uricreate  = $this->cfgStr('uricreate',  $base);
+
+    // username/password/project/category are (string)-cast in connect(),
+    // checkBugIDExistence(), getIssue() and addIssue().
+    $this->cfgCoerceText(array('username','password','project','category'));
   }
 
     /**

@@ -67,17 +67,17 @@ class redminerestInterface extends issueTrackerInterface
 		// Issue #1710: guard uribase access
 		$uriBase = $this->cfg->uribase ?? '';
 		$base = trim(is_scalar($uriBase) ? (string)$uriBase : '', "/") . '/'; // be sure no double // at end
-	  if( !property_exists($this->cfg,'uriview') )
-	  {
-      // seems this is good only for redmine 1 and 2 ??
-      // $this->cfg->uriview = $base . 'issues/show/'; 
-      $this->cfg->uriview = $base . 'issues/'; 
-  	}
-	    
-	  if( !property_exists($this->cfg,'uricreate') )
-	  {
-      $this->cfg->uricreate = $base;
-		}	    
+    // Issue #1712: a non-text cfg member (nested stdClass/array after the
+    // setCfg() SimpleXML -> json -> stdClass round-trip) is treated as ABSENT
+    // and the carved-on-the-stone default is built, so buildViewBugURL()
+    // (uriview) and the (string) casts below always see a real string instead
+    // of raising an uncatchable Error that escapes catch(Exception) as a 502.
+    $this->cfg->uriview   = $this->cfgStr('uriview',   $base . 'issues/');
+    $this->cfg->uricreate = $this->cfgStr('uricreate', $base);
+
+    // apikey is (string)-cast in connect(); projectidentifier/trackerid/
+    // parent_issue_id are (string)-cast in addIssue().
+    $this->cfgCoerceText(array('apikey','projectidentifier','trackerid','parent_issue_id'));
 
     if( property_exists($this->cfg,'attributes') )
     {
@@ -164,7 +164,7 @@ class redminerestInterface extends issueTrackerInterface
       // Issue #1710: guard uribase access
       $uriBase = $this->cfg->uribase ?? '';
       $redUrl = trim(is_scalar($uriBase) ? (string)$uriBase : '');
-      $redAK = (string)trim($this->cfg->apikey);
+      $redAK = trim($this->cfgStr('apikey','')); // Issue #1712: missing/non-text <apikey>
       $pxy = new stdClass();
       $pxy->proxy = config_get('proxy');
   	  $this->APIClient = new redmine($redUrl,$redAK,$pxy);

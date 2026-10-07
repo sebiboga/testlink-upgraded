@@ -85,20 +85,19 @@ class tracxmlrpcInterface extends issueTrackerInterface
     // Issue #1710: guard unguarded access to $this->cfg->uribase (same as #1619)
     $uriBase = $this->cfg->uribase ?? '';
     $base = trim(is_scalar($uriBase) ? (string)$uriBase : '', "/") . '/'; // be sure no double // at end
-    if( !property_exists($this->cfg,'urixmlrpc') )
-    {
-      $this->cfg->urixmlrpc = $base . 'xmlrpc';
-    }
-    
-    if( !property_exists($this->cfg,'uriview') )
-    {
-      $this->cfg->uriview = $base . 'ticket/';
-    }
-      
-    if( !property_exists($this->cfg,'uricreate') )
-    {
-      $this->cfg->uricreate = $base . 'newticket/';
-    }     
+    // Issue #1712: a non-text cfg member (nested stdClass/array after the
+    // setCfg() SimpleXML -> json -> stdClass round-trip) is treated as ABSENT
+    // and the carved-on-the-stone default is built, so createAPIClient()
+    // (urixmlrpc is handed straight to xmlrpc_client(), which parse_url()s
+    // it -> TypeError) and buildViewBugURL() always see a real string instead
+    // of an uncatchable Error that escapes catch(Exception) as a 502.
+    $this->cfg->urixmlrpc  = $this->cfgStr('urixmlrpc',  $base . 'xmlrpc');
+    $this->cfg->uriview    = $this->cfgStr('uriview',    $base . 'ticket/');
+    $this->cfg->uricreate  = $this->cfgStr('uricreate',  $base . 'newticket/');
+
+    // username/password are handed to setCredentials() uncast in
+    // createAPIClient().
+    $this->cfgCoerceText(array('username','password'));
   }
 
   /**
@@ -289,7 +288,10 @@ class tracxmlrpcInterface extends issueTrackerInterface
       $this->APIClient = new xmlrpc_client($this->cfg->urixmlrpc);
             
       // Set the credentials to use to log in.
-      $this->APIClient->setCredentials($this->cfg->username, $this->cfg->password);
+      // Issue #1712: read structurally-string members as strings - a missing
+      // <username>/<password> was an E_WARNING on the stdClass cfg, a non-text
+      // one an uncatchable Error.
+      $this->APIClient->setCredentials($this->cfgStr('username',''), $this->cfgStr('password',''));
 
       // Disable certificate checking. Don't need to check it. 
       $this->APIClient->verifyhost = false;

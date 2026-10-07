@@ -531,6 +531,84 @@ abstract class issueTrackerInterface
   }
 
 
+  /**
+   * Issue #1712: read a cfg member that is STRUCTURALLY KNOWN TO BE A STRING.
+   *
+   * setCfg() (see :165 below) re-binds $this->cfg to a stdClass, so a cfg field
+   * that is NOT text arrives as something a (string) cast cannot convert and the
+   * cast raises an uncatchable Error: an element-valued field
+   * ('<version><x/></version>', but also the far more common '<platform/>' or
+   * '<platform>  </platform>') decodes to a NESTED stdClass, a repeated field
+   * ('<platform>a</platform><platform>b</platform>') decodes to a PHP array, and
+   * a field with attributes decodes to an object. A scalar is returned
+   * byte-identically, so no legitimate configuration is changed.
+   *
+   * This helper used to live as a private copy in bugzillaxmlrpcInterface
+   * (#1711); #1712 moved it here so the 8 sibling interface classes share ONE
+   * implementation instead of a 9th copy of the guard.
+   *
+   * @param string $prop cfg member to read
+   * @param string $default value to use when the member is missing or not a scalar
+   * @return string
+   **/
+  protected function cfgStr($prop,$default)
+  {
+    if( !property_exists($this->cfg,$prop) || $this->cfgIsNotText($prop) )
+    {
+      return $default;
+    }
+    return (string)$this->cfg->$prop;
+  }
+
+  /**
+   * Issue #1712: is this cfg member present AND not a plain text value?
+   * A missing member is NOT "not text" - the caller decides what a missing
+   * member means (derived default vs. leave it absent).
+   *
+   * @param string $prop cfg member to test
+   * @return bool
+   **/
+  protected function cfgIsNotText($prop)
+  {
+    return property_exists($this->cfg,$prop) && !is_scalar($this->cfg->$prop);
+  }
+
+  /**
+   * Issue #1712: report a cfg member that could not be used, naming the field
+   * (and the tracker, so the row is attributable when several are configured)
+   * instead of letting the reader of the Event Viewer guess which element of the
+   * XML is wrong.
+   *
+   * @param string $prop offending cfg member
+   * @param string $action what was done about it
+   **/
+  protected function cfgWarn($prop,$action)
+  {
+    tLog(__METHOD__ . " [$this->name] :: cfg field <$prop> is not a text value, $action", 'WARNING');
+  }
+
+  /**
+   * Issue #1712: coerce every present-but-not-text cfg member of $props to the
+   * empty string, naming the field in the Event Viewer.
+   *
+   * Only touched when the member ALREADY exists, so property_exists()-based
+   * feature switches (canCreateViaAPI() and friends) keep their exact pre-fix
+   * behaviour - a missing member stays missing.
+   *
+   * @param array $props structurally-string cfg members to sanitize
+   **/
+  protected function cfgCoerceText($props)
+  {
+    foreach($props as $prop)
+    {
+      if( $this->cfgIsNotText($prop) )
+      {
+        $this->cfgWarn($prop, "using empty string");
+        $this->cfg->$prop = '';
+      }
+    }
+  }
+
   // How to Force Extending class to define this STATIC method ?
   // KO abstract public static function getCfgTemplate();
   public static function getCfgTemplate() 

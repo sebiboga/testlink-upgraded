@@ -54,16 +54,18 @@ class fogbugzrestInterface extends issueTrackerInterface
    **/
   function completeCfg()
   {
-    $base = trim($this->cfg->uribase,"/") . '/'; // be sure no double // at end
-    if( !property_exists($this->cfg,'uriview') )
-    {
-      $this->cfg->uriview = $base . 'default.asp?command=view&pg=pgEditBug&ixbug=';
-    }
-      
-    if( !property_exists($this->cfg,'uricreate') )
-    {
-      $this->cfg->uricreate = $base . 'default.asp?command=new&pg=pgEditBug';
-    }
+    $base = trim($this->cfgStr('uribase',''),"/") . '/'; // be sure no double // at end
+    // Issue #1712: a non-text member (nested stdClass/array after the setCfg()
+    // SimpleXML -> json -> stdClass round-trip) is treated as ABSENT and the
+    // carved-on-the-stone default is built, so the (string) casts on these
+    // structurally-string members can no longer raise an uncatchable Error.
+    $this->cfg->uriview   = $this->cfgStr('uriview',   $base . 'default.asp?command=view&pg=pgEditBug&ixbug=');
+    $this->cfg->uricreate = $this->cfgStr('uricreate', $base . 'default.asp?command=new&pg=pgEditBug');
+
+    // Issue #1712: username/password/project are read with a (string) cast in
+    // connect() and addIssue(). A non-text value is COERCED to ''
+    // (only when the member exists - canCreateViaAPI() is property_exists-based).
+    $this->cfgCoerceText(array('username','password','project'));
   }
 
   /**
@@ -102,7 +104,10 @@ class fogbugzrestInterface extends issueTrackerInterface
       // $this->cfg is a simpleXML Object, then seems very conservative and safe
       // to cast properties BEFORE using it.
       $uriBase = $this->cfg->uribase ?? '';
-      $this->APIClient = new FogBugz((string)trim($this->cfg->username),(string)trim($this->cfg->password),
+      // Issue #1712: read structurally-string members as strings - a missing
+      // <username>/<password> was an E_WARNING on the stdClass cfg plus a
+      // trim(null) deprecation, a non-text one an uncatchable Error.
+      $this->APIClient = new FogBugz(trim($this->cfgStr('username','')),trim($this->cfgStr('password','')),
                                      (string)trim(is_scalar($uriBase) ? (string)$uriBase : ''));
       $this->APIClient->logon();
       $this->connected = true;
