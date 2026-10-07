@@ -208,6 +208,19 @@ screen reaches full parity.
   re-run matrix PASS, console clean, `php -l` + `node --check` clean, Event Viewer no new
   Error/Warning, test suite "Task — Issue #1099" 10/10 PASS. (Refs #1099)
 
+- [MODERNIZED SCREEN] - #1871: **Platform Create/Edit** (`lib/platforms/platformsEdit.php` ->
+  `gui/templates/platforms/platformsEdit.html` + `api/platformedit/index.php`): the legacy Smarty
+  create/edit form is now a standalone Dashio screen (mode cards, name/notes, the three legacy
+  flags, delete-confirm modal, localized state cards) behind a session-authenticated BFF that
+  re-checks `platform_view`/`platform_management` on the OWNING project, pre-checks duplicate
+  names on create AND update (ownership proven before the name probe), blocks deletion with
+  `422 DELETE_BLOCKED` while the platform is linked to a test plan, and refuses wrong verbs
+  (405) and cross-origin POSTs (403 CSRF). Legacy controller kept as a session-guarded
+  GET/HEAD-only 302 shim. Four defects found while testing and fixed in the same run:
+  raw `-4` duplicate code on create, the shim answering 302 to POST, a stale MODE card after
+  create, and a missing Dashio Bootstrap JS include that left the delete modal dead.
+  (Refs #1871)
+
 - [MODERNIZED SCREEN] - #1845: **Priority Bar Chart** is no longer a dead endpoint.
   Legacy `lib/results/priorityBarChart.php` was **unreachable fatal code** on 2.0.1: it
   required `third_party/charts/charts.php` and `lib/functions/results.class.php`, both gone
@@ -8277,6 +8290,34 @@ Changes:
       project tables and added user metrics to the middle section
 
 ## 2.0.1 (in-progress)
+### Screen — Platform Create/Edit `platformsEdit` (Refs #1871)
+- `gui/templates/platforms/platformsEdit.html` + `api/platformedit/index.php`: one Dashio page
+  for both legacy modes of `lib/platforms/platformsEdit.php` (create + edit, now a session-guarded
+  GET/HEAD-only 302 shim that forwards `tproject_id`/`platform_id`/`tplan_id`), with project/mode
+  cards, name with the uniqueness hint, notes, the three legacy flags (enable on design /
+  enable on execution / open for execution), Save/Cancel/Back/Refresh, delete-confirm modal and
+  localized invalid-project / not-found / permission-denied state cards
+- BFF rights: `platform_view` for init, `platform_management` for save/flag/delete, all re-checked
+  on the OWNING test project; foreign (project, platform) pairs answer 404 before any name probe;
+  duplicate names answer 422 `E_NAMEALREADYEXISTS` on BOTH create and update; a platform linked
+  to a test plan answers 422 `DELETE_BLOCKED`; wrong verbs 405 + `Allow`, POST without the
+  same-origin proof 403 (CSRF), anon 401, no-rights 403 + `audit_security_user_right_missing`
+- Four defects found while testing, each fixed in its own commit: `fdff038ba` (duplicate name on
+  create returned the raw legacy `-4` code the screen cannot localize), `6fea33193` (the legacy
+  shim answered 302 to a POST), `91d11416c` (the MODE card stayed "Create" after a successful
+  create flipped the screen into edit mode), `b03ded011` (Dashio Bootstrap JS was never included,
+  so `$(...).modal is not a function` left the delete-confirm modal dead)
+- Entry points: `platformsView.html` Edit/Create buttons, `$actions->platformEdit` in
+  `lib/functions/common.php`; `pedit.*` + `footers.platformsEdit` keys present in all bundles
+  (i18n key-set gate PASS, shared `pedit.*` namespace with the Test Project editor has no key
+  collisions — verified by set intersection)
+- Test suite: `tmp/TLU_Test_Cases.md` -> `TC-1871` re-run in full against the fresh fixture
+  `tmp/fixtures_1871.php` (project PLED1871/foreign PLFOR/plan/platforms/user `plednorights`):
+  16 API checks + 19 browser checks + shim/wiring, all PASS; suite gate `TLU_REQUIRE_SUITE=1871`
+  7/7. Event Viewer clean (the single WARNING row came from the throwaway fixture itself)
+- Docs/wiki `Modernize-Platforms-Edit-platformsEdit.md` + 9 screenshots
+  `docs/screenshots/issue-1871-platformsedit-*.png` (Refs #1871)
+
 ### Screen — Configuration Check / Security Notes `configCheck` (Refs #1814)
 - The security notes that legacy computed on every page load
   (`lib/functions/configCheck.php getSecurityNotes()`) were no longer rendered
