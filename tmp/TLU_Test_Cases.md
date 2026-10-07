@@ -1953,3 +1953,44 @@ Steps / Expected / Actual:
 | 10 | Event Viewer (`events` table) after all steps | no new Error/Warning rows | **PASS** — exactly 1 row, `log_level 16 GUI audit_login_succeeded` (pre-existing login audit); zero Error/Warning added |
 
 **Suite 1099: 10/10 PASS**
+## Regression — Issue #1712: 8 sibling issue-tracker interface classes share #1711's unguarded (string) cast on stdClass cfg members (HTTP 502 on test-connection)
+
+### Precondition
+- TestLink 2.0.1 running at http://localhost:8082, logged in as admin/admin
+- Fresh DB state; harnesses `tmp/repro_1712.php` (CLI) and `tmp/verify_1712.sh` (HTTP)
+- Affected classes: fogbugzrest(8), gforgesoap(10), jirarest(7), jirasoap(5), mantissoap(3), redminerest(15), tracxmlrpc(19), tuleaprest(27) + bugzillaxmlrpc(1, #1711 control)
+
+### Repro steps (pre-fix)
+1. Log in admin/admin, `X-Requested-With: XMLHttpRequest`.
+2. `POST /api/issuetracker/test-connection` with
+   `{"name":"IT-1712","type":3,"cfg":"<issuetracker><uribase>http://127.0.0.1:1/</uribase><uriwsdl><x/></uriwsdl></issuetracker>"}`
+   (element-valued field; also whitespace-only `<uriwsdl>  </uriwsdl>` and repeated `<uriwsdl>a</uriwsdl><uriwsdl>b</uriwsdl>`).
+3. Repeat for types 5, 7, 8, 10, 15, 19, 27 with that class's structurally-string field.
+4. Check `events`: `SELECT id, log_level, description FROM events ORDER BY id;`
+
+### Expected post-fix behavior
+- Every request answers HTTP 200 with `{"status":"ok","connected":<bool>}` — never 502.
+- A non-text field is reported by NAME in a WARNING row:
+  `issueTrackerInterface::cfgWarn [<tracker>] :: cfg field <tracker> is not a text value, using empty string`.
+- No `Object of class stdClass could not be converted to string` row, no `Array to string conversion` row.
+- A byte-identical valid cfg keeps its previous behaviour (bugzillaxmlrpc #1711 cases unchanged).
+- Issue Tracker Management grid (`gui/templates/issuetracker/issuetrackerView.html`), list API and
+  `GET /{id}/check-connection` still answer 200.
+
+### Actual result (observed after fix)
+- `php tmp/repro_1712.php` → **ALL PASS (14/14), exit 0**; pre-fix it reported 11 FAILURE(S)
+  (8 element-valued + 2 whitespace-only + 1 repeated, throwing
+  `Error: Object of class stdClass could not be converted to string`,
+  `TypeError: trim(): Argument #1 ($string) ... stdClass given`,
+  `TypeError: parse_url(): Argument #1 ($url) ... stdClass given`).
+- `bash tmp/verify_1712.sh` → **25 PASS / 0 FAIL, exit 0** (R1 reported repro, R2 all 8 types,
+  R3 whitespace-only, R4 repeated, R5 field named, R6 bugzilla control, R7 grid+list, R8
+  check-connection route, R9 Event Viewer sweep, R10 cleanup).
+- Measured HTTP: pre-fix `type=3/5/10 -> HTTP 502 72b` + 3 ERROR rows naming only the language
+  error; post-fix all 8 types `-> HTTP 200 {"status":"ok",...}`.
+- Event Viewer after the fix contains `cfgWarn ... cfg field <tracker> / <apikey> is not a text
+  value, using empty string` and NO fatal-signature row (R9: 0 rows `LIKE '%could not be
+  converted to string%'`, 0 ERROR rows `LIKE '%stdClass%'`).
+
+### Status
+PASS
