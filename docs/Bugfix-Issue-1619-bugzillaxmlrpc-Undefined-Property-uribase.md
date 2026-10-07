@@ -167,7 +167,7 @@ guards the defect while all five control cases pass on both sides. `php -l` clea
 * **The 7 sibling interface classes carry the identical unguarded read** and are untouched:
   `tracxmlrpc:85`+`:149`, `gitlabrest:70`/`:150`/`:178`, `redminerest:67`/`:162`/`:189`,
   `fogbugzrest:57`/`:105`, `kaitenrest:55`, `trellorest:60`, `tuleaprest:60` —
-  filed as **#1710**.
+  **fixed in #1710** (2026-10-07).
 * `setCfg()` itself still produces a `stdClass` (`:165`); hardening that shared base class
   would change behaviour for every tracker type, so the read is guarded at the call site.
 
@@ -218,3 +218,12 @@ are not evidence that the class is clean.
 |---|---|
 | `issue-1619-issuetracker-grid-after.png` | the Issue Tracker grid with the bad-cfg row (`IT_BZ1619_BADCFG`, no Server URL) still listed and `Environment: OK` — the fix changes no verdict |
 | `issue-1619-eventviewer-no-warnings.png` | Event Viewer after the full post-fix live run: 8 events, all timestamped in the pre-fix repro window, **none** from the post-fix requests |
+
+### Fix for Issue #1710 (applied 2026-10-07)
+
+All 7 sibling classes were updated with #1619-style guards:
+- Null coalesce `$v = $this->cfg->uribase ?? ''` and `trim(is_scalar($v) ? (string)$v : '', "/")` before trim()
+- Safe writes for `kaitenrestInterface` and `trellorestInterface` (read→guard→trim→assign back)
+- Guarded catch-block interpolations: `$val = $this->cfg->$v ?? ''; log "v=" . (is_scalar($val)?$val:'')`
+
+Result: missing `<uribase>` produces no `E_WARNING Undefined property`; whitespace-only `<uribase>` produces no `TypeError`. Valid configs byte-identical. All touched files pass `php -l`.
