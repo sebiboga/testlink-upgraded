@@ -2179,3 +2179,101 @@ button/disabled/`aria-disabled`/`pointer-events` assertions above are unchanged.
 | 11 | Event Viewer / `events` table | no new Error/Warning rows | n/a — no TestLink PHP/BFF code touched (CI YAML + docs only) | **PASS** (n/a) |
 **Regression — Issue #1872: 11/11 PASS** (case 10: `verify_test_suites.sh` → 7 PASS / 0 FAIL, exit 0). Pre-fix, cases 1, 3, 6, 9 FAIL (8 live `-X theirs` sites; local-only auto-close ranges; harness clobber 0/45; workflow push rejected). Post-fix: all code guards verified in-repo; case 9 stays blocked by the missing `workflows` permission — the fix itself cannot be pushed by any available credential, so the exact patch is published on the issue and **#1872 remains OPEN** until a human/credential with `workflows` permission applies it.
 
+
+## Modernize — Issue #1812: Custom Field Editor (`gui/templates/cfields/cfieldsEdit.html` + `api/cfieldsedit/index.php`)
+
+**Precondition** — TestLink 2.0.1 served from the repo root on
+`http://localhost:8082`, MariaDB `testlink` freshly imported, login `admin`/`admin`
+(session cookie `/tmp/cj`) capped by `norights`/`norights` (role 3, cookie
+`/tmp/cjn`). Fixtures: `php tmp/fixtures_1812.php` printed in
+`tmp/fixture_1812.json` — tprojects `CFE Main` (id 1) and `CFE Other` (id 2);
+cfields `CFE1812A` (id 1, type string), `CFE1812USE` (id 2, type checkbox, has a
+stored value → used → Type/Available-on locked), `CFE1812REQ` (id 3, node type
+Requirement Spec Document). Browser = headless Chrome via chrome-devtools MCP.
+
+### Gaps the legacy gave us
+
+1. **Legacy editor was fully server-rendered Smarty** (`lib/cfields/cfieldsEdit.php`
+   + `cfieldsEdit.tpl`): `do_action=create|edit|do_create|do_update|do_delete`, rights
+   `cfield_management`, name uniqueness probe, `is_used()` locking the Type /
+   Available-on combos, enable-on → show-on propagation, "Add and assign" flow.
+   The modern `cfieldsView.html` / `cfieldsAssignView.html` only ported the *manager*
+   half — the standalone editor had to be rebuilt as a Dashio page + BFF.
+
+### Expected post-fix behavior
+
+`gui/templates/cfields/cfieldsEdit.html` renders the create/edit/delete UI backed by
+`api/cfieldsedit/index.php` (`action=init|create|update|delete`) with session +
+same-origin (CSRF) gate, rights on the ADDRESSED test project, i18n across all 10
+bundles (`cfed.*`), and `lib/cfields/cfieldsEdit.php` reduced to a 302/405 shim.
+Writes are POST-only; failed writes return JSON `{status,code,message}` without a
+page reload and keep the form filled.
+
+### API / BFF contract (curl matrix, admin cookie `/tmp/cj`, POSTs carry
+`Origin: http://localhost:8082` + `X-Requested-With: XMLHttpRequest`)
+
+| # | Request | Expected | Result |
+|---|---------|----------|--------|
+| 1 | GET `?action=init&do_action=edit&cfield_id=1&tproject_id=1`, no cookie | HTTP 401 JSON `not_authenticated` | **PASS** |
+| 2 | GET `?action=init&do_action=edit&cfield_id=1&tproject_id=1` as `norights` | HTTP 403 `no_right` | **PASS** |
+| 3 | GET `?action=init&do_action=edit&cfield_id=99999&tproject_id=1` (admin) | HTTP 404 `cfield_not_found` | **PASS** |
+| 4 | GET `?action=init&cfield_id=1` without `do_action` | 200 create mode (empty form, legacy default) | **PASS** |
+| 5 | GET `?action=init&do_action=edit&cfield_id=2&tproject_id=1` | 200, `is_used=1`, edit mode | **PASS** |
+| 6 | GET `?action=init&do_action=edit&cfield_id=3&tproject_id=1` | 200, node type `Requirement Spec Document` | **PASS** |
+| 7 | GET `?action=edit` (bad action) | HTTP 405 | **PASS** |
+| 8 | POST `?action=init` (bad verb) | HTTP 405 | **PASS** |
+| 9 | POST `?action=create`, no Origin | HTTP 403 CSRF | **PASS** |
+| 10 | POST `?action=create` `{name,label,type:1,node_type_id:3,possible_values,enable_on:design,tproject_id:1}` | HTTP 200, new cfield id | **PASS** |
+| 11 | POST `?action=create` same `name` again | HTTP 409 `name_exists` | **PASS** |
+| 12 | POST `?action=update` used cfield `{id:2, type:5, ...}` (type switch) | HTTP 400 `type_locked` | **PASS** |
+| 13 | POST `?action=update` req-spec cfield `{id:3, enable_on:execution, ...}` | HTTP 400 `area_not_allowed_for_node_type` | **PASS** |
+| 14 | POST `?action=update` used cfield label rename (via browser Save) | HTTP 200, label persisted to DB (re-verified on reload) | **PASS** |
+| 15 | POST `?action=delete` `{id:<created id>}` | HTTP 200; row gone from `cfield_design` (DB) | **PASS** |
+| 16 | Response headers on every endpoint | `X-Content-Type-Options: nosniff` present | **PASS** |
+
+### Legacy shim contract (`lib/cfields/cfieldsEdit.php`)
+
+| # | Request | Expected | Result |
+|---|---------|----------|--------|
+| 17 | GET legacy URL `?tproject_id=1` (admin, browser) | HTTP 302 → modern screen | **PASS** |
+| 18 | POST legacy URL (write) | HTTP 405 with explanatory body | **PASS** |
+| 19 | GET legacy URL, no session | HTTP 302 → `login.php?note=expired` | **PASS** |
+
+### Browser (chrome-devtools MCP, page `cfieldsEdit.html`)
+
+| # | Case | Result |
+|---|------|--------|
+| 20 | `?do_action=edit&cfield_id=1&tproject_id=1`: type combo, node-type combo, enable/show combos, label/name filled | **PASS** |
+| 21 | Unused field: Type + Available-on are `<select>` (editable), no lock badge | **PASS** |
+| 22 | Used field (`cfield_id=2`): warning banner visible, Type/Available-on rendered read-only with lock badge | **PASS** |
+| 23 | Save (edit) → toast `Saved`, no reload, same form re-rendered with new label in DB | **PASS** |
+| 24 | Create flow → toast + redirect to `cfieldsView.html?tproject_id=…` with the new row present | **PASS** |
+| 25 | Delete → confirm modal (name interpolated) → confirm → redirect, row gone from DB | **PASS** |
+| 26 | Locale switch `ro` → full screen (header, dynamic form, footer) Romanian, no raw keys | **PASS** |
+| 27 | No `do_action`/`cfield_id` → create mode (clean empty form) | **PASS** |
+| 28 | Browser console: 0 errors / 0 warnings on fresh load + after save/delete | **PASS** |
+| 29 | `cfieldsView.html` Edit/Create buttons open the modern editor | **PASS** |
+
+### Wiring / i18n
+
+| # | Check | Result |
+|---|-------|--------|
+| 30 | `$actions->cfieldsEdit` present in `lib/functions/common.php` | **PASS** |
+| 31 | `cfed.*` + `footers.cfieldsEdit` keys exist and are non-empty in ALL 10 bundles (`de en es fr it ja pt ro ru zh`); `python3 -m json.tool` clean | **PASS** |
+| 32 | `bash ai/verify_i18n_coverage.sh` → 9/9 bundles PASS (6959 keys each), 0 missing | **PASS** |
+| 33 | `php -l` on `api/cfieldsedit/index.php` + `lib/cfields/cfieldsEdit.php`; `node --check` on screen JS | **PASS** |
+
+### Event Viewer
+
+| # | Check | Result |
+|---|-------|--------|
+| 34 | `events` table: 0 new ERROR/WARNING rows from the BFF/shim/testing (only AUDIT `log_level=16` writes; the serialized `tlMetaStringHelper` in `description` is the standard logger format on read, not an error) | **PASS** |
+
+**RESULT — 34/34 PASS.** Bugs found during testing: none outstanding after the
+verification matrix. Design notes worth recording: (a) a bare `do_action=create`
+(or no `do_action`) starts a clean form even if `cfield_id` is present — matches
+legacy `$query['do_action']` semantics (the editor only enters edit mode with
+`do_action=edit&cfield_id=N`), not a bug; (b) delete is POST-only behind the
+same-origin proof (legacy `do_delete` was a GET form); (c) `init` answers 404 for
+an unknown cfield and 403 for a foreign/no-right caller, never distinguishing
+existing-but-denied writes.
