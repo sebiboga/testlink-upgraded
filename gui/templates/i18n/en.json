@@ -6960,5 +6960,9 @@
   "usergrid.roleId": "Role ID",
   "usergrid.showAllColumns": "Show all Columns",
   "usergrid.userId": "User ID",
-  "version": "Version"
+  "version": "Version",
+  "search.advancedCriteria": "Advanced criteria",
+  "search.quickIgnoredTc": "Quick search text ignored: an advanced Test Case ID is set.",
+  "search.quickIgnoredName": "Quick search text ignored: an advanced Title is set.",
+  "search.jollySupersedes": "When Jolly (OR) is set it supersedes Title, Summary, Preconditions, Steps and Expected results."
 }

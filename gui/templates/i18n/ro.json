@@ -6960,5 +6960,9 @@
   "usergrid.roleId": "ID Rol",
   "usergrid.showAllColumns": "Afișează toate coloanele",
   "usergrid.userId": "ID Utilizator",
-  "version": "Versiune"
+  "version": "Versiune",
+  "search.advancedCriteria": "Criterii avansate",
+  "search.quickIgnoredTc": "Textul căutării rapide este ignorat: este setat un ID de caz de test avansat.",
+  "search.quickIgnoredName": "Textul căutării rapide este ignorat: este setat un titlu avansat.",
+  "search.jollySupersedes": "Când Jolly (OR) este setat, înlocuiește Titlul, Rezumatul, Precondițiile, Pașii și Rezultatele așteptate."
 }

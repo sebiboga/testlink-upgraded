@@ -6960,5 +6960,9 @@
   "usergrid.roleId": "角色 ID",
   "usergrid.showAllColumns": "显示所有列",
   "usergrid.userId": "用户 ID",
-  "version": "版本"
+  "version": "版本",
+  "search.advancedCriteria": "高级条件",
+  "search.quickIgnoredTc": "已忽略快速搜索文本：已设置高级测试用例ID。",
+  "search.quickIgnoredName": "已忽略快速搜索文本：已设置高级标题。",
+  "search.jollySupersedes": "设置 Jolly（OR）后，它将覆盖标题、摘要、前置条件、步骤和预期结果。"
 }

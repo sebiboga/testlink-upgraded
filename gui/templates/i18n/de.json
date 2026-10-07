@@ -6960,5 +6960,9 @@
   "usergrid.roleId": "Rollen-ID",
   "usergrid.showAllColumns": "Alle Spalten anzeigen",
   "usergrid.userId": "Benutzer-ID",
-  "version": "Version"
+  "version": "Version",
+  "search.advancedCriteria": "Erweiterte Kriterien",
+  "search.quickIgnoredTc": "Schnellsuche-Text ignoriert: eine erweiterte Testfall-ID ist gesetzt.",
+  "search.quickIgnoredName": "Schnellsuche-Text ignoriert: ein erweiterter Titel ist gesetzt.",
+  "search.jollySupersedes": "Ist Jolly (OR) gesetzt, ersetzt es Titel, Zusammenfassung, Vorbedingungen, Schritte und erwartete Ergebnisse."
 }

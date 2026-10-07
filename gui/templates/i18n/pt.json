@@ -6960,5 +6960,9 @@
   "usergrid.roleId": "ID de Função",
   "usergrid.showAllColumns": "Mostrar todas as colunas",
   "usergrid.userId": "ID de Utilizador",
-  "version": "Versão"
+  "version": "Versão",
+  "search.advancedCriteria": "Critérios avançados",
+  "search.quickIgnoredTc": "Texto da pesquisa rápida ignorado: um ID de caso de teste avançado está definido.",
+  "search.quickIgnoredName": "Texto da pesquisa rápida ignorado: um título avançado está definido.",
+  "search.jollySupersedes": "Quando Jolly (OU) está definido, ele substitui Título, Resumo, Pré-condições, Passos e Resultados esperados."
 }

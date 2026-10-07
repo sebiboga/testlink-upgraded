@@ -6960,5 +6960,9 @@
   "usergrid.roleId": "ロールID",
   "usergrid.showAllColumns": "全ての列を表示",
   "usergrid.userId": "ユーザーID",
-  "version": "バージョン"
+  "version": "バージョン",
+  "search.advancedCriteria": "詳細検索条件",
+  "search.quickIgnoredTc": "クイック検索のテキストは無視されました: 詳細のテストケースIDが設定されています。",
+  "search.quickIgnoredName": "クイック検索のテキストは無視されました: 詳細のタイトルが設定されています。",
+  "search.jollySupersedes": "Jolly（OR）を設定すると、タイトル、概要、前提条件、手順、期待される結果が上書きされます。"
 }

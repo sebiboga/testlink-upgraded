@@ -2453,3 +2453,42 @@ that re-introduces a `'#'`, a `target="_blank"`, or a dependency of the href on 
 - TC-1714-03 PASS — 200 JSON; browser UI renders the spec; 0 rows.
 - TC-1714-04 PASS — `events` holds only the login audit row; no new Error/Warning.
 - Fix location: `lib/functions/requirement_spec_mgr.class.php` `get_by_id()` (null-return guard after `get_last_child_info()`).
+## Task — Issue #1101: Full legacy search-criteria form dropped in searchQuickView.html (gap vs legacy)
+
+### Suite: 1101 — quick-search advanced criteria panel (all legacy tcSearch filters + quick box)
+
+Precondition: app at http://localhost:8082 (admin/admin); DB freshly imported; fixture created via `php tmp/fixtures_1101.php` — project **1** "QSDemo" (prefix QS, priority+requirements enabled), suites Alpha=2/A1=3/Beta=4, TCs QS-1..QS-5 (tc ids 5,8,11,14,19), QS-4 has a second version, keywords queen=1/regression=2, custom field qs_env with value `prod` on QS-1, requirement spec=22/req=24, REQ-QS1 linked to QS-5. Change under test: `gui/templates/search/searchQuickView.html` gained the expandable Advanced criteria panel (`#btnAdv` toggle + `#advPanel`, `buildAdvancedParams()`/`toggleAdvanced()`/`fmtDate()`, deep-link prefill that auto-opens the panel, Enter-to-search inside advanced inputs); BFF unchanged (`api/search/index.php` already parsed every filter). Locale below recorded in `en` unless stated.
+
+| # | Step | Expected | Actual |
+|---|---|---|---|
+| 1 | BEFORE fix — open `/gui/templates/search/searchQuickView.html?tproject_id=1` | (gap baseline) only one `#quickText` box, no way to filter by keyword/status/importance/req/custom-field/dates | **PASS (gap reproduced)** — single input + find/reset; no criteria panel |
+| 2 | AFTER fix — same URL, inspect `#advPanel` + `#btnAdv` | toggle present, panel hidden by default, `aria-expanded="false"`, caret `fa-caret-right` | **PASS** — `btnAdv` renders "Advanced criteria", `aria-expanded=false`, `#advPanel` closed, caret right-pointing |
+| 3 | Click toggle | panel opens, caret rotates down, `aria-expanded` flips, visible note "All criteria are combined with a logical AND" | **PASS** — `.open` class set, `aria-expanded=true`, note shown |
+| 4 | Quick title search `queen` (no advanced) | 1 match | **PASS** — `(1 match)`, `action=search&tproject_id=1&name=queen` |
+| 5 | Quick ID search `QS-2` | 1 match via ID | **PASS** — `(1 match)`, `targetTestCase=QS-2` |
+| 6 | Advanced keyword `queen` / `regression` | 1 / 1 | **PASS** — `(1 match)` both, `keyword_id=1` / `keyword_id=2` |
+| 7 | Advanced importance low / high | 1 / 1 | **PASS** — `importance=1`→1, `importance=3`→1 |
+| 8 | Advanced status draft / final | 1 / 4 | **PASS** — `status=1`→1, `status=7`→4 |
+| 9 | Advanced requirement doc id `REQ-QS1` | 1 match | **PASS** — `requirement_doc_id=REQ-QS1`→1 |
+| 10 | Advanced custom field qs_env=`prod` | 1 match | **PASS** — `custom_field_id=1&custom_field_value=prod`→1 |
+| 11 | Advanced Jolly `queen` (OR) | 3 matches; jolly assistant note appears; supersedes title/summary fields (legacy tcSearch.php:93-121) | **PASS** — `jolly=queen`→3; `#jollyAdvise.show=true`; quick `Logout` AND jolly `queen`→3 (jolly wins) |
+| 12 | Advanced version `2` | 1 match (QS-4 v2) | **PASS** — `version=2`→1 |
+| 13 | Advanced created-by `admin` | 5 matches | **PASS** — `created_by=1`→5 |
+| 14 | Advanced summary `req summary` / steps `login` / preconditions `session` | 1 / 1 / 1 | **PASS** |
+| 15 | Advanced title `Search queen cases` / advanced TC id `QS-5` | 1 / 1 | **PASS** |
+| 16 | Combined importance high + keyword queen (AND) | 1 match | **PASS** |
+| 17 | Creation date from 2000-01-01 → to today / modification date same | 5 / 5 | **PASS** — `creation_date_from/to`→5, `modification_date_from/to`→5 |
+| 18 | Empty quick + empty advanced → Find | toast "Type what you are looking for.", no request | **PASS** |
+| 19 | Bad advanced TC id `QS-999` | warning "Test case does not exist." | **PASS** |
+| 20 | Conflict: quick `Logout` + advanced Title `Search queen cases` | localized toast "Quick search text ignored…", advanced title wins | **PASS** — toast shown, 1 match (title), verified in `en` and `ro` ("Textul căutării rapide este ignorat…") |
+| 21 | Enter inside an advanced input (e.g. jolly `queen`) | triggers the search | **PASS** — 3 matches |
+| 22 | Deep link `?tproject_id=1&name=queen&importance=3` | fields prefilled AND panel auto-opened (no invisible filters); request carries `name=queen&importance=3`; AND-combined 0 matches | **PASS** — panel visible, request `action=search&tproject_id=1&name=queen&importance=3` |
+| 23 | Deep link with date `?tproject_id=1&creation_date_from=2024-01-01` | date prefilled + panel auto-opened | **PASS** — `#advCreationFrom=2024-01-01`, panel visible |
+| 24 | Reset form with advanced fields set | every field cleared (e.g. `#advKeyword=0`, `#advSummary=''`), footer count cleared, panel still usable | **PASS** |
+| 25 | Locale switch to `ro` via switcher | toggle renders "Criterii avansate", notes/jolly hint translated, open/close stable (no label desync) | **PASS** — "Criterii avansate", stable caret/`aria-expanded` |
+| 26 | `node --check` on the inline script + `php -l api/search/index.php` | syntax OK | **PASS** — `JS_OK`, `No syntax errors detected` |
+| 27 | `python3 -m json.tool` on all bundles + `bash ai/verify_i18n_coverage.sh` | bundles valid; new keys `search.advancedCriteria`/`search.quickIgnoredTc`/`search.quickIgnoredName`/`search.jollySupersedes` in 10/10 bundles | **PASS** — `9 bundle(s) passed, 0 failed` |
+| 28 | Browser console during all steps | no new JS errors | **PASS** — `<no console messages found>` |
+| 29 | Event Viewer (`events` table) after all steps | no new Error/Warning rows | **PASS** — only the pre-existing login audit row; zero Error/Warning added |
+
+**Suite 1101: 29/29 PASS**

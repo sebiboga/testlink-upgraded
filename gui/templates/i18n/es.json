@@ -6960,5 +6960,9 @@
   "usergrid.roleId": "ID de Rol",
   "usergrid.showAllColumns": "Mostrar todas las columnas",
   "usergrid.userId": "ID de Usuario",
-  "version": "Versión"
+  "version": "Versión",
+  "search.advancedCriteria": "Criterios avanzados",
+  "search.quickIgnoredTc": "Texto de búsqueda rápida ignorado: se ha definido un ID de caso de prueba avanzado.",
+  "search.quickIgnoredName": "Texto de búsqueda rápida ignorado: se ha definido un título avanzado.",
+  "search.jollySupersedes": "Cuando Jolly (OR) está definido, reemplaza Título, Resumen, Precondiciones, Pasos y Resultados esperados."
 }

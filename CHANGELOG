@@ -8355,6 +8355,31 @@ Changes:
       project tables and added user metrics to the middle section
 
 ## 2.0.1 (in-progress)
+### Gap closed — Quick Search: the full legacy search-criteria form was dropped in `searchQuickView.html`, which exposed only the single quick-text box (Refs #1101)
+- `gui/templates/search/searchQuickView.html` now has an expandable "Advanced criteria" panel
+  (`#btnAdv` toggle + `#advPanel`) re-implementing EVERY legacy `tcSearch.php?doAction=userInput`
+  criterion: Test Case ID (prefix ignored, hint shown), version, title, importance, status,
+  created/edited by, summary, preconditions, steps, expected results, the four date ranges,
+  Jolly (OR) (with a hint that it supersedes the text fields, legacy `tcSearch.php:93-121`
+  semantics), keyword, custom field + value, requirement doc ID — plus the existing quick box
+- The BFF `api/search/index.php` already parsed every filter, so the gap was purely front-end:
+  new `buildAdvancedParams()`/`loadContext()` population/`resetForm()` clearing/`fmtDate()`,
+  deep-link prefill (dates included) auto-opens the panel so filters are never invisible,
+  all criteria combine with AND (verified against the BFF), quick text conflicts (advanced Title
+  / Test Case ID set) surface a localized toast instead of silently dropping the input, Enter
+  inside any advanced input triggers the search, an explicit advanced value wins over the quick box
+- i18n: `search.advancedCriteria`, `search.quickIgnoredTc`, `search.quickIgnoredName`,
+  `search.jollySupersedes` added and `search.prefixIgnored` reused in all 10 bundles;
+  `ai/verify_i18n_coverage.sh` PASS (9 bundles, 0 failed)
+- Mandatory code review (subagent) — no blockers; applied 7 findings (conflict toasts, caret
+  state machine, label-in-name `aria-label` removal, jolly supersede hint, Enter handling, deep-link
+  panel auto-open + date params, dead `title=""`); re-verified each in the browser
+- Test suite: `tmp/TLU_Test_Cases.md` -> `Task — Issue #1101` re-run against `tmp/fixtures_1101.php`
+  (QSDemo project, 5 TCs over 3 suites, keywords, custom field `qs_env`, requirement REQ-QS1):
+  20+ criterion scenarios + date ranges + toast/warn paths + locale switch + Event Viewer clean
+- Entry point: quick search launcher → `searchQuickView.html`; parity source
+  `lib/testcases/tcSearch.php` + `lib/testcases/tcSearchForm.php`
+
 ### Key bugfix — `requirement_spec_mgr::get_by_id()` no longer interpolates an EMPTY revision id into SQL (Fixes #1714)
 - `get_by_id()` resolved the latest revision via `get_last_child_info()` and read
   `$info['id']` unguarded: for a `req_specs` row with no revision (orphan) that
@@ -8365,6 +8390,7 @@ Changes:
   closing the same raw `RSPEC.id = {$id}` interpolation for all 39+5 call sites
   (Refs #1714). Regression suite `tmp/TLU_Test_Cases.md` (Issue #1714) 4/4 PASS,
   Event Viewer clean.
+
 ### Screen — Platform Create/Edit `platformsEdit` (Refs #1871)
 - `gui/templates/platforms/platformsEdit.html` + `api/platformedit/index.php`: one Dashio page
   for both legacy modes of `lib/platforms/platformsEdit.php` (create + edit, now a session-guarded

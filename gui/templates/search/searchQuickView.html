@@ -28,6 +28,15 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 .form-control { font-size: 13px; height: 34px; }
 .input-group-text { font-size: 12px; background: #eefaf9; color: #2d8e88; border-color: #ccc; }
 .actions { padding: 10px 20px 18px; display: flex; gap: 10px; }
+.adv-toggle { background: none; border: none; color: #2d8e88; font-size: 13px; font-weight: 600; cursor: pointer; padding: 6px 20px; display: inline-flex; align-items: center; gap: 6px; }
+.adv-toggle:hover { color: #3dbdb5; }
+.adv-toggle i { transition: transform .15s; color: #4ECDC4; display: inline-block; }
+.adv-toggle.open i { transform: rotate(90deg); }
+.adv-panel { border-top: 1px solid #eee; }
+.adv-note { margin: 0 20px; padding: 8px 0 0; font-size: 12px; color: #777; }
+.adv-note i { color: #4ECDC4; margin-right: 5px; }
+.adv-note .jolly-note { display: none; color: #c07f2d; margin-left: 10px; }
+.adv-note .jolly-note.show { display: inline; }
 .results-head { padding: 14px 24px 0; }
 .results-head h2 { font-size: 15px; font-weight: 700; color: #22242a; margin: 0; }
 .results-head .count { font-weight: 400; color: #888; font-size: 13px; margin-left: 6px; }
@@ -80,6 +89,103 @@ table.dataTable tbody td { padding: 8px 14px; font-size: 13px; vertical-align: m
       </div>
     </div>
   </div>
+  <button type="button" class="adv-toggle" id="btnAdv" onclick="toggleAdvanced()" aria-expanded="false">
+    <i class="fa fa-caret-right" id="btnAdvCaret"></i>
+    <span id="btnAdvText" data-i18n="search.advancedCriteria">Advanced criteria</span>
+  </button>
+  <div id="advPanel" class="adv-panel" style="display:none">
+    <div class="adv-note">
+      <i class="fa fa-info-circle"></i>
+      <span data-i18n="search.filterModeAnd">All criteria are combined with a logical AND.</span>
+      <span data-i18n="search.prefixIgnored">The test project prefix in the "Test Case ID" field is ignored during the search.</span>
+      <span class="jolly-note" id="jollyAdvise" data-i18n="search.jollySupersedes">When Jolly (OR) is set it supersedes Title, Summary, Preconditions, Steps and Expected results.</span>
+    </div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label for="advTcId" data-i18n="search.tcid">Test Case ID</label>
+        <div class="input-group">
+          <span class="input-group-text" id="advPrefixAddon">-</span>
+          <input type="text" class="form-control" id="advTcId" maxlength="30">
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="advVersion" data-i18n="search.version">Version</label>
+        <input type="number" min="1" step="1" class="form-control" id="advVersion">
+      </div>
+      <div class="form-group">
+        <label for="advName" data-i18n="search.title">Title</label>
+        <input type="text" class="form-control" id="advName" maxlength="50">
+      </div>
+      <div class="form-group" id="grpAdvImportance" style="display:none">
+        <label for="advImportance" data-i18n="search.importance">Importance</label>
+        <select class="form-control" id="advImportance"></select>
+      </div>
+      <div class="form-group">
+        <label for="advStatus" data-i18n="search.status">Status</label>
+        <select class="form-control" id="advStatus"></select>
+      </div>
+      <div class="form-group">
+        <label for="advSummary" data-i18n="search.summary">Summary</label>
+        <input type="text" class="form-control" id="advSummary" maxlength="50">
+      </div>
+      <div class="form-group">
+        <label for="advPreconditions" data-i18n="search.preconditions">Preconditions</label>
+        <input type="text" class="form-control" id="advPreconditions" maxlength="50">
+      </div>
+      <div class="form-group">
+        <label for="advSteps" data-i18n="search.steps">Steps</label>
+        <input type="text" class="form-control" id="advSteps" maxlength="50">
+      </div>
+      <div class="form-group">
+        <label for="advExpectedResults" data-i18n="search.expectedResults">Expected results</label>
+        <input type="text" class="form-control" id="advExpectedResults" maxlength="50">
+      </div>
+      <div class="form-group">
+        <label for="advCreatedBy" data-i18n="search.createdBy">Created by</label>
+        <input type="text" class="form-control" id="advCreatedBy" maxlength="50">
+      </div>
+      <div class="form-group">
+        <label for="advEditedBy" data-i18n="search.editedBy">Edited by</label>
+        <input type="text" class="form-control" id="advEditedBy" maxlength="50">
+      </div>
+      <div class="form-group">
+        <label for="advCreationFrom" data-i18n="search.creationDateFrom">Creation date from</label>
+        <input type="date" class="form-control" id="advCreationFrom">
+      </div>
+      <div class="form-group">
+        <label for="advCreationTo" data-i18n="search.creationDateTo">Creation date to</label>
+        <input type="date" class="form-control" id="advCreationTo">
+      </div>
+      <div class="form-group">
+        <label for="advModifFrom" data-i18n="search.modificationDateFrom">Modification date from</label>
+        <input type="date" class="form-control" id="advModifFrom">
+      </div>
+      <div class="form-group">
+        <label for="advModifTo" data-i18n="search.modificationDateTo">Modification date to</label>
+        <input type="date" class="form-control" id="advModifTo">
+      </div>
+      <div class="form-group">
+        <label for="advJolly" data-i18n="search.jolly">Jolly (OR)</label>
+        <input type="text" class="form-control" id="advJolly" maxlength="50" data-i18n-title="search.jollyHint">
+      </div>
+      <div class="form-group" id="grpAdvKeyword" style="display:none">
+        <label for="advKeyword" data-i18n="search.keyword">Keyword</label>
+        <select class="form-control" id="advKeyword"></select>
+      </div>
+      <div class="form-group" id="grpAdvCfield" style="display:none">
+        <label for="advCfield" data-i18n="search.customField">Custom field</label>
+        <select class="form-control" id="advCfield"></select>
+      </div>
+      <div class="form-group" id="grpAdvCfieldValue" style="display:none">
+        <label for="advCfieldValue" data-i18n="search.customFieldValue">Custom field value</label>
+        <input type="text" class="form-control" id="advCfieldValue" maxlength="20">
+      </div>
+      <div class="form-group" id="grpAdvReqDoc" style="display:none">
+        <label for="advReqDoc" data-i18n="search.requirementDocId">Requirement document ID</label>
+        <input type="text" class="form-control" id="advReqDoc" maxlength="32">
+      </div>
+    </div>
+  </div>
   <div class="actions">
     <button class="btn-teal" id="btnFind" onclick="doSearch()"><i class="fa fa-search"></i> <span data-i18n="search.btnFind">Find</span></button>
     <button class="btn-red" onclick="resetForm()"><span data-i18n="search.reset">Reset</span></button>
@@ -122,9 +228,11 @@ var tprojectId = 0;
 var tplanId = 0;
 var ctx = null;
 var resTbl = null;
+// deep-link query params (global so loadContext/resetForm can read url state)
+var p = null;
 
 $(function () {
-  var p = new URLSearchParams(window.location.search);
+  p = new URLSearchParams(window.location.search);
   tprojectId = parseInt(p.get('tproject_id') || '0', 10);
   tplanId = parseInt(p.get('tplan_id') || '0', 10);
   TLi18n.load(function () {
@@ -132,6 +240,14 @@ $(function () {
     TLi18n.initLocaleSwitcher('#localeSwitcher');
     $('#quickText').attr('placeholder', TLi18n.t('search.quickPlaceholder'));
     loadContext();
+    // Enter inside any advanced input triggers the search (Refs #1101)
+    $(document).on('keydown', '#advPanel input', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); doSearch(); }
+    });
+    // show a hint when Jolly (OR) supersedes the per-field text criteria
+    $('#advJolly').on('input', function () {
+      $('#jollyAdvise').toggleClass('show', $.trim($(this).val()) !== '');
+    });
   });
 });
 
@@ -139,6 +255,85 @@ function esc(s) {
   return String(s == null ? '' : s)
     .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
     .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+// Refs #1101: legacy quick-search entry (`tcSearch.php?doAction=userInput`)
+// rendered the FULL search-criteria form; the advanced panel below exposes the
+// same criteria the BFF already applies (api/search/index.php action=search).
+var advIds = ['advTcId','advVersion','advName','advImportance','advStatus',
+              'advSummary','advPreconditions','advSteps','advExpectedResults',
+              'advCreatedBy','advEditedBy','advJolly','advKeyword','advCfield',
+              'advCfieldValue','advReqDoc','advCreationFrom','advCreationTo',
+              'advModifFrom','advModifTo'];
+
+function toggleAdvanced() {
+  var open = $('#advPanel').is(':visible');
+  $('#advPanel').toggle(!open);
+  $('#btnAdv').toggleClass('open', !open).attr('aria-expanded', String(!open));
+}
+
+function buildAdvancedParams() {
+  var q = new URLSearchParams();
+  var tcid = $.trim($('#advTcId').val());
+  if (tcid !== '' && tcid !== ctx.tcasePrefix) q.set('targetTestCase', tcid);
+  if ($('#advVersion').val()) q.set('version', $('#advVersion').val());
+  var textMap = { advName: 'name', advCreatedBy: 'created_by', advEditedBy: 'edited_by',
+                  advSummary: 'summary', advPreconditions: 'preconditions',
+                  advSteps: 'steps', advExpectedResults: 'expected_results',
+                  advCfieldValue: 'custom_field_value', advReqDoc: 'requirement_doc_id' };
+  $.each(textMap, function (k, apiKey) {
+    var v = $.trim($('#' + k).val());
+    if (v !== '') q.set(apiKey, v);
+  });
+  var jolly = $.trim($('#advJolly').val());
+  if (jolly !== '') q.set('jolly', jolly);
+  var selMap = { advImportance: 'importance', advStatus: 'status',
+                 advKeyword: 'keyword_id', advCfield: 'custom_field_id' };
+  $.each(selMap, function (k, apiKey) {
+    var v = parseInt($('#' + k).val() || '0', 10);
+    if (v > 0) q.set(apiKey, v);
+  });
+  var dateMap = { advCreationFrom: 'creation_date_from', advCreationTo: 'creation_date_to',
+                  advModifFrom: 'modification_date_from', advModifTo: 'modification_date_to' };
+  $.each(dateMap, function (k, apiKey) {
+    var v = $('#' + k).val();
+    if (v) q.set(apiKey, fmtDate(v, ctx.dateFormat));
+  });
+  return q;
+}
+
+function doSearch() {
+  if (!ctx) { toast(TLi18n.t('common.error'), true); return; }
+  $('#warnBox').hide();
+  var v = $.trim($('#quickText').val());
+  var adv = buildAdvancedParams();
+  if (v === '' && adv.toString() === '') { toast(TLi18n.t('search.quickEmpty'), true); return; }
+  var q = new URLSearchParams();
+  q.set('action', 'search');
+  q.set('tproject_id', tprojectId);
+  // a test case ID (prefix-number or plain number) searches by ID, anything else by title
+  if (/^[A-Za-z0-9]+-\d+$/.test(v) || /^\d+$/.test(v)) {
+    // an explicit advanced Test Case ID wins over the quick field
+    if (adv.has('targetTestCase')) { toast(TLi18n.t('search.quickIgnoredTc'), true); }
+    else { q.set('targetTestCase', v); }
+  } else {
+    // an explicit advanced Title wins over the quick field
+    if (adv.has('name')) { toast(TLi18n.t('search.quickIgnoredName'), true); }
+    else { q.set('name', v); }
+  }
+  adv.forEach(function (val, key) { q.set(key, val); });
+  $('#btnFind').prop('disabled', true);
+  $.getJSON(API + '?' + q.toString())
+    .done(function (r) {
+      if (r.status !== 'ok') { toast(r.message || TLi18n.t('common.error'), true); return; }
+      renderResults(r);
+    })
+    .fail(function (xhr) {
+      var msg = TLi18n.t('common.error');
+      try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
+      toast(msg, true);
+    })
+    .always(function () { $('#btnFind').prop('disabled', false); });
 }
 
 function toast(msg, isErr) {
@@ -155,40 +350,79 @@ function loadContext() {
       $('#tprojectName').text(r.tproject.name);
       $('#tprojectName2').text(r.tproject.name);
       document.title = r.tproject.name + ' - ' + TLi18n.t('search.quickCaption');
+      $('#advPrefixAddon').text(r.tcasePrefix);
+
+      // importance (only when priority enabled for this project)
+      if (r.importanceEnabled) {
+        $('#grpAdvImportance').show();
+        $('#advImportance').append('<option value="0"></option>');
+        $('#advImportance').append('<option value="3">' + esc(TLi18n.t('search.highImportance')) + '</option>');
+        $('#advImportance').append('<option value="2">' + esc(TLi18n.t('search.mediumImportance')) + '</option>');
+        $('#advImportance').append('<option value="1">' + esc(TLi18n.t('search.lowImportance')) + '</option>');
+      }
+
+      // status domain comes localized from the server (same source as legacy)
+      $('#advStatus').append('<option value="0"></option>');
+      $.each(r.statusDomain, function (i, s) {
+        $('#advStatus').append('<option value="' + s.code + '">' + esc(s.label) + '</option>');
+      });
+
+      // keywords
+      if (r.keywords.length > 0) {
+        $('#grpAdvKeyword').show();
+        $('#advKeyword').append('<option value="0">&nbsp;</option>');
+        $.each(r.keywords, function (i, k) {
+          $('#advKeyword').append('<option value="' + k.id + '">' + esc(k.name) + '</option>');
+        });
+      }
+
+      // custom fields
+      if (r.customFields.length > 0) {
+        $('#grpAdvCfield').show();
+        $('#grpAdvCfieldValue').show();
+        $('#advCfield').append('<option value="0">&nbsp;</option>');
+        $.each(r.customFields, function (i, cf) {
+          $('#advCfield').append('<option value="' + cf.id + '">' + esc(cf.label) + '</option>');
+        });
+      }
+
+      // requirement doc id filter
+      if (r.requirementsEnabled) {
+        $('#grpAdvReqDoc').show();
+        $('#advReqDoc').attr('title', TLi18n.t('search.typeLike'));
+      }
+
+      // prefill from URL params (deep link support) - same api keys as searchView.html
+      var advParamOf = {
+        advTcId: 'targetTestCase', advVersion: 'version', advName: 'name',
+        advCreatedBy: 'created_by', advEditedBy: 'edited_by', advSummary: 'summary',
+        advPreconditions: 'preconditions', advSteps: 'steps',
+        advExpectedResults: 'expected_results', advKeyword: 'keyword_id',
+        advCfield: 'custom_field_id', advCfieldValue: 'custom_field_value',
+        advReqDoc: 'requirement_doc_id', advImportance: 'importance',
+        advStatus: 'status', advJolly: 'jolly',
+        advCreationFrom: 'creation_date_from', advCreationTo: 'creation_date_to',
+        advModifFrom: 'modification_date_from', advModifTo: 'modification_date_to'
+      };
+      var advPrefilled = false;
+      $.each(advParamOf, function (k, apiKey) {
+        var v = p.get(apiKey);
+        if (v !== null && v !== '' && document.getElementById(k)) {
+          $('#' + k).val(v);
+          advPrefilled = true;
+        }
+      });
+      // never leave active-but-hidden filters: open the panel when a deep link
+      // carries an advanced criterion (Refs #1101)
+      if (advPrefilled && !$('#advPanel').is(':visible')) {
+        toggleAdvanced();
+      }
     })
     .fail(function (xhr) {
       var msg = TLi18n.t('common.error');
       try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
       toast(msg, true);
     });
-}
-
-function doSearch() {
-  if (!ctx) { toast(TLi18n.t('common.error'), true); return; }
-  $('#warnBox').hide();
-  var v = $.trim($('#quickText').val());
-  if (v === '') { toast(TLi18n.t('search.quickEmpty'), true); return; }
-  var q = new URLSearchParams();
-  q.set('action', 'search');
-  q.set('tproject_id', tprojectId);
-  // a test case ID (prefix-number or plain number) searches by ID, anything else by title
-  if (/^[A-Za-z0-9]+-\d+$/.test(v) || /^\d+$/.test(v)) {
-    q.set('targetTestCase', v);
-  } else {
-    q.set('name', v);
-  }
-  $('#btnFind').prop('disabled', true);
-  $.getJSON(API + '?' + q.toString())
-    .done(function (r) {
-      if (r.status !== 'ok') { toast(r.message || TLi18n.t('common.error'), true); return; }
-      renderResults(r);
-    })
-    .fail(function (xhr) {
-      var msg = TLi18n.t('common.error');
-      try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
-      toast(msg, true);
-    })
-    .always(function () { $('#btnFind').prop('disabled', false); });
 }
 
 function warningText(key) {
@@ -199,6 +433,17 @@ function warningText(key) {
     case 'too_wide_search_criteria': return TLi18n.t('search.warnTooWide');
   }
   return key;
+}
+
+// convert yyyy-mm-dd (date input) to the server's configured format e.g. dd/mm/yyyy
+function fmtDate(iso, phpFormat) {
+  if (!iso) return '';
+  var parts = iso.split('-');
+  if (parts.length !== 3) return iso;
+  return phpFormat
+    .replace('%Y', parts[0])
+    .replace('%m', parts[1])
+    .replace('%d', parts[2]);
 }
 
 function stripHtml(s) {
@@ -293,6 +538,11 @@ function resetForm() {
   $('#noResults').hide();
   if (resTbl) { resTbl.destroy(); resTbl = null; $('#resTable tbody').empty(); }
   $('#quickText').val('');
+  // Refs #1101: clear the advanced criteria too
+  $.each(advIds, function (i, k) {
+    var $f = $('#' + k);
+    if ($f.is('select')) { $f.val('0'); } else { $f.val(''); }
+  });
   $('#footerInfo').text('');
 }
 </script>
