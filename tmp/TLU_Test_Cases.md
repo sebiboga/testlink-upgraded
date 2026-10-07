@@ -1855,6 +1855,52 @@ The picker lists the executions of the current test plan (which ones carry notes
 1. actions->platformEdit defined in common.php pointing to /gui/templates/platforms/platformsEdit.html?{$ctx}
 **Expected:** present and correct.
 **Actual:** wired. PASS
+
+### TC-1871-RE-RUN — full re-execution after resume (2026-10-07, fresh DB fixture `tmp/fixtures_1871.php`: project PLED1871 id=13, foreign project PLFOR id=14, platforms TestLinux id=9 / LinkedPlat id=10 linked to plan id=15, user plednorights role 3)
+
+API matrix (admin cookie + Origin/X-Requested-With headers, `api/platformedit/index.php`):
+- 01 init create: 200 `{mode:create, canManage:"yes", flags 1/1/1}`. PASS
+- 02 init edit p9: 200 `{mode:edit, name:"TestLinux", notes:"unlinked platform"}`. PASS
+- 03 save create NewPlat: 200 `{mode:created, id:11}`. PASS
+- 04 save duplicate name (create): 422 `E_NAMEALREADYEXISTS` (was raw `-4` — BUG #1 found here, fixed fdff038ba, retest PASS). PASS
+- 05 save empty name: 422 `E_NAMELENGTH` + screen maps it to pedit.errNameRequired (fdff038ba). PASS
+- 06 save update p9: 200 `{mode:updated}`, notes/enable_on_execution persisted in DB. PASS
+- 07 flag action p9 enable_on_design=0: 200 `{field,value}`, DB row = 0. PASS
+- 08a delete unlinked NewPlat: 200 `{id:11}`, row gone. PASS
+- 08b delete linked LinkedPlat: 422 `DELETE_BLOCKED`. PASS
+- 09 (API) anon init: 401 `Not authenticated`. PASS
+- 10a (API) plednorights init: 403 `NO_RIGHT` + 2 AUDIT `audit_security_user_right_missing` events. PASS
+- 10b (API) plednorights save: 403 `NO_RIGHT`, no row created (`HACK` count 0). PASS
+- 11a (API) foreign ownership init (tproject 14 + platform 9): 404 `NOT_FOUND` before name probe (fdff038ba keeps 404 first). PASS
+- 11b (API) foreign ownership save: 404 `NOT_FOUND`, no row renamed (`Stolen` count 0). PASS
+- 12a (API) POST action=init: 400 `UNKNOWN_ACTION`; 12b PUT: 405; 12c unknown action GET: 400; 12d POST save WITHOUT Origin: 403 CSRF. PASS
+
+Browser (Chrome DevTools MCP, admin + isolated plednorights context, screenshots `tmp/screens/1871/`):
+- 09a create mode EN renders (header/mode cards/3 flags checked/back button) — `01-create-en.png`. PASS
+- 09b submit empty name: client-side localized warning "Platform name is required", no XHR. PASS
+- 09c create "TestLinux" (duplicate): localized toast "A platform with this name already exists" (BUG #1 e2e, fixed fdff038ba) — `02-dup-name-localized-error.png`. PASS
+- 09d create "BrowserPlat": success toast + MODE card flipped to Edit + Delete button appeared (BUG #3 found here: MODE stayed "Create", fixed 91d11416c) — `03-create-success-mode-edit.png`. PASS; DB id=12. PASS
+- 09e edit mode platform 12: prefilled name/notes, MODE Edit, Delete visible; uncheck Enable on design + Save → toast + DB enable_on_design=0 (update path e2e) — `05-edit-en.png`. PASS
+- 09f dup name on UPDATE path (rename 12 → TestLinux): localized dup toast, no rename. PASS (name restored to BrowserPlat, verified in DB).
+- 09g delete modal: clicking Delete threw `$(...).modal is not a function` (BUG #4 found here: Dashio Bootstrap JS missing, fixed b03ded011); after fix modal opens with localized `Delete platform "ModeFlip"? This cannot be undone.` — `04-delete-confirm-modal.png`. PASS
+- 09h confirm delete ModeFlip: row removed (DB count 0), redirected to platformsView `?notice=deleted`. PASS
+- 09i delete linked LinkedPlat via modal: modal hides + localized error "This platform is used by test plans and cannot be removed" (code path covered by API 08b); BUG #2 found while testing the shim, see below — `06-delete-blocked-error.png`. PASS
+- 09j locale switch EN→Română: full relabel (Platformă, Proiect de test, MOD/Editare, Activ la proiectare/execuție, Salvează, Anulează, Șterge platforma) + footer — `07-romanian-locale.png`. PASS
+- 09k platform_id=99999: localized not-found state card, no form — `08-not-found-state.png`. PASS
+- 09l no tproject_id: localized "Proiect de test invalid" state card. PASS
+- 10a plednorights (isolated context) opens screen: localized "You do not have permission to manage platforms" card, no form — `09-no-permission-state.png`. PASS
+- 10b legacy shim GET authed: 302 to modern screen with params. PASS
+- 10c legacy shim anon GET/POST: standard framework login bounce (`top.location.href='...login.php?note=expired&destination=...'` via checkSessionValid). PASS
+- 10d legacy shim POST authed: 405 `Allow: GET, HEAD` (BUG #2 found here: used to 302 like a GET, fixed 6fea33193). PASS
+- 12 wiring: `common.php:2005` `$actions->platformEdit` + `platformsView.html:436` entry button. PASS
+
+Bugs found & fixed during re-run (each its own commit, pushed to sebiboga):
+1. `fdff038ba` duplicate name on create returned raw `error_code:-4` — non-localized generic error (BFF pre-check now covers create+update, ownership proven before name probe; screen maps `-4`/`E_NAMELENGTH`).
+2. `6fea33193` legacy shim accepted POST and answered 302 — now 405 + Allow for non-GET/HEAD.
+3. `91d11416c` MODE card stayed "Create" after a successful create flipped the screen into edit mode.
+4. `b03ded011` Dashio Bootstrap JS never included — `$(...).modal is not a function`, delete-confirm modal dead.
+
+Event Viewer: 0 ERROR rows; the single WARNING row (events id=3) is `tmp/fixtures_1871.php:50` (throwaway fixture, git-ignored tmp/) — no product Error/Warning generated by this screen's testing. PASS
 ## Task — Issue #1098: Group-by-test-suite / group-by-req-spec + ExtGrid toolbar in searchAdvancedView results
 
 **Precondition:** database seeded with fixture `tmp/fixtures_1098.php` (project SA1098, id=1: suites Suite Alpha/Beta with 2 test cases each, req specs RQ1098-A/B each with 1 requirement, all matching "Smoke"). Logged in as admin/admin.
