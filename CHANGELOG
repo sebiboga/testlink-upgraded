@@ -17,6 +17,19 @@ Every screen of the application was ported one-by-one in a screen-compare
 kept for backward compatibility and is progressively retired as each modern
 screen reaches full parity.
 
+- [KEY BUGFIX] - #1875: **7 `ftc.*` keys of the modernized Free Test Cases screen
+  (`freeTestCases.html`) rendered untranslated English in 8 of the 10 locale bundles.**
+  `ftc.allAssigned`, `ftc.elapsedSeconds`, `ftc.forProject`, `ftc.header`, `ftc.matchCount`,
+  `ftc.testCases`, `ftc.testProject` were copied byte-identical to `en.json` during the
+  #1262/#1265 batches; the #1844 coverage gate compares key SETS only, so a present-but-English
+  value passes silently. Fix (`29cc40397` on `fix/issue-1875-ftc-i18n`): translate the 7 keys in
+  de/es/fr/it/ja/pt/ru/zh, each value reusing that locale's existing terminology already present
+  in the same bundles (`ato.testProject`, `ato.forProject`, `dsh.testCases`/`cwt.testCases`,
+  `reqsearch.matchCount`, `reqcov.elapsedSeconds`) and the legacy `locale/*/strings.txt`;
+  `ftc.groupHeader` intentionally left identical (placeholder template). Verified: json.tool +
+  coverage gate 9/9 green, cross-bundle diff 0 identical keys, browser de+zh render fully
+  localized, Event Viewer clean; regression suite 8/8 PASS. (Refs #1875)
+
 - [KEY BUGFIX] - #1804: **the per-row reorder controls of `reqTreeReorder.html` (Up / Down / To top /
   To bottom) were non-interactive `<span class="rm dis">` elements, not real `<button disabled>`** —
   a `<span>` is not focusable and never enters the tab order, `.prop('disabled', …)` in
