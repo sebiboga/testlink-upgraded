@@ -2432,3 +2432,24 @@ commit `983c9179c` ("fix(reqtreereorder): back link was a dead self-reload on th
 pins the verified behaviour rather than a code change. It is a real guard: any future edit
 that re-introduces a `'#'`, a `target="_blank"`, or a dependency of the href on the
 `$.ajax` success handler will fail TC-1686-01/02/03.
+
+## Regression — Issue #1714: api/reqspec spec_view — empty `RSPEC_REV.id =` SQL 1064 + E_WARNING for specs without a revision row
+
+**Precondition:** fresh DB (no `req_specs`, no `req_specs_revisions`); logged in as `admin`/`admin`; an orphan fixture inserted:
+`INSERT INTO req_specs (id,testproject_id,doc_id) VALUES (1,1,'SPEC_ORPHAN');`
+(no `req_specs_revisions` row, no `nodes_hierarchy` node for it).
+
+**Repro (pre-fix):** `curl -b cookies "http://localhost:8082/api/reqspec/index.php?action=spec_view&id=1"` answered **HTTP 200 with a 1270-byte HTML debug backtrace** (not JSON), and the `events` table gained an **E_WARNING** (`Trying to access array offset on null - requirement_spec_mgr.class.php - Line 186`) plus an **ERROR** (`1064 ... near 'AND RSPEC.id = 1' ... RSPEC_REV.id =   AND RSPEC.id = 1`).
+
+**Expected post-fix behavior:**
+- TC-1714-01 — the orphan request returns JSON `{"status":"error","message":"Requirement specification not found"}` with HTTP 404 and **0 new E_WARNING/ERROR rows** in `events`.
+- TC-1714-02 — nonexistent spec (`id=999`) still 404; invalid ids (`0`, `-1`, `abc`) still 400 `Invalid req spec id`.
+- TC-1714-03 — a healthy spec (NH node + `req_specs` + `req_specs_revisions`) still renders via `spec_view` (200 JSON with title/revision_id) and via the UI `reqSpecView.html?req_spec_id=<id>`.
+- TC-1714-04 — Event Viewer (`events` table) shows no new Error/Warning after all of the above.
+
+**Actual result (verified 2026-10-07 on branch `fix/issue-1714`):**
+- TC-1714-01 PASS — 404 JSON, 0 rows (pre-fix it was 200 HTML + 2 event rows).
+- TC-1714-02 PASS — 404 / 400 unchanged, 0 rows.
+- TC-1714-03 PASS — 200 JSON; browser UI renders the spec; 0 rows.
+- TC-1714-04 PASS — `events` holds only the login audit row; no new Error/Warning.
+- Fix location: `lib/functions/requirement_spec_mgr.class.php` `get_by_id()` (null-return guard after `get_last_child_info()`).
