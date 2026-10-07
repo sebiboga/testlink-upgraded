@@ -1994,6 +1994,15 @@ function getActions(&$gui,$baseURL) {
   // api/_attachauth.php right sets (Refs #1768 parity).
   $actions->attachmentDownload = "/gui/templates/attachments/attachmentDownload.html?{$ctx}";
   $actions->platformsView = "/gui/templates/platforms/platformsView.html?{$ctx}";
+  // Platform Create/Edit modernized screen (Dashio standalone page) - Refs #1871.
+  // Replaces the legacy lib/platforms/platformsEdit.php renderer (a standalone
+  // form reached through the do_action create|edit query-string for the same
+  // project) that the Platforms Management screen only exposed through an
+  // inline modal and had no deep-linkable page. The legacy right
+  // (checkRights() = hasRightOnProj("platform_management")) is enforced by
+  // api/platformedit on every route. Lives inside the tproject_id context so
+  // the Aside link carries the current project.
+  $actions->platformEdit = "/gui/templates/platforms/platformsEdit.html?{$ctx}";
   $actions->platformsExport = "/gui/templates/platforms/platformsExport.html?{$ctx}";
   // Import Platforms screen - Refs #1632. Replaces lib/platforms/platformsImport.php
   // (+ gui/templates/dashio/platforms/platformsImport.tpl), which was the last

@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title data-i18n="pedit.header">Platform</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+  * { box-sizing: border-box; }
+  body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+  .header { align-items: center; background: #4ECDC4; color: #fff; display: flex; font-size: 20px; font-weight: 700; gap: 10px; letter-spacing: 1px; padding: 14px 24px; }
+  .header .sub { font-size: 13px; font-weight: 400; opacity: .85; margin-left: 12px; }
+  .toolbar { align-items: center; background: #22242a; display: flex; gap: 12px; padding: 12px 24px; }
+  .toolbar .ctx { color: #bbb; font-size: 13px; }
+  .toolbar .ctx b { color: #fff; }
+  .toolbar .spacer { flex: 1; }
+  .btn-teal { background: #4ECDC4; border: none; border-radius: 4px; color: #fff; cursor: pointer; font-size: 13px; font-weight: 600; padding: 7px 18px; }
+  .btn-teal:hover { background: #3dbdb5; }
+  .btn-red { background: #e05a5a; border: none; border-radius: 4px; color: #fff; cursor: pointer; font-size: 13px; font-weight: 600; padding: 7px 18px; }
+  .btn-red:hover { background: #c94b4b; }
+  .btn-dark { background: #34363d; border: none; border-radius: 4px; color: #ddd; cursor: pointer; font-size: 13px; font-weight: 600; padding: 7px 18px; }
+  .btn-dark:hover { background: #44464e; }
+  button:disabled { cursor: not-allowed; opacity: .5; }
+  button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid #f2c94c; outline-offset: 2px; }
+  .main { margin: 0 auto; max-width: 860px; padding: 20px 16px 8px; }
+  .card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin-bottom: 18px; overflow: hidden; }
+  .card-head { align-items: center; background: #22242a; color: #fff; display: flex; font-size: 15px; font-weight: 700; gap: 10px; padding: 12px 20px; }
+  .context-grid { display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); margin-bottom: 20px; }
+  .context-item { background: #f8fafb; border: 1px solid #d7dee2; border-left: 4px solid #4ECDC4; border-radius: 6px; padding: 10px 12px; }
+  .context-item .label { color: #5f6367; display: block; font-size: 11px; margin-bottom: 4px; text-transform: uppercase; }
+  .context-item .value { color: #22242a; display: block; font-size: 14px; font-weight: 700; overflow-wrap: anywhere; }
+  .form-table { border-collapse: collapse; width: 100%; }
+  .form-table td { border-top: 1px solid #eef0f2; padding: 14px 20px; vertical-align: top; }
+  .form-table tr:first-child td { border-top: 0; }
+  .form-table td.label-cell { color: #22242a; font-size: 13px; font-weight: 700; width: 220px; }
+  .form-table td.label-cell i { color: #2d8e88; margin-right: 7px; }
+  input[type=text], textarea { background: #fff; border: 1px solid #ccc; border-radius: 4px; color: #333; font-family: inherit; font-size: 13px; padding: 8px 10px; width: min(100%, 460px); }
+  textarea { min-height: 110px; resize: vertical; width: 100%; }
+  input[type=text]:focus, textarea:focus { border-color: #4ECDC4; box-shadow: 0 0 0 2px rgba(78,205,196,.25); outline: 0; }
+  input.is-invalid { border-color: #c33f3d; }
+  .hint { color: #62666a; font-size: 12px; margin-top: 5px; }
+  .error { color: #a72f2d; display: none; font-size: 12px; margin-top: 6px; }
+  .check-row { display: flex; align-items: flex-start; gap: 9px; }
+  .check-row input { margin-top: 3px; }
+  .check-row label { font-size: 13px; color: #333; }
+  .actions { border-top: 1px solid #eef0f2; display: flex; gap: 10px; padding: 16px 20px; }
+  .flash { border-radius: 6px; display: none; font-size: 13px; margin-bottom: 14px; padding: 11px 14px; }
+  .flash.ok { background: #e9f7f4; border: 1px solid #bfe5e2; color: #14655e; }
+  .flash.err { background: #fdecea; border: 1px solid #f5c6c2; color: #a3342f; }
+  .state { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 26px; text-align: center; }
+  .state .big { color: #d99b45; font-size: 30px; margin-bottom: 10px; }
+  .state .msg { color: #62666a; font-size: 13px; }
+  .loading { background: rgba(255,255,255,.7); inset: 0; position: fixed; display: none; z-index: 50; }
+  .loading-box { background: #fff; border-radius: 8px; box-shadow: 0 1px 6px rgba(0,0,0,.15); left: 50%; padding: 16px 26px; position: absolute; top: 40%; transform: translate(-50%,-50%); }
+  #toast { border-radius: 6px; bottom: 22px; display: none; font-size: 13px; left: 50%; padding: 12px 20px; position: fixed; transform: translateX(-50%); z-index: 60; }
+  #toast.ok { background: #14655e; color: #fff; }
+  #toast.err { background: #a3342f; color: #fff; }
+  .footer { color: #8a8f94; font-size: 12px; padding: 14px; text-align: center; }
+  .modal-content { border-radius: 8px; }
+</style>
+</head>
+<body>
+<div class="header">
+  <i class="fa fa-server"></i>
+  <span data-i18n="pedit.header">Platform</span>
+  <span class="sub" id="headerMode"></span>
+  <span id="localeSwitcher" style="margin-left:auto;"></span>
+</div>
+<div class="toolbar">
+  <span class="ctx"><span data-i18n="pedit.testProject">Test Project</span>: <b id="toolbarProject">-</b></span>
+  <span class="spacer"></span>
+  <button class="btn-dark" id="btnRefresh" type="button"><i class="fa fa-refresh"></i> <span data-i18n="pedit.refresh">Refresh</span></button>
+  <button class="btn-dark" id="btnBack" type="button"><i class="fa fa-arrow-left"></i> <span data-i18n="pedit.back">Platform Management</span></button>
+</div>
+<div class="main">
+  <div class="flash" id="flash"></div>
+  <div class="loading" id="loading"><div class="loading-box"><span data-i18n="common.loading">Loading</span> ...</div></div>
+
+  <div class="state" id="stateBox" style="display:none;">
+    <div class="big"><i class="fa fa-exclamation-triangle"></i></div>
+    <div class="msg" id="stateMsg"></div>
+  </div>
+
+  <section id="mainContent" style="display:none;">
+    <div class="context-grid">
+      <div class="context-item"><span class="label" data-i18n="pedit.testProject">Test Project</span><span class="value" id="contextProject">-</span></div>
+      <div class="context-item"><span class="label" data-i18n="pedit.mode">Mode</span><span class="value" id="contextMode">-</span></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><i class="fa fa-pencil"></i> <span id="formCaption" data-i18n="pedit.formCaption">Platform details</span></div>
+      <form id="editForm" novalidate>
+        <table class="form-table">
+          <tr>
+            <td class="label-cell"><i class="fa fa-tag"></i><span data-i18n="pedit.name">Name</span></td>
+            <td>
+              <label for="pName" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);" data-i18n="pedit.name">Name</label>
+              <input type="text" id="fName" maxlength="100" autocomplete="off">
+              <div class="hint" data-i18n="pedit.nameHint">must be unique within the test project</div>
+              <div class="error" id="nameError"></div>
+            </td>
+          </tr>
+          <tr>
+            <td class="label-cell"><i class="fa fa-align-left"></i><span data-i18n="pedit.notes">Notes</span></td>
+            <td>
+              <label for="fNotes" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);" data-i18n="pedit.notes">Notes</label>
+              <textarea id="fNotes" rows="4"></textarea>
+            </td>
+          </tr>
+          <tr>
+            <td class="label-cell"><i class="fa fa-toggle-on"></i><span data-i18n="pedit.flags">Flags</span></td>
+            <td>
+              <div class="check-row"><input type="checkbox" id="fDesign" checked><label for="fDesign" data-i18n="pedit.enableOnDesign">Enable on design</label></div>
+              <div class="check-row" style="margin-top:8px;"><input type="checkbox" id="fExec" checked><label for="fExec" data-i18n="pedit.enableOnExecution">Enable on execution</label></div>
+              <div class="check-row" style="margin-top:8px;"><input type="checkbox" id="fOpen" checked><label for="fOpen" data-i18n="pedit.isOpen">Open for execution</label></div>
+            </td>
+          </tr>
+        </table>
+        <div class="actions">
+          <button class="btn-teal" id="btnSave" type="submit"><i class="fa fa-save"></i> <span data-i18n="pedit.save">Save</span></button>
+          <button class="btn-dark" id="btnCancel" type="button"><i class="fa fa-times"></i> <span data-i18n="pedit.cancel">Cancel</span></button>
+          <span class="spacer" style="flex:1;"></span>
+          <button class="btn-red" id="btnDelete" type="button" style="display:none;"><i class="fa fa-trash"></i> <span data-i18n="pedit.delete">Delete platform</span></button>
+        </div>
+      </div>
+    </section>
+</div>
+<div class="footer"><span data-i18n="footers.platformsEdit">TestLink 2.0.1 - Platform</span></div>
+<div id="toast"></div>
+
+<div class="modal fade" id="confirmModal" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+        <h4 class="modal-title" data-i18n="pedit.confirmDeleteTitle">Delete platform</h4>
+      </div>
+      <div class="modal-body"><p id="confirmMsg"></p></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-default" data-dismiss="modal" data-i18n="pedit.cancel">Cancel</button>
+        <button type="button" class="btn btn-danger" id="btnConfirmDelete" data-i18n="pedit.delete">Delete</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script>
+var API = '/api/platformedit/index.php';
+var params = new URLSearchParams(window.location.search);
+var tprojectId = parseInt(params.get('tproject_id') || '0', 10);
+var platformId = parseInt(params.get('platform_id') || '0', 10);
+var tplanId = parseInt(params.get('tplan_id') || '0', 10);
+var canManage = false;
+var mode = 'create';
+
+function t(key, vars) { return TLi18n.t(key, vars); }
+
+function toast(msg, isErr) {
+  var $t = $('#toast').text(msg).removeClass('ok err').addClass(isErr ? 'err' : 'ok').show();
+  clearTimeout($t.data('tm'));
+  $t.data('tm', setTimeout(function () { $t.hide(); }, 3500));
+}
+function flash(msg, isErr) {
+  if (!msg) { $('#flash').hide(); return; }
+  $('#flash').text(msg).removeClass('ok err').addClass(isErr ? 'err' : 'ok').show();
+  if (!isErr) { setTimeout(function () { $('#flash').hide(); }, 4000); }
+}
+function busy(on) {
+  $('#loading').toggle(!!on);
+  $('#btnSave').prop('disabled', !!on || !canManage);
+}
+function showState(msg, danger) {
+  $('#mainContent').hide();
+  $('#stateMsg').text(msg);
+  $('#stateBox').show();
+  if (danger) { flash(msg, true); }
+}
+
+function errorFor(r) {
+  var code = r && r.error_code;
+  var map = {
+    INVALID_TPROJECT: 'pedit.errInvalidProject',
+    NO_RIGHT: 'pedit.errNoRight',
+    NOT_FOUND: 'pedit.errNotFound',
+    E_NAMEALREADYEXISTS: 'pedit.errNameExists',
+    DELETE_BLOCKED: 'pedit.errDeleteBlocked',
+    DELETE_CHECK_FAILED: 'pedit.errGeneric',
+    METHOD_NOT_ALLOWED: 'pedit.errGeneric',
+    UNKNOWN_ACTION: 'pedit.errGeneric',
+    INVALID_PARAM: 'pedit.errGeneric'
+  };
+  if (map[code]) { return t(map[code]); }
+  if (r && r.message) { return r.message; }
+  return t('pedit.errGeneric');
+}
+
+function backToManager() {
+  var q = '?tproject_id=' + tprojectId + (tplanId ? '&tplan_id=' + tplanId : '');
+  window.location.href = '/gui/templates/platforms/platformsView.html' + q;
+}
+
+function load() {
+  if (tprojectId <= 0 && platformId > 0) { /* handled by BFF */ }
+  busy(true);
+  $('#flash').hide();
+  $('#stateBox').hide();
+  var q = '?action=init&tproject_id=' + tprojectId + '&platform_id=' + platformId + '&tplan_id=' + tplanId;
+  $.getJSON(API + q)
+    .done(function (r) {
+      var d = r.data;
+      tprojectId = d.tproject.id;
+      mode = d.mode;
+      canManage = !!d.canManage;
+      $('#toolbarProject').text(d.tproject.name);
+      $('#contextProject').text(d.tproject.name);
+      $('#headerMode').text('');
+      $('#contextMode').text(mode === 'edit' ? t('pedit.modeEdit') : t('pedit.modeCreate'));
+      $('#fName').val(d.platform.name || '');
+      $('#fNotes').val(d.platform.notes || '');
+      $('#fDesign').prop('checked', !!d.platform.enable_on_design);
+      $('#fExec').prop('checked', !!d.platform.enable_on_execution);
+      $('#fOpen').prop('checked', !!d.platform.is_open);
+      $('#btnDelete').toggle(mode === 'edit' && canManage);
+      $('#mainContent').show();
+      if (!canManage) {
+        $('#fName, #fNotes, #fDesign, #fExec, #fOpen').prop('disabled', true);
+      }
+      busy(false);
+    })
+    .fail(function (xhr) {
+      busy(false);
+      var r = {}; try { r = JSON.parse(xhr.responseText); } catch (e) {}
+      if (xhr.status === 401) { window.location.href = '/login.php?note=expired'; return; }
+      showState(errorFor(r), true);
+    });
+}
+
+function save() {
+  var name = $.trim($('#fName').val());
+  if (!name) {
+    $('.err-name').remove();
+    $('#fName').addClass('is-invalid').after('<div class="error err-name" style="display:block">' + t('pedit.errNameRequired') + '</div>');
+    return;
+  }
+  $('.err-name').remove();
+  $('#fName').removeClass('is-invalid');
+  var payload = {
+    tproject_id: tprojectId,
+    platform_id: mode === 'edit' ? platformId : 0,
+    name: name,
+    notes: $('#fNotes').val(),
+    enable_on_design: $('#fDesign').is(':checked') ? 1 : 0,
+    enable_on_execution: $('#fExec').is(':checked') ? 1 : 0,
+    is_open: $('#fOpen').is(':checked') ? 1 : 0
+  };
+  busy(true);
+  $.ajax({
+    url: API + '?action=save',
+    type: 'POST',
+    contentType: 'application/json',
+    data: JSON.stringify(payload)
+  }).done(function (r) {
+    busy(false);
+    flash(t(r.mode === 'created' ? 'pedit.savedCreated' : 'pedit.savedUpdated', { name: name }), false);
+    platformId = r.id; mode = 'edit'; $('#btnDelete').toggle(canManage);
+  }).fail(function (xhr) {
+    busy(false);
+    var r = {}; try { r = JSON.parse(xhr.responseText); } catch (e) {}
+    flash(errorFor(r), true);
+  });
+}
+
+function deletePlatform() {
+  busy(true);
+  $.ajax({
+    url: API + '?action=delete',
+    type: 'POST',
+    contentType: 'application/json',
+    data: JSON.stringify({ tproject_id: tprojectId, platform_id: platformId })
+  }).done(function () {
+    busy(false);
+    window.location.href = '/gui/templates/platforms/platformsView.html?tproject_id=' + tprojectId +
+      (tplanId ? '&tplan_id=' + tplanId : '') + '&notice=deleted';
+  }).fail(function (xhr) {
+    busy(false);
+    $('#confirmModal').modal('hide');
+    var r = {}; try { r = JSON.parse(xhr.responseText); } catch (e) {}
+    flash(errorFor(r), true);
+  });
+}
+
+$(function () {
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    $('#btnRefresh').on('click', load);
+    $('#btnBack, #btnCancel').on('click', backToManager);
+    $('#editForm').on('submit', function (e) { e.preventDefault(); save(); });
+    $('#btnDelete').on('click', function () {
+      $('#confirmMsg').text(t('pedit.confirmDelete', { name: $.trim($('#fName').val()) }));
+      $('#confirmModal').modal('show');
+    });
+    $('#btnConfirmDelete').on('click', deletePlatform);
+    load();
+  });
+});
+</script>
+</body>
+</html>

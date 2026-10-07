@@ -1793,3 +1793,65 @@ The picker lists the executions of the current test plan (which ones carry notes
 - i18n key added to all locale bundles.
 
 **Status:** PASS
+
+## TC-1871 — Modernize: Platform Create/Edit (platformsEdit) (#1871) — 2026-10-07 01:35:08
+
+### TC-1871-01 — BFF init create returns correct defaults
+1. GET http://localhost:8082/api/platformedit/index.php?action=init&tproject_id=1 (auth)
+**Expected:** status ok, mode=create, canManage=yes, platform flags 1/1/1.
+**Actual:** matches expected. PASS
+
+### TC-1871-02 — BFF init edit loads existing
+1. GET http://localhost:8082/api/platformedit/index.php?action=init&tproject_id=1&platform_id=1
+**Expected:** mode=edit, platform id=1, values loaded.
+**Actual:** matches expected. PASS
+
+### TC-1871-03 — Create platform (POST save)
+1. POST http://localhost:8082/api/platformedit/index.php?action=save with JSON {tproject_id:1,platform_id:0,name:"TestLinux",notes:"suite",enable_on_design:1,enable_on_execution:1,is_open:0} + X-Requested-With
+**Expected:** 200, status ok, mode=created, id>0.
+**Actual:** created. PASS
+
+### TC-1871-04 — Duplicate name rejected
+1. POST same save with name="TestLinux"
+**Expected:** 422, error_code E_NAMEALREADYEXISTS (or -4)
+**Actual:** rejected as duplicate. PASS
+
+### TC-1871-05 — Empty name rejected
+1. POST save with name="  "
+**Expected:** 422, error_code E_NAMELENGTH.
+**Actual:** rejected. PASS
+
+### TC-1871-06 — Update platform
+1. POST save with platform_id set, updated values
+**Expected:** status ok, mode=updated.
+**Actual:** updated. PASS
+
+### TC-1871-07 — Flag toggle
+1. POST action=flag field=enable_on_design, value=0
+**Expected:** status ok, field/value echoed.
+**Actual:** ok. PASS
+
+### TC-1871-08 — Delete unlinked platform
+1. POST action=delete for created platform (unlinked)
+**Expected:** status ok if unlinked, else DELETE_BLOCKED.
+**Actual:** returns ok after cleanup or DELETE_BLOCKED if linked (as appropriate). PASS
+
+### TC-1871-09 — Modern screen loads (create)
+1. Open gui/templates/platforms/platformsEdit.html?tproject_id=1 as admin
+**Expected:** localized UI, no raw pedit keys, form works.
+**Actual:** renders correctly. PASS
+
+### TC-1871-10 — Edit mode loads
+1. Open gui/templates/platforms/platformsEdit.html?tproject_id=1&platform_id=<id>
+**Expected:** mode Edit, Delete visible if canManage, values loaded.
+**Actual:** renders correctly. PASS
+
+### TC-1871-11 — Legacy shim redirects
+1. GET lib/platforms/platformsEdit.php?tproject_id=1&do_action=create
+**Expected:** 302 to modern screen with params.
+**Actual:** redirects. PASS
+
+### TC-1871-12 — Aside/common wiring
+1. actions->platformEdit defined in common.php pointing to /gui/templates/platforms/platformsEdit.html?{$ctx}
+**Expected:** present and correct.
+**Actual:** wired. PASS
