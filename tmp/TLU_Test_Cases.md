@@ -2299,3 +2299,22 @@ legacy `$query['do_action']` semantics (the editor only enters edit mode with
 same-origin proof (legacy `do_delete` was a GET form); (c) `init` answers 404 for
 an unknown cfield and 403 for a foreign/no-right caller, never distinguishing
 existing-but-denied writes.
+## Regression — Issue #1875: 7 freeTestCases ftc.* keys stay English in de/es/fr/it/ja/pt/ru/zh (header, footer, matchCount)
+
+**Precondition** — fresh DB; project `i18nRepro` (tproject_id=1, prefix I18N) + test suite `ReproSuite` + one free test case `ReproTC` (I18N-1, id 3, tcversion id 4) NOT linked to any test plan; logged in as admin at http://localhost:8082. Fix commit: `29cc40397` on `fix/issue-1875-ftc-i18n`.
+
+**Pre-fix repro (measured):** `gui/templates/results/freeTestCases.html?tproject_id=1&locale=de` rendered header `Test Cases Not Assigned to Any Test Plan`, `for test project`, `Test Project`, badge `1 test cases`, section head `Match count: 1`, footer `Elapsed seconds: 0` while every other control was German. Bundle diff: de/es/fr/it/ja/pt/ru/zh each had exactly those 7 `ftc.*` keys byte-identical to `en.json` (`ro.json` already translated).
+
+| # | Case | Expected | Result |
+|---|------|----------|--------|
+| 1 | `python3 -m json.tool` on all 8 touched bundles | valid JSON, exit 0 | **PASS** — de/es/fr/it/ja/pt/ru/zh all OK |
+| 2 | `bash ai/verify_i18n_coverage.sh` | exit 0, 9/9 bundles PASS | **PASS** — 9 bundle(s) passed, 0 failed |
+| 3 | Cross-bundle diff of the 7 ftc.* keys after fix | only `en.json` identical; 8 other bundles translated; `ftc.groupHeader` remains identical (placeholder template `{label}: {value} ({count})`) | **PASS** — de/es/fr/it/ja/pt/ru/zh still-same = [] |
+| 4 | `git diff --stat` of the fix commit | touches ONLY the 8 bundle files, +56/−56, 7 keys per bundle, no code change | **PASS** — 8 files changed, 56 insertions, 56 deletions |
+| 5 | Open `freeTestCases.html?tproject_id=1&locale=de` | header `Testfälle die keinem Testplan zugewiesen sind`, sub `für Testprojekt`, toolbar `Testprojekt`, badge `1 Testfälle`, section head `Anzahl Treffer: 1`, footer `Vergangene Sekunden: 0` | **PASS** — a11y snapshot matches column-for-column (uid 4_2/4_4/4_24/4_27/4_29/4_68) |
+| 6 | Open `freeTestCases.html?tproject_id=1&locale=zh` | `没有关联到任何测试计划的测试用例`, `测试项目`, `匹配数量: 1`, `已用秒数: 0`, badge `1 测试用例` | **PASS** — a11y snapshot uid 5_2/5_4/5_27/5_29/5_68 |
+| 7 | Browser console on both pages | no new Errors/Warnings (only the pre-existing a11y "form field id/name" devtools hint) | **PASS** — 1 [issue] hint only, no error |
+| 8 | `events` table after the browser passes | no new Error/Warning rows | **PASS** — i18n-only change, no PHP executed event-path |
+
+**RESULT — 8/8 PASS.** Root cause: the 7 keys were copied English during the #1262/#1265 batch; `verify_i18n_coverage.sh` compares key SETS only and cannot flag a present-but-English value. Fix re-used per-locale terminology anchors already in each bundle. No bugs found during testing.
+
