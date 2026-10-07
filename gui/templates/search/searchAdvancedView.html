@@ -51,6 +51,13 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 .snippet { color: #555; max-width: 520px; display: block; }
 .icon-btn { background: none; border: none; cursor: pointer; font-size: 14px; padding: 2px 5px; color: #4ECDC4; }
 .icon-btn:hover { color: #3dbdb5; }
+.grid-toolbar { display: flex; gap: 8px; padding: 8px 14px; background: #fafafa; border-bottom: 1px solid #eee; }
+.grid-btn { background: #fff; border: 1px solid #d8d8d8; color: #444; border-radius: 4px; padding: 5px 12px; font-size: 12px; cursor: pointer; }
+.grid-btn:hover { border-color: #4ECDC4; color: #2d8e88; }
+tr.grp-header td { background: #eefaf9; color: #2d8e88; font-weight: 700; font-size: 12.5px; border-bottom: 1px solid #cfe9e6; cursor: pointer; }
+tr.grp-header .grp-caret { transition: transform .15s; margin-right: 6px; color: #4ECDC4; }
+tr.grp-header.collapsed .grp-caret { transform: rotate(-90deg); }
+tr.grp-body td:first-child { padding-left: 30px; }
 .warnbox { margin: 12px 24px 0; background: #fdecea; border: 1px solid #f5c6cb; color: #b94a48; border-radius: 6px; padding: 10px 14px; font-size: 13px; display: none; }
 .empty { background: #fff; border-radius: 8px; padding: 26px; text-align: center; color: #888; font-size: 13px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 8px 24px; display: none; }
 .footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
@@ -196,6 +203,10 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 
 <div class="res-section" id="secTC" style="display:none">
   <h3><i class="fas fa-flask-vial"></i><span data-i18n="searchAdv.grpTestCase">Test Cases</span></h3>
+  <div class="grid-toolbar">
+    <button type="button" class="grid-btn" onclick="expandCollapseAll('secTC')"><i class="fas fa-layer-group"></i> <span data-i18n="searchAdv.expandCollapseGroups">Expand/collapse groups</span></button>
+    <button type="button" class="grid-btn" onclick="resetFilters('secTC')"><i class="fas fa-rotate-left"></i> <span data-i18n="searchAdv.resetFilters">Reset filters</span></button>
+  </div>
   <table>
     <thead>
       <tr>
@@ -237,6 +248,10 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 
 <div class="res-section" id="secRQ" style="display:none">
   <h3><i class="fas fa-prescription-bottle"></i><span data-i18n="searchAdv.grpRequirement">Requirements</span></h3>
+  <div class="grid-toolbar">
+    <button type="button" class="grid-btn" onclick="expandCollapseAll('secRQ')"><i class="fas fa-layer-group"></i> <span data-i18n="searchAdv.expandCollapseGroups">Expand/collapse groups</span></button>
+    <button type="button" class="grid-btn" onclick="resetFilters('secRQ')"><i class="fas fa-rotate-left"></i> <span data-i18n="searchAdv.resetFilters">Reset filters</span></button>
+  </div>
   <table>
     <thead>
       <tr>
@@ -269,6 +284,7 @@ $(function () {
   p = new URLSearchParams(window.location.search);
   tprojectId = parseInt(p.get('tproject_id') || '0', 10);
   initGroupToggles();
+  $(document).on('click', 'tr.grp-header', function () { toggleGroup($(this)); });
   TLi18n.load(function () {
     TLi18n.apply();
     TLi18n.initLocaleSwitcher('#localeSwitcher');
@@ -490,24 +506,20 @@ function renderResults(r) {
 }
 
 function renderTC(rows) {
-  var $tb = $('#secTC tbody').empty();
-  $('#secTC').toggle(rows.length > 0);
-  $.each(rows, function (i, row) {
+  renderGrouped('secTC', rows, function (row) {
     var tcLabel = '<a class="tc-link" href="javascript:void(0)" onclick="openTcEdit(' +
                   row.testcase_id + ')">' +
                   esc(row.full_external_id) + ' [v' + row.version + '] :: ' + esc(row.name) + '</a>';
-    $tb.append('<tr>' +
-      '<td class="path-cell">' + esc(row.path) + '</td>' +
-      '<td>' + tcLabel + '</td>' +
-      '<td><span class="snippet">' + esc(stripHtml(row.summary)) + '</span></td>' +
-      '<td>' +
-        '<button class="icon-btn" title="' + esc(TLi18n.t('search.editTC')) +
-          '" onclick="openTcEdit(' + row.testcase_id + ')"><i class="fas fa-pen-to-square"></i></button>' +
-        '<button class="icon-btn hist" title="' + esc(TLi18n.t('search.execHistory')) +
-          '" onclick="openExecHistory(' + row.testcase_id + ')"><i class="fas fa-clock-rotate-left"></i></button>' +
-      '</td>' +
-    '</tr>');
-  });
+    return [
+      '<span class="path-cell">' + esc(row.path) + '</span>',
+      tcLabel,
+      '<span class="snippet">' + esc(stripHtml(row.summary)) + '</span>',
+      '<button class="icon-btn" title="' + esc(TLi18n.t('search.editTC')) +
+        '" onclick="openTcEdit(' + row.testcase_id + ')"><i class="fas fa-pen-to-square"></i></button>' +
+      '<button class="icon-btn hist" title="' + esc(TLi18n.t('search.execHistory')) +
+        '" onclick="openExecHistory(' + row.testcase_id + ')"><i class="fas fa-clock-rotate-left"></i></button>'
+    ];
+  }, 'search.colPath');
 }
 
 function renderSimple(secId, rows, mapFn) {
@@ -522,20 +534,74 @@ function renderSimple(secId, rows, mapFn) {
   });
 }
 
-function renderRQ(rows) {
-  var $tb = $('#secRQ tbody').empty();
-  $('#secRQ').toggle(rows.length > 0);
+// Legacy parity (#1098): lib/search/search.php:225 groups TC results by the
+// test-suite path and :402 groups RQ results by the requirement-spec path.
+// Ext rendered a group header "Test Suite: <path> (N Items)" (GroupingView
+// showGroupName + lib/functions/exttable.class.php:589-591 groupTextTpl) with
+// an expand/collapse + reset toolbar (gui/javascript/ext_extensions.js:184).
+function renderGrouped(secId, rows, mapFn, groupLabelKey) {
+  var $tb = $('#' + secId + ' tbody').empty();
+  $('#' + secId).toggle(rows.length > 0);
+  if (rows.length === 0) { return; }
+
+  var groups = [];
+  var index = {};
   $.each(rows, function (i, row) {
+    var key = (row.path && String(row.path) !== '') ? String(row.path) : TLi18n.t('searchAdv.ungrouped');
+    if (index[key] === undefined) { index[key] = groups.length; groups.push({ key: key, rows: [] }); }
+    groups[index[key]].rows.push(row);
+  });
+
+  var label = TLi18n.t(groupLabelKey);
+  $.each(groups, function (gi, g) {
+    var gid = secId + '_g' + gi;
+    var count = TLi18n.t(g.rows.length === 1 ? 'searchAdv.groupItem' : 'searchAdv.groupItems', { n: g.rows.length });
+    var head = TLi18n.t('searchAdv.groupHeader', { label: label, value: g.key, count: count });
+    $tb.append('<tr class="grp-header" data-group="' + gid + '" style="display:table-row">' +
+      '<td colspan="99"><i class="fas fa-chevron-down grp-caret"></i> ' + esc(head) + '</td></tr>');
+    $.each(g.rows, function (ri, row) {
+      var cells = mapFn(row);
+      var html = '<tr class="grp-body" data-group="' + gid + '" style="display:table-row">';
+      $.each(cells, function (j, c) { html += '<td>' + c + '</td>'; });
+      $tb.append(html + '</tr>');
+    });
+  });
+}
+
+function toggleGroup($header) {
+  var gid = $header.attr('data-group');
+  var collapsed = !$header.hasClass('collapsed');
+  $header.toggleClass('collapsed', collapsed);
+  $header.closest('.res-section').find('tr.grp-body[data-group="' + gid + '"]').toggle(!collapsed);
+}
+
+function expandCollapseAll(secId) {
+  var $sec = $('#' + secId);
+  var collapse = $sec.find('tr.grp-header:not(.collapsed)').length > 0;
+  $sec.find('tr.grp-header').toggleClass('collapsed', collapse);
+  $sec.find('tr.grp-body').toggle(!collapse);
+}
+
+// "Reset filters" (ext_extensions.js default-state/reset semantics): restore
+// the default view - every group expanded.
+function resetFilters(secId) {
+  var $sec = $('#' + secId);
+  $sec.find('tr.grp-header').removeClass('collapsed');
+  $sec.find('tr.grp-body').show();
+}
+
+function renderRQ(rows) {
+  renderGrouped('secRQ', rows, function (row) {
     var name = row.req_id > 0
       ? '<a class="plain-link" href="javascript:void(0)" onclick="openReqEdit(' + row.req_id + ')">' +
         esc(row.name) + '</a>'
       : esc(row.name);
-    $tb.append('<tr>' +
-      '<td>' + esc(row.req_doc_id) + '</td>' +
-      '<td>' + name + '<br><span class="path-cell">' + esc(row.path) + '</span></td>' +
-      '<td><span class="snippet">' + esc(stripHtml(row.scope)) + '</span></td>' +
-    '</tr>');
-  });
+    return [
+      esc(row.req_doc_id),
+      name + '<br><span class="path-cell">' + esc(row.path) + '</span>',
+      '<span class="snippet">' + esc(stripHtml(row.scope)) + '</span>'
+    ];
+  }, 'cf.node.requirement_spec');
 }
 
 function openTcEdit(tcaseId) {
