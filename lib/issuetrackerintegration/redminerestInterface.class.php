@@ -64,7 +64,9 @@ class redminerestInterface extends issueTrackerInterface
 	 **/
 	function completeCfg()
 	{
-		$base = trim($this->cfg->uribase,"/") . '/'; // be sure no double // at end
+		// Issue #1710: guard uribase access
+		$uriBase = $this->cfg->uribase ?? '';
+		$base = trim(is_scalar($uriBase) ? (string)$uriBase : '', "/") . '/'; // be sure no double // at end
 	  if( !property_exists($this->cfg,'uriview') )
 	  {
       // seems this is good only for redmine 1 and 2 ??
@@ -159,7 +161,9 @@ class redminerestInterface extends issueTrackerInterface
   	  // CRITIC NOTICE for developers
   	  // $this->cfg is a simpleXML Object, then seems very conservative and safe
   	  // to cast properties BEFORE using it.
-      $redUrl = (string)trim($this->cfg->uribase);
+      // Issue #1710: guard uribase access
+      $uriBase = $this->cfg->uribase ?? '';
+      $redUrl = trim(is_scalar($uriBase) ? (string)$uriBase : '');
       $redAK = (string)trim($this->cfg->apikey);
       $pxy = new stdClass();
       $pxy->proxy = config_get('proxy');
@@ -188,7 +192,9 @@ class redminerestInterface extends issueTrackerInterface
   		$logDetails = '';
   		foreach(array('uribase','apikey') as $v)
   		{
-  			$logDetails .= "$v={$this->cfg->$v} / "; 
+  			// Issue #1710: guard cfg access
+  			$val = $this->cfg->$v ?? '';
+  			$logDetails .= "$v=" . (is_scalar($val) ? $val : '') . " / "; 
   		}
   		$logDetails = trim($logDetails,'/ ');
   		$this->connected = false;

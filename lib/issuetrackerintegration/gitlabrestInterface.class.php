@@ -67,7 +67,9 @@ class gitlabrestInterface extends issueTrackerInterface
    **/
   function completeCfg()
   {
-    $base = trim($this->cfg->uribase,"/") . '/'; // be sure no double // at end
+    // Issue #1710: guard uribase access
+    $uriBase = $this->cfg->uribase ?? '';
+    $base = trim(is_scalar($uriBase) ? (string)$uriBase : '', "/") . '/'; // be sure no double // at end
     if( property_exists($this->cfg,'attributes') )
     {
       $attr = get_object_vars($this->cfg->attributes);
@@ -147,7 +149,9 @@ class gitlabrestInterface extends issueTrackerInterface
   	  // CRITIC NOTICE for developers
   	  // $this->cfg is a simpleXML Object, then seems very conservative and safe
   	  // to cast properties BEFORE using it.
-      $redUrl = (string)trim($this->cfg->uribase);
+      // Issue #1710: guard uribase access
+      $uriBase = $this->cfg->uribase ?? '';
+      $redUrl = trim(is_scalar($uriBase) ? (string)$uriBase : '');
       $redAK = (string)trim($this->cfg->apikey);
       $projectId = (string)trim($this->cfg->projectidentifier); //TODO: check integer value
       $pxy = new stdClass();
@@ -177,7 +181,9 @@ class gitlabrestInterface extends issueTrackerInterface
   		$logDetails = '';
   		foreach(array('uribase','apikey') as $v)
   		{
-  			$logDetails .= "$v={$this->cfg->$v} / "; 
+  			// Issue #1710: guard cfg access
+  			$val = $this->cfg->$v ?? '';
+  			$logDetails .= "$v=" . (is_scalar($val) ? $val : '') . " / "; 
   		}
   		$logDetails = trim($logDetails,'/ ');
   		$this->connected = false;

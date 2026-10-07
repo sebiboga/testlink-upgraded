@@ -82,7 +82,9 @@ class tracxmlrpcInterface extends issueTrackerInterface
    **/
   function completeCfg()
   {
-    $base = trim($this->cfg->uribase,"/") . '/'; // be sure no double // at end
+    // Issue #1710: guard unguarded access to $this->cfg->uribase (same as #1619)
+    $uriBase = $this->cfg->uribase ?? '';
+    $base = trim(is_scalar($uriBase) ? (string)$uriBase : '', "/") . '/'; // be sure no double // at end
     if( !property_exists($this->cfg,'urixmlrpc') )
     {
       $this->cfg->urixmlrpc = $base . 'xmlrpc';
@@ -147,7 +149,9 @@ class tracxmlrpcInterface extends issueTrackerInterface
       $logDetails = '';
       foreach(array('uribase','apikey') as $v)
       {
-        $logDetails .= "$v={$this->cfg->$v} / "; 
+        // Issue #1710: guard cfg access in error path
+        $val = $this->cfg->$v ?? '';
+        $logDetails .= "$v=" . (is_scalar($val) ? $val : '') . " / "; 
       }
       $logDetails = trim($logDetails,'/ ');
       $this->connected = false;

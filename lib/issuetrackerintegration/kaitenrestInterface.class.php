@@ -52,7 +52,10 @@ class kaitenrestInterface extends issueTrackerInterface {
 	 *
 	 **/
 	function completeCfg() {
-		$this->cfg->uribase = trim($this->cfg->uribase,"/"); 
+		// Issue #1710: guard uribase access (read and write safely)
+		$uriBase = $this->cfg->uribase ?? '';
+		$uriBase = trim(is_scalar($uriBase) ? (string)$uriBase : '', "/");
+		$this->cfg->uribase = $uriBase; 
     if(!property_exists($this->cfg, 'uricreate') ) {
       $this->cfg->uricreate = $this->cfg->uribase; 
     }
@@ -100,7 +103,7 @@ class kaitenrestInterface extends issueTrackerInterface {
   	  // $this->cfg is a simpleXML Object, then seems very conservative and safe
   	  // to cast properties BEFORE using it.
       $kaitenContext = [
-        'url' => (string)trim($this->cfg->uribase),
+        'url' => (string)trim(is_scalar($this->cfg->uribase ?? null) ? (string)($this->cfg->uribase ?? '') : ''),
         'apikey' => (string)trim($this->cfg->apikey),
         'boardId' => (string)trim($this->cfg->boardid),
         'options' => $this->options ];
@@ -128,7 +131,9 @@ class kaitenrestInterface extends issueTrackerInterface {
   	if($processCatch) {
   		$logDetails = '';
   		foreach(['uribase'] as $v) {
-  			$logDetails .= "$v={$this->cfg->$v} / "; 
+  			// Issue #1710: guard cfg access
+  			$val = $this->cfg->$v ?? '';
+  			$logDetails .= "$v=" . (is_scalar($val) ? $val : '') . " / "; 
   		}
   		$logDetails = trim($logDetails,'/ ');
   		$this->connected = false;

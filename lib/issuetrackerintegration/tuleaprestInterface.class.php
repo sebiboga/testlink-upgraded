@@ -57,7 +57,9 @@ class tuleaprestInterface extends issueTrackerInterface
 
           // check the base URI
           if (property_exists($this->cfg, 'uribase')) {
-            $this->URIBase = trim((string) $this->cfg->uribase);
+            // Issue #1710: guard uribase access
+            $uriBase = $this->cfg->uribase ?? '';
+            $this->URIBase = trim(is_scalar($uriBase) ? (string)$uriBase : '');
             if ( strlen($this->URIBase) > 0
                  && ! $this->checkURLSyntax($this->URIBase) ) {
               return false;
@@ -272,7 +274,9 @@ class tuleaprestInterface extends issueTrackerInterface
              $logDetails = '';
              foreach(array('uribase', 'username') as $v)
              {
-                 $logDetails .= "$v={$this->cfg->$v} / ";
+                 // Issue #1710: guard cfg access
+                 $val = $this->cfg->$v ?? '';
+                 $logDetails .= "$v=" . (is_scalar($val) ? $val : '') . " / ";
              }
              $logDetails = trim($logDetails,'/ ');
              $this->connected = false;
