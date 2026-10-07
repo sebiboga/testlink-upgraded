@@ -284,7 +284,13 @@ $(function () {
   p = new URLSearchParams(window.location.search);
   tprojectId = parseInt(p.get('tproject_id') || '0', 10);
   initGroupToggles();
-  $(document).on('click', 'tr.grp-header', function () { toggleGroup($(this)); });
+  $(document).on('click', 'tr.grp-header', function (e) {
+    if ($(e.target).is('button,a,input,select')) { return; }
+    toggleGroup($(this));
+  });
+  $(document).on('keydown', 'tr.grp-header', function (e) {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleGroup($(this)); }
+  });
   TLi18n.load(function () {
     TLi18n.apply();
     TLi18n.initLocaleSwitcher('#localeSwitcher');
@@ -557,7 +563,7 @@ function renderGrouped(secId, rows, mapFn, groupLabelKey) {
     var gid = secId + '_g' + gi;
     var count = TLi18n.t(g.rows.length === 1 ? 'searchAdv.groupItem' : 'searchAdv.groupItems', { n: g.rows.length });
     var head = TLi18n.t('searchAdv.groupHeader', { label: label, value: g.key, count: count });
-    $tb.append('<tr class="grp-header" data-group="' + gid + '" style="display:table-row">' +
+    $tb.append('<tr class="grp-header" data-group="' + gid + '" role="button" tabindex="0" aria-expanded="true" style="display:table-row">' +
       '<td colspan="99"><i class="fas fa-chevron-down grp-caret"></i> ' + esc(head) + '</td></tr>');
     $.each(g.rows, function (ri, row) {
       var cells = mapFn(row);
@@ -572,22 +578,24 @@ function toggleGroup($header) {
   var gid = $header.attr('data-group');
   var collapsed = !$header.hasClass('collapsed');
   $header.toggleClass('collapsed', collapsed);
-  $header.closest('.res-section').find('tr.grp-body[data-group="' + gid + '"]').toggle(!collapsed);
+  $header.attr('aria-expanded', String(!collapsed));
+  $header.closest('.res-section').find('tr.grp-body[data-group="' + gid + '"]')
+    .css('display', collapsed ? 'none' : 'table-row');
 }
 
 function expandCollapseAll(secId) {
   var $sec = $('#' + secId);
   var collapse = $sec.find('tr.grp-header:not(.collapsed)').length > 0;
-  $sec.find('tr.grp-header').toggleClass('collapsed', collapse);
-  $sec.find('tr.grp-body').toggle(!collapse);
+  $sec.find('tr.grp-header').toggleClass('collapsed', collapse).attr('aria-expanded', String(!collapse));
+  $sec.find('tr.grp-body').css('display', collapse ? 'none' : 'table-row');
 }
 
 // "Reset filters" (ext_extensions.js default-state/reset semantics): restore
 // the default view - every group expanded.
 function resetFilters(secId) {
   var $sec = $('#' + secId);
-  $sec.find('tr.grp-header').removeClass('collapsed');
-  $sec.find('tr.grp-body').show();
+  $sec.find('tr.grp-header').removeClass('collapsed').attr('aria-expanded', 'true');
+  $sec.find('tr.grp-body').css('display', 'table-row');
 }
 
 function renderRQ(rows) {
