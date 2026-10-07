@@ -136,6 +136,26 @@ screen reaches full parity.
   navBar hand-off regression OK, test suite "Task — Issue #1097" 10/10 PASS, i18n coverage
   gate green, Event Viewer clean. (Refs #1097, Fixes #1856)
 
+- [NEW FEATURE] - #1098: **Advanced Search results are grouped again like the legacy
+  ExtTable grids.** `gui/templates/search/searchAdvancedView.html` `renderTC()`/`renderRQ()`
+  now route through a new `renderGrouped()` (`:544`, `:507`, `:627`): Test Case results are
+  grouped per test-suite `path`, Requirements per requirement-spec `path`, each group under a
+  collapsible header `Test Suite: Suite Alpha (2 Items)` / `Requirement Specification: Spec A
+  (Smoke) (1 Item)` — legacy `buildTCExtTable()` `setGroupByColumnName(test_suite)`
+  (`lib/search/search.php:225`) + `buildRQExtTable()` `setGroupByColumnName(req_spec)`
+  (`:402`), GroupingView `showGroupName` + `groupTextTpl` counts
+  (`lib/functions/exttable.class.php:589-591`). Clicking a group header collapses/expands only
+  that group; a per-section grid toolbar restores the legacy
+  `Ext.ux.TableToolbar` (`gui/javascript/ext_extensions.js:184`): **Expand/collapse groups**
+  (`expandCollapseAll`) and **Reset filters** (`resetFilters` — default view, all expanded).
+  TS/RS sections stay flat (legacy does not group them). No BFF change was needed — the
+  `fulltext` payload already carries `path` per TC/RQ row (`api/search/index.php:584,:623`).
+  i18n `searchAdv.expandCollapseGroups|resetFilters|groupHeader|groupItem|groupItems|ungrouped`
+  in all 10 bundles (coverage gate PASS 9/9). Verified in browser on fixture `tmp/fixtures_1098.php`
+  (project SA1098): 4 TC rows → 2 groups (2 Items each), 2 RQ rows → 1 group each; single-group
+  toggle, expand/collapse-all, reset-proof; `node --check` clean; console 0 errors; Event Viewer
+  no Error/Warning; test suite "Task — Issue #1098" PASS. (Refs #1098)
+
 - [MODERNIZED SCREEN] - #1845: **Priority Bar Chart** is no longer a dead endpoint.
   Legacy `lib/results/priorityBarChart.php` was **unreachable fatal code** on 2.0.1: it
   required `third_party/charts/charts.php` and `lib/functions/results.class.php`, both gone
