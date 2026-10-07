@@ -56,7 +56,15 @@ looks like a write (the legacy `do_delete` was a GET form).
 
 - The legacy editor authorized on the **global** `cfield_management` right via the session; the BFF
   re-verifies `cfield_management` on the addressed project.
-- Writes are **POST-only** behind the same-origin CSRF proof (legacy wrote on GET).
+- The addressed-project check runs **before** the project is resolved
+  (`cfpaRequireManage()` convention): a caller with only the *global* right cannot tell a
+  foreign/unreachable project (403 `no_right_on_project`) from a non-existent id, and a denial
+  never leaks the project name. Admin keeps the honest 404 for a genuinely missing id.
+- Writes are **POST-only** behind the same-origin CSRF proof (legacy wrote on GET); `PUT`/`DELETE`
+  return 405 (method whitelist, code review M4).
+- Every request-derived `(string)`/`intval` cast is guarded by `cfeScalar()`/`cfeInt()`
+  (code review m1): a crafted `{"name":["x"],...}` body raises no PHP 8 `Array to string`
+  E_WARNING and an array `"id"` never `intval()`'s to `1` (wrong-target write).
 - The name-uniqueness probe stays server-side (legacy `name_is_unique`), never trusted to the client.
 
 ## Wiring
@@ -79,7 +87,9 @@ bundles (`de en es fr it ja pt ro ru zh`); key-set gate `bash ai/verify_i18n_cov
   0 console errors.
 - Event Viewer: no new ERROR/WARNING rows (only AUDIT `log_level=16`; the serialized
   `tlMetaStringHelper` in `events.description` is the standard logger format on read).
-- Suite `Issue #1812` — 34/34 PASS in `tmp/TLU_Test_Cases.md`; gate
+- Suite `Issue #1812` — **39/39 PASS** in `tmp/TLU_Test_Cases.md` (rows 1-34 original, 35-39 code
+  review follow-up: method whitelist, array payloads, uniform 403/no-name-leak on the project
+  scope, single show-on combo, per-code `{max}` errors); gate
   `TLU_REQUIRE_SUITE="Issue #1812" bash ai/verify_test_suites.sh` → 7 PASS / 0 FAIL, 42 → 43 suites,
   none lost.
 
@@ -93,4 +103,5 @@ bundles (`de en es fr it ja pt ro ru zh`); key-set gate `bash ai/verify_i18n_cov
 ## Commits
 
 `b52126cab` (BFF) → `7e5173eb9` (screen + i18n ×10 + shim + wiring + screenshots) →
-`006c72e1a` (suite 1812) → `67479fb62` (CHANGELOG) → `a2620abfa` (ledger).
+`006c72e1a` (suite 1812) → `67479fb62` (CHANGELOG) → `a2620abfa` (ledger) →
+`374d4775b` (docs mirror) → `9f53b2240` (code review M1/M2/m1/m2/m3/m4, EOS).

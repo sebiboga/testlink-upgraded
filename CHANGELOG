@@ -8982,6 +8982,28 @@ Changes:
 - Docs: `docs/Bugfix-Issue-1679-bffSameOriginGuard-Origin-Before-XRW.md` + wiki page
   *Bugfix-Issue-1679-bffSameOriginGuard-Origin-Before-XRW*.
 
+### Key bugfix — Custom Field Editor BFF hardening: apply code-review findings M1/M2/m1/m2/m3/m4 (Fixes #1873)
+- **auth «oracle» closed** (`api/cfieldsedit/index.php`): the `cfield_management` right on the
+  ADDRESSED test project is now asserted BEFORE `cfeResolveProject()` resolves it
+  (`cfpaRequireManage()` convention, `api/cfieldstproject/index.php:160-165`). A holder of only
+  the GLOBAL right can no longer distinguish a foreign/unreachable project (403
+  `no_right_on_project`) from a non-existent one via the init/create-assign routes, and the
+  resolve never leaks `tproject_name` on denial; admin keeps the honest 404 for a missing id.
+- **verbs whitelisted**: `api/cfieldsedit/index.php` only answers GET/POST; `PUT`/`DELETE`
+  now return 405 instead of being accepted.
+- **array-payload hardening** (`cfeScalar()`/`cfeInt()`): every request-derived `(string)`/`intval`
+  cast is guarded, so a crafted `{"name":["x"],...}` body raises no PHP 8 `Array to string`
+  E_WARNING (which `watchPHPErrors()` would persist into `events`) and an array `"id"` never
+  `intval()`'s to `1` (wrong-target update/delete).
+- **dead show-on combos removed** (`cfieldsEdit.html`): the screen only renders the "Display on
+  Test Execution" combo — the design/testplan_design "Display on" combos were a silent no-op
+  (legacy `cfieldsEdit.tpl:175-179` had only the execution combo; show_on is derived from
+  enable_on server-side).
+- `errText()` maps the `{max}` interpolation to the per-field limit (`name`/`label`/`possible_values`)
+  instead of always using `name_maxlen`.
+- Test suite `Modernize — Issue #1812` rows 35-39 in `tmp/TLU_Test_Cases.md`: **39/39 PASS**,
+  Event Viewer clean.
+
 ### Gap closed — Assign Test Project Roles: the legacy public/private access-type indicator was missing (Fixes #1609)
 - The sibling **plan** screen got this indicator under #1643, but the **project** screen never did:
   `gui/templates/usermanagement/usersAssignProject.html` rendered `<label data-i18n="assign.testProject">Test Project:</label>`
