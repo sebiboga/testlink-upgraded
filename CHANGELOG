@@ -17,6 +17,25 @@ Every screen of the application was ported one-by-one in a screen-compare
 kept for backward compatibility and is progressively retired as each modern
 screen reaches full parity.
 
+- [KEY BUGFIX] - #1712: **eight sibling issue-tracker interfaces (mantissoap, jirasoap, jirarest,
+  fogbugzrest, gforgesoap, redminerest, tracxmlrpc, tuleaprest) answered HTTP 502 on
+  `POST /api/issuetracker/test-connection`** whenever a structurally-string cfg member came back
+  from `setCfg()`'s SimpleXML→json→stdClass round-trip as a nested object (element-valued,
+  empty, whitespace-only or repeated XML field): the unguarded `(string)`/`trim()` read threw an
+  `\Error`/`\TypeError` that `catch(Exception)` cannot catch, and the Event Viewer only showed
+  `Object of class stdClass could not be converted to string` with no field name. #1711's guard
+  existed but was **private to `bugzillaxmlrpcInterface`** — it now lives on the base class
+  (`protected cfgStr()/cfgIsNotText()/cfgWarn()` + new `cfgCoerceText()`), the shadowing private
+  copies were deleted, and all eight classes normalise every cfg member before reading. Code
+  review additionally closed 5 remaining `trim($this->cfg->uribase,"/")` sites (same 502) and
+  4 raw credential reads. A non-text field is now named in a WARNING row and the request returns
+  HTTP 200; a valid scalar cfg is byte-identical to before. Verified: `tmp/repro_1712.php`
+  14/14 PASS (pre-fix 11 failures), `tmp/verify_1712.sh` 25/25 PASS, all 8 types HTTP 200,
+  0 fatal-signature Event rows, grid/list/`check-connection` unaffected. Docs:
+  `docs/Bugfix-Issue-1712-sibling-issuetrackers-unguarded-cfg-cast.md` + wiki page.
+  Out-of-scope same-family sites (githubrest/gitlabrest/kaitenrest/trellorest/jiradb) noted for
+  follow-up. (Refs #1712)
+
 - [KEY BUGFIX] - #1870: **both agent rulebooks told agents to recover a rejected push with
   `git rebase -X theirs origin/<your-branch>`** (`ai/FIX-ISSUE.md:134`, `ai/IMPLEMENT-TASK.md:139`)
   — in a rebase `theirs` is the REPLAYED (stale, agent-local) copy, so every overlap with a
