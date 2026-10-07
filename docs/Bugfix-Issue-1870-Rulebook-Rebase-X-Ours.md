@@ -36,7 +36,8 @@ harness (0/45 vs 45/45) and #1694's strategy matrix.
 
 ## Fix — why `-X ours`, why not the alternatives
 
-Minimal single-token swap in the two rulebook lines, plus a 2-line rationale so the advice is not
+Minimal single-token swap in the two rulebook lines, plus a 4-line rationale (2 sentences) so the
+advice is not
 "re-broken" by a future agent:
 
 ```bash
@@ -53,8 +54,8 @@ sed -i 's|git rebase -X theirs origin/<your-branch>|git rebase -X ours origin/<y
   guarded in `.gitattributes` since #1694) but wrong for JSON/i18n bundles and any non-append file;
   cannot be expressed in rulebook prose per-path.
 
-Files changed: `ai/FIX-ISSUE.md` (+3/−1 around line 134), `ai/IMPLEMENT-TASK.md` (+3/−1 around
-line 139). After the swap: `grep -rn "rebase -X theirs" ai/` → **0 hits**;
+Files changed: `ai/FIX-ISSUE.md` and `ai/IMPLEMENT-TASK.md`, 5 insertions / 1 deletion each
+(`git show --numstat a4baa939d`), the advice around line 134 / line 139 respectively. After the swap: `grep -rn "rebase -X theirs" ai/` → **0 hits**;
 `grep -rn "rebase -X ours" ai/` → **2 hits**.
 
 ## Blast radius

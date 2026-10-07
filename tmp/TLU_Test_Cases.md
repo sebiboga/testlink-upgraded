@@ -1922,11 +1922,11 @@ PASS (verified by code review of guarded accesses; regression passes targeted ar
 |---|---|---|---|---|
 | 1 | `grep -rn "rebase -X theirs" ai/` | 0 hits (exit 1) | 0 hits, exit 1 | **PASS** |
 | 2 | `grep -rn "rebase -X ours" ai/` | 2 hits: `ai/FIX-ISSUE.md:134`, `ai/IMPLEMENT-TASK.md:139` | exactly those 2 lines | **PASS** |
-| 3 | Read `ai/FIX-ISSUE.md:133-138` | advice = `-X ours` + why-ours/why-not-theirs rationale + issue refs (#1694/#1868/#1870) | line 134 `git rebase -X ours origin/<your-branch>`; 3 rationale lines appended; force-with-lease caveat intact | **PASS** |
-| 4 | Read `ai/IMPLEMENT-TASK.md:138-143` | byte-identical advice | identical to case 3 | **PASS** |
+| 3 | Read `ai/FIX-ISSUE.md:133-139` | advice = `-X ours` + why-ours/why-not-theirs rationale + issue refs (#1694/#1868/#1870) | line 134 `git rebase -X ours origin/<your-branch>`; 4 rationale lines appended (136-139, 2 sentences); force-with-lease caveat intact | **PASS** |
+| 4 | Read `ai/IMPLEMENT-TASK.md:138-144` | byte-identical advice | identical to case 3 | **PASS** |
 | 5 | Harness strategy A: `git rebase -X theirs agentB` on stale branch (pre-fix advice) | reproduces clobber: exit 0, 46 lines, 0/45 live kept | `exit=0 lines=46 live_kept=0/45`, "Successfully rebased" | **PASS** (bug reproduced) |
 | 6 | Harness strategy B: `git rebase -X ours agentB` (post-fix advice) | preserves concurrent work: exit 0, 145 lines, 45/45 | `exit=0 lines=145 live_kept=45/45`, "Successfully rebased" | **PASS** |
-| 7 | Advice sanity: does any other agent-facing file still carry `-X theirs`? | 0 outside `docs/` historical records + `.github/workflows/*` (tracked by #1868/#1872) | `grep -rn "rebase -X theirs" ai/` → 0; remaining hits only in `docs/Bugfix-Issue-1694-*.md` (historical pre-fix quotes/sed patch) and `.github/workflows/*.yml` (8 hits = #1872, out of scope) | **PASS** |
+| 7 | Advice sanity: does any other agent-facing file still carry `-X theirs`? | 0 in `ai/`; remaining hits only in historical records that QUOTE the old flag + `.github/workflows/*` (tracked by #1868/#1872) | `grep -rn "rebase -X theirs" ai/` → 0; remaining hits: `docs/Bugfix-Issue-1694-*.md`, the new `docs/Bugfix-Issue-1868/1870-*.md` pages, `CHANGELOG` (all quoting the pre-fix flag historically) and `.github/workflows/*.yml` (8 hits = #1872, out of scope) | **PASS** |
 | 8 | `TLU_REQUIRE_SUITE="Issue #1870" bash ai/verify_test_suites.sh` | gate passes (no suite lost vs merge-base, own suite present) | `G1805 result: 7 PASS / 0 FAIL / 0 SKIP`, exit 0 — "no suite lost vs merge-base with origin/sebiboga (= 0)", "no line removed … (= 0)", "own suite heading present (Issue #1870)", baseline 40d41d62b (36) → candidate 37 suites | **PASS** |
 | 9 | Event Viewer / `events` table | no new Error/Warning rows | n/a — no TestLink PHP/BFF code touched (rulebook + markdown docs only); app not exercised | **PASS** (n/a) |
 

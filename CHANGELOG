@@ -24,7 +24,7 @@ screen reaches full parity.
   as a clean fast-forward (re-measured this run on the 2-strategy harness: `-X theirs` → 0/45 live
   lines kept, `-X ours` → 45/45, both exit 0). Same cross-run data-loss class as #1694/#1868,
   affecting every shared file `.gitattributes merge=union` does not protect (`tmp/wiki-repo/`,
-  `docs/`, the 10 i18n bundles). Fix (2 files, single-token swap + 2-line rationale): both lines now
+  `docs/`, the 10 i18n bundles). Fix (2 files, single-token swap + 4-line rationale): both lines now
   advise `git rebase -X ours` — upstream = the live `origin/<your-branch>` = ground truth. Verified:
   `grep -rn "rebase -X theirs" ai/` → 0 hits; regression suite `Regression — Issue #1870` PASS;
   no application code touched (Event Viewer n/a). Docs: `docs/Bugfix-Issue-1870-*.md` +

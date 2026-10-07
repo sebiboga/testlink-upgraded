@@ -48,7 +48,7 @@ content; `stale` rewrites the whole file to 46 stale lines; rebase each onto `or
 
 `-X ours` chooses the upstream (live) side on conflict — same machinery already validated in #1694's
 strategy matrix (`-X theirs` → 0 surviving lines, `-X ours` → 46). Rejected alternatives (from
-#1694): plain `ort` with the dropped-flag leaves conflict markers mid-file; `.gitattributes
+#1694): plain `ort` with the `-X` flag dropped leaves conflict markers mid-file; `.gitattributes
 merge=ours` needs the non-versionable `merge.ours.driver` config.
 
 ## Landing — BLOCKED on token permissions (still)
@@ -76,8 +76,8 @@ with `repo`+`workflow` credentials (`gh auth login` with the workflow scope, or 
 Same destructive flag lives in two AGENT RULEBOOK lines — `ai/FIX-ISSUE.md:134` and
 `ai/IMPLEMENT-TASK.md:139` both said `git rebase -X theirs origin/<your-branch>` on push rejection.
 Those files are NOT `.github/workflows/*`, so they are landable by the CI token; tracked separately
-as issue **#1870** — **FIXED there** (commit `a4baa939d` on `fix/issue-1870`: both lines now advise
-`git rebase -X ours`, with the why-ours rationale appended; see
+as issue **#1870** — **FIXED there** (commit `a4baa939d`, pushed as branch `fix/issue-1870`:
+both lines now advise `git rebase -X ours`, with the why-ours rationale appended; see
 `Bugfix-Issue-1870-Rulebook-Rebase-X-Ours.md`).
 
 **Landing status correction (measured 2026-10-07, during #1870):** this issue was auto-closed with
@@ -89,9 +89,16 @@ missing `workflows` scope. Tracked as **#1872** (`bug`).
 
 ## Verification
 
-* grep gate: 0 `theirs` / 8 `ours` in `.github/workflows/`.
+Measured on the #1868 fix-branch copy (`7032a542e`, **never landed** — see the landing-status
+correction above); the default branch state is the opposite until #1872 lands:
+
+* grep gate, fix branch: 0 `theirs` / 8 `ours` in `.github/workflows/`.
+  grep gate, default branch measured 2026-10-07: **8 `theirs` / 0 `ours`** (still broken → #1872).
 * YAML gate: all 11 workflows parse via `yaml.safe_load`.
 * 2-strategy harness: `-X theirs` → 0/45 live lines; `-X ours` → 45/45 live lines.
-* Regression suite: `Regression — Issue #1868` appended to `tmp/TLU_Test_Cases.md`;
-  `TLU_REQUIRE_SUITE="Issue #1868" bash ai/verify_test_suites.sh` → 7 PASS / 0 FAIL.
+* Regression suite: `Regression — Issue #1868` was appended to `tmp/TLU_Test_Cases.md` **on the
+  #1868 branch only and never landed either** — the heading is absent from the default branch and
+  `TLU_REQUIRE_SUITE="Issue #1868" bash ai/verify_test_suites.sh` measured 2026-10-07 →
+  **6 PASS / 1 FAIL** ("own suite heading present (Issue #1868)" FAIL). Tracked with the rest of
+  the never-landed #1868 artifacts in #1872.
 * Event Viewer: not applicable (no TestLink PHP code touched; CI config only).
