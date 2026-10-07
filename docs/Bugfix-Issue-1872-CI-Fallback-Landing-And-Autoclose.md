@@ -21,7 +21,7 @@ the issue auto-close step claims "landed" from a purely local commit range.
   being rebased **onto** (`origin/$BRANCH`, the live newer side) and `theirs` = the commit being
   **replayed** (the runner's stale local copy), so every overlap resolves toward the STALE copy.
   The 8th site is the agent-instruction string in `modernize.yml:238`.
-* **Defect 2 — local-only close check.** `fix-bug.yml:261` (and 4 siblings) computed
+* **Defect 2 — local-only close check.** `fix-bug.yml:261` (pre-fix numbering; 4 siblings) computed
   `REFS="$(git log --oneline "$BEFORE"..HEAD | grep -i "#$ISSUE")"` — commits that failed to push
   still sat in local `HEAD` and satisfied the trigger, so `gh issue close … "landed"` fired on a
   rejected push (this is exactly how #1868 was falsely closed).
