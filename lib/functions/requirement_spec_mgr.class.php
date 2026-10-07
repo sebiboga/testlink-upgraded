@@ -181,8 +181,22 @@ class requirement_spec_mgr extends tlObjectWithAttachments
   	$my['options'] = array_merge($my['options'], (array)$options);
          
          
-      // First Step get ID of LATEST revision   
-  	$info = $this->get_last_child_info($id,array('output' => 'credentials') );       
+      // First Step get ID of LATEST revision
+  	$info = $this->get_last_child_info($id,array('output' => 'credentials') );
+      // get_last_child_info() returns null when the spec has no revision row
+      // (orphaned req_specs) or when $id is not a valid node id (its id guard
+      // inside that method). Reading ['id'] on that null raised an E_WARNING
+      // and the null then interpolated as an empty string built
+      // "... RSPEC_REV.id =  AND ..." -> SQL 1064 + a broken HTML response
+      // instead of JSON (issue #1714).
+      // Returning null is the documented contract of this method ("null if
+      // query fails") and every caller already treats null as "not found"
+      // (e.g. api/reqspec/index.php:1226). It also closes the raw
+      // "RSPEC.id = {$id}" interpolation below, which is only reached with a
+      // numeric id from here on.
+      if (!is_array($info) || !isset($info['id']) || !is_numeric($info['id'])) {
+          return null;
+      }
       $childID = $info['id'];
          
          
