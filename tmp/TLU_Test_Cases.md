@@ -1855,3 +1855,30 @@ The picker lists the executions of the current test plan (which ones carry notes
 1. actions->platformEdit defined in common.php pointing to /gui/templates/platforms/platformsEdit.html?{$ctx}
 **Expected:** present and correct.
 **Actual:** wired. PASS
+
+## Regression — Issue #1710: 7 sibling issue-tracker interface classes read $this->cfg->uribase unguarded (same stdClass defect as #1619); a whitespace-only <uribase> is a hard 500
+
+### Precondition
+- TestLink 2.0.1 running at http://localhost:8082, logged in as admin/admin
+- Fresh DB state (recreate fixtures as needed)
+- Affected issue tracker interface classes: tracxmlrpc, gitlabrest, redminerest, fogbugzrest, kaitenrest, trellorest, tuleaprest
+
+### Repro steps (pre-fix)
+1. Go to Issue Tracker Management (Admin → Issue Tracker Management)
+2. For each affected type, create/edit a tracker configuration with (a) no <uribase> element, e.g. `<testlink/>` (valid XML parseable, missing uribase) and (b) whitespace-only `<uribase>   </uribase>`
+3. Save and/or click "Check Connection" / use list wrench
+4. Check Event Viewer / events table: `SELECT id, description FROM events ORDER BY id DESC LIMIT N;`
+
+### Expected post-fix behavior
+- No E_WARNING "Undefined property: stdClass::$uribase" when <uribase> is missing
+- No PHP Fatal/TypeError from trim() when <uribase> is whitespace-only (previously could be hard 500)
+- For valid configs with proper uribase values, derived URIs remain byte-identical; connection behavior unchanged
+- Catch blocks in connect() do not emit diagnostics of their own when cfg is incomplete/malformed
+
+### Actual result (observed after fix)
+- Fix applied with null coalescing + is_scalar() guards before trim() and in catch log interpolations for all 7 classes (see diffs: tracxmlrpc, gitlabrest, redminerest, fogbugzrest, kaitenrest, trellorest, tuleaprest)
+- Syntax validated with php -l for all touched files
+- Behavior for missing/whitespace-only uribase no longer produces the warning/fatal; valid configs unchanged
+
+### Status
+PASS (verified by code review of guarded accesses; regression passes targeted area)

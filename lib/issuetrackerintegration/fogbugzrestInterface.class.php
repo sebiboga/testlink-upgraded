@@ -101,8 +101,9 @@ class fogbugzrestInterface extends issueTrackerInterface
       // CRITIC NOTICE for developers
       // $this->cfg is a simpleXML Object, then seems very conservative and safe
       // to cast properties BEFORE using it.
+      $uriBase = $this->cfg->uribase ?? '';
       $this->APIClient = new FogBugz((string)trim($this->cfg->username),(string)trim($this->cfg->password),
-                                     (string)trim($this->cfg->uribase));
+                                     (string)trim(is_scalar($uriBase) ? (string)$uriBase : ''));
       $this->APIClient->logon();
       $this->connected = true;
     }
@@ -111,7 +112,9 @@ class fogbugzrestInterface extends issueTrackerInterface
       $logDetails = '';
       foreach(array('uribase','username','password') as $v)
       {
-        $logDetails .= "$v={$this->cfg->$v} / "; 
+        // Issue #1710: guard cfg access
+        $val = $this->cfg->$v ?? '';
+        $logDetails .= "$v=" . (is_scalar($val) ? $val : '') . " / "; 
       }
       $logDetails = trim($logDetails,'/ ');
       $this->connected = false;
