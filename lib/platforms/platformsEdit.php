@@ -29,6 +29,19 @@ require_once('common.php');
 
 testlinkInitPage($db, false, false, null, true);
 
+// Refs #1871 (found while testing): the shim used to treat a write like a GET
+// and answer 302. Nothing here is state-changing, so refuse anything but a
+// safe read and keep this file from ever being used to smuggle a write past
+// the BFF's checks. Anonymous callers never reach this — testlinkInitPage()
+// -> checkSessionValid() already bounces them to the login screen first
+// (standard top.location JS redirect, same as every other legacy controller).
+if (isset($_SERVER['REQUEST_METHOD']) &&
+    !in_array(strtoupper($_SERVER['REQUEST_METHOD']), array('GET', 'HEAD'), true)) {
+    http_response_code(405);
+    header('Allow: GET, HEAD');
+    exit('Method Not Allowed');
+}
+
 $base = isset($_SESSION['basehref']) ? $_SESSION['basehref'] : '/';
 
 $tprojectID = 0;
