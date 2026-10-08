@@ -357,3 +357,60 @@ Precondition: fresh DB, admin session cookie via `POST /api/auth/login {"login":
    - Actual: only `LOGIN` (id=2) and fixture `CREATE` testprojects (id=1) rows. — **PASS**
 
 **Suite result: 9 PASS / 0 FAIL**
+
+## Regression — Issue #1877: casesWithoutTester Priority badge + header localization
+
+### Test Case 1877.1: Pre-fix baseline — raw tokens reproduced
+- Precondition: fresh DB this run; `php tmp/fixtures_1262.php` then `php tmp/fixtures_1874_cwt.php` → project `FTC1262` id=1 (priority enabled), testplan id=12, build id=2, 4 TCs linked, 0 executions, 0 user_assignments; logged in `admin`/`admin`.
+- Steps (pre-fix): `curl -b cookies 'http://localhost:8082/api/reports/index.php?action=cases_without_tester&tproject_id=1&tplan_id=12'` and open `gui/templates/results/casesWithoutTester.html?tproject_id=1&tplan_id=12&locale=ro`.
+- Expected (bug): API emits `priority_level` tokens `high/low/high/medium`; RO page cells read `high/low/high/medium`, header reads raw English `Priority`.
+- Actual: API payload exactly `priority_level:"high"|"low"|"high"|"medium"`; RO a11y snapshot cells `high, low, high, medium`, columnheader `Priority` while every other header is translated. **PASS (bug reproduced)** — screenshot `docs/screenshots/issue-1877-caseswithouttester-priority-raw-ro-pre.png`.
+
+### Test Case 1877.2: Post-fix RO — localized cells + header
+- Precondition: fix applied (`priorityBadge()` maps tokens via `search.*Importance`; header key `cwt.priority` added to all 10 bundles).
+- Steps: reload `...casesWithoutTester.html?tproject_id=1&tplan_id=12&locale=ro`.
+- Expected: header `Prioritate`; cells `Ridicată / Scăzută / Ridicată / Medie`.
+- Actual: header `Prioritate` (uid 3_43), cells `Ridicată, Scăzută, Ridicată, Medie` (uids 3_49/3_54/3_59/3_64). **PASS** — screenshot `docs/screenshots/issue-1877-caseswithouttester-priority-fixed-ro.png`.
+
+### Test Case 1877.3: Post-fix EN — labels + header
+- Steps: open `...casesWithoutTester.html?tproject_id=1&tplan_id=12` (locale English).
+- Expected: header `Priority`; cells `High / Low / High / Medium`.
+- Actual: header `Priority` (uid 4_43), cells `High, Low, High, Medium` (uids 4_49/4_54/4_59/4_64). **PASS** — screenshot `docs/screenshots/issue-1877-caseswithouttester-priority-fixed-en.png`.
+
+### Test Case 1877.4: Third-locale spot check (German)
+- Steps: open `...casesWithoutTester.html?tproject_id=1&tplan_id=12&locale=de`.
+- Expected: header + cells from the `de` bundle (`Priorität`, `Hoch/Niedrig/Mittel`).
+- Actual: columnheader `Priorität`; cells `Hoch, Niedrig, Hoch, Mittel`. **PASS**
+
+### Test Case 1877.5: Badge CSS classes/colors unchanged
+- Steps: after fix, `document.querySelectorAll('.priority-badge')` → className + computed background-color (RO).
+- Expected: classes `priority-high/medium/low` and colors identical to pre-fix (`#f5c6cb`, `#ffecb5`, `#d4edda`).
+- Actual: `priority-high` → `rgb(245,198,203)`, `priority-low` → `rgb(212,237,218)`, `priority-medium` → `rgb(255,236,181)`, labels localized. **PASS**
+
+### Test Case 1877.6: i18n bundle gates
+- Steps: `python3 -m json.tool gui/templates/i18n/<each>.json > /dev/null` for all 10 bundles, then `bash ai/verify_i18n_coverage.sh`.
+- Expected: all bundles well-formed; coverage gate PASS (0 missing vs `en.json`).
+- Actual: 10/10 well-formed; gate `PASS` ×9 bundles, 7031 keys, 0 missing, exit 0. **PASS**
+
+### Test Case 1877.7: `priority_enabled=0` path (column hidden, no JS error)
+- Precondition: `UPDATE testprojects SET options=replace(...,'testPriorityEnabled";i:1','...;i:0')` on project 1 (restored afterwards).
+- Steps: reload the RO/DE page.
+- Expected: no Priority column at all, table renders Testsuite/Testfall/Zusammenfassung cleanly, no console error.
+- Actual: 3 columns only, 4 rows rendered, no JS error. **PASS** (option restored to `i:1` and DB-verified).
+
+### Test Case 1877.8: Shared-key regression — freeTestCases (Issue #1874 fix) intact
+- Steps: `bash ai/verify_i18n_coverage.sh` (ensures `search.*Importance` keys untouched in all bundles) + `curl .../api/reports/index.php?action=free_testcases&tproject_id=1` + open `gui/templates/results/freeTestCases.html?tproject_id=1`.
+- Expected: `search.*Importance` keys present in all 10 bundles; screen loads HTTP 200 (its badge code untouched by this fix).
+- Actual: coverage gate PASS (keys present); API 200 (`has_data:false` — TCs are linked to the plan, so the free list is empty by design); screen 200. **PASS**
+
+### Test Case 1877.9: Event Viewer clean
+- Steps: `SELECT MAX(id), MAX(CASE WHEN log_level=2 THEN id END) FROM events;` after the whole post-fix browser pass.
+- Expected: no new Error/Warning rows caused by the fix.
+- Actual: max id 40 (LOGIN audit), max error id 31 — the 10 `testplan.class.php:718` E_WARNINGs fired at 14:19:46 during my EARLY fixture run against a broken half-migrated DB state (fixture-driven, pre-cleanup), none after the fix; post-fix browser pass added only audit rows. **PASS**
+
+### Test Case 1877.10: Console clean
+- Steps: `list_console_messages` on RO/EN/DE page loads after the fix.
+- Expected: no new JS errors.
+- Actual: only the pre-existing a11y lint `A form field element should have an id or name attribute` (locale `<select>`, present before the fix). **PASS**
+
+**Suite result: 10 PASS / 0 FAIL**
