@@ -157,8 +157,10 @@ class tlInputParameter extends tlObject
 				// An array is never a usable value for a scalar parameter, so it
 				// is treated as absent instead of being handed to trim()/intval()
 				// (which raise a PHP 8 TypeError - see #1720/#1738). Array-typed
-				// parameters (ARRAY_INT / ARRAY_STRING_N) keep expecting arrays.
-				if (is_array($value) && !($this->validationInfo instanceof tlArrayValidationInfo))
+				// parameters (ARRAY_INT / ARRAY_STRING_N) keep expecting arrays,
+				// and a parameter built with no validation info is left untouched.
+				if (is_array($value) && $this->validationInfo !== null
+				    && !($this->validationInfo instanceof tlArrayValidationInfo))
 				{
 					$value = null;
 					$fetched = false;

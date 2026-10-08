@@ -42,11 +42,12 @@ which is exactly the duplication a shared-layer fix removes.
 Two changes, both in the shared input layer:
 
 1. **`lib/functions/inputparameter.class.php` — `tlInputParameter::fetchParameter()`.**
-   When the fetched value is an array but the validation type is not a
+   When the fetched value is an array and a validation type is present that is not a
    `tlArrayValidationInfo`, mark the parameter as *not fetched* with value `null`:
 
    ```php
-   if (is_array($value) && !($this->validationInfo instanceof tlArrayValidationInfo))
+   if (is_array($value) && $this->validationInfo !== null
+       && !($this->validationInfo instanceof tlArrayValidationInfo))
    {
        $value = null;
        $fetched = false;
