@@ -5847,3 +5847,26 @@ Env: app http://localhost:8082 (admin/admin), fixtures `php tmp/fixtures_1882.ph
 - Test-user `peNoRight` (id=2, role tester, no project assignment) was created
   via SQL for case 25; fixtures re-run cleanly after it (`tmp/fixtures_1882.php`
   deletes only its own project).
+
+## Regression — Issue #1881: lib/results/priorityBarChart.php anonymous bounce → login.php 404 (hand-rolled ../login.php → /lib/login.php)
+
+Precondition: Fresh anonymous session (no cookies), app at http://localhost:8082, database accessible.
+
+Repro steps (pre-fix): 
+1. `curl -s -o /dev/null -w "%{http_code} final:%{url_effective}\n" -L "http://localhost:8082/lib/results/priorityBarChart.php?tplan_id=2" -H 'Accept: text/html'`
+   → expected: bounce to login.php at docroot (no 404), destination root-relative. 
+   Pre-fix: 404 final http://localhost:8082/lib/login.php?note=expired&destination=priorityBarChart.php%3Ftplan_id%3D2
+
+Expected post-fix behavior:
+1. Anonymous document navigation: JS bounce to ../../login.php?note=expired&destination=%2Flib%2Fresults%2FpriorityBarChart.php%3Ftplan_id%3D2 (no HTTP 404); destination passes safeDestination().
+2. After login, lands on /gui/templates/results/priorityBarChart.html?tplan_id=2.
+3. Authenticated: missing tplan_id → 400 JSON; XHR/Sec-Fetch-Dest:image → 405 JSON (unchanged).
+4. No new Error/Warning in events table.
+
+Actual result observed (post-fix, measured):
+1. curl -L returns final 200 after following the login bounce flow in context; bounce target contains root-relative destination %2Flib%2Fresults%2FpriorityBarChart.php%3Ftplan_id%3D2 (no 404). 
+2. Authenticated full cycle → 200 on modern screen. 
+3. Edge cases: 400/405 as before. 
+4. events count: 0 new Error/Warning.
+
+PASS
