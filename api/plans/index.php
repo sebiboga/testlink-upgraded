@@ -92,19 +92,24 @@ function rowAssignRolesRight($user, $db, $tproject_id, $hasRole) {
 }
 
 /**
- * Legacy action URL builder - mirrors testplan::getViewActions() so the
- * modern list keeps working with the still-legacy sub screens
+ * Action URL builder - mirrors testplan::getViewActions() for the sub screens
  * (planEdit/planExport/planImport/usersAssign/frmWorkArea).
  * URLs are root-absolute: the HTML screen lives under /gui/templates/plans/
  * so relative paths would resolve against the wrong directory.
+ *
+ * Refs #1882: managerURL/createAction/editAction now target the modernized
+ * full-screen Test Plan Create/Edit page (api/planedit BFF, enforces
+ * mgt_testplan_create). actionUrl() only appends the id when the base ends
+ * with '=', hence the trailing '=' on editAction.
  */
 function viewActions($tproject_id, $tplan_id = 0) {
     $ent = "tproject_id=" . intval($tproject_id) . "&tplan_id=" . intval($tplan_id);
     $entProj = "tproject_id=" . intval($tproject_id);
+    $pe = '/gui/templates/plans/planEdit.html?tproject_id=' . intval($tproject_id);
     return [
-        'managerURL'    => '/lib/plan/planEdit.php?' . $ent,
-        'createAction'  => '/lib/plan/planEdit.php?do_action=create&' . $ent,
-        'editAction'    => '/lib/plan/planEdit.php?do_action=edit&' . $ent . '&itemID=',
+        'managerURL'    => $pe,
+        'createAction'  => $pe,
+        'editAction'    => $pe . '&itemID=',
         'exportAction'  => '/gui/templates/plans/planExport.html?tproject_id=' .
                            intval($tproject_id) . '&tplan_id=',
         'importAction'  => '/gui/templates/plans/planImport.html?tproject_id=' .

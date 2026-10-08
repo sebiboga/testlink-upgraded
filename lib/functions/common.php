@@ -2274,6 +2274,13 @@ function getActions(&$gui,$baseURL) {
   $pp = $bb . '/plan';
   // Test Plan Management modernized screen (Dashio standalone page) - Refs #576
   $actions->planView = "/gui/templates/plans/planView.html?{$ctx}";
+  // Test Plan Create/Edit modernized screen (Dashio standalone page) - Refs #1882.
+  // Replaces the legacy plan/planEdit.php renderer. The screen is
+  // PROJECT-scoped (create works with tplan_id=0, the owning project comes
+  // from tproject_id), so it lives OUTSIDE the tplan_id guard below; the BFF
+  // (api/planedit) re-checks the legacy right mgt_testplan_create on every
+  // route and resolves/validates the project there.
+  $actions->planEdit = "/gui/templates/plans/planEdit.html?{$ctx}";
 
   $actions->buildView = null;
   $actions->mileView = null;

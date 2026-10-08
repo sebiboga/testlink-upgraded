@@ -61,6 +61,7 @@ table.hide-plat th:nth-child(6), table.hide-plat td:nth-child(6) { display:none 
   <span class="ctx"><span data-i18n="pv.testProject">Test Project</span>: <b id="tprojectName">-</b></span>
   <span style="flex:1"></span>
   <button class="btn-teal" id="btnCreate" style="display:none"><i class="fa fa-plus"></i> <span data-i18n="pv.createTestPlan">Create Test Plan</span></button>
+  <button class="btn-teal" id="btnCreateFull" style="display:none;background:#3dbdb5;"><i class="fa fa-file-lines"></i> <span data-i18n="pv.createFull">Create Test Plan (full screen)</span></button>
   <button class="btn-dark" id="btnActivateBulk" onclick="bulkActive(1)" style="display:none"><i class="fa fa-toggle-on"></i> <span data-i18n="pv.activatePlans">Activate Test Plans</span></button>
   <button class="btn-dark" id="btnInactivateBulk" onclick="bulkActive(0)" style="display:none"><i class="fa fa-toggle-off"></i> <span data-i18n="pv.inactivatePlans">Inactivate Test Plans</span></button>
 </div>
@@ -231,6 +232,12 @@ function load() {
       $('#btnCreate').off('click').on('click', function () {
         openPlanModal('create');
       });
+      // Refs #1882: full-screen create/edit page (api/planedit BFF) - parity
+      // entry mirroring buildsView's "Create Build (full screen)" button.
+      $('#btnCreateFull').toggle(canManage);
+      $('#btnCreateFull').off('click').on('click', function () {
+        location.href = 'planEdit.html?tproject_id=' + tprojectId;
+      });
       $('#btnActivateBulk').toggle(canManage);
       $('#btnInactivateBulk').toggle(canManage);
 
@@ -300,6 +307,11 @@ function render(items) {
       action += '<button class="act-btn del" title="' + esc(TLi18n.t('pv.deletePlan')) +
                 '" data-del-id="' + parseInt(tp.id, 10) + '">' +
                 '<i class="fas fa-trash-alt"></i></button>';
+      // Refs #1882: open the full-screen create/edit page for this plan
+      action += '<a class="act-btn" href="planEdit.html?tproject_id=' +
+                parseInt(tprojectId, 10) + '&itemID=' + parseInt(tp.id, 10) +
+                '" title="' + esc(TLi18n.t('pv.editFull')) + '">' +
+                '<i class="fas fa-external-link-alt"></i></a>';
     }
     action += '<a class="act-btn" href="' + esc(actionUrl('exportAction', tp.id)) +
               '" title="' + esc(TLi18n.t('pv.exportLinks')) + '"><i class="fas fa-file-export"></i></a>';
