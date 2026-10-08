@@ -327,6 +327,26 @@ screen reaches full parity.
   re-run matrix PASS, console clean, `php -l` + `node --check` clean, Event Viewer no new
   Error/Warning, test suite "Task — Issue #1099" 10/10 PASS. (Refs #1099)
 
+- [MODERNIZED SCREEN] - #1882: **Test Plan Create/Edit** (`lib/plan/planEdit.php` ->
+  `gui/templates/plans/planEdit.html` + `api/planedit/index.php`): the last full legacy Smarty
+  renderer in the Test Plan area (558 lines + 3 templates) is now a standalone Dashio screen with
+  create AND edit modes, the complete copy-from-an-existing-plan option set (test cases + version
+  type, priorities, milestones, user roles, builds, platform links, attachments, tester
+  assignments, tcversion_type), the read-only `api_key` with Copy, an attachments card
+  (upload/download/delete via `api/attachments`) and machine-code state cards. The BFF
+  `api/planedit/index.php` enforces `mgt_testplan_create` on the ADDRESSED project on every route
+  (session + same-origin proof) and answers 400/401/403/404/405/409 with machine codes; private
+  plans assign the creator's effective role like legacy, and audit events fire on create/save.
+  Entry points: `api/plans` viewActions links, a *Create Test Plan (full screen)* toolbar button
+  and per-row editor links on `planView.html`, plus `$actions->planEdit`. The legacy controller is
+  an 85-line GET/HEAD-only shim emitting `location.replace()` (POST 405, anonymous -> login with
+  destination). Closes the three planView-modal gaps #1117/#1118/#1119. 67 i18n keys in all 10
+  bundles (coverage gate PASS, 7098 keys); suite `Issue #1882` 41/41 PASS; 3 defects found by the
+  browser pass and fixed (`6009ade75`): the attachment upload posted plain `uploadedFile` (PHP 8
+  `count(string)` fatal -> empty 500), `copy_platforms_links` started enabled instead of legacy
+  checked+disabled, and the event-history link used `objectType=testplan` while events store
+  `testplans`. (Refs #1882)
+
 - [MODERNIZED SCREEN] - #1871: **Platform Create/Edit** (`lib/platforms/platformsEdit.php` ->
   `gui/templates/platforms/platformsEdit.html` + `api/platformedit/index.php`): the legacy Smarty
   create/edit form is now a standalone Dashio screen (mode cards, name/notes, the three legacy
@@ -8439,6 +8459,29 @@ Changes:
   (`common.generatedBy` exists in all 10 bundles, coverage gate PASS)
 - Test suite `Task — Issue #1103` in `tmp/TLU_Test_Cases.md` 9/9 PASS (match/no-match/missing-TC/reset/de locale/
   advanced path/#1102 grid regression); Event Viewer clean; mandatory code review no blockers
+### Screen — Test Plan Create/Edit standalone screen `planEdit` (Refs #1882)
+- `gui/templates/plans/planEdit.html` + `api/planedit/index.php`: the standalone 1.9.20
+  Create/Edit test plan screen (`lib/plan/planEdit.php` + `planEdit.tpl`/`planEditJS.inc.tpl`/
+  `inc_controls_planEdit.tpl`), a full Smarty render on every deep link until now; the planView
+  modal could never carry the copy-from block, the API key or the attachments (gaps #1117/#1118/#1119)
+- Full legacy parity: copy-from-an-existing-plan with the complete option set and gating
+  (`copy_tcases` gates version/priority rows and forces platform links checked+disabled,
+  `copy_builds` gates tester assignments), name unique per project (own name allowed on update),
+  private plan -> creator gets his effective role, audit_testplan_created/saved, attachments via
+  `api/attachments` (`table=testplans`), event-history deep link
+- BFF: `GET ?action=init` / `POST ?action=save`, session + `bffSameOriginGuard`,
+  `mgt_testplan_create` on the ADDRESSED project for every route; 400 PROJECT_MISMATCH /
+  401 / 403 / 404 PLAN_NOT_FOUND / 405 / 409 DUPLICATE_NAME with machine codes
+- Entry points switched: `api/plans` `viewActions()` (managerURL/createAction/editAction),
+  *Create Test Plan (full screen)* toolbar button + per-row editor links on `planView.html`,
+  `$actions->planEdit` in `lib/functions/common.php` (outside the tplan_id guard)
+- Legacy `lib/plan/planEdit.php` -> 85-line GET/HEAD-only shim emitting `location.replace()`
+  (POST 405, anonymous -> `login.php?note=expired&destination=…`, accepts `itemID` or `tplan_id`);
+  `do_delete` stays on planView's modal + `DELETE api/plans`
+- 67 `pe.*`/`pv.createFull`/`pv.editFull`/`footers.planEdit` keys in all 10 bundles
+  (coverage gate PASS); suite `Issue #1882` 41/41 in `tmp/TLU_Test_Cases.md`; 3 browser-pass
+  defects fixed in `6009ade75` (`uploadedFile[]`, platforms initial state, `objectType=testplans`)
+
 ### Screen — User Create/Edit standalone editor `usersEdit` (Refs #1880)
 - `gui/templates/usermanagement/usersEdit.html` + `api/usersedit/index.php`: standalone deep-link editor
   (`?mode=create|edit&user_id=N&tproject_id=P&tplan_id=L`) opened from the new *Open editor* toolbar button and
