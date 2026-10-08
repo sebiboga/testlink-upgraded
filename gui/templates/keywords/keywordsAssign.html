@@ -72,6 +72,7 @@ select.form-control-sm, input.form-control-sm { font-size:13px; height:31px; pad
     <select id="suiteSel" class="form-control form-control-sm"></select>
     <label class="radio-scope" id="scopeDeepWrap"><input type="radio" name="scope" value="deep" checked><span data-i18n="kwa.scopeDeep">entire subtree</span></label>
     <label class="radio-scope" id="scopeDirectWrap"><input type="radio" name="scope" value="direct"><span data-i18n="kwa.scopeDirect">only direct children</span></label>
+    <label class="radio-scope" id="scopeFilteredWrap"><input type="checkbox" id="useFilteredSet"><span data-i18n="kwa.assignToFilteredTestCases">assign to filtered test cases</span></label>
   </div>
   <div id="casePickWrap" style="display:none;">
     <label class="ctl" for="caseSel" data-i18n="kwa.testCase">Test Case</label>
@@ -127,6 +128,10 @@ $(function () {
   var p = new URLSearchParams(window.location.search);
   tprojectId = parseInt(p.get('tproject_id') || '0', 10);
   tplanId = parseInt(p.get('tplan_id') || '0', 10);
+  window._kwaQ = p;
+  window._kwaUseFiltered = (p.get('useFilteredSet') === '1' || p.get('use_filtered_set') === '1');
+  window._kwaFormToken = p.get('form_token') || p.get('ftoken') || '';
+  window._kwaTcasesCsv = p.get('tcases') || '';
   TLi18n.load(function () {
     TLi18n.apply();
     TLi18n.initLocaleSwitcher('#localeSwitcher');
@@ -195,6 +200,9 @@ function bindEvents() {
   $('input[name=scope]').on('change', function () {
     if (currentLevel === 'testsuite') { clearBoxes(); updateSubtitle(); checkSuiteEmpty(); }
   });
+  $('#useFilteredSet').on('change', function () {
+    if (currentLevel === 'testsuite') { clearBoxes(); updateSubtitle(); checkSuiteEmpty(); }
+  });
   $('#caseSel').on('change', loadCaseState);
   $('#mvRight').on('click', function () { transfer('#availBox', '#targetBox', false); });
   $('#mvRightAll').on('click', function () { transfer('#availBox', '#targetBox', true); });
@@ -216,6 +224,9 @@ function applyLevel() {
   if (isCase) {
     loadCases();
   } else {
+    if (window._kwaUseFiltered) {
+      $('#useFilteredSet').prop('checked', true);
+    }
     $('#execBadge').hide();
     clearBoxes();
     updateSubtitle();
@@ -245,6 +256,9 @@ function checkSuiteEmpty() {
 
 function scopeVal() {
   return $('input[name=scope]:checked').val() || 'deep';
+}
+function filteredState() {
+  return $('#useFilteredSet').is(':checked');
 }
 
 function loadCases() {
@@ -402,10 +416,19 @@ function suiteOp(mode) {
   var kws = mode === 'removeall' ? [] : boxItems('#targetBox').map(function (k) { return k.id; });
   if ((mode === 'add' || mode === 'remove') && !kws.length) { note('kwa.selectKwFirst'); return; }
   $('.actions button').prop('disabled', true);
-  $.post(API + '/suite', JSON.stringify({
+  var payload = {
       tproject_id: tprojectId, tsuite_id: sid, scope: scopeVal(),
       mode: mode, keywords: kws
-    }), null, 'json')
+    };
+  if (filteredState()) {
+    payload.use_filtered_set = true;
+    if (window._kwaFormToken) { payload.form_token = window._kwaFormToken; payload.ftoken = window._kwaFormToken; }
+    if (window._kwaTcasesCsv) {
+      var arr = window._kwaTcasesCsv.split(',').map(function(x){ return parseInt(x,10); }).filter(function(x){ return !isNaN(x) && x>0; });
+      if (arr.length) { payload.tcases = arr; }
+    }
+  }
+  $.post(API + '/suite', JSON.stringify(payload), null, 'json')
     .done(function (r) {
       $('.actions button').prop('disabled', false);
       if (r.status === 'empty') { note('kwa.emptySuite'); return; }

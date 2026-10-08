@@ -316,6 +316,24 @@ try {
             $tcs = $tsuiteMgr->get_testcases_deep($tsuite_id, 'only_id');
         }
 
+        // Optional filtered set support (parity with legacy useFilteredSet)
+        $filtered = null;
+        if (isset($body['tcases']) && is_array($body['tcases'])) {
+            $filtered = array_values(array_filter(array_map('intval', $body['tcases'])));
+        } elseif (!empty($body['use_filtered_set']) || !empty($body['useFilteredSet'])) {
+            $ft = $body['form_token'] ?? ($body['ftoken'] ?? null);
+            if ($ft !== null && isset($_SESSION['edit_mode']) && is_array($_SESSION['edit_mode'])
+                && isset($_SESSION['edit_mode'][$ft]) && is_array($_SESSION['edit_mode'][$ft])
+                && isset($_SESSION['edit_mode'][$ft]['testcases_to_show'])
+                && is_array($_SESSION['edit_mode'][$ft]['testcases_to_show'])) {
+                $filtered = array_values(array_filter(array_map('intval',
+                    $_SESSION['edit_mode'][$ft]['testcases_to_show'])));
+            }
+        }
+        if ($filtered !== null && !empty($filtered)) {
+            $tcs = array_values(array_intersect($tcs, $filtered));
+        }
+
         if (empty($tcs)) {
             echo json_encode(['status' => 'empty',
                 'reason' => 'no_test_cases',
