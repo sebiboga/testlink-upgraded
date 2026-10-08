@@ -17,6 +17,38 @@ Every screen of the application was ported one-by-one in a screen-compare
 kept for backward compatibility and is progressively retired as each modern
 screen reaches full parity.
 
+- [KEY BUGFIX] - #1719: **the legacy Priority Bar Chart launcher shim
+  (`lib/results/priorityBarChart.php`) refused EVERY real browser navigation with HTTP 405.**
+  The filed symptom - a fatal `require_once('../functions/results.class.php')` + `new results(...)`
+  from the dropped 1.9.20 report layer, HTTP 500 with a 0-byte body - had already been removed by
+  `ada46a5f9` (Refs #1845), which rewrote the file as a session-guarded shim redirecting to the
+  modern screen `gui/templates/results/priorityBarChart.html`. But the shim classified the caller
+  with `strpos($_SERVER['HTTP_ACCEPT'],'image/') !== false` (`priorityBarChart.php:74`), and
+  Chrome/Firefox/Edge **document** Accept headers carry `image/avif,image/webp,image/apng` tokens,
+  so the test fired on **100% of real navigations**: measured with the verbatim Chrome header set
+  AND 1:1 in headless Chrome, every browser got `405 modern_endpoint_only` JSON with no `Location`
+  instead of the redirect - the report was unreachable through its own legacy URL. The #1845 suite
+  hid it for 3 days because `tmp/suite_1845.py:209-212` forces `-H 'Accept: text/html'`, stripping
+  the offending tokens - a false PASS. Second, compounding defect (pre-existing, caught by this
+  run's mandatory code review): the file read `$_SERVER['SEC_FETCH_DEST']`, a key PHP never
+  populates (request headers arrive as `HTTP_*`), so every `Sec-Fetch-Dest` comparison in the file
+  was dead code - fixed to `HTTP_SEC_FETCH_DEST`, matching `reqSpecSearchForm.php:72`,
+  `reqSpecSearch.php:74`, `getreqmonitors.php:72`, `gettestcasesummary.php:97`,
+  `keywordsEdit.php:99`. Fix (negotiation block only, `:68-86`, +11/-2): a request is a document
+  navigation when `Sec-Fetch-Dest: document` **or** `Accept` contains `text/html` and can never be
+  refused; XHR / `dest=empty` / `dest=image` / an image-only `Accept` keep the documented 405
+  hard-fail contract (the 1.9.20 answer was PNG pixels); `iframe` stays redirectable (rejected the
+  sibling "refuse any present dest != document" pattern - 1.9.20 was a frames app). Verified:
+  Chrome-header curl 302 -> `-L` 200, real headless-Chrome navigation lands on
+  `priorityBarChart.html?tplan_id=3&tproject_id=1` with 0 console errors, `<img>`/fetch/XHR still
+  405, 400 gates intact, `python3 tmp/suite_1845.py` 71/71, Event Viewer 0 Warning/Error rows, BFF
+  aggregate byte-stable (6 versions, 1p/2f/1b/2-not-run). Regression suite `Issue #1719` (18 cases)
+  18/18 PASS, suite gate 7/7. A distinct residual defect found while testing - the anonymous bounce
+  at `:47` hand-rolls `../login.php`, which resolves to the non-existent `/lib/login.php` -> 404
+  instead of the login screen - was filed separately as **#1881** and deliberately not fixed here
+  (FIX-ISSUE.md §4 scope rule). Docs: `docs/Bugfix-Issue-1719-PriorityBarChart-Shim-Negotiation.md`
+  + wiki page of the same name + screenshot
+  `docs/screenshots/issue-1719-prioritybarchart-after.png`. (Fixes #1719)
 - [KEY BUGFIX] - #1877: **the modernized Test Cases Without Tester report
   (`casesWithoutTester.html`) showed raw/unlocalized text in its whole Priority column.**
   The BFF ships canonical tokens `high|medium|low` in `priority_level` by design
