@@ -8355,6 +8355,15 @@ Changes:
       project tables and added user metrics to the middle section
 
 ## 2.0.1 (in-progress)
+### Key bugfix (i18n) — freeTestCases Importance badges no longer show the raw `high|medium|low` value in every locale; the badge text now maps through the existing `search.lowImportance|mediumImportance|highImportance` keys (Fixes #1874)
+- `gui/templates/results/freeTestCases.html` `priorityBadge()` used the BFF's canonical token as the
+  visible badge text, so Romanian/German/… users saw `high`/`low`/`medium` next to translated headers
+  and filter options. The token now only selects the CSS class; the text goes through
+  `t('search.<x>Importance', …)`. Client-side only — sort (`impRank`) and the `^low|medium|high$`
+  LIST filter keep reading the raw datum, and no i18n bundle had to change (keys already existed in
+  all 10 locales). Restores the legacy `lang_get()` hop (`lib/results/freeTestCases.php:53-62`).
+  Regression suite `tmp/TLU_Test_Cases.md` (Issue #1874) 8/8 PASS, Event Viewer clean.
+
 ### Gap closed — Quick Search: the full legacy search-criteria form was dropped in `searchQuickView.html`, which exposed only the single quick-text box (Refs #1101)
 - `gui/templates/search/searchQuickView.html` now has an expandable "Advanced criteria" panel
   (`#btnAdv` toggle + `#advPanel`) re-implementing EVERY legacy `tcSearch.php?doAction=userInput`
