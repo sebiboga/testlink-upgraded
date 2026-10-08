@@ -17,6 +17,30 @@ Every screen of the application was ported one-by-one in a screen-compare
 kept for backward compatibility and is progressively retired as each modern
 screen reaches full parity.
 
+- [KEY BUGFIX] - #1877: **the modernized Test Cases Without Tester report
+  (`casesWithoutTester.html`) showed raw/unlocalized text in its whole Priority column.**
+  The BFF ships canonical tokens `high|medium|low` in `priority_level` by design
+  (`api/reports/index.php:2912-2915`, same contract as `free_testcases`), but the screen's
+  pre-#1874 copy of `priorityBadge()` (`gui/templates/results/casesWithoutTester.html:100-106`)
+  rendered the token as the visible text (`esc(level)`) in every locale — cells read
+  `high/low/medium` even in Romanian; and the column header called `t('priority','Priority')`
+  with a key that exists in NONE of the 10 locale bundles, so the header fell back to the
+  English literal `Priority` everywhere. Fix (client-side + 1 key × 10 bundles, mirrors the
+  accepted #1874 approach): `priorityBadge()` maps the token through the existing
+  `search.highImportance|mediumImportance|lowImportance` keys, and the header uses the new
+  screen-scoped `cwt.priority` (values = the already-translated `tnrap.priority` per locale);
+  rejected server-side localization (would change the shared JSON token contract) and
+  cross-screen key reuse (report column headers conventionally use their own `<screen>.`
+  prefix — `alx.thPriority`, `ato.thPriority`, `rtf.thPriority`, `ta2u.thPriority`,
+  `tnrap.priority`).
+  Verified RO/EN/DE (cells `Ridicată/Scăzută/Medie` + `Prioritate`, `High/Low/Medium` +
+  `Priority`, `Hoch/Niedrig/Mittel` + `Priorität`), badge classes/colors unchanged,
+  `priority_enabled=0` hides the column cleanly, `python3 -m json.tool` ×10 +
+  `ai/verify_i18n_coverage.sh` PASS (7031 keys × 9, 0 missing), console + Event Viewer
+  clean; regression suite `Issue #1877` (10 cases) 10/10 PASS, suite gate 7/7. Docs:
+  `docs/Bugfix-Issue-1877-casesWithoutTester-Priority-badge-localized.md` + wiki page
+  `Test-Cases-Without-Tester.md`. (Fixes #1877)
+
 - [KEY BUGFIX] - #1716: **`lib/ajax/getreqmgrsystemcfgtemplate.php` answered both of its
   `lang_get()` keys with the literal `LOCALIZE: <key>` developer marker and wrote a
   `log_level 32` LOCALIZATION row into the Event Viewer per session.**
