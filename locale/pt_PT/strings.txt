@@ -3838,6 +3838,8 @@ $TLS_reqmgrsystem_cfg_example = "Exemplo de configuração";
 $TLS_reqmgrsystem_check_ok = "Conexão está OK";
 $TLS_reqmgrsystem_check_ko = "Conexão não está OK, verifique a configuração";
 $TLS_check_reqmgrsystem_connection = "Verifique a Conexão";
+$TLS_reqmgrsystem_interface_not_implemented = "Exemplo de configuração não disponível: a interface '%s' não está implementada";
+$TLS_reqmgrsystem_invalid_type = 'Tipo de sistema de gestão de requisitos inválido: %s';
 $TLS_reqmgrsystem_management = "Gestão do Sistema de Gestão de Requisitos";
 
 // reqMgrSystemCommands.class.php

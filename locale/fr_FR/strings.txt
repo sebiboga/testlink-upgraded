@@ -3820,6 +3820,8 @@ $TLS_reqmgrsystem_cfg_example = "Exemple de configuration";
 $TLS_reqmgrsystem_check_ok = "La connexion est OK";
 $TLS_reqmgrsystem_check_ko = "La connexion est KO, vérifier la configuration";
 $TLS_check_reqmgrsystem_connection = "Vérifier la connexion";
+$TLS_reqmgrsystem_interface_not_implemented = "Exemple de configuration indisponible : l'interface '%s' n'est pas implémentée";
+$TLS_reqmgrsystem_invalid_type = 'Type de système de gestion des exigences non valide : %s';
 $TLS_reqmgrsystem_management = "Gestion du gestionnaire d’exigence";
 
 // reqMgrSystemCommands.class.php

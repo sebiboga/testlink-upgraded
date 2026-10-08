@@ -3959,6 +3959,8 @@ $TLS_reqmgrsystem_cfg_example = 'Configuratie voorbeeld';
 $TLS_reqmgrsystem_check_ok = "Connectie is OK";
 $TLS_reqmgrsystem_check_ko = "Connectie is KO, controleer configuratie";
 $TLS_check_reqmgrsystem_connection = "Controleer connectie";
+$TLS_reqmgrsystem_interface_not_implemented = "Configuratievoorbeeld niet beschikbaar: de interface '%s' is niet geïmplementeerd";
+$TLS_reqmgrsystem_invalid_type = 'Ongeldig type eisenbeheersysteem: %s';
 $TLS_reqmgrsystem_management = "Vereisten beheer systeem beheer";
 
 // reqMgrSystemCommands.class.php

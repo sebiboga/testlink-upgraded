@@ -17,6 +17,24 @@ Every screen of the application was ported one-by-one in a screen-compare
 kept for backward compatibility and is progressively retired as each modern
 screen reaches full parity.
 
+- [KEY BUGFIX] - #1716: **`lib/ajax/getreqmgrsystemcfgtemplate.php` answered both of its
+  `lang_get()` keys with the literal `LOCALIZE: <key>` developer marker and wrote a
+  `log_level 32` LOCALIZATION row into the Event Viewer per session.**
+  `reqmgrsystem_interface_not_implemented` (`:41`, hit on EVERY `?type=1` request — the only
+  registered system is `1 => contour/soap` and `contoursoapInterface.class.php` ships nowhere)
+  and `reqmgrsystem_invalid_type` (`:46`, hit by any other/absent `type`) were never added to
+  any of the 19 `locale/*/strings.txt` bundles, so `lang_get()` (`lang_api.php:118`) fell
+  through to `TL_LOCALIZE_TAG . $key` and `json_encode` shipped it to
+  `reqMgrSystemEdit.tpl`'s configuration-example pane. Fix: both keys added to all 19 bundles
+  with a single `%s` matching the `sprintf(..., $iname)` / `sprintf(..., $type)` call sites
+  (+2 lines per file, native translation everywhere, `php -l` clean 19/19 because the bundles
+  are `require`d as PHP by `lang_load()`); no PHP code changed. Verified: `?type=1`/`?type=99`/
+  bare URL in en_GB, it_IT and ru_RU return the translated sentence, and 4 fresh sessions ×
+  3 requests produce **0** new `log_level 32` rows. Regression suite `Issue #1716` (8 cases)
+  PASS; suite gate 7/7. While testing, a separate pre-existing defect was found and filed:
+  the bare-URL request logs `E_WARNING Undefined array key "type"` at line 23 (#1879).
+  (Fixes #1716, Refs #1879)
+
 - [KEY BUGFIX] - #1876: **the mandated suite gate `ai/verify_test_suites.sh` check 2b counted a
   restored EOF newline as "1 line removed", so EVERY append to `tmp/TLU_Test_Cases.md` failed
   while the baseline is unterminated.** The clobber lineage (#1849/#1851) left the shared suite

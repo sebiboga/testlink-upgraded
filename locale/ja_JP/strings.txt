@@ -4233,6 +4233,8 @@ $TLS_reqmgrsystem_cfg_example = '設定例';
 $TLS_reqmgrsystem_check_ok = "接続 OK";
 $TLS_reqmgrsystem_check_ko = "接続できません。設定を確認してください";
 $TLS_check_reqmgrsystem_connection = "接続テスト"; // "Check connection";
+$TLS_reqmgrsystem_interface_not_implemented = "設定例は利用できません：'%s' インターフェースは実装されていません";
+$TLS_reqmgrsystem_invalid_type = '無効な要求管理システムのタイプです：%s';
 $TLS_reqmgrsystem_management = "要件管理システム管理";
 
 // reqMgrSystemCommands.class.php

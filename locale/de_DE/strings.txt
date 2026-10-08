@@ -3644,6 +3644,8 @@ $TLS_reqmgrsystem_cfg_example = 'Konfigurations-Beispiel';
 $TLS_reqmgrsystem_check_ok = "Verbindung is OK";
 $TLS_reqmgrsystem_check_ko = "Verbindung is KO, überprüfe Konfiguration";
 $TLS_check_reqmgrsystem_connection = "Überprüfe Verbindung";
+$TLS_reqmgrsystem_interface_not_implemented = "Konfigurationsbeispiel nicht verfügbar: das Interface '%s' ist nicht implementiert";
+$TLS_reqmgrsystem_invalid_type = 'Ungültiger Typ für das Anforderungs-Management-System: %s';
 $TLS_reqmgrsystem_management = "Anf. Management System Management";
 
 // reqMgrSystemCommands.class.php
