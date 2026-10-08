@@ -5870,3 +5870,123 @@ Actual result observed (post-fix, measured):
 4. events count: 0 new Error/Warning.
 
 PASS
+### Expected post-fix behavior
+- Every row control folds `DEAD` into its disabled state: `.rm`, `[data-mv]`, `.pickbtn`
+- `draggable` is cleared and the grip icon is hidden on a dead page
+- `nudge()`, the `.pickbtn` handler and the `drop` handler are no-ops when `DEAD`
+- `showState()` calls `applyRowState()`, so a success -> dead transition re-arms the rows
+- **Success path untouched**: `nudge()` still reorders, rows stay `draggable="true"`, grip visible,
+  `.pickbtn` enabled, only the boundary buttons (top row Up/To top, bottom row Down/To bottom)
+  disabled as before
+
+### Actual result observed (verified on `fix/issue-1688`)
+| Case | Probe | Measured | Verdict |
+|---|---|---|---|
+| TC-1688-12 | Success path (pre-transition) as `admin` | `DEAD:false`, `draggable:["true","true"]`, `grip` display `["inline","inline"]`, `.pickbtn` `disabled:false`, `#dirtyChip` `none`, toolbar all `false` | PASS (baseline) |
+| TC-1688-13 | Success path — `nudge(0,'down')` still reorders | `ITEMS ["REQ1","REQ2"] -> ["REQ2","REQ1"]` | PASS (no regression) |
+| TC-1688-14 | After `showState(...)`: row `draggable` | `"false"` on every row | PASS |
+| TC-1688-15 | After `showState(...)`: grip icon `display` | `"none"` on every row | PASS |
+| TC-1688-16 | After `showState(...)`: `.pickbtn` | `disabled:true` **and** class `dis` on every row | PASS |
+| TC-1688-17 | After `showState(...)`: `[data-mv]` / `.rm` | every button `disabled:true` | PASS |
+| TC-1688-18 | After `showState(...)`: `nudge(0,'down')` + `nudge(0,'top')` + `.pickbtn.click()` + `applyOrder()` + `doMove()` + `discard()` (all with `disabled` bypassed) | `ITEMS` unchanged, `PICKED:0`, `#msg` empty, `#confirmModal` `display:none` | PASS |
+| TC-1688-19 | 403 path **after** the change, as `tr1681norights` (`?tproject_id=13&req_spec_id=16`) | `DEAD:true`, code `no_right`, all 6 toolbar controls `disabled:true`, `#refreshBtn:false`, `roBanner` hidden, `dragHint` hidden, cards `none`/`none`/`none` + `state:block`, handlers + real click produce no message and no modal | PASS |
+| TC-1688-20 | 405 path (`showState('x','HTTP_405')`) | `DEAD:true`, `#applyBtn` `disabled:true` | PASS |
+| TC-1688-21 | Event Viewer / `events` after the whole pass | `SELECT COUNT(*) FROM events WHERE log_level IN (0,1,2)` -> **0** | PASS |
+
+### Test execution
+- [PASS] TC-1688-12 .. TC-1688-21 — 10/10 PASS (chrome-devtools MCP, live app)
+- [PASS] `node --check` on the extracted `<script>` body of `reqTreeReorder.html` after the edit
+- [PASS] Merge-base gate: `TLU_REQUIRE_SUITE="Issue #1688" bash ai/verify_test_suites.sh`
+
+### Notes
+- Code change in `gui/templates/requirements/reqTreeReorder.html` (+13 −5), all in the same class:
+  - `applyRowState()` — `DEAD` added to the `.rm` condition and to the `[data-mv]` `dis`
+    computation; new `DEAD` term for `.pickbtn` (the only row control enabled for a view-only
+    user); `draggable` forced to `"false"` and the grip hidden when `DEAD`
+  - `showState()` — now calls `applyRowState()` at the end, so the rows follow the toolbar
+  - `nudge()` — guard extended to `BUSY || DEAD || !GRANT.modify`
+  - the `.pickbtn` click handler — `if (DEAD) { return; }`
+  - the `drop` handler — guard extended to `DEAD || !GRANT.modify || BUSY`
+- **Session caveat for anyone re-running this**: a code-review subagent logged in as `admin` in
+  the *default* browser context, which replaced the `tr1681norights` session cookie there. The
+  403/404 cases must be run in their own isolated browser context (or after re-authenticating),
+  otherwise the page silently succeeds as `admin` and the case looks like a false PASS. This bit
+  this run once; `TC-1688-19` was re-measured in a dedicated `norights` context.
+
+## Regression — Issue #1821: cfieldsTprojectAssign.html 'Check / uncheck all' is dead
+
+**Precondition** — the freshly imported DB contains **no** test projects at all
+(`select id from testprojects` → empty), so both tables render empty and the master checkbox
+has nothing to act on. A fixture is mandatory:
+
+```bash
+php tmp/fixtures_1821.php     # tproject 'CFA 1821' (prefix CFA1)
+                              #   linked   : CFA1821L1 (string, design), CFA1821L2 (checkbox, design)
+                              #   available: CFA1821A1, CFA1821A2
+```
+
+Log in `admin/admin`, then open
+`http://localhost:8082/gui/templates/cfields/cfieldsTprojectAssign.html?tproject_id=<id>`.
+
+**NOTE on the fixture** — `cfield_mgr::link_to_testproject($tproject_id, $cfield_ids)`
+(`lib/functions/cfield_mgr.class.php:1064`) takes the project id **first**. Passing the field
+id first silently links the wrong field and additionally raises
+`E_WARNING Trying to access array offset on null - in lib/functions/cfield_mgr.class.php - Line 1085`
+(line 1085 does `$cf[$field_id]['name']` on a key that is not there). That warning is an
+artefact of a badly-called fixture, **not** a product defect: the screen's own Assign button
+performs the same assignment through the BFF and logs level-16 INFO only.
+
+### Pre-fix behaviour (replayed live in the page against the real DataTable instances)
+
+Both spellings of the removed call throw, and the method exists on **no** receiver in 1.13.7:
+
+```
+dtLinked.rows().every(function(r){ r.invalidateSearch(); });
+  -> TypeError: r.invalidateSearch is not a function
+dtLinked.rows().toArray()[0].invalidateSearch();
+  -> TypeError: dtLinked.rows(...).toArray(...)[0].invalidateSearch is not a function
+
+jQuery.fn.dataTable.version                                       = "1.13.7"
+typeof dtLinked.row(0).invalidateSearch                           = "undefined"
+typeof dtLinked.rows().invalidateSearch                           = "undefined"
+```
+
+Because the throw preceded `$rows.each()`, nothing ticked and `syncSelState()` never ran —
+the header checkbox was a complete no-op, one console `TypeError` per click, no XHR issued
+(nothing server-side to call).
+
+**Expected post-fix** — the master checkbox ticks/unticks every rendered row of its own table,
+the `(n)` counter and the Assign/Unassign enablement follow, and no console error appears.
+
+| # | Step | Expected / observed | Result |
+|---|---|---|---|
+| TC-1821-01 | Load the screen with the fixture | Both tables render: linked `2 rows`, available `2 rows`; `btnUnassign` + `btnAssign` both `disabled`; selection counters absent/empty | PASS |
+| TC-1821-02 | Probe the DataTables instance for the removed method | `typeof dtLinked.row(0).invalidateSearch === "undefined"`, `typeof dtLinked.rows().invalidateSearch === "undefined"`, `jQuery.fn.dataTable.version === "1.13.7"` — confirms the call had no valid receiver in any wrapper | PASS |
+| TC-1821-03 | Replay the pre-fix line live | `dtLinked.rows().every(r => r.invalidateSearch())` → `TypeError`; `dtLinked.rows().toArray()[0].invalidateSearch()` → `TypeError` | PASS (bug reproduced) |
+| TC-1821-04 | **Check all** on the linked table (`#chkAllLinked`) | `linked: 2 rows, 2 checked`; button label `Unassign (2)`; `btnUnassign` → `enabled`; `btnAssign` stays `disabled` | PASS |
+| TC-1821-05 | **Uncheck all** on the linked table | `linked: 2 rows, 0 checked`; `btnUnassign` → `disabled`; `btnAssign` stays `disabled` | PASS |
+| TC-1821-06 | **Check all** on the available table (`#chkAllAvailable`) | `available: 2 rows, 2 checked`; button label `Assign (2)`; `btnAssign` → `enabled`; the linked table is untouched (0 checked) — the two masters are independent | PASS |
+| TC-1821-07 | **Uncheck all** on the available table | `available: 2 rows, 0 checked`; `btnAssign` → `disabled` | PASS |
+| TC-1821-08 | Both masters in one pass, then both cleared | check → `linked 2/2` + `available 2/2`, `btnUnassign=enabled`, `btnAssign=enabled`, labels `Unassign (2)` / `Assign (2)`; uncheck → back to `0/0` and both `disabled` | PASS |
+| TC-1821-09 | **Redraw edge case** — after checking all, force a DataTables redraw: `dtLinked.order([[1,'asc']]).draw(false)` | Selection and `btnUnassign=enabled` **survive** the sort — nothing is lost by dropping `invalidateSearch()` (the stated motive of the removed call) | PASS |
+| TC-1821-10 | Console across TC-1821-04..09 | `list_console_messages` filtered to `error`+`warn` → **no console messages found** (pre-fix this was one `TypeError` per click) | PASS |
+| TC-1821-11 | **End-to-end**: check all on Available → `Assign (2)` → click | fields migrate to the linked table (linked badge `2`→`4`, available badge `2`→`0`, empty state *"Every custom field is already assigned to this test project."*), toast `3 custom field(s) assigned.`; no error | PASS |
+| TC-1821-12 | Event Viewer / `events` after the whole pass | `SELECT COUNT(*) FROM events WHERE log_level<>16` adds **no** new row; the UI Assign path logs level-16 INFO only (ids 6,7,8). The single stale level-2 row (id 3, 06:35:57) is the bad-argument-order fixture artefact described above, produced before the fixture was corrected and not reproducible with the corrected call | PASS |
+
+### Test execution
+- [PASS] TC-1821-01 .. TC-1821-12 — 12/12 PASS (chrome-devtools MCP, live app at :8082)
+- [PASS] TC-1821-03 re-confirms the reported symptom is genuinely reproducible (not a stale-report artefact)
+- [PASS] No `gui/templates/i18n/*.json` bundle touched by this fix — the fix removes code and adds no user-facing string, so there is no JSON to validate
+- [PASS] Merge-base gate: `TLU_REQUIRE_SUITE="Issue #1821" bash ai/verify_test_suites.sh`
+
+### Notes
+- The two fix commits (`0df8f57f7`, `d9969d57a`) were already on `origin/sebiboga` when this run
+  started; the issue was left open without a suite, a docs page or a verification trail. This
+  suite, the fixture, `docs/` and the wiki entry are what this run adds.
+- The earlier comment on the issue states `invalidateSearch()` exists on the Row API instance in
+  1.13.7. **That is incorrect** — measured `undefined` (TC-1821-02). It was renamed to
+  `row.invalidate('search')` in DataTables 1.11. This is why the fix removes the call instead of
+  relocating it, and why relocating it to `rows()` or to the Row node did not work.
+- `data-group="linked"` / `data-group="available"` and the ids `chkAllLinked` /
+  `chkAllAvailable`, `btnAssign`, `btnUnassign` are the stable selectors for this screen; use them
+  instead of the a11y-tree labels, which change with the surrounding badges.
