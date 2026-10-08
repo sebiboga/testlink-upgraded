@@ -10457,3 +10457,6 @@ strips the badge box's own classes. Suite `Issue #1807` in
 - Refs #1809: execNotesPicker.html + api/execnotespicker — new Execution Notes picker screen; $actions->execNotesPicker + ASIDE section 9 leaf; readonly screen missing-exec_id state now links here; enp.*/enro.pickExecution/footers.execNotesPicker in all 10 bundles.
 2.0.1 / 2026-10-08
 - Refs #1075: printReqSpec — print_init defaults all 16 print options ON (legacy full-document parity); Issue #1075 test suite restored to tmp/TLU_Test_Cases.md after c5c8ca1d2 clobbered it during the task/issue-1075 merge.
+
+2026-10-08 (issue #1878)
+- Admin top-menu entry (cfg/const.inc.php guiTopMenu[6], right mgt_users, title_admin) now points to gui/templates/usermanagement/usersView.html instead of the full legacy renderer lib/usermanagement/usersView.php. The legacy controller was converted to a session-guarded, non-mutating 302 shim (browser GET → modern screen with tproject_id/tplan_id and optional operation/user_id forwarded; anonymous → login.php?note=expired). The modern screen + api/users already existed for the ASIDE Users entry. Cross-checks confirmed no active code references the legacy URL from modern surfaces; browser navigation and anonymous/forwarding paths verified; Event Viewer clean. Test suite 1878 added to tmp/TLU_Test_Cases.md. Ledger row updated. (Refs #1878)
