@@ -227,7 +227,7 @@ function GPR_PARAM_STRING_N($inputSource,$name,$minLen = null,$maxLen = null,$re
     $pInfo = new tlParameterInfo($inputSource,$name);
 	  $iParam = new tlInputParameter($pInfo,$vInfo);
 	}
-  catch (Exception $e)  
+  catch (Throwable $e)  
   {  
     echo 'Input name: ' . $name . ' :: Exception ' . $e->getMessage();
     exit();

@@ -152,6 +152,17 @@ class tlInputParameter extends tlObject
 			{
 				$value = $src[$parameterName];
 				$fetched = true;
+
+				// PHP turns ?name[]=x into an array in $_GET/$_POST/$_REQUEST.
+				// An array is never a usable value for a scalar parameter, so it
+				// is treated as absent instead of being handed to trim()/intval()
+				// (which raise a PHP 8 TypeError - see #1720/#1738). Array-typed
+				// parameters (ARRAY_INT / ARRAY_STRING_N) keep expecting arrays.
+				if (is_array($value) && !($this->validationInfo instanceof tlArrayValidationInfo))
+				{
+					$value = null;
+					$fetched = false;
+				}
 			}
 		}
 		$this->bFetched = $fetched;
