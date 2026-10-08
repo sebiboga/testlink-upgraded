@@ -176,3 +176,8 @@ ai/verify_i18n_coverage.sh: PASS 9/9 bundles
 - Steps: `mysql ... -e "SELECT id,log_level,description FROM events ORDER BY id DESC LIMIT 5;"` after all of the above.
 - Expected: no `log_level` 1 (ERROR) or 2 (WARNING) rows newer than the pre-fix baseline id=4.
 - Actual: newest rows are `6 (16, audit_login_succeeded)`; the only `log_level 2` row in the table is the pre-fix `id=4` created in 1879.1. **PASS**
+
+### Test Case 1879.6: Edge inputs (array value, bare key, explicit 0) stay silent
+- Steps: GET `?type[]=x`, `?type` (key with no `=`), `?type=0` after the fix.
+- Expected: each `200` with a sane body, **0** new `events` rows (`intval()` on an array returns 1/0 silently on PHP 8.3; the key exists, so no `Undefined array key` either).
+- Actual: `type[]=x` → `LOCALIZE: reqmgrsystem_interface_not_implemented` (array → 1), `type` and `type=0` → `LOCALIZE: reqmgrsystem_invalid_type`, all `[200]`; `SELECT ... WHERE id > <baseline>` → **no rows**. **PASS**
