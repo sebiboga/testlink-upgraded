@@ -227,3 +227,39 @@ which already parsed all of them):
 - `api/search/index.php` — unchanged (already supported every filter).
 - i18n: `search.advancedCriteria`, `search.quickIgnoredTc`, `search.quickIgnoredName`,
   `search.jollySupersedes`, reused `search.prefixIgnored`/`search.filterModeAnd` in all bundles.
+
+---
+
+## Results grouped by test suite + grid toolbar (legacy ExtTable parity, Refs #1102)
+
+The quick-search results were a **flat** DataTable: the suite path was one plain
+column, there was no grouping, no collapsible group headers, no grid toolbar and
+the default order was the suite path ascending — while legacy
+`lib/testcases/tcSearch.php:339-353` (`buildExtTable`) configured the results
+ExtTable with `setGroupByColumnName('test_suite')`, `setSortByColumnName('test_case')`
++ `sortDirection='DESC'`, `showToolbar=true` and `allowMultiSort=false`.
+
+The gap is closed on `gui/templates/search/searchQuickView.html` with the same
+port already done for `searchView.html` (#1092):
+
+| Legacy (1.9.20) | Modern (2.0.1) |
+|---|---|
+| `setGroupByColumnName('test_suite')` | DataTables RowGroup `dataSrc:'path'` |
+| `groupTextTpl '{text} (N Items)'` (`exttable.class.php:591`) | teal `tr.dtrg-group` header `Alpha (2 Items)` / `Alpha/A1 (1 Item)` |
+| ExtJS group-header click toggles that group | click a group header → that group expands/collapses (presence-based `collapsedGroups` key deleted on expand, same contract as `searchView.html:273`) |
+| `hideGroupedColumn=true` (`exttable.class.php:55`) | Test Suite column hidden while grouped + **Show all Columns / Hide Test Suite column** toolbar toggle |
+| `showToolbar=true` → **Expand/Collapse Groups** + **Reset Filters** (`inc_ext_table.tpl:187-206`, `:292-302`; refresh/show-all-columns/default-state disabled by `tcSearch.php:347-353`) | `#gridToolbar` with **Expand/Collapse Groups** + **Reset Filters** (clears the result-grid filter, legacy `grid.filters.clearFilters()`) + the column toggle |
+| `setSortByColumnName('test_case')`, `DESC`, `allowMultiSort=false` | `order: [[path,'asc'],[testcase,'desc']]`, `orderMulti:false`, `pinGroupOrder()` keeps the group column primary |
+| — | plain-`<tbody>` fallback still renders the group headers when the DataTables CDN is down (Refs #799) |
+
+**BFF:** unchanged — `api/search/index.php` already returns `path` per row.
+
+**i18n:** `sv.grid.resetFilters` + `sv.grid.filtersCleared` added to all 10 locale
+bundles (the other `sv.grid.*` keys exist since #1092); `bash ai/verify_i18n_coverage.sh`
+9/9 green.
+
+**Test suite:** `Task — Issue #1102` in `tmp/TLU_Test_Cases.md` — 8 cases, all PASS.
+
+**Screenshots**
+
+![Quick Search - grouped results](issue-1102-searchquickview-grouped-after.png)
