@@ -1923,6 +1923,16 @@ function getActions(&$gui,$baseURL) {
 
   $actions->userMgmt = "/gui/templates/usermanagement/usersView.html?{$ctx}";
 
+  // User Create/Edit modernized screen (Dashio standalone page) - Refs #1880.
+  // Replaces the legacy lib/usermanagement/usersEdit.php renderer - the LAST
+  // full legacy Smarty screen still served in the User Management area - which
+  // was only reachable through its do_action create|edit deep links while the
+  // modern User Manager offered create/edit only as an inline modal (no
+  // addressable URL to hand a legacy link over to). The legacy right
+  // (checkRights() = hasRight("mgt_users")) is enforced by api/usersedit on
+  // every route; the legacy controller is now a session-guarded redirect shim.
+  $actions->usersEdit = "/gui/templates/usermanagement/usersEdit.html?{$ctx}";
+
   $actions->userInfo = "/gui/templates/usermanagement/userInfo.html?{$ctx}";
   // Test Project Management modernized screen (Dashio standalone page) -
   // Refs #640. Legacy right (mgt_modify_product) is enforced by the BFF on

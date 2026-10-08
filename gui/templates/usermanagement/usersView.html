@@ -73,6 +73,10 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
 <div id="mainLayout">
 <div class="toolbar">
   <button class="btn-teal" id="btnCreateUser" onclick="showCreateModal()"><i class="fa fa-plus"></i> <span data-i18n="user.createUser">Create User</span></button>
+  <!-- Refs #1880: deep-linkable User Create/Edit page (legacy
+       lib/usermanagement/usersEdit.php do_action create|edit contract),
+       backed by api/usersedit - mirrors platformsView's "Open editor". -->
+  <button class="btn-teal" id="btnUserEditor" onclick="openUserEditor(0)" style="display:none"><i class="fa fa-external-link-alt"></i> <span data-i18n="user.openEditor">Open editor</span></button>
   <button class="btn-teal" onclick="gotoExport()"><i class="fa fa-file-export"></i> <span data-i18n="user.export">Export</span></button>
   <span style="border-left:1px solid #444;height:26px;"></span>
   <form onsubmit="return manageUser()" style="display:inline-flex;gap:8px;align-items:center;margin:0;">
@@ -464,6 +468,24 @@ function loadMeta(cb) {
 function applyDemoMode() {
   $('#demoBanner').toggle(demoMode);
   $('#btnCreateUser').toggle(!demoMode);
+  // Refs #1880: the standalone editor writes through api/usersedit too, so
+  // it gets the same demo-mode gate as every other write entry point.
+  $('#btnUserEditor').toggle(!demoMode);
+}
+
+// Refs #1880: standalone User Create/Edit screen - the deep link the legacy
+// usersEdit.php?operation=create|edit&user_id=N URLs now resolve to.
+// userId = 0 opens the create form, otherwise the edit form of that user.
+function openUserEditor(userId) {
+  if (sessionDead) { return; }
+  var p = new URLSearchParams(window.location.search);
+  var tproject_id = parseInt(p.get('tproject_id') || '0', 10);
+  var tplan_id = parseInt(p.get('tplan_id') || '0', 10);
+  var target = '/gui/templates/usermanagement/usersEdit.html?mode=' +
+    (userId > 0 ? 'edit&user_id=' + userId : 'create');
+  if (tproject_id > 0) { target += '&tproject_id=' + tproject_id; }
+  if (tplan_id > 0) { target += '&tplan_id=' + tplan_id; }
+  window.location.href = target;
 }
 
 function applyDemoModal() {
@@ -505,6 +527,9 @@ function renderTable(items) {
       expirationDate: u.expirationDateFormatted || u.expirationDate || '',
       actions:
         '<i class="fa fa-edit action-btn" title="Edit" onclick="editUser(' + u.id + ')"></i>' +
+        (!demoMode
+          ? '<i class="fa fa-external-link-alt action-btn" title="' + TLi18n.t('user.openEditor') + '" onclick="openUserEditor(' + u.id + ')"></i>'
+          : '') +
         (!demoMode && canResetPassword(u)
           ? '<i class="fa fa-key action-btn" title="' + TLi18n.t('user.resetPassword') + '" onclick="resetPassword(' + u.id + ')"></i>'
           : '') +

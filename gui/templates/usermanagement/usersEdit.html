@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title data-i18n="ued.header">User</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+  * { box-sizing: border-box; }
+  body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+  .header { align-items: center; background: #4ECDC4; color: #fff; display: flex; font-size: 20px; font-weight: 700; gap: 10px; letter-spacing: 1px; padding: 14px 24px; }
+  .header .sub { font-size: 13px; font-weight: 400; opacity: .85; margin-left: 12px; }
+  .toolbar { align-items: center; background: #22242a; display: flex; gap: 12px; padding: 12px 24px; flex-wrap: wrap; }
+  .toolbar .ctx { color: #bbb; font-size: 13px; }
+  .toolbar .ctx b { color: #fff; }
+  .toolbar .spacer { flex: 1; }
+  .btn-teal { background: #4ECDC4; border: none; border-radius: 4px; color: #fff; cursor: pointer; font-size: 13px; font-weight: 600; padding: 7px 18px; }
+  .btn-teal:hover { background: #3dbdb5; }
+  .btn-red { background: #e05a5a; border: none; border-radius: 4px; color: #fff; cursor: pointer; font-size: 13px; font-weight: 600; padding: 7px 18px; }
+  .btn-red:hover { background: #c94b4b; }
+  .btn-dark { background: #34363d; border: none; border-radius: 4px; color: #ddd; cursor: pointer; font-size: 13px; font-weight: 600; padding: 7px 18px; }
+  .btn-dark:hover { background: #44464e; }
+  button:disabled { cursor: not-allowed; opacity: .5; }
+  button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid #f2c94c; outline-offset: 2px; }
+  .main { margin: 0 auto; max-width: 860px; padding: 20px 16px 8px; }
+  .card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin-bottom: 18px; overflow: hidden; }
+  .card-head { align-items: center; background: #22242a; color: #fff; display: flex; font-size: 15px; font-weight: 700; gap: 10px; padding: 12px 20px; }
+  .card-head .btn-teal, .card-head .btn-dark, .card-head .btn-red { margin-left: auto; }
+  .context-grid { display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); margin-bottom: 20px; }
+  .context-item { background: #f8fafb; border: 1px solid #d7dee2; border-left: 4px solid #4ECDC4; border-radius: 6px; padding: 10px 12px; }
+  .context-item .label { color: #5f6367; display: block; font-size: 11px; margin-bottom: 4px; text-transform: uppercase; }
+  .context-item .value { color: #22242a; display: block; font-size: 14px; font-weight: 700; overflow-wrap: anywhere; }
+  .form-table { border-collapse: collapse; width: 100%; }
+  .form-table td { border-top: 1px solid #eef0f2; padding: 14px 20px; vertical-align: top; }
+  .form-table tr:first-child td { border-top: 0; }
+  .form-table td.label-cell { color: #22242a; font-size: 13px; font-weight: 700; width: 220px; }
+  .form-table td.label-cell i { color: #2d8e88; margin-right: 7px; }
+  input[type=text], input[type=password], input[type=email], input[type=date], select {
+    background: #fff; border: 1px solid #ccc; border-radius: 4px; color: #333; font-family: inherit;
+    font-size: 13px; padding: 8px 10px; width: min(100%, 460px);
+  }
+  select { height: 35px; }
+  input[type=text]:focus, input[type=password]:focus, input[type=email]:focus, input[type=date]:focus, select:focus {
+    border-color: #4ECDC4; box-shadow: 0 0 0 2px rgba(78,205,196,.25); outline: 0;
+  }
+  input.is-invalid { border-color: #c33f3d; }
+  .hint { color: #62666a; font-size: 12px; margin-top: 5px; }
+  .error { color: #a72f2d; display: none; font-size: 12px; margin-top: 6px; }
+  .check-row { display: flex; align-items: flex-start; gap: 9px; }
+  .check-row input { margin-top: 3px; }
+  .check-row label { font-size: 13px; color: #333; }
+  .actions { border-top: 1px solid #eef0f2; display: flex; gap: 10px; padding: 16px 20px; }
+  .flash { border-radius: 6px; display: none; font-size: 13px; margin-bottom: 14px; padding: 11px 14px; white-space: pre-wrap; }
+  .flash.ok { background: #e9f7f4; border: 1px solid #bfe5e2; color: #14655e; }
+  .flash.err { background: #fdecea; border: 1px solid #f5c6c2; color: #a3342f; }
+  .state { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 26px; text-align: center; }
+  .state .big { color: #d99b45; font-size: 30px; margin-bottom: 10px; }
+  .state .msg { color: #62666a; font-size: 13px; }
+  .state .state-actions { margin-top: 16px; }
+  .loading { background: rgba(255,255,255,.7); inset: 0; position: fixed; display: none; z-index: 50; }
+  .loading-box { background: #fff; border-radius: 8px; box-shadow: 0 1px 6px rgba(0,0,0,.15); left: 50%; padding: 16px 26px; position: absolute; top: 40%; transform: translate(-50%,-50%); }
+  #toast { border-radius: 6px; bottom: 22px; display: none; font-size: 13px; left: 50%; padding: 12px 20px; position: fixed; transform: translateX(-50%); z-index: 60; white-space: pre-wrap; max-width: 80vw; }
+  #toast.ok { background: #14655e; color: #fff; }
+  #toast.err { background: #a3342f; color: #fff; }
+  .footer { color: #8a8f94; font-size: 12px; padding: 14px; text-align: center; }
+  .modal-content { border-radius: 8px; }
+  .security-row { display: flex; gap: 10px; flex-wrap: wrap; padding: 16px 20px; border-top: 1px solid #eef0f2; align-items: center; }
+  .security-row .note { color: #62666a; font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="header">
+  <i class="fa fa-user"></i>
+  <span data-i18n="ued.header">User</span>
+  <span class="sub" id="headerMode"></span>
+  <span id="localeSwitcher" style="margin-left:auto;"></span>
+</div>
+<div class="toolbar">
+  <span class="ctx"><span data-i18n="ued.section">User Management</span>: <b id="toolbarUser">-</b></span>
+  <span class="spacer"></span>
+  <button class="btn-dark" id="btnRefresh" type="button"><i class="fa fa-refresh"></i> <span data-i18n="ued.refresh">Refresh</span></button>
+  <button class="btn-dark" id="btnBack" type="button"><i class="fa fa-arrow-left"></i> <span data-i18n="ued.back">User Management</span></button>
+</div>
+<div class="main">
+  <div class="flash" id="flash"></div>
+  <div class="loading" id="loading"><div class="loading-box"><span data-i18n="common.loading">Loading</span> ...</div></div>
+
+  <div class="state" id="stateBox" style="display:none;">
+    <div class="big"><i class="fa fa-exclamation-triangle"></i></div>
+    <div class="msg" id="stateMsg"></div>
+    <div class="state-actions">
+      <button class="btn-dark" id="btnStateBack" type="button"><i class="fa fa-arrow-left"></i> <span data-i18n="ued.back">User Management</span></button>
+    </div>
+  </div>
+
+  <section id="mainContent" style="display:none;">
+    <div class="context-grid">
+      <div class="context-item"><span class="label" data-i18n="ued.mode">Mode</span><span class="value" id="contextMode">-</span></div>
+      <div class="context-item"><span class="label" data-i18n="ued.user">User</span><span class="value" id="contextUser">-</span></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><i class="fa fa-pencil"></i> <span id="formCaption" data-i18n="ued.formCaption">User details</span></div>
+      <form id="editForm" novalidate>
+        <table class="form-table">
+          <tr>
+            <td class="label-cell"><i class="fa fa-user"></i><span data-i18n="ued.login">Login</span></td>
+            <td>
+              <label for="fLogin" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);" data-i18n="ued.login">Login</label>
+              <input type="text" id="fLogin" maxlength="100" autocomplete="off">
+              <div class="hint" data-i18n="ued.loginHint">must be unique and must not be empty</div>
+              <div class="error" id="loginError"></div>
+            </td>
+          </tr>
+          <tr>
+            <td class="label-cell"><i class="fa fa-id-badge"></i><span data-i18n="ued.firstName">First Name</span></td>
+            <td>
+              <label for="fFirst" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);" data-i18n="ued.firstName">First Name</label>
+              <input type="text" id="fFirst" maxlength="100" autocomplete="off">
+              <div class="error" id="firstError"></div>
+            </td>
+          </tr>
+          <tr>
+            <td class="label-cell"><i class="fa fa-id-badge"></i><span data-i18n="ued.lastName">Last Name</span></td>
+            <td>
+              <label for="fLast" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);" data-i18n="ued.lastName">Last Name</label>
+              <input type="text" id="fLast" maxlength="100" autocomplete="off">
+              <div class="error" id="lastError"></div>
+            </td>
+          </tr>
+          <tr>
+            <td class="label-cell"><i class="fa fa-lock"></i><span data-i18n="ued.password">Password</span></td>
+            <td>
+              <label for="fPassword" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);" data-i18n="ued.password">Password</label>
+              <input type="password" id="fPassword" autocomplete="new-password">
+              <div class="hint" id="passwordHint" data-i18n="ued.passwordCreateHint">required - stored encrypted, never in clear text</div>
+              <div class="error" id="passwordError"></div>
+            </td>
+          </tr>
+          <tr>
+            <td class="label-cell"><i class="fa fa-envelope"></i><span data-i18n="ued.email">E-mail</span></td>
+            <td>
+              <label for="fEmail" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);" data-i18n="ued.email">E-mail</label>
+              <input type="email" id="fEmail" maxlength="100" autocomplete="off">
+              <div class="hint" data-i18n="ued.emailHint">used for notifications and password reset</div>
+              <div class="error" id="emailError"></div>
+            </td>
+          </tr>
+          <tr>
+            <td class="label-cell"><i class="fa fa-user-tag"></i><span data-i18n="ued.role">Role</span></td>
+            <td>
+              <label for="fRole" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);" data-i18n="ued.role">Role</label>
+              <select id="fRole"></select>
+              <div class="hint" data-i18n="ued.roleHint">global role of the user in every test project</div>
+            </td>
+          </tr>
+          <tr>
+            <td class="label-cell"><i class="fa fa-globe"></i><span data-i18n="ued.locale">Locale</span></td>
+            <td>
+              <label for="fLocale" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);" data-i18n="ued.locale">Locale</label>
+              <select id="fLocale"></select>
+            </td>
+          </tr>
+          <tr>
+            <td class="label-cell"><i class="fa fa-key"></i><span data-i18n="ued.authentication">Authentication</span></td>
+            <td>
+              <label for="fAuth" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);" data-i18n="ued.authentication">Authentication</label>
+              <select id="fAuth"></select>
+              <div class="hint" id="authHint"></div>
+            </td>
+          </tr>
+          <tr id="expDateGroup">
+            <td class="label-cell"><i class="fa fa-calendar"></i><span data-i18n="ued.expirationDate">Expiration date</span></td>
+            <td>
+              <label for="fExpDate" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);" data-i18n="ued.expirationDate">Expiration date</label>
+              <input type="date" id="fExpDate">
+              <button type="button" class="btn-dark" id="btnClearExp" style="margin-left:6px;padding:7px 12px;" data-i18n="ued.clear">Clear</button>
+              <div class="hint" data-i18n="ued.expirationHint">after this date the account can no longer log in; leave empty for no expiry</div>
+            </td>
+          </tr>
+          <tr>
+            <td class="label-cell"><i class="fa fa-toggle-on"></i><span data-i18n="ued.active">Active</span></td>
+            <td>
+              <div class="check-row"><input type="checkbox" id="fActive" checked><label for="fActive" data-i18n="ued.activeHint">the user may log in to TestLink</label></div>
+            </td>
+          </tr>
+        </table>
+        <div class="actions">
+          <button class="btn-teal" id="btnSave" type="submit"><i class="fa fa-save"></i> <span data-i18n="ued.save">Save</span></button>
+          <button class="btn-dark" id="btnCancel" type="button"><i class="fa fa-times"></i> <span data-i18n="ued.cancel">Cancel</span></button>
+          <span class="spacer" style="flex:1;"></span>
+          <button class="btn-dark" id="btnEventHistory" type="button" style="display:none;"><i class="fa fa-history"></i> <span data-i18n="user.showEventHistory">Show event history</span></button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Legacy parity: usersEdit.tpl:337-355 — the edit screen owns the
+         Reset password and Generate API key forms (usersView.html only keeps
+         them inside its inline modal). -->
+    <div class="card" id="securityCard" style="display:none;">
+      <div class="card-head"><i class="fa fa-shield-alt"></i> <span data-i18n="ued.securityCaption">Security</span></div>
+      <div class="security-row">
+        <button class="btn-red" id="btnResetPassword" type="button"><i class="fa fa-unlock"></i> <span data-i18n="ued.resetPassword">Reset password</span></button>
+        <button class="btn-dark" id="btnApiKey" type="button"><i class="fa fa-key"></i> <span data-i18n="ued.genApiKey">Generate API key</span></button>
+        <span class="note" id="securityNote"></span>
+      </div>
+    </div>
+  </section>
+</div>
+<div class="footer"><span data-i18n="footers.usersEdit">TestLink 2.0.1 - User Management</span></div>
+<div id="toast"></div>
+
+<div class="modal fade" id="confirmModal" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+        <h4 class="modal-title" id="confirmTitle"></h4>
+      </div>
+      <div class="modal-body"><p id="confirmMsg"></p></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-default" data-dismiss="modal" data-i18n="ued.cancel">Cancel</button>
+        <button type="button" class="btn btn-danger" id="btnConfirmOk"></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Legacy parity: usersEdit.tpl:189-193 showEventHistoryFor(uid,'users') -->
+<form id="eventhistory" target="_blank" method="GET" action="/gui/templates/eventviewer/eventviewer.html" style="display:none;">
+  <input type="hidden" name="object_id" id="eh_object_id">
+  <input type="hidden" name="object_type" id="eh_object_type" value="users">
+</form>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<!-- Same include as every other modernized screen: without Dashio's Bootstrap
+     JS the jQuery .modal() bridge is missing. -->
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/usersedit/index.php';
+var params = new URLSearchParams(window.location.search);
+var tprojectId = parseInt(params.get('tproject_id') || '0', 10);
+var tplanId = parseInt(params.get('tplan_id') || '0', 10);
+var userId = parseInt(params.get('user_id') || '0', 10);
+var mode = params.get('mode') || (userId > 0 ? 'edit' : 'create');
+var canManage = false;            // mgt_users - the BFF 403s without it
+var externalPw = false;           // auth domain manages passwords itself
+var apiEnabled = false;
+var demoMode = false;
+var expDateEnabled = true;
+var defaultRoleID = 0;
+var currentLogin = '';
+var loaded = false;
+var pendingAction = null;         // 'reset' | 'apikey' for the confirm modal
+var canViewEvents = false;        // grants.mgt_view_events (legacy usersEdit.tpl:189-193)
+var flashAfterLoad = null;        // keep the save feedback visible across the reload
+
+function t(key, vars) { return TLi18n.t(key, vars); }
+
+function esc(s) {
+  return $('<div>').text(s == null ? '' : String(s)).html();
+}
+
+function toast(msg, isErr) {
+  var $t = $('#toast').text(msg).removeClass('err').addClass(isErr ? 'err' : 'ok').show();
+  clearTimeout($t.data('tm'));
+  $t.data('tm', setTimeout(function () { $t.hide(); }, isErr ? 6000 : 4000));
+}
+function flash(msg, isErr) {
+  if (!msg) { $('#flash').hide(); return; }
+  $('#flash').text(msg).removeClass('ok').addClass(isErr ? 'err' : 'ok').show();
+  if (!isErr) { setTimeout(function () { $('#flash').hide(); }, 6000); }
+}
+function busy(on) {
+  $('#loading').toggle(!!on);
+  $('#btnSave').prop('disabled', !!on || !canManage);
+}
+function showState(msg, danger) {
+  $('#mainContent').hide();
+  $('#stateMsg').text(msg);
+  $('#stateBox').show();
+  if (danger) { flash(msg, true); }
+}
+
+function errorFor(r) {
+  var code = r && r.error_code;
+  var map = {
+    NO_RIGHT: 'ued.errNoRight',
+    USER_NOT_FOUND: 'ued.errNotFound',
+    INVALID_PARAM: 'ued.errInvalidParam',
+    LOGIN_ALREADY_EXISTS: 'ued.errLoginExists',
+    LOGIN_EMPTY: 'ued.errLoginRequired',
+    EMAIL_INVALID: 'ued.errEmailInvalid',
+    EMPTY_PASSWORD: 'ued.errPwdRequired',
+    PASSWORD_MGMT_EXTERNAL: 'ued.errExternalPw',
+    INVALID_SMTP_HOSTNAME: 'ued.errSmtp',
+    RESET_FAILED: 'ued.errResetFailed',
+    APIKEY_FAILED: 'ued.errGeneric',
+    API_DISABLED: 'ued.errApiDisabled',
+    DEMO_MODE: 'ued.errDemo',
+    NOT_AUTHENTICATED: 'ued.errSession',
+    DB_WRITE_FAILED: 'ued.errGeneric',
+    METHOD_NOT_ALLOWED: 'ued.errGeneric',
+    UNKNOWN_ACTION: 'ued.errGeneric'
+  };
+  // CREATE_FAILED / UPDATE_FAILED are deliberately not mapped: the BFF already
+  // returns the localized legacy reason (getUserErrorMessage) in r.message, and
+  // masking it behind errGeneric would hide e.g. E_EMAILLENGTH details.
+  if (map[code]) { return t(map[code]); }
+  if (r && r.message) { return r.message; }
+  return t('ued.errGeneric');
+}
+
+function backToManager() {
+  var q = '';
+  var parts = [];
+  if (tprojectId > 0) { parts.push('tproject_id=' + tprojectId); }
+  if (tplanId > 0) { parts.push('tplan_id=' + tplanId); }
+  if (parts.length) { q = '?' + parts.join('&'); }
+  window.location.href = '/gui/templates/usermanagement/usersView.html' + q;
+}
+
+function fieldError(id, errId, msg) {
+  if (msg) {
+    $('#' + id).addClass('is-invalid');
+    $('#' + errId).text(msg).css('display', 'block');
+  } else {
+    $('#' + id).removeClass('is-invalid');
+    $('#' + errId).text('').hide();
+  }
+}
+
+function fillSelects(d) {
+  var $role = $('#fRole').empty();
+  (d.roles || []).forEach(function (r) {
+    $role.append('<option value="' + esc(r.id) + '">' + esc(r.name) + '</option>');
+  });
+  var $loc = $('#fLocale').empty();
+  (d.locales || []).forEach(function (l) {
+    // config locales carry HTML entities ("Fran&ccedil;ais") - insert them as
+    // HTML like usersView.html does, otherwise the raw entity text shows.
+    $loc.append('<option value="' + esc(l.code) + '">' + l.name + '</option>');
+  });
+  var $auth = $('#fAuth').empty();
+  $auth.append('<option value="">' + esc(t('ued.authDefault')) + '</option>');
+  (d.authentication.items || []).forEach(function (a) {
+    var label = a.label + (a.description && a.description !== a.label ? ' - ' + a.description : '');
+    $auth.append('<option value="' + esc(a.value) + '">' + esc(label) + '</option>');
+  });
+}
+
+function applyModeChrome() {
+  var isEdit = mode === 'edit';
+  var modeText = isEdit ? t('ued.modeEdit') : t('ued.modeCreate');
+  $('#contextMode').text(modeText);
+  $('#headerMode').text(': ' + modeText);
+  $('#formCaption').text(isEdit ? t('ued.formCaptionEdit') : t('ued.formCaptionCreate'));
+  // Legacy usersEdit.tpl:198 — the login is only editable on create.
+  $('#fLogin').prop('readonly', isEdit);
+  // Legacy usersEdit.tpl:221-227 — required on create only.
+  $('#fPassword').prop('required', isEdit ? false : !externalPw);
+  // set the localized text directly: TLi18n.apply() already ran once and only
+  // re-reads data-i18n on load, so switching the attribute alone would leave
+  // the create-hint on screen in edit mode.
+  $('#passwordHint').attr('data-i18n', isEdit ? 'ued.passwordEditHint' : 'ued.passwordCreateHint')
+    .text(t(isEdit ? 'ued.passwordEditHint' : 'ued.passwordCreateHint'));
+  $('#securityCard').toggle(isEdit);
+  $('#btnEventHistory').toggle(isEdit && canViewEvents);
+  $('#expDateGroup').toggle(expDateEnabled);
+}
+
+function load() {
+  busy(true);
+  $('#flash').hide();
+  $('#stateBox').hide();
+  if (mode !== 'edit') { userId = 0; }
+  var q = '?action=init&mode=' + encodeURIComponent(mode) +
+          (mode === 'edit' ? '&user_id=' + userId : '') +
+          '&tproject_id=' + tprojectId + '&tplan_id=' + tplanId;
+  $.getJSON(API + q)
+    .done(function (d) {
+      canManage = true;
+      mode = d.mode;
+      var flags = d.flags || {};
+      demoMode = !!flags.demoMode;
+      apiEnabled = !!flags.apiEnabled;
+      expDateEnabled = flags.expDateEnabled !== false;
+      defaultRoleID = d.defaultRoleID || 0;
+      externalPw = !!(d.authentication && d.authentication.externalPasswordMgmt);
+      fillSelects(d);
+      var u = d.user || {};
+      if (mode === 'edit') {
+        userId = u.id;
+        currentLogin = u.login || '';
+        $('#fLogin').val(currentLogin);
+      } else {
+        currentLogin = '';
+        $('#fLogin').val('');
+      }
+      $('#fFirst').val(u.firstName || '');
+      $('#fLast').val(u.lastName || '');
+      $('#fEmail').val(u.email || '');
+      $('#fPassword').val('');
+      $('#fRole').val(String(u.globalRoleID || defaultRoleID));
+      $('#fLocale').val(u.locale || 'en_GB');
+      $('#fAuth').val(u.authentication || '');
+      $('#fExpDate').val((u.expirationDate || '').substring(0, 10));
+      $('#fActive').prop('checked', u.id ? !!u.active : true);
+      $('#toolbarUser').text(u.login || t('ued.newUser'));
+      $('#contextUser').text(u.id ? (u.login + ' (ID ' + u.id + ')') : t('ued.newUser'));
+
+      // Legacy usersEdit.php:462-467 — no expiration date for configured logins.
+      expDateEnabled = flags.expDateEnabled !== false;
+      $('#expDateGroup').toggle(expDateEnabled);
+
+      // Security card state: legacy usersEdit.tpl:169-178 / 312-355 hide the
+      // reset form for external password management and the API key button
+      // when api->enabled is false; demo mode removes every write button.
+      var note = [];
+      if (externalPw) { note.push(t('ued.externalPwNote')); }
+      if (!apiEnabled) { note.push(t('ued.apiDisabledNote')); }
+      if (demoMode) { note.push(t('ued.demoNote')); }
+      $('#securityNote').text(note.join(' '));
+      $('#btnResetPassword').toggle(!externalPw && !demoMode);
+      $('#btnApiKey').toggle(apiEnabled && !demoMode);
+
+      var grants = d.grants || {};
+      canViewEvents = grants.mgt_view_events === 'yes';
+      canManage = true;
+      $('#btnSave').toggle(canManage);
+      $('#btnCancel').toggle(canManage);
+
+      applyModeChrome();
+      loaded = true;
+      $('#mainContent').show();
+      busy(false);
+      if (flashAfterLoad) { flash(flashAfterLoad, false); flashAfterLoad = null; }
+    })
+    .fail(function (xhr) {
+      busy(false);
+      var r = {}; try { r = JSON.parse(xhr.responseText); } catch (e) {}
+      if (xhr.status === 401) { window.location.href = '/login.php?note=expired'; return; }
+      if (xhr.status === 403) { canManage = false; $('#btnSave').prop('disabled', true); }
+      showState(errorFor(r), true);
+    });
+}
+
+function validate() {
+  var ok = true;
+  fieldError('fLogin', 'loginError', '');
+  fieldError('fEmail', 'emailError', '');
+  fieldError('fPassword', 'passwordError', '');
+  if (mode === 'create') {
+    var login = $.trim($('#fLogin').val());
+    if (!login) {
+      fieldError('fLogin', 'loginError', t('ued.errLoginRequired'));
+      ok = false;
+    }
+    if (!externalPw && !$('#fPassword').val()) {
+      fieldError('fPassword', 'passwordError', t('ued.errPwdRequired'));
+      ok = false;
+    }
+  }
+  var email = $.trim($('#fEmail').val());
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    fieldError('fEmail', 'emailError', t('ued.errEmailInvalid'));
+    ok = false;
+  }
+  return ok;
+}
+
+function save() {
+  if (!validate()) { return; }
+  var payload = {
+    login: $.trim($('#fLogin').val()),
+    firstName: $('#fFirst').val(),
+    lastName: $('#fLast').val(),
+    email: $.trim($('#fEmail').val()),
+    password: $('#fPassword').val(),
+    globalRoleID: parseInt($('#fRole').val(), 10) || defaultRoleID,
+    locale: $('#fLocale').val(),
+    authentication: $('#fAuth').val(),
+    active: $('#fActive').is(':checked'),
+    expirationDate: expDateEnabled ? $('#fExpDate').val() : ''
+  };
+  if (mode === 'edit') { payload.user_id = userId; }
+  var isCreate = mode === 'create';
+  busy(true);
+  $.ajax({
+    url: API + '?action=' + (mode === 'edit' ? 'update' : 'create'),
+    type: 'POST',
+    contentType: 'application/json',
+    data: JSON.stringify(payload)
+  }).done(function (r) {
+    busy(false);
+    if (r.self_logout) {
+      // Legacy usersEdit.php:213-217 — deactivating yourself logs you out.
+      flash(t('ued.selfDeactivated'), false);
+      setTimeout(function () { window.location.href = '/logout.php'; }, 1800);
+      return;
+    }
+    var msg = t(isCreate ? 'ued.okCreated' : 'ued.okUpdated', { login: payload.login });
+    if (isCreate && r.id) {
+      // create flips into edit mode and reloads the init data; the message
+      // survives the reload through flashAfterLoad (load() hides #flash).
+      flashAfterLoad = msg;
+      mode = 'edit';
+      userId = parseInt(r.id, 10);
+      history.replaceState({}, '', '?mode=edit&user_id=' + userId +
+        (tprojectId > 0 ? '&tproject_id=' + tprojectId : '') +
+        (tplanId > 0 ? '&tplan_id=' + tplanId : ''));
+      $('#toolbarUser').text(payload.login);
+      $('#contextUser').text(payload.login + ' (ID ' + userId + ')');
+      applyModeChrome();
+      load();
+    } else {
+      flash(msg, false);
+    }
+  }).fail(function (xhr) {
+    busy(false);
+    var r = {}; try { r = JSON.parse(xhr.responseText); } catch (e) {}
+    if (xhr.status === 401) { window.location.href = '/login.php?note=expired'; return; }
+    var msg = errorFor(r);
+    if (r.error_code === 'LOGIN_ALREADY_EXISTS') { fieldError('fLogin', 'loginError', msg); }
+    if (r.error_code === 'EMPTY_PASSWORD') { fieldError('fPassword', 'passwordError', msg); }
+    if (r.error_code === 'EMAIL_INVALID') { fieldError('fEmail', 'emailError', msg); }
+    flash(msg, true);
+  });
+}
+
+function askConfirm(action, titleKey, msgKey, btnKey) {
+  pendingAction = action;
+  $('#confirmTitle').text(t(titleKey));
+  $('#confirmMsg').text(t(msgKey, { login: currentLogin }));
+  $('#btnConfirmOk').text(t(btnKey)).toggleClass('btn-danger', action === 'reset').toggleClass('btn-primary', action !== 'reset');
+  $('#confirmModal').modal('show');
+}
+
+function runConfirmed() {
+  var action = pendingAction;
+  pendingAction = null;
+  $('#confirmModal').modal('hide');
+  if (!action) { return; }
+  busy(true);
+  $.ajax({
+    url: API + '?action=' + (action === 'reset' ? 'reset_password' : 'gen_apikey'),
+    type: 'POST',
+    contentType: 'application/json',
+    data: JSON.stringify({ user_id: userId })
+  }).done(function (r) {
+    busy(false);
+    var msg = (r.message || '');
+    if (action === 'reset' && r.passwordOnScreen && r.newPassword) {
+      msg = t('ued.okResetOnScreen') + '\n' + r.newPassword;
+    } else if (action === 'reset') {
+      msg = t('ued.okResetSent');
+    } else {
+      msg = t('ued.okApiKey');
+    }
+    flash(msg, false);
+    toast(msg, false);
+  }).fail(function (xhr) {
+    busy(false);
+    var r = {}; try { r = JSON.parse(xhr.responseText); } catch (e) {}
+    if (xhr.status === 401) { window.location.href = '/login.php?note=expired'; return; }
+    flash(errorFor(r), true);
+  });
+}
+
+$(function () {
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    $('#btnRefresh').on('click', load);
+    $('#btnBack, #btnCancel, #btnStateBack').on('click', backToManager);
+    $('#editForm').on('submit', function (e) { e.preventDefault(); save(); });
+    $('#btnClearExp').on('click', function () { $('#fExpDate').val(''); });
+    $('#btnEventHistory').on('click', function () {
+      if (!userId) { return; }
+      $('#eh_object_id').val(userId);
+      $('#eventhistory').submit();
+    });
+    $('#btnResetPassword').on('click', function () {
+      askConfirm('reset', 'ued.confirmResetTitle', 'ued.confirmResetMsg', 'ued.resetPassword');
+    });
+    $('#btnApiKey').on('click', function () {
+      askConfirm('apikey', 'ued.confirmApiKeyTitle', 'ued.confirmApiKeyMsg', 'ued.genApiKey');
+    });
+    $('#btnConfirmOk').on('click', runConfirmed);
+    load();
+  });
+});
+</script>
+</body>
+</html>
