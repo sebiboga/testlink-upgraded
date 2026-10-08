@@ -5990,3 +5990,45 @@ the `(n)` counter and the Assign/Unassign enablement follow, and no console erro
 - `data-group="linked"` / `data-group="available"` and the ids `chkAllLinked` /
   `chkAllAvailable`, `btnAssign`, `btnUnassign` are the stable selectors for this screen; use them
   instead of the a11y-tree labels, which change with the surrounding badges.
+
+## Regression — Issue #1720: array-shaped value for a scalar input param → uncaught PHP 8 TypeError (HTTP 500, 0 bytes, no events row)
+
+**Precondition** — app at `http://localhost:8082` (PHP 8.3.35), logged in `admin`/`admin`
+(cookie jar from `POST /login.php tl_login=admin&tl_password=admin`); `events` table reachable via
+`mysql -h127.0.0.1 -utestlink -ptestlink testlink`; no test project selected (session `testprojectID=0`).
+
+**Repro steps (pre-fix)** — `GET /lib/general/staticPage.php?key[]=x` (`key` is `STRING_N`,
+`lib/general/staticPage.php:60`). Previously: `Uncaught TypeError: trim(): Argument #1 ($string)
+must be of type string, array given` at `lib/functions/inputparameter.class.php:330`; the
+`catch (Exception)` at `inputparameter.inc.php:230` did not catch it → HTTP 500, 0 bytes, no row.
+
+**Expected post-fix** — a crafted `?k[]=x` on any scalar parameter never fatals: the parameter
+reads as absent, the request completes (200/302), and the crafted URL writes no Error/Warning row.
+Well-formed scalar values and true ARRAY_* parameters are unchanged.
+
+| # | Step | Expected / observed | Result |
+|---|---|---|---|
+| TC-1720-01 | `GET /lib/general/staticPage.php?key[]=x` | `http=200 bytes=30`, body `Error: Invalid page parameter.` (pre-fix: 500 / 0 bytes); no `trim(): Argument` line in `tmp/php_server.log` | PASS |
+| TC-1720-02 | Direct layer test: `R_PARAMS(["key"=>STRING_N])` with `$_REQUEST["key"]=array("x")` | value `NULL`, no uncaught error (pre-fix/HEAD copy: `UNCAUGHT TypeError: trim() … array given`) | PASS |
+| TC-1720-03 | `GET /lib/requirements/reqEdit.php?req_title[]=x` (STRING_N) | no `trim()` TypeError in log; the surviving 500 is the unrelated controller guard `Test project ID can not be <= 0` (`reqEdit.php:97`), identical for the well-formed call | PASS |
+| TC-1720-04 | `GET /lib/requirements/reqEdit.php?requirement_id[]=x` (INT_N) | same — no input-layer TypeError (controller project guard only) | PASS |
+| TC-1720-05 | `GET /lib/requirements/reqEdit.php?req_id_cbox[]=1` (ARRAY_INT) | no input-layer TypeError; array params still flow (direct test returns `['1']`) | PASS |
+| TC-1720-06 | Direct layer test: scalar `STRING_N` value `"create"` | returns `'create'` — scalar path preserved | PASS |
+| TC-1720-07 | Direct layer test: `ARRAY_INT` / `ARRAY_STRING_N` inputs | still returned as arrays (`[1,2]`, `['a','b']`) — array path preserved | PASS |
+| TC-1720-08 | Direct layer test: `INT_N` array input | `NULL` (no `intval(trim(array))` TypeError); scalar `"7"` → `7` | PASS |
+| TC-1720-09 | `GET /lib/general/staticPage.php?key=foo` (well-formed) | `http=200 bytes=3127` — normal rendering unchanged | PASS |
+| TC-1720-10 | Event Viewer / `events` delta across TC-1720-01..09 | `MAX(id)` unchanged (32 → 32); no new log_level<=2 rows from the crafted input URLs | PASS |
+| TC-1720-11 | Browser (chrome-devtools MCP) `staticPage.php?key[]=x` | page renders `Error: Invalid page parameter.`, `readyState=complete`, no console error from the app (only the pre-existing favicon 404 / quirks notice) | PASS |
+| TC-1720-12 | Syntax gate | `php -l lib/functions/inputparameter.class.php` and `php -l lib/functions/inputparameter.inc.php` → No syntax errors | PASS |
+
+### Test execution
+- [PASS] TC-1720-01 .. TC-1720-12 — 12/12 PASS (chrome-devtools MCP + curl, live app at :8082)
+- [PASS] No `gui/templates/i18n/*.json` bundle touched — backend-only fix, no user-facing string added
+- [PASS] Merge-base gate: `TLU_REQUIRE_SUITE="Issue #1720" bash ai/verify_test_suites.sh`
+
+### Notes
+- Pre-fix `HEAD` behaviour re-measured from a pristine copy (`git show HEAD:...` into `/tmp/before`)
+  so the before/after is reproducible without reverting the working tree.
+- New bug found while testing (filed separately as **#1884**): `planUrgency.php` without a valid
+  `tplan_id` answers 200 but writes 5-7 `log_level=2` rows per request. Independent of this fix —
+  reproduced with no params / `tplan_id=0` on the same tree.
