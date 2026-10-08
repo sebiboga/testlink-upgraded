@@ -17,6 +17,20 @@ Every screen of the application was ported one-by-one in a screen-compare
 kept for backward compatibility and is progressively retired as each modern
 screen reaches full parity.
 
+- [KEY BUGFIX] - #1720: **an array-shaped value for any scalar input parameter
+  (`?k[]=x`) killed the request with an uncaught PHP 8 `TypeError` - HTTP 500, 0-byte body and
+  ZERO `events` rows.** `GET /lib/general/staticPage.php?key[]=x` reached
+  `tlStringValidationInfo::trim()` (`lib/functions/inputparameter.class.php:330`) with an array and
+  raised `trim(): Argument #1 ($string) must be of type string, array given`; the handler at
+  `lib/functions/inputparameter.inc.php:230` was `catch (Exception $e)` and a `TypeError extends
+  Error`, so it could never catch it. Fix (input layer, shared by every legacy controller through
+  `I_PARAMS()`): `tlInputParameter::fetchParameter()` now treats an array value as *absent* when the
+  validation type is not `tlArrayValidationInfo` - one guard covers STRING_N / INT / INT_N /
+  CB_BOOL, while ARRAY_INT / ARRAY_STRING_N still receive arrays - and the `GPR_PARAM_STRING_N`
+  catch was widened to `Throwable` as defense-in-depth. Verified: `staticPage.php?key[]=x` 200
+  (`Error: Invalid page parameter.`) vs 500 before, scalar/array paths unchanged, no
+  `trim(): Argument` in the server log, Event Viewer delta 0 rows, `php -l` clean; regression suite
+  `Issue #1720` 12/12 PASS, suite gate 7/7. (Fixes #1720)
 - [KEY BUGFIX] - #1719: **the legacy Priority Bar Chart launcher shim
   (`lib/results/priorityBarChart.php`) refused EVERY real browser navigation with HTTP 405.**
   The filed symptom - a fatal `require_once('../functions/results.class.php')` + `new results(...)`
