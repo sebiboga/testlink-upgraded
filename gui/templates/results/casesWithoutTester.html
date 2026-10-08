@@ -99,10 +99,11 @@ function t(key, fallback) {
 }
 function priorityBadge(level) {
   if (!level) return '';
-  var cls = 'priority-low';
-  if (level === 'high') cls = 'priority-high';
-  else if (level === 'medium') cls = 'priority-medium';
-  return '<span class="priority-badge ' + cls + '">' + esc(level) + '</span>';
+  var cls = 'priority-low', label = level;
+  if (level === 'high') { cls = 'priority-high'; label = t('search.highImportance', 'High'); }
+  else if (level === 'medium') { cls = 'priority-medium'; label = t('search.mediumImportance', 'Medium'); }
+  else if (level === 'low') { label = t('search.lowImportance', 'Low'); }
+  return '<span class="priority-badge ' + cls + '">' + esc(label) + '</span>';
 }
 
 function loadData() {
@@ -147,7 +148,7 @@ function loadData() {
         cols.push({ title: t('platform', 'Platform'), data: 'platform_name', orderable: true });
       }
       if (showPrio) {
-        cols.push({ title: t('priority', 'Priority'), data: 'priority_level', orderable: true,
+        cols.push({ title: t('cwt.priority', 'Priority'), data: 'priority_level', orderable: true,
           render: function(data) { return priorityBadge(data); }
         });
       }

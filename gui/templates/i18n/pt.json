@@ -897,6 +897,7 @@
   "cwt.header": "Casos de teste sem tester",
   "cwt.matchCount": "Contagem de correspondencias",
   "cwt.noLinkedTcversions": "Nenhum caso de teste vinculado a este plano de teste.",
+  "cwt.priority": "Prioridade",
   "cwt.testCases": "casos de teste",
   "cwt.testProject": "Projeto de teste",
   "dash.assignedActions": "Actions",

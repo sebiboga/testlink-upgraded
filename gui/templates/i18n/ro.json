@@ -897,6 +897,7 @@
   "cwt.header": "Cazuri de test fara tester desemnat",
   "cwt.matchCount": "Numar de potriviri",
   "cwt.noLinkedTcversions": "Nicio versiune de caz de test nu este asociata acestui plan de testare.",
+  "cwt.priority": "Prioritate",
   "cwt.testCases": "cazuri de test",
   "cwt.testProject": "Proiect de testare",
   "dash.assignedActions": "Acțiuni",

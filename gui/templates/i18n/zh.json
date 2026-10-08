@@ -897,6 +897,7 @@
   "cwt.header": "无测试员的测试用例",
   "cwt.matchCount": "匹配数量",
   "cwt.noLinkedTcversions": "没有与此测试计划关联的测试用例。",
+  "cwt.priority": "优先级",
   "cwt.testCases": "测试用例",
   "cwt.testProject": "测试项目",
   "dash.assignedActions": "Actions",

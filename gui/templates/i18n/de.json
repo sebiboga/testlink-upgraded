@@ -897,6 +897,7 @@
   "cwt.header": "Testfaelle ohne Tester",
   "cwt.matchCount": "Trefferanzahl",
   "cwt.noLinkedTcversions": "Keine Testfaelle mit diesem Testplan verknuepft.",
+  "cwt.priority": "Priorität",
   "cwt.testCases": "Testfaelle",
   "cwt.testProject": "Testprojekt",
   "dash.assignedActions": "Actions",

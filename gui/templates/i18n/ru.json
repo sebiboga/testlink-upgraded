@@ -897,6 +897,7 @@
   "cwt.header": "Тест-кейсы без тестировщика",
   "cwt.matchCount": "Количество совпадений",
   "cwt.noLinkedTcversions": "Нет тест-кейсов, связанных с этим планом тестирования.",
+  "cwt.priority": "Приоритет",
   "cwt.testCases": "тест-кейсов",
   "cwt.testProject": "Проект тестирования",
   "dash.assignedActions": "Actions",

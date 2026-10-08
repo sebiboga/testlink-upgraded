@@ -897,6 +897,7 @@
   "cwt.header": "テスター未割当テストケース",
   "cwt.matchCount": "一致数",
   "cwt.noLinkedTcversions": "このテスト計画に関連付けられたテストケースはありません。",
+  "cwt.priority": "優先度",
   "cwt.testCases": "テストケース",
   "cwt.testProject": "テストプロジェクト",
   "dash.assignedActions": "Actions",
