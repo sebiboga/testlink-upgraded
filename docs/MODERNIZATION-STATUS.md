@@ -432,3 +432,5 @@ None — every ASIDE entry now maps to a modernized `.html` screen + BFF.
 Whoever modernizes a screen MUST move its row from TODO to DONE in this same
 commit (and bump the Summary counts). CI (`modernize.yml`) reads this file to pick
 the next screen when none was specified.
+
+| DONE (modernized) | **Admin top-menu User Management entry (usersView)** — `cfg/const.inc.php` guiTopMenu[6] now points to `gui/templates/usermanagement/usersView.html`; `lib/usermanagement/usersView.php` converted to a session-guarded non-mutating 302 shim (browser → modern screen with tproject_id/tplan_id/operation/user_id forwarded; anon → login.php?note=expired). The modern screen + `api/users` already existed for the ASIDE Users entry. Cross-checks: no active code references the legacy URL from modern surfaces (top-menu only, aside unchanged), Event Viewer clean, browser navigation verified. Test suite 1878 appended to `tmp/TLU_Test_Cases.md`. **Refs #1878**, 2026-10-08. |
