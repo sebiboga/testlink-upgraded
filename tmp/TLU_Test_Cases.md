@@ -5757,3 +5757,28 @@ a cosmetic gain, so it was deliberately left alone and recorded here instead.
 - Suite 1845 cases H1-H3 previously false-passed by forcing `-H 'Accept: text/html'`
   (`tmp/suite_1845.py:206` and `:211`) — this suite's cases 1/3 replay the REAL browser headers instead.
 - Secondary defect (anonymous login-bounce 404) deliberately not fixed here — tracked as **#1881**.
+
+## Task — Issue #1106: keywordsAssign - assign to filtered test cases (useFilteredSet)
+
+### Preconditions
+- Test project with keywords and test cases exists
+- Modern keywordsAssign screen accessible
+- BFF extended to accept optional filtered set (tcases[] or use_filtered_set+form_token)
+
+### Steps
+1. Open modern keywordsAssign screen at /gui/templates/keywords/keywordsAssign.html?tproject_id=<TPID>
+2. Switch to Test Suite level
+3. Select a test suite containing multiple test cases
+4. (Optional) Check "Assign ONLY to filtered Test Cases" and provide filtered context (tcases/form_token)
+5. Select keywords in "Selected Keywords" and click "Add to Test Cases"
+
+### Expected behavior
+- When filtered set is provided, assignment is applied only to test cases in the intersection (same semantics as legacy useFilteredSet)
+- When not filtered, assignment applies to scope (deep/direct) as before
+- UI shows checkbox in testsuite mode; i18n key renders correctly
+
+### Actual result
+- (to be filled after execution)
+
+### PASS/FAIL
+- TBD
