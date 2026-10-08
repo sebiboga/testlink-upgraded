@@ -147,7 +147,7 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
           <td><label for="cAssignedTo" data-i18n="pe.copy.assignedTo">Copy tester assignments</label></td>
         </tr>
         <tr>
-          <td><input type="checkbox" id="cPlatforms" checked></td>
+          <td><input type="checkbox" id="cPlatforms" checked disabled></td>
           <td><label for="cPlatforms" data-i18n="pe.copy.platformsLinks">Copy platform links</label></td>
         </tr>
         <tr>
@@ -204,7 +204,7 @@ $(function () {
   $('#btnSave').on('click', save);
   $('#btnHistory').on('click', function () {
     location.href = '/gui/templates/eventviewer/eventviewer.html?tproject_id=' + tprojectId +
-      '&objectId=' + itemID + '&objectType=testplan';
+      '&objectId=' + itemID + '&objectType=testplans';
   });
   $('#btnCopyKey').on('click', function () {
     var v = $('#fApiKey').val() || '';
@@ -507,7 +507,9 @@ function uploadAttachment() {
   fd.append('table', 'testplans');
   fd.append('id', String(itemID));
   fd.append('title', $('#fAttTitle').val() || '');
-  fd.append('uploadedFile', fileInput.files[0]);
+  // MUST be the [] form: api/attachments counts $_FILES['uploadedFile']['name']
+  // as an array (PHP 8 fatals on the plain string shape -> empty 500).
+  fd.append('uploadedFile[]', fileInput.files[0]);
   $('#btnUpload').prop('disabled', true);
   $.ajax({
     url: ATT_API,
