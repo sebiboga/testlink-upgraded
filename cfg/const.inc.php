@@ -900,9 +900,9 @@ $tlCfg->guiTopMenu[5] = array('label' => 'title_results',
 
 $tlCfg->guiTopMenu[6] = array('label' => 'title_admin',
                               'imgKey' => 'user',
-                              'url' => 'lib/usermanagement/usersView.php',
+                              'url' => 'gui/templates/usermanagement/usersView.html', // Refs #1878 modern screen
                               'right' => 'mgt_users','condition'=>'',
-                              'shortcut'=>'u','target'=>'mainframe'); 
+                              'shortcut'=>'u','target'=>'mainframe');
 
 $tlCfg->guiTopMenu[7] = array('label' => 'title_events',
                               'imgKey' => 'events',
