@@ -5782,3 +5782,68 @@ a cosmetic gain, so it was deliberately left alone and recorded here instead.
 
 ### PASS/FAIL
 - TBD
+## Issue #1882 - Modernize: Test Plan Create/Edit standalone screen (planEdit)
+
+Scope: `api/planedit/index.php` (BFF), `gui/templates/plans/planEdit.html` (screen),
+`lib/plan/planEdit.php` (legacy shim), link switch (`lib/functions/common.php`,
+`api/plans` viewActions), planView entry points, i18n `pe.*` x10 bundles.
+Env: app http://localhost:8082 (admin/admin), fixtures `php tmp/fixtures_1882.php`
+(project PE1882 id=7, plans: source id=8, existing id=9), branch sebiboga.
+3 bugs found by these tests and fixed before commit 6009ade75.
+
+### Test cases and actual result observed
+
+| # | Case | Command / action | Expected | Actual |
+|---|---|---|---|---|
+| 1 | BFF anonymous | `curl 'api/planedit/index.php?action=init&tproject_id=7'` | 401 | [PASS] 401 |
+| 2 | BFF missing ids | `curl -b $SESS '...init'` (no tproject_id/itemID) | 400 | [PASS] 400 |
+| 3 | BFF unknown plan | `curl -b $SESS '...init&itemID=424242&tproject_id=7'` | 404 PLAN_NOT_FOUND | [PASS] 404 |
+| 4 | BFF project mismatch | `...init&itemID=10&tproject_id=1` | 400 PROJECT_MISMATCH | [PASS] 400 |
+| 5 | BFF duplicate name (create) | `POST action=save` name="PE8 Existing Plan" | 409 DUPLICATE_NAME | [PASS] 409 |
+| 6 | BFF create | `POST action=save` name="PE8 New Plan" | 200 + id | [PASS] 200 id=5 (pre-reimport run) |
+| 7 | BFF update | `POST action=save` itemID=4 rename | 200 ok | [PASS] 200, nodes_hierarchy.name updated |
+| 8 | BFF copy-from | `POST action=save` copy_from_tplan_id + options | 200 + new id | [PASS] 200 id=6 (pre-reimport run) |
+| 9 | BFF unknown action | `...action=nope` | 400 | [PASS] 400 |
+| 10 | BFF syntax | `php -l api/planedit/index.php lib/plan/planEdit.php api/plans/index.php lib/functions/common.php` | clean | [PASS] No syntax errors detected (all 4) |
+| 11 | Screen 401 (anon) | browser open `planEdit.html?tproject_id=7` without session | bounce to login with note=expired | [PASS] URL `login.php?note=expired`, banner "Session expired. Please log in again." |
+| 12 | Screen create mode renders | browser `planEdit.html?tproject_id=7` (admin) | header/badge, project ctx, copy select with 2 sources, footer | [PASS] "Create Test Plan", badge `create`, PE1882 (#7), options #9/#8, footer `footers.planEdit` |
+| 13 | Empty name guard | click Create with empty Name | localized errbox, no request | [PASS] "Please enter a name for the test plan." |
+| 14 | Duplicate create (409) | Create name="PE8 Existing Plan" | localized errbox + code | [PASS] "A test plan with this name already exists… [DUPLICATE_NAME]" |
+| 15 | Create with copy | name="PE8 Browser Plan", source #9, Create | 200 -> edit mode of new plan | [PASS] redirected `planEdit.html?itemID=10&tproject_id=7`, name persisted |
+| 16 | Edit mode fields | after create redirect | notes/active/public prefilled, api_key readonly + Copy, attachments card, event-history btn | [PASS] api_key `0cbf34b2…86c7` readonly; badges/button set correct |
+| 17 | Save rename (update) | Name -> "PE8 Browser Plan Renamed", Save | okbox + reload showing new name | [PASS] name reloaded as renamed, DB updated |
+| 18 | Duplicate rename (409) | Save name="PE8 Existing Plan" | errbox, nothing saved | [PASS] errbox + [DUPLICATE_NAME]; name still old after reload |
+| 19 | Copy gating (legacy parity) | toggle Copy test cases / Copy builds | tcases gates version+priority+platforms(disabled&checked); builds gates tester assignments | [PASS] initial platforms checked+disabled; tcases off -> enabled + rows hidden; on -> disabled + rows shown; builds off -> rowAssign hidden |
+| 20 | Attachment upload | Title + file + Upload | row + okbox (200) | [PASS] "Attachment uploaded.", row: title/file/23 B/date/Download/Delete (bug: plain `uploadedFile` field -> empty 500 `count(string)` TypeError, fixed to `uploadedFile[]`) |
+| 21 | Attachment download | GET `api/attachments?action=download&id=1` (session) | 200 exact bytes | [PASS] 200 "PE1882 attachment test\n" |
+| 22 | Attachment delete | click Delete -> confirm() | localized confirm, then row gone | [PASS] dialog "Delete attachment 'pe1882-att.txt'?", okbox "Attachment deleted.", list empty |
+| 23 | Screen 404 | `planEdit.html?itemID=99999&tproject_id=7` | state card PLAN_NOT_FOUND, form hidden | [PASS] "Test plan not found … PLAN_NOT_FOUND" |
+| 24 | Screen 400 (mismatch) | `planEdit.html?itemID=10&tproject_id=1` | state card PROJECT_MISMATCH | [PASS] "Invalid request … Test plan does not belong… PROJECT_MISMATCH" |
+| 25 | Screen 403 (no right) | login as `peNoRight` (tester, no project assignment) -> open create | forbidden card, form hidden | [PASS] "Insufficient rights … (mgt_testplan_create) NO_RIGHT", `#formCard` display:none |
+| 26 | Locale switch (ro) | switcher -> Română | all pe.* labels + title translate, URL gets `locale=ro` | [PASS] "Editare plan de test", Salveaza/Inapoi/Cheie API/Atasamente + hints all RO |
+| 27 | Event history link | click "Show event history" | eventviewer filtered to this plan's events | [PASS] after fix: `objectType=testplans` -> "3 events" (created / role assigned / saved). Bug: singular `testplan` matched 0 rows (events.object_type='testplans') |
+| 28 | Audit trail in DB | `SELECT … FROM events WHERE object_id=10` | audit_testplan_created + audit_users_role_assign + audit_testplan_saved (+ attachment CREATE/DELETE) | [PASS] ids 19,20,21 (AUDIT) + 22,23 attachments |
+| 29 | planView full-screen create | click "Create Test Plan (full screen)" | lands on planEdit create | [PASS] URL `planEdit.html?tproject_id=7` |
+| 30 | planView per-row editor link | inspect 3 row action cells | link `planEdit.html?tproject_id=7&itemID=<id>`, gated by canManage | [PASS] itemID 10/9/8 present, title "Open in the full-screen editor" |
+| 31 | Legacy shim: create | `curl -b $SESS 'lib/plan/planEdit.php?do_action=create&tproject_id=7'` | JS redirect to modern create URL | [PASS] `location.replace('/gui/templates/plans/planEdit.html?tproject_id=7')` |
+| 32 | Legacy shim: edit | `…?do_action=edit&tproject_id=7&itemID=10` | redirect keeps itemID | [PASS] `…planEdit.html?tproject_id=7&itemID=10` |
+| 33 | Legacy shim: anon | same URL, no session | login redirect + destination | [PASS] `../../login.php?note=expired&destination=%2Flib%2Fplan%2FplanEdit.php…` |
+| 34 | Legacy shim: POST | `curl -X POST 'lib/plan/planEdit.php?do_action=do_update…'` | 405 (no smuggled write) | [PASS] 405 |
+| 35 | Link switch greps | `grep -rn -- '->planEdit' lib/functions/common.php`; `grep planEdit api/plans/index.php` | modern URL, no `/lib/plan/planEdit.php` in viewActions | [PASS] `$actions->planEdit = "/gui/templates/plans/planEdit.html?{$ctx}"`; managerURL/createAction/editAction all point at the screen (editAction keeps trailing `=` for actionUrl()) |
+| 36 | i18n coverage gate | `bash ai/verify_i18n_coverage.sh` | PASS | [PASS] 7098 keys/bundle, 9 bundles, 0 missing (67 new keys x 10) |
+| 37 | i18n well-formedness | `python3 -m json.tool` on all 10 bundles | valid | [PASS] all valid, keys sorted, ensure_ascii=False preserved |
+| 38 | i18n key resolution | regex data-i18n + TLi18n.t over planEdit.html + planView.html vs en.json | 0 missing | [PASS] 63 keys used, 0 missing; planView 0 missing |
+| 39 | Console (JS errors) | chrome-devtools console on planEdit (create + edit) | no errors | [PASS] 0 errors (only shared locale-switcher a11y notices) |
+| 40 | Event Viewer (rule 12) | `SELECT id,log_level … FROM events` after full test pass | no new ERROR/WARNING from current code | [PASS] newest non-AUDIT rows are ids 2-4 @19:44:54 (pre-fix dev attempts: stdClass::$active/$is_public + 1064); everything after 19:45 is log_level 16 AUDIT |
+| 41 | Screenshots | full-page captures for wiki | create + edit + planView | [PASS] `tmp/shots/1882-planedit-create.png`, `1882-planedit-edit.png`, `1882-planview-entries.png` |
+
+### Notes
+- 3 defects found & fixed by these tests (commit 6009ade75): `uploadedFile[]`
+  field name (PHP 8 `count(string)` fatal -> empty 500), platforms checkbox
+  initial disabled state (legacy parity), event-history `objectType=testplans`.
+- `do_delete` intentionally stays on planView (modal + api/plans DELETE) - the
+  legacy do_action=do_delete bookmark lands on the edit screen instead of
+  performing an unchecked write through the removed renderer.
+- Test-user `peNoRight` (id=2, role tester, no project assignment) was created
+  via SQL for case 25; fixtures re-run cleanly after it (`tmp/fixtures_1882.php`
+  deletes only its own project).
