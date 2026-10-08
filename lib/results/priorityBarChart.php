@@ -37,15 +37,19 @@
 require_once('../../config.inc.php');
 require_once('common.php');
 
+$db = new database(DB_TYPE);
+doDBConnect($db);
+
 /**
  * Session gate, parity with the legacy testlinkInitPage() call: an anonymous
  * caller is bounced to the login screen preserving its destination.
+ * checkSessionValid()'s own redirect is used (rather than a hand-rolled
+ * header()): it walks up from dirname(SCRIPT_FILENAME) until it finds
+ * login.php and supplies a root-relative REQUEST_URI destination — a relative
+ * 'login.php' would resolve against /lib/results/ and 404 (Refs #1881).
  */
-if (($_SESSION['userID'] ?? 0) <= 0) {
-    $dest = basename(__FILE__) . '?' . (isset($_SERVER['QUERY_STRING'])
-        ? $_SERVER['QUERY_STRING'] : '');
-    header('Location: ../login.php?note=expired&destination=' . urlencode($dest));
-    exit;
+if (!checkSessionValid($db)) {
+    exit;  // unreachable: the call above already redirected
 }
 
 $tplanId = isset($_GET['tplan_id']) ? intval($_GET['tplan_id']) : 0;
