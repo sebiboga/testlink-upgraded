@@ -68,10 +68,19 @@ if ($tplanId <= 0) {
 // Browser navigation -> the modern screen. An XHR / <img> caller keeps the
 // hard-fail contract: the legacy answer was a PNG, so handing a 302 to an
 // <img> would render broken pixels instead of an error.
+//
+// A document navigation is identified by Sec-Fetch-Dest: document OR an Accept
+// header that asks for text/html. Chrome/Firefox/Edge send BOTH - and their
+// document Accept header also carries image/avif,image/webp,image/apng tokens -
+// so a bare strpos($accept,'image/') test fired on EVERY real navigation and
+// answered 405 instead of redirecting (Refs #1719). 'image/' may therefore only
+// decide the caller when the request does not ask for HTML at all.
 $accept = strtolower((string)($_SERVER['HTTP_ACCEPT'] ?? ''));
 $isXhr = stripos((string)($_SERVER['HTTP_X_REQUESTED_WITH'] ?? ''), 'XMLHttpRequest') !== false;
-$dest = strtolower((string)($_SERVER['SEC_FETCH_DEST'] ?? ''));
-if ($isXhr || $dest === 'empty' || strpos($accept, 'image/') !== false) {
+$dest = strtolower((string)($_SERVER['HTTP_SEC_FETCH_DEST'] ?? ''));
+$isDocument = $dest === 'document' || strpos($accept, 'text/html') !== false;
+if ($isXhr || $dest === 'empty' || $dest === 'image'
+    || (!$isDocument && strpos($accept, 'image/') !== false)) {
     header('Content-Type: application/json; charset=utf-8');
     header('X-Content-Type-Options: nosniff');
     http_response_code(405);
