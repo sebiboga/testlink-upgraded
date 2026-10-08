@@ -146,3 +146,33 @@ events after fix: only log_level 16 rows (login audits) + log_level 2 row of #18
 php -l: 19/19 locale bundles "No syntax errors detected"; git diff --stat: 19 files, +2 lines each
 ai/verify_i18n_coverage.sh: PASS 9/9 bundles
 ```
+
+## Regression — Issue #1879: bare URL to getreqmgrsystemcfgtemplate.php must not raise E_WARNING
+
+### Test Case 1879.1: Pre-fix baseline — bare request writes an Event Viewer row
+- Precondition: fresh DB (this run), logged in as `admin`/`admin`, session cookie in `/tmp/opencode/c.txt`, `SELECT COALESCE(MAX(id),0) FROM events` = **3**.
+- Steps (pre-fix): `curl -s -b c.txt "http://localhost:8082/lib/ajax/getreqmgrsystemcfgtemplate.php"` (no `type` param), then `SELECT id,log_level,description FROM events WHERE id > 3;`.
+- Expected (pre-fix, i.e. reproducing the bug): HTTP 200 with the sane "invalid type" body **plus** one `log_level 2` row `E_WARNING\nUndefined array key "type" - in .../getreqmgrsystemcfgtemplate.php - Line 23`.
+- Actual: body `{"sucess":true,"cfg":"LOCALIZE: reqmgrsystem_invalid_type"}` `[200]`; events gained `id=4 log_level=2 E_WARNING ... Line 23`. **PASS** (bug reproduced)
+
+### Test Case 1879.2: Post-fix — bare request answers identically, writes NO event
+- Precondition: fix applied (`$type = intval($_REQUEST['type'] ?? 0);` at `:23`), `php -l` clean, events baseline `max(id)=5`.
+- Steps: repeat the bare `curl` with no `type`.
+- Expected: HTTP 200, response body byte-identical to pre-fix, **0** new `events` rows.
+- Actual: `{"sucess":true,"cfg":"LOCALIZE: reqmgrsystem_invalid_type"}` `[200]`; `SELECT ... WHERE id > 5` → **no rows**. **PASS**
+
+### Test Case 1879.3: Parameter variants stay silent and byte-identical
+- Steps: GET `?type=`, `?type=99`, `?type=1`, `?type=abc` (same session, same baseline).
+- Expected: each `200` with the same body it produced pre-fix; **0** new `E_WARNING` rows.
+- Actual: `?type=`/`?type=99`/`?type=abc` → `LOCALIZE: reqmgrsystem_invalid_type`; `?type=1` → `LOCALIZE: reqmgrsystem_interface_not_implemented`; all `[200]`; 0 new rows (a `log_level 32` "not localized for locale 'en_GB'" row appears for `?type=1` — that is **#1716**, open and out of scope). **PASS**
+
+### Test Case 1879.4: Regression — modern Req. Management System editor + config example
+- Precondition: fixture row `INSERT INTO reqmgrsystems (name,type,cfg) VALUES ('Contour Demo',1,'{}');` (id=1).
+- Steps: log in at `http://localhost:8082/index.php`, open `gui/templates/reqmgrsystems/reqMgrSystemEdit.html?id=1` context (create mode used here), click **show configuration example**.
+- Expected: the BFF (`api/reqmgrsystemedit/index.php?action=cfg_template&type=1`) renders the documented #1625/#1626 degradation (`Interface contoursoapInterface not implemented`), no JS error, no new Error/Warning event.
+- Actual: `#cfgExample` = `Interface contoursoapInterface not implemented`; console clean (only the pre-existing "No label associated with a form field" a11y lint); `events` gained only my own `audit_login_succeeded` (log_level 16) row. **PASS**
+
+### Test Case 1879.5: Event Viewer clean after the whole run
+- Steps: `mysql ... -e "SELECT id,log_level,description FROM events ORDER BY id DESC LIMIT 5;"` after all of the above.
+- Expected: no `log_level` 1 (ERROR) or 2 (WARNING) rows newer than the pre-fix baseline id=4.
+- Actual: newest rows are `6 (16, audit_login_succeeded)`; the only `log_level 2` row in the table is the pre-fix `id=4` created in 1879.1. **PASS**
