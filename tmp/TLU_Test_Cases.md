@@ -86,6 +86,7 @@ Measured evidence (browser evaluation on `searchQuickView.html?tproject_id=1` af
   "groups": ["Alpha(2 Items)", "Alpha/A1(1 Item)", "Beta(2 Items)"],
   "order": "[[0,\"asc\"],[1,\"desc\"]]", "col0visible": false,
   "toolbarButtons": ["Expand/Collapse Groups", "Reset Filters", "Show all Columns"] }
+```
 ## Regression — Issue #1716: reqmgrsystem cfg-template endpoint returns LOCALIZE marker + logs localization events
 
 **Precondition** — TestLink 2.0.1 at http://localhost:8082, DB `testlink` freshly imported, user `admin`/`admin` (locale `en_GB`), cookie jar from `POST login.php`. Baseline (pre-fix) captured on branch `fix/issue-1716` before any edit: `events` rows 2 and 3 (`log_level 32`, `string 'reqmgrsystem_*' is not localized for locale 'en_GB'`) and payload `{"sucess":true,"cfg":"LOCALIZE: <key>"}` for both keys.
@@ -181,3 +182,127 @@ ai/verify_i18n_coverage.sh: PASS 9/9 bundles
 - Steps: GET `?type[]=x`, `?type` (key with no `=`), `?type=0` after the fix.
 - Expected: each `200` with a sane body, **0** new `events` rows (`intval()` on an array returns 1/0 silently on PHP 8.3; the key exists, so no `Undefined array key` either).
 - Actual: `type[]=x` → `LOCALIZE: reqmgrsystem_interface_not_implemented` (array → 1), `type` and `type=0` → `LOCALIZE: reqmgrsystem_invalid_type`, all `[200]`; `SELECT ... WHERE id > <baseline>` → **no rows**. **PASS**
+
+## Modernize — Issue #1880: User Create/Edit standalone screen (usersEdit)
+
+Precondition: fresh DB, admin session cookie via `POST /api/auth/login {"login":"admin","password":"admin"}` (Origin `http://localhost:8082`), screen `gui/templates/usermanagement/usersEdit.html`, BFF `api/usersedit/index.php`.
+
+### Test Case 1880.1: init create-mode returns the full form schema
+- Steps: `GET ?action=init&mode=create`.
+- Expected: 200 with roles, locales, auth domains, `mode:create`, rights, `noExpDateUsers`, `apiEnabled`, `externalPasswordMgmt`.
+- Actual: 200, role default rendered client-side as `guest`, security card hidden in create mode. **PASS**
+
+### Test Case 1880.2: init edit-mode returns the user, never a password
+- Steps: `GET ?action=init&mode=edit&user_id=1` (admin, who is in `noExpDateUsers`).
+- Expected: 200 with login/firstName/lastName/email/globalRoleID/locale/active + `noExpDate` flag; no password material in the payload.
+- Actual: 200; expiration field rendered as admin-excluded. **PASS**
+
+### Test Case 1880.3: HEAD is served (HEAD→GET mapping)
+- Steps: `HEAD ?action=init&mode=create`.
+- Expected: 200, no body.
+- Actual: 200. **PASS**
+
+### Test Case 1880.4: anonymous call is rejected before any DB work
+- Steps: no cookie, `GET ?action=init&mode=create`.
+- Expected: 401 `NOT_AUTHENTICATED`.
+- Actual: `{"status":"error","message":"Not authenticated","error_code":"NOT_AUTHENTICATED"} [401]`. **PASS**
+
+### Test Case 1880.5: rights matrix — a real no-rights login gets 403 on READ
+- Steps: create `uedemo_no1880` (role 3 → global guest, id 7), log it in, `GET ?action=init&mode=edit&user_id=1`.
+- Expected: 403 `NO_RIGHT` naming `mgt_users`, no user data leaked.
+- Actual: `{"error_code":"NO_RIGHT","right":"mgt_users"} [403]`. **PASS**
+
+### Test Case 1880.6: rights matrix — same user is refused on WRITE too
+- Steps: same session, `POST ?action=create` (JSON body + Origin).
+- Expected: 403 `NO_RIGHT` before any insert (DB row count unchanged).
+- Actual: 403 `NO_RIGHT`; no `x1880` row created. **PASS**
+
+### Test Case 1880.7: CSRF same-origin proof is enforced on writes
+- Steps: admin session, `POST ?action=create` **without** `Origin`/`X-Requested-With`.
+- Expected: 403 "missing or mismatched same-origin proof", no write.
+- Actual: 403 CSRF message, no row. **PASS**
+
+### Test Case 1880.8: create persists every field and strips legacy-illegal name characters
+- Steps: `POST ?action=create` with `firstName:"A/B:C"`, valid email/role/locale/expiration.
+- Expected: 200, `feedback_key:user_created`, DB shows `ABC` (legacy `/ \ : * ? < > |` blacklist), expiration stored as date.
+- Actual: id returned; DB `first_name`-equivalent = `ABC`. **PASS**
+
+### Test Case 1880.9: update persists and reports honestly
+- Steps: `POST ?action=update&user_id=N` renaming firstName to `Browser2`, then re-`init`.
+- Expected: 200 and value survives reload.
+- Actual: 200, reload shows `Browser2`. **PASS**
+
+### Test Case 1880.10: expiration date is validated BEFORE the write
+- Steps: `POST ?action=update` with `expirationDate:"2026-99-99"`; then `"2026-11-31"`; then a valid date.
+- Expected: 400 `invalid_expiration_date` for both impossible dates, DB unchanged; 200 for the valid one.
+- Actual: `400` both, `200` + persisted for `2026-11-15`. **PASS**
+
+### Test Case 1880.11: expiration date rejects a non-string (array parameter)
+- Steps: `POST ?action=update` with `expirationDate:["x"]` (JSON array).
+- Expected: 400, no fatal, no write.
+- Actual: `400 invalid_expiration_date`, PHP error-free. **PASS**
+
+### Test Case 1880.12: clearing the expiration date
+- Steps: `POST ?action=update` with `expirationDate:""` on a dated user.
+- Expected: 200 and the column is cleared (NULL/empty), not the string `""` echoed back as a date.
+- Actual: cleared, `init` renders an empty picker. **PASS**
+
+### Test Case 1880.13: self-update keeps the session consistent (legacy `setUserSession` parity)
+- Steps: admin updates their own first name; the page stays logged in and `/api/auth/check` reports the new name.
+- Expected: 200, session refreshed, no forced logout (unless the legacy path would).
+- Actual: 200, session intact, no `self_logout`. **PASS**
+
+### Test Case 1880.14: reset_password honours the SMTP-host guard (legacy parity)
+- Steps: browser Reset password on a local-auth user (`$g_smtp_host = '[smtp_host_not_configured]'`).
+- Expected: 400 `INVALID_SMTP_HOSTNAME`, localized flash, no password change.
+- Actual: localized error flash on screen, user password unchanged in DB. **PASS**
+
+### Test Case 1880.15: reset_password refuses externally-managed users
+- Steps: `POST ?action=reset_password` for a user whose authentication domain is external.
+- Expected: 400, no reset attempted.
+- Actual: 400 `AUTH_METHOD`-class refusal. **PASS**
+
+### Test Case 1880.16: gen_apikey honours api->enabled and the SMTP guard
+- Steps: browser Generate API key (confirm modal), then again with api disabled.
+- Expected: 400/403 per config, no key stored while SMTP is unconfigured.
+- Actual: localized SMTP error flash; `api_keys` unchanged. **PASS**
+
+### Test Case 1880.17: unknown action and wrong verb are stable machine codes
+- Steps: `GET ?action=bogus` (admin); `POST ?action=init` (admin).
+- Expected: 400 `UNKNOWN_ACTION`; 405 with `Allow: GET, HEAD`.
+- Actual: `{"error_code":"UNKNOWN_ACTION"} [400]`; `HTTP/1.1 405` + `Allow: GET, HEAD`. **PASS**
+
+### Test Case 1880.18: legacy `lib/usermanagement/usersEdit.php` is a non-mutating 302 shim
+- Steps: GET the legacy URL in edit mode (`?operation=edit&user_id=1`) and create mode; POST it; GET it anonymously.
+- Expected: 302 → `usersEdit.html?mode=edit&user_id=1` (context `tproject_id`/`tplan_id` preserved); create → `?mode=create`; POST → 405; anonymous → `login.php?note=expired`.
+- Actual: all four as expected. **PASS**
+
+### Test Case 1880.19: usersView wiring — "Open editor" entry points
+- Steps: open `usersView.html` as admin; check toolbar button and the per-row external-link icon; click both; click them in demo mode.
+- Expected: button + icon present and demo-gated by `applyDemoMode()`; create-URL has no `user_id`, row-URL carries the row id + session `tproject_id`/`tplan_id`.
+- Actual: toolbar opens create mode, row icon opens edit mode of that user. **PASS**
+
+### Test Case 1880.20: browser — create mode renders fully localized, no raw keys
+- Steps: open `usersEdit.html?mode=create` as admin; switch locale EN→RO→EN.
+- Expected: every label/title/placeholder/message from `TLi18n` (0 raw `ued.*` keys), entities decoded (`Français`, not `Fran&ccedil;ais`), role default `guest`, password hint visible, security card hidden.
+- Actual: clean render both locales, 0 console errors. **PASS**
+
+### Test Case 1880.21: browser — create → edit flip keeps context and success message
+- Steps: submit a valid create.
+- Expected: URL flips to `?mode=edit&user_id=N` **without** losing the success flash, login becomes readonly, security card + Event-history button appear.
+- Actual: URL flipped, `uedemo2` created, success message retained after `load()`. **PASS**
+
+### Test Case 1880.22: browser — dialogs, states, session loss
+- Steps: open Reset-password confirm and API-key confirm; open the screen with a bogus `user_id`; expire the session and interact.
+- Expected: confirm modals localized; 404 state card with the machine code; 401 redirects to `login.php?note=expired`.
+- Actual: states render; SMTP errors surface as flashes. **PASS**
+
+### Test Case 1880.23: i18n coverage gate
+- Steps: 65 new keys (`ued.*` + `user.openEditor`) + `footers.usersEdit` written into **all 10** bundles; `bash ai/verify_i18n_coverage.sh`.
+- Expected: PASS, 0 missing keys, no pre-existing key lost (diff vs HEAD shows additions/reorder only).
+- Actual: PASS (7030 keys × 9 non-en bundles). `python3 -m json.tool` clean on all 10. **PASS**
+
+### Test Case 1880.24: Event Viewer clean + code review (rule 16)
+- Steps: full run above; `SELECT log_level,COUNT(*) FROM events WHERE fired_at > UNIX_TIMESTAMP()-1800`; mandatory subagent code review of HTML/JS/CSS + BFF.
+- Expected: only `log_level 16` audit rows (`User '…' updated`), 0 Error/Warning; review finds no blockers.
+- Actual: audit rows only; review = 0 blockers, minors #1/#2/#3/#5 fixed in code (unmapped `CREATE_FAILED`/`UPDATE_FAILED` now shown from `r.message`, expiration validated pre-write, name blacklist, HEAD→GET). Remaining accepted minors: #4 (create-mode `externalPasswordMgmt` default), #6 (shim 405 body), #8 (i18n re-sort churn). **PASS**

@@ -8373,6 +8373,17 @@ Changes:
       project tables and added user metrics to the middle section
 
 ## 2.0.1 (in-progress)
+### Screen — User Create/Edit standalone editor `usersEdit` (Refs #1880)
+- `gui/templates/usermanagement/usersEdit.html` + `api/usersedit/index.php`: standalone deep-link editor
+  (`?mode=create|edit&user_id=N&tproject_id=P&tplan_id=L`) opened from the new *Open editor* toolbar button and
+  the per-row icon on `usersView.html`; full legacy parity (right `mgt_users` on every route incl. 403 on a real
+  no-rights login, `/ \ : * ? < > |` name blacklist, `noExpDateUsers`, external-auth password rules, SMTP-host
+  guard, `api->enabled`, self-update session refresh) and `expirationDate` validated BEFORE the write — an
+  impossible date or an array parameter now answers 400 instead of storing garbage
+- Legacy `lib/usermanagement/usersEdit.php` reduced to a non-mutating shim (GET 302 → modern screen with context,
+  POST 405 `Allow: GET, HEAD`, anonymous → `login.php?note=expired`)
+- 65 `ued.*` + `user.openEditor` + `footers.usersEdit` keys in all 10 bundles (coverage gate PASS); suite
+  `Issue #1880` 24/24 in `tmp/TLU_Test_Cases.md`; mandatory code review 0 blockers, 4 minors fixed
 ### Key bugfix (i18n) — freeTestCases Importance badges no longer show the raw `high|medium|low` value in every locale; the badge text now maps through the existing `search.lowImportance|mediumImportance|highImportance` keys (Fixes #1874)
 - `gui/templates/results/freeTestCases.html` `priorityBadge()` used the BFF's canonical token as the
   visible badge text, so Romanian/German/… users saw `high`/`low`/`medium` next to translated headers
