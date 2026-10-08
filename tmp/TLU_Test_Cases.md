@@ -5699,3 +5699,61 @@ a cosmetic gain, so it was deliberately left alone and recorded here instead.
 ### Notes
 - Fix already present: specHeader() selects V.author_id, U.login AS author_login; UI uses ctx.author_login with fallbacks
 - Live count (COUNT from requirements) correctly used; denormalized total_req from revisions intentionally unused as per issue rationale
+
+## Regression — Issue #1719: legacy priorityBarChart.php shim refused every real browser navigation with 405
+
+### Precondition
+- TestLink 2.0.1 at http://localhost:8082 (PHP built-in server, docroot = repo root), fresh DB.
+- Fixture: `php tmp/fixtures_1845.php` → project 1 "PBC1", plan 3 "PBC Plan" (6 assigned versions,
+  keywords login/checkout, executions 1p + 1f(latest) + 1b + 1p, 2 not-run), plan 34 empty,
+  user `pbcnorights` (role 3). Logged in as admin/admin (curl cookie jar + headless Chrome).
+- Entry point under test: `/lib/results/priorityBarChart.php` (launcher shim written by ada46a5f9, Refs #1845).
+
+### Repro steps (pre-fix behavior)
+1. In headless Chrome (or curl with the verbatim Chrome header set:
+   `Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,...`
+   + `Sec-Fetch-Dest: document`), navigate to `http://localhost:8082/lib/results/priorityBarChart.php?tplan_id=3` while logged in.
+2. Observe the response: **HTTP 405**, body `{"status":"error","code":"modern_endpoint_only",...}`, **no Location header** —
+   because `strpos($accept,'image/') !== false` at `priorityBarChart.php:74` fires on the browser's
+   `image/avif` token. The report is unreachable through the legacy URL in every real browser.
+3. (Secondary, filed as #1881, NOT part of this suite's fix) anonymous request → 302 to `../login.php`
+   = `/lib/login.php` → **404**.
+
+### Expected post-fix behavior
+- Logged-in navigation through the legacy URL (any real browser) → **302** to
+  `gui/templates/results/priorityBarChart.html?tplan_id=3&tproject_id=1`, which renders the report
+  (200, correct aggregate) with 0 console errors.
+- The 405 hard-fail contract is preserved for XHR / `<img>`-style / image-only callers, 400 for a
+  missing `tplan_id`, 302-to-login for anonymous callers (its 404 target tracked in #1881).
+- No new Event Viewer Warning/Error rows.
+
+### Test cases and actual result observed (post-fix, commit 0527cddf4)
+
+| # | Case | Command / action | Expected | Actual |
+|---|---|---|---|---|
+| 1 | Chrome verbatim navigation headers | `curl -b cj -H "Accept: text/html,…,image/avif,…" -H "Sec-Fetch-Dest: document" …/priorityBarChart.php?tplan_id=3` | 302 | [PASS] 302 → Location `…/priorityBarChart.html?tplan_id=3` |
+| 2 | Follow the redirect | `curl -s -L` (same headers) | final 200 | [PASS] final:200 `…/priorityBarChart.html?tplan_id=3` |
+| 3 | Real headless Chrome navigation | chrome-devtools navigate to the legacy URL | lands on the Priority Bar Chart screen | [PASS] URL `priorityBarChart.html?tplan_id=3&tproject_id=1`, full-page screenshot captured, **0 console messages** |
+| 4 | Old-browser Accept (text/html, no Sec-Fetch) | curl `-H 'Accept: text/html,application/xhtml+xml,*/*;q=0.8'` | 302 | [PASS] 302 |
+| 5 | iframe navigation (`Sec-Fetch-Dest: iframe`) | curl + both headers | 302 (frames must keep working) | [PASS] 302 |
+| 6 | Default curl `Accept: */*` (no dest header) | curl plain | 302 (unchanged pre/post fix) | [PASS] 302 |
+| 7 | `<img>`-style Accept only (`image/avif,…`, no text/html) | curl | 405 | [PASS] 405 |
+| 8 | `<img>` with `Sec-Fetch-Dest: image` | curl | 405 | [PASS] 405 |
+| 9 | XHR (`X-Requested-With: XMLHttpRequest`, suite H5 style incl. `Accept: text/html`) | curl | 405 | [PASS] 405 |
+| 10 | fetch-style `Sec-Fetch-Dest: empty` + `Accept: */*` (live after the `HTTP_SEC_FETCH_DEST` review fix) | curl | 405 | [PASS] 405 |
+| 11 | Missing `tplan_id` (logged in) | curl `…/priorityBarChart.php` | 400 `invalid_request` JSON | [PASS] 400 |
+| 12 | Missing `tplan_id` + XHR | curl | 400 (tplan gate precedes negotiation) | [PASS] 400 |
+| 13 | Anonymous browser request | curl no cookies, `Accept: text/html` | 302 to login URL (target 404 = #1881, unchanged) | [PASS] 302 → `../login.php?note=expired&destination=…` |
+| 14 | Suite 1845 regression (shim + BFF + wiring + i18n + events) | `python3 tmp/suite_1845.py` | 71/71 | [PASS] **71 cases, 71 PASS, 0 FAIL** |
+| 15 | Syntax | `php -l lib/results/priorityBarChart.php` | clean | [PASS] No syntax errors detected |
+| 16 | Event Viewer | `SELECT COUNT(*) FROM events WHERE log_level IN (32,50)` after all tests | 0 | [PASS] 0 (and suite V1 rows=0; only deliberate `no_right` audit rows at log_level 1) |
+| 17 | Modern screen data integrity | `GET /api/prioritybarchart/index.php?action=init&tplan_id=3` | 200 with correct aggregate | [PASS] 200: 6 versions, 1 passed / 2 failed / 1 blocked / 2 not-run, checkout 50% + login 75% |
+| 18 | No stray references to the removed class | `grep -rn "new results(" lib/ api/` (comments excluded) | 0 executable matches | [PASS] 0 |
+
+### Notes
+- Root cause: `strpos($accept,'image/')` misclassifying browser navigations + a dead
+  `$_SERVER['SEC_FETCH_DEST']` key (PHP exposes `HTTP_SEC_FETCH_DEST`); both fixed in
+  `lib/results/priorityBarChart.php:68-86`.
+- Suite 1845 cases H1-H3 previously false-passed by forcing `-H 'Accept: text/html'`
+  (`tmp/suite_1845.py:209-212`) — this suite's cases 1/3 replay the REAL browser headers instead.
+- Secondary defect (anonymous login-bounce 404) deliberately not fixed here — tracked as **#1881**.
