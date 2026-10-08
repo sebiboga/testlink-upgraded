@@ -2492,3 +2492,20 @@ Precondition: app at http://localhost:8082 (admin/admin); DB freshly imported; f
 | 29 | Event Viewer (`events` table) after all steps | no new Error/Warning rows | **PASS** — only the pre-existing login audit row; zero Error/Warning added |
 
 **Suite 1101: 29/29 PASS**
+
+## Regression — Issue #1874: freeTestCases Importance badge shows raw high/low/medium instead of localized label
+
+**Precondition:** `php tmp/fixtures_1262.php` (tproject `FTC1262`, id=1, `testPriorityEnabled=1`, 2 suites × 2 free TCs with importance HIGH/LOW/HIGH/MEDIUM). Admin session in headless Chrome against `http://localhost:8082`.
+
+| # | Step | Expected | Actual (observed) |
+|---|---|---|---|
+| 1 | Open `gui/templates/results/freeTestCases.html?tproject_id=1&locale=en` | Importance cells read `High/Low/High/Medium` (localized), badges colored red/green/red/amber | **PASS** — cells `High`/`Low`/`High`/`Medium`, classes `priority-high|low|high|medium` |
+| 2 | Switch to `&locale=ro` | cells read `Ridicată/Scăzută/Ridicată/Medie`, headers `Importanță`, filter `Toate/Scăzută/Medie/Ridicată` | **PASS** (pre-fix: cells were raw `high/low/medium`) |
+| 3 | Default sort (no interaction) | within each suite, importance DESC (legacy `freeTestCases.php:112-113`): Alpha High→Low, Beta High→Medium | **PASS** |
+| 4 | Footer LIST filter select `Low` | only `FTC-2 Alpha logout Low` remains (regex `^low$` vs raw orthogonal datum) | **PASS** — 1 row; reset restores 4 |
+| 5 | Expand/Collapse Groups (×2) + Refresh | collapse→0 visible rows, expand→4, refresh re-renders 4 rows, badges still localized | **PASS** |
+| 6 | Pre-fix vs post-fix screenshots | raw vs localized | captured `docs/screenshots/issue-1874-freetestcases-importance-{raw,fixed}-{en,ro}.png` |
+| 7 | `node --check` extracted inline JS + browser console | syntax OK, no new JS errors | **PASS** — `JS SYNTAX OK`; console clean (only pre-existing a11y form-field issue) |
+| 8 | Event Viewer (`events` table) | no new Error/Warning rows | **PASS** — still 2 rows `log_level=16` (audit INFO) |
+
+**Suite 1874: 8/8 PASS**
