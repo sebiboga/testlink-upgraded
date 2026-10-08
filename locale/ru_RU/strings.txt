@@ -2830,4 +2830,6 @@ $TLS_after_title = 'После заголовка';
 $TLS_after_preconditions = 'После предварительных условий';
 $TLS_title_test_closure = "Закрытие тестирования"; // "Test Closure" (Refs #1278)
 $TLS_link_report_risk_coverage = "Тестирование на основе рисков";
+$TLS_reqmgrsystem_interface_not_implemented = "Пример конфигурации недоступен: интерфейс '%s' не реализован";
+$TLS_reqmgrsystem_invalid_type = 'Недопустимый тип системы управления требованиями: %s';
 ?>

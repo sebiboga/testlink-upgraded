@@ -3989,6 +3989,8 @@ $TLS_reqmgrsystem_cfg_example = '需求管理系统连接配置样例';
 $TLS_reqmgrsystem_check_ok = "连接成功！！";
 $TLS_reqmgrsystem_check_ko = "连接失败！！请检查连接配置。";
 $TLS_check_reqmgrsystem_connection = "检查连接";
+$TLS_reqmgrsystem_interface_not_implemented = "配置示例不可用：接口 '%s' 尚未实现";
+$TLS_reqmgrsystem_invalid_type = '无效的需求管理系统类型：%s';
 $TLS_reqmgrsystem_management = "需求跟踪系统管理";
 
 // reqMgrSystemCommands.class.php

@@ -3858,6 +3858,8 @@ $TLS_reqmgrsystem_cfg_example = 'Konfiguracn� pr�klad';
 $TLS_reqmgrsystem_check_ok = "Pripojen� je OK";
 $TLS_reqmgrsystem_check_ko = "Pripojen� je KO, zkontrolujte konfiguraci";
 $TLS_check_reqmgrsystem_connection = "Kontrola pripojen�";
+$TLS_reqmgrsystem_interface_not_implemented = "Ukázka konfigurace není k dispozici: rozhraní '%s' není implementováno";
+$TLS_reqmgrsystem_invalid_type = 'Neplatný typ systému pro řízení požadavků: %s';
 $TLS_reqmgrsystem_management = "Spr�va syst�mu r�zen� po�adavku";
 
 // reqMgrSystemCommands.class.php
