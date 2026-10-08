@@ -10455,3 +10455,5 @@ strips the badge box's own classes. Suite `Issue #1807` in
 - Refs #1093: searchView.html — add generated-on timestamp footer after successful search results, server-formatted with TestLink locale timestamp (BFF: api/search/index.php returns generated_on/generated_on_iso). Uses existing i18n common.generatedBy.
 2.0.1 / 2026-10-06
 - Refs #1809: execNotesPicker.html + api/execnotespicker — new Execution Notes picker screen; $actions->execNotesPicker + ASIDE section 9 leaf; readonly screen missing-exec_id state now links here; enp.*/enro.pickExecution/footers.execNotesPicker in all 10 bundles.
+2.0.1 / 2026-10-08
+- Refs #1075: printReqSpec — print_init defaults all 16 print options ON (legacy full-document parity); Issue #1075 test suite restored to tmp/TLU_Test_Cases.md after c5c8ca1d2 clobbered it during the task/issue-1075 merge.
