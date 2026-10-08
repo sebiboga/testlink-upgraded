@@ -20,7 +20,7 @@ require_once('common.php');
 testlinkInitPage($db);
 
 $info = array('sucess' => true, 'cfg' => '');
-$type = intval($_REQUEST['type']);
+$type = intval($_REQUEST['type'] ?? 0);
 $mgr = new tlReqMgrSystem($db);
 $itt = $mgr->getTypes();
 if( isset($itt[$type]) )
