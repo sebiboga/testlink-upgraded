@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title data-i18n="pe.title">Test Plan</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; color: #0d3f3c; opacity: 1; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-teal:disabled { opacity: .45; cursor: not-allowed; }
+.btn-dark { background: #353b48; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-dark:hover { background: #2c313a; }
+.card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 18px 20px; margin: 20px 24px 16px; }
+.card h3 { font-size: 15px; font-weight: 700; color: #22242a; margin: 0 0 14px; }
+.form-label { display: block; font-size: 12px; font-weight: 700; color: #353b48; margin-bottom: 4px; }
+.form-control, .form-control:focus { font-size: 13px; }
+.req { color: #e6605e; }
+.chk-row label { font-weight: 400; font-size: 13px; color: #333; margin-left: 6px; cursor: pointer; }
+.hint { font-size: 11px; color: #888; margin-top: 3px; }
+.copy-block { background: #f7f9f9; border: 1px solid #e3e8e8; border-radius: 6px; padding: 12px 14px; margin-top: 10px; }
+.copy-block table { width: auto; }
+.copy-block td { padding: 3px 6px 3px 0; font-size: 13px; }
+.copy-sub { padding-left: 26px; }
+.okbox, .errbox { border-radius: 6px; padding: 14px 16px; font-size: 13px; margin: 0 24px 12px; }
+.errbox { background: #fdecec; border: 1px solid #f5c6c6; color: #a12a28; }
+.okbox { background: #eaf7f4; border: 1px solid #b6e2dc; color: #22756e; }
+.state-card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 20px 24px; padding: 26px; text-align: center; }
+.state-card h2 { font-size: 17px; font-weight: 700; color: #22242a; margin: 0 0 8px; }
+.state-card p { font-size: 13px; color: #666; margin: 0 0 12px; }
+.state-card .code { font-family: monospace; font-size: 12px; color: #999; }
+.actions { display: flex; gap: 10px; justify-content: flex-end; padding: 4px 24px 20px; flex-wrap: wrap; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
+.att-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.att-table th { text-align: left; font-size: 11px; text-transform: uppercase; color: #888; padding: 6px 8px; border-bottom: 1px solid #eee; }
+.att-table td { padding: 8px; border-bottom: 1px solid #f1f1f1; color: #333; }
+.att-table .act { white-space: nowrap; }
+.att-table .act a, .att-table .act button { font-size: 12px; margin-right: 8px; }
+.apikey-row { display: flex; gap: 8px; align-items: center; }
+.apikey-row input { font-family: monospace; font-size: 12px; background: #f7f9f9; }
+.badge-mode { display: inline-block; background: #0d3f3c; color: #9be7e1; border-radius: 10px; padding: 2px 10px; font-size: 11px; font-weight: 600; vertical-align: middle; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span data-i18n="pe.header">Test Plan</span>
+  <span class="sub" id="opDescr"></span>
+  <span class="badge-mode" id="modeBadge" style="display:none;"></span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="toolbar">
+  <button class="btn-dark" id="btnReload"><i class="fa fa-refresh"></i> <span data-i18n="pe.btnReload">Refresh</span></button>
+  <button class="btn-dark" id="btnBack"><i class="fa fa-arrow-left"></i> <span data-i18n="pe.btnBack">Back to Test Plans</span></button>
+  <button class="btn-dark" id="btnHistory" style="display:none;"><i class="fa fa-history"></i> <span data-i18n="pe.btnHistory">Show event history</span></button>
+  <button class="btn-dark" id="btnClose"><i class="fa fa-times"></i> <span data-i18n="pe.btnClose">Close</span></button>
+  <span class="ctx" id="ctxInfo"></span>
+</div>
+
+<div id="feedback"></div>
+<div id="stateBox"></div>
+
+<div id="formCard" class="card" style="display:none;">
+  <h3 id="formTitle"></h3>
+
+  <div class="form-group">
+    <label class="form-label"><span data-i18n="pe.project">Test project</span></label>
+    <div id="projectName" style="font-size:13px;color:#555;"></div>
+  </div>
+
+  <div class="form-group">
+    <label class="form-label" for="fName"><span data-i18n="pe.name">Name</span> <span class="req">*</span></label>
+    <input type="text" class="form-control" id="fName" maxlength="100" autocomplete="off">
+    <div class="hint" data-i18n="pe.nameHint">Required. Must be unique inside the test project.</div>
+  </div>
+
+  <div class="form-group">
+    <label class="form-label" for="fNotes"><span data-i18n="pe.notes">Notes</span></label>
+    <textarea class="form-control" id="fNotes" rows="6"></textarea>
+  </div>
+
+  <div class="form-group chk-row">
+    <input type="checkbox" id="fActive" checked>
+    <label for="fActive" data-i18n="pe.active">Active</label>
+    &nbsp;&nbsp;
+    <input type="checkbox" id="fPublic">
+    <label for="fPublic" data-i18n="pe.public">Public</label>
+    <div class="hint" data-i18n="pe.publicHint">A public test plan is visible to every user with access to the test project. When it is private, you keep your effective role on it.</div>
+  </div>
+
+  <div class="form-group" id="apiKeyRow" style="display:none;">
+    <label class="form-label"><span data-i18n="pe.apiKey">API key</span></label>
+    <div class="apikey-row">
+      <input type="text" class="form-control" id="fApiKey" readonly>
+      <button class="btn-dark" id="btnCopyKey" type="button"><i class="fa fa-copy"></i> <span data-i18n="pe.copyKey">Copy</span></button>
+    </div>
+    <div class="hint" data-i18n="pe.apiKeyHint">Identifies this test plan for remote API and public-link access.</div>
+  </div>
+
+  <div id="copySection" style="display:none;">
+    <div class="form-group">
+      <label class="form-label" for="fCopyFrom"><span data-i18n="pe.copySection">Create from an existing test plan</span></label>
+      <select class="form-control" id="fCopyFrom"></select>
+    </div>
+    <div class="copy-block" id="copyControls" style="display:none;">
+      <table>
+        <tr>
+          <td><input type="checkbox" id="cUserRoles" checked></td>
+          <td><label for="cUserRoles" data-i18n="pe.copy.userRoles">Copy user roles</label></td>
+        </tr>
+        <tr>
+          <td><input type="checkbox" id="cAttachments" checked></td>
+          <td><label for="cAttachments" data-i18n="pe.copy.attachments">Copy attachments</label></td>
+        </tr>
+        <tr>
+          <td><input type="checkbox" id="cTcases" checked></td>
+          <td><label for="cTcases" data-i18n="pe.copy.tcases">Copy test cases</label></td>
+        </tr>
+        <tr id="rowVersion">
+          <td class="copy-sub" colspan="2">
+            <input type="radio" name="tcversion_type" id="tcLatest" value="latest">
+            <label for="tcLatest" data-i18n="pe.copy.latest">Latest version</label>
+            <input type="radio" name="tcversion_type" id="tcCurrent" value="current" checked style="margin-left:12px;">
+            <label for="tcCurrent" data-i18n="pe.copy.current">Current version</label>
+          </td>
+        </tr>
+        <tr id="rowPriority">
+          <td class="copy-sub"><input type="checkbox" id="cPriorities" checked></td>
+          <td><label for="cPriorities" data-i18n="pe.copy.priorities">Copy test case priorities</label></td>
+        </tr>
+        <tr>
+          <td><input type="checkbox" id="cBuilds" checked></td>
+          <td><label for="cBuilds" data-i18n="pe.copy.builds">Copy builds</label></td>
+        </tr>
+        <tr id="rowAssign">
+          <td class="copy-sub"><input type="checkbox" id="cAssignedTo" checked></td>
+          <td><label for="cAssignedTo" data-i18n="pe.copy.assignedTo">Copy tester assignments</label></td>
+        </tr>
+        <tr>
+          <td><input type="checkbox" id="cPlatforms" checked></td>
+          <td><label for="cPlatforms" data-i18n="pe.copy.platformsLinks">Copy platform links</label></td>
+        </tr>
+        <tr>
+          <td><input type="checkbox" id="cMilestones" checked></td>
+          <td><label for="cMilestones" data-i18n="pe.copy.milestones">Copy milestones</label></td>
+        </tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div id="attCard" class="card" style="display:none;">
+  <h3 data-i18n="pe.attTitle">Attachments</h3>
+  <div id="attList"></div>
+  <div class="form-group" style="margin-top:12px;">
+    <label class="form-label" for="fAttTitle"><span data-i18n="pe.attTitleLabel">Title</span></label>
+    <input type="text" class="form-control" id="fAttTitle" maxlength="100" autocomplete="off">
+    <div class="hint" id="attMaxHint"></div>
+  </div>
+  <div class="form-group">
+    <label class="form-label" for="fAttFile"><span data-i18n="pe.attFile">File</span></label>
+    <input type="file" id="fAttFile">
+  </div>
+  <button class="btn-teal" id="btnUpload"><i class="fa fa-upload"></i> <span data-i18n="pe.attUpload">Upload</span></button>
+</div>
+
+<div class="actions" id="actionBar" style="display:none;">
+  <button class="btn-dark" id="btnCancel" data-i18n="pe.btnCancel">Cancel</button>
+  <button class="btn-teal" id="btnSave"></button>
+</div>
+
+<div class="footer"><span data-i18n="footers.planEdit">TestLink 2.0.1 - Test Plan Create/Edit</span></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/planedit/index.php';
+var ATT_API = '/api/attachments/index.php';
+var tprojectId = 0;
+var itemID = 0;
+var ctxData = null;
+var saving = false;
+
+$(function () {
+  var p = new URLSearchParams(window.location.search);
+  itemID = parseInt(p.get('itemID') || p.get('id') || '0', 10);
+  tprojectId = parseInt(p.get('tproject_id') || p.get('testproject_id') || '0', 10);
+
+  $('#btnReload').on('click', load);
+  $('#btnBack').on('click', goBack);
+  $('#btnCancel').on('click', goBack);
+  $('#btnClose').on('click', function () { window.close(); });
+  $('#btnSave').on('click', save);
+  $('#btnHistory').on('click', function () {
+    location.href = '/gui/templates/eventviewer/eventviewer.html?tproject_id=' + tprojectId +
+      '&objectId=' + itemID + '&objectType=testplan';
+  });
+  $('#btnCopyKey').on('click', function () {
+    var v = $('#fApiKey').val() || '';
+    if (navigator.clipboard && v) { navigator.clipboard.writeText(v); }
+    $('#fApiKey').select();
+  });
+  $('#btnUpload').on('click', uploadAttachment);
+  $('#fCopyFrom').on('change', function () {
+    $('#copyControls').toggle(parseInt($(this).val() || '0', 10) > 0);
+  });
+  $('#cTcases').on('change', function () {
+    var on = $(this).is(':checked');
+    $('#rowVersion').toggle(on);
+    $('#rowPriority').toggle(on);
+    $('#cPlatforms').prop('checked', true).prop('disabled', on);
+  });
+  $('#cBuilds').on('change', function () {
+    $('#rowAssign').toggle($(this).is(':checked'));
+  });
+
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    load();
+  });
+});
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function sessionExpired() {
+  window.location.href = '/login.php?note=expired';
+}
+
+function stateCard(titleKey, msg, code) {
+  $('#formCard, #attCard, #actionBar').hide();
+  $('#feedback').empty();
+  $('#stateBox').html(
+    '<div class="state-card">' +
+      '<h2>' + esc(TLi18n.t(titleKey)) + '</h2>' +
+      '<p>' + esc(msg || '') + '</p>' +
+      (code ? '<div class="code">' + esc(code) + '</div>' : '') +
+    '</div>');
+}
+
+function hideState() { $('#stateBox').empty(); }
+
+function load() {
+  hideState();
+  $('#feedback').empty();
+  $('#stateBox').html('<div class="state-card"><p>' + esc(TLi18n.t('common.loading') || 'Loading...') + '</p></div>');
+  $('#btnReload, #btnSave').prop('disabled', true);
+
+  $.ajax({
+    url: API + '?action=init&itemID=' + itemID + '&tproject_id=' + tprojectId,
+    method: 'GET',
+    dataType: 'json'
+  }).done(function (r) {
+    $('#btnReload').prop('disabled', false);
+    if (!r || r.status !== 'ok') { fail(r || {}); return; }
+    ctxData = r;
+    tprojectId = r.tproject.id;
+    itemID = r.plan ? r.plan.id : 0;
+    render(r);
+  }).fail(function (xhr) {
+    $('#btnReload').prop('disabled', false);
+    handleHttpError(xhr, 'pe.notFoundMsg');
+  });
+}
+
+function handleHttpError(xhr, notFoundKey) {
+  var r = {};
+  try { r = JSON.parse(xhr.responseText); } catch (e) {}
+  if (xhr.status === 401) { sessionExpired(); return; }
+  if (xhr.status === 403) {
+    stateCard('common.forbidden', TLi18n.t('pe.noRight'), r.error_code || 'no_right');
+    return;
+  }
+  if (xhr.status === 404) {
+    stateCard('pe.notFound', TLi18n.t(notFoundKey || 'pe.notFoundMsg'), r.error_code || 'not_found');
+    return;
+  }
+  if (xhr.status === 400) {
+    stateCard('pe.badRequest', esc(r.message || TLi18n.t('pe.badRequestMsg')), r.error_code || 'bad_request');
+    return;
+  }
+  stateCard('common.error', esc(r.message || TLi18n.t('pe.serverError')), r.error_code || ('http_' + xhr.status));
+}
+
+function fail(r) {
+  if (r && r.error_code === 'NO_RIGHT') {
+    stateCard('common.forbidden', TLi18n.t('pe.noRight'), 'no_right');
+    return;
+  }
+  stateCard('common.error', esc((r && r.message) || TLi18n.t('pe.serverError')),
+            (r && r.error_code) || 'error');
+}
+
+function render(r) {
+  hideState();
+  var isEdit = r.mode === 'edit';
+
+  $('#opDescr').text(isEdit ? TLi18n.t('pe.editTitle') : TLi18n.t('pe.createTitle'));
+  $('#modeBadge').text(isEdit ? TLi18n.t('pe.badgeEdit') : TLi18n.t('pe.badgeCreate')).show();
+  $('#formTitle').text(isEdit ? TLi18n.t('pe.editTitle') : TLi18n.t('pe.createTitle'));
+  $('#projectName').text(r.tproject.name + ' (#' + r.tproject.id + ')');
+  $('#ctxInfo').html(esc(TLi18n.t('pe.ctxProject')) + ': <b>' + esc(r.tproject.name) + '</b>' +
+    (isEdit ? ' &nbsp;|&nbsp; ' + esc(TLi18n.t('pe.ctxPlan')) + ': <b>#' + itemID + '</b>' : ''));
+  $('#btnSave').text(isEdit ? TLi18n.t('pe.btnSave') : TLi18n.t('pe.btnCreate'));
+
+  if (isEdit && r.rights && r.rights.canViewEvents) {
+    $('#btnHistory').show();
+  } else {
+    $('#btnHistory').hide();
+  }
+
+  if (isEdit) {
+    $('#fName').val(r.plan.name);
+    $('#fNotes').val(r.plan.notes);
+    $('#fActive').prop('checked', r.plan.active === 1);
+    $('#fPublic').prop('checked', r.plan.is_public === 1);
+    $('#apiKeyRow').show();
+    $('#fApiKey').val(r.plan.api_key || '');
+    $('#copySection').hide();
+    $('#attCard').show();
+    loadAttachments();
+  } else {
+    $('#fName').val('');
+    $('#fNotes').val((r.defaults && r.defaults.notes) || '');
+    $('#fActive').prop('checked', true);
+    $('#fPublic').prop('checked', false);
+    $('#apiKeyRow').hide();
+    $('#fApiKey').val('');
+    $('#attCard').hide();
+    $('#attList').empty();
+    var sel = $('#fCopyFrom').empty();
+    sel.append($('<option>').val('0').text(TLi18n.t('pe.copyNone')));
+    (r.copy_sources || []).forEach(function (p) {
+      sel.append($('<option>').val(String(p.id)).text(p.name + ' (#' + p.id + ')'));
+    });
+    $('#copySection').toggle((r.copy_sources || []).length > 0);
+    $('#copyControls').hide();
+  }
+
+  $('#formCard, #actionBar').show();
+  $('#btnSave').prop('disabled', false);
+}
+
+function save() {
+  if (saving || !ctxData) { return; }
+  var name = String($('#fName').val() || '').replace(/^\s+|\s+$/g, '');
+  if (name === '') {
+    $('#feedback').html('<div class="errbox">' + esc(TLi18n.t('pe.msg.emptyName')) + '</div>');
+    $('#fName').focus();
+    return;
+  }
+  var body = {
+    itemID: itemID,
+    tproject_id: tprojectId,
+    name: name,
+    notes: $('#fNotes').val(),
+    active: $('#fActive').is(':checked') ? 1 : 0,
+    is_public: $('#fPublic').is(':checked') ? 1 : 0
+  };
+  if (itemID === 0) {
+    var src = parseInt($('#fCopyFrom').val() || '0', 10);
+    if (src > 0) {
+      body.copy_from_tplan_id = src;
+      body.copy_options = {
+        copy_tcases: $('#cTcases').is(':checked') ? 1 : 0,
+        copy_priorities: $('#cPriorities').is(':checked') ? 1 : 0,
+        copy_milestones: $('#cMilestones').is(':checked') ? 1 : 0,
+        copy_user_roles: $('#cUserRoles').is(':checked') ? 1 : 0,
+        copy_builds: $('#cBuilds').is(':checked') ? 1 : 0,
+        copy_platforms_links: $('#cPlatforms').is(':checked') ? 1 : 0,
+        copy_attachments: $('#cAttachments').is(':checked') ? 1 : 0
+      };
+      body.copy_assigned_to = $('#cAssignedTo').is(':checked') ? 1 : 0;
+      body.tcversion_type = $('#tcLatest').is(':checked') ? 'latest' : 'current';
+    }
+  }
+
+  saving = true;
+  $('#btnSave').prop('disabled', true);
+  $.ajax({
+    url: API + '?action=save',
+    method: 'POST',
+    contentType: 'application/json',
+    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+    data: JSON.stringify(body),
+    dataType: 'json'
+  }).done(function (r) {
+    saving = false;
+    $('#btnSave').prop('disabled', false);
+    if (!r || r.status !== 'ok') {
+      var msg = (r && r.error_code === 'DUPLICATE_NAME')
+        ? TLi18n.t('pe.msg.duplicate')
+        : esc((r && r.message) || TLi18n.t('pe.serverError'));
+      $('#feedback').html('<div class="errbox">' + msg + '</div>');
+      return;
+    }
+    if (itemID > 0) {
+      $('#feedback').html('<div class="okbox">' + esc(TLi18n.t('pe.msg.saved')) + '</div>');
+      load();
+    } else {
+      $('#feedback').html('<div class="okbox">' + esc(TLi18n.t('pe.msg.created')) + '</div>');
+      itemID = parseInt(r.id || '0', 10);
+      setTimeout(function () {
+        location.href = 'planEdit.html?itemID=' + itemID + '&tproject_id=' + tprojectId;
+      }, 500);
+    }
+  }).fail(function (xhr) {
+    saving = false;
+    $('#btnSave').prop('disabled', false);
+    if (xhr.status === 401) { sessionExpired(); return; }
+    var r = {};
+    try { r = JSON.parse(xhr.responseText); } catch (e) {}
+    var msg = (r.error_code === 'DUPLICATE_NAME')
+      ? TLi18n.t('pe.msg.duplicate')
+      : esc(r.message || TLi18n.t('pe.serverError'));
+    $('#feedback').html('<div class="errbox">' + msg +
+      (r.error_code ? ' <span class="code">[' + esc(r.error_code) + ']</span>' : '') + '</div>');
+  });
+}
+
+function goBack() {
+  location.href = 'planView.html?tproject_id=' + tprojectId;
+}
+
+/* --------------------------- attachments --------------------------- */
+
+function humanSize(n) {
+  n = parseInt(n || 0, 10);
+  if (n < 1024) { return n + ' B'; }
+  if (n < 1048576) { return (n / 1024).toFixed(1) + ' KB'; }
+  return (n / 1048576).toFixed(1) + ' MB';
+}
+
+function loadAttachments() {
+  if (!itemID) { return; }
+  $.ajax({
+    url: ATT_API + '?action=list&table=testplans&id=' + itemID,
+    method: 'GET',
+    dataType: 'json'
+  }).done(function (r) {
+    if (!r || r.status !== 'ok') { return; }
+    $('#attMaxHint').text(TLi18n.t('pe.attMaxSize', { size: Math.round((r.max_size || 0) / 1024) }));
+    var rows = r.attachments || [];
+    if (!rows.length) {
+      $('#attList').html('<div class="hint">' + esc(TLi18n.t('pe.attNone')) + '</div>');
+      return;
+    }
+    var html = '<table class="att-table"><tr>' +
+      '<th>' + esc(TLi18n.t('pe.attTitleLabel')) + '</th>' +
+      '<th>' + esc(TLi18n.t('pe.attFile')) + '</th>' +
+      '<th>' + esc(TLi18n.t('pe.attSize')) + '</th>' +
+      '<th>' + esc(TLi18n.t('pe.attDate')) + '</th>' +
+      '<th></th></tr>';
+    rows.forEach(function (a) {
+      html += '<tr>' +
+        '<td>' + esc(a.title || a.file_name) + '</td>' +
+        '<td>' + esc(a.file_name) + '</td>' +
+        '<td>' + esc(humanSize(a.file_size)) + '</td>' +
+        '<td>' + esc(a.date_added || '') + '</td>' +
+        '<td class="act">' +
+          '<a href="' + ATT_API + '?action=download&id=' + parseInt(a.id, 10) + '">' +
+            '<i class="fa fa-download"></i> ' + esc(TLi18n.t('pe.attDownload')) + '</a>' +
+          '<button class="btn-link" style="background:none;border:none;color:#e6605e;cursor:pointer;padding:0;" ' +
+            'data-att-id="' + parseInt(a.id, 10) + '" data-att-name="' + esc(a.file_name) + '">' +
+            '<i class="fa fa-trash"></i> ' + esc(TLi18n.t('pe.attDelete')) + '</button>' +
+        '</td></tr>';
+    });
+    html += '</table>';
+    $('#attList').html(html);
+    $('#attList button[data-att-id]').on('click', function () {
+      var id = $(this).data('att-id');
+      var fname = $(this).data('att-name');
+      if (window.confirm(TLi18n.t('pe.msg.deleteConfirm', { file: fname }))) {
+        deleteAttachment(id);
+      }
+    });
+  }).fail(function (xhr) {
+    if (xhr.status === 401) { sessionExpired(); return; }
+    $('#attList').html('<div class="hint">' + esc(TLi18n.t('pe.attLoadError')) + '</div>');
+  });
+}
+
+function uploadAttachment() {
+  if (!itemID) { return; }
+  var fileInput = document.getElementById('fAttFile');
+  if (!fileInput.files || !fileInput.files.length) {
+    $('#feedback').html('<div class="errbox">' + esc(TLi18n.t('pe.msg.uploadNoFile')) + '</div>');
+    return;
+  }
+  var fd = new FormData();
+  fd.append('action', 'upload');
+  fd.append('table', 'testplans');
+  fd.append('id', String(itemID));
+  fd.append('title', $('#fAttTitle').val() || '');
+  fd.append('uploadedFile', fileInput.files[0]);
+  $('#btnUpload').prop('disabled', true);
+  $.ajax({
+    url: ATT_API,
+    method: 'POST',
+    data: fd,
+    processData: false,
+    contentType: false,
+    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+    dataType: 'json'
+  }).done(function (r) {
+    $('#btnUpload').prop('disabled', false);
+    if (!r || (r.status && r.status !== 'ok')) {
+      $('#feedback').html('<div class="errbox">' + esc((r && r.message) || TLi18n.t('pe.msg.uploadFailed')) + '</div>');
+      return;
+    }
+    $('#fAttTitle').val('');
+    fileInput.value = '';
+    $('#feedback').html('<div class="okbox">' + esc(TLi18n.t('pe.msg.uploaded')) + '</div>');
+    loadAttachments();
+  }).fail(function (xhr) {
+    $('#btnUpload').prop('disabled', false);
+    if (xhr.status === 401) { sessionExpired(); return; }
+    var r = {};
+    try { r = JSON.parse(xhr.responseText); } catch (e) {}
+    $('#feedback').html('<div class="errbox">' + esc(r.message || TLi18n.t('pe.msg.uploadFailed')) + '</div>');
+  });
+}
+
+function deleteAttachment(fileId) {
+  var fd = new URLSearchParams();
+  fd.set('action', 'delete');
+  fd.set('table', 'testplans');
+  fd.set('id', String(itemID));
+  fd.set('file_id', String(fileId));
+  $.ajax({
+    url: ATT_API,
+    method: 'POST',
+    data: fd.toString(),
+    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+    dataType: 'json'
+  }).done(function (r) {
+    if (!r || (r.status && r.status !== 'ok')) {
+      $('#feedback').html('<div class="errbox">' + esc((r && r.message) || TLi18n.t('pe.msg.deleteFailed')) + '</div>');
+      return;
+    }
+    $('#feedback').html('<div class="okbox">' + esc(TLi18n.t('pe.msg.deleted')) + '</div>');
+    loadAttachments();
+  }).fail(function (xhr) {
+    if (xhr.status === 401) { sessionExpired(); return; }
+    var r = {};
+    try { r = JSON.parse(xhr.responseText); } catch (e) {}
+    $('#feedback').html('<div class="errbox">' + esc(r.message || TLi18n.t('pe.msg.deleteFailed')) + '</div>');
+  });
+}
+</script>
+</body>
+</html>
