@@ -5755,5 +5755,5 @@ a cosmetic gain, so it was deliberately left alone and recorded here instead.
   `$_SERVER['SEC_FETCH_DEST']` key (PHP exposes `HTTP_SEC_FETCH_DEST`); both fixed in
   `lib/results/priorityBarChart.php:68-86`.
 - Suite 1845 cases H1-H3 previously false-passed by forcing `-H 'Accept: text/html'`
-  (`tmp/suite_1845.py:209-212`) — this suite's cases 1/3 replay the REAL browser headers instead.
+  (`tmp/suite_1845.py:206` and `:211`) — this suite's cases 1/3 replay the REAL browser headers instead.
 - Secondary defect (anonymous login-bounce 404) deliberately not fixed here — tracked as **#1881**.

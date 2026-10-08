@@ -23,18 +23,18 @@ screen reaches full parity.
   from the dropped 1.9.20 report layer, HTTP 500 with a 0-byte body - had already been removed by
   `ada46a5f9` (Refs #1845), which rewrote the file as a session-guarded shim redirecting to the
   modern screen `gui/templates/results/priorityBarChart.html`. But the shim classified the caller
-  with `strpos($_SERVER['HTTP_ACCEPT'],'image/') !== false` (`priorityBarChart.php:74`), and
+  with a bare `strpos($accept,'image/') !== false` test on the lower-cased `HTTP_ACCEPT` header
+  (`priorityBarChart.php:74`, `$accept` set at `:71`), and
   Chrome/Firefox/Edge **document** Accept headers carry `image/avif,image/webp,image/apng` tokens,
   so the test fired on **100% of real navigations**: measured with the verbatim Chrome header set
   AND 1:1 in headless Chrome, every browser got `405 modern_endpoint_only` JSON with no `Location`
   instead of the redirect - the report was unreachable through its own legacy URL. The #1845 suite
-  hid it for 3 days because `tmp/suite_1845.py:209-212` forces `-H 'Accept: text/html'`, stripping
+  hid it for 3 days because `tmp/suite_1845.py:206,211` forces `-H 'Accept: text/html'`, stripping
   the offending tokens - a false PASS. Second, compounding defect (pre-existing, caught by this
   run's mandatory code review): the file read `$_SERVER['SEC_FETCH_DEST']`, a key PHP never
   populates (request headers arrive as `HTTP_*`), so every `Sec-Fetch-Dest` comparison in the file
   was dead code - fixed to `HTTP_SEC_FETCH_DEST`, matching `reqSpecSearchForm.php:72`,
-  `reqSpecSearch.php:74`, `getreqmonitors.php:72`, `gettestcasesummary.php:97`,
-  `keywordsEdit.php:99`. Fix (negotiation block only, `:68-86`, +11/-2): a request is a document
+  `reqSpecSearch.php:74`, `getreqmonitors.php:72`, `gettestcasesummary.php:97`. Fix (negotiation block only, `:68-86`, +11/-2): a request is a document
   navigation when `Sec-Fetch-Dest: document` **or** `Accept` contains `text/html` and can never be
   refused; XHR / `dest=empty` / `dest=image` / an image-only `Accept` keep the documented 405
   hard-fail contract (the 1.9.20 answer was PNG pixels); `iframe` stays redirectable (rejected the

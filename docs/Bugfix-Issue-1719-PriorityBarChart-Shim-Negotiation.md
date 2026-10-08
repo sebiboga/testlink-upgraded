@@ -82,10 +82,10 @@ removed the fatal:
    `false`). Every `Sec-Fetch-Dest` comparison in the file was dead code, so `$dest` was always
    `''`. (Caught by the mandatory code review of this fix; every other consumer in the repo uses
    the prefixed key — `reqSpecSearchForm.php:72`, `reqSpecSearch.php:74`,
-   `getreqmonitors.php:72`, `gettestcasesummary.php:97`, `keywordsEdit.php:99`.)
+   `getreqmonitors.php:72`, `gettestcasesummary.php:97`.)
 
 **Why nobody noticed:** `tmp/suite_1845.py` cases H1–H3 always pass `-H 'Accept: text/html'`
-(`:209–212`), stripping the offending tokens before the shim ever sees them — a **false PASS**
+(`:206` and `:211`), stripping the offending tokens before the shim ever sees them — a **false PASS**
 that hid the defect for 3 days.
 
 **Blast radius:** `lib/results/priorityBarChart.php` only — `strpos($accept,'image/')` is used
