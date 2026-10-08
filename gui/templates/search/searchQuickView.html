@@ -7,6 +7,7 @@
 <title>Quick Search</title>
 <link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
 <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/rowgroup/1.4.1/css/rowGroup.dataTables.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <style>
 * { box-sizing: border-box; }
@@ -55,6 +56,21 @@ table.dataTable tbody td { padding: 8px 14px; font-size: 13px; vertical-align: m
 .warnbox { margin: 12px 24px 0; background: #fdecea; border: 1px solid #f5c6cb; color: #b94a48; border-radius: 6px; padding: 10px 14px; font-size: 13px; display: none; }
 .empty { background: #fff; border-radius: 8px; padding: 26px; text-align: center; color: #888; font-size: 13px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 8px 24px; display: none; }
 .footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+/* Grid toolbar (legacy exttable.class.php:99 showToolbar, tcSearch.php:345) */
+.grid-toolbar { background: #2c2f38; padding: 8px 24px; display: flex; gap: 8px; align-items: center; border-top: 1px solid #3a3d47; }
+.tbtn { display: inline-flex; align-items: center; gap: 6px; background: #3a3d47; color: #fff; border: none; border-radius: 4px; padding: 6px 12px; font-size: 12px; cursor: pointer; }
+.tbtn:hover { background: #4ECDC4; color: #fff; }
+.tbtn i { color: #4ECDC4; }
+.tbtn:hover i { color: #fff; }
+.tbtn.active { background: #4ECDC4; color: #fff; }
+.tbtn.active i { color: #fff; }
+/* Group header rows (legacy groupTextTpl '{text} (N Items)', exttable.class.php:591) */
+table.dataTable tbody tr.dtrg-group td { background: #e9f5f3; font-weight: 700; color: #2b6f69; cursor: pointer; padding: 8px 14px; font-size: 12px; }
+table.dataTable tbody tr.dtrg-group td i { margin-right: 6px; color: #4ECDC4; }
+table.dataTable tbody tr.dtrg-group td .gcount { font-weight: 400; color: #6aa; font-size: 11px; margin-left: 6px; }
+table.plain-results tbody tr.dtrg-group td { background: #e9f5f3; font-weight: 700; color: #2b6f69; cursor: pointer; padding: 8px 14px; font-size: 12px; }
+table.plain-results tbody tr.dtrg-group td i { margin-right: 6px; color: #4ECDC4; }
+table.plain-results tbody tr.dtrg-group td .gcount { font-weight: 400; color: #6aa; font-size: 11px; margin-left: 6px; }
 .toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
 .toast.err { background: #e6605e; }
 </style>
@@ -198,8 +214,25 @@ table.dataTable tbody td { padding: 8px 14px; font-size: 13px; vertical-align: m
   <h2><span data-i18n="search.results">Search results</span><span class="count" id="matchCount"></span></h2>
 </div>
 <div class="empty" id="noResults" data-i18n="search.noResults">No test cases match the given criteria.</div>
+
+<!-- Legacy grid toolbar parity: lib/testcases/tcSearch.php:345-348 (showToolbar
+     with toolbarRefreshButton=false / toolbarShowAllColumnsButton=false,
+     storeTableState=false) + gui/templates/dashio/include/inc_ext_table.tpl:187-206
+     and :292-302 (Reset Filters, toolbarResetFiltersButton default true) as
+     verified live in issue #1102: legacy quick-search results show exactly
+     "Expand/Collapse Groups" and "Reset Filters". The grouped-column toggle
+     below is the modern superset of the legacy hideGroupedColumn=true state
+     (exttable.class.php:55) that legacy could never undo. -->
+<div class="grid-toolbar" id="gridToolbar" style="display:none;">
+  <button type="button" class="tbtn" id="btnGroupToggle"><i class="fa fa-chevron-down"></i> <span data-i18n="sv.grid.expandCollapseGroups">Expand/Collapse Groups</span></button>
+  <button type="button" class="tbtn" id="btnResetFilters"><i class="fa fa-filter-circle-xmark"></i> <span data-i18n="sv.grid.resetFilters">Reset Filters</span></button>
+  <button type="button" class="tbtn" id="btnSuiteCol"><i class="fa fa-columns"></i> <span data-i18n="sv.grid.showAllColumns">Show all Columns</span></button>
+  <span style="flex:1"></span>
+  <span id="gridToolbarInfo" style="color:#8a8f99;font-size:12px;"></span>
+</div>
+
 <div class="table-wrap" id="resultsWrap" style="display:none">
-  <table id="resTable" class="display" style="width:100%">
+  <table id="resTable" class="display plain-results" style="width:100%">
     <thead>
       <tr>
         <th style="width:22%" data-i18n="search.colPath">Test Suite</th>
@@ -221,6 +254,7 @@ table.dataTable tbody td { padding: 8px 14px; font-size: 13px; vertical-align: m
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap.min.js"></script>
+<script src="https://cdn.datatables.net/rowgroup/1.4.1/js/dataTables.rowGroup.min.js"></script>
 <script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
 <script>
 var API = '/api/search/index.php';
@@ -230,6 +264,14 @@ var ctx = null;
 var resTbl = null;
 // deep-link query params (global so loadContext/resetForm can read url state)
 var p = null;
+// Legacy grid grouping state (lib/testcases/tcSearch.php:341 setGroupByColumnName,
+// exttable.class.php:55 hideGroupedColumn=true, exttable.class.php:591
+// groupTextTpl '{text} (N Items)'). Refs #1102.
+var GRID_SUITE_COL = 'path';
+var SUITE_COL_IDX = 0;
+var collapsedGroups = Object.create(null);
+var showSuiteCol = false;
+var reordering = false;
 
 $(function () {
   p = new URLSearchParams(window.location.search);
@@ -248,6 +290,25 @@ $(function () {
     $('#advJolly').on('input', function () {
       $('#jollyAdvise').toggleClass('show', $.trim($(this).val()) !== '');
     });
+    // Legacy grid toolbar + group interactions (Refs #1102)
+    $('#btnGroupToggle').on('click', toggleGroups);
+    $('#btnSuiteCol').on('click', function () {
+      showSuiteCol = !showSuiteCol;
+      applySuiteColState();
+    });
+    $('#btnResetFilters').on('click', resetGridFilters);
+    // Clicking a group header row expands/collapses that single group
+    $(document).on('click', '#resTable tbody tr.dtrg-group', function () {
+      var key = decodeURIComponent($(this).attr('data-key') || '');
+      // presence of the key means "collapsed" (isGroupCollapsed), so expanding
+      // must DELETE the key - `collapsedGroups[key] = false` would keep it.
+      if (isGroupCollapsed(key)) { delete collapsedGroups[key]; } else { collapsedGroups[key] = true; }
+      if (resTbl) { resTbl.draw(false); } else { togglePlainGroup($(this)); }
+      updateGroupToggleBtn();
+    });
+    // Keep the suite-path group column the primary sort criterion (RowGroup
+    // only merges contiguous runs), legacy default order preserved.
+    $(document).on('order.dt', function (e, settings) { pinGroupOrder(settings); });
   });
 });
 
@@ -460,18 +521,23 @@ function renderResults(r) {
   $('#matchCount').text('(' + TLi18n.t('search.matchCount', {n: r.count}) + ')');
 
   if (resTbl) { resTbl.destroy(); resTbl = null; $('#resTable tbody').empty(); }
+  collapsedGroups = Object.create(null);
+  $('#gridToolbarInfo').text('');
 
   if (!r.rows || r.rows.length === 0) {
     $('#resultsWrap').hide();
+    $('#gridToolbar').hide();
     $('#noResults').toggle(!r.warning || r.warning === 'no_records_found');
     $('#footerInfo').text('');
     return;
   }
   $('#noResults').hide();
   $('#resultsWrap').show();
+  $('#gridToolbar').show();
 
+  // Object rows (not positional arrays) so the grouped column can be ordered on
+  // the RAW suite path while the visible cell stays escaped (Refs #1102).
   var rows = r.rows.map(function (row) {
-    var path = esc(row.path);
     var tcLabel = '<a class="tc-link" href="javascript:void(0)" onclick="openTcEdit(' +
                   row.testcase_id + ',' + row.tcversion_id + ')">' +
                   esc(row.full_external_id) + ' [v' + esc(row.version) + '] :: ' + esc(row.name) + '</a>';
@@ -481,43 +547,215 @@ function renderResults(r) {
         '" onclick="openTcEdit(' + row.testcase_id + ',' + row.tcversion_id + ')"><i class="fas fa-pen-to-square"></i></button>' +
       '<button class="icon-btn hist" title="' + esc(TLi18n.t('search.execHistory')) +
         '" onclick="openExecHistory(' + row.testcase_id + ')"><i class="fas fa-clock-rotate-left"></i></button>';
-    return [path, tcLabel, summary, row.version, actions];
+    return {
+      path: row.path == null ? '' : String(row.path),
+      testcase: tcLabel,
+      summary: summary,
+      version: row.version,
+      actions: actions
+    };
   });
 
+  var groupKeys = [];
+  $.each(rows, function (i, o) {
+    if (groupKeys.indexOf(o.path) === -1) { groupKeys.push(o.path); }
+  });
+  var groupSizes = {};
+  $.each(rows, function (i, o) { groupSizes[o.path] = (groupSizes[o.path] || 0) + 1; });
+
   // Render the plain <tbody> rows first so results are never lost even when
-  // the DataTables CDN (external) is slow/unavailable. Previously the
-  // unguarded `$('#resTable').DataTable(...)` threw when `$.fn.DataTable`
-  // was undefined, aborting renderResults() after the count/wrapper were
-  // shown and leaving an empty table beside a non-zero count (Refs #799).
+  // the DataTables CDN (external) is slow/unavailable (Refs #799). The
+  // fallback also carries the legacy group headers so the grouping survives
+  // without the CDN (Refs #1102).
   var $body = $('#resTable tbody').empty();
-  rows.forEach(function (cell) {
+  var seen = {};
+  $.each(rows, function (i, o) {
+    if (!seen[o.path]) {
+      seen[o.path] = true;
+      $('<tr/>').addClass('dtrg-group').attr('data-key', encodeURIComponent(o.path))
+        .append($('<td/>').attr('colspan', 5).append(
+          $('<i/>').addClass('fa fa-chevron-down'),
+          ' ' + esc(o.path) + '<span class="gcount">' + esc(groupCountText(groupSizes[o.path])) + '</span>'
+        )).appendTo($body);
+    }
     $('<tr>').append(
-      $('<td>').html(cell[0]),
-      $('<td>').html(cell[1]),
-      $('<td>').html(cell[2]),
-      $('<td>').text(cell[3]).addClass('text-center'),
-      $('<td>').html(cell[4]).addClass('text-center')
+      $('<td>').addClass('path-cell').text(o.path).css('display', showSuiteCol ? '' : 'none'),
+      $('<td>').html(o.testcase),
+      $('<td>').addClass('summary-cell').html(o.summary),
+      $('<td>').text(o.version).addClass('text-center'),
+      $('<td>').html(o.actions).addClass('text-center')
     ).appendTo($body);
   });
 
   // Enhance with DataTables when available (CDN loaded); otherwise keep the
   // plain table fallback so rows always display.
-  if (typeof $.fn.DataTable === 'function') {
+  if (typeof $.fn.DataTable === 'function' &&
+      $.fn.dataTable && typeof $.fn.dataTable.RowGroup === 'function') {
     try {
       resTbl = $('#resTable').DataTable({
         destroy: true,
         data: rows,
         language: { search: '', searchPlaceholder: TLi18n.t('common.search') },
+        columns: [
+          { data: GRID_SUITE_COL, visible: showSuiteCol, render: { display: esc } },
+          { data: 'testcase', render: { display: function (d) { return d; } } },
+          { data: 'summary', render: { display: function (d) { return d; } } },
+          { data: 'version', className: 'text-center', width: '70px' },
+          { data: 'actions', orderable: false, className: 'text-center' }
+        ],
         columnDefs: [
           { targets: 3, className: 'text-center', width: '70px' },
           { targets: 4, orderable: false }
-        ]
+        ],
+        // Legacy: sortByColumn = Test Case, sortDirection = DESC
+        // (tcSearch.php:342-343). The grouped column stays the primary sort
+        // criterion (RowGroup only merges contiguous runs), so each group is
+        // listed in suite-path order and its cases in descending order.
+        order: [[SUITE_COL_IDX, 'asc'], [1, 'desc']],
+        // allowMultiSort = false (tcSearch.php:346)
+        orderMulti: false,
+        // Legacy parity: rows grouped per Test Suite (tcSearch.php:341) with a
+        // collapsible header showing the item count (exttable.class.php:591
+        // groupTextTpl '{text} (N Items)').
+        rowGroup: {
+          dataSrc: GRID_SUITE_COL,
+          startRender: function (rowsInGroup, group) {
+            var isCollapsed = isGroupCollapsed(group);
+            rowsInGroup.nodes().each(function (rn) { rn.style.display = isCollapsed ? 'none' : ''; });
+            var n = rowsInGroup.count();
+            return $('<tr/>').addClass('dtrg-group').attr('data-key', encodeURIComponent(group))
+              .append($('<td/>').attr('colspan', visibleColumnCount()).append(
+                $('<i/>').addClass('fa ' + (isCollapsed ? 'fa-chevron-right' : 'fa-chevron-down')),
+                ' ' + esc(group) + '<span class="gcount">' + esc(groupCountText(n)) + '</span>'
+              ));
+          }
+        }
       });
+      applySuiteColState();
+      updateGroupToggleBtn();
     } catch (e) {
       resTbl = null;
     }
   }
   $('#footerInfo').text(TLi18n.t('search.matchCount', {n: r.count}));
+}
+
+function groupCountText(n) {
+  return (n === 1 ? TLi18n.t('sv.grid.groupItem', {count: n})
+                  : TLi18n.t('sv.grid.groupItems', {count: n}));
+}
+
+function visibleColumnCount() {
+  return $('#resTable thead th').filter(function () { return $(this).css('display') !== 'none'; }).length;
+}
+
+// hideGroupedColumn = true (exttable.class.php:55) -> the grouped Test Suite
+// column is hidden while grouping; the toolbar toggle brings it back (the
+// legacy "show all columns" button, tcSearch.php:348, was disabled).
+function applySuiteColState() {
+  if (resTbl) {
+    resTbl.column(SUITE_COL_IDX).visible(showSuiteCol);
+  }
+  $('#resTable thead th').eq(SUITE_COL_IDX).css('display', showSuiteCol ? '' : 'none');
+  $('#resTable tbody tr:not(.dtrg-group)').find('td:nth-child(1)').css('display', showSuiteCol ? '' : 'none');
+  var $btn = $('#btnSuiteCol').toggleClass('active', showSuiteCol);
+  $btn.find('span').text(showSuiteCol
+    ? TLi18n.t('sv.grid.hideSuiteColumn')
+    : TLi18n.t('sv.grid.showAllColumns'));
+}
+
+// hasOwnProperty based: a suite named e.g. 'toString' must not inherit
+// Object.prototype members.
+function isGroupCollapsed(key) {
+  return Object.prototype.hasOwnProperty.call(collapsedGroups, key);
+}
+
+function allGroupKeys() {
+  var keys = Object.create(null);
+  $('#resTable tbody tr.dtrg-group').each(function () {
+    keys[decodeURIComponent($(this).attr('data-key') || '')] = true;
+  });
+  return keys;
+}
+
+function anyGroupCollapsed() {
+  var keys = allGroupKeys(), any = false;
+  $.each(Object.keys(keys), function (i, k) {
+    if (Object.prototype.hasOwnProperty.call(collapsedGroups, k)) { any = true; return false; }
+  });
+  return any;
+}
+
+function updateGroupToggleBtn() {
+  $('#btnGroupToggle').toggleClass('active', anyGroupCollapsed());
+}
+
+function expandAllGroups() {
+  collapsedGroups = Object.create(null);
+  if (resTbl) { resTbl.draw(false); } else { setPlainGroupsVisible(true); }
+  updateGroupToggleBtn();
+  $('#gridToolbarInfo').text(TLi18n.t('sv.grid.groupsExpanded'));
+}
+
+function collapseAllGroups() {
+  collapsedGroups = allGroupKeys();
+  if (resTbl) { resTbl.draw(false); } else { setPlainGroupsVisible(false); }
+  updateGroupToggleBtn();
+  $('#gridToolbarInfo').text(TLi18n.t('sv.grid.groupsCollapsed'));
+}
+
+function toggleGroups() {
+  if (anyGroupCollapsed()) { expandAllGroups(); } else { collapseAllGroups(); }
+}
+
+// legacy "Reset Filters" (inc_ext_table.tpl:292-302 -> grid.filters.clearFilters()):
+// clears the client-side grid filter of the result table.
+function resetGridFilters() {
+  if (resTbl) {
+    var $input = $('#resTable_filter input');
+    $input.val('');
+    resTbl.search('').draw();
+  }
+  $('#gridToolbarInfo').text(TLi18n.t('sv.grid.filtersCleared'));
+}
+
+// no-DataTables fallback: hide/show the data rows that follow each group header
+function setPlainGroupsVisible(visible) {
+  $('#resTable tbody tr.dtrg-group').each(function () {
+    var $h = $(this);
+    $h.find('i').attr('class', 'fa ' + (visible ? 'fa-chevron-down' : 'fa-chevron-right'));
+    var $next = $h.next();
+    while ($next.length && !$next.hasClass('dtrg-group')) {
+      $next.css('display', visible ? '' : 'none');
+      $next = $next.next();
+    }
+  });
+}
+
+function togglePlainGroup($h) {
+  var visible = $h.find('i').hasClass('fa-chevron-right');
+  $h.find('i').attr('class', 'fa ' + (visible ? 'fa-chevron-down' : 'fa-chevron-right'));
+  var $next = $h.next();
+  while ($next.length && !$next.hasClass('dtrg-group')) {
+    $next.css('display', visible ? '' : 'none');
+    $next = $next.next();
+  }
+}
+
+// Keep the group column as the primary sort criterion: DataTables RowGroup
+// split one suite into several group headers otherwise. order.dt fires *during*
+// a draw, so the re-apply is deferred one tick.
+function pinGroupOrder(settings) {
+  if (!resTbl || reordering) return;
+  var cur = resTbl.settings()[0];
+  if (settings && cur && settings !== cur) return;
+  var o = resTbl.order();
+  if (o.length && o[0][0] === SUITE_COL_IDX) return;
+  reordering = true;
+  setTimeout(function () {
+    resTbl.order([[SUITE_COL_IDX, 'asc']].concat(o)).draw(false);
+    reordering = false;
+  }, 0);
 }
 
 function openTcEdit(tcaseId, tcversionId) {
@@ -535,7 +773,10 @@ function resetForm() {
   $('#warnBox').hide();
   $('#resultsHead').hide();
   $('#resultsWrap').hide();
+  $('#gridToolbar').hide();
   $('#noResults').hide();
+  collapsedGroups = Object.create(null);
+  $('#gridToolbarInfo').text('');
   if (resTbl) { resTbl.destroy(); resTbl = null; $('#resTable tbody').empty(); }
   $('#quickText').val('');
   // Refs #1101: clear the advanced criteria too
