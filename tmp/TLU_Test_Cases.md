@@ -6402,3 +6402,24 @@ Actual result observed (post-fix, measured 2026-10-09):
 - [PASS] TC-1887-01 .. TC-1887-05.
 - [DOC] TC-1887-06 filed as #1888; not fixed in this run (FIX-ISSUE §4, no scope expansion).
 - Gate: `TLU_REQUIRE_SUITE="Issue #1887" bash ai/verify_test_suites.sh`
+
+## Regression — Issue #1691: api/reqtreereorder — latest version only filter for revised requirements
+
+**Precondition** (DB freshly imported; recreate as needed):
+```bash
+php /home/runner/work/testlink-upgraded/testlink-upgraded/tmp/fixtures_1681.php
+mysql -h 127.0.0.1 -utestlink -ptestlink testlink -e "
+UPDATE nodes_hierarchy SET name='TR1-1v2' WHERE id=6;
+UPDATE requirements SET req_doc_id='TR1-1v2' WHERE id=6;
+INSERT INTO req_versions (id, version, scope, status, type, active, is_open, expected_coverage, author_id, creation_ts, modification_ts, log_message) VALUES (12, 2, 'scope2', 'V', '1', 1, 1, 1, 1, NOW(), NOW(), 'rev');
+INSERT INTO nodes_hierarchy (id, parent_id, name, node_type_id, node_order) VALUES (12, 6, 'TR1-1v2', 8, 0);
+"
+```
+Login `admin/admin`. Screen: `http://localhost:8082/gui/templates/requirements/reqTreeReorder.html?tproject_id=1&req_spec_id=2`
+
+| # | Steps | Expected | Actual | Result |
+|---|---|---|---|---|
+| 1691-1 | `GET /api/reqtreereorder/index.php?action=init&tproject_id=1&req_spec_id=2` | Returns exactly 3 requirements in the list (id 6 appears once), version for id 6 is the latest (v2). No duplicate requirement ids. | Requirements array contains id 6 once with version 2 and req_doc_id 'TR1-1v2'. Count of entries with id==6 = 1. | PASS |
+| 1691-2 | Reorder the spec (move TR1-3 to top) via POST `action=reorder` with all 3 requirement ids in the new order | Returns `{"status":"ok", ... "reordered": 3}` or `no_change` as appropriate, but no 400 error about duplicate ids. The reordered set matches the submitted list. | POST succeeds (no 400). The backend accepts the complete ordered list of distinct requirement ids. | PASS |
+| 1691-3 | Verify the list only shows each requirement once even though multiple version nodes exist (VN.id 7 and 12 for req 6) | Only one row per requirement in the UI/API response. | One row for id 6, one for 8, one for 10. | PASS |
+
