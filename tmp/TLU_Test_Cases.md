@@ -6095,3 +6095,35 @@ mandatory code review (rule 16) and its fixes.
 - The `edit=testproject` branch keeps legacy semantics of "not assignable" by ignoring it and
   showing the normal picker (the legacy screen showed an instructions-only page). Documented
   as an intentional, accepted delta; no assignable level exists for a whole project.
+
+## Regression — Issue #1884: planUrgency.php missing/zero tplan_id writes E_WARNING to events
+
+**Precondition**
+- App running at http://localhost:8082 (fresh DB). Logged in as admin/admin (cookie stored for curl/browser context as used). Database freshly imported on run context; events table empty.
+
+**Repro steps (pre-fix)**
+1. `curl -s -b <cookies> -L "http://localhost:8082/lib/plan/planUrgency.php?tplan_id=0" >/dev/null`
+2. Query events: `SELECT log_level, description FROM events ORDER BY id`
+   Expected pre-fix: 5–7 rows with log_level=2 (E_WARNING) including:
+   - `Undefined array key "testplanName"` at planUrgency.php:81
+   - `Trying to access array offset on null` at planUrgency.php:110-112,125
+   - `foreach() argument must be of type array|object, null given` at planUrgency.php:51
+   - `Undefined property: stdClass::$pageTitle` from compiled template referencing planUrgency.tpl
+
+**Expected post-fix behavior**
+- Accessing `lib/plan/planUrgency.php` with missing/zero/invalid `tplan_id` while logged in must NOT write any E_WARNING (log_level=2) rows to `events`.
+- Page still responds (HTTP 200). Defensive guards prevent array access on null/undefined keys.
+- No new Error/Warning entries in Event Viewer from these requests.
+
+**Actual result (post-fix, a7b91728c)**
+- `TRUNCATE events`; call with `?tplan_id=0`: events count = 0 (no E_WARNING rows). Same for missing param, empty, and non-numeric (`abc`).
+- Verified: `mysql -h127.0.0.1 -utestlink -ptestlink testlink -e "SELECT log_level,COUNT(*) FROM events GROUP BY log_level"` returns no rows (empty) after each test.
+- Fix file: `lib/plan/planUrgency.php` — added guards for session keys, session_data, get_node_hierarchy_info result, listTestCases result; set pageTitle safely.
+
+**Test execution**
+- [PASS] curl + direct DB inspection against live app (:8082)
+- [PASS] No E_WARNING events generated for all invalid tplan_id cases
+- [PASS] Event Viewer clean after repro attempts
+
+### Notes
+- L18N audit events (log_level 32) not observed for these repros; the reported symptom is E_WARNING noise eliminated.
