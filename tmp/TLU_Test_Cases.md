@@ -6224,3 +6224,37 @@ execution_bug BUG-1065 on the Login Fail b1 execution; user `rtmnorights`
 ### Notes
 - The RTM is an enhancement (issue #1065) with no legacy `lib/results` counterpart; it complements, not replaces, `resultsRequirements.html`.
 - Coverage semantics: uncovered = no plan-assigned linked TC or none executed on filter; covered = every plan-linked TC executed with latest status `p`; partial otherwise. Orphan req = zero `req_coverage` links; orphan TC = in plan with no active link.
+
+## Regression — Issue #1883: lib/cfields/cfieldsEdit.php + cfieldsTprojectAssign.php anonymous bounce → login.php 404 (hand-rolled $_SESSION['basehref'] . 'login.php' → /lib/cfields/login.php)
+
+Precondition: Fresh anonymous session (no cookies), app at http://localhost:8082, database accessible. The freshly imported DB has **no** test projects (`select id from testprojects` → empty), so the modern cfieldsTprojectAssign screen renders its empty state (its `?action=init&tproject_id=1` BFF call answers 404 `tproject_not_found` — data-dependent, unrelated to this fix).
+
+Repro steps (pre-fix):
+1. `curl -s -i "http://localhost:8082/lib/cfields/cfieldsEdit.php?do_action=create&tproject_id=1" -H 'Accept: text/html'`
+   → pre-fix emits a relative `Location: login.php?note=expired&destination=gui%2F…`; `curl -L` final = `http://localhost:8082/lib/cfields/login.php?…` **HTTP 404** (`login.php` does not exist under `lib/cfields/`).
+2. Same for `.../lib/cfields/cfieldsTprojectAssign.php?tproject_id=1`.
+
+Expected post-fix behavior:
+1. Anonymous document navigation: JS bounce to `../../login.php?note=expired&destination=%2Flib%2Fcfields%2F…` (no HTTP 404); destination is root-relative so it passes `safeDestination()` (api/auth/index.php:55-70).
+2. After login the browser lands on `/gui/templates/cfields/cfieldsEdit.html?do_action=create&tproject_id=1` (or `…/cfieldsTprojectAssign.html?tproject_id=1`).
+3. Authenticated GET still 302s to the modern screen; write actions (`do_delete` / `doAssign`) still 405; missing project data does not raise errors.
+4. No new Error/Warning in the `events` table.
+
+Actual result observed (post-fix, measured):
+| Case | Probe | Measured | Verdict |
+|---|---|---|---|
+| TC-1883-01 | anonymous `cfieldsEdit.php?do_action=create&tproject_id=1` | HTTP 200, `top.location.href='../../login.php?note=expired&destination=%2Flib%2Fcfields%2FcfieldsEdit.php%3Fdo_action%3Dcreate%26tproject_id%3D1'` | PASS |
+| TC-1883-02 | anonymous `cfieldsTprojectAssign.php?tproject_id=1` | HTTP 200, `top.location.href='../../login.php?note=expired&destination=%2Flib%2Fcfields%2FcfieldsTprojectAssign.php%3Ftproject_id%3D1'` | PASS |
+| TC-1883-03 | GET the bounce target `login.php?note=expired&destination=%2Flib%2Fcfields%2F…` | HTTP 200 (pre-fix the chain ended 404 on `/lib/cfields/login.php`) | PASS |
+| TC-1883-04 | fresh isolated browser context → cfieldsEdit URL → login admin/admin | lands on `gui/templates/cfields/cfieldsEdit.html?do_action=create&tproject_id=1` | PASS |
+| TC-1883-05 | authenticated GET `cfieldsEdit.php?do_action=create&tproject_id=1` | 302 → `gui/templates/cfields/cfieldsEdit.html?do_action=create&tproject_id=1` | PASS |
+| TC-1883-06 | authenticated GET `cfieldsTprojectAssign.php?tproject_id=1` | 302 → `gui/templates/cfields/cfieldsTprojectAssign.html?tproject_id=1` (title "Custom Fields — Test Project") | PASS |
+| TC-1883-07 | write actions `do_delete` / `doAssign` (auth + anon) | HTTP 405 plain-text refusal, unchanged | PASS |
+| TC-1883-08 | `SELECT COUNT(*) FROM events WHERE log_level>15` before/after the whole sequence | 1 → 1 (0 new Error/Warning) | PASS |
+| TC-1883-09 | `php -l` both files | No syntax errors detected | PASS |
+
+### Test execution
+- [PASS] TC-1883-01 .. TC-1883-09 — 9/9 PASS (curl + chrome-devtools MCP, live app)
+- [PASS] `php -l lib/cfields/cfieldsEdit.php` and `php -l lib/cfields/cfieldsTprojectAssign.php`
+- [PASS] Merge-base gate: `TLU_REQUIRE_SUITE="Issue #1883" bash ai/verify_test_suites.sh`
+- NOTE: the modern `cfieldsTprojectAssign.html` logs a 404 for `api/cfieldstproject/…action=init&tproject_id=1` because the fresh DB has no test projects; correct data-dependent behaviour, not covered by this fix.
