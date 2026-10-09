@@ -47,6 +47,9 @@ $context->platform_id = $args->platform_id;
 
 $gui->listTestCases = $tplan_mgr->getSuiteUrgency($context,array('build4testers' => $args->build4testers),
                                                   array('testcases' => $args->testCaseSet));
+if (!is_array($gui->listTestCases) && !is_object($gui->listTestCases)) {
+  $gui->listTestCases = array();
+}
 
 foreach($gui->listTestCases as $tcversion_id => $tcaseSet) 
 {
@@ -76,9 +79,9 @@ function init_args()
   $args = new stdClass();
   $args->show_help = (isset($_REQUEST['level']) && $_REQUEST['level']=='testproject');
     
-  $args->tproject_id = intval(isset($_REQUEST['tproject_id']) ? $_REQUEST['tproject_id'] : $_SESSION['testprojectID']);
-  $args->tplan_id = intval(isset($_REQUEST['tplan_id']) ? $_REQUEST['tplan_id'] : $_SESSION['testplanID']);
-  $args->tplan_name = $_SESSION['testplanName'];
+  $args->tproject_id = intval(isset($_REQUEST['tproject_id']) ? $_REQUEST['tproject_id'] : (isset($_SESSION['testprojectID']) ? $_SESSION['testprojectID'] : 0));
+  $args->tplan_id = intval(isset($_REQUEST['tplan_id']) ? $_REQUEST['tplan_id'] : (isset($_SESSION['testplanID']) ? $_SESSION['testplanID'] : 0));
+  $args->tplan_name = isset($_SESSION['testplanName']) ? $_SESSION['testplanName'] : '';
   $args->node_type = isset($_REQUEST['level']) ? $_REQUEST['level'] : OFF;
   $args->node_id = isset($_REQUEST['id']) ? $_REQUEST['id'] : ERROR;
 
@@ -107,9 +110,9 @@ function init_args()
                   $_SESSION[$mode][$args->treeFormToken] : null;
 
 
-  $args->testCaseSet = $session_data['testcases_to_show'];
-  $args->build4testers = intval($session_data['setting_build']);
-  $args->platform_id = intval($session_data['setting_platform']);
+  $args->testCaseSet = is_array($session_data) && isset($session_data['testcases_to_show']) ? $session_data['testcases_to_show'] : null;
+  $args->build4testers = is_array($session_data) && isset($session_data['setting_build']) ? intval($session_data['setting_build']) : 0;
+  $args->platform_id = is_array($session_data) && isset($session_data['setting_platform']) ? intval($session_data['setting_platform']) : 0;
       
   return $args;
 }
@@ -122,13 +125,17 @@ function initializeGui(&$argsObj,&$treeMgr)
   $guiObj = new stdClass();
 
   $ni = $treeMgr->get_node_hierarchy_info($argsObj->node_id);
-  $guiObj->node_name = $ni['name'];
+  $guiObj->node_name = is_array($ni) && isset($ni['name']) ? $ni['name'] : '';
   $guiObj->user_feedback = null;
   $guiObj->node_id = $argsObj->node_id;
   $guiObj->tplan_id = $argsObj->tplan_id;
   $guiObj->tproject_id = $argsObj->tproject_id;
   $guiObj->tplan_name = $argsObj->tplan_name;
   $guiObj->formToken = $argsObj->treeFormToken;
+  $guiObj->pageTitle = lang_get('plan_urgency');
+  if ($argsObj->tplan_name) {
+    $guiObj->pageTitle .= ' - ' . $argsObj->tplan_name;
+  }
   return $guiObj;
 } 
 
