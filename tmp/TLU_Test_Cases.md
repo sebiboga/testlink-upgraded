@@ -6423,3 +6423,44 @@ Login `admin/admin`. Screen: `http://localhost:8082/gui/templates/requirements/r
 | 1691-2 | Reorder the spec (move TR1-3 to top) via POST `action=reorder` with all 3 requirement ids in the new order | Returns `{"status":"ok", ... "reordered": 3}` or `no_change` as appropriate, but no 400 error about duplicate ids. The reordered set matches the submitted list. | POST succeeds (no 400). The backend accepts the complete ordered list of distinct requirement ids. | PASS |
 | 1691-3 | Verify the list only shows each requirement once even though multiple version nodes exist (VN.id 7 and 12 for req 6) | Only one row per requirement in the UI/API response. | One row for id 6, one for 8, one for 10. | PASS |
 
+
+## Issue #1067 — Release Quality Gates / Go-No-Go dashboard
+
+### Preconditions
+- PHP built-in server running at http://localhost:8082 with repo root as docroot; DB seeded with tmp/fixtures_1067.php (QG1067, QGGO1067, platforms Android/iOS, test plans with assignments/executions/bugs/req links). Admin authenticated (admin/admin) in the browser session under test.
+- REST BFF at /api/qualitygate/index.php (GET only) protected by session + same-origin guard; requires testplan_metrics on the owning project. Plan-scoped report at /gui/templates/results/qualityGate.html.
+
+### Test cases
+1. BFF init - NO-GO plan (default thresholds)
+   - Action: GET /api/qualitygate/index.php?action=init&tplan_id=3
+   - Expected: 200, context.tplan_name "QG Release", requirements_enabled true, platforms include Android/iOS, builds include "QG Build 1", metrics.total 7, executed 6, passed 3, failed 2, blocked 1, not_run 1, progress ~85.7, pass_rate 50, unaddressed 1, req coverage ~33.3. Gates: exec_progress fail (>=100), pass_rate fail (>=95), failed_cases fail (<=0), blocked_cases fail (<=0), unaddressed_failures fail (<=0), req_coverage fail (>=100). verdict.decision "no_go", score 29. Auth + right enforcement holds.
+
+2. BFF filters - platform + build
+   - Action: GET /api/qualitygate/index.php?action=init&tplan_id=3&platform_id=1 then &platform_id=2; &build_id=1.
+   - Expected: platform filter narrows universe; iOS-only scope produces conditional/go-like outcome matching fixtures (e.g. total 1, executed 1, passed 1); build filter returns same totals given single build.
+
+3. Guard paths (BFF)
+   - Actions: missing tplan_id (400 invalid_request), unknown tplan_id (404 tplan_not_found), tproject_id mismatch (404 project_mismatch), bad tplan_id string (400), no session (401 not_authenticated), unknown action (400), POST without X-Requested-With or with non-GET verb → 405 (or blocked by same-origin), user without testplan_metrics → 403 no_right. action must be 'init'.
+
+4. Thresholds configurable
+   - Action: GET /api/qualitygate/index.php?action=init&tplan_id=3&progress_min=80&pass_rate_min=40&max_failed=3&max_blocked=2&max_unaddressed=2&req_coverage_min=30
+   - Expected: all gates become pass (or adjust) → verdict.decision "go" (score 100) with counts updated.
+
+5. Screen renders verdict + gates (NO-GO)
+   - Navigate to /gui/templates/results/qualityGate.html?tproject_id=1&tplan_id=3 (admin session). 
+   - Expected: header "Release Quality Gates", filters for Build/Platform and threshold inputs populated from BFF (defaults 100/95/0/0/0/100). Verdict shows NO-GO, score 29, counts reflect gates. Tiles show totals, executed/passed/failed/blocked/not_run/unaddressed/progress/pass_rate. Context shows project/plan/scope/requirements enabled. Gate table lists 6 gates with Value/Target/Status/Blocking; requirement coverage tile shows total/covered/partial/uncovered/coverage. No console errors; i18n strings rendered (not raw qg.* keys).
+
+6. Screen interactions - scope + thresholds + evaluate
+   - Select Platform = iOS (or change other filters/thresholds) and click Evaluate. 
+   - Expected: request includes platform_id and updated threshold params; UI updates to reflect new results (e.g. CONDITIONAL/GO depending on scope). Refresh reloads current scope. Export CSV produces a CSV download (no client exception). Close attempts to close the window/tab.
+
+7. Empty/disabled states
+   - Plan with no assignments: BFF returns total 0, verdict no_go (score 50), gates computed; screen shows "Nothing to evaluate" / empty tiles as appropriate. If requirements disabled on project, gate "Requirement coverage" is N/A and req panel hidden in screen (per spec).
+
+8. ASIDE + reports.cfg + actions
+   - ASIDE Reports sub-menu includes "Release Quality Gates" linking to /gui/templates/results/qualityGate.html?tproject_id=...&tplan_id=.... common.php exposes $actions->qualityGate (plan-scoped). cfg/reports.cfg.php entry release_quality_gates exists with title 'link_report_quality_gates', url gui/templates/results/qualityGate.html, enabled 'all', format format_html. Locale key TLS_link_report_quality_gates present in all 19 server bundles; client qg.* keys in all 10 i18n bundles.
+
+### Execution notes
+- Run browser tests against fixtures (plan 3 = NO-GO, plan 42 = GO). Screenshots: tmp/qg_no_go.png, tmp/qg_conditional.png, tmp/qg_go_relaxed.png.
+- After testing, verify Event Viewer has no new Error/Warning entries attributable to this screen/BFF.
+

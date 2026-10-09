@@ -9533,6 +9533,22 @@ of an empty page; both file headers corrected from "4 legacy call sites" to the 
 the audit join moved below the tcversion proof; the ownership walk now asserts the first
 node is `node_type_id = 3`; the status class is validated and `removeClass()` no longer
 strips the badge box's own classes. Suite `Issue #1807` in
+### Screen — Release Quality Gates / Go-No-Go dashboard `qualityGate` (Refs #1067)
+- New plan-scoped report: `gui/templates/results/qualityGate.html` + BFF
+  `api/qualitygate/index.php` (GET `?action=init`) aggregating execution progress,
+  pass rate, failed/blocked counts, unaddressed failures (evidence gate via `execution_bugs`) and
+  requirement coverage into configurable threshold gates with a release verdict
+  **GO / CONDITIONAL GO / NO-GO** and a 0–100 readiness score. Session +
+  same-origin guard + `testplan_metrics` right on the owning project.
+- Wired in Reports ASIDE + `cfg/reports.cfg.php` (`release_quality_gates`, title
+  `link_report_quality_gates`, `all`), and `$actions->qualityGate` in
+  `lib/functions/common.php` (plan-scoped). Server locale key
+  `$TLS_link_report_quality_gates` added to all 19 bundles; client `qg.*` keys
+  added to all 10 i18n bundles (append-only, minimal diff).
+- Fixtures: `tmp/fixtures_1067.php` creates QG1067/QGGO1067, platforms, test plans,
+  requirements, assignments, executions and `BUG-1067` evidence.
+- Verified by manual browser tests (NO-GO, CONDITIONAL, GO with relaxed thresholds)
+  and test suite `Issue #1067` in `tmp/TLU_Test_Cases.md`.
   `tmp/TLU_Test_Cases.md` - 34/34 PASS.
 
 ### KEY BUGFIX — #1685: `reqTreeReorder.html` — drag & drop did not mark the form dirty (Refs #1681)
