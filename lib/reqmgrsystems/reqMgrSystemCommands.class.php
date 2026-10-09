@@ -168,7 +168,30 @@ class reqMgrSystemCommands
     $templateCfg = templateConfiguration('reqMgrSystemEdit');
     $guiObj->template = $templateCfg->default_template;
 
-    $guiObj->item = $this->mgr->getByID($argsObj->id);
+    // Issue #1721: getByID() returns NULL for an unknown/deleted id (see
+    // tlReqMgrSystem::getByAttr(), lib/functions/tlReqMgrSystem.class.php:336-350),
+    // and the legacy reqMgrSystemEdit template dereferences $gui->item.<field>
+    // on every render, so handing a NULL here rendered a broken form plus 5
+    // E_WARNING rows (persisted by watchPHPErrors). Do not pass NULL downstream:
+    // degrade to a well-formed empty entity - the same shape create() builds -
+    // and send the caller to the list screen instead of rendering a form for a
+    // row that does not exist. This mirrors the is_null() guard already applied
+    // for the same getByID() return in tlReqMgrSystem::checkConnection()
+    // (issue #1625).
+    $item = $this->mgr->getByID($argsObj->id);
+    if( is_null($item) )
+    {
+      $item = array('id' => 0);
+      foreach($this->entitySpec as $property => $type)
+      {
+        $item[$property] = ($type == 'int') ? 0 : '';
+      }
+      $guiObj->item = $item;
+      $guiObj->template = "reqMgrSystemView.php";
+      return $guiObj;
+    }
+
+    $guiObj->item = $item;
     $guiObj->canManage = $argsObj->currentUser->hasRight($this->db,'reqmgrsystem_management'); 
     return $guiObj;
   }
