@@ -17,6 +17,21 @@ Every screen of the application was ported one-by-one in a screen-compare
 kept for backward compatibility and is progressively retired as each modern
 screen reaches full parity.
 
+- [KEY BUGFIX] - #1890: **the legacy Plan Milestones create/edit form
+  (`lib/plan/planMilestonesEdit.php`) with a non-existent/stale `tplan_id` returned HTTP 200 but
+  wrote 5 `E_WARNING` rows per request into the Event Viewer** (1 at `planMilestonesEdit.php:96`
+  reading `$info['name']` on the `null` that `testplan::get_by_id()` returns, + 4 at
+  `testplan.class.php:7322` dereferencing `$ret[0]` on the empty recordset that
+  `database::get_recordset()` returns, reached via `tlUser::hasRight()` → `getPublicAttr()`).
+  Fix (2 files, +7/-2): guard the lookup —
+  `$args->tplan_name = is_array($info) && isset($info['name']) ? $info['name'] : '';` — and make
+  `testplan::getPublicAttr()` return `null` for an unknown id, the contract
+  `tlUser::getTprojectPublicAttr()` already documents. No behaviour change for a valid plan.
+  Verified: invalid `tplan_id=99999` 5 warnings → +0; valid `tplan_id=2` still renders the form
+  with +0; sibling `planMilestonesView.php` +0; 0 new events at any level; `php -l` clean. Docs:
+  `docs/Bugfix-Issue-1890-PlanMilestonesEdit-Nonexistent-Plan-Warnings.md` + wiki page; regression
+  suite `Issue #1890` 5/5 PASS, suite gate 7/7. (Fixes #1890)
+
 - [KEY BUGFIX] - #1888: **a failed Plan Milestones create
   (`POST lib/plan/planMilestonesEdit.php`, `doAction=doCreate`) re-rendered the form with
   `$gui->milestone` unset, writing 16 `E_WARNING` rows per submit into the Event Viewer.**
