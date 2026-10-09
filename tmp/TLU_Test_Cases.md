@@ -6464,3 +6464,39 @@ Login `admin/admin`. Screen: `http://localhost:8082/gui/templates/requirements/r
 - Run browser tests against fixtures (plan 3 = NO-GO, plan 42 = GO). Screenshots: tmp/qg_no_go.png, tmp/qg_conditional.png, tmp/qg_go_relaxed.png.
 - After testing, verify Event Viewer has no new Error/Warning entries attributable to this screen/BFF.
 
+
+## Regression — Issue #1888: planMilestonesEdit.php failed doCreate re-render logged 16 E_WARNING rows ($gui->milestone unset)
+
+Precondition:
+- Fresh DB; fixture `tmp/fixtures_1888.php` run → testproject `MS88` id=1 (priority enabled), testplan `MS88 Plan` id=2.
+- Logged in `admin`/`admin` (curl cookie jar); baseline `MAX(id) FROM events WHERE log_level IN (2,3)` recorded before each probe.
+- Note: `milestone_name` is NOT server-validated (client `validateForm()` blocks it); the BUGID 3716 date checks are the server-side failure branches.
+
+Repro steps (pre-fix):
+1. `POST http://localhost:8082/lib/plan/planMilestonesEdit.php` body `doAction=doCreate&tplan_id=2&tproject_id=1&milestone_name=&target_date=2099-01-01&low_priority_tcases=30&medium_priority_tcases=40&high_priority_tcases=30` (target_date does not match `date_format=%d/%m/%Y`).
+2. Pre-fix: HTTP 200, 17036 bytes; `log_level=2` grows by **+16** (8 reads of `{$gui->milestone.*}` × 2 warnings each: undefined property + array offset on null). `milestones` row count unchanged.
+
+Expected post-fix behavior:
+1. Same failed submit → HTTP 200 with **+0** Error/Warning rows.
+2. The re-rendered form shows the `warning_invalid_date` feedback and is **pre-filled** with the submitted `target_date` and percentage values.
+3. Other failure branches (target before start, past date) also +0 warning rows.
+4. Successful `doCreate` still 302-redirects to `planMilestonesView.php` and inserts the milestone.
+5. #1887 GET paths (create/edit) still +0 warnings; #1726 bogus doAction still 302.
+
+Actual result observed (post-fix, measured 2026-10-09):
+| Case | Probe | Measured | Verdict |
+|---|---|---|---|
+| TC-1888-01 | `doCreate` invalid date `2099-01-01` | HTTP 200, 17053 bytes, warns +0; HTML contains `2099-01-01`, `value="30"`×2, `value="40"` | PASS |
+| TC-1888-02 | `doCreate` target before start (`01/06/2099`..`01/12/2099`) | HTTP 200, warns +0 | PASS |
+| TC-1888-03 | `doCreate` past date `01/01/2000` | HTTP 200, warns +0 | PASS |
+| TC-1888-04 | `doCreate` valid `MS88ok` / `31/12/2099` | HTTP 302 → view; warns +0; `milestones` row created | PASS |
+| TC-1888-05 | `GET ?doAction=create&tplan_id=2` | HTTP 200, warns +0 (regression guard for #1887) | PASS |
+| TC-1888-06 | `GET ?doAction=edit&id=<MS88ok>&tplan_id=2` | HTTP 200, warns +0 | PASS |
+| TC-1888-07 | `GET ?doAction=bogus&tplan_id=2` | HTTP 302, warns +0 (regression guard for #1726) | PASS |
+| TC-1888-08 | `php -l lib/plan/planMilestonesCommands.class.php` | No syntax errors detected | PASS |
+
+Harness: `bash tmp/verify_1888.sh` → **9/9 PASS** (M1 units: format/prefill + 7 matrix rows), exit 0.
+
+### Test execution
+- [PASS] TC-1888-01 .. TC-1888-08 (2026-10-09, PHP 8.3.35).
+- Gate: `TLU_REQUIRE_SUITE="Issue #1888" bash ai/verify_test_suites.sh`
