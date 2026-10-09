@@ -48,8 +48,23 @@ if (!checkSessionValid($db)) {
     exit;  // unreachable: the call above already redirected
 }
 
+/**
+ * Refs #1732: guard against array-shaped query params (e.g. ?feature[]=x).
+ * Casting an array to string triggers "Array to string conversion" warning
+ * and coerces to "Array", causing the shim to log ERROR with attacker-controlled
+ * text and pollute the Event Viewer. Validate scalar before casting.
+ */
+function shimReqScalar($name)
+{
+    if (!isset($_REQUEST[$name]) || !is_scalar($_REQUEST[$name])) {
+        return null;
+    }
+    return trim((string)$_REQUEST[$name]);
+}
+
 // The legacy feature was carried in the query string of the old work area.
-$feature = isset($_REQUEST['feature']) ? (string)$_REQUEST['feature'] : 'edit_tc';
+$rawFeature = shimReqScalar('feature');
+$feature = ($rawFeature === null || $rawFeature === '') ? 'edit_tc' : $rawFeature;
 
 // features the legacy tree dispatched to. edit_tc is the test-specification
 // tree itself; keywordsAssign and assignReqs are the other two tree modes,
