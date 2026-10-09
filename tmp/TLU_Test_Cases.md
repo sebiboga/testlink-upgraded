@@ -6127,3 +6127,44 @@ mandatory code review (rule 16) and its fixes.
 
 ### Notes
 - L18N audit events (log_level 32) not observed for these repros; the reported symptom is E_WARNING noise eliminated.
+
+## Regression — Issue #1721: reqMgrSystemEdit.php missing id — unguarded getByID (dead-code hardening)
+
+**Precondition**
+- App at http://localhost:8082 (fresh DB, PHP 8.3.35 built-in server). Logged in as admin/admin; session cookie captured for curl.
+- `events` table baseline: only the login `audit_login_succeeded` row (log_level 16); 0 Error/Warning rows.
+
+**Repro steps (original report, pre-#1727 state)**
+1. `GET /lib/reqmgrsystems/reqMgrSystemEdit.php?doAction=edit&id=99999` (unknown id).
+2. Expected pre-fix: HTTP 200 with a broken edit form and 5 new `log_level=2` (E_WARNING) rows in `events`
+   from `$gui->item.<field>` dereferences in `reqMgrSystemEdit.tpl`.
+
+**Expected post-fix behavior**
+- No E_WARNING/Error rows are written for any legacy edit/create/checkConnection request, existing or missing id.
+- A missing id is answered gracefully (never a broken 200 form); the modern editor API answers `404 not_found`.
+- `reqMgrSystemCommands::edit()` never returns a NULL item downstream.
+
+**Actual result (post-fix, 39b3cdfb0)**
+- `php -l lib/reqmgrsystems/reqMgrSystemCommands.class.php` → `No syntax errors detected`.
+- `curl legacy ?doAction=edit&id=99999` → `302 Found` → modern editor (`reqMgrSystemEdit.html?id=99999`).
+- `curl legacy ?doAction=edit&id=2` (existing) → `302 Found` → modern editor.
+- `curl legacy bare URL` (no doAction) → `302 Found` → modern editor (create mode).
+- Browser followed the 302: `GET /api/reqmgrsystemedit/index.php?action=init&id=99999&prune=1` → `404`
+  `{"status":"error","code":"not_found",...}`.
+- `SELECT count(*) total, sum(log_level<4) warn_or_err FROM events` → `total=1, warn_or_err=0`
+  (the 1 row is the login audit) → **0 new Error/Warning rows**.
+- Fix: `lib/reqmgrsystems/reqMgrSystemCommands.class.php` `edit()` now null-guards `getByID()` and degrades
+  to a well-formed empty entity + redirect to `reqMgrSystemView.php`.
+
+**Test execution**
+- [PASS] php -l syntax gate
+- [PASS] Legacy deep links (missing + existing id + bare) still resolve via 302
+- [PASS] Modern editor API answers 404 `not_found` for an unknown id
+- [PASS] Event Viewer shows no new Error/Warning rows
+- [PASS] Merge-base gate: `TLU_REQUIRE_SUITE="Issue #1721" bash ai/verify_test_suites.sh`
+
+### Notes
+- The user-visible HTTP symptom had already been neutralised by `#1727` (retirement of the legacy page,
+  commit `3897a17c8`); this regression proves it stays gone and additionally removes the latent
+  unguarded-`getByID()` defect named in the report. The legacy `reqMgrSystemCommands` class is no longer
+  instantiated anywhere, so no other screen shares this path.
