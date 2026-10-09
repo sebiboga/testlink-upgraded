@@ -17,6 +17,30 @@ Every screen of the application was ported one-by-one in a screen-compare
 kept for backward compatibility and is progressively retired as each modern
 screen reaches full parity.
 
+- [KEY BUGFIX] - #1888: **a failed Plan Milestones create
+  (`POST lib/plan/planMilestonesEdit.php`, `doAction=doCreate`) re-rendered the form with
+  `$gui->milestone` unset, writing 16 `E_WARNING` rows per submit into the Event Viewer.**
+  `doCreate()` (`lib/plan/planMilestonesCommands.class.php:105-178`) assigned only
+  `main_descr/action_descr/submit_button_label/template`, so when a BUGID 3716 validation failed
+  (e.g. a `target_date` not matching `date_format`) `template` stayed `null` and `renderGui()`
+  fell back to `gui/templates/dashio/plan/planMilestonesEdit.tpl`, whose 8 unguarded
+  `{$gui->milestone.*}` reads each raised an undefined-property + array-offset-on-null pair.
+  `create()` (`:47-52`) and `edit()` (`:68`) already set the property; only the create-failure
+  branch did not. Fix (1 file, +17): `doCreate()` now initialises `$guiObj->milestone` like
+  `create()`, pre-filled from the submitted `$argsObj` (raw `target_date_original`/
+  `start_date_original` plus the percentage fields), so a failed submit re-renders the form with
+  its values and no warnings. The two date originals are HTML-escaped (`htmlspecialchars`,
+  `ENT_QUOTES`) because the template echoes them without `|escape` — without this the pre-fill
+  would have introduced a reflected XSS (attribute injection), caught in code review. Verified:
+  invalid-date submit 17036 B/+16 warnings →
+  17053 B/+0 and pre-filled; target-before-start and past-date +0; valid create still 302s and
+  inserts; #1887 GET create/edit +0; #1726 bogus `doAction` unchanged (302, +0 warnings); XSS
+  payload renders escaped; `php -l` clean. Docs:
+  `docs/Bugfix-Issue-1888-PlanMilestonesEdit-DoCreate-Milestone-Unset.md` + wiki page; regression
+  suite `Issue #1888` 8/8 PASS, harness `tmp/verify_1888.sh` 9/9, suite gate 7/7. Related defect
+  filed, not fixed: #1889 (`split_localized_date()` PHP 8 `ValueError` on a delimiter-less date).
+  (Fixes #1888)
+
 - [KEY BUGFIX] - #1726: **`lib/plan/planMilestonesEdit.php` answered a bare URL (and every
   unlisted `doAction`) with HTTP 200 and a 0-byte blank body, and wrote no Event Viewer row.**
   `init_args()` has no whitelist (`:80`), so `method_exists($commandMgr, null)` is false (`:30`)
