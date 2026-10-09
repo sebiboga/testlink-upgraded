@@ -244,6 +244,21 @@ $tlCfg->reports_list['risk_coverage'] = array(
 	'format' => 'format_html'
 );
 
+// Refs #1067 - Release Quality Gates / Go-No-Go dashboard (enhancement screen,
+// no legacy lib/results counterpart). Backed by the api/qualitygate BFF, which
+// aggregates progress, pass rate, failed/blocked cases, unaddressed-failure
+// evidence and requirement coverage into configurable gates + a release
+// verdict, enforcing testplan_metrics on the owning project. Available for
+// every plan ('all'): the requirement-coverage gate degrades to N/A when the
+// project has requirements disabled.
+$tlCfg->reports_list['release_quality_gates'] = array( 
+	'title' => 'link_report_quality_gates',
+	'url' => 'gui/templates/results/qualityGate.html',
+	'enabled' => 'all',
+	'directLink' => '',
+	'format' => 'format_html'
+);
+
 $tlCfg->reports_list['list_problems'] = array( 
 	'title' => 'link_report_total_bugs',
 	'url' => 'lib/results/resultsBugs.php?type=0',

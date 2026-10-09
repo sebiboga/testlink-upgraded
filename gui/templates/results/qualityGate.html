@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Release Quality Gates</title>
+<!--
+  Release Quality Gates / Go-No-Go dashboard (Refs #1067).
+
+  No 1.9.20 controller renders this screen: the ledger TODO is empty and every
+  ASIDE entry already has a modern twin, so this is the next genuinely-missing
+  report (same situation as #1065 RTM and #1845 priorityBarChart). It
+  consolidates quality signals TestLink already holds for one test plan -
+  execution progress, pass rate, failed/blocked cases, unaddressed failures
+  (a failure whose executions carry no linked bug) and requirement coverage -
+  into configurable threshold gates and one release verdict. The numbers and
+  the verdict come from api/qualitygate/index.php; see that file for the
+  documented semantics.
+-->
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; color: #0d3f3c; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.toolbar .spacer { flex: 1 1 auto; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-dark { background: #2f323a; color: #eee; border: 1px solid #444; padding: 7px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+.btn-dark:hover { background: #3a3e48; }
+.btn-teal:disabled, .btn-dark:disabled { opacity: .45; cursor: not-allowed; }
+.panel { margin: 20px 24px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 18px 20px; }
+.panel h3 { font-size: 15px; font-weight: 700; color: #22242a; margin: 0 0 14px 0; }
+.panel h3 i { color: #4ECDC4; margin-right: 8px; }
+.ctx-grid { display: flex; flex-wrap: wrap; gap: 10px 26px; }
+.ctx-item { min-width: 150px; }
+.ctx-item .k { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: .5px; display: block; }
+.ctx-item .v { font-size: 14px; color: #22242a; font-weight: 600; }
+.filter-grid { display: flex; flex-wrap: wrap; gap: 16px 20px; align-items: flex-end; }
+.filter-item label { display: block; font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; }
+.filter-item select, .filter-item input { border: 1px solid #ccc; border-radius: 4px; padding: 6px 8px; font-size: 13px; min-width: 110px; }
+.th-grid { display: flex; flex-wrap: wrap; gap: 14px 20px; }
+.th-item { min-width: 130px; }
+.th-item label { display: block; font-size: 11px; color: #888; margin-bottom: 4px; }
+.th-item input { border: 1px solid #ccc; border-radius: 4px; padding: 6px 8px; font-size: 13px; width: 120px; }
+.verdict { margin: 20px 24px; border-radius: 8px; padding: 20px 24px; color: #fff; display: flex; align-items: center; gap: 24px; flex-wrap: wrap; }
+.verdict.go { background: linear-gradient(135deg, #2f9e44, #27813a); }
+.verdict.conditional { background: linear-gradient(135deg, #d9a326, #b8860b); }
+.verdict.no_go { background: linear-gradient(135deg, #e05c5c, #b83b3b); }
+.verdict .big { font-size: 30px; font-weight: 800; letter-spacing: 1px; line-height: 1.1; }
+.verdict .big small { display: block; font-size: 12px; font-weight: 400; opacity: .85; letter-spacing: .5px; }
+.verdict .score { margin-left: auto; text-align: center; }
+.verdict .score .num { font-size: 40px; font-weight: 800; line-height: 1; }
+.verdict .score .lbl { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; opacity: .85; }
+.verdict .gcount { font-size: 13px; opacity: .95; }
+.tiles { display: flex; flex-wrap: wrap; gap: 14px; margin: 0 24px; }
+.tile { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 14px 18px; min-width: 130px; flex: 1 1 130px; border-top: 3px solid #4ECDC4; }
+.tile .num { font-size: 24px; font-weight: 800; color: #22242a; }
+.tile .lbl { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: .5px; }
+.tile.pass { border-top-color: #2f9e44; }
+.tile.fail { border-top-color: #e05c5c; }
+.tile.block { border-top-color: #3a7bd5; }
+.tile.muted { border-top-color: #b9bec7; }
+.state { margin: 20px 24px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 34px 20px; text-align: center; color: #777; font-size: 14px; }
+.state h4 { font-size: 16px; color: #22242a; margin: 0 0 8px 0; }
+.state.warn { border-left: 5px solid #e6b34d; }
+.state.deny { border-left: 5px solid #e05c5c; color: #7a2b2b; }
+.state .code { font-size: 11px; color: #aaa; margin-top: 10px; font-family: monospace; }
+.table-wrap { margin: 20px 24px; }
+table.dataTable thead th { background: #22242a; color: #fff; font-size: 13px; padding: 10px 14px; }
+table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: middle; }
+.badge-st { display: inline-block; min-width: 26px; padding: 2px 9px; border-radius: 10px; font-size: 11px; font-weight: 700; color: #fff; text-align: center; }
+.badge-st.pass { background: #2f9e44; }
+.badge-st.fail { background: #e05c5c; }
+.badge-st.na { background: #b9bec7; color: #333; }
+.crit { color: #e05c5c; font-weight: 700; }
+.crit.off { color: #ccc; }
+.meter { background: #eceff1; border-radius: 3px; height: 8px; width: 100px; display: inline-block; vertical-align: middle; margin-right: 8px; }
+.meter > span { display: block; height: 100%; background: #4ECDC4; border-radius: 3px; }
+.meter > span.low { background: #e05c5c; }
+.dataTables_wrapper .dataTables_paginate .paginate_button.current { background: #4ECDC4 !important; color: #fff !important; border: none !important; }
+.dataTables_wrapper .dataTables_filter input { border: 1px solid #ddd; border-radius: 4px; padding: 4px 8px; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 18px; border-radius: 6px; font-size: 13px; z-index: 2000; display: none; }
+.toast.err { background: #e05c5c; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span data-i18n="qg.title">Release Quality Gates</span>
+  <span class="sub" data-i18n="qg.subtitle">Go / No-Go readiness for a test plan</span>
+</div>
+
+<div class="toolbar">
+  <button class="btn-teal" id="btnEval"><i class="fa fa-gauge-high"></i> <span data-i18n="qg.evaluate">Evaluate</span></button>
+  <button class="btn-dark" id="btnRefresh"><i class="fa fa-refresh"></i> <span data-i18n="qg.refresh">Refresh</span></button>
+  <button class="btn-dark" id="btnCsv"><i class="fa fa-download"></i> <span data-i18n="qg.exportCsv">Export CSV</span></button>
+  <span class="spacer"></span>
+  <button class="btn-dark" id="btnClose"><i class="fa fa-times"></i> <span data-i18n="qg.close">Close</span></button>
+</div>
+
+<div id="stateBox"></div>
+
+<div id="report" style="display:none;">
+  <div class="panel">
+    <h3><i class="fa fa-sliders"></i><span data-i18n="qg.filtersTitle">Scope &amp; thresholds</span></h3>
+    <div class="filter-grid">
+      <div class="filter-item">
+        <label data-i18n="qg.filterBuild">Build</label>
+        <select id="fBuild"></select>
+      </div>
+      <div class="filter-item">
+        <label data-i18n="qg.filterPlatform">Platform</label>
+        <select id="fPlatform"></select>
+      </div>
+    </div>
+    <div style="height:14px"></div>
+    <div class="th-grid">
+      <div class="th-item"><label data-i18n="qg.thProgress">Min progress %</label><input type="number" id="thProgress" min="0" max="100" step="1" value="100"></div>
+      <div class="th-item"><label data-i18n="qg.thPassRate">Min pass rate %</label><input type="number" id="thPassRate" min="0" max="100" step="1" value="95"></div>
+      <div class="th-item"><label data-i18n="qg.thMaxFailed">Max failed</label><input type="number" id="thMaxFailed" min="0" step="1" value="0"></div>
+      <div class="th-item"><label data-i18n="qg.thMaxBlocked">Max blocked</label><input type="number" id="thMaxBlocked" min="0" step="1" value="0"></div>
+      <div class="th-item"><label data-i18n="qg.thMaxUnaddressed">Max unaddressed</label><input type="number" id="thMaxUnaddressed" min="0" step="1" value="0"></div>
+      <div class="th-item"><label data-i18n="qg.thReqCoverage">Min req. coverage %</label><input type="number" id="thReqCoverage" min="0" max="100" step="1" value="100"></div>
+    </div>
+  </div>
+
+  <div class="verdict" id="verdict"></div>
+
+  <div class="tiles" id="tiles"></div>
+
+  <div class="panel">
+    <h3><i class="fa fa-circle-info"></i><span data-i18n="qg.contextTitle">Report context</span></h3>
+    <div class="ctx-grid">
+      <div class="ctx-item"><span class="k" data-i18n="qg.ctxProject">Test project</span><span class="v" id="ctxProject">&mdash;</span></div>
+      <div class="ctx-item"><span class="k" data-i18n="qg.ctxPlan">Test plan</span><span class="v" id="ctxPlan">&mdash;</span></div>
+      <div class="ctx-item"><span class="k" data-i18n="qg.ctxScope">Scope</span><span class="v" id="ctxScope">&mdash;</span></div>
+      <div class="ctx-item"><span class="k" data-i18n="qg.ctxRequirements">Requirements</span><span class="v" id="ctxRequirements">&mdash;</span></div>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table id="tbl" class="display" style="width:100%;">
+      <thead>
+        <tr>
+          <th data-i18n="qg.colGate">Gate</th>
+          <th data-i18n="qg.colValue">Value</th>
+          <th data-i18n="qg.colTarget">Target</th>
+          <th data-i18n="qg.colStatus">Status</th>
+          <th data-i18n="qg.colCritical">Blocking</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div class="panel" id="reqPanel">
+    <h3><i class="fa fa-list-check"></i><span data-i18n="qg.reqTitle">Requirement coverage</span></h3>
+    <div class="tiles" id="reqTiles" style="margin:0;"></div>
+  </div>
+</div>
+
+<div class="footer"><span data-i18n="footers.qualityGate"></span><span id="localeSwitcher"></span></div>
+<div class="toast" id="toast"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/qualitygate/index.php';
+var currentData = null;
+var dt = null;
+var GATE_LABELS = {
+  exec_progress: 'qg.gateExecProgress',
+  pass_rate: 'qg.gatePassRate',
+  failed_cases: 'qg.gateFailed',
+  blocked_cases: 'qg.gateBlocked',
+  unaddressed_failures: 'qg.gateUnaddressed',
+  req_coverage: 'qg.gateReqCoverage'
+};
+var STATUS_LABELS = { pass: 'qg.statusPass', fail: 'qg.statusFail', na: 'qg.statusNa' };
+
+function esc(v) {
+  return String(v === null || v === undefined ? '' : v)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function q(name) { return new URLSearchParams(window.location.search).get(name); }
+
+/** Localized label for a BFF failure code -> a {code} message key. */
+function stateFor(code, httpStatus, rawMessage) {
+  var map = {
+    not_authenticated:      { cls: 'deny', title: 'qg.deniedTitle',    body: 'qg.deniedBody' },
+    session_expired:        { cls: 'deny', title: 'qg.deniedTitle',    body: 'qg.expiredBody' },
+    no_right:               { cls: 'deny', title: 'qg.deniedTitle',    body: 'qg.noRightBody' },
+    tplan_not_found:        { cls: 'warn', title: 'qg.notFoundTitle',  body: 'qg.notFoundBody' },
+    project_mismatch:       { cls: 'warn', title: 'qg.notFoundTitle',  body: 'qg.mismatchBody' },
+    invalid_request:        { cls: 'warn', title: 'qg.badRequestTitle', body: 'qg.badRequestBody' },
+    method_not_allowed:     { cls: 'warn', title: 'qg.badRequestTitle', body: 'qg.badRequestBody' }
+  };
+  var m = map[code];
+  var detail = '';
+  if (!m) {
+    m = { cls: 'warn', title: 'qg.serverErrorTitle', body: 'qg.serverErrorBody' };
+    if (rawMessage) { detail = '<div class="code">' + esc(rawMessage) + '</div>'; }
+  }
+  return '<div class="state ' + m.cls + '"><h4>' + esc(TLi18n.t(m.title)) + '</h4><div>'
+       + esc(TLi18n.t(m.body, { status: httpStatus })) + '</div>' + detail
+       + '<div class="code">' + esc(code || ('http_' + httpStatus)) + '</div></div>';
+}
+
+function showState(html) { $('#report').hide(); $('#stateBox').html(html); }
+function showLoading() {
+  $('#report').hide();
+  $('#stateBox').html('<div class="state"><div class="spinner"></div>' + esc(TLi18n.t('qg.loading')) + '</div>');
+}
+function toast(msg, kind) {
+  var $t = $('#toast');
+  $t.attr('class', 'toast' + (kind ? ' ' + kind : '')).text(msg).fadeIn(180);
+  window.clearTimeout(toast._h);
+  toast._h = window.setTimeout(function () { $t.fadeOut(220); }, 3200);
+}
+
+function fillSelect($sel, items, selected, allLabelKey) {
+  var html = '<option value="">' + esc(TLi18n.t(allLabelKey)) + '</option>';
+  $.each(items || [], function (i, it) {
+    html += '<option value="' + esc(it.id) + '"' + (String(it.id) === String(selected) ? ' selected' : '')
+         + '>' + esc(it.name) + '</option>';
+  });
+  $sel.html(html);
+}
+
+function renderVerdict(v) {
+  var cls = v.decision;
+  var key = { go: 'qg.verdictGo', conditional: 'qg.verdictConditional', no_go: 'qg.verdictNoGo' }[cls] || 'qg.verdictNoGo';
+  var c = v.counts || {};
+  var html = '<div class="big"><small>' + esc(TLi18n.t('qg.verdictTitle')) + '</small>'
+    + esc(TLi18n.t(key)) + '</div>'
+    + '<div class="gcount">' + esc(TLi18n.t('qg.gateCounts', { pass: c.pass || 0, fail: c.fail || 0, na: c.na || 0 })) + '</div>'
+    + '<div class="score"><div class="num">' + (parseInt(v.score, 10) || 0) + '</div>'
+    + '<div class="lbl">' + esc(TLi18n.t('qg.score')) + '</div></div>';
+  $('#verdict').attr('class', 'verdict ' + cls).html(html);
+}
+
+function renderTiles(m) {
+  function tile(cls, num, labelKey) {
+    return '<div class="tile ' + cls + '"><div class="num">' + num + '</div>'
+      + '<div class="lbl">' + esc(TLi18n.t(labelKey)) + '</div></div>';
+  }
+  var html = '';
+  html += tile('muted', parseInt(m.total, 10) || 0, 'qg.mTotal');
+  html += tile('', parseInt(m.executed, 10) || 0, 'qg.mExecuted');
+  html += tile('pass', parseInt(m.passed, 10) || 0, 'qg.mPassed');
+  html += tile('fail', parseInt(m.failed, 10) || 0, 'qg.mFailed');
+  html += tile('block', parseInt(m.blocked, 10) || 0, 'qg.mBlocked');
+  html += tile('muted', parseInt(m.not_run, 10) || 0, 'qg.mNotRun');
+  html += tile('fail', parseInt(m.unaddressed, 10) || 0, 'qg.mUnaddressed');
+  html += tile('', (parseFloat(m.progress) || 0) + '%', 'qg.mProgress');
+  html += tile('', (parseFloat(m.pass_rate) || 0) + '%', 'qg.mPassRate');
+  $('#tiles').html(html);
+}
+
+function renderContext(ctx, m) {
+  $('#ctxProject').text(ctx.tproject_name || '-');
+  $('#ctxPlan').text(ctx.tplan_name || '-');
+  var scope = [];
+  scope.push(TLi18n.t('qg.scopeBuild') + ': ' + (ctx.build_id ? (ctx.build_name || ctx.build_id) : TLi18n.t('qg.all')));
+  scope.push(TLi18n.t('qg.scopePlatform') + ': ' + (ctx.platform_id ? (ctx.platform_name || ctx.platform_id) : TLi18n.t('qg.all')));
+  $('#ctxScope').text(scope.join('  \u00b7  '));
+  $('#ctxRequirements').text(ctx.requirements_enabled ? TLi18n.t('qg.reqEnabled') : TLi18n.t('qg.reqDisabled'));
+}
+
+function renderGates(data) {
+  var rows = '';
+  $.each(data.gates || [], function (i, g) {
+    var labelKey = GATE_LABELS[g.id] || g.id;
+    var valueTxt = (g.value === null || g.value === undefined) ? '\u2014'
+      : (g.unit === 'percent' ? (parseFloat(g.value) || 0) + '%' : (parseInt(g.value, 10) || 0));
+    var targetTxt = (g.unit === 'percent')
+      ? (g.direction === 'gte' ? '\u2265 ' : '\u2264 ') + (parseFloat(g.target) || 0) + '%'
+      : (g.direction === 'lte' ? '\u2264 ' : '\u2265 ') + (parseInt(g.target, 10) || 0);
+    var statusKey = STATUS_LABELS[g.status] || 'qg.statusNa';
+    rows += '<tr>'
+      + '<td>' + esc(TLi18n.t(labelKey)) + '</td>'
+      + '<td>' + esc(valueTxt) + '</td>'
+      + '<td>' + esc(targetTxt) + '</td>'
+      + '<td><span class="badge-st ' + esc(g.status) + '">' + esc(TLi18n.t(statusKey)) + '</span></td>'
+      + '<td><span class="crit' + (g.critical ? '' : ' off') + '">' + (g.critical ? '\u25c6' : '\u2013') + '</span></td>'
+      + '</tr>';
+  });
+  if (dt) { dt.destroy(); dt = null; }
+  $('#tbl tbody').html(rows);
+  dt = $('#tbl').DataTable({ paging: false, ordering: false, info: false, searching: false });
+}
+
+function renderReq(m) {
+  var r = m.requirements || {};
+  if (!r.enabled) { $('#reqPanel').hide(); return; }
+  $('#reqPanel').show();
+  function tile(cls, num, labelKey) {
+    return '<div class="tile ' + cls + '"><div class="num">' + num + '</div>'
+      + '<div class="lbl">' + esc(TLi18n.t(labelKey)) + '</div></div>';
+  }
+  var html = '';
+  html += tile('', parseInt(r.total, 10) || 0, 'qg.reqTotal');
+  html += tile('pass', parseInt(r.covered, 10) || 0, 'qg.reqCovered');
+  html += tile('fail', parseInt(r.partial, 10) || 0, 'qg.reqPartial');
+  html += tile('block', parseInt(r.uncovered, 10) || 0, 'qg.reqUncovered');
+  html += tile('', (parseFloat(r.coverage) || 0) + '%', 'qg.reqCoverage');
+  $('#reqTiles').html(html);
+}
+
+function buildParams() {
+  var p = new URLSearchParams({ action: 'init' });
+  var tplanId = q('tplan_id');
+  p.set('tplan_id', tplanId);
+  var asserted = q('tproject_id');
+  if (asserted && /^[0-9]+$/.test(String(asserted))) { p.set('tproject_id', asserted); }
+  var b = $('#fBuild').val();
+  if (b) { p.set('build_id', b); }
+  var pl = $('#fPlatform').val();
+  if (pl) { p.set('platform_id', pl); }
+  var th = [['thProgress', 'progress_min'], ['thPassRate', 'pass_rate_min'],
+    ['thMaxFailed', 'max_failed'], ['thMaxBlocked', 'max_blocked'],
+    ['thMaxUnaddressed', 'max_unaddressed'], ['thReqCoverage', 'req_coverage_min']];
+  $.each(th, function (i, t) {
+    var v = $('#' + t[0]).val();
+    if (v !== '' && v !== null) { p.set(t[1], v); }
+  });
+  return p;
+}
+
+function load() {
+  var tplanId = q('tplan_id');
+  if (!tplanId || !/^[0-9]+$/.test(String(tplanId))) {
+    showState('<div class="state warn"><h4>' + esc(TLi18n.t('qg.badRequestTitle')) + '</h4><div>'
+      + esc(TLi18n.t('qg.missingContext')) + '</div><div class="code">tplan_id</div></div>');
+    return;
+  }
+
+  showLoading();
+  $.ajax({
+    url: API,
+    method: 'GET',
+    data: buildParams().toString(),
+    dataType: 'json',
+    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+  }).done(function (data) {
+    if (!data || data.status !== 'ok') {
+      showState(stateFor(data && data.code, 200, data && data.message));
+      return;
+    }
+    currentData = data;
+    var ctx = data.context || {};
+    fillSelect($('#fBuild'), ctx.builds, ctx.build_id, 'qg.all');
+    fillSelect($('#fPlatform'), ctx.platforms, ctx.platform_id, 'qg.all');
+    var t = ctx.thresholds || {};
+    $('#thProgress').val(t.progress_min);
+    $('#thPassRate').val(t.pass_rate_min);
+    $('#thMaxFailed').val(t.max_failed);
+    $('#thMaxBlocked').val(t.max_blocked);
+    $('#thMaxUnaddressed').val(t.max_unaddressed);
+    $('#thReqCoverage').val(t.req_coverage_min);
+
+    $('#stateBox').html('');
+    renderVerdict(data.verdict || {});
+    renderTiles(data.metrics || {});
+    renderContext(ctx, data.metrics || {});
+    renderReq(data.metrics || {});
+
+    var m = data.metrics || {};
+    if ((parseInt(m.total, 10) || 0) === 0) {
+      $('#tiles').html('');
+      $('#verdict').hide();
+      renderGates({ gates: [] });
+      $('#stateBox').html('<div class="state"><h4>' + esc(TLi18n.t('qg.emptyTitle'))
+        + '</h4><div>' + esc(TLi18n.t('qg.emptyBody')) + '</div></div>');
+    } else {
+      $('#verdict').show();
+      renderGates(data);
+    }
+    $('#report').show();
+  }).fail(function (xhr) {
+    var body = null;
+    try { body = JSON.parse(xhr.responseText); } catch (e) { body = null; }
+    if (xhr.status === 401) {
+      var code = (body && body.code) || 'not_authenticated';
+      if (code === 'session_expired' || code === 'not_authenticated') {
+        window.location.href = '/login.php?note=expired&destination='
+          + encodeURIComponent(window.location.pathname + window.location.search);
+        return;
+      }
+    }
+    showState(stateFor(body && body.code, xhr.status, (body && body.message) || null));
+  });
+}
+
+function exportCsv() {
+  if (!currentData || !currentData.gates) {
+    toast(TLi18n.t('qg.nothingToExport'), 'err');
+    return;
+  }
+  var cell = function (v) {
+    var t = String(v === null || v === undefined ? '' : v);
+    return /[;"\r\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
+  };
+  var head = [TLi18n.t('qg.colGate'), TLi18n.t('qg.colValue'),
+    TLi18n.t('qg.colTarget'), TLi18n.t('qg.colStatus'), TLi18n.t('qg.colCritical')];
+  var lines = [$.map(head, cell).join(';')];
+  $.each(currentData.gates, function (i, g) {
+    lines.push($.map([TLi18n.t(GATE_LABELS[g.id] || g.id), g.value, g.target,
+      TLi18n.t(STATUS_LABELS[g.status] || 'qg.statusNa'), g.critical ? '1' : '0'], cell).join(';'));
+  });
+  var v = currentData.verdict || {};
+  lines.push('');
+  lines.push($.map([TLi18n.t('qg.verdictTitle'),
+    TLi18n.t({ go: 'qg.verdictGo', conditional: 'qg.verdictConditional', no_go: 'qg.verdictNoGo' }[v.decision] || 'qg.verdictNoGo'),
+    TLi18n.t('qg.score'), (parseInt(v.score, 10) || 0)], cell).join(';'));
+  var blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'quality-gates-tplan-' + ((currentData.context || {}).tplan_id || 0) + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+  toast(TLi18n.t('qg.csvDone'), 'ok');
+}
+
+$(function () {
+  $('#btnEval').on('click', load);
+  $('#btnRefresh').on('click', load);
+  $('#btnCsv').on('click', exportCsv);
+  $('#btnClose').on('click', function () { window.close(); });
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    load();
+  });
+});
+</script>
+</body>
+</html>

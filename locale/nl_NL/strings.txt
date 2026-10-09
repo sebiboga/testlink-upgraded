@@ -4087,3 +4087,4 @@ $TLS_after_title = 'Na de titel';
 $TLS_after_preconditions = 'Na de voorwaarden';
 $TLS_title_test_closure = "Testafsluiting"; // "Test Closure" (Refs #1278)
 $TLS_link_report_risk_coverage = "Risk-Based Testing";
+$TLS_link_report_quality_gates = "Release-kwaliteitspoorten"; // Refs #1067

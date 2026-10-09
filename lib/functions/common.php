@@ -2349,6 +2349,16 @@ function getActions(&$gui,$baseURL) {
     // project + plan. Plan-scoped report -> inside the tplan_id guard.
     $actions->priorityBarChart =
       "/gui/templates/results/priorityBarChart.html?{$ctx}";
+    // Refs #1067: Release Quality Gates / Go-No-Go dashboard (enhancement
+    // screen, no legacy counterpart). Consolidates execution progress, pass
+    // rate, failed/blocked cases, unaddressed failures and requirement
+    // coverage into threshold gates + a release verdict. Backed by
+    // api/qualitygate, which enforces testplan_metrics on the OWNING project
+    // + plan. Plan-scoped report -> inside the tplan_id guard. Also reachable
+    // from the Reports ASIDE entry via the reports_list entry
+    // release_quality_gates.
+    $actions->qualityGate =
+      "/gui/templates/results/qualityGate.html?{$ctx}";
   }
 
   // Refs #609: initialize up-front so aside rendering with no active test

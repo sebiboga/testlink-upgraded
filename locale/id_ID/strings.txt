@@ -2906,3 +2906,4 @@ $TLS_title_test_closure = "Penutupan Pengujian"; // "Test Closure" (Refs #1278)
 $TLS_link_report_risk_coverage = "Pengujian Berbasis Risiko";
 $TLS_reqmgrsystem_interface_not_implemented = "Contoh konfigurasi tidak tersedia: antarmuka '%s' belum diimplementasikan";
 $TLS_reqmgrsystem_invalid_type = 'Tipe sistem manajemen persyaratan tidak valid: %s';
+$TLS_link_report_quality_gates = "Gerbang Kualitas Rilis"; // Refs #1067

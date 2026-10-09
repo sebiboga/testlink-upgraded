@@ -2833,3 +2833,4 @@ $TLS_link_report_risk_coverage = "Тестирование на основе р�
 $TLS_reqmgrsystem_interface_not_implemented = "Пример конфигурации недоступен: интерфейс '%s' не реализован";
 $TLS_reqmgrsystem_invalid_type = 'Недопустимый тип системы управления требованиями: %s';
 ?>
+$TLS_link_report_quality_gates = "Контрольные точки качества релиза"; // Refs #1067

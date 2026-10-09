@@ -4571,3 +4571,4 @@ $TLS_after_title = 'タイトルの後';
 $TLS_after_preconditions = '前提条件の後';
 $TLS_title_test_closure = "テストクロージング"; // "Test Closure" (Refs #1278)
 $TLS_link_report_risk_coverage = "リスクベースのテスト";
+$TLS_link_report_quality_gates = "リリース品質ゲート"; // Refs #1067

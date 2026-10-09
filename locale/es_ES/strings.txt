@@ -3866,3 +3866,4 @@ $TLS_after_preconditions = 'Después de las precondiciones';
 $TLS_title_test_closure = "Cierre de pruebas"; // "Test Closure" (Refs #1278)
 $TLS_link_report_risk_coverage = "Pruebas basadas en riesgo";
 ?>
+$TLS_link_report_quality_gates = "Puertas de calidad de la versión"; // Refs #1067

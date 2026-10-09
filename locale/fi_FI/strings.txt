@@ -2168,3 +2168,4 @@ $TLS_title_test_closure = "Testauksen päätös"; // "Test Closure" (Refs #1278)
 $TLS_link_report_risk_coverage = "Riskipohjainen testaus";
 $TLS_reqmgrsystem_interface_not_implemented = "Asetusesimerkki ei ole käytettävissä: rajapintaa '%s' ei ole toteutettu";
 $TLS_reqmgrsystem_invalid_type = 'Virheellinen vaatimustenhallintajärjestelmän tyyppi: %s';
+$TLS_link_report_quality_gates = "Julkaisun laatuportit"; // Refs #1067

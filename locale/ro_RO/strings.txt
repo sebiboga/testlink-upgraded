@@ -183,3 +183,4 @@ $TLS_link_report_risk_coverage = "Testare bazata pe risc";
 $TLS_title_execution_notes = "Note de execuție"; // "Execution notes" (Refs #1809)
 $TLS_reqmgrsystem_interface_not_implemented = "Exemplu de configurare indisponibil: interfața '%s' nu este implementată";
 $TLS_reqmgrsystem_invalid_type = 'Tip invalid de sistem de gestionare a cerințelor: %s';
+$TLS_link_report_quality_gates = "Porți de calitate ale versiunii"; // Refs #1067

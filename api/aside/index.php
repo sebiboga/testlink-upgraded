@@ -213,6 +213,10 @@ if ($tplan_id > 0) {
             } else if ($rptItem['title'] == 'link_report_metrics_more_builds') {
                 $hrefR = '/gui/templates/results/resultsMoreBuilds.html' .
                          "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
+            } else if ($rptItem['title'] == 'link_report_quality_gates') {
+                // Refs #1067: Release Quality Gates / Go-No-Go dashboard.
+                $hrefR = '/gui/templates/results/qualityGate.html' .
+                         "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
             } else {
                 $sep = (strpos($rptItem['url'], '?') !== false) ? '&' : '?';
                 $hrefR = $baseHrefR . $rptItem['url'] .

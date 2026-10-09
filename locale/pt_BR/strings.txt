@@ -4256,3 +4256,4 @@ $TLS_executed_me_and_also = 'é executado em conjunto com';
 $TLS_error_self_signup_disabled = 'O auto-cadastro de novos usuários está desativado. Entre em contato com o administrador do site.';
 $TLS_title_test_closure = "Encerramento de testes"; // "Test Closure" (Refs #1278)
 $TLS_link_report_risk_coverage = "Testes baseados em risco";
+$TLS_link_report_quality_gates = "Portas de qualidade da versão"; // Refs #1067
