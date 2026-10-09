@@ -6368,3 +6368,37 @@ Actual result observed (post-fix, measured 2026-10-09):
 - [DOC] TC-1726-11 array-shaped doAction is a separate defect, filed as #1886 (not fixed here).
 - [DOC] The legacy create/edit form emits 8 E_WARNING rows per render from the compiled template (unset gui props) — pre-existing, filed as #1887.
 - [PASS] Merge-base gate: `TLU_REQUIRE_SUITE="Issue #1726" bash ai/verify_test_suites.sh`
+
+---
+
+## Regression — Issue #1887: planMilestonesEdit.php create/edit form logged 8 E_WARNING rows per render
+
+Precondition:
+- Fresh DB; fixture `tmp/fixtures_1887.php` run → testproject `PMS1887` id=1 (priority enabled), testplan `P8 Plan` id=2, milestone `P8 Milestone` id=1.
+- Logged in `admin`/`admin` (session cookie `c1887.txt`); baseline `COUNT(*) FROM events WHERE log_level=2` recorded before each probe.
+
+Repro steps (pre-fix):
+1. `GET http://localhost:8082/lib/plan/planMilestonesEdit.php?doAction=create&tplan_id=2` → pre-fix HTTP 200, 15712 bytes.
+2. `SELECT COUNT(*) FROM events WHERE log_level=2` → **+8** rows (`managerURL`, `tplan_id`, `tproject_id`, `tprojOpt` ×2, `testPriorityEnabled` ×2, `cancelActionJS`).
+3. Same for `?doAction=edit&id=1&tplan_id=2`.
+
+Expected post-fix behavior:
+1. Both create and edit render HTTP 200 with **0** new `log_level=2` rows.
+2. The priority-enabled project renders the three percentage inputs (low/medium/high_priority_tcases), not the single `th_perc_testcases` fallback.
+3. Hidden inputs carry `tplan_id=2` and `tproject_id=1`.
+4. #1726 behaviour (bogus doAction → 302 + 1 ERROR) and the milestones view are unchanged.
+
+Actual result observed (post-fix, measured 2026-10-09):
+| Case | Probe | Measured | Verdict |
+|---|---|---|---|
+| TC-1887-01 | `?doAction=create&tplan_id=2` | HTTP 200, 16940 bytes, `log_level=2` +0 | PASS |
+| TC-1887-02 | `?doAction=edit&id=1&tplan_id=2` | HTTP 200, 17210 bytes, `log_level=2` +0; name "P8 Milestone" prefilled | PASS |
+| TC-1887-03 | create HTML | 3 priority inputs present; hidden `tplan_id=2`, `tproject_id=1` | PASS |
+| TC-1887-04 | `?doAction=bogus&tplan_id=2` | HTTP 302 → `planMilestones.html?tplan_id=2`; `log_level=1` +1, `log_level=2` +0 | PASS |
+| TC-1887-05 | `php -l lib/plan/planMilestonesEdit.php` | No syntax errors detected | PASS |
+| TC-1887-06 | failed `doCreate` (bad target_date format) | 16 E_WARNING rows — SEPARATE pre-existing defect, filed as #1888 (out of scope) | DOCUMENTED |
+
+### Test execution
+- [PASS] TC-1887-01 .. TC-1887-05.
+- [DOC] TC-1887-06 filed as #1888; not fixed in this run (FIX-ISSUE §4, no scope expansion).
+- Gate: `TLU_REQUIRE_SUITE="Issue #1887" bash ai/verify_test_suites.sh`
