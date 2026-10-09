@@ -164,6 +164,32 @@ try {
     }
 
     // ------------------------------------------------------------------
+    // GET /locate?tcase_id=X : parent test suite of a test case
+    //   Drives the legacy deep link keywordsAssign.php?id=X&edit=testcase
+    //   in the modern screen (Refs #1107): the picker must jump to the
+    //   suite that owns the requested test case before selecting it.
+    // ------------------------------------------------------------------
+    if ($method === 'GET' && $path === '/locate') {
+        $tcase_id = intval($_GET['tcase_id'] ?? 0);
+        $tsuite_id = 0;
+        if ($tcase_id > 0) {
+            $T = tlObject::getDBTables();
+            $row = $db->get_recordset(
+                "SELECT parent_id FROM {$T['nodes_hierarchy']}" .
+                " WHERE id = " . $tcase_id . " AND node_type_id = 3");
+            if (is_array($row) && count($row) > 0) {
+                $tsuite_id = intval($row[0]['parent_id']);
+            }
+        }
+        echo json_encode([
+            'status' => 'ok',
+            'tcase_id' => $tcase_id,
+            'tsuite_id' => $tsuite_id,
+        ]);
+        exit;
+    }
+
+    // ------------------------------------------------------------------
     // GET /keywords?tcase_id=X :
     //   available (all project keywords) + assigned on latest active version
     // ------------------------------------------------------------------

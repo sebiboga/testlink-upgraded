@@ -123,6 +123,9 @@ var canEditExecuted = false;
 var availableKw = [];
 var executedFlag = false;
 var currentLevel = 'testcase';
+var deepTargetId = 0;
+var deepTargetEdit = '';
+var pendingCaseId = 0;
 
 $(function () {
   var p = new URLSearchParams(window.location.search);
@@ -132,6 +135,9 @@ $(function () {
   window._kwaUseFiltered = (p.get('useFilteredSet') === '1' || p.get('use_filtered_set') === '1');
   window._kwaFormToken = p.get('form_token') || p.get('ftoken') || '';
   window._kwaTcasesCsv = p.get('tcases') || '';
+  // Legacy deep link: keywordsAssign.php?id=X&edit=testcase|testsuite.
+  deepTargetId = parseInt(p.get('id') || '0', 10);
+  deepTargetEdit = (p.get('edit') || '').toLowerCase();
   TLi18n.load(function () {
     TLi18n.apply();
     TLi18n.initLocaleSwitcher('#localeSwitcher');
@@ -183,10 +189,39 @@ function loadSuites() {
         $s.append($('<option>').val(s.id).text(s.name));
       });
       bindEvents();
-      applyLevel();
-      refreshAvailable();
+      refreshAvailable(applyDeepLink);
     })
     .fail(function () { toast(TLi18n.t('common.error'), true); });
+}
+
+function applyDeepLink() {
+  var id = deepTargetId;
+  if (!(id > 0) || (deepTargetEdit !== 'testcase' && deepTargetEdit !== 'testsuite')) {
+    applyLevel();
+    return;
+  }
+  if (deepTargetEdit === 'testsuite') {
+    if ($('#suiteSel option[value="' + id + '"]').length) {
+      currentLevel = 'testsuite';
+      $('#levelSel').val('testsuite');
+      $('#suiteSel').val(id);
+    }
+    applyLevel();
+    return;
+  }
+  // edit=testcase : resolve the owning suite, then preselect that case.
+  $.getJSON(API + '/locate?tcase_id=' + id)
+    .done(function (r) {
+      if (r && r.status === 'ok' && parseInt(r.tsuite_id, 10) > 0 &&
+          $('#suiteSel option[value="' + parseInt(r.tsuite_id, 10) + '"]').length) {
+        pendingCaseId = id;
+        currentLevel = 'testcase';
+        $('#levelSel').val('testcase');
+        $('#suiteSel').val(parseInt(r.tsuite_id, 10));
+      }
+      applyLevel();
+    })
+    .fail(function () { applyLevel(); });
 }
 
 function bindEvents() {
@@ -273,27 +308,40 @@ function loadCases() {
       $c.empty();
       var list = r.tcases || [];
       if (!list.length) {
+        pendingCaseId = 0;
         $c.append($('<option>').val('').text(TLi18n.t('kwa.noTestCases')));
         return;
       }
       $.each(list, function (i, tc) {
         $c.append($('<option>').val(tc.id).text(tc.name));
       });
-      $c.val(list[0].id);
+      if (pendingCaseId && $c.find('option[value="' + pendingCaseId + '"]').length) {
+        $c.val(pendingCaseId);
+      } else {
+        $c.val(list[0].id);
+      }
+      pendingCaseId = 0;
       loadCaseState();
     })
-    .fail(function () { toast(TLi18n.t('common.error'), true); });
+    .fail(function () {
+      pendingCaseId = 0;
+      toast(TLi18n.t('common.error'), true);
+    });
 }
 
-function refreshAvailable() {
+function refreshAvailable(cb) {
   $.getJSON(API + '/keywords?tproject_id=' + tprojectId)
     .done(function (r) {
       availableKw = r.available || [];
       $('#noKwEmpty').toggle(availableKw.length === 0);
       $('#otWrap').toggle(availableKw.length > 0 && canAssign);
       renderBoxes([], []);
+      if (typeof cb === 'function') { cb(); }
     })
-    .fail(function () { toast(TLi18n.t('common.error'), true); });
+    .fail(function () {
+      toast(TLi18n.t('common.error'), true);
+      if (typeof cb === 'function') { cb(); }
+    });
 }
 
 function fillBox(sel, items) {

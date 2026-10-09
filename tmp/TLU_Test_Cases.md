@@ -6032,3 +6032,66 @@ Well-formed scalar values and true ARRAY_* parameters are unchanged.
 - New bug found while testing (filed separately as **#1884**): `planUrgency.php` without a valid
   `tplan_id` answers 200 but writes 5-7 `log_level=2` rows per request. Independent of this fix —
   reproduced with no params / `tplan_id=0` on the same tree.
+
+## Task — Issue #1107: keywordsAssign legacy deep-link `id`/`edit` targeting
+
+**Precondition** — `php tmp/fixtures_1101.php` (project `QSDemo` id=1; suites Alpha=2,
+A1=3, Beta=4; cases tc5 `Login OK`@Alpha, tc11 `Password rules`@A1, tc19
+`Requirement coverage check`@Beta; keywords queen=1, regression=2). Login admin/admin,
+app at http://localhost:8082.
+
+| ID | Steps | Expected | Actual | Result |
+|---|---|---|---|---|
+| TC-1107-01 | Open `keywordsAssign.html?tproject_id=1&id=19&edit=testcase` | level Test Case, suite Beta, case `Requirement coverage check` preselected | `{level:testcase, suite:Beta, caseId:19, caseName:Requirement coverage check}` | PASS |
+| TC-1107-02 | Open `...?id=5&edit=testcase` | level Test Case, suite Alpha, case `Login OK` + its assigned kw `queen` | `{suite:Alpha, caseId:5, caseName:Login OK, assigned:[queen]}` | PASS |
+| TC-1107-03 | Open `...?id=4&edit=testsuite` | level Test Suite, suite Beta, scope deep, subtitle `Test Suite :: Beta (deep)` | `{level:testsuite, suite:Beta, subtitle:"Test Suite :: Beta (deep)", scopeDeep:true}` | PASS |
+| TC-1107-04 | Same as TC-1107-03, inspect Available Keywords | all project keywords listed | `avail:[queen, regression]` (after ordering fix; pre-fix avail box empty) | PASS |
+| TC-1107-05 | Open `...?id=1&edit=testproject` | ignored → default picker (testcase / A1 / first case) | `{level:testcase, suite:A1, case:Password rules}` | PASS |
+| TC-1107-06 | Open `...?tproject_id=1` (no params) | default picker unchanged | `{level:testcase, suite:A1, case:Password rules, avail:[queen], target:[regression]}` | PASS |
+| TC-1107-07 | Browser-navigate `lib/testcases/listTestCases.php?feature=keywordsAssign&tproject_id=1&id=19&edit=testcase` | redirect keeps `id`/`edit`; case 19 selected | redirect URL `keywordsAssign.html?tproject_id=1&id=19&edit=testcase`; case 19 selected | PASS |
+| TC-1107-08 | Browser-navigate `listTestCases.php?feature=edit_tc&tproject_id=1&id=19&edit=testcase` | id/edit NOT forwarded (scope limited) | redirect URL `testSpec.html?tproject_id=1` | PASS |
+| TC-1107-09 | Deep-link tc19, select `queen`, Save | keyword persisted on tc19 | DB `testcase_keywords (19,1)` present | PASS |
+| TC-1107-10 | Deep-link suite Beta (`id=4`), select `queen`, Add to Test Cases | keyword added to every case in subtree | tc14 + tc19 both have keyword 1 in `testcase_keywords` | PASS |
+| TC-1107-11 | i18n: `kwa.assignToFilteredTestCases` label + coverage gate | label localized, gate green | 10/10 bundles contain key; `verify_i18n_coverage.sh` → 9 passed/0 failed (7099 keys); screen shows `Assign ONLY to filtered Test Cases` | PASS |
+| TC-1107-12 | Event Viewer delta over the session | no new Error/Warning | `events` max id 3, only `audit_keyword_assigned_tc` / `audit_login_succeeded` (log_level 16 = audit) | PASS |
+| TC-1107-13 | Syntax gate | no syntax errors | `php -l api/keywords/assign.php`, `php -l lib/testcases/listTestCases.php` clean | PASS |
+| TC-1107-14 | Browser console on the deep-linked screen | no errors | 0 console messages | PASS |
+
+### Test execution
+- [PASS] TC-1107-01 .. TC-1107-14 — 14/14 PASS (chrome-devtools MCP + mysql, live app at :8082)
+- [PASS] Regression: no-params picker, testcase/testsuite deep links, suite add, testcase save, edit_tc shim unaffected
+- [PASS] Merge-base gate: `TLU_REQUIRE_SUITE="Issue #1107" bash ai/verify_test_suites.sh`
+
+### Notes
+- Secondary defect found & filed as **#1885** (raw key `kwa.assignToFilteredTestCases` missing
+  from all 10 bundles); fixed on the same branch.
+- Starting directly in suite mode (the `edit=testsuite` deep link) exposed a startup race: the
+  Available Keywords box was empty because `refreshAvailable()` ran after `applyLevel()`. Fixed
+  by chaining `applyDeepLink` as the `refreshAvailable` callback so `availableKw` is loaded first.
+
+## Task — Issue #1107 (addendum): code-review fixes + testSpec producer
+
+**Precondition** — same as the main #1107 suite (QSDemo id=1). Added after the
+mandatory code review (rule 16) and its fixes.
+
+| ID | Steps | Expected | Actual | Result |
+|---|---|---|---|---|
+| TC-1107-15 | On `testSpec.html?tproject_id=1`, dispatch `contextmenu` on the `Requirement coverage check` tree node, inspect menu | `Assign Keywords` item visible (grant `keyword_assignment`); click → opens `keywordsAssign.html?tproject_id=1&id=19&edit=testcase` | `{assignKwDisplay:flex, label:"Assign Keywords"}`, `window.open` captured `/gui/templates/keywords/keywordsAssign.html?tproject_id=1&id=19&edit=testcase` | PASS |
+| TC-1107-16 | Same on the `Beta` suite node | opens `...&id=4&edit=testsuite` | captured `/gui/templates/keywords/keywordsAssign.html?tproject_id=1&id=4&edit=testsuite` | PASS |
+| TC-1107-17 | Open `...?id=abc&edit=testcase` (malformed id) | NaN guard → default picker, NO `/locate` request | network list has no `/locate`; picker = testcase / A1 / Password rules | PASS |
+| TC-1107-18 | Browser-navigate `listTestCases.php?feature=keywordsAssign&tproject_id=1&id[]=19&edit[]=x` (array-shaped) | `is_scalar()` guard → id/edit NOT forwarded, no PHP warning | redirect URL `keywordsAssign.html?tproject_id=1`; `tmp/php_server.log` clean | PASS |
+| TC-1107-19 | `refreshAvailable` startup ordering after the review fix | normal no-params flow still renders picker + boxes | `{level:testcase, suite:A1, case:Password rules, avail:[queen], target:[regression]}` | PASS |
+| TC-1107-20 | i18n: `tspec.assignKeywords` + coverage gate | key in all 10 bundles, gate green | 10/10 bundles; `verify_i18n_coverage.sh` → 9 passed/0 failed, reference 7100 keys | PASS |
+| TC-1107-21 | Event Viewer delta over addendum | no new Error/Warning | `events` ids 3,4 both `log_level=16` (`audit_keyword_assigned_tc`) | PASS |
+
+### Test execution
+- [PASS] TC-1107-15 .. TC-1107-21 — 7/7 PASS
+- [PASS] Review fixes applied: `refreshAvailable` now invokes its callback on `.fail` too (picker still
+  renders if `/keywords` fails); `pendingCaseId` reset on `/tcases` empty + `.fail`; NaN + `is_scalar()`
+  guards. Modern producer added (`testSpec.html` context menu → deep link).
+- [PASS] Merge-base gate: `TLU_REQUIRE_SUITE="Issue #1107" bash ai/verify_test_suites.sh`
+
+### Notes
+- The `edit=testproject` branch keeps legacy semantics of "not assignable" by ignoring it and
+  showing the normal picker (the legacy screen showed an instructions-only page). Documented
+  as an intentional, accepted delta; no assignable level exists for a whole project.

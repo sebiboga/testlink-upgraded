@@ -194,6 +194,8 @@ textarea.form-control2 { min-height: 80px; resize: vertical; }
   <div class="ctx-item" id="ctxCut" onclick="ctxCutAction()"><i class="fa fa-scissors"></i> <span data-i18n="tspec.cut">Cut</span></div>
   <div class="ctx-item" id="ctxCopy" onclick="ctxCopyAction()"><i class="fa fa-copy"></i> <span data-i18n="tspec.copy">Copy</span></div>
   <div class="ctx-sep"></div>
+  <div class="ctx-item" id="ctxAssignKw" onclick="ctxAssignKwAction()"><i class="fa fa-tags"></i> <span data-i18n="tspec.assignKeywords">Assign Keywords</span></div>
+  <div class="ctx-sep" id="ctxAssignKwSep"></div>
   <div class="ctx-item" id="ctxPaste" onclick="ctxPasteAction()"><i class="fa fa-clipboard"></i> <span data-i18n="tspec.paste">Paste</span></div>
 </div>
 
@@ -1813,6 +1815,8 @@ function initContextMenu() {
     $m.data('node', nd);
     $m.find('.ctx-item').show();
     $('#ctxPaste').toggle(!!clipboard);
+    var canKw = !!grants['keyword_assignment'];
+    $('#ctxAssignKw, #ctxAssignKwSep').toggle(canKw);
   });
 
   $('#treeBox').on('contextmenu', '.tree-root', function(ev) {
@@ -1822,8 +1826,19 @@ function initContextMenu() {
     $m.css({ top: ev.pageY, left: ev.pageX }).show();
     $m.data('node', { type: 'testsuite', id: ctx.tproject_id, isRoot: true });
     $m.find('.ctx-item').hide();
+    $('#ctxAssignKwSep').hide();
     $('#ctxPaste').toggle(clipboard && !!clipboard).show();
   });
+}
+
+function ctxAssignKwAction() {
+  var nd = $('#ctxMenu').data('node');
+  $('#ctxMenu').hide();
+  if (!nd || !nd.id) return;
+  var edit = nd.type === 'testsuite' ? 'testsuite' : 'testcase';
+  var url = '/gui/templates/keywords/keywordsAssign.html?tproject_id=' +
+    parseInt(ctx.tproject_id, 10) + '&id=' + parseInt(nd.id, 10) + '&edit=' + edit;
+  window.open(url, 'KeywordsAssign', 'width=1000,height=720,resizable=yes,scrollbars=yes');
 }
 
 function ctxCutAction() {

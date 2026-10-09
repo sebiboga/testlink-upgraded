@@ -82,6 +82,20 @@ if (isset($_REQUEST['testproject_id']) && !isset($qs['tproject_id']) &&
     $qs['tproject_id'] = intval($_REQUEST['testproject_id']);
 }
 
+// Legacy deep link keywordsAssign.php?id=X&edit=testcase|testsuite. Only the
+// keywordsAssign target consumes these; forward them so a legacy right-click
+// link reaches the modern screen with the target intact (Refs #1107).
+if ($feature === 'keywordsAssign') {
+    if (isset($_REQUEST['id']) && is_scalar($_REQUEST['id']) &&
+        intval($_REQUEST['id']) > 0) {
+        $qs['id'] = intval($_REQUEST['id']);
+    }
+    if (isset($_REQUEST['edit']) && is_scalar($_REQUEST['edit']) &&
+        $_REQUEST['edit'] !== '') {
+        $qs['edit'] = (string)$_REQUEST['edit'];
+    }
+}
+
 $url = $targets[$feature];
 if (!empty($qs)) {
     $url .= '?' . http_build_query($qs);
