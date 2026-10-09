@@ -6258,3 +6258,69 @@ Actual result observed (post-fix, measured):
 - [PASS] `php -l lib/cfields/cfieldsEdit.php` and `php -l lib/cfields/cfieldsTprojectAssign.php`
 - [PASS] Merge-base gate: `TLU_REQUIRE_SUITE="Issue #1883" bash ai/verify_test_suites.sh`
 - NOTE: the modern `cfieldsTprojectAssign.html` logs a 404 for `api/cfieldstproject/…action=init&tproject_id=1` because the fresh DB has no test projects; correct data-dependent behaviour, not covered by this fix.
+## Regression — Issue #1689: reqTreeReorder.html — read-only rows were still `draggable="true"` and every drop was silently ignored
+
+**Precondition / fixture**
+
+```
+php tmp/fixtures_1681.php     # -> tproject=1 TREE1681, specA=2, reqs 6/8/10, view-only role 10
+# the fixture generates a random password, so pin one:
+H=$(php -r 'echo password_hash("ro1689pass", PASSWORD_DEFAULT);')
+mysql -h 127.0.0.1 -utestlink -ptestlink testlink \
+  -e "UPDATE users SET password='$H' WHERE login='tr1681readonly';"
+```
+
+Two accounts are needed: `tr1681readonly` / `ro1689pass` (has `mgt_view_req`, **not**
+`mgt_modify_req`) and `admin` / `admin` (full rights). Both open
+`/gui/templates/requirements/reqTreeReorder.html?tproject_id=1&req_spec_id=2`.
+
+**Root cause this suite guards**
+
+Two functions write the `draggable` attribute and they used *different* predicates. `render()`
+gated it on `GRANT.modify && !DEAD`, but `render()` ends by calling `applyRowState()`, which
+re-set `draggable="true"` from a `DEAD`-only predicate — and the `drop` handler discards the
+gesture without modify rights. Introduced by `13b53dd94` (the #1688 fix), which folded `DEAD`
+into the row controls but dropped the rights term; its non-regression had only been measured for
+a user *with* modify rights. `canDrag()` is now the single source of truth.
+
+**How to drive a drag headlessly** (HTML5 DnD cannot be clicked): dispatch the real event
+sequence with a stub `DataTransfer`.
+
+```js
+const rows = () => [...document.querySelectorAll('#ordBody tr')];
+const dt = new DataTransfer();
+rows()[0].dispatchEvent(new DragEvent('dragstart',  {bubbles:true, dataTransfer:dt}));
+rows()[2].dispatchEvent(new DragEvent('dragover',  {bubbles:true, cancelable:true, dataTransfer:dt}));
+rows()[2].dispatchEvent(new DragEvent('drop',      {bubbles:true, cancelable:true, dataTransfer:dt}));
+rows()[0].dispatchEvent(new DragEvent('dragend',   {bubbles:true, dataTransfer:dt}));
+```
+
+Two measurement traps that produced false readings while writing this suite: the "Unsaved
+changes" chip is toggled via **inline `display`** (`markDirty()`), not a `show` class — assert
+`getComputedStyle(#dirtyChip).display`; and `applyOrder()` opens a Bootstrap confirm modal, so a
+scripted `#applyBtn` click fires **no request** until `#cmOk` is clicked.
+
+| # | Case | Steps | Expected | Result |
+|---|---|---|---|---|
+| 1 | view-only: rows not draggable | login `tr1681readonly`, open the screen, read `#ordBody tr` attributes | `draggable` is `"false"` on **3/3** rows | PASS — `["false","false","false"]` (was `["true","true","true"]`) |
+| 2 | view-only: no drag affordance in the chrome | same page, read the toolbar | hint hidden, `#ordBody .grip` count 0, read-only banner shown | PASS — `hintVisible:false`, `grips:0`, banner shown |
+| 3 | view-only: a drag changes nothing | same page, run the drag sequence above (row 0 → row 2) | order identical, no "Unsaved changes" chip, no XHR to `?action=reorder` | PASS — `["6","8","10"]` → `["6","8","10"]`, chip stays hidden, 0 reorder requests |
+| 4 | view-only: controls unchanged | same page | all `.rm` buttons disabled, Apply disabled, each `.pickbtn` enabled (by design — selecting a row is read-only) | PASS — `rmDisabled:true`, `applyDisabled:true`, `pickEnabled:true` |
+| 5 | modify: affordance present | login `admin`, open the screen | `draggable="true"` on all rows, **3** grips visible, hint visible, banner hidden | PASS — `["true","true","true"]`, `grips:3`, hint visible |
+| 6 | modify: drag + Apply persists | drag row 0 → row 2, `#applyBtn`, then `#cmOk` | order becomes `["8","6","10"]`, chip appears then clears, and the new order survives the reload — verify against the API, **not** `nodes_hierarchy.id` | PASS — `action=init` returned `serverOrder:[8,6,10]` = `TR1-2, TR1-1, TR1-3` |
+| 7 | modify: affordance restored after Apply | continue case 6 after the save completes | `draggable="true"`, 3 grips (the busy transition re-runs `applyRowState()`) | PASS — restored |
+| 8 | modify: Discard restores the saved order | click `[data-mv="bottom"]` on row 0, then `#discardBtn` | order returns to the saved one, chip clears, grip/drag hint come back | PASS — `["8","6","10"]` → `["6","10","8"]` → `["8","6","10"]`, chip `none`, 3 grips |
+| 9 | #1688 non-regression: fresh DEAD page | open with `req_spec_id=999999` | `DEAD` true, 0 rows, 0 grips, hint hidden, banner **not** shown, Apply disabled | PASS — all as expected |
+| 10 | #1688 non-regression: success → dead transition | open a good spec, then force a failing load with rows on screen (3 rows survive) | `draggable` forced to `"false"`, grips present-but-hidden, a drag cannot reorder, banner not shown | PASS — `["false","false","false"]`, grips `display:none`, order unchanged |
+
+**Gates for this suite**
+
+- `node --check` on the screen's extracted inline script → PASS
+- `grep -n "canDrag\|draggable"` on `gui/templates/requirements/reqTreeReorder.html` → the only
+  writers of `draggable` are `render()` and `applyRowState()`, both calling `canDrag()`; no
+  open-coded `GRANT.modify && !DEAD` remains → PASS
+- no i18n bundle touched (no new user-facing string) → PASS
+- Event Viewer / `events`: **0** Error or Warning rows created during the run (only 5
+  `log_level 16` INFO/audit rows: 1 fixture CREATE, 2 `audit_login_failed` from wrong-password
+  attempts, 2 `audit_login_succeeded`) → PASS
+- browser console on the screen → no errors or warnings → PASS
