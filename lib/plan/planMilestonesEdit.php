@@ -93,7 +93,9 @@ function init_args(&$dbHandler,$dateFormat)
 	{
 	    $tplan_mgr = new testplan($dbHandler);
 	    $info = $tplan_mgr->get_by_id($args->tplan_id);
-	    $args->tplan_name = $info['name'];
+	    // Refs #1890: get_by_id() returns null for a non-existent / stale tplan_id,
+	    // so guard the read and fall back to an empty name instead of warning.
+	    $args->tplan_name = is_array($info) && isset($info['name']) ? $info['name'] : '';
   	}
   	 	
 	return $args;

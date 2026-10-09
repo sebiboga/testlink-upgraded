@@ -7319,7 +7319,10 @@ class testplan extends tlObjectWithAttachments
            " SELECT is_public FROM {$this->tables['testplans']} " .
            " WHERE id =" . intval($id);   
     $ret = $this->db->get_recordset($sql);
-    return $ret[0]['is_public'];
+    // Refs #1890: get_recordset() returns null for an empty result. Return null
+    // (no accessibility flag) for a non-existent id instead of warning on $ret[0],
+    // matching the contract tlUser::getTprojectPublicAttr() documents for tprojects.
+    return (is_array($ret) && isset($ret[0]['is_public'])) ? $ret[0]['is_public'] : null;
   }
 
 
