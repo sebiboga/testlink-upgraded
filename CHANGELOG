@@ -17,6 +17,22 @@ Every screen of the application was ported one-by-one in a screen-compare
 kept for backward compatibility and is progressively retired as each modern
 screen reaches full parity.
 
+- [KEY BUGFIX] - #1726: **`lib/plan/planMilestonesEdit.php` answered a bare URL (and every
+  unlisted `doAction`) with HTTP 200 and a 0-byte blank body, and wrote no Event Viewer row.**
+  `init_args()` has no whitelist (`:80`), so `method_exists($commandMgr, null)` is false (`:30`)
+  and `$renderType` stays `'none'` (`:127`); the `switch($argsObj->doAction)` (`:128-156`) has no
+  `default` and the sink `switch($renderType)` (`:158-172`) ended with `default: break;`. Fix (1
+  file, +19/-1): the sink's `default:` now writes one `tLog(..., 'ERROR')` row and 302s to the
+  modernized list `gui/templates/plans/planMilestones.html`, carrying `?tplan_id=N` when known -
+  the graceful contract #1627/#1722 established for `reqMgrSystemEdit.php`. Verified: bare and
+  `?doAction=bogus` 200/0 → 302 (Event Viewer `log_level=1` +1 each, `log_level=2` +0);
+  `?doAction=create` still renders the legacy form; sibling controller unchanged; browser lands
+  on the modern list. Two pre-existing defects found and filed while testing: `?doAction[]=x`
+  TypeError (#1886) and the legacy form's 8 E_WARNING/render (#1887). Docs:
+  `docs/Bugfix-Issue-1726-PlanMilestonesEdit-Blank-200-Default-Render-Branch.md` + wiki page;
+  `docs/screenshots/issue-1726-planmilestones-list-after-redirect.png`; regression suite
+  `Issue #1726` 10/10 PASS, suite gate 7/7. (Fixes #1726)
+
 - [FEATURE GAP CLOSED] - #1077: the legacy **"Test Case ID" filter (search requirements by the
   test case they are linked to) is back** on the modern Search Requirements screen
   (`gui/templates/requirements/searchReq.html`). Legacy rendered the control at
