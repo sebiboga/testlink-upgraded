@@ -107,6 +107,23 @@ class planMilestonesCommands
     $guiObj->action_descr = lang_get('create_milestone');
     $guiObj->submit_button_label=$this->submit_button_label;
     $guiObj->template = null;
+
+    // Refs #1888: when a validation below fails, template stays null and
+    // renderGui() re-renders planMilestonesEdit.tpl, which reads
+    // {$gui->milestone.*} unguarded (8 reads => 16 E_WARNING rows per failed
+    // submit). create()/edit() already set this property; doCreate() did not.
+    // Initialise it here, pre-filled with what the user submitted, so a failed
+    // create re-renders the form with its values instead of PHP 8 warnings.
+    // Key names/order mirror create() and the template's own mapping
+    // (low_priority_tcases input reads high_percentage, etc.).
+    $guiObj->milestone = array('id' => 0, 'name' => $argsObj->name,
+                               'target_date' => $argsObj->target_date_original,
+                               'start_date' => $argsObj->start_date_original,
+                               'high_percentage' => $argsObj->low_priority_tcases,
+                               'medium_percentage' => $argsObj->medium_priority_tcases,
+                               'low_percentage' => $argsObj->high_priority_tcases,
+                               'testplan_id' => $argsObj->tplan_id,
+                               'testplan_name' => $argsObj->tplan_name,);
         $op_ok = 1;
 
         // Check name do not exists
