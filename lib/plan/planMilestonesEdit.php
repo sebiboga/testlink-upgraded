@@ -216,7 +216,22 @@ function initialize_gui(&$dbHandler,&$argsObj)
     $gui->grants = new stdClass();
     $gui->grants->milestone_mgmt = has_rights($dbHandler,"testplan_planning");
 	$gui->grants->mgt_view_events = has_rights($dbHandler,"mgt_view_events");
-	
+
+	// Refs #1887: planMilestonesEdit.tpl reads tproject_id/tplan_id/tprojOpt/
+	// managerURL/cancelActionJS. This controller never set them, so under PHP 8
+	// every render logged 8 E_WARNING rows into the Event Viewer (undefined
+	// property / read on null). Populate them here exactly like the sibling
+	// planMilestonesView.php does, so the form also gets its correct context
+	// (hidden ids + the testPriorityEnabled layout) instead of defaulting.
+	$gui->tproject_id = intval($argsObj->tproject_id);
+	$gui->tplan_id = intval($argsObj->tplan_id);
+	$gui->managerURL = "lib/plan/planMilestonesEdit.php" .
+	                   "?tproject_id={$gui->tproject_id}&tplan_id={$gui->tplan_id}";
+	$tprjMgr = new testproject($dbHandler);
+	$gui->tprojOpt = $tprjMgr->getOptions($gui->tproject_id);
+	// Empty => template keeps its historical history.back() fallback.
+	$gui->cancelActionJS = '';
+
 	return $gui;
 }
 

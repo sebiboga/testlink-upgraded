@@ -33,6 +33,24 @@ screen reaches full parity.
   `docs/screenshots/issue-1726-planmilestones-list-after-redirect.png`; regression suite
   `Issue #1726` 10/10 PASS, suite gate 7/7. (Fixes #1726)
 
+- [KEY BUGFIX] - #1887: **the legacy Plan Milestones create/edit form
+  (`lib/plan/planMilestonesEdit.php?doAction=create|edit`) wrote 8 `E_WARNING` rows per render
+  into the Event Viewer.** `initialize_gui()` (`:207-221`) returned a `stdClass` carrying only
+  `user_feedback/main_descr/action_descr/grants`; the compiled
+  `gui/templates/dashio/plan/planMilestonesEdit.tpl` additionally reads
+  `managerURL` (`:18`), `tplan_id` (`:123`), `tproject_id` (`:124`),
+  `tprojOpt->testPriorityEnabled` (`:169`/`:229`) and `cancelActionJS` (`:222`) — 8 unguarded
+  PHP-8 property reads (`renderGui()` at `:136-141` only merges the command bean, which carries
+  none of them). Latent since 2009 (PHP 5/7 raised `E_NOTICE`, which Smarty suppressed).
+  Fix (1 file, +17): `initialize_gui()` now populates the 5 props from `$argsObj` plus
+  `testproject::getOptions()`, exactly like the sibling `planMilestonesView.php:93-94`, which
+  also restores the priority-enabled layout (3 percentage inputs) and the hidden
+  `tplan_id`/`tproject_id`. Verified: create 15712 B/+8 warnings → 16940 B/+0; edit +0;
+  priority branch renders; `?doAction=bogus` #1726 path unchanged (302 + 1 ERROR); `php -l`
+  clean. Docs: `docs/Bugfix-Issue-1887-PlanMilestonesEdit-CreateEdit-Warnings.md` + wiki page;
+  regression suite `Issue #1887` 5/5 PASS, suite gate 7/7. Sibling failure-path defect filed,
+  not fixed: #1888. (Fixes #1887)
+
 - [FEATURE GAP CLOSED] - #1077: the legacy **"Test Case ID" filter (search requirements by the
   test case they are linked to) is back** on the modern Search Requirements screen
   (`gui/templates/requirements/searchReq.html`). Legacy rendered the control at
