@@ -6500,3 +6500,14 @@ Harness: `bash tmp/verify_1888.sh` → **9/9 PASS** (M1 units: format/prefill + 
 ### Test execution
 - [PASS] TC-1888-01 .. TC-1888-08 (2026-10-09, PHP 8.3.35).
 - Gate: `TLU_REQUIRE_SUITE="Issue #1888" bash ai/verify_test_suites.sh`
+
+### TC-1888 addendum — code-review XSS hardening
+The pre-fill from `target_date_original`/`start_date_original` was HTML-escaped
+(`htmlspecialchars(..., ENT_QUOTES, 'UTF-8')`) because `planMilestonesEdit.tpl:143,158` echo those
+fields without `|escape`. Cases:
+
+| Case | Probe | Measured | Verdict |
+|---|---|---|---|
+| TC-1888-09 | `doCreate` with `target_date=x/" autofocus onfocus="alert(1)` | HTTP 200; rendered `value="x/&quot; autofocus onfocus=&quot;alert(1)"`; quotes contained, no attribute breakout | PASS |
+| TC-1888-10 | `php -l lib/plan/planMilestonesCommands.class.php` | No syntax errors detected | PASS |
+| TC-1888-11 | `doCreate` with delimiter-less `target_date=aaaaaa` | HTTP 500, 0 bytes — pre-existing `split_localized_date()` `explode(null)` ValueError, filed as #1889 (out of scope) | DOCUMENTED |
