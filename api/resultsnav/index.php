@@ -161,6 +161,7 @@ $bff = function ($action) use ($db, $user) {
             'tcases_without_tester' => 'gui/templates/results/casesWithoutTester.html',
             'charts_basic' => 'gui/templates/results/charts.html',
             'results_requirements' => 'gui/templates/results/resultsRequirements.html',
+            'requirements_traceability_matrix' => 'gui/templates/results/rtm.html',
             'uncovered_testcases' => 'gui/templates/results/uncoveredTestCases.html',
             'risk_coverage' => 'gui/templates/results/riskCoverage.html',
             'list_problems' => 'gui/templates/results/resultsBugs.html',

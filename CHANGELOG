@@ -8463,6 +8463,24 @@ Changes:
       project tables and added user metrics to the middle section
 
 ## 2.0.1 (in-progress)
+### Enhancement — Requirements Traceability Matrix report `rtm` (Refs #1065)
+- `gui/templates/results/rtm.html` + `api/rtm/index.php`: a requirement-first RTM that
+  complements the Requirements Coverage report — every owning-project requirement
+  (orphans included) with its `req_coverage`-linked test cases (external id, name,
+  version, suite, in-plan flag, latest result), per-requirement defect counts,
+  coverage status (covered/partial/uncovered) and the plan's orphan test cases
+- Build/platform filters with latest-wins semantics, summary badges, expandable
+  per-requirement test-case detail, client-side CSV export; `testplan_metrics` on the
+  owning project, plan/project names from `nodes_hierarchy` (2.0.1 #1767 schema drift),
+  machine codes 400/401/403/404/405
+- Wired via `cfg/reports.cfg.php` (`requirements_traceability_matrix`, req-gated),
+  `api/resultsnav/index.php`, the Reports ASIDE branch (`lib/general/asideMenu.php`),
+  `$actions->rtm`, the server string `$TLS_link_report_requirements_traceability`
+  (en_GB/en_US) and i18n `rtm.*` + `footers.rtm` in all 10 bundles (coverage gate PASS)
+- Fixture `tmp/fixtures_1065.php`, screenshots `docs/1065-rtm-*.png`, docs
+  `docs/Requirements-Traceability-Matrix-Modernized.md`; suite "Modernize — Issue #1065"
+  in `tmp/TLU_Test_Cases.md` 19/19 PASS; Event Viewer clean
+
 ### Gap closed — Assign Keywords: legacy deep-link `id`/`edit` per-suite/per-case targeting restored (Refs #1107)
 - `gui/templates/keywords/keywordsAssign.html` now reads the legacy `id` + `edit=testcase|testsuite`
   deep link and preselects the target (level + suite, then the owning suite's case via the new BFF

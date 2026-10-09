@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title data-i18n="rtm.header">Requirements Traceability Matrix</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; color: #0d3f3c; opacity: 1; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.toolbar select { background: #333; color: #fff; border: 1px solid #555; border-radius: 4px; padding: 4px 8px; font-size: 12px; }
+.toolbar label { color: #aaa; font-size: 12px; margin: 0; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-ghost { background: #333; color: #ddd; border: 1px solid #555; padding: 7px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+.btn-ghost:hover { background: #3a3a41; }
+.section { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px 0; overflow: hidden; }
+.section-head { padding: 13px 20px; border-bottom: 1px solid #eee; font-size: 15px; font-weight: 700; color: #22242a; display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.section-head i { color: #4ECDC4; }
+.summary-row { display: flex; gap: 16px; padding: 14px 20px; flex-wrap: wrap; }
+.eval-badge { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 14px; font-size: 12px; font-weight: 600; color: #fff; }
+.eval-badge .cnt { background: rgba(255,255,255,.3); border-radius: 10px; padding: 1px 7px; font-size: 11px; }
+.eval-badge.orphan { outline: 2px dashed #c9a227; }
+.section-body { padding: 10px 20px 14px; overflow-x: auto; }
+table.flat { width: 100%; border-collapse: collapse; font-size: 12px; }
+table.flat th { background: #22242a; color: #fff; padding: 7px 10px; text-align: left; white-space: nowrap; font-size: 11.5px; position: sticky; top: 0; z-index: 1; }
+table.flat td { padding: 5px 10px; border-bottom: 1px solid #eee; vertical-align: top; }
+table.flat tr:hover td { background: #f4fbfa; }
+tr.orphan-row td { background: #fffbea; }
+tr.orphan-row:hover td { background: #fdf3d0; }
+td.reqid { white-space: nowrap; font-weight: 600; color: #2c3e50; }
+td.reqtitle { min-width: 180px; }
+td.spec { color: #667; font-size: 11px; max-width: 190px; word-break: break-word; }
+.age-chip { display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 600; color: #fff; }
+.age-chip.covered { background: #28a745; }
+.age-chip.partial { background: #007bff; }
+.age-chip.uncovered { background: #6c757d; }
+.chip { display: inline-block; padding: 1px 7px; border-radius: 10px; font-size: 10.5px; font-weight: 600; }
+.chip.inplan { background: #d9f2e4; color: #1a7f45; }
+.chip.notinplan { background: #eee; color: #888; }
+.status-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; vertical-align: -1px; }
+.status-dot.passed { background: #28a745; }
+.status-dot.failed { background: #dc3545; }
+.status-dot.blocked { background: #ffc107; }
+.status-dot.not_run { background: #6c757d; }
+.tc-expand { cursor: pointer; color: #4ECDC4; font-size: 11px; white-space: nowrap; }
+.tc-detail { display: none; background: #f9f9f9; padding: 8px 12px; font-size: 11.5px; border-top: 1px solid #eee; }
+.tc-detail table { width: 100%; border-collapse: collapse; }
+.tc-detail th { background: #eef6f5; padding: 3px 8px; text-align: left; font-size: 11px; color: #445; }
+.tc-detail td { padding: 3px 8px; border-bottom: 1px solid #eef1f1; }
+.orphan-tc { font-size: 12px; padding: 4px 4px; color: #7a6a22; }
+.empty { text-align: center; color: #888; font-size: 14px; padding: 40px 20px; }
+.empty i { font-size: 34px; color: #4ECDC4; display: block; margin-bottom: 10px; }
+.errbox { margin: 16px 24px 0; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+.errbox .inner { padding: 22px; text-align: center; color: #7a1f1f; background: #fdecea; border: 1px solid #f5c6cb; border-radius: 8px; }
+.machine-code { font-family: monospace; font-size: 11px; color: #a35; background: #ffeef2; border-radius: 3px; padding: 1px 6px; display: inline-block; margin-top: 6px; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.toast.err { background: #e6605e; }
+.spin { text-align: center; color: #888; font-size: 13px; padding: 40px 24px; }
+.spin i { font-size: 22px; color: #4ECDC4; animation: spin 1s linear infinite; display: inline-block; margin-bottom: 8px; }
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.dataTables_wrapper .dataTables_filter input { border: 1px solid #ccc; border-radius: 4px; padding: 4px 8px; font-size: 12px; }
+.dataTables_wrapper .dataTables_length select { border: 1px solid #ccc; border-radius: 4px; padding: 4px; font-size: 12px; }
+.warnbox { margin: 12px 24px 0; background: #fdecea; border: 1px solid #f5c6cb; color: #b94a48; border-radius: 6px; padding: 10px 14px; font-size: 13px; display: none; }
+.note { background: #f0f8ff; border: 1px solid #b7dcf5; color: #31708f; border-radius: 6px; padding: 8px 12px; font-size: 12px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <i class="fa fa-table-cells-large" style="margin-right:8px;"></i>
+  <span data-i18n="rtm.header">Requirements Traceability Matrix</span>
+  <span class="sub"><span data-i18n="reqcov.forPlan">for test plan</span> <b id="tplanName">-</b></span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="toolbar">
+  <span class="ctx"><span data-i18n="reqcov.testProject">Test Project</span>: <b id="tprojectName">-</b></span>
+  <span style="flex:1"></span>
+  <label><span data-i18n="reqcov.platform">Platform</span>: <select id="platSel"><option value="0">[<span data-i18n="rtm.any">Any</span>]</option></select></label>
+  <label><span data-i18n="reqcov.build">Build</span>: <select id="buildSel"><option value="0">[<span data-i18n="rtm.any">Any</span>]</option></select></label>
+  <button class="btn-teal" id="btnApply"><i class="fa fa-play"></i> <span data-i18n="rtm.apply">Apply</span></button>
+  <button class="btn-ghost" id="btnCsv"><i class="fa fa-download"></i> <span data-i18n="rtm.exportCsv">Export CSV</span></button>
+</div>
+
+<div id="loadingBox" class="spin">
+  <i class="fa fa-spinner"></i><br>
+  <span data-i18n="common.loading">Loading...</span>
+</div>
+
+<div id="errBox" class="errbox" style="display:none;">
+  <div class="inner">
+    <i class="fa fa-triangle-exclamation" style="font-size:26px;display:block;margin-bottom:8px;"></i>
+    <div id="errMsg"></div>
+    <div class="machine-code" id="errCode"></div>
+  </div>
+</div>
+
+<div id="warnBox" class="warnbox"></div>
+
+<div id="summaryBox" class="section" style="display:none;">
+  <div class="section-head">
+    <i class="fa fa-chart-bar"></i>
+    <span data-i18n="rtm.summary">Traceability Summary</span>
+    <span style="margin-left:auto;font-size:12px;font-weight:400;color:#667;" id="sumDetail"></span>
+  </div>
+  <div class="summary-row" id="summaryRow"></div>
+</div>
+
+<div id="tableBox" class="section" style="display:none;">
+  <div class="section-head">
+    <i class="fa fa-table"></i>
+    <span data-i18n="rtm.requirements">Requirements</span>
+  </div>
+  <div class="section-body" id="tableBody">
+    <table class="flat" id="dtReqs" style="width:100%">
+      <thead>
+        <tr>
+          <th data-i18n="rtm.thDocId">Req ID</th>
+          <th data-i18n="rtm.thTitle">Requirement</th>
+          <th data-i18n="rtm.thSpec">Req Spec</th>
+          <th data-i18n="rtm.thLinked">Linked TCs</th>
+          <th data-i18n="rtm.thExec">Executed</th>
+          <th data-i18n="rtm.thPassed">Passed</th>
+          <th data-i18n="rtm.thDefects">Defects</th>
+          <th data-i18n="rtm.thCoverage">Coverage</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
+<div id="orphanBox" class="section" style="display:none;">
+  <div class="section-head">
+    <i class="fa fa-unlink" style="color:#c9a227;"></i>
+    <span data-i18n="rtm.orphans">Orphan test cases</span>
+    <span class="chip notinplan" id="orphanCount" style="margin-left:auto;">0</span>
+  </div>
+  <div class="section-body">
+    <div class="note" style="margin-bottom:10px;"><span data-i18n="rtm.orphanHint">Test cases assigned to the plan but not linked to any requirement (no row in the traceability link table).</span></div>
+    <div id="orphanList" class="orphan-tc"></div>
+  </div>
+</div>
+
+<div id="emptyBox" class="section">
+  <div class="empty">
+    <i class="fa fa-table-cells-large"></i>
+    <div id="emptyMsg" data-i18n="rtm.noRows">No requirements found for this test project.</div>
+  </div>
+</div>
+
+<div class="footer"><span data-i18n="footers.rtm">TestLink 2.0.1 - Requirements Traceability Matrix</span></div>
+
+<div class="toast" id="toastBox"></div>
+
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script>
+var qp = new URLSearchParams(window.location.search);
+var tproject_id = parseInt(qp.get('tproject_id')) || 0;
+var tplan_id = parseInt(qp.get('tplan_id')) || 0;
+
+function toast(msg, isErr) {
+  var $t = $('#toastBox').text(msg).show();
+  if (isErr) $t.addClass('err'); else $t.removeClass('err');
+  setTimeout(function(){ $t.fadeOut(300); }, 3000);
+}
+function t(key, fallback) {
+  var v = TLi18n.t(key);
+  return (v && v !== key) ? v : (fallback || key);
+}
+function esc(s) {
+  if (s === null || s === undefined) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+var state = { rows: [], orphan_tcs: [], summary: null };
+
+function statusChip(status) {
+  if (!status) return '<span class="status-dot not_run"></span>' + esc(t('rtm.sNotRun', 'not run'));
+  var cls = status === 'p' ? 'passed' : (status === 'f' ? 'failed' : 'blocked');
+  var lab = status === 'p' ? t('rtm.sPassed', 'passed') : (status === 'f' ? t('rtm.sFailed', 'failed') : t('rtm.sBlocked', 'blocked'));
+  return '<span class="status-dot ' + cls + '"></span>' + esc(lab);
+}
+
+function render() {
+  var d = state;
+  $('#tplanName').text(d.tplan_name || '-');
+  $('#tprojectName').text(d.tproject_name || '-');
+
+  $('#errBox').hide();
+  $('#warnBox').hide();
+  $('#loadingBox').hide();
+
+  if (d.status === 'error') {
+    $('#emptyBox, #summaryBox, #tableBox, #orphanBox').hide();
+    $('#errBox').show();
+    $('#errMsg').text(d.message || t('common.error', 'Error'));
+    $('#errCode').text(d.code || '');
+    return;
+  }
+  if (d.requirements_enabled === false) {
+    $('#emptyBox, #summaryBox, #tableBox, #orphanBox').hide();
+    $('#warnBox').html('<i class="fa fa-info-circle" style="margin-right:6px;"></i>'
+      + esc(t('rtm.reqDisabled', 'Requirements are not enabled for this test project.'))).show();
+    return;
+  }
+
+  // Filters
+  if (d.builds && d.builds.length > 0) {
+    var $b = $('#buildSel').empty();
+    $b.append('<option value="0">[' + t('rtm.any', 'Any') + ']</option>');
+    $.each(d.builds, function (i, b) { $b.append('<option value="' + b.id + '">' + esc(b.name) + '</option>'); });
+    var curB = parseInt(d.build_id) || 0;
+    if (curB > 0 && !$b.find('option[value="' + curB + '"]').length) {
+      $b.append('<option value="' + curB + '">( ' + curB + ' )</option>');
+    }
+    $b.val(String(curB));
+  }
+  if (d.platforms && d.platforms.length > 0) {
+    var $p = $('#platSel').empty();
+    $p.append('<option value="0">[' + t('rtm.any', 'Any') + ']</option>');
+    $.each(d.platforms, function (i, pl) {
+      $p.append('<option value="' + pl.id + '">' + esc(pl.name || t('rtm.defaultPlatform', 'default')) + '</option>');
+    });
+    $p.val(String(parseInt(d.platform_id) || 0));
+  }
+
+  // Summary
+  $('#summaryRow').empty();
+  if (d.summary) {
+    var s = d.summary;
+    var badges = [
+      { k: 'covered', v: s.covered, cls: 'covered', ic: 'fa-check-circle' },
+      { k: 'partial', v: s.partial, cls: 'partial', ic: 'fa-circle-half-stroke' },
+      { k: 'uncovered', v: s.uncovered, cls: 'uncovered', ic: 'fa-circle-xmark' },
+      { k: 'orphanReqs', v: s.orphan_reqs, cls: 'orphan', ic: 'fa-unlink' }
+    ];
+    var html = '';
+    $.each(badges, function (i, b) {
+      html += '<span class="eval-badge ' + b.cls + '" style="background:' + badgeColor(b.k) + ';">'
+            + '<i class="fa ' + b.ic + '"></i> ' + esc(t('rtm.' + b.k, b.k)) + ' <span class="cnt">' + b.v + '</span></span>';
+    });
+    $('#summaryRow').html(html);
+    $('#sumDetail').text(t('rtm.sumDetail',
+      '{total} requirements · {linked} of {plan} plan test cases traceable')
+      .replace('{total}', s.total).replace('{linked}', s.plan_linked_tcs).replace('{plan}', s.plan_tcs));
+    $('#summaryBox').show();
+  }
+
+  // Matrix table
+  var tbody = $('#dtReqs tbody').empty();
+  if (d.rows && d.rows.length > 0) {
+    $.each(d.rows, function (i, r) {
+      var tcCells = '';
+      if (r.linked_tcs && r.linked_tcs.length > 0) {
+        tcCells = '<table>' +
+          '<tr><th>' + esc(t('rtm.tcThCase', 'Test case')) + '</th>' +
+          '<th>' + esc(t('rtm.tcThVer', 'Ver')) + '</th>' +
+          '<th>' + esc(t('rtm.tcThSuite', 'Suite')) + '</th>' +
+          '<th>' + esc(t('rtm.tcThPlan', 'In plan')) + '</th>' +
+          '<th>' + esc(t('rtm.tcThResult', 'Latest result')) + '</th></tr>';
+        $.each(r.linked_tcs, function (j, tc) {
+          tcCells += '<tr><td>' + esc(tc.tc_external_id || '') + ': ' + esc(tc.name) + '</td>' +
+            '<td>v' + tc.version + '</td>' +
+            '<td>' + esc(tc.suite) + '</td>' +
+            '<td><span class="chip ' + (tc.in_plan ? 'inplan' : 'notinplan') + '">'
+            + esc(t(tc.in_plan ? 'rtm.yes' : 'rtm.no', tc.in_plan ? 'yes' : 'no')) + '</span></td>' +
+            '<td>' + statusChip(tc.exec_status) + '</td></tr>';
+        });
+        tcCells += '</table>';
+      }
+      var row = '<tr' + (r.orphan ? ' class="orphan-row"' : '') + '>'
+        + '<td class="reqid">' + esc(r.doc_id) + '</td>'
+        + '<td class="reqtitle">' + esc(r.title) + (r.orphan ? ' <span class="chip notinplan">' + esc(t('rtm.orphanReq', 'orphan')) + '</span>' : '') + '</td>'
+        + '<td class="spec">' + esc(r.spec_doc_id) + ' · ' + esc(r.spec_title) + '</td>'
+        + '<td><span class="tc-expand" data-idx="' + i + '"><i class="fa fa-expand"></i> ' + (r.linked_tcs ? r.linked_tcs.length : 0) + '</span>'
+        + '<div class="tc-detail" id="tcDetail' + i + '">' + tcCells + '</div></td>'
+        + '<td>' + r.executed_count + '/' + r.in_plan_count + '</td>'
+        + '<td>' + r.passed_count + '</td>'
+        + '<td>' + r.defects + '</td>'
+        + '<td><span class="age-chip ' + r.coverage_status + '">' + esc(t('rtm.st' + r.coverage_status.charAt(0).toUpperCase() + r.coverage_status.slice(1), r.coverage_status)) + '</span></td>'
+        + '</tr>';
+      tbody.append(row);
+    });
+
+    if ($.fn.DataTable.isDataTable('#dtReqs')) { $('#dtReqs').DataTable().destroy(); }
+    var dt = $('#dtReqs').DataTable({
+      pageLength: 25,
+      autoWidth: false,
+      order: [[0, 'asc']],
+      language: { emptyTable: t('rtm.noRows', 'No requirements') }
+    });
+    $('#tableBox').show();
+    $(document).off('click', '.tc-expand').on('click', '.tc-expand', function () {
+      var idx = $(this).data('idx');
+      $('#tcDetail' + idx).slideToggle(100);
+    });
+  } else {
+    $('#tableBox').hide();
+    $('#emptyBox').show();
+    $('#emptyMsg').text(t('rtm.noRows', 'No requirements found for this test project.'));
+  }
+
+  // Orphan test cases
+  if (d.orphan_tcs && d.orphan_tcs.length > 0) {
+    var oh = '';
+    $.each(d.orphan_tcs, function (i, tc) {
+      oh += '<div><span class="status-dot not_run"></span> ' + esc(tc.tc_external_id || '') + ': '
+          + esc(tc.tc_name) + ' <span style="color:#889;">v' + tc.tc_version + '</span>'
+          + (tc.suite_name ? ' · <span style="color:#889;">' + esc(tc.suite_name) + '</span>' : '') + '</div>';
+    });
+    $('#orphanList').html(oh);
+    $('#orphanCount').text(d.orphan_tcs.length);
+    $('#orphanBox').show();
+  } else {
+    $('#orphanBox').hide();
+  }
+}
+
+function badgeColor(k) {
+  return { covered: '#28a745', partial: '#007bff', uncovered: '#6c757d', orphanReqs: '#c9a227' }[k] || '#6c757d';
+}
+
+function exportCsv() {
+  var d = state;
+  if (!d.rows || !d.rows.length) { toast(t('rtm.noRows', 'No requirements'), true); return; }
+  var sep = ',';
+  function csvCell(v) {
+    var s = String(v === null || v === undefined ? '' : v);
+    return '"' + s.replace(/"/g, '""') + '"';
+  }
+  var lines = [];
+  lines.push([t('rtm.thDocId'), t('rtm.thTitle'), t('rtm.thSpec'), t('rtm.thLinked'), t('rtm.thExec'), t('rtm.thPassed'), t('rtm.thDefects'), t('rtm.thCoverage'), t('rtm.orphanReq')].map(csvCell).join(sep));
+  $.each(d.rows, function (i, r) {
+    lines.push([r.doc_id, r.title, r.spec_doc_id + ' ' + r.spec_title,
+      r.linked_tcs ? r.linked_tcs.length : 0, r.executed_count, r.passed_count, r.defects,
+      r.coverage_status, r.orphan ? 'yes' : ''].map(csvCell).join(sep));
+  });
+  var blob = new Blob([lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'rtm.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+}
+
+function loadData() {
+  var build = $('#buildSel').val() || 0;
+  var plat = $('#platSel').val() || 0;
+  $('#loadingBox').show();
+  $('#tableBox, #summaryBox, #orphanBox, #errBox').hide();
+  $('#emptyBox').hide();
+  $.ajax({
+    url: '/api/rtm/index.php',
+    data: {
+      action: 'matrix',
+      tplan_id: tplan_id,
+      tproject_id: tproject_id,
+      build_id: build,
+      platform_id: plat
+    },
+    dataType: 'json',
+    success: function (d) {
+      state = d;
+      $('#loadingBox').hide();
+      render();
+      toast(t('common.loaded', 'Loaded'));
+    },
+    error: function (xhr) {
+      var msg = t('common.errorLoading', 'Error loading data');
+      var code = '';
+      try {
+        var r = JSON.parse(xhr.responseText);
+        if (r && r.message) { msg = r.message; code = r.code || ''; }
+      } catch (e) { /* keep defaults */ }
+      state = { status: 'error', message: msg, code: code || ('http_' + xhr.status) };
+      $('#loadingBox').hide();
+      render();
+    }
+  });
+}
+
+function start() { loadData(); }
+
+$('#btnApply').on('click', start);
+$('#btnCsv').on('click', exportCsv);
+
+var i18nReady = false;
+TLi18n.load(function () {
+  TLi18n.apply();
+  TLi18n.initLocaleSwitcher('#localeSwitcher');
+  i18nReady = true;
+  start();
+});
+$(function () { if (i18nReady) start(); });
+</script>
+</body>
+</html>

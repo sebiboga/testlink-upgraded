@@ -217,6 +217,14 @@ if($tplanID > 0) {
       } else if($rptItem['title'] == 'link_report_reqs_coverage') {
         $hrefR = 'gui/templates/results/resultsRequirements.html' .
                  "?tproject_id={$tprojectID}&tplan_id={$tplanID}";
+      // Refs #1065 - Requirements Traceability Matrix (enhancement screen;
+      // complements the reqs coverage report by tracing back to REQUIREMENTS:
+      // every owning-project requirement incl. orphans, per-requirement linked
+      // test cases + in-plan/latest-result, defect counts, coverage status).
+      // api/rtm BFF enforces testplan_metrics.
+      } else if($rptItem['title'] == 'link_report_requirements_traceability') {
+        $hrefR = 'gui/templates/results/rtm.html' .
+                 "?tproject_id={$tprojectID}&tplan_id={$tplanID}";
       // Refs #762 - Execution Timeline Statistics modernized;
       // the BFF (api/reports exec_timeline action) reuses the very same
       // tlTestPlanMetrics::getExecTimelineStats() call and enforces

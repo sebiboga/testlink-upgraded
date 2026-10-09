@@ -211,6 +211,19 @@ $tlCfg->reports_list['results_requirements'] = array(
 	'format' => 'format_html'
 );
 
+// Refs #1065 - Requirements Traceability Matrix report (enhancement screen,
+// no legacy lib/results counterpart). Backed by the api/rtm BFF, which builds
+// the req <-> test-case matrix from req_coverage + executions and enforces
+// testplan_metrics. Lives under the requirements-enabled ('req') gate like
+// the Requirement Coverage report it complements.
+$tlCfg->reports_list['requirements_traceability_matrix'] = array(
+	'title' => 'link_report_requirements_traceability',
+	'url' => 'gui/templates/results/rtm.html',
+	'enabled' => 'req',
+	'directLink' => '',
+	'format' => 'format_html'
+);
+
 
 // Refs #843 - Uncovered Test Cases report modernized
 // (gui/templates/results/uncoveredTestCases.html + api/reports uncovered_testcases action).

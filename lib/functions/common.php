@@ -2270,6 +2270,14 @@ function getActions(&$gui,$baseURL) {
   $actions->tcNotRunAnyPlatform =
     "/gui/templates/results/tcNotRunAnyPlatform.html?{$ctx}";
 
+  // Refs #1065: Requirements Traceability Matrix report (enhancement
+  // screen). Backed by the api/rtm BFF (matrix/context actions, session
+  // auth + bffSameOriginGuard, testplan_metrics on the owning project).
+  // Also reachable from the Metrics & Reports hub + Reports ASIDE entry via
+  // the reports_list entry requirements_traceability_matrix.
+  $actions->rtm =
+    "/gui/templates/results/rtm.html?{$ctx}";
+
 
   $pp = $bb . '/plan';
   // Test Plan Management modernized screen (Dashio standalone page) - Refs #576

@@ -6168,3 +6168,59 @@ mandatory code review (rule 16) and its fixes.
   commit `3897a17c8`); this regression proves it stays gone and additionally removes the latent
   unguarded-`getByID()` defect named in the report. The legacy `reqMgrSystemCommands` class is no longer
   instantiated anywhere, so no other screen shares this path.
+## Modernize — Issue #1065: Requirements Traceability Matrix report (api/rtm + rtm.html)
+
+Enhancement screen (not a legacy port): the 1.9.20 "Requirements based Report"
+(`lib/results/resultsReqs.php`, modern twin `resultsRequirements.html`) drops
+orphan requirements and never lists the per-requirement linked test cases. The
+RTM traces REQUIREMENT → linked test case(s) → in-plan flag → latest execution
+on a build/platform filter, adds per-requirement defect counts and flags orphan
+requirements and orphan (unlinked) plan test cases.
+
+Wiring: `cfg/reports.cfg.php` `requirements_traceability_matrix` (req-gated),
+`api/resultsnav/index.php` legacy2modern entry, `lib/general/asideMenu.php`
+Reports branch, `$actions->rtm` (`lib/functions/common.php`), server string
+`$TLS_link_report_requirements_traceability` (en_GB/en_US), i18n `rtm.*` +
+`footers.rtm` in all 10 bundles.
+
+Fixture `tmp/fixtures_1065.php` (project RTM1065, prefix R6): spec RS-R6 with
+requirements R6-REQ-1 (Login validation), R6-REQ-2 (Checkout totals),
+R6-REQ-3 (orphan), R6-REQ-4 (covered); 6 plan test cases incl. R6 No Trace
+(orphan, external id 6); links REQ-1→Login Pass/Login Fail/Coverage X,
+REQ-2→Checkout Blocked, REQ-4→Report Export; builds R6 Build 1 (3) / Build 2
+(4); executions p/f/b across builds so "latest wins" is observable; one
+execution_bug BUG-1065 on the Login Fail b1 execution; user `rtmnorights`
+(role 3) for the 403 path.
+
+| ID | Case | Action | Expected | Observed |
+|---|---|---|---|---|
+| TC-1065-01 | BFF context | `GET ?action=context&tplan_id=33` as admin | 200 ok; plan/project names from `nodes_hierarchy` (2.0.1 schema drift #1767); builds + platforms + requirements_enabled | `tplan_name:"R6 Plan"`, `tproject_name:"RTM1065"`, builds [R6 Build 1, R6 Build 2], platforms [default], requirements_enabled true |
+| TC-1065-02 | Matrix build Any | `GET ?action=matrix&tplan_id=33` | summary + 4 req rows incl. orphan; orphan TC listed | summary {total:4, covered:1, partial:2, uncovered:1, orphan_reqs:1, plan_tcs:6, plan_linked_tcs:5, orphan_tcs:1}; REQ-1 partial (2/3, defects 1), REQ-2 partial (1/1), REQ-3 uncovered/orphan, REQ-4 covered (1/1 pass) |
+| TC-1065-03 | Build filter flip | `build_id=3` (Build 1) | Login Pass latest → passed (executed 2/3, passed 1) | REQ-1 executed 2/3, passed 1; detail Login Pass passed, Login Fail failed, Coverage X not run |
+| TC-1065-04 | Latest-wins across builds | `build_id=4` (Build 2) vs Any | Build 2 Login Pass → failed; Any latest row = b2 failed | build 4: REQ-1 executed 1/… Login Pass `f`, covered count 0/partial 1/uncovered 3; Any: Login Pass latest `f` |
+| TC-1065-05 | Orphan test case | matrix `orphan_tcs` | R6 No Trace (external 6, suite R6 Root) | listed: `{tc_external_id:6, tc_name:"R6 No Trace", suite_name:"R6 Root"}` |
+| TC-1065-06 | Defect count | matrix defects per req | REQ-1 defects = 1 (BUG-1065 on Login Fail b1) | REQ-1 `defects:1`; others 0 |
+| TC-1065-07 | 400 no plan | `?action=matrix` (no tplan_id) | 400 | 400 |
+| TC-1065-08 | 404 unknown plan | `tplan_id=999999` | 404 | 404 |
+| TC-1065-09 | 404 project mismatch | `tplan_id=33&tproject_id=999` | 404 project_mismatch | 404 |
+| TC-1065-10 | Auth edges | anon GET → 401; POST → 403 (same-origin guard); unknown action → 400 | 401 / 403 / 400 | 401 / 403 / 400 |
+| TC-1065-11 | No rights | login `rtmnorights`, open screen | Ajax 403 → error card, table hidden | errMsg "Missing rights: testplan_metrics", errCode `http_403`, tableBox display none |
+| TC-1065-12 | Screen load (admin) | open `rtm.html?tproject_id=32&tplan_id=33` | header + plan/project, 4 summary badges, DataTable 4 rows, orphan section | rendered; 4th badge now "orphan requirements" (not the raw key); DataTables "Showing 1 to 4 of 4"; orphan section count 1 |
+| TC-1065-13 | Row expand | click row 1 `.tc-expand` | detail table: Test case / Ver / Suite / In plan / Latest result | `1: R6 Login Pass v1 R6 Root yes passed` etc. |
+| TC-1065-14 | Build filter in UI | select R6 Build 1 + Apply | table reloads with Build 1 results | REQ-1 passed flipped 0→1; detail Login Pass passed |
+| TC-1065-15 | CSV export | click Export CSV (blob captured) | 9 quoted columns; Executed=executed_count; orphan flagged | header + 4 rows; REQ-1 `"3","2","0","1","partial",""`; REQ-3 `"…","uncovered","yes"` |
+| TC-1065-16 | Requirements disabled | flip project option → reload | warnbox "Requirements are not enabled…", no table | warnBox display block, tableBox none; option restored to 1 |
+| TC-1065-17 | Hub + ASIDE wiring | resultsnav init; `lang_get` | RTM listed with rooted modern href; server string resolves | `requirements_traceability_matrix` → `/gui/templates/results/rtm.html?tplan_id=33&tproject_id=32` (27 reports); `lang_get` = "Requirements Traceability Matrix" |
+| TC-1065-18 | i18n coverage | `bash ai/verify_i18n_coverage.sh` | 9 bundles, 0 missing | PASS 9/9; en.json 7136 keys incl. `rtm.*`, `rtm.orphanReqs`, `footers.rtm` |
+| TC-1065-19 | Event Viewer delta | inspect `events` after fixes | no new Error/Warning | only dev-time level-1 rows (id 4-8,13-15, `Unknown column NH.name/TP.name`) from the pre-fix iterations; nothing new after 01:32 |
+
+### Test execution
+- [PASS] TC-1065-01 .. TC-1065-19 — 19/19 PASS
+- [FAIL→FIX] TC-1065-12 first run rendered the raw key `orphanReqs`; added `rtm.orphanReqs` to all 10 bundles → green.
+- [FAIL→FIX] TC-1065-15 first run exported `in_plan_count` under the "Executed" column; switched to `executed_count`.
+- [FAIL→FIX] BFF matrix 500 (`Unknown column NH.name` in the orphan query after renaming the join alias) → `NTC.name`; re-verified.
+- [PASS] Fixture gate note: ids change on every `php tmp/fixtures_1065.php` re-run (current project 32 / plan 33 / builds 3,4); re-read ids before testing.
+
+### Notes
+- The RTM is an enhancement (issue #1065) with no legacy `lib/results` counterpart; it complements, not replaces, `resultsRequirements.html`.
+- Coverage semantics: uncovered = no plan-assigned linked TC or none executed on filter; covered = every plan-linked TC executed with latest status `p`; partial otherwise. Orphan req = zero `req_coverage` links; orphan TC = in plan with no active link.
