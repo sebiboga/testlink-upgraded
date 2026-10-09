@@ -115,10 +115,12 @@ class planMilestonesCommands
     // Initialise it here, pre-filled with what the user submitted, so a failed
     // create re-renders the form with its values instead of PHP 8 warnings.
     // Key names/order mirror create() and the template's own mapping
-    // (low_priority_tcases input reads high_percentage, etc.).
+    // (low_priority_tcases input reads high_percentage, etc.). The date
+    // originals are user input and the template echoes them without |escape,
+    // so they are HTML-escaped here before being put in the value attributes.
     $guiObj->milestone = array('id' => 0, 'name' => $argsObj->name,
-                               'target_date' => $argsObj->target_date_original,
-                               'start_date' => $argsObj->start_date_original,
+                               'target_date' => htmlspecialchars((string)$argsObj->target_date_original, ENT_QUOTES, 'UTF-8'),
+                               'start_date' => htmlspecialchars((string)$argsObj->start_date_original, ENT_QUOTES, 'UTF-8'),
                                'high_percentage' => $argsObj->low_priority_tcases,
                                'medium_percentage' => $argsObj->medium_priority_tcases,
                                'low_percentage' => $argsObj->high_priority_tcases,
