@@ -6324,3 +6324,47 @@ scripted `#applyBtn` click fires **no request** until `#cmOk` is clicked.
   `log_level 16` INFO/audit rows: 1 fixture CREATE, 2 `audit_login_failed` from wrong-password
   attempts, 2 `audit_login_succeeded`) → PASS
 - browser console on the screen → no errors or warnings → PASS
+
+## Regression — Issue #1726: lib/plan/planMilestonesEdit.php bare/unknown doAction answers HTTP 200 with a 0-byte blank body (renderType switch had no default)
+
+Precondition: Fresh DB, app at http://localhost:8082, logged in as `admin`/`admin`. The fresh DB has no projects/plans, so create the fixture first (used by the tplan-aware cases):
+```
+curl -s -b tl_cookie.txt -X POST -H "Content-Type: application/json" -H "Origin: http://localhost:8082" \
+  -d '{"name":"Bugfix Demo Project","prefix":"BDP","isActive":1,"isPublic":1}' http://localhost:8082/api/projects/
+curl -s -b tl_cookie.txt -X POST -H "Content-Type: application/json" -H "Origin: http://localhost:8082" \
+  -d '{"name":"Iteration 1","tproject_id":1,"active":1,"is_public":1}' \
+  "http://localhost:8082/api/planedit/index.php?action=save"
+```
+(ids used below: project 1 / plan 2 — re-read them after each run.)
+
+Repro steps (pre-fix):
+1. `curl -s -b tl_cookie.txt -o /dev/null -w "HTTP=%{http_code} bytes=%{size_download}\n" http://localhost:8082/lib/plan/planMilestonesEdit.php` → pre-fix **HTTP 200, 0 bytes**.
+2. Same with `?doAction=bogus` → pre-fix **HTTP 200, 0 bytes**.
+3. `SELECT COUNT(*) FROM events` → no new Error/Warning row for either.
+
+Expected post-fix behavior:
+1. Both requests answer **302** to the modernized list `gui/templates/plans/planMilestones.html` (with `?tplan_id=N` when a valid plan is supplied), never a 0-byte 200.
+2. Exactly one `log_level=1` (`tLog ERROR`) row per refused request; **zero** `log_level=2` warnings from the fix path.
+3. Valid actions are unchanged: `?doAction=create&tplan_id=2` still renders the legacy form (HTTP 200), and the already-fixed `reqMgrSystemEdit.php` still 302s.
+4. Browser: navigating the legacy bare URL lands on the modern Dashio "Test Plan Milestones" screen, not a blank document.
+
+Actual result observed (post-fix, measured 2026-10-09):
+| Case | Probe | Measured | Verdict |
+|---|---|---|---|
+| TC-1726-01 | bare `planMilestonesEdit.php` | HTTP 302 → `/gui/templates/plans/planMilestones.html` | PASS |
+| TC-1726-02 | `?doAction=bogus` | HTTP 302 → `/gui/templates/plans/planMilestones.html` | PASS |
+| TC-1726-03 | `?doAction=setAuditContext` (real method, no switch case) | HTTP 302 → list | PASS |
+| TC-1726-04 | bare `?tplan_id=2` | HTTP 302 → `/gui/templates/plans/planMilestones.html?tplan_id=2` | PASS |
+| TC-1726-05 | `?doAction=bogus&tplan_id=2` | HTTP 302 → list`?tplan_id=2` | PASS |
+| TC-1726-06 | `?doAction=create&tplan_id=2` (valid action regression) | HTTP 200, 15711 bytes (legacy form unchanged) | PASS |
+| TC-1726-07 | `reqMgrSystemEdit.php` (sibling fixed in #1722/#1727) | HTTP 302 (no regression) | PASS |
+| TC-1726-08 | Event Viewer delta for bare+bogus | `log_level=1` +2, `log_level=2` +0 | PASS |
+| TC-1726-09 | browser: `planMilestonesEdit.php?doAction=bogus&tplan_id=2` | lands on title "Iteration 1 - Test Plan Milestones", modern list renders (`docs/screenshots/issue-1726-planmilestones-list-after-redirect.png`) | PASS |
+| TC-1726-10 | `php -l lib/plan/planMilestonesEdit.php` | No syntax errors detected | PASS |
+| TC-1726-11 | `?doAction[]=x` (array-shaped, out of scope) | still HTTP 500 → filed as #1886 | DOCUMENTED |
+
+### Test execution
+- [PASS] TC-1726-01 .. TC-1726-10 — 10/10 PASS (curl + chrome-devtools MCP, live app).
+- [DOC] TC-1726-11 array-shaped doAction is a separate defect, filed as #1886 (not fixed here).
+- [DOC] The legacy create/edit form emits 8 E_WARNING rows per render from the compiled template (unset gui props) — pre-existing, filed as #1887.
+- [PASS] Merge-base gate: `TLU_REQUIRE_SUITE="Issue #1726" bash ai/verify_test_suites.sh`
