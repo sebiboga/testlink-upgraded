@@ -6549,3 +6549,45 @@ Call 0 and Call 2 return same count (13); Call 1 returns rspec set (2). No conta
 - Fix: removed static $my in tree::_get_subtree(), initialize per call, pass merged context in recursion. Refs #1693.
 
 PASS
+
+## Regression — Issue #1890: planMilestonesEdit.php non-existent tplan_id writes 5 E_WARNING rows
+
+### Precondition
+- App http://localhost:8082 (PHP 8.3.35), DB `testlink` freshly imported, login admin/admin.
+- Fixture: `php tmp/fixtures_1890.php` → tproject **1** (`MS88`), tplan **2** (`MS88 Plan`).
+- Baseline: `SELECT COALESCE(MAX(id),0) FROM events;`
+
+### Repro (pre-fix)
+1. `GET /lib/plan/planMilestonesEdit.php?doAction=create&tplan_id=99999&tproject_id=1`
+2. `SELECT id,description FROM events WHERE log_level=2 AND id>2 ORDER BY id DESC;`
+
+Expected post-fix: HTTP 200, **0** new `log_level=2` rows; a valid `tplan_id=2` still renders the
+"Create Milestone" form with 0 new rows.
+
+### Cases
+
+| Case | Probe | Measured | Verdict |
+|---|---|---|---|
+| TC-1890-01 | `GET ?doAction=create&tplan_id=99999&tproject_id=1` (non-existent plan) | HTTP 200, `log_level=2` new rows **+0** (was +5: 1 @ planMilestonesEdit.php:96 + 4 @ testplan.class.php:7322) | PASS |
+| TC-1890-02 | `GET ?doAction=create&tplan_id=2&tproject_id=1` (valid plan) | HTTP 200, form "Create Milestone" renders, new `log_level=2` rows **+0** | PASS |
+| TC-1890-03 | `SELECT COUNT(*) FROM events WHERE id>7` after both requests | 0 — no new events at ANY level | PASS |
+| TC-1890-04 | `GET /lib/plan/planMilestonesView.php?tproject_id=1&tplan_id=2` (sibling screen, regression) | HTTP 200, page renders, 0 new events | PASS |
+| TC-1890-05 | `php -l lib/plan/planMilestonesEdit.php` + `php -l lib/functions/testplan.class.php` | No syntax errors detected | PASS |
+
+Harness: fixture `tmp/fixtures_1890.php`; baseline max events id = 7 (ids 3-7 were the pre-fix
+5 warning rows).
+
+### Root cause
+- `lib/plan/planMilestonesEdit.php:96` read `$info['name']` on null (`testplan::get_by_id()` returns
+  null via `testplan.class.php:501`).
+- `lib/functions/testplan.class.php:7322` dereferenced `$ret[0]` on null (empty recordset from
+  `database::get_recordset()`, `database.class.php:787`) — reached 4× via `tlUser::hasRight()` →
+  `getPublicAttr()` (`tlUser.class.php:893`).
+
+### Fix
+- `planMilestonesEdit.php:95-96`: `$args->tplan_name = is_array($info) && isset($info['name']) ? $info['name'] : '';`
+- `testplan.class.php:7322`: `return (is_array($ret) && isset($ret[0]['is_public'])) ? $ret[0]['is_public'] : null;`
+
+### Test execution
+- [PASS] TC-1890-01 .. TC-1890-05 (2026-10-09, PHP 8.3.35).
+- Gate: `TLU_REQUIRE_SUITE="Issue #1890" bash ai/verify_test_suites.sh`
