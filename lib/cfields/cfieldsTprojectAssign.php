@@ -35,6 +35,9 @@
 require_once(dirname(__FILE__) . "/../../config.inc.php");
 require_once("common.php");
 
+$db = new database(DB_TYPE);
+doDBConnect($db);
+
 /**
  * Legacy writes that used to be accepted by this file. They MUST NOT be
  * replayed from a redirect: doing so would attach, detach or re-order custom
@@ -62,11 +65,16 @@ if (in_array($doAction, $writeActions, true)) {
 $dest = 'gui/templates/cfields/cfieldsTprojectAssign.html'
       . ($tprojectId > 0 ? '?tproject_id=' . $tprojectId : '');
 
-// Same contract as the other 302 shims: anonymous -> login with a destination.
-if (!isset($_SESSION['userID']) || intval($_SESSION['userID']) <= 0) {
-    header('Location: ' . $_SESSION['basehref'] . 'login.php?note=expired'
-         . '&destination=' . rawurlencode($dest));
-    exit;
+// Legacy testlinkInitPage() contract: an anonymous visitor is bounced to the
+// login screen with a note=expired bounce and the original destination.
+// checkSessionValid()'s own redirect is used (rather than a hand-rolled
+// header()): it walks up from dirname(SCRIPT_FILENAME) until it finds
+// login.php and supplies a root-relative REQUEST_URI destination — a relative
+// 'login.php' (built from an unset $_SESSION['basehref']) resolves against
+// /lib/cfields/ and 404s, and a non-root-relative destination is dropped by
+// the modern login guard (Refs #1883).
+if (!checkSessionValid($db)) {
+    exit;  // unreachable: the call above already redirected
 }
 
 header('Location: ' . $_SESSION['basehref'] . $dest);
