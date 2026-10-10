@@ -62,6 +62,19 @@ function shimReqScalar($name)
     return trim((string)$_REQUEST[$name]);
 }
 
+/**
+ * Refs #1892: an array-shaped id param (e.g. ?tproject_id[]=7) must not be
+ * silently intval()'d. intval(["7"]) is warning-free in PHP 8 and returns 1,
+ * which dropped the caller into test project 1 with no diagnostic - the same
+ * defect #1731 removed in the sibling lib/reqmgrsystems/reqMgrSystemEdit.php
+ * shim. Non-scalar / empty / non-numeric -> 0 = "no context".
+ */
+function shimReqInt($name)
+{
+    $v = shimReqScalar($name);
+    return ($v === null || !is_numeric($v)) ? 0 : intval($v);
+}
+
 // The legacy feature was carried in the query string of the old work area.
 $rawFeature = shimReqScalar('feature');
 $feature = ($rawFeature === null || $rawFeature === '') ? 'edit_tc' : $rawFeature;
@@ -87,14 +100,17 @@ if (!isset($targets[$feature])) {
 
 $qs = array();
 foreach (array('tproject_id', 'tplan_id', 'tcase_id', 'container_id', 'idSRS') as $k) {
-    if (isset($_REQUEST[$k]) && intval($_REQUEST[$k]) > 0) {
-        $qs[$k] = intval($_REQUEST[$k]);
+    $v = shimReqInt($k);
+    if ($v > 0) {
+        $qs[$k] = $v;
     }
 }
 // legacy tree arg spelling was testproject_id
-if (isset($_REQUEST['testproject_id']) && !isset($qs['tproject_id']) &&
-    intval($_REQUEST['testproject_id']) > 0) {
-    $qs['tproject_id'] = intval($_REQUEST['testproject_id']);
+if (!isset($qs['tproject_id'])) {
+    $v = shimReqInt('testproject_id');
+    if ($v > 0) {
+        $qs['tproject_id'] = $v;
+    }
 }
 
 // Legacy deep link keywordsAssign.php?id=X&edit=testcase|testsuite. Only the
