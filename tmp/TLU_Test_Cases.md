@@ -6874,3 +6874,42 @@ the Columns API, then set the table order on the table API —
 toolbar actions, hidden-grouped-column parity, legacy default sort, user filter and empty
 state all behave like TestLink 1.9.20's `tlExtTable`; no console errors and no new Event
 Viewer Error/Warning rows.
+
+## Regression — Issue #1735: reqSpecSearch.php count($itemSet) on null — HTTP 500 (retired by #1825)
+
+**Precondition** — TestLink 2.0.1 at http://localhost:8082 (login admin/admin), fresh DB.
+Run `php tmp/fixtures_1735.php` → tproject `REQ1735` (prefix R1735, requirements +
+ReqMgr integration enabled) with two user requirement specs `R1735-A` and `R1735-B`.
+The screen is reachable only by URL (`/lib/requirements/reqSpecSearch.php`); the ASIDE
+link was switched to `gui/templates/requirements/searchReqSpec.html` in #1825.
+Harness: `bash tmp/verify_1735.sh` (creates the fixture itself, exits non-zero on any failure).
+
+**Steps & results observed**
+
+| # | step | result |
+|---|---|---|
+| T1 | `GET /lib/requirements/reqSpecSearch.php` (browser navigation, logged in) | HTTP **302**, `Location: /gui/templates/requirements/searchReqSpec.html?tproject_id=<id>` — **not** 500 / 0 bytes |
+| T2 | same URL with `X-Requested-With: XMLHttpRequest` | HTTP **405**, JSON `{"status":"error","code":"retired_endpoint",…}` — clean pointer, no 500 |
+| T3 | same URL with a **write** verb (POST) | HTTP **405**, `Allow: GET, HEAD`; one `WARNING` audit row via `tLog()` |
+| T4 | `GET /gui/templates/requirements/searchReqSpec.html?tproject_id=<id>` | HTTP **200**, 18.8 kB, references the `reqspec-search` BFF |
+| T5 | BFF `GET /api/requirements/index.php/reqspec-search?tproject_id=<id>` (no criteria) | HTTP **200**, `"count":2`, both specs with `revisions[]` — no `count(null)` |
+| T6 | BFF same with `&doc_id=R1735-A` | HTTP **200**, `"count":1` |
+| T7 | BFF same with `&doc_id=zzz-nomatch` | HTTP **200**, `"warning":"no_records_found"` (the issue's *Expected* state) |
+| T8 | Login as `no1735` (role 3, **no** session test project) then `GET` the legacy URL | HTTP **302** to the modern screen (the pre-#1825 precondition that produced `count(null)`) |
+| T9 | Static: `grep 'count($itemSet)' lib/requirements/reqSpecSearch.php api/requirements/index.php` | 0 hits (defect code no longer exists; BFF uses an initialised `$count=0`) |
+| T10 | Event Viewer / `events` table | `count(*) where log_level in (1,2)` = **0** — no new Error/Warning |
+| T11 | `bash tmp/verify_1735.sh` | **15 PASS / 0 FAIL**, exit 0 |
+
+**Discrimination (the harness is not vacuously green)**
+
+Restored the pre-#1825 controller (`git show d1b2a884c^:lib/requirements/reqSpecSearch.php`)
+and probed T1's URL as `no1735` (no session project): HTTP **500** size 289, server log
+`Uncaught Exception: testproject::get_by_id EXCEPTION: test project ID, is mandatory`
+(constructor at `reqSpecSearch.php:34`); with a project set the same pre-fix file reaches
+`count($itemSet)` at line 116. After restoring the shim: **302** again.
+
+**Actual result** — PASS 11/11. The screen named by the issue can no longer answer HTTP
+500: the controller that contained `count($itemSet)` was retired by #1825
+(`d1b2a884c` 2026-10-04) and the modern BFF (`api/requirements/index.php:2100-2241`)
+serves the search, its empty-result state and the "too wide" cap without any PHP-8
+`TypeError`. No new Event Viewer Error/Warning rows.
