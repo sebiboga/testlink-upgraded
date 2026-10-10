@@ -17,6 +17,21 @@ Every screen of the application was ported one-by-one in a screen-compare
 kept for backward compatibility and is progressively retired as each modern
 screen reaches full parity.
 
+- [KEY BUGFIX] - #1889: **a localized date with no delimiter crashed `split_localized_date()`
+  with a PHP 8 `ValueError: explode(): Argument #1 ($separator) cannot be empty`** — `POST
+  lib/plan/planMilestonesEdit.php` (`doAction=doCreate`/`doUpdate`) with `target_date=aaaaaa`
+  (or `start_date=aaaaaa`) answered **HTTP 500 / 0 bytes** with no Event Viewer row. The delimiter
+  scan in `lib/functions/common.php:1007-1016` left `$splitChar=null` and `explode($splitChar,...)`
+  at `:1020` (PHP 5/7 coerced null→"" with a warning; PHP 8 promotes it to a fatal). Fix (1 file,
+  +9/-0): return `null` when `$splitChar === null` — the function already returns `null` for an
+  empty timestamp, and all 20+ call sites (Plan Milestones, `is_valid_date()`, Event Viewer, search,
+  custom fields, `api/eventviewer`, …) already treat `null` as "invalid date". A no-delimiter date now
+  re-renders the form with the `warning_invalid_date` feedback; a valid `dd/mm/yyyy` still creates the
+  milestone. Verified: both fields 500/0B → 200 re-render + 0 milestones, valid date 302 + ISO row,
+  0 new Error/Warning events, `php -l` clean. Docs:
+  `docs/Bugfix-Issue-1889-split_localized_date-explode-null.md` + wiki page; regression suite
+  `Issue #1889` 6/6 PASS, suite gate 7/7. (Fixes #1889)
+
 - [KEY BUGFIX] - #1890: **the legacy Plan Milestones create/edit form
   (`lib/plan/planMilestonesEdit.php`) with a non-existent/stale `tplan_id` returned HTTP 200 but
   wrote 5 `E_WARNING` rows per request into the Event Viewer** (1 at `planMilestonesEdit.php:96`
