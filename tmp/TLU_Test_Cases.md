@@ -6591,3 +6591,47 @@ Harness: fixture `tmp/fixtures_1890.php`; baseline max events id = 7 (ids 3-7 we
 ### Test execution
 - [PASS] TC-1890-01 .. TC-1890-05 (2026-10-09, PHP 8.3.35).
 - Gate: `TLU_REQUIRE_SUITE="Issue #1890" bash ai/verify_test_suites.sh`
+
+## Regression — Issue #1889: split_localized_date() explode(null) PHP 8 ValueError (HTTP 500 / 0 bytes)
+
+### Precondition
+- App http://localhost:8082 (PHP 8.3.35), DB `testlink` freshly imported, login admin/admin.
+- Fixture: `php tmp/fixtures_1889.php` → tproject **1** (`TL89`), tplan **2** (`TL1889 Demo Plan`).
+- Session cookie via `curl -c` : `POST login.php` `tl_login=admin&tl_password=admin`.
+
+### Repro (pre-fix)
+1. `curl -b cookie POST /lib/plan/planMilestonesEdit.php` with
+   `doAction=doCreate&tplan_id=2&tproject_id=1&milestone_name=NODELIM&target_date=aaaaaa&low_priority_tcases=30&medium_priority_tcases=40&high_priority_tcases=30`.
+2. Observe HTTP **500, 0 bytes**; `tmp/php_server.log` contains
+   `Uncaught ValueError: explode(): Argument #1 ($separator) cannot be empty` @ `lib/functions/common.php:1020`.
+3. Same with `start_date=aaaaaa`.
+
+Expected post-fix: HTTP **200** re-render of the milestone form with no milestone row created
+(feedback = `warning_invalid_date`); no new Error/Warning in `events`; valid `10/10/2026` still creates the milestone (302) with ISO date `2026-10-10`.
+
+### Cases
+
+| Case | Probe | Measured | Verdict |
+|---|---|---|---|
+| TC-1889-01 | POST `doCreate` `target_date=aaaaaa` (no delimiter) | HTTP 200 / 15833 B, form re-render, `SELECT COUNT(*) FROM milestones` = 0 new row | PASS |
+| TC-1889-02 | POST `doCreate` `start_date=aaaaaa` (no delimiter, valid target) | HTTP 200, no milestone row created | PASS |
+| TC-1889-03 | POST `doCreate` `target_date=10/10/2026` (valid) | HTTP **302** redirect, 1 row `NODELIM3 | 2026-10-10` in `milestones` | PASS |
+| TC-1889-04 | `SELECT id,log_level FROM events ORDER BY id DESC LIMIT 10` after all probes | only `log_level=16` audit rows (login/testproject/milestone), **0 Error/Warning** | PASS |
+| TC-1889-05 | `php -l lib/functions/common.php` | No syntax errors detected | PASS |
+| TC-1889-06 | sibling path `is_valid_date('aaaaaa','%d/%m/%Y')` (used by doCreate line 143 / doUpdate line 235) | returns false (no fatal); exercised by TC-1889-01/02 passing | PASS |
+
+Harness: fixture `tmp/fixtures_1889.php`; project 1 / plan 2 created on fresh import.
+
+### Root cause
+- `lib/functions/common.php:1007-1016`: delimiter scan leaves `$splitChar=null` for values without
+  `.`, `-`, `/`, `%`; `explode($splitChar,...)` at line 1020 → PHP 8 `ValueError` (PHP 5/7 coerced
+  null→"" with a warning), uncaught → HTTP 500 / 0 bytes, reached from
+  `planMilestonesEdit.php:56`/`:65` (`init_args()` line 17, before `checkRights()`).
+
+### Fix
+- `lib/functions/common.php`: `if ($splitChar === null) { return null; }` right after the scan —
+  callers already treat a `null` return as invalid date; hardens all 20+ call sites at once.
+
+### Test execution
+- [PASS] TC-1889-01 .. TC-1889-06 (2026-10-10, PHP 8.3.35).
+- Gate: `TLU_REQUIRE_SUITE="Issue #1889" bash ai/verify_test_suites.sh`
