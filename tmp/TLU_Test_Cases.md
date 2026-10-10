@@ -7309,3 +7309,44 @@ foreign plan id=13 in project id=12).
 | 26 | JS fail-handler maps the two new error codes to `TLi18n.t(...)` | no hardcoded English shown in the modal | PASS — branches added in `planView.html` |
 
 **Result: 7/7 PASS.** Commits: `bee0c5d22` (feature) + review-fix commit.
+## Regression — Issue #1738: `inputparameter.class.php` — array-shaped value for a STRING_N (and other scalar) parameter is an uncaught TypeError (HTTP 500, 0 bytes, 0 log rows)
+
+**Precondition.** PHP 8.3.35; app `http://localhost:8082` (docroot = repo root); DB `testlink`
+freshly imported (0 test projects). The shared input layer is exercised directly (as the issue
+itself did) and, for the HTTP layer, through a temporary probe `_probe1738.php` at the docroot
+(removed after the test — not committed).
+
+**Repro steps (pre-fix):**
+1. `$ php -r 'require "config.inc.php"; require "lib/functions/inputparameter.inc.php";
+   $_REQUEST["doAction"]=array("x"); $a=new stdClass();
+   R_PARAMS(array("doAction"=>array(tlInputParameter::STRING_N,0,250)),$a);'`
+   → pre-#1720: `TypeError: trim(): Argument #1 ($string) must be of type string, array given`.
+2. Nested array-typed param: `$_REQUEST["nested"]=array(array("x"));
+   R_PARAMS(["nested"=>[tlInputParameter::ARRAY_INT]],$a);` → pre-fix (this branch): same
+   unguarded `TypeError` from `intval(trim(array))`.
+3. HTTP: `curl "http://localhost:8082/_probe1738.php?doAction[]=x"` → pre-fix HTTP 500, 0 bytes,
+   `events` err/warn count unchanged (0).
+
+**Expected (post-fix):** an array-shaped value never reaches PHP's string/int functions; the
+parameter/member reads as absent; no `TypeError`, no HTTP 500, no new `events` rows.
+
+**Actual result (executed this run):**
+
+| # | Case | Expected | Result |
+|---|------|----------|--------|
+| 1 | `php -l lib/functions/inputparameter.class.php` | clean | PASS |
+| 2 | scalar `STRING_N` `?k[]=x` via `R_PARAMS` | `null`, no fatal | PASS |
+| 3 | scalar `INT` / `INT_N` / `CB_BOOL` `?k[]=x` | `null`, no fatal | PASS |
+| 4 | `ARRAY_INT` nested `?k[][]=x` | `array()`, no fatal (was `TypeError`) | PASS |
+| 5 | `ARRAY_STRING_N` nested | no fatal | PASS |
+| 6 | scalar string `"  hello  "` | `"hello"` (trim preserved) | PASS |
+| 7 | scalar int `"42"` | `42` | PASS |
+| 8 | empty string / absent param | `""` / `null` | PASS |
+| 9 | flat `ARRAY_STRING_N` / `ARRAY_INT` | unchanged | PASS |
+| 10 | HTTP probe `?doAction=hi&nested[]=7` | 200 `{hi,[7]}` | PASS |
+| 11 | HTTP probe `?doAction[]=x` | 200 `{null,null}`, no 0-byte 500 | PASS |
+| 12 | HTTP probe `?nested[][]=x` | 200 `{null,[]}` | PASS |
+| 13 | HTTP probe `?doAction=++spaced++&nested[]=1&nested[]=2` | 200 `{"spaced",[1,2]}` | PASS |
+| 14 | `events` err/warn before vs after all cases | 0 → 0 (no new rows) | PASS |
+
+**PASS/FAIL: PASS.**
