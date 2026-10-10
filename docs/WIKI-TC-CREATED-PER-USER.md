@@ -57,3 +57,50 @@ data issue, not a product bug.
 
 Event Viewer after testing: no new Error/Warning entries from the screen or
 BFF (only audit login + warnings from my own CLI diagnostics).
+
+## Group-by-user grid + ExtGrid toolbar (Issue #1111)
+
+The legacy `tlExtTable` (`lib/results/tcCreatedPerUserOnTestProject.php:162-191`)
+rendered the result set **grouped by the author's login** (the first ghost
+column carried `login` and was passed to `setGroupByColumnName()` at `:178`),
+with the grouped User column hidden (`hideGroupedColumn=true`,
+`exttable.class.php:55`) and an ExtGrid toolbar offering *Expand/Collapse
+Groups* (`:182`), *Show all Columns* (`:183`), *Reset Filters*
+(`exttable.class.php:124`, `inc_ext_table.tpl:292-300`) and the *MultiSort*
+affordance (`allowMultiSort=true`, `exttable.class.php:43`). Default order was
+Test Suite **DESC** (`:188-189`). The first 2.0.1 port flattened all of this
+into one plain DataTable — the grouping and toolbar were dropped.
+
+Now restored in `gui/templates/results/tcCreatedPerUserOnTestProject.html`:
+
+- DataTables **RowGroup 1.4.1** groups rows by `login` into collapsible
+  `<login> (N Items)` headers; the grouped User column starts hidden and is the
+  **primary sort criterion** (a `pinGroupOrder()` guard keeps each user in one
+  contiguous group), with the legacy secondary **Test Suite DESC** order.
+- Grid toolbar with the four legacy buttons: **Expand/Collapse Groups**,
+  **Show all Columns** (toggles the hidden User column), **Reset Filters**
+  (clears the search and restores the default order), **MultiSort** hint
+  (`orderMulti:true`).
+- A plain-`<tbody>` fallback renders the same group headers if the
+  DataTables/RowGroup CDN is unavailable, so rows are never lost.
+- i18n: 12 new `tcPerUser.grid.*` keys across all 10 locale bundles.
+
+No BFF change was required — `api/results/index.php` `runReport()` already
+returns the full sorted row set including `login`.
+
+### Bug fixed while verifying (#1111)
+
+`resetFilters()` chained `order()` off the **Columns API**
+(`resTbl.search('').columns().search('').order([...]).draw()`).
+`columns().order()` assigns a per-column order, so after a Reset the group
+order flipped to descending user and the DataTables order structure became one
+bogus per-column entry per column. Fixed by clearing the searches on the
+Columns API and setting the table order on the **table** API
+(`tcCreatedPerUserOnTestProject.html:581-590`).
+
+### Testing
+
+13-step browser/API suite recorded as `Task — Issue #1111` in
+`tmp/TLU_Test_Cases.md`: grouping, collapse/expand (all + single group),
+show-all-columns, reset filters, multsort, user filter, empty state, CSV,
+console, syntax, i18n coverage, Event Viewer. All PASS.

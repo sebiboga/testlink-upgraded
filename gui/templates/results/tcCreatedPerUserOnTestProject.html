@@ -581,7 +581,12 @@ function pinGroupOrder(settings) {
 function resetFilters() {
   if (resTbl) {
     collapsedGroups = Object.create(null);
-    resTbl.search('').columns().search('').order([[USER_COL_IDX, 'asc'], [1, 'desc']]).draw();
+    // Do NOT chain order() off the Columns API: columns().order() assigns a
+    // per-column order (corrupts the sort). Clear searches on the Columns API,
+    // then set the table order back on the table API.
+    resTbl.search('');
+    resTbl.columns().search('');
+    resTbl.order([[USER_COL_IDX, 'asc'], [1, 'desc']]).draw();
     updateGroupToggleBtn();
   } else {
     collapsedGroups = Object.create(null);

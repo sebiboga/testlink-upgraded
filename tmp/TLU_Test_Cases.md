@@ -6832,3 +6832,45 @@ with `Location: ...&target=Array`, and `events` gains one `log_level=2` row
 array is never cast to string, so no `Array to string conversion` warning is persisted and the
 `Location` no longer carries the coerced literal `Array`. Scalar and absent-target redirects, and
 the anonymous login bounce, are unchanged.
+
+## Task — Issue #1111: tcCreatedPerUserOnTestProject group-by-user grid + ExtGrid toolbar
+
+**Precondition** — TestLink 2.0.1 at http://localhost:8082 (login admin/admin), fresh DB.
+Run `php tmp/fixtures_1111.php` → project `TCP1111` (prefix TCP) with 2 suites (Alpha, Beta)
+and 6 test-case versions authored by 2 users (admin, tcptester ⇒ 2 user groups, 3 items each).
+Screen: `gui/templates/results/tcCreatedPerUserOnTestProject.html?tproject_id=1`.
+
+**Steps & results observed**
+
+| # | step | result |
+|---|---|---|
+| T1 | Load screen, click [Show report] | `Report results (6)`; `#gridToolbar` visible with 4 buttons: Expand/Collapse Groups, Show all Columns, Reset Filters, MultiSort |
+| T2 | Inspect groups / rows | 2 `tr.dtrg-group`: `admin(3 Items)`, `tcptester(3 Items)`; 6 data rows; User column hidden (`resTbl.column(0).visible()===false`, `hideGroupedColumn` parity); default order `[[0,'asc'],[1,'desc']]` = user asc + Test Suite DESC (legacy) |
+| T3 | Click Expand/Collapse Groups | All 6 data rows hidden, button `active`, info "Groups collapsed"; click again → 6 shown, inactive, "Groups expanded" |
+| T4 | Click a single group header | Collapses only that group (3 rows hidden) with right-chevron; button turns `active` |
+| T5 | Click Show all Columns | User column becomes visible, label → "Hide User column", button `active`; click again → hidden, label reverts, inactive |
+| T6 | Type a non-matching search then click Reset Filters | search box cleared (``""``), 6 rows / 2 groups restored in default order `admin, tcptester`, info "Filters cleared", toolbar state reset |
+| T7 | Click MultiSort | `#msHint` shown, button `active`, info "MultiSort: shift+click headers"; `orderMulti:true`; click again → hidden, inactive |
+| T8 | User filter = Tcp Tester → [Show report] | single group `tcptester(3 Items)`, 3 rows, footer "3 rows, 1 users, 3 test cases" |
+| T9 | Impossible window (start 2030-01-01, end 2030-01-02) | `#noResults` visible, `#gridToolbar` hidden |
+| T10 | CSV download `/api/results/index.php/csv?tproject_id=1&user_id=0&start=2026-10-01&end=2026-10-11` | HTTP 200 `text/csv; charset=utf-8`, header line + 6 data rows |
+| T11 | Console messages (error+warn) | 0 |
+| T12 | `node --check` on inline script; `bash ai/verify_i18n_coverage.sh` | SYNTAX OK; 9 bundles PASS (7253 keys, 0 missing incl. 12 `tcPerUser.grid.*`) |
+| T13 | Event Viewer / `events` table | `count(*) where log_level in (1,2)` = 0 |
+
+**Defect found & fixed during this verification (T6)**
+
+Symptom: after Reset Filters the group order flipped to `tcptester, admin` (descending user)
+and the DataTables order structure became `[[0,[[0,'asc'],[1,'desc']]], …]` — one bogus
+per-column order entry per column.
+Root cause: `resetFilters()` chained `order()` off the **Columns API**
+(`resTbl.search('').columns().search('').order([[0,'asc'],[1,'desc']]).draw()`);
+`columns().order()` assigns a per-column order instead of the table order.
+Fix (`gui/templates/results/tcCreatedPerUserOnTestProject.html:581-590`): clear searches on
+the Columns API, then set the table order on the table API —
+`resTbl.search(''); resTbl.columns().search(''); resTbl.order([…]).draw();`.
+
+**Actual result** — PASS 13/13 (T1–T13) after the fix. Group-by-user grid, the four ExtGrid
+toolbar actions, hidden-grouped-column parity, legacy default sort, user filter and empty
+state all behave like TestLink 1.9.20's `tlExtTable`; no console errors and no new Event
+Viewer Error/Warning rows.

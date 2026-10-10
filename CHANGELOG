@@ -15,7 +15,21 @@ single-page HTML/JS/CSS front-end backed by a plain-PHP REST BFF API layer.
 Every screen of the application was ported one-by-one in a screen-compare
 (legacy 1.9.20 <-> modern) feature-parity process. The legacy code base was
 kept for backward compatibility and is progressively retired as each modern
-screen reaches full parity.
+  screen reaches full parity.
+
+- [FEATURE GAP] - #1111: the modern **Test Cases Created Per User** report
+  (`gui/templates/results/tcCreatedPerUserOnTestProject.html`) dropped the legacy
+  `tlExtTable` **group-by-user grid** and its ExtGrid toolbar
+  (`lib/results/tcCreatedPerUserOnTestProject.php:162-191`). Restored: DataTables
+  RowGroup 1.4.1 groups rows into collapsible `<login> (N Items)` headers with the
+  grouped User column hidden by default (`hideGroupedColumn=true`,
+  `exttable.class.php:55`) and kept as the primary sort criterion (legacy secondary
+  Test Suite **DESC**, `:188-189`), plus the four toolbar actions — *Expand/Collapse
+  Groups*, *Show all Columns*, *Reset Filters* (`exttable.class.php:124`) and
+  *MultiSort* (`allowMultiSort=true`, `:43`) — and a plain-`<tbody>` fallback. 12 new
+  `tcPerUser.grid.*` i18n keys across all 10 bundles. Fixed a `resetFilters()` defect
+  that chained `order()` off the Columns API and flipped the group order after Reset.
+  (Refs #1111)
 
 - [KEY BUGFIX] - #1893: **the legacy `lib/search/searchMgmt.php` deep-link redirect shim wrote one
   `E_WARNING Array to string conversion` row into `events` for every authenticated request carrying
