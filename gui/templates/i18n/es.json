@@ -7254,5 +7254,18 @@
   "pme.msg.projectMismatch": "El proyecto de prueba no posee el plan de pruebas direccionado",
   "pme.msg.badRequest": "Parametros de solicitud no validos",
   "footers.planMilestoneEdit": "TestLink 2.0.1 - Hito de prueba",
-  "ms.fullScreen": "Abrir a pantalla completa"
+  "ms.fullScreen": "Abrir a pantalla completa",
+  "err.title": "TestLink - Error",
+  "err.headerSub": "Un error detuvo la operación solicitada",
+  "err.cardTitle": "Detalles del error",
+  "err.loading": "Cargando…",
+  "err.loadError": "No se pudieron cargar los detalles del error.",
+  "err.codeLabel": "Código de error",
+  "err.goHome": "Volver al inicio",
+  "err.goLogin": "Ir a Iniciar sesión",
+  "err.retry": "Reintentar",
+  "err.csrfMissing": "No se encontró CSRFName, probable solicitud no válida.",
+  "err.csrfInvalid": "Token CSRF no válido",
+  "err.generic": "Rocket Raccoon te está observando",
+  "footers.errorPage": "TestLink 2.0.1 - Error"
 }

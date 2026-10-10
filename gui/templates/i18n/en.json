@@ -7254,5 +7254,18 @@
   "pme.msg.projectMismatch": "The test project does not own the addressed test plan",
   "pme.msg.badRequest": "Invalid request parameters",
   "footers.planMilestoneEdit": "TestLink 2.0.1 - Test Milestone",
-  "ms.fullScreen": "Open in full screen"
+  "ms.fullScreen": "Open in full screen",
+  "err.title": "TestLink - Error",
+  "err.headerSub": "An error stopped the requested operation",
+  "err.cardTitle": "Error details",
+  "err.loading": "Loading…",
+  "err.loadError": "Could not load the error details.",
+  "err.codeLabel": "Error code",
+  "err.goHome": "Back to Home",
+  "err.goLogin": "Go to Login",
+  "err.retry": "Retry",
+  "err.csrfMissing": "No CSRFName found, probable invalid request.",
+  "err.csrfInvalid": "Invalid CSRF token",
+  "err.generic": "Rocket Raccoon is watching You",
+  "footers.errorPage": "TestLink 2.0.1 - Error"
 }

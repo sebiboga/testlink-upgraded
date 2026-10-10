@@ -7254,5 +7254,18 @@
   "pme.msg.projectMismatch": "テストプロジェクトは対象のテストプランを所有していません",
   "pme.msg.badRequest": "リクエストパラメータが無効です",
   "footers.planMilestoneEdit": "TestLink 2.0.1 - テストマイルストーン",
-  "ms.fullScreen": "全画面で開く"
+  "ms.fullScreen": "全画面で開く",
+  "err.title": "TestLink - エラー",
+  "err.headerSub": "エラーにより要求された操作が中断されました",
+  "err.cardTitle": "エラーの詳細",
+  "err.loading": "読み込み中…",
+  "err.loadError": "エラーの詳細を読み込めませんでした。",
+  "err.codeLabel": "エラーコード",
+  "err.goHome": "ホームに戻る",
+  "err.goLogin": "ログインへ",
+  "err.retry": "再試行",
+  "err.csrfMissing": "CSRFName が見つかりません。無効なリクエストの可能性があります。",
+  "err.csrfInvalid": "無効な CSRF トークン",
+  "err.generic": "ロケット・ラクーンがあなたを見ています",
+  "footers.errorPage": "TestLink 2.0.1 - エラー"
 }

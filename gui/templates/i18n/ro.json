@@ -7254,5 +7254,18 @@
   "pme.msg.projectMismatch": "Proiectul de test nu detine planul de test adresat",
   "pme.msg.badRequest": "Parametri de cerere invalizi",
   "footers.planMilestoneEdit": "TestLink 2.0.1 - Jalon de test",
-  "ms.fullScreen": "Deschide pe tot ecranul"
+  "ms.fullScreen": "Deschide pe tot ecranul",
+  "err.title": "TestLink - Eroare",
+  "err.headerSub": "O eroare a oprit operația solicitată",
+  "err.cardTitle": "Detalii eroare",
+  "err.loading": "Se încarcă…",
+  "err.loadError": "Nu s-au putut încărca detaliile erorii.",
+  "err.codeLabel": "Cod eroare",
+  "err.goHome": "Înapoi la Acasă",
+  "err.goLogin": "Mergi la Autentificare",
+  "err.retry": "Reîncearcă",
+  "err.csrfMissing": "Nu s-a găsit CSRFName, cerere probabil invalidă.",
+  "err.csrfInvalid": "Token CSRF invalid",
+  "err.generic": "Rocket Raccoon te supraveghează",
+  "footers.errorPage": "TestLink 2.0.1 - Eroare"
 }

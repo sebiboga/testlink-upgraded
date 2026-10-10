@@ -1913,6 +1913,11 @@ function getActions(&$gui,$baseURL) {
 
   $actions = new stdClass();
 
+  // TestLink Error page (modernized error.php + dashio/feedback/error.tpl) -
+  // Refs #1895. A non-menu system page, so there is no ASIDE entry; this action
+  // exists so any caller can build the deep link without hardcoding the path.
+  // error.php is now a 302 shim forwarding ?code= to this screen.
+  $actions->errorPage = "/gui/templates/feedback/error.html";
   $actions->events = "/gui/templates/eventviewer/eventviewer.html?{$ctx}";
   // Standalone Event Info popup (modernized lib/events/eventinfo.php) - Refs
   // #1556. Opened in a new window from the Event Viewer row detail; the BFF

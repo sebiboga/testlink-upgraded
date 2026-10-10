@@ -7254,5 +7254,18 @@
   "pme.msg.projectMismatch": "O projeto de teste nao possui o plano de teste enderecado",
   "pme.msg.badRequest": "Parametros de pedido invalidos",
   "footers.planMilestoneEdit": "TestLink 2.0.1 - Marco de teste",
-  "ms.fullScreen": "Abrir em ecra inteiro"
+  "ms.fullScreen": "Abrir em ecra inteiro",
+  "err.title": "TestLink - Erro",
+  "err.headerSub": "Um erro interrompeu a operação solicitada",
+  "err.cardTitle": "Detalhes do erro",
+  "err.loading": "Carregando…",
+  "err.loadError": "Não foi possível carregar os detalhes do erro.",
+  "err.codeLabel": "Código de erro",
+  "err.goHome": "Voltar ao Início",
+  "err.goLogin": "Ir para Login",
+  "err.retry": "Tentar novamente",
+  "err.csrfMissing": "Nenhum CSRFName encontrado, provável solicitação inválida.",
+  "err.csrfInvalid": "Token CSRF inválido",
+  "err.generic": "Rocket Raccoon está observando você",
+  "footers.errorPage": "TestLink 2.0.1 - Erro"
 }

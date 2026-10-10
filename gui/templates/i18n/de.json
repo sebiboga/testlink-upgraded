@@ -7254,5 +7254,18 @@
   "pme.msg.projectMismatch": "Das Testprojekt besitzt den adressierten Testplan nicht",
   "pme.msg.badRequest": "Ungueltige Anforderungsparameter",
   "footers.planMilestoneEdit": "TestLink 2.0.1 - Test-Meilenstein",
-  "ms.fullScreen": "Im Vollbild oeffnen"
+  "ms.fullScreen": "Im Vollbild oeffnen",
+  "err.title": "TestLink - Fehler",
+  "err.headerSub": "Ein Fehler hat den angeforderten Vorgang abgebrochen",
+  "err.cardTitle": "Fehlerdetails",
+  "err.loading": "Wird geladen…",
+  "err.loadError": "Die Fehlerdetails konnten nicht geladen werden.",
+  "err.codeLabel": "Fehlercode",
+  "err.goHome": "Zurück zur Startseite",
+  "err.goLogin": "Zum Login",
+  "err.retry": "Wiederholen",
+  "err.csrfMissing": "Kein CSRFName gefunden, wahrscheinlich ungültige Anfrage.",
+  "err.csrfInvalid": "Ungültiges CSRF-Token",
+  "err.generic": "Rocket Raccoon beobachtet dich",
+  "footers.errorPage": "TestLink 2.0.1 - Fehler"
 }

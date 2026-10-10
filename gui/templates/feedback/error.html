@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title data-i18n="err.title">TestLink - Error</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+*{box-sizing:border-box}
+body{background:#f2f2f2;font-family:'Ruda',sans-serif;margin:0;padding:0;min-height:100vh;display:flex;flex-direction:column}
+.header{background:#e74c3c;color:#fff;padding:14px 24px;font-size:20px;font-weight:700;letter-spacing:1px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.header .fa-triangle-exclamation{font-size:22px}
+.header .sub{font-size:13px;font-weight:400;opacity:.9;margin-left:10px}
+#localeSwitcher{margin-left:auto}
+.wrap{flex:1;display:flex;align-items:flex-start;justify-content:center;padding:36px 24px}
+.card{background:#fff;border-radius:10px;box-shadow:0 2px 10px rgba(0,0,0,.10);max-width:640px;width:100%;overflow:hidden}
+.card .card-hd{padding:14px 20px;border-bottom:1px solid #eee;font-size:15px;font-weight:700;color:#22242a;display:flex;align-items:center;gap:10px}
+.card .card-hd i{color:#e74c3c}
+.card .card-bd{padding:22px 20px 8px}
+.msg{font-size:14.5px;line-height:1.6;color:#333;display:flex;gap:14px;align-items:flex-start}
+.msg .icon{flex:0 0 42px;height:42px;border-radius:50%;background:#fdeceb;color:#c0392b;display:flex;align-items:center;justify-content:center;font-size:20px}
+.code-line{margin:16px 0 0;font-size:12px;color:#888}
+.code-line b{color:#555;font-family:monospace}
+.card .card-ft{padding:16px 20px 22px;display:flex;gap:12px;flex-wrap:wrap;border-top:1px solid #f0f0f0;margin-top:14px}
+.btn-teal{background:#4ECDC4;color:#fff;border:none;padding:9px 20px;border-radius:4px;cursor:pointer;font-size:13px;font-weight:600;display:inline-flex;align-items:center;gap:7px;text-decoration:none}
+.btn-teal:hover{background:#3dbdb5;color:#fff}
+.btn-ghost{background:#2e3038;color:#fff;border:none;padding:9px 20px;border-radius:4px;cursor:pointer;font-size:13px;font-weight:600;display:inline-flex;align-items:center;gap:7px;text-decoration:none}
+.btn-ghost:hover{background:#3d4049;color:#fff}
+.state{display:none;align-items:center;gap:10px;color:#666;font-size:13.5px;padding:20px 20px}
+.state.show{display:flex}
+.spinner{width:20px;height:20px;border:3px solid #e0e0e0;border-top-color:#4ECDC4;border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.errobbar{background:#fdeceb;border:1px solid #f5c6c2;color:#c0392b;border-radius:6px;padding:10px 16px;font-size:13px;display:none;margin:14px 20px 0}
+.footer{padding:12px 24px;color:#888;font-size:12px;border-top:1px solid #ddd;background:#fff;margin-top:auto}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <i class="fa-solid fa-triangle-exclamation"></i>
+  <span data-i18n="err.title">TestLink - Error</span>
+  <span class="sub" data-i18n="err.headerSub">An error stopped the requested operation</span>
+  <span id="localeSwitcher"></span>
+</div>
+
+<div class="wrap">
+  <div class="card">
+    <div class="card-hd"><i class="fa fa-bug"></i> <span data-i18n="err.cardTitle">Error details</span></div>
+
+    <div class="state" id="loadingState">
+      <div class="spinner"></div> <span data-i18n="err.loading">Loading…</span>
+    </div>
+
+    <div class="errobbar" id="errBar"></div>
+
+    <div class="card-bd" id="msgBody" style="display:none;">
+      <div class="msg">
+        <div class="icon"><i class="fa fa-circle-exclamation"></i></div>
+        <div id="msgText">-</div>
+      </div>
+      <p class="code-line"><span data-i18n="err.codeLabel">Error code</span>: <b id="codeBadge">-</b> &nbsp;·&nbsp; <span id="machineCode">-</span></p>
+    </div>
+
+    <div class="card-ft" id="actions" style="display:none;">
+      <a class="btn-teal" id="homeBtn" href="/index.php"><i class="fa fa-house"></i> <span data-i18n="err.goHome">Back to Home</span></a>
+      <a class="btn-ghost" id="loginBtn" href="/login.php" style="display:none;"><i class="fa fa-right-to-bracket"></i> <span data-i18n="err.goLogin">Go to Login</span></a>
+      <button class="btn-ghost" id="retryBtn" type="button"><i class="fa fa-rotate-right"></i> <span data-i18n="err.retry">Retry</span></button>
+    </div>
+  </div>
+</div>
+
+<div class="footer" id="footerText"><span data-i18n="footers.errorPage">TestLink 2.0.1 - Error</span></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script>
+var API = '/api/error/index.php';
+var CUR_CODE = 0;
+
+$(function () {
+  var p = new URLSearchParams(window.location.search);
+  var raw = p.get('code') || '0';
+  CUR_CODE = /^-?\d+$/.test(raw) ? parseInt(raw, 10) : 0;
+
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    load();
+  });
+
+  $('#retryBtn').on('click', load);
+});
+
+function load() {
+  $('#errBar').hide();
+  $('#msgBody, #actions').hide();
+  $('#loadingState').addClass('show');
+  $.getJSON(API, { code: CUR_CODE, locale: TLi18n.getLocale() })
+    .done(function (r) {
+      $('#loadingState').removeClass('show');
+      if (!r || r.status !== 'ok') {
+        showError((r && r.message) || TLi18n.t('err.loadError'));
+        return;
+      }
+      render(r);
+    })
+    .fail(function (xhr) {
+      $('#loadingState').removeClass('show');
+      var msg = TLi18n.t('err.loadError');
+      try { msg = JSON.parse(xhr.responseText).message || msg; } catch (e) {}
+      showError(msg);
+    });
+}
+
+function render(r) {
+  // message_key is server-controlled and resolves to err.csrfMissing /
+  // err.csrfInvalid / err.generic in the active locale bundle.
+  var msg = TLi18n.t(r.message_key || 'err.generic');
+  if (!msg || msg === r.message_key) { msg = TLi18n.t('err.generic'); }
+  $('#msgText').text(msg);
+
+  // Code: show the caller-supplied numeric code, plus the stable machine id.
+  $('#codeBadge').text(r.known ? r.code : (r.code || 0));
+  $('#machineCode').text(r.error_code || 'generic');
+
+  // Logged-out visitors get the Login shortcut; a session holder gets Home.
+  if (r.auth && r.auth.logged_in) {
+    $('#loginBtn').hide();
+  } else {
+    $('#loginBtn').show();
+  }
+
+  $('#msgBody, #actions').show();
+}
+
+function showError(msg) {
+  $('#errBar').text(msg).show();
+  $('#actions').show();
+}
+</script>
+</body>
+</html>

@@ -187,7 +187,9 @@ function csrfguard_start()
     {
       //trigger_error("No CSRFName found, probable invalid request.",E_USER_ERROR);
       //return false;
-      redirect($_SESSION['basehref'] . 'error.php?code=1');
+      // Refs #1895: the modern error screen (error.php is now a 302 shim
+      // forwarding the ?code= unchanged, so both targets stay valid).
+      redirect($_SESSION['basehref'] . 'gui/templates/feedback/error.html?code=1');
       exit();
     }
 
@@ -199,7 +201,8 @@ function csrfguard_start()
     {
       //trigger_error("Invalid CSRF token.",E_USER_ERROR);
       //return false;
-      redirect($_SESSION['basehref'] . 'error.php?code=2');
+      // Refs #1895: modern error screen (see the code=1 branch above).
+      redirect($_SESSION['basehref'] . 'gui/templates/feedback/error.html?code=2');
       exit();
     }
   }

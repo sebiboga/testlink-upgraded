@@ -7254,5 +7254,18 @@
   "pme.msg.projectMismatch": "Le projet de test ne possede pas le plan de test adresse",
   "pme.msg.badRequest": "Parametres de requete invalides",
   "footers.planMilestoneEdit": "TestLink 2.0.1 - Jalon de test",
-  "ms.fullScreen": "Ouvrir en plein ecran"
+  "ms.fullScreen": "Ouvrir en plein ecran",
+  "err.title": "TestLink - Erreur",
+  "err.headerSub": "Une erreur a interrompu l'opération demandée",
+  "err.cardTitle": "Détails de l'erreur",
+  "err.loading": "Chargement…",
+  "err.loadError": "Impossible de charger les détails de l'erreur.",
+  "err.codeLabel": "Code d'erreur",
+  "err.goHome": "Retour à l'accueil",
+  "err.goLogin": "Aller à la connexion",
+  "err.retry": "Réessayer",
+  "err.csrfMissing": "Aucun CSRFName trouvé, requête probablement invalide.",
+  "err.csrfInvalid": "Jeton CSRF invalide",
+  "err.generic": "Rocket Raccoon vous surveille",
+  "footers.errorPage": "TestLink 2.0.1 - Erreur"
 }

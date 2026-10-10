@@ -7254,5 +7254,18 @@
   "pme.msg.projectMismatch": "测试项目不拥有所访问的测试计划",
   "pme.msg.badRequest": "请求参数无效",
   "footers.planMilestoneEdit": "TestLink 2.0.1 - 测试里程碑",
-  "ms.fullScreen": "全屏打开"
+  "ms.fullScreen": "全屏打开",
+  "err.title": "TestLink - 错误",
+  "err.headerSub": "错误中断了请求的操作",
+  "err.cardTitle": "错误详情",
+  "err.loading": "加载中…",
+  "err.loadError": "无法加载错误详情。",
+  "err.codeLabel": "错误代码",
+  "err.goHome": "返回首页",
+  "err.goLogin": "前往登录",
+  "err.retry": "重试",
+  "err.csrfMissing": "未找到 CSRFName，可能是无效请求。",
+  "err.csrfInvalid": "无效的 CSRF 令牌",
+  "err.generic": "火箭浣熊正在看着你",
+  "footers.errorPage": "TestLink 2.0.1 - 错误"
 }

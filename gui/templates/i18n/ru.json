@@ -7254,5 +7254,18 @@
   "pme.msg.projectMismatch": "Тестовый проект не владеет адресуемым планом тестирования",
   "pme.msg.badRequest": "Недопустимые параметры запроса",
   "footers.planMilestoneEdit": "TestLink 2.0.1 - Веха тестирования",
-  "ms.fullScreen": "Открыть на весь экран"
+  "ms.fullScreen": "Открыть на весь экран",
+  "err.title": "TestLink - Ошибка",
+  "err.headerSub": "Ошибка прервала запрошенную операцию",
+  "err.cardTitle": "Подробности ошибки",
+  "err.loading": "Загрузка…",
+  "err.loadError": "Не удалось загрузить подробности ошибки.",
+  "err.codeLabel": "Код ошибки",
+  "err.goHome": "Вернуться на главную",
+  "err.goLogin": "Перейти ко входу",
+  "err.retry": "Повторить",
+  "err.csrfMissing": "CSRFName не найден, вероятно, недопустимый запрос.",
+  "err.csrfInvalid": "Недействительный CSRF-токен",
+  "err.generic": "Ракета Раккун наблюдает за вами",
+  "footers.errorPage": "TestLink 2.0.1 - Ошибка"
 }
