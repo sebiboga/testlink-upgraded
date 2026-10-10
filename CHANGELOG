@@ -31,6 +31,21 @@ kept for backward compatibility and is progressively retired as each modern
   that chained `order()` off the Columns API and flipped the group order after Reset.
   (Refs #1111)
 
+- [KEY BUGFIX] - #1892: **the legacy `lib/testcases/listTestCases.php` deep-link redirect shim
+  silently coerced an array-shaped id parameter to test project 1 — `?tproject_id[]=7` answered
+  `302 …testSpec.html?tproject_id=1`, dropping the caller into the wrong project with no diagnostic
+  and no event row** — the silent sibling of the #1732 array-`$_REQUEST` hardening in the same file
+  (and the exact defect #1731 removed in `reqMgrSystemEdit.php`). `$_REQUEST['tproject_id']` is an
+  array for `?tproject_id[]=7`; the bare `intval($_REQUEST[$k])` at `:90` (loop) and `:96` (legacy
+  `testproject_id` spelling) returned `1` (`intval(array)` is warning-free in PHP 8) and the shim
+  built `tproject_id=1`. Fix (1 file, +13/-6): new `shimReqInt()` helper (non-scalar/empty/non-numeric
+  → 0 = "no context") next to the existing `shimReqScalar()`, reused for all five id params and the
+  legacy spelling. Verified: `?tproject_id[]=7` and `?testproject_id[]=7` → 302 with the context
+  dropped (never `=1`); scalar `?tproject_id=7` unchanged; `?tplan_id[]=9&tproject_id=7` keeps the
+  scalar and drops the array; Event Viewer `log_level in (1,2)` = 0; `php -l` clean. Docs:
+  `docs/Bugfix-Issue-1892-ListTestCases-Array-Tproject-Id.md` + wiki page; regression suite
+  `Issue #1892` 11/11 PASS, suite gate 7/7. (Fixes #1892)
+
 - [KEY BUGFIX] - #1893: **the legacy `lib/search/searchMgmt.php` deep-link redirect shim wrote one
   `E_WARNING Array to string conversion` row into `events` for every authenticated request carrying
   an array-shaped `target` (`?target[]=x`)** — the third instance of the #1731/#1732
