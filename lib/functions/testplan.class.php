@@ -1660,7 +1660,7 @@ class testplan extends tlObjectWithAttachments
 
         $add2sql = '';
         $fields = 'name,notes,';
-        if(strlen(trim($build['release_date'])) > 0)
+        if(!empty($build['release_date']))
         {
           $fields .= 'release_date,';
           $add2sql = "'" . $this->db->prepare_string($build['release_date']) . "',";
