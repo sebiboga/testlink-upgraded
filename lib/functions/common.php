@@ -1014,6 +1014,14 @@ function split_localized_date($timestamp,$dateFormat)
       break;
     }
   }
+  // Refs #1889: no delimiter found -> the value is not a parseable localized date.
+  // Previously $splitChar stayed null and explode(null,...) below threw a PHP 8
+  // ValueError (fatal, HTTP 500 / 0 bytes). Return null: callers already treat a
+  // null result as "invalid date" (empty timestamp returns null just above).
+  if ($splitChar === null) 
+  {
+    return null;
+  }
   // put each char of strippedDateFormat into an Array Element
   $strippedDateFormat = str_replace($needle,"",$dateFormat);
   $format = preg_split('//', $strippedDateFormat, -1, PREG_SPLIT_NO_EMPTY);
