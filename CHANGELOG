@@ -7904,6 +7904,16 @@ Changes:
       project tables and added user metrics to the middle section
 
 ## 2.0.1 (in-progress)
+### Key bugfix (verified resolved) — legacy req-spec search answered HTTP 500 / 0 bytes: `count($itemSet)` on an uninitialised variable (Fixes #1735)
+- The reported `Uncaught TypeError: count(): … null given in
+  lib/requirements/reqSpecSearch.php:116` no longer exists: the whole controller was
+  retired to a session-guarded redirect shim by #1825 (`d1b2a884c`), and the modern
+  `gui/templates/requirements/searchReqSpec.html` + `api/requirements/index.php`
+  (`GET /reqspec-search`) serve the search and the `no_records_found` state with an
+  initialised counter. Verified on a fresh fixture: legacy URL → 302 (browser) / 405 JSON
+  (XHR), never 500; BFF → 200 with the expected rows. No production file needed changing
+  (the fix already landed); regression suite `Issue #1735` (`bash tmp/verify_1735.sh`,
+  15/15 PASS).
 ### Screen — Test Milestone Create/Edit standalone screen `planMilestonesEdit` (Refs #1894)
 - New Dashio screen `gui/templates/plans/planMilestoneEdit.html` + BFF
   `api/milestoneedit/index.php` (`GET ?action=init`, `POST ?action=create|update|delete`)
