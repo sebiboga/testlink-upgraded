@@ -1078,6 +1078,22 @@ kept for backward compatibility and is progressively retired as each modern
   reuses `user.fullName`). Regression suite 1676: 20/20 PASS (9 client cases on the shipped helper +
   11 live BFF cases over 3 formats) and 11/11 browser cases; console and Event Viewer clean. (Fixes #1676)
 
+- [SCREEN] - #1895: the **TestLink error page** (`error.php` + `gui/templates/dashio/feedback/error.tpl`)
+  — the last top-level full-page legacy Smarty renderer, reached from the CSRF guard
+  (`lib/functions/csrf.php`) and from `?code=` deep links, and reachable anonymously — is modernized as
+  the standalone Dashio page `gui/templates/feedback/error.html`, backed by BFF `api/error/index.php`
+  (`GET ?code=<int>`, session-optional; returns a stable machine `error_code` + i18n `message_key` +
+  session state). Parity: code 1 → `csrf_name_missing` ("No CSRFName found, probable invalid request."),
+  code 2 → `csrf_token_invalid` ("Invalid CSRF token"), any other/missing code → `generic`
+  ("Rocket Raccoon is watching You"); no rights gate; a session holder gets Home, an anonymous visitor
+  gets Home + Go to Login. Both `csrf.php` redirects now point at the modern screen, `$actions->errorPage`
+  is set in `common.php`, and `error.php` is reduced to a GET/HEAD-only 302 shim. Hardening: array-shaped
+  `?code[]=x` / non-numeric code → `400 INVALID_CODE` at the BFF and `code=0` in the shim (the
+  #1886/#1893 defect class), JSON-only, `Cache-Control: no-store`; the BFF connects the DB explicitly
+  because `common.php` leaves `$db = 0` (the `tlUser::getByID()` fatal otherwise). i18n `err.*` (12) +
+  `footers.errorPage` in all 10 bundles (`ai/verify_i18n_coverage.sh` PASS). Regression suite
+  `Issue #1895` 21/21 PASS; Event Viewer clean. (Refs #1895)
+
 - [SCREEN] - #1279: the **Test Review / static-testing workflow** (ISTQB #1054) is modernized as the
   standalone Dashio page `gui/templates/reviews/reviews.html`, backed by the new BFF
   `api/reviews/index.php` (`GET ?action=meta|candidates|list|entities`, `POST ?action=create|decide`;

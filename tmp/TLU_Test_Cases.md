@@ -7012,3 +7012,47 @@ scalar deep links are byte-for-byte unchanged; no new Error/Warning in the Event
 | 11 | `events` where `log_level IN (1,2)` after whole pass | 0 rows | **0 rows** (no new Error/Warning) ✅ |
 
 **No fixture teardown needed** (read-only shim redirects; no DB writes).
+
+## Issue #1895 — TestLink Error page (`error.php` + `dashio/feedback/error.tpl`) modernized
+
+Modernization of the last top-level full-page legacy renderer into
+`gui/templates/feedback/error.html` backed by BFF `api/error/index.php`.
+Legacy `error.php` reduced to a GET/HEAD 302 shim; `lib/functions/csrf.php`
+redirects to the modern screen; `$actions->errorPage` added to
+`lib/functions/common.php`. 21 automated checks + browser cases, all green.
+
+Harness: `bash tmp/vy_1895.sh` (curl/python3, stdlib only). No fixture needed —
+the page is read-only and anonymous-reachable (no DB writes).
+
+| # | Check | Expected | Result |
+|---|-------|----------|--------|
+| E1 | `error.php?code=2` | `302 → gui/templates/feedback/error.html?code=2` | PASS |
+| E2 | `error.php` (no code) | `302 → …?code=0` | PASS |
+| E3 | `error.php?code[]=x` (array) | `302 → …?code=0` (no 500, #1886/#1893 class) | PASS |
+| E4 | `error.php?code=1abc` (non-numeric) | `302 → …?code=0` | PASS |
+| E5 | `POST error.php` | `405` | PASS |
+| E6 | `HEAD error.php?code=1` | `302` | PASS |
+| E7 | `GET /api/error/index.php?code=1` | `error_code=csrf_name_missing` | PASS |
+| E8 | `GET /api/error/index.php?code=2` | `message_key=err.csrfInvalid` | PASS |
+| E9 | `GET /api/error/index.php?code=99` | `error_code=generic` (legacy default) | PASS |
+| E10 | `GET /api/error/index.php` (no code) | `known=false` | PASS |
+| E11 | `…?code=1abc` | `400 INVALID_CODE` | PASS |
+| E12 | `…?code[]=x` | `400 INVALID_CODE` | PASS |
+| E13 | `POST` with foreign Origin | `403` (same-origin guard) | PASS |
+| E14 | `POST` with same Origin | `405 METHOD_NOT_ALLOWED` | PASS |
+| E15 | anon `GET ?code=1` | `auth.logged_in=false` | PASS |
+| E16 | screen `?code=2` | HTTP `200` | PASS |
+| E17 | `common.php` | `$actions->errorPage` present | PASS |
+| E18 | `csrf.php` | redirects to `feedback/error.html?code=1|2` | PASS |
+| E19 | `error.php` | no `smarty->display` / `new TLSmarty` left | PASS |
+| E20 | `err.*` + `footers.errorPage` | present in all 10 bundles | PASS |
+| E21 | `bash ai/verify_i18n_coverage.sh` | exit 0 | PASS |
+
+Browser cases (headless Chrome, chrome-devtools MCP):
+1. Logged-in `error.php?code=1` → 302 → screen renders **"No CSRFName found, probable invalid request."**, code badge `1`, machine `csrf_name_missing`, locale switcher populated, Home + Retry (no Login). ✅
+2. Locale switcher → **Română** → `TestLink - Eroare`, **"Nu s-a găsit CSRFName, cerere probabil invalidă."**, "Înapoi la Acasă", "Reîncearcă", footer translated. ✅
+3. `?code=99` → **"Rocket Raccoon is watching You"** (legacy default), machine `generic`. ✅
+4. Anonymous isolated context → **"Go to Login"** shown alongside Home, no locale switcher (needs a session, as in every modern screen). ✅
+5. Console: **no errors/warnings**. Event Viewer: **0 new Error/Warning** rows (only the admin LOGIN audit). ✅
+
+**No fixture teardown needed** (read-only; the shim writes nothing).
