@@ -7874,6 +7874,26 @@ Changes:
       project tables and added user metrics to the middle section
 
 ## 2.0.1 (in-progress)
+### Screen — Test Milestone Create/Edit standalone screen `planMilestonesEdit` (Refs #1894)
+- New Dashio screen `gui/templates/plans/planMilestoneEdit.html` + BFF
+  `api/milestoneedit/index.php` (`GET ?action=init`, `POST ?action=create|update|delete`)
+  replacing `lib/plan/planMilestonesEdit.php` and
+  `gui/templates/dashio/plan/planMilestonesEdit.tpl`. The A/B/C percentage columns and
+  the priority/urgency mini-fields are completely hidden when the project's
+  `priority=off`/`urgency=off` flags are set (project options), matching legacy layout.
+  Create/edit/delete + event history parity; the legacy controller survives only as a
+  session-guarded GET/HEAD 302 shim (array `doAction` is coerced, POST/PUT → 405), which
+  closes #1726/#1739/#1886/#1887/#1888/#1890.
+- **Security**: bare `testplan_planning` on the OWNING project is checked before the plan
+  is resolved, so an unknown plan answers the same opaque `403 no_right` as a forbidden
+  one (no #1697 project-id enumeration oracle); every write is POST-only behind the same
+  origin guard; a partial update omitting a percentage field preserves the stored value.
+- `pme.*` (24) + `footers.planMilestoneEdit` + `ms.fullScreen` i18n keys in all 10 bundles;
+  "Open in full screen" button added to `planMilestones.html`; `$actions->planMilestoneEdit`
+  wired in `lib/functions/common.php`.
+- Suite `Issue #1894` = 30/30 PASS (create/delete/dup-name 409/prio-off single-pct save/
+  403/404/401). Screenshots `docs/screens/plans/1894-pme-{edit,create,delete-confirm}.png`.
+
 ### Custom Fields — Assign to Test Project `cfieldsTprojectAssign` (Refs #1816)
 - New Dashio screen `gui/templates/cfields/cfieldsTprojectAssign.html` + BFF
   `api/cfieldstproject/index.php` (`GET ?action=init|projects`,

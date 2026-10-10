@@ -6759,3 +6759,51 @@ verb is refused with 405 + a `tLog` WARNING, and a legacy GET is redirected to
 requirement specification tree (R6/R7), to the legacy frame shim (R8), or to the anonymous
 bounce (R1). The three WARNING rows in the Event Viewer are the intended, self-documenting
 trace of the retirement rather than silent behaviour change.
+
+## Issue #1894 — Test Milestone Create/Edit standalone screen (planMilestonesEdit) modernized
+
+Modernization of the legacy `lib/plan/planMilestonesEdit.php` renderer into `gui/templates/plans/planMilestoneEdit.html`
++ `api/milestoneedit/index.php` BFF; legacy file becomes a GET/HEAD-only 302 shim. Also retires bugs #1739 (arbitrary
+`doAction` sink), #1886 (`?doAction[]=x` → TypeError 500), and the #1887/#1888/#1890 E_WARNING family.
+
+**Environment**: app http://localhost:8082, DB fresh import this run, fixtures via `php tmp/fixtures_1894.php`
+(tproject A=1 testPriorityEnabled=1/plan 3, B=2 prio OFF/plan 4, milestones 1/2/3, role-3 user `norights`/`norights`).
+Admin session: `/tmp/cj.txt`; norights: `/tmp/cj2.txt`.
+
+| # | step | result |
+|---|---|---|
+| E1 | `GET /api/milestoneedit/index.php?action=init&mode=create&tplan_id=3` (admin) | HTTP 200 `{"status":"ok",...,"testPriorityEnabled":true,"milestone":null}` |
+| E2 | `GET …?action=init&mode=edit&milestone_id=1` (admin) | HTTP 200, milestone 1 with `target_date 2026-11-09`, `start_date 2026-10-17`, `80/10/5`, project/plan names, `canViewEvents:true` |
+| E3 | `GET …?action=init&mode=edit&milestone_id=1` + past milestone (id 2) | HTTP 200 (edit stays allowed for an already-past milestone, unchanged target) |
+| E4 | `POST ?action=create&tplan_id=3` name+M1894 New target+40d | HTTP 200 `ok id=4 milestone_created`; row in `milestones` |
+| E5 | `POST ?action=create&tplan_id=3` duplicate name "M1894 Target" | HTTP 409 `milestone_name_already_exists`, detail `M1894 Target` |
+| E6 | `POST ?action=create&tplan_id=3` target 2020-01-01 | HTTP 400 `warning_milestone_date` (past target) |
+| E7 | `POST ?action=create&tplan_id=3` `high_percentage:150` | HTTP 400 `warning_invalid_percentage` |
+| E8 | `POST ?action=create&tplan_id=3` name "  " | HTTP 400 `warning_empty_milestone_name` |
+| E9 | `POST ?action=update&milestone_id=2` partial (name+dates only) | HTTP 200 `milestone_saved`; DB keeps stored `50/25/0` (partial update must not zero percentages) |
+| E10 | `POST ?action=update&milestone_id=1` target 2020-01-01 (changed to past) | HTTP 400 `warning_milestone_date` |
+| E11 | `POST ?action=delete&milestone_id=4` | HTTP 200 `milestone_deleted`; row gone |
+| E12 | unauthenticated `GET` | HTTP 401 `not_authenticated` (browser: bounced to `login.php?note=expired`) |
+| E13 | `POST` without same-origin proof | HTTP 403 body `Forbidden: missing or mismatched same-origin proof (CSRF protection)` |
+| E14 | `?action[]=x` / `doAction[]=x` (array) on any route | HTTP 400 `invalid_parameter` — no TypeError, no 500 (#1886 class) |
+| E15 | `PUT` on the endpoint | HTTP 405 `wrong_method`, `Allow: GET, HEAD, POST` |
+| E16 | unknown plan `tplan_id=9999` (admin) | HTTP 404 `plan_not_found` |
+| E17 | unknown plan `tplan_id=9999` (`norights`) | HTTP 403 `no_right` — **identical** to norights on the real plan 3 (no existence oracle, #1697) |
+| E18 | unknown milestone (`norights`) | HTTP 403 `no_right`; real milestone as norights → also 403 |
+| E19 | browser edit M1 (admin) | Form prefilled 80/10/5, dates, project/plan context, Delete + Show event history buttons shown, save OK |
+| E20 | browser create (admin) | Save → redirects to `planMilestones.html?tplan_id=3`, new milestone listed with 60/30/10 |
+| E21 | browser duplicate-name (rename id 5 to "M1894 Target") | Flash + toast "A milestone with that name already exists in this test plan: M1894 Target"; no save |
+| E22 | browser delete confirm modal | Modal shows name + "Are you sure?", confirm → deleted, list shrinks to 2 |
+| E23 | browser prio-OFF project (plan 4, milestone 3) | Single "Completed tests [0-100%]" field, `90`; save 90→85 persisted, list shows `85 %`; priority info hint present |
+| E24 | browser `norights` create on plan 3 | State card "Insufficient rights" (`no_right`) |
+| E25 | browser unknown plan / missing plan id | State card "Milestone not found" / "Invalid request" with machine code; 401 bounces to login |
+| E26 | `php -l` `api/milestoneedit/index.php`, `lib/plan/planMilestonesEdit.php`, `lib/functions/common.php` | No syntax errors |
+| E27 | Event Viewer / `events` table after all runs | Only `log_level 16` audit rows (`audit_login_succeeded`, `audit_milestone_created/saved/deleted`); **0 ERROR / 0 WARNING** |
+| E28 | `bash ai/verify_i18n_coverage.sh` | PASS — 9 bundles × 7253 keys, 0 missing (`pme.*`, `ms.fullScreen`, `footers.planMilestoneEdit` in all 10) |
+| E29 | legacy shim `GET lib/plan/planMilestonesEdit.php?tplan_id=3&id=1` | 200 with `window.location.replace('/gui/templates/plans/planMilestoneEdit.html?mode=edit&tplan_id=3&milestone_id=1')` |
+| E30 | legacy shim `POST doDelete` / `?doAction[]=x` | 405 `Method Not Allowed` / 200 redirect-to-create (no 500) |
+
+**Actual result** — PASS 30/30. The standalone milestone screen is fully modernized with legacy
+parity; the dedicated shim removes the #1739 / #1886 failure classes and the template-warning
+family; the BFF is not an existence oracle (#1697), partial updates keep stored percentages,
+and the run leaves no Event Viewer noise.

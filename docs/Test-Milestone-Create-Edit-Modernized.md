@@ -1,0 +1,91 @@
+# Test Milestone Create/Edit — Modernized (TestLink 2.0.1, Refs #1894)
+
+Legacy controller `lib/plan/planMilestonesEdit.php` (249 lines) + `lib/plan/planMilestonesCommands.class.php` (325 lines) and the Smarty template `gui/templates/dashio/plan/planMilestonesEdit.tpl` (238 lines).
+
+## Why this screen
+
+Milestones were manageable from the modernized list screen
+(`gui/templates/plans/planMilestones.html`, Refs #647) through its inline
+Create/Edit **modal**, but the standalone legacy screen was still reachable from
+deep links (`lib/plan/planMilestonesEdit.php?doAction=create|edit`) and still
+carried four open defects:
+
+- **#1726** — a bare URL (no `doAction`) rendered a silent blank 200.
+- **#1739** — an arbitrary `?doAction=` value was dispatched through
+  `method_exists($commandMgr,$pFn)` and reached a nonsensical sink.
+- **#1886** — `?doAction[]=x` (array) was passed to a command method and raised
+  an uncaught `TypeError` → HTTP 500.
+- **#1887/#1888/#1890** — the template render referenced properties this
+  controller never set (8 Event-Viewer E_WARNING rows per render), the
+  `doCreate` command crashed on an unset `target_date`, and a stale `tplan_id`
+  produced more warnings.
+
+## Modern stack
+
+| Layer | File |
+|---|---|
+| Screen | `gui/templates/plans/planMilestoneEdit.html` (Dashio standalone HTML/JS/CSS) |
+| BFF | `api/milestoneedit/index.php` (`GET ?action=init&mode=create\|edit`, `POST ?action=create\|update\|delete`) |
+| Legacy | `lib/plan/planMilestonesEdit.php` → GET/HEAD-only 302 shim (249 → ~90 lines) |
+| Wiring | `$actions->planMilestoneEdit` in `lib/functions/common.php` (inside the `tplan_id` guard) |
+| Entry points | "Open in full screen" action in the `planMilestones.html` Create/Edit modal (`ms.fullScreen`) |
+| i18n | `pme.*` (25 keys) + `footers.planMilestoneEdit` + `ms.fullScreen` in **all 10** bundles; reuses the existing `ms.*` form labels/messages |
+
+## Parity
+
+- **Rights** — `testplan_planning` on the **owning test project** (resolved
+  through the addressed test plan) on every route, exactly like legacy
+  `checkRights()` (`pageAccessCheck` with `rightsAnd=['testplan_planning']`).
+- **Name rules** — trimmed, required, unique within the test plan; on update
+  the milestone's own current name stays valid
+  (`check_name_existence(...,excludeId)` self-exclusion).
+- **Dates** — target date required and **not in the past** (on update only when
+  the date actually changed, so an already-past milestone keeps being editable);
+  start date optional; empty start date → `0000-00-00` (legacy BUGID 3907);
+  target must not be before start (`dateOrderHint` guidance).
+- **Percentages** — integers 0..100. `testPriorityEnabled` (= project option)
+  drives the layout: three fields (high/medium/low, columns `a`/`b`/`c`) or a
+  single medium field when priorities are disabled for the project, with the
+  legacy info hints (`info_milestone_create_prio` / `_no_prio`).
+- **Delete** — confirm modal → `POST ?action=delete` (legacy `doDelete`), audit
+  `audit_milestone_deleted`.
+- **Audit + events** — `audit_milestone_created` / `_saved` / `_deleted`; the
+  "Show event history" deep link (gated on `mgt_view_events`, like the list
+  screen) opens `/gui/templates/eventviewer/eventviewer.html?object_type=milestones`.
+- **State cards** — 401 → login bounce; 403 no-right; 404 not-found /
+  `project_mismatch`; 400 invalid parameters; 500 server error, each with the
+  BFF's machine `code` shown.
+- Refresh / Back to Milestones / Close, locale switcher, footer.
+
+## BFF hardening
+
+- Session gate **before** the DB connect; inactivity enforcement
+  (`bffEnforceSession`) and same-origin proof (`bffSameOriginGuard`) on every
+  route — POST without the Origin/`X-Requested-With` proof is refused.
+- Non-scalar `action`/id/percentage input → `400 invalid_parameter` (kills the
+  #1886 `TypeError` class and the #1739 sink class at the API, not just in the
+  shim).
+- #1697 lesson: an **unentitled** caller gets an opaque `403 no_right` for an
+  unknown plan/milestone too — the endpoint is never an existence oracle.
+- Partial updates (absent percentage fields) preserve the stored DB values.
+- Unauthorized charts: unknown crafting of ids from another project is blocked
+  by resolve-through-plan + `requirePlanRights`, and an asserted `tproject_id`
+  that does not own the plan answers `project_mismatch`.
+
+## Verified
+
+- Browser: create (new milestone appears in the list), edit (rename/save),
+  delete (confirm modal → list shrinks), duplicate-name 409 with the existing
+  name as detail, priority-on (3 pct) vs priority-off (single pct) layouts,
+  no-right 403 card (`norights`), not-found card, invalid-parameter card, and
+  the session-expired login bounce.
+- API: full route matrix via curl (init create/edit, create/update/delete,
+  401 anon, 405 wrong method, 400 array action, 409 duplicate, past-target
+  guarded, CSRF refusal), `php -l` clean on every touched PHP file.
+- Event Viewer: only audit rows — no ERROR/WARNING generated by the new
+  screen/BFF or the shim.
+- `ai/verify_i18n_coverage.sh` PASS (all 10 bundles, 0 missing).
+- The legacy defects are closed by this modernization: #1726 (the shim always
+  redirects to the modern screen), #1739 (no method_exists dispatch anywhere),
+  #1886 (non-scalar action → 400), #1887/#1888/#1890 (no legacy template
+  render remains).
