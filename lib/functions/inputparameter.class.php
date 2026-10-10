@@ -329,6 +329,14 @@ class tlStringValidationInfo
 	 */
 	public function trim($value)
 	{
+		// PHP turns ?name[]=x into an array; an array is never a usable value for
+		// a string parameter and must not reach ltrim()/rtrim()/trim()/tlSubStr(),
+		// which raise a PHP 8 TypeError. Treat it as absent (null) - see #1738.
+		if ($value !== null && !is_scalar($value))
+		{
+			return null;
+		}
+
 		switch($this->trim)
 		{
 			case tlStringValidationInfo::TRIM_LEFT:
@@ -421,6 +429,12 @@ class tlIntegerValidationInfo
 	 */
 	public function normalize($value)
 	{
+		// Same defence as tlStringValidationInfo::trim(): an array-shaped value
+		// (?name[]=x) would make trim() raise a PHP 8 TypeError - see #1738.
+		if ($value !== null && !is_scalar($value))
+		{
+			return null;
+		}
 		return intval(trim($value));
 	}
 	
@@ -489,6 +503,13 @@ class tlArrayValidationInfo
 		$valueArray = (array) $valueArray;
 		foreach($valueArray as $key => $value)
 		{
+			// A nested array (?name[][]=x) is not a usable scalar element; drop it
+			// so it never reaches the member normalizer (see #1738).
+			if ($value !== null && !is_scalar($value))
+			{
+				unset($valueArray[$key]);
+				continue;
+			}
 			$valueArray[$key] = $this->validationInfo->normalize($value);
 		}
 		
