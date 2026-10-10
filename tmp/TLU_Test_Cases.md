@@ -6975,3 +6975,40 @@ serves the search, its empty-result state and the "too wide" cap without any PHP
 `php /tmp/opencode/toplevel.php $(ls -d api/*/index.php)` — column-0 brace scan that
 separates *file top level* from *inside a top-level function*; `php -r 'echo strlen(__METHOD__);'`
 at file scope prints `0`, which is the whole mechanism of this bug.
+
+---
+
+## Regression — Issue #1892: listTestCases.php shim silently coerces array-shaped id params to tproject_id=1
+
+**Precondition** — TestLink running at http://localhost:8082, authenticated as admin/admin
+(`curl` cookie jar `/tmp/c.jar`). Test projects 1 and 7 both exist. Branch `fix/issue-1892`.
+
+**Pre-fix (repro, measured)** — `?feature=edit_tc&tproject_id[]=7` and
+`?feature=edit_tc&testproject_id[]=7` both answered
+`302 Location: /gui/templates/testcases/testSpec.html?tproject_id=1` — test project 7 silently
+replaced with project 1, no diagnostic, no `events` row. `php -r 'var_dump(intval(["7"]));'` → `int(1)`.
+
+**Fix** — `lib/testcases/listTestCases.php`: new `shimReqInt()` (non-scalar/empty/non-numeric → 0)
+now feeds the id loop and the legacy `testproject_id` spelling, so an array-shaped id becomes
+"no context" instead of `1`.
+
+**Expected post-fix behaviour** — malformed array ids are dropped (never coerced to 1); valid
+scalar deep links are byte-for-byte unchanged; no new Error/Warning in the Event Viewer.
+
+**Actual result — measured 2026-10-10, PASS**
+
+| # | Case | Pre-fix | Post-fix measured |
+|---|---|---|---|
+| 1 | `?feature=edit_tc&tproject_id[]=7` | `…testSpec.html?tproject_id=1` | `…testSpec.html` (no context) ✅ |
+| 2 | `?feature=edit_tc&testproject_id[]=7` | `…testSpec.html?tproject_id=1` | `…testSpec.html` (no context) ✅ |
+| 3 | `?feature=edit_tc&tproject_id=7` | `…?tproject_id=7` | `…?tproject_id=7` (unchanged) ✅ |
+| 4 | `?feature=edit_tc&tproject_id=0` | no context | no context (unchanged) ✅ |
+| 5 | `?feature=edit_tc&tproject_id=abc` | no context | no context (unchanged) ✅ |
+| 6 | `?feature=edit_tc&tplan_id[]=9&tproject_id=7` | — | `…?tproject_id=7` (array `tplan_id` dropped, scalar kept) ✅ |
+| 7 | `?feature=keywordsAssign&id[]=3` | no `id` | no `id` (already guarded by #1732) ✅ |
+| 8 | `?feature=keywordsAssign&tproject_id=7&id=3&edit=testcase` | full context | `…?tproject_id=7&id=3&edit=testcase` (unchanged) ✅ |
+| 9 | `?feature[]=x` (array feature) | `302 → testSpec.html` (default) | same (pre-existing #1732, unchanged) ✅ |
+| 10 | `php -l lib/testcases/listTestCases.php` | — | *No syntax errors detected* ✅ |
+| 11 | `events` where `log_level IN (1,2)` after whole pass | 0 rows | **0 rows** (no new Error/Warning) ✅ |
+
+**No fixture teardown needed** (read-only shim redirects; no DB writes).
