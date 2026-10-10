@@ -6686,3 +6686,76 @@ modern Test Specification (the legacy default target); every valid feature still
 - [PASS] TC-1732-01 .. TC-1732-08 (2026-10-10, PHP 8.3.35, HEAD ad45ebc62).
 - Notes: `?tproject_id[]=7` silent `intval()`→1 coercion observed while testing → filed separately as #1892; the live same-family bare cast at `lib/search/searchMgmt.php:24` (`?target[]=x` → +1 E_WARNING row) found re-triaging the blast radius → filed as #1893. Neither fixed in #1732.
 - Gate: `TLU_REQUIRE_SUITE="Issue #1732" bash ai/verify_test_suites.sh`
+## Regression — Issue #1696: legacy requirement tree loader `lib/ajax/getrequirementnodes.php` retired (IDOR)
+
+**Precondition** (the DB is freshly imported on every run, so fixtures must be recreated).
+The imported database is EMPTY — `testprojects`, `req_specs`, `requirements` and
+`user_testproject_roles` all have 0 rows — so there is no "project B" to leak until you build
+one. This is worth stating explicitly: an IDOR of this shape is invisible in a freshly
+imported DB.
+
+```sql
+-- 1. two projects, each with one specification; project 1 gets a requirement
+INSERT INTO nodes_hierarchy (id,name,parent_id,node_type_id,node_order) VALUES
+ (1,'Project B (SECRET)',NULL,1,1),      -- node_type_id 1 = testproject
+ (2,'Secret Spec B',1,6,1),              -- 6 = requirement_spec
+ (3,'Secret Requirement B1',2,7,1),      -- 7 = requirement
+ (10,'Project A',NULL,1,2), (11,'Spec A1',10,6,1);
+INSERT INTO req_specs (id,testproject_id,doc_id) VALUES (2,1,'SPEC-B-001'),(11,10,'SPEC-A-001');
+INSERT INTO requirements (id,srs_id,req_doc_id) VALUES (3,2,'REQ-B-001');
+INSERT INTO testprojects (id,color,active,option_reqs,option_priority,option_automation,prefix,tc_counter,is_public)
+ VALUES (1,'#9BD',1,1,1,1,'TPB',0,1);
+
+-- 2. the attacker: role 3 = '<no rights>'  (roles.id=3). NO grant on ANY project:
+--    user_testproject_roles is intentionally left EMPTY for this user.
+INSERT INTO users (login,password,role_id,email,first,last,locale,active,cookie_string,auth_method)
+ VALUES ('lowpriv','<bcrypt of lowpriv123>',3,'l@e.com','Low','Priv','en_GB',1,'ck-lowpriv','');
+```
+
+Login the way the browser does (`login.php` posts to the BFF; the POST needs the same-origin
+proof enforced by `api/_guard.php:31-40`):
+
+```bash
+curl -s -c c1696.txt -X POST http://localhost:8082/api/auth/login \
+     -H 'Origin: http://localhost:8082' -d login=lowpriv -d password=lowpriv123
+# -> {"status":"ok","success":true,"destination":"/index.php?caller=login&viewer=web"}
+```
+
+**Repro steps (pre-fix, all reproduced 1/1)**
+1. `curl -s -b c1696.txt 'http://localhost:8082/lib/ajax/getrequirementnodes.php?mode=reqspec&root_node=1'`
+   → HTTP 200 and the JSON `{"text":"SPEC-B-001:Secret Spec B (1)",…}` — project 1's
+   specification `doc_id` and title, for a user with zero rights on it.
+2. `…?mode=reqspec&root_node=1&node=2` → HTTP 200 `{"text":"REQ-B-001:Secret Requirement B1",…}`
+   — the requirement `req_doc_id` and title.
+3. Walk the hierarchy: `…?node=1`, `?node=2`, `?node=10`, `?node=11` all return 200 payloads,
+   so any `nodes_hierarchy.id` is a usable parent and the whole tree is mappable.
+4. `…?node=2` **without** `root_node` emits `href="javascript:REQ_SPEC_MGMT(,2)"` — a node
+   addressed with an empty project id.
+5. `mysql … -e 'SELECT COUNT(*) FROM events'` → `0`: the leak writes no audit row at all.
+
+**Expected post-fix behavior**
+`lib/ajax/getrequirementnodes.php` is a non-mutating 302 shim (the shape already used for the
+two sibling loaders of this bug class, `gettprojectnodes.php` Refs #1770 and
+`getreqcoveragenodes.php` Refs #1765): the session contract is preserved, every non-GET/HEAD
+verb is refused with 405 + a `tLog` WARNING, and a legacy GET is redirected to
+`gui/templates/requirements/reqSpecListTree.html`. The unauthorized read is NOT replayed.
+
+**Steps and results actually observed after the fix (`18c9680c2`)**
+
+| # | step | result |
+|---|---|---|
+| R1 | anonymous `GET ?mode=reqspec&root_node=1` | HTTP 200, body contains `login.php?note=expired` — **UNCHANGED**, no regression |
+| R2 | `lowpriv` `GET ?mode=reqspec&root_node=1` | HTTP 302 → `/gui/templates/requirements/reqSpecListTree.html?tproject_id=1`; `grep -c 'SPEC-B-001\|REQ-B-001\|Secret'` → **0** (was: full JSON leak) |
+| R3 | `lowpriv` `GET ?node=2` (arbitrary-node probe) | HTTP 302 → `…/reqSpecListTree.html` with no project param; `grep -c` → **0** (was: `REQ-B-001` payload) |
+| R4 | `lowpriv` `POST` / `PUT` / `DELETE` | HTTP 405 + `{"status":"error","code":"method_not_allowed","message":"The legacy requirement specification tree loader was retired; use GET /api/reqspectreelist/index.php?action=init|children|projects"}` for all three, no data |
+| R5 | `admin` `GET ?mode=reqspec&root_node=1&filter_node=2` | HTTP 302 → `…/reqSpecListTree.html?tproject_id=1&filter_node=2` — `filter_node` preserved |
+| R6 | `admin` `GET /api/reqspectreelist/index.php?action=init&tproject_id=1` | HTTP 200 `{"status":"ok","context":{"tproject_id":1,"tproject_name":"Project B (SECRET)",…},"specs":[],"grant":{"view":true,"modify":true}}` — modern tree unaffected |
+| R7 | `lowpriv` `GET /api/reqspectreelist/index.php?action=init&tproject_id=1` | HTTP 403 `{"status":"error","message":"You are not authorized to view requirements","code":"no_right"}` — UNCHANGED |
+| R8 | `admin` `GET /lib/requirements/reqSpecListTree.php?tproject_id=1` | HTTP 302 → `…/gui/templates/requirements/reqSpecListTree.html?tproject_id=1` — UNCHANGED |
+| R9 | `php -l lib/ajax/getrequirementnodes.php` | `No syntax errors detected` |
+| R10 | `SELECT id,log_level,source FROM events` | 3 rows at `log_level` 2 (WARNING) — exactly the R4 refusals; **no Error row** |
+
+**Actual result** — PASS 10/10. The IDOR is closed with no regression to the modern
+requirement specification tree (R6/R7), to the legacy frame shim (R8), or to the anonymous
+bounce (R1). The three WARNING rows in the Event Viewer are the intended, self-documenting
+trace of the retirement rather than silent behaviour change.
