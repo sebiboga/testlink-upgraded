@@ -7091,3 +7091,56 @@ so the test case has NO active version.
   (only the pre-fix reproduction) — no new Error/Warning.
 
 **Overall: PASS (R1–R7).**
+
+
+## Regression — Issue #1737: `reqSpecCommands::deleteFile()` / `bulkReqMon()` each wrote one E_WARNING row into the Event Viewer per request (2 unguarded reads)
+
+**Screen** — the legacy Requirement Specification editor `lib/requirements/reqSpecEdit.php`
+(controller) backed by `lib/requirements/reqSpecCommands.class.php`. Covers the two Event
+Viewer noise paths only, not the editor fields.
+
+**Preconditions**
+- `php tmp/fixtures_1737.php` → test project `RSI7` (requirements enabled) with an EMPTY spec
+  `RS-RSI7` and a throwaway spec `RS-RSI7-DEL`; prints
+  `FIXTURE_OK issue=1737 tproject=<TP> spec_empty=<E> spec_throwaway=<D>`.
+  The DB is freshly imported per run (`testprojects` = 0 rows), so the fixture is required.
+- Log in `admin`/`admin` and prime the session with `index.php?tproject_id=<TP>`; every case
+  watermarks `SELECT COALESCE(MAX(id),0) FROM events` before the request and counts new rows after.
+- For the "spec WITH requirements" case, add two requirements to the empty spec via
+  `requirement_mgr::create()` (`requirements.inc.php` must be required for `req_link_replace()`).
+
+**Repro steps (PRE-fix, commit `ea4702855`)**
+```bash
+CJ=/tmp/opencode/cj1737.txt
+before=$(mysql -h127.0.0.1 -utestlink -ptestlink testlink -N -e "SELECT COALESCE(MAX(id),0) FROM events;")
+curl -s -b "$CJ" "http://localhost:8082/lib/requirements/reqSpecEdit.php?doAction=bulkReqMon&req_spec_id=<E>"   # 200
+curl -s -b "$CJ" "http://localhost:8082/lib/requirements/reqSpecEdit.php?doAction=deleteFile&req_spec_id=<D>&file_id=999999"  # 302
+mysql -h127.0.0.1 -utestlink -ptestlink testlink -e "SELECT id,log_level,description FROM events WHERE id > $before ORDER BY id;"
+# id 3 log_level=2 E_WARNING foreach() argument must be of type array|object, null given ... reqSpecCommands.class.php - Line 877
+# id 4 log_level=2 E_WARNING Undefined property: stdClass::$uploadOp ... reqSpecCommands.class.php - Line 844
+```
+
+**Expected POST-fix** — both requests answer exactly as before (bulkReqMon 200, deleteFile 302)
+and write **0** new `events` rows (any level). `fileUpload`, `create`, `edit`, `reorder` unchanged.
+
+**Results — commit `263b56388`, branch `fix/issue-1737`, app on `http://localhost:8082`: 4/4 PASS.**
+
+```
+=== #1737 regression matrix (fix applied) ===
+deleteFile (throwaway)                     HTTP=302 bytes=0     newEvents=0   (was 1 x :844)
+bulkReqMon (EMPTY spec)                    HTTP=200 bytes=10217 newEvents=0   (was 1 x :877)
+bulkReqMon (spec WITH 2 reqs)              HTTP=200 bytes=11303 newEvents=0   (2 itemSet rows, startMon enabled)
+fileUpload (spec)                          HTTP=302 -> reqSpecView.php?...&uploadOPStatusCode=0  newEvents=0
+create / edit / reorder                    HTTP=200 newEvents=0
+--- all events ---  (empty)
+php -l lib/requirements/reqSpecCommands.class.php -> No syntax errors
+```
+
+### Cases
+
+| # | Case | Expected | Actual (measured) | R |
+|---|---|---|---|---|
+| 1 | `bulkReqMon` on a spec with **0 requirements** | 200, 0 new events | 200, 10217 B, **0** new events (was **1 × :877**) | PASS |
+| 2 | `deleteFile&file_id=999999` on a throwaway spec | 302, 0 new events | 302, 0 B, **0** new events (was **1 × :844**) | PASS |
+| 3 | `bulkReqMon` on a spec **with 2 requirements** (no regression) | 200, rows rendered, 0 new events | 200, 11303 B, 2 `itemSet` rows, `startMon` enabled, 0 events | PASS |
+| 4 | `fileUpload` still sets `uploadOp` (no regression) | 302 → `reqSpecView.php…&uploadOPStatusCode=` | 302 → `…&uploadOPStatusCode=0`, 0 events | PASS |
