@@ -7267,5 +7267,7 @@
   "err.csrfMissing": "Nu s-a găsit CSRFName, cerere probabil invalidă.",
   "err.csrfInvalid": "Token CSRF invalid",
   "err.generic": "Rocket Raccoon te supraveghează",
-  "footers.errorPage": "TestLink 2.0.1 - Eroare"
+  "footers.errorPage": "TestLink 2.0.1 - Eroare",
+  "tcPerUser.filterCol": "Filter {col}",
+  "tcPerUser.filterAll": "All"
 }

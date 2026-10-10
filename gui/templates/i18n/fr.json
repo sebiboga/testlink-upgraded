@@ -7267,5 +7267,7 @@
   "err.csrfMissing": "Aucun CSRFName trouvé, requête probablement invalide.",
   "err.csrfInvalid": "Jeton CSRF invalide",
   "err.generic": "Rocket Raccoon vous surveille",
-  "footers.errorPage": "TestLink 2.0.1 - Erreur"
+  "footers.errorPage": "TestLink 2.0.1 - Erreur",
+  "tcPerUser.filterCol": "Filter {col}",
+  "tcPerUser.filterAll": "All"
 }

@@ -7267,5 +7267,7 @@
   "err.csrfMissing": "CSRFName не найден, вероятно, недопустимый запрос.",
   "err.csrfInvalid": "Недействительный CSRF-токен",
   "err.generic": "Ракета Раккун наблюдает за вами",
-  "footers.errorPage": "TestLink 2.0.1 - Ошибка"
+  "footers.errorPage": "TestLink 2.0.1 - Ошибка",
+  "tcPerUser.filterCol": "Filter {col}",
+  "tcPerUser.filterAll": "All"
 }

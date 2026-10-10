@@ -7267,5 +7267,7 @@
   "err.csrfMissing": "CSRFName が見つかりません。無効なリクエストの可能性があります。",
   "err.csrfInvalid": "無効な CSRF トークン",
   "err.generic": "ロケット・ラクーンがあなたを見ています",
-  "footers.errorPage": "TestLink 2.0.1 - エラー"
+  "footers.errorPage": "TestLink 2.0.1 - エラー",
+  "tcPerUser.filterCol": "Filter {col}",
+  "tcPerUser.filterAll": "All"
 }

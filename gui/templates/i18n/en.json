@@ -7267,5 +7267,7 @@
   "err.csrfMissing": "No CSRFName found, probable invalid request.",
   "err.csrfInvalid": "Invalid CSRF token",
   "err.generic": "Rocket Raccoon is watching You",
-  "footers.errorPage": "TestLink 2.0.1 - Error"
+  "footers.errorPage": "TestLink 2.0.1 - Error",
+  "tcPerUser.filterCol": "Filter {col}",
+  "tcPerUser.filterAll": "All"
 }

@@ -36,6 +36,9 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 .table-wrap { padding: 8px 24px 8px; }
 .table-wrap table { background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.08); width: 100%; }
 table.dataTable thead th { background: #22242a; color: #fff; font-size: 13px; padding: 10px 14px; }
+table.dataTable tfoot td { padding: 4px 6px; background: #f7f8fa; border-bottom: 1px solid #ddd; }
+table.flat tfoot input.col-filter, table.flat tfoot select.col-filter { width: 100%; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; padding: 4px 6px; font-size: 11.5px; background: #fff; }
+table.flat tfoot input.col-filter:focus, table.flat tfoot select.col-filter:focus { outline: none; border-color: #4ECDC4; box-shadow: 0 0 0 2px rgba(78,205,196,.2); }
 table.dataTable tbody td { padding: 8px 14px; font-size: 13px; vertical-align: middle; }
 .user-cell { font-weight: 700; color: #22242a; white-space: nowrap; }
 .tc-link { font-weight: 700; color: #2d8e88; text-decoration: none; }
@@ -145,22 +148,33 @@ table.plain-results tbody tr.dtrg-group td .gcount { font-weight: 400; color: #6
   <i class="fa fa-info-circle"></i> <span data-i18n="tcPerUser.grid.multiSortHint">Shift+click column headers to sort by multiple columns.</span>
 </div>
 
-<div class="table-wrap" id="resultsWrap" style="display:none">
-  <table id="resTable" class="display plain-results" style="width:100%">
-    <thead>
-      <tr>
-        <th style="width:12%" data-i18n="tcPerUser.colUser">User</th>
-        <th style="width:22%" data-i18n="tcPerUser.colPath">Test Suite</th>
-        <th style="width:26%" data-i18n="tcPerUser.colTestCase">Test Case</th>
-        <th style="width:90px" data-i18n="tcPerUser.colImportance">Importance</th>
-        <th style="width:120px" data-i18n="tcPerUser.colCreated">Created</th>
-        <th style="width:130px" data-i18n="tcPerUser.colLastMod">Last Modification</th>
-        <th data-orderable="false" style="width:70px"></th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-</div>
+  <div class="table-wrap" id="resultsWrap" style="display:none">
+    <table id="resTable" class="display plain-results flat" style="width:100%">
+      <thead>
+        <tr>
+          <th style="width:12%" data-i18n="tcPerUser.colUser">User</th>
+          <th style="width:22%" data-i18n="tcPerUser.colPath">Test Suite</th>
+          <th style="width:26%" data-i18n="tcPerUser.colTestCase">Test Case</th>
+          <th style="width:90px" data-i18n="tcPerUser.colImportance">Importance</th>
+          <th style="width:120px" data-i18n="tcPerUser.colCreated">Created</th>
+          <th style="width:130px" data-i18n="tcPerUser.colLastMod">Last Modification</th>
+          <th data-orderable="false" style="width:70px"></th>
+        </tr>
+      </thead>
+      <tfoot id="resTableFoot">
+        <tr>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td></td>
+        </tr>
+      </tfoot>
+      <tbody></tbody>
+    </table>
+  </div>
 
 <div class="footer" id="footerInfo"></div>
 <div class="footer"><span data-i18n="footers.tcCreatedPerUserOnTestProject">TestLink 2.0.1 - Test Cases Created Per User</span></div>
@@ -201,6 +215,13 @@ $(function () {
   $('#btnUserCol').on('click', function () {
     showUserCol = !showUserCol;
     applyUserColState();
+    if (resTbl) {
+      resTbl.column(USER_COL_IDX).visible(showUserCol);
+      attachColumnFilters();
+      resTbl.draw(false);
+    } else {
+      attachColumnFiltersFallback();
+    }
   });
   $('#btnResetFilters').on('click', resetFilters);
   $('#btnMultiSort').on('click', function () {
@@ -446,14 +467,17 @@ function renderResults(r) {
           }
         }
       });
+      attachColumnFilters();
       applyUserColState();
       updateGroupToggleBtn();
     } catch (e) {
       resTbl = null;
     }
+    attachColumnFilters();
   }
   // Fallback path (no DataTables/RowGroup): apply toolbar column state now.
   if (!resTbl) {
+    attachColumnFiltersFallback();
     applyUserColState();
     updateGroupToggleBtn();
   }
@@ -578,20 +602,112 @@ function pinGroupOrder(settings) {
 // Legacy toolbar "Reset Filters" (exttable.class.php toolbarResetFiltersButton
 // default true, inc_ext_table.tpl:292-300): clear the search and restore the
 // legacy default order (user asc, Test Suite desc).
+function anyColumnFilterActive(tbl) {
+  var any = false;
+  if (tbl) {
+    tbl.columns().every(function () {
+      if (this.search() !== '') { any = true; }
+    });
+  }
+  if (!any) {
+    $('#resTableFoot .col-filter').each(function () {
+      if ($(this).val()) { any = true; return false; }
+    });
+  }
+  return any;
+}
+
+function clearAllColumnFilters(tbl) {
+  if (tbl) {
+    tbl.columns().every(function () { this.search(''); });
+  }
+  $('#resTableFoot .col-filter').val('');
+}
+
+function attachColumnFilters() {
+  if (!resTbl) { return; }
+  var $tfrow = $('#resTableFoot tr');
+  $tfrow.empty();
+  resTbl.columns().every(function (idx) {
+    var col = this;
+    var $td = $('<td/>').appendTo($tfrow);
+    var $th = $('#resTable thead th').eq(idx);
+    var label = ($th.text().trim() || (idx + 1));
+    var $ctl;
+    if (idx === 3) { // Importance
+      $ctl = $('<select class="col-filter" data-col="' + idx + '"></select>')
+        .append($('<option value=""></option>').text(TLi18n.t('tcPerUser.filterAll') || 'All'))
+        .append($('<option value="low"></option>').text(impLabel(1)))
+        .append($('<option value="medium"></option>').text(impLabel(2)))
+        .append($('<option value="high"></option>').text(impLabel(3)));
+      $ctl.on('change', function () {
+        var v = this.value;
+        col.search(v ? '^' + v + '$' : '', true, false).draw();
+        updateFilterResetBtn();
+      });
+    } else if (idx === 6) {
+      $td.empty();
+      $ctl = null;
+    } else {
+      $ctl = $('<input type="text" class="col-filter" data-col="' + idx + '" placeholder="' +
+        esc(TLi18n.t('tcPerUser.filterCol', {col: label})) + '" />');
+      $ctl.on('keyup change', function () {
+        col.search(this.value).draw();
+        updateFilterResetBtn();
+      });
+    }
+    if ($ctl) { $td.append($ctl); }
+    if (!col.visible()) { $td.hide(); }
+  });
+  updateFilterResetBtn();
+}
+
+function attachColumnFiltersFallback() {
+  var $tfrow = $('#resTableFoot tr');
+  $tfrow.empty();
+  $('#resTable thead th').each(function (idx) {
+    var $td = $('<td/>').appendTo($tfrow);
+    if (idx === 6) {
+      $td.empty();
+      return;
+    }
+    var label = $(this).text().trim() || (idx + 1);
+    var $ctl;
+    if (idx === 3) {
+      $ctl = $('<select class="col-filter" data-col="' + idx + '"></select>')
+        .append($('<option value=""></option>').text(TLi18n.t('tcPerUser.filterAll') || 'All'))
+        .append($('<option value="low"></option>').text(impLabel(1)))
+        .append($('<option value="medium"></option>').text(impLabel(2)))
+        .append($('<option value="high"></option>').text(impLabel(3)));
+    } else {
+      $ctl = $('<input type="text" class="col-filter" data-col="' + idx + '" placeholder="' +
+        esc(TLi18n.t('tcPerUser.filterCol', {col: label})) + '" />');
+    }
+    $td.append($ctl);
+    var vis = $(this).css('display') !== 'none';
+    $td.css('display', vis ? '' : 'none');
+  });
+  updateFilterResetBtn();
+}
+
+function updateFilterResetBtn() {
+  $('#btnResetFilters').toggleClass('active', anyColumnFilterActive(resTbl));
+}
+
 function resetFilters() {
   if (resTbl) {
     collapsedGroups = Object.create(null);
-    // Do NOT chain order() off the Columns API: columns().order() assigns a
-    // per-column order (corrupts the sort). Clear searches on the Columns API,
-    // then set the table order back on the table API.
     resTbl.search('');
-    resTbl.columns().search('');
+    clearAllColumnFilters(resTbl);
     resTbl.order([[USER_COL_IDX, 'asc'], [1, 'desc']]).draw();
     updateGroupToggleBtn();
+    updateFilterResetBtn();
   } else {
     collapsedGroups = Object.create(null);
+    clearAllColumnFilters(null);
     setPlainGroupsVisible(true);
     updateGroupToggleBtn();
+    updateFilterResetBtn();
   }
   $('#resultsWrap .dataTables_filter input').val('');
   $('#gridToolbarInfo').text(TLi18n.t('tcPerUser.grid.filtersCleared'));

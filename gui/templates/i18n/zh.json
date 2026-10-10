@@ -7267,5 +7267,7 @@
   "err.csrfMissing": "未找到 CSRFName，可能是无效请求。",
   "err.csrfInvalid": "无效的 CSRF 令牌",
   "err.generic": "火箭浣熊正在看着你",
-  "footers.errorPage": "TestLink 2.0.1 - 错误"
+  "footers.errorPage": "TestLink 2.0.1 - 错误",
+  "tcPerUser.filterCol": "Filter {col}",
+  "tcPerUser.filterAll": "All"
 }
