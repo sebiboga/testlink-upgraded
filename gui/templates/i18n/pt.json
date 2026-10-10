@@ -3273,6 +3273,8 @@
   "pv.msg.deactivated": "Plano de teste desativado",
   "pv.msg.deleted": "Plano de teste eliminado",
   "pv.msg.duplicateName": "Já existe um plano de teste com este nome",
+  "pv.msg.copySourceNotFound": "Plano de teste de origem para cópia não encontrado",
+  "pv.msg.copySourceMismatch": "A origem da cópia pertence a outro projeto de teste",
   "pv.msg.updated": "Plano de teste atualizado",
   "pv.name": "Nome",
   "pv.noSelection": "Selecione pelo menos um plano de teste",

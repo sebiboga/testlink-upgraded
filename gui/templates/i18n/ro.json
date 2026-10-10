@@ -3273,6 +3273,8 @@
   "pv.msg.deactivated": "Plan de test dezactivat",
   "pv.msg.deleted": "Plan de test șters",
   "pv.msg.duplicateName": "Un plan de testare cu acest nume există deja",
+  "pv.msg.copySourceNotFound": "Planul de testare sursă pentru copiere nu a fost găsit",
+  "pv.msg.copySourceMismatch": "Sursa copierii aparține unui alt proiect de testare",
   "pv.msg.updated": "Planul de testare a fost actualizat",
   "pv.name": "Nume",
   "pv.noSelection": "Selectați cel puțin un plan de test",

@@ -7290,3 +7290,22 @@ Login admin/admin. Screen: `/gui/templates/plans/planView.html?tproject_id=1`.
 | 19 | i18n coverage (`pe.copy.*` reused) | all keys present in 10 bundles | PASS |
 
 **Result: 19/19 PASS.**
+
+## Task — Issue #1117 (post-review fixes): orphan-plan guard + forced build copy
+
+Follow-up to the code review of the #1117 change (rule 16). Two high-severity
+review findings fixed and re-verified in the browser (fetch against the live
+`/api/plans/index.php`, project id=1 `Copy Fixture`, source plan id=2,
+foreign plan id=13 in project id=12).
+
+| # | Step | Expected | Actual |
+|---|---|---|---|
+| 20 | POST create with `copy_from_tplan_id=13` (foreign project) | HTTP 400 `COPY_SOURCE_MISMATCH`, **no new plan** | PASS — 400 returned; plan list unchanged (5 items, no `ZZ *` orphan) |
+| 21 | POST create with `copy_from_tplan_id=999999` (missing) | HTTP 404 `COPY_SOURCE_NOT_FOUND`, **no new plan** | PASS — 404 returned; no orphan plan created |
+| 22 | (root cause of #1) source validation moved BEFORE `testplan::create()` | rejected request never creates the plan + audit row | PASS — `api/plans/index.php` validates `$copyFrom` before `create()` |
+| 23 | POST create `copy_from_tplan_id=2`, `copy_assigned_to=1`, `copy_options.copy_builds=0` | build copy forced (legacy rule), no PHP warning, plan copied | PASS — 200, new plan id=16 `tcase_qty=1 build_qty=1`; `copy_as()` forces `copy_builds=1` when `copy_assigned_to` |
+| 24 | Normal copy `copy_from_tplan_id=2` (all options) | plan created with copied tcases/builds | PASS — 200, new plan id=15, `tcase_qty=1 build_qty=1` |
+| 25 | i18n: new `pv.msg.copySourceNotFound` / `pv.msg.copySourceMismatch` keys | present + valid in all 10 bundles | PASS — `verify_i18n_coverage.sh` 9/9, 7305 keys, 0 missing |
+| 26 | JS fail-handler maps the two new error codes to `TLi18n.t(...)` | no hardcoded English shown in the modal | PASS — branches added in `planView.html` |
+
+**Result: 7/7 PASS.** Commits: `bee0c5d22` (feature) + review-fix commit.

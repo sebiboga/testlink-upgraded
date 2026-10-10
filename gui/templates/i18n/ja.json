@@ -3273,6 +3273,8 @@
   "pv.msg.deactivated": "テスト計画を無効化しました",
   "pv.msg.deleted": "テスト計画を削除しました",
   "pv.msg.duplicateName": "この名前のテスト計画は既に存在します",
+  "pv.msg.copySourceNotFound": "コピー元のテストプランが見つかりません",
+  "pv.msg.copySourceMismatch": "コピー元は別のテストプロジェクトに属しています",
   "pv.msg.updated": "テスト計画が更新されました",
   "pv.name": "名前",
   "pv.noSelection": "少なくとも1つのテスト計画を選択してください",

@@ -3273,6 +3273,8 @@
   "pv.msg.deactivated": "Test plan deactivated",
   "pv.msg.deleted": "Test plan deleted",
   "pv.msg.duplicateName": "A test plan with this name already exists",
+  "pv.msg.copySourceNotFound": "Copy source test plan not found",
+  "pv.msg.copySourceMismatch": "The copy source belongs to another test project",
   "pv.msg.updated": "Test plan updated",
   "pv.name": "Name",
   "pv.noSelection": "Please select at least one test plan",

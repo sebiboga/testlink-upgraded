@@ -3273,6 +3273,8 @@
   "pv.msg.deactivated": "测试计划已停用",
   "pv.msg.deleted": "测试计划已删除",
   "pv.msg.duplicateName": "同名的测试计划已存在",
+  "pv.msg.copySourceNotFound": "未找到用于复制的源测试计划",
+  "pv.msg.copySourceMismatch": "复制源属于另一个测试项目",
   "pv.msg.updated": "测试计划已更新",
   "pv.name": "名称",
   "pv.noSelection": "请至少选择一个测试计划",

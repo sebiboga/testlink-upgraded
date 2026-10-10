@@ -1549,7 +1549,16 @@ class testplan extends tlObjectWithAttachments
     $my['options']['tcversion_type'] = null;
 
     $my['options'] = array_merge($my['options'], (array)$options);
-    
+
+    // User assignment lives at BUILD level, so BUILD COPY is forced whenever
+    // the caller asks to copy Test Case assignments (same rule as the legacy
+    // 1.9.20 behaviour, testplan.class.php note). Without this the build-id
+    // mapping is null and copy_linked_tcversions() would dereference it. Refs #1117.
+    if(!empty($my['options']['copy_assigned_to']))
+    {
+      $my['options']['items2copy']['copy_builds'] = 1;
+    }
+
     $safe['new_tplan_id'] = intval($new_tplan_id);
 
     // get source testplan general info

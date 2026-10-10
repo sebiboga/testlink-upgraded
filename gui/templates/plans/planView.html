@@ -658,6 +658,10 @@ function submitPlan() {
       $('#planModalError').show().text(TLi18n.t('pv.msg.duplicateName'));
     } else if (r.error_code === 'NAME_REQUIRED') {
       $('#planModalError').show().text(TLi18n.t('pv.modal.nameRequired'));
+    } else if (r.error_code === 'COPY_SOURCE_NOT_FOUND') {
+      $('#planModalError').show().text(TLi18n.t('pv.msg.copySourceNotFound'));
+    } else if (r.error_code === 'COPY_SOURCE_MISMATCH') {
+      $('#planModalError').show().text(TLi18n.t('pv.msg.copySourceMismatch'));
     } else {
       $('#planModalError').show().text(r.message || TLi18n.t('common.error'));
     }

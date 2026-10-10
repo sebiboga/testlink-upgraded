@@ -431,6 +431,26 @@ if ($method === 'POST' && count($segments) === 0) {
     $isPublic = !empty($body['is_public']) ? 1 : 0;
 
     $tplanMgr = new testplan($db);
+
+    // Refs #1117: validate the copy source BEFORE creating anything, so an
+    // invalid/foreign source id cannot leave an orphan (empty) plan + audit
+    // row behind when the request is rejected.
+    $copyFrom = intval($body['copy_from_tplan_id'] ?? 0);
+    if ($copyFrom > 0) {
+        $source = $tplanMgr->get_by_id($copyFrom);
+        if (empty($source)) {
+            http_response_code(404);
+            out(['status' => 'error', 'message' => 'Source test plan not found',
+                 'error_code' => 'COPY_SOURCE_NOT_FOUND']);
+        }
+        if (intval($source['testproject_id']) !== $tproject_id) {
+            http_response_code(400);
+            out(['status' => 'error',
+                 'message' => 'Source test plan belongs to another test project',
+                 'error_code' => 'COPY_SOURCE_MISMATCH']);
+        }
+    }
+
     $newId = $tplanMgr->create($name, $notes, $tproject_id, $active, $isPublic);
     if ($newId == 0) {
         http_response_code(500);
@@ -447,20 +467,7 @@ if ($method === 'POST' && count($segments) === 0) {
     // standalone create/edit screen (api/planedit/index.php:281-314) which
     // already ports the same legacy feature; the modal create flow now has
     // parity too (Refs #1117).
-    $copyFrom = intval($body['copy_from_tplan_id'] ?? 0);
     if ($copyFrom > 0) {
-        $source = $tplanMgr->get_by_id($copyFrom);
-        if (empty($source)) {
-            http_response_code(404);
-            out(['status' => 'error', 'message' => 'Source test plan not found',
-                 'error_code' => 'COPY_SOURCE_NOT_FOUND']);
-        }
-        if (intval($source['testproject_id']) !== $tproject_id) {
-            http_response_code(400);
-            out(['status' => 'error',
-                 'message' => 'Source test plan belongs to another test project',
-                 'error_code' => 'COPY_SOURCE_MISMATCH']);
-        }
         $copt = is_array($body['copy_options'] ?? null)
             ? $body['copy_options'] : [];
         $allowed = ['copy_tcases', 'copy_priorities', 'copy_milestones',
