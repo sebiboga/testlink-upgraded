@@ -7170,3 +7170,27 @@ php -l lib/requirements/reqSpecCommands.class.php -> No syntax errors
 
 ### Actual result (to be recorded after execution)
 PASS/FAIL
+
+## Regression — Issue #1891: tlFilterControl: date custom-field filter with no-delimiter value dereferences null from split_localized_date (E_WARNING + mktime(null) deprecated after #1889)
+
+### Precondition
+- Empty events table (or record baseline count): `SELECT COUNT(*) FROM events;`
+- Access to http://localhost:8082 with admin/admin
+- A screen that uses tlFilterControl/tlTestCaseFilterControl (e.g. test case filter panel) where date/datetime custom fields appear in the filter form (execution/edit/plan modes). Alternatively, simulate by posting filter parameters with a malformed date to a controller that initializes the filter control.
+
+### Steps
+1. Get baseline: `mysql -h127.0.0.1 -utestlink -ptestlink testlink -N -e "SELECT COALESCE(MAX(id),0) FROM events;"`
+2. Trigger a filter request containing a date custom field value with no delimiter. Example params for a CF of type date (input field): `custom_field_8_<cfid>_input=aaaaaa` (and do not set other parts). The filter control’s `init_filter_custom_fields()` will read `_input` as non-empty string, call `split_localized_date('aaaaaa', locale format)` which returns null, and previously dereferenced it.
+3. Submit the filter (Apply Filters) on the target screen (test case filter / requirement filter / any filter panel that includes CF date/datetime).
+4. Check events table: `mysql -h127.0.0.1 -utestlink -ptestlink testlink -e "SELECT id,log_level,description FROM events WHERE id > $before ORDER BY id;"`
+
+### Expected behavior (post-fix)
+- No PHP warnings/deprecations emitted from the null dereference in `tlFilterControl::init_filter_custom_fields()` for date/datetime CF filters.
+- Submitting `aaaaaa` as a date CF filter value does not create any new rows in `events` (E_WARNING/E_NOTICE related to that dereference).
+- Valid date inputs continue to parse correctly and filter as before.
+
+### Actual result (measured)
+- Before fix: dereferencing `$date_array` when null produced warnings logged by `watchPHPErrors()` (E_WARNING: Trying to access array offset on value of type null; mktime passing null) into `events`.
+- After fix: added null guard (`$date_array !== null && is_array($date_array)`) before calling `mktime()` for both date and datetime branches in `tlFilterControl::init_filter_custom_fields()` (lines ~412-414, ~423-425). `php -l lib/functions/tlFilterControl.class.php` OK.
+
+PASS

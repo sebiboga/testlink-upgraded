@@ -410,7 +410,9 @@ abstract class tlFilterControl extends tlObjectWithDB
               $second = $_REQUEST[$cf_input_name . '_second'];
                   
               $date_array = split_localized_date($date, $date_format);
-              $value = mktime($hour, $minute, $second, $date_array['month'], $date_array['day'], $date_array['year']);
+              if ($date_array !== null && is_array($date_array)) {
+                $value = mktime($hour, $minute, $second, $date_array['month'], $date_array['day'], $date_array['year']);
+              }
             }
           }
                   
@@ -421,7 +423,9 @@ abstract class tlFilterControl extends tlObjectWithDB
             {
               $date = $_REQUEST[$cf_input_name . '_input'];           
               $date_array = split_localized_date($date, $date_format);
-              $value = mktime(0, 0, 0, $date_array['month'], $date_array['day'], $date_array['year']);
+              if ($date_array !== null && is_array($date_array)) {
+                $value = mktime(0, 0, 0, $date_array['month'], $date_array['day'], $date_array['year']);
+              }
             }
           }
         }
