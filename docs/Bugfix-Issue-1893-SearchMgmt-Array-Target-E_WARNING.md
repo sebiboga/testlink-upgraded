@@ -52,15 +52,15 @@ the legacy controller never had this read. Same family as the #1731 fix.
 ## Blast radius
 
 `grep -c 'trim((string)$_REQUEST\|(string)$_REQUEST\|(string)$_GET\|(string)$_POST'` over
-`lib/ api/ gui/` at HEAD returns **55 hits** — but the great majority are already guarded by an
-`is_scalar()` check (35 `is_scalar($_REQUEST[...])` sites). This issue is scoped to
-`lib/search/searchMgmt.php`. The sibling shims `listTestCases.php:57-63` (#1732) and
-`reqMgrSystemEdit.php:80-88` (#1731) already carry the guard and are the precedent idiom.
+`lib/ api/ gui/` at HEAD returns **55 raw casts** and **41 already-`is_scalar()`-guarded
+`$_REQUEST[...]` sites**. This issue is scoped to `lib/search/searchMgmt.php`. The sibling shims
+`listTestCases.php:57-63` (#1732) and `reqMgrSystemEdit.php:80-86` (#1731) already carry the guard
+and are the precedent idiom.
 
-## The fix (minimal, 1 file, +16/-1)
+## The fix (minimal, 1 file, +19/-1)
 
 `lib/search/searchMgmt.php` reads `target` through the same `is_scalar()`-guarded `shimReqScalar()`
-idiom already established in the repo (listTestCases.php:57-63, reqMgrSystemEdit.php:80-88,
+idiom already established in the repo (listTestCases.php:57-63, reqMgrSystemEdit.php:80-86,
 `bffQueryScalar()` in api/reqmgrsystemedit):
 
 ```php
