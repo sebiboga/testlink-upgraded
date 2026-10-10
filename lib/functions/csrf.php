@@ -187,8 +187,8 @@ function csrfguard_start()
     {
       //trigger_error("No CSRFName found, probable invalid request.",E_USER_ERROR);
       //return false;
-      // Refs #1895: the modern error screen (error.php is now a 302 shim
-      // forwarding the ?code= unchanged, so both targets stay valid).
+      // Refs #1895: link straight to the modern error screen (legacy
+      // error.php is only a 302 shim for old bookmarks now).
       redirect($_SESSION['basehref'] . 'gui/templates/feedback/error.html?code=1');
       exit();
     }

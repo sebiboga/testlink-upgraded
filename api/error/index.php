@@ -10,7 +10,7 @@
  *
  * Routes (GET/HEAD only; the legacy page required NO session — it was a
  * bare render without testlinkInitPage, so an anonymous deep-link works):
- *   GET ?code=<int>[&locale=xx]
+ *   GET ?code=<int>
  *     -> { status, code, known, error_code, message_key, auth:{...},
  *          locale, basehref }
  *
@@ -41,6 +41,10 @@ doSessionStart();
 require_once(__DIR__ . '/../_guard.php');
 bffSameOriginGuard();
 
+// Headers and request validation FIRST: the page must answer a clean JSON
+// error even when the DB is unreachable (it is the error page, after all),
+// and `doDBConnect()` echoes the raw driver text on failure — so the DB is
+// only connected lazily, below, when the login fallback truly needs it.
 header('Content-Type: application/json; charset=utf-8');
 header('X-Content-Type-Options: nosniff');
 header('Cache-Control: no-store');
@@ -96,10 +100,18 @@ if ($userId > 0) {
     if (isset($_SESSION['currentUser']) && is_object($_SESSION['currentUser'])
         && isset($_SESSION['currentUser']->login)) {
         $userLogin = (string)$_SESSION['currentUser']->login;
-    } elseif (class_exists('tlUser') && isset($db)) {
-        $u = tlUser::getByID($db, $userId);
-        if (is_object($u) && isset($u->login)) {
-            $userLogin = (string)$u->login;
+    } elseif (class_exists('tlUser')) {
+        // Lazy connect: only now, and never let a DB failure break the
+        // error page (the login is decorative — the id is still returned).
+        try {
+            $db = new database(DB_TYPE);
+            doDBConnect($db);
+            $u = tlUser::getByID($db, $userId);
+            if (is_object($u) && isset($u->login)) {
+                $userLogin = (string)$u->login;
+            }
+        } catch (Throwable $e) {
+            $userLogin = '';
         }
     }
 }
@@ -122,4 +134,4 @@ $payload = array(
     'basehref'    => $basehref,
 );
 
-echo json_encode($payload);
+echo json_encode($payload, JSON_INVALID_UTF8_SUBSTITUTE);

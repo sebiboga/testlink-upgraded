@@ -42,9 +42,9 @@ if (isset($_SERVER['REQUEST_METHOD']) &&
 // Scalar/integer guard: a non-scalar or non-numeric code falls back to the
 // legacy generic default instead of being coerced (#1886 / #1893 class).
 $code = 0;
-if (isset($_REQUEST['code']) && is_scalar($_REQUEST['code']) &&
-    preg_match('/^-?\d+$/', trim((string)$_REQUEST['code']))) {
-  $code = (int)$_REQUEST['code'];
+if (isset($_GET['code']) && is_scalar($_GET['code']) &&
+    preg_match('/^-?\d+$/', trim((string)$_GET['code']))) {
+  $code = (int)$_GET['code'];
 }
 
 $base = (isset($_SESSION['basehref']) && $_SESSION['basehref'] !== '')
@@ -56,6 +56,6 @@ if (!headers_sent()) {
   header('Location: ' . $target, true, 302);
 } else {
   echo "<script type='text/javascript'>window.location.replace("
-     . json_encode($target) . ");</script>";
+     . json_encode($target, JSON_HEX_TAG | JSON_HEX_AMP) . ");</script>";
 }
 exit;
