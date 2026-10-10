@@ -14,8 +14,20 @@ codebase: the legacy Smarty UI was rewritten into a modern Dashio Bootstrap
 single-page HTML/JS/CSS front-end backed by a plain-PHP REST BFF API layer.
 Every screen of the application was ported one-by-one in a screen-compare
 (legacy 1.9.20 <-> modern) feature-parity process. The legacy code base was
-kept for backward compatibility and is progressively retired as each modern
+  kept for backward compatibility and is progressively retired as each modern
   screen reaches full parity.
+
+- [KEY BUGFIX] - #1737: **`lib/requirements/reqSpecCommands.class.php` wrote one `E_WARNING`
+  row into the Event Viewer per request on two paths of the legacy Requirement Specification
+  editor — `deleteFile()` read the undefined `$argsObj->uploadOp` (`:844`) and `bulkReqMon()`
+  ran `foreach()` over a `null` requirement list (`:877`) for a spec with no requirements yet
+  (the common "just created" case)**. Fix (1 file, +2 lines): `deleteFile()` initialises
+  `$argsObj->uploadOp = null;` (only `fileUpload()` ever created it; a delete has no upload
+  status), and `bulkReqMon()` normalises `$obj->items` to an array before the loop. Verified
+  pre-fix +1 row per request (`log_level=2`), post-fix 0 new rows on both paths plus
+  `fileUpload`/`create`/`edit`/`reorder`; `php -l` clean. Docs:
+  `docs/Bugfix-Issue-1737-reqSpecCommands-Unguarded-Reads-E_WARNING.md` + wiki page; regression
+  suite `Issue #1737` 4/4 PASS. (Fixes #1737)
 
 - [FEATURE GAP] - #1111: the modern **Test Cases Created Per User** report
   (`gui/templates/results/tcCreatedPerUserOnTestProject.html`) dropped the legacy

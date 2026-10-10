@@ -824,6 +824,13 @@ class reqSpecCommands
    */
   function deleteFile(&$argsObj)
   {
+    // Refs #1737: initGuiObjForAttachmentOperations() reads $argsObj->uploadOp
+    // unconditionally, but only fileUpload() ever creates that property. Without
+    // this initialisation the delete path read an undefined property and wrote one
+    // E_WARNING (log_level=2) into the Event Viewer per request. A delete has no
+    // upload status, so null is the correct value (renderGui() treats null as
+    // "nothing to report", reqSpecEdit.php:460).
+    $argsObj->uploadOp = null;
     deleteAttachment($this->db,$argsObj->file_id);
     return $this->initGuiObjForAttachmentOperations($argsObj);
   }
@@ -874,6 +881,12 @@ class reqSpecCommands
     
     $obj->enable_start_btn = false;
     $obj->enable_stop_btn = false;
+    // Refs #1737: get_requirements() yields nothing for a spec with no
+    // requirements yet, so $obj->items stays null (or is unset when
+    // get_items=false), and the foreach below wrote one E_WARNING
+    // (log_level=2) per request into the Event Viewer. Normalise to an
+    // empty array so both the loop and reqBulkMon.tpl's foreach/count are safe.
+    $obj->items = (array)($obj->items ?? array());
     foreach($obj->items as $xdx => &$itx)
     {
       $onOff = isset($monSet[$itx['id']]) ? true : false;
