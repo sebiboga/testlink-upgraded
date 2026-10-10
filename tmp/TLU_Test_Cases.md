@@ -7144,3 +7144,29 @@ php -l lib/requirements/reqSpecCommands.class.php -> No syntax errors
 | 2 | `deleteFile&file_id=999999` on a throwaway spec | 302, 0 new events | 302, 0 B, **0** new events (was **1 × :844**) | PASS |
 | 3 | `bulkReqMon` on a spec **with 2 requirements** (no regression) | 200, rows rendered, 0 new events | 200, 11303 B, 2 `itemSet` rows, `startMon` enabled, 0 events | PASS |
 | 4 | `fileUpload` still sets `uploadOp` (no regression) | 302 → `reqSpecView.php…&uploadOPStatusCode=` | 302 → `…&uploadOPStatusCode=0`, 0 events | PASS |
+## Task — Issue #1112: tcCreatedPerUserOnTestProject: per-column filters (incl. custom Importance filter) dropped (gap vs legacy)
+
+### Precondition
+- Modern report screen `gui/templates/results/tcCreatedPerUserOnTestProject.html` opened in browser at /gui/templates/results/tcCreatedPerUserOnTestProject.html?tproject_id=<TPID>
+- Test project with some test cases created at different times by different users; some have Low/Medium/High importance
+- BFF `/api/results/report` returns rows with importance codes 1/2/3 and user/path/testcase/creationTs/modificationTs
+
+### Steps
+1. Load the screen and run report (or ensure table renders). Check for tfoot row with per-column inputs/selects.
+2. Filter by User column (text): type partial user name -> table shows only matching user rows; group headers update appropriately.
+3. Filter by Test Suite (path) column (text): partial match filters rows.
+4. Filter by Test Case column (text): filters by the visible TC label text.
+5. Filter by Importance: use select (All/low/medium/high). Choose "high" -> only importance 3 rows remain. Choose "All" -> all.
+6. Filter by Created column (text): partial date/time string filters.
+7. Filter by Last Modification (text): partial string filters.
+8. Combine filters (AND): set User filter + Importance="medium" -> only rows matching both.
+9. Reset Filters: click Reset Filters -> all column filters cleared, order restored to user asc, Test Suite desc (legacy default), and grid state reset.
+
+### Expected behavior
+- Per-column filter controls appear in table footer for all data columns (User, Test Suite, Test Case, Importance, Created, Last Modification). Actions column has no filter.
+- Text filters filter rows by the corresponding cell content (case-insensitive partial match). Importance uses exact list match (regex ^v$ on rendered label value).
+- Reset Filters clears all column filter values, resets global search if any, restores legacy sort order, clears collapsed groups, and updates toolbar state.
+- DataTables/RowGroup grouping remains consistent when filters applied (group headers reflect filtered rows).
+
+### Actual result (to be recorded after execution)
+PASS/FAIL
