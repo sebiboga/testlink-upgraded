@@ -63,6 +63,19 @@ Every screen of the application was ported one-by-one in a screen-compare
   `docs/Bugfix-Issue-1737-reqSpecCommands-Unguarded-Reads-E_WARNING.md` + wiki page; regression
   suite `Issue #1737` 4/4 PASS. (Fixes #1737)
 
+- [KEY BUGFIX] - #1738: **an array-shaped input value (`?k[]=x`, and the nested `?k[][]=x`)
+  reached PHP's string/number functions through the shared input layer
+  (`lib/functions/inputparameter.class.php`) and raised an uncaught PHP 8 `TypeError` → HTTP 500,
+  0-byte body, zero `events` rows, from any screen.** The scalar case was already closed one level
+  above the root cause by the #1720 fix (`fetchParameter()`); this completes it at the root by
+  adding the `is_scalar()` guard to `tlStringValidationInfo::trim()`,
+  `tlIntegerValidationInfo::normalize()` and `tlArrayValidationInfo::normalize()` (1 file, +21
+  lines): a non-scalar value now reads as absent (`null`) / is dropped, so `trim()` can never
+  fatal. Verified pre/post (`ARRAY_INT` nested: `TypeError` → `array()`; scalar unchanged) and via
+  live HTTP; Event Viewer delta 0 rows. Docs:
+  `docs/Bugfix-Issue-1738-Array-Typed-Parameter-Trim-TypeError.md` + wiki page; regression suite
+  `Issue #1738` 14/14 PASS. (Fixes #1738)
+
 - [FEATURE GAP] - #1111: the modern **Test Cases Created Per User** report
   (`gui/templates/results/tcCreatedPerUserOnTestProject.html`) dropped the legacy
   `tlExtTable` **group-by-user grid** and its ExtGrid toolbar
