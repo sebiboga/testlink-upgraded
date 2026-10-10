@@ -122,10 +122,13 @@ function resolveTplan($db, $tplanId) {
     if (is_null($info)) {
         return null;
     }
+    $tprojMgr = new testproject($db);
+    $pinfo = $tprojMgr->get_by_id(intval($info['parent_id']));
     return [
         'tplan_id' => intval($tplanId),
         'tplan_name' => $info['name'],
         'tproject_id' => intval($info['parent_id']),
+        'tproject_name' => (is_array($pinfo) && isset($pinfo['name'])) ? $pinfo['name'] : '',
     ];
 }
 
@@ -267,6 +270,7 @@ if (($method === 'GET' || $method === 'HEAD') && $action === 'init') {
                 'tplan_id' => $ctx['tplan_id'],
                 'tplan_name' => $ctx['tplan_name'],
                 'tproject_id' => $ctx['tproject_id'],
+                'tproject_name' => $ctx['tproject_name'],
                 'testPriorityEnabled' => $prio,
                 'milestone' => [
                     'id' => intval($row['id']),
@@ -304,6 +308,7 @@ if (($method === 'GET' || $method === 'HEAD') && $action === 'init') {
             'tplan_id' => $ctx['tplan_id'],
             'tplan_name' => $ctx['tplan_name'],
             'tproject_id' => $ctx['tproject_id'],
+            'tproject_name' => $ctx['tproject_name'],
             'testPriorityEnabled' => $prio,
             'milestone' => null,
         ],
@@ -372,6 +377,20 @@ if ($method === 'POST' && $action === 'update') {
                      intval(scalarParam($_GET, 'tproject_id', 0)))));
 
     $body = getBody();
+
+    // A partial update body must not silently zero the stored percentages:
+    // any percentage field the caller does not send keeps its DB value.
+    // (The screen always sends all three; this only guards API callers.)
+    foreach (['high_percentage', 'medium_percentage', 'low_percentage'] as $pk) {
+        if (!array_key_exists($pk, $body)) {
+            $stored = isset($original[$pk]) ? intval($original[$pk]) : 0;
+            if ($stored < 0 || $stored > 100) {
+                $stored = 0;
+            }
+            $body[$pk] = $stored;
+        }
+    }
+
     list($name, $targetDate, $startDate, $highPct, $mediumPct, $lowPct) =
         validateWrite($body, $milestoneMgr, $ctx['tplan_id'], $mid);
 

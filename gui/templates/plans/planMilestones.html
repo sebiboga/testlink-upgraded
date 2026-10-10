@@ -112,6 +112,7 @@ table.dataTable tbody td { padding: 8px 14px; font-size: 13px; vertical-align: m
       <div class="modal-header">
         <h5 class="modal-title" id="editTitle">Milestone</h5>
         <button type="button" class="btn btn-link" id="btnEventHistory" style="display:none;font-size:13px;padding:0 8px;" onclick="showEventHistory()"><i class="fas fa-history"></i> <span data-i18n="ms.showEventHistory">Show event history</span></button>
+        <button type="button" class="btn btn-link" id="btnFullScreen" style="display:none;font-size:13px;padding:0 8px;" onclick="openFullScreen()"><i class="fas fa-expand"></i> <span data-i18n="ms.fullScreen">Open in full screen</span></button>
         <button type="button" class="close" data-dismiss="modal">&times;</button>
       </div>
       <div class="modal-body" style="font-size:13px;">
@@ -449,6 +450,7 @@ function openCreate() {
   $('#fLowPct').val('0');
   $('#fMediumOnlyPct').val('0');
   $('#btnEventHistory').hide();
+  $('#btnFullScreen').show();
   togglePctFields();
   $('#editModal').modal('show');
 }
@@ -465,8 +467,19 @@ function openEdit(m) {
   $('#fLowPct').val(m.low_percentage == null ? 0 : m.low_percentage);
   $('#fMediumOnlyPct').val(m.medium_percentage == null ? 0 : m.medium_percentage);
   $('#btnEventHistory').toggle(!!canViewEvents);
+  $('#btnFullScreen').show();
   togglePctFields();
   $('#editModal').modal('show');
+}
+
+/** Refs #1894: open the standalone Test Milestone Create/Edit screen. */
+function openFullScreen() {
+  var id = $('#fId').val();
+  var url = '/gui/templates/plans/planMilestoneEdit.html?mode=' +
+            (id ? 'edit' : 'create') +
+            '&tplan_id=' + encodeURIComponent(tplanId) +
+            (id ? '&milestone_id=' + encodeURIComponent(id) : '');
+  window.open(url, '_blank');
 }
 
 /** Legacy parity: planMilestonesEdit.tpl showEventHistoryFor(id,'milestones')

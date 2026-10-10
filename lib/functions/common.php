@@ -2345,6 +2345,13 @@ function getActions(&$gui,$baseURL) {
     $actions->mileView = "/gui/templates/plans/planMilestones.html?{$ctx}";
     $actions->milestonesView =
       "/gui/templates/plans/planMilestones.html?{$ctx}";
+    // Test Milestone Create/Edit modernized screen (Dashio standalone page) -
+    // Refs #1894. Replaces the legacy planMilestonesEdit.php renderer; the BFF
+    // (api/milestoneedit) enforces the legacy controller right
+    // (testplan_planning) on the owning project on every route. Plan-scoped
+    // (the create form needs a tplan_id), so it lives inside the guard.
+    $actions->planMilestoneEdit =
+      "/gui/templates/plans/planMilestoneEdit.html?{$ctx}";
     // Refs #1845: Priority Bar Chart report (legacy
     // lib/results/priorityBarChart.php: an orphan PNG endpoint whose two
     // includes - third_party/charts/charts.php and

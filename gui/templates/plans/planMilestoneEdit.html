@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Test Milestone</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; color: #0d3f3c; opacity: 1; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-dark { background: #353b48; color: #fff; border: none; padding: 7px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-dark:hover { background: #454d5c; }
+.btn-red { background: #e6605e; color: #fff; border: none; padding: 7px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-red:hover { background: #c53f3d; }
+.section { padding: 18px 24px 4px; }
+.card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 18px 20px; }
+.meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px 24px; }
+.meta .k { font-size: 11px; text-transform: uppercase; color: #999; letter-spacing: .5px; }
+.meta .v { font-size: 13px; color: #22242a; font-weight: 700; word-break: break-word; }
+.form-label { display: block; font-size: 12px; font-weight: 700; color: #353b48; margin-bottom: 4px; }
+.form-control { font-size: 13px; }
+.hint { font-size: 11px; color: #888; margin-top: 3px; }
+.info { font-size: 12px; color: #777; font-style: italic; margin-top: 14px; }
+.groupBtn { margin-top: 18px; display: flex; gap: 10px; flex-wrap: wrap; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.toast.err { background: #e6605e; }
+.state-wrap { padding: 24px; }
+.state-card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 28px; max-width: 620px; margin: 18px auto; text-align: center; }
+.state-card .icon { font-size: 34px; margin-bottom: 10px; }
+.state-card h3 { font-size: 16px; font-weight: 700; color: #22242a; margin: 0 0 6px; }
+.state-card p { font-size: 13px; color: #666; margin: 0; }
+.state-card code { display: inline-block; margin-top: 10px; font-size: 11px; color: #a33; background: #fdf0f0; border-radius: 4px; padding: 3px 8px; }
+.state-card.err .icon { color: #e6605e; }
+.state-card.warn .icon { color: #e6a817; }
+.modal-title { font-size: 16px; font-weight: 700; }
+.flash { display: none; font-size: 13px; border-radius: 5px; padding: 10px 14px; margin-bottom: 14px; }
+.flash.err { display: block; background: #fdecea; color: #a33; border: 1px solid #f3c1bd; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span id="headerTitle" data-i18n="pme.header">Test Milestone</span>
+  <span class="sub" data-i18n="pme.headerSub">create or edit a milestone of a test plan</span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="toolbar" id="toolbar" style="display:none">
+  <span class="ctx"><span data-i18n="pme.testProject">Test project</span>: <b id="tprojectName">-</b></span>
+  <span class="ctx"><span data-i18n="pme.testPlan">Test plan</span>: <b id="tplanName">-</b></span>
+  <span style="flex:1"></span>
+  <button class="btn-dark" id="btnEventHistory" style="display:none" onclick="showEventHistory()"><i class="fas fa-history"></i> <span data-i18n="ms.showEventHistory">Show event history</span></button>
+  <button class="btn-dark" id="btnRefresh"><i class="fas fa-sync"></i> <span data-i18n="common.refresh">Refresh</span></button>
+  <button class="btn-dark" id="btnBack"><i class="fas fa-list"></i> <span data-i18n="pme.back">Back to Milestones</span></button>
+  <button class="btn-dark" id="btnClose"><i class="fas fa-times"></i> <span data-i18n="common.close">Close</span></button>
+</div>
+
+<div class="state-wrap" id="stateWrap" style="display:none">
+  <div class="state-card" id="stateCard">
+    <div class="icon"><i class="fas fa-circle-notch fa-spin"></i></div>
+    <h3 id="stateTitle">-</h3>
+    <p id="stateText">-</p>
+    <code id="stateCode" style="display:none"></code>
+  </div>
+</div>
+
+<div class="section" id="formSection" style="display:none">
+  <div class="flash" id="flash"></div>
+  <div class="card">
+    <div class="meta" style="margin-bottom:18px">
+      <div><div class="k" data-i18n="pme.testProject">Test project</div><div class="v" id="ctxProject">-</div></div>
+      <div><div class="k" data-i18n="pme.testPlan">Test plan</div><div class="v" id="ctxPlan">-</div></div>
+      <div><div class="k" data-i18n="pme.mode">Mode</div><div class="v" id="ctxMode">-</div></div>
+    </div>
+
+    <form id="msForm" onsubmit="return false;">
+      <input type="hidden" id="fId" value="">
+      <div class="form-group" style="margin-bottom:12px;">
+        <label class="form-label" for="fName" data-i18n="ms.enterName">Milestone name</label>
+        <input type="text" class="form-control" id="fName" maxlength="100" required>
+        <div class="hint" data-i18n="ms.nameHint">must be unique within the test plan</div>
+      </div>
+      <div class="row">
+        <div class="col-sm-6">
+          <div class="form-group" style="margin-bottom:12px;">
+            <label class="form-label" for="fTargetDate" data-i18n="ms.targetDate">Target date</label>
+            <input type="date" class="form-control" id="fTargetDate" required>
+            <div class="hint" data-i18n="ms.targetHint">must not be in the past</div>
+          </div>
+        </div>
+        <div class="col-sm-6">
+          <div class="form-group" style="margin-bottom:12px;">
+            <label class="form-label" for="fStartDate" data-i18n="ms.startDate">Start date</label>
+            <input type="date" class="form-control" id="fStartDate">
+            <div class="hint" data-i18n="ms.startHint">optional</div>
+          </div>
+        </div>
+      </div>
+      <div class="row" id="prioPctRow">
+        <div class="col-sm-4">
+          <div class="form-group" style="margin-bottom:6px;">
+            <label class="form-label" for="fHighPct" data-i18n="ms.highPct">High priority % (A)</label>
+            <input type="number" min="0" max="100" class="form-control" id="fHighPct" value="0">
+          </div>
+        </div>
+        <div class="col-sm-4">
+          <div class="form-group" style="margin-bottom:6px;">
+            <label class="form-label" for="fMediumPct" data-i18n="ms.mediumPct">Medium priority % (B)</label>
+            <input type="number" min="0" max="100" class="form-control" id="fMediumPct" value="0">
+          </div>
+        </div>
+        <div class="col-sm-4">
+          <div class="form-group" style="margin-bottom:6px;">
+            <label class="form-label" for="fLowPct" data-i18n="ms.lowPct">Low priority % (C)</label>
+            <input type="number" min="0" max="100" class="form-control" id="fLowPct" value="0">
+          </div>
+        </div>
+      </div>
+      <div class="row" id="singlePctRow" style="display:none">
+        <div class="col-sm-6">
+          <div class="form-group" style="margin-bottom:6px;">
+            <label class="form-label" for="fMediumOnlyPct" data-i18n="ms.percTcases">Completed tests [0-100%]</label>
+            <input type="number" min="0" max="100" class="form-control" id="fMediumOnlyPct" value="0">
+          </div>
+        </div>
+      </div>
+      <div class="hint" data-i18n="ms.dateOrderHint">the start date must not be after the target date</div>
+      <div class="info" id="prioInfo"></div>
+
+      <div class="groupBtn">
+        <button class="btn-teal" id="btnSave"><i class="fas fa-save"></i> <span data-i18n="common.save">Save</span></button>
+        <button class="btn-dark" id="btnCancel"><span data-i18n="common.cancel">Cancel</span></button>
+        <button class="btn-red" id="btnDelete" style="display:none"><i class="fas fa-trash"></i> <span data-i18n="common.delete">Delete</span></button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="footer"><span data-i18n="footers.planMilestoneEdit">TestLink 2.0.1 - Test Milestone</span></div>
+<div class="toast" id="toast"></div>
+
+<!-- Delete confirm -->
+<div class="modal fade" id="delModal" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" data-i18n="common.delete">Delete</h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body" style="font-size:13px;" id="delMsg"></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal" style="font-size:13px;" data-i18n="common.cancel">Cancel</button>
+        <button type="button" class="btn-red" onclick="doDelete()" data-i18n="common.delete">Delete</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<form id="eventhistory" target="_blank" method="GET" action="/gui/templates/eventviewer/eventviewer.html" style="display:none;">
+  <input type="hidden" name="object_id" id="eh_object_id">
+  <input type="hidden" name="object_type" id="eh_object_type" value="milestones">
+</form>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/milestoneedit/index.php';
+var LIST_URL = '/gui/templates/plans/planMilestones.html';
+var LOGIN_URL = '/login.php?note=expired';
+var params = {};
+var mode = 'create';
+var tplanId = 0;
+var tprojectId = 0;
+var milestoneId = 0;
+var ctx = null;
+var prioEnabled = true;
+var busy = false;
+
+$(function () {
+  params = new URLSearchParams(window.location.search);
+  mode = (params.get('mode') || 'create') === 'edit' ? 'edit' : 'create';
+  tplanId = parseInt(params.get('tplan_id') || '0', 10) || 0;
+  tprojectId = parseInt(params.get('tproject_id') || '0', 10) || 0;
+  milestoneId = parseInt(params.get('milestone_id') || '0', 10) || 0;
+
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    load();
+  });
+
+  $('#btnRefresh').on('click', load);
+  $('#btnBack').on('click', goBack);
+  $('#btnCancel').on('click', goBack);
+  $('#btnClose').on('click', function () { window.top !== window ? window.top.close() : window.history.back(); });
+  $('#btnSave').on('click', saveMilestone);
+  $('#btnDelete').on('click', confirmDelete);
+});
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function toast(msg, isErr) {
+  var $t = $('#toast').text(msg).toggleClass('err', !!isErr).show();
+  clearTimeout($t.data('tm'));
+  $t.data('tm', setTimeout(function(){ $t.hide(); }, 3500));
+}
+
+function setBusy(on) {
+  busy = !!on;
+  $('#btnSave, #btnDelete, #btnRefresh').prop('disabled', !!on);
+}
+
+function goBack() {
+  var url = LIST_URL + '?tplan_id=' + encodeURIComponent(tplanId || (ctx && ctx.tplan_id) || 0);
+  window.location.href = url;
+}
+
+/**
+ * Machine-code state cards. 401 bounces to login like every modern screen.
+ */
+function showState(kind, code) {
+  $('#toolbar').toggle(kind !== 'loading' && kind !== 'session');
+  $('#formSection').hide();
+  $('#stateWrap').show();
+  var $c = $('#stateCard').removeClass('err warn');
+  var icons = {
+    loading: 'fa-circle-notch fa-spin', noRight: 'fa-lock',
+    notFound: 'fa-search', projectMismatch: 'fa-random',
+    invalid: 'fa-exclamation-triangle', serverError: 'fa-bug'
+  };
+  $('#stateCard .icon').html('<i class="fas ' + (icons[kind] || 'fa-info-circle') + '"></i>');
+  if (kind === 'noRight' || kind === 'projectMismatch') { $c.addClass('warn'); }
+  if (kind === 'notFound' || kind === 'invalid' || kind === 'serverError') { $c.addClass('err'); }
+  $('#stateTitle').text(TLi18n.t('pme.state.' + kind));
+  $('#stateText').text(TLi18n.t('pme.stateText.' + kind));
+  if (code) { $('#stateCode').text(code).show(); } else { $('#stateCode').hide(); }
+}
+
+function load() {
+  if (mode === 'edit' && milestoneId <= 0) { showState('invalid', 'invalid_parameter'); return; }
+  if (mode === 'create' && tplanId <= 0) { showState('invalid', 'invalid_parameter'); return; }
+
+  showState('loading', '');
+  var q = '?action=init&mode=' + mode + '&tplan_id=' + tplanId +
+          '&milestone_id=' + milestoneId + '&tproject_id=' + tprojectId;
+  $.ajax({ url: API + q, dataType: 'json' })
+    .done(function (r) {
+      if (!r || r.status !== 'ok') { handleError(r || {}, 200); return; }
+      ctx = r.data;
+      ctx.rights = r.rights || {};
+      render();
+    })
+    .fail(function (xhr) {
+      var r = {}; try { r = JSON.parse(xhr.responseText); } catch (e) {}
+      handleError(r, xhr.status);
+    });
+}
+
+function handleError(r, http) {
+  if (http === 401 || r.code === 'session_expired') { window.location.href = LOGIN_URL; return; }
+  if (http === 403 || r.code === 'no_right') { showState('noRight', r.code); return; }
+  if (r.code === 'project_mismatch') { showState('projectMismatch', r.code); return; }
+  if (http === 404 || r.code === 'milestone_not_found' || r.code === 'plan_not_found') {
+    showState('notFound', r.code); return;
+  }
+  if (http === 400) { showState('invalid', r.code || 'invalid_parameter'); return; }
+  showState('serverError', r.code || ('http_' + http));
+}
+
+function render() {
+  var m = ctx.milestone || {};
+  prioEnabled = !!ctx.testPriorityEnabled;
+  tplanId = ctx.tplan_id;
+  tprojectId = ctx.tproject_id;
+
+  $('#tprojectName').text(ctx.tproject_name || ('#' + ctx.tproject_id));
+  $('#ctxProject').text((ctx.tproject_name || '#' + ctx.tproject_id) + ' (#' + ctx.tproject_id + ')');
+  $('#ctxPlan').text(ctx.tplan_name + ' (#' + ctx.tplan_id + ')');
+  $('#tplanName').text(ctx.tplan_name);
+
+  var isEdit = ctx.mode === 'edit';
+  $('#ctxMode').text(isEdit ? TLi18n.t('pme.modeEdit') : TLi18n.t('pme.modeCreate'));
+  $('#headerTitle').text(isEdit ? TLi18n.t('pme.modeEdit') : TLi18n.t('pme.modeCreate'));
+
+  $('#fId').val(isEdit ? m.id : '');
+  $('#fName').val(m.name || '');
+  $('#fTargetDate').val(m.target_date || '');
+  $('#fStartDate').val(m.start_date || '');
+  $('#fHighPct').val(m.high_percentage == null ? 0 : m.high_percentage);
+  $('#fMediumPct').val(m.medium_percentage == null ? 0 : m.medium_percentage);
+  $('#fLowPct').val(m.low_percentage == null ? 0 : m.low_percentage);
+  $('#fMediumOnlyPct').val(m.medium_percentage == null ? 0 : m.medium_percentage);
+
+  $('#prioPctRow').toggle(prioEnabled);
+  $('#singlePctRow').toggle(!prioEnabled);
+  $('#prioInfo').text(prioEnabled ? TLi18n.t('pme.infoPrio') : TLi18n.t('pme.infoNoPrio'));
+
+  $('#btnDelete').toggle(isEdit && !!(ctx.rights && ctx.rights.canManage));
+  $('#btnEventHistory').toggle(isEdit && !!(ctx.rights && ctx.rights.canViewEvents));
+
+  $('#stateWrap').hide();
+  $('#formSection').show();
+  $('#toolbar').show();
+  $('#flash').hide().removeClass('err');
+  setBusy(false);
+}
+
+function errText(r) {
+  var map = {
+    warning_empty_milestone_name: 'ms.msg.emptyName',
+    warning_invalid_date: 'ms.msg.invalidDate',
+    warning_milestone_date: 'ms.msg.pastTargetDate',
+    warning_target_before_start: 'ms.msg.targetBeforeStart',
+    milestone_name_already_exists: 'ms.msg.duplicateName',
+    warning_invalid_percentage: 'ms.msg.invalidPercentage',
+    milestone_create_failed: 'ms.msg.createFailed',
+    milestone_update_failed: 'ms.msg.updateFailed',
+    milestone_not_found: 'ms.msg.notFound',
+    plan_not_found: 'ms.msg.notFound',
+    project_mismatch: 'pme.msg.projectMismatch',
+    no_right: 'common.forbidden',
+    invalid_parameter: 'pme.msg.badRequest',
+    unknown_action: 'pme.msg.badRequest'
+  };
+  var key = map[r.code] || null;
+  var txt = key ? TLi18n.t(key) : (r.message || TLi18n.t('common.error'));
+  if (r.detail && key === 'ms.msg.duplicateName') { txt += ': ' + r.detail; }
+  return txt;
+}
+
+function showError(r) {
+  var txt = errText(r);
+  $('#flash').text(txt).addClass('err').show();
+  toast(txt, true);
+}
+
+/** Legacy validateForm parity: name required, percents integer 0..100. */
+function validate() {
+  var name = $.trim($('#fName').val());
+  if (!name) { showError({ code: 'warning_empty_milestone_name' }); return null; }
+  if (!$('#fTargetDate').val()) { showError({ code: 'warning_invalid_date' }); return null; }
+  if (prioEnabled) {
+    var fields = ['#fHighPct', '#fMediumPct', '#fLowPct'];
+    for (var i = 0; i < fields.length; i++) {
+      var v = String($(fields[i]).val() || '0').trim();
+      if (!/^\d+$/.test(v) || parseInt(v, 10) > 100) {
+        showError({ code: 'warning_invalid_percentage' }); return null;
+      }
+    }
+  } else {
+    var v = String($('#fMediumOnlyPct').val() || '0').trim();
+    if (!/^\d+$/.test(v) || parseInt(v, 10) > 100) {
+      showError({ code: 'warning_invalid_percentage' }); return null;
+    }
+  }
+  return name;
+}
+
+function saveMilestone() {
+  if (busy) { return; }
+  var name = validate();
+  if (name === null) { return; }
+
+  var body = {
+    name: name,
+    target_date: $('#fTargetDate').val(),
+    start_date: $('#fStartDate').val() || '',
+    high_percentage: parseInt($('#fHighPct').val() || '0', 10),
+    medium_percentage: parseInt($('#fMediumPct').val() || '0', 10),
+    low_percentage: parseInt($('#fLowPct').val() || '0', 10)
+  };
+  if (!prioEnabled) {
+    body.high_percentage = 0;
+    body.low_percentage = 0;
+    body.medium_percentage = parseInt($('#fMediumOnlyPct').val() || '0', 10);
+  }
+
+  var isEdit = mode === 'edit';
+  var q = '?action=' + (isEdit ? 'update' : 'create') +
+          '&tplan_id=' + tplanId +
+          '&milestone_id=' + (isEdit ? milestoneId : 0) +
+          '&tproject_id=' + tprojectId;
+
+  setBusy(true);
+  $('#flash').hide().removeClass('err');
+  $.ajax({ url: API + q, method: 'POST', contentType: 'application/json',
+           data: JSON.stringify(body) })
+    .done(function (r) {
+      if (!r || r.status !== 'ok') { setBusy(false); showError(r || {}); return; }
+      toast(TLi18n.t(isEdit ? 'ms.msg.saved' : 'ms.msg.created').replace('{name}', name));
+      setTimeout(function () { window.location.href = LIST_URL + '?tplan_id=' + tplanId; }, 600);
+    })
+    .fail(function (xhr) {
+      setBusy(false);
+      var r = {}; try { r = JSON.parse(xhr.responseText); } catch (e) {}
+      if (xhr.status === 401 || r.code === 'session_expired') { window.location.href = LOGIN_URL; return; }
+      showError(r);
+    });
+}
+
+function confirmDelete() {
+  var name = $('#fName').val() || ('#' + milestoneId);
+  $('#delMsg').html('<b>' + esc(name) + '</b><br>' + esc(TLi18n.t('ms.deleteConfirmMsg')));
+  $('#delModal').modal('show');
+}
+
+function doDelete() {
+  if (busy) { return; }
+  var name = $('#fName').val();
+  $('#delModal').modal('hide');
+  setBusy(true);
+  $.ajax({ url: API + '?action=delete&milestone_id=' + milestoneId + '&tproject_id=' + tprojectId,
+           method: 'POST', contentType: 'application/json', data: '{}' })
+    .done(function (r) {
+      if (!r || r.status !== 'ok') { setBusy(false); showError(r || {}); return; }
+      toast(TLi18n.t('ms.msg.deleted').replace('{name}', r.name || name));
+      setTimeout(function () { window.location.href = LIST_URL + '?tplan_id=' + tplanId; }, 600);
+    })
+    .fail(function (xhr) {
+      setBusy(false);
+      var r = {}; try { r = JSON.parse(xhr.responseText); } catch (e) {}
+      if (xhr.status === 401 || r.code === 'session_expired') { window.location.href = LOGIN_URL; return; }
+      showError(r);
+    });
+}
+
+function showEventHistory() {
+  if (!milestoneId) { return; }
+  $('#eh_object_id').val(milestoneId);
+  $('#eventhistory').submit();
+}
+</script>
+</body>
+</html>

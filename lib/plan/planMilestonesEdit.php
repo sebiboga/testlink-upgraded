@@ -3,247 +3,93 @@
  * TestLink Open Source Project - http://testlink.sourceforge.net/
  * This script is distributed under the GNU General Public License 2 or later.
  *
- * @filesource	planMilestonesEdit.php
- * @author Francisco Mancardi
+ * Create / Edit Test Milestone - MODERNIZED (Dashio standalone page) - Refs #1894
  *
+ * The legacy renderer (this file + gui/templates/dashio/plan/planMilestonesEdit.tpl
+ * + planMilestonesCommands.class.php) has been replaced by:
  *
+ *   gui/templates/plans/planMilestoneEdit.html   the screen (create + edit, full screen)
+ *   api/milestoneedit/index.php                  the BFF (action=init, create, update, delete)
+ *
+ * The screen covers everything the legacy controller did:
+ *   - create / update with the legacy form rules (non-empty name, unique name
+ *     within the test plan, integer percentages 0..100, target date not in the
+ *     past, target date not before the start date),
+ *   - the testPriorityEnabled layout (three priority percentages, or a single
+ *     medium percentage when priorities are disabled for the project),
+ *   - delete with a confirm modal (legacy doDelete),
+ *   - event-history link (mgt_view_events) and audit events
+ *     (audit_milestone_created/saved/deleted),
+ *   - rights/401/403/404/400 states re-checked server-side by api/milestoneedit
+ *     (testplan_planning on the project that owns the addressed test plan).
+ *
+ * This legacy controller also had two long-standing defects that the rewrite
+ * removes:
+ *   - #1739: init_args() had no whitelist and the renderer dispatched through
+ *     method_exists($commandMgr,$pFn), so an arbitrary ?doAction= value reached
+ *     a sink; the modern screen only ever calls the fixed BFF routes.
+ *   - #1886: ?doAction[]=x (an array) was passed straight to a command method
+ *     and raised an uncaught TypeError -> HTTP 500; the BFF rejects a non-scalar
+ *     action with 400 invalid_parameter.
+ *
+ * This controller was kept only as a redirect for stale bookmarks / wiki links.
  */
-require_once("../../config.inc.php");
+require_once('../../config.inc.php');
 require_once("common.php");
 testlinkInitPage($db,false,false);
-$date_format_cfg = config_get('date_format');
 
-$templateCfg = templateConfiguration();
-$args = init_args($db,$date_format_cfg);
-$gui = initialize_gui($db,$args);
-
-$context = new stdClass();
-$context->tproject_id = $args->tproject_id;
-$context->tplan_id = $args->tplan_id;
-checkRights($db,$_SESSION['currentUser'],$context);
-
-
-$commandMgr = new planMilestonesCommands($db);
-
-$pFn = $args->doAction;
-$op = null;
-if(method_exists($commandMgr,$pFn))
-{
-	$op = $commandMgr->$pFn($args,$_SESSION['basehref']);
+// Nothing here is state-changing: refuse anything but a safe read so this file
+// can never be used to smuggle a write past the BFF's checks.
+if (isset($_SERVER['REQUEST_METHOD']) && !in_array(strtoupper($_SERVER['REQUEST_METHOD']), array('GET','HEAD'), true)) {
+  http_response_code(405);
+  header('Allow: GET, HEAD');
+  exit('Method Not Allowed');
 }
 
-renderGui($args,$gui,$op,$templateCfg);
-
-
-/*
-  function: 
-
-  args :
-  
-  returns: 
-
-*/
-function init_args(&$dbHandler,$dateFormat)
-{
-	$_REQUEST = strings_stripSlashes($_REQUEST);
-	$args = new stdClass();
-
-	$args->target_date_original = isset($_REQUEST['target_date']) ? $_REQUEST['target_date'] : null;
-	$args->start_date_original = isset($_REQUEST['start_date']) ? $_REQUEST['start_date'] : null;
-	
-	// convert target date to iso format to write to db
-    if (isset($_REQUEST['target_date']) && $_REQUEST['target_date'] != '') {
-		$date_array = split_localized_date($_REQUEST['target_date'], $dateFormat);
-		if ($date_array != null) {
-			// set date in iso format
-			$args->target_date = $date_array['year'] . "-" . $date_array['month'] . "-" . $date_array['day'];
-		}
-	}
-	
-	// convert start date to iso format to write to db
-    if (isset($_REQUEST['start_date']) && $_REQUEST['start_date'] != '') {
-		$date_array = split_localized_date($_REQUEST['start_date'], $dateFormat);
-		if ($date_array != null) {
-			// set date in iso format
-			$args->start_date = $date_array['year'] . "-" . $date_array['month'] . "-" . $date_array['day'];
-		}
-	}
- 	
-  	$key2loop = array('low_priority_tcases','medium_priority_tcases','high_priority_tcases');
-  	foreach($key2loop as $key)
-  	{
-  	    $args->$key = isset($_REQUEST[$key]) ? intval($_REQUEST[$key]) : 0;     
-  	}
-
-	$args->id = isset($_REQUEST['id']) ? intval($_REQUEST['id']) : 0;
-	$args->name = isset($_REQUEST['milestone_name']) ? $_REQUEST['milestone_name'] : null;
-	$args->doAction = isset($_REQUEST['doAction']) ? $_REQUEST['doAction'] : null;
-
-	$args->basehref=$_SESSION['basehref'];
-	$args->tproject_id = isset($_SESSION['testprojectID']) ? intval($_SESSION['testprojectID']) : 0;
-	$args->tproject_name = isset($_SESSION['testprojectName']) ? $_SESSION['testprojectName'] : "";
-	
-	$args->tplan_name = '';
-	$args->tplan_id = isset($_REQUEST['tplan_id']) ? intval($_REQUEST['tplan_id']) : 0;
-	if( $args->tplan_id == 0 )
-	{
-	    $args->tplan_id = isset($_SESSION['testplanID']) ? intval($_SESSION['testplanID']) : 0;
-	}
-	if( $args->tplan_id > 0 )
-	{
-	    $tplan_mgr = new testplan($dbHandler);
-	    $info = $tplan_mgr->get_by_id($args->tplan_id);
-	    // Refs #1890: get_by_id() returns null for a non-existent / stale tplan_id,
-	    // so guard the read and fall back to an empty name instead of warning.
-	    $args->tplan_name = is_array($info) && isset($info['name']) ? $info['name'] : '';
-  	}
-  	 	
-	return $args;
+if (empty($_SESSION['userID'])) {
+  $dest = 'planMilestonesEdit.php' . (isset($_SERVER['QUERY_STRING']) && $_SERVER['QUERY_STRING'] !== ''
+      ? '?' . $_SERVER['QUERY_STRING'] : '');
+  redirect('login.php?note=expired&destination=' . urlencode($dest));
 }
 
-
-/*
-  function: renderGui
-
-  args:
-
-  returns:
-
-*/
-function renderGui(&$argsObj,$guiObj,$opObj,$templateCfg)
-{
-    $smartyObj = new TLSmarty();
-    //
-    // key: operation requested (normally received from GUI on doAction)
-    // value: operation value to set on doAction HTML INPUT
-    // This is useful when you use same template (example xxEdit.tpl), for create and edit.
-    // When template is used for create -> operation: doCreate.
-    // When template is used for edit -> operation: doUpdate.
-    //              
-    // used to set value of: $guiObj->operation
-    //
-    $actionOperation=array('create' => 'doCreate', 'edit' => 'doUpdate',
-                           'doDelete' => '', 'doCreate' => 'doCreate', 
-                           'doUpdate' => 'doUpdate');
-     
-    $renderType = 'none';
-    switch($argsObj->doAction)
-    {
-        case "edit":
-        case "create":
-        case "doDelete":
-		case "doCreate":
-      	case "doUpdate":
-            $renderType = 'template';
-            $key2loop = get_object_vars($opObj);
-            foreach($key2loop as $key => $value)
-            {
-                $guiObj->$key = $value;
-            }
-            $guiObj->operation = $actionOperation[$argsObj->doAction];
-            
-            $tplDir = (!isset($opObj->template_dir)  || is_null($opObj->template_dir)) ? $templateCfg->template_dir : $opObj->template_dir;
-            $tpl = is_null($opObj->template) ? $templateCfg->default_template : $opObj->template;
-            
-            $pos = strpos($tpl, '.php');
-           	if($pos === false)
-           	{
-                $tpl = $tplDir . $tpl;      
-            }
-            else
-            {
-                $renderType = 'redirect';  
-            }
-            break;
-    }
-
-    switch($renderType)
-    {
-        case 'template':
-        	$smartyObj->assign('gui',$guiObj);
-		    $smartyObj->display($tpl);
-        break;  
- 
-        case 'redirect':
-		      header("Location: {$tpl}");
-	  		  exit();
-        break;
-
-        default:
-            // Refs #1726: $renderType is still 'none' here, so this controller can not
-            // render the requested doAction (or there is none at all). init_args() has
-            // no whitelist, so a bare URL reaches this sink, and until now it ended the
-            // request with HTTP 200 and a 0-byte body: a silent blank page with no
-            // Event Viewer row. Apply the same graceful 302 to the modernized Plan
-            // Milestones screen that #1722 established for reqMgrSystemEdit.php, and
-            // write one ERROR row so the next occurrence is greppable. The modern page
-            // needs the test-plan context, so carry it forward when we have it.
-            // The logged value is scalar-only, control chars stripped and length-capped
-            // so a crafted query string can not inject multi-line / unbounded log text
-            // (the hardening rationale of the sibling's #1731 follow-up).
-            $rawAction = is_scalar($argsObj->doAction) ? (string)$argsObj->doAction : '';
-            $rawAction = substr(preg_replace('/[[:cntrl:]]/', '?', $rawAction), 0, 200);
-            tLog('planMilestonesEdit.php - requested action is not renderable - Value:' .
-                 ($rawAction === '' ? '(none)' : $rawAction) . ' - File: ' . basename(__FILE__) .
-                 ' - Function: ' . __FUNCTION__, 'ERROR');
-            $base = isset($_SESSION['basehref']) ? $_SESSION['basehref'] : '/';
-            $url = $base . 'gui/templates/plans/planMilestones.html';
-            if (isset($argsObj->tplan_id) && intval($argsObj->tplan_id) > 0)
-            {
-                $url .= '?tplan_id=' . intval($argsObj->tplan_id);
-            }
-            header('Location: ' . $url, true, 302);
-            exit();
-    }
-
+// The legacy controller fell back to $_SESSION['testplanID'] when the request
+// carried no tplan_id (init_args()), so keep that fallback for a bookmark.
+$tplan_id = isset($_REQUEST['tplan_id']) ? intval($_REQUEST['tplan_id']) : 0;
+if ($tplan_id <= 0) {
+    $tplan_id = isset($_SESSION['testplanID']) ? intval($_SESSION['testplanID']) : 0;
 }
 
-/*
-  function: initialize_gui
-
-  args : -
-
-  returns:
-
-*/
-function initialize_gui(&$dbHandler,&$argsObj)
-{
-    $req_spec_mgr = new requirement_spec_mgr($dbHandler);
-    $gui = new stdClass();
-    
-    $gui->user_feedback = null;
-    $gui->main_descr = lang_get('req_spec');
-    $gui->action_descr = null;
-
-    $gui->grants = new stdClass();
-    $gui->grants->milestone_mgmt = has_rights($dbHandler,"testplan_planning");
-	$gui->grants->mgt_view_events = has_rights($dbHandler,"mgt_view_events");
-
-	// Refs #1887: planMilestonesEdit.tpl reads tproject_id/tplan_id/tprojOpt/
-	// managerURL/cancelActionJS. This controller never set them, so under PHP 8
-	// every render logged 8 E_WARNING rows into the Event Viewer (undefined
-	// property / read on null). Populate them here exactly like the sibling
-	// planMilestonesView.php does, so the form also gets its correct context
-	// (hidden ids + the testPriorityEnabled layout) instead of defaulting.
-	$gui->tproject_id = intval($argsObj->tproject_id);
-	$gui->tplan_id = intval($argsObj->tplan_id);
-	$gui->managerURL = "lib/plan/planMilestonesEdit.php" .
-	                   "?tproject_id={$gui->tproject_id}&tplan_id={$gui->tplan_id}";
-	$tprjMgr = new testproject($dbHandler);
-	$gui->tprojOpt = $tprjMgr->getOptions($gui->tproject_id);
-	// Empty => template keeps its historical history.back() fallback.
-	$gui->cancelActionJS = '';
-
-	return $gui;
+// Legacy edit URLs identify the milestone through ?id=. A bare ?doAction= or a
+// create URL carries no id, so it lands on the create form. An array action
+// (?doAction[]=..., #1886) is not scalar and is ignored here - the redirect
+// target is computed only from scalar inputs.
+$doAction = isset($_REQUEST['doAction']) && is_scalar($_REQUEST['doAction'])
+          ? (string)$_REQUEST['doAction'] : '';
+$milestone_id = isset($_REQUEST['id']) ? intval($_REQUEST['id']) : 0;
+if ($milestone_id <= 0 && isset($_REQUEST['milestone_id'])) {
+    $milestone_id = intval($_REQUEST['milestone_id']);
 }
 
+$isEdit = ($milestone_id > 0) ||
+          in_array($doAction, array('edit', 'doUpdate', 'do_update'), true);
+$mode = $isEdit ? 'edit' : 'create';
 
-/**
- *
- */
-function checkRights(&$db,&$user,&$context)
-{
-  $context->rightsOr = [];
-  $context->rightsAnd = ["testplan_planning"];
-  pageAccessCheck($db, $user, $context);
+$target = '/gui/templates/plans/planMilestoneEdit.html?mode=' . $mode;
+if ($tplan_id > 0) {
+    $target .= '&tplan_id=' . $tplan_id;
 }
+if ($isEdit && $milestone_id > 0) {
+    $target .= '&milestone_id=' . $milestone_id;
+}
+
+// redirect() builds "$level.href='...'", so $level must be a LOCATION OBJECT,
+// never a method: 'window.location.replace' would emit
+// window.location.replace.href='...' (an expando on the function object) and the
+// browser would stay on a blank page. The replace() semantics are wanted here
+// (a legacy bookmark should not stay in the history), so they are emitted here.
+$safeTarget = addslashes($target);
+echo "<html><head></head><body>";
+echo "<script type='text/javascript'>";
+echo "window.location.replace('$safeTarget');";
+echo "</script></body></html>";
+exit;
