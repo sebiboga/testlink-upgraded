@@ -17,6 +17,20 @@ Every screen of the application was ported one-by-one in a screen-compare
   kept for backward compatibility and is progressively retired as each modern
   screen reaches full parity.
 
+- [FEATURE GAP] - #1117: the **Create Test Plan** modal of the Test Plan
+  Management screen (`gui/templates/plans/planView.html`) now offers the legacy
+  *"Create from an existing test plan"* selector with the full copy option set
+  (user roles / attachments / test cases with latest-vs-current version /
+  priorities / builds / tester assignments / platform links / milestones) —
+  ported from `inc_controls_planEdit.tpl`; `api/plans/index.php` POST now accepts
+  `copy_from_tplan_id` + copy options and calls `testplan::copy_as()`. Along the
+  way the latent `testplan::copy_builds()` crash (it wrote a non-existent
+  `builds.testplan_id` column, so any plan copy with the default *Copy builds*
+  fataled — also breaking the #1882 full-screen copy and project copy) is fixed
+  to use the project-scoped `builds.testproject_id` and to reuse an existing
+  same-name build. i18n reuses the existing `pe.copy.*` keys (all 10 bundles).
+  (Refs #1117)
+
 - [SCREEN] - #1896: the legacy **Test Specification Import** screen
   (`lib/testcases/tcCreateFromIssue.php`, a 1068-line orphan that imported
   TestLink / Mantis-issue test case XML but rendered a Smarty template

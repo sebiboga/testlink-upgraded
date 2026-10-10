@@ -7255,3 +7255,38 @@ suites' unique content survives — `Suite 1681` marker 1/1, `Suite 1608` marker
 
 **PASS/FAIL: PASS** (residual: the 7 `git rebase -X theirs` workflow sites remain for other
 shared files — tracked as a follow-up issue, see #1694 FIX PLAN comment).
+
+## Task — Issue #1117: planView create modal — copy-from-existing test plan + copy options
+
+**Precondition.** Fresh DB; fixtures recreated for this run:
+project `Copy Fixture` (id=1, prefix CPY); source plan `Source Plan` (id=2) with
+1 linked test case version (`testplan_tcversions`), 1 build (`builds`, project-scoped),
+1 milestone (`milestones`) and 1 plan role (`user_testplan_roles`); a second project
+`Other Project` (id=12) with plan `Foreign Plan` (id=13) for the mismatch guard.
+Login admin/admin. Screen: `/gui/templates/plans/planView.html?tproject_id=1`.
+
+**Steps / Expected / Actual**
+
+| # | Step | Expected | Actual |
+|---|------|----------|--------|
+| 1 | Open screen | Toolbar shows `+ Create Test Plan` | PASS |
+| 2 | Click `+ Create Test Plan` | Modal shows Name/Description/Active/Public **and** "Create from an existing test plan" dropdown | PASS (dropdown lists `- no copy ... -`, Copied Plan, Source Plan) |
+| 3 | Dropdown before a source is picked | Copy options hidden | PASS (`#planCopyControls` display:none) |
+| 4 | Select `Source Plan` | Copy options revealed: user roles/attachments/test cases(+latest|current)/priorities/builds/assignments/platform links(disabled)/milestones all present | PASS (all checked; Current selected; platform checked+disabled) |
+| 5 | Uncheck `Copy test cases` | Version + priorities rows hidden; platform links re-enabled | PASS |
+| 6 | Uncheck `Copy builds` | `Copy tester assignments` hidden | PASS |
+| 7 | Re-check `Copy test cases` | Version/priorities shown; platform links re-disabled | PASS |
+| 8 | Fill name `UI Copied Plan`, keep source `Source Plan`, Save | Plan created; toast `Test plan created`; row shows 1 test case / 1 build | PASS (id=10; 1 tc, 1 build) |
+| 9 | DB check plan 10 | 1 `testplan_tcversions`, 1 `milestones`, 1 `user_testplan_roles` | PASS |
+| 10 | Open an existing plan (edit) | Edit modal pre-filled; copy block hidden | PASS (`#planCopySection` display:none, title `Edit Test Plan`) |
+| 11 | API create with `copy_from_tplan_id=2` + all options (direct) | 200 ok; children copied | PASS (id=9: 1 tcversion, 1 milestone, 1 role; builds not duplicated) |
+| 12 | API create `copy_from_tplan_id=9999` | 404 `COPY_SOURCE_NOT_FOUND` | PASS |
+| 13 | API create `copy_from_tplan_id` from other project | 400 `COPY_SOURCE_MISMATCH` | PASS |
+| 14 | API create with `copy_from_tplan_id=0` | 200 ok; empty plan (no children) | PASS (`No Copy Plan` id=11) |
+| 15 | API create duplicate name `Source Plan` | 422 `DUPLICATE_NAME` | PASS |
+| 16 | `testplan::copy_builds()` regression | no `1054 Unknown column 'testplan_id'`; builds reused, not duplicated | PASS (builds total stays 1) |
+| 17 | Event Viewer / `events` table after all actions | no new ERROR/WARNING rows | PASS (only pre-fix ERROR id=5 at 23:39:45; ids 6-10 all audit) |
+| 18 | `php -l` BFF + `testplan.class.php`; inline JS `node --check` | clean | PASS |
+| 19 | i18n coverage (`pe.copy.*` reused) | all keys present in 10 bundles | PASS |
+
+**Result: 19/19 PASS.**

@@ -128,6 +128,56 @@ table.hide-plat th:nth-child(6), table.hide-plat td:nth-child(6) { display:none 
               <input type="checkbox" id="planPublic"> <span data-i18n="pv.modal.public">Public</span>
             </label>
           </div>
+          <!-- Refs #1117: legacy 'Create from existing Test Plan?' + copy options
+               (inc_controls_planEdit.tpl). Only shown in create mode. -->
+          <div id="planCopySection" style="display:none;margin-top:16px;padding-top:14px;border-top:1px solid #eee;">
+            <div class="form-group" style="margin-bottom:10px;">
+              <label style="font-weight:600;font-size:13px;color:#333;margin-bottom:4px;display:block;"
+                     for="planCopyFrom" data-i18n="pe.copySection">Create from an existing test plan</label>
+              <select class="form-control" id="planCopyFrom"
+                      style="border:1px solid #ddd;border-radius:4px;padding:8px 12px;font-size:13px;width:100%;">
+                <option value="0" data-i18n="pe.copyNone">- no copy, create an empty test plan -</option>
+              </select>
+            </div>
+            <div id="planCopyControls" style="display:none;border:1px solid #eee;border-radius:6px;padding:10px 14px;">
+              <div style="display:flex;flex-direction:column;gap:6px;font-size:13px;">
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+                  <input type="checkbox" id="planCopyUserRoles" checked> <span data-i18n="pe.copy.userRoles">Copy user roles</span>
+                </label>
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+                  <input type="checkbox" id="planCopyAttachments" checked> <span data-i18n="pe.copy.attachments">Copy attachments</span>
+                </label>
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+                  <input type="checkbox" id="planCopyTcases" checked> <span data-i18n="pe.copy.tcases">Copy test cases</span>
+                </label>
+                <div id="planCopyVersion" style="margin-left:22px;font-size:13px;">
+                  <label style="display:inline-flex;align-items:center;gap:5px;cursor:pointer;">
+                    <input type="radio" name="plan_tcversion_type" id="planTcLatest" value="latest">
+                    <span data-i18n="pe.copy.latest">Latest version</span>
+                  </label>
+                  <label style="display:inline-flex;align-items:center;gap:5px;cursor:pointer;margin-left:14px;">
+                    <input type="radio" name="plan_tcversion_type" id="planTcCurrent" value="current" checked>
+                    <span data-i18n="pe.copy.current">Current version</span>
+                  </label>
+                </div>
+                <label id="planCopyPriorityRow" style="display:flex;align-items:center;gap:6px;cursor:pointer;margin-left:22px;">
+                  <input type="checkbox" id="planCopyPriorities" checked> <span data-i18n="pe.copy.priorities">Copy test case priorities</span>
+                </label>
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+                  <input type="checkbox" id="planCopyBuilds" checked> <span data-i18n="pe.copy.builds">Copy builds</span>
+                </label>
+                <label id="planCopyAssignRow" style="display:flex;align-items:center;gap:6px;cursor:pointer;margin-left:22px;">
+                  <input type="checkbox" id="planCopyAssignedTo" checked> <span data-i18n="pe.copy.assignedTo">Copy tester assignments</span>
+                </label>
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+                  <input type="checkbox" id="planCopyPlatforms" checked disabled> <span data-i18n="pe.copy.platformsLinks">Copy platform links</span>
+                </label>
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+                  <input type="checkbox" id="planCopyMilestones" checked> <span data-i18n="pe.copy.milestones">Copy milestones</span>
+                </label>
+              </div>
+            </div>
+          </div>
         </form>
         <div id="planModalError" style="display:none;background:#fdecea;border:1px solid #f5c6cb;color:#b94a48;border-radius:6px;padding:8px 12px;font-size:12px;margin-top:10px;"></div>
       </div>
@@ -195,7 +245,39 @@ $(function () {
     var tp = lastItems.filter(function (x) { return x.id === id; })[0];
     if (tp) { confirmDelete(id, tp.name); }
   });
+
+  // Refs #1117: copy-from toggle behaviour, mirrors inc_controls_planEdit.tpl
+  $('#planCopyFrom').on('change', function () {
+    $('#planCopyControls').toggle(parseInt($(this).val() || '0', 10) > 0);
+  });
+  $('#planCopyTcases').on('change', function () {
+    var on = $(this).is(':checked');
+    $('#planCopyVersion, #planCopyPriorityRow').toggle(on);
+    // platform links are mandatory when test cases are copied (copy_as forces it)
+    $('#planCopyPlatforms').prop('checked', true).prop('disabled', on);
+  });
+  $('#planCopyBuilds').on('change', function () {
+    $('#planCopyAssignRow').toggle($(this).is(':checked'));
+  });
 });
+
+function populateCopyFrom(items) {
+  var $sel = $('#planCopyFrom');
+  var current = $sel.val() || '0';
+  $sel.find('option:not(:first)').remove();
+  (items || []).slice().sort(function (a, b) {
+    return String(a.name).localeCompare(String(b.name));
+  }).forEach(function (tp) {
+    $sel.append($('<option>').val(tp.id).text(tp.name));
+  });
+  // keep the previous selection if it still exists, otherwise reset to none
+  if ($sel.find('option[value="' + current + '"]').length) {
+    $sel.val(current);
+  } else {
+    $sel.val('0');
+  }
+  $('#planCopyControls').toggle(parseInt($sel.val() || '0', 10) > 0);
+}
 
 function esc(s) {
   return String(s == null ? '' : s)
@@ -270,6 +352,7 @@ function load() {
 
 function render(items) {
   lastItems = items;
+  populateCopyFrom(items);
   $('#tplanCount').text('(' + items.length + ')');
   $('#tplanEmpty').toggle(items.length === 0);
   $('#tplanTable').toggle(items.length > 0);
@@ -459,9 +542,22 @@ function openPlanModal(mode, planId) {
     $('#planModalTitle').text(TLi18n.t('pv.modal.createTitle'));
     $('#planModalSaveLabel').text(TLi18n.t('pv.modal.save'));
     $('#planActive').prop('checked', true);
+    $('#planCopySection').show();
+    // reset the copy-from controls to their legacy defaults
+    populateCopyFrom(lastItems);
+    $('#planCopyFrom').val('0');
+    $('#planCopyControls').hide();
+    $('#planCopyUserRoles, #planCopyAttachments, #planCopyTcases, #planCopyPriorities,' +
+      '#planCopyBuilds, #planCopyAssignedTo, #planCopyMilestones')
+      .prop('checked', true);
+    $('#planCopyPlatforms').prop('checked', true).prop('disabled', true);
+    $('#planCopyVersion, #planCopyPriorityRow, #planCopyAssignRow').show();
+    $('#planTcCurrent').prop('checked', true);
   } else {
     $('#planModalTitle').text(TLi18n.t('pv.modal.editTitle'));
     $('#planModalSaveLabel').text(TLi18n.t('pv.modal.save'));
+    // copy-from only applies when creating a plan
+    $('#planCopySection').hide();
     $.getJSON(API + '/' + planId + '?tproject_id=' + tprojectId)
       .done(function (r) {
         // a newer modal open may have started while this request was in
@@ -503,6 +599,25 @@ function submitPlan() {
     active: $('#planActive').is(':checked') ? 1 : 0,
     is_public: $('#planPublic').is(':checked') ? 1 : 0
   };
+
+  // Refs #1117: only on create — copy the source plan's children
+  if (!editId) {
+    var src = parseInt($('#planCopyFrom').val() || '0', 10);
+    if (src > 0) {
+      payload.copy_from_tplan_id = src;
+      payload.copy_options = {
+        copy_tcases: $('#planCopyTcases').is(':checked') ? 1 : 0,
+        copy_priorities: $('#planCopyPriorities').is(':checked') ? 1 : 0,
+        copy_milestones: $('#planCopyMilestones').is(':checked') ? 1 : 0,
+        copy_user_roles: $('#planCopyUserRoles').is(':checked') ? 1 : 0,
+        copy_builds: $('#planCopyBuilds').is(':checked') ? 1 : 0,
+        copy_platforms_links: $('#planCopyPlatforms').is(':checked') ? 1 : 0,
+        copy_attachments: $('#planCopyAttachments').is(':checked') ? 1 : 0
+      };
+      payload.copy_assigned_to = $('#planCopyAssignedTo').is(':checked') ? 1 : 0;
+      payload.tcversion_type = $('#planTcLatest').is(':checked') ? 'latest' : 'current';
+    }
+  }
 
   var url, method;
   if (editId) {

@@ -78,3 +78,46 @@ and a toast confirms `Test plan created` / `Test plan updated`.
 i18n keys `pv.modal.*` / `pv.msg.created|updated|duplicateName` are present in all
 10 locale bundles. Test suite 49 (12 checks PASS) covers create/edit validation,
 duplicate-name handling, and Event Viewer cleanliness — zero ERROR/WARNING.
+
+## Create-from-existing Test Plan (copy) — Refs #1117
+
+The **Create Test Plan** modal now restores the legacy
+*"Create from an existing Test Plan?"* capability
+(`gui/templates/dashio/plan/inc_controls_planEdit.tpl`) that the modern create
+flow had dropped:
+
+- A **Create from an existing test plan** dropdown lists every plan of the
+  current test project (plus the default *"- no copy, create an empty test
+  plan -"*).
+- Picking a source reveals the full legacy option set: **Copy user roles**,
+  **Copy attachments**, **Copy test cases** (radio *Latest version* / *Current
+  version*), **Copy test case priorities**, **Copy builds**, **Copy tester
+  assignments**, **Copy platform links** (checked & disabled — forced when test
+  cases are copied, exactly like `testplan::copy_as()`), and **Copy milestones**.
+- Unchecking *Copy test cases* hides the version/priority sub-options and
+  re-enables the platform-links box; unchecking *Copy builds* hides *Copy tester
+  assignments*.
+- The copy block is shown only in create mode (editing an existing plan doesn't
+  offer it), matching the legacy screen.
+
+Server side, `POST /api/plans/` now accepts `copy_from_tplan_id`,
+`copy_options{...}`, `copy_assigned_to` and `tcversion_type` and delegates to
+`testplan::copy_as()` (same logic as the full-screen editor `api/planedit`). It
+validates that the source plan exists (404 `COPY_SOURCE_NOT_FOUND`) and belongs
+to the same project (400 `COPY_SOURCE_MISMATCH`).
+
+All labels reuse the existing `pe.copy.*` / `pe.copySection` / `pe.copyNone`
+i18n keys, present in all 10 locale bundles.
+
+Screenshot: [GitHub Wiki](https://github.com/sebiboga/testlink-upgraded/wiki/Test-Plan-Management) (`1882-planview-copy-from.png`).
+
+### Bug fixed en route: `testplan::copy_builds()`
+
+`copy_builds()` (`lib/functions/testplan.class.php`) inserted a non-existent
+`builds.testplan_id` column, so **any** plan copy with the default *Copy builds*
+option fataled with `1054 Unknown column 'testplan_id'` — this also broke the
+#1882 full-screen create/copy and the legacy project-copy path
+(`testproject::copy_as` → `testplan::copy_as`). It now writes the project-scoped
+`builds.testproject_id` and, when a build with the same name already exists in
+the destination project (same-project plan copy), reuses that row instead of
+failing on the `(testproject_id,name)` unique key.

@@ -1622,11 +1622,33 @@ class testplan extends tlObjectWithAttachments
     $debugMsg = 'Class:' . __CLASS__ . ' - Method: ' . __FUNCTION__;
     $rs=$this->get_builds($id);
 
+    // Builds are owned by the TEST PROJECT (builds.testproject_id), NOT by the
+    // test plan. The old code wrote a non-existent builds.testplan_id column,
+    // so any plan copy with copy_builds (the default) fataled. Resolve the
+    // destination plan's project so a copy across projects still lands the
+    // builds in the right place. Refs #1117.
+    $target = $this->get_by_id($new_tplan_id);
+    $target_project_id = (is_array($target) && isset($target['testproject_id']))
+        ? intval($target['testproject_id']) : 0;
+
     $id_mapping = array();
-    if(!is_null($rs))
+    if(!is_null($rs) && $target_project_id > 0)
     {
       foreach($rs as $build)
       {
+        // builds are unique on (testproject_id,name): when copying a plan
+        // inside its own project the builds already exist, so map to the
+        // existing row instead of failing on the unique key.
+        $chk = "/* $debugMsg */ SELECT id FROM {$this->tables['builds']} " .
+               "WHERE testproject_id = {$target_project_id} " .
+               "AND name = '" . $this->db->prepare_string($build['name']) . "'";
+        $existing = $this->db->fetchFirstRowSingleColumn($chk, 'id');
+        if(!is_null($existing))
+        {
+          $id_mapping[$build['id']] = intval($existing);
+          continue;
+        }
+
         $add2sql = '';
         $fields = 'name,notes,';
         if(strlen(trim($build['release_date'])) > 0)
@@ -1634,12 +1656,12 @@ class testplan extends tlObjectWithAttachments
           $fields .= 'release_date,';
           $add2sql = "'" . $this->db->prepare_string($build['release_date']) . "',";
         }       
-        $fields .= 'testplan_id';
+        $fields .= 'testproject_id';
 
         $sql = " /* $debugMsg */ INSERT INTO {$this->tables['builds']} " .
                " ({$fields}) " .
                "VALUES ('" . $this->db->prepare_string($build['name']) ."'," .
-               "'" . $this->db->prepare_string($build['notes']) . "', {$add2sql} {$new_tplan_id})";
+               "'" . $this->db->prepare_string($build['notes']) . "', {$add2sql} {$target_project_id})";
         
         $this->db->exec_query($sql);
         $new_id = $this->db->insert_id($this->tables['builds']);

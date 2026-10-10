@@ -442,6 +442,47 @@ if ($method === 'POST' && count($segments) === 0) {
         testproject::getName($db, $tproject_id), $name),
         "CREATED", $newId, "testplans");
 
+    // Copy from an existing test plan (legacy planEdit.php 'Create from
+    // existing Test Plan?' + inc_controls_planEdit.tpl). Mirrors the
+    // standalone create/edit screen (api/planedit/index.php:281-314) which
+    // already ports the same legacy feature; the modal create flow now has
+    // parity too (Refs #1117).
+    $copyFrom = intval($body['copy_from_tplan_id'] ?? 0);
+    if ($copyFrom > 0) {
+        $source = $tplanMgr->get_by_id($copyFrom);
+        if (empty($source)) {
+            http_response_code(404);
+            out(['status' => 'error', 'message' => 'Source test plan not found',
+                 'error_code' => 'COPY_SOURCE_NOT_FOUND']);
+        }
+        if (intval($source['testproject_id']) !== $tproject_id) {
+            http_response_code(400);
+            out(['status' => 'error',
+                 'message' => 'Source test plan belongs to another test project',
+                 'error_code' => 'COPY_SOURCE_MISMATCH']);
+        }
+        $copt = is_array($body['copy_options'] ?? null)
+            ? $body['copy_options'] : [];
+        $allowed = ['copy_tcases', 'copy_priorities', 'copy_milestones',
+                    'copy_user_roles', 'copy_builds', 'copy_platforms_links',
+                    'copy_attachments'];
+        $copyOptions = [];
+        foreach ($allowed as $key) {
+            $copyOptions[$key] = !empty($copt[$key]) ? 1 : 0;
+        }
+        $tcversionType = strval($body['tcversion_type'] ?? 'current');
+        if (!in_array($tcversionType, ['current', 'latest'], true)) {
+            $tcversionType = 'current';
+        }
+        $options = [
+            'items2copy' => $copyOptions,
+            'copy_assigned_to' => !empty($body['copy_assigned_to']) ? 1 : 0,
+            'tcversion_type' => $tcversionType,
+        ];
+        $tplanMgr->copy_as($copyFrom, $newId, $name, $tproject_id, $userId,
+                           $options);
+    }
+
     // Assign creator's effective role if plan is private (same as planEdit.php)
     if (!$isPublic) {
         $effectiveRole = $user->getEffectiveRole($db, $tproject_id, null);
