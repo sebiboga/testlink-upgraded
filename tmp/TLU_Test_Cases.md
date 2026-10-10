@@ -6635,3 +6635,54 @@ Harness: fixture `tmp/fixtures_1889.php`; project 1 / plan 2 created on fresh im
 ### Test execution
 - [PASS] TC-1889-01 .. TC-1889-06 (2026-10-10, PHP 8.3.35).
 - Gate: `TLU_REQUIRE_SUITE="Issue #1889" bash ai/verify_test_suites.sh`
+
+## Regression — Issue #1732: listTestCases.php ?feature[]=x writes E_WARNING + ERROR rows per request
+
+### Precondition
+- App http://localhost:8082 (PHP 8.3.35), DB `testlink` freshly imported, login admin/admin.
+- Session cookie via `curl -c` : `POST login.php` `tl_login=admin&tl_password=admin`.
+- Baseline: no `log_level in (1,2)` rows in `events` (purging the issue's own pre-fix rows first).
+
+### Repro (pre-fix)
+1. `curl -b cookie 'http://localhost:8082/lib/testcases/listTestCases.php?feature%5B%5D=x'` (authenticated).
+2. Pre-fix measured: `HTTP/1.1 400 Bad Request` + 2 new `events` rows —
+   `log_level=2` `E_WARNING Array to string conversion - lib/testcases/listTestCases.php - Line 52`
+   and `log_level=1` `listTestCases shim: unknown feature "Array" ...`.
+3. Repeat N times → 2×N rows (unbounded). 5 requests → 10 rows (issue body measurement).
+
+Expected post-fix: no log_level 1/2 row for the array-shaped request; sane 302 redirect to the
+modern Test Specification (the legacy default target); every valid feature still forwards.
+
+### Cases
+
+| Case | Probe | Measured | Verdict |
+|---|---|---|---|
+| TC-1732-01 | `?feature[]=x` | HTTP **302** → `/gui/templates/testcases/testSpec.html`; `events` log_level 1/2 **+0** (was 400 + 2 rows) | PASS |
+| TC-1732-02 | `?feature=edit_tc` | 302 → testSpec.html | PASS |
+| TC-1732-03 | `?feature=keywordsAssign&tproject_id=1&id=5&edit=testcase` | 302 → keywordsAssign.html?tproject_id=1&id=5&edit=testcase | PASS |
+| TC-1732-04 | `?feature=assignReqs` | 302 → reqTcBulkAssign.html | PASS |
+| TC-1732-05 | (no feature param) | 302 → testSpec.html (legacy default `edit_tc`) | PASS |
+| TC-1732-06 | `?feature=unknown` (scalar, unknown) | HTTP 400 + 1 log_level=1 row (existing refusal semantics, unchanged) | PASS |
+| TC-1732-07 | `?feature[]=x` ×3 (repeat) | log_level 1/2 still **+0** (no growth) | PASS |
+| TC-1732-08 | `php -l lib/testcases/listTestCases.php` | No syntax errors detected | PASS |
+| TC-1732-09 | `?feature=` and `?feature=%20` (empty/whitespace, was 400 + ERROR) | 302 → testSpec.html, log_level 1/2 +0 | PASS |
+| TC-1732-10 | `?feature[]=x&tplan_id=2` (array feature + scalar context param) | 302 → testSpec.html?tplan_id=2, log_level 1/2 +0 | PASS |
+
+### Harness
+- No fixture needed (endpoint is a redirector; session-only). Baseline `events` purged to isolate rows.
+
+### Root cause
+- `lib/testcases/listTestCases.php:52` (pre-fix): `(string)$_REQUEST['feature']` cast an array
+  (`?feature[]=x` fills `$_REQUEST['feature']` with an array) → PHP 8 "Array to string conversion"
+  warning (log_level=2) + coerced literal `"Array"` → unknown-feature branch `tLog(...,'ERROR')`
+  (log_level=1). Same family as #1731 (reqMgrSystemEdit.php:80-86).
+
+### Fix
+- `lib/testcases/listTestCases.php:57-67` (`shimReqScalar()`, landed in `6aac696c6`): read `feature`
+  only when `is_scalar()`; present-but-non-scalar → treated as absent → legacy default `edit_tc` →
+  302. No cast of arrays, no coerced string, no ERROR log, no attacker-controlled text logged.
+
+### Test execution
+- [PASS] TC-1732-01 .. TC-1732-08 (2026-10-10, PHP 8.3.35, HEAD ad45ebc62).
+- Notes: `?tproject_id[]=7` silent `intval()`→1 coercion observed while testing → filed separately as #1892; the live same-family bare cast at `lib/search/searchMgmt.php:24` (`?target[]=x` → +1 E_WARNING row) found re-triaging the blast radius → filed as #1893. Neither fixed in #1732.
+- Gate: `TLU_REQUIRE_SUITE="Issue #1732" bash ai/verify_test_suites.sh`

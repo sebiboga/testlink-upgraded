@@ -17,6 +17,26 @@ Every screen of the application was ported one-by-one in a screen-compare
 kept for backward compatibility and is progressively retired as each modern
 screen reaches full parity.
 
+- [KEY BUGFIX] - #1732: **the legacy `lib/testcases/listTestCases.php` deep-link redirector
+  answered `?feature[]=x` with HTTP 400 and wrote 2 Event Viewer rows per request into `events` —
+  an `E_WARNING Array to string conversion` (persisted by watchPHPErrors) plus the unknown-feature
+  `tLog(...,'ERROR')` prefixed with the coerced literal `"Array"`** — the second surviving instance
+  of the #1731 array-shaped-`$_REQUEST` family, reachable from ANY authenticated session (the shim
+  has no rights check). `$_REQUEST['feature']` is an ARRAY for `?feature[]=x`; the bare
+  `(string)$_REQUEST['feature']` cast at `:52` raised the warning and the coerced `"Array"` then
+  tripped the unknown branch. Fix (1 file, +16/-1): read `feature` through the same
+  `is_scalar()`-guarded `shimReqScalar()` idiom as `reqMgrSystemEdit.php:80-86` — a
+  present-but-non-scalar value never becomes a string, the coercion `"Array"` is never built and the
+  unknown branch never fires; the request falls through to the legacy default `edit_tc` → 302 to the
+  modern Test Specification (family contract "never 500, always 302 somewhere sane"), with no
+  attacker-controlled text logged. Verified: `?feature[]=x` 400 / 2 rows → 302 / +0 rows; valid
+  `edit_tc` / `keywordsAssign` / `assignReqs` redirects unchanged; missing feature → default;
+  unknown *scalar* feature keeps its historical 400 + ERROR refusal; `php -l` clean. Docs:
+  `docs/Bugfix-Issue-1732-ListTestCases-Array-Feature-E_WARNING.md` + wiki page; regression suite
+  `Issue #1732` 8/8 PASS, suite gate 7/7; sibling silent-`intval` (`?tproject_id[]=7` → 1)
+  coercion filed as #1892 and the live same-family `searchMgmt.php:24` cast found while re-triaging
+  the blast radius filed as #1893 — neither fixed here. (Refs #1732)
+
 - [KEY BUGFIX] - #1889: **a localized date with no delimiter crashed `split_localized_date()`
   with a PHP 8 `ValueError: explode(): Argument #1 ($separator) cannot be empty`** — `POST
   lib/plan/planMilestonesEdit.php` (`doAction=doCreate`/`doUpdate`) with `target_date=aaaaaa`
