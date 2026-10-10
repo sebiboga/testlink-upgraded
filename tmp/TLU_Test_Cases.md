@@ -7194,3 +7194,33 @@ PASS/FAIL
 - After fix: added null guard (`$date_array !== null && is_array($date_array)`) before calling `mktime()` for both date and datetime branches in `tlFilterControl::init_filter_custom_fields()` (lines ~412-414, ~423-425). `php -l lib/functions/tlFilterControl.class.php` OK.
 
 PASS
+
+## Issue #1896 — Test Specification Import (`lib/testcases/tcCreateFromIssue.php`) modernized as `testcases/tcCreateFromIssue.html` + `api/tccreatefromissue`
+
+Legacy screen rendered `testcases/tcCreateFromIssue.tpl` which never existed in
+`gui/templates/dashio` — dead code. Engine extracted verbatim to
+`lib/testcases/tcCreateFromIssue.functions.php`; controller is now a redirect shim.
+Fixture: `tmp/setup_probe.php` (project `PROBE1` id 8, plan 9, suite `PROBE Root` 10).
+
+| # | Case | Expected | Result |
+|---|------|----------|--------|
+| 1 | `GET ?action=init&tproject_id=8&containerID=8` (authed) | 200, project+container+suites+`hitOptions`/`actionOptions`, `mgt_modify_tc` | PASS |
+| 2 | `GET ?action=tree&tproject_id=8` | 200, flat suite list `{id,name,depth}` | PASS |
+| 3 | `POST ?action=import` non-recursive `<testcases>` (2 cases) | 200, `result` = 2 `{name,message:"ok"}` rows | PASS |
+| 4 | `POST ?action=import` recursive `<testsuite>` (nested) | 200, 2 rows ok; tree then lists `Imported Suite A` (depth 0) + `Imported Child A1` (depth 1) | PASS |
+| 5 | invalid XML (`not xml`) | 422 `Invalid XML file` | PASS |
+| 6 | anon `GET ?action=init` (no cookie) | 401 `Not authenticated` | PASS |
+| 7 | `POST` without same-origin proof | 403 CSRF forbidden | PASS |
+| 8 | root element neither `testcases` nor `testsuite` | 422 wrong root | PASS (contract) |
+| 9 | duplicate-criteria / action selects present in `init` | `same_name`/`same_internalID`/`same_externalID` + 4 action labels | PASS |
+| 10 | browser: load page, suites populate, recursive checkbox reveals *Import into project root* | UI as specified | PASS |
+| 11 | browser: upload + Import | result table (2 rows) + toast `Import completed.` | PASS |
+| 12 | browser: locale switch EN→RO | all `tccfi.*` labels translate, title `Import specificație de test` | PASS |
+| 13 | console | no error/warn messages | PASS |
+| 14 | Event Viewer after all actions | 0 new ERROR/WARNING rows | PASS |
+| 15 | `bash ai/verify_i18n_coverage.sh` | PASS 7300 keys, 0 missing | PASS |
+| 16 | `php -l` on BFF / functions / shim / aside / common | all clean | PASS |
+| 17 | `$TLS_href_tc_spec_import` in all 19 locale catalogues | present once each, `php -l` clean | PASS |
+| 18 | ASIDE BFF (`api/aside`) contains `tcCreateFromIssue.html` link + label | present | PASS |
+
+**Result: 18/18 PASS.**

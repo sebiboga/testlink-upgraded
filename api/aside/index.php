@@ -515,6 +515,9 @@ if ($show('tests_design')) {
                          'href' => (string)$u('tcImport'));
         $items[] = array('label' => lang_get('href_tc_create_from_issues'),
                          'href' => (string)$u('tcCreateFromIssues'));
+        // Refs #1896: standalone Test Specification Import (tcCreateFromIssue)
+        $items[] = array('label' => lang_get('href_tc_spec_import'),
+                         'href' => (string)$u('tcCreateFromIssue'));
         $items[] = array('label' => lang_get('link_report_test_cases_created_per_user'),
                          'href' => (string)$u('tcCreatedUser'));
     }

@@ -4070,6 +4070,7 @@ $TLS_btn_report_test_automation = 'Testautomatiseringsrapport';
 $TLS_href_tc_auto_exec = 'Testautomatisering uitvoeren';
 $TLS_href_duplicate_name_check = "Dubbele namen controleren";
 $TLS_href_tc_create_from_issues = "Testgevallen maken uit issues XML";
+$TLS_href_tc_spec_import = "Testspecificatie importeren";
 // ----- issue #644: keys restored (accidentally deleted by commit 1c33eb305) -----
 $TLS_executed_me_and_also = 'wordt samen uitgevoerd met';
 $TLS_remove_plat_msgbox_title = 'Platform verwijderen';

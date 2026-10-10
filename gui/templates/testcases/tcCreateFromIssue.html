@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Test Specification Import</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header .sub { font-size: 13px; font-weight: 400; opacity: .85; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 8px 20px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-teal:disabled { background: #9adbd7; cursor: not-allowed; }
+.btn-dark { background: #3a3d46; color: #eee; border: none; padding: 8px 20px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-dark:hover { background: #4a4e59; }
+.card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px 0; overflow: hidden; }
+.card-head { background: #22242a; color: #fff; padding: 11px 20px; font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+.card-body { padding: 18px 22px; }
+.warnbox { margin: 12px 24px 0; background: #fdecea; border: 1px solid #f5c6cb; color: #b94a48; border-radius: 6px; padding: 10px 14px; font-size: 13px; display: none; }
+.form-table { width: 100%; max-width: 820px; border-collapse: collapse; }
+.form-table td { padding: 8px 12px 8px 0; vertical-align: top; font-size: 13px; }
+.form-table td.lbl { width: 250px; font-weight: 700; color: #22242a; padding-top: 11px; }
+select, input[type=text] { padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; min-width: 280px; background: #fff; max-width: 480px; }
+.filepick { display: inline-flex; align-items: center; gap: 10px; }
+.filepick .fake-btn { background: #3a3d46; color: #eee; border-radius: 4px; padding: 7px 16px; font-size: 13px; font-weight: 600; cursor: pointer; }
+.filepick .fname { color: #555; font-size: 13px; }
+.hint { color: #888; font-size: 12px; margin-top: 3px; }
+.actions-bar { margin-top: 18px; display: flex; gap: 12px; align-items: center; }
+.stat-chips { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+.chip { background: #eefaf9; border: 1px solid #bfe5e2; color: #2d8e88; border-radius: 14px; padding: 4px 14px; font-size: 12.5px; font-weight: 700; }
+table.rep { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+table.rep thead th { background: #22242a; color: #fff; text-align: left; padding: 7px 10px; font-weight: 600; }
+table.rep tbody td { padding: 6px 10px; border-bottom: 1px solid #eee; color: #333; vertical-align: top; }
+table.rep tbody tr:nth-child(even) { background: #fafafa; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.toast.err { background: #e6605e; }
+.loading-overlay { position: fixed; inset: 0; background: rgba(255,255,255,.75); display: none; align-items: center; justify-content: center; font-size: 15px; color: #555; z-index: 9998; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span data-i18n="tccfi.title">Test Specification Import</span>
+  <span class="sub" data-i18n="tccfi.headerSub">create test cases from a TestLink XML export</span>
+</div>
+
+<div class="toolbar">
+  <span class="ctx"><span data-i18n="tccfi.testProject">Test Project</span>: <b id="ctxProject">-</b></span>
+  <span style="flex:1"></span>
+  <span id="localeSwitcher"></span>
+</div>
+
+<div class="warnbox" id="warnBox"></div>
+
+<div class="card" id="formCard">
+  <div class="card-head"><i class="fa fa-file-import"></i> <span data-i18n="tccfi.title">Test Specification Import</span></div>
+  <div class="card-body">
+    <table class="form-table">
+      <tr>
+        <td class="lbl"><span data-i18n="tccfi.targetSuite">Target test suite</span></td>
+        <td>
+          <select id="targetSuite"></select>
+          <div class="hint" data-i18n="tccfi.fileNote">Only TestLink XML exports are supported.</div>
+        </td>
+      </tr>
+      <tr>
+        <td class="lbl"><span data-i18n="tccfi.file">File</span></td>
+        <td>
+          <div class="filepick">
+            <label class="fake-btn" for="fileInput"><i class="fa fa-folder-open"></i> <span data-i18n="tccfi.chooseFile">Choose file</span></label>
+            <input type="file" id="fileInput" accept=".xml,text/xml,application/xml" style="display:none;">
+            <span class="fname" id="fileName" data-i18n="tccfi.noFileChosen">No file chosen</span>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td class="lbl"><span data-i18n="tccfi.useRecursion">Recursive import (testsuite XML)</span></td>
+        <td>
+          <label style="font-size:13px;"><input type="checkbox" id="useRecursion"> <span data-i18n="tccfi.useRecursionHint">Import a &lt;testsuite&gt; tree, creating the sub-suites.</span></label>
+        </td>
+      </tr>
+      <tr id="rowIntoProject" style="display:none;">
+        <td class="lbl"><span data-i18n="tccfi.intoProject">Import into project root</span></td>
+        <td>
+          <label style="font-size:13px;"><input type="checkbox" id="intoProject"> <span data-i18n="tccfi.intoProjectHint">Place the created suites directly under the project.</span></label>
+        </td>
+      </tr>
+      <tr>
+        <td class="lbl"><span data-i18n="tccfi.duplicateCriteria">Duplicate check criteria</span></td>
+        <td>
+          <select id="hitCriteria">
+            <option value="name" selected data-i18n="tccfi.critName">Same name</option>
+            <option value="internalID" data-i18n="tccfi.critInternalId">Same internal ID</option>
+            <option value="externalID" data-i18n="tccfi.critExternalId">Same external ID</option>
+          </select>
+        </td>
+      </tr>
+      <tr>
+        <td class="lbl"><span data-i18n="tccfi.actionOnDuplicates">Action for duplicates</span></td>
+        <td>
+          <select id="actionOnHit">
+            <option value="" selected data-i18n="tccfi.actSkip">Skip duplicates</option>
+            <option value="update_last_version" data-i18n="tccfi.actUpdateLast">Update last version</option>
+            <option value="generate_new" data-i18n="tccfi.actGenerateNew">Generate new test case</option>
+            <option value="create_new_version" data-i18n="tccfi.actNewVersion">Create new version</option>
+          </select>
+        </td>
+      </tr>
+    </table>
+
+    <div class="hint" id="maxSizeLine" style="margin-top:8px;"></div>
+
+    <div class="actions-bar">
+      <button class="btn-teal" id="btnUpload"><i class="fa fa-upload"></i> <span data-i18n="tccfi.btnUpload">Import</span></button>
+      <button class="btn-dark" id="btnCancel"><i class="fa fa-xmark"></i> <span data-i18n="common.cancel">Cancel</span></button>
+    </div>
+  </div>
+</div>
+
+<div class="card" id="reportCard" style="display:none;">
+  <div class="card-head">
+    <i class="fa fa-clipboard-check"></i> <span data-i18n="tccfi.reportTitle">Import result</span>
+  </div>
+  <div class="card-body">
+    <div class="stat-chips" id="statChips"></div>
+    <div id="reportSections"></div>
+  </div>
+</div>
+
+<div class="footer">
+  <span data-i18n="tccfi.footer">TestLink 2.0.1 - Test Specification Import</span>
+</div>
+
+<div class="toast" id="toast"></div>
+<div class="loading-overlay" id="loadingOverlay"><i class="fa fa-spinner fa-spin" style="margin-right:8px;"></i><span data-i18n="tccfi.importing">Importing... please wait.</span></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var ctx = {
+  tprojectId: parseInt(qs('tproject_id') || '0', 10),
+  containerId: parseInt(qs('containerID') || qs('container_id') || '0', 10),
+  bffUrl: '/api/tccreatefromissue/',
+  info: null,
+  maxBytes: 0,
+  canModify: false
+};
+
+function qs(name) {
+  var m = new RegExp('[?&]' + name + '=([^&]*)').exec(window.location.search);
+  return m ? decodeURIComponent(m[1]) : '';
+}
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function toast(msg, isErr) {
+  var $t = $('#toast').text(msg).toggleClass('err', !!isErr).show();
+  clearTimeout($t.data('tm'));
+  $t.data('tm', setTimeout(function () { $t.hide(); }, 4000));
+}
+
+$(function () {
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    loadInfo();
+  });
+
+  $('#fileInput').on('change', function () {
+    var f = this.files[0];
+    $('#fileName').text(f ? f.name : TLi18n.t('tccfi.noFileChosen'));
+  });
+
+  $('#useRecursion').on('change', function () {
+    $('#rowIntoProject').toggle(this.checked);
+  });
+
+  $('#btnUpload').on('click', doUpload);
+
+  $('#btnCancel').on('click', function () {
+    if (window.history.length > 1) window.history.back(); else window.close();
+  });
+});
+
+function loadInfo() {
+  $.get(ctx.bffUrl, { action: 'init', tproject_id: ctx.tprojectId, containerID: ctx.containerId })
+    .done(function (r) {
+      if (r.status !== 'ok') { showFatal(r.message || TLi18n.t('tccfi.errLoadInfo')); return; }
+      ctx.info = r;
+      ctx.tprojectId = r.tproject.id;
+      ctx.containerId = r.container.id;
+      ctx.maxBytes = parseInt(r.maxUploadBytes || '0', 10);
+      ctx.canModify = !!parseInt(r.grants.mgt_modify_tc || '0', 10);
+      renderContext();
+    })
+    .fail(function (xhr) {
+      var msg = TLi18n.t('tccfi.errLoadInfo');
+      try { msg = JSON.parse(xhr.responseText).message || msg; } catch (e) {}
+      showFatal(msg);
+    });
+}
+
+function showFatal(msg) {
+  $('#warnBox').html('<i class="fa fa-triangle-exclamation"></i> ' + esc(msg)).show();
+  $('#btnUpload').prop('disabled', true);
+}
+
+function renderContext() {
+  document.title = TLi18n.t('tccfi.title') + ' - ' + ctx.info.tproject.name;
+  $('#ctxProject').text(ctx.info.tproject.name);
+
+  var opts = '<option value="' + esc(ctx.info.tproject.id) + '">' +
+    esc(TLi18n.t('tccfi.projectRoot')) + ': ' + esc(ctx.info.tproject.name) + '</option>';
+  (ctx.info.suites || []).forEach(function (s) {
+    opts += '<option value="' + esc(s.id) + '">' +
+      new Array((s.depth || 0) + 1).join('\u00A0\u00A0\u00A0') + esc(s.name) + '</option>';
+  });
+  $('#targetSuite').html(opts).val(String(ctx.containerId));
+
+  if (!ctx.canModify) {
+    $('#warnBox').html('<i class="fa fa-lock"></i> ' + esc(TLi18n.t('tccfi.errNoPermission'))).show();
+    $('#btnUpload').prop('disabled', true);
+  }
+
+  if (ctx.maxBytes > 0) {
+    $('#maxSizeLine').text(TLi18n.t('tccfi.maxFileSize', { n: Math.floor(ctx.maxBytes / 1024) }));
+  }
+}
+
+function doUpload() {
+  if (!ctx.canModify) return;
+  var btn = $('#btnUpload')[0];
+  if (btn && btn.disabled) return;
+  var f = $('#fileInput')[0].files[0];
+  if (!f) { toast(TLi18n.t('tccfi.errNoFile'), true); return; }
+  if (ctx.maxBytes > 0 && f.size > ctx.maxBytes) {
+    toast(TLi18n.t('tccfi.maxFileSize', { n: Math.floor(ctx.maxBytes / 1024) }), true);
+    return;
+  }
+  if (btn) btn.disabled = true;
+
+  var useRecursion = $('#useRecursion').is(':checked');
+  var fd = new FormData();
+  fd.append('uploadedFile', f);
+  var params = {
+    action: 'import',
+    tproject_id: ctx.tprojectId,
+    container_id: $('#targetSuite').val(),
+    hit_criteria: $('#hitCriteria').val(),
+    useRecursion: useRecursion ? 1 : 0
+  };
+  var actionOnHit = $('#actionOnHit').val();
+  if (actionOnHit) params.action_on_duplicated_name = actionOnHit;
+  if (useRecursion && $('#intoProject').is(':checked')) params.bIntoProject = 1;
+
+  $('#loadingOverlay').show();
+  $.ajax({
+    url: ctx.bffUrl + '?' + $.param(params),
+    method: 'POST',
+    data: fd,
+    processData: false,
+    contentType: false,
+    dataType: 'json'
+  }).done(function (r) {
+    $('#loadingOverlay').hide();
+    $('#btnUpload').prop('disabled', false);
+    if (r.status !== 'ok') { toast(r.message || TLi18n.t('tccfi.errLoadInfo'), true); return; }
+    renderReport(r);
+    toast(TLi18n.t('tccfi.importDone'));
+  }).fail(function (xhr) {
+    $('#loadingOverlay').hide();
+    $('#btnUpload').prop('disabled', false);
+    var msg = TLi18n.t('tccfi.errLoadInfo');
+    try { msg = JSON.parse(xhr.responseText).message || msg; } catch (e) {}
+    toast(msg, true);
+  });
+}
+
+function renderReport(r) {
+  var rows = r.result || [];
+  $('#formCard').hide();
+  $('#warnBox').hide();
+  $('#statChips').html('<span class="chip">' + esc(TLi18n.t('tccfi.created')) + ': ' + esc(rows.length) + '</span>');
+  var h = '<div class="rsec"><h3>' + esc(TLi18n.t('tccfi.reportTitle')) + '</h3>';
+  if (rows.length) {
+    h += '<table class="rep"><thead><tr>'
+      + '<th style="width:40%;">' + esc(TLi18n.t('tccfi.colName')) + '</th>'
+      + '<th>' + esc(TLi18n.t('tccfi.colDetail')) + '</th>'
+      + '</tr></thead><tbody>';
+    rows.forEach(function (row) {
+      h += '<tr><td>' + esc(row.name || '') + '</td><td>' + esc(row.message || '') + '</td></tr>';
+    });
+    h += '</tbody></table>';
+  } else {
+    h += '<div class="hint">' + esc(TLi18n.t('tccfi.noRows')) + '</div>';
+  }
+  h += '</div>';
+  $('#reportSections').html(h);
+  $('#reportCard').show();
+  window.scrollTo(0, 0);
+}
+</script>
+</body>
+</html>

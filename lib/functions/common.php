@@ -2265,6 +2265,14 @@ function getActions(&$gui,$baseURL) {
   $actions->tcCreateFromIssues =
     "/gui/templates/testcases/tcCreateFromIssues.html?{$ctx}";
 
+  // Test Specification Import standalone screen (modernized lib/testcases/
+  // tcCreateFromIssue.php, Refs #1896). The legacy controller resolved a
+  // template (testcases/tcCreateFromIssue.tpl) that never existed in
+  // gui/templates/dashio, so the screen was dead code; it is now a redirect
+  // shim to this page.
+  $actions->tcCreateFromIssue =
+    "/gui/templates/testcases/tcCreateFromIssue.html?{$ctx}";
+
   $actions->metrics_dashboard =
     "/gui/templates/results/metricsDashboard.html?{$ctx}";
 

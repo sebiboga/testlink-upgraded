@@ -17,6 +17,26 @@ Every screen of the application was ported one-by-one in a screen-compare
   kept for backward compatibility and is progressively retired as each modern
   screen reaches full parity.
 
+- [SCREEN] - #1896: the legacy **Test Specification Import** screen
+  (`lib/testcases/tcCreateFromIssue.php`, a 1068-line orphan that imported
+  TestLink / Mantis-issue test case XML but rendered a Smarty template
+  `testcases/tcCreateFromIssue.tpl` that never existed in `gui/templates/dashio`)
+  is modernized as the standalone Dashio page
+  `gui/templates/testcases/tcCreateFromIssue.html` backed by the BFF
+  `api/tccreatefromissue/index.php`. The exact legacy import engine (15
+  functions: `importTestCaseDataFromXML`, `saveImportedTCData`,
+  `importTestCasesFromSimpleXML`, `getTestCaseSetFromSimpleXMLObj`,
+  `importTestSuitesFromSimpleXML`, custom-field / keyword / requirement
+  processing, …) was extracted verbatim into
+  `lib/testcases/tcCreateFromIssue.functions.php` and is shared by the BFF; the
+  old controller is now a redirect shim to the modern page. The screen keeps the
+  full legacy behaviour: target test suite picker, recursive `<testsuite>` import
+  (sub-suite creation + "into project root"), duplicate-check criteria
+  (name / internal id / external id) and action-on-duplicate (skip / update last
+  version / generate new / create new version), with a modern result report. 32
+  new `tccfi.*` i18n keys across all 10 bundles; new ASIDE label
+  `$TLS_href_tc_spec_import` in all 19 locale files. (Refs #1896)
+
 - [KEY BUGFIX] - #1737: **`lib/requirements/reqSpecCommands.class.php` wrote one `E_WARNING`
   row into the Event Viewer per request on two paths of the legacy Requirement Specification
   editor — `deleteFile()` read the undefined `$argsObj->uploadOp` (`:844`) and `bulkReqMon()`
