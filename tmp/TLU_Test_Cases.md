@@ -6759,3 +6759,29 @@ verb is refused with 405 + a `tLog` WARNING, and a legacy GET is redirected to
 requirement specification tree (R6/R7), to the legacy frame shim (R8), or to the anonymous
 bounce (R1). The three WARNING rows in the Event Viewer are the intended, self-documenting
 trace of the retirement rather than silent behaviour change.
+
+## Regression — Issue #1893: searchMgmt.php array-shaped `target` writes E_WARNING row
+
+**Precondition** — TestLink 2.0.1 at http://localhost:8082, fresh DB, PHP 8.3.35,
+MariaDB `testlink`, admin/admin. Branch `fix/issue-1893-searchmgmt-array-param` (base `d61807355`).
+
+**Pre-fix repro (confirmed):** `GET /lib/search/searchMgmt.php?target[]=x` (authenticated) → HTTP 302
+with `Location: ...&target=Array`, and `events` gains one `log_level=2` row
+`E_WARNING Array to string conversion - .../lib/search/searchMgmt.php - Line 24`. 5 requests → +5 rows.
+
+**Steps and results observed after the fix**
+
+| # | step | result |
+|---|---|---|
+| S1 | `php -l lib/search/searchMgmt.php` | `No syntax errors detected` |
+| S2 | baseline `select count(*) from events where log_level in (1,2)` | 7 |
+| S3 | authenticated `GET ?target[]=x` × 5 | count stays 7 (0 new rows) — PASS |
+| S4 | authenticated `GET ?target=foo%20bar` | 302, `Location: ...&target=foo%20bar` (scalar preserved) — PASS |
+| S5 | authenticated `GET` (no target) | 302, `Location: ...&tproject_id=0&tplan_id=0` (no target param) — PASS |
+| S6 | anonymous `GET ?target[]=x` | login page rendered, no warning row — PASS |
+| S7 | final `select count(*) from events where log_level in (1,2)` | 7 (no new Error/Warning) — PASS |
+
+**Actual result** — PASS 6/6 (S1..S7). A present-but-non-scalar `target` is treated as absent; the
+array is never cast to string, so no `Array to string conversion` warning is persisted and the
+`Location` no longer carries the coerced literal `Array`. Scalar and absent-target redirects, and
+the anonymous login bounce, are unchanged.
