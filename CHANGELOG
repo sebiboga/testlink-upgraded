@@ -17,6 +17,22 @@ Every screen of the application was ported one-by-one in a screen-compare
 kept for backward compatibility and is progressively retired as each modern
 screen reaches full parity.
 
+- [KEY BUGFIX] - #1893: **the legacy `lib/search/searchMgmt.php` deep-link redirect shim wrote one
+  `E_WARNING Array to string conversion` row into `events` for every authenticated request carrying
+  an array-shaped `target` (`?target[]=x`)** — the third instance of the #1731/#1732
+  array-shaped-`$_REQUEST` family, found while regression-testing #1732. `isset($_REQUEST['target'])`
+  is true for an array; the bare `trim((string)$_REQUEST['target'])` at `:24` raised the warning
+  (persisted by `watchPHPErrors`, `lib/functions/logger.class.php:1407-1446`) and coerced the value
+  to the literal `"Array"`, which was then `rawurlencode`d into the 302 `Location` header
+  (`...&target=Array`). Fix (1 file, +16/-1): read `target` through the same `is_scalar()`-guarded
+  `shimReqScalar()` idiom as `listTestCases.php:57-63` (Refs #1732) and
+  `reqMgrSystemEdit.php:80-88` (#1731); a present-but-non-scalar `target` is treated as absent.
+  Verified: `?target[]=x` × 5 → `events log_level in (1,2)` unchanged (0 new rows; pre-fix +1/request);
+  `?target=foo%20bar` still forwards `target=foo%20bar`; no-target redirects without the param;
+  anonymous still bounced to login; `php -l` clean. Docs:
+  `docs/Bugfix-Issue-1893-SearchMgmt-Array-Target-E_WARNING.md` + wiki page; regression suite
+  `Issue #1893` 6/6 PASS. (Fixes #1893)
+
 - [KEY BUGFIX] - #1732: **the legacy `lib/testcases/listTestCases.php` deep-link redirector
   answered `?feature[]=x` with HTTP 400 and wrote 2 Event Viewer rows per request into `events` —
   an `E_WARNING Array to string conversion` (persisted by watchPHPErrors) plus the unknown-feature

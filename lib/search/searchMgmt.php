@@ -20,8 +20,26 @@ require_once('common.php');
 // Anonymous -> login (same contract as the legacy testlinkInitPage call).
 testlinkInitPage($db, TRUE);
 
+/**
+ * Refs #1893: guard against array-shaped query params (e.g. ?target[]=x).
+ * Casting an array to string triggers "Array to string conversion" (persisted
+ * by watchPHPErrors as an E_WARNING row in events) and coerces to "Array".
+ * Validate scalar before casting; a non-scalar target is treated as absent.
+ * Same idiom as listTestCases.php (Refs #1732) / reqMgrSystemEdit.php (#1731).
+ */
+function shimReqScalar($name)
+{
+    if (!isset($_REQUEST[$name]) || !is_scalar($_REQUEST[$name])) {
+        return null;
+    }
+    return trim((string)$_REQUEST[$name]);
+}
+
 // Legacy input contract: POST/GET `target` (the navBar one-box search term).
-$target = isset($_REQUEST['target']) ? trim((string)$_REQUEST['target']) : '';
+$target = shimReqScalar('target');
+if ($target === null) {
+  $target = '';
+}
 if (strlen($target) > 200) {
   $target = substr($target, 0, 200);
 }
