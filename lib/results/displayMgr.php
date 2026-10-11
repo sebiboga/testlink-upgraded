@@ -194,6 +194,21 @@ function displayReport($template_file, &$smarty, $doc_format, $mailCfg = null)
         break;   
 
         default:
+          // Refs #1901: the "report sent by e-mail" confirmation is now the
+          // modern screen gui/templates/results/reportMailSent.html + api/reportmail.
+          // Fall back to the legacy template only if the response has already
+          // started (headers sent), so an in-flight page still confirms the send.
+          if (!headers_sent()) {
+            $details = $op->status_ok ? '' : lang_get('send_mail_ko');
+            $details .= ' ' . $op->msg;
+            // generateHtmlEmail() applies the from/to defaults on its OWN copy
+            // (passed by value), so these may be unset here - guard to avoid an
+            // undefined-property warning (which would pollute the Event Viewer).
+            $rSubject = property_exists($mailCfg, 'subject') ? (string)$mailCfg->subject : '';
+            $rTo = property_exists($mailCfg, 'to') ? (string)$mailCfg->to
+                 : (property_exists($mailCfg, 'from') ? (string)$mailCfg->from : '');
+            redirectToReportMailSent($op->status_ok, $rSubject, $rTo, $details);
+          }
           $message = $op->status_ok ? '' : lang_get('send_mail_ko');  
           $smarty = new TLSmarty();
           $smarty->assign('message', $message . ' ' . $op->msg);

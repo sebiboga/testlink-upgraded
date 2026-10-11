@@ -216,6 +216,63 @@ function redirectToInfoPage($code) {
 
 
 /**
+ * Redirect to the modernized "Report sent by e-mail" confirmation screen.
+ *
+ * Refs #1901: replaces the legacy full-page Smarty render of
+ * gui/templates/dashio/feedback/emailSent.tpl (lib/results/displayMgr.php,
+ * default branch of displayReport() for FORMAT_MAIL_HTML). The send already
+ * happened inside generateHtmlEmail(); this only carries the outcome to the
+ * modern screen gui/templates/results/reportMailSent.html + its BFF.
+ *
+ * Same PATH-ONLY Location construction as redirectToInfoPage() - no
+ * scheme/host is read from client headers, so the target is same-origin by
+ * construction (no open-redirect surface).
+ *
+ * @param bool   $statusOk  result of email_send()
+ * @param string $subject   report subject (legacy $mailCfg->subject)
+ * @param string $to        recipient (legacy $mailCfg->to)
+ * @param string $details   mailer feedback / error detail (legacy $op->msg)
+ */
+function redirectToReportMailSent($statusOk, $subject, $to, $details) {
+  $base = null;
+  if (isset($_SESSION['basehref']) && is_string($_SESSION['basehref'])
+      && $_SESSION['basehref'] !== '') {
+    $bp = parse_url($_SESSION['basehref']);
+    if (is_array($bp) && isset($bp['path'])) {
+      $base = rtrim($bp['path'], '/');
+    }
+  }
+  if ($base === null && defined('TL_ABS_PATH') && isset($_SERVER['DOCUMENT_ROOT'])) {
+    $docRoot = realpath($_SERVER['DOCUMENT_ROOT']);
+    $tlRoot  = realpath(TL_ABS_PATH);
+    if ($docRoot !== false && $tlRoot !== false &&
+        strpos($tlRoot, $docRoot) === 0) {
+      $base = rtrim(str_replace('\\', '/', substr($tlRoot, strlen($docRoot))), '/');
+    }
+  }
+  if ($base === null) {
+    $base = rtrim(dirname($_SERVER['SCRIPT_NAME'] ?? ''), '/\\');
+  }
+
+  $query = http_build_query(array(
+    'status' => $statusOk ? 'ok' : 'ko',
+    'title'  => (string)$subject,
+    'to'     => (string)$to,
+    'msg'    => trim((string)$details),
+  ));
+  $target = $base . '/gui/templates/results/reportMailSent.html?' . $query;
+
+  if (!headers_sent()) {
+    header('Location: ' . $target, true, 302);
+  } else {
+    echo "<script type='text/javascript'>window.location.replace("
+       . json_encode($target, JSON_HEX_TAG | JSON_HEX_AMP) . ");</script>";
+  }
+  exit();
+}
+
+
+/**
  * TestLink connects to the database
  *
  * @param &$db reference to resource, here resource pointer will be returned.

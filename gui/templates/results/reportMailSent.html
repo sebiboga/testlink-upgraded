@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title data-i18n="rmail.title">TestLink - Report by E-mail</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+*{box-sizing:border-box}
+body{background:#f2f2f2;font-family:'Ruda',sans-serif;margin:0;padding:0;min-height:100vh;display:flex;flex-direction:column}
+.header{background:#2e3038;color:#fff;padding:14px 24px;font-size:20px;font-weight:700;letter-spacing:1px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.header .fa-envelope-circle-check{font-size:22px;color:#4ECDC4}
+.header .sub{font-size:13px;font-weight:400;opacity:.85;margin-left:10px}
+#localeSwitcher{margin-left:auto}
+.wrap{flex:1;display:flex;align-items:flex-start;justify-content:center;padding:36px 24px}
+.card{background:#fff;border-radius:10px;box-shadow:0 2px 10px rgba(0,0,0,.10);max-width:660px;width:100%;overflow:hidden}
+.card .card-hd{padding:14px 20px;border-bottom:1px solid #eee;font-size:15px;font-weight:700;color:#22242a;display:flex;align-items:center;gap:10px}
+.card .card-hd i{color:#4ECDC4}
+.card .card-bd{padding:22px 20px 8px}
+.msg{font-size:14.5px;line-height:1.6;color:#333;display:flex;gap:14px;align-items:flex-start}
+.msg .icon{flex:0 0 46px;height:46px;border-radius:50%;background:#e5f7f5;color:#1f9e95;display:flex;align-items:center;justify-content:center;font-size:22px}
+.msg .icon.ko{background:#fdeceb;color:#c0392b}
+.meta{margin:18px 0 0;border-top:1px solid #f0f0f0}
+.meta .row{display:grid;grid-template-columns:160px 1fr;gap:8px;padding:10px 0;border-bottom:1px solid #f5f5f5;font-size:13.5px}
+.meta .row .k{color:#888;font-weight:600}
+.meta .row .v{color:#22242a;word-break:break-word}
+.detail{margin:14px 0 0;background:#fafafa;border:1px solid #eee;border-radius:6px;padding:12px 14px;font-size:13px;color:#555;white-space:pre-wrap;word-break:break-word;display:none}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:700}
+.chip.ok{background:#e5f7f5;color:#1f9e95}
+.chip.ko{background:#fdeceb;color:#c0392b}
+.card .card-ft{padding:16px 20px 22px;display:flex;gap:12px;flex-wrap:wrap;border-top:1px solid #f0f0f0;margin-top:16px}
+.btn-teal{background:#4ECDC4;color:#fff;border:none;padding:9px 20px;border-radius:4px;cursor:pointer;font-size:13px;font-weight:600;display:inline-flex;align-items:center;gap:7px;text-decoration:none}
+.btn-teal:hover{background:#3dbdb5;color:#fff}
+.btn-ghost{background:#2e3038;color:#fff;border:none;padding:9px 20px;border-radius:4px;cursor:pointer;font-size:13px;font-weight:600;display:inline-flex;align-items:center;gap:7px;text-decoration:none}
+.btn-ghost:hover{background:#3d4049;color:#fff}
+.state{display:none;align-items:center;gap:10px;color:#666;font-size:13.5px;padding:20px}
+.state.show{display:flex}
+.spinner{width:20px;height:20px;border:3px solid #e0e0e0;border-top-color:#4ECDC4;border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.errobbar{background:#fdeceb;border:1px solid #f5c6c2;color:#c0392b;border-radius:6px;padding:10px 16px;font-size:13px;display:none;margin:14px 20px 0}
+.footer{padding:12px 24px;color:#888;font-size:12px;border-top:1px solid #ddd;background:#fff;margin-top:auto}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <i class="fa-solid fa-envelope-circle-check"></i>
+  <span data-i18n="rmail.title">TestLink - Report by E-mail</span>
+  <span class="sub" data-i18n="rmail.headerSub">Confirmation of the report e-mail delivery</span>
+  <span id="localeSwitcher"></span>
+</div>
+
+<div class="wrap">
+  <div class="card">
+    <div class="card-hd"><i class="fa fa-envelope" id="cardHdIcon"></i> <span id="cardTitle" data-i18n="rmail.cardTitle">Report sent by e-mail</span></div>
+
+    <div class="state" id="loadingState">
+      <div class="spinner"></div> <span data-i18n="rmail.loading">Loading…</span>
+    </div>
+
+    <div class="errobbar" id="errBar"></div>
+
+    <div class="card-bd" id="body" style="display:none;">
+      <div class="msg">
+        <div class="icon" id="msgIcon"><i class="fa fa-circle-check"></i></div>
+        <div class="msg-body">
+          <div id="msgText">-</div>
+        </div>
+      </div>
+      <div class="meta">
+        <div class="row"><span class="k" data-i18n="rmail.subjectLabel">Subject</span><span class="v" id="subjectVal">-</span></div>
+        <div class="row"><span class="k" data-i18n="rmail.recipientsLabel">Recipients</span><span class="v" id="toVal">-</span></div>
+        <div class="row"><span class="k" data-i18n="rmail.statusLabel">Status</span><span class="v"><span class="chip ok" id="statusChip">-</span></span></div>
+      </div>
+      <div class="detail" id="detailBox"></div>
+    </div>
+
+    <div class="card-ft" id="actions" style="display:none;">
+      <a class="btn-teal" id="backBtn" href="/gui/templates/results/resultsNavigator.html"><i class="fa fa-chart-column"></i> <span data-i18n="rmail.backToReports">Back to Reports</span></a>
+      <a class="btn-ghost" id="homeBtn" href="/index.php"><i class="fa fa-house"></i> <span data-i18n="rmail.goHome">Back to Home</span></a>
+      <a class="btn-ghost" id="loginBtn" href="/login.php" style="display:none;"><i class="fa fa-right-to-bracket"></i> <span data-i18n="rmail.goLogin">Go to Login</span></a>
+      <button class="btn-ghost" id="retryBtn" type="button"><i class="fa fa-rotate-right"></i> <span data-i18n="rmail.retry">Refresh</span></button>
+    </div>
+  </div>
+</div>
+
+<div class="footer" id="footerText"><span data-i18n="footers.reportMailSent">TestLink 2.0.1 - Report by E-mail</span></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script>
+var API = '/api/reportmail/index.php';
+// Data handed over by the legacy mail flow (displayMgr.php default branch).
+var P = null;
+
+$(function () {
+  P = new URLSearchParams(window.location.search);
+
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    TLi18n.onChange(function () { if (CUR && CUR.status === 'ok') { render(); } });
+    load();
+  });
+
+  $('#retryBtn').on('click', load);
+});
+
+function load() {
+  $('#errBar').hide();
+  $('#body, #actions').hide();
+  $('#loadingState').addClass('show');
+  $.getJSON(API, { action: 'context', locale: TLi18n.getLocale() })
+    .done(function (r) {
+      $('#loadingState').removeClass('show');
+      if (!r || r.status !== 'ok') {
+        showError((r && r.message) || TLi18n.t('rmail.loadError'));
+        return;
+      }
+      CUR = r;
+      // No flow data (plain deep-link) -> explain instead of inventing a result.
+      if (!P.get('status')) {
+        showError(TLi18n.t('rmail.missingParams'));
+        return;
+      }
+      render();
+    })
+    .fail(function (xhr) {
+      $('#loadingState').removeClass('show');
+      var msg = TLi18n.t('rmail.loadError');
+      var code = '';
+      try { var j = JSON.parse(xhr.responseText); msg = j.message || msg; code = j.code || ''; } catch (e) {}
+      if (code === 'session_expired') { msg = TLi18n.t('rmail.sessionExpired'); }
+      showError(msg);
+    });
+}
+
+var CUR = null;
+
+function render() {
+  var r = CUR;
+  var ok = (P.get('status') === 'ok');
+  var subject = P.get('title') || '';
+  var to = P.get('to') || '';
+  var extra = P.get('msg') || '';
+
+  // Message: legacy generateHtmlEmail() put "mail sent to <to>" on success and
+  // "send_mail_ko <details>" otherwise. Both are shown escaped (legacy echoed
+  // the message body un-escaped).
+  var msg = ok ? TLi18n.t('rmail.sentOk').replace('%s', to) : TLi18n.t('rmail.sentKo');
+  $('#msgText').text(msg);
+
+  $('#msgIcon').toggleClass('ko', !ok)
+             .html('<i class="fa ' + (ok ? 'fa-circle-check' : 'fa-triangle-exclamation') + '"></i>');
+  $('#cardTitle').text(TLi18n.t(ok ? 'rmail.cardTitle' : 'rmail.cardTitleKo'));
+  $('#cardHdIcon').attr('class', 'fa ' + (ok ? 'fa-envelope' : 'fa-envelope-open-text'));
+
+  $('#subjectVal').text(subject || TLi18n.t('rmail.none'));
+  $('#toVal').text(to || TLi18n.t('rmail.none'));
+
+  var chip = $('#statusChip').removeClass('ok ko').addClass(ok ? 'ok' : 'ko');
+  chip.html('<i class="fa ' + (ok ? 'fa-circle-check' : 'fa-circle-xmark') + '"></i> ' +
+            TLi18n.t(ok ? 'rmail.statusOk' : 'rmail.statusKo'));
+
+  // On failure the legacy page appended the mailer details to the message.
+  if (!ok && extra) {
+    $('#detailBox').text(extra).show();
+  } else {
+    $('#detailBox').hide().text('');
+  }
+
+  if (r.auth && r.auth.logged_in) {
+    $('#loginBtn').hide();
+  } else {
+    $('#loginBtn').show();
+  }
+
+  $('#body, #actions').show();
+}
+
+function showError(msg) {
+  $('#errBar').text(msg).show();
+  $('#actions').show();
+  $('#loginBtn').toggle(!(CUR && CUR.auth && CUR.auth.logged_in));
+}
+</script>
+</body>
+</html>
