@@ -392,7 +392,7 @@ function renderResults(r) {
   wrap += block('sfm.resRequirements', r.requirements, [
     { key: 'sfm.colDocId', cell: function (x) { return esc(x.req_doc_id); } },
     { key: 'sfm.colTitle', cell: function (x) {
-        return '<a class="rowlink" target="_blank" href="/gui/templates/requirements/reqView.html?req_id='
+        return '<a class="rowlink" target="_blank" href="/gui/templates/requirements/reqView.html?id='
           + x.req_id + '&tproject_id=' + tprojectId + '">' + esc(x.name) + '</a>';
       } },
     { key: 'sfm.colScope', cell: function (x) { return esc(x.scope); } },

@@ -334,7 +334,10 @@ var monitorsTable = null;
 
 $(function() {
   var p = new URLSearchParams(window.location.search);
-  REQ_ID = parseInt(p.get('id') || p.get('requirement_id') || 0, 10);
+  // #1867: accept req_id= too — searchMgmt.html used to emit it, and any
+  // historical/bookmarked req_id= deep links must keep working; id= /
+  // requirement_id= stay primary.
+  REQ_ID = parseInt(p.get('id') || p.get('requirement_id') || p.get('req_id') || 0, 10);
   VERSION_ID = parseInt(p.get('version_id') || p.get('req_version_id') || 0, 10);
   EXPLICIT_VERSION = p.has('version_id') || p.has('req_version_id');
   TPROJECT_ID = parseInt(p.get('tproject_id') || 0, 10);
