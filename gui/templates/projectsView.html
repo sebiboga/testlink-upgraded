@@ -550,6 +550,7 @@
       });
 
       restoreColumnFilterState(projectsTbl);
+      restoreGlobalSearchState(projectsTbl);
     }
 
     // Legacy parity: DataTablesColumnFiltering.inc.tpl — clone the header row
@@ -609,6 +610,24 @@
           : String(colSearch);
         $(this).find('input').val(value);
       });
+    }
+
+    // Issue #1741: `stateSave:true` persists AND re-applies the GLOBAL DataTables
+    // search, but the screen uses its own #searchInput (dom has no 'f'), so a
+    // returning user got a silently filtered list under an EMPTY search box.
+    // This is the global-search counterpart of restoreColumnFilterState(): seed
+    // the box from the saved descriptor so box value and filtered list agree.
+    // Unwrap .search.search with the same object/bare-string downgrade guard the
+    // sibling stateful screens use (usersAssignPlan.html:1175-1176,
+    // usersAssignProject.html:1004-1005).
+    function restoreGlobalSearchState(tbl) {
+      const state = tbl.state.loaded();
+      if (!state) return;
+      const gSearch = state.search;
+      const value = (gSearch && typeof gSearch === 'object')
+        ? String(gSearch.search || '')
+        : String(gSearch || '');
+      $('#searchInput').val(value);
     }
 
     // Legacy parity: requirement-feature quick toggle (projectView.tpl:126-134).
