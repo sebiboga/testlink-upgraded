@@ -7881,3 +7881,22 @@ and `recordsDisplay==1` — reproduced exactly as reported before the change.
 
 ### Status
 PASS (verified by code review of guarded accesses; regression passes targeted area)
+
+## Regression — Issue #1900: api/builds POST / emits E_WARNING "Undefined array key tproject_name" on every build create (audit log)
+
+**Precondition** — fresh DB; `php tmp/fixtures_1900.php` loaded from repo root (project `T1900` id 1, plan `T1900-PLAN` id 2). Logged in `admin`/`admin` at http://localhost:8082; cookie jar for curl (`TESTLINK1920TESTLINK_USER_AUTH_COOKIE`). Baseline: `SELECT MAX(id) FROM events` recorded before each phase.
+
+| # | Steps | Expected | Actual |
+|---|-------|----------|--------|
+| 1 | `POST /api/builds/` `{"tplan_id":2,"name":"B1900-REPRO","active":1,"open":1}` (pre-fix state) | Reproduce: HTTP 200 + `events.log_level=2` row `E_WARNING Undefined array key "tproject_name" - api/builds/index.php:889`; audit `%2` slot null | PASS (reproduced: event id 3, and again id 6) |
+| 2 | Apply one-line fix `$ctx['tproject_name']` → `$ctx['tplan_name']` at `api/builds/index.php:889`; `php -l` | No syntax errors | PASS |
+| 3 | `POST /api/builds/` `{"tplan_id":2,"name":"B1900-FIXED","active":1,"open":1}` (post-fix) | HTTP 200; audit event `audit_build_created` params `i:1` = `T1900-PLAN`; NO new `log_level=2` row | PASS — new event id 9, params `%2=T1900-PLAN`, zero warnings |
+| 4 | Duplicate create same name | HTTP 409 `warning_duplicate_build`, no warning | PASS |
+| 5 | Create with `"copy_to_all_tplans":true` (after adding 2nd plan `T1900-PLAN-2` id 3) | HTTP 200 `status:ok`; no warning; correct `%1`/`%2` audit | PASS — event id 14, no warnings |
+| 6 | `PUT /api/builds/{id}` `{"tplan_id":2,"name":...,"active":1,"open":1}` | HTTP 200; PUT audit no `log_level=2` (uses `resolveBuild()` which returns `tproject_name`) | PASS — event id 10, silent |
+| 7 | `POST /api/builds/{id}/flags` `{"tplan_id":2,"active":false}` | HTTP 200; no warning | PASS |
+| 8 | `DELETE /api/builds/{id}?tplan_id=2` | HTTP 200; DELETE audit no `log_level=2` | PASS — event id 11, silent |
+| 9 | Browser: `/gui/templates/plans/buildsView.html?tplan_id=2` → Create Build → name `B1900-BROWSER` → Save | Build row appears; no JS console errors; newest `audit_build_created` has `%2=T1900-PLAN`; no new ERROR/WARNING event | PASS — event id 16 |
+| 10 | `SELECT id,log_level FROM events WHERE log_level=2` after all cases | Only pre-existing rows (ids 3, 6 from repro phase 1) — no new warnings | PASS |
+
+**Result: 10/10 PASS.** Fix: `api/builds/index.php:889` revert of the over-application done in `883e38b29d` (that commit fixed the PUT save path but also rewrote the POST line from the correct `$ctx['tplan_name']` to `$ctx['tproject_name']`; the POST context comes from `resolveTplan()` which has `tplan_name` and never `tproject_name`). No i18n change; no Event Viewer pollution; PUT/DELETE deliberately untouched (their `resolveBuild()` context carries `tproject_name` and they emit no warning). Fixture `tmp/fixtures_1900.php` (git-ignored).
