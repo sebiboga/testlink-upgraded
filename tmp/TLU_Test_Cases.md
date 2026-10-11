@@ -7350,3 +7350,42 @@ parameter/member reads as absent; no `TypeError`, no HTTP 500, no new `events` r
 | 14 | `events` err/warn before vs after all cases | 0 → 0 (no new rows) | PASS |
 
 **PASS/FAIL: PASS.**
+
+## Regression — Issue #1886: planMilestonesEdit.php ?doAction[]=x array TypeError 500 (fixed by #1894)
+
+**Precondition.** PHP 8.3.35; app `http://localhost:8082` (docroot = repo root); DB `testlink`
+freshly imported; authenticated `admin`/`admin` session cookie file `tl.txt`. Default branch
+`19dc496f1` (`origin/sebiboga`). The pre-fix revision is obtained with
+`git show d61807355^:lib/plan/planMilestonesEdit.php` and served from a temporary probe
+`lib/plan/_repr_1886_pme.php` (removed immediately after the test — not committed).
+
+**Repro steps (pre-fix, must 500):**
+1. `curl -s -c tl.txt -b tl.txt -o /dev/null -d "tl_login=admin&tl_password=admin&login_submit=Login" http://localhost:8082/login.php`
+2. Serve the pre-#1894 revision as `lib/plan/_repr_1886_pme.php`.
+3. `curl -s -b tl.txt -o /dev/null -w "HTTP=%{http_code} bytes=%{size_download}\n" "http://localhost:8082/lib/plan/_repr_1886_pme.php?doAction[]=x"`
+   → pre-fix: `HTTP=500 bytes=0`.
+4. `curl ... ?doAction=x` (scalar control) → pre-fix `HTTP=302 bytes=0`.
+5. Remove `lib/plan/_repr_1886_pme.php`.
+
+**Expected (post-fix):** an array-shaped `doAction` is rejected gracefully — never a 500. The
+current shim ignores a non-scalar action and redirects; the BFF answers `400 invalid_parameter`.
+
+**Actual result (executed 2026-10-11, this run):**
+
+| # | Case | Expected | Result |
+|---|------|----------|--------|
+| 1 | pre-fix probe `?doAction[]=x` | HTTP 500, 0 bytes (proves the bug) | PASS (HTTP=500 bytes=0) |
+| 2 | pre-fix probe `?doAction=x` (control) | HTTP 302 (scalar path works) | PASS (HTTP=302) |
+| 3 | current `lib/plan/planMilestonesEdit.php?doAction[]=x` | no 500; graceful redirect | PASS (HTTP=200, 162 B JS redirect to `planMilestoneEdit.html?mode=create`) |
+| 4 | current `?doAction[]=x&id[]=1` | no 500 | PASS (HTTP=200, 175 B) |
+| 5 | current `?doAction=edit&id[]=1` | no 500 | PASS (HTTP=200, 175 B) |
+| 6 | current `?doAction[foo][bar]=x` | no 500 | PASS (HTTP=200, 173 B) |
+| 7 | `api/milestoneedit/index.php?action[]=x` | HTTP 400 invalid_parameter | PASS |
+| 8 | `api/milestoneedit/index.php?action=init&id[]=1` | HTTP 400 invalid_parameter | PASS |
+| 9 | `api/milestoneedit/index.php?action=init&tplan_id[]=1` | HTTP 400 invalid_parameter | PASS |
+| 10 | `events` log_level=2 attributable to the target file | 0 new rows | PASS (0) |
+
+**PASS/FAIL: PASS.** The #1886 symptom is gone on the default branch (the guard requested by the
+issue is present at `lib/plan/planMilestonesEdit.php:66-67`, added by `d61807355`). A live twin in
+an unrelated file was discovered and filed separately as #1897.
+
