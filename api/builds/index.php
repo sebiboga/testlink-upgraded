@@ -886,7 +886,7 @@ if ($method === 'POST' && count($segments) === 0) {
     }
 
     logAuditEvent(TLS('audit_build_created',
-        tprojectName($tp, $ctx['tproject_id']), $ctx['tproject_name'], $name),
+        tprojectName($tp, $ctx['tproject_id']), $ctx['tplan_name'], $name),
         'CREATE', $buildID, 'builds');
 
     out(['status' => 'ok', 'id' => intval($buildID), 'cfields_written' => $cfWritten]);
