@@ -7941,3 +7941,26 @@ PASS
 - Event Viewer: no new Error/Warning entries from the feature.
 
 PASS
+
+## Regression — Issue #1751: smv.* i18n keys (Move / Reorder Test Suites) restored in all 10 bundles
+
+**Ref:** #1751 (regression from commit `9ca0fa7bb`; repaired in `7163125d6`). Fixture: test project 13 "SuiteMove Project" (`TL`), suites 14 `Auth & Profiles` / 15 `Billing`, admin granted role 4 on project 13.
+
+**Precondition:** repo @ default branch; DB freshly imported; fixture SQL loaded (`testprojects`, `nodes_hierarchy`, `user_testproject_roles`).
+
+**Pre-fix symptom (commit `9ca0fa7bb`):** all 46 `smv.*` keys absent from `gui/templates/i18n/*.json`; the screen fell back to hardcoded English in every non-English locale.
+
+| # | Step | Expected | Observed | Verdict |
+|---|------|----------|----------|---------|
+| 1 | `git show 9ca0fa7bb:gui/templates/i18n/en.json` → count keys starting `smv.` | 0 (deletion reproduced) | 0 | PASS |
+| 2 | count `smv.` keys in the working-tree `en.json` | > 0 (restored) | 48 | PASS |
+| 3 | count `smv.` keys in `de/es/fr/it/ja/pt/ro/ru/zh.json` | 48 each | 48 each | PASS |
+| 4 | `bash ai/verify_i18n_coverage.sh` | exit 0, 0 failed | 9 passed / 0 failed, exit 0 | PASS |
+| 5 | every `smv.*` + `footers.suiteMove` key used by `suiteMove.html` / `testSpec.html` present in `en.json` | none missing | `missing: []` | PASS |
+| 6 | `curl /gui/templates/i18n/ro.json` count `smv.` | 48 | 48 | PASS |
+| 7 | open `suiteMove.html?tproject_id=13&container_id=13&locale=ro` | translated title/headers/footer | "Mută / reordonează suite de test", "Suite de test", footer "…Mută / reordonează suite…" | PASS |
+| 8 | open move modal (row "Move to…") in `ro` | translated modal, `{suite}` interpolated | "Mută suita de test" / "Muți „Auth & Profiles” …" / buttons "Mută","Anulează" | PASS |
+| 9 | re-open with `locale=de` | translated | "Testsuite verschieben / neu sortieren", 2 rows | PASS |
+| 10 | `events` table + browser console after the run | no new Error/Warning, no JS errors | 1 audit LOGIN row; console clean | PASS |
+
+**Result: 10/10 PASS.** The bug is already repaired on the default branch; no further code change required (verification-only fix). RESUME: rebuild fixture + `bash ai/verify_i18n_coverage.sh` + load the screen with `?locale=ro`.
