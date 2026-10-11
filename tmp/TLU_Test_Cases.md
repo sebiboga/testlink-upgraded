@@ -7527,3 +7527,49 @@ Code under test: `lib/requirements/reqEdit.php`. Pre-fix revision = `f77e5d29f^`
 **PASS/FAIL: PASS (18/18).** Refused actions now write **0** Event-Viewer rows (measured base
 30 → 30); legit actions unaffected; `reqEdit.php:41` was the last `method_exists($commandMgr)`
 dispatch in `lib/` after #1736 (reqSpecEdit) and #1726/#1894 (planMilestonesEdit).
+
+## Regression — Issue #1897: keywordsEdit.php ?doAction[]=x array TypeError 500
+
+**Issue:** #1897 — `lib/keywords/keywordsEdit.php` answered HTTP 500 for an array-shaped
+`doAction` (`?doAction[]=x`), because line 66 used a bare `isset()` and then called
+`trim($_REQUEST['doAction'])` → `TypeError: trim(): Argument #1 ($string) must be of type
+string, array given`. Twin of #1886 (planMilestonesEdit) and #1731 (reqMgrSystemEdit).
+
+**Precondition:** TestLink at http://localhost:8082 (fresh DB), authenticated as `admin`/`admin`
+(session cookie `/tmp/tl.txt`); one test project exists (id 1). Branch
+`fix/issue-1897-keywordsedit-array-doaction`.
+
+**Repro steps (pre-fix, must show the defect):**
+1. Log in as `admin`/`admin`, capture the session cookie.
+2. `GET /lib/keywords/keywordsEdit.php?doAction[]=x` → pre-fix **HTTP 500**, blank body.
+3. `GET /lib/keywords/keywordsEdit.php?doAction=x` (scalar control) → 302 (isolates the array).
+4. CLI isolation of the exact expression:
+   `php -r '$x=["x"]; try { trim($x); } catch (\Throwable $e){ echo $e->getMessage(); }'`
+   → `trim(): Argument #1 ($string) must be of type string, array given`.
+
+**Expected (post-fix):** the array request refuses gracefully with **302** (normal GET
+redirect to the modern popup), identical to the scalar form; the `edit`/`cfl` dispatchers and
+the scalar write path are unchanged; no new Error/Warning `events` rows.
+
+**Actual result (executed 2026-10-11, this run; fix commit pending):**
+
+| # | Case | Expected | Result |
+|---|------|----------|--------|
+| 1 | pre-fix `?doAction[]=x` | 500, blank body (proves bug) | PASS (500) |
+| 2 | pre-fix `?doAction=x` | 302 control | PASS (302) |
+| 3 | post-fix `?doAction[]=x` | 302, `mode=create` | PASS |
+| 4 | post-fix `?doAction=x` | 302, byte-identical Location | PASS |
+| 5 | post-fix `?doAction=edit&id=999` | 302, `mode=edit` | PASS |
+| 6 | post-fix `?doAction=cfl&tcversion_id=5` | 302, `mode=cfl` | PASS (mode=cfl) |
+| 7 | POST `doAction[]=do_create&keyword=x` | 302 safe redirect (no 500/write) | PASS |
+| 8 | POST `doAction=do_create&tproject_id=0` | 302 rights-gate → keywordsView (write branch reached, no error) | PASS |
+| 9 | POST `doAction=do_create&keyword=kw1897probe&notes=probe&tproject_id=1` | 303 → created keyword | PASS (keyword id 1 in DB) |
+| 10 | `php -l lib/keywords/keywordsEdit.php` | no syntax errors | PASS |
+| 11 | Browser: `?doAction[]=x&tproject_id=1` | lands on modern `keywordsEdit.html` popup, 0 console errors | PASS |
+| 12 | `events` Error/Warning rows after all requests | 0 new (only audit log_level=16) | PASS |
+
+**PASS/FAIL: PASS (12/12).**
+
+**RESUME:** re-run with
+`curl -s -b tl.txt -o /dev/null -w "%{http_code}\n" "http://localhost:8082/lib/keywords/keywordsEdit.php?doAction[]=x"`
+→ must be `302` (pre-fix `500`).
