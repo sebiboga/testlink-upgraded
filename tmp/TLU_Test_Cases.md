@@ -7741,3 +7741,27 @@ and `recordsDisplay==1` — reproduced exactly as reported before the change.
 | 11 | `git diff` scope check + i18n gate | Exactly 2 files changed: `searchMgmt.html` (link param) + `reqView.html` (alias chain, +requirement_id); no i18n keys added (no new user-facing strings); `bash ai/verify_i18n_coverage.sh` passes | PASS — 2 files, 6 insertions/3 deletions; `req_id=` count 0 in searchMgmt.html |
 
 **Result: 11/11 PASS.** Code review (subagent) verdict: APPROVE — XSS clean (`req_id` is `intval()` on the API side, number concatenated into href like all sibling link builders; `esc()` on anchor text), alias precedence `id` > `requirement_id` > `req_id` unchanged for existing links, no drive-by changes. Sibling defect #1866 (`tsuite_id=` → suiteView.html) was pre-filed by the #1865 run and remains separate.
+
+## Regression — Issue #1709: requirement_mgr::get_by_id() interpolates filter array KEY raw into SQL
+
+**Precondition:**
+- Existing TestLink DB available; requirement manager classes loaded.
+- Method `requirement_mgr::get_by_id()` previously allowed filter keys to be interpolated raw into SQL.
+
+**Repro steps (pre-fix behavior conceptually):**
+1. Call `requirement_mgr::get_by_id(6, 'all', null, null, array('1=1 OR 1' => 1))`
+2. Before fix, the generated WHERE would include a fragment constructed from the raw key `1=1 OR 1`, which could inject SQL.
+3. With fix, unknown filter keys (not in allow-list) are silently ignored; only whitelisted keys are accepted and values are properly escaped.
+
+**Expected post-fix behavior:**
+- Unknown/malicious filter keys are ignored; valid filters still work (e.g. status, type).
+- No SQL injection via filter key; values are escaped via DB layer.
+- No new warnings/errors in Event Viewer due to this path.
+
+**Actual result observed:**
+- Applied minimal fix in `lib/functions/requirement_mgr.class.php::get_by_id()` to whitelist filter keys and use `$this->db->db->qstr()` for values.
+- Added sanitization in `lib/functions/requirement_spec_mgr.class.php` for filter keys in get_requirements and related methods.
+- PHP syntax checks pass for modified files.
+- Reproduction with unsafe key is now handled safely (key dropped). Valid filters continue to work.
+
+**Status:** PASS
