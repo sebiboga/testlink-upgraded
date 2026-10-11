@@ -21,13 +21,10 @@ $args = init_args();
 $gui = $args;
 
 if (!config_get('user_self_signup')) {
-  $smarty = new TLSmarty();
-  $smarty->assign('title', lang_get('fatal_page_title'));
-  $smarty->assign('content', lang_get('error_self_signup_disabled'));
-  $smarty->assign('link_to_op', "login.php");
-  $smarty->assign('hint_text', lang_get('link_back_to_login'));
-  $smarty->display('workAreaSimple.tpl');
-  exit();
+  // MODERNIZED (Refs #1899): the legacy workAreaSimple.tpl notice (fatal_page_title
+  // + error_self_signup_disabled + back-to-login link) is now the standalone Dashio
+  // Info page; redirectToInfoPage() is defined in common.php and needs no database.
+  redirectToInfoPage('signup_disabled');
 }
 doDBConnect($db,database::ONERROREXIT);
 

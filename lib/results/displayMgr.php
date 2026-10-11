@@ -74,7 +74,7 @@ function initArgsForReports(&$dbHandler) {
       // dereferencing null (E_WARNING) and dying on the uncaught exception below
       require_once(__DIR__ . '/../functions/info.inc.php');
       displayInfo(lang_get('error_print_doc_title'),
-                  lang_get('error_print_doc_missing_testplan'));
+                  lang_get('error_print_doc_missing_testplan'), 'missing_testplan');
     }
     $args->tproject_id = $tplan['testproject_id'];
   }
@@ -87,7 +87,7 @@ function initArgsForReports(&$dbHandler) {
     // getLinkedToTestplanAsMap(NULL). Stop gracefully (Refs #1267).
     require_once(__DIR__ . '/../functions/info.inc.php');
     displayInfo(lang_get('error_print_doc_title'),
-                lang_get('error_print_doc_missing_testplan'));
+                lang_get('error_print_doc_missing_testplan'), 'missing_testplan');
   }
 
   if ($args->tproject_id <= 0) {
@@ -97,7 +97,7 @@ function initArgsForReports(&$dbHandler) {
     // Same info page as the authenticated tplan guard above (Refs #1257).
     require_once(__DIR__ . '/../functions/info.inc.php');
     displayInfo(lang_get('error_print_doc_title'),
-                lang_get('error_print_doc_missing_testplan'));
+                lang_get('error_print_doc_missing_testplan'), 'missing_testplan');
   }
 
   if (is_null($args->format)) {

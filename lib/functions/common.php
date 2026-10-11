@@ -157,6 +157,65 @@ $db = 0;
 
 
 /**
+ * Redirect the browser to the modern generic Info / Notice page - Refs #1899.
+ *
+ * Modernizes workAreaSimple.tpl (the last standalone feedback renderer without
+ * a twin). Legacy title/content was rendered inline by three producers:
+ *   - doDBConnect(..., true)  -> fatal DB connection failure (code db_connect_fail)
+ *   - displayInfo()           -> report document error  (code missing_testplan)
+ *   - firstLogin.php          -> self-signup disabled    (code signup_disabled)
+ * The modern page (gui/templates/feedback/info.html + api/info/index.php) is a
+ * static file + DB-free BFF, so it renders even when the database is down.
+ *
+ * The target is a PATH-ONLY Location (no scheme/host read from client headers),
+ * so it is same-origin by construction - no open-redirect surface. The install
+ * root is derived from TL_ABS_PATH under DOCUMENT_ROOT (falling back to the
+ * session basehref path, then the running script's directory), so the link is
+ * correct whether the caller lives at the root or under /lib/results/.
+ *
+ * @param string $code  stable machine id (db_connect_fail|missing_testplan|
+ *                      signup_disabled|generic)
+ */
+function redirectToInfoPage($code) {
+  if (!is_string($code) || $code === '') {
+    $code = 'generic';
+  }
+
+  // Resolve the install-root path. null => "could not derive, fall back below";
+  // '' => install root IS the document root (correct, do NOT fall through).
+  $base = null;
+  if (isset($_SESSION['basehref']) && is_string($_SESSION['basehref'])
+      && $_SESSION['basehref'] !== '') {
+    $bp = parse_url($_SESSION['basehref']);
+    if (is_array($bp) && isset($bp['path'])) {
+      $base = rtrim($bp['path'], '/');
+    }
+  }
+  if ($base === null && defined('TL_ABS_PATH') && isset($_SERVER['DOCUMENT_ROOT'])) {
+    $docRoot = realpath($_SERVER['DOCUMENT_ROOT']);
+    $tlRoot  = realpath(TL_ABS_PATH);
+    if ($docRoot !== false && $tlRoot !== false &&
+        strpos($tlRoot, $docRoot) === 0) {
+      $base = rtrim(str_replace('\\', '/', substr($tlRoot, strlen($docRoot))), '/');
+    }
+  }
+  if ($base === null) {
+    $base = rtrim(dirname($_SERVER['SCRIPT_NAME'] ?? ''), '/\\');
+  }
+
+  $target = $base . '/gui/templates/feedback/info.html?code=' . rawurlencode($code);
+
+  if (!headers_sent()) {
+    header('Location: ' . $target, true, 302);
+  } else {
+    echo "<script type='text/javascript'>window.location.replace("
+       . json_encode($target, JSON_HEX_TAG | JSON_HEX_AMP) . ");</script>";
+  }
+  exit();
+}
+
+
+/**
  * TestLink connects to the database
  *
  * @param &$db reference to resource, here resource pointer will be returned.
@@ -186,7 +245,6 @@ function doDBConnect(&$db,$onErrorExit=false) {
   $result = $db->connect(DSN, DB_HOST, DB_USER, DB_PASS, DB_NAME);
 
   if (!$result['status']) {
-    echo $result['dbms_msg'];
     $result['status'] = 0;
     $search = array('<b>','</b>','<br>');
     $replace = array('',''," :: ");
@@ -196,12 +254,10 @@ function doDBConnect(&$db,$onErrorExit=false) {
     $logmsg  = $logtext . ($onErrorExit ? '<br>Redirection to connection fail screen.' : '');
     tLog(str_replace($search,$replace,$logmsg), 'ERROR');
     if( $onErrorExit ) {
-      $smarty = new TLSmarty();
-      $smarty->assign('title', lang_get('fatal_page_title'));
-      $smarty->assign('content', $logtext);
-      $smarty->assign('link_to_op', null);
-      $smarty->display('workAreaSimple.tpl'); 
-      exit();
+      // MODERNIZED (Refs #1899): the legacy workAreaSimple.tpl render embedded
+      // the raw DBMS error text un-escaped. Redirect to the standalone Dashio
+      // Info page instead; it needs no database, so it renders during an outage.
+      redirectToInfoPage('db_connect_fail');
     }
   }
   else {
@@ -1918,6 +1974,11 @@ function getActions(&$gui,$baseURL) {
   // exists so any caller can build the deep link without hardcoding the path.
   // error.php is now a 302 shim forwarding ?code= to this screen.
   $actions->errorPage = "/gui/templates/feedback/error.html";
+  // Generic Info / Notice page (modernized workAreaSimple.tpl) - Refs #1899.
+  // Reached from doDBConnect() (fatal DB failure) and displayInfo() (report
+  // document error); a non-menu system page, so there is no ASIDE entry. The
+  // action exists so callers can build the deep link without hardcoding it.
+  $actions->infoPage = "/gui/templates/feedback/info.html";
   $actions->events = "/gui/templates/eventviewer/eventviewer.html?{$ctx}";
   // Standalone Event Info popup (modernized lib/events/eventinfo.php) - Refs
   // #1556. Opened in a new window from the Event Viewer row detail; the BFF
