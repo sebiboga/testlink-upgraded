@@ -7765,3 +7765,26 @@ and `recordsDisplay==1` — reproduced exactly as reported before the change.
 - Reproduction with unsafe key is now handled safely (key dropped). Valid filters continue to work.
 
 **Status:** PASS
+
+## Regression — Issue #1866: searchMgmt.html Test Suite result links use tsuite_id= which suiteView.html ignores
+
+**Precondition** — fresh DB; `php tmp/fixtures_1866.php` loaded (tproject **1** `SearchMgmt TS Fixture` prefix `SMTS`, testsuite **2** `Suite Alpha zephyr`, testcase **3** `TC Alpha zephyr`); logged in `admin`/`admin` at http://localhost:8082; headless Chrome via chrome-devtools MCP. App at http://localhost:8082 (PHP built-in server, docroot = repo root).
+
+**Pre-fix behavior (reproduced before the fix)** — `searchMgmt.html:380` rendered the Test Suite result href as `suiteView.html?tsuite_id=2&tproject_id=1`; opening it yielded `SUITE_ID === 0` and the body `"No test suite id provided."`, while `?id=2` loaded the suite.
+
+| # | Steps | Expected (post-fix) | Actual |
+|---|-------|---------------------|--------|
+| 1 | `GET /api/searchmgmt/index.php?action=results&tproject_id=1&target=zephyr&and_or=or&ts_title=1&ts_summary=1&tc_title=1` | `status:ok`, 1 testsuite row id=2 `Suite Alpha zephyr`, 1 testcase row id=3 | PASS — `{status:ok, warning:"", count:2, testsuites:[{id:2,name:"Suite Alpha zephyr"}], testcases:[{testcase_id:3}]}` |
+| 2 | Open `searchMgmt.html?tproject_id=1&target=zephyr`; read `#resultsWrap a.rowlink` hrefs | Suite href uses `id=` (not `tsuite_id=`); TC href unchanged `tcView.html?tcase_id=` | PASS — hrefs `suiteView.html?id=2&tproject_id=1` + `tcView.html?tcase_id=3&tproject_id=1` |
+| 3 | Click the suite result (opens `target=_blank`) → `suiteView.html?id=2&tproject_id=1` | Banner hidden; page contains `Test Suite Viewer - SearchMgmt TS Fixture` | PASS — noId=false, loaded=true |
+| 4 | Open `suiteView.html?id=2&tproject_id=1` directly (control) | Suite loads, no banner | PASS — noId=false, loaded=true |
+| 5 | Open `suiteView.html?tsuite_id=2&tproject_id=1` (old broken URL — now the alias) | Suite loads via the new alias (no no-id banner) | PASS — noId=false, loaded=true |
+| 6 | Open `suiteView.html?testsuite_id=2&tproject_id=1` (pre-existing accepted name) | Suite loads, no banner | PASS — noId=false, loaded=true |
+| 7 | Open `suiteView.html?item_id=2&tproject_id=1` (pre-existing accepted name) | Suite loads, no banner | PASS — noId=false, loaded=true |
+| 8 | Open `suiteView.html?tproject_id=1` (no id param) | Localized "no id" banner still shown (`suvw.noId`); no false-positive load | PASS — noId=true, loaded=false |
+| 9 | Priority check `suiteView.html?id=2&tsuite_id=999&tproject_id=1` | `id=` (higher in chain) wins → suite 2, alias never shadows | PASS — code-review: `SUITE_ID=2`, alias last in the `parseInt(...)` chain |
+| 10 | `GET /api/suiteview/index.php?action=info&id=2&tproject_id=1` (API contract unchanged) | `status:ok` with suite 2 payload | PASS — `{status:ok}` suite 2 returned (viewer rendered) |
+| 11 | `SELECT COUNT(*), MAX(id) FROM events` after all post-fix requests | 0 new ERROR/WARNING (only pre-existing log_level=16 audit rows) | PASS — still 3 rows, all `log_level=16` |
+| 12 | `grep -rn tsuite_id gui/templates/search/searchMgmt.html`; `git diff` scope check | 0 hits in producer; exactly 2 files changed (`searchMgmt.html` + `suiteView.html`); no i18n keys added (no new strings) | PASS — `9721219d8` + `85ed8aff3` touch only those 2 files (+2/−1, +4/−1) |
+
+**Result: 12/12 PASS.** Fix mirrors the sibling dead-link fixes #1865 (`reqSpecView.html:310`) and #1867 (`reqView.html:337`): emit `id=` + accept the old parameter name as an alias. No console errors; no new Event Viewer entries.
