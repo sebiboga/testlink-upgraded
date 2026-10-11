@@ -4,6 +4,7 @@
 <link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="referrer" content="origin">
 <title data-i18n="rmail.title">TestLink - Report by E-mail</title>
 <link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
@@ -101,7 +102,6 @@ $(function () {
   TLi18n.load(function () {
     TLi18n.apply();
     TLi18n.initLocaleSwitcher('#localeSwitcher');
-    TLi18n.onChange(function () { if (CUR && CUR.status === 'ok') { render(); } });
     load();
   });
 
@@ -149,7 +149,7 @@ function render() {
   // Message: legacy generateHtmlEmail() put "mail sent to <to>" on success and
   // "send_mail_ko <details>" otherwise. Both are shown escaped (legacy echoed
   // the message body un-escaped).
-  var msg = ok ? TLi18n.t('rmail.sentOk').replace('%s', to) : TLi18n.t('rmail.sentKo');
+  var msg = ok ? TLi18n.t('rmail.sentOk').replace('%s', function(){ return to; }) : TLi18n.t('rmail.sentKo');
   $('#msgText').text(msg);
 
   $('#msgIcon').toggleClass('ko', !ok)

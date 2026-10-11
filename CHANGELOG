@@ -17,6 +17,25 @@ Every screen of the application was ported one-by-one in a screen-compare
   kept for backward compatibility and is progressively retired as each modern
   screen reaches full parity.
 
+- [SCREEN] - #1901: the **Test Report E-mail Confirmation** page
+  (`gui/templates/dashio/feedback/emailSent.tpl` -> `gui/templates/results/reportMailSent.html`,
+  BFF `api/reportmail/index.php`) is modernized — the last standalone full-page feedback
+  renderer for the *- Send Test Report* mail action, duplicated across ~30 legacy
+  `lib/results/*.php` controllers. The legacy template was an all-or-nothing page
+  (`send_test_report` header, `mail_sent_to`/`send_mail_ko` message, a bare error
+  string); the modern Dashio screen renders the OK state (green “Sent” badge, subject,
+  recipient) and the KO state (red “Not sent” badge, subject, escaped mailer detail),
+  plus a no-data error bar for a bare deep-link, back-to-reports / results-navigator /
+  home / login links, and the TLi18n locale switcher. A new `redirectToReportMailSent()`
+  helper in `lib/functions/common.php` 302s the `displayMgr.php` FORMAT_MAIL_HTML default
+  branch (the single choke point shared by every report-mail producer) to the screen with
+  a path-only, URL-encoded same-origin `Location`; the legacy template is kept as a
+  headers-already-sent fallback. Session-guarded read-only BFF (`bffSameOriginGuard`,
+  `Cache-Control: no-store`; 401 anon / 403 cross-origin / 400 bad action / 405 wrong verb).
+  20 new `rmail.*` + `footers.reportMailSent` i18n keys in all 10 bundles. Note: the `rms.`
+  prefix was already taken by the Requirement Management System screens, so the new keys
+  use `rmail.` (collision found and fixed during the port). (Refs #1901)
+
 - [SCREEN] - #1899: the **Generic Info / Notice page**
   (`gui/templates/dashio/workAreaSimple.tpl` -> `gui/templates/feedback/info.html`,
   BFF `api/info/index.php`) is modernized — the last standalone full-page feedback
@@ -3175,7 +3194,7 @@ MAJOR AREAS
   classes fixed, from E_WARNING/E_NOTICE to PHP 8.4 deprecations). Full PHP 8.4
   compatibility (Symfony translation implicit-nullable fix, #481). MariaDB 11.4
   tested. MySQL 5.7+ / MariaDB 11.4+.
-- [MODERNIZED SCREENS] - 117 standalone HTML screens (88+ feature-parity checked,
+- [MODERNIZED SCREENS] - 118 standalone HTML screens (89+ feature-parity checked,
   see docs/SCREEN-COMPARE-STATUS.md). All ASIDE menu sections covered: System,
   Product, Requirements, Test Spec, Plans, Execution, Reports, Auth, Documentation.
 - [I18N] - Client-side TLi18n module (gui/templates/i18n/i18n.js) with 10 locale

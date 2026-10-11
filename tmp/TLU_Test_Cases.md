@@ -7827,3 +7827,30 @@ and `recordsDisplay==1` — reproduced exactly as reported before the change.
 **Result: 11/11 PASS.** Depends on `gui/templates/plans/buildsView.html` + `api/builds/index.php`; i18n key `bv.cfSection` added to all 10 bundles (`bash ai/verify_i18n_coverage.sh` PASS). The single Event Viewer E_WARNING observed (POST create audit `$ctx['tproject_name']`) is pre-existing and tracked in **#1900**; not caused by this change.
 
 **Post-review addendum (code review, rule 16).** The review flagged a race: `openCreate()/openEdit()` showed/sent the previous build's CF inputs until `loadCfields()` resolved. Fixed by resetting `cfDefs`/`#cfFields`/`#cfArea` at the start of `loadCfields()` and dropping out-of-order responses with a `cfReqSeq` token (`buildsView.html`). Re-verified in the browser: after editing build 1 (`staging`) then immediately calling `openCreate()`, `#cfArea` was hidden and 0 CF inputs existed until the request resolved; on resolve, the create form showed 3 empty inputs; a create with env=`race`/component=`database`/date=`2026-08-01` persisted (`cf = {bvc_environment:'race', bvc_release_dt:'2026-08-01'}`). Also applied the review's parity nit: the HIDECOL lookup now passes `active=null` (legacy `buildView.php`) instead of `1`. Tests 1-11 above remain PASS.
+
+## Modernize — Issue #1901: Test-report e-mail confirmation (reportMailSent.html + api/reportmail)
+
+**Precondition** — fresh DB; fixtures created by `php tmp/fixtures_1901.php` (test project `RMS1901` id 1 prefix `RMS1901`, test plan `Plan1901` id 2, build `Build1901` id 1). Logged in `admin`/`admin` at http://localhost:8082; headless Chrome via chrome-devtools MCP. Legacy producers: `lib/results/{resultsByStatus,resultsGeneral,...}.php` -> `lib/results/displayMgr.php` `displayReport()` FORMAT_MAIL_HTML branch.
+
+| # | Steps | Expected | Actual |
+|---|-------|----------|--------|
+| 1 | `GET /gui/templates/results/reportMailSent.html?status=ok&title=Test%20Plan%20Report&to=admin@example.com` | Card title "Report sent by e-mail"; OK message "The test report e-mail was sent successfully to admin@example.com."; status badge "Sent"; subject + recipient rows populated | PASS |
+| 2 | `GET ...reportMailSent.html?status=ko&title=X&to=&msg=<mailer error>` | Card title "Report e-mail delivery problem"; status badge "Not sent"; detail box shows the (escaped) mailer error; subject row populated | PASS |
+| 3 | `GET ...reportMailSent.html` (no params) | Error bar "No report-mail confirmation data was provided."; no crash | PASS |
+| 4 | `GET ...reportMailSent.html?status=ok&title=Raport&to=admin@example.com&locale=ro` | All strings Romanian (e.g. "Raport prin e-mail"); no raw `rmail.*` keys | PASS |
+| 5 | TLi18n locale switcher select | Switching locale reloads the page with `?locale=<code>` (no `onChange` API) and re-renders translated | PASS |
+| 6 | `GET /api/reportmail/index.php` with NO session cookie | 401 `{"status":"error","code":"session_expired"}` | PASS |
+| 7 | `POST /api/reportmail/index.php?action=context` without `Origin` | 403 same-origin guard | PASS |
+| 8 | `GET /api/reportmail/index.php?action=nope` (session) | 400 unknown action | PASS |
+| 9 | `GET /api/reportmail/index.php?action[]=x` (array action) | 400 (action must be a scalar string) | PASS |
+| 10 | `GET /api/reportmail/index.php?action=context` (session) | 200 `{status:ok, action, auth:{logged_in,user_id,user_login,email}, from, to, locale, basehref}`; `Cache-Control: no-store` | PASS |
+| 11 | Legacy flow: `GET /api/reportsexport/index.php?action=results_by_status_mail&tplan_id=2&tproject_id=1` then follow | 303/302 to `/lib/results/resultsByStatus.php?format=6&sendSpreadSheetByMail_x=1...` | PASS |
+| 12 | Legacy controller `GET /lib/results/resultsByStatus.php?format=6&sendSpreadSheetByMail_x=1&tplan_id=2&tproject_id=1&type=f` (session) | `displayReport()` FORMAT_MAIL_HTML branch 302s to `…/reportMailSent.html?status=ko&title=…&to=&msg=…` (mailer has no creds) | PASS — `Location: /gui/templates/results/reportMailSent.html?status=ko&title=Failed+Test+Cases...&msg=Warning%3A+Problems+sending+mail...` |
+| 13 | Follow case-12 Location in browser | Renders the modern screen (title "TestLink - Report by E-mail") with KO card + legacy mailer message | PASS |
+| 14 | Helper URL-encoding (temp served `__rmtest.php`, since deleted) | `redirectToReportMailSent()` encodes `"`/`&`/`<`/space/newline in the Location (`Sub%22ject+%26%3Cx%3E`, `%0A`); no-basehref fallback resolves to `/gui/templates/results/reportMailSent.html` | PASS |
+| 15 | Integration: missing `type` param on legacy controller | Legacy `exit()` (pre-existing behavior) — not a regression; report screens always send `type` | PASS |
+| 16 | Console (browser) on all screen states | No JS console errors | PASS |
+| 17 | `bash ai/verify_i18n_coverage.sh` | All 9 non-en bundles define the 20 `rmail.*` + `footers.reportMailSent` keys; 0 missing | PASS |
+| 18 | `SELECT ... FROM events WHERE id > <baseline>` after cases 1-13 | 0 new ERROR/WARNING rows | PASS |
+
+**Result: 18/18 PASS.** New: `api/reportmail/index.php`, `gui/templates/results/reportMailSent.html`, `redirectToReportMailSent()` in `lib/functions/common.php`, `displayMgr.php` default mail branch; i18n `rmail.*` (20) + `footers.reportMailSent` in all 10 bundles. Screenshots: `docs/screenshots/1901-reportmailsent-{ok,ko,ro,nodata}.png`. Nothing dropped from the legacy `emailSent.tpl` behavior (subject/recipients/status/detail + back-to-report links); legacy template retained as headers-already-sent fallback.
