@@ -394,6 +394,7 @@
   "bv.noBuilds": "Todavía no hay builds definidos para este plan de pruebas",
   "bv.openLabel": "Abierto",
   "bv.releaseDate": "Fecha de release",
+  "bv.showEventHistory": "Mostrar historial de eventos",
   "bv.testPlan": "Plan de pruebas",
   "bv.titleCreate": "Crear build",
   "bv.titleEdit": "Editar build",

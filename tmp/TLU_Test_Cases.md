@@ -7918,3 +7918,26 @@ PASS (verified by code review of guarded accesses; regression passes targeted ar
 **Actual:** Implemented as specified; UI logic matches reqOverview.html patterns.
 
 PASS
+
+## Task — Issue #1123: buildsView edit modal — show event-history button (mgt_view_events)
+
+**Precondition:** Logged in; a test project with a test plan and at least one build. Fixtures used: project "Demo Project" (id 1), plan "Sprint 1" (id 2), build "Build A" (id 1). Verify `api/builds/index.php?tplan_id=2` returns `rights.canViewEvents`.
+
+**Steps:**
+1. Navigate to `gui/templates/plans/buildsView.html?tplan_id=2`.
+2. Click a build name to open the edit modal.
+3. Expected: a "Show event history" button appears at the bottom of the modal (admin/`mgt_view_events`).
+4. Click it. Expected: new tab `eventviewer.html?object_id=<build>&object_type=builds`; "Filtered by builds #<id>" visible; build AUDIT rows listed; access not denied.
+5. Click "Create Build". Expected: the event-history button is hidden (no build id yet).
+6. Log in as a user that can manage builds but lacks `mgt_view_events` (leader role). Navigate to the same screen and open the edit modal.
+7. Expected: button NOT visible (`#evHistoryWrap` display none; BFF `rights.canViewEvents=false`).
+
+**Expected:** Button gated on `mgt_view_events`; opens event viewer filtered to `builds` + build id; hidden in create mode and without the right.
+**Actual:**
+- Step 3/4 PASS — button rendered; event viewer opened (`object_id=1&object_type=builds`), label "Filtered by builds #1", AUDIT row "Build 'Build A' was created".
+- Step 5 PASS — `#evHistoryWrap` computed display `none` in create mode.
+- Step 6/7 PASS — as `testlead` (leader): `canViewEvents:false`, `#evHistoryWrap` display `none`, no visible button.
+- i18n: `bv.showEventHistory` present in all 10 bundles; `ai/verify_i18n_coverage.sh` exit 0 (9 passed / 0 failed).
+- Event Viewer: no new Error/Warning entries from the feature.
+
+PASS

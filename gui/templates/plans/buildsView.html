@@ -39,6 +39,8 @@ table.dataTable tbody td { padding: 8px 14px; font-size: 13px; vertical-align: m
 .act-btn:hover { color: #22242a; }
 .act-btn.del { color: #e6605e; }
 .act-btn.del:hover { color: #c53f3d; }
+.ev-btn { background: none; border: none; color: #b8860b; font-size: 13px; cursor: pointer; padding: 0; }
+.ev-btn:hover { text-decoration: underline; }
 .empty { background: #fff; border-radius: 8px; padding: 26px; text-align: center; color: #888; font-size: 13px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
 .footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
 .toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
@@ -155,6 +157,10 @@ table.dataTable tbody td { padding: 8px 14px; font-size: 13px; vertical-align: m
             <div class="hint" data-i18n="bv.execStatusHint">leave empty to copy all assignments</div>
           </div>
         </div>
+
+        <div style="margin-top:10px;display:none;" id="evHistoryWrap">
+          <button type="button" class="ev-btn" onclick="showEventHistory()"><i class="fa fa-history"></i> <span data-i18n="bv.showEventHistory">Show event history</span></button>
+        </div>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-dismiss="modal" style="font-size:13px;" data-i18n="common.cancel">Cancel</button>
@@ -182,6 +188,11 @@ table.dataTable tbody td { padding: 8px 14px; font-size: 13px; vertical-align: m
   </div>
 </div>
 
+<form id="eventhistory" target="_blank" method="GET" action="/gui/templates/eventviewer/eventviewer.html" style="display:none;">
+  <input type="hidden" name="object_id" id="eh_object_id">
+  <input type="hidden" name="object_type" id="eh_object_type" value="builds">
+</form>
+
 <script src="/gui/templates/i18n/i18n.js"></script>
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.9/purify.min.js"></script>
@@ -192,6 +203,7 @@ table.dataTable tbody td { padding: 8px 14px; font-size: 13px; vertical-align: m
 var API = '/api/builds/index.php';
 var tplanId = 0;
 var canManage = true;
+var canViewEvents = false;
 var buildTbl = null;
 var deleteTarget = null;
 var lastData = null;
@@ -286,6 +298,7 @@ function load() {
       if (r.status !== 'ok') { toast(TLi18n.t('common.error'), true); return; }
       lastData = r;
       canManage = r.rights.canManage;
+      canViewEvents = r.rights.canViewEvents || false;
       $('#tplanName').text(r.tplan.name);
       document.title = r.tplan.name + ' - ' + TLi18n.t('bv.header');
 
@@ -453,6 +466,7 @@ function openCreate() {
   $('#fCopyAssignments').prop('checked', false);
   $('#srcBlock,#statusBlock').hide();
   $('#copyBlock').toggle($('#fSourceBuild option').length > 0);
+  $('#evHistoryWrap').hide();
   loadCfields(0);
   $('#editModal').modal('show');
 }
@@ -467,7 +481,17 @@ function openEdit(b) {
   $('#fOpen').prop('checked', parseInt(b.is_open, 10) == 1);
   $('#copyBlock').hide();
   loadCfields(b.id);
+  $('#evHistoryWrap').toggle(canViewEvents);
   $('#editModal').modal('show');
+}
+
+/** Event history for one build (legacy buildEdit.tpl:55 showEventHistoryFor(id,'builds')).
+ *  Same pattern as platformsView.html:410-415. */
+function showEventHistory() {
+  var id = $('#fId').val();
+  if (!id) return;
+  $('#eh_object_id').val(id);
+  $('#eventhistory').submit();
 }
 
 /* ------------------------------------------------------------------ */

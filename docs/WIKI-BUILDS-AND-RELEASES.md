@@ -84,11 +84,26 @@ the 2026-09-06 parity run.
 
 Verified in the browser: list shows `BVC Environment` / `BVC Release Date` (with `bvc_component` hidden by `TL_BUILDVIEW_HIDECOL_BVC`), create persists `qa` / `backend` / `2026-07-20`, edit prefills `staging` / `2026-06-15`, no JS console errors. i18n key `bv.cfSection` added to all 10 bundles. Not caused by this work: a pre-existing POST-create audit E_WARNING (`$ctx['tproject_name']`) is tracked in **#1900**.
 
+### Event-history button in the edit modal (Refs #1123)
+
+Legacy `buildEdit.tpl:52-57` rendered a **Show event history** icon next to the
+operation title whenever the user held `mgt_view_events` (`buildEdit.php:106`),
+opening `showEventHistoryFor('{build_id}','builds')`. The modern edit modal now
+carries the same control (platformsView pattern): a `#evHistoryWrap` button in
+the modal body, gated on `rights.canViewEvents` (the BFF already exposes it at
+`api/builds/index.php:716-724`), submitting `object_id`/`object_type=builds` to
+`eventviewer.html`. It is hidden in the create modal (no build id yet).
+
+Verified as admin (`canViewEvents=true`: button shown, viewer lists the build's
+AUDIT rows) and as a `leader` user without `mgt_view_events`
+(`canViewEvents=false`, button absent). i18n key `bv.showEventHistory` added to
+all 10 bundles (`verify_i18n_coverage.sh` exit 0). No new Event Viewer
+Error/Warning entries.
+
 ### Gaps (open issues)
 
 | Issue | Type | Gap |
 |---|---|---|
-| #1123 | task | Edit-screen **event-history icon** dropped — legacy `buildEdit.tpl:52-57` `showEventHistoryFor('{id}','builds')` gated by `mgt_view_events` (`buildEdit.php:106`) |
 | #1124 | task | **closed_on_date** value never displayed — legacy `buildEdit.tpl:96` shows the stored closure date; BFF returns it, modern modal only shows the generic `bv.closureHint` |
 
 Cleanup: #1125 delete legacy `lib/plan/buildView.php` + `buildEdit.php` +

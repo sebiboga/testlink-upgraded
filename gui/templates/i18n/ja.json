@@ -394,6 +394,7 @@
   "bv.noBuilds": "このテスト計画にはまだビルドが定義されていません",
   "bv.openLabel": "オープン",
   "bv.releaseDate": "リリース日",
+  "bv.showEventHistory": "イベント履歴を表示",
   "bv.testPlan": "テスト計画",
   "bv.titleCreate": "ビルド作成",
   "bv.titleEdit": "ビルド編集",

@@ -394,6 +394,7 @@
   "bv.noBuilds": "Nu există încă build-uri definite pentru acest plan de test",
   "bv.openLabel": "Deschis",
   "bv.releaseDate": "Data lansării",
+  "bv.showEventHistory": "Afișează istoricul evenimentelor",
   "bv.testPlan": "Plan de test",
   "bv.titleCreate": "Creează build",
   "bv.titleEdit": "Editează build",

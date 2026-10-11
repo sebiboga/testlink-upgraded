@@ -394,6 +394,7 @@
   "bv.noBuilds": "此测试计划尚未定义任何构建",
   "bv.openLabel": "打开",
   "bv.releaseDate": "发布日期",
+  "bv.showEventHistory": "显示事件历史",
   "bv.testPlan": "测试计划",
   "bv.titleCreate": "创建构建",
   "bv.titleEdit": "编辑构建",
