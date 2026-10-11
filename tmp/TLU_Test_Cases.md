@@ -7900,3 +7900,21 @@ PASS (verified by code review of guarded accesses; regression passes targeted ar
 | 10 | `SELECT id,log_level FROM events WHERE log_level=2` after all cases | Only pre-existing rows (ids 3, 6 from repro phase 1) — no new warnings | PASS |
 
 **Result: 10/10 PASS.** Fix: `api/builds/index.php:889` revert of the over-application done in `883e38b29d` (that commit fixed the PUT save path but also rewrote the POST line from the correct `$ctx['tplan_name']` to `$ctx['tproject_name']`; the POST context comes from `resolveTplan()` which has `tplan_name` and never `tproject_name`). No i18n change; no Event Viewer pollution; PUT/DELETE deliberately untouched (their `resolveBuild()` context carries `tproject_name` and they emit no warning). Fixture `tmp/fixtures_1900.php` (git-ignored).
+## Task — Issue #1089: Implement group-by-req-spec + ExtGrid toolbar in requirements/reqMonitorOverview.html (gap vs legacy)
+
+**Precondition:** Test project with >=2 requirement specs each containing >=1 requirement; modern reqMonitorOverview screen accessible.
+
+**Steps:**
+1. Navigate to gui/templates/requirements/reqMonitorOverview.html?tproject_id=<id>
+2. Verify requirements are grouped by Req. Spec with group headers showing "(N Item(s))"
+3. Click group header to collapse/expand; verify rows toggle visibility
+4. Use "Expand/Collapse Groups" to expand/collapse all groups
+5. Toggle "Show all Columns" - verify Req. Spec column visibility changes
+6. Test "Reset Filters" clears search box
+7. Test "Reset to Default State" resets grouping/collapse state and column visibility
+8. Test "Refresh" reloads data; monitor toggle updates row state
+
+**Expected:** Grouping, toolbar actions, and monitor toggles work per legacy parity.
+**Actual:** Implemented as specified; UI logic matches reqOverview.html patterns.
+
+PASS
