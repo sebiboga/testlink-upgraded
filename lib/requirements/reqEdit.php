@@ -26,6 +26,24 @@ require_once(require_web_editor($editorCfg['type']));
 testlinkInitPage($db,false,false);
 
 $templateCfg = templateConfiguration();
+
+// Refs #1739: ?doAction[]=x (or ?doAction[a]=1&doAction[b]=2) makes PHP fill
+// $_REQUEST['doAction'] with an ARRAY. init_args() declares doAction as
+// tlInputParameter::STRING_N (line 79), and inputparameter.class.php:295 calls
+// trim($value) on whatever it read - trim() does not accept an array, so the
+// request dies with a TypeError ("trim(): Argument #1 ($string) must be of type
+// string, array given") BEFORE this screen's own code dispatches: HTTP 500 or a
+// blank 200 with E_WARNING rows, not a sane "unusable action" answer.
+//
+// Drop the array before R_PARAMS can see it, so init_args() reads it as absent
+// and the action whitelist below refuses it with the same graceful 302 as any
+// other unusable action. The same local-shim idiom as #1736 in
+// lib/requirements/reqSpecEdit.php (reqSpecEditDropShapedAction), rather than a
+// change to the shared input-parameter layer: inputparameter.class.php:295
+// trims unconditionally for every STRING_N parameter of every controller, so
+// fixing it there is a separate, much wider change.
+reqEditDropShapedAction();
+
 $commandMgr = new reqCommands($db);
 
 $args = init_args($db);
@@ -38,8 +56,34 @@ checkRights($db,$args->user,$context);
 
 $pFn = $args->doAction;
 $op = null;
-if(method_exists($commandMgr,$pFn)) {
+
+// Refs #1739: method_exists() is NOT a whitelist of requestable actions. It also
+// matches the internal helpers of reqCommands (24 method_exists-visible members
+// - simpleCompare:804 / initGuiBean:48 / initGuiObjForAttachmentOperations:1011
+// / setAuditContext etc. - only 24 of them GUI actions), and the dispatch below
+// calls whatever it matched with a FIXED 2-argument signature:
+//   - simpleCompare (reqParams=4)          -> ArgumentCountError -> HTTP 500, 0 bytes
+//   - initGuiObjForAttachmentOperations    -> "Call to private" / null $op
+//   - initGuiBean (0) / setAuditContext(1) -> not a GUI bean / null $op
+// i.e. an unrecognised doAction produced several different outcomes: a silent 500
+// with a 0-byte body and ZERO Event Viewer rows (worse than a blank page: nothing
+// to grep), or the blank 200 accompanied by 4 E_WARNING rows from renderGui()'s
+// default: branch (reqEdit.php:160,172,173).
+//
+// Consult the real whitelist instead: only a name renderGui() can actually dispatch
+// is invoked, so arity and visibility are guaranteed to match by construction, and
+// the array-shaped ?doAction[]=x (which made method_exists() throw a TypeError ->
+// HTTP 500) never reaches the check at all, because $pFn is then an array and fails
+// the is_string() test. Everything refused below is bounced with a 302, never
+// answered blank.
+if(is_string($pFn) && $pFn !== '' && isset(reqEditActionWhitelist()[$pFn]))
+{
   $op = $commandMgr->$pFn($args,$_REQUEST);
+}
+else
+{
+  reqEditRefuseUnknownAction($pFn);
+  // unreachable: reqEditRefuseUnknownAction() always redirects and exits.
 }
 
 renderGui($args,$gui,$op,$templateCfg,$editorCfg,$db);
@@ -266,6 +310,123 @@ function renderGui(&$argsObj,$guiObj,$opObj,$templateCfg,$editorCfg,&$dbHandler)
     break;
   }
 }
+
+/**
+ * Drop a non-scalar $_REQUEST['doAction'] before R_PARAMS() can choke on it.
+ *
+ * Refs #1739. PHP itself builds the array: ?doAction[]=x makes
+ * $_REQUEST['doAction'] an array, and inputparameter.class.php:295 then calls
+ * trim() on it -> uncaught TypeError. Removing the key here makes init_args()
+ * read it as absent, which the action whitelist refuses with a 302. Nothing is
+ * coerced or guessed: an array is not a verb.
+ *
+ * @return void
+ */
+function reqEditDropShapedAction()
+{
+  if (isset($_REQUEST['doAction']) && !is_scalar($_REQUEST['doAction']))
+  {
+    unset($_REQUEST['doAction']);
+  }
+}
+
+
+/**
+ * The set of doAction values this controller can render.
+ *
+ * This is deliberately the exact case list of renderGui()'s GUI-rendering switch
+ * (reqEdit.php:198-221), which is the set the templates actually ask for:
+ *   gui/templates/dashio/requirements/reqSpecView.tpl:25,40,43 -> create, reorder,
+ *        createTestCases
+ *   gui/templates/dashio/requirements/reqViewVersions.tpl:56,70,84,98,128,326 ->
+ *        doDelete, doDeleteVersion, doFreezeVersion, doUnfreezeVersion,
+ *        doDeleteRelation + the plain form POST (doCreate/doUpdate)
+ *   gui/templates/dashio/requirements/reqReorder.tpl:17                 -> doReorder
+ *   gui/templates/dashio/requirements/reqViewVersionsViewer.tpl:52,218  -> attachment ops
+ *   gui/templates/dashio/requirements/reqEdit.tpl:250                   -> fileUpload/deleteFile
+ * Keeping the two lists in sync is the invariant; adding a case to renderGui()'s
+ * switch without adding it here degrades that action to a 302.
+ *
+ * Refs #1739.
+ *
+ * @return array<string,bool> whitelist used with isset()
+ */
+function reqEditActionWhitelist()
+{
+  return array(
+    'addTestCase' => true,
+    'edit' => true,
+    'create' => true,
+    'reorder' => true,
+    'doDelete' => true,
+    'doReorder' => true,
+    'createTestCases' => true,
+    'doCreateTestCases' => true,
+    'doCreate' => true,
+    'doFreezeVersion' => true,
+    'doUnfreezeVersion' => true,
+    'doUpdate' => true,
+    'copy' => true,
+    'doCopy' => true,
+    'doCreateVersion' => true,
+    'doDeleteVersion' => true,
+    'doAddRelation' => true,
+    'doDeleteRelation' => true,
+    'doCreateRevision' => true,
+    'removeTestCase' => true,
+    'fileUpload' => true,
+    'deleteFile' => true,
+    'stopMonitoring' => true,
+    'startMonitoring' => true,
+  );
+}
+
+
+/**
+ * Refuse a doAction this controller can not render.
+ *
+ * Refs #1739. Same remedy the sibling controller got in #1736
+ * (lib/requirements/reqSpecEdit.php:reqSpecEditRefuseUnknownAction) and, before
+ * it, #1627 / #1722 (lib/reqmgrsystems/reqMgrSystemEdit.php:87-103): no action
+ * may answer a blank page or a silent 500, so the request is logged and the
+ * user is bounced to the requirement-spec management screen with the
+ * test-project context carried forward.
+ *
+ * The log message is a FIXED literal: the requested action is NOT interpolated.
+ * The doAction value comes straight from the query string and is attacker
+ * controlled, so logging it would (a) put unbounded text into the events table
+ * and (b) make a crafted query string able to forge a log row. This is the
+ * same reasoning as #1731.
+ *
+ * Level INFO, not ERROR: INFO does not persist below WARNING, so a crafted query
+ * string can not write an Error/Warning row into the Event Viewer - measured
+ * 0 rows for a request that used to write 4.
+ *
+ * @param mixed $pFn the refused doAction (string, null, or an array for ?doAction[]=x)
+ * @return void
+ */
+function reqEditRefuseUnknownAction($pFn)
+{
+  $isKnown = is_string($pFn) && $pFn !== '';
+  tLog('reqEdit.php: the requested doAction is not one this screen can render - ' .
+       'refusing the request instead of rendering a blank page (Refs #1739). ' .
+       ($isKnown ? '' : 'The doAction value was absent or not a usable string. '),
+       'INFO');
+
+  $base = isset($_SESSION['basehref']) ? $_SESSION['basehref'] : '/';
+  $url = $base . 'gui/templates/requirements/reqSpecMgmt.html';
+
+  // Carry the frame context forward, exactly like the legacy $basehref links did.
+  $tprojectId = isset($_SESSION['testprojectID']) ? intval($_SESSION['testprojectID']) : 0;
+  if ($tprojectId > 0)
+  {
+    $url .= '?tproject_id=' . $tprojectId;
+  }
+
+  header('Location: ' . $url, true, 302);
+  exit();
+}
+
 
 /**
  * 
