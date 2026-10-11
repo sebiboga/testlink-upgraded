@@ -627,7 +627,7 @@ if ($method === 'GET' && count($segments) === 0) {
         foreach (['_' . $ppfx, ''] as $suf) {
             $gopt = ['name' => 'TL_BUILDVIEW_HIDECOL' . $suf];
             $col2hideCF = $buildMgr->cfield_mgr->get_linked_to_testproject(
-                $ctx['tproject_id'], 1, $gopt);
+                $ctx['tproject_id'], null, $gopt);
             if (!empty($col2hideCF)) {
                 $first = reset($col2hideCF);
                 $cfHideNames = array_flip(explode('|', (string)$first['possible_values']));

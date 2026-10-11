@@ -197,6 +197,7 @@ var deleteTarget = null;
 var lastData = null;
 var cfColumns = [];
 var cfDefs = [];
+var cfReqSeq = 0;
 
 $(function () {
   var p = new URLSearchParams(window.location.search);
@@ -473,9 +474,17 @@ function openEdit(b) {
 /* Build design custom fields (restored parity, Refs #1122)            */
 /* ------------------------------------------------------------------ */
 function loadCfields(buildId) {
+  // Reset FIRST: until the request resolves the modal must not show (or send)
+  // the previous build's CF inputs. The sequence token drops an out-of-order
+  // response when two edits are opened in quick succession. Refs #1122.
+  cfDefs = [];
+  $('#cfFields').empty();
+  $('#cfArea').hide();
+  var seq = ++cfReqSeq;
   var url = API + '/cfields?tplan_id=' + tplanId + (buildId > 0 ? '&build_id=' + buildId : '');
   $.getJSON(url)
     .done(function (r) {
+      if (seq !== cfReqSeq) { return; }
       if (r.status !== 'ok') { cfDefs = []; $('#cfArea').hide(); return; }
       cfDefs = r.cfields || [];
       if (!cfDefs.length) { $('#cfArea').hide(); $('#cfFields').empty(); return; }
@@ -484,7 +493,10 @@ function loadCfields(buildId) {
       $('#cfFields').html(html.join(''));
       $('#cfArea').show();
     })
-    .fail(function () { cfDefs = []; $('#cfArea').hide(); $('#cfFields').empty(); });
+    .fail(function () {
+      if (seq !== cfReqSeq) { return; }
+      cfDefs = []; $('#cfArea').hide(); $('#cfFields').empty();
+    });
 }
 
 /** One custom field input. Everything is rendered from the server payload
