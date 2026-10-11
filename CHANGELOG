@@ -74,6 +74,18 @@ Every screen of the application was ported one-by-one in a screen-compare
   new `tccfi.*` i18n keys across all 10 bundles; new ASIDE label
   `$TLS_href_tc_spec_import` in all 19 locale files. (Refs #1896)
 
+- [KEY BUGFIX] - #1897: **the legacy Keyword editor shim `lib/keywords/keywordsEdit.php:66` answered
+  HTTP 500 for an array-shaped `doAction` (`?doAction[]=x`).** A bare `isset()` admitted the array
+  into `trim($_REQUEST['doAction'])` → `TypeError: trim(): Argument #1 ($string) must be of type
+  string, array given` (uncaught → blank 500). `keyword`/`notes` were already hardened at
+  `keywordsEdit.php:68-73`, so `doAction` was the one read left unguarded — the array-shaped twin of
+  #1886/#1894 (`planMilestonesEdit.php`) and #1731 (`reqMgrSystemEdit.php`). Fix (1 file, +7/−1):
+  an `is_scalar()` guard (`trim((string)$_REQUEST['doAction'])`) so a non-scalar action is ignored
+  and the request falls through to the normal 302 GET redirect; scalar behaviour (including the
+  `edit`/`cfl` dispatchers and the `do_create`/`do_update`/`do_delete`/`do_cfl` write paths) is
+  unchanged. Docs: `docs/Bugfix-Issue-1897-KeywordsEdit-Array-DoAction-TypeError.md` + wiki page;
+  regression suite `Issue #1897` 12/12 PASS, suite gate 7/7. (Fixes #1897)
+
 - [KEY BUGFIX] - #1739: **the legacy Requirement editor `lib/requirements/reqEdit.php:41` used
   `method_exists($commandMgr,$pFn)` as its dispatch whitelist — not a whitelist of requestable
   GUI actions.** It also matches the internal helpers of `reqCommands` and the dispatch called
