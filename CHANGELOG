@@ -98,6 +98,25 @@ Every screen of the application was ported one-by-one in a screen-compare
   new `tccfi.*` i18n keys across all 10 bundles; new ASIDE label
   `$TLS_href_tc_spec_import` in all 19 locale files. (Refs #1896)
 
+- [KEY BUGFIX] - #1741: **the modern Test Project Management screen
+  (`gui/templates/projectsView.html`) never restored its global search box from the saved
+  DataTables state.** The grid is built with `stateSave:true` (`:537`) and `dom:'lrtip'` (no
+  DataTables `f` box, `:540`) and uses its own `<input id="searchInput">` (`:173`), wired only in
+  the write direction (`keyup` → `projectsTbl.search(query).draw()`, `:930-937`). DataTables
+  persists **and re-applies** the global search on reload, so a returning user got a *silently
+  filtered* list behind an *empty* search box (measured: saved `search:"retail"`, `table.search()
+  == "retail"`, `recordsDisplay == 1` of 4 projects, `#searchInput.value == ""`) — the same
+  invisible-filter class as #1633, but a **missing** restore for the global term rather than a
+  wrong-shape read of the per-column descriptor. Fix (1 file, +19): a new
+  `restoreGlobalSearchState()` — the global counterpart of `restoreColumnFilterState()` — seeds
+  `#searchInput` from the unwrapped `state.search.search`, using the same object/bare-string
+  downgrade guard the sibling screens ship (`usersAssignPlan.html:1175-1176`,
+  `usersAssignProject.html:1004-1005`); it short-circuits when `state.loaded()` is `null` and is
+  unreachable on the empty-project path (which returns before table init). No BFF/PHP/DB change
+  and no i18n change. Docs: `docs/Bugfix-Issue-1741-projectsView-Restore-Global-Search.md` + wiki
+  page; regression suite `Issue #1741` 9/10 PASS (+1 by code inspection, 1 N/A), suite gate 7/7.
+  (Fixes #1741)
+
 - [KEY BUGFIX] - #1897: **the legacy Keyword editor shim `lib/keywords/keywordsEdit.php:66` answered
   HTTP 500 for an array-shaped `doAction` (`?doAction[]=x`).** A bare `isset()` admitted the array
   into `trim($_REQUEST['doAction'])` → `TypeError: trim(): Argument #1 ($string) must be of type
