@@ -117,6 +117,22 @@ Every screen of the application was ported one-by-one in a screen-compare
   new `tccfi.*` i18n keys across all 10 bundles; new ASIDE label
   `$TLS_href_tc_spec_import` in all 19 locale files. (Refs #1896)
 
+- [KEY BUGFIX] - #1900: **the Builds & Releases create path (`POST /api/builds/`) wrote one
+  `E_WARNING "Undefined array key "tproject_name"` into the Event Viewer on EVERY build create** --
+  the audit call at `api/builds/index.php:889` read `$ctx['tproject_name']` but the POST context
+  comes from `resolveTplan()`, whose return array (`:134-146`) has `tplan_name`/`tplan_id`/
+  `tproject_id` and never `tproject_name`; the audit row's "Test Plan" slot (`%2` of
+  `audit_build_created`) was written as `null`. Regression source: `883e38b29d` (review fix for
+  #1787) corrected the **save (PUT)** line -- where `resolveBuild()` *does* return
+  `tproject_name` -- but over-applied the same substitution to the POST line, which had been
+  correct (`$ctx['tplan_name']`) since `be4bc24e39`. PUT/DELETE are unaffected (their
+  `resolveBuild()` contexts carry `tproject_name`; measured 0 warnings). Fix (1 line): revert the
+  POST audit line to `$ctx['tplan_name']`. Verified: create/dup-409/copy-to-all-plans/PUT/flags/
+  DELETE all HTTP-clean with the audit `%2` = real plan name and **0 new `log_level=2` rows**;
+  browser create through `buildsView.html` clean (event id 16, `%2=T1900-PLAN`); `php -l` clean.
+  Regression suite "Regression — Issue #1900" 10/10 PASS, gate exit 0. Docs:
+  `docs/Bugfix-Issue-1900-builds-create-audit-tproject-name-warning.md`. (Fixes #1900)
+
 - [KEY BUGFIX] - #1749: **`testcase::deletePlatformsByLink()` raised
   `E_WARNING "foreach() argument must be of type array|object, null given"` (one Event Viewer row,
   `log_level=2`) whenever the supplied `tcplat_link_id` matched no `testcase_platforms` row** — a
