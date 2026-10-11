@@ -9887,7 +9887,9 @@ class testcase extends tlObjectWithAttachments {
 
     $rs = $this->db->get_recordset($sql);
     
-    foreach($rs as $link) {
+    // get_recordset() returns null for an empty result set (database.class.php:787);
+    // an unknown/stale link id must be a clean no-op, not an E_WARNING (#1749).
+    foreach((array)$rs as $link) {
       $this->deletePlatforms($safeTCID, $link['tcversion_id'], 
         $link['platform_id'],$audit);
     }  
