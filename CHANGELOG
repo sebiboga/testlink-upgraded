@@ -17,6 +17,20 @@ Every screen of the application was ported one-by-one in a screen-compare
   kept for backward compatibility and is progressively retired as each modern
   screen reaches full parity.
 
+- [SCREEN] - #1898: the **Role Create/Edit** screen
+  (`lib/usermanagement/rolesEdit.php` -> `gui/templates/usermanagement/rolesEdit.html`,
+  BFF `api/rolesedit/index.php`) is modernized. The legacy Smarty form — the last
+  full legacy renderer in the User Management area — is replaced by a standalone
+  Dashio screen: the grouped rights matrix (the 12 `rights_*` config groups shown
+  as fieldsets, which the inline `rolesView` modal only offered as a flat list),
+  create / edit / duplicate / delete, the *possible affected users* list, the
+  save-confirm warning when users carry the role, the `role_management` +
+  `mgt_view_events` gates, demo-mode read-only mode and the audit logging. The
+  legacy deep links (`doAction=create|edit|duplicate&roleid=`) 302 to the modern
+  screen via a session-guarded shim; `$actions->rolesEdit` was added and
+  `rolesView.html` gained an *Open editor* row action. 18 new `roe.*` /
+  `footers.rolesEdit` i18n keys in all 10 bundles. (Refs #1898)
+
 - [FEATURE GAP] - #1118: the inline **Edit Test Plan** modal of the Test Plan
   Management screen (`gui/templates/plans/planView.html`) now shows the plan's
   read-only API Key with a Copy button, restoring the legacy

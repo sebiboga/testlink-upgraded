@@ -7439,3 +7439,43 @@ Screen: `gui/templates/plans/planView.html?tproject_id=1`.
 
 **PASS/FAIL: PASS.** Feature parity with legacy `planEdit.tpl:123-130` restored in the inline
 planView edit modal; no console errors; no new events.
+
+## Task — Issue #1898: Role Create/Edit standalone screen (`rolesEdit`)
+
+**Precondition.** App `http://localhost:8082` (PHP built-in server, docroot = repo root);
+DB `testlink` freshly imported; logged in `admin`/`admin` (headless Chrome via chrome-devtools
+MCP). Note: the legacy `roles` table has only `description` (= the role *name*) + `notes`
+(= the role *description*); ids `1..9` are system roles, `TL_ROLES_ADMIN`=8, `TL_ROLES_NO_RIGHTS`=3,
+`TL_LAST_SYSTEM_ROLE`=9.
+
+**Steps / expected / actual (executed 2026-10-11, this run):**
+
+| # | Case | Expected | Actual |
+|---|------|----------|--------|
+| 1 | `GET api/rolesedit/?action=init&mode=create` anonymous | 401 session_expired | PASS — HTTP 401 |
+| 2 | admin init create | 12 grouped rights fieldsets (`rightsGroups`) | PASS — `groups=12`, `canManage=true`, `demoMode=false` |
+| 3 | `POST ?action=init&mode=edit` body `{"roleid":[1]}` (array trap) | 400 — never coerce to role 1 | PASS — HTTP 400 |
+| 4 | `GET ?action=init&mode=edit&roleid[]=1` (array trap) | 400 | PASS — HTTP 400 |
+| 5 | `POST ?action=save` role 8 (protected admin) | 400 `role.editLocked`, no write | PASS — `{"messageKey":"role.editLocked"}` HTTP 400 |
+| 6 | `POST ?action=delete` role 4 (system) | 400 `role.systemDeleteDenied` | PASS — `{"code":"system_role"}` HTTP 400 |
+| 7 | `POST ?action=save` empty name | 400 `empty_role_name` | PASS — `{"code":"empty_role_name"}` HTTP 400 |
+| 8 | `POST ?action=save` only an unknown right name | 400 `no_rights` (allow-list drops it) | PASS — `{"code":"no_rights"}` HTTP 400 |
+| 9 | `POST ?action=save` valid create (5 rights) | 200 `role_created` + new id | PASS — `{"feedback_key":"role_created","item":{"id":15,…}}` |
+| 10 | `init&mode=edit&roleid=15` | name=<role name>, notes=description, `canDelete=true`, 5 rights | PASS — `name=ZZ Suite Role 1898`, `canDelete=true`, `rights#=5` |
+| 11 | `POST ?action=duplicate` role 15 | 200 `role_duplicated`, unique name suffix | PASS — `id=16`, `… - Copy - <sha1>` |
+| 12 | `POST ?action=delete` role 15 | 200 `role_deleted` | PASS — `{"feedback_key":"role_deleted"}` |
+| 13 | legacy shim `GET lib/usermanagement/rolesEdit.php?doAction=edit&roleid=4` (auth) | 302 → modern screen, context preserved | PASS — `302` → `…/rolesEdit.html?mode=edit&roleid=4` |
+| 14 | legacy shim `POST lib/usermanagement/rolesEdit.php` | 405 `Allow: GET, HEAD` | PASS — HTTP 405 |
+| 15 | Browser: create page | Dashio shell, locale switcher, 12 fieldsets, Save/Duplicate/Cancel, no Delete on create | PASS — rendered; 0 console errors |
+| 16 | Browser: edit custom role → Save | confirm modal "…will affect N assigned user(s). Continue?" when users carry the role | PASS — `#saveModal` shown, `role_confirmSaveMsg` with N=1 |
+| 17 | Browser: duplicate-mode URL | title "Duplicate Role", prefilled name, rights copied | PASS — `mode=duplicate` prefills |
+| 18 | Browser: admin role 8 | read-only: Save/Duplicate/Delete hidden, fields disabled, locked note | PASS — `role.editLocked` card |
+| 19 | Browser: event-history icon | opens `eventviewer.html?object_id=<role>&object_type=roles` (gated `mgt_view_events`) | PASS |
+| 20 | Browser: Romanian locale (`?locale=ro`) | legends/buttons/footer translated via `roe.*` | PASS — title "Editeaza Rol", RO legends |
+| 21 | i18n coverage | 18 new keys + `footers.rolesEdit` in all 10 bundles | PASS — `verify_i18n_coverage.sh`: 9/9 bundles, 0 missing (7328 keys) |
+| 22 | `SELECT COUNT(*) FROM events WHERE log_level IN (1,2)` after all requests | 0 new Error/Warning | PASS — 0 |
+
+**PASS/FAIL: PASS (22/22).** Code review (subagent, rule 16): **0 blockers**; medium
+(array-input `is_scalar` guards, hardcoded i18n strings → `data-i18n`), plus low items
+applied. DB restored after the run (`roles` ids >9 removed, `users.role_id=8`). Browser,
+BFF curl and i18n gate all exercised on the committed tree.
