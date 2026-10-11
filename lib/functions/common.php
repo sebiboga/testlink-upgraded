@@ -1930,6 +1930,16 @@ function getActions(&$gui,$baseURL) {
   $actions->configCheck = "/gui/templates/conf/configCheck.html?{$ctx}";
   $actions->rolesView = "/gui/templates/usermanagement/rolesView.html?{$ctx}";
 
+  // Role Create/Edit modernized screen (Dashio standalone page) - Refs #1898.
+  // Replaces the legacy lib/usermanagement/rolesEdit.php renderer (the last
+  // full legacy Smarty screen in the User Management area) which was only
+  // reachable through its doAction=create|edit|duplicate deep links
+  // (rolesView.tpl / tabsmenu.tpl), while the modern Role Manager offered
+  // create/edit only as an inline modal. The legacy right (checkRights() =
+  // hasRight("role_management")) is enforced by api/rolesedit on every route;
+  // the legacy controller is now a session-guarded redirect shim.
+  $actions->rolesEdit = "/gui/templates/usermanagement/rolesEdit.html?{$ctx}";
+
   $actions->usersAssign = "/gui/templates/usermanagement/usersAssignProject.html?{$ctx}";
 
   $actions->usersAssignPlan = "/gui/templates/usermanagement/usersAssignPlan.html?{$ctx}";

@@ -413,6 +413,11 @@ function renderTable(items) {
       rightTags || '<span style="color:#999;font-size:11px;">' + TLi18n.t('common.none') + '</span>',
       typeBadge,
       '<i class="fa fa-edit action-btn" title="Edit" onclick="editRole(' + r.id + ')"></i>' +
+      // Refs #1898: deep-linkable standalone Role Create/Edit page (legacy
+      // lib/usermanagement/rolesEdit.php doAction=edit|create contract). Kept
+      // even in demoMode: the editor itself renders read-only there (parity
+      // with the legacy screen), so the page stays reachable.
+      '<i class="fa fa-external-link-alt action-btn" title="' + TLi18n.t('role.editRole') + '" onclick="openRoleEditor(' + r.id + ')"></i>' +
       (!demoMode
         ? '<i class="fa fa-copy action-btn" title="' + TLi18n.t('role.duplicateRole') + '" onclick="duplicateRole(' + r.id + ')"></i>'
         : '') + deleteBtn
@@ -489,6 +494,21 @@ function editRole(id) {
     // Issue #1760: without this the edit modal silently never opens over a dead session.
     if (sessionExpired(xhr)) { return; }
   });
+}
+
+// Refs #1898: standalone Role Create/Edit screen - the deep link the legacy
+// lib/usermanagement/rolesEdit.php?doAction=create|edit&roleid=N URLs now
+// resolve to (session-guarded 302 shim). id=0 opens create mode.
+function openRoleEditor(id) {
+  if (sessionDead) { return; }
+  var mode = id ? 'edit' : 'create';
+  var p = new URLSearchParams(window.location.search);
+  var target = '/gui/templates/usermanagement/rolesEdit.html?mode=' + mode +
+    (id ? ('&roleid=' + id) : '') +
+    '&tproject_id=' + encodeURIComponent(p.get('tproject_id') || '0') +
+    '&tplan_id=' + encodeURIComponent(p.get('tplan_id') || '0');
+  if (window.self !== window.top) { window.top.location.href = target; }
+  else { window.location.href = target; }
 }
 
 // Legacy parity: dashio rolesEdit.tpl:67-72 showEventHistoryFor(roleid,'roles')

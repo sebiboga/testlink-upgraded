@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TestLink</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; opacity: .8; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-red { background: #e6605e; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-red:hover { background: #d04e4c; }
+.btn-grey { background: #6c757d; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-grey:hover { background: #5a6268; }
+.content { padding: 20px 24px; }
+.card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 18px 22px; margin-bottom: 18px; }
+.card h3 { margin: 0 0 14px 0; font-size: 15px; font-weight: 700; color: #22242a; }
+.form-group { margin-bottom: 14px; }
+.form-group label.lbl { font-size: 12px; font-weight: 600; display: block; margin-bottom: 4px; }
+.form-control { width: 100%; padding: 7px 10px; font-size: 13px; border: 1px solid #ccc; border-radius: 4px; }
+.rights-wrap { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+fieldset.roe-fs { border: 1px solid #ddd; border-radius: 6px; padding: 8px 12px 10px; margin: 0; }
+fieldset.roe-fs legend { font-size: 12px; font-weight: 700; color: #2d8e88; padding: 0 4px; width: auto; border: none; margin-bottom: 2px; }
+fieldset.roe-fs label { display: block; font-size: 12px; font-weight: 400; cursor: pointer; padding: 2px 0; }
+fieldset.roe-fs input { margin-right: 6px; }
+.groupBtn { display: flex; gap: 10px; align-items: center; margin-top: 8px; }
+.demo-note { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; border-radius: 4px; padding: 8px 14px; font-size: 12px; }
+.demo-banner { background: #fff3cd; border: 1px solid #ffc107; color: #856404; padding: 12px 24px; font-size: 13px; font-weight: 600; }
+.deny-box { padding: 24px; text-align: center; background: #fff; margin: 24px; border-radius: 8px; font-size: 14px; }
+.alert-warning { background: #fff3cd; border: 1px solid #ffc107; color: #856404; padding: 8px 12px; border-radius: 4px; font-size: 12px; }
+.err-box { color: #e6605e; font-size: 12px; margin-top: 8px; display: none; }
+.affected { font-size: 13px; }
+.affected li { padding: 2px 0; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.toast.ok { background: #4ECDC4; }
+.toast.err { background: #e6605e; }
+.event-icon { cursor: pointer; color: #4ECDC4; font-size: 14px; margin-left: 6px; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
+</style>
+</head>
+<body>
+
+<div class="header"><span id="mainTitle"></span><span id="localeSwitcher" style="float:right;"></span></div>
+
+<div id="demoBanner" class="demo-banner" style="display:none;"><i class="fa fa-lock"></i> <span data-i18n="role.demoUpdateDisabled">Demo mode enabled => Update Role DISABLED</span></div>
+
+<div class="toolbar">
+  <button class="btn-grey" onclick="goBack()"><i class="fa fa-arrow-left"></i> <span data-i18n="roe.backToRoles">Back to Role Management</span></button>
+  <button class="btn-grey" onclick="location.reload()"><i class="fa fa-refresh"></i> <span data-i18n="common.refresh">Refresh</span></button>
+  <span style="flex:1"></span>
+  <span id="modeChip" style="color:#aaa;font-size:12px;"></span>
+</div>
+
+<div id="denyBox" class="deny-box" style="display:none;"><i class="fa fa-lock"></i> <span data-i18n="role.noRights">You do not have the rights required to manage roles (role_management right required).</span></div>
+
+<div id="loading" class="content" style="text-align:center;color:#888;"><i class="fa fa-spinner fa-spin"></i> <span data-i18n="common.loading">Loading...</span></div>
+
+<form id="roleForm" class="content" style="display:none;" onsubmit="return false;">
+  <div id="lockedNote" class="alert-warning" style="display:none;"><i class="fa fa-lock"></i> <span data-i18n="role.editLocked">This role is defined by the system and cannot be modified.</span></div>
+
+  <div class="card">
+    <input type="hidden" id="roleid" value="0">
+    <div class="form-group">
+      <label class="lbl"><span data-i18n="role.roleName">Role Name</span> *
+        <span id="btnEventHistory" class="event-icon" style="display:none;" data-i18n-title="role.showEventHistory" onclick="showEventHistory()"><i class="fa fa-info-circle"></i></span>
+      </label>
+      <input type="text" id="rolename" class="form-control" maxlength="100" required>
+    </div>
+    <div class="form-group">
+      <label class="lbl" data-i18n="role.description">Description</label>
+      <textarea id="roledesc" class="form-control" rows="2"></textarea>
+    </div>
+  </div>
+
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+      <h3 style="margin:0;"><span data-i18n="role.rights">Rights</span> * <span style="font-weight:400;color:#888;font-size:12px;" data-i18n="role.selectAtLeastOne">(select at least one)</span></h3>
+      <span>
+        <a href="javascript:;" onclick="toggleAllRights(true)" style="font-size:12px;color:#4ECDC4;font-weight:600;" data-i18n="role.selectAll">Select All</a>
+        &nbsp;|&nbsp;
+        <a href="javascript:;" onclick="toggleAllRights(false)" style="font-size:12px;color:#4ECDC4;font-weight:600;" data-i18n="roe.clearAll">Clear All</a>
+      </span>
+    </div>
+    <div id="rightsWrap" class="rights-wrap"></div>
+    <div id="formError" class="err-box"></div>
+    <div class="groupBtn">
+      <button type="button" id="saveBtn" class="btn-teal" onclick="saveRole()"><i class="fa fa-save"></i> <span data-i18n="common.save">Save</span></button>
+      <button type="button" id="duplicateBtn" class="btn-grey" style="display:none;" onclick="duplicateRole()"><i class="fa fa-copy"></i> <span data-i18n="role.duplicateRole">Duplicate</span></button>
+      <button type="button" id="deleteBtn" class="btn-red" style="display:none;" onclick="openDelete()"><i class="fa fa-trash"></i> <span data-i18n="common.delete">Delete</span></button>
+      <button type="button" class="btn-grey" onclick="goBack()"><span data-i18n="common.cancel">Cancel</span></button>
+      <span id="demoNote" class="demo-note" style="display:none;"><i class="fa fa-lock"></i> <span data-i18n="role.demoUpdateDisabled">Demo mode enabled => Update Role DISABLED</span></span>
+    </div>
+  </div>
+</form>
+
+<div id="affectedCard" class="card" style="display:none;">
+  <h3 data-i18n="roe.affectedUsers">Possible affected users</h3>
+  <ul id="affectedList" class="affected"></ul>
+</div>
+
+<div class="footer"><span data-i18n="footers.rolesEdit">TestLink 2.0.1 - Role Create / Edit</span></div>
+
+<div class="toast" id="toast"></div>
+
+<!-- Save confirm modal (legacy modifyRoles_warning: affected users exist) -->
+<div class="modal fade" id="saveModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" data-i18n="roe.confirmSaveTitle">Confirm role update</h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p id="saveWarnMsg" style="font-size:13px;"></p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal" style="font-size:13px;" data-i18n="common.cancel">Cancel</button>
+        <button type="button" class="btn-teal" id="saveConfirmBtn" style="font-size:13px;" data-i18n="common.save">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Delete confirm modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" data-i18n="role.confirmDelete">Confirm Delete</h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p id="deleteMsg" style="font-size:13px;"></p>
+        <p id="deleteUsers" style="font-size:12px;color:#666;"></p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal" style="font-size:13px;" data-i18n="common.cancel">Cancel</button>
+        <button type="button" class="btn-red" id="deleteConfirmBtn" style="font-size:13px;" data-i18n="common.delete">Delete</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Legacy parity: rolesEdit.tpl:67-72 showEventHistoryFor(roleid,'roles') -->
+<form id="eventhistory" target="_blank" method="GET" action="/gui/templates/eventviewer/eventviewer.html" style="display:none;">
+  <input type="hidden" name="object_id" id="eh_object_id">
+  <input type="hidden" name="object_type" value="roles">
+</form>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/rolesedit/index.php';
+var ctx = '';
+var mode = 'create';
+var roleId = 0;
+var RIGHTS_URL = '/gui/templates/usermanagement/rolesView.html';
+var canViewEvents = false;
+var affectedUsers = [];
+var demoMode = false;
+var sessionDead = false;
+var redirectTimer = null;
+var model = null;
+
+function esc(s) { var d = document.createElement('div'); d.appendChild(document.createTextNode(s == null ? '' : s)); return d.innerHTML; }
+
+function toast(msg, isError) {
+  var $t = $('#toast').text(msg).toggleClass('err', !!isError).toggleClass('ok', !isError).fadeIn(120);
+  clearTimeout($t.data('t'));
+  $t.data('t', setTimeout(function () { $t.fadeOut(200); }, 3000));
+}
+
+function roleFeedback(key, name) {
+  var map = {
+    role_created: 'role.feedback.created',
+    role_updated: 'role.feedback.updated',
+    role_deleted: 'role.feedback.deleted',
+    role_duplicated: 'role.feedback.duplicated'
+  };
+  return TLi18n.t(map[key] || 'role.feedback.updated', {name: name || ''});
+}
+
+function goBack() {
+  var qs = ctx ? ('?' + ctx) : '';
+  if (window.self !== window.top) { window.top.location.href = RIGHTS_URL + qs; }
+  else { window.location.href = RIGHTS_URL + qs; }
+}
+
+$(function () {
+  var p = new URLSearchParams(window.location.search);
+  ctx = 'tproject_id=' + encodeURIComponent(p.get('tproject_id') || '0') +
+        '&tplan_id=' + encodeURIComponent(p.get('tplan_id') || '0');
+  mode = p.get('mode') || 'create';
+  roleId = parseInt(p.get('roleid') || '0', 10) || 0;
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    if (p.get('locale')) { try { TLi18n.setLocale(p.get('locale')); } catch (e) {} }
+    loadInit();
+  });
+});
+
+function loadInit() {
+  if (sessionDead) { return; }
+  var url = API + '?action=init&mode=' + encodeURIComponent(mode) + '&roleid=' + roleId;
+  $.getJSON(url, function (r) {
+    if (sessionDead) { return; }
+    model = r;
+    demoMode = !!r.demoMode;
+    canViewEvents = !!(r.grants && r.grants.mgt_view_events === 'yes');
+    $('#loading').hide();
+    $('#roleForm').show();
+    render(r);
+  }).fail(function (xhr) {
+    if (sessionExpired(xhr)) { return; }
+    if (xhr && xhr.status === 403) { showNoAccess(); return; }
+    showNoAccess();
+  });
+}
+
+function modeTitle(m) {
+  if (m === 'edit') return TLi18n.t('role.editRole');
+  if (m === 'duplicate') return TLi18n.t('role.duplicateRole');
+  return TLi18n.t('role.createRole');
+}
+
+function render(r) {
+  $('#mainTitle').text(modeTitle(r.mode));
+  document.title = modeTitle(r.mode);
+  $('#modeChip').text('');
+  $('#roleid').val(r.role.id || 0);
+  $('#rolename').val(r.role.name || '');
+  $('#roledesc').val(r.role.description || '');
+
+  // Build grouped rights matrix.
+  var selected = {};
+  $.each(r.role.rights || [], function (i, n) { selected[n] = true; });
+  var html = '';
+  $.each(r.rightsGroups || [], function (i, g) {
+    html += '<fieldset class="roe-fs"><legend>' + esc(TLi18n.t(g.labelKey)) + '</legend>';
+    $.each(g.rights || [], function (j, right) {
+      var checked = selected[right.name] ? ' checked' : '';
+      html += '<label><input type="checkbox" name="right" value="' + esc(right.name) + '"' + checked + '> ' +
+              esc(right.label) + '</label>';
+    });
+    html += '</fieldset>';
+  });
+  $('#rightsWrap').html(html);
+
+  // affected users card (edit mode)
+  affectedUsers = r.affectedUsers || [];
+  if (affectedUsers.length) {
+    var li = '';
+    $.each(affectedUsers, function (i, u) { li += '<li>' + esc(u.name || u.login) + '</li>'; });
+    $('#affectedList').html(li);
+    $('#affectedCard').show();
+  }
+
+  applyMode(r);
+}
+
+function applyMode(r) {
+  var editable = (r.mode === 'create' || r.mode === 'duplicate') ? true : (!!r.canEdit);
+  var locked = (r.mode === 'edit' && !r.canEdit);
+  var readOnlyDemo = demoMode;
+
+  $('#lockedNote').toggle(locked && !demoMode);
+  $('#demoBanner').toggle(demoMode);
+  $('#demoNote').toggle(demoMode);
+
+  var canSave = editable && !readOnlyDemo;
+  $('#saveBtn').toggle(canSave);
+  if (!canSave) {
+    $('#rolename').prop('disabled', true);
+    $('#roledesc').prop('disabled', true);
+    $('#rightsWrap input[type=checkbox]').prop('disabled', true);
+  }
+
+  // Duplicate: only from an existing role.
+  $('#duplicateBtn').toggle(r.mode === 'edit' && !readOnlyDemo && !!r.canEdit);
+  // Delete: only for editable, non-system roles.
+  $('#deleteBtn').toggle(r.mode === 'edit' && !readOnlyDemo && !!(r.role && r.role.canDelete));
+  // Event history icon: edit mode + right.
+  $('#btnEventHistory').toggle(r.mode === 'edit' && canViewEvents && !!(r.role && r.role.id));
+}
+
+function collectedRights() {
+  var ids = [];
+  $('#rightsWrap input[name=right]:checked').each(function () { ids.push($(this).val()); });
+  return ids;
+}
+
+function toggleAllRights(on) {
+  $('#rightsWrap input[name=right]').prop('checked', !!on);
+}
+
+function validate() {
+  var name = $.trim($('#rolename').val());
+  if (!name) { $('#formError').text(TLi18n.t('role.validation.nameRequired')).show(); return false; }
+  if (collectedRights().length === 0) { $('#formError').text(TLi18n.t('role.validation.rightsRequired')).show(); return false; }
+  $('#formError').hide();
+  return true;
+}
+
+function saveRole() {
+  if (sessionDead) { return; }
+  if (!validate()) { return; }
+  // Legacy parity: rolesEdit.tpl:200 - warn when editing a role that still has
+  // assigned users before persisting (modifyRoles_warning).
+  if (mode === 'edit' && affectedUsers.length > 0) {
+    $('#saveWarnMsg').text(TLi18n.t('roe.confirmSaveMsg', {n: affectedUsers.length}));
+    $('#saveConfirmBtn').off('click').on('click', function () { $('#saveModal').modal('hide'); doSave(); });
+    $('#saveModal').modal('show');
+    return;
+  }
+  doSave();
+}
+
+function doSave() {
+  if (sessionDead) { return; }
+  var body = {
+    roleid: (mode === 'edit') ? roleId : 0,
+    name: $.trim($('#rolename').val()),
+    description: $.trim($('#roledesc').val()),
+    rightNames: collectedRights()
+  };
+  $.ajax({
+    url: API + '?action=save', type: 'POST', contentType: 'application/json',
+    data: JSON.stringify(body),
+    success: function (r) {
+      if (sessionDead) { return; }
+      toast(roleFeedback(r && r.feedback_key, body.name), false);
+      setTimeout(goBack, 700);
+    },
+    error: function (xhr) { handleWriteError(xhr, 'role.error.save'); }
+  });
+}
+
+function duplicateRole() {
+  if (sessionDead) { return; }
+  $.ajax({
+    url: API + '?action=duplicate', type: 'POST', contentType: 'application/json',
+    data: JSON.stringify({roleid: roleId}),
+    success: function (r) {
+      if (sessionDead) { return; }
+      toast(roleFeedback(r && r.feedback_key, model && model.role ? model.role.name : ''), false);
+      setTimeout(goBack, 700);
+    },
+    error: function (xhr) { handleWriteError(xhr, 'role.error.duplicate'); }
+  });
+}
+
+function openDelete() {
+  if (sessionDead) { return; }
+  var name = (model && model.role) ? model.role.name : '';
+  var msg = TLi18n.t('role.deleteConfirmMsg') + ' <b>' + esc(name) + '</b>?';
+  $('#deleteMsg').html(msg);
+  if (affectedUsers.length) {
+    var logins = $.map(affectedUsers, function (u) { return u.login; }).join(', ');
+    $('#deleteUsers').text(TLi18n.t('role.deleteUsersMsg', {n: affectedUsers.length, users: logins}));
+  } else {
+    $('#deleteUsers').text('');
+  }
+  $('#deleteConfirmBtn').off('click').on('click', function () { $('#deleteModal').modal('hide'); doDelete(); });
+  $('#deleteModal').modal('show');
+}
+
+function doDelete() {
+  if (sessionDead) { return; }
+  $.ajax({
+    url: API + '?action=delete', type: 'POST', contentType: 'application/json',
+    data: JSON.stringify({roleid: roleId}),
+    success: function (r) {
+      if (sessionDead) { return; }
+      toast(roleFeedback(r && r.feedback_key, model && model.role ? model.role.name : ''), false);
+      setTimeout(goBack, 700);
+    },
+    error: function (xhr) { handleWriteError(xhr, 'role.error.delete'); }
+  });
+}
+
+function handleWriteError(xhr, fallbackKey) {
+  if (sessionExpired(xhr)) { return; }
+  var msg = TLi18n.t(fallbackKey);
+  try {
+    var j = JSON.parse(xhr.responseText);
+    if (j && j.messageKey) msg = TLi18n.t(j.messageKey);
+    else if (j && j.message) msg = j.message;
+  } catch (e) {}
+  toast(msg, true);
+  $('#formError').text(msg).show();
+}
+
+function showEventHistory() {
+  var id = $('#roleid').val();
+  if (!id || !canViewEvents) { return; }
+  $('#eh_object_id').val(id);
+  $('#eventhistory').submit();
+}
+
+function showNoAccess() {
+  $('#loading').hide();
+  $('#roleForm').hide();
+  $('#affectedCard').hide();
+  $('.toolbar').hide();
+  $('#denyBox').show();
+}
+
+function sessionExpired(xhr) {
+  if (!xhr) return false;
+  var code = '';
+  try { code = (JSON.parse(xhr.responseText) || {}).code || ''; } catch (e) {}
+  if (xhr.status !== 401 && code !== 'session_expired') return false;
+  if (sessionDead) { return true; }
+  sessionDead = true;
+  $('#demoBanner').hide();
+  $('.toolbar').hide();
+  $('#roleForm').hide();
+  $('#affectedCard').hide();
+  $('#denyBox').hide();
+  toast(TLi18n.t('auth.sessionExpired'), true);
+  var dest = window.location.pathname + window.location.search;
+  var target = window.location.origin + '/login.php?note=expired&destination=' + encodeURIComponent(dest);
+  clearTimeout(redirectTimer);
+  redirectTimer = setTimeout(function () {
+    try { if (window.self !== window.top) { window.top.location.href = target; } else { window.location.href = target; } }
+    catch (e) { window.location.href = target; }
+  }, 600);
+  return true;
+}
+</script>
+</body>
+</html>

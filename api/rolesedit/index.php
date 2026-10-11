@@ -194,16 +194,23 @@ if (!roleManagementGranted($db, $currentUser)) {
 $demoMode = (bool)config_get('demoMode');
 function demoBlocked() {
     http_response_code(403);
+    // The client localizes via messageKey; keep an English fallback only.
     out(['status' => 'error', 'code' => 'demo_mode',
          'messageKey' => 'role.demoUpdateDisabled',
-         'message' => lang_get('demo_update_role_disabled', 'en_GB')]);
+         'message' => lang_get('demo_update_role_disabled')]);
 }
 
 /* ------------------------------------------------------------------ GET */
 if ($method === 'GET' && $action === 'init') {
-    $mode = isset($_GET['mode']) ? (string)$_GET['mode'] : 'create';
+    $mode = (isset($_GET['mode']) && is_scalar($_GET['mode'])) ? (string)$_GET['mode'] : 'create';
     if (!in_array($mode, ['create', 'edit', 'duplicate'], true)) {
         $mode = 'create';
+    }
+    // Issue #1738 class: reject non-scalar input shapes instead of letting
+    // intval() silently coerce arrays (intval([N]) == 1 in PHP 8).
+    if (isset($_GET['roleid']) && !is_scalar($_GET['roleid'])) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'invalid_roleid', 'code' => 'invalid_roleid']);
     }
     $roleid = isset($_GET['roleid']) ? intval($_GET['roleid']) : 0;
 
@@ -230,11 +237,17 @@ if ($method === 'GET' && $action === 'init') {
         if ($mode === 'duplicate') {
             $name = generateUniqueName($r->getDisplayName());
             $role = ['id' => 0, 'name' => $name, 'description' => (string)$r->description,
-                     'rights' => roleRightNames($r), 'sourceId' => intval($r->dbID)];
+                     'rights' => roleRightNames($r), 'sourceId' => intval($r->dbID),
+                     'isSystem' => (intval($r->dbID) <= TL_LAST_SYSTEM_ROLE),
+                     'canDelete' => false];
         } else {
             $role = ['id' => intval($r->dbID), 'name' => $r->getDisplayName(),
                      'description' => (string)$r->description,
-                     'rights' => roleRightNames($r)];
+                     'rights' => roleRightNames($r),
+                     // Legacy parity: rolesView.php delete allowed only for
+                     // non-system roles (id > TL_LAST_SYSTEM_ROLE).
+                     'isSystem' => (intval($r->dbID) <= TL_LAST_SYSTEM_ROLE),
+                     'canDelete' => (intval($r->dbID) > TL_LAST_SYSTEM_ROLE)];
             // Legacy parity: rolesEdit.php:285 - affected users listed on edit.
             $users = $r->getAllUsersWithRole($db);
             if ($users) {
@@ -276,6 +289,15 @@ if ($method === 'GET' && $action === 'init') {
 if ($method === 'POST' && $action === 'save') {
     if ($demoMode) { demoBlocked(); }
     $body = getBody();
+    // Issue #1738 class: every scalar field must be is_scalar-guarded so a
+    // crafted JSON body cannot smuggle arrays through (string)()/intval() and
+    // silently target another role (intval([N]) == 1 on PHP 8).
+    if ((isset($body['roleid']) && !is_scalar($body['roleid'])) ||
+        (isset($body['name']) && !is_scalar($body['name'])) ||
+        (isset($body['description']) && !is_scalar($body['description']))) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'invalid_input', 'code' => 'invalid_input']);
+    }
     $roleid = intval($body['roleid'] ?? 0);
     $name = trim((string)($body['name'] ?? ''));
     $description = (string)($body['description'] ?? '');
@@ -343,6 +365,10 @@ if ($method === 'POST' && $action === 'save') {
 if ($method === 'POST' && $action === 'duplicate') {
     if ($demoMode) { demoBlocked(); }
     $body = getBody();
+    if (isset($body['roleid']) && !is_scalar($body['roleid'])) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'invalid_roleid', 'code' => 'invalid_roleid']);
+    }
     $roleid = intval($body['roleid'] ?? 0);
     if ($roleid <= 0) {
         http_response_code(400);
@@ -369,6 +395,10 @@ if ($method === 'POST' && $action === 'duplicate') {
 if ($method === 'POST' && $action === 'delete') {
     if ($demoMode) { demoBlocked(); }
     $body = getBody();
+    if (isset($body['roleid']) && !is_scalar($body['roleid'])) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'invalid_roleid', 'code' => 'invalid_roleid']);
+    }
     $roleid = intval($body['roleid'] ?? 0);
     if ($roleid <= 0) {
         http_response_code(400);

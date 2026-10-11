@@ -5,309 +5,124 @@
  *
  * @filesource  rolesEdit.php
  *
- * @package     TestLink
- * @copyright   2005-2020, TestLink community
- * @link        http://www.testlink.org
+ * 2.0.1.shim - Refs #1898: the legacy Smarty Role Create/Edit form (the last
+ * full legacy renderer still served in the User Management area, together with
+ * its doCreate / doUpdate / duplicate actions executed straight from the
+ * request) was replaced by the modern Dashio screen
+ * gui/templates/usermanagement/rolesEdit.html + the api/rolesedit BFF.
+ * This controller is kept as a session-guarded redirect shim so the legacy
+ * deep links (doAction=create|edit|duplicate with roleid) resolve: anonymous
+ * users are sent to the login screen (legacy testlinkInitPage behaviour) and
+ * authenticated users land on the modern screen with the role id and the test
+ * project / test plan ids forwarded.
  *
- * @uses        lib/functions/roles.inc.php
+ * The rights gate lives in the BFF: legacy checkRights() was
+ * $user->hasRight($db, 'role_management') and api/rolesedit re-checks it on
+ * every route (403 + audit trace without it).
  *
-**/
-require_once("../../config.inc.php");
-require_once("common.php");
-require_once("users.inc.php");
-require_once("web_editor.php");
-
-$editorCfg = getWebEditorCfg('role');
-require_once(require_web_editor($editorCfg['type']));
-
-testlinkInitPage($db,false,false,"checkRights");
-init_global_rights_maps();
-$templateCfg = templateConfiguration();
-$args = init_args();
-$gui = initialize_gui($args,$editorCfg['type']);
-$lbl = initLabels();
-$op = initialize_op();
-
-$owebeditor = web_editor('notes',$args->basehref,$editorCfg) ;
-$owebeditor->Value = getItemTemplateContents('role_template', $owebeditor->InstanceName, null);
-$canManage = $args->user->hasRight($db,"role_management") ? true : false;
-
-switch ($args->doAction) {
-  case 'create':
-    $gui->main_title = $lbl["action_{$args->doAction}_role"];
-  break;
-
-  case 'edit':
-    $op->role = tlRole::getByID($db,$args->roleid);
-    $gui->main_title = $lbl["action_{$args->doAction}_role"];
-  break;
-
-  case 'doCreate':
-  case 'doUpdate':
-  case 'duplicate':
-    if ($canManage) {
-      $op = doOperation($db,$args,$args->doAction);
-      $templateCfg->template = $op->template;
-    }
-  break;
-
-  default:
-  break;
-}
-
-$gui = complete_gui($db,$gui,$args,$op->role,$owebeditor);
-$gui->userFeedback = $op->userFeedback;
-
-$smarty = new TLSmarty();
-$smarty->assign('gui',$gui);
-// $smarty->assign('highlight',$gui->highlight);
-renderGui($smarty,$args,$templateCfg);
-
-/**
- *
+ * The create/update/duplicate actions are no longer performed here. The BFF
+ * reproduces the legacy behaviour (the tlRight::getAll() description filter,
+ * generateUniqueName() duplication, admin / <no rights> protection, demo-mode
+ * write blocking, audit logging) and answers a 400/401/403/404/405 JSON
+ * contract that the modern screen localizes client-side.
  */
-function init_args()
-{
-  $_REQUEST = strings_stripSlashes($_REQUEST);
+require_once('../../config.inc.php');
+require_once('common.php');
+require_once('users.inc.php');
 
-  $iParams = array("rolename" => array("POST",tlInputParameter::STRING_N,0,100),
-                   "roleid" => array("REQUEST",tlInputParameter::INT_N),
-                   "doAction" => array("REQUEST",tlInputParameter::STRING_N,0,100),
-                   "notes" => array("POST",tlInputParameter::STRING_N),
-                   "grant" => array("POST",tlInputParameter::ARRAY_STRING_N));
+testlinkInitPage($db, false, false, 'checkRights');
 
-  $args = new stdClass();
-  $pParams = I_PARAMS($iParams,$args);
-  $args->basehref = $_SESSION['basehref'];
-  $args->user = $_SESSION['currentUser'];
-
-  return $args;
+// Refs #1898: nothing here is state-changing, so refuse anything but a safe
+// read and keep this file from ever being used to smuggle a write past the
+// BFF's checks. Anonymous callers never reach this - testlinkInitPage()
+// already bounces them to the login screen first (standard behaviour of every
+// other legacy controller).
+if (isset($_SERVER['REQUEST_METHOD']) &&
+    !in_array(strtoupper($_SERVER['REQUEST_METHOD']), array('GET', 'HEAD'), true)) {
+    http_response_code(405);
+    header('Allow: GET, HEAD');
+    exit('Method Not Allowed');
 }
 
-/**
- *
- */
-function doOperation(&$dbHandler,$argsObj,$operation)
-{
-  $op = new stdClass();
-  $op->role = new tlRole();
-  $op->userFeedback = null;
-  $op->template = 'rolesEdit.tpl';
+$base = isset($_SESSION['basehref']) ? $_SESSION['basehref'] : '/';
 
-  switch($operation)
-  {
-
-    case 'doCreate':
-    case 'doUpdate':
-      $rights = implode("','",array_keys($argsObj->grant));
-      $op->role->rights = tlRight::getAll($dbHandler,"WHERE description IN ('{$rights}')");
-      $op->role->name = $argsObj->rolename;
-      $op->role->description = $argsObj->notes;
-      $op->role->dbID = $argsObj->roleid;
-    break;
-
-    case 'duplicate':
-      $op->role = tlRole::getByID($dbHandler,$argsObj->roleid);
-      $op->role->dbID = null;
-      $op->role->name = generateUniqueName($op->role->name);
-
-    break;
-  }
-
-
-  $result = $op->role->writeToDB($dbHandler);
-  if ($result >= tl::OK)
-  {
-    $auditCfg = null;
-    switch($operation)
-    {
-      case 'doCreate':
-      case 'duplicate':
-        $auditCfg['msg'] = "audit_role_created";
-        $auditCfg['activity'] = "CREATE";
-      break;
-  
-      case 'doUpdate':
-        $auditCfg['msg'] = "audit_role_saved";
-        $auditCfg['activity'] = "SAVE";
-      break;
-    }
-    
-    logAuditEvent(TLS($auditCfg['msg'],$op->role->name),$auditCfg['activity'],$op->role->dbID,"roles");
-    $op->template = null;
-  }
-  else
-  {
-      $op->userFeedback = getRoleErrorMessage($result);
-  }
-
-  return $op;
+// Legacy init_args() contract: doAction=create|edit|duplicate (rolesView.tpl /
+// tabsmenu.tpl), roleid in edit / duplicate mode.
+$mode = 'create';
+$doAction = '';
+if (isset($_REQUEST['doAction']) && is_scalar($_REQUEST['doAction'])) {
+    $doAction = strtolower(trim((string)$_REQUEST['doAction']));
+}
+if (in_array($doAction, array('edit', 'update', 'doupdate'), true)) {
+    $mode = 'edit';
+} elseif (in_array($doAction, array('duplicate', 'copy'), true)) {
+    $mode = 'duplicate';
+} elseif (in_array($doAction, array('create', 'docreate'), true)) {
+    $mode = 'create';
 }
 
+$roleID = 0;
+if (isset($_REQUEST['roleid']) && is_scalar($_REQUEST['roleid'])) {
+    $roleID = intval($_REQUEST['roleid']);
+}
+// A deep link that names a role but no operation is an edit link.
+if ($roleID > 0 && $mode === 'create' && $doAction === '') {
+    $mode = 'edit';
+}
+if ($roleID <= 0) {
+    $mode = 'create';
+}
 
-function renderGui(&$smartyObj,&$argsObj,$templateCfg)
-{
-    $doRender = false;
-    switch($argsObj->doAction)
-    {
-      case "edit":
-      case "create":
-        $doRender = true;
-        $tpl = $templateCfg->default_template;
-      break;
-
-      case "doCreate":
-      case "doUpdate":
-        if(!is_null($templateCfg->template))
-        {
-          $doRender = true;
-          $tpl = $templateCfg->template;
+$tprojectID = 0;
+foreach (array('tproject_id', 'testproject_id') as $key) {
+    if (isset($_REQUEST[$key]) && is_scalar($_REQUEST[$key])) {
+        $candidate = intval($_REQUEST[$key]);
+        if ($candidate > 0) {
+            $tprojectID = $candidate;
+            break;
         }
-        else
-        {
-          header("Location: rolesView.php");
-          exit();
+    }
+}
+if ($tprojectID <= 0 && isset($_SESSION['testprojectID'])) {
+    $tprojectID = intval($_SESSION['testprojectID']);
+}
+
+$tplanID = 0;
+foreach (array('tplan_id', 'testplan_id') as $key) {
+    if (isset($_REQUEST[$key]) && is_scalar($_REQUEST[$key])) {
+        $candidate = intval($_REQUEST[$key]);
+        if ($candidate > 0) {
+            $tplanID = $candidate;
+            break;
         }
-      break;
-
-      case "duplicate":
-        header("Location: rolesView.php");
-        exit();
-      break;   
-    }
-
-    if($doRender)
-    {
-      $smartyObj->display($templateCfg->template_dir . $tpl);
     }
 }
-
-
-/*
-  function: getRightsCfg
-
-  args : -
-
-  returns: object
-  
-*/
-function getRightsCfg()
-{
-  $cfg = new stdClass();
-  $cfg->tplan_mgmt = config_get('rights_tp');
-  $cfg->tcase_mgmt = config_get('rights_mgttc');
-  $cfg->kword_mgmt = config_get('rights_kw');
-  $cfg->tproject_mgmt = config_get('rights_product');
-  $cfg->user_mgmt = config_get('rights_users');
-  $cfg->req_mgmt = config_get('rights_req');
-  $cfg->cfield_mgmt = config_get('rights_cf');
-  $cfg->system_mgmt = config_get('rights_system');
-  $cfg->platform_mgmt = config_get('rights_platforms');
-  $cfg->issuetracker_mgmt = config_get('rights_issuetrackers');
-  $cfg->codetracker_mgmt = config_get('rights_codetrackers');
-  $cfg->execution = config_get('rights_executions');
-
-  return $cfg;
+if ($tplanID <= 0 && isset($_SESSION['testplanID'])) {
+    $tplanID = intval($_SESSION['testplanID']);
 }
 
-
-function initialize_gui(&$argsObj,$editorType)
-{
-    $gui = new stdClass();
-    $gui->checkboxStatus = null;
-    $gui->userFeedback = null;
-    $gui->affectedUsers = null;
-    $gui->highlight = initialize_tabsmenu();
-    $gui->editorType = $editorType;
-    $gui->roleCanBeEdited = ($argsObj->roleid != TL_ROLES_ADMIN);
-
-    return $gui;
+$url = $base . 'gui/templates/usermanagement/rolesEdit.html';
+$params = array('mode=' . $mode);
+if ($roleID > 0) {
+    $params[] = 'roleid=' . $roleID;
 }
+if ($tprojectID > 0) {
+    $params[] = 'tproject_id=' . $tprojectID;
+}
+if ($tplanID > 0) {
+    $params[] = 'tplan_id=' . $tplanID;
+}
+$url .= '?' . implode('&', $params);
+
+header('Location: ' . $url, true, 302);
+exit;
 
 /**
- *
+ * Legacy parity (rolesEdit.php:310-313 of 1.9.20): the deep link itself stays
+ * behind the same role_management right - an authenticated user without it is
+ * sent home by testlinkInitPage() instead of being handed the modern URL.
  */
-function initialize_op()
+function checkRights(&$db, &$user)
 {
-  $op = new stdClass();
-  $op->role = new tlRole();
-  $op->userFeedback = '';
-    
-  return $op;
-}
-
-/**
- *
- */
-function complete_gui(&$dbHandler,&$guiObj,&$argsObj,&$roleObj,&$webEditorObj)
-{
-  $actionCfg['operation'] = array('create' => 'doCreate', 'edit' => 'doUpdate',
-                                  'doCreate' => 'doCreate', 'doUpdate' => 'doUpdate',
-                                  'duplicate' => 'duplicate');
-
-  $actionCfg['highlight'] = array('create' => 'create_role', 'edit' => 'edit_role',
-                                  'doCreate' => 'create_role', 
-                                  'doUpdate' => 'edit_role',
-                                  'duplicate' => 'create_role');
-
-  $guiObj->highlight = new stdClass();
-  $kp = $actionCfg['highlight'][$argsObj->doAction];
-  $guiObj->highlight->$kp = 1;
-  $guiObj->operation = $actionCfg['operation'][$argsObj->doAction];
-
-  $guiObj->role = $roleObj;
-  $guiObj->grants = getGrantsForUserMgmt($dbHandler,$_SESSION['currentUser']);
-  $guiObj->grants->mgt_view_events = $argsObj->user->hasRight($db,"mgt_view_events");
-  $guiObj->rightsCfg = getRightsCfg();
-  
-  $guiObj->disabledAttr = $guiObj->roleCanBeEdited ? ' ' : ' disabled="disabled" '; 
-
-  // Create status for all checkboxes and set to unchecked
-  foreach ($guiObj->rightsCfg as $grantDetails) {
-    foreach ($grantDetails as $grantCode => $grantDescription) {
-      $guiObj->checkboxStatus[$grantCode] = "" . $guiObj->disabledAttr;
-    }
-  }
-
-  if($roleObj->dbID)
-  {
-    $webEditorObj->Value = $roleObj->description;
-
-    // build checked attribute for checkboxes
-    if(sizeof($roleObj->rights))
-    {
-      foreach($roleObj->rights as $key => $right)
-      {
-        $guiObj->checkboxStatus[$right->name] = ' checked="checked" ' . $guiObj->disabledAttr;
-      }
-    }
-      //get all users which are affected by changing the role definition
-    $guiObj->affectedUsers = $roleObj->getAllUsersWithRole($dbHandler);
-  }
-
-  $guiObj->notes = $webEditorObj->CreateHTML();
-  return $guiObj;
-}
-
-function generateUniqueName($s)
-{
-  // sorry for the magic, but anyway user has to edit role to provide desired name
-  // IMHO this quick & dirty solution is OK
-  return substr($s . ' - Copy - ' . substr(sha1(rand()), 0, 50),0,100);
-}
-
-
-/**
- *
- */
-function initLabels()
-{
-  $tg = array('action_create_role' => null,'action_edit_role' => null);
-  $labels = init_labels($tg);
-  return $labels;
-}
-
-function checkRights(&$db,&$user)
-{
-  return $user->hasRight($db,"role_management");
+    return $user->hasRight($db, 'role_management');
 }
