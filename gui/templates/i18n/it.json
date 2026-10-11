@@ -356,6 +356,7 @@
   "bv.altEdit": "Modifica build",
   "bv.apiId": "ID API: {id}",
   "bv.assignmentSourceBuild": "Build di origine delle assegnazioni",
+  "bv.cfSection": "Campi personalizzati",
   "bv.clickToSetClosed": "Aperta - clic per chiudere",
   "bv.clickToSetOpen": "Chiusa - clic per aprire",
   "bv.closureHint": "chiudendo una build la data odierna viene registrata come data di chiusura",

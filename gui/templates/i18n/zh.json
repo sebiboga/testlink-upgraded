@@ -356,6 +356,7 @@
   "bv.altEdit": "编辑构建",
   "bv.apiId": "API 编号：{id}",
   "bv.assignmentSourceBuild": "指派来源构建",
+  "bv.cfSection": "自定义字段",
   "bv.clickToSetClosed": "打开 - 点击关闭",
   "bv.clickToSetOpen": "已关闭 - 点击打开",
   "bv.closureHint": "关闭构建时将以今天作为关闭日期",

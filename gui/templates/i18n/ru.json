@@ -356,6 +356,7 @@
   "bv.altEdit": "Редактировать сборку",
   "bv.apiId": "API ID: {id}",
   "bv.assignmentSourceBuild": "Исходная сборка назначений",
+  "bv.cfSection": "Пользовательские поля",
   "bv.clickToSetClosed": "Открыта - нажмите, чтобы закрыть",
   "bv.clickToSetOpen": "Закрыта - нажмите, чтобы открыть",
   "bv.closureHint": "при закрытии сборки сегодня фиксируется как дата закрытия",

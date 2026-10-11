@@ -356,6 +356,7 @@
   "bv.altEdit": "Editează build",
   "bv.apiId": "ID API: {id}",
   "bv.assignmentSourceBuild": "Build sursă al atribuirilor",
+  "bv.cfSection": "Campuri personalizate",
   "bv.clickToSetClosed": "Deschis - click pentru închidere",
   "bv.clickToSetOpen": "Închis - click pentru deschidere",
   "bv.closureHint": "închiderea unui build înregistrează astăzi ca dată de închidere",

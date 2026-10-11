@@ -356,6 +356,7 @@
   "bv.altEdit": "Build bearbeiten",
   "bv.apiId": "API-ID: {id}",
   "bv.assignmentSourceBuild": "Quell-Build der Zuweisungen",
+  "bv.cfSection": "Benutzerdefinierte Felder",
   "bv.clickToSetClosed": "Offen - klicken zum Schließen",
   "bv.clickToSetOpen": "Geschlossen - klicken zum Öffnen",
   "bv.closureHint": "Beim Schließen wird heute als Abschlussdatum eingetragen",

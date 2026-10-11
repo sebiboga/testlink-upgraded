@@ -356,6 +356,7 @@
   "bv.altEdit": "ビルド編集",
   "bv.apiId": "API ID: {id}",
   "bv.assignmentSourceBuild": "割り当て元のビルド",
+  "bv.cfSection": "カスタムフィールド",
   "bv.clickToSetClosed": "オープン - クリックでクローズ",
   "bv.clickToSetOpen": "クローズ - クリックでオープン",
   "bv.closureHint": "ビルドをクローズすると今日が完了日として記録されます",

@@ -49,6 +49,8 @@ table.dataTable tbody td { padding: 8px 14px; font-size: 13px; vertical-align: m
 .chk-row label { font-weight: 400; font-size: 13px; color: #333; margin-left: 6px; cursor: pointer; }
 .copy-block { background: #f7f9f9; border: 1px solid #e3e8e8; border-radius: 6px; padding: 12px 14px; margin-top: 10px; }
 .hint { font-size: 11px; color: #888; margin-top: 3px; }
+.cf-cell { color: #555; }
+.req { color: #e6605e; }
 </style>
 </head>
 <body>
@@ -129,6 +131,15 @@ table.dataTable tbody td { padding: 8px 14px; font-size: 13px; vertical-align: m
           <input type="date" class="form-control" id="fReleaseDate" style="max-width:200px;">
         </div>
 
+        <div id="cfArea" style="display:none;">
+          <hr style="border-color:#e3e8e8;">
+          <h4 style="font-size:13px;font-weight:700;color:#22242a;margin:4px 0 10px;">
+            <i class="fa fa-sliders-h" style="color:#2d8e88;"></i>
+            <span data-i18n="bv.cfSection">Custom fields</span>
+          </h4>
+          <div id="cfFields"></div>
+        </div>
+
         <div class="copy-block" id="copyBlock" style="display:none;">
           <div class="chk-row" style="margin-bottom:8px;">
             <label><input type="checkbox" id="fCopyAssignments">
@@ -184,6 +195,8 @@ var canManage = true;
 var buildTbl = null;
 var deleteTarget = null;
 var lastData = null;
+var cfColumns = [];
+var cfDefs = [];
 
 $(function () {
   var p = new URLSearchParams(window.location.search);
@@ -278,6 +291,19 @@ function load() {
       $('#btnCreate').toggle(canManage);
       $('#btnCreateFull').toggle(canManage && tplanId > 0);
 
+      // Dynamic CF columns (legacy buildView.php CF COLUMNS): store the
+      // definitions and insert matching <th> elements before the action column.
+      cfColumns = r.cfields_columns || [];
+      var $thead = $('#buildTable thead tr');
+      $thead.find('th.cf-col').remove();
+      if (cfColumns.length > 0) {
+        var $actionsTh = $thead.children('th:last');
+        cfColumns.forEach(function (cf) {
+          $actionsTh.before('<th class="cf-col" data-orderable="false" title="' +
+                            esc(cf.name) + '">' + esc(cf.label) + '</th>');
+        });
+      }
+
       fillCopyOptions(r.source_builds, r.exec_status_options);
       render(r.builds);
     })
@@ -334,8 +360,18 @@ function render(builds) {
                 '" data-del-id="' + parseInt(b.id, 10) + '">' +
                 '<i class="fas fa-minus-circle"></i></button>';
     }
-    return [nameCell, notes, rdate,
-            activeToggle(b), openToggle(b), action];
+
+    var row = [nameCell, notes, rdate];
+    // Custom field value cells (one per visible CF column)
+    var cfData = b.cf || {};
+    cfColumns.forEach(function (cf) {
+      var v = cfData[cf.name];
+      row.push(v == null || v === ''
+        ? '<span class="cf-cell" style="color:#ccc">-</span>'
+        : '<span class="cf-cell">' + esc(String(v).replace(/\|/g, ', ')) + '</span>');
+    });
+    row.push(activeToggle(b), openToggle(b), action);
+    return row;
   });
 
   buildTbl = $('#buildTable').DataTable({
@@ -416,6 +452,7 @@ function openCreate() {
   $('#fCopyAssignments').prop('checked', false);
   $('#srcBlock,#statusBlock').hide();
   $('#copyBlock').toggle($('#fSourceBuild option').length > 0);
+  loadCfields(0);
   $('#editModal').modal('show');
 }
 
@@ -428,7 +465,87 @@ function openEdit(b) {
   $('#fActive').prop('checked', parseInt(b.active, 10) == 1);
   $('#fOpen').prop('checked', parseInt(b.is_open, 10) == 1);
   $('#copyBlock').hide();
+  loadCfields(b.id);
   $('#editModal').modal('show');
+}
+
+/* ------------------------------------------------------------------ */
+/* Build design custom fields (restored parity, Refs #1122)            */
+/* ------------------------------------------------------------------ */
+function loadCfields(buildId) {
+  var url = API + '/cfields?tplan_id=' + tplanId + (buildId > 0 ? '&build_id=' + buildId : '');
+  $.getJSON(url)
+    .done(function (r) {
+      if (r.status !== 'ok') { cfDefs = []; $('#cfArea').hide(); return; }
+      cfDefs = r.cfields || [];
+      if (!cfDefs.length) { $('#cfArea').hide(); $('#cfFields').empty(); return; }
+      var html = [];
+      for (var i = 0; i < cfDefs.length; i++) { html.push(cfInput(cfDefs[i])); }
+      $('#cfFields').html(html.join(''));
+      $('#cfArea').show();
+    })
+    .fail(function () { cfDefs = []; $('#cfArea').hide(); $('#cfFields').empty(); });
+}
+
+/** One custom field input. Everything is rendered from the server payload
+ *  through esc(); a custom field label / possible value is free text and can
+ *  never inject markup. Mirrors buildEdit.html (#1787) with bv.* keys. */
+function cfInput(cf) {
+  var id = 'cf_' + cf.field_id;
+  var val = (cf.value == null) ? '' : String(cf.value);
+  var req = cf.required ? ' <span class="req">*</span>' : '';
+  var lbl = '<label class="form-label" for="' + id + '">' + esc(cf.label) + req + '</label>';
+  var input = '';
+
+  if (cf.type_label === 'checkbox' || cf.type_label === 'list'
+      || cf.type_label === 'radio' || cf.type_label === 'multiselection list') {
+    var pv = String(cf.possible_values || '').split('|').filter(function (x) { return x !== ''; });
+    var multi = (cf.type_label === 'checkbox' || cf.type_label === 'multiselection list');
+    var sel = val === '' ? [] : val.split('|');
+    var opts = pv.map(function (o) {
+      var on = sel.indexOf(o) >= 0 ? ' selected' : '';
+      return '<option value="' + esc(o) + '"' + on + '>' + esc(o) + '</option>';
+    }).join('');
+    if (multi) {
+      input = '<select class="form-control" id="' + id + '" data-cf="' + cf.field_id
+            + '" data-cf-type="' + cf.type + '" data-cf-multi="1" multiple size="3">' + opts + '</select>';
+    } else {
+      input = '<select class="form-control" id="' + id + '" data-cf="' + cf.field_id
+            + '" data-cf-type="' + cf.type + '">' + opts + '</select>';
+    }
+  } else if (cf.type_label === 'text area') {
+    input = '<textarea class="form-control" id="' + id + '" data-cf="' + cf.field_id
+          + '" data-cf-type="' + cf.type + '" rows="3">' + esc(val) + '</textarea>';
+  } else {
+    var itype = (cf.type_label === 'numeric' || cf.type_label === 'float') ? 'number'
+              : (cf.type_label === 'email' ? 'email'
+              : (cf.type_label === 'date' ? 'date'
+              : (cf.type_label === 'datetime' ? 'datetime-local' : 'text')));
+    var isoOnly = cf.type_label === 'date' ? /^\d{4}-\d{2}-\d{2}$/
+                : (cf.type_label === 'datetime' ? /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(:\d{2})?$/ : null);
+    var dval = (isoOnly && val && !isoOnly.test(val)) ? '' : val;
+    if (dval && isoOnly) { dval = String(dval).replace(' ', 'T').slice(0, 16); }
+    input = '<input type="' + itype + '" class="form-control" id="' + id + '" data-cf="'
+          + cf.field_id + '" data-cf-type="' + cf.type + '" value="' + esc(dval) + '">';
+  }
+  return '<div class="form-group" style="margin-bottom:12px;">' + lbl + input + '</div>';
+}
+
+/** Collect the CF inputs into the `cfields` payload the BFF expects. */
+function collectCfields() {
+  var out = {};
+  if (!cfDefs.length) { return out; }
+  $('#cfFields [data-cf]').each(function () {
+    var fid = parseInt(this.getAttribute('data-cf'), 10);
+    var type = parseInt(this.getAttribute('data-cf-type'), 10);
+    var el = this;
+    if (type === 5 || type === 7) {
+      out[fid] = Array.prototype.slice.call(el.selectedOptions || []).map(function (o) { return o.value; });
+    } else {
+      out[fid] = $(el).val();
+    }
+  });
+  return out;
 }
 
 function saveBuild() {
@@ -443,6 +560,10 @@ function saveBuild() {
     active: $('#fActive').is(':checked') ? 1 : 0,
     open: $('#fOpen').is(':checked') ? 1 : 0
   };
+  // Only send the cfields key when the modal actually rendered CF inputs:
+  // the BFF treats its PRESENCE as "full replacement", so omitting it (no CFs
+  // for this project) never wipes values. Refs #1122.
+  if (cfDefs.length) { body.cfields = collectCfields(); }
   var url = API + (id ? '/' + id : '');
   if (!id) {
     body.copy_tester_assignments = $('#fCopyAssignments').is(':checked') ? 1 : 0;
