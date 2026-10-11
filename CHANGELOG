@@ -74,6 +74,25 @@ Every screen of the application was ported one-by-one in a screen-compare
   new `tccfi.*` i18n keys across all 10 bundles; new ASIDE label
   `$TLS_href_tc_spec_import` in all 19 locale files. (Refs #1896)
 
+- [KEY BUGFIX] - #1739: **the legacy Requirement editor `lib/requirements/reqEdit.php:41` used
+  `method_exists($commandMgr,$pFn)` as its dispatch whitelist — not a whitelist of requestable
+  GUI actions.** It also matches the internal helpers of `reqCommands` and the dispatch called
+  whatever it matched with a fixed 2-argument signature, so an unrecognised `doAction` produced a
+  **silent HTTP 500 with a 0-byte body** (`simpleCompare`, `ArgumentCountError`) or a **blank 200
+  plus 4 `E_WARNING` rows** (`renderGui()`'s `default:` dereferencing `suggest_revision` /
+  `prompt_for_log` on a null `$op`, `reqEdit.php:160,172,173`). It was the last
+  `method_exists($commandMgr,$pFn)` dispatch in `lib/` after #1736 (`reqSpecEdit.php`) and
+  #1726/#1894 (`planMilestonesEdit.php`). Fix (1 file, +162/−1), the exact #1736 remedy:
+  `reqEditActionWhitelist()` (the exact 24-case list of `renderGui()`'s GUI-rendering switch),
+  `reqEditRefuseUnknownAction()` (one fixed-literal `tLog(...,'INFO')` + `302` to
+  `gui/templates/requirements/reqSpecMgmt.html?tproject_id=<id>`; INFO does not persist below
+  WARNING) and `reqEditDropShapedAction()` (a non-scalar `?doAction[]=x` is dropped before
+  `R_PARAMS()`). Measured: bare / `xyz` / `simpleCompare` / `initGuiBean` /
+  `initGuiObjForAttachmentOperations` / `setAuditContext` / `doAction[]=x` all now `302` + 0-byte
+  body + **0** new `events` rows; `create`/`edit`/`reorder`/`deleteFile` still dispatch. Docs:
+  `docs/Bugfix-Issue-1739-reqEdit-Unrenderable-Action.md` + wiki page; regression suite
+  `Issue #1739` 18/18 PASS, suite gate 7/7. (Fixes #1739)
+
 - [KEY BUGFIX] - #1865: **the simple Full-Text Search screen (`searchMgmt.html`) linked every
   Requirement Specification result to `reqSpecView.html?reqspec_id=<id>`, but the viewer only
   resolved `id`/`req_spec_id` (`reqSpecView.html:310`) — `SPEC_ID` stayed 0 and 100% of RS
