@@ -147,3 +147,30 @@ i18n keys `pv.apiKey`, `pv.apiKeyCopy`, `pv.apiKeyCopied`, `pv.apiKeyCopyFailed`
 `pv.apiKeyHint` exist in all 10 locale bundles (`bash ai/verify_i18n_coverage.sh`
 passes). The key is never editable: it is generated server-side by
 `testplan::create()`.
+
+## Attachments in the Edit modal — Refs #1119
+
+The legacy edit form (`lib/plan/planEdit.php` `do_viewAttachments`/`do_fileHandling`,
+`gui/templates/dashio/plan/planEdit.tpl:192-196` → `attachments.inc.tpl`) let a test
+plan carry supporting artifacts: an upload form (file + optional title) and a list of
+the existing attachments with download and delete. The modern **inline Edit Test Plan**
+modal (`gui/templates/plans/planView.html`) had dropped that section — only the
+full-screen editor (`planEdit.html`, Refs #1882) exposed it.
+
+The modal now renders the full legacy capability (edit mode only — a plan must exist
+before it can own attachments), backed by the same `api/attachments` BFF the
+full-screen editor uses (`action=list|upload|delete|download`, `fk_table=testplans`),
+so no new BFF routes were needed and the DB format stays legacy-compatible:
+
+- **List** — title / filename / size / date columns with a **Download** link and a
+  per-row **Delete** button (confirm before delete), empty-state "No attachments yet.",
+  max-file-size hint from the BFF.
+- **Upload** — optional *Title* + *File*, single-file upload via
+  `POST /api/attachments` (`uploadedFile[]` FormData), inline feedback messages.
+- State is reset on every modal open (`resetPlanAttachments`), so a previous plan's
+  list/uploads cannot leak into the next plan; the section is hidden in create mode.
+
+All labels reuse the existing `pe.att*` / `pe.msg.upload*|delete*` i18n keys, already
+present in all 10 locale bundles (`bash ai/verify_i18n_coverage.sh` passes).
+
+Screenshot: [GitHub Wiki](https://github.com/sebiboga/testlink-upgraded/wiki/Test-Plan-Management) (`1119-planview-attachments.png`).

@@ -54,6 +54,17 @@ Every screen of the application was ported one-by-one in a screen-compare
   same-name build. i18n reuses the existing `pe.copy.*` keys (all 10 bundles).
   (Refs #1117)
 
+- [FEATURE GAP] - #1119: the inline **Edit Test Plan** modal of the Test Plan
+  Management screen (`gui/templates/plans/planView.html`) now restores the
+  legacy plan-attachments capability (`planEdit.php` `do_viewAttachments` /
+  `do_fileHandling`, `planEdit.tpl:192-196` → `attachments.inc.tpl`): an
+  **Attachments** section with the existing list (title / file / size / date +
+  download, per-row delete with confirm) and an upload form (file + optional
+  title), shown in edit mode only, backed by the same `api/attachments` BFF the
+  full-screen editor uses (`fk_table=testplans`, legacy-compatible DB format) —
+  no new BFF routes needed; state is reset on every modal open. Labels reuse the
+  existing `pe.att*` / `pe.msg.*` keys (all 10 bundles). (Refs #1119)
+
 - [SCREEN] - #1896: the legacy **Test Specification Import** screen
   (`lib/testcases/tcCreateFromIssue.php`, a 1068-line orphan that imported
   TestLink / Mantis-issue test case XML but rendered a Smarty template

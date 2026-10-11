@@ -7598,3 +7598,37 @@ the scalar write path are unchanged; no new Error/Warning `events` rows.
 | 10 | Event Viewer / `events` table after the search flows | no new Error/Warning rows from the fix | search re-runs added 0 rows (count unchanged at 6; the 2 error rows present mid-run came from a broken *fixture* missing `nodes_hierarchy` revision nodes, explained in the issue checkpoint — not from the product path) | **PASS** |
 
 **Regression — Issue #1869: 10/10 PASS.** Pre-fix, cases 1 and 2 FAIL (BFF warning contradicted `count=4`; client rendered only the empty-project notice with `.res-block`=0).
+
+## Task — Issue #1119: planView edit modal attachments (upload/delete missing)
+
+**Issue:** #1119 — legacy `planEdit.php`/`planEdit.tpl` let a test plan carry
+attachments (list + download + delete + upload with title); the modern inline
+**Edit Test Plan** modal (`gui/templates/plans/planView.html`) had dropped the
+section. Fixed by reusing the shared `api/attachments` BFF (`fk_table=testplans`)
+— same BFF the full-screen editor uses, so the DB format stays legacy-compatible.
+
+**Precondition:** TestLink at http://localhost:8082 (fresh DB), login `admin`/`admin`.
+Fixture created via API on 2026-10-11: test project **Issue1119 Project** (id 1,
+prefix I1119) + test plan **Issue1119 Plan** (id 2, notes "plan for attachments
+test"). Local upload fixture `/tmp/opencode/issue1119-attach.txt` (31 B,
+"Issue #1119 attachment fixture\n"). Branch `task/issue-1119-planview-attachments`.
+
+**Steps / expected / actual (executed 2026-10-11, this run):**
+
+| # | Case | Expected | Actual | Result |
+|---|------|----------|--------|--------|
+| 1 | Open `planView.html?tproject_id=1`, click the plan name link (Edit Test Plan modal) | modal shows **Attachments** section below the API-key row | a11y snapshot: "Attachments / No attachments yet. / Title / File / Maximum file size: 1024 KB / Upload" | **PASS** |
+| 2 | Upload via UI: Title "Spec doc" + file `issue1119-attach.txt`, click Upload | attachment row appears: "Spec doc / issue1119-attach.txt / 31 B / <date> / Download Delete", feedback "Attachment uploaded." | row rendered exactly so; `attachments` row `(id=1, title='Spec doc', fk_id=2, fk_table='testplans')` | **PASS** |
+| 3 | `GET /api/attachments/index.php?action=download&id=1` (same session) | 200, text/plain, body == fixture | `{status:200, contentType:"text/plain;charset=UTF-8", body:"Issue #1119 attachment fixture\n"}` | **PASS** |
+| 4 | Click Delete on the row | confirm dialog names the file | `confirm: Delete attachment 'issue1119-attach.txt'?` | **PASS** |
+| 5 | Accept the confirm | row removed, feedback "Attachment deleted.", list returns to "No attachments yet." | so observed; `attachments` count 0 | **PASS** |
+| 6 | Audit trail | `events` rows `audit_attachment_created` (CREATE) + `audit_attachment_deleted` (DELETE), object_type `attachments`, log_level 16 | rows id 4 + 5 present, log_level 16, 0 ERROR/WARNING | **PASS** |
+| 7 | Open the **Create Test Plan** modal | NO attachments section (a plan must exist first) | a11y snapshot: create modal has Name/Description/Active/Public/copy block, no Attachments | **PASS** |
+| 8 | Open Edit modal after a Create-modal open | no stale list/state from the previous plan | `#planAttList` empty, "No attachments yet.", section hidden then re-shown correctly | **PASS** |
+| 9 | i18n coverage gate | `bash ai/verify_i18n_coverage.sh` exit 0 (labels reuse `pe.att*`/`pe.msg.*`) | PASS — 9 bundles, 0 missing | **PASS** |
+| 10 | `node --check` on the inline app script of `planView.html` | no syntax errors | PASS | **PASS** |
+| 11 | Browser console after upload/delete/edit/create flows | clean (no JS errors) | only pre-existing a11y `[issue]` notices, 0 error/warn | **PASS** |
+| 12 | Event Viewer / `events` after the whole flow | no Error/Warning rows from the feature | `log_level IN (1,2)` count unchanged; only audit rows added | **PASS** |
+
+**PASS/FAIL: PASS (12/12).** Pre-fix, the edit modal contained no attachments
+section at all (INVESTIGATION comment: grep + a11y snapshot before change).
