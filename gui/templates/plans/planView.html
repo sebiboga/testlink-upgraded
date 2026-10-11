@@ -56,6 +56,14 @@ table.dataTable tbody td { padding: 8px 14px; font-size: 13px; vertical-align: m
 .api-key-copy-btn { margin-top:8px; background:#353b48; color:#fff; border:none; padding:6px 12px; border-radius:3px; cursor:pointer; font-size:12px; }
 .api-key-copy-btn:hover { background:#2c313a; }
 .api-key-hint { color:#888; font-size:11px; margin-top:6px; }
+/* Refs #1119: attachment list inside the edit modal (legacy attachments.inc.tpl) */
+.plan-att-table { width:100%; border-collapse:collapse; font-size:12px; }
+.plan-att-table th { text-align:left; color:#666; font-weight:600; padding:4px 6px; border-bottom:1px solid #eee; }
+.plan-att-table td { padding:4px 6px; border-bottom:1px solid #f2f2f2; vertical-align:middle; }
+.plan-att-table a { color:#2d8e88; text-decoration:none; margin-right:10px; }
+.plan-att-table a:hover { text-decoration:underline; }
+.plan-att-del { background:none; border:none; color:#e6605e; cursor:pointer; padding:0; font-size:12px; }
+.plan-att-del:hover { color:#c53f3d; }
 table.hide-plat th:nth-child(6), table.hide-plat td:nth-child(6) { display:none !important; }
 </style>
 </head>
@@ -150,6 +158,31 @@ table.hide-plat th:nth-child(6), table.hide-plat td:nth-child(6) { display:none 
             </button>
             <div class="api-key-hint" data-i18n="pv.apiKeyHint">Identifies this test plan for remote API and public-link access.</div>
           </div>
+          <!-- Refs #1119: legacy planEdit.tpl:192-196 included attachments.inc.tpl
+               (file upload + title + existing list with download/delete) so a plan
+               could carry supporting artifacts. The inline edit modal dropped it;
+               only the full-screen editor had it. Edit mode only: a plan must exist
+               before it can own attachments. Backed by the same api/attachments BFF
+               the full-screen editor uses (fk_table=testplans), so the DB format
+               stays legacy-compatible. -->
+          <div id="planAttSection" style="display:none;margin-top:16px;padding-top:14px;border-top:1px solid #eee;">
+            <label style="font-weight:600;font-size:13px;color:#333;margin-bottom:6px;display:block;" data-i18n="pe.attTitle">Attachments</label>
+            <div id="planAttList"></div>
+            <div style="margin-top:10px;">
+              <label style="font-weight:600;font-size:12px;color:#333;margin-bottom:4px;display:block;"
+                     for="planAttTitle" data-i18n="pe.attTitleLabel">Title</label>
+              <input type="text" id="planAttTitle" maxlength="100" autocomplete="off"
+                     style="border:1px solid #ddd;border-radius:4px;padding:6px 10px;font-size:13px;width:100%;">
+              <label style="font-weight:600;font-size:12px;color:#333;margin:8px 0 4px;display:block;"
+                     for="planAttFile" data-i18n="pe.attFile">File</label>
+              <input type="file" id="planAttFile" style="font-size:12px;">
+              <div id="planAttMaxHint" style="color:#888;font-size:11px;margin-top:4px;"></div>
+              <button type="button" class="btn-teal" id="planAttUpload" style="margin-top:8px;font-size:12px;">
+                <i class="fa fa-upload"></i> <span data-i18n="pe.attUpload">Upload</span>
+              </button>
+            </div>
+            <div id="planAttFeedback" style="font-size:12px;margin-top:8px;"></div>
+          </div>
           <!-- Refs #1117: legacy 'Create from existing Test Plan?' + copy options
                (inc_controls_planEdit.tpl). Only shown in create mode. -->
           <div id="planCopySection" style="display:none;margin-top:16px;padding-top:14px;border-top:1px solid #eee;">
@@ -238,6 +271,9 @@ table.hide-plat th:nth-child(6), table.hide-plat td:nth-child(6) { display:none 
 <script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
 <script>
 var API = '/api/plans/index.php';
+// Refs #1119: plan attachments live in the shared attachments BFF (legacy
+// attachmentupload/delete + lib/functions/attachments.inc.php), fk_table=testplans.
+var ATT_API = '/api/attachments/index.php';
 var tprojectId = 0;
 var canManage = false;
 var tplanTbl = null;
@@ -246,6 +282,8 @@ var ACTIONS = {};
 var drawPlatQty = false;
 var lastItems = [];
 var cfColumns = [];
+var planAttId = 0;
+var lastPlanAtts = [];
 
 $(function () {
   var p = new URLSearchParams(window.location.search);
@@ -280,6 +318,22 @@ $(function () {
   });
   $('#planCopyBuilds').on('change', function () {
     $('#planCopyAssignRow').toggle($(this).is(':checked'));
+  });
+
+  // Refs #1119: attachment upload (edit modal only)
+  $('#planAttUpload').on('click', uploadPlanAttachment);
+
+  // Refs #1119: attachment delete via delegation (mirrors the plan-table
+  // pattern above): the file name is resolved from the API payload
+  // (lastPlanAtts), never from the DOM, so HTML-escaped names cannot leak
+  // entities into the confirm dialog.
+  $('#planAttList').on('click', 'button[data-att-id]', function () {
+    var fileId = parseInt(this.getAttribute('data-att-id'), 10);
+    var att = lastPlanAtts.filter(function (x) { return x.id === fileId; })[0];
+    var fname = att ? att.file_name : '';
+    if (window.confirm(TLi18n.t('pe.msg.deleteConfirm', { file: fname }))) {
+      deletePlanAttachment(fileId);
+    }
   });
 });
 
@@ -563,6 +617,9 @@ function openPlanModal(mode, planId) {
   // open; the readonly div is not a form control so reset() does not clear it.
   resetApiKeyButton();
   setPlanApiKey('');
+  // Refs #1119: attachments only make sense once the plan exists (edit mode);
+  // never let a previous plan's attachment list survive into this open.
+  resetPlanAttachments();
 
   if (mode === 'create') {
     $('#planModalTitle').text(TLi18n.t('pv.modal.createTitle'));
@@ -598,6 +655,10 @@ function openPlanModal(mode, planId) {
         // Refs #1118: surface the plan api_key read-only (legacy parity:
         // planEdit.tpl:123-130 only renders it when the key is non-empty).
         setPlanApiKey(r.api_key || '');
+        // Refs #1119: load this plan's attachments (legacy attachments.inc.tpl).
+        planAttId = parseInt(r.id, 10) || planId;
+        $('#planAttSection').show();
+        loadPlanAttachments();
       })
       .fail(function (xhr) {
         // failed fetch must not degrade into an unintended create: the form
@@ -606,11 +667,160 @@ function openPlanModal(mode, planId) {
         if (token !== modalToken) { return; }
         var r = {};
         try { r = JSON.parse(xhr.responseText); } catch(e) {}
+        $('#planAttSection').hide();
         $('#planModal').modal('hide');
         toast(r.message || TLi18n.t('common.error'), true);
       });
   }
   $('#planModal').modal('show');
+}
+
+// Refs #1119: attachment helpers — mirror the full-screen editor
+// (planEdit.html) so both entry points share api/attachments + the legacy
+// storage format.
+
+function humanSize(n) {
+  n = parseInt(n || 0, 10);
+  if (n < 1024) { return n + ' B'; }
+  if (n < 1048576) { return (n / 1024).toFixed(1) + ' KB'; }
+  return (n / 1048576).toFixed(1) + ' MB';
+}
+
+function resetPlanAttachments() {
+  planAttId = 0;
+  lastPlanAtts = [];
+  $('#planAttSection').hide();
+  $('#planAttList').empty();
+  $('#planAttTitle').val('');
+  $('#planAttFile').val('');
+  $('#planAttMaxHint').text('');
+  $('#planAttFeedback').empty();
+}
+
+function loadPlanAttachments() {
+  if (!planAttId) { return; }
+  var id = planAttId;
+  $.ajax({
+    url: ATT_API + '?action=list&table=testplans&id=' + id,
+    method: 'GET',
+    dataType: 'json'
+  }).done(function (r) {
+    // a newer modal open may have started while this was in flight
+    if (id !== planAttId) { return; }
+    if (!r || r.status !== 'ok') {
+      $('#planAttList').html('<div style="color:#c53f3d;">' + esc(TLi18n.t('pe.attLoadError')) + '</div>');
+      return;
+    }
+    $('#planAttMaxHint').text(TLi18n.t('pe.attMaxSize', { size: Math.round((r.max_size || 0) / 1024) }));
+    var rows = r.attachments || [];
+    lastPlanAtts = rows;
+    if (!rows.length) {
+      $('#planAttList').html('<div style="color:#888;">' + esc(TLi18n.t('pe.attNone')) + '</div>');
+      return;
+    }
+    var html = '<table class="plan-att-table"><tr>' +
+      '<th>' + esc(TLi18n.t('pe.attTitleLabel')) + '</th>' +
+      '<th>' + esc(TLi18n.t('pe.attFile')) + '</th>' +
+      '<th>' + esc(TLi18n.t('pe.attSize')) + '</th>' +
+      '<th>' + esc(TLi18n.t('pe.attDate')) + '</th>' +
+      '<th></th></tr>';
+    rows.forEach(function (a) {
+      html += '<tr>' +
+        '<td>' + esc(a.title || a.file_name) + '</td>' +
+        '<td>' + esc(a.file_name) + '</td>' +
+        '<td>' + esc(humanSize(a.file_size)) + '</td>' +
+        '<td>' + esc(a.date_added || '') + '</td>' +
+        '<td style="text-align:right;white-space:nowrap;">' +
+          '<a href="' + ATT_API + '?action=download&id=' + parseInt(a.id, 10) + '">' +
+            '<i class="fa fa-download"></i> ' + esc(TLi18n.t('pe.attDownload')) + '</a>' +
+          '<button class="plan-att-del" data-att-id="' + parseInt(a.id, 10) + '">' +
+            '<i class="fa fa-trash"></i> ' + esc(TLi18n.t('pe.attDelete')) + '</button>' +
+        '</td></tr>';
+    });
+    html += '</table>';
+    $('#planAttList').html(html);
+  }).fail(function (xhr) {
+    if (id !== planAttId) { return; }
+    $('#planAttList').html('<div style="color:#c53f3d;">' + esc(TLi18n.t('pe.attLoadError')) + '</div>');
+  });
+}
+
+function uploadPlanAttachment() {
+  if (!planAttId) { return; }
+  var attId = planAttId;
+  var fileInput = document.getElementById('planAttFile');
+  if (!fileInput.files || !fileInput.files.length) {
+    $('#planAttFeedback').html('<span style="color:#c53f3d;">' + esc(TLi18n.t('pe.msg.uploadNoFile')) + '</span>');
+    return;
+  }
+  var fd = new FormData();
+  fd.append('action', 'upload');
+  fd.append('table', 'testplans');
+  fd.append('id', String(attId));
+  fd.append('title', $('#planAttTitle').val() || '');
+  // MUST be the [] form: api/attachments reads $_FILES['uploadedFile']['name']
+  // as an array (the plain string shape fatals on PHP 8 -> empty 500).
+  fd.append('uploadedFile[]', fileInput.files[0]);
+  $('#planAttUpload').prop('disabled', true);
+  $.ajax({
+    url: ATT_API,
+    method: 'POST',
+    data: fd,
+    processData: false,
+    contentType: false,
+    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+    dataType: 'json'
+  }).done(function (r) {
+    // a newer modal open may have started while this was in flight — never
+    // let a previous plan's upload touch the current plan's modal state
+    if (attId !== planAttId) { return; }
+    $('#planAttUpload').prop('disabled', false);
+    if (!r || (r.status && r.status !== 'ok')) {
+      $('#planAttFeedback').html('<span style="color:#c53f3d;">' + esc((r && r.message) || TLi18n.t('pe.msg.uploadFailed')) + '</span>');
+      return;
+    }
+    $('#planAttTitle').val('');
+    fileInput.value = '';
+    $('#planAttFeedback').html('<span style="color:#2d8e88;">' + esc(TLi18n.t('pe.msg.uploaded')) + '</span>');
+    loadPlanAttachments();
+  }).fail(function (xhr) {
+    if (attId !== planAttId) { return; }
+    $('#planAttUpload').prop('disabled', false);
+    var r = {};
+    try { r = JSON.parse(xhr.responseText); } catch (e) {}
+    $('#planAttFeedback').html('<span style="color:#c53f3d;">' + esc(r.message || TLi18n.t('pe.msg.uploadFailed')) + '</span>');
+  });
+}
+
+function deletePlanAttachment(fileId) {
+  if (!planAttId) { return; }
+  var attId = planAttId;
+  var fd = new URLSearchParams();
+  fd.set('action', 'delete');
+  fd.set('table', 'testplans');
+  fd.set('id', String(attId));
+  fd.set('file_id', String(fileId));
+  $.ajax({
+    url: ATT_API,
+    method: 'POST',
+    data: fd.toString(),
+    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+    dataType: 'json'
+  }).done(function (r) {
+    // stale-response guard: the modal may have switched plans while in flight
+    if (attId !== planAttId) { return; }
+    if (!r || (r.status && r.status !== 'ok')) {
+      $('#planAttFeedback').html('<span style="color:#c53f3d;">' + esc((r && r.message) || TLi18n.t('pe.msg.deleteFailed')) + '</span>');
+      return;
+    }
+    $('#planAttFeedback').html('<span style="color:#2d8e88;">' + esc(TLi18n.t('pe.msg.deleted')) + '</span>');
+    loadPlanAttachments();
+  }).fail(function (xhr) {
+    if (attId !== planAttId) { return; }
+    var r = {};
+    try { r = JSON.parse(xhr.responseText); } catch (e) {}
+    $('#planAttFeedback').html('<span style="color:#c53f3d;">' + esc(r.message || TLi18n.t('pe.msg.deleteFailed')) + '</span>');
+  });
 }
 
 // Refs #1118: read-only plan API key row (legacy planEdit.tpl:123-130).
