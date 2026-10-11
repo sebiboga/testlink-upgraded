@@ -63,7 +63,13 @@ function kwShimOut($status, $tproject_id, $httpCode = 302) {
 }
 
 // Legacy input contract (initEnv() in the pre-2.0.1 controller).
-$doAction = isset($_REQUEST['doAction']) ? trim($_REQUEST['doAction']) : '';
+// is_scalar() guard (Refs #1897): a crafted ?doAction[]=x (an array) passed the
+// bare isset() and reached trim(array), raising
+// "TypeError: trim(): Argument #1 ($string) must be of type string, array given"
+// -> HTTP 500. Non-scalar values are ignored here so the request falls through to
+// the normal GET redirect (302), exactly like planMilestonesEdit.php after #1886.
+$doAction = isset($_REQUEST['doAction']) && is_scalar($_REQUEST['doAction'])
+	? trim((string)$_REQUEST['doAction']) : '';
 $keywordId = isset($_REQUEST['id']) ? intval($_REQUEST['id']) : 0;
 // Cast to string and drop arrays: keyword[]=x would reach
 // tlKeyword::checkKeyword() -> trim(array) and fatal with a TypeError.
