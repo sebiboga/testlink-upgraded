@@ -7806,3 +7806,24 @@ and `recordsDisplay==1` — reproduced exactly as reported before the change.
 | 7 | `grep -rn deletePlatformsByLink` blast-radius re-check | Only the two callers (legacy `testcaseCommands:1584`, BFF `index.php:3096`), both now safe | PASS |
 
 **Result: 7/7 PASS.** Fix: `foreach((array)$rs as $link)` in `lib/functions/testcase.class.php` `deletePlatformsByLink()` — matches the `(array)` cast already used at `:9878`/`:9922` of the same file. No i18n change (no user-facing strings); no Event Viewer pollution.
+## Task — Issue #1122: buildsView build design-time custom fields (list columns + modal inputs)
+
+**Precondition** — fresh DB; `php tmp/fixtures_1122.php` loaded (tproject `BVC1122` prefix `BVC` + plan `BVC1122 Plan` + 2 builds; three build design CFs: string `bvc_environment`, list `bvc_component=frontend|backend|database`, date `bvc_release_dt`; values on build 1 = `staging` / `backend|database` / `2026-06-15` epoch; a `TL_BUILDVIEW_HIDECOL_BVC` config CF whose `possible_values` = `bvc_component`). Logged in `admin`/`admin` at http://localhost:8082; headless Chrome via chrome-devtools MCP. **NOTE:** running the fixture twice increments ids — use the plan id it prints (observed run: project 5, plan 6, builds 6/7, CFs 8/9/10, config 11).
+
+| # | Steps | Expected | Actual |
+|---|-------|----------|--------|
+| 1 | `GET /api/builds/index.php?tplan_id=<plan>` | `status:ok`, `cfields_columns` = the 3 build CFs as `{id,name,label,type}` | PASS — 3 columns returned |
+| 2 | Same response, `builds[0].cf` / `builds[1].cf` | build 1 `{bvc_environment:staging, bvc_component:'backend|database', bvc_release_dt:'2026-06-15'}`; build 2 `{bvc_environment:production}` | PASS |
+| 3 | With `TL_BUILDVIEW_HIDECOL_BVC` linked (hides `bvc_component`) | `cfields_columns` excludes `bvc_component` **and** the config CF itself | PASS — columns = `bvc_environment`, `bvc_release_dt` |
+| 4 | Open `/gui/templates/plans/buildsView.html?tplan_id=<plan>` | DataTable `<th>`s include `BVC Environment` + `BVC Release Date`; `BVC Component` absent | PASS |
+| 5 | Read row cells | Build 1 -> `staging`, `2026-06-15`; build 2 -> `production`, `-` | PASS |
+| 6 | Click **Create Build** | Modal shows `Custom fields` section with 3 inputs; HIDECOL config CF NOT rendered | PASS — ids 8/9/10, config 11 absent |
+| 7 | Fill name `BVC Build 3`, env `qa`, component `backend`, date `2026-07-20`; Save | Build created; row shows `qa`, `2026-07-20`; `cfield_build_design_values` written via POST `/` | PASS |
+| 8 | Click `BVC Build 1` (edit) | Modal prefills name, env `staging`, component, date `2026-06-15` | PASS |
+| 9 | Switch locale to Romanian; reopen modal | Heading reads `Campuri personalizate` (not raw key `bv.cfSection`) | PASS |
+| 10 | Console / network on load+save | No JS console errors; no failed requests | PASS |
+| 11 | `SELECT log_level,description FROM events ORDER BY id DESC` | No new ERROR/WARNING from the CF code path | PASS (only pre-existing #1900 create-audit E_WARNING, unrelated — filed) |
+
+**Result: 11/11 PASS.** Depends on `gui/templates/plans/buildsView.html` + `api/builds/index.php`; i18n key `bv.cfSection` added to all 10 bundles (`bash ai/verify_i18n_coverage.sh` PASS). The single Event Viewer E_WARNING observed (POST create audit `$ctx['tproject_name']`) is pre-existing and tracked in **#1900**; not caused by this change.
+
+**Post-review addendum (code review, rule 16).** The review flagged a race: `openCreate()/openEdit()` showed/sent the previous build's CF inputs until `loadCfields()` resolved. Fixed by resetting `cfDefs`/`#cfFields`/`#cfArea` at the start of `loadCfields()` and dropping out-of-order responses with a `cfReqSeq` token (`buildsView.html`). Re-verified in the browser: after editing build 1 (`staging`) then immediately calling `openCreate()`, `#cfArea` was hidden and 0 CF inputs existed until the request resolved; on resolve, the create form showed 3 empty inputs; a create with env=`race`/component=`database`/date=`2026-08-01` persisted (`cf = {bvc_environment:'race', bvc_release_dt:'2026-08-01'}`). Also applied the review's parity nit: the HIDECOL lookup now passes `active=null` (legacy `buildView.php`) instead of `1`. Tests 1-11 above remain PASS.
