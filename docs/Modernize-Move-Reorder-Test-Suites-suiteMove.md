@@ -67,6 +67,31 @@ Contract: `401` anonymous, `403` no right / CSRF, `404` unknown or foreign node 
 | #1758 | a malformed `new_parent_id` was silently degraded into an in-container reorder |
 | #1759 | `403` on a foreign suite leaked that node's existence (now `404`) — see [Bugfix-Issue-1759](Bugfix-Issue-1759-SuiteMove-403-Leaks-Foreign-Suite) |
 
+## Bugfix #1751 — `smv.*` i18n keys verified restored in all 10 bundles
+
+Concurrency clobber: commit `9ca0fa7bb` ("feat(tcview): full platforms panel", Refs #1037) rewrote
+all ten `gui/templates/i18n/*.json` from a stale base, so every `smv.*` key another agent had added
+in `0674bbdd5` was dropped (`git show 9ca0fa7bb:gui/templates/i18n/en.json` counts `smv.*` = **0**).
+`TLi18n` then fell back to the raw key / hardcoded English (`gui/templates/i18n/i18n.js:175`), so
+the whole screen rendered untranslated outside English.
+
+The repair landed in `7163125d6` (sibling fix for #1750), which re-added the keys in all ten bundles;
+that commit is an ancestor of the default branch, so the symptom is not reproducible. This ticket was
+never closed after the fix. Verification only — **no new code change**.
+
+Evidence:
+* working-tree `en.json` → **48** `smv.*` keys; every bundle `de/es/fr/it/ja/pt/ro/ru/zh` → 48 each.
+* every `smv.*` + `footers.suiteMove` key referenced by `suiteMove.html` / `testSpec.html` exists in
+  `en.json` → `missing: []`.
+* `bash ai/verify_i18n_coverage.sh` → `9 bundle(s) passed, 0 failed`, exit 0 (7369 keys each).
+* runtime `?locale=ro` → title "Mută / reordonează suite de test", table header "Suite de test",
+  footer "TestLink 2.0.1 - Mută / reordonează suite de test", move modal "Mută suita de test" with the
+  `{suite}` placeholder interpolated; `?locale=de` → "Testsuite verschieben / neu sortieren".
+* `events` table after the test: 1 audit `LOGIN` row (`log_level=16`), no Error/Warning; console clean.
+
+Regression suite `Issue #1751` in `tmp/TLU_Test_Cases.md`: **10/10 PASS**. Screenshot:
+`docs/screenshots/issue-1751-suitemove-ro.png`.
+
 ## Verification
 
 Suite 1740 in `tmp/TLU_Test_Cases.md`: **57/57 PASS** (incl. 11 review-fix cases) + 30 API

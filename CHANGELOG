@@ -117,6 +117,16 @@ Every screen of the application was ported one-by-one in a screen-compare
   new `tccfi.*` i18n keys across all 10 bundles; new ASIDE label
   `$TLS_href_tc_spec_import` in all 19 locale files. (Refs #1896)
 
+- [KEY BUGFIX] - #1751: **all 46 `smv.*` i18n keys of the Move / Reorder Test Suites screen were
+  deleted from the 10 locale bundles by a stale-base rewrite** (`9ca0fa7bb`, "feat(tcview): full
+  platforms panel"), so `TLi18n` fell back to the raw key / hardcoded English
+  (`gui/templates/i18n/i18n.js:175`) and the whole screen rendered untranslated outside English.
+  Concurrency hazard: parallel CI agents append to the same `gui/templates/i18n/*.json`; the conflict
+  was resolved wholesale instead of by key union. Repair `7163125d6` re-added the keys in all 10
+  bundles; verified on the default branch: working-tree `en.json` 48 `smv.*`, all 9 bundles 48 each,
+  `ai/verify_i18n_coverage.sh` exit 0, runtime `?locale=ro`/`de` fully translated, Event Viewer clean.
+  Regression suite "Regression — Issue #1751" 10/10 PASS. (Fixes #1751)
+
 - [KEY BUGFIX] - #1900: **the Builds & Releases create path (`POST /api/builds/`) wrote one
   `E_WARNING "Undefined array key "tproject_name"` into the Event Viewer on EVERY build create** --
   the audit call at `api/builds/index.php:889` read `$ctx['tproject_name']` but the POST context
