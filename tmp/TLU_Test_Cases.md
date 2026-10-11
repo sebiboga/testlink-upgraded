@@ -7598,3 +7598,55 @@ the scalar write path are unchanged; no new Error/Warning `events` rows.
 | 10 | Event Viewer / `events` table after the search flows | no new Error/Warning rows from the fix | search re-runs added 0 rows (count unchanged at 6; the 2 error rows present mid-run came from a broken *fixture* missing `nodes_hierarchy` revision nodes, explained in the issue checkpoint — not from the product path) | **PASS** |
 
 **Regression — Issue #1869: 10/10 PASS.** Pre-fix, cases 1 and 2 FAIL (BFF warning contradicted `count=4`; client rendered only the empty-project notice with `.res-block`=0).
+
+## Task — Issue #1899: Generic Info / Notice page (`workAreaSimple` — DB connection failure & report document error)
+
+**Precondition.** App `http://localhost:8082` (PHP built-in server, docroot = repo root); DB
+`testlink` freshly imported (empty apart from `admin`). Legacy renderer:
+`gui/templates/dashio/workAreaSimple.tpl`, produced by `doDBConnect(..., true)`
+(`lib/functions/common.php`, fatal DB failure — `fatal_page_title`) and `displayInfo()`
+(`lib/functions/info.inc.php`, report document error — `error_print_doc_title` +
+`error_print_doc_missing_testplan`, called from `lib/results/displayMgr.php`). Modern:
+`gui/templates/feedback/info.html` + BFF `api/info/index.php`.
+
+**Steps / expected / actual (executed 2026-10-11, this run):**
+
+| # | Case | Expected | Actual |
+|---|------|----------|--------|
+| 1 | `GET api/info/?code=missing_testplan` (anon) | 200, `info_code=missing_testplan`, `title_key=info.printDocErrorTitle`, `message_key=info.printDocMissingTestplan` | PASS — HTTP 200, keys correct |
+| 2 | `GET api/info/?code=db_connect_fail` | 200, `info_code=db_connect_fail`, `info.dbFailTitle` / `info.dbFailMsg` | PASS — HTTP 200 |
+| 3 | `GET api/info/` (no code) | 200, `known=false`, `info_code=generic` | PASS — `{"known":false,"info_code":"generic",…}` |
+| 4 | `GET api/info/?code[]=x` (array trap) | 400 `INVALID_CODE`, never coerced | PASS — HTTP 400 |
+| 5 | `GET api/info/?code=Bad!` (non-token) | 400 `INVALID_CODE` | PASS — HTTP 400 |
+| 6 | `POST api/info/` with `X-Requested-With` | 405 `METHOD_NOT_ALLOWED`, `Allow: GET, HEAD` | PASS — HTTP 405 |
+| 7 | `POST api/info/` foreign-origin/no proof | 403 via `bffSameOriginGuard()` | PASS — HTTP 403 |
+| 8 | `HEAD api/info/` | 200, JSON headers | PASS — HTTP 200 |
+| 9 | BFF does no DB access | answers with DB down | PASS — no `new database()`/`doDBConnect` in the BFF |
+| 10 | `GET lib/results/resultsGeneral.php?tplan_id=999999&format=1` (auth) | 302 → `info.html?code=missing_testplan` (legacy `displayInfo()`) | PASS — 302, exact target |
+| 11 | DB `DB_HOST` pointed at a dead port → `GET index.php` | 302 → `info.html?code=db_connect_fail` (legacy `doDBConnect` fail screen) | PASS — 302, exact target |
+| 12 | DB dead → `GET login.php` | 302 → `info.html?code=db_connect_fail` | PASS — 302 |
+| 13 | Browser `?code=missing_testplan` | card title "Document generation error" + legacy message + codes | PASS — rendered, 0 console errors |
+| 14 | Browser `?code=db_connect_fail` | amber warning glyph + "TestLink ::: Fatal Error" + message | PASS — `info_code` drives the glyph |
+| 15 | Browser `?code=generic` | teal info glyph + generic notice | PASS |
+| 16 | Browser `?locale=ro` | fully localized (`info.*` bundle), switcher present | PASS — "TestLink - Notificare", RO buttons |
+| 17 | Legacy renderer removed | no `->display('workAreaSimple.tpl')` left in `lib/` | PASS — grep: 0 real display calls |
+| 18 | `$actions->infoPage` present | maps to the modern screen | PASS — `lib/functions/common.php` |
+| 19 | i18n coverage | 16 new keys (`info.*` + `footers.infoPage`) in all 10 bundles | PASS — `verify_i18n_coverage.sh`: 9/9 bundles, 0 missing (7344 keys) |
+| 20 | `SELECT COUNT(*) FROM events WHERE log_level IN (1,2)` after all requests | 0 new Error/Warning | PASS — 0 new since 12:52 (before this screen's work) |
+
+**PASS/FAIL: PASS (20/20).** DB restored after the run (`config_db.inc.php` DB_HOST back to
+`127.0.0.1:3306`; app `index.php` → 200). Browser, BFF curl and i18n gate all exercised on the
+committed tree.
+
+**Addendum (same run, after a code-review pass added the 3rd `workAreaSimple.tpl`
+producer — `firstLogin.php` self-signup-disabled — and hardened the redirect base):**
+
+| # | Case | Expected | Actual |
+|---|------|----------|--------|
+| 21 | `GET api/info/?code=signup_disabled` (anon) | 200, `info_code=signup_disabled`, `title_key=info.signupDisabledTitle`, `message_key=info.signupDisabledMsg` | PASS — HTTP 200, keys correct |
+| 22 | `firstLogin.php` with `user_self_signup=FALSE` (anon) | 302 → `info.html?code=signup_disabled` (legacy `workAreaSimple.tpl` notice) | PASS — 302, exact target; `config.inc.php` line 590 restored to `TRUE` after the probe |
+| 23 | Redirect base is path-only / same-origin | `Location` = `/gui/templates/feedback/info.html?code=…`, host never read from `HTTP_HOST`/`X-Forwarded-Host` | PASS — logged-in stale-tplan 302 → `http://localhost:8082/gui/templates/feedback/info.html?code=missing_testplan`; DB-down `login.php` 302 → same path form |
+| 24 | Browser `?code=signup_disabled` | "TestLink ::: Fatal Error" + self-registration-disabled message + Home/Login/Retry | PASS — rendered, 0 console errors (only shared anon `api/userinfo` 401) |
+| 25 | i18n coverage after addendum | 18 new keys (`info.*` ×17 + `footers.infoPage`) in all 10 bundles | PASS — `verify_i18n_coverage.sh`: 9/9 bundles, 0 missing (7346 keys) |
+
+**Addendum PASS/FAIL: PASS (5/5) — suite total 25/25.**

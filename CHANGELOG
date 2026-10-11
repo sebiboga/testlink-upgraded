@@ -17,6 +17,19 @@ Every screen of the application was ported one-by-one in a screen-compare
   kept for backward compatibility and is progressively retired as each modern
   screen reaches full parity.
 
+- [SCREEN] - #1899: the **Generic Info / Notice page**
+  (`gui/templates/dashio/workAreaSimple.tpl` -> `gui/templates/feedback/info.html`,
+  BFF `api/info/index.php`) is modernized — the last standalone full-page feedback
+  renderer without a modern twin (sibling of #1895 error.php). It is the page shown
+  for a **fatal database connection failure** (`doDBConnect(..., true)`) and for a
+  **report document error** (`displayInfo()`, from `lib/results/displayMgr.php`).
+  The legacy renderer emitted the caller content un-escaped and embedded the raw
+  DBMS error text; the modern page resolves a fixed localized message from a stable
+  `info_code`, needs no database (so it renders during an outage) and no rights gate
+  (anonymous deep-links work). Both callers now 302 to the screen via the new
+  `redirectToInfoPage()` helper + `$actions->infoPage`. 16 new `info.*` /
+  `footers.infoPage` i18n keys in all 10 bundles. (Refs #1899)
+
 - [SCREEN] - #1898: the **Role Create/Edit** screen
   (`lib/usermanagement/rolesEdit.php` -> `gui/templates/usermanagement/rolesEdit.html`,
   BFF `api/rolesedit/index.php`) is modernized. The legacy Smarty form — the last
