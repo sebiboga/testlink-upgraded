@@ -601,6 +601,85 @@ if ($method === 'GET' && count($segments) === 0) {
         }
     }
 
+    // --- Build design custom fields (legacy buildView.php:56-110) ---------
+    // The legacy list rendered one column per build design custom field
+    // (filtered by the TL_BUILDVIEW_HIDECOL[_<prefix>] config CF) and, for
+    // every build, the stored values read from cfield_build_design_values.
+    // The modern inline-modal screen grew neither, so builds with linked
+    // design CFs silently lost their columns + values (Refs #1122).
+    //
+    // The set of columns is derived from buildCfieldDefs() (the same source
+    // the modal uses), so create/edit and list can never disagree about which
+    // fields exist. Per-build values are batch-read in ONE query (the legacy
+    // did N getCustomFieldsValues() calls) and date/datetime values - stored
+    // as mktime() epochs - are converted to ISO here, the one place that knows
+    // the storage format (same rule as buildCfieldDefs()).
+    $cfColumns = [];
+    $cfTypeByName = [];
+    if (count($items) > 0) {
+        $cfDefs = buildCfieldDefs($buildMgr, $ctx['tproject_id'], 0);
+
+        // TL_BUILDVIEW_HIDECOL[_PPFX]: a config CF whose possible_values is a
+        // '|'-list of CF names to hide; the config CF itself is hidden too.
+        $cfHideNames = [];
+        $tpMgr = new testproject($db);
+        $ppfx = $tpMgr->getTestCasePrefix($ctx['tproject_id']);
+        foreach (['_' . $ppfx, ''] as $suf) {
+            $gopt = ['name' => 'TL_BUILDVIEW_HIDECOL' . $suf];
+            $col2hideCF = $buildMgr->cfield_mgr->get_linked_to_testproject(
+                $ctx['tproject_id'], 1, $gopt);
+            if (!empty($col2hideCF)) {
+                $first = reset($col2hideCF);
+                $cfHideNames = array_flip(explode('|', (string)$first['possible_values']));
+                $cfHideNames[$first['name']] = '';
+                break;
+            }
+        }
+        foreach ($cfDefs as $cf) {
+            if (isset($cfHideNames[$cf['name']])) {
+                continue;
+            }
+            $cfColumns[] = [
+                'id'    => intval($cf['field_id']),
+                'name'  => $cf['name'],
+                'label' => $cf['label'],
+                'type'  => intval($cf['type']),
+            ];
+            $cfTypeByName[$cf['name']] = intval($cf['type']);
+        }
+
+        if (count($cfColumns) > 0) {
+            $buildIds = [];
+            foreach ($items as $it) { $buildIds[] = intval($it['id']); }
+            $cfIdList = implode(',', array_map(function ($c) { return $c['id']; }, $cfColumns));
+            $bIdList = implode(',', array_map('intval', $buildIds));
+            $cfTbl = tlObject::getDBTables(['cfield_build_design_values']);
+            $sql = "SELECT CFTDV.node_id AS build_id, CF.name, CFTDV.value" .
+                   " FROM {$cfTbl['cfield_build_design_values']} CFTDV" .
+                   " JOIN custom_fields CF ON CF.id = CFTDV.field_id" .
+                   " WHERE CFTDV.field_id IN ({$cfIdList})" .
+                   " AND CFTDV.node_id IN ({$bIdList})";
+            $cfRows = $db->get_recordset($sql);
+            $cfValues = [];
+            foreach ((array)$cfRows as $row) {
+                $name = (string)$row['name'];
+                $val = (string)$row['value'];
+                $type = $cfTypeByName[$name] ?? 0;
+                if (($type === 8 || $type === 10) && $val !== ''
+                    && ctype_digit($val)) {
+                    $val = epochToIsoDate((int)$val, $type === 10);
+                }
+                $cfValues[intval($row['build_id'])][$name] = $val;
+            }
+            foreach ($items as &$it) {
+                if (isset($cfValues[$it['id']])) {
+                    $it['cf'] = $cfValues[$it['id']];
+                }
+            }
+            unset($it);
+        }
+    }
+
     // Sibling plans of this project for "copy to all test plans" info.
     $siblingPlans = 0;
     $tplanset = $tplanMgr->tproject_mgr->get_all_testplans($ctx['tproject_id']);
@@ -630,6 +709,7 @@ if ($method === 'GET' && count($segments) === 0) {
                     'tproject_id' => $ctx['tproject_id']],
         'tproject_name' => tprojectName($tplanMgr, $ctx['tproject_id']),
         'builds' => $items,
+        'cfields_columns' => $cfColumns,
         'source_builds' => $srcItems,
         'exec_status_options' => $execStatusOptions,
         'other_plans_count' => $siblingPlans,
