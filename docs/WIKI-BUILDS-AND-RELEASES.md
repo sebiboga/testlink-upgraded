@@ -72,16 +72,27 @@ the 2026-09-06 parity run.
    value emitted an E_WARNING into the Event Viewer). Source build is now
    validated **up front**, before creation — no orphan row, no PHP warning.
 
+### Build design-time custom fields (Refs #1122)
+
+| Feature | Legacy behavior | Modern implementation |
+|---|---|---|
+| List CF **columns** | `buildView.php:56-110` builds `cfieldsColumns`/`cfieldsType` from `build_mgr->get_linked_cfields_at_design()` and per-build `getCustomFieldsValues()` | BFF `GET /api/builds/` now returns `cfields_columns` (`{id,name,label,type}`) + a `cf` map per build; `buildsView.html` inserts a dynamic `<th>` per column and one value cell per row |
+| `TL_BUILDVIEW_HIDECOL` / `_<prefix>` | A config CF whose `possible_values` is a `|`-list of CF **names** to hide; the config CF itself is hidden too | honoured in the list BFF (searched `_<prefix>` first, then `''`); the config CF is excluded from both columns and the modal inputs |
+| CF **inputs** in create/edit | `buildEdit.php` `html_custom_field_inputs()`; `doCreate()/doUpdate()` persist via `design_values_to_db(...,'build')` | `buildsView.html` modal loads `GET /api/builds/cfields?tplan_id=&build_id=` and renders all design CF controls; `POST`/`PUT` persist through the existing `saveBuildCfields()` -> `cfield_build_design_values` |
+| Date/datetime values | stored as `mktime()` epochs | converted epoch -> ISO server-side (`epochToIsoDate()`), converted back to the session locale format on save (`isoToLocaleDate()`) |
+| Full-replacement safety | legacy HTML form always submitted every field | the modal sends `cfields` only when it rendered inputs, so a plain rename never wipes values |
+
+Verified in the browser: list shows `BVC Environment` / `BVC Release Date` (with `bvc_component` hidden by `TL_BUILDVIEW_HIDECOL_BVC`), create persists `qa` / `backend` / `2026-07-20`, edit prefills `staging` / `2026-06-15`, no JS console errors. i18n key `bv.cfSection` added to all 10 bundles. Not caused by this work: a pre-existing POST-create audit E_WARNING (`$ctx['tproject_name']`) is tracked in **#1900**.
+
 ### Gaps (open issues)
 
 | Issue | Type | Gap |
 |---|---|---|
-| #1122 | task | Build design-time **custom fields** dropped — legacy renders CF *columns* in the list (`buildEdit.php:356-408`, `buildView.php:56-110`, `TL_BUILDVIEW_HIDECOL`), CF *inputs* in the create/edit form (`html_custom_field_inputs()`, `buildEdit.tpl:75-82`), and persists via `design_values_to_db(...,'build')`; modern has none (inconsistent with `plans/planView.html` which renders testplan CF columns; `cfield_build_design_values` exists) |
 | #1123 | task | Edit-screen **event-history icon** dropped — legacy `buildEdit.tpl:52-57` `showEventHistoryFor('{id}','builds')` gated by `mgt_view_events` (`buildEdit.php:106`) |
 | #1124 | task | **closed_on_date** value never displayed — legacy `buildEdit.tpl:96` shows the stored closure date; BFF returns it, modern modal only shows the generic `bv.closureHint` |
 
 Cleanup: #1125 delete legacy `lib/plan/buildView.php` + `buildEdit.php` +
-dashio tpls (Refs #1122 #1123 #1124).
+dashio tpls (Refs #1123 #1124).
 
 ### NOT gaps (deliberate parity)
 

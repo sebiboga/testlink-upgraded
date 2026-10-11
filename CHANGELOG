@@ -1468,6 +1468,21 @@ Every screen of the application was ported one-by-one in a screen-compare
   reformatted away. 26/26 test cases PASS (23 functional + 3 from the code review), console and Event Viewer
   clean. (Refs #1787)
 
+- [SCREEN] - #1122: the **Builds & Releases** list screen (`gui/templates/plans/buildsView.html`) now renders
+  build **design-time custom fields**, completing the half of the feature the full-screen
+  `buildEdit.html` (#1787) already had. Legacy `buildView.php:56-110` drew one column per build design
+  custom field (from `build_mgr->get_linked_cfields_at_design()` + per-build `getCustomFieldsValues()`),
+  honoured the `TL_BUILDVIEW_HIDECOL` / `TL_BUILDVIEW_HIDECOL_<prefix>` config CF (a CF whose
+  `possible_values` is a `|`-list of CF names to hide; the config CF itself hidden too), and legacy
+  `buildEdit.php` rendered the CF *inputs* in the create/edit form, persisting via
+  `design_values_to_db(...,'build')`. The BFF now returns `cfields_columns` (`{id,name,label,type}`) plus a
+  per-build `cf` map (single batch query on `cfield_build_design_values`; date epochs converted to ISO), and
+  `buildsView.html` inserts a dynamic `<th>` per visible column + one value cell per row and renders the CF
+  controls in its inline create/edit modal (loading the existing `GET /cfields` route and sending `cfields`
+  on `POST`/`PUT` only when inputs were rendered, so a plain rename never wipes values). i18n `bv.cfSection`
+  in all 10 bundles. Browser-verified (columns/values, HIDECOL hiding, create persistence, edit prefill,
+  Romanian locale, clean console); test suite 11/11. (Refs #1122)
+
 - [KEY BUGFIX - DATA INTEGRITY] - #1684: `reqTreeReorder.html` - the per-row **Up / Down / To top / To bottom**
   buttons reordered the **SELECTED** requirement instead of the row whose button was clicked, silently corrupting
   the pending order that **Apply** then writes to the database. Root cause was a shared-state collision, not a
