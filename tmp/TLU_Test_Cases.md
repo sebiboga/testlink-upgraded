@@ -7683,3 +7683,39 @@ test"). Local upload fixture `/tmp/opencode/issue1119-attach.txt` (31 B,
 
 **PASS/FAIL: PASS (12/12).** Pre-fix, the edit modal contained no attachments
 section at all (INVESTIGATION comment: grep + a11y snapshot before change).
+
+## Regression — Issue #1741: projectsView.html global search box never restored from saved state
+
+**Issue:** #1741 — `gui/templates/projectsView.html` builds the grid with
+`stateSave:true` (`:537`) and `dom:'lrtip'` (no DataTables `f` box, `:540`), using a
+custom `<input id="searchInput">` (`:173`). DataTables persists **and re-applies** the
+global search on reload, but nothing seeded the custom box from `state.search`, so a
+returning user saw a silently filtered list under an empty search box. Fix:
+`restoreGlobalSearchState()` seeds `#searchInput` from the unwrapped
+`state.search.search` descriptor.
+
+**Precondition:** TestLink at http://localhost:8082 (fresh DB → empty `testprojects`),
+login `admin`/`admin`. Fixtures created via `POST /api/projects/` on 2026-10-11:
+`Beta Retail/BET` (id 1), `Alpha Warehouse/ALW` (id 2), `Gamma Supply/GAM` (id 3),
+`Delta Logistics/DEL` (id 4). DataTables 1.13.7, headless Chrome. Branch
+`fix/issue-1741`.
+
+**Steps / expected / actual (executed 2026-10-11, this run):**
+
+| # | Case | Expected | Actual | Result |
+|---|------|----------|--------|--------|
+| 1 | Fresh state (`localStorage.clear()`), open `projectsView.html` | `#searchInput` empty, 4/4 rows, no filter | `inputValue:"" recordsDisplay:4 recordsTotal:4` | **PASS** |
+| 2 | Type `retail`, wait ~900 ms for stateSave, inspect saved state | `search.search == "retail"` persisted | `localStorage[...]="…{\"search\":\"retail\",\"smart\":true,…}…"` | **PASS** |
+| 3 | **Repro (pre-fix):** reload with saved `retail` | list filtered to 1/4 **and** box shows `retail` | PRE-FIX: `inputValue:"" dtSearch:"retail" recordsDisplay:1 recordsTotal:4` (BUG), POST-FIX: `inputValue:"retail"` 1/4 | **PASS (post-fix)** |
+| 4 | Clear the box (Ctrl+A, Delete) | all rows return, no filter | `inputValue:"" recordsDisplay:4` | **PASS** |
+| 5 | Reload after clearing | empty box, 4/4 rows (no stale term) | `inputValue:"" recordsDisplay:4 recordsTotal:4` | **PASS** |
+| 6 | Per-column Prefix filter `BET` + global `retail`, then reload | both boxes restored (#1633 parity), consistent list | `global:"retail" prefix:"BET" recordsDisplay:1 recordsTotal:4` | **PASS** |
+| 7 | Empty project set → empty state path | table not built, empty state shown, no JS error | code path `renderProjects` returns at `:504-513` before table init; helper unreachable | **PASS (code inspection)** |
+| 8 | `node --check` on extracted inline script | no syntax errors | `JS-SYNTAX-OK` | **PASS** |
+| 9 | Browser console after all flows | clean (no JS errors/warnings) | `<no console messages found>` | **PASS** |
+| 10 | Event Viewer / `events` after flow | no new Error/Warning rows | only audit `log_level=16` rows; 0 ERROR/WARNING | **PASS** |
+| 11 | i18n coverage gate | n/a (no strings/labels touched) | no bundle changed | **N/A** |
+
+**PASS/FAIL: PASS (10/10 executed; case 7 verified by code inspection, case 11 N/A).**
+Pre-fix case 3 measured `#searchInput.value == ""` while `DataTable().search()==""retail""`
+and `recordsDisplay==1` — reproduced exactly as reported before the change.
