@@ -377,7 +377,7 @@ function renderResults(r) {
   ]);
   wrap += block('sfm.resTestSuites', r.testsuites, [
     { key: 'sfm.colTitle', cell: function (x) {
-        return '<a class="rowlink" target="_blank" href="/gui/templates/testcases/suiteView.html?tsuite_id='
+        return '<a class="rowlink" target="_blank" href="/gui/templates/testcases/suiteView.html?id='
           + x.id + '&tproject_id=' + tprojectId + '">' + esc(x.name) + '</a>';
       } },
     { key: 'sfm.colDetails', cell: function (x) { return esc(x.details); } }
