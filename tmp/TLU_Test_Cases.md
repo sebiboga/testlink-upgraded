@@ -7805,4 +7805,4 @@ and `recordsDisplay==1` — reproduced exactly as reported before the change.
 | 6 | `SELECT ... FROM events WHERE id > <baseline>` after cases 4-5 | 0 new ERROR/WARNING rows | PASS — no rows returned |
 | 7 | `grep -rn deletePlatformsByLink` blast-radius re-check | Only the two callers (legacy `testcaseCommands:1584`, BFF `index.php:3096`), both now safe | PASS |
 
-**Result: 7/7 PASS.** Fix: `foreach((array)$rs as $link)` in `lib/functions/testcase.class.php` `deletePlatformsByLink()` — matches the `(array)` cast already used at `:9878`/`:9920` of the same file. No i18n change (no user-facing strings); no Event Viewer pollution.
+**Result: 7/7 PASS.** Fix: `foreach((array)$rs as $link)` in `lib/functions/testcase.class.php` `deletePlatformsByLink()` — matches the `(array)` cast already used at `:9878`/`:9922` of the same file. No i18n change (no user-facing strings); no Event Viewer pollution.

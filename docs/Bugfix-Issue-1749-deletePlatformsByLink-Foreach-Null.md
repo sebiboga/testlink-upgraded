@@ -45,7 +45,7 @@ defect was latent until the 2.0.1 PHP 8 target.
   guard is **not atomic**: a concurrent unassign between the SELECT and the
   DELETE re-opens the window.
 - Sibling `deletePlatforms()` (`:9899`) is already null-safe (`(array)` cast at
-  `:9920`) and was left untouched.
+  `:9922`) and was left untouched.
 
 ## Fix
 
@@ -64,7 +64,7 @@ foreach((array)$rs as $link) {
 ```
 
 The `(array)` cast is the same pattern already used in this method (`:9878`) and
-in `deletePlatforms()` (`:9920`). Rejected alternatives: a local `is_array()`
+in `deletePlatforms()` (`:9922`). Rejected alternatives: a local `is_array()`
 check (noisier, inconsistent with the file) and changing `get_recordset()`
 globally (blast radius far beyond this bug). No user-facing strings → no
 locale-bundle additions.

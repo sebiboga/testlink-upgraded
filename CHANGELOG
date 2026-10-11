@@ -105,7 +105,7 @@ Every screen of the application was ported one-by-one in a screen-compare
   `database::get_recordset()` returns `null` for an empty result set (`database.class.php:787`) and
   the method `foreach()`'ed it unguarded (`testcase.class.php:9890`); PHP 8 promoted the latent
   PHP 7 silence to a warning that `watchPHPErrors` persists. Fix (1 line + comment):
-  `foreach((array)$rs as $link)`, the same `(array)` cast already used at `:9878`/`:9920` of the
+  `foreach((array)$rs as $link)`, the same `(array)` cast already used at `:9878`/`:9922` of the
   file. Blast radius: legacy `testcaseCommands::removePlatform()`
   (`testcaseCommands.class.php:1584`) was fully exposed (no ownership pre-check); the modern BFF
   `remove_platform` (`api/testcases/index.php:3096`) was already guarded by its own SELECT at
