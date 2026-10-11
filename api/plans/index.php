@@ -611,6 +611,9 @@ if ($method === 'GET' && isset($segments[0]) && ctype_digit($segments[0]) &&
         'notes' => (string)($info['notes'] ?? ''),
         'active' => intval($info['active']),
         'is_public' => intval($info['is_public']),
+        // Refs #1118: legacy planEdit.tpl:123-130 surfaces the plan api_key
+        // read-only in the edit form; the inline planView modal needs it too.
+        'api_key' => (string)($info['api_key'] ?? ''),
     ]);
 }
 

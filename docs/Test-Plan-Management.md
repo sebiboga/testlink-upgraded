@@ -121,3 +121,29 @@ option fataled with `1054 Unknown column 'testplan_id'` — this also broke the
 `builds.testproject_id` and, when a build with the same name already exists in
 the destination project (same-project plan copy), reuses that row instead of
 failing on the `(testproject_id,name)` unique key.
+
+## API Key display in the Edit modal — Refs #1118
+
+The legacy edit form (`gui/templates/dashio/plan/planEdit.tpl:123-130`) showed the
+plan's `api_key` read-only — only when the key was non-empty
+(`{if $gui->api_key != ''}`). The modern inline **Edit Test Plan** modal
+(`gui/templates/plans/planView.html`) had dropped it, so the key that uniquely
+identifies a test plan for the REST/XML-RPC API could no longer be read or copied
+from the UI.
+
+Restored, mirroring the project API key row in `projectsView.html`:
+
+- `GET /api/plans/{id}` now returns `api_key` alongside `id/name/notes/active/is_public`.
+- The edit modal renders a read-only monospace row (`#apiKeyVal`,
+  `role=textbox aria-readonly=true`, `user-select:all`) with a **Copy** button
+  (`navigator.clipboard` with an `execCommand` fallback) and a short hint.
+- The row is shown **only in edit mode and only when the key is non-empty**,
+  exactly like legacy; the create modal never shows it.
+- Switching between plans (or edit → create → edit) resets the value and the copy
+  button label — the read-only `<div>` is not a form control, so it is cleared
+  explicitly on every modal open.
+
+i18n keys `pv.apiKey`, `pv.apiKeyCopy`, `pv.apiKeyCopied`, `pv.apiKeyCopyFailed`,
+`pv.apiKeyHint` exist in all 10 locale bundles (`bash ai/verify_i18n_coverage.sh`
+passes). The key is never editable: it is generated server-side by
+`testplan::create()`.

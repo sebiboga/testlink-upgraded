@@ -7411,3 +7411,31 @@ an unrelated file was discovered and filed separately as #1897.
 | 12 | `php -l` not applicable (HTML+JS screens only); `git diff` scope check | Exactly 2 files changed: `searchMgmt.html` (link param) + `reqSpecView.html` (alias chain); no i18n keys added (no new strings) | PASS — `3401c66a1` touches only those 2 files (+4/−2) |
 
 **Result: 12/12 PASS.** Code review (subagent) verdict: APPROVE — XSS clean (`req_spec_id` is `intval()` at `api/search/index.php:604`, same unescaped-number concat as sibling link builders; `esc()` on anchor text), priority order of accepted params unchanged, no drive-by changes. Sibling dead-link defects discovered and filed separately (NOT fixed in this run): #1866 (`tsuite_id=` → suiteView.html), #1867 (`req_id=` → reqView.html), #1869 (`empty_testproject` early-return hides reqspec/requirement results on requirements-only projects).
+
+## Task — Issue #1118: planView edit modal API Key display
+
+**Precondition.** App `http://localhost:8082` (PHP built-in server, docroot = repo root);
+DB `testlink` freshly imported; logged in `admin`/`admin` (headless Chrome via chrome-devtools
+MCP). Fixture `tmp/fixtures_1118.php` creates tproject `AK1118` (id=1) with two plans carrying
+**known** keys:
+plan #2 `AK Plan One` → `AK1118AAAABBBBCCCCDDDDEEEEFFFF0000111122223333444455556666777788`;
+plan #3 `AK Plan Two` → `AK1118ZZZZYYYYXXXXWWWWVVVVUUUUTTTTSSSSRRRRQQQQPPPPOOOONNNNMM`.
+Screen: `gui/templates/plans/planView.html?tproject_id=1`.
+
+**Steps / expected / actual (executed 2026-10-11, this run):**
+
+| # | Case | Expected | Actual |
+|---|------|----------|--------|
+| 1 | Open planView, click "AK Plan One" | Edit modal shows a read-only API Key row with the exact key | PASS — `#apiKeyVal` = `AK1118AAAA…7788`, monospace readonly div |
+| 2 | Copy button click | Label flips to the localized "copied" message | PASS — label → `API key copied to clipboard` |
+| 3 | "Create Test Plan" | API Key row absent (legacy shows it only on edit) | PASS — `#apiKeyRow` not rendered |
+| 4 | Edit #3 after #2 (Plan Two) | Row shows Plan Two's own key | PASS — `AK1118ZZZZ…NNNN` |
+| 5 | Switch Plan Two → Plan One (`openPlanModal('edit')`) | Value + copy label reset (no stale state) | PASS — value=Plan One key, label=`Copy` |
+| 6 | Edit → Create → Edit | Row hidden on create, repopulated on edit | PASS |
+| 7 | `GET /api/plans/index.php/2?tproject_id=1` | Payload includes `api_key` | PASS — `api_key` present (was absent pre-fix) |
+| 8 | Save edit (PUT) | Plan saved; `api_key` unchanged in DB | PASS — toast "Test plan updated"; DB key intact |
+| 9 | i18n coverage | New `pv.apiKey*` keys in all 10 bundles | PASS — `verify_i18n_coverage.sh`: 9/9 bundles, 0 missing |
+| 10 | Event Viewer after all requests | 0 new Error/Warning | PASS — only pre-existing log_level=16 rows |
+
+**PASS/FAIL: PASS.** Feature parity with legacy `planEdit.tpl:123-130` restored in the inline
+planView edit modal; no console errors; no new events.

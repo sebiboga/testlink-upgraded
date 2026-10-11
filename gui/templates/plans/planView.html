@@ -46,6 +46,16 @@ table.dataTable tbody td { padding: 8px 14px; font-size: 13px; vertical-align: m
 .toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
 .toast.err { background: #e6605e; }
 .modal-title { font-size: 16px; font-weight: 700; }
+/* Refs #1118: legacy planEdit.tpl:123-130 — plan API key read-only row.
+   The key is generated server-side and must never be editable; shown as plain
+   monospace text, exactly like the projectsView project API key row. */
+.api-key-row { margin-top:16px; padding-top:14px; border-top:1px solid #eee; }
+.api-key-row > label { font-weight:600;font-size:13px;color:#333;margin-bottom:4px;display:block; }
+.readonly-val { font-family:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace; font-size:12px; color:#555; background:#f8f9fa; border:1px solid #e2e3e5; border-radius:4px; padding:10px; word-break:break-all; user-select:all; }
+.readonly-val:focus { outline:2px solid #2d8e88; outline-offset:1px; }
+.api-key-copy-btn { margin-top:8px; background:#353b48; color:#fff; border:none; padding:6px 12px; border-radius:3px; cursor:pointer; font-size:12px; }
+.api-key-copy-btn:hover { background:#2c313a; }
+.api-key-hint { color:#888; font-size:11px; margin-top:6px; }
 table.hide-plat th:nth-child(6), table.hide-plat td:nth-child(6) { display:none !important; }
 </style>
 </head>
@@ -127,6 +137,18 @@ table.hide-plat th:nth-child(6), table.hide-plat td:nth-child(6) { display:none 
             <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
               <input type="checkbox" id="planPublic"> <span data-i18n="pv.modal.public">Public</span>
             </label>
+          </div>
+          <!-- Refs #1118: legacy planEdit.tpl:123-130 shows the plan api_key
+               read-only, only when the plan has one ({if $gui->api_key != ''})
+               and only on the edit path. Read-only: the key is generated
+               server-side and is never editable. -->
+          <div class="api-key-row" id="apiKeyRow" style="display:none;">
+            <label data-i18n="pv.apiKey">API Key</label>
+            <div class="readonly-val" id="apiKeyVal" tabindex="0" role="textbox" aria-readonly="true"></div>
+            <button type="button" class="api-key-copy-btn" id="apiKeyCopyBtn" onclick="copyApiKey(this)">
+              <i class="fas fa-copy"></i> <span data-i18n="pv.apiKeyCopy" aria-live="polite">Copy</span>
+            </button>
+            <div class="api-key-hint" data-i18n="pv.apiKeyHint">Identifies this test plan for remote API and public-link access.</div>
           </div>
           <!-- Refs #1117: legacy 'Create from existing Test Plan?' + copy options
                (inc_controls_planEdit.tpl). Only shown in create mode. -->
@@ -537,6 +559,10 @@ function openPlanModal(mode, planId) {
   $('#planModalError').hide().text('');
   $('#planForm')[0].reset();
   $('#planEditId').val('');
+  // Refs #1118: never let a previously edited plan's key survive into this
+  // open; the readonly div is not a form control so reset() does not clear it.
+  resetApiKeyButton();
+  setPlanApiKey('');
 
   if (mode === 'create') {
     $('#planModalTitle').text(TLi18n.t('pv.modal.createTitle'));
@@ -569,6 +595,9 @@ function openPlanModal(mode, planId) {
         $('#planNotes').val(r.notes);
         $('#planActive').prop('checked', !!r.active);
         $('#planPublic').prop('checked', !!r.is_public);
+        // Refs #1118: surface the plan api_key read-only (legacy parity:
+        // planEdit.tpl:123-130 only renders it when the key is non-empty).
+        setPlanApiKey(r.api_key || '');
       })
       .fail(function (xhr) {
         // failed fetch must not degrade into an unintended create: the form
@@ -582,6 +611,58 @@ function openPlanModal(mode, planId) {
       });
   }
   $('#planModal').modal('show');
+}
+
+// Refs #1118: read-only plan API key row (legacy planEdit.tpl:123-130).
+// The key is rendered as text (never an input) and only shown when non-empty.
+function setPlanApiKey(key) {
+  if (key) {
+    $('#apiKeyVal').text(key);
+    $('#apiKeyRow').show();
+  } else {
+    $('#apiKeyVal').text('');
+    $('#apiKeyRow').hide();
+  }
+}
+
+// Reset the copy button back to its idle label; called on every modal open so
+// a "copied" message from a previous plan cannot survive into the next one.
+var apiKeyLabelTimer = null;
+function resetApiKeyButton() {
+  clearTimeout(apiKeyLabelTimer);
+  var label = document.querySelector('#apiKeyCopyBtn [data-i18n]');
+  if (label) { label.textContent = TLi18n.t('pv.apiKeyCopy'); }
+}
+
+function copyApiKey(btn) {
+  var key = document.getElementById('apiKeyVal').textContent;
+  if (!key) { return; }
+  var label = btn.querySelector('[data-i18n]');
+  var done = function (ok) {
+    if (label) { label.textContent = TLi18n.t(ok ? 'pv.apiKeyCopied' : 'pv.apiKeyCopyFailed'); }
+    // A single module-scoped handle: a second click cancels the first revert,
+    // so the label never flips back mid-message.
+    clearTimeout(apiKeyLabelTimer);
+    apiKeyLabelTimer = setTimeout(function () {
+      if (label) { label.textContent = TLi18n.t('pv.apiKeyCopy'); }
+    }, 2000);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(key).then(function () { done(true); },
+                                            function () { done(false); });
+  } else {
+    // Fallback for non-secure contexts (clipboard API needs https/localhost).
+    var ta = document.createElement('textarea');
+    ta.value = key;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    var ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+    document.body.removeChild(ta);
+    done(ok);
+  }
 }
 
 function submitPlan() {
