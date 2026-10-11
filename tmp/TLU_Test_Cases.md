@@ -7788,3 +7788,21 @@ and `recordsDisplay==1` — reproduced exactly as reported before the change.
 | 12 | `grep -rn tsuite_id gui/templates/search/searchMgmt.html`; `git diff` scope check | 0 hits in producer; exactly 2 files changed (`searchMgmt.html` + `suiteView.html`); no i18n keys added (no new strings) | PASS — `9721219d8` + `85ed8aff3` touch only those 2 files (+2/−1, +4/−1) |
 
 **Result: 12/12 PASS.** Fix mirrors the sibling dead-link fixes #1865 (`reqSpecView.html:310`) and #1867 (`reqView.html:337`): emit `id=` + accept the old parameter name as an alias. No console errors; no new Event Viewer entries.
+
+## Regression — Issue #1749: testcase::deletePlatformsByLink() E_WARNING foreach() on null for an unknown link id
+
+**Precondition** — fresh DB (no projects/nodes); `php tmp/fixtures_1749.php` creates tproject `PlatLink 1749` (prefix `PL1749`, platforms enabled), suite, testcase `PL1749-TC` + active version, one platform `PL1749-P1` and one real `testcase_platforms` row; logged in `admin`/`admin` at http://localhost:8082. CLI harness `php tmp/repro_1749.php` captures warnings in-memory so nothing reaches `events`; HTTP calls use a cookie jar from `login.php`.
+
+**Pre-fix behavior (reproduced before the fix)** — `php tmp/repro_1749.php` printed `FAIL caseA stale-link-id warnings=1` with `foreach() argument must be of type array|object, null given in testcase.class.php - Line 9890` (case B, real link, already passed).
+
+| # | Steps | Expected (post-fix) | Actual |
+|---|-------|---------------------|--------|
+| 1 | `php -l lib/functions/testcase.class.php` | `No syntax errors detected` | PASS |
+| 2 | `php tmp/repro_1749.php` case A: `deletePlatformsByLink($tc, 999999999)` (stale link) | 0 warnings, no exception (clean no-op) | PASS — `caseA warnings=0 thrown=no` |
+| 3 | `php tmp/repro_1749.php` case B (positive control): `deletePlatformsByLink($tc, $realLink)` | 0 warnings, real row deleted | PASS — `caseB warnings=0 rowRemoved=yes` |
+| 4 | HTTP `POST api/testcases/index.php?action=remove_platform` with `tcplat_link_id=999999999` | HTTP 404 clean JSON error, no event row | PASS — `HTTP=404` `"Platform link #999999999 is no longer assigned..."` |
+| 5 | HTTP `POST .../remove_platform` with the valid real link id | HTTP 200 `status:ok`, row removed, free list updated | PASS — `HTTP=200`, `testcase_platforms` row count 0 |
+| 6 | `SELECT ... FROM events WHERE id > <baseline>` after cases 4-5 | 0 new ERROR/WARNING rows | PASS — no rows returned |
+| 7 | `grep -rn deletePlatformsByLink` blast-radius re-check | Only the two callers (legacy `testcaseCommands:1584`, BFF `index.php:3096`), both now safe | PASS |
+
+**Result: 7/7 PASS.** Fix: `foreach((array)$rs as $link)` in `lib/functions/testcase.class.php` `deletePlatformsByLink()` — matches the `(array)` cast already used at `:9878`/`:9920` of the same file. No i18n change (no user-facing strings); no Event Viewer pollution.
