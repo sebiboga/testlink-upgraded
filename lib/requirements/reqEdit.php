@@ -57,18 +57,18 @@ checkRights($db,$args->user,$context);
 $pFn = $args->doAction;
 $op = null;
 
-// Refs #1739: method_exists() is NOT a whitelist of requestable actions. It also
-// matches the internal helpers of reqCommands (24 method_exists-visible members
-// - simpleCompare:804 / initGuiBean:48 / initGuiObjForAttachmentOperations:1011
-// / setAuditContext etc. - only 24 of them GUI actions), and the dispatch below
-// calls whatever it matched with a FIXED 2-argument signature:
+// Refs #1739: method_exists() is NOT a whitelist of requestable actions. reqCommands
+// has 27 methods, only 24 of them GUI actions: it also matches __construct, the
+// internal helpers (simpleCompare, initGuiBean) and the PRIVATE
+// initGuiObjForAttachmentOperations, and the dispatch below calls whatever it matched
+// with a FIXED 2-argument signature:
 //   - simpleCompare (reqParams=4)          -> ArgumentCountError -> HTTP 500, 0 bytes
 //   - initGuiObjForAttachmentOperations    -> "Call to private" / null $op
-//   - initGuiBean (0) / setAuditContext(1) -> not a GUI bean / null $op
+//   - initGuiBean (0)                      -> not a GUI bean / null $op
 // i.e. an unrecognised doAction produced several different outcomes: a silent 500
 // with a 0-byte body and ZERO Event Viewer rows (worse than a blank page: nothing
 // to grep), or the blank 200 accompanied by 4 E_WARNING rows from renderGui()'s
-// default: branch (reqEdit.php:160,172,173).
+// default: branch dereferencing $opObj (suggest_revision / prompt_for_log) on null.
 //
 // Consult the real whitelist instead: only a name renderGui() can actually dispatch
 // is invoked, so arity and visibility are guaranteed to match by construction, and
@@ -335,7 +335,8 @@ function reqEditDropShapedAction()
  * The set of doAction values this controller can render.
  *
  * This is deliberately the exact case list of renderGui()'s GUI-rendering switch
- * (reqEdit.php:198-221), which is the set the templates actually ask for:
+ * (the switch($argsObj->doAction) that sets $renderType='template'), which is the
+ * set the templates actually ask for:
  *   gui/templates/dashio/requirements/reqSpecView.tpl:25,40,43 -> create, reorder,
  *        createTestCases
  *   gui/templates/dashio/requirements/reqViewVersions.tpl:56,70,84,98,128,326 ->
