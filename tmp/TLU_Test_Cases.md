@@ -7719,3 +7719,25 @@ login `admin`/`admin`. Fixtures created via `POST /api/projects/` on 2026-10-11:
 **PASS/FAIL: PASS (10/10 executed; case 7 verified by code inspection, case 11 N/A).**
 Pre-fix case 3 measured `#searchInput.value == ""` while `DataTable().search()==""retail""`
 and `recordsDisplay==1` — reproduced exactly as reported before the change.
+
+## Regression — Issue #1867: searchMgmt.html Requirement result links use req_id= which reqView.html ignores
+
+**Precondition** — fresh DB; `php tmp/fixtures_1867.php` loaded (tproject `SM1867` id=1, `testprojects.options` = serialized `{requirementsEnabled:1}`; spec `RS-SM1867` "SM1867 Spec zephyr" id=2; requirement "REQ Alpha zephyr" id=4 under it; suite `SM1867 Root` id=6 + tcase "SM1867 TC zephyr" id=7 so the search BFF does not flag `empty_testproject`; `user_testproject_roles(1,1,8)`); logged in as admin at http://localhost:8082; headless Chrome via chrome-devtools MCP. App at http://localhost:8082 (PHP built-in server).
+
+**Pre-fix behavior (reproduced before the fix)** — `searchMgmt.html:395` rendered REQ result hrefs as `reqView.html?req_id=4&tproject_id=1`; opening that URL measured `REQ_ID === 0`, `#deletedBanner` `display === 'block'` ("This requirement no longer exists"), title absent, while `?id=4` loaded the same requirement (`REQ_ID=4`, banner `none`). Same dead-link class as #1865, twin fix.
+
+| # | Steps | Expected (post-fix) | Actual |
+|---|-------|---------------------|--------|
+| 1 | `GET /api/searchmgmt/index.php?action=results&tproject_id=1&target=zephyr&and_or=or&rs_title=1&rq_title=1&rq_doc_id=1&tc_title=1` | `status:ok`, 1 requirement row (id 4), 1 reqspec row, 1 testcase row, no `empty_testproject` warning | PASS — `{status:ok, warning:"", count:3, requirements:[{req_id:4, req_doc_id:"REQ-SM1867-1", name:"REQ Alpha zephyr"}], reqspecs:[{req_spec_id:2,...}], testcases:[{testcase_id:7,...}]}` |
+| 2 | Open `searchMgmt.html?tproject_id=1&target=zephyr`; read `#resultsWrap a.rowlink` hrefs | REQ href uses `id=` (not `req_id=`); TC href unchanged `tcView.html?tcase_id=`; RS href unchanged `reqSpecView.html?id=` | PASS — hrefs `/gui/templates/testcases/tcView.html?tcase_id=7&tproject_id=1`, `/gui/templates/requirements/reqSpecView.html?id=2&tproject_id=1`, `/gui/templates/requirements/reqView.html?id=4&tproject_id=1` |
+| 3 | Open the clicked REQ result (`reqView.html?id=4&tproject_id=1`) | `REQ_ID === 4`, banner `display:none`, page contains `REQ Alpha zephyr` + `REQ-SM1867-1` | PASS — REQ_ID=4, banner `none`, title present |
+| 4 | Open `reqView.html?req_id=4&tproject_id=1` (old broken URL — now the alias, and any historical deep link) | Requirement loads via the new alias (no deleted-banner) | PASS — REQ_ID=4, banner `none`, `REQ Alpha zephyr` present |
+| 5 | Open `reqView.html?requirement_id=4&tproject_id=1` (pre-existing accepted name) | Requirement 4 loads | PASS — REQ_ID=4, title present |
+| 6 | Open `reqView.html?tproject_id=1` (no id param) | Deleted/`no id` banner still shown — no false-positive load | PASS — banner `block`, text "This requirement no longer exists" |
+| 7 | Priority: `reqView.html?id=4&req_id=999&tproject_id=1` | `id` (higher in the chain) wins → REQ_ID=4, requirement loads | PASS — REQ_ID=4, title present (browser-measured) |
+| 8 | Direct `reqView.html?id=4&tproject_id=1` (primary contract, control) | Requirement loads, banner hidden | PASS — REQ_ID=4, banner `none` |
+| 9 | `GET /api/requirements/index.php/view?id=4&tproject_id=1` (API contract unchanged) | `status:ok` with `req_id:4`, `req_deleted:false` | PASS — `{"status":"ok","req_deleted":false,"req_id":4,"tproject_name":"SM1867",...}` |
+| 10 | `SELECT * FROM events WHERE fired_at > UNIX_TIMESTAMP(NOW()) - 1800` after all post-fix requests | 0 Error/Warning entries (INFO `audit_login_succeeded` / `audit_testproject_created` only) | PASS — rows 1-3 all INFO level 16; no new ERROR/WARNING |
+| 11 | `git diff` scope check + i18n gate | Exactly 2 files changed: `searchMgmt.html` (link param) + `reqView.html` (alias chain, +requirement_id); no i18n keys added (no new user-facing strings); `bash ai/verify_i18n_coverage.sh` passes | PASS — 2 files, 6 insertions/3 deletions; `req_id=` count 0 in searchMgmt.html |
+
+**Result: 11/11 PASS.** Code review (subagent) verdict: APPROVE — XSS clean (`req_id` is `intval()` on the API side, number concatenated into href like all sibling link builders; `esc()` on anchor text), alias precedence `id` > `requirement_id` > `req_id` unchanged for existing links, no drive-by changes. Sibling defect #1866 (`tsuite_id=` → suiteView.html) was pre-filed by the #1865 run and remains separate.
