@@ -7479,3 +7479,51 @@ MCP). Note: the legacy `roles` table has only `description` (= the role *name*) 
 (array-input `is_scalar` guards, hardcoded i18n strings → `data-i18n`), plus low items
 applied. DB restored after the run (`roles` ids >9 removed, `users.role_id=8`). Browser,
 BFF curl and i18n gate all exercised on the committed tree.
+## Regression — Issue #1739: reqEdit.php dispatches internal helpers via method_exists() (blank 200 / 500)
+
+**Precondition.** PHP 8.3; app `http://localhost:8082` (built-in server, docroot = repo root); DB
+`testlink` freshly imported (empty). Fixture recreated this run: test project id=1
+`BugFix Project`/`FIX1739` via `POST /api/projectedit?action=create`, node
+`nodes_hierarchy.id=1,node_type_id=1`; session pinned with `GET /index.php?tproject_id=1`.
+Auth via `POST /api/auth/login` (`Origin: http://localhost:8082`), cookie jar `cj.txt`.
+Code under test: `lib/requirements/reqEdit.php`. Pre-fix revision = `f77e5d29f^`.
+
+**Repro steps (pre-fix, must show the defect):**
+1. Log in / create fixture / pin session as above.
+2. `GET /lib/requirements/reqEdit.php` → pre-fix `HTTP 200, 0 bytes` + 4 E_WARNING rows
+   (`reqEdit.php:160,172,173`).
+3. `?doAction=xyz` → pre-fix `200, 0 bytes` + 4 E_WARNING.
+4. `?doAction=simpleCompare` → pre-fix `500, 0 bytes` (ArgumentCountError, helper needs 4 args).
+5. `?doAction=initGuiBean` / `?doAction=initGuiObjForAttachmentOperations` → pre-fix `200, 0 bytes`
+   + 4 E_WARNING.
+6. `?doAction[]=x` → pre-fix `200, 0 bytes` + 4 E_WARNING.
+
+**Expected (post-fix):** every unrenderable doAction → `302` + 0-byte body + `Location` back to
+`reqSpecMgmt.html?tproject_id=<id>`, **0** new `events` rows; whitelisted actions still dispatch.
+
+**Actual result (executed 2026-10-11, this run; fix commit f77e5d29f):**
+
+| # | Case | Expected | Result |
+|---|------|----------|--------|
+| 1 | pre-fix bare URL | 200, 0 B + E_WARNINGs (proves bug) | PASS (200/0 B, 4 E_WARNING) |
+| 2 | pre-fix `doAction=simpleCompare` | 500, 0 B | PASS (500/0 B) |
+| 3 | pre-fix `doAction=xyz` | 200, 0 B + warnings | PASS (200/0 B) |
+| 4 | post-fix bare URL | 302, 0 B, reqSpecMgmt loc | PASS |
+| 5 | post-fix `doAction=xyz` | 302, 0 B | PASS |
+| 6 | post-fix `doAction=simpleCompare` | 302, 0 B (no 500) | PASS |
+| 7 | post-fix `doAction=initGuiBean` | 302, 0 B | PASS |
+| 8 | post-fix `doAction=initGuiObjForAttachmentOperations` | 302, 0 B | PASS |
+| 9 | post-fix `doAction=setAuditContext` | 302, 0 B | PASS |
+| 10 | post-fix `doAction[]=x` (array) | 302, 0 B | PASS |
+| 11 | post-fix `doAction[0]=x` (array) | 302, 0 B | PASS |
+| 12 | `events` rows after all refusals (base max id 30) | 0 new rows | PASS (0) |
+| 13 | `doAction=create&req_spec_id=1` (whitelisted) | renders form | PASS (200/20517 B) |
+| 14 | `doAction=edit` (whitelisted) | renders | PASS (200/1536 B) |
+| 15 | `doAction=reorder` (whitelisted) | renders | PASS (200/5843 B) |
+| 16 | `doAction=deleteFile` (whitelisted, legacy path) | dispatches, no dispatch 500 | PASS (200/2109 B; its own pre-existing legacy warnings only) |
+| 17 | `php -l lib/requirements/reqEdit.php` | no syntax errors | PASS |
+| 18 | `grep -rn 'method_exists($commandMgr' lib/` | 0 live dispatch occurrences | PASS (only a comment in planMilestonesEdit.php:29) |
+
+**PASS/FAIL: PASS (18/18).** Refused actions now write **0** Event-Viewer rows (measured base
+30 → 30); legit actions unaffected; `reqEdit.php:41` was the last `method_exists($commandMgr)`
+dispatch in `lib/` after #1736 (reqSpecEdit) and #1726/#1894 (planMilestonesEdit).
