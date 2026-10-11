@@ -338,7 +338,10 @@ var SUITE_DETAILS = '';
 
 $(function() {
   var p = new URLSearchParams(window.location.search);
-  SUITE_ID = parseInt(p.get('id') || p.get('testsuite_id') || p.get('item_id') || 0, 10);
+  // #1866: accept tsuite_id= too — searchMgmt.html used to emit it, and any
+  // historical/bookmarked tsuite_id= deep links must keep working; id= /
+  // testsuite_id= / item_id= stay primary.
+  SUITE_ID = parseInt(p.get('id') || p.get('testsuite_id') || p.get('item_id') || p.get('tsuite_id') || 0, 10);
   TPROJECT_ID = parseInt(p.get('tproject_id') || 0, 10);
   TLi18n.load(function() {
     TLi18n.apply();
