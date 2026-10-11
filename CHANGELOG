@@ -195,6 +195,26 @@ Every screen of the application was ported one-by-one in a screen-compare
   (`empty_testproject` early-return `searchMgmt.html:352-363` hides reqspec/requirement
   results on requirements-only projects). (Refs #1865)
 
+- [KEY BUGFIX] - #1867: **the simple Full-Text Search screen (`searchMgmt.html`) linked every
+  Requirement result to `reqView.html?req_id=<id>`, but the viewer only resolved
+  `id`/`requirement_id` (`reqView.html:337`) — `REQ_ID` stayed 0 and 100% of Requirement
+  results opened the "This requirement no longer exists" banner.** The legacy opener and
+  every other modern producer emit the documented `id=` contract; the simple-search port
+  was written against `req_id` — the JSON-payload key of its own BFF result rows
+  (`api/searchmgmt/index.php:513`), not the deep-link parameter name. Fix (`c11dd2076`,
+  2 files): `searchMgmt.html:395` now emits `id=`, and `reqView.html:340` additionally
+  accepts `req_id=` as a third alias so historical/bookmarked deep links keep working
+  (primary names keep priority — `?id=4&req_id=999` resolves to 4). Browser-verified on
+  fixture project `SM1867` (req 4): DOM href now `?id=4`, click-through loads the
+  requirement (`#deletedBanner` `display:none`, title present), alias `?req_id=4` +
+  `?requirement_id=4` + `?id=4` all load, missing-id still shows the banner, API
+  `GET /api/requirements/index.php/view?id=4` contract unchanged, 0 new Event Viewer rows;
+  code-review subagent APPROVE (XSS clean — number-concatenated href like all sibling link
+  builders, `esc()` on anchor text). Regression suite "Regression — Issue #1867" 11/11
+  PASS, gate exit 0. Sibling defect **#1866** (`suiteView.html?tsuite_id=` ignored by
+  `suiteView.html:341`) remains open. Docs:
+  `docs/Bugfix-Issue-1867-SearchMgmt-Req-Result-Links-Param-Name.md`. (Refs #1867)
+
 - [KEY BUGFIX] - #1737: **`lib/requirements/reqSpecCommands.class.php` wrote one `E_WARNING`
   row into the Event Viewer per request on two paths of the legacy Requirement Specification
   editor — `deleteFile()` read the undefined `$argsObj->uploadOp` (`:844`) and `bulkReqMon()`
