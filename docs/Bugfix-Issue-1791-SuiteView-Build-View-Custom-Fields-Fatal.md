@@ -111,10 +111,11 @@ used to see.
   same 404-then-403 shape): `resolveTplan()` (`api/builds/index.php:67-74`) answers `404` for a
   non-existent plan *before* `canManage()` answers `403` for an existing one, so a no-rights user can
   distinguish them. `api/plans` is clean. Worth its own issue in the #1790 family.
-* **The legacy chain keeps growing shims**: `testplan::getViewActions()` still names
-  `lib/plan/planView.php`, and `gui/templates/tl-classic/*` plus
-  `gui/templates/dashio/plan/buildEdit.tpl` still link the legacy files (those templates are
-  unreachable — `TLSmarty` pins `gui/templates/dashio/`). Follow-up cleanup, cf. #1125
-  *"Cleanup: delete legacy buildView"*.
+* ~~**The legacy chain keeps growing shims**~~ — **resolved by #1125** for the build cluster:
+  `lib/plan/buildView.php` + `lib/plan/buildEdit.php` (the redirect shims introduced here and in
+  #1787) and the dashio `buildView.tpl`/`buildEdit.tpl` are deleted; only `gui/templates/tl-classic/*`
+  still link the legacy files, and those templates are unreachable (`TLSmarty` pins
+  `gui/templates/dashio/`). `testplan::getViewActions()` still names `lib/plan/planView.php` — that is
+  the separate task #1120 *"Delete legacy planView"*.
 * Anonymous `POST` gets the login bounce (200) rather than `405`, because `testlinkInitPage()` runs
   its session check before the shim's `405` guard. Same as the #1787 shim; harmless.

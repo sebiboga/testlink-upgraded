@@ -103,14 +103,19 @@ AUDIT rows) and as a `leader` user without `mgt_view_events`
 all 10 bundles (`verify_i18n_coverage.sh` exit 0). No new Event Viewer
 Error/Warning entries.
 
-### Gaps (open issues)
+### Gaps (all closed)
 
 | Issue | Type | Gap |
 |---|---|---|
-| #1124 | task | **closed_on_date** value never displayed — legacy `buildEdit.tpl:96` shows the stored closure date; BFF returns it, modern modal only shows the generic `bv.closureHint` |
+| #1122 | task | build design-time custom fields — **closed** |
+| #1123 | task | edit-screen event-history icon — **closed** |
+| #1124 | task | **closed_on_date** value never displayed — **closed** |
 
-Cleanup: #1125 delete legacy `lib/plan/buildView.php` + `buildEdit.php` +
-dashio tpls (Refs #1123 #1124).
+Cleanup **#1125 done**: legacy `lib/plan/buildView.php` + `lib/plan/buildEdit.php`
+(the #1787/#1791 redirect shims) and the dashio `buildView.tpl`/`buildEdit.tpl`
+templates are **deleted**. `gui/templates/tl-classic/plan/buildView.tpl` +
+`buildEdit.tpl` are dead code (never loaded — `TLSmarty` pins
+`gui/templates/dashio/`) and were left in place.
 
 ### NOT gaps (deliberate parity)
 

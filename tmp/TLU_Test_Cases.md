@@ -8352,3 +8352,30 @@ Precondition: fixtures (fresh CI DB): run `php tmp/fixtures_1906.php`. Project `
 | 19 | `events` after the whole run | no unexpected Error/Warning rows | only the 3 intentional `BFF platformpiechart: user 2 has no testplan_metrics right` audit ERROR rows from the no_right test (same tLog convention as sibling BFFs); no PHP warnings/fatals | PASS |
 
 **Result: 19/19 PASS.** RESUME: fresh CI DB → `php tmp/fixtures_1906.php` (prints ids: project=1 plan=3 win11=1 linux=2 build=1 emptyPlan=29 foreignPlan=34, user ppcnorights id=2), then open the screen / call the BFF; login admin/admin. The window.close() tab-opener behaviour is inherent to the pattern (same as sibling #1905): the handler is bound but a manually opened tab cannot be closed by script.
+
+## Task — Issue #1125: Delete legacy buildView/buildEdit cluster (retire #1787/#1791 redirect shims + dead dashio templates)
+
+Precondition: fresh CI DB (no projects). Seed with `php tmp/fixtures_1124.php`
+(prints `project=1 plan=2 build=1`; creates `BVDemo` project, `BVDemo Plan`, and
+builds `BVDemo Build Open` + `BVDemo Build Closed`). Logged in as `admin/admin`;
+app at `http://localhost:8082`. Branch `task/issue-1125`.
+
+| # | Step | Expected | Actual | Result |
+|---|---|---|---|---|
+| 1 | Confirm blockers #1122/#1123/#1124 | all `CLOSED` | all CLOSED | PASS |
+| 2 | `git rm lib/plan/buildView.php lib/plan/buildEdit.php gui/templates/dashio/plan/buildView.tpl gui/templates/dashio/plan/buildEdit.tpl` | 4 files removed (480 lines) | 4 files deleted | PASS |
+| 3 | `php -l lib/functions/common.php` (only touched PHP) | no syntax errors | No syntax errors detected | PASS |
+| 4 | Repo-wide grep `plan/buildView\|plan/buildEdit` (excl. tmp/) | no live include/require/link; only comments + dead tl-classic | only `//` parity comments + tl-classic dead tree + planView.php historical note | PASS |
+| 5 | `curl` `lib/plan/buildView.php` (with and without `?tplan_id=1`) | 404 | 404 / 404 | PASS |
+| 6 | `curl` `lib/plan/buildEdit.php` (with and without `?tplan_id=1`) | 404 | 404 / 404 | PASS |
+| 7 | `curl` `gui/templates/plans/buildsView.html` | 200 | 200 | PASS |
+| 8 | `curl` `gui/templates/plans/buildEdit.html` | 200 | 200 | PASS |
+| 9 | Browser: open `buildsView.html?tproject_id=1&tplan_id=2` | list renders the fixture builds | 2 rows (`BVDemo Build Open`/`Closed`), release dates localized | PASS |
+| 10 | Browser: click **+ Create Build** | inline modal opens (name/notes/active/open/release date/copy options) | modal opened with all controls | PASS |
+| 11 | Browser: fill name `Cleanup Verify Build` + Save | row persists | `builds` id=3 `Cleanup Verify Build` persisted (DB verified) | PASS |
+| 12 | Browser: open `buildEdit.html?tproject_id=1&tplan_id=2` | full-screen create form loads | form + context (BVDemo / BVDemo Plan) rendered | PASS |
+| 13 | Browser console (all 3 screens) | 0 errors/warnings | no console messages | PASS |
+| 14 | `events` table after run | no new Error/Warning | only 3 INFO (log_level 16) AUDIT rows (login, tproject created, build created) | PASS |
+| 15 | `testplan::getViewActions()` reference check | names only `lib/plan/planView.php` (task #1120), not the deleted build files | only planView.php | PASS |
+
+**Result: 15/15 PASS.** RESUME: fresh CI DB → `php tmp/fixtures_1124.php` (project=1, plan=2, builds 1-2), then browser `gui/templates/plans/buildsView.html?tproject_id=1&tplan_id=2`; login `admin/admin`. Removed URL `lib/plan/buildView.php?tplan_id=2` now returns 404 by design (retirement). No i18n change; `builds` schema untouched.

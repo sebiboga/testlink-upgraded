@@ -2533,7 +2533,8 @@ function getActions(&$gui,$baseURL) {
 
   if ($tplan_id >0) {
     // Build Create/Edit modernized screen (Dashio standalone page) - Refs #1787.
-    // Replaces the legacy plan/buildEdit.php renderer. The screen is
+    // Replaces the legacy plan/buildEdit.php renderer (legacy controller +
+    // dashio templates deleted in Refs #1125). The screen is
     // plan-scoped (the build's owning project is resolved through the plan),
     // so it lives inside the tplan_id guard. The BFF (api/builds) re-checks
     // the legacy right testplan_create_build on every route and additionally

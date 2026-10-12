@@ -17,6 +17,23 @@ Every screen of the application was ported one-by-one in a screen-compare
   kept for backward compatibility and is progressively retired as each modern
   screen reaches full parity.
 
+- [CLEANUP] - #1125: the retired legacy Builds & Releases cluster is deleted now that
+  all three gating gaps are CLOSED (#1122 design-time custom fields, #1123 event-history
+  icon, #1124 closed_on_date display). Removed `lib/plan/buildView.php` (81) +
+  `lib/plan/buildEdit.php` (66) — the redirect-only shims introduced by #1791 and #1787
+  once the legacy renderers started fatalling on the removed
+  `build::getCustomFieldsValues()` — and the now-dead dashio templates
+  `gui/templates/dashio/plan/buildView.tpl` (158) + `buildEdit.tpl` (175). The modern
+  stack `gui/templates/plans/buildsView.html` + `buildEdit.html` + `api/builds/index.php`
+  is unchanged; `$actions->buildView`/`buildEdit` already pointed there. `lib/general/
+  frmWorkArea.php` had no remaining reference; `testplan::getViewActions()` names only
+  `lib/plan/planView.php` (separate task #1120). The `tl-classic` copies are dead code
+  (`TLSmarty` pins `gui/templates/dashio/`) and were left in place, together with the
+  provenance comments in `api/builds` + the modern HTMLs (audit trail). `builds` schema
+  untouched (project-scoped per #503). Verified: `php -l` clean, repo-wide grep leaves no
+  live reference, old URLs now 404, modern list + create/edit + CF round-trip unaffected,
+  Event Viewer clean. Docs: `docs/Task-Issue-1125-Delete-Legacy-BuildView.md`. (Refs #1125)
+
 - [KEY BUGFIX] - #1712: **eight sibling issue-tracker interfaces (mantissoap, jirasoap, jirarest,
   fogbugzrest, gforgesoap, redminerest, tracxmlrpc, tuleaprest) answered HTTP 502 on
   `POST /api/issuetracker/test-connection`** whenever a structurally-string cfg member came back

@@ -39,7 +39,7 @@ the definitions were neither shown nor written.
 |---|---|
 | Screen | `gui/templates/plans/buildEdit.html` (Dashio standalone HTML/JS/CSS) |
 | BFF | `api/builds/index.php` (`GET /`, `GET /{id}`, `GET /cfields`, `POST /`, `PUT /{id}`, `POST /{id}/flags`, `DELETE /{id}`) |
-| Legacy | `lib/plan/buildEdit.php` → redirect-only shim (769 → 66 lines) |
+| Legacy | `lib/plan/buildEdit.php` → was a redirect-only shim (769 → 66 lines); **deleted** in Refs #1125 |
 | Wiring | `$actions->buildEdit` in `lib/functions/common.php` (inside the `tplan_id` guard) |
 | Entry point | "Create Build (full screen)" button in `gui/templates/plans/buildsView.html` |
 | i18n | 51 `bedit.*` + `bv.createBuildFullScreen` + `footers.buildEdit` in **all 10** bundles |
