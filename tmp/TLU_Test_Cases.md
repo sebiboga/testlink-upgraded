@@ -8379,3 +8379,18 @@ app at `http://localhost:8082`. Branch `task/issue-1125`.
 | 15 | `testplan::getViewActions()` reference check | names only `lib/plan/planView.php` (task #1120), not the deleted build files | only planView.php | PASS |
 
 **Result: 15/15 PASS.** RESUME: fresh CI DB → `php tmp/fixtures_1124.php` (project=1, plan=2, builds 1-2), then browser `gui/templates/plans/buildsView.html?tproject_id=1&tplan_id=2`; login `admin/admin`. Removed URL `lib/plan/buildView.php?tplan_id=2` now returns 404 by design (retirement). No i18n change; `builds` schema untouched.
+## Regression — Issue #1754: suiteMove confirmation mangles suite names containing $ & ' or backtick
+
+Precondition: fresh CI DB. Fixture: `php tmp/fixtures_1754.php` → project `MOVE54` id=1; top-level suite id=2 named `R&D "Q1" 'beta' $x$ \`tick\``; sibling `Target Suite` id=3. Login `admin/admin`. Screen: `http://localhost:8082/gui/templates/testcases/suiteMove.html?tproject_id=1&container_id=1`. Pre-fix code path is `fill()` at `13f2ca183^` (TLi18n.t() then `.replace(/[$&`']/g, …)`); the fix (commit `13f2ca183`) makes `fill()` a bare `TLi18n.t(tpl, map)`.
+
+| # | Step | Expected | Observed | Verdict |
+|---|------|----------|----------|---------|
+| 1 | Fixture creates project + hazard suite | project id=1, hazard suite id=2 | id=1 / id=2, name preserved in DB | PASS |
+| 2 | Open screen (admin) | table lists `R&D "Q1" 'beta' $x$ \`tick\`` verbatim | listed verbatim, 2 sub-suites | PASS |
+| 3 | Click **Move to...** on the hazard suite | dialog body = `Move "R&D "Q1" 'beta' $x$ \`tick\`" to the selected test suite...` (no `$$`) | `.text()` returns exact verbatim string | PASS |
+| 4 | Run the PRE-FIX `fill()` from `13f2ca183^` on the same value | reproduces the report: `R$$&D … $$'beta$$' … $$$$x$$$$ … $$`tick$$`` | reproduced exactly | PASS |
+| 5 | Compare live `#mText` to current `fill()` output | identical | identical | PASS |
+| 6 | Browser console after the interaction | no JS error | only 1 a11y `[issue] No label associated with a form field`; no error | PASS |
+| 7 | `events` table after the run | no Error/Warning | only `audit_testproject_created` + `audit_login_succeeded` (log_level 16) | PASS |
+
+**Result: 7/7 PASS.** Note: the fix had ALREADY landed in `13f2ca183` (before the issue was filed) — this suite is the regression proof; no code change was required. RESUME: `php tmp/fixtures_1754.php` → open the screen URL → click **Move to...** on row 1 → compare `document.querySelector('#mText').textContent`.
