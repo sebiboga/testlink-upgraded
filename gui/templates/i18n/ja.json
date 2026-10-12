@@ -6132,6 +6132,7 @@
   "tcview.relDeleteFailed": "関係を削除できませんでした。",
   "tcview.relIdType": "# / 種類",
   "tcview.relSetBy": "設定者",
+  "tcview.relatedTcaseHasNoActiveVersion": "テストケースに有効なバージョンがないため、関係を追加できませんでした",
   "tcview.relatedTcaseNotOpen": "関連するテストケースが凍結されているため、%s への関係を追加できませんでした",
   "tcview.relationAdded": "%s への関係を追加しました",
   "tcview.relationAlreadyExists": "%s への関係は既に存在します",

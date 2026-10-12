@@ -2591,6 +2591,7 @@ $TLS_testcase_name_already_exists = "There's already a Test Case with this title
 $TLS_created_with_title = "Created with title (%s)";
 $TLS_the_format_tc_xml_import = "";
 $TLS_relation_added = "Relation to %s has been added";
+$TLS_related_tcase_has_no_active_version = "Relation cannot be added : this testcase has no active version";
 $TLS_related_tcase_not_open = "Relation to %s cannot be added : this testcase is frozen";
 $TLS_relation_already_exists = "Relation to %s cannot be added : the relation already exists";
 

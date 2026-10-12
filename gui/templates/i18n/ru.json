@@ -6132,6 +6132,7 @@
   "tcview.relDeleteFailed": "Не удалось удалить связь.",
   "tcview.relIdType": "# / Тип",
   "tcview.relSetBy": "Установил",
+  "tcview.relatedTcaseHasNoActiveVersion": "У тест-кейса нет активной версии, связь не может быть добавлена",
   "tcview.relatedTcaseNotOpen": "Связанный тест-кейс заморожен, связь с %s не может быть добавлена",
   "tcview.relationAdded": "Связь с %s добавлена",
   "tcview.relationAlreadyExists": "Связь с %s уже существует",

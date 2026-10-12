@@ -2577,6 +2577,7 @@ $TLS_testcase_name_already_exists = "Já existe um caso de teste com este títul
 $TLS_created_with_title = "Criado com título (%s)";
 $TLS_the_format_tc_xml_import = "";
 $TLS_relation_added = "Adicionada Relação a %s";
+$TLS_related_tcase_has_no_active_version = "A Relação não pode ser adicionada : este Caso de Teste não tem versão ativa";
 $TLS_related_tcase_not_open = "A Relação a %s não pode ser adicionada : este Caso de Teste está congelado";
 $TLS_relation_already_exists = "A Relação a %s não pode ser adicionada : esta Relação já existe";
 

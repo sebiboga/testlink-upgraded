@@ -8207,6 +8207,17 @@ class testcase extends tlObjectWithAttachments {
         array($safeID['s'],$safeID['d']), null,
         array('access_key' => 'testcase_id'));
 
+      // get_last_active_version() returns NULL when a test case has no active
+      // tcversions row (or does not exist). Indexing it would emit 2 warnings
+      // and cast the missing entries to 0, inserting a relation with
+      // source_id/destination_id = 0 (#1864).
+      if( !is_array($tcvSet) ||
+          !isset($tcvSet[$safeID['s']]['tcversion_id']) ||
+          !isset($tcvSet[$safeID['d']]['tcversion_id']) ) {
+        return array('status_ok' => false,
+                     'msg' => 'related_tcase_has_no_active_version');
+      }
+
       // Overwrite
       $safeID['s'] = intval($tcvSet[$safeID['s']]['tcversion_id']);
       $safeID['d'] = intval($tcvSet[$safeID['d']]['tcversion_id']);

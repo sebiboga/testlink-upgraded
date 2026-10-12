@@ -2881,6 +2881,7 @@ $TLS_testcase_name_already_exists = "同じタイトルのテストケースが�
 $TLS_created_with_title = "以下のタイトルで作成しました (%s)";
 $TLS_the_format_tc_xml_import = "";
 $TLS_relation_added = "%s への関係が追加されました";
+$TLS_related_tcase_has_no_active_version = "関係は追加できません : このテストケースには有効なバージョンがありません";
 $TLS_related_tcase_not_open = "%s への関係は追加できません : このテストケースは凍結されています";
 $TLS_relation_already_exists = "%s への関係は追加できません : この関係は既に存在します";
 

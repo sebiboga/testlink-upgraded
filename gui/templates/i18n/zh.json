@@ -6132,6 +6132,7 @@
   "tcview.relDeleteFailed": "无法删除该关系。",
   "tcview.relIdType": "# / 类型",
   "tcview.relSetBy": "设置者",
+  "tcview.relatedTcaseHasNoActiveVersion": "测试用例没有活动版本, 无法添加关系",
   "tcview.relatedTcaseNotOpen": "关联的测试用例已冻结, 无法添加到 %s 的关系",
   "tcview.relationAdded": "已添加到 %s 的关系",
   "tcview.relationAlreadyExists": "到 %s 的关系已存在",

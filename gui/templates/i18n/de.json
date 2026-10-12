@@ -6132,6 +6132,7 @@
   "tcview.relDeleteFailed": "Beziehung konnte nicht gelöscht werden.",
   "tcview.relIdType": "# / Typ",
   "tcview.relSetBy": "Gesetzt von",
+  "tcview.relatedTcaseHasNoActiveVersion": "Der Testfall hat keine aktive Version, die Beziehung konnte nicht hinzugefügt werden",
   "tcview.relatedTcaseNotOpen": "Der verknüpfte Testfall ist eingefroren, die Beziehung zu %s konnte nicht hinzugefügt werden",
   "tcview.relationAdded": "Beziehung zu %s wurde hinzugefügt",
   "tcview.relationAlreadyExists": "Die Beziehung zu %s existiert bereits",

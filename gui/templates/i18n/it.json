@@ -6132,6 +6132,7 @@
   "tcview.relDeleteFailed": "Impossibile eliminare la relazione.",
   "tcview.relIdType": "# / Tipo",
   "tcview.relSetBy": "Impostata da",
+  "tcview.relatedTcaseHasNoActiveVersion": "Il test case non ha una versione attiva, non è stato possibile aggiungere la relazione",
   "tcview.relatedTcaseNotOpen": "Il test case collegato è congelato, non è stato possibile aggiungere la relazione verso %s",
   "tcview.relationAdded": "La relazione verso %s è stata aggiunta",
   "tcview.relationAlreadyExists": "La relazione verso %s esiste già",

@@ -6132,6 +6132,7 @@
   "tcview.relDeleteFailed": "Relația nu a putut fi ștearsă.",
   "tcview.relIdType": "# / Tip",
   "tcview.relSetBy": "Stabilit de",
+  "tcview.relatedTcaseHasNoActiveVersion": "Cazul de test nu are nicio versiune activă, relația nu a putut fi adăugată",
   "tcview.relatedTcaseNotOpen": "Cazul de test asociat este înghețat, relația către %s nu a putut fi adăugată",
   "tcview.relationAdded": "Relația către %s a fost adăugată",
   "tcview.relationAlreadyExists": "Relația către %s există deja",
