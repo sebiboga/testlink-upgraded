@@ -7370,5 +7370,17 @@
   "rmail.loadError": "Não foi possível carregar a confirmação.",
   "rmail.missingParams": "Não foram fornecidos dados de confirmação do relatório por e-mail.",
   "rmail.sessionExpired": "A sua sessão expirou. Inicie sessão novamente.",
-  "footers.reportMailSent": "TestLink 2.0.1 - Relatório por e-mail"
+  "footers.reportMailSent": "TestLink 2.0.1 - Relatório por e-mail",
+  "nacc.title": "TestLink - Acesso negado",
+  "nacc.headerSub": "Não tem permissão para abrir a funcionalidade solicitada",
+  "nacc.cardTitle": "Acesso negado",
+  "nacc.message": "Não tem permissões suficientes para aceder a esta funcionalidade",
+  "nacc.featureLabel": "Funcionalidade solicitada",
+  "nacc.loading": "A carregar…",
+  "nacc.loadError": "Não foi possível carregar os detalhes de acesso.",
+  "nacc.codeLabel": "Código de resposta",
+  "nacc.goHome": "Voltar ao Início",
+  "nacc.goLogin": "Iniciar sessão",
+  "nacc.retry": "Tentar novamente",
+  "footers.noAccessPage": "TestLink 2.0.1 - Acesso negado"
 }

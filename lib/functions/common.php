@@ -216,6 +216,65 @@ function redirectToInfoPage($code) {
 
 
 /**
+ * Redirect to the modernized "No access to feature" page - Refs #1902.
+ *
+ * Modernizes gui/templates/dashio/feedback/noaccesstofeature.tpl, the last
+ * standalone full-page feedback renderer in feedback/ without a modern twin.
+ * In 1.9.20 the right-check failure path (tlUser::checkGUISecurityClearance())
+ * either rendered this page or silently bounced the user home with no
+ * explanation; it now lands on an explanatory Dashio page (no session / no DB
+ * needed) that names the requested feature.
+ *
+ * Same PATH-ONLY Location construction as redirectToInfoPage() - no
+ * scheme/host is read from client headers, so the target is same-origin by
+ * construction (no open-redirect surface).
+ *
+ * @param string $feature stable machine id (matches /^[a-z0-9_]{1,64}$/)
+ * @param string $script  legacy script name for display (optional)
+ */
+function redirectToNoAccess($feature, $script = '') {
+  $feature = (is_string($feature) && preg_match('/^[a-z0-9_]{1,64}$/', $feature))
+    ? $feature : 'no_right';
+
+  // Resolve the install-root path. null => "could not derive, fall back below";
+  // '' => install root IS the document root (correct, do NOT fall through).
+  $base = null;
+  if (isset($_SESSION['basehref']) && is_string($_SESSION['basehref'])
+      && $_SESSION['basehref'] !== '') {
+    $bp = parse_url($_SESSION['basehref']);
+    if (is_array($bp) && isset($bp['path'])) {
+      $base = rtrim($bp['path'], '/');
+    }
+  }
+  if ($base === null && defined('TL_ABS_PATH') && isset($_SERVER['DOCUMENT_ROOT'])) {
+    $docRoot = realpath($_SERVER['DOCUMENT_ROOT']);
+    $tlRoot  = realpath(TL_ABS_PATH);
+    if ($docRoot !== false && $tlRoot !== false &&
+        strpos($tlRoot, $docRoot) === 0) {
+      $base = rtrim(str_replace('\\', '/', substr($tlRoot, strlen($docRoot))), '/');
+    }
+  }
+  if ($base === null) {
+    $base = rtrim(dirname($_SERVER['SCRIPT_NAME'] ?? ''), '/\\');
+  }
+
+  $query = array('feature' => $feature);
+  if (is_string($script) && $script !== '') {
+    $query['script'] = substr($script, 0, 128);
+  }
+  $target = $base . '/gui/templates/feedback/noAccess.html?' . http_build_query($query);
+
+  if (!headers_sent()) {
+    header('Location: ' . $target, true, 302);
+  } else {
+    echo "<script type='text/javascript'>window.location.replace("
+       . json_encode($target, JSON_HEX_TAG | JSON_HEX_AMP) . ");</script>";
+  }
+  exit();
+}
+
+
+/**
  * Redirect to the modernized "Report sent by e-mail" confirmation screen.
  *
  * Refs #1901: replaces the legacy full-page Smarty render of
@@ -2036,6 +2095,11 @@ function getActions(&$gui,$baseURL) {
   // document error); a non-menu system page, so there is no ASIDE entry. The
   // action exists so callers can build the deep link without hardcoding it.
   $actions->infoPage = "/gui/templates/feedback/info.html";
+  // "No access to feature" page (modernized dashio/feedback/noaccesstofeature.tpl)
+  // - Refs #1902. Reached from tlUser::checkGUISecurityClearance() on a right
+  // failure; a non-menu system page, so there is no ASIDE entry. The action
+  // exists so callers can build the deep link without hardcoding the path.
+  $actions->noAccessPage = "/gui/templates/feedback/noAccess.html";
   $actions->events = "/gui/templates/eventviewer/eventviewer.html?{$ctx}";
   // Standalone Event Info popup (modernized lib/events/eventinfo.php) - Refs
   // #1556. Opened in a new window from the Event Viewer row detail; the BFF

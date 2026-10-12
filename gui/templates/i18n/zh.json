@@ -7370,5 +7370,17 @@
   "rmail.loadError": "无法加载确认信息。",
   "rmail.missingParams": "未提供报告邮件发送确认数据。",
   "rmail.sessionExpired": "您的会话已过期。请重新登录。",
-  "footers.reportMailSent": "TestLink 2.0.1 - 邮件发送报告"
+  "footers.reportMailSent": "TestLink 2.0.1 - 邮件发送报告",
+  "nacc.title": "TestLink - 访问被拒绝",
+  "nacc.headerSub": "您无权打开请求的功能",
+  "nacc.cardTitle": "访问被拒绝",
+  "nacc.message": "您没有足够的权限访问该功能",
+  "nacc.featureLabel": "请求的功能",
+  "nacc.loading": "加载中…",
+  "nacc.loadError": "无法加载访问详情。",
+  "nacc.codeLabel": "响应代码",
+  "nacc.goHome": "返回首页",
+  "nacc.goLogin": "登录",
+  "nacc.retry": "重试",
+  "footers.noAccessPage": "TestLink 2.0.1 - 访问被拒绝"
 }

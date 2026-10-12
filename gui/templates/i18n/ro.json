@@ -7370,5 +7370,17 @@
   "rmail.loadError": "Confirmarea nu a putut fi încărcată.",
   "rmail.missingParams": "Nu au fost furnizate date de confirmare a raportului prin e-mail.",
   "rmail.sessionExpired": "Sesiunea a expirat. Autentificați-vă din nou.",
-  "footers.reportMailSent": "TestLink 2.0.1 - Raport prin e-mail"
+  "footers.reportMailSent": "TestLink 2.0.1 - Raport prin e-mail",
+  "nacc.title": "TestLink - Acces interzis",
+  "nacc.headerSub": "Nu aveți permisiunea de a deschide funcția solicitată",
+  "nacc.cardTitle": "Acces interzis",
+  "nacc.message": "Nu aveți suficiente drepturi pentru a accesa această funcționalitate",
+  "nacc.featureLabel": "Funcția solicitată",
+  "nacc.loading": "Se încarcă…",
+  "nacc.loadError": "Nu s-au putut încărca detaliile accesului.",
+  "nacc.codeLabel": "Cod răspuns",
+  "nacc.goHome": "Înapoi la Acasă",
+  "nacc.goLogin": "Autentificare",
+  "nacc.retry": "Reîncearcă",
+  "footers.noAccessPage": "TestLink 2.0.1 - Acces interzis"
 }

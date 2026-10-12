@@ -7370,5 +7370,17 @@
   "rmail.loadError": "Не удалось загрузить подтверждение.",
   "rmail.missingParams": "Данные подтверждения отправки отчёта по электронной почте не предоставлены.",
   "rmail.sessionExpired": "Сессия истекла. Войдите снова.",
-  "footers.reportMailSent": "TestLink 2.0.1 - Отчёт по электронной почте"
+  "footers.reportMailSent": "TestLink 2.0.1 - Отчёт по электронной почте",
+  "nacc.title": "TestLink - Доступ запрещён",
+  "nacc.headerSub": "У вас нет прав для открытия запрошенной функции",
+  "nacc.cardTitle": "Доступ запрещён",
+  "nacc.message": "У вас недостаточно прав для доступа к этой функции",
+  "nacc.featureLabel": "Запрошенная функция",
+  "nacc.loading": "Загрузка…",
+  "nacc.loadError": "Не удалось загрузить сведения о доступе.",
+  "nacc.codeLabel": "Код ответа",
+  "nacc.goHome": "На главную",
+  "nacc.goLogin": "Войти",
+  "nacc.retry": "Повторить",
+  "footers.noAccessPage": "TestLink 2.0.1 - Доступ запрещён"
 }

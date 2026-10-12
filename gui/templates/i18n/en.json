@@ -7370,5 +7370,17 @@
   "rmail.loadError": "Could not load the confirmation.",
   "rmail.missingParams": "No report-mail confirmation data was provided.",
   "rmail.sessionExpired": "Your session has expired. Please log in again.",
-  "footers.reportMailSent": "TestLink 2.0.1 - Report by E-mail"
+  "footers.reportMailSent": "TestLink 2.0.1 - Report by E-mail",
+  "nacc.title": "TestLink - Access denied",
+  "nacc.headerSub": "You are not allowed to open the requested feature",
+  "nacc.cardTitle": "Access denied",
+  "nacc.message": "You do not have enough rights to access the feature",
+  "nacc.featureLabel": "Requested feature",
+  "nacc.loading": "Loading…",
+  "nacc.loadError": "Could not load the access details.",
+  "nacc.codeLabel": "Response code",
+  "nacc.goHome": "Back to Home",
+  "nacc.goLogin": "Go to Login",
+  "nacc.retry": "Retry",
+  "footers.noAccessPage": "TestLink 2.0.1 - Access denied"
 }

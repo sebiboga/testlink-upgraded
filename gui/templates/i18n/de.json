@@ -7370,5 +7370,17 @@
   "rmail.loadError": "Die Bestätigung konnte nicht geladen werden.",
   "rmail.missingParams": "Es wurden keine Bestätigungsdaten für den Berichtse-Mail-Versand übermittelt.",
   "rmail.sessionExpired": "Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an.",
-  "footers.reportMailSent": "TestLink 2.0.1 - Bericht per E-Mail"
+  "footers.reportMailSent": "TestLink 2.0.1 - Bericht per E-Mail",
+  "nacc.title": "TestLink - Zugriff verweigert",
+  "nacc.headerSub": "Sie dürfen die angeforderte Funktion nicht öffnen",
+  "nacc.cardTitle": "Zugriff verweigert",
+  "nacc.message": "Sie haben nicht genügend Rechte, um auf diese Funktion zuzugreifen",
+  "nacc.featureLabel": "Angeforderte Funktion",
+  "nacc.loading": "Wird geladen…",
+  "nacc.loadError": "Die Zugriffsdetails konnten nicht geladen werden.",
+  "nacc.codeLabel": "Antwortcode",
+  "nacc.goHome": "Zurück zur Startseite",
+  "nacc.goLogin": "Zur Anmeldung",
+  "nacc.retry": "Wiederholen",
+  "footers.noAccessPage": "TestLink 2.0.1 - Zugriff verweigert"
 }

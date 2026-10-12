@@ -7370,5 +7370,17 @@
   "rmail.loadError": "Impossibile caricare la conferma.",
   "rmail.missingParams": "Nessun dato di conferma dell'invio del report via e-mail è stato fornito.",
   "rmail.sessionExpired": "La sessione è scaduta. Effettua di nuovo l'accesso.",
-  "footers.reportMailSent": "TestLink 2.0.1 - Report via e-mail"
+  "footers.reportMailSent": "TestLink 2.0.1 - Report via e-mail",
+  "nacc.title": "TestLink - Accesso negato",
+  "nacc.headerSub": "Non sei autorizzato ad aprire la funzionalità richiesta",
+  "nacc.cardTitle": "Accesso negato",
+  "nacc.message": "Non hai i diritti necessari per accedere a questa funzionalità",
+  "nacc.featureLabel": "Funzionalità richiesta",
+  "nacc.loading": "Caricamento…",
+  "nacc.loadError": "Impossibile caricare i dettagli di accesso.",
+  "nacc.codeLabel": "Codice di risposta",
+  "nacc.goHome": "Torna alla Home",
+  "nacc.goLogin": "Accedi",
+  "nacc.retry": "Riprova",
+  "footers.noAccessPage": "TestLink 2.0.1 - Accesso negato"
 }

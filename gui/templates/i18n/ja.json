@@ -7370,5 +7370,17 @@
   "rmail.loadError": "確認を読み込めませんでした。",
   "rmail.missingParams": "レポートメールの確認データがありません。",
   "rmail.sessionExpired": "セッションが期限切れです。再度ログインしてください。",
-  "footers.reportMailSent": "TestLink 2.0.1 - メールでレポート"
+  "footers.reportMailSent": "TestLink 2.0.1 - メールでレポート",
+  "nacc.title": "TestLink - アクセス拒否",
+  "nacc.headerSub": "要求された機能を開く権限がありません",
+  "nacc.cardTitle": "アクセス拒否",
+  "nacc.message": "この機能にアクセスする権限がありません",
+  "nacc.featureLabel": "要求された機能",
+  "nacc.loading": "読み込み中…",
+  "nacc.loadError": "アクセス情報を読み込めませんでした。",
+  "nacc.codeLabel": "応答コード",
+  "nacc.goHome": "ホームに戻る",
+  "nacc.goLogin": "ログイン",
+  "nacc.retry": "再試行",
+  "footers.noAccessPage": "TestLink 2.0.1 - アクセス拒否"
 }

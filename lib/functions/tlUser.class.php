@@ -1490,12 +1490,14 @@ class tlUser extends tlDBObject {
   function checkGUISecurityClearance(&$dbHandler,$context,$rightsToCheck,$checkMode)
   {
     $doExit = false;
+    $denyReason = '';
     $action = 'any';
     $myContext = array('tproject_id' => 0, 'tplan_id' => 0);
     $myContext = array_merge($myContext, $context);
 
     if( $doExit = (is_null($myContext) || $myContext['tproject_id'] == 0) )
     {
+      $denyReason = 'no_environment';
       logAuditEvent(TLS("audit_security_no_environment",$myContext['script']), $action,$this->dbID,"users");
     }
      
@@ -1508,6 +1510,7 @@ class tlUser extends tlDBObject {
         if( ($doExit = !$status) && ($checkMode == 'and'))
         { 
           $action = 'any';
+          $denyReason = 'no_right';
           logAuditEvent(TLS("audit_security_user_right_missing",$this->login,$myContext['script'],$action),
                         $action,$this->dbID,"users");
           break;
@@ -1515,7 +1518,13 @@ class tlUser extends tlDBObject {
       }
     }
     
-    if ($doExit){   
+    if ($doExit){
+      // MODERNIZED (Refs #1902): a missing right now lands on the standalone
+      // Dashio "No access to feature" page (it names the legacy script), while
+      // the no-environment case keeps the legacy redirect home.
+      if ($denyReason === 'no_right') {
+        redirectToNoAccess('no_right', $myContext['script']);
+      }
       redirect($_SESSION['basehref'],"top.location");
       exit();
     }

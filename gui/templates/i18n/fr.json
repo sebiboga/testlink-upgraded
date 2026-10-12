@@ -7370,5 +7370,17 @@
   "rmail.loadError": "Impossible de charger la confirmation.",
   "rmail.missingParams": "Aucune donnée de confirmation d'envoi du rapport n'a été fournie.",
   "rmail.sessionExpired": "Votre session a expiré. Veuillez vous reconnecter.",
-  "footers.reportMailSent": "TestLink 2.0.1 - Rapport par e-mail"
+  "footers.reportMailSent": "TestLink 2.0.1 - Rapport par e-mail",
+  "nacc.title": "TestLink - Accès refusé",
+  "nacc.headerSub": "Vous n'êtes pas autorisé à ouvrir la fonctionnalité demandée",
+  "nacc.cardTitle": "Accès refusé",
+  "nacc.message": "Vous n'avez pas les droits nécessaires pour accéder à cette fonctionnalité",
+  "nacc.featureLabel": "Fonctionnalité demandée",
+  "nacc.loading": "Chargement…",
+  "nacc.loadError": "Impossible de charger les détails d'accès.",
+  "nacc.codeLabel": "Code de réponse",
+  "nacc.goHome": "Retour à l'accueil",
+  "nacc.goLogin": "Se connecter",
+  "nacc.retry": "Réessayer",
+  "footers.noAccessPage": "TestLink 2.0.1 - Accès refusé"
 }

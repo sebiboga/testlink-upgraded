@@ -7370,5 +7370,17 @@
   "rmail.loadError": "No se pudo cargar la confirmación.",
   "rmail.missingParams": "No se proporcionaron datos de confirmación del envío del informe.",
   "rmail.sessionExpired": "Su sesión ha caducado. Vuelva a iniciar sesión.",
-  "footers.reportMailSent": "TestLink 2.0.1 - Informe por correo electrónico"
+  "footers.reportMailSent": "TestLink 2.0.1 - Informe por correo electrónico",
+  "nacc.title": "TestLink - Acceso denegado",
+  "nacc.headerSub": "No tiene permiso para abrir la función solicitada",
+  "nacc.cardTitle": "Acceso denegado",
+  "nacc.message": "No tiene suficientes permisos para acceder a esta función",
+  "nacc.featureLabel": "Función solicitada",
+  "nacc.loading": "Cargando…",
+  "nacc.loadError": "No se pudieron cargar los detalles de acceso.",
+  "nacc.codeLabel": "Código de respuesta",
+  "nacc.goHome": "Volver al inicio",
+  "nacc.goLogin": "Iniciar sesión",
+  "nacc.retry": "Reintentar",
+  "footers.noAccessPage": "TestLink 2.0.1 - Acceso denegado"
 }
