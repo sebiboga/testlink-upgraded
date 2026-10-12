@@ -8228,3 +8228,69 @@ Precondition: fixtures (fresh CI DB): test project `WALK` id=1, plan id=1, top-l
 
 ### Status
 PASS
+
+---
+
+## Regression — Issue #1753: suiteMove no-op move/reorder answered `400 status:error` with a raw server message
+
+**Issue:** [#1753](https://github.com/sebiboga/testlink-upgraded/issues/1753)
+**Branch:** `fix/issue-1753` · **Status:** verified already-fixed (fix landed in `13f2ca183`, ancestor of `origin/sebiboga`)
+**Screen:** `gui/templates/testcases/suiteMove.html` · **BFF:** `api/suitemove/index.php`
+**Executed:** 2026-10-12, app on `http://localhost:8082`, DB freshly imported, project `FIX1753 Project (FX1753)`.
+
+### What the issue reported (pre-fix contract)
+
+A no-op move/reorder answered `HTTP 400 {"status":"error","code":"no_change"}`; the screen painted it as a
+red error banner containing the untranslated server string (`The suite is already at that boundary` /
+`The order did not change`). Additionally the `reorder` no-op was detected **after** `change_order_bulk()`,
+i.e. a "failure" was reported for a request that had already written. Required contract: `200 {"status":"no_change"}`
+and a neutral localized notice (same as `tcreorder`, `tcstepsreorder`, `reqtreereorder`).
+
+### Precondition / fixture (DB re-imported every run)
+
+```sql
+INSERT INTO testprojects (id, prefix, is_public) VALUES (1, 'FX1753', 1);
+INSERT INTO nodes_hierarchy (name,parent_id,node_type_id,node_order) VALUES ('FIX1753 Project', NULL, 1, 0); -- 1
+INSERT INTO nodes_hierarchy (name,parent_id,node_type_id,node_order) VALUES ('A1', 1, 2, 0);                -- 2
+INSERT INTO nodes_hierarchy (name,parent_id,node_type_id,node_order) VALUES ('A2', 1, 2, 1);                -- 3
+INSERT INTO testsuites (id, details) VALUES (2, ''),(3,'');
+```
+Login `admin`/`admin` (user id 1, role 8 `admin` → has `mgt_modify_tc`). `B="http://localhost:8082/api/suitemove/index.php"`,
+all POSTs carry `-H Origin:http://localhost:8082` (CSRF guard `api/_guard.php`).
+
+### API matrix — executed, all PASS
+
+| # | Request | Expected after fix | Observed | Result |
+|---|---|---|---|---|
+| V1 | `POST move tproject_id=1 node_id=2 position=up` (A1 already first) | `200 no_change`, no write | `200 {"status":"no_change",...}`, DB `2->0,3->1` | **PASS** |
+| V2 | `POST move tproject_id=1 node_id=3 position=down` (A2 already last) | `200 no_change` | `200 {"status":"no_change",...}` | **PASS** |
+| V3 | `POST reorder tproject_id=1 container_id=1 nodelist=2,3` (current order) | `200 no_change` **and** DB untouched (decided BEFORE write) | `200 {"status":"no_change","message":"The order did not change"}`, DB `2->0,3->1` | **PASS** |
+| V3b | read `nodes_hierarchy` immediately after V3 | byte-identical order | `2->0, 3->1` — **no write** | **PASS** |
+| V4a | `POST move node_id=2 position=down` (real change) | `200 ok changed:true`, DB flips | `200`, DB `3->0,2->1` | **PASS** |
+| V4b | `POST move node_id=2 position=up` (real change back) | `200 ok changed:true` | `200`, DB `2->0,3->1` | **PASS** |
+| V6 | `SELECT COUNT(*) FROM events WHERE log_level IN (1,2)` | 0 new Error/Warning | `0` | **PASS** |
+
+### Screen matrix — executed (headless Chrome)
+
+| # | Action | Expected | Observed | Result |
+|---|---|---|---|---|
+| S1 | Open `/gui/templates/testcases/suiteMove.html?tproject_id=1&container_id=1` | rows `A1,A2`, context bar `FIX1753 Project (FX1753)` | as expected; boundary buttons disabled | **PASS** |
+| S2 | Force no-op `doMove(2,'up')` | `no_change` shown as a neutral localized notice, NOT the raw server string, NOT a red banner | `.notice` = `The order is already like that - nothing to change.` (key `smv.stNoChangeMsg`) | **PASS** |
+| S3 | Network for S2 | HTTP 200 | `POST /api/suitemove/index.php -> 200 {"status":"no_change","message":"Suite is already at the boundary"}` | **PASS** |
+| S4 | Console after S1-S2 | no JS errors | `list_console_messages([error,warn])` → none | **PASS** |
+| S5 | `events` table after S1-S2 | 0 new Error/Warning rows | 0 rows total | **PASS** |
+
+### Actual result (observed)
+- Every no-op answers **HTTP 200 + `status:"no_change"`**; the real move/reorder still answers `200 status:"ok"`.
+- The `reorder` no-op leaves `node_order` byte-identical → the no-op is decided before the write.
+- The screen renders the neutral localized notice (`smv.stNoChangeMsg` present in all 10 bundles), no red banner.
+- Event Viewer: 0 new Error/Warning rows.
+- **Screen:** `docs/screenshots/issue-1753-noop-neutral-notice.png`.
+
+### Note (why no code change)
+The fix landed in commit `13f2ca183` ("#1740: apply code-review fixes…", `2026-09-30 13:30:30Z`), 16 s
+**before** this issue was filed (`2026-09-30T13:30:46Z`). `git merge-base --is-ancestor 13f2ca183 HEAD` is true,
+so the contract is present in every build since. This suite pins it.
+
+### Status
+PASS — 7 API + 5 screen checks, 0 FAIL.
