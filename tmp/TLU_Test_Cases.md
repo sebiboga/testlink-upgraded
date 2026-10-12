@@ -8010,3 +8010,41 @@ Precondition: repo @ default branch with this screen merged; `api/noaccess/index
 | 18 | Event Viewer / `events` table | no new Error/Warning from this screen | 0 screen-attributable entries | PASS |
 
 **Result: 18/18 PASS.** RESUME: `php -l api/noaccess/index.php lib/functions/common.php lib/functions/tlUser.class.php` + `bash ai/verify_i18n_coverage.sh` + open `gui/templates/feedback/noAccess.html?feature=no_right&script=tcEdit.php`.
+
+## Regression — Issue #1864: testcase::addRelation() with no active source version
+
+**Precondition**: fixture `tmp/fixtures_1859.php` (project `TC Edit 1859`) plus one extra active test case:
+- tcase 3 `TC1859-NOACTIVE` (ext id 1) — its only tcversion 4 has `active=0`
+- tcase 6 `TC1859-ACTIVE` (ext id 2) — tcversion 7 active, open
+- tcase 9 `TC1864-ACTIVE2` (ext id 3) — tcversion 10 active, open (`php /tmp/add_active2.php`)
+
+**Pre-fix symptom**: `addRelation(3,6,1,1)` → `status_ok=true, msg='relation_added'`; row `testcase_relations(source_id=0,destination_id=7)`; 2 Warning rows in `events` (testcase.class.php:8211).
+
+### Class-level matrix (`tmp/repro_1864.php`)
+
+| # | Step | Expected (post-fix) | Observed | Verdict |
+|---|------|---------------------|----------|---------|
+| 1 | `addRelation(3,6,1,1)` no-active source | `status_ok=false`, `msg=related_tcase_has_no_active_version`, no row | exactly that; relations 0→0; `zero_id_rows=NULL` | PASS |
+| 2 | `events` after case 1 | 0 new rows (2 E_WARNINGs gone) | only pre-existing audit row id 1 | PASS |
+| 3 | `addRelation(6,9,1,1)` active→active | `status_ok=true`, `msg=relation_added`, row `(7,10)` | row `(source_id=7,destination_id=10)` | PASS |
+| 4 | `addRelation(6,3,1,1)` no-active **destination** | `status_ok=false`, `msg=related_tcase_has_no_active_version`, no row | exactly that; relations unchanged | PASS |
+| 5 | `addRelation(6,9,…)` frozen destination (`tcversions.is_open=0`) | `status_ok=false`, `msg=related_tcase_not_open` | exactly that; no row | PASS |
+| 6 | `php -l lib/functions/testcase.class.php` | no syntax errors | No syntax errors detected | PASS |
+
+### BFF end-to-end (`POST /api/testcases/index.php?action=add_relation`, session admin)
+
+| # | Step | Expected | Observed | Verdict |
+|---|------|----------|----------|---------|
+| 7 | no-active source `{tcase_id:3,tcversion_id:4,relation_type:"1_source",relation_destination_tcase:"2"}` | 422, `feedback_code=related_tcase_has_no_active_version`, no row | HTTP 422, exactly that code, no row | PASS |
+| 8 | active source `{tcase_id:6,tcversion_id:7,…,:"3"}` | 200, `feedback_code=relation_added` | HTTP 200, row `(7,10)` | PASS |
+| 9 | `events` after cases 7-8 | 0 new log_level=2 rows | `SELECT COUNT(*) … WHERE log_level=2` = 0 | PASS |
+
+### i18n + gates
+
+| # | Step | Expected | Observed | Verdict |
+|---|------|----------|----------|---------|
+| 10 | `python3 -m json.tool` each touched bundle | valid JSON | all 10 OK | PASS |
+| 11 | `bash ai/verify_i18n_coverage.sh` | every en.json key present in all bundles | 9 bundles passed, 0 failed (7382 keys) | PASS |
+| 12 | `REL_I18N` maps `related_tcase_has_no_active_version` | no raw-key render in tcView | mapping present; key in all bundles | PASS |
+
+**Result: 12/12 PASS.** RESUME: `php tmp/fixtures_1859.php && php /tmp/add_active2.php` (or recreate), then `php tmp/repro_1864.php 3 6` (expect `related_tcase_has_no_active_version`, no row, no warning) and `php tmp/repro_1864.php 6 9` (expect `relation_added`, row `(7,10)`). Related defect filed: #1903 (duplicate-relation insert, pre-existing).
