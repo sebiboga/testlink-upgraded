@@ -130,10 +130,15 @@ function render(r) {
   $('#msgText').text(msg);
 
   // Requested feature: prefer the legacy script name when forwarded, else the
-  // stable machine id. Rendered with .text() (XSS-safe).
-  var shown = (r.script && r.script !== '') ? r.script : (r.feature || 'generic');
-  $('#featureChip').text(shown);
-  $('#featureLine').toggle(!!shown);
+  // stable machine id. Only shown when the caller actually named a feature
+  // (a bare deep link keeps the generic message without a context line).
+  // Rendered with .text() (XSS-safe).
+  if ((SCRIPT && SCRIPT !== '') || (FEATURE && FEATURE !== 'generic')) {
+    $('#featureChip').text((r.script && r.script !== '') ? r.script : (r.feature || FEATURE));
+    $('#featureLine').show();
+  } else {
+    $('#featureLine').hide();
+  }
   $('#machineCode').text(r.feature || 'no_access');
 
   // Logged-out visitors get the Login shortcut; a session holder gets Home.
