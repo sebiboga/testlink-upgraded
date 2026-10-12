@@ -17,6 +17,21 @@ Every screen of the application was ported one-by-one in a screen-compare
   kept for backward compatibility and is progressively retired as each modern
   screen reaches full parity.
 
+- [SCREEN] - #1902: the **No access to feature** page
+  (`gui/templates/dashio/feedback/noaccesstofeature.tpl` -> `gui/templates/feedback/noAccess.html`,
+  BFF `api/noaccess/index.php`) is modernized — the last standalone full-page feedback
+  renderer in `feedback/` without a modern twin (sibling of the #1895 Error, #1899 Info and
+  #1901 Report-mail confirmation pages). The legacy template was a bare
+  `$TLS_no_access_to_feature` notice reached only when `tlUser::checkGUISecurityClearance()`
+  denied a screen; the modern Dashio screen shows the message, the requested legacy feature
+  (`script`) chip, Home / Go to Login / Retry and the TLi18n locale switcher. Session-optional,
+  DB-free read-only BFF (`GET|HEAD`, `bffSameOriginGuard`, `Cache-Control: no-store`; 400
+  array/invalid feature / 403 cross-origin / 405 wrong verb), hardening the #1886/#1893
+  array-coercion defect class. A new `redirectToNoAccess()` helper in `lib/functions/common.php`
+  and the `checkGUISecurityClearance()` right-failure branch 302 to the screen with a path-only,
+  URL-encoded same-origin `Location` (the no-environment case keeps the legacy redirect home).
+  11 new `nacc.*` + `footers.noAccessPage` i18n keys in all 10 bundles. (Refs #1902)
+
 - [SCREEN] - #1901: the **Test Report E-mail Confirmation** page
   (`gui/templates/dashio/feedback/emailSent.tpl` -> `gui/templates/results/reportMailSent.html`,
   BFF `api/reportmail/index.php`) is modernized — the last standalone full-page feedback
