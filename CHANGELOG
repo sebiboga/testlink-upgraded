@@ -132,6 +132,23 @@ Every screen of the application was ported one-by-one in a screen-compare
   new `tccfi.*` i18n keys across all 10 bundles; new ASIDE label
   `$TLS_href_tc_spec_import` in all 19 locale files. (Refs #1896)
 
+- [KEY BUGFIX] - #1864: **`testcase::addRelation()` silently corrupted
+  `testcase_relations` and logged 2 `E_WARNING`s whenever the source test case had no active
+  version** — `get_last_active_version()` (`lib/functions/testcase.class.php:6182`) returns
+  `null` when no `tcversions` row is `active=1`, but `addRelation()` indexed that `null`
+  unguarded (`:8211-8212`), emitting `Undefined array key` + `Trying to access array offset on
+  null` and casting the version ids to `0`, so a row with `source_id=0` was inserted and the
+  method still returned `status_ok=true` / `relation_added`. The destination open-check (`:8218`)
+  never caught it. Reachable from legacy `tcEdit.php ?doAddRelation` and the BFF
+  `POST /api/testcases/index.php?action=add_relation`. Fix: bail out before touching `$safeID`
+  when the map is not an array or either test case id is missing, returning
+  `related_tcase_has_no_active_version` (new `tcview.relatedTcaseHasNoActiveVersion` key in all
+  10 i18n bundles + legacy `$TLS_` key in `en_GB` and the relation-family locales). Verified:
+  no-active source → no row, no warnings, HTTP 422; active→active and frozen-destination paths
+  unchanged; `SELECT COUNT(*) FROM events WHERE log_level=2` = 0. Regression suite
+  "Regression — Issue #1864" 12/12 PASS, gate exit 0. Docs:
+  `docs/Bugfix-Issue-1864-addRelation-no-active-version-source-id-zero.md`. (Fixes #1864)
+
 - [KEY BUGFIX] - #1751: **all 46 `smv.*` i18n keys of the Move / Reorder Test Suites screen were
   deleted from the 10 locale bundles by a stale-base rewrite** (`9ca0fa7bb`, "feat(tcview): full
   platforms panel"), so `TLi18n` fell back to the raw key / hardcoded English
