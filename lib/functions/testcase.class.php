@@ -8223,8 +8223,13 @@ class testcase extends tlObjectWithAttachments {
       $safeID['d'] = intval($tcvSet[$safeID['d']]['tcversion_id']);
     }    
 
-    // check if exists before trying to add
-    if( !$this->relationExits($source_id, $destination_id, $type_id) ) {
+    // check if exists before trying to add.
+    // Use the resolved ids ($safeID): when a test case id was supplied they
+    // hold the latest active tcversion ids, which is what the INSERT below
+    // stores. Checking the raw $source_id/$destination_id (test case ids)
+    // never matched an existing row, so duplicates were written on every
+    // call and the 'relation_already_exists' branch was dead (#1903).
+    if( !$this->relationExits($safeID['s'], $safeID['d'], $type_id) ) {
       // check if related testcase is open
       $dummy = $this->get_by_id($destination_id,self::LATEST_VERSION);
       if(($dummy[0]['is_open']) == 1){
