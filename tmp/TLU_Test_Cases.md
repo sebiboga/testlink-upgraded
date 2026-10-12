@@ -4096,6 +4096,71 @@ Refs: #1291, branch `task/issue-1291`.
 | T56 | `?action=suites` query count on a project tree | one query per visited level, **no** per-suite ownership query (**#1757**) | depth-first down-walk, correct order, no duplicates, terminates on a corrupt tree | **PASS** |
 | T57 | `events` table after the review-fix run | 0 new Error/Warning rows | 0 rows above id 214 | **PASS** |
 
+**
+## Regression — Issue #1752: Move/Reorder Test Suites container selector shows current container
+
+### Test environment
+- Fresh DB, fixtures as in Suite 1740 (#1740). Project `SUITEMOVE1740 (SM1740)`, containers `Top A (id 73)`, `A1 (75)`, `A2 (76)`, `Top B (74)`.
+- Screen: `/gui/templates/testcases/suiteMove.html` (modernized). BFF: `/api/suitemove/index.php`.
+- Login: admin/admin.
+
+### Precondition
+The screen is opened for container `Top A` (children: A1, A2). The container selector dropdown is populated from `all_suites` plus project root.
+
+### Repro steps (pre-fix behavior per issue)
+1. Go to Test Specification -> Move / Reorder Test Suites, container = Top A.
+2. Open the container selector dropdown.
+3. The option matching the current container (Top A) is missing or not selected; browser falls back to first option (Project root).
+
+### Expected post-fix behavior
+1. Open the container selector on Top A.
+2. `Top A` is listed **and selected** (#1752).
+3. The table below lists children of Top A (A1, A2).
+4. The meta bar shows `Container: Top A` (or equivalent).
+
+### Actual result observed (current codebase)
+- Code in `gui/templates/testcases/suiteMove.html:321-335` does **not** filter out `CONTAINER_ID`; it renders every suite in `ALL_SUITES` and sets `selected` when IDs match. Fallback adds the container if missing.
+- API `suitMoveAllSuites()` includes all suites of the project, so Top A appears in the list.
+- Behavior matches T49 (PASS). No code changes applied.
+
+### PASS/FAIL
+PASS — current container appears in selector and is selected.
+
+
+
+### Result
+PASS — Regression for Issue #1752 verified against current behavior. No code changes needed.
+
+### Regression — Issue #1752: Move/Reorder Test Suites container selector shows current container
+
+### Test environment
+- Fresh DB, fixtures as in Suite 1740 (#1740). Project `SUITEMOVE1740 (SM1740)`, containers `Top A (id 73)`, `A1 (75)`, `A2 (76)`, `Top B (74)`.
+- Screen: `/gui/templates/testcases/suiteMove.html` (modernized). BFF: `/api/suitemove/index.php`.
+- Login: admin/admin.
+
+### Precondition
+The screen is opened for container `Top A` (children: A1, A2). The container selector dropdown is populated from `all_suites` plus project root.
+
+### Repro steps (pre-fix behavior per issue)
+1. Go to Test Specification -> Move / Reorder Test Suites, container = Top A.
+2. Open the container selector dropdown.
+3. The option matching the current container (Top A) is missing or not selected; browser falls back to first option (Project root).
+
+### Expected post-fix behavior
+1. Open the container selector on Top A.
+2. `Top A` is listed **and selected** (#1752).
+3. The table below lists children of Top A (A1, A2).
+4. The meta bar shows `Container: Top A` (or equivalent).
+
+### Actual result observed (current codebase)
+- Code in `gui/templates/testcases/suiteMove.html:321-335` does **not** filter out `CONTAINER_ID`; it renders every suite in `ALL_SUITES` and sets `selected` when IDs match. Fallback adds the container if missing.
+- API `suitMoveAllSuites()` includes all suites of the project, so Top A appears in the list.
+- Behavior matches T49 (PASS). No code changes applied.
+
+### Result
+PASS — Regression for Issue #1752 verified against current behavior. No code changes needed.
+
+
 **57 executed — 57 PASS, 0 FAIL, 0 N/A.**
 
 ### Notes for re-runs
