@@ -2579,6 +2579,15 @@ function getActions(&$gui,$baseURL) {
     // release_quality_gates.
     $actions->qualityGate =
       "/gui/templates/results/qualityGate.html?{$ctx}";
+    // Refs #1905: Top Level Suites Bar Chart report (legacy
+    // lib/results/topLevelSuitesBarChart.php: the last orphan pChart PNG
+    // endpoint - charts_data covers overall/platforms/by_keyword but NOT this
+    // 4th legacy chart, results_top_level_suites). The legacy file is now a
+    // session-guarded shim; the report is the modern screen backed by
+    // api/toplevelsuitesbarchart, which enforces testplan_metrics on the
+    // OWNING project + plan. Plan-scoped report -> inside the tplan_id guard.
+    $actions->topLevelSuitesBarChart =
+      "/gui/templates/results/topLevelSuitesBarChart.html?{$ctx}";
   }
 
   // Refs #609: initialize up-front so aside rendering with no active test

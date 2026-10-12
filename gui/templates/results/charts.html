@@ -114,6 +114,12 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
     <div class="section-head">
       <i class="fa fa-chart-bar"></i>
       <span data-i18n="charts.resultsBySuite">Results by Top-Level Test Suite</span>
+      <!-- Refs #1905: the chart above only shows the pixels; the standalone
+           Top Level Suites Bar Chart report adds per-suite numbers, progress,
+           a totals row and a CSV export (it replaces the orphan legacy PNG
+           endpoint, sibling of the #1845 Priority Bar Chart). -->
+      <a class="sec-link" id="linkTlsbc" href="#" target="_blank"
+         data-i18n="charts.openTopLevelSuitesBarChart">Open Top Level Suites Bar Chart</a>
     </div>
     <div class="section-body">
       <div class="chart-box" style="max-width:800px;">
@@ -214,6 +220,16 @@ TLi18n.load(function() { TLi18n.apply(); TLi18n.initLocaleSwitcher('#localeSwitc
         + '&tproject_id=' + tproject_id);
     } else {
       $pbc.attr('href', '#').css('display', 'none');
+    }
+  }
+  // Refs #1905: the standalone Top Level Suites Bar Chart report.
+  var $tlsbc = $('#linkTlsbc');
+  if ($tlsbc.length) {
+    if (tplan_id) {
+      $tlsbc.attr('href', '/gui/templates/results/topLevelSuitesBarChart.html?tplan_id=' + tplan_id
+        + '&tproject_id=' + tproject_id);
+    } else {
+      $tlsbc.attr('href', '#').css('display', 'none');
     }
   }
 
