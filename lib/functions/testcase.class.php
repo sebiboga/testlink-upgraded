@@ -8200,8 +8200,20 @@ class testcase extends tlObjectWithAttachments {
            " WHERE id IN(" . implode(',', $extr) . ")";
 
     $nu = current($this->db->get_recordset($sql));
-    
-    if( $nu['node_type_id'] == $this->node_types_descr_id['testcase'] ) {
+
+    // Node type of the destination. Needed to keep the legacy get_by_id()
+    // open-check for test-case ids, while using a direct tcversions lookup
+    // when a tcversion id is supplied (#1904).
+    $destNodeType = null;
+    $sqlDest = " SELECT node_type_id " .
+               " FROM {$this->tables['nodes_hierarchy']} " .
+               " WHERE id = {$safeID['d']}";
+    $nuDest = current((array)$this->db->get_recordset($sqlDest));
+    if( !empty($nuDest) ) {
+      $destNodeType = intval($nuDest['node_type_id']);
+    }
+
+    if( !empty($nu) && $nu['node_type_id'] == $this->node_types_descr_id['testcase'] ) {
       // Need to get latest active version for source and dest
       $tcvSet = $this->get_last_active_version( 
         array($safeID['s'],$safeID['d']), null,
@@ -8230,9 +8242,29 @@ class testcase extends tlObjectWithAttachments {
     // never matched an existing row, so duplicates were written on every
     // call and the 'relation_already_exists' branch was dead (#1903).
     if( !$this->relationExits($safeID['s'], $safeID['d'], $type_id) ) {
-      // check if related testcase is open
-      $dummy = $this->get_by_id($destination_id,self::LATEST_VERSION);
-      if(($dummy[0]['is_open']) == 1){
+      // Check if the related version is open.
+      // The INSERT below stores the resolved tcversion id ($safeID['d']).
+      // When a test case id was supplied, keep the legacy get_by_id()
+      // resolution (get_by_id applies LATEST_VERSION to a test-case id). When
+      // a tcversion id was supplied, get_by_id() would resolve it as a
+      // test-case id, find no row and emit warnings (#1904); query tcversions
+      // directly by the already-resolved $safeID['d'] instead.
+      if( $destNodeType == $this->node_types_descr_id['testcase'] ) {
+        $dummy = $this->get_by_id($destination_id, self::LATEST_VERSION);
+        $isOpen = ( is_array($dummy) && isset($dummy[0]) && is_array($dummy[0]) &&
+                    intval($dummy[0]['is_open'] ?? 0) == 1 );
+      } else if( $destNodeType == $this->node_types_descr_id['testcase_version'] ) {
+        $sql = " $debugMsg SELECT is_open " .
+               " FROM {$this->tables['tcversions']} " .
+               " WHERE id = {$safeID['d']}";
+        $destVersion = current((array)$this->db->get_recordset($sql));
+        $isOpen = ( !empty($destVersion) && intval($destVersion['is_open']) == 1 );
+      } else {
+        // destination id does not exist in the hierarchy: reject cleanly,
+        // without invoking get_by_id() (which would warn on the missing row).
+        $isOpen = false;
+      }
+      if( $isOpen ){
         $time = is_null($ts) ? $this->db->db_now() : $ts;
         $sql = " $debugMsg INSERT INTO {$this->tables['testcase_relations']} "  .
            " (source_id, destination_id, relation_type, author_id, creation_ts) " .
