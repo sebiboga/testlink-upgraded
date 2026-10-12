@@ -8161,3 +8161,27 @@ Precondition: `php tmp/fixtures_1903_bff.php` creates project `BFF 1903` with tw
 | 10 | `addRelation(tcversion_id, tcversion_id, …)` (version-id input mode advertised in the docblock) | relation added, or clean rejection with no warnings | `related_tcase_not_open` + 2 E_WARNINGs (`testcase.class.php:2977`, `:8230`); identical BEFORE and AFTER the #1903 fix | FAIL — filed as #1904 |
 
 **Result: 9/9 PASS for #1903** (item 10 belongs to #1904). RESUME: `php tmp/fixtures_1903_bff.php` prints the ids, then login via curl (`curl -c /tmp/c.txt -d "tl_login=admin&tl_password=admin&login=Login" http://localhost:8082/login.php`), then `POST /api/testcases/?action=add_relation` with `{"tcase_id":<src>,"tcversion_id":<srcV>,"relation_type":"3_source","relation_destination_tcase":"<destExternalId>"}` — first call 200/`relation_added`, second 422/`relation_already_exists`. Direct-manager matrix: `php tmp/verify_1903.php` (ALL PASS).
+
+## Task — Issue #1905: Modernize top-level test suites bar chart (topLevelSuitesBarChart)
+
+Precondition: fixtures (fresh CI DB): test project `WALK` id=1, plan id=1, top-level suites `Suite A`(3) / `Suite B`(4), linked versions 6/8/10 (passed/failed/blocked) + 12 (not run), build 1. Screen: `http://localhost:8082/gui/templates/results/topLevelSuitesBarChart.html?tplan_id=1&tproject_id=1`, admin/admin. Legacy shim: `lib/results/topLevelSuitesBarChart.php` now 302-redirects to the modern screen; XHR/img callers get 405 `modern_endpoint_only`; missing tplan_id → 400. BFF `GET /api/toplevelsuitesbarchart/index.php?action=init&tplan_id=1`.
+
+| # | Step | Expected | Observed | Verdict |
+|---|------|----------|----------|---------|
+| 1 | Open the screen with tplan_id=1&tproject_id=1 (admin) | header + context WALK/WALK, 2 suites, 4 versions; chart rows Suite A (2, 50%) and Suite B (2, 100%); DataTable + totals row | 2 bars with correct percentages, table Suite A 2/1/0/0/1 50%, Suite B 2/0/1/1/0 100%, Totals 4/1/1/1/1 progress 3 | PASS |
+| 2 | BFF curl `?action=init&tplan_id=1&tproject_id=1` | 200, status ok, items[0].name=Suite A passed.qty=1 not_run.qty=1, items[1].name=Suite B failed.qty=1 blocked.qty=1, totals 1/1/1/1 | exact JSON match | PASS |
+| 3 | Click Export CSV | toast "CSV file exported.", download `top-level-suites-bar-chart-tplan-1.csv` | toast shown, file downloaded | PASS |
+| 4 | Open `?tplan_id=2` (empty plan) | "Nothing to chart" state + context 0 suites/0 versions | shown | PASS |
+| 5 | Locale switch to Română | buttons/labels in Romanian ("Reîmprospătare"/"Închide"/"Nimic de graficat") | fully translated | PASS |
+| 6 | Login as `restricted` (role 3, no rights), open screen tplan_id=1 | "Access denied / You do not have the testplan_metrics right" + code no_right | shown | PASS |
+| 7 | BFF anonymous `?action=init&tplan_id=1` | HTTP 401 code not_authenticated | 401 | PASS |
+| 8 | BFF `?tplan_id=999999` | HTTP 404 tplan_not_found | 404 | PASS |
+| 9 | BFF `?tplan_id=` (empty) | HTTP 400 invalid_request | 400 | PASS |
+| 10 | BFF POST method | HTTP 405 method_not_allowed | 405 | PASS |
+| 11 | Legacy shim document nav (authed) | 302 → gui/templates/results/topLevelSuitesBarChart.html?tplan_id=… | 302 to modern screen | PASS |
+| 12 | Legacy shim img/XHR caller | 405 `modern_endpoint_only` | 405 | PASS |
+| 13 | Legacy shim missing tplan_id | 400 missing tplan_id | 400 | PASS |
+| 14 | charts.html entry link (plan 1) | "Open Top Level Suites Bar Chart" link → topLevelSuitesBarChart.html?tplan_id=1&tproject_id=1 | href+RO label rendered | PASS |
+| 15 | `events` after the whole run | no new Error/Warning rows | no new entries | PASS |
+
+**Result: 15/15 PASS.** RESUME: fresh CI DB → re-seed project/plan id 1 + suites 3/4 + versions 6/8/10/12 + build + 3 executions, then open the screen; login: admin/admin; restricted user id 2 (password admin, role 3) for the no_right case.

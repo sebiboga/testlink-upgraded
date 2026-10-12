@@ -199,9 +199,12 @@ foreach ($statusDomain as $status => $dummyCode) {
 
 if ($canDraw) {
     // Legacy order: alphabetical by suite name (the chart's x-axis).
+    // getRootTestSuites() returns tsuite_id => name (fetchRowsIntoMap on 'id');
+    // the legacy controller array_flip()ed it into name => tsuite_id, and the
+    // chart sorted and drew by name. We reproduce exactly that inverted map.
     $name2id = array();
-    foreach ($rootNames as $name => $suiteId) {
-        $name2id[(string)$name] = intval($suiteId);
+    foreach ($rootNames as $suiteId => $suiteName) {
+        $name2id[(string)$suiteName] = intval($suiteId);
     }
     ksort($name2id);
 
