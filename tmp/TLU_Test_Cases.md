@@ -8132,3 +8132,32 @@ Steps: open the edit modal of a build; inspect the `#closureDate` element beside
 | 8 | Browser console after interactions | no errors/warnings introduced | none | PASS |
 
 **Result: 8/8 PASS.** RESUME: `php tmp/fixtures_1124.php`, then open `http://localhost:8082/gui/templates/plans/buildsView.html?tplan_id=2`, click the `BVDemo Build Closed` name → modal shows `Closed on: Nov 20, 2025`.
+
+## Regression — Issue #1903: testcase::addRelation() wrote duplicate relation rows (existence check used test-case ids, INSERT used tcversion ids)
+
+Precondition: `php tmp/fixtures_1903_bff.php` creates project `BFF 1903` with two active test cases; `php tmp/verify_1903.php` creates its own `Verify 1903` project and drives the manager directly. Fix: `lib/functions/testcase.class.php:8227` now calls `relationExits($safeID['s'], $safeID['d'], $type_id)` so the existence check uses the same resolved tcversion ids that the INSERT writes.
+
+| # | Step | Expected | Observed | Verdict |
+|---|------|----------|----------|---------|
+| 1 | `php tmp/repro_1903.php` — two identical `addRelation(tcase,tcase,type)` calls (pre-fix repro) | 2nd returns `status_ok=false, msg=relation_already_exists`; exactly 1 row | 2nd = `relation_already_exists`; `rows=1 (source=12 dest=15 type=1)` | PASS |
+| 2 | `php tmp/verify_1903.php` item 1 — two identical test-case-id calls | first `relation_added`, second `relation_already_exists`, 1 row | exactly that | PASS |
+| 3 | item 2 — same pair, different relation type | `relation_added`, 1 row for the new type | `relation_added`; type-2 rows=1 | PASS |
+| 4 | item 3 — swapped direction, same type (symmetric `OR`) | `relation_already_exists` (reverse pair detected) | `relation_already_exists` | PASS |
+| 5 | item 5 — swapped direction, different type | blocked by symmetric check (pre-existing upstream behaviour preserved) | `relation_already_exists` | PASS |
+| 6 | `php -l lib/functions/testcase.class.php` | no syntax errors | No syntax errors detected | PASS |
+
+### BFF end-to-end (`POST /api/testcases/index.php?action=add_relation`, session admin)
+
+| # | Step | Expected | Observed | Verdict |
+|---|------|----------|----------|---------|
+| 7 | active source, `relation_type=3_source`, valid destination external id — call #1 | 200, `feedback_code=relation_added` | HTTP 200, exactly that, 1 row inserted | PASS |
+| 8 | identical call #2 | 422, `feedback_code=relation_already_exists` | HTTP 422, exactly that, still 1 row | PASS |
+| 9 | `events` after cases 7-8 | 0 new Error/Warning (log_level<=2) rows | 3 audit rows, `warnings=0` | PASS |
+
+### Separate pre-existing defect found while testing (NOT this fix)
+
+| # | Step | Expected | Observed | Verdict |
+|---|------|----------|----------|---------|
+| 10 | `addRelation(tcversion_id, tcversion_id, …)` (version-id input mode advertised in the docblock) | relation added, or clean rejection with no warnings | `related_tcase_not_open` + 2 E_WARNINGs (`testcase.class.php:2977`, `:8230`); identical BEFORE and AFTER the #1903 fix | FAIL — filed as #1904 |
+
+**Result: 9/9 PASS for #1903** (item 10 belongs to #1904). RESUME: `php tmp/fixtures_1903_bff.php` prints the ids, then login via curl (`curl -c /tmp/c.txt -d "tl_login=admin&tl_password=admin&login=Login" http://localhost:8082/login.php`), then `POST /api/testcases/?action=add_relation` with `{"tcase_id":<src>,"tcversion_id":<srcV>,"relation_type":"3_source","relation_destination_tcase":"<destExternalId>"}` — first call 200/`relation_added`, second 422/`relation_already_exists`. Direct-manager matrix: `php tmp/verify_1903.php` (ALL PASS).
