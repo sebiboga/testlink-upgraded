@@ -156,6 +156,19 @@ Every screen of the application was ported one-by-one in a screen-compare
   "Regression — Issue #1864" 12/12 PASS, gate exit 0. Docs:
   `docs/Bugfix-Issue-1864-addRelation-no-active-version-source-id-zero.md`. (Fixes #1864)
 
+- [KEY BUGFIX] - #1903: **`testcase::addRelation()` wrote a duplicate
+  `testcase_relations` row on every call and its `relation_already_exists` branch was dead** —
+  when given test-case ids the method resolved them to the latest active tcversion ids for the
+  INSERT (`lib/functions/testcase.class.php:8222-8234`) but still asked `relationExits()` about the
+  raw **test-case** ids (`:8227`), so the existence check could never match a stored **tcversion**
+  row. Regression from `cb365cd5e9` (2018), reachable from legacy `tcEdit.php ?doAddRelation` and
+  the BFF `POST /api/testcases/index.php?action=add_relation`. Fix: pass the resolved
+  `$safeID['s']/$safeID['d']` to `relationExits()`. Verified: repeated manager call → 2nd
+  `relation_already_exists`, exactly 1 row; BFF 1st 200 `relation_added` / 2nd 422
+  `relation_already_exists`; tcView shows the localized "relation already exists" sentence;
+  `events` warnings = 0. Regression suite "Regression — Issue #1903" 9/9 PASS, gate exit 0. Docs:
+  `docs/Bugfix-Issue-1903-addRelation-duplicate-relation-rows.md`. (Fixes #1903)
+
 - [KEY BUGFIX] - #1751: **all 46 `smv.*` i18n keys of the Move / Reorder Test Suites screen were
   deleted from the 10 locale bundles by a stale-base rewrite** (`9ca0fa7bb`, "feat(tcview): full
   platforms panel"), so `TLi18n` fell back to the raw key / hardcoded English
