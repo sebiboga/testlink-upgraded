@@ -8255,7 +8255,8 @@ INSERT INTO nodes_hierarchy (name,parent_id,node_type_id,node_order) VALUES ('A1
 INSERT INTO nodes_hierarchy (name,parent_id,node_type_id,node_order) VALUES ('A2', 1, 2, 1);                -- 3
 INSERT INTO testsuites (id, details) VALUES (2, ''),(3,'');
 ```
-Login `admin`/`admin` (user id 1, role 8 `admin` → has `mgt_modify_tc`). `B="http://localhost:8082/api/suitemove/index.php"`,
+Ids above are illustrative of a **freshly imported** DB where `testprojects`/`nodes_hierarchy` are empty
+(id 1 is free). Login `admin`/`admin` (user id 1, role 8 `admin` → has `mgt_modify_tc`). `B="http://localhost:8082/api/suitemove/index.php"`,
 all POSTs carry `-H Origin:http://localhost:8082` (CSRF guard `api/_guard.php`).
 
 ### API matrix — executed, all PASS
@@ -8288,9 +8289,10 @@ all POSTs carry `-H Origin:http://localhost:8082` (CSRF guard `api/_guard.php`).
 - **Screen:** `docs/screenshots/issue-1753-noop-neutral-notice.png`.
 
 ### Note (why no code change)
-The fix landed in commit `13f2ca183` ("#1740: apply code-review fixes…", `2026-09-30 13:30:30Z`), 16 s
-**before** this issue was filed (`2026-09-30T13:30:46Z`). `git merge-base --is-ancestor 13f2ca183 HEAD` is true,
-so the contract is present in every build since. This suite pins it.
+The fix landed in commit `13f2ca183` ("#1740: apply code-review fixes…"): authored `2026-09-30 13:30:30Z`,
+committed/landed `2026-09-30 13:35:13Z`. This issue was filed `2026-09-30T13:30:46Z` — after the fix was
+authored but before it landed — describing the then-current code. `git merge-base --is-ancestor 13f2ca183
+origin/sebiboga` is true, so the contract is present in every build since. This suite pins it.
 
 ### Status
 PASS — 7 API + 5 screen checks, 0 FAIL.

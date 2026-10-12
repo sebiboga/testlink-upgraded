@@ -41,17 +41,19 @@ The i18n half was on the screen side: `gui/templates/testcases/suiteMove.html:39
 
 ### Why the report was stale
 
-The first BFF+screen cut for #1740 (`a45462e2c`) carried the defect; the **very next commit**,
-`13f2ca183` ("#1740: apply code-review fixes to Move/Reorder Test Suites", author date
-`2026-09-30 13:30:30Z`), fixed exactly this. Issue #1753 was filed at `2026-09-30T13:30:46Z` —
-16 seconds later — describing the pre-review code. `git merge-base --is-ancestor 13f2ca183 HEAD`
-is true on `origin/sebiboga`, so no build since carries the reported behaviour.
+The defect was introduced by the BFF cut `a45462e2c` (`2026-09-30 12:35:24Z`; that commit touched
+only `api/suitemove/index.php` — the screen `suiteMove.html` arrived later, in `0674bbdd5`). It was
+fixed by a later `#1740` code-review commit, `13f2ca183` ("#1740: apply code-review fixes to
+Move/Reorder Test Suites"): authored `2026-09-30 13:30:30Z`, committed/landed `2026-09-30 13:35:13Z`
+(19 commits after `a45462e2c`). Issue #1753 was filed at `2026-09-30T13:30:46Z` — **after** the fix
+was authored but **before** it was committed — describing the then-current code. `git merge-base
+--is-ancestor 13f2ca183 origin/sebiboga` is true, so no build carries the reported behaviour today.
 
 ## Fix
 
 No new change was required: the three `out(...)` calls above plus the screen branch already
-implement the requested contract. This run verified that, added the regression suite and this
-documentation, and closed the issue.
+implement the requested contract. This run verified that contract, added the `Regression — Issue
+#1753` suite and this documentation, and closed the tracking issue.
 
 ### Alternatives considered (and why the chosen contract is right)
 
