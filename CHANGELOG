@@ -205,6 +205,22 @@ Every screen of the application was ported one-by-one in a screen-compare
   `events` warnings = 0. Regression suite "Regression — Issue #1903" 9/9 PASS, gate exit 0. Docs:
   `docs/Bugfix-Issue-1903-addRelation-duplicate-relation-rows.md`. (Fixes #1903)
 
+- [KEY BUGFIX] - #1904: **`testcase::addRelation()` tcversion-id input mode was dead —
+  passing two tcversion ids emitted 3 PHP diagnostics and returned `related_tcase_not_open`
+  with zero rows inserted** — the destination open-guard called
+  `get_by_id($destination_id, LATEST_VERSION)` which resolves its argument as a **test-case**
+  id; for a version id it found no row, `get_by_id` wrapped the failed `fetchFirstRow()` into
+  `array(false)` (`:2918-2919`) and the render loops + guard produced `E_WARNING` at `:2977`
+  and `:8235` (plus a PHP 8.3 `false`-to-array deprecation). Latent since the 2018 relation
+  feature; the 2 production callers pass test-case ids and were unaffected. Fix: branch the
+  open-guard on the destination node type — legacy `get_by_id()` for test-case ids (now
+  null-safe), `SELECT is_open FROM tcversions WHERE id = $safeID['d']` for version ids, clean
+  reject for missing ids. Verified: manager matrix 5/5 with `warn=0` (version/version → added,
+  tcase/tcase → added, duplicate → already_exists, `is_open=0` → not_open, missing dest →
+  not_open); BFF 1st 200 `relation_added` / 2nd 422 `relation_already_exists`; tcView renders
+  the relation; `events` warnings = 0. Regression suite "Regression — Issue #1904" 10/10 rows
+  PASS, gate exit 0. Docs: `docs/Bugfix-Issue-1904-addRelation-tcversion-input-mode.md`. (Fixes #1904)
+
 - [KEY BUGFIX] - #1751: **all 46 `smv.*` i18n keys of the Move / Reorder Test Suites screen were
   deleted from the 10 locale bundles by a stale-base rewrite** (`9ca0fa7bb`, "feat(tcview): full
   platforms panel"), so `TLi18n` fell back to the raw key / hardcoded English

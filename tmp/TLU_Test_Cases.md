@@ -8323,4 +8323,4 @@ Precondition: `php tmp/fixtures_1904.php` creates project `Rel 1904` with two AC
 - Direct-manager matrix 6/6 PASS: version/version → `relation_added` (issue symptom gone), tcase/tcase → `relation_added`, duplicate → `relation_already_exists`, closed dest version → `related_tcase_not_open`, missing dest → `related_tcase_not_open`; every case `warn=0`.
 - BFF: 200/`relation_added` then 422/`relation_already_exists`, no new Event-Viewer rows, clean console. Fix commit `31eca654f`.
 
-**Result: 9/9 PASS.** RESUME: `php tmp/fixtures_1904.php` (prints ids) then `php tmp/verify_1904.php <tcaseA> <tcversionA> <tcaseB> <tcversionB>` → OVERALL: ALL PASS. Login admin/admin at http://localhost:8082, POST `api/testcases/index.php?action=add_relation` twice with the body from step 7.
+**Result: 10/10 PASS.** RESUME: `php tmp/fixtures_1904.php` (prints ids) then `php tmp/verify_1904.php <tcaseA> <tcversionA> <tcaseB> <tcversionB>` → OVERALL: ALL PASS. Login admin/admin at http://localhost:8082, POST `api/testcases/index.php?action=add_relation` twice with the body from step 7.
