@@ -1,154 +1,104 @@
 <?php
-/** 
+/**
  * TestLink Open Source Project - http://testlink.sourceforge.net/
- * This script is distributed under the GNU General Public License 2 or later. 
+ * This script is distributed under the GNU General Public License 2 or later.
  *
- * @filesource  platformPieChart.php
+ * LEGACY per-platform metrics pie chart endpoint - SUPERSEDED, Refs #1906.
+ *
+ * In 1.9.20 this file drew a PNG pie chart with the vendored pChart library
+ * for ONE test plan platform: execution-status totals (passed / failed /
+ * blocked / not run) from
+ * tlTestPlanMetrics::getStatusTotalsByPlatformForRender($tplan_id), labelled
+ * via results.status_label. It was an orphan image endpoint (single
+ * platform_id per call, no Smarty template).
+ *
+ * Its only gate was a bare checkRights() calling
+ * hasRight('testplan_metrics') against the GLOBAL right, so it proved nothing
+ * about the plan the numbers belonged to; tproject_id was blindly read from
+ * the session and platform_id from $_REQUEST without ownership checks. On
+ * 2.0.1 it could not run at all: the pChart includes it used were gone, so
+ * every caller got a PHP fatal / HTTP 500.
+ *
+ * It is now a session-guarded launcher that redirects to the modern screen
+ * (gui/templates/results/platformPieChart.html) served by
+ * api/platformpiechart/index.php, which aggregates ALL platforms of the plan
+ * with the same getStatusTotalsByPlatformForRender() the legacy pie drew,
+ * enforces testplan_metrics on the OWNING test project and test plan and
+ * answers a documented JSON contract. The legacy ?tplan_id= (and
+ * ?tproject_id=) parameters are preserved.
+ *
+ * The XHR/crawler branch deliberately refuses instead of redirecting: the old
+ * file was consumed by an <img> tag in some 1.9.20 themes, and a 302 would
+ * hand that caller a Dashio HTML page where it expects PNG pixels.
+ *
  * @package     TestLink
- * @author      franciscom
- * @copyright   2005-2013, TestLink community
- * @link        http://www.testlink.org
- *
- * @internal revisions
- * @since 1.9.10
- *
-**/
+ * @filesource  platformPieChart.php
+ */
+
 require_once('../../config.inc.php');
 require_once('common.php');
-include("../../third_party/pchart/pChart/pData.class");   
-include("../../third_party/pchart/pChart/pChart.class");   
 
-$resultsCfg = config_get('results');
-$chart_cfg = $resultsCfg['charts']['dimensions']['platformPieChart'];
-
-$args = init_args($db);
-$metricsMgr = new tlTestPlanMetrics($db);
-$dummy = $metricsMgr->getStatusTotalsByPlatformForRender($args->tplan_id);
-
-// if platform has no test case assigned $dummy->info[$args->platform_id] does not exists
-if( isset($dummy->info[$args->platform_id]) )
-{
-  $totals = $dummy->info[$args->platform_id]['details'];
-}
-else
-{
-  // create empty set
-  $status = $metricsMgr->getStatusForReports();
-  foreach($status as $statusVerbose)
-  {
-    $totals[$statusVerbose] = array('qty' => 0, 'percentage' => 0);
-  }
-  unset($status);
-}
-
-unset($dummy);
-unset($metricsMgr);
-
-$values = array();
-$labels = array();
-$series_color = array();
-foreach($totals as $key => $value)
-{
-    $value = $value['qty'];
-    $values[] = $value;
-    $labels[] = lang_get($resultsCfg['status_label'][$key]) . " ($value)";
-    if( isset($resultsCfg['charts']['status_colour'][$key]) )
-    {
-      $series_color[] = $resultsCfg['charts']['status_colour'][$key];
-    }  
-}
-
-// Dataset definition    
-$DataSet = new pData;   
-$DataSet->AddPoint($values,"Serie1");   
-$DataSet->AddPoint($labels,"Serie8");   
-$DataSet->AddAllSeries();   
-$DataSet->SetAbsciseLabelSerie("Serie8");   
-
-// Initialise the graph
-$pChartCfg = new stdClass(); 
-$pChartCfg->XSize = $chart_cfg['XSize'];
-$pChartCfg->YSize = $chart_cfg['YSize'];                    
-$pChartCfg->radius = $chart_cfg['radius'];
-$pChartCfg->legendX = $chart_cfg['legendX'];                    
-$pChartCfg->legendY = $chart_cfg['legendY'];
-
-$pChartCfg->centerX = intval($pChartCfg->XSize/2);                    
-$pChartCfg->centerY = intval($pChartCfg->YSize/2);
-
-$graph = new stdClass();
-$graph->data = $DataSet->GetData();
-$graph->description = $DataSet->GetDataDescription();
-
-$Test = new pChart($pChartCfg->XSize,$pChartCfg->YSize);
-foreach($series_color as $key => $hexrgb)
-{
-  $rgb = str_split($hexrgb,2);
-  $Test->setColorPalette($key,hexdec($rgb[0]),hexdec($rgb[1]),hexdec($rgb[2]));  
-}
- 
-// Draw the pie chart   
-$Test->setFontProperties(config_get('charts_font_path'),config_get('charts_font_size'));
-$Test->AntialiasQuality = 0;
-$Test->drawBasicPieGraph($graph->data,$graph->description,
-                         $pChartCfg->centerX,$pChartCfg->centerY,$pChartCfg->radius,PIE_PERCENTAGE,255,255,218);   
-$Test->drawPieLegend($pChartCfg->legendX,$pChartCfg->legendY,$graph->data,$graph->description,250,250,250);                                
-$Test->Stroke();
-
-
-function checkRights(&$db,&$user)
-{
-  return $user->hasRight($db,'testplan_metrics');
-}
-
+$db = new database(DB_TYPE);
+doDBConnect($db);
 
 /**
- * 
- *
+ * Session gate, parity with the legacy testlinkInitPage() call: an anonymous
+ * caller is bounced to the login screen preserving its destination.
+ * checkSessionValid()'s own redirect is used (rather than a hand-rolled
+ * header()): it walks up from dirname(SCRIPT_FILENAME) until it finds
+ * login.php and supplies a root-relative REQUEST_URI destination — a relative
+ * 'login.php' would resolve against /lib/results/ and 404 (Refs #1881).
  */
-function init_args(&$dbHandler)
-{
-  //  $_REQUEST = strings_stripSlashes($_REQUEST);
-  //  $args = new stdClass();
-  //  $args->tplan_id = $_REQUEST['tplan_id'];
-  //  $args->tproject_id = $_SESSION['testprojectID'];
-  //  $args->platform_id = $_REQUEST['platform_id'];
-  $iParams = array("apikey" => array(tlInputParameter::STRING_N,0,64),
-                   "platform_id" => array(tlInputParameter::INT_N), 
-                   "tproject_id" => array(tlInputParameter::INT_N), 
-                   "tplan_id" => array(tlInputParameter::INT_N));
-
-  $args = new stdClass();
-  R_PARAMS($iParams,$args);
-
-  if( !is_null($args->apikey) )
-  {
-    $cerbero = new stdClass();
-    $cerbero->args = new stdClass();
-    $cerbero->args->tproject_id = $args->tproject_id;
-    $cerbero->args->tplan_id = $args->tplan_id;
-    
-    if(strlen($args->apikey) == 32)
-    {
-      $cerbero->args->getAccessAttr = true;
-      $cerbero->method = 'checkRights';
-      $cerbero->redirect_target = "../../login.php?note=logout";
-      setUpEnvForRemoteAccess($dbHandler,$args->apikey,$cerbero);
-    }
-    else
-    {
-      $args->addOpAccess = false;
-      $cerbero->method = null;
-      $cerbero->args->getAccessAttr = false;
-      setUpEnvForAnonymousAccess($dbHandler,$args->apikey,$cerbero);
-    }  
-  }
-  else
-  {
-    testlinkInitPage($dbHandler,true,false,"checkRights");  
-    $args->tproject_id = isset($_SESSION['testprojectID']) ? intval($_SESSION['testprojectID']) : 0;
-  }
-  
-
-  return $args;
+if (!checkSessionValid($db)) {
+    exit;  // unreachable: the call above already redirected
 }
+
+$tplanId = isset($_GET['tplan_id']) ? intval($_GET['tplan_id']) : 0;
+$tprojectId = isset($_GET['tproject_id']) ? intval($_GET['tproject_id']) : 0;
+if ($tprojectId <= 0) {
+    $tprojectId = intval($_SESSION['testprojectID'] ?? 0);
+}
+
+if ($tplanId <= 0) {
+    // Nothing to address: answer a machine-readable error instead of guessing
+    // a plan. The modern screen renders this state itself (ppc.missingContext).
+    header('Content-Type: application/json; charset=utf-8');
+    header('X-Content-Type-Options: nosniff');
+    http_response_code(400);
+    echo json_encode(array('status' => 'error', 'code' => 'invalid_request',
+        'message' => 'missing tplan_id'));
+    exit;
+}
+
+// Browser navigation -> the modern screen. An XHR / <img> caller keeps the
+// hard-fail contract: the legacy answer was a PNG, so handing a 302 to an
+// <img> would render broken pixels instead of an error.
+//
+// A document navigation is identified by Sec-Fetch-Dest: document OR an Accept
+// header that asks for text/html. Chrome/Firefox/Edge send BOTH - and their
+// document Accept header also carries image/avif,image/webp,image/apng tokens -
+// so a bare strpos($accept,'image/') test fired on EVERY real navigation and
+// answered 405 instead of redirecting (Refs #1719). 'image/' may therefore only
+// decide the caller when the request does not ask for HTML at all.
+$accept = strtolower((string)($_SERVER['HTTP_ACCEPT'] ?? ''));
+$isXhr = stripos((string)($_SERVER['HTTP_X_REQUESTED_WITH'] ?? ''), 'XMLHttpRequest') !== false;
+$dest = strtolower((string)($_SERVER['HTTP_SEC_FETCH_DEST'] ?? ''));
+$isDocument = $dest === 'document' || strpos($accept, 'text/html') !== false;
+if ($isXhr || $dest === 'empty' || $dest === 'image'
+    || (!$isDocument && strpos($accept, 'image/') !== false)) {
+    header('Content-Type: application/json; charset=utf-8');
+    header('X-Content-Type-Options: nosniff');
+    http_response_code(405);
+    echo json_encode(array('status' => 'error', 'code' => 'modern_endpoint_only',
+        'message' => 'the chart is served by /api/platformpiechart/index.php'));
+    exit;
+}
+
+$base = isset($_SESSION['basehref']) ? $_SESSION['basehref'] : '../';
+$url = $base . 'gui/templates/results/platformPieChart.html?tplan_id=' . $tplanId;
+if ($tprojectId > 0) {
+    $url .= '&tproject_id=' . $tprojectId;
+}
+
+header('Location: ' . $url);
+exit;

@@ -2588,6 +2588,18 @@ function getActions(&$gui,$baseURL) {
     // OWNING project + plan. Plan-scoped report -> inside the tplan_id guard.
     $actions->topLevelSuitesBarChart =
       "/gui/templates/results/topLevelSuitesBarChart.html?{$ctx}";
+    // Refs #1906: Overll Metrics by Platform report (legacy
+    // lib/results/platformPieChart.php: a pChart PNG endpoint that drew ONE
+    // status pie per platform_id, never rendered a Smarty template and checked
+    // only the bare global testplan_metrics right - it could not prove the
+    // owning project, so a globally-entitled user could read ANY plan's
+    // platform totals). The legacy file is now a session-guarded shim; the
+    // report is the modern screen backed by api/platformpiechart, which
+    // enforces testplan_metrics on the OWNING project + plan. Plan-scoped
+    // report -> inside the tplan_id guard. Also reachable from the Charts hub
+    // via the "Open Metrics by Platform" per-platform pies link.
+    $actions->platformPieChart =
+      "/gui/templates/results/platformPieChart.html?{$ctx}";
   }
 
   // Refs #609: initialize up-front so aside rendering with no active test

@@ -85,6 +85,12 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
     <div class="section-head">
       <i class="fa fa-chart-pie"></i>
       <span data-i18n="charts.platformMetrics">Overall Metrics by Platform</span>
+      <!-- Refs #1906: the pies above only show the pixels; the standalone
+           Metrics by Platform report adds the per-platform status numbers, a
+           totals row and a CSV export (it replaces the legacy per-platform PNG
+           endpoint lib/results/platformPieChart.php). -->
+      <a class="sec-link" id="linkPpc" href="#" target="_blank"
+         data-i18n="charts.openPlatformMetrics">Open Metrics by Platform</a>
     </div>
     <div class="section-body">
       <div class="platform-grid" id="platformGrid"></div>
@@ -230,6 +236,17 @@ TLi18n.load(function() { TLi18n.apply(); TLi18n.initLocaleSwitcher('#localeSwitc
         + '&tproject_id=' + tproject_id);
     } else {
       $tlsbc.attr('href', '#').css('display', 'none');
+    }
+  }
+
+  // Refs #1906: the standalone Metrics by Platform (platform pie chart) report.
+  var $ppc = $('#linkPpc');
+  if ($ppc.length) {
+    if (tplan_id) {
+      $ppc.attr('href', '/gui/templates/results/platformPieChart.html?tplan_id=' + tplan_id
+        + '&tproject_id=' + tproject_id);
+    } else {
+      $ppc.attr('href', '#').css('display', 'none');
     }
   }
 
