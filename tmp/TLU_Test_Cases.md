@@ -7964,3 +7964,49 @@ PASS
 | 10 | `events` table + browser console after the run | no new Error/Warning, no JS errors | 1 audit LOGIN row; console clean | PASS |
 
 **Result: 10/10 PASS.** The bug is already repaired on the default branch; no further code change required (verification-only fix). RESUME: rebuild fixture + `bash ai/verify_i18n_coverage.sh` + load the screen with `?locale=ro`.
+
+## Task — Issue #1902: Modernize "No access to feature" page (noaccesstofeature)
+
+**Refs #1902.** Legacy `gui/templates/dashio/feedback/noaccesstofeature.tpl` — the last standalone full-page feedback renderer in `feedback/` with no modern twin — replaced by modern `gui/templates/feedback/noAccess.html` + BFF `api/noaccess/index.php`; the right-denial path `tlUser::checkGUISecurityClearance()` (`lib/functions/tlUser.class.php`) now 302s there via `redirectToNoAccess()` (`lib/functions/common.php`) instead of a silent bounce home. Env: `http://localhost:8082`, DB freshly imported, admin/admin.
+
+Precondition: repo @ default branch with this screen merged; `api/noaccess/index.php` reachable.
+
+### API contract matrix (curl)
+
+| # | Step | Expected | Observed | Verdict |
+|---|------|----------|----------|---------|
+| 1 | `GET /api/noaccess/index.php?feature=no_right&script=tcEdit.php` (anon) | 200 `status:ok`, `message_key:nacc.message`, `feature:no_right`, `script:tcEdit.php`, `auth.logged_in:false` | exactly that | PASS |
+| 2 | `GET /api/noaccess/index.php` (no params) | 200 `feature:generic`, `script:""`, `message_key:nacc.message` | exactly that | PASS |
+| 3 | `GET ?feature[]=x` (array) | 400 `INVALID_FEATURE` | 400 | PASS |
+| 4 | `GET ?feature=BadValue!!` (non `[a-z0-9_]`) | 400 `INVALID_FEATURE` | 400 | PASS |
+| 5 | `POST` same-origin | 405 `METHOD_NOT_ALLOWED`, `Allow: GET, HEAD` | 405 | PASS |
+| 6 | `POST` foreign `Origin: http://evil.example` | 403 (same-origin guard) | 403 | PASS |
+| 7 | Response headers | `Content-Type: application/json`, `X-Content-Type-Options: nosniff`, `Cache-Control: no-store` | all present | PASS |
+
+### Redirect helper (served throwaway probe)
+
+| # | Step | Expected | Observed | Verdict |
+|---|------|----------|----------|---------|
+| 8 | `redirectToNoAccess('no_right','tcEdit.php')` | 302 `Location: /gui/templates/feedback/noAccess.html?feature=no_right&script=tcEdit.php` | exactly that | PASS |
+| 9 | `redirectToNoAccess('bad-value!!', "a b&c<br>")` | invalid feature → `no_right`; script URL-encoded | `feature=no_right&script=a+b%26c%3Cbr%3E` | PASS |
+
+### Browser pass (Dashio screen)
+
+| # | Step | Expected | Observed | Verdict |
+|---|------|----------|----------|---------|
+| 10 | Open `noAccess.html?feature=no_right&script=tcEdit.php` (anon) | card "Access denied", message "You do not have enough rights to access the feature", chip `tcEdit.php`, code `no_right`, Home + Go to Login + Retry | exactly that | PASS |
+| 11 | Log in as admin, reopen the same URL | "Go to Login" hidden (Home + Retry only) | Go to Login absent from snapshot | PASS |
+| 12 | Switch locale to RO | "Acces interzis", "Nu aveți suficiente drepturi pentru a accesa această funcționalitate", "Înapoi la Acasă" / "Autentificare" / "Reîncearcă", footer RO | exactly that | PASS |
+| 13 | Open a bare `noAccess.html` deep link | requested-feature line hidden; generic message shown | `#featureLine` display `none`, chip `-` | PASS |
+| 14 | Console after all interactions | 0 console errors | no console messages | PASS |
+
+### i18n + regression
+
+| # | Step | Expected | Observed | Verdict |
+|---|------|----------|----------|---------|
+| 15 | `python3 -m json.tool` each touched bundle | valid JSON | all 10 OK | PASS |
+| 16 | `bash ai/verify_i18n_coverage.sh` | all bundles carry `nacc.*` + `footers.noAccessPage` | 9 passed / 0 failed (7381 keys) | PASS |
+| 17 | `php -l` on the 3 touched PHP files | no syntax errors | all OK | PASS |
+| 18 | Event Viewer / `events` table | no new Error/Warning from this screen | 0 screen-attributable entries | PASS |
+
+**Result: 18/18 PASS.** RESUME: `php -l api/noaccess/index.php lib/functions/common.php lib/functions/tlUser.class.php` + `bash ai/verify_i18n_coverage.sh` + open `gui/templates/feedback/noAccess.html?feature=no_right&script=tcEdit.php`.
