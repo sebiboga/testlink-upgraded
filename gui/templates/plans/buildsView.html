@@ -125,6 +125,7 @@ table.dataTable tbody td { padding: 8px 14px; font-size: 13px; vertical-align: m
             <div class="form-group chk-row">
               <label><input type="checkbox" id="fOpen" checked> <span data-i18n="bv.openLabel">Open</span></label>
               <div class="hint" data-i18n="bv.closureHint">closing a build stamps today as closure date</div>
+              <div class="hint" id="closureDate"></div>
             </div>
           </div>
         </div>
@@ -210,6 +211,7 @@ var lastData = null;
 var cfColumns = [];
 var cfDefs = [];
 var cfReqSeq = 0;
+var closedOnDate = '';
 
 $(function () {
   var p = new URLSearchParams(window.location.search);
@@ -245,6 +247,10 @@ $(function () {
     $('#srcBlock').toggle(on);
     $('#statusBlock').toggle(on);
   });
+
+  // Legacy buildEdit.tpl:95 onclick="showOrHideElement('closure_date',this.checked)":
+  // the stored closure date is shown whenever the build is closed (Open unchecked).
+  $('#fOpen').on('change', updateClosureDate);
 
   $('#btnCreate').on('click', openCreate);
   $('#btnCreateFull').on('click', function () {
@@ -467,6 +473,8 @@ function openCreate() {
   $('#srcBlock,#statusBlock').hide();
   $('#copyBlock').toggle($('#fSourceBuild option').length > 0);
   $('#evHistoryWrap').hide();
+  closedOnDate = '';
+  updateClosureDate();
   loadCfields(0);
   $('#editModal').modal('show');
 }
@@ -479,10 +487,22 @@ function openEdit(b) {
   $('#fReleaseDate').val(b.release_date || '');
   $('#fActive').prop('checked', parseInt(b.active, 10) == 1);
   $('#fOpen').prop('checked', parseInt(b.is_open, 10) == 1);
+  closedOnDate = b.closed_on_date || '';
+  updateClosureDate();
   $('#copyBlock').hide();
   loadCfields(b.id);
   $('#evHistoryWrap').toggle(canViewEvents);
   $('#editModal').modal('show');
+}
+
+/** Legacy buildEdit.tpl:92-97 rendered the stored closure date (localize_date)
+ *  inside span#closure_date, revealed by showOrHideElement whenever the build
+ *  is closed (Open unchecked). The BFF already returns closed_on_date
+ *  (api/builds GET /{id} + list); this renders it. Refs #1124. */
+function updateClosureDate() {
+  var open = $('#fOpen').is(':checked');
+  $('#closureDate').text((open || !closedOnDate) ? ''
+    : TLi18n.t('bv.closedOnValue', { date: localizeDate(closedOnDate) }));
 }
 
 /** Event history for one build (legacy buildEdit.tpl:55 showEventHistoryFor(id,'builds')).

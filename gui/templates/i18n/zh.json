@@ -360,6 +360,7 @@
   "bv.clickToSetClosed": "打开 - 点击关闭",
   "bv.clickToSetOpen": "已关闭 - 点击打开",
   "bv.closureHint": "关闭构建时将以今天作为关闭日期",
+  "bv.closedOnValue": "关闭日期：{date}",
   "bv.colActive": "启用",
   "bv.colName": "构建",
   "bv.colNotes": "备注",

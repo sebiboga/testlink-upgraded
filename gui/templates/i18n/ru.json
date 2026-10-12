@@ -360,6 +360,7 @@
   "bv.clickToSetClosed": "Открыта - нажмите, чтобы закрыть",
   "bv.clickToSetOpen": "Закрыта - нажмите, чтобы открыть",
   "bv.closureHint": "при закрытии сборки сегодня фиксируется как дата закрытия",
+  "bv.closedOnValue": "Закрыт: {date}",
   "bv.colActive": "Активна",
   "bv.colName": "Сборка",
   "bv.colNotes": "Заметки",

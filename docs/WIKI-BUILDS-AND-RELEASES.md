@@ -16,12 +16,12 @@ the new HTML screen (switched in `lib/functions/common.php`).
 |---|---|---|
 | List builds of current test plan | `testplan_create_build` required (rightsAnd) | `GET /api/builds/?tplan_id=N` (403 otherwise) |
 | Create build (name, rich notes, active, open, release date) | `do_action=do_create` + duplicate-name crossCheck + invalid-date check | `POST /api/builds/` (409 on duplicate, 400 on invalid date) |
-| Edit build in modal | `do_action=edit` / `do_update` | `GET /api/builds/{id}` prefill + `PUT /api/builds/{id}` |
+| Edit build in modal | `do_action=edit` / `do_update` | `GET /api/builds/{id}` prefill + `PUT /api/builds/{id}`; the stored closure date is shown beside the Open checkbox whenever the build is closed (`showOrHideElement('closure_date', …)`, Refs #1124) |
 | Active/Inactive toggle per row | `setActive` / `setInactive` | `POST /api/builds/{id}/flags {"active":bool}` |
 | Open/Closed lock toggle per row | `open` / `close`; closing stamps today as closure date | same flags route; stamping/clearing only on real transitions |
 | Delete build with confirm dialog | `do_delete`; needs `exec_delete` when executions exist | `DELETE /api/builds/{id}` (409 with localized message otherwise) |
 | Copy tester assignments from a source build | create-form selector newest-first with assignment counts + optional exec-status filter | same options served by BFF; source build validated to belong to the plan |
-| Closure date semantics | preserved through hidden field on edit; stamped on close | historical date preserved across updates (`build::update()` wipes it — BFF restores it) |
+| Closure date semantics | preserved through hidden field on edit; stamped on close | historical date preserved across updates (`build::update()` wipes it — BFF restores it); the historical date is surfaced in the edit modal next to the Open checkbox (Refs #1124) |
 | Audit trail | `audit_build_created/saved/deleted` events | identical audit events with project name resolved from context |
 
 ## Screenshots
@@ -32,6 +32,9 @@ copy-assignments section appears once the plan already has builds):
 
 Edit Build modal (prefilled from API):
 
+
+Edit Build modal of a **closed** build — the stored closure date is rendered
+beside the Open checkbox and toggles live with it (Refs #1124).
 
 ## Rights
 

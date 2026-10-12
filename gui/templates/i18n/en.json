@@ -360,6 +360,7 @@
   "bv.clickToSetClosed": "Open - click to set closed",
   "bv.clickToSetOpen": "Closed - click to set open",
   "bv.closureHint": "closing a build stamps today as closure date",
+  "bv.closedOnValue": "Closed on: {date}",
   "bv.colActive": "Active",
   "bv.colName": "Build",
   "bv.colNotes": "Notes",

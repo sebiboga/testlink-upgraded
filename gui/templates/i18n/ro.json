@@ -360,6 +360,7 @@
   "bv.clickToSetClosed": "Deschis - click pentru închidere",
   "bv.clickToSetOpen": "Închis - click pentru deschidere",
   "bv.closureHint": "închiderea unui build înregistrează astăzi ca dată de închidere",
+  "bv.closedOnValue": "Închis la: {date}",
   "bv.colActive": "Activ",
   "bv.colName": "Build",
   "bv.colNotes": "Note",

@@ -360,6 +360,7 @@
   "bv.clickToSetClosed": "Aberto - clique para fechar",
   "bv.clickToSetOpen": "Fechado - clique para abrir",
   "bv.closureHint": "fechar um build regista hoje como data de fecho",
+  "bv.closedOnValue": "Fechado em: {date}",
   "bv.colActive": "Ativo",
   "bv.colName": "Build",
   "bv.colNotes": "Notas",

@@ -8048,3 +8048,22 @@ Precondition: repo @ default branch with this screen merged; `api/noaccess/index
 | 12 | `REL_I18N` maps `related_tcase_has_no_active_version` | no raw-key render in tcView | mapping present; key in all bundles | PASS |
 
 **Result: 12/12 PASS.** RESUME: `php tmp/fixtures_1859.php && php /tmp/add_active2.php` (or recreate), then `php tmp/repro_1864.php 3 6` (expect `related_tcase_has_no_active_version`, no row, no warning) and `php tmp/repro_1864.php 6 9` (expect `relation_added`, row `(7,10)`). Related defect filed: #1903 (duplicate-relation insert, pre-existing).
+
+## Task — Issue #1124: buildsView edit modal shows the stored closure date of a closed build (legacy buildEdit.tpl parity)
+
+Precondition: `php tmp/fixtures_1124.php` creates project `BVDemo` (plan id 2) with two builds — `BVDemo Build Open` (is_open=1, no closure date) and `BVDemo Build Closed` (is_open=0, closed_on_date=2025-11-20). Open `gui/templates/plans/buildsView.html?tplan_id=2` as admin.
+
+Steps: open the edit modal of a build; inspect the `#closureDate` element beside the Open checkbox; toggle the Open checkbox.
+
+| # | Step | Expected | Observed | Verdict |
+|---|------|----------|----------|---------|
+| 1 | Open edit modal of `BVDemo Build Closed` (is_open=0) | `#closureDate` shows localized `Closed on: Nov 20, 2025`; Open checkbox unchecked | text = `Closed on: Nov 20, 2025`; fOpen=false | PASS |
+| 2 | Open edit modal of `BVDemo Build Open` (is_open=1) | `#closureDate` empty; Open checkbox checked | text = `` (empty); fOpen=true | PASS |
+| 3 | In closed-build modal, tick Open (uncheck via toggle) | closure date cleared while Open checked | after check: `` ; after uncheck: `Closed on: Nov 20, 2025` restored | PASS |
+| 4 | Live toggle via `onchange` mirrors legacy `showOrHideElement('closure_date',this.checked)` | hidden when open, shown when closed | matches | PASS |
+| 5 | Locale bundle (ro) has key | `ro.json['bv.closedOnValue']` = `Închis la: {date}` (`TLi18n.t` renders localized text) | key present in all 10 bundles | PASS |
+| 6 | `python3 -m json.tool` on each touched bundle | valid JSON | all 10 OK | PASS |
+| 7 | `bash ai/verify_i18n_coverage.sh` | every en.json key present in all bundles | 9 bundles passed, 0 failed (7383 keys) | PASS |
+| 8 | Browser console after interactions | no errors/warnings introduced | none | PASS |
+
+**Result: 8/8 PASS.** RESUME: `php tmp/fixtures_1124.php`, then open `http://localhost:8082/gui/templates/plans/buildsView.html?tplan_id=2`, click the `BVDemo Build Closed` name → modal shows `Closed on: Nov 20, 2025`.

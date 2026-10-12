@@ -360,6 +360,7 @@
   "bv.clickToSetClosed": "オープン - クリックでクローズ",
   "bv.clickToSetOpen": "クローズ - クリックでオープン",
   "bv.closureHint": "ビルドをクローズすると今日が完了日として記録されます",
+  "bv.closedOnValue": "閉鎖日: {date}",
   "bv.colActive": "有効",
   "bv.colName": "ビルド",
   "bv.colNotes": "備考",
