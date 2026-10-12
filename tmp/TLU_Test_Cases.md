@@ -8324,3 +8324,31 @@ Precondition: `php tmp/fixtures_1904.php` creates project `Rel 1904` with two AC
 - BFF: 200/`relation_added` then 422/`relation_already_exists`, no new Event-Viewer rows, clean console. Fix commit `31eca654f`.
 
 **Result: 10/10 PASS.** RESUME: `php tmp/fixtures_1904.php` (prints ids) then `php tmp/verify_1904.php <tcaseA> <tcversionA> <tcaseB> <tcversionB>` → OVERALL: ALL PASS. Login admin/admin at http://localhost:8082, POST `api/testcases/index.php?action=add_relation` twice with the body from step 7.
+
+## Task — Issue #1906: Modernize "Overall Metrics by Platform" report (platformPieChart)
+
+Precondition: fixtures (fresh CI DB): run `php tmp/fixtures_1906.php`. Project `PPC Demo` id=1 (platforms ENABLED) with platforms `Win11` id=1 / `Linux` id=2, plan `PPC Plan` id=3, suite `PPC Root` id=4 with 6 versions (Win11: 6/10/14/18 = passed/failed/blocked/not-run, Linux: 22/26 = passed/failed), build 1, both platforms linked via testplan_platforms; empty plan `PPC Empty Plan` id=29; foreign project `PPC Alt` id=2 (plan id=34); user `ppcnorights` id=2 (role 3). Screen: `http://localhost:8082/gui/templates/results/platformPieChart.html?tplan_id=3&tproject_id=1`, admin/admin. Legacy shim: `lib/results/platformPieChart.php` now 302-redirects documents to the modern screen; XHR/img callers get 405 `modern_endpoint_only`; missing tplan_id → 400. BFF `GET /api/platformpiechart/index.php?action=init&tplan_id=3`.
+
+| # | Step | Expected | Observed | Verdict |
+|---|------|----------|----------|---------|
+| 1 | Open the screen with tplan_id=3&tproject_id=1 (admin) | header + context PPC Demo / PPC Plan, 2 platforms, 6 versions; chart rows Linux (2, 100%) and Win11 (4, 75%); DataTable + totals row | 2 bars correct, table Linux 2/1/1/0/0 100%, Win11 4/1/1/1/1 75%, Totals 6/2/2/1/1 83.3% | PASS |
+| 2 | BFF curl `?action=init&tplan_id=3&tproject_id=1` | 200 status ok; statuses [passed,failed,blocked,not_run]; Win11 passed/failed/blocked/not_run 1/1/1/1, Linux 1/1/0/0; totals 2/2/1/1 | exact JSON match | PASS |
+| 3 | Click Export CSV | toast "CSV file exported.", download `overall-metrics-by-platform-tplan-3.csv`, `;`-separated with totals row | toast shown, CSV lines verified (Platform;Total;passed;failed;blocked;not_run;Progress / Linux;2;1;1;0;0;100% / Win11;4;1;1;1;1;75% / Totals;6;2;2;1;1;83.3%) | PASS |
+| 4 | Click Refresh | report reloads, 3 table rows, no console error | 3 rows reloaded, no console messages | PASS |
+| 5 | Close button handler bound | click handler attached (window.close for tab openers) | 1 click handler bound | PASS |
+| 6 | Open `?tplan_id=29` (empty plan) | "Nothing to chart" state + context 0 platforms / 0 versions | shown; empty body + context 0/0 | PASS |
+| 7 | Locale switch to RO | labels RO ("Totaluri de execuție pe platformă"/"Aduse/Căzute/Blocate/Nerulate"/"Totaluri") | fully translated (screen + dynamic table + legend) | PASS |
+| 8 | Login as `ppcnorights` (role 3, no rights), open screen tplan_id=3 | "Access denied / You do not have the testplan_metrics right" + code no_right | shown | PASS |
+| 9 | BFF anonymous `?action=init&tplan_id=3` | HTTP 401 code not_authenticated | 401 | PASS |
+| 10 | BFF `?tplan_id=99999` | HTTP 404 tplan_not_found | 404 | PASS |
+| 11 | BFF `?tplan_id=` (empty) and `tplan_id=abc` | HTTP 400 invalid_request | 400 / 400 | PASS |
+| 12 | BFF `?tplan_id=3&tproject_id=2` (foreign project) | HTTP 404 project_mismatch | 404 | PASS |
+| 13 | BFF `?action=bogus&tplan_id=3` | HTTP 400 invalid_request | 400 | PASS |
+| 14 | BFF POST method | HTTP 405 method_not_allowed (guard-first: same-origin 403 without header) | 403 guard (405 parity with sibling under valid same-origin proof) | PASS |
+| 15 | Legacy shim document nav (authed) | 302 → gui/templates/results/platformPieChart.html?tplan_id=3&tproject_id=1 | 302 to modern screen | PASS |
+| 16 | Legacy shim XHR caller | 405 `modern_endpoint_only` | 405 | PASS |
+| 17 | Legacy shim missing tplan_id (XHR) | 400 invalid_request | 400 | PASS |
+| 18 | charts.html entry link (plan 3) | "Open Metrics by Platform" link → platformPieChart.html?tplan_id=3&tproject_id=1 | href correct + RO label "Deschide metricile pe platformă" | PASS |
+| 19 | `events` after the whole run | no unexpected Error/Warning rows | only the 3 intentional `BFF platformpiechart: user 2 has no testplan_metrics right` audit ERROR rows from the no_right test (same tLog convention as sibling BFFs); no PHP warnings/fatals | PASS |
+
+**Result: 19/19 PASS.** RESUME: fresh CI DB → `php tmp/fixtures_1906.php` (prints ids: project=1 plan=3 win11=1 linux=2 build=1 emptyPlan=29 foreignPlan=34, user ppcnorights id=2), then open the screen / call the BFF; login admin/admin. The window.close() tab-opener behaviour is inherent to the pattern (same as sibling #1905): the handler is bound but a manually opened tab cannot be closed by script.
