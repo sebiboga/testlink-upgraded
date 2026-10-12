@@ -8296,3 +8296,31 @@ origin/sebiboga` is true, so the contract is present in every build since. This 
 
 ### Status
 PASS — 7 API + 5 screen checks, 0 FAIL.
+
+## Regression — Issue #1904: testcase::addRelation() tcversion-id input mode is dead — get_by_id($destination_id) resolves it as a tcase id → 3 PHP diagnostics + related_tcase_not_open
+
+Precondition: `php tmp/fixtures_1904.php` creates project `Rel 1904` with two ACTIVE test cases (prints `tcaseA/tcversionA/tcaseB/tcversionB`). Fix: `lib/functions/testcase.class.php` — the open-guard now branches on the destination node type: test-case id → legacy `get_by_id(..., LATEST_VERSION)` (unchanged), tcversion id → `SELECT is_open FROM tcversions WHERE id = $safeID['d']` (the exact version the INSERT stores), absent/missing destination → clean reject. `php tmp/verify_1904.php <tcaseA> <tcversionA> <tcaseB> <tcversionB>` runs the whole matrix.
+
+| # | Step | Expected | Observed | Verdict |
+|---|------|----------|----------|---------|
+| 1 | `addRelation(tcversionA, tcversionB, 3, 1904)` — version-id input mode (pre-fix repro, was `related_tcase_not_open` + 3 diagnostics) | `status_ok=true, msg=relation_added`, 1 row, 0 warnings | exactly that | PASS |
+| 2 | `addRelation(tcaseA, tcaseB, 3, 1904)` — test-case id (production caller, unchanged) | `relation_added`, 1 row, 0 warnings | exactly that | PASS |
+| 3 | identical call #2 repeated (no reset between) | second call `relation_already_exists`, still 1 row, 0 warnings | exactly that | PASS |
+| 4 | destination version set `is_open=0` | `status_ok=false, msg=related_tcase_not_open`, 0 rows, 0 warnings | exactly that | PASS |
+| 5 | non-existent destination id (`99999999`) | `related_tcase_not_open`, 0 rows, 0 warnings | exactly that | PASS |
+| 6 | `php -l lib/functions/testcase.class.php` | no syntax errors | No syntax errors detected | PASS |
+
+### BFF end-to-end (`POST /api/testcases/index.php?action=add_relation`, browser session admin; production caller passes test-case ids)
+
+| # | Step | Expected | Observed | Verdict |
+|---|------|----------|----------|---------|
+| 7 | `{"tcase_id":<A>,"tcversion_id":<Av>,"relation_type":"3_source","relation_destination_tcase":"<B external id>"}` — call #1 | 200, `feedback_code=relation_added`, 1 row | HTTP 200, exactly that (`source_tcase_id`=$A, `destination_tcase_id`=$B) | PASS |
+| 8 | identical call #2 | 422, `feedback_code=relation_already_exists`, still 1 row | HTTP 422, exactly that | PASS |
+| 9 | `events` after cases 7-8 | 0 new Error/Warning (log_level<=2) rows | 0; only audit rows (login_succeeded, testproject/…) | PASS |
+| 10 | browser console after cases 7-9 | no JS errors | only the expected 422 resource failure, no console ERROR/WARN | PASS |
+
+### Actual result (observed)
+- Direct-manager matrix 6/6 PASS: version/version → `relation_added` (issue symptom gone), tcase/tcase → `relation_added`, duplicate → `relation_already_exists`, closed dest version → `related_tcase_not_open`, missing dest → `related_tcase_not_open`; every case `warn=0`.
+- BFF: 200/`relation_added` then 422/`relation_already_exists`, no new Event-Viewer rows, clean console. Fix commit `31eca654f`.
+
+**Result: 9/9 PASS.** RESUME: `php tmp/fixtures_1904.php` (prints ids) then `php tmp/verify_1904.php <tcaseA> <tcversionA> <tcaseB> <tcversionB>` → OVERALL: ALL PASS. Login admin/admin at http://localhost:8082, POST `api/testcases/index.php?action=add_relation` twice with the body from step 7.
