@@ -55,6 +55,17 @@ input.order-in { width: 58px; padding: 3px 6px; border: 1px solid #ccc; border-r
 .st-pill { font-size: 11px; border-radius: 10px; padding: 2px 9px; white-space: nowrap; }
 .st-linked { background: #dff3f1; color: #23756f; }
 .st-open { background: #f0f0f0; color: #777; }
+/* Issue #1126: testplan-design custom-field rows for linked test cases.
+   Reuses the legacy html_table_of_custom_field_inputs() markup produced by
+   the BFF (input names custom_field_<type>_<cfid>_<link_id>), restyled to
+   the Dashio palette. */
+tr.cf-row td { background: #f7fcfb; border-bottom: 1px solid #e1efed; padding: 5px 10px 9px 44px; }
+tr.cf-row table { margin: 0; }
+tr.cf-row td.labelHolder { font-size: 12px; color: #4a5b5a; padding: 2px 10px 2px 0; white-space: nowrap; vertical-align: top; }
+tr.cf-row input[type="text"], tr.cf-row input:not([type]), tr.cf-row select,
+tr.cf-row textarea { font-size: 12px; padding: 3px 6px; border: 1px solid #ccc; border-radius: 4px; max-width: 320px; }
+tr.cf-row textarea { vertical-align: top; }
+.cf-feature { display: inline-block; font-size: 11px; color: #8a9a99; margin-right: 10px; font-style: italic; }
 .actions-bar { padding: 12px 14px; border-top: 1px solid #eee; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
 .assign-panel { margin: 0 14px 10px; background: #fbfbfb; border: 1px dashed #ddd; border-radius: 6px; padding: 10px 12px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
 .assign-panel label { font-size: 12px; color: #666; margin: 0; }
@@ -127,7 +138,11 @@ input.order-in { width: 58px; padding: 3px 6px; border: 1px solid #ccc; border-r
     <div class="actions-bar">
       <button class="btn-teal" id="btnSave"><i class="fas fa-floppy-disk"></i> <span data-i18n="paddtc.saveChanges">Save changes</span></button>
       <button class="btn-dark" id="btnReorder"><i class="fas fa-arrow-down-1-9"></i> <span data-i18n="paddtc.saveOrder">Save execution order</span></button>
+      <button class="btn-dark" id="btnSaveCF" style="display:none"><i class="fas fa-marker"></i> <span data-i18n="paddtc.saveCustomFields">Save custom fields</span></button>
       <span id="saveHint" style="color:#999;font-size:12px;"></span>
+    </div>
+    <div id="cfHelp" style="display:none;padding:0 14px 12px;font-size:12px;color:#8a9a99;">
+      <i class="fas fa-circle-info"></i> <span data-i18n="paddtc.cfHelp">Custom fields defined for the test plan design (linked test case versions).</span>
     </div>
   </div>
 </div>
@@ -178,6 +193,7 @@ $(function(){
   $('#suiteTree').on('click','li[data-suite]',function(){ openSuite(parseInt(this.getAttribute('data-suite'),10)); });
   $('#btnSave').on('click', doSave);
   $('#btnReorder').on('click', doReorder);
+  $('#btnSaveCF').on('click', doSaveCustomFields);
   // Refs #1767 - open the modern Test Case Summary popup for a row. The
   // version shown is the one selected in that row when the suite is not
   // linked yet, otherwise the newest active one, so the popup mirrors what
@@ -410,7 +426,29 @@ function renderContainer(){
         '<td>'+ordInput+'</td>'+
         '<td>'+(rmChips||'-')+'</td>');
     $tb.append($tr);
+
+    // Issue #1126: per-link testplan-design custom-field inputs (legacy
+    // specview::addCustomFieldsToView + planAddTC.php doSaveCustomFields).
+    // The BFF returns the ready-to-render legacy input HTML (names
+    // custom_field_<type>_<cfid>_<link_id>); we wrap it in a full-width row.
+    it.links.forEach(function(l){
+      if(!l.custom_fields_html || l.custom_fields_html.trim()===''){ return; }
+      var pname='';
+      if(l.platform_id>0){
+        var pf=(r.platforms||[]).filter(function(x){return x.id===l.platform_id;})[0];
+        pname=pf?pf.name:('#'+l.platform_id);
+      }
+      var tag=TLi18n.t('paddtc.cfFor')+' v'+verOf(it,l.tcversion_id)+(pname?' \u00b7 '+pname:'');
+      var $cfr=$('<tr class="cf-row">').append(
+        $('<td>').attr('colspan',6)
+          .append($('<span class="cf-feature">').text(tag))
+          .append(l.custom_fields_html));
+      $tb.append($cfr);
+    });
   });
+  var showCF=!!(r.has_custom_fields && r.rights && r.rights.canPlan);
+  $('#btnSaveCF').toggle(showCF);
+  $('#cfHelp').toggle(showCF);
   $('#suiteCount').text('('+items.length+')');
   $('#hdrLinked').text(linkedTotal);
   $('#hdrTotal').text(linkedCountFromSuites());
@@ -529,6 +567,33 @@ function doReorder(){
     })
     .fail(function(xhr){ var rr={};try{rr=JSON.parse(xhr.responseText);}catch(e){}
       toast(rr.message||TLi18n.t('common.error'),true); });
+}
+
+// Issue #1126: persist the testplan-design custom-field inputs, mirroring the
+// legacy form submit (planAddTC.php doSaveCustomFields) which posted every
+// 'custom_field_<type>_<cfid>_<link_id>' input. Unchecked checkboxes/radios are
+// skipped exactly like a native form submission.
+function doSaveCustomFields(){
+  if(!INIT || !INIT.rights.canPlan){ return; }
+  var cf={};
+  $('#tcTable [name^="custom_field_"]').each(function(){
+    var n=this.name;
+    if(!n || n.indexOf('custom_field_')!==0){ return; }
+    if(this.tagName==='INPUT' && (this.type==='checkbox'||this.type==='radio') && !this.checked){ return; }
+    if(this.tagName==='SELECT' && this.multiple){ cf[n]=$(this).val()||[]; }
+    else { cf[n]=$(this).val(); }
+  });
+  if(Object.keys(cf).length===0){ toast(TLi18n.t('paddtc.cfNothingSaved'),true); return; }
+  $('#btnSaveCF').prop('disabled',true);
+  $.ajax({url:API+'/planaddtc/savecustomfields',method:'POST',contentType:'application/json',
+    data:JSON.stringify({tproject_id:tprojectId,tplan_id:currentPlanId(),custom_fields:cf})})
+    .done(function(r){
+      if(r.status==='ok'){ toast(TLi18n.t('paddtc.msg.cfSaved').replace('{n}',r.saved)); openSuite(curSuiteId); }
+      else { toast(r.message||TLi18n.t('common.error'),true); }
+    })
+    .fail(function(xhr){ var rr={};try{rr=JSON.parse(xhr.responseText);}catch(e){}
+      toast(rr.message||TLi18n.t('common.error'),true); })
+    .always(function(){ $('#btnSaveCF').prop('disabled',false); });
 }
 
 function refreshAfterSave(){

@@ -992,6 +992,7 @@ if ($method === 'GET' && count($segments) === 2 &&
     $tcRows = $db->fetchRowsIntoMap($sql, 'tc_id');
     $items = [];
     $tcIds = [];
+    $hasCustomFields = false;
     if (!is_null($tcRows) && count($tcRows) > 0) {
         $tcIds = array_map('intval', array_keys($tcRows));
         $tcList = implode(',', $tcIds);
@@ -1076,6 +1077,8 @@ if ($method === 'GET' && count($segments) === 2 &&
         }
 
         $tprojectMgr = new testproject($db);
+        $tcaseMgr = new testcase($db);
+        $hasCustomFields = false;
         $tcPrefix = (string)$tprojectMgr->getTestCasePrefix($tproject_id) .
             (string)config_get('testcase_cfg')->glue_character;
 
@@ -1089,6 +1092,23 @@ if ($method === 'GET' && count($segments) === 2 &&
                         $linkedByVersion[$vdef['tcversion_id']]);
                     $maxLinkedVersion =
                         max($maxLinkedVersion, $vdef['tcversion_id']);
+                }
+            }
+            // Issue #1126: testplan-design custom fields for every linked TC.
+            // Legacy specview::addCustomFieldsToView() (lib/functions/specview.php
+            // :1074-1095) built the ready-to-render input HTML through
+            // testcase::html_table_of_custom_field_inputs(...,'testplan_design',
+            // '_'.feature_id, feature_id, null, tproject_id). The input names
+            // follow 'custom_field_<type>_<cfid>_<link_id>' so doSaveCustomFields
+            // can group them by link_id (position 4 after explode('_')).
+            foreach ($links as $li => $lk) {
+                $cfHtml = (string)$tcaseMgr->html_table_of_custom_field_inputs(
+                    intval($lk['tcversion_id']), null, 'testplan_design',
+                    '_' . intval($lk['feature_id']), intval($lk['feature_id']),
+                    null, $tproject_id);
+                $links[$li]['custom_fields_html'] = $cfHtml;
+                if (trim($cfHtml) !== '') {
+                    $hasCustomFields = true;
                 }
             }
             usort($vers, function ($a, $b) { return $b['version'] <=> $a['version']; });
@@ -1129,7 +1149,86 @@ if ($method === 'GET' && count($segments) === 2 &&
         'items' => $items,
         'platforms' => $platforms,
         'rights' => $rights,
+        'has_custom_fields' => $hasCustomFields,
     ]);
+}
+
+// ---------------------------------------------------------------------------
+// POST /planaddtc/savecustomfields
+// body: {tproject_id,tplan_id, custom_fields:{inputName:value,...}}
+// Mirrors legacy planAddTC.php doSaveCustomFields() (:715-778): group the
+// submitted 'custom_field_<type>_<cfid>_<link_id>' inputs by link_id
+// (testplan_tcversions.id = explode('_') position 4) and persist each subset
+// through cfield_mgr::testplan_design_values_to_db() (:2289).
+// ---------------------------------------------------------------------------
+if ($method === 'POST' && count($segments) === 2 &&
+    $segments[0] === 'planaddtc' && $segments[1] === 'savecustomfields') {
+    $body = getBody();
+    $tplanMgr = new testplan($db);
+    list($tproject_id, $tplan_id, $tplanInfo) = planAddTcNeedCtx($body, $tplanMgr);
+    $rights = planAddTcRights($user, $db, $tproject_id, $tplan_id);
+    if (!$rights['canPlan']) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission']);
+    }
+
+    $userInput = (array)($body['custom_fields'] ?? []);
+    $tcaseMgr = new testcase($db);
+    $cf_prefix = $tcaseMgr->cfield_mgr->get_name_prefix();
+    $len_cfp = tlStringLen($cf_prefix);
+    $cf_nodeid_pos = 4; // legacy planAddTC.php doSaveCustomFields()
+
+    $nodeid_array_cfnames = [];
+    foreach ($userInput as $input_name => $value) {
+        if (strncmp($input_name, $cf_prefix, $len_cfp) == 0) {
+            $dummy = explode('_', $input_name);
+            $linkId = intval($dummy[$cf_nodeid_pos] ?? 0);
+            if ($linkId > 0) {
+                $nodeid_array_cfnames[$linkId][] = $input_name;
+            }
+        }
+    }
+    if (count($nodeid_array_cfnames) == 0) {
+        http_response_code(422);
+        out(['status' => 'error', 'message' => 'No custom fields submitted',
+             'error_code' => 'NO_CF']);
+    }
+
+    // security: only persist links that actually belong to THIS plan
+    $TLT = tlObject::getDBTables();
+    $tpv = $TLT['testplan_tcversions'];
+    $idList = implode(',', array_map('intval', array_keys($nodeid_array_cfnames)));
+    $owned = $db->fetchColumnsIntoMap(
+        "SELECT id FROM {$tpv} WHERE testplan_id = {$tplan_id} " .
+        "AND id IN ({$idList})", 'id', 'id');
+    $ownedSet = [];
+    foreach ((array)$owned as $k => $v) {
+        $ownedSet[intval($k)] = true;
+    }
+
+    $saved = 0;
+    $skipped = 0;
+    try {
+        foreach ($nodeid_array_cfnames as $link_id => $customFieldsNames) {
+            if (!isset($ownedSet[intval($link_id)])) {
+                $skipped++;
+                continue;
+            }
+            // subset of userInput for THIS link_id, exactly like legacy
+            $cfvalues = [];
+            foreach ($customFieldsNames as $cf) {
+                $cfvalues[$cf] = $userInput[$cf];
+            }
+            $tcaseMgr->cfield_mgr->testplan_design_values_to_db(
+                $cfvalues, null, intval($link_id));
+            $saved++;
+        }
+    } catch (Throwable $e) {
+        http_response_code(500);
+        out(['status' => 'error', 'message' => $e->getMessage()]);
+    }
+
+    out(['status' => 'ok', 'saved' => $saved, 'skipped' => $skipped]);
 }
 
 // ---------------------------------------------------------------------------
