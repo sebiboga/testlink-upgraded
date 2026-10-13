@@ -8394,3 +8394,36 @@ Precondition: fresh CI DB. Fixture: `php tmp/fixtures_1754.php` → project `MOV
 | 7 | `events` table after the run | no Error/Warning | only `audit_testproject_created` + `audit_login_succeeded` (log_level 16) | PASS |
 
 **Result: 7/7 PASS.** Note: the fix had ALREADY landed in `13f2ca183` (before the issue was filed) — this suite is the regression proof; no code change was required. RESUME: `php tmp/fixtures_1754.php` → open the screen URL → click **Move to...** on row 1 → compare `document.querySelector('#mText').textContent`.
+
+## Regression — Issue #1864 re-verification (fresh DB, landed guard confirmed)
+
+**Context**: a previous fix-bug run implemented the null-guard for
+`testcase::addRelation()` and it landed on the default branch (`21c533ed7`,
+suite `227ad82ac`) but the issue was left OPEN. This run re-verifies the landed
+guard on a freshly imported DB before closing the issue.
+
+**Environment**: default branch `70632dc24`; app http://localhost:8082; DB freshly
+imported (0 test cases). Fixture: `php tmp/fixtures_1859.php` (tcase 3 no-active,
+tcase 6 active) + one extra active tcase 9 created by `tmp/repro_1864_matrix.php`.
+
+### Class-level (`tmp/repro_1864_matrix.php`)
+
+| # | Step | Expected | Observed | Verdict |
+|---|------|----------|----------|---------|
+| 1 | `addRelation(3,6,1,1)` no-active source | `status_ok=false`, `msg=related_tcase_has_no_active_version`, no row | exactly that; rows +0 | PASS |
+| 2 | `addRelation(6,9,1,1)` active→active | `relation_added`, row +1 | exactly that | PASS |
+| 3 | duplicate `addRelation(6,9,1,1)` | `relation_already_exists`, row +0 | exactly that | PASS |
+| 4 | frozen destination `addRelation(6,9,2,1)` | `related_tcase_not_open`, row +0 | exactly that | PASS |
+| 5 | `events` log_level=2 after all class cases | 0 new | 0 | PASS |
+| 6 | `testcase_relations` rows with source_id=0 or destination_id=0 | 0 | 0 | PASS |
+
+### BFF end-to-end (`POST /api/testcases/index.php?action=add_relation`, session admin)
+
+| # | Step | Expected | Observed | Verdict |
+|---|------|----------|----------|---------|
+| 7 | no-active source `{tcase_id:3,tcversion_id:4,relation_type:"3_source",relation_destination_tcase:"2"}` | 422, `feedback_code=related_tcase_has_no_active_version`, no row | HTTP 422, exactly that code, no row | PASS |
+| 8 | active source `{tcase_id:6,tcversion_id:7,relation_type:"3_source",relation_destination_tcase:"3"}` | 200, `feedback_code=relation_added` | HTTP 200, 1 row | PASS |
+| 9 | `php -l lib/functions/testcase.class.php` | no syntax errors | No syntax errors detected | PASS |
+
+**Gate**: `TLU_REQUIRE_SUITE="Issue #1864" bash ai/verify_test_suites.sh` → 7 PASS / 0 FAIL.
+**Result: 9/9 PASS** — the landed guard behaves exactly as the #1864 fix specified; no code change needed, issue closed.
