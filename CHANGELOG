@@ -3194,6 +3194,11 @@ MAJOR AREAS
 - [KEY BUGFIX] - #1754: the suiteMove screen re-escaped the output of TLi18n.t(), so a suite named
   "R&D Suite" was confirmed as "R$$&D Suite" (TLi18n interpolates with a replacer function, so the
   extra String.replace() pass re-escaped the value).
+- [KEY BUGFIX] - #1755: the suiteMove in-flight guard (`BUSY`) latched forever on an unhandled
+  path (a write that succeeded and then had its follow-up `load(true)` rejected), leaving every
+  action button greyed out until reload; the write path's release now lives in one
+  `$.ajax(...).always()` so no branch can latch it. Already shipped by 13f2ca183 - verified, no new
+  code change.
 - [KEY BUGFIX] - #1753: a no-op suiteMove move/reorder answered 400 {"status":"error"} - a red error
   banner with a raw English server string - and the reorder no-op was decided AFTER the write.
   Now 200 {"status":"no_change"} with a neutral localized notice (new smv.stNoChangeMsg key).

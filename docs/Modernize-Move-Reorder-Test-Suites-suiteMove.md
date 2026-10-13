@@ -92,6 +92,36 @@ Evidence:
 Regression suite `Issue #1751` in `tmp/TLU_Test_Cases.md`: **10/10 PASS**. Screenshot:
 `docs/screenshots/issue-1751-suitemove-ro.png`.
 
+## Bugfix #1755 — the in-flight guard (`BUSY`) can no longer latch
+
+`postAction()` is the only mutating path of the screen: it sets `BUSY` once
+(`gui/templates/testcases/suiteMove.html`) and renders every row button with a `BUSY` term, so a
+path that never released the guard left **all** actions greyed out until reload. Pre-fix the release
+lived in the per-branch handlers only, so a write that *succeeded* and then had its follow-up
+`load(true)` rejected (or any unhandled path) returned with `BUSY === true` forever.
+
+The repair landed in `13f2ca183` ("#1740: apply code-review fixes…"): the release collapsed into a
+single `}).done(...).fail(...).always(function () { setBusy(false); })`. That commit is an ancestor
+of the default branch, so the symptom is not reproducible. This ticket was filed
+(`2026-09-30T13:30:59Z`) after the fix was authored (`13:30:30Z`) but before it landed
+(`13:35:13Z`), i.e. it documented code that no longer existed by the time it shipped. Verification
+only — **no new code change**.
+
+Evidence:
+* Shipped code, POST ok + follow-up `load(true)` → 404: `BUSY=false`,
+  buttons `[T,F,F,F,F,T,F,F]`, `anyEnabled=true` — screen usable.
+* Pre-fix `postAction()` reconstructed verbatim from `13f2ca183^`, same scenario: `BUSY=true`,
+  **all 8 buttons `disabled`** — the reported symptom, so the suite exercises the right path.
+* Release site: `gui/templates/testcases/suiteMove.html:414-418`
+  (`.always(function () { setBusy(false); })`).
+* `git merge-base --is-ancestor 13f2ca183 origin/sebiboga` → true.
+* Same guard present in the sibling screens that carry a `BUSY` flag (`tcReorder.html:415-416`,
+  `tcStepReorder.html:589-590`) — no second latch (`containerMoveTC.html` uses `#loadingOverlay`).
+* `events` table after the run: only audit rows, no Error/Warning; console clean.
+
+Regression suite `Issue #1755` in `tmp/TLU_Test_Cases.md`: **9/9 PASS**. Screenshot:
+`docs/screenshots/issue-1755-suitemove-buttons-usable.png`.
+
 ## Verification
 
 Suite 1740 in `tmp/TLU_Test_Cases.md`: **57/57 PASS** (incl. 11 review-fix cases) + 30 API
