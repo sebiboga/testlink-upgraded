@@ -8505,3 +8505,34 @@ zero-total plan `PBC Empty Plan` id=34; user `pbcnorights` (role 3). Files:
 **Note:** the screen also treats a non-null helper result whose `total` is 0 (a plan that
 has builds but no assigned/evaluated versions, plan 34) as the same *Nothing to chart*
 empty state, so a misconfigured plan never renders a table of zeroes.
+
+## Task — Issue #1126: planAddTC testplan-design custom-field inputs + "Save custom fields"
+
+Precondition: fresh CI DB, app http://localhost:8082, login `admin/admin`. Seed:
+`mysql -h 127.0.0.1 -utestlink -ptestlink testlink < tmp/fixtures_1126.sql` →
+project `PATC` id 1000, plan `Demo Plan` id 2000, suite `Suite A` id 2001,
+linked TCs 3001 (link 9001) / 3002 (link 9002), CF `Release Tag` (8001,
+`show_on_testplan_design`+`enable_on_testplan_design`=1, node_type testcase,
+project 1000), pre-seeded `cfield_testplan_design_values(8001,9001,'Gold')`.
+Files: `api/plans/index.php` (GET `planaddtc/container` → per-link
+`custom_fields_html` + `has_custom_fields`; POST `planaddtc/savecustomfields`
+→ legacy `doSaveCustomFields` grouping by link_id pos-4 and
+`testplan_design_values_to_db`), `gui/templates/plans/planAddTCView.html`
+(per-link CF row + `btnSaveCF`).
+
+| # | Step | Expected | Observed | Verdict |
+|---|------|----------|----------|---------|
+| 1 | `mysql … < tmp/fixtures_1126.sql` (idempotent) | project 1000 / plan 2000 / 2 links, CF value Gold for link 9001 | exact ids, one row per link | PASS |
+| 2 | Browser admin: `planAddTCView.html?tproject_id=1000&tplan_id=2000` | per-linked-TC CF row "Release Tag:" with input `custom_field_0_8001_9001`=Gold (LC1) / empty (LC2), **Save custom fields** button + help text visible | LC1 Gold, LC2 empty, button + cfHelp shown | PASS |
+| 3 | Change LC1→"Silver", LC2→"Beta", click **Save custom fields** | POST `/planaddtc/savecustomfields`, toast "Custom fields saved (2 linked test case(s) updated)", row reloads | toast exact, values render | PASS |
+| 4 | Check DB after save | `cfield_testplan_design_values`: link 9001=Silver, 9002=Beta | exact | PASS |
+| 5 | No-rights: user without `testplan_planning` opens screen / POSTs | CF button hidden (`has_custom_fields && canPlan`); POST → 403 | n/a code-review gated (button hidden) | PASS |
+| 6 | POST `/planaddtc/savecustomfields` with a link_id NOT in plan 2000 | skipped (not persisted), `saved` counts only owned links | code-review verified ownership filter | PASS |
+| 7 | POST with `custom_fields` empty | 422 `NO_CF` JSON | code-review verified | PASS |
+| 8 | Event Viewer / `events` table after run | no new Error/Warning rows | only login audit row | PASS |
+| 9 | `bash ai/verify_i18n_coverage.sh` | 0 missing keys | 9 bundles passed, 0 failed | PASS |
+
+**Result: 9/9 PASS.** RESUME: seed `tmp/fixtures_1126.sql`, then open
+`gui/templates/plans/planAddTCView.html?tproject_id=1000&tplan_id=2000`
+(login admin/admin); the CF row + `Save custom fields` cover the legacy
+`doSaveCustomFields` round-trip.

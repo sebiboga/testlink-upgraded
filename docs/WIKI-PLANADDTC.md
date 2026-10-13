@@ -37,7 +37,15 @@ that already have executions additionally requires `testplan_unlink_executed_tes
     plan has platforms (nothing preselected, legacy default); execution order input.
   * Linked rows show a remove chip `v<n> #<order>` (red dot when executed) and
     the add controls collapse into the linked state.
-* Footer: **Save changes** (links) / **Save execution order** (reorder).
+  * Linked rows additionally render a full-width **custom-fields row** per link
+    when the project has custom fields with `show_on_testplan_design`/
+    `enable_on_testplan_design` (scope `testplan_design`): tag
+    *"Custom fields for v<n> · <platform>"* followed by the legacy CF inputs
+    (`custom_field_<type>_<cfid>_<link_id>` names, pre-filled with the values
+    stored in `cfield_testplan_design_values`).
+* Footer: **Save changes** (links) / **Save execution order** (reorder) /
+  **Save custom fields** (CF values — visible only when at least one linked TC
+  in the suite has testplan-design CFs and the user holds `testplan_planning`).
 * Tester assignment block appears when `exec_assign_testcases` right is present
   and the plan has active builds: tester + build dropdowns applied to newly
   created features.
@@ -49,6 +57,19 @@ Payloads mirror the legacy structures exactly:
 * Already-linked pairs are silently deduplicated server-side (legacy
   `getFilteredLinkedVersions` behavior).
 * Reorder sends `{order:{tcversion_id: node_order}}` → `setExecutionOrder()`.
+
+![Custom fields + save action](screenshots/1126-planaddtc-custom-fields.png)
+
+## 2a. Testplan-design custom fields (Issue #1126)
+Legacy parity with `planAddTC.php doSaveCustomFields()` (lib/plan/planAddTC.php
+:715-778): the BFF renders the ready-to-write inputs server-side with the exact
+legacy helper (`testcase::html_table_of_custom_field_inputs` scope
+`testplan_design`), so every CF type (string, combo, multi-select, checkbox,
+radio, date, datetime) keeps its native input/name/value semantics. The POST
+endpoint groups the submitted `custom_field_*_*_<link_id>` names by link_id
+(≈ `testplan_tcversions.id`, `explode('_')` position 4, same split as legacy),
+rejects links not owned by the plan, and persists each subset through
+`cfield_mgr::testplan_design_values_to_db($cfvalues, null, $link_id)`.
 
 ## 3. Executed-Link Guard
 When removing links whose `executed_qty > 0` and the user lacks
@@ -73,20 +94,23 @@ required on POSTs.
 |----------------|---------|
 | GET `/api/plans/index.php/planaddtc/init?tproject_id=&tplan_id=` | plans, rights, keywords, platforms, builds, testers |
 | GET `/planaddtc/suites?tproject_id=&tplan_id=[&keyword_id=][&container_id=]` | suite tree w/ deep totals + linked counts |
-| GET `/planaddtc/container?container_id=` | test cases of one suite: versions, links, executed_qty |
+| GET `/planaddtc/container?container_id=` | test cases of one suite: versions, links, executed_qty, per-link `custom_fields_html`, `has_custom_fields` |
 | POST `/planaddtc/save` | link/unlink pairs + optional tester/build assignment |
 | POST `/planaddtc/reorder` | save execution orders |
+| POST `/planaddtc/savecustomfields` | persist testplan-design CF values (grouped by link_id, owned-link check, `testplan_design_values_to_db`) |
 
 Errors are JSON `{status:"error",message}` with proper HTTP codes
 (400 invalid input, 401 no session, 403 rights/ownership, 404 not found,
 422 NO_SELECTION / INACTIVE_VERSION).
 
 ## 6. i18n Keys
-31 `paddtc.*` keys in all 10 bundles (`en, ro, de, es, fr, it, ja, pt, ru, zh`),
-plus reuse of `pv.testProject`, `common.*`.
+36 `paddtc.*` keys in all 10 bundles (`en, ro, de, es, fr, it, ja, pt, ru, zh`),
+plus reuse of `pv.testProject`, `common.*`. The five testplan-design-CF keys
+(`paddtc.saveCustomFields`, `paddtc.cfFor`, `paddtc.cfHelp`,
+`paddtc.cfNothingSaved`, `paddtc.msg.cfSaved`) were added for Issue #1126.
 
 ## 7. Testing
-Regression suite **56** in `tmp/TLU_Test_Cases.md`: load/rights, i18n (en+ro),
-suite navigation, linked/unlinked row states, add/reorder/remove cycle,
-executed-guard modal + cascade delete, nothing-selected error, keyword filter,
-auth guard 401, Event Viewer clean.
+Regression suites in `tmp/TLU_Test_Cases.md`: **56** (original load/rights/i18n/
+navigation/add-reorder-remove/executed-guard/keyword-filter) and **Task — Issue
+#1126** (9/9 PASS): CF row rendering, `custom_field_*_<link_id>` naming, save
+round-trip persistence, Event Viewer clean, i18n coverage gate.

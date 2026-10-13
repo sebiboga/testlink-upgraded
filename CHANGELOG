@@ -71,6 +71,22 @@ Every screen of the application was ported one-by-one in a screen-compare
   + `charts.openOverallMetrics` i18n keys in all 10 bundles (ro fully translated).
   (Refs #1907)
 
+- [FEATURE GAP] - #1126: the modern **Add/Remove Test Cases** screen
+  (`gui/templates/plans/planAddTCView.html`, BFF `api/plans/index.php`) dropped the
+  testplan-design custom-field capability of legacy `planAddTC.php&nbsp;doSaveCustomFields`
+  (:715-778) — linked test case versions showed no design-time CF inputs and there was no
+  save path. `GET /planaddtc/container` now returns per-link `custom_fields_html`
+  (legacy `testcase::html_table_of_custom_field_inputs(...,'testplan_design',...)`,
+  input names `custom_field_<type>_<cfid>_<link_id>`) plus a container-level
+  `has_custom_fields`; the screen renders a full-width CF row per linked TC (tag = CF
+  scope + version + platform) and a **Save custom fields** action (gated on
+  `has_custom_fields && testplan_planning`). New `POST /planaddtc/savecustomfields`
+  groups the submitted inputs by link_id (position 4, exact legacy split), validates the
+  link belongs to the plan, and persists via `cfield_mgr::testplan_design_values_to_db`,
+  answering 422 when nothing is submitted. 5 new `paddtc.*` i18n keys in all 10 bundles
+  (`saveCustomFields`, `cfFor`, `cfHelp`, `cfNothingSaved`, `msg.cfSaved`); Event Viewer
+  clean; suite Task-1126 in `tmp/TLU_Test_Cases.md` (9/9 PASS). (Refs #1126)
+
 - [SCREEN] - #1906: the **Results by Keyword Bar Chart** report
   (`lib/results/keywordBarChart.php` -> `gui/templates/results/keywordBarChart.html`,
   BFF `api/keywordbarchart/index.php`) is modernized — the last orphan pChart PNG chart
