@@ -34,6 +34,24 @@ Every screen of the application was ported one-by-one in a screen-compare
   live reference, old URLs now 404, modern list + create/edit + CF round-trip unaffected,
   Event Viewer clean. Docs: `docs/Task-Issue-1125-Delete-Legacy-BuildView.md`. (Refs #1125)
 
+- [KEY BUGFIX] - #1879: **a bare request to `lib/ajax/getreqmgrsystemcfgtemplate.php` (no `type`
+  param) raised PHP 8 `E_WARNING "Undefined array key \"type\""`, which `watchPHPErrors` wrote as
+  an Event Viewer row (log_level 2) on every hit, while the HTTP answer stayed a sane 200
+  "invalid type" message** — fix: `$type = intval($_REQUEST['type'] ?? 0)`, the value the endpoint
+  already produced for a missing key, so every response body stays byte-identical and only the
+  diagnostic disappears. A missing port of the guard the BFF twins already carry
+  (`api/reqmgrsystems/index.php` `$_GET['type'] ?? 0`, `api/reqmgrsystemedit/index.php`
+  `bffQueryInt('type')`) and of the `isset()` ternaries used by `lib/ajax/getreqlog.php` /
+  `getreqspeclog.php`. Blast radius: the only `$_REQUEST['type']` read in `lib/`; callers are the
+  two retired `reqMgrSystemEdit.tpl` `displayCfgExample()` calls (dead since #1727 turned the
+  legacy controller into a redirect shim), which always send `type` — hence manual/bare requests
+  only, minor. Verified on a fresh DB: 5-request matrix (bare, `?type=`, `?type=99`, `?type=1`,
+  `?type=abc`) all 200 with byte-identical bodies and **0** new events rows (pre-fix: 1 E_WARNING
+  row from the bare request); browser regression on the modern Req. Management System editor
+  (BFF path) clean; `php -l` clean, no i18n bundle touched. Regression suite "Regression — Issue
+  #1879" 5/5 PASS, gate 7 PASS / 0 FAIL. Docs:
+  `docs/bugfix-issue-1879-getreqmgrsystemcfgtemplate-bare-url-e-warning.md`. (Fixes #1879)
+
 - [KEY BUGFIX] - #1909: **the modern Add / Remove Test Cases screen
   (`gui/templates/plans/planAddTCView.html`) misaligned every column after `Status`
   for any plan without platforms** — `renderContainer()` hid the `Platforms` header
