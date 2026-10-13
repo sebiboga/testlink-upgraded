@@ -169,3 +169,24 @@ Regression suite: `## Regression — Issue #1864` in `tmp/TLU_Test_Cases.md` (12
 While verifying, a **pre-existing, unrelated** duplicate-insert defect in the same method was
 found (`relationExits()` compares argument ids while the row stores version ids) and filed
 separately as **#1903** — not fixed in this change.
+
+## Re-verification (2026-10-13, fresh DB)
+
+The fix landed on the default branch (`21c533ed7`) and the suite (`227ad82ac`)
+but the issue had been left OPEN. Re-verified against a freshly imported DB
+(default branch `70632dc24`, 0 test cases):
+
+| # | Check | Result |
+|---|---|---|
+| 1 | `addRelation(3,6,1,1)` no-active source | **PASS** — `related_tcase_has_no_active_version`, no row, 0 warnings |
+| 2 | `addRelation(6,9,1,1)` active→active | **PASS** — `relation_added`, 1 row |
+| 3 | duplicate `addRelation(6,9,1,1)` | **PASS** — `relation_already_exists`, no new row |
+| 4 | frozen destination `addRelation(6,9,2,1)` | **PASS** — `related_tcase_not_open`, no row |
+| 5 | BFF no-active source | **PASS** — HTTP 422 `related_tcase_has_no_active_version` |
+| 6 | BFF active source | **PASS** — HTTP 200 `relation_added` |
+| 7 | `events` log_level=2 after the pass | **PASS** — 0 |
+| 8 | `testcase_relations` zero-id rows | **PASS** — 0 |
+
+No code change was required; the landed guard behaves exactly as specified.
+Re-verification suite: `## Regression — Issue #1864 re-verification` in
+`tmp/TLU_Test_Cases.md` (9/9 PASS, gate 7 PASS / 0 FAIL).
