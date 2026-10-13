@@ -8427,3 +8427,36 @@ tcase 6 active) + one extra active tcase 9 created by `tmp/repro_1864_matrix.php
 
 **Gate**: `TLU_REQUIRE_SUITE="Issue #1864" bash ai/verify_test_suites.sh` → 7 PASS / 0 FAIL.
 **Result: 9/9 PASS** — the landed guard behaves exactly as the #1864 fix specified; no code change needed, issue closed.
+
+## Task — Issue #1906: Modernize "Results by Keyword" bar chart report (keywordBarChart)
+
+Precondition: fresh CI DB, app http://localhost:8082, login `admin/admin`. Fixture:
+`php tmp/fixtures_1906.php` → project `PBC1` id=1, plan `PBC Plan` id=3, build 1;
+keywords `login`(id=1)/`checkout`(id=2); 6 assigned versions;
+executions login: pass+fail(latest)+blocked, checkout: pass. Foreign project `PBC2`
+id=2 + foreign plan id=4; empty plan id=34; user `pbcnorights` (role 3). Files:
+`api/keywordbarchart/index.php`, `gui/templates/results/keywordBarChart.html`,
+`lib/results/keywordBarChart.php` (shim), `gui/templates/results/charts.html` (#linkKbc).
+
+| # | Step | Expected | Observed | Verdict |
+|---|------|----------|----------|---------|
+| 1 | `php tmp/fixtures_1906.php` | project=1 plan=3 build=1 foreign=2/4 empty=34 | exactly those ids | PASS |
+| 2 | `curl` anon `api/keywordbarchart/index.php?action=init&tplan_id=3` | HTTP 401 `not_authenticated` | 401 `not_authenticated` | PASS |
+| 3 | `curl -X POST` same URL | HTTP 405 `method_not_allowed` | 405 `method_not_allowed` | PASS |
+| 4 | Browser admin: open `keywordBarChart.html?tplan_id=3&tproject_id=1` | context PBC1/PBC Plan, KWs=2, versions=6 | rendered exactly | PASS |
+| 5 | Chart buckets | checkout 1/2 (50%), login 3/4 (75%); bars stacked passed/failed/blocked/not-run | matches; login = 2 failed (latest-wins: pass re-run to fail)+1 blocked | PASS |
+| 6 | DataTable | rows checkout(2,1,0,0,1,50%) / login(4,0,2,1,1,75%) + bold Totals(6,1,2,1,2) | exact | PASS |
+| 7 | Click **Export CSV** | UTF-8-BOM `;`-CSV download, no error | download triggered, console clean | PASS |
+| 8 | Switch locale → Română | subtitle/ctxKeywords/chartTitle/colKeyword/chartAria localized, NO raw dotted keys | localized, no `kwbc.*` literal | PASS |
+| 9 | Open `keywordBarChart.html?tplan_id=34&tproject_id=1` (empty plan) | "Nothing to chart" empty state, no empty chart box | state card shown, 0 KWs / 0 versions | PASS |
+| 10 | Open `?tplan_id=3&tproject_id=2` (foreign project) | 404 "Report not available" + `project_mismatch` | exact | PASS |
+| 11 | Login `pbcnorights`, open `?tplan_id=3&tproject_id=1` | 403 "Access denied" + `no_right` | exact | PASS |
+| 12 | `GET lib/results/keywordBarChart.php?tplan_id=3&tproject_id=1` (admin) | 302 redirect → modern HTML | landed on keywordBarChart.html | PASS |
+| 13 | `fetch` shim with `X-Requested-With: XMLHttpRequest` | 405 JSON `modern_endpoint_only` | exact | PASS |
+| 14 | `charts.html?tplan_id=3&tproject_id=1` → `#linkKbc` | href → keywordBarChart.html?tplan_id=3&tproject_id=1, i18n key | href correct, text localized | PASS |
+| 15 | Browser console (all screens) | 0 errors/warnings | no console messages | PASS |
+| 16 | `events` table after run | no unexpected Error/Warning | 1 ERROR = BFF's own `no_right` denial log for pbcnorights (expected, matches sibling tlsbc BFF) + 8 INFO(16) audit rows | PASS |
+| 17 | `bash ai/verify_i18n_coverage.sh` | 0 missing keys | 9 bundles passed, 0 failed | PASS |
+
+**Result: 17/17 PASS.** RESUME: `php tmp/fixtures_1906.php` → browser
+`gui/templates/results/keywordBarChart.html?tplan_id=3&tproject_id=1` (login admin/admin).
