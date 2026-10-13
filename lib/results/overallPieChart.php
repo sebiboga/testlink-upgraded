@@ -1,141 +1,105 @@
 <?php
-/** 
+/**
  * TestLink Open Source Project - http://testlink.sourceforge.net/
- * This script is distributed under the GNU General Public License 2 or later. 
+ * This script is distributed under the GNU General Public License 2 or later.
  *
- * @filesource  overallPieChart.php
+ * LEGACY overall metrics pie chart endpoint - SUPERSEDED, Refs #1907.
+ *
+ * In 1.9.20 this file drew a PNG pie chart with the vendored pChart library
+ * (third_party/pchart) for ONE test plan: execution-status totals (passed /
+ * failed / blocked / not run) returned by
+ * tlTestPlanMetrics::getExecCountersByExecStatus($tplan_id), labelled via
+ * results.status_label and coloured via results.charts.status_colour. It was an
+ * orphan image endpoint (no Smarty template): the Charts screen re-drew the same
+ * numbers client-side with Chart.js, but exposed no numeric breakdown, no totals
+ * row and no CSV export of this pie.
+ *
+ * Its only gate was a bare checkRights() calling
+ * hasRight('testplan_metrics') against the GLOBAL right, so it proved nothing
+ * about the plan the numbers belonged to; tproject_id was blindly read from the
+ * session and tplan_id from $_REQUEST without ownership checks. It also returned
+ * a blank PNG (a bare die()) whenever the plan had no builds (issue #634).
+ *
+ * It is now a session-guarded launcher that redirects to the modern screen
+ * (gui/templates/results/overallPieChart.html) served by
+ * api/overallpiechart/index.php, which reports the same getExecCountersByExecStatus()
+ * counters as a documented JSON contract - per-status quantities, percentages and
+ * totals plus CSV export - and enforces testplan_metrics on the OWNING test
+ * project and test plan instead of the global right. The legacy ?tplan_id= (and
+ * ?tproject_id=) parameters are preserved.
+ *
+ * The XHR/crawler branch deliberately refuses instead of redirecting: the old
+ * file was consumed by an <img> tag in some 1.9.20 themes, and a 302 would
+ * hand that caller a Dashio HTML page where it expects PNG pixels.
+ *
  * @package     TestLink
- * @author      franciscom
- * @copyright   2005-2013, TestLink community
- * @copyright   
- * @link        http://www.testlink.org/
- *
- * @internal revisions
- * @since 1.9.10
- *
-**/
+ * @filesource  overallPieChart.php
+ */
+
 require_once('../../config.inc.php');
 require_once('common.php');
-define('PCHART_PATH','../../third_party/pchart');
-include(PCHART_PATH . "/pChart/pData.class");   
-include(PCHART_PATH . "/pChart/pChart.class");   
 
-$resultsCfg = config_get('results');
-$chart_cfg = $resultsCfg['charts']['dimensions']['overallPieChart'];
-
-$args = init_args($db);
-$tplan_mgr = new testplan($db);
-
-$metricsMgr = new tlTestPlanMetrics($db);
-$totals = $metricsMgr->getExecCountersByExecStatus($args->tplan_id);
-if( is_null($totals) ) {
-  // issue #634: test plan without builds => nothing to chart;
-  // emit an empty response instead of feeding null to pChart
-  // (charts are consumed inside <img> tags)
-  die();
-}
-unset($totals['total']);
-
-$values = array();
-$labels = array();
-foreach($totals as $key => $value)
-{
-  $values[] = $value;
-  $labels[] = lang_get($resultsCfg['status_label'][$key]) . " ($value)"; 
-  if( isset($resultsCfg['charts']['status_colour'][$key]) )
-  {
-    $series_color[] = $resultsCfg['charts']['status_colour'][$key];
-  } 
-}
-
-// Dataset definition    
-$DataSet = new pData;   
-$DataSet->AddPoint($values,"Serie1");   
-$DataSet->AddPoint($labels,"Serie8");   
-$DataSet->AddAllSeries();   
-$DataSet->SetAbsciseLabelSerie("Serie8");   
-
-// Initialise the graph
-$pChartCfg = new stdClass(); 
-$pChartCfg->XSize = $chart_cfg['XSize'];
-$pChartCfg->YSize = $chart_cfg['YSize'];                    
-$pChartCfg->radius = $chart_cfg['radius'];
-$pChartCfg->legendX = $chart_cfg['legendX'];                    
-$pChartCfg->legendY = $chart_cfg['legendY'];
-
-$pChartCfg->centerX = intval($pChartCfg->XSize/2);                    
-$pChartCfg->centerY = intval($pChartCfg->YSize/2);
-
-
-$graph = new stdClass();
-$graph->data = $DataSet->GetData();
-$graph->description = $DataSet->GetDataDescription();
-
-$Test = new pChart($pChartCfg->XSize,$pChartCfg->YSize);
-foreach($series_color as $key => $hexrgb)
-{
-  $rgb = str_split($hexrgb,2);
-  $Test->setColorPalette($key,hexdec($rgb[0]),hexdec($rgb[1]),hexdec($rgb[2]));  
-}
- 
-// Draw the pie chart   
-$Test->setFontProperties(config_get('charts_font_path'),config_get('charts_font_size'));
-$Test->AntialiasQuality = 0;
-$Test->drawBasicPieGraph($graph->data,$graph->description,
-                         $pChartCfg->centerX,$pChartCfg->centerY,$pChartCfg->radius,PIE_PERCENTAGE,255,255,218);   
-$Test->drawPieLegend($pChartCfg->legendX,$pChartCfg->legendY,$graph->data,$graph->description,250,250,250);                                
-$Test->Stroke();
-
+$db = new database(DB_TYPE);
+doDBConnect($db);
 
 /**
- * 
- *
+ * Session gate, parity with the legacy testlinkInitPage() call: an anonymous
+ * caller is bounced to the login screen preserving its destination.
+ * checkSessionValid()'s own redirect is used (rather than a hand-rolled
+ * header()): it walks up from dirname(SCRIPT_FILENAME) until it finds
+ * login.php and supplies a root-relative REQUEST_URI destination — a relative
+ * 'login.php' would resolve against /lib/results/ and 404 (Refs #1881).
  */
-function checkRights(&$db,&$user)
-{
-  return $user->hasRight($db,'testplan_metrics');
+if (!checkSessionValid($db)) {
+    exit;  // unreachable: the call above already redirected
 }
 
-
-/**
- * 
- *
- */
-function init_args(&$dbHandler)
-{
-  $iParams = array("apikey" => array(tlInputParameter::STRING_N,0,64),
-                   "tproject_id" => array(tlInputParameter::INT_N), 
-                   "tplan_id" => array(tlInputParameter::INT_N));
-  $args = new stdClass();
-  R_PARAMS($iParams,$args);
-
-  if( !is_null($args->apikey) )
-  {
-    $cerbero = new stdClass();
-    $cerbero->args = new stdClass();
-    $cerbero->args->tproject_id = $args->tproject_id;
-    $cerbero->args->tplan_id = $args->tplan_id;
-    
-    if(strlen($args->apikey) == 32)
-    {
-      $cerbero->args->getAccessAttr = true;
-      $cerbero->method = 'checkRights';
-      $cerbero->redirect_target = "../../login.php?note=logout";
-      setUpEnvForRemoteAccess($dbHandler,$args->apikey,$cerbero);
-    }
-    else
-    {
-      $args->addOpAccess = false;
-      $cerbero->method = null;
-      $cerbero->args->getAccessAttr = false;
-      setUpEnvForAnonymousAccess($dbHandler,$args->apikey,$cerbero);
-    }  
-  }
-  else
-  {
-    testlinkInitPage($dbHandler,true,false,"checkRights");  
-    $args->tproject_id = isset($_SESSION['testprojectID']) ? intval($_SESSION['testprojectID']) : 0;
-  }
-
-  return $args;
+$tplanId = isset($_GET['tplan_id']) ? intval($_GET['tplan_id']) : 0;
+$tprojectId = isset($_GET['tproject_id']) ? intval($_GET['tproject_id']) : 0;
+if ($tprojectId <= 0) {
+    $tprojectId = intval($_SESSION['testprojectID'] ?? 0);
 }
+
+if ($tplanId <= 0) {
+    // Nothing to address: answer a machine-readable error instead of guessing
+    // a plan. The modern screen renders this state itself (opc.missingContext).
+    header('Content-Type: application/json; charset=utf-8');
+    header('X-Content-Type-Options: nosniff');
+    http_response_code(400);
+    echo json_encode(array('status' => 'error', 'code' => 'invalid_request',
+        'message' => 'missing tplan_id'));
+    exit;
+}
+
+// Browser navigation -> the modern screen. An XHR / <img> caller keeps the
+// hard-fail contract: the legacy answer was a PNG, so handing a 302 to an
+// <img> would render broken pixels instead of an error.
+//
+// A document navigation is identified by Sec-Fetch-Dest: document OR an Accept
+// header that asks for text/html. Chrome/Firefox/Edge send BOTH - and their
+// document Accept header also carries image/avif,image/webp,image/apng tokens -
+// so a bare strpos($accept,'image/') test fired on EVERY real navigation and
+// answered 405 instead of redirecting (Refs #1719). 'image/' may therefore only
+// decide the caller when the request does not ask for HTML at all.
+$accept = strtolower((string)($_SERVER['HTTP_ACCEPT'] ?? ''));
+$isXhr = stripos((string)($_SERVER['HTTP_X_REQUESTED_WITH'] ?? ''), 'XMLHttpRequest') !== false;
+$dest = strtolower((string)($_SERVER['HTTP_SEC_FETCH_DEST'] ?? ''));
+$isDocument = $dest === 'document' || strpos($accept, 'text/html') !== false;
+if ($isXhr || $dest === 'empty' || $dest === 'image'
+    || (!$isDocument && strpos($accept, 'image/') !== false)) {
+    header('Content-Type: application/json; charset=utf-8');
+    header('X-Content-Type-Options: nosniff');
+    http_response_code(405);
+    echo json_encode(array('status' => 'error', 'code' => 'modern_endpoint_only',
+        'message' => 'the chart is served by /api/overallpiechart/index.php'));
+    exit;
+}
+
+$base = isset($_SESSION['basehref']) ? $_SESSION['basehref'] : '../';
+$url = $base . 'gui/templates/results/overallPieChart.html?tplan_id=' . $tplanId;
+if ($tprojectId > 0) {
+    $url .= '&tproject_id=' . $tprojectId;
+}
+
+header('Location: ' . $url);
+exit;

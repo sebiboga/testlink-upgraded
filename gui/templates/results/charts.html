@@ -72,6 +72,12 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
     <div class="section-head">
       <i class="fa fa-chart-pie"></i>
       <span data-i18n="charts.overallMetrics">Overall Metrics</span>
+      <!-- Refs #1907: the pie above only shows the pixels; the standalone
+           Overall Metrics Pie Chart report adds the per-status numbers, a
+           totals row and a CSV export (it replaces the orphan legacy PNG
+           endpoint lib/results/overallPieChart.php). -->
+      <a class="sec-link" id="linkOpc" href="#" target="_blank"
+         data-i18n="charts.openOverallMetrics">Open Overall Metrics Pie Chart</a>
     </div>
     <div class="section-body">
       <div class="chart-box">
@@ -263,6 +269,18 @@ TLi18n.load(function() { TLi18n.apply(); TLi18n.initLocaleSwitcher('#localeSwitc
         + '&tproject_id=' + tproject_id);
     } else {
       $ppc.attr('href', '#').css('display', 'none');
+    }
+  }
+
+  // Refs #1907: the standalone Overall Metrics Pie Chart report (numeric
+  // breakdown + CSV export of the pie drawn above).
+  var $opc = $('#linkOpc');
+  if ($opc.length) {
+    if (tplan_id) {
+      $opc.attr('href', '/gui/templates/results/overallPieChart.html?tplan_id=' + tplan_id
+        + '&tproject_id=' + tproject_id);
+    } else {
+      $opc.attr('href', '#').css('display', 'none');
     }
   }
 
