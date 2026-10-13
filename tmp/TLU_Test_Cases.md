@@ -8693,3 +8693,34 @@ legacy `testCasesWithCF.php` renderer retired to a non-mutating, session-guarded
 | 24 | `php -l lib/results/testCasesWithCF.php` | no syntax errors | clean | PASS |
 
 **Result: 24/24 PASS.**
+
+## Task — Issue #1127: planAddTC workflow-Status + Importance columns + version-change update
+
+Precondition: fresh CI DB, app http://localhost:8082, login `admin/admin`. Seed:
+`mysql -h 127.0.0.1 -utestlink -ptestlink testlink < tmp/fixtures_1126.sql` then
+`mysql -h 127.0.0.1 -utestlink -ptestlink testlink < tmp/fixtures_1127.sql` →
+project `PATC` id 1000, plan 2000, suite 2001; linked TC 3001 (v1 tcversion 30011
+status=3 imp=2) / TC 3002 (v1 30021 status=4 imp=3); unlinked TC 3003 with two
+active versions 30031 (v1 status=1 imp=1) + 30032 (v2 status=7 imp=3); project
+`options` blob has `testPriorityEnabled=1`.
+Files: `api/plans/index.php` (container versions now carry `status`; init returns
+`priority_enabled`), `gui/templates/plans/planAddTCView.html` (`Status`+`Importance`
+columns + `updTCAttr`), `gui/templates/i18n/*.json` (`paddtc.colStatus/colImportance`).
+
+| # | Step | Expected | Observed | Verdict |
+|---|------|----------|----------|---------|
+| 1 | `php -l api/plans/index.php`; `python3 -m json.tool` all 10 bundles; `bash ai/verify_i18n_coverage.sh` | no syntax error; valid JSON; 0 missing keys | clean; 9 bundles passed, 0 failed | PASS |
+| 2 | Browser admin: `planAddTCView.html?tproject_id=1000&tplan_id=2000`, suite `Suite A` | header has `Status` + `Importance` (Importance visible since priority enabled) | both headers rendered | PASS |
+| 3 | Linked rows 3001/3002 | status/importance of the LINKED version: LC1 "Review in progress"/"Medium", LC2 "Rework"/"High" | exact | PASS |
+| 4 | Unlinked row 3003 | status/importance of the preselected newest-active version v2: "Final"/"High" | exact | PASS |
+| 5 | Change PATC-UC1 version `<select>` v2→v1 | `updTCAttr` swaps both cells → "Draft"/"Low" | changed to Draft/Low | PASS |
+| 6 | Set `testPriorityEnabled=0` (options blob), reload | `#thImportance` hidden, 0 `[id^=importance_]` cells, Status still 3 cells | header hidden, 0 importance cells, 3 status cells | PASS |
+| 7 | Restore `testPriorityEnabled=1`, reload | Importance column returns with correct values | restored | PASS |
+| 8 | Browser console + `events` table after run | no errors/warnings; no new Error/Warning rows | only a11y `[issue]` notices (pre-existing); 0 Error/Warning events | PASS |
+| 9 | `api/plans/index.php` `/planaddtc/init` | JSON has `priority_enabled:true` | exact | PASS |
+
+**Result: 9/9 PASS.** RESUME: seed `tmp/fixtures_1126.sql` + `tmp/fixtures_1127.sql`,
+then open `gui/templates/plans/planAddTCView.html?tproject_id=1000&tplan_id=2000`
+(login admin/admin); the Status/Importance columns + version-change update cover the
+legacy `updTCAttr`. Note: pre-existing header/body platform misalignment filed as
+issue #1909 (not caused by this change).
