@@ -32,10 +32,11 @@
  * SEMANTICS OF THE AGGREGATE (kept byte-identical to the legacy class):
  *  - the unit is the test-case VERSION assigned to the test plan that carries
  *    the keyword; a version with several keywords is counted under EACH one;
- *  - each status bucket (passed/failed/blocked/not_run) is the raw count of
- *    execution rows of that status under the keyword, summed over all builds
- *    and platforms (launch totals, the convention tlTestPlanMetrics reports
- *    in resultsGeneral), NOT latest-wins;
+ *  - each status bucket (passed/failed/blocked/not_run) is the count of test
+ *    cases whose LATEST recorded execution (per test-case version + platform,
+ *    across all builds) has that status; the status comes from the same
+ *    tlTestPlanMetrics helper the legacy chart consumed
+ *    (getStatusTotalsByKeywordForRender);
  *  - the keyword order is alphabetical by name (the legacy chart's x-axis);
  *  - a plan with no keywords (or no linked test cases) answers
  *    {context, items: [], totals: {}} with HTTP 200 - the legacy returned a
@@ -43,9 +44,11 @@
  *  - percentage_completed per keyword = executed/total, first decimal, from
  *    the same class method the legacy chart consumed.
  *
- * Rights gate: testplan_metrics on the OWNING test project AND test plan, with
- * getAccess = true (legacy pageAccessCheck semantics: a right held only
- * globally no longer reaches a private test project).
+ * Rights gate: the plan is resolved first (404 tplan_not_found when it does
+ * not exist), then testplan_metrics is checked on the OWNING test project AND
+ * test plan with getAccess = true (legacy pageAccessCheck semantics: a right
+ * held only globally no longer reaches a private test project -> 403). This
+ * mirrors the accepted sibling api/toplevelsuitesbarchart.
  *
  * Contract: GET|HEAD ?action=init&tplan_id=N[&tproject_id=P]
  *   200 {status, code, context:{tplan_id,tplan_name,tproject_id,tproject_name},

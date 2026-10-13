@@ -57,7 +57,7 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 .sw-passed { background: #2f9e44; }
 .sw-failed { background: #e05c5c; }
 .sw-blocked { background: #3a7bd5; }
-.sw-notrun { background: #b9bec7; }
+.sw-not_run { background: #b9bec7; }
 .chart-row { margin-bottom: 14px; }
 .chart-row .label { font-size: 12px; color: #444; margin-bottom: 4px; font-weight: 600; }
 .chart-row .label .cnt { color: #888; font-weight: 400; }
@@ -241,7 +241,12 @@ function renderChart(data) {
   var html = '';
   $.each(data.items, function (i, k) {
     var total = parseInt(k.total_tc, 10) || 0;
-    var pct = total > 0 ? (100 / total) : 0;
+    var q = function (s) { return parseInt(k.details[s].qty, 10) || 0; };
+    var sum = q('passed') + q('failed') + q('blocked') + q('not_run');
+    // Scale the buckets by their own sum, not by total_tc: a version with two
+    // latest-status buckets can push sum above total_tc, which would overflow
+    // the track. Using the sum keeps the proportions and clamps the bar to 100%.
+    var pct = sum > 0 ? (100 / sum) : 0;
     var label = esc(TLi18n.t('kwbc.chartAria', { keyword: k.name }));
     html += '<div class="chart-row"><div class="label">' + esc(k.name)
          + ' <span class="cnt">' + total + '</span></div>'
@@ -380,6 +385,9 @@ function exportCsv() {
   // carries one (double quotes are doubled, per RFC 4180).
   var cell = function (v) {
     var t = String(v === null || v === undefined ? '' : v);
+    // Neutralize spreadsheet formula injection: a keyword name beginning with
+    // = + - @ would otherwise execute as a formula when the CSV is opened.
+    if (/^[=+\-@]/.test(t)) { t = "'" + t; }
     return /[;"\r\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
   };
   var lines = [$.map(head, cell).join(';')];
@@ -411,6 +419,9 @@ function exportCsv() {
 }
 
 $(function () {
+  // Keep the active plan/project context on the way back to the charts hub
+  // (charts.html reads tplan_id/tproject_id from the query string).
+  $('#backCharts').attr('href', '/gui/templates/results/charts.html' + window.location.search);
   $('#btnRefresh').on('click', load);
   $('#btnCsv').on('click', exportCsv);
   $('#btnClose').on('click', function () { window.close(); });

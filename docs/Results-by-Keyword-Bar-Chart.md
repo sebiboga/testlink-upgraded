@@ -53,8 +53,9 @@ they belonged to, and the `tproject_id` came straight from `$_REQUEST`. The new 
 
 1. resolves the plan and derives the **owning** test project server-side;
 2. checks `testplan_metrics` on that owning project **and** plan with
-   `getAccess = true` (a right held only globally no longer reaches a private project,
-   and an unentitled caller never learns whether the plan exists — 403, never 404);
+   `getAccess = true` (a right held only globally no longer reaches a private
+   project, exactly like the accepted sibling `api/toplevelsuitesbarchart`; an
+   unknown plan is a plain `404 tplan_not_found`, as in every sibling BFF);
 3. treats `tproject_id` as a **client-side assertion** only — a stale deep link fails
    loudly (`project_mismatch`, 404) instead of silently reporting another project;
 4. answers a documented JSON contract: `400 invalid_request`, `401 not_authenticated /
