@@ -3212,6 +3212,12 @@ MAJOR AREAS
   action button greyed out until reload; the write path's release now lives in one
   `$.ajax(...).always()` so no branch can latch it. Already shipped by 13f2ca183 - verified, no new
   code change.
+- [KEY BUGFIX] - #1756: a suiteMove **write** (Move up/down/Move to...) answered after the
+  inactivity timeout painted the red banner with the raw, untranslated server string
+  (`session_expired`) and left the user on a dead screen, while the read path already bounced to
+  login; `postAction()`'s `.fail()` now checks `isSessionGone(xhr)` first and redirects to
+  `/login.php?note=expired` like `load()` and every sibling screen. Already shipped by 13f2ca183 -
+  verified with a reconstructed pre-fix control, no new code change.
 - [KEY BUGFIX] - #1753: a no-op suiteMove move/reorder answered 400 {"status":"error"} - a red error
   banner with a raw English server string - and the reorder no-op was decided AFTER the write.
   Now 200 {"status":"no_change"} with a neutral localized notice (new smv.stNoChangeMsg key).
