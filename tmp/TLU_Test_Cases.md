@@ -8777,3 +8777,49 @@ reconstruction still shows the raw string (step 4), proving the suite exercises 
 `$tlCfg->sessionInactivityTimeout = 1` in `config.inc.php`, open
 `http://localhost:8082/gui/templates/testcases/suiteMove.html?tproject_id=1756&container_id=1756`
 (admin/admin), wait > 60 s, click **Move down** on Suite A and read `document.location.href`.
+
+## Regression — Issue #1909: planAddTCView header/body column misalignment when the plan has no platforms
+
+**Context**: the modern Add / Remove Test Cases screen
+(`gui/templates/plans/planAddTCView.html`) hid the `Platforms` header via
+`$('#thPlat').toggle(hasPlat)` (`:380`) but the body-row template always appended a
+platform `<td>` (`:468`), so a plan without platforms rendered **6 headers vs 7 body
+cells**: `Exec. order` and `Remove links` sat one column to the left of their cells.
+Fix `526a902cd` emits the platform `<td>` only when `hasPlat` and derives the
+testplan-design custom-fields row colspan from the visible columns
+(`6+(priorityEnabled?1:0)+(hasPlat?1:0)`, `:486`).
+
+**Precondition**: fresh CI DB; app http://localhost:8082 (PHP built-in server, docroot
+= repo root); login `admin/admin`; load fixture
+`mysql -h 127.0.0.1 -utestlink -ptestlink testlink < tmp/fixtures_1126.sql` →
+project `1000` / plan `2000` / suite `2001` (two linked cases, **no platforms**,
+priority off). Open (after browser login)
+`http://localhost:8082/gui/templates/plans/planAddTCView.html?tproject_id=1000&tplan_id=2000`
+and measure in the page console:
+`[...document.querySelectorAll('#tcTable thead th')].filter(th=>getComputedStyle(th).display!=='none').length`
+vs `document.querySelector('#tcTable tbody tr:not(.cf-row)').children.length`, and the
+`getBoundingClientRect().left` of each header vs each body `<td>`.
+
+### A. Reproduction (pre-fix behaviour — the two `:468`/`:486` edits reverted)
+
+| # | Step | Expected | Observed | Verdict |
+|---|------|----------|----------|---------|
+| 1 | revert `:468` to unconditional platform `<td>`, reload | header count ≠ body cell count | 6 headers / 7 body cells; `Exec. order` header x=382 over platform cell, `Remove links` x=470 over the order `<input>`, remove chip x=650 has no header | PASS |
+
+### B. Post-fix verification (`526a902cd`)
+
+| # | Step | Expected | Observed | Verdict |
+|---|------|----------|----------|---------|
+| 2 | fixture as filed (no platforms, priority off) | 6 headers = 6 cells, aligned, cf-colspan 6 | 6=6; TestCase 59↔59, Version 140↔140, Status 268↔268, Exec.order 487↔487, Remove 575↔575; cf-colspan 6 | PASS |
+| 3 | add 2 platforms to plan 2000, reload | 7 headers = 7 cells, Platforms visible/aligned, cf-colspan 7 | 7=7; Platforms 368↔368; cf-colspan 7 | PASS |
+| 4 | enable priority (`testprojects.options.testPriorityEnabled=1`) + platforms | 8 headers = 8 cells, Importance+Platforms aligned, cf-colspan 8 | 8=8; Importance 333↔333, Platforms 425↔425; cf-colspan 8 | PASS |
+| 5 | priority on, platforms removed | 7 headers = 7 cells, no Platforms col, cf-colspan 7 | 7=7; cf-colspan 7 | PASS |
+| 6 | unlinked case (PATC-LC3) present | add-checkbox + version select + platform multi-select render in the correct cells | unlinked row 8 cells at the header X positions; platform `<select>` offered Linux/Windows; order input disabled; remove cell `-` | PASS |
+| 7 | `collectSelection()` platform-less payload unchanged | `add[tc]={"0":vid}` (legacy planAddTC semantics) | code path `:520-522` untouched; submit reached `api/plans/...` | PASS |
+| 8 | browser console after all reloads | no new errors | only pre-existing a11y `[issue]` messages (form label), no JS errors | PASS |
+| 9 | `events` table after all reloads | no new Error/Warning (`log_level>=1`) | only the login audit row | PASS |
+
+**Gate**: `TLU_REQUIRE_SUITE="Issue #1909" bash ai/verify_test_suites.sh` → run below.
+**Result: 8/8 PASS** — the pre-fix 6-vs-7 misalignment reproduces and is gone; all four
+header/column configurations (no-plat/no-priority, plat/no-priority, plat+priority,
+no-plat+priority) align, and the linked/unlinked/custom-field row paths are intact.
