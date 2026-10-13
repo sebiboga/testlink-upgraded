@@ -34,6 +34,19 @@ Every screen of the application was ported one-by-one in a screen-compare
   live reference, old URLs now 404, modern list + create/edit + CF round-trip unaffected,
   Event Viewer clean. Docs: `docs/Task-Issue-1125-Delete-Legacy-BuildView.md`. (Refs #1125)
 
+- [KEY BUGFIX] - #1863: **loading the test-case editor for an ABSENT `tcase_id`
+  (`/lib/testcases/tcEdit.php?tcase_id=999999`) wrote 4 `E_WARNING` `Undefined array key 0..3`
+  rows to the Event Viewer on every request** — `testcase::buildDirectWebLink()`
+  (`lib/functions/testcase.class.php:5700`) destructured with a 4-element `list()` the **empty
+  array** `getExternalID()` deliberately returns for a non-existent test case (`:5734-5735`),
+  and PHP 8 raises one `E_WARNING` per missing key. The page itself was healthy (HTTP 200, 0
+  bytes). Fix: capture the array and return `''` when `!isset($ext[3])` before destructuring,
+  mirroring the existing guard in `markdown_tc_export.class.php:322`; `getExternalID()`'s
+  empty-array contract is unchanged. Verified: pre-fix 4 warning rows @ line 5700, post-fix 0;
+  no-active-version (#1859) and active-id edit paths unchanged; direct link still built for an
+  existing case; `php -l` clean. Regression suite "Regression — Issue #1863" 9/9 PASS, gate
+  exit 0. Docs: `docs/Bugfix-Issue-1863-tcEdit-Absent-Tcase-List-Warning.md`. (Fixes #1863)
+
 - [KEY BUGFIX] - #1712: **eight sibling issue-tracker interfaces (mantissoap, jirasoap, jirarest,
   fogbugzrest, gforgesoap, redminerest, tracxmlrpc, tuleaprest) answered HTTP 502 on
   `POST /api/issuetracker/test-connection`** whenever a structurally-string cfg member came back

@@ -8588,3 +8588,43 @@ latches (step 4), proving the suite exercises the right path. **No source change
 `http://localhost:8082/gui/templates/testcases/suiteMove.html?tproject_id=1&container_id=2`
 (admin/admin); append the failing-follow-up stub from step 3 and read `BUSY` / the row-button
 `disabled` flags via the chrome-devtools `evaluate_script` tool.
+
+## Regression — Issue #1863: tcEdit.php absent tcase_id logged 4 E_WARNING from buildDirectWebLink() list() destructure
+
+**Context**: loading the test-case editor for an ABSENT `tcase_id` (e.g. `999999`)
+returned HTTP 200 / 0 bytes but logged **4** `E_WARNING` `Undefined array key 0..3`
+rows per request in the Event Viewer (`events` table, `log_level=2`), emitted by
+`testcase::buildDirectWebLink()` (`lib/functions/testcase.class.php:5700`) destructuring
+the empty array `getExternalID()` returns for a non-existent test case. Fix `e89fd57c0`
+(on the default branch) captures the array and returns `''` when `!isset($ext[3])`,
+mirroring the existing `markdown_tc_export.class.php:323` guard.
+
+**Precondition**: fresh CI DB; app http://localhost:8082 (PHP built-in server);
+login `admin/admin`; fixture `php tmp/fixtures_1859.php` →
+`tproject=1 suite=2 tcase_noactive=3 tcversion_noactive=4 tcase_active=6 tcversion_active=7`.
+Login with a cookie jar:
+`curl -s -c j -b j -o /dev/null http://localhost:8082/index.php` then
+`curl -s -c j -b j -o /dev/null -d 'tl_login=admin&tl_password=admin' http://localhost:8082/login.php`.
+Baseline: `mysql -h 127.0.0.1 -utestlink -ptestlink testlink -N -B -e "DELETE FROM events;"`.
+
+### A. Reproduction (pre-fix behaviour — guard temporarily reverted)
+
+| # | Step | Expected | Observed | Verdict |
+|---|------|----------|----------|---------|
+| 1 | revert guard to `list(...) = $this->getExternalID(...)`; `php -l` | no syntax errors | No syntax errors detected | PASS |
+| 2 | `GET tcEdit.php?tcase_id=999999` | HTTP 200, 0 bytes | http=200 bytes=0 | PASS |
+| 3 | `SELECT id,log_level,description FROM events` after step 2 | 4 rows, `log_level=2`, `Undefined array key 0..3` @ `testcase.class.php - Line 5700` | exactly 4 rows @ Line 5700 | PASS |
+
+### B. Post-fix verification (default-branch code)
+
+| # | Step | Expected | Observed | Verdict |
+|---|------|----------|----------|---------|
+| 4 | `GET tcEdit.php?tcase_id=999999` | HTTP 200, 0 bytes, **0** new `events` rows | http=200 bytes=0, 0 rows | PASS |
+| 5 | `GET tcEdit.php?tcase_id=3` (no active version, control #1859) | HTTP 200, 0 bytes, 0 new rows | http=200 bytes=0, 0 rows | PASS |
+| 6 | `GET tcEdit.php?edit_tc=1&tcase_id=6` (active) | HTTP 200, body renders `TC1859-ACTIVE`, 0 new rows | http=200 bytes=18686, `TC1859-ACTIVE` present | PASS |
+| 7 | `buildDirectWebLink(id=6,tp=1)` probe | valid `/linkto.php?tprojectPrefix=TC1859&item=testcase&id=TC1859-2` | exactly that string | PASS |
+| 8 | `buildDirectWebLink(id=999999,tp=1)` probe | `''` (no link for absent id) | `''` | PASS |
+| 9 | `php -l lib/functions/testcase.class.php` | no syntax errors | No syntax errors detected | PASS |
+
+**Gate**: `TLU_REQUIRE_SUITE="Issue #1863" bash ai/verify_test_suites.sh` → 7 PASS / 0 FAIL, exit 0.
+**Result: 9/9 PASS** — the pre-fix signature reproduces exactly and is gone with the landed guard; the active and no-active-version paths are unchanged (0 new Error/Warning events).
