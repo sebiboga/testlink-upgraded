@@ -186,8 +186,18 @@ $metricsMgr = new tlTestPlanMetrics($db);
 $counters = $metricsMgr->getExecCountersByExecStatus($tplanId);
 $canDraw = !is_null($counters) && count($counters) > 0;
 
-// Status buckets this chart ever draws, in the legacy UI order.
-$statusDomain = array('passed', 'failed', 'blocked', 'not_run', 'unknown');
+// Status buckets this chart draws: the legacy UI order first, then any other
+// verbose status the helper actually returned (e.g. 'not_available', or a code
+// of a customized status map). The legacy pie iterated EVERY key
+// getExecCountersByExecStatus() returned and api/reports charts_data still
+// does; a hardcoded domain would silently drop such a bucket from items while
+// its qty still inflated totals.total (the displayed total would disagree with
+// the sum of the rows). 'total' is not a drawable bucket.
+$knownDomain = array('passed', 'failed', 'blocked', 'not_run', 'unknown');
+$extraDomain = $canDraw
+    ? array_values(array_diff(array_keys($counters), array_merge($knownDomain, array('total'))))
+    : array();
+$statusDomain = array_merge($knownDomain, $extraDomain);
 
 $items = array();
 $totals = array('total' => 0, 'executed' => 0);
@@ -202,7 +212,10 @@ if ($canDraw) {
     foreach ($statusDomain as $status) {
         $totals[$status] = intval($counters[$status] ?? 0);
     }
-    $totals['executed'] = $totals['passed'] + $totals['failed'] + $totals['blocked'];
+    // Every bucket except 'not_run' counts as executed (the helper's 'unknown'
+    // and any extra verbose buckets included) - identical to the sibling
+    // reports' semantics, and equal to passed+failed+blocked on stock installs.
+    $totals['executed'] = $totals['total'] - $totals['not_run'];
 
     foreach ($statusDomain as $status) {
         // The legacy pie iterated over whatever buckets were present; the
