@@ -8536,3 +8536,55 @@ Files: `api/plans/index.php` (GET `planaddtc/container` → per-link
 `gui/templates/plans/planAddTCView.html?tproject_id=1000&tplan_id=2000`
 (login admin/admin); the CF row + `Save custom fields` cover the legacy
 `doSaveCustomFields` round-trip.
+
+## Regression — Issue #1755: suiteMove — a failed action left the screen permanently disabled (`BUSY` latched forever)
+
+**Environment** — app `http://localhost:8082` (login `admin`/`admin`); DB `testlink` (fresh import);
+screen `gui/templates/testcases/suiteMove.html` + BFF `api/suitemove/index.php`; Chrome via MCP.
+
+**Precondition** — `php tmp/fixtures_1755.php` creates project `SM1755` (id 1) with container
+`Container` (id 2) and two ordered sub-suites `Alpha` (3), `Beta` (4). Open
+`suiteMove.html?tproject_id=1&container_id=2`. The rows carry MOVE buttons rendered with a
+`BUSY` term (`suiteMove.html:351-355`); `setBusy()` (`:375-378`) is the only thing that re-enables them.
+
+**Reported symptom (pre-fix)** — after a write that *succeeds* but whose follow-up `load(true)`
+is rejected, `postAction()` returned with `BUSY === true` and every action button stayed
+`disabled` until reload. Release used to live in the per-branch handlers only.
+
+**Repro steps (pre-fix code)**
+
+1. Reconstruct the pre-fix `postAction()` verbatim: `git show 13f2ca183^:gui/templates/testcases/suiteMove.html`
+   (success branch calls `load(true)` and does **not** release `BUSY`).
+2. Stub the follow-up loader so `init` is requested with `tproject_id=-999` → HTTP 404.
+3. `oldPostAction('move', {node_id: <last row>, position:'up'})` — a real change (POST → `200 ok`),
+   then the follow-up reload fails.
+
+**Expected post-fix behavior** — the guard is released on **every** path: after any failed action
+`BUSY === false` and the buttons are usable again (only genuine boundary buttons disabled).
+
+### Test steps and results
+
+| # | Step | Expected | Observed | Verdict |
+|---|------|----------|----------|---------|
+| 1 | Load screen for container 2 | rows `Alpha,Beta`, context `SM1755 (SM15)`, `BUSY=false` | rows `Alpha,Beta`, `BUSY=false`, buttons `[T,F,F,F,F,T,F,F]` | PASS |
+| 2 | Real failing POST `postAction('move',{node_id:999999,position:'up'})` | 404 → red notice → guard released | `BUSY` true at dispatch, `false` after, buttons re-enabled | PASS |
+| 3 | Failing-follow-up path on **shipped** code (POST ok → `load(true)` 404) | `BUSY=false`, buttons usable (**the #1755 fix**) | `busyAfterFailedFollowUpReload=false`, `anyEnabled=true` | PASS |
+| 4 | Same scenario on the **pre-fix control** `oldPostAction` | reproduces the symptom: `BUSY=true`, all buttons disabled | `busyAfterFailedFollowUpReload_PREFIX_CODE=true`, all 8 buttons disabled | PASS (control) |
+| 5 | Release site in source | single `.always()` releases on every path | `suiteMove.html:414-418` `.always(function(){ setBusy(false); })` | PASS |
+| 6 | Fix is on the default branch | `13f2ca183` is an ancestor of `origin/sebiboga` | `git merge-base --is-ancestor 13f2ca183 origin/sebiboga` → true | PASS |
+| 7 | Sibling screens carry the same guard (no second latch) | `.always(setBusy(false))` in all | `tcReorder:415-416`, `tcStepReorder:589-590`, `containerMoveTC:324,447` | PASS |
+| 8 | Browser console after steps 1-3 | no JS errors | none | PASS |
+| 9 | `events` table after run | no new Error/Warning rows | only login/session audit rows | PASS |
+
+**Actual result (observed)** — The reported symptom is **not reproducible on the default branch**:
+the guard release was already moved into a single `$.ajax(...).always()` by `13f2ca183`
+(authored `2026-09-30T13:30:30Z`, landed `13:35:13Z`). Issue #1755 was filed `13:30:59Z`, i.e. it
+documented the code that existed *before* that commit landed. The pre-fix reconstruction still
+latches (step 4), proving the suite exercises the right path. **No source change required.**
+
+**Result: 9/9 PASS** (8 verifications + 1 pre-fix control).
+
+**RESUME** — `php tmp/fixtures_1755.php`, then open
+`http://localhost:8082/gui/templates/testcases/suiteMove.html?tproject_id=1&container_id=2`
+(admin/admin); append the failing-follow-up stub from step 3 and read `BUSY` / the row-button
+`disabled` flags via the chrome-devtools `evaluate_script` tool.
