@@ -277,7 +277,7 @@ $tlCfg->reports_list['issues_all_exec'] = array(
 
 $tlCfg->reports_list['tcases_with_cf'] = array( 
 	'title' => 'link_report_tcases_with_cf',
-	'url' => 'lib/results/testCasesWithCF.php',
+	'url' => 'gui/templates/results/tcasesWithCF.html',
 	'enabled' => 'all', 'directLink' => '',
 	'format' => 'format_html'
 );
