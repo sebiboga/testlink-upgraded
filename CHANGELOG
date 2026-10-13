@@ -53,6 +53,22 @@ Every screen of the application was ported one-by-one in a screen-compare
   Out-of-scope same-family sites (githubrest/gitlabrest/kaitenrest/trellorest/jiradb) noted for
   follow-up. (Refs #1712)
 
+- [SCREEN] - #1906: the **Results by Keyword Bar Chart** report
+  (`lib/results/keywordBarChart.php` -> `gui/templates/results/keywordBarChart.html`,
+  BFF `api/keywordbarchart/index.php`) is modernized — the last orphan pChart PNG chart
+  endpoint of the Results area, sibling of #1845/#1905: `charts_data` covers the pixels
+  but no modern screen had the per-keyword numbers, progress, totals row or CSV export,
+  and the legacy session-only gate never proved plan ownership. The Dashio standalone
+  screen adds stacked plain-CSS bars per keyword, a DataTable with Totals + Progress,
+  Export CSV, Refresh/Close, a back-to-Charts link and the locale switcher; the BFF
+  enforces `testplan_metrics` on the OWNING project + plan (`getAccess`), treats
+  `tproject_id` as an assertion and answers the 400/401/403/404/405 contract.
+  `lib/functions/common.php` registers `$actions->keywordBarChart`; charts.html gains
+  *Open Results by Keyword Bar Chart*; the legacy endpoint is a session-guarded 302 shim
+  (document → redirect, XHR/img → 405 `modern_endpoint_only`, missing `tplan_id` → 400).
+  44 `kwbc.*` + `footers.keywordBarChart` + `charts.openKeywordBarChart` i18n keys in all
+  10 bundles (ro fully translated). (Refs #1906)
+
 - [SCREEN] - #1905: the **Top Level Suites Bar Chart** report
   (`lib/results/topLevelSuitesBarChart.php` -> `gui/templates/results/topLevelSuitesBarChart.html`,
   BFF `api/toplevelsuitesbarchart/index.php`) is modernized — the last orphan pChart PNG
