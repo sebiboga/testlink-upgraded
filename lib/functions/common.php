@@ -2589,6 +2589,16 @@ function getActions(&$gui,$baseURL) {
     // OWNING project + plan. Plan-scoped report -> inside the tplan_id guard.
     $actions->topLevelSuitesBarChart =
       "/gui/templates/results/topLevelSuitesBarChart.html?{$ctx}";
+    // Refs #1906: Results by Keyword Bar Chart report (legacy
+    // lib/results/keywordBarChart.php: an orphan pChart PNG endpoint).
+    // charts_data draws the by_keyword pixels but exposes no standalone
+    // numbers/CSV report, unlike its siblings #1845 (priority) and #1905
+    // (top-level suites). The legacy file is now a session-guarded shim; the
+    // report is the modern screen backed by api/keywordbarchart, which enforces
+    // testplan_metrics on the OWNING project + plan. Plan-scoped report ->
+    // inside the tplan_id guard.
+    $actions->keywordBarChart =
+      "/gui/templates/results/keywordBarChart.html?{$ctx}";
     // Refs #1906: Overll Metrics by Platform report (legacy
     // lib/results/platformPieChart.php: a pChart PNG endpoint that drew ONE
     // status pie per platform_id, never rendered a Smarty template and checked

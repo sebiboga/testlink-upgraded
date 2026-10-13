@@ -107,6 +107,11 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
            and a CSV export (it replaces the dead legacy PNG endpoint). -->
       <a class="sec-link" id="linkPriorityBarChart" href="#" target="_blank"
          data-i18n="charts.openPriorityBarChart">Open Priority Bar Chart</a>
+      <!-- Refs #1906: the standalone Results by Keyword Bar Chart report adds
+           the per-keyword numbers, progress, a totals row and a CSV export (it
+           replaces the orphan legacy keywordBarChart.php PNG endpoint). -->
+      <a class="sec-link" id="linkKbc" href="#" target="_blank"
+         data-i18n="charts.openKeywordBarChart">Open Results by Keyword Bar Chart</a>
     </div>
     <div class="section-body">
       <div class="chart-box" style="max-width:800px;">
@@ -236,6 +241,17 @@ TLi18n.load(function() { TLi18n.apply(); TLi18n.initLocaleSwitcher('#localeSwitc
         + '&tproject_id=' + tproject_id);
     } else {
       $tlsbc.attr('href', '#').css('display', 'none');
+    }
+  }
+
+  // Refs #1906: the standalone Results by Keyword Bar Chart report.
+  var $kbc = $('#linkKbc');
+  if ($kbc.length) {
+    if (tplan_id) {
+      $kbc.attr('href', '/gui/templates/results/keywordBarChart.html?tplan_id=' + tplan_id
+        + '&tproject_id=' + tproject_id);
+    } else {
+      $kbc.attr('href', '#').css('display', 'none');
     }
   }
 

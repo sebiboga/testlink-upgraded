@@ -1,170 +1,102 @@
 <?php
-/** 
- * TestLink Open Source Project - http://testlink.sourceforge.net/ 
- * @filesource  keywordBarChart.php
+/**
+ * TestLink Open Source Project - http://testlink.sourceforge.net/
+ * This script is distributed under the GNU General Public License 2 or later.
  *
- * @author  Francisco Mancardi
+ * LEGACY results-by-keyword bar chart endpoint - SUPERSEDED, Refs #1906.
  *
+ * In 1.9.20 this file drew a PNG image with the vendored pChart library
+ * (charts.inc.php -> third_party/pchart): one stacked bar per KEYWORD used by
+ * the test cases of the test plan, series pass / fail / blocked / not run, all
+ * builds and all platforms. Data came from
+ * tlTestPlanMetrics::getStatusTotalsByKeywordForRender(), the same class the
+ * modern Charts screen uses.
  *
- * @internal revisions
- * @since 1.9.10
+ * On 2.0.1 it was an orphan chart endpoint: api/reports charts_data returns the
+ * by_keyword pixels, but this legacy report had no dedicated modern screen - no
+ * DataTable with the exact numbers, no progress column, no totals row, no CSV
+ * export, no rights hardening. Its only gate was hasRight('testplan_metrics',
+ * ...) evaluated against the GLOBAL right, so it proved nothing about the plan
+ * the numbers belonged to.
  *
+ * It is now a session-guarded launcher that redirects to the modern screen
+ * (gui/templates/results/keywordBarChart.html) served by
+ * api/keywordbarchart/index.php, which enforces testplan_metrics on the OWNING
+ * test project and test plan and answers a documented JSON contract.
+ * The legacy ?tplan_id= (and ?tproject_id=) parameters are preserved.
+ *
+ * The XHR/crawler branch deliberately refuses instead of redirecting: the old
+ * file was consumed by an <img> tag in some 1.9.20 themes, and a 302 would
+ * hand that caller a Dashio HTML page where it expects PNG pixels.
+ *
+ * @package    TestLink
+ * @filesource keywordBarChart.php
  */
+
 require_once('../../config.inc.php');
 require_once('common.php');
-require_once('charts.inc.php');
 
-$cfg = new stdClass();
-$cfg->scale = new stdClass();
-
-$chart_cfg = config_get('results');
-$chart_cfg = $chart_cfg['charts']['dimensions']['keywordBarChart'];
-
-$cfg->chartTitle = lang_get($chart_cfg['chartTitle']);
-$cfg->XSize = $chart_cfg['XSize'];
-$cfg->YSize = $chart_cfg['YSize'];
-$cfg->beginX = $chart_cfg['beginX'];
-$cfg->beginY = $chart_cfg['beginY'];
-$cfg->scale->legendXAngle = $chart_cfg['legendXAngle'];
-
-
-$args = init_args($db);
-$info = getDataAndScale($db,$args);
-
-if( $info->canDraw ) {
-  createChart($info,$cfg);
-}
-// issue #634: nothing to chart (e.g. test plan without builds) =>
-// do not hand empty data to pChart; emit an empty response instead
-// (charts are consumed inside <img> tags)
-
-
-/*
-  function: getDataAndScale
-
-  args: dbHandler
-  
-  returns: object
-
-*/
-function getDataAndScale(&$dbHandler,$argsObj)
-{
-  $resultsCfg = config_get('results');
-  $obj = new stdClass(); 
-  $items = array();
-  $totals = null; 
-
-  $metricsMgr = new tlTestPlanMetrics($dbHandler);
-  $dummy = $metricsMgr->getStatusTotalsByKeywordForRender($argsObj->tplan_id);
-  
-  $obj->canDraw = false;
-  if( !is_null($dummy) )    
-  {
-    $dataSet = $dummy->info;
-    $obj->canDraw = !is_null($dataSet) && (count($dataSet) > 0);
-  }
-  
-  if($obj->canDraw)
-  {
-    // Process to enable alphabetical order
-    foreach($dataSet as $keyword_id => $elem)
-    {
-      $item_descr[$elem['name']] = $keyword_id;
-    }  
-    ksort($item_descr);
-      
-    foreach($item_descr as $name => $keyword_id)
-    {
-      $items[] = htmlspecialchars($name);
-      foreach($dataSet[$keyword_id]['details'] as $status => $value)
-      {
-        $totals[$status][] = $value['qty'];  
-      }    
-    }
-  } 
-  
-  $obj->xAxis = new stdClass();
-  $obj->xAxis->values = $items;
-  $obj->xAxis->serieName = 'Serie8';
-  
-  $obj->series_color = null;
-  $obj->scale = new stdClass();
-  $obj->scale->maxY = 0;
-  $obj->scale->minY = 0;
-  $obj->scale->divisions = 0;
-  
-  if(!is_null($totals))
-  {
-    // in this array position we will find minimun value after an rsort
-    $minPos = count($dataSet)-1;
-    $obj->scale->maxY = 0;
-    $obj->scale->minY = 0;
-    
-    foreach($totals as $status => $values)
-    {
-      $obj->chart_data[] = $values;
-      $obj->series_label[] = lang_get($resultsCfg['status_label'][$status]);
-      if( isset($resultsCfg['charts']['status_colour'][$status]) )
-      { 
-        $obj->series_color[] = $resultsCfg['charts']['status_colour'][$status];
-      } 
-    }
-  }
-      
-  return $obj;
-}
+$db = new database(DB_TYPE);
+doDBConnect($db);
 
 /**
- *
+ * Session gate, parity with the legacy testlinkInitPage() call: an anonymous
+ * caller is bounced to the login screen preserving its destination.
+ * checkSessionValid()'s own redirect is used (rather than a hand-rolled
+ * header()): it walks up from dirname(SCRIPT_FILENAME) until it finds
+ * login.php and supplies a root-relative REQUEST_URI destination — a relative
+ * 'login.php' would resolve against /lib/results/ and 404 (Refs #1881).
  */
-function init_args(&$dbHandler)
-{
-  $iParams = array("apikey" => array(tlInputParameter::STRING_N,0,64),
-                   "tproject_id" => array(tlInputParameter::INT_N), 
-                   "tplan_id" => array(tlInputParameter::INT_N));
-
-  $args = new stdClass();
-  R_PARAMS($iParams,$args);
-  
-  if( !is_null($args->apikey) )
-  {
-    $cerbero = new stdClass();
-    $cerbero->args = new stdClass();
-    $cerbero->args->tproject_id = $args->tproject_id;
-    $cerbero->args->tplan_id = $args->tplan_id;
-
-    if(strlen($args->apikey) == 32)
-    {
-      $cerbero->args->getAccessAttr = true;
-      $cerbero->method = 'checkRights';
-      $cerbero->redirect_target = "../../login.php?note=logout";
-      setUpEnvForRemoteAccess($dbHandler,$args->apikey,$cerbero);
-    }
-    else
-    {
-      $args->addOpAccess = false;
-      $cerbero->method = null;
-      $cerbero->args->getAccessAttr = false;
-      setUpEnvForAnonymousAccess($dbHandler,$args->apikey,$cerbero);
-    }  
-  }
-  else
-  {
-    testlinkInitPage($dbHandler,false,false,"checkRights");  
-    $args->tproject_id = isset($_SESSION['testprojectID']) ? intval($_SESSION['testprojectID']) : 0;
-  }
-
-  if( isset($_REQUEST['debug']) )
-  {
-    $args->debug = 'yes';
-  }
-  return $args;
+if (!checkSessionValid($db)) {
+    exit;  // unreachable: the call above already redirected
 }
 
-/**
- *
- */
-function checkRights(&$db,&$user)
-{
-  return $user->hasRight($db,'testplan_metrics');
+$tplanId = isset($_GET['tplan_id']) ? intval($_GET['tplan_id']) : 0;
+$tprojectId = isset($_GET['tproject_id']) ? intval($_GET['tproject_id']) : 0;
+if ($tprojectId <= 0) {
+    $tprojectId = intval($_SESSION['testprojectID'] ?? 0);
 }
+
+if ($tplanId <= 0) {
+    // Nothing to address: answer a machine-readable error instead of guessing
+    // a plan. The modern screen renders this state itself (kwbc.missingContext).
+    header('Content-Type: application/json; charset=utf-8');
+    header('X-Content-Type-Options: nosniff');
+    http_response_code(400);
+    echo json_encode(array('status' => 'error', 'code' => 'invalid_request',
+        'message' => 'missing tplan_id'));
+    exit;
+}
+
+// Browser navigation -> the modern screen. An XHR / <img> caller keeps the
+// hard-fail contract: the legacy answer was a PNG, so handing a 302 to an
+// <img> would render broken pixels instead of an error.
+//
+// A document navigation is identified by Sec-Fetch-Dest: document OR an Accept
+// header that asks for text/html. Chrome/Firefox/Edge send BOTH - and their
+// document Accept header also carries image/avif,image/webp,image/apng tokens -
+// so a bare strpos($accept,'image/') test fired on EVERY real navigation and
+// answered 405 instead of redirecting (Refs #1719). 'image/' may therefore only
+// decide the caller when the request does not ask for HTML at all.
+$accept = strtolower((string)($_SERVER['HTTP_ACCEPT'] ?? ''));
+$isXhr = stripos((string)($_SERVER['HTTP_X_REQUESTED_WITH'] ?? ''), 'XMLHttpRequest') !== false;
+$dest = strtolower((string)($_SERVER['HTTP_SEC_FETCH_DEST'] ?? ''));
+$isDocument = $dest === 'document' || strpos($accept, 'text/html') !== false;
+if ($isXhr || $dest === 'empty' || $dest === 'image'
+    || (!$isDocument && strpos($accept, 'image/') !== false)) {
+    header('Content-Type: application/json; charset=utf-8');
+    header('X-Content-Type-Options: nosniff');
+    http_response_code(405);
+    echo json_encode(array('status' => 'error', 'code' => 'modern_endpoint_only',
+        'message' => 'the chart is served by /api/keywordbarchart/index.php'));
+    exit;
+}
+
+$base = isset($_SESSION['basehref']) ? $_SESSION['basehref'] : '../';
+$url = $base . 'gui/templates/results/keywordBarChart.html?tplan_id=' . $tplanId;
+if ($tprojectId > 0) {
+    $url .= '&tproject_id=' . $tprojectId;
+}
+
+header('Location: ' . $url);
+exit;
