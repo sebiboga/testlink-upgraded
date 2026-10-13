@@ -8724,3 +8724,56 @@ then open `gui/templates/plans/planAddTCView.html?tproject_id=1000&tplan_id=2000
 (login admin/admin); the Status/Importance columns + version-change update cover the
 legacy `updTCAttr`. Note: pre-existing header/body platform misalignment filed as
 issue #1909 (not caused by this change).
+## Regression — Issue #1756: suiteMove — a write after the session timeout printed the raw `session_expired` string instead of redirecting to the login page
+
+**Environment** — app `http://localhost:8082` (login `admin`/`admin`); MariaDB `testlink` (fresh import,
+empty of test data); screen `gui/templates/testcases/suiteMove.html` + BFF `api/suitemove/index.php`; Chrome via MCP.
+
+**Precondition** — load `tmp/fixtures_1756.sql` (project `1756` prefix `SMV1756` "SMV Project",
+suites `1756001` Suite A / `1756002` Suite B / `1756003` Suite C, `testsuites` rows). For the idle window,
+`$tlCfg->sessionInactivityTimeout` (`config.inc.php:301`, default `9900`) was temporarily set to `1` minute, the
+screen opened (`GET ?action=init` refreshes `$_SESSION['lastActivity']`), then left idle > 60 s before the write.
+`config.inc.php` restored afterwards.
+
+**Reported symptom (pre-fix)** — after the timeout, a **write** (Move up/down / Move to…) answered
+`401 {"code":"session_expired"}`; `postAction()`'s `.fail()` (`13f2ca183^` `suiteMove.html:409-417`) only handled
+`403` and otherwise called `setNotice('err', esc(r.message))` → the red banner showed the **raw** string
+`session_expired` and the user stayed on a dead screen (the read path `load()` already redirected).
+
+**Repro steps (pre-fix code)**
+
+1. Reconstruct the pre-fix screen: `git show 13f2ca183^:gui/templates/testcases/suiteMove.html > gui/templates/testcases/suiteMove.html`
+   (its `postAction()` `.fail()` has no `isSessionGone`; `load()`'s does).
+2. Log in `admin`/`admin`, open `suiteMove.html?tproject_id=1756&container_id=1756`.
+3. Let the session idle past `sessionInactivityTimeout`, then click **Move down** on *Suite A*.
+
+**Expected post-fix behavior** — the expired session bounces to `login.php?note=expired` (same as every read
+path); the raw server string is never shown.
+
+### Test steps and results
+
+| # | Step | Expected | Observed | Verdict |
+|---|------|----------|----------|---------|
+| 1 | Open `suiteMove.html?tproject_id=1756&container_id=1756` (fresh session) | 3 rows Suite A/B/C, `can_modify=yes`, `GET ?action=init` 200 | 3 rows, `SMV Project (SMV1756)`, container "Project root (top level)" | PASS |
+| 2 | Shipped code: expire session, `POST ?action=move&node_id=1756001&position=down` | 401 `{"status":"error","code":"session_expired"}` | `reqid=97` POST → **401** | PASS |
+| 3 | Shipped code: same, via the UI **Move down** on Suite A | redirect to `/login.php?note=expired` | URL `http://localhost:8082/login.php?note=expired`, banner "Session expired. Please log in again.", `reqid=98 GET /login.php` → 200 | PASS (the #1756 fix) |
+| 4 | Pre-fix control: same click on `13f2ca183^` file | reproduces the symptom: raw banner, **no** redirect | DOM shows `StaticText "session_expired"`, URL still `suiteMove.html?…` | PASS (control) |
+| 5 | Guard site in source | `isSessionGone(xhr)` at the top of `postAction`'s `.fail()` | `suiteMove.html:405-408` guard + `isSessionGone()` `258-261` | PASS |
+| 6 | Fix is on the default branch | `13f2ca183` is an ancestor of `origin/sebiboga` | `git merge-base --is-ancestor 13f2ca183 origin/sebiboga` → true; `grep -c isSessionGone` on the origin blob → 3 | PASS |
+| 7 | `events` table + browser console after steps 1-4 | no new Error/Warning, no JS errors | only login/session audit rows; console clean | PASS |
+
+**Actual result (observed)** — The reported symptom is **not reproducible on the default branch**: the missing
+guard was added by `13f2ca183` (authored `2026-09-30T13:30:30Z`, landed `2026-09-30T13:35:13Z`). Issue #1756 was
+filed `2026-09-30T13:31:05Z`, i.e. it documented the code that existed *before* that commit landed. The pre-fix
+reconstruction still shows the raw string (step 4), proving the suite exercises the right path.
+**No source change required.**
+
+**Result: 7/7 PASS** (6 verifications + 1 pre-fix control).
+
+**Screenshots** — `docs/screenshots/issue-1756-prefix-raw-session-expired.png` (pre-fix raw banner),
+`docs/screenshots/issue-1756-fixed-login-redirect.png` (fixed redirect).
+
+**RESUME** — `mysql -h 127.0.0.1 -utestlink -ptestlink testlink < tmp/fixtures_1756.sql`, set
+`$tlCfg->sessionInactivityTimeout = 1` in `config.inc.php`, open
+`http://localhost:8082/gui/templates/testcases/suiteMove.html?tproject_id=1756&container_id=1756`
+(admin/admin), wait > 60 s, click **Move down** on Suite A and read `document.location.href`.
