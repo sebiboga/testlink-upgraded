@@ -465,7 +465,7 @@ function renderContainer(){
           +'<i class="fa fa-file-text-o" aria-hidden="true"></i></button><br>'+statusPill+newerWarn+'</td>'+
         '<td>'+(isLinked?'':vsel)+'</td>'+
         statusCell+impCell+
-        '<td>'+(isLinked?'':platCell)+'</td>'+
+        (hasPlat?'<td>'+(isLinked?'':platCell)+'</td>':'')+
         '<td>'+ordInput+'</td>'+
         '<td>'+(rmChips||'-')+'</td>');
     $tb.append($tr);
@@ -483,7 +483,7 @@ function renderContainer(){
       }
       var tag=TLi18n.t('paddtc.cfFor')+' v'+verOf(it,l.tcversion_id)+(pname?' \u00b7 '+pname:'');
       var $cfr=$('<tr class="cf-row">').append(
-        $('<td>').attr('colspan', 7+(priorityEnabled?1:0))
+        $('<td>').attr('colspan', 6+(priorityEnabled?1:0)+(hasPlat?1:0))
           .append($('<span class="cf-feature">').text(tag))
           .append(l.custom_fields_html));
       $tb.append($cfr);

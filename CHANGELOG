@@ -34,6 +34,20 @@ Every screen of the application was ported one-by-one in a screen-compare
   live reference, old URLs now 404, modern list + create/edit + CF round-trip unaffected,
   Event Viewer clean. Docs: `docs/Task-Issue-1125-Delete-Legacy-BuildView.md`. (Refs #1125)
 
+- [KEY BUGFIX] - #1909: **the modern Add / Remove Test Cases screen
+  (`gui/templates/plans/planAddTCView.html`) misaligned every column after `Status`
+  for any plan without platforms** — `renderContainer()` hid the `Platforms` header
+  (`$('#thPlat').toggle(hasPlat)`, `:380`) but the body row template still emitted a
+  platform `<td>` unconditionally (`:468`), so a platform-less plan rendered 6 headers
+  against 7 body cells and `Exec. order`/`Remove links` sat one column to the left. Fix:
+  emit the platform `<td>` only when `hasPlat`, and derive the testplan-design
+  custom-fields row colspan from the visible columns
+  (`6+(priorityEnabled?1:0)+(hasPlat?1:0)`, `:486`, was the platform-always `7+(...)`).
+  Verified across all 4 combinations (no-plat/no-priority 6=6, plat/no-priority 7=7,
+  plat+priority 8=8, no-plat+priority 7=7), linked + unlinked rows and the cf-row;
+  `collectSelection()` platform-less payload (`{"0":vid}`) unchanged; console clean,
+  Event Viewer clean. Regression suite "Regression — Issue #1909" appended. (Fixes #1909)
+
 - [KEY BUGFIX] - #1863: **loading the test-case editor for an ABSENT `tcase_id`
   (`/lib/testcases/tcEdit.php?tcase_id=999999`) wrote 4 `E_WARNING` `Undefined array key 0..3`
   rows to the Event Viewer on every request** — `testcase::buildDirectWebLink()`
