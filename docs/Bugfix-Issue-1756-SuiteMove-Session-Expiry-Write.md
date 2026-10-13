@@ -20,7 +20,7 @@ both funnel into it.
 |---|---|---|
 | 1 | `suiteMove.html:380-419` (`postAction()`) | the single POST to `api/suitemove/index.php` for every move/reorder |
 | 2 | `api/suitemove/index.php:64` → `api/_guard.php:175-198` (`bffEnforceSession()`) | answers `401 {"status":"error","code":"session_expired"}` once `checkSessionValid()` reports the session stale |
-| 3 | `suiteMove.html:403-413` (pre-fix `.fail()`) | handled `403` (CSRF) only; a `401 session_expired` fell to `setNotice('err', esc(r.message))` → **raw** `session_expired` |
+| 3 | `suiteMove.html:409-417` (pre-fix `.fail()`) | handled `403` (CSRF) only; a `401 session_expired` fell to `setNotice('err', esc(r.message))` → **raw** `session_expired` |
 | 4 | `suiteMove.html:485-494` (`load()` `.fail()`) | already called `isSessionGone(xhr)` → redirect; the write path did not |
 
 The asymmetry between #3 and #4 is exactly what the issue reports.
