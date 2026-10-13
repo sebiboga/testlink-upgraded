@@ -8462,3 +8462,46 @@ id=2 + foreign plan id=4; empty plan id=34; user `pbcnorights` (role 3). Files:
 `gui/templates/results/keywordBarChart.html?tplan_id=3&tproject_id=1` (login admin/admin).
 
 **Code-review fixes (#1906, applied after the 17/17 run, re-verified):** (1) legend *Not run* swatch was an unstyled class (`.sw-notrun` vs generated `.sw-not_run`) — CSS renamed, swatch now renders `rgb(185,190,199)`; (2) the *Charts* back-link dropped the plan/project context — it now carries `window.location.search`; (3) bars were scaled by `total_tc`, which can overflow the track when a version has two latest-status buckets — now scaled by the bucket sum (measured: children width == track width, no overflow); (4) CSV cells beginning with `= + - @` are prefixed with `'` (formula-injection guard); (5) the BFF header comment mis-stated the aggregate as launch-totals and the rights contract as "403 never 404" — both corrected to match the code (latest-status-wins; unknown plan `404`, unentitled `403`), and the `ro` bundle was completed so all 44 `kwbc.*` keys are localized (3 identical to English by design: `Total`, `Export CSV`, `{series}: {count}`). Re-checked live: EN + RO render, legend swatch coloured, back-link `?tplan_id=3&tproject_id=1&locale=ro`, bars no overflow, console clean.
+
+## Task — Issue #1907: Modernize "Overall Metrics" pie chart report (overallPieChart)
+
+Precondition: fresh CI DB, app http://localhost:8082, login `admin/admin`. Fixture:
+`php tmp/fixtures_1845.php` (same dataset as #1845/#1906) → project `PBC1` id=1,
+plan `PBC Plan` id=3, build 1; 6 assigned versions; executions login: pass+fail(latest)
++blocked, checkout: pass. Foreign project `PBC2` id=2 + foreign plan id=4 (NO build);
+zero-total plan `PBC Empty Plan` id=34; user `pbcnorights` (role 3). Files:
+`api/overallpiechart/index.php`, `gui/templates/results/overallPieChart.html`,
+`lib/results/overallPieChart.php` (shim), `gui/templates/results/charts.html` (#linkOpc).
+
+| # | Step | Expected | Observed | Verdict |
+|---|------|----------|----------|---------|
+| 1 | `php tmp/fixtures_1845.php` | project=1 plan=3 build=1 foreign=2/4 empty=34 | exactly those ids | PASS |
+| 2 | `curl` anon `api/overallpiechart/index.php?action=init&tplan_id=3` | HTTP 401 `not_authenticated` | 401 `not_authenticated` | PASS |
+| 3 | `curl -X POST` same URL | HTTP 405 `method_not_allowed` | 405 `method_not_allowed` | PASS |
+| 4 | Browser admin: open `overallPieChart.html?tplan_id=3&tproject_id=1` | context PBC1 / PBC Plan / executions 6 / executed 4 | rendered exactly | PASS |
+| 5 | Distribution bar + caption | passed 1 / failed 2 / blocked 1 / not run 2; caption "4 of 6 executed (66.7%)" | matches (login pass re-run to fail → failed=2) | PASS |
+| 6 | DataTable | Passed 1 16.7% / Failed 2 33.3% / Blocked 1 16.7% / Not run 2 33.3% + bold Totals 6 "4 executed" | exact | PASS |
+| 7 | Click **Export CSV** | UTF-8-BOM `;`-CSV, CRLF, localized labels, totals row | blob bytes [239,187,191], name `overall-metrics-pie-tplan-3.csv`, `Stare;Cantitate;Procent` … `Totaluri;6;4 executate` | PASS |
+| 8 | Click **Refresh** | table re-renders, no console error | 5 rows before/after, state box empty | PASS |
+| 9 | Switch locale → Română | title/subtitle/col*/ctx* localized, NO raw dotted keys | "Graficul cu plăcintă al metricilor generale", "4 din 6 executate (66.7%)" | PASS |
+| 10 | Open `?tplan_id=4&tproject_id=2` (build-less plan) | `can_draw=false`, "Nothing to chart" empty state | can_draw false, items 0, state card shown | PASS |
+| 11 | Open `?tplan_id=34&tproject_id=1` (zero-total plan) | empty state (total 0) not a table of zeros | state card shown | PASS |
+| 12 | Open `?tplan_id=3&tproject_id=2` (foreign project) | 404 "Report not available" + `project_mismatch` | exact | PASS |
+| 13 | Open `?tplan_id=99999&tproject_id=1` | 404 "Report not available" + `tplan_not_found` | exact | PASS |
+| 14 | Open with no `tplan_id` | 400 "Bad request" + `tplan_id` | exact (missingContext) | PASS |
+| 15 | Login `pbcnorights`, open `?tplan_id=3&tproject_id=1` | 403 "Access denied" + `no_right` | exact | PASS |
+| 16 | `GET lib/results/overallPieChart.php?tplan_id=3&tproject_id=1` (admin) | 302 redirect → modern HTML | `Location: …/overallPieChart.html?tplan_id=3&tproject_id=1` | PASS |
+| 17 | `curl` shim with `X-Requested-With: XMLHttpRequest` | 405 JSON `modern_endpoint_only` | exact | PASS |
+| 18 | `curl` shim with no `tplan_id` (document nav) | 400 JSON `invalid_request` | exact | PASS |
+| 19 | `charts.html?tplan_id=3&tproject_id=1` → `#linkOpc` | href → overallPieChart.html?tplan_id=3&tproject_id=1, i18n key | href correct, text localized | PASS |
+| 20 | `charts.html` with no tplan_id → `#linkOpc` | hidden (`display:none`, href `#`) | exact | PASS |
+| 21 | Browser console (all screens) | 0 errors/warnings | no console messages | PASS |
+| 22 | `events` table after run | no unexpected Error/Warning | 2 ERROR = BFF's own `no_right` denial logs for pbcnorights (expected, matches sibling BFFs) | PASS |
+| 23 | `bash ai/verify_i18n_coverage.sh` | 0 missing keys | 9 bundles passed, 0 failed | PASS |
+
+**Result: 23/23 PASS.** RESUME: `php tmp/fixtures_1845.php` → browser
+`gui/templates/results/overallPieChart.html?tplan_id=3&tproject_id=1` (login admin/admin).
+
+**Note:** the screen also treats a non-null helper result whose `total` is 0 (a plan that
+has builds but no assigned/evaluated versions, plan 34) as the same *Nothing to chart*
+empty state, so a misconfigured plan never renders a table of zeroes.
