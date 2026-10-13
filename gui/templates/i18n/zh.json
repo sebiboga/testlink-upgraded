@@ -2519,6 +2519,8 @@
   "paddtc.assignNewTo": "将新增的测试用例分配给测试人员",
   "paddtc.build": "构建",
   "paddtc.colTc": "测试用例",
+  "paddtc.colStatus": "状态",
+  "paddtc.colImportance": "重要性",
   "paddtc.confirmRemoveTitle": "确认移除",
   "paddtc.emptySuite": "此套件中没有测试用例",
   "paddtc.errExecuted": "所选测试用例已有执行结果；移除它们需要 testplan_unlink_executed_testcases 权限。",

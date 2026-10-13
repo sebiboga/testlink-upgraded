@@ -2519,6 +2519,8 @@
   "paddtc.assignNewTo": "新しく追加したテストケースをテスターに割り当てる",
   "paddtc.build": "ビルド",
   "paddtc.colTc": "テストケース",
+  "paddtc.colStatus": "ステータス",
+  "paddtc.colImportance": "重要度",
   "paddtc.confirmRemoveTitle": "削除の確認",
   "paddtc.emptySuite": "このスイートにテストケースはありません",
   "paddtc.errExecuted": "選択されたテストケースには実行結果があり、削除には testplan_unlink_executed_testcases 権限が必要です。",

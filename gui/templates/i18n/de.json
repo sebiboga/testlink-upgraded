@@ -2519,6 +2519,8 @@
   "paddtc.assignNewTo": "Neu hinzugefuegte Testfaelle diesem Tester zuweisen",
   "paddtc.build": "Build",
   "paddtc.colTc": "Testfall",
+  "paddtc.colStatus": "Status",
+  "paddtc.colImportance": "Wichtigkeit",
   "paddtc.confirmRemoveTitle": "Entfernen bestaetigen",
   "paddtc.emptySuite": "Keine Testfaelle in dieser Suite",
   "paddtc.errExecuted": "Die ausgewaehlten Testfaelle haben Ausfuehrungen; das Entfernen erfordert das Recht testplan_unlink_executed_testcases.",

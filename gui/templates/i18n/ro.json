@@ -2519,6 +2519,8 @@
   "paddtc.assignNewTo": "Atribuie cazurile de test nou adaugate testerului",
   "paddtc.build": "Build",
   "paddtc.colTc": "Caz de test",
+  "paddtc.colStatus": "Stare",
+  "paddtc.colImportance": "Importanță",
   "paddtc.confirmRemoveTitle": "Confirmati eliminarea",
   "paddtc.emptySuite": "Niciun caz de test in aceasta suita",
   "paddtc.errExecuted": "Cazurile selectate au executii; eliminarea lor necesita dreptul 'testplan_unlink_executed_testcases'.",

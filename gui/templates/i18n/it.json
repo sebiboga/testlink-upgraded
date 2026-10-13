@@ -2519,6 +2519,8 @@
   "paddtc.assignNewTo": "Assegna i nuovi casi di test al tester",
   "paddtc.build": "Build",
   "paddtc.colTc": "Caso di test",
+  "paddtc.colStatus": "Stato",
+  "paddtc.colImportance": "Importanza",
   "paddtc.confirmRemoveTitle": "Conferma rimozione",
   "paddtc.emptySuite": "Nessun caso di test in questa suite",
   "paddtc.errExecuted": "I casi selezionati hanno esecuzioni; rimuoverli richiede il diritto testplan_unlink_executed_testcases.",

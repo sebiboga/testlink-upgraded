@@ -2519,6 +2519,8 @@
   "paddtc.assignNewTo": "Assign newly added test cases to tester",
   "paddtc.build": "Build",
   "paddtc.colTc": "Test Case",
+  "paddtc.colStatus": "Status",
+  "paddtc.colImportance": "Importance",
   "paddtc.confirmRemoveTitle": "Confirm removal",
   "paddtc.emptySuite": "No test cases in this suite",
   "paddtc.errExecuted": "Selected test cases have executions; removing them requires the 'testplan_unlink_executed_testcases' right.",

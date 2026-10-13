@@ -126,6 +126,8 @@ tr.cf-row textarea { vertical-align: top; }
           <th style="width:36px"><input type="checkbox" id="chkAllAdd" title=""></th>
           <th data-i18n="paddtc.colTc">Test Case</th>
           <th data-i18n="paddtc.version" style="width:150px">Version to add</th>
+          <th data-i18n="paddtc.colStatus" style="width:140px">Status</th>
+          <th id="thImportance" data-i18n="paddtc.colImportance" style="width:110px">Importance</th>
           <th id="thPlat" data-i18n="paddtc.platforms" style="width:160px;display:none">Platforms</th>
           <th data-i18n="paddtc.execOrder" style="width:90px">Exec. order</th>
           <th data-i18n="paddtc.removeAction" style="width:230px">Remove links</th>
@@ -179,6 +181,33 @@ var CONTAINER = null;
 
 function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
 function toast(m,isErr){var $t=$('#toast').text(m).toggleClass('err',!!isErr).show();clearTimeout($t.data('tm'));$t.data('tm',setTimeout(function(){$t.hide();},3500));}
+// Issue #1127: legacy planAddTC.tpl rendered the workflow status from
+// config_get('testCaseStatus') labels (tlsmarty.inc.php:258-263) and the
+// importance from HIGH/MEDIUM/LOW (tlsmarty.inc.php:254-256). Status labels
+// reuse tcView.html:952-956; importance wording (High/Medium/Low) reuses the
+// search.*Importance keys, matching legacy high/medium/low_importance.
+function statusLabel(code){
+  if(code===undefined || code===null || code===''){ return ''; }
+  var k='tcview.status'+code; var l=TLi18n.t(k);
+  return (l===k)?String(code):l;
+}
+function importanceLabel(code){
+  if(code==3){return TLi18n.t('search.highImportance');}
+  if(code==2){return TLi18n.t('search.mediumImportance');}
+  if(code==1){return TLi18n.t('search.lowImportance');}
+  return '';
+}
+// Mirrors legacy updTCAttr(tcID,tcvID): re-render the status + importance
+// cells of a row when its version <select> changes.
+function updTCAttr(tcId, tvid){
+  var it=(CONTAINER && CONTAINER.items ? CONTAINER.items : []).filter(function(x){return x.tc_id===tcId;})[0];
+  if(!it){return;}
+  var v=(it.versions||[]).filter(function(x){return x.tcversion_id==tvid;})[0];
+  if(!v){return;}
+  var $s=$('#wkfstatus_'+tcId); if($s.length){ $s.text(statusLabel(v.status)); }
+  var $i=$('#importance_'+tcId);
+  if($i.length && INIT && INIT.priority_enabled){ $i.text(importanceLabel(v.importance)); }
+}
 
 $(function(){
   TLi18n.load(function(){
@@ -347,7 +376,9 @@ function versionLabel(v){ return 'v'+v.version; }
 function renderContainer(){
   var r=CONTAINER;
   var hasPlat=(r.platforms||[]).length>0;
+  var priorityEnabled=!!(INIT && INIT.priority_enabled);
   $('#thPlat').toggle(hasPlat);
+  $('#thImportance').toggle(priorityEnabled);
   $('#suiteTitle').text(r.container.name);
   var $tb=$('#tcTable tbody').empty();
   var items=r.items||[];
@@ -366,7 +397,7 @@ function renderContainer(){
     var defVid=0, defVer=-1;
     it.versions.forEach(function(v){ if(v.active==1 && v.version>defVer){defVer=v.version;defVid=v.tcversion_id;} });
 
-    var vsel='<select class="vsel" data-tc="'+it.tc_id+'">';
+    var vsel='<select class="vsel" data-tc="'+it.tc_id+'" onchange="updTCAttr('+it.tc_id+', this.value)">';
     it.versions.slice().sort(function(a,b){return b.version-a.version;}).forEach(function(v){
       var dis = (v.active!=1 && !(it.links.some(function(l){return l.tcversion_id===v.tcversion_id;})));
       vsel+='<option value="'+v.tcversion_id+'"'+(dis?' disabled':'')+(v.tcversion_id===defVid?' selected':'')+'>'
@@ -412,6 +443,17 @@ function renderContainer(){
       ? '<i class="fas fa-triangle-exclamation newest-warn" title="'+esc(TLi18n.t('paddtc.newerVersion'))+'"></i>'
       : '';
 
+    // Issue #1127: status/importance of the version shown for this row.
+    // Linked rows reflect their linked version; unlinked rows reflect the
+    // version preselected in the <select> (newest active), and updTCAttr()
+    // re-renders both when the selection changes.
+    var dispVid = isLinked ? it.links[0].tcversion_id : defVid;
+    var dispV = it.versions.filter(function(v){return v.tcversion_id===dispVid;})[0] || {};
+    var statusCell='<td id="wkfstatus_'+it.tc_id+'">'+esc(statusLabel(dispV.status))+'</td>';
+    var impCell=priorityEnabled
+      ? '<td id="importance_'+it.tc_id+'">'+esc(importanceLabel(dispV.importance))+'</td>'
+      : '';
+
     var $tr=$('<tr'+(isLinked?' class="linked-row"':'')+'>').html(
         '<td>'+(isLinked?'':'<input type="checkbox" class="addchk" data-tc="'+it.tc_id+'">')+'</td>'+
         '<td><span class="tc-name">'+esc(it.name)+'</span><span class="ext-id">'+esc(it.full_external_id)+'</span>'
@@ -422,6 +464,7 @@ function renderContainer(){
           +'" title="'+esc(TLi18n.t('tcsum.showSummary'))+'">'
           +'<i class="fa fa-file-text-o" aria-hidden="true"></i></button><br>'+statusPill+newerWarn+'</td>'+
         '<td>'+(isLinked?'':vsel)+'</td>'+
+        statusCell+impCell+
         '<td>'+(isLinked?'':platCell)+'</td>'+
         '<td>'+ordInput+'</td>'+
         '<td>'+(rmChips||'-')+'</td>');
@@ -440,7 +483,7 @@ function renderContainer(){
       }
       var tag=TLi18n.t('paddtc.cfFor')+' v'+verOf(it,l.tcversion_id)+(pname?' \u00b7 '+pname:'');
       var $cfr=$('<tr class="cf-row">').append(
-        $('<td>').attr('colspan',6)
+        $('<td>').attr('colspan', 7+(priorityEnabled?1:0))
           .append($('<span class="cf-feature">').text(tag))
           .append(l.custom_fields_html));
       $tb.append($cfr);

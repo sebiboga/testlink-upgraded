@@ -2519,6 +2519,8 @@
   "paddtc.assignNewTo": "Назначить добавленные тест-кейсы тестировщику",
   "paddtc.build": "Сборка",
   "paddtc.colTc": "Тест-кейс",
+  "paddtc.colStatus": "Статус",
+  "paddtc.colImportance": "Важность",
   "paddtc.confirmRemoveTitle": "Подтвердите удаление",
   "paddtc.emptySuite": "В этой сюите нет тест-кейсов",
   "paddtc.errExecuted": "Выбранные тест-кейсы имеют прогоны; для их удаления требуется право testplan_unlink_executed_testcases.",

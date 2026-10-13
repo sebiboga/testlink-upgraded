@@ -786,6 +786,13 @@ if ($method === 'GET' && count($segments) === 2 &&
         $defaultBuild = 0;
     }
 
+    // Issue #1127: legacy planAddTC.php:621 gates the Importance column on
+    // $tprojectInfo['opt']->testPriorityEnabled (template planAddTC.tpl:172).
+    $projOpts = $tprojectMgr->getOptions($tproject_id);
+    $priorityEnabled = is_object($projOpts)
+        ? !empty($projOpts->testPriorityEnabled)
+        : (is_array($projOpts) ? !empty($projOpts['testPriorityEnabled']) : false);
+
     out([
         'status' => 'ok',
         'tproject' => [
@@ -802,6 +809,7 @@ if ($method === 'GET' && count($segments) === 2 &&
         'default_build_id' => $defaultBuild,
         'rights' => $ctxRights,
         'ext_id_glue' => (string)$glueChar,
+        'priority_enabled' => $priorityEnabled,
     ]);
 }
 
@@ -1000,7 +1008,8 @@ if ($method === 'GET' && count($segments) === 2 &&
         // all versions
         $tcv = $TLT['tcversions'];
         $sql = "SELECT NHTCV.parent_id AS tc_id, TCVA.id AS tcversion_id, " .
-            " TCVA.version, TCVA.active, TCVA.importance, TCVA.execution_type " .
+            " TCVA.version, TCVA.active, TCVA.importance, " .
+            " TCVA.execution_type, TCVA.status " .
             " FROM {$tcv} TCVA JOIN {$nh} NHTCV ON NHTCV.id = TCVA.id " .
             " WHERE NHTCV.parent_id IN ({$tcList}) " .
             " ORDER BY NHTCV.parent_id, TCVA.version";
@@ -1014,6 +1023,10 @@ if ($method === 'GET' && count($segments) === 2 &&
                     'active' => intval($vr['active']),
                     'importance' => intval($vr['importance']),
                     'execution_type' => intval($vr['execution_type']),
+                    // Issue #1127: legacy specview.php:1324 exposes
+                    // tcversions.status so the screen can render the
+                    // workflow-status column (updTCAttr on version change).
+                    'status' => intval($vr['status']),
                 ];
             }
         }
