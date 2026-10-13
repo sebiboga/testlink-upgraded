@@ -35,6 +35,9 @@ that already have executions additionally requires `testplan_unlink_executed_tes
   * *ADD*: checkbox; version dropdown (active versions only, newest active
     preselected; inactive versions disabled); platform multi-select when the
     plan has platforms (nothing preselected, legacy default); execution order input.
+  * **Status** column (always) and **Importance** column (only when the project
+    enables test priority) — legacy `planAddTC.tpl:171-172`; both follow the
+    version chosen in the row and are re-rendered when it changes (see §2b).
   * Linked rows show a remove chip `v<n> #<order>` (red dot when executed) and
     the add controls collapse into the linked state.
   * Linked rows additionally render a full-width **custom-fields row** per link
@@ -71,6 +74,23 @@ endpoint groups the submitted `custom_field_*_*_<link_id>` names by link_id
 rejects links not owned by the plan, and persists each subset through
 `cfield_mgr::testplan_design_values_to_db($cfvalues, null, $link_id)`.
 
+## 2b. Workflow Status + Importance columns (Issue #1127)
+The modern table dropped the two attribute columns the legacy screen rendered
+(`planAddTC.tpl:311-317`). They are restored:
+
+* **Status** — always shown; label from `tcversions.status` mapped through the
+  `tcView` wording (`Draft`, `Ready for review`, `Review in progress`, `Rework`,
+  `Obsolete`, `Future`, `Final`, i.e. `config_get('testCaseStatus')`).
+* **Importance** — shown only when the project option `testPriorityEnabled` is
+  set (`planAddTC.php:621`) — the header and the body cells are both omitted
+  otherwise; labels High / Medium / Low.
+* A row shows the attributes of its **linked** version, or of the version
+  preselected in the dropdown for an unlinked case. Changing the version
+  dropdown re-renders both cells via `updTCAttr()` — the modern twin of legacy
+  `updTCAttr(tcID,tcvID)` — so it matches `specview.php:1323-1324`.
+
+![Status + Importance columns](screenshots/issue-1127-paddtc-status-importance.png)
+
 ## 3. Executed-Link Guard
 When removing links whose `executed_qty > 0` and the user lacks
 `testplan_unlink_executed_testcases`, the request is rejected (403). Users that
@@ -92,9 +112,9 @@ required on POSTs.
 ## 5. REST API Reference
 | Method & Route | Purpose |
 |----------------|---------|
-| GET `/api/plans/index.php/planaddtc/init?tproject_id=&tplan_id=` | plans, rights, keywords, platforms, builds, testers |
+| GET `/api/plans/index.php/planaddtc/init?tproject_id=&tplan_id=` | plans, rights, keywords, platforms, builds, testers, `priority_enabled` |
 | GET `/planaddtc/suites?tproject_id=&tplan_id=[&keyword_id=][&container_id=]` | suite tree w/ deep totals + linked counts |
-| GET `/planaddtc/container?container_id=` | test cases of one suite: versions, links, executed_qty, per-link `custom_fields_html`, `has_custom_fields` |
+| GET `/planaddtc/container?container_id=` | test cases of one suite: versions (incl. `status`, `importance`), links, executed_qty, per-link `custom_fields_html`, `has_custom_fields` |
 | POST `/planaddtc/save` | link/unlink pairs + optional tester/build assignment |
 | POST `/planaddtc/reorder` | save execution orders |
 | POST `/planaddtc/savecustomfields` | persist testplan-design CF values (grouped by link_id, owned-link check, `testplan_design_values_to_db`) |
@@ -104,13 +124,18 @@ Errors are JSON `{status:"error",message}` with proper HTTP codes
 422 NO_SELECTION / INACTIVE_VERSION).
 
 ## 6. i18n Keys
-36 `paddtc.*` keys in all 10 bundles (`en, ro, de, es, fr, it, ja, pt, ru, zh`),
+`paddtc.*` keys in all 10 bundles (`en, ro, de, es, fr, it, ja, pt, ru, zh`),
 plus reuse of `pv.testProject`, `common.*`. The five testplan-design-CF keys
 (`paddtc.saveCustomFields`, `paddtc.cfFor`, `paddtc.cfHelp`,
-`paddtc.cfNothingSaved`, `paddtc.msg.cfSaved`) were added for Issue #1126.
+`paddtc.cfNothingSaved`, `paddtc.msg.cfSaved`) were added for Issue #1126 and
+`paddtc.colStatus` / `paddtc.colImportance` for Issue #1127 (which reuses
+`tcview.statusN` and `search.*Importance` for the cell values).
 
 ## 7. Testing
 Regression suites in `tmp/TLU_Test_Cases.md`: **56** (original load/rights/i18n/
-navigation/add-reorder-remove/executed-guard/keyword-filter) and **Task — Issue
+navigation/add-reorder-remove/executed-guard/keyword-filter), **Task — Issue
 #1126** (9/9 PASS): CF row rendering, `custom_field_*_<link_id>` naming, save
-round-trip persistence, Event Viewer clean, i18n coverage gate.
+round-trip persistence, Event Viewer clean, i18n coverage gate; and **Task —
+Issue #1127** (9/9 PASS): Status/Importance rendering for linked + unlinked rows,
+version-change update, `priorityEnabled=0` hides the Importance column, Event
+Viewer clean, i18n coverage gate.
