@@ -5697,7 +5697,14 @@ class testcase extends tlObjectWithAttachments {
       $tproject_id = intval($context->tproject_id);
     }
 
-    list($external_id,$prefix,$glue,$tc_number) = $this->getExternalID($id,$tproject_id);
+    $ext = $this->getExternalID($id,$tproject_id);
+    // getExternalID() returns an empty array for a test case that does not exist;
+    // destructuring it with list() would emit E_WARNING 'Undefined array key 0..3'
+    // on PHP 8 (issue #1863). There is no link to build in that case.
+    if (!isset($ext[3])) {
+      return '';
+    }
+    list($external_id,$prefix,$glue,$tc_number) = $ext;
     $dl = $context->basehref . 'linkto.php?tprojectPrefix=' . urlencode($prefix) . 
           '&item=testcase&id=' . urlencode($external_id);
     return $dl;
