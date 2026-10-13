@@ -2611,6 +2611,19 @@ function getActions(&$gui,$baseURL) {
     // via the "Open Metrics by Platform" per-platform pies link.
     $actions->platformPieChart =
       "/gui/templates/results/platformPieChart.html?{$ctx}";
+    // Refs #1907: Overall Metrics Pie Chart report (legacy
+    // lib/results/overallPieChart.php: an orphan pChart PNG endpoint that drew
+    // the plan-wide execution-status distribution, never rendered a Smarty
+    // template and checked only the bare global testplan_metrics right - it
+    // could not prove the owning project, so a globally-entitled user could
+    // read ANY plan's overall totals; it also answered a blank PNG for a
+    // build-less plan, issue #634). The legacy file is now a session-guarded
+    // shim; the report is the modern screen backed by api/overallpiechart,
+    // which enforces testplan_metrics on the OWNING project + plan. Plan-scoped
+    // report -> inside the tplan_id guard. Also reachable from the Charts hub
+    // via the "Open Overall Metrics Pie Chart" link.
+    $actions->overallPieChart =
+      "/gui/templates/results/overallPieChart.html?{$ctx}";
   }
 
   // Refs #609: initialize up-front so aside rendering with no active test

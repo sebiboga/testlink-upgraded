@@ -313,7 +313,11 @@ function load() {
     }
     currentData = data;
     renderContext(data);
-    if (!data.items || data.items.length === 0) {
+    // can_draw=false (plan without builds, legacy #634) OR a plan whose build
+    // exists but has no assigned/evaluated versions (total 0): both are an empty
+    // distribution, so the screen shows its "nothing to chart" state instead of
+    // a table of zeros.
+    if (!data.items || data.items.length === 0 || (parseInt(data.totals.total, 10) || 0) === 0) {
       $('#stateBox').html('<div class="state"><h4>' + esc(TLi18n.t('opc.emptyTitle'))
         + '</h4><div>' + esc(TLi18n.t('opc.emptyBody')) + '</div></div>');
       $('#report').show();
