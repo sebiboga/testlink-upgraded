@@ -8628,3 +8628,68 @@ Baseline: `mysql -h 127.0.0.1 -utestlink -ptestlink testlink -N -B -e "DELETE FR
 
 **Gate**: `TLU_REQUIRE_SUITE="Issue #1863" bash ai/verify_test_suites.sh` → 7 PASS / 0 FAIL, exit 0.
 **Result: 9/9 PASS** — the pre-fix signature reproduces exactly and is gone with the landed guard; the active and no-active-version paths are unchanged (0 new Error/Warning events).
+
+## Task — Issue #1207/#1208/#1209: tcasesWithCF Execute build/platform context + report footer + retire legacy controller
+
+**Precondition**: fresh CI DB; app http://localhost:8082 (PHP built-in server); login
+`admin/admin`; fixture `php tmp/fixtures_tcwcf.php` →
+`tproject=1 plan=2 build=1 cfield=1` (2 reportable rows; the third execution has an empty
+note AND empty CF value and must be filtered out). Session cookie jar `j`:
+`curl -s -c j -b j -H 'Origin: http://localhost:8082' -H 'Content-Type: application/json' -d '{"login":"admin","password":"admin"}' http://localhost:8082/api/auth/login`.
+Baseline: `mysql -h 127.0.0.1 -utestlink -ptestlink testlink -N -B -e "DELETE FROM events;"`.
+
+### A. #1208 — BFF exposes `generated_on`; #1207 — rows carry build/platform
+
+| # | Step | Expected | Observed | Verdict |
+|---|------|----------|----------|---------|
+| 1 | `GET api/reports/index.php?action=tcases_with_cf&tplan_id=2&tproject_id=1` (cookie) | HTTP 200, `status=ok` | 200, ok | PASS |
+| 2 | payload `hasData` | `true` | true | PASS |
+| 3 | payload `generated_on` | non-empty `YYYY-MM-DD HH:MM:SS` | `2026-10-13 19:32:07` | PASS |
+| 4 | payload `rows[*].builds_id` / `platform_id` | present per row (1 / 0) | 1 / 0 on both rows | PASS |
+| 5 | row count (legacy notes+CF filter) | 2 (the empty execution dropped) | 2 | PASS |
+| 6 | payload `warning_msg` when rows>0 | empty | `""` | PASS |
+
+### B. #1207 — Execute action forwards setting_build / setting_platform
+
+| # | Step | Expected | Observed | Verdict |
+|---|------|----------|----------|---------|
+| 7 | `openExecute(4,5,1,0)` captured `window.open` URL | `…execSetResults.html?tcase_id=4&tcversion_id=5&tproject_id=1&tplan_id=2&setting_build=1&setting_platform=0` | exactly that URL | PASS |
+| 8 | `openExecute(4,5,0,0)` (no build context) | `setting_build=0&setting_platform=0` still present (legacy always sends them) | present as `=0` | PASS |
+
+### C. #1208 — report footer rendered
+
+| # | Step | Expected | Observed | Verdict |
+|---|------|----------|----------|---------|
+| 9 | open `gui/templates/results/tcasesWithCF.html?tproject_id=1&tplan_id=2` | page title `Test Cases with Custom Fields — TCWCF Plan` | match | PASS |
+| 10 | footer info note | italic `This Report shows all test cases with any custom field set on test execution…` | rendered | PASS |
+| 11 | footer timestamp line | `— Generated on <ts> — Elapsed: Ns` | `— Generated on 2026-10-13 19:32:21 — Elapsed: 0.01s` | PASS |
+| 12 | console messages | no `error` (a11y `issue` only) | 0 errors, 1 a11y issue | PASS |
+
+### D. #1209 — legacy controller retired to a guarded launcher
+
+| # | Step | Expected | Observed | Verdict |
+|---|------|----------|----------|---------|
+| 13 | auth `GET lib/results/testCasesWithCF.php?tplan_id=2&tproject_id=1` | HTTP 302 → `gui/templates/results/tcasesWithCF.html?tproject_id=1&tplan_id=2` | 302, exact `Location` | PASS |
+| 14 | auth `POST` same URL | HTTP 405 JSON `modern_endpoint_only` | 405, code present | PASS |
+| 15 | anonymous `GET` same URL | 200 + JS redirect to `login.php?note=expired` (legacy session contract) | `top.location.href='../../login.php?note=expired…'` | PASS |
+| 16 | `GET …?tplan_id[]=2&tproject_id=1` (array param) | no PHP warning; 302 with only valid ints | 302, `tplan_id` dropped | PASS |
+| 17 | `php -l lib/results/testCasesWithCF.php` | no syntax errors | No syntax errors detected | PASS |
+| 18 | `cfg/reports.cfg.php` `tcases_with_cf` url | `gui/templates/results/tcasesWithCF.html` | match | PASS |
+| 19 | `SELECT id,log_level,description FROM events` after steps 13–16 | 0 new Error/Warning rows | 0 rows | PASS |
+
+**Gate**: `TLU_REQUIRE_SUITE="Issue #1207" bash ai/verify_test_suites.sh` → PASS, exit 0.
+**Result: 19/19 PASS** — legacy context forwarding and footer restored (#1207/#1208), the
+legacy `testCasesWithCF.php` renderer retired to a non-mutating, session-guarded launcher (#1209);
+`events` clean.
+
+### Addendum — Issue #1207/#1208/#1209 (post code-review hardening)
+
+| # | Step | Expected | Observed | Verdict |
+|---|------|----------|----------|---------|
+| 20 | auth `GET` with `Accept: text/html` + `Sec-Fetch-Dest: document` | 302 to modern HTML | 302, exact `Location` | PASS |
+| 21 | auth `GET` with `Sec-Fetch-Dest: empty` + `X-Requested-With` (XHR) | 405 JSON `modern_endpoint_only` | 405 | PASS |
+| 22 | auth bare `GET` (no params) | session fallback used; 302 | 302, `tproject_id=1` | PASS |
+| 23 | `gui/templates/dashio/results/testCasesWithCF.tpl` | removed, no live reference | removed (only docblock/self refs) | PASS |
+| 24 | `php -l lib/results/testCasesWithCF.php` | no syntax errors | clean | PASS |
+
+**Result: 24/24 PASS.**
