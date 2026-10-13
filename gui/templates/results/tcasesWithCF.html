@@ -102,8 +102,9 @@ function t(key, fallback) {
 function openExecHistory(tcId) {
   window.open('/gui/templates/execute/execHistory.html?tcase_id=' + tcId + '&tproject_id=' + tproject_id, 'execHistory_' + tcId, 'width=800,height=600');
 }
-function openExecute(tcId, tcverId) {
-  window.open('/gui/templates/execute/execSetResults.html?tcase_id=' + tcId + '&tcversion_id=' + tcverId + '&tproject_id=' + tproject_id + '&tplan_id=' + tplan_id, 'execute_' + tcId, 'width=900,height=700');
+function openExecute(tcId, tcverId, buildsId, platformId) {
+  var url = '/gui/templates/execute/execSetResults.html?tcase_id=' + tcId + '&tcversion_id=' + tcverId + '&tproject_id=' + tproject_id + '&tplan_id=' + tplan_id + '&setting_build=' + (buildsId || 0) + '&setting_platform=' + (platformId || 0);
+  window.open(url, 'execute_' + tcId, 'width=900,height=700');
 }
 function openTCEdit(tcId) {
   window.open('/gui/templates/testcases/tcView.html?tcase_id=' + tcId + '&tproject_id=' + tproject_id, 'tcEdit_' + tcId, 'width=900,height=700');
@@ -119,6 +120,16 @@ function statusBadge(status, label) {
 function fmtDate(ts) {
   if (!ts) return '';
   return esc(ts);
+}
+function renderFooter(d) {
+  var parts = '<span style="font-style:italic;">' +
+    t('tcwcf.infoText', 'This Report shows all test cases with any custom field set on test execution. In addition the execution notes are shown for applicable test cases.') +
+    '</span>';
+  if (d.generated_on) {
+    parts += ' &mdash; ' + t('tcwcf.generatedOn', 'Generated on') + ' ' + esc(d.generated_on);
+  }
+  parts += ' &mdash; ' + t('tcwcf.elapsed', 'Elapsed') + ': ' + d.elapsed_time + 's';
+  $('#footerInfo').html(parts).show();
 }
 
 function loadData() {
@@ -139,13 +150,13 @@ function loadData() {
 
       if (d.warning_msg && !d.hasData) {
         $('#emptyBox').html('<i class="fa fa-info-circle"></i> ' + esc(d.warning_msg)).show();
-        $('#footerInfo').html(t('tcwcf.elapsed', 'Elapsed') + ': ' + d.elapsed_time + 's').show();
+        renderFooter(d);
         return;
       }
 
       if (!d.hasData) {
         $('#emptyBox').html('<i class="fa fa-info-circle"></i> ' + t('tcwcf.noData', 'No test cases with custom field values found.')).show();
-        $('#footerInfo').html(t('tcwcf.elapsed', 'Elapsed') + ': ' + d.elapsed_time + 's').show();
+        renderFooter(d);
         return;
       }
 
@@ -158,7 +169,7 @@ function loadData() {
           render: function(data, type, row) {
             var links = '<span class="tcid">' + esc(row.external_id) + '</span>: ' + esc(row.tcase_name);
             links += ' <a class="exec-link" href="#" onclick="openExecHistory(' + row.tcase_id + '); return false;" title="' + t('tcwcf.execHistory', 'Execution History') + '"><i class="fa fa-history"></i></a>';
-            links += ' <a class="exec-link" href="#" onclick="openExecute(' + row.tcase_id + ',' + row.tcversion_id + '); return false;" title="' + t('tcwcf.execute', 'Execute') + '"><i class="fa fa-play"></i></a>';
+            links += ' <a class="exec-link" href="#" onclick="openExecute(' + row.tcase_id + ',' + row.tcversion_id + ',' + (row.builds_id || 0) + ',' + (row.platform_id || 0) + '); return false;" title="' + t('tcwcf.execute', 'Execute') + '"><i class="fa fa-play"></i></a>';
             links += ' <a class="exec-link" href="#" onclick="openTCEdit(' + row.tcase_id + '); return false;" title="' + t('tcwcf.editTC', 'Edit Test Case') + '"><i class="fa fa-pencil"></i></a>';
             return links;
           }
@@ -215,7 +226,7 @@ function loadData() {
         }
       });
 
-      $('#footerInfo').html(t('tcwcf.elapsed', 'Elapsed') + ': ' + d.elapsed_time + 's').show();
+      renderFooter(d);
       toast(t('common.loaded', 'Loaded'));
     },
     error: function(xhr) {

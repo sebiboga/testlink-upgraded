@@ -2532,6 +2532,7 @@ if ($action === 'tcases_with_cf') {
             'cf_columns' => [],
             'rows' => [],
             'warning_msg' => lang_get('no_linked_tc_cf'),
+            'generated_on' => date('Y-m-d H:i:s'),
             'elapsed_time' => round(microtime(true) - $timerOn, 2),
         ]);
         exit;
@@ -2637,6 +2638,7 @@ if ($action === 'tcases_with_cf') {
         'cf_columns' => $cfColumns,
         'rows' => $rows,
         'warning_msg' => $warningMsg,
+        'generated_on' => date('Y-m-d H:i:s'),
         'elapsed_time' => round(microtime(true) - $timerOn, 2),
     ]);
     exit;
