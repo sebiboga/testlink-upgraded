@@ -24,6 +24,7 @@ that already have executions additionally requires `testplan_unlink_executed_tes
 5. [REST API Reference](#5-rest-api-reference)
 6. [i18n Keys](#6-i18n-keys)
 7. [Testing](#7-testing)
+8. [Bugfix — Issue #1909: column alignment for platform-less plans](#8-bugfix--issue-1909-column-alignment-for-platform-less-plans)
 
 ---
 ## 1. Screen Layout
@@ -139,3 +140,38 @@ round-trip persistence, Event Viewer clean, i18n coverage gate; and **Task —
 Issue #1127** (9/9 PASS): Status/Importance rendering for linked + unlinked rows,
 version-change update, `priorityEnabled=0` hides the Importance column, Event
 Viewer clean, i18n coverage gate.
+
+---
+## 8. Bugfix — Issue #1909: column alignment for platform-less plans
+
+**Defect.** For any test plan **without platforms**, the table header and body were
+misaligned: `renderContainer()` hid the `Platforms` header
+(`$('#thPlat').toggle(hasPlat)`, `planAddTCView.html:380`) but the row template still
+emitted a platform `<td>` unconditionally (`:468`). A platform-less plan therefore
+rendered **6 header cells against 7 body cells**, so `Exec. order` and `Remove links`
+were shifted one column to the left and sat above the wrong cells (the remove chip had
+no header at all). All test cases in such a plan are affected; the defect was
+pre-existing in the screen (not introduced by #1127) and purely cosmetic — saving,
+ordering and removing links were unaffected because `collectSelection()` already
+branches on `hasPlat` (`add[tc]={"0":vid}`). Screenshots (before/after) live in the
+GitHub Wiki page and in `docs/screenshots/issue-1909-planaddtc-*.png`.
+
+**Fix (2 lines, `gui/templates/plans/planAddTCView.html`).**
+```js
+// :468 — emit the platform cell only when the plan actually has platforms
+(hasPlat?'<td>'+(isLinked?'':platCell)+'</td>':'')+
+// :486 — cf-row colspan = the number of visible columns
+$('<td>').attr('colspan', 6+(priorityEnabled?1:0)+(hasPlat?1:0))
+```
+The second site (testplan-design custom-fields row) shared the same root cause:
+its colspan hard-coded the platform column as always present. The correct visible
+column count is `6 + importance? + platforms?` (checkbox, Test Case, version, Status,
+[Importance], [Platforms], Exec. order, Remove links).
+
+**Verified** across all four configurations — no-platforms/no-priority (6=6, cf-colspan 6),
+platforms/no-priority (7=7, cf-colspan 7), platforms+priority (8=8, cf-colspan 8),
+no-platforms+priority (7=7, cf-colspan 7) — plus linked and unlinked rows (add-checkbox,
+version dropdown, platform multi-select render in the correct cells), the custom-fields
+row, and the platform-less `collectSelection()` payload; browser console clean, Event
+Viewer clean. Regression suite **Regression — Issue #1909** appended to
+`tmp/TLU_Test_Cases.md` (8/8 PASS, i18n gate exit 0). Landed as `526a902cd`.
