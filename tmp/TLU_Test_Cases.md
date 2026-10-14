@@ -8863,3 +8863,31 @@ Baseline each time: `mysql -h 127.0.0.1 -utestlink -ptestlink testlink -N -B -e 
 **Gate**: `TLU_REQUIRE_SUITE="Issue #1908" bash ai/verify_test_suites.sh` → run below.
 **Result: 9/9 PASS** — the pre-fix 4-warning signature reproduces exactly over HTTP and is gone with
 the landed guard; the valid node keeps its external id.
+
+## Task — Issue #1128: planAddTC "Added on date" column for linked test cases (legacy linked_ts)
+
+Precondition: fresh CI DB, app http://localhost:8082, login `admin/admin`. Seed:
+`mysql -h 127.0.0.1 -utestlink -ptestlink testlink < tmp/fixtures_1128.sql` →
+project `FixtureProject` id 1, suite `Suite A` id 2, plan `Plan A` id 5;
+linked TC `TC One (linked)` (tcversion_id 4, link row creation_ts `2026-05-01 10:00:00`);
+unlinked TC `TC Two (unlinked)` (tcversion_id 7).
+Files: `api/plans/index.php` (`/planaddtc/container` links carry `linked_ts` +
+`linked_ts_display`), `gui/templates/plans/planAddTCView.html` (`Added on date`
+column), `gui/templates/i18n/*.json` (`paddtc.addedOnDate`, `paddtc.infoAddedOnDate`).
+
+| # | Step | Expected | Observed | Verdict |
+|---|------|----------|----------|---------|
+| 1 | `php -l api/plans/index.php`; `python3 -m json.tool` all 10 bundles; `bash ai/verify_i18n_coverage.sh` | no syntax error; valid JSON; 0 missing keys | clean; "9 bundles passed, 0 failed" | PASS |
+| 2 | `GET /api/plans/index.php/planaddtc/container?tproject_id=1&tplan_id=5&container_id=2` | linked item has `linked_ts:"2026-05-01 10:00:00"` + `linked_ts_display:"01/05/2026"`; unlinked has `links:[]` | exact (measured via fetch in the browser) | PASS |
+| 3 | Browser `planAddTCView.html?tproject_id=1`, suite `Suite A` | header column "Added on date" present, rightmost | header rendered | PASS |
+| 4 | Linked row `TC One (linked)` | date cell shows `01/05/2026` (config `date_format=%d/%m/%Y`) | `01/05/2026` | PASS |
+| 5 | Unlinked row `TC Two (unlinked)` | date cell blank (legacy `&nbsp;`) | empty cell, tooltip only | PASS |
+| 6 | Cell tooltip | `Date when test case was added to test plan` (legacy `info_added_on_date`) | exact | PASS |
+| 7 | Browser console + `events` table after run | no JS errors; no new Error/Warning rows | only pre-existing a11y `[issue]` notices; events table has only the login audit row | PASS |
+
+**Result: 7/7 PASS.** Feature ported: legacy `linked_ts` (testplan.class.php:6076 /
+planAddTC.tpl:184-186,370,438) now exposed by the BFF and rendered in the modern
+"Added on date" column; blank for unlinked add-rows. RESUME: restore fixture with
+`mysql ... < tmp/fixture1128.sql`, open
+`gui/templates/plans/planAddTCView.html?tproject_id=1` (login admin/admin).
+
