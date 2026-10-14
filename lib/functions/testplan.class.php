@@ -2656,11 +2656,23 @@ class testplan extends tlObjectWithAttachments
     {
       // Need to get testplan parent (testproject id) in order to get custom fields
       // 20081122 - franciscom - need to check when we can call this with ID=NULL
-      $the_path = $this->tree_manager->get_path(!is_null($id) ? $id : $parent_id);
+      // tree::get_path() returns NULL (not array()) for a node id that does not
+      // exist in nodes_hierarchy (_get_path() nulls the by-ref path). Cast to
+      // array so count() does not throw a PHP 8 TypeError (#1912, sibling of
+      // #1862).
+      $the_path = (array)$this->tree_manager->get_path(!is_null($id) ? $id : $parent_id);
       $path_len = count($the_path);
     }
     $tproject_id = ($path_len > 0)? $the_path[$path_len-1]['parent_id'] : $parent_id; 
-    
+
+    // A missing test plan (no nodes_hierarchy path and no explicit parent) has
+    // no project to resolve linked custom fields from: return an empty map
+    // instead of letting a NULL/0 project id flow into the array-typed
+    // execution join below (#1912).
+    if (is_null($tproject_id) || intval($tproject_id) <= 0) {
+      return array();
+    }
+
     // 20081122 - franciscom - humm!! need to look better IMHO this call is done to wrong function
     $cf_map=$this->cfield_mgr->get_linked_cfields_at_execution($tproject_id,self::ENABLED,
     $show_on_execution,'testplan',$id);
