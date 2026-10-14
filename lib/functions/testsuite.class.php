@@ -869,7 +869,19 @@ class testsuite extends tlObjectWithAttachments
           {
             // After first call passing $prefix with right value, avoids a function call
             // inside of getExternalID();
-            list($identity,$prefix,$glueChar,$external) = $tcase_mgr->getExternalID($elem['id'],null,$prefix);
+            // getExternalID() returns an empty array for a tree node with no
+            // tcversions row; destructuring it with list() would emit E_WARNING
+            // 'Undefined array key 0..3' on PHP 8 (issue #1908). In that case the
+            // test case has no external id to show.
+            $ext = $tcase_mgr->getExternalID($elem['id'],null,$prefix);
+            if (isset($ext[3])) {
+              $identity = $ext[0];
+              $prefix = $ext[1];
+              $glueChar = $ext[2];
+              $external = $ext[3];
+            } else {
+              $identity = '';
+            }
             $elem['external_id'] = $identity; 
             $testcases[]= $elem;
             $parentSet[$elem['parent_id']]=$elem['parent_id'];

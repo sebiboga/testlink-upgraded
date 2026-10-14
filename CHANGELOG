@@ -34,6 +34,21 @@ Every screen of the application was ported one-by-one in a screen-compare
   live reference, old URLs now 404, modern list + create/edit + CF round-trip unaffected,
   Event Viewer clean. Docs: `docs/Task-Issue-1125-Delete-Legacy-BuildView.md`. (Refs #1125)
 
+- [KEY BUGFIX] - #1908: **`testsuite::get_testcases_deep()` (`lib/functions/testsuite.class.php:872`)
+  destructured the 4-element `testcase::getExternalID()` tuple with an unguarded `list()`** — for a
+  test-case tree node with no `tcversions` row `getExternalID()` contractually returns `[]`
+  (`testcase.class.php:5733-5736`), so PHP 8 emitted one `E_WARNING "Undefined array key N"` per
+  missing key (0..3, measured) at `log_level=2`, polluting the Event Viewer on any suite view/export
+  that enumerates test cases (`containerEdit`, `api/suiteedit`, XML-RPC). Same class as #1863. Fix:
+  capture the array and guard `isset($ext[3])` before assigning `external_id` (mirrors the #1863 guard
+  in `buildDirectWebLink()` and the existing `markdown_tc_export.class.php:322` guard); a node with no
+  version now renders `external_id=''` instead of emitting diagnostics. The `$prefix` carry-over that
+  skips `getPrefix()` on later nodes is preserved. The analogous null-deref in the `details='full'`
+  branch of the same method was filed separately as #1910. Verified on a fresh DB with
+  `tmp/fixtures_1908.php`: pre-fix 4 E_WARNING rows @ Line 872, post-fix 0 rows, positive control
+  `TC1908-1` unchanged; `php -l` clean. Docs:
+  `docs/bugfix-issue-1908-testsuite-getexternalid-guard.md`. (Fixes #1908)
+
 - [KEY BUGFIX] - #1879: **a bare request to `lib/ajax/getreqmgrsystemcfgtemplate.php` (no `type`
   param) raised PHP 8 `E_WARNING "Undefined array key \"type\""`, which `watchPHPErrors` wrote as
   an Event Viewer row (log_level 2) on every hit, while the HTTP answer stayed a sane 200
