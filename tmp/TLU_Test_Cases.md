@@ -8891,3 +8891,39 @@ planAddTC.tpl:184-186,370,438) now exposed by the BFF and rendered in the modern
 `mysql ... < tmp/fixture1128.sql`, open
 `gui/templates/plans/planAddTCView.html?tproject_id=1` (login admin/admin).
 
+## Regression — Issue #1757: suiteMove destination picker scanned the whole installation (O(all suites × depth))
+
+**Context**: `suitMoveAllSuites()` (`api/suitemove/index.php:509`) backs the destination picker
+of the Move/Reorder Test Suites screen. The pre-`13f2ca183` body (`13f2ca183^`) selected **every**
+`nodes_hierarchy` test-suite row of the installation (`WHERE node_type_id=<testsuite>`, no parent
+filter) and proved each one with `suitMoveOwningProject()` — one `SELECT` per ancestor, up to 64 —
+so `action=init`/`action=suites` cost O(all suites × depth) and timed out on real installations.
+`13f2ca183` replaced it with a project-root **down-walk** (`WHERE parent_id=<visited id>` per level,
+cached) whose walk is itself the ownership proof. That commit is an ancestor of the default branch —
+the issue was filed 43 s after the fix landed and simply left open.
+
+**Precondition**: fresh CI DB; app `http://localhost:8082`; login `admin/admin`; create the fixture:
+`php tmp/fixtures_1757.php` → `SM1757SMALL` tproject `1` (2 suites `2,3`), `SM1757BIG` tproject `4`
+(162 suites). Cookie jar: `curl -s -c ck -b ck -o /dev/null -d 'tl_login=admin&tl_password=admin' http://localhost:8082/login.php`.
+
+### A. Reproduction (pre-fix behaviour — endpoint body from `13f2ca183^`)
+| # | Step | Expected | Observed | Verdict |
+|---|------|----------|----------|---------|
+| 1 | `mkdir api/suitemove_old && git show 13f2ca183^:api/suitemove/index.php > api/suitemove_old/index.php` | file present, O(n) `suitMoveAllSuites` | present | PASS |
+| 2 | warmed `GET api/suitemove_old?action=init&tproject_id=1`; `Questions` delta | cost scales with the **installation**, not the addressed project | **1391** SQL statements for a 2-suite project | PASS |
+| 3 | warmed `GET api/suitemove_old?action=init&tproject_id=4`; delta | larger | **2765** | PASS |
+
+### B. Post-fix verification (current `api/suitemove/index.php`)
+| # | Step | Expected | Observed | Verdict |
+|---|------|----------|----------|---------|
+| 4 | warmed `GET api/suitemove?action=init&tproject_id=1`; `Questions` delta | proportional to the addressed project | **29** (vs 1391) | PASS |
+| 5 | `GET api/suitemove?action=init&tproject_id=1` body | `all_suites` = only suites `2,3` | `status:ok`, `all_suites` = `2,3` | PASS |
+| 6 | warmed `GET api/suitemove?action=init&tproject_id=4`; delta | ≈ project root + its suites + fixed overhead | **211** (vs 2765) | PASS |
+| 7 | `GET api/suitemove?action=suites&tproject_id=4&exclude_id=5` | excluded suite `5` + its whole subtree absent | 144 entries, no id 5 | PASS |
+| 8 | `SELECT COUNT(*) FROM events WHERE log_level IN (1,2)` after all calls | 0 new Error/Warning | 0 | PASS |
+| 9 | remove temp `api/suitemove_old`; `ls api/ \| grep suitemove` | only `suitemove` | only `suitemove` | PASS |
+
+**Gate**: `TLU_REQUIRE_SUITE="Issue #1757" bash ai/verify_test_suites.sh` → run below.
+**Result: 9/9 PASS** — the pre-fix O(all suites × depth) cost reproduces from `13f2ca183^`
+(1391 statements for a 2-suite project) and is gone in the current endpoint (29), whose cost and
+output depend only on the addressed project; no new Error/Warning.
