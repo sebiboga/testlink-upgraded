@@ -2915,7 +2915,12 @@ class testcase extends tlObjectWithAttachments {
       // if $id was a list then this will return something USELESS
       //
       if( is_null($tcid_list) ) {
-        $recordset = array($this->db->fetchFirstRow($sql));
+        // fetchFirstRow() returns false when there is no matching row; wrapping
+        // it in array(false) made $canProcess true and the post-processing loops
+        // then dereferenced false ("Trying to access array offset on false",
+        // #1862 code review). Keep an absent row as null so nothing runs.
+        $first = $this->db->fetchFirstRow($sql);
+        $recordset = ($first === false || is_null($first)) ? null : array($first);
       }
       else {
         // Write to event viewer ???

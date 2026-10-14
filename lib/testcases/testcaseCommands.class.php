@@ -405,7 +405,11 @@ class testcaseCommands {
     // an E_WARNING for each array offset accessed on null (Event Viewer) and
     // the user gets a meaningless empty form. Send a clean "not found" notice
     // instead of the legacy fatal (#1862).
-    if (empty($tc_data)) {
+    // get_by_id() returns NULL when the tcversion does not resolve; check the
+    // result and its first row, and require a real column (defense in depth
+    // against any stub/partial shape) so crafted tcversion_id values cannot
+    // slip through (code review finding).
+    if (empty($tc_data) || empty($tc_data[0]) || !isset($tc_data[0]['name'])) {
       redirectToInfoPage('testcase_not_found');
     }
 

@@ -9119,3 +9119,37 @@ no new Error/Warning in the `events` table; a valid test case still opens its ed
 RESUME (one command): `php tmp/fixtures_1859.php` → login admin/admin → curl
 `http://localhost:8082/lib/testcases/tcEdit.php?edit_tc=1&tcase_id=999999` → expect 302 to
 `gui/templates/feedback/info.html?code=testcase_not_found`; valid `tcase_id=6&tcversion_id=7` → 200.
+
+## Regression — Issue #1862 (hardening): code-review follow-up — crafted tcversion_id and get_by_id(LATEST_VERSION) shape
+
+**Precondition / fixture:** `php tmp/fixtures_1859.php` on a fresh DB. This run created project **9**
+(`TC Edit 1859`), valid test case **tcase_id=14** (`TC1859-ACTIVE`) with **tcversion_id=15**; the
+nonexistent id used is **999999**. Session: fresh cookie jar + `POST /login.php`
+(`tl_login=admin&tl_password=admin`).
+**Context:** code review of the #1862 fix found that guarding only with `empty($tc_data)` let a
+crafted `tcversion_id=-1` (= `testcase::LATEST_VERSION`) through: `get_by_id()` for LATEST_VERSION
+did `array($this->db->fetchFirstRow($sql))` even when there was no row, so `array(false)` was truthy
+and the editor post-processing dereferenced `false`, emitting 9 `E_WARNING` rows (`Trying to access
+array offset on false` at `touchcase.class.php:2977` + `Undefined array key ...` in the editor).
+**Expected post-fix:** every resolution that does not yield a real test-case row redirects to the
+Info notice; valid edits still render; **0** new Error/Warning rows.
+
+| # | Step | Input | Expected | Observed | Result |
+|---|---|---|---|---|---|
+| 1 | Syntax | `php -l lib/functions/testcase.class.php` / `lib/testcases/testcaseCommands.class.php` | no errors | no errors | PASS |
+| 2 | Missing id | `tcEdit.php?edit_tc=1&tcase_id=999999` | 302 → info | 302, `?code=testcase_not_found` | PASS |
+| 3 | Valid, latest | `tcEdit.php?edit_tc=1&tcase_id=14` | 200 editor | 200 | PASS |
+| 4 | Valid, explicit ver | `tcEdit.php?edit_tc=1&tcase_id=14&tcversion_id=15` | 200 editor | 200 | PASS |
+| 5 | Crafted missing + LATEST | `tcEdit.php?edit_tc=1&tcase_id=999999&tcversion_id=-1` | 302 → info, no warnings | 302, `?code=testcase_not_found` | PASS |
+| 6 | Crafted valid id + bad ver | `tcEdit.php?edit_tc=1&tcase_id=14&tcversion_id=999` | 302 → info, no warnings | 302, `?code=testcase_not_found` | PASS |
+| 7 | Events | `SELECT MAX(id) FROM events` before/after steps 2–6 | +0 | +0 new rows | PASS |
+| 8 | Adjacent screens | `tcEdit`(valid) / `tcCompareVersions.php?tcase_id=14` / `tcSearch.php` | 200 | 200 / 200 / 200 | PASS |
+| 9 | get_by_id callers | relations (`testcase.class.php:7919`), move-node (8268) use `(null != $dummy)` / `is_array($dummy)&&isset($dummy[0])` | missing → null (treated absent) | null returned; guards handle it | PASS |
+| 10 | get_test_steps/other callers | `grep -n 'get_by_id(.*LATEST_VERSION'` on testcase class | no caller dereferences row[0] unguarded | inspected; safe | PASS |
+| 11 | No new Event Viewer errors | `events` log_level 1/2/3 count after full run | unchanged | no new WARNING/ERROR | PASS |
+
+**Result: 11/11 PASS.**
+RESUME: `php tmp/fixtures_1859.php` → login admin/admin → curl
+`http://localhost:8082/lib/testcases/tcEdit.php?edit_tc=1&tcase_id=999999&tcversion_id=-1`
+→ expect 302 to `gui/templates/feedback/info.html?code=testcase_not_found` and +0 events;
+`tcase_id=<valid>` and `tcase_id=<valid>&tcversion_id=<valid>` → 200.
