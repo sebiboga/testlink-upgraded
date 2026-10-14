@@ -112,6 +112,7 @@ class tlUser extends tlDBObject {
   protected $usernameFormat;
   protected $loginMethod;
   protected $maxLoginLength;
+  protected $loginRegExp; // Refs #1815
   
   /** error codes */
   const E_LOGINLENGTH = -1;

@@ -11,6 +11,7 @@ require_once(TL_ABS_PATH . "/third_party/kaiten-php-api/lib/kaiten-rest-api.php"
 
 class kaitenrestInterface extends issueTrackerInterface {
   private $APIClient;
+  private $canSetReporter = false; // Refs #1815
   private $options = [];
   private $conditionMap = [
     '2' => 'archived',

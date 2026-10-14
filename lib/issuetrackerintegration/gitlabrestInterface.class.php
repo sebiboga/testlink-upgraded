@@ -15,6 +15,7 @@ class gitlabrestInterface extends issueTrackerInterface
   private $APIClient;
   private $issueDefaults;
   private $issueOtherAttr = null; // see 
+  private $issueAttr = null; // Refs #1815
   private $translate = null;
 
   var $defaultResolvedStatus;

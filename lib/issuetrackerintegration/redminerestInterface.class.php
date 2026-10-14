@@ -13,7 +13,9 @@ class redminerestInterface extends issueTrackerInterface
   private $APIClient;
   private $issueDefaults;
   private $issueOtherAttr = null; // see 
+  private $issueAttr = null;
   private $translate = null;
+  private $canSetReporter = false; // Refs #1815
 
 	var $defaultResolvedStatus;
 
