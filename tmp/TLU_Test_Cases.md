@@ -9024,3 +9024,20 @@ node (2 Event-Viewer `E_WARNING` rows) and is gone after the guard (0 rows); the
 **Gate**: `TLU_REQUIRE_SUITE="Issue #1758" bash ai/verify_test_suites.sh` → see run below.
 
 **Result: 21/21 PASS** — every malformed destination (`abc`, `-1`, `1.5`, `3.9`, `1e3`, `75.5`, `%2B5`, JSON `"abc"`, JSON `1.5`, array) now answers `400 bad_request` and leaves the tree untouched; valid, omitted, `0`, whitespace-padded and JSON-integer destinations still move; `up`/`down` and `reorder` are unchanged; 0 Event-Viewer rows. Fix: `api/suitemove/index.php` `move` branch — validate the raw `new_parent_id` (`/^\d+$/`) through `getParam()` before the `≤ 0` fallback (commit on `fix/issue-1758-malformed-destination`).
+
+### C. Addendum — JSON non-integer TYPES rejected too (code-review follow-up)
+
+The first cut only ran the digit regex on the stringified raw value, so a JSON **boolean** slipped
+through: `(string)true === "1"` matched `^\d+$`, but `getInt()` reads a boolean as `0`, producing
+the same silent in-container reorder. The guard now also rejects any raw value that is neither a
+string nor an int, so booleans and floats are refused.
+
+| # | `new_parent_id` | Expected | Observed | Verdict |
+|---|---|---|---|---|
+| 22 | JSON `true` | `400 bad_request`, order `[3,4]` (was `200` + reorder) | `400 bad_request`, order unchanged | PASS |
+| 23 | JSON `1e3` (float) | `400 bad_request` | `400 bad_request` | PASS |
+| 24 | JSON `4` (int) | `200`, moves under 4 | `200`, `container.id=4` | PASS |
+| 25 | JSON `null` | `200`, treated as destination omitted | `200`, fallback to current parent | PASS |
+| 26 | form `1.5` / JSON `"abc"` re-check after the type guard | `400 bad_request` | `400 bad_request` | PASS |
+
+**Result: 26/26 PASS** (`21` above + `5` here).
