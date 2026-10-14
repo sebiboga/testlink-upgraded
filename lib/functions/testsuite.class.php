@@ -899,6 +899,12 @@ class testsuite extends tlObjectWithAttachments
       foreach($testcases as $idx => $value)
       {
         $item=$tcase_mgr->get_last_version_info($value['id'],array('output' => 'full', 'get_steps' => true));
+        // get_last_version_info() returns null for a tree node with no
+        // tcversions row; the 'full' contract cannot be fulfilled for it, so
+        // skip it instead of dereferencing null (issue #1910).
+        if( is_null($item) ) {
+          continue;
+        }
         $item['tcversion_id']=$item['id'];
         $tsuite['tsuite_name']=$parentNodes[$value['parent_id']]['name'];
 
@@ -961,6 +967,12 @@ class testsuite extends tlObjectWithAttachments
       foreach($testcases as $idx => $value)
       {
         $item=$tcase_mgr->get_last_version_info($value['id'],array('output' => 'full', 'get_steps' => true));
+        // get_last_version_info() returns null for a tree node with no
+        // tcversions row; the 'full' contract cannot be fulfilled for it, so
+        // skip it instead of dereferencing null (issue #1910).
+        if( is_null($item) ) {
+          continue;
+        }
         $item['tcversion_id']=$item['id'];
         $parent['tsuite_name']=$tsuiteName;
 

@@ -34,6 +34,18 @@ Every screen of the application was ported one-by-one in a screen-compare
   live reference, old URLs now 404, modern list + create/edit + CF round-trip unaffected,
   Event Viewer clean. Docs: `docs/Task-Issue-1125-Delete-Legacy-BuildView.md`. (Refs #1125)
 
+- [KEY BUGFIX] - #1910: **the `details='full'` branch of `testsuite::get_testcases_deep()` and
+  `get_children_testcases()` dereferenced a null `get_last_version_info()`** — for a test-case tree
+  node with no `tcversions` row, `get_last_version_info()` returns `null` (`testcase.class.php:2559-2568`),
+  so `$item['tcversion_id']=$item['id'];` (`testsuite.class.php:902`/`:964`) raised PHP 8
+  `E_WARNING "Trying to access array offset on null"` at `log_level=2` (Event Viewer) and emitted a
+  bogus `['tcversion_id'=>null]` row. Reachable via XML-RPC `getTestCasesForTestSuite` with
+  `details='full'` (both deep and children walkers). Fix: `if (is_null($item)) { continue; }` at both
+  sites — a versionless node has no complete info to return (same guard convention as #1908). The
+  `simple`/`only_id` paths are untouched. Verified on a fresh DB with `tmp/fixtures_1910.php`:
+  pre-fix 2 Event-Viewer `E_WARNING` rows, post-fix 0, healthy `TC1910-OK` control unchanged;
+  `php -l` clean. Docs: `docs/bugfix-issue-1910-testsuite-full-null-deref.md`. (Fixes #1910)
+
 - [KEY BUGFIX] - #1908: **`testsuite::get_testcases_deep()` (`lib/functions/testsuite.class.php:872`)
   destructured the 4-element `testcase::getExternalID()` tuple with an unguarded `list()`** — for a
   test-case tree node with no `tcversions` row `getExternalID()` contractually returns `[]`
