@@ -8823,3 +8823,43 @@ vs `document.querySelector('#tcTable tbody tr:not(.cf-row)').children.length`, a
 **Result: 8/8 PASS** — the pre-fix 6-vs-7 misalignment reproduces and is gone; all four
 header/column configurations (no-plat/no-priority, plat/no-priority, plat+priority,
 no-plat+priority) align, and the linked/unlinked/custom-field row paths are intact.
+
+## Regression — Issue #1908: testsuite::get_testcases_deep() list() destructure of getExternalID() logged 4 E_WARNING for a versionless test-case node
+
+**Context**: `testsuite::get_testcases_deep()` (`lib/functions/testsuite.class.php:872`) destructured
+the 4-element `testcase::getExternalID()` tuple with an unguarded `list()`. For a test-case tree node
+with **no `tcversions` row** `getExternalID()` returns `[]` (`testcase.class.php:5733-5736`), so PHP 8
+emitted **4** `E_WARNING "Undefined array key 0..3"` rows per call at `log_level=2` (Event Viewer).
+Fix `d49dd373d`: capture the array and guard `isset($ext[3])`, defaulting `external_id` to `''`
+(mirrors the #1863 `buildDirectWebLink()` guard). Sibling finding in the `details='full'` branch
+filed as #1910.
+
+**Precondition**: fresh CI DB; app http://localhost:8082 (PHP built-in server); login `admin/admin`;
+fixture `php tmp/fixtures_1908.php` → `tproject=9 suite=10 tcase_ok=11 tcase_nover=14
+tcversion_nover=15` (tcversions row 15 deleted → node 14 has no version). Login cookie jar:
+`curl -s -c j -b j -o /dev/null http://localhost:8082/index.php` then
+`curl -s -c j -b j -o /dev/null -d 'tl_login=admin&tl_password=admin' http://localhost:8082/login.php`.
+Baseline each time: `mysql -h 127.0.0.1 -utestlink -ptestlink testlink -N -B -e "DELETE FROM events;"`.
+
+### A. Reproduction (pre-fix behaviour — source temporarily restored from `HEAD~1`)
+
+| # | Step | Expected | Observed | Verdict |
+|---|------|----------|----------|---------|
+| 1 | `git show HEAD~1:lib/functions/testsuite.class.php > lib/functions/testsuite.class.php`; `php -l` | no syntax errors | No syntax errors detected | PASS |
+| 2 | `GET api/suiteedit/index.php?action=init&mode=delete&suite_id=10&tproject_id=9` | HTTP 200 | HTTP=200, `status:"ok"`, `delete_preview` present | PASS |
+| 3 | `SELECT id,log_level,description FROM events` after step 2 | 4 rows, `log_level=2`, `Undefined array key 0..3` @ `testsuite.class.php - Line 872` | exactly 4 rows @ Line 872 (keys 0,1,2,3) | PASS |
+| 4 | restore `git checkout HEAD -- lib/functions/testsuite.class.php` | working tree == fix commit | `git diff` empty | PASS |
+
+### B. Post-fix verification (fix `d49dd373d`)
+
+| # | Step | Expected | Observed | Verdict |
+|---|------|----------|----------|---------|
+| 5 | `php -l lib/functions/testsuite.class.php` | no syntax errors | No syntax errors detected | PASS |
+| 6 | `php tmp/fixtures_1908.php` (direct class call `get_testcases_deep(10,'simple')`) | 2 rows, `events_after=0`; node 14 `external_id=''` | `id=11 ext='TC1908-1'`, `id=14 ext=''`, `events_after=0` | PASS |
+| 7 | `GET api/suiteedit/index.php?action=init&mode=delete&suite_id=10&tproject_id=9`; `SELECT COUNT(*) FROM events` | HTTP 200, **0** new `events` rows | HTTP=200, 0 rows | PASS |
+| 8 | `php tmp/repro_1908.php 10` (`simple` / `only_id` / `full`) | `simple`: node14 `''`; `only_id`: `11,14`; `full` external ids intact | `simple` `''`; `only_id` `11,14`; `full` `TC1908-1`/`''` (+1 pre-existing #1910 warning) | PASS |
+| 9 | positive control: `get_testcases_deep(10,'simple')` node 11 | `external_id='TC1908-1'` unchanged | `TC1908-1` | PASS |
+
+**Gate**: `TLU_REQUIRE_SUITE="Issue #1908" bash ai/verify_test_suites.sh` → run below.
+**Result: 9/9 PASS** — the pre-fix 4-warning signature reproduces exactly over HTTP and is gone with
+the landed guard; the valid node keeps its external id.
