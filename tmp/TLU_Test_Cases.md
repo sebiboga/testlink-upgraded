@@ -9283,3 +9283,24 @@ GET `action=init`); screen `gui/templates/documentation/learnTesting.html`
 `http://localhost:8082/gui/templates/documentation/learnTesting.html?tproject_id=0&tplan_id=0`;
 use the search box and the locale switcher; the ASIDE Documentation section lists
 **Learn Testing** below **Documentation**.
+
+## Regression — Issue #1913: testplan::get_linked_cfields_at_execution() argument shift (implode(int) TypeError)
+
+**Precondition:** fresh TestLink DB (0 projects/plans/custom fields this run), app at `http://localhost:8082`; PHP CLI available. Create the fixture first:
+`php tmp/fixtures_1913.php` — isolated project `T1913` (pid=1), plan `T1913-PLAN` (planId=2), exec-time CF `T1913_exec_note` (show/enable_on_execution=1, linked to node type 5=testplan + project) and design CF `T1913_design_note` with a value on the plan node.
+**Legacy parity / scope:** `testplan::get_linked_cfields_at_execution($id,$parent_id,$show_on_execution)` is latent dead code — the only external callers of the two wrappers that reach it (`lib/execute/execDashboard.php:217`, `lib/results/printDocument.php:204`, `api/execdashboard/index.php:278`) all pass scope `'design'`, and `testplan::html_table_of_custom_field_inputs()` has zero callers. The defect was nevertheless reachable for any future caller with a VALID plan id.
+
+| # | Step | Input | Expected | Observed | Result |
+|---|---|---|---|---|---|
+| 1 | PHP syntax | `php -l lib/functions/testplan.class.php` | no errors | `No syntax errors detected` | PASS |
+| 2 | Pre-fix repro (recorded, bug present) | `php tmp/repro_1913.php` before the fix | PHP 8 `TypeError` (HTTP 500 in web SAPI) | `implode(): Argument #2 ($array) must be of type ?array, int given @ lib/functions/cfield_mgr.class.php:1673` for all 3 calls, `exit=1` | PASS (bug confirmed) |
+| 3 | Post-fix direct call, default args | `get_linked_cfields_at_execution($planId)` | no Throwable, non-empty map | `OK, map size=1 labels=[T1913 Exec Note]` | PASS |
+| 4 | Post-fix direct call, `$show_on_execution=1` | `get_linked_cfields_at_execution($planId,null,1)` | no Throwable, correct field | `OK, map size=1 labels=[T1913 Exec Note]` | PASS |
+| 5 | Wrapper (only external chain) | `html_table_of_custom_field_values($planId,'execution')` | renders the exec field, no warning | `renders field OK` | PASS |
+| 6 | Node-type mapping | map key set for a project with a testplan CF | exactly the testplan-linked CF | 1 field (`T1913 Exec Note`), no extra/missing | PASS |
+| 7 | Event Viewer (no new Error/Warning) | `SELECT count(*) FROM events` before/after the post-fix run | count unchanged | `3 → 3`; pre-fix rows (`Undefined array key 1` @ cfield_mgr:1656, `Undefined array key "node_id"`) do not reappear | PASS |
+| 8 | Design-scope regression (isset guard equivalence) | `get_linked_cfields_at_design($planId,$pid)` + `html_table_of_custom_field_values($planId,'design')` + `html_table_of_custom_field_inputs($planId,null,'design')` | valued design CF still returned/rendered | map size=1, values html len=97, inputs html len=242, no new events | PASS |
+
+**Actual result: fixed** — the argument shift is corrected (`'testplan'` → `$node_type`, `$id` → `$node_id`), the unrelated `$node_id` undefined-key warning made reachable by the fix is also removed, and both direct and html-path calls succeed with the expected field. No new `events` Error/Warning rows.
+
+**Gate:** `TLU_REQUIRE_SUITE="Issue #1913" bash ai/verify_test_suites.sh` → see run below.
