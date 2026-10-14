@@ -8969,3 +8969,58 @@ branch). Fix: `if (is_null($item)) { continue; }` at both sites.
 **Result: 10/10 PASS** — the null-deref reproduces at `:902`/`:964` with a versionless test-case
 node (2 Event-Viewer `E_WARNING` rows) and is gone after the guard (0 rows); the healthy node's
 `full` payload and the `simple`/`only_id` enumeration are unchanged.
+
+## Regression — Issue #1758: suiteMove `move` silently turned a malformed `new_parent_id` into an in-container reorder
+
+**Screen:** `gui/templates/testcases/suiteMove.html` · **BFF:** `api/suitemove/index.php`
+**Precondition**
+
+- App on `http://localhost:8082`, logged in as `admin`/`admin`.
+- MariaDB `127.0.0.1:3306`, db `testlink`, user/pass `testlink`/`testlink`. The DB is empty on a fresh run.
+- Fixture: `php tmp/fixtures_1759.php` → project `1`, root node `1`, suites `3` (A-suite-1) and `4` (A-suite-2) both direct children of the root.
+- Session for curl: POST `tl_login=admin&tl_password=admin&login=Login` to `/login.php` (cookie `TESTLINK1920TESTLINK_USER_AUTH_COOKIE`). Every write call sends a same-origin CSRF header:
+  `-H 'Origin: http://localhost:8082' -H 'Referer: http://localhost:8082/gui/templates/testcases/suiteMove.html'`.
+- `API=http://localhost:8082/api/suitemove/index.php`. Before each `move` case, reset the root order to `[3,4]` with
+  `POST $API?action=move  tproject_id=1&node_id=3&position=top&new_parent_id=1`.
+
+**Repro (pre-fix), was a real silent write:**
+
+- `POST $API?action=move  node_id=3&position=bottom&new_parent_id=1.5` → observed `200 {"status":"ok","changed":true}` and the root order became `[4,3]` (a silent in-container reorder); `intval('1.5') === 1`, the suite's own current parent.
+- `POST $API?action=move  node_id=3&position=bottom` with **JSON** body `{"new_parent_id":"abc"}` → observed `200 ok` + reorder `[3,4]→[4,3]`; the guard read `$_REQUEST`, which does not carry a JSON body.
+
+**Expected (post-fix):** a malformed destination answers `400 bad_request` and the stored order is untouched; a valid destination still moves; `up`/`down` still ignore the destination; `reorder` unchanged.
+
+### A. Malformed destinations — `position=bottom`, node 3 first (`new_parent_id` form-encoded unless noted)
+
+| # | `new_parent_id` | Expected | Observed (post-fix) | Verdict |
+|---|---|---|---|---|
+| 1 | `abc` | `400 bad_request`, order `[3,4]` | `400 {"code":"bad_request","message":"Invalid destination test suite"}`, order unchanged | PASS |
+| 2 | `-1` | `400 bad_request` | `400 bad_request` | PASS |
+| 3 | `1.5` (`intval`=1=parent) | `400 bad_request` (was `200` + reorder) | `400 bad_request`, order `[3,4]` | PASS |
+| 4 | `3.9` (`intval`=3=self) | `400 bad_request` (was `409 cycle`) | `400 bad_request` | PASS |
+| 5 | `1e3` (`intval`=1000) | `400 bad_request` (was `404`) | `400 bad_request` | PASS |
+| 6 | `75.5` (`intval`=75) | `400 bad_request` (was `404`) | `400 bad_request` | PASS |
+| 7 | `%2B5` (literal `+5`) | `400 bad_request` | `400 bad_request` | PASS |
+| 8 | `1E3` / `0x4` / `4abc` | `400 bad_request` | `400 bad_request` on each | PASS |
+| 9 | JSON `"abc"` (`Content-Type: application/json`) | `400 bad_request`, order `[3,4]` | `400 bad_request`, order unchanged | PASS |
+| 10 | JSON `1.5` | `400 bad_request` | `400 bad_request` | PASS |
+| 11 | `new_parent_id[]=x` (array) | `400 bad_request`, no `Array to string` E_WARNING | `400 bad_request` | PASS |
+
+### B. Valid / omitted destinations and untouched paths
+
+| # | Step | Expected | Observed | Verdict |
+|---|---|---|---|---|
+| 12 | `new_parent_id=4` | `200`, suite 3 becomes child of suite 4 | `200`, `container.id=4`, suite 3 `parent_id=4` | PASS |
+| 13 | `new_parent_id=0` | `200`, fallback to current parent | `200`, in-container reorder | PASS |
+| 14 | `new_parent_id` absent | `200`, fallback to current parent | `200` | PASS |
+| 15 | `new_parent_id=' 4 '` (surrounding spaces) | `200` (trimmed to 4) | `200`, moved under 4 | PASS |
+| 16 | JSON `new_parent_id: 4` | `200` | `200`, moved under 4 | PASS |
+| 17 | `position=down` with `new_parent_id=abc` | destination ignored (documented), `200` | `200`, reorder applied | PASS |
+| 18 | `position=up` with `new_parent_id=abc` at boundary | `200 no_change` | `200 {"status":"no_change"}` | PASS |
+| 19 | `reorder` `nodelist=75.5,76` / `1e3` / `3,4x` | `400 bad_request` | `400 bad_request` on each | PASS |
+| 20 | `reorder` `nodelist=4,3` | `200`, order `[4,3]` | `200`, order `[4,3]` | PASS |
+| 21 | `events` table after the whole run | 0 new Error/Warning | `SELECT COUNT(*) FROM events WHERE log_level IN ('ERROR','WARNING')` = `0` | PASS |
+
+**Gate**: `TLU_REQUIRE_SUITE="Issue #1758" bash ai/verify_test_suites.sh` → see run below.
+
+**Result: 21/21 PASS** — every malformed destination (`abc`, `-1`, `1.5`, `3.9`, `1e3`, `75.5`, `%2B5`, JSON `"abc"`, JSON `1.5`, array) now answers `400 bad_request` and leaves the tree untouched; valid, omitted, `0`, whitespace-padded and JSON-integer destinations still move; `up`/`down` and `reorder` are unchanged; 0 Event-Viewer rows. Fix: `api/suitemove/index.php` `move` branch — validate the raw `new_parent_id` (`/^\d+$/`) through `getParam()` before the `≤ 0` fallback (commit on `fix/issue-1758-malformed-destination`).
