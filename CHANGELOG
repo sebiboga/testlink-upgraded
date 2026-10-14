@@ -17,6 +17,18 @@ Every screen of the application was ported one-by-one in a screen-compare
   kept for backward compatibility and is progressively retired as each modern
   screen reaches full parity.
 
+- [BUGFIX] - #1815: PHP 8.2 `E_DEPRECATED "Creation of dynamic property"` is gone from the
+  four issue-tracker REST interfaces redmine/github/gitlab/kaiten and from `tlUser`. Those
+  classes assigned `$this->issueAttr` (redmine/github/gitlab) and `$this->canSetReporter`
+  (redmine/kaiten) without declaring them, and
+  `tlUser::__construct()` assigned `$this->loginRegExp` on every `getSecurityNotes()` call (the
+  login-page path) without a declaration; all are now declared (`$loginRegExp` as `protected`,
+  mirroring the sibling `$usernameFormat`/`$loginMethod`/`$maxLoginLength`, and the interface
+  properties as `private`, matching the pattern the JIRA classes already use). No assignment was
+  removed and no call site changed; on the web tier the diagnostic had been silently swallowed by
+  `watchPHPErrors()` (no `E_DEPRECATED` case), so the Event Viewer was never polluted. CLI repro
+  `tmp/repro_1815.php` goes from 5 deprecations to 0. (Fixes #1815)
+
 - [BUGFIX] - #1813: the Execution Dashboard (`lib/execute/execDashboard.php`) no longer writes
   two `E_WARNING "Trying to access array offset on false"` rows into the Event Viewer on every
   load for a test plan that has no builds. `build->get_by_id()` returns `false` when the id
