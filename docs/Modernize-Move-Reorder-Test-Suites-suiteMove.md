@@ -122,6 +122,38 @@ Evidence:
 Regression suite `Issue #1755` in `tmp/TLU_Test_Cases.md`: **9/9 PASS**. Screenshot:
 `docs/screenshots/issue-1755-suitemove-buttons-usable.png`.
 
+## Bugfix #1757 — the destination picker no longer scans the whole installation
+
+`suitMoveAllSuites()` (`api/suitemove/index.php:509`) backs the destination `<select>` of the
+screen. Before `13f2ca183` its body (`13f2ca183^`) issued one unfiltered
+`SELECT … FROM nodes_hierarchy WHERE node_type_id = <testsuite>` — **every suite of every test
+project** — and then called `suitMoveOwningProject()` for each row (one `SELECT` per ancestor,
+up to 64). Cost per request was therefore O(all suites × depth), independent of the project being
+addressed, on both entry points (`init` `:684`, `suites` `:704`); measured on a 164-suite
+installation it took **1391** SQL statements just to list a **2-suite** project. The
+`13f2ca183` rewrite walks **down** from the project node (`WHERE parent_id = <visited id>` per
+level, cached, depth-first, `$visited` set): the walk itself proves ownership, so no per-row
+ancestor query is needed (same shape as `tcreoSuitesOf()`, `api/tcreorder/index.php:392`). That
+commit is an ancestor of the default branch, so the symptom is not reproducible. This ticket was
+filed (`2026-09-30T13:31:13Z`) **43 s after** the fix commit was authored (`13:30:30Z`) — it
+documented code that no longer existed by the time it landed. Verification only — **no new code
+change**.
+
+Evidence (same fixture, same DB — pre-fix body reconstructed verbatim from `13f2ca183^` as a
+temporary sibling endpoint, removed afterwards):
+* `action=init` SQL statements (`SHOW GLOBAL STATUS LIKE 'Questions'`, warmed):
+  **OLD 1391** / **NEW 29** for `SM1757SMALL` (2 suites); **OLD 2765** / **NEW 211** for
+  `SM1757BIG` (162 suites). The new cost tracks the addressed project, not the installation.
+* `?action=init&tproject_id=1` → `all_suites` = exactly suites `2,3` (none of BIG's 162).
+* `?action=suites&tproject_id=4&exclude_id=5` → 144 entries; excluded suite `5` **and its whole
+  subtree** absent.
+* `git merge-base --is-ancestor 13f2ca183 origin/sebiboga` → true.
+* `events` table after the run: only `log_level=16` LOGIN / testproject-CREATE audit rows; **0**
+  Error/Warning (`log_level IN (1,2)`).
+
+Regression suite `Issue #1757` in `tmp/TLU_Test_Cases.md`: **9/9 PASS**. No screenshot: this is a
+backend query-count defect with no UI change.
+
 ## Verification
 
 Suite 1740 in `tmp/TLU_Test_Cases.md`: **57/57 PASS** (incl. 11 review-fix cases) + 30 API
