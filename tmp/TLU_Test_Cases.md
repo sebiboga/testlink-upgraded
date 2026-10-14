@@ -8927,3 +8927,45 @@ the issue was filed 43 s after the fix landed and simply left open.
 **Result: 9/9 PASS** — the pre-fix O(all suites × depth) cost reproduces from `13f2ca183^`
 (1391 statements for a 2-suite project) and is gone in the current endpoint (29), whose cost and
 output depend only on the addressed project; no new Error/Warning.
+
+## Regression — Issue #1910: testsuite 'full' detail branches dereferenced a null get_last_version_info() for a versionless test-case node
+
+**Context**: the `details='full'` branch of `testsuite::get_testcases_deep()`
+(`lib/functions/testsuite.class.php:902`) and `get_children_testcases()` (`:964`) called
+`testcase::get_last_version_info()` and immediately dereferenced the result
+(`$item['tcversion_id']=$item['id'];`). For a test-case tree node with **no `tcversions` row**
+`get_last_version_info()` returns `null` (`testcase.class.php:2559-2568`), so PHP 8 raised
+`E_WARNING "Trying to access array offset on null"` at `log_level=2` (Event Viewer pollution) and
+auto-vivified a bogus `['tcversion_id'=>null]` row. Reachable via XML-RPC
+`getTestCasesForTestSuite` with `details='full'` (deep and children walkers) and the dev harness
+`lib/functions/code_testing/testsuite.class.test.php:80`. Follow-up of #1908 (same class, different
+branch). Fix: `if (is_null($item)) { continue; }` at both sites.
+
+**Precondition**: fresh CI DB (schema only, **zero** `testsuites`/`tcversions` rows); app
+`http://localhost:8082`; `php tmp/fixtures_1910.php` builds `tproject=1`, `suite=2`,
+`TC1910-OK` node `3`/tcversions `4`, `TC1910-NOVER` node `6` whose tcversions row `7` is deleted
+(fixture prints `tcversions rows for nover after delete=0`). Repro driver: `php tmp/repro_1910.php 2`
+(installs its own handler and prints per-call `warnings=`/`rows=`).
+
+### A. Reproduction (pre-fix behaviour — `git checkout -- lib/functions/testsuite.class.php`)
+| # | Step | Expected | Observed | Verdict |
+|---|------|----------|----------|---------|
+| 1 | `php tmp/repro_1910.php 2` → `get_testcases_deep('full')` | 1 `E_WARNING` @ line 902 | 1 `E_WARNING Trying to access array offset on null ... testsuite.class.php - Line 902` | PASS |
+| 2 | same → `get_children_testcases('full')` | 1 `E_WARNING` @ line 964 | 1 `E_WARNING ... - Line 964` | PASS |
+| 3 | same → `get_testcases_deep('simple')` | 0 `E_WARNING` (control) | 0 warnings | PASS |
+| 4 | `php tmp/events_1910.php` (TestLink's own `watchPHPErrors`) pre-fix | new Error/Warning events > 0 | `new_events=2` (two `L2 E_WARNING Trying to access array offset on null`) | PASS |
+
+### B. Post-fix verification (current `testsuite.class.php`)
+| # | Step | Expected | Observed | Verdict |
+|---|------|----------|----------|---------|
+| 5 | `php -l lib/functions/testsuite.class.php` | no syntax errors | `No syntax errors detected` | PASS |
+| 6 | `php tmp/repro_1910.php 2` → `get_testcases_deep('full')` | 0 warnings, rows=1 (orphan skipped) | warnings=0, rows=1 | PASS |
+| 7 | same → `get_children_testcases('full')` | 0 warnings, rows=1 | warnings=0, rows=1 | PASS |
+| 8 | same → `get_testcases_deep('simple')` | 0 warnings, rows=2 (orphan still listed) | warnings=0, rows=2 | PASS |
+| 9 | `php tmp/events_1910.php` post-fix | 0 new events | `new_events=0` | PASS |
+| 10 | `php tmp/verify_1910.php` positive control | healthy `TC1910-OK` keeps `tcversion_id=4`/`version=1`; `only_id=3,6` | exactly | PASS |
+
+**Gate**: `TLU_REQUIRE_SUITE="Issue #1910" bash ai/verify_test_suites.sh` → see run below.
+**Result: 10/10 PASS** — the null-deref reproduces at `:902`/`:964` with a versionless test-case
+node (2 Event-Viewer `E_WARNING` rows) and is gone after the guard (0 rows); the healthy node's
+`full` payload and the `simple`/`only_id` enumeration are unchanged.
