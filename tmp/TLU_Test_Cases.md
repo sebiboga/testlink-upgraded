@@ -9194,3 +9194,57 @@ as logic-verified-by-mirror, not browser-tested.
 → login admin/admin → open the planAddTCView URL for PATC1129/Plan PATC1129 → each
 linked row shows a platform select; change it and click **Save platform**; verify with
 `mysql -h 127.0.0.1 -utestlink -ptestlink testlink -e "SELECT id,tcversion_id,platform_id FROM testplan_tcversions WHERE testplan_id=<plan id>;"`.
+
+## Regression — Issue #1810: api/* BFF endpoints — "?param[]=value" emitted "Array to string conversion" E_WARNING into the events table, unauthenticated
+
+**Precondition**
+- App reachable at `http://localhost:8082` (PHP built-in server, docroot = repo root), DB `testlink` freshly imported.
+- `events` table truncated before each probe (`DELETE FROM events;`); count read with
+  `mysql -N -h 127.0.0.1 -utestlink -ptestlink testlink -e "SELECT COUNT(*) FROM events"`.
+- Admin session cookie obtained via `POST /api/auth/login` (`{"login":"admin","password":"admin"}`); unauthenticated probes send **no** cookie.
+- Array-parameter sweep `Q` (one request per `api/<area>/index.php`, 130 endpoints): array-shaped versions of every
+  parameter the BFFs read — `?action[]=x&name[]=x&parent_id[]=5&exec_id[]=1&id[]=1&type[]=x&locale[]=en&apikey[]=x
+  &tplan_id[]=1&tproject_id[]=1&build_set[]=1&platSet[]=1&table[]=x&doAction[]=x&custom_fields[]=x&node_type[]=x…` (~48 params).
+
+**Repro (pre-fix) — what the issue described**
+1. Fresh DB, no login: `curl "http://localhost:8082/api/attachments/index.php?action[]=x"` → answered `401` normally,
+   but `SELECT … FROM events` gained `E_WARNING / Array to string conversion - … api/attachments/index.php - Line 38`.
+2. Same on `attachmentsdelete:78`, `keywordsxml:69`, `ltx:159`, `publiclink:65`, `tcprintlaunch:83` — 6 endpoints reachable
+   **unauthenticated** (parameter parsed before the session check); `reqspecsearchform` additionally logged its own
+   `tLog(...,'WARNING')` refusal row.
+3. Authenticated (admin) sweep over all 130 endpoints → **41 endpoints / 44 E_WARNING rows** in one pass.
+4. `POST action[]=x` (forged `Origin: http://localhost:8082`) to `api/attachments` → `401` + 1 new E_WARNING row.
+
+**Expected post-fix behavior**
+1. A malformed array parameter is answered `400 {"status":"error","code":"invalid_parameter","message":"Invalid value for <name>"}`
+   and leaves **no** row in `events` — unauthenticated or not, GET or POST.
+2. Endpoints that already guard themselves and whose suites pin exact codes keep their exact answers:
+   namecheck (#1724), reqmgrsystemedit (#1727), execnotesreadonly (#1808).
+3. Legitimate array selectors keep working: `api/reports` `build_set[]`/`build[]`/`testsuite[]`/`platform[]`/`lastStatus[]`/`platSet[]`,
+   `api/reportsexport` `build_set[]` (modern screens `resultsMatrix.html`, `resultsMoreBuilds.html`, `neverRun.html`).
+4. Scalar request flows are unchanged.
+
+**Actual result — PASS**
+
+| # | Check | Expected | Measured |
+|---|---|---|---|
+| 1 | Unauthenticated sweep (130 endpoints × ~48 array params) | 0 rows in `events` | **0** (pre-fix: 7) |
+| 2 | Admin sweep (same) | 0 rows | **0** (pre-fix: 45) |
+| 3 | `POST action[]=x` forged-Origin, unauth + admin, `api/attachments` | no row, 400 | **0 rows**, `400 invalid_parameter` (pre-fix: +1 row, 401) |
+| 4 | `api/namecheck?action[]=x` (#1724 R2) | 400 `unknown_action`, 0 rows | **400 `unknown_action`** |
+| 5 | `api/namecheck?action=check&node_type=testcase&name[]=x&parent_id=5` (#1724 R3) | 400 `missing_name` | **400 `missing_name`** |
+| 6 | `api/namecheck?action=check&node_type=testcase&name=abc&parent_id[]=5` (#1724 R4) | 400 `missing_context` | **400 `missing_context`** |
+| 7 | `api/reqmgrsystemedit?action[]=x` no session (#1727) | 401 | **401** |
+| 8 | `api/reqmgrsystemedit?action=init&id[]=1` admin (#1727) | 400 `invalid_id` | **400 `invalid_id`** |
+| 9 | `api/execnotesreadonly?action[]=fragment&exec_id=1` (#1808 10.1) | 400 `unknown_action`, 0 rows | **400 `unknown_action`** |
+| 10 | `api/execnotesreadonly?action=fragment&exec_id[]=1` + XRW (#1808 10.2) | 400 `invalid_exec_id` | **400 `invalid_exec_id`** |
+| 11 | `api/reports?action=never_run_result&tproject_id=1&tplan_id=1&platSet[]=1` | array accepted (own validation) | **`{"status":"error","message":"Test plan not found"}`** (not `invalid_parameter`) |
+| 12 | `api/reportsexport?action=export&build_set[]=1` | array accepted | **`{"status":"error","message":"Missing tplan_id"}`** (not `invalid_parameter`) |
+| 13 | `api/builds?tplan_id[]=1` (#1792 E1: no 5xx, no warning text) | 400, no warning | **400 `invalid_parameter`**, no `Warning:`/`Fatal` in body |
+| 14 | Scalar smoke admin: `mainpage`/`users?action=list`/`projects` | 200 | **200 / 200 / 200** |
+| 15 | `events` Error/Warning after whole run | none new | **0 rows** |
+
+**Gates:** `php -l api/_guard.php` OK, `php -l api/publiclink/index.php` OK. Suite `tmp/verify_1808.sh` is not present in this
+checkout (tmp/ is per-run); its #1808 group-10 pins were re-verified manually by curl (checks 9/10) and are byte-identical.
+
+**Files:** `api/_guard.php` (+101), `api/publiclink/index.php` (+7). Commit `ffba02248` (`Refs #1810`).
