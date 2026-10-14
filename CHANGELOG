@@ -17,6 +17,15 @@ Every screen of the application was ported one-by-one in a screen-compare
   kept for backward compatibility and is progressively retired as each modern
   screen reaches full parity.
 
+- [BUGFIX] - #1813: the Execution Dashboard (`lib/execute/execDashboard.php`) no longer writes
+  two `E_WARNING "Trying to access array offset on false"` rows into the Event Viewer on every
+  load for a test plan that has no builds. `build->get_by_id()` returns `false` when the id
+  matches no row, and lines 205-206 dereferenced it unconditionally; the reads are now guarded
+  with `is_array($build_info)`, defaulting `build_notes` to `''` and `build_is_open` to `0`
+  (mirroring the pre-existing guard four lines below). Verified on a fresh DB: HTTP 200, 0
+  events over three loads; with a build present the notes/open state render as before.
+  (Fixes #1813)
+
 - [BUGFIX] - #1912: `testplan::get_linked_cfields_at_execution()` no longer fatals (HTTP 500)
   for a missing test plan. `tree::get_path()` returns `NULL` (not `array()`) for a node id
   absent from `nodes_hierarchy`, so `count()` threw a PHP 8 `TypeError` — the sibling of the
