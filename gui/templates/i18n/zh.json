@@ -2557,6 +2557,8 @@
   "paddtc.subTitle": "将测试用例版本链接到测试计划并管理其执行顺序",
   "paddtc.suites": "测试套件",
   "paddtc.testPlan": "测试计划",
+  "paddtc.executionHistory": "用例执行历史",
+  "paddtc.testSpecDesign": "测试用例设计",
   "paddtc.title": "添加 / 移除测试用例",
   "paddtc.version": "要添加的版本",
   "paddtc.warnExecuted": "以下测试用例已有执行结果，将连同其结果一起被移除：",

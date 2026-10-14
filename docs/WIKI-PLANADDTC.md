@@ -27,6 +27,7 @@ that already have executions additionally requires `testplan_unlink_executed_tes
 6. [i18n Keys](#6-i18n-keys)
 7. [Testing](#7-testing)
 8. [Bugfix — Issue #1909: column alignment for platform-less plans](#8-bugfix--issue-1909-column-alignment-for-platform-less-plans)
+9. [Task — Issue #1130: per-TC execution-history + test-spec-design icons](#9-task--issue-1130-per-tc-execution-history--test-spec-design-icons)
 
 ---
 ## 1. Screen Layout
@@ -195,6 +196,9 @@ plus reuse of `pv.testProject`, `common.*`. The five testplan-design-CF keys
 `paddtc.addedOnDate` (column header) and `paddtc.infoAddedOnDate` (tooltip) were
 added for Issue #1128. `paddtc.savePlatforms`, `paddtc.reassignPlatform`,
 `paddtc.noPlatformChange` and `paddtc.msg.platformSaved` were added for Issue #1129.
+`paddtc.executionHistory` and `paddtc.testSpecDesign` were added for Issue #1130
+(the per-TC icon tooltips; values reused from the verified `ta2p.execHistory` /
+`ta2p.design` translations so wording matches sibling screens).
 
 ## 7. Testing
 Regression suites in `tmp/TLU_Test_Cases.md`: **56** (original load/rights/i18n/
@@ -209,7 +213,10 @@ for unlinked rows, tooltip, i18n coverage gate, Event Viewer clean; and **Task �
 Issue #1129** (9/9 PASS): per-link platform select preset to the link's platform,
 "Save platform" button visibility, no-change toast, true reassignment (none →
 Linux → Windows, DB-verified), executions follow the link, `INVALID_PLATFORM`/
-`NO_SELECTION`/unauthenticated errors, Event Viewer clean.
+`NO_SELECTION`/unauthenticated errors, Event Viewer clean; and **Task — Issue
+#1130** (11/11 PASS): per-row execution-history + test-spec-design icon links,
+correct hrefs/labels/glyph font, both targets open the right page, #1767 summary
+button intact, Event Viewer clean, i18n coverage gate exit 0.
 
 ---
 ## 8. Bugfix — Issue #1909: column alignment for platform-less plans
@@ -245,3 +252,38 @@ version dropdown, platform multi-select render in the correct cells), the custom
 row, and the platform-less `collectSelection()` payload; browser console clean, Event
 Viewer clean. Regression suite **Regression — Issue #1909** appended to
 `tmp/TLU_Test_Cases.md` (8/8 PASS, i18n gate exit 0). Landed as `526a902cd`.
+
+---
+## 9. Task — Issue #1130: per-TC execution-history + test-spec-design icons
+
+**Gap (legacy vs modern).** Legacy `planAddTC.tpl:247-252` (and the per-link variant
+`planAddTC_m1.tpl:327-331`) rendered, next to every test case, a `history_small` span
+titled `$labels.execution_history` that called `openExecHistoryWindow(tcase_id,...)`, and
+an `edit_icon.png` titled `$labels.design` that called `openTCaseWindow(tcase_id)`. The
+modern screen (`planAddTCView.html`) dropped both. Its third legacy item — the hover
+summary `tTip()` backed by `lib/ajax/gettestcasesummary.php` — was already replaced by the
+rights-checked `.sum-btn` → `tcSummary.html` popup in Issue #1767.
+
+**Fix (client-side only, `gui/templates/plans/planAddTCView.html`).**
+- Two URL helpers `execHistoryUrl(tcId)` / `designUrl(tcId)` next to `verOf()`, emitting
+  the same targets as the sibling screens (`testUrgency.html:317-320`,
+  `showNewestTcVersions.html:216-218`):
+  `/gui/templates/execute/execHistory.html?tcase_id=<id>&tproject_id=<id>` and
+  `/gui/templates/testcases/tcView.html?tcase_id=<id>&tproject_id=<id>`.
+- Two icon anchors per row in the Test Case cell (rendered for linked **and** unlinked
+  rows, exactly like legacy): `<i class="fas fa-clock-rotate-left">` (execution history)
+  and `<i class="fas fa-pen-to-square">` (test spec design), each `target="_blank"
+  rel="noopener"` with matching `title` + `aria-label` from the new i18n keys.
+- `.ic-link` CSS in the Dashio palette (grey `#7a8a99` → teal `#1d6f69` on hover).
+
+No BFF change was required: `api/plans/index.php:1143` already returns `tc_id` per item.
+
+**Verified** with fixtures `php tmp/fixtures_1767.php` (tproject SUM1=1, plan 3, suite 5):
+both icon links present on every row; hrefs correct for tcase 10/6/14; computed
+`font-family="Font Awesome 6 Free"`; clicking the history icon opened
+`TS1767-2 - Execution History` and the design icon opened
+`TS1767 Empty Summary - Test Case Viewer`; `node --check` clean; i18n coverage gate exit 0
+(7627 keys); Event Viewer clean. Regression suite **Task — Issue #1130** appended to
+`tmp/TLU_Test_Cases.md` (11/11 PASS). Screenshots:
+`docs/screenshots/issue-1130-plandaddtc-icons.png`, `issue-1130-exechistory.png`,
+`issue-1130-tcview.png`.

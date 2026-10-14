@@ -46,6 +46,14 @@ tr.linked-row td { background: #f3fbfa; }
 .sum-btn { background: none; border: 1px solid #cfd4d8; color: #556; border-radius: 3px;
   font-size: 11px; line-height: 1; padding: 3px 5px; margin-left: 6px; cursor: pointer; vertical-align: middle; }
 .sum-btn:hover { border-color: #4ECDC4; color: #1d6f69; }
+/* Issue #1130: legacy planAddTC.tpl:247-252 put a per-TC "execution history"
+   clock link (openExecHistoryWindow) and a "test spec design" edit link
+   (openTCaseWindow) next to every test case. Restored here as icon anchors
+   using the same target URLs as the sibling screens (testUrgency.html:317-320,
+   showNewestTcVersions.html:216-218). */
+.ic-link { display: inline-block; color: #7a8a99; margin-left: 6px; font-size: 12px;
+  text-decoration: none; vertical-align: middle; }
+.ic-link:hover { color: #1d6f69; }
 .newest-warn { color: #d38b0c; font-size: 11px; margin-left: 6px; }
 .chip { display: inline-flex; align-items: center; gap: 5px; background: #fff; border: 1px solid #bfe5e2; border-radius: 12px; padding: 1px 8px; margin: 1px 4px 1px 0; font-size: 12px; white-space: nowrap; }
 .chip.executed { border-color: #eec1bf; background: #fdf4f3; }
@@ -505,7 +513,17 @@ function renderContainer(){
           +'<button type="button" class="sum-btn" data-tc="'+it.tc_id
           +'" aria-label="'+esc(TLi18n.t('tcsum.showSummary'))
           +'" title="'+esc(TLi18n.t('tcsum.showSummary'))+'">'
-          +'<i class="fa fa-file-text-o" aria-hidden="true"></i></button><br>'+statusPill+newerWarn+'</td>'+
+          +'<i class="fa fa-file-text-o" aria-hidden="true"></i></button>'
+          // Issue #1130: legacy per-TC execution-history + test-spec-design
+          // links (planAddTC.tpl:247-252). Same targets as testUrgency.html.
+          +'<a class="ic-link" target="_blank" rel="noopener" href="'+execHistoryUrl(it.tc_id)+'"'
+          +' aria-label="'+esc(TLi18n.t('paddtc.executionHistory'))
+          +'" title="'+esc(TLi18n.t('paddtc.executionHistory'))+'">'
+          +'<i class="fas fa-clock-rotate-left" aria-hidden="true"></i></a>'
+          +'<a class="ic-link" target="_blank" rel="noopener" href="'+designUrl(it.tc_id)+'"'
+          +' aria-label="'+esc(TLi18n.t('paddtc.testSpecDesign'))
+          +'" title="'+esc(TLi18n.t('paddtc.testSpecDesign'))+'">'
+          +'<i class="fas fa-pen-to-square" aria-hidden="true"></i></a><br>'+statusPill+newerWarn+'</td>'+
         '<td>'+(isLinked?'':vsel)+'</td>'+
         statusCell+impCell+
         (hasPlat?'<td>'+(isLinked?platFixCell:platCell)+'</td>':'')+
@@ -548,6 +566,16 @@ function renderContainer(){
 function verOf(it,tvid){
   var v=(it.versions.filter(function(x){return x.tcversion_id===tvid;})[0]||{version:'?'}).version;
   return v;
+}
+/** Issue #1130: legacy openExecHistoryWindow() target (read-only history). */
+function execHistoryUrl(tcId){
+  return '/gui/templates/execute/execHistory.html?tcase_id=' + tcId
+       + '&tproject_id=' + tprojectId;
+}
+/** Issue #1130: legacy openTCaseWindow() target (test spec design viewer). */
+function designUrl(tcId){
+  return '/gui/templates/testcases/tcView.html?tcase_id=' + tcId
+       + '&tproject_id=' + tprojectId;
 }
 function platformName(pid){
   var p=((CONTAINER.platforms||[]).filter(function(x){return x.id===pid;})[0]);

@@ -2557,6 +2557,8 @@
   "paddtc.subTitle": "link test case versions into the test plan and manage their execution order",
   "paddtc.suites": "Test Suites",
   "paddtc.testPlan": "Test Plan",
+  "paddtc.executionHistory": "Execution history",
+  "paddtc.testSpecDesign": "Test Spec Design",
   "paddtc.title": "Add / Remove Test Cases",
   "paddtc.version": "Version to add",
   "paddtc.warnExecuted": "The following test cases already have executions and will be removed together with their results:",

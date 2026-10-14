@@ -2557,6 +2557,8 @@
   "paddtc.subTitle": "Testfallversionen mit dem Testplan verknuepfen und die Ausfuehrungsreihenfolge verwalten",
   "paddtc.suites": "Testsuiten",
   "paddtc.testPlan": "Testplan",
+  "paddtc.executionHistory": "Ausführungshistorie",
+  "paddtc.testSpecDesign": "Testfallerstellung",
   "paddtc.title": "Testfaelle hinzufuegen / entfernen",
   "paddtc.version": "Hinzuzufuegende Version",
   "paddtc.warnExecuted": "Die folgenden Testfaelle wurden bereits ausgefuehrt und werden zusammen mit ihren Ergebnissen entfernt:",

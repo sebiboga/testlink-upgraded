@@ -9342,3 +9342,26 @@ use the search box and the locale switcher; the ASIDE Documentation section list
 **Actual result: fixed** — `assign_to_tcase()` now answers `0` (its documented "latest version inactive ⇒ operation not allowed" contract) for a test case with no active version instead of fataling; the BFF write endpoint returns HTTP 200 JSON; test cases that do have an active version still link normally. No new `events` Error/Warning rows.
 
 **Gate:** `TLU_REQUIRE_SUITE="Issue #1861" bash ai/verify_test_suites.sh` → see run below.
+
+## Task — Issue #1130: per-TC execution-history + test-spec-design icons (legacy openExecHistoryWindow/openTCaseWindow)
+
+**Precondition:** fresh TestLink DB (0 projects at run start), app at `http://localhost:8082` (PHP built-in server, docroot = repo root), login admin/admin. Fixture created this run: `php tmp/fixtures_1767.php` → tproject **SUM1=1**, testplan **3** ("Summary Plan"), suite root **4**, sub-suite **5** ("Summary Sub") holding `TS1767 Empty Summary`=tcase 10, `TS1767 Rich Summary`=tcase 6, `TS1767 Two Versions`=tcase 14.
+**Legacy parity / scope:** legacy `planAddTC.tpl:247-252` renders per test-case row a `history_small` span (`openExecHistoryWindow`) titled `$labels.execution_history` and an `edit_icon.png` (`openTCaseWindow`) titled `$labels.design`. Modern `planAddTCView.html` dropped them. Fix adds two icon anchors per row using the sibling-screen URL pattern (`testUrgency.html:317-320`). The third legacy item (hover summary `tTip`) was already ported by #1767 (`.sum-btn`).
+
+| # | Step | Input | Expected | Observed | Result |
+|---|---|---|---|---|---|
+| 1 | i18n well-formedness | `python3 -m json.tool gui/templates/i18n/*.json` ×10 | all valid JSON | all 10 `OK` | PASS |
+| 2 | i18n coverage gate | `bash ai/verify_i18n_coverage.sh` | 0 missing | `9 bundle(s) passed, 0 failed`; en 7627 keys | PASS |
+| 3 | JS syntax | `node --check` on extracted inline script | no errors | `JS OK` | PASS |
+| 4 | Icons render per row | open `planAddTCView.html?tproject_id=1`, click suite 5 | each row has history + design icon links | snapshot shows per row `link "Execution history"` + `link "Test Spec Design"` | PASS |
+| 5 | History href correct | inspect row-1 anchor | `execHistory.html?tcase_id=10&tproject_id=1` | href `/gui/templates/execute/execHistory.html?tcase_id=10&tproject_id=1`; title+aria-label `Execution history` | PASS |
+| 6 | Design href correct | inspect row-1 anchor | `tcView.html?tcase_id=10&tproject_id=1` | href `/gui/templates/testcases/tcView.html?tcase_id=10&tproject_id=1`; title+aria-label `Test Spec Design` | PASS |
+| 7 | Icons render glyphs | computed style of icon `<i>` | Font Awesome font | `font-family="Font Awesome 6 Free"` | PASS |
+| 8 | History link opens target | click history icon (tcase 10) | new tab = Execution History for TS1767-2 | new tab titled `TS1767-2 - Execution History`, body "This test case has never been executed." | PASS |
+| 9 | Design link opens target | click design icon (tcase 10) | new tab = Test Case Viewer for TS1767 Empty Summary | new tab titled `TS1767 Empty Summary - Test Case Viewer` | PASS |
+| 10 | #1767 summary button intact | row snapshot | `.sum-btn "Show summary"` still present | present on every row | PASS |
+| 11 | Event Viewer (no new Error/Warning) | `SELECT log_level,COUNT(*) FROM events GROUP BY log_level` | only INFO (16) | `16 | 3` rows, no Error/Warning | PASS |
+
+**Actual result: implemented** — every test-case row in the modern Add/Remove Test Cases screen now shows the legacy execution-history clock link and test-spec-design edit link, both opening the correct target pages in a new tab (verified for test case 10). No BFF change was needed (`tc_id` was already returned). No new `events` Error/Warning rows.
+
+**Gate:** `TLU_REQUIRE_SUITE="Issue #1130" bash ai/verify_test_suites.sh` → see run below.

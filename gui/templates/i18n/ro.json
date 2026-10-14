@@ -2557,6 +2557,8 @@
   "paddtc.subTitle": "leaga versiuni de cazuri de test la planul de test si gestioneaza ordinea de executie",
   "paddtc.suites": "Suite de test",
   "paddtc.testPlan": "Plan de test",
+  "paddtc.executionHistory": "Istoricul execuțiilor",
+  "paddtc.testSpecDesign": "Proiectarea cazului de test",
   "paddtc.title": "Adauga / Elimina Cazuri de Test",
   "paddtc.version": "Versiune de adaugat",
   "paddtc.warnExecuted": "Urmatoarele cazuri de test au deja executii si vor fi eliminate impreuna cu rezultatele lor:",

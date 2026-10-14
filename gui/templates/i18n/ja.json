@@ -2557,6 +2557,8 @@
   "paddtc.subTitle": "テストケースのバージョンをテスト計画にリンクし、実行順序を管理します",
   "paddtc.suites": "テストスイート",
   "paddtc.testPlan": "テスト計画",
+  "paddtc.executionHistory": "実行履歴",
+  "paddtc.testSpecDesign": "テスト仕様の設計",
   "paddtc.title": "テストケースの追加 / 削除",
   "paddtc.version": "追加するバージョン",
   "paddtc.warnExecuted": "以下のテストケースはすでに実行されており、その結果とともに削除されます：",

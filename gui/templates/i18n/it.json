@@ -2557,6 +2557,8 @@
   "paddtc.subTitle": "collega versioni dei casi di test al piano di test e gestisci il loro ordine di esecuzione",
   "paddtc.suites": "Suite di test",
   "paddtc.testPlan": "Piano di test",
+  "paddtc.executionHistory": "Storia delle esecuzioni",
+  "paddtc.testSpecDesign": "Progettazione del caso di test",
   "paddtc.title": "Aggiungi / Rimuovi Casi di Test",
   "paddtc.version": "Versione da aggiungere",
   "paddtc.warnExecuted": "I seguenti casi di test hanno gia esecuzioni e saranno rimossi insieme ai loro risultati:",

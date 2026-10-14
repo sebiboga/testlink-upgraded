@@ -2557,6 +2557,8 @@
   "paddtc.subTitle": "vincular versiones de casos de prueba al plan de pruebas y gestionar su orden de ejecucion",
   "paddtc.suites": "Suites de prueba",
   "paddtc.testPlan": "Plan de pruebas",
+  "paddtc.executionHistory": "Historial de Ejecuciones",
+  "paddtc.testSpecDesign": "Diseño de especificación de pruebas",
   "paddtc.title": "Anadir / Eliminar Casos de Prueba",
   "paddtc.version": "Version a anadir",
   "paddtc.warnExecuted": "Los siguientes casos de prueba ya tienen ejecuciones y se eliminaran junto con sus resultados:",
