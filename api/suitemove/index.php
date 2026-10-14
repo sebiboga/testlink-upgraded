@@ -796,24 +796,34 @@ switch ($action) {
         }
 
         // top/bottom: a real re-parent. The destination must be given.
+        //
+        // Refs #1758: validate the RAW supplied value BEFORE getInt() (line
+        // ~714) can truncate it. getInt() accepts anything is_numeric()
+        // accepts - floats ("1.5"), scientific notation ("1e3"), a leading
+        // sign ("+5") - and intval() then silently turns it into a DIFFERENT
+        // integer. When that integer equalled the suite's current parent the
+        // request degraded into a silent in-container reorder; when it named a
+        // real node the suite moved to a destination the caller never gave.
+        // Only a pure digit string is a valid destination; empty / "0" still
+        // mean "destination omitted" and fall back to the current parent.
+        // Read through getParam(), not $_REQUEST: the endpoint contract is
+        // JSON I/O and $_REQUEST does not carry a JSON body, so the guard used
+        // to be skipped entirely for JSON callers.
+        $rawDest = getParam('new_parent_id', '');
+        if (is_array($rawDest) || is_object($rawDest)) {
+            // Refs #1790 follow-up: a cast of an ARRAY raised
+            // "Array to string conversion" and wrote an E_WARNING row into
+            // `events` on every such request, reachable by ANY logged-in
+            // user. Answer the same 400 without the notice.
+            out(array('status' => 'error', 'code' => 'bad_request',
+                      'message' => 'Invalid destination test suite'), 400);
+        }
+        $rawDest = trim((string)$rawDest);
+        if ($rawDest !== '' && !preg_match('/^\d+$/', $rawDest)) {
+            out(array('status' => 'error', 'code' => 'bad_request',
+                      'message' => 'Invalid destination test suite'), 400);
+        }
         if ($newParentId <= 0) {
-            /* getInt() maps "abc"/"-1" to 0, so an explicitly supplied but
-               unusable destination must be refused HERE: falling back to the
-               old parent would silently turn it into an in-container reorder. */
-            $rawDest = $_REQUEST['new_parent_id'] ?? '';
-            if (is_array($rawDest)) {
-                // Refs #1790 follow-up: a cast of an ARRAY raised
-                // "Array to string conversion" and wrote an E_WARNING row into
-                // `events` on every such request, reachable by ANY logged-in
-                // user. Answer the same 400 without the notice.
-                out(array('status' => 'error', 'code' => 'bad_request',
-                          'message' => 'Invalid destination test suite'), 400);
-            }
-            $rawDest = trim((string)$rawDest);
-            if ($rawDest !== '' && !preg_match('/^\d+$/', $rawDest)) {
-                out(array('status' => 'error', 'code' => 'bad_request',
-                          'message' => 'Invalid destination test suite'), 400);
-            }
             $newParentId = $oldParentId;
         }
 
