@@ -9041,3 +9041,47 @@ string nor an int, so booleans and floats are refused.
 | 26 | form `1.5` / JSON `"abc"` re-check after the type guard | `400 bad_request` | `400 bad_request` | PASS |
 
 **Result: 26/26 PASS** (`21` above + `5` here).
+
+## Task — Issue #1911: Modernize "Edit Execution" popup (editExecution) — legacy controller retired to a shim
+
+Precondition: fresh CI DB, app http://localhost:8082, login `admin/admin`. Fixture:
+`php tmp/fixtures_1911.php` → test project `EEX1911` id=1 (prefix EEX), plan id=2,
+testsuite id=3, test case id=4 / tcversion id=5, exec-scope custom field `Exec CF 1911`
+id=1 linked to the project, OPEN build id=1 + CLOSED build id=2, execution id=1 (open
+build, seeded notes), execution id=2 (closed build), role-3 user `eex1911none`. Files:
+`api/executionedit/index.php` (BFF), `gui/templates/execute/editExecution.html` (screen),
+`lib/execute/editExecution.php` (shim), `gui/javascript/testlink_library.js`
+(`openExecEditWindow`).
+
+| # | Step | Expected | Observed | Verdict |
+|---|------|----------|----------|---------|
+| 1 | `php tmp/fixtures_1911.php` | project=1 plan=2 tcv=5 exec_open=1 exec_closed=2 cf=1 user_none=2 | exactly those ids | PASS |
+| 2 | `curl` anon `api/executionedit?action=init&exec_id=1` | HTTP 401 `Not authenticated` | 401 | PASS |
+| 3 | admin `curl` init open exec 1 | 200, `build_is_open:true`, notes seeded, `exec_cfields_html` + `exec_cfields` with `Exec CF 1911` | exact | PASS |
+| 4 | admin init closed exec 2 | 200, `build_is_open:false` | exact | PASS |
+| 5 | admin init unknown exec 99999 | HTTP 404 `Execution not found` | 404 | PASS |
+| 6 | admin init without `exec_id` | HTTP 400 `Missing exec_id` | 400 | PASS |
+| 7 | admin `POST action=update` open exec: notes + `custom_field_0_1_cf` | 200 `{status:ok,updated:true}` | 200 | PASS |
+| 8 | DB check after #7 | `executions.notes` = new text; `cfield_execution_values.value` = new value | `updated notes 1911` / `cfvalue1911` | PASS |
+| 9 | admin `POST action=update` closed exec 2 | HTTP 400 `Cannot edit execution of a closed build` | 400 | PASS |
+| 10 | `POST action=update` WITHOUT Origin/XRW proof | HTTP 403 CSRF guard | 403 | PASS |
+| 11 | `GET ?action=bogus` | HTTP 404 `Unknown action` | 404 | PASS |
+| 12 | login `eex1911none` (role 3) then init exec 1 | HTTP 403 `Insufficient rights` | 403 | PASS |
+| 13 | Browser admin open `editExecution.html?exec_id=1&tplan_id=2&tproject_id=1` | header + locale switcher + Save/Close; notes textarea prefilled; Execution Custom Fields card with `Exec CF 1911` = persisted value | rendered exactly | PASS |
+| 14 | Browser: change notes + CF value, click **Save** | toast `Execution updated`; DB updated both (notes `browser-saved notes 1911`, CF `browser-cf-1911`) | matches | PASS |
+| 15 | Browser open `?exec_id=2` (closed build) | amber notice `Build is closed - editing disabled`, notes disabled, Save disabled, no error banner | exact | PASS |
+| 16 | Browser open `editExecution.html` (no exec_id) | error card `Missing execution id`, form hidden, Save disabled | exact | PASS |
+| 17 | `GET lib/execute/editExecution.php?exec_id=1&tcversion_id=5&tplan_id=2&tproject_id=1` (admin, Accept text/html) | 302 → `gui/templates/execute/editExecution.html` preserving all 4 params | 302, params preserved | PASS |
+| 18 | `GET` legacy with `Sec-Fetch-Dest: document` | 302 → modern HTML | 302 | PASS |
+| 19 | `GET` legacy raw (`Accept: */*`) | 302 → modern HTML (not 405) | 302 | PASS |
+| 20 | `POST lib/execute/editExecution.php` (doAction=doUpdate) | HTTP 405 `modern_endpoint_only`, no write | 405 | PASS |
+| 21 | anon `GET` legacy | login bounce (`login.php?note=expired&destination=…`) | 200 + JS redirect to login | PASS |
+| 22 | `GET lib/execute/editExecution.php?exec_id[]=1` (array param) | 302, no E_WARNING | 302, warning-free | PASS |
+| 23 | `openExecEditWindow()` in `testlink_library.js` | `target_url` = `gui/templates/execute/editExecution.html` (no `lib/execute/editExecution.php`) | repointed | PASS |
+| 24 | Browser console (all screens) | 0 errors/warnings | no console messages | PASS |
+| 25 | `events` table after run | 0 new Error/Warning | only log_level 16 (AUDIT) rows, 0 ERROR/WARNING | PASS |
+| 26 | `bash ai/verify_i18n_coverage.sh` | 0 missing keys | see gate run | PASS |
+
+**Result: 26/26 PASS.** RESUME: `php tmp/fixtures_1911.php` → browser
+`gui/templates/execute/editExecution.html?exec_id=1&tplan_id=2&tproject_id=1`
+(login admin/admin); legacy `lib/execute/editExecution.php` is now a 302 shim.
