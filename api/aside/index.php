@@ -691,17 +691,29 @@ if (count($pluginsMenu) > 0 || $gm('plugin_management') === 'yes') {
 }
 
 // 12. Documentation --------------------------------------------------------
+// Refs #1060: the section now carries the modernized Learn Testing hub next
+// to the Documentation hub. The href resolves through $actions->learnTesting
+// (lib/functions/common.php), so it stays in-context like every other item.
+$learnHref = $u('learnTesting', '/gui/templates/documentation/learnTesting.html');
 $sections[] = array(
     'key' => 'documentation',
     'label' => lang_get('title_documentation'),
     'icon' => 'fas fa-book',
-    'single' => true,
-    'items' => array(array(
-        'id' => 'documentation',
-        'label' => lang_get('title_documentation'),
-        'href' => 'gui/templates/documentation/documentation.html',
-        'icon' => 'fas fa-book',
-    )),
+    'single' => false,
+    'items' => array(
+        array(
+            'id' => 'documentation',
+            'label' => lang_get('title_documentation'),
+            'href' => 'gui/templates/documentation/documentation.html',
+            'icon' => 'fas fa-book',
+        ),
+        array(
+            'id' => 'learnTesting',
+            'label' => lang_get('title_learn_testing'),
+            'href' => (string)$learnHref,
+            'icon' => 'fas fa-graduation-cap',
+        ),
+    ),
 );
 
 asideOut(array(

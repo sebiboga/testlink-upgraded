@@ -2439,3 +2439,4 @@ $TLS_reqmgrsystem_interface_not_implemented = "Esempio di configurazione non dis
 $TLS_reqmgrsystem_invalid_type = 'Tipo di sistema di gestione dei requisiti non valido: %s';
 ?>
 $TLS_link_report_quality_gates = "Porte di qualità della release"; // Refs #1067
+$TLS_title_learn_testing = "Impara il testing"; // Learn Testing hub (Refs #1060)

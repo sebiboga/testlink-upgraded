@@ -4172,3 +4172,4 @@ $TLS_after_preconditions = '前提条件之后';
 $TLS_title_test_closure = "测试结束"; // "Test Closure" (Refs #1278)
 $TLS_link_report_risk_coverage = "基于风险的测试";
 $TLS_link_report_quality_gates = "发布质量门禁"; // Refs #1067
+$TLS_title_learn_testing = "学习测试"; // Learn Testing hub (Refs #1060)

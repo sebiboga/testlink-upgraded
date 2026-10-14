@@ -2267,6 +2267,12 @@ function getActions(&$gui,$baseURL) {
   // legacy controller lib/plugins/pluginView.php (removed in #984) kept the
   // same check.
   $actions->pluginView = "/gui/templates/plugins/pluginView.html?{$ctx}";
+  // Learn Testing hub modernized screen (Dashio standalone page) - Refs #1060.
+  // Curated learning tracks backing the Documentation section's second entry;
+  // the BFF (api/learntesting) enforces session auth + same-origin on every
+  // route. Unlike the legacy Documentation hub it is reachable in-context so
+  // its cards can deep-link the current project/plan screens.
+  $actions->learnTesting = "/gui/templates/documentation/learnTesting.html?{$ctx}";
   // Requirement Overview modernized screen (Dashio standalone page) - Refs #566
   $actions->reqOverView = "/gui/templates/requirements/reqOverview.html?{$ctx}";
   $actions->reqMonOverView = "/gui/templates/requirements/reqMonitorOverview.html?{$ctx}";

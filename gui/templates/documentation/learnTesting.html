@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title data-i18n="learn.header">Learn Testing</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; opacity: .85; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.search-box { position: relative; flex: 1; max-width: 420px; }
+.search-box input { width: 100%; padding: 7px 12px 7px 32px; border-radius: 4px; border: 1px solid #3a3d45; background: #2c2f36; color: #eee; font-size: 13px; }
+.search-box i { position: absolute; left: 10px; top: 9px; color: #888; font-size: 13px; }
+.section-title { padding: 20px 24px 8px 24px; font-size: 16px; font-weight: 700; color: #22242a; }
+.grid { padding: 0 24px 10px 24px; display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
+.track-card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 20px; display: flex; flex-direction: column; border-top: 4px solid #4ECDC4; transition: box-shadow .2s; }
+.track-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,.15); }
+.track-card .icon { font-size: 32px; color: #4ECDC4; margin-bottom: 10px; }
+.track-card .title { font-size: 15px; font-weight: 700; color: #22242a; margin-bottom: 6px; }
+.track-card .desc { font-size: 12.5px; color: #777; margin-bottom: 14px; }
+.track-card .links { margin-top: auto; display: flex; flex-direction: column; gap: 8px; }
+.track-card .links a { text-decoration: none; font-size: 13px; color: #2980b9; display: inline-flex; align-items: center; gap: 7px; }
+.track-card .links a:hover { color: #1c5d8c; text-decoration: underline; }
+.res-card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 20px; border-left: 4px solid #3498db; display: flex; flex-direction: column; }
+.res-card .icon { font-size: 30px; color: #3498db; margin-bottom: 10px; }
+.res-card .title { font-size: 14px; font-weight: 700; color: #22242a; }
+.res-card .desc { font-size: 12.5px; color: #777; margin: 6px 0 14px; }
+.res-card a { text-decoration: none; color: #2980b9; font-size: 13px; font-weight: 600; margin-top: auto; }
+.res-card a:hover { text-decoration: underline; }
+.empty { padding: 30px 24px; color: #999; font-size: 13px; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+#feedbackMsg { display:none; margin: 14px 24px 0 24px; padding: 10px 16px; border-radius: 6px; font-size: 13px; }
+#feedbackMsg.err { display:block; background: #fdeceb; color: #c0392b; border: 1px solid #f5c6c2; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span data-i18n="learn.header">Learn Testing</span>
+  <span class="sub" data-i18n="learn.headerSub">concepts, workflows and quality practices</span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="toolbar">
+  <button class="btn-teal" id="refreshBtn"><i class="fa fa-refresh"></i> <span data-i18n="common.refresh">Refresh</span></button>
+  <div class="search-box">
+    <i class="fa fa-search"></i>
+    <input type="text" id="searchBox" data-i18n-placeholder="learn.searchPlaceholder" placeholder="Search learning topics...">
+  </div>
+  <span style="flex:1"></span>
+  <span id="footerInfo" style="color:#aaa;font-size:12px;"></span>
+</div>
+
+<div id="feedbackMsg"></div>
+
+<div class="section-title"><i class="fa fa-route" style="color:#4ECDC4;margin-right:6px;"></i><span data-i18n="learn.tracksTitle">Learning tracks</span></div>
+<div class="grid" id="trackGrid"></div>
+<div class="empty" id="trackEmpty" style="display:none;" data-i18n="learn.noResults">No matching topics.</div>
+
+<div class="section-title"><i class="fa fa-bookmark" style="color:#3498db;margin-right:6px;"></i><span data-i18n="learn.resourcesTitle">External resources</span></div>
+<div class="grid" id="resGrid"></div>
+
+<div class="footer" id="footerText"></div>
+<div class="footer"><span data-i18n="footers.learnTesting">TestLink 2.0.1 - Learn Testing</span></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/learntesting/index.php';
+var DATA = { tracks: [], resources: [] };
+
+$(function() {
+  TLi18n.load(function() {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    loadHub();
+  });
+});
+
+function showFeedback(kind, msg) {
+  var el = $('#feedbackMsg');
+  el.attr('class', kind).text(msg);
+}
+
+$(document).on('click', '#refreshBtn', function() { loadHub(true); });
+$(document).on('input', '#searchBox', function() { renderTracks($(this).val()); });
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function loadHub(clearFeedback) {
+  $.getJSON(API, function(r) {
+    if (clearFeedback) showFeedback('', '');
+    DATA.tracks = r.tracks || [];
+    DATA.resources = r.resources || [];
+    renderTracks('');
+    renderResources();
+    $('#footerText').text(TLi18n.t('common.generatedOn') + ' ' + new Date().toLocaleString());
+    $('#footerInfo').text('');
+  }).fail(function(xhr) {
+    var msg = TLi18n.t('common.errorLoading');
+    try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
+    showFeedback('err', msg);
+  });
+}
+
+function renderTracks(filter) {
+  var grid = $('#trackGrid').empty();
+  var q = String(filter || '').toLowerCase().trim();
+  var shown = 0;
+  $.each(DATA.tracks, function(i, tr) {
+    var title = TLi18n.t('learn.track.' + tr.id);
+    var desc = TLi18n.t('learn.track.' + tr.id + '.desc');
+    var items = (tr.items || []).filter(function(it) {
+      if (!q) return true;
+      return (TLi18n.t(it.labelKey) + ' ' + title + ' ' + desc).toLowerCase().indexOf(q) !== -1;
+    });
+    if (q && items.length === 0) return;
+    shown++;
+    var card = $('<div class="track-card">')
+      .append('<div class="icon"><i class="' + esc(tr.icon) + '"></i></div>')
+      .append('<div class="title">' + esc(title) + '</div>')
+      .append('<div class="desc">' + esc(desc) + '</div>');
+    var links = $('<div class="links">');
+    $.each(items, function(j, it) {
+      var ext = it.external === true;
+      var a = '<a href="' + esc(it.href) + '"' +
+        (ext ? ' target="_blank" rel="noopener"' : ' target="_top"') + '>' +
+        '<i class="fa ' + (ext ? 'fa-external-link-alt' : 'fa-arrow-right') + '"></i> ' +
+        esc(TLi18n.t(it.labelKey)) + '</a>';
+      links.append(a);
+    });
+    card.append(links);
+    grid.append(card);
+  });
+  $('#trackEmpty').toggle(shown === 0);
+}
+
+function renderResources() {
+  var grid = $('#resGrid').empty();
+  $.each(DATA.resources, function(i, r) {
+    var card = $('<div class="res-card">')
+      .append('<div class="icon"><i class="' + esc(r.icon) + '"></i></div>')
+      .append('<div class="title">' + esc(TLi18n.t(r.labelKey)) + '</div>')
+      .append('<div class="desc">' + esc(TLi18n.t(r.descKey)) + '</div>')
+      .append('<a href="' + esc(r.href) + '" target="_blank" rel="noopener">' +
+        '<i class="fa fa-external-link-alt"></i> ' + TLi18n.t('learn.openResource') + '</a>');
+    grid.append(card);
+  });
+}
+</script>
+</body>
+</html>

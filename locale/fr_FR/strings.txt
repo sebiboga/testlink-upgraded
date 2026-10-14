@@ -4137,3 +4137,4 @@ $TLS_simplexml_load_file_wrapper_error = "Veuillez transmettre ce texte a votre 
 $TLS_title_test_closure = "Clôture des tests"; // "Test Closure" (Refs #1278)
 $TLS_link_report_risk_coverage = "Tests base sur les risques";
 $TLS_link_report_quality_gates = "Portes qualité de version"; // Refs #1067
+$TLS_title_learn_testing = "Apprendre le test"; // Learn Testing hub (Refs #1060)
