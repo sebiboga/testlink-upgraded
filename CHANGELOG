@@ -17,6 +17,14 @@ Every screen of the application was ported one-by-one in a screen-compare
   kept for backward compatibility and is progressively retired as each modern
   screen reaches full parity.
 
+- [BUGFIX] - #1912: `testplan::get_linked_cfields_at_execution()` no longer fatals (HTTP 500)
+  for a missing test plan. `tree::get_path()` returns `NULL` (not `array()`) for a node id
+  absent from `nodes_hierarchy`, so `count()` threw a PHP 8 `TypeError` — the sibling of the
+  defect fixed for test cases in #1862. Mirrored that fix (cast the path to `array()`) and
+  added an early return of an empty custom-field map when there is no project to resolve
+  linked custom fields from, so a missing id renders an empty table instead of a 500. Verified
+  with a CLI repro (`result type=array`, no fatal); Event Viewer clean. (Fixes #1912)
+
 - [SCREEN] - #1060: the **Learn Testing hub** (`gui/templates/documentation/learnTesting.html`
   + BFF `api/learntesting/index.php`) is added as the Documentation ASIDE section's second
   entry, giving TestLink an in-app learning area (1.9.20 had none). Six learning tracks
