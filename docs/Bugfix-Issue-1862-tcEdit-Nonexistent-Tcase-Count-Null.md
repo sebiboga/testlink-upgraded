@@ -64,10 +64,35 @@ $tc_data = $this->tcaseMgr->get_by_id($argsObj->tcase_id,$argsObj->tcversion_id,
 // an E_WARNING for each array offset accessed on null (Event Viewer) and
 // the user gets a meaningless empty form. Send a clean "not found" notice
 // instead of the legacy fatal (#1862).
-if (empty($tc_data)) {
+// get_by_id() returns NULL when the tcversion does not resolve; check the
+// result and its first row, and require a real column (defense in depth
+// against any stub/partial shape) so crafted tcversion_id values cannot
+// slip through (code review finding).
+if (empty($tc_data) || empty($tc_data[0]) || !isset($tc_data[0]['name'])) {
   redirectToInfoPage('testcase_not_found');
 }
 ```
+
+**2b. `lib/functions/testcase.class.php` — `get_by_id()` LATEST branch (code review finding).**
+The first fix used only `empty($tc_data)`, which a crafted `tcversion_id=-1`
+(`testcase::LATEST_VERSION`) bypassed: for the sentinel the method did
+`$recordset = array($this->db->fetchFirstRow($sql))`, and `fetchFirstRow()`
+returns `false` when there is no row — `array(false)` is truthy, so
+`$canProcess` stayed true and the post-processing loops (`get_steps()` at
+`:2977`, prefix/step assembly) dereferenced `false`, emitting 9 `E_WARNING`
+rows per request. Fixed at the source:
+
+```php
+if( is_null($tcid_list) ) {
+  $first = $this->db->fetchFirstRow($sql);
+  $recordset = ($first === false || is_null($first)) ? null : array($first);
+}
+```
+
+An absent row is now `null`, so nothing runs and the method returns `null`
+(line 3005 `return ($recordset ? $recordset : null)`). Callers that already
+guard with `(null != $dummy)` (`:7921`) or `is_array($dummy) && isset($dummy[0])`
+(`:8268`) keep working — they now correctly see "absent".
 
 **3. `api/info/index.php`** — new known Info code `testcase_not_found` →
 `info.testcaseNotFoundTitle` / `info.testcaseNotFoundMsg`; keys added to all 10 locale bundles.
@@ -102,13 +127,26 @@ defense-in-depth for the sibling callers.
 | 10 | `python3 -m json.tool` × 10 bundles | valid | all OK | PASS |
 | 11 | `events` table after post-fix run | no new Error/Warning | +0 (only AUDIT rows) | PASS |
 
+### Code-review hardening matrix (fresh DB: project 9, tcase 14, tcversion 15, missing id 999999)
+
+| # | Request | Expected | Observed | Verdict |
+|---|---------|----------|----------|---------|
+| 1 | `tcase_id=999999` | 302 → not-found | 302, `?code=testcase_not_found` | PASS |
+| 2 | `tcase_id=14` (latest) | 200 editor | 200 | PASS |
+| 3 | `tcase_id=14&tcversion_id=15` | 200 editor | 200 | PASS |
+| 4 | `tcase_id=999999&tcversion_id=-1` (crafted) | 302, 0 warnings | 302, +0 events | PASS |
+| 5 | `tcase_id=14&tcversion_id=999` (bad version) | 302, 0 warnings | 302, +0 events | PASS |
+| 6 | `tcCompareVersions.php?tcase_id=14` / `tcSearch.php` | 200 | 200 / 200 | PASS |
+
 Gate: `TLU_REQUIRE_SUITE="Issue #1862" bash ai/verify_test_suites.sh` → 7 PASS / 0 FAIL.
-Suite: `Regression — Issue #1862` in `tmp/TLU_Test_Cases.md` (14 cases).
+Suites: `Regression — Issue #1862` (14 cases) and
+`Regression — Issue #1862 (hardening)` (11 cases) in `tmp/TLU_Test_Cases.md`.
 
 ## Files changed
 
-- `lib/functions/testcase.class.php` — `(array)` cast in `getTestProjectFromTestCase()`.
-- `lib/testcases/testcaseCommands.class.php` — not-found guard in `edit()`.
+- `lib/functions/testcase.class.php` — `(array)` cast in `getTestProjectFromTestCase()`; `get_by_id()`
+  LATEST branch no longer wraps a `false` `fetchFirstRow()` in `array(...)`.
+- `lib/testcases/testcaseCommands.class.php` — not-found guard in `edit()` (result + first row + `name`).
 - `api/info/index.php` — `testcase_not_found` info code.
 - `gui/templates/i18n/*.json` (10 bundles) — `info.testcaseNotFoundTitle` / `info.testcaseNotFoundMsg`.
 - `docs/` mirror + GitHub Wiki page + `CHANGELOG` key-bugfix line.
