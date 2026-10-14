@@ -9085,3 +9085,37 @@ build, seeded notes), execution id=2 (closed build), role-3 user `eex1911none`. 
 **Result: 26/26 PASS.** RESUME: `php tmp/fixtures_1911.php` → browser
 `gui/templates/execute/editExecution.html?exec_id=1&tplan_id=2&tproject_id=1`
 (login admin/admin); legacy `lib/execute/editExecution.php` is now a 302 shim.
+
+## Regression — Issue #1862: tcEdit.php edit action for a NONEXISTENT tcase_id must not fatal count(null) (500)
+
+**Precondition / fixture:** `php tmp/fixtures_1859.php` (creates project 1 with test cases;
+the invalid id is `999999`, which has no node in `nodes_hierarchy`). Session: `GET /index.php`
++ `POST /login.php` (`tl_login=admin&tl_password=admin`) with a cookie jar.
+**Pre-fix behaviour:** `GET /lib/testcases/tcEdit.php?edit_tc=1&tcase_id=999999` → **HTTP 500, 0 bytes**;
+server log: `Uncaught TypeError: count(): Argument #1 ... null given` at
+`lib/functions/testcase.class.php:5105` (`getTestProjectFromTestCase` ← `get_linked_cfields_at_design`
+← `html_table_of_custom_field_inputs` ← `testcaseCommands::edit()` ← `tcEdit.php:88`).
+**Expected post-fix:** a clean redirect to the Info notice for a missing test case, no fatal,
+no new Error/Warning in the `events` table; a valid test case still opens its editor.
+
+| # | Step | Input | Expected | Observed | Result |
+|---|---|---|---|---|---|
+| 1 | Syntax | `php -l lib/functions/testcase.class.php` / `lib/testcases/testcaseCommands.class.php` | no errors | no errors | PASS |
+| 2 | Repro (pre-fix, recorded) | curl `tcEdit.php?edit_tc=1&tcase_id=999999` | HTTP 500 (the bug) | HTTP 500, 0 bytes | PASS (reproduced) |
+| 3 | Missing id after fix | curl -i `tcEdit.php?edit_tc=1&tcase_id=999999` | 302 → Info page, no fatal | `302 Found`, `Location: /gui/templates/feedback/info.html?code=testcase_not_found` | PASS |
+| 4 | Events after #3 | `SELECT MAX(id) FROM events` before/after | +0 | +0 new rows | PASS |
+| 5 | Valid tc edit | curl `tcEdit.php?edit_tc=1&tcase_id=6&tcversion_id=7` | HTTP 200 editor | HTTP 200, 18686 bytes | PASS |
+| 6 | Events after #5 | `events` before/after | +0 | +0 new rows | PASS |
+| 7 | Control without action | curl `tcEdit.php?tcase_id=999999` | HTTP 200 (no render) | HTTP 200, 0 bytes | PASS |
+| 8 | Info API code | `GET /api/info/index.php?code=testcase_not_found` | `known:true`, title/message keys | `{"status":"ok","code":"testcase_not_found","known":true,"title_key":"info.testcaseNotFoundTitle","message_key":"info.testcaseNotFoundMsg",...}` | PASS |
+| 9 | Info page loads | `GET gui/templates/feedback/info.html?code=testcase_not_found` | HTTP 200 | HTTP 200 | PASS |
+| 10 | Info API unknown fallback | `GET /api/info/index.php?code=generic` | `known:false` generic | generic notice | PASS |
+| 11 | i18n keys present | `en.testcaseNotFoundTitle/Msg` in all 10 bundles | present | present (de/es/fr/it/ja/pt/ro/ru/zh) | PASS |
+| 12 | i18n gate | `bash ai/verify_i18n_coverage.sh` | 0 missing | 9 passed, 0 failed (7581 keys) | PASS |
+| 13 | JSON well-formed | `python3 -m json.tool` on 10 bundles | valid | all OK | PASS |
+| 14 | No new Event Viewer errors | `events` log_level 1/2/3 count after full run | unchanged | only AUDIT rows; no new WARNING/ERROR | PASS |
+
+**Result: 14/14 PASS.**
+RESUME (one command): `php tmp/fixtures_1859.php` → login admin/admin → curl
+`http://localhost:8082/lib/testcases/tcEdit.php?edit_tc=1&tcase_id=999999` → expect 302 to
+`gui/templates/feedback/info.html?code=testcase_not_found`; valid `tcase_id=6&tcversion_id=7` → 200.
