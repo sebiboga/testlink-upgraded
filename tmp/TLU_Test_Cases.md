@@ -9323,3 +9323,22 @@ use the search box and the locale switcher; the ASIDE Documentation section list
 **Actual result: fixed** — on a plan without builds the Execution Dashboard now returns `HTTP 200` with **no** `E_WARNING` rows in the `events` table; with a build present the build notes/open state render exactly as before. No new `events` Error/Warning rows.
 
 **Gate:** `TLU_REQUIRE_SUITE="Issue #1813" bash ai/verify_test_suites.sh` → see run below.
+
+## Regression — Issue #1861: requirement_mgr assign_to_tcase() current(get_last_active_version()) unguarded
+
+**Precondition:** fresh TestLink DB (0 `tcversions` at run start), app at `http://localhost:8082`, PHP 8.3.35. Fixture: `php tmp/fixtures_1859.php` → tproject `TC Edit 1859` (id 1), suite 2, `TC1859-NOACTIVE` **tcase 3 / tcversion 4 active=0**, `TC1859-ACTIVE` **tcase 6 / tcversion 7 active=1**. Requirement for the repro: `php tmp/repro_1859_req.php` creates requirement id 11 (srs 9).
+**Legacy parity / scope:** `lib/functions/requirement_mgr.class.php:1132` calls `current($tcMgr->get_last_active_version($tcMgr))`; `get_last_active_version()` returns `null` for a test case with no active version, and PHP 8 `current(null)` throws `TypeError` before the `if ($tcv == null)` refusal guard at `:1133`. Fix = `current((array)...)` (same as #1708 siblings `requirement_spec_mgr.class.php:2668/:2792`).
+
+| # | Step | Input | Expected | Observed | Result |
+|---|---|---|---|---|---|
+| 1 | PHP syntax | `php -l lib/functions/requirement_mgr.class.php` | no errors | `No syntax errors detected` | PASS |
+| 2 | Pre-fix repro (recorded, bug present) | `php tmp/repro_1859_req.php` before the fix | PHP 8 `TypeError` fatal | `Uncaught TypeError: current(): Argument #1 ($array) must be of type array, null given @ requirement_mgr.class.php:1132` | PASS (bug confirmed) |
+| 3 | Post-fix CLI, tcase with no active version | `assign_to_tcase(11, 3, 1)` | returns `0`, no fatal | `assign_to_tcase(req=11, tcase=3[no active]) => 0` | PASS |
+| 4 | Post-fix CLI, tcase with active version | `assign_to_tcase(11, 6, 1)` | returns `1` (link created) | `assign_to_tcase(req=11, tcase=6[active]) => 1`; `req_coverage` row id 1 | PASS |
+| 5 | BFF no-active (issue #1858 symptom) | `POST /api/requirements/assign-reqs {"tcase_id":3,"req_ids":[11]}` | HTTP 200, `failed` contains req, no 500 | `HTTP 200 {"status":"ok","failed":[11],"assigned_qty":0}` (pre-fix: HTTP 500 / 0 bytes) | PASS |
+| 6 | BFF active happy path | `POST /api/requirements/assign-reqs {"tcase_id":6,"req_ids":[11]}` | HTTP 200, `assigned_qty:1` | `HTTP 200 {"status":"ok","failed":[],"assigned_qty":1}` | PASS |
+| 7 | Event Viewer (no new Error/Warning) | `SELECT id,log_level FROM events ORDER BY id DESC LIMIT 5` | only INFO (16) rows | `16,16,16` (login/reqv-assigned/tproject-created); no Error/Warning | PASS |
+
+**Actual result: fixed** — `assign_to_tcase()` now answers `0` (its documented "latest version inactive ⇒ operation not allowed" contract) for a test case with no active version instead of fataling; the BFF write endpoint returns HTTP 200 JSON; test cases that do have an active version still link normally. No new `events` Error/Warning rows.
+
+**Gate:** `TLU_REQUIRE_SUITE="Issue #1861" bash ai/verify_test_suites.sh` → see run below.
