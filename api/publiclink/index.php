@@ -46,6 +46,13 @@
 require_once(__DIR__ . '/../../config.inc.php');
 require_once('common.php');
 require_once(__DIR__ . '/../../cfg/reports.cfg.php');
+// Refs #1810: shared BFF middleware - publiclink is GET-only and unauthenticated
+// by design (share links), so it never called bffSameOriginGuard(), but it MUST
+// run the non-scalar parameter net like the other 129 entry points: it used to
+// answer ?action[]=resolve with an "Array to string conversion" E_WARNING row
+// in the events table, unauthenticated. Including _guard.php only registers the
+// helpers + the net; no same-origin or session check is added here.
+require_once(__DIR__ . '/../_guard.php');
 
 doDBConnect($db);
 

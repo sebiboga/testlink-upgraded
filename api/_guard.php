@@ -172,6 +172,103 @@ function bffSameOriginGuard() {
  * @param object $db  open database handler (checkSessionValid needs it)
  * @return void     exits with 401 JSON when the session is invalid/stale
  */
+/**
+ * Refuse a non-scalar request parameter with the shared BFF error contract.
+ *
+ * Refs #1810. The body shape (status/code/message, code invalid_parameter)
+ * matches the existing per-endpoint refusal contract, e.g.
+ * api/reqspecsearchform/index.php failOut() - so a caller that already
+ * refuses non-scalars itself keeps answering the very same bytes.
+ */
+function bffRejectNonScalarParam($name) {
+    if (!headers_sent()) {
+        header('Content-Type: application/json; charset=utf-8');
+        header('X-Content-Type-Options: nosniff');
+        http_response_code(400);
+    }
+    echo json_encode(array(
+        'status' => 'error',
+        'code' => 'invalid_parameter',
+        'message' => 'Invalid value for ' . $name,
+    ));
+    exit;
+}
+
+/**
+ * Refuse every non-scalar GET/POST parameter BEFORE any BFF parses it
+ * (Refs #1810).
+ *
+ * PHP 8 raises E_WARNING "Array to string conversion" for EVERY scalar
+ * coercion of an array ((string)$arr, strval($arr), trim((string)$arr)) while
+ * still yielding the string "Array". watchPHPErrors()
+ * (lib/functions/logger.class.php:1483) writes that warning into the events
+ * table, and several BFFs parse their parameters before the session check -
+ * so until now anonymous traffic could add unbounded Warning rows to the
+ * Event Viewer (measured: 6 endpoints unauthenticated, 41 authenticated),
+ * which drowns the "Event Viewer shows no new Error/Warning" gate every
+ * modernization/fix run must pass (ai/AGENTS.md rule 12).
+ *
+ * A non-scalar is refused OUTRIGHT with 400 invalid_parameter, never coerced:
+ * coercing to '' would fall through to defaults (e.g. action='' -> action
+ * 'view') and silently SERVE the default payload for a malformed parameter,
+ * and coercing to "Array" would keep answering 200 on garbage free-form
+ * input. Both were rejected in the #1810 root-cause analysis.
+ *
+ * Runs at include time - api/_guard.php is required by all 130 BFF entry
+ * points before their first parameter read - so no endpoint can forget it.
+ *
+ * Two maps keep established behavior intact (both validated against the
+ * regression suites in tmp/TLU_Test_Cases.md):
+ *  - $selfGuarded: endpoints that already guard EVERY parameter themselves,
+ *    on the exact error paths their suites pin (#1724 namecheck
+ *    unknown_action/missing_name/missing_context, #1727 reqmgrsystemedit
+ *    unauth 401 + invalid_id, #1808 execnotesreadonly unknown_action/
+ *    invalid_exec_id). Measured warning-free in the #1810 sweep, so letting
+ *    them answer first loses no protection.
+ *  - $arrayParams: parameters that are LEGITIMATELY arrays - the modern
+ *    report screens send them (resultsMatrix.html build_set[],
+ *    resultsMoreBuilds.html build[]/testsuite[]/platform[]/lastStatus[],
+ *    neverRun.html platSet[]).
+ */
+function bffRefuseNonScalarParams() {
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    $done = true;
+
+    $script = ltrim(str_replace('\\', '/', $_SERVER['SCRIPT_NAME'] ?? ''), '/');
+
+    $selfGuarded = array(
+        'api/namecheck/index.php',
+        'api/reqmgrsystemedit/index.php',
+        'api/execnotesreadonly/index.php',
+    );
+    if (in_array($script, $selfGuarded, true)) {
+        return;
+    }
+
+    $arrayParams = array(
+        'api/reports/index.php' => array(
+            'build_set', 'build', 'testsuite', 'platform', 'lastStatus', 'platSet',
+        ),
+        'api/reportsexport/index.php' => array('build_set'),
+    );
+    $allow = isset($arrayParams[$script]) ? array_flip($arrayParams[$script]) : array();
+
+    foreach (array($_GET, $_POST) as $bag) {
+        foreach ($bag as $name => $value) {
+            if ($value === null || is_scalar($value)) {
+                continue;
+            }
+            if (isset($allow[$name])) {
+                continue;
+            }
+            bffRejectNonScalarParam((string)$name);
+        }
+    }
+}
+
 function bffEnforceSession(&$db) {
     if (checkSessionValid($db, false)) {
         return;
@@ -196,3 +293,7 @@ function bffEnforceSession(&$db) {
     ));
     exit;
 }
+
+// Refs #1810: every entry point that includes this file gets the non-scalar
+// parameter net immediately, before it reads any parameter of its own.
+bffRefuseNonScalarParams();
