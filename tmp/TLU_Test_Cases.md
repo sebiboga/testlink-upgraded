@@ -9304,3 +9304,22 @@ use the search box and the locale switcher; the ASIDE Documentation section list
 **Actual result: fixed** — the argument shift is corrected (`'testplan'` → `$node_type`, `$id` → `$node_id`), the unrelated `$node_id` undefined-key warning made reachable by the fix is also removed, and both direct and html-path calls succeed with the expected field. No new `events` Error/Warning rows.
 
 **Gate:** `TLU_REQUIRE_SUITE="Issue #1913" bash ai/verify_test_suites.sh` → see run below.
+
+## Regression — Issue #1813: execDashboard.php 2x E_WARNING on a plan without builds
+
+**Precondition:** fresh TestLink DB (0 projects/plans/builds at run start), app at `http://localhost:8082`. Fixture (created this run via SQL): test project `id=1` (prefix `FIX`) + test plan `id=2` with **0 builds**.
+**Legacy parity / scope:** `lib/execute/execDashboard.php:204` calls `build->get_by_id($argsObj->build_id)`, which returns `false` when no row matches; lines 205–206 then read `['notes']`/`['is_open']` on that `false`. The fix guards with `is_array($build_info)` and defaults to `''` / `0`, mirroring the pre-existing guard at line 209.
+
+| # | Step | Input | Expected | Observed | Result |
+|---|---|---|---|---|---|
+| 1 | PHP syntax | `php -l lib/execute/execDashboard.php` | no errors | `No syntax errors detected` | PASS |
+| 2 | Pre-fix repro (recorded, bug present) | `DELETE FROM events; curl -b cj ".../execDashboard.php?tplan_id=2&tproject_id=1"` before the fix | HTTP 200 + 2 E_WARNING rows | `HTTP 200`; events: `E_WARNING ... Line 205`, `E_WARNING ... Line 206` (2 rows) | PASS (bug confirmed) |
+| 3 | Post-fix, plan without builds | same request after fix | HTTP 200, **0** new events | `HTTP 200 size=3957`; `events` = 0 rows | PASS |
+| 4 | Post-fix, 3 successive loads | request ×3 | 0 warnings total | `HTTP:200 200 200`; `events_count=0 distinct_desc=0` | PASS |
+| 5 | Regression: plan WITH a build | insert `builds(testproject_id=1,'B1','build-notes-here',active=1,is_open=1)`, request page | HTTP 200, 0 events, build shown | `HTTP:200 size=3843`, `events`=0; page contains `build-notes-here` and `B1` | PASS |
+| 6 | Cleanup / no-build state restored | `DELETE FROM builds`, request page again | HTTP 200, 0 events | `builds`=0; request clean | PASS |
+| 7 | Event Viewer (no new Error/Warning) | `SELECT count(*) FROM events` after the post-fix run | 0 rows | 0 rows | PASS |
+
+**Actual result: fixed** — on a plan without builds the Execution Dashboard now returns `HTTP 200` with **no** `E_WARNING` rows in the `events` table; with a build present the build notes/open state render exactly as before. No new `events` Error/Warning rows.
+
+**Gate:** `TLU_REQUIRE_SUITE="Issue #1813" bash ai/verify_test_suites.sh` → see run below.
