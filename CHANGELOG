@@ -17,6 +17,17 @@ Every screen of the application was ported one-by-one in a screen-compare
   kept for backward compatibility and is progressively retired as each modern
   screen reaches full parity.
 
+- [SCREEN] - #1060: the **Learn Testing hub** (`gui/templates/documentation/learnTesting.html`
+  + BFF `api/learntesting/index.php`) is added as the Documentation ASIDE section's second
+  entry, giving TestLink an in-app learning area (1.9.20 had none). Six learning tracks
+  (getting started, requirements, test design, plans & execution, reports & metrics, quality
+  practices) deep-link the modern screens in the current project/plan context plus the shipped
+  PDF manuals, with four authoritative external resource cards (ISTQB, W3C WCAG, OWASP Top 10,
+  Ministry of Testing), a live search filter and a TLi18n locale switcher. 47 `learn.*` keys in
+  all 10 client bundles + `$TLS_title_learn_testing` in all 19 server locales; wired via
+  `$actions->learnTesting`. Verified end-to-end (render, search, RO switch, internal nav,
+  auth matrix); Event Viewer clean. (Refs #1060)
+
 - [SCREEN] - #1911: the **Edit Execution** popup (`lib/execute/editExecution.php` ->
   `gui/templates/execute/editExecution.html`, BFF `api/executionedit/index.php`) is
   complete. The modern screen + BFF already existed from #825 and were kept; this pass
