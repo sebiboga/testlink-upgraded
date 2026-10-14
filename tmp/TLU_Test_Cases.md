@@ -9365,3 +9365,26 @@ use the search box and the locale switcher; the ASIDE Documentation section list
 **Actual result: implemented** — every test-case row in the modern Add/Remove Test Cases screen now shows the legacy execution-history clock link and test-spec-design edit link, both opening the correct target pages in a new tab (verified for test case 10). No BFF change was needed (`tc_id` was already returned). No new `events` Error/Warning rows.
 
 **Gate:** `TLU_REQUIRE_SUITE="Issue #1130" bash ai/verify_test_suites.sh` → see run below.
+## Regression — Issue #1815: PHP 8.2 dynamic-property deprecations ($canSetReporter/$issueAttr in issue-tracker interfaces, tlUser::$loginRegExp)
+
+**Precondition:** fresh TestLink DB, app at `http://localhost:8082` (PHP built-in server, docroot = repo root), PHP 8.3.35 (dynamic-property deprecation active since 8.2), `config.inc.php:331` = `error_reporting(E_ALL)`. Login `admin/admin`. Harness: `php tmp/repro_1815.php` (instantiates each REST interface exactly like the BFF `new $impl($type,$cfg,$name)`, plus `new tlUser($db)` / `getSecurityNotes()`, and counts `Creation of dynamic property` deprecations).
+**Legacy parity / scope:** the affected classes assign `$this->issueAttr` / `$this->canSetReporter` / `$this->loginRegExp` without declaring them; the JIRA siblings (`jirarestInterface:20`, `jirasoapInterface:30`) already declare `private $issueAttr = null`, proving the intended pattern. Fix = declare the properties (no assignment removed, no call site changed). A base-class declaration was rejected because `public $issueAttr` fatals against the JIRA `private` redeclaration.
+
+| # | Step | Input | Expected | Observed | Result |
+|---|---|---|---|---|---|
+| 1 | PHP syntax (all touched files) | `php -l` on redminerest/githubrest/gitlabrest/kaitenrest/tlUser | no errors | `No syntax errors detected` (×5) | PASS |
+| 2 | Pre-fix repro (recorded, bug present) | `php tmp/repro_1815.php` before fix | 5 deprecations (redmine 2, github 1, gitlab 1, kaiten 1, tlUser 1) | `redminerest=2, githubrest=1, gitlabrest=1, kaitenrest=1, tlUser=1`; exit 1 | PASS (bug confirmed) |
+| 3 | Post-fix CLI repro | `php tmp/repro_1815.php` | 0 dynamic-property deprecations, exit 0 | `redminerest=0, githubrest=0, gitlabrest=0, kaitenrest=0, tlUser=0`; `ALL PASS`; exit 0 | PASS |
+| 4 | Function path (login-page data path) | `getSecurityNotes($db)` with an `E_DEPRECATED` handler | 0 deprecations, returns same notes array | `deprecations=0`, `notes_type=array` | PASS |
+| 5 | Live `GET /login.php` | fresh cookie jar | HTTP 200, no fatal | `login.php http=200` | PASS |
+| 6 | Issue Tracker BFF list | `GET /api/issuetracker` (authenticated) | HTTP 200 | `http=200` | PASS |
+| 7 | Issue Tracker test-connection (redmine) | `POST /api/issuetracker/test-connection` type=15 | HTTP 200 JSON, no fatal | `{"status":"ok","connected":false,...}`, `200` | PASS |
+| 8 | loginRegExp still enforced | `tlUser::checkLogin("admin")` / `("a b!@#")` | `tl::OK` (1) / `E_NOTALLOWED` (-4) | `1` / `-4` | PASS |
+| 9 | Write-only undeclared property scan (5 files) | static scan for `$this->X =` not declared in class/ancestors | none in the 5 files (`dbID` is declared in `object.class.php:501`) | `missing_decl=NONE` (redmine/github/gitlab/kaiten); `tlUser` only `dbID` (parent `object.class.php:501`) | PASS |
+| 10 | Event Viewer (no new Error/Warning) | `SELECT log_level FROM events` before/after login + BFF hits | only AUDIT (16) rows | 2 rows, both `log_level=16` (audit_login_succeeded), unchanged | PASS |
+
+**Actual result: fixed** — `php tmp/repro_1815.php` goes from 5 dynamic-property deprecations (exit 1) to 0 (exit 0); `getSecurityNotes()` and `GET /login.php` raise none; interface construction, the Issue Tracker BFF and `tlUser::checkLogin()` behave as before; the `events` table shows no new Error/Warning rows.
+
+**Note:** `gitlabrestInterface` / `kaitenrestInterface` still throw a *pre-existing, unrelated* `TypeError: count(): ... null given` from their `connect()` when instantiated with a minimal cfg (present before and after this fix) — it is NOT part of #1815 and is not counted by the harness.
+
+**Gate:** `TLU_REQUIRE_SUITE="Issue #1815" bash ai/verify_test_suites.sh` → see run below.
