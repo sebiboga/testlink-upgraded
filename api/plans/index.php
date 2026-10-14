@@ -1039,8 +1039,14 @@ if ($method === 'GET' && count($segments) === 2 &&
         $newestAvail = [];
         if (count($allVids) > 0) {
             $vidList = implode(',', array_map('intval', $allVids));
+            // Issue #1128: legacy planAddTC exposed the link timestamp as
+            // 'linked_ts' (testplan.class.php:6076 TPTCV.creation_ts AS
+            // linked_ts) and planAddTC.tpl:370/438 rendered it through
+            // localize_date (=> config date_format). Select it too and ship
+            // both the raw value and its localized rendering.
             $sql = "SELECT TPTCV.id AS feature_id, TPTCV.tcversion_id, " .
                 " TPTCV.platform_id, TPTCV.node_order, " .
+                " TPTCV.creation_ts AS linked_ts, " .
                 " (SELECT COUNT(E.id) FROM {$exq} E WHERE " .
                 "   E.testplan_id = TPTCV.testplan_id " .
                 "   AND E.tcversion_id = TPTCV.tcversion_id " .
@@ -1051,12 +1057,20 @@ if ($method === 'GET' && count($segments) === 2 &&
             if (!is_null($featRows)) {
                 foreach ($featRows as $fr) {
                     $tvId = intval($fr['tcversion_id']);
+                    $linkedTs = (string)($fr['linked_ts'] ?? '');
+                    $linkedTsDisp = '';
+                    if ($linkedTs !== '' && $linkedTs !== '0000-00-00 00:00:00') {
+                        $linkedTsDisp = (string)localize_dateOrTimeStamp(
+                            null, null, 'date_format', $linkedTs);
+                    }
                     $linkedByVersion[$tvId][] = [
                         'feature_id' => intval($fr['feature_id']),
                         'tcversion_id' => $tvId,
                         'platform_id' => intval($fr['platform_id']),
                         'node_order' => intval($fr['node_order']),
                         'executed_qty' => intval($fr['executed_qty']),
+                        'linked_ts' => $linkedTs,
+                        'linked_ts_display' => $linkedTsDisp,
                     ];
                 }
             }

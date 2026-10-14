@@ -131,6 +131,9 @@ tr.cf-row textarea { vertical-align: top; }
           <th id="thPlat" data-i18n="paddtc.platforms" style="width:160px;display:none">Platforms</th>
           <th data-i18n="paddtc.execOrder" style="width:90px">Exec. order</th>
           <th data-i18n="paddtc.removeAction" style="width:230px">Remove links</th>
+          <!-- Issue #1128: legacy planAddTC 'Added on date' column
+               (planAddTC.tpl:184-186 header, :370/:438 cells). -->
+          <th id="thAddedOn" data-i18n="paddtc.addedOnDate" style="width:110px">Added on date</th>
         </tr>
       </thead>
       <tbody></tbody>
@@ -454,6 +457,17 @@ function renderContainer(){
       ? '<td id="importance_'+it.tc_id+'">'+esc(importanceLabel(dispV.importance))+'</td>'
       : '';
 
+    // Issue #1128: legacy planAddTC showed the link creation date in a
+    // dedicated column (planAddTC.tpl:370 no-platform / :438 per-platform),
+    // blank for unlinked rows. The modern row can aggregate several links
+    // (versions/platforms), so show every distinct localized date.
+    var dateDisp=[];
+    it.links.forEach(function(l){
+      if(l.linked_ts_display && dateDisp.indexOf(l.linked_ts_display)<0){ dateDisp.push(l.linked_ts_display); }
+    });
+    var dateCell='<td class="added-on" title="'+esc(TLi18n.t('paddtc.infoAddedOnDate'))+'">'
+      +(dateDisp.length?esc(dateDisp.join(', ')):'')+'</td>';
+
     var $tr=$('<tr'+(isLinked?' class="linked-row"':'')+'>').html(
         '<td>'+(isLinked?'':'<input type="checkbox" class="addchk" data-tc="'+it.tc_id+'">')+'</td>'+
         '<td><span class="tc-name">'+esc(it.name)+'</span><span class="ext-id">'+esc(it.full_external_id)+'</span>'
@@ -467,7 +481,8 @@ function renderContainer(){
         statusCell+impCell+
         (hasPlat?'<td>'+(isLinked?'':platCell)+'</td>':'')+
         '<td>'+ordInput+'</td>'+
-        '<td>'+(rmChips||'-')+'</td>');
+        '<td>'+(rmChips||'-')+'</td>'+
+        dateCell);
     $tb.append($tr);
 
     // Issue #1126: per-link testplan-design custom-field inputs (legacy
@@ -483,7 +498,7 @@ function renderContainer(){
       }
       var tag=TLi18n.t('paddtc.cfFor')+' v'+verOf(it,l.tcversion_id)+(pname?' \u00b7 '+pname:'');
       var $cfr=$('<tr class="cf-row">').append(
-        $('<td>').attr('colspan', 6+(priorityEnabled?1:0)+(hasPlat?1:0))
+        $('<td>').attr('colspan', 7+(priorityEnabled?1:0)+(hasPlat?1:0))
           .append($('<span class="cf-feature">').text(tag))
           .append(l.custom_fields_html));
       $tb.append($cfr);

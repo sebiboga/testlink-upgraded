@@ -41,6 +41,8 @@ that already have executions additionally requires `testplan_unlink_executed_tes
     version chosen in the row and are re-rendered when it changes (see §2b).
   * Linked rows show a remove chip `v<n> #<order>` (red dot when executed) and
     the add controls collapse into the linked state.
+  * **Added on date** column (rightmost) — the link creation date of a linked
+    test case (legacy `linked_ts`), blank for unlinked add-rows (see §2c).
   * Linked rows additionally render a full-width **custom-fields row** per link
     when the project has custom fields with `show_on_testplan_design`/
     `enable_on_testplan_design` (scope `testplan_design`): tag
@@ -92,6 +94,24 @@ The modern table dropped the two attribute columns the legacy screen rendered
 
 ![Status + Importance columns](screenshots/issue-1127-paddtc-status-importance.png)
 
+## 2c. Added on date column (Issue #1128)
+The modern table dropped the link-creation-date column the legacy screen rendered
+(`planAddTC.tpl:184-186` header, `:370` no-platform cell `localize_date
+d=$tcase.linked_ts[0]`, `:438` per-platform cell). It is restored:
+
+* The BFF `/planaddtc/container` now selects `TPTCV.creation_ts AS linked_ts`
+  (`testplan.class.php:6076` alias `linked_ts`) and every `links[]` entry carries
+  `linked_ts` (raw) plus `linked_ts_display`, formatted with the same helper the
+  legacy template used (`localize_dateOrTimeStamp(..., 'date_format', ...)`,
+  i.e. `%d/%m/%Y`).
+* The screen renders the localized date for linked TCs. Since the modern screen
+  aggregates the legacy per-platform rows into one row per test case, the cell
+  joins every distinct link date; unlinked add-rows stay blank, exactly like the
+  legacy `&nbsp;`.
+* Cell tooltip = `paddtc.infoAddedOnDate` (legacy `info_added_on_date`).
+
+![Added on date column](screenshots/issue-1128-planaddtc-added-on-date.png)
+
 ## 3. Executed-Link Guard
 When removing links whose `executed_qty > 0` and the user lacks
 `testplan_unlink_executed_testcases`, the request is rejected (403). Users that
@@ -115,7 +135,7 @@ required on POSTs.
 |----------------|---------|
 | GET `/api/plans/index.php/planaddtc/init?tproject_id=&tplan_id=` | plans, rights, keywords, platforms, builds, testers, `priority_enabled` |
 | GET `/planaddtc/suites?tproject_id=&tplan_id=[&keyword_id=][&container_id=]` | suite tree w/ deep totals + linked counts |
-| GET `/planaddtc/container?container_id=` | test cases of one suite: versions (incl. `status`, `importance`), links, executed_qty, per-link `custom_fields_html`, `has_custom_fields` |
+| GET `/planaddtc/container?container_id=` | test cases of one suite: versions (incl. `status`, `importance`), links (incl. `linked_ts` + `linked_ts_display`), executed_qty, per-link `custom_fields_html`, `has_custom_fields` |
 | POST `/planaddtc/save` | link/unlink pairs + optional tester/build assignment |
 | POST `/planaddtc/reorder` | save execution orders |
 | POST `/planaddtc/savecustomfields` | persist testplan-design CF values (grouped by link_id, owned-link check, `testplan_design_values_to_db`) |
@@ -131,6 +151,8 @@ plus reuse of `pv.testProject`, `common.*`. The five testplan-design-CF keys
 `paddtc.cfNothingSaved`, `paddtc.msg.cfSaved`) were added for Issue #1126 and
 `paddtc.colStatus` / `paddtc.colImportance` for Issue #1127 (which reuses
 `tcview.statusN` and `search.*Importance` for the cell values).
+`paddtc.addedOnDate` (column header) and `paddtc.infoAddedOnDate` (tooltip) were
+added for Issue #1128.
 
 ## 7. Testing
 Regression suites in `tmp/TLU_Test_Cases.md`: **56** (original load/rights/i18n/
@@ -139,7 +161,9 @@ navigation/add-reorder-remove/executed-guard/keyword-filter), **Task — Issue
 round-trip persistence, Event Viewer clean, i18n coverage gate; and **Task —
 Issue #1127** (9/9 PASS): Status/Importance rendering for linked + unlinked rows,
 version-change update, `priorityEnabled=0` hides the Importance column, Event
-Viewer clean, i18n coverage gate.
+Viewer clean, i18n coverage gate; and **Task — Issue #1128** (7/7 PASS): BFF
+`linked_ts`/`linked_ts_display`, Added-on-date header + linked-row date, blank
+for unlinked rows, tooltip, i18n coverage gate, Event Viewer clean.
 
 ---
 ## 8. Bugfix — Issue #1909: column alignment for platform-less plans

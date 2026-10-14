@@ -110,6 +110,16 @@ Every screen of the application was ported one-by-one in a screen-compare
   14/14 PASS (pre-fix 11 failures), `tmp/verify_1712.sh` 25/25 PASS, all 8 types HTTP 200,
   0 fatal-signature Event rows, grid/list/`check-connection` unaffected. Docs:
   `docs/Bugfix-Issue-1712-sibling-issuetrackers-unguarded-cfg-cast.md` + wiki page.
+
+- [FEATURE GAP] - #1128: the modern **Add/Remove Test Cases** screen
+  (`gui/templates/plans/planAddTCView.html`, BFF `api/plans/index.php`) dropped the
+  legacy **Added on date** column `planAddTC.tpl` renders from the link timestamp
+  (`testplan.class.php:6076` `TPTCV.creation_ts AS linked_ts`; `:370`/`:438`
+  `localize_date`). `GET /planaddtc/container` now selects `TPTCV.creation_ts` and each
+  `links[]` entry carries `linked_ts` + `linked_ts_display`; the row renders the
+  localized date (blank for unlinked add-rows) with the `paddtc.addedOnDate` header and
+  `paddtc.infoAddedOnDate` tooltip (all 10 i18n bundles). Suite Task-1128 in
+  `tmp/TLU_Test_Cases.md` (7/7 PASS), i18n gate exit 0. (Refs #1128)
   Out-of-scope same-family sites (githubrest/gitlabrest/kaitenrest/trellorest/jiradb) noted for
   follow-up. (Refs #1712)
 
