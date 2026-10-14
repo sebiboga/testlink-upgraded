@@ -25,6 +25,16 @@ Every screen of the application was ported one-by-one in a screen-compare
   linked custom fields from, so a missing id renders an empty table instead of a 500. Verified
   with a CLI repro (`result type=array`, no fatal); Event Viewer clean. (Fixes #1912)
 
+- [BUGFIX] - #1913: `testplan::get_linked_cfields_at_execution()` no longer throws a PHP 8
+  `TypeError` for a VALID test plan id. The wrapper forwarded its arguments to
+  `cfield_mgr::get_linked_cfields_at_execution()` shifted by one, so the scalar plan id
+  landed in the array-typed `$execution_id` slot and `implode(',', $execution_id)` fatalled
+  (HTTP 500); the shifted `$show_on_execution` also triggered an `Undefined array key 1`
+  warning. It now passes `'testplan'` as the node type and the plan id as the node id, and
+  the now-reachable `$cf_info['node_id']` read in `html_table_of_custom_field_values()` is
+  guarded with an equivalent `isset()` short-circuit. Latent (no live caller); verified with
+  a CLI harness, Event Viewer clean. (Fixes #1913)
+
 - [SCREEN] - #1060: the **Learn Testing hub** (`gui/templates/documentation/learnTesting.html`
   + BFF `api/learntesting/index.php`) is added as the Documentation ASIDE section's second
   entry, giving TestLink an in-app learning area (1.9.20 had none). Six learning tracks
