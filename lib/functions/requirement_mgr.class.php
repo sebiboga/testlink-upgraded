@@ -1129,7 +1129,11 @@ function create_tc_from_requirement($mixIdReq,$srs_id, $user_id, $tproject_id = 
 
     if ($testcase_id && $req_id) {
       // Get Latest Active Test Case Version 
-      $tcv = current($tcMgr->get_last_active_version($testcase_id));
+      // get_last_active_version() returns null when the test case has no active
+      // version at all; current(null) raises a PHP 8 TypeError (HTTP 500 on the
+      // assign-reqs BFF), so cast to array first. false == null keeps the guard
+      // below working (issue #1861, same fix as #1708).
+      $tcv = current((array)$tcMgr->get_last_active_version($testcase_id));
       if ($tcv == null) {
         // Latest version is Inactive => operation not allowed
         return $output;
