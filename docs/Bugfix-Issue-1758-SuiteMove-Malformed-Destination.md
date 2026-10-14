@@ -1,7 +1,7 @@
 # Issue 1758 — Move/Reorder Test Suites: a malformed destination was silently turned into an in-container reorder
 
 **Issue:** [#1758](https://github.com/sebiboga/testlink-upgraded/issues/1758)
-**Branch:** `fix/issue-1758-malformed-destination` · **Fix commits:** `7d2906e9c`, `b13df1094`
+**Branch:** `fix/issue-1758-malformed-destination` · **Fix commits:** `3a187819a`, `aea8ccbe5`
 **Screen:** `gui/templates/testcases/suiteMove.html` · **BFF:** `api/suitemove/index.php`
 **Status:** VERIFIED FIXED (2026-10-14)
 
