@@ -1515,7 +1515,9 @@ function showFeedback(success, msg_text)
 */
 function openExecEditWindow(exec_id,tcversion_id,tplan_id,tproject_id)
 {
-  var target_url = "lib/execute/editExecution.php";
+  // 2.0.1 modernization (Refs #1911): the legacy controller is now a 302 shim.
+  // Open the modern Dashio popup directly (api/executionedit carries the writes).
+  var target_url = "gui/templates/execute/editExecution.html";
 
   // 20101008 - asimon - BUGID 3311
   var width = getCookie("ExecEditPopupWidth");
