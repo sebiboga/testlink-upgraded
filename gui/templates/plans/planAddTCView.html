@@ -51,6 +51,11 @@ tr.linked-row td { background: #f3fbfa; }
 .chip.executed { border-color: #eec1bf; background: #fdf4f3; }
 .chip .ord { color: #999; font-size: 11px; }
 select.vsel, select.psel { max-width: 170px; }
+/* Issue #1129: per-link platform reassignment control on linked rows. */
+.pfitem { display: flex; flex-direction: column; gap: 2px; margin-bottom: 4px; }
+.pfitem:last-child { margin-bottom: 0; }
+.pf-lbl { font-size: 11px; color: #8a9a99; white-space: nowrap; }
+select.pfsel { max-width: 150px; padding: 2px 5px; border: 1px solid #bfe5e2; border-radius: 4px; font-size: 12px; }
 input.order-in { width: 58px; padding: 3px 6px; border: 1px solid #ccc; border-radius: 4px; }
 .st-pill { font-size: 11px; border-radius: 10px; padding: 2px 9px; white-space: nowrap; }
 .st-linked { background: #dff3f1; color: #23756f; }
@@ -144,6 +149,10 @@ tr.cf-row textarea { vertical-align: top; }
       <button class="btn-teal" id="btnSave"><i class="fas fa-floppy-disk"></i> <span data-i18n="paddtc.saveChanges">Save changes</span></button>
       <button class="btn-dark" id="btnReorder"><i class="fas fa-arrow-down-1-9"></i> <span data-i18n="paddtc.saveOrder">Save execution order</span></button>
       <button class="btn-dark" id="btnSaveCF" style="display:none"><i class="fas fa-marker"></i> <span data-i18n="paddtc.saveCustomFields">Save custom fields</span></button>
+      <!-- Issue #1129: legacy planAddTC 'Save platform' action (planAddTC.php
+           :114 doSavePlatforms / _m1.tpl:196), shown only when the plan uses
+           platforms and there are linked rows. -->
+      <button class="btn-dark" id="btnSavePlatform" style="display:none"><i class="fas fa-server"></i> <span data-i18n="paddtc.savePlatforms">Save platform</span></button>
       <span id="saveHint" style="color:#999;font-size:12px;"></span>
     </div>
     <div id="cfHelp" style="display:none;padding:0 14px 12px;font-size:12px;color:#8a9a99;">
@@ -226,6 +235,7 @@ $(function(){
   $('#btnSave').on('click', doSave);
   $('#btnReorder').on('click', doReorder);
   $('#btnSaveCF').on('click', doSaveCustomFields);
+  $('#btnSavePlatform').on('click', doSavePlatforms);
   // Refs #1767 - open the modern Test Case Summary popup for a row. The
   // version shown is the one selected in that row when the suite is not
   // linked yet, otherwise the newest active one, so the popup mirrors what
@@ -414,6 +424,25 @@ function renderContainer(){
       (r.platforms||[]).forEach(function(p){ platCell+='<option value="'+p.id+'">'+esc(p.name)+'</option>'; });
       platCell+='</select>';
     }
+    // Issue #1129: legacy planAddTC showed a per-link platform <select>
+    // (planAddTC_m1.tpl:319 'feature2fix[feature_id][tcversion]') preset to
+    // the link's platform (0 = none) and a "Save platform" action. A modern
+    // row can aggregate several links, so render one select per link.
+    var platFixCell='-';
+    if(hasPlat && isLinked){
+      platFixCell=it.links.map(function(l){
+        var pname=(l.platform_id>0)?platformName(l.platform_id):TLi18n.t('common.none');
+        var opts='<option value="0"'+(l.platform_id===0?' selected':'')+'>'+esc(TLi18n.t('common.none'))+'</option>';
+        (r.platforms||[]).forEach(function(p){
+          opts+='<option value="'+p.id+'"'+(l.platform_id===p.id?' selected':'')+'>'+esc(p.name)+'</option>';
+        });
+        return '<div class="pfitem"><span class="pf-lbl" title="'+esc(TLi18n.t('paddtc.reassignPlatform'))+'">'
+          +'v'+verOf(it,l.tcversion_id)+' \u00b7 '+esc(pname)+'</span>'
+          +'<select class="pfsel" data-feature="'+l.feature_id+'" data-tv="'+l.tcversion_id
+          +'" data-pl="'+l.platform_id+'" title="'+esc(TLi18n.t('paddtc.reassignPlatform'))+'">'
+          +opts+'</select></div>';
+      }).join('');
+    }
 
     var ordVal='';
     var ordInput='<input class="order-in" type="number" data-tc="'+it.tc_id+'" value="" min="0" disabled>';
@@ -479,7 +508,7 @@ function renderContainer(){
           +'<i class="fa fa-file-text-o" aria-hidden="true"></i></button><br>'+statusPill+newerWarn+'</td>'+
         '<td>'+(isLinked?'':vsel)+'</td>'+
         statusCell+impCell+
-        (hasPlat?'<td>'+(isLinked?'':platCell)+'</td>':'')+
+        (hasPlat?'<td>'+(isLinked?platFixCell:platCell)+'</td>':'')+
         '<td>'+ordInput+'</td>'+
         '<td>'+(rmChips||'-')+'</td>'+
         dateCell);
@@ -506,6 +535,9 @@ function renderContainer(){
   });
   var showCF=!!(r.has_custom_fields && r.rights && r.rights.canPlan);
   $('#btnSaveCF').toggle(showCF);
+  // Issue #1129: legacy "Save platform" action is offered when the plan uses
+  // platforms and there is at least one linked test case to (re)assign.
+  $('#btnSavePlatform').toggle(hasPlat && linkedTotal>0);
   $('#cfHelp').toggle(showCF);
   $('#suiteCount').text('('+items.length+')');
   $('#hdrLinked').text(linkedTotal);
@@ -516,6 +548,10 @@ function renderContainer(){
 function verOf(it,tvid){
   var v=(it.versions.filter(function(x){return x.tcversion_id===tvid;})[0]||{version:'?'}).version;
   return v;
+}
+function platformName(pid){
+  var p=((CONTAINER.platforms||[]).filter(function(x){return x.id===pid;})[0]);
+  return p?p.name:('#'+pid);
 }
 function linkedCountFromSuites(){
   var s=$('#suiteTree li.sel .lnk').first().text();
@@ -652,6 +688,52 @@ function doSaveCustomFields(){
     .fail(function(xhr){ var rr={};try{rr=JSON.parse(xhr.responseText);}catch(e){}
       toast(rr.message||TLi18n.t('common.error'),true); })
     .always(function(){ $('#btnSaveCF').prop('disabled',false); });
+}
+
+// Issue #1129: legacy planAddTC doSavePlatforms() (:791-800) submitted
+// feature2fix[feature_id][tcversion] = platform_id and the BFF moved the
+// link + its executions to the chosen platform. Here we collect every
+// changed per-link .pfsel and PATCH only the differences.
+function doSavePlatforms(){
+  if(!INIT || !INIT.rights.canPlan){ return; }
+  var platforms={}, changed=0;
+  $('select.pfsel').each(function(){
+    var fid=parseInt(this.getAttribute('data-feature'),10);
+    var oldP=parseInt(this.getAttribute('data-pl'),10);
+    var newP=parseInt(this.value,10);
+    if(isNaN(newP)){ newP=0; }
+    if(fid>0 && newP!==oldP){ platforms[fid]=newP; changed++; }
+  });
+  if(!changed){ toast(TLi18n.t('paddtc.noPlatformChange'),true); return; }
+  // executed links can only be moved with the unlink-executed right
+  // (mirror of the BFF guard and the sibling removal guard)
+  var execList=[];
+  Object.keys(platforms).forEach(function(fid){
+    (CONTAINER.items||[]).forEach(function(it){
+      it.links.forEach(function(l){
+        if(String(l.feature_id)===String(fid) && l.executed_qty>0){ execList.push(it.name); }
+      });
+    });
+  });
+  if(execList.length && !INIT.rights.canRemoveExecuted){
+    toast(TLi18n.t('paddtc.errExecuted'),true); return;
+  }
+  sendSavePlatforms(platforms);
+}
+
+function sendSavePlatforms(platforms){
+  $('#btnSavePlatform').prop('disabled',true);
+  $.ajax({url:API+'/planaddtc/save-platform',method:'POST',contentType:'application/json',
+    data:JSON.stringify({tproject_id:tprojectId,tplan_id:currentPlanId(),platforms:platforms})})
+    .done(function(r){
+      if(r.status==='ok'){
+        toast(TLi18n.t('paddtc.msg.platformSaved').replace('{n}',r.updated));
+        openSuite(curSuiteId);
+      } else { toast(r.message||TLi18n.t('common.error'),true); }
+    })
+    .fail(function(xhr){ var rr={};try{rr=JSON.parse(xhr.responseText);}catch(e){}
+      toast(rr.message||TLi18n.t('common.error'),true); })
+    .always(function(){ $('#btnSavePlatform').prop('disabled',false); });
 }
 
 function refreshAfterSave(){

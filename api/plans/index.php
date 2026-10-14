@@ -1500,6 +1500,137 @@ if ($method === 'POST' && count($segments) === 2 &&
 }
 
 // ---------------------------------------------------------------------------
+// POST /planaddtc/save-platform  (Issue #1129)
+// body: {tproject_id,tplan_id, platforms:{<feature_id>:<platform_id>, ...}}
+// Mirrors legacy planAddTC.php doSavePlatforms() (:791-800) which ran
+// testplan::changeLinkedTCVersionsPlatform(tplan_id, 0, platform, tcversion)
+// (:3603-3626): it updates testplan_tcversions.platform_id AND moves the
+// link's executions.platform_id to the new platform. The legacy manager
+// method filtered on platform_id=0 (assign to unplatformed links); keying on
+// the exact testplan_tcversions rows lets us also REASSIGN an already-set
+// platform (any old -> any new) while keeping the same two-statement effect.
+// Already-linked rows are identified by testplan_tcversions.id = feature_id
+// (the same id the legacy template used as feature2fix[] key).
+// ---------------------------------------------------------------------------
+if ($method === 'POST' && count($segments) === 2 &&
+    $segments[0] === 'planaddtc' && $segments[1] === 'save-platform') {
+    $body = getBody();
+    $tplanMgr = new testplan($db);
+    list($tproject_id, $tplan_id, $tplanInfo) = planAddTcNeedCtx($body, $tplanMgr);
+    $rights = planAddTcRights($user, $db, $tproject_id, $tplan_id);
+    if (!$rights['canPlan']) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission']);
+    }
+
+    $input = (array)($body['platforms'] ?? []);
+    // feature_id => new platform_id
+    $targets = [];
+    foreach ($input as $featureId => $platId) {
+        $featureId = intval($featureId);
+        $platId = intval($platId);
+        if ($featureId > 0 && $platId >= 0) {
+            $targets[$featureId] = $platId;
+        }
+    }
+    if (count($targets) == 0) {
+        http_response_code(422);
+        out(['status' => 'error', 'message' => 'No platform changes provided',
+             'error_code' => 'NO_SELECTION']);
+    }
+
+    $TLT = tlObject::getDBTables();
+    $tpv = $TLT['testplan_tcversions'];
+    $exq = $TLT['executions'];
+
+    // only rows that really belong to THIS plan
+    $idList = implode(',', array_map('intval', array_keys($targets)));
+    $owned = [];
+    $rows = $db->fetchRowsIntoMap("SELECT id, tcversion_id, platform_id " .
+        "FROM {$tpv} WHERE testplan_id = {$tplan_id} AND id IN ({$idList})", 'id');
+    if (!is_null($rows)) {
+        foreach ($rows as $fid => $r) {
+            $owned[intval($fid)] = [
+                'tcversion_id' => intval($r['tcversion_id']),
+                'platform_id' => intval($r['platform_id']),
+            ];
+        }
+    }
+
+    // target platforms must be linked to this plan (0 = "none" always allowed)
+    // legacy options came from tlPlatform::getLinkedToTestplan() (:678-686)
+    $platSet = $tplanMgr->getPlatforms($tplan_id);
+    $allowed = [0 => true];
+    foreach ((array)$platSet as $p) {
+        $allowed[intval($p['id'] ?? 0)] = true;
+    }
+
+    $changed = [];
+    foreach ($targets as $featureId => $platId) {
+        if (!isset($owned[$featureId])) {
+            continue; // ignore links not in this plan
+        }
+        if ($platId != 0 && !isset($allowed[$platId])) {
+            http_response_code(400);
+            out(['status' => 'error', 'message' =>
+                'Platform not linked to this test plan',
+                'error_code' => 'INVALID_PLATFORM']);
+        }
+        if ($platId === $owned[$featureId]['platform_id']) {
+            continue; // unchanged
+        }
+        $changed[$featureId] = $platId;
+    }
+    if (count($changed) == 0) {
+        out(['status' => 'ok', 'updated' => 0, 'skipped' => count($targets)]);
+    }
+
+    // moving a link that already carries executions follows the sibling
+    // removal guard: it needs the "testplan_unlink_executed_testcases" right.
+    if (!$rights['canRemoveExecuted']) {
+        $cond = [];
+        foreach ($changed as $featureId => $platId) {
+            $tvId = $owned[$featureId]['tcversion_id'];
+            $oldP = $owned[$featureId]['platform_id'];
+            $cond[] = "(E.tcversion_id = {$tvId} AND E.platform_id = {$oldP})";
+        }
+        $sql = "SELECT COUNT(*) AS qty FROM {$exq} E WHERE " .
+            " E.testplan_id = {$tplan_id} AND (" . implode(' OR ', $cond) . ")";
+        $execQty = intval($db->fetchFirstRowSingleColumn($sql, 'qty'));
+        if ($execQty > 0) {
+            http_response_code(403);
+            out(['status' => 'error',
+                 'message' => 'Some selected test cases are already executed; ' .
+                     'changing their platform requires the ' .
+                     '"testplan_unlink_executed_testcases" right',
+                 'error_code' => 'EXECUTED_PRESENT']);
+        }
+    }
+
+    $updated = 0;
+    try {
+        foreach ($changed as $featureId => $newPlat) {
+            $tvId = $owned[$featureId]['tcversion_id'];
+            $oldPlat = $owned[$featureId]['platform_id'];
+            // 1) the link itself (legacy testplan_tcversions statement)
+            $db->exec_query("UPDATE {$tpv} SET platform_id = {$newPlat} " .
+                "WHERE id = {$featureId} AND testplan_id = {$tplan_id}");
+            // 2) its executions follow the link to the new platform
+            //    (legacy executions statement, scoped to the moved link)
+            $db->exec_query("UPDATE {$exq} SET platform_id = {$newPlat} " .
+                "WHERE testplan_id = {$tplan_id} AND tcversion_id = {$tvId} " .
+                "AND platform_id = {$oldPlat}");
+            $updated++;
+        }
+    } catch (Throwable $e) {
+        http_response_code(500);
+        out(['status' => 'error', 'message' => $e->getMessage()]);
+    }
+
+    out(['status' => 'ok', 'updated' => $updated]);
+}
+
+// ---------------------------------------------------------------------------
 // Set Test Urgency (modernized planUrgency.php screen) - Refs #605
 // legacy rights: checkRights() rightsAnd testplan_planning on every request
 // ---------------------------------------------------------------------------
