@@ -34,6 +34,26 @@ Every screen of the application was ported one-by-one in a screen-compare
   live reference, old URLs now 404, modern list + create/edit + CF round-trip unaffected,
   Event Viewer clean. Docs: `docs/Task-Issue-1125-Delete-Legacy-BuildView.md`. (Refs #1125)
 
+- [KEY BUGFIX] - #1758: **`api/suitemove` action `move` silently turned a malformed `new_parent_id`
+  into an in-container reorder** — `getInt()` accepts whatever `is_numeric()` accepts (floats,
+  scientific notation, a leading sign) and then `intval()` **truncates** it (`1.5→1`, `3.9→3`,
+  `1e3→1000`, `75.5→75`), but the raw-value guard from `13f2ca183` only ran inside the
+  `if ($newParentId <= 0)` fallback, so a non-integer numeric value truncated to a *positive* int
+  bypassed it; when that int equalled the suite's current parent the request degraded into a silent
+  in-container reorder (`new_parent_id=1.5&position=bottom` → `200 ok`, order `[3,4]→[4,3]`). The
+  guard also read `$_REQUEST`, which does not carry a JSON body, so the literal `new_parent_id="abc"`
+  still reproduced for JSON callers. Fix: validate the raw destination **unconditionally** with
+  `preg_match('/^\d+$/')` through the endpoint's own JSON-aware `getParam()` before the `≤ 0`
+  fallback (empty/`0`/JSON `null` still mean "destination omitted"). The guard also rejects the
+  raw **type**: a JSON `true` stringifies to `"1"` (matching the digit regex) but `getInt()` reads a
+  boolean as `0`, reintroducing the silent reorder, and a JSON float (`1e3`) is not the integer the
+  caller named; arrays still answer the #1790 follow-up `400` with no `Array to string conversion`
+  E_WARNING. `up`/`down` and the `reorder` branch are untouched. Verified on a fresh DB with
+  `tmp/fixtures_1759.php`: `abc`/`-1`/`1.5`/`3.9`/`1e3`/`75.5`/`%2B5`/`1E3`/`0x4`/`4abc`/JSON
+  `"abc"`/JSON `1.5`/JSON `true`/JSON `1e3`/array → all `400 bad_request` with the tree unchanged,
+  valid/omitted/`0`/JSON `null`/` 4 `/JSON `4` still move, `events` 0 Error/Warning; `php -l` clean.
+  Docs: `docs/Bugfix-Issue-1758-SuiteMove-Malformed-Destination.md`. (Fixes #1758)
+
 - [KEY BUGFIX] - #1910: **the `details='full'` branch of `testsuite::get_testcases_deep()` and
   `get_children_testcases()` dereferenced a null `get_last_version_info()`** — for a test-case tree
   node with no `tcversions` row, `get_last_version_info()` returns `null` (`testcase.class.php:2559-2568`),

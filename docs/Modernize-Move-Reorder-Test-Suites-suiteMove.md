@@ -64,7 +64,7 @@ Contract: `401` anonymous, `403` no right / CSRF, `404` unknown or foreign node 
 | #1755 | `BUSY` latched forever on an unhandled path, disabling every action |
 | #1756 | a write after the session timeout printed a raw server string instead of the login page |
 | #1757 | the picker was O(all suites × depth) across the whole installation |
-| #1758 | a malformed `new_parent_id` was silently degraded into an in-container reorder |
+| #1758 | a malformed `new_parent_id` (float / scientific / JSON body) was silently degraded into an in-container reorder — see [Bugfix-Issue-1758](Bugfix-Issue-1758-SuiteMove-Malformed-Destination) |
 | #1759 | `403` on a foreign suite leaked that node's existence (now `404`) — see [Bugfix-Issue-1759](Bugfix-Issue-1759-SuiteMove-403-Leaks-Foreign-Suite) |
 
 ## Bugfix #1751 — `smv.*` i18n keys verified restored in all 10 bundles
