@@ -2644,6 +2644,9 @@ class testplan extends tlObjectWithAttachments
           [$show_on_execution]: default: null
                                 1 -> filter on field show_on_execution=1
                                 0 or null -> don't filter
+          NOTE: the execution query of cfield_mgr hard-codes
+          show_on_execution=1, so this argument is kept only for call-signature
+          compatibility and cannot switch the filter off (#1913).
   
     returns: hash
   
@@ -2673,9 +2676,20 @@ class testplan extends tlObjectWithAttachments
       return array();
     }
 
-    // 20081122 - franciscom - humm!! need to look better IMHO this call is done to wrong function
+    // Arguments of cfield_mgr::get_linked_cfields_at_execution() are positional
+    // ($tproject_id,$enabled,$node_type,$node_id,$execution_id,$testplan_id,...):
+    // 'testplan' is the NODE TYPE and $id the NODE ID. They used to be passed
+    // shifted by one ($show_on_execution into $node_type, 'testplan' into
+    // $node_id, the scalar plan id into the array-typed $execution_id), which
+    // made cfield_mgr implode() an int -> PHP 8 TypeError / HTTP 500 for a
+    // VALID plan id (#1913). The node type keeps the result set restricted to
+    // custom fields linked to testplan; $node_id is only consumed by the callee
+    // when $execution_id and $testplan_id are also given.
+    // $show_on_execution has no slot on purpose: unlike the design variant, the
+    // execution query hard-codes show_on_execution=1 in its WHERE clause
+    // (cfield_mgr.class.php get_linked_cfields_at_execution()).
     $cf_map=$this->cfield_mgr->get_linked_cfields_at_execution($tproject_id,self::ENABLED,
-    $show_on_execution,'testplan',$id);
+    'testplan',$id);
     return($cf_map);
   }
 
@@ -2797,7 +2811,12 @@ class testplan extends tlObjectWithAttachments
       {
         // if user has assigned a value, then node_id is not null
         // BUGID 3989
-        if(isset($cf_info['node_id']) || $cf_info['node_id'] || $show_cf)
+        // isset() already covers the 'node_id' term: when it is set the whole
+        // condition is true, when it is not the value is null/absent -> falsy.
+        // Reading $cf_info['node_id'] unguarded raised an "Undefined array key"
+        // E_WARNING on the execution scope (no node_id column is selected
+        // there), now reachable after the #1913 argument fix.
+        if(isset($cf_info['node_id']) || $show_cf)
         {
           // true => do not create input in audit log
           $label=str_replace(TL_LOCALIZE_TAG,'',lang_get($cf_info['label'],null,true));
