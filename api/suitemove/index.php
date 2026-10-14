@@ -810,11 +810,16 @@ switch ($action) {
         // JSON I/O and $_REQUEST does not carry a JSON body, so the guard used
         // to be skipped entirely for JSON callers.
         $rawDest = getParam('new_parent_id', '');
-        if (is_array($rawDest) || is_object($rawDest)) {
+        if (!is_string($rawDest) && !is_int($rawDest)) {
             // Refs #1790 follow-up: a cast of an ARRAY raised
             // "Array to string conversion" and wrote an E_WARNING row into
             // `events` on every such request, reachable by ANY logged-in
             // user. Answer the same 400 without the notice.
+            // Refs #1758: reject the TYPE, not just the string form. A JSON
+            // boolean passed the digit regex because (string)true === "1",
+            // but getInt() read the boolean as 0 and silently reordered inside
+            // the current parent; a JSON float (1e3, 4.0) is likewise not the
+            // integer destination the caller named.
             out(array('status' => 'error', 'code' => 'bad_request',
                       'message' => 'Invalid destination test suite'), 400);
         }
