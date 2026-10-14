@@ -28,7 +28,7 @@ XML-RPC `getTestCasesForTestSuite`.
 
 1. `lib/functions/testsuite.class.php:872` — `list($identity,$prefix,$glueChar,$external) =
    $tcase_mgr->getExternalID($elem['id'],null,$prefix);` — no guard on the returned array.
-2. `lib/functions/testcase.class.php:5717` `getExternalID()` → `:2533-2536` calls
+2. `lib/functions/testcase.class.php:5717` `getExternalID()` → `:5733` calls
    `get_last_version_info($id, ['output'=>'minimun'])`; for a node with zero `tcversions` the
    result is `null` and `getExternalID()` deliberately returns `[]` (`:5733-5736`).
 3. PHP 8 raises one `E_WARNING "Undefined array key N"` per missing `list()` element (4 keys →
@@ -60,10 +60,12 @@ $elem['external_id'] = $identity;
 This mirrors the #1863 guard (`buildDirectWebLink()`) and the pre-existing
 `markdown_tc_export.class.php:322` guard — the repository convention for this contract.
 
-**Alternative rejected:** making `getExternalID()` always return a 4-tuple would change the
-empty-detection semantics its direct `[0]` consumers rely on (`testcase.class.php:10438/10547`,
-`testcaseCommands.class.php:211`, `xmlrpc.class.php:3949`, `containerEdit.php:1343`) — a larger
-blast radius than the reported defect warrants.
+**Alternative rejected:** changing the shared `getExternalID()` contract (e.g. always returning a
+4-tuple) would touch every consumer at once (`testcase.class.php:10438/10547`,
+`lib/testcases/testcaseCommands.class.php:211`, `xmlrpc.class.php:3949`,
+`lib/testcases/containerEdit.php:1343`, plus the #1863 guard) — a larger blast radius than the
+reported single-site defect warrants; the repository convention is a guard at the destructuring
+site.
 
 **Out of scope, filed separately:** the `details='full'` branch of the same method
 (`testsuite.class.php:902`) and `get_children_testcases()` (`:964`) still dereference a `null`
