@@ -3863,3 +3863,4 @@ $TLS_title_test_closure = "Zamknięcie testów"; // "Test Closure" (Refs #1278)
 $TLS_link_report_risk_coverage = "Testowanie oparte na ryzyku";
 $TLS_link_report_quality_gates = "Bramy jakości wydania"; // Refs #1067
 $TLS_title_learn_testing = "Nauka testowania"; // Learn Testing hub (Refs #1060)
+$TLS_title_documentation_hub = "Centrum dokumentacji"; // Documentation hub (Refs #1060)

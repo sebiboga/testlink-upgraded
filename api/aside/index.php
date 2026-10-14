@@ -702,8 +702,8 @@ $sections[] = array(
     'single' => false,
     'items' => array(
         array(
-            'id' => 'documentation',
-            'label' => lang_get('title_documentation'),
+            'id' => 'documentationHub',
+            'label' => lang_get('title_documentation_hub'),
             'href' => 'gui/templates/documentation/documentation.html',
             'icon' => 'fas fa-book',
         ),

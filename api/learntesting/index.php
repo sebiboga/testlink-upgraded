@@ -27,33 +27,40 @@ bffSameOriginGuard();
 header('Content-Type: application/json; charset=utf-8');
 header('X-Content-Type-Options: nosniff');
 
-$db = new database(DB_TYPE);
-doDBConnect($db);
-
+// Session gate BEFORE the DB connect (the #1677 lesson): an anonymous caller
+// must get a clean 401 JSON, never a leaked raw dbms_msg on an outage.
 $userId = $_SESSION['userID'] ?? null;
 if (!$userId || $userId <= 0) {
     http_response_code(401);
-    echo json_encode(array('status' => 'error', 'message' => 'Not authenticated'));
+    echo json_encode(array('status' => 'error', 'code' => 'not_authenticated',
+                           'message' => 'Not authenticated'));
     exit;
 }
+
+$db = new database(DB_TYPE);
+doDBConnect($db);
 
 $user = tlUser::getByID($db, $userId);
 if (is_null($user)) {
     http_response_code(401);
-    echo json_encode(array('status' => 'error', 'message' => 'User not found'));
+    echo json_encode(array('status' => 'error', 'code' => 'not_authenticated',
+                           'message' => 'User not found'));
     exit;
 }
 
 $method = $_SERVER['REQUEST_METHOD'];
 $action = isset($_GET['action']) ? $_GET['action'] : 'init';
-if ($method !== 'GET') {
+if ($method !== 'GET' && $method !== 'HEAD') {
     http_response_code(405);
-    echo json_encode(array('status' => 'error', 'message' => 'Method not allowed'));
+    header('Allow: GET, HEAD');
+    echo json_encode(array('status' => 'error', 'code' => 'method_not_allowed',
+                           'message' => 'Method not allowed'));
     exit;
 }
 if ($action !== 'init') {
     http_response_code(400);
-    echo json_encode(array('status' => 'error', 'message' => 'Unknown or missing action'));
+    echo json_encode(array('status' => 'error', 'code' => 'unknown_action',
+                           'message' => 'Unknown or missing action'));
     exit;
 }
 

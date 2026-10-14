@@ -2465,3 +2465,4 @@ $TLS_reqmgrsystem_interface_not_implemented = "구성 예제를 사용할 수 �
 $TLS_reqmgrsystem_invalid_type = '잘못된 요구 관리 시스템 유형입니다: %s';
 $TLS_link_report_quality_gates = "릴리스 품질 게이트"; // Refs #1067
 $TLS_title_learn_testing = "테스팅 배우기"; // Learn Testing hub (Refs #1060)
+$TLS_title_documentation_hub = "문서 허브"; // Documentation hub (Refs #1060)
