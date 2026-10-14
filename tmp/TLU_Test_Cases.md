@@ -9153,3 +9153,44 @@ RESUME: `php tmp/fixtures_1859.php` → login admin/admin → curl
 `http://localhost:8082/lib/testcases/tcEdit.php?edit_tc=1&tcase_id=999999&tcversion_id=-1`
 → expect 302 to `gui/templates/feedback/info.html?code=testcase_not_found` and +0 events;
 `tcase_id=<valid>` and `tcase_id=<valid>&tcversion_id=<valid>` → 200.
+
+## Task — Issue #1129: planAddTC platform reassignment of already-linked TCs + "Save platform" action (legacy feature2fix + doSavePlatforms)
+
+**Precondition:** fresh TestLink DB. Fixture `tmp/fixtures_1129.php` (run from repo
+root) creates project **PATC1129** (prefix `PT29`, platforms enabled), platforms
+**Linux** and **Windows** linked to plan **Plan PATC1129**, suite `PAT29 Suite`, and
+two test cases (`PT29 Login`, `PT29 Checkout`) linked to the plan with
+`platform_id=0` ("none"). Login `admin/admin`; open
+`gui/templates/plans/planAddTCView.html?tproject_id=<PATC1129 id>&tplan_id=<plan id>`.
+**Legacy parity:** `lib/plan/planAddTC.php:791-800 doSavePlatforms()` +
+`lib/functions/testplan.class.php:3603-3626 changeLinkedTCVersionsPlatform()`; modern
+BFF `POST /planaddtc/save-platform` (`api/plans/index.php:1502`) and the per-link
+`<select class="pfsel">` + `#btnSavePlatform` (`gui/templates/plans/planAddTCView.html`).
+
+| # | Step | Input | Expected | Observed | Result |
+|---|---|---|---|---|---|
+| 1 | BFF syntax | `php -l api/plans/index.php` | no errors | `No syntax errors detected` | PASS |
+| 2 | UI renders per-link select | open PAT29 Suite; inspect linked-row Platforms cell | one `<select class="pfsel" data-feature=..>` per link, preset to link platform (none), options none/Linux/Windows | `PT29 Checkout` & `PT29 Login` each show `v1 · none` + select with none(sel)/Linux/Windows | PASS |
+| 3 | Save platform button gating | plan uses platforms + linked rows | `#btnSavePlatform` visible | button "Save platform" rendered (`uid=3_78`) | PASS |
+| 4 | Reassign none → Linux | set Login's select = Linux, click Save platform | DB `testplan_tcversions.platform_id` for tcversion 5 becomes 1; row shows `v1 · Linux` | tptcv id=1 tcversion=5 platform_id=0 → **1**; row re-rendered `v1 · Linux`, select selected=Linux | PASS |
+| 5 | True reassignment Linux → Windows | set Login's select = Windows, click Save platform | platform_id 1 → 2 | tptcv id=1 platform_id → **2**; row `v1 · Windows` | PASS |
+| 6 | No-change guard | POST `{platforms:{"1":2}}` (already 2) | `200 {updated:0}` | `{"status":"ok","updated":0,"skipped":1}` HTTP 200 | PASS |
+| 7 | Invalid platform | POST `{platforms:{"1":999}}` | `400 INVALID_PLATFORM` | `{"status":"error","error_code":"INVALID_PLATFORM"}` HTTP 400 | PASS |
+| 8 | Unknown feature id | POST `{platforms:{"99999":1}}` | ignored, `200 updated:0` | `{"status":"ok","updated":0,"skipped":1}` HTTP 200 | PASS |
+| 9 | Empty selection | POST `{platforms:{}}` | `422 NO_SELECTION` | `{"status":"error","error_code":"NO_SELECTION"}` HTTP 422 | PASS |
+| 10 | Unauthenticated | POST without session cookie | `401 Not authenticated` | `{"status":"error","message":"Not authenticated"}` HTTP 401 | PASS |
+| 11 | Executions follow the link | insert execution (status `p`, tcversion 8, platform 0); move feature 2 → Linux | both `testplan_tcversions.platform_id` and `executions.platform_id` become 1 | tptcv id=2 = 1, executions id=1 platform_id 0 → **1** | PASS |
+| 12 | CSRF same-origin proof | POST without Origin/Referer | `403` CSRF | `403 Forbidden: missing or mismatched same-origin proof` | PASS |
+| 13 | Browser console clean | full flow | no JS errors | only a11y `issue` notes, 0 errors | PASS |
+| 14 | i18n coverage | `bash ai/verify_i18n_coverage.sh` | exit 0 | see gate run below | PASS |
+
+**Executed-guard note:** the `403 EXECUTED_PRESENT` branch (step for moving a link
+with executions while lacking `testplan_unlink_executed_testcases`) is code-identical
+to the already-tested sibling removal guard (`api/plans/index.php:1359-1372`); admin
+holds the right so it was not exercised by a restricted role in this run — recorded
+as logic-verified-by-mirror, not browser-tested.
+
+**Result: 14/14 PASS** (13 measured + i18n gate). RESUME: `php tmp/fixtures_1129.php`
+→ login admin/admin → open the planAddTCView URL for PATC1129/Plan PATC1129 → each
+linked row shows a platform select; change it and click **Save platform**; verify with
+`mysql -h 127.0.0.1 -utestlink -ptestlink testlink -e "SELECT id,tcversion_id,platform_id FROM testplan_tcversions WHERE testplan_id=<plan id>;"`.

@@ -9,7 +9,8 @@ semantics as TestLink 1.9.20 (`testplan::link_tcversions()`,
 **Path:** Test Plan > Add / Remove Test Cases (requires an active test plan)
 **URL:** `gui/templates/plans/planAddTCView.html?tproject_id=<id>&tplan_id=<id>`
 **BFF API:** `api/plans/index.php` (REST: GET `/planaddtc/init`, `/planaddtc/suites`,
-`/planaddtc/container`; POST `/planaddtc/save`, `/planaddtc/reorder`)
+`/planaddtc/container`; POST `/planaddtc/save`, `/planaddtc/reorder`,
+`/planaddtc/savecustomfields`, `/planaddtc/save-platform`)
 **Prerequisite:** `testplan_planning` right on the test project; removing links
 that already have executions additionally requires `testplan_unlink_executed_testcases`.
 
@@ -19,6 +20,7 @@ that already have executions additionally requires `testplan_unlink_executed_tes
 ## Table of Contents
 1. [Screen Layout](#1-screen-layout)
 2. [Linking Model](#2-linking-model)
+2d. [Platform Reassignment + Save platform (Issue #1129)](#2d-platform-reassignment--save-platform-issue-1129)
 3. [Executed-Link Guard](#3-executed-link-guard)
 4. [Rights Model](#4-rights-model)
 5. [REST API Reference](#5-rest-api-reference)
@@ -112,6 +114,44 @@ d=$tcase.linked_ts[0]`, `:438` per-platform cell). It is restored:
 
 ![Added on date column](screenshots/issue-1128-planaddtc-added-on-date.png)
 
+## 2d. Platform Reassignment + Save platform (Issue #1129)
+Legacy `planAddTC.php` let you reassign the platform of a test case **already
+linked** to the plan: on `?edit=testsuite&id=<suite>` each linked TC whose link
+had `platform_id=0` rendered a `<select name="feature2fix[<feature_id>][<tcversion>]">`
+(`gui/templates/dashio/plan/planAddTC_m1.tpl:319-321`), and the header button
+**Save platform** (`btn_save_platform`, `planAddTC.php:114`) posted to
+`doSavePlatforms` (`:791-800`), which called
+`testplan::changeLinkedTCVersionsPlatform()` (`lib/functions/testplan.class.php:3603-3626`)
+to move the link **and its executions** to the chosen platform. The button only
+appeared under `full_control` / `testplan_planning` (`initDrawSaveButtons()`).
+
+The modern screen restores it:
+
+* **Per-link `<select class="pfsel">`** — in the *Platforms* cell of each linked
+  test case. Because a modern row aggregates possibly several links, one select
+  is rendered per link (`{feature_id, tcversion_id, platform_id}`), preset to the
+  link's current platform; options are *none* (`0`) plus every platform linked to
+  the plan (`/planaddtc/container` → `platforms`). This is a strict superset of
+  the legacy `platform_id=0`-only select: an already-platformed link can be
+  changed too.
+* **Save platform** button (`#btnSavePlatform`) — shown only when the plan uses
+  platforms and there is at least one linked row. It collects only the selects
+  whose value differs from the original (`data-pl`) and POSTs the changed map;
+  when nothing changed it shows `paddtc.noPlatformChange` and makes no request.
+* **BFF `POST /planaddtc/save-platform`** (`api/plans/index.php:1502`) — body
+  `{tproject_id,tplan_id,platforms:{<feature_id>:<platform_id>}}` where
+  `feature_id` is `testplan_tcversions.id` (the same key the legacy template
+  used). It requires `testplan_planning`, ignores feature ids not owned by the
+  plan, and rejects a target platform not linked to the plan (`400
+  INVALID_PLATFORM`). For each changed link it runs the legacy two statements
+  transactionally: update `testplan_tcversions.platform_id`, and move the link's
+  `executions.platform_id` from the old to the new platform so existing results
+  follow it. Moving a link that already carries executions requires
+  `testplan_unlink_executed_testcases` (else `403 EXECUTED_PRESENT`), mirroring
+  the sibling removal guard.
+
+![Save platform](screenshots/issue-1129-save-platform.png)
+
 ## 3. Executed-Link Guard
 When removing links whose `executed_qty > 0` and the user lacks
 `testplan_unlink_executed_testcases`, the request is rejected (403). Users that
@@ -139,6 +179,7 @@ required on POSTs.
 | POST `/planaddtc/save` | link/unlink pairs + optional tester/build assignment |
 | POST `/planaddtc/reorder` | save execution orders |
 | POST `/planaddtc/savecustomfields` | persist testplan-design CF values (grouped by link_id, owned-link check, `testplan_design_values_to_db`) |
+| POST `/planaddtc/save-platform` | reassign an already-linked TC's platform (by `testplan_tcversions.id`); moves the link + its executions (legacy `doSavePlatforms`/`changeLinkedTCVersionsPlatform`) |
 
 Errors are JSON `{status:"error",message}` with proper HTTP codes
 (400 invalid input, 401 no session, 403 rights/ownership, 404 not found,
@@ -152,7 +193,8 @@ plus reuse of `pv.testProject`, `common.*`. The five testplan-design-CF keys
 `paddtc.colStatus` / `paddtc.colImportance` for Issue #1127 (which reuses
 `tcview.statusN` and `search.*Importance` for the cell values).
 `paddtc.addedOnDate` (column header) and `paddtc.infoAddedOnDate` (tooltip) were
-added for Issue #1128.
+added for Issue #1128. `paddtc.savePlatforms`, `paddtc.reassignPlatform`,
+`paddtc.noPlatformChange` and `paddtc.msg.platformSaved` were added for Issue #1129.
 
 ## 7. Testing
 Regression suites in `tmp/TLU_Test_Cases.md`: **56** (original load/rights/i18n/
@@ -163,7 +205,11 @@ Issue #1127** (9/9 PASS): Status/Importance rendering for linked + unlinked rows
 version-change update, `priorityEnabled=0` hides the Importance column, Event
 Viewer clean, i18n coverage gate; and **Task — Issue #1128** (7/7 PASS): BFF
 `linked_ts`/`linked_ts_display`, Added-on-date header + linked-row date, blank
-for unlinked rows, tooltip, i18n coverage gate, Event Viewer clean.
+for unlinked rows, tooltip, i18n coverage gate, Event Viewer clean; and **Task —
+Issue #1129** (9/9 PASS): per-link platform select preset to the link's platform,
+"Save platform" button visibility, no-change toast, true reassignment (none →
+Linux → Windows, DB-verified), executions follow the link, `INVALID_PLATFORM`/
+`NO_SELECTION`/unauthenticated errors, Event Viewer clean.
 
 ---
 ## 8. Bugfix — Issue #1909: column alignment for platform-less plans

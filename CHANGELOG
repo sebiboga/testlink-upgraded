@@ -8623,6 +8623,22 @@ Changes:
       project tables and added user metrics to the middle section
 
 ## 2.0.1 (in-progress)
+### Gap closed — planAddTC (Add/Remove Test Cases): platform reassignment of already-linked TCs + "Save platform" action restored (Fixes #1129)
+- `gui/templates/plans/planAddTCView.html` now renders, for every already-linked test case, one
+  platform `<select class="pfsel">` preset to the link's `platform_id` (legacy
+  `planAddTC_m1.tpl:319` `feature2fix[<feature_id>][<tcversion>]`, options none + plan platforms) plus a
+  **Save platform** toolbar button (`#btnSavePlatform`, shown only when the plan uses platforms and
+  has linked rows) that PATCHes only the changed links (`doSavePlatforms`).
+- `api/plans/index.php`: new `POST /planaddtc/save-platform` (`:1502`) — body
+  `{tproject_id,tplan_id,platforms:{<feature_id>:<platform_id>}}` keyed on `testplan_tcversions.id`.
+  Requires `testplan_planning`; validates each feature belongs to the plan and each target platform is
+  linked to the plan (`400 INVALID_PLATFORM`); mirror of the sibling removal guard
+  (`testplan_unlink_executed_testcases` → `403 EXECUTED_PRESENT`). Applies the legacy two-statement
+  effect (`testplan.class.php:3603-3626 changeLinkedTCVersionsPlatform`): updates
+  `testplan_tcversions.platform_id` **and** moves the link's `executions.platform_id` to the new
+  platform. Unlike the legacy `from=0` filter it also supports true reassignment (any old → any new).
+- i18n keys `paddtc.savePlatforms` / `paddtc.reassignPlatform` / `paddtc.noPlatformChange` /
+  `paddtc.msg.platformSaved` added to all 10 locale bundles.
 ### Gap closed — planAddTC (Add/Remove Test Cases): workflow-Status + Importance columns restored (Refs #1127)
 - `gui/templates/plans/planAddTCView.html` now renders a `Status` column (always) and an
   `Importance` column (gated on `testPriorityEnabled`), mirroring legacy `planAddTC.tpl:171-172`.
