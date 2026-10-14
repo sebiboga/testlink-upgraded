@@ -202,8 +202,13 @@ function initializeGui(&$dbHandler,&$argsObj,&$cfgObj,&$tplanMgr) {
   $tprojectMgr = new testproject($dbHandler);
   $gui->tcasePrefix = $tprojectMgr->getTestCasePrefix($argsObj->tproject_id);
   $build_info = $buildMgr->get_by_id($argsObj->build_id);
-  $gui->build_notes=$build_info['notes'];
-  $gui->build_is_open=($build_info['is_open'] == 1 ? 1 : 0);
+  if (is_array($build_info)) {
+    $gui->build_notes = $build_info['notes'];
+    $gui->build_is_open = ($build_info['is_open'] == 1 ? 1 : 0);
+  } else {
+    $gui->build_notes = '';
+    $gui->build_is_open = 0;
+  }
 
   $dummy = $tplanMgr->get_builds_for_html_options($argsObj->tplan_id);
   $gui->build_name = isset($dummy[$argsObj->build_id]) ? $dummy[$argsObj->build_id] : '';
