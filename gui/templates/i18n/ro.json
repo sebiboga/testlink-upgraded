@@ -7392,6 +7392,8 @@
   "info.genericMsg": "Operațiunea solicitată nu a putut fi finalizată.",
   "info.signupDisabledTitle": "TestLink ::: Eroare fatală",
   "info.signupDisabledMsg": "Înregistrarea automată a utilizatorilor noi este dezactivată. Vă rugăm să contactați administratorul site-ului.",
+  "info.testcaseNotFoundTitle": "Cazul de test nu a fost găsit",
+  "info.testcaseNotFoundMsg": "Cazul de test solicitat nu există sau a fost șters. Reîmprospătați arborele cazurilor de test și încercați din nou.",
   "footers.infoPage": "TestLink 2.0.1 - Notificare",
   "footers.errorPage": "TestLink 2.0.1 - Eroare",
   "tcPerUser.filterCol": "Filter {col}",

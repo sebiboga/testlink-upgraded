@@ -104,6 +104,13 @@ function infoResolveCode($code) {
             return array('known' => true, 'info_code' => 'signup_disabled',
                          'title_key' => 'info.signupDisabledTitle',
                          'message_key' => 'info.signupDisabledMsg');
+        case 'testcase_not_found':
+            // Legacy tcEdit.php edit action for a tcase_id with no node in
+            // nodes_hierarchy used to die with a count(null) fatal (#1862);
+            // it now lands here with a meaningful notice.
+            return array('known' => true, 'info_code' => 'testcase_not_found',
+                         'title_key' => 'info.testcaseNotFoundTitle',
+                         'message_key' => 'info.testcaseNotFoundMsg');
         default:
             return array('known' => false, 'info_code' => 'generic',
                          'title_key' => 'info.genericTitle',

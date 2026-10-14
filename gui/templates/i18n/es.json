@@ -7392,6 +7392,8 @@
   "info.genericMsg": "No se pudo completar la operación solicitada.",
   "info.signupDisabledTitle": "TestLink ::: Error Grave",
   "info.signupDisabledMsg": "El autorregistro de nuevos usuarios está deshabilitado. Por favor contacte al administrador del sitio.",
+  "info.testcaseNotFoundTitle": "Caso de prueba no encontrado",
+  "info.testcaseNotFoundMsg": "El caso de prueba solicitado no existe o puede haber sido eliminado. Actualice el árbol de casos de prueba e inténtelo de nuevo.",
   "footers.infoPage": "TestLink 2.0.1 - Aviso",
   "footers.errorPage": "TestLink 2.0.1 - Error",
   "tcPerUser.filterCol": "Filter {col}",

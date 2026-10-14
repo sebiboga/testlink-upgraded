@@ -7392,6 +7392,8 @@
   "info.genericMsg": "L'opération demandée n'a pas pu être effectuée.",
   "info.signupDisabledTitle": "TestLink ::: Erreur fatale",
   "info.signupDisabledMsg": "L'auto-inscription des nouveaux utilisateurs est désactivée. Veuillez contacter l'administrateur du site.",
+  "info.testcaseNotFoundTitle": "Cas de test introuvable",
+  "info.testcaseNotFoundMsg": "Le cas de test demandé n'existe pas ou a peut-être été supprimé. Actualisez l'arborescence des cas de test et réessayez.",
   "footers.infoPage": "TestLink 2.0.1 - Avis",
   "footers.errorPage": "TestLink 2.0.1 - Erreur",
   "tcPerUser.filterCol": "Filter {col}",

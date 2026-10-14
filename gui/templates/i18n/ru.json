@@ -7392,6 +7392,8 @@
   "info.genericMsg": "Запрошенную операцию не удалось выполнить.",
   "info.signupDisabledTitle": "TestLink ::: Критическая ошибка. Спасайте ваши данные",
   "info.signupDisabledMsg": "Самостоятельная регистрация новых пользователей отключена. Обратитесь к администратору сайта.",
+  "info.testcaseNotFoundTitle": "Тест-кейс не найден",
+  "info.testcaseNotFoundMsg": "Запрошенный тест-кейс не существует или был удалён. Обновите дерево тест-кейсов и повторите попытку.",
   "footers.infoPage": "TestLink 2.0.1 - Уведомление",
   "footers.errorPage": "TestLink 2.0.1 - Ошибка",
   "tcPerUser.filterCol": "Filter {col}",

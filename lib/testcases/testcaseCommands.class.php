@@ -399,6 +399,16 @@ class testcaseCommands {
     ];
     
     $tc_data = $this->tcaseMgr->get_by_id($argsObj->tcase_id,$argsObj->tcversion_id,null,$gopt);
+
+    // A request to edit a test case that does not exist must not fall through
+    // to the editor render: every field is null there, so the template emits
+    // an E_WARNING for each array offset accessed on null (Event Viewer) and
+    // the user gets a meaningless empty form. Send a clean "not found" notice
+    // instead of the legacy fatal (#1862).
+    if (empty($tc_data)) {
+      redirectToInfoPage('testcase_not_found');
+    }
+
     foreach($oWebEditorKeys as $key) {
       $guiObj->$key = isset($tc_data[0][$key]) ?  $tc_data[0][$key] : '';
       $argsObj->$key = $guiObj->$key;

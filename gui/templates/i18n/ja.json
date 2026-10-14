@@ -7392,6 +7392,8 @@
   "info.genericMsg": "要求された操作を完了できませんでした。",
   "info.signupDisabledTitle": "TestLink ::: 致命的なエラー",
   "info.signupDisabledMsg": "新規ユーザーの自己登録は無効になっています。サイト管理者に連絡してください。",
+  "info.testcaseNotFoundTitle": "テストケースが見つかりません",
+  "info.testcaseNotFoundMsg": "要求されたテストケースは存在しないか、削除された可能性があります。テストケースツリーを更新して再試行してください。",
   "footers.infoPage": "TestLink 2.0.1 - 通知",
   "footers.errorPage": "TestLink 2.0.1 - エラー",
   "tcPerUser.filterCol": "Filter {col}",

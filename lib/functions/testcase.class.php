@@ -5101,7 +5101,10 @@ class testcase extends tlObjectWithAttachments {
   */
   function getTestProjectFromTestCase($id,$parent_id=null)
   {
-    $the_path = $this->tree_manager->get_path( (!is_null($id) && $id > 0) ? $id : $parent_id);
+    // tree::get_path() returns NULL (not array()) for a node id that does not
+    // exist in nodes_hierarchy (_get_path() nulls the by-ref path). Cast to
+    // array so count() does not throw a PHP 8 TypeError (#1862).
+    $the_path = (array)$this->tree_manager->get_path( (!is_null($id) && $id > 0) ? $id : $parent_id);
     $path_len = count($the_path);
     $tproject_id = ($path_len > 0)? $the_path[0]['parent_id'] : $parent_id;
 

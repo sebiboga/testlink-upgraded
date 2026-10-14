@@ -7392,6 +7392,8 @@
   "info.genericMsg": "Não foi possível concluir a operação solicitada.",
   "info.signupDisabledTitle": "TestLink ::: Erro Fatal!",
   "info.signupDisabledMsg": "O auto-cadastro de novos usuários está desativado. Entre em contato com o administrador do site.",
+  "info.testcaseNotFoundTitle": "Caso de teste não encontrado",
+  "info.testcaseNotFoundMsg": "O caso de teste solicitado não existe ou pode ter sido excluído. Atualize a árvore de casos de teste e tente novamente.",
   "footers.infoPage": "TestLink 2.0.1 - Aviso",
   "footers.errorPage": "TestLink 2.0.1 - Erro",
   "tcPerUser.filterCol": "Filter {col}",

@@ -7392,6 +7392,8 @@
   "info.genericMsg": "Impossibile completare l'operazione richiesta.",
   "info.signupDisabledTitle": "TestLink ::: Errore Grave",
   "info.signupDisabledMsg": "L'autoregistrazione di nuovi utenti è disabilitata. Contattare l'amministratore del sito.",
+  "info.testcaseNotFoundTitle": "Caso di test non trovato",
+  "info.testcaseNotFoundMsg": "Il caso di test richiesto non esiste o potrebbe essere stato eliminato. Aggiorna l'albero dei casi di test e riprova.",
   "footers.infoPage": "TestLink 2.0.1 - Avviso",
   "footers.errorPage": "TestLink 2.0.1 - Errore",
   "tcPerUser.filterCol": "Filter {col}",

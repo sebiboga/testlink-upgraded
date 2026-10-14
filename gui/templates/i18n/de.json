@@ -7392,6 +7392,8 @@
   "info.genericMsg": "Die angeforderte Aktion konnte nicht abgeschlossen werden.",
   "info.signupDisabledTitle": "TestLink ::: Fataler Fehler",
   "info.signupDisabledMsg": "Die Selbstregistrierung neuer Benutzer ist deaktiviert. Bitte wenden Sie sich an Ihren Administrator.",
+  "info.testcaseNotFoundTitle": "Testfall nicht gefunden",
+  "info.testcaseNotFoundMsg": "Der angeforderte Testfall existiert nicht oder wurde möglicherweise gelöscht. Bitte aktualisieren Sie den Testfallbaum und versuchen Sie es erneut.",
   "footers.infoPage": "TestLink 2.0.1 - Hinweis",
   "footers.errorPage": "TestLink 2.0.1 - Fehler",
   "tcPerUser.filterCol": "Filter {col}",

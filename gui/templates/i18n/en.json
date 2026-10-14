@@ -7392,6 +7392,8 @@
   "info.genericMsg": "The requested operation could not be completed.",
   "info.signupDisabledTitle": "TestLink ::: Fatal Error",
   "info.signupDisabledMsg": "New user self-registration is disabled on this site. Please contact your site administrator.",
+  "info.testcaseNotFoundTitle": "Test Case not found",
+  "info.testcaseNotFoundMsg": "The requested test case does not exist or may have been deleted. Please refresh the test case tree and try again.",
   "footers.infoPage": "TestLink 2.0.1 - Notice",
   "footers.errorPage": "TestLink 2.0.1 - Error",
   "tcPerUser.filterCol": "Filter {col}",

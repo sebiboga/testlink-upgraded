@@ -7392,6 +7392,8 @@
   "info.genericMsg": "无法完成所请求的操作。",
   "info.signupDisabledTitle": "TestLink ::: 致命错误",
   "info.signupDisabledMsg": "新用户自助注册已被禁用，请联系站点管理员。",
+  "info.testcaseNotFoundTitle": "未找到测试用例",
+  "info.testcaseNotFoundMsg": "请求的测试用例不存在或可能已被删除。请刷新测试用例树后重试。",
   "footers.infoPage": "TestLink 2.0.1 - 提示",
   "footers.errorPage": "TestLink 2.0.1 - 错误",
   "tcPerUser.filterCol": "Filter {col}",
