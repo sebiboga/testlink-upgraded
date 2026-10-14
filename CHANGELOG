@@ -17,6 +17,19 @@ Every screen of the application was ported one-by-one in a screen-compare
   kept for backward compatibility and is progressively retired as each modern
   screen reaches full parity.
 
+- [SCREEN] - #1911: the **Edit Execution** popup (`lib/execute/editExecution.php` ->
+  `gui/templates/execute/editExecution.html`, BFF `api/executionedit/index.php`) is
+  complete. The modern screen + BFF already existed from #825 and were kept; this pass
+  retired the last legacy-only entry point: the full Smarty renderer is now a
+  session-guarded, non-mutating launcher (document GET/HEAD -> 302 to the modern popup
+  preserving `exec_id/tcversion_id/tplan_id/tproject_id`; write verb / XHR / non-document
+  -> 405 `modern_endpoint_only`; anonymous -> login bounce), and `openExecEditWindow()`
+  in `gui/javascript/testlink_library.js` now targets the modern HTML. Every inbound
+  scalar is `is_scalar`-guarded so `?exec_id[]=` cannot raise an `Array to string`
+  E_WARNING. Verified end-to-end: init (open/closed build), update persists
+  `executions.notes` + `cfield_execution_values`, 400/401/403/404 matrix, legacy deep
+  link 302, legacy POST 405 JSON; Event Viewer clean (AUDIT only). (Refs #1911)
+
 - [CLEANUP] - #1125: the retired legacy Builds & Releases cluster is deleted now that
   all three gating gaps are CLOSED (#1122 design-time custom fields, #1123 event-history
   icon, #1124 closed_on_date display). Removed `lib/plan/buildView.php` (81) +
