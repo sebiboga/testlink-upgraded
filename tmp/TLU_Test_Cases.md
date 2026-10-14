@@ -9248,3 +9248,38 @@ linked row shows a platform select; change it and click **Save platform**; verif
 checkout (tmp/ is per-run); its #1808 group-10 pins were re-verified manually by curl (checks 9/10) and are byte-identical.
 
 **Files:** `api/_guard.php` (+101), `api/publiclink/index.php` (+7). Commit `ffba02248` (`Refs #1810`).
+## Suite — Issue #1060: Learn Testing hub (Documentation → Learn Testing)
+
+**Precondition:** fresh TestLink DB, app at `http://localhost:8082`. Login `admin/admin`.
+No project/plan needed — the screen works with `tproject_id=0&tplan_id=0`. Open
+`gui/templates/documentation/learnTesting.html?tproject_id=0&tplan_id=0`.
+**Legacy parity:** there is no legacy controller for this item — it is the net-new
+Documentation-menu hub requested by #1060 (TestLink 1.9.20 had no in-app learning
+area). Modern BFF `api/learntesting/index.php` (session auth + same-origin guard,
+GET `action=init`); screen `gui/templates/documentation/learnTesting.html`
+(TLi18n + `learn.*` keys); ASIDE entry wired via `$actions->learnTesting`
+(`lib/functions/common.php`) and consumed by `api/aside/index.php`.
+
+| # | Step | Input | Expected | Observed | Result |
+|---|---|---|---|---|---|
+| 1 | BFF syntax | `php -l api/learntesting/index.php` | no errors | `No syntax errors detected` | PASS |
+| 2 | BFF payload | `GET /api/learntesting/index.php?action=init` | `status:ok`, 6 tracks (16 items: 13 internal / 3 external) + 4 resources | `tracks=6 [gettingStarted,requirements,testDesign,plans,reports,quality]`, `items=16` (13 int / 3 ext), `resources=4` | PASS |
+| 3 | Unauthenticated | GET without session cookie | `401 Not authenticated` | `HTTP 401 {"status":"error","message":"Not authenticated"}` | PASS |
+| 4 | Unknown action | `GET ?action=bogus` | `400` | `HTTP 400` | PASS |
+| 5 | Screen renders | open the screen as admin | header + 6 track cards + 4 resource cards, footer | all 6 tracks and 4 resources rendered; footer `TestLink 2.0.1 - Learn Testing` | PASS |
+| 6 | Internal links resolve | inspect card hrefs | each `/gui/templates/**/*.html` exists on disk | all 13 internal paths verified present (reqSpecMgmt, reqTcAssign, testSpec, plans/planView, execute/execTest, execNotes, resultsNavigator, strategy/*) | PASS |
+| 7 | Live search | type `security` in #searchBox | only matching track(s) shown | `["Quality practices"]` → links Accessibility/Security/Performance; `#trackEmpty` hidden | PASS |
+| 8 | No-match state | type `zzzznope` | track area empty, `learn.noResults` message shown | `#trackEmpty` visible; 0 cards | PASS |
+| 9 | Locale switch | select `Română` | whole screen switches to `ro` bundle | header `Învață testarea`, track `Primii pași`, placeholder `Caută subiecte de învățare...`, resource `ISTQB` | PASS |
+| 10 | Internal nav | click card `Test specification` (target=_top) | navigates to testSpec.html with ctx | navigated to `gui/templates/testcases/testSpec.html?tproject_id=0&tplan_id=0` | PASS |
+| 11 | ASIDE entry | `GET /api/aside/index.php?action=init` | documentation section has 2 items incl. `learnTesting` | `{id:learnTesting, label:"Learn Testing", href:"/gui/templates/documentation/learnTesting.html?tproject_id=0&tplan_id=0", icon:fas fa-graduation-cap}` | PASS |
+| 12 | Server label i18n | grep `TLS_title_learn_testing` | present in all 19 `locale/*/strings.txt` | 19/19 present (en `Learn Testing`, ro `Învață testarea`, ...) | PASS |
+| 13 | Browser console clean | full flow | no JS errors | 0 console messages | PASS |
+| 14 | Client i18n coverage | `bash ai/verify_i18n_coverage.sh` | exit 0 | 9 bundles passed, 0 missing (7625 keys) | PASS |
+| 15 | JSON well-formed | `python3 -m json.tool` all bundles | all valid | all 10 bundles valid | PASS |
+| 16 | Event Viewer | `SELECT ... FROM events` after flow | no new Error/Warning | 0 rows | PASS |
+
+**Result: 16/16 PASS.** RESUME: login `admin/admin`, open
+`http://localhost:8082/gui/templates/documentation/learnTesting.html?tproject_id=0&tplan_id=0`;
+use the search box and the locale switcher; the ASIDE Documentation section lists
+**Learn Testing** below **Documentation**.
