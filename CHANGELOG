@@ -119,6 +119,18 @@ Every screen of the application was ported one-by-one in a screen-compare
   (render, search, FR switch, ASIDE entry, auth matrix); Event Viewer clean.
   (Refs #1059)
 
+- [SCREEN] - #1053: the **ISTQB Syllabus hub**
+  (`gui/templates/documentation/istqbSyllabus.html` + BFF `api/istqb/index.php`)
+  is added as the Documentation ASIDE section's fourth entry, giving TestLink an
+  in-app ISTQB certification reference (1.9.20 had none). Four certification-level
+  cards (CTFL/CTAL/CTEL/specialist), the six CTFL v4.0 syllabus chapters, four
+  authoritative istqb.org resource links (home, CTFL v4.0, certification
+  catalogue, glossary) and related in-context deep links to the Learn Testing /
+  Accessibility Resources / Test Strategy / Documentation screens, with a live
+  search filter and a TLi18n locale switcher. 43 `istqb.*` keys + `footers.istqbSyllabus`
+  in all 10 client bundles + `$TLS_title_istqb_syllabus` in all 19 server locales; wired via  `$actions->istqbSyllabus`. Verified end-to-end (render, search, RO/DE/ZH
+  switches, ASIDE entry, auth matrix); Event Viewer clean. (Refs #1053)
+
 - [SCREEN] - #1911: the **Edit Execution** popup (`lib/execute/editExecution.php` ->
   `gui/templates/execute/editExecution.html`, BFF `api/executionedit/index.php`) is
   complete. The modern screen + BFF already existed from #825 and were kept; this pass
