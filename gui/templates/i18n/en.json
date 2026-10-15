@@ -2817,6 +2817,7 @@
   "paddtc.addedOnDate": "Added on date",
   "paddtc.assignNewTo": "Assign newly added test cases to tester",
   "paddtc.build": "Build",
+  "paddtc.sendMail": "Send mail notification to tester",
   "paddtc.cfFor": "Custom fields for",
   "paddtc.cfHelp": "Custom fields defined for the test plan design (linked test case versions).",
   "paddtc.cfNothingSaved": "No custom field values to save",
