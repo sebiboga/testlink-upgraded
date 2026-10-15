@@ -9935,3 +9935,22 @@ substitution.
 - RC3 — `switch ($cfpKey)` → `switch ($locKey)` in the other-versions CF loop: `lib/functions/testcase.class.php:~1222`, so `$gui->cf_other_versions` is actually built (was left `null` by the stale `$cfpKey`).
 
 **Actual result observed (post-fix):** PASS — 4 post-action renders (`deactivate`, `activate`, `create_new_version` ×2 → two other-version viewer rows) all returned 200; `COUNT(events WHERE log_level=2)=0`; `COUNT(log_level IN (1,2,4,8))=0`; histogram `{16: 2}` (audit only). Rendered HTML `bytes=112991`, test-case name ×16, `new_version` ×3, `delete_tc_version` ×2 present. Headless-Chrome console: only 1 pre-existing `Deprecated feature used` notice, no JS errors. Screenshot: `docs/screenshots/issue-1916-tcEdit-postaction-render.png`.
+
+## Regression — Issue #1858: POST /api/requirements/assign-reqs fatals HTTP 500 for a test case with no active version (duplicate of #1861, same call site)
+
+**Precondition:** fresh TestLink DB, app at `http://localhost:8082` (PHP built-in server, docroot = repo root), PHP 8.3.35. Fixture: `php tmp/fixtures_1859.php` → tproject `TC Edit 1859` (id 1), suite 2, `TC1859-NOACTIVE` **tcase 3 / tcversion 4 active=0**, `TC1859-ACTIVE` **tcase 6 / tcversion 7 active=1**. `php tmp/repro_1859_req.php` → requirement spec 9, **requirement 11**. Login `admin/admin`.
+**Scope / relationship:** #1858 reports the BFF write `POST /api/requirements/assign-reqs` returning HTTP 500/0 bytes when the target test case has no active version. It is the **same defect as #1861** (identical call site `lib/functions/requirement_mgr.class.php`), fixed on the default branch by commit `7d7dbb0e5` (`current((array)get_last_active_version(...))` + the existing `if ($tcv == null) return 0;` refusal). This suite re-measures the #1858 symptom and its absence.
+
+| # | Step | Input | Expected | Observed | Result |
+|---|---|---|---|---|---|
+| 1 | PHP syntax | `php -l lib/functions/requirement_mgr.class.php` | no errors | `No syntax errors detected` | PASS |
+| 2 | Fix present on default branch | `git merge-base --is-ancestor 7d7dbb0e5 origin/sebiboga` | true | `YES` (commit `fix(#1861): guard current(get_last_active_version())…`) | PASS |
+| 3 | Pre-fix repro (A/B: guard reverted on a scratch branch) | `POST /api/requirements/assign-reqs {"tcase_id":3,"req_ids":[11]}` with `current($tcMgr->get_last_active_version(...))` | HTTP 500, 0 bytes | `ASSIGN_HTTP=500`, `SIZE=0`; `php_server.log` → `Uncaught TypeError: current(): Argument #1 ($array) must be of type array, null given … requirement_mgr.class.php:1136` | PASS (bug confirmed) |
+| 4 | Post-fix CLI, tcase with no active version | `assign_to_tcase(11, 3, 1)` | returns `0`, no fatal | `assign_to_tcase returned: 0`; `NO FATAL - survived` | PASS |
+| 5 | **Post-fix BFF, no-active (the #1858 symptom)** | `POST /api/requirements/assign-reqs {"tcase_id":3,"req_ids":[11]}` | HTTP 200 + JSON `failed` contains req, no 500 | `ASSIGN_HTTP=200` `{"status":"ok","failed":[11],"assigned_qty":0}` (was 500/0 bytes) | PASS |
+| 6 | Post-fix BFF, active happy path | `POST /api/requirements/assign-reqs {"tcase_id":6,"req_ids":[11]}` | HTTP 200, `assigned_qty:1` | `HTTP=200` `{"status":"ok","failed":[],"assigned_qty":1}` | PASS |
+| 7 | Event Viewer (no new Error/Warning) | `SELECT log_level, COUNT(*) FROM events GROUP BY log_level` | only INFO (16) rows | `16 \| 3` (audit_login_succeeded / audit_testproject_created / audit_reqv_assigned); no Error/Warning | PASS |
+
+**Actual result: fixed (duplicate of #1861, resolved by the already-landed commit `7d7dbb0e5`)** — `assign_to_tcase()` now answers `0` (its documented "latest version inactive ⇒ operation not allowed" contract) instead of fataling, so the BFF write endpoint returns HTTP 200 JSON `{"status":"ok","failed":[...],"assigned_qty":...}` for a test case with no active version; test cases that do have an active version still link normally (`assigned_qty:1`). No new `events` Error/Warning rows. No code change was required this run (the fix was already on `sebiboga`); the still-open duplicate is closed with measured evidence.
+
+**Gate:** `TLU_REQUIRE_SUITE="Issue #1858" bash ai/verify_test_suites.sh` → see run below.
