@@ -58,7 +58,6 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
     <input type="text" id="searchBox" data-i18n-placeholder="a11yres.searchPlaceholder" placeholder="Search accessibility resources...">
   </div>
   <span style="flex:1"></span>
-  <span id="footerInfo" style="color:#aaa;font-size:12px;"></span>
 </div>
 
 <div id="feedbackMsg"></div>
@@ -143,7 +142,7 @@ function renderPrinciples(q) {
       .append('<div class="icon"><i class="' + esc(p.icon) + '"></i></div>')
       .append('<div class="title">' + esc(title) + '</div>')
       .append('<div class="desc">' + esc(desc) + '</div>')
-      .append('<div class="links"><a href="' + esc(p.href) + '" target="_blank" rel="noopener"><i class="fa fa-external-link-alt"></i> ' + TLi18n.t('a11yres.learnMore') + '</a></div>');
+      .append('<div class="links"><a href="' + esc(p.href) + '" target="_blank" rel="noopener noreferrer"><i class="fa fa-external-link-alt"></i> ' + TLi18n.t('a11yres.learnMore') + '</a></div>');
     g.append(card);
   });
 }
@@ -163,7 +162,7 @@ function renderGroups(q) {
       .append('<div class="title">' + esc(title) + '</div>');
     var itemsDiv = $('<div class="items">');
     $.each(items, function(j, it) {
-      var a = $('<a href="' + esc(it.href) + '" target="_blank" rel="noopener"></a>')
+      var a = $('<a href="' + esc(it.href) + '" target="_blank" rel="noopener noreferrer"></a>')
         .append('<span class="lbl"><i class="fa fa-external-link-alt"></i> ' + esc(TLi18n.t(it.labelKey)) + '</span>')
         .append('<span class="desc">' + esc(TLi18n.t(it.descKey)) + '</span>');
       itemsDiv.append(a);
@@ -179,7 +178,7 @@ function renderRelated() {
     var label = TLi18n.t(r.labelKey);
     var ext = r.external === true;
     var a = '<a class="link" href="' + esc(r.href) + '"' +
-      (ext ? ' target="_blank" rel="noopener"' : ' target="_top"') + '>' +
+      (ext ? ' target="_blank" rel="noopener noreferrer"' : ' target="_top"') + '>' +
       '<i class="fa ' + (ext ? 'fa-external-link-alt' : 'fa-arrow-right') + '"></i> ' + esc(label) + '</a>';
     var card = $('<div class="card principle">')
       .append('<div class="icon"><i class="fa fa-link"></i></div>')

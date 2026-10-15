@@ -9388,3 +9388,33 @@ use the search box and the locale switcher; the ASIDE Documentation section list
 **Note:** `gitlabrestInterface` / `kaitenrestInterface` still throw a *pre-existing, unrelated* `TypeError: count(): ... null given` from their `connect()` when instantiated with a minimal cfg (present before and after this fix) — it is NOT part of #1815 and is not counted by the harness.
 
 **Gate:** `TLU_REQUIRE_SUITE="Issue #1815" bash ai/verify_test_suites.sh` → see run below.
+
+## Suite — Issue #1059: Accessibility Resources hub (Documentation → Accessibility Resources)
+
+**Precondition:** fresh TestLink DB (fixtures not required for this screen — static catalogue), app at `http://localhost:8082` (PHP built-in server, docroot = repo root), PHP 8.3.35, login admin/admin. BFF: `api/accessibilityresources/index.php` (GET|HEAD `?action=init`, session auth + same-origin). Screen: `gui/templates/documentation/accessibilityResources.html`.
+**Legacy parity / scope:** new Documentation-section entry (no 1.9.20 legacy controller existed for a dedicated accessibility catalogue; mirrors the #1060 Learn Testing hub pattern). BFF returns i18n **keys** only (`a11yres.*`); the client resolves them via `TLi18n`. ASIDE entry added in `api/aside/index.php` section 12 via `$actions->accessibilityResources` (`lib/functions/common.php`), server label `$TLS_title_accessibility_resources` in all 19 `locale/*/strings.txt`.
+
+| # | Step | Input | Expected | Observed | Result |
+|---|---|---|---|---|---|
+| 1 | i18n well-formedness | `python3 -m json.tool gui/templates/i18n/*.json` ×10 | all valid JSON | all 10 parsed OK (script `add_a11yres_i18n.py` → `ok <loc> 48`) | PASS |
+| 2 | i18n coverage gate | `bash ai/verify_i18n_coverage.sh` | 0 missing | `9 bundle(s) passed, 0 failed`; en 7675 keys, 0 missing each | PASS |
+| 3 | Server locale parse | `php -l locale/*/strings.txt` ×19 | no syntax errors | all 19 `No syntax errors detected` | PASS |
+| 4 | Server label present | `grep -rl title_accessibility_resources locale/` | 19 files | 19 | PASS |
+| 5 | JS syntax | `node --check` on extracted inline `<script>` | no errors | `JS OK` (1 script) | PASS |
+| 6 | BFF anonymous | `GET /api/accessibilityresources/index.php` (no cookie) | 401 | 401 | PASS |
+| 7 | BFF unknown action | authenticated `?action=bogus` | 400 JSON | `{"status":"error","code":"unknown_action"}` HTTP 400 | PASS |
+| 8 | BFF method guard | authenticated same-origin `POST ?action=init` | 405 + `Allow: GET, HEAD` | 405 | PASS |
+| 9 | BFF same-origin guard | `POST` with foreign `Origin` | 403 | 403 (parity with `api/learntesting`) | PASS |
+| 10 | BFF GET contract | authenticated `?action=init` | JSON: 4 principles (POUR), 4 groups, 3 related, all labels as `a11yres.*` keys | 4 principles, groups standards/tutorials/testing/tooling, 3 related; only `*Key` fields, no hardcoded text | PASS |
+| 11 | Screen render | open `accessibilityResources.html` | 4 POUR cards + 4 group headings + 12 resource links + 3 related links + footer | snapshot matches; footer `Generated on 10/15/2026, 12:03:41 AM` | PASS |
+| 12 | Principle deep-links | inspect each "Learn more" link | `https://www.w3.org/WAI/WCAG21/Understanding/intro#...` | href matches on all 4 cards | PASS |
+| 13 | Live search filter | type `wcag` into search | only WCAG-matching items shown, empty groups hidden | shows `WCAG 2.1 specification` + `WebAIM WCAG checklist` only; principle cards + other groups hidden | PASS |
+| 14 | Locale switch | select `Français` | page reloads `?locale=fr`, all strings French, no raw keys | title `Ressources d'accessibilité`, all 4 principles + groups + related translated | PASS |
+| 15 | ASIDE entry | `GET /api/aside/index.php?action=init` | Documentation section = documentationHub, learnTesting, accessibilityResources | `items: ['documentationHub','learnTesting','accessibilityResources']`; href `/gui/templates/documentation/accessibilityResources.html?tproject_id=0&tplan_id=0`, icon `fas fa-universal-access` | PASS |
+| 16 | Related deep-links | inspect related grid | in-context hrefs to nfrAccessibility / learnTesting / documentation | all three carry `?tproject_id=0&tplan_id=0` | PASS |
+| 17 | Console clean | list console messages after render + locale switch | no errors/warnings | `<no console messages found>` | PASS |
+| 18 | Event Viewer (no new Error/Warning) | `SELECT ... FROM events WHERE log_level IN (1,2)` | none | 0 rows (only AUDIT=16 login rows) | PASS |
+
+**Actual result: implemented** — the Documentation section now exposes the Accessibility Resources hub listing the four WCAG POUR principles and 12 curated W3C/WAI/WebAIM resources across four groups, with live search, a 16-locale switcher, related in-context links, and a fully translated label in all 10 client bundles + 19 server locales. BFF enforces session auth (401 anon), same-origin (403 foreign POST), and GET/HEAD-only (405 same-origin POST). No new `events` Error/Warning rows.
+
+**Gate:** `TLU_REQUIRE_SUITE="Issue #1059" bash ai/verify_test_suites.sh` → see run below.

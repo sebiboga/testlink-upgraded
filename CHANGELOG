@@ -67,6 +67,21 @@ Every screen of the application was ported one-by-one in a screen-compare
   `$actions->learnTesting`. Verified end-to-end (render, search, RO switch, internal nav,
   auth matrix); Event Viewer clean. (Refs #1060)
 
+- [SCREEN] - #1059: the **Accessibility Resources hub**
+  (`gui/templates/documentation/accessibilityResources.html` + BFF
+  `api/accessibilityresources/index.php`) is added as the Documentation ASIDE
+  section's third entry, giving TestLink an in-app accessibility learning
+  catalogue (1.9.20 had none). Four WCAG POUR principle cards (perceivable,
+  operable, understandable, robust) and four resource groups (standards &
+  guidelines, learning tutorials, testing methods, tooling) covering 12
+  authoritative W3C/WAI/WebAIM resources, plus related in-context deep links to
+  the NFR Accessibility chapter, the Learn Testing hub and the Documentation hub,
+  with a live search filter and a TLi18n locale switcher. 47 `a11yres.*` keys in
+  all 10 client bundles + `$TLS_title_accessibility_resources` in all 19 server
+  locales; wired via `$actions->accessibilityResources`. Verified end-to-end
+  (render, search, FR switch, ASIDE entry, auth matrix); Event Viewer clean.
+  (Refs #1059)
+
 - [SCREEN] - #1911: the **Edit Execution** popup (`lib/execute/editExecution.php` ->
   `gui/templates/execute/editExecution.html`, BFF `api/executionedit/index.php`) is
   complete. The modern screen + BFF already existed from #825 and were kept; this pass

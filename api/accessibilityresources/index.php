@@ -48,15 +48,12 @@ if (is_null($user)) {
     exit;
 }
 
+// Refs #1614: enforce the session-inactivity timeout once the user resolves, so
+// a stale tab cannot keep serving past sessionInactivityTimeout.
+bffEnforceSession($db);
+
 $method = $_SERVER['REQUEST_METHOD'];
-$rawAction = $_GET['action'] ?? 'init';
-if (!is_scalar($rawAction)) {
-    http_response_code(400);
-    echo json_encode(array('status' => 'error', 'code' => 'unknown_action',
-                           'message' => 'Unknown or missing action'));
-    exit;
-}
-$action = (string)$rawAction;
+$action = (string)($_GET['action'] ?? 'init');
 
 if ($method !== 'GET' && $method !== 'HEAD') {
     http_response_code(405);
