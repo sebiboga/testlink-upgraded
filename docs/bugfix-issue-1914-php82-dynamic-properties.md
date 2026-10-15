@@ -130,5 +130,8 @@ the deprecation count (5 → 0), which is also why the Event Viewer was never po
 
 - #1815 — the original dynamic-property fix (redmine/github/gitlab/kaiten + `tlUser`); this
   issue was its documented follow-up.
+- #1915 — filed while testing this fix, NOT fixed here: `jiraCommons::initDefaultResolvedStatus()`
+  assumes `$statusDomain` has the exact keys `Resolved`/`Closed` and raises 2 `E_WARNING`
+  (`code => null`) for any JIRA instance whose statuses are named differently. Separate root cause.
 - `third_party/fayp-jira-rest/Jira.php:44` and `RestRequest.php:30-31` also emit
   dynamic-property deprecations; vendored library files, out of scope.
