@@ -9733,3 +9733,49 @@ on `null`. The base method is hardened (init `byCode = array()` + `is_null` guar
 **Actual result: implemented** — the modern Add/Remove Test Cases screen exposes the full legacy navigator filter panel (`inc_filter_panel` / `plan_add_mode`), the BFF applies every filter to both the suite tree and the test-case container, and selections persist per session.
 
 **Gate:** `TLU_REQUIRE_SUITE="Issue #1132" bash ai/verify_test_suites.sh`
+## Regression — Issue #1818: a successful Assign/Unassign left busy=true, so every later button was a silent no-op
+
+**Precondition** — Modernized screen `gui/templates/cfields/cfieldsTprojectAssign.html`
+(BFF `/api/cfieldstproject/index.php`). Fixture `php tmp/fixtures_1816.php`:
+test project **CFP Main = 1**, cfields 1+2 linked to it, 3/4 available, 5 linked to project 2.
+Logged in as admin/admin. Pre-fix state served from a copy so the fixed tree stayed intact:
+`git show 3128139a4^:gui/templates/cfields/cfieldsTprojectAssign.html > tmp/issue1818_prefix.html`
+(url `/tmp/issue1818_prefix.html?tproject_id=1`); post-fix state = the real route
+`/gui/templates/cfields/cfieldsTprojectAssign.html?tproject_id=1`.
+
+**Repro (pre-fix)** — tick an *Available* row → **Assign** (field IS linked), then change
+*Display order* and press **Save display attributes**. Measured: `busy=true` permanently;
+Refresh/Back stay `disabled`; the Save button is re-enabled by the re-render yet its click is
+dropped at `guard()`'s `if (busy) return;`; **0** requests to `?action=save`; the DB keeps
+`display_order=1` while the input shows `7` — the edit is silently lost.
+
+**Expected post-fix** — every settled write resets `busy` and re-enables the toolbar; Save
+actually POSTs and persists; Refresh/Back/Assign/Unassign all keep working after any Assign/Unassign.
+
+| # | Step | Expected / observed | Result |
+|---|---|---|---|
+| TC-1818-01 | PRE-FIX: Assign CFP1812REQ (id 3) on `issue1818_prefix.html` | `busy=true`, Refresh+Back `disabled`, `linked=[3,1,2]` (assign itself lands) | PASS (repro) |
+| TC-1818-02 | PRE-FIX: set order_1=7 → Save | `saveRequests=0` (0→0), input keeps `7`, DB `display_order=1` → change silently lost | PASS (repro) |
+| TC-1818-03 | POST-FIX: Assign id 3 → measure `busy`/toolbar | `busy=false`, Refresh/Back/Save all enabled, `linked=[3,1,2]`, toast `1 custom field(s) assigned.` | PASS |
+| TC-1818-04 | POST-FIX: order_1=7 → Save display attributes | `action=save` fired ×1 (pre-fix 0), `busy=false`, toast `1 change(s) saved.`, DB `display_order=7` | PASS |
+| TC-1818-05 | POST-FIX: press Refresh while idle | `action=init` fired ×1, `busy=false`, table repainted | PASS |
+| TC-1818-06 | POST-FIX: Save with no changes | toast `No changes to save.`, `busy=false`, toolbar enabled | PASS |
+| TC-1818-07 | POST-FIX: tick linked id 3 → Unassign → confirm modal → Unassign | modal shown, `busy=false`, `linked=[1,2]`, `available=[5,4,3]`, toast `1 custom field(s) unassigned.`, DB row gone | PASS |
+| TC-1818-08 | POST-FIX: `events` table Error/Warning count | 0 before and after (no new Error/Warning) | PASS |
+| TC-1818-09 | Merge-base gate | `TLU_REQUIRE_SUITE="Issue #1818" bash ai/verify_test_suites.sh` exits 0 | PASS |
+
+### Test execution
+- [PASS] TC-1818-01/02 — pre-fix symptom reproduced (measured via `window.busy`,
+  `performance.getEntriesByType('resource')` and the DB).
+- [PASS] TC-1818-03 .. TC-1818-07 — post-fix write matrix, all five named controls alive.
+- [PASS] TC-1818-08 — Event Viewer clean.
+- [PASS] Fix already landed as `3128139a4` (`release()` in both `.done()` handlers,
+  `gui/templates/cfields/cfieldsTprojectAssign.html:435,464`); this run verified, documented and closed.
+
+### Notes
+- Chosen fix = call `release()` in the two missing `.done()` handlers (the issue's own
+  suggestion). Rejected: auto-releasing `guard()` via a promise `.always()` (larger guard-contract
+  change; every write path already releases explicitly — done → `release()`, fail → `writeError()` → `release()`).
+- Same commit also carried the #1819 count-aware toast; that is a separate issue.
+- Screenshots: `docs/screenshots/issue-1818-prefix-save-discarded.png` (pre-fix),
+  `docs/screenshots/issue-1818-postfix-save-sent.png` (post-fix).
