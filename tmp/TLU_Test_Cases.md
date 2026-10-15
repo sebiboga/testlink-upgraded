@@ -10040,7 +10040,7 @@ substitution.
 
 **Expected post-fix behavior:** with `ro_RO` active, a Save that changes Location and/or Monitorable writes the `SAVE` audit rows but produces **no** `LOCALIZATION` Warning for `audit_cfield_location_changed` / `audit_cfield_monitorable_on` / `_off` when the Event Viewer renders them; the other 18 locales keep resolving the labels.
 
-**Fix applied (minimal, behaviour-preserving):** restored the three labels to `locale/ro_RO/strings.txt` (English wording/placeholders identical to the other 18 locales), tagged `// Refs #1820` — commit `02da9e5d2`.
+**Fix applied (minimal, behaviour-preserving):** restored the three labels to `locale/ro_RO/strings.txt` (English wording/placeholders identical to the other 18 locales), tagged `// Refs #1820` — commit `a11d4cc5f`.
 
 **Actual result observed (post-fix):** PASS — `ro_RO` now defines all three keys (matrix 3/3 × 19 locales); the fresh-session repro produced the audit SAVE rows `107`/`108` with **zero** LOCALIZATION rows for the fixed keys. Remaining `LOCALIZATION` rows under `ro_RO` (`audit_cfield_display_order_changed`, `audit_cfield_assigned`, `audit_login_succeeded`, `context_*`, `testsuite`, …) are the normal English fallback for a curated **partial** locale (199 lines vs 4240 in `en_GB`) and are outside #1820's named keys. Event Viewer shows no new Error rows.
 
