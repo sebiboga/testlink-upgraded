@@ -9871,3 +9871,46 @@ INSERT INTO users (login,password,role_id,email,first,last,locale,active,cookie_
 - **ACTUAL: single group `log_level=16` (INFO/audit), 14 rows → PASS.**
 
 **Result: 6 PASS / 0 FAIL.** Note: the issue's original premise — that the confirmation modal was dropped — did NOT reproduce: the modal has existed since `c3bfaba0c` (2026-08-22), before the issue was filed. The genuine legacy parity gap implemented here is the render-time gating of the executed remove checkbox for users lacking `testplan_unlink_executed_testcases`.
+## Regression — Issue #1819: Assign/Unassign toast printed the raw {count} placeholder
+
+**Precondition** — Modernized screen `gui/templates/cfields/cfieldsTprojectAssign.html`
+(BFF `/api/cfieldstproject/index.php`). Fixture `php tmp/fixtures_1816.php`:
+test project **CFP Main = 5** (id recomputed each run), cfields **11+12 linked** to it, 13/14/15 available.
+Logged in as `admin/admin`. Pre-fix state served from a copy so the fixed tree stayed intact:
+`git show 3128139a4^:gui/templates/cfields/cfieldsTprojectAssign.html > tmp/issue1819_prefix.html`
+(url `/tmp/issue1819_prefix.html?tproject_id=5`); post-fix state = the real route
+`/gui/templates/cfields/cfieldsTprojectAssign.html?tproject_id=5`.
+
+**Repro (pre-fix)** — open the pre-fix copy, tick one row under *Available custom fields* → **Assign**.
+`document.getElementById('toast').textContent` is the literal, un-interpolated
+`{count} custom field(s) assigned.` The BFF answered `{"status":"ok","count":1,"tproject_id":5}`, so the
+count was available; the client called `t('cfpa.msg.assigned')` with no params and `i18n.js:180` skips
+substitution.
+
+**Expected post-fix** — the toast (and the Unassign confirm body) show the real count; no raw `{count}`.
+
+| # | Step | Expected / observed | Result |
+|---|---|---|---|
+| TC-1819-01 | PRE-FIX: tick an Available row → Assign on `issue1819_prefix.html` | toast text = `{count} custom field(s) assigned.` (raw placeholder) | PASS (repro) |
+| TC-1819-02 | Confirm BFF really returns the count | POST `?action=assign` body `{"ids":[14]}` → 200 `{"status":"ok","count":1,"tproject_id":5}` | PASS |
+| TC-1819-03 | POST-FIX: tick an Available row → Assign on the real route | toast text = `1 custom field(s) assigned.` (interpolated) | PASS |
+| TC-1819-04 | POST-FIX: tick a Linked row → Unassign → confirm modal | modal body = `Unassign 1 selected custom field(s) from this test project?` | PASS |
+| TC-1819-05 | POST-FIX: confirm the modal → Unassign | toast text = `1 custom field(s) unassigned.` (interpolated) | PASS |
+| TC-1819-06 | POST-FIX: no other placeholder-bearing key left un-parametrised | `cfpa.confirmBody`/`cfpa.msg.saved` called with `{count}`; assign/unassign with `{count}`; grep of the file shows no bare `t('cfpa.*{...}` site | PASS |
+| TC-1819-07 | POST-FIX: idempotent re-assign of an already-linked field | BFF 409 `already_assigned` → toast `Those custom fields are already assigned to this test project.` (no raw placeholder) | PASS |
+| TC-1819-08 | POST-FIX: `events` table Error/Warning count | 34 rows, all `log_level=16` (INFO/audit), 0 Error/Warning before and after | PASS |
+| TC-1819-09 | Merge-base gate | `TLU_REQUIRE_SUITE="Issue #1819" bash ai/verify_test_suites.sh` exits 0 | PASS |
+
+### Test execution
+- [PASS] TC-1819-01/02 — pre-fix symptom reproduced + BFF payload captured (`docs/screenshots/issue-1819-prefix-raw-count.png`).
+- [PASS] TC-1819-03 .. TC-1819-07 — post-fix interpolation matrix (`docs/screenshots/issue-1819-postfix-count-interpolated.png`).
+- [PASS] TC-1819-08 — Event Viewer clean (only INFO/audit rows).
+- [PASS] Fix already landed as `3128139a4` (`{ count: intOf(r.count) }` in both `.done()` handlers,
+  `gui/templates/cfields/cfieldsTprojectAssign.html:434,463`); this run verified, documented and closed.
+
+### Notes
+- The issue's own fix (`toast(t('cfpa.msg.assigned', { count: r.count }))`, plus the unassign twin) was
+  already on the default branch — it shipped inside the #1818 commit `3128139a4`, but #1819 was left open.
+- No code change was required; no PHP/i18n change. Suite heading kept on one line for the merge-base gate.
+- Screenshots: `docs/screenshots/issue-1819-prefix-raw-count.png` (pre-fix),
+  `docs/screenshots/issue-1819-postfix-count-interpolated.png` (post-fix).
