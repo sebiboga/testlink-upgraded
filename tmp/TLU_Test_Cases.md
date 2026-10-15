@@ -10023,3 +10023,25 @@ substitution.
 **Actual result: 27/27 PASS.** Mandatory code review (subagent) found 1 MAJOR (invalid-UTF-8 → empty 200 body; fixed via `JSON_INVALID_UTF8_SUBSTITUTE`), 5 MINOR (missing `max_sample_rows` limit; sample-less XML 422 → `{empty:true}`; `$_REQUEST` → explicit `$_GET`/`$_POST`; `$_FILES` array-shape guard; doc comment) and 2 NIT (CSV guard TAB/CR; `fgetcsv` RFC-4180 quoting) — all applied in `5a4679d8a`. The browser pass then found 1 UX bug (the context/upload panels vanished on an error state, so the file picker was lost until Refresh; fixed so only the result sub-panels hide) in `ac76402fe`; re-verified.
 
 **Gate:** `TLU_REQUIRE_SUITE="Issue #1063" bash ai/verify_test_suites.sh`.
+## Regression — Issue #1820: `ro_RO` logged the two `audit_cfield_location_changed` / `audit_cfield_monitorable_on` LOCALIZATION warnings on every Save (fix clobbered by the closure commit)
+
+**Precondition:** fresh TestLink DB (`SELECT COUNT(*) FROM events` = 0), app at `http://localhost:8082` (PHP built-in server, docroot = repo root), PHP 8.3.35, login `admin/admin`. Fixture: `php tmp/fixtures_1816.php` → testproject id **1** `CFP Main`, custom field id **1** `CFP1812` (design-time testcase CF with a Location dropdown), linked to project 1. Acting user locale forced to `ro_RO`: `UPDATE users SET locale='ro_RO' WHERE login='admin';`. The audit rows are stored as serialized `tlMetaStringHelper` objects and only stringify (→ `lang_get` → LOCALIZATION warning) when the **Event Viewer** renders them, so the reproduction must open the Event Viewer.
+
+**Scope:** #1820 — `lib/functions/cfield_mgr.class.php:2102` (`setDisplayLocation` → `audit_cfield_location_changed`) and `:2990` (`setMonitorable` → dynamic `"audit_cfield_{$field}_on"`). Commit `36121574a` added the three labels to all 19 locales; commit `35e838f67` (feat closure, Refs #1278) rewrote the tail of `locale/ro_RO/strings.txt` on a pre-fix base and dropped them, leaving `ro_RO` the only one of 19 locales missing `audit_cfield_location_changed` / `_monitorable_on` / `_monitorable_off`.
+
+| # | Step | Input | Expected | Observed | Result |
+|---|---|---|---|---|---|
+| 1 | Static, pre-fix | `grep -c audit_cfield_location_changed locale/ro_RO/strings.txt` | 0 | `0` (18/19 locales had it) | PASS (bug confirmed) |
+| 2 | Parse gate | `php -l locale/ro_RO/strings.txt` (as include target) | no errors | `No syntax errors detected` | PASS |
+| 3 | Pre-fix runtime repro | fixture → login `ro_RO` → `cfieldsTprojectAssign.html?tproject_id=1` → CFP1812 Location `standard`→`Before steps`, tick MONITORIZABIL → Save → open Event Viewer | 2 Warning/LOCALIZATION rows for the two keys | `id=56 string 'audit_cfield_location_changed' is not localized for locale 'ro_RO' - using en_GB`; `id=55 string 'audit_cfield_monitorable_on' is not localized for locale 'ro_RO' - using en_GB` | PASS (bug confirmed) |
+| 4 | Static, post-fix | matrix over all 19 `locale/*/strings.txt` for the three keys | every locale = 3 | all 19 = `3` | PASS |
+| 5 | Post-fix runtime, FRESH session (isolated browser context clears `$_SESSION['missingL18N']`) | login `ro_RO` → `cfieldsTprojectAssign.html?tproject_id=1` → CFP1812 Location `Before steps`→`Before Summary`, untick MONITORIZABIL → Save → open Event Viewer | SAVE rows for both keys, **no** LOCALIZATION row for them | `id=107 SAVE …audit_cfield_location_changed…`, `id=108 SAVE …audit_cfield_monitorable_off…`; **no** `LOCALIZATION` row for `audit_cfield_location_changed` or `_monitorable_on`/`_off` | PASS |
+| 6 | Event Viewer, no new Error/Warning for the fixed keys | `SELECT id,description FROM events WHERE activity='LOCALIZATION' AND description LIKE '%audit_cfield%'` | only keys outside #1820 | new-batch rows only `id=110 audit_cfield_display_order_changed`, `id=112 audit_cfield_assigned` (never defined in the curated partial `ro_RO`, not part of #1820) | PASS |
+
+**Expected post-fix behavior:** with `ro_RO` active, a Save that changes Location and/or Monitorable writes the `SAVE` audit rows but produces **no** `LOCALIZATION` Warning for `audit_cfield_location_changed` / `audit_cfield_monitorable_on` / `_off` when the Event Viewer renders them; the other 18 locales keep resolving the labels.
+
+**Fix applied (minimal, behaviour-preserving):** restored the three labels to `locale/ro_RO/strings.txt` (English wording/placeholders identical to the other 18 locales), tagged `// Refs #1820` — commit `02da9e5d2`.
+
+**Actual result observed (post-fix):** PASS — `ro_RO` now defines all three keys (matrix 3/3 × 19 locales); the fresh-session repro produced the audit SAVE rows `107`/`108` with **zero** LOCALIZATION rows for the fixed keys. Remaining `LOCALIZATION` rows under `ro_RO` (`audit_cfield_display_order_changed`, `audit_cfield_assigned`, `audit_login_succeeded`, `context_*`, `testsuite`, …) are the normal English fallback for a curated **partial** locale (199 lines vs 4240 in `en_GB`) and are outside #1820's named keys. Event Viewer shows no new Error rows.
+
+**Gate:** `TLU_REQUIRE_SUITE="Issue #1820" bash ai/verify_test_suites.sh` → see run below.
