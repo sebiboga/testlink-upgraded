@@ -144,6 +144,26 @@ Every screen of the application was ported one-by-one in a screen-compare
   in all 10 client bundles + `$TLS_title_istqb_syllabus` in all 19 server locales; wired via  `$actions->istqbSyllabus`. Verified end-to-end (render, search, RO/DE/ZH
   switches, ASIDE entry, auth matrix); Event Viewer clean. (Refs #1053)
 
+- [SCREEN] - #1055: the **Accessibility Review / a11y gaps** hub
+  (`gui/templates/documentation/accessibilityAudit.html` + BFF
+  `api/accessibilityaudit/index.php`) is added as the Documentation ASIDE section's
+  fifth entry, giving TestLink an in-app WCAG 2.2 conformance review of its own UI
+  (1.9.20 had none). A summary strip (total/pass/partial/fail/manual counts), four
+  WCAG principle cards (perceivable / operable / understandable / robust) listing 16
+  criteria with per-criterion level (A/AA), status (PASS/PARTIAL/FAIL/MANUAL) and a
+  short finding, a status legend, and related in-context deep links to the
+  Accessibility Resources hub, the NFR Accessibility chapter, the Learn Testing hub
+  and the Documentation hub - all with a live search filter (explicit no-match state)
+  and a TLi18n locale switcher. The BFF is a session-authenticated, GET|HEAD-only
+  endpoint returning `a11yaudit.*` i18n KEYS only (no human string is hardcoded
+  server-side); 61 `a11yaudit.*` + `footers.accessibilityAudit` keys in all 10 client
+  bundles + `$TLS_title_accessibility_audit` in all 19 server locales; wired via
+  `$actions->accessibilityAudit`. Verified end-to-end (render, search filter + empty
+  state, RO locale switch, related deep links, BFF contract 401/400/405); Event Viewer
+  clean. A mandatory browser pass caught and fixed a screen-breaking incomplete ternary
+  in the inline `esc()` helper (`s==null?''` missing its `:` else-branch - a SyntaxError
+  that halted the whole script so nothing rendered). (Refs #1055)
+
 - [SCREEN] - #1911: the **Edit Execution** popup (`lib/execute/editExecution.php` ->
   `gui/templates/execute/editExecution.html`, BFF `api/executionedit/index.php`) is
   complete. The modern screen + BFF already existed from #825 and were kept; this pass
