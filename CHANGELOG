@@ -56,6 +56,15 @@ Every screen of the application was ported one-by-one in a screen-compare
   guarded with an equivalent `isset()` short-circuit. Latent (no live caller); verified with
   a CLI harness, Event Viewer clean. (Fixes #1913)
 
+- [BUGFIX] - #1855: `locale/{de_DE,es_ES,it_IT,ru_RU}/strings.txt` had a stray closing `?>`
+  mid-file with `$TLS_link_report_quality_gates`, `$TLS_title_learn_testing` (and the newer
+  `$TLS_title_accessibility_resources` / `$TLS_title_documentation_hub`) placed AFTER it, so
+  `require` emitted them as raw output — prefixing garbage onto every BFF JSON response and
+  leaving the variables undefined (lang_get LOCALIZATION warnings). The redundant `?>` was
+  removed from the four bundles, so every `$TLS_*` is now a real assignment and nothing is
+  emitted. Verified for all four locales (valid ASIDE JSON + correct locale label); Event
+  Viewer clean. (Fixes #1855)
+
 - [SCREEN] - #1060: the **Learn Testing hub** (`gui/templates/documentation/learnTesting.html`
   + BFF `api/learntesting/index.php`) is added as the Documentation ASIDE section's second
   entry, giving TestLink an in-app learning area (1.9.20 had none). Six learning tracks

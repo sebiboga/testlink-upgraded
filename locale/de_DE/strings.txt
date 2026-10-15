@@ -3730,7 +3730,6 @@ $TLS_after_title = 'Nach dem Titel';
 $TLS_after_preconditions = 'Nach den Vorbedingungen';
 $TLS_title_test_closure = "Testabschluss"; // "Test Closure" (Refs #1278)
 $TLS_link_report_risk_coverage = "Risikobasiertes Testen";
-?>
 $TLS_link_report_quality_gates = "Release-Qualitätstore"; // Refs #1067
 $TLS_title_learn_testing = "Testen lernen"; // Learn Testing hub (Refs #1060)
 $TLS_title_accessibility_resources = "Barrierefreiheits-Ressourcen"; // Accessibility Resources hub (Refs #1059)

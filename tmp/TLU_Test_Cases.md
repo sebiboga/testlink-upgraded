@@ -9418,3 +9418,23 @@ use the search box and the locale switcher; the ASIDE Documentation section list
 **Actual result: implemented** — the Documentation section now exposes the Accessibility Resources hub listing the four WCAG POUR principles and 12 curated W3C/WAI/WebAIM resources across four groups, with live search, a 16-locale switcher, related in-context links, and a fully translated label in all 10 client bundles + 19 server locales. BFF enforces session auth (401 anon), same-origin (403 foreign POST), and GET/HEAD-only (405 same-origin POST). No new `events` Error/Warning rows.
 
 **Gate:** `TLU_REQUIRE_SUITE="Issue #1059" bash ai/verify_test_suites.sh` → see run below.
+
+## Regression — Issue #1855: de_DE/es_ES/it_IT/ru_RU strings.txt PHP lines after `?>` broke every api/ JSON response
+
+**Precondition:** fresh TestLink DB, app at `http://localhost:8082`, login admin/admin. The four server locale bundles `locale/{de_DE,es_ES,it_IT,ru_RU}/strings.txt` had a stray closing `?>` mid-file with `$TLS_link_report_quality_gates` + `$TLS_title_learn_testing` (+ the new `$TLS_title_accessibility_resources` / `$TLS_title_documentation_hub`) placed AFTER it, so `require` emitted them as raw output (garbage prefixed to every BFF JSON body) and the variables stayed undefined (lang_get LOCALIZATION warnings).
+**Root cause / fix:** a `?>` in the middle of an otherwise all-PHP file. Removing the closing tag (standard PHP practice; `require` ends at EOF) makes every `$TLS_*` a real assignment and emits nothing.
+
+| # | Step | Input | Expected | Observed | Result |
+|---|---|---|---|---|---|
+| 1 | PHP syntax | `php -l locale/{de_DE,es_ES,it_IT,ru_RU}/strings.txt` | no errors | all 4 `No syntax errors detected` | PASS |
+| 2 | No assignment after `?>` | static scan for `title_accessibility_resources` after a `?>` line | none of the 4 | `after_close=no` ×4 | PASS |
+| 3 | `require` emits nothing | `ob_start(); include strings.txt; strlen(ob_get_clean())` | 0 bytes, vars defined | `output_len=0 defined=Barrierefreiheits-Ressourcen learn=Testen lernen` (de) and equivalents ×4 | PASS |
+| 4 | de_DE BFF JSON | set admin locale `de_DE`, login, `GET /api/aside/index.php?action=init` | valid JSON, no prefix garbage | HTTP 200, `starts_with_json: True`; Documentation items `Dokumentations-Hub` / `Testen lernen` / `Barrierefreiheits-Ressourcen` | PASS |
+| 5 | es_ES BFF JSON | admin locale `es_ES` | valid JSON + Spanish label | `Recursos de accesibilidad` | PASS |
+| 6 | it_IT BFF JSON | admin locale `it_IT` | valid JSON + Italian label | `Risorse di accessibilità` | PASS |
+| 7 | ru_RU BFF JSON | admin locale `ru_RU` | valid JSON + Russian label | `Ресурсы по доступности` | PASS |
+| 8 | Event Viewer (no new Error/Warning) | `SELECT ... FROM events WHERE log_level IN (1,2)` after the locale switches | none | 0 rows | PASS |
+
+**Actual result: fixed** — the four server locale bundles parse as pure PHP (no output), and every `$TLS_title_*` label resolves; the ASIDE BFF answers valid JSON with the correct locale label for de_DE/es_ES/it_IT/ru_RU.
+
+**Gate:** `TLU_REQUIRE_SUITE="Issue #1059" bash ai/verify_test_suites.sh` → see run below.
