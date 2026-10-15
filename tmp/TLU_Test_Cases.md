@@ -9914,3 +9914,24 @@ substitution.
 - No code change was required; no PHP/i18n change. Suite heading kept on one line for the merge-base gate.
 - Screenshots: `docs/screenshots/issue-1819-prefix-raw-count.png` (pre-fix),
   `docs/screenshots/issue-1819-postfix-count-interpolated.png` (post-fix).
+## Regression — Issue #1916: tcEdit.php post-action render emitted 18 E_WARNING rows (tcViewViewer.inc.tpl / tcbody.inc.tpl unset vars)
+
+**Screen / area:** Test Design → test case viewer, legacy `lib/testcases/tcEdit.php` post-action render path (activate / deactivate / create-new-version / do_copy) → `testcase::show()` → `tcView.tpl` → `tcViewViewer.inc.tpl` → `tcbody.inc.tpl`.
+
+**Precondition:** Fresh DB. Fixture `php tmp/fixtures_1859.php` → creates tproject `TC Edit 1859`, one active test case + one version (ids vary per run; record `tcase_active` / `tcversion_active` from stdout). Logged in as `admin`/`admin` at `http://localhost:8082`. Baseline (pre-fix) measured on this fixture: the three URLs below wrote **18 `E_WARNING` rows** (`log_level=2`) into `events`.
+
+**Pre-fix repro steps (expected FAIL before the fix):**
+1. `php tmp/fixtures_1859.php` → note `tcase_active=T` and `tcversion_active=V`.
+2. `DELETE FROM events;`
+3. `GET /lib/testcases/tcEdit.php?deactivate_this_tcversion=1&tcase_id=T&tcversion_id=V` → 200, **1** `E_WARNING` (`Undefined property: stdClass::$delete_frozen_tcversion`, `tcViewViewer.inc.tpl` src :286).
+4. `GET /lib/testcases/tcEdit.php?do_create_new_version=1&tcase_id=T&tcversion_id=V` → 200, **16** `E_WARNING` (2× `delete_frozen_tcversion` src :238, 2× `Undefined array key "ghost_preconditions"` `tcbody.inc.tpl` src :73, 12× `Trying to access array offset on null` `tcbody.inc.tpl`).
+5. `SELECT COUNT(*) FROM events WHERE log_level=2;` → 18.
+
+**Expected post-fix behavior:** each of the three post-action URLs still returns HTTP 200 and renders the test-case viewer, but writes **zero** `E_WARNING` rows; `SELECT COUNT(*) FROM events WHERE log_level IN (1,2,4,8)` → `0` (only `log_level=16` audit rows from ACTIVATE/DEACTIVATE remain). The viewer still shows the test-case name, steps and the `new_version` / `delete_tc_version` buttons unchanged.
+
+**Fix applied (minimal, behaviour-preserving):**
+- RC1 — add `delete_frozen_tcversion` to both grant lists: `lib/testcases/testcaseCommands.class.php` (`g2c`) and `lib/testcases/tcEdit.php` (`grant2check`), so `testcase::initShowGui()` (`testcase.class.php:7504-7506`) copies it onto `can_do`.
+- RC2 — set `ghost_preconditions` on other-version rows: `lib/functions/testcase.class.php:1210-1214` (mirrors current-version line 1087).
+- RC3 — `switch ($cfpKey)` → `switch ($locKey)` in the other-versions CF loop: `lib/functions/testcase.class.php:~1222`, so `$gui->cf_other_versions` is actually built (was left `null` by the stale `$cfpKey`).
+
+**Actual result observed (post-fix):** PASS — 4 post-action renders (`deactivate`, `activate`, `create_new_version` ×2 → two other-version viewer rows) all returned 200; `COUNT(events WHERE log_level=2)=0`; `COUNT(log_level IN (1,2,4,8))=0`; histogram `{16: 2}` (audit only). Rendered HTML `bytes=112991`, test-case name ×16, `new_version` ×3, `delete_tc_version` ×2 present. Headless-Chrome console: only 1 pre-existing `Deprecated feature used` notice, no JS errors. Screenshot: `docs/screenshots/issue-1916-tcEdit-postaction-render.png`.
