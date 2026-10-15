@@ -32,3 +32,15 @@ A WCAG 2.2 conformance review of the TestLink 2.0.1 UI covering Perceivable, Ope
 
 ## Notes
 This is a static review of modernized screens; findings are illustrative for the upgraded UI baseline.
+
+The mandatory browser pass for #1055 caught a screen-breaking bug in the shipped draft: the inline
+`esc()` helper read `String(s==null?'')` — a ternary missing its `:` else-branch — a `SyntaxError`
+that halted the entire inline script, so nothing rendered (0 summary/principle/related cards, empty
+meta). Fixed to `s==null?'':s` and verified with `node --check` on the extracted inline script plus
+the live browser.
+
+## Screenshots
+
+![Accessibility Review — full screen](screenshots/1055-accessibilityaudit-en.png)
+
+![Accessibility Review — search filter (keyboard)](screenshots/1055-accessibilityaudit-search.png)
