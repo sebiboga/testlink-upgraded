@@ -144,7 +144,10 @@ function render() {
   renderChapters(q);
   renderResources(q);
   renderRelated();
-  $('#emptyMsg').toggle($('#resourcesGrid').children().length === 0);
+  var shown = $('#levelsGrid').children().length +
+              $('#chaptersGrid').children().length +
+              $('#resourcesGrid').children().length;
+  $('#emptyMsg').toggle(shown === 0);
 }
 
 function renderLevels(q) {
