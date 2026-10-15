@@ -27,6 +27,17 @@ Every screen of the application was ported one-by-one in a screen-compare
   branch (an array value is flattened to `''`). Real date/datetime fields and
   multiselection/checkbox (non-suffixed keys) are unaffected. Refs #1853, #1852.
 
+- [BUGFIX] - #1917: the 74 `perf.*` keys + `footers.perfReports` that #1063 (`5d6bd072d`) added to
+  all ten client bundles were silently dropped from the nine non-English bundles by the #1134
+  whole-file rewrite (`7023d9762`), so the **Performance Test Reports** screen fell back to raw
+  keys (`gui/templates/i18n/i18n.js:175`) for every non-English locale while `en.json` still held
+  them. Restored to all 10 bundles (`08631dda3`, re-ran the idempotent `tmp/add_perf_i18n.py`);
+  verified byte-faithful against the original add (0 value diffs for ro/de/ja/zh) with
+  `ai/verify_i18n_coverage.sh` 9/9 PASS and a live `?locale=ro` spot-check (`Rapoarte de
+  performanță`, no raw-key leak). The suggested CI enforcement of the coverage gate remains
+  blocked at the token level (#1850: the agent token lacks the `workflows` permission). Refs
+  #1917, #1134, #1063.
+
 - [BUGFIX] - #1831: removed the dead `TLi18n.t('key') || 'English literal'` fallbacks that
   can never fire (the i18n module returns the key itself for a missing entry, never
   `undefined`/`''`) and only kept a hardcoded English string alive, against rule 3. Deleted the
