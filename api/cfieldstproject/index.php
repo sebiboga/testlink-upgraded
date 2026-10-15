@@ -271,8 +271,9 @@ if ($action === 'projects') {
     $tproject_mgr = new testproject($db);
     $rows = array();
     // get_accessible_for_user() keeps private projects the user has no role on
-    // out of the list (tlUser.class.php:1053-1063), so the switcher never
-    // advertises a project the caller cannot reach.
+    // out of the list (testproject.class.php:574-585, the "Private test project
+    // feature" WHERE clause), so the switcher never advertises a project the
+    // caller cannot reach.
     foreach ((array) $tproject_mgr->get_accessible_for_user(
                  intval($userId), array('output' => 'map', 'order_by' => ' ORDER BY name ')
              ) as $pid => $p) {
