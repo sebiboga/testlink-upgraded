@@ -4577,3 +4577,4 @@ $TLS_link_report_quality_gates = "リリース品質ゲート"; // Refs #1067
 $TLS_title_learn_testing = "テストを学ぶ"; // Learn Testing hub (Refs #1060)
 $TLS_title_accessibility_resources = "アクセシビリティ資料"; // Accessibility Resources hub (Refs #1059)
 $TLS_title_documentation_hub = "ドキュメントハブ"; // Documentation hub (Refs #1060)
+$TLS_title_istqb_syllabus = "ISTQB シラバス"; // ISTQB Syllabus hub (Refs #1053)

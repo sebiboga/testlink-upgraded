@@ -2839,3 +2839,4 @@ $TLS_title_accessibility_resources = "Ресурсы по доступности
 $TLS_title_documentation_hub = "Центр документации"; // Documentation hub (Refs #1060)
 
 $TLS_requirement = "Требование"; // node-type label (Refs #1823)
+$TLS_title_istqb_syllabus = "Программа ISTQB"; // ISTQB Syllabus hub (Refs #1053)

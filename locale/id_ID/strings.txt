@@ -2915,3 +2915,4 @@ $TLS_title_documentation_hub = "Pusat Dokumentasi"; // Documentation hub (Refs #
 $TLS_test_plan = "Rencana Pengujian"; // node-type label (Refs #1823)
 $TLS_testplan = $TLS_test_plan; // node-type label (Refs #1823)
 $TLS_requirement = "Kebutuhan"; // node-type label (Refs #1823)
+$TLS_title_istqb_syllabus = "Silabus ISTQB"; // ISTQB Syllabus hub (Refs #1053)

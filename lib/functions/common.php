@@ -2278,6 +2278,11 @@ function getActions(&$gui,$baseURL) {
   // the Documentation section's third entry; the BFF (api/accessibilityresources)
   // enforces session auth + same-origin on every route and returns i18n KEYS only.
   $actions->accessibilityResources = "/gui/templates/documentation/accessibilityResources.html?{$ctx}";
+  // ISTQB Syllabus hub modernized screen (Dashio standalone page) - Refs #1053.
+  // Official ISTQB certification reference + CTFL v4.0 syllabus backing the
+  // Documentation section's fourth entry; the BFF (api/istqb) enforces session
+  // auth + same-origin on every route and returns i18n KEYS only.
+  $actions->istqbSyllabus = "/gui/templates/documentation/istqbSyllabus.html?{$ctx}";
   // Requirement Overview modernized screen (Dashio standalone page) - Refs #566
   $actions->reqOverView = "/gui/templates/requirements/reqOverview.html?{$ctx}";
   $actions->reqMonOverView = "/gui/templates/requirements/reqMonitorOverview.html?{$ctx}";

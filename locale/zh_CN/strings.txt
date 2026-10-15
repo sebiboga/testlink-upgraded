@@ -4175,3 +4175,4 @@ $TLS_link_report_quality_gates = "发布质量门禁"; // Refs #1067
 $TLS_title_learn_testing = "学习测试"; // Learn Testing hub (Refs #1060)
 $TLS_title_accessibility_resources = "无障碍资源"; // Accessibility Resources hub (Refs #1059)
 $TLS_title_documentation_hub = "文档中心"; // Documentation hub (Refs #1060)
+$TLS_title_istqb_syllabus = "ISTQB 教学大纲"; // ISTQB Syllabus hub (Refs #1053)

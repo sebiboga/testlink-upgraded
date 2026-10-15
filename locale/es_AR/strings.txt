@@ -3239,3 +3239,4 @@ $TLS_link_report_quality_gates = "Puertas de calidad de la versión"; // Refs #1
 $TLS_title_learn_testing = "Aprender testing"; // Learn Testing hub (Refs #1060)
 $TLS_title_accessibility_resources = "Recursos de accesibilidad"; // Accessibility Resources hub (Refs #1059)
 $TLS_title_documentation_hub = "Centro de documentación"; // Documentation hub (Refs #1060)
+$TLS_title_istqb_syllabus = "Programa ISTQB"; // ISTQB Syllabus hub (Refs #1053)

@@ -691,12 +691,14 @@ if (count($pluginsMenu) > 0 || $gm('plugin_management') === 'yes') {
 }
 
 // 12. Documentation --------------------------------------------------------
-// Refs #1060/#1059: the section now carries the modernized Learn Testing hub
-// and the Accessibility Resources hub next to the Documentation hub. The hrefs
-// resolve through $actions->learnTesting / $actions->accessibilityResources
+// Refs #1060/#1059/#1053: the section now carries the modernized Learn Testing
+// hub, the Accessibility Resources hub and the ISTQB Syllabus hub next to the
+// Documentation hub. The hrefs resolve through $actions->learnTesting /
+// $actions->accessibilityResources / $actions->istqbSyllabus
 // (lib/functions/common.php), so they stay in-context like every other item.
 $learnHref = $u('learnTesting', '/gui/templates/documentation/learnTesting.html');
 $a11yHref = $u('accessibilityResources', '/gui/templates/documentation/accessibilityResources.html');
+$istqbHref = $u('istqbSyllabus', '/gui/templates/documentation/istqbSyllabus.html');
 $sections[] = array(
     'key' => 'documentation',
     'label' => lang_get('title_documentation'),
@@ -720,6 +722,12 @@ $sections[] = array(
             'label' => lang_get('title_accessibility_resources'),
             'href' => (string)$a11yHref,
             'icon' => 'fas fa-universal-access',
+        ),
+        array(
+            'id' => 'istqbSyllabus',
+            'label' => lang_get('title_istqb_syllabus'),
+            'href' => (string)$istqbHref,
+            'icon' => 'fas fa-certificate',
         ),
     ),
 );

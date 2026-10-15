@@ -4092,3 +4092,4 @@ $TLS_link_report_quality_gates = "Release-kwaliteitspoorten"; // Refs #1067
 $TLS_title_learn_testing = "Testen leren"; // Learn Testing hub (Refs #1060)
 $TLS_title_accessibility_resources = "Toegankelijkheidsbronnen"; // Accessibility Resources hub (Refs #1059)
 $TLS_title_documentation_hub = "Documentatiehub"; // Documentation hub (Refs #1060)
+$TLS_title_istqb_syllabus = "ISTQB-programma"; // ISTQB Syllabus hub (Refs #1053)

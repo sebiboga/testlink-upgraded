@@ -2443,3 +2443,4 @@ $TLS_title_accessibility_resources = "Risorse di accessibilità"; // Accessibili
 $TLS_title_documentation_hub = "Hub della documentazione"; // Documentation hub (Refs #1060)
 
 $TLS_requirement = "Requisito"; // node-type label (Refs #1823)
+$TLS_title_istqb_syllabus = "Programma ISTQB"; // ISTQB Syllabus hub (Refs #1053)
