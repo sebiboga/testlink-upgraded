@@ -7800,5 +7800,6 @@
   "paddtc.filterApply": "Aplicar filtros",
   "paddtc.filterReset": "Redefinir filtros",
   "paddtc.filterHint": "Nenhum filtro ativo",
-  "paddtc.filtersApplied": "Filtros ativos"
+  "paddtc.filtersApplied": "Filtros ativos",
+  "paddtc.sendMail": "Send mail notification to tester"
 }

@@ -7800,5 +7800,6 @@
   "paddtc.filterApply": "Aplică filtrele",
   "paddtc.filterReset": "Resetează filtrele",
   "paddtc.filterHint": "Niciun filtru activ",
-  "paddtc.filtersApplied": "Filtre active"
+  "paddtc.filtersApplied": "Filtre active",
+  "paddtc.sendMail": "Send mail notification to tester"
 }

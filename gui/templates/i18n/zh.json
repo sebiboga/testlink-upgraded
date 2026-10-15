@@ -7800,5 +7800,6 @@
   "paddtc.filterApply": "应用筛选器",
   "paddtc.filterReset": "重置筛选器",
   "paddtc.filterHint": "没有活动的筛选器",
-  "paddtc.filtersApplied": "筛选器已启用"
+  "paddtc.filtersApplied": "筛选器已启用",
+  "paddtc.sendMail": "Send mail notification to tester"
 }

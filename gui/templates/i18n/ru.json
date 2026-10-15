@@ -7800,5 +7800,6 @@
   "paddtc.filterApply": "Применить фильтры",
   "paddtc.filterReset": "Сбросить фильтры",
   "paddtc.filterHint": "Фильтры не активны",
-  "paddtc.filtersApplied": "Фильтры активны"
+  "paddtc.filtersApplied": "Фильтры активны",
+  "paddtc.sendMail": "Send mail notification to tester"
 }

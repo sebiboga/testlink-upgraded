@@ -7800,5 +7800,6 @@
   "paddtc.filterApply": "フィルターを適用",
   "paddtc.filterReset": "フィルターをリセット",
   "paddtc.filterHint": "有効なフィルターなし",
-  "paddtc.filtersApplied": "フィルター有効"
+  "paddtc.filtersApplied": "フィルター有効",
+  "paddtc.sendMail": "Send mail notification to tester"
 }
