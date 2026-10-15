@@ -2440,4 +2440,5 @@ $TLS_reqmgrsystem_invalid_type = 'Tipo di sistema di gestione dei requisiti non 
 ?>
 $TLS_link_report_quality_gates = "Porte di qualità della release"; // Refs #1067
 $TLS_title_learn_testing = "Impara il testing"; // Learn Testing hub (Refs #1060)
+$TLS_title_accessibility_resources = "Risorse di accessibilità"; // Accessibility Resources hub (Refs #1059)
 $TLS_title_documentation_hub = "Hub della documentazione"; // Documentation hub (Refs #1060)

@@ -2273,6 +2273,11 @@ function getActions(&$gui,$baseURL) {
   // route. Unlike the legacy Documentation hub it is reachable in-context so
   // its cards can deep-link the current project/plan screens.
   $actions->learnTesting = "/gui/templates/documentation/learnTesting.html?{$ctx}";
+  // Accessibility Resources hub modernized screen (Dashio standalone page) -
+  // Refs #1059. Curated accessibility learning/WCAG resource catalogue backing
+  // the Documentation section's third entry; the BFF (api/accessibilityresources)
+  // enforces session auth + same-origin on every route and returns i18n KEYS only.
+  $actions->accessibilityResources = "/gui/templates/documentation/accessibilityResources.html?{$ctx}";
   // Requirement Overview modernized screen (Dashio standalone page) - Refs #566
   $actions->reqOverView = "/gui/templates/requirements/reqOverview.html?{$ctx}";
   $actions->reqMonOverView = "/gui/templates/requirements/reqMonitorOverview.html?{$ctx}";

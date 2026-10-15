@@ -3733,4 +3733,5 @@ $TLS_link_report_risk_coverage = "Risikobasiertes Testen";
 ?>
 $TLS_link_report_quality_gates = "Release-Qualitätstore"; // Refs #1067
 $TLS_title_learn_testing = "Testen lernen"; // Learn Testing hub (Refs #1060)
+$TLS_title_accessibility_resources = "Barrierefreiheits-Ressourcen"; // Accessibility Resources hub (Refs #1059)
 $TLS_title_documentation_hub = "Dokumentations-Hub"; // Documentation hub (Refs #1060)
