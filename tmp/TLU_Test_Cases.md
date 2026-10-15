@@ -9688,3 +9688,18 @@ on `null`. The base method is hardened (init `byCode = array()` + `is_null` guar
 ### Notes
 - Companion change required for correctness, not scope creep: without it the original guard turns a
   2-warning nuisance into an HTTP 500 on the JIRA-DB integration.
+
+## Task — Issue #1055
+
+- BFF GET|HEAD ?action=init returns a11yaudit.* data with meta/principles/related; 401 anon, 400 unknown action, 405 non-GET/HEAD.
+- Screen renders summary counts, principles with badges, search filters, related links, locale switcher.
+- i18n a11yaudit.* present in all 10 client bundles, $TLS_title_accessibility_audit in all 19 server bundles.
+- ASIDE entry under Documentation; $actions->accessibilityAudit wired.
+
+### Browser checks
+
+- [PASS] Load screen (admin) → 4 principle cards render; summary counts > 0.
+- [PASS] Search "keyboard" filters to Operable criteria.
+- [PASS] Locale switch EN↔RO renders headers.
+- [PASS] Related links point to modern screens with context.
+- [PASS] No new Error/Warning in Event Viewer after 1 min idle.
