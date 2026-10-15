@@ -5,7 +5,8 @@ deprecated (PHP 9 removes) the implicit creation of object properties. A propert
 assigned on `$this` but never *declared* in the class — nor in any ancestor — raises
 `E_DEPRECATED: Creation of dynamic property <Class>::$x is deprecated`.
 
-Five more issue-tracker interface sites did exactly that.
+Five more issue-tracker interface sites did exactly that, and the mandated code review of this
+fix found a **sixth** (`jiradbInterface`, same `$statusDomain` property).
 
 ## Symptom
 
@@ -43,6 +44,7 @@ raises the diagnostic (fatal on PHP 9).
 | `tracxmlrpcInterface` | `$defaultResolvedStatus` | `:62` (constructor) | none |
 | `tuleaprestInterface` | `$defaultResolvedStatus` | `:33` (constructor) | none |
 | `jirarestInterface` | `$statusDomain` | `:185` (live-JIRA block) | none |
+| `jiradbInterface` | `$statusDomain` | `:189` (`getStatuses()`) / read at `:71`, `:204` | none |
 
 The abstract base `issueTrackerInterface` declares the shared members (`$cfg`, `$name`,
 `$connected`, `$dbConnection`, `$methodOpt`, …) but **not** `$defaultResolvedStatus` nor
@@ -67,6 +69,9 @@ var $defaultResolvedStatus;
 
 // jirarestInterface.class.php (jirarestInterface already declares var $defaultResolvedStatus;)
 private $statusDomain = array();
+
+// jiradbInterface.class.php (declares getStatusDomain(); sibling of jirasoapInterface)
+protected $statusDomain = array();
 ```
 
 **Why `var` and not `private` for `$defaultResolvedStatus`:** the base
@@ -75,7 +80,8 @@ at `:639`, so a `private` child property would be unreachable from the parent me
 the assignment would fatal with `Cannot access private property ...::$defaultResolvedStatus`
 (measured live — see the correction in the checkpoint comment). `var` (public) mirrors the
 sibling classes and keeps the parent working. `jirarestInterface::$statusDomain` is never
-read by the parent, so `private` is safe there.
+read by the parent, so `private` is safe there; `jiradbInterface::$statusDomain` is declared
+`protected`, mirroring `jirasoapInterface.class.php:24` and `gforgesoapInterface.class.php:23`.
 
 **Alternatives rejected:**
 - *Declare both properties once in the base `issueTrackerInterface`* — rejected for the
@@ -94,9 +100,9 @@ plus live HTTP through the BFF `POST /api/issuetracker/index.php/test-connection
 
 | # | Step | Expected | Observed | Verdict |
 |---|------|----------|----------|---------|
-| 1 | `php -l` on the 5 touched files | no syntax errors | No syntax errors detected (×5) | PASS |
-| 2 | pre-fix `php tmp/repro_1914.php` | 5 deprecations | bugzilladb=1, bugzillaxmlrpc=1, tracxmlrpc=1, tuleaprest=1, jirarest=1; exit 1 | PASS (bug confirmed) |
-| 3 | post-fix `php tmp/repro_1914.php` | 0 deprecations | all 0; reflection `declared(own)=YES ×5`; `ALL PASS`; exit 0 | PASS |
+| 1 | `php -l` on the 6 touched files | no syntax errors | No syntax errors detected (×6) | PASS |
+| 2 | pre-fix `php tmp/repro_1914.php` | 5 deprecations | bugzilladb=1, bugzillaxmlrpc=1, tracxmlrpc=1, tuleaprest=1, jirarest=1; exit 1 (jiradb's `:189` fires only when its JIRA DB query returns rows, so the harness reports it via the reflection check) | PASS (bug confirmed) |
+| 3 | post-fix `php tmp/repro_1914.php` | 0 deprecations | all 0; reflection `declared(own)=YES ×6`; `ALL PASS`; exit 0 | PASS |
 | 4 | live type=2 bugzilladb `test-connection` (local MariaDB) | 200 `connected:true`, no fatal | `{"status":"ok","connected":true,...}` 200 | PASS |
 | 5 | live type=27 tuleap `test-connection` (dead host) | 200 JSON, no dynamic-property fatal | `{"status":"ok","connected":false,...}` 200 | PASS |
 | 6 | authenticated `GET /api/issuetracker/index.php/` | JSON, `canManage:true` | `{"status":"ok","canManage":true,"items":[],"total":0}` 200 | PASS |
@@ -115,6 +121,7 @@ the deprecation count (5 → 0), which is also why the Event Viewer was never po
 - `lib/issuetrackerintegration/tracxmlrpcInterface.class.php` — declare `$defaultResolvedStatus`.
 - `lib/issuetrackerintegration/tuleaprestInterface.class.php` — declare `$defaultResolvedStatus`.
 - `lib/issuetrackerintegration/jirarestInterface.class.php` — declare `$statusDomain`.
+- `lib/issuetrackerintegration/jiradbInterface.class.php` — declare `$statusDomain`.
 - `CHANGELOG` — 2.0.1 BUGFIX line.
 - `tmp/TLU_Test_Cases.md` — regression suite (append-only).
 - `docs/` mirror + this GitHub Wiki page.

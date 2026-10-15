@@ -34,12 +34,16 @@ Every screen of the application was ported one-by-one in a screen-compare
   property names. `bugzilladbInterface::$defaultResolvedStatus`,
   `bugzillaxmlrpcInterface::$defaultResolvedStatus`, `tracxmlrpcInterface::$defaultResolvedStatus`
   and `tuleaprestInterface::$defaultResolvedStatus` were assigned in the constructor without a
-  declaration, and `jirarestInterface::$statusDomain` was written at `:185` although
+  declaration, `jirarestInterface::$statusDomain` was written at `:185` although
   `statusDomain` only lives on the *helper* `jiraCommons` (not an ancestor of
-  `jirarestInterface`). All five are now declared — the four `defaultResolvedStatus` as
-  `var` (the parent `issueTrackerInterface::setResolvedStatusCfg()` reads them, so `private`
-  would fatal, and this mirrors the sibling classes) and `jirarestInterface::$statusDomain` as
-  `private`; no assignment removed and no call site changed. `bugzilladb`/`jirarest` only
+  `jirarestInterface`), and `jiradbInterface::$statusDomain` was written in `getStatuses()` and
+  read in the constructor / by `getStatusDomain()` with no declaration either (found by the
+  mandated code review of this fix). All six are now declared — the four
+  `defaultResolvedStatus` as `var` (the parent `issueTrackerInterface::setResolvedStatusCfg()`
+  reads them, so `private` would fatal, and this mirrors the sibling classes) and
+  `jirarestInterface::$statusDomain` as `private` plus `jiradbInterface::$statusDomain` as
+  `protected` (mirroring `jirasoapInterface`/`gforgesoapInterface`); no assignment removed and
+  no call site changed. `bugzilladb`/`jirarest` only
   fire when a BTS connection succeeds, so the report's fixture saw just the three unconditional
   ones — measured here all five. CLI repro `tmp/repro_1914.php` goes from 5 deprecations to 0.
   (Fixes #1914)

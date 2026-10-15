@@ -14,6 +14,7 @@ class jiradbInterface extends issueTrackerInterface
   var $defaultResolvedStatus;
   var $dbSchema;
   var $support;
+  protected $statusDomain = array(); // Refs #1914
 
   /**
    * Construct and connect to BTS.

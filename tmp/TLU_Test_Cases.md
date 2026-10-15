@@ -9476,3 +9476,13 @@ use the search box and the locale switcher; the ASIDE Documentation section list
 **Actual result: fixed** — all five dynamic-property deprecations are gone (CLI harness 5 → 0), the four properties stay public so the parent `setResolvedStatusCfg()` keeps working, and the live `test-connection` route for a connectable bugzilla DB returns `connected:true` with no `Cannot access private property` fatal.
 
 **Gate:** `TLU_REQUIRE_SUITE="Issue #1914" bash ai/verify_test_suites.sh`
+
+### Issue #1914 addendum — code-review-found 6th site: `jiradbInterface::$statusDomain`
+
+The mandated code review found the same defect in `jiradbInterface` (`statusDomain` written at `:189` in `getStatuses()`, read at `:71` and by `getStatusDomain()` `:204`, declared nowhere). Fixed with `protected $statusDomain = array();` (mirroring `jirasoapInterface:24`).
+
+| # | Step | Input | Expected | Observed | Result |
+|---|---|---|---|---|---|
+| 9 | PHP syntax | `php -l lib/issuetrackerintegration/jiradbInterface.class.php` | no errors | `No syntax errors detected` | PASS |
+| 10 | Pre-fix declaration | reflection on `jiradbInterface::statusDomain` | declared(own)=NO (bug) | `declared(own)=NO` → `FAIL count=1` | PASS (bug confirmed) |
+| 11 | Post-fix declaration | `php tmp/repro_1914.php` | declared(own)=YES, 0 deprecations | `jiradbInterface: declared(own)=YES`; `ALL PASS`; exit 0 | PASS |
