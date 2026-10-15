@@ -198,3 +198,7 @@ $TLS_requirement = "Cerință"; // node-type label (Refs #1823)
 $TLS_requirement_spec = "Document cu specificații de cerință"; // node-type label (Refs #1823)
 $TLS_title_istqb_syllabus = "Programa ISTQB"; // ISTQB Syllabus hub (Refs #1053)
 $TLS_title_accessibility_audit = "Accessibility Review"; // Accessibility Audit / a11y gaps review (Refs #1055)
+
+$TLS_audit_cfield_location_changed = "Custom field locations were saved on Test Project '{%1}'"; // Refs #1820
+$TLS_audit_cfield_monitorable_on = "Custom field '{%1}' was set MONITORABLE on Test Project '{%2}'"; // Refs #1820
+$TLS_audit_cfield_monitorable_off = "Custom field '{%1}' was set NOT MONITORABLE on Test Project '{%2}'"; // Refs #1820
