@@ -40,10 +40,16 @@ class testcaseCommands {
     $this->execution_types = $this->tcaseMgr->get_execution_types();
     $this->grants = new stdClass();
 
+    // Refs #1916: 'delete_frozen_tcversion' MUST be in this list. testcase::
+    // initShowGui() only copies it onto can_do when property_exists($grants...)
+    // , so a grants object that omits it leaves $args_can_do->
+    // delete_frozen_tcversion undefined and tcViewViewer.inc.tpl:238/286 read it
+    // (E_WARNING "Undefined property" in the Event Viewer on every render).
     $g2c = array('mgt_modify_tc','mgt_view_req','testplan_planning',
                  'req_tcase_link_management','mgt_modify_req',
                  'testproject_delete_executed_testcases',
-                 'testproject_edit_executed_testcases');
+                 'testproject_edit_executed_testcases',
+                 'delete_frozen_tcversion');
     foreach($g2c as $grant) {
       $this->grants->$grant = $userObj->hasRight($db,$grant,$tproject_id);
     }

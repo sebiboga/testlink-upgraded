@@ -654,11 +654,16 @@ function initializeGui(&$dbHandler,&$argsObj,$cfgObj,&$tcaseMgr,&$tprojMgr) {
 
   $guiObj->domainTCStatus = $argsObj->tcStatusCfg['code_label'];
   
+  // Refs #1916: 'delete_frozen_tcversion' MUST be in this list so that
+  // testcase::initShowGui() copies it onto can_do (otherwise $args_can_do->
+  // delete_frozen_tcversion is undefined and tcViewViewer.inc.tpl:238/286 emit
+  // an E_WARNING on every post-action render).
   $grant2check = array('mgt_modify_tc','mgt_view_req','testplan_planning',
                        'mgt_modify_product','keyword_assignment',
                        'req_tcase_link_management',
                        'testproject_edit_executed_testcases',
-                       'testproject_delete_executed_testcases');
+                       'testproject_delete_executed_testcases',
+                       'delete_frozen_tcversion');
   $guiObj->grants = new stdClass();
   foreach($grant2check as $right) {
     $guiObj->$right = $guiObj->grants->$right = $argsObj->user->hasRight($dbHandler,$right,$argsObj->tproject_id);

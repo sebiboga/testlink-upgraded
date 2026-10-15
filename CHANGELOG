@@ -17,6 +17,19 @@ Every screen of the application was ported one-by-one in a screen-compare
   kept for backward compatibility and is progressively retired as each modern
   screen reaches full parity.
 
+- [BUGFIX] - #1916: the `tcEdit.php` version-lifecycle post-action render (activate /
+  deactivate / create-new-version) no longer pollutes the Event Viewer with 18 `E_WARNING`
+  rows per request. Three fields the legacy viewer partials assume present were missing on
+  that path: `can_do->delete_frozen_tcversion` (populated only when the grants object carries
+  it, but `testcaseCommands::__construct()` and `tcEdit::initializeGui()` both omitted it),
+  `ghost_preconditions` (set only for the current version, not other versions), and
+  `$gui->cf_other_versions` (left `null` because the other-versions CF loop tested the stale
+  `$cfpKey` instead of `$locKey`). Fixed by adding `delete_frozen_tcversion` to both grants
+  lists and correcting the two other-version assignments in `testcase::show()`; the fix is
+  behaviour-neutral for the rendered page (default roles hold no `delete_frozen_tcversion`
+  right, so the value resolves to `null`, matching the previous unset in every `== "yes"` test).
+  (Fixes #1916)
+
 - [BUGFIX] - #1815: PHP 8.2 `E_DEPRECATED "Creation of dynamic property"` is gone from the
   four issue-tracker REST interfaces redmine/github/gitlab/kaiten and from `tlUser`. Those
   classes assigned `$this->issueAttr` (redmine/github/gitlab) and `$this->canSetReporter`

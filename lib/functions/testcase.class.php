@@ -1209,9 +1209,22 @@ class testcase extends tlObjectWithAttachments {
               sprintf(self::GHOSTMASK,$tcvSet[0]['tc_external_id'],
                                       $ref[$qdx]['version']);
 
+            // Refs #1916: other versions need ghost_preconditions too, else
+            // tcbody.inc.tpl:73 ($tco.ghost_preconditions) raises E_WARNING
+            // "Undefined array key" (it was only set for the current version).
+            $ref[$qdx]['ghost_preconditions'] =
+              sprintf(self::GHOSTPRECONDITIONSMASK,$tcvSet[0]['tc_external_id'],
+                                     $ref[$qdx]['version']);
+
             $cfCtx['link_id'] = $gui->testcase_other_versions[$target_idx][$qdx]['id'];
             foreach($cfPlaces as $locKey => $locFilter) {
-              switch ($cfpKey) {
+              // Refs #1916: this switch MUST test $locKey (the current location),
+              // not the STALE $cfpKey left over from the outer current-version
+              // loop (whose value is 'hide_because_is_used_as_variable', so every
+              // iteration hit that break and cf_other_versions was never built).
+              // It stayed null -> tcView.tpl passed args_cf=null and tcbody.inc.tpl
+              // raised 6 E_WARNINGs "Trying to access array offset on null".
+              switch ($locKey) {
                 case 'hide_because_is_used_as_variable':
                 break;  
 
