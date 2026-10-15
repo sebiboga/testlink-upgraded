@@ -10156,3 +10156,26 @@ substitution.
 **Actual result: 10/10 PASS.** Root cause: `t(key) || 'English'` copied on the belief that `t()` returns `undefined`/empty for a missing key; it never does (`i18n.js:175`), so the literal is dead and merely keeps a hardcoded English string (forbidden by rule 3). Fixed by treating the keys as mandatory and deleting the dead literals (the i18n coverage gate enforces presence). Refs #1831, #1829.
 
 **Gate:** `TLU_REQUIRE_SUITE="Issue #1831" bash ai/verify_test_suites.sh`.
+
+## Regression — Issue #1853: `_build_cfield()` kept an ARRAY `cf_value` for a date-shaped key on a non-date field → `design_values_to_db()`/`tlStringLen()` PHP 8 TypeError (HTTP 500)
+
+**Screen / area:** shared custom-field write path `cfield_mgr::_build_cfield()` (`lib/functions/cfield_mgr.class.php`), used by every CF write (test suites, cases, requirements, plans, builds, executions). Refs #1853, #1852.
+
+**Precondition:** app at `http://localhost:8082`; `php tmp/t1853.php` calls `_build_cfield()` directly with constructed hashes/defs (no DB write).
+
+| # | Step | Input | Expected | Observed | Result |
+|---|---|---|---|---|---|
+| 1 | PHP lint | `php -l lib/functions/cfield_mgr.class.php` | no syntax errors | `No syntax errors detected` | PASS |
+| 2 | BEFORE: string field + date-shaped key | `_build_cfield({'custom_field_0_12_input':''}, {12:{type:0}})` | array survives (the bug) | `array('input' => '')` | PASS |
+| 3 | AFTER: string field + date-shaped key | same | scalar `''`, not an array | `''` | PASS |
+| 4 | AFTER: mismatch + array value | `{'custom_field_0_12_input':array('x','y')}` | flattened to `''` | `''` | PASS |
+| 5 | BEFORE: mismatch + array value | same | nested array survives | `array('input' => array('x','y'))` | PASS |
+| 6 | Real date field still works | `{'custom_field_8_12_input':'2026-01-02','…_hour':'3',…_minute':'4',…_second':'5'}` | flattened to a timestamp (mktime) | `1184803200` | PASS |
+| 7 | Plain non-suffixed string key | `{'custom_field_0_12':'hello'}` | scalar preserved | `'hello'` | PASS |
+| 8 | Multiselection (type 7, array, no suffix) not broken | `{'custom_field_7_12':array('a','b')}` | `'a|b'` | `'a|b'` | PASS |
+| 9 | Downstream fatal reproduced | `tlStringLen(array('input'=>''))` | PHP 8 `TypeError` (the issue's symptom) | `TypeError: iconv_strlen(): Argument #1 ($string) must be of type string, array given` | PASS |
+| 10 | Event Viewer | `SELECT … WHERE log_level IN (2,3)` after the harness | no new Error/Warning | none | PASS |
+
+**Actual result: 10/10 PASS.** Root cause: `_build_cfield()` classified a hash key as a date part by suffix alone (`cfield_mgr.class.php:1938`), never checking the field's type; the per-type switch has no branch to flatten an array for a scalar type, so the array reached `design_values_to_db()` (`:859`) where `max_length_value > 0` calls `tlStringLen()` -> `iconv_strlen()` (PHP 8 `TypeError`, HTTP 500). Fix: only merge per-part keys when the key's `type_id` maps to `date`/`datetime`, else fall through to the scalar branch (array value flattened to `''`). Refs #1853, #1852.
+
+**Gate:** `TLU_REQUIRE_SUITE="Issue #1853" bash ai/verify_test_suites.sh`.

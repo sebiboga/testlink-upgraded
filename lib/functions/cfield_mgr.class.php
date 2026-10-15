@@ -1935,7 +1935,17 @@ function name_is_unique($id,$name)
           // (custom_field_<type>_<id>_input, _hour, _minute, _second).
           // Merge every part into a single per-field map instead of letting
           // the last suffix overwrite the previous ones (issue #1571).
-          if( isset($this->html_date_input_suffix[$dummy[$last_idx]]) ) {
+          //
+          // The suffix ALONE does not make the field a date: a date-shaped key
+          // sent for another type (e.g. custom_field_0_12_input for a string
+          // field) used to keep cf_value as an array, which later fataled in
+          // design_values_to_db() / tlStringLen() with a PHP 8 TypeError
+          // (issue #1853). Only real date/datetime types take this branch.
+          $cf_type_id = $dummy[$cftype_pos];
+          $cf_verbose = isset($this->custom_field_types[$cf_type_id])
+                      ? trim($this->custom_field_types[$cf_type_id]) : '';
+          if( isset($this->html_date_input_suffix[$dummy[$last_idx]])
+              && ($cf_verbose === 'date' || $cf_verbose === 'datetime') ) {
             $field_id = $dummy[$cfid_pos];
             if( is_array($cfield[$field_id]['cf_value'] ?? null) ) {
               $cfield[$field_id]['cf_value'][$dummy[$last_idx]] = $value;
@@ -1946,7 +1956,14 @@ function name_is_unique($id,$name)
             }
           }
           else {
+            // Plain scalar key. A date-shaped key that reaches here is a type
+            // mismatch, so an array value would be meaningless: flatten it (a
+            // non-suffixed key keeps arrays for multiselection/checkbox).
             $the_value = $value;  // without this #0008347 :(
+            if( isset($this->html_date_input_suffix[$dummy[$last_idx]])
+                && is_array($the_value) ) {
+              $the_value = '';
+            }
             $cfield[$dummy[$cfid_pos]]=array("type_id"  => $dummy[$cftype_pos],
                                              "cf_value" => $the_value);
           }

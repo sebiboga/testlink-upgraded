@@ -17,6 +17,16 @@ Every screen of the application was ported one-by-one in a screen-compare
   kept for backward compatibility and is progressively retired as each modern
   screen reaches full parity.
 
+- [BUGFIX] - #1853: `cfield_mgr::_build_cfield()` classified a hash key as a date part purely
+  by suffix (`_input`/`_hour`/`_minute`/`_second`) without checking the field's type, so a
+  date-shaped key sent for a non-date field (e.g. `custom_field_0_12_input` for a string
+  field) left `cf_value` as an array, which then fataled in
+  `design_values_to_db()` -> `tlStringLen()` -> `iconv_strlen()` with a PHP 8 `TypeError`
+  (HTTP 500, write lost). `_build_cfield()` now only merges per-part keys when the key's
+  `type_id` really maps to `date`/`datetime`; a mismatched key falls through to the scalar
+  branch (an array value is flattened to `''`). Real date/datetime fields and
+  multiselection/checkbox (non-suffixed keys) are unaffected. Refs #1853, #1852.
+
 - [BUGFIX] - #1831: removed the dead `TLi18n.t('key') || 'English literal'` fallbacks that
   can never fire (the i18n module returns the key itself for a missing entry, never
   `undefined`/`''`) and only kept a hardcoded English string alive, against rule 3. Deleted the
