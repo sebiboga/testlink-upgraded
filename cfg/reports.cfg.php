@@ -259,6 +259,21 @@ $tlCfg->reports_list['release_quality_gates'] = array(
 	'format' => 'format_html'
 );
 
+// Refs #1063: Performance Test Reports (JMeter JTL Viewer). Net-new modern
+// screen: 1.9.20 shipped no JMeter/JTL viewer at all. STATELESS - the user
+// uploads a JTL result log (CSV or XML) which the api/perfreports BFF parses
+// on the fly (nothing persisted; the schema has no performance tables). The
+// project is mandatory (testplan_metrics on the owning project), so the entry
+// is available for every plan ('all') but hidden while no test project is
+// selected, exactly like the quality-gates report.
+$tlCfg->reports_list['performance_reports'] = array( 
+	'title' => 'link_report_performance_reports',
+	'url' => 'gui/templates/results/perfReports.html',
+	'enabled' => 'all',
+	'directLink' => '',
+	'format' => 'format_html'
+);
+
 $tlCfg->reports_list['list_problems'] = array( 
 	'title' => 'link_report_total_bugs',
 	'url' => 'lib/results/resultsBugs.php?type=0',

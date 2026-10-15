@@ -217,6 +217,12 @@ if ($tplan_id > 0) {
                 // Refs #1067: Release Quality Gates / Go-No-Go dashboard.
                 $hrefR = '/gui/templates/results/qualityGate.html' .
                          "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
+            } else if ($rptItem['title'] == 'link_report_performance_reports') {
+                // Refs #1063: Performance Test Reports / JMeter JTL Viewer.
+                // Project-scoped and stateless (upload-driven): the plan id is
+                // forwarded for context but the screen only needs tproject_id.
+                $hrefR = '/gui/templates/results/perfReports.html' .
+                         "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
             } else {
                 $sep = (strpos($rptItem['url'], '?') !== false) ? '&' : '?';
                 $hrefR = $baseHrefR . $rptItem['url'] .

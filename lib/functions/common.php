@@ -2491,6 +2491,15 @@ function getActions(&$gui,$baseURL) {
   // Refs #1568: Metrics & Reports launcher hub (legacy lib/results/resultsNavigator.php)
   $actions->resultsNav = "/gui/templates/results/resultsNavigator.html?{$ctx}";
 
+  // Refs #1063: Performance Test Reports / JMeter JTL Viewer (net-new screen;
+  // 1.9.20 shipped no JMeter/JTL viewer and the schema has no performance
+  // result tables). Project-scoped and STATELESS: the screen uploads a JTL
+  // result log (CSV or XML) to api/perfreports, which parses it in a streaming
+  // fashion and answers a summary + per-label report; testplan_metrics is
+  // enforced on the addressed test project. Reachable from the Reports menu
+  // (cfg/reports.cfg.php entry + api/aside mapping) and via this action.
+  $actions->perfReports = "/gui/templates/results/perfReports.html?{$ctx}";
+
   // Refs #1717: Test Cases not run on any Platform (tcNotRunAnyPlatform)
   // modernized. Refs #1718: the legacy controller
   // (lib/results/tcNotRunAnyPlatform.php, which required the removed

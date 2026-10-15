@@ -2464,6 +2464,7 @@ $TLS_link_report_risk_coverage = "Risk-Based Testing";
 $TLS_reqmgrsystem_interface_not_implemented = "구성 예제를 사용할 수 없습니다: '%s' 인터페이스가 구현되지 않았습니다";
 $TLS_reqmgrsystem_invalid_type = '잘못된 요구 관리 시스템 유형입니다: %s';
 $TLS_link_report_quality_gates = "릴리스 품질 게이트"; // Refs #1067
+$TLS_link_report_performance_reports = "성능 테스트 보고서"; // Refs #1063
 $TLS_title_learn_testing = "테스팅 배우기"; // Learn Testing hub (Refs #1060)
 $TLS_title_accessibility_resources = "접근성 리소스"; // Accessibility Resources hub (Refs #1059)
 $TLS_title_documentation_hub = "문서 허브"; // Documentation hub (Refs #1060)

@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Performance Test Reports</title>
+<!--
+  Performance Test Reports / JMeter JTL Viewer (Refs #1063).
+
+  Net-new Reports-area screen requested by enhancement #1063 (TestLink 1.9.20
+  shipped no JMeter/JTL viewer and the schema has no performance-result tables).
+  The slice is deliberately STATELESS: the user uploads an Apache JMeter JTL
+  result log (CSV or XML), the BFF api/perfreports/index.php parses it in a
+  streaming fashion and this screen renders the summary, the per-label
+  aggregate table and a capped sample table. Nothing is persisted.
+
+  All labels, titles, placeholders and messages are resolved through the
+  client-side TLi18n module (perf.* keys + footers.perfReports), never hardcoded.
+  The BFF returns machine codes only; this screen maps each to a localized
+  state card.
+-->
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; color: #0d3f3c; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.toolbar .spacer { flex: 1 1 auto; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-dark { background: #2f323a; color: #eee; border: 1px solid #444; padding: 7px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+.btn-dark:hover { background: #3a3e48; }
+.btn-teal:disabled, .btn-dark:disabled { opacity: .45; cursor: not-allowed; }
+.panel { margin: 20px 24px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 18px 20px; }
+.panel h3 { font-size: 15px; font-weight: 700; color: #22242a; margin: 0 0 14px 0; }
+.panel h3 i { color: #4ECDC4; margin-right: 8px; }
+.ctx-grid { display: flex; flex-wrap: wrap; gap: 10px 26px; }
+.ctx-item { min-width: 150px; }
+.ctx-item .k { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: .5px; display: block; }
+.ctx-item .v { font-size: 14px; color: #22242a; font-weight: 600; }
+.upload-row { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.upload-row input[type=file] { border: 1px dashed #bbb; border-radius: 6px; padding: 8px 10px; background: #fafafa; font-size: 13px; }
+.upload-hint { font-size: 12px; color: #888; margin-top: 10px; }
+.summary-strip { display: flex; flex-wrap: wrap; gap: 12px; }
+.stat { flex: 1 1 150px; min-width: 130px; background: #f7f9fa; border: 1px solid #e6eaec; border-radius: 6px; padding: 10px 14px; }
+.stat .k { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: .5px; display: block; margin-bottom: 2px; }
+.stat .v { font-size: 18px; color: #22242a; font-weight: 700; }
+.stat.bad .v { color: #e05c5c; }
+.stat.good .v { color: #2f9e44; }
+.state { margin: 20px 24px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 34px 20px; text-align: center; color: #777; font-size: 14px; }
+.state h4 { font-size: 16px; color: #22242a; margin: 0 0 8px 0; }
+.state.warn { border-left: 5px solid #e6b34d; }
+.state.deny { border-left: 5px solid #e05c5c; color: #7a2b2b; }
+.state .code { font-size: 11px; color: #aaa; margin-top: 10px; font-family: monospace; }
+.state .spinner { display: inline-block; width: 18px; height: 18px; margin-right: 8px; vertical-align: -3px; border: 3px solid #4ECDC4; border-top-color: transparent; border-radius: 50%; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.warn-bar { margin: 20px 24px 0; background: #fff5e0; border: 1px solid #f0d9a6; color: #8a6a1f; border-radius: 6px; padding: 10px 16px; font-size: 13px; }
+.table-wrap { margin: 20px 24px; }
+.table-wrap h3 { font-size: 15px; font-weight: 700; color: #22242a; margin: 0 0 12px 0; }
+.table-wrap h3 i { color: #4ECDC4; margin-right: 8px; }
+.table-note { font-size: 12px; color: #888; margin: -6px 0 10px 0; }
+table.dataTable thead th { background: #22242a; color: #fff; font-size: 13px; padding: 10px 14px; }
+table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: middle; }
+table.dataTable tbody tr.total-row { background: #eef7f7; font-weight: 700; }
+.badge-st { display: inline-block; min-width: 22px; padding: 1px 8px; border-radius: 10px; font-size: 11px; font-weight: 700; color: #fff; text-align: center; }
+.badge-st.err { background: #e05c5c; }
+.badge-st.ok { background: #2f9e44; }
+.badge-st.off { background: #b9bec7; color: #333; }
+.mono { font-family: monospace; }
+.dataTables_wrapper .dataTables_paginate .paginate_button.current { background: #4ECDC4 !important; color: #fff !important; border: none !important; }
+.dataTables_wrapper .dataTables_filter input { border: 1px solid #ddd; border-radius: 4px; padding: 4px 8px; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 18px; border-radius: 6px; font-size: 13px; z-index: 2000; display: none; }
+.toast.err { background: #e05c5c; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span data-i18n="perf.title">Performance Test Reports</span>
+  <span class="sub" data-i18n="perf.subtitle">JMeter JTL viewer</span>
+</div>
+
+<div class="toolbar">
+  <button class="btn-teal" id="btnParse" disabled><i class="fa fa-play"></i> <span data-i18n="perf.parse">Parse JTL</span></button>
+  <button class="btn-dark" id="btnRefresh"><i class="fa fa-refresh"></i> <span data-i18n="perf.refresh">Refresh</span></button>
+  <button class="btn-dark" id="btnCsv" disabled><i class="fa fa-download"></i> <span data-i18n="perf.exportCsv">Export CSV</span></button>
+  <span class="spacer"></span>
+  <button class="btn-dark" id="btnClose"><i class="fa fa-times"></i> <span data-i18n="perf.close">Close</span></button>
+</div>
+
+<div id="stateBox"></div>
+
+<div id="report" style="display:none;">
+
+  <div class="panel">
+    <h3><i class="fa fa-info-circle"></i><span data-i18n="perf.contextTitle">Report context</span></h3>
+    <div class="ctx-grid">
+      <div class="ctx-item"><span class="k" data-i18n="perf.ctxProject">Test project</span><span class="v" id="ctxProject">&mdash;</span></div>
+      <div class="ctx-item"><span class="k" data-i18n="perf.ctxLimit">Max file size</span><span class="v" id="ctxLimit">&mdash;</span></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3><i class="fa fa-upload"></i><span data-i18n="perf.uploadTitle">Upload a JMeter JTL result file</span></h3>
+    <div class="upload-row">
+      <input type="file" id="jtlFile" accept=".jtl,.csv,.xml,text/csv,text/xml,application/xml">
+    </div>
+    <div class="upload-hint" data-i18n="perf.uploadHint">Accepted formats: JMeter JTL in CSV or XML form. The file is parsed in memory and never stored.</div>
+  </div>
+
+  <div id="truncWarn" class="warn-bar" style="display:none;">
+    <i class="fa fa-exclamation-triangle"></i> <span data-i18n="perf.truncated">The file held more samples than the viewer limits; the report covers the first samples only.</span>
+  </div>
+
+  <div class="panel" id="summaryPanel" style="display:none;">
+    <h3><i class="fa fa-dashboard"></i><span data-i18n="perf.summaryTitle">Summary</span></h3>
+    <div class="summary-strip" id="summaryStrip"></div>
+  </div>
+
+  <div class="table-wrap" id="labelsWrap" style="display:none;">
+    <h3><i class="fa fa-table"></i><span data-i18n="perf.labelsTitle">Per-label aggregates</span></h3>
+    <table id="tblLabels" class="display" style="width:100%;">
+      <thead>
+        <tr>
+          <th data-i18n="perf.colLabel">Label</th>
+          <th data-i18n="perf.colSamples">Samples</th>
+          <th data-i18n="perf.colErrors">Errors</th>
+          <th data-i18n="perf.colErrorRate">Error %</th>
+          <th data-i18n="perf.colAvg">Avg</th>
+          <th data-i18n="perf.colMin">Min</th>
+          <th data-i18n="perf.colMax">Max</th>
+          <th data-i18n="perf.colP90">P90</th>
+          <th data-i18n="perf.colP95">P95</th>
+          <th data-i18n="perf.colThroughput">Throughput</th>
+          <th data-i18n="perf.colBytes">Bytes</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div class="table-wrap" id="samplesWrap" style="display:none;">
+    <h3><i class="fa fa-list"></i><span data-i18n="perf.samplesTitle">Samples</span></h3>
+    <div class="table-note" id="samplesNote"></div>
+    <table id="tblSamples" class="display" style="width:100%;">
+      <thead>
+        <tr>
+          <th data-i18n="perf.colTs">Timestamp</th>
+          <th data-i18n="perf.colElapsed">Elapsed (ms)</th>
+          <th data-i18n="perf.colLabel">Label</th>
+          <th data-i18n="perf.colResponseCode">Code</th>
+          <th data-i18n="perf.colResponseMessage">Message</th>
+          <th data-i18n="perf.colSuccess">Success</th>
+          <th data-i18n="perf.colBytes">Bytes</th>
+          <th data-i18n="perf.colThread">Thread</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="footer"><span data-i18n="footers.perfReports"></span><span id="localeSwitcher"></span></div>
+<div class="toast" id="toast"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/perfreports/index.php';
+var currentData = null;
+var limits = { max_file_bytes: 0, max_samples: 0 };
+var dtLabels = null;
+var dtSamples = null;
+
+function esc(v) {
+  return String(v === null || v === undefined ? '' : v)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function q(name) {
+  return new URLSearchParams(window.location.search).get(name);
+}
+
+function tprojectId() {
+  var v = q('tproject_id');
+  if (v && /^[0-9]+$/.test(String(v))) { return String(v); }
+  return '';
+}
+
+function fmtBytes(n) {
+  n = parseInt(n, 10) || 0;
+  if (n < 1024) { return n + ' B'; }
+  if (n < 1024 * 1024) { return (n / 1024).toFixed(1) + ' KB'; }
+  return (n / (1024 * 1024)).toFixed(2) + ' MB';
+}
+
+/** Localized label for a BFF failure code -> a state card. */
+function stateFor(code, httpStatus, rawMessage, params) {
+  var map = {
+    not_authenticated:  { cls: 'deny', title: 'perf.deniedTitle',     body: 'perf.deniedBody' },
+    session_expired:    { cls: 'deny', title: 'perf.deniedTitle',     body: 'perf.expiredBody' },
+    no_right:           { cls: 'deny', title: 'perf.deniedTitle',     body: 'perf.noRightBody' },
+    tproject_not_found: { cls: 'warn', title: 'perf.notFoundTitle',   body: 'perf.notFoundBody' },
+    invalid_request:    { cls: 'warn', title: 'perf.badRequestTitle', body: 'perf.badRequestBody' },
+    method_not_allowed: { cls: 'warn', title: 'perf.badRequestTitle', body: 'perf.badRequestBody' },
+    file_too_large:     { cls: 'warn', title: 'perf.fileTooLargeTitle', body: 'perf.fileTooLargeBody' },
+    empty_file:         { cls: 'warn', title: 'perf.emptyFileTitle',  body: 'perf.emptyFileBody' },
+    unparsable_file:    { cls: 'warn', title: 'perf.unparsableTitle', body: 'perf.unparsableBody' },
+    unsupported_format: { cls: 'warn', title: 'perf.unparsableTitle', body: 'perf.unsupportedBody' }
+  };
+  var m = map[code];
+  var detail = '';
+  if (!m) {
+    m = { cls: 'warn', title: 'perf.serverErrorTitle', body: 'perf.serverErrorBody' };
+    // The BFF message is a server-side English string, NOT a bundle key: it must
+    // never be handed to TLi18n.t() bare (that echoes it verbatim on a localized
+    // screen). It is shown as escaped raw detail under the localized sentence.
+    if (rawMessage) { detail = '<div class="code">' + esc(rawMessage) + '</div>'; }
+  }
+  var body = TLi18n.t(m.body, params || { status: httpStatus });
+  return '<div class="state ' + m.cls + '"><h4>' + esc(TLi18n.t(m.title)) + '</h4><div>'
+       + esc(body) + '</div>' + detail
+       + '<div class="code">' + esc(code || ('http_' + httpStatus)) + '</div></div>';
+}
+
+function showState(html) {
+  $('#report').hide();
+  $('#labelsWrap').hide();
+  $('#samplesWrap').hide();
+  $('#stateBox').html(html);
+}
+
+function showLoading() {
+  $('#report').hide();
+  $('#stateBox').html('<div class="state"><div class="spinner"></div>'
+    + esc(TLi18n.t('perf.loading')) + '</div>');
+}
+
+function toast(msg, kind) {
+  var $t = $('#toast');
+  $t.attr('class', 'toast' + (kind ? ' ' + kind : '')).text(msg).fadeIn(180);
+  window.clearTimeout(toast._h);
+  toast._h = window.setTimeout(function () { $t.fadeOut(220); }, 3200);
+}
+
+function init() {
+  showLoading();
+  var params = new URLSearchParams({ action: 'init' });
+  if (tprojectId()) { params.set('tproject_id', tprojectId()); }
+  $.ajax({
+    url: API,
+    method: 'GET',
+    data: params.toString(),
+    dataType: 'json',
+    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+  }).done(function (data) {
+    if (!data || data.status !== 'ok') {
+      showState(stateFor(data && data.code, 200, data && data.message));
+      return;
+    }
+    if (data.limits) { limits = data.limits; }
+    $('#ctxProject').text((data.context && data.context.tproject_name) || '-');
+    $('#ctxLimit').text(fmtBytes(limits.max_file_bytes));
+    $('#stateBox').html('');
+    $('#report').show();
+    $('#summaryPanel').hide();
+    $('#labelsWrap').hide();
+    $('#samplesWrap').hide();
+    $('#truncWarn').hide();
+    $('#btnCsv').prop('disabled', true);
+    $('#btnParse').prop('disabled', false);
+    $('#jtlFile').prop('disabled', false);
+  }).fail(function (xhr) {
+    handleXhrFail(xhr);
+  });
+}
+
+function parseJtl() {
+  var input = document.getElementById('jtlFile');
+  if (!input.files || !input.files.length) {
+    toast(TLi18n.t('perf.noFile'), 'err');
+    return;
+  }
+  showLoading();
+  $('#btnParse').prop('disabled', true);
+  var fd = new FormData();
+  fd.append('jtlFile', input.files[0]);
+  var url = API + '?action=parse' + (tprojectId() ? '&tproject_id=' + encodeURIComponent(tprojectId()) : '');
+  fetch(url, {
+    method: 'POST',
+    body: fd,
+    credentials: 'same-origin',
+    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+  }).then(function (r) {
+    return r.json().then(function (body) { return { status: r.status, body: body }; },
+      function () { return { status: r.status, body: null }; });
+  }).then(function (res) {
+    if (res.status === 401) {
+      var code = (res.body && res.body.code) || 'not_authenticated';
+      if (code === 'session_expired' || code === 'not_authenticated') {
+        window.location.href = '/login.php?note=expired&destination='
+          + encodeURIComponent(window.location.pathname + window.location.search);
+        return;
+      }
+    }
+    if (!res.body || res.body.status !== 'ok') {
+      var code2 = res.body && res.body.code;
+      var params = (code2 === 'file_too_large')
+        ? { limit: fmtBytes(limits.max_file_bytes) } : undefined;
+      showState(stateFor(code2, res.status, res.body && res.body.message, params));
+      $('#btnParse').prop('disabled', false);
+      return;
+    }
+    currentData = res.body;
+    renderReport(res.body);
+  }).catch(function () {
+    showState(stateFor(null, 0, null));
+    $('#btnParse').prop('disabled', false);
+  });
+}
+
+function handleXhrFail(xhr) {
+  var body = null;
+  try { body = JSON.parse(xhr.responseText); } catch (e) { body = null; }
+  if (xhr.status === 401) {
+    var code = (body && body.code) || 'not_authenticated';
+    if (code === 'session_expired' || code === 'not_authenticated') {
+      window.location.href = '/login.php?note=expired&destination='
+        + encodeURIComponent(window.location.pathname + window.location.search);
+      return;
+    }
+  }
+  showState(stateFor(body && body.code, xhr.status, (body && body.message) || null));
+}
+
+function stat(cls, key, value) {
+  return '<div class="stat ' + cls + '"><span class="k">' + esc(TLi18n.t(key)) + '</span>'
+       + '<span class="v">' + esc(value) + '</span></div>';
+}
+
+function renderReport(data) {
+  $('#stateBox').html('');
+  $('#report').show();
+  $('#btnParse').prop('disabled', false);
+
+  if (data.empty || !data.summary) {
+    showState('<div class="state"><h4>' + esc(TLi18n.t('perf.emptyTitle')) + '</h4><div>'
+      + esc(TLi18n.t('perf.emptyBody')) + '</div></div>');
+    // Keep the upload panel reachable after the empty message.
+    $('#report').show();
+    $('#summaryPanel').hide();
+    $('#labelsWrap').hide();
+    $('#samplesWrap').hide();
+    $('#btnCsv').prop('disabled', true);
+    return;
+  }
+
+  var s = data.summary;
+  $('#truncWarn').toggle(!!data.truncated);
+
+  var strip = '';
+  strip += stat('', 'perf.sumSamples', s.samples);
+  strip += stat(s.errors > 0 ? 'bad' : 'good', 'perf.sumErrors', s.errors);
+  strip += stat(s.errors > 0 ? '' : 'good', 'perf.sumSuccessRate', s.success_rate + '%');
+  strip += stat(s.errors > 0 ? 'bad' : '', 'perf.sumErrorRate', s.error_rate + '%');
+  strip += stat('', 'perf.sumAvg', s.avg_elapsed + ' ms');
+  strip += stat('', 'perf.sumMin', s.min_elapsed + ' ms');
+  strip += stat('', 'perf.sumMax', s.max_elapsed + ' ms');
+  strip += stat('', 'perf.sumP90', s.p90 + ' ms');
+  strip += stat('', 'perf.sumP95', s.p95 + ' ms');
+  strip += stat('', 'perf.sumP99', s.p99 + ' ms');
+  strip += stat('', 'perf.sumThroughput', s.throughput + ' ' + TLi18n.t('perf.perSecond'));
+  strip += stat('', 'perf.sumDuration', s.duration_sec + ' ' + TLi18n.t('perf.seconds'));
+  strip += stat('', 'perf.sumBytes', fmtBytes(s.total_bytes));
+  $('#summaryStrip').html(strip);
+  $('#summaryPanel').show();
+
+  renderLabels(data);
+  renderSamples(data);
+  $('#btnCsv').prop('disabled', false);
+}
+
+function renderLabels(data) {
+  var rows = '';
+  var tot = { samples: 0, errors: 0, bytes: 0 };
+  $.each(data.labels, function (i, l) {
+    tot.samples += parseInt(l.samples, 10) || 0;
+    tot.errors += parseInt(l.errors, 10) || 0;
+    tot.bytes += parseInt(l.total_bytes, 10) || 0;
+    rows += '<tr>'
+      + '<td>' + esc(l.label) + '</td>'
+      + '<td>' + (parseInt(l.samples, 10) || 0) + '</td>'
+      + '<td><span class="badge-st ' + ((parseInt(l.errors, 10) || 0) > 0 ? 'err' : 'off') + '">' + (parseInt(l.errors, 10) || 0) + '</span></td>'
+      + '<td>' + (l.error_rate || 0) + '%</td>'
+      + '<td>' + (l.avg || 0) + '</td>'
+      + '<td>' + (l.min || 0) + '</td>'
+      + '<td>' + (l.max || 0) + '</td>'
+      + '<td>' + (l.p90 || 0) + '</td>'
+      + '<td>' + (l.p95 || 0) + '</td>'
+      + '<td>' + (l.throughput || 0) + '</td>'
+      + '<td>' + fmtBytes(l.total_bytes) + '</td>'
+      + '</tr>';
+  });
+  rows += '<tr class="total-row">'
+    + '<td>' + esc(TLi18n.t('perf.totals')) + '</td>'
+    + '<td>' + tot.samples + '</td>'
+    + '<td>' + tot.errors + '</td>'
+    + '<td></td><td></td><td></td><td></td><td></td><td></td><td></td>'
+    + '<td>' + fmtBytes(tot.bytes) + '</td>'
+    + '</tr>';
+
+  if (dtLabels) { dtLabels.destroy(); dtLabels = null; }
+  $('#tblLabels tbody').html(rows);
+  dtLabels = $('#tblLabels').DataTable({ paging: false, info: false, order: [], columnDefs: [{ targets: [3, 4, 5, 6, 7, 8, 9], className: 'dt-right' }] });
+  $('#labelsWrap').show();
+}
+
+function renderSamples(data) {
+  if (!data.samples || !data.samples.length) {
+    $('#samplesWrap').hide();
+    return;
+  }
+  var rows = '';
+  $.each(data.samples, function (i, r) {
+    var ts = (parseInt(r.ts, 10) || 0) > 0 ? new Date(parseInt(r.ts, 10)).toLocaleString() : '-';
+    rows += '<tr>'
+      + '<td>' + esc(ts) + '</td>'
+      + '<td>' + (parseInt(r.elapsed, 10) || 0) + '</td>'
+      + '<td>' + esc(r.label) + '</td>'
+      + '<td class="mono">' + esc(r.response_code) + '</td>'
+      + '<td>' + esc(r.response_message) + '</td>'
+      + '<td><span class="badge-st ' + (parseInt(r.success, 10) ? 'ok' : 'err') + '">'
+        + esc(parseInt(r.success, 10) ? TLi18n.t('perf.yes') : TLi18n.t('perf.no')) + '</span></td>'
+      + '<td>' + fmtBytes(r.bytes) + '</td>'
+      + '<td>' + esc(r.thread) + '</td>'
+      + '</tr>';
+  });
+  if (dtSamples) { dtSamples.destroy(); dtSamples = null; }
+  $('#tblSamples tbody').html(rows);
+  dtSamples = $('#tblSamples').DataTable({ pageLength: 25, lengthChange: false, order: [] });
+  $('#samplesNote').text(TLi18n.t('perf.samplesNote', {
+    shown: data.samples_shown, total: data.samples_total }));
+  $('#samplesWrap').show();
+}
+
+function exportCsv() {
+  if (!currentData || !currentData.labels || !currentData.labels.length) {
+    toast(TLi18n.t('perf.nothingToExport'), 'err');
+    return;
+  }
+  var head = [TLi18n.t('perf.colLabel'), TLi18n.t('perf.colSamples'), TLi18n.t('perf.colErrors'),
+    TLi18n.t('perf.colErrorRate'), TLi18n.t('perf.colAvg'), TLi18n.t('perf.colMin'),
+    TLi18n.t('perf.colMax'), TLi18n.t('perf.colP90'), TLi18n.t('perf.colP95'),
+    TLi18n.t('perf.colThroughput'), TLi18n.t('perf.colBytes')];
+  var cell = function (v) {
+    var t = String(v === null || v === undefined ? '' : v);
+    // Neutralize spreadsheet formula injection (label text is user-controlled).
+    if (/^[=+\-@]/.test(t)) { t = "'" + t; }
+    return /[;"\r\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
+  };
+  var lines = [$.map(head, cell).join(';')];
+  var tSamples = 0, tErrors = 0, tBytes = 0;
+  $.each(currentData.labels, function (i, l) {
+    tSamples += parseInt(l.samples, 10) || 0;
+    tErrors += parseInt(l.errors, 10) || 0;
+    tBytes += parseInt(l.total_bytes, 10) || 0;
+    lines.push($.map([l.label, l.samples, l.errors, (l.error_rate || 0) + '%', l.avg, l.min,
+      l.max, l.p90, l.p95, l.throughput, l.total_bytes], cell).join(';'));
+  });
+  lines.push($.map([TLi18n.t('perf.totals'), tSamples, tErrors, '', '', '', '', '', '', '', tBytes],
+    cell).join(';'));
+  var blob = new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'performance-test-report-tproject-'
+    + ((currentData.context && currentData.context.tproject_id) || 0) + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+  toast(TLi18n.t('perf.csvDone'), 'ok');
+}
+
+$(function () {
+  $('#jtlFile').on('change', function () {
+    $('#btnParse').prop('disabled', !(this.files && this.files.length));
+  });
+  $('#btnParse').on('click', parseJtl);
+  $('#btnRefresh').on('click', init);
+  $('#btnCsv').on('click', exportCsv);
+  $('#btnClose').on('click', function () { window.close(); });
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    init();
+  });
+});
+</script>
+</body>
+</html>

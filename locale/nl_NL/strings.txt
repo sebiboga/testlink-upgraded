@@ -4089,6 +4089,7 @@ $TLS_after_preconditions = 'Na de voorwaarden';
 $TLS_title_test_closure = "Testafsluiting"; // "Test Closure" (Refs #1278)
 $TLS_link_report_risk_coverage = "Risk-Based Testing";
 $TLS_link_report_quality_gates = "Release-kwaliteitspoorten"; // Refs #1067
+$TLS_link_report_performance_reports = "Prestatietestrapporten"; // Refs #1063
 $TLS_title_learn_testing = "Testen leren"; // Learn Testing hub (Refs #1060)
 $TLS_title_accessibility_resources = "Toegankelijkheidsbronnen"; // Accessibility Resources hub (Refs #1059)
 $TLS_title_documentation_hub = "Documentatiehub"; // Documentation hub (Refs #1060)

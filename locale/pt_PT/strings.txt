@@ -4259,6 +4259,7 @@ $TLS_error_self_signup_disabled = 'O registo automático de novos utilizadores e
 $TLS_title_test_closure = "Encerramento de testes"; // "Test Closure" (Refs #1278)
 $TLS_link_report_risk_coverage = "Testes baseados em risco";
 $TLS_link_report_quality_gates = "Portas de qualidade da versão"; // Refs #1067
+$TLS_link_report_performance_reports = "Relatórios de testes de desempenho"; // Refs #1063
 $TLS_title_learn_testing = "Aprender testes"; // Learn Testing hub (Refs #1060)
 $TLS_title_accessibility_resources = "Recursos de acessibilidade"; // Accessibility Resources hub (Refs #1059)
 $TLS_title_documentation_hub = "Central de documentação"; // Documentation hub (Refs #1060)
