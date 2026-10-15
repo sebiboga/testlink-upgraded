@@ -17,6 +17,19 @@ Every screen of the application was ported one-by-one in a screen-compare
   kept for backward compatibility and is progressively retired as each modern
   screen reaches full parity.
 
+- [BUGFIX] - #1828 / #1830: two defects on the modern **Requirement Specification Tree — move & reorder**
+  screen (`gui/templates/requirements/reqTreeReorder.html`). #1828: `Refresh` was not BUSY-gated, so
+  clicking it while an `Apply order` / `Move` POST was in flight started a racing `GET ?action=init`
+  whose late response repainted `ITEMS`/`SAVED` from pre-save data and made the next `Apply order` a
+  silent no-op; `#refreshBtn` is now disabled during `BUSY` (like the save controls) and a monotonic
+  `LOAD_GEN` token ensures only the newest `load()` may commit view state, with a 20 s timeout on both
+  POSTs so a hang can no longer lock the toolbar. #1830: `.rm:disabled { pointer-events: none }`
+  removed the disabled edge arrows from the `:hover` chain, silencing their native `title`
+  ("Already the first/last requirement"); the property is redundant now that the controls are real
+  `<button disabled>` (a disabled button dispatches no click and `nudge()` refuses independently), so
+  it was removed and the tooltip is reachable again. Verified in the browser: tooltip hit-target
+  restored, stale `init` ignored, real reorder round-trips, Event Viewer clean. Refs #1828, #1830.
+
 - [BUGFIX] - #1916: the `tcEdit.php` version-lifecycle post-action render (activate /
   deactivate / create-new-version) no longer pollutes the Event Viewer with 18 `E_WARNING`
   rows per request. Three fields the legacy viewer partials assume present were missing on

@@ -51,7 +51,11 @@ td.rdid { width: 130px; font-weight: 700; color: #22242a; }
 td.act { width: 250px; white-space: nowrap; }
 .rm { display: inline-block; color: #888; font-size: 11px; border: 1px solid #ddd; border-radius: 4px; padding: 3px 7px; margin-right: 4px; cursor: pointer; background: #fafafa; font-family: inherit; font-weight: inherit; line-height: inherit; text-align: center; }
 .rm:hover { color: #4ECDC4; border-color: #4ECDC4; }
-.rm.dis, .rm:disabled { opacity: .35; cursor: not-allowed; pointer-events: none; }
+/* No pointer-events:none here (#1830): a real <button disabled> already dispatches
+   no click (the #1804 guard) and nudge() refuses independently, whereas
+   pointer-events:none removed the button from the :hover chain and silenced the
+   explanatory title ("Already the first/last requirement"). Refs #1804, #1830. */
+.rm.dis, .rm:disabled { opacity: .35; cursor: not-allowed; }
 .rm.dis:hover, .rm:disabled:hover { color: #888; border-color: #ddd; }
 .grip { color: #bbb; cursor: grab; }
 .pickbtn { background: #4ECDC4; color: #fff; border: none; border-radius: 4px; padding: 3px 10px; font-size: 11px; font-weight: 700; cursor: pointer; }
@@ -174,6 +178,10 @@ var PICKED = 0;        // requirement id chosen in the Move card
 var SPECS = [];
 var GRANT = { view: false, modify: false };
 var BUSY = false;
+// Monotonic token for load(): only the newest in-flight init may commit ITEMS,
+// SAVED and the view. Without it a late init (e.g. a Refresh racing a save) can
+// repaint pre-save data over a state a save already advanced. Refs #1828.
+var LOAD_GEN = 0;
 
 // Build the back target from the URL params, or - when they carry none - from
 // the same-origin referrer, SYNCHRONOUSLY and before any API call: the escape
@@ -222,7 +230,12 @@ $(function () {
     TLi18n.initLocaleSwitcher('#localeSwitcher');
     $('#applyBtn').off('click').on('click', applyOrder);
     $('#discardBtn').off('click').on('click', discard);
-    $('#refreshBtn').off('click').on('click', function () { load(true); });
+    $('#refreshBtn').off('click').on('click', function () {
+      // #refreshBtn is BUSY-gated in idleUI(), but guard here too so a
+      // programmatic click can never start an init that races a save. Refs #1828.
+      if (BUSY) { return; }
+      load(true);
+    });
     $('#specChip').off('click').on('click', function () {
       var h = $(this).attr('data-href');
       if (h) { window.open(h, '_blank'); }
@@ -278,6 +291,11 @@ function idleUI() {
   $('#dragHint').toggle(canDrag());
   $('#applyBtn,#moveBtn,#discardBtn').prop('disabled', off);
   $('#targetSel,#posSel,#specSel').prop('disabled', off);
+  // Refresh is gated on BUSY only (#1828): while a reorder/move POST is in
+  // flight an init GET would race it and could repaint pre-save data. Unlike the
+  // save controls it stays usable on the error page (retry) and for a read-only
+  // user (view), so it is deliberately NOT tied to the DEAD/rights `off` term.
+  $('#refreshBtn').prop('disabled', BUSY);
   if (!DEAD && !GRANT.modify) { $('#specSel').prop('disabled', false); }
 }
 
@@ -483,6 +501,9 @@ function fillSpecs(sel) {
 
 function load(keepMsg) {
   if (!keepMsg) { showMsg(true, ''); }
+  // Claim the newest generation FIRST: even the no-context early return below
+  // must supersede an older in-flight load. Refs #1828.
+  var gen = ++LOAD_GEN;
   if (!TPROJECT_ID) {
     showState(t('reqtr.errNoContext'), 'MISSING_TPROJECT');
     return;
@@ -494,6 +515,7 @@ function load(keepMsg) {
     url: url, method: 'GET',
     headers: { 'X-Requested-With': 'XMLHttpRequest' },
     success: function (r) {
+      if (gen !== LOAD_GEN) { return; }   // superseded by a newer load() (#1828)
       hideState();
       if (!r || r.status !== 'ok') { showState(t('reqtr.errGeneric'), 'BAD_PAYLOAD'); return; }
       document.title = t('reqtr.title');
@@ -528,6 +550,7 @@ function load(keepMsg) {
       if (!ITEMS.length) { showMsg(true, t('reqtr.emptySpec')); }
     },
     error: function (xhr) {
+      if (gen !== LOAD_GEN) { return; }   // superseded by a newer load() (#1828)
       var code = '', msg = t('reqtr.errGeneric');
       try {
         var j = JSON.parse(xhr.responseText);
@@ -564,6 +587,9 @@ function sendMove(target, pos) {
     url: API + '?action=move', method: 'POST',
     contentType: 'application/json',
     headers: { 'X-Requested-With': 'XMLHttpRequest' },
+    // A hung POST would leave BUSY=true and lock the whole toolbar (Refresh is
+    // BUSY-gated now), so bound it and let the error path release BUSY. Refs #1828.
+    timeout: 20000,
     data: JSON.stringify({ tproject_id: TPROJECT_ID, node_id: PICKED,
                            new_spec_id: target, position: pos }),
     success: function (r) {
@@ -601,6 +627,8 @@ function sendOrder() {
     url: API + '?action=reorder', method: 'POST',
     contentType: 'application/json',
     headers: { 'X-Requested-With': 'XMLHttpRequest' },
+    // See sendMove(): bound the POST so a hang cannot lock the BUSY-gated toolbar.
+    timeout: 20000,
     data: JSON.stringify({ tproject_id: TPROJECT_ID, req_spec_id: SPEC_ID,
                            nodes_order: ITEMS.map(function (x) { return x.id; }) }),
     success: function (r) {

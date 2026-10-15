@@ -10045,3 +10045,46 @@ substitution.
 **Actual result observed (post-fix):** PASS — `ro_RO` now defines all three keys (matrix 3/3 × 19 locales); the fresh-session repro produced the audit SAVE rows `107`/`108` with **zero** LOCALIZATION rows for the fixed keys. Remaining `LOCALIZATION` rows under `ro_RO` (`audit_cfield_display_order_changed`, `audit_cfield_assigned`, `audit_login_succeeded`, `context_*`, `testsuite`, …) are the normal English fallback for a curated **partial** locale (199 lines vs 4240 in `en_GB`) and are outside #1820's named keys. Event Viewer shows no new Error rows.
 
 **Gate:** `TLU_REQUIRE_SUITE="Issue #1820" bash ai/verify_test_suites.sh` → see run below.
+
+## Regression — Issue #1828: reqTreeReorder #refreshBtn was not BUSY-gated (a late init repainted pre-save ITEMS/SAVED and the next Apply silently no-op'd)
+
+**Screen / area:** Requirements → Requirement Specification Tree — move & reorder (`gui/templates/requirements/reqTreeReorder.html`), Refresh vs in-flight `POST ?action=reorder` / `POST ?action=move`. Refs #1828.
+
+**Precondition:** app at `http://localhost:8082`; fixture `php tmp/fixtures_1681.php` → tproject `TREE1681` (id 2), spec `TR1-SPEC-A` (id 3) with reqs `TR1-1/TR1-2/TR1-3` (ids 7/9/11). Login `admin`/`admin`. Open `…/reqTreeReorder.html?tproject_id=2&req_spec_id=3`.
+
+| # | Step | Input | Expected | Observed | Result |
+|---|---|---|---|---|---|
+| 1 | JS syntax | extract inline `<script>`, `node --check` | no errors | `JS SYNTAX OK` | PASS |
+| 2 | Refresh gated on BUSY | `BUSY=true; idleUI()` | `#refreshBtn` disabled, like apply/move/discard | `refreshDisabled=true, applyDisabled=true, moveDisabled=true, discardDisabled=true` | PASS |
+| 3 | Refresh click during BUSY is a no-op | `refreshBtn.click()` while `BUSY=true` | no new `GET ?action=init` (LOAD_GEN unchanged) | `genBefore=1, afterClickGen=1, refreshClickStartedLoad=false` | PASS |
+| 4 | Refresh re-enabled after BUSY | `BUSY=false; idleUI()` | `#refreshBtn` enabled | `refreshDisabled=false` | PASS |
+| 5 | Stale init ignored (LOAD_GEN) | patch `$.ajax`, `load(true)` ×2, fire the OLDER success with project `STALE`/0 reqs | older response dropped (state unchanged) | `mCount stayed '3', title stayed 'TREE1681', itemsLen 3` | PASS |
+| 6 | Newest init commits | fire the NEWER success with project `FRESH`/1 req | commits | `mCount '1', title FRESH, itemsLen 1` | PASS |
+| 7 | POST timeout bound (anti-lock) | inspect source | both `sendMove`/`sendOrder` carry `timeout: 20000` | 2 matches | PASS |
+| 8 | Timeout releases BUSY | patch `$.ajax`, `sendOrder()`, then invoke `error({status:0})` | BUSY false, toolbar re-enabled | `during.busy=true` → `after.busy=false, refreshDisabled=false, applyDisabled=false` | PASS |
+| 9 | Real reorder round-trip | Down on row 1 → dirty chip → Apply order → modal OK | order TR1-2/TR1-1/TR1-3, "The new order was saved.", chip cleared | saved msg shown; order persisted | PASS |
+| 10 | Refresh after save | click Refresh | re-init, saved order + no dirty chip | `rows=3, order=[TR1-2,TR1-1,TR1-3], dirty=none, refreshDisabled=false` | PASS |
+| 11 | Drag capability intact | inspect rows | `canDrag()` true, rows `draggable=true`, grips present | `canDrag=true, rowDraggable=[true,true,true], grips=[true,true,true]` | PASS |
+| 12 | Console clean | list console messages | no errors | no console messages | PASS |
+| 13 | Event Viewer | `SELECT … FROM events` | no new Error/Warning | only INFO (log_level 16) audit rows | PASS |
+
+**Actual result: 13/13 PASS.** Mandatory code review (subagent) found 0 MAJOR, 2 MINOR + 1 MINOR/NIT applied (POST timeout so the BUSY-gated toolbar can't be locked by a hang; `++LOAD_GEN` moved above the `!TPROJECT_ID` early-return) and flagged the edge-title-on-disabled-button browser dependence (fixed for Chromium, the reported engine). Refs #1828.
+
+## Regression — Issue #1830: reqTreeReorder disabled arrow tooltips were unreachable (`.rm:disabled { pointer-events: none }`)
+
+**Screen / area:** Requirements → Requirement Specification Tree — move & reorder (`gui/templates/requirements/reqTreeReorder.html`), disabled edge arrows (Up/To top on the first row, Down/To bottom on the last). Refs #1830.
+
+**Precondition:** same fixture as above (`tmp/fixtures_1681.php`, tproject 2, spec 3).
+
+| # | Step | Input | Expected | Observed | Result |
+|---|---|---|---|---|---|
+| 1 | pointer-events restored | `getComputedStyle('.rm:disabled').pointerEvents` | `auto` (was `none`) | `auto` | PASS |
+| 2 | Disabled button is the hover hit-target | `document.elementFromPoint(center of the disabled Up button)` | returns the button (so the native `title` bubble renders) | `hit="BUTTON.rm dis", buttonIsHitTarget=true` | PASS |
+| 3 | Tooltip text present | `disabled.title` | `Already the first requirement` | `Already the first requirement` | PASS |
+| 4 | Disabled semantics kept (#1804) | `disabled.disabled`, `aria-disabled` | native disabled true + `aria-disabled=true` | `disabled=true, ariaDisabled=true` | PASS |
+| 5 | No #1804 regression | click a disabled arrow | no dispatch (native `<button disabled>`), `nudge()` refuses | click blocked; no reorder | PASS |
+| 6 | Hover colour neutralized | `.rm:disabled:hover` rule present | disabled keeps grey (specificity (0,3,0)) | rule at `:59` wins over `.rm:hover` | PASS |
+
+**Actual result: 6/6 PASS.** Root cause: `4f074a2b5` (#1804) added `pointer-events: none` while converting the controls to real `<button disabled>`; with the button semantics now real, the property only removed the button from the `:hover` chain and silenced the tooltip. Refs #1830, #1804.
+
+**Gate:** `TLU_REQUIRE_SUITE="Issue #1828" bash ai/verify_test_suites.sh`.
