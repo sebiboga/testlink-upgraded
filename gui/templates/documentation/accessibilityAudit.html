@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title data-i18n="a11yaudit.header">Accessibility Review</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+*{box-sizing:border-box}
+body{background:#f2f2f2;font-family:'Ruda',sans-serif;margin:0;padding:0}
+.header{background:#4ECDC4;color:#fff;padding:14px 24px;font-size:20px;font-weight:700;letter-spacing:1px}
+.header span.sub{font-size:13px;font-weight:400;opacity:.85;margin-left:12px}
+.toolbar{background:#22242a;padding:12px 24px;display:flex;gap:12px;align-items:center}
+.btn-teal{background:#4ECDC4;color:#fff;border:none;padding:7px 18px;border-radius:4px;cursor:pointer;font-size:13px;font-weight:600}
+.btn-teal:hover{background:#3dbdb5}
+.search-box{position:relative;flex:1;max-width:420px}
+.search-box input{width:100%;padding:7px 12px 7px 32px;border-radius:4px;border:1px solid #3a3d45;background:#2c2f36;color:#eee;font-size:13px}
+.search-box i{position:absolute;left:10px;top:9px;color:#888;font-size:13px}
+.section-title{padding:20px 24px 8px 24px;font-size:16px;font-weight:700;color:#22242a}
+.grid{padding:0 24px 10px 24px;display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
+.card{background:#fff;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.08);padding:20px;display:flex;flex-direction:column;transition:box-shadow .2s}
+.card:hover{box-shadow:0 4px 12px rgba(0,0,0,.15)}
+.principle{border-top:4px solid #4ECDC4}
+.card .icon{font-size:32px;color:#4ECDC4;margin-bottom:10px}
+.card .title{font-size:15px;font-weight:700;color:#22242a;margin-bottom:6px}
+.card .desc{font-size:12.5px;color:#777;margin-bottom:12px}
+.list{display:flex;flex-direction:column;gap:10px}
+.item{padding:10px 12px;border:1px solid #eee;border-radius:6px;background:#fafafa}
+.item .row{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+.item .id{font-weight:700;color:#22242a}
+.item .level{font-size:11px;color:#666}
+.badge{display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600}
+.badge.pass{background:#eafaf1;color:#27ae60}
+.badge.partial{background:#fef5e7;color:#d35400}
+.badge.fail{background:#fdeceb;color:#c0392b}
+.badge.manual{background:#f4f6f7;color:#7f8c8d}
+.item .find{font-size:11.5px;color:#555}
+.legend{padding:0 24px 10px 24px;display:flex;gap:12px;flex-wrap:wrap}
+.legend-item{display:flex;gap:6px;align-items:center;font-size:12px;color:#555}
+.related-grid{padding:0 24px 10px 24px;display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+.card .links a,.card .link{text-decoration:none;font-size:13px;color:#2980b9;display:inline-flex;align-items:center;gap:7px}
+.card .links a:hover,.card .link:hover{color:#1c5d8c;text-decoration:underline}
+.footer{padding:12px 24px;color:#888;font-size:12px;border-top:1px solid #ddd;background:#fff;margin-top:16px}
+#feedbackMsg{display:none;margin:14px 24px 0 24px;padding:10px 16px;border-radius:6px;font-size:13px}
+#feedbackMsg.err{display:block;background:#fdeceb;color:#c0392b;border:1px solid #f5c6c2}
+.empty{padding:30px 24px;color:#999;font-size:13px}
+</style>
+</head>
+<body>
+<div class="header">
+  <span data-i18n="a11yaudit.header">Accessibility Review</span>
+  <span class="sub" data-i18n="a11yaudit.headerSub">WCAG 2.2 conformance review of the TestLink UI</span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+<div class="toolbar">
+  <button class="btn-teal" id="refreshBtn"><i class="fa fa-refresh"></i> <span data-i18n="common.refresh">Refresh</span></button>
+  <button class="btn-teal" id="backBtn"><i class="fa fa-arrow-left"></i> <span data-i18n="common.back">Back</span></button>
+  <div class="search-box">
+    <i class="fa fa-search"></i>
+    <input type="text" id="searchBox" data-i18n-placeholder="a11yaudit.searchPlaceholder" placeholder="Search criteria...">
+  </div>
+  <span style="flex:1"></span>
+  <span style="color:#ccc;font-size:12px;" id="metaInfo"></span>
+</div>
+<div id="feedbackMsg"></div>
+<div class="section-title"><i class="fa fa-chart-pie" style="color:#4ECDC4;margin-right:6px;"></i><span data-i18n="a11yaudit.summaryTitle">Summary</span></div>
+<div class="grid" id="summaryGrid"></div>
+<div class="section-title"><i class="fa fa-list-check" style="color:#4ECDC4;margin-right:6px;"></i><span data-i18n="a11yaudit.principlesTitle">Conformance by principle</span></div>
+<div id="principles"></div>
+<div class="section-title"><i class="fa fa-info-circle" style="color:#4ECDC4;margin-right:6px;"></i><span data-i18n="a11yaudit.statusTitle">Legend</span></div>
+<div class="legend">
+  <div class="legend-item"><span class="badge pass">PASS</span><span data-i18n="a11yaudit.legend.pass">Conforms</span></div>
+  <div class="legend-item"><span class="badge partial">PARTIAL</span><span data-i18n="a11yaudit.legend.partial">Partially conforms</span></div>
+  <div class="legend-item"><span class="badge fail">FAIL</span><span data-i18n="a11yaudit.legend.fail">Does not conform</span></div>
+  <div class="legend-item"><span class="badge manual">MANUAL</span><span data-i18n="a11yaudit.legend.manual">Needs manual review</span></div>
+</div>
+<div class="section-title"><i class="fa fa-link" style="color:#4ECDC4;margin-right:6px;"></i><span data-i18n="a11yaudit.relatedTitle">Related in TestLink</span></div>
+<div class="related-grid" id="relatedGrid"></div>
+<div class="empty" id="emptyMsg" style="display:none;" data-i18n="a11yaudit.noResults">No matching criteria.</div>
+<div class="footer"><span data-i18n="footers.accessibilityAudit">TestLink 2.0.1 - Accessibility Review</span></div>
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API='/api/accessibilityaudit/index.php';
+var DATA={meta:{},principles:[],related:[]};
+$(function(){
+  TLi18n.load(function(){
+    TLi18n.apply(); TLi18n.initLocaleSwitcher('#localeSwitcher');
+    load();
+  });
+});
+function showFeedback(k,m){var e=$('#feedbackMsg'); e.attr('class',k).text(m);}
+$(document).on('click','#refreshBtn',function(){load(true);});
+$(document).on('click','#backBtn',function(){window.history.back();});
+$(document).on('input','#searchBox',function(){render();});
+function esc(s){return String(s==null?'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+function load(clear){$.getJSON(API,function(r){if(clear)showFeedback('',''); DATA=r; render(); var m=DATA.meta||{}; var s=TLi18n.t(m.scope||''); $('#metaInfo').html('<span>'+TLi18n.t('a11yaudit.meta.wcagVersion')+': '+esc(m.wcagVersion||'')+'</span> | <span>'+TLi18n.t('a11yaudit.meta.reviewDate')+': '+esc(m.reviewDate||'')+'</span> | <span>'+s+'</span>');}).fail(function(xhr){var msg=TLi18n.t('common.errorLoading'); try{msg=JSON.parse(xhr.responseText).message||msg;}catch(e){} showFeedback('err',msg);});}
+function matches(t,q){if(!q)return true; return String(t||'').toLowerCase().indexOf(q)!==-1;}
+function count(){var p=0,pa=0,f=0,m=0,t=0; $.each(DATA.principles,function(i,pr){$.each(pr.criteria||[],function(j,c){t++; if(c.status==='pass')p++; if(c.status==='partial')pa++; if(c.status==='fail')f++; if(c.status==='manual')m++;});}); return {total:t,pass:p,partial:pa,fail:f,manual:m};}
+function render(){renderSummary(); renderPrinciples(); renderRelated(); $('#emptyMsg').toggle($('#principles').find('.card').length===0 && $('#searchBox').val().trim());}
+function renderSummary(){var c=count(); var g=$('#summaryGrid').empty(); [['total','fa-hashtag'],['pass','fa-check-circle'],['partial','fa-adjust'],['fail','fa-times-circle'],['manual','fa-clipboard-check']].forEach(function(x){var k='a11yaudit.meta.'+x[0]; var card=$('<div class="card principle">').append('<div class="icon"><i class="fa '+x[1]+'"></i></div>').append('<div class="title">'+esc(TLi18n.t(k))+': '+c[x[0]]+'</div>'); g.append(card);});}
+function renderPrinciples(){var q=String($('#searchBox').val()||'').toLowerCase().trim(); var g=$('#principles').empty(); $.each(DATA.principles,function(i,pr){var title=TLi18n.t('a11yaudit.princ.'+pr.id); var crit=(pr.criteria||[]).filter(function(c){if(!q)return true; var txt=title+' '+TLi18n.t('a11yaudit.crit.'+c.id)+' '+TLi18n.t('a11yaudit.find.'+c.id)+' '+c.level+' '+c.status; return matches(txt,q);}); if(q&&crit.length===0)return; var card=$('<div class="card principle"><div class="icon"><i class="'+esc(pr.icon)+'"></i></div><div class="title">'+esc(title)+'</div><div class="list"></div></div>'); var list=card.find('.list'); $.each(crit,function(j,c){var item=$('<div class="item"><div class="row"><span class="id">'+esc(TLi18n.t('a11yaudit.crit.'+c.id))+' <span class="level">('+esc(c.level)+')</span></span><span class="badge '+c.status+'">'+c.status.toUpperCase()+'</span></div><div class="find">'+esc(TLi18n.t('a11yaudit.find.'+c.id))+'</div></div>'); list.append(item);}); g.append(card);});}
+function renderRelated(){var g=$('#relatedGrid').empty(); $.each(DATA.related||[],function(i,r){var label=TLi18n.t(r.labelKey); var ext=r.external===true; var a='<a class="link" href="'+esc(r.href)+'"'+(ext?' target="_blank" rel="noopener noreferrer"':' target="_top"')+'><i class="fa '+(ext?'fa-external-link-alt':'fa-arrow-right')+'"></i> '+esc(label)+'</a>'; var card=$('<div class="card principle"><div class="icon"><i class="fa fa-link"></i></div><div class="title">'+esc(label)+'</div><div class="links">'+a+'</div></div>'); g.append(card);});}
+</script>
+</body>
+</html>
