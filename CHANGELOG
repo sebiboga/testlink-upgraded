@@ -17,6 +17,17 @@ Every screen of the application was ported one-by-one in a screen-compare
   kept for backward compatibility and is progressively retired as each modern
   screen reaches full parity.
 
+- [BUGFIX] - #1834: deleting a requirement specification no longer logs two `E_WARNING
+  foreach() argument must be of type array|object, null given` rows in the Event Viewer
+  (`lib/functions/requirement_mgr.class.php`). `getAllReqVersionIDForReq()` returns `null`
+  (and a `null` per-requirement value) for requirements without versions, and
+  `fetchRowsIntoMap($sql, 'parent_id')` returns `null` when the `GROUP BY` yields no rows;
+  both results are now coerced with `(array)` before iterating, and a latent
+  `current()` on a nullable `fetchRowsIntoMap()` result (a PHP 8.1 `TypeError`)
+  is guarded too. Reproduced by running `tmp/fixtures_1833.php` twice (the second
+  run deletes the first project): two E_WARNINGs per spec deletion, six in the run;
+  after the fix only INFO audit rows remain. Refs #1834, #1833.
+
 - [BUGFIX] - #1838: on the modern **Bug Delete** screen (`gui/templates/execute/bugDelete.html`) the
   bug id was rendered as a dead link for issues already linked to a BTS: the anchor href was built from
   `bug.link_to_bts`, which is the *HTML decoration* of a bug

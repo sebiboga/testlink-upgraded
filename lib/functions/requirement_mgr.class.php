@@ -589,7 +589,9 @@ function update($id,$version_id,$reqdoc_id,$title, $scope, $user_id, $status, $t
              $where['iam_parent'] . ' GROUP BY parent_id';
 
       $rs = $this->db->fetchRowsIntoMap($sql,'parent_id');
-      $rs = current($rs);
+      // fetchRowsIntoMap() returns null for an empty result; current(null) is a
+      // TypeError on PHP 8.1, so coalesce first (Refs #1834).
+      $rs = is_array($rs) ? current($rs) : null;
       if(isset($rs['VQTY']) && $rs['VQTY'] > 1) {
         $action4notify = 'delete_version';
       }  
@@ -651,10 +653,15 @@ function update($id,$version_id,$reqdoc_id,$title, $scope, $user_id, $status, $t
         // Need to get all versions for all requirements
         $doIt = true;
         $reqIDSet = (array)$id;
-        $reqVerSet = $this->getAllReqVersionIDForReq($reqIDSet);
+        // getAllReqVersionIDForReq() returns null (not an empty array) when no
+        // version matches any requirement; coerce before iterating (E_WARNING
+        // on PHP 7.3+, Refs #1834). Its per-requirement value is always an
+        // array (fetchColumnsIntoMap CUMULATIVE), so the inner cast is only
+        // defensive.
+        $reqVerSet = (array)$this->getAllReqVersionIDForReq($reqIDSet);
 
         foreach($reqVerSet as $reqID2Del => $reqVerElem) {
-          foreach($reqVerElem as $ydx => $reqVID2Del) {
+          foreach((array)$reqVerElem as $ydx => $reqVID2Del) {
             $result = $this->attachmentRepository->deleteAttachmentsFor(
             $reqVID2Del,$this->attachmentTableName);
           }
@@ -674,7 +681,9 @@ function update($id,$version_id,$reqdoc_id,$title, $scope, $user_id, $status, $t
              $where['iam_parent'] . ' GROUP BY parent_id';
 
       $rs = $this->db->fetchRowsIntoMap($sql,'parent_id');
-      foreach($rs as $el) {
+      // fetchRowsIntoMap() returns null for an empty result (no GROUP BY rows),
+      // so coalesce before iterating (E_WARNING on PHP 7.3+, Refs #1834).
+      foreach((array)$rs as $el) {
         if(isset($el['VQTY']) && $el['VQTY'] == 1) {
           $target[] = $el['parent_id'];
         }  

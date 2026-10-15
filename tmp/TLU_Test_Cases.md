@@ -10113,3 +10113,23 @@ substitution.
 **Actual result: 12/12 PASS.** Root cause: `link_to_bts` is HTML (`issueTrackerInterface::buildViewBugLink()`), and `esc()` does not escape single quotes, so pasting it into `href="…"` produced a garbage attribute — the link was dead. Fix mirrors #1837 (`safeHttpUrl()` guard; render bug iff `bug_url` is an absolute http(s)/relative URL, else plain `<span>`), and the BFF's no-BTS fallback branch now also emits an explicit `bug_url => ''`. Refs #1838, #1837.
 
 **Gate:** `TLU_REQUIRE_SUITE="Issue #1838" bash ai/verify_test_suites.sh`.
+
+## Regression — Issue #1834: deleting a requirement spec logged two E_WARNING `foreach() … null given` rows (requirement_mgr::delete path)
+
+**Screen / area:** requirement deletion (legacy `lib/functions/requirement_mgr.class.php`, exercised by the modern **Project → Requirement Specification** tree). Refs #1834, #1833.
+
+**Precondition:** app at `http://localhost:8082`; MariaDB reachable. Fixture `php tmp/fixtures_1833.php` → project 35 with 2 specs / 3 requirements; running it a **second time** deletes the previous project through `requirement_mgr`, which is the repro. `events.log_level` 2 = E_WARNING.
+
+| # | Step | Input | Expected | Observed | Result |
+|---|---|---|---|---|---|
+| 1 | Reproduce before fix | run fixture twice, read `events` | two E_WARNINGs (`Line 656`, `Line 677`) | ids 24-29: `foreach() argument must be of type array|object, null given` at 656 & 677 | PASS |
+| 2 | Guard `getAllReqVersionIDForReq()` result | inspect `requirement_mgr.class.php` | coerced | `$reqVerSet = (array)$this->getAllReqVersionIDForReq($reqIDSet);` | PASS |
+| 3 | Guard the per-requirement value | inspect | coerced | inner `foreach((array)$reqVerElem as $ydx => $reqVID2Del)` | PASS |
+| 4 | Guard `fetchRowsIntoMap()` result | inspect | coerced | `foreach((array)$rs as $el)` | PASS |
+| 5 | PHP lint | `php -l lib/functions/requirement_mgr.class.php` | no syntax errors | `No syntax errors detected` | PASS |
+| 6 | Re-run repro after fix | run fixture twice, read only `events` newer than the pre-run max id | no `log_level=2` rows | only `log_level=16` (audit INFO) rows | PASS |
+| 7 | Event Viewer clean | `SELECT … WHERE log_level IN (2,3)` after fix | none new | none | PASS |
+
+**Actual result: 7/7 PASS.** Root cause: `getAllReqVersionIDForReq()` returns `null` for a requirement with no versions, and `fetchRowsIntoMap($sql,'parent_id')` returns `null` for an empty `GROUP BY` result; PHP 7.3+ raises iterating-over-null from warning to E_WARNING (two rows per spec deletion, six in the fixture re-run). Both are pure no-op `(array)` coercions; a latent `current()` on the same nullable `fetchRowsIntoMap()` result (PHP 8.1 `TypeError`) was guarded as well. Refs #1834, #1833.
+
+**Gate:** `TLU_REQUIRE_SUITE="Issue #1834" bash ai/verify_test_suites.sh`.
