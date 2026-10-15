@@ -20,7 +20,7 @@ Every screen of the application was ported one-by-one in a screen-compare
 - [BUGFIX] - #1834: deleting a requirement specification no longer logs two `E_WARNING
   foreach() argument must be of type array|object, null given` rows in the Event Viewer
   (`lib/functions/requirement_mgr.class.php`). `getAllReqVersionIDForReq()` returns `null`
-  (and a `null` per-requirement value) for requirements without versions, and
+  when no version matches a requirement, and
   `fetchRowsIntoMap($sql, 'parent_id')` returns `null` when the `GROUP BY` yields no rows;
   both results are now coerced with `(array)` before iterating, and a latent
   `current()` on a nullable `fetchRowsIntoMap()` result (a PHP 8.1 `TypeError`)
