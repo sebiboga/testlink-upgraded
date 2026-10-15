@@ -77,6 +77,22 @@ No caller changes, no assignment removed. Behavior for instances that *do* have
 `Resolved`/`Closed` is byte-identical; an explicit `cfg->resolvedstatus` override in
 `setResolvedStatusCfg()` still takes precedence.
 
+**Companion hardening (found by the mandated code review).** An empty list must not break the
+DB backend: `jiradbInterface` uses the **base** `issueTrackerInterface::setResolvedStatusCfg()`
+(`:634`), which — unlike the REST/SOAP overrides — never initialized `byCode`. With the fix
+returning `[]`, the `foreach` is skipped and `array_flip($this->resolvedStatus->byCode)` reaches
+`array_flip(null)` → fatal `TypeError` (not caught by `catch(Exception)`). With two `null`-code
+entries this fatal was masked pre-fix, so the guard alone would have converted a warning into an
+HTTP 500 on JIRA-DB integrations. The base method is now hardened identically to
+`jirasoapInterface::setResolvedStatusCfg()`:
+
+```php
+$this->resolvedStatus->byCode = array();
+if( !is_null($statusCfg['status']) ) {
+  foreach ($statusCfg['status'] as $cfx) { ... }
+}
+```
+
 **Alternatives rejected:**
 - *Case-insensitive lookup* — still fails for localized section names (`Terminé`) and would
   silently mis-classify. Rejected.
@@ -108,7 +124,8 @@ total_warnings=0
 | 3 | probe, domain `{Resolved,Closed}` | unchanged 2-entry map | `[{"code":"5",...},{"code":"6",...}]` | PASS |
 | 4 | probe, domain `{Resolved}` | 1 entry, 0 warnings | `[{"code":"5",...}]` | PASS |
 | 5 | static reader census | helper is the only reader | 3 writers, 1 guarded reader | PASS |
-| 6 | `setResolvedStatusCfg()` consumers | no warning when absent | `isset(byCode[code])` → false | PASS |
+| 6 | base `setResolvedStatusCfg()` with empty list (`/tmp/probe_base_resolvedcfg.php`) | no fatal | `byCode=[] byName=[]` (pre-hardening: fatal `TypeError` on `array_flip(null)`) | PASS |
+| 6b | base `setResolvedStatusCfg()` with both statuses | unchanged map | `byCode={"5":"Resolved","6":"Closed"}` | PASS |
 | 7 | Event Viewer | no new Warn row | warning removed at source | PASS |
 | 8 | merge-base gate | exit 0 | 7 PASS / 0 FAIL | PASS |
 
@@ -121,6 +138,7 @@ the warning count (2 → 0) and the map (`[null,null]` → `[]`).
 ## Files changed
 
 - `lib/issuetrackerintegration/jiraCommons.class.php` — guard the `$statusDomain` lookup.
+- `lib/issuetrackerintegration/issueTrackerInterface.class.php` — harden base `setResolvedStatusCfg()` for an empty list.
 - `CHANGELOG` — 2.0.1 BUGFIX line.
 - `tmp/TLU_Test_Cases.md` — regression suite (append-only).
 - `docs/` mirror + this GitHub Wiki page.

@@ -9661,3 +9661,30 @@ result. An explicit `cfg->resolvedstatus` override still wins.
   configurable via `cfg->resolvedstatus` (`setResolvedStatusCfg()`).
 - Same defect class as #1608 (undefined array key → PHP 8 E_WARNING); discovered as a follow-up while
   testing #1914 (see that issue's docs note).
+
+## Regression — Issue #1915 (addendum): base `issueTrackerInterface::setResolvedStatusCfg()` tolerates an empty resolved-status list
+
+**Precondition** — Same base. The mandated code review of the #1915 fix found that
+`jiradbInterface` uses the **base** `issueTrackerInterface::setResolvedStatusCfg()` (`:634`),
+which — unlike the REST/SOAP overrides — never initialized `byCode`. With the guarded helper
+returning `[]`, the `foreach` is skipped and `array_flip($this->resolvedStatus->byCode)` fatals
+on `null`. The base method is hardened (init `byCode = array()` + `is_null` guard, mirroring
+`jirasoapInterface:380`).
+
+**Probe** — `/tmp/probe_base_resolvedcfg.php` instantiates the base without its constructor
+(`newInstanceWithoutConstructor`) and calls `setResolvedStatusCfg()` for an empty and a full list.
+
+| # | Step | Expected / observed | Result |
+|---|---|---|---|
+| TC-1915A-01 | `php -l lib/issuetrackerintegration/issueTrackerInterface.class.php` | `No syntax errors detected` | PASS |
+| TC-1915A-02 | empty `defaultResolvedStatus` list → `setResolvedStatusCfg()` | `byCode=[] byName=[]`, no fatal (pre-hardening: `TypeError: array_flip(): Argument #1 ($array) must be of type array, null given`) | PASS |
+| TC-1915A-03 | full `Resolved`+`Closed` list → `setResolvedStatusCfg()` | `byCode={"5":"Resolved","6":"Closed"} byName={"Resolved":5,"Closed":6}` — unchanged | PASS |
+
+### Test execution
+- [PASS] TC-1915A-01 .. TC-1915A-03 — 3/3 PASS (`php /tmp/probe_base_resolvedcfg.php`).
+- [PASS] The `E_DEPRECATED` lines the probe prints come from the *stub subclass* not declaring
+  `$defaultResolvedStatus` (test artifact), not from the product code.
+
+### Notes
+- Companion change required for correctness, not scope creep: without it the original guard turns a
+  2-warning nuisance into an HTTP 500 on the JIRA-DB integration.

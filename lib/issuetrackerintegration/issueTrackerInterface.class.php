@@ -639,9 +639,18 @@ abstract class issueTrackerInterface
       $statusCfg['status'] = $this->defaultResolvedStatus;
     }
     $this->resolvedStatus = new stdClass();
-    foreach ($statusCfg['status'] as $cfx) {
-      $e = (array)$cfx;
-      $this->resolvedStatus->byCode[$e['code']] = $e['verbose'];
+    // Refs #1915: initialize byCode and tolerate a null/empty status list.
+    // initDefaultResolvedStatus() can legitimately return an empty list when the
+    // JIRA instance names its statuses something other than Resolved/Closed;
+    // without this guard the foreach is skipped and array_flip() fatals on an
+    // undefined byCode. Mirrors jirasoapInterface::setResolvedStatusCfg().
+    $this->resolvedStatus->byCode = array();
+    if( !is_null($statusCfg['status']) )
+    {
+      foreach ($statusCfg['status'] as $cfx) {
+        $e = (array)$cfx;
+        $this->resolvedStatus->byCode[$e['code']] = $e['verbose'];
+      }
     }
     $this->resolvedStatus->byName = array_flip($this->resolvedStatus->byCode);
   }
