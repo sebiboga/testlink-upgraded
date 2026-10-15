@@ -4141,3 +4141,4 @@ $TLS_title_learn_testing = "Apprendre le test"; // Learn Testing hub (Refs #1060
 $TLS_title_accessibility_resources = "Ressources d'accessibilité"; // Accessibility Resources hub (Refs #1059)
 $TLS_title_documentation_hub = "Centre de documentation"; // Documentation hub (Refs #1060)
 $TLS_title_istqb_syllabus = "Programme ISTQB"; // ISTQB Syllabus hub (Refs #1053)
+$TLS_title_accessibility_audit = "Accessibility Review"; // Accessibility Audit / a11y gaps review (Refs #1055)

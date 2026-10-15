@@ -2840,3 +2840,4 @@ $TLS_title_documentation_hub = "Центр документации"; // Documen
 
 $TLS_requirement = "Требование"; // node-type label (Refs #1823)
 $TLS_title_istqb_syllabus = "Программа ISTQB"; // ISTQB Syllabus hub (Refs #1053)
+$TLS_title_accessibility_audit = "Accessibility Review"; // Accessibility Audit / a11y gaps review (Refs #1055)
