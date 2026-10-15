@@ -233,14 +233,20 @@ function stateFor(code, httpStatus, rawMessage, params) {
 }
 
 function showState(html) {
-  $('#report').hide();
+  // Keep the context + upload panels visible (#report) so the user can pick a
+  // different file straight after an error instead of having to hit Refresh.
+  $('#summaryPanel').hide();
   $('#labelsWrap').hide();
   $('#samplesWrap').hide();
+  $('#truncWarn').hide();
   $('#stateBox').html(html);
 }
 
 function showLoading() {
-  $('#report').hide();
+  $('#summaryPanel').hide();
+  $('#labelsWrap').hide();
+  $('#samplesWrap').hide();
+  $('#truncWarn').hide();
   $('#stateBox').html('<div class="state"><div class="spinner"></div>'
     + esc(TLi18n.t('perf.loading')) + '</div>');
 }
