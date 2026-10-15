@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title data-i18n="a11yres.header">Accessibility Resources</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; opacity: .85; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.search-box { position: relative; flex: 1; max-width: 420px; }
+.search-box input { width: 100%; padding: 7px 12px 7px 32px; border-radius: 4px; border: 1px solid #3a3d45; background: #2c2f36; color: #eee; font-size: 13px; }
+.search-box i { position: absolute; left: 10px; top: 9px; color: #888; font-size: 13px; }
+.section-title { padding: 20px 24px 8px 24px; font-size: 16px; font-weight: 700; color: #22242a; }
+.grid { padding: 0 24px 10px 24px; display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+.card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 20px; display: flex; flex-direction: column; transition: box-shadow .2s; }
+.card:hover { box-shadow: 0 4px 12px rgba(0,0,0,.15); }
+.principle { border-top: 4px solid #4ECDC4; }
+.card .icon { font-size: 32px; color: #4ECDC4; margin-bottom: 10px; }
+.card .title { font-size: 15px; font-weight: 700; color: #22242a; margin-bottom: 6px; }
+.card .desc { font-size: 12.5px; color: #777; margin-bottom: 14px; }
+.card .links { margin-top: auto; display: flex; flex-direction: column; gap: 8px; }
+.card .links a, .card .link { text-decoration: none; font-size: 13px; color: #2980b9; display: inline-flex; align-items: center; gap: 7px; }
+.card .links a:hover, .card .link:hover { color: #1c5d8c; text-decoration: underline; }
+.group-card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 20px; border-left: 4px solid #3498db; }
+.group-card .icon { font-size: 28px; color: #3498db; margin-bottom: 10px; }
+.group-card .title { font-size: 15px; font-weight: 700; color: #22242a; margin-bottom: 10px; }
+.group-card .items { display: flex; flex-direction: column; gap: 10px; }
+.group-card .items a { text-decoration: none; font-size: 13px; color: #2980b9; display: flex; flex-direction: column; }
+.group-card .items a:hover { text-decoration: underline; }
+.group-card .items .lbl { font-weight: 600; }
+.group-card .items .desc { font-size: 11.5px; color: #777; margin-top: 2px; }
+.empty { padding: 30px 24px; color: #999; font-size: 13px; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+#feedbackMsg { display:none; margin: 14px 24px 0 24px; padding: 10px 16px; border-radius: 6px; font-size: 13px; }
+#feedbackMsg.err { display:block; background: #fdeceb; color: #c0392b; border: 1px solid #f5c6c2; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span data-i18n="a11yres.header">Accessibility Resources</span>
+  <span class="sub" data-i18n="a11yres.headerSub">learning resources and WCAG references</span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="toolbar">
+  <button class="btn-teal" id="refreshBtn"><i class="fa fa-refresh"></i> <span data-i18n="common.refresh">Refresh</span></button>
+  <div class="search-box">
+    <i class="fa fa-search"></i>
+    <input type="text" id="searchBox" data-i18n-placeholder="a11yres.searchPlaceholder" placeholder="Search accessibility resources...">
+  </div>
+  <span style="flex:1"></span>
+  <span id="footerInfo" style="color:#aaa;font-size:12px;"></span>
+</div>
+
+<div id="feedbackMsg"></div>
+
+<div class="section-title"><i class="fa fa-universal-access" style="color:#4ECDC4;margin-right:6px;"></i><span data-i18n="a11yres.principlesTitle">WCAG at a glance</span></div>
+<div class="grid" id="principlesGrid"></div>
+
+<div class="section-title"><i class="fa fa-bookmark" style="color:#3498db;margin-right:6px;"></i><span data-i18n="a11yres.groupsTitle">Resources</span></div>
+<div class="grid" id="groupsGrid"></div>
+<div class="empty" id="emptyMsg" style="display:none;" data-i18n="a11yres.noResults">No matching resources.</div>
+
+<div class="section-title"><i class="fa fa-external-link-alt" style="color:#4ECDC4;margin-right:6px;"></i><span data-i18n="a11yres.relatedTitle">Related in TestLink</span></div>
+<div class="grid" id="relatedGrid"></div>
+
+<div class="footer" id="footerText"></div>
+<div class="footer"><span data-i18n="footers.accessibilityResources">TestLink 2.0.1 - Accessibility Resources</span></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/accessibilityresources/index.php';
+var DATA = { principles: [], groups: [], related: [] };
+
+$(function() {
+  TLi18n.load(function() {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    load();
+  });
+});
+
+function showFeedback(kind, msg) {
+  var el = $('#feedbackMsg');
+  el.attr('class', kind).text(msg);
+}
+
+$(document).on('click', '#refreshBtn', function() { load(true); });
+$(document).on('input', '#searchBox', function() { render(); });
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function load(clearFeedback) {
+  $.getJSON(API, function(r) {
+    if (clearFeedback) showFeedback('', '');
+    DATA.principles = r.principles || [];
+    DATA.groups = r.groups || [];
+    DATA.related = r.related || [];
+    render();
+    $('#footerText').text(TLi18n.t('common.generatedOn') + ' ' + new Date().toLocaleString());
+  }).fail(function(xhr) {
+    var msg = TLi18n.t('common.errorLoading');
+    try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
+    showFeedback('err', msg);
+  });
+}
+
+function matches(text, q) {
+  if (!q) return true;
+  return String(text || '').toLowerCase().indexOf(q) !== -1;
+}
+
+function render() {
+  var q = String($('#searchBox').val() || '').toLowerCase().trim();
+  renderPrinciples(q);
+  renderGroups(q);
+  renderRelated();
+  $('#emptyMsg').toggle($('#groupsGrid').children().length === 0);
+}
+
+function renderPrinciples(q) {
+  var g = $('#principlesGrid').empty();
+  $.each(DATA.principles, function(i, p) {
+    var title = TLi18n.t('a11yres.princ.' + p.id);
+    var desc = TLi18n.t('a11yres.princ.' + p.id + '.desc');
+    if (q && !matches(title + ' ' + desc, q)) return;
+    var card = $('<div class="card principle">')
+      .append('<div class="icon"><i class="' + esc(p.icon) + '"></i></div>')
+      .append('<div class="title">' + esc(title) + '</div>')
+      .append('<div class="desc">' + esc(desc) + '</div>')
+      .append('<div class="links"><a href="' + esc(p.href) + '" target="_blank" rel="noopener"><i class="fa fa-external-link-alt"></i> ' + TLi18n.t('a11yres.learnMore') + '</a></div>');
+    g.append(card);
+  });
+}
+
+function renderGroups(q) {
+  var g = $('#groupsGrid').empty();
+  $.each(DATA.groups, function(i, grp) {
+    var title = TLi18n.t('a11yres.group.' + grp.id);
+    var items = (grp.items || []).filter(function(it) {
+      if (!q) return true;
+      var txt = TLi18n.t(it.labelKey) + ' ' + TLi18n.t(it.descKey) + ' ' + title;
+      return matches(txt, q);
+    });
+    if (q && items.length === 0) return;
+    var card = $('<div class="group-card">')
+      .append('<div class="icon"><i class="' + esc(grp.icon) + '"></i></div>')
+      .append('<div class="title">' + esc(title) + '</div>');
+    var itemsDiv = $('<div class="items">');
+    $.each(items, function(j, it) {
+      var a = $('<a href="' + esc(it.href) + '" target="_blank" rel="noopener"></a>')
+        .append('<span class="lbl"><i class="fa fa-external-link-alt"></i> ' + esc(TLi18n.t(it.labelKey)) + '</span>')
+        .append('<span class="desc">' + esc(TLi18n.t(it.descKey)) + '</span>');
+      itemsDiv.append(a);
+    });
+    card.append(itemsDiv);
+    g.append(card);
+  });
+}
+
+function renderRelated() {
+  var g = $('#relatedGrid').empty();
+  $.each(DATA.related, function(i, r) {
+    var label = TLi18n.t(r.labelKey);
+    var ext = r.external === true;
+    var a = '<a class="link" href="' + esc(r.href) + '"' +
+      (ext ? ' target="_blank" rel="noopener"' : ' target="_top"') + '>' +
+      '<i class="fa ' + (ext ? 'fa-external-link-alt' : 'fa-arrow-right') + '"></i> ' + esc(label) + '</a>';
+    var card = $('<div class="card principle">')
+      .append('<div class="icon"><i class="fa fa-link"></i></div>')
+      .append('<div class="title">' + esc(label) + '</div>')
+      .append('<div class="links">' + a + '</div>');
+    g.append(card);
+  });
+}
+</script>
+</body>
+</html>
