@@ -4111,7 +4111,8 @@ Plans:
 - Test Plan Management (planView.html) - BFF api/plans (#576).
 - Builds & Releases (buildsView.html) - BFF api/builds (#585, #826-#829,
   #948/#949).
-- Add/Remove Test Cases (planAddTCView.html) - BFF api/plans.
+- Add/Remove Test Cases (planAddTCView.html) - BFF api/plans (#1131 requirement-coverage
+  navigator modes).
 - Set Test Urgency (testUrgency.html) - BFF api/plans.
 - Show Newest TC Versions (showNewestTcVersions.html) - BFF api/plans.
 - Test Plan Milestones (planMilestones.html) - BFF api/milestones.
@@ -8737,6 +8738,16 @@ Changes:
       project tables and added user metrics to the middle section
 
 ## 2.0.1 (in-progress)
+### Gap closed — planAddTC (Add/Remove Test Cases): requirement-coverage navigator modes restored (Fixes #1131)
+- `gui/templates/plans/planAddTCView.html` gains a **Group by** selector (Test suites / Requirement
+  coverage — legacy `setting_testsgroupby`); in coverage mode the left tree shows requirement specs +
+  requirements with `linked/total` covering-TC badges and clicking a node opens its covering test cases
+  as add/remove rows, so a covering TC can be linked straight from the requirement view.
+- `api/plans/index.php`: `/planaddtc/suites?mode=req_coverage` returns the req-spec/requirement tree and
+  `/planaddtc/container&node_type=req|req_spec` resolves covering TCs (`req_coverage.is_active=1`) through
+  the unchanged version/link/executed-qty/custom-field pipeline; node ownership proven via
+  `requirements.srs_id → req_specs.testproject_id` (404 otherwise); `normal` suite path untouched.
+- No new i18n keys (reuses `pnav.groupBy` / `pnav.groupsSuites` / `pnav.groupsReqs` / `pnav.treeHeaderReqs`).
 ### Gap closed — planAddTC (Add/Remove Test Cases): per-TC execution-history + test-spec-design icons restored (Fixes #1130)
 - `gui/templates/plans/planAddTCView.html` now renders, for every test-case row (linked and
   unlinked), the two legacy icons dropped during modernization: an execution-history link

@@ -28,13 +28,16 @@ that already have executions additionally requires `testplan_unlink_executed_tes
 7. [Testing](#7-testing)
 8. [Bugfix — Issue #1909: column alignment for platform-less plans](#8-bugfix--issue-1909-column-alignment-for-platform-less-plans)
 9. [Task — Issue #1130: per-TC execution-history + test-spec-design icons](#9-task--issue-1130-per-tc-execution-history--test-spec-design-icons)
+10. [Task — Issue #1131: requirement-coverage navigator modes](#10-task--issue-1131-requirement-coverage-navigator-modes)
 
 ---
 ## 1. Screen Layout
 * Teal Dashio header: title, subtitle, locale switcher.
 * Toolbar: test project picker, test plan picker (re-inits the whole screen),
-  keyword filter, Refresh button.
-* Left panel — suite tree with **linked/total** deep badges per suite.
+  keyword filter, **Group by** selector (Test suites / Requirement coverage —
+  legacy `setting_testsgroupby`, see §10), Refresh button.
+* Left panel — suite tree with **linked/total** deep badges per suite (or the
+  requirement-coverage tree when Group by = Requirement coverage).
 * Right panel — per-suite table:
   * *ADD*: checkbox; version dropdown (active versions only, newest active
     preselected; inactive versions disabled); platform multi-select when the
@@ -287,3 +290,64 @@ both icon links present on every row; hrefs correct for tcase 10/6/14; computed
 `tmp/TLU_Test_Cases.md` (11/11 PASS). Screenshots:
 `docs/screenshots/issue-1130-plandaddtc-icons.png`, `issue-1130-exechistory.png`,
 `issue-1130-tcview.png`.
+
+---
+
+## 10. Task — Issue #1131: requirement-coverage navigator modes
+
+The legacy navigator had a `setting_testsgroupby` control that switched the left
+tree between the **test suite** hierarchy and the **requirement coverage**
+hierarchy (`lib/functions/tlTestCaseFilterByRequirementControl.class.php:669`,
+tree built by `generateTestReqCoverageTree()`,
+`lib/functions/treeMenu.inc.php:1646`). Clicking a tree node opened the right
+pane through `lib/plan/planAddTC.php` with `item_level=reqcoverage` (a single
+requirement) or `item_level=reqspeccoverage` (a whole requirement spec). The
+modern workframe had dropped this — its tree was suites-only and the
+`/planaddtc/container` route 404'd on non-suite containers.
+
+Screenshot: `docs/screenshots/issue-1131-reqnav-coverage.png`.
+
+### Behavior
+* **Group by** selector in the toolbar: *Test suites* (default) /
+  *Requirement coverage*. Reuses the existing i18n keys `pnav.groupBy`,
+  `pnav.groupsSuites`, `pnav.groupsReqs`, `pnav.treeHeaderReqs` (present in all
+  10 bundles — no new keys, no hardcoded strings).
+* In coverage mode the left panel renders requirement specs as parent nodes and
+  their requirements as indented leaves; both show `linked/total`, where
+  *total* is the number of DISTINCT test cases covering the node
+  (`req_coverage.is_active = 1`) and *linked* is how many of those are already
+  linked into the selected test plan.
+* Clicking a **requirement** (`node_type=req`) shows its covering test cases;
+  clicking a **requirement spec** (`node_type=req_spec`) shows the union of the
+  covering test cases of all its requirements. Linked ones render as today;
+  unlinked ones render as add-rows, so a test case that covers a requirement can
+  be linked straight from the requirement view — and the tree counts refresh
+  after saving. The keyword filter and the mode selection persist.
+
+### REST API
+* `GET /planaddtc/suites?tproject_id=&tplan_id=[&mode=normal|req_coverage]`
+  — with `mode=req_coverage` returns
+  `{status, mode:"req_coverage", items:[{id,name,doc_id,parent_id,node_type:"req_spec",total_qty,linked_qty,deep_total_qty,deep_linked_qty,req_count,requirements:[{id,name,doc_id,total_qty,linked_qty,covered}]}]}`.
+* `GET /planaddtc/container?tproject_id=&tplan_id=&container_id=&mode=req_coverage&node_type=req|req_spec`
+  — resolves the covering test cases via `req_coverage` and returns the **same
+  item shape** as a suite container (`container.node_type`, `mode`, `items`,
+  `platforms`, `rights`, `has_custom_fields`), so the entire version / link /
+  executed-qty / custom-field pipeline is reused unchanged. A node that does not
+  belong to the addressed project is rejected with 404.
+* Ownership of a requirement/spec node is proven against the addressed project
+  (`requirements.srs_id → req_specs.testproject_id`); the `normal` suite path is
+  untouched.
+
+### Verification
+Fixture `php tmp/fixtures_1572.php` (tproject NAV1572, plan 20, spec RS-NAV 22,
+reqs 24/26; `req_coverage` req1→tcA1, req2→tcB1; plan links A1/B1/B2):
+* `mode=req_coverage` → spec `2/2`, REQ-NAV-1 `1/1`, REQ-NAV-2 `1/1`.
+* `container node_type=req id=24` → `Alpha One` linked; `node_type=req_spec id=22`
+  → `Alpha One` + `Beta One`.
+* With an extra unlinked covering row (req2→tcA2), opening REQ-NAV-2 showed
+  `Alpha Two` as *not linked*; ticking it and **Save changes** returned
+  `1 link(s) added, 0 removed`, the row became *linked* and the tree updated to
+  `REQ-NAV-2 2/2`, spec `3/3`.
+* Regression: Group by = Test suites → `Suite A 1/3`, `Suite B 2/2`, `Suite A1 0/1`.
+* Console clean; Event Viewer only audit rows. Test suite **Task — Issue #1131**
+  appended to `tmp/TLU_Test_Cases.md` (11/11 PASS).

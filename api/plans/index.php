@@ -697,6 +697,181 @@ function planAddTcNodeTypes($db) {
     return $cache;
 }
 
+// Issue #1131: requirement coverage tree for the add/remove navigator.
+// req specs are the parent nodes, requirements the leaves; each carries
+// total_qty = DISTINCT covering test cases (req_coverage.is_active = 1) and
+// linked_qty = how many of those are linked into $tplan_id.
+function planAddTcReqTree(&$db, $tproject_id, $tplan_id) {
+    $TLT = tlObject::getDBTables();
+    $nh = $TLT['nodes_hierarchy'];
+    $rs = $TLT['req_specs'];
+    $rc = $TLT['req_coverage'];
+    $tpv = $TLT['testplan_tcversions'];
+    $reqTable = $TLT['requirements'];
+
+    $sql = "SELECT RS.id, RS.doc_id, NH.name, NH.parent_id, NH.node_order " .
+        " FROM {$rs} RS JOIN {$nh} NH ON NH.id = RS.id " .
+        " WHERE RS.testproject_id = {$tproject_id} " .
+        " ORDER BY NH.parent_id, NH.node_order, NH.name";
+    $specRows = $db->fetchRowsIntoMap($sql, 'id');
+    if (is_null($specRows) || count($specRows) === 0) {
+        return [];
+    }
+    $specIds = implode(',', array_map('intval', array_keys($specRows)));
+
+    // requirements hanging off these specs
+    $sql = "SELECT REQ.id, REQ.srs_id, REQ.req_doc_id, NH.name, NH.node_order " .
+        " FROM {$reqTable} REQ JOIN {$nh} NH ON NH.id = REQ.id " .
+        " WHERE REQ.srs_id IN ({$specIds}) " .
+        " ORDER BY NH.parent_id, NH.node_order, NH.name";
+    $reqRows = $db->fetchRowsIntoMap($sql, 'id');
+    $reqBySpec = [];
+    $allReqIds = [];
+    if (!is_null($reqRows)) {
+        foreach ($reqRows as $rid => $r) {
+            $rid = intval($rid);
+            $reqBySpec[intval($r['srs_id'])][] = $rid;
+            $allReqIds[] = $rid;
+        }
+    }
+
+    // per-requirement + per-spec covering / linked test case counts
+    $reqCov = [];
+    $specCov = [];
+    if (count($allReqIds) > 0) {
+        $ridList = implode(',', $allReqIds);
+        $planV = "(SELECT DISTINCT tcversion_id FROM {$tpv} " .
+            " WHERE testplan_id = {$tplan_id})";
+        $sql = "SELECT RC.req_id, " .
+            " COUNT(DISTINCT RC.testcase_id) AS total_qty, " .
+            " COUNT(DISTINCT CASE WHEN PV.tcversion_id IS NOT NULL " .
+            "   THEN RC.testcase_id END) AS linked_qty " .
+            " FROM {$rc} RC " .
+            " LEFT JOIN {$planV} PV ON PV.tcversion_id = RC.tcversion_id " .
+            " WHERE RC.req_id IN ({$ridList}) AND RC.is_active = 1 " .
+            " GROUP BY RC.req_id";
+        $rows = $db->fetchRowsIntoMap($sql, 'req_id');
+        if (!is_null($rows)) {
+            foreach ($rows as $rid => $r) {
+                $reqCov[intval($rid)] = [
+                    'total_qty' => intval($r['total_qty']),
+                    'linked_qty' => intval($r['linked_qty']),
+                ];
+            }
+        }
+        // spec aggregates across every requirement of the spec (distinct TCs)
+        $sql = "SELECT REQ.srs_id, " .
+            " COUNT(DISTINCT RC.testcase_id) AS total_qty, " .
+            " COUNT(DISTINCT CASE WHEN PV.tcversion_id IS NOT NULL " .
+            "   THEN RC.testcase_id END) AS linked_qty " .
+            " FROM {$rc} RC " .
+            " JOIN {$reqTable} REQ ON REQ.id = RC.req_id " .
+            " LEFT JOIN {$planV} PV ON PV.tcversion_id = RC.tcversion_id " .
+            " WHERE RC.req_id IN ({$ridList}) AND RC.is_active = 1 " .
+            " GROUP BY REQ.srs_id";
+        $rows = $db->fetchRowsIntoMap($sql, 'srs_id');
+        if (!is_null($rows)) {
+            foreach ($rows as $sid => $r) {
+                $specCov[intval($sid)] = [
+                    'total_qty' => intval($r['total_qty']),
+                    'linked_qty' => intval($r['linked_qty']),
+                ];
+            }
+        }
+    }
+
+    $items = [];
+    foreach ($specRows as $sid => $s) {
+        $sid = intval($sid);
+        $leafReqs = [];
+        foreach ($reqBySpec[$sid] ?? [] as $rid) {
+            $r = $reqRows[$rid];
+            $c = $reqCov[$rid] ?? ['total_qty' => 0, 'linked_qty' => 0];
+            $leafReqs[] = [
+                'id' => $rid,
+                'name' => (string)$r['name'],
+                'doc_id' => (string)$r['req_doc_id'],
+                'total_qty' => $c['total_qty'],
+                'linked_qty' => $c['linked_qty'],
+                'covered' => $c['linked_qty'] > 0,
+            ];
+        }
+        $sc = $specCov[$sid] ?? ['total_qty' => 0, 'linked_qty' => 0];
+        $items[] = [
+            'id' => $sid,
+            'name' => (string)$s['name'],
+            'doc_id' => (string)$s['doc_id'],
+            'parent_id' => intval($s['parent_id']),
+            'node_type' => 'req_spec',
+            'total_qty' => $sc['total_qty'],
+            'linked_qty' => $sc['linked_qty'],
+            'deep_total_qty' => $sc['total_qty'],
+            'deep_linked_qty' => $sc['linked_qty'],
+            'req_count' => count($leafReqs),
+            'requirements' => $leafReqs,
+        ];
+    }
+    return $items;
+}
+
+// Issue #1131: ownership + name of a requirement / requirement-spec container
+// addressed by /planaddtc/container when mode=req_coverage. Returns null when
+// the node does not exist or does not belong to $tproject_id.
+function planAddTcReqContainer(&$db, $container_id, $node_type, $tproject_id) {
+    $TLT = tlObject::getDBTables();
+    $nh = $TLT['nodes_hierarchy'];
+    $rs = $TLT['req_specs'];
+    $reqTable = $TLT['requirements'];
+    if ($node_type === 'req_spec') {
+        $row = $db->fetchRowsIntoMap("SELECT NH.name, RS.testproject_id " .
+            " FROM {$rs} RS JOIN {$nh} NH ON NH.id = RS.id " .
+            " WHERE RS.id = {$container_id}", 'name');
+        if (is_null($row) || count($row) === 0) {
+            return null;
+        }
+        $r = reset($row);
+        if (intval($r['testproject_id']) != $tproject_id) {
+            return null;
+        }
+        return ['name' => (string)$r['name'], 'kind' => 'req_spec'];
+    }
+    // requirement
+    $row = $db->fetchRowsIntoMap("SELECT NH.name, RS.testproject_id, REQ.req_doc_id " .
+        " FROM {$reqTable} REQ " .
+        " JOIN {$nh} NH ON NH.id = REQ.id " .
+        " JOIN {$rs} RS ON RS.id = REQ.srs_id " .
+        " WHERE REQ.id = {$container_id}", 'name');
+    if (is_null($row) || count($row) === 0) {
+        return null;
+    }
+    $r = reset($row);
+    if (intval($r['testproject_id']) != $tproject_id) {
+        return null;
+    }
+    return ['name' => (string)$r['name'], 'kind' => 'req'];
+}
+
+// Test cases covering a requirement (node_type=req) or every requirement of a
+// spec (node_type=req_spec), via req_coverage.is_active = 1. Returns
+// [ [tc_id, name, node_order], ... ] scoped to the addressed project.
+function planAddTcReqTcIds(&$db, $container_id, $node_type, $tproject_id) {
+    $TLT = tlObject::getDBTables();
+    $nh = $TLT['nodes_hierarchy'];
+    $rc = $TLT['req_coverage'];
+    $reqTable = $TLT['requirements'];
+    $nt = planAddTcNodeTypes($db);
+    $where = $node_type === 'req_spec'
+        ? "RC.req_id IN (SELECT id FROM {$reqTable} WHERE srs_id = {$container_id})"
+        : "RC.req_id = {$container_id}";
+    $sql = "SELECT DISTINCT NHTC.id AS tc_id, NHTC.name, NHTC.node_order " .
+        " FROM {$rc} RC " .
+        " JOIN {$nh} NHTC ON NHTC.id = RC.testcase_id " .
+        " WHERE {$where} AND RC.is_active = 1 " .
+        " AND NHTC.node_type_id = {$nt['testcase']} " .
+        " ORDER BY NHTC.node_order, NHTC.name";
+    return $db->fetchRowsIntoMap($sql, 'tc_id');
+}
+
 // ---------------------------------------------------------------------------
 // GET /planaddtc/init?tproject_id=N[&tplan_id=M]
 // picker data: accessible plans + rights + keyword/platform sets
@@ -825,6 +1000,16 @@ if ($method === 'GET' && count($segments) === 2 &&
     if (!planAddTcRights($user, $db, $tproject_id, $tplan_id)['canPlan']) {
         http_response_code(403);
         out(['status' => 'error', 'message' => 'No permission']);
+    }
+    // Issue #1131: requirement-coverage navigator mode (legacy
+    // setting_testsgroupby = mode_req_coverage). Returns the req-spec subtree
+    // of the project with, per requirement/spec, how many test cases cover it
+    // (total_qty) and how many of those are linked into this test plan
+    // (linked_qty). Same shape the read-only hub (/plannav/reqs) exposes.
+    $mode = trim((string)getParam('mode', 'normal'));
+    if ($mode === 'req_coverage' || $mode === 'req_spec_coverage') {
+        out(['status' => 'ok', 'mode' => 'req_coverage',
+             'items' => planAddTcReqTree($db, $tproject_id, $tplan_id)]);
     }
     $nt = planAddTcNodeTypes($db);
     $TLT = tlObject::getDBTables();
@@ -960,30 +1145,6 @@ if ($method === 'GET' && count($segments) === 2 &&
         http_response_code(400);
         out(['status' => 'error', 'message' => 'Invalid container id']);
     }
-    $node = $db->fetchRowsIntoMap("SELECT id, name, parent_id, node_type_id " .
-        "FROM {$nh} WHERE id = {$container_id}", 'id');
-    if (is_null($node) ||
-        intval($node[$container_id]['node_type_id']) != $nt['testsuite']) {
-        http_response_code(404);
-        out(['status' => 'error', 'message' => 'Test suite not found']);
-    }
-    // ownership: walk parents up to the project root
-    $walker = intval($node[$container_id]['parent_id']);
-    $owned = false;
-    while ($walker > 0) {
-        if ($walker == $tproject_id) {
-            $owned = true;
-            break;
-        }
-        $rowP = $db->fetchRowsIntoMap(
-            "SELECT parent_id FROM {$nh} WHERE id = {$walker}", 'parent_id');
-        $keys = array_keys((array)$rowP);
-        $walker = count($keys) ? intval($keys[0]) : 0;
-    }
-    if (!$owned) {
-        http_response_code(403);
-        out(['status' => 'error', 'message' => 'Suite not in this project']);
-    }
 
     $kwList = planAddTcKeywordList();
     $kwJoin = $kwList !== '' ?
@@ -991,13 +1152,73 @@ if ($method === 'GET' && count($segments) === 2 &&
         " ON TK.testcase_id = NHTC.id " .
         " AND TK.keyword_id IN ({$kwList}) " : "";
 
-    // direct child test cases
-    $sql = "SELECT NHTC.id AS tc_id, NHTC.name, NHTC.node_order " .
-        " FROM {$nh} NHTC {$kwJoin} " .
-        " WHERE NHTC.node_type_id = {$nt['testcase']} " .
-        " AND NHTC.parent_id = {$container_id} " .
-        " ORDER BY NHTC.node_order, NHTC.name";
-    $tcRows = $db->fetchRowsIntoMap($sql, 'tc_id');
+    // Issue #1131: requirement-coverage mode. The container is a requirement
+    // (node_type=req / legacy item_level=reqcoverage) or a requirement spec
+    // (node_type=req_spec / legacy item_level=reqspeccoverage). The test cases
+    // shown are the ones covering that node through req_coverage, with their
+    // plan link state resolved by the shared block below.
+    $nodeType = trim((string)getParam('node_type', 'suite'));
+    if ($nodeType !== 'req' && $nodeType !== 'req_spec') {
+        $nodeType = 'suite';
+    }
+    $containerName = '';
+    if ($nodeType === 'req' || $nodeType === 'req_spec') {
+        $own = planAddTcReqContainer($db, $container_id, $nodeType, $tproject_id);
+        if (is_null($own)) {
+            http_response_code(404);
+            out(['status' => 'error', 'message' => 'Requirement container not found']);
+        }
+        $containerName = $own['name'];
+        $tcRows = planAddTcReqTcIds($db, $container_id, $nodeType, $tproject_id);
+        if (!is_null($tcRows) && count($tcRows) > 0 && $kwList !== '') {
+            // Issue #1131: the navigator keyword filter applies to the covering
+            // test cases exactly as it does in the suites tree.
+            $idList = implode(',', array_map('intval', array_keys($tcRows)));
+            $keep = $db->fetchRowsIntoMap("SELECT DISTINCT NHTC.id AS tc_id " .
+                " FROM {$nh} NHTC {$kwJoin} " .
+                " WHERE NHTC.id IN ({$idList})", 'tc_id');
+            $keepIds = is_null($keep) ? [] : array_map('intval', array_keys($keep));
+            foreach (array_keys($tcRows) as $tid) {
+                if (!in_array(intval($tid), $keepIds, true)) {
+                    unset($tcRows[$tid]);
+                }
+            }
+        }
+    } else {
+        $node = $db->fetchRowsIntoMap("SELECT id, name, parent_id, node_type_id " .
+            "FROM {$nh} WHERE id = {$container_id}", 'id');
+        if (is_null($node) ||
+            intval($node[$container_id]['node_type_id']) != $nt['testsuite']) {
+            http_response_code(404);
+            out(['status' => 'error', 'message' => 'Test suite not found']);
+        }
+        // ownership: walk parents up to the project root
+        $walker = intval($node[$container_id]['parent_id']);
+        $owned = false;
+        while ($walker > 0) {
+            if ($walker == $tproject_id) {
+                $owned = true;
+                break;
+            }
+            $rowP = $db->fetchRowsIntoMap(
+                "SELECT parent_id FROM {$nh} WHERE id = {$walker}", 'parent_id');
+            $keys = array_keys((array)$rowP);
+            $walker = count($keys) ? intval($keys[0]) : 0;
+        }
+        if (!$owned) {
+            http_response_code(403);
+            out(['status' => 'error', 'message' => 'Suite not in this project']);
+        }
+        $containerName = (string)$node[$container_id]['name'];
+
+        // direct child test cases
+        $sql = "SELECT NHTC.id AS tc_id, NHTC.name, NHTC.node_order " .
+            " FROM {$nh} NHTC {$kwJoin} " .
+            " WHERE NHTC.node_type_id = {$nt['testcase']} " .
+            " AND NHTC.parent_id = {$container_id} " .
+            " ORDER BY NHTC.node_order, NHTC.name";
+        $tcRows = $db->fetchRowsIntoMap($sql, 'tc_id');
+    }
     $items = [];
     $tcIds = [];
     $hasCustomFields = false;
@@ -1171,8 +1392,10 @@ if ($method === 'GET' && count($segments) === 2 &&
         'status' => 'ok',
         'container' => [
             'id' => $container_id,
-            'name' => (string)$node[$container_id]['name'],
+            'name' => $containerName,
+            'node_type' => $nodeType,
         ],
+        'mode' => ($nodeType === 'suite' ? 'normal' : 'req_coverage'),
         'items' => $items,
         'platforms' => $platforms,
         'rights' => $rights,

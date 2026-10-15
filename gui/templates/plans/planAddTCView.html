@@ -26,6 +26,9 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 .tree li { padding: 7px 14px; cursor: pointer; display: flex; justify-content: space-between; gap: 8px; font-size: 13px; border-left: 3px solid transparent; }
 .tree li:hover { background: #f4fbfa; }
 .tree li.sel { background: #e8f8f7; border-left-color: #4ECDC4; font-weight: 700; color: #2d8e88; }
+/* Issue #1131: requirement leaves are nested under their requirement spec. */
+.tree li.child { padding-left: 30px; position: relative; }
+.tree li.child:before { content: '\2937'; position: absolute; left: 12px; color: #bbb; font-size: 12px; }
 .tree .lname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .badge-qty { background: #eee; color: #555; border-radius: 10px; padding: 1px 8px; font-size: 11px; white-space: nowrap; }
 .badge-qty .lnk { color: #23756f; font-weight: 700; }
@@ -105,6 +108,14 @@ tr.cf-row textarea { vertical-align: top; }
   <select id="tplanSel"></select>
   <label for="kwSel" data-i18n="paddtc.keywordFilter">Keyword filter</label>
   <select id="kwSel"></select>
+  <!-- Issue #1131: legacy setting_testsgroupby navigator control. Switches the
+       left tree between the test suite subtree and the requirement coverage
+       tree (req specs / requirements). -->
+  <label for="groupBySel" data-i18n="pnav.groupBy">Group by</label>
+  <select id="groupBySel">
+    <option value="normal" data-i18n="pnav.groupsSuites">Test suites</option>
+    <option value="req_coverage" data-i18n="pnav.groupsReqs">Requirement coverage</option>
+  </select>
   <span style="flex:1"></span>
   <button class="btn-dark" id="btnReload"><i class="fas fa-sync-alt"></i> <span data-i18n="common.refresh">Refresh</span></button>
 </div>
@@ -113,7 +124,7 @@ tr.cf-row textarea { vertical-align: top; }
 
 <div class="layout" id="mainLayout" style="display:none">
   <div class="panel-suites">
-    <h3><i class="fas fa-folder-tree"></i> <span data-i18n="paddtc.suites">Test Suites</span></h3>
+    <h3><i class="fas fa-folder-tree" id="treeIcon"></i> <span id="treeHeader" data-i18n="paddtc.suites">Test Suites</span></h3>
     <div id="suitesEmpty" class="empty" style="display:none" data-i18n="paddtc.noSuites">No test suites in this test project yet</div>
     <ul class="tree" id="suiteTree"></ul>
   </div>
@@ -197,6 +208,7 @@ var API = '/api/plans/index.php';
 var tprojectId = parseInt(new URLSearchParams(location.search).get('tproject_id') || '0', 10);
 var INIT = null;
 var curSuiteId = 0;
+var curNodeType = 'suite';
 var CONTAINER = null;
 
 function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
@@ -239,7 +251,11 @@ $(function(){
   $('#tplanSel').on('change', function(){ planChanged(); });
   $('#kwSel').on('change', loadSuites);
   $('#chkAllAdd').on('change', function(){ $('input.addchk').prop('checked', $(this).is(':checked')); });
-  $('#suiteTree').on('click','li[data-suite]',function(){ openSuite(parseInt(this.getAttribute('data-suite'),10)); });
+  $('#suiteTree').on('click','li[data-suite]',function(){ openContainer(parseInt(this.getAttribute('data-suite'),10),'suite'); });
+  // Issue #1131: requirement-coverage tree nodes (req specs + requirements).
+  $('#suiteTree').on('click','li[data-reqspec]',function(){ openContainer(parseInt(this.getAttribute('data-reqspec'),10),'req_spec'); });
+  $('#suiteTree').on('click','li[data-req]',function(){ openContainer(parseInt(this.getAttribute('data-req'),10),'req'); });
+  $('#groupBySel').on('change', function(){ curSuiteId=0; loadSuites(); });
   $('#btnSave').on('click', doSave);
   $('#btnReorder').on('click', doReorder);
   $('#btnSaveCF').on('click', doSaveCustomFields);
@@ -346,10 +362,19 @@ function kwParam(){
   return $('#kwSel').val() ? '&keyword_id='+encodeURIComponent($('#kwSel').val()) : '';
 }
 
+// Issue #1131: the navigator has two grouping modes (legacy setting_testsgroupby):
+//   normal       -> the test suite subtree
+//   req_coverage -> requirement coverage tree (req specs + requirements)
+function groupMode(){ return $('#groupBySel').val()==='req_coverage' ? 'req_coverage' : 'normal'; }
+function modeParam(){ return groupMode()==='req_coverage' ? '&mode=req_coverage' : ''; }
+
 function loadSuites(){
   var pid = currentPlanId();
   if(pid<=0){ return; }
-  $.getJSON(API + '/planaddtc/suites?tproject_id='+tprojectId+'&tplan_id='+pid+kwParam())
+  var g=groupMode();
+  $('#treeHeader').text(g==='req_coverage' ? TLi18n.t('pnav.treeHeaderReqs') : TLi18n.t('paddtc.suites'));
+  $('#treeIcon').attr('class', g==='req_coverage' ? 'fas fa-diagram-project' : 'fas fa-folder-tree');
+  $.getJSON(API + '/planaddtc/suites?tproject_id='+tprojectId+'&tplan_id='+pid+modeParam()+kwParam())
     .done(function(r){
       if(r.status!=='ok'){ return; }
       renderSuites(r.items||[]);
@@ -359,31 +384,66 @@ function loadSuites(){
 
 function renderSuites(items){
   var $tree=$('#suiteTree').empty();
-  $('#suitesEmpty').toggle(items.length===0);
-  items.forEach(function(s){
-    var $li=$('<li>').attr('data-suite',s.id)
-      .append($('<span class="lname">').text(s.name))
-      .append($('<span class="badge-qty">')
-        .append($('<span class="lnk">').text(s.deep_linked_qty))
-        .append(document.createTextNode('/'+s.deep_total_qty)));
-    $tree.append($li);
-  });
+  var g=groupMode();
+  $('#suitesEmpty').text(TLi18n.t(g==='req_coverage'?'printReq.emptyTree':'paddtc.noSuites')).toggle(items.length===0);
+  if(g==='req_coverage'){
+    items.forEach(function(sp){
+      $tree.append($('<li>').attr('data-reqspec',sp.id)
+        .append($('<span class="lname">').text((sp.doc_id?sp.doc_id+': ':'')+sp.name))
+        .append($('<span class="badge-qty">')
+          .append($('<span class="lnk">').text(sp.linked_qty))
+          .append(document.createTextNode('/'+sp.total_qty))));
+      (sp.requirements||[]).forEach(function(rq){
+        $tree.append($('<li class="child">').attr('data-req',rq.id)
+          .append($('<span class="lname">').text((rq.doc_id?rq.doc_id+': ':'')+rq.name))
+          .append($('<span class="badge-qty">')
+            .append($('<span class="lnk">').text(rq.linked_qty))
+            .append(document.createTextNode('/'+rq.total_qty))));
+      });
+    });
+  } else {
+    items.forEach(function(s){
+      var $li=$('<li>').attr('data-suite',s.id)
+        .append($('<span class="lname">').text(s.name))
+        .append($('<span class="badge-qty">')
+          .append($('<span class="lnk">').text(s.deep_linked_qty))
+          .append(document.createTextNode('/'+s.deep_total_qty)));
+      $tree.append($li);
+    });
+  }
+  var wantType = g==='req_coverage' ? (function(){
+    // first requirement if any, else first spec (whole-spec coverage view)
+    for(var i=0;i<items.length;i++){
+      if((items[i].requirements||[]).length){ return {id:items[i].requirements[0].id, type:'req'}; }
+    }
+    return items.length ? {id:items[0].id, type:'req_spec'} : null;
+  })() : (items.length ? {id:items[0].id, type:'suite'} : null);
+
   if(curSuiteId){
-    var stillThere = items.filter(function(s){return s.id===curSuiteId;}).length>0;
-    if(stillThere){ openSuite(curSuiteId); }
-    else if(items.length){ openSuite(items[0].id); }
+    var stillThere = items.some(function(s){return s.id===curSuiteId;}) ||
+      items.some(function(s){return (s.requirements||[]).some(function(rq){return rq.id===curSuiteId;});});
+    if(stillThere){ openContainer(curSuiteId, curNodeType); }
+    else if(wantType){ openContainer(wantType.id, wantType.type); }
     else { $('#tcTable').hide(); $('#tcsEmpty').show(); $('#suiteTitle').text('-'); }
-  } else if(items.length){
-    openSuite(items[0].id);
+  } else if(wantType){
+    openContainer(wantType.id, wantType.type);
   }
 }
 
-function openSuite(suiteId){
-  curSuiteId=suiteId;
+// Backward-compatible alias: post-save actions used openSuite() to refresh the
+// open container; keep it resolving against the active grouping mode.
+function openSuite(id){ openContainer(id, curNodeType); }
+
+function openContainer(nodeId, nodeType){
+  curSuiteId=nodeId;
+  curNodeType=nodeType||(groupMode()==='req_coverage'?'req':'suite');
   $('#suiteTree li').removeClass('sel');
-  $('#suiteTree li[data-suite="'+suiteId+'"]').addClass('sel');
+  if(curNodeType==='suite'){ $('#suiteTree li[data-suite="'+nodeId+'"]').addClass('sel'); }
+  else if(curNodeType==='req_spec'){ $('#suiteTree li[data-reqspec="'+nodeId+'"]').addClass('sel'); }
+  else { $('#suiteTree li[data-req="'+nodeId+'"]').addClass('sel'); }
   var pid=currentPlanId();
-  $.getJSON(API + '/planaddtc/container?tproject_id='+tprojectId+'&tplan_id='+pid+'&container_id='+suiteId+kwParam())
+  var np = curNodeType==='suite' ? '' : '&node_type='+curNodeType+modeParam();
+  $.getJSON(API + '/planaddtc/container?tproject_id='+tprojectId+'&tplan_id='+pid+'&container_id='+nodeId+np+kwParam())
     .done(function(r){
       if(r.status!=='ok'){ toast(TLi18n.t('common.error'),true); return; }
       CONTAINER=r;
@@ -765,21 +825,9 @@ function sendSavePlatforms(platforms){
 }
 
 function refreshAfterSave(){
-  $.getJSON(API + '/planaddtc/suites?tproject_id='+tprojectId+'&tplan_id='+currentPlanId()+kwParam())
-    .done(function(r){ if(r.status==='ok'){ renderSuitesKeepSel(r.items||[]); } });
-  openSuite(curSuiteId);
-}
-function renderSuitesKeepSel(items){
-  var $tree=$('#suiteTree').empty();
-  $('#suitesEmpty').toggle(items.length===0);
-  items.forEach(function(s){
-    var $li=$('<li>').attr('data-suite',s.id).toggleClass('sel',s.id===curSuiteId)
-      .append($('<span class="lname">').text(s.name))
-      .append($('<span class="badge-qty">')
-        .append($('<span class="lnk">').text(s.deep_linked_qty))
-        .append(document.createTextNode('/'+s.deep_total_qty)));
-    $tree.append($li);
-  });
+  // Issue #1131: reload in the currently selected grouping mode so the counts
+  // and the open container stay correct in requirement-coverage mode too.
+  loadSuites();
 }
 </script>
 </body>

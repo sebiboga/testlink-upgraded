@@ -9522,3 +9522,26 @@ The mandated code review found the same defect in `jiradbInterface` (`statusDoma
 **Actual result: implemented** — the Documentation section now exposes the ISTQB Syllabus hub listing the four ISTQB certification levels, the six CTFL v4.0 syllabus chapters and four authoritative istqb.org resources, with live search, a locale switcher, related in-context links, and a fully translated label in all 10 client bundles + 19 server locales. BFF enforces session auth (401 anon), same-origin (403 foreign POST), and GET/HEAD-only (405 same-origin POST). No new `events` Error/Warning rows.
 
 **Gate:** `TLU_REQUIRE_SUITE="Issue #1053" bash ai/verify_test_suites.sh` → see run below.
+## Task — Issue #1131: planAddTC requirement-coverage navigator modes
+
+**Precondition:** fresh TestLink DB; app at `http://localhost:8082`, login admin/admin. Run `php tmp/fixtures_1572.php` — creates tproject `NAV1572` (prefix NA7, requirements enabled), plan `Plan NAV1572` (id 20), suites A/A1/B, 5 TCs, req spec `RS-NAV` (id 22) with `REQ-NAV-1` (24) / `REQ-NAV-2` (26); plan links A1/B1/B2; `req_coverage` req1→tcA1, req2→tcB1. For the add-flow case, additionally seed an unlinked covering TC: `INSERT INTO req_coverage (req_id,req_version_id,testcase_id,tcversion_id,link_status,is_active,author_id) VALUES (26,27,8,9,1,1,1);`
+
+Open `gui/templates/plans/planAddTCView.html?tproject_id=1`, select Test Plan = `Plan NAV1572`.
+
+| # | Step | Input | Expected | Observed | Result |
+|---|---|---|---|---|---|
+| 1 | BFF syntax | `php -l api/plans/index.php` | no errors | `No syntax errors detected` | PASS |
+| 2 | req tree | `GET /api/plans/index.php/planaddtc/suites?tproject_id=1&tplan_id=20&mode=req_coverage` | spec RS-NAV + reqs with linked/total | spec 22 `2/2`, req 24 `1/1`, req 26 `1/1` | PASS |
+| 3 | req container | `GET .../container?...&container_id=24&mode=req_coverage&node_type=req` | tcA1 item, linked | `Alpha One` linked (feature_id 1) | PASS |
+| 4 | req-spec container | `GET .../container?...&container_id=22&node_type=req_spec` | tcA1+tcB1 | `Alpha One` + `Beta One` linked | PASS |
+| 5 | Group-by toggle | toolbar → Group by = Requirement coverage | header "Requirement coverage tree"; 2-level tree | `RS-NAV 2/2`, `REQ-NAV-1 1/1`, `REQ-NAV-2 1/1`; auto-opens first req → `Alpha One` | PASS |
+| 6 | Click requirement | click `REQ-NAV-2` | right pane shows its covering TCs | title `Second requirement`; row `Beta One` linked | PASS |
+| 7 | Click spec | click `RS-NAV` node | right pane shows all covering TCs | title `Navigator Spec (2) 2/2`; rows `Alpha One`+`Beta One` | PASS |
+| 8 | Add covered TC | with the seeded unlinked `Alpha Two`: open `REQ-NAV-2` (now `1/2`), tick its add checkbox, Save changes | link created, tree count `2/2` | toast `1 link(s) added, 0 removed`; row `Alpha Two` → linked; tree `REQ-NAV-2 2/2`, spec `3/3` | PASS |
+| 9 | Regression: suites mode | Group by = Test suites | unchanged suite tree | `Suite A 1/3`, `Suite B 2/2`, `Suite A1 0/1` | PASS |
+| 10 | Console | chrome-devtools console | no errors/warnings | none | PASS |
+| 11 | Event Viewer | `SELECT * FROM events WHERE log_level>=2` | no Error/Warning | only `log_level=16` audit rows (project created / login / tc added) | PASS |
+
+**Actual result: implemented** — the add/remove workframe now offers the legacy `setting_testsgroupby` navigator modes; requirement-coverage tree nodes (req specs + requirements) resolve to their covering test cases and the existing link/unlink flow works in that mode.
+
+**Gate:** `TLU_REQUIRE_SUITE="Issue #1131" bash ai/verify_test_suites.sh`
