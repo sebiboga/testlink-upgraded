@@ -2283,6 +2283,10 @@ function getActions(&$gui,$baseURL) {
   // Documentation section's fourth entry; the BFF (api/istqb) enforces session
   // auth + same-origin on every route and returns i18n KEYS only.
   $actions->istqbSyllabus = "/gui/templates/documentation/istqbSyllabus.html?{$ctx}";
+  // Accessibility Audit / a11y gaps review (Dashio standalone page) - Refs #1055.
+  // Returns WCAG 2.2 conformance review with per-criterion status.
+  $actions->accessibilityAudit = "/gui/templates/documentation/accessibilityAudit.html?{$ctx}";
+
   // Requirement Overview modernized screen (Dashio standalone page) - Refs #566
   $actions->reqOverView = "/gui/templates/requirements/reqOverview.html?{$ctx}";
   $actions->reqMonOverView = "/gui/templates/requirements/reqMonitorOverview.html?{$ctx}";
