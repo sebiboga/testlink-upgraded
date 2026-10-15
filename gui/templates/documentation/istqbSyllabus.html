@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title data-i18n="istqb.header">ISTQB Syllabus</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; opacity: .85; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.search-box { position: relative; flex: 1; max-width: 420px; }
+.search-box input { width: 100%; padding: 7px 12px 7px 32px; border-radius: 4px; border: 1px solid #3a3d45; background: #2c2f36; color: #eee; font-size: 13px; }
+.search-box i { position: absolute; left: 10px; top: 9px; color: #888; font-size: 13px; }
+.section-title { padding: 20px 24px 8px 24px; font-size: 16px; font-weight: 700; color: #22242a; }
+.grid { padding: 0 24px 10px 24px; display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+.card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 20px; display: flex; flex-direction: column; transition: box-shadow .2s; }
+.card:hover { box-shadow: 0 4px 12px rgba(0,0,0,.15); }
+.principle { border-top: 4px solid #4ECDC4; }
+.card .icon { font-size: 32px; color: #4ECDC4; margin-bottom: 10px; }
+.card .title { font-size: 15px; font-weight: 700; color: #22242a; margin-bottom: 6px; }
+.card .desc { font-size: 12.5px; color: #777; margin-bottom: 14px; }
+.card .links { margin-top: auto; display: flex; flex-direction: column; gap: 8px; }
+.card .links a, .card .link { text-decoration: none; font-size: 13px; color: #2980b9; display: inline-flex; align-items: center; gap: 7px; }
+.card .links a:hover, .card .link:hover { color: #1c5d8c; text-decoration: underline; }
+.chapter { border-left: 4px solid #3498db; }
+.chapter .chnum { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 50%; background: #3498db; color: #fff; font-weight: 700; font-size: 15px; margin-bottom: 10px; }
+.intro-card { margin: 16px 24px 0 24px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 20px 24px; border-left: 4px solid #4ECDC4; }
+.intro-card .title { font-size: 16px; font-weight: 700; color: #22242a; margin-bottom: 8px; }
+.intro-card .desc { font-size: 13px; color: #555; line-height: 1.55; }
+.group-card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 20px; border-left: 4px solid #3498db; }
+.group-card .icon { font-size: 28px; color: #3498db; margin-bottom: 10px; }
+.group-card .title { font-size: 15px; font-weight: 700; color: #22242a; margin-bottom: 10px; }
+.group-card .items { display: flex; flex-direction: column; gap: 10px; }
+.group-card .items a { text-decoration: none; font-size: 13px; color: #2980b9; display: flex; flex-direction: column; }
+.group-card .items a:hover { text-decoration: underline; }
+.group-card .items .lbl { font-weight: 600; }
+.group-card .items .desc { font-size: 11.5px; color: #777; margin-top: 2px; }
+.empty { padding: 30px 24px; color: #999; font-size: 13px; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+#feedbackMsg { display:none; margin: 14px 24px 0 24px; padding: 10px 16px; border-radius: 6px; font-size: 13px; }
+#feedbackMsg.err { display:block; background: #fdeceb; color: #c0392b; border: 1px solid #f5c6c2; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span data-i18n="istqb.header">ISTQB Syllabus</span>
+  <span class="sub" data-i18n="istqb.headerSub">certification reference and CTFL syllabus</span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="toolbar">
+  <button class="btn-teal" id="refreshBtn"><i class="fa fa-refresh"></i> <span data-i18n="common.refresh">Refresh</span></button>
+  <div class="search-box">
+    <i class="fa fa-search"></i>
+    <input type="text" id="searchBox" data-i18n-placeholder="istqb.searchPlaceholder" placeholder="Search the syllabus reference...">
+  </div>
+  <span style="flex:1"></span>
+</div>
+
+<div id="feedbackMsg"></div>
+
+<div class="intro-card">
+  <div class="title"><i class="fa fa-question-circle" style="color:#4ECDC4;margin-right:8px;"></i><span data-i18n="istqb.aboutTitle">What is ISTQB?</span></div>
+  <div class="desc" data-i18n="istqb.aboutText">The International Software Testing Qualifications Board (ISTQB) is the leading vendor-neutral certification body for software testing. The Certified Tester Foundation Level (CTFL) syllabus is the most widely recognised entry-level reference for testing principles, test design techniques and test management practices used across the TestLink workflow.</div>
+</div>
+
+<div class="section-title"><i class="fa fa-layer-group" style="color:#4ECDC4;margin-right:6px;"></i><span data-i18n="istqb.levelsTitle">Certification levels</span></div>
+<div class="grid" id="levelsGrid"></div>
+
+<div class="section-title"><i class="fa fa-list-ol" style="color:#3498db;margin-right:6px;"></i><span data-i18n="istqb.syllabusTitle">CTFL v4.0 syllabus chapters</span></div>
+<div class="grid" id="chaptersGrid"></div>
+
+<div class="section-title"><i class="fa fa-bookmark" style="color:#3498db;margin-right:6px;"></i><span data-i18n="istqb.resourcesTitle">Official resources</span></div>
+<div class="grid" id="resourcesGrid"></div>
+<div class="empty" id="emptyMsg" style="display:none;" data-i18n="istqb.noResults">No matching entries.</div>
+
+<div class="section-title"><i class="fa fa-external-link-alt" style="color:#4ECDC4;margin-right:6px;"></i><span data-i18n="istqb.relatedTitle">Related in TestLink</span></div>
+<div class="grid" id="relatedGrid"></div>
+
+<div class="footer" id="footerText"></div>
+<div class="footer"><span data-i18n="footers.istqbSyllabus">TestLink 2.0.1 - ISTQB Syllabus</span></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/istqb/index.php';
+var DATA = { levels: [], chapters: [], resources: [], related: [] };
+
+$(function() {
+  TLi18n.load(function() {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    load();
+  });
+});
+
+function showFeedback(kind, msg) {
+  var el = $('#feedbackMsg');
+  el.attr('class', kind).text(msg);
+}
+
+$(document).on('click', '#refreshBtn', function() { load(true); });
+$(document).on('input', '#searchBox', function() { render(); });
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function load(clearFeedback) {
+  $.getJSON(API, function(r) {
+    if (clearFeedback) showFeedback('', '');
+    DATA.levels = r.levels || [];
+    DATA.chapters = r.chapters || [];
+    DATA.resources = r.resources || [];
+    DATA.related = r.related || [];
+    render();
+    $('#footerText').text(TLi18n.t('common.generatedOn') + ' ' + new Date().toLocaleString());
+  }).fail(function(xhr) {
+    var msg = TLi18n.t('common.errorLoading');
+    try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
+    showFeedback('err', msg);
+  });
+}
+
+function matches(text, q) {
+  if (!q) return true;
+  return String(text || '').toLowerCase().indexOf(q) !== -1;
+}
+
+function render() {
+  var q = String($('#searchBox').val() || '').toLowerCase().trim();
+  renderLevels(q);
+  renderChapters(q);
+  renderResources(q);
+  renderRelated();
+  $('#emptyMsg').toggle($('#resourcesGrid').children().length === 0);
+}
+
+function renderLevels(q) {
+  var g = $('#levelsGrid').empty();
+  $.each(DATA.levels, function(i, lv) {
+    var title = TLi18n.t('istqb.level.' + lv.id);
+    var desc = TLi18n.t('istqb.level.' + lv.id + '.desc');
+    if (q && !matches(title + ' ' + desc, q)) return;
+    var card = $('<div class="card principle">')
+      .append('<div class="icon"><i class="' + esc(lv.icon) + '"></i></div>')
+      .append('<div class="title">' + esc(title) + '</div>')
+      .append('<div class="desc">' + esc(desc) + '</div>')
+      .append('<div class="links"><a href="' + esc(lv.href) + '" target="_blank" rel="noopener noreferrer"><i class="fa fa-external-link-alt"></i> ' + TLi18n.t('istqb.learnMore') + '</a></div>');
+    g.append(card);
+  });
+}
+
+function renderChapters(q) {
+  var g = $('#chaptersGrid').empty();
+  $.each(DATA.chapters, function(i, ch) {
+    var title = TLi18n.t('istqb.ch.' + ch.id);
+    var desc = TLi18n.t('istqb.ch.' + ch.id + '.desc');
+    if (q && !matches(title + ' ' + desc, q)) return;
+    var card = $('<div class="card chapter">')
+      .append('<div class="chnum">' + esc(ch.number) + '</div>')
+      .append('<div class="title">' + esc(title) + '</div>')
+      .append('<div class="desc">' + esc(desc) + '</div>');
+    g.append(card);
+  });
+}
+
+function renderResources(q) {
+  var g = $('#resourcesGrid').empty();
+  $.each(DATA.resources, function(i, it) {
+    var label = TLi18n.t(it.labelKey);
+    var desc = TLi18n.t(it.descKey);
+    if (q && !matches(label + ' ' + desc, q)) return;
+    var card = $('<div class="group-card">')
+      .append('<div class="icon"><i class="fa fa-cube"></i></div>')
+      .append('<div class="title">' + esc(label) + '</div>')
+      .append($('<div class="items"></div>').append(
+        $('<a href="' + esc(it.href) + '" target="_blank" rel="noopener noreferrer"></a>')
+          .append('<span class="lbl"><i class="fa fa-external-link-alt"></i> ' + esc(label) + '</span>')
+          .append('<span class="desc">' + esc(desc) + '</span>')));
+    g.append(card);
+  });
+}
+
+function renderRelated() {
+  var g = $('#relatedGrid').empty();
+  $.each(DATA.related, function(i, r) {
+    var label = TLi18n.t(r.labelKey);
+    var ext = r.external === true;
+    var a = '<a class="link" href="' + esc(r.href) + '"' +
+      (ext ? ' target="_blank" rel="noopener noreferrer"' : ' target="_top"') + '>' +
+      '<i class="fa ' + (ext ? 'fa-external-link-alt' : 'fa-arrow-right') + '"></i> ' + esc(label) + '</a>';
+    var card = $('<div class="card principle">')
+      .append('<div class="icon"><i class="fa fa-link"></i></div>')
+      .append('<div class="title">' + esc(label) + '</div>')
+      .append('<div class="links">' + a + '</div>');
+    g.append(card);
+  });
+}
+</script>
+</body>
+</html>
