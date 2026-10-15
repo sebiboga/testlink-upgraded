@@ -1987,6 +1987,7 @@ if ($method === 'POST' && count($segments) === 2 &&
     $assigned = 0;
     $testerID = intval($body['testerID'] ?? 0);
     $buildID = intval($body['build_id'] ?? 0);
+    $sendMail = !empty($body['send_mail']) || $body['send_mail'] === true || $body['send_mail'] === 1 || $body['send_mail'] === "1";
     if ($testerID > 0 && $buildID > 0 && !is_null($addedFeatures) &&
         count($addedFeatures) > 0) {
         try {
@@ -2020,6 +2021,30 @@ if ($method === 'POST' && count($segments) === 2 &&
             $assigned = -1;
         }
     }
+        // send mail if requested (legacy behavior)
+        if ($sendMail) {
+            try {
+                require_once dirname(__FILE__) . '/../lib/plan/planAddTC.php';
+                $tcaseMgr = new testcase($db);
+                $tprojMgr = new testproject($db);
+                $tprojInfo = $tprojMgr->get_by_id($tproject_id);
+                $guiObj = new stdClass();
+                $guiObj->testPlanName = $tplanInfo['name'] ?? '';
+                $guiObj->testCasePrefix = $tprojInfo['prefix'] ?? '';
+                $argsObj = new stdClass();
+                $argsObj->userID = intval($user->dbID);
+                $argsObj->testerID = $testerID;
+                $argsObj->tproject_id = $tproject_id;
+                $argsObj->tproject_name = $tprojInfo['name'] ?? '';
+                $argsObj->tplan_id = $tplan_id;
+                $argsObj->build_id = $buildID;
+                $argsObj->send_mail = true;
+                send_mail_to_testers($db, $tcaseMgr, $guiObj, $argsObj, $features2['add'], 'add');
+            } catch (Throwable $e) {
+                // ignore mail errors
+            }
+        }
+
 
     out([
         'status' => 'ok',

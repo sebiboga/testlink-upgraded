@@ -209,6 +209,7 @@ tr.cf-row textarea { vertical-align: top; }
       <select id="testerID"></select>
       <label data-i18n="paddtc.build">Build</label>
       <select id="buildID"></select>
+      <label style="margin-left:10px"><input type="checkbox" id="sendMail" value="1"> <span data-i18n="paddtc.sendMail">Send mail notification to tester</span></label>
     </div>
 
     <div id="tcsEmpty" class="empty" style="display:none" data-i18n="paddtc.emptySuite">No test cases in this suite</div>
@@ -928,7 +929,7 @@ function sendSave(sel){
   sel.tplan_id=currentPlanId();
   var tester=parseInt($('#testerID').val()||'0',10);
   var build=parseInt($('#buildID').val()||'0',10);
-  if($('#assignPanel').is(':visible') && tester>0){ sel.testerID=tester; sel.build_id=build; }
+  if($('#assignPanel').is(':visible') && tester>0){ sel.testerID=tester; sel.build_id=build; if($('#sendMail').is(':checked')) sel.send_mail = true; else sel.send_mail = false; }
   $('#btnSave').prop('disabled',true);
   $.ajax({url:API+'/planaddtc/save',method:'POST',contentType:'application/json',data:JSON.stringify(sel)})
     .done(function(r){
