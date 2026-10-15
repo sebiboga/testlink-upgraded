@@ -9984,3 +9984,42 @@ substitution.
 - UI shows checkbox; JS includes send_mail in payload. BFF reads send_mail and calls legacy send_mail_to_testers() when true. Implementation complete.
 
 **Result: PASS**
+## Modernize — Issue #1063: Performance Test Reports / JMeter JTL Viewer (screen + BFF + Reports-menu wiring)
+
+**Screen / area:** Results → Reports menu → *Performance Test Reports* (`gui/templates/results/perfReports.html`) + BFF `api/perfreports/index.php` (net-new, stateless JMeter JTL viewer). Refs #1063.
+
+**Precondition:** fresh TestLink DB, app at `http://localhost:8082` (PHP built-in server, docroot = repo root). Fixture `php tmp/fixtures_1063.php` → tproject `PERF1` (id 1); no-rights user `perfnorights`/`perfnorights` (role 3). Sample files `tmp/perf_sample.csv` (11 samples / 2 errors / 3 labels), `tmp/perf_sample.xml` (6 / 1 / 3), `tmp/perf_bad.csv` (not a JTL), `tmp/perf_empty.csv` (header only). Login `admin`/`admin`.
+
+| # | Step | Input | Expected | Observed | Result |
+|---|---|---|---|---|---|
+| 1 | PHP syntax | `php -l api/perfreports/index.php` | no errors | `No syntax errors detected` | PASS |
+| 2 | BFF init (admin) | `GET ?action=init&tproject_id=1` | 200 `context.tproject_name=PERF1`, limits incl. `max_sample_rows=200` | `{"status":"ok","context":{"tproject_id":1,"tproject_name":"PERF1"},"limits":{"max_file_bytes":33554432,"max_samples":300000,"max_sample_rows":200}}` | PASS |
+| 3 | BFF parse CSV | `POST ?action=parse` `jtlFile=@perf_sample.csv` | 200, 11 samples / 2 errors / 3 labels, P90 980, bytes 12416 | `csv samples 11 errors 2 labels 3 p90 980 bytes 12416` | PASS |
+| 4 | BFF parse XML | `POST ?action=parse` `jtlFile=@perf_sample.xml` | 200, 6 samples / 1 error / 3 labels | `xml samples 6 errors 1 labels 3` | PASS |
+| 5 | Invalid UTF-8 label (MAJOR fix) | CSV with a latin-1 byte in `label` | 200 JSON (substituted char), not an empty body | `HTTP:200 code ok samples 1 label caf�` | PASS |
+| 6 | Empty (header-only) CSV | `POST` `jtlFile=@perf_empty.csv` | 422 `empty_file` | `422 empty_file | Empty file` | PASS |
+| 7 | Unparsable CSV | `POST` `jtlFile=@perf_bad.csv` | 422 `unparsable_file` | `422 unparsable_file | Not a recognized JMeter JTL file (CSV or XML)` | PASS |
+| 8 | Sample-less XML (fix) | `<testResults/>` | 200 `empty:true` (was 422) | `200 empty= True code= ok` | PASS |
+| 9 | No file field | `POST` `other=1` | 400 `invalid_request` | `400 invalid_request | No file uploaded` | PASS |
+| 10 | Shaped-array upload (fix) | `POST` `jtlFile[]=@perf_sample.csv` | 400 `invalid_request` (was a misleading 413) | `400 invalid_request | No file uploaded` | PASS |
+| 11 | Unknown test project | `GET ?action=init&tproject_id=999999` | 404 `tproject_not_found` | `404 tproject_not_found | Test project not found` | PASS |
+| 12 | Unknown action | `GET ?action=bogus&tproject_id=1` | 400 `invalid_request` | `400 invalid_request | Unknown action` | PASS |
+| 13 | Wrong verb | `GET ?action=parse&tproject_id=1` | 405 `method_not_allowed` | `405 method_not_allowed` | PASS |
+| 14 | Anonymous | `GET ?action=init&tproject_id=1` (no cookie) | 401 `not_authenticated` | `401 not_authenticated` | PASS |
+| 15 | No-rights user | login `perfnorights`, `GET ?action=init&tproject_id=1` | 403 `no_right` | `403 no_right` | PASS |
+| 16 | Reports-menu wiring | `GET /api/aside/index.php?action=init&tproject_id=1&tplan_id=1` | label *Performance Test Reports* → href `/gui/templates/results/perfReports.html?tproject_id=1&tplan_id=1` | `sections[11]/items[20]` label + href match | PASS |
+| 17 | Server locale label | `grep -rl TLS_link_report_performance_reports locale/` | 19 files, `php -l` clean | 19 files, `php-lint-all-ok` | PASS |
+| 18 | i18n coverage | `bash ai/verify_i18n_coverage.sh` | en defines every key in all bundles | `9 bundle(s) passed, 0 failed` | PASS |
+| 19 | i18n key ↔ screen | every `perf.*` key referenced in the HTML | 74/74 used, 0 missing | `perf.* total: 74 truly unused in HTML: []` | PASS |
+| 20 | Browser render (admin) | open the screen, parse CSV | summary strip + per-label DataTable + totals + samples table render; Export CSV enabled | 11 samples / 2 errors / 81.82% / P90 980; labels Login/Logout/Search; totals 11/2/12.1 KB | PASS |
+| 21 | Browser locale switch | select Română then English | whole page localized; title `Rapoarte de performanță`; back to English | `Rapoarte de performanță` / `Vizualizator JMeter JTL` render; switch back OK | PASS |
+| 22 | Browser Export CSV | click Export CSV (blob captured) | `;`-separated header + 3 label rows + Totals row | `Label;Samples;…;Bytes\r\nLogin;4;1;25%;…;3584\r\n…\r\nTotals;11;2;;;;…;12416` | PASS |
+| 23 | Browser error card | upload `perf_bad.csv`, Parse | *Unrecognized file* card + upload panel still visible (re-upload possible) | error card + context/upload panels visible | PASS |
+| 24 | Browser empty state | upload `perf_empty.csv`, Parse | *Empty file* card | `Empty file | empty_file` card | PASS |
+| 25 | Browser no-file toast | clear input, Parse | *Choose a JTL file first.* toast | `{"text":"Choose a JTL file first.","visible":"block"}` | PASS |
+| 26 | Browser Refresh | click Refresh | re-runs init, clears the view | error card cleared, context reloaded | PASS |
+| 27 | Event Viewer | `SELECT … FROM events` | no new Error/Warning | only INFO (16) audit rows (logins, project create) | PASS |
+
+**Actual result: 27/27 PASS.** Mandatory code review (subagent) found 1 MAJOR (invalid-UTF-8 → empty 200 body; fixed via `JSON_INVALID_UTF8_SUBSTITUTE`), 5 MINOR (missing `max_sample_rows` limit; sample-less XML 422 → `{empty:true}`; `$_REQUEST` → explicit `$_GET`/`$_POST`; `$_FILES` array-shape guard; doc comment) and 2 NIT (CSV guard TAB/CR; `fgetcsv` RFC-4180 quoting) — all applied in `5a4679d8a`. The browser pass then found 1 UX bug (the context/upload panels vanished on an error state, so the file picker was lost until Refresh; fixed so only the result sub-panels hide) in `ac76402fe`; re-verified.
+
+**Gate:** `TLU_REQUIRE_SUITE="Issue #1063" bash ai/verify_test_suites.sh`.

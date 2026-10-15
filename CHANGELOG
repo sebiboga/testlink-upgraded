@@ -348,6 +348,24 @@ Every screen of the application was ported one-by-one in a screen-compare
   Out-of-scope same-family sites (githubrest/gitlabrest/kaitenrest/trellorest/jiradb) noted for
   follow-up. (Refs #1712)
 
+- [SCREEN] - #1063: the **Performance Test Reports / JMeter JTL Viewer** is
+  modernized as the standalone Dashio page `gui/templates/results/perfReports.html`
+  backed by BFF `api/perfreports/index.php`. This is a net-new capability (TestLink
+  1.9.20 shipped no JMeter/JTL viewer and the schema has no performance result
+  tables), so the slice is deliberately **stateless**: the user uploads a JMeter JTL
+  result log (CSV or XML), the BFF parses it in a streaming fashion and answers a
+  summary (samples/errors/success+error rate/min/max/avg/P50/P90/P95/P99/duration/
+  throughput/bytes), per-label aggregates (worst-first) and a capped raw-sample table;
+  nothing is persisted. XML is read with `XMLReader` + `LIBXML_NONET` (no XXE/entity
+  expansion); the response is `JSON_INVALID_UTF8_SUBSTITUTE`-encoded so a non-UTF-8
+  label cannot blank the report. The BFF enforces `testplan_metrics` on the addressed
+  project and answers the 400/401/403/404/405/413/422 contract (32 MB / 300k sample
+  caps). Wiring: `cfg/reports.cfg.php` `performance_reports` entry +
+  `link_report_performance_reports` mapping in `api/aside/index.php` + the
+  `$actions->perfReports` action. i18n `perf.*` (74) + `footers.perfReports` in all 10
+  client bundles; `$TLS_link_report_performance_reports` in all 19 server locales.
+  (Refs #1063)
+
 - [SCREEN] - #1907: the **Overall Metrics Pie Chart** report
   (`lib/results/overallPieChart.php` -> `gui/templates/results/overallPieChart.html`,
   BFF `api/overallpiechart/index.php`) is modernized — the last orphan pChart PNG endpoint
