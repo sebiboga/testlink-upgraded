@@ -18,7 +18,7 @@ class bugzillaxmlrpcInterface extends issueTrackerInterface
 {
   private $APIClient;
   private $issueDefaults;
-  private $defaultResolvedStatus = array(); // Refs #1914
+  var $defaultResolvedStatus; // Refs #1914
 
   /**
    * Construct and connect to BTS.

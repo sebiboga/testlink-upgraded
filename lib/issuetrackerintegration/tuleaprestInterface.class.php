@@ -16,7 +16,7 @@ class tuleaprestInterface extends issueTrackerInterface
 {
     private $APIClient;
 
-    private $defaultResolvedStatus = array(); // Refs #1914
+    var $defaultResolvedStatus; // Refs #1914
 
     private $trackerID;
     private $URIBase;
