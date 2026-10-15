@@ -12,6 +12,7 @@
 
 class bugzilladbInterface extends issueTrackerInterface
 {
+  private $defaultResolvedStatus = array(); // Refs #1914
 
   /**
    * Construct and connect to BTS.

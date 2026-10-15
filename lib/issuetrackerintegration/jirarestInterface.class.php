@@ -22,6 +22,7 @@ class jirarestInterface extends issueTrackerInterface
 
   var $defaultResolvedStatus;
   var $support;
+  private $statusDomain = array(); // Refs #1914
 
 	/**
 	 * Construct and connect to BTS.

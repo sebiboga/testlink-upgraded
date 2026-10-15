@@ -32,6 +32,7 @@ require_once(TL_ABS_PATH . 'third_party/phpxmlrpc/lib/xmlrpc.inc');
 class tracxmlrpcInterface extends issueTrackerInterface
 {
   private $APIClient;
+  private $defaultResolvedStatus = array(); // Refs #1914
 
   // this info has been get from ticket.get documentation
   const TICKET_GET_ID_IDX = 0;
