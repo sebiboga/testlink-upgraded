@@ -9779,3 +9779,43 @@ actually POSTs and persists; Refresh/Back/Assign/Unassign all keep working after
 - Same commit also carried the #1819 count-aware toast; that is a separate issue.
 - Screenshots: `docs/screenshots/issue-1818-prefix-save-discarded.png` (pre-fix),
   `docs/screenshots/issue-1818-postfix-save-sent.png` (post-fix).
+
+## Regression — Issue #1860: tcEdit.php activate/deactivate-version & create-new-version returned HTTP 500 from a Smarty Compiler error in gui/templates/dashio/include/attachments.inc.tpl
+
+**Precondition:** TestLink 2.0.1 running at http://localhost:8082 (PHP built-in server), DB freshly imported, logged in as admin/admin. Fixture recreates tproject `TC Edit 1859` + suite + test cases (tcase_id=6 with active tcversion_id=7).
+
+**Fixture (recreate data):**
+```bash
+php tmp/fixtures_1859.php   # prints: tcase_active=6, tcversion_active=7
+JAR=/tmp/j1860; rm -f $JAR
+curl -s -c $JAR -b $JAR -o /dev/null http://localhost:8082/index.php
+curl -s -c $JAR -b $JAR -o /dev/null -d 'tl_login=admin&tl_password=admin' http://localhost:8082/login.php
+```
+
+**Root cause (pre-fix):** Smarty 4.5.7 `auto_literal` parses the unescaped `{` in `function(b,t,i){deleteAttachment_onClick(...)}` in the attachment delete link as a template tag → whole-template compile fails at `attachments.inc.tpl:106` with `Unexpected "javascript", expected one of: "" , ")"`.
+
+**TC-1860-1 (deactivate version) — pre-fix result**
+1. `curl -s -b $JAR -o /dev/null -w '%{http_code} %{size_download}\n' 'http://localhost:8082/lib/testcases/tcEdit.php?deactivate_this_tcversion=1&tcase_id=6&tcversion_id=7'`
+- Expected (pre-fix, bug): 500 / 0 bytes (DB row deactivated but no UI feedback).
+- **ACTUAL: 500 0** (FAIL, reproduces bug). Server log: `PHP Fatal error: Uncaught --> Smarty Compiler: Syntax error in template ... attachments.inc.tpl on line 106 ... Unexpected "javascript"`.
+
+**TC-1860-2 (activate version) — pre-fix result**
+1. `.../tcEdit.php?activate_this_tcversion=1&tcase_id=6&tcversion_id=7` → **ACTUAL: 500 0** (FAIL).
+
+**TC-1860-3 (create new version) — pre-fix result**
+1. `.../tcEdit.php?do_create_new_version=1&tcase_id=6&tcversion_id=7` → **ACTUAL: 500 0** (FAIL).
+
+**Post-fix expected:** all three return HTTP 200 with a non-zero body (refreshed testcase / new version edit form) and no Smarty fatal in `tmp/php_server.log`.
+
+**TC-1860-4/5/6 (post-fix, after editing attachments.inc.tpl + inc_attachments.tpl)**
+1. Re-run the three curls above.
+- **ACTUAL: deactivate → 200 (35239 B); activate → 200 (35109 B); create-new-version → 200 (87791 B)** → **PASS / PASS / PASS**.
+2. `tmp/php_server.log` tail shows `[200]: GET /lib/testcases/tcEdit.php?deactivate...`, `[200]: GET ...activate...`, `[200]: GET ...do_create_new_version...`; no new Smarty Compiler fatal → **PASS**.
+
+**TC-1860-7 (template compile isolation, Smarty 4.5.7)**
+1. Compile pre-fix copies (`git show HEAD:gui/templates/dashio/include/attachments.inc.tpl` and `.../inc_attachments.tpl`) through Smarty 4.5.7 → **ACTUAL: syntax error at line 106 / line 75** (FAIL, bug present).
+2. Compile post-fix working-tree copies → parse succeeds (remaining error is only the isolated-harness "Unable to load config/include" artifact from the minimal template dir, i.e. the full-template PARSE now passes the fix line) → **PASS**.
+
+**TC-1860-8 (blast-radius / no drive-by):** `git diff --stat` shows only the 2 dashio attachment templates modified; `grep -n "function(b,t,i){ deleteAttachment_onClick" gui/templates/dashio/include/*.tpl` → both fixed; tl-classic left untouched because `lib/functions/tlsmarty.inc.php:101-103` hardcodes `template_dir` to `gui/templates/dashio/` (tl-classic is dead code) → **PASS**.
+
+**Result: 6 PASS / 0 FAIL (TC-1860-1..3 are the documented pre-fix FAIL that the fix resolves; post-fix cases TC-1860-4..8 all PASS).**
