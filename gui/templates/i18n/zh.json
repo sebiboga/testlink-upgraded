@@ -7782,5 +7782,22 @@
   "usergrid.roleId": "角色 ID",
   "usergrid.showAllColumns": "显示所有列",
   "usergrid.userId": "用户 ID",
-  "version": "版本"
+  "version": "版本",
+  "paddtc.filters": "筛选器",
+  "paddtc.filterTitleHeader": "导航筛选器",
+  "paddtc.filterTcId": "测试用例ID",
+  "paddtc.filterName": "标题",
+  "paddtc.filterTopSuite": "顶层测试套件",
+  "paddtc.filterKeywords": "关键字",
+  "paddtc.filterKwOr": "任意 (OR)",
+  "paddtc.filterKwAnd": "全部 (AND)",
+  "paddtc.filterPlatforms": "平台",
+  "paddtc.filterImportance": "重要级别",
+  "paddtc.filterStatus": "工作流状态",
+  "paddtc.filterCustomFields": "自定义字段",
+  "paddtc.filterAny": "(任意)",
+  "paddtc.filterApply": "应用筛选器",
+  "paddtc.filterReset": "重置筛选器",
+  "paddtc.filterHint": "没有活动的筛选器",
+  "paddtc.filtersApplied": "筛选器已启用"
 }

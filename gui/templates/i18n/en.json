@@ -7782,5 +7782,22 @@
   "usergrid.roleId": "Role ID",
   "usergrid.showAllColumns": "Show all Columns",
   "usergrid.userId": "User ID",
-  "version": "Version"
+  "version": "Version",
+  "paddtc.filters": "Filters",
+  "paddtc.filterTitleHeader": "Navigator filters",
+  "paddtc.filterTcId": "Test case ID",
+  "paddtc.filterName": "Title",
+  "paddtc.filterTopSuite": "Top-level test suite",
+  "paddtc.filterKeywords": "Keywords",
+  "paddtc.filterKwOr": "Any (OR)",
+  "paddtc.filterKwAnd": "All (AND)",
+  "paddtc.filterPlatforms": "Platforms",
+  "paddtc.filterImportance": "Importance",
+  "paddtc.filterStatus": "Workflow status",
+  "paddtc.filterCustomFields": "Custom fields",
+  "paddtc.filterAny": "(any)",
+  "paddtc.filterApply": "Apply filters",
+  "paddtc.filterReset": "Reset filters",
+  "paddtc.filterHint": "No filters active",
+  "paddtc.filtersApplied": "Filters active"
 }

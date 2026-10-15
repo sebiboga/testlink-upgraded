@@ -7782,5 +7782,22 @@
   "usergrid.roleId": "ID Ruolo",
   "usergrid.showAllColumns": "Mostra tutte le colonne",
   "usergrid.userId": "ID Utente",
-  "version": "Versione"
+  "version": "Versione",
+  "paddtc.filters": "Filtri",
+  "paddtc.filterTitleHeader": "Filtri navigatore",
+  "paddtc.filterTcId": "ID caso di test",
+  "paddtc.filterName": "Titolo",
+  "paddtc.filterTopSuite": "Suite di test di primo livello",
+  "paddtc.filterKeywords": "Parole chiave",
+  "paddtc.filterKwOr": "Uno qualsiasi (OR)",
+  "paddtc.filterKwAnd": "Tutti (AND)",
+  "paddtc.filterPlatforms": "Piattaforme",
+  "paddtc.filterImportance": "Importanza",
+  "paddtc.filterStatus": "Stato del flusso di lavoro",
+  "paddtc.filterCustomFields": "Campi personalizzati",
+  "paddtc.filterAny": "(qualsiasi)",
+  "paddtc.filterApply": "Applica filtri",
+  "paddtc.filterReset": "Reimposta filtri",
+  "paddtc.filterHint": "Nessun filtro attivo",
+  "paddtc.filtersApplied": "Filtri attivi"
 }

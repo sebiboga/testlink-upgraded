@@ -91,6 +91,24 @@ tr.cf-row textarea { vertical-align: top; }
 .toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); max-width: 480px; }
 .toast.err { background: #e6605e; }
 .modal-title { font-size: 16px; font-weight: 700; }
+/* Issue #1132: collapsible navigator filter panel (legacy inc_filter_panel
+   equivalents, plan_add_mode). */
+.btn-ghost { background: transparent; color: #9fe6e0; border: 1px solid #4ECDC4; padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-ghost:hover { background: #1d5b57; color: #fff; }
+.btn-ghost.active { background: #4ECDC4; color: #06302d; }
+.filterpanel { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 14px 24px 0; padding: 14px 18px; display: none; }
+.filterpanel.open { display: block; }
+.filterpanel h4 { margin: 0 0 10px; font-size: 12px; letter-spacing: .6px; text-transform: uppercase; color: #556; }
+.filterpanel .frow { display: flex; flex-wrap: wrap; gap: 14px 24px; align-items: flex-start; }
+.filterpanel .fitem { display: flex; flex-direction: column; gap: 3px; }
+.filterpanel .fitem > label { font-size: 11px; color: #667; text-transform: uppercase; letter-spacing: .4px; margin: 0; }
+.filterpanel input[type="text"], .filterpanel select { padding: 5px 7px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; min-width: 150px; background: #fff; color: #333; }
+.filterpanel select[multiple] { min-width: 176px; }
+.filterpanel .kwtype { display: flex; gap: 10px; font-size: 12px; color: #555; align-items: center; margin-top: 4px; }
+.filterpanel .kwtype label { display: inline-flex; gap: 4px; align-items: center; text-transform: none; font-size: 12px; letter-spacing: 0; }
+.filterpanel .fbtns { margin-top: 12px; display: flex; gap: 10px; align-items: center; }
+.filterpanel .fhint { font-size: 12px; color: #999; display: inline-flex; align-items: center; gap: 6px; }
+.filterpanel .fhint.on { color: #1d6f69; font-weight: 700; }
 @media (max-width: 1100px) { .layout { flex-direction: column; } .panel-suites { width: 100%; } }
 </style>
 </head>
@@ -106,18 +124,65 @@ tr.cf-row textarea { vertical-align: top; }
   <label><span data-i18n="pv.testProject">Test Project</span>: <b id="tprojectName" style="color:#fff">-</b></label>
   <label for="tplanSel" data-i18n="paddtc.testPlan">Test Plan</label>
   <select id="tplanSel"></select>
-  <label for="kwSel" data-i18n="paddtc.keywordFilter">Keyword filter</label>
-  <select id="kwSel"></select>
-  <!-- Issue #1131: legacy setting_testsgroupby navigator control. Switches the
-       left tree between the test suite subtree and the requirement coverage
-       tree (req specs / requirements). -->
+  <!-- Issue #1132: the single-keyword dropdown was replaced by the full
+       collapsible filter panel below (legacy inc_filter_panel). -->
   <label for="groupBySel" data-i18n="pnav.groupBy">Group by</label>
   <select id="groupBySel">
     <option value="normal" data-i18n="pnav.groupsSuites">Test suites</option>
     <option value="req_coverage" data-i18n="pnav.groupsReqs">Requirement coverage</option>
   </select>
+  <button class="btn-ghost" id="btnFilters"><i class="fas fa-filter"></i> <span data-i18n="paddtc.filters">Filters</span></button>
   <span style="flex:1"></span>
   <button class="btn-dark" id="btnReload"><i class="fas fa-sync-alt"></i> <span data-i18n="common.refresh">Refresh</span></button>
+</div>
+
+<!-- Issue #1132: full navigator filter panel, ported from the legacy
+     inc_filter_panel.tpl used by planAddTCNavigator (plan_add_mode). -->
+<div class="filterpanel" id="filterPanel">
+  <h4><i class="fas fa-filter"></i> <span data-i18n="paddtc.filterTitleHeader">Navigator filters</span></h4>
+  <div class="frow">
+    <div class="fitem">
+      <label for="fTcId" data-i18n="paddtc.filterTcId">Test case ID</label>
+      <input type="text" id="fTcId" placeholder="TP-1">
+    </div>
+    <div class="fitem">
+      <label for="fName" data-i18n="paddtc.filterName">Title</label>
+      <input type="text" id="fName">
+    </div>
+    <div class="fitem">
+      <label for="fTopSuite" data-i18n="paddtc.filterTopSuite">Top-level test suite</label>
+      <select id="fTopSuite"></select>
+    </div>
+    <div class="fitem">
+      <label for="fKeywords" data-i18n="paddtc.filterKeywords">Keywords</label>
+      <select id="fKeywords" multiple size="4"></select>
+      <div class="kwtype">
+        <label><input type="radio" name="fKwType" value="Or" checked> <span data-i18n="paddtc.filterKwOr">Any (OR)</span></label>
+        <label><input type="radio" name="fKwType" value="And"> <span data-i18n="paddtc.filterKwAnd">All (AND)</span></label>
+      </div>
+    </div>
+    <div class="fitem">
+      <label for="fPlatforms" data-i18n="paddtc.filterPlatforms">Platforms</label>
+      <select id="fPlatforms" multiple size="4"></select>
+    </div>
+    <div class="fitem">
+      <label for="fImportance" data-i18n="paddtc.filterImportance">Importance</label>
+      <select id="fImportance" multiple size="4"></select>
+    </div>
+    <div class="fitem">
+      <label for="fStatus" data-i18n="paddtc.filterStatus">Workflow status</label>
+      <select id="fStatus" multiple size="4"></select>
+    </div>
+    <div class="fitem" id="fCfWrap" style="display:none">
+      <label data-i18n="paddtc.filterCustomFields">Custom fields</label>
+      <div id="fCfList" style="display:flex;flex-direction:column;gap:6px;"></div>
+    </div>
+  </div>
+  <div class="fbtns">
+    <button class="btn-teal" id="btnApplyFilters"><i class="fas fa-check"></i> <span data-i18n="paddtc.filterApply">Apply filters</span></button>
+    <button class="btn-dark" id="btnResetFilters"><i class="fas fa-eraser"></i> <span data-i18n="paddtc.filterReset">Reset filters</span></button>
+    <span class="fhint" id="filterHint"></span>
+  </div>
 </div>
 
 <div id="noAccess" class="empty" style="display:none" data-i18n="paddtc.noPermission">You do not have the rights to manage this test plan.</div>
@@ -249,7 +314,17 @@ $(function(){
   });
   $('#btnReload').on('click', boot);
   $('#tplanSel').on('change', function(){ planChanged(); });
-  $('#kwSel').on('change', loadSuites);
+  // Issue #1132: filter panel wiring (apply/reset/toggle).
+  $('#btnFilters').on('click', function(){ $('#filterPanel').toggleClass('open'); });
+  $('#btnApplyFilters').on('click', function(){
+    FSTATE = readFilterControls(); saveFilterState();
+    curSuiteId = 0; updateFilterHint(); loadSuites();
+  });
+  $('#btnResetFilters').on('click', function(){
+    FSTATE = JSON.parse(JSON.stringify(FILTER_DEFAULTS));
+    saveFilterState(); restoreFilterControls();
+    curSuiteId = 0; updateFilterHint(); loadSuites();
+  });
   $('#chkAllAdd').on('change', function(){ $('input.addchk').prop('checked', $(this).is(':checked')); });
   $('#suiteTree').on('click','li[data-suite]',function(){ openContainer(parseInt(this.getAttribute('data-suite'),10),'suite'); });
   // Issue #1131: requirement-coverage tree nodes (req specs + requirements).
@@ -307,10 +382,11 @@ function boot(){
       (r.plans||[]).forEach(function(p){
         $sel.append('<option value="'+p.id+'"'+(p.id===r.tplan_id?' selected':'')+'>'+esc(p.name)+'</option>');
       });
-      var $kw=$('#kwSel').empty().append('<option value="">'+esc(TLi18n.t('paddtc.kwAll'))+'</option>');
-      (r.keywords||[]).forEach(function(k){
-        $kw.append('<option value="'+k.id+'">'+esc(k.keyword)+'</option>');
-      });
+      // The first init has no tplan_id, so plan-scoped domains (platforms /
+      // builds / testers) come back empty. Re-init scoped to the resolved plan
+      // so the filter panel's platform select is populated on first load.
+      if(currentPlanId() && currentPlanId() !== r.tplan_id){ planChanged(); return; }
+      renderFilterPanel();
       renderAssignPanel();
       loadSuites();
     })
@@ -332,6 +408,7 @@ function planChanged(){
       INIT = r;
       if(!r.rights.canPlan){ $('#mainLayout').hide(); $('#noAccess').show(); return; }
       $('#noAccess').hide(); $('#mainLayout').show();
+      renderFilterPanel();
       renderAssignPanel();
       loadSuites();
     })
@@ -358,8 +435,126 @@ function renderAssignPanel(){
   $('#assignPanel').show();
 }
 
-function kwParam(){
-  return $('#kwSel').val() ? '&keyword_id='+encodeURIComponent($('#kwSel').val()) : '';
+// Issue #1132: navigator filter panel state (legacy inc_filter_panel in
+// plan_add_mode). Selections persist in sessionStorage per test project and
+// are sent to the BFF as the legacy filter_* query dict.
+var FILTER_DEFAULTS = {tc_id:'', name:'', toplevel:'', keywords:[], kw_type:'Or',
+  platforms:[], importance:[], status:[], cfields:{}};
+var FSTATE = null;
+
+function filterStoreKey(){ return 'paddtc.filters.' + tprojectId; }
+function loadFilterState(){
+  try{ FSTATE = JSON.parse(sessionStorage.getItem(filterStoreKey()) || 'null'); }catch(e){ FSTATE = null; }
+  if(!FSTATE || typeof FSTATE!=='object'){ FSTATE = JSON.parse(JSON.stringify(FILTER_DEFAULTS)); }
+  ['keywords','platforms','importance','status'].forEach(function(k){ if(!Array.isArray(FSTATE[k])){ FSTATE[k]=[]; } });
+  if(!FSTATE.cfields || typeof FSTATE.cfields!=='object'){ FSTATE.cfields={}; }
+}
+function saveFilterState(){ try{ sessionStorage.setItem(filterStoreKey(), JSON.stringify(FSTATE)); }catch(e){} }
+
+function setMulti(sel, values){
+  var v=(values||[]).map(String);
+  $(sel).find('option').each(function(){ $(this).prop('selected', v.indexOf(String(this.value))>=0); });
+}
+function multiVal(sel){
+  return ($(sel).val()||[]).map(function(x){return parseInt(x,10);}).filter(function(x){return x>0;});
+}
+
+function renderFilterPanel(){
+  loadFilterState();
+  var f=INIT.filters||{};
+  var $t=$('#fTopSuite').empty().append('<option value="">'+esc(TLi18n.t('paddtc.filterAny'))+'</option>');
+  (f.top_level_suites||[]).forEach(function(s){ $t.append('<option value="'+s.id+'">'+esc(s.name)+'</option>'); });
+  var $k=$('#fKeywords').empty();
+  (INIT.keywords||[]).forEach(function(k){ $k.append('<option value="'+k.id+'">'+esc(k.keyword)+'</option>'); });
+  $('#fKeywords').closest('.fitem').toggle((INIT.keywords||[]).length>0);
+  var $p=$('#fPlatforms').empty();
+  (INIT.platforms||[]).forEach(function(p){ $p.append('<option value="'+p.id+'">'+esc(p.name)+'</option>'); });
+  $('#fPlatforms').closest('.fitem').toggle((INIT.platforms||[]).length>0);
+  var $i=$('#fImportance').empty();
+  if(INIT.priority_enabled){ [3,2,1].forEach(function(c){ $i.append('<option value="'+c+'">'+esc(importanceLabel(c))+'</option>'); }); }
+  $('#fImportance').closest('.fitem').toggle(!!INIT.priority_enabled);
+  var $s=$('#fStatus').empty();
+  (f.workflow_status||[]).forEach(function(w){ $s.append('<option value="'+w.id+'">'+esc(w.name)+'</option>'); });
+  $('#fStatus').closest('.fitem').toggle((f.workflow_status||[]).length>0);
+  // design custom fields (list/radio/checkbox -> select, else text input)
+  var $cf=$('#fCfList').empty();
+  var cfs=f.custom_fields||[];
+  cfs.forEach(function(c){
+    var $wrap=$('<div class="fitem">');
+    $wrap.append($('<label>').text(c.label||c.name));
+    if([5,6,7,9].indexOf(c.type)>=0){
+      var $sel=$('<select>').attr('data-cf',c.id).append('<option value="">'+esc(TLi18n.t('paddtc.filterAny'))+'</option>');
+      String(c.possible_values||'').split('|').forEach(function(v){ v=v.trim(); if(v){ $sel.append($('<option>').attr('value',v).text(v)); } });
+      $wrap.append($sel);
+    } else {
+      $wrap.append($('<input type="text">').attr('data-cf',c.id));
+    }
+    $cf.append($wrap);
+  });
+  $('#fCfWrap').toggle(cfs.length>0);
+  restoreFilterControls();
+  updateFilterHint();
+}
+
+function restoreFilterControls(){
+  var st=FSTATE||FILTER_DEFAULTS;
+  $('#fTcId').val(st.tc_id||'');
+  $('#fName').val(st.name||'');
+  $('#fTopSuite').val(st.toplevel||'');
+  setMulti('#fKeywords', st.keywords);
+  setMulti('#fPlatforms', st.platforms);
+  setMulti('#fImportance', st.importance);
+  setMulti('#fStatus', st.status);
+  $('#filterPanel input[name="fKwType"][value="'+(st.kw_type||'Or')+'"]').prop('checked', true);
+  $('#fCfList [data-cf]').each(function(){
+    var id=String(this.getAttribute('data-cf'));
+    $(this).val((st.cfields||{})[id]||'');
+  });
+}
+
+function readFilterControls(){
+  var f={tc_id:$.trim($('#fTcId').val()), name:$.trim($('#fName').val()),
+    toplevel:parseInt($('#fTopSuite').val()||'0',10)||'',
+    keywords:multiVal('#fKeywords'), kw_type:$('#filterPanel input[name="fKwType"]:checked').val()||'Or',
+    platforms:multiVal('#fPlatforms'), importance:multiVal('#fImportance'),
+    status:multiVal('#fStatus'), cfields:{}};
+  $('#fCfList [data-cf]').each(function(){
+    var v=$.trim($(this).val()||'');
+    if(v){ f.cfields[String(this.getAttribute('data-cf'))]=v; }
+  });
+  return f;
+}
+
+function filtersActive(){
+  var st=FSTATE||FILTER_DEFAULTS;
+  return !!(st.tc_id||st.name||st.toplevel||(st.keywords||[]).length||
+    (st.platforms||[]).length||(st.importance||[]).length||(st.status||[]).length||
+    Object.keys(st.cfields||{}).length);
+}
+
+function updateFilterHint(){
+  var on=filtersActive();
+  $('#filterHint').toggleClass('on', on)
+    .html(on ? '<i class="fas fa-circle-check"></i> '+esc(TLi18n.t('paddtc.filtersApplied'))
+             : esc(TLi18n.t('paddtc.filterHint')));
+  $('#btnFilters').toggleClass('active', on);
+}
+
+// Legacy filter_* query dict (mirrors tlTestCaseFilterControl::get_string()).
+function filterParams(){
+  var st=FSTATE||FILTER_DEFAULTS;
+  var p=[];
+  function add(k,v){ p.push(encodeURIComponent(k)+'='+encodeURIComponent(v)); }
+  if(st.tc_id){ add('filter_tc_id', st.tc_id); }
+  if(st.name){ add('filter_testcase_name', st.name); }
+  if(st.toplevel){ add('filter_toplevel_testsuite', st.toplevel); }
+  (st.keywords||[]).forEach(function(k){ add('filter_keywords[]', k); });
+  if((st.keywords||[]).length){ add('filter_keywords_filter_type', st.kw_type||'Or'); }
+  (st.platforms||[]).forEach(function(k){ add('filter_platforms[]', k); });
+  (st.importance||[]).forEach(function(k){ add('filter_importance[]', k); });
+  (st.status||[]).forEach(function(k){ add('filter_workflow_status[]', k); });
+  Object.keys(st.cfields||{}).forEach(function(cfid){ add('filter_custom_fields['+cfid+']', st.cfields[cfid]); });
+  return p.length ? '&'+p.join('&') : '';
 }
 
 // Issue #1131: the navigator has two grouping modes (legacy setting_testsgroupby):
@@ -374,7 +569,7 @@ function loadSuites(){
   var g=groupMode();
   $('#treeHeader').text(g==='req_coverage' ? TLi18n.t('pnav.treeHeaderReqs') : TLi18n.t('paddtc.suites'));
   $('#treeIcon').attr('class', g==='req_coverage' ? 'fas fa-diagram-project' : 'fas fa-folder-tree');
-  $.getJSON(API + '/planaddtc/suites?tproject_id='+tprojectId+'&tplan_id='+pid+modeParam()+kwParam())
+  $.getJSON(API + '/planaddtc/suites?tproject_id='+tprojectId+'&tplan_id='+pid+modeParam()+filterParams())
     .done(function(r){
       if(r.status!=='ok'){ return; }
       renderSuites(r.items||[]);
@@ -443,7 +638,7 @@ function openContainer(nodeId, nodeType){
   else { $('#suiteTree li[data-req="'+nodeId+'"]').addClass('sel'); }
   var pid=currentPlanId();
   var np = curNodeType==='suite' ? '' : '&node_type='+curNodeType+modeParam();
-  $.getJSON(API + '/planaddtc/container?tproject_id='+tprojectId+'&tplan_id='+pid+'&container_id='+nodeId+np+kwParam())
+  $.getJSON(API + '/planaddtc/container?tproject_id='+tprojectId+'&tplan_id='+pid+'&container_id='+nodeId+np+filterParams())
     .done(function(r){
       if(r.status!=='ok'){ toast(TLi18n.t('common.error'),true); return; }
       CONTAINER=r;

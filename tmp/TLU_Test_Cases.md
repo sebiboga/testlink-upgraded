@@ -9703,3 +9703,33 @@ on `null`. The base method is hardened (init `byCode = array()` + `is_null` guar
 - [PASS] Locale switch EN↔RO renders headers.
 - [PASS] Related links point to modern screens with context.
 - [PASS] No new Error/Warning in Event Viewer after 1 min idle.
+## Task — Issue #1132: planAddTC full navigator filter panel
+
+**Precondition:** fresh TestLink DB; app at `http://localhost:8082`, login admin/admin. Load fixtures `tmp/opencode/fixtures1132.sql` (tproject 1 `Sample Project`, prefix `TP`; plans 50 `Sprint 1 plan` / 51 `Sprint 2 plan`; suites 10 `Login suite` / 11 `Payments suite`; TCs 100 `Login test` (importance 3/Draft, keyword smoke, cf browser=Firefox), 101 `Logout test` (importance 2/Ready for review, keywords smoke+regression), 102 `Payment test` (importance 1/Draft, keyword regression, cf browser=Chrome); keyword ids 300 smoke/301 regression; design custom field 400 `browser` (Firefox|Chrome); plan 50 links tcversion 200). Priority enabled via `testprojects.options` (`testPriorityEnabled=1`). Open `gui/templates/plans/planAddTCView.html?tproject_id=1`, Test Plan = `Sprint 1 plan`.
+
+| # | Step | Input | Expected | Observed | Result |
+|---|---|---|---|---|---|
+| 1 | BFF syntax | `php -l api/plans/index.php && php -l api/_guard.php` | no errors | `No syntax errors detected` (both) | PASS |
+| 2 | i18n well-formed | `python3 -m json.tool` on the 10 bundles | valid JSON | valid (10/10) | PASS |
+| 3 | i18n coverage | `bash ai/verify_i18n_coverage.sh` | all bundles contain every en.json key | 9/9 PASS, 0 missing | PASS |
+| 4 | Panel opens | toolbar → **Filters** | panel with tc_id/title/top-suite/keywords+OR/AND/platforms/importance/status/custom fields | all domains populated (2 suites, 2 keywords, 3 importance, 7 status, `BROWSER` select); hint `No filters active` | PASS |
+| 5 | suites name filter | `GET .../planaddtc/suites?...&filter_testcase_name=Payment` | only Payment branch | `Payments suite` (Login pruned) | PASS |
+| 6 | suites top-level | `GET .../suites?...&filter_toplevel_testsuite=11` | re-rooted to Payments | `Payments suite` | PASS |
+| 7 | importance | `GET .../container?...&container_id=10&filter_importance[]=3` | Login test only | `['Login test']` | PASS |
+| 8 | workflow status | `...&filter_workflow_status[]=2` | Logout test only | `['Logout test']` | PASS |
+| 9 | keywords OR | `...&filter_keywords[]=300&filter_keywords_filter_type=Or` | both smoke TCs | `['Login test','Logout test']` | PASS |
+| 10 | keywords AND | `...&filter_keywords[]=300&filter_keywords[]=301&filter_keywords_filter_type=And` | Logout test | `['Logout test']` | PASS |
+| 11 | custom field | `...&filter_custom_fields[400]=Firefox` (suite 10) / `=Chrome` (suite 11) | Login test / Payment test | `['Login test']` / `['Payment test']` | PASS |
+| 12 | platforms | `...&filter_platforms[]=5` | no plan link → empty | `[]` | PASS |
+| 13 | UI apply | select IMPORTANCE=High → Apply filters | hint `Filters active`, tree `Login suite 1/1`, rows `Login test` | exactly that | PASS |
+| 14 | Session persistence | reload page | filter retained | hint `Filters active`, importance `[3]`, tree `Login suite 1/1`, `sessionStorage paddtc.filters.1` populated | PASS |
+| 15 | Reset | click **Reset filters** | state cleared | hint `No filters active`, tree `Login suite 1/2 / Payments suite 0/1`, storage cleared | PASS |
+| 16 | Custom field UI | BROWSER=Firefox → Apply | Login test only | tree `Login suite 1/1`, rows `Login test` | PASS |
+| 17 | Container honours filter | Title=Logout → Apply → click `Login suite` | only Logout test in right pane | title `Login suite (1)`, rows `Logout test` | PASS |
+| 18 | Console | chrome-devtools console | no errors/warnings | none | PASS |
+| 19 | Event Viewer | `SELECT * FROM events WHERE log_level>=2` | no new Error/Warning | no new Error/Warning rows | PASS |
+| 20 | Platform domain on first load | add `platforms(500,'Linux')` + `testplan_platforms(50,500)`, reload `?tproject_id=1` | PLATFORMS control visible + populated without changing plan | visible, options `['Linux']`, plan 50 (boot re-inits for the resolved default plan) | PASS |
+
+**Actual result: implemented** — the modern Add/Remove Test Cases screen exposes the full legacy navigator filter panel (`inc_filter_panel` / `plan_add_mode`), the BFF applies every filter to both the suite tree and the test-case container, and selections persist per session.
+
+**Gate:** `TLU_REQUIRE_SUITE="Issue #1132" bash ai/verify_test_suites.sh`

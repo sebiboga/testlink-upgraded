@@ -253,6 +253,12 @@ function bffRefuseNonScalarParams() {
             'build_set', 'build', 'testsuite', 'platform', 'lastStatus', 'platSet',
         ),
         'api/reportsexport/index.php' => array('build_set'),
+        // Issue #1132: planAddTC navigator filter panel sends the legacy
+        // multi-select filter dict as GET arrays.
+        'api/plans/index.php' => array(
+            'filter_keywords', 'filter_importance', 'filter_workflow_status',
+            'filter_platforms', 'filter_custom_fields',
+        ),
     );
     $allow = isset($arrayParams[$script]) ? array_flip($arrayParams[$script]) : array();
 

@@ -7782,5 +7782,22 @@
   "usergrid.roleId": "ロールID",
   "usergrid.showAllColumns": "全ての列を表示",
   "usergrid.userId": "ユーザーID",
-  "version": "バージョン"
+  "version": "バージョン",
+  "paddtc.filters": "フィルター",
+  "paddtc.filterTitleHeader": "ナビゲーターフィルター",
+  "paddtc.filterTcId": "テストケースID",
+  "paddtc.filterName": "タイトル",
+  "paddtc.filterTopSuite": "最上位テストスイート",
+  "paddtc.filterKeywords": "キーワード",
+  "paddtc.filterKwOr": "いずれか (OR)",
+  "paddtc.filterKwAnd": "すべて (AND)",
+  "paddtc.filterPlatforms": "プラットフォーム",
+  "paddtc.filterImportance": "重要度",
+  "paddtc.filterStatus": "ワークフロー状態",
+  "paddtc.filterCustomFields": "カスタムフィールド",
+  "paddtc.filterAny": "(すべて)",
+  "paddtc.filterApply": "フィルターを適用",
+  "paddtc.filterReset": "フィルターをリセット",
+  "paddtc.filterHint": "有効なフィルターなし",
+  "paddtc.filtersApplied": "フィルター有効"
 }

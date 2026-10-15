@@ -29,13 +29,15 @@ that already have executions additionally requires `testplan_unlink_executed_tes
 8. [Bugfix — Issue #1909: column alignment for platform-less plans](#8-bugfix--issue-1909-column-alignment-for-platform-less-plans)
 9. [Task — Issue #1130: per-TC execution-history + test-spec-design icons](#9-task--issue-1130-per-tc-execution-history--test-spec-design-icons)
 10. [Task — Issue #1131: requirement-coverage navigator modes](#10-task--issue-1131-requirement-coverage-navigator-modes)
+11. [Task — Issue #1132: full navigator filter panel](#11-task--issue-1132-full-navigator-filter-panel)
 
 ---
 ## 1. Screen Layout
 * Teal Dashio header: title, subtitle, locale switcher.
 * Toolbar: test project picker, test plan picker (re-inits the whole screen),
-  keyword filter, **Group by** selector (Test suites / Requirement coverage —
-  legacy `setting_testsgroupby`, see §10), Refresh button.
+  **Group by** selector (Test suites / Requirement coverage — legacy
+  `setting_testsgroupby`, see §10), **Filters** toggle button (full navigator
+  filter panel, see §11), Refresh button.
 * Left panel — suite tree with **linked/total** deep badges per suite (or the
   requirement-coverage tree when Group by = Requirement coverage).
 * Right panel — per-suite table:
@@ -351,3 +353,75 @@ reqs 24/26; `req_coverage` req1→tcA1, req2→tcB1; plan links A1/B1/B2):
 * Regression: Group by = Test suites → `Suite A 1/3`, `Suite B 2/2`, `Suite A1 0/1`.
 * Console clean; Event Viewer only audit rows. Test suite **Task — Issue #1131**
   appended to `tmp/TLU_Test_Cases.md` (11/11 PASS).
+
+---
+
+## 11. Task — Issue #1132: full navigator filter panel
+
+The legacy Add/Remove Test Cases navigator rendered a full filter panel
+(`gui/templates/dashio/include/inc_filter_panel.tpl` +
+`inc_filter_panel_js.tpl`, driven server-side by
+`lib/functions/tlTestCaseFilterControl.class.php` `plan_add_mode`) with test-case
+ID, title, top-level test suite, keywords (Or/And), platforms, importance,
+workflow status and design custom fields. The modern workframe had dropped it,
+keeping only a single keyword `<select>`. This port restores the whole panel and
+the BFF filter engine.
+
+### Behavior
+* Toolbar **Filters** button toggles a collapsible panel (`#filterPanel`) with:
+  * **Test case ID** (external id, e.g. `TP-1`) and **Title** (substring, LIKE).
+  * **Top-level test suite** — re-roots the left tree to that branch.
+  * **Keywords** multi-select + **Any (OR)** / **All (AND)** radios.
+  * **Platforms** multi-select (plan platforms), **Importance** multi-select
+    (only when the project has test priority), **Workflow status** multi-select.
+  * **Custom fields** — one control per design custom field linked to the
+    project (list/radio → select, else text).
+* **Apply filters** re-queries the tree and the container; **Reset filters**
+  clears everything; a hint shows *No filters active* / *Filters active*.
+* Selections persist per session in `sessionStorage`
+  (`paddtc.filters.<tproject_id>`), so a reload keeps the active filter set.
+
+### REST API
+* `GET /planaddtc/suites?...` accepts the legacy `filter_*` query dict:
+  `filter_tc_id`, `filter_testcase_name`, `filter_toplevel_testsuite`,
+  `filter_keywords[]` + `filter_keywords_filter_type` (`Or`|`And`),
+  `filter_platforms[]`, `filter_importance[]`, `filter_workflow_status[]`,
+  `filter_custom_fields[<field_id>]`. Suites with `deep_total_qty == 0` are
+  pruned; `filter_toplevel_testsuite` overrides the requested root.
+* `GET /planaddtc/container?...` applies the same restriction to the suite
+  branch rows and to the requirement-coverage branch.
+* `GET /planaddtc/init` returns `filters = {top_level_suites, workflow_status,
+  custom_fields}` used to populate the panel.
+* Semantics mirror legacy `testproject::getTestSpec()` /
+  `tlTestCaseFilterControl` (see `tlTestCaseFilterControl.class.php:242-250`):
+  title LIKE, external id resolved to internal, importance/status/custom-field
+  matched on the **latest ACTIVE tcversion**, keywords testcase-level, platforms
+  via the plan links.
+* `api/_guard.php`: the new GET arrays are whitelisted in `$arrayParams` for
+  `api/plans/index.php`; the #1810 non-scalar guard would otherwise answer
+  `400 invalid_parameter`.
+
+### i18n
+New keys `paddtc.filters` + 16 `paddtc.filter*` (`filterTitleHeader`,
+`filterTcId`, `filterName`, `filterTopSuite`, `filterKeywords`, `filterKwOr`,
+`filterKwAnd`, `filterPlatforms`, `filterImportance`, `filterStatus`,
+`filterCustomFields`, `filterAny`, `filterApply`, `filterReset`, `filterHint`,
+`filtersApplied`) in all 10 locale bundles.
+
+### Verification
+Fixture `tmp/opencode/fixtures1132.sql` (tproject 1, plan 50; suites 10/11; TCs
+100/101/102; keywords 300/301; design CF 400 `browser`):
+* `suites filter_testcase_name=Payment` → `Payments suite` (Login pruned);
+  `filter_toplevel_testsuite=11` → `Payments suite`.
+* container: `filter_importance[]=3` → `Login test`; `filter_workflow_status[]=2`
+  → `Logout test`; keywords `300` Or → Login+Logout; `300`+`301` And → Logout;
+  `filter_custom_fields[400]=Firefox` → Login test, `=Chrome` → Payment test;
+  `filter_platforms[]=5` → empty; `filter_tc_id=TP-2` → `Logout test`.
+* UI: Apply importance=High → hint *Filters active*, tree `Login suite 1/1`,
+  row `Login test`; reload keeps it; Reset restores `Login suite 1/2`,
+  `Payments suite 0/1`; title=Logout + click Login suite → right pane `Logout test`.
+* First-load plan domains: `boot()` re-inits for the resolved default plan, so
+  the **Platforms** filter is populated (verified with a `Linux` plan platform)
+  without the user changing the plan.
+* Console clean; Event Viewer only `log_level>=2`-free (audit rows only). Test
+  suite **Task — Issue #1132** appended to `tmp/TLU_Test_Cases.md` (19/19 PASS).

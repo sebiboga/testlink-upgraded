@@ -681,6 +681,271 @@ function planAddTcKeywordList() {
     return count($ids) ? implode(',', $ids) : '';
 }
 
+// Issue #1132: full navigator filter set dropped during modernization.
+// Ported from tlTestCaseFilterControl (plan_add_mode) + treeMenu.inc.php
+// getTestSpec()/getFiltersForTree: test case id (external), title (LIKE),
+// top-level suite, keywords (multi + Or/And), importance, workflow status,
+// platforms and design custom fields. Values arrive as GET arrays
+// (filter_keywords[], filter_importance[], ...) or as the legacy
+// comma-separated keyword_id (kept for backward compatibility).
+function planAddTcFilterInts($key) {
+    $raw = $_GET[$key] ?? null;
+    if (is_null($raw)) {
+        return [];
+    }
+    $vals = is_array($raw) ? $raw : explode(',', (string)$raw);
+    $out = [];
+    foreach ($vals as $v) {
+        $v = intval($v);
+        if ($v > 0) {
+            $out[] = $v;
+        }
+    }
+    return array_values(array_unique($out));
+}
+
+function planAddTcFilterStr($key) {
+    $raw = $_GET[$key] ?? null;
+    if (is_array($raw)) {
+        $raw = reset($raw);
+    }
+    return trim((string)$raw);
+}
+
+function planAddTcParseFilters() {
+    $f = [
+        'tc_id' => planAddTcFilterStr('filter_tc_id'),
+        'name' => planAddTcFilterStr('filter_testcase_name'),
+        'toplevel' => intval(planAddTcFilterStr('filter_toplevel_testsuite')),
+        'keywords' => planAddTcFilterInts('filter_keywords'),
+        'kw_type' => (planAddTcFilterStr('filter_keywords_filter_type') === 'And')
+            ? 'And' : 'Or',
+        'importance' => planAddTcFilterInts('filter_importance'),
+        'status' => planAddTcFilterInts('filter_workflow_status'),
+        'platforms' => planAddTcFilterInts('filter_platforms'),
+        'cfields' => [],
+    ];
+    if (isset($_GET['filter_custom_fields']) && is_array($_GET['filter_custom_fields'])) {
+        foreach ($_GET['filter_custom_fields'] as $fid => $val) {
+            $fid = intval($fid);
+            $vals = is_array($val) ? $val : [$val];
+            $vals = array_values(array_filter(array_map(function ($x) {
+                return trim((string)$x);
+            }, $vals), 'strlen'));
+            if ($fid > 0 && count($vals)) {
+                $f['cfields'][$fid] = $vals;
+            }
+        }
+    }
+    // legacy single keyword dropdown -> OR set
+    if (!count($f['keywords'])) {
+        $comma = planAddTcKeywordList();
+        if ($comma !== '') {
+            $f['keywords'] = array_values(array_unique(array_filter(
+                array_map('intval', explode(',', $comma)),
+                function ($v) { return $v > 0; })));
+        }
+    }
+    $f['active'] = ($f['tc_id'] !== '' || $f['name'] !== '' || $f['toplevel'] > 0 ||
+        count($f['keywords']) > 0 || count($f['importance']) > 0 ||
+        count($f['status']) > 0 || count($f['platforms']) > 0 ||
+        count($f['cfields']) > 0);
+    return $f;
+}
+
+// Returns the internal testcase ids of the addressed project matching the
+// filter dict, or null when no filter is active (callers skip restriction).
+function planAddTcMatchingTcIds(&$db, $tproject_id, $tplan_id, $f) {
+    if (empty($f['active'])) {
+        return null;
+    }
+    $TLT = tlObject::getDBTables();
+    $nh = $TLT['nodes_hierarchy'];
+    $nt = planAddTcNodeTypes($db);
+    $sql = "WITH RECURSIVE sub AS ( " .
+        " SELECT id AS node_id FROM {$nh} WHERE id = {$tproject_id} " .
+        " UNION ALL " .
+        " SELECT NH.id FROM {$nh} NH JOIN sub S ON NH.parent_id = S.node_id ) " .
+        " SELECT NH.id, NH.name FROM {$nh} NH JOIN sub S ON NH.id = S.node_id " .
+        " WHERE NH.node_type_id = {$nt['testcase']}";
+    $rows = $db->fetchRowsIntoMap($sql, 'id');
+    if (is_null($rows)) {
+        return [];
+    }
+    $cand = [];
+    foreach ($rows as $id => $r) {
+        $cand[intval($id)] = (string)$r['name'];
+    }
+
+    // title LIKE (case-insensitive mirror of legacy getTestSpec LIKE '%x%')
+    if ($f['name'] !== '') {
+        $needle = mb_strtolower($f['name']);
+        foreach ($cand as $id => $nm) {
+            if (mb_strpos(mb_strtolower($nm), $needle) === false) {
+                unset($cand[$id]);
+            }
+        }
+    }
+
+    // latest ACTIVE version per candidate (importance/status/CF behave like
+    // legacy: filters run against the newest active tcversion)
+    $latest = [];
+    if (count($cand)) {
+        $idList = implode(',', array_map('intval', array_keys($cand)));
+        $vtc = $TLT['tcversions'];
+        $sql = "SELECT NHTCV.parent_id AS tc_id, TCV.id AS tcversion_id, " .
+            " TCV.importance, TCV.status, TCV.tc_external_id " .
+            " FROM {$vtc} TCV JOIN {$nh} NHTCV ON NHTCV.id = TCV.id " .
+            " JOIN ( SELECT NH2.parent_id AS tc_id, MAX(T2.version) AS version " .
+            "   FROM {$vtc} T2 JOIN {$nh} NH2 ON NH2.id = T2.id " .
+            "   WHERE T2.active = 1 AND NH2.parent_id IN ({$idList}) " .
+            "   GROUP BY NH2.parent_id ) SQ " .
+            " ON SQ.tc_id = NHTCV.parent_id AND TCV.version = SQ.version " .
+            " AND TCV.active = 1";
+        $rows2 = $db->fetchRowsIntoMap($sql, 'tc_id');
+        if (!is_null($rows2)) {
+            foreach ($rows2 as $tcId => $vr) {
+                $latest[intval($tcId)] = $vr;
+            }
+        }
+    }
+
+    // external test case id -> internal
+    if ($f['tc_id'] !== '') {
+        $tpMgr = new testproject($db);
+        $prefix = $tpMgr->getTestCasePrefix($tproject_id) .
+            config_get('testcase_cfg')->glue_character;
+        $ext = intval(str_replace($prefix, '', $f['tc_id']));
+        foreach ($cand as $id => $nm) {
+            if (!isset($latest[$id]) ||
+                intval($latest[$id]['tc_external_id']) !== $ext) {
+                unset($cand[$id]);
+            }
+        }
+    }
+
+    $applyIn = function ($set, $col) use (&$cand, $latest) {
+        foreach ($cand as $id => $nm) {
+            if (!isset($latest[$id]) ||
+                !in_array(intval($latest[$id][$col]), $set, true)) {
+                unset($cand[$id]);
+            }
+        }
+    };
+    if (count($f['importance'])) {
+        $applyIn($f['importance'], 'importance');
+    }
+    if (count($f['status'])) {
+        $applyIn($f['status'], 'status');
+    }
+
+    // design custom fields on the latest active version (value LIKE)
+    if (count($f['cfields']) && count($cand)) {
+        $vids = [];
+        foreach ($cand as $id => $nm) {
+            if (isset($latest[$id])) {
+                $vids[] = intval($latest[$id]['tcversion_id']);
+            }
+        }
+        if (!count($vids)) {
+            return [];
+        }
+        $cf = $TLT['cfield_design_values'] ?? 'cfield_design_values';
+        $vidList = implode(',', $vids);
+        $sql = "SELECT field_id, node_id, value FROM {$cf} " .
+            " WHERE node_id IN ({$vidList})";
+        $cfRows = $db->fetchRowsIntoMap($sql, 'node_id');
+        $byVid = [];
+        if (!is_null($cfRows)) {
+            foreach ($cfRows as $nodeId => $cr) {
+                $byVid[intval($cr['node_id'])][] = $cr;
+            }
+        }
+        foreach ($cand as $id => $nm) {
+            $vid = isset($latest[$id]) ? intval($latest[$id]['tcversion_id']) : 0;
+            $vals = $byVid[$vid] ?? [];
+            foreach ($f['cfields'] as $fid => $want) {
+                $hit = false;
+                foreach ($vals as $cr) {
+                    if (intval($cr['field_id']) !== $fid) {
+                        continue;
+                    }
+                    foreach ($want as $needle) {
+                        if (mb_stripos((string)$cr['value'], $needle) !== false) {
+                            $hit = true;
+                            break 2;
+                        }
+                    }
+                }
+                if (!$hit) {
+                    unset($cand[$id]);
+                    break;
+                }
+            }
+        }
+    }
+
+    // keywords (testcase level, Or/And) - mirror of the subjects tree join
+    if (count($f['keywords']) && count($cand)) {
+        $tck = $TLT['testcase_keywords'];
+        $idList = implode(',', array_map('intval', array_keys($cand)));
+        $kwList = implode(',', $f['keywords']);
+        $sql = "SELECT testcase_id, COUNT(DISTINCT keyword_id) AS hits " .
+            " FROM {$tck} WHERE keyword_id IN ({$kwList}) " .
+            " AND testcase_id IN ({$idList}) GROUP BY testcase_id";
+        $kr = $db->fetchRowsIntoMap($sql, 'testcase_id');
+        $hits = [];
+        if (!is_null($kr)) {
+            foreach ($kr as $tcId => $row) {
+                $hits[intval($tcId)] = intval($row['hits']);
+            }
+        }
+        $need = ($f['kw_type'] === 'And') ? count($f['keywords']) : 1;
+        foreach ($cand as $id => $nm) {
+            if (($hits[$id] ?? 0) < $need) {
+                unset($cand[$id]);
+            }
+        }
+    }
+
+    // platforms: only testcases with a link on one of the selected platforms
+    if (count($f['platforms']) && count($cand)) {
+        $tpv = $TLT['testplan_tcversions'];
+        $idList = implode(',', array_map('intval', array_keys($cand)));
+        $platList = implode(',', $f['platforms']);
+        $sql = "SELECT DISTINCT NHTCV.parent_id AS tc_id " .
+            " FROM {$tpv} T JOIN {$nh} NHTCV ON NHTCV.id = T.tcversion_id " .
+            " WHERE T.testplan_id = {$tplan_id} " .
+            " AND T.platform_id IN ({$platList}) " .
+            " AND NHTCV.parent_id IN ({$idList})";
+        $pr = $db->fetchRowsIntoMap($sql, 'tc_id');
+        $keep = [];
+        if (!is_null($pr)) {
+            foreach ($pr as $tcId => $dummy) {
+                $keep[intval($tcId)] = true;
+            }
+        }
+        foreach ($cand as $id => $nm) {
+            if (!isset($keep[$id])) {
+                unset($cand[$id]);
+            }
+        }
+    }
+
+    return array_map('intval', array_keys($cand));
+}
+
+// SQL fragment " AND NHTC.id IN (…)" (or '') for a resolved id set.
+function planAddTcIdRestriction($matchTcIds) {
+    if (is_null($matchTcIds)) {
+        return '';
+    }
+    if (!count($matchTcIds)) {
+        return ' AND NHTC.id IN (0)';
+    }
+    return ' AND NHTC.id IN (' . implode(',', $matchTcIds) . ')';
+}
+
 function planAddTcNodeTypes($db) {
     static $cache = null;
     if (!is_null($cache)) {
@@ -968,6 +1233,43 @@ if ($method === 'GET' && count($segments) === 2 &&
         ? !empty($projOpts->testPriorityEnabled)
         : (is_array($projOpts) ? !empty($projOpts['testPriorityEnabled']) : false);
 
+    // Issue #1132: filter domains for the collapsible navigator panel.
+    // First-level suites drive filter_toplevel_testsuite; workflow status and
+    // design custom fields drive filter_workflow_status / filter_custom_fields.
+    $firstSuites = [];
+    $fls = $tprojectMgr->get_first_level_test_suites($tproject_id,
+        'smarty_html_options');
+    if (is_array($fls)) {
+        foreach ($fls as $sid => $sname) {
+            if (intval($sid) > 0) {
+                $firstSuites[] = ['id' => intval($sid),
+                    'name' => (string)$sname];
+            }
+        }
+    }
+    $wfStatus = [];
+    $tcMgr = new testcase($db);
+    $wfDomain = $tcMgr->getWorkFlowStatusDomain();
+    if (is_array($wfDomain)) {
+        foreach ($wfDomain as $code => $label) {
+            $wfStatus[] = ['id' => intval($code), 'name' => (string)$label];
+        }
+    }
+    $cfFields = [];
+    $cf = $tcMgr->cfield_mgr->get_linked_cfields_at_design(
+        $tproject_id, 1, null, 'testcase');
+    if (is_array($cf)) {
+        foreach ($cf as $cfid => $info) {
+            $cfFields[] = [
+                'id' => intval($cfid),
+                'name' => (string)($info['name'] ?? ''),
+                'label' => (string)($info['label'] ?? ''),
+                'type' => intval($info['type'] ?? 0),
+                'possible_values' => (string)($info['possible_values'] ?? ''),
+            ];
+        }
+    }
+
     out([
         'status' => 'ok',
         'tproject' => [
@@ -985,6 +1287,11 @@ if ($method === 'GET' && count($segments) === 2 &&
         'rights' => $ctxRights,
         'ext_id_glue' => (string)$glueChar,
         'priority_enabled' => $priorityEnabled,
+        'filters' => [
+            'top_level_suites' => $firstSuites,
+            'workflow_status' => $wfStatus,
+            'custom_fields' => $cfFields,
+        ],
     ]);
 }
 
@@ -1015,9 +1322,17 @@ if ($method === 'GET' && count($segments) === 2 &&
     $TLT = tlObject::getDBTables();
     $nh = $TLT['nodes_hierarchy'];
     $rootId = intval(getParam('container_id', $tproject_id));
+    // Issue #1132: legacy filter_toplevel_testsuite restricts the tree to the
+    // subtree of the selected first-level suite.
+    $flt = planAddTcParseFilters();
+    if ($flt['toplevel'] > 0) {
+        $rootId = $flt['toplevel'];
+    }
     if ($rootId <= 0) {
         $rootId = $tproject_id;
     }
+    $matchTcIds = planAddTcMatchingTcIds($db, $tproject_id, $tplan_id, $flt);
+    $idRestriction = planAddTcIdRestriction($matchTcIds);
     // recursion root must live inside this project (no cross-project walk)
     if ($rootId != $tproject_id) {
         $prow = planAddTcInProject($db, $nh, $rootId, $tproject_id);
@@ -1069,7 +1384,8 @@ if ($method === 'GET' && count($segments) === 2 &&
         $sql = "SELECT NHTC.parent_id AS tsuite_id, COUNT(*) AS qty " .
             " FROM {$nh} NHTC {$kwJoin} " .
             " WHERE NHTC.node_type_id = {$nt['testcase']} " .
-            " AND NHTC.parent_id IN ({$idList}) GROUP BY NHTC.parent_id";
+            " AND NHTC.parent_id IN ({$idList}){$idRestriction} " .
+            " GROUP BY NHTC.parent_id";
         $rows = $db->fetchRowsIntoMap($sql, 'tsuite_id');
         if (!is_null($rows)) {
             foreach ($rows as $sid => $r) {
@@ -1085,7 +1401,8 @@ if ($method === 'GET' && count($segments) === 2 &&
             " JOIN {$nh} NHTC ON NHTC.id = NHTCV.parent_id " .
             " WHERE TPTCV.testplan_id = {$tplan_id} " .
             " AND NHTC.node_type_id = {$nt['testcase']} " .
-            " AND NHTC.parent_id IN ({$idList}) GROUP BY NHTC.parent_id";
+            " AND NHTC.parent_id IN ({$idList}){$idRestriction} " .
+            " GROUP BY NHTC.parent_id";
         $rows = $db->fetchRowsIntoMap($sql, 'tsuite_id');
         if (!is_null($rows)) {
             foreach ($rows as $sid => $r) {
@@ -1114,6 +1431,11 @@ if ($method === 'GET' && count($segments) === 2 &&
             }
             $suites[$sid]['deep_total_qty'] = $tot;
             $suites[$sid]['deep_linked_qty'] = $lnk;
+            // Issue #1132: when a filter is active the legacy tree prunes
+            // empty branches (getTestSpec remove_empty_nodes_of_type).
+            if (!empty($flt['active']) && $tot == 0) {
+                continue;
+            }
             $out[] = $suites[$sid];
         }
     } else {
@@ -1152,6 +1474,12 @@ if ($method === 'GET' && count($segments) === 2 &&
         " ON TK.testcase_id = NHTC.id " .
         " AND TK.keyword_id IN ({$kwList}) " : "";
 
+    // Issue #1132: full navigator filter set. Resolve the matching internal
+    // testcase ids once and restrict the container rows to them.
+    $flt = planAddTcParseFilters();
+    $matchTcIds = planAddTcMatchingTcIds($db, $tproject_id, $tplan_id, $flt);
+    $idRestriction = planAddTcIdRestriction($matchTcIds);
+
     // Issue #1131: requirement-coverage mode. The container is a requirement
     // (node_type=req / legacy item_level=reqcoverage) or a requirement spec
     // (node_type=req_spec / legacy item_level=reqspeccoverage). The test cases
@@ -1180,6 +1508,15 @@ if ($method === 'GET' && count($segments) === 2 &&
             $keepIds = is_null($keep) ? [] : array_map('intval', array_keys($keep));
             foreach (array_keys($tcRows) as $tid) {
                 if (!in_array(intval($tid), $keepIds, true)) {
+                    unset($tcRows[$tid]);
+                }
+            }
+        }
+        // Issue #1132: apply the remaining navigator filters to the covering
+        // test cases (name/id/importance/status/cf/keywords/platforms).
+        if (!is_null($matchTcIds) && !is_null($tcRows)) {
+            foreach (array_keys($tcRows) as $tid) {
+                if (!in_array(intval($tid), $matchTcIds, true)) {
                     unset($tcRows[$tid]);
                 }
             }
@@ -1215,7 +1552,7 @@ if ($method === 'GET' && count($segments) === 2 &&
         $sql = "SELECT NHTC.id AS tc_id, NHTC.name, NHTC.node_order " .
             " FROM {$nh} NHTC {$kwJoin} " .
             " WHERE NHTC.node_type_id = {$nt['testcase']} " .
-            " AND NHTC.parent_id = {$container_id} " .
+            " AND NHTC.parent_id = {$container_id}{$idRestriction} " .
             " ORDER BY NHTC.node_order, NHTC.name";
         $tcRows = $db->fetchRowsIntoMap($sql, 'tc_id');
     }

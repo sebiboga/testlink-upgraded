@@ -7782,5 +7782,22 @@
   "usergrid.roleId": "ID роли",
   "usergrid.showAllColumns": "Показать все столбцы",
   "usergrid.userId": "ID пользователя",
-  "version": "Версия"
+  "version": "Версия",
+  "paddtc.filters": "Фильтры",
+  "paddtc.filterTitleHeader": "Фильтры навигатора",
+  "paddtc.filterTcId": "ID тест-кейса",
+  "paddtc.filterName": "Заголовок",
+  "paddtc.filterTopSuite": "Набор тестов верхнего уровня",
+  "paddtc.filterKeywords": "Ключевые слова",
+  "paddtc.filterKwOr": "Любое (ИЛИ)",
+  "paddtc.filterKwAnd": "Все (И)",
+  "paddtc.filterPlatforms": "Платформы",
+  "paddtc.filterImportance": "Важность",
+  "paddtc.filterStatus": "Статус рабочего процесса",
+  "paddtc.filterCustomFields": "Пользовательские поля",
+  "paddtc.filterAny": "(любое)",
+  "paddtc.filterApply": "Применить фильтры",
+  "paddtc.filterReset": "Сбросить фильтры",
+  "paddtc.filterHint": "Фильтры не активны",
+  "paddtc.filtersApplied": "Фильтры активны"
 }
