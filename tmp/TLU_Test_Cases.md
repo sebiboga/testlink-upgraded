@@ -10179,3 +10179,27 @@ substitution.
 **Actual result: 10/10 PASS.** Root cause: `_build_cfield()` classified a hash key as a date part by suffix alone (`cfield_mgr.class.php:1938`), never checking the field's type; the per-type switch has no branch to flatten an array for a scalar type, so the array reached `design_values_to_db()` (`:859`) where `max_length_value > 0` calls `tlStringLen()` -> `iconv_strlen()` (PHP 8 `TypeError`, HTTP 500). Fix: only merge per-part keys when the key's `type_id` maps to `date`/`datetime`, else fall through to the scalar branch (array value flattened to `''`). Refs #1853, #1852.
 
 **Gate:** `TLU_REQUIRE_SUITE="Issue #1853" bash ai/verify_test_suites.sh`.
+
+## Regression — Issue #1917: perf.* + footers.perfReports keys dropped from 9 non-en client bundles by the #1134 whole-file rewrite (coverage gate did not gate the merge)
+
+**Screen / area:** Performance Test Reports screen `gui/templates/results/perfReports.html` + shared client bundles `gui/templates/i18n/*.json`; gate `ai/verify_i18n_coverage.sh`. Refs #1917, #1063, #1134.
+
+**Precondition:** repo at default branch `sebiboga`, `HEAD=8841c3b96`; app at `http://localhost:8082`; headless Chrome via chrome-devtools MCP. `08631dda3` (restoration) already an ancestor of HEAD.
+
+| # | Step | Input | Expected | Observed | Result |
+|---|---|---|---|---|---|
+| 1 | Symptom visible in history | `git show 7023d9762:gui/templates/i18n/ro.json \| grep -c '"perf\.'` | 0 (clobbered) | `0` | PASS |
+| 2 | en.json kept them | `git show 7023d9762:gui/templates/i18n/en.json \| grep -c '"perf\.'` | 74 | `74` | PASS |
+| 3 | Fix already landed | `git merge-base --is-ancestor 08631dda3 HEAD` | ancestor | ancestor | PASS |
+| 4 | Key-set present in all 10 bundles | `grep -c '"perf\.'` per bundle | 74 each | 74/74 ×10 | PASS |
+| 5 | Value fidelity vs 5d6bd072d | Python deep-compare perf.*+footers.perfReports, ro/de/ja/zh | 0 diffs, 0 missing | 0/0 each | PASS |
+| 6 | Coverage gate | `bash ai/verify_i18n_coverage.sh` | 9 passed, 0 failed, exit 0 | exit 0 | PASS |
+| 7 | Negative control | remove `perf.title` from a copy of ro.json, run gate | FAIL exit 1 | `FAIL ro.json — missing perf.title`, exit 1 | PASS |
+| 8 | Live runtime (ro) | `perfReports.html?locale=ro` → `TLi18n.t('perf.title')` | localized, not raw key | `"Rapoarte de performanță"` | PASS |
+| 9 | Live runtime others | `perf.summaryTitle`, `footers.perfReports`, `perf.colLabel` | localized | `"Sumar"`, `"TestLink 2.0.1 - Rapoarte de performanță"`, `"Etichetă"` | PASS |
+| 10 | No raw-key leak | `perfTitle===` raw? | false | `{perfTitle:false, summaryTitle:false, footer:false}` | PASS |
+| 11 | Named defect status | `grep -rl verify_i18n_coverage .github/workflows/ \| wc -l` | 0 (not wired; #1850 blocked) | `0` | PASS (documented, not fixable by agent token) |
+
+**Actual result: 11/11 PASS.** The `perf.*` regression was already remediated in `08631dda3`; this run verified key presence (10/10 bundles), value fidelity against the original `5d6bd072d` add (0 drift), the gate (exit 0 + negative control exit 1), and the live runtime (`?locale=ro` renders Romanian labels, no raw-key fallback at `i18n.js:175`). The gate's CI enforcement is blocked because the agent token lacks the `workflows` permission (#1850). A separate still-live instance of the same class (`tmvc.*`, screen `containerMoveTC.html`) was found and filed as #1918.
+
+**Gate:** `TLU_REQUIRE_SUITE="Issue #1917" bash ai/verify_test_suites.sh`.
