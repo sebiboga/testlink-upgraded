@@ -2828,6 +2828,7 @@
   "paddtc.errExecuted": "選択されたテストケースには実行結果があり、削除には testplan_unlink_executed_testcases 権限が必要です。",
   "paddtc.execOrder": "実行順序",
   "paddtc.executed": "この計画ですでに実行済み",
+  "paddtc.executedNoRemove": "実行されたテストケースは削除できません。",
   "paddtc.executionHistory": "実行履歴",
   "paddtc.inactive": "非アクティブ",
   "paddtc.infoAddedOnDate": "テストケースがテストプランに追加された日付",

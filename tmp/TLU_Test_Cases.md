@@ -9819,3 +9819,55 @@ curl -s -c $JAR -b $JAR -o /dev/null -d 'tl_login=admin&tl_password=admin' http:
 **TC-1860-8 (blast-radius / no drive-by):** `git diff --stat` shows only the 2 dashio attachment templates modified; `grep -n "function(b,t,i){ deleteAttachment_onClick" gui/templates/dashio/include/*.tpl` → both fixed; tl-classic left untouched because `lib/functions/tlsmarty.inc.php:101-103` hardcodes `template_dir` to `gui/templates/dashio/` (tl-classic is dead code) → **PASS**.
 
 **Result: 6 PASS / 0 FAIL (TC-1860-1..3 are the documented pre-fix FAIL that the fix resolves; post-fix cases TC-1860-4..8 all PASS).**
+
+## Task — Issue #1133: planAddTC executed-link removal confirmation + render-time gating of the executed remove checkbox
+
+**Precondition:** TestLink 2.0.1 at http://localhost:8082, DB freshly imported, `admin/admin` plus a fixture limited user `limuser/limpw123` whose role holds ONLY `testplan_planning` (right id 4, no `testplan_unlink_executed_testcases`, no `user_testproject_roles` row; project PATC 1000 is public so the global right set applies). Fixture: project `PATC 1000` id=1, suite `Suite A` id=2, `TA-1` id=3 (tcversion 4, unexecuted), `TA-2` id=5 (tcversion 6, executed), plan `Plan A` id=7, build `B1` id=1.
+
+**Fixture (recreate):**
+```bash
+mysql -h127.0.0.1 -utestlink -ptestlink testlink -e "
+INSERT INTO roles (description,notes) VALUES ('lim unlink 1133','issue 1133 fixture');
+SET @r=LAST_INSERT_ID();
+INSERT INTO role_rights (role_id,right_id) VALUES (@r,4);
+INSERT INTO users (login,password,role_id,email,first,last,locale,active,cookie_string)
+ VALUES ('limuser','<bcrypt limpw123>',@r,'','Lim','User','en_GB',1,MD5(CONCAT(UUID(),UUID())));"
+```
+
+**TC-1133-1 (admin, non-executed link removal — no false confirmation)**
+1. Login as admin; open `gui/templates/plans/planAddTCView.html?tproject_id=1`, plan Plan A.
+2. Tick the "Remove links" checkbox on `TA-1` (no executions); click **Save changes**.
+- Expected: NO confirmation modal; direct save.
+- **ACTUAL: no modal (`#rmModal` has no `in` class); POST `/planaddtc/save` fires; toast "0 link(s) added, 1 removed"; DB `testplan_tcversions` drops tcversion 4 → PASS.**
+
+**TC-1133-2 (admin, executed link removal — confirmation modal + cascade)**
+1. Reload; tick the remove checkbox on `TA-2` (1 execution); click **Save changes**.
+2. Click **Cancel**.
+- Expected: modal warns the executed case + results will be removed; Cancel fires no POST.
+- **ACTUAL: modal opens (`modal fade in`) with message "The following test cases already have executions and will be removed together with their results:\nTA-2"; Cancel → no POST, link + execution intact → PASS.**
+3. Click **Save changes** again, then **OK** in the modal.
+- Expected: one POST; link removed; executions cascade-deleted.
+- **ACTUAL: toast "0 link(s) added, 1 removed", modal closed, `testplan_tcversions` keeps only tcversion 4, `SELECT COUNT(*) FROM executions WHERE testplan_id=7` → 0 → PASS.**
+
+**TC-1133-3 (limited user, render-time gating — the implemented parity fix)**
+1. In an isolated browser context login `limuser/limpw123`; open the same screen.
+2. Inspect the remove cell of both rows.
+- Expected (legacy `planAddTC.tpl:347-363`): executed case has NO interactive checkbox, rendered as a read-only chip with the `executed_can_not_be_removed` tooltip; non-executed case keeps its checkbox.
+- **ACTUAL: `GET /planaddtc/init` returns `rights={canPlan:true,canRemoveExecuted:false,canAssignExecTask:false}`; `TA-1` = `<label>` with `input.rmchk`; `TA-2` = `<span class="chip executed chip-ro">` with **no** checkbox and `title="Executed test cases can not be removed."`; vial icon title likewise → PASS.**
+
+**TC-1133-4 (limited user, server-side/JS defense in depth)**
+1. Inject a synthetic checked `input.rmchk[data-tc=5]` (executed) into `TA-2`'s remove cell; click **Save changes**.
+- Expected: blocked with the "requires testplan_unlink_executed_testcases right" error; no modal; no POST.
+- **ACTUAL: red toast "Selected test cases have executions; removing them requires the 'testplan_unlink_executed_testcases' right."; no modal; network panel shows only GETs (no POST); DB unchanged (2 links, 1 execution) → PASS.**
+
+**TC-1133-5 (i18n coverage)**
+1. `bash ai/verify_i18n_coverage.sh`; `python3 -m json.tool gui/templates/i18n/<each>.json`.
+- Expected: new key `paddtc.executedNoRemove` present in ALL 10 bundles.
+- **ACTUAL: json.tool OK for all 10; coverage gate PASS 9/9, 0 missing, 7799 keys, exit 0 → PASS.**
+
+**TC-1133-6 (Event Viewer)**
+1. `SELECT log_level, COUNT(*) FROM events GROUP BY log_level;`
+- Expected: no ERROR/WARNING entries from the session.
+- **ACTUAL: single group `log_level=16` (INFO/audit), 14 rows → PASS.**
+
+**Result: 6 PASS / 0 FAIL.** Note: the issue's original premise — that the confirmation modal was dropped — did NOT reproduce: the modal has existed since `c3bfaba0c` (2026-08-22), before the issue was filed. The genuine legacy parity gap implemented here is the render-time gating of the executed remove checkbox for users lacking `testplan_unlink_executed_testcases`.

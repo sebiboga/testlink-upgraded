@@ -61,6 +61,10 @@ tr.linked-row td { background: #f3fbfa; }
 .chip { display: inline-flex; align-items: center; gap: 5px; background: #fff; border: 1px solid #bfe5e2; border-radius: 12px; padding: 1px 8px; margin: 1px 4px 1px 0; font-size: 12px; white-space: nowrap; }
 .chip.executed { border-color: #eec1bf; background: #fdf4f3; }
 .chip .ord { color: #999; font-size: 11px; }
+/* Issue #1133: executed link whose remove checkbox is gated off (no
+   testplan_unlink_executed_testcases right) - legacy planAddTC.tpl:349-359
+   rendered no checkbox at all in that case; the chip stays informative. */
+.chip.chip-ro { cursor: not-allowed; opacity: .75; }
 select.vsel, select.psel { max-width: 170px; }
 /* Issue #1129: per-link platform reassignment control on linked rows. */
 .pfitem { display: flex; flex-direction: column; gap: 2px; margin-bottom: 4px; }
@@ -715,19 +719,37 @@ function renderContainer(){
       ordInput='<input class="order-in" type="number" data-tc="'+it.tc_id+'" value="'+parseInt(firstOrd,10)+'" min="0">';
     }
 
-    // remove chips: one checkbox per existing link
+    // remove chips: one checkbox per existing link.
+    // Issue #1133: legacy planAddTC.tpl:347-359 only rendered the remove
+    // checkbox of an EXECUTED link when the user holds the
+    // testplan_unlink_executed_testcases right ($show_remove_check =
+    // $gui->can_remove_executed_testcases); without it there was no
+    // checkbox at all, and the executed icon's title was
+    // 'executed_can_not_be_removed' instead of 'has_been_executed'
+    // (planAddTC.php:692-697). The confirmation modal in doSave() stays as
+    // the second layer for users that DO hold the right.
+    var canRmExec=!!(INIT && INIT.rights && INIT.rights.canRemoveExecuted);
     var rmChips=it.links.map(function(l){
       var pname='';
       if(l.platform_id>0){
         var pf=(CONTAINER.platforms||[]).filter(function(x){return x.id===l.platform_id;})[0];
         pname=pf?pf.name:('#'+l.platform_id);
       }
-      var execTag=l.executed_qty>0?' executed':'';
+      var isExec=l.executed_qty>0;
+      var execTag=isExec?' executed':'';
+      var execIcon=isExec?' <i class="fas fa-vial" title="'
+        +esc(TLi18n.t(canRmExec?'paddtc.executed':'paddtc.executedNoRemove'))+'"></i>':'';
+      var chipBody='v'+verOf(it,l.tcversion_id)+(pname?' &middot; '+esc(pname):'')
+        +(l.node_order>0?' <span class="ord">#'+parseInt(l.node_order,10)+'</span>':'')
+        +execIcon;
+      if(isExec && !canRmExec){
+        return '<span class="chip'+execTag+' chip-ro"'
+          +' title="'+esc(TLi18n.t('paddtc.executedNoRemove'))+'">'
+          +chipBody+'</span>';
+      }
       return '<label class="chip'+execTag+'">'
         +'<input type="checkbox" class="rmchk" data-tc="'+it.tc_id+'" data-tv="'+l.tcversion_id+'" data-pl="'+l.platform_id+'">'
-        +'v'+verOf(it,l.tcversion_id)+(pname?' &middot; '+esc(pname):'')
-        +(l.node_order>0?' <span class="ord">#'+parseInt(l.node_order,10)+'</span>':'')
-        +(l.executed_qty>0?' <i class="fas fa-vial" title="'+esc(TLi18n.t('paddtc.executed'))+'"></i>':'')
+        +chipBody
         +'</label>';
     }).join('');
 

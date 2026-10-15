@@ -30,6 +30,7 @@ that already have executions additionally requires `testplan_unlink_executed_tes
 9. [Task — Issue #1130: per-TC execution-history + test-spec-design icons](#9-task--issue-1130-per-tc-execution-history--test-spec-design-icons)
 10. [Task — Issue #1131: requirement-coverage navigator modes](#10-task--issue-1131-requirement-coverage-navigator-modes)
 11. [Task — Issue #1132: full navigator filter panel](#11-task--issue-1132-full-navigator-filter-panel)
+12. [Task — Issue #1133: render-time gating of the executed remove checkbox](#12-task--issue-1133-render-time-gating-of-the-executed-remove-checkbox)
 
 ---
 ## 1. Screen Layout
@@ -164,6 +165,13 @@ When removing links whose `executed_qty > 0` and the user lacks
 have the right see a confirmation modal listing affected test cases; confirming
 removes links **and cascades execution deletion** (same as 1.9.20).
 
+Since Issue #1133 the guard is mirrored in the UI at **render time** (legacy
+`$show_remove_check=$gui->can_remove_executed_testcases`, `planAddTC.tpl:347-363`):
+when the user lacks the right, an executed link renders as a read-only
+`<span class="chip executed chip-ro">` with **no** remove checkbox and the
+`executed_can_not_be_removed` tooltip, while non-executed links keep their
+checkbox. A JS pre-submit guard + the server-side 403 remain as defense in depth.
+
 ## 4. Rights Model
 | Right | Effect |
 |-------|--------|
@@ -204,6 +212,10 @@ added for Issue #1128. `paddtc.savePlatforms`, `paddtc.reassignPlatform`,
 `paddtc.executionHistory` and `paddtc.testSpecDesign` were added for Issue #1130
 (the per-TC icon tooltips; values reused from the verified `ta2p.execHistory` /
 `ta2p.design` translations so wording matches sibling screens).
+`paddtc.executedNoRemove` was added for Issue #1133 — the tooltip on an executed
+link's read-only remove cell when the user lacks
+`testplan_unlink_executed_testcases` (legacy `executed_can_not_be_removed`,
+`locale/en_US/strings.txt:1486`), also used as the vial-icon title in that state.
 
 ## 7. Testing
 Regression suites in `tmp/TLU_Test_Cases.md`: **56** (original load/rights/i18n/
@@ -221,7 +233,10 @@ Linux → Windows, DB-verified), executions follow the link, `INVALID_PLATFORM`/
 `NO_SELECTION`/unauthenticated errors, Event Viewer clean; and **Task — Issue
 #1130** (11/11 PASS): per-row execution-history + test-spec-design icon links,
 correct hrefs/labels/glyph font, both targets open the right page, #1767 summary
-button intact, Event Viewer clean, i18n coverage gate exit 0.
+button intact, Event Viewer clean, i18n coverage gate exit 0; and **Task — Issue
+#1133** (6/6 PASS): no modal for non-executed removals, confirmation modal +
+cascade for executed ones (cancel / OK), render-time gating for a right-less
+user, JS+server defense in depth, i18n coverage gate, Event Viewer clean.
 
 ---
 ## 8. Bugfix — Issue #1909: column alignment for platform-less plans
@@ -425,3 +440,54 @@ Fixture `tmp/opencode/fixtures1132.sql` (tproject 1, plan 50; suites 10/11; TCs
   without the user changing the plan.
 * Console clean; Event Viewer only `log_level>=2`-free (audit rows only). Test
   suite **Task — Issue #1132** appended to `tmp/TLU_Test_Cases.md` (19/19 PASS).
+
+---
+## 12. Task — Issue #1133: render-time gating of the executed remove checkbox
+
+**Reported gap.** The original issue claimed the executed-link removal
+confirmation had been dropped during modernization. Investigation (see the
+issue's INVESTIGATION comment) proved the modal already existed since
+`c3bfaba0c` (2026-08-22) — 16 days **before** the issue was filed — and works:
+Save with an executed link selected fires no POST until the modal is confirmed,
+Cancel leaves link + executions intact, OK removes the link and cascades the
+execution deletion. The genuine legacy-parity gap found in the same legacy block
+was the **render-time gating** of the remove checkbox.
+
+**Legacy behavior (`planAddTC.tpl:347-363`).**
+```smarty
+{* executed test case => can not be removed *}
+{$show_remove_check = $gui->can_remove_executed_testcases}
+```
+When the user lacks `testplan_unlink_executed_testcases`, legacy renders the
+executed link's remove cell without a checkbox and titles the executed icon
+`executed_can_not_be_removed` (`planAddTC.php:692-697`); otherwise
+`has_been_executed`. The modern screen always rendered an interactive checkbox
+and relied solely on the BFF 403.
+
+**Fix.**
+* `gui/templates/plans/planAddTCView.html` — in `renderContainer()` the remove
+  cell now branches on `INIT.rights.canRemoveExecuted`: for an executed link
+  without the right it emits `<span class="chip executed chip-ro" title="paddtc.executedNoRemove">`
+  (no `input.rmchk`); the vial-icon tooltip likewise switches between
+  `paddtc.executed` and `paddtc.executedNoRemove`. New CSS `.chip.chip-ro`
+  (`cursor:not-allowed; opacity:.75`) marks the read-only state.
+* `gui/templates/i18n/*.json` — new key `paddtc.executedNoRemove` in all 10
+  bundles.
+* Unchanged defense in depth: the pre-submit `execList` guard (`paddtc.errExecuted`
+  toast) and the server-side `403 EXECUTED_PRESENT`.
+
+Rights-less user — executed chip is a read-only span (no checkbox, "Executed test
+cases can not be removed." tooltip); non-executed link keeps its checkbox.
+With the right, the confirmation modal still lists the executed cases and their
+results before removing them (screenshots in the GitHub Wiki page and
+`docs/screenshots/issue-1133-*.png`).
+
+**Verification.** `GET /planaddtc/init` for the right-less user returns
+`rights={canPlan:true,canRemoveExecuted:false,canAssignExecTask:false}`; DOM shows
+`TA-1` = `<label>`+`input.rmchk`, `TA-2` = `<span class="chip executed chip-ro">`
+(no checkbox). Forcing a checked `input.rmchk` on the executed row + Save yields
+the red `paddtc.errExecuted` toast, no modal, no POST, DB unchanged. Admin paths
+re-verified (no modal for unexecuted, modal+cascade+toast for executed).
+`bash ai/verify_i18n_coverage.sh` PASS (7799 keys); Event Viewer only `log_level=16`
+audit rows. Suite **Task — Issue #1133** appended to `tmp/TLU_Test_Cases.md`
+(6/6 PASS).

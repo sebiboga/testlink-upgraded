@@ -2828,6 +2828,7 @@
   "paddtc.errExecuted": "Les cas selectionnes ont des executions ; leur retrait necessite le droit testplan_unlink_executed_testcases.",
   "paddtc.execOrder": "Ordre d'execution",
   "paddtc.executed": "deja execute dans ce plan",
+  "paddtc.executedNoRemove": "Les fiches de test exécutées ne peuvent être retirées.",
   "paddtc.executionHistory": "Historique d’exécution",
   "paddtc.inactive": "inactive",
   "paddtc.infoAddedOnDate": "Date à laquelle le cas de test a été ajouté au plan de test",

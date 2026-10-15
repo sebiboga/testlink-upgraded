@@ -2828,6 +2828,7 @@
   "paddtc.errExecuted": "Die ausgewaehlten Testfaelle haben Ausfuehrungen; das Entfernen erfordert das Recht testplan_unlink_executed_testcases.",
   "paddtc.execOrder": "Ausfuehrungsreihenfolge",
   "paddtc.executed": "bereits in diesem Plan ausgefuehrt",
+  "paddtc.executedNoRemove": "Bereits ausgeführte Testfälle können nicht entfernt werden.",
   "paddtc.executionHistory": "Ausführungshistorie",
   "paddtc.inactive": "inaktiv",
   "paddtc.infoAddedOnDate": "Datum, an dem der Testfall dem Testplan hinzugefügt wurde",

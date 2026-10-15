@@ -2828,6 +2828,7 @@
   "paddtc.errExecuted": "Выбранные тест-кейсы имеют прогоны; для их удаления требуется право testplan_unlink_executed_testcases.",
   "paddtc.execOrder": "Порядок выполнения",
   "paddtc.executed": "уже выполнялся в этом плане",
+  "paddtc.executedNoRemove": "Выполненные тест-кейсы не могут быть удалены.",
   "paddtc.executionHistory": "История прогонов",
   "paddtc.inactive": "неактивна",
   "paddtc.infoAddedOnDate": "Дата добавления тест-кейса в план тестирования",

@@ -2828,6 +2828,7 @@
   "paddtc.errExecuted": "所选测试用例已有执行结果；移除它们需要 testplan_unlink_executed_testcases 权限。",
   "paddtc.execOrder": "执行顺序",
   "paddtc.executed": "在此计划中已执行",
+  "paddtc.executedNoRemove": "已执行的测试用例不能被删除。",
   "paddtc.executionHistory": "用例执行历史",
   "paddtc.inactive": "未激活",
   "paddtc.infoAddedOnDate": "测试用例添加到测试计划的日期",

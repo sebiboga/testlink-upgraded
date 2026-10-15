@@ -2828,6 +2828,7 @@
   "paddtc.errExecuted": "Cazurile selectate au executii; eliminarea lor necesita dreptul 'testplan_unlink_executed_testcases'.",
   "paddtc.execOrder": "Ordine executie",
   "paddtc.executed": "deja executat in acest plan",
+  "paddtc.executedNoRemove": "Cazurile de test executate nu pot fi eliminate.",
   "paddtc.executionHistory": "Istoricul execuțiilor",
   "paddtc.inactive": "inactiva",
   "paddtc.infoAddedOnDate": "Data la care cazul de test a fost adăugat în planul de test",

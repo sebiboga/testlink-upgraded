@@ -2828,6 +2828,7 @@
   "paddtc.errExecuted": "I casi selezionati hanno esecuzioni; rimuoverli richiede il diritto testplan_unlink_executed_testcases.",
   "paddtc.execOrder": "Ordine di esecuzione",
   "paddtc.executed": "gia eseguito in questo piano",
+  "paddtc.executedNoRemove": "I casi di test eseguiti non possono essere rimossi.",
   "paddtc.executionHistory": "Storia delle esecuzioni",
   "paddtc.inactive": "inattiva",
   "paddtc.infoAddedOnDate": "Data in cui il caso di test è stato aggiunto al piano di test",

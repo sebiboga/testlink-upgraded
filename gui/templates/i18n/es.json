@@ -2828,6 +2828,7 @@
   "paddtc.errExecuted": "Los casos seleccionados tienen ejecuciones; eliminarlos requiere el derecho testplan_unlink_executed_testcases.",
   "paddtc.execOrder": "Orden de ejecucion",
   "paddtc.executed": "ya ejecutado en este plan",
+  "paddtc.executedNoRemove": "Los Casos de Prueba ejecutados no pueden ser eliminados.",
   "paddtc.executionHistory": "Historial de Ejecuciones",
   "paddtc.inactive": "inactiva",
   "paddtc.infoAddedOnDate": "Fecha en que el caso de prueba se agregó al plan de pruebas",
