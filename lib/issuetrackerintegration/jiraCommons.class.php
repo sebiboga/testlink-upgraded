@@ -90,7 +90,14 @@ class jiraCommons
     $itemSet = array('Resolved','Closed'); // Unfortunately case is important
     foreach($itemSet as $st)
     {
-      $domain[] = array('code' => $statusDomain[$st], 'verbose' => $st);  
+      // Refs #1915: JIRA status names are customizable/localizable, so a domain
+      // without these exact keys is legal. Guard the lookup to avoid an
+      // "Undefined array key" E_WARNING and a bogus null 'code' entry; missing
+      // names are simply skipped and can be supplied via cfg->resolvedstatus.
+      if( array_key_exists($st, $statusDomain) )
+      {
+        $domain[] = array('code' => $statusDomain[$st], 'verbose' => $st);
+      }
     }                 
     return $domain;
   }

@@ -48,6 +48,16 @@ Every screen of the application was ported one-by-one in a screen-compare
   ones — measured here all five. CLI repro `tmp/repro_1914.php` goes from 5 deprecations to 0.
   (Fixes #1914)
 
+- [BUGFIX] - #1915: `jiraCommons::initDefaultResolvedStatus()`
+  (`lib/issuetrackerintegration/jiraCommons.class.php:87`) no longer emits two
+  `E_WARNING "Undefined array key "Resolved"/"Closed"` per call (persisted as Event Viewer rows by
+  `watchPHPErrors()`) and no longer returns `code => null` entries for JIRA instances whose
+  customizable status set lacks a status literally named `Resolved`/`Closed`. The lookup at
+  `:93` is now guarded with `array_key_exists()`; missing names are skipped and can still be
+  supplied explicitly via `cfg->resolvedstatus`. Instances that do have those names get a
+  byte-identical result. CLI repro `tmp/probe_jiracommons.php` goes from 2 warnings + `[null,null]`
+  to 0 warnings + `[]`. (Fixes #1915)
+
 - [BUGFIX] - #1813: the Execution Dashboard (`lib/execute/execDashboard.php`) no longer writes
   two `E_WARNING "Trying to access array offset on false"` rows into the Event Viewer on every
   load for a test plan that has no builds. `build->get_by_id()` returns `false` when the id
