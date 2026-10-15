@@ -9545,3 +9545,68 @@ Open `gui/templates/plans/planAddTCView.html?tproject_id=1`, select Test Plan = 
 **Actual result: implemented** — the add/remove workframe now offers the legacy `setting_testsgroupby` navigator modes; requirement-coverage tree nodes (req specs + requirements) resolve to their covering test cases and the existing link/unlink flow works in that mode.
 
 **Gate:** `TLU_REQUIRE_SUITE="Issue #1131" bash ai/verify_test_suites.sh`
+
+
+## Regression — Issue #1817: `GET ?action=projects` on the cfieldsTprojectAssign BFF answered HTTP 500 with a 0-byte body
+
+**Precondition** — the freshly imported DB contains **no** test projects
+(`select id from testprojects` → empty), so the switcher would render empty even when healthy.
+A fixture is mandatory:
+
+```bash
+php tmp/fixtures_1816.php     # tproject 'CFP Main'=1 (CFPM) + 'CFP Other'=2 (CFPO)
+                              #   linked on 1 : CFP1812 (design), CFP1812EXEC (execution)
+                              #   linked on 2 : CFP1812OTHER
+                              #   users: cfp1816mgr (Admin role on project 1 ONLY), cfp1816none (no rights)
+```
+
+Log in `admin/admin` (or the fixture users), then call
+`http://localhost:8082/api/cfieldstproject/index.php?action=projects`.
+The BFF is same-origin-guarded on POST only; the `projects` route is GET, so no Origin proof is
+needed. The modern screen itself lives at
+`gui/templates/cfields/cfieldsTprojectAssign.html?tproject_id=<id>`.
+
+**Root cause (re-measured)** — `testproject::get_list()` does not exist; the route called it and
+the fatal surfaced as a 0-byte HTTP 500 (`display_errors` off). Fix `9a743b67f` replaced it with
+`get_accessible_for_user($userId, ['output'=>'map','order_by'=>' ORDER BY name '])`.
+
+```
+$ php -r '… $m=new testproject($db);
+          var_dump(method_exists($m,"get_list"), method_exists($m,"get_accessible_for_user"));
+          try { $m->get_list(); } catch (\Throwable $e) { echo get_class($e).": ".$e->getMessage(); }'
+bool(false)
+bool(true)
+Error: Call to undefined method testproject::get_list()
+```
+
+**Expected post-fix** — the route answers HTTP 200 with a JSON body listing exactly the projects on
+which the caller holds `cfield_management`, and the screen's project switcher is populated.
+
+| # | Step | Expected / observed | Result |
+|---|---|---|---|
+| TC-1817-01 | Static: grep the tree for the phantom call — `grep -rn "\->get_list(" api/ lib/ gui/ --include=*.php` | No `testproject`/`testplan` `->get_list(` call site remains (only the real `get_list_reports()` at `api/resultsnav/index.php:137`) | PASS |
+| TC-1817-02 | PHP probe: `method_exists(new testproject($db), 'get_list')` | `false`; calling it throws `Error: Call to undefined method testproject::get_list()` — confirms the fatal | PASS |
+| TC-1817-03 | `admin` → `GET ?action=projects` | **HTTP 200**, `{"status":"ok","projects":[{"id":1,"name":"CFP Main","prefix":"CFPM"},{"id":2,"name":"CFP Other","prefix":"CFPO"}],"count":2}` (pre-fix: 500 / 0 bytes) | PASS |
+| TC-1817-04 | `cfp1816mgr` (cfield_management on project 1 only) → `GET ?action=projects` | **HTTP 200**, list = project 1 only (`count:1`) — `get_accessible_for_user` + per-project `cfpaRequireManage` filter | PASS |
+| TC-1817-05 | `cfp1816none` (no rights) → `GET ?action=projects` | **HTTP 200**, `{"status":"ok","projects":[],"count":0}` | PASS |
+| TC-1817-06 | unauthenticated → `GET ?action=projects` | **HTTP 401**, `{"status":"error","code":"not_authenticated",...}` | PASS |
+| TC-1817-07 | `admin` → `GET ?action=init&tproject_id=1` | **HTTP 200**, context `CFP Main` + `linked` (CFP1812/CFP1812EXEC) + `available` | PASS |
+| TC-1817-08 | `cfp1816mgr` → `GET ?action=init&tproject_id=2` (foreign project) | **HTTP 403**, `{"status":"error","code":"no_right",...}` (no id enumeration) | PASS |
+| TC-1817-09 | Browser: open `cfieldsTprojectAssign.html?tproject_id=1` as admin | Switcher dropdown shows `CFP Main (CFPM)` **and** `CFP Other (CFPO)`; header `Test project: CFP Main`; linked badge `2`, available badge `3`. **No** *Could not load the data / http_500* state card | PASS |
+| TC-1817-10 | Browser: change the switcher to `CFP Other (CFPO)` | Navigates to `?tproject_id=2`, header `Test project: CFP Other`, linked badge `1` (CFP1812OTHER), available badge `4` — proves the `?action=projects` payload is consumed and usable | PASS |
+| TC-1817-11 | Console across TC-1817-09/10 | `list_console_messages` (error+warn) → none on the screen | PASS |
+| TC-1817-12 | Event Viewer / `events` after the whole pass | `SELECT COUNT(*) FROM events WHERE log_level<>16` adds **no** row; only level-16 audit rows (LOGIN/ASSIGN/CREATE) | PASS |
+
+### Test execution
+- [PASS] TC-1817-01 .. TC-1817-12 — 12/12 PASS (curl + chrome-devtools MCP, live app at :8082)
+- [PASS] TC-1817-03 is the primary symptom: HTTP 500 / 0 bytes → HTTP 200 / JSON.
+- [PASS] No `gui/templates/i18n/*.json` bundle touched (no source change in this run; the fix adds no user-facing string).
+- [PASS] Merge-base gate: `TLU_REQUIRE_SUITE="Issue #1817" bash ai/verify_test_suites.sh`
+
+### Notes
+- The fix commit `9a743b67f` (`api/cfieldstproject/index.php:276`) was already on `origin/sebiboga`
+  when this run started; issue #1817 was left open without a suite, a docs page or a verification
+  trail. This suite, the fixture, `docs/` and the wiki entry are what this run adds — same pattern
+  as the #1821 sibling on the same screen.
+- The issue's "extra note" (repo-wide grep for other `->get_list()` fatals) is resolved by
+  TC-1817-01: no other call site exists.
