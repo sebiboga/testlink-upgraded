@@ -9456,3 +9456,23 @@ use the search box and the locale switcher; the ASIDE Documentation section list
 **Actual result: fixed** — every bundled locale now defines the node_type label set, so `cfpaJsonField()` / the Custom Fields→Test Project screen resolves node labels from the active locale instead of logging a `LOCALIZATION` warning and falling back to en_GB.
 
 **Gate:** `TLU_REQUIRE_SUITE="Issue #1059" bash ai/verify_test_suites.sh` → see run below.
+
+## Regression — Issue #1914: PHP 8.2 dynamic-property deprecations in bugzilla/trac/tuleap/jira interfaces
+
+**Precondition:** fresh TestLink DB, app at `http://localhost:8082`, login admin/admin. PHP CLI 8.3.35. `error_reporting(E_ALL)`. The five interfaces below assigned `$this->defaultResolvedStatus` (or `$this->statusDomain` in `jirarestInterface`) without declaring the property, and neither name is declared on the base `issueTrackerInterface`.
+**Root cause / fix:** PHP 8.2 deprecates implicit property creation. Declare `var $defaultResolvedStatus;` in `bugzilladb`/`bugzillaxmlrpc`/`tracxmlrpc`/`tuleaprest` (the parent `issueTrackerInterface::setResolvedStatusCfg()` reads it at `issueTrackerInterface.class.php:639`, so it cannot be `private`; `var` mirrors the sibling interfaces) and `private $statusDomain = array();` in `jirarestInterface` (never read by the parent).
+
+| # | Step | Input | Expected | Observed | Result |
+|---|---|---|---|---|---|
+| 1 | PHP syntax | `php -l` on the 5 touched files | no errors | `No syntax errors detected` ×5 | PASS |
+| 2 | Pre-fix deprecations | `php tmp/repro_1914.php` (only the 4 conditional/unconditional ctor sites reachable) | ≥5 dynamic-property deprecations | bugzilladb=1, bugzillaxmlrpc=1, tracxmlrpc=1, tuleaprest=1, jirarest statusDomain-write=1; exit 1 | PASS (bug confirmed) |
+| 3 | Post-fix deprecations | `php tmp/repro_1914.php` | 0 | all 5 `deprecations=0`; exit 0 | PASS |
+| 4 | Property declared on own class | reflection `hasProperty()` + `getDeclaringClass()` | YES ×5 | `declared(own)=YES` ×5 | PASS |
+| 5 | Parent still reads the property | live `POST /api/issuetracker/index.php/test-connection` type=2 (bugzilladb) against the local MariaDB | 200 `connected:true`, no fatal | `{"status":"ok","connected":true,...}` HTTP 200, 0 `Cannot access private property` events | PASS |
+| 6 | Non-connected interface ctor | live `POST /test-connection` type=27 (tuleap, dead host) | 200 JSON, no dynamic-property fatal | `{"status":"ok","connected":false,...}` HTTP 200 | PASS |
+| 7 | BFF auth still works | authenticated `GET /api/issuetracker/index.php/` | JSON, `canManage:true` | `{"status":"ok","canManage":true,"items":[],"total":0}` | PASS |
+| 8 | Event Viewer (no new Error/Warning) | `SELECT * FROM events` after the type=2 connect (events cleared first) | no dynamic-property fatal rows | only 1 row: `log_level=1` from `tuleaprestInterface::connect` (outbound connection failure to the dead probe host — pre-existing, unrelated to dynamic properties) | PASS |
+
+**Actual result: fixed** — all five dynamic-property deprecations are gone (CLI harness 5 → 0), the four properties stay public so the parent `setResolvedStatusCfg()` keeps working, and the live `test-connection` route for a connectable bugzilla DB returns `connected:true` with no `Cannot access private property` fatal.
+
+**Gate:** `TLU_REQUIRE_SUITE="Issue #1914" bash ai/verify_test_suites.sh`
