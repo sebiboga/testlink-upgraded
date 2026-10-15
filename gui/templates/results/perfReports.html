@@ -464,7 +464,7 @@ function exportCsv() {
   var cell = function (v) {
     var t = String(v === null || v === undefined ? '' : v);
     // Neutralize spreadsheet formula injection (label text is user-controlled).
-    if (/^[=+\-@]/.test(t)) { t = "'" + t; }
+    if (/^[=+\-@\t\r]/.test(t)) { t = "'" + t; }
     return /[;"\r\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
   };
   var lines = [$.map(head, cell).join(';')];

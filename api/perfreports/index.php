@@ -66,7 +66,13 @@ function prOut($payload, $code = null)
     if ($code !== null) {
         http_response_code($code);
     }
-    echo json_encode($payload);
+    // JSON_INVALID_UTF8_SUBSTITUTE: JTL labels / response messages / thread
+    // names are copied verbatim from the uploaded file and JMeter does not
+    // guarantee UTF-8. Without this flag json_encode() returns false on the
+    // first malformed byte and the endpoint would emit an empty 200 body,
+    // breaking an otherwise valid report (same guard used by every sibling
+    // BFF, e.g. api/execnotesreadonly).
+    echo json_encode($payload, JSON_INVALID_UTF8_SUBSTITUTE);
     exit;
 }
 
@@ -121,12 +127,20 @@ if (is_array($_GET['action'] ?? null)) {
 
 /**
  * Resolve the addressed test project and prove the caller may read its
- * metrics. A missing/foreign/unknown project all fail closed.
+ * metrics. A missing/foreign/unknown project all fail closed: the right check
+ * runs FIRST, so a project the caller cannot see is refused with 403 before its
+ * existence is ever disclosed.
  */
 function prResolveProject($db, $user)
 {
     $tprojectMgr = new testproject($db);
-    $tprojectId = prPositiveInt($_REQUEST['tproject_id'] ?? null);
+    // Explicit superglobals (not $_REQUEST): a request_order=GPC deployment
+    // could otherwise let a cookie shadow the query/body parameter.
+    $rawTp = (isset($_GET['tproject_id']) && !is_array($_GET['tproject_id']))
+        ? $_GET['tproject_id']
+        : ((isset($_POST['tproject_id']) && !is_array($_POST['tproject_id']))
+            ? $_POST['tproject_id'] : null);
+    $tprojectId = prPositiveInt($rawTp);
     if ($tprojectId <= 0) {
         $tprojectId = prPositiveInt($_SESSION['testprojectID'] ?? null);
     }
@@ -199,7 +213,10 @@ function prParseCsv($path, &$acc)
 
     $idx = null;
     $line = 0;
-    while (($row = fgetcsv($fh, 0, ',', '"', '\\')) !== false) {
+    // RFC-4180 quoting: JMeter doubles embedded quotes, it does not use a
+    // backslash escape, so disable the escape char (also future-proofs the
+    // PHP 8.4 deprecation of the default escape argument).
+    while (($row = fgetcsv($fh, 0, ',', '"', '')) !== false) {
         $line++;
         if ($row === array(null)) {
             continue; // blank line
@@ -272,11 +289,19 @@ function prParseXml($path, &$acc)
         return false;
     }
     $any = false;
+    $isJtl = false;
     while (@$reader->read()) {
         if ($reader->nodeType !== XMLReader::ELEMENT) {
             continue;
         }
         $name = strtolower($reader->localName);
+        if ($name === 'testresults') {
+            // JMeter's XML result-log root. Seeing it proves the file IS a JTL,
+            // so a well-formed but sample-less file reports {empty:true} rather
+            // than a misleading 422 (parity with the CSV header-only path).
+            $isJtl = true;
+            continue;
+        }
         if ($name !== 'sample' && $name !== 'httpsample') {
             continue;
         }
@@ -303,7 +328,7 @@ function prParseXml($path, &$acc)
         prAccumulate($acc, $elapsed, $label, $rc, $rm, $success, $bytes, $ts, $thread);
     }
     $reader->close();
-    return $any;
+    return ($any || $isJtl);
 }
 
 /**
@@ -368,6 +393,7 @@ if ($action === 'init') {
         'limits' => array(
             'max_file_bytes' => PERF_MAX_FILE_BYTES,
             'max_samples' => PERF_MAX_SAMPLES,
+            'max_sample_rows' => PERF_MAX_SAMPLE_ROWS,
         ),
     ));
 }
@@ -384,7 +410,14 @@ if ($method !== 'POST') {
 $ctx = prResolveProject($db, $user);
 
 $file = $_FILES['jtlFile'] ?? null;
-if (!is_array($file) || !isset($file['error'])) {
+// bffRefuseNonScalarParams() only scans $_GET/$_POST, so reject a shaped-as-
+// array upload field (jtlFile[]) here: otherwise $file['error'] is an array,
+// intval(array) is 1 and the caller would see a misleading 413.
+// 'error' is an int (UPLOAD_ERR_*), 'tmp_name' a string: require both to be
+// scalar and reject the jtlFile[] array shape that would turn 'error' into an
+// array (intval(array) === 1 -> a misleading 413).
+if (!is_array($file) || !isset($file['error']) || !is_scalar($file['error'])
+    || !isset($file['tmp_name']) || !is_string($file['tmp_name'])) {
     prFail(400, 'invalid_request', 'No file uploaded');
 }
 
