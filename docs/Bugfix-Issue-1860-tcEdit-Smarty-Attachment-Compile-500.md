@@ -122,5 +122,11 @@ behavioural change than the bug warrants).
 - **Diff scope:** only the 2 dashio templates changed (`git diff --stat`).
 - **Regression suite:** `tmp/TLU_Test_Cases.md` → `## Regression — Issue #1860: …`, gate
   `TLU_REQUIRE_SUITE="Issue #1860" bash ai/verify_test_suites.sh` → **7 PASS / 0 FAIL**, exit 0.
-- **Event Viewer / events:** no new Error/Warning rows — this fix removes a fatal and touches
-  no PHP code.
+- **Event Viewer / events:** the fix touches no PHP code and removes a fatal, but it **unmasks**
+  a *pre-existing* defect: with the render no longer compile-failing, the tcEdit post-action
+  render emits 18 `E_WARNING` rows per request from **other, untouched** partials
+  (`tcViewViewer.inc.tpl`, `tcbody.inc.tpl`: `Undefined property
+  stdClass::$delete_frozen_tcversion`, `Undefined array key "ghost_preconditions"`,
+  `Trying to access array offset on null`). These are not caused by this fix (the templates and
+  the render controller are unchanged; the warnings were simply never reached because the page
+  500'd first) and have been filed separately as **#1916**.
