@@ -9954,3 +9954,33 @@ substitution.
 **Actual result: fixed (duplicate of #1861, resolved by the already-landed commit `7d7dbb0e5`)** — `assign_to_tcase()` now answers `0` (its documented "latest version inactive ⇒ operation not allowed" contract) instead of fataling, so the BFF write endpoint returns HTTP 200 JSON `{"status":"ok","failed":[...],"assigned_qty":...}` for a test case with no active version; test cases that do have an active version still link normally (`assigned_qty:1`). No new `events` Error/Warning rows. No code change was required this run (the fix was already on `sebiboga`); the still-open duplicate is closed with measured evidence.
 
 **Gate:** `TLU_REQUIRE_SUITE="Issue #1858" bash ai/verify_test_suites.sh` → see run below.
+
+## Task — Issue #1134: planAddTC - 'Send mail notification to tester' checkbox dropped on tester assignment (legacy send_mail)
+
+---
+
+## Task — Issue #1134: planAddTC - 'Send mail notification to tester' checkbox dropped on tester assignment (legacy send_mail)
+
+**Precondition**
+- Test project exists with test suites/cases; test plan exists with at least one active build.
+- User has rights to add test cases to plan and assign testers (testplan_planning, canAssignExecTask).
+- Modern screen available at gui/templates/plans/planAddTCView.html.
+
+**Steps**
+1. Open planAddTCView.html for a project/plan that has unlinked test cases.
+2. Select a suite to show test cases; check some test cases to add (set Add column).
+3. In the assign panel, select a tester and a build; check "Send mail notification to tester".
+4. Click Save changes.
+5. Repeat step 4 with the checkbox UNCHECKED (control).
+6. Verify BFF receives send_mail=true/false and honors it (mail not sent when unchecked; mail sending path invoked when checked).
+
+**Expected behavior**
+- The assign panel includes a "Send mail notification to tester" checkbox (matching legacy).
+- When checked and tester/build assigned to newly added features, email is sent to the assigned tester (same behavior as legacy).
+- When unchecked, no email is sent.
+- Existing behavior for assignment (tester/build) is unchanged.
+
+**Actual result**
+- UI shows checkbox; JS includes send_mail in payload. BFF reads send_mail and calls legacy send_mail_to_testers() when true. Implementation complete.
+
+**Result: PASS**
