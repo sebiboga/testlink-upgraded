@@ -2837,3 +2837,5 @@ $TLS_link_report_quality_gates = "Контрольные точки качест
 $TLS_title_learn_testing = "Изучение тестирования"; // Learn Testing hub (Refs #1060)
 $TLS_title_accessibility_resources = "Ресурсы по доступности"; // Accessibility Resources hub (Refs #1059)
 $TLS_title_documentation_hub = "Центр документации"; // Documentation hub (Refs #1060)
+
+$TLS_requirement = "Требование"; // node-type label (Refs #1823)

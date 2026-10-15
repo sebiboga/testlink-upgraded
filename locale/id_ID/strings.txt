@@ -2911,3 +2911,7 @@ $TLS_link_report_quality_gates = "Gerbang Kualitas Rilis"; // Refs #1067
 $TLS_title_learn_testing = "Belajar Pengujian"; // Learn Testing hub (Refs #1060)
 $TLS_title_accessibility_resources = "Sumber Daya Aksesibilitas"; // Accessibility Resources hub (Refs #1059)
 $TLS_title_documentation_hub = "Pusat Dokumentasi"; // Documentation hub (Refs #1060)
+
+$TLS_test_plan = "Rencana Pengujian"; // node-type label (Refs #1823)
+$TLS_testplan = $TLS_test_plan; // node-type label (Refs #1823)
+$TLS_requirement = "Kebutuhan"; // node-type label (Refs #1823)

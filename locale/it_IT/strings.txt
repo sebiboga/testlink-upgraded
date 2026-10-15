@@ -2441,3 +2441,5 @@ $TLS_link_report_quality_gates = "Porte di qualità della release"; // Refs #106
 $TLS_title_learn_testing = "Impara il testing"; // Learn Testing hub (Refs #1060)
 $TLS_title_accessibility_resources = "Risorse di accessibilità"; // Accessibility Resources hub (Refs #1059)
 $TLS_title_documentation_hub = "Hub della documentazione"; // Documentation hub (Refs #1060)
+
+$TLS_requirement = "Requisito"; // node-type label (Refs #1823)

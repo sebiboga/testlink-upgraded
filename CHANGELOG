@@ -65,6 +65,15 @@ Every screen of the application was ported one-by-one in a screen-compare
   emitted. Verified for all four locales (valid ASIDE JSON + correct locale label); Event
   Viewer clean. (Fixes #1855)
 
+- [BUGFIX] - #1823: the four `node_type` labels that `cfield_mgr::$node_types` resolves
+  through (`testplan`, `testcase`, `requirement_spec`, `requirement`) were missing from
+  several server locale bundles, so every screen rendering a node type wrote a
+  `LOCALIZATION` warning to the Event Viewer and fell back to `en_GB`. Added the missing
+  keys (with the underlying `test_case` / `test_plan` aliases) to `ro_RO` (all six),
+  `cs_CZ` (`testcase`/`testplan`/`requirement` + aliases), `id_ID` (`testplan`/`requirement`),
+  `it_IT` (`requirement`) and `ru_RU` (`requirement`). All 19 bundles now define the node-type
+  set; each is valid PHP emitting nothing. (Fixes #1823)
+
 - [SCREEN] - #1060: the **Learn Testing hub** (`gui/templates/documentation/learnTesting.html`
   + BFF `api/learntesting/index.php`) is added as the Documentation ASIDE section's second
   entry, giving TestLink an in-app learning area (1.9.20 had none). Six learning tracks

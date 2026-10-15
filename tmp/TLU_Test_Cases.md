@@ -9438,3 +9438,21 @@ use the search box and the locale switcher; the ASIDE Documentation section list
 **Actual result: fixed** — the four server locale bundles parse as pure PHP (no output), and every `$TLS_title_*` label resolves; the ASIDE BFF answers valid JSON with the correct locale label for de_DE/es_ES/it_IT/ru_RU.
 
 **Gate:** `TLU_REQUIRE_SUITE="Issue #1059" bash ai/verify_test_suites.sh` → see run below.
+
+## Regression — Issue #1823: ro_RO (and cs_CZ/id_ID/it_IT/ru_RU) missing node_type labels → LOCALIZATION warnings
+
+**Precondition:** fresh TestLink DB, app at `http://localhost:8082`, login admin/admin. `cfield_mgr::$node_types = array('build','testsuite','testplan','testcase','requirement_spec','requirement')` (cfield_mgr.class.php:114) and `cfpaJsonField()` calls `lang_get($verbose, $lang)` per node type; a missing `$TLS_<type>` makes `lang_get` fall back to en_GB and (once per session) log a `LOCALIZATION` warning (lang_api.php:135).
+**Root cause / fix:** partial translations — ro_RO lacked all four node-type labels, cs_CZ/id_ID/it_IT/ru_RU lacked one or more. Added the missing keys (+ `test_case`/`test_plan` aliases) to those five bundles.
+
+| # | Step | Input | Expected | Observed | Result |
+|---|---|---|---|---|---|
+| 1 | PHP syntax | `php -l locale/{ro_RO,cs_CZ,id_ID,it_IT,ru_RU}/strings.txt` | no errors | all `No syntax errors detected` | PASS |
+| 2 | Key presence audit | scan all 19 bundles for `$TLS_{testcase,testplan,requirement,requirement_spec}` | 0 missing | `audit done` (no locale reported) | PASS |
+| 3 | Vars resolve, no output | `ob_start(); include strings.txt` per locale | 0 bytes + all four defined | ro_RO `Caz de test / Plan de test / Cerință / Document cu specificații de cerință`; others equivalent; `out=0` | PASS |
+| 4 | ro_RO loader end-to-end | admin locale `ro_RO`, login, `GET /api/aside/index.php?action=init` | valid JSON, ro_RO labels | `Hub de documentație` / `Învață testarea` / `Resurse de accesibilitate` | PASS |
+| 5 | No node-type warning in new events | `SELECT ... FROM events WHERE description LIKE '%not localized%'` after the ro_RO render | no `'testplan'/'testcase'/'requirement(_spec)'` rows | only unrelated keys (`req_status_review`, `config_check_warnings`, …) | PASS |
+| 6 | Event Viewer (no new Error/Warning) | same query | no ERROR(1)/WARNING(2) | none | PASS |
+
+**Actual result: fixed** — every bundled locale now defines the node_type label set, so `cfpaJsonField()` / the Custom Fields→Test Project screen resolves node labels from the active locale instead of logging a `LOCALIZATION` warning and falling back to en_GB.
+
+**Gate:** `TLU_REQUIRE_SUITE="Issue #1059" bash ai/verify_test_suites.sh` → see run below.

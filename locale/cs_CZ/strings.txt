@@ -3964,3 +3964,9 @@ $TLS_link_report_quality_gates = "Kontrolní body kvality vydání"; // Refs #10
 $TLS_title_learn_testing = "Naučte se testovat"; // Learn Testing hub (Refs #1060)
 $TLS_title_accessibility_resources = "Zdroje přístupnosti"; // Accessibility Resources hub (Refs #1059)
 $TLS_title_documentation_hub = "Centrum dokumentace"; // Documentation hub (Refs #1060)
+
+$TLS_test_case = "Testovací případ"; // node-type label (Refs #1823)
+$TLS_test_plan = "Testovací plán"; // node-type label (Refs #1823)
+$TLS_testcase = $TLS_test_case; // node-type label (Refs #1823)
+$TLS_testplan = $TLS_test_plan; // node-type label (Refs #1823)
+$TLS_requirement = "Požadavek"; // node-type label (Refs #1823)
