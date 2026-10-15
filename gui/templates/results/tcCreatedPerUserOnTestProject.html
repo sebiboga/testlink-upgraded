@@ -636,7 +636,7 @@ function attachColumnFilters() {
     var $ctl;
     if (idx === 3) { // Importance
       $ctl = $('<select class="col-filter" data-col="' + idx + '"></select>')
-        .append($('<option value=""></option>').text(TLi18n.t('tcPerUser.filterAll') || 'All'))
+        .append($('<option value=""></option>').text(TLi18n.t('tcPerUser.filterAll')))
         .append($('<option value="low"></option>').text(impLabel(1)))
         .append($('<option value="medium"></option>').text(impLabel(2)))
         .append($('<option value="high"></option>').text(impLabel(3)));
@@ -675,7 +675,7 @@ function attachColumnFiltersFallback() {
     var $ctl;
     if (idx === 3) {
       $ctl = $('<select class="col-filter" data-col="' + idx + '"></select>')
-        .append($('<option value=""></option>').text(TLi18n.t('tcPerUser.filterAll') || 'All'))
+        .append($('<option value=""></option>').text(TLi18n.t('tcPerUser.filterAll')))
         .append($('<option value="low"></option>').text(impLabel(1)))
         .append($('<option value="medium"></option>').text(impLabel(2)))
         .append($('<option value="high"></option>').text(impLabel(3)));

@@ -10133,3 +10133,26 @@ substitution.
 **Actual result: 7/7 PASS.** Root cause: `getAllReqVersionIDForReq()` returns `null` for a requirement with no versions, and `fetchRowsIntoMap($sql,'parent_id')` returns `null` for an empty `GROUP BY` result; PHP 7.3+ raises iterating-over-null from warning to E_WARNING (two rows per spec deletion, six in the fixture re-run). Both are pure no-op `(array)` coercions; a latent `current()` on the same nullable `fetchRowsIntoMap()` result (PHP 8.1 `TypeError`) was guarded as well. Refs #1834, #1833.
 
 **Gate:** `TLU_REQUIRE_SUITE="Issue #1834" bash ai/verify_test_suites.sh`.
+
+## Regression — Issue #1831: `TLi18n.t(...) || 'English'` unreachable-fallback antipattern (hardcoded strings, rule 3)
+
+**Screen / area:** i18n consumption across the modern screens (the #1829 idiom, swept via the issue's `grep -rn "TLi18n\.t([^)]*) *||" gui/templates/`). Refs #1831, #1829.
+
+**Precondition:** app at `http://localhost:8082`; login `admin`/`admin`. `TLi18n.t()` returns `_strings[key] || key` (`i18n.js:175`), never `undefined`/`''`, so `t(k) || 'literal'` can never use the literal.
+
+| # | Step | Input | Expected | Observed | Result |
+|---|---|---|---|---|---|
+| 1 | Sweep for the idiom | `grep -rn "TLi18n\.t([^)]*) *||" gui/templates/` | no hardcoded-English-literal fallback remains | only inside-args false positives (`\|\| '-'`,`\|\| 0`,`\|\| login`) and dynamic-key fallbacks (`\|\| key`) remain | PASS |
+| 2 | `etl.noData` key present | grep all 10 bundles | 10/10 | 10/10 | PASS |
+| 3 | `common.loading` key present | grep all 10 bundles | 10/10 | 10/10 | PASS |
+| 4 | `tcPerUser.filterAll` key present | grep all 10 bundles | 10/10 | 10/10 | PASS |
+| 5 | JS syntax of the 3 touched files | extract inline `<script>`, `node --check` | no errors | OK | PASS |
+| 6 | execTimelineStats empty message | `$('#timelineTable').DataTable().settings()[0].oLanguage.sEmptyTable` | the translated string, not the raw key | `"No execution data available for this test plan."` (= `TLi18n.t('etl.noData')`), not `etl.noData` | PASS |
+| 7 | execTimelineStats regression | open `?tproject_id=15&tplan_id=16` | table renders | table rendered, 1 row, tplan "RB Plan", console clean | PASS |
+| 8 | `filterAll` resolves | `TLi18n.t('tcPerUser.filterAll')`, `TLi18n.has(...)` | `All`, true | `All`, true; no raw-key leak in rendered options | PASS |
+| 9 | Noteworthy: the deleted literal was wrong | compare literal vs bundle | they differ | bundle = "…for this test plan.", literal = "No execution data available" | PASS |
+| 10 | Event Viewer | `SELECT … WHERE log_level IN (2,3)` | no new Error/Warning | none | PASS |
+
+**Actual result: 10/10 PASS.** Root cause: `t(key) || 'English'` copied on the belief that `t()` returns `undefined`/empty for a missing key; it never does (`i18n.js:175`), so the literal is dead and merely keeps a hardcoded English string (forbidden by rule 3). Fixed by treating the keys as mandatory and deleting the dead literals (the i18n coverage gate enforces presence). Refs #1831, #1829.
+
+**Gate:** `TLU_REQUIRE_SUITE="Issue #1831" bash ai/verify_test_suites.sh`.

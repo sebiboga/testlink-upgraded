@@ -258,7 +258,7 @@ function hideState() { $('#stateBox').empty(); }
 function load() {
   hideState();
   $('#feedback').empty();
-  $('#stateBox').html('<div class="state-card"><p>' + esc(TLi18n.t('common.loading') || 'Loading...') + '</p></div>');
+  $('#stateBox').html('<div class="state-card"><p>' + esc(TLi18n.t('common.loading')) + '</p></div>');
   $('#btnReload, #btnSave').prop('disabled', true);
 
   $.ajax({

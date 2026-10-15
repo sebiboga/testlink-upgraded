@@ -17,6 +17,19 @@ Every screen of the application was ported one-by-one in a screen-compare
   kept for backward compatibility and is progressively retired as each modern
   screen reaches full parity.
 
+- [BUGFIX] - #1831: removed the dead `TLi18n.t('key') || 'English literal'` fallbacks that
+  can never fire (the i18n module returns the key itself for a missing entry, never
+  `undefined`/`''`) and only kept a hardcoded English string alive, against rule 3. Deleted the
+  unreachable literals in `gui/templates/results/execTimelineStats.html` (DataTables
+  `emptyTable`), `gui/templates/plans/planEdit.html` (loading card) and
+  `gui/templates/results/tcCreatedPerUserOnTestProject.html` (column-filter "All" option);
+  the three keys (`etl.noData`, `common.loading`, `tcPerUser.filterAll`) exist in all ten
+  bundles and are enforced by `ai/verify_i18n_coverage.sh`. Notably the `etl.noData` bundle
+  value is "No execution data available for this test plan." - the deleted literal
+  ("No execution data available") differed, so the dead fallback was also wrong. Verified the
+  keys resolve and DataTables `sEmptyTable` carries the translated string (no raw-key leak).
+  Refs #1831, #1829.
+
 - [BUGFIX] - #1834: deleting a requirement specification no longer logs two `E_WARNING
   foreach() argument must be of type array|object, null given` rows in the Event Viewer
   (`lib/functions/requirement_mgr.class.php`). `getAllReqVersionIDForReq()` returns `null`
