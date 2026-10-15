@@ -160,7 +160,7 @@ function renderLevels(q) {
       .append('<div class="icon"><i class="' + esc(lv.icon) + '"></i></div>')
       .append('<div class="title">' + esc(title) + '</div>')
       .append('<div class="desc">' + esc(desc) + '</div>')
-      .append('<div class="links"><a href="' + esc(lv.href) + '" target="_blank" rel="noopener noreferrer"><i class="fa fa-external-link-alt"></i> ' + TLi18n.t('istqb.learnMore') + '</a></div>');
+      .append('<div class="links"><a href="' + esc(lv.href) + '" target="_blank" rel="noopener noreferrer"><i class="fa fa-external-link-alt"></i> ' + esc(TLi18n.t('istqb.learnMore')) + '</a></div>');
     g.append(card);
   });
 }
