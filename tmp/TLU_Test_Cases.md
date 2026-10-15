@@ -9486,3 +9486,39 @@ The mandated code review found the same defect in `jiradbInterface` (`statusDoma
 | 9 | PHP syntax | `php -l lib/issuetrackerintegration/jiradbInterface.class.php` | no errors | `No syntax errors detected` | PASS |
 | 10 | Pre-fix declaration | reflection on `jiradbInterface::statusDomain` | declared(own)=NO (bug) | `declared(own)=NO` → `FAIL count=1` | PASS (bug confirmed) |
 | 11 | Post-fix declaration | `php tmp/repro_1914.php` | declared(own)=YES, 0 deprecations | `jiradbInterface: declared(own)=YES`; `ALL PASS`; exit 0 | PASS |
+
+## Suite — Issue #1053: ISTQB Syllabus hub (Documentation → ISTQB Syllabus)
+
+**Precondition:** fresh TestLink DB (fixtures not required for this screen — static catalogue), app at `http://localhost:8082` (PHP built-in server, docroot = repo root), PHP 8.3.35, login admin/admin. BFF: `api/istqb/index.php` (GET|HEAD `?action=init`, session auth + same-origin). Screen: `gui/templates/documentation/istqbSyllabus.html`.
+**Legacy parity / scope:** new Documentation-section entry (no 1.9.20 legacy controller existed for a dedicated ISTQB syllabus hub; mirrors the #1059 Accessibility Resources and #1060 Learn Testing hub patterns). BFF returns i18n **keys** only (`istqb.*`); the client resolves them via `TLi18n`. ASIDE entry added in `api/aside/index.php` section 12 via `$actions->istqbSyllabus` (`lib/functions/common.php`), server label `$TLS_title_istqb_syllabus` in all 19 `locale/*/strings.txt`.
+
+| # | Step | Input | Expected | Observed | Result |
+|---|---|---|---|---|---|
+| 1 | i18n well-formedness | `python3 -m json.tool gui/templates/i18n/*.json` ×10 | all valid JSON | all 10 parsed OK (+44 keys each) | PASS |
+| 2 | i18n coverage gate | `bash ai/verify_i18n_coverage.sh` | 0 missing | `9 bundle(s) passed, 0 failed`; en 7719 keys, 0 missing each | PASS |
+| 3 | Server locale parse | `php -l locale/*/strings.txt` ×19 | no syntax errors | all 19 `No syntax errors detected` | PASS |
+| 4 | Server label present | `grep -rl title_istqb_syllabus locale/` | 19 files | 19 | PASS |
+| 5 | BFF PHP syntax | `php -l api/istqb/index.php` | no errors | `No syntax errors detected` | PASS |
+| 6 | JS syntax | `node --check` on the inline `<script>` | no errors | `JS OK` (1 script) | PASS |
+| 7 | BFF anonymous | `GET /api/istqb/index.php?action=init` (no cookie) | 401 | `{"status":"error","code":"not_authenticated"}` HTTP 401 | PASS |
+| 8 | BFF unknown action | authenticated `?action=bogus` | 400 JSON | `{"status":"error","code":"unknown_action"}` HTTP 400 | PASS |
+| 9 | BFF method guard | authenticated same-origin `POST ?action=init` | 405 + `Allow: GET, HEAD` | 405 | PASS |
+| 10 | BFF same-origin guard | `POST` with no/foreign `Origin` | 403 | 403 (parity with `api/accessibilityresources`) | PASS |
+| 11 | BFF GET contract | authenticated `?action=init` | JSON: 4 levels, 6 chapters, 4 resources, 4 related, labels as `istqb.*` keys only | 4/6/4/4; only `*Key` fields, no hardcoded text | PASS |
+| 12 | Screen render | open `istqbSyllabus.html?tproject_id=1&tplan_id=1` | 4 level cards + 6 chapter cards + 4 resource cards + 4 related links + footer | snapshot matches; footer `Generated on 10/15/2026, 4:43:41 AM` | PASS |
+| 13 | Level deep-links | inspect each "Learn more" link | official istqb.org certification pages | hrefs match istqb.org CTFL/CTAL/CTEL/certifications on all 4 cards | PASS |
+| 14 | Resource deep-links | inspect each resource link | istqb.org / glossary.istqb.org | home, CTFL v4.0, certifications, `https://glossary.istqb.org/` | PASS |
+| 15 | Live search filter | type `static` into search | only matching cards shown | 1 level (CTFL desc) + 1 chapter (Static Testing); resources 0; empty state hidden | PASS |
+| 16 | Live search no-match | type `zzzznotfound` | all grids 0, empty state visible | levels 0, chapters 0, resources 0; `#emptyMsg` display block | PASS |
+| 17 | Live search clear | clear the search box | full catalogue restored | 4/6/4/4 restored; empty state hidden | PASS |
+| 18 | Refresh button | click Refresh | re-fetch from BFF, footer timestamp updates, no errors | footer re-stamped `4:44:25 AM`, 4 levels; console clean | PASS |
+| 19 | Locale switch RO | select `Română` | reload `?locale=ro`, all strings Romanian, no raw keys | title `Programa ISTQB`, about `Ce este ISTQB?`, ch1 `Fundamentele testării` | PASS |
+| 20 | Locale switch DE | `?locale=de` | all strings German | title `ISTQB-Lehrplan`, about `Was ist ISTQB?`, ch3 `Statisches Testen` | PASS |
+| 21 | Locale switch ZH (fallback) | `?locale=zh` | English fallback, no raw keys | header `ISTQB Syllabus`, about `What is ISTQB?`, `rawKeysShown: []` | PASS |
+| 22 | ASIDE entry | `GET /api/aside/index.php?action=init` | Documentation section = documentationHub, learnTesting, accessibilityResources, istqbSyllabus | `items: ['documentationHub','learnTesting','accessibilityResources','istqbSyllabus']`; label `ISTQB Syllabus`, icon `fas fa-certificate` | PASS |
+| 23 | Console clean | list console messages after render + search + refresh + switches | no errors/warnings | `<no console messages found>` | PASS |
+| 24 | Event Viewer (no new Error/Warning) | `SELECT log_level,COUNT(*) FROM events WHERE log_level IN (1,2)` | none | 0 rows (3 events total, all AUDIT login) | PASS |
+
+**Actual result: implemented** — the Documentation section now exposes the ISTQB Syllabus hub listing the four ISTQB certification levels, the six CTFL v4.0 syllabus chapters and four authoritative istqb.org resources, with live search, a locale switcher, related in-context links, and a fully translated label in all 10 client bundles + 19 server locales. BFF enforces session auth (401 anon), same-origin (403 foreign POST), and GET/HEAD-only (405 same-origin POST). No new `events` Error/Warning rows.
+
+**Gate:** `TLU_REQUIRE_SUITE="Issue #1053" bash ai/verify_test_suites.sh` → see run below.
