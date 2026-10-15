@@ -691,14 +691,13 @@ if (count($pluginsMenu) > 0 || $gm('plugin_management') === 'yes') {
 }
 
 // 12. Documentation --------------------------------------------------------
-// Refs #1060/#1059/#1053: the section now carries the modernized Learn Testing
-// hub, the Accessibility Resources hub and the ISTQB Syllabus hub next to the
-// Documentation hub. The hrefs resolve through $actions->learnTesting /
-// $actions->accessibilityResources / $actions->istqbSyllabus
+// Refs #1060/#1059/#1053/#1055: the section now carries the modernized hubs
+// next to the Documentation hub. The hrefs resolve through $actions->learnTesting / $actions->accessibilityResources / $actions->istqbSyllabus / $actions->accessibilityAudit
 // (lib/functions/common.php), so they stay in-context like every other item.
 $learnHref = $u('learnTesting', '/gui/templates/documentation/learnTesting.html');
 $a11yHref = $u('accessibilityResources', '/gui/templates/documentation/accessibilityResources.html');
 $istqbHref = $u('istqbSyllabus', '/gui/templates/documentation/istqbSyllabus.html');
+$auditHref = $u('accessibilityAudit', '/gui/templates/documentation/accessibilityAudit.html');
 $sections[] = array(
     'key' => 'documentation',
     'label' => lang_get('title_documentation'),
@@ -724,6 +723,12 @@ $sections[] = array(
             'icon' => 'fas fa-universal-access',
         ),
         array(
+            'id' => 'accessibilityAudit',
+            'label' => lang_get('title_accessibility_audit'),
+            'href' => (string)$auditHref,
+            'icon' => 'fas fa-check-circle',
+        ),
+        array(
             'id' => 'istqbSyllabus',
             'label' => lang_get('title_istqb_syllabus'),
             'href' => (string)$istqbHref,
@@ -731,7 +736,6 @@ $sections[] = array(
         ),
     ),
 );
-
 asideOut(array(
     'status' => 'ok',
     'tproject_id' => $tproject_id,
