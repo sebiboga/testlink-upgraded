@@ -9610,3 +9610,54 @@ which the caller holds `cfield_management`, and the screen's project switcher is
   as the #1821 sibling on the same screen.
 - The issue's "extra note" (repo-wide grep for other `->get_list()` fatals) is resolved by
   TC-1817-01: no other call site exists.
+
+## Regression — Issue #1915: `jiraCommons::initDefaultResolvedStatus()` warns on JIRA status sets without literal `Resolved`/`Closed`
+
+**Screen / area** — Issue-tracker integration helper (`lib/issuetrackerintegration/jiraCommons.class.php`),
+reached by every JIRA back-end (`jiradbInterface`, `jirarestInterface`, `jirasoapInterface`) and by
+`POST /api/issuetracker/index.php/test-connection`.
+
+**Precondition** — Repo at base `eb02b415d`. PHP 8.3 CLI. A `$statusDomain` map of the form
+`statusName => statusId` whose names are customizable in JIRA (e.g. `Done`, `In Review`) and therefore
+need not contain the literal keys `Resolved` / `Closed`.
+
+**Repro (pre-fix)** — `/tmp/probe_jiracommons.php`:
+```php
+$h = new jiraCommons();
+$result = $h->initDefaultResolvedStatus(array('Done' => '10001', 'In Review' => '10002'));
+```
+Pre-fix output:
+```
+WARN: Undefined array key "Resolved" @.../jiraCommons.class.php:93
+WARN: Undefined array key "Closed"   @.../jiraCommons.class.php:93
+warnings=2
+result=[{"code":null,"verbose":"Resolved"},{"code":null,"verbose":"Closed"}]
+```
+
+**Expected post-fix** — 0 warnings; the result contains only entries for names actually present in the
+domain, never a `code => null` entry. Instances that DO have `Resolved`/`Closed` keep an identical
+result. An explicit `cfg->resolvedstatus` override still wins.
+
+| # | Step | Expected / observed | Result |
+|---|---|---|---|
+| TC-1915-01 | `php -l lib/issuetrackerintegration/jiraCommons.class.php` | `No syntax errors detected` | PASS |
+| TC-1915-02 | Probe with `{"Done","In Review"}` (neither key present) | `warnings=0`, `result=[]` (pre-fix: 2 warnings, `[null,null]`) | PASS |
+| TC-1915-03 | Probe with `{"Resolved":"5","Closed":"6"}` (both present) | `warnings+=0`, `[{"code":"5","verbose":"Resolved"},{"code":"6","verbose":"Closed"}]` — unchanged | PASS |
+| TC-1915-04 | Probe with `{"Resolved":"5"}` (one present) | `warnings+=0`, `[{"code":"5","verbose":"Resolved"}]` | PASS |
+| TC-1915-05 | Static: `grep -rn 'statusDomain\[' lib/issuetrackerintegration/` | 3 writers build the map (jiradb:190, jirarest:186, jirasoap:202); the only reader is the guarded `jiraCommons:99` | PASS |
+| TC-1915-06 | `setResolvedStatusCfg()` consumers with the shrunken/empty list | `jiradb:157` / `jirarest:238` / `jirasoap:151` all use `isset($this->resolvedStatus->byCode[$code])` → false, no warning, for a status not in the map | PASS |
+| TC-1915-07 | Event Viewer / `events` table | No new WARNING row: the guard removes the E_WARNING at source, so `watchPHPErrors()` has nothing to persist | PASS |
+| TC-1915-08 | Merge-base gate | `TLU_REQUIRE_SUITE="Issue #1915" bash ai/verify_test_suites.sh` exits 0 | PASS |
+
+### Test execution
+- [PASS] TC-1915-01 .. TC-1915-08 — 8/8 PASS (`php /tmp/probe_jiracommons.php` + `/tmp/probe_jiracommons_matrix.php`).
+- [PASS] TC-1915-02 is the primary symptom: 2 warnings + null codes → 0 warnings + `[]`.
+- [PASS] No `gui/templates/i18n/*.json` bundle touched (no user-facing string added).
+
+### Notes
+- Minimal, localized guard (`array_key_exists`) — no caller changed. Chosen over case-insensitive lookup
+  (still fails for localized names, would mis-classify) and over "treat all present statuses as resolved"
+  (would classify `Open`/`In Progress` as resolved). A JIRA with non-default names remains fully
+  configurable via `cfg->resolvedstatus` (`setResolvedStatusCfg()`).
+- Same defect class as #1608 (undefined array key → PHP 8 E_WARNING); discovered as a follow-up while
+  testing #1914 (see that issue's docs note).
