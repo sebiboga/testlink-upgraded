@@ -10088,3 +10088,28 @@ substitution.
 **Actual result: 6/6 PASS.** Root cause: `4f074a2b5` (#1804) added `pointer-events: none` while converting the controls to real `<button disabled>`; with the button semantics now real, the property only removed the button from the `:hover` chain and silenced the tooltip. Refs #1830, #1804.
 
 **Gate:** `TLU_REQUIRE_SUITE="Issue #1828" bash ai/verify_test_suites.sh`.
+
+## Regression — Issue #1838: bugDelete link_to_bts decoration (HTML for already-linked bugs) pasted verbatim into an href → dead links
+
+**Screen / area:** Execute → Bug Delete (`gui/templates/execute/bugDelete.html`) bug list, plus its BFF `api/bugdelete/index.php`. Refs #1838 (same class as #1837).
+
+**Precondition:** app at `http://localhost:8082`; fixture `php tmp/fixtures_1269.php` → tproject `RB1269` (id 15, prefix RB), plan `RB Plan` (id 16), executions 1/2/3; execution **2** carries linked bugs `101` (open) and `102` (resolved); tracker `MantisFixture1269` (mantis/db, `uriview=http://mantis.local/view_bug.php?bug_id=`). Login `admin`/`admin`. Open `…/bugDelete.html?exec_id=2`.
+
+| # | Step | Input | Expected | Observed | Result |
+|---|---|---|---|---|---|
+| 1 | BFF exposes the raw URL | `GET ?action=init&exec_id=2` | `bugs[].bug_url` is a plain URL, `link_to_bts` is the HTML decoration | `bug_url="http://mantis.local/view_bug.php?bug_id=101"` and `..102`; `link_to_bts` = full `<div …><a href='..'>101</a></div>` | PASS |
+| 2 | Bug id renders as a real anchor | `document.querySelectorAll('#bugsList .bug-tag')` | both are `<a>` | `tag=A` (×2) | PASS |
+| 3 | href is the clean URL, not the markup | `a.getAttribute('href')` | `http://mantis.local/view_bug.php?bug_id=101` / `..102` | exact match (no `<div`/`&quot;` present) | PASS |
+| 4 | Anchor text is just the bug id | `a.textContent` | `101` / `102` | `101`, `102` | PASS |
+| 5 | Safe target/rel kept | `a.target`, `a.rel` | `_blank`, `noopener` | `_blank`, `noopener` | PASS |
+| 6 | Guard rejects markup | `safeHttpUrl('<div title="x"><a href="y">1</a></div>')` | `''` | `''` | PASS |
+| 7 | Guard rejects `javascript:` | `safeHttpUrl('javascript:alert(1)')` | `''` | `''` | PASS |
+| 8 | Guard rejects `data:` | `safeHttpUrl('data:text/html,<script>')` | `''` | `''` | PASS |
+| 9 | Guard passes http / relative | `safeHttpUrl('http://…')`, `safeHttpUrl('/foo/bar')` | passthrough | `http://…`, `/foo/bar` | PASS |
+| 10 | Missing URL → plain text | `renderBugs([{id:'999',bug_url:'',link_to_bts:'<a href="x">999</a>'}])` | `<span>`, no href | `tag=SPAN, href=null` | PASS |
+| 11 | Console clean | list console messages | no errors | no console messages | PASS |
+| 12 | Event Viewer | `SELECT … FROM events WHERE log_level IN (2,3)` last 30 min | no new Error/Warning | none | PASS |
+
+**Actual result: 12/12 PASS.** Root cause: `link_to_bts` is HTML (`issueTrackerInterface::buildViewBugLink()`), and `esc()` does not escape single quotes, so pasting it into `href="…"` produced a garbage attribute — the link was dead. Fix mirrors #1837 (`safeHttpUrl()` guard; render bug iff `bug_url` is an absolute http(s)/relative URL, else plain `<span>`), and the BFF's no-BTS fallback branch now also emits an explicit `bug_url => ''`. Refs #1838, #1837.
+
+**Gate:** `TLU_REQUIRE_SUITE="Issue #1838" bash ai/verify_test_suites.sh`.

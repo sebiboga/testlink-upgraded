@@ -186,6 +186,19 @@ function esc(s) {
     .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+// Only an absolute http(s) or site-relative URL may become an href - the BTS
+// link_to_bts decoration is HTML (buildViewBugLink), so it must never be pasted
+// into an attribute (Refs #1837/#1838). bug_url (buildViewBugURL) is the raw URL.
+function safeHttpUrl(u) {
+  if (typeof u !== 'string') return '';
+  var s = u.trim();
+  if (s === '') return '';
+  if (/^https?:\/\//i.test(s)) return s;
+  if (/^\/\//.test(s)) return s;
+  if (/^\//.test(s)) return s;
+  return '';
+}
+
 var API = '/api/bugdelete/index.php';
 var qs = new URLSearchParams(window.location.search);
 var execId = qs.get('exec_id') || '';
@@ -247,8 +260,9 @@ function renderBugs(bugs) {
       : '';
     var $li = $('<li>');
     var $left = $('<div style="display:flex;align-items:center;gap:8px;">');
-    var tag = b.link_to_bts
-      ? '<a class="bug-tag" href="' + esc(b.link_to_bts) + '" target="_blank" rel="noopener">' + esc(b.id) + '</a>'
+    var bugUrl = safeHttpUrl(b.bug_url);
+    var tag = bugUrl
+      ? '<a class="bug-tag" href="' + esc(bugUrl) + '" target="_blank" rel="noopener">' + esc(b.id) + '</a>'
       : '<span class="bug-tag">' + esc(b.id) + '</span>';
     $left.append(tag);
     $left.append(step);

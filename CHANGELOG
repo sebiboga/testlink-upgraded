@@ -17,6 +17,16 @@ Every screen of the application was ported one-by-one in a screen-compare
   kept for backward compatibility and is progressively retired as each modern
   screen reaches full parity.
 
+- [BUGFIX] - #1838: on the modern **Bug Delete** screen (`gui/templates/execute/bugDelete.html`) the
+  bug id was rendered as a dead link for issues already linked to a BTS: the anchor href was built from
+  `bug.link_to_bts`, which is the *HTML decoration* of a bug
+  (`issueTrackerInterface::buildViewBugLink()`, e.g. `<div …><a href='…'>101</a></div>`), so the whole
+  markup ended up inside the `href` attribute (and `esc()` does not escape the single quotes). The
+  screen now uses the BFF's `bug_url` (the raw `buildViewBugURL()` result) through the same
+  `safeHttpUrl()` guard introduced for #1837 - an absolute http(s)/site-relative URL becomes an `<a>`,
+  anything else renders as plain text - and the BFF's no-BTS fallback branch emits `bug_url => ''`
+  explicitly. Refs #1838, #1837.
+
 - [BUGFIX] - #1828 / #1830: two defects on the modern **Requirement Specification Tree — move & reorder**
   screen (`gui/templates/requirements/reqTreeReorder.html`). #1828: `Refresh` was not BUSY-gated, so
   clicking it while an `Apply order` / `Move` POST was in flight started a racing `GET ?action=init`

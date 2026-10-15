@@ -160,6 +160,7 @@ function listExecBugs($execId, $tprojectId) {
                 $bugs[] = [
                     'id' => strval($br['bug_id']),
                     'link_to_bts' => '',
+                    'bug_url' => '',
                     'tcstep_id' => intval($br['tcstep_id'] ?? 0),
                     'step_number' => intval($br['step_number'] ?? 0),
                 ];
