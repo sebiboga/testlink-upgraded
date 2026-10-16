@@ -25,11 +25,19 @@
 # cannot see a loss an ancestor already made. Commit 136fc4426, titled "append
 # suite for #1089", was a +12/-6332 REPLACEMENT of the suite file (88 suite
 # headings -> 1) and check 2a reported "PASS" on the result, because the
-# merge-base carried the damage. Check 3 therefore anchors the baseline to the
-# newest commit that REPLACED the file and requires the candidate to contain that
-# commit's parent's headings — a baseline that cannot move. Only the NEWEST
-# replacement is enforced; older ones belong to the retired
-# '## N. Name (Suite ID: M)' heading scheme and would be unsatisfiable.
+# merge-base carried the damage. Check 3 therefore anchors the baseline to every
+# commit that REPLACED the file and requires the candidate to contain each such
+# commit's parent's headings — baselines that cannot move.
+#
+# SINCE #1851, ALL confirmed replacements are enforced, not just the newest one.
+# The #1849 version anchored only the newest (a hard `break`) on the grounds that
+# older anchors belonged to the retired '## N. Name (Suite ID: M)' heading scheme
+# and would be unsatisfiable. That premise was measured to be false: of the 593
+# headings the 30aeecd0d clobber destroyed, 493 are modern-scheme and only 59 use
+# the 'Suite ID:' format — and the era has since been re-appended (issue #1851,
+# commit 7c636264b), so every anchor is satisfiable. Enforcing only the newest
+# commit left every suite written before the newest clobber unprotected, which is
+# exactly how the 595 -> 1 loss of 30aeecd0d stayed silent.
 #
 # CONTRACT — a suite is identified by its EXACT '^## ' heading line. Appending is
 # always allowed; RENAMING or reformatting a heading is reported as a loss
@@ -63,7 +71,8 @@
 # EXIT: 0 = every invariant PASS, 1 = at least one FAIL.
 #
 # Refs #1805 (follow-up to #1793, #1701 lost in ce093fa54, #1740 lost in
-# a2df484a8, Issue #1048 lost in 966a7997d).
+# a2df484a8, Issue #1048 lost in 966a7997d), #1851 (every destructive commit
+# anchored, not only the newest).
 
 set -uo pipefail
 
@@ -74,7 +83,7 @@ CANDIDATE=""
 for arg in "$@"; do
   case "$arg" in
     --allow-skip) ALLOW_SKIP=1 ;;
-    -h|--help) sed -n '2,66p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help) sed -n '2,75p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     -*) printf 'unknown option: %s (see --help)\n' "$arg" >&2; exit 1 ;;
     *) CANDIDATE="$arg" ;;
   esac
@@ -318,22 +327,26 @@ fi
 # because 136fc4426 ("+12/-6332", 88 suite headings -> 1) was an ancestor of the
 # merge-base.
 #
-# This check anchors the baseline to the NEWEST commit that REPLACED the suite
-# file instead of editing it, and requires the candidate to still contain that
+# This check anchors the baseline to every commit that REPLACED the suite file
+# instead of editing it, and requires the candidate to still contain each such
 # commit's PARENT suite headings. A whole-file overwrite has an unmistakable
 # signature in --numstat (many deletions, few additions), so it can be located
 # in one pass:
 #
 #     git log --format='C %H' --numstat <range> -- tmp/TLU_Test_Cases.md
 #
-# Only the NEWEST confirmed destructive commit is enforced. Older destructive
-# commits belong to the retired '## N. Name (Suite ID: M)' heading scheme:
-# demanding their headings back would be unsatisfiable and would leave the gate
-# permanently red, which is how gates get ignored. Measured on #1849: the union
-# of EVERY historical heading is 844, of which 831 are not losses at all.
+# SINCE #1851 EVERY confirmed destructive commit is enforced, not only the newest
+# one. The pre-#1851 version stopped at the first (newest) match on the premise
+# that older anchors used the retired '## N. Name (Suite ID: M)' scheme and would
+# be unsatisfiable; measured on #1851: only 59 of the 593 headings destroyed by
+# 30aeecd0d use that scheme, 493 are modern-scheme, and the whole era has been
+# re-appended (commit 7c636264b) — so all anchors are satisfiable. Anchoring only
+# the newest left suites written before the newest clobber permanently
+# unenforced: the gate passed with EXIT=0 while 593 suites were missing.
 #
-# Only the newest is enforced, and the file is append-only by rule 9, so the
-# newest destructive commit's pre-image is exactly the set the file must hold.
+# The file is append-only by rule 9, so each destructive commit's pre-image is a
+# subset of the set the file must hold; a commit that DELETED the file
+# (a572b8c75) has no pre-image demand and is skipped by the existence guard.
 #
 # KNOWN LIMITATION — `git log --numstat` prints no stat block for a merge commit,
 # so a clobber performed in the merge's own diff is invisible to check 3 (tracked
@@ -396,12 +409,10 @@ else
     } | awk 'NF && !seen[$0]++')"
   fi
 
-  hist_head=""
-  hist_parent=""
-  hist_before=0
-  hist_after=0
+  anchors=0
   hist_commits="$(git rev-list --count HEAD -- ":/$SUITE_RELPATH" 2>/dev/null)"
   hist_commits="${hist_commits:-0}"
+  htmp=""
   for c in $clob_cands; do
     par="$(git rev-parse --verify --quiet "$c^" 2>/dev/null)"
     [ -n "$par" ] || continue
@@ -414,9 +425,33 @@ else
     ha="$(git show "$c:$SUITE_RELPATH" 2>/dev/null | grep -cE "$H")"
     hb="${hb:-0}"; ha="${ha:-0}"
     # Confirm with real heading counts, not the numstat heuristic.
-    if [ "$hb" -ge "$HIST_MIN_HEADINGS" ] && [ "$ha" -lt "$hb" ]; then
-      hist_head="$c"; hist_parent="$par"; hist_before="$hb"; hist_after="$ha"
-      break
+    if [ "$hb" -lt "$HIST_MIN_HEADINGS" ] || [ "$ha" -ge "$hb" ]; then continue; fi
+    # #1851: enforce EVERY confirmed destructive anchor (newest-first), not only
+    # the newest one — the pre-image of each is a set the append-only file must hold.
+    if [ -z "$htmp" ]; then
+      htmp="$(new_tmpdir)" || { bad "cannot create a scratch directory"; summary; exit 1; }
+    fi
+    anchors=$((anchors + 1))
+    printf 'clobber baseline: %s^ (%s headings) -> %s (%s headings)\n' \
+      "$(git rev-parse --short "$par")" "$hb" \
+      "$(git rev-parse --short "$c")" "$ha"
+    if ! git show "$par:$SUITE_RELPATH" > "$htmp/hist.md" 2>/dev/null; then
+      bad "cannot read $par:$SUITE_RELPATH"
+      continue
+    fi
+    hist_lost="$(comm -23 \
+      <(grep -E "$H" "$htmp/hist.md" | LC_ALL=C sort) \
+      <(grep -E "$H" "$CANDIDATE" | LC_ALL=C sort))"
+    if [ -z "$hist_lost" ]; then
+      ok "no suite lost vs the pre-image of destructive commit $(git rev-parse --short "$c") (= 0)"
+    else
+      hn=$(printf '%s\n' "$hist_lost" | grep -c .)
+      bad "no suite lost vs the pre-image of destructive commit $(git rev-parse --short "$c") ($hn lost)"
+      printf '%s\n' "$hist_lost" | head -20 | sed 's/^/          LOST: /'
+      printf '          that commit replaced the file (%s -> %s headings); APPEND the missing blocks, never rewrite the file:\n' \
+        "$hb" "$ha"
+      printf '            source them from: git show %s^:%s  (append only blocks whose ^## heading is absent; do NOT append the whole file)\n' \
+        "$(git rev-parse --short "$c")" "$SUITE_RELPATH"
     fi
   done
 
@@ -425,31 +460,8 @@ else
     # shallow clone) or the extractor is broken. Either way this check did not
     # run, and an unrun check must not be reported as a PASS.
     unrunnable "clobber check: no suite-file history readable ($SUITE_RELPATH, $hist_commits commits on HEAD)"
-  elif [ -z "$hist_head" ]; then
+  elif [ "$anchors" -eq 0 ]; then
     ok "no destructive commit in the suite-file history (nothing to re-append)"
-  else
-    printf 'clobber baseline: %s^ (%s headings) -> %s (%s headings)\n' \
-      "$(git rev-parse --short "$hist_parent")" "$hist_before" \
-      "$(git rev-parse --short "$hist_head")" "$hist_after"
-    htmp="$(new_tmpdir)" || { bad "cannot create a scratch directory"; summary; exit 1; }
-    if ! git show "$hist_parent:$SUITE_RELPATH" > "$htmp/hist.md" 2>/dev/null; then
-      bad "cannot read $hist_parent:$SUITE_RELPATH"
-    else
-      hist_lost="$(comm -23 \
-        <(grep -E "$H" "$htmp/hist.md" | LC_ALL=C sort) \
-        <(grep -E "$H" "$CANDIDATE" | LC_ALL=C sort))"
-      if [ -z "$hist_lost" ]; then
-        ok "no suite lost vs the pre-image of the newest destructive commit $(git rev-parse --short "$hist_head") (= 0)"
-      else
-        hn=$(printf '%s\n' "$hist_lost" | grep -c .)
-        bad "no suite lost vs the pre-image of the newest destructive commit $(git rev-parse --short "$hist_head") ($hn lost)"
-        printf '%s\n' "$hist_lost" | head -20 | sed 's/^/          LOST: /'
-        printf '          that commit replaced the file (%s -> %s headings); APPEND the missing blocks, never rewrite the file:\n' \
-          "$hist_before" "$hist_after"
-        printf '            source them from: git show %s^:%s  (append only blocks whose ^## heading is absent; do NOT append the whole file)\n' \
-          "$(git rev-parse --short "$hist_head")" "$SUITE_RELPATH"
-      fi
-    fi
   fi
 fi
 
