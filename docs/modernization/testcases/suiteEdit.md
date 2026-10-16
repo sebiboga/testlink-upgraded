@@ -47,9 +47,13 @@ modal inside `api/suiteview`.
   key as a DATE part purely by its `_input` suffix, so a non-date field keeps an
   ARRAY `cf_value` and `design_values_to_db()` fatals
   (`tlStringLen(): Argument #1 must be of type string, array given`).
-- **#1854** (filed, not fixed) `check_string()` answers "forbidden characters"
-  for a string whose `preg_match` returned 0 — it made every suite name
-  unsaveable. `api/suiteedit` calls `preg_match()` directly until it is understood.
+- **#1854** (**fixed**) the BFF called the shared validator `check_string()`
+  with the wrong polarity (`if (check_string(...)) -> bad_chars`): the helper
+  returns `1 = check ok` / `0 = forbidden`, so it rejected every valid suite name
+  and accepted names containing `|`. `check_string()` itself is correct and is
+  used correctly (`!check_string(...)`) by `containerEdit.php:203`,
+  `testproject.class.php:893/917` and `api/projectinfo/index.php:426`;
+  `api/suiteedit` now uses the same canonical form.
 
 ## Class-API traps recorded for the next screen
 
