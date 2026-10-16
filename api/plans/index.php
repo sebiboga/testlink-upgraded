@@ -1987,7 +1987,7 @@ if ($method === 'POST' && count($segments) === 2 &&
     $assigned = 0;
     $testerID = intval($body['testerID'] ?? 0);
     $buildID = intval($body['build_id'] ?? 0);
-    $sendMail = !empty($body['send_mail']) || $body['send_mail'] === true || $body['send_mail'] === 1 || $body['send_mail'] === "1";
+    $sendMail = !empty($body['send_mail']);
     if ($testerID > 0 && $buildID > 0 && !is_null($addedFeatures) &&
         count($addedFeatures) > 0) {
         try {
