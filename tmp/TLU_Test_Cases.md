@@ -10203,3 +10203,33 @@ substitution.
 **Actual result: 11/11 PASS.** The `perf.*` regression was already remediated in `08631dda3`; this run verified key presence (10/10 bundles), value fidelity against the original `5d6bd072d` add (0 drift), the gate (exit 0 + negative control exit 1), and the live runtime (`?locale=ro` renders Romanian labels, no raw-key fallback at `i18n.js:175`). The gate's CI enforcement is blocked because the agent token lacks the `workflows` permission (#1850). A separate still-live instance of the same class (`tmvc.*`, screen `containerMoveTC.html`) was found and filed as #1918.
 
 **Gate:** `TLU_REQUIRE_SUITE="Issue #1917" bash ai/verify_test_suites.sh`.
+
+## Modernize — Issue #1135: planAddTC platform-scoped check/uncheck all + per-suite remove-all
+
+**Screen / area:** `gui/templates/plans/planAddTCView.html` (Add / Remove Test Cases). Legacy reference `gui/templates/dashio/plan/planAddTC_m1.tpl:167-183,244,262` + `gui/javascript/checkboxes.js:244,271`. Refs #1135.
+
+**Precondition:** app `http://localhost:8082`; login `admin/admin`; fixtures `tmp/fixtures_1126.sql` + `tmp/fixtures_1135.sql` (project 1000 "PATC Project", plan 2000 "Demo Plan", suite 2001 "Suite A", platforms 4001 Linux + 4002 Windows linked to the plan; LC1 linked @none+#1 & @Linux (execution 9501), LC2 linked @none+#2 & @Windows, LC3 **unlinked**). Open `/gui/templates/plans/planAddTCView.html?tproject_id=1000`.
+
+| # | Step | Input | Expected | Observed | Result |
+|---|---|---|---|---|---|
+| 1 | Bulk control renders | load screen | legacy "Check/uncheck all Test cases [All platforms/Linux/Windows] for [adding][removal]" | present, `#bulkPlatform` = All platforms + Linux + Windows | PASS |
+| 2 | Remove-all header toggle renders | inspect "Remove links" th | per-suite disconnect toggle | `#chkAllRm` (fa-link-slash) present | PASS |
+| 3 | Header add toggle title | `#chkAllAdd` title | `check/uncheck all (for add)` | matches | PASS |
+| 4 | Bulk add scope Linux | select Linux, click adding | LC3 add checked, `psel`=[4001] | `{lc3Add:true, psel:["4001"]}` | PASS |
+| 5 | Bulk add toggle off (same scope) | click adding again | LC3 unchecked | `lc3Add:false` | PASS |
+| 6 | Bulk add scope All platforms | select All, click adding | LC3 add checked, `psel`=[4001,4002] | `{lc3Add:true, psel:["4001","4002"]}` | PASS |
+| 7 | Bulk removal scope Linux | select Linux, click removal | only `rmchk[data-pl=4001]` checked | `{plat0:false, linux:true, windows:false}` | PASS |
+| 8 | Per-suite remove-all | click `#chkAllRm` | all 4 `rmchk` checked | `all=4/total=4` | PASS |
+| 9 | Per-suite add-all scope Windows | select Windows, tick `#chkAllAdd` | LC3 add checked, `psel`=[4002] | `{lc3Add:true, psel:["4002"]}` | PASS |
+| 10 | No-platform fallback | set `INIT.platforms=[]`, `renderBulkControls()` | `#bulkPlatform` hidden | `hidden:true`, shown again when restored | PASS |
+| 11 | End-to-end ADD save | scope Linux + adding + Save changes | 1 link created (LC3@Linux) | toast "1 link(s) added, 0 removed"; DB row `9103 (30031,platform 4001)` | PASS |
+| 12 | End-to-end REMOVE save | scope Windows + removal + Save changes | LC2@Windows unlinked | toast "0 link(s) added, 1 removed"; LC2 shows only `v1 · none` | PASS |
+| 13 | Executed-removal guard | scope Linux + removal + Save | confirmation modal listing LC1 | `#rmMsg` = "…will be removed together with their results:PATC-LC1" | PASS |
+| 14 | i18n all 10 bundles | `python3 -m json.tool` + `ai/verify_i18n_coverage.sh` | valid + 9 PASS | json ok; coverage 9/9 PASS exit 0 | PASS |
+| 15 | Rendered locale (ro) | `localStorage tl_locale=ro`, reload | translated, no raw key | "Bifează/debifează toate cazurile de test", "Toate platformele", "adăugare", "eliminare" | PASS |
+| 16 | Console clean | load + interact | no errors/warnings | none | PASS |
+| 17 | Event Viewer | `SELECT … WHERE log_level=2` | no NEW Error/Warning from this screen | 3× pre-existing `send_mail` warning on save → filed **#1919** (BFF `api/plans/index.php:1990`, unrelated to this change) | PASS (documented) |
+
+**Actual result: 17/17 PASS.** The bulk platform-scoped add/removal and the per-suite remove-all are fully ported; the executed-removal confirmation still fires; i18n is complete in all 10 bundles. The only Event Viewer noise is a pre-existing BFF warning, logged separately as #1919.
+
+**Gate:** `TLU_REQUIRE_SUITE="Issue #1135" bash ai/verify_test_suites.sh`.

@@ -31,6 +31,7 @@ that already have executions additionally requires `testplan_unlink_executed_tes
 10. [Task — Issue #1131: requirement-coverage navigator modes](#10-task--issue-1131-requirement-coverage-navigator-modes)
 11. [Task — Issue #1132: full navigator filter panel](#11-task--issue-1132-full-navigator-filter-panel)
 12. [Task — Issue #1133: render-time gating of the executed remove checkbox](#12-task--issue-1133-render-time-gating-of-the-executed-remove-checkbox)
+13. [Feature — Issue #1135: platform-scoped bulk check/uncheck + per-suite remove-all](#13-feature--issue-1135-platform-scoped-bulk-checkuncheck--per-suite-remove-all)
 
 ---
 ## 1. Screen Layout
@@ -38,7 +39,8 @@ that already have executions additionally requires `testplan_unlink_executed_tes
 * Toolbar: test project picker, test plan picker (re-inits the whole screen),
   **Group by** selector (Test suites / Requirement coverage — legacy
   `setting_testsgroupby`, see §10), **Filters** toggle button (full navigator
-  filter panel, see §11), Refresh button.
+  filter panel, see §11), **bulk platform check/uncheck** control (see §13),
+  Refresh button.
 * Left panel — suite tree with **linked/total** deep badges per suite (or the
   requirement-coverage tree when Group by = Requirement coverage).
 * Right panel — per-suite table:
@@ -491,3 +493,63 @@ re-verified (no modal for unexecuted, modal+cascade+toast for executed).
 `bash ai/verify_i18n_coverage.sh` PASS (7799 keys); Event Viewer only `log_level=16`
 audit rows. Suite **Task — Issue #1133** appended to `tmp/TLU_Test_Cases.md`
 (6/6 PASS).
+
+---
+## 13. Feature — Issue #1135: platform-scoped bulk check/uncheck + per-suite remove-all
+
+**Reported gap.** Legacy 1.9.20 rendered, above the suite tables, a bulk control
+"Check/uncheck all Test cases for [<platform>] for [adding|removal]"
+(`planAddTC_m1.tpl:167-183`, backed by
+`checkboxes.js:271 cs_all_checkbox_in_div_with_platform`), and every suite header
+had an "all" toggle for both the add checkbox and the per-link remove checkbox
+(`planAddTC_m1.tpl:244` add / `:262` remove). The modern screen had only a global
+add toggle that ignored platforms.
+
+![bulk check/uncheck control in the toolbar](screenshots/issue-1135-bulk-controls.png)
+
+### Behavior
+* A toolbar control (`#bulkPlatform` select + `#btnBulkAdd` + `#btnBulkRm`)
+  renders whenever the plan has platforms; the select lists **All platforms**
+  plus each plan platform. When the plan has no platforms the control is hidden
+  (parity with legacy, which only rendered the per-platform control with
+  platforms).
+* **adding** mode checks the add checkbox of every *unlinked* row, and sets that
+  row's platform multi-select to the chosen scope (`All platforms` selects every
+  plan platform, a single platform selects just it).
+* **removal** mode checks the per-link remove checkbox of every *removable* row:
+  for a single platform only that platform's link row; for *All platforms* every
+  removable link. Executed links the user may not unlink stay read-only (§12).
+* Clicking the active mode again toggles the group off (legacy
+  `cs_all_checkbox_in_div` semantics).
+* The per-suite header toggles: `#chkAllAdd` (add column) and `#chkAllRm`
+  (remove column, fa-link-slash). `#chkAllAdd` honours the current platform scope
+  — it selects that platform in each row's `select.psel` so the add actually
+  submits for the platform. `#chkAllRm` unlinks every removable link in the suite.
+
+### i18n
+New keys `paddtc.checkUncheckAll`, `paddtc.allPlatforms`, `paddtc.for`,
+`paddtc.adding`, `paddtc.removal`, `paddtc.checkAllAdd`, `paddtc.checkAllRm` in
+all 10 locale bundles.
+
+### Verification
+Fixtures `tmp/fixtures_1126.sql` + `tmp/fixtures_1135.sql` (plan 2000 "Demo Plan",
+platforms 4001 Linux / 4002 Windows; LC1 @Linux executed, LC2 @Windows, LC3
+unlinked):
+* select **Linux** + adding → LC3 add checked, `psel=["4001"]`; clicking again
+  unchecks (toggle).
+* select **All platforms** + adding → `psel=["4001","4002"]`.
+* select **Linux** + removal → only `rmchk[data-pl=4001]` checked; **All** →
+  every removable link.
+* `#chkAllRm` → all 4 link remove-checkboxes checked; `#chkAllAdd` with scope
+  Windows → LC3 add checked, `psel=["4002"]`.
+* End-to-end **Save changes**: Linux+adding persisted the LC3@Linux link
+  (`node 9103`, tcversion 30031, platform 4001, toast "1 link(s) added, 0
+  removed"); Windows+removal unlinked LC2@Windows (toast "0 link(s) added, 1
+  removed", LC2 shows only `v1 · none`).
+* Executed-removal guard still fires: Linux+removal + Save opened the
+  confirmation modal listing LC1.
+* No-platform plan hides the bulk select; locale switch to `ro` renders
+  translated labels ("Toate platformele", "adăugare", "eliminare"). Console
+  clean; `ai/verify_i18n_coverage.sh` 9/9 PASS. Suite **Issue #1135** appended to
+  `tmp/TLU_Test_Cases.md` (17/17 PASS). A pre-existing save-path warning was filed
+  separately as #1919.

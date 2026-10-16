@@ -19,6 +19,16 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 .btn-teal:hover { background: #3dbdb5; }
 .btn-dark { background: #353b48; color: #fff; border: 1px solid #555; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
 .btn-dark:hover { background: #2c313a; }
+/* Issue #1135: legacy bulk "check/uncheck all Test cases for [platform] for
+   [adding|removal]" control (planAddTC_m1.tpl:167-183). */
+.bulk-ctl { display: flex; align-items: center; gap: 6px; }
+.bulk-ctl .bulk-lbl { color: #ccc; font-size: 12px; }
+.bulk-ctl .btn-dark { padding: 5px 12px; }
+/* Issue #1135: per-suite "unlink all" toggle in the Remove links header
+   (legacy planAddTC_m1.tpl:262 disconnect icon). */
+.hdr-toggle { background: transparent; border: 1px solid #cfd4d8; color: #556; border-radius: 3px;
+  font-size: 11px; line-height: 1; padding: 2px 5px; margin-left: 4px; cursor: pointer; vertical-align: middle; }
+.hdr-toggle:hover { border-color: #4ECDC4; color: #1d6f69; }
 .layout { display: flex; gap: 16px; padding: 16px 24px; align-items: flex-start; }
 .panel-suites { width: 300px; min-width: 260px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); overflow: hidden; }
 .panel-suites h3 { background: #22242a; color: #fff; margin: 0; padding: 10px 14px; font-size: 13px; letter-spacing: .5px; }
@@ -136,6 +146,15 @@ tr.cf-row textarea { vertical-align: top; }
     <option value="req_coverage" data-i18n="pnav.groupsReqs">Requirement coverage</option>
   </select>
   <button class="btn-ghost" id="btnFilters"><i class="fas fa-filter"></i> <span data-i18n="paddtc.filters">Filters</span></button>
+  <!-- Issue #1135: legacy platform-scoped bulk check/uncheck control
+       (planAddTC_m1.tpl:167-183). -->
+  <span class="bulk-ctl">
+    <span class="bulk-lbl" data-i18n="paddtc.checkUncheckAll">Check/uncheck all Test cases</span>
+    <select id="bulkPlatform" style="display:none" title=""></select>
+    <span class="bulk-lbl" data-i18n="paddtc.for">for</span>
+    <button class="btn-dark" id="btnBulkAdd" data-i18n="paddtc.adding">adding</button>
+    <button class="btn-dark" id="btnBulkRm" data-i18n="paddtc.removal">removal</button>
+  </span>
   <span style="flex:1"></span>
   <button class="btn-dark" id="btnReload"><i class="fas fa-sync-alt"></i> <span data-i18n="common.refresh">Refresh</span></button>
 </div>
@@ -217,14 +236,14 @@ tr.cf-row textarea { vertical-align: top; }
     <table class="tcs" id="tcTable" style="display:none">
       <thead>
         <tr>
-          <th style="width:36px"><input type="checkbox" id="chkAllAdd" title=""></th>
+          <th style="width:36px"><input type="checkbox" id="chkAllAdd" data-i18n-title="paddtc.checkAllAdd" title="check/uncheck all (for add)"></th>
           <th data-i18n="paddtc.colTc">Test Case</th>
           <th data-i18n="paddtc.version" style="width:150px">Version to add</th>
           <th data-i18n="paddtc.colStatus" style="width:140px">Status</th>
           <th id="thImportance" data-i18n="paddtc.colImportance" style="width:110px">Importance</th>
           <th id="thPlat" data-i18n="paddtc.platforms" style="width:160px;display:none">Platforms</th>
           <th data-i18n="paddtc.execOrder" style="width:90px">Exec. order</th>
-          <th data-i18n="paddtc.removeAction" style="width:230px">Remove links</th>
+          <th style="width:230px"><span data-i18n="paddtc.removeAction">Remove links</span><button type="button" id="chkAllRm" class="hdr-toggle" data-i18n-title="paddtc.checkAllRm" title="check/uncheck all (for remove)"><i class="fas fa-link-slash" aria-hidden="true"></i></button></th>
           <!-- Issue #1128: legacy planAddTC 'Added on date' column
                (planAddTC.tpl:184-186 header, :370/:438 cells). -->
           <th id="thAddedOn" data-i18n="paddtc.addedOnDate" style="width:110px">Added on date</th>
@@ -330,7 +349,13 @@ $(function(){
     saveFilterState(); restoreFilterControls();
     curSuiteId = 0; updateFilterHint(); loadSuites();
   });
-  $('#chkAllAdd').on('change', function(){ $('input.addchk').prop('checked', $(this).is(':checked')); });
+  $('#chkAllAdd').on('change', function(){ applyAddAll($(this).is(':checked'), bulkScopePlat()); });
+  // Issue #1135: legacy bulk platform-scoped check/uncheck controls
+  // (planAddTC_m1.tpl:180 adding / :182 removal) and the per-suite
+  // "unlink all" toggle (planAddTC_m1.tpl:262).
+  $('#btnBulkAdd').on('click', toggleBulkAdd);
+  $('#btnBulkRm').on('click', toggleBulkRm);
+  $('#chkAllRm').on('click', toggleHeaderRm);
   $('#suiteTree').on('click','li[data-suite]',function(){ openContainer(parseInt(this.getAttribute('data-suite'),10),'suite'); });
   // Issue #1131: requirement-coverage tree nodes (req specs + requirements).
   $('#suiteTree').on('click','li[data-reqspec]',function(){ openContainer(parseInt(this.getAttribute('data-reqspec'),10),'req_spec'); });
@@ -393,6 +418,7 @@ function boot(){
       if(currentPlanId() && currentPlanId() !== r.tplan_id){ planChanged(); return; }
       renderFilterPanel();
       renderAssignPanel();
+      renderBulkControls();
       loadSuites();
     })
     .fail(function(xhr){
@@ -415,6 +441,7 @@ function planChanged(){
       $('#noAccess').hide(); $('#mainLayout').show();
       renderFilterPanel();
       renderAssignPanel();
+      renderBulkControls();
       loadSuites();
     })
     .fail(function(){ toast(TLi18n.t('common.error'),true); });
@@ -438,6 +465,75 @@ function renderAssignPanel(){
     $b.append('<option value="'+parseInt(k,10)+'"'+sel+'>'+esc(builds[k])+'</option>');
   });
   $('#assignPanel').show();
+}
+
+// Issue #1135: platform-scoped bulk check/uncheck controls, ported from the
+// legacy planAddTC_m1.tpl:167-183 block + checkboxes.js:
+//  - check_uncheck_all_tc label + select#select_platform ("All platforms" = 0)
+//    + "for" [adding] [removal]
+//  - cs_all_checkbox_in_div_with_platform(div, prefix, platform_id): toggles
+//    every checkbox whose id starts with `prefix` whose trailing bracket number
+//    equals platform_id (0 = every platform).
+// The modern screen draws one row per test case (not per tc×platform), with a
+// per-row platform multi-select `select.psel` that decides WHICH platform(s) an
+// add targets, so the scope is applied by selecting the platform in psel before
+// ticking the row's add checkbox.
+var bulkAddState = {};
+function bulkScopePlat(){ return parseInt($('#bulkPlatform').val()||'0',10)||0; }
+
+/** Render the platform scope selector (legacy $gui->bulk_platforms). */
+function renderBulkControls(){
+  var plats = (INIT && INIT.platforms) || [];
+  var $b = $('#bulkPlatform').empty();
+  if(!plats.length){ $b.hide(); return; }
+  $b.append('<option value="0">'+esc(TLi18n.t('paddtc.allPlatforms'))+'</option>');
+  plats.forEach(function(p){ $b.append('<option value="'+p.id+'">'+esc(p.name)+'</option>'); });
+  $b.show();
+}
+
+/** Replace a row's add-platform selection (0 => every plan platform). */
+function setRowPsel($psel, scope){
+  var want = scope>0 ? [String(scope)]
+    : ((CONTAINER&&CONTAINER.platforms)||[]).map(function(p){ return String(p.id); });
+  $psel.val(want);
+}
+
+/** Tick/untick every addable row's add checkbox, scoped to `scope`. */
+function applyAddAll(checked, scope){
+  $('input.addchk').each(function(){
+    var $psel = $('select.psel[data-tc="'+this.getAttribute('data-tc')+'"]');
+    if($psel.length){ setRowPsel($psel, scope); }
+    this.checked = checked;
+  });
+}
+
+function toggleBulkAdd(){
+  var scope = bulkScopePlat();
+  bulkAddState[scope] = !bulkAddState[scope];
+  applyAddAll(!!bulkAddState[scope], scope);
+}
+
+// Legacy cs_all_checkbox_in_div_with_platform keeps a per-scope memory
+// (check_state[prefix+platform]) and sets every matching checkbox to that
+// state, then flips the memory — a group toggle, not a per-item flip.
+var bulkRmState = {};
+function toggleBulkRm(){
+  var scope = bulkScopePlat();
+  var on = !bulkRmState[scope];
+  bulkRmState[scope] = on;
+  $('input.rmchk').each(function(){
+    if(scope===0 || parseInt(this.getAttribute('data-pl'),10)===scope){
+      this.checked = on;
+    }
+  });
+}
+
+// Per-suite header "unlink all" (legacy planAddTC_m1.tpl:262 disconnect icon).
+// Executed links gated off by rights #1133 carry no checkbox and are skipped.
+var headerRmState = false;
+function toggleHeaderRm(){
+  headerRmState = !headerRmState;
+  $('input.rmchk').prop('checked', headerRmState);
 }
 
 // Issue #1132: navigator filter panel state (legacy inc_filter_panel in
@@ -661,6 +757,10 @@ function renderContainer(){
   $('#thPlat').toggle(hasPlat);
   $('#thImportance').toggle(priorityEnabled);
   $('#suiteTitle').text(r.container.name);
+  // Issue #1135: a new container resets the header/master toggle states so a
+  // stale "checked" flag cannot leak onto the freshly rendered rows.
+  bulkAddState = {}; bulkRmState = {}; headerRmState = false;
+  $('#chkAllAdd').prop('checked', false);
   var $tb=$('#tcTable tbody').empty();
   var items=r.items||[];
   $('#tcsEmpty').toggle(items.length===0);

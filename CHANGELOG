@@ -17,6 +17,21 @@ Every screen of the application was ported one-by-one in a screen-compare
   kept for backward compatibility and is progressively retired as each modern
   screen reaches full parity.
 
+- [FEATURE] - #1135: the modern **Add / Remove Test Cases** screen
+  (`gui/templates/plans/planAddTCView.html`) regains the legacy platform-scoped
+  "Check/uncheck all Test cases for [platform] for [adding|removal]" bulk controls
+  (`planAddTC_m1.tpl:167-183` + `checkboxes.js:271 cs_all_checkbox_in_div_with_platform`) and
+  the per-suite remove-all toggle (`planAddTC_m1.tpl:262`). A `#bulkPlatform` select
+  (All platforms + each plan platform) scopes `#btnBulkAdd`/`#btnBulkRm`; the per-suite
+  `#chkAllAdd` now honours the selected platform (it selects that platform in each row's
+  `select.psel` so the add actually submits) and a new `#chkAllRm` in the "Remove links"
+  header unlinks all rows of the suite (executed links gated off by rights stay read-only,
+  #1133). i18n `paddtc.checkUncheckAll/allPlatforms/for/adding/removal/checkAllAdd/checkAllRm`
+  added to all 10 bundles. Verified end-to-end with fixtures `tmp/fixtures_1126.sql` +
+  `tmp/fixtures_1135.sql` (add LC3@Linux persisted, bulk removal of LC2@Windows persisted,
+  executed-removal confirmation still fires, `ai/verify_i18n_coverage.sh` 9/9 PASS, console
+  clean). A pre-existing save-path warning was filed as #1919. Refs #1135.
+
 - [BUGFIX] - #1853: `cfield_mgr::_build_cfield()` classified a hash key as a date part purely
   by suffix (`_input`/`_hour`/`_minute`/`_second`) without checking the field's type, so a
   date-shaped key sent for a non-date field (e.g. `custom_field_0_12_input` for a string
