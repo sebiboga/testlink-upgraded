@@ -10466,3 +10466,15 @@ that drives the Assigned-To column, matching legacy `setting_build` behaviour.
 | 7 | `en_GB` session unaffected | ASIDE English, no change | en_GB file untouched; key set unchanged | PASS (static) |
 
 **Evidence:** `docs/screenshots/issue-1843-fr-aside-before.png`, `docs/screenshots/issue-1843-fr-aside-after.png`.
+## Regression — Issue #1920: planAddTC save send_mail require_once path warning
+
+**Precondition:** fresh DB (`php tmp/fixtures_1920.php` → project/plan/suite/TC1 linked/TC2 unlinked/open build; prints its ids), admin/admin at http://localhost:8082, `$_SESSION['testplanID']` set via `GET /api/plannav/index.php/init?tproject_id=P&tplan_id=T`, baseline `SELECT COALESCE(MAX(id),0) FROM events` captured. Harness: `bash tmp/verify_1920.sh` (env `TP_ID/PLAN_ID/TC_ID/TCV_ID/TC2_ID/TCV2_ID/BUILD_ID` if ids differ).
+
+| # | Step (pre-fix behavior) | Expected post-fix | Result |
+|---|---|---|---|
+| 1 | (a) `POST /api/plans/index.php/planaddtc/save` `{"tproject_id":P,"tplan_id":T,"add":{"TC1":{"0":TCV1}},"remove":{},"send_mail":true}` — PRE-FIX: `E_WARNING require_once(.../api/plans/../lib/plan/planAddTC.php): Failed to open stream` logged (events id 3), mail silently skipped, HTTP 200 | HTTP 200 `{"status":"ok"}` AND **zero new `require_once` events** (path now `../../lib/plan/planAddTC.php`; mail block gated on `!empty($features2['add'])` like legacy) | PASS |
+| 2 | (b) same POST with fresh unlinked TC2 + `"testerID":1,"build_id":B,"send_mail":true` — PRE-FIX-after-step-1-only: 6× `Undefined array key "tcase_id"/"tcversion_id"` in `planAddTC.php:835-838` + `ERROR 1064 ... IN ()` from `get_by_id_bulk` | 200 `added:1`, **zero mail-path warnings/SQL errors** (features2 now carries legacy `tcase_id`/`tcversion_id` keys) | PASS |
+| 3 | (c) save WITHOUT `send_mail`, already-linked TC1 (dup skip) | 200 `added:0`, zero new events | PASS |
+| 4 | (d) save with `"remove":{"TC2":{"0":TCV2}}` | 200 `removed:1`, zero new events; audit `audit_tc_removed_from_testplan` (log_level 16) present | PASS |
+| 5 | in-scope event gate: new `log_level<16` rows after baseline | 0 (3 rows matching `assignment_mgr.class.php` are the SEPARATE pre-existing defect filed as #1922 — out of scope here) | PASS (in-scope 0) |
+| 6 | `php -l api/plans/index.php` | No syntax errors | PASS |
