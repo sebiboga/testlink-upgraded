@@ -10524,3 +10524,20 @@ that drives the Assigned-To column, matching legacy `setting_build` behaviour.
 3. `php -l` clean on `api/defectintelligence/index.php`, `cfg/reports.cfg.php`, `api/aside/index.php`, `lib/functions/common.php`.
 4. `$TLS_link_report_defect_intelligence` present in **all 19** `locale/*/strings.txt`.
 **Result: PASS**
+
+## Regression — Issue #1922: planaddtc/save — assignment_mgr::assign() wrong map shape
+
+**Precondition** — fresh DB (freshly imported this run); `php tmp/fixtures_1922.php` from repo root → project `T1922` id 1 (prefix T22), plan `T1922 Plan` id 2, suite id 3, tcase `T22 Linked` id 4 / tcversion 5 (LINKED), tcase `T22 Fresh` id 7 / tcversion 8 (unlinked), open build `T22 Build 1` id 1. Login `admin`/`admin` at http://localhost:8082, cookie jar, `$_SESSION['testplanID']` set via `GET /api/plannav/index.php/init?tproject_id=1&tplan_id=2` (`X-Requested-With: XMLHttpRequest` CSRF hint). Baseline `SELECT COALESCE(MAX(id),0) FROM events` + `SELECT COUNT(*) FROM user_assignments` before each phase. Harness: `bash /tmp/repro1922.sh` + `/tmp/repro1922b.sh` (fresh-TC variant). Fix commit `6a7d915e6` on `fix/issue-1922-wrong-assign-map`.
+
+| # | Step (pre-fix behavior) | Expected post-fix | Result |
+|---|---|---|---|
+| 1 | (a) `POST /api/plans/index.php/planaddtc/save` `{"tproject_id":1,"tplan_id":2,"add":{"7":{"0":8}},"remove":{},"testerID":1,"build_id":1}` — PRE-FIX: HTTP 200 `tester_assigned_features:1` BUT 3× `E_WARNING Undefined array key "build_id"/"type"/"user_id"` at `assignment_mgr.class.php:179/180/182` (events 4-6) and `user_assignments` stayed **0 rows** (assign() got the outer `['add'=>...]` wrapper: `$feature_id='add'`, `(array)$elem['user_id']=[]` → insert loop never ran) | 200 `{"added":1,"tester_assigned_features":1}`, exactly **1** `user_assignments` row (`feature_id=<new link>, user_id=1, type=1 testcase_execution, status=1 open, build_id=1`), **0** new `log_level<16` events | PASS (post-fix: row `feature_id=3` written, 0 warnings; count now comes from `count(assign()` return`)`) |
+| 2 | (b) repeat the same save (tc 7 now linked → dup-skip path) | 200 `{"added":0,"tester_assigned_features":0}`, `user_assignments` unchanged, 0 new warnings | PASS |
+| 3 | (c) fresh tc 13/tcv 14, save **without** `testerID`/`build_id` | 200 `added:1`, `tester_assigned_features:0`, no assignment row, 0 new events | PASS |
+| 4 | (d) `remove` only: `{"remove":{"13":{"0":14}}}` | 200 `{"added":0,"removed":1,...}`, audit `audit_tc_removed_from_testplan` (level 16) only, 0 new warnings | PASS |
+| 5 | (e) fresh tc 16/tcv 17 + `testerID:1`,`build_id:1`,`send_mail:true` (Issue #1920 regression) | 200 `added:1`, `tester_assigned_features:1`, 2nd row (`feature_id=5`) written, **0** `require_once`/mail-path warnings | PASS |
+| 6 | (f) Event Viewer gate: `SELECT COUNT(*) FROM events WHERE log_level<16 AND id>12` after the matrix | **0** (newest E_WARNINGs remain pre-fix ids 4-6; everything new is `log_level=16` audit) | PASS |
+| 7 | (g) Browser: `gui/templates/plans/planAddTCView.html?tproject_id=1`, select tester `Testlink Administrator` + build `T22 Build 1`, tick add-checkbox of fresh `T22-6 / T22 Browser`, **Save changes** | toast/save OK, 3rd `user_assignments` row (`feature_id=6,user_id=1,type=1,status=1,build_id=1`), 1 new audit event, 0 warnings, no JS errors (only standard a11y lint); screenshot `docs/screenshots/issue-1922-planaddtc-assign-after.png` | PASS |
+| 8 | (h) `php -l api/plans/index.php` | No syntax errors | PASS |
+
+**Actual result: 8/8 PASS.**
