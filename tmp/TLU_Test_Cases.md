@@ -13564,3 +13564,52 @@ pure git/file ledger. Script `ai/verify_changelog_coverage.sh` (part-2 gate) if 
   **actual:** markers `0`, date rows `5`.
 
 **Result: 9/9 PASS.** Verified against commit `71be8476eab5ee7b2def3774f8e7f1948305d962`.
+
+## Task — Issue #1141: platform filter in Set Test Urgency (testUrgency.html)
+
+**Precondition:** fixture `tmp/fixtures_1141.sql` imported (project 1100 `PLT`,
+plan 2010 `Platform Plan` + suite 2011, test cases `PLT-1` (importance 2) and
+`PLT-2` (importance 3); platforms 71 Linux / 72 Windows linked to plan 2010;
+`PLT-1` urgency 3 on Linux and 1 on Windows; `PLT-2` urgency 2 on both). User
+`admin` (has `testplan_planning`). Screen:
+`gui/templates/plans/testUrgency.html?tproject_id=1100&tplan_id=2010`.
+
+- **1141-01 — platform selector rendered.** Open the screen. **expected:** toolbar
+  shows a *Platform* combobox with options `All platforms`, `Linux`, `Windows`,
+  default `All platforms`. **actual:** PASS (a11y snapshot `uid=3_34`, options
+  `["All platforms","Linux","Windows"]`).
+- **1141-02 — BFF context exposes platforms.** `GET /api/plans/index.php/urgency?tproject_id=1100&tplan_id=2010`.
+  **expected:** `platforms:[{id:71,name:"Linux"},{id:72,name:"Windows"}]`,
+  `default_platform_id:0`, `platform_id:0`. **actual:** PASS (measured in browser fetch).
+- **1141-03 — Windows scopes the grid.** Select `Windows`. **expected:** `PLT-1`
+  radio = Low, priority `Low (2)`; URL gains `platform_id=72`. **actual:** PASS
+  (`{"PLT-1":{"urgency":"1","priority":"Low (2)"},...}`, URL `...&platform_id=72`).
+- **1141-04 — Linux scopes the grid.** Select `Linux`. **expected:** `PLT-1`
+  radio = High, priority `High (6)`; URL `platform_id=71`. **actual:** PASS
+  (`{"PLT-1":{"urgency":"3","priority":"High (6)"}}`, URL `...&platform_id=71`).
+- **1141-05 — All platforms merges.** Select `All platforms`. **expected:**
+  `PLT-1` shows the max urgency (3) of the platform rows; URL `platform_id=`.
+  **actual:** PASS (`{"PLT-1":{"urgency":"3","priority":"High (6)"}}`).
+- **1141-06 — deep-link with platform_id.** Open the screen with `&platform_id=72`.
+  **expected:** combo preselects `Windows` and grid shows `PLT-1` Low. **actual:** PASS.
+- **1141-07 — plan change resets platform + hides selector.** From plan 2010 select
+  `No Platform Plan` (2020, no linked platforms). **expected:** *Platform* selector
+  hidden (`#platformCtx` display:none) and no platform param. **actual:** PASS
+  (selector `display:none`, `#platformSel` options `["All platforms"]`).
+- **1141-08 — no write scoping (legacy parity).** On Windows select `PLT-1` High and
+  press *Set Urgency for Test Cases*. **expected:** `testplan_tcversions` rows for
+  tcversion 31011 updated on BOTH platforms (71 and 72 → 3), matching legacy
+  `setTestUrgency()` (not platform-scoped). **actual:** PASS (DB: 31011/71=3, 31011/72=3).
+  Fixture re-imported afterwards to restore 31011/71=3, 31011/72=1.
+- **1141-09 — regression: build selector intact.** Build combobox still lists the
+  plan builds (`-` placeholder when none) and Assigned To still resolves (empty).
+  **actual:** PASS.
+- **1141-10 — i18n coverage.** `bash ai/verify_i18n_coverage.sh`.
+  **expected:** 0 missing keys in all 9 compared bundles. **actual:** PASS
+  (8099 keys each, 0 missing).
+- **1141-11 — Event Viewer.** `SELECT ... FROM events ORDER BY id DESC`.
+  **expected:** no new Error/Warning after the run. **actual:** PASS (only
+  `log_level=16` audit `audit_login_succeeded`).
+
+**Result: 11/11 PASS.** Incidentally found and filed pre-existing bug #1926
+(bare `tproject_id` deep-link leaves `tplanId=0` → suite table empty, 400).

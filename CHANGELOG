@@ -132,6 +132,18 @@ Every screen of the application was ported one-by-one in a screen-compare
   Build Two: selecting Build Two flips the column to UR40-2=admin — the legacy result).
   Refs #1140.
 
+- [FEATURE] - #1141: the modern **Set Test Urgency** screen regains the legacy platform
+  filter that scoped the urgency grid to the navigator's `setting_platform`
+  (`lib/plan/planUrgency.php:46,112-115`, `testPlanUrgency.class.php:163-166`); the port merged
+  every platform of a tcversion into one row with no way to isolate one. `GET /urgency` now
+  returns `platforms`/`default_platform_id`/`platform_id` (new `urgencyPlatforms()` helper,
+  honours the stored `<tplan_id>_stored_setting_platform` session key), and the toolbar gains a
+  `#platformSel` select that passes `platform_id` to `GET /urgency/suite`, persists it in the
+  URL and hides for plans with no linked platforms. i18n `turg.platform/platformAll/platformTitle`
+  in all 10 bundles. Verified with `tmp/fixtures_1141.sql` (PLT-1 urgency 3 on Linux / 1 on
+  Windows): All/Linux -> High (6), Windows -> Low (2); the write path stays global, matching
+  legacy `setTestUrgency()`. Refs #1141.
+
 - [BUGFIX] - #1853: `cfield_mgr::_build_cfield()` classified a hash key as a date part purely
   by suffix (`_input`/`_hour`/`_minute`/`_second`) without checking the field's type, so a
   date-shaped key sent for a non-date field (e.g. `custom_field_0_12_input` for a string

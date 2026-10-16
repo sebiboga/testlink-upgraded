@@ -10,10 +10,12 @@ The legacy **Set Test Urgency** screen (`lib/plan/planUrgency.php` +
 
 - Screen: `gui/templates/plans/testUrgency.html`
 - BFF: `api/plans/index.php` routes:
-  - `GET /urgency?tproject_id=&tplan_id=` — context: accessible plans selector,
-    active plan, suites of the plan holding DIRECTLY linked test cases with TC
-    counts and urgency summary (`mixed` when urgencies differ)
-  - `GET /urgency/suite?tplan_id=&tsuite_id=` — test cases under one suite with
+  - `GET /urgency?tproject_id=&tplan_id=&build_id=&platform_id=` — context:
+    accessible plans selector, active plan, suites of the plan holding DIRECTLY
+    linked test cases with TC counts and urgency summary (`mixed` when urgencies
+    differ), plus plan builds and platforms with their defaults/current
+    selection (Issues #1140, #1141)
+  - `GET /urgency/suite?tplan_id=&tsuite_id=&platform_id=&build_id=` — test cases under one suite with
     tcprefix + external id, assigned testers, importance, urgency radios state
     and computed priority level (priority = importance × urgency, thresholds
     from `urgencyImportance` config via legacy `priority_to_level()`)
@@ -32,7 +34,8 @@ The legacy **Set Test Urgency** screen (`lib/plan/planUrgency.php` +
 | per-TC urgency radio table + save button | same, plus unsaved-changes hint |
 | priority column (importance × urgency → HIGH/MEDIUM/LOW) | colored priority tag with numeric value |
 | exec-history + design popup icons per row | links to modern `execHistory.html` / `tcView.html` (new tab) |
-| tester assignment resolved from execution-tree session build | latest ACTIVE build of the plan used instead (no ExtJS tree) |
+| tester assignment resolved from execution-tree session build | **Build** toolbar selector (Issue #1140; latest active+open build by default) |
+| urgency grid scoped by execution-tree `setting_platform` | **Platform** toolbar selector (Issue #1141; All/Linux/Windows, hidden when the plan links none) |
 | ExtJS tree navigation into a suite | left-hand suites pane with urgency badges |
 
 ## Files

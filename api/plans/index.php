@@ -2324,6 +2324,53 @@ function urgencyBuilds(&$db, $tplan_id, $requested = 0) {
     return ['items' => $items, 'default' => $default, 'current' => $current];
 }
 
+/**
+ * Issue #1141: platforms offered by the testUrgency platform selector and the
+ * platform scoping the urgency grid.
+ *
+ * Legacy (lib/plan/planUrgency.php:46,112-115 + tlTestCaseFilterControl::
+ * init_setting_platform, lib/functions/tlTestCaseFilterControl.class.php:1294-1302)
+ * offered the plan's linked platforms plus an "Any" (0) option, honoured the
+ * navigator-chosen platform stored in $_SESSION["<tplan_id>_stored_setting_platform"]
+ * and fell back to it; platform_id 0 means "all platforms" (getSuiteUrgency
+ * applies the filter only when > 0, testPlanUrgency.class.php:163-166).
+ *
+ * $requested === null means "not sent" -> fall back to the stored selection;
+ * an explicit 0 selects "all platforms"; an unlinked positive id falls back to
+ * the default. Returns ['items' => [id, name], 'default' => id, 'current' => id].
+ */
+function urgencyPlatforms(&$db, $tplan_id, $requested = null) {
+    $tplanMgr = new testplan($db);
+    $items = [];
+    $ids = [];
+    // getPlatforms() returns an indexed recordset; each record has id/name.
+    foreach ((array)$tplanMgr->getPlatforms($tplan_id) as $pinfo) {
+        $pid = intval($pinfo['id'] ?? 0);
+        if ($pid <= 0) { continue; }
+        $ids[$pid] = $pid;
+        $items[] = ['id' => $pid, 'name' => (string)($pinfo['name'] ?? '')];
+    }
+
+    // legacy navigator-stored selection (same key tlTestCaseFilterControl writes)
+    $default = 0;
+    $stored = intval($_SESSION[$tplan_id . '_stored_setting_platform'] ?? 0);
+    if ($stored > 0 && isset($ids[$stored])) {
+        $default = $stored;
+    }
+
+    $current = $default;
+    if (!is_null($requested)) {
+        $requested = intval($requested);
+        if ($requested === 0) {
+            $current = 0;                       // explicit "all platforms"
+        } elseif (isset($ids[$requested])) {
+            $current = $requested;
+        }
+    }
+
+    return ['items' => $items, 'default' => $default, 'current' => $current];
+}
+
 // GET /urgency?tproject_id=&tplan_id=
 // context for the screen: accessible plans selector + suites of the active
 // plan that have directly-linked test cases (setSuiteUrgency scope), with
@@ -2424,6 +2471,12 @@ if ($method === 'GET' && count($segments) === 1 && $segments[0] === 'urgency') {
         urgencyBuilds($db, $tplan_id, intval($_GET['build_id'] ?? 0))
         : ['items' => [], 'default' => 0, 'current' => 0];
 
+    // Issue #1141: platform selector (legacy navigator platform setting).
+    $platformSel = $tplan_id > 0 ?
+        urgencyPlatforms($db, $tplan_id,
+            array_key_exists('platform_id', $_GET) ? intval($_GET['platform_id']) : null)
+        : ['items' => [], 'default' => 0, 'current' => 0];
+
     out([
         'status' => 'ok',
         'tproject' => ['id' => $tproject_id, 'name' => $tproject_name],
@@ -2433,6 +2486,9 @@ if ($method === 'GET' && count($segments) === 1 && $segments[0] === 'urgency') {
         'builds' => $buildSel['items'],
         'default_build_id' => $buildSel['default'],
         'build_id' => $buildSel['current'],
+        'platforms' => $platformSel['items'],
+        'default_platform_id' => $platformSel['default'],
+        'platform_id' => $platformSel['current'],
         'rights' => ['canManage' => true],
     ]);
 }
