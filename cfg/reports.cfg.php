@@ -274,6 +274,22 @@ $tlCfg->reports_list['performance_reports'] = array(
 	'format' => 'format_html'
 );
 
+// Refs #1062 / #1921: Automation Test Reports. Net-new modern screen: 1.9.20
+// shipped no automation-reporting screen (automated results were written to the
+// same tl executions table as manual ones, never split by execution_type).
+// Backed by the api/automationreports BFF, which aggregates the plan's linked
+// test-case versions by version execution_type (manual vs automated) with the
+// latest execution status, a per-build trend and a failed/blocked worklist,
+// enforcing testplan_metrics on the owning project. Available for every plan
+// ('all'): a plan with no executions degrades to an empty report.
+$tlCfg->reports_list['automation_reports'] = array( 
+	'title' => 'link_report_automation_reports',
+	'url' => 'gui/templates/results/automationReports.html',
+	'enabled' => 'all',
+	'directLink' => '',
+	'format' => 'format_html'
+);
+
 $tlCfg->reports_list['list_problems'] = array( 
 	'title' => 'link_report_total_bugs',
 	'url' => 'lib/results/resultsBugs.php?type=0',

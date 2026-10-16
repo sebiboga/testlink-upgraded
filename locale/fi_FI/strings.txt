@@ -2171,6 +2171,7 @@ $TLS_reqmgrsystem_interface_not_implemented = "Asetusesimerkki ei ole käytettä
 $TLS_reqmgrsystem_invalid_type = 'Virheellinen vaatimustenhallintajärjestelmän tyyppi: %s';
 $TLS_link_report_quality_gates = "Julkaisun laatuportit"; // Refs #1067
 $TLS_link_report_performance_reports = "Suorituskykytestien raportit"; // Refs #1063
+$TLS_link_report_automation_reports = "Automaatiotestien raportit"; // Refs #1062
 $TLS_title_learn_testing = "Opi testausta"; // Learn Testing hub (Refs #1060)
 $TLS_title_accessibility_resources = "Saavutettavuusresurssit"; // Accessibility Resources hub (Refs #1059)
 $TLS_title_documentation_hub = "Dokumentaatiokeskus"; // Documentation hub (Refs #1060)

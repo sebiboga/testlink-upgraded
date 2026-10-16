@@ -186,6 +186,7 @@ $TLS_reqmgrsystem_interface_not_implemented = "Exemplu de configurare indisponib
 $TLS_reqmgrsystem_invalid_type = 'Tip invalid de sistem de gestionare a cerințelor: %s';
 $TLS_link_report_quality_gates = "Porți de calitate ale versiunii"; // Refs #1067
 $TLS_link_report_performance_reports = "Rapoarte de performanță"; // Refs #1063
+$TLS_link_report_automation_reports = "Rapoarte de teste automatizate"; // Refs #1062
 $TLS_title_learn_testing = "Învață testarea"; // Learn Testing hub (Refs #1060)
 $TLS_title_accessibility_resources = "Resurse de accesibilitate"; // Accessibility Resources hub (Refs #1059)
 $TLS_title_documentation_hub = "Hub de documentație"; // Documentation hub (Refs #1060)

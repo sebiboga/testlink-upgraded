@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Automation Test Reports</title>
+<!--
+  Automation Test Reports screen (Refs #1921 / enhancement #1062).
+
+  Net-new modern Reports-menu screen: TestLink 1.9.20 shipped no automation
+  reporting at all. Automated results landed in the same tl executions table as
+  manual ones and were only visible through the generic metrics/charts reports,
+  which never split automated from manual execution nor exposed the automated
+  test-case inventory, the per-build automation trend or a failed-automation
+  worklist.
+
+  This page renders the report the modern way: a Dashio shell, the report
+  context, the manual-vs-automated coverage, the execution status split per
+  automation type, a per-build trend table and a DataTable worklist with CSV
+  export. The numbers come from api/automationreports/index.php; see that file
+  for the documented semantics (latest execution per test-case version,
+  execution_type is a property of the version, all builds / platforms).
+-->
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; color: #0d3f3c; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.toolbar label { color: #cfd3da; font-size: 12px; margin-right: 4px; }
+.toolbar select { background: #2f323a; color: #eee; border: 1px solid #444; border-radius: 4px; padding: 6px 10px; font-size: 13px; max-width: 220px; }
+.toolbar .spacer { flex: 1 1 auto; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-dark { background: #2f323a; color: #eee; border: 1px solid #444; padding: 7px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+.btn-dark:hover { background: #3a3e48; }
+.btn-teal:disabled, .btn-dark:disabled { opacity: .45; cursor: not-allowed; }
+.panel { margin: 20px 24px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 18px 20px; }
+.panel h3 { font-size: 15px; font-weight: 700; color: #22242a; margin: 0 0 14px 0; }
+.panel h3 i { color: #4ECDC4; margin-right: 8px; }
+.ctx-grid { display: flex; flex-wrap: wrap; gap: 10px 26px; }
+.ctx-item { min-width: 150px; }
+.ctx-item .k { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: .5px; display: block; }
+.ctx-item .v { font-size: 14px; color: #22242a; font-weight: 600; }
+.cards { display: flex; flex-wrap: wrap; gap: 14px; }
+.card { flex: 1 1 130px; background: #f8f9fb; border: 1px solid #eceef2; border-radius: 6px; padding: 12px 14px; }
+.card .k { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: .5px; }
+.card .v { font-size: 22px; font-weight: 700; color: #22242a; margin-top: 4px; }
+.card.auto { border-left: 4px solid #4ECDC4; }
+.card.manual { border-left: 4px solid #8a7fd6; }
+.card.warn { border-left: 4px solid #e6b34d; }
+.card.bad { border-left: 4px solid #e05c5c; }
+.legend { display: flex; gap: 18px; flex-wrap: wrap; margin-bottom: 16px; }
+.legend span.sw { display: inline-block; width: 12px; height: 12px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+.sw-passed { background: #2f9e44; }
+.sw-failed { background: #e05c5c; }
+.sw-blocked { background: #3a7bd5; }
+.sw-not_run { background: #b9bec7; }
+.chart-row { margin-bottom: 14px; }
+.chart-row .label { font-size: 12px; color: #444; margin-bottom: 4px; font-weight: 600; }
+.chart-row .label .cnt { color: #888; font-weight: 400; }
+.bar { display: flex; height: 22px; border-radius: 3px; overflow: hidden; background: #eceff1; }
+.bar > span { display: block; height: 100%; }
+.bar .passed { background: #2f9e44; }
+.bar .failed { background: #e05c5c; }
+.bar .blocked { background: #3a7bd5; }
+.bar .not_run { background: #b9bec7; }
+.state { margin: 20px 24px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 34px 20px; text-align: center; color: #777; font-size: 14px; }
+.state h4 { font-size: 16px; color: #22242a; margin: 0 0 8px 0; }
+.state.warn { border-left: 5px solid #e6b34d; }
+.state.deny { border-left: 5px solid #e05c5c; color: #7a2b2b; }
+.state .code { font-size: 11px; color: #aaa; margin-top: 10px; font-family: monospace; }
+.state .spinner { display: inline-block; width: 18px; height: 18px; margin-right: 8px; vertical-align: -3px; border: 3px solid #4ECDC4; border-top-color: transparent; border-radius: 50%; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.table-wrap { margin: 20px 24px; }
+table.dataTable thead th { background: #22242a; color: #fff; font-size: 13px; padding: 10px 14px; }
+table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: middle; }
+table.dataTable tbody tr.total-row { background: #eef7f7; font-weight: 700; }
+.badge-st { display: inline-block; min-width: 22px; padding: 1px 8px; border-radius: 10px; font-size: 11px; font-weight: 700; color: #fff; text-align: center; }
+.badge-st.passed { background: #2f9e44; }
+.badge-st.failed { background: #e05c5c; }
+.badge-st.blocked { background: #3a7bd5; }
+.badge-st.not_run { background: #b9bec7; color: #333; }
+.badge-type { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 11px; font-weight: 700; }
+.badge-type.auto { background: #d7f5f2; color: #17756e; }
+.badge-type.manual { background: #ece8fb; color: #5546a3; }
+.trunc { margin: 0 24px 8px 24px; color: #8a6d1f; background: #fdf6e3; border: 1px solid #f0e0b0; border-radius: 6px; padding: 8px 12px; font-size: 12px; display: none; }
+.dataTables_wrapper .dataTables_paginate .paginate_button.current { background: #4ECDC4 !important; color: #fff !important; border: none !important; }
+.dataTables_wrapper .dataTables_filter input { border: 1px solid #ddd; border-radius: 4px; padding: 4px 8px; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 18px; border-radius: 6px; font-size: 13px; z-index: 2000; display: none; }
+.toast.err { background: #e05c5c; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span data-i18n="autom.title">Automation Test Reports</span>
+  <span class="sub" data-i18n="autom.subtitle">automated vs manual execution</span>
+</div>
+
+<div class="toolbar">
+  <button class="btn-teal" id="btnRefresh"><i class="fa fa-refresh"></i> <span data-i18n="autom.refresh">Refresh</span></button>
+  <button class="btn-dark" id="btnCsv"><i class="fa fa-download"></i> <span data-i18n="autom.exportCsv">Export CSV</span></button>
+  <span class="spacer"></span>
+  <label for="selBuild" data-i18n="autom.build">Build</label>
+  <select id="selBuild"></select>
+  <label for="selPlatform" data-i18n="autom.platform">Platform</label>
+  <select id="selPlatform"></select>
+  <button class="btn-dark" id="btnApply"><i class="fa fa-filter"></i> <span data-i18n="autom.apply">Apply</span></button>
+  <button class="btn-dark" id="btnClose"><i class="fa fa-times"></i> <span data-i18n="autom.close">Close</span></button>
+</div>
+
+<div id="stateBox"></div>
+
+<div id="report" style="display:none;">
+  <div class="panel">
+    <h3><i class="fa fa-info-circle"></i><span data-i18n="autom.contextTitle">Report context</span></h3>
+    <div class="ctx-grid">
+      <div class="ctx-item"><span class="k" data-i18n="autom.ctxProject">Test project</span><span class="v" id="ctxProject">&mdash;</span></div>
+      <div class="ctx-item"><span class="k" data-i18n="autom.ctxPlan">Test plan</span><span class="v" id="ctxPlan">&mdash;</span></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3><i class="fa fa-robot"></i><span data-i18n="autom.summaryTitle">Automation coverage</span></h3>
+    <div class="cards">
+      <div class="card"><div class="k" data-i18n="autom.totalTc">Linked test cases</div><div class="v" id="sTotal">0</div></div>
+      <div class="card auto"><div class="k" data-i18n="autom.automatedTc">Automated</div><div class="v" id="sAuto">0</div></div>
+      <div class="card manual"><div class="k" data-i18n="autom.manualTc">Manual</div><div class="v" id="sManual">0</div></div>
+      <div class="card"><div class="k" data-i18n="autom.percentAutomated">% automated</div><div class="v" id="sPct">0%</div></div>
+      <div class="card"><div class="k" data-i18n="autom.executed">Executed</div><div class="v" id="sExecuted">0</div></div>
+      <div class="card warn"><div class="k" data-i18n="autom.notRun">Not run</div><div class="v" id="sNotRun">0</div></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3><i class="fa fa-bar-chart"></i><span data-i18n="autom.statusTitle">Execution status by automation type</span></h3>
+    <div class="legend" id="legend"></div>
+    <div id="chart"></div>
+  </div>
+
+  <div class="panel">
+    <h3><i class="fa fa-stream"></i><span data-i18n="autom.buildTrendTitle">Trend across builds</span></h3>
+    <div class="table-responsive">
+      <table class="table table-sm" id="tblBuild" style="width:100%;">
+        <thead>
+          <tr>
+            <th data-i18n="autom.colBuild">Build</th>
+            <th data-i18n="autom.statusPassed">Passed</th>
+            <th data-i18n="autom.statusFailed">Failed</th>
+            <th data-i18n="autom.statusBlocked">Blocked</th>
+            <th data-i18n="autom.colExecuted">Executed</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="trunc" id="truncBox"></div>
+  <div class="table-wrap">
+    <table id="tbl" class="display" style="width:100%;">
+      <thead>
+        <tr>
+          <th data-i18n="autom.colExternalId">ID</th>
+          <th data-i18n="autom.colName">Test case</th>
+          <th data-i18n="autom.colSuite">Suite</th>
+          <th data-i18n="autom.colType">Type</th>
+          <th data-i18n="autom.colStatus">Status</th>
+          <th data-i18n="autom.colBuild">Build</th>
+          <th data-i18n="autom.colPlatform">Platform</th>
+          <th data-i18n="autom.colLastExec">Last execution</th>
+          <th data-i18n="autom.colTester">Tester</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="footer"><span data-i18n="footers.automationReports"></span><span id="localeSwitcher"></span></div>
+<div class="toast" id="toast"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/automationreports/index.php';
+var currentData = null;
+var dt = null;
+
+function esc(v) {
+  return String(v === null || v === undefined ? '' : v)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function q(name) {
+  return new URLSearchParams(window.location.search).get(name);
+}
+
+function stateFor(code, httpStatus, rawMessage) {
+  var map = {
+    not_authenticated: { cls: 'deny', title: 'autom.deniedTitle',  body: 'autom.deniedBody' },
+    session_expired:   { cls: 'deny', title: 'autom.deniedTitle',  body: 'autom.expiredBody' },
+    no_right:          { cls: 'deny', title: 'autom.deniedTitle',  body: 'autom.noRightBody' },
+    tplan_not_found:   { cls: 'warn', title: 'autom.notFoundTitle', body: 'autom.notFoundBody' },
+    project_mismatch:  { cls: 'warn', title: 'autom.notFoundTitle', body: 'autom.mismatchBody' },
+    invalid_request:   { cls: 'warn', title: 'autom.badRequestTitle', body: 'autom.badRequestBody' },
+    method_not_allowed:{ cls: 'warn', title: 'autom.badRequestTitle', body: 'autom.badRequestBody' }
+  };
+  var m = map[code];
+  var detail = '';
+  if (!m) {
+    m = { cls: 'warn', title: 'autom.serverErrorTitle', body: 'autom.serverErrorBody' };
+    if (rawMessage) {
+      detail = '<div class="code">' + esc(rawMessage) + '</div>';
+    }
+  }
+  return '<div class="state ' + m.cls + '"><h4>' + esc(TLi18n.t(m.title)) + '</h4><div>'
+       + esc(TLi18n.t(m.body, { status: httpStatus })) + '</div>' + detail
+       + '<div class="code">' + esc(code || ('http_' + httpStatus)) + '</div></div>';
+}
+
+function showState(html) {
+  $('#report').hide();
+  $('#stateBox').html(html);
+}
+
+function showLoading() {
+  $('#report').hide();
+  $('#stateBox').html('<div class="state"><div class="spinner"></div>'
+    + esc(TLi18n.t('autom.loading')) + '</div>');
+}
+
+function toast(msg, kind) {
+  var $t = $('#toast');
+  $t.attr('class', 'toast' + (kind ? ' ' + kind : '')).text(msg).fadeIn(180);
+  window.clearTimeout(toast._h);
+  toast._h = window.setTimeout(function () { $t.fadeOut(220); }, 3200);
+}
+
+var SERIES = [
+  ['passed', 'autom.statusPassed'],
+  ['failed', 'autom.statusFailed'],
+  ['blocked', 'autom.statusBlocked'],
+  ['not_run', 'autom.statusNotRun']
+];
+
+var STATUS_KEY = {
+  passed: 'autom.statusPassed', failed: 'autom.statusFailed',
+  blocked: 'autom.statusBlocked', not_run: 'autom.statusNotRun'
+};
+
+function statusLabel(status) {
+  return TLi18n.t(STATUS_KEY[status] || 'autom.statusNotRun');
+}
+
+function renderLegend() {
+  var html = '';
+  $.each(SERIES, function (i, it) {
+    html += '<span><span class="sw sw-' + it[0] + '"></span>' + esc(TLi18n.t(it[1])) + '</span>';
+  });
+  $('#legend').html(html);
+}
+
+function typeBar(typeKey, bucket, total) {
+  var sum = 0;
+  $.each(SERIES, function (i, it) { sum += parseInt(bucket[it[0]], 10) || 0; });
+  var pct = sum > 0 ? (100 / sum) : 0;
+  var html = '<div class="chart-row"><div class="label">'
+    + esc(TLi18n.t(typeKey === 'auto' ? 'autom.typeAuto' : 'autom.typeManual'))
+    + ' <span class="cnt">' + sum + '</span></div><div class="bar">';
+  $.each(SERIES, function (i, it) {
+    var v = parseInt(bucket[it[0]], 10) || 0;
+    if (v > 0) {
+      html += '<span class="' + it[0] + '" style="width:' + (v * pct) + '%" title="'
+        + esc(TLi18n.t('autom.seriesTitle', { series: TLi18n.t(it[1]), count: v })) + '"></span>';
+    }
+  });
+  html += '</div></div>';
+  return html;
+}
+
+function renderChart(data) {
+  $('#chart').html(typeBar('auto', data.summary.auto, data.summary.total_tc)
+    + typeBar('manual', data.summary.manual, data.summary.total_tc));
+}
+
+function renderSummary(data) {
+  var s = data.summary;
+  $('#ctxProject').text(data.context.tproject_name || '-');
+  $('#ctxPlan').text(data.context.tplan_name || '-');
+  $('#sTotal').text(s.total_tc);
+  $('#sAuto').text(s.auto_tc);
+  $('#sManual').text(s.manual_tc);
+  $('#sPct').text((parseFloat(s.percent_automated) || 0) + '%');
+  $('#sExecuted').text(s.executed);
+  $('#sNotRun').text(s.not_run);
+}
+
+function renderBuildTrend(data) {
+  var rows = '';
+  $.each(data.build_trend, function (i, b) {
+    rows += '<tr><td>' + esc(b.build_name) + '</td>'
+      + '<td>' + (parseInt(b.passed, 10) || 0) + '</td>'
+      + '<td>' + (parseInt(b.failed, 10) || 0) + '</td>'
+      + '<td>' + (parseInt(b.blocked, 10) || 0) + '</td>'
+      + '<td>' + (parseInt(b.executed, 10) || 0) + '</td></tr>';
+  });
+  if (rows === '') {
+    rows = '<tr><td colspan="5" style="color:#999;">' + esc(TLi18n.t('autom.noBuilds')) + '</td></tr>';
+  }
+  $('#tblBuild tbody').html(rows);
+}
+
+function badge(cls, value) {
+  var v = parseInt(value, 10) || 0;
+  return '<span class="badge-st ' + cls + '">' + v + '</span>';
+}
+
+function renderTable(data) {
+  var rows = '';
+  $.each(data.rows, function (i, r) {
+    rows += '<tr>'
+      + '<td>' + esc(r.tc_external_id) + '</td>'
+      + '<td>' + esc(r.name) + '</td>'
+      + '<td>' + esc(r.suite) + '</td>'
+      + '<td><span class="badge-type ' + r.execution_type + '">'
+      + esc(TLi18n.t(r.execution_type === 'auto' ? 'autom.typeAuto' : 'autom.typeManual')) + '</span></td>'
+      + '<td><span class="badge-st ' + r.status + '">' + esc(statusLabel(r.status)) + '</span></td>'
+      + '<td>' + esc(r.build_name) + '</td>'
+      + '<td>' + esc(r.platform_name) + '</td>'
+      + '<td>' + esc(r.last_exec_ts) + '</td>'
+      + '<td>' + esc(r.tester) + '</td>'
+      + '</tr>';
+  });
+  if (dt) {
+    dt.clear().rows.add([]).draw();
+    dt.destroy();
+    dt = null;
+  }
+  $('#tbl tbody').html(rows);
+  dt = $('#tbl').DataTable({
+    paging: true, pageLength: 25, order: [[4, 'asc']],
+    columnDefs: [{ targets: [0], type: 'num' }]
+  });
+}
+
+function fillFilters(filters, filter) {
+  var build = '<option value="0">' + esc(TLi18n.t('autom.allBuilds')) + '</option>';
+  $.each(filters.builds, function (i, b) {
+    build += '<option value="' + b.id + '">' + esc(b.name) + '</option>';
+  });
+  $('#selBuild').html(build).val(String(filter && filter.build_id ? filter.build_id : 0));
+
+  var plat = '<option value="0">' + esc(TLi18n.t('autom.allPlatforms')) + '</option>';
+  $.each(filters.platforms, function (i, p) {
+    plat += '<option value="' + p.id + '">' + esc(p.name) + '</option>';
+  });
+  $('#selPlatform').html(plat).val(String(filter && filter.platform_id ? filter.platform_id : 0));
+}
+
+function load() {
+  var tplanId = q('tplan_id');
+  if (!tplanId || !/^[0-9]+$/.test(String(tplanId))) {
+    showState('<div class="state warn"><h4>' + esc(TLi18n.t('autom.badRequestTitle')) + '</h4><div>'
+      + esc(TLi18n.t('autom.missingContext')) + '</div><div class="code">tplan_id</div></div>');
+    return;
+  }
+
+  showLoading();
+  var params = new URLSearchParams({ action: 'report', tplan_id: tplanId });
+  var asserted = q('tproject_id');
+  if (asserted && /^[0-9]+$/.test(String(asserted))) { params.set('tproject_id', asserted); }
+  var b = $('#selBuild').val();
+  if (b && b !== '0') { params.set('build_id', b); }
+  var p = $('#selPlatform').val();
+  if (p && p !== '0') { params.set('platform_id', p); }
+
+  $.ajax({
+    url: API, method: 'GET', data: params.toString(), dataType: 'json',
+    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+  }).done(function (data) {
+    if (!data || data.status !== 'ok') {
+      showState(stateFor(data && data.code, 200, data && data.message));
+      return;
+    }
+    currentData = data;
+    fillFilters(data.filters, data.filter);
+    renderSummary(data);
+    renderLegend();
+    renderChart(data);
+    renderBuildTrend(data);
+    renderTable(data);
+    if (data.rows_truncated) {
+      $('#truncBox').text(TLi18n.t('autom.rowsTruncated', { max: 5000 })).show();
+    } else {
+      $('#truncBox').hide();
+    }
+    if (!data.rows || data.rows.length === 0) {
+      $('#stateBox').html('<div class="state"><h4>' + esc(TLi18n.t('autom.emptyTitle'))
+        + '</h4><div>' + esc(TLi18n.t('autom.emptyBody')) + '</div></div>');
+    } else {
+      $('#stateBox').html('');
+    }
+    $('#report').show();
+  }).fail(function (xhr) {
+    var body = null;
+    try { body = JSON.parse(xhr.responseText); } catch (e) { body = null; }
+    if (xhr.status === 401) {
+      var code = (body && body.code) || 'not_authenticated';
+      if (code === 'session_expired' || code === 'not_authenticated') {
+        window.location.href = '/login.php?note=expired&destination='
+          + encodeURIComponent(window.location.pathname + window.location.search);
+        return;
+      }
+    }
+    showState(stateFor(body && body.code, xhr.status, (body && body.message) || null));
+  });
+}
+
+function exportCsv() {
+  if (!currentData || !currentData.rows || currentData.rows.length === 0) {
+    toast(TLi18n.t('autom.nothingToExport'), 'err');
+    return;
+  }
+  var head = [TLi18n.t('autom.colExternalId'), TLi18n.t('autom.colName'),
+    TLi18n.t('autom.colSuite'), TLi18n.t('autom.colType'), TLi18n.t('autom.colStatus'),
+    TLi18n.t('autom.colBuild'), TLi18n.t('autom.colPlatform'),
+    TLi18n.t('autom.colLastExec'), TLi18n.t('autom.colTester')];
+  var cell = function (v) {
+    var t = String(v === null || v === undefined ? '' : v);
+    if (/^[=+\-@]/.test(t)) { t = "'" + t; }
+    return /[;"\r\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
+  };
+  var lines = [$.map(head, cell).join(';')];
+  $.each(currentData.rows, function (i, r) {
+    lines.push($.map([r.tc_external_id, r.name, r.suite,
+      TLi18n.t(r.execution_type === 'auto' ? 'autom.typeAuto' : 'autom.typeManual'),
+      statusLabel(r.status),
+      r.build_name, r.platform_name, r.last_exec_ts, r.tester], cell).join(';'));
+  });
+  var blob = new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'automation-test-reports-tplan-' + (currentData.context.tplan_id || 0) + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+  toast(TLi18n.t('autom.csvDone'), 'ok');
+}
+
+$(function () {
+  $('#btnRefresh').on('click', load);
+  $('#btnApply').on('click', load);
+  $('#btnCsv').on('click', exportCsv);
+  $('#btnClose').on('click', function () { window.close(); });
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    load();
+  });
+});
+</script>
+</body>
+</html>

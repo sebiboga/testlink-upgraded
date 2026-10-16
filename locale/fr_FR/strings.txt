@@ -4138,6 +4138,7 @@ $TLS_title_test_closure = "Clôture des tests"; // "Test Closure" (Refs #1278)
 $TLS_link_report_risk_coverage = "Tests base sur les risques";
 $TLS_link_report_quality_gates = "Portes qualité de version"; // Refs #1067
 $TLS_link_report_performance_reports = "Rapports de tests de performance"; // Refs #1063
+$TLS_link_report_automation_reports = "Rapports de tests automatisés"; // Refs #1062
 $TLS_title_learn_testing = "Apprendre le test"; // Learn Testing hub (Refs #1060)
 $TLS_title_accessibility_resources = "Ressources d'accessibilité"; // Accessibility Resources hub (Refs #1059)
 $TLS_title_documentation_hub = "Centre de documentation"; // Documentation hub (Refs #1060)
