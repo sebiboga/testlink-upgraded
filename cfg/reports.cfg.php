@@ -290,6 +290,24 @@ $tlCfg->reports_list['automation_reports'] = array(
 	'format' => 'format_html'
 );
 
+// Refs #1064 - CI/CD Automated Result Publishing (enhancement screen: 1.9.20
+// shipped no CI/CD-facing entry point at all - automated results could only be
+// imported via the TestLink-XML "Import Results" screen, never the JUnit XML
+// that GitHub Actions / GitLab / Jenkins / Azure DevOps actually emit). Backed
+// by the api/cicdpublish BFF, which parses a JUnit XML (or JSON) artifact,
+// resolves each test back to a test case assigned to the plan (external id
+// first, then name) and records one execution per test on the chosen
+// build/platform, enforcing testplan_execute on the owning project (a write
+// gate). Available for every plan ('all'); the connector guide cards document
+// the pipeline integration.
+$tlCfg->reports_list['cicd_publish'] = array(
+	'title' => 'link_report_cicd_publish',
+	'url' => 'gui/templates/results/cicdPublish.html',
+	'enabled' => 'all',
+	'directLink' => '',
+	'format' => 'format_html'
+);
+
 // Refs #1068 - Defect Intelligence dashboard (enhancement screen, no legacy
 // lib/results counterpart). Backed by the api/defectintelligence BFF, which
 // turns the plan's execution_bugs links into analytics: unaddressed failures

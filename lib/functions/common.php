@@ -2632,6 +2632,17 @@ function getActions(&$gui,$baseURL) {
     // entry strategy_report. Project-scoped (the plan id is context only).
     $actions->strategyReport =
       "/gui/templates/results/strategyReport.html?{$ctx}";
+    // Refs #1064: CI/CD Automated Result Publishing (enhancement screen, no
+    // legacy counterpart - 1.9.20 had no CI/CD-facing entry point). Accepts a
+    // JUnit XML (or JSON) artifact, resolves each test back to a test case
+    // assigned to the plan (external id first, then name) and records one
+    // execution per test on the chosen build/platform. Backed by
+    // api/cicdpublish, which enforces testplan_execute (a WRITE gate) on the
+    // OWNING project + plan. Plan-scoped report -> inside the tplan_id guard.
+    // Also reachable from the Reports ASIDE entry via the reports_list entry
+    // cicd_publish.
+    $actions->cicdPublish =
+      "/gui/templates/results/cicdPublish.html?{$ctx}";
     // Refs #1905: Top Level Suites Bar Chart report (legacy
     // lib/results/topLevelSuitesBarChart.php: the last orphan pChart PNG
     // endpoint - charts_data covers overall/platforms/by_keyword but NOT this

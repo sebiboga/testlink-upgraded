@@ -4176,6 +4176,7 @@ $TLS_link_report_defect_intelligence = "缺陷智能"; // Refs #1068
 $TLS_link_report_strategy_report = "测试策略报告"; // Refs #1061/#1925
 $TLS_link_report_performance_reports = "性能测试报告"; // Refs #1063
 $TLS_link_report_automation_reports = "自动化测试报告"; // Refs #1062
+$TLS_link_report_cicd_publish = "CI/CD 结果发布"; // Refs #1064
 $TLS_title_learn_testing = "学习测试"; // Learn Testing hub (Refs #1060)
 $TLS_title_accessibility_resources = "无障碍资源"; // Accessibility Resources hub (Refs #1059)
 $TLS_title_documentation_hub = "文档中心"; // Documentation hub (Refs #1060)

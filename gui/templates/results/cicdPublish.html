@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CI/CD Result Publishing</title>
+<!--
+  CI/CD Automated Result Publishing (Refs #1064).
+
+  No 1.9.20 controller renders this screen: the ledger TODO is empty and every
+  ASIDE entry already has a modern twin, so this is the next genuinely-missing
+  screen (same situation as #1065 RTM, #1067 quality gates, #1062/#1063
+  automation/performance reports). Automated tests run in CI/CD pipelines and
+  their results stay trapped in the pipeline logs / framework reports; 1.9.20
+  had no CI/CD-facing entry point, only the TestLink-XML "Import Results"
+  screen. This screen accepts the ubiquitous JUnit XML artifact (and a flat
+  JSON equivalent) and publishes one execution per test against a chosen build/
+  platform of a test plan. The connector guide cards document how GitHub
+  Actions / GitLab / Jenkins / Azure DevOps pipelines call the endpoint.
+  See api/cicdpublish/index.php for the documented semantics.
+-->
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; color: #0d3f3c; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.toolbar .spacer { flex: 1 1 auto; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-dark { background: #2f323a; color: #eee; border: 1px solid #444; padding: 7px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+.btn-dark:hover { background: #3a3e48; }
+.btn-teal:disabled, .btn-dark:disabled { opacity: .45; cursor: not-allowed; }
+.panel { margin: 20px 24px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 18px 20px; }
+.panel h3 { font-size: 15px; font-weight: 700; color: #22242a; margin: 0 0 14px 0; }
+.panel h3 i { color: #4ECDC4; margin-right: 8px; }
+.ctx-grid { display: flex; flex-wrap: wrap; gap: 10px 26px; }
+.ctx-item { min-width: 150px; }
+.ctx-item .k { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: .5px; display: block; }
+.ctx-item .v { font-size: 14px; color: #22242a; font-weight: 600; }
+.filter-grid { display: flex; flex-wrap: wrap; gap: 16px 20px; align-items: flex-end; }
+.filter-item label { display: block; font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; }
+.filter-item select { border: 1px solid #ccc; border-radius: 4px; padding: 6px 8px; font-size: 13px; min-width: 160px; }
+.hint { color: #888; font-size: 12px; margin-top: 10px; }
+.guide-grid { display: flex; flex-wrap: wrap; gap: 16px; }
+.conn { flex: 1 1 320px; border: 1px solid #e6e9ee; border-radius: 8px; padding: 14px 16px; background: #fafbfc; }
+.conn h4 { font-size: 14px; font-weight: 700; color: #22242a; margin: 0 0 4px 0; }
+.conn h4 i { color: #4ECDC4; margin-right: 8px; }
+.conn p { font-size: 12px; color: #666; margin: 0 0 10px 0; }
+.conn .fmts { font-size: 11px; color: #4a5560; margin-bottom: 8px; }
+.conn .fmts .chip { display: inline-block; background: #e7f7f5; color: #0d6b63; border-radius: 10px; padding: 1px 8px; margin-right: 4px; font-weight: 600; }
+.conn pre { background: #22242a; color: #e8e8e8; border-radius: 6px; padding: 10px 12px; font-size: 11.5px; line-height: 1.45; overflow: auto; margin: 0; max-height: 190px; }
+.conn .copybar { text-align: right; margin-top: 6px; }
+.btn-mini { background: #4ECDC4; color: #fff; border: none; padding: 4px 12px; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: 600; }
+.btn-mini:hover { background: #3dbdb5; }
+.tiles { display: flex; flex-wrap: wrap; gap: 14px; margin: 0 24px; }
+.tile { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 14px 18px; min-width: 130px; flex: 1 1 130px; border-top: 3px solid #4ECDC4; }
+.tile .num { font-size: 24px; font-weight: 800; color: #22242a; }
+.tile .lbl { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: .5px; }
+.tile.pass { border-top-color: #2f9e44; }
+.tile.fail { border-top-color: #e05c5c; }
+.tile.block { border-top-color: #3a7bd5; }
+.tile.muted { border-top-color: #b9bec7; }
+.state { margin: 20px 24px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 34px 20px; text-align: center; color: #777; font-size: 14px; }
+.state h4 { font-size: 16px; color: #22242a; margin: 0 0 8px 0; }
+.state.warn { border-left: 5px solid #e6b34d; }
+.state.deny { border-left: 5px solid #e05c5c; color: #7a2b2b; }
+.state .code { font-size: 11px; color: #aaa; margin-top: 10px; font-family: monospace; }
+.spinner { width: 28px; height: 28px; border: 3px solid #d7eceb; border-top-color: #4ECDC4; border-radius: 50%; margin: 0 auto 12px; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.table-wrap { margin: 20px 24px; }
+table.dataTable thead th { background: #22242a; color: #fff; font-size: 13px; padding: 10px 14px; }
+table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: middle; }
+.badge-st { display: inline-block; min-width: 26px; padding: 2px 9px; border-radius: 10px; font-size: 11px; font-weight: 700; color: #fff; text-align: center; }
+.badge-st.p { background: #2f9e44; }
+.badge-st.f { background: #e05c5c; }
+.badge-st.b { background: #3a7bd5; }
+.badge-st.n { background: #b9bec7; color: #333; }
+.badge-oc { display: inline-block; padding: 2px 9px; border-radius: 10px; font-size: 11px; font-weight: 700; }
+.badge-oc.published { background: #e3f6e8; color: #1e7a37; }
+.badge-oc.not_found { background: #fdf1dd; color: #9a6a12; }
+.badge-oc.error { background: #fbe3e3; color: #a12727; }
+.dataTables_wrapper .dataTables_paginate .paginate_button.current { background: #4ECDC4 !important; color: #fff !important; border: none !important; }
+.dataTables_wrapper .dataTables_filter input { border: 1px solid #ddd; border-radius: 4px; padding: 4px 8px; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 18px; border-radius: 6px; font-size: 13px; z-index: 2000; display: none; }
+.toast.err { background: #e05c5c; }
+.form-grid { display: flex; flex-wrap: wrap; gap: 16px 20px; align-items: flex-end; }
+.form-item label { display: block; font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; }
+.form-item select, .form-item input[type=file] { border: 1px solid #ccc; border-radius: 4px; padding: 6px 8px; font-size: 13px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span data-i18n="cicd.title">CI/CD Result Publishing</span>
+  <span class="sub" data-i18n="cicd.subtitle">Publish automated test results to a test plan</span>
+</div>
+
+<div class="toolbar">
+  <button class="btn-teal" id="btnReload"><i class="fa fa-refresh"></i> <span data-i18n="cicd.refresh">Refresh</span></button>
+  <span class="spacer"></span>
+  <button class="btn-dark" id="btnBack"><i class="fa fa-arrow-left"></i> <span data-i18n="cicd.back">Back to Reports</span></button>
+  <button class="btn-dark" id="btnClose"><i class="fa fa-times"></i> <span data-i18n="cicd.close">Close</span></button>
+</div>
+
+<div id="stateBox"></div>
+
+<div id="report" style="display:none;">
+  <div class="panel">
+    <h3><i class="fa fa-bullseye"></i><span data-i18n="cicd.scopeTitle">Target test plan</span></h3>
+    <div class="filter-grid">
+      <div class="filter-item">
+        <label data-i18n="cicd.filterPlan">Test plan</label>
+        <select id="fPlan"></select>
+      </div>
+      <div class="filter-item">
+        <label data-i18n="cicd.filterBuild">Build</label>
+        <select id="fBuild"></select>
+      </div>
+      <div class="filter-item">
+        <label data-i18n="cicd.filterPlatform">Platform</label>
+        <select id="fPlatform"></select>
+      </div>
+    </div>
+    <div class="hint" id="scopeHint"></div>
+    <div class="ctx-grid" style="margin-top:14px;">
+      <div class="ctx-item"><span class="k" data-i18n="cicd.ctxProject">Test project</span><span class="v" id="ctxProject">&mdash;</span></div>
+      <div class="ctx-item"><span class="k" data-i18n="cicd.ctxPlan">Test plan</span><span class="v" id="ctxPlan">&mdash;</span></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3><i class="fa fa-cloud-arrow-up"></i><span data-i18n="cicd.publishTitle">Publish a results file</span></h3>
+    <div class="hint" style="margin-top:0;margin-bottom:12px;" data-i18n="cicd.publishIntro">Upload the JUnit XML (or JSON) artifact produced by your pipeline. Each test is matched to a test case assigned to the selected plan - by the external id first, then by name - and one execution is recorded per test.</div>
+    <div class="form-grid">
+      <div class="form-item">
+        <label data-i18n="cicd.format">Format</label>
+        <select id="fFormat">
+          <option value="junit" data-i18n="cicd.formatJunit">JUnit XML</option>
+          <option value="json" data-i18n="cicd.formatJson">JSON</option>
+        </select>
+      </div>
+      <div class="form-item">
+        <label data-i18n="cicd.file">Results file</label>
+        <input type="file" id="fFile" accept=".xml,.json,text/xml,application/json">
+      </div>
+      <div class="form-item">
+        <button class="btn-teal" id="btnPublish"><i class="fa fa-upload"></i> <span data-i18n="cicd.publish">Publish results</span></button>
+      </div>
+    </div>
+    <div class="hint" id="fileHint"></div>
+  </div>
+
+  <div class="panel">
+    <h3><i class="fa fa-plug"></i><span data-i18n="cicd.guideTitle">Pipeline integration guide</span></h3>
+    <div class="hint" style="margin-top:0;margin-bottom:14px;" data-i18n="cicd.guideIntro">Point your CI/CD pipeline at the publish endpoint below. Upload the framework's native report artifact; TestLink maps each test back to a test case in the plan.</div>
+    <div class="guide-grid" id="guideGrid"></div>
+  </div>
+
+  <div id="resultBox" style="display:none;">
+    <div class="tiles" id="tiles"></div>
+    <div class="table-wrap">
+      <table id="tbl" class="display" style="width:100%;">
+        <thead>
+          <tr>
+            <th data-i18n="cicd.colName">Test</th>
+            <th data-i18n="cicd.colClass">Class / suite</th>
+            <th data-i18n="cicd.colExternal">External ID</th>
+            <th data-i18n="cicd.colStatus">Result</th>
+            <th data-i18n="cicd.colOutcome">Outcome</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="footer"><span data-i18n="footers.cicdPublish"></span><span id="localeSwitcher"></span></div>
+<div class="toast" id="toast"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/cicdpublish/index.php';
+var currentData = null;
+var dt = null;
+var STATUS_LABELS = { p: 'cicd.statusP', f: 'cicd.statusF', b: 'cicd.statusB', n: 'cicd.statusN' };
+var OUTCOME_LABELS = { published: 'cicd.outcomePublished', not_found: 'cicd.outcomeNotFound', error: 'cicd.outcomeError' };
+
+function esc(v) {
+  return String(v === null || v === undefined ? '' : v)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+function q(name) { return new URLSearchParams(window.location.search).get(name); }
+
+function stateFor(code, httpStatus, rawMessage) {
+  var map = {
+    not_authenticated:   { cls: 'deny', title: 'cicd.deniedTitle',    body: 'cicd.deniedBody' },
+    session_expired:     { cls: 'deny', title: 'cicd.deniedTitle',    body: 'cicd.expiredBody' },
+    no_right:            { cls: 'deny', title: 'cicd.deniedTitle',    body: 'cicd.noRightBody' },
+    tplan_not_found:     { cls: 'warn', title: 'cicd.notFoundTitle',  body: 'cicd.notFoundBody' },
+    project_mismatch:    { cls: 'warn', title: 'cicd.notFoundTitle',  body: 'cicd.mismatchBody' },
+    invalid_request:     { cls: 'warn', title: 'cicd.badRequestTitle', body: 'cicd.badRequestBody' },
+    unsupported_format:  { cls: 'warn', title: 'cicd.badRequestTitle', body: 'cicd.badRequestBody' },
+    missing_file:        { cls: 'warn', title: 'cicd.badRequestTitle', body: 'cicd.missingFileBody' },
+    method_not_allowed:  { cls: 'warn', title: 'cicd.badRequestTitle', body: 'cicd.badRequestBody' },
+    parse_error:         { cls: 'warn', title: 'cicd.parseErrorTitle', body: 'cicd.parseErrorBody' },
+    file_too_large:      { cls: 'warn', title: 'cicd.fileTooLargeTitle', body: 'cicd.fileTooLargeBody' }
+  };
+  var m = map[code];
+  var detail = '';
+  if (!m) {
+    m = { cls: 'warn', title: 'cicd.serverErrorTitle', body: 'cicd.serverErrorBody' };
+    if (rawMessage) { detail = '<div class="code">' + esc(rawMessage) + '</div>'; }
+  }
+  return '<div class="state ' + m.cls + '"><h4>' + esc(TLi18n.t(m.title)) + '</h4><div>'
+       + esc(TLi18n.t(m.body, { status: httpStatus })) + '</div>' + detail
+       + '<div class="code">' + esc(code || ('http_' + httpStatus)) + '</div></div>';
+}
+function showState(html) { $('#report').hide(); $('#resultBox').hide(); $('#stateBox').html(html); }
+function showLoading() {
+  $('#stateBox').html('<div class="state"><div class="spinner"></div>' + esc(TLi18n.t('cicd.loading')) + '</div>');
+}
+function toast(msg, kind) {
+  var $t = $('#toast');
+  $t.attr('class', 'toast' + (kind ? ' ' + kind : '')).text(msg).fadeIn(180);
+  window.clearTimeout(toast._h);
+  toast._h = window.setTimeout(function () { $t.fadeOut(220); }, 3200);
+}
+function fillSelect($sel, items, selected, allLabelKey) {
+  var html = '<option value="">' + esc(TLi18n.t(allLabelKey)) + '</option>';
+  $.each(items || [], function (i, it) {
+    html += '<option value="' + esc(it.id) + '"' + (String(it.id) === String(selected) ? ' selected' : '')
+         + '>' + esc(it.name) + '</option>';
+  });
+  $sel.html(html);
+}
+
+// ---- connector guide -------------------------------------------------------
+var SNIPPETS = {
+  github: 'name: publish-results\non: [push]\njobs:\n  publish:\n    runs-on: ubuntu-latest\n    steps:\n      - run: npm test -- --reporter=junit > junit.xml\n      - name: Publish to TestLink\n        run: |\n          curl -sS -X POST "$TESTLINK/api/cicdpublish/index.php?action=publish" \\\n            -H "Cookie: PHPSESSID=${{ secrets.TL_SESSION }}" \\\n            -F "tplan_id=${{ vars.TL_TPLAN_ID }}" \\\n            -F "build_id=${{ vars.TL_BUILD_ID }}" \\\n            -F "format=junit" \\\n            -F "uploadedFile=@junit.xml"',
+  gitlab: 'publish-results:\n  stage: test\n  script:\n    - npm test -- --reporter=junit > junit.xml\n    - |\n      curl -sS -X POST "$TESTLINK/api/cicdpublish/index.php?action=publish" \\\n        -H "Cookie: PHPSESSID=$TL_SESSION" \\\n        -F "tplan_id=$TL_TPLAN_ID" -F "build_id=$TL_BUILD_ID" \\\n        -F "format=junit" -F "uploadedFile=@junit.xml"\n  artifacts:\n    when: always\n    reports:\n      junit: junit.xml',
+  jenkins: 'pipeline {\n  agent any\n  stages {\n    stage("Publish results") {\n      steps {\n        sh """npm test -- --reporter=junit > junit.xml"""\n        sh """curl -sS -X POST "$TESTLINK/api/cicdpublish/index.php?action=publish" \\\n  -H "Cookie: PHPSESSID=$TL_SESSION" \\\n  -F "tplan_id=$TL_TPLAN_ID" -F "build_id=$TL_BUILD_ID" \\\n  -F "format=junit" -F "uploadedFile=@junit.xml" """\n      }\n    }\n  }\n}',
+  azure: '- script: |\n    npm test -- --reporter=junit > junit.xml\n    curl -sS -X POST "$(TESTLINK)/api/cicdpublish/index.php?action=publish" \\\n      -H "Cookie: PHPSESSID=$(TL_SESSION)" \\\n      -F "tplan_id=$(TL_TPLAN_ID)" -F "build_id=$(TL_BUILD_ID)" \\\n      -F "format=junit" -F "uploadedFile=@junit.xml"\n  displayName: "Publish test results to TestLink"',
+  generic: 'curl -sS -X POST \\\n  "https://testlink.example.com/api/cicdpublish/index.php?action=publish" \\\n  -H "Cookie: PHPSESSID=<session>" \\\n  -F "tplan_id=14" \\\n  -F "build_id=1" \\\n  -F "platform_id=1" \\\n  -F "format=junit" \\\n  -F "uploadedFile=@junit.xml"'
+};
+var CONNECTORS = [
+  { id: 'github',  key: 'cicd.connGithub',  desc: 'cicd.connGithubDesc',  fmts: ['JUnit XML'] },
+  { id: 'gitlab',  key: 'cicd.connGitlab',  desc: 'cicd.connGitlabDesc',  fmts: ['JUnit XML'] },
+  { id: 'jenkins', key: 'cicd.connJenkins', desc: 'cicd.connJenkinsDesc', fmts: ['JUnit XML'] },
+  { id: 'azure',   key: 'cicd.connAzure',   desc: 'cicd.connAzureDesc',   fmts: ['JUnit XML'] },
+  { id: 'generic', key: 'cicd.connGeneric', desc: 'cicd.connGenericDesc', fmts: ['JUnit XML', 'JSON'] }
+];
+
+function renderGuide() {
+  var html = '';
+  $.each(CONNECTORS, function (i, c) {
+    var chips = '';
+    $.each(c.fmts, function (j, f) { chips += '<span class="chip">' + esc(f) + '</span>'; });
+    html += '<div class="conn">'
+      + '<h4><i class="fa fa-code-branch"></i>' + esc(TLi18n.t(c.key)) + '</h4>'
+      + '<p>' + esc(TLi18n.t(c.desc)) + '</p>'
+      + '<div class="fmts">' + chips + '</div>'
+      + '<pre>' + esc(SNIPPETS[c.id]) + '</pre>'
+      + '<div class="copybar"><button class="btn-mini" data-snippet="' + esc(c.id) + '">'
+      + '<i class="fa fa-copy"></i> ' + esc(TLi18n.t('cicd.copy')) + '</button></div>'
+      + '</div>';
+  });
+  $('#guideGrid').html(html);
+}
+
+function renderResult(data) {
+  var s = data.summary || {};
+  function tile(cls, num, key) {
+    return '<div class="tile ' + cls + '"><div class="num">' + (parseInt(num, 10) || 0) + '</div>'
+      + '<div class="lbl">' + esc(TLi18n.t(key)) + '</div></div>';
+  }
+  var html = '';
+  html += tile('muted', s.total, 'cicd.sumTotal');
+  html += tile('pass', s.published, 'cicd.sumPublished');
+  html += tile('block', s.skipped, 'cicd.sumSkipped');
+  html += tile('fail', s.errors, 'cicd.sumErrors');
+  $('#tiles').html(html);
+
+  var rows = '';
+  $.each(data.rows || [], function (i, r) {
+    var stKey = STATUS_LABELS[r.status] || 'cicd.statusN';
+    var ocKey = OUTCOME_LABELS[r.outcome] || 'cicd.outcomeError';
+    rows += '<tr>'
+      + '<td>' + esc(r.name) + '</td>'
+      + '<td>' + esc(r.classname) + '</td>'
+      + '<td>' + esc(r.external_id) + '</td>'
+      + '<td><span class="badge-st ' + esc(r.status) + '">' + esc(TLi18n.t(stKey)) + '</span></td>'
+      + '<td><span class="badge-oc ' + esc(r.outcome) + '">' + esc(TLi18n.t(ocKey)) + '</span></td>'
+      + '</tr>';
+  });
+  if (dt) { dt.destroy(); dt = null; }
+  $('#tbl tbody').html(rows);
+  dt = $('#tbl').DataTable({ paging: false, ordering: false, info: false, searching: true });
+  $('#resultBox').show();
+}
+
+// ---- data flow -------------------------------------------------------------
+function buildParams(extra) {
+  var p = new URLSearchParams({ action: 'init' });
+  var asserted = q('tproject_id');
+  if (asserted && /^[0-9]+$/.test(String(asserted))) { p.set('tproject_id', asserted); }
+  var plan = $('#fPlan').val() || q('tplan_id');
+  if (plan && /^[0-9]+$/.test(String(plan))) { p.set('tplan_id', plan); }
+  if (extra) { $.each(extra, function (k, v) { p.set(k, v); }); }
+  return p;
+}
+
+function load() {
+  showLoading();
+  $.ajax({
+    url: API,
+    method: 'GET',
+    data: buildParams().toString(),
+    dataType: 'json',
+    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+  }).done(function (data) {
+    if (!data || data.status !== 'ok') {
+      showState(stateFor(data && data.code, 200, data && data.message));
+      return;
+    }
+    currentData = data;
+    var ctx = data.context || {};
+    var planSel = ($('#fPlan').val()) || q('tplan_id') || (ctx.id || '');
+    fillSelect($('#fPlan'), data.plans || [], planSel, 'cicd.selectPlan');
+    fillSelect($('#fBuild'), (data.filters || {}).builds || [], $('#fBuild').val(), 'cicd.all');
+    fillSelect($('#fPlatform'), (data.filters || {}).platforms || [], $('#fPlatform').val(), 'cicd.all');
+
+    if (!ctx || !ctx.id) {
+      $('#ctxProject').text(((data.projects || [])[0] || {}).name || '-');
+      $('#ctxPlan').text('-');
+      $('#scopeHint').text(TLi18n.t('cicd.planHint'));
+    } else {
+      $('#ctxProject').text(ctx.tproject_name || '-');
+      $('#ctxPlan').text(ctx.name || '-');
+      $('#scopeHint').text('');
+    }
+    var lim = (data.limits || {}).file_size || 0;
+    $('#fileHint').text(lim > 0 ? TLi18n.t('cicd.fileHint', { kb: Math.round(lim / 1024) }) : '');
+    renderGuide();
+    $('#stateBox').html('');
+    $('#resultBox').hide();
+    $('#report').show();
+  }).fail(function (xhr) {
+    var body = null;
+    try { body = JSON.parse(xhr.responseText); } catch (e) { body = null; }
+    if (xhr.status === 401) {
+      var code = (body && body.code) || 'not_authenticated';
+      if (code === 'session_expired' || code === 'not_authenticated') {
+        window.location.href = '/login.php?note=expired&destination='
+          + encodeURIComponent(window.location.pathname + window.location.search);
+        return;
+      }
+    }
+    showState(stateFor(body && body.code, xhr.status, (body && body.message) || null));
+  });
+}
+
+function publish() {
+  var plan = $('#fPlan').val();
+  var build = $('#fBuild').val();
+  var platform = $('#fPlatform').val();
+  var format = $('#fFormat').val();
+  var fileEl = document.getElementById('fFile');
+  if (!plan) { toast(TLi18n.t('cicd.pickPlan'), 'err'); return; }
+  if (!build) { toast(TLi18n.t('cicd.pickBuild'), 'err'); return; }
+  if (!fileEl.files || fileEl.files.length === 0) { toast(TLi18n.t('cicd.pickFile'), 'err'); return; }
+
+  var fd = new FormData();
+  fd.append('tplan_id', plan);
+  fd.append('build_id', build);
+  if (platform) { fd.append('platform_id', platform); }
+  fd.append('format', format);
+  fd.append('uploadedFile', fileEl.files[0]);
+
+  $('#btnPublish').prop('disabled', true);
+  var $lbl = $('#btnPublish span');
+  var prev = $lbl.text();
+  $lbl.text(TLi18n.t('cicd.publishing'));
+  $.ajax({
+    url: API + '?action=publish',
+    method: 'POST',
+    data: fd,
+    processData: false,
+    contentType: false,
+    dataType: 'json',
+    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+  }).done(function (data) {
+    if (!data || data.status !== 'ok') {
+      showState(stateFor(data && data.code, 200, data && data.message));
+      return;
+    }
+    $('#stateBox').html('');
+    renderResult(data);
+    var s = data.summary || {};
+    if ((parseInt(s.skipped, 10) || 0) + (parseInt(s.errors, 10) || 0) > 0) {
+      toast(TLi18n.t('cicd.publishedPartial', { published: s.published || 0, total: s.total || 0 }), 'err');
+    } else {
+      toast(TLi18n.t('cicd.publishedOk', { published: s.published || 0 }), 'ok');
+    }
+    $('#report').show();
+  }).fail(function (xhr) {
+    var body = null;
+    try { body = JSON.parse(xhr.responseText); } catch (e) { body = null; }
+    if (xhr.status === 401) {
+      window.location.href = '/login.php?note=expired&destination='
+        + encodeURIComponent(window.location.pathname + window.location.search);
+      return;
+    }
+    showState(stateFor(body && body.code, xhr.status, (body && body.message) || null));
+  }).always(function () {
+    $('#btnPublish').prop('disabled', false);
+    $lbl.text(prev);
+  });
+}
+
+function copySnippet(id) {
+  var text = SNIPPETS[id] || '';
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(function () { toast(TLi18n.t('cicd.copied'), 'ok'); },
+      function () { toast(TLi18n.t('cicd.copied'), 'ok'); });
+  } else {
+    var ta = document.createElement('textarea');
+    ta.value = text; document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); } catch (e) {}
+    document.body.removeChild(ta);
+    toast(TLi18n.t('cicd.copied'), 'ok');
+  }
+}
+
+$(function () {
+  $('#btnReload').on('click', load);
+  $('#btnBack').on('click', function () {
+    var tp = q('tproject_id'), pl = q('tplan_id');
+    window.location.href = '/gui/templates/results/resultsNavigator.html'
+      + (tp ? '?tproject_id=' + encodeURIComponent(tp) + (pl ? '&tplan_id=' + encodeURIComponent(pl) : '') : '');
+  });
+  $('#btnClose').on('click', function () { window.close(); });
+  $('#btnPublish').on('click', publish);
+  $('#fPlan').on('change', load);
+  $('#fBuild').on('change', function () { $('#resultBox').hide(); });
+  $('#fPlatform').on('change', function () { $('#resultBox').hide(); });
+  $(document).on('click', '[data-snippet]', function () { copySnippet($(this).attr('data-snippet')); });
+
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    load();
+  });
+});
+</script>
+</body>
+</html>

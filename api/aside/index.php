@@ -239,6 +239,11 @@ if ($tplan_id > 0) {
                 // plan id is forwarded for context only.
                 $hrefR = '/gui/templates/results/strategyReport.html' .
                          "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
+            } else if ($rptItem['title'] == 'link_report_cicd_publish') {
+                // Refs #1064: CI/CD Automated Result Publishing (JUnit XML /
+                // JSON artifact upload -> executions).
+                $hrefR = '/gui/templates/results/cicdPublish.html' .
+                         "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
             } else {
                 $sep = (strpos($rptItem['url'], '?') !== false) ? '&' : '?';
                 $hrefR = $baseHrefR . $rptItem['url'] .

@@ -2912,6 +2912,7 @@ $TLS_link_report_defect_intelligence = "Kecerdasan Cacat"; // Refs #1068
 $TLS_link_report_strategy_report = "Laporan Strategi Pengujian"; // Refs #1061/#1925
 $TLS_link_report_performance_reports = "Laporan Pengujian Performa"; // Refs #1063
 $TLS_link_report_automation_reports = "Laporan Pengujian Otomasi"; // Refs #1062
+$TLS_link_report_cicd_publish = "Publikasi Hasil CI/CD"; // Refs #1064
 $TLS_title_learn_testing = "Belajar Pengujian"; // Learn Testing hub (Refs #1060)
 $TLS_title_accessibility_resources = "Sumber Daya Aksesibilitas"; // Accessibility Resources hub (Refs #1059)
 $TLS_title_documentation_hub = "Pusat Dokumentasi"; // Documentation hub (Refs #1060)

@@ -189,6 +189,7 @@ $TLS_link_report_defect_intelligence = "Inteligența defectelor"; // Refs #1068
 $TLS_link_report_strategy_report = "Raport de strategie de testare"; // Refs #1061/#1925
 $TLS_link_report_performance_reports = "Rapoarte de performanță"; // Refs #1063
 $TLS_link_report_automation_reports = "Rapoarte de teste automatizate"; // Refs #1062
+$TLS_link_report_cicd_publish = "Publicare rezultate CI/CD"; // Refs #1064
 $TLS_title_learn_testing = "Învață testarea"; // Learn Testing hub (Refs #1060)
 $TLS_title_accessibility_resources = "Resurse de accesibilitate"; // Accessibility Resources hub (Refs #1059)
 $TLS_title_documentation_hub = "Hub de documentație"; // Documentation hub (Refs #1060)

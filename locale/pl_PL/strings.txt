@@ -3866,6 +3866,7 @@ $TLS_link_report_defect_intelligence = "Analiza defektów"; // Refs #1068
 $TLS_link_report_strategy_report = "Raport strategii testów"; // Refs #1061/#1925
 $TLS_link_report_performance_reports = "Raporty testów wydajności"; // Refs #1063
 $TLS_link_report_automation_reports = "Raporty testów automatycznych"; // Refs #1062
+$TLS_link_report_cicd_publish = "Publikowanie wyników CI/CD"; // Refs #1064
 $TLS_title_learn_testing = "Nauka testowania"; // Learn Testing hub (Refs #1060)
 $TLS_title_accessibility_resources = "Zasoby dostępności"; // Accessibility Resources hub (Refs #1059)
 $TLS_title_documentation_hub = "Centrum dokumentacji"; // Documentation hub (Refs #1060)

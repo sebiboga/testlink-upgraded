@@ -4093,6 +4093,7 @@ $TLS_link_report_defect_intelligence = "Defect-intelligentie"; // Refs #1068
 $TLS_link_report_strategy_report = "Teststrategie-rapport"; // Refs #1061/#1925
 $TLS_link_report_performance_reports = "Prestatietestrapporten"; // Refs #1063
 $TLS_link_report_automation_reports = "Rapportages geautomatiseerde tests"; // Refs #1062
+$TLS_link_report_cicd_publish = "Publicatie van CI/CD-resultaten"; // Refs #1064
 $TLS_title_learn_testing = "Testen leren"; // Learn Testing hub (Refs #1060)
 $TLS_title_accessibility_resources = "Toegankelijkheidsbronnen"; // Accessibility Resources hub (Refs #1059)
 $TLS_title_documentation_hub = "Documentatiehub"; // Documentation hub (Refs #1060)

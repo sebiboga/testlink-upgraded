@@ -4578,6 +4578,7 @@ $TLS_link_report_defect_intelligence = "欠陥インテリジェンス"; // Refs
 $TLS_link_report_strategy_report = "テスト戦略レポート"; // Refs #1061/#1925
 $TLS_link_report_performance_reports = "パフォーマンステストレポート"; // Refs #1063
 $TLS_link_report_automation_reports = "自動テストレポート"; // Refs #1062
+$TLS_link_report_cicd_publish = "CI/CD 結果の公開"; // Refs #1064
 $TLS_title_learn_testing = "テストを学ぶ"; // Learn Testing hub (Refs #1060)
 $TLS_title_accessibility_resources = "アクセシビリティ資料"; // Accessibility Resources hub (Refs #1059)
 $TLS_title_documentation_hub = "ドキュメントハブ"; // Documentation hub (Refs #1060)

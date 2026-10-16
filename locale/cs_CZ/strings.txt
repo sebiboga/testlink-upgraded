@@ -3965,6 +3965,7 @@ $TLS_link_report_defect_intelligence = "Defektní inteligence"; // Refs #1068
 $TLS_link_report_strategy_report = "Zpráva o testovací strategii"; // Refs #1061/#1925
 $TLS_link_report_performance_reports = "Zprávy o výkonnostních testech"; // Refs #1063
 $TLS_link_report_automation_reports = "Reporty automatizovaných testů"; // Refs #1062
+$TLS_link_report_cicd_publish = "Publikování výsledků CI/CD"; // Refs #1064
 $TLS_title_learn_testing = "Naučte se testovat"; // Learn Testing hub (Refs #1060)
 $TLS_title_accessibility_resources = "Zdroje přístupnosti"; // Accessibility Resources hub (Refs #1059)
 $TLS_title_documentation_hub = "Centrum dokumentace"; // Documentation hub (Refs #1060)
