@@ -10299,3 +10299,25 @@ mysql -h 127.0.0.1 -utestlink -ptestlink testlink < tmp/fixtures_1081.sql
 
 **Result: PASS**
 
+
+
+## Regression — Issue #1919: planAddTC save: 3x E_WARNING "Undefined array key send_mail" on every save without tester assignment
+
+**Precondition**
+- TestLink 2.0.1, app http://localhost:8082 (BFF `api/plans/index.php/planaddtc/save`).
+- Logged in as `admin/admin`, session cookie valid.
+- A test project/test plan exist; test case version available to add/remove. Assignment panel hidden (no build) so UI does not send `send_mail`.
+
+**Repro (pre-fix, confirmed)**
+1. POST `api/plans/index.php/planaddtc/save` with body omitting `send_mail`.
+2. Inspect `events` (log_level=2): `Undefined array key "send_mail"` appeared **3 times** per save.
+
+**Fix (minimal)**
+- Changed `api/plans/index.php:1990` to `$sendMail = !empty($body['send_mail']);`.
+
+**Post-fix result (measured)**
+- Save without `send_mail`: 0 new `log_level=2` events containing `send_mail`.
+- Save with `send_mail:false`: no warnings.
+- No new Error/Warning related to this issue.
+
+**Actual result:** PASS — issue fixed.
