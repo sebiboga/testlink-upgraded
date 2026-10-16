@@ -187,12 +187,15 @@ function stateFor(code, httpStatus, rawMessage) {
     tplan_not_found:   { cls: 'warn', title: 'dintel.notFoundTitle', body: 'dintel.notFoundBody' },
     project_mismatch:  { cls: 'warn', title: 'dintel.notFoundTitle', body: 'dintel.mismatchBody' },
     invalid_request:   { cls: 'warn', title: 'dintel.badRequestTitle', body: 'dintel.badRequestBody' },
+    invalid_parameter: { cls: 'warn', title: 'dintel.badRequestTitle', body: 'dintel.badRequestBody' },
     method_not_allowed:{ cls: 'warn', title: 'dintel.badRequestTitle', body: 'dintel.badRequestBody' }
   };
   var m = map[code];
   var detail = '';
   if (!m) {
-    m = { cls: 'warn', title: 'dintel.serverErrorTitle', body: 'dintel.serverErrorBody' };
+    if (httpStatus === 403) { m = { cls: 'deny', title: 'dintel.deniedTitle', body: 'dintel.noRightBody' }; }
+    else if (httpStatus === 400 || httpStatus === 404) { m = { cls: 'warn', title: 'dintel.badRequestTitle', body: 'dintel.badRequestBody' }; }
+    else { m = { cls: 'warn', title: 'dintel.serverErrorTitle', body: 'dintel.serverErrorBody' }; }
     if (rawMessage) { detail = '<div class="code">' + esc(rawMessage) + '</div>'; }
   }
   return '<div class="state ' + m.cls + '"><h4>' + esc(TLi18n.t(m.title)) + '</h4><div>'
@@ -200,7 +203,7 @@ function stateFor(code, httpStatus, rawMessage) {
        + '<div class="code">' + esc(code || ('http_' + httpStatus)) + '</div></div>';
 }
 
-function showState(html) { $('#report').hide(); $('#stateBox').html(html); }
+function showState(html) { currentData = null; $('#report').hide(); $('#stateBox').html(html); }
 function showLoading() {
   $('#report').hide();
   $('#stateBox').html('<div class="state"><div class="spinner"></div>' + esc(TLi18n.t('dintel.loading')) + '</div>');
@@ -310,10 +313,10 @@ function load() {
   var params = new URLSearchParams({ action: 'init', tplan_id: tplanId });
   var asserted = q('tproject_id');
   if (asserted && /^[0-9]+$/.test(String(asserted))) { params.set('tproject_id', asserted); }
-  var b = $('#selBuild').val();
-  if (b && b !== '0') { params.set('build_id', b); }
-  var p = $('#selPlatform').val();
-  if (p && p !== '0') { params.set('platform_id', p); }
+  var b = $('#selBuild').val() || q('build_id');
+  if (b && b !== '0' && /^[0-9]+$/.test(String(b))) { params.set('build_id', b); }
+  var p = $('#selPlatform').val() || q('platform_id');
+  if (p && p !== '0' && /^[0-9]+$/.test(String(p))) { params.set('platform_id', p); }
 
   $.ajax({
     url: API, method: 'GET', data: params.toString(), dataType: 'json',
@@ -324,13 +327,13 @@ function load() {
       return;
     }
     currentData = data;
+    $('#stateBox').html('');
+    $('#report').show();
     if (!filtersFilled) { fillFilters(data.context); filtersFilled = true; }
     renderContext(data.context);
     renderSummary(data.summary);
     renderSuites(data.suites || []);
     renderFailures(data.failures || []);
-    $('#stateBox').html('');
-    $('#report').show();
   }).fail(function (xhr) {
     var body = null;
     try { body = JSON.parse(xhr.responseText); } catch (e) { body = null; }
@@ -356,12 +359,12 @@ function exportCsv() {
     TLi18n.t('dintel.colBuildsFailed'), TLi18n.t('dintel.colAddressed')];
   var cell = function (v) {
     var t = String(v === null || v === undefined ? '' : v);
-    if (/^[=+\-@]/.test(t)) { t = "'" + t; }
-    return /[;"\r\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
+    if (/^[\t\r=+\-@]/.test(t)) { t = "'" + t; }
+    return /[;"\r\n\t]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
   };
   var lines = [$.map(head, cell).join(';')];
   $.each(currentData.failures, function (i, r) {
-    lines.push($.map([r.tc_external_id, r.tc_name, r.suite_name,
+    lines.push($.map([r.tc_external_id, r.tc_name, (r.top_suite || r.suite_name),
       (r.defect_refs || []).join(' '), r.builds_failed,
       r.addressed ? TLi18n.t('dintel.yes') : TLi18n.t('dintel.no')], cell).join(';'));
   });

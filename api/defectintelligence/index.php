@@ -81,7 +81,7 @@ function diOut($payload, $code = null)
     if ($code !== null) {
         http_response_code($code);
     }
-    echo json_encode($payload);
+    echo json_encode($payload, JSON_INVALID_UTF8_SUBSTITUTE | JSON_PARTIAL_OUTPUT_ON_ERROR);
     exit;
 }
 
@@ -143,6 +143,14 @@ $hasPlatform = isset($_GET['platform_id']) && $_GET['platform_id'] !== '';
 if ($tplanId <= 0) {
     diFail(400, 'invalid_request', 'Missing or invalid tplan_id');
 }
+// A supplied-but-non-numeric build/platform id must be refused, not silently
+// ignored (a foreign build would otherwise report every assignment not-run).
+if (trim((string)($_GET['build_id'] ?? '')) !== '' && $buildId <= 0) {
+    diFail(400, 'invalid_request', 'Invalid build_id');
+}
+if ($hasPlatform && trim((string)($_GET['platform_id'] ?? '')) !== '' && $platformId <= 0) {
+    diFail(400, 'invalid_request', 'Invalid platform_id');
+}
 
 // 1. resolve the plan (opaque 404 when missing) BEFORE any right probe
 $tbl = tlObjectWithDB::getDBTables(array('testplans'));
@@ -194,6 +202,9 @@ foreach ((array)$rsb as $row) {
     if ($bid === $buildId) {
         $buildName = $bname;
     }
+}
+if ($buildId > 0 && $buildName === '') {
+    diFail(400, 'invalid_request', 'Unknown build_id for this test project');
 }
 
 $platformName = '';
@@ -332,6 +343,9 @@ if (count($failedKeys) > 0) {
         if ($bug === '' || $bug === '0') {
             continue;
         }
+        if (!isset($failedKeys[$key])) {
+            continue;
+        }
         if (!isset($defectsByKey[$key])) {
             $defectsByKey[$key] = array();
         }
@@ -395,7 +409,7 @@ foreach ($failedKeys as $key => $a) {
     $vid = $a[0];
     $pid = $a[1];
     $refs = isset($defectsByKey[$key]) ? array_keys($defectsByKey[$key]) : array();
-    sort($refs, SORT_STRING);
+    sort($refs, SORT_NATURAL);
     $meta = isset($tcMeta[$vid]) ? $tcMeta[$vid] : array(
         'external' => 0, 'name' => '', 'version' => 0, 'suite' => '', 'topSuite' => '');
     $failures[] = array(
@@ -424,7 +438,7 @@ foreach ($failures as $f) {
     if ($f['builds_failed'] >= 2) {
         $recurring++;
     }
-    $top = $f['top_suite'] !== '' ? $f['top_suite'] : '(none)';
+    $top = $f['top_suite'] !== '' ? $f['top_suite'] : '';
     if (!isset($suites[$top])) {
         $suites[$top] = array('failed' => 0, 'addressed' => 0, 'refs' => array());
     }
