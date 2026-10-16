@@ -233,6 +233,12 @@ if ($tplan_id > 0) {
                 // analytics from execution_bugs links).
                 $hrefR = '/gui/templates/results/defectIntelligence.html' .
                          "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
+            } else if ($rptItem['title'] == 'link_report_strategy_report') {
+                // Refs #1061 / #1925: Test Strategy Report (generated
+                // project-specific strategy document). Project-scoped: the
+                // plan id is forwarded for context only.
+                $hrefR = '/gui/templates/results/strategyReport.html' .
+                         "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
             } else {
                 $sep = (strpos($rptItem['url'], '?') !== false) ? '&' : '?';
                 $hrefR = $baseHrefR . $rptItem['url'] .

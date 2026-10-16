@@ -304,6 +304,20 @@ $tlCfg->reports_list['defect_intelligence'] = array(
 	'format' => 'format_html'
 );
 
+// Refs #1061 / #1925 - Test Strategy Report (enhancement screen: 1.9.20 shipped
+// only a static Test Strategy reference hub, never a GENERATED project-specific
+// strategy document). Backed by the api/strategyreport BFF, which assembles the
+// document from the project's artifacts (scope, test types & levels,
+// environments, tooling, team, related plans, computed readiness) and enforces
+// testplan_metrics on the owning project. Available for every project ('all').
+$tlCfg->reports_list['strategy_report'] = array( 
+	'title' => 'link_report_strategy_report',
+	'url' => 'gui/templates/results/strategyReport.html',
+	'enabled' => 'all',
+	'directLink' => '',
+	'format' => 'format_html'
+);
+
 $tlCfg->reports_list['list_problems'] = array( 
 	'title' => 'link_report_total_bugs',
 	'url' => 'lib/results/resultsBugs.php?type=0',

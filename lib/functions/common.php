@@ -2625,6 +2625,13 @@ function getActions(&$gui,$baseURL) {
     // Reports ASIDE entry via the reports_list entry defect_intelligence.
     $actions->defectIntelligence =
       "/gui/templates/results/defectIntelligence.html?{$ctx}";
+    // Refs #1061 / #1925: Test Strategy Report (generated, project-specific
+    // strategy document assembled from the project's artifacts). Backed by
+    // api/strategyreport, which enforces testplan_metrics on the OWNING
+    // project. Also reachable from the Reports ASIDE entry via the reports_list
+    // entry strategy_report. Project-scoped (the plan id is context only).
+    $actions->strategyReport =
+      "/gui/templates/results/strategyReport.html?{$ctx}";
     // Refs #1905: Top Level Suites Bar Chart report (legacy
     // lib/results/topLevelSuitesBarChart.php: the last orphan pChart PNG
     // endpoint - charts_data covers overall/platforms/by_keyword but NOT this

@@ -3962,6 +3962,7 @@ $TLS_title_test_closure = "Uzavření testování"; // "Test Closure" (Refs #127
 $TLS_link_report_risk_coverage = "Testování založené na riziku";
 $TLS_link_report_quality_gates = "Kontrolní body kvality vydání"; // Refs #1067
 $TLS_link_report_defect_intelligence = "Defektní inteligence"; // Refs #1068
+$TLS_link_report_strategy_report = "Zpráva o testovací strategii"; // Refs #1061/#1925
 $TLS_link_report_performance_reports = "Zprávy o výkonnostních testech"; // Refs #1063
 $TLS_link_report_automation_reports = "Reporty automatizovaných testů"; // Refs #1062
 $TLS_title_learn_testing = "Naučte se testovat"; // Learn Testing hub (Refs #1060)

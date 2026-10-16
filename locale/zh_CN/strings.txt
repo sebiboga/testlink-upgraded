@@ -4173,6 +4173,7 @@ $TLS_title_test_closure = "测试结束"; // "Test Closure" (Refs #1278)
 $TLS_link_report_risk_coverage = "基于风险的测试";
 $TLS_link_report_quality_gates = "发布质量门禁"; // Refs #1067
 $TLS_link_report_defect_intelligence = "缺陷智能"; // Refs #1068
+$TLS_link_report_strategy_report = "测试策略报告"; // Refs #1061/#1925
 $TLS_link_report_performance_reports = "性能测试报告"; // Refs #1063
 $TLS_link_report_automation_reports = "自动化测试报告"; // Refs #1062
 $TLS_title_learn_testing = "学习测试"; // Learn Testing hub (Refs #1060)

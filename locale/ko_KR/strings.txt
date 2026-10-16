@@ -2465,6 +2465,7 @@ $TLS_reqmgrsystem_interface_not_implemented = "구성 예제를 사용할 수 �
 $TLS_reqmgrsystem_invalid_type = '잘못된 요구 관리 시스템 유형입니다: %s';
 $TLS_link_report_quality_gates = "릴리스 품질 게이트"; // Refs #1067
 $TLS_link_report_defect_intelligence = "결함 인텔리전스"; // Refs #1068
+$TLS_link_report_strategy_report = "테스트 전략 보고서"; // Refs #1061/#1925
 $TLS_link_report_performance_reports = "성능 테스트 보고서"; // Refs #1063
 $TLS_link_report_automation_reports = "자동화 테스트 보고서"; // Refs #1062
 $TLS_title_learn_testing = "테스팅 배우기"; // Learn Testing hub (Refs #1060)

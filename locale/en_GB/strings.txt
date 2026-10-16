@@ -4234,6 +4234,7 @@ $TLS_title_test_closure = "Test Closure"; // "Test Closure" (Refs #1278)
 $TLS_link_report_risk_coverage = "Risk-Based Testing";
 $TLS_link_report_quality_gates = "Release Quality Gates"; // Refs #1067
 $TLS_link_report_defect_intelligence = "Defect Intelligence"; // Refs #1068
+$TLS_link_report_strategy_report = "Test Strategy Report"; // Refs #1061/#1925
 $TLS_link_report_performance_reports = "Performance Test Reports"; // Refs #1063
 $TLS_link_report_automation_reports = "Automation Test Reports"; // Refs #1062
 $TLS_title_learn_testing = "Learn Testing"; // Learn Testing hub (Refs #1060)

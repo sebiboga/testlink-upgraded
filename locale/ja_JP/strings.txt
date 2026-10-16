@@ -4575,6 +4575,7 @@ $TLS_title_test_closure = "テストクロージング"; // "Test Closure" (Refs
 $TLS_link_report_risk_coverage = "リスクベースのテスト";
 $TLS_link_report_quality_gates = "リリース品質ゲート"; // Refs #1067
 $TLS_link_report_defect_intelligence = "欠陥インテリジェンス"; // Refs #1068
+$TLS_link_report_strategy_report = "テスト戦略レポート"; // Refs #1061/#1925
 $TLS_link_report_performance_reports = "パフォーマンステストレポート"; // Refs #1063
 $TLS_link_report_automation_reports = "自動テストレポート"; // Refs #1062
 $TLS_title_learn_testing = "テストを学ぶ"; // Learn Testing hub (Refs #1060)

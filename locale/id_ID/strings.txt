@@ -2909,6 +2909,7 @@ $TLS_reqmgrsystem_interface_not_implemented = "Contoh konfigurasi tidak tersedia
 $TLS_reqmgrsystem_invalid_type = 'Tipe sistem manajemen persyaratan tidak valid: %s';
 $TLS_link_report_quality_gates = "Gerbang Kualitas Rilis"; // Refs #1067
 $TLS_link_report_defect_intelligence = "Kecerdasan Cacat"; // Refs #1068
+$TLS_link_report_strategy_report = "Laporan Strategi Pengujian"; // Refs #1061/#1925
 $TLS_link_report_performance_reports = "Laporan Pengujian Performa"; // Refs #1063
 $TLS_link_report_automation_reports = "Laporan Pengujian Otomasi"; // Refs #1062
 $TLS_title_learn_testing = "Belajar Pengujian"; // Learn Testing hub (Refs #1060)

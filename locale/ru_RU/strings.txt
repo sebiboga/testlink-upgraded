@@ -2835,6 +2835,7 @@ $TLS_reqmgrsystem_interface_not_implemented = "Пример конфигурац
 $TLS_reqmgrsystem_invalid_type = 'Недопустимый тип системы управления требованиями: %s';
 $TLS_link_report_quality_gates = "Контрольные точки качества релиза"; // Refs #1067
 $TLS_link_report_defect_intelligence = "Аналитика дефектов"; // Refs #1068
+$TLS_link_report_strategy_report = "Отчёт о стратегии тестирования"; // Refs #1061/#1925
 $TLS_link_report_performance_reports = "Отчёты о тестах производительности"; // Refs #1063
 $TLS_link_report_automation_reports = "Отчёты об автоматизированных тестах"; // Refs #1062
 $TLS_title_learn_testing = "Изучение тестирования"; // Learn Testing hub (Refs #1060)
