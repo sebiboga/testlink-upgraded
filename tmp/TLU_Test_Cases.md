@@ -10478,3 +10478,49 @@ that drives the Assigned-To column, matching legacy `setting_build` behaviour.
 | 4 | (d) save with `"remove":{"TC2":{"0":TCV2}}` | 200 `removed:1`, zero new events; audit `audit_tc_removed_from_testplan` (log_level 16) present | PASS |
 | 5 | in-scope event gate: new `log_level<16` rows after baseline | 0 (3 rows matching `assignment_mgr.class.php` are the SEPARATE pre-existing defect filed as #1922 — out of scope here) | PASS (in-scope 0) |
 | 6 | `php -l api/plans/index.php` | No syntax errors | PASS |
+
+## Modernize — Issue #1068 (Refs #1068): Defect Intelligence dashboard screen + BFF (`results/defectIntelligence.html` + `api/defectintelligence/index.php`)
+
+**Precondition**
+- TestLink 2.0.1, app http://localhost:8082, logged in as `admin/admin` (role 8 `admin`, holds `testplan_metrics` globally).
+- Fixture `php tmp/fixtures_1065.php`: project 21 "RTM1065", plan 22 "R6 Plan" (6 assigned versions), builds b1=1 / b2=2, 5 executions (`p`,`f`,`b` mix, one never run), `execution_bugs` row `execution 3 → BUG-1065` (a **non-numeric** bug id).
+
+**Case 1 — BFF error contract (`curl -b cookies`)**
+1. `?action=init&tplan_id=22` anon (no cookie) → **401** `not_authenticated`.
+2. `?action=init` (no tplan) → **400** `invalid_request`.
+3. `?action=init&tplan_id=999999` → **404** `tplan_not_found`.
+4. `?action=init&tplan_id=22&tproject_id=1` → **404** `project_mismatch` (owning-project assertion, no enumeration oracle).
+5. `?action=bogus&tplan_id=22` → **400** `invalid_request`.
+6. `POST ?action=init&tplan_id=22` from curl (no Origin/XRW) → **403** CSRF `bffSameOriginGuard`.
+**Result: PASS** (all six statuses + machine codes as documented).
+
+**Case 2 — full report numbers (no filter)**
+1. `GET ?action=init&tplan_id=22` → assigned 6, executed 5, passed 2, failed 2, blocked 1, not_run 1, progress 83.3.
+2. failed_cases 2, addressed 1, unaddressed 1, distinct_defects 1, recurring_failures 0, defect_density 0.5.
+3. suites → `R6 Root` failed 2 / addressed 1 / unaddressed 1 / defects 1 / density 0.5.
+4. failures → ext-id 1 `R6 Login Pass` refs `['BUG-1065']` addressed=true; ext-id 2 `R6 Login Fail` refs `[]` addressed=false; both `suite_name`+`top_suite` `R6 Root`, `tc_name`/`tc_version`/`builds_failed` populated.
+**Result: PASS** (names resolve through the `tcversions → nodes_hierarchy` two-hop; top-level suite climbs to the suite node).
+
+**Case 3 — non-numeric `bug_id` evidence gate (bug found + fixed this run)**
+1. **BUG:** first build filtered `AND eb.bug_id > 0`; `bug_id` is `varchar(64)` so MySQL casts `BUG-1065` → 0 and the evidence row was dropped → `addressed=0`, `distinct_defects=0`, `defect_density=0`.
+2. Fix (`8ca819438`): drop the SQL predicate, keep the PHP `''`/`'0'` skip.
+3. After fix: `addressed=1`, `unaddressed=1`, `distinct_defects=1`, `density=0.5`, Login Pass shows `BUG-1065`.
+**Result: PASS** (commit `8ca819438`).
+
+**Case 4 — build filter**
+1. Select Build = "R6 Build 1", Apply → scope label `Build: R6 Build 1 · All platforms`.
+2. Latest-status evidence gate re-evaluates on build 1 only (context selects rebuilt from `context.builds`).
+**Result: PASS** (filters render; build list = b1/b2, platform list empty because the project has no platforms).
+
+**Case 5 — browser render (chrome-devtools MCP)**
+1. Open `/gui/templates/results/defectIntelligence.html?tproject_id=21&tplan_id=22` while anonymous → redirected to `/login.php?note=expired&destination=…` (401 handling).
+2. After `admin/admin` login: header `Defect Intelligence` + subtitle; context `RTM1065` / `R6 Plan` / `All builds · All platforms`; 8 summary cards (6 / 2 / 1 / 1 / 1 / 0 / 0.5 / 83.3%); suite table 1 row; failures DataTable 2 rows with `BUG-1065` badge `Yes` and `—` `No`; footer `TestLink 2.0.1 - Defect Intelligence`; locale switcher lists Română etc.
+3. No raw `dintel.*` keys rendered.
+**Result: PASS**
+
+**Case 6 — console + i18n gate**
+1. Console: only the standard `A form field element should have an id or name attribute` lint from the DataTables search input; **no JS errors**.
+2. `bash ai/verify_i18n_coverage.sh` → **9/9 PASS, 8002 keys, 0 missing** (`dintel.*` (58) + `footers.defectIntelligence` in all 10 bundles).
+3. `php -l` clean on `api/defectintelligence/index.php`, `cfg/reports.cfg.php`, `api/aside/index.php`, `lib/functions/common.php`.
+4. `$TLS_link_report_defect_intelligence` present in **all 19** `locale/*/strings.txt`.
+**Result: PASS**
