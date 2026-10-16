@@ -17,15 +17,18 @@ Every screen of the application was ported one-by-one in a screen-compare
   kept for backward compatibility and is progressively retired as each modern
   screen reaches full parity.
 
-- [BUGFIX] - #1843: `locale/fr_FR/strings.txt` was missing 90 of the 2796 `$TLS_*` keys defined in
-  `locale/en_GB/strings.txt`, so the legacy `lang_get()` layer silently fell back to English and wrote
-  a `LOCALIZATION` Warning per key per session into `events`. 29 of them render in the ASIDE **Test
-  Strategy** section (`title_test_strategy` + the 28 `href_test_strategy_*` chapter labels — the label
-  showed `Test Strategy` inside an otherwise French menu); the other 61 (print-document errors, Alien
-  References fields, `severityConfig_saved`, tcView relations tooltip, plan activate/deactivate, custom-field
-  location labels, …) fired whenever their code path ran. All 90 French translations added in one tagged
-  block (fr 2716 → 2806 keys, `en − fr` = 0); `php -l` clean, the `Test Strategy` ASIDE entry now reads
-  `Stratégie de test` and a fresh `fr_FR` session writes zero new LOCALIZATION rows. Refs #1843.
+- [KEY BUGFIX] - #1920: the modern **Add/Remove Test Cases** save
+  (`api/plans/index.php` `POST /planaddtc/save` with `send_mail:true`) logged an
+  `E_WARNING require_once(.../api/plans/../lib/plan/planAddTC.php): Failed to open stream` into the
+  Event Viewer on every such save — the one-level relative path landed in `api/`, not the repo root
+  — and `catch (Throwable)` swallowed the resulting `Error`, so mail was silently skipped behind an
+  HTTP 200. Fixed the path to `../../lib/plan/planAddTC.php`, gated the block like legacy
+  `addToTestPlan()` (`$sendMail && !empty($features2['add'])` — no assignment, no mail, no warning),
+  and restored the legacy `tcase_id`/`tcversion_id` keys `send_mail_to_testers()` reads (they were
+  missing, which would have produced 6 undefined-key warnings + a SQL 1064 `IN ()` ERROR once the
+  require worked). Verified with `tmp/verify_1920.sh` matrix (send_mail ± tester, dup-skip, remove):
+  0 in-scope warning/error events. The unrelated `assignment_mgr::assign()` wrong-map-shape defect
+  found while testing is filed separately as #1922. Refs #1920.
 
 - [SCREEN] - #1062: the **Automation Test Reports** screen
   (`gui/templates/results/automationReports.html`, BFF `api/automationreports/index.php`) is
