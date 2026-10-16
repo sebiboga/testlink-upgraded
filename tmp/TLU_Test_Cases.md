@@ -42557,3 +42557,46 @@ with 1 TC); logged in as `admin/admin`; app at `http://localhost:8082`.
    `TLU_REQUIRE_SUITE="Issue #1854" bash ai/verify_test_suites.sh`.
    *Expected:* EXIT=0 with the own-suite-heading check passing. *Actual:* recorded in the final
    checkpoint comment on issue #1854. **PASS.**
+
+## Regression — Issue #1923: verify_test_suites.sh check 3 detects a clobber performed in a MERGE commit
+
+**Area:** `ai/verify_test_suites.sh` (regression-suite gate for `tmp/TLU_Test_Cases.md`).
+**Precondition:** a git repo whose suite-file history contains a merge commit whose resolution
+replaces `tmp/TLU_Test_Cases.md` with a shorter copy (the whole-file overwrite exists only in the
+merge's own diff; neither parent is individually destructive), and the candidate/HEAD forks from
+that merge so `merge-base(HEAD, origin/<default>)` **is** the merge.
+
+**Repro fixture (scratch repo, measured):**
+
+```bash
+git init -q --initial-branch=sebiboga /tmp/repro-m && cd /tmp/repro-m
+# root: 60-heading suite file (pure add) ; feat: append 1 ; base: append 1  -> both non-destructive
+# merge feat into base, resolve with a whole-file overwrite to 3 headings, commit -> M
+git update-ref refs/remotes/origin/sebiboga "$(git rev-parse HEAD)"   # check 2 merge-base == M
+```
+
+**Steps / Expected / Actual**
+
+1. **Pre-fix (script @ `5f4e00c15`).** *Steps:* run `ai/verify_test_suites.sh` on the 3-heading
+   candidate. *Expected:* FAIL (a 61-heading pre-image was clobbered by merge `21baf3b`).
+   *Actual (measured):* `G1805 result: 7 PASS / 0 FAIL / 1 SKIP`, `EXIT=0` — **fail-open**;
+   `git log --format='C %H' --numstat 21baf3b -- tmp/TLU_Test_Cases.md` printed only the `C 21baf3b`
+   marker with **no numstat block** (merges are not diffed by default). **FAIL (bug confirmed).**
+2. **Post-fix (commit `3cf174afb`).** *Steps:* same command. *Expected:* FAIL naming the merge and
+   the lost headings. *Actual:* `clobber baseline: 90ca7b0^ (61 headings) -> 21baf3b (3 headings)`,
+   `FAIL  no suite lost vs the pre-image of destructive commit 21baf3b (58 lost)`, `EXIT=1`. **PASS.**
+3. **No false positive on a normal merge.** *Steps:* fixture where `feat` has 70 headings, base has 61,
+   and the merge keeps the first parent's 61 (destructive-looking diff only vs the second parent).
+   *Expected:* no anchor (first parent 61 → merge 61 ⇒ `ha >= hb`). *Actual:*
+   `PASS  no destructive commit in the suite-file history`, `EXIT=0`. **PASS.**
+3b. **Live default branch does not regress.** *Steps:* `bash ai/verify_test_suites.sh` on `sebiboga`
+   @ `5f4e00c15`. *Expected:* EXIT=0, no suite lost. *Actual:* `33 PASS / 0 FAIL / 1 SKIP`,
+   `EXIT=0`; exactly one new anchor appears — merge `31162f6cc` (first parent `e7b7c8f21`, 152 →
+   150 headings) — and it PASSES because the headings are still present. **PASS.**
+3. **Syntax gate.** *Steps:* `bash -n ai/verify_test_suites.sh`. *Actual:* `syntax OK`. **PASS.**
+4. **MANDATORY GATE for this suite.** *Steps:*
+   `TLU_REQUIRE_SUITE="Issue #1923" bash ai/verify_test_suites.sh`.
+   *Expected:* EXIT=0 with the own-suite-heading check passing. *Actual:* recorded in the final
+   checkpoint comment on issue #1923. **PASS.**
+
+**Files:** `ai/verify_test_suites.sh` (extractor `-m` + header notes).
