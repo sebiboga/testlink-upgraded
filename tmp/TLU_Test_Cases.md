@@ -42419,3 +42419,47 @@ with 1 TC); logged in as `admin/admin`; app at `http://localhost:8082`.
     `TLU_REQUIRE_SUITE="Issue #1926" bash ai/verify_test_suites.sh`.
     *Expected:* EXIT=0 with the own-suite-heading check passing. *Actual:* recorded in the
     final checkpoint comment on issue #1926. **PASS.**
+
+## Regression — Issue #1854: check_string() false positive on suite name (inverted caller polarity)
+
+**Precondition:** fixture `tmp/fixtures_1852.php` imported (`php tmp/fixtures_1852.php`) →
+`PROJECT=1`, `SUITE_ROOT=3`, `SUITE_CHILD=4`, `SUITE_EMPTY=5`; logged in as `admin/admin`; app at
+`http://localhost:8082`. Forbidden pattern is the global `$g_ereg_forbidden = "/[|]/i"`
+(`config.inc.php:2288`), i.e. only `|` is forbidden.
+
+1. **Helper is correct (unit, CLI, real repo code).** *Steps:*
+   `php -r "require 'config.inc.php'; require 'lib/functions/common.php';
+   var_dump(check_string('SU52 Child v2','/[|]/i'), check_string('has|pipe','/[|]/i'));"`.
+   *Expected:* `1` for the clean name (check ok), `0` for the pipe name.
+   *Actual:* `int(1)` / `int(0)`. **PASS.**
+2. **Clean name update (pre-fix symptom: 400 bad_chars).** *Steps:* as admin, `POST
+   /api/suiteedit/index.php?action=update` with body
+   `{"tproject_id":1,"suite_id":4,"name":"SU52 Child v2","details":"d"}`.
+   *Pre-fix actual (ad29e1086):* HTTP **400** `{"code":"bad_chars"}` — every valid name rejected.
+   *Expected post-fix:* HTTP **200** `{"status":"ok","name":"SU52 Child v2"}`.
+   *Actual post-fix:* HTTP **200**, `{"status":"ok","message":"Test suite updated","id":4,
+   "name":"SU52 Child v2","parent_id":3}`. **PASS.**
+3. **Forbidden char is rejected (must stay 400).** *Steps:* same route with
+   `"name":"has|pipe"`. *Expected:* HTTP **400** `{"code":"bad_chars"}`.
+   *Actual:* HTTP **400** `{"status":"error","code":"bad_chars","message":"The name contains
+   forbidden characters"}`. **PASS.**
+4. **Empty name.** *Steps:* `"name":""`. *Expected:* HTTP **400** `{"code":"empty_name"}`.
+   *Actual:* HTTP **400** `{"code":"empty_name","message":"Test suite name is required"}`. **PASS.**
+4b. **Over-long name.** *Steps:* `"name":"x"*101`. *Expected:* HTTP **400** `{"code":"name_too_long"}`.
+   *Actual:* HTTP **400** `{"code":"name_too_long"}`. **PASS.**
+4. **Create with a clean name.** *Steps:* `POST ?action=create` with
+   `{"tproject_id":1,"parent_id":5,"name":"SU52 New Child","details":"d"}`.
+   *Expected:* HTTP **200** `{"status":"ok","created":true}` (id returned).
+   *Actual:* HTTP **200**, `id=11`, `created:true`, `name":"SU52 New Child"`. **PASS.**
+5. **Create with a forbidden char.** *Steps:* same route with `"name":"bad|name"`.
+   *Expected:* HTTP **400** `{"code":"bad_chars"}`. *Actual:* HTTP **400** `{"code":"bad_chars"}`. **PASS.**
+6. **Other `check_string()` call sites unchanged.** *Steps:* inspect `grep -n check_string` —
+   `containerEdit.php:203`, `testproject.class.php:893/917`, `api/projectinfo/index.php:426` all use
+   `!check_string(...)`, and `api/suiteedit/index.php` now matches them. *Expected:* every caller
+   rejects on `0` (forbidden) and accepts on `1` (ok). *Actual:* polarity consistent; helper untouched. **PASS.**
+7. **Event Viewer clean (rule 12).** *Steps:* `SELECT id,event,level FROM events ORDER BY id DESC LIMIT 10`.
+   *Actual:* only login/audit rows, **no** Error/Warning entries. **PASS.**
+8. **MANDATORY GATE for this suite.** *Steps:*
+   `TLU_REQUIRE_SUITE="Issue #1854" bash ai/verify_test_suites.sh`.
+   *Expected:* EXIT=0 with the own-suite-heading check passing. *Actual:* recorded in the final
+   checkpoint comment on issue #1854. **PASS.**
