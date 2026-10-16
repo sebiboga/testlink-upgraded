@@ -1,14 +1,14 @@
 # Execution History (execHistory) — Modernized
 
 ## Overview
-The Execution History popup shows the full set of executions for a given test case across accessible test plans. The legacy Smarty popup (`lib/execute/execHistory.php`) was replaced by a modern Dashio standalone screen backed by a REST BFF. A session-guarded redirect shim forwards authenticated users to the modern screen.
+The Execution History popup shows the full set of executions for a given test case across accessible test plans. The legacy Smarty popup (`lib/execute/execHistory.php`) was replaced by a modern Dashio standalone screen backed by a REST BFF. The legacy redirect shim and the dead `gui/templates/dashio/execute/execHistory.tpl` were **deleted** (Refs #1139); the modern screen URL is canonical and the old URL answers 404.
 
-Refs: #1806
+Refs: #1806 (modernization), #1139 (legacy deletion)
 
 ## Architecture (2.0.1)
 - Modern UI: `gui/templates/execute/execHistory.html`
 - BFF API: `api/execute/index.php?action=history&tcase_id=N[&only_active_test_plans=0|1]`
-- Legacy shim: `lib/execute/execHistory.php`
+- Legacy shim: `lib/execute/execHistory.php` — **deleted in Refs #1139**
 - Callers: `gui/javascript/testlink_library.js::openExecHistoryWindow()` opens modern HTML
 
 ## Features

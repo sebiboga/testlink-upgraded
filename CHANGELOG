@@ -342,6 +342,21 @@ Every screen of the application was ported one-by-one in a screen-compare
   `executions.notes` + `cfield_execution_values`, 400/401/403/404 matrix, legacy deep
   link 302, legacy POST 405 JSON; Event Viewer clean (AUDIT only). (Refs #1911)
 
+- [CLEANUP] - #1139: the legacy **Execution History** chain is deleted now that the
+  #1138 parity verification is locked. Removed `lib/execute/execHistory.php` (36 L — the
+  #1806 session-guarded 302 shim onto the modern popup), `gui/templates/dashio/execute/
+  execHistory.tpl` (207 L — the dead Smarty/ExtJS popup) and `lib/execute/getExecNotes.php`
+  (166 L — the #1807 notes fragment shim, whose every byte came in-process from
+  `api/execnotesreadonly`). The removed URLs now answer 404; the modern stack
+  (`execute/execHistory.html` + `api/execute?action=history`,
+  `execNotesReadonly.html` + `api/execnotesreadonly`, child popups `editExecution.html` /
+  `execPrint.html`) is untouched and re-verified end-to-end (filters, active-plans server
+  call, details notes, edit/print popups, never-executed warnbox, tcView entry point,
+  EN↔RO switch, 0 console errors, Event Viewer clean); suite `Issue #1139` 20/20 PASS.
+  The 5 legacy `url2load()` call sites of the deleted shim all live in never-rendered
+  templates; `dashio/execute/getExecNotes.tpl` and the `tl-classic` copies stay behind as
+  documented dead code. Refs #1139.
+
 - [CLEANUP] - #1125: the retired legacy Builds & Releases cluster is deleted now that
   all three gating gaps are CLOSED (#1122 design-time custom fields, #1123 event-history
   icon, #1124 closed_on_date display). Removed `lib/plan/buildView.php` (81) +

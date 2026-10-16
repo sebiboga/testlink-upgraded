@@ -3,10 +3,14 @@
 ## Overview
 The legacy read-only Execution Notes viewer (`lib/execute/getExecNotes.php` +
 `gui/templates/dashio/execute/getExecNotes.tpl`) was replaced by a modern Dashio
-standalone screen backed by a REST BFF. The legacy controller survives only as a
-non-mutating shim: a browser navigation is redirected to the modern screen, and
-the AJAX fragment contract the old `url2load()` call sites rely on is served by
-the BFF with the same authorization, escaping and status codes.
+standalone screen backed by a REST BFF. The legacy controller was a
+non-mutating shim and has since been **deleted** (Refs #1139, cleanup of the
+Execution History chain): a browser navigation went straight to the modern
+screen, and every byte of the AJAX fragment the old `url2load()` call sites
+relied on was produced in-process by the BFF with the same authorization,
+escaping and status codes. The `?action=fragment` route itself is kept
+(same-origin gated) so the contract survives, but no in-repo caller reaches it
+any more — those templates are never rendered.
 
 Deep link: `gui/templates/execute/execNotesReadonly.html?exec_id=<execution id>`
 
@@ -17,8 +21,9 @@ Refs: #1807 (screen), #1808 (security fix of the legacy controller)
   meta grid, no Smarty, no web editor)
 - BFF API: `api/execnotesreadonly/index.php?action=view&exec_id=N` (JSON) and
   `?action=fragment&exec_id=N` (escaped `text/html`)
-- Legacy shim: `lib/execute/getExecNotes.php` (302 for browser navigation; in-process
-  call into the BFF for the XHR fragment)
+- Legacy shim: `lib/execute/getExecNotes.php` — **deleted in Refs #1139** (it
+  only ever 302'd browser navigations here and `require`d this BFF in-process
+  for the XHR fragment)
 - Canonical action: `$actions->execNotesReadonly` in `lib/functions/common.php`
 - i18n: 29 `enro.*` keys in all ten bundles `gui/templates/i18n/{en,ro,de,fr,es,it,pt,ru,ja,zh}.json`
 

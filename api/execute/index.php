@@ -4,7 +4,9 @@
  * URL: /api/execute/
  * Plain PHP, no framework, no compilation
  *
- * Mirrors lib/execute/execHistory.php (TestLink 1.9.20):
+ * Mirrors lib/execute/execHistory.php (TestLink 1.9.20 - controller deleted in
+ * Refs #1139 after the Refs #1138 parity verification; this API is the only
+ * implementation now):
  * lists ALL executions of one test case (every version), filtered by the
  * test plans the current user can access, with notes, execution-level
  * custom fields, attachments and linked bugs per execution.

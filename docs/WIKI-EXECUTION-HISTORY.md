@@ -76,7 +76,12 @@ operations open the legacy screens" although the edit button now opens the
 modernized `editExecution.html` — updated to "Use a row's edit button to
 update execution notes" in all 10 locale bundles.
 
-**Cleanup:** legacy files `lib/execute/execHistory.php`,
-`gui/templates/dashio/execute/execHistory.tpl` and
-`lib/execute/getExecNotes.php` retire with issue #1139 (all entry points
-already route to the modern screen).
+**Cleanup DONE (Refs #1139):** the legacy files `lib/execute/execHistory.php`
+(36 L 302 redirect shim), `gui/templates/dashio/execute/execHistory.tpl` (207 L,
+dead Smarty popup) and `lib/execute/getExecNotes.php` (166 L fragment shim) are
+**deleted** — all entry points already route to the modern screen, and every
+byte the notes shim ever returned came from `api/execnotesreadonly`. The removed
+URLs now answer 404; the modern screen, its child popups
+(`editExecution.html`, `execPrint.html`), the read-only notes viewer and the
+`api/execute` / `api/execnotesreadonly` BFFs are unaffected (browser + curl
+verified, 20/20 test cases PASS, Event Viewer clean).

@@ -3,17 +3,22 @@
  * api/execnotesreadonly — read-only Execution Notes viewer BFF (Refs #1807)
  *
  * Replaces the legacy read-only Execution Notes page
- * (lib/execute/getExecNotes.php + gui/templates/dashio/execute/getExecNotes.tpl),
- * which is still loaded as an AJAX fragment by 5 legacy call sites:
+ * (lib/execute/getExecNotes.php + gui/templates/dashio/execute/getExecNotes.tpl).
+ * The CONTROLLER was deleted in Refs #1139 (cleanup of the Execution History
+ * chain, after #1138 verified full parity); only the orphaned .tpl copies
+ * remain as dead files. Before that, FIVE distinct legacy templates carried its
+ * `url2load()` call site (all never rendered - their renderers are
+ * lib/execute/execHistory.php, also deleted in Refs #1139, and
+ * lib/execute/execSetResults.php, a GET/HEAD-only 302 shim; there is no
+ * gui/templates/tl-classic/execute/include/ directory at all). Four dead
+ * templates still carry the line today:
  *   gui/templates/dashio/execute/include/execSetResultsUtils.inc.tpl
  *   gui/templates/dashio/execute/include/execSetResultsJS.inc.tpl
- *   gui/templates/dashio/execute/execHistory.tpl
- *   gui/templates/tl-classic/execute/include/execSetResultsUtils.inc.tpl
  *   gui/templates/tl-classic/execute/execSetResults.tpl
  *   gui/templates/tl-classic/execute/execHistory.tpl
+ *   (the fifth, gui/templates/dashio/execute/execHistory.tpl, was deleted with
+ *   the controller in Refs #1139)
  * all as `url2load=fRoot+'lib/execute/getExecNotes.php?readonly=1&exec_id=' + exec_id`.
- * (Six files carry the line; `tl-classic/execute/include/execSetResultsJS.inc.tpl`
- * does not exist, so the count of DISTINCT call sites is 5.)
  *
  * Routes (both safe verbs only - this endpoint NEVER writes):
  *   GET|HEAD ?action=view&exec_id=N     -> JSON payload for the modern screen
@@ -106,15 +111,16 @@ function enro_fail($status, $code, $message) {
  * Require a same-origin caller for action=fragment (Refs #1808).
  *
  * Semantics follow the shared guard api/_guard.php:126-145
- * (bffSameOriginGuard), which the private check in lib/execute/getExecNotes.php
- * mirrors and is SLIGHTLY STRICTER than - it requires EVERY present header to
- * match, while this function (and bffSameOriginGuard) returns on the first
- * match. The only combination where the two answers differ is a same-origin
- * `Origin` paired with a FOREIGN `Referer`, and there the shim - which runs
- * first and `require`s this file - is the stricter one, so the effective verdict
- * never changes and the 5 legacy call sites cannot break. Not exploitable
- * either way: a cross-origin browser always presents a foreign `Origin` first,
- * and a matching `Origin` already means the caller is same-origin.
+ * (bffSameOriginGuard). The deleted shim lib/execute/getExecNotes.php
+ * (Refs #1139) mirrored this check and was SLIGHTLY STRICTER than it - it
+ * required EVERY present header to match, while this function (and
+ * bffSameOriginGuard) returns on the first match. The only combination where
+ * the two answers differed was a same-origin `Origin` paired with a FOREIGN
+ * `Referer`, and there the shim - which ran first and `require`d this file -
+ * was the stricter one, so the effective verdict never changed and the 5
+ * legacy call sites could not break. Not exploitable either way: a
+ * cross-origin browser always presents a foreign `Origin` first, and a
+ * matching `Origin` already means the caller is same-origin.
  *
  *   - a PRESENT Origin OR Referer is AUTHORITATIVE: unparseable (file://, a
  *     malformed host, a "null" origin) or foreign -> 403 outright, and the XRW
@@ -220,8 +226,9 @@ if ($action !== 'view' && $action !== 'fragment') {
 // for innerHTML (5 legacy url2load() call sites). bffSameOriginGuard() above is a
 // WRITE-VERB guard and returns immediately for GET/HEAD, so on this read-only
 // endpoint it never ran - the requirement was enforced only inside the shim
-// lib/execute/getExecNotes.php, i.e. only for callers that happened to use that
-// URL, while this route produced the SAME bytes with no check at all.
+// lib/execute/getExecNotes.php (deleted in Refs #1139), i.e. only for callers
+// that happened to use that URL, while this route produced the SAME bytes with
+// no check at all.
 //
 // action=view is deliberately NOT gated: it is JSON, its only caller is the
 // same-origin $.getJSON at gui/templates/execute/execNotesReadonly.html:169, and
@@ -401,6 +408,8 @@ echo json_encode(array(
         'platform_name' => isset($auditRow['platform_name']) ? (string)$auditRow['platform_name'] : '',
     ),
     'legacy' => array(
+        // provenance of the pre-modern view; that controller was deleted in
+        // Refs #1139 - this key is kept so old consumers keep their contract.
         'controller' => 'lib/execute/getExecNotes.php',
         'params' => '?readonly=1&exec_id=' . $execId,
         'status_char' => isset($row['status']) ? (string)$row['status'] : '',

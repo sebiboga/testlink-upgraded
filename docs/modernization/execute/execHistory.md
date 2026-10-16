@@ -1,14 +1,14 @@
 # Execution History (execHistory) — Modernized
 
 ## Overview
-The Execution History popup (`execHistory`) shows the full set of executions for a given test case across accessible test plans. The legacy Smarty popup (`lib/execute/execHistory.php`) was replaced by a modern Dashio standalone screen backed by a REST BFF. A session-guarded redirect shim in the legacy controller forwards authenticated users to the modern screen; anonymous deep links are sent to the login screen.
+The Execution History popup (`execHistory`) shows the full set of executions for a given test case across accessible test plans. The legacy Smarty popup (`lib/execute/execHistory.php`) was replaced by a modern Dashio standalone screen backed by a REST BFF. The legacy controller survived for a while as a session-guarded redirect shim (anonymous deep links went to the login screen) and has since been **deleted** (Refs #1139) together with the dead `gui/templates/dashio/execute/execHistory.tpl`; the removed URL now answers 404 and the modern screen URL is canonical.
 
-Refs: #1806
+Refs: #1806 (modernization), #1139 (legacy deletion)
 
 ## Architecture (2.0.1)
 - Modern UI: `gui/templates/execute/execHistory.html` (Dashio look & feel, DataTables not used; client-side filtering/rendering)
 - BFF API: `api/execute/index.php?action=history&tcase_id=N[&only_active_test_plans=0|1]`
-- Legacy shim: `lib/execute/execHistory.php` (redirects to modern UI preserving `tcase_id`, `tproject_id`, `onlyActiveTestPlans`)
+- Legacy shim: `lib/execute/execHistory.php` — **deleted in Refs #1139** (it redirected to the modern UI preserving `tcase_id`, `tproject_id`, `onlyActiveTestPlans`)
 - Callers switched: `gui/javascript/testlink_library.js::openExecHistoryWindow()` now opens `gui/templates/execute/execHistory.html`
 
 ## Behavior / Features
@@ -20,7 +20,7 @@ Refs: #1806
 - API returns `neverExecuted` flag, `displayPlatformCol`, full execution objects with status codes/labels, tester info, edit-notes grants per test plan.
 
 ## Permissions / Edge Cases
-- Session required for popup content (legacy init behavior preserved). Anonymous users hitting legacy shim land on login.
+- Session required for popup content (legacy init behavior preserved). Anonymous users hitting the old legacy shim URL were bounced to login; that URL is deleted now (Refs #1139) and answers 404.
 - `can_edit_notes` is granted per test plan based on `exec_edit_notes` right on owning project.
 - Deleted testers rendered as localized "deleted user".
 - `neverExecuted` case: executions list empty, header still shows test case info.

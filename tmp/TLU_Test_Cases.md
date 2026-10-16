@@ -10541,3 +10541,32 @@ that drives the Assigned-To column, matching legacy `setting_build` behaviour.
 | 8 | (h) `php -l api/plans/index.php` | No syntax errors | PASS |
 
 **Actual result: 8/8 PASS.**
+
+## Task — Issue #1139: delete legacy Execution History (execHistory.php + execHistory.tpl + getExecNotes.php)
+
+**Precondition** — fresh DB; `php tmp/fixtures_1139.php` creates project 1 `EHDemo` (prefix `EHC`), plan 2 `EHDemo Plan`, build 1 `EHDemo Build 1`, suite 3, test cases 4 `EHC TC One` (3 executions id 1/2/3 = p/f/b, execution 1 has notes "First pass - legacy notes AJAX regression probe.") and 6 `EHC TC Never` (never executed). Login `admin/admin` at `http://localhost:8082`. Legacy files already deleted on branch `task/issue-1139`.
+
+| # | Step | Expected | Actual |
+|---|---|---|---|
+| 1 | `GET /lib/execute/execHistory.php?tcase_id=4` (authenticated) | 404 (file deleted; was 302 → modern screen) | **PASS** — 404 |
+| 2 | `GET /lib/execute/getExecNotes.php?readonly=1&exec_id=1` (XHR + browser + no session) | 404 in all three modes (was XHR 200 fragment / browser 302 / 401) | **PASS** — 404/404/404 |
+| 3 | `GET /gui/templates/dashio/execute/execHistory.tpl` | 404 (template deleted) | **PASS** — 404 |
+| 4 | Open `/gui/templates/execute/execHistory.html?tcase_id=4&tproject_id=1` | 200, title `EHC-1 - Execution History`, `Executions(3)`, Build/Tester/Status/Date filters, per-row details/print/edit buttons, 0 console messages | **PASS** — verified in browser (screenshot `docs/screenshots/issue-1139-exechist-after-cleanup.png`) |
+| 5 | Status filter = `Failed` → `Apply` | `Executions(1)` (only the failed row) | **PASS** — `Executions(1)` |
+| 6 | `Reset` | rows restored to `Executions(3)` | **PASS** — `Executions(3)` |
+| 7 | Build filter = `EHDemo Build 1` → `Apply` | `Executions(3)` (the only build holds all executions) | **PASS** — `Executions(3)` |
+| 8 | Check `Display only active test plans` → `Apply` | real server call `api/execute/index.php?action=history&tcase_id=4&only_active_test_plans=1` (200) and `Executions(3)` (plan active) | **PASS** — request issued, `Executions(3)` |
+| 9 | Expand row details on the PASSED row | `EXECUTION NOTES` card shows "First pass - legacy notes AJAX regression probe." (served by modern `api/execnotesreadonly`, not the deleted AJAX) | **PASS** — text present (screenshot `issue-1139-exechist-details-after-cleanup.png`) |
+| 10 | Row `Edit execution notes` button | opens modern popup `editExecution.html?exec_id=1&tcversion_id=5&tplan_id=2&tproject_id=1` with the notes loaded in the editor | **PASS** — popup opened, notes pre-filled |
+| 11 | Row `Print preview` button | opens modern popup `execPrint.html?id=1` | **PASS** — popup opened |
+| 12 | `Refresh` button | re-fetches the same `Executions(3)`, 0 console errors | **PASS** — `Executions(3)` |
+| 13 | Open `execHistory.html?tcase_id=6` (never executed) | `Executions(0)` + `exechist.neverExecuted` warnbox ("Never…"), no raw i18n keys | **PASS** — `Executions(0)` + warnbox |
+| 14 | `tcView.html?tcase_id=4` → `Execution History` toolbar button | opens the modern popup `execHistory.html?tcase_id=4&tproject_id=1` | **PASS** — popup opened |
+| 15 | Deep-link `execNotesReadonly.html?exec_id=1` (direct entry point, legacy 302 path gone) | renders read-only notes "First pass - legacy notes AJAX regression probe.", no raw `enro.*` keys | **PASS** |
+| 16 | Locale switch EN → `Română` → back to `English` on `execHistory.html` | localized labels (`Istoric execuții`), **zero raw i18n keys** in both locales, page reloads with `?locale=ro`/`?locale=en` | **PASS** — `rawKeys: []` both ways |
+| 17 | `php -l` on touched PHP (`api/execnotesreadonly`, `api/execnotes`, `api/execute`, `lib/functions/common.php`) | no syntax errors | **PASS** — 4/4 clean |
+| 18 | Repo grep after deletion for `lib/execute/execHistory.php` / `getExecNotes.php` | only "deleted in Refs #1139" provenance comments + inert `legacy.controller` JSON key + dead `tl-classic/`/`execSetResults*` templates; no live require/include/link | **PASS** |
+| 19 | `events` table after the whole pass | 0 rows with `log_level <= 2` (no Error/Warning) | **PASS** — `count = 0`; 3 INFO/AUDIT rows only |
+| 20 | `GET /api/execute/?action=history`, `/api/execnotesreadonly/?action=view`, `/api/execnotes/1` | all 200 (modern BFF stack unaffected) | **PASS** — 200/200/200 |
+
+**Result: 20/20 PASS.**

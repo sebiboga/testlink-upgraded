@@ -2954,13 +2954,16 @@ function getActions(&$gui,$baseURL) {
     // #1024. Opens as a standalone Dashio page fed by api/executeexport.
     $actions->execExport =
       "/gui/templates/execute/execExport.html?{$ctx}";
-    // Execution Notes popup (modernized execNotes.php / getExecNotes.php,
-    // Refs #1551). Standalone Dashio page fed by api/execnotes; deep-link
+    // Execution Notes popup (modernized execNotes.php, Refs #1551; its legacy
+    // view twin getExecNotes.php was deleted in Refs #1139). Standalone Dashio
+    // page fed by api/execnotes; deep-link
     // with exec_id=<execution id> to view/edit the free-form notes.
     $actions->execNotesView =
       "/gui/templates/execute/execNotes.html?{$ctx}";
     // Execution Notes READ-ONLY viewer (modernized lib/execute/getExecNotes.php,
-    // Refs #1807). Standalone Dashio page fed by api/execnotesreadonly, which
+    // Refs #1807; that controller was deleted in Refs #1139 - the deep link
+    // below IS the entry point now). Standalone Dashio page fed by
+    // api/execnotesreadonly, which
     // authorizes the OWNING test project and flattens the stored RichEdit blob
     // to escaped plain text. Deep-link with exec_id=<execution id>.
     // Opened WITHOUT exec_id it now hands over to the picker below instead of

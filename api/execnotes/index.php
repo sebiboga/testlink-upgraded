@@ -3,7 +3,8 @@
  * api/execnotes — Execution Notes BFF (Refs #1551)
  *
  * Replaces the legacy standalone Execution Notes flow
- * (lib/execute/execNotes.php = edit, lib/execute/getExecNotes.php = view).
+ * (lib/execute/execNotes.php = edit, lib/execute/getExecNotes.php = view - the
+ * view controller was deleted in Refs #1139, its fragment contract now ends here).
  *
  * Routes:
  *   GET  /api/execnotes/{exec_id}  -> execution + notes (readonly view)
