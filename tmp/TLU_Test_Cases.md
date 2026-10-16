@@ -13528,3 +13528,39 @@ fixture used one of each so the equal counts hid it). (2) `strategyReport.html:2
 `TLi18n.t('strat.loading')` for the spinner but the key existed in no bundle, so the raw key flashed
 on every load; the `[data-i18n]` sweep in case 1925-17 could not see it. (3) `invalid_parameter`
 was unmapped in `stateFor` (`_guard.php` can emit it).
+
+## Regression — Issue #1924: CHANGELOG lost 1171 lines / 53 issue refs to d6b3b860a clobber
+
+**Scope:** `CHANGELOG` is the rule-22 evidence ledger; commit `d6b3b860a`
+(`# Conflicts: CHANGELOG`) resolved a rebase conflict by taking the incoming side
+wholesale, deleting 10 hunks / 1171 lines and dropping 53 unique issue refs.
+
+**Precondition:** repo checkout at/after `9a9ca6b51` (broken baseline). DB not required —
+pure git/file ledger. Script `ai/verify_changelog_coverage.sh` (part-2 gate) if present.
+
+**Cases:**
+
+- **1924-01 (pre-fix repro) — 53 refs absent.** `comm -23 <(git show d6b3b860a^:CHANGELOG |
+  grep -oE "#[0-9]{3,4}"|sort -u) <(grep -oE "#[0-9]{3,4}" CHANGELOG|sort -u) | wc -l`.
+  **Pre-fix expected:** `53`. **Pre-fix actual:** `53` (bug reproduced).
+- **1924-02 (pre-fix) — clobber numstat.** `git show d6b3b860a --numstat -- CHANGELOG`
+  → `4 1171`. `grep -cE '^@@'` of that diff → `10`. **actual:** matches.
+- **1924-03 (post-fix) — all 53 restored.** Re-run 1924-01 against the fixed `CHANGELOG`.
+  **expected** `0` missing. **actual** `0`.
+- **1924-04 (post-fix) — ref-set delta == +53.** `grep -oE '#[0-9]{3,4}' CHANGELOG|sort -u|wc -l`
+  vs baseline `9a9ca6b51:CHANGELOG`. **expected** `788` vs `735` (+53). **actual:** `788 / 735`.
+- **1924-05 (post-fix) — spot-check formerly-lost refs.** `grep -c 1883/1844/1839/1065/1107 CHANGELOG`.
+  **expected** each `>=1`. **actual** all `>=1` (was `0` pre-fix).
+- **1924-06 (post-fix) — no post-clobber entry dropped.** Every non-blank line of baseline
+  `9a9ca6b51:CHANGELOG` must survive. **expected** only the 3 clobber-insert partial re-wraps
+  absent (their full entries survive from the pre-image). **actual:** exactly those 3, 0 others.
+- **1924-07 (post-fix) — no merge-introduced duplicates.** Per non-blank line,
+  `count(final) <= max(count(pre), count(base))`. **expected** `0` violations. **actual** `0`.
+- **1924-08 (post-fix) — legitimate post-clobber deletions respected.**
+  `grep -c '117 standalone HTML screens' CHANGELOG` (deleted *after* the clobber).
+  **expected** `0` (stays deleted, not resurrected). **actual** `0`.
+- **1924-09 (post-fix) — integrity.** No `<<<<<<<`/`>>>>>>>`/`^=======$` markers; file parses;
+  `2026-… (issue #N)` date rows `1 -> 5`. **expected** markers `0`, date rows `5`.
+  **actual:** markers `0`, date rows `5`.
+
+**Result: 9/9 PASS.** Verified against commit `71be8476eab5ee7b2def3774f8e7f1948305d962`.
