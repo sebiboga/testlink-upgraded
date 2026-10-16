@@ -25,8 +25,9 @@ Every screen of the application was ported one-by-one in a screen-compare
   merge-base was invisible (measured: `PASS` on a file missing 35 suites). Added **check 3 — history-wide
   clobber detection**: it locates the newest commit that REPLACED the file (`--numstat`: many deletions,
   few additions) and requires the candidate to contain its parent's suite headings, printing the
-  `git show <sha>^:…>>` recovery command; it never fails open (unrunnable outside a git clone is a FAIL,
-  not a PASS). Restored the 15 (`136fc4426`-era) and 35 (`a2f83249f`-era) suites still absent from
+  `git show <sha>^:…` recovery command; it fails closed on the paths it can evaluate (not a git
+  clone / shallow clone / no readable history ⇒ unrunnable, never a PASS). Restored the 15
+  (`136fc4426`-era) and 35 (`a2f83249f`-era) suites still absent from
   `sebiboga`, append-only (no line removed). Suite 14 cases, gate `8 PASS / 0 FAIL`. Refs #1849.
 
 - [KEY BUGFIX] - #1920: the modern **Add/Remove Test Cases** save

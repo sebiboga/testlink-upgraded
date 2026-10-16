@@ -334,10 +334,26 @@ fi
 #
 # Only the newest is enforced, and the file is append-only by rule 9, so the
 # newest destructive commit's pre-image is exactly the set the file must hold.
+#
+# KNOWN LIMITATION — `git log --numstat` prints no stat block for a merge commit,
+# so a clobber performed in the merge's own diff is invisible to check 3 (tracked
+# as a follow-up bug). A shallow clone is detected and reported unrunnable rather
+# than PASS. A candidate is only flagged when it actually DROPS headings vs its
+# parent, so a normal content edit cannot produce a false FAIL.
 if ! in_git_repo; then
   unrunnable "clobber check: not inside a git clone"
+elif git rev-parse --is-shallow-repository 2>/dev/null | grep -q true; then
+  # actions/checkout defaults to fetch-depth: 1; check 3 keys on history, so a
+  # truncated clone cannot support its claim. Fail (unrunnable), never PASS.
+  unrunnable "clobber check: shallow clone — suite-file history is truncated, cannot detect a clobber"
 else
   HIST_MIN_HEADINGS="${TLU_HIST_MIN_HEADINGS:-20}"
+  # Reject a non-numeric override: otherwise every numstat comparison prints
+  # "integer expression expected", takes the false branch, and check 3 silently
+  # reports "no destructive commit" (fail-open with warning spam).
+  case "$HIST_MIN_HEADINGS" in
+    ''|*[!0-9]*) HIST_MIN_HEADINGS=20 ;;
+  esac
   db3="${TLU_DEFAULT_BRANCH:-}"
   if [ -z "$db3" ]; then
     db3="$(git symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null | sed 's|^origin/||')"
@@ -351,7 +367,7 @@ else
   hist_raw=""
   for r in HEAD "origin/$db3"; do
     git rev-parse --verify --quiet "$r" >/dev/null 2>&1 || continue
-    hist_raw="$hist_raw$(git log --format='C %H' --numstat "$r" -- "$SUITE_RELPATH" 2>/dev/null)
+    hist_raw="$hist_raw$(git log --format='C %H' --numstat "$r" -- ":/$SUITE_RELPATH" 2>/dev/null)
 "
   done
   hist_nostat="$(printf '%s\n' "$hist_raw" | grep -c $'^[0-9][0-9]*\t' 2>/dev/null)"
@@ -384,7 +400,7 @@ else
   hist_parent=""
   hist_before=0
   hist_after=0
-  hist_commits="$(git rev-list --count HEAD -- "$SUITE_RELPATH" 2>/dev/null)"
+  hist_commits="$(git rev-list --count HEAD -- ":/$SUITE_RELPATH" 2>/dev/null)"
   hist_commits="${hist_commits:-0}"
   for c in $clob_cands; do
     par="$(git rev-parse --verify --quiet "$c^" 2>/dev/null)"
@@ -398,7 +414,7 @@ else
     ha="$(git show "$c:$SUITE_RELPATH" 2>/dev/null | grep -cE "$H")"
     hb="${hb:-0}"; ha="${ha:-0}"
     # Confirm with real heading counts, not the numstat heuristic.
-    if [ "$hb" -ge "$HIST_MIN_HEADINGS" ] && [ "$ha" -lt $((hb / 2)) ]; then
+    if [ "$hb" -ge "$HIST_MIN_HEADINGS" ] && [ "$ha" -lt "$hb" ]; then
       hist_head="$c"; hist_parent="$par"; hist_before="$hb"; hist_after="$ha"
       break
     fi
@@ -428,10 +444,10 @@ else
         hn=$(printf '%s\n' "$hist_lost" | grep -c .)
         bad "no suite lost vs the pre-image of the newest destructive commit $(git rev-parse --short "$hist_head") ($hn lost)"
         printf '%s\n' "$hist_lost" | head -20 | sed 's/^/          LOST: /'
-        printf '          that commit replaced the file (%s -> %s headings); APPEND the blocks, never rewrite the file:\n' \
+        printf '          that commit replaced the file (%s -> %s headings); APPEND the missing blocks, never rewrite the file:\n' \
           "$hist_before" "$hist_after"
-        printf '            git show %s^:%s >> %s\n' \
-          "$(git rev-parse --short "$hist_head")" "$SUITE_RELPATH" "$SUITE_RELPATH"
+        printf '            source them from: git show %s^:%s  (append only blocks whose ^## heading is absent; do NOT append the whole file)\n' \
+          "$(git rev-parse --short "$hist_head")" "$SUITE_RELPATH"
       fi
     fi
   fi

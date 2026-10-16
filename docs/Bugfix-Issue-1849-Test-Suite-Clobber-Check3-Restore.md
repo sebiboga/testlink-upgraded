@@ -22,7 +22,7 @@ This fix lands the remedy on the default branch and repairs what was still missi
    (`git add -f`) and a whole working-tree copy can be staged in one go — the *replace*
    half of the write/write race among ~5 CI workflows plus local agents.
 2. The mandated gate anchored its baseline to `git merge-base HEAD origin/<default>`
-   (`ai/verify_test_suites.sh:199-201`). A commit that clobbered the file is *already
+   (`ai/verify_test_suites.sh:224-227`). A commit that clobbered the file is *already
    inside* that merge-base, so baseline == candidate and the set-difference check 2a
    reports `0 lost`. Measured: `PASS` on a file that was missing 35 suites.
 
@@ -39,13 +39,15 @@ git log --format='C %H' --numstat <range> -- tmp/TLU_Test_Cases.md
 ```
 
 - candidates: `deletions >= TLU_HIST_MIN_HEADINGS (20) && additions*2 < deletions`
-- **confirmed** by real heading counts (parent ≥ 20 headings, commit kept < 50%), so a
-  heuristic false positive cannot fail the gate;
+- **confirmed** by real heading counts (parent ≥ 20 headings and the commit dropped
+  headings vs its parent), so a normal content edit cannot produce a false FAIL;
 - the candidate must still contain the newest confirmed commit's **parent** headings;
 - a failed check prints the exact recovery command:
-  `git show <sha>^:tmp/TLU_Test_Cases.md >> tmp/TLU_Test_Cases.md`;
-- it never fails open: no readable history ⇒ *unrunnable* (a FAIL unless `--allow-skip`),
-  not a PASS.
+  `git show <sha>^:tmp/TLU_Test_Cases.md` — append only the blocks whose `^## ` heading is
+  absent, do not append the whole file;
+- it never fails open on the paths it can evaluate: no git clone, a shallow clone, or no
+  readable history ⇒ *unrunnable* (a FAIL unless `--allow-skip`), not a PASS. Known gap: a
+  clobber performed in a **merge commit's own diff** is invisible to `--numstat` (follow-up bug).
 
 Only the **newest** replacement is enforced. Older ones belong to the retired
 `## N. Name (Suite ID: M)` heading scheme.
