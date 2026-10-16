@@ -17,6 +17,23 @@ Every screen of the application was ported one-by-one in a screen-compare
   kept for backward compatibility and is progressively retired as each modern
   screen reaches full parity.
 
+- [KEY BUGFIX] - #1926: the modern **Set Test Urgency** screen
+  (`gui/templates/plans/testUrgency.html`) left `window.tplanId === 0` on a bare project
+  deep-link (`?tproject_id=N`, no `tplan_id`): the BFF correctly normalizes the request to
+  the project's default plan and returns it as `r.tplan` (`api/plans/index.php:2417-2426`), but
+  `render()` only mirrored the id into the `<select>` and never assigned the module-level
+  `tplanId`, so the auto-selected first suite was fetched as
+  `GET /urgency/suite?tplan_id=0…` → `400 {"error_code":"NO_TPLAN"}` and the test-case table
+  stayed empty (suite list was already populated, making the screen look half-loaded). Fix: a
+  one-line assignment of the server-normalized id in the branch that already trusts it
+  (`tplanId = parseInt(r.tplan.id, 10)`); the full-link path and the `else` fallback are
+  unchanged. Blast radius checked: `planUpdateTC.html` / `platformsAssign.html` share the code
+  shape but their servers return `tplan:null` for a bare link, so they are not affected. Verified
+  on fixture `tmp/fixtures_1926.sql`: bare link now renders the default plan's suite and its test
+  cases (`tplanId=2`, 2 rows), suite click / plan switch / build selector / invalid `tplan_id`
+  fallback / radio save (`urgency 1→3` in `testplan_tcversions`) all PASS, no console errors,
+  Event Viewer clean. Regression suite "Regression — Issue #1926" 10 cases PASS. (Fixes #1926)
+
 - [KEY BUGFIX] - #1851: **`tmp/TLU_Test_Cases.md` — the largest suite-file clobber in the
   repo's history (`30aeecd0d`, 595 suite headings → 1, `+32/-26815`, subject
   "leftover changes from task-implementation run") was never detected and never repaired:
