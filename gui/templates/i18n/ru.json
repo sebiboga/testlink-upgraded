@@ -8089,5 +8089,12 @@
   "strat.serverErrorBody": "Не удалось создать отчёт. Повторите попытку.",
   "strat.nothingToExport": "Нечего экспортировать",
   "strat.exportDone": "Отчёт загружен",
-  "footers.strategyReport": "Отчёт о стратегии тестирования"
+  "footers.strategyReport": "Отчёт о стратегии тестирования",
+  "strat.secTooling": "6. Инструменты и интеграции",
+  "strat.trackerIssue": "Трекер задач",
+  "strat.trackerCode": "Трекер кода",
+  "strat.secTeam": "7. Команда и обязанности",
+  "strat.colUser": "Логин",
+  "strat.colName": "Имя",
+  "strat.colRole": "Роль"
 }

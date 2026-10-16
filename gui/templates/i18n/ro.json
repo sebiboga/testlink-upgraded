@@ -8089,5 +8089,12 @@
   "strat.serverErrorBody": "Raportul nu a putut fi generat. Vă rugăm încercați din nou.",
   "strat.nothingToExport": "Nimic de exportat",
   "strat.exportDone": "Raport descărcat",
-  "footers.strategyReport": "Raport de strategie de testare"
+  "footers.strategyReport": "Raport de strategie de testare",
+  "strat.secTooling": "6. Instrumente și integrări",
+  "strat.trackerIssue": "Tracker de probleme",
+  "strat.trackerCode": "Tracker de cod",
+  "strat.secTeam": "7. Echipa și responsabilități",
+  "strat.colUser": "Login",
+  "strat.colName": "Nume",
+  "strat.colRole": "Rol"
 }

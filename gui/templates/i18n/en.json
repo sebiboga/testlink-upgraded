@@ -8089,5 +8089,12 @@
   "strat.serverErrorBody": "The report could not be generated. Please try again.",
   "strat.nothingToExport": "Nothing to export",
   "strat.exportDone": "Report downloaded",
-  "footers.strategyReport": "Test Strategy Report"
+  "footers.strategyReport": "Test Strategy Report",
+  "strat.secTooling": "6. Tooling & integrations",
+  "strat.trackerIssue": "Issue tracker",
+  "strat.trackerCode": "Code tracker",
+  "strat.secTeam": "7. Team & responsibilities",
+  "strat.colUser": "Login",
+  "strat.colName": "Name",
+  "strat.colRole": "Role"
 }

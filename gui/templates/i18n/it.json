@@ -8089,5 +8089,12 @@
   "strat.serverErrorBody": "Impossibile generare il report. Riprova.",
   "strat.nothingToExport": "Niente da esportare",
   "strat.exportDone": "Report scaricato",
-  "footers.strategyReport": "Report strategia di test"
+  "footers.strategyReport": "Report strategia di test",
+  "strat.secTooling": "6. Strumenti e integrazioni",
+  "strat.trackerIssue": "Tracker dei problemi",
+  "strat.trackerCode": "Tracker del codice",
+  "strat.secTeam": "7. Team e responsabilità",
+  "strat.colUser": "Login",
+  "strat.colName": "Nome",
+  "strat.colRole": "Ruolo"
 }

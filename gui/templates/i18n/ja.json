@@ -8089,5 +8089,12 @@
   "strat.serverErrorBody": "レポートを生成できませんでした。再試行してください。",
   "strat.nothingToExport": "エクスポートする内容がありません",
   "strat.exportDone": "レポートをダウンロードしました",
-  "footers.strategyReport": "テスト戦略レポート"
+  "footers.strategyReport": "テスト戦略レポート",
+  "strat.secTooling": "6. ツールと統合",
+  "strat.trackerIssue": "課題トラッカー",
+  "strat.trackerCode": "コードトラッカー",
+  "strat.secTeam": "7. チームと役割",
+  "strat.colUser": "ログイン",
+  "strat.colName": "名前",
+  "strat.colRole": "ロール"
 }

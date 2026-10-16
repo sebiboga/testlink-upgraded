@@ -8089,5 +8089,12 @@
   "strat.serverErrorBody": "Der Bericht konnte nicht erstellt werden. Bitte versuchen Sie es erneut.",
   "strat.nothingToExport": "Nichts zu exportieren",
   "strat.exportDone": "Bericht heruntergeladen",
-  "footers.strategyReport": "Teststrategie-Bericht"
+  "footers.strategyReport": "Teststrategie-Bericht",
+  "strat.secTooling": "6. Tools und Integrationen",
+  "strat.trackerIssue": "Issue-Tracker",
+  "strat.trackerCode": "Code-Tracker",
+  "strat.secTeam": "7. Team und Verantwortlichkeiten",
+  "strat.colUser": "Login",
+  "strat.colName": "Name",
+  "strat.colRole": "Rolle"
 }

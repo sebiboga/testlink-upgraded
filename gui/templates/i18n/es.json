@@ -8089,5 +8089,12 @@
   "strat.serverErrorBody": "No se pudo generar el informe. Inténtelo de nuevo.",
   "strat.nothingToExport": "Nada que exportar",
   "strat.exportDone": "Informe descargado",
-  "footers.strategyReport": "Informe de estrategia de pruebas"
+  "footers.strategyReport": "Informe de estrategia de pruebas",
+  "strat.secTooling": "6. Herramientas e integraciones",
+  "strat.trackerIssue": "Rastreador de incidencias",
+  "strat.trackerCode": "Rastreador de código",
+  "strat.secTeam": "7. Equipo y responsabilidades",
+  "strat.colUser": "Usuario",
+  "strat.colName": "Nombre",
+  "strat.colRole": "Rol"
 }

@@ -8089,5 +8089,12 @@
   "strat.serverErrorBody": "无法生成报告。请重试。",
   "strat.nothingToExport": "没有可导出的内容",
   "strat.exportDone": "报告已下载",
-  "footers.strategyReport": "测试策略报告"
+  "footers.strategyReport": "测试策略报告",
+  "strat.secTooling": "6. 工具与集成",
+  "strat.trackerIssue": "问题跟踪器",
+  "strat.trackerCode": "代码跟踪器",
+  "strat.secTeam": "7. 团队与职责",
+  "strat.colUser": "登录名",
+  "strat.colName": "姓名",
+  "strat.colRole": "角色"
 }
