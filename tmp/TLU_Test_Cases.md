@@ -13408,3 +13408,52 @@ All 16 print options are checked by default, matching legacy effective default (
 All 16 print options are checked by default after fix. When generating document, all query params are y. Behavior matches legacy.
 
 PASS
+
+## Regression — Issue #1849: `tmp/TLU_Test_Cases.md` clobber — gate check 3 landed + the 50 lost suites (15 + 35) restored on `sebiboga`
+
+**Precondition / environment.** Repo `testlink-upgraded`; default branch `sebiboga`;
+`tmp/TLU_Test_Cases.md` is the shared append-only regression record (rule 9). Run
+from the repo root. No app/browser step is involved (only the suite file + the gate
+script change), so the app URL/DB are not exercised. The prior run's fix lived only
+on the orphaned `origin/fix/issue-1849` branch and never reached `sebiboga`.
+
+**Repro of the defect (pre-fix).**
+1. `git fetch origin`
+2. `git show origin/sebiboga:tmp/TLU_Test_Cases.md > /tmp/tip.md`
+3. `git show 136fc4426^:tmp/TLU_Test_Cases.md | grep -E '^## ' | sort -u > /tmp/pre.set`
+4. `comm -23 /tmp/pre.set <(grep -E '^## ' /tmp/tip.md | sort -u)` → **15 headings missing**.
+5. `git show a2f83249f^:tmp/TLU_Test_Cases.md | grep -E '^## ' | sort -u > /tmp/a2f.set`
+6. `comm -23 /tmp/a2f.set <(grep -E '^## ' /tmp/tip.md | sort -u)` → **35 headings missing**.
+7. `bash ai/verify_test_suites.sh` on the tip → old gate reports **PASS** (blind: the
+   loss is already inside the merge-base).
+8. `grep -c history-wide ai/verify_test_suites.sh` → **0** (check 3 absent on `sebiboga`).
+
+| # | case | command | expected (post-fix) | observed |
+|---|---|---|---|---|
+| 1849-01 | 15 pre-clobber suites restored | `comm -23 pre136.set after.set \| wc -l` | 0 | PASS (0) |
+| 1849-02 | 35 a2f83249f-clobbered suites restored | `comm -23 preA2F.set after.set \| wc -l` | 0 | PASS (0) |
+| 1849-03 | all a2f83249f-parent headings present | `comm -23 preA2F.set after.set` | empty | PASS |
+| 1849-04 | check 3 present in the shipped gate | `grep -c 'history-wide clobber detection' ai/verify_test_suites.sh` | 1 | PASS (1) |
+| 1849-05 | repaired file passes the new gate | `bash ai/verify_test_suites.sh` | 7 PASS / 0 FAIL / 1 SKIP, exit 0 | PASS |
+| 1849-06 | the file the OLD gate accepted now FAILS | `bash ai/verify_test_suites.sh /tmp/tip.md` | 1 FAIL (35 lost), exit 1 | PASS |
+| 1849-07 | gate names the newest destructive commit | output line | `clobber baseline: 8f5e4be39^ (49 headings) -> a2f83249f (1 headings)` | PASS |
+| 1849-08 | gate prints the recovery command | output line | `git show a2f83249f^:tmp/TLU_Test_Cases.md >> tmp/TLU_Test_Cases.md` | PASS |
+| 1849-09 | never fails open outside a git clone | from `/tmp`: `bash …/ai/verify_test_suites.sh /tmp/tip.md` | `FAIL … not inside a git clone` (not PASS) | PASS |
+| 1849-10 | `--help` documents check 3 + env vars | `bash ai/verify_test_suites.sh --help \| wc -l` | > 41 (was 40) ; observed 65 | PASS |
+| 1849-11 | restore is append-only (no line removed) | `git show --numstat <restore-commits> -- tmp/TLU_Test_Cases.md` | `865 0` and `1974 0` | PASS |
+| 1849-12 | fences balanced after append | `grep -c '^```' tmp/TLU_Test_Cases.md` | even (158) | PASS |
+| 1849-13 | no suite heading left without a body | awk body-count sweep | 0 | PASS |
+| 1849-14 | gate green with the mandatory suite check | `TLU_REQUIRE_SUITE="Issue #1849" bash ai/verify_test_suites.sh` | 8 PASS / 0 FAIL / 0 SKIP, exit 0 | PASS |
+
+**Expected (post-fix).** Both `136fc4426^`'s 88 pre-image headings and `a2f83249f^`'s 49
+pre-image headings are fully present in `tmp/TLU_Test_Cases.md`; the gate fails on any
+file still missing them and passes on the restored file.
+
+**Actual (post-fix).** All 14 cases PASS; `TLU_REQUIRE_SUITE="Issue #1849"
+bash ai/verify_test_suites.sh` → `8 PASS / 0 FAIL / 0 SKIP`, exit 0.
+
+**Notes.** Pre-existing (not introduced by this fix, out of scope): one duplicate
+heading `## Task — Issue #1134` already present on `sebiboga`. Enforcing only the
+NEWEST replacement is intentional — older ones use the retired `## N. Name (Suite ID: M)`
+scheme and a history-wide union baseline is unsatisfiable (measured 844 historical
+headings, 831 not losses).
