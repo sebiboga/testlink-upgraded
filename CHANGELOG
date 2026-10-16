@@ -17,6 +17,21 @@ Every screen of the application was ported one-by-one in a screen-compare
   kept for backward compatibility and is progressively retired as each modern
   screen reaches full parity.
 
+- [SCREEN] - #1062: the **Automation Test Reports** screen
+  (`gui/templates/results/automationReports.html`, BFF `api/automationreports/index.php`) is
+  added under the Reports menu. Net-new for 2.0.1: 1.9.20 shipped no automation reporting (automated
+  results landed in the same `executions` table as manual ones, never split by `execution_type`).
+  The BFF aggregates a plan's linked test-case versions by version `execution_type` (manual vs
+  automated) with the latest execution status, a manual-vs-automated coverage summary, a per-build
+  trend and a worklist (ID/suite/type/status/build/platform/last-exec/tester) with CSV export;
+  filters by build/platform; `testplan_metrics` on the owning test project (getAccess=true) mirrors
+  api/keywordbarchart. `cfg/reports.cfg.php` + `api/aside/index.php` add the Reports entry,
+  `$TLS_link_report_automation_reports` in all 19 server locales, `autom.*` (57) +
+  `footers.automationReports` client keys in all 10 bundles (en+ro translated;
+  `ai/verify_i18n_coverage.sh` 9/9 PASS). Verified with fixture `tmp/fixtures_1921.sql`
+  (4 linked versions, 2 manual + 2 automated, latest-wins, build filter, empty plan, 404/400/mismatch
+  states, Romanian locale, ASIDE entry, Event Viewer clean). Refs #1921.
+
 - [FEATURE] - #1135: the modern **Add / Remove Test Cases** screen
   (`gui/templates/plans/planAddTCView.html`) regains the legacy platform-scoped
   "Check/uncheck all Test cases for [platform] for [adding|removal]" bulk controls

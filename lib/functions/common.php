@@ -2500,6 +2500,15 @@ function getActions(&$gui,$baseURL) {
   // (cfg/reports.cfg.php entry + api/aside mapping) and via this action.
   $actions->perfReports = "/gui/templates/results/perfReports.html?{$ctx}";
 
+  // Refs #1062: Automation Test Reports (net-new screen). Aggregates a test
+  // plan's automated vs manual execution by automation type, per build, from
+  // the linked tcversions/executions (1.9.20 shipped no automation-reporting
+  // screen). Backed by the api/automationreports BFF, which enforces
+  // testplan_metrics on the owning project. Reachable from the Reports menu
+  // (cfg/reports.cfg.php entry + api/aside mapping) and via this action.
+  $actions->automationReports =
+    "/gui/templates/results/automationReports.html?{$ctx}";
+
   // Refs #1717: Test Cases not run on any Platform (tcNotRunAnyPlatform)
   // modernized. Refs #1718: the legacy controller
   // (lib/results/tcNotRunAnyPlatform.php, which required the removed

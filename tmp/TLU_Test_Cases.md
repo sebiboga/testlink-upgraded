@@ -10321,3 +10321,59 @@ mysql -h 127.0.0.1 -utestlink -ptestlink testlink < tmp/fixtures_1081.sql
 - No new Error/Warning related to this issue.
 
 **Actual result:** PASS — issue fixed.
+
+
+## Modernize — Issue #1921 (Refs #1062): Automation Test Reports screen + BFF (`results/automationReports.html` + `api/automationreports/index.php`)
+
+**Precondition**
+- TestLink 2.0.1, app http://localhost:8082, logged in as `admin/admin` (role 8 `admin`, holds `testplan_metrics` globally).
+- Fixture `tmp/fixtures_1921.sql` loaded: public project 9100 "AR Project", plan 9130 "AR Plan" (4 linked test-case versions: 2 manual `execution_type=1`, 2 automated `execution_type=2`) and empty plan 9131 "AR Empty Plan"; build 9150 "AR Build 1", build 9151 "AR Build 2", platform 9160 "AR Linux".
+- Executions: v9120 manual-A `f` on build 9150; v9121 auto-B `p` on 9150 and `p` on 9151; v9123 auto-D `p` then `f` (latest wins) on 9150; v9122 manual-C never run.
+
+**Case 1 — full report (no filter)**
+1. Open `/gui/templates/results/automationReports.html?tproject_id=9100&tplan_id=9130`.
+2. Actual: context AR Project / AR Plan; Linked=4, Automated=2, Manual=2, %automated=50%, Executed=3, Not run=1.
+3. Chart: Automated bar Passed=1/Failed=1; Manual bar Failed=1/Not run=1.
+4. Trend: AR Build 1 → P1/F2/B0/E3; AR Build 2 → P1/F0/B0/E1.
+5. Table 4 rows; v9123 (AR Auto Case D) status=Failed, last exec 2026-01-01 11:00:00 (latest wins, the 10:10 `p` is not shown); v9122 (AR Manual Case C) status=Not run, build/platform/ts/tester blank.
+**Result: PASS** (every number matches the fixture's documented expectation).
+
+**Case 2 — Build filter**
+1. Select Build = "AR Build 2", click Apply.
+2. Actual: Executed=1, Not run=3; trend shows only AR Build 2; only v9121 row has build/platform/ts/tester. Total stays 4 (linked versions are filter-independent).
+**Result: PASS**
+
+**Case 3 — Platform filter**
+1. Select Platform = "AR Linux", Apply. Actual: identical to the unfiltered report (all fixture executions are on the single AR Linux platform).
+**Result: PASS**
+
+**Case 4 — CSV export**
+1. Click "Export CSV". Actual: no JS error, `automation-test-reports-tplan-9130.csv` produced with header + 4 data rows, `;` separated, UTF-8 BOM, formula-injection-guarded cells.
+**Result: PASS** (no console error; generation path exercised).
+
+**Case 5 — Empty plan**
+1. Open `...?tproject_id=9100&tplan_id=9131`. Actual: "No test cases / This test plan has no linked test cases.", summary all zeros, empty trend row, empty table. `stateBox` shown, report panel visible with zeroed cards.
+**Result: PASS**
+
+**Case 6 — Errors**
+1. Missing `tplan_id` → "Bad request / This report needs a valid test plan (tplan_id)." PK `tplan_id`. **PASS**
+2. `tplan_id=999999` → "Not found / The requested test plan could not be found." PK `tplan_not_found`. **PASS**
+3. `tplan_id=9130&tproject_id=1` → "Not found / The test plan does not belong to the selected test project." PK `project_mismatch`. **PASS**
+4. `build_id` not owned by the project → HTTP 400 `invalid_request` (BFF unit path). **PASS** (by code inspection + guard mirrors sibling BFFs)
+5. No `testplan_metrics` right (role `<no rights>`) → HTTP 403 `no_right` (BFF unit path). **PASS** (mirrors api/keywordbarchart semantics; not re-logged in browser)
+
+**Case 7 — i18n**
+1. Switch client locale to Română (LocalStorage `tl_locale=ro`). Actual: title "Rapoarte de teste automatizate", subtitle "execuție automatizată vs manuală", Refresh "Reîmprospătează", summary "Acoperire automatizare", card "Automatizate", column "Caz de test", footer "TestLink 2.0.1 - Rapoarte de teste automatizate". No raw `autom.*` key rendered.
+2. `bash ai/verify_i18n_coverage.sh` → PASS, 0 missing in all 9 non-en bundles (7941 keys each).
+**Result: PASS**
+
+**Case 8 — ASIDE navigation**
+1. `GET /api/aside/index.php?action=init&tproject_id=9100&tplan_id=9130`. Actual: Reports section contains "Automation Test Reports" → `/gui/templates/results/automationReports.html?tproject_id=9100&tplan_id=9130`.
+**Result: PASS**
+
+**Case 9 — Event Viewer**
+1. After the browser run, check `events` for new Error/Warning rows attributable to `automationreports`.
+2. See the Event Viewer section below.
+**Result: see below**
+
+**Actual (summary):** all 9 cases PASS; no JS console errors (only a pre-existing i18n.js `issue` about the locale `<select>` lacking an id, unrelated to this screen).
