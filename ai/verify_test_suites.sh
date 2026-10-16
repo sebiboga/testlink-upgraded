@@ -333,7 +333,19 @@ fi
 # signature in --numstat (many deletions, few additions), so it can be located
 # in one pass:
 #
-#     git log --format='C %H' --numstat <range> -- tmp/TLU_Test_Cases.md
+#     git log -m --format='C %H' --numstat <range> -- tmp/TLU_Test_Cases.md
+#
+# `-m` (issue #1923): `git log` prints NO stat block for a merge commit unless
+# asked, so a whole-file overwrite performed in the merge's own diff used to be
+# invisible here — check 3 reported "no destructive commit" and the gate exited
+# 0 while the merge-base (check 2) already carried the clobber. `-m` splits each
+# merge into one diff per parent, so a destructive diff against the first parent
+# surfaces as an ordinary numstat block. `--first-parent` is deliberately NOT
+# used: it would stop following merged-branch history and drop plain destructive
+# commits that live on a merged branch (#1849/#1851 coverage). The real-heading
+# confirmation below only anchors a merge whose FIRST parent has >= the
+# threshold and whose result has FEWER headings, so a normal merge cannot
+# produce a false anchor.
 #
 # SINCE #1851 EVERY confirmed destructive commit is enforced, not only the newest
 # one. The pre-#1851 version stopped at the first (newest) match on the premise
@@ -348,11 +360,11 @@ fi
 # subset of the set the file must hold; a commit that DELETED the file
 # (a572b8c75) has no pre-image demand and is skipped by the existence guard.
 #
-# KNOWN LIMITATION — `git log --numstat` prints no stat block for a merge commit,
-# so a clobber performed in the merge's own diff is invisible to check 3 (tracked
-# as a follow-up bug). A shallow clone is detected and reported unrunnable rather
-# than PASS. A candidate is only flagged when it actually DROPS headings vs its
-# parent, so a normal content edit cannot produce a false FAIL.
+# A shallow clone is detected and reported unrunnable rather than PASS. A
+# candidate is only flagged when it actually DROPS headings vs its first parent,
+# so a normal content edit (or a normal merge) cannot produce a false FAIL.
+# Merge commits are diffed per parent via `-m`; that is what makes a clobber
+# performed in the merge's own diff visible (issue #1923).
 if ! in_git_repo; then
   unrunnable "clobber check: not inside a git clone"
 elif git rev-parse --is-shallow-repository 2>/dev/null | grep -q true; then
@@ -373,14 +385,15 @@ else
   fi
   [ -n "$db3" ] || db3="sebiboga"
 
-  # Raw history of the suite file as `git log` prints it: a "C <sha>" marker line
-  # before each commit's numstat block. Kept in a variable so the parse below can be
-  # sanity-checked against the same input — an extractor that silently yields nothing
-  # would turn this check into a permanent false PASS.
+  # Raw history of the suite file as `git log -m` prints it: a "C <sha>" marker
+  # line before each commit's numstat block (with -m a merge emits one block per
+  # parent, each prefixed by the same marker). Kept in a variable so the parse
+  # below can be sanity-checked against the same input — an extractor that
+  # silently yields nothing would turn this check into a permanent false PASS.
   hist_raw=""
   for r in HEAD "origin/$db3"; do
     git rev-parse --verify --quiet "$r" >/dev/null 2>&1 || continue
-    hist_raw="$hist_raw$(git log --format='C %H' --numstat "$r" -- ":/$SUITE_RELPATH" 2>/dev/null)
+    hist_raw="$hist_raw$(git log -m --format='C %H' --numstat "$r" -- ":/$SUITE_RELPATH" 2>/dev/null)
 "
   done
   hist_nostat="$(printf '%s\n' "$hist_raw" | grep -c $'^[0-9][0-9]*\t' 2>/dev/null)"
