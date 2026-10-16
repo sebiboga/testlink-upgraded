@@ -325,8 +325,7 @@ if (count($failedKeys) > 0) {
         "SELECT DISTINCT e.tcversion_id AS vid, e.platform_id AS pid, eb.bug_id AS bug
            FROM {$tables['execution_bugs']} eb
            JOIN {$tables['executions']} e ON e.id = eb.execution_id
-          WHERE e.testplan_id = " . intval($tplanId) . $buildWhere . $platformWhere .
-        ' AND eb.bug_id > 0');
+          WHERE e.testplan_id = " . intval($tplanId) . $buildWhere . $platformWhere);
     foreach ((array)$rsbug as $row) {
         $key = intval($row['vid']) . ':' . intval($row['pid']);
         $bug = (string)$row['bug'];
