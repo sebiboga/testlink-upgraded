@@ -42471,3 +42471,46 @@ with 1 TC); logged in as `admin/admin`; app at `http://localhost:8082`.
    - *Expected:* no new Error/Warning entries introduced
    - *Actual:* ___
    - *Status:* PASS/FAIL
+## Modernize — Issue #1064: CI/CD Automated Result Publishing (screen + BFF + i18n + reports wiring)
+
+- Tracking issue: #1064 (enhancement, "Enhancement: Add CI/CD integrations for automated test result publishing"). Refs #1064.
+- Screen: `gui/templates/results/cicdPublish.html` + BFF `api/cicdpublish/index.php` (init + publish actions).
+
+1. **Init returns OK context for the fixture plan.** *Steps:* login admin, GET `/api/cicdpublish/index.php?action=init&tproject_id=<tp>&tplan_id=<plan>`.
+   *Expected:* 200 `{status:ok, context:{id,name,tproject_id,tproject_name}, projects, plans, filters{builds,platforms}, formats{endpoint,limits}}`.
+   *Actual:* 200 OK; context for `C1 CI Run Plan` (tproject `CICD1064`), build `C1 build 1`, platform `C1 Chrome` resolved.
+
+2. **Publish JUnit XML with external ids.** *Steps:* POST `action=publish` multipart `tplan_id, build_id, platform_id, format=junit, uploadedFile=@junit.xml`.
+   *Expected:* 200 `{status:ok, summary:{total,published,skipped,errors}, rows}`; one execution inserted per resolved test.
+   *Actual:* 200 OK; summary total=4 / published=3 / skipped=1 / errors=0; rows carried correct status tokens (p/f/n) and outcomes.
+
+3. **External-id resolution + name fallback.** *Steps:* JUnit carrying `testlink.external_id` properties; plus a name-only test.
+   *Expected:* resolve by external id (`tc_external_id` numeric suffix) and fallback by plan test-case name.
+   *Actual:* external id `1` and `2` resolved; name-only `C1 Checkout works` (failure) resolved to published f.
+
+4. **Not-found handling.** *Steps:* JUnit containing a test with no matching test case.
+   *Expected:* outcome `not_found`, skipped++, no execution inserted.
+   *Actual:* `ghost` -> outcome not_found, skipped=1. **PASS.**
+
+5. **Missing file / bad format / bad XML.** *Steps:* publish without `uploadedFile`; publish `format=xml`; publish a non-JUnit file.
+   *Expected:* 400 missing_file / unsupported_format / 422 parse_error.
+   *Actual:* covered by BFF unit paths; publish-with-file returned 200. (missing_file/bad-format/bad-XML paths not re-run live this session.)
+
+6. **No right (permission).** *Steps:* login as a user without `testplan_execute` on the owning project, publish.
+   *Expected:* 403 no_right.
+   *Actual:* not re-verified live this session (admin holds the right).
+
+7. **Screen renders.** *Steps:* open `/gui/templates/results/cicdPublish.html?tproject_id=..&tplan_id=..` after admin login.
+   *Expected:* header, plan/build/platform pickers, publish form, connector guide, result tiles, result table.
+   *Actual:* screen rendered (snapshot), plan auto-selected from URL, build/platform populated after selection, guide cards + snippets rendered, footer i18n ok.
+
+8. **Publish via screen.** *Steps:* select build `C1 build 1`, platform `C1 Chrome`, upload junit.xml, click Publish results.
+   *Expected:* POST `action=publish`; summary tiles update (4/3/1/0); result table populated with status badges and outcome badges; toast.
+   *Actual:* click triggered publish -> summary 4/3/1/0, rows listed with Passed/Failed/Not run/Published, partial toast `Published 3 of 4; some tests were skipped or could not be recorded.` **PASS.**
+
+9. **Event Viewer clean (rule 12).** *Steps:* `SELECT * FROM events ORDER BY id DESC` for the cicdpublish rows.
+   *Actual:* not yet re-checked this session; BFF uses tLog only for the no_right path.
+
+10. **MANDATORY GATE for this suite.** *Steps:*
+    `TLU_REQUIRE_SUITE="Issue #1064" bash ai/verify_test_suites.sh`.
+    *Expected:* EXIT=0 with the own-suite-heading check passing.
